@@ -1,25 +1,108 @@
 // app/page.tsx
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { ArrowLeftIcon, ArrowRightIcon, XMarkIcon } from "@heroicons/react/24/solid";
+import FilterBar, { FilterValues } from "./components/FilterBar";
+import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/react/24/solid";
+import { getLabels } from "./i18n/labels";
 
-type Photo = { id: string; src: string; title: string };
+type Photo = {
+  id: string;
+  src: string;
+  title: string;
+  description?: string;
+  category?: string;
+  tags?: string[];
+  date?: string;
+  likes?: number;
+};
 
-const PHOTOS: Photo[] = [
-  { id: "1", src: "/images/sample1.jpg", title: "Mountains" },
-  { id: "2", src: "/images/sample2.jpg", title: "City Night" },
-  { id: "3", src: "/images/sample3.jpg", title: "Portrait A" },
+// raw data (may contain variation in formatting)
+const RAW_PHOTOS: Photo[] = [
+  { id: "1", src: "/images/sample1.jpg", title: "Mountains", category: "nature", tags: [""], date: "2024-01-10", likes: 10 },
+  { id: "2", src: "/images/sample2.jpg", title: "City Night", category: "street", tags: ["city", "night"], date: "2023-12-01", likes: 25 },
+  { id: "3", src: "/images/sample3.jpg", title: "Portrait A", category: "portrait", tags: ["people"], date: "2024-02-02", likes: 5 },
 ];
 
+// helpers
+const normalizeKey = (s?: string) =>
+  (s ?? "")
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-");
+
+const capitalize = (s?: string) => {
+  if (!s) return "";
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
 export default function Page() {
+  // locale state
+  const [locale, setLocale] = useState<"ja" | "en">("ja");
+  const labels = useMemo(() => getLabels(locale), [locale]);
+
+  // normalize photos once
+  const PHOTOS = useMemo<Photo[]>(
+    () =>
+      RAW_PHOTOS.map((p) => ({
+        ...p,
+        category: normalizeKey(p.category),
+        tags: (p.tags ?? []).map((t) => (t ?? "").toString().trim()).filter(Boolean),
+      })),
+    []
+  );
+
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
 
+  const [filters, setFilters] = useState<FilterValues>({
+    category: "all",
+    selectedTags: [],
+    query: "",
+    sort: "new",
+  });
+
+  // derive categories from PHOTOS to avoid mismatch
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of PHOTOS) {
+      if (p.category) set.add(p.category);
+    }
+    return ["all", ...Array.from(set)];
+  }, [PHOTOS]);
+
+  const tags = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of PHOTOS) {
+      for (const t of p.tags ?? []) set.add(t);
+    }
+    return Array.from(set);
+  }, [PHOTOS]);
+
+  const filteredPhotos = useMemo(() => {
+    let arr = PHOTOS.slice();
+
+    if (filters.category && filters.category !== "all") arr = arr.filter((p) => p.category === filters.category);
+
+    if (filters.selectedTags.length) arr = arr.filter((p) => filters.selectedTags.every((t) => (p.tags || []).includes(t)));
+
+    if (filters.query.trim()) {
+      const q = filters.query.toLowerCase();
+      arr = arr.filter((p) => ((p.title || "") + " " + (p.description || "")).toLowerCase().includes(q));
+    }
+
+    if (filters.sort === "new") arr.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+    else if (filters.sort === "old") arr.sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
+    else if (filters.sort === "popular") arr.sort((a, b) => (b.likes ?? 0) - (a.likes ?? 0));
+
+    return arr;
+  }, [filters, PHOTOS]);
+
   const open = useCallback((i: number) => setCurrentIndex(i), []);
-  const showNext = useCallback(() => setCurrentIndex((i) => (i === null ? null : (i + 1) % PHOTOS.length)), []);
-  const showPrev = useCallback(() => setCurrentIndex((i) => (i === null ? null : (i - 1 + PHOTOS.length) % PHOTOS.length)), []);
+  const showNext = useCallback(() => setCurrentIndex((i) => (i === null ? null : (i + 1) % filteredPhotos.length)), [filteredPhotos.length]);
+  const showPrev = useCallback(() => setCurrentIndex((i) => (i === null ? null : (i - 1 + filteredPhotos.length) % filteredPhotos.length)), [filteredPhotos.length]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -45,65 +128,103 @@ export default function Page() {
     };
   }, [currentIndex]);
 
+  // build categoryDisplayMap robustly
+  const categoryDisplayMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    const names = labels.category.names ?? {};
+
+    // ensure all derived categories have display names
+    for (const key of categories) {
+      if (key === "all") {
+        map["all"] = labels.category.all;
+        continue;
+      }
+      map[key] = names[key] ?? capitalize(key.replace(/-/g, " "));
+    }
+
+    // also ensure any category appearing in PHOTOS is covered
+    for (const p of PHOTOS) {
+      const k = normalizeKey(p.category);
+      if (k && !map[k]) map[k] = names[k] ?? capitalize(k.replace(/-/g, " "));
+    }
+
+    return map;
+  }, [labels, categories, PHOTOS]);
+
   return (
     <main className="p-8 min-h-screen bg-[#0b0b0b] text-white">
-      <h1 className="text-3xl font-bold mb-6">Gallery</h1>
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">Gallery</h1>
+          <div className="text-sm text-white/60 mt-1">{labels.category.title}</div>
+        </div>
 
-      {/* Grid */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setLocale("ja")}
+            className={`px-3 py-1 rounded ${locale === "ja" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+            aria-pressed={locale === "ja"}
+          >
+            日本語
+          </button>
+          <button
+            onClick={() => setLocale("en")}
+            className={`px-3 py-1 rounded ${locale === "en" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+            aria-pressed={locale === "en"}
+          >
+            English
+          </button>
+        </div>
+      </div>
+
+      <FilterBar
+        categories={categories}
+        tags={tags}
+        values={filters}
+        onChange={(next) => setFilters((s) => ({ ...s, ...next }))}
+        className="max-w-4xl mx-auto"
+        locale={locale}
+        categoryDisplayMap={categoryDisplayMap}
+      />
+
+      <div className="mb-4 text-sm text-white/70">結果: {filteredPhotos.length} 件</div>
+
       <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {PHOTOS.map((p, idx) => (
+        {filteredPhotos.map((p, idx) => (
           <div key={p.id}>
-            <button
-              onClick={() => open(idx)}
-              aria-label={`Open ${p.title}`}
-              className="block w-full p-0 border-0 bg-transparent cursor-pointer"
-            >
-              {/* Thumbnail 親に高さ（16:9）を与える */}
+            <button onClick={() => open(idx)} className="block w-full p-0 border-0 bg-transparent cursor-pointer" aria-label={`Open ${p.title}`}>
               <div className="relative w-full overflow-hidden bg-gray-800" style={{ paddingTop: "56.25%" }}>
-                <Image
-                  src={p.src}
-                  alt={p.title}
-                  fill
-                  className="object-cover object-bottom"
-                  sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
-                  loading="lazy"
-                />
+                <Image src={p.src} alt={p.title} fill className="object-cover object-bottom" sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw" loading="lazy" />
               </div>
             </button>
-
             <div className="mt-2 px-1">
               <div className="text-sm font-semibold">{p.title}</div>
+              <div className="text-xs text-white/60">{categoryDisplayMap[p.category ?? ""] ?? capitalize(p.category)}</div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Modal */}
-      {currentIndex !== null && PHOTOS[currentIndex] && (
+      {currentIndex !== null && filteredPhotos[currentIndex] && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-label={PHOTOS[currentIndex].title}
+          aria-label={filteredPhotos[currentIndex].title}
           onClick={() => setCurrentIndex(null)}
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ background: "rgba(0,0,0,0.85)", padding: 16 }}
         >
           <div onClick={(e) => e.stopPropagation()} className="relative mx-4" style={{ width: "90vw", maxWidth: 900 }}>
-            {/* モーダル内の親に高さを与え（4:3） */}
             <div className="relative w-full overflow-hidden bg-black" style={{ paddingTop: "75%" }}>
-              <Image
-                src={PHOTOS[currentIndex].src}
-                alt={PHOTOS[currentIndex].title}
-                fill
-                className="object-cover object-bottom"
-                sizes="90vw"
-                priority
-              />
+              <Image src={filteredPhotos[currentIndex].src} alt={filteredPhotos[currentIndex].title} fill className="object-cover object-bottom" sizes="90vw" priority />
             </div>
 
+            <div className="mt-3 text-white/80">
+              <div className="text-lg font-medium">{filteredPhotos[currentIndex].title}</div>
+              <div className="text-sm text-white/60">{categoryDisplayMap[filteredPhotos[currentIndex].category ?? ""] ?? capitalize(filteredPhotos[currentIndex].category)}</div>
+            </div>
           </div>
 
-          {/* Prev */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -116,7 +237,6 @@ export default function Page() {
             <ArrowLeftIcon className="h-6 w-6 text-white" />
           </button>
 
-          {/* Next */}
           <button
             onClick={(e) => {
               e.stopPropagation();
