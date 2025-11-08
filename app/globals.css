@@ -3,29 +3,115 @@
 @tailwind components;
 @tailwind utilities;
 
-
-
+/* design tokens (dark fixed) */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: #000000;
+  --color-foreground: #ffffff;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* 全体リセット / 基本 */
+html,
+body,
+#__next {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+}
+
+/* ヘッダー（既存の site-header を上書き） */
+.site-header {
+  font-family: "Noto Sans JP", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-weight: 700;
+}
+
+/* ヘッダーロゴ用サイズ（レスポンシブ対応） */
+.site-header__logo {
+  font-weight: 700;
+  font-size: 1.5rem;
+  /* 24px */
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+@media (min-width: 768px) {
+  .site-header__logo {
+    font-size: 1.875rem;
+    /* 30px */
   }
 }
 
+@media (min-width: 1024px) {
+  .site-header__logo {
+    font-size: 2.5rem;
+    /* 40px */
+  }
+}
+
+
+
+
+
+
+/* ヘッダータイトル（必要なら個別調整） */
+.site-header__title {
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
+}
+
+
+/* フォールバックフォント */
 body {
-  background: var(--background);
-  color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* app/globals.css */
+.site-footer {
+  background-color: #ffffff;
+  color: #000000;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* 内部コンテナ：大きめの余白と中央寄せ、必要なら min-height で高さを保証 */
+/* フッターのタイポグラフィ（オフィシャル感） */
+.site-footer__inner {
+  /* フォントは Playfair Display を推奨（serif） */
+  font-family: "Noto Sans JP", Georgia, serif;
+  font-weight: 700;
+  /* 太め */
+  font-size: 1.125rem;
+  /* 18px 相当、少し大きめ */
+  letter-spacing: -0.01em;
+  /* タイトル感を保つ微調整 */
+  line-height: 1.4;
+  text-transform: none;
+  color: #000000;
+  /* 既存のレイアウトプロパティはそのまま維持 */
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2.5rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 96px;
+}
+
+@media (min-width: 768px) {
+  .site-footer__inner {
+    padding: 3rem 2rem;
+    min-height: 120px;
+    font-size: 1.125rem;
+    /* mdでも同じサイズにする場合 */
+  }
 }

@@ -85,3 +85,29 @@ git push -u origin main
 ▶　画像アップロード機能の追加  
 ▶　モーダル表示の実装  
 ▶　Tailwind を活用したデザイン改善  
+
+## 6. 使い方
+
+### 開発サーバー起動
+```bash
+npm run dev
+---
+
+### 2. ディレクトリ構成を整理
+プロジェクトの構造を README に載せると、見通しが良くなります。
+
+```markdown
+## 7. ディレクトリ構成
+photo-gallery/
+├── app/              # アプリケーションコード
+├── public/           # 静的ファイル (画像など)
+├── node_modules/     # 省略
+├── .gitignore
+├── eslint.config.mjs
+├── next-env.d.ts
+├── next.config.ts
+├── package.json
+├── postcss.config.js
+├── tailwind.config.js
+├── tsconfig.json
+└── README.md
