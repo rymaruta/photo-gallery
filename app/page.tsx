@@ -4,7 +4,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import FilterBar, { FilterValues } from "./components/FilterBar";
-import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/react/24/solid";
+import { ArrowLeftIcon, ArrowRightIcon, XMarkIcon } from "@heroicons/react/24/solid";
 import { getLabels } from "./i18n/labels";
 
 type Photo = {
@@ -18,20 +18,14 @@ type Photo = {
   likes?: number;
 };
 
-// raw data (may contain variation in formatting)
 const RAW_PHOTOS: Photo[] = [
-  { id: "1", src: "/images/sample1.jpg", title: "Mountains", category: "nature", tags: [""], date: "2024-01-10", likes: 10 },
-  { id: "2", src: "/images/sample2.jpg", title: "City Night", category: "street", tags: ["city", "night"], date: "2023-12-01", likes: 25 },
-  { id: "3", src: "/images/sample3.jpg", title: "Portrait A", category: "portrait", tags: ["people"], date: "2024-02-02", likes: 5 },
+  { id: "1", src: "/images/sample1.jpg", title: "Center of Attention", category: "nature", tags: ["nature", "flower"], date: "2024-01-10", likes: 10 },
+  { id: "2", src: "/images/sample2.jpg", title: "The Heavens", category: "landscape", tags: ["landscape", "mountain"], date: "2023-12-01", likes: 25 },
+  { id: "3", src: "/images/sample3.jpg", title: "Dazzling", category: "architecture", tags: ["architecture"], date: "2024-02-02", likes: 5 },
 ];
 
-// helpers
 const normalizeKey = (s?: string) =>
-  (s ?? "")
-    .toString()
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-");
+  (s ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
 
 const capitalize = (s?: string) => {
   if (!s) return "";
@@ -39,11 +33,9 @@ const capitalize = (s?: string) => {
 };
 
 export default function Page() {
-  // locale state
   const [locale, setLocale] = useState<"ja" | "en">("ja");
   const labels = useMemo(() => getLabels(locale), [locale]);
 
-  // normalize photos once
   const PHOTOS = useMemo<Photo[]>(
     () =>
       RAW_PHOTOS.map((p) => ({
@@ -64,7 +56,6 @@ export default function Page() {
     sort: "new",
   });
 
-  // derive categories from PHOTOS to avoid mismatch
   const categories = useMemo(() => {
     const set = new Set<string>();
     for (const p of PHOTOS) {
@@ -84,10 +75,8 @@ export default function Page() {
   const filteredPhotos = useMemo(() => {
     let arr = PHOTOS.slice();
 
-    if (filters.category && filters.category !== "all") arr = arr.filter((p) => p.category === filters.category);
-
+    if (filters.category !== "all") arr = arr.filter((p) => p.category === filters.category);
     if (filters.selectedTags.length) arr = arr.filter((p) => filters.selectedTags.every((t) => (p.tags || []).includes(t)));
-
     if (filters.query.trim()) {
       const q = filters.query.toLowerCase();
       arr = arr.filter((p) => ((p.title || "") + " " + (p.description || "")).toLowerCase().includes(q));
@@ -128,26 +117,16 @@ export default function Page() {
     };
   }, [currentIndex]);
 
-  // build categoryDisplayMap robustly
   const categoryDisplayMap = useMemo(() => {
     const map: Record<string, string> = {};
     const names = labels.category.names ?? {};
-
-    // ensure all derived categories have display names
     for (const key of categories) {
-      if (key === "all") {
-        map["all"] = labels.category.all;
-        continue;
-      }
-      map[key] = names[key] ?? capitalize(key.replace(/-/g, " "));
+      map[key] = key === "all" ? labels.category.all : names[key] ?? capitalize(key.replace(/-/g, " "));
     }
-
-    // also ensure any category appearing in PHOTOS is covered
     for (const p of PHOTOS) {
       const k = normalizeKey(p.category);
       if (k && !map[k]) map[k] = names[k] ?? capitalize(k.replace(/-/g, " "));
     }
-
     return map;
   }, [labels, categories, PHOTOS]);
 
@@ -158,22 +137,9 @@ export default function Page() {
           <h1 className="text-3xl font-bold">Gallery</h1>
           <div className="text-sm text-white/60 mt-1">{labels.category.title}</div>
         </div>
-
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setLocale("ja")}
-            className={`px-3 py-1 rounded ${locale === "ja" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
-            aria-pressed={locale === "ja"}
-          >
-            日本語
-          </button>
-          <button
-            onClick={() => setLocale("en")}
-            className={`px-3 py-1 rounded ${locale === "en" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
-            aria-pressed={locale === "en"}
-          >
-            English
-          </button>
+          <button onClick={() => setLocale("ja")} className={`px-3 py-1 rounded ${locale === "ja" ? "bg-white text-black" : "bg-white/5 text-white/80"}`} aria-pressed={locale === "ja"}>日本語</button>
+          <button onClick={() => setLocale("en")} className={`px-3 py-1 rounded ${locale === "en" ? "bg-white text-black" : "bg-white/5 text-white/80"}`} aria-pressed={locale === "en"}>English</button>
         </div>
       </div>
 
@@ -191,15 +157,19 @@ export default function Page() {
 
       <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {filteredPhotos.map((p, idx) => (
-          <div key={p.id}>
+          <div key={p.id} className="w-full">
             <button onClick={() => open(idx)} className="block w-full p-0 border-0 bg-transparent cursor-pointer" aria-label={`Open ${p.title}`}>
               <div className="relative w-full overflow-hidden bg-gray-800" style={{ paddingTop: "56.25%" }}>
                 <Image src={p.src} alt={p.title} fill className="object-cover object-bottom" sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw" loading="lazy" />
               </div>
             </button>
-            <div className="mt-2 px-1">
-              <div className="text-sm font-semibold">{p.title}</div>
-              <div className="text-xs text-white/60">{categoryDisplayMap[p.category ?? ""] ?? capitalize(p.category)}</div>
+
+            {/* くっつける: mt-0 にして余白を無くす */}
+            <div className="mt-0 w-full">
+              <div className="bg-[#222222] px-3 py-1 text-left">
+                <div className="text-sm font-semibold text-white leading-tight">{p.title}</div>
+                <div className="text-xs text-white/60 mt-1">{categoryDisplayMap[p.category ?? ""]}</div>
+              </div>
             </div>
           </div>
         ))}
@@ -214,15 +184,37 @@ export default function Page() {
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ background: "rgba(0,0,0,0.85)", padding: 16 }}
         >
-          <div onClick={(e) => e.stopPropagation()} className="relative mx-4" style={{ width: "90vw", maxWidth: 900 }}>
+          <div onClick={(e) => e.stopPropagation()} className="relative mx-4 w-full" style={{ maxWidth: 900 }}>
             <div className="relative w-full overflow-hidden bg-black" style={{ paddingTop: "75%" }}>
-              <Image src={filteredPhotos[currentIndex].src} alt={filteredPhotos[currentIndex].title} fill className="object-cover object-bottom" sizes="90vw" priority />
+              <Image
+                src={filteredPhotos[currentIndex].src}
+                alt={filteredPhotos[currentIndex].title}
+                fill
+                className="object-cover object-bottom"
+                sizes="90vw"
+                priority
+              />
             </div>
 
             <div className="mt-3 text-white/80">
               <div className="text-lg font-medium">{filteredPhotos[currentIndex].title}</div>
-              <div className="text-sm text-white/60">{categoryDisplayMap[filteredPhotos[currentIndex].category ?? ""] ?? capitalize(filteredPhotos[currentIndex].category)}</div>
+              <div className="text-sm text-white/60">
+                {categoryDisplayMap[filteredPhotos[currentIndex].category ?? ""] ?? capitalize(filteredPhotos[currentIndex].category)}
+              </div>
+              {filteredPhotos[currentIndex].description && (
+                <div className="mt-2 text-sm text-white/70">{filteredPhotos[currentIndex].description}</div>
+              )}
             </div>
+
+            <button
+              ref={closeRef}
+              onClick={() => setCurrentIndex(null)}
+              aria-label="Close"
+              className="absolute right-3 top-3 bg-black/40 hover:bg-black/60 p-2 rounded focus:outline-none focus:ring-2 focus:ring-white"
+              style={{ minWidth: 40, minHeight: 40 }}
+            >
+              <XMarkIcon className="h-5 w-5 text-white" />
+            </button>
           </div>
 
           <button
