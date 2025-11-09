@@ -131,7 +131,7 @@ export default function Page() {
   }, [labels, categories, PHOTOS]);
 
   return (
-    <main className="p-8 min-h-screen bg-[#0b0b0b] text-white">
+    <main className="p-8 min-h-screen text-white">
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
           <h1 id="site-title" className="text-3xl font-bold">
