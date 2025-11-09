@@ -134,7 +134,7 @@ export default function Page() {
     <main className="p-8 min-h-screen bg-[#0b0b0b] text-white">
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Gallery</h1>
+          <h1 className="text-3xl font-bold">{labels.site?.title ?? "Gallery"}</h1>
           <div className="text-sm text-white/60 mt-1">{labels.category.title}</div>
         </div>
         <div className="flex items-center gap-2">

@@ -1,9 +1,11 @@
 // app/i18n/labels.ts
 export type Labels = {
+    site?: {
+        title?: string;
+    };
     category: {
         title: string;
         all: string;
-        // map of category key -> display name (optional)
         names?: Record<string, string>;
     };
     sort: {
@@ -25,6 +27,7 @@ export type Labels = {
 };
 
 export const ja: Labels = {
+    site: { title: "ギャラリー" },
     category: {
         title: "カテゴリ",
         all: "すべて",
@@ -33,26 +36,21 @@ export const ja: Labels = {
             photography: "写真",
             illustration: "イラスト",
             design: "デザイン",
+            nature: "自然",
+            landscape: "風景",
+            architecture: "建築",
         },
     },
     sort: {
         label: "並び替え",
-        options: {
-            new: "新しい順",
-            old: "古い順",
-            popular: "人気順",
-        },
+        options: { new: "新しい順", old: "古い順", popular: "人気順" },
     },
-    tags: {
-        title: "タグ",
-    },
-    search: {
-        placeholder: "タイトルや説明で検索",
-        clear: "クリア",
-    },
+    tags: { title: "タグ" },
+    search: { placeholder: "タイトルや説明で検索", clear: "クリア" },
 };
 
 export const en: Labels = {
+    site: { title: "Gallery" },
     category: {
         title: "Category",
         all: "All",
@@ -61,26 +59,19 @@ export const en: Labels = {
             photography: "Photography",
             illustration: "Illustration",
             design: "Design",
+            nature: "Nature",
+            landscape: "Landscape",
+            architecture: "Architecture",
         },
     },
     sort: {
         label: "Sort",
-        options: {
-            new: "Newest",
-            old: "Oldest",
-            popular: "Popular",
-        },
+        options: { new: "Newest", old: "Oldest", popular: "Popular" },
     },
-    tags: {
-        title: "Tags",
-    },
-    search: {
-        placeholder: "Search title or description",
-        clear: "Clear",
-    },
+    tags: { title: "Tags" },
+    search: { placeholder: "Search title or description", clear: "Clear" },
 };
 
-// simple selector. defaultLocale can be changed easily.
 const map: Record<string, Labels> = { ja, en };
 
 export function getLabels(locale: string = "ja"): Labels {
