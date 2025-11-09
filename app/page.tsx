@@ -20,7 +20,7 @@ type Photo = {
 
 const RAW_PHOTOS: Photo[] = [
   { id: "1", src: "/images/sample1.jpg", title: "Center of Attention", category: "nature", tags: ["nature", "flower"], date: "2024-01-10", likes: 10 },
-  { id: "2", src: "/images/sample2.jpg", title: "The Heavens", category: "landscape", tags: ["landscape", "mountain"], date: "2023-12-01", likes: 25 },
+  { id: "2", src: "/images/sample2.jpg", title: "The Heavens", category: "landscape", tags: ["landscape"], date: "2023-12-01", likes: 25 },
   { id: "3", src: "/images/sample3.jpg", title: "Dazzling", category: "architecture", tags: ["architecture"], date: "2024-02-02", likes: 5 },
 ];
 

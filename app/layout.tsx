@@ -3,6 +3,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Inter, Playfair_Display } from "next/font/google";
+import HeaderNav from "./components/HeaderNav";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "700"] });
 const playfair = Playfair_Display({ subsets: ["latin"], weight: ["700"] });
@@ -23,13 +24,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               PhotoGallery
             </h1>
 
+            <HeaderNav />
 
-            <nav className="site-header__nav flex items-center space-x-6 md:space-x-8 text-sm md:text-base">
-              <Link href="/" className="hover:text-blue-400">Home</Link>
-              <Link href="/gallery" className="hover:text-blue-400">Gallery</Link>
-              <Link href="/about" className="hover:text-blue-400">About</Link>
-              {/*<Link href="/contact" className="hover:text-blue-400">Contact</Link>*/}
-            </nav>
           </div>
         </header>
 
