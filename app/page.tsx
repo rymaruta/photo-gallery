@@ -134,14 +134,38 @@ export default function Page() {
     <main className="p-8 min-h-screen bg-[#0b0b0b] text-white">
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold">{labels.site?.title ?? "Gallery"}</h1>
-          <div className="text-sm text-white/60 mt-1">{labels.category.title}</div>
+          <h1 id="site-title" className="text-3xl font-bold">
+            {labels.site?.title ?? "Gallery"}
+          </h1>
+
+          {labels.site?.subtitle ? (
+            <p id="site-subtitle" className="text-sm text-white/60 mt-1" aria-hidden={false}>
+              {labels.site.subtitle}
+            </p>
+          ) : null}
         </div>
+
         <div className="flex items-center gap-2">
-          <button onClick={() => setLocale("ja")} className={`px-3 py-1 rounded ${locale === "ja" ? "bg-white text-black" : "bg-white/5 text-white/80"}`} aria-pressed={locale === "ja"}>日本語</button>
-          <button onClick={() => setLocale("en")} className={`px-3 py-1 rounded ${locale === "en" ? "bg-white text-black" : "bg-white/5 text-white/80"}`} aria-pressed={locale === "en"}>English</button>
+          <button
+            onClick={() => setLocale("ja")}
+            className={`px-3 py-1 rounded ${locale === "ja" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+            aria-pressed={locale === "ja"}
+            aria-label="表示を日本語に切り替える"
+          >
+            日本語
+          </button>
+
+          <button
+            onClick={() => setLocale("en")}
+            className={`px-3 py-1 rounded ${locale === "en" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+            aria-pressed={locale === "en"}
+            aria-label="Switch display language to English"
+          >
+            English
+          </button>
         </div>
       </div>
+
 
       <FilterBar
         categories={categories}

@@ -2,6 +2,7 @@
 export type Labels = {
     site?: {
         title?: string;
+        subtitle?: string;
     };
     category: {
         title: string;
@@ -27,7 +28,10 @@ export type Labels = {
 };
 
 export const ja: Labels = {
-    site: { title: "ギャラリー" },
+    site: {
+        title: "作品紹介",
+        subtitle: "作品と向き合うための静かな場です。ご自由にお楽しみください。"
+    },
     category: {
         title: "カテゴリ",
         all: "すべて",
@@ -50,7 +54,7 @@ export const ja: Labels = {
 };
 
 export const en: Labels = {
-    site: { title: "Gallery" },
+    site: { title: "Works", subtitle: "A quiet place to appreciate the works. Please enjoy freely." },
     category: {
         title: "Category",
         all: "All",
