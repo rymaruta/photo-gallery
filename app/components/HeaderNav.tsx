@@ -106,7 +106,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                     >
                                         <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
                                             <Link href="/" onClick={() => setOpen(false)} className={`${linkBase} ${inactiveClasses}`}>
-                                                Home
+                                                Works
                                             </Link>
                                         </li>
 
