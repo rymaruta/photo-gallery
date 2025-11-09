@@ -61,7 +61,7 @@ export default function Page() {
     for (const p of PHOTOS) {
       if (p.category) set.add(p.category);
     }
-    return ["all", ...Array.from(set)];
+    return [...Array.from(set)];
   }, [PHOTOS]);
 
   const tags = useMemo(() => {
@@ -206,15 +206,6 @@ export default function Page() {
               )}
             </div>
 
-            <button
-              ref={closeRef}
-              onClick={() => setCurrentIndex(null)}
-              aria-label="Close"
-              className="absolute right-3 top-3 bg-black/40 hover:bg-black/60 p-2 rounded focus:outline-none focus:ring-2 focus:ring-white"
-              style={{ minWidth: 40, minHeight: 40 }}
-            >
-              <XMarkIcon className="h-5 w-5 text-white" />
-            </button>
           </div>
 
           <button
