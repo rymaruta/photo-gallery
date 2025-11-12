@@ -1,49 +1,122 @@
 // app/about/page.tsx
-import React from "react";
+"use client";
+
+import React, { useMemo, useState } from "react";
+import Head from "next/head";
 import Image from "next/image";
+import getContent, { AboutContent } from "./i18n/about";
+import { getLabels } from "../i18n/labels";
+import LocaleToggle from "../components/LocaleToggle";
 
 export default function AboutPage() {
+    const [locale, setLocale] = useState<"ja" | "en">("ja");
+    const about = useMemo<AboutContent>(() => getContent(locale), [locale]);
+
+    // shared labels from i18n (used mainly for LocaleToggle labels and safe fallbacks)
+    const labels = useMemo(() => getLabels(locale), [locale]);
+
+    const paras = Array.isArray(about.paragraphs)
+        ? about.paragraphs
+        : about.body
+            ? about.body.split(/\r?\n/).filter(Boolean)
+            : [];
+
+    // LocaleToggle expects labels.ui.language shape in your Page — keep a safe fallback
+    const localeLabels = labels.ui?.language ?? { ja: "日本語", en: "English" };
+
+    // Use about.* first, then fallback to labels.site.* if missing
+    const headerTitle = about.title ?? labels.site?.title ?? "About";
+    const headerSubtitle = about.description ?? labels.site?.subtitle ?? "";
+
     return (
-        <div className="min-h-screen bg-[#060606] text-white">
-            <div className="mx-auto max-w-screen-lg p-6 md:p-12">
-                <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-                    {/* 左: アイコン風プロフィール写真 */}
-                    <div className="flex-shrink-0">
-                        <div className="w-20 h-20 md:w-36 md:h-36 rounded-sm overflow-hidden bg-gray-900">
-                            <img
-                                src="/avatar.jpg"
-                                alt="Ryuhei Maruta"
-                                className="w-full h-full object-cover"
-                            />
-                        </div>
+        <>
+            <Head>
+                <title>{headerTitle}</title>
+                <meta name="description" content={headerSubtitle} />
+                <link rel="canonical" href="https://your-domain.example/about" />
+            </Head>
+
+            <main className="p-8 min-h-screen text-white">
+                <div className="flex items-start justify-between gap-4 mb-6 min-h-[64px]">
+                    <div>
+                        <h1 id="site-title" className="text-3xl font-bold">
+                            {headerTitle}
+                        </h1>
+
+                        {headerSubtitle ? (
+                            <p id="site-subtitle" className="text-sm text-white/60 mt-1">
+                                {headerSubtitle}
+                            </p>
+                        ) : null}
                     </div>
 
-                    {/* 右: 名前・肩書き */}
-                    <div className="flex-1">
-                        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">丸田 竜平</h1>
-                        <p className="mt-1 text-sm md:text-base text-gray-300">
-                            Photographer — quiet, observant, intentional
-                        </p>
-
-                        {/* SNS */}
-                        <div className="mt-4 flex items-center gap-3">
-                            <a href="https://www.instagram.com/your_handle" target="_blank" rel="noopener noreferrer" className="w-9 h-9 md:w-12 md:h-12 rounded-full flex items-center justify-center hover:bg-white/6 transition-colors">
-                                <img src="/Instagram.svg" alt="Instagram" className="w-4 md:w-6 h-4 md:h-6" />
-                            </a>
-                        </div>
-                    </div>
+                    <LocaleToggle locale={locale} setLocale={setLocale} labels={localeLabels} />
                 </div>
 
-                {/* リード文（詩的に） */}
-                <div className="mt-8 max-w-2xl text-gray-200 text-base md:text-lg leading-relaxed">
-                    <p className="mb-3">
-                        光と静けさを探してカメラを持ち歩いています。日常の細部を切り取り、時間の痕跡を写真に留めることを大切にしています。
-                    </p>
-                    <p>
-                        技術より先に「見ること」を大事にし、意図的に余白を残す写真を心がけています。作品はオンラインで公開すると同時に、プリントと展示を中心に発表しています。
-                    </p>
+                <div className="mx-auto max-w-screen-lg px-6 py-6 md:py-12">
+                    <section className="grid grid-cols-1 md:grid-cols-3 gap-10 items-start">
+                        <aside className="md:col-span-1 flex flex-col items-start gap-6">
+                            <div className="w-28 h-28 md:w-44 md:h-44 rounded-full overflow-hidden bg-gray-900 ring-1 ring-white/6">
+                                <Image
+                                    src="/images/me-portrait.jpg"
+                                    alt={
+                                        about.photographer?.name
+                                            ? `${about.photographer.name} — portrait`
+                                            : "portrait"
+                                    }
+                                    width={440}
+                                    height={440}
+                                    sizes="(max-width: 768px) 96px, 176px"
+                                    className="w-full h-full object-cover object-center"
+                                    priority
+                                />
+                            </div>
+
+                            <div>
+                                <h2 className="text-lg md:text-2xl font-semibold">
+                                    {about.photographer?.name ?? (locale === "ja" ? "丸田 竜平" : "Ryuhei Maruta")}
+                                </h2>
+                                <p className="mt-1 text-sm text-gray-300">
+                                    {about.photographer?.title ?? (locale === "ja" ? "写真家" : "Photographer")}
+                                </p>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <a
+                                    href="https://www.instagram.com/your_handle"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 text-sm text-white/90 hover:text-white transition"
+                                    aria-label="Instagram"
+                                >
+                                    <Image src="/Instagram.svg" alt="Instagram" width={20} height={20} className="inline-block" />
+                                    <span className="text-sm text-white/80">Instagram</span>
+                                </a>
+                            </div>
+
+                            <div className="mt-4 text-xs text-white/30">
+                                <span>{about.contactLine ?? "Prints • Exhibitions • Limited editions"}</span>
+                            </div>
+                        </aside>
+
+                        <article className="md:col-span-2">
+                            <div className="rounded-xl p-6 md:p-8 bg-gradient-to-b from-white/2 to-transparent ring-1 ring-white/6 backdrop-blur-sm">
+                                <div className="space-y-6 text-base md:text-lg leading-relaxed text-gray-200">
+                                    {paras.length > 0 ? (
+                                        paras.map((p, i) => (
+                                            <p key={i} className="m-0">
+                                                {p}
+                                            </p>
+                                        ))
+                                    ) : (
+                                        <p className="text-gray-400">No content available.</p>
+                                    )}
+                                </div>
+                            </div>
+                        </article>
+                    </section>
                 </div>
-            </div>
-        </div>
+            </main>
+        </>
     );
 }

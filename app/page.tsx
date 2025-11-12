@@ -1,10 +1,10 @@
-// app/page.tsx
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import FilterBar, { FilterValues } from "./components/FilterBar";
-import { ArrowLeftIcon, ArrowRightIcon, XMarkIcon } from "@heroicons/react/24/solid";
+import LocaleToggle from "./components/LocaleToggle";
+import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/react/24/solid";
 import { getLabels } from "./i18n/labels";
 
 type Photo = {
@@ -132,7 +132,7 @@ export default function Page() {
 
   return (
     <main className="p-8 min-h-screen text-white">
-      <div className="flex items-start justify-between gap-4 mb-6">
+      <div className="flex items-start justify-between gap-4 mb-6 min-h-[64px]">
         <div>
           <h1 id="site-title" className="text-3xl font-bold">
             {labels.site?.title ?? "Gallery"}
@@ -145,27 +145,13 @@ export default function Page() {
           ) : null}
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setLocale("ja")}
-            className={`px-3 py-1 rounded ${locale === "ja" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
-            aria-pressed={locale === "ja"}
-            aria-label="表示を日本語に切り替える"
-          >
-            日本語
-          </button>
+        <LocaleToggle
+          locale={locale}
+          setLocale={setLocale}
+          labels={labels.ui?.language ?? { ja: "日本語", en: "English" }}
+        />
 
-          <button
-            onClick={() => setLocale("en")}
-            className={`px-3 py-1 rounded ${locale === "en" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
-            aria-pressed={locale === "en"}
-            aria-label="Switch display language to English"
-          >
-            English
-          </button>
-        </div>
       </div>
-
 
       <FilterBar
         categories={categories}
@@ -177,26 +163,27 @@ export default function Page() {
         categoryDisplayMap={categoryDisplayMap}
       />
 
-      <div className="mb-4 text-sm text-white/70">結果: {filteredPhotos.length} 件</div>
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-4 text-sm text-white/70">結果: {filteredPhotos.length} 件</div>
 
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {filteredPhotos.map((p, idx) => (
-          <div key={p.id} className="w-full">
-            <button onClick={() => open(idx)} className="block w-full p-0 border-0 bg-transparent cursor-pointer" aria-label={`Open ${p.title}`}>
-              <div className="relative w-full overflow-hidden bg-gray-800" style={{ paddingTop: "56.25%" }}>
-                <Image src={p.src} alt={p.title} fill className="object-cover object-bottom" sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw" loading="lazy" />
-              </div>
-            </button>
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          {filteredPhotos.map((p, idx) => (
+            <div key={p.id} className="w-full">
+              <button onClick={() => open(idx)} className="block w-full p-0 border-0 bg-transparent cursor-pointer" aria-label={`Open ${p.title}`}>
+                <div className="relative w-full overflow-hidden bg-gray-800" style={{ paddingTop: "56.25%" }}>
+                  <Image src={p.src} alt={p.title} fill className="object-cover object-bottom" sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw" loading="lazy" />
+                </div>
+              </button>
 
-            {/* くっつける: mt-0 にして余白を無くす */}
-            <div className="mt-0 w-full">
-              <div className="bg-[#222222] px-3 py-1 text-left">
-                <div className="text-sm font-semibold text-white leading-tight">{p.title}</div>
-                <div className="text-xs text-white/60 mt-1">{categoryDisplayMap[p.category ?? ""]}</div>
+              <div className="mt-0 w-full">
+                <div className="bg-[#222222] px-3 py-1 text-left">
+                  <div className="text-sm font-semibold text-white leading-tight">{p.title}</div>
+                  <div className="text-xs text-white/60 mt-1">{categoryDisplayMap[p.category ?? ""]}</div>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {currentIndex !== null && filteredPhotos[currentIndex] && (

@@ -28,8 +28,8 @@ export default function FilterBar({
     locale?: string;
     categoryDisplayMap?: Record<string, string>;
 }) {
-    const labels: Labels = getLabels(locale);
-
+    const safeLocale = locale === "en" ? "en" : "ja";
+    const labels = getLabels(safeLocale);
     const [localQuery, setLocalQuery] = useState(values.query || "");
     useEffect(() => {
         setLocalQuery(values.query || "");

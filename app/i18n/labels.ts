@@ -1,8 +1,15 @@
 // app/i18n/labels.ts
+
 export type Labels = {
     site?: {
         title?: string;
         subtitle?: string;
+    };
+    ui?: {
+        language?: {
+            ja?: string;
+            en?: string;
+        };
     };
     category: {
         title: string;
@@ -30,7 +37,10 @@ export type Labels = {
 export const ja: Labels = {
     site: {
         title: "作品紹介",
-        subtitle: "作品と向き合うための静かな場です。ご自由にお楽しみください。"
+        subtitle: "作品と向き合うための静かな場です。ご自由にお楽しみください。",
+    },
+    ui: {
+        language: { ja: "日本語", en: "English" },
     },
     category: {
         title: "カテゴリ",
@@ -54,7 +64,13 @@ export const ja: Labels = {
 };
 
 export const en: Labels = {
-    site: { title: "Works", subtitle: "A quiet place to appreciate the works. Please enjoy freely." },
+    site: {
+        title: "Works",
+        subtitle: "A quiet place to appreciate the works. Please enjoy freely.",
+    },
+    ui: {
+        language: { ja: "日本語", en: "English" },
+    },
     category: {
         title: "Category",
         all: "All",
@@ -78,7 +94,7 @@ export const en: Labels = {
 
 const map: Record<string, Labels> = { ja, en };
 
-export function getLabels(locale: string = "ja"): Labels {
+export function getLabels(locale: "ja" | "en" = "ja"): Labels {
     return map[locale] ?? ja;
 }
 
