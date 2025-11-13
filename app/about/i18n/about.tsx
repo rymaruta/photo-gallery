@@ -1,11 +1,14 @@
 // app/i18n/about.ts
-
 export type AboutContent = {
     title: string;
     description: string;
     body?: string;
     paragraphs?: string[];
-    contactLine?: string;
+    contactTitle?: string;
+    contactPrompt?: string;
+    updatesLine?: string;
+    contactUrl?: string;
+    contactHandle?: string;
     photographer?: {
         name?: string;
         title?: string;
@@ -16,12 +19,15 @@ const ja: AboutContent = {
     title: "制作について",
     description: "自己紹介とサイトの概要",
     paragraphs: [
-        "普段は会社員として働きながら、週末や長期休暇を使って国内外を旅しています。",
-        "当サイトは旅先で出会う景色や空気を収めた小さなギャラリーです。"
+        "当サイトは旅行中に撮影した風景写真を中心に公開しています。"
     ],
-    contactLine: "お問い合わせはInstagramへ",
+    contactTitle: "運営・お問い合わせ",
+    contactPrompt: "Instagram の DM へご連絡ください。",
+    updatesLine: "コンテンツは随時更新予定です。",
+    contactUrl: "https://www.instagram.com/maru_chaannn",
+    contactHandle: "@maru_chaannn",
     photographer: {
-        title: "写真家",
+        title: "管理人",
         name: "丸田 竜平",
     },
 };
@@ -30,12 +36,15 @@ const en: AboutContent = {
     title: "About",
     description: "About me and this site",
     paragraphs: [
-        "I work full-time while traveling domestically and abroad on weekends and during longer breaks.",
-        "This site is a small gallery that captures the scenes and atmosphere encountered during my travels."
+        "This site features landscape photographs taken during my travels."
     ],
-    contactLine: "For inquiries, please contact me on Instagram",
+    contactTitle: "Contact",
+    contactPrompt: "Please contact me via Instagram DM.",
+    updatesLine: "Content will be updated from time to time.",
+    contactUrl: "https://www.instagram.com/your_handle",
+    contactHandle: "@maru_chaannn",
     photographer: {
-        title: "Photographer",
+        title: "Webmaster",
         name: "Ryuhei Maruta",
     },
 };
