@@ -22,6 +22,12 @@ const RAW_PHOTOS: Photo[] = [
   { id: "1", src: "/images/sample1.jpg", title: "Center of Attention", category: "nature", tags: ["nature", "flower"], date: "2024-01-10", likes: 10 },
   { id: "2", src: "/images/sample2.jpg", title: "The Heavens", category: "landscape", tags: ["landscape"], date: "2023-12-01", likes: 25 },
   { id: "3", src: "/images/sample3.jpg", title: "Dazzling", category: "architecture", tags: ["architecture"], date: "2024-02-02", likes: 5 },
+
+  // 追加したサンプル画像
+  { id: "4", src: "/images/sample4.jpg", title: "Sunlit Blossom", category: "nature", tags: ["nature", "morning"], date: "2024-03-11", likes: 8 },
+  { id: "5", src: "/images/sample5.jpg", title: "Twilight at Versailles", category: "landscape", tags: ["landscape"], date: "2023-11-20", likes: 18 },
+  { id: "6", src: "/images/sample6.jpg", title: "Flare", category: "landscape", tags: ["landscape"], date: "2024-04-02", likes: 30 },
+  { id: "7", src: "/images/sample7.jpg", title: "Line Up", category: "architecture", tags: ["rchitecture"], date: "2023-10-05", likes: 12 },
 ];
 
 const normalizeKey = (s?: string) =>
