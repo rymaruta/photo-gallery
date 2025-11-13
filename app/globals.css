@@ -55,18 +55,12 @@ body,
   }
 }
 
-
-
-
-
-
 /* ヘッダータイトル（必要なら個別調整） */
 .site-header__title {
   font-weight: 700;
   font-size: 1.25rem;
   letter-spacing: -0.01em;
 }
-
 
 /* フォールバックフォント */
 body {
@@ -115,3 +109,152 @@ body {
     /* mdでも同じサイズにする場合 */
   }
 }
+
+/* ---------------------------
+   追加: モバイル向け文字縮小（既存デザインを崩さず全体を小さくする）
+   メディアクエリは必要最低限の上書きのみ。ファイル末尾に置くと安全。
+   --------------------------- */
+@media (max-width: 639px) {
+
+  /* ベースを少し下げる（remベースなら全体が縮む） */
+  html,
+  body,
+  #__next {
+    font-size: 14px;
+    /* 必要に応じて 13px / 15px に調整 */
+  }
+
+  /* 見出しの微調整（既存のサイズを壊さない程度に） */
+  h1 {
+    font-size: 1.25rem;
+  }
+
+  /* ~20px */
+  h2 {
+    font-size: 1.125rem;
+  }
+
+  /* ~18px */
+  h3 {
+    font-size: 1rem;
+  }
+
+  /* ~16px */
+
+  /* Tailwind や既存ユーティリティで指定された小さいテキストをさらに微調整 */
+  .text-sm {
+    font-size: 0.78rem !important;
+  }
+
+  /* ~12.5px */
+  .text-xs {
+    font-size: 0.7rem !important;
+  }
+
+  /* ~11px */
+
+  /* ヘッダー文字を少し小さく */
+  .site-header__logo {
+    font-size: 1.125rem !important;
+  }
+
+  /* ~18px */
+  .site-header__title {
+    font-size: 0.95rem !important;
+  }
+
+  /* フィルタバー、カードキャプションの縮小（既存UIの見た目を保持） */
+  .filter-bar,
+  .filter-bar button,
+  .filter-bar input,
+  .filter-bar select {
+    font-size: 0.78rem !important;
+  }
+
+  .card-caption .title {
+    font-size: 0.78rem !important;
+  }
+
+  .card-caption .sub {
+    font-size: 0.64rem !important;
+  }
+
+  /* ページ左右パディングを少し詰めて情報密度を確保 */
+  .px-4,
+  .px-2 {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+}
+
+/* ---------------------------
+   追加: ギャラリー用の最小ユーティリティ（既存の Tailwind と競合しにくい）
+   目的: インスタ風の3列・隙間ゼロを実現しつつ、行の下端を揃える簡易ルール
+   --------------------------- */
+
+/* ギャラリー外枠（任意で使う） */
+.gallery-grid {
+  width: 100%;
+  max-width: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* 各カード基礎 */
+.gallery-item {
+  box-sizing: border-box;
+}
+
+/* サムネ外側ラッパー（paddingTop でアスペクト比を作る場合に使う） */
+.thumb-wrap {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+}
+
+/* 内側: 画像を下端に揃えるための最小スタイル（行のボトムを揃える） */
+.thumb-inner {
+  display: flex;
+  align-items: flex-end;
+  /* 重要: 画像を下に揃える */
+  justify-content: center;
+  width: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+/* Next/Image や通常 img に効く基本ルール（intrinsic レイアウト想定） */
+.next-image,
+.thumb-inner img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  object-position: 50% 50%;
+}
+
+/* 左寄せ/中央/右寄せの小さなユーティリティ */
+.crop-left .next-image,
+.crop-left img {
+  object-position: 20% 50%;
+}
+
+.crop-center .next-image,
+.crop-center img {
+  object-position: 50% 50%;
+}
+
+.crop-right .next-image,
+.crop-right img {
+  object-position: 80% 50%;
+}
+
+/* 軽いトランジション（任意） */
+.obj-transition .next-image,
+.obj-transition img {
+  transition: object-position 180ms ease;
+}
+
+/* 既存の footer/caption 等を壊さないよう余白/カラーは制御しない（必要な場合は個別に上書きしてください） */
