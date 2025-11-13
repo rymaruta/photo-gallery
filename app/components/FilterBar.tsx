@@ -49,6 +49,36 @@ function FilterBarInner({
     const safeLocale = locale === "en" ? "en" : "ja";
     const labels = useMemo(() => getLabels(safeLocale), [safeLocale]);
 
+    // --- Safe access: labels may not have typed 'tags' or 'actions' properties.
+    // Use `any` access and provide fallbacks.
+    const rawLabels = labels as any;
+
+    const tagLabels = useMemo(() => {
+        const t = rawLabels?.tags;
+        return {
+            title: t?.title as string | undefined,
+            multiple: t?.multiple as string | undefined,
+            single: t?.single as string | undefined,
+            none: t?.none as string | undefined,
+        };
+    }, [rawLabels?.tags]);
+
+    const actionLabels = useMemo(() => {
+        const a = rawLabels?.actions;
+        return {
+            clearTags: a?.clearTags as string | undefined,
+            showAll: a?.showAll as string | undefined,
+            showAllGeneric: a?.showAllGeneric as string | undefined,
+        };
+    }, [rawLabels?.actions]);
+
+    const multipleLabel = tagLabels.multiple ?? "tags";
+    const singleLabel = tagLabels.single ?? "tag";
+    const noneLabel = tagLabels.none ?? "No tags";
+    const clearLabel = actionLabels.clearTags ?? "Clear";
+    const showAllFixedLabel = actionLabels.showAllGeneric ?? actionLabels.showAll ?? "Show";
+
+    // local query state + debounced apply
     const [localQuery, setLocalQuery] = useState(values.query || "");
     useEffect(() => setLocalQuery(values.query || ""), [values.query]);
 
@@ -61,6 +91,7 @@ function FilterBarInner({
     );
     useEffect(() => () => debouncedApply.cancel(), [debouncedApply]);
 
+    // toggle tag (stable)
     const toggleTag = useCallback(
         (t: string) => {
             const set = new Set(values.selectedTags);
@@ -71,6 +102,7 @@ function FilterBarInner({
         [values.selectedTags, onChange]
     );
 
+    // clear with guard + cancel debounce + low priority transition
     const [isPending, startTransition] = useTransition();
     const clearTags = useCallback(() => {
         if (!values.selectedTags || values.selectedTags.length === 0) return;
@@ -84,11 +116,13 @@ function FilterBarInner({
         });
     }, [values.selectedTags, debouncedApply, onChange, startTransition]);
 
+    // labels for categories
     const labelForCategory = useCallback(
-        (k: string) => categoryDisplayMap?.[k] ?? labels.category.names?.[k] ?? k,
-        [categoryDisplayMap, labels.category.names]
+        (k: string) => categoryDisplayMap?.[k] ?? (rawLabels?.category?.names?.[k] ?? k),
+        [categoryDisplayMap, rawLabels]
     );
 
+    // compute counts (best-effort)
     const counts = useMemo(() => {
         if (Object.keys(tagCounts).length) return tagCounts;
         const map: Record<string, number> = {};
@@ -96,6 +130,7 @@ function FilterBarInner({
         return map;
     }, [tagCounts, tags]);
 
+    // sort menu state refs and keyboard handling (stable)
     const [isSortOpen, setSortOpen] = useState(false);
     const sortButtonRef = useRef<HTMLButtonElement | null>(null);
     const sortMenuRef = useRef<HTMLDivElement | null>(null);
@@ -154,6 +189,7 @@ function FilterBarInner({
         []
     );
 
+    // query change (local + debounced)
     const onQueryChange = useCallback(
         (v: string) => {
             setLocalQuery(v);
@@ -162,9 +198,11 @@ function FilterBarInner({
         [debouncedApply]
     );
 
+    // showAll toggle (visual only)
     const [showAllTags, setShowAllTags] = useState(false);
     const toggleShowAll = useCallback(() => setShowAllTags((s) => !s), []);
 
+    // chip keyboard handler
     const onChipKey = useCallback(
         (e: React.KeyboardEvent, t: string) => {
             if (e.key === " " || e.key === "Enter") {
@@ -178,34 +216,23 @@ function FilterBarInner({
     const selectedSummary = useMemo(
         () =>
             values.selectedTags.length > 0
-                ? `${values.selectedTags.length} ${values.selectedTags.length > 1
-                    ? labels.tags?.multiple ?? "tags"
-                    : labels.tags?.single ?? "tag"
-                }`
-                : labels.tags?.none ?? "No tags",
-        [values.selectedTags.length, labels.tags]
+                ? `${values.selectedTags.length} ${values.selectedTags.length > 1 ? multipleLabel : singleLabel}`
+                : noneLabel,
+        [values.selectedTags.length, multipleLabel, singleLabel, noneLabel]
     );
 
-    // --- ADJUSTED SIZES: control buttons slightly smaller, chips remain compact ---
-    const CONTROL_PAD_Y = 4; // smaller vertical padding for control buttons
-    const CONTROL_PAD_X = 8; // smaller horizontal padding for control buttons
-    const CONTROL_MIN_H = 30; // slightly lower min height
-    const CONTROL_RADIUS = 8;
-
-    const CHIP_PAD_Y = 4;
-    const CHIP_PAD_X = 8;
-    const CHIP_MIN_H = 28;
-
+    // Styles memoized to avoid re-creating objects on each render
     const STYLE = useMemo(
         () => ({
             container: { backgroundColor: "var(--filter-bg, #07090a)", border: "1px solid rgba(255,255,255,0.10)", padding: 8 },
-            input: { padding: `${CONTROL_PAD_Y}px ${CONTROL_PAD_X}px`, border: "1px solid rgba(255,255,255,0.06)", outline: "none", fontSize: 13 } as React.CSSProperties,
-            controlBtn: { padding: `${CONTROL_PAD_Y}px ${CONTROL_PAD_X}px`, minHeight: CONTROL_MIN_H, borderRadius: CONTROL_RADIUS, whiteSpace: "nowrap" } as React.CSSProperties,
-            chipBase: { padding: `${CHIP_PAD_Y}px ${CHIP_PAD_X}px`, minHeight: CHIP_MIN_H, borderRadius: 9999, width: "auto" } as React.CSSProperties,
+            input: { padding: "6px 10px", border: "1px solid rgba(255,255,255,0.06)", outline: "none", fontSize: 13 } as React.CSSProperties,
+            chipBase: { padding: "4px 8px", minHeight: 28, borderRadius: 9999, width: "auto" } as React.CSSProperties,
+            controlBtn: { padding: "4px 8px", minHeight: 30, borderRadius: 8, whiteSpace: "nowrap" } as React.CSSProperties,
         }),
         []
     );
 
+    // render helpers memoized
     const renderCategoryButtons = useMemo(
         () =>
             categories.map((c) => {
@@ -280,7 +307,7 @@ function FilterBarInner({
         [visibleTags, values.selectedTags, tagDisplayMap, counts, toggleTag, onChipKey, STYLE.chipBase]
     );
 
-    const sortLabel = useMemo(() => labels.sort.options[values.sort as "new" | "old" | "popular"] ?? values.sort, [labels.sort.options, values.sort]);
+    const sortLabel = useMemo(() => rawLabels?.sort?.options?.[values.sort] ?? values.sort, [rawLabels, values.sort]);
 
     return (
         <section className={`mb-2 ${className}`}>
@@ -288,7 +315,7 @@ function FilterBarInner({
                 {/* categories */}
                 <div className="flex items-center gap-2 flex-wrap" style={{ marginBottom: 6 }}>
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-white/70 mr-1">{labels.category.title}</span>
+                        <span className="text-xs text-white/70 mr-1">{rawLabels?.category?.title ?? labels.category?.title ?? "Category"}</span>
                         <div className="flex gap-1 flex-wrap">
                             {renderAllButton}
                             {renderCategoryButtons}
@@ -304,14 +331,14 @@ function FilterBarInner({
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2" style={{ marginBottom: 6 }}>
                     <div style={{ flex: "1 1 auto" }}>
                         <label htmlFor="filter-query" className="sr-only">
-                            {labels.search.placeholder}
+                            {rawLabels?.search?.placeholder ?? labels.search?.placeholder ?? "Search"}
                         </label>
                         <input
                             id="filter-query"
                             type="search"
                             value={localQuery}
                             onChange={(e) => onQueryChange(e.target.value)}
-                            placeholder={labels.search.placeholder}
+                            placeholder={rawLabels?.search?.placeholder ?? labels.search?.placeholder ?? "Search"}
                             className="w-full rounded-md bg-white/5 text-white placeholder:text-white/40 text-sm"
                             style={STYLE.input}
                         />
@@ -319,7 +346,7 @@ function FilterBarInner({
 
                     <div className="flex items-center gap-2">
                         <div className="flex items-center gap-2 md:hidden">
-                            <span className="text-xs text-white/70">{labels.sort.label}</span>
+                            <span className="text-xs text-white/70">{rawLabels?.sort?.label ?? labels.sort?.label ?? "Sort"}</span>
                             <div className="relative">
                                 <button
                                     ref={sortButtonRef}
@@ -342,7 +369,7 @@ function FilterBarInner({
                                         ref={sortMenuRef}
                                         id="sort-menu"
                                         role="listbox"
-                                        aria-label={labels.sort.label}
+                                        aria-label={rawLabels?.sort?.label ?? labels.sort?.label ?? "Sort"}
                                         className="absolute right-0 mt-2 z-50"
                                         style={{ minWidth: 140, borderRadius: 8, overflow: "hidden", background: "#07090a", border: "1px solid rgba(255,255,255,0.08)" }}
                                     >
@@ -362,7 +389,7 @@ function FilterBarInner({
                                                     className="w-full text-left px-3 py-2 text-xs"
                                                     style={{ background: isActive ? "rgba(255,255,255,0.06)" : "transparent", color: "#fff" }}
                                                 >
-                                                    {labels.sort.options[opt]}
+                                                    {rawLabels?.sort?.options?.[opt] ?? labels.sort?.options?.[opt] ?? opt}
                                                 </button>
                                             );
                                         })}
@@ -375,7 +402,7 @@ function FilterBarInner({
 
                 {/* tags header */}
                 <div className="flex items-center justify-between mb-2">
-                    <div className="text-xs text-white/70">{labels.tags?.title ?? "Tags"}</div>
+                    <div className="text-xs text-white/70">{tagLabels.title ?? rawLabels?.tags?.title ?? labels.tags?.title ?? "Tags"}</div>
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
@@ -384,7 +411,7 @@ function FilterBarInner({
                             className={`inline-flex items-center gap-2 text-xs focus:outline-none ${showAllTags ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
                             style={STYLE.controlBtn}
                         >
-                            {labels.actions?.showAllGeneric ?? labels.actions?.showAll ?? "Show"}
+                            {showAllFixedLabel}
                         </button>
 
                         <button
@@ -395,7 +422,7 @@ function FilterBarInner({
                             className={`inline-flex items-center gap-2 text-xs focus:outline-none ${isPending ? "opacity-60 pointer-events-none text-white/60" : !values.selectedTags || values.selectedTags.length === 0 ? "opacity-50 pointer-events-none text-white/60" : "bg-white/5 text-white/80"}`}
                             style={STYLE.controlBtn}
                         >
-                            {isPending ? "Clearing..." : labels.actions?.clearTags ?? "Clear"}
+                            {isPending ? "Clearing..." : clearLabel}
                         </button>
                     </div>
                 </div>
