@@ -93,6 +93,31 @@ git push -u origin main
 npm run dev
 ---
 
+### デプロイ用のインストール(破棄予定)
+```bash
+npm install serverless
+npm install @sls-next/serverless-component@latest
+---
+
+### デプロイ
+```bash
+npm ci
+npm run build
+ls -la out
+aws s3 sync ./out s3://bucket_name --delete
+aws cloudfront create-invalidation --distribution-id YOUR_DIST_ID --paths "/*"
+
+curl -I https://****
+
+aws s3 cp ./out/index.html s3://bucket-name/index.html --cache-control "max-age=60, must-revalidate"
+
+aws s3 cp ./out/_next/static s3://bucket-name/_next/static --recursive --cache-control "max-age=31536000, immutable"
+aws s3 cp ./out/images s3://bucket-name/images --recursive --cache-control "max-age=31536000, immutable"
+
+aws cloudfront create-invalidation --distribution-id YOUR_DIST_ID --paths "/*"
+
+
+---
 ### 2. ディレクトリ構成を整理
 プロジェクトの構造を README に載せると、見通しが良くなります。
 
