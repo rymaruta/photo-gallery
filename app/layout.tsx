@@ -16,35 +16,31 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja">
-      <body className={`${inter.className} min-h-screen flex flex-col`}>
+      <body className={`${inter.className} min-h-screen flex flex-col bg-black text-white`}>
         {/* Header: 太めの下線ではっきり分離 */}
-        <header className="sticky top-0 z-50 bg-black/40 backdrop-blur-sm border-b-4 border-white/30 site-header">
-          <div className="max-w-screen-lg mx-auto flex items-center justify-between h-[72px] md:h-[88px] px-6 md:px-8">
-            <h1 className="site-header__logo">
-              PhotoGallery
+        <header className="sticky top-0 z-50 bg-black/40 backdrop-blur-sm border-b-4 border-white/30">
+          <div className="max-w-5xl mx-auto flex items-center justify-between h-[72px] md:h-[88px] px-6 md:px-8">
+            <h1 className={`${playfair.className} text-xl md:text-2xl font-bold tracking-tight`}>
+              <Link href="/" className="inline-block">
+                PhotoGallery
+              </Link>
             </h1>
 
             <HeaderNav />
-
           </div>
         </header>
 
-
         {/* Main */}
-        <main className="flex-1 max-w-screen-lg mx-auto p-6 w-full">
+        <main className="flex-1 max-w-5xl mx-auto p-6 sm:p-8 w-full">
           {children}
         </main>
 
         {/* Footer */}
-        {/* app/layout.tsx の footer */}
-        {/* Footer */}
-        <footer className="site-footer">
-          <div className="site-footer__inner">
+        <footer className="border-t border-white/10">
+          <div className="max-w-5xl mx-auto px-6 py-6 text-sm text-white/60">
             © 2025 PhotoGallery. All rights reserved.
           </div>
         </footer>
-
-
       </body>
     </html>
   );

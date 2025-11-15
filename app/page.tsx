@@ -1,14 +1,12 @@
-// app/page.tsx
 "use client";
 
 import React from "react";
-import Image from "next/image";
 import FilterBar, { FilterValues } from "./components/FilterBar";
 import LocaleToggle from "./components/LocaleToggle";
 import { getLabels } from "./i18n/labels";
 
-import type { Photo } from "./data/photos";
-import { RAW_PHOTOS } from "./data/photos";
+import type { Photo, Locale } from "./data/photos";
+import RAW_PHOTOS from "./data/photos";
 import useGallery from "./hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
 import GalleryModal from "./components/GalleryModal";
@@ -19,7 +17,7 @@ const capitalize = (s?: string) => {
 };
 
 export default function Page() {
-  const [locale, setLocale] = React.useState<"ja" | "en">("ja");
+  const [locale, setLocale] = React.useState<Locale>("ja");
   const labels = React.useMemo(() => getLabels(locale), [locale]);
 
   const {
@@ -63,20 +61,45 @@ export default function Page() {
     return map;
   }, [labels, categories, PHOTOS]);
 
+  // subtitle を string | string[] のどちらでも扱うヘルパー（モバイルでタイトに詰める）
+  const renderSubtitle = (sub?: string | string[]) => {
+    if (!sub) return null;
+    const parts = Array.isArray(sub) ? sub : [sub];
+    const first = parts[0] ?? "";
+    const rest = parts.slice(1).join(" ");
+
+    return (
+      <p
+        id="site-subtitle"
+        className="text-sm text-white/60 mt-0.5 sm:mt-1 leading-tight sm:leading-normal"
+      >
+        {/* モバイル: inline-block + 改行で安定して詰める。sm以上はインラインで続ける */}
+        <span className="inline-block align-baseline sm:inline">{first}</span>
+        {/* モバイルのみ確実に改行 */}
+        {rest ? <br className="block sm:hidden" /> : null}
+        {rest ? (
+          <span
+            // モバイルでは微負の上マージンで段落間を詰める。必要なら値を調整してください。
+            className="inline-block align-baseline sm:inline -mt-1 sm:mt-0"
+            style={{ lineHeight: "1.05" }}
+          >
+            {rest}
+          </span>
+        ) : null}
+      </p>
+    );
+  };
+
   return (
     <main className="p-6 sm:p-8 min-h-screen text-white bg-black">
       <div className="max-w-5xl mx-auto">
         <div className="flex items-start justify-between gap-4 mb-6 min-h-[64px]">
           <div>
-            <h1 id="site-title" className="text-3xl font-bold">
+            <h1 id="site-title" className="text-3xl font-bold mb-0">
               {labels.site?.title ?? "Gallery"}
             </h1>
 
-            {labels.site?.subtitle ? (
-              <p id="site-subtitle" className="text-sm text-white/60 mt-1" aria-hidden={false}>
-                {labels.site.subtitle}
-              </p>
-            ) : null}
+            {renderSubtitle(labels.site?.subtitle)}
           </div>
 
           <LocaleToggle
@@ -98,7 +121,12 @@ export default function Page() {
 
         <div className="mb-4 text-sm text-white/70">結果: {filteredPhotos.length} 件</div>
 
-        <GalleryGrid photos={filteredPhotos} onOpen={open} categoryDisplayMap={categoryDisplayMap} />
+        <GalleryGrid
+          photos={filteredPhotos}
+          onOpen={open}
+          locale={locale}
+          categoryDisplayMap={categoryDisplayMap}
+        />
 
         {currentIndex !== null && filteredPhotos[currentIndex] && (
           <GalleryModal
@@ -107,6 +135,7 @@ export default function Page() {
             onClose={close}
             onNext={next}
             onPrev={prev}
+            locale={locale}
             categoryDisplayMap={categoryDisplayMap}
           />
         )}

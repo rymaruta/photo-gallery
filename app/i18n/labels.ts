@@ -3,7 +3,8 @@
 export type Labels = {
     site?: {
         title?: string;
-        subtitle?: string;
+        // subtitle を string | string[] に変更（段落配列を許容）
+        subtitle?: string | string[];
     };
     ui?: {
         language?: {
@@ -37,7 +38,11 @@ export type Labels = {
 export const ja: Labels = {
     site: {
         title: "作品紹介",
-        subtitle: "作品と向き合うための静かな場です。ご自由にお楽しみください。",
+        // 段落配列で保持（編集者が段落ごとに編集しやすい形）
+        subtitle: [
+            "作品と向き合うための静かな場です。",
+            "ご自由にお楽しみください。",
+        ],
     },
     ui: {
         language: { ja: "日本語", en: "English" },
@@ -66,7 +71,11 @@ export const ja: Labels = {
 export const en: Labels = {
     site: {
         title: "Works",
-        subtitle: "A quiet place to appreciate the works. Please enjoy freely.",
+        // English subtitle も段落配列に揃える
+        subtitle: [
+            "A quiet place to appreciate the works.",
+            "Please enjoy freely.",
+        ],
     },
     ui: {
         language: { ja: "日本語", en: "English" },

@@ -1,6 +1,7 @@
 // app/hooks/useGallery.ts
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Photo } from "../data/photos";
+import type { Photo, Locale, LocalizedText, LocalizedParagraphs } from "../data/photos";
+import { getLocalized, getLocalizedParagraphs } from "../data/photos";
 
 export type GalleryFilters = {
     category: string;
@@ -11,14 +12,28 @@ export type GalleryFilters = {
 
 const normalizeKey = (s?: string) => (s ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
 
+// safe ISO date parse helper — returns ISO string or empty
+const toISO = (s?: string) => {
+    if (!s) return "";
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? "" : d.toISOString();
+};
+
 export default function useGallery(raw: Photo[]) {
     const PHOTOS = useMemo(
         () =>
-            raw.map((p) => ({
-                ...p,
-                category: normalizeKey(p.category),
-                tags: (p.tags ?? []).map((t) => (t ?? "").toString().trim()).filter(Boolean),
-            })),
+            raw.map((p) => {
+                const category = normalizeKey(p.category);
+                const tags = (p.tags ?? []).map((t) => (t ?? "").toString().trim()).filter(Boolean);
+                const date = p.date ?? p.createdAt ?? "";
+
+                return {
+                    ...p,
+                    category,
+                    tags,
+                    date,
+                };
+            }),
         [raw]
     );
 
@@ -39,51 +54,82 @@ export default function useGallery(raw: Photo[]) {
             arr = arr.filter((p) => filters.selectedTags.every((t) => (p.tags || []).includes(t)));
         if (filters.query.trim()) {
             const q = filters.query.toLowerCase();
-            arr = arr.filter((p) => ((p.title ?? "") + " " + (p.description ?? "")).toLowerCase().includes(q));
+            arr = arr.filter((p) => {
+                // title: localized join of ja & en
+                const titleJa = typeof p.title === "string" ? p.title : getLocalized(p.title as LocalizedText, "ja");
+                const titleEn = typeof p.title === "string" ? p.title : getLocalized(p.title as LocalizedText, "en");
+                const title = `${titleJa} ${titleEn}`;
+
+                // description: handle string | LocalizedParagraphs properly
+                let descJa = "";
+                let descEn = "";
+                if (typeof p.description === "string") {
+                    descJa = p.description;
+                    descEn = p.description;
+                } else {
+                    const jaArr = getLocalizedParagraphs(p.description as LocalizedParagraphs, "ja");
+                    const enArr = getLocalizedParagraphs(p.description as LocalizedParagraphs, "en");
+                    descJa = jaArr.join(" ");
+                    descEn = enArr.join(" ");
+                }
+                const desc = `${descJa} ${descEn}`;
+
+                return (title + " " + desc).toLowerCase().includes(q);
+            });
         }
 
-        if (filters.sort === "new") arr.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
-        else if (filters.sort === "old") arr.sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
-        else if (filters.sort === "popular") arr.sort((a, b) => (b.likes ?? 0) - (a.likes ?? 0));
+        if (filters.sort === "new") {
+            arr.sort((a, b) => {
+                const ia = toISO(b.date);
+                const ib = toISO(a.date);
+                return ia.localeCompare(ib);
+            });
+        } else if (filters.sort === "old") {
+            arr.sort((a, b) => {
+                const ia = toISO(a.date);
+                const ib = toISO(b.date);
+                return ia.localeCompare(ib);
+            });
+        } else if (filters.sort === "popular") {
+            arr.sort((a, b) => (b.likes ?? 0) - (a.likes ?? 0));
+        }
 
         return arr;
     }, [filters, PHOTOS]);
 
-    const open = useCallback((i: number) => {
-        setCurrentIndex(i >= 0 && i < filteredPhotos.length ? i : null);
-    }, [filteredPhotos.length]);
+    const open = useCallback(
+        (i: number) => {
+            setCurrentIndex(i >= 0 && i < filteredPhotos.length ? i : null);
+        },
+        [filteredPhotos.length]
+    );
 
     const close = useCallback(() => setCurrentIndex(null), []);
 
     const next = useCallback(
-        () => setCurrentIndex((i) => (i === null ? null : (filteredPhotos.length ? (i + 1) % filteredPhotos.length : null))),
+        () =>
+            setCurrentIndex((i) =>
+                i === null ? null : filteredPhotos.length ? (i + 1) % filteredPhotos.length : null
+            ),
         [filteredPhotos.length]
     );
 
     const prev = useCallback(
-        () => setCurrentIndex((i) => (i === null ? null : (filteredPhotos.length ? (i - 1 + filteredPhotos.length) % filteredPhotos.length : null))),
+        () =>
+            setCurrentIndex((i) =>
+                i === null ? null : filteredPhotos.length ? (i - 1 + filteredPhotos.length) % filteredPhotos.length : null
+            ),
         [filteredPhotos.length]
     );
 
-    // キーボード操作と body overflow 管理（モーダル専用副作用）
+    // NOTE: modal keyboard / body overflow side effects removed from hook.
+    // Modal component should manage focus/overflow/keyboard to avoid duplication and race conditions.
+    // If you want hook-driven modal side-effects, implement a shared counter + refs (similar to GalleryModal).
     useEffect(() => {
-        if (currentIndex === null) return;
+        // no-op; kept in case you want to add global side effects later
+        return () => { };
+    }, []);
 
-        const onKey = (e: KeyboardEvent) => {
-            if (e.key === "ArrowRight") next();
-            if (e.key === "ArrowLeft") prev();
-            if (e.key === "Escape") close();
-        };
-        const prevOverflow = document.body.style.overflow;
-        document.body.style.overflow = "hidden";
-        window.addEventListener("keydown", onKey);
-        return () => {
-            window.removeEventListener("keydown", onKey);
-            document.body.style.overflow = prevOverflow;
-        };
-    }, [currentIndex, next, prev, close]);
-
-    // helper to partially update filters
     const updateFilters = useCallback((next: Partial<GalleryFilters>) => {
         setFilters((s) => ({ ...s, ...next }));
     }, []);
