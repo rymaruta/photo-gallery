@@ -10,7 +10,7 @@ const playfair = Playfair_Display({ subsets: ["latin"], weight: ["700"] });
 
 export const metadata: Metadata = {
   title: "PhotoGallery",
-  description: "Next.js + Tailwind Layout Example",
+  description: "小さな写真サイトへようこそ。",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
