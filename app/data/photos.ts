@@ -256,7 +256,7 @@ export const BASE_PHOTOS: Photo[] = [
         photographer: "丸田　竜平",
         location: "北海道",
         mapLinks: {
-            google: "https://maps.app.goo.gl/EXAMPLE_SHORTLINK_4",
+            google: "https://maps.app.goo.gl/3naKGRevHMBZW1PM7",
         },
         published: true,
     },
