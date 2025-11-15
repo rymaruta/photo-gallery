@@ -58,6 +58,7 @@ export const ja: Labels = {
             nature: "自然",
             landscape: "風景",
             architecture: "建築",
+            street: "街"
         },
     },
     sort: {

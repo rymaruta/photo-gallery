@@ -1,4 +1,7 @@
 // app/data/photos.ts
+// （変更済み）BASE_PHOTOS の mapLinks.google を指定のショートリンクに置き換え、
+// "オペラ座" を "オペラ・ガルニエ" に更新した版を以下に示します。
+// そのまま既存ファイルを差し替えてください。
 
 export type Locale = "ja" | "en";
 
@@ -129,18 +132,21 @@ export const BASE_PHOTOS: Photo[] = [
     {
         id: "1",
         src: "/images/sample1.jpg",
-        slug: "hitachi-seaside-park",
-        title: { ja: "国営ひたち海浜公園", en: "Hitachi Seaside Park" },
-        alt: { ja: "国営ひたち海浜公園の風景", en: "Scenery at Hitachi Seaside Park" },
+        slug: "sea-of-nemophila",
+        title: { ja: "海", en: "Sea of Nemophila" },
+        alt: { ja: "ネモフィラの海の風景", en: "Sea of nemophila in bloom" },
         description: {
             ja: [
-                "青く広がるネモフィラの海。静かな陽光が花を淡く染め、季節の移ろいを感じさせる。",
-                "散策路を歩きながら見つけた小さな視点から切り取った一枚です。"
+                "青く広がるネモフィラの海。",
+                "公園の中で見つけたポピーを軸に切り取った一枚だ。",
+                "少し歩くと遊園地もあり、家族連れで賑わっていた。",
             ],
             en: [
-                "A vast sea of nemophila blooms in gentle sunlight, capturing the hush of the season.",
-                "Taken from a small vantage along the path, a quiet moment in a busy park."
+                "A vast sea of nemophila stretching in soft blue tones.",
+                "This shot frames a single poppy blooming amid the flowers.",
+                "A short walk away is an amusement area, lively with families.",
             ],
+
         },
         category: "landscape",
         tags: ["park", "flowers", "nemophila"],
@@ -148,7 +154,7 @@ export const BASE_PHOTOS: Photo[] = [
         location: "茨城県 ひたちなか市 国営ひたち海浜公園",
         coords: { lat: 36.341, lng: 140.525 },
         mapLinks: {
-            google: "https://maps.app.goo.gl/dDGdrcUuJhqB4wmTA",
+            google: "https://maps.app.goo.gl/UML3RZDaMTVB6HpH8",
         },
         license: "All rights reserved",
         copyrightOwner: "丸田　竜平",
@@ -167,21 +173,29 @@ export const BASE_PHOTOS: Photo[] = [
         id: "2",
         src: "/images/sample2.jpg",
         slug: "takaya-shrine",
-        title: { ja: "高屋神社", en: "Takaya Shrine" },
+        title: { ja: "天空の鳥居", en: "Torii in the Sky" },
         alt: { ja: "高屋神社の鳥居と遠景", en: "Torii at Takaya Shrine with distant view" },
         description: {
             ja: [
-                "山頂に立つ鳥居と、それを取り囲む静謐な風景。早朝の霧が遠景を柔らかくぼかしていた。",
+                "山頂に立つ鳥居から見た景色は、まさに絶景だった。",
+                "下宮までの道中、タクシーの運転手さんは香川が一番好きだと言っていた。",
+                "愛が感じられる土地だ。",
             ],
             en: [
-                "A torii perched atop the summit, framed by tranquil surroundings and softened by morning mist.",
+                "The view from the torii at the summit was truly breathtaking.",
+                "On the way down to the lower shrine, the taxi driver told me Kagawa was his favorite place.",
+                "There is a palpable sense of affection in this land.",
             ],
+
         },
         category: "landscape",
         tags: ["torii", "shrine", "mountain"],
         photographer: "丸田　竜平",
         location: "香川県 観音寺市 高屋神社（粟積山）",
         coords: { lat: 34.18, lng: 133.78 },
+        mapLinks: {
+            google: "https://maps.app.goo.gl/dDGdrcUuJhqB4wmTA",
+        },
         license: "All rights reserved",
         copyrightOwner: "丸田　竜平",
         copyrightYear: "2024",
@@ -189,29 +203,33 @@ export const BASE_PHOTOS: Photo[] = [
         published: true,
     },
 
-    // sample3: オペラ座
+    // sample3: オペラ・ガルニエ
     {
         id: "3",
         src: "/images/sample3.jpg",
         slug: "opera-house",
-        title: { ja: "オペラ座", en: "Opera House" },
-        alt: { ja: "オペラ座の外観", en: "Opera House exterior" },
+        title: { ja: "オペラ・ガルニエ", en: "Palais Garnier" },
+        alt: { ja: "オペラ・ガルニエの外観", en: "Exterior of the Palais Garnier" },
         description: {
             ja: [
-                "威厳あるファサードが夕暮れの光を受けて表情を変える瞬間をとらえました。",
-                "細部の装飾と人々の気配が混ざり合う、都市の一コマです。"
+                "世界三大劇場の一つ、オペラ・ガルニエ。",
+                "「死ぬまでに一度は訪れたい」と思っていた場所だ。",
+                "ー 細部まで威厳ある装飾と光が織り成す美しさ ー",
+                "それを確かめたくてシャッターを切った。",
             ],
             en: [
-                "Captured the opera house façade as it shifted under evening light, revealing new character.",
-                "A slice of city life where ornate detail meets the passing crowd."
+                "One of the world's great opera houses, the Palais Garnier.",
+                "It was a place I had long wanted to visit at least once in my life.",
+                "— The solemn beauty of ornament and light visible down to the smallest detail —",
+                "I photographed it to see and capture that very quality.",
             ],
         },
         category: "architecture",
         tags: ["opera", "theater"],
         photographer: "丸田　竜平",
-        location: "オペラ座（場所表記はテンプレ）",
+        location: "オペラ・ガルニエ（パリ）",
         mapLinks: {
-            google: "https://maps.app.goo.gl/EXAMPLE_SHORTLINK_3",
+            google: "https://maps.app.goo.gl/9Ze91AJATzr2dnwT7",
         },
         published: true,
     },
@@ -222,13 +240,15 @@ export const BASE_PHOTOS: Photo[] = [
         src: "/images/sample4.jpg",
         slug: "hokkaido-cherry",
         title: { ja: "北海道の桜", en: "Cherry Blossoms in Hokkaido" },
-        alt: { ja: "北海道の桜並木", en: "Cherry blossoms in Hokkaido" },
+        alt: { ja: "北海道の桜", en: "Cherry blossoms in Hokkaido" },
         description: {
             ja: [
-                "凛とした冷気の中で咲く桜。春の訪れを告げる花たちの鮮烈な彩りが印象的でした。",
+                "北海道にも春が訪れ、桜が咲き誇る季節となった。",
+                "木々の隙間から差し込む柔らかな光が、花びらを優しく照らしている。",
             ],
             en: [
-                "Cherry trees blooming in crisp northern air; their vivid colors announce the arrival of spring.",
+                "Spring has come to Hokkaido, and cherry trees are in full bloom.",
+                "Soft light filters through the trees, gently illuminating the petals.",
             ],
         },
         category: "nature",
@@ -250,10 +270,14 @@ export const BASE_PHOTOS: Photo[] = [
         alt: { ja: "ヴェルサイユ宮殿の庭園", en: "Gardens of the Palace of Versailles" },
         description: {
             ja: [
-                "広大な庭園と整えられた並木道。歴史の重みを感じさせる光と陰の対比を意識して撮影しました。",
+                "広大な庭園と整えられた並木道。",
+                "そんな帰り際の1枚。人生で一番美しい夕焼けだった。",
+                "ー 黄昏のヴェルサイユ宮殿 ー",
             ],
             en: [
-                "Vast gardens and manicured avenues; photographed to emphasize the contrast of light and shadow across history-steeped grounds.",
+                "Vast gardens and manicured avenues.",
+                "A shot taken on the way back, during perhaps the most beautiful sunset I've seen.",
+                "— Versailles at dusk —",
             ],
         },
         category: "architecture",
@@ -261,7 +285,7 @@ export const BASE_PHOTOS: Photo[] = [
         photographer: "丸田　竜平",
         location: "フランス ヴェルサイユ",
         mapLinks: {
-            google: "https://maps.app.goo.gl/EXAMPLE_SHORTLINK_5",
+            google: "https://maps.app.goo.gl/pQbfgnx7MMqfKcFp7",
         },
         published: true,
     },
@@ -275,10 +299,12 @@ export const BASE_PHOTOS: Photo[] = [
         alt: { ja: "パリの街並み", en: "Paris street scene" },
         description: {
             ja: [
-                "石畳に反射する夕暮れの光、人々の断片的な動き。街の息遣いを切り取った一枚です。",
+                "パリは何を撮っても絵になる街だ。",
+                "光がじんわりと広がる、そんな日常の一コマだ。",
             ],
             en: [
-                "Evening light reflecting on cobblestones and fragments of passing life; a portrait of city rhythm.",
+                "Paris turns almost any scene into a postcard.",
+                "A quiet everyday moment where the light spreads gently across the street.",
             ],
         },
         category: "street",
@@ -286,35 +312,40 @@ export const BASE_PHOTOS: Photo[] = [
         photographer: "丸田　竜平",
         location: "パリ, フランス",
         mapLinks: {
-            google: "https://maps.app.goo.gl/EXAMPLE_SHORTLINK_6",
+            google: "https://maps.app.goo.gl/iZwj9Vhx7xz8HrRx5",
         },
         published: true,
     },
 
-    // sample7: ヴェルサイユ宮殿（重複タイトル）
+    // sample7: 大トリアノン宮殿
     {
         id: "7",
         src: "/images/sample7.jpg",
-        slug: "versailles-palace-2",
-        title: { ja: "ヴェルサイユ宮殿", en: "Palace of Versailles (2)" },
-        alt: { ja: "ヴェルサイユ宮殿の別視点", en: "Another view of the Palace of Versailles" },
+        slug: "grand-trianon",
+        title: { ja: "大トリアノン宮殿", en: "Grand Trianon" },
+        alt: { ja: "大トリアノン宮殿", en: "The Grand Trianon" },
         description: {
             ja: [
-                "庭園の奥まった視点から捉えた別の構図。対称性と遠近が織りなす風景を意識しました。",
+                "トリアノン群と呼ばれる宮殿の一つ。",
+                "プチトランと呼ばれる小さな列車で庭園を巡った。",
+                "大理石と列柱が織りなす落ち着いた佇まいが印象的だった。",
             ],
             en: [
-                "An alternative composition from a tucked-away vantage in the gardens, focusing on symmetry and perspective.",
+                "One of the palaces in the Trianon ensemble.",
+                "I toured the gardens aboard the little train known as the 'petit train'.",
+                "The calm elegance formed by marble and colonnades left a strong impression.",
             ],
         },
         category: "architecture",
-        tags: ["versailles", "palace"],
+        tags: ["versailles", "trianon"],
         photographer: "丸田　竜平",
         location: "フランス ヴェルサイユ",
         mapLinks: {
-            google: "https://maps.app.goo.gl/EXAMPLE_SHORTLINK_7",
+            google: "https://maps.app.goo.gl/pQbfgnx7MMqfKcFp7",
         },
         published: true,
     },
 ];
 
 export default BASE_PHOTOS;
+
