@@ -191,7 +191,7 @@ export const BASE_PHOTOS: Photo[] = [
         category: "landscape",
         tags: ["torii", "shrine", "mountain"],
         photographer: "丸田　竜平",
-        location: "香川県 観音寺市 高屋神社（粟積山）",
+        location: "香川県 観音寺市 高屋神社",
         coords: { lat: 34.18, lng: 133.78 },
         mapLinks: {
             google: "https://maps.app.goo.gl/dDGdrcUuJhqB4wmTA",
