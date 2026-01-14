@@ -49,8 +49,8 @@ const en: AboutContent = {
     },
 };
 
-export function getContent(locale: "ja" | "en" = "ja"): AboutContent {
+export function getAboutContent(locale: "ja" | "en" = "ja"): AboutContent {
     return locale === "en" ? en : ja;
 }
 
-export default getContent;
+export default getAboutContent;

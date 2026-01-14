@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import FilterBar, { FilterValues } from "./components/FilterBar";
+import FilterBar from "./components/FilterBar";
 import LocaleToggle from "./components/LocaleToggle";
 import { getLabels } from "./i18n/labels";
 
@@ -10,11 +10,9 @@ import RAW_PHOTOS from "./data/photos";
 import useGallery from "./hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
 import GalleryModal from "./components/GalleryModal";
-
-const capitalize = (s?: string) => {
-  if (!s) return "";
-  return s.charAt(0).toUpperCase() + s.slice(1);
-};
+import type { FilterValues } from "../lib/types/gallery";
+import { capitalize } from "../lib/utils/string";
+import { generateStructuredData } from "../lib/utils/seo";
 
 export default function Page() {
   const [locale, setLocale] = React.useState<Locale>("ja");
@@ -31,6 +29,24 @@ export default function Page() {
     next,
     prev,
   } = useGallery(RAW_PHOTOS as Photo[]);
+
+  // URLパラメータから画像IDを取得してモーダルを開く
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const params = new URLSearchParams(window.location.search);
+    const photoId = params.get("photo");
+    
+    if (photoId && filteredPhotos.length > 0) {
+      const index = filteredPhotos.findIndex(p => p.id === photoId);
+      if (index !== -1) {
+        open(index);
+        // URLからパラメータを削除（履歴に残さない）
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, "", newUrl);
+      }
+    }
+  }, [filteredPhotos, open]);
 
   const categories = React.useMemo(() => {
     const set = new Set<string>();
@@ -90,36 +106,52 @@ export default function Page() {
     );
   };
 
+  // 構造化データ（JSON-LD）
+  const structuredData = React.useMemo(
+    () => generateStructuredData("ImageGallery", PHOTOS),
+    [PHOTOS]
+  );
+
   return (
-    <main className="p-6 sm:p-8 min-h-screen text-white bg-black">
-      <div className="max-w-5xl mx-auto">
-        <div className="flex items-start justify-between gap-4 mb-6 min-h-[64px]">
-          <div>
-            <h1 id="site-title" className="text-3xl font-bold mb-0">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6 min-h-[64px]">
+          <div className="flex-1">
+            <h1 id="site-title" className="text-2xl sm:text-3xl font-bold mb-0">
               {labels.site?.title ?? "Gallery"}
             </h1>
 
             {renderSubtitle(labels.site?.subtitle)}
           </div>
 
-          <LocaleToggle
-            locale={locale}
-            setLocale={setLocale}
-            labels={labels.ui?.language ?? { ja: "日本語", en: "English" }}
-          />
+          <div className="flex-shrink-0">
+            <LocaleToggle
+              locale={locale}
+              setLocale={setLocale}
+              labels={labels.ui?.language ?? { ja: "日本語", en: "English" }}
+            />
+          </div>
         </div>
 
         <FilterBar
           categories={categories}
           tags={tags}
-          values={filters as unknown as FilterValues}
-          onChange={(next) => setFilters(next as any)}
+          values={filters}
+          onChange={(next) => setFilters(next)}
           className="mb-4"
           locale={locale}
           categoryDisplayMap={categoryDisplayMap}
         />
 
-        <div className="mb-4 text-sm text-white/70">結果: {filteredPhotos.length} 件</div>
+        <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
+          {locale === "en" 
+            ? `${labels.gallery?.resultsCount ?? "Results"}: ${filteredPhotos.length}`
+            : `${labels.gallery?.resultsCount ?? "結果"}: ${filteredPhotos.length} 件`}
+        </div>
 
         <GalleryGrid
           photos={filteredPhotos}
@@ -139,7 +171,7 @@ export default function Page() {
             categoryDisplayMap={categoryDisplayMap}
           />
         )}
-      </div>
-    </main>
+      </main>
+    </>
   );
 }

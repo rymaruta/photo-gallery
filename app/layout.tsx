@@ -2,15 +2,61 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Inter } from "next/font/google";
 import HeaderNav from "./components/HeaderNav";
+import ToastProvider from "./components/ToastProvider";
+import { siteConfig } from "../lib/utils/seo";
 
-const inter = Inter({ subsets: ["latin"], weight: ["400", "700"] });
-const playfair = Playfair_Display({ subsets: ["latin"], weight: ["700"] });
+const inter = Inter({ subsets: ["latin"], weight: ["400", "700", "900"] });
 
 export const metadata: Metadata = {
-  title: "PhotoGallery",
-  description: "小さな写真サイトへようこそ。",
+  metadataBase: new URL(siteConfig.url),
+  title: {
+    default: siteConfig.name,
+    template: `%s | ${siteConfig.name}`,
+  },
+  description: siteConfig.description,
+  keywords: ["写真", "ギャラリー", "作品", "photography", "gallery", "works"],
+  authors: [{ name: "PhotoGallery" }],
+  creator: "PhotoGallery",
+  openGraph: {
+    type: "website",
+    locale: "ja_JP",
+    url: siteConfig.url,
+    siteName: siteConfig.name,
+    title: siteConfig.name,
+    description: siteConfig.description,
+    images: [
+      {
+        url: siteConfig.ogImage,
+        width: 1200,
+        height: 630,
+        alt: siteConfig.name,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteConfig.name,
+    description: siteConfig.description,
+    images: [siteConfig.ogImage],
+    creator: siteConfig.twitterHandle,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  verification: {
+    // Google Search Console の検証コードを追加する場合
+    // google: "your-google-verification-code",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -20,8 +66,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Header: 太めの下線ではっきり分離 */}
         <header className="sticky top-0 z-50 bg-black/40 backdrop-blur-sm border-b-4 border-white/30">
           <div className="max-w-5xl mx-auto flex items-center justify-between h-[72px] md:h-[88px] px-6 md:px-8">
-            <h1 className={`${playfair.className} text-xl md:text-2xl font-bold tracking-tight`}>
-              <Link href="/" className="inline-block">
+            <h1 className={`${inter.className} text-3xl md:text-4xl font-bold tracking-tight`}>
+              <Link href="/" className="inline-block hover:opacity-80 transition-opacity">
                 PhotoGallery
               </Link>
             </h1>
@@ -30,10 +76,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </header>
 
-        {/* Main */}
-        <main className="flex-1 max-w-5xl mx-auto p-6 sm:p-8 w-full">
-          {children}
-        </main>
+        {/* Main - 各ページで管理 */}
+        <ToastProvider>
+          <div className="flex-1">
+            {children}
+          </div>
+        </ToastProvider>
 
         {/* Footer */}
         <footer className="border-t border-white/10">

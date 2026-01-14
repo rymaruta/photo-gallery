@@ -2,13 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Photo, Locale, LocalizedText, LocalizedParagraphs } from "../data/photos";
 import { getLocalized, getLocalizedParagraphs } from "../data/photos";
-
-export type GalleryFilters = {
-    category: string;
-    selectedTags: string[];
-    query: string;
-    sort: "new" | "old" | "popular";
-};
+import type { GalleryFilters } from "../../lib/types/gallery";
 
 const normalizeKey = (s?: string) => (s ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
 

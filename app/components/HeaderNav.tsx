@@ -121,6 +121,18 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                 About
                                             </Link>
                                         </li>
+
+                                        <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                            <Link href="/favorites" onClick={() => setOpen(false)} className={`${linkBase} ${inactiveClasses}`}>
+                                                Favorites
+                                            </Link>
+                                        </li>
+
+                                        <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                            <Link href="/history" onClick={() => setOpen(false)} className={`${linkBase} ${inactiveClasses}`}>
+                                                History
+                                            </Link>
+                                        </li>
                                     </ul>
                                 </nav>
                             </div>
