@@ -108,7 +108,7 @@ export default function Page() {
 
   // 構造化データ（JSON-LD）
   const structuredData = React.useMemo(
-    () => generateStructuredData("ImageGallery", PHOTOS),
+    () => generateStructuredData(PHOTOS),
     [PHOTOS]
   );
 

@@ -447,11 +447,11 @@ export const BASE_PHOTOS: Photo[] = [
         published: true,
     },
 
-    // sample13
+    // sample12
     {
-        id: "13",
-        src: "/images/sample13.JPG",
-        slug: "sample-13",
+        id: "12",
+        src: "/images/sample12.JPG",
+        slug: "sample-12",
         title: { ja: "ヘルシンキ大聖堂", en: "Helsinki Cathedral" },
         alt: { ja: "ヘルシンキ大聖堂", en: "Helsinki Cathedral" },
         description: {
@@ -472,11 +472,11 @@ export const BASE_PHOTOS: Photo[] = [
         published: true,
     },
 
-    // sample14
+    // sample13
     {
-        id: "14",
-        src: "/images/sample14.JPG",
-        slug: "sample-14",
+        id: "13",
+        src: "/images/sample13.JPG",
+        slug: "sample-13",
         title: { ja: "ピザ店の窓", en: "Pizza Shop Window" },
         alt: { ja: "ピザ店の窓", en: "Pizza shop window" },
         description: {
@@ -495,11 +495,11 @@ export const BASE_PHOTOS: Photo[] = [
         published: true,
     },
 
-    // sample15
+    // sample14
     {
-        id: "15",
-        src: "/images/sample15.JPG",
-        slug: "sample-15",
+        id: "14",
+        src: "/images/sample14.JPG",
+        slug: "sample-14",
         title: { ja: "ヘルシンキの街並み", en: "Streets of Helsinki" },
         alt: { ja: "ヘルシンキの街並み", en: "Streets of Helsinki" },
         description: {
@@ -518,11 +518,11 @@ export const BASE_PHOTOS: Photo[] = [
         published: true,
     },
 
-    // sample16
+    // sample15
     {
-        id: "16",
-        src: "/images/sample16.JPG",
-        slug: "sample-16",
+        id: "15",
+        src: "/images/sample15.JPG",
+        slug: "sample-15",
         title: { ja: "北欧の森", en: "Nordic Forest" },
         alt: { ja: "北欧の森", en: "Nordic forest" },
         description: {
@@ -539,11 +539,11 @@ export const BASE_PHOTOS: Photo[] = [
         published: true,
     },
 
-    // sample17
+    // sample16
     {
-        id: "17",
-        src: "/images/sample17.JPG",
-        slug: "sample-17",
+        id: "16",
+        src: "/images/sample16.JPG",
+        slug: "sample-16",
         title: { ja: "森の中の小屋", en: "Cabin in the Forest" },
         alt: { ja: "森の中の小屋", en: "Cabin in the forest" },
         description: {
@@ -564,11 +564,11 @@ export const BASE_PHOTOS: Photo[] = [
         published: true,
     },
 
-    // sample18
+    // sample17
     {
-        id: "18",
-        src: "/images/sample18.JPG",
-        slug: "sample-18",
+        id: "17",
+        src: "/images/sample17.JPG",
+        slug: "sample-17",
         title: { ja: "Löylyのレストラン", en: "Löyly Restaurant" },
         alt: { ja: "Löylyのレストラン", en: "Löyly restaurant" },
         description: {
@@ -587,11 +587,11 @@ export const BASE_PHOTOS: Photo[] = [
         published: true,
     },
 
-    // sample19
+    // sample18
     {
-        id: "19",
-        src: "/images/sample19.JPG",
-        slug: "sample-19",
+        id: "18",
+        src: "/images/sample18.JPG",
+        slug: "sample-18",
         title: { ja: "レストランからの夕焼け", en: "Sunset from the Restaurant" },
         alt: { ja: "レストランからの夕焼け", en: "Sunset from the restaurant" },
         description: {
@@ -608,11 +608,11 @@ export const BASE_PHOTOS: Photo[] = [
         published: true,
     },
 
-    // sample20
+    // sample19
     {
-        id: "20",
-        src: "/images/sample20.jpg",
-        slug: "sample-20",
+        id: "19",
+        src: "/images/sample19.jpg",
+        slug: "sample-19",
         title: { ja: "フィンランドの大地", en: "Land of Finland" },
         alt: { ja: "フィンランドの大地", en: "Land of Finland" },
         description: {

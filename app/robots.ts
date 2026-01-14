@@ -1,4 +1,5 @@
 // app/robots.ts
+export const dynamic = "force-static";
 // robots.txt生成
 
 import { MetadataRoute } from "next";
