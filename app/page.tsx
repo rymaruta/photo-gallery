@@ -30,6 +30,24 @@ export default function Page() {
     prev,
   } = useGallery(RAW_PHOTOS as Photo[]);
 
+  // URLパラメータから画像IDを取得してモーダルを開く
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const params = new URLSearchParams(window.location.search);
+    const photoId = params.get("photo");
+    
+    if (photoId && filteredPhotos.length > 0) {
+      const index = filteredPhotos.findIndex(p => p.id === photoId);
+      if (index !== -1) {
+        open(index);
+        // URLからパラメータを削除（履歴に残さない）
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, "", newUrl);
+      }
+    }
+  }, [filteredPhotos, open]);
+
   const categories = React.useMemo(() => {
     const set = new Set<string>();
     for (const p of PHOTOS) {

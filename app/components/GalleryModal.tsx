@@ -6,6 +6,7 @@ import type { Photo, Locale } from "../data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "../data/photos";
 import { useSwipe } from "../../lib/hooks/useSwipe";
 import { useFavorites } from "../../lib/hooks/useFavorites";
+import { useViewHistory } from "../../lib/hooks/useViewHistory";
 import { HeartIcon } from "@heroicons/react/24/solid";
 import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
 import { ShareIcon, LinkIcon } from "@heroicons/react/24/outline";
@@ -168,6 +169,16 @@ export default function GalleryModal({
     // お気に入り機能
     const { isFavorite, toggleFavorite } = useFavorites();
     const isFav = isFavorite(p.id);
+
+    // 閲覧履歴機能
+    const { addToHistory } = useViewHistory();
+
+    // 画像が表示されたときに閲覧履歴に追加
+    useEffect(() => {
+        if (p?.id) {
+            addToHistory(p.id);
+        }
+    }, [p?.id, addToHistory]);
 
     // 共有機能
     const currentUrl = typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}?photo=${p.id}` : siteConfig.url;
