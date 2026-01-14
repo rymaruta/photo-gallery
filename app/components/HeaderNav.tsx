@@ -3,9 +3,11 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { XMarkIcon, Bars3Icon } from "@heroicons/react/24/solid";
 
 export default function HeaderNav({ className = "" }: { className?: string }) {
+    const router = useRouter();
     const bg = "#07090a";
     const outerBorder = "rgba(255,255,255,0.26)";
     const innerLine = "rgba(255,255,255,0.12)";
@@ -16,6 +18,11 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     const panelRef = useRef<HTMLDivElement | null>(null);
     const prevBodyOverflowRef = useRef<string>("");
     const prevBodyPaddingRightRef = useRef<string>("");
+
+    const handleNavigation = (href: string) => {
+        setOpen(false);
+        router.push(href);
+    };
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
@@ -63,10 +70,22 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                     aria-controls="site-menu"
                     aria-label={open ? "Close menu" : "Open menu"}
                     onClick={() => setOpen((v) => !v)}
+                    onTouchStart={(e) => {
+                        e.stopPropagation();
+                    }}
+                    onTouchEnd={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        setOpen((v) => !v);
+                    }}
                     style={{
                         backgroundColor: bg,
                         border: `2px solid ${outerBorder}`,
                         boxShadow: `${subtleShadow}, ${subtleInset}`,
+                        touchAction: "manipulation",
+                        WebkitTapHighlightColor: "transparent",
+                        minWidth: "44px",
+                        minHeight: "44px"
                     }}
                     className="inline-flex items-center justify-center w-11 h-11 rounded-md hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-white/20"
                 >
@@ -82,19 +101,29 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                     ref={panelRef}
                     className="fixed left-0 right-0 bottom-0 top-[72px] md:top-[88px] z-50"
                 >
-                    <div className="absolute inset-0 bg-black/70" onClick={() => setOpen(false)} aria-hidden="true" />
+                    <div 
+                        className="absolute inset-0 bg-black/70" 
+                        onClick={() => setOpen(false)} 
+                        onTouchStart={(e) => {
+                            e.stopPropagation();
+                            setOpen(false);
+                        }}
+                        aria-hidden="true" 
+                    />
 
-                    <div className="relative w-full max-w-screen-lg mx-auto h-full px-6 md:px-8">
+                    <div className="relative w-full max-w-screen-lg mx-auto h-full px-6 md:px-8 pointer-events-none">
                         <div className="flex h-full items-start justify-end">
                             <div
-                                className="relative w-[48%] max-w-[200px]"
+                                className="relative w-[48%] max-w-[200px] pointer-events-auto"
                                 style={{
                                     backgroundColor: bg,
                                     border: `2px solid ${outerBorder}`,
                                     boxShadow: `${subtleShadow}, ${subtleInset}`,
                                     borderRadius: 12,
                                     overflow: "hidden",
+                                    zIndex: 10
                                 }}
+                                onClick={(e) => e.stopPropagation()}
                             >
                                 <nav aria-label="Mobile menu">
                                     <ul
@@ -105,33 +134,148 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                         }}
                                     >
                                         <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
-                                            <Link href="/" onClick={() => setOpen(false)} className={`${linkBase} ${inactiveClasses}`}>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleNavigation("/");
+                                                }}
+                                                onTouchStart={(e) => {
+                                                    e.stopPropagation();
+                                                }}
+                                                onTouchEnd={(e) => {
+                                                    e.stopPropagation();
+                                                    e.preventDefault();
+                                                    handleNavigation("/");
+                                                }}
+                                                className={`${linkBase} ${inactiveClasses} w-full text-left`}
+                                                style={{ 
+                                                    touchAction: "manipulation",
+                                                    WebkitTapHighlightColor: "transparent",
+                                                    minHeight: "44px",
+                                                    display: "block",
+                                                    position: "relative",
+                                                    zIndex: 10,
+                                                    cursor: "pointer"
+                                                }}
+                                            >
                                                 Works
-                                            </Link>
+                                            </button>
                                         </li>
 
                                         <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
-                                            <Link href="/gallery" onClick={() => setOpen(false)} className={`${linkBase} ${inactiveClasses}`}>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleNavigation("/gallery");
+                                                }}
+                                                onTouchStart={(e) => {
+                                                    e.stopPropagation();
+                                                }}
+                                                onTouchEnd={(e) => {
+                                                    e.stopPropagation();
+                                                    e.preventDefault();
+                                                    handleNavigation("/gallery");
+                                                }}
+                                                className={`${linkBase} ${inactiveClasses} w-full text-left`}
+                                                style={{ 
+                                                    touchAction: "manipulation",
+                                                    WebkitTapHighlightColor: "transparent",
+                                                    minHeight: "44px",
+                                                    display: "block",
+                                                    position: "relative",
+                                                    zIndex: 10,
+                                                    cursor: "pointer"
+                                                }}
+                                            >
                                                 Gallery
-                                            </Link>
+                                            </button>
                                         </li>
 
                                         <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
-                                            <Link href="/about" onClick={() => setOpen(false)} className={`${linkBase} ${inactiveClasses}`}>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleNavigation("/about");
+                                                }}
+                                                onTouchStart={(e) => {
+                                                    e.stopPropagation();
+                                                }}
+                                                onTouchEnd={(e) => {
+                                                    e.stopPropagation();
+                                                    e.preventDefault();
+                                                    handleNavigation("/about");
+                                                }}
+                                                className={`${linkBase} ${inactiveClasses} w-full text-left`}
+                                                style={{ 
+                                                    touchAction: "manipulation",
+                                                    WebkitTapHighlightColor: "transparent",
+                                                    minHeight: "44px",
+                                                    display: "block",
+                                                    position: "relative",
+                                                    zIndex: 10,
+                                                    cursor: "pointer"
+                                                }}
+                                            >
                                                 About
-                                            </Link>
+                                            </button>
                                         </li>
 
                                         <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
-                                            <Link href="/favorites" onClick={() => setOpen(false)} className={`${linkBase} ${inactiveClasses}`}>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleNavigation("/favorites");
+                                                }}
+                                                onTouchStart={(e) => {
+                                                    e.stopPropagation();
+                                                }}
+                                                onTouchEnd={(e) => {
+                                                    e.stopPropagation();
+                                                    e.preventDefault();
+                                                    handleNavigation("/favorites");
+                                                }}
+                                                className={`${linkBase} ${inactiveClasses} w-full text-left`}
+                                                style={{ 
+                                                    touchAction: "manipulation",
+                                                    WebkitTapHighlightColor: "transparent",
+                                                    minHeight: "44px",
+                                                    display: "block",
+                                                    position: "relative",
+                                                    zIndex: 10,
+                                                    cursor: "pointer"
+                                                }}
+                                            >
                                                 Favorites
-                                            </Link>
+                                            </button>
                                         </li>
 
                                         <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
-                                            <Link href="/history" onClick={() => setOpen(false)} className={`${linkBase} ${inactiveClasses}`}>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleNavigation("/history");
+                                                }}
+                                                onTouchStart={(e) => {
+                                                    e.stopPropagation();
+                                                }}
+                                                onTouchEnd={(e) => {
+                                                    e.stopPropagation();
+                                                    e.preventDefault();
+                                                    handleNavigation("/history");
+                                                }}
+                                                className={`${linkBase} ${inactiveClasses} w-full text-left`}
+                                                style={{ 
+                                                    touchAction: "manipulation",
+                                                    WebkitTapHighlightColor: "transparent",
+                                                    minHeight: "44px",
+                                                    display: "block",
+                                                    position: "relative",
+                                                    zIndex: 10,
+                                                    cursor: "pointer"
+                                                }}
+                                            >
                                                 History
-                                            </Link>
+                                            </button>
                                         </li>
                                     </ul>
                                 </nav>

@@ -237,10 +237,23 @@ function FilterBarInner({
                         key={c}
                         type="button"
                         onClick={() => onChange({ category: c })}
+                        onTouchStart={(e) => {
+                            e.stopPropagation();
+                        }}
+                        onTouchEnd={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            onChange({ category: c });
+                        }}
                         aria-pressed={active}
                         aria-label={labelForCategory(c)}
                         className={`inline-flex items-center justify-center gap-2 text-xs focus:outline-none ${active ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
-                        style={STYLE.controlBtn}
+                        style={{
+                            ...STYLE.controlBtn,
+                            touchAction: "manipulation",
+                            WebkitTapHighlightColor: "transparent",
+                            minHeight: "44px"
+                        }}
                     >
                         {labelForCategory(c)}
                     </button>
@@ -254,10 +267,23 @@ function FilterBarInner({
             <button
                 type="button"
                 onClick={() => onChange({ category: "all" })}
+                onTouchStart={(e) => {
+                    e.stopPropagation();
+                }}
+                onTouchEnd={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onChange({ category: "all" });
+                }}
                 aria-pressed={values.category === "all"}
                 aria-label={labelForCategory("all")}
                 className={`inline-flex items-center justify-center gap-2 text-xs focus:outline-none ${values.category === "all" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
-                style={STYLE.controlBtn}
+                style={{
+                    ...STYLE.controlBtn,
+                    touchAction: "manipulation",
+                    WebkitTapHighlightColor: "transparent",
+                    minHeight: "44px"
+                }}
             >
                 {labelForCategory("all")}
             </button>
@@ -285,12 +311,25 @@ function FilterBarInner({
                         key={t}
                         type="button"
                         onClick={() => toggleTag(t)}
+                        onTouchStart={(e) => {
+                            e.stopPropagation();
+                        }}
+                        onTouchEnd={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            toggleTag(t);
+                        }}
                         onKeyDown={(e) => onChipKey(e, t)}
                         role="switch"
                         aria-checked={active}
                         aria-label={ariaLabel}
                         className={`inline-flex items-center gap-2 text-xs focus:outline-none transition-colors ${active ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
-                        style={STYLE.chipBase}
+                        style={{
+                            ...STYLE.chipBase,
+                            touchAction: "manipulation",
+                            WebkitTapHighlightColor: "transparent",
+                            minHeight: "44px"
+                        }}
                     >
                         <span className="truncate" style={{ maxWidth: 160 }}>
                             {display}
@@ -345,8 +384,23 @@ function FilterBarInner({
                                     setLocalQuery("");
                                     debouncedApply("");
                                 }}
-                                className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-full hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30"
+                                onTouchStart={(e) => {
+                                    e.stopPropagation();
+                                }}
+                                onTouchEnd={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    setLocalQuery("");
+                                    debouncedApply("");
+                                }}
+                                className="absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-full hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30"
                                 aria-label={locale === "en" ? "Clear search" : "検索をクリア"}
+                                style={{ 
+                                    touchAction: "manipulation",
+                                    WebkitTapHighlightColor: "transparent",
+                                    minWidth: "44px",
+                                    minHeight: "44px"
+                                }}
                             >
                                 <XMarkIcon className="w-4 h-4 text-white/60 hover:text-white/90" />
                             </button>
@@ -361,11 +415,24 @@ function FilterBarInner({
                                     ref={sortButtonRef}
                                     type="button"
                                     onClick={() => setSortOpen((s) => !s)}
+                                    onTouchStart={(e) => {
+                                        e.stopPropagation();
+                                    }}
+                                    onTouchEnd={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        setSortOpen((s) => !s);
+                                    }}
                                     aria-haspopup="listbox"
                                     aria-expanded={isSortOpen}
                                     aria-controls="sort-menu"
                                     className="inline-flex items-center gap-2 text-xs focus:outline-none bg-transparent"
-                                    style={STYLE.controlBtn}
+                                    style={{
+                                        ...STYLE.controlBtn,
+                                        touchAction: "manipulation",
+                                        WebkitTapHighlightColor: "transparent",
+                                        minHeight: "44px"
+                                    }}
                                 >
                                     <span>{sortLabel}</span>
                                     <svg className="h-4 w-4 text-white/70" viewBox="0 0 20 20" fill="none" aria-hidden>
@@ -390,16 +457,32 @@ function FilterBarInner({
                                                     role="option"
                                                     data-value={opt}
                                                     aria-selected={isActive}
-                                    onClick={() => {
-                                        onChange({ sort: opt as "new" | "old" | "popular" });
-                                        setSortOpen(false);
-                                        setTimeout(() => sortButtonRef.current?.focus(), 0);
-                                    }}
-                                    className="w-full text-left px-3 py-2 text-xs"
-                                    style={{ background: isActive ? "rgba(255,255,255,0.06)" : "transparent", color: "#fff" }}
-                                >
-                                    {rawLabels?.sort?.options?.[opt] ?? labels.sort?.options?.[opt] ?? opt}
-                                </button>
+                                                    onClick={() => {
+                                                        onChange({ sort: opt as "new" | "old" | "popular" });
+                                                        setSortOpen(false);
+                                                        setTimeout(() => sortButtonRef.current?.focus(), 0);
+                                                    }}
+                                                    onTouchStart={(e) => {
+                                                        e.stopPropagation();
+                                                    }}
+                                                    onTouchEnd={(e) => {
+                                                        e.stopPropagation();
+                                                        e.preventDefault();
+                                                        onChange({ sort: opt as "new" | "old" | "popular" });
+                                                        setSortOpen(false);
+                                                        setTimeout(() => sortButtonRef.current?.focus(), 0);
+                                                    }}
+                                                    className="w-full text-left px-3 py-2 text-xs"
+                                                    style={{ 
+                                                        background: isActive ? "rgba(255,255,255,0.06)" : "transparent", 
+                                                        color: "#fff",
+                                                        touchAction: "manipulation",
+                                                        WebkitTapHighlightColor: "transparent",
+                                                        minHeight: "44px"
+                                                    }}
+                                                >
+                                                    {rawLabels?.sort?.options?.[opt] ?? labels.sort?.options?.[opt] ?? opt}
+                                                </button>
                                             );
                                         })}
                                     </div>
@@ -426,9 +509,22 @@ function FilterBarInner({
                         <button
                             type="button"
                             onClick={toggleShowAll}
+                            onTouchStart={(e) => {
+                                e.stopPropagation();
+                            }}
+                            onTouchEnd={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                toggleShowAll();
+                            }}
                             aria-expanded={showAllTags}
                             className={`inline-flex items-center gap-2 text-xs focus:outline-none ${showAllTags ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
-                            style={STYLE.controlBtn}
+                            style={{
+                                ...STYLE.controlBtn,
+                                touchAction: "manipulation",
+                                WebkitTapHighlightColor: "transparent",
+                                minHeight: "44px"
+                            }}
                         >
                             {showAllFixedLabel}
                         </button>
@@ -436,10 +532,25 @@ function FilterBarInner({
                         <button
                             type="button"
                             onClick={clearTags}
+                            onTouchStart={(e) => {
+                                e.stopPropagation();
+                            }}
+                            onTouchEnd={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                if (!isPending && values.selectedTags && values.selectedTags.length > 0) {
+                                    clearTags();
+                                }
+                            }}
                             disabled={!values.selectedTags || values.selectedTags.length === 0 || isPending}
                             aria-disabled={!values.selectedTags || values.selectedTags.length === 0 || isPending}
                             className={`inline-flex items-center gap-2 text-xs focus:outline-none ${isPending ? "opacity-60 pointer-events-none text-white/60" : !values.selectedTags || values.selectedTags.length === 0 ? "opacity-50 pointer-events-none text-white/60" : "bg-white/5 text-white/80"}`}
-                            style={STYLE.controlBtn}
+                            style={{
+                                ...STYLE.controlBtn,
+                                touchAction: "manipulation",
+                                WebkitTapHighlightColor: "transparent",
+                                minHeight: "44px"
+                            }}
                         >
                             {isPending ? "Clearing..." : clearLabel}
                         </button>

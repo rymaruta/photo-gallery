@@ -85,7 +85,7 @@ function PhotoImage({
 
     if (imageError) {
         return (
-            <div className="flex items-center justify-center bg-gray-900 min-h-[400px] rounded-lg">
+            <div className="flex items-center justify-center bg-black min-h-[400px] rounded-lg">
                 <div className="text-white/60 text-center px-4">
                     <svg className="w-16 h-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -97,29 +97,31 @@ function PhotoImage({
     }
 
     return (
-        <div className="relative w-full bg-gray-900 rounded-lg overflow-hidden" style={{ minHeight: "400px" }}>
+        <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ minHeight: "400px", position: "relative" }}>
             {imageLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-10">
+                <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
                     <div className="w-12 h-12 border-3 border-white/20 border-t-white/60 rounded-full animate-spin" />
                 </div>
             )}
-            <Image
-                src={src}
-                alt={alt}
-                width={1200}
-                height={800}
-                className="w-full h-auto object-contain"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1200px"
-                priority
-                style={{
-                    ...(focalPoint ? { objectPosition: `${focalPoint.x * 100}% ${focalPoint.y * 100}%` } : {}),
-                }}
-                onError={() => {
-                    setImageError(true);
-                    setImageLoading(false);
-                }}
-                onLoad={() => setImageLoading(false)}
-            />
+            <div className="relative w-full bg-black" style={{ minHeight: "400px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Image
+                    src={src}
+                    alt={alt}
+                    width={1200}
+                    height={800}
+                    className="w-full h-auto object-contain max-h-[80vh]"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1200px"
+                    priority
+                    style={{
+                        ...(focalPoint ? { objectPosition: `${focalPoint.x * 100}% ${focalPoint.y * 100}%` } : {}),
+                    }}
+                    onError={() => {
+                        setImageError(true);
+                        setImageLoading(false);
+                    }}
+                    onLoad={() => setImageLoading(false)}
+                />
+            </div>
         </div>
     );
 }
@@ -181,6 +183,11 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                     <Link
                         href="/"
                         className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
+                        style={{ 
+                            touchAction: "manipulation",
+                            WebkitTapHighlightColor: "transparent",
+                            minHeight: "44px"
+                        }}
                     >
                         <ArrowLeftIcon className="w-4 h-4" />
                         <span>{locale === "en" ? "Back to Gallery" : "ギャラリーに戻る"}</span>
@@ -205,11 +212,17 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
         : `${siteConfig.url}/photo/${photo.id}`;
     const shareText = titleText || "Photo";
 
-    const handleShare = () => {
+    const handleShare = (e?: React.MouseEvent) => {
+        if (e) {
+            e.stopPropagation();
+        }
         shareUrl(currentUrl, shareText, paragraphs.join(" "));
     };
 
-    const handleCopyLink = async () => {
+    const handleCopyLink = async (e?: React.MouseEvent) => {
+        if (e) {
+            e.stopPropagation();
+        }
         try {
             await copyToClipboard(currentUrl);
             showToast(locale === "en" ? "Link copied!" : "リンクをコピーしました");
@@ -261,6 +274,11 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                     <Link
                         href="/"
                         className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-2"
+                        style={{ 
+                            touchAction: "manipulation",
+                            WebkitTapHighlightColor: "transparent",
+                            minHeight: "44px"
+                        }}
                     >
                         <ArrowLeftIcon className="w-4 h-4" />
                         <span className="text-sm">{locale === "en" ? "Back to Gallery" : "ギャラリーに戻る"}</span>
@@ -275,42 +293,52 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                 </div>
             </div>
 
-            {/* 前後の写真へのナビゲーション（モバイル） */}
-            {(prevPhoto || nextPhoto) && (
-                <div className="flex items-center justify-between mb-4 sm:hidden">
-                    {prevPhoto ? (
-                        <Link
-                            href={`/photo/${prevPhoto.id}`}
-                            className="inline-flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
-                        >
-                            <ArrowLeftIcon className="w-4 h-4" />
-                            <span className="text-sm">{locale === "en" ? "Previous" : "前へ"}</span>
-                        </Link>
-                    ) : (
-                        <div />
-                    )}
-                    {nextPhoto ? (
-                        <Link
-                            href={`/photo/${nextPhoto.id}`}
-                            className="inline-flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
-                        >
-                            <span className="text-sm">{locale === "en" ? "Next" : "次へ"}</span>
-                            <ArrowRightIcon className="w-4 h-4" />
-                        </Link>
-                    ) : (
-                        <div />
-                    )}
-                </div>
-            )}
-
             {/* 写真 */}
-            <div className="mb-6">
+            <div className="mb-6 relative">
                 <PhotoImage
                     src={photo.src}
                     alt={altText}
                     focalPoint={photo.focalPoint}
                     onExifLoaded={setExtractedExif}
                 />
+                
+                {/* 前後の写真へのナビゲーション（モバイル - 写真の上にオーバーレイ） */}
+                {(prevPhoto || nextPhoto) && (
+                    <div className="flex items-center justify-between absolute bottom-4 left-4 right-4 sm:hidden z-10 pointer-events-none">
+                        {prevPhoto ? (
+                            <Link
+                                href={`/photo/${prevPhoto.id}`}
+                                className="inline-flex items-center gap-2 px-3 py-2 bg-black/60 hover:bg-black/80 backdrop-blur-sm text-white rounded-md transition-colors pointer-events-auto"
+                                style={{ 
+                                    touchAction: "manipulation",
+                                    WebkitTapHighlightColor: "transparent",
+                                    minHeight: "44px"
+                                }}
+                            >
+                                <ArrowLeftIcon className="w-4 h-4" />
+                                <span className="text-sm">{locale === "en" ? "Previous" : "前へ"}</span>
+                            </Link>
+                        ) : (
+                            <div />
+                        )}
+                        {nextPhoto ? (
+                            <Link
+                                href={`/photo/${nextPhoto.id}`}
+                                className="inline-flex items-center gap-2 px-3 py-2 bg-black/60 hover:bg-black/80 backdrop-blur-sm text-white rounded-md transition-colors pointer-events-auto"
+                                style={{ 
+                                    touchAction: "manipulation",
+                                    WebkitTapHighlightColor: "transparent",
+                                    minHeight: "44px"
+                                }}
+                            >
+                                <span className="text-sm">{locale === "en" ? "Next" : "次へ"}</span>
+                                <ArrowRightIcon className="w-4 h-4" />
+                            </Link>
+                        ) : (
+                            <div />
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* 写真情報 */}
@@ -440,7 +468,20 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                     {/* お気に入りボタン */}
                     <button
                         onClick={() => toggleFavorite(photo.id)}
+                        onTouchStart={(e) => {
+                            e.stopPropagation();
+                        }}
+                        onTouchEnd={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            toggleFavorite(photo.id);
+                        }}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
+                        style={{ 
+                            touchAction: "manipulation",
+                            WebkitTapHighlightColor: "transparent",
+                            minHeight: "44px"
+                        }}
                     >
                         {isFav ? (
                             <>
@@ -463,21 +504,57 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                         <div className="flex flex-wrap gap-2">
                             <button
                                 onClick={handleShare}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
+                                onTouchStart={(e) => {
+                                    e.stopPropagation();
+                                }}
+                                onTouchEnd={(e) => {
+                                    e.stopPropagation();
+                                    handleShare();
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
+                                style={{ 
+                                    touchAction: "manipulation",
+                                    WebkitTapHighlightColor: "transparent",
+                                    minHeight: "44px"
+                                }}
                             >
                                 <ShareIcon className="w-4 h-4" />
                                 <span>{locale === "en" ? "Share" : "共有"}</span>
                             </button>
                             <button
                                 onClick={handleCopyLink}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
+                                onTouchStart={(e) => {
+                                    e.stopPropagation();
+                                }}
+                                onTouchEnd={(e) => {
+                                    e.stopPropagation();
+                                    handleCopyLink();
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
+                                style={{ 
+                                    touchAction: "manipulation",
+                                    WebkitTapHighlightColor: "transparent",
+                                    minHeight: "44px"
+                                }}
                             >
                                 <LinkIcon className="w-4 h-4" />
                                 <span>{locale === "en" ? "Copy Link" : "リンクをコピー"}</span>
                             </button>
                             <button
                                 onClick={() => shareToTwitter(currentUrl, shareText)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
+                                onTouchStart={(e) => {
+                                    e.stopPropagation();
+                                }}
+                                onTouchEnd={(e) => {
+                                    e.stopPropagation();
+                                    shareToTwitter(currentUrl, shareText);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
+                                style={{ 
+                                    touchAction: "manipulation",
+                                    WebkitTapHighlightColor: "transparent",
+                                    minHeight: "44px"
+                                }}
                             >
                                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
@@ -486,7 +563,19 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                             </button>
                             <button
                                 onClick={() => shareToFacebook(currentUrl)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
+                                onTouchStart={(e) => {
+                                    e.stopPropagation();
+                                }}
+                                onTouchEnd={(e) => {
+                                    e.stopPropagation();
+                                    shareToFacebook(currentUrl);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
+                                style={{ 
+                                    touchAction: "manipulation",
+                                    WebkitTapHighlightColor: "transparent",
+                                    minHeight: "44px"
+                                }}
                             >
                                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
@@ -496,7 +585,19 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                             {locale === "ja" && (
                                 <button
                                     onClick={() => shareToLine(currentUrl, shareText)}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
+                                    onTouchStart={(e) => {
+                                        e.stopPropagation();
+                                    }}
+                                    onTouchEnd={(e) => {
+                                        e.stopPropagation();
+                                        shareToLine(currentUrl, shareText);
+                                    }}
+                                    className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
+                                    style={{ 
+                                        touchAction: "manipulation",
+                                        WebkitTapHighlightColor: "transparent",
+                                        minHeight: "44px"
+                                    }}
                                 >
                                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                         <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.63.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.086.766.063 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314" />
@@ -515,6 +616,11 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                             <Link
                                 href={`/photo/${prevPhoto.id}`}
                                 className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
+                                style={{ 
+                                    touchAction: "manipulation",
+                                    WebkitTapHighlightColor: "transparent",
+                                    minHeight: "44px"
+                                }}
                             >
                                 <ArrowLeftIcon className="w-5 h-5" />
                                 <div className="text-left">
@@ -529,6 +635,11 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                             <Link
                                 href={`/photo/${nextPhoto.id}`}
                                 className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
+                                style={{ 
+                                    touchAction: "manipulation",
+                                    WebkitTapHighlightColor: "transparent",
+                                    minHeight: "44px"
+                                }}
                             >
                                 <div className="text-right">
                                     <div className="text-xs text-white/60">{locale === "en" ? "Next" : "次へ"}</div>

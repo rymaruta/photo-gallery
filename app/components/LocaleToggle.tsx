@@ -31,10 +31,23 @@ export default function LocaleToggle({
                 <button
                     type="button"
                     onClick={onSetJa}
+                    onTouchStart={(e) => {
+                        e.stopPropagation();
+                    }}
+                    onTouchEnd={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        onSetJa();
+                    }}
                     aria-pressed={locale === "ja"}
                     className={`rounded whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-white transition-colors
             px-2 py-1 text-[12px] sm:text-sm ${locale === "ja" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
                     aria-label={jaLabel}
+                    style={{ 
+                        touchAction: "manipulation",
+                        WebkitTapHighlightColor: "transparent",
+                        minHeight: "44px"
+                    }}
                 >
                     {jaLabel}
                 </button>
@@ -42,10 +55,23 @@ export default function LocaleToggle({
                 <button
                     type="button"
                     onClick={onSetEn}
+                    onTouchStart={(e) => {
+                        e.stopPropagation();
+                    }}
+                    onTouchEnd={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        onSetEn();
+                    }}
                     aria-pressed={locale === "en"}
                     className={`rounded whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-white transition-colors
             px-2 py-1 text-[12px] sm:text-sm ${locale === "en" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
                     aria-label={enLabel}
+                    style={{ 
+                        touchAction: "manipulation",
+                        WebkitTapHighlightColor: "transparent",
+                        minHeight: "44px"
+                    }}
                 >
                     {enLabel}
                 </button>
