@@ -10,6 +10,7 @@ import React, {
     memo,
 } from "react";
 import debounce from "lodash.debounce";
+import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { getLabels } from "../i18n/labels";
 import type { FilterValues } from "../../lib/types/gallery";
 
@@ -315,27 +316,41 @@ function FilterBarInner({
                             {renderCategoryButtons}
                         </div>
                     </div>
-
-                    <div className="ml-auto text-xs text-white/60 flex items-center gap-2">
-                        <div className="hidden sm:block">{selectedSummary}</div>
-                    </div>
                 </div>
 
                 {/* search + mobile sort */}
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2" style={{ marginBottom: 6 }}>
-                    <div style={{ flex: "1 1 auto" }}>
+                    <div style={{ flex: "1 1 auto", position: "relative" }}>
                         <label htmlFor="filter-query" className="sr-only">
                             {rawLabels?.search?.placeholder ?? labels.search?.placeholder ?? "Search"}
                         </label>
+                        {/* 検索アイコン */}
+                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none z-10">
+                            <MagnifyingGlassIcon className="w-4 h-4 text-white/40" />
+                        </div>
                         <input
                             id="filter-query"
                             type="search"
                             value={localQuery}
                             onChange={(e) => onQueryChange(e.target.value)}
                             placeholder={rawLabels?.search?.placeholder ?? labels.search?.placeholder ?? "Search"}
-                            className="w-full rounded-md bg-white/5 text-white placeholder:text-white/40 text-sm"
-                            style={STYLE.input}
+                            className="w-full rounded-md bg-white/5 text-white placeholder:text-white/40 text-sm pl-10 pr-10 border border-white/10 focus:border-white/30 focus:bg-white/8 transition-all duration-200 outline-none"
+                            style={{ padding: "8px 36px 8px 36px", fontSize: 13 }}
                         />
+                        {/* クリアボタン（入力時のみ表示） */}
+                        {localQuery && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setLocalQuery("");
+                                    debouncedApply("");
+                                }}
+                                className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-full hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30"
+                                aria-label={locale === "en" ? "Clear search" : "検索をクリア"}
+                            >
+                                <XMarkIcon className="w-4 h-4 text-white/60 hover:text-white/90" />
+                            </button>
+                        )}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -394,10 +409,20 @@ function FilterBarInner({
                     </div>
                 </div>
 
-                {/* tags header */}
-                <div className="flex items-center justify-between mb-2">
-                    <div className="text-xs text-white/70">{tagLabels.title ?? rawLabels?.tags?.title ?? labels.tags?.title ?? "Tags"}</div>
-                    <div className="flex items-center gap-2">
+                {/* tags */}
+                <div className="flex items-center gap-2 flex-wrap" style={{ marginBottom: 0 }}>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs text-white/70 mr-1">{tagLabels.title ?? rawLabels?.tags?.title ?? labels.tags?.title ?? "Tags"}</span>
+                        <div className="flex gap-1 flex-wrap">
+                            {renderTagChips}
+                            {!showAllTags && tags.length > mobileCollapseLimit && (
+                                <div className="flex items-center text-xs text-white/60 px-2">+{tags.length - mobileCollapseLimit}</div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="ml-auto flex items-center gap-2">
+                        <div className="hidden sm:block text-xs text-white/60">{selectedSummary}</div>
                         <button
                             type="button"
                             onClick={toggleShowAll}
@@ -419,15 +444,6 @@ function FilterBarInner({
                             {isPending ? "Clearing..." : clearLabel}
                         </button>
                     </div>
-                </div>
-
-                {/* tag chips */}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {renderTagChips}
-
-                    {!showAllTags && tags.length > mobileCollapseLimit && (
-                        <div className="flex items-center text-xs text-white/60">+{tags.length - mobileCollapseLimit}</div>
-                    )}
                 </div>
             </div>
         </section>
