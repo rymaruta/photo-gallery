@@ -3,6 +3,8 @@ import Image from "next/image";
 import type { Photo, Locale } from "../data/photos";
 import { getLocalized } from "../data/photos";
 import { getLabels } from "../i18n/labels";
+import { useFavorites } from "../../lib/hooks/useFavorites";
+import { HeartIcon } from "@heroicons/react/24/solid";
 
 type Props = {
     photos: Photo[];
@@ -72,6 +74,9 @@ function GalleryItem({
     onOpen: (index: number) => void;
 }) {
     const [imageError, setImageError] = useState(false);
+    const [imageLoading, setImageLoading] = useState(true);
+    const { isFavorite } = useFavorites();
+    const isFav = isFavorite(photo.id);
 
     return (
         <div className="w-full m-0 p-0">
@@ -89,6 +94,11 @@ function GalleryItem({
                 >
                     <div className="absolute inset-0" aria-hidden />
 
+                    {imageLoading && !imageError && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-gray-900 animate-pulse">
+                            <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                        </div>
+                    )}
                     {!imageError ? (
                         <Image
                             src={photo.src}
@@ -99,7 +109,11 @@ function GalleryItem({
                             loading="lazy"
                             style={objectPosition ? { objectPosition } : undefined}
                             priority={false}
-                            onError={() => setImageError(true)}
+                            onError={() => {
+                                setImageError(true);
+                                setImageLoading(false);
+                            }}
+                            onLoad={() => setImageLoading(false)}
                         />
                     ) : (
                         <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
@@ -111,6 +125,13 @@ function GalleryItem({
                             </div>
                         </div>
                     )}
+
+                                {/* お気に入りアイコン */}
+                                {isFav && (
+                                    <div className="absolute top-2 right-2 z-10">
+                                        <HeartIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 drop-shadow-lg" />
+                                    </div>
+                                )}
 
                                 <div
                                     className="absolute left-0 right-0 bottom-0 px-2"
