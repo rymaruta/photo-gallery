@@ -2,6 +2,7 @@ import React from "react";
 import Image from "next/image";
 import type { Photo, Locale } from "../data/photos";
 import { getLocalized } from "../data/photos";
+import { getLabels } from "../i18n/labels";
 
 type Props = {
     photos: Photo[];
@@ -16,12 +17,15 @@ export default function GalleryGrid({
     locale,
     categoryDisplayMap = {},
 }: Props) {
+    const labels = React.useMemo(() => getLabels(locale), [locale]);
+    const emptyMessage = labels.gallery?.emptyMessage ?? (locale === "en" ? "No photos found." : "該当する写真がありません。");
+
     if (!photos || photos.length === 0) {
-        return <div className="text-sm text-white/70">該当する写真がありません。</div>;
+        return <div className="text-sm text-white/70">{emptyMessage}</div>;
     }
 
     return (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-0">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-0">
             {photos.map((p, idx) => {
                 const localizedTitle = getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : "");
                 const localizedAlt = getLocalized(p.alt, locale) || localizedTitle || "";

@@ -11,13 +11,7 @@ import React, {
 } from "react";
 import debounce from "lodash.debounce";
 import { getLabels } from "../i18n/labels";
-
-export type FilterValues = {
-    category: string;
-    selectedTags: string[];
-    query: string;
-    sort: string;
-};
+import type { FilterValues } from "../../lib/types/gallery";
 
 type TagInfo = { label: string; desc?: string };
 
@@ -381,16 +375,16 @@ function FilterBarInner({
                                                     role="option"
                                                     data-value={opt}
                                                     aria-selected={isActive}
-                                                    onClick={() => {
-                                                        onChange({ sort: opt });
-                                                        setSortOpen(false);
-                                                        setTimeout(() => sortButtonRef.current?.focus(), 0);
-                                                    }}
-                                                    className="w-full text-left px-3 py-2 text-xs"
-                                                    style={{ background: isActive ? "rgba(255,255,255,0.06)" : "transparent", color: "#fff" }}
-                                                >
-                                                    {rawLabels?.sort?.options?.[opt] ?? labels.sort?.options?.[opt] ?? opt}
-                                                </button>
+                                    onClick={() => {
+                                        onChange({ sort: opt as "new" | "old" | "popular" });
+                                        setSortOpen(false);
+                                        setTimeout(() => sortButtonRef.current?.focus(), 0);
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-xs"
+                                    style={{ background: isActive ? "rgba(255,255,255,0.06)" : "transparent", color: "#fff" }}
+                                >
+                                    {rawLabels?.sort?.options?.[opt] ?? labels.sort?.options?.[opt] ?? opt}
+                                </button>
                                             );
                                         })}
                                     </div>

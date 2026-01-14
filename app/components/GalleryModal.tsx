@@ -89,12 +89,12 @@ export default function GalleryModal({
     mapLabel = { ja: "地図で見る", en: "View on map" },
 }: Props) {
     const p = photos[currentIndex];
-    const titleText = getLocalized(p.title as any, locale) || (typeof p.title === "string" ? p.title : "");
-    const altText = getLocalized(p.alt as any, locale) || titleText || "";
+    const titleText = getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : "");
+    const altText = getLocalized(p.alt, locale) || titleText || "";
     const locationText = typeof p.location === "string" ? p.location : "";
     const mapText = locale === "ja" ? mapLabel.ja : mapLabel.en;
 
-    const paragraphs = getLocalizedParagraphs(p.description as any, locale);
+    const paragraphs = getLocalizedParagraphs(p.description, locale);
 
     const preferred = getPreferredMapLink(p);
     const fallbackHref = p.coords ? makeGoogleSearch(p.coords.lat, p.coords.lng) : undefined;
@@ -144,54 +144,107 @@ export default function GalleryModal({
             aria-label={titleText || "Photo"}
             onClick={handleOverlayClick}
             className="fixed inset-0 z-50 flex items-center justify-center"
-            style={{ background: "rgba(0,0,0,0.9)", padding: 12 }}
+            style={{ background: "rgba(0,0,0,0.9)", padding: "0" }}
         >
-            <div onClick={(e) => e.stopPropagation()} className="relative mx-4 w-full" style={{ maxWidth: 980 }}>
-                <div className="relative w-full overflow-hidden bg-black" style={{ paddingTop: "66.66%", fontSize: 0, lineHeight: 0 }}>
-                    <Image
-                        src={p.src}
-                        alt={altText}
-                        fill
-                        className="object-contain block"
-                        sizes="90vw"
-                        priority
-                        style={p.focalPoint ? { objectPosition: `${p.focalPoint.x * 100}% ${p.focalPoint.y * 100}%` } : undefined}
-                    />
+            <div 
+                onClick={(e) => e.stopPropagation()} 
+                className="relative w-full h-full sm:h-auto sm:max-h-[95vh] flex flex-col sm:mx-4 sm:rounded-lg overflow-hidden bg-black"
+                style={{ maxWidth: "980px" }}
+            >
+                {/* 画像エリア - スマホでは高さを確保、PCではアスペクト比を維持 */}
+                <div 
+                    className="relative w-full flex-shrink-0 bg-black sm:bg-transparent"
+                    style={{ 
+                        height: "60vh",
+                        minHeight: "300px",
+                        fontSize: 0, 
+                        lineHeight: 0,
+                        position: "relative",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center"
+                    }}
+                >
+                    {/* 画像コンテナ - 全画面で表示、object-containで全体を表示 */}
+                    <div 
+                        className="relative w-full h-full"
+                        style={{
+                            maxWidth: "100%",
+                            maxHeight: "100%"
+                        }}
+                    >
+                        <Image
+                            src={p.src}
+                            alt={altText}
+                            fill
+                            className="object-contain"
+                            sizes="(max-width: 640px) 100vw, 90vw"
+                            priority
+                            style={{
+                                ...(p.focalPoint ? { objectPosition: `${p.focalPoint.x * 100}% ${p.focalPoint.y * 100}%` } : {}),
+                            }}
+                        />
+                    </div>
 
+                    {/* 前へボタン - スマホでは小さく、PCでは大きく */}
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
                             onPrev();
                         }}
                         aria-label="Previous"
-                        className="absolute left-3 top-1/2 transform -translate-y-1/2 p-3 rounded-full bg-white/6 hover:bg-white/12 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg"
+                        className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 p-2 sm:p-3 rounded-full bg-white/6 hover:bg-white/12 active:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors"
                         style={{ backdropFilter: "blur(4px)" }}
                     >
-                        <ArrowLeftIcon className="w-5 h-5 text-white" />
+                        <ArrowLeftIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </button>
 
+                    {/* 次へボタン - スマホでは小さく、PCでは大きく */}
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
                             onNext();
                         }}
                         aria-label="Next"
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 p-3 rounded-full bg-white/6 hover:bg-white/12 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg"
+                        className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 p-2 sm:p-3 rounded-full bg-white/6 hover:bg-white/12 active:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors"
                         style={{ backdropFilter: "blur(4px)" }}
                     >
-                        <ArrowRightIcon className="w-5 h-5 text-white" />
+                        <ArrowRightIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                    </button>
+
+                    {/* 閉じるボタン - 右上 */}
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onClose();
+                        }}
+                        aria-label="Close"
+                        className="absolute top-2 sm:top-3 right-2 sm:right-3 p-2 sm:p-3 rounded-full bg-white/6 hover:bg-white/12 active:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors z-10"
+                        style={{ backdropFilter: "blur(4px)" }}
+                    >
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                     </button>
                 </div>
 
-                <div className="mt-3 text-white/90">
-                    <div className="text-lg font-medium">{titleText}</div>
+                {/* キャプションエリア - スクロール可能 */}
+                <div 
+                    className="flex-shrink-0 overflow-y-auto bg-black text-white/90 px-4 sm:px-6 py-3 sm:py-4"
+                    style={{
+                        maxHeight: "calc(100vh - 60vh - 20px)",
+                        minHeight: "120px",
+                        WebkitOverflowScrolling: "touch"
+                    }}
+                >
+                    <div className="text-base sm:text-lg font-medium mb-1">{titleText}</div>
 
-                    <div className="text-sm text-white/60">{categoryDisplayMap[p.category ?? ""] ?? (p.category ?? "")}</div>
+                    <div className="text-xs sm:text-sm text-white/60 mb-2">{categoryDisplayMap[p.category ?? ""] ?? (p.category ?? "")}</div>
 
                     {paragraphs.length > 0 ? (
-                        <div className="mt-1 text-sm text-white/70" role="note">
+                        <div className="mt-2 text-xs sm:text-sm text-white/70" role="note">
                             {paragraphs.map((line, i) => (
-                                <p key={i} className={i === 0 ? "" : "mt-1"}>
+                                <p key={i} className={i === 0 ? "" : "mt-2"}>
                                     {line}
                                 </p>
                             ))}
@@ -199,18 +252,18 @@ export default function GalleryModal({
                     ) : null}
 
                     {locationText ? (
-                        <div className="mt-2">
-                            <div className="text-sm text-white/50 truncate" title={locationText}>
+                        <div className="mt-3">
+                            <div className="text-xs sm:text-sm text-white/50 truncate" title={locationText}>
                                 {locationText}
                             </div>
 
                             {href ? (
-                                <div className="mt-1.5">
+                                <div className="mt-2">
                                     <a
                                         href={href}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 text-sm text-white/50 underline"
+                                        className="inline-flex items-center gap-2 text-xs sm:text-sm text-white/50 underline hover:text-white/70 transition-colors"
                                         onClick={(e) => e.stopPropagation()}
                                         aria-label={mapText}
                                     >
@@ -226,7 +279,7 @@ export default function GalleryModal({
                         </div>
                     ) : null}
 
-                    <div className="mt-2 text-xs text-white/50">
+                    <div className="mt-3 text-xs text-white/50">
                         {p.photographer ? <span>{p.photographer}</span> : null}
                         {p.photographer && p.license ? <span className="mx-2">·</span> : null}
                         {p.license ? <span>{p.license}</span> : null}

@@ -19,13 +19,13 @@ export default function ProtectedPortrait({
 }: Props) {
     // ブラウザのコンテキストメニュー / ドラッグ をブロック
     const onContextMenu = (e: React.MouseEvent) => e.preventDefault();
-    const onDragStart = (e: React.DragEvent) => e.preventDefault();
+    const onDragStart = (e: React.DragEvent<HTMLDivElement | HTMLImageElement>) => e.preventDefault();
 
     return (
         <div
             className={`relative rounded-full overflow-hidden bg-gray-900 ring-1 ring-white/6 ${className}`}
             onContextMenu={onContextMenu}
-            onDragStart={onDragStart as any}
+            onDragStart={onDragStart}
             // モバイルの長押しメニューを抑止するための style
             style={{
                 WebkitUserSelect: "none",
@@ -43,7 +43,7 @@ export default function ProtectedPortrait({
                 sizes={sizes}
                 draggable={false}
                 onContextMenu={onContextMenu}
-                onDragStart={onDragStart as any}
+                onDragStart={onDragStart}
                 className="w-full h-full object-cover object-center select-none pointer-events-none"
                 priority
             />

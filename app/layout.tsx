@@ -30,10 +30,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </header>
 
-        {/* Main */}
-        <main className="flex-1 max-w-5xl mx-auto p-6 sm:p-8 w-full">
+        {/* Main - 各ページで管理 */}
+        <div className="flex-1">
           {children}
-        </main>
+        </div>
 
         {/* Footer */}
         <footer className="border-t border-white/10">

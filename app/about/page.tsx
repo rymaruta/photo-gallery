@@ -4,7 +4,7 @@
 import React, { useMemo, useState } from "react";
 import Head from "next/head";
 import Image from "next/image";
-import getContent, { AboutContent } from "./i18n/about";
+import getContent, { AboutContent } from "../i18n/about";
 import { getLabels } from "../i18n/labels";
 import LocaleToggle from "../components/LocaleToggle";
 import ProtectedPortrait from "../components/ProtectedPortrait";
@@ -43,8 +43,7 @@ export default function AboutPage() {
                 <link rel="canonical" href="https://your-domain.example/about" />
             </Head>
 
-            <main className="p-6 sm:p-8 min-h-screen text-white bg-black">
-                <div className="max-w-5xl mx-auto">
+            <main className="p-6 sm:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
                     <div className="flex items-start justify-between gap-4 mb-6 min-h-[64px]">
                         <div>
                             <h1 id="site-title" className="text-3xl font-bold">
@@ -129,7 +128,6 @@ export default function AboutPage() {
                             </article>
                         </section>
                     </div>
-                </div>
             </main>
         </>
     );

@@ -33,6 +33,10 @@ export type Labels = {
         placeholder: string;
         clear: string;
     };
+    gallery?: {
+        emptyMessage?: string;
+        resultsCount?: string;
+    };
 };
 
 export const ja: Labels = {
@@ -67,6 +71,10 @@ export const ja: Labels = {
     },
     tags: { title: "タグ" },
     search: { placeholder: "タイトルや説明で検索", clear: "クリア" },
+    gallery: {
+        emptyMessage: "該当する写真がありません。",
+        resultsCount: "結果",
+    },
 };
 
 export const en: Labels = {
@@ -100,6 +108,10 @@ export const en: Labels = {
     },
     tags: { title: "Tags" },
     search: { placeholder: "Search title or description", clear: "Clear" },
+    gallery: {
+        emptyMessage: "No photos found.",
+        resultsCount: "Results",
+    },
 };
 
 const map: Record<string, Labels> = { ja, en };

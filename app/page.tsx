@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import FilterBar, { FilterValues } from "./components/FilterBar";
+import FilterBar from "./components/FilterBar";
 import LocaleToggle from "./components/LocaleToggle";
 import { getLabels } from "./i18n/labels";
 
@@ -10,6 +10,7 @@ import RAW_PHOTOS from "./data/photos";
 import useGallery from "./hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
 import GalleryModal from "./components/GalleryModal";
+import type { FilterValues } from "../lib/types/gallery";
 
 const capitalize = (s?: string) => {
   if (!s) return "";
@@ -91,35 +92,40 @@ export default function Page() {
   };
 
   return (
-    <main className="p-6 sm:p-8 min-h-screen text-white bg-black">
-      <div className="max-w-5xl mx-auto">
-        <div className="flex items-start justify-between gap-4 mb-6 min-h-[64px]">
-          <div>
-            <h1 id="site-title" className="text-3xl font-bold mb-0">
+    <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6 min-h-[64px]">
+          <div className="flex-1">
+            <h1 id="site-title" className="text-2xl sm:text-3xl font-bold mb-0">
               {labels.site?.title ?? "Gallery"}
             </h1>
 
             {renderSubtitle(labels.site?.subtitle)}
           </div>
 
-          <LocaleToggle
-            locale={locale}
-            setLocale={setLocale}
-            labels={labels.ui?.language ?? { ja: "日本語", en: "English" }}
-          />
+          <div className="flex-shrink-0">
+            <LocaleToggle
+              locale={locale}
+              setLocale={setLocale}
+              labels={labels.ui?.language ?? { ja: "日本語", en: "English" }}
+            />
+          </div>
         </div>
 
         <FilterBar
           categories={categories}
           tags={tags}
-          values={filters as unknown as FilterValues}
-          onChange={(next) => setFilters(next as any)}
+          values={filters}
+          onChange={(next) => setFilters(next)}
           className="mb-4"
           locale={locale}
           categoryDisplayMap={categoryDisplayMap}
         />
 
-        <div className="mb-4 text-sm text-white/70">結果: {filteredPhotos.length} 件</div>
+        <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
+          {locale === "en" 
+            ? `${labels.gallery?.resultsCount ?? "Results"}: ${filteredPhotos.length}`
+            : `${labels.gallery?.resultsCount ?? "結果"}: ${filteredPhotos.length} 件`}
+        </div>
 
         <GalleryGrid
           photos={filteredPhotos}
@@ -139,7 +145,6 @@ export default function Page() {
             categoryDisplayMap={categoryDisplayMap}
           />
         )}
-      </div>
     </main>
   );
 }
