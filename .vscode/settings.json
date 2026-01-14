@@ -1,0 +1,27 @@
+{
+  // TypeScriptの設定：現在のワークスペースのみを対象にする
+  "typescript.tsserver.experimental.enableProjectDiagnostics": false,
+  "typescript.preferences.useLabelDetailsInCompletionInfo": false,
+  
+  // ファイルの除外設定（必要に応じて）
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/out": true
+  },
+  
+  // TypeScriptのプロジェクト参照を無効化（他のプロジェクトの型定義を読み込まない）
+  "typescript.preferences.includePackageJsonAutoImports": "off",
+  
+  // エディタの設定
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  
+  // 検索の除外設定
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/out": true,
+    "**/.next": true
+  }
+}
