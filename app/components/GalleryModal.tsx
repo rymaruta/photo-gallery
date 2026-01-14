@@ -431,8 +431,8 @@ export default function GalleryModal({
                 <div 
                     className="flex-shrink-0 overflow-y-auto bg-black text-white/90 px-4 sm:px-6 py-3 sm:py-4"
                     style={{
-                        maxHeight: "calc(100vh - 60vh - 20px)",
-                        minHeight: "120px",
+                        maxHeight: "calc(100vh - 60vh - 40px)",
+                        minHeight: "200px",
                         WebkitOverflowScrolling: "touch"
                     }}
                 >
@@ -546,7 +546,7 @@ export default function GalleryModal({
                     </div>
 
                     {/* 共有機能 */}
-                    <div className="mt-4 pt-4 border-t border-white/10">
+                    <div className="mt-4 pt-4 border-t border-white/10 pb-4">
                         <div className="text-xs font-medium text-white/70 mb-2">
                             {locale === "en" ? "Share" : "共有"}
                         </div>
