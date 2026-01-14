@@ -49,6 +49,9 @@ export type Photo = {
         exposure?: string;
         iso?: number;
         focalLength?: string;
+        whiteBalance?: string;
+        imageSize?: string;
+        fileFormat?: string;
     };
     translationStatus?: { ja?: boolean; en?: boolean };
     relatedIds?: string[];
@@ -159,7 +162,6 @@ export const BASE_PHOTOS: Photo[] = [
         license: "All rights reserved",
         copyrightOwner: "丸田　竜平",
         copyrightYear: "2025",
-        date: "2025-11-15",
         width: 4000,
         height: 2667,
         aspectRatio: 1.5,
@@ -199,7 +201,6 @@ export const BASE_PHOTOS: Photo[] = [
         license: "All rights reserved",
         copyrightOwner: "丸田　竜平",
         copyrightYear: "2024",
-        date: "2024-10-01",
         published: true,
     },
 
@@ -343,6 +344,288 @@ export const BASE_PHOTOS: Photo[] = [
         mapLinks: {
             google: "https://maps.app.goo.gl/pQbfgnx7MMqfKcFp7",
         },
+        published: true,
+    },
+
+    // sample8
+    {
+        id: "8",
+        src: "/images/sample8.JPG",
+        slug: "sample-8",
+        title: { ja: "北欧の朝", en: "Nordic Morning" },
+        alt: { ja: "北欧の朝", en: "Nordic morning" },
+        description: {
+            ja: [
+                "ガラス越しに視界いっぱいに北欧の森と空が広がる不思議な空間だ。",
+                "外は氷点下の世界だというのに、風の音ひとつ聞こえない。",
+                "驚くべきはフィンランドのイグルーには室内にサウナがついていることだ。",
+                "さすが北欧だ。",
+            ],
+            en: [
+                "A mysterious space where Nordic forests and sky spread across the view through the glass.",
+                "Outside is a sub-zero world, yet not a single sound of wind can be heard.",
+                "What's surprising is that Finnish igloos have saunas inside.",
+                "Truly Nordic.",
+            ],
+        },
+        category: "landscape",
+        tags: ["photography"],
+        photographer: "丸田　竜平",
+        published: true,
+    },
+
+    // sample9
+    {
+        id: "9",
+        src: "/images/sample9.JPG",
+        slug: "sample-9",
+        title: { ja: "サーリセルカの街灯", en: "Streetlights of Saariselkä" },
+        alt: { ja: "サーリセルカの街灯", en: "Streetlights of Saariselkä" },
+        description: {
+            ja: [
+                "サーリセルカの街灯は、デザインが美しい。",
+                "静けさの中、街灯が光を放っている。",
+            ],
+            en: [
+                "The streetlights of Saariselkä have beautiful designs.",
+                "In the silence, the streetlights cast their glow.",
+            ],
+        },
+        category: "landscape",
+        tags: ["photography"],
+        photographer: "丸田　竜平",
+        published: true,
+    },
+
+    // sample10
+    {
+        id: "10",
+        src: "/images/sample10.JPG",
+        slug: "sample-10",
+        title: { ja: "木こりのろうそく橋", en: "Lumberjack's Candle Bridge" },
+        alt: { ja: "木こりのろうそく橋", en: "Lumberjack's Candle Bridge" },
+        description: {
+            ja: [
+                "フィンランド北部の街ロヴァニエミには、日本人にも有名な橋がある。",
+                "低い太陽のオレンジ色が凍り付いたケミ川に反射している。",
+            ],
+            en: [
+                "The bridge in Rovaniemi is famous among Japanese people.",
+                "The orange color of the low sun reflects on the frozen Kemijoki river.",
+            ],
+        },
+        category: "landscape",
+        tags: ["photography"],
+        photographer: "丸田　竜平",
+        published: true,
+    },
+
+    // sample11
+    {
+        id: "11",
+        src: "/images/sample11.JPG",
+        slug: "sample-11",
+        title: { ja: "Löyly", en: "Löyly" },
+        alt: { ja: "Löyly", en: "Löyly" },
+        description: {
+            ja: [
+                "モダンな木造建築が美しい、ヘルシンキのサウナ「Löyly」",
+                "スモークと薪、2種類のサウナで限界まで温まったあと、そのまま12月のバルト海へ",
+                "梯子を降りて浸かった海は痺れるような冷たさで、濡れた肌に外気が容赦なく突き刺さり、すぐにまたサウナへ駆け込んだ。",
+                "フィンランドの冬を肌で感じた一日。一生忘れられない体験になった。"
+            ],
+            en: [
+                "Löyly in Helsinki. Modern wooden building with beautiful design.",
+                "There are two types of sauna: smoke sauna and wood sauna. After sweating with two types of heat, I jumped into the Baltic Sea in December.",
+                "The sea was so cold that it made my body numb, but the afterglow was the best.",
+                "I experienced the winter of Finland with my skin. It was an unforgettable experience.",
+            ],
+        },
+        category: "landscape",
+        tags: ["photography"],
+        photographer: "丸田　竜平",
+        published: true,
+    },
+
+    // sample13
+    {
+        id: "13",
+        src: "/images/sample13.JPG",
+        slug: "sample-13",
+        title: { ja: "ヘルシンキ大聖堂", en: "Helsinki Cathedral" },
+        alt: { ja: "ヘルシンキ大聖堂", en: "Helsinki Cathedral" },
+        description: {
+            ja: [
+                "ヘルシンキのシンボル、ヘルシンキ大聖堂。",
+                "元老院広場から見上げると、その白さと大きさに圧倒される。 ",
+                "冬の青空の下でも、この建物だけが発光しているように白く輝いていた。"
+            ],
+            en: [
+                "The symbol of Helsinki, Helsinki Cathedral.",
+                "Looking up from Senate Square, one is overwhelmed by its whiteness and size.",
+                "Even under the winter blue sky, this building alone glowed white as if emitting light.",
+            ],
+        },
+        category: "landscape",
+        tags: ["photography"],
+        photographer: "丸田　竜平",
+        published: true,
+    },
+
+    // sample14
+    {
+        id: "14",
+        src: "/images/sample14.JPG",
+        slug: "sample-14",
+        title: { ja: "ピザ店の窓", en: "Pizza Shop Window" },
+        alt: { ja: "ピザ店の窓", en: "Pizza shop window" },
+        description: {
+            ja: [
+                "料理ができるまでの間、窓の外の雪景色を眺めながら撮った1枚。",
+                "ここで食べたピザは、生地が薄くサクサク。シンプルでありながらいつでも食べたい美味しさだった。",
+            ],
+            en: [
+                "While waiting for the pizza to be ready, I took a photo of the snow-covered view outside the window.",
+                "The pizza I ate here was thin and crispy. It was simple but always delicious.",
+            ],
+        },
+        category: "landscape",
+        tags: ["photography"],
+        photographer: "丸田　竜平",
+        published: true,
+    },
+
+    // sample15
+    {
+        id: "15",
+        src: "/images/sample15.JPG",
+        slug: "sample-15",
+        title: { ja: "ヘルシンキの街並み", en: "Streets of Helsinki" },
+        alt: { ja: "ヘルシンキの街並み", en: "Streets of Helsinki" },
+        description: {
+            ja: [
+                "大聖堂を目指して歩いている時の風景。",
+                "歴史ある石造りの建物が並ぶ、ヘルシンキらしい街角。"
+            ],
+            en: [
+                "A scene while walking toward the cathedral.",
+                "A typical Helsinki street corner lined with historic stone buildings.",
+            ],
+        },
+        category: "landscape",
+        tags: ["photography"],
+        photographer: "丸田　竜平",
+        published: true,
+    },
+
+    // sample16
+    {
+        id: "16",
+        src: "/images/sample16.JPG",
+        slug: "sample-16",
+        title: { ja: "北欧の森", en: "Nordic Forest" },
+        alt: { ja: "北欧の森", en: "Nordic forest" },
+        description: {
+            ja: [
+                "フィンランドの森は、緑が深く、木々が高く、空が青く、水が透明である。",
+            ],
+            en: [
+                "The forest in Finland is deep green, the trees are tall, the sky is blue, and the water is transparent.",
+            ],
+        },
+        category: "nature",
+        tags: ["photography"],
+        photographer: "丸田　竜平",
+        published: true,
+    },
+
+    // sample17
+    {
+        id: "17",
+        src: "/images/sample17.JPG",
+        slug: "sample-17",
+        title: { ja: "森の中の小屋", en: "Cabin in the Forest" },
+        alt: { ja: "森の中の小屋", en: "Cabin in the forest" },
+        description: {
+            ja: [
+                "雪深い木立の中に、ポツンと佇む小さな建物。",
+                "煙突から静かに立ち昇る煙だけが、そこがスモークサウナであることを告げていた。",
+                "──ヴァンター、Kuusijärviにて。",
+            ],
+            en: [
+                "A small building standing alone in the snow-covered grove.",
+                "Only the smoke quietly rising from the chimney told us it was a smoke sauna.",
+                "— In Vantaa, Kuusijärvi.",
+            ],
+        },
+        category: "landscape",
+        tags: ["photography"],
+        photographer: "丸田　竜平",
+        published: true,
+    },
+
+    // sample18
+    {
+        id: "18",
+        src: "/images/sample18.JPG",
+        slug: "sample-18",
+        title: { ja: "Löylyのレストラン", en: "Löyly Restaurant" },
+        alt: { ja: "Löylyのレストラン", en: "Löyly restaurant" },
+        description: {
+            ja: [
+                "Löylyに併設された、海辺のレストラン。",
+                "視界に入るすべてが絵になる、洗練された空間。"
+            ],
+            en: [
+                "The restaurant built into Löyly is stylish.",
+                "Everything in the view is a work of art.",
+            ],
+        },
+        category: "landscape",
+        tags: ["photography"],
+        photographer: "丸田　竜平",
+        published: true,
+    },
+
+    // sample19
+    {
+        id: "19",
+        src: "/images/sample19.JPG",
+        slug: "sample-19",
+        title: { ja: "レストランからの夕焼け", en: "Sunset from the Restaurant" },
+        alt: { ja: "レストランからの夕焼け", en: "Sunset from the restaurant" },
+        description: {
+            ja: [
+              "夕焼けとシルエットが織りなす、静かな陰影。"
+            ],
+            en: [
+                "The sunset and silhouette create a quiet shadow.",
+            ],
+        },
+        category: "landscape",
+        tags: ["photography"],
+        photographer: "丸田　竜平",
+        published: true,
+    },
+
+    // sample20
+    {
+        id: "20",
+        src: "/images/sample20.jpg",
+        slug: "sample-20",
+        title: { ja: "フィンランドの大地", en: "Land of Finland" },
+        alt: { ja: "フィンランドの大地", en: "Land of Finland" },
+        description: {
+            ja: [
+                "美しすぎて言葉にならない、フィンランドの大地。",
+            ],
+            en: [
+                "The land of Finland is too beautiful to be described in words.",
+            ],
+        },
+        category: "nature",
+        tags: ["photography"],
+        photographer: "丸田　竜平",
         published: true,
     },
 ];

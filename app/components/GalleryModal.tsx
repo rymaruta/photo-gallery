@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/react/24/solid";
 import type { Photo, Locale } from "../data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "../data/photos";
@@ -188,8 +189,10 @@ export default function GalleryModal({
         }
     }, [p?.id, addToHistory]);
 
-    // 共有機能
-    const currentUrl = typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}?photo=${p.id}` : siteConfig.url;
+    // 共有機能（個別ページのURLを使用）
+    const currentUrl = typeof window !== "undefined" 
+        ? `${window.location.origin}/photo/${p.id}` 
+        : `${siteConfig.url}/photo/${p.id}`;
     const shareText = titleText || "Photo";
 
     const handleShare = (e: React.MouseEvent) => {
@@ -527,6 +530,20 @@ export default function GalleryModal({
                             </div>
                         </div>
                     )}
+
+                    {/* 個別ページへのリンク */}
+                    <div className="mt-4 pt-4 border-t border-white/10">
+                        <Link
+                            href={`/photo/${p.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
+                        >
+                            <span>{locale === "en" ? "View Full Page" : "個別ページを見る"}</span>
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                        </Link>
+                    </div>
 
                     {/* 共有機能 */}
                     <div className="mt-4 pt-4 border-t border-white/10">
