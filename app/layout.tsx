@@ -4,13 +4,59 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Inter, Playfair_Display } from "next/font/google";
 import HeaderNav from "./components/HeaderNav";
+import { siteConfig } from "../lib/utils/seo";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "700"] });
 const playfair = Playfair_Display({ subsets: ["latin"], weight: ["700"] });
 
 export const metadata: Metadata = {
-  title: "PhotoGallery",
-  description: "小さな写真サイトへようこそ。",
+  metadataBase: new URL(siteConfig.url),
+  title: {
+    default: siteConfig.name,
+    template: `%s | ${siteConfig.name}`,
+  },
+  description: siteConfig.description,
+  keywords: ["写真", "ギャラリー", "作品", "photography", "gallery", "works"],
+  authors: [{ name: "PhotoGallery" }],
+  creator: "PhotoGallery",
+  openGraph: {
+    type: "website",
+    locale: "ja_JP",
+    url: siteConfig.url,
+    siteName: siteConfig.name,
+    title: siteConfig.name,
+    description: siteConfig.description,
+    images: [
+      {
+        url: siteConfig.ogImage,
+        width: 1200,
+        height: 630,
+        alt: siteConfig.name,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteConfig.name,
+    description: siteConfig.description,
+    images: [siteConfig.ogImage],
+    creator: siteConfig.twitterHandle,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  verification: {
+    // Google Search Console の検証コードを追加する場合
+    // google: "your-google-verification-code",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

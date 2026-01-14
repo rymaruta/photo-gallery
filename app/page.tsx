@@ -11,11 +11,8 @@ import useGallery from "./hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
 import GalleryModal from "./components/GalleryModal";
 import type { FilterValues } from "../lib/types/gallery";
-
-const capitalize = (s?: string) => {
-  if (!s) return "";
-  return s.charAt(0).toUpperCase() + s.slice(1);
-};
+import { capitalize } from "../lib/utils/string";
+import { generateStructuredData } from "../lib/utils/seo";
 
 export default function Page() {
   const [locale, setLocale] = React.useState<Locale>("ja");
@@ -91,8 +88,19 @@ export default function Page() {
     );
   };
 
+  // 構造化データ（JSON-LD）
+  const structuredData = React.useMemo(
+    () => generateStructuredData("ImageGallery", PHOTOS),
+    [PHOTOS]
+  );
+
   return (
-    <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6 min-h-[64px]">
           <div className="flex-1">
             <h1 id="site-title" className="text-2xl sm:text-3xl font-bold mb-0">
@@ -145,6 +153,7 @@ export default function Page() {
             categoryDisplayMap={categoryDisplayMap}
           />
         )}
-    </main>
+      </main>
+    </>
   );
 }

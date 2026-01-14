@@ -1,9 +1,42 @@
 "use client";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/react/24/solid";
 import type { Photo, Locale } from "../data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "../data/photos";
+
+// モーダル用画像コンポーネント（エラーハンドリング付き）
+function ModalImage({ src, alt, focalPoint }: { src: string; alt: string; focalPoint?: { x: number; y: number } }) {
+    const [imageError, setImageError] = useState(false);
+
+    if (imageError) {
+        return (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+                <div className="text-white/60 text-center px-4">
+                    <svg className="w-16 h-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-sm">画像を読み込めません</p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <Image
+            src={src}
+            alt={alt}
+            fill
+            className="object-contain"
+            sizes="(max-width: 640px) 100vw, 90vw"
+            priority
+            style={{
+                ...(focalPoint ? { objectPosition: `${focalPoint.x * 100}% ${focalPoint.y * 100}%` } : {}),
+            }}
+            onError={() => setImageError(true)}
+        />
+    );
+}
 
 // Module-scope lock state to avoid per-instance races
 let _openModalCount = 0;
@@ -101,17 +134,74 @@ export default function GalleryModal({
     const href = preferred?.href ?? fallbackHref;
 
     const prevActiveElementRef = useRef<HTMLElement | null>(null);
+    const modalRef = useRef<HTMLDivElement | null>(null);
+    const firstFocusableRef = useRef<HTMLButtonElement | null>(null);
+    const lastFocusableRef = useRef<HTMLButtonElement | null>(null);
 
+    // 画像のプリロード
+    useEffect(() => {
+        const preloadImages = () => {
+            const nextIndex = (currentIndex + 1) % photos.length;
+            const prevIndex = (currentIndex - 1 + photos.length) % photos.length;
+
+            const nextImg = new window.Image();
+            nextImg.src = photos[nextIndex]?.src || "";
+            const prevImg = new window.Image();
+            prevImg.src = photos[prevIndex]?.src || "";
+        };
+
+        preloadImages();
+    }, [currentIndex, photos]);
+
+    // フォーカストラップとキーボード操作
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === "ArrowRight") onNext();
-            if (e.key === "ArrowLeft") onPrev();
-            if (e.key === "Escape") onClose();
+            if (e.key === "ArrowRight") {
+                e.preventDefault();
+                onNext();
+            }
+            if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                onPrev();
+            }
+            if (e.key === "Escape") {
+                e.preventDefault();
+                onClose();
+            }
+            // Tab キーでフォーカストラップ
+            if (e.key === "Tab") {
+                const focusableElements = modalRef.current?.querySelectorAll<HTMLElement>(
+                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                );
+                if (!focusableElements || focusableElements.length === 0) return;
+
+                const firstElement = focusableElements[0];
+                const lastElement = focusableElements[focusableElements.length - 1];
+
+                if (e.shiftKey) {
+                    // Shift + Tab
+                    if (document.activeElement === firstElement) {
+                        e.preventDefault();
+                        lastElement.focus();
+                    }
+                } else {
+                    // Tab
+                    if (document.activeElement === lastElement) {
+                        e.preventDefault();
+                        firstElement.focus();
+                    }
+                }
+            }
         };
 
         lockBodyScroll();
         prevActiveElementRef.current = (document.activeElement as HTMLElement) ?? null;
         window.addEventListener("keydown", onKey);
+
+        // モーダルが開いたら最初のフォーカス可能要素にフォーカス
+        setTimeout(() => {
+            firstFocusableRef.current?.focus();
+        }, 100);
 
         return () => {
             window.removeEventListener("keydown", onKey);
@@ -125,7 +215,7 @@ export default function GalleryModal({
             }
             prevActiveElementRef.current = null;
         };
-    }, [onClose, onNext, onPrev]);
+    }, [onClose, onNext, onPrev, currentIndex]);
 
     // Ensure overlay click explicitly unlocks before closing to avoid timing races
     const handleOverlayClick = (e: React.MouseEvent) => {
@@ -139,6 +229,7 @@ export default function GalleryModal({
 
     return (
         <div
+            ref={modalRef}
             role="dialog"
             aria-modal="true"
             aria-label={titleText || "Photo"}
@@ -173,21 +264,16 @@ export default function GalleryModal({
                             maxHeight: "100%"
                         }}
                     >
-                        <Image
+                        <ModalImage
                             src={p.src}
                             alt={altText}
-                            fill
-                            className="object-contain"
-                            sizes="(max-width: 640px) 100vw, 90vw"
-                            priority
-                            style={{
-                                ...(p.focalPoint ? { objectPosition: `${p.focalPoint.x * 100}% ${p.focalPoint.y * 100}%` } : {}),
-                            }}
+                            focalPoint={p.focalPoint}
                         />
                     </div>
 
                     {/* 前へボタン - スマホでは小さく、PCでは大きく */}
                     <button
+                        ref={firstFocusableRef}
                         onClick={(e) => {
                             e.stopPropagation();
                             onPrev();
@@ -214,6 +300,7 @@ export default function GalleryModal({
 
                     {/* 閉じるボタン - 右上 */}
                     <button
+                        ref={lastFocusableRef}
                         onClick={(e) => {
                             e.stopPropagation();
                             onClose();
