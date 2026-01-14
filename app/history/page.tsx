@@ -2,9 +2,11 @@
 
 import React from "react";
 import { useViewHistory } from "../../lib/hooks/useViewHistory";
+import { useImagePreloader } from "../../lib/hooks/useImagePreloader";
 import type { Photo, Locale } from "../data/photos";
 import RAW_PHOTOS from "../data/photos";
 import GalleryGrid from "../components/GalleryGrid";
+import GalleryModal from "../components/GalleryModal";
 import LocaleToggle from "../components/LocaleToggle";
 import { getLabels } from "../i18n/labels";
 import { capitalize } from "../../lib/utils/string";
@@ -13,6 +15,10 @@ export default function HistoryPage() {
     const [locale, setLocale] = React.useState<Locale>("ja");
     const labels = React.useMemo(() => getLabels(locale), [locale]);
     const { history, clearHistory } = useViewHistory();
+    const { preloadMultiple } = useImagePreloader();
+
+    // モーダル管理
+    const [currentIndex, setCurrentIndex] = React.useState<number | null>(null);
 
     // 閲覧履歴の写真を取得（閲覧日時の新しい順）
     const historyPhotos = React.useMemo(() => {
@@ -32,6 +38,36 @@ export default function HistoryPage() {
 
         return photos;
     }, [history]);
+
+    // モーダル操作
+    const openModal = React.useCallback((index: number) => {
+        setCurrentIndex(index);
+    }, []);
+
+    const closeModal = React.useCallback(() => {
+        setCurrentIndex(null);
+    }, []);
+
+    const nextPhoto = React.useCallback(() => {
+        setCurrentIndex((i) =>
+            i === null ? null : historyPhotos.length ? (i + 1) % historyPhotos.length : null
+        );
+    }, [historyPhotos.length]);
+
+    const prevPhoto = React.useCallback(() => {
+        setCurrentIndex((i) =>
+            i === null ? null : historyPhotos.length ? (i - 1 + historyPhotos.length) % historyPhotos.length : null
+        );
+    }, [historyPhotos.length]);
+
+    // 閲覧履歴の画像をプリロード
+    React.useEffect(() => {
+        if (historyPhotos.length > 0) {
+            const imageSrcs = historyPhotos.map(p => p.src);
+            // 最初の10枚を優先的にプリロード
+            preloadMultiple(imageSrcs.slice(0, 10));
+        }
+    }, [historyPhotos, preloadMultiple]);
 
     const categoryDisplayMap = React.useMemo(() => {
         const map: Record<string, string> = {};
@@ -103,15 +139,25 @@ export default function HistoryPage() {
                     </p>
                 </div>
             ) : (
-                <GalleryGrid
-                    photos={historyPhotos}
-                    onOpen={(index) => {
-                        // 閲覧履歴ページからモーダルを開く場合は、メインページにリダイレクト
-                        window.location.href = `/?photo=${historyPhotos[index]?.id}`;
-                    }}
-                    locale={locale}
-                    categoryDisplayMap={categoryDisplayMap}
-                />
+                <>
+                    <GalleryGrid
+                        photos={historyPhotos}
+                        onOpen={openModal}
+                        locale={locale}
+                        categoryDisplayMap={categoryDisplayMap}
+                    />
+                    {currentIndex !== null && historyPhotos[currentIndex] && (
+                        <GalleryModal
+                            photos={historyPhotos}
+                            currentIndex={currentIndex}
+                            onClose={closeModal}
+                            onNext={nextPhoto}
+                            onPrev={prevPhoto}
+                            locale={locale}
+                            categoryDisplayMap={categoryDisplayMap}
+                        />
+                    )}
+                </>
             )}
         </main>
     );

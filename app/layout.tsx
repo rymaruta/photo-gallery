@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Inter } from "next/font/google";
 import HeaderNav from "./components/HeaderNav";
+import ToastProvider from "./components/ToastProvider";
 import { siteConfig } from "../lib/utils/seo";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "700", "900"] });
@@ -76,9 +77,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </header>
 
         {/* Main - 各ページで管理 */}
-        <div className="flex-1">
-          {children}
-        </div>
+        <ToastProvider>
+          <div className="flex-1">
+            {children}
+          </div>
+        </ToastProvider>
 
         {/* Footer */}
         <footer className="border-t border-white/10">

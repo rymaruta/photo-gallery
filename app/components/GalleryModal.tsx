@@ -7,6 +7,8 @@ import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSe
 import { useSwipe } from "../../lib/hooks/useSwipe";
 import { useFavorites } from "../../lib/hooks/useFavorites";
 import { useViewHistory } from "../../lib/hooks/useViewHistory";
+import { useToast } from "../../lib/hooks/useToast";
+import { useImagePreloader } from "../../lib/hooks/useImagePreloader";
 import { HeartIcon } from "@heroicons/react/24/solid";
 import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
 import { ShareIcon, LinkIcon } from "@heroicons/react/24/outline";
@@ -173,6 +175,12 @@ export default function GalleryModal({
     // 閲覧履歴機能
     const { addToHistory } = useViewHistory();
 
+    // トースト通知
+    const { showToast } = useToast();
+
+    // 画像プリロード
+    const { preload } = useImagePreloader();
+
     // 画像が表示されたときに閲覧履歴に追加
     useEffect(() => {
         if (p?.id) {
@@ -193,27 +201,48 @@ export default function GalleryModal({
         e.stopPropagation();
         try {
             await copyToClipboard(currentUrl);
-            // トースト通知を表示（簡易版）
-            alert(locale === "en" ? "Link copied to clipboard!" : "リンクをクリップボードにコピーしました");
+            showToast(
+                locale === "en" ? "Link copied to clipboard!" : "リンクをクリップボードにコピーしました",
+                "success"
+            );
         } catch (error) {
             console.error("Failed to copy:", error);
+            showToast(
+                locale === "en" ? "Failed to copy link" : "リンクのコピーに失敗しました",
+                "error"
+            );
         }
     };
 
-    // 画像のプリロード
+    // 画像のプリロード（前後の画像を積極的にプリロード）
     useEffect(() => {
-        const preloadImages = () => {
-            const nextIndex = (currentIndex + 1) % photos.length;
-            const prevIndex = (currentIndex - 1 + photos.length) % photos.length;
+        if (!p?.src) return;
 
-            const nextImg = new window.Image();
-            nextImg.src = photos[nextIndex]?.src || "";
-            const prevImg = new window.Image();
-            prevImg.src = photos[prevIndex]?.src || "";
-        };
+        // 現在の画像を確実にプリロード
+        preload(p.src);
 
-        preloadImages();
-    }, [currentIndex, photos]);
+        // 前後の画像もプリロード
+        const nextIndex = (currentIndex + 1) % photos.length;
+        const prevIndex = (currentIndex - 1 + photos.length) % photos.length;
+
+        if (photos[nextIndex]?.src) {
+            preload(photos[nextIndex].src);
+        }
+        if (photos[prevIndex]?.src) {
+            preload(photos[prevIndex].src);
+        }
+
+        // さらに先の画像もプリロード（2枚先まで）
+        const nextNextIndex = (currentIndex + 2) % photos.length;
+        const prevPrevIndex = (currentIndex - 2 + photos.length) % photos.length;
+
+        if (photos[nextNextIndex]?.src) {
+            preload(photos[nextNextIndex].src);
+        }
+        if (photos[prevPrevIndex]?.src) {
+            preload(photos[prevPrevIndex].src);
+        }
+    }, [currentIndex, photos, p?.src, preload]);
 
     // フォーカストラップとキーボード操作
     useEffect(() => {
