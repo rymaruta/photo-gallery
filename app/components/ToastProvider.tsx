@@ -3,6 +3,7 @@
 
 "use client";
 
+import React from "react";
 import { ToastProvider as Provider } from "../../lib/hooks/useToast";
 import ToastContainer from "./Toast";
 
