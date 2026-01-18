@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Inter } from "next/font/google";
 import HeaderNav from "./components/HeaderNav";
 import ToastProvider from "./components/ToastProvider";
+import { AuthProvider } from "./auth/context";
 import { siteConfig } from "../lib/utils/seo";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "700", "900"] });
@@ -63,24 +64,26 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ja">
       <body className={`${inter.className} min-h-screen flex flex-col bg-black text-white`}>
-        {/* Header: 太めの下線ではっきり分離 */}
-        <header className="sticky top-0 z-50 bg-black/40 backdrop-blur-sm border-b-4 border-white/30">
-          <div className="max-w-5xl mx-auto flex items-center justify-between h-[72px] md:h-[88px] px-6 md:px-8">
-            <h1 className={`${inter.className} text-3xl md:text-4xl font-bold tracking-tight`}>
-              <Link href="/" className="inline-block hover:opacity-80 transition-opacity">
-                PhotoGallery
-              </Link>
-            </h1>
-
-            <HeaderNav />
-          </div>
-        </header>
-
-        {/* Main - 各ページで管理 */}
         <ToastProvider>
-          <div className="flex-1">
-            {children}
-          </div>
+          <AuthProvider>
+            {/* Header: 太めの下線ではっきり分離 */}
+            <header className="sticky top-0 z-50 bg-black/40 backdrop-blur-sm border-b-4 border-white/30">
+              <div className="max-w-5xl mx-auto flex items-center justify-between h-[72px] md:h-[88px] px-6 md:px-8">
+                <h1 className={`${inter.className} text-3xl md:text-4xl font-bold tracking-tight`}>
+                  <Link href="/" className="inline-block hover:opacity-80 transition-opacity">
+                    PhotoGallery
+                  </Link>
+                </h1>
+
+                <HeaderNav />
+              </div>
+            </header>
+
+            {/* Main - 各ページで管理 */}
+            <div className="flex-1">
+              {children}
+            </div>
+          </AuthProvider>
         </ToastProvider>
 
         {/* Footer */}

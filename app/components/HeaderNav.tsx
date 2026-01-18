@@ -5,9 +5,11 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { XMarkIcon, Bars3Icon } from "@heroicons/react/24/solid";
+import { useAuth } from "../auth/context";
 
 export default function HeaderNav({ className = "" }: { className?: string }) {
     const router = useRouter();
+    const { isAuthenticated, isAdminUser, logout } = useAuth();
     const bg = "#07090a";
     const outerBorder = "rgba(255,255,255,0.26)";
     const innerLine = "rgba(255,255,255,0.12)";
@@ -277,6 +279,99 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                 History
                                             </button>
                                         </li>
+
+                                        {/* アップロードリンクは管理者のみに表示 */}
+                                        {isAdminUser && (
+                                            <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleNavigation("/upload");
+                                                    }}
+                                                    onTouchStart={(e) => {
+                                                        e.stopPropagation();
+                                                    }}
+                                                    onTouchEnd={(e) => {
+                                                        e.stopPropagation();
+                                                        e.preventDefault();
+                                                        handleNavigation("/upload");
+                                                    }}
+                                                    className={`${linkBase} ${inactiveClasses} w-full text-left`}
+                                                    style={{ 
+                                                        touchAction: "manipulation",
+                                                        WebkitTapHighlightColor: "transparent",
+                                                        minHeight: "44px",
+                                                        display: "block",
+                                                        position: "relative",
+                                                        zIndex: 10,
+                                                        cursor: "pointer"
+                                                    }}
+                                                >
+                                                    Upload
+                                                </button>
+                                            </li>
+                                        )}
+
+                                        {/* 認証状態に応じたリンク */}
+                                        {isAuthenticated ? (
+                                            <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        logout();
+                                                    }}
+                                                    onTouchStart={(e) => {
+                                                        e.stopPropagation();
+                                                    }}
+                                                    onTouchEnd={(e) => {
+                                                        e.stopPropagation();
+                                                        e.preventDefault();
+                                                        logout();
+                                                    }}
+                                                    className={`${linkBase} ${inactiveClasses} w-full text-left`}
+                                                    style={{ 
+                                                        touchAction: "manipulation",
+                                                        WebkitTapHighlightColor: "transparent",
+                                                        minHeight: "44px",
+                                                        display: "block",
+                                                        position: "relative",
+                                                        zIndex: 10,
+                                                        cursor: "pointer"
+                                                    }}
+                                                >
+                                                    Logout
+                                                </button>
+                                            </li>
+                                        ) : (
+                                            <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleNavigation("/login");
+                                                    }}
+                                                    onTouchStart={(e) => {
+                                                        e.stopPropagation();
+                                                    }}
+                                                    onTouchEnd={(e) => {
+                                                        e.stopPropagation();
+                                                        e.preventDefault();
+                                                        handleNavigation("/login");
+                                                    }}
+                                                    className={`${linkBase} ${inactiveClasses} w-full text-left`}
+                                                    style={{ 
+                                                        touchAction: "manipulation",
+                                                        WebkitTapHighlightColor: "transparent",
+                                                        minHeight: "44px",
+                                                        display: "block",
+                                                        position: "relative",
+                                                        zIndex: 10,
+                                                        cursor: "pointer"
+                                                    }}
+                                                >
+                                                    Login
+                                                </button>
+                                            </li>
+                                        )}
                                     </ul>
                                 </nav>
                             </div>

@@ -221,8 +221,8 @@ function FilterBarInner({
         () => ({
             container: { backgroundColor: "var(--filter-bg, #07090a)", border: "1px solid rgba(255,255,255,0.10)", padding: 8 },
             input: { padding: "6px 10px", border: "1px solid rgba(255,255,255,0.06)", outline: "none", fontSize: 13 } as React.CSSProperties,
-            chipBase: { padding: "4px 8px", minHeight: 28, borderRadius: 9999, width: "auto" } as React.CSSProperties,
-            controlBtn: { padding: "4px 8px", minHeight: 30, borderRadius: 8, whiteSpace: "nowrap" } as React.CSSProperties,
+            chipBase: { padding: "4px 8px", minHeight: 28, borderRadius: 6, width: "auto" } as React.CSSProperties,
+            controlBtn: { padding: "4px 8px", minHeight: 30, borderRadius: 6, whiteSpace: "nowrap" } as React.CSSProperties,
         }),
         []
     );
@@ -247,7 +247,7 @@ function FilterBarInner({
                         }}
                         aria-pressed={active}
                         aria-label={labelForCategory(c)}
-                        className={`inline-flex items-center justify-center gap-2 text-xs focus:outline-none ${active ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+                        className={`inline-flex items-center justify-center gap-2 text-xs focus:outline-none focus:ring-0 font-normal ${active ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
                         style={{
                             ...STYLE.controlBtn,
                             touchAction: "manipulation",
@@ -277,7 +277,7 @@ function FilterBarInner({
                 }}
                 aria-pressed={values.category === "all"}
                 aria-label={labelForCategory("all")}
-                className={`inline-flex items-center justify-center gap-2 text-xs focus:outline-none ${values.category === "all" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+                className={`inline-flex items-center justify-center gap-2 text-xs focus:outline-none focus:ring-0 font-normal ${values.category === "all" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
                 style={{
                     ...STYLE.controlBtn,
                     touchAction: "manipulation",
@@ -323,7 +323,7 @@ function FilterBarInner({
                         role="switch"
                         aria-checked={active}
                         aria-label={ariaLabel}
-                        className={`inline-flex items-center gap-2 text-xs focus:outline-none transition-colors ${active ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+                        className={`inline-flex items-center gap-2 text-xs focus:outline-none focus:ring-0 transition-colors font-normal ${active ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
                         style={{
                             ...STYLE.chipBase,
                             touchAction: "manipulation",
@@ -518,7 +518,7 @@ function FilterBarInner({
                                 toggleShowAll();
                             }}
                             aria-expanded={showAllTags}
-                            className={`inline-flex items-center gap-2 text-xs focus:outline-none ${showAllTags ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+                            className={`inline-flex items-center gap-2 text-xs focus:outline-none focus:ring-0 font-normal ${showAllTags ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
                             style={{
                                 ...STYLE.controlBtn,
                                 touchAction: "manipulation",
@@ -544,7 +544,7 @@ function FilterBarInner({
                             }}
                             disabled={!values.selectedTags || values.selectedTags.length === 0 || isPending}
                             aria-disabled={!values.selectedTags || values.selectedTags.length === 0 || isPending}
-                            className={`inline-flex items-center gap-2 text-xs focus:outline-none ${isPending ? "opacity-60 pointer-events-none text-white/60" : !values.selectedTags || values.selectedTags.length === 0 ? "opacity-50 pointer-events-none text-white/60" : "bg-white/5 text-white/80"}`}
+                            className={`inline-flex items-center gap-2 text-xs focus:outline-none focus:ring-0 font-normal ${isPending ? "opacity-60 pointer-events-none text-white/60" : !values.selectedTags || values.selectedTags.length === 0 ? "opacity-50 pointer-events-none text-white/60" : "bg-white/5 text-white/80"}`}
                             style={{
                                 ...STYLE.controlBtn,
                                 touchAction: "manipulation",
