@@ -8,7 +8,7 @@ import { HeartIcon } from "@heroicons/react/24/solid";
 import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
 import { ShareIcon, LinkIcon } from "@heroicons/react/24/outline";
 import exifr from "exifr";
-import type { Photo, Locale } from "../../data/photos";
+import type { Photo } from "../../data/photos";
 import RAW_PHOTOS from "../../data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "../../data/photos";
 import { useFavorites } from "../../../lib/hooks/useFavorites";
@@ -17,7 +17,7 @@ import { useToast } from "../../../lib/hooks/useToast";
 import { shareUrl, copyToClipboard, shareToTwitter, shareToFacebook, shareToLine } from "../../../lib/utils/share";
 import { siteConfig } from "../../../lib/utils/seo";
 import LocaleToggle from "../../components/LocaleToggle";
-import { getLabels } from "../../i18n/labels";
+import { useLocale } from "../../i18n/context";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -131,8 +131,7 @@ type PhotoPageClientProps = {
 };
 
 export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
-    const [locale, setLocale] = useState<Locale>("ja");
-    const labels = useMemo(() => getLabels(locale), [locale]);
+    const { locale, setLocale, labels } = useLocale();
     const [extractedExif, setExtractedExif] = useState<ExtractedExif | null>(null);
 
     // 全写真から該当する写真を検索

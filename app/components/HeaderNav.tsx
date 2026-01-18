@@ -6,10 +6,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { XMarkIcon, Bars3Icon } from "@heroicons/react/24/solid";
 import { useAuth } from "../auth/context";
+import { useLocale } from "../i18n/context";
 
 export default function HeaderNav({ className = "" }: { className?: string }) {
     const router = useRouter();
     const { isAuthenticated, isAdminUser, logout } = useAuth();
+    const { labels } = useLocale();
+    const navLabels = labels.navigation || {};
     const bg = "#07090a";
     const outerBorder = "rgba(255,255,255,0.26)";
     const innerLine = "rgba(255,255,255,0.12)";
@@ -160,7 +163,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                     cursor: "pointer"
                                                 }}
                                             >
-                                                Works
+                                                {navLabels.works || "Works"}
                                             </button>
                                         </li>
 
@@ -189,7 +192,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                     cursor: "pointer"
                                                 }}
                                             >
-                                                Gallery
+                                                {navLabels.gallery || "Gallery"}
                                             </button>
                                         </li>
 
@@ -218,7 +221,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                     cursor: "pointer"
                                                 }}
                                             >
-                                                About
+                                                {navLabels.about || "About"}
                                             </button>
                                         </li>
 
@@ -247,7 +250,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                     cursor: "pointer"
                                                 }}
                                             >
-                                                Favorites
+                                                {navLabels.favorites || "Favorites"}
                                             </button>
                                         </li>
 
@@ -276,7 +279,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                     cursor: "pointer"
                                                 }}
                                             >
-                                                History
+                                                {navLabels.history || "History"}
                                             </button>
                                         </li>
 
@@ -307,7 +310,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                         cursor: "pointer"
                                                     }}
                                                 >
-                                                    Upload
+                                                    {navLabels.upload || "Upload"}
                                                 </button>
                                             </li>
                                         )}
@@ -339,7 +342,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                         cursor: "pointer"
                                                     }}
                                                 >
-                                                    Logout
+                                                    {navLabels.logout || "Logout"}
                                                 </button>
                                             </li>
                                         ) : (
@@ -368,7 +371,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                         cursor: "pointer"
                                                     }}
                                                 >
-                                                    Login
+                                                    {navLabels.login || "Login"}
                                                 </button>
                                             </li>
                                         )}

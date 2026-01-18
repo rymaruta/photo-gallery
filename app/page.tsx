@@ -3,9 +3,9 @@
 import React from "react";
 import FilterBar from "./components/FilterBar";
 import LocaleToggle from "./components/LocaleToggle";
-import { getLabels } from "./i18n/labels";
+import { useLocale } from "./i18n/context";
 
-import type { Photo, Locale } from "./data/photos";
+import type { Photo } from "./data/photos";
 import RAW_PHOTOS from "./data/photos";
 import useGallery from "./hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
@@ -15,8 +15,7 @@ import { capitalize } from "../lib/utils/string";
 import { generateStructuredData } from "../lib/utils/seo";
 
 export default function Page() {
-  const [locale, setLocale] = React.useState<Locale>("ja");
-  const labels = React.useMemo(() => getLabels(locale), [locale]);
+  const { locale, setLocale, labels } = useLocale();
 
   const {
     PHOTOS,

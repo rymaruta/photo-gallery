@@ -3,17 +3,16 @@
 import React from "react";
 import { useViewHistory } from "../../lib/hooks/useViewHistory";
 import { useImagePreloader } from "../../lib/hooks/useImagePreloader";
-import type { Photo, Locale } from "../data/photos";
+import type { Photo } from "../data/photos";
 import RAW_PHOTOS from "../data/photos";
 import GalleryGrid from "../components/GalleryGrid";
 import GalleryModal from "../components/GalleryModal";
 import LocaleToggle from "../components/LocaleToggle";
-import { getLabels } from "../i18n/labels";
+import { useLocale } from "../i18n/context";
 import { capitalize } from "../../lib/utils/string";
 
 export default function HistoryPage() {
-    const [locale, setLocale] = React.useState<Locale>("ja");
-    const labels = React.useMemo(() => getLabels(locale), [locale]);
+    const { locale, setLocale, labels } = useLocale();
     const { history, clearHistory } = useViewHistory();
     const { preloadMultiple } = useImagePreloader();
 

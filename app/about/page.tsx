@@ -1,19 +1,17 @@
 // app/about/page.tsx
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import Head from "next/head";
 import Image from "next/image";
 import getContent, { AboutContent } from "../i18n/about";
-import { getLabels } from "../i18n/labels";
+import { useLocale } from "../i18n/context";
 import LocaleToggle from "../components/LocaleToggle";
 import ProtectedPortrait from "../components/ProtectedPortrait";
 
 export default function AboutPage() {
-    const [locale, setLocale] = useState<"ja" | "en">("ja");
+    const { locale, setLocale, labels } = useLocale();
     const about = useMemo<AboutContent>(() => getContent(locale), [locale]);
-
-    const labels = useMemo(() => getLabels(locale), [locale]);
 
     // paragraphs を配列としてそのまま扱い、空文字で改行を表現する
     const paras = Array.isArray(about.paragraphs)

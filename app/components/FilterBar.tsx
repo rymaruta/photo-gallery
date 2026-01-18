@@ -221,8 +221,8 @@ function FilterBarInner({
         () => ({
             container: { backgroundColor: "var(--filter-bg, #07090a)", border: "1px solid rgba(255,255,255,0.10)", padding: 8 },
             input: { padding: "6px 10px", border: "1px solid rgba(255,255,255,0.06)", outline: "none", fontSize: 13 } as React.CSSProperties,
-            chipBase: { padding: "4px 8px", minHeight: 28, borderRadius: 6, width: "auto" } as React.CSSProperties,
-            controlBtn: { padding: "4px 8px", minHeight: 30, borderRadius: 6, whiteSpace: "nowrap" } as React.CSSProperties,
+            chipBase: { padding: "2px 8px", minHeight: 32, borderRadius: 6, width: "auto" } as React.CSSProperties,
+            controlBtn: { padding: "2px 8px", minHeight: 32, borderRadius: 6, whiteSpace: "nowrap" } as React.CSSProperties,
         }),
         []
     );
@@ -252,7 +252,6 @@ function FilterBarInner({
                             ...STYLE.controlBtn,
                             touchAction: "manipulation",
                             WebkitTapHighlightColor: "transparent",
-                            minHeight: "44px"
                         }}
                     >
                         {labelForCategory(c)}
@@ -282,7 +281,6 @@ function FilterBarInner({
                     ...STYLE.controlBtn,
                     touchAction: "manipulation",
                     WebkitTapHighlightColor: "transparent",
-                    minHeight: "44px"
                 }}
             >
                 {labelForCategory("all")}
@@ -328,7 +326,6 @@ function FilterBarInner({
                             ...STYLE.chipBase,
                             touchAction: "manipulation",
                             WebkitTapHighlightColor: "transparent",
-                            minHeight: "44px"
                         }}
                     >
                         <span className="truncate" style={{ maxWidth: 160 }}>
@@ -398,8 +395,8 @@ function FilterBarInner({
                                 style={{ 
                                     touchAction: "manipulation",
                                     WebkitTapHighlightColor: "transparent",
-                                    minWidth: "44px",
-                                    minHeight: "44px"
+                                    minWidth: "32px",
+                                    minHeight: "32px"
                                 }}
                             >
                                 <XMarkIcon className="w-4 h-4 text-white/60 hover:text-white/90" />
@@ -431,7 +428,6 @@ function FilterBarInner({
                                         ...STYLE.controlBtn,
                                         touchAction: "manipulation",
                                         WebkitTapHighlightColor: "transparent",
-                                        minHeight: "44px"
                                     }}
                                 >
                                     <span>{sortLabel}</span>
@@ -478,7 +474,7 @@ function FilterBarInner({
                                                         color: "#fff",
                                                         touchAction: "manipulation",
                                                         WebkitTapHighlightColor: "transparent",
-                                                        minHeight: "44px"
+                                                        minHeight: "32px"
                                                     }}
                                                 >
                                                     {rawLabels?.sort?.options?.[opt] ?? labels.sort?.options?.[opt] ?? opt}
@@ -523,7 +519,6 @@ function FilterBarInner({
                                 ...STYLE.controlBtn,
                                 touchAction: "manipulation",
                                 WebkitTapHighlightColor: "transparent",
-                                minHeight: "44px"
                             }}
                         >
                             {showAllFixedLabel}
@@ -549,7 +544,6 @@ function FilterBarInner({
                                 ...STYLE.controlBtn,
                                 touchAction: "manipulation",
                                 WebkitTapHighlightColor: "transparent",
-                                minHeight: "44px"
                             }}
                         >
                             {isPending ? "Clearing..." : clearLabel}
