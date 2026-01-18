@@ -10,8 +10,21 @@ import { useLocale } from "../i18n/context";
 
 export default function HeaderNav({ className = "" }: { className?: string }) {
     const router = useRouter();
-    const { isAuthenticated, isAdminUser, logout } = useAuth();
+    const { isAuthenticated, isAdminUser, logout, loading } = useAuth();
     const { labels } = useLocale();
+    
+    // デバッグ情報（開発環境のみ、コンソールに出力）
+    useEffect(() => {
+        if (process.env.NODE_ENV === "development") {
+            console.log("HeaderNav: 認証状態", {
+                isAuthenticated,
+                isAdminUser,
+                loading,
+                hasUploadAccess: isAdminUser,
+            });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isAuthenticated, isAdminUser, loading]);
     const navLabels = labels.navigation || {};
     const bg = "#07090a";
     const outerBorder = "rgba(255,255,255,0.26)";
@@ -104,7 +117,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                     role="dialog"
                     aria-modal="true"
                     ref={panelRef}
-                    className="fixed left-0 right-0 bottom-0 top-[72px] md:top-[88px] z-50"
+                    className="fixed left-0 right-0 bottom-0 top-[64px] md:top-[72px] z-50"
                 >
                     <div 
                         className="absolute inset-0 bg-black/70" 
@@ -200,35 +213,6 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleNavigation("/about");
-                                                }}
-                                                onTouchStart={(e) => {
-                                                    e.stopPropagation();
-                                                }}
-                                                onTouchEnd={(e) => {
-                                                    e.stopPropagation();
-                                                    e.preventDefault();
-                                                    handleNavigation("/about");
-                                                }}
-                                                className={`${linkBase} ${inactiveClasses} w-full text-left`}
-                                                style={{ 
-                                                    touchAction: "manipulation",
-                                                    WebkitTapHighlightColor: "transparent",
-                                                    minHeight: "44px",
-                                                    display: "block",
-                                                    position: "relative",
-                                                    zIndex: 10,
-                                                    cursor: "pointer"
-                                                }}
-                                            >
-                                                {navLabels.about || "About"}
-                                            </button>
-                                        </li>
-
-                                        <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
                                                     handleNavigation("/favorites");
                                                 }}
                                                 onTouchStart={(e) => {
@@ -283,13 +267,42 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                             </button>
                                         </li>
 
-                                        {/* アップロードリンクは管理者のみに表示 */}
+                                        <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleNavigation("/about");
+                                                }}
+                                                onTouchStart={(e) => {
+                                                    e.stopPropagation();
+                                                }}
+                                                onTouchEnd={(e) => {
+                                                    e.stopPropagation();
+                                                    e.preventDefault();
+                                                    handleNavigation("/about");
+                                                }}
+                                                className={`${linkBase} ${inactiveClasses} w-full text-left`}
+                                                style={{ 
+                                                    touchAction: "manipulation",
+                                                    WebkitTapHighlightColor: "transparent",
+                                                    minHeight: "44px",
+                                                    display: "block",
+                                                    position: "relative",
+                                                    zIndex: 10,
+                                                    cursor: "pointer"
+                                                }}
+                                            >
+                                                {navLabels.about || "About"}
+                                            </button>
+                                        </li>
+
+                                        {/* 管理者専用リンク */}
                                         {isAdminUser && (
                                             <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        handleNavigation("/upload");
+                                                        handleNavigation("/admin");
                                                     }}
                                                     onTouchStart={(e) => {
                                                         e.stopPropagation();
@@ -297,7 +310,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                     onTouchEnd={(e) => {
                                                         e.stopPropagation();
                                                         e.preventDefault();
-                                                        handleNavigation("/upload");
+                                                        handleNavigation("/admin");
                                                     }}
                                                     className={`${linkBase} ${inactiveClasses} w-full text-left`}
                                                     style={{ 
@@ -310,7 +323,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                         cursor: "pointer"
                                                     }}
                                                 >
-                                                    {navLabels.upload || "Upload"}
+                                                    {navLabels.admin || "Manage"}
                                                 </button>
                                             </li>
                                         )}

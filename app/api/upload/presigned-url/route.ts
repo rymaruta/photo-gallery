@@ -19,14 +19,28 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // S3クライアントの初期化（設定から取得した値を使用）
-        const s3Client = new S3Client({
+        // S3クライアントの初期化
+        // IAMロールを使用する場合（credentialsが空の場合）、AWS SDKが自動的にIAMロールを使用
+        const s3ClientConfig: {
+            region: string;
+            credentials?: {
+                accessKeyId: string;
+                secretAccessKey: string;
+            };
+        } = {
             region: config.awsRegion,
-            credentials: {
+        };
+
+        // アクセスキーとシークレットキーが設定されている場合のみcredentialsを指定
+        // 設定されていない場合は、AWS SDKが自動的にIAMロールまたはデフォルト認証情報チェーンを使用
+        if (config.awsAccessKeyId && config.awsSecretAccessKey) {
+            s3ClientConfig.credentials = {
                 accessKeyId: config.awsAccessKeyId,
                 secretAccessKey: config.awsSecretAccessKey,
-            },
-        });
+            };
+        }
+
+        const s3Client = new S3Client(s3ClientConfig);
 
         const body = await request.json();
         const { fileName, fileType, fileSize } = body;
