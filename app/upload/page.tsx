@@ -112,24 +112,76 @@ export default function UploadPage() {
             });
 
             if (!presignedResponse.ok) {
-                const error = await presignedResponse.json();
+                const error = await presignedResponse.json().catch(() => ({ error: "Unknown error" }));
+                console.error("Presigned URL取得エラー:", error);
                 throw new Error(error.error || "Failed to get upload URL");
             }
 
-            const { presignedUrl, key, publicUrl } = await presignedResponse.json();
+            const { presignedUrl, key, publicUrl, photoId } = await presignedResponse.json();
+
+            if (!presignedUrl) {
+                console.error("Presigned URLが空です");
+                throw new Error("Presigned URLが取得できませんでした");
+            }
+
+            console.log("Presigned URL取得成功:", { 
+                key, 
+                publicUrl,
+                presignedUrlLength: presignedUrl.length,
+                presignedUrlPreview: presignedUrl.substring(0, 100) + "..."
+            });
 
             // 2. S3に直接アップロード
             setProgress(30);
-            const uploadResponse = await fetch(presignedUrl, {
-                method: "PUT",
-                body: file,
-                headers: {
-                    "Content-Type": file.type,
-                },
-            });
+            try {
+                console.log("S3アップロード開始:", {
+                    method: "PUT",
+                    contentType: file.type,
+                    fileSize: file.size,
+                    fileName: file.name,
+                });
+                
+                const uploadResponse = await fetch(presignedUrl, {
+                    method: "PUT",
+                    body: file,
+                    headers: {
+                        "Content-Type": file.type,
+                    },
+                });
 
-            if (!uploadResponse.ok) {
-                throw new Error("Failed to upload to S3");
+                if (!uploadResponse.ok) {
+                    const errorText = await uploadResponse.text().catch(() => "Unknown error");
+                    console.error("S3アップロードエラー:", {
+                        status: uploadResponse.status,
+                        statusText: uploadResponse.statusText,
+                        error: errorText,
+                    });
+                    throw new Error(`S3アップロードに失敗しました: ${uploadResponse.status} ${uploadResponse.statusText}`);
+                }
+                
+                console.log("S3アップロード成功:", { key, status: uploadResponse.status });
+            } catch (fetchError: any) {
+                console.error("Fetch error詳細:", {
+                    name: fetchError.name,
+                    message: fetchError.message,
+                    stack: fetchError.stack,
+                    presignedUrl: presignedUrl ? presignedUrl.substring(0, 200) + "..." : "null",
+                });
+                
+                if (fetchError.name === "TypeError" && fetchError.message.includes("Failed to fetch")) {
+                    // より詳細なエラーメッセージ
+                    const errorMsg = `ネットワークエラー: S3への接続に失敗しました。
+                    
+確認事項:
+1. S3バケットのCORS設定にPUTメソッドが含まれているか
+2. AllowedOriginsに現在のドメイン（${typeof window !== "undefined" ? window.location.origin : "unknown"}）が含まれているか
+3. AllowedHeadersに"*"または"Content-Type"が含まれているか
+4. ブラウザのコンソールでCORSエラーの詳細を確認してください`;
+                    
+                    console.error(errorMsg);
+                    throw new Error(errorMsg);
+                }
+                throw fetchError;
             }
 
             setProgress(70);
@@ -144,6 +196,7 @@ export default function UploadPage() {
                 body: JSON.stringify({
                     key,
                     publicUrl,
+                    photoId, // presigned-urlから取得したphotoIdを渡す
                     title: title || undefined,
                     description: description || undefined,
                     location: location || undefined,
@@ -203,7 +256,7 @@ export default function UploadPage() {
     }
 
     return (
-        <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-3xl mx-auto w-full">
+        <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-3xl mx-auto w-full pb-20">
             {/* ヘッダー */}
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-6">
                 <div className="flex-1">
@@ -293,8 +346,9 @@ export default function UploadPage() {
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         placeholder={locale === "en" ? "Enter title" : "タイトルを入力"}
-                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-md text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/50 focus:border-white/30"
+                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-md text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/50 focus:border-white/30 text-base"
                         disabled={uploading}
+                        style={{ fontSize: "16px" }} // iOSで自動ズームを防ぐ
                     />
                     <p className="mt-1 text-xs text-white/40">
                         {locale === "en" ? "Example: Tokyo Tower at night" : "例: 東京タワーの夜景"}
@@ -311,8 +365,9 @@ export default function UploadPage() {
                         onChange={(e) => setDescription(e.target.value)}
                         placeholder={locale === "en" ? "Enter description" : "説明を入力"}
                         rows={4}
-                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-md text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/50 focus:border-white/30 resize-none"
+                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-md text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/50 focus:border-white/30 resize-none text-base"
                         disabled={uploading}
+                        style={{ fontSize: "16px" }} // iOSで自動ズームを防ぐ
                     />
                     <p className="mt-1 text-xs text-white/40">
                         {locale === "en" ? "Example: A beautiful night view of Tokyo Tower captured at sunset" : "例: 夕暮れ時に撮影した東京タワーの美しい夜景です"}
@@ -329,8 +384,9 @@ export default function UploadPage() {
                         value={location}
                         onChange={(e) => setLocation(e.target.value)}
                         placeholder={locale === "en" ? "Enter location" : "場所を入力"}
-                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-md text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/50 focus:border-white/30"
+                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-md text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/50 focus:border-white/30 text-base"
                         disabled={uploading}
+                        style={{ fontSize: "16px" }} // iOSで自動ズームを防ぐ
                     />
                     <p className="mt-1 text-xs text-white/40">
                         {locale === "en" ? "Example: Minato City, Tokyo" : "例: 東京都港区"}
@@ -347,8 +403,9 @@ export default function UploadPage() {
                         value={category}
                         onChange={(e) => setCategory(e.target.value)}
                         placeholder={locale === "en" ? "Enter category" : "カテゴリを入力"}
-                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-md text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/50 focus:border-white/30"
+                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-md text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/50 focus:border-white/30 text-base"
                         disabled={uploading}
+                        style={{ fontSize: "16px" }} // iOSで自動ズームを防ぐ
                     />
                     <p className="mt-1 text-xs text-white/40">
                         {locale === "en" ? "Example: Landscape" : "例: 風景"}
@@ -365,8 +422,9 @@ export default function UploadPage() {
                         value={tags}
                         onChange={(e) => setTags(e.target.value)}
                         placeholder={locale === "en" ? "tag1, tag2, tag3" : "タグ1, タグ2, タグ3"}
-                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-md text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/50 focus:border-white/30"
+                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-md text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/50 focus:border-white/30 text-base"
                         disabled={uploading}
+                        style={{ fontSize: "16px" }} // iOSで自動ズームを防ぐ
                     />
                     <p className="mt-1 text-xs text-white/40">
                         {locale === "en" ? "Example: Tokyo, night view, tower, city" : "例: 東京, 夜景, タワー, 都市"}

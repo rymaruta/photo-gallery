@@ -4,7 +4,6 @@ import React from "react";
 import { useViewHistory } from "../../lib/hooks/useViewHistory";
 import { useImagePreloader } from "../../lib/hooks/useImagePreloader";
 import type { Photo } from "../data/photos";
-import RAW_PHOTOS from "../data/photos";
 import GalleryGrid from "../components/GalleryGrid";
 import GalleryModal from "../components/GalleryModal";
 import LocaleToggle from "../components/LocaleToggle";
@@ -15,6 +14,29 @@ export default function HistoryPage() {
     const { locale, setLocale, labels } = useLocale();
     const { history, clearHistory } = useViewHistory();
     const { preloadMultiple } = useImagePreloader();
+    const [allPhotos, setAllPhotos] = React.useState<Photo[]>([]);
+    const [loading, setLoading] = React.useState(true);
+
+    // APIから写真を読み込む（編集済みのベース写真も含む）
+    React.useEffect(() => {
+        const loadPhotos = async () => {
+            try {
+                const response = await fetch("/api/photos", { cache: "no-store" });
+                if (response.ok) {
+                    const data = await response.json();
+                    setAllPhotos(data);
+                } else {
+                    console.error("写真の取得に失敗しました");
+                }
+            } catch (error) {
+                console.error("写真取得エラー:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadPhotos();
+    }, []);
 
     // モーダル管理
     const [currentIndex, setCurrentIndex] = React.useState<number | null>(null);
@@ -29,14 +51,14 @@ export default function HistoryPage() {
         // 履歴の順序を保持しながら写真を取得
         const photos = history
             .map(item => {
-                const photo = (RAW_PHOTOS as Photo[]).find(p => p.id === item.photoId);
+                const photo = allPhotos.find(p => p.id === item.photoId);
                 return photo ? { photo, viewedAt: item.viewedAt } : null;
             })
             .filter((item): item is { photo: Photo; viewedAt: string } => item !== null)
             .map(item => item.photo);
 
         return photos;
-    }, [history]);
+    }, [history, allPhotos]);
 
     // モーダル操作
     const openModal = React.useCallback((index: number) => {
@@ -118,7 +140,11 @@ export default function HistoryPage() {
                 </div>
             </div>
 
-            {historyPhotos.length === 0 ? (
+            {loading ? (
+                <div className="flex items-center justify-center py-12">
+                    <div className="w-12 h-12 border-3 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                </div>
+            ) : historyPhotos.length === 0 ? (
                 <div className="text-center py-12">
                     <svg
                         className="w-16 h-16 mx-auto mb-4 text-white/40"

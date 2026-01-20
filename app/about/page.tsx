@@ -63,7 +63,7 @@ export default function AboutPage() {
                             {/* 左カラム（肖像＋名前＋SNS） */}
                             <aside className="md:col-span-1 flex flex-col items-start gap-6">
                                 <ProtectedPortrait
-                                    src="/images/me-portrait.jpg"
+                                    src="/snsimages/me-portrait.jpg"
                                     alt={about.photographer?.name ? `${about.photographer.name} — portrait` : "portrait"}
                                     sizes="(max-width: 768px) 96px, 176px"
                                     className="w-28 h-28 md:w-44 md:h-44"

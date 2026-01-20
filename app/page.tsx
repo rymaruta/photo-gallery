@@ -6,7 +6,6 @@ import LocaleToggle from "./components/LocaleToggle";
 import { useLocale } from "./i18n/context";
 
 import type { Photo } from "./data/photos";
-import RAW_PHOTOS from "./data/photos";
 import useGallery from "./hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
 import GalleryModal from "./components/GalleryModal";
@@ -16,6 +15,29 @@ import { generateStructuredData } from "../lib/utils/seo";
 
 export default function Page() {
   const { locale, setLocale, labels } = useLocale();
+  const [photos, setPhotos] = React.useState<Photo[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  // APIから写真を読み込む（編集済みのベース写真も含む）
+  React.useEffect(() => {
+    const loadPhotos = async () => {
+      try {
+        const response = await fetch("/api/photos", { cache: "no-store" });
+        if (response.ok) {
+          const data = await response.json();
+          setPhotos(data);
+        } else {
+          console.error("写真の取得に失敗しました");
+        }
+      } catch (error) {
+        console.error("写真取得エラー:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPhotos();
+  }, []);
 
   const {
     PHOTOS,
@@ -27,7 +49,7 @@ export default function Page() {
     close,
     next,
     prev,
-  } = useGallery(RAW_PHOTOS as Photo[]);
+  } = useGallery(photos);
 
   // URLパラメータから画像IDを取得してモーダルを開く
   React.useEffect(() => {
@@ -146,18 +168,26 @@ export default function Page() {
           categoryDisplayMap={categoryDisplayMap}
         />
 
-        <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
-          {locale === "en" 
-            ? `${labels.gallery?.resultsCount ?? "Results"}: ${filteredPhotos.length}`
-            : `${labels.gallery?.resultsCount ?? "結果"}: ${filteredPhotos.length} 件`}
-        </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="w-12 h-12 border-3 border-white/20 border-t-white/60 rounded-full animate-spin" />
+          </div>
+        ) : (
+          <>
+            <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
+              {locale === "en" 
+                ? `${labels.gallery?.resultsCount ?? "Results"}: ${filteredPhotos.length}`
+                : `${labels.gallery?.resultsCount ?? "結果"}: ${filteredPhotos.length} 件`}
+            </div>
 
-        <GalleryGrid
-          photos={filteredPhotos}
-          onOpen={open}
-          locale={locale}
-          categoryDisplayMap={categoryDisplayMap}
-        />
+            <GalleryGrid
+              photos={filteredPhotos}
+              onOpen={open}
+              locale={locale}
+              categoryDisplayMap={categoryDisplayMap}
+            />
+          </>
+        )}
 
         {currentIndex !== null && filteredPhotos[currentIndex] && (
           <GalleryModal

@@ -69,8 +69,10 @@ export async function POST(request: NextRequest) {
         }
 
         // ファイル名を生成（セキュアに）
+        // 写真IDとS3のファイル名を一致させるため、ここでUUIDを生成して返す
         const fileExtension = fileName.split(".").pop()?.toLowerCase() || "jpg";
-        const safeFileName = `${uuidv4()}.${fileExtension}`;
+        const photoId = uuidv4(); // 写真IDとして使用するUUID
+        const safeFileName = `${photoId}.${fileExtension}`;
         const key = `uploads/${safeFileName}`;
 
         // Presigned URLを生成（15分間有効）
@@ -94,6 +96,7 @@ export async function POST(request: NextRequest) {
             presignedUrl,
             key,
             publicUrl,
+            photoId, // 写真IDを返す（S3のファイル名と一致）
         });
     } catch (error: any) {
         console.error("Presigned URL生成エラー:", error);

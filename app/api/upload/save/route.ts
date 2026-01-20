@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { key, publicUrl, title, description, location, category, tags } = body;
+        const { key, publicUrl, photoId, title, description, location, category, tags } = body;
 
         if (!key || !publicUrl) {
             return NextResponse.json(
@@ -30,10 +30,13 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // 写真IDが提供されていない場合は生成（後方互換性のため）
+        // 通常はpresigned-urlからphotoIdが渡される
+        const finalPhotoId = photoId || uuidv4();
+
         // 写真データを生成
-        const photoId = uuidv4();
         const photoData = {
-            id: photoId,
+            id: finalPhotoId,
             src: publicUrl,
             title: title || { ja: "無題", en: "Untitled" },
             description: description
