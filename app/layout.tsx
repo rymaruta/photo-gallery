@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Inter } from "next/font/google";
 import HeaderNav from "./components/HeaderNav";
+import Footer from "./components/Footer";
 import ToastProvider from "./components/ToastProvider";
 import { AuthProvider } from "./auth/context";
 import { LocaleProvider } from "./i18n/context";
@@ -90,26 +91,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div className="flex-1">
                 {children}
               </div>
+
+              {/* Footer: 公式サイト風の洗練されたデザイン */}
+              <Footer />
             </AuthProvider>
           </LocaleProvider>
         </ToastProvider>
-
-        {/* Footer: 黒背景に白字のモダンなデザイン */}
-        <footer className="relative border-t border-white/10 bg-gradient-to-t from-black via-black to-transparent">
-          <div className="absolute inset-0 bg-gradient-to-t from-white/5 to-transparent pointer-events-none" />
-          <div className="relative max-w-5xl mx-auto px-6 md:px-8 py-8 md:py-10">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="text-xs md:text-sm text-white/50 font-light tracking-wide">
-                © 2025 PhotoGallery. All rights reserved.
-              </div>
-              <div className="flex items-center gap-6 text-xs text-white/40">
-                <span className="hidden sm:inline">Portfolio & Gallery</span>
-                <span className="text-white/20">•</span>
-                <span>Photography</span>
-              </div>
-            </div>
-          </div>
-        </footer>
       </body>
     </html>
   );

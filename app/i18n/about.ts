@@ -19,7 +19,7 @@ const ja: AboutContent = {
     title: "制作について",
     description: "自己紹介とサイトの概要",
     paragraphs: [
-        "当サイトは旅行中に撮影した風景写真を中心に公開しています。"
+        "当サイトは旅行中に撮影した風景写真を中心に公開しています。",
     ],
     contactTitle: "運営・お問い合わせ",
     contactPrompt: "Instagram の DM へご連絡ください。",
@@ -36,7 +36,7 @@ const en: AboutContent = {
     title: "About",
     description: "About me and this site",
     paragraphs: [
-        "This site features landscape photographs taken during my travels."
+        "This site features landscape photographs taken during my travels.",
     ],
     contactTitle: "Contact",
     contactPrompt: "Please contact me via Instagram DM.",
