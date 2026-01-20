@@ -55,7 +55,71 @@ function PhotoImage({
 
         const loadExif = async () => {
             try {
-                // 画像のURLからEXIF情報を読み取る
+                // S3のURLや外部URLの場合でもCORSエラーを適切にハンドリング
+                // exifrはURL、Blob、ArrayBufferを受け取れる
+                let imageData: string | Blob | ArrayBuffer = src;
+                
+                // S3のURL（http/httpsで始まる）の場合、CORSが設定されていれば直接URLを使用
+                // CORSエラーが発生する可能性があるため、まずURLを直接試し、失敗した場合はfetchで取得
+                if (src.startsWith('http://') || src.startsWith('https://')) {
+                    try {
+                        // まずURLを直接試す（CORSが正しく設定されていれば動作する）
+                        const exif = await exifr.parse(src, {
+                            pick: [
+                                'Make',
+                                'Model',
+                                'LensModel',
+                                'FNumber',
+                                'ExposureTime',
+                                'ISO',
+                                'FocalLength',
+                                'WhiteBalance',
+                                'DateTimeOriginal',
+                                'ImageWidth',
+                                'ImageHeight',
+                                'Orientation'
+                            ],
+                            translateKeys: false,
+                        });
+                        onExifLoaded?.(exif || null);
+                        return;
+                    } catch (urlError) {
+                        // URL直接読み取りに失敗した場合、fetchで取得を試みる
+                        try {
+                            const response = await fetch(src, {
+                                mode: 'cors',
+                                credentials: 'omit',
+                            });
+                            if (response.ok) {
+                                const blob = await response.blob();
+                                const exif = await exifr.parse(blob, {
+                                    pick: [
+                                        'Make',
+                                        'Model',
+                                        'LensModel',
+                                        'FNumber',
+                                        'ExposureTime',
+                                        'ISO',
+                                        'FocalLength',
+                                        'WhiteBalance',
+                                        'DateTimeOriginal',
+                                        'ImageWidth',
+                                        'ImageHeight',
+                                        'Orientation'
+                                    ],
+                                    translateKeys: false,
+                                });
+                                onExifLoaded?.(exif || null);
+                                return;
+                            }
+                        } catch (fetchError) {
+                            // fetchも失敗した場合はURLを直接使用（最終試行）
+                            console.warn('Failed to fetch image for EXIF, trying URL directly:', fetchError);
+                        }
+                    }
+                }
+                
+                // ローカルパス（/images/で始まる）の場合はURLを直接使用
                 const exif = await exifr.parse(src, {
                     pick: [
                         'Make',
@@ -70,11 +134,13 @@ function PhotoImage({
                         'ImageWidth',
                         'ImageHeight',
                         'Orientation'
-                    ]
+                    ],
+                    translateKeys: false,
                 });
                 onExifLoaded?.(exif || null);
             } catch (error) {
-                console.warn('Failed to read EXIF data:', error);
+                // EXIF読み取りに失敗した場合はnullを返す（photo.exifをフォールバックとして使用）
+                console.warn('Failed to read EXIF data from image:', error);
                 onExifLoaded?.(null);
             }
         };
@@ -186,37 +252,51 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
         }
     }, [photo?.id, addToHistory]);
 
-    // EXIF情報を画像から読み取った情報のみを使用
+    // EXIF情報を画像から読み取った情報を優先し、なければデータ側のexifをフォールバック
     const mergedExif = useMemo(() => {
         const extracted = extractedExif || {};
+        const fallback = photo?.exif || {};
         
-        // 画像から読み取ったEXIF情報のみを使用
+        // 画像サイズの生成（優先順位: extracted > photo.width/height > fallback.imageSize）
+        let imageSize: string | undefined;
+        if (extracted.ImageWidth && extracted.ImageHeight) {
+            imageSize = `${extracted.ImageWidth} × ${extracted.ImageHeight}`;
+        } else if (photo?.width && photo?.height) {
+            imageSize = `${photo.width} × ${photo.height}`;
+        } else if (fallback.imageSize) {
+            imageSize = fallback.imageSize;
+        }
+        
         return {
             camera: extracted.Make && extracted.Model 
                 ? `${extracted.Make} ${extracted.Model}`.trim() 
-                : extracted.Make || extracted.Model || undefined,
-            lens: extracted.LensModel || undefined,
+                : extracted.Make || extracted.Model || fallback.camera || undefined,
+            lens: extracted.LensModel || fallback.lens || undefined,
             aperture: extracted.FNumber 
                 ? `f/${extracted.FNumber}` 
-                : undefined,
+                : fallback.aperture || undefined,
             exposure: extracted.ExposureTime 
                 ? extracted.ExposureTime < 1 
                     ? `1/${Math.round(1 / extracted.ExposureTime)}s` 
                     : `${extracted.ExposureTime}s`
-                : undefined,
-            iso: extracted.ISO || undefined,
+                : fallback.exposure || undefined,
+            iso: extracted.ISO || fallback.iso || undefined,
             focalLength: extracted.FocalLength 
                 ? `${Math.round(extracted.FocalLength)}mm` 
-                : undefined,
+                : fallback.focalLength || undefined,
             whiteBalance: extracted.WhiteBalance !== undefined
                 ? extracted.WhiteBalance === 0 ? "Auto" : "Manual"
-                : undefined,
-            imageSize: extracted.ImageWidth && extracted.ImageHeight
-                ? `${extracted.ImageWidth} × ${extracted.ImageHeight}`
-                : undefined,
-            dateTimeOriginal: extracted.DateTimeOriginal || undefined,
+                : fallback.whiteBalance || undefined,
+            imageSize: imageSize,
+            dateTimeOriginal: extracted.DateTimeOriginal || photo?.date || photo?.createdAt || undefined,
         };
-    }, [extractedExif]);
+    }, [extractedExif, photo]);
+
+    // 構造化データ（JSON-LD）を生成（条件分岐の前に配置）
+    const structuredData = useMemo(() => {
+        if (!photo) return null;
+        return generatePhotoStructuredData(photo, locale);
+    }, [photo, locale]);
 
     // ローディング中
     if (loading) {
@@ -295,12 +375,6 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
 
     // カテゴリ表示名の取得
     const categoryDisplayName = photo ? (labels.category?.names?.[photo.category ?? ""] ?? photo.category ?? "") : "";
-
-    // 構造化データ（JSON-LD）を生成
-    const structuredData = useMemo(() => {
-        if (!photo) return null;
-        return generatePhotoStructuredData(photo, locale);
-    }, [photo, locale]);
 
     return (
         <>

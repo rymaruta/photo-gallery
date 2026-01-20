@@ -20,6 +20,9 @@
 # production
 /build
 
+# local work dirs
+/.tmp/
+
 # misc
 .DS_Store
 *.pem
@@ -35,8 +38,10 @@ yarn-error.log*
 
 # local artifacts / backups
 /scripts/_artifacts/
+/scripts/_artifacts/*.json
 /app/data/_backups/
 app/data/*.bak-*
+app/data/photos.json.bak-*
 
 # vercel
 .vercel
