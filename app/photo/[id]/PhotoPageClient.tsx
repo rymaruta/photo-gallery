@@ -14,7 +14,7 @@ import { useFavorites } from "../../../lib/hooks/useFavorites";
 import { useViewHistory } from "../../../lib/hooks/useViewHistory";
 import { useToast } from "../../../lib/hooks/useToast";
 import { shareUrl, copyToClipboard, shareToTwitter, shareToFacebook, shareToLine } from "../../../lib/utils/share";
-import { siteConfig } from "../../../lib/utils/seo";
+import { siteConfig, generatePhotoStructuredData } from "../../../lib/utils/seo";
 import LocaleToggle from "../../components/LocaleToggle";
 import { useLocale } from "../../i18n/context";
 
@@ -296,8 +296,21 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
     // カテゴリ表示名の取得
     const categoryDisplayName = photo ? (labels.category?.names?.[photo.category ?? ""] ?? photo.category ?? "") : "";
 
+    // 構造化データ（JSON-LD）を生成
+    const structuredData = useMemo(() => {
+        if (!photo) return null;
+        return generatePhotoStructuredData(photo, locale);
+    }, [photo, locale]);
+
     return (
-        <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+        <>
+            {structuredData && (
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+                />
+            )}
+            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
             {/* ヘッダー */}
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-6">
                 <div className="flex-1">
@@ -681,8 +694,9 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                             <div />
                         )}
                     </div>
-                )}
-            </div>
-        </main>
+                    )}
+                </div>
+            </main>
+        </>
     );
 }

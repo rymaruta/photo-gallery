@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useMemo } from "react";
-import Head from "next/head";
 import Image from "next/image";
 import getContent, { AboutContent } from "../i18n/about";
 import { useLocale } from "../i18n/context";
@@ -35,12 +34,6 @@ export default function AboutPage() {
 
     return (
         <>
-            <Head>
-                <title>{headerTitle}</title>
-                <meta name="description" content={headerSubtitle} />
-                <link rel="canonical" href="https://your-domain.example/about" />
-            </Head>
-
             <main className="p-6 sm:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
                     <div className="flex items-start justify-between gap-4 mb-6 min-h-[64px]">
                         <div>

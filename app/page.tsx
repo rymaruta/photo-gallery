@@ -11,7 +11,7 @@ import GalleryGrid from "./components/GalleryGrid";
 import GalleryModal from "./components/GalleryModal";
 import type { FilterValues } from "../lib/types/gallery";
 import { capitalize } from "../lib/utils/string";
-import { generateStructuredData } from "../lib/utils/seo";
+import { generateStructuredData, generateOrganizationStructuredData } from "../lib/utils/seo";
 
 export default function Page() {
   const { locale, setLocale, labels } = useLocale();
@@ -133,11 +133,20 @@ export default function Page() {
     [PHOTOS]
   );
 
+  const organizationData = React.useMemo(
+    () => generateOrganizationStructuredData(),
+    []
+  );
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationData) }}
       />
       <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6 min-h-[64px]">
