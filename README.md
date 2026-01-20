@@ -79,6 +79,14 @@ cd photo-gallery/
 npm install
 ```
 
+### セットアップ資料（docs）
+
+- `docs/LOCAL_SETUP.md`（ローカル開発）
+- `docs/PRODUCTION_SETUP.md`（本番デプロイ）
+- `docs/UPLOAD_SETUP.md`（アップロード/Secrets Manager）
+- `docs/AUTH_SETUP.md`（Cognito認証）
+- `docs/API_DOCUMENTATION.md`（API実装）
+
 ### 環境リセット（必要に応じて）
 
 ```bash

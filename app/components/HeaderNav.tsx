@@ -385,8 +385,8 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                     }}
                                                 >
                                                     {navLabels.login || "Login"}
-                                                </button>
-                                            </li>
+                                            </button>
+                                        </li>
                                         )}
                                     </ul>
                                 </nav>

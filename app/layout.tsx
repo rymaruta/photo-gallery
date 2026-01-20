@@ -80,17 +80,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     >
                       <span className="relative z-10">PhotoGallery</span>
                       <span className="absolute inset-0 bg-white/5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 -z-0" />
-                    </Link>
-                  </h1>
+              </Link>
+            </h1>
 
-                  <HeaderNav />
-                </div>
-              </header>
+            <HeaderNav />
+          </div>
+        </header>
 
-              {/* Main - 各ページで管理 */}
-              <div className="flex-1">
-                {children}
-              </div>
+        {/* Main - 各ページで管理 */}
+          <div className="flex-1">
+            {children}
+          </div>
 
               {/* Footer: 公式サイト風の洗練されたデザイン */}
               <Footer />

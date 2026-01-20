@@ -33,6 +33,11 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# local artifacts / backups
+/scripts/_artifacts/
+/app/data/_backups/
+app/data/*.bak-*
+
 # vercel
 .vercel
 
