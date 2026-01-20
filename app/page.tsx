@@ -22,7 +22,8 @@ export default function Page() {
   React.useEffect(() => {
     const loadPhotos = async () => {
       try {
-        const response = await fetch("/api/photos", { cache: "no-store" });
+        const { publicFetch } = await import("../lib/utils/api");
+        const response = await publicFetch("/photos", { cache: "no-store" });
         if (response.ok) {
           const data = await response.json();
           setPhotos(data);

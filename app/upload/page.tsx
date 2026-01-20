@@ -86,24 +86,11 @@ export default function UploadPage() {
         try {
             // APIキーを取得（環境変数から）
             // 注意: 本番環境では、より安全な認証方法（JWT等）の使用を推奨します
-            const apiKey = process.env.NEXT_PUBLIC_UPLOAD_API_KEY || "";
-
-            if (!apiKey) {
-                throw new Error(
-                    locale === "en"
-                        ? "API key is not configured. Please contact the administrator."
-                        : "APIキーが設定されていません。管理者にお問い合わせください。"
-                );
-            }
-
             // 1. Presigned URLを取得
             setProgress(10);
-            const presignedResponse = await fetch("/api/upload/presigned-url", {
+            const { authenticatedFetch } = await import("../../lib/utils/api");
+            const presignedResponse = await authenticatedFetch("/upload/presigned-url", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-api-key": apiKey,
-                },
                 body: JSON.stringify({
                     fileName: file.name,
                     fileType: file.type,
@@ -187,12 +174,8 @@ export default function UploadPage() {
             setProgress(70);
 
             // 3. 写真データを保存
-            const saveResponse = await fetch("/api/upload/save", {
+            const saveResponse = await authenticatedFetch("/upload/save", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-api-key": apiKey,
-                },
                 body: JSON.stringify({
                     key,
                     publicUrl,

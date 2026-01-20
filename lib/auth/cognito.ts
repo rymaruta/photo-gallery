@@ -185,3 +185,13 @@ export async function isAuthenticated(): Promise<boolean> {
     const session = await getCurrentSession();
     return session !== null && session.isValid();
 }
+
+// IDトークンを取得（JWT文字列として）
+export async function getIdToken(): Promise<string | null> {
+    const session = await getCurrentSession();
+    if (!session || !session.isValid()) {
+        return null;
+    }
+    const idToken = session.getIdToken();
+    return idToken.getJwtToken();
+}

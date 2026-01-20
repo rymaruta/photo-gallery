@@ -43,7 +43,8 @@ export default function AdminPage() {
         try {
             setLoadingPhotos(true);
             // 管理者ページでは常に最新データを取得するためキャッシュを無効化
-            const response = await fetch("/api/photos", {
+            const { publicFetch } = await import("../../lib/utils/api");
+            const response = await publicFetch("/photos", {
                 cache: "no-store",
             });
             if (response.ok) {
@@ -51,13 +52,13 @@ export default function AdminPage() {
                 setPhotos(data);
             } else {
                 // 取得失敗のトーストは出さない（静かに失敗させる）
-                console.error("写真の取得に失敗しました", {
+                log.error("写真の取得に失敗しました", {
                     status: response.status,
                     statusText: response.statusText,
                 });
             }
         } catch (error) {
-            console.error("写真取得エラー:", error);
+            log.error("写真取得エラー:", error);
             // 取得失敗のトーストは出さない（静かに失敗させる）
         } finally {
             setLoadingPhotos(false);
@@ -72,33 +73,18 @@ export default function AdminPage() {
     const handleDeleteConfirm = async () => {
         if (!photoToDelete) return;
 
-        try {
-            setDeletingId(photoToDelete.id);
-            const apiKey = process.env.NEXT_PUBLIC_UPLOAD_API_KEY || "";
-            
-            if (!apiKey) {
-                showToast(
-                    locale === "en" 
-                        ? "API key is not configured" 
-                        : "APIキーが設定されていません",
-                    "error"
-                );
-                setDeletingId(null);
-                return;
-            }
+            try {
+                setDeletingId(photoToDelete.id);
 
-            log.info("削除開始:", {
-                photoId: photoToDelete.id,
-                photoSrc: photoToDelete.src,
-            });
+                log.info("削除開始:", {
+                    photoId: photoToDelete.id,
+                    photoSrc: photoToDelete.src,
+                });
 
-            const response = await fetch(`/api/photos/${photoToDelete.id}`, {
-                method: "DELETE",
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-api-key": apiKey,
-                },
-            });
+                const { authenticatedFetch } = await import("../../lib/utils/api");
+                const response = await authenticatedFetch(`/photos/${photoToDelete.id}`, {
+                    method: "DELETE",
+                });
 
             if (response.ok) {
                 const result = await response.json().catch(() => ({}));
