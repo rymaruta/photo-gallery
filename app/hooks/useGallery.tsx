@@ -1,6 +1,6 @@
 // app/hooks/useGallery.ts
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Photo, Locale, LocalizedText, LocalizedParagraphs } from "../data/photos";
+import type { Photo, LocalizedText, LocalizedParagraphs } from "../data/photos";
 import { getLocalized, getLocalizedParagraphs } from "../data/photos";
 import type { GalleryFilters } from "../../lib/types/gallery";
 

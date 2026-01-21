@@ -162,7 +162,7 @@ export default function GalleryModal({
     const lastFocusableRef = useRef<HTMLButtonElement | null>(null);
 
     // スワイプジェスチャー
-    const { swipeDirection, handlers: swipeHandlers } = useSwipe({
+    const { handlers: swipeHandlers } = useSwipe({
         onSwipeLeft: onNext,
         onSwipeRight: onPrev,
         threshold: 50,
@@ -316,7 +316,8 @@ export default function GalleryModal({
     }, [onClose, onNext, onPrev, currentIndex]);
 
     // Ensure overlay click explicitly unlocks before closing to avoid timing races
-    const handleOverlayClick = (e: React.MouseEvent) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const handleOverlayClick = (_e: React.MouseEvent) => {
         try {
             unlockBodyScroll();
         } catch {

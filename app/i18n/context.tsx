@@ -14,8 +14,13 @@ type LocaleContextType = {
 const LocaleContext = createContext<LocaleContextType | undefined>(undefined);
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-    // 初期値は常に"ja"に固定（サーバーとクライアントで一致させる）
-    const [locale, setLocaleState] = useState<Locale>("ja");
+    // 初期値はローカルストレージから読み込む（クライアント側のみ）
+    // サーバー側では常に"ja"を返す
+    const [locale, setLocaleState] = useState<Locale>(() => {
+        if (typeof window === "undefined") return "ja";
+        const saved = localStorage.getItem("locale");
+        return (saved === "en" || saved === "ja") ? saved : "ja";
+    });
 
     // クライアント側でのみローカルストレージからロケールを読み込む
     // デフォルトは日本語（"ja"）
@@ -27,11 +32,12 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
         if (saved === "en" || saved === "ja") {
             // ただし、初回訪問時（localStorageに保存されていない場合）は日本語を優先
             // 既に保存されている場合のみ、保存された値を使用
-            if (saved) {
+            if (saved && saved !== locale) {
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setLocaleState(saved);
             }
         }
-    }, []);
+    }, [locale]);
 
     // ロケール変更時にローカルストレージに保存
     const setLocale = (newLocale: Locale) => {

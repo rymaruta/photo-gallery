@@ -7,11 +7,13 @@ import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import BASE_PHOTOS from "../../../data/photos";
 import { log } from "../../../../lib/utils/log";
 
+import type { Photo } from "../../../data/photos";
+
 // 写真データを読み込む共通関数（キャッシュ付き）
-let photosCache: { photos: any[]; timestamp: number } | null = null;
+let photosCache: { photos: Photo[]; timestamp: number } | null = null;
 const PHOTOS_CACHE_TTL = 30 * 1000; // 30秒
 
-async function loadPhotos(): Promise<any[]> {
+async function loadPhotos(): Promise<Photo[]> {
     // キャッシュをチェック
     if (photosCache && Date.now() - photosCache.timestamp < PHOTOS_CACHE_TTL) {
         return photosCache.photos;
@@ -20,10 +22,10 @@ async function loadPhotos(): Promise<any[]> {
     const photosDataPath = path.join(process.cwd(), "app", "data", "photos.json");
 
     // photos.json が存在する場合は、それを「正」として読み込む（S3参照に統一するため）
-    let photos: any[];
+    let photos: Photo[];
     if (existsSync(photosDataPath)) {
         const data = await readFile(photosDataPath, "utf-8");
-        photos = JSON.parse(data);
+        photos = JSON.parse(data) as Photo[];
     } else {
         photos = [...BASE_PHOTOS];
     }
@@ -64,10 +66,11 @@ export async function GET(
                 "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
             },
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("写真取得エラー:", error);
+        const errorMessage = error instanceof Error ? error.message : "写真の取得に失敗しました";
         return NextResponse.json(
-            { error: error.message || "写真の取得に失敗しました" },
+            { error: errorMessage },
             { status: 500 }
         );
     }
@@ -92,7 +95,7 @@ export async function PUT(
         }
 
         const body = await request.json();
-        let photos = await loadPhotos();
+        const photos = await loadPhotos();
 
         const photoIndex = photos.findIndex((p) => p.id === id);
         if (photoIndex === -1) {
@@ -113,18 +116,17 @@ export async function PUT(
 
         // すべての写真（ベース写真を含む）を保存
         // ベース写真の編集も可能にするため、photos.jsonに保存
-        const basePhotoIds = new Set(BASE_PHOTOS.map((p) => p.id));
         const photosDataPath = path.join(process.cwd(), "app", "data", "photos.json");
         
         // 既存のアップロード写真と編集されたベース写真を保存
-        let existingPhotos: any[] = [];
+        let existingPhotos: Photo[] = [];
         if (existsSync(photosDataPath)) {
             const data = await readFile(photosDataPath, "utf-8");
-            existingPhotos = JSON.parse(data);
+            existingPhotos = JSON.parse(data) as Photo[];
         }
 
         // 編集された写真を追加または更新
-        const existingIndex = existingPhotos.findIndex((p: any) => p.id === id);
+        const existingIndex = existingPhotos.findIndex((p: Photo) => p.id === id);
         if (existingIndex >= 0) {
             existingPhotos[existingIndex] = updatedPhoto;
         } else {
@@ -140,10 +142,11 @@ export async function PUT(
             success: true,
             photo: updatedPhoto,
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("更新エラー:", error);
+        const errorMessage = error instanceof Error ? error.message : "更新に失敗しました";
         return NextResponse.json(
-            { error: error.message || "更新に失敗しました" },
+            { error: errorMessage },
             { status: 500 }
         );
     }
@@ -167,7 +170,7 @@ export async function DELETE(
             );
         }
 
-        let photos = await loadPhotos();
+        const photos = await loadPhotos();
 
         const photoIndex = photos.findIndex((p) => p.id === id);
         if (photoIndex === -1) {
@@ -191,7 +194,13 @@ export async function DELETE(
                 });
 
                 // S3クライアントの設定
-                const s3ClientConfig: any = {
+                const s3ClientConfig: {
+                    region: string;
+                    credentials?: {
+                        accessKeyId: string;
+                        secretAccessKey: string;
+                    };
+                } = {
                     region: config.awsRegion,
                 };
 
@@ -258,10 +267,12 @@ export async function DELETE(
                     bucket: config.awsS3BucketName,
                     response: deleteResponse,
                 });
-            } catch (s3Error: any) {
+            } catch (s3Error: unknown) {
+                const errorMessage = s3Error instanceof Error ? s3Error.message : String(s3Error);
+                const errorCode = (s3Error as { Code?: string; code?: string })?.Code || (s3Error as { Code?: string; code?: string })?.code;
                 console.error("S3削除エラー:", {
-                    error: s3Error.message || s3Error,
-                    code: s3Error.Code || s3Error.code,
+                    error: errorMessage,
+                    code: errorCode,
                     name: s3Error.name,
                     stack: s3Error.stack,
                     photoSrc: photo.src,
@@ -287,14 +298,14 @@ export async function DELETE(
 
         // photos.jsonから削除（ベース写真の削除も可能）
         const photosDataPath = path.join(process.cwd(), "app", "data", "photos.json");
-        let existingPhotos: any[] = [];
+        let existingPhotos: Photo[] = [];
         if (existsSync(photosDataPath)) {
             const data = await readFile(photosDataPath, "utf-8");
-            existingPhotos = JSON.parse(data);
+            existingPhotos = JSON.parse(data) as Photo[];
         }
 
         // 削除対象の写真を除外
-        existingPhotos = existingPhotos.filter((p: any) => p.id !== id);
+        existingPhotos = existingPhotos.filter((p: Photo) => p.id !== id);
         await writeFile(photosDataPath, JSON.stringify(existingPhotos, null, 2), "utf-8");
 
         // キャッシュをクリア
@@ -303,10 +314,11 @@ export async function DELETE(
         return NextResponse.json({
             success: true,
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("削除エラー:", error);
+        const errorMessage = error instanceof Error ? error.message : "削除に失敗しました";
         return NextResponse.json(
-            { error: error.message || "削除に失敗しました" },
+            { error: errorMessage },
             { status: 500 }
         );
     }

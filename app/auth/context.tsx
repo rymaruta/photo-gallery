@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { signIn, signOut, isAuthenticated, isAdmin } from "../../lib/auth/cognito";
-import type { CognitoUserSession } from "amazon-cognito-identity-js";
 
 type AuthContextType = {
     isAuthenticated: boolean;
@@ -65,12 +64,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // 初回ロード時に認証状態をチェック
     useEffect(() => {
-        checkAuth();
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        void checkAuth();
     }, [checkAuth]);
 
     // パス変更時に認証状態をチェック
     useEffect(() => {
-        checkAuth();
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        void checkAuth();
     }, [pathname, checkAuth]);
 
     // ログイン
@@ -120,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setAuthState((prev) => ({ ...prev, loading: false }));
                 return { success: false, error: result.error || "ログインに失敗しました" };
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("AuthContext: ログイン例外", error);
             setAuthState((prev) => ({ ...prev, loading: false }));
             return { success: false, error: error.message || "ログインに失敗しました" };

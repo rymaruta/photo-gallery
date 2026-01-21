@@ -103,7 +103,8 @@ export async function signIn(username: string, password: string): Promise<{
                         error: errorMessage,
                     });
                 },
-                newPasswordRequired: (userAttributes, requiredAttributes) => {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                newPasswordRequired: (_userAttributes, _requiredAttributes) => {
                     console.log("新しいパスワードが必要");
                     resolve({
                         success: false,
@@ -111,11 +112,12 @@ export async function signIn(username: string, password: string): Promise<{
                     });
                 },
             });
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("認証処理エラー:", error);
+            const errorMessage = error instanceof Error ? error.message : "ログイン処理中にエラーが発生しました";
             resolve({
                 success: false,
-                error: error.message || "ログイン処理中にエラーが発生しました",
+                error: errorMessage,
             });
         }
     });
@@ -155,7 +157,7 @@ export async function getCurrentSession(): Promise<CognitoUserSession | null> {
 
                 resolve(session);
             });
-        } catch (error) {
+        } catch {
             // 環境変数が設定されていない場合はnullを返す
             resolve(null);
         }

@@ -9,7 +9,6 @@ import type { Photo } from "./data/photos";
 import useGallery from "./hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
 import GalleryModal from "./components/GalleryModal";
-import type { FilterValues } from "../lib/types/gallery";
 import { capitalize } from "../lib/utils/string";
 import { generateStructuredData, generateOrganizationStructuredData } from "../lib/utils/seo";
 

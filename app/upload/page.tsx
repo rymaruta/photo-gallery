@@ -147,9 +147,10 @@ export default function UploadPage() {
                 }
                 
                 console.log("S3アップロード成功:", { key, status: uploadResponse.status });
-            } catch (fetchError: any) {
+            } catch (fetchError: unknown) {
+                const errorName = fetchError instanceof Error ? fetchError.name : "Unknown";
                 console.error("Fetch error詳細:", {
-                    name: fetchError.name,
+                    name: errorName,
                     message: fetchError.message,
                     stack: fetchError.stack,
                     presignedUrl: presignedUrl ? presignedUrl.substring(0, 200) + "..." : "null",
@@ -207,7 +208,7 @@ export default function UploadPage() {
             setTimeout(() => {
                 router.push("/");
             }, 1000);
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Upload error:", error);
             showToast(
                 locale === "en"
@@ -297,6 +298,7 @@ export default function UploadPage() {
                     ) : (
                         <div className="relative">
                             <div className="relative w-full h-64 rounded-lg overflow-hidden bg-black">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                     src={preview}
                                     alt="Preview"

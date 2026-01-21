@@ -29,7 +29,7 @@ export async function copyToClipboard(text: string): Promise<void> {
 
     try {
         await navigator.clipboard.writeText(text);
-    } catch (error) {
+    } catch {
         // フォールバック: 古い方法を使用
         const textArea = document.createElement("textarea");
         textArea.value = text;
@@ -70,7 +70,6 @@ export function shareToFacebook(url: string): void {
  */
 export function shareToLine(url: string, text?: string): void {
     if (typeof window === "undefined") return;
-    const lineText = text ? `${text} ${url}` : url;
     const lineUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text || "")}`;
     window.open(lineUrl, "_blank", "width=550,height=420");
 }

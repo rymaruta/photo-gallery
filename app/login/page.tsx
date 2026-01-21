@@ -4,19 +4,11 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
-import { isAuthenticated, isAdmin } from "../../lib/auth/cognito";
 import { LockClosedIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
-
-// 認証状態を確認する関数
-async function checkAuthStatus() {
-    const authenticated = await isAuthenticated();
-    const admin = authenticated ? await isAdmin() : false;
-    return { isAuthenticated: authenticated, isAdminUser: admin };
-}
 
 export default function LoginPage() {
     const router = useRouter();
-    const { login, isAuthenticated, isAdminUser, loading } = useAuth();
+    const { login, isAuthenticated, loading } = useAuth();
     const { showToast } = useToast();
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
@@ -60,7 +52,7 @@ export default function LoginPage() {
                 setError(errorMessage);
                 showToast(errorMessage, "error");
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("ログイン例外:", err);
             const errorMessage = err.message || "ログインに失敗しました";
             setError(errorMessage);

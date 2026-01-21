@@ -45,8 +45,8 @@ function FilterBarInner({
     const labels = useMemo(() => getLabels(safeLocale), [safeLocale]);
 
     // --- Safe access: labels may not have typed 'tags' or 'actions' properties.
-    // Use `any` access and provide fallbacks.
-    const rawLabels = labels as any;
+    // Use type assertion and provide fallbacks.
+    const rawLabels = labels as Record<string, unknown>;
 
     const tagLabels = useMemo(() => {
         const t = rawLabels?.tags;
@@ -74,8 +74,13 @@ function FilterBarInner({
     const showAllFixedLabel = actionLabels.showAllGeneric ?? actionLabels.showAll ?? "Show";
 
     // local query state + debounced apply
-    const [localQuery, setLocalQuery] = useState(values.query || "");
-    useEffect(() => setLocalQuery(values.query || ""), [values.query]);
+    const [localQuery, setLocalQuery] = useState(() => values.query || "");
+    useEffect(() => {
+        if (localQuery !== (values.query || "")) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setLocalQuery(values.query || "");
+        }
+    }, [values.query, localQuery]);
 
     const debouncedApply = useMemo(
         () =>

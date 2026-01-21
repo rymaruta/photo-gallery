@@ -57,7 +57,6 @@ function PhotoImage({
             try {
                 // S3のURLや外部URLの場合でもCORSエラーを適切にハンドリング
                 // exifrはURL、Blob、ArrayBufferを受け取れる
-                let imageData: string | Blob | ArrayBuffer = src;
                 
                 // S3のURL（http/httpsで始まる）の場合、CORSが設定されていれば直接URLを使用
                 // CORSエラーが発生する可能性があるため、まずURLを直接試し、失敗した場合はfetchで取得
@@ -83,7 +82,7 @@ function PhotoImage({
                         });
                         onExifLoaded?.(exif || null);
                         return;
-                    } catch (urlError) {
+                    } catch {
                         // URL直接読み取りに失敗した場合、fetchで取得を試みる
                         try {
                             const response = await fetch(src, {
@@ -369,7 +368,7 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
         try {
             await copyToClipboard(currentUrl);
             showToast(locale === "en" ? "Link copied!" : "リンクをコピーしました");
-        } catch (err) {
+        } catch {
             showToast(locale === "en" ? "Failed to copy link" : "リンクのコピーに失敗しました");
         }
     };
