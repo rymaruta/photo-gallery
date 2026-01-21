@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { XMarkIcon, Bars3Icon } from "@heroicons/react/24/solid";
 import { useAuth } from "../auth/context";
@@ -23,7 +22,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                 hasUploadAccess: isAdminUser,
             });
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [isAuthenticated, isAdminUser, loading]);
     const navLabels = labels.navigation || {};
     const bg = "#07090a";
@@ -78,7 +77,6 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     const linkBase =
         "block px-3 py-4 whitespace-nowrap text-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/10";
     const inactiveClasses = "text-white bg-transparent hover:bg-white hover:text-black";
-    const activeClasses = "text-black bg-white";
 
     return (
         <nav className={`site-header__nav flex items-center ${className}`}>

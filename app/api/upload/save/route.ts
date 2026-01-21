@@ -5,6 +5,7 @@ import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { getConfig } from "../../../../lib/aws/secrets";
 import exifr from "exifr";
+import type { Photo } from "../../../data/photos";
 
 // 写真データを保存
 export async function POST(request: NextRequest) {
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 写真データを生成
-        const photoData: any = {
+        const photoData: Photo = {
             id: finalPhotoId,
             src: publicUrl,
             title: title || { ja: "無題", en: "Untitled" },
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
 
         // 写真データをJSONファイルに追加
         const photosDataPath = path.join(process.cwd(), "app", "data", "photos.json");
-        let photos: any[] = [];
+        let photos: Photo[] = [];
 
         // 既存のデータを読み込む（存在する場合）
         if (existsSync(photosDataPath)) {
@@ -134,10 +135,11 @@ export async function POST(request: NextRequest) {
             success: true,
             photo: photoData,
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("保存エラー:", error);
+        const errorMessage = error instanceof Error ? error.message : "保存に失敗しました";
         return NextResponse.json(
-            { error: error.message || "保存に失敗しました" },
+            { error: errorMessage },
             { status: 500 }
         );
     }

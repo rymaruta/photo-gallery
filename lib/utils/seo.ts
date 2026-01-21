@@ -69,7 +69,7 @@ export function generatePhotoStructuredData(photo: {
         ? photo.src 
         : `${siteConfig.url}${photo.src}`;
     
-    const structuredData: any = {
+    const structuredData: Record<string, unknown> = {
         "@context": "https://schema.org",
         "@type": "ImageObject",
         "@id": `${siteConfig.url}/photo/${photo.id}`,

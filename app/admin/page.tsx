@@ -132,9 +132,10 @@ export default function AdminPage() {
                     "error"
                 );
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
             console.error("削除エラー:", {
-                error: error.message || error,
+                error: errorMessage,
                 stack: error.stack,
                 photoId: photoToDelete?.id,
             });

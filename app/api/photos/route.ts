@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import BASE_PHOTOS from "../../data/photos";
+import type { Photo } from "../../data/photos";
 
 // 写真一覧を取得
 export async function GET() {
@@ -21,17 +22,18 @@ export async function GET() {
         }
 
         // photos.json がない場合のみ BASE_PHOTOS を返す
-        const photos: any[] = [...BASE_PHOTOS];
+        const photos: Photo[] = [...BASE_PHOTOS];
 
         return NextResponse.json(photos, {
             headers: {
                 "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
             },
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("写真取得エラー:", error);
+        const errorMessage = error instanceof Error ? error.message : "写真の取得に失敗しました";
         return NextResponse.json(
-            { error: error.message || "写真の取得に失敗しました" },
+            { error: errorMessage },
             { status: 500 }
         );
     }

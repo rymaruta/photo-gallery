@@ -98,10 +98,11 @@ export async function POST(request: NextRequest) {
             publicUrl,
             photoId, // 写真IDを返す（S3のファイル名と一致）
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Presigned URL生成エラー:", error);
+        const errorMessage = error instanceof Error ? error.message : "Presigned URLの生成に失敗しました";
         return NextResponse.json(
-            { error: error.message || "Presigned URLの生成に失敗しました" },
+            { error: errorMessage },
             { status: 500 }
         );
     }
