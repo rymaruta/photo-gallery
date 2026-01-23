@@ -88,6 +88,7 @@ npm install
 - `docs/API_DOCUMENTATION.md`（API実装）
 - `docs/LOCAL_PROD_PARITY.md`（ローカルと本番の構成を揃える方針・おすすめ）
 - `docs/LOCAL_ENVIRONMENT_OPTIONS.md`（ローカルで本番に近い環境をつくる方法）
+- `docs/API_DEV_DEPLOY.md`（開発用 API Gateway+Lambda のデプロイ。本番と同じ定義を dev/prod で切り替え）
 
 ### 環境リセット（必要に応じて）
 

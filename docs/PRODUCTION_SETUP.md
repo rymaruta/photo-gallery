@@ -2435,16 +2435,16 @@ CloudFrontディストリビューションを作成した後、Secrets Manager�
    **シークレットの更新:**
    
    既存のシークレットのJSONに、`CLOUDFRONT_URL` を追加または更新します：
-   
-   ```json
-   {
-     "AWS_REGION": "ap-northeast-1",
+
+```json
+{
+  "AWS_REGION": "ap-northeast-1",
      "AWS_S3_BUCKET_NAME": "prod-journey-photo-upload",
      "AWS_S3_SITE_BUCKET_NAME": "journey-photo.com",
-     "CLOUDFRONT_URL": "https://d1234567890abc.cloudfront.net"
-   }
-   ```
-   
+  "CLOUDFRONT_URL": "https://d1234567890abc.cloudfront.net"
+}
+```
+
    ⚠️ **重要**: `d1234567890abc.cloudfront.net` の部分を、**実際のCloudFrontディストリビューションのDomain Name**に置き換えてください。
    
    **各フィールドの説明:**
