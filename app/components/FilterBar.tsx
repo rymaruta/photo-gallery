@@ -45,11 +45,11 @@ function FilterBarInner({
     const labels = useMemo(() => getLabels(safeLocale), [safeLocale]);
 
     // --- Safe access: labels may not have typed 'tags' or 'actions' properties.
-    // Use `any` access and provide fallbacks.
-    const rawLabels = labels as any;
+    // Use type assertion and provide fallbacks.
+    const rawLabels = labels as Record<string, unknown>;
 
     const tagLabels = useMemo(() => {
-        const t = rawLabels?.tags;
+        const t = rawLabels?.tags as Record<string, unknown> | undefined;
         return {
             title: t?.title as string | undefined,
             multiple: t?.multiple as string | undefined,
@@ -59,7 +59,7 @@ function FilterBarInner({
     }, [rawLabels?.tags]);
 
     const actionLabels = useMemo(() => {
-        const a = rawLabels?.actions;
+        const a = rawLabels?.actions as Record<string, unknown> | undefined;
         return {
             clearTags: a?.clearTags as string | undefined,
             showAll: a?.showAll as string | undefined,
@@ -74,8 +74,13 @@ function FilterBarInner({
     const showAllFixedLabel = actionLabels.showAllGeneric ?? actionLabels.showAll ?? "Show";
 
     // local query state + debounced apply
-    const [localQuery, setLocalQuery] = useState(values.query || "");
-    useEffect(() => setLocalQuery(values.query || ""), [values.query]);
+    const [localQuery, setLocalQuery] = useState(() => values.query || "");
+    useEffect(() => {
+        if (localQuery !== (values.query || "")) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setLocalQuery(values.query || "");
+        }
+    }, [values.query, localQuery]);
 
     const debouncedApply = useMemo(
         () =>
@@ -113,7 +118,10 @@ function FilterBarInner({
 
     // labels for categories
     const labelForCategory = useCallback(
-        (k: string) => categoryDisplayMap?.[k] ?? (rawLabels?.category?.names?.[k] ?? k),
+        (k: string) => {
+            const categoryNames = (rawLabels?.category as Record<string, unknown> | undefined)?.names as Record<string, string> | undefined;
+            return categoryDisplayMap?.[k] ?? categoryNames?.[k] ?? k;
+        },
         [categoryDisplayMap, rawLabels]
     );
 
@@ -221,8 +229,8 @@ function FilterBarInner({
         () => ({
             container: { backgroundColor: "var(--filter-bg, #07090a)", border: "1px solid rgba(255,255,255,0.10)", padding: 8 },
             input: { padding: "6px 10px", border: "1px solid rgba(255,255,255,0.06)", outline: "none", fontSize: 13 } as React.CSSProperties,
-            chipBase: { padding: "4px 8px", minHeight: 28, borderRadius: 9999, width: "auto" } as React.CSSProperties,
-            controlBtn: { padding: "4px 8px", minHeight: 30, borderRadius: 8, whiteSpace: "nowrap" } as React.CSSProperties,
+            chipBase: { padding: "2px 8px", minHeight: 32, borderRadius: 6, width: "auto" } as React.CSSProperties,
+            controlBtn: { padding: "2px 8px", minHeight: 32, borderRadius: 6, whiteSpace: "nowrap" } as React.CSSProperties,
         }),
         []
     );
@@ -247,12 +255,11 @@ function FilterBarInner({
                         }}
                         aria-pressed={active}
                         aria-label={labelForCategory(c)}
-                        className={`inline-flex items-center justify-center gap-2 text-xs focus:outline-none ${active ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+                        className={`inline-flex items-center justify-center gap-2 text-xs focus:outline-none focus:ring-0 font-normal ${active ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
                         style={{
                             ...STYLE.controlBtn,
                             touchAction: "manipulation",
                             WebkitTapHighlightColor: "transparent",
-                            minHeight: "44px"
                         }}
                     >
                         {labelForCategory(c)}
@@ -277,12 +284,11 @@ function FilterBarInner({
                 }}
                 aria-pressed={values.category === "all"}
                 aria-label={labelForCategory("all")}
-                className={`inline-flex items-center justify-center gap-2 text-xs focus:outline-none ${values.category === "all" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+                className={`inline-flex items-center justify-center gap-2 text-xs focus:outline-none focus:ring-0 font-normal ${values.category === "all" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
                 style={{
                     ...STYLE.controlBtn,
                     touchAction: "manipulation",
                     WebkitTapHighlightColor: "transparent",
-                    minHeight: "44px"
                 }}
             >
                 {labelForCategory("all")}
@@ -323,12 +329,11 @@ function FilterBarInner({
                         role="switch"
                         aria-checked={active}
                         aria-label={ariaLabel}
-                        className={`inline-flex items-center gap-2 text-xs focus:outline-none transition-colors ${active ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+                        className={`inline-flex items-center gap-2 text-xs focus:outline-none focus:ring-0 transition-colors font-normal ${active ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
                         style={{
                             ...STYLE.chipBase,
                             touchAction: "manipulation",
                             WebkitTapHighlightColor: "transparent",
-                            minHeight: "44px"
                         }}
                     >
                         <span className="truncate" style={{ maxWidth: 160 }}>
@@ -341,7 +346,10 @@ function FilterBarInner({
         [visibleTags, values.selectedTags, tagDisplayMap, counts, toggleTag, onChipKey, STYLE.chipBase]
     );
 
-    const sortLabel = useMemo(() => rawLabels?.sort?.options?.[values.sort] ?? values.sort, [rawLabels, values.sort]);
+    const sortLabel = useMemo(() => {
+        const sortOptions = (rawLabels?.sort as Record<string, unknown> | undefined)?.options as Record<string, string> | undefined;
+        return sortOptions?.[values.sort] ?? values.sort;
+    }, [rawLabels, values.sort]);
 
     return (
         <section className={`mb-2 ${className}`}>
@@ -349,7 +357,7 @@ function FilterBarInner({
                 {/* categories */}
                 <div className="flex items-center gap-2 flex-wrap" style={{ marginBottom: 6 }}>
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-white/70 mr-1">{rawLabels?.category?.title ?? labels.category?.title ?? "Category"}</span>
+                        <span className="text-xs text-white/70 mr-1">{(rawLabels?.category as Record<string, unknown> | undefined)?.title as string | undefined ?? labels.category?.title ?? "Category"}</span>
                         <div className="flex gap-1 flex-wrap">
                             {renderAllButton}
                             {renderCategoryButtons}
@@ -361,7 +369,7 @@ function FilterBarInner({
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2" style={{ marginBottom: 6 }}>
                     <div style={{ flex: "1 1 auto", position: "relative" }}>
                         <label htmlFor="filter-query" className="sr-only">
-                            {rawLabels?.search?.placeholder ?? labels.search?.placeholder ?? "Search"}
+                            {(rawLabels?.search as Record<string, unknown> | undefined)?.placeholder as string | undefined ?? labels.search?.placeholder ?? "Search"}
                         </label>
                         {/* 検索アイコン */}
                         <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none z-10">
@@ -372,7 +380,7 @@ function FilterBarInner({
                             type="search"
                             value={localQuery}
                             onChange={(e) => onQueryChange(e.target.value)}
-                            placeholder={rawLabels?.search?.placeholder ?? labels.search?.placeholder ?? "Search"}
+                            placeholder={(rawLabels?.search as Record<string, unknown> | undefined)?.placeholder as string | undefined ?? labels.search?.placeholder ?? "Search"}
                             className="w-full rounded-md bg-white/5 text-white placeholder:text-white/40 text-sm pl-10 pr-10 border border-white/10 focus:border-white/30 focus:bg-white/8 transition-all duration-200 outline-none"
                             style={{ padding: "8px 36px 8px 36px", fontSize: 13 }}
                         />
@@ -398,8 +406,8 @@ function FilterBarInner({
                                 style={{ 
                                     touchAction: "manipulation",
                                     WebkitTapHighlightColor: "transparent",
-                                    minWidth: "44px",
-                                    minHeight: "44px"
+                                    minWidth: "32px",
+                                    minHeight: "32px"
                                 }}
                             >
                                 <XMarkIcon className="w-4 h-4 text-white/60 hover:text-white/90" />
@@ -409,7 +417,7 @@ function FilterBarInner({
 
                     <div className="flex items-center gap-2">
                         <div className="flex items-center gap-2 md:hidden">
-                            <span className="text-xs text-white/70">{rawLabels?.sort?.label ?? labels.sort?.label ?? "Sort"}</span>
+                            <span className="text-xs text-white/70">{(rawLabels?.sort as Record<string, unknown> | undefined)?.label as string | undefined ?? labels.sort?.label ?? "Sort"}</span>
                             <div className="relative">
                                 <button
                                     ref={sortButtonRef}
@@ -431,7 +439,6 @@ function FilterBarInner({
                                         ...STYLE.controlBtn,
                                         touchAction: "manipulation",
                                         WebkitTapHighlightColor: "transparent",
-                                        minHeight: "44px"
                                     }}
                                 >
                                     <span>{sortLabel}</span>
@@ -445,7 +452,7 @@ function FilterBarInner({
                                         ref={sortMenuRef}
                                         id="sort-menu"
                                         role="listbox"
-                                        aria-label={rawLabels?.sort?.label ?? labels.sort?.label ?? "Sort"}
+                                        aria-label={(rawLabels?.sort as Record<string, unknown> | undefined)?.label as string | undefined ?? labels.sort?.label ?? "Sort"}
                                         className="absolute right-0 mt-2 z-50"
                                         style={{ minWidth: 140, borderRadius: 8, overflow: "hidden", background: "#07090a", border: "1px solid rgba(255,255,255,0.08)" }}
                                     >
@@ -478,10 +485,13 @@ function FilterBarInner({
                                                         color: "#fff",
                                                         touchAction: "manipulation",
                                                         WebkitTapHighlightColor: "transparent",
-                                                        minHeight: "44px"
+                                                        minHeight: "32px"
                                                     }}
                                                 >
-                                                    {rawLabels?.sort?.options?.[opt] ?? labels.sort?.options?.[opt] ?? opt}
+                                                    {(() => {
+                                                        const sortOptions = (rawLabels?.sort as Record<string, unknown> | undefined)?.options as Record<string, string> | undefined;
+                                                        return sortOptions?.[opt] ?? labels.sort?.options?.[opt] ?? opt;
+                                                    })()}
                                                 </button>
                                             );
                                         })}
@@ -495,7 +505,7 @@ function FilterBarInner({
                 {/* tags */}
                 <div className="flex items-center gap-2 flex-wrap" style={{ marginBottom: 0 }}>
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-white/70 mr-1">{tagLabels.title ?? rawLabels?.tags?.title ?? labels.tags?.title ?? "Tags"}</span>
+                        <span className="text-xs text-white/70 mr-1">{tagLabels.title ?? (rawLabels?.tags as Record<string, unknown> | undefined)?.title as string | undefined ?? labels.tags?.title ?? "Tags"}</span>
                         <div className="flex gap-1 flex-wrap">
                             {renderTagChips}
                             {!showAllTags && tags.length > mobileCollapseLimit && (
@@ -518,12 +528,11 @@ function FilterBarInner({
                                 toggleShowAll();
                             }}
                             aria-expanded={showAllTags}
-                            className={`inline-flex items-center gap-2 text-xs focus:outline-none ${showAllTags ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+                            className={`inline-flex items-center gap-2 text-xs focus:outline-none focus:ring-0 font-normal ${showAllTags ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
                             style={{
                                 ...STYLE.controlBtn,
                                 touchAction: "manipulation",
                                 WebkitTapHighlightColor: "transparent",
-                                minHeight: "44px"
                             }}
                         >
                             {showAllFixedLabel}
@@ -544,12 +553,11 @@ function FilterBarInner({
                             }}
                             disabled={!values.selectedTags || values.selectedTags.length === 0 || isPending}
                             aria-disabled={!values.selectedTags || values.selectedTags.length === 0 || isPending}
-                            className={`inline-flex items-center gap-2 text-xs focus:outline-none ${isPending ? "opacity-60 pointer-events-none text-white/60" : !values.selectedTags || values.selectedTags.length === 0 ? "opacity-50 pointer-events-none text-white/60" : "bg-white/5 text-white/80"}`}
+                            className={`inline-flex items-center gap-2 text-xs focus:outline-none focus:ring-0 font-normal ${isPending ? "opacity-60 pointer-events-none text-white/60" : !values.selectedTags || values.selectedTags.length === 0 ? "opacity-50 pointer-events-none text-white/60" : "bg-white/5 text-white/80"}`}
                             style={{
                                 ...STYLE.controlBtn,
                                 touchAction: "manipulation",
                                 WebkitTapHighlightColor: "transparent",
-                                minHeight: "44px"
                             }}
                         >
                             {isPending ? "Clearing..." : clearLabel}

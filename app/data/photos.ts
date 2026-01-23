@@ -133,7 +133,7 @@ export function getPreferredMapLink(p: Photo): { href: string; provider: "google
 export const BASE_PHOTOS: Photo[] = [
     // sample1: 国営ひたち海浜公園
     {
-        id: "1",
+        id: "4b9d22e5-6deb-4450-b3c3-ef9d9eb8c5c9",
         src: "/images/sample1.jpg",
         slug: "sea-of-nemophila",
         title: { ja: "海", en: "Sea of Nemophila" },
@@ -172,7 +172,7 @@ export const BASE_PHOTOS: Photo[] = [
 
     // sample2: 高屋神社
     {
-        id: "2",
+        id: "3b20159f-9273-4cf1-80ec-d3773d577f75",
         src: "/images/sample2.jpg",
         slug: "takaya-shrine",
         title: { ja: "天空の鳥居", en: "Torii in the Sky" },
@@ -206,7 +206,7 @@ export const BASE_PHOTOS: Photo[] = [
 
     // sample3: オペラ・ガルニエ
     {
-        id: "3",
+        id: "c15e8284-2fbc-4e90-9c9d-e9e01623ac6f",
         src: "/images/sample3.jpg",
         slug: "opera-house",
         title: { ja: "オペラ・ガルニエ", en: "Palais Garnier" },
@@ -237,7 +237,7 @@ export const BASE_PHOTOS: Photo[] = [
 
     // sample4: 北海道の桜
     {
-        id: "4",
+        id: "35bda6c0-de15-4cc3-b97a-727524964a76",
         src: "/images/sample4.jpg",
         slug: "hokkaido-cherry",
         title: { ja: "北海道の桜", en: "Cherry Blossoms in Hokkaido" },
@@ -264,7 +264,7 @@ export const BASE_PHOTOS: Photo[] = [
 
     // sample5: ヴェルサイユ宮殿
     {
-        id: "5",
+        id: "e8d980ee-2c8b-4395-90cd-7e6455ff2678",
         src: "/images/sample5.jpg",
         slug: "versailles-palace",
         title: { ja: "ヴェルサイユ宮殿", en: "Palace of Versailles" },
@@ -293,7 +293,7 @@ export const BASE_PHOTOS: Photo[] = [
 
     // sample6: パリの街中
     {
-        id: "6",
+        id: "5fda9d44-4cc3-47d8-8f1e-24fa0a4910e7",
         src: "/images/sample6.jpg",
         slug: "paris-streets",
         title: { ja: "パリの街中", en: "Streets of Paris" },
@@ -320,7 +320,7 @@ export const BASE_PHOTOS: Photo[] = [
 
     // sample7: 大トリアノン宮殿
     {
-        id: "7",
+        id: "81263031-a75e-47e5-b16a-36194791fcf4",
         src: "/images/sample7.jpg",
         slug: "grand-trianon",
         title: { ja: "大トリアノン宮殿", en: "Grand Trianon" },
@@ -349,7 +349,7 @@ export const BASE_PHOTOS: Photo[] = [
 
     // sample8
     {
-        id: "8",
+        id: "f184b135-f9ca-45c1-a5b1-d298f1cd451c",
         src: "/images/sample8.JPG",
         slug: "sample-8",
         title: { ja: "北欧の朝", en: "Nordic Morning" },
@@ -376,7 +376,7 @@ export const BASE_PHOTOS: Photo[] = [
 
     // sample9
     {
-        id: "9",
+        id: "3f5623db-346d-4d2c-bf13-8442866026e1",
         src: "/images/sample9.JPG",
         slug: "sample-9",
         title: { ja: "サーリセルカの街灯", en: "Streetlights of Saariselkä" },

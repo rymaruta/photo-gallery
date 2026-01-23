@@ -1,19 +1,16 @@
 // app/about/page.tsx
 "use client";
 
-import React, { useMemo, useState } from "react";
-import Head from "next/head";
+import React, { useMemo } from "react";
 import Image from "next/image";
 import getContent, { AboutContent } from "../i18n/about";
-import { getLabels } from "../i18n/labels";
+import { useLocale } from "../i18n/context";
 import LocaleToggle from "../components/LocaleToggle";
 import ProtectedPortrait from "../components/ProtectedPortrait";
 
 export default function AboutPage() {
-    const [locale, setLocale] = useState<"ja" | "en">("ja");
+    const { locale, setLocale, labels } = useLocale();
     const about = useMemo<AboutContent>(() => getContent(locale), [locale]);
-
-    const labels = useMemo(() => getLabels(locale), [locale]);
 
     // paragraphs を配列としてそのまま扱い、空文字で改行を表現する
     const paras = Array.isArray(about.paragraphs)
@@ -37,12 +34,6 @@ export default function AboutPage() {
 
     return (
         <>
-            <Head>
-                <title>{headerTitle}</title>
-                <meta name="description" content={headerSubtitle} />
-                <link rel="canonical" href="https://your-domain.example/about" />
-            </Head>
-
             <main className="p-6 sm:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
                     <div className="flex items-start justify-between gap-4 mb-6 min-h-[64px]">
                         <div>
@@ -65,7 +56,7 @@ export default function AboutPage() {
                             {/* 左カラム（肖像＋名前＋SNS） */}
                             <aside className="md:col-span-1 flex flex-col items-start gap-6">
                                 <ProtectedPortrait
-                                    src="/images/me-portrait.jpg"
+                                    src="/snsimages/me-portrait.jpg"
                                     alt={about.photographer?.name ? `${about.photographer.name} — portrait` : "portrait"}
                                     sizes="(max-width: 768px) 96px, 176px"
                                     className="w-28 h-28 md:w-44 md:h-44"

@@ -4,7 +4,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Inter } from "next/font/google";
 import HeaderNav from "./components/HeaderNav";
+import Footer from "./components/Footer";
 import ToastProvider from "./components/ToastProvider";
+import { AuthProvider } from "./auth/context";
+import { LocaleProvider } from "./i18n/context";
 import { siteConfig } from "../lib/utils/seo";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "700", "900"] });
@@ -28,7 +31,9 @@ export const metadata: Metadata = {
     description: siteConfig.description,
     images: [
       {
-        url: siteConfig.ogImage,
+        url: siteConfig.ogImage.startsWith("http") 
+          ? siteConfig.ogImage 
+          : `${siteConfig.url}${siteConfig.ogImage}`,
         width: 1200,
         height: 630,
         alt: siteConfig.name,
@@ -39,8 +44,13 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: siteConfig.name,
     description: siteConfig.description,
-    images: [siteConfig.ogImage],
+    images: [siteConfig.ogImage.startsWith("http") 
+      ? siteConfig.ogImage 
+      : `${siteConfig.url}${siteConfig.ogImage}`],
     creator: siteConfig.twitterHandle,
+  },
+  alternates: {
+    canonical: siteConfig.url,
   },
   robots: {
     index: true,
@@ -63,12 +73,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ja">
       <body className={`${inter.className} min-h-screen flex flex-col bg-black text-white`}>
-        {/* Header: 太めの下線ではっきり分離 */}
-        <header className="sticky top-0 z-50 bg-black/40 backdrop-blur-sm border-b-4 border-white/30">
-          <div className="max-w-5xl mx-auto flex items-center justify-between h-[72px] md:h-[88px] px-6 md:px-8">
-            <h1 className={`${inter.className} text-3xl md:text-4xl font-bold tracking-tight`}>
-              <Link href="/" className="inline-block hover:opacity-80 transition-opacity">
-                PhotoGallery
+        <ToastProvider>
+          <LocaleProvider>
+            <AuthProvider>
+              {/* Header: 黒背景に白字のモダンなデザイン */}
+              <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-md border-b border-white/10">
+                <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
+                <div className="relative max-w-5xl mx-auto flex items-center justify-between h-[64px] md:h-[72px] px-6 md:px-8">
+                  <h1 className={`${inter.className} text-2xl md:text-3xl font-bold tracking-tight text-white`}>
+                    <Link 
+                      href="/" 
+                      className="inline-block hover:opacity-70 transition-opacity duration-200 relative group"
+                    >
+                      <span className="relative z-10">PhotoGallery</span>
+                      <span className="absolute inset-0 bg-white/5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 -z-0" />
               </Link>
             </h1>
 
@@ -77,18 +95,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </header>
 
         {/* Main - 各ページで管理 */}
-        <ToastProvider>
           <div className="flex-1">
             {children}
           </div>
-        </ToastProvider>
 
-        {/* Footer */}
-        <footer className="border-t border-white/10">
-          <div className="max-w-5xl mx-auto px-6 py-6 text-sm text-white/60">
-            © 2025 PhotoGallery. All rights reserved.
-          </div>
-        </footer>
+              {/* Footer: 公式サイト風の洗練されたデザイン */}
+              <Footer />
+            </AuthProvider>
+          </LocaleProvider>
+        </ToastProvider>
       </body>
     </html>
   );

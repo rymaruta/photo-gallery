@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import styles from "./gallery.module.css";
 
 export default function GalleryPage() {
@@ -18,9 +19,9 @@ export default function GalleryPage() {
                 </p>
 
                 <div className={styles.actions}>
-                    <a href="/" className={styles.link}>
+                    <Link href="/" className={styles.link}>
                         戻る
-                    </a>
+                    </Link>
                 </div>
             </div>
         </main>

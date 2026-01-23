@@ -27,7 +27,7 @@ export default function LocaleToggle({
 
     return (
         <div className={`flex items-center gap-2 ${wrapperWidth} ${className}`}>
-            <div className="rounded-lg bg-white/5 px-1 py-0.5 flex items-center gap-1 w-full justify-end">
+            <div className="rounded-lg bg-white/5 px-0.5 py-0.5 flex items-center gap-0.5 w-full justify-end">
                 <button
                     type="button"
                     onClick={onSetJa}
@@ -40,13 +40,16 @@ export default function LocaleToggle({
                         onSetJa();
                     }}
                     aria-pressed={locale === "ja"}
-                    className={`rounded whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-white transition-colors
-            px-2 py-1 text-[12px] sm:text-sm ${locale === "ja" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+                    className={`rounded-md whitespace-nowrap focus:outline-none focus:ring-0 transition-colors font-normal
+            px-2.5 py-0.5 text-xs ${locale === "ja" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
                     aria-label={jaLabel}
                     style={{ 
                         touchAction: "manipulation",
                         WebkitTapHighlightColor: "transparent",
-                        minHeight: "44px"
+                        minHeight: "32px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center"
                     }}
                 >
                     {jaLabel}
@@ -64,13 +67,16 @@ export default function LocaleToggle({
                         onSetEn();
                     }}
                     aria-pressed={locale === "en"}
-                    className={`rounded whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-white transition-colors
-            px-2 py-1 text-[12px] sm:text-sm ${locale === "en" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+                    className={`rounded-md whitespace-nowrap focus:outline-none focus:ring-0 transition-colors font-normal
+            px-2.5 py-0.5 text-xs ${locale === "en" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
                     aria-label={enLabel}
                     style={{ 
                         touchAction: "manipulation",
                         WebkitTapHighlightColor: "transparent",
-                        minHeight: "44px"
+                        minHeight: "32px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center"
                     }}
                 >
                     {enLabel}

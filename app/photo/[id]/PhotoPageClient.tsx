@@ -8,16 +8,16 @@ import { HeartIcon } from "@heroicons/react/24/solid";
 import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
 import { ShareIcon, LinkIcon } from "@heroicons/react/24/outline";
 import exifr from "exifr";
-import type { Photo, Locale } from "../../data/photos";
-import RAW_PHOTOS from "../../data/photos";
+import type { Photo } from "../../data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "../../data/photos";
 import { useFavorites } from "../../../lib/hooks/useFavorites";
 import { useViewHistory } from "../../../lib/hooks/useViewHistory";
 import { useToast } from "../../../lib/hooks/useToast";
 import { shareUrl, copyToClipboard, shareToTwitter, shareToFacebook, shareToLine } from "../../../lib/utils/share";
-import { siteConfig } from "../../../lib/utils/seo";
+import { siteConfig, generatePhotoStructuredData } from "../../../lib/utils/seo";
 import LocaleToggle from "../../components/LocaleToggle";
-import { getLabels } from "../../i18n/labels";
+import { useLocale } from "../../i18n/context";
+import { log } from "../../../lib/utils/log";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -56,7 +56,70 @@ function PhotoImage({
 
         const loadExif = async () => {
             try {
-                // 画像のURLからEXIF情報を読み取る
+                // S3のURLや外部URLの場合でもCORSエラーを適切にハンドリング
+                // exifrはURL、Blob、ArrayBufferを受け取れる
+                
+                // S3のURL（http/httpsで始まる）の場合、CORSが設定されていれば直接URLを使用
+                // CORSエラーが発生する可能性があるため、まずURLを直接試し、失敗した場合はfetchで取得
+                if (src.startsWith('http://') || src.startsWith('https://')) {
+                    try {
+                        // まずURLを直接試す（CORSが正しく設定されていれば動作する）
+                        const exif = await exifr.parse(src, {
+                            pick: [
+                                'Make',
+                                'Model',
+                                'LensModel',
+                                'FNumber',
+                                'ExposureTime',
+                                'ISO',
+                                'FocalLength',
+                                'WhiteBalance',
+                                'DateTimeOriginal',
+                                'ImageWidth',
+                                'ImageHeight',
+                                'Orientation'
+                            ],
+                            translateKeys: false,
+                        });
+                        onExifLoaded?.(exif || null);
+                        return;
+                    } catch {
+                        // URL直接読み取りに失敗した場合、fetchで取得を試みる
+                        try {
+                            const response = await fetch(src, {
+                                mode: 'cors',
+                                credentials: 'omit',
+                            });
+                            if (response.ok) {
+                                const blob = await response.blob();
+                                const exif = await exifr.parse(blob, {
+                                    pick: [
+                                        'Make',
+                                        'Model',
+                                        'LensModel',
+                                        'FNumber',
+                                        'ExposureTime',
+                                        'ISO',
+                                        'FocalLength',
+                                        'WhiteBalance',
+                                        'DateTimeOriginal',
+                                        'ImageWidth',
+                                        'ImageHeight',
+                                        'Orientation'
+                                    ],
+                                    translateKeys: false,
+                                });
+                                onExifLoaded?.(exif || null);
+                                return;
+                            }
+                        } catch (fetchError) {
+                            // fetchも失敗した場合はURLを直接使用（最終試行）
+                            log.warn('Failed to fetch image for EXIF, trying URL directly:', fetchError);
+                        }
+                    }
+                }
+                
+                // ローカルパス（/images/で始まる）の場合はURLを直接使用
                 const exif = await exifr.parse(src, {
                     pick: [
                         'Make',
@@ -71,11 +134,13 @@ function PhotoImage({
                         'ImageWidth',
                         'ImageHeight',
                         'Orientation'
-                    ]
+                    ],
+                    translateKeys: false,
                 });
                 onExifLoaded?.(exif || null);
             } catch (error) {
-                console.warn('Failed to read EXIF data:', error);
+                // EXIF読み取りに失敗した場合はnullを返す（photo.exifをフォールバックとして使用）
+                log.warn('Failed to read EXIF data from image:', error);
                 onExifLoaded?.(null);
             }
         };
@@ -131,18 +196,39 @@ type PhotoPageClientProps = {
 };
 
 export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
-    const [locale, setLocale] = useState<Locale>("ja");
-    const labels = useMemo(() => getLabels(locale), [locale]);
+    const { locale, setLocale, labels } = useLocale();
     const [extractedExif, setExtractedExif] = useState<ExtractedExif | null>(null);
+    const [allPhotos, setAllPhotos] = useState<Photo[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    // APIから写真を読み込む（編集済みのベース写真も含む）
+    useEffect(() => {
+        const loadPhotos = async () => {
+            try {
+                const { publicFetch } = await import("../../../lib/utils/api");
+                const response = await publicFetch("/photos", { cache: "no-store" });
+                if (response.ok) {
+                    const data = await response.json();
+                    setAllPhotos(data);
+                } else {
+                    console.error("写真の取得に失敗しました");
+                }
+            } catch (error) {
+                console.error("写真取得エラー:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadPhotos();
+    }, []);
 
     // 全写真から該当する写真を検索
     const photo = useMemo(() => {
-        const photos = RAW_PHOTOS as Photo[];
-        return photos.find(p => p.id === photoId);
-    }, [photoId]);
+        return allPhotos.find(p => p.id === photoId);
+    }, [photoId, allPhotos]);
 
     // 全写真のインデックスを取得（前後の写真へのナビゲーション用）
-    const allPhotos = useMemo(() => RAW_PHOTOS as Photo[], []);
     const currentIndex = useMemo(() => {
         return allPhotos.findIndex(p => p.id === photoId);
     }, [photoId, allPhotos]);
@@ -166,6 +252,63 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
             addToHistory(photo.id);
         }
     }, [photo?.id, addToHistory]);
+
+    // EXIF情報を画像から読み取った情報を優先し、なければデータ側のexifをフォールバック
+    const mergedExif = useMemo(() => {
+        const extracted = extractedExif || {};
+        const fallback = photo?.exif || {};
+        
+        // 画像サイズの生成（優先順位: extracted > photo.width/height > fallback.imageSize）
+        let imageSize: string | undefined;
+        if (extracted.ImageWidth && extracted.ImageHeight) {
+            imageSize = `${extracted.ImageWidth} × ${extracted.ImageHeight}`;
+        } else if (photo?.width && photo?.height) {
+            imageSize = `${photo.width} × ${photo.height}`;
+        } else if (fallback.imageSize) {
+            imageSize = fallback.imageSize;
+        }
+        
+        return {
+            camera: extracted.Make && extracted.Model 
+                ? `${extracted.Make} ${extracted.Model}`.trim() 
+                : extracted.Make || extracted.Model || fallback.camera || undefined,
+            lens: extracted.LensModel || fallback.lens || undefined,
+            aperture: extracted.FNumber 
+                ? `f/${extracted.FNumber}` 
+                : fallback.aperture || undefined,
+            exposure: extracted.ExposureTime 
+                ? extracted.ExposureTime < 1 
+                    ? `1/${Math.round(1 / extracted.ExposureTime)}s` 
+                    : `${extracted.ExposureTime}s`
+                : fallback.exposure || undefined,
+            iso: extracted.ISO || fallback.iso || undefined,
+            focalLength: extracted.FocalLength 
+                ? `${Math.round(extracted.FocalLength)}mm` 
+                : fallback.focalLength || undefined,
+            whiteBalance: extracted.WhiteBalance !== undefined
+                ? extracted.WhiteBalance === 0 ? "Auto" : "Manual"
+                : fallback.whiteBalance || undefined,
+            imageSize: imageSize,
+            dateTimeOriginal: extracted.DateTimeOriginal || photo?.date || photo?.createdAt || undefined,
+        };
+    }, [extractedExif, photo]);
+
+    // 構造化データ（JSON-LD）を生成（条件分岐の前に配置）
+    const structuredData = useMemo(() => {
+        if (!photo) return null;
+        return generatePhotoStructuredData(photo, locale);
+    }, [photo, locale]);
+
+    // ローディング中
+    if (loading) {
+        return (
+            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+                <div className="flex items-center justify-center min-h-[60vh]">
+                    <div className="w-12 h-12 border-3 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                </div>
+            </main>
+        );
+    }
 
     // 写真が見つからない場合は404
     if (!photo) {
@@ -226,48 +369,23 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
         try {
             await copyToClipboard(currentUrl);
             showToast(locale === "en" ? "Link copied!" : "リンクをコピーしました");
-        } catch (err) {
+        } catch {
             showToast(locale === "en" ? "Failed to copy link" : "リンクのコピーに失敗しました");
         }
     };
 
     // カテゴリ表示名の取得
-    const categoryDisplayName = labels.category?.names?.[photo.category ?? ""] ?? photo.category ?? "";
-
-    // EXIF情報を画像から読み取った情報のみを使用
-    const mergedExif = useMemo(() => {
-        const extracted = extractedExif || {};
-        
-        // 画像から読み取ったEXIF情報のみを使用
-        return {
-            camera: extracted.Make && extracted.Model 
-                ? `${extracted.Make} ${extracted.Model}`.trim() 
-                : extracted.Make || extracted.Model || undefined,
-            lens: extracted.LensModel || undefined,
-            aperture: extracted.FNumber 
-                ? `f/${extracted.FNumber}` 
-                : undefined,
-            exposure: extracted.ExposureTime 
-                ? extracted.ExposureTime < 1 
-                    ? `1/${Math.round(1 / extracted.ExposureTime)}s` 
-                    : `${extracted.ExposureTime}s`
-                : undefined,
-            iso: extracted.ISO || undefined,
-            focalLength: extracted.FocalLength 
-                ? `${Math.round(extracted.FocalLength)}mm` 
-                : undefined,
-            whiteBalance: extracted.WhiteBalance !== undefined
-                ? extracted.WhiteBalance === 0 ? "Auto" : "Manual"
-                : undefined,
-            imageSize: extracted.ImageWidth && extracted.ImageHeight
-                ? `${extracted.ImageWidth} × ${extracted.ImageHeight}`
-                : undefined,
-            dateTimeOriginal: extracted.DateTimeOriginal || undefined,
-        };
-    }, [extractedExif]);
+    const categoryDisplayName = photo ? (labels.category?.names?.[photo.category ?? ""] ?? photo.category ?? "") : "";
 
     return (
-        <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+        <>
+            {structuredData && (
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+                />
+            )}
+            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
             {/* ヘッダー */}
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-6">
                 <div className="flex-1">
@@ -651,8 +769,9 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                             <div />
                         )}
                     </div>
-                )}
-            </div>
-        </main>
+                    )}
+                </div>
+            </main>
+        </>
     );
 }

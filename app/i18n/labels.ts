@@ -37,47 +37,21 @@ export type Labels = {
         emptyMessage?: string;
         resultsCount?: string;
     };
+    navigation?: {
+        works?: string;
+        gallery?: string;
+        about?: string;
+        favorites?: string;
+        history?: string;
+        upload?: string;
+        admin?: string;
+        login?: string;
+        logout?: string;
+    };
 };
 
-export const ja: Labels = {
-    site: {
-        title: "作品紹介",
-        // 段落配列で保持（編集者が段落ごとに編集しやすい形）
-        subtitle: [
-            "作品と向き合うための静かな場です。",
-            "ご自由にお楽しみください。",
-        ],
-    },
-    ui: {
-        language: { ja: "日本語", en: "English" },
-    },
-    category: {
-        title: "カテゴリ",
-        all: "すべて",
-        names: {
-            all: "すべて",
-            photography: "写真",
-            illustration: "イラスト",
-            design: "デザイン",
-            nature: "自然",
-            landscape: "風景",
-            architecture: "建築",
-            street: "街"
-        },
-    },
-    sort: {
-        label: "並び替え",
-        options: { new: "新しい順", old: "古い順", popular: "人気順" },
-    },
-    tags: { title: "タグ" },
-    search: { placeholder: "タイトルや説明で検索", clear: "クリア" },
-    gallery: {
-        emptyMessage: "該当する写真がありません。",
-        resultsCount: "結果",
-    },
-};
-
-export const en: Labels = {
+// 英語をデフォルトとして定義
+const enLabels: Labels = {
     site: {
         title: "Works",
         // English subtitle も段落配列に揃える
@@ -112,11 +86,72 @@ export const en: Labels = {
         emptyMessage: "No photos found.",
         resultsCount: "Results",
     },
+    navigation: {
+        works: "Works",
+        gallery: "Gallery",
+        about: "About",
+        favorites: "Favorites",
+        history: "History",
+        upload: "Upload",
+        admin: "Manage",
+        login: "Login",
+        logout: "Logout",
+    },
 };
+
+// 日本語は英語をベースに、変更が必要な部分だけ上書き
+export const ja: Labels = {
+    ...enLabels,
+    site: {
+        title: "作品紹介",
+        subtitle: [
+            "作品と向き合うための静かな場です。",
+            "ご自由にお楽しみください。",
+        ],
+    },
+    category: {
+        title: "カテゴリ",
+        all: "すべて",
+        names: {
+            all: "すべて",
+            photography: "写真",
+            illustration: "イラスト",
+            design: "デザイン",
+            nature: "自然",
+            landscape: "風景",
+            architecture: "建築",
+            street: "街"
+        },
+    },
+    sort: {
+        label: "並び替え",
+        options: { new: "新しい順", old: "古い順", popular: "人気順" },
+    },
+    tags: { title: "タグ" },
+    search: { placeholder: "タイトルや説明で検索", clear: "クリア" },
+    gallery: {
+        emptyMessage: "該当する写真がありません。",
+        resultsCount: "結果",
+    },
+    navigation: {
+        works: "作品",
+        gallery: "ギャラリー",
+        about: "制作について",
+        favorites: "お気に入り",
+        history: "閲覧履歴",
+        upload: "アップロード",
+        admin: "管理",
+        login: "ログイン",
+        logout: "ログアウト",
+    },
+};
+
+export const en: Labels = enLabels;
 
 const map: Record<string, Labels> = { ja, en };
 
 export function getLabels(locale: "ja" | "en" = "ja"): Labels {
+    // デフォルトは日本語
     return map[locale] ?? ja;
 }
 

@@ -1,7 +1,7 @@
 // lib/hooks/useImagePreloader.ts
 // 画像のプリロード機能用のカスタムフック
 
-import { useEffect, useRef } from "react";
+import { useRef, useMemo } from "react";
 
 /**
  * 画像をプリロードする
@@ -33,34 +33,39 @@ export function preloadImages(srcs: string[]): Promise<void[]> {
  */
 export function useImagePreloader() {
     const preloadedRef = useRef<Set<string>>(new Set());
-
-    const preload = useRef((src: string) => {
-        if (preloadedRef.current.has(src)) {
-            return; // 既にプリロード済み
-        }
-
-        preloadedRef.current.add(src);
-        
-        // link rel="preload"を使用してブラウザにプリロードを指示
-        const link = document.createElement("link");
-        link.rel = "preload";
-        link.as = "image";
-        link.href = src;
-        document.head.appendChild(link);
-
-        // 画像オブジェクトでもプリロード（二重の保険）
-        preloadImage(src).catch(() => {
-            // エラーは無視（既にlink rel="preload"で試みている）
-        });
-    }).current;
-
-    const preloadMultiple = useRef((srcs: string[]) => {
-        srcs.forEach(src => {
-            if (!preloadedRef.current.has(src)) {
-                preload(src);
+    
+    // useMemoで関数を一度だけ作成（refsに依存しない）
+    const preload = useMemo(() => {
+        return (src: string) => {
+            if (preloadedRef.current.has(src)) {
+                return; // 既にプリロード済み
             }
-        });
-    }).current;
+
+            preloadedRef.current.add(src);
+            
+            // link rel="preload"を使用してブラウザにプリロードを指示
+            const link = document.createElement("link");
+            link.rel = "preload";
+            link.as = "image";
+            link.href = src;
+            document.head.appendChild(link);
+
+            // 画像オブジェクトでもプリロード（二重の保険）
+            preloadImage(src).catch(() => {
+                // エラーは無視（既にlink rel="preload"で試みている）
+            });
+        };
+    }, []);
+
+    const preloadMultiple = useMemo(() => {
+        return (srcs: string[]) => {
+            srcs.forEach(src => {
+                if (!preloadedRef.current.has(src)) {
+                    preload(src);
+                }
+            });
+        };
+    }, [preload]);
 
     return { preload, preloadMultiple };
 }

@@ -53,8 +53,8 @@ export default function GalleryGrid({
     );
 }
 
-// 個別のギャラリーアイテムコンポーネント（エラーハンドリング用）
-function GalleryItem({
+// 個別のギャラリーアイテムコンポーネント（エラーハンドリング用、メモ化）
+const GalleryItem = React.memo(function GalleryItem({
     photo,
     index,
     localizedTitle,
@@ -158,4 +158,14 @@ function GalleryItem({
                         </button>
                     </div>
                 );
-}
+}, (prevProps, nextProps) => {
+    // カスタム比較関数: photo.id、index、localizedTitle、isFavoriteが同じ場合は再レンダリングをスキップ
+    return (
+        prevProps.photo.id === nextProps.photo.id &&
+        prevProps.index === nextProps.index &&
+        prevProps.localizedTitle === nextProps.localizedTitle &&
+        prevProps.placeholderColor === nextProps.placeholderColor &&
+        prevProps.objectPosition === nextProps.objectPosition &&
+        prevProps.categoryDisplayMap?.[prevProps.photo.category ?? ""] === nextProps.categoryDisplayMap?.[nextProps.photo.category ?? ""]
+    );
+});

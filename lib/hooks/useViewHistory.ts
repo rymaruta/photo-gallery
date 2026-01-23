@@ -36,7 +36,8 @@ export function useViewHistory() {
 
     // ローカルストレージから閲覧履歴を読み込み
     useEffect(() => {
-        loadHistory();
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        void loadHistory();
     }, [loadHistory]);
 
     // 閲覧履歴を保存

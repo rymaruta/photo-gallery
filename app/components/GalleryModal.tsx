@@ -162,7 +162,7 @@ export default function GalleryModal({
     const lastFocusableRef = useRef<HTMLButtonElement | null>(null);
 
     // スワイプジェスチャー
-    const { swipeDirection, handlers: swipeHandlers } = useSwipe({
+    const { handlers: swipeHandlers } = useSwipe({
         onSwipeLeft: onNext,
         onSwipeRight: onPrev,
         threshold: 50,
@@ -316,7 +316,8 @@ export default function GalleryModal({
     }, [onClose, onNext, onPrev, currentIndex]);
 
     // Ensure overlay click explicitly unlocks before closing to avoid timing races
-    const handleOverlayClick = (e: React.MouseEvent) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const handleOverlayClick = (_e: React.MouseEvent) => {
         try {
             unlockBodyScroll();
         } catch {
@@ -568,54 +569,7 @@ export default function GalleryModal({
                         {p.license ? <span>{p.license}</span> : null}
                     </div>
 
-                    {/* EXIF情報の表示 */}
-                    {p.exif && (
-                        <div className="mt-4 pt-4 border-t border-white/10">
-                            <div className="text-xs font-medium text-white/70 mb-2">
-                                {locale === "en" ? "Camera Settings" : "撮影情報"}
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-xs text-white/50">
-                                {p.exif.camera && (
-                                    <div>
-                                        <span className="text-white/40">{locale === "en" ? "Camera" : "カメラ"}: </span>
-                                        {p.exif.camera}
-                                    </div>
-                                )}
-                                {p.exif.lens && (
-                                    <div>
-                                        <span className="text-white/40">{locale === "en" ? "Lens" : "レンズ"}: </span>
-                                        {p.exif.lens}
-                                    </div>
-                                )}
-                                {p.exif.aperture && (
-                                    <div>
-                                        <span className="text-white/40">{locale === "en" ? "Aperture" : "絞り"}: </span>
-                                        {p.exif.aperture}
-                                    </div>
-                                )}
-                                {p.exif.exposure && (
-                                    <div>
-                                        <span className="text-white/40">{locale === "en" ? "Exposure" : "シャッター速度"}: </span>
-                                        {p.exif.exposure}
-                                    </div>
-                                )}
-                                {p.exif.iso && (
-                                    <div>
-                                        <span className="text-white/40">ISO: </span>
-                                        {p.exif.iso}
-                                    </div>
-                                )}
-                                {p.exif.focalLength && (
-                                    <div>
-                                        <span className="text-white/40">{locale === "en" ? "Focal Length" : "焦点距離"}: </span>
-                                        {p.exif.focalLength}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 個別ページへのリンク */}
+                    {/* 個別ページへのリンク（撮影情報は個別ページでのみ表示） */}
                     <div className="mt-4 pt-4 border-t border-white/10">
                         <Link
                             href={`/photo/${p.id}`}

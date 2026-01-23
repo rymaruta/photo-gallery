@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/api/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -20,6 +21,9 @@
 # production
 /build
 
+# local work dirs
+/.tmp/
+
 # misc
 .DS_Store
 *.pem
@@ -32,6 +36,14 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+
+# local artifacts / backups
+/_api_build_backup
+/scripts/_artifacts/
+/scripts/_artifacts/*.json
+/app/data/_backups/
+app/data/*.bak-*
+app/data/photos.json.bak-*
 
 # vercel
 .vercel

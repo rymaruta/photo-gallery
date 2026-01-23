@@ -26,7 +26,8 @@ export function useFavorites() {
 
     // ローカルストレージからお気に入りを読み込み
     useEffect(() => {
-        loadFavorites();
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        void loadFavorites();
     }, [loadFavorites]);
 
     // お気に入りを保存
