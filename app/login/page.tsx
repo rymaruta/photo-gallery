@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { LockClosedIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
+import { log } from "../../lib/utils/log";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -31,9 +32,9 @@ export default function LoginPage() {
         setSubmitting(true);
 
         try {
-            console.log("ログイン試行:", { username: username.substring(0, 3) + "***" });
+            log.info("ログイン試行:", { username: username.substring(0, 3) + "***" });
             const result = await login(username, password);
-            console.log("ログイン結果:", result);
+            log.info("ログイン結果:", result);
 
             if (result.success) {
                 setSuccess(true);
@@ -54,7 +55,7 @@ export default function LoginPage() {
             }
         } catch (err: unknown) {
             console.error("ログイン例外:", err);
-            const errorMessage = err.message || "ログインに失敗しました";
+            const errorMessage = err instanceof Error ? err.message : "ログインに失敗しました";
             setError(errorMessage);
             showToast(errorMessage, "error");
         } finally {

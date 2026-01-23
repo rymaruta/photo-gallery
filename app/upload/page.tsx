@@ -7,6 +7,7 @@ import { useToast } from "../../lib/hooks/useToast";
 import { useAuth } from "../auth/context";
 import LocaleToggle from "../components/LocaleToggle";
 import { useLocale } from "../i18n/context";
+import { log } from "../../lib/utils/log";
 
 export default function UploadPage() {
     const { isAuthenticated, isAdminUser, loading } = useAuth();
@@ -111,7 +112,7 @@ export default function UploadPage() {
                 throw new Error("Presigned URLが取得できませんでした");
             }
 
-            console.log("Presigned URL取得成功:", { 
+            log.info("Presigned URL取得成功:", { 
                 key, 
                 publicUrl,
                 presignedUrlLength: presignedUrl.length,
@@ -121,7 +122,7 @@ export default function UploadPage() {
             // 2. S3に直接アップロード
             setProgress(30);
             try {
-                console.log("S3アップロード開始:", {
+                log.info("S3アップロード開始:", {
                     method: "PUT",
                     contentType: file.type,
                     fileSize: file.size,
@@ -146,17 +147,19 @@ export default function UploadPage() {
                     throw new Error(`S3アップロードに失敗しました: ${uploadResponse.status} ${uploadResponse.statusText}`);
                 }
                 
-                console.log("S3アップロード成功:", { key, status: uploadResponse.status });
+                log.info("S3アップロード成功:", { key, status: uploadResponse.status });
             } catch (fetchError: unknown) {
                 const errorName = fetchError instanceof Error ? fetchError.name : "Unknown";
+                const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
+                const errorStack = fetchError instanceof Error ? fetchError.stack : undefined;
                 console.error("Fetch error詳細:", {
                     name: errorName,
-                    message: fetchError.message,
-                    stack: fetchError.stack,
+                    message: errorMessage,
+                    stack: errorStack,
                     presignedUrl: presignedUrl ? presignedUrl.substring(0, 200) + "..." : "null",
                 });
                 
-                if (fetchError.name === "TypeError" && fetchError.message.includes("Failed to fetch")) {
+                if (fetchError instanceof Error && fetchError.name === "TypeError" && errorMessage.includes("Failed to fetch")) {
                     // より詳細なエラーメッセージ
                     const errorMsg = `ネットワークエラー: S3への接続に失敗しました。
                     
@@ -210,10 +213,11 @@ export default function UploadPage() {
             }, 1000);
         } catch (error: unknown) {
             console.error("Upload error:", error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
             showToast(
                 locale === "en"
-                    ? `Upload failed: ${error.message}`
-                    : `アップロードに失敗しました: ${error.message}`
+                    ? `Upload failed: ${errorMessage}`
+                    : `アップロードに失敗しました: ${errorMessage}`
             );
         } finally {
             setUploading(false);

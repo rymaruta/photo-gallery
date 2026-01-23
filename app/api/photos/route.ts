@@ -5,6 +5,8 @@ import path from "path";
 import BASE_PHOTOS from "../../data/photos";
 import type { Photo } from "../../data/photos";
 
+// 静的エクスポートではAPI Routesは生成されない（本番環境ではAPI Gateway + Lambdaを使用）
+
 // 写真一覧を取得
 export async function GET() {
     try {

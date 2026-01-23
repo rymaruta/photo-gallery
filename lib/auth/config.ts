@@ -2,7 +2,9 @@
 export const cognitoConfig = {
     userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID || "",
     clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID || "",
-    clientSecret: process.env.NEXT_PUBLIC_COGNITO_CLIENT_SECRET || "", // シークレットありのクライアントの場合に設定
+    // 注意: 通常、Cognito App Clientにはシークレットを設定しません（公開クライアント）
+    // シークレットが必要な場合は、サーバーサイドでのみ使用してください（クライアントに公開しない）
+    clientSecret: process.env.NEXT_PUBLIC_COGNITO_CLIENT_SECRET || "",
     region: process.env.NEXT_PUBLIC_AWS_REGION || "ap-northeast-1",
 };
 

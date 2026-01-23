@@ -9,6 +9,16 @@
   --color-foreground: #ffffff;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  /* Gallery page CSS variables */
+  --gallery-font: "Noto Sans JP", "Noto Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  --fg: rgba(255, 255, 255, 0.95);
+  --muted: rgba(255, 255, 255, 0.82);
+  --muted-2: rgba(255, 255, 255, 0.72);
+  --outer-border: rgba(255, 255, 255, 0.12);
+  --accent-bg: rgba(255, 255, 255, 0.92);
+  --accent-text: #07090a;
+  --subtle-shadow: 0 1px 8px rgba(0, 0, 0, 0.65);
 }
 
 /* 全体リセット / 基本 */

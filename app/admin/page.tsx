@@ -134,15 +134,16 @@ export default function AdminPage() {
             }
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
             console.error("削除エラー:", {
                 error: errorMessage,
-                stack: error.stack,
+                stack: errorStack,
                 photoId: photoToDelete?.id,
             });
             showToast(
                 locale === "en" 
-                    ? `Failed to delete photo: ${error.message || "Unknown error"}` 
-                    : `削除に失敗しました: ${error.message || "不明なエラー"}`,
+                    ? `Failed to delete photo: ${errorMessage || "Unknown error"}` 
+                    : `削除に失敗しました: ${errorMessage || "不明なエラー"}`,
                 "error"
             );
         } finally {

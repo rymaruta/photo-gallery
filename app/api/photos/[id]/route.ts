@@ -9,6 +9,8 @@ import { log } from "../../../../lib/utils/log";
 
 import type { Photo } from "../../../data/photos";
 
+// 静的エクスポートではAPI Routesは生成されない（本番環境ではAPI Gateway + Lambdaを使用）
+
 // 写真データを読み込む共通関数（キャッシュ付き）
 let photosCache: { photos: Photo[]; timestamp: number } | null = null;
 const PHOTOS_CACHE_TTL = 30 * 1000; // 30秒
@@ -270,11 +272,13 @@ export async function DELETE(
             } catch (s3Error: unknown) {
                 const errorMessage = s3Error instanceof Error ? s3Error.message : String(s3Error);
                 const errorCode = (s3Error as { Code?: string; code?: string })?.Code || (s3Error as { Code?: string; code?: string })?.code;
+                const errorName = s3Error instanceof Error ? s3Error.name : undefined;
+                const errorStack = s3Error instanceof Error ? s3Error.stack : undefined;
                 console.error("S3削除エラー:", {
                     error: errorMessage,
                     code: errorCode,
-                    name: s3Error.name,
-                    stack: s3Error.stack,
+                    name: errorName,
+                    stack: errorStack,
                     photoSrc: photo.src,
                     bucket: config.awsS3BucketName,
                     region: config.awsRegion,
@@ -282,9 +286,10 @@ export async function DELETE(
                 });
                 // S3の削除に失敗した場合はエラーを返す
                 // これにより、photos.jsonからの削除も実行されず、データの不整合を防ぐ
+                const s3ErrorMessage = errorMessage || errorCode || "Unknown error";
                 return NextResponse.json(
                     { 
-                        error: `S3からの削除に失敗しました: ${s3Error.message || s3Error.Code || s3Error.code || "Unknown error"}` 
+                        error: `S3からの削除に失敗しました: ${s3ErrorMessage}` 
                     },
                     { status: 500 }
                 );

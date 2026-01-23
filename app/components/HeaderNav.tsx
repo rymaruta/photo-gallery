@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { XMarkIcon, Bars3Icon } from "@heroicons/react/24/solid";
 import { useAuth } from "../auth/context";
 import { useLocale } from "../i18n/context";
+import { log } from "../../lib/utils/log";
 
 export default function HeaderNav({ className = "" }: { className?: string }) {
     const router = useRouter();
@@ -14,14 +15,12 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     
     // デバッグ情報（開発環境のみ、コンソールに出力）
     useEffect(() => {
-        if (process.env.NODE_ENV === "development") {
-            console.log("HeaderNav: 認証状態", {
-                isAuthenticated,
-                isAdminUser,
-                loading,
-                hasUploadAccess: isAdminUser,
-            });
-        }
+        log.info("HeaderNav: 認証状態", {
+            isAuthenticated,
+            isAdminUser,
+            loading,
+            hasUploadAccess: isAdminUser,
+        });
          
     }, [isAuthenticated, isAdminUser, loading]);
     const navLabels = labels.navigation || {};

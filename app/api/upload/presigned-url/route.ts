@@ -4,6 +4,8 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
 import { getConfig } from "../../../../lib/aws/secrets";
 
+// 静的エクスポートではAPI Routesは生成されない（本番環境ではAPI Gateway + Lambdaを使用）
+
 // Presigned URLを生成
 export async function POST(request: NextRequest) {
     try {

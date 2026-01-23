@@ -57,13 +57,16 @@ export function generatePhotoStructuredData(photo: {
         ? photo.title 
         : photo.title?.[locale] || photo.title?.ja || photo.title?.en || "";
     
-    const description = Array.isArray(photo.description?.[locale])
-        ? photo.description[locale]?.join(" ") || ""
-        : Array.isArray(photo.description?.ja)
-            ? photo.description.ja.join(" ")
-            : typeof photo.description === "string"
-                ? photo.description
-                : "";
+    let description = "";
+    if (typeof photo.description === "string") {
+        description = photo.description;
+    } else if (photo.description && typeof photo.description === "object") {
+        if (Array.isArray(photo.description[locale])) {
+            description = photo.description[locale]?.join(" ") || "";
+        } else if (Array.isArray(photo.description.ja)) {
+            description = photo.description.ja.join(" ");
+        }
+    }
     
     const imageUrl = photo.src.startsWith("http") 
         ? photo.src 
@@ -87,18 +90,20 @@ export function generatePhotoStructuredData(photo: {
     }
     
     if (photo.location) {
-        structuredData.contentLocation = {
+        const contentLocation: Record<string, unknown> = {
             "@type": "Place",
             name: photo.location,
         };
         
         if (photo.coords) {
-            structuredData.contentLocation.geo = {
+            contentLocation.geo = {
                 "@type": "GeoCoordinates",
                 latitude: photo.coords.lat,
                 longitude: photo.coords.lng,
             };
         }
+        
+        structuredData.contentLocation = contentLocation;
     }
     
     if (photo.width && photo.height) {

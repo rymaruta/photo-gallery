@@ -17,6 +17,7 @@ import { shareUrl, copyToClipboard, shareToTwitter, shareToFacebook, shareToLine
 import { siteConfig, generatePhotoStructuredData } from "../../../lib/utils/seo";
 import LocaleToggle from "../../components/LocaleToggle";
 import { useLocale } from "../../i18n/context";
+import { log } from "../../../lib/utils/log";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -113,7 +114,7 @@ function PhotoImage({
                             }
                         } catch (fetchError) {
                             // fetchも失敗した場合はURLを直接使用（最終試行）
-                            console.warn('Failed to fetch image for EXIF, trying URL directly:', fetchError);
+                            log.warn('Failed to fetch image for EXIF, trying URL directly:', fetchError);
                         }
                     }
                 }
@@ -139,7 +140,7 @@ function PhotoImage({
                 onExifLoaded?.(exif || null);
             } catch (error) {
                 // EXIF読み取りに失敗した場合はnullを返す（photo.exifをフォールバックとして使用）
-                console.warn('Failed to read EXIF data from image:', error);
+                log.warn('Failed to read EXIF data from image:', error);
                 onExifLoaded?.(null);
             }
         };

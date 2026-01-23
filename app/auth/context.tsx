@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { signIn, signOut, isAuthenticated, isAdmin } from "../../lib/auth/cognito";
+import { log } from "../../lib/utils/log";
 
 type AuthContextType = {
     isAuthenticated: boolean;
@@ -52,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return { authenticated, admin };
         } catch (error) {
             // 認証チェックでエラーが発生した場合は認証なしとして扱う
-            console.warn("Auth check error (non-blocking):", error);
+            log.warn("Auth check error (non-blocking):", error);
             setAuthState({
                 isAuthenticated: false,
                 isAdminUser: false,
@@ -79,9 +80,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setAuthState((prev) => ({ ...prev, loading: true }));
 
         try {
-            console.log("AuthContext: ログイン開始", { usernameLength: username.length });
+            log.info("AuthContext: ログイン開始", { usernameLength: username.length });
             const result = await signIn(username, password);
-            console.log("AuthContext: ログイン結果", { 
+            log.info("AuthContext: ログイン結果", { 
                 success: result.success, 
                 hasSession: !!result.session,
                 groups: result.groups,
@@ -90,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (result.success && result.session) {
                 const admin = result.groups?.includes("admin") || false;
-                console.log("AuthContext: 認証成功", { admin, groups: result.groups });
+                log.info("AuthContext: 認証成功", { admin, groups: result.groups });
                 
                 // 認証状態を即座に更新
                 setAuthState({
@@ -106,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const authenticated = await isAuthenticated();
                 const adminCheck = authenticated ? await isAdmin() : false;
                 
-                console.log("AuthContext: 認証状態再確認", { authenticated, adminCheck });
+                log.info("AuthContext: 認証状態再確認", { authenticated, adminCheck });
                 
                 // 再確認した状態で更新
                 setAuthState({
@@ -124,7 +125,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error: unknown) {
             console.error("AuthContext: ログイン例外", error);
             setAuthState((prev) => ({ ...prev, loading: false }));
-            return { success: false, error: error.message || "ログインに失敗しました" };
+            const errorMessage = error instanceof Error ? error.message : "ログインに失敗しました";
+            return { success: false, error: errorMessage };
         }
     }, []);
 

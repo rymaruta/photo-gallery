@@ -1,6 +1,8 @@
 // 簡易版：英語をデフォルトとして、日本語だけを追加する方式
 // これにより、英語を毎回書く必要がなくなります
 
+import { log } from "../../lib/utils/log";
+
 type SimpleLabels = {
     [key: string]: string | { ja?: string; en: string };
 };
@@ -22,7 +24,7 @@ export function getSimpleLabel(key: string, locale: "ja" | "en" = "en"): string 
     const translation = translations[key];
     
     if (!translation) {
-        console.warn(`Translation key "${key}" not found`);
+        log.warn(`Translation key "${key}" not found`);
         return key;
     }
 
