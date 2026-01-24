@@ -100,16 +100,36 @@ export default function UploadPage() {
             });
 
             if (!presignedResponse.ok) {
-                const error = await presignedResponse.json().catch(() => ({ error: "Unknown error" }));
-                console.error("Presigned URL取得エラー:", error);
-                throw new Error(error.error || "Failed to get upload URL");
+                const rawText = await presignedResponse.text();
+                let error: { error?: string; message?: string } = {};
+                try {
+                    error = rawText ? JSON.parse(rawText) : {};
+                } catch {
+                    error = { error: rawText.slice(0, 200) || "Unknown error" };
+                }
+                let msg = error.error || error.message || (Object.keys(error).length === 0
+                    ? `Presigned URLの取得に失敗しました (HTTP ${presignedResponse.status})`
+                    : "Failed to get upload URL");
+                if (presignedResponse.status === 401 && (msg.includes("認証に失敗") || msg.includes("認証が必要"))) {
+                    const isLambda = !!process.env.NEXT_PUBLIC_API_BASE_URL;
+                    msg += isLambda
+                        ? " → Lambda: COGNITO_USER_POOL_ID を渡して再デプロイ、再ログイン、admin グループを確認。"
+                        : " → app/api: .env.local に NEXT_PUBLIC_UPLOAD_API_KEY を設定。";
+                }
+                console.error("[1/3] Presigned URL取得エラー:", {
+                    status: presignedResponse.status,
+                    statusText: presignedResponse.statusText,
+                    body: error,
+                    rawPreview: rawText.slice(0, 300),
+                });
+                throw new Error(`[1/3] ${msg}`);
             }
 
             const { presignedUrl, key, publicUrl, photoId } = await presignedResponse.json();
 
             if (!presignedUrl) {
-                console.error("Presigned URLが空です");
-                throw new Error("Presigned URLが取得できませんでした");
+                console.error("[1/3] Presigned URLが空です");
+                throw new Error("[1/3] Presigned URLが取得できませんでした");
             }
 
             log.info("Presigned URL取得成功:", { 
@@ -139,12 +159,12 @@ export default function UploadPage() {
 
                 if (!uploadResponse.ok) {
                     const errorText = await uploadResponse.text().catch(() => "Unknown error");
-                    console.error("S3アップロードエラー:", {
+                    console.error("[2/3] S3アップロードエラー:", {
                         status: uploadResponse.status,
                         statusText: uploadResponse.statusText,
                         error: errorText,
                     });
-                    throw new Error(`S3アップロードに失敗しました: ${uploadResponse.status} ${uploadResponse.statusText}`);
+                    throw new Error(`[2/3] S3アップロードに失敗: ${uploadResponse.status} ${uploadResponse.statusText}${errorText.slice(0, 80) ? ` — ${errorText.slice(0, 80)}` : ""}`);
                 }
                 
                 log.info("S3アップロード成功:", { key, status: uploadResponse.status });
@@ -160,19 +180,12 @@ export default function UploadPage() {
                 });
                 
                 if (fetchError instanceof Error && fetchError.name === "TypeError" && errorMessage.includes("Failed to fetch")) {
-                    // より詳細なエラーメッセージ
-                    const errorMsg = `ネットワークエラー: S3への接続に失敗しました。
-                    
-確認事項:
-1. S3バケットのCORS設定にPUTメソッドが含まれているか
-2. AllowedOriginsに現在のドメイン（${typeof window !== "undefined" ? window.location.origin : "unknown"}）が含まれているか
-3. AllowedHeadersに"*"または"Content-Type"が含まれているか
-4. ブラウザのコンソールでCORSエラーの詳細を確認してください`;
-                    
+                    const origin = typeof window !== "undefined" ? window.location.origin : "unknown";
+                    const errorMsg = `[2/3] S3への接続に失敗しました。dev-journey-photo-upload の CORS を確認してください（AllowedOrigins に ${origin}、Method に PUT、AllowedHeaders に Content-Type）。`;
                     console.error(errorMsg);
                     throw new Error(errorMsg);
                 }
-                throw fetchError;
+                throw new Error(`[2/3] ${errorMessage}`);
             }
 
             setProgress(70);
@@ -195,8 +208,11 @@ export default function UploadPage() {
             });
 
             if (!saveResponse.ok) {
-                const error = await saveResponse.json();
-                throw new Error(error.error || "Failed to save photo data");
+                const raw = await saveResponse.text();
+                let err: { error?: string } = {};
+                try { err = raw ? JSON.parse(raw) : {}; } catch { err = { error: raw.slice(0, 150) }; }
+                console.error("[3/3] 写真データの保存エラー:", { status: saveResponse.status, body: err, rawPreview: raw.slice(0, 200) });
+                throw new Error(`[3/3] ${err.error || "写真データの保存に失敗しました"}`);
             }
 
             setProgress(100);
