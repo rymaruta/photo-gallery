@@ -14,7 +14,7 @@ import { useFavorites } from "../../../lib/hooks/useFavorites";
 import { useViewHistory } from "../../../lib/hooks/useViewHistory";
 import { useToast } from "../../../lib/hooks/useToast";
 import { shareUrl, copyToClipboard, shareToTwitter, shareToFacebook, shareToLine } from "../../../lib/utils/share";
-import { siteConfig, generatePhotoStructuredData } from "../../../lib/utils/seo";
+import { siteConfig, generatePhotoStructuredData, generateBreadcrumbStructuredData } from "../../../lib/utils/seo";
 import LocaleToggle from "../../components/LocaleToggle";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
@@ -299,6 +299,16 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
         return generatePhotoStructuredData(photo, locale);
     }, [photo, locale]);
 
+    // BreadcrumbList構造化データを生成
+    const breadcrumbData = useMemo(() => {
+        if (!photo) return null;
+        const title = getLocalized(photo.title, locale) || getLocalized(photo.title, "ja") || getLocalized(photo.title, "en") || "Untitled";
+        return generateBreadcrumbStructuredData([
+            { name: locale === "en" ? "Home" : "ホーム", url: siteConfig.url },
+            { name: title, url: `${siteConfig.url}/photo/${photo.id}` },
+        ]);
+    }, [photo, locale]);
+
     // ローディング中
     if (loading) {
         return (
@@ -383,6 +393,12 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                 <script
                     type="application/ld+json"
                     dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+                />
+            )}
+            {breadcrumbData && (
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
                 />
             )}
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">

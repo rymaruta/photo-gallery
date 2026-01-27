@@ -4,9 +4,15 @@
 export const siteConfig = {
     name: "PhotoGallery",
     description: "小さな写真サイトへようこそ。",
+    descriptionEn: "Welcome to a small photography site.",
     url: process.env.NEXT_PUBLIC_SITE_URL || "https://your-domain.com",
     ogImage: "/images/og-image.jpg",
     twitterHandle: "@PhotoGallery",
+    author: "PhotoGallery",
+    locale: {
+        ja: "ja_JP",
+        en: "en_US",
+    },
 };
 
 /**
@@ -132,6 +138,50 @@ export function generateOrganizationStructuredData() {
         name: siteConfig.name,
         url: siteConfig.url,
         description: siteConfig.description,
-        logo: `${siteConfig.url}${siteConfig.ogImage}`,
+        logo: {
+            "@type": "ImageObject",
+            url: `${siteConfig.url}${siteConfig.ogImage}`,
+        },
+        sameAs: [
+            // SNSアカウントがあれば追加
+            // "https://www.instagram.com/your_handle",
+        ],
+    };
+}
+
+/**
+ * BreadcrumbList構造化データを生成
+ */
+export function generateBreadcrumbStructuredData(items: Array<{ name: string; url: string }>) {
+    return {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: items.map((item, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: item.name,
+            item: item.url,
+        })),
+    };
+}
+
+/**
+ * WebSite構造化データを生成（検索ボックス用）
+ */
+export function generateWebSiteStructuredData() {
+    return {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: siteConfig.name,
+        url: siteConfig.url,
+        description: siteConfig.description,
+        potentialAction: {
+            "@type": "SearchAction",
+            target: {
+                "@type": "EntryPoint",
+                urlTemplate: `${siteConfig.url}/?q={search_term_string}`,
+            },
+            "query-input": "required name=search_term_string",
+        },
     };
 }

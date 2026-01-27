@@ -10,7 +10,7 @@ import useGallery from "./hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
 import GalleryModal from "./components/GalleryModal";
 import { capitalize } from "../lib/utils/string";
-import { generateStructuredData, generateOrganizationStructuredData } from "../lib/utils/seo";
+import { generateStructuredData, generateOrganizationStructuredData, generateWebSiteStructuredData } from "../lib/utils/seo";
 import { log } from "../lib/utils/log";
 
 export default function Page() {
