@@ -1,6 +1,26 @@
 # 本番環境セットアップガイド
 
-このガイドでは、本番環境（S3+CloudFront静的配信 + API Gateway+Lambda）でのデプロイ手順を説明します（ローカル手順は `LOCAL_SETUP.md` を参照）。
+このガイドでは、本番環境（S3+CloudFront静的配信 + API Gateway+Lambda）でのデプロイ手順を説明します。
+
+## 📋 このガイドの対象者
+
+- ✅ **本番環境にデプロイしたい人**
+- ✅ **AWSの基本操作ができる人**
+
+## 📚 初心者の方はこちら
+
+- **[クイックスタートガイド](./QUICK_START.md)** - 5分で始める
+- **[初めてのセットアップ](./LOCAL_SETUP.md)** - ローカル開発環境の設定（初心者向け）
+
+## ⚠️ 重要: ローカル開発環境の設定を先に完了してください
+
+本番環境にデプロイする前に、**ローカル開発環境で動作確認**することを強く推奨します。
+
+1. まず [初めてのセットアップ](./LOCAL_SETUP.md) でローカル環境を設定
+2. ローカルでアップロード機能が動作することを確認
+3. その後、このガイドで本番環境をセットアップ
+
+---
 
 ## 目次
 
@@ -278,7 +298,10 @@ Lambda関数がAWSリソースにアクセスするためのIAMロールを作�
 
 #### 1.3 Lambda関数コード
 
-Lambda関数には、以下のエンドポイントを実装します：
+**⚠️ 重要**: Lambda関数のコードは既に`api/handler.js`に実装されています。  
+Serverless Frameworkを使用してデプロイするため、手動でコードをコピーする必要はありません。
+
+**実装されているエンドポイント:**
 
 - `GET /photos` - 写真一覧取得（公開）
 - `GET /photos/{id}` - 写真詳細取得（公開）
@@ -287,16 +310,20 @@ Lambda関数には、以下のエンドポイントを実装します：
 - `PUT /photos/{id}` - 写真メタデータ更新（認証必須）
 - `DELETE /photos/{id}` - 写真削除（認証必須）
 
-**完全実装（Node.js）:**
+**デプロイ方法:**
 
-```javascript
-// Lambda関数のハンドラー（完全版）
-const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, PutObjectCommandInput } = require('@aws-sdk/client-s3');
-const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
-const { v4: uuidv4 } = require('uuid');
-const jwt = require('jsonwebtoken');
-const jwksClient = require('jwks-rsa');
+Serverless Frameworkを使用してデプロイします（手順は後述の「API Gateway + Lambda の設定」セクションを参照）。
+
+**参考: 実装のポイント**
+
+1. **JWT検証**: `jwks-rsa`を使用してCognitoの公開鍵を取得し、JWTを検証
+2. **エラーハンドリング**: すべてのエラーをキャッチし、適切なHTTPステータスコードとエラーメッセージを返す
+3. **ログ出力**: 構造化ログ（JSON形式）でリクエスト、エラー、重要な操作を記録
+4. **リクエストバリデーション**: 各エンドポイントでリクエストボディを検証
+5. **S3操作**: `photos.json`の読み書きをS3で実行
+6. **管理者権限チェック**: JWTトークンに`admin`グループが含まれているか確認
+
+**詳細な実装コードは`api/handler.js`を参照してください。**
 
 // ログ出力用ヘルパー
 function log(level, message, data = {}) {
@@ -920,352 +947,76 @@ exports.handler = async (event) => {
 
 **必要なnpmパッケージ:**
 
-Lambda関数のデプロイ時に以下のパッケージをインストールしてください：
-
-```json
-{
-  "dependencies": {
-    "@aws-sdk/client-s3": "^3.0.0",
-    "@aws-sdk/s3-request-presigner": "^3.0.0",
-    "@aws-sdk/client-secrets-manager": "^3.0.0",
-    "uuid": "^9.0.0",
-    "jsonwebtoken": "^9.0.0",
-    "jwks-rsa": "^3.0.0"
-  }
-}
-```
-
-**実装のポイント:**
-
-1. **JWT検証**: `jwks-rsa`を使用してCognitoの公開鍵を取得し、JWTを検証
-2. **エラーハンドリング**: すべてのエラーをキャッチし、適切なHTTPステータスコードとエラーメッセージを返す
-3. **ログ出力**: 構造化ログ（JSON形式）でリクエスト、エラー、重要な操作を記録
-4. **リクエストバリデーション**: 各エンドポイントでリクエストボディを検証
-5. **S3操作**: `photos.json`の読み書きをS3で実行
-6. **管理者権限チェック**: JWTトークンに`admin`グループが含まれているか確認
+Lambda関数の依存関係は`api/package.json`に定義されています。  
+Serverless Frameworkが自動的にインストールしてデプロイします。
 
 #### 1.4 Lambda関数のデプロイ
 
-**方法1: AWSコンソールから直接デプロイ**
+**⚠️ 重要**: このプロジェクトでは**Serverless Framework**を使用してデプロイします。
 
-1. Lambda関数のコードエディタに上記のコードを貼り付け
-2. 「Deploy」をクリック
-
-**方法2: ZIPファイルでデプロイ**
-
-1. ローカルでプロジェクトを作成：
+手動でコードをコピーする必要はありません。以下のコマンドでデプロイできます：
 
 ```bash
-mkdir photo-gallery-lambda
-cd photo-gallery-lambda
-npm init -y
-npm install @aws-sdk/client-s3 @aws-sdk/s3-request-presigner @aws-sdk/client-secrets-manager uuid jsonwebtoken jwks-rsa
+# 開発環境にデプロイ
+npm run api:deploy:dev
+
+# 本番環境にデプロイ
+npm run api:deploy:prod
 ```
 
-2. `index.js` を作成し、上記のコードを貼り付け
-3. ZIPファイルを作成：
+**詳細な手順は後述の「API Gateway + Lambda の設定」セクションを参照してください。**
+
+### 2. API Gateway + Lambda の設定（Serverless Frameworkを使用）
+
+**⚠️ 重要**: このプロジェクトでは**Serverless Framework**を使用してAPI GatewayとLambdaを自動的にデプロイします。
+
+手動でAWSコンソールから設定する必要はありません。以下のコマンドでデプロイできます：
 
 ```bash
-zip -r function.zip index.js node_modules/
+# 本番環境にデプロイ
+npm run api:deploy:prod
 ```
 
-4. Lambda関数の「コード」タブで「アップロード元」>「.zipファイル」を選択してアップロード
+**デプロイされる内容:**
 
-**方法3: AWS SAM / Serverless Framework を使用（推奨）**
+- API Gateway (HTTP API) の作成
+- Lambda関数の作成とデプロイ
+- ルートの設定（`GET /photos`, `POST /upload/presigned-url` など）
+- CORS設定
+- 環境変数の設定
 
-より高度なデプロイ方法については、AWS SAMやServerless Frameworkのドキュメントを参照してください。
+**詳細な手順:**
 
-### 2. API Gateway (HTTP API) の設定
+Serverless Frameworkの設定は`api/serverless.yml`に定義されています。  
+デプロイコマンドを実行すると、自動的に以下のリソースが作成されます：
 
-API Gateway (HTTP API) を設定して、Lambda関数を外部から呼び出せるようにします。
+- **API Gateway**: HTTP APIが作成され、エンドポイントURLが表示されます
+- **Lambda関数**: `photo-gallery-api-prod-api` が作成されます
+- **IAMロール**: Lambda実行用のロールが自動的に作成されます
 
-#### 2.1 HTTP APIの作成
+**デプロイ後の確認:**
 
-まず、HTTP APIを作成します。
+```bash
+# デプロイされたAPIの情報を確認
+npm run api:info:prod
+```
 
-1. AWSコンソールで「API Gateway」を開く
-2. 「APIを作成」をクリック
-3. **HTTP API** を選択（推奨: コストが安く、設定が簡単）
-4. 「構築」をクリック
+**APIエンドポイントURLの取得:**
 
-**API名の設定:**
-- API名は自動生成されますが、必要に応じて変更できます
-- 例: `PhotoGalleryAPI` など
+デプロイ後、以下のコマンドでエンドポイントURLを確認できます：
 
-#### 2.2 統合の作成
+```bash
+npm run api:info:prod
+```
 
-Lambda関数とAPI Gatewayを接続する統合を作成します。
+または、AWSコンソールで「API Gateway」→ 作成されたAPI → 「ステージ」→ `$default` を確認してください。
 
-1. API Gatewayの左メニューから「統合」をクリック
-   - または、API作成ウィザードの「統合」ステップに進む
+**⚠️ 手動設定が必要な場合:**
 
-2. 「統合を作成」ボタンをクリック
+Serverless Frameworkを使用しない場合は、以下の手順を参照してください：
+- AWSコンソールから手動でAPI GatewayとLambdaを設定する方法（上級者向け）
 
-3. 統合設定フォームに以下の情報を入力：
-
-   **統合タイプ:**
-   - 「Lambda関数」を選択
-
-   **Lambda関数:**
-   - ドロップダウンから、上記で作成した `photo-gallery-api` を選択
-   - ⚠️ Lambda関数が表示されない場合は、リージョンが正しいか確認してください
-
-   **統合名:**
-   - `photo-gallery-lambda-integration`（任意の名前、後で参照するため）
-   - または `lambda-integration` など、分かりやすい名前
-
-4. 「作成」ボタンをクリック
-
-5. 統合が作成されたことを確認
-   - 統合一覧に作成した統合が表示されます
-   - ⚠️ Lambda関数へのアクセス許可を求められた場合は、「許可を付与」をクリック
-
-#### 2.3 Cognito Authorizerの設定（認証が必要なルート）
-
-ルートを作成する前に、Cognito Authorizerを設定しておきます。これにより、管理API（アップロード、更新、削除）へのアクセスをCognito JWTトークンで保護できます。
-
-**手順:**
-
-1. API Gatewayの左メニューから「認証（Authorization）」をクリック
-   - または、API作成ウィザードの「認証」ステップに進む
-
-2. 「認証を作成」または「オーソライザーを作成」ボタンをクリック
-
-3. **オーソライザーのタイプ（Authorizer Type）** を選択：
-   - **「JWT」** を選択（ラジオボタン）
-     - ⚠️ 「Cognito」という選択肢はありません。「JWT」を選択してください
-     - JWTを使用して、Cognito User Poolで発行されたJWTトークンを検証します
-
-4. **オーソライザーの設定（Authorizer Settings）** に以下の情報を入力：
-
-   **名前（Name）:**
-   - `cognito-authorizer` を入力（任意の名前、後で参照するため）
-   - または `photo-gallery-authorizer` など、分かりやすい名前
-
-   **ID ソース（ID Source）:**
-   - `$request.header.Authorization` のまま（変更不要）
-   - これにより、HTTPリクエストの `Authorization` ヘッダーからJWTトークンを取得します
-
-   **発行者 URL（Issuer URL）:**
-   - Cognito User Poolの発行者URLを入力
-   - 形式: `https://cognito-idp.{リージョン}.amazonaws.com/{User Pool ID}`
-   - 例: `https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_12345678`
-   - ⚠️ `{リージョン}` と `{User Pool ID}` を実際の値に置き換えてください
-   - 環境変数 `NEXT_PUBLIC_COGNITO_USER_POOL_ID` の値を使用します
-
-   **対象者（Audiences）:**
-   - 「対象者を追加」ボタンをクリック
-   - Cognito App Client IDを入力
-   - 例: `1a2b3c4d5e6f7g8h9i0j1k2l3m`（環境変数 `NEXT_PUBLIC_COGNITO_CLIENT_ID` と同じ値）
-   - ⚠️ 複数のApp Client IDがある場合は、使用するものを入力してください
-
-5. 「作成」ボタンをクリック
-
-6. 認証が作成されたことを確認
-   - 認証一覧に作成した認証が表示されます
-   - 認証名、発行者URL、対象者が正しく設定されていることを確認
-
-**設定例:**
-
-- **名前**: `cognito-authorizer`
-- **ID ソース**: `$request.header.Authorization`（デフォルトのまま）
-- **発行者 URL**: `https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_12345678`
-- **対象者**: `1a2b3c4d5e6f7g8h9i0j1k2l3m`
-
-**注意事項:**
-- HTTP APIでは、Cognito Authorizerは「JWT」タイプで設定します
-- 発行者URLは、Cognito User Poolの一意の識別子です
-- 対象者（Audience）は、JWTトークンの `aud` クレームと一致する必要があります
-- 認証を設定したルートには、有効なCognito JWTトークンが必要です
-- トークンが無効な場合、API Gatewayが401 Unauthorizedを返します（Lambda関数まで到達しません）
-
-#### 2.4 ルートの作成
-
-API Gatewayで、各エンドポイントに対応するルートを作成します。
-
-**手順:**
-
-1. API Gatewayの左メニューから「ルート」をクリック
-   - または、API作成ウィザードの「ルート」ステップに進む
-
-2. 「作成」ボタンをクリック
-
-3. 以下のルートを**1つずつ**作成します：
-
-   **ルート1: 写真一覧取得（公開）**
-   - **メソッド**: `GET` を選択
-   - **ルートパス**: `/photos` を入力
-   - **統合**: `photo-gallery-lambda-integration` を選択
-   - 「作成」をクリック
-
-   **ルート2: 写真詳細取得（公開）**
-   - **メソッド**: `GET` を選択
-   - **ルートパス**: `/photos/{id}` を入力
-     - ⚠️ `{id}` は動的パラメータです（例: `/photos/abc123` にマッチ）
-   - **統合**: `photo-gallery-lambda-integration` を選択
-   - 「作成」をクリック
-
-   **ルート3: Presigned URL生成（認証必須）**
-   - **メソッド**: `POST` を選択
-   - **ルートパス**: `/upload/presigned-url` を入力
-   - **統合**: `photo-gallery-lambda-integration` を選択
-   - 「作成」をクリック
-
-   **ルート4: 写真メタデータ保存（認証必須）**
-   - **メソッド**: `POST` を選択
-   - **ルートパス**: `/upload/save` を入力
-   - **統合**: `photo-gallery-lambda-integration` を選択
-   - 「作成」をクリック
-
-   **ルート5: 写真メタデータ更新（認証必須）**
-   - **メソッド**: `PUT` を選択
-   - **ルートパス**: `/photos/{id}` を入力
-   - **統合**: `photo-gallery-lambda-integration` を選択
-   - 「作成」をクリック
-
-   **ルート6: 写真削除（認証必須）**
-   - **メソッド**: `DELETE` を選択
-   - **ルートパス**: `/photos/{id}` を入力
-   - **統合**: `photo-gallery-lambda-integration` を選択
-   - 「作成」をクリック
-
-   **ルート7: CORSプリフライト（公開）**
-   - **メソッド**: `OPTIONS` を選択
-   - **ルートパス**: `/{proxy+}` を入力
-     - ⚠️ `{proxy+}` はすべてのパスにマッチします（ワイルドカード）
-   - **統合**: `photo-gallery-lambda-integration` を選択
-   - 「作成」をクリック
-
-4. 作成完了後、ルート一覧に以下の7つのルートが表示されることを確認：
-
-| メソッド | ルートパス | 認証 | 用途 |
-|---------|-----------|------|------|
-| `GET` | `/photos` | なし（公開） | 写真一覧取得 |
-| `GET` | `/photos/{id}` | なし（公開） | 写真詳細取得 |
-| `POST` | `/upload/presigned-url` | **必要** | Presigned URL生成 |
-| `POST` | `/upload/save` | **必要** | 写真メタデータ保存 |
-| `PUT` | `/photos/{id}` | **必要** | 写真メタデータ更新 |
-| `DELETE` | `/photos/{id}` | **必要** | 写真削除 |
-| `OPTIONS` | `/{proxy+}` | なし（公開） | CORSプリフライト |
-
-**注意事項:**
-- ルートパスは正確に入力してください（先頭の `/` を含む）
-- `{id}` や `{proxy+}` は動的パラメータです（波括弧を含めて入力）
-- 各ルートは個別に作成する必要があります
-
-#### 2.5 認証をルートに適用
-
-作成したCognito Authorizerを、認証が必要なルート（管理API）に適用します。
-
-**認証が必要なルート（4つ）:**
-
-以下の4つのルートに認証を設定してください：
-
-1. `POST /upload/presigned-url` - Presigned URL生成
-2. `POST /upload/save` - 写真メタデータ保存
-3. `PUT /photos/{id}` - 写真メタデータ更新
-4. `DELETE /photos/{id}` - 写真削除
-
-**手順（各ルートに対して繰り返す）:**
-
-1. API Gatewayの左メニューから「ルート」をクリック
-
-2. ルート一覧から、認証を設定するルートを**クリック**して選択
-   - 例: `POST /upload/presigned-url` をクリック
-   - 右側に「ルートの詳細」パネルが表示されます
-
-3. 右側の「ルートの詳細」パネルで、「認可（Authorization）」セクションを確認
-   - 「このルートにアタッチされたオーソライザーがありません。」と表示されているはずです
-
-4. 「認証をアタッチ」ボタンをクリック
-
-5. 認証設定ダイアログで以下を設定：
-   - **認証方法**: 「Cognito」を選択
-   - **認証**: 上記で作成した `cognito-authorizer` をドロップダウンから選択
-     - または、認証名を直接入力
-
-6. 「保存」ボタンをクリック
-
-7. 認証が適用されたことを確認
-   - 「認可（Authorization）」セクションに、設定した認証名が表示されます
-   - 例: 「Cognito: cognito-authorizer」など
-
-8. **上記の手順を、残りの3つのルートにも繰り返す:**
-   - `POST /upload/save`
-   - `PUT /photos/{id}`
-   - `DELETE /photos/{id}`
-
-**公開APIには認証を設定しない:**
-
-以下の3つのルートには認証を設定**しないでください**（「認証をアタッチ」ボタンをクリックしない）：
-
-- `GET /photos` - 写真一覧取得（公開）
-- `GET /photos/{id}` - 写真詳細取得（公開）
-- `OPTIONS /{proxy+}` - CORSプリフライト（公開）
-
-これらのルートは、認証設定を「なし」または「未設定」のままにしてください。
-
-**確認方法:**
-
-1. ルート一覧で、各ルートをクリックして詳細を確認
-2. 認証が必要な4つのルート:
-   - 「認可（Authorization）」セクションに認証名が表示される
-   - 例: 「Cognito: cognito-authorizer」
-3. 公開API（3つのルート）:
-   - 「認可（Authorization）」セクションに「このルートにアタッチされたオーソライザーがありません。」と表示される
-   - これで正しいです
-
-**トラブルシューティング:**
-
-- 認証名がドロップダウンに表示されない場合:
-  - 2.5の手順で認証が正しく作成されているか確認
-  - 認証名のタイポがないか確認
-- ルートが見つからない場合:
-  - 2.3の手順でルートが正しく作成されているか確認
-  - ルートパスが正確か確認（例: `/upload/presigned-url` と `/upload/presignedurl` は異なります）
-
-#### 2.6 ステージの定義（オプション）
-
-ルートと認証の設定が完了したら、APIをデプロイするためのステージを定義します。
-
-1. API Gatewayの左メニューから「ステージ」をクリック
-   - または、API作成ウィザードの「ステージを定義」ステップに進む
-
-2. 以下の設定を確認・設定：
-
-   **ステージ名:**
-   - `$default` のまま（変更不要）
-   - HTTP APIのデフォルトステージです
-
-   **自動デプロイ:**
-   - **ON** のまま（推奨）
-   - これにより、API設定の変更が自動的にデプロイされます
-   - 手動デプロイが不要になり、運用が簡単になります
-
-3. **追加のステージは不要**（本番環境のみの場合）
-   - 開発環境と本番環境を分ける場合は、「ステージを追加」ボタンで追加できます
-   - 例: `dev`（開発用）、`prod`（本番用）
-
-4. 「保存」または「次へ」をクリック
-
-**注意:** 自動デプロイがONの場合、API設定を変更すると即座に反映されます。本番環境で慎重に変更を管理したい場合は、自動デプロイをOFFにして手動デプロイにすることもできます。
-
-#### 2.7 APIエンドポイントURLの取得
-
-API GatewayのエンドポイントURLを取得して、フロントエンドの環境変数に設定します。
-
-1. API Gatewayの左メニューから「ステージ」をクリック
-
-2. 「$default」ステージを選択（または作成したステージ）
-
-3. **APIエンドポイント** をコピー
-   - ステージ詳細ページの上部に表示されます
-   - 形式: `https://xxxxxxxxxx.execute-api.ap-northeast-1.amazonaws.com`
-   - 例: `https://29on2b74je.execute-api.ap-northeast-1.amazonaws.com`
-
-4. ⚠️ この値をメモしてください（フロントエンドの環境変数に設定します）
-
-**注意:** CloudFront経由でAPIにアクセスする場合は、CloudFront URL + `/api` を使用します（後述の「CloudFrontの設定」を参照）。
+ただし、**Serverless Frameworkを使用することを強く推奨します**（設定が簡単で、再現性が高いため）。
 
 ---
 
@@ -1273,11 +1024,22 @@ API GatewayのエンドポイントURLを取得して、フロントエンドの
 
 **⚠️ 重要: このセクションは本番環境（Production）の設定手順です。**
 
-本番環境では、以下の要件を満たす必要があります：
-- 静的サイト（S3）とAPI Gatewayの両方に対応した構成
-- セキュリティの強化（HTTPS強制、WAF保護）
-- パフォーマンスの最適化（キャッシュ設定）
-- カスタムドメインの使用（オプション）
+### 📋 簡易手順（初心者向け）
+
+CloudFrontの設定は複雑ですが、以下の手順で進めます：
+
+1. **プラン選択**: 「Pay as you go」を選択（推奨）
+2. **オリジン設定**: S3バケット（`journey-photo.com`）をオリジンとして設定
+3. **セキュリティ設定**: WAFを有効化（モニターモードはオフ）
+4. **TLS証明書**: CloudFrontのデフォルト証明書を使用（カスタムドメインを使用しない場合）
+5. **API Gateway用オリジンの追加**: `/api/*` パスをAPI Gatewayに転送
+6. **キャッシュビヘイビア**: 静的サイト用（`CachingOptimized`）とAPI用（`CachingDisabled`）を設定
+
+**詳細な手順は以下を参照してください。**
+
+---
+
+### 詳細手順
 
 **本番環境で使用するリソース:**
 - S3バケット: `journey-photo.com`（静的サイト用）
@@ -1285,14 +1047,14 @@ API GatewayのエンドポイントURLを取得して、フロントエンドの
 - API Gateway: 既に作成済みのHTTP API
 - CloudFront: 新規作成するディストリビューション
 
-### 1. CloudFrontディストリビューションの作成（本番環境）
-
-CloudFrontディストリビューションの作成方法には、**新しいウィザード形式**と**従来の形式**があります。ここでは、新しいウィザード形式での設定手順を説明します。
-
 **⚠️ 本番環境での注意事項:**
 - 設定を変更する前に、必ず設定内容を確認してください
 - ディストリビューションの作成後、ステータスが「Deployed」になるまで待ってから使用してください
 - 本番環境では、モニターモードをオフにして、WAFが実際にブロックするように設定してください
+
+### 1. CloudFrontディストリビューションの作成（本番環境）
+
+CloudFrontディストリビューションの作成方法には、**新しいウィザード形式**と**従来の形式**があります。ここでは、新しいウィザード形式での設定手順を説明します。
 
 **ウィザードのステップ:**
 1. Choose a plan（プラン選択）
@@ -1316,30 +1078,12 @@ CloudFrontディストリビューションの作成方法には、**新しい�
 - 左側のサイドバーで「ステップ1 Choose a plan」がハイライト表示されています
 - 画面の上部に青いバナーが表示されています（「Everything you need for a simple monthly price」）
 
-**青いバナーの内容（重要情報）:**
+**プランの選択:**
 
-画面の上部に表示される青いバナーには、以下の重要な情報が含まれています：
-
-- **「Everything you need for a simple monthly price」** というタイトル
-- **プランに含まれる機能:**
-  - Global CDN（グローバルCDN）
-  - WAF（Web Application Firewall）
-  - DDoS protection（DDoS保護）
-  - DNS
-  - TLS certificate（TLS証明書）
-  - Log ingestion（ログ取り込み）
-  - Serverless edge compute（サーバーレスエッジコンピュート）
-- **「No overage charges.」**（超過料金なし）
-  - 使用量制限を超えても、追加料金は発生しません（固定プランの場合）
-- **「Blocked requests and DDoS attacks never count against your usage allowance.」**（ブロックされたリクエストとDDoS攻撃は使用量にカウントされません）
-  - WAFによってブロックされたリクエストやDDoS攻撃は、使用量制限にカウントされません
-  - 本番環境では、この機能により、悪意のあるトラフィックが使用量を消費しないため、コスト効率が良いです
-- **「Data transfer costs from your AWS origins (such as Amazon S3, Application Load Balancer, or API Gateway) to CloudFront are automatically waived.」**（AWSオリジン（Amazon S3、Application Load Balancer、API Gatewayなど）からCloudFrontへのデータ転送コストは自動的に無料になります）
-  - ⚠️ **本番環境での重要なメリット**: S3やAPI GatewayからCloudFrontへのデータ転送は無料です
-  - このプロジェクトでは、S3バケット（`journey-photo.com`）とAPI GatewayからCloudFrontへの転送が無料になるため、コスト削減に役立ちます
-- バナーの右側に「Learn more →」ボタンと「×」アイコンが表示されています
-  - 「Learn more →」をクリックすると、詳細情報が表示されます
-  - 「×」アイコンをクリックすると、バナーを閉じることができます
+本番環境では、**「Pay as you go」** を選択することを推奨します。
+- 使用量に応じて支払う従量課金プラン
+- トラフィック量が予測困難な場合に適しています
+- 固定プラン（Business、Premium）も選択可能ですが、月間リクエスト数が予測可能な場合のみ推奨
 
 **設定手順:**
 
@@ -2827,6 +2571,46 @@ npm run build
 | **ローカルと本番の構成を揃えたい場合** | 本番も Next.js にする、共有ハンドラで Lambda と揃える、など選択肢と進め方は `docs/LOCAL_PROD_PARITY.md` を参照してください。 |
 
 **✅ ビルドが成功したら、次の「静的サイトのデプロイ」セクション（下に続きます）に進んでください。**
+
+---
+
+## 静的サイトのデプロイ（コマンドで反映）
+
+本番への反映を **コマンドで一括実行**できます。CloudFront の無効化は任意です。
+
+### 1. S3 へアップロード（必須）
+
+```bash
+npm run web:deploy:prod
+```
+
+- `scripts/deploy-static-site.js` が `npm run build` → `aws s3 sync` を実行します。
+- 既定のバケットは `journey-photo.com` です。
+
+### 2. CloudFront を無効化したい場合（任意）
+
+CloudFront のキャッシュも同時に無効化したい場合は、以下のどちらかを使ってください。
+
+**方法A: 引数で指定**
+
+```bash
+node scripts/deploy-static-site.js --bucket journey-photo.com --distribution-id YOUR_DISTRIBUTION_ID
+```
+
+**方法B: 環境変数で指定**
+
+```bash
+export CLOUDFRONT_DISTRIBUTION_ID="YOUR_DISTRIBUTION_ID"
+npm run web:deploy:prod
+```
+
+### 3. API + フロントをまとめて反映
+
+API Gateway + Lambda と静的サイトをまとめて更新する場合:
+
+```bash
+npm run deploy:prod
+```
 
 ---
 
