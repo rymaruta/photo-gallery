@@ -49,7 +49,20 @@ export default function AdminPage() {
             });
             if (response.ok) {
                 const data = await response.json();
-                setPhotos(data);
+                // 最近更新した順にソート（updatedAt > createdAt > その他）
+                const sortedPhotos = [...data].sort((a, b) => {
+                    const aDate = a.updatedAt || a.createdAt;
+                    const bDate = b.updatedAt || b.createdAt;
+                    
+                    // 日付がない場合は最後に配置
+                    if (!aDate && !bDate) return 0;
+                    if (!aDate) return 1;
+                    if (!bDate) return -1;
+                    
+                    // 新しい順（降順）
+                    return new Date(bDate).getTime() - new Date(aDate).getTime();
+                });
+                setPhotos(sortedPhotos);
             } else {
                 // 取得失敗のトーストは出さない（静かに失敗させる）
                 log.error("写真の取得に失敗しました", {
@@ -121,7 +134,7 @@ export default function AdminPage() {
                     errorMessage = errorText || `HTTP ${response.status}: ${response.statusText}`;
                 }
 
-                console.error("削除APIエラー:", {
+                log.error("削除APIエラー:", {
                     status: response.status,
                     statusText: response.statusText,
                     error: errorMessage,
@@ -135,7 +148,7 @@ export default function AdminPage() {
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             const errorStack = error instanceof Error ? error.stack : undefined;
-            console.error("削除エラー:", {
+            log.error("削除エラー:", {
                 error: errorMessage,
                 stack: errorStack,
                 photoId: photoToDelete?.id,

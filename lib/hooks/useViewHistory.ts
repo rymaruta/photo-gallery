@@ -11,6 +11,8 @@ export type ViewHistoryItem = {
     viewedAt: string; // ISO 8601形式の日時文字列
 };
 
+import { log } from "../utils/log";
+
 export function useViewHistory() {
     const [history, setHistory] = useState<ViewHistoryItem[]>([]);
 
@@ -29,7 +31,7 @@ export function useViewHistory() {
                 setHistory([]);
             }
         } catch (error) {
-            console.error("Failed to load view history:", error);
+            log.error("Failed to load view history:", error);
             setHistory([]);
         }
     }, []);
@@ -52,7 +54,7 @@ export function useViewHistory() {
             localStorage.setItem(VIEW_HISTORY_STORAGE_KEY, JSON.stringify(sorted));
             setHistory(sorted);
         } catch (error) {
-            console.error("Failed to save view history:", error);
+            log.error("Failed to save view history:", error);
         }
     }, []);
 
@@ -70,7 +72,7 @@ export function useViewHistory() {
                     try {
                         currentHistory = JSON.parse(stored) as ViewHistoryItem[];
                     } catch (e) {
-                        console.error("Failed to parse stored history:", e);
+                        log.error("Failed to parse stored history:", e);
                         currentHistory = [];
                     }
                 }
@@ -95,7 +97,7 @@ export function useViewHistory() {
                 // ステートも更新
                 setHistory(sorted);
             } catch (error) {
-                console.error("Failed to add to history:", error);
+                log.error("Failed to add to history:", error);
             }
         },
         []

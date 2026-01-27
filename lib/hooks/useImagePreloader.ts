@@ -2,6 +2,7 @@
 // 画像のプリロード機能用のカスタムフック
 
 import { useRef, useMemo } from "react";
+import { log } from "../utils/log";
 
 /**
  * 画像をプリロードする
@@ -24,7 +25,7 @@ export function preloadImage(src: string): Promise<void> {
 export function preloadImages(srcs: string[]): Promise<void[]> {
     return Promise.all(srcs.map(src => preloadImage(src).catch(() => {
         // エラーが発生しても他の画像のプリロードは続行
-        console.warn(`Failed to preload image: ${src}`);
+        log.warn(`Failed to preload image: ${src}`);
     })));
 }
 

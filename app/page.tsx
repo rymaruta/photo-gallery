@@ -11,6 +11,7 @@ import GalleryGrid from "./components/GalleryGrid";
 import GalleryModal from "./components/GalleryModal";
 import { capitalize } from "../lib/utils/string";
 import { generateStructuredData, generateOrganizationStructuredData } from "../lib/utils/seo";
+import { log } from "../lib/utils/log";
 
 export default function Page() {
   const { locale, setLocale, labels } = useLocale();
@@ -27,10 +28,10 @@ export default function Page() {
           const data = await response.json();
           setPhotos(data);
         } else {
-          console.error("写真の取得に失敗しました");
+          log.error("写真の取得に失敗しました");
         }
       } catch (error) {
-        console.error("写真取得エラー:", error);
+        log.error("写真取得エラー:", error);
       } finally {
         setLoading(false);
       }

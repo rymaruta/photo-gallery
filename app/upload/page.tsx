@@ -90,14 +90,44 @@ export default function UploadPage() {
             // 1. Presigned URLを取得
             setProgress(10);
             const { authenticatedFetch } = await import("../../lib/utils/api");
-            const presignedResponse = await authenticatedFetch("/upload/presigned-url", {
-                method: "POST",
-                body: JSON.stringify({
-                    fileName: file.name,
-                    fileType: file.type,
-                    fileSize: file.size,
-                }),
-            });
+            
+            let presignedResponse: Response;
+            try {
+                presignedResponse = await authenticatedFetch("/upload/presigned-url", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        fileName: file.name,
+                        fileType: file.type,
+                        fileSize: file.size,
+                    }),
+                });
+            } catch (fetchError: unknown) {
+                // authenticatedFetchがエラーを投げた場合（例: 認証トークンが取得できない）
+                const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
+                log.error("[1/3] Presigned URL取得エラー（認証エラー）:", {
+                    error: errorMessage,
+                    isLambda: !!process.env.NEXT_PUBLIC_API_BASE_URL && process.env.NEXT_PUBLIC_USE_LOCAL_API !== "true",
+                    hasApiBaseUrl: !!process.env.NEXT_PUBLIC_API_BASE_URL,
+                    useLocalApi: process.env.NEXT_PUBLIC_USE_LOCAL_API === "true",
+                });
+                
+                let msg = errorMessage;
+                if (errorMessage.includes("認証が必要")) {
+                    const isLambda = !!process.env.NEXT_PUBLIC_API_BASE_URL && process.env.NEXT_PUBLIC_USE_LOCAL_API !== "true";
+                    if (isLambda) {
+                        msg += "\n\n解決方法:\n" +
+                            "1. ログインページ（/login）でログインしてください\n" +
+                            "2. adminグループに属しているユーザーでログインしてください\n" +
+                            "3. ログイン後、このページを再読み込みしてください\n" +
+                            "4. それでもエラーが出る場合は、Lambda側のCOGNITO_USER_POOL_ID設定を確認してください";
+                    } else {
+                        msg += "\n\n解決方法:\n" +
+                            ".env.localにNEXT_PUBLIC_UPLOAD_API_KEYを設定してください\n" +
+                            "または、NEXT_PUBLIC_USE_LOCAL_API=trueを設定してローカルAPIを使用してください";
+                    }
+                }
+                throw new Error(`[1/3] ${msg}`);
+            }
 
             if (!presignedResponse.ok) {
                 const rawText = await presignedResponse.text();
@@ -111,24 +141,53 @@ export default function UploadPage() {
                     ? `Presigned URLの取得に失敗しました (HTTP ${presignedResponse.status})`
                     : "Failed to get upload URL");
                 if (presignedResponse.status === 401 && (msg.includes("認証に失敗") || msg.includes("認証が必要"))) {
-                    const isLambda = !!process.env.NEXT_PUBLIC_API_BASE_URL;
-                    msg += isLambda
-                        ? " → Lambda: COGNITO_USER_POOL_ID を渡して再デプロイ、再ログイン、admin グループを確認。"
-                        : " → app/api: .env.local に NEXT_PUBLIC_UPLOAD_API_KEY を設定。";
+                    const isLambda = !!process.env.NEXT_PUBLIC_API_BASE_URL && process.env.NEXT_PUBLIC_USE_LOCAL_API !== "true";
+                    if (isLambda) {
+                        msg += "\n\n解決方法:\n" +
+                            "1. ログインページ（/login）でログインしてください\n" +
+                            "2. adminグループに属しているユーザーでログインしてください\n" +
+                            "3. ログイン後、このページを再読み込みしてください\n" +
+                            "4. それでもエラーが出る場合は、Lambda側のCOGNITO_USER_POOL_ID設定を確認してください";
+                    } else {
+                        msg += "\n\n解決方法:\n" +
+                            ".env.localにNEXT_PUBLIC_UPLOAD_API_KEYを設定してください\n" +
+                            "または、NEXT_PUBLIC_USE_LOCAL_API=trueを設定してローカルAPIを使用してください";
+                    }
                 }
-                console.error("[1/3] Presigned URL取得エラー:", {
+                const isLambda = !!process.env.NEXT_PUBLIC_API_BASE_URL && process.env.NEXT_PUBLIC_USE_LOCAL_API !== "true";
+                log.error("[1/3] Presigned URL取得エラー:", {
                     status: presignedResponse.status,
                     statusText: presignedResponse.statusText,
                     body: error,
                     rawPreview: rawText.slice(0, 300),
+                    isLambda,
+                    hasApiBaseUrl: !!process.env.NEXT_PUBLIC_API_BASE_URL,
+                    useLocalApi: process.env.NEXT_PUBLIC_USE_LOCAL_API === "true",
+                    apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL,
+                    cognitoUserPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
                 });
+                
+                // Lambda APIを使用している場合、追加の診断情報を表示
+                if (isLambda && presignedResponse.status === 401) {
+                    log.error("\n🔍 Lambda API認証エラーの診断:");
+                    log.error("  1. 開発用Secrets Managerを確認:");
+                    log.error("     npm run check:dev-secrets");
+                    log.error("  2. Lambda側のログを確認:");
+                    log.error("     aws logs tail /aws/lambda/photo-gallery-api-dev-api --follow");
+                    log.error("  3. ログイン状態を確認:");
+                    log.error("     - /login ページでログインしているか");
+                    log.error("     - adminグループに属しているか");
+                    log.error("  4. Cognito User Pool IDの一致を確認:");
+                    log.error(`     - .env.local: ${process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID}`);
+                    log.error(`     - Secrets Manager (dev-journey-photo-upload): 上記コマンドで確認`);
+                }
                 throw new Error(`[1/3] ${msg}`);
             }
 
             const { presignedUrl, key, publicUrl, photoId } = await presignedResponse.json();
 
             if (!presignedUrl) {
-                console.error("[1/3] Presigned URLが空です");
+                log.error("[1/3] Presigned URLが空です");
                 throw new Error("[1/3] Presigned URLが取得できませんでした");
             }
 
@@ -159,7 +218,7 @@ export default function UploadPage() {
 
                 if (!uploadResponse.ok) {
                     const errorText = await uploadResponse.text().catch(() => "Unknown error");
-                    console.error("[2/3] S3アップロードエラー:", {
+                    log.error("[2/3] S3アップロードエラー:", {
                         status: uploadResponse.status,
                         statusText: uploadResponse.statusText,
                         error: errorText,
@@ -181,8 +240,9 @@ export default function UploadPage() {
                 
                 if (fetchError instanceof Error && fetchError.name === "TypeError" && errorMessage.includes("Failed to fetch")) {
                     const origin = typeof window !== "undefined" ? window.location.origin : "unknown";
-                    const errorMsg = `[2/3] S3への接続に失敗しました。dev-journey-photo-upload の CORS を確認してください（AllowedOrigins に ${origin}、Method に PUT、AllowedHeaders に Content-Type）。`;
-                    console.error(errorMsg);
+                    // バケット名は環境に応じて変わるため、汎用的なエラーメッセージに変更
+                    const errorMsg = `[2/3] S3への接続に失敗しました。アップロード用S3バケットの CORS を確認してください（AllowedOrigins に ${origin}、Method に PUT、AllowedHeaders に Content-Type）。`;
+                    log.error(errorMsg);
                     throw new Error(errorMsg);
                 }
                 throw new Error(`[2/3] ${errorMessage}`);
@@ -228,7 +288,7 @@ export default function UploadPage() {
                 router.push("/");
             }, 1000);
         } catch (error: unknown) {
-            console.error("Upload error:", error);
+            log.error("Upload error:", error);
             const errorMessage = error instanceof Error ? error.message : String(error);
             showToast(
                 locale === "en"

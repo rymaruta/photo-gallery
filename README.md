@@ -10,12 +10,12 @@ TypeScript + Tailwind CSS + Heroicons を導入して開発しています。
 1. [プロジェクト概要](#1-プロジェクト概要)
 2. [主な機能](#2-主な機能)
 3. [技術スタック](#3-技術スタック)
-4. [セットアップ手順](#4-セットアップ手順)
-5. [開発環境の構築](#5-開発環境の構築)
+4. [クイックスタート](#4-クイックスタート)
+5. [セットアップ手順](#5-セットアップ手順)
 6. [使い方](#6-使い方)
 7. [ディレクトリ構成](#7-ディレクトリ構成)
-8. [Git 操作](#8-git-操作)
-9. [デプロイ](#9-デプロイ)
+8. [デプロイ](#8-デプロイ)
+9. [ドキュメント](#9-ドキュメント)
 10. [今後の予定](#10-今後の予定)
 
 ---
@@ -66,61 +66,43 @@ TypeScript と Tailwind CSS を導入し、Heroicons を利用して UI を強�
 
 ---
 
-## 4. セットアップ手順
+## 4. クイックスタート
 
-### 初回セットアップ
+**5分で始める！**
 
 ```bash
-# リポジトリをクローン
+# 1. プロジェクトをクローン
 git clone https://github.com/rymaruta/photo-gallery.git
 cd photo-gallery/
 
-# 依存関係をインストール
+# 2. 依存関係をインストール
 npm install
+
+# 3. 開発サーバーを起動
+npm run dev
 ```
 
-### セットアップ資料（docs）
+ブラウザで [http://localhost:3000](http://localhost:3000) を開くと、写真ギャラリーが表示されます！
 
-- `docs/LOCAL_SETUP.md`（ローカル開発）
-- `docs/PRODUCTION_SETUP.md`（本番デプロイ）
-- `docs/UPLOAD_SETUP.md`（アップロード/Secrets Manager）
-- `docs/AUTH_SETUP.md`（Cognito認証）
-- `docs/API_DOCUMENTATION.md`（API実装）
-- `docs/LOCAL_PROD_PARITY.md`（ローカルと本番の構成を揃える方針・おすすめ）
-- `docs/LOCAL_ENVIRONMENT_OPTIONS.md`（ローカルで本番に近い環境をつくる方法）
-- `docs/API_DEV_DEPLOY.md`（開発用 API Gateway+Lambda のデプロイ。本番と同じ定義を dev/prod で切り替え）
-
-### 環境リセット（必要に応じて）
-
-```bash
-npm cache clean --force
-rm -rf node_modules package-lock.json
-npm install
-```
+**📚 詳細な手順は [クイックスタートガイド](./docs/QUICK_START.md) を参照してください。**
 
 ---
 
-## 5. 開発環境の構築
+## 5. セットアップ手順
 
-### TypeScript 導入（既に導入済み）
+### 初回セットアップ
 
-```bash
-npm install --save-dev typescript @types/react @types/node
-npm install --save-dev @types/react @types/react-dom
-```
+上記の「クイックスタート」で基本的な動作確認ができます。
 
-### Heroicons 導入（既に導入済み）
+### アップロード機能を使う場合
 
-```bash
-npm install @heroicons/react
-```
+アップロード機能を使うには、AWSの設定が必要です。以下のドキュメントを参照してください：
 
-### Tailwind CSS 導入（既に導入済み）
+- **[初めてのセットアップ](./docs/LOCAL_SETUP.md)** - AWS Cognito、S3、Secrets Managerの設定手順（初心者向け）
 
-```bash
-npm install -D tailwindcss postcss autoprefixer
-npx tailwindcss init -p
-```
+### 本番環境にデプロイする場合
+
+- **[本番環境のセットアップ](./docs/PRODUCTION_SETUP.md)** - S3+CloudFront+Lambdaのデプロイ手順
 
 ---
 
@@ -192,47 +174,7 @@ photo-gallery/
 
 ---
 
-## 8. Git 操作
-
-### Git 初期化
-
-```bash
-git init
-```
-
-### ファイルをステージング
-
-```bash
-git add .
-```
-
-### コミット
-
-```bash
-git commit -m "初期版ギャラリーを保存"
-```
-
-### GitHubで新しいリポジトリを作成（例: photo-gallery）
-
-```bash
-git remote set-url origin https://github.com/rymaruta/photo-gallery.git
-```
-
-### ブランチ名を main に揃える
-
-```bash
-git branch -M main
-```
-
-### push
-
-```bash
-git push -u origin main
-```
-
----
-
-## 9. デプロイ
+## 8. デプロイ
 
 このプロジェクトは静的エクスポート（`output: "export"`）に対応しています。  
 AWS S3 + CloudFront などの静的ホスティングサービスにデプロイできます。
@@ -277,12 +219,12 @@ npm install @sls-next/serverless-component@latest
 
 ## 10. 今後の予定
 
-- ▶ 画像アップロード機能の追加
-- ▶ モーダル表示の実装（✅ 実装済み）
-- ▶ Tailwind を活用したデザイン改善（✅ 実装済み）
+- ✅ 画像アップロード機能（実装済み）
+- ✅ モーダル表示（実装済み）
+- ✅ Tailwind CSSによるデザイン（実装済み）
+- ✅ お気に入り機能（実装済み）
+- ✅ 画像の詳細情報（EXIFデータ）の表示（実装済み）
 - ▶ 検索機能の追加
-- ▶ お気に入り機能の追加
-- ▶ 画像の詳細情報（EXIFデータ）の表示
 - ▶ ソーシャルシェア機能
 
 ---
