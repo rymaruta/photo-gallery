@@ -8,7 +8,7 @@ import Footer from "./components/Footer";
 import ToastProvider from "./components/ToastProvider";
 import { AuthProvider } from "./auth/context";
 import { LocaleProvider } from "./i18n/context";
-import { siteConfig } from "../lib/utils/seo";
+import { siteConfig, generateWebSiteStructuredData } from "../lib/utils/seo";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "700", "900"] });
 
@@ -24,7 +24,8 @@ export const metadata: Metadata = {
   creator: "PhotoGallery",
   openGraph: {
     type: "website",
-    locale: "ja_JP",
+    locale: siteConfig.locale.ja,
+    alternateLocale: siteConfig.locale.en,
     url: siteConfig.url,
     siteName: siteConfig.name,
     title: siteConfig.name,
@@ -70,8 +71,16 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const webSiteStructuredData = generateWebSiteStructuredData();
+  
   return (
     <html lang="ja">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteStructuredData) }}
+        />
+      </head>
       <body className={`${inter.className} min-h-screen flex flex-col bg-black text-white`}>
         <ToastProvider>
           <LocaleProvider>

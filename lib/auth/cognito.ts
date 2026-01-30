@@ -36,7 +36,7 @@ export async function signIn(username: string, password: string): Promise<{
         try {
             // 環境変数の確認
             if (!cognitoConfig.userPoolId || !cognitoConfig.clientId) {
-                console.error("Cognito設定エラー:", {
+                log.error("Cognito設定エラー:", {
                     hasUserPoolId: !!cognitoConfig.userPoolId,
                     hasClientId: !!cognitoConfig.clientId,
                 });
@@ -60,22 +60,22 @@ export async function signIn(username: string, password: string): Promise<{
 
             cognitoUser.authenticateUser(authenticationDetails, {
                 onSuccess: (session) => {
-                    console.log("認証成功");
+                    log.debug("認証成功");
                     // ユーザーグループを取得
                     const idToken = session.getIdToken();
                     const payload = idToken.payload;
                     const groups = payload["cognito:groups"] || [];
                     
-                    // デバッグ情報を詳細に出力
-                    console.log("IDトークンのペイロード:", {
+                    // デバッグ情報を詳細に出力（開発環境のみ）
+                    log.debug("IDトークンのペイロード:", {
                         groups: groups,
                         allPayload: payload,
                         username: payload["cognito:username"],
                         email: payload["email"],
                     });
-                    console.log("ユーザーグループ:", groups);
-                    console.log("管理者グループ名:", ADMIN_GROUP_NAME);
-                    console.log("管理者かどうか:", groups.includes(ADMIN_GROUP_NAME));
+                    log.debug("ユーザーグループ:", groups);
+                    log.debug("管理者グループ名:", ADMIN_GROUP_NAME);
+                    log.debug("管理者かどうか:", groups.includes(ADMIN_GROUP_NAME));
 
                     resolve({
                         success: true,
@@ -84,7 +84,7 @@ export async function signIn(username: string, password: string): Promise<{
                     });
                 },
                 onFailure: (err) => {
-                    console.error("認証失敗:", err);
+                    log.error("認証失敗:", err);
                     // エラーメッセージを日本語化
                     let errorMessage = err.message || "ログインに失敗しました";
                     
@@ -105,7 +105,7 @@ export async function signIn(username: string, password: string): Promise<{
                 },
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 newPasswordRequired: (_userAttributes, _requiredAttributes) => {
-                    console.log("新しいパスワードが必要");
+                    log.info("新しいパスワードが必要");
                     resolve({
                         success: false,
                         error: "初回ログイン時はパスワードの変更が必要です。AWSコンソールからパスワードを変更してください。",
@@ -113,7 +113,7 @@ export async function signIn(username: string, password: string): Promise<{
                 },
             });
         } catch (error: unknown) {
-            console.error("認証処理エラー:", error);
+            log.error("認証処理エラー:", error);
             const errorMessage = error instanceof Error ? error.message : "ログイン処理中にエラーが発生しました";
             resolve({
                 success: false,
@@ -133,7 +133,7 @@ export function signOut(): void {
         }
     } catch (error) {
         // 環境変数が設定されていない場合は何もしない
-        console.warn("Failed to sign out:", error);
+        log.warn("Failed to sign out:", error);
     }
 }
 
@@ -145,20 +145,35 @@ export async function getCurrentSession(): Promise<CognitoUserSession | null> {
             const cognitoUser = userPool.getCurrentUser();
 
             if (!cognitoUser) {
+                        log.debug("[getCurrentSession] cognitoUserが見つかりません");
                 resolve(null);
                 return;
             }
 
             cognitoUser.getSession((err: Error | null, session: CognitoUserSession | null) => {
-                if (err || !session) {
+                if (err) {
+                            log.error("[getCurrentSession] セッション取得エラー:", err.message);
+                    resolve(null);
+                    return;
+                }
+                
+                if (!session) {
+                            log.debug("[getCurrentSession] セッションがnullです");
+                    resolve(null);
+                    return;
+                }
+                
+                if (!session.isValid()) {
+                            log.debug("[getCurrentSession] セッションが無効です");
                     resolve(null);
                     return;
                 }
 
                 resolve(session);
             });
-        } catch {
+        } catch (error) {
             // 環境変数が設定されていない場合はnullを返す
+            log.error("[getCurrentSession] 例外が発生しました:", error instanceof Error ? error.message : String(error));
             resolve(null);
         }
     });

@@ -9,6 +9,7 @@ import GalleryModal from "../components/GalleryModal";
 import LocaleToggle from "../components/LocaleToggle";
 import { useLocale } from "../i18n/context";
 import { capitalize } from "../../lib/utils/string";
+import { log } from "../../lib/utils/log";
 
 export default function HistoryPage() {
     const { locale, setLocale, labels } = useLocale();
@@ -27,10 +28,10 @@ export default function HistoryPage() {
                     const data = await response.json();
                     setAllPhotos(data);
                 } else {
-                    console.error("写真の取得に失敗しました");
+                    log.error("写真の取得に失敗しました");
                 }
             } catch (error) {
-                console.error("写真取得エラー:", error);
+                log.error("写真取得エラー:", error);
             } finally {
                 setLoading(false);
             }
