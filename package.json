@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "type-check": "tsc --noEmit",
+    "check:all": "npm run lint && npm run type-check",
+    "predeploy:prod": "npm run check:all",
     "upload-local-images": "tsx scripts/upload-local-images-to-s3.ts",
     "dev:upload": "tsx scripts/upload-to-dev-s3.ts",
     "add-exif": "tsx scripts/add-exif-to-existing-photos.ts",
@@ -19,8 +21,12 @@
     "fix:dev-secrets": "node scripts/fix-dev-secrets.js",
     "check:lambda-dev": "node scripts/check-lambda-dev.js",
     "create:deployment-bucket": "node scripts/create-deployment-bucket.js",
-    "web:deploy:prod": "node scripts/deploy-static-site.js --bucket journey-photo.com",
-    "deploy:prod": "npm run api:deploy:prod && npm run web:deploy:prod"
+    "web:deploy:prod": "node scripts/deploy-static-site.js",
+    "upload:photos:prod": "node scripts/upload-photos-to-prod.js",
+    "convert:photos:prod": "node scripts/write-prod-photos.js",
+    "backup:prod-photos": "node scripts/backup-prod-photos.js",
+    "duplicate:photos": "node scripts/duplicate-photos-json.js",
+    "deploy:prod": "npm run predeploy:prod && npm run api:deploy:prod && npm run web:deploy:prod"
   },
   "dependencies": {
     "@aws-sdk/client-lambda": "^3.970.0",

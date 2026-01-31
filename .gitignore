@@ -42,6 +42,7 @@ yarn-error.log*
 /scripts/_artifacts/
 /scripts/_artifacts/*.json
 /app/data/_backups/
+app/data/backups/
 app/data/*.bak-*
 app/data/photos.json.bak-*
 
