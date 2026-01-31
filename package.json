@@ -25,6 +25,7 @@
     "upload:photos:prod": "node scripts/upload-photos-to-prod.js",
     "convert:photos:prod": "node scripts/write-prod-photos.js",
     "backup:prod-photos": "node scripts/backup-prod-photos.js",
+    "prepare:og-image": "node scripts/prepare-og-image.js",
     "duplicate:photos": "node scripts/duplicate-photos-json.js",
     "deploy:prod": "npm run predeploy:prod && npm run api:deploy:prod && npm run web:deploy:prod"
   },
