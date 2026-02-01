@@ -60,20 +60,13 @@ body,
   }
 }
 
-/* スマホ: デフォルトは非表示、タップで表示したとき .mobile-controls-visible を付与 */
+/* スマホ: 矢印・♡・閉じるは常に表示（タップで出てこない問題を回避） */
 @media (hover: none) {
   .modal-controls-hover {
-    opacity: 0;
-    pointer-events: none;
-  }
-  .modal-controls-hover * {
-    pointer-events: none !important;
-  }
-  .modal-controls-hover.mobile-controls-visible {
     opacity: 1;
     pointer-events: auto;
   }
-  .modal-controls-hover.mobile-controls-visible * {
+  .modal-controls-hover * {
     pointer-events: auto !important;
   }
 }
