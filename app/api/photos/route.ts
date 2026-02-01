@@ -10,9 +10,9 @@ import type { Photo } from "../../data/photos";
 // 写真一覧を取得
 export async function GET() {
     try {
-        const photosDataPath = path.join(process.cwd(), "app", "data", "photos.json");
+        const photosDataPath = path.join(process.cwd(), "app", "data", "dev-photos.json");
 
-        // photos.json が存在する場合は、それを「正」として返す（S3参照に統一するため）
+        // dev-photos.json が存在する場合は、それを「正」として返す（S3参照に統一するため）
         if (existsSync(photosDataPath)) {
             const data = await readFile(photosDataPath, "utf-8");
             const savedPhotos = JSON.parse(data);
@@ -23,7 +23,7 @@ export async function GET() {
             });
         }
 
-        // photos.json がない場合のみ BASE_PHOTOS を返す
+        // dev-photos.json がない場合のみ BASE_PHOTOS を返す
         const photos: Photo[] = [...BASE_PHOTOS];
 
         return NextResponse.json(photos, {

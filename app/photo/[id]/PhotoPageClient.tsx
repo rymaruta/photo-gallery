@@ -402,6 +402,7 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                 />
             )}
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+            <article itemScope itemType="https://schema.org/ImageObject">
             {/* ヘッダー */}
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-6">
                 <div className="flex-1">
@@ -584,13 +585,15 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                             {mergedExif.dateTimeOriginal && (
                                 <div className="col-span-2">
                                     <span className="text-white/40">{locale === "en" ? "Date Taken" : "撮影日時"}: </span>
-                                    {new Date(mergedExif.dateTimeOriginal).toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
-                                        year: "numeric",
-                                        month: "long",
-                                        day: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit"
-                                    })}
+                                    <time dateTime={mergedExif.dateTimeOriginal} itemProp="dateCreated">
+                                        {new Date(mergedExif.dateTimeOriginal).toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
+                                            year: "numeric",
+                                            month: "long",
+                                            day: "numeric",
+                                            hour: "2-digit",
+                                            minute: "2-digit"
+                                        })}
+                                    </time>
                                 </div>
                             )}
                         </div>
@@ -787,6 +790,7 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                     </div>
                     )}
                 </div>
+            </article>
             </main>
         </>
     );

@@ -14,6 +14,12 @@ const inter = Inter({ subsets: ["latin"], weight: ["400", "700", "900"] });
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.png", type: "image/png", sizes: "any" },
+    ],
+  },
   title: {
     default: siteConfig.name,
     template: `%s | ${siteConfig.name}`,
@@ -52,6 +58,11 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: siteConfig.url,
+    languages: {
+      ja: siteConfig.url,
+      en: siteConfig.url,
+      "x-default": siteConfig.url,
+    },
   },
   robots: {
     index: true,
@@ -65,8 +76,11 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    // Google Search Console の検証コードを追加する場合
-    // google: "your-google-verification-code",
+    google: "W6lLVqTh35YGAQGOrK0MfS3WVqsm24XWecLo_oyFNoE",
+  },
+  other: {
+    "format-detection": "telephone=no",
+    "theme-color": "#000000",
   },
 };
 
@@ -76,6 +90,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ja">
       <head>
+        {/* リソースヒント: パフォーマンス最適化 */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href={siteConfig.url} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteStructuredData) }}

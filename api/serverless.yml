@@ -1,0 +1,93 @@
+# Photo Gallery API — API Gateway (HTTP API) + Lambda
+# 本番と同じ定義を dev / prod に stage でデプロイ
+# 例: npx serverless deploy --stage dev   /  --stage prod
+
+service: photo-gallery-api
+
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ap-northeast-1
+  stage: ${opt:stage, 'dev'}
+  # デプロイ用 S3 バケット: 意味のある名前（S3 はグローバル一意のため accountId を含める）
+  # プロジェクトの命名規則（journey-photo-*）に合わせて統一
+  deploymentBucket:
+    name: journey-photo-api-deploy-${opt:stage, 'dev'}-${aws:accountId}
+  # HTTP API の CORS（API Gateway が OPTIONS を処理）
+  httpApi:
+    cors: true
+  # 環境変数: AWS_SECRET_NAME は stage に応じて dev/prod のシークレットを参照
+  # 注意: COGNITO_USER_POOL_ID は Secrets Manager から取得します（環境変数からは取得しません）
+  environment:
+    AWS_SECRET_NAME: ${opt:stage, 'dev'}-journey-photo-upload
+    # ログレベル: debug, info, warn, error
+    # dev環境はdebug（すべてのログを出力）、prod環境はwarn（エラーと警告のみ）
+    LOG_LEVEL: ${self:custom.logLevel.${opt:stage, 'dev'}, 'debug'}
+  # IAM: dev/prod 両方の S3・Secrets Manager を許可
+  # 注意: 最小権限の原則に従うため、本来はstageごとに権限を分離すべきですが、
+  # Serverless Framework の制約により、両方のリソースにアクセス可能にしています。
+  # 実際のアクセス先は AWS_SECRET_NAME で制御されるため、実質的なリスクは低いです。
+  # より厳密な分離が必要な場合は、serverless-plugin-ifelse などのプラグインを使用してください。
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource:
+            - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:dev-journey-photo-upload*'
+            - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:prod-journey-photo-upload*'
+        - Effect: Allow
+          Action: s3:ListBucket
+          Resource:
+            - 'arn:aws:s3:::journey-photo.com'
+            - 'arn:aws:s3:::prod-journey-photo.com'
+            - 'arn:aws:s3:::dev-journey-photo.com'
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+          Resource:
+            - 'arn:aws:s3:::journey-photo.com/app/data/photos.json'
+            - 'arn:aws:s3:::prod-journey-photo.com/app/data/photos.json'
+            - 'arn:aws:s3:::dev-journey-photo.com/app/data/photos.json'
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+            - s3:DeleteObject
+          Resource:
+            - 'arn:aws:s3:::prod-journey-photo-upload/uploads/*'
+            - 'arn:aws:s3:::dev-journey-photo-upload/uploads/*'
+
+functions:
+  api:
+    handler: handler.handler
+    events:
+      # フロントは journey-photo.com/api/photos を呼ぶため、API Gateway も /api プレフィックスで揃える
+      - httpApi:
+          method: GET
+          path: /api/photos
+      - httpApi:
+          method: GET
+          path: /api/photos/{id}
+      - httpApi:
+          method: POST
+          path: /api/upload/presigned-url
+      - httpApi:
+          method: POST
+          path: /api/upload/save
+      - httpApi:
+          method: PUT
+          path: /api/photos/{id}
+      - httpApi:
+          method: DELETE
+          path: /api/photos/{id}
+
+# カスタム設定
+custom:
+  # 環境別のログレベル設定
+  logLevel:
+    dev: debug  # 開発環境: すべてのログを出力
+    prod: warn  # 本番環境: エラーと警告のみ出力

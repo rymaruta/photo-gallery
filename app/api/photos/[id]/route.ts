@@ -21,9 +21,9 @@ async function loadPhotos(): Promise<Photo[]> {
         return photosCache.photos;
     }
 
-    const photosDataPath = path.join(process.cwd(), "app", "data", "photos.json");
+    const photosDataPath = path.join(process.cwd(), "app", "data", "dev-photos.json");
 
-    // photos.json が存在する場合は、それを「正」として読み込む（S3参照に統一するため）
+    // dev-photos.json が存在する場合は、それを「正」として読み込む（S3参照に統一するため）
     let photos: Photo[];
     if (existsSync(photosDataPath)) {
         const data = await readFile(photosDataPath, "utf-8");
@@ -117,8 +117,8 @@ export async function PUT(
         photos[photoIndex] = updatedPhoto;
 
         // すべての写真（ベース写真を含む）を保存
-        // ベース写真の編集も可能にするため、photos.jsonに保存
-        const photosDataPath = path.join(process.cwd(), "app", "data", "photos.json");
+        // ベース写真の編集も可能にするため、dev-photos.jsonに保存
+        const photosDataPath = path.join(process.cwd(), "app", "data", "dev-photos.json");
         
         // 既存のアップロード写真と編集されたベース写真を保存
         let existingPhotos: Photo[] = [];
@@ -285,7 +285,7 @@ export async function DELETE(
                     useIamRole: config.useIamRole,
                 });
                 // S3の削除に失敗した場合はエラーを返す
-                // これにより、photos.jsonからの削除も実行されず、データの不整合を防ぐ
+                // これにより、dev-photos.jsonからの削除も実行されず、データの不整合を防ぐ
                 const s3ErrorMessage = errorMessage || errorCode || "Unknown error";
                 return NextResponse.json(
                     { 
@@ -301,8 +301,8 @@ export async function DELETE(
             });
         }
 
-        // photos.jsonから削除（ベース写真の削除も可能）
-        const photosDataPath = path.join(process.cwd(), "app", "data", "photos.json");
+        // dev-photos.jsonから削除（ベース写真の削除も可能）
+        const photosDataPath = path.join(process.cwd(), "app", "data", "dev-photos.json");
         let existingPhotos: Photo[] = [];
         if (existsSync(photosDataPath)) {
             const data = await readFile(photosDataPath, "utf-8");

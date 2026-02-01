@@ -2,7 +2,7 @@ import type { Photo } from "../../data/photos";
 import RAW_PHOTOS from "../../data/photos";
 import PhotoPageClient from "./PhotoPageClient";
 import type { Metadata } from "next";
-import { siteConfig, generatePhotoStructuredData, generateBreadcrumbStructuredData } from "../../../lib/utils/seo";
+import { siteConfig } from "../../../lib/utils/seo";
 import { getLocalized, getLocalizedParagraphs } from "../../data/photos";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
@@ -10,7 +10,7 @@ import path from "path";
 
 // 写真データを読み込む関数
 async function loadPhoto(id: string): Promise<Photo | null> {
-    const photosDataPath = path.join(process.cwd(), "app", "data", "photos.json");
+    const photosDataPath = path.join(process.cwd(), "app", "data", "dev-photos.json");
     
     if (existsSync(photosDataPath)) {
         const data = await readFile(photosDataPath, "utf-8");
@@ -23,7 +23,7 @@ async function loadPhoto(id: string): Promise<Photo | null> {
 
 // 静的生成用のパラメータ生成関数
 export async function generateStaticParams() {
-    const photosDataPath = path.join(process.cwd(), "app", "data", "photos.json");
+    const photosDataPath = path.join(process.cwd(), "app", "data", "dev-photos.json");
     let photos: Photo[];
     
     if (existsSync(photosDataPath)) {

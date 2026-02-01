@@ -8,14 +8,10 @@ export default function GalleryPage() {
     return (
         <main className={`${styles.root} ${styles.container}`}>
             <div className={styles.box}>
-                <h1 className={styles.title}>準備中</h1>
+                <h1 className={styles.title}>ギャラリー</h1>
 
                 <p className={styles.lead}>
-                    ギャラリーの方向性を現在検討しています。整い次第、ここでお知らせします。
-                </p>
-
-                <p className={styles.note}>
-                    ご不便をおかけしますが、今しばらくお待ちください。
+                    ギャラリーの方向性を検討中です。整い次第お知らせします。
                 </p>
 
                 <div className={styles.actions}>

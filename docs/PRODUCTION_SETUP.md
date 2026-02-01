@@ -10,13 +10,13 @@
 ## 📚 初心者の方はこちら
 
 - **[クイックスタートガイド](./QUICK_START.md)** - 5分で始める
-- **[初めてのセットアップ](./LOCAL_SETUP.md)** - ローカル開発環境の設定（初心者向け）
+- **[初めてのセットアップ](./SETUP.md)** - ローカル開発環境の設定（初心者向け）
 
 ## ⚠️ 重要: ローカル開発環境の設定を先に完了してください
 
 本番環境にデプロイする前に、**ローカル開発環境で動作確認**することを強く推奨します。
 
-1. まず [初めてのセットアップ](./LOCAL_SETUP.md) でローカル環境を設定
+1. まず [初めてのセットアップ](./SETUP.md) でローカル環境を設定
 2. ローカルでアップロード機能が動作することを確認
 3. その後、このガイドで本番環境をセットアップ
 
@@ -1332,7 +1332,8 @@ CloudFrontディストリビューション作成後、Secrets Managerのシー�
   "AWS_REGION": "ap-northeast-1",
   "AWS_S3_BUCKET_NAME": "prod-journey-photo-upload",
   "AWS_S3_SITE_BUCKET_NAME": "journey-photo.com",
-  "CLOUDFRONT_URL": "https://d1234567890abc.cloudfront.net"
+  "CLOUDFRONT_URL": "https://d1234567890abc.cloudfront.net",
+  "CLOUDFRONT_DISTRIBUTION_ID": "E1ABCDEF2GHIJK"
 }
 ```
 
@@ -1340,6 +1341,9 @@ CloudFrontディストリビューション作成後、Secrets Managerのシー�
 - `CLOUDFRONT_URL` は `https://` で始める
 - 末尾に `/` は含めない
 - `d1234567890abc.cloudfront.net` を実際のDomain Nameに置き換える
+- `CLOUDFRONT_DISTRIBUTION_ID` は CloudFront ディストリビューションの ID（例: `E1ABCDEF2GHIJK`）
+  - この値を設定すると、`npm run web:deploy:prod` 実行時に自動でキャッシュ無効化が実行されます
+  - CloudFront コンソールのディストリビューション詳細ページで確認できます
 
 5. 「保存」をクリック
 
@@ -1347,6 +1351,7 @@ CloudFrontディストリビューション作成後、Secrets Managerのシー�
 - ✅ `CLOUDFRONT_URL` が `https://` で始まっている
 - ✅ 末尾に `/` が含まれていない
 - ✅ 実際のDomain Nameと一致している
+- ✅ `CLOUDFRONT_DISTRIBUTION_ID` が設定されている（自動キャッシュ無効化を有効にする場合）
 
 ---
 
@@ -2193,5 +2198,5 @@ VercelやNetlifyなどのホスティングサービスを使用する場合、�
 
 ## 次のステップ
 
-- [ローカル開発環境のセットアップ](./LOCAL_SETUP.md)を参照
+- [初めてのセットアップ（ローカル）](./SETUP.md)を参照
 - [アップロード機能の詳細](./UPLOAD_SETUP.md)を参照

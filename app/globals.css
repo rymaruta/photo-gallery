@@ -40,6 +40,44 @@ body,
   color: var(--color-foreground);
 }
 
+/* モーダルコントロール: PCではホバー時のみ表示、スマホではタップで表示（画像と重ならない） */
+@media (hover: hover) {
+  .modal-controls-hover {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .modal-controls-hover * {
+    pointer-events: none !important;
+  }
+  .group:hover .modal-controls-hover,
+  .group:focus-within .modal-controls-hover {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .group:hover .modal-controls-hover *,
+  .group:focus-within .modal-controls-hover * {
+    pointer-events: auto !important;
+  }
+}
+
+/* スマホ: デフォルトは非表示、タップで表示したとき .mobile-controls-visible を付与 */
+@media (hover: none) {
+  .modal-controls-hover {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .modal-controls-hover * {
+    pointer-events: none !important;
+  }
+  .modal-controls-hover.mobile-controls-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .modal-controls-hover.mobile-controls-visible * {
+    pointer-events: auto !important;
+  }
+}
+
 /* ヘッダー（既存の site-header を上書き） */
 .site-header {
   font-family: "Noto Sans JP", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;

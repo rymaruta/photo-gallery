@@ -18,9 +18,11 @@ const CACHE_TTL = 5 * 60 * 1000;
 
 // Secrets Managerクライアントの初期化
 function getSecretsClient() {
-    return new SecretsManagerClient({
-        region: process.env.AWS_REGION || "ap-northeast-1",
-    });
+    const region = process.env.AWS_REGION || "ap-northeast-1";
+    if (!process.env.AWS_REGION) {
+        console.warn("⚠️  AWS_REGION not set, using default fallback:", region);
+    }
+    return new SecretsManagerClient({ region });
 }
 
 // シークレットを取得する関数
@@ -90,8 +92,12 @@ export async function getConfig(): Promise<{
                 cloudfrontUrl: process.env.CLOUDFRONT_URL,
             };
         } else {
+            const region = secret.AWS_REGION || process.env.AWS_REGION || "ap-northeast-1";
+            if (!secret.AWS_REGION && !process.env.AWS_REGION) {
+                console.warn("⚠️  AWS_REGION not set in secret or env, using default fallback:", region);
+            }
             config = {
-                awsRegion: secret.AWS_REGION || process.env.AWS_REGION || "ap-northeast-1",
+                awsRegion: region,
                 awsS3BucketName: secret.AWS_S3_BUCKET_NAME || "",
                 // Secrets Managerにアクセスキーが含まれていない場合は空文字列（IAMロールを使用）
                 awsAccessKeyId: secret.AWS_ACCESS_KEY_ID || "",
@@ -102,8 +108,12 @@ export async function getConfig(): Promise<{
         }
     } else {
         // AWS_SECRET_NAMEが設定されていない場合は.envから取得（フォールバック）
+        const region = process.env.AWS_REGION || "ap-northeast-1";
+        if (!process.env.AWS_REGION) {
+            console.warn("⚠️  AWS_REGION not set, using default fallback:", region);
+        }
         config = {
-            awsRegion: process.env.AWS_REGION || "ap-northeast-1",
+            awsRegion: region,
             awsS3BucketName: process.env.AWS_S3_BUCKET_NAME || "",
             // ローカル環境では、環境変数または~/.aws/credentialsを使用
             awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID || "",

@@ -1,0 +1,732 @@
+[
+  {
+    "id": "29de9197-5d15-490e-83ae-491e7386bb34",
+    "src": "https://dev-journey-photo-upload.s3.ap-northeast-1.amazonaws.com/uploads/29de9197-5d15-490e-83ae-491e7386bb34.jpg",
+    "title": {
+      "ja": "海",
+      "en": "Sea of Nemophila"
+    },
+    "description": {
+      "ja": [
+        "青く広がるネモフィラの海。",
+        "公園の中で見つけたポピーを軸に切り取った一枚だ。",
+        "少し歩くと遊園地もあり、家族連れで賑わっていた。"
+      ],
+      "en": [
+        "A vast sea of nemophila stretching in soft blue tones.",
+        "This shot frames a single poppy blooming amid the flowers.",
+        "A short walk away is an amusement area, lively with families."
+      ]
+    },
+    "location": "茨城県 ひたちなか市 国営ひたち海浜公園",
+    "category": "landscape",
+    "tags": [
+      "park",
+      "flowers",
+      "nemophila"
+    ],
+    "published": true,
+    "createdAt": "2026-01-20T07:32:08.689Z",
+    "updatedAt": "2026-01-20T08:35:33.124Z",
+    "exif": {
+      "camera": "SONY ILCE-7M3",
+      "lens": "E 28-200mm F2.8-5.6 A071",
+      "aperture": "f/5.6",
+      "exposure": "1/1250s",
+      "iso": 100,
+      "focalLength": "200mm",
+      "whiteBalance": "Manual"
+    }
+  },
+  {
+    "id": "bb470019-c4a2-484e-bdbd-51e4b20fa4ef",
+    "src": "https://dev-journey-photo-upload.s3.ap-northeast-1.amazonaws.com/uploads/bb470019-c4a2-484e-bdbd-51e4b20fa4ef.jpg",
+    "title": {
+      "ja": "木こりのろうそく橋",
+      "en": "Lumberjack's Candle Bridge"
+    },
+    "description": {
+      "ja": [
+        "フィンランド北部の街ロヴァニエミには、日本人にも有名な橋がある。",
+        "低い太陽のオレンジ色が凍り付いたケミ川に反射している。"
+      ],
+      "en": [
+        "The bridge in Rovaniemi is famous among Japanese people.",
+        "The orange color of the low sun reflects on the frozen Kemijoki river."
+      ]
+    },
+    "category": "landscape",
+    "tags": [
+      "finland",
+      "rovaniemi",
+      "bridge",
+      "sunset",
+      "winter"
+    ],
+    "published": true,
+    "createdAt": "2026-01-20T07:32:09.244Z",
+    "updatedAt": "2026-01-20T08:35:33.345Z",
+    "exif": {
+      "camera": "SONY ILCE-7M5",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "aperture": "f/5",
+      "exposure": "1/250s",
+      "iso": 50,
+      "focalLength": "70mm",
+      "whiteBalance": "Manual"
+    }
+  },
+  {
+    "id": "ca5a98b3-27c2-42d4-a26c-a3437609ec31",
+    "src": "https://dev-journey-photo-upload.s3.ap-northeast-1.amazonaws.com/uploads/ca5a98b3-27c2-42d4-a26c-a3437609ec31.jpg",
+    "title": {
+      "ja": "Löyly",
+      "en": "Löyly"
+    },
+    "description": {
+      "ja": [
+        "モダンな木造建築が美しい、ヘルシンキのサウナ「Löyly」",
+        "スモークと薪、2種類のサウナで限界まで温まったあと、そのまま12月のバルト海へ",
+        "梯子を降りて浸かった海は痺れるような冷たさで、濡れた肌に外気が容赦なく突き刺さり、すぐにまたサウナへ駆け込んだ。",
+        "フィンランドの冬を肌で感じた一日。一生忘れられない体験になった。"
+      ],
+      "en": [
+        "Löyly in Helsinki. Modern wooden building with beautiful design.",
+        "There are two types of sauna: smoke sauna and wood sauna. After sweating with two types of heat, I jumped into the Baltic Sea in December.",
+        "The sea was so cold that it made my body numb, but the afterglow was the best.",
+        "I experienced the winter of Finland with my skin. It was an unforgettable experience."
+      ]
+    },
+    "category": "landscape",
+    "tags": [
+      "finland",
+      "helsinki",
+      "sauna",
+      "loyly",
+      "baltic-sea",
+      "winter"
+    ],
+    "published": true,
+    "createdAt": "2026-01-20T07:32:09.751Z",
+    "updatedAt": "2026-01-20T08:35:33.574Z",
+    "exif": {
+      "camera": "SONY ILCE-7M5",
+      "lens": "FE 70-200mm F2.8 GM OSS II",
+      "aperture": "f/4.5",
+      "exposure": "1/200s",
+      "iso": 50,
+      "focalLength": "70mm",
+      "whiteBalance": "Manual"
+    }
+  },
+  {
+    "id": "2354a297-a017-4001-afbf-70e9d9fa36f7",
+    "src": "https://dev-journey-photo-upload.s3.ap-northeast-1.amazonaws.com/uploads/2354a297-a017-4001-afbf-70e9d9fa36f7.jpg",
+    "title": {
+      "ja": "ヘルシンキ大聖堂",
+      "en": "Helsinki Cathedral"
+    },
+    "description": {
+      "ja": [
+        "ヘルシンキのシンボル、ヘルシンキ大聖堂。",
+        "元老院広場から見上げると、その白さと大きさに圧倒される。 ",
+        "冬の青空の下でも、この建物だけが発光しているように白く輝いていた。"
+      ],
+      "en": [
+        "The symbol of Helsinki, Helsinki Cathedral.",
+        "Looking up from Senate Square, one is overwhelmed by its whiteness and size.",
+        "Even under the winter blue sky, this building alone glowed white as if emitting light."
+      ]
+    },
+    "category": "landscape",
+    "tags": [
+      "finland",
+      "helsinki",
+      "cathedral",
+      "architecture",
+      "winter"
+    ],
+    "published": true,
+    "createdAt": "2026-01-20T07:32:10.304Z",
+    "updatedAt": "2026-01-20T08:35:33.804Z",
+    "exif": {
+      "camera": "SONY ILCE-7M5",
+      "lens": "FE 16-35mm F2.8 GM II",
+      "aperture": "f/8",
+      "exposure": "1/400s",
+      "iso": 160,
+      "focalLength": "35mm",
+      "whiteBalance": "Manual"
+    }
+  },
+  {
+    "id": "cb10f0d4-4fe1-4fb7-b72f-24cf72e69866",
+    "src": "https://dev-journey-photo-upload.s3.ap-northeast-1.amazonaws.com/uploads/cb10f0d4-4fe1-4fb7-b72f-24cf72e69866.jpg",
+    "title": {
+      "ja": "ピザ店の窓",
+      "en": "Pizza Shop Window"
+    },
+    "description": {
+      "ja": [
+        "料理ができるまでの間、窓の外の雪景色を眺めながら撮った1枚。",
+        "ここで食べたピザは、生地が薄くサクサク。シンプルでありながらいつでも食べたい美味しさだった。"
+      ],
+      "en": [
+        "While waiting for the pizza to be ready, I took a photo of the snow-covered view outside the window.",
+        "The pizza I ate here was thin and crispy. It was simple but always delicious."
+      ]
+    },
+    "category": "landscape",
+    "tags": [
+      "finland",
+      "restaurant",
+      "window",
+      "snow",
+      "winter"
+    ],
+    "published": true,
+    "createdAt": "2026-01-20T07:32:10.860Z",
+    "updatedAt": "2026-01-20T08:35:34.029Z",
+    "exif": {
+      "camera": "SONY ILCE-7M5",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "aperture": "f/3.2",
+      "exposure": "1/30s",
+      "iso": 50,
+      "focalLength": "24mm",
+      "whiteBalance": "Manual"
+    }
+  },
+  {
+    "id": "21cf9fd2-e836-431d-85cd-cf41da7e56e9",
+    "src": "https://dev-journey-photo-upload.s3.ap-northeast-1.amazonaws.com/uploads/21cf9fd2-e836-431d-85cd-cf41da7e56e9.jpg",
+    "title": {
+      "ja": "ヘルシンキの街並み",
+      "en": "Streets of Helsinki"
+    },
+    "description": {
+      "ja": [
+        "大聖堂を目指して歩いている時の風景。",
+        "歴史ある石造りの建物が並ぶ、ヘルシンキらしい街角。"
+      ],
+      "en": [
+        "A scene while walking toward the cathedral.",
+        "A typical Helsinki street corner lined with historic stone buildings."
+      ]
+    },
+    "category": "landscape",
+    "tags": [
+      "finland",
+      "helsinki",
+      "street",
+      "architecture",
+      "winter"
+    ],
+    "published": true,
+    "createdAt": "2026-01-20T07:32:11.407Z",
+    "updatedAt": "2026-01-20T08:35:34.244Z",
+    "exif": {
+      "camera": "SONY ILCE-7M5",
+      "lens": "FE 16-35mm F2.8 GM II",
+      "aperture": "f/5",
+      "exposure": "1/125s",
+      "iso": 160,
+      "focalLength": "35mm",
+      "whiteBalance": "Manual"
+    }
+  },
+  {
+    "id": "fa0d51c9-f3ff-4812-bc29-4d88515081ea",
+    "src": "https://dev-journey-photo-upload.s3.ap-northeast-1.amazonaws.com/uploads/fa0d51c9-f3ff-4812-bc29-4d88515081ea.jpg",
+    "title": {
+      "ja": "北欧の森",
+      "en": "Nordic Forest"
+    },
+    "description": {
+      "ja": [
+        "フィンランドの森は、緑が深く、木々が高く、空が青く、水が透明である。"
+      ],
+      "en": [
+        "The forest in Finland is deep green, the trees are tall, the sky is blue, and the water is transparent."
+      ]
+    },
+    "category": "nature",
+    "tags": [
+      "finland",
+      "forest",
+      "nature",
+      "trees",
+      "winter"
+    ],
+    "published": true,
+    "createdAt": "2026-01-20T07:32:11.995Z",
+    "updatedAt": "2026-01-20T08:35:34.538Z",
+    "exif": {
+      "camera": "SONY ILCE-7M5",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "aperture": "f/2.8",
+      "exposure": "1/3s",
+      "iso": 1000,
+      "focalLength": "24mm",
+      "whiteBalance": "Manual"
+    }
+  },
+  {
+    "id": "3729f868-9f21-4cef-913f-f05bc16b3255",
+    "src": "https://dev-journey-photo-upload.s3.ap-northeast-1.amazonaws.com/uploads/3729f868-9f21-4cef-913f-f05bc16b3255.jpg",
+    "title": {
+      "ja": "森の中の小屋",
+      "en": "Cabin in the Forest"
+    },
+    "description": {
+      "ja": [
+        "雪深い木立の中に、ポツンと佇む小さな建物。",
+        "煙突から静かに立ち昇る煙だけが、そこがスモークサウナであることを告げていた。",
+        "──ヴァンター、Kuusijärviにて。"
+      ],
+      "en": [
+        "A small building standing alone in the snow-covered grove.",
+        "Only the smoke quietly rising from the chimney told us it was a smoke sauna.",
+        "— In Vantaa, Kuusijärvi."
+      ]
+    },
+    "category": "landscape",
+    "tags": [
+      "finland",
+      "cabin",
+      "sauna",
+      "forest",
+      "winter",
+      "vantaa"
+    ],
+    "published": true,
+    "createdAt": "2026-01-20T07:32:12.085Z",
+    "updatedAt": "2026-01-20T08:35:34.767Z",
+    "exif": {
+      "camera": "SONY ILCE-7M5",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "aperture": "f/3.2",
+      "exposure": "1/100s",
+      "iso": 50,
+      "focalLength": "70mm",
+      "whiteBalance": "Manual"
+    }
+  },
+  {
+    "id": "f854f680-602d-4cc4-9ac5-a98c06fb8c1a",
+    "src": "https://dev-journey-photo-upload.s3.ap-northeast-1.amazonaws.com/uploads/f854f680-602d-4cc4-9ac5-a98c06fb8c1a.jpg",
+    "title": {
+      "ja": "Löylyのレストラン",
+      "en": "Löyly Restaurant"
+    },
+    "description": {
+      "ja": [
+        "Löylyに併設された、海辺のレストラン。",
+        "視界に入るすべてが絵になる、洗練された空間。"
+      ],
+      "en": [
+        "The restaurant built into Löyly is stylish.",
+        "Everything in the view is a work of art."
+      ]
+    },
+    "category": "landscape",
+    "tags": [
+      "finland",
+      "helsinki",
+      "restaurant",
+      "loyly",
+      "sea",
+      "winter"
+    ],
+    "published": true,
+    "createdAt": "2026-01-20T07:32:12.605Z",
+    "updatedAt": "2026-01-20T08:35:34.976Z",
+    "exif": {
+      "camera": "SONY ILCE-7M5",
+      "lens": "FE 70-200mm F2.8 GM OSS II",
+      "aperture": "f/2.8",
+      "exposure": "1/50s",
+      "iso": 125,
+      "focalLength": "200mm",
+      "whiteBalance": "Manual"
+    }
+  },
+  {
+    "id": "27501725-7d8b-4ff8-a5db-21e458145fcc",
+    "src": "https://dev-journey-photo-upload.s3.ap-northeast-1.amazonaws.com/uploads/27501725-7d8b-4ff8-a5db-21e458145fcc.jpg",
+    "title": {
+      "ja": "レストランからの夕焼け",
+      "en": "Sunset from the Restaurant"
+    },
+    "description": {
+      "ja": [
+        "夕焼けとシルエットが織りなす、静かな陰影。"
+      ],
+      "en": [
+        "The sunset and silhouette create a quiet shadow."
+      ]
+    },
+    "category": "landscape",
+    "tags": [
+      "finland",
+      "restaurant",
+      "sunset",
+      "silhouette",
+      "winter"
+    ],
+    "published": true,
+    "createdAt": "2026-01-20T07:32:13.134Z",
+    "updatedAt": "2026-01-20T08:35:35.191Z",
+    "exif": {
+      "camera": "SONY ILCE-7M5",
+      "lens": "FE 70-200mm F2.8 GM OSS II",
+      "aperture": "f/5.6",
+      "exposure": "1/800s",
+      "iso": 125,
+      "focalLength": "164mm",
+      "whiteBalance": "Manual"
+    }
+  },
+  {
+    "id": "e2ff51a0-3364-4b9d-a6a3-c4a2c837b006",
+    "src": "https://dev-journey-photo-upload.s3.ap-northeast-1.amazonaws.com/uploads/e2ff51a0-3364-4b9d-a6a3-c4a2c837b006.jpg",
+    "title": {
+      "ja": "フィンランドの大地",
+      "en": "Land of Finland"
+    },
+    "description": {
+      "ja": [
+        "美しすぎて言葉にならない、フィンランドの大地。"
+      ],
+      "en": [
+        "The land of Finland is too beautiful to be described in words."
+      ]
+    },
+    "category": "nature",
+    "tags": [
+      "finland",
+      "landscape",
+      "nature",
+      "winter"
+    ],
+    "published": true,
+    "createdAt": "2026-01-20T07:32:13.748Z",
+    "updatedAt": "2026-01-20T08:35:35.602Z",
+    "exif": {
+      "camera": "Apple iPhone 14 Pro",
+      "lens": "iPhone 14 Pro back triple camera 6.86mm f/1.78",
+      "aperture": "f/1.8",
+      "exposure": "1/7000s",
+      "iso": 80,
+      "focalLength": "7mm",
+      "whiteBalance": "Manual"
+    }
+  },
+  {
+    "id": "a0e0e987-4686-437a-a5fd-b6eaa2debd84",
+    "src": "https://dev-journey-photo-upload.s3.ap-northeast-1.amazonaws.com/uploads/a0e0e987-4686-437a-a5fd-b6eaa2debd84.jpg",
+    "title": {
+      "ja": "天空の鳥居",
+      "en": "Torii in the Sky"
+    },
+    "description": {
+      "ja": [
+        "山頂に立つ鳥居から見た景色は、まさに絶景だった。",
+        "下宮までの道中、タクシーの運転手さんは香川が一番好きだと言っていた。",
+        "愛が感じられる土地だ。"
+      ],
+      "en": [
+        "The view from the torii at the summit was truly breathtaking.",
+        "On the way down to the lower shrine, the taxi driver told me Kagawa was his favorite place.",
+        "There is a palpable sense of affection in this land."
+      ]
+    },
+    "location": "香川県 観音寺市 高屋神社",
+    "category": "landscape",
+    "tags": [
+      "torii",
+      "shrine",
+      "mountain"
+    ],
+    "published": true,
+    "createdAt": "2026-01-20T07:32:14.512Z",
+    "updatedAt": "2026-01-20T08:35:36.047Z",
+    "exif": {
+      "camera": "SONY ILCE-7M3",
+      "lens": "FE 16-35mm F2.8 GM II",
+      "aperture": "f/2.8",
+      "exposure": "1/1000s",
+      "iso": 100,
+      "focalLength": "28mm",
+      "whiteBalance": "Manual"
+    }
+  },
+  {
+    "id": "e4e47af3-08e9-4791-8fd3-d8688a52d22c",
+    "src": "https://dev-journey-photo-upload.s3.ap-northeast-1.amazonaws.com/uploads/e4e47af3-08e9-4791-8fd3-d8688a52d22c.jpg",
+    "title": {
+      "ja": "オペラ・ガルニエ",
+      "en": "Palais Garnier"
+    },
+    "description": {
+      "ja": [
+        "世界三大劇場の一つ、オペラ・ガルニエ。",
+        "「死ぬまでに一度は訪れたい」と思っていた場所だ。",
+        "ー 細部まで威厳ある装飾と光が織り成す美しさ ー",
+        "それを確かめたくてシャッターを切った。"
+      ],
+      "en": [
+        "One of the world's great opera houses, the Palais Garnier.",
+        "It was a place I had long wanted to visit at least once in my life.",
+        "— The solemn beauty of ornament and light visible down to the smallest detail —",
+        "I photographed it to see and capture that very quality."
+      ]
+    },
+    "location": "オペラ・ガルニエ（パリ）",
+    "category": "architecture",
+    "tags": [
+      "opera",
+      "theater"
+    ],
+    "published": true,
+    "createdAt": "2026-01-20T07:32:15.400Z",
+    "updatedAt": "2026-01-20T08:35:36.676Z",
+    "exif": {
+      "camera": "SONY ILCE-7M3",
+      "lens": "E 28-200mm F2.8-5.6 A071",
+      "aperture": "f/2.8",
+      "exposure": "1/3s",
+      "iso": 320,
+      "focalLength": "28mm",
+      "whiteBalance": "Manual"
+    }
+  },
+  {
+    "id": "18c7ad60-5600-4020-bbe0-edc84332e9ce",
+    "src": "https://dev-journey-photo-upload.s3.ap-northeast-1.amazonaws.com/uploads/18c7ad60-5600-4020-bbe0-edc84332e9ce.jpg",
+    "title": {
+      "ja": "北海道の桜",
+      "en": "Cherry Blossoms in Hokkaido"
+    },
+    "description": {
+      "ja": [
+        "北海道にも春が訪れ、桜が咲き誇る季節となった。",
+        "木々の隙間から差し込む柔らかな光が、花びらを優しく照らしている。"
+      ],
+      "en": [
+        "Spring has come to Hokkaido, and cherry trees are in full bloom.",
+        "Soft light filters through the trees, gently illuminating the petals."
+      ]
+    },
+    "location": "北海道",
+    "category": "nature",
+    "tags": [
+      "cherry",
+      "hokkaido"
+    ],
+    "published": true,
+    "createdAt": "2026-01-20T07:32:16.012Z",
+    "updatedAt": "2026-01-20T08:35:37.003Z",
+    "exif": {
+      "camera": "SONY ILCE-7M3",
+      "lens": "E 28-200mm F2.8-5.6 A071",
+      "aperture": "f/4",
+      "exposure": "1/640s",
+      "iso": 100,
+      "focalLength": "70mm",
+      "whiteBalance": "Manual"
+    }
+  },
+  {
+    "id": "ecb99a5f-ef3f-4951-bb4f-b255d36270d9",
+    "src": "https://dev-journey-photo-upload.s3.ap-northeast-1.amazonaws.com/uploads/ecb99a5f-ef3f-4951-bb4f-b255d36270d9.jpg",
+    "title": {
+      "ja": "ヴェルサイユ宮殿",
+      "en": "Palace of Versailles"
+    },
+    "description": {
+      "ja": [
+        "広大な庭園と整えられた並木道。",
+        "そんな帰り際の1枚。人生で一番美しい夕焼けだった。",
+        "ー 黄昏のヴェルサイユ宮殿 ー"
+      ],
+      "en": [
+        "Vast gardens and manicured avenues.",
+        "A shot taken on the way back, during perhaps the most beautiful sunset I've seen.",
+        "— Versailles at dusk —"
+      ]
+    },
+    "location": "フランス ヴェルサイユ",
+    "category": "architecture",
+    "tags": [
+      "versailles",
+      "palace"
+    ],
+    "published": true,
+    "createdAt": "2026-01-20T07:32:16.199Z",
+    "updatedAt": "2026-01-20T08:35:37.320Z",
+    "exif": {
+      "camera": "SONY ILCE-7M3",
+      "lens": "E 28-200mm F2.8-5.6 A071",
+      "aperture": "f/2.8",
+      "exposure": "1/800s",
+      "iso": 100,
+      "focalLength": "28mm",
+      "whiteBalance": "Manual"
+    }
+  },
+  {
+    "id": "28e09a2a-918b-43f7-8ffe-e62d8822c6bf",
+    "src": "https://dev-journey-photo-upload.s3.ap-northeast-1.amazonaws.com/uploads/28e09a2a-918b-43f7-8ffe-e62d8822c6bf.jpg",
+    "title": {
+      "ja": "パリの街中",
+      "en": "Streets of Paris"
+    },
+    "description": {
+      "ja": [
+        "パリは何を撮っても絵になる街だ。",
+        "光がじんわりと広がる、そんな日常の一コマだ。"
+      ],
+      "en": [
+        "Paris turns almost any scene into a postcard.",
+        "A quiet everyday moment where the light spreads gently across the street."
+      ]
+    },
+    "location": "パリ, フランス",
+    "category": "street",
+    "tags": [
+      "paris",
+      "street"
+    ],
+    "published": true,
+    "createdAt": "2026-01-20T07:32:16.291Z",
+    "updatedAt": "2026-01-20T08:35:37.535Z",
+    "exif": {
+      "camera": "SONY ILCE-7M3",
+      "lens": "E 28-200mm F2.8-5.6 A071",
+      "aperture": "f/2.8",
+      "exposure": "1/160s",
+      "iso": 320,
+      "focalLength": "28mm",
+      "whiteBalance": "Manual"
+    }
+  },
+  {
+    "id": "c4e2dac4-b319-43f9-876a-395e9e7e9000",
+    "src": "https://dev-journey-photo-upload.s3.ap-northeast-1.amazonaws.com/uploads/c4e2dac4-b319-43f9-876a-395e9e7e9000.jpg",
+    "title": {
+      "ja": "大トリアノン宮殿",
+      "en": "Grand Trianon"
+    },
+    "description": {
+      "ja": [
+        "トリアノン群と呼ばれる宮殿の一つ。",
+        "プチトランと呼ばれる小さな列車で庭園を巡った。",
+        "大理石と列柱が織りなす落ち着いた佇まいが印象的だった。"
+      ],
+      "en": [
+        "One of the palaces in the Trianon ensemble.",
+        "I toured the gardens aboard the little train known as the 'petit train'.",
+        "The calm elegance formed by marble and colonnades left a strong impression."
+      ]
+    },
+    "location": "フランス ヴェルサイユ",
+    "category": "architecture",
+    "tags": [
+      "versailles",
+      "trianon"
+    ],
+    "published": true,
+    "createdAt": "2026-01-20T07:32:16.524Z",
+    "updatedAt": "2026-01-20T08:35:37.939Z",
+    "exif": {
+      "camera": "SONY ILCE-7M3",
+      "lens": "E 28-200mm F2.8-5.6 A071",
+      "aperture": "f/3.5",
+      "exposure": "1/4000s",
+      "iso": 160,
+      "focalLength": "31mm",
+      "whiteBalance": "Manual"
+    }
+  },
+  {
+    "id": "d0e10f85-6e15-4e1a-a298-f5a968195492",
+    "src": "https://dev-journey-photo-upload.s3.ap-northeast-1.amazonaws.com/uploads/d0e10f85-6e15-4e1a-a298-f5a968195492.jpg",
+    "title": {
+      "ja": "北欧の朝",
+      "en": "Nordic Morning"
+    },
+    "description": {
+      "ja": [
+        "ガラス越しに視界いっぱいに北欧の森と空が広がる不思議な空間だ。",
+        "外は氷点下の世界だというのに、風の音ひとつ聞こえない。",
+        "驚くべきはフィンランドのイグルーには室内にサウナがついていることだ。",
+        "さすが北欧だ。"
+      ],
+      "en": [
+        "A mysterious space where Nordic forests and sky spread across the view through the glass.",
+        "Outside is a sub-zero world, yet not a single sound of wind can be heard.",
+        "What's surprising is that Finnish igloos have saunas inside.",
+        "Truly Nordic."
+      ]
+    },
+    "category": "landscape",
+    "tags": [
+      "finland",
+      "nordic",
+      "igloo",
+      "sauna",
+      "winter"
+    ],
+    "published": true,
+    "createdAt": "2026-01-20T07:32:17.089Z",
+    "updatedAt": "2026-01-20T08:35:38.153Z",
+    "exif": {
+      "camera": "SONY ILCE-7M5",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "aperture": "f/2.8",
+      "exposure": "1/15s",
+      "iso": 640,
+      "focalLength": "26mm",
+      "whiteBalance": "Manual"
+    }
+  },
+  {
+    "id": "3efd3a7c-a625-473e-9622-8daaffca1cf8",
+    "src": "https://dev-journey-photo-upload.s3.ap-northeast-1.amazonaws.com/uploads/3efd3a7c-a625-473e-9622-8daaffca1cf8.jpg",
+    "title": {
+      "ja": "サーリセルカの街灯",
+      "en": "Streetlights of Saariselkä"
+    },
+    "description": {
+      "ja": [
+        "サーリセルカの街灯は、デザインが美しい。",
+        "静けさの中、街灯が光を放っている。"
+      ],
+      "en": [
+        "The streetlights of Saariselkä have beautiful designs.",
+        "In the silence, the streetlights cast their glow."
+      ]
+    },
+    "category": "landscape",
+    "tags": [
+      "finland",
+      "saariselka",
+      "streetlight",
+      "winter",
+      "night"
+    ],
+    "published": true,
+    "createdAt": "2026-01-20T07:32:17.252Z",
+    "updatedAt": "2026-01-20T08:35:38.373Z",
+    "exif": {
+      "camera": "SONY ILCE-7M5",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "aperture": "f/2.8",
+      "exposure": "1/25s",
+      "iso": 250,
+      "focalLength": "24mm",
+      "whiteBalance": "Manual"
+    }
+  }
+]

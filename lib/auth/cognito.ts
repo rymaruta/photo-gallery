@@ -1,5 +1,6 @@
 import { CognitoUserPool, AuthenticationDetails, CognitoUser, CognitoUserSession } from "amazon-cognito-identity-js";
 import { cognitoConfig, ADMIN_GROUP_NAME } from "./config";
+import { log } from "../utils/log";
 
 // Cognito User Poolの初期化（遅延初期化）
 function getUserPool(): CognitoUserPool {

@@ -26,6 +26,8 @@
     "convert:photos:prod": "node scripts/write-prod-photos.js",
     "backup:prod-photos": "node scripts/backup-prod-photos.js",
     "prepare:og-image": "node scripts/prepare-og-image.js",
+    "make:favicon": "node scripts/make-favicon-transparent.js",
+    "make:favicon1": "node scripts/make-favicon-transparent.js favicon1",
     "duplicate:photos": "node scripts/duplicate-photos-json.js",
     "deploy:prod": "npm run predeploy:prod && npm run api:deploy:prod && npm run web:deploy:prod"
   },
@@ -52,6 +54,7 @@
     "@types/react-dom": "^19.2.2",
     "autoprefixer": "^10.4.21",
     "eslint": "^9",
+    "sharp": "^0.33.5",
     "eslint-config-next": "^16.1.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.17",

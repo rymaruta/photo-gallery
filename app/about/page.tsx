@@ -89,7 +89,7 @@ export default function AboutPage() {
                             </aside>
 
                             {/* 右カラム（本文） */}
-                            <article className="md:col-span-2">
+                            <article className="md:col-span-2" itemScope itemType="https://schema.org/AboutPage">
                                 <div className="rounded-xl p-6 md:p-8 bg-gradient-to-b from-white/2 to-transparent ring-1 ring-white/6 backdrop-blur-sm">
                                     <div className="text-base md:text-lg leading-relaxed text-gray-200">
                                         {paras.length > 0 ? (

@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 写真データをJSONファイルに追加
-        const photosDataPath = path.join(process.cwd(), "app", "data", "photos.json");
+        const photosDataPath = path.join(process.cwd(), "app", "data", "dev-photos.json");
         let photos: Photo[] = [];
 
         // 既存のデータを読み込む（存在する場合）

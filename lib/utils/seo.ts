@@ -17,6 +17,7 @@ export const siteConfig = {
 
 /**
  * 構造化データ（JSON-LD）を生成 - ギャラリーページ用
+ * ImageGallery構造化データを生成
  */
 export function generateStructuredData(photos: Array<{ id: string; title?: string | { ja?: string; en?: string }; src: string }>) {
     return {
@@ -175,6 +176,7 @@ export function generateWebSiteStructuredData() {
         name: siteConfig.name,
         url: siteConfig.url,
         description: siteConfig.description,
+        inLanguage: ["ja", "en"],
         potentialAction: {
             "@type": "SearchAction",
             target: {
@@ -182,6 +184,40 @@ export function generateWebSiteStructuredData() {
                 urlTemplate: `${siteConfig.url}/?q={search_term_string}`,
             },
             "query-input": "required name=search_term_string",
+        },
+    };
+}
+
+/**
+ * CollectionPage構造化データを生成（写真一覧ページ用）
+ */
+export function generateCollectionPageStructuredData(photos: Array<{ id: string; title?: string | { ja?: string; en?: string }; src: string }>) {
+    return {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: siteConfig.name,
+        description: siteConfig.description,
+        url: siteConfig.url,
+        mainEntity: {
+            "@type": "ItemList",
+            numberOfItems: photos.length,
+            itemListElement: photos
+                .filter((photo) => photo.id && photo.src)
+                .map((photo, index) => {
+                    const title = typeof photo.title === "string" 
+                        ? photo.title 
+                        : photo.title?.ja || photo.title?.en || "";
+                    return {
+                        "@type": "ListItem",
+                        position: index + 1,
+                        item: {
+                            "@type": "ImageObject",
+                            "@id": `${siteConfig.url}/photo/${photo.id}`,
+                            url: `${siteConfig.url}/photo/${photo.id}`,
+                            name: title,
+                        },
+                    };
+                }),
         },
     };
 }

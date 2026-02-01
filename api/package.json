@@ -1,0 +1,24 @@
+{
+  "name": "photo-gallery-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API Gateway + Lambda (Serverless Framework で dev/prod にデプロイ)",
+  "main": "handler.js",
+  "scripts": {
+    "deploy:dev": "serverless deploy --stage dev",
+    "deploy:prod": "serverless deploy --stage prod",
+    "info:dev": "serverless info --stage dev",
+    "info:prod": "serverless info --stage prod"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@aws-sdk/s3-request-presigner": "^3.0.0",
+    "@aws-sdk/client-secrets-manager": "^3.0.0",
+    "uuid": "^9.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "jwks-rsa": "^3.0.0"
+  },
+  "devDependencies": {
+    "serverless": "^3.38.0"
+  }
+}
