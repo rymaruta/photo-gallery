@@ -23,6 +23,7 @@
 | `NEXT_PUBLIC_AWS_REGION` | AWSリージョン | `ap-northeast-1` | `ap-northeast-1` |
 | `NEXT_PUBLIC_API_BASE_URL` | API Gateway のベースURL | `https://vr9sellzx4.execute-api.ap-northeast-1.amazonaws.com` | `https://d1s3dwwzgxf5ni.cloudfront.net/api` |
 | `NEXT_PUBLIC_SITE_URL` | サイトのURL（SEO・OGP・構造化データ用） | `http://localhost:3000` | `https://your-domain.com` |
+| `NEXT_PUBLIC_INSTAGRAM_URL` | Instagram プロフィールURL（検索・SNS の sameAs 用、任意） | 未設定可 | `https://www.instagram.com/maru_chaannn`（本番のみ） |
 
 ⚠️ **注意**: `NEXT_PUBLIC_*` プレフィックスがついた環境変数は、クライアントサイド（ブラウザ）に公開されます。
 
@@ -118,7 +119,14 @@ AWS_REGION=ap-northeast-1
 # サイト設定
 # ============================================
 NEXT_PUBLIC_SITE_URL=https://your-domain.com
+
+# ============================================
+# Instagram（検索・SNS の sameAs 用、本番のみ）
+# ============================================
+NEXT_PUBLIC_INSTAGRAM_URL=https://www.instagram.com/maru_chaannn
 ```
+
+**注意:** 上記の Instagram URL を `.env.production` に設定すると、本番ビルドで Organization の sameAs に出力されます。開発用 `.env.local` では未設定のままで問題ありません。
 
 ---
 
@@ -243,10 +251,9 @@ aws secretsmanager put-secret-value \
 
 ## 関連ドキュメント
 
-- [初めてのセットアップ（ローカル）](SETUP.md)
+- [初めてのセットアップ](SETUP.md)（Cognito 詳細は同 doc 内「Cognito 詳細（参考）」）
 - [本番デプロイ](DEPLOY.md) … 本番URL・CloudFront・Route 53・トラブル対処
 - [本番環境のデプロイ](PRODUCTION_SETUP.md)
 - [API ドキュメント](API.md) … 開発/本番デプロイ含む
-- [認証の詳細](AUTH_SETUP.md)
 - [アップロードの詳細](UPLOAD_SETUP.md)
 - [SEO実装ガイド](SEO.md) … メタタグ・構造化データ・`NEXT_PUBLIC_SITE_URL` の使い方

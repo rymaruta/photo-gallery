@@ -18,7 +18,8 @@
 10. [本番の Secrets Manager（想定値）](#本番の-secrets-manager想定値)
 11. [OAC とは／サイト用 OAC の説明](#oacorigin-access-controlとはサイト用-oac-の説明)
 12. [CloudFront 画面ごとの設定値（参考）](#cloudfront-画面ごとの設定値参考)
-13. [参照](#参照)
+13. [CloudFront 設定ガイド（画面ごとの操作）](#cloudfront-設定ガイド画面ごとの操作)
+14. [参照](#参照)
 
 ---
 
@@ -494,6 +495,54 @@ S3 バケットを「全世界に公開」にしなくても、CloudFront 経由
 | **Origins** | Origin domain | `<AWS_S3_SITE_BUCKET_NAME>.s3.ap-northeast-1.amazonaws.com`。OAC を選択（サイト用なら PhotoGallerySiteOAC など）。 |
 | **Behaviors**（`*`） | オリジン | 上記 S3。圧縮 Yes。Redirect HTTP to HTTPS。 |
 | **General** | Default root object | `index.html`。カスタムドメイン時は Alternate domain names に journey-photo.com。 |
+
+---
+
+## CloudFront 設定ガイド（画面ごとの操作）
+
+本番は **1 つの CloudFront ディストリビューション** で、**静的サイト（S3）** と **API（API Gateway）** の両方を配信します（`/` → S3、`/api/*` → API Gateway）。
+
+### 1. CloudFront を開く
+
+1. AWS コンソールで **「CloudFront」** を開く
+2. **「Distributions」** 一覧から本番用のディストリビューションをクリック（**Alternate domain names** に `journey-photo.com` があるもの）
+
+### 2. 「Origins」タブでオリジンを確認・設定
+
+- **静的サイト用**: Origin domain に `prod-journey-photo.com.s3.ap-northeast-1.amazonaws.com`、**Origin access** で **Origin access control (OAC)** を選択（例: `journey-photo-com-oac`）
+- **API 用**: Origin domain に API Gateway の URL
+
+修正する場合は **「Create origin」** または既存の **「Edit」** で上記のとおり設定し **「Save changes」**。
+
+**オリジン作成時の推奨値（S3）:** Origin domain に上記 S3 エンドポイント、Origin path は空欄、名前は識別用に任意、**オリジンアクセス** は **OAC** を選択。それ以外はデフォルトで可。
+
+### 3. 「Behaviors」タブでパスごとの配信先を設定
+
+| Path pattern | 用途 | Origin |
+|--------------|------|--------|
+| `/api/*` | API | API Gateway の Origin |
+| `*` (Default) | 静的サイト全体 | S3（prod-journey-photo.com） |
+
+**重要**: `/api/*` が `*` より**上（優先度が高い）**になっている必要があります。
+
+**Default（`*`）の設定:** オリジンに S3 を選択、**Viewer protocol policy** を **Redirect HTTP to HTTPS**、**Allowed HTTP methods** を **GET, HEAD, OPTIONS**（または GET, HEAD）、**Compress objects automatically** を **Yes**。**Save changes**。
+
+**`/api/*` の設定:** Origin に API Gateway を選択。Behavior がなければ **「Create behavior」** で Path pattern: `api/*`、Origin: API Gateway を追加。
+
+### 4. 「General」タブでルートオブジェクトとドメインを設定
+
+- **Default root object**: **`index.html`**（必須）
+- カスタムドメイン: **Alternate domain names** に `journey-photo.com`、**Custom SSL certificate** で us-east-1 の ACM 証明書を選択
+
+### 5. 設定変更の反映
+
+変更後、**Deployed** になるまで数分～15 分かかることがあります。すぐ確認する場合はキャッシュ無効化（`aws cloudfront create-invalidation --distribution-id <ID> --paths "/*"`）。ブラウザはシークレットウィンドウまたは Ctrl+F5 で再読み込み。
+
+### 6. クイックチェックリスト（Origins / Behaviors / General）
+
+- **Origins**: Origin domain = `prod-journey-photo.com.s3.ap-northeast-1.amazonaws.com`、Origin path = 空欄、オリジンアクセス = OAC を選択 → **Save changes**
+- **Behaviors（`*`）**: パスパターン = `*`、オリジン = 上記 S3、圧縮 Yes、Redirect HTTP to HTTPS、GET, HEAD → **Save changes**
+- **General**: Default root object = `index.html`、カスタムドメイン時は Alternate domain names と SSL 証明書 → **Save changes**
 
 ---
 

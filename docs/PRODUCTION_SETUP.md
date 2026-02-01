@@ -1706,7 +1706,7 @@ npm run build
 | **`app/api` の変更** | `app/api` を編集したときは、**`npm run build` を必ず一度実行**して、退避・復元後もビルドが通るか確認してください。`_api_build_backup` は `tsconfig` の `exclude` に入っているため、退避中は型チェックされません。 |
 | **`prepare-static-build.js` の扱い** | `output: "export"` を使い続ける限り、**削除しないでください**。削除すると、`app/api` が存在する状態で `next build` が走り、同じエラーが再発します。 |
 | **`app/api` を廃止する場合** | 開発でも API を使わず、全て API Gateway 等に寄せる場合は、`app/api` ディレクトリ自体を削除し、`prepare-static-build.js` の呼び出しを `package.json` の `build` からやめ、`next build --webpack` に戻せます。 |
-| **ローカルと本番の構成を揃えたい場合** | 本番も Next.js にする、共有ハンドラで Lambda と揃える、など選択肢と進め方は `docs/LOCAL_PROD_PARITY.md` を参照してください。 |
+| **ローカルと本番の構成を揃えたい場合** | 本番も Next.js にする、共有ハンドラで Lambda と揃える、など選択肢と進め方は [LOCAL_ENVIRONMENT_OPTIONS.md](./LOCAL_ENVIRONMENT_OPTIONS.md)（Part 1: 方針とおすすめ）を参照してください。 |
 
 **✅ ビルドが成功したら、次の「静的サイトのデプロイ」セクション（下に続きます）に進んでください。**
 

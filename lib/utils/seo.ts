@@ -81,7 +81,7 @@ export function generatePhotoStructuredData(photo: {
     
     const structuredData: Record<string, unknown> = {
         "@context": "https://schema.org",
-        "@type": "ImageObject",
+        "@type": "Photograph",
         "@id": `${siteConfig.url}/photo/${photo.id}`,
         contentUrl: imageUrl,
         name: title,
@@ -130,6 +130,25 @@ export function generatePhotoStructuredData(photo: {
 }
 
 /**
+ * SNS・外部リンクのURL一覧（環境変数から取得）
+ * NEXT_PUBLIC_INSTAGRAM_URL: Instagram プロフィールURL（1件）
+ * NEXT_PUBLIC_SAME_AS: カンマ区切りで複数（例: "https://instagram.com/xxx,https://twitter.com/xxx"）
+ */
+function getSameAsUrls(): string[] {
+    const urls: string[] = [];
+    const instagram = process.env.NEXT_PUBLIC_INSTAGRAM_URL;
+    if (instagram?.trim()) urls.push(instagram.trim());
+    const sameAs = process.env.NEXT_PUBLIC_SAME_AS;
+    if (sameAs?.trim()) {
+        sameAs.split(",").forEach((u) => {
+            const url = u.trim();
+            if (url && !urls.includes(url)) urls.push(url);
+        });
+    }
+    return urls;
+}
+
+/**
  * サイト全体の構造化データ（Organization）を生成
  */
 export function generateOrganizationStructuredData() {
@@ -143,10 +162,7 @@ export function generateOrganizationStructuredData() {
             "@type": "ImageObject",
             url: `${siteConfig.url}${siteConfig.ogImage}`,
         },
-        sameAs: [
-            // SNSアカウントがあれば追加
-            // "https://www.instagram.com/your_handle",
-        ],
+        sameAs: getSameAsUrls(),
     };
 }
 

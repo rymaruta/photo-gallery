@@ -1,6 +1,35 @@
 # ローカル環境を本番に近づける方法
 
-本番環境（S3+CloudFront+API Gateway+Lambda+Cognito）と同じような環境をローカルで構築する方法を説明します。
+本番環境（S3+CloudFront+API Gateway+Lambda+Cognito）と同じような環境をローカルで構築する方法と、**ローカルと本番で同じような構成にする方針**をまとめています。
+
+---
+
+## Part 1: 方針とおすすめ（ローカルと本番の構成を揃える）
+
+### 現状の整理
+
+| 項目 | ローカル | 本番 |
+|------|----------|------|
+| **フロント** | `next dev`（Node） | S3 + CloudFront（静的のみ） |
+| **API** | Next.js Route Handlers（`app/api/*`） | API Gateway + Lambda |
+| **`getApiBaseUrl()`** | 未設定時は `/api`（同一オリジン） | `NEXT_PUBLIC_API_BASE_URL` で API Gateway / CloudFront の `/api` を指定 |
+
+### よくある質問: ローカルも本番の API を使う？
+
+- **本番の API をそのまま向ける** → 原則おすすめしません（本番データを触るリスク）。
+- **本番と同じ種類の API（API Gateway + Lambda）を開発でも使う** → 開発用の API Gateway + Lambda を用意し、ローカルから `NEXT_PUBLIC_API_BASE_URL` でそこを向ける形にすると、環境の統一性が高まります。手順は [API.md](./API.md) の「開発/本番 API デプロイ詳細」を参照。
+
+### おすすめの進め方（短く）
+
+1. **S3+CloudFront を変えたくない** → **共有ハンドラ（方針 B）** を第一候補。`lib/api-handlers` にロジックを寄せ、`app/api` と Lambda の両方から呼ぶ。必要なら開発用 API をデプロイしてローカルから向ける（[API.md](./API.md)）。
+2. **構成をとにかく揃えたい** → **本番も Next.js（方針 A）**。`output: "export"` をやめ、Vercel 等に載せれば `app/api` がそのまま本番で動く。
+3. **Lambda の挙動をローカルでも試したい** → 方針 B のうえに **Serverless Offline** や **開発用 Lambda デプロイ**（下記 Part 2 の案2・案4）をのせる。
+
+詳細な選択肢（方針 A〜D）と比較は、以前の `LOCAL_PROD_PARITY.md` の内容を [DESIGN.md](./DESIGN.md) や [API.md](./API.md) とあわせて参照してください。
+
+---
+
+## Part 2: ローカル環境を本番に近づける方法（実装オプション）
 
 ## 目次
 
@@ -32,8 +61,7 @@
 - 本番環境の動作をローカルで再現しにくい
 - 開発中にAWSコストが発生する可能性
 
-> **ローカルと本番の構成を揃える方針**については、`docs/LOCAL_PROD_PARITY.md` に選択肢とおすすめをまとめています。  
-> 「同じような構成にしたい」ときの進め方を決める際に参照してください。
+> **ローカルと本番の構成を揃える方針**は、この doc の **Part 1: 方針とおすすめ** を参照してください。
 
 ---
 
@@ -483,7 +511,7 @@ USE_DEV_AWS=true
 選択した案に応じて、詳細な実装手順を提供します。どの案を採用しますか？
 
 > **構成の揃え方（ローカル vs 本番）**：  
-> 本番も Next.js にするか、共有ハンドラで Lambda と揃えるかなど、方針の選び方は `docs/LOCAL_PROD_PARITY.md` を参照してください。
+> 本番も Next.js にするか、共有ハンドラで Lambda と揃えるかなど、方針の選び方はこの doc の **Part 1: 方針とおすすめ** を参照してください。
 
 1. **案1: LocalStack** - 完全にローカルで開発したい
 2. **案2: 開発用AWSリソース** - 現在の方法を改善したい

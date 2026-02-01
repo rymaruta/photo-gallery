@@ -181,7 +181,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "journey-photo-api-deploy-prod-463470976368",
-                "S3Key": "serverless/photo-gallery-api/prod/1769931873943-2026-02-01T07:44:33.943Z/photo-gallery-api.zip"
+                "S3Key": "serverless/photo-gallery-api/prod/1769944884204-2026-02-01T11:21:24.204Z/photo-gallery-api.zip"
               },
               "Handler": "handler.handler",
               "Runtime": "nodejs20.x",
@@ -577,7 +577,7 @@
     "artifact": "C:\\Users\\r\\rymaruta\\photo-gallery\\api\\.serverless\\photo-gallery-api.zip"
   },
   "package": {
-    "artifactDirectoryName": "serverless/photo-gallery-api/prod/1769931873943-2026-02-01T07:44:33.943Z",
+    "artifactDirectoryName": "serverless/photo-gallery-api/prod/1769944884204-2026-02-01T11:21:24.204Z",
     "artifact": "photo-gallery-api.zip"
   }
 }

@@ -305,7 +305,8 @@ aws sts get-caller-identity
 
 ### 1. .env.local ファイルの作成
 
-プロジェクトのルートディレクトリ（`package.json`がある場所）に`.env.local`ファイルを作成します。
+プロジェクトのルートディレクトリ（`package.json`がある場所）に`.env.local`ファイルを作成します。  
+サンプルはルートの **`.env.example`** をコピーして使うこともできます（サイトURL・Instagram URL など任意項目を含む）。
 
 ### 2. 環境変数の設定
 
@@ -477,14 +478,19 @@ npm run dev
 
 ---
 
+## Cognito 詳細（参考）
+
+- **管理者グループ**: ユーザープールの「グループ」で `admin` という名前のグループを作成し、アップロードを許可するユーザーをそのグループに追加する。Lambda は **admin グループに属するユーザーだけ** 編集・アップロードを許可する。
+- **認証フロー**: `/login` で Cognito にログイン → JWT 取得 → 管理画面・API 呼び出し時に `Authorization: Bearer <idToken>` を付与。セッションはブラウザに保存され、トークンはリフレッシュで更新される。
+- **保護されているページ**: `/upload`・`/admin` は管理者のみ。それ以外は認証不要。
+- **トラブル**: ログインできない場合は User Pool ID・Client ID・`ALLOW_USER_PASSWORD_AUTH` を確認。管理者として認識されない場合はユーザーが `admin` グループに属しているか確認し、ログアウトして再ログイン。
+
+---
+
 ## 次のステップ
 
 - **[環境設定の整理](./ENVIRONMENT_CONFIG.md)** - 開発/本番の設定一覧を確認
 - **[本番デプロイ](./DEPLOY.md)** - 本番URL・CloudFront・Route 53・トラブル対処
 - **[本番環境のセットアップ（詳細）](./PRODUCTION_SETUP.md)** - 本番環境へのデプロイ手順（詳細）
 - **[トラブルシューティング](./TROUBLESHOOTING.md)** - アップロード・Lambda のエラー解決
-
-### 参考資料（詳細を知りたい場合）
-
-- **[認証の詳細](./AUTH_SETUP.md)** - Cognito の仕組み・本番時の設定
-- **[アップロードの詳細](./UPLOAD_SETUP.md)** - S3 / Presigned URL の仕組み・CloudFront オプション
+- **[アップロードの詳細](./UPLOAD_SETUP.md)**（参考） - S3 / Presigned URL の仕組み・CloudFront オプション

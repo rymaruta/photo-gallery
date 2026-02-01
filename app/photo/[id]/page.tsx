@@ -93,7 +93,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
             card: "summary_large_image",
             title: title,
             description: description,
-            images: [imageUrl],
+            images: [
+                {
+                    url: imageUrl,
+                    alt: getLocalized(photo.alt, "ja") || getLocalized(photo.alt, "en") || title,
+                },
+            ],
             creator: siteConfig.twitterHandle,
         },
         alternates: {

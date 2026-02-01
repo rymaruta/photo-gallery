@@ -67,13 +67,23 @@
 
 ---
 
-### 5. その他の推奨
+### 5. 検索・SNSで見つけてもらうために
+
+| 施策 | 内容 |
+|------|------|
+| **写真ページの OGP** | ✅ 実装済み。各写真詳細でその写真を `og:image` に使用。SNS でシェアすると写真がプレビューに表示される。 |
+| **Twitter 画像の alt** | ✅ 実装済み。写真ページの Twitter Card に画像の alt を付与（アクセシビリティ・一部クライアントで表示）。 |
+| **構造化データ（Photograph）** | ✅ 実装済み。写真詳細ページで `@type: Photograph` の JSON-LD を出力。画像検索やリッチリザルトの候補になる。 |
+| **sameAs（SNS リンク）** | 環境変数で設定可能。**Instagram だけ使う場合**は **NEXT_PUBLIC_INSTAGRAM_URL** だけ設定すればよい（例: `https://www.instagram.com/your_handle`）。複数 SNS を使う場合は **NEXT_PUBLIC_SAME_AS** をカンマ区切りで追加（例: `https://instagram.com/xxx,https://twitter.com/xxx`）。 |
+| **Search Console・sitemap** | 上記「1. Google Search Console の設定」のとおり、プロパティ登録・サイトマップ送信（`/sitemap.xml`）でインデックス状況を確認できる。 |
+
+### 6. その他の推奨
 
 | 施策 | 内容 |
 |------|------|
 | **BreadcrumbList** | ✅ 実装済み。about / favorites / history / gallery の各 layout および写真詳細で `generateBreadcrumbStructuredData` を出力（検索結果のパンくず表示の可能性あり）。 |
-| **sameAs（SNS）** | Instagram 等の公式アカウントがある場合、`lib/utils/seo.ts` の `generateOrganizationStructuredData` 内の `sameAs` 配列に URL を追加。 |
 | **記事・キャプション** | ブログや「撮影メモ」ページを増やすと、検索キーワードとコンテンツ量を増やせます。 |
+| **OGP 画像のサイズ** | SNS では 1200×630 px が推奨。写真詳細では元画像をそのまま `og:image` にしている。トリミングされた 1200×630 を出したい場合は、別画像を用意してメタデータで指定する運用も可能。 |
 
 ---
 
@@ -86,6 +96,7 @@
 - [ ] **robots.txt** で `/admin/`, `/login/`, `/upload/` を disallow 済み（実装済み）
 - [ ] 主要ページ（トップ・写真詳細・about・favorites・history・gallery）で **title / description / keywords** が重複なく設定されている（実装済み）
 - [ ] 写真詳細で **OG 画像** にその写真の URL が使われている（実装済み）
+- [ ] **検索・SNS**: 本番では **NEXT_PUBLIC_INSTAGRAM_URL** を `.env.production` に設定済み（例: `https://www.instagram.com/maru_chaannn`）
 
 ---
 

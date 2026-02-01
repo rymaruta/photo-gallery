@@ -66,6 +66,37 @@ aws logs tail '/aws/lambda/photo-gallery-api-dev-api' --follow
 6. **再デプロイ**  
    コード変更後は `npm run api:deploy:dev` で再デプロイ。
 
+### Lambda 側の診断手順（詳細）
+
+**ステップ1: Lambda 関数の情報を確認**
+
+```bash
+npm run api:info:dev
+```
+
+- エンドポイント URL が `.env.local` の `NEXT_PUBLIC_API_BASE_URL` と一致しているか
+- 環境変数 `AWS_SECRET_NAME` が `dev-journey-photo-upload` になっているか
+
+**ステップ2: Lambda のログを確認**
+
+- **Windows（Git Bash）**: `/aws/lambda/...` がパスとして解釈されるため、`MSYS_NO_PATHCONV=1` を付けるか **PowerShell** で実行する。
+  ```bash
+  # PowerShell で実行（推奨）
+  aws logs tail '/aws/lambda/photo-gallery-api-dev-api' --follow
+  ```
+- **Linux/Mac**:
+  ```bash
+  aws logs tail /aws/lambda/photo-gallery-api-dev-api --follow
+  ```
+
+確認するログ: `Request received` / `Config loaded from Secrets Manager` / `COGNITO_USER_POOL_ID not found` / `JWT token verified` / `JWT token verification failed` / `User is not in admin group`
+
+**ステップ3: 再デプロイ（必要に応じて）**
+
+```bash
+npm run api:deploy:dev
+```
+
 ---
 
 ## よくあるエラーと解決方法

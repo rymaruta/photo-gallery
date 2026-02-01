@@ -98,7 +98,7 @@ npm run dev
 
 アップロード機能を使うには、AWSの設定が必要です。以下のドキュメントを参照してください：
 
-- **[初めてのセットアップ](./docs/LOCAL_SETUP.md)** - AWS Cognito、S3、Secrets Managerの設定手順（初心者向け）
+- **[初めてのセットアップ](./docs/SETUP.md)** - AWS Cognito、S3、Secrets Managerの設定手順（初心者向け）
 
 ### 本番環境にデプロイする場合
 
@@ -214,6 +214,16 @@ aws cloudfront create-invalidation --distribution-id YOUR_DIST_ID --paths "/*"
 npm install serverless
 npm install @sls-next/serverless-component@latest
 ```
+
+---
+
+## 9. ドキュメント
+
+詳細な手順・デプロイ・トラブルシューティングは **docs** フォルダを参照してください。
+
+- **[docs/README.md](./docs/README.md)** — ドキュメント一覧・どこを読めばよいか
+- **[クイックスタート](./docs/QUICK_START.md)** — 5分で始める
+- **[本番デプロイ](./docs/DEPLOY.md)** — 開発/本番デプロイ・CloudFront・トラブル対処
 
 ---
 

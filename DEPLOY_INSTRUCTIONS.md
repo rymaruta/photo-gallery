@@ -17,7 +17,7 @@ Error: Could not locate deployment bucket: "journey-photo-api-deploy-prod-XXXXX"
 node scripts/create-deployment-bucket.js prod
 ```
 
-詳細は [デプロイ用S3バケットの作成](./docs/DEPLOYMENT_BUCKET_SETUP.md) を参照してください。
+詳細は [API.md の「デプロイ用 S3 バケット」](./docs/API.md#デプロイ用-s3-バケット) を参照してください。
 
 ### 1. 環境変数の確認
 

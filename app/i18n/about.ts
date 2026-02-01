@@ -41,7 +41,7 @@ const en: AboutContent = {
     contactTitle: "Contact",
     contactPrompt: "Please contact me via Instagram DM.",
     updatesLine: "Content will be updated from time to time.",
-    contactUrl: "https://www.instagram.com/your_handle",
+    contactUrl: "https://www.instagram.com/maru_chaannn",
     contactHandle: "@maru_chaannn",
     photographer: {
         title: "Webmaster",

@@ -60,7 +60,7 @@ body,
   }
 }
 
-/* スマホ: 矢印・♡・閉じるは常に表示（タップで出てこない問題を回避） */
+/* スマホ: 矢印・♡・閉じるは常に表示（透過はJSで切り替え直後の一瞬非表示で維持） */
 @media (hover: none) {
   .modal-controls-hover {
     opacity: 1;
@@ -68,6 +68,13 @@ body,
   }
   .modal-controls-hover * {
     pointer-events: auto !important;
+  }
+  .modal-controls-hover.modal-controls-fresh {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .modal-controls-hover.modal-controls-fresh * {
+    pointer-events: none !important;
   }
 }
 
