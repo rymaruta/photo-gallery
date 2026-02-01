@@ -10,35 +10,39 @@ import useGallery from "./hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
 import GalleryModal from "./components/GalleryModal";
 import { capitalize } from "../lib/utils/string";
-import { generateStructuredData, generateOrganizationStructuredData, generateWebSiteStructuredData } from "../lib/utils/seo";
+import { generateStructuredData, generateOrganizationStructuredData, generateCollectionPageStructuredData } from "../lib/utils/seo";
 import { log } from "../lib/utils/log";
 
 export default function Page() {
   const { locale, setLocale, labels } = useLocale();
   const [photos, setPhotos] = React.useState<Photo[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState(false);
 
-  // APIから写真を読み込む（編集済みのベース写真も含む）
-  React.useEffect(() => {
-    const loadPhotos = async () => {
-      try {
-        const { publicFetch } = await import("../lib/utils/api");
-        const response = await publicFetch("/photos", { cache: "no-store" });
-        if (response.ok) {
-          const data = await response.json();
-          setPhotos(data);
-        } else {
-          log.error("写真の取得に失敗しました");
-        }
-      } catch (error) {
-        log.error("写真取得エラー:", error);
-      } finally {
-        setLoading(false);
+  const loadPhotos = React.useCallback(async () => {
+    setLoadError(false);
+    setLoading(true);
+    try {
+      const { publicFetch } = await import("../lib/utils/api");
+      const response = await publicFetch("/photos", { cache: "no-store" });
+      if (response.ok) {
+        const data = await response.json();
+        setPhotos(data);
+      } else {
+        log.error("写真の取得に失敗しました");
+        setLoadError(true);
       }
-    };
-
-    loadPhotos();
+    } catch (error) {
+      log.error("写真取得エラー:", error);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  React.useEffect(() => {
+    loadPhotos();
+  }, [loadPhotos]);
 
   const {
     PHOTOS,
@@ -134,6 +138,11 @@ export default function Page() {
     [PHOTOS]
   );
 
+  const collectionPageData = React.useMemo(
+    () => generateCollectionPageStructuredData(PHOTOS),
+    [PHOTOS]
+  );
+
   const organizationData = React.useMemo(
     () => generateOrganizationStructuredData(),
     []
@@ -144,6 +153,10 @@ export default function Page() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionPageData) }}
       />
       <script
         type="application/ld+json"
@@ -178,9 +191,21 @@ export default function Page() {
           categoryDisplayMap={categoryDisplayMap}
         />
 
-        {loading ? (
+        {loading && !loadError ? (
           <div className="flex items-center justify-center py-12">
-            <div className="w-12 h-12 border-3 border-white/20 border-t-white/60 rounded-full animate-spin" />
+            <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" aria-hidden />
+            <p className="sr-only">読み込み中</p>
+          </div>
+        ) : loadError ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <p className="text-white/80 mb-4">写真の読み込みに失敗しました</p>
+            <button
+              type="button"
+              onClick={() => loadPhotos()}
+              className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+            >
+              再試行
+            </button>
           </div>
         ) : (
           <>

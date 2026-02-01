@@ -268,6 +268,35 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
+                                                    handleNavigation("/news");
+                                                }}
+                                                onTouchStart={(e) => {
+                                                    e.stopPropagation();
+                                                }}
+                                                onTouchEnd={(e) => {
+                                                    e.stopPropagation();
+                                                    e.preventDefault();
+                                                    handleNavigation("/news");
+                                                }}
+                                                className={`${linkBase} ${inactiveClasses} w-full text-left`}
+                                                style={{ 
+                                                    touchAction: "manipulation",
+                                                    WebkitTapHighlightColor: "transparent",
+                                                    minHeight: "44px",
+                                                    display: "block",
+                                                    position: "relative",
+                                                    zIndex: 10,
+                                                    cursor: "pointer"
+                                                }}
+                                            >
+                                                {navLabels.news || "News"}
+                                            </button>
+                                        </li>
+
+                                        <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
                                                     handleNavigation("/about");
                                                 }}
                                                 onTouchStart={(e) => {

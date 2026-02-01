@@ -43,6 +43,7 @@ export type Labels = {
         about?: string;
         favorites?: string;
         history?: string;
+        news?: string;
         upload?: string;
         admin?: string;
         login?: string;
@@ -92,6 +93,7 @@ const enLabels: Labels = {
         about: "About",
         favorites: "Favorites",
         history: "History",
+        news: "News",
         upload: "Upload",
         admin: "Manage",
         login: "Login",
@@ -139,6 +141,7 @@ export const ja: Labels = {
         about: "制作について",
         favorites: "お気に入り",
         history: "閲覧履歴",
+        news: "お知らせ",
         upload: "アップロード",
         admin: "管理",
         login: "ログイン",

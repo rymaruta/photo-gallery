@@ -157,7 +157,7 @@ async function getDistributionId() {
     console.log("[0/3] Pulling app/data/photos.json from production to local prod-photos.json...");
     run(`aws s3 cp s3://${bucket}/app/data/photos.json "${prodPhotosPath}" --only-show-errors`);
     console.log("     → prod-photos.json updated from production.\n");
-  } catch (e) {
+  } catch (_e) {
     console.log(
       "     → No app/data/photos.json in S3 (or download failed). Using existing local file for upload.\n"
     );

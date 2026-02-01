@@ -6,6 +6,10 @@ import { getLabels } from "../i18n/labels";
 import { useFavorites } from "../../lib/hooks/useFavorites";
 import { HeartIcon } from "@heroicons/react/24/solid";
 
+/** 遅延読み込み時のぼかしプレースホルダー用（10x10 グレー SVG） */
+const BLUR_DATA_URL =
+    "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMCIgaGVpZ2h0PSIxMCI+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMWExYTFhIi8+PC9zdmc+";
+
 type Props = {
     photos: Photo[];
     onOpen: (index: number) => void;
@@ -40,6 +44,7 @@ export default function GalleryGrid({
                         key={p.id}
                         photo={p}
                         index={idx}
+                        locale={locale}
                         localizedTitle={localizedTitle}
                         localizedAlt={localizedAlt}
                         placeholderColor={placeholderColor}
@@ -57,6 +62,7 @@ export default function GalleryGrid({
 const GalleryItem = React.memo(function GalleryItem({
     photo,
     index,
+    locale,
     localizedTitle,
     localizedAlt,
     placeholderColor,
@@ -66,6 +72,7 @@ const GalleryItem = React.memo(function GalleryItem({
 }: {
     photo: Photo;
     index: number;
+    locale: Locale;
     localizedTitle: string;
     localizedAlt: string;
     placeholderColor: string;
@@ -78,12 +85,17 @@ const GalleryItem = React.memo(function GalleryItem({
     const { isFavorite } = useFavorites();
     const isFav = isFavorite(photo.id);
 
+    const openLabel =
+        locale === "ja"
+            ? (localizedTitle ? `${localizedTitle}を開く` : "写真を開く")
+            : (localizedTitle ? `Open ${localizedTitle}` : "Open photo");
+
     return (
         <div className="w-full m-0 p-0">
             <button
                 onClick={() => onOpen(index)}
                 className="block w-full p-0 border-0 bg-transparent cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-                aria-label={localizedTitle ? `Open ${localizedTitle}` : "Open photo"}
+                aria-label={openLabel}
                 title={localizedTitle}
                 style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}
                 data-photo-id={photo.id}
@@ -106,9 +118,11 @@ const GalleryItem = React.memo(function GalleryItem({
                             fill
                             className="object-cover"
                             sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
-                            loading="lazy"
+                            loading={index >= 8 ? "lazy" : undefined}
+                            placeholder="blur"
+                            blurDataURL={BLUR_DATA_URL}
                             style={objectPosition ? { objectPosition } : undefined}
-                            priority={false}
+                            priority={index < 8}
                             onError={() => {
                                 setImageError(true);
                                 setImageLoading(false);
@@ -159,10 +173,10 @@ const GalleryItem = React.memo(function GalleryItem({
                     </div>
                 );
 }, (prevProps, nextProps) => {
-    // カスタム比較関数: photo.id、index、localizedTitle、isFavoriteが同じ場合は再レンダリングをスキップ
     return (
         prevProps.photo.id === nextProps.photo.id &&
         prevProps.index === nextProps.index &&
+        prevProps.locale === nextProps.locale &&
         prevProps.localizedTitle === nextProps.localizedTitle &&
         prevProps.placeholderColor === nextProps.placeholderColor &&
         prevProps.objectPosition === nextProps.objectPosition &&

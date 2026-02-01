@@ -169,6 +169,25 @@ export default function GalleryModal({
         velocityThreshold: 0.3,
     });
 
+    // スマホ: タップでコントロール表示／非表示（PCはホバーで表示）。写真切り替え時は非表示（indexWhenToggled !== currentIndex）
+    const [mobileControlsVisible, setMobileControlsVisible] = useState(false);
+    const [indexWhenToggled, setIndexWhenToggled] = useState<number | null>(null);
+    const touchMovedRef = useRef(false);
+
+    const showMobileControls =
+        mobileControlsVisible && indexWhenToggled === currentIndex;
+
+    const handleImageAreaClick = () => {
+        if (typeof window === "undefined") return;
+        if (!window.matchMedia("(hover: none)").matches || touchMovedRef.current) return;
+        if (showMobileControls) {
+            setMobileControlsVisible(false);
+        } else {
+            setIndexWhenToggled(currentIndex);
+            setMobileControlsVisible(true);
+        }
+    };
+
     // お気に入り機能
     const { isFavorite, toggleFavorite } = useFavorites();
     const isFav = isFavorite(p.id);
@@ -341,9 +360,9 @@ export default function GalleryModal({
                 className="relative w-full h-full sm:h-auto sm:max-h-[95vh] flex flex-col sm:mx-4 sm:rounded-lg overflow-hidden bg-black"
                 style={{ maxWidth: "980px" }}
             >
-                {/* 画像エリア - スマホでは高さを確保、PCではアスペクト比を維持 */}
+                {/* 画像エリア - スマホでは高さを確保、PCではアスペクト比を維持。group でホバー時のみコントロール表示 */}
                 <div 
-                    className="relative w-full flex-shrink-0 bg-black sm:bg-transparent"
+                    className="group relative w-full flex-shrink-0 bg-black sm:bg-transparent"
                     style={{ 
                         height: "60vh",
                         minHeight: "300px",
@@ -355,14 +374,26 @@ export default function GalleryModal({
                         justifyContent: "center"
                     }}
                 >
-                    {/* 画像コンテナ - 全画面で表示、object-containで全体を表示 */}
+                    {/* 画像コンテナ - 全画面で表示。スマホではタップでコントロール表示切替 */}
                     <div 
-                        className="relative w-full h-full"
+                        className="relative w-full h-full cursor-pointer"
                         style={{
                             maxWidth: "100%",
                             maxHeight: "100%"
                         }}
-                        {...swipeHandlers}
+                        onClick={handleImageAreaClick}
+                        onTouchStart={(e) => {
+                            touchMovedRef.current = false;
+                            swipeHandlers.onTouchStart(e);
+                        }}
+                        onTouchMove={(e) => {
+                            touchMovedRef.current = true;
+                            swipeHandlers.onTouchMove(e);
+                        }}
+                        onTouchEnd={swipeHandlers.onTouchEnd}
+                        onMouseDown={swipeHandlers.onMouseDown}
+                        onMouseMove={swipeHandlers.onMouseMove}
+                        onMouseUp={swipeHandlers.onMouseUp}
                     >
                         <ModalImage
                             src={p.src}
@@ -371,6 +402,8 @@ export default function GalleryModal({
                         />
                     </div>
 
+                    {/* コントロール（←→♡×）: PCではホバー時のみ表示、スマホではタップで表示 */}
+                    <div className={`modal-controls-hover absolute inset-0 z-20 transition-opacity duration-200 ${showMobileControls ? "mobile-controls-visible" : ""}`}>
                     {/* 前へボタン - スマホでは小さく、PCでは大きく */}
                     <button
                         ref={firstFocusableRef}
@@ -388,9 +421,9 @@ export default function GalleryModal({
                             onPrev();
                         }}
                         aria-label="Previous"
-                        className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 rounded-full bg-white/6 hover:bg-white/12 active:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors z-20"
+                        className="group absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 rounded-full bg-white/4 hover:bg-white/10 active:bg-white/14 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors z-20"
                         style={{ 
-                            backdropFilter: "blur(4px)",
+                            backdropFilter: "blur(6px)",
                             touchAction: "manipulation",
                             WebkitTapHighlightColor: "transparent",
                             minWidth: "44px",
@@ -402,7 +435,7 @@ export default function GalleryModal({
                             pointerEvents: "auto"
                         }}
                     >
-                        <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                        <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white/75 group-hover:text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] transition-colors" />
                     </button>
 
                     {/* 次へボタン - スマホでは小さく、PCでは大きく */}
@@ -421,9 +454,9 @@ export default function GalleryModal({
                             onNext();
                         }}
                         aria-label="Next"
-                        className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 rounded-full bg-white/6 hover:bg-white/12 active:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors z-20"
+                        className="group absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 rounded-full bg-white/4 hover:bg-white/10 active:bg-white/14 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors z-20"
                         style={{ 
-                            backdropFilter: "blur(4px)",
+                            backdropFilter: "blur(6px)",
                             touchAction: "manipulation",
                             WebkitTapHighlightColor: "transparent",
                             minWidth: "44px",
@@ -435,7 +468,7 @@ export default function GalleryModal({
                             pointerEvents: "auto"
                         }}
                     >
-                        <ArrowRightIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                        <ArrowRightIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white/75 group-hover:text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] transition-colors" />
                     </button>
 
                     {/* お気に入りボタン - 右上 */}
@@ -454,9 +487,9 @@ export default function GalleryModal({
                             toggleFavorite(p.id);
                         }}
                         aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
-                        className="absolute top-2 sm:top-3 right-12 sm:right-16 rounded-full bg-white/6 hover:bg-white/12 active:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors z-20"
+                        className="group absolute top-2 sm:top-3 right-12 sm:right-16 rounded-full bg-white/4 hover:bg-white/10 active:bg-white/14 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors z-20"
                         style={{ 
-                            backdropFilter: "blur(4px)",
+                            backdropFilter: "blur(6px)",
                             touchAction: "manipulation",
                             WebkitTapHighlightColor: "transparent",
                             minWidth: "44px",
@@ -469,9 +502,9 @@ export default function GalleryModal({
                         }}
                     >
                         {isFav ? (
-                            <HeartIcon className="w-5 h-5 sm:w-6 sm:h-6 text-red-500" />
+                            <HeartIcon className="w-5 h-5 sm:w-6 sm:h-6 text-red-500/90 group-hover:text-red-500 drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] transition-colors" />
                         ) : (
-                            <HeartIconOutline className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                            <HeartIconOutline className="w-5 h-5 sm:w-6 sm:h-6 text-white/75 group-hover:text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] transition-colors" />
                         )}
                     </button>
 
@@ -492,9 +525,9 @@ export default function GalleryModal({
                             onClose();
                         }}
                         aria-label="Close"
-                        className="absolute top-2 sm:top-3 right-2 sm:right-3 rounded-full bg-white/6 hover:bg-white/12 active:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors z-20"
+                        className="group absolute top-2 sm:top-3 right-2 sm:right-3 rounded-full bg-white/4 hover:bg-white/10 active:bg-white/14 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors z-20"
                         style={{ 
-                            backdropFilter: "blur(4px)",
+                            backdropFilter: "blur(6px)",
                             touchAction: "manipulation",
                             WebkitTapHighlightColor: "transparent",
                             minWidth: "44px",
@@ -506,10 +539,11 @@ export default function GalleryModal({
                             pointerEvents: "auto"
                         }}
                     >
-                        <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white/75 group-hover:text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
+                    </div>
                 </div>
 
                 {/* キャプションエリア - スクロール可能 */}
