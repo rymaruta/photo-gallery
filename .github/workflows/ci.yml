@@ -24,3 +24,6 @@ jobs:
 
       - name: Lint and type-check
         run: npm run check:all
+
+      - name: Build
+        run: npm run build
