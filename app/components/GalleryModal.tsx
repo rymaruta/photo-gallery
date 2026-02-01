@@ -374,8 +374,9 @@ export default function GalleryModal({
                         justifyContent: "center"
                     }}
                 >
-                    {/* 画像コンテナ - 全画面で表示。スマホではタップでコントロール表示切替 */}
+                    {/* 画像コンテナ - 全画面で表示。key で切り替え時に再マウントし前の画像・透過の残りを防ぐ */}
                     <div 
+                        key={p.id}
                         className="relative w-full h-full cursor-pointer"
                         style={{
                             maxWidth: "100%",
@@ -396,14 +397,15 @@ export default function GalleryModal({
                         onMouseUp={swipeHandlers.onMouseUp}
                     >
                         <ModalImage
+                            key={p.id}
                             src={p.src}
                             alt={altText}
                             focalPoint={p.focalPoint}
                         />
                     </div>
 
-                    {/* コントロール（←→♡×）: PCではホバー時のみ表示、スマホではタップで表示 */}
-                    <div className={`modal-controls-hover absolute inset-0 z-20 transition-opacity duration-200 ${showMobileControls ? "mobile-controls-visible" : ""}`}>
+                    {/* コントロール（←→♡×）: 画像切り替えで再マウントし透過の残りを防ぐ */}
+                    <div key={p.id} className={`modal-controls-hover absolute inset-0 z-20 transition-opacity duration-200 ${showMobileControls ? "mobile-controls-visible" : ""}`}>
                     {/* 前へボタン - スマホでは小さく、PCでは大きく */}
                     <button
                         ref={firstFocusableRef}
