@@ -169,24 +169,8 @@ export default function GalleryModal({
         velocityThreshold: 0.3,
     });
 
-    // スマホ: タップでコントロール表示／非表示（PCはホバーで表示）。写真切り替え時は非表示（indexWhenToggled !== currentIndex）
-    const [mobileControlsVisible, setMobileControlsVisible] = useState(false);
-    const [indexWhenToggled, setIndexWhenToggled] = useState<number | null>(null);
-    const touchMovedRef = useRef(false);
-
-    const showMobileControls =
-        mobileControlsVisible && indexWhenToggled === currentIndex;
-
-    const handleImageAreaClick = () => {
-        if (typeof window === "undefined") return;
-        if (!window.matchMedia("(hover: none)").matches || touchMovedRef.current) return;
-        if (showMobileControls) {
-            setMobileControlsVisible(false);
-        } else {
-            setIndexWhenToggled(currentIndex);
-            setMobileControlsVisible(true);
-        }
-    };
+    // スマホ: 画像切り替え直後は一瞬コントロールを隠し、透過ボタンが前の画像を写さないようにする
+    const [controlsFresh, setControlsFresh] = useState(false);
 
     // お気に入り機能
     const { isFavorite, toggleFavorite } = useFavorites();
@@ -269,6 +253,17 @@ export default function GalleryModal({
             preload(photos[prevPrevIndex].src);
         }
     }, [currentIndex, photos, p?.src, preload]);
+
+    // スマホのみ: 画像切り替え直後にコントロールを一瞬非表示→表示して、透過が前の画像を写さないようにする
+    useEffect(() => {
+        if (typeof window === "undefined" || !window.matchMedia("(hover: none)").matches) return;
+        const t1 = setTimeout(() => setControlsFresh(true), 0);
+        const t2 = setTimeout(() => setControlsFresh(false), 80);
+        return () => {
+            clearTimeout(t1);
+            clearTimeout(t2);
+        };
+    }, [currentIndex]);
 
     // フォーカストラップとキーボード操作
     useEffect(() => {
@@ -382,15 +377,8 @@ export default function GalleryModal({
                             maxWidth: "100%",
                             maxHeight: "100%"
                         }}
-                        onClick={handleImageAreaClick}
-                        onTouchStart={(e) => {
-                            touchMovedRef.current = false;
-                            swipeHandlers.onTouchStart(e);
-                        }}
-                        onTouchMove={(e) => {
-                            touchMovedRef.current = true;
-                            swipeHandlers.onTouchMove(e);
-                        }}
+                        onTouchStart={swipeHandlers.onTouchStart}
+                        onTouchMove={swipeHandlers.onTouchMove}
                         onTouchEnd={swipeHandlers.onTouchEnd}
                         onMouseDown={swipeHandlers.onMouseDown}
                         onMouseMove={swipeHandlers.onMouseMove}
@@ -404,8 +392,11 @@ export default function GalleryModal({
                         />
                     </div>
 
-                    {/* コントロール（←→♡×）: 画像切り替えで再マウントし透過の残りを防ぐ */}
-                    <div key={p.id} className={`modal-controls-hover absolute inset-0 z-20 transition-opacity duration-200 ${showMobileControls ? "mobile-controls-visible" : ""}`}>
+                    {/* コントロール（←→♡×）: スマホでは切り替え直後一瞬非表示にして透過の残りを防ぐ */}
+                    <div
+                        key={p.id}
+                        className={`modal-controls-hover absolute inset-0 z-20 transition-opacity duration-200 ${controlsFresh ? "modal-controls-fresh" : ""}`}
+                    >
                     {/* 前へボタン - スマホでは小さく、PCでは大きく */}
                     <button
                         ref={firstFocusableRef}
@@ -423,7 +414,7 @@ export default function GalleryModal({
                             onPrev();
                         }}
                         aria-label="Previous"
-                        className="group absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 rounded-full bg-white/4 hover:bg-white/10 active:bg-white/14 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors z-20"
+                        className="modal-control-btn group absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 rounded-full bg-white/4 hover:bg-white/10 active:bg-white/14 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors z-20"
                         style={{ 
                             backdropFilter: "blur(6px)",
                             touchAction: "manipulation",
@@ -456,7 +447,7 @@ export default function GalleryModal({
                             onNext();
                         }}
                         aria-label="Next"
-                        className="group absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 rounded-full bg-white/4 hover:bg-white/10 active:bg-white/14 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors z-20"
+                        className="modal-control-btn group absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 rounded-full bg-white/4 hover:bg-white/10 active:bg-white/14 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors z-20"
                         style={{ 
                             backdropFilter: "blur(6px)",
                             touchAction: "manipulation",
@@ -489,7 +480,7 @@ export default function GalleryModal({
                             toggleFavorite(p.id);
                         }}
                         aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
-                        className="group absolute top-2 sm:top-3 right-12 sm:right-16 rounded-full bg-white/4 hover:bg-white/10 active:bg-white/14 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors z-20"
+                        className="modal-control-btn group absolute top-2 sm:top-3 right-12 sm:right-16 rounded-full bg-white/4 hover:bg-white/10 active:bg-white/14 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors z-20"
                         style={{ 
                             backdropFilter: "blur(6px)",
                             touchAction: "manipulation",
@@ -527,7 +518,7 @@ export default function GalleryModal({
                             onClose();
                         }}
                         aria-label="Close"
-                        className="group absolute top-2 sm:top-3 right-2 sm:right-3 rounded-full bg-white/4 hover:bg-white/10 active:bg-white/14 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors z-20"
+                        className="modal-control-btn group absolute top-2 sm:top-3 right-2 sm:right-3 rounded-full bg-white/4 hover:bg-white/10 active:bg-white/14 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors z-20"
                         style={{ 
                             backdropFilter: "blur(6px)",
                             touchAction: "manipulation",
