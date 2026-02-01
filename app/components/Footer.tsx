@@ -11,19 +11,16 @@ export default function Footer() {
     ja: {
       brand: {
         title: "PhotoGallery",
-        description: "写真作品のキュレーションコレクション。レンズを通して捉えられた瞬間を探索してください。",
+        description: "旅先で撮った写真をまとめた、小さなギャラリーです。",
       },
       navigation: {
         title: "ナビゲーション",
+        works: navLabels.works || "作品",
         gallery: navLabels.gallery || "ギャラリー",
         about: navLabels.about || "制作について",
         favorites: navLabels.favorites || "お気に入り",
         history: navLabels.history || "閲覧履歴",
-      },
-      information: {
-        title: "情報",
-        portfolio: "ポートフォリオ & ギャラリー",
-        collection: "写真コレクション",
+        news: navLabels.news || "お知らせ",
       },
       copyright: `© ${new Date().getFullYear()} PhotoGallery. All rights reserved.`,
       madeWith: "写真のために",
@@ -31,19 +28,16 @@ export default function Footer() {
     en: {
       brand: {
         title: "PhotoGallery",
-        description: "A curated collection of photography works. Explore moments captured through the lens.",
+        description: "A small gallery of photos from my travels.",
       },
       navigation: {
         title: "Navigation",
+        works: navLabels.works || "Works",
         gallery: navLabels.gallery || "Gallery",
         about: navLabels.about || "About",
         favorites: navLabels.favorites || "Favorites",
         history: navLabels.history || "History",
-      },
-      information: {
-        title: "Information",
-        portfolio: "Portfolio & Gallery",
-        collection: "Photography Collection",
+        news: navLabels.news || "News",
       },
       copyright: `© ${new Date().getFullYear()} PhotoGallery. All rights reserved.`,
       madeWith: "for photography",
@@ -54,49 +48,54 @@ export default function Footer() {
 
   return (
     <footer className="relative border-t border-white/10 bg-black">
-      <div className="relative max-w-5xl mx-auto px-6 md:px-8 py-12 md:py-16">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 mb-8 md:mb-12">
+      <div className="relative max-w-5xl mx-auto px-6 md:px-8 py-10 md:py-14">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-10 md:gap-16">
           {/* ブランドセクション */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold text-white mb-4">{content.brand.title}</h3>
-            <p className="text-xs text-white/40 font-light">
-              © {new Date().getFullYear()} PhotoGallery
+          <div className="space-y-2">
+            <h3 className="text-xl font-bold tracking-tight text-white">
+              {content.brand.title}
+            </h3>
+            <p className="text-sm text-white/50 max-w-sm leading-relaxed">
+              {content.brand.description}
             </p>
           </div>
 
           {/* ナビゲーションセクション */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-white/90 uppercase tracking-wider mb-4">
+          <div className="min-w-0">
+            <h4 className="text-xs font-semibold text-white/70 uppercase tracking-widest mb-4">
               {content.navigation.title}
             </h4>
-            <nav className="flex flex-col space-y-3">
-              <Link href="/" className="text-sm text-white/60 hover:text-white/90 transition-colors">
+            <nav
+              className="flex flex-wrap gap-x-6 gap-y-2 md:gap-x-8 md:gap-y-2"
+              aria-label={content.navigation.title}
+            >
+              <Link href="/" className="text-sm text-white/60 hover:text-white transition-colors duration-200">
+                {content.navigation.works}
+              </Link>
+              <Link href="/gallery" className="text-sm text-white/60 hover:text-white transition-colors duration-200">
                 {content.navigation.gallery}
               </Link>
-              <Link href="/about" className="text-sm text-white/60 hover:text-white/90 transition-colors">
-                {content.navigation.about}
+              <Link href="/news" className="text-sm text-white/60 hover:text-white transition-colors duration-200">
+                {content.navigation.news}
               </Link>
-              <Link href="/favorites" className="text-sm text-white/60 hover:text-white/90 transition-colors">
+              <Link href="/favorites" className="text-sm text-white/60 hover:text-white transition-colors duration-200">
                 {content.navigation.favorites}
               </Link>
-              <Link href="/history" className="text-sm text-white/60 hover:text-white/90 transition-colors">
+              <Link href="/history" className="text-sm text-white/60 hover:text-white transition-colors duration-200">
                 {content.navigation.history}
+              </Link>
+              <Link href="/about" className="text-sm text-white/60 hover:text-white transition-colors duration-200">
+                {content.navigation.about}
               </Link>
             </nav>
           </div>
-
-          {/* 情報セクション */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-white/90 uppercase tracking-wider mb-4">
-              {content.information.title}
-            </h4>
-            <div className="flex flex-col space-y-3 text-sm text-white/60">
-              <span>{content.information.portfolio}</span>
-              <span>{content.information.collection}</span>
-            </div>
-          </div>
         </div>
 
+        <div className="mt-10 md:mt-12 pt-6 md:pt-8 border-t border-white/10">
+          <p className="text-xs text-white/40">
+            © {new Date().getFullYear()} PhotoGallery
+          </p>
+        </div>
       </div>
     </footer>
   );
