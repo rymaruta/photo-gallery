@@ -126,6 +126,38 @@
 - **②** は一度設定すれば、誤操作やスクリプト不具合時にも S3 の「以前のバージョン」から `app/data/photos.json` を復元できるので特におすすめです。
 - **③** を使う場合: デプロイ前に `npm run backup:prod-photos` を実行すると、`app/data/backups/` に日付付きコピーが作られます。
 
+**写真の即時反映（再デプロイなしで個別ページを表示）**
+
+本番でアップロードした写真の個別ページ（`/photo/[id]`）と編集ページ（`/admin/edit/[id]`）を、**静的サイトの再デプロイなしで即時表示**するには、**Lambda@Edge** で Viewer request のリライトを設定します。手順は下記「OGP の即時反映（Lambda@Edge）」にまとまっています。
+
+- **仕組み**: `/photo/任意のID` と `/admin/edit/任意のID` をそれぞれ `/photo/_.html`・`/admin/edit/_.html` にリライトして配信（Next.js の静的エクスポート出力に合わせる）。ページ内の JS が URL から id を取得し、API でデータを取得して表示。アップロード時に Lambda が S3 の `photos.json` を更新するため、**PC で再デプロイする必要はありません**。
+
+**スマホだけで運用したい場合（PCで毎回デプロイしなくてよい）**
+
+- **写真の追加・編集・下書き**は、**Lambda@Edge を一度設定すれば、すべてスマホから即時反映**されます（[下記](#ogp-の即時反映lambdaedge)の `node scripts/setup-ogp-edge.js` でデプロイ）。  
+- **PC での再デプロイが必要なのは「見た目や機能のコードを変えたとき」だけ**です。  
+- コードを変えたときのデプロイを楽にしたい場合: **main に push したら自動でデプロイ**する GitHub Actions を用意できます（[後述](#push-で本番デプロイする場合)）。
+
+**OGP の即時反映（Lambda@Edge）**
+
+新規アップロード写真の SNS シェア時に正しい OGP（タイトル・説明・画像）を出すには、**Lambda@Edge** で HTML の meta を差し替えます。
+
+1. **用意済み**: `scripts/lambda-edge/viewer-request.js`（Viewer request: リライト + X-Photo-Id / X-Original-Host）、`scripts/lambda-edge/origin-response.js`（Origin response: OGP API 取得と meta 差し替え）。
+2. **前提**: IAM ロール `photo-gallery-edge-role` を作成する。  
+   - **スクリプトで一括**: `node scripts/create-ogp-edge-role.js` を実行すると、信頼ポリシー（lambda + edgelambda）と AWSLambdaBasicExecutionRole のアタッチまで行う。  
+   - **手動**: IAM → ロール作成 → 信頼エンティティは Lambda → ロール名 `photo-gallery-edge-role`。作成後、信頼関係で **edgelambda.amazonaws.com** を追加し、AWSLambdaBasicExecutionRole をアタッチ。
+3. **デプロイ**: プロジェクトルートで `node scripts/setup-ogp-edge.js`。Viewer request / Origin response 用の 2 つの Lambda が us-east-1 に作成・発行される。
+4. **紐付け**: 初回のみ AWS コンソールで上記のとおり設定。**以降は** `.env.production` に **CLOUDFRONT_DISTRIBUTION_ID** を入れておくと、`node scripts/setup-ogp-edge.js` 実行時に CloudFront の Lambda@Edge が自動で最新バージョンに更新される（手動で ARN を変える必要なし）。Lambda だけデプロイして CloudFront だけ更新したい場合は `node scripts/update-cloudfront-edge-arns.js` を実行。
+5. **注意**: Viewer request 用 Lambda が `/photo/[id]` と `/admin/edit/[id]` のリライトと OGP 用ヘッダー付与の両方を行います。Next.js の静的エクスポートは `about.html`・`admin.html`・`favorites.html` 等を出力するため、`/about` や `/favorites` 等もそれぞれ `/.html` にリライトしています（`/xxx/index.html` は存在しません）。
+
+**push で本番デプロイする場合**
+
+コードを変えたときのデプロイを「main に push したら自動で本番反映」にしたい場合は、GitHub Actions で `web:deploy:prod` 相当の処理を実行するワークフローを追加できます。設定後は、PC で `npm run web:deploy:prod` を実行せず、GitHub に push（例: GitHub モバイルでファイル編集して push、または Codespaces で編集して push）するだけで本番に反映されます。
+
+- 必要な設定: GitHub の **Settings → Secrets and variables → Actions** に、`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` および `ENV_PRODUCTION`（`.env.production` の内容をそのまま）を登録する。S3 バケット名や CloudFront の Distribution ID は Secrets Manager に登録していれば、`deploy-static-site.js` がそこから取得する。
+- ワークフロー例: リポジトリに **`.github/workflows/deploy-on-push.yml.example`** がある。これを `deploy-on-push.yml` にコピー（またはリネーム）し、上記 Secrets を登録する。**main への push のたびにデプロイ**したい場合は、例ファイル内の `on:` にある `push: branches: [main]` のコメントを外す。
+- 注意: 写真の追加・編集だけなら Lambda@Edge を設定すれば再デプロイは不要。コード（見た目・機能）を変えたときだけ push でデプロイする用途向け。
+
 **開発と本番の対応**
 
 | 項目 | 開発（dev） | 本番（prod） |
@@ -423,6 +455,31 @@ CloudFront の **Behaviors** に次を追加する。
 3. デプロイ後、数分待ってから https://journey-photo.com を開き直す（必要なら Ctrl+Shift+R でスーパーリロード）。
 
 これで同じオリジン（journey-photo.com）に API を呼ぶため、CORS は発生しない。
+
+### 8. ページがずっと読み込み中（スピナー）・JS が 503（Service Unavailable）
+
+**症状**: トップページが「読み込み中」のまま進まない。開発者ツールのコンソールに  
+`GET https://journey-photo.com/next/static/chunks/... net::ERR_ABORTED 503` のようなエラーが出る。
+
+**原因**: Next.js の静的アセットの正しいパスは **`/_next/`**（先頭にアンダースコア）です。  
+何らかの理由（古いキャッシュ、プロキシや WAF がアンダースコアを落とす等）でブラウザが **`/next/`** でリクエストすると、S3 にそのパスは存在せず 503 になる。
+
+**対処**（本プロジェクトで実施済みの救済策）:
+
+1. **Service Worker（sw.js）**  
+   `/next/` で始まるリクエストを `/_next/` にリライトしてから取得するようにしている。  
+   → 静的サイトを再デプロイし、ブラウザで **Application → Service Workers → Unregister** のあと **Ctrl+Shift+R** でスーパーリロードする。
+
+2. **Lambda@Edge（Viewer Request）**  
+   CloudFront の Viewer Request で `/next/*` を `/_next/*` にリライトしている。  
+   → Lambda@Edge を更新した場合は、CloudFront のデプロイが完了するまで数分かかることがある。
+
+3. **ユーザー側**  
+   - スーパーリロード（Ctrl+Shift+R / Cmd+Shift+R）でキャッシュを無視して再読み込み。  
+   - シークレットウィンドウで開き直す。  
+   - 10 秒以上待つと「再試行」ボタンが表示されるので、押して再取得する。
+
+**確認**: `node scripts/diagnose-prod.js` で本番の HTML に誤った `/next/` 参照が含まれていないかチェックできる（分析に表示される）。
 
 ---
 

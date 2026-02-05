@@ -12,28 +12,74 @@ import GalleryModal from "./components/GalleryModal";
 import { capitalize } from "../lib/utils/string";
 import { generateStructuredData, generateOrganizationStructuredData, generateCollectionPageStructuredData } from "../lib/utils/seo";
 import { log } from "../lib/utils/log";
+import { publicFetch, PUBLIC_FETCH_TIMEOUT_MS } from "../lib/utils/api";
 
 export default function Page() {
   const { locale, setLocale, labels } = useLocale();
   const [photos, setPhotos] = React.useState<Photo[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState(false);
+  /** "timeout" = タイムアウト, "error" = その他 */
+  const [loadErrorType, setLoadErrorType] = React.useState<"timeout" | "error">("error");
 
   const loadPhotos = React.useCallback(async () => {
     setLoadError(false);
     setLoading(true);
+
+    const normalize = (data: unknown): Photo[] => {
+      const list = Array.isArray(data) ? data : [];
+      return list.filter((p): p is Photo => p && typeof p === "object" && "id" in p);
+    };
+    const applyPublished = (list: Photo[]) =>
+      list.filter((p) => p.published !== false);
+
     try {
-      const { publicFetch } = await import("../lib/utils/api");
-      const response = await publicFetch("/photos", { cache: "no-store" });
+      // 1) 同一オリジンの静的 JSON を優先（Lambda に依存しない＝ぐるぐるしない）
+      const staticUrl = "/app/data/photos.json";
+      const staticTimeoutMs = 5000;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), staticTimeoutMs);
+      let fromStatic = false;
+      try {
+        const res = await fetch(staticUrl, { cache: "no-store", signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const data = await res.json();
+          const list = applyPublished(normalize(data));
+          setPhotos(list);
+          setLoadError(false);
+          fromStatic = true;
+        }
+      } catch (_) {
+        clearTimeout(timeoutId);
+      }
+
+      if (fromStatic) {
+        setLoading(false);
+        return;
+      }
+
+      // 2) フォールバック: API から取得
+      const response = await publicFetch(
+        "/photos",
+        { cache: "no-store" },
+        PUBLIC_FETCH_TIMEOUT_MS
+      );
       if (response.ok) {
         const data = await response.json();
-        setPhotos(data);
+        const publishedOnly = applyPublished(normalize(data));
+        setPhotos(publishedOnly);
+        setLoadError(false);
       } else {
         log.error("写真の取得に失敗しました");
+        setLoadErrorType("error");
         setLoadError(true);
       }
     } catch (error) {
-      log.error("写真取得エラー:", error);
+      const isTimeout =
+        error instanceof Error && error.name === "AbortError";
+      log.error(isTimeout ? "写真取得がタイムアウトしました" : "写真取得エラー:", error);
+      setLoadErrorType(isTimeout ? "timeout" : "error");
       setLoadError(true);
     } finally {
       setLoading(false);
@@ -42,6 +88,26 @@ export default function Page() {
 
   React.useEffect(() => {
     loadPhotos();
+  }, [loadPhotos]);
+
+  // 長時間ロードに陥ったとき用：10秒経っても loading ならエラー表示にして再試行できるようにする
+  React.useEffect(() => {
+    if (!loading) return;
+    const t = setTimeout(() => {
+      setLoadError(true);
+      setLoadErrorType("timeout");
+      setLoading(false);
+    }, 10000);
+    return () => clearTimeout(t);
+  }, [loading]);
+
+  // タブに戻ったときに一覧を再取得（スマホで別タブで編集・アップロードした変更を即時反映）
+  React.useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") loadPhotos();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [loadPhotos]);
 
   const {
@@ -192,17 +258,44 @@ export default function Page() {
         />
 
         {loading && !loadError ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" aria-hidden />
+          <>
+            <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/50" aria-hidden>
+              {locale === "en" ? "Loading…" : "読み込み中…"}
+            </div>
+            <p className="mb-2 text-xs text-white/40" aria-live="polite">
+              {locale === "en"
+                ? "If it takes over 10 seconds, a retry button will appear."
+                : "10秒以上かかると「再試行」ボタンが表示されます。"}
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-0" role="status" aria-live="polite">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-full relative overflow-hidden bg-white/10"
+                  style={{ paddingTop: "75%" }}
+                >
+                  <div className="absolute inset-0 animate-pulse bg-white/5" />
+                </div>
+              ))}
+            </div>
             <p className="sr-only">読み込み中</p>
-          </div>
+          </>
         ) : loadError ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <p className="text-white/80 mb-4">写真の読み込みに失敗しました</p>
+            <p className="text-white/80 mb-4">
+              {loadErrorType === "timeout"
+                ? (locale === "en"
+                  ? "Request timed out (8s). Please try again."
+                  : "接続がタイムアウトしました（8秒）。しばらくしてから再試行してください。")
+                : (locale === "en"
+                  ? "Failed to load photos."
+                  : "写真の読み込みに失敗しました")}
+            </p>
             <button
               type="button"
               onClick={() => loadPhotos()}
               className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+              aria-label={locale === "en" ? "Retry" : "再試行"}
             >
               再試行
             </button>

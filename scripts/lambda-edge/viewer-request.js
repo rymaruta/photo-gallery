@@ -1,12 +1,13 @@
 /**
  * Lambda@Edge Viewer Request: リライト + OGP用に X-Photo-Id / X-Original-Host を付与
- * - /photo/[id] → /photo/_/（Next 静的エクスポートは photo/_/index.html）、X-Photo-Id: [id]
- * - /admin/edit/[id] → /admin/edit/_/
- * - /about（末尾スラッシュなし）→ /about/（S3 の about/index.html を返すため）
+ * Next.js 静的エクスポートは xxx.html をルートに出力するため、パスを .html に合わせる。
+ * - /photo/[id] → /photo/_.html、X-Photo-Id: [id]
+ * - /admin/edit/[id] → /admin/edit/_.html
+ * - /about, /admin, /favorites など → /about.html, /admin.html, /favorites.html ...
  */
 exports.handler = async (event) => {
   const request = event.Records[0].cf.request;
-  const uri = request.uri || "";
+  let uri = request.uri || "";
   const headers = request.headers || {};
 
   const host = headers.host && headers.host[0] && headers.host[0].value;
@@ -14,20 +15,42 @@ exports.handler = async (event) => {
     request.headers["x-original-host"] = [{ key: "X-Original-Host", value: host }];
   }
 
-  // 末尾スラッシュなしのパス → / を付与（S3 の index.html を返すため）
-  if (uri === "/about") {
-    request.uri = "/about/";
+  // 誤って /next/ でリクエストされた場合に /_next/ へリライト（キャッシュ・プロキシで _ が落ちた場合の救済）
+  if (uri.startsWith("/next/")) {
+    request.uri = "/_next/" + uri.slice(6);
     return request;
   }
-  if (uri === "/admin") {
-    request.uri = "/admin/";
-    return request;
+
+  // 静的ルート: Next は about.html, admin.html 等を出力（index.html ではない）
+  const staticRoutes = [
+    ["/about", "/about.html"],
+    ["/about/", "/about.html"],
+    ["/admin", "/admin.html"],
+    ["/admin/", "/admin.html"],
+    ["/favorites", "/favorites.html"],
+    ["/favorites/", "/favorites.html"],
+    ["/gallery", "/gallery.html"],
+    ["/gallery/", "/gallery.html"],
+    ["/history", "/history.html"],
+    ["/history/", "/history.html"],
+    ["/login", "/login.html"],
+    ["/login/", "/login.html"],
+    ["/news", "/news.html"],
+    ["/news/", "/news.html"],
+    ["/upload", "/upload.html"],
+    ["/upload/", "/upload.html"],
+  ];
+  for (const [path, file] of staticRoutes) {
+    if (uri === path) {
+      request.uri = file;
+      return request;
+    }
   }
 
   const photoMatch = uri.match(/^\/photo\/([^/]+)\/?$/);
   if (photoMatch) {
     const id = photoMatch[1];
-    request.uri = "/photo/_/";
+    request.uri = "/photo/_.html";
     if (id !== "_") {
       request.headers["x-photo-id"] = [{ key: "X-Photo-Id", value: id }];
     }
@@ -35,7 +58,7 @@ exports.handler = async (event) => {
   }
 
   if (/^\/admin\/edit\/[^/]+\/?$/.test(uri)) {
-    request.uri = "/admin/edit/_/";
+    request.uri = "/admin/edit/_.html";
   }
   return request;
 };

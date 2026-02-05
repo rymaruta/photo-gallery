@@ -10,6 +10,7 @@ import LocaleToggle from "../components/LocaleToggle";
 import { useLocale } from "../i18n/context";
 import { capitalize } from "../../lib/utils/string";
 import { log } from "../../lib/utils/log";
+import { publicFetch, PUBLIC_FETCH_TIMEOUT_MS } from "../../lib/utils/api";
 
 export default function HistoryPage() {
     const { locale, setLocale, labels } = useLocale();
@@ -18,13 +19,14 @@ export default function HistoryPage() {
     const [allPhotos, setAllPhotos] = React.useState<Photo[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [loadError, setLoadError] = React.useState(false);
+    const [loadErrorTimeout, setLoadErrorTimeout] = React.useState(false);
 
     const loadPhotos = React.useCallback(async () => {
         setLoadError(false);
+        setLoadErrorTimeout(false);
         setLoading(true);
         try {
-            const { publicFetch } = await import("../../lib/utils/api");
-            const response = await publicFetch("/photos", { cache: "no-store" });
+            const response = await publicFetch("/photos", { cache: "no-store" }, PUBLIC_FETCH_TIMEOUT_MS);
             if (response.ok) {
                 const data = await response.json();
                 setAllPhotos(data);
@@ -33,7 +35,9 @@ export default function HistoryPage() {
                 setLoadError(true);
             }
         } catch (error) {
-            log.error("写真取得エラー:", error);
+            const isTimeout = error instanceof Error && error.name === "AbortError";
+            log.error(isTimeout ? "写真取得がタイムアウトしました" : "写真取得エラー:", error);
+            setLoadErrorTimeout(isTimeout);
             setLoadError(true);
         } finally {
             setLoading(false);
@@ -153,7 +157,9 @@ export default function HistoryPage() {
             ) : loadError ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                     <p className="text-white/80 mb-4">
-                        {locale === "en" ? "Failed to load photos." : "写真の読み込みに失敗しました"}
+                        {loadErrorTimeout
+                            ? (locale === "en" ? "Request timed out (8s). Please try again." : "接続がタイムアウトしました（8秒）。しばらくしてから再試行してください。")
+                            : (locale === "en" ? "Failed to load photos." : "写真の読み込みに失敗しました")}
                     </p>
                     <button
                         type="button"

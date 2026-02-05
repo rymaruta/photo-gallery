@@ -254,6 +254,7 @@ async function savePhotosToS3(config, photos) {
       Key: 'app/data/photos.json',
       Body: JSON.stringify(photos, null, 2),
       ContentType: 'application/json',
+      CacheControl: 'no-cache, max-age=0',
     });
     
     await s3Client.send(putObjectCommand);
@@ -426,6 +427,61 @@ exports.handler = async (event) => {
         body: JSON.stringify(photo),
       };
     }
+
+    // GET /og/photo/{id} - OGP用メタ情報（Lambda@Edge等で即時反映に利用）
+    if (httpMethod === 'GET' && pathForRouting.startsWith('/og/photo/')) {
+      const photoId = pathParameters?.id || pathForRouting.split('/').pop();
+      if (!photoId) {
+        return {
+          statusCode: 400,
+          headers: corsHeaders,
+          body: JSON.stringify({ error: '写真IDが必要です' }),
+        };
+      }
+      const config = await getConfig();
+      const photos = await loadPhotosFromS3(config);
+      const photo = photos.find(p => p.id === photoId);
+      if (!photo) {
+        return {
+          statusCode: 404,
+          headers: corsHeaders,
+          body: JSON.stringify({ error: 'Not found' }),
+        };
+      }
+      const getLocalized = (v, locale) => {
+        if (!v) return '';
+        if (typeof v === 'string') return v;
+        return (v[locale] || v.ja || v.en || '');
+      };
+      const getLocalizedParagraphs = (v, locale) => {
+        if (!v) return [];
+        if (typeof v === 'string') return [v];
+        const arr = v[locale] || v.ja || v.en;
+        return Array.isArray(arr) ? arr : [];
+      };
+      const title = getLocalized(photo.title, 'ja') || getLocalized(photo.title, 'en') || 'Untitled';
+      const descJa = getLocalizedParagraphs(photo.description, 'ja');
+      const descEn = getLocalizedParagraphs(photo.description, 'en');
+      const description = descJa.length > 0 ? descJa.join(' ') : descEn.join(' ') || '小さな写真サイトへようこそ。';
+      const siteUrl = config.SITE_URL || config.CLOUDFRONT_URL || 'https://example.com';
+      const imageUrl = photo.src.startsWith('http') ? photo.src : `${siteUrl.replace(/\/$/, '')}${photo.src.startsWith('/') ? '' : '/'}${photo.src}`;
+      const payload = {
+        title: `${title} | PhotoGallery`,
+        description,
+        imageUrl,
+        url: `${siteUrl.replace(/\/$/, '')}/photo/${photoId}`,
+        siteName: 'PhotoGallery',
+      };
+      return {
+        statusCode: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        },
+        body: JSON.stringify(payload),
+      };
+    }
     
     // POST /upload/presigned-url - Presigned URL生成
     if (httpMethod === 'POST' && pathForRouting === '/upload/presigned-url') {
@@ -524,7 +580,7 @@ exports.handler = async (event) => {
         category: body.category || undefined,
         tags: body.tags && Array.isArray(body.tags) ? body.tags : [],
         exif: body.exif || undefined,
-        published: true,
+        published: body.published === undefined ? true : !!body.published,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

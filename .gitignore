@@ -37,9 +37,13 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Lambda@Edge deploy zips
+/scripts/lambda-edge/*.zip
+
 # local artifacts / backups
 /_api_build_backup
 /scripts/_artifacts/
+/scripts/prod-photos-snapshot.json
 /scripts/_artifacts/*.json
 /app/data/_backups/
 app/data/backups/

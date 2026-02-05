@@ -111,25 +111,42 @@ export async function authenticatedFetch(
     });
 }
 
+/** 公開APIのデフォルトタイムアウト（ミリ秒）。この時間で応答がなければ abort する */
+export const PUBLIC_FETCH_TIMEOUT_MS = 8000;
+
 /**
  * 公開APIリクエストを送信（認証不要）
+ * @param timeoutMs 指定時はこの時間で応答がなければ AbortError で reject（未指定時は PUBLIC_FETCH_TIMEOUT_MS を使用しない）
  */
 export async function publicFetch(
     url: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    timeoutMs?: number
 ): Promise<Response> {
     const apiBaseUrl = getApiBaseUrl();
     const fullUrl = url.startsWith("http") ? url : `${apiBaseUrl}${url}`;
-    
-    // ヘッダーを設定
+
     const headers: Record<string, string> = {
         "Content-Type": "application/json",
         ...(options.headers as Record<string, string>),
     };
-    
-    // リクエストを送信
-    return fetch(fullUrl, {
-        ...options,
-        headers,
-    });
+
+    let signal = options.signal;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    if (timeoutMs != null && timeoutMs > 0 && !signal) {
+        const controller = new AbortController();
+        signal = controller.signal;
+        timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    }
+
+    try {
+        const response = await fetch(fullUrl, {
+            ...options,
+            headers,
+            signal,
+        });
+        return response;
+    } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+    }
 }
