@@ -1,9 +1,22 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
 
-/* error boundary では Link が解決されない場合があるため <a href="/"> を使用 */
-/* eslint-disable @next/next/no-html-link-for-pages */
+const messages = {
+  ja: {
+    title: "問題が発生しました",
+    description: "申し訳ありません。ページの読み込み中にエラーが起きました。もう一度お試しください。",
+    retry: "再試行",
+    backToTop: "トップへ戻る",
+  },
+  en: {
+    title: "Something went wrong",
+    description: "Sorry, an error occurred while loading the page. Please try again.",
+    retry: "Retry",
+    backToTop: "Back to top",
+  },
+};
 
 export default function Error({
   error,
@@ -12,6 +25,18 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Context に依存しない（エラー直後は LocaleProvider が使えない場合があるため）
+  const [locale] = useState<"ja" | "en">(() => {
+    if (typeof window === "undefined") return "ja";
+    try {
+      const stored = localStorage.getItem("locale");
+      return stored === "en" || stored === "ja" ? stored : "ja";
+    } catch {
+      return "ja";
+    }
+  });
+  const t = messages[locale] ?? messages.ja;
+
   useEffect(() => {
     console.error("[error boundary]", error);
   }, [error]);
@@ -35,23 +60,19 @@ export default function Error({
             />
           </svg>
         </div>
-        <h1 className="text-xl font-bold mb-2">
-          問題が発生しました
-        </h1>
-        <p className="text-sm text-white/70 mb-6">
-          申し訳ありません。ページの読み込み中にエラーが起きました。もう一度お試しください。
-        </p>
+        <h1 className="text-xl font-bold mb-2">{t.title}</h1>
+        <p className="text-sm text-white/70 mb-6">{t.description}</p>
         <button
           type="button"
           onClick={() => reset()}
           className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
         >
-          再試行
+          {t.retry}
         </button>
         <p className="mt-6 text-xs text-white/50">
-          <a href="/" className="underline hover:text-white/70">
-            トップへ戻る
-          </a>
+          <Link href="/" className="underline hover:text-white/70">
+            {t.backToTop}
+          </Link>
         </p>
       </div>
     </main>

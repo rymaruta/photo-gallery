@@ -31,25 +31,13 @@ export default function LocaleToggle({
                 <button
                     type="button"
                     onClick={onSetJa}
-                    onTouchStart={(e) => {
-                        e.stopPropagation();
-                    }}
-                    onTouchEnd={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        onSetJa();
-                    }}
                     aria-pressed={locale === "ja"}
-                    className={`rounded-md whitespace-nowrap focus:outline-none focus:ring-0 transition-colors font-normal
-            px-2.5 py-0.5 text-xs ${locale === "ja" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+                    className={`rounded-md whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-white/30 transition-colors font-normal
+            px-2.5 py-0.5 text-xs min-h-[44px] flex items-center justify-center ${locale === "ja" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
                     aria-label={jaLabel}
-                    style={{ 
+                    style={{
                         touchAction: "manipulation",
                         WebkitTapHighlightColor: "transparent",
-                        minHeight: "32px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center"
                     }}
                 >
                     {jaLabel}
@@ -58,25 +46,13 @@ export default function LocaleToggle({
                 <button
                     type="button"
                     onClick={onSetEn}
-                    onTouchStart={(e) => {
-                        e.stopPropagation();
-                    }}
-                    onTouchEnd={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        onSetEn();
-                    }}
                     aria-pressed={locale === "en"}
-                    className={`rounded-md whitespace-nowrap focus:outline-none focus:ring-0 transition-colors font-normal
-            px-2.5 py-0.5 text-xs ${locale === "en" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+                    className={`rounded-md whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-white/30 transition-colors font-normal
+            px-2.5 py-0.5 text-xs min-h-[44px] flex items-center justify-center ${locale === "en" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
                     aria-label={enLabel}
-                    style={{ 
+                    style={{
                         touchAction: "manipulation",
                         WebkitTapHighlightColor: "transparent",
-                        minHeight: "32px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center"
                     }}
                 >
                     {enLabel}

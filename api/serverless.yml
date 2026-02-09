@@ -73,6 +73,9 @@ functions:
           method: GET
           path: /api/photos/{id}
       - httpApi:
+          method: GET
+          path: /api/og/photo/{id}
+      - httpApi:
           method: POST
           path: /api/upload/presigned-url
       - httpApi:
@@ -85,9 +88,16 @@ functions:
           method: DELETE
           path: /api/photos/{id}
 
+# プラグイン（serverless-offline は開発時のみ使用）
+plugins:
+  - serverless-offline
+
 # カスタム設定
 custom:
   # 環境別のログレベル設定
   logLevel:
     dev: debug  # 開発環境: すべてのログを出力
     prod: warn  # 本番環境: エラーと警告のみ出力
+  # serverless-offline: 開発時に Next の /api をこのポートにプロキシする
+  serverless-offline:
+    httpPort: 3002

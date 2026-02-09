@@ -1,36 +1,30 @@
-# 写真データ（dev-photos.json / prod-photos.json）の開発用・本番用の分け方
+# 写真データ（1 本化: dev-photos.json のみ編集）
 
-写真一覧データは **開発用** と **本番用** でファイルを分けています。
+写真一覧は **1 本のソース** で管理します。
 
-| ファイル | 用途 | 画像 URL（`src`） |
-|----------|------|-------------------|
-| **dev-photos.json** | **開発環境**（ローカル・Next API・dev Lambda） | 開発用（例: `dev-journey-photo-upload.s3...`） |
-| **prod-photos.json** | **本番環境**（本番 S3 にアップロードする用） | 本番用（例: `https://journey-photo.com/uploads/...`） |
+| ファイル | 役割 |
+|----------|------|
+| **dev-photos.json** | **唯一の編集対象**。開発時 API（serverless-offline）とビルド前の変換元。 |
+| **prod-photos.json** | **生成物**。`npm run convert:photos:prod` で dev-photos.json から自動生成。手で編集しない・Git にコミットしない（.gitignore 済み）。 |
 
 ## 開発時
 
 - 編集・追加するのは **`dev-photos.json`** だけ。
-- ローカルや開発用 API は `dev-photos.json` を参照します。
+- `npm run dev:api`（serverless-offline）は `dev-photos.json` を読み書きします。
 
-## 本番反映の手順
+## ビルド・本番反映
 
-1. **本番用 JSON を生成**（`dev-photos.json` の URL を本番用に変換）  
-   ```bash
-   npm run convert:photos:prod
-   ```
-   → `app/data/prod-photos.json` が生成されます。
-
-2. **本番 S3 にアップロード**  
-   ```bash
-   npm run upload:photos:prod
-   ```
-   → `prod-photos.json` を本番サイト用バケットの `app/data/photos.json` としてアップロードします。  
-   （`prod-photos.json` が無い場合は、`dev-photos.json` を変換してからアップロードします。）
+- **ビルド**（`npm run build`）の前に、スクリプトが自動で `convert:photos:prod` を実行し、`prod-photos.json` を生成します。手動で convert を忘れる心配はありません。
+- **本番 S3 へのアップロード**  
+  ```bash
+  npm run upload:photos:prod
+  ```
+  → ローカルの `prod-photos.json` を本番バケットの `app/data/photos.json` としてアップロードします。  
+  （無い場合は `dev-photos.json` を変換してからアップロードするフォールバックあり。）
 
 ## 補足
 
 - S3 上ではキーは **`app/data/photos.json`** のままです（Lambda がこのパスを参照します）。
-- `prod-photos.json` は `convert:photos:prod` で上書きされるため、手で編集する必要はありません。
 - 本番の画像も、本番用バケット（または CloudFront）の `/uploads/` に置いてください。
 
 ## 既存の photos.json から移行する場合

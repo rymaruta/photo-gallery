@@ -78,21 +78,14 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     const inactiveClasses = "text-white bg-transparent hover:bg-white hover:text-black";
 
     return (
-        <nav className={`site-header__nav flex items-center ${className}`}>
-            <div>
+        <nav className={`site-header__nav flex items-center relative z-10 ${className}`} style={{ pointerEvents: "auto" }}>
+            <div className="relative z-10">
                 <button
+                    type="button"
                     aria-expanded={open}
                     aria-controls="site-menu"
                     aria-label={open ? "Close menu" : "Open menu"}
                     onClick={() => setOpen((v) => !v)}
-                    onTouchStart={(e) => {
-                        e.stopPropagation();
-                    }}
-                    onTouchEnd={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        setOpen((v) => !v);
-                    }}
                     style={{
                         backgroundColor: bg,
                         border: `2px solid ${outerBorder}`,
@@ -100,7 +93,8 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                         touchAction: "manipulation",
                         WebkitTapHighlightColor: "transparent",
                         minWidth: "44px",
-                        minHeight: "44px"
+                        minHeight: "44px",
+                        cursor: "pointer",
                     }}
                     className="inline-flex items-center justify-center w-11 h-11 rounded-md hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-white/20"
                 >
@@ -114,16 +108,13 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                     role="dialog"
                     aria-modal="true"
                     ref={panelRef}
-                    className="fixed left-0 right-0 bottom-0 top-[64px] md:top-[72px] z-50"
+                    className="fixed left-0 right-0 bottom-0 safe-area-menu-panel z-[210]"
                 >
-                    <div 
-                        className="absolute inset-0 bg-black/70" 
-                        onClick={() => setOpen(false)} 
-                        onTouchStart={(e) => {
-                            e.stopPropagation();
-                            setOpen(false);
-                        }}
-                        aria-hidden="true" 
+                    <div
+                        className="absolute inset-0 bg-black/70"
+                        onClick={() => setOpen(false)}
+                        onPointerDown={() => setOpen(false)}
+                        aria-hidden="true"
                     />
 
                     <div className="relative w-full max-w-screen-lg mx-auto h-full px-6 md:px-8 pointer-events-none">
@@ -149,270 +140,36 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                         }}
                                     >
                                         <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleNavigation("/");
-                                                }}
-                                                onTouchStart={(e) => {
-                                                    e.stopPropagation();
-                                                }}
-                                                onTouchEnd={(e) => {
-                                                    e.stopPropagation();
-                                                    e.preventDefault();
-                                                    handleNavigation("/");
-                                                }}
-                                                className={`${linkBase} ${inactiveClasses} w-full text-left`}
-                                                style={{ 
-                                                    touchAction: "manipulation",
-                                                    WebkitTapHighlightColor: "transparent",
-                                                    minHeight: "44px",
-                                                    display: "block",
-                                                    position: "relative",
-                                                    zIndex: 10,
-                                                    cursor: "pointer"
-                                                }}
-                                            >
-                                                {navLabels.works || "Works"}
-                                            </button>
+                                            <button type="button" onClick={(e) => { e.stopPropagation(); handleNavigation("/"); }} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", minHeight: "44px", display: "block", position: "relative", zIndex: 10, cursor: "pointer" }}>{navLabels.works || "Works"}</button>
                                         </li>
-
                                         <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleNavigation("/gallery");
-                                                }}
-                                                onTouchStart={(e) => {
-                                                    e.stopPropagation();
-                                                }}
-                                                onTouchEnd={(e) => {
-                                                    e.stopPropagation();
-                                                    e.preventDefault();
-                                                    handleNavigation("/gallery");
-                                                }}
-                                                className={`${linkBase} ${inactiveClasses} w-full text-left`}
-                                                style={{ 
-                                                    touchAction: "manipulation",
-                                                    WebkitTapHighlightColor: "transparent",
-                                                    minHeight: "44px",
-                                                    display: "block",
-                                                    position: "relative",
-                                                    zIndex: 10,
-                                                    cursor: "pointer"
-                                                }}
-                                            >
-                                                {navLabels.gallery || "Gallery"}
-                                            </button>
+                                            <button type="button" onClick={(e) => { e.stopPropagation(); handleNavigation("/gallery"); }} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", minHeight: "44px", display: "block", position: "relative", zIndex: 10, cursor: "pointer" }}>{navLabels.gallery || "Gallery"}</button>
                                         </li>
-
                                         <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleNavigation("/news");
-                                                }}
-                                                onTouchStart={(e) => {
-                                                    e.stopPropagation();
-                                                }}
-                                                onTouchEnd={(e) => {
-                                                    e.stopPropagation();
-                                                    e.preventDefault();
-                                                    handleNavigation("/news");
-                                                }}
-                                                className={`${linkBase} ${inactiveClasses} w-full text-left`}
-                                                style={{ 
-                                                    touchAction: "manipulation",
-                                                    WebkitTapHighlightColor: "transparent",
-                                                    minHeight: "44px",
-                                                    display: "block",
-                                                    position: "relative",
-                                                    zIndex: 10,
-                                                    cursor: "pointer"
-                                                }}
-                                            >
-                                                {navLabels.news || "News"}
-                                            </button>
+                                            <button type="button" onClick={(e) => { e.stopPropagation(); handleNavigation("/news"); }} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", minHeight: "44px", display: "block", position: "relative", zIndex: 10, cursor: "pointer" }}>{navLabels.news || "News"}</button>
                                         </li>
-
                                         <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleNavigation("/favorites");
-                                                }}
-                                                onTouchStart={(e) => {
-                                                    e.stopPropagation();
-                                                }}
-                                                onTouchEnd={(e) => {
-                                                    e.stopPropagation();
-                                                    e.preventDefault();
-                                                    handleNavigation("/favorites");
-                                                }}
-                                                className={`${linkBase} ${inactiveClasses} w-full text-left`}
-                                                style={{ 
-                                                    touchAction: "manipulation",
-                                                    WebkitTapHighlightColor: "transparent",
-                                                    minHeight: "44px",
-                                                    display: "block",
-                                                    position: "relative",
-                                                    zIndex: 10,
-                                                    cursor: "pointer"
-                                                }}
-                                            >
-                                                {navLabels.favorites || "Favorites"}
-                                            </button>
+                                            <button type="button" onClick={(e) => { e.stopPropagation(); handleNavigation("/favorites"); }} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", minHeight: "44px", display: "block", position: "relative", zIndex: 10, cursor: "pointer" }}>{navLabels.favorites || "Favorites"}</button>
                                         </li>
-
                                         <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleNavigation("/history");
-                                                }}
-                                                onTouchStart={(e) => {
-                                                    e.stopPropagation();
-                                                }}
-                                                onTouchEnd={(e) => {
-                                                    e.stopPropagation();
-                                                    e.preventDefault();
-                                                    handleNavigation("/history");
-                                                }}
-                                                className={`${linkBase} ${inactiveClasses} w-full text-left`}
-                                                style={{ 
-                                                    touchAction: "manipulation",
-                                                    WebkitTapHighlightColor: "transparent",
-                                                    minHeight: "44px",
-                                                    display: "block",
-                                                    position: "relative",
-                                                    zIndex: 10,
-                                                    cursor: "pointer"
-                                                }}
-                                            >
-                                                {navLabels.history || "History"}
-                                            </button>
+                                            <button type="button" onClick={(e) => { e.stopPropagation(); handleNavigation("/history"); }} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", minHeight: "44px", display: "block", position: "relative", zIndex: 10, cursor: "pointer" }}>{navLabels.history || "History"}</button>
                                         </li>
-
                                         <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleNavigation("/about");
-                                                }}
-                                                onTouchStart={(e) => {
-                                                    e.stopPropagation();
-                                                }}
-                                                onTouchEnd={(e) => {
-                                                    e.stopPropagation();
-                                                    e.preventDefault();
-                                                    handleNavigation("/about");
-                                                }}
-                                                className={`${linkBase} ${inactiveClasses} w-full text-left`}
-                                                style={{ 
-                                                    touchAction: "manipulation",
-                                                    WebkitTapHighlightColor: "transparent",
-                                                    minHeight: "44px",
-                                                    display: "block",
-                                                    position: "relative",
-                                                    zIndex: 10,
-                                                    cursor: "pointer"
-                                                }}
-                                            >
-                                                {navLabels.about || "About"}
-                                            </button>
+                                            <button type="button" onClick={(e) => { e.stopPropagation(); handleNavigation("/about"); }} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", minHeight: "44px", display: "block", position: "relative", zIndex: 10, cursor: "pointer" }}>{navLabels.about || "About"}</button>
                                         </li>
-
-                                        {/* 管理者専用リンク */}
                                         {isAdminUser && (
                                             <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleNavigation("/admin");
-                                                    }}
-                                                    onTouchStart={(e) => {
-                                                        e.stopPropagation();
-                                                    }}
-                                                    onTouchEnd={(e) => {
-                                                        e.stopPropagation();
-                                                        e.preventDefault();
-                                                        handleNavigation("/admin");
-                                                    }}
-                                                    className={`${linkBase} ${inactiveClasses} w-full text-left`}
-                                                    style={{ 
-                                                        touchAction: "manipulation",
-                                                        WebkitTapHighlightColor: "transparent",
-                                                        minHeight: "44px",
-                                                        display: "block",
-                                                        position: "relative",
-                                                        zIndex: 10,
-                                                        cursor: "pointer"
-                                                    }}
-                                                >
-                                                    {navLabels.admin || "Manage"}
-                                                </button>
+                                                <button type="button" onClick={(e) => { e.stopPropagation(); handleNavigation("/admin"); }} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", minHeight: "44px", display: "block", position: "relative", zIndex: 10, cursor: "pointer" }}>{navLabels.admin || "Manage"}</button>
                                             </li>
                                         )}
-
-                                        {/* 認証状態に応じたリンク */}
                                         {isAuthenticated ? (
                                             <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        logout();
-                                                    }}
-                                                    onTouchStart={(e) => {
-                                                        e.stopPropagation();
-                                                    }}
-                                                    onTouchEnd={(e) => {
-                                                        e.stopPropagation();
-                                                        e.preventDefault();
-                                                        logout();
-                                                    }}
-                                                    className={`${linkBase} ${inactiveClasses} w-full text-left`}
-                                                    style={{ 
-                                                        touchAction: "manipulation",
-                                                        WebkitTapHighlightColor: "transparent",
-                                                        minHeight: "44px",
-                                                        display: "block",
-                                                        position: "relative",
-                                                        zIndex: 10,
-                                                        cursor: "pointer"
-                                                    }}
-                                                >
-                                                    {navLabels.logout || "Logout"}
-                                                </button>
+                                                <button type="button" onClick={(e) => { e.stopPropagation(); logout(); }} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", minHeight: "44px", display: "block", position: "relative", zIndex: 10, cursor: "pointer" }}>{navLabels.logout || "Logout"}</button>
                                             </li>
                                         ) : (
                                             <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleNavigation("/login");
-                                                    }}
-                                                    onTouchStart={(e) => {
-                                                        e.stopPropagation();
-                                                    }}
-                                                    onTouchEnd={(e) => {
-                                                        e.stopPropagation();
-                                                        e.preventDefault();
-                                                        handleNavigation("/login");
-                                                    }}
-                                                    className={`${linkBase} ${inactiveClasses} w-full text-left`}
-                                                    style={{ 
-                                                        touchAction: "manipulation",
-                                                        WebkitTapHighlightColor: "transparent",
-                                                        minHeight: "44px",
-                                                        display: "block",
-                                                        position: "relative",
-                                                        zIndex: 10,
-                                                        cursor: "pointer"
-                                                    }}
-                                                >
-                                                    {navLabels.login || "Login"}
-                                            </button>
-                                        </li>
+                                                <button type="button" onClick={(e) => { e.stopPropagation(); handleNavigation("/login"); }} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", minHeight: "44px", display: "block", position: "relative", zIndex: 10, cursor: "pointer" }}>{navLabels.login || "Login"}</button>
+                                            </li>
                                         )}
                                     </ul>
                                 </nav>

@@ -481,6 +481,45 @@ CloudFront の **Behaviors** に次を追加する。
 
 **確認**: `node scripts/diagnose-prod.js` で本番の HTML に誤った `/next/` 参照が含まれていないかチェックできる（分析に表示される）。
 
+### 8.1. JS/CSS が 503 または 403・MIME type ('text/html' / 'application/xml') エラー
+
+**症状**: コンソールに  
+`GET https://journey-photo.com/_next/static/chunks/xxx.js net::ERR_ABORTED 503 (Service Unavailable)` や  
+`Refused to execute script ... because its MIME type ('text/html') is not executable`、  
+`because its MIME type ('application/xml') is not executable` が出る。
+
+**意味**: ブラウザは **`/_next/static/`** の JS/CSS を要求しているが、サーバーが **200 の代わりに 503 や 403 を返し、本文が HTML や XML（エラーページ）** になっている。そのため「スクリプトとして実行できない」とブラウザが拒否する。
+
+**想定原因と対処**:
+
+| 原因 | 対処 |
+|------|------|
+| **S3 に `_next` が上がっていない** | プロジェクトルートで `npm run web:deploy:prod` を**最初から**実行し直す。`aws s3 ls s3://<サイト用バケット>/_next/static/` でオブジェクトが並ぶか確認。 |
+| **CloudFront の Default (\*) の Origin が S3 でない** | CloudFront → Behaviors で Path pattern **`*`** の **Origin** が **サイト用 S3 バケット**（AWS_S3_SITE_BUCKET_NAME）になっているか確認。API Gateway だけだと `/_next/*` は 403/503 になる。 |
+| **キャッシュで古い 403/503 が返っている** | CloudFront のキャッシュ無効化: `aws cloudfront create-invalidation --distribution-id <ID> --paths "/*"`。数分待ってから **シークレットウィンドウ** または **Ctrl+Shift+R** で再アクセス。 |
+| **OAC やバケットポリシーで GetObject が拒否されている** | サイト用 S3 の **Bucket policy** で、CloudFront の OAC 用 **Principal** に `GetObject` が許可されているか確認。Key は `*` または対象プレフィックスを含む形。 |
+| **デプロイ直後で HTML と chunk のハッシュが食い違っている** | 再デプロイ後、**必ずキャッシュ無効化**してから確認。古い HTML が新しい chunk 名を参照している、またはその逆で 404/403 になることがある。 |
+
+**確認例**（本番 URL を置き換えて実行）:
+```bash
+# 本番 HTML から 1 本の _next の URL を取得して確認
+curl -sI "https://journey-photo.com/_next/static/chunks/webpack-*.js"  # 実際のハッシュは HTML を開いて確認
+# 期待: HTTP/2 200 と Content-Type: application/javascript
+# 403/503 や Content-Type: text/html なら上記のいずれかの設定不備。
+```
+
+**React Minified error #418（Hydration failed）について**:  
+`_next/static` の JS が 503/403 で読めないと、サーバーが返した HTML とクライアントの React の内容が一致せず、**Hydration failed because the initial UI does not match what was rendered on the server**（minified では #418）が出ます。**先に 8.1 の 503/403 を解消**すれば、このエラーも解消します。
+
+#### 再発防止のための対策（実施済み・推奨）
+
+| 対策 | 内容 |
+|------|------|
+| **デプロイ時の S3 検証** | `npm run web:deploy:prod` のうち、S3 sync 直後に **`_next/static/chunks/` にオブジェクトが存在するか** を自動チェックします。空の場合はデプロイを失敗させ、原因調査を促します。 |
+| **本番疎通の手動確認** | デプロイとキャッシュ無効化のあと、**`npm run verify:prod-next-assets`** を実行してください。本番のトップページから _next の JS/CSS URL を取得し、それぞれ 200 かつ正しい MIME で返るか検証します。NG の場合は対処案を表示して exit 1 します。 |
+| **CloudFront の Default (\*) を S3 に固定** | Behaviors で Path pattern **`*`** の Origin を **サイト用 S3 のみ**にし、API は **`api/*`** の別 Behavior で API Gateway に振る運用にしてください。`*` が API Gateway だと `/_next/*` が 403/503 になります。 |
+| **毎回キャッシュ無効化** | 静的サイトデプロイ後は必ず **`--paths "/*"`** で CloudFront のキャッシュ無効化を実行し、数分待ってからブラウザで確認してください。 |
+
 ---
 
 ## 開発用・本番用の photos の分離
@@ -506,7 +545,7 @@ CloudFront の **Behaviors** に次を追加する。
 - [ ] **CloudFront Origins**: 静的サイト用 S3 が 1 つあり OAC 設定済み。API 用に API Gateway を 1 つ追加済み。
 - [ ] **CloudFront Behaviors**: `api/*` が API Gateway オリジンで **`*` より上**。Path pattern **`*`** の Origin が S3。Redirect HTTP to HTTPS。
 - [ ] **CloudFront General**: **Default root object** = `index.html`。
-- [ ] **S3**: サイト用バケットのルートに `index.html` がある（`npm run web:deploy:prod` 済み）。写真一覧を更新した場合は `npm run upload:photos:prod` で `app/data/photos.json` をアップロード済み。
+- [ ] **S3**: サイト用バケットのルートに `index.html` がある（`npm run web:deploy:prod` 済み）。デプロイ後は **`npm run verify:prod-next-assets`** で本番の _next 疎通を確認すると 503/403 の再発防止になる。写真一覧を更新した場合は `npm run upload:photos:prod` で `app/data/photos.json` をアップロード済み。
 - [ ] **Secrets Manager**（`prod-journey-photo-upload`）: 必須キーがすべてある。`AWS_S3_SITE_BUCKET_NAME` がアップロード先のバケット名と一致している。
 - [ ] **Cognito**: 本番のコールバックURL・サインアウトURL に `https://journey-photo.com` を追加。
 - [ ] **Route 53**: journey-photo.com / www の **A と AAAA** が CloudFront（エイリアス）を指している。ドメインの**名前サーバー**が Route 53 の NS 4 つに設定されている。
@@ -600,6 +639,55 @@ S3 バケットを「全世界に公開」にしなくても、CloudFront 経由
 - **Origins**: Origin domain = `prod-journey-photo.com.s3.ap-northeast-1.amazonaws.com`、Origin path = 空欄、オリジンアクセス = OAC を選択 → **Save changes**
 - **Behaviors（`*`）**: パスパターン = `*`、オリジン = 上記 S3、圧縮 Yes、Redirect HTTP to HTTPS、GET, HEAD → **Save changes**
 - **General**: Default root object = `index.html`、カスタムドメイン時は Alternate domain names と SSL 証明書 → **Save changes**
+
+---
+
+## 変更を本番環境に反映する
+
+### 方法 A: 手元の PC からデプロイ（今すぐ反映したいとき）
+
+**前提**: `.env.production` がプロジェクトルートにある。AWS の認証情報が設定されている。Lambda 用に Secrets Manager の `prod-journey-photo-upload` に `COGNITO_USER_POOL_ID` が入っている。
+
+```bash
+# チェック・Lambda（API）・静的サイトをまとめて本番デプロイ
+npm run deploy:prod
+```
+
+または API と Web を分ける場合:
+
+```bash
+npm run api:deploy:prod   # Lambda だけ
+npm run web:deploy:prod   # 静的サイト（ビルド → S3 アップロード → CloudFront 無効化）
+```
+
+初回や `api/` を変えたあとは `api:deploy:prod` を、フロントだけ変えたときは `web:deploy:prod` だけでもよいです。
+
+### 方法 B: GitHub Actions でデプロイ（スマホからでも可）
+
+1. **初回だけ** — GitHub の **Settings → Secrets and variables → Actions** に `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `ENV_PRODUCTION`（`.env.production` の中身を 1 行に。改行は `\n`）を登録。
+2. **デプロイ実行** — **Actions** タブ → **Deploy production** → **Run workflow**。main に push で自動デプロイしたい場合は `.github/workflows/deploy-on-push.yml` の `push:` のコメントを外す。
+
+---
+
+## スマホで運用するためのデプロイとおすすめ設定
+
+- **写真の追加・編集だけ**: デプロイ不要。API（Lambda）経由で S3 と photos.json が更新される。再デプロイが必要なのは Next.js のコードやデザインを変えたときだけ。
+- **コードを変えたとき**: GitHub Actions でデプロイ（上記「方法 B」）。スマホの GitHub アプリで push するか、Actions から「Run workflow」で手動実行。
+- **おすすめ設定（一度だけ）**: [DEPLOY.md の CloudFront 設定](#cloudfront画像用-uploads-の設定) のとおり、GET /photos と photos.json のキャッシュ、画像を CloudFront 同一オリジンで配信、Lambda ウォームアップ（EventBridge で 5 分ごと invoke など）を検討。
+- **本番で「読み込み中」のまま・JS が 503**: `/_next/` が `/next/` でリクエストされる環境がある場合、デプロイスクリプトで `out/_next` を `out/next` にコピーしてから S3 にアップロードしている。再デプロイ後、スーパーリロード（Ctrl+Shift+R）またはシークレットウィンドウで開き直す。
+
+---
+
+## セキュリティヘッダー（CloudFront）
+
+CloudFront のレスポンスにセキュリティ関連の HTTP ヘッダーを付与する手順です。
+
+**付与されるヘッダー（AWS マネージドポリシー SecurityHeadersPolicy）**: X-Content-Type-Options: nosniff, X-Frame-Options: SAMEORIGIN, X-XSS-Protection, Referrer-Policy, Strict-Transport-Security など。
+
+- **方法 1（推奨）**: `.env.production` に `AWS_SECRET_NAME` が設定されていれば、`npm run security-headers` で適用。Distribution ID を直接指定する場合は `node scripts/apply-security-headers.js --distribution-id EXXXXXXXXXXXX`。
+- **方法 2**: CloudFront コンソール → 対象 Distribution → **Behaviors** → Default の **Edit** → **Response headers policy** で **SecurityHeadersPolicy**（マネージド）を選択 → **Save changes**。
+
+**注意**: HSTS を付けるとそのドメインは HTTPS のみ前提になります。本サイトは HTTPS リダイレクト前提のためマネージドポリシーで問題ありません。
 
 ---
 

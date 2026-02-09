@@ -345,6 +345,35 @@ sequenceDiagram
 
 ---
 
+## 構成の見直し案（Architecture Options）
+
+**現状の課題**: 一覧表示が Lambda API に依存しているため、Lambda が遅い・落ちている・Cold Start だと「写真が取れない」「スピナーで固まる」になりやすい。
+
+**選択肢**
+
+- **A. 写真一覧を「静的」にする（おすすめ・実施済み）**  
+  デプロイ時に photos.json をビルドに含め、クライアントは同一オリジンの `/app/data/photos.json` を取得。一覧の初回表示が Lambda に依存しない。アップロード・編集は従来どおり Lambda が S3 の photos.json を更新。`upload:photos:prod` で一覧を本番に反映。
+- **B. ハイブリッド**  
+  初回は静的 JSON で表示し、バックグラウンドで `GET /api/photos` を呼んで最新に差し替える。アップロード直後の即時反映に向く。
+- **C. 現状のまま耐障害性だけ強化**  
+  タイムアウト・再試行の強化、Lambda のウォームアップ、プロビジョンド同時実行など。
+
+**おすすめの進め方**: まず A（一覧を静的）を採用し、必要なら B を追加。Lambda / API は「更新系だけ」に使う分担にすると構成が分かりやすい。
+
+---
+
+## フォルダ構成（見直し後）
+
+- **app/** … Next.js App Router の規約に従う。ルート・ページ・レイアウト。UI 専用の小さなモジュール（auth context, i18n）は app 内に残す。`app/api` は廃止済み（開発時は serverless-offline にプロキシ）。
+- **lib/** … アプリ全体で共有するロジック（型・API・認証・ユーティリティ・**フック**）。`app` や `api/` から参照され、`lib` は `app` に依存しないようにする。フックはすべて `lib/hooks/` に統一。
+- **app/data/** … 写真 JSON（dev-photos.json / prod-photos.json）と Next が参照するデータの置き場。
+- **scripts/** … デプロイ・データ・診断用。一覧は `scripts/README.md` を参照。
+- **docs/** … 設計・セットアップ・デプロイ。一覧は `docs/README.md` を参照。
+
+インポートは `@/lib/hooks/useGallery` のように `tsconfig.json` の `paths`（`@/*`）を利用することを推奨。
+
+---
+
 ## 参照
 
 - [本番デプロイ（DEPLOY.md）](./DEPLOY.md) … デプロイ手順・URL・トラブルシューティング

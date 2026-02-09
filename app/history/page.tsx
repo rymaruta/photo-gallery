@@ -11,25 +11,36 @@ import { useLocale } from "../i18n/context";
 import { capitalize } from "../../lib/utils/string";
 import { log } from "../../lib/utils/log";
 import { publicFetch, PUBLIC_FETCH_TIMEOUT_MS } from "../../lib/utils/api";
+import { getInitialPhotosList, setCachedPhotos, normalizePhotos, applyPublished } from "../../lib/photos-initial";
 
 export default function HistoryPage() {
     const { locale, setLocale, labels } = useLocale();
     const { history, clearHistory } = useViewHistory();
     const { preloadMultiple } = useImagePreloader();
-    const [allPhotos, setAllPhotos] = React.useState<Photo[]>([]);
-    const [loading, setLoading] = React.useState(true);
+    const [allPhotos, setAllPhotos] = React.useState<Photo[]>(() => {
+        try {
+            return getInitialPhotosList();
+        } catch {
+            return [];
+        }
+    });
+    const [loading, setLoading] = React.useState(false);
     const [loadError, setLoadError] = React.useState(false);
     const [loadErrorTimeout, setLoadErrorTimeout] = React.useState(false);
 
     const loadPhotos = React.useCallback(async () => {
         setLoadError(false);
         setLoadErrorTimeout(false);
+        const cached = getInitialPhotosList();
+        if (cached.length > 0) setAllPhotos(cached);
         setLoading(true);
         try {
             const response = await publicFetch("/photos", { cache: "no-store" }, PUBLIC_FETCH_TIMEOUT_MS);
             if (response.ok) {
                 const data = await response.json();
-                setAllPhotos(data);
+                const list = applyPublished(normalizePhotos(data));
+                setAllPhotos(list);
+                setCachedPhotos(list);
             } else {
                 log.error("写真の取得に失敗しました");
                 setLoadError(true);
@@ -150,7 +161,7 @@ export default function HistoryPage() {
                 </div>
             </div>
 
-            {loading && !loadError ? (
+            {loading && allPhotos.length === 0 && !loadError ? (
                 <div className="flex items-center justify-center py-12">
                     <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" aria-hidden />
                 </div>

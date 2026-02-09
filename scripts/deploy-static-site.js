@@ -103,6 +103,11 @@ const run = (command) => {
   execSync(command, { stdio: "inherit" });
 };
 
+/** コマンドを実行し stdout を返す（検証用）。失敗時は例外。 */
+function runCapture(command, opts = {}) {
+  return execSync(command, { encoding: "utf-8", ...opts });
+}
+
 // CloudFront Distribution IDの取得（優先順位: 引数 > 環境変数 > Secrets Manager）
 async function getDistributionId() {
   // 1. コマンドライン引数から取得
@@ -166,12 +171,39 @@ async function getDistributionId() {
   console.log("[1/3] Building Next.js static site...");
   run("npm run build");
 
+  // /next/ でリクエストが来ても 503 にならないよう、_next を next としても配置する（CloudFront 等で _ が落ちる場合の対策）
+  const outNext = path.join(process.cwd(), "out", "next");
+  const outUnderNext = path.join(process.cwd(), "out", "_next");
+  if (fs.existsSync(outUnderNext)) {
+    if (fs.existsSync(outNext)) fs.rmSync(outNext, { recursive: true });
+    fs.cpSync(outUnderNext, outNext, { recursive: true });
+    console.log("\n[1.5/3] Copied out/_next → out/next (for /next/ requests).");
+  }
+
+  // out/ に app/data/photos.json を含め、sync --delete で消えないようにする（本番で「読み込み中」のままになるのを防ぐ）
+  const outPhotosDir = path.join(process.cwd(), "out", "app", "data");
+  const outPhotosPath = path.join(outPhotosDir, "photos.json");
+  if (fs.existsSync(prodPhotosPath)) {
+    if (!fs.existsSync(outPhotosDir)) fs.mkdirSync(outPhotosDir, { recursive: true });
+    fs.copyFileSync(prodPhotosPath, outPhotosPath);
+    console.log("[1.6/3] Copied prod-photos.json → out/app/data/photos.json (for S3 sync).");
+  }
+
   console.log("\n[2/3] Uploading files to S3 bucket:");
   console.log(`      s3://${bucket}/`);
   console.log("      (showing only errors, if any)\n");
   // ファイルごとの詳細ログを抑えて、エラーのみ表示
   run(`aws s3 sync out/ s3://${bucket}/ --delete --only-show-errors --no-progress`);
   console.log("\n✅ S3 upload completed.");
+
+  // index.html を常に再検証させる（古い HTML キャッシュで _next のチャンク名がずれ 503/403 になるのを防ぐ）
+  const indexPath = path.join(process.cwd(), "out", "index.html");
+  if (fs.existsSync(indexPath)) {
+    run(
+      `aws s3 cp "${indexPath}" s3://${bucket}/index.html --content-type "text/html; charset=utf-8" --cache-control "no-cache, no-store, must-revalidate, max-age=0"`
+    );
+    console.log("[2.1/3] Set index.html Cache-Control: no-cache, no-store, must-revalidate, max-age=0");
+  }
 
   // sync --delete で app/data/photos.json が消えるため、本番用を再アップロードする（上で本番から取り直した prod-photos.json をアップロード）
   const devPhotosPath = path.join(process.cwd(), "app", "data", "dev-photos.json");
@@ -183,6 +215,33 @@ async function getDistributionId() {
       "\n[2.5/3] ⚠️ app/data/prod-photos.json も dev-photos.json もありません。写真一覧が 0 件になります。\n" +
         "  npm run convert:photos:prod && npm run upload:photos:prod で復元してください。"
     );
+  }
+
+  // 再発防止: _next が S3 に存在するか検証（503/403 の多くは _next 未アップロードが原因）
+  const region = process.env.AWS_REGION || "ap-northeast-1";
+  console.log("\n[2.6/3] Verifying _next/static on S3 (prevent 503/403 on JS/CSS)...");
+  try {
+    const listOut = runCapture(`aws s3 ls s3://${bucket}/_next/static/chunks/ --region ${region}`);
+    const lines = listOut.trim().split("\n").filter(Boolean);
+    if (lines.length === 0) {
+      console.error(
+        "[deploy-static-site] ERROR: s3://" +
+          bucket +
+          "/_next/static/chunks/ is empty. JS/CSS will 503/403.\n" +
+          "  Check that 'out/_next' exists after build and sync completed without errors."
+      );
+      process.exit(1);
+    }
+    console.log(`     → _next/static/chunks/ has ${lines.length}+ objects. OK.`);
+  } catch (e) {
+    console.error(
+      "[deploy-static-site] ERROR: Could not list s3://" +
+        bucket +
+        "/_next/static/chunks/. " +
+        (e.stderr || e.message || String(e)) +
+        "\n  Fix: ensure build produced out/_next and sync succeeded, then redeploy."
+    );
+    process.exit(1);
   }
 
   console.log("\n[3/3] CloudFront cache invalidation (if configured)...");
@@ -208,4 +267,8 @@ async function getDistributionId() {
   console.log("\n==============================");
   console.log("✅ Deploy finished");
   console.log("==============================\n");
+  console.log(
+    "※ 古いキャッシュ対策: index.html は no-store、Service Worker は HTML をキャッシュしません。\n" +
+      "  それでも 503/403 が出る場合はスーパーリロード（Ctrl+Shift+R）またはサイトデータの削除を試してください。\n"
+  );
 })();

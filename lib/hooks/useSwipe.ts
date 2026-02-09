@@ -128,7 +128,6 @@ export function useSwipe(options: SwipeOptions = {}) {
                 handleMove(e.clientX, e.clientY);
             }
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         onMouseUp: (_e) => {
             if (isDraggingRef.current) {
                 handleEnd();

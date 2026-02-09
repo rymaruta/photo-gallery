@@ -1,6 +1,6 @@
 // app/layout.tsx
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Inter } from "next/font/google";
 import HeaderNav from "./components/HeaderNav";
@@ -8,6 +8,8 @@ import Footer from "./components/Footer";
 import ToastProvider from "./components/ToastProvider";
 import { AuthProvider } from "./auth/context";
 import { LocaleProvider } from "./i18n/context";
+import { PwaRegister } from "./components/PwaRegister";
+import RootErrorBoundary from "./components/RootErrorBoundary";
 import { siteConfig, generateWebSiteStructuredData } from "../lib/utils/seo";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "700", "900"] });
@@ -76,12 +78,21 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    google: "W6lLVqTh35YGAQGOrK0MfS3WVqsm24XWecLo_oyFNoE",
+    google: "_QSo4q7u-jzoQB5kyyIHeVlgFjunVL--4P1u6ORaW9M",
   },
   other: {
     "format-detection": "telephone=no",
-    "theme-color": "#000000",
   },
+  manifest: "/manifest.webmanifest",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: "cover",
+  themeColor: "#000000",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -94,22 +105,32 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href={siteConfig.url} />
+        {/* 画像（/uploads/）のオリジンへ事前接続し、一覧の画像表示を高速化 */}
+        <link rel="preconnect" href={new URL(siteConfig.url).origin} />
+        {/* 本番API（CloudFront等）のオリジンへ事前接続し、/photos 取得を高速化 */}
+        {process.env.NEXT_PUBLIC_API_BASE_URL?.startsWith("http") && (
+          <link rel="preconnect" href={new URL(process.env.NEXT_PUBLIC_API_BASE_URL).origin} />
+        )}
+        {/* 一覧データは page の fetch で取得。preload は「数秒以内に使う」必要があり React の fetch とずれるため未使用警告が出るため付けない */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteStructuredData) }}
         />
       </head>
-      <body className={`${inter.className} min-h-screen flex flex-col bg-black text-white`}>
-        <ToastProvider>
-          <LocaleProvider>
-            <AuthProvider>
-              {/* Header: 黒背景に白字のモダンなデザイン */}
-              <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-md border-b border-white/10">
-                <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
-                <div className="relative max-w-5xl mx-auto flex items-center justify-between h-[64px] md:h-[72px] px-6 md:px-8">
+      <body className={`${inter.className} min-h-screen flex flex-col bg-black text-white safe-area-body`}>
+        <PwaRegister />
+        <RootErrorBoundary>
+          <ToastProvider>
+            <LocaleProvider>
+              <AuthProvider>
+                {/* Header: 黒背景に白字のモダンなデザイン（z-[200] で他要素より前面にし、ボタンが確実に反応するようにする） */}
+                <header className="sticky top-0 z-[200] bg-black/60 backdrop-blur-md border-b border-white/10 isolate safe-area-header">
+                <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none select-none" aria-hidden="true" />
+                <div className="relative z-[1] max-w-5xl mx-auto flex items-center justify-between h-[64px] md:h-[72px] px-4 sm:px-6 md:px-8" style={{ pointerEvents: "auto" }}>
                   <h1 className={`${inter.className} text-2xl md:text-3xl font-bold tracking-tight text-white`}>
                     <Link 
                       href="/" 
+                      prefetch={false}
                       className="inline-block hover:opacity-70 transition-opacity duration-200 relative group"
                     >
                       <span className="relative z-10">PhotoGallery</span>
@@ -121,16 +142,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </header>
 
-        {/* Main - 各ページで管理 */}
-          <div className="flex-1">
+        {/* Main - 各ページで管理（スタックコンテキストを分離し、ヘッダー下で確実にクリック可能に） */}
+          <div className="flex-1 relative z-0">
             {children}
           </div>
 
-              {/* Footer: 公式サイト風の洗練されたデザイン */}
-              <Footer />
-            </AuthProvider>
-          </LocaleProvider>
-        </ToastProvider>
+                {/* Footer: 公式サイト風の洗練されたデザイン */}
+                <Footer />
+              </AuthProvider>
+            </LocaleProvider>
+          </ToastProvider>
+        </RootErrorBoundary>
       </body>
     </html>
   );

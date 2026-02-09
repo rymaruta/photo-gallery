@@ -5,6 +5,13 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  // 未使用引数は _ 始まりで意図的に無視（コールバックのシグネチャ合わせなど）
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    },
+  },
   // Node / Lambda の CommonJS では require を許可。_ 始まりの変数は未使用でも許可
   {
     files: ["api/**/*.js", "scripts/**/*.js"],

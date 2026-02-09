@@ -40,6 +40,9 @@ yarn-error.log*
 # Lambda@Edge deploy zips
 /scripts/lambda-edge/*.zip
 
+# CloudFront 設定の一時ファイル（apply-security-headers が作成・削除）
+.cloudfront-distribution-config.json
+
 # local artifacts / backups
 /_api_build_backup
 /scripts/_artifacts/
@@ -49,6 +52,8 @@ yarn-error.log*
 app/data/backups/
 app/data/*.bak-*
 app/data/photos.json.bak-*
+# 本番用写真一覧は dev-photos.json から convert:photos:prod で生成するためコミットしない
+app/data/prod-photos.json
 
 # vercel
 .vercel

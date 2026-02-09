@@ -2,20 +2,26 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // 本番環境: S3+CloudFrontで静的サイトとして配信するため、静的エクスポートが必要
-  // ローカル開発: API Routesは使用（本番ではAPI Gateway + Lambdaを使用するため app/api はビルドに含めない）
+  // 開発時の /api は serverless-offline（api/）にプロキシ。app/api は廃止済み。
   output: "export",
-  images: { unoptimized: true },
-  // 静的エクスポートビルド時は scripts/prepare-static-build.js が app/api を
-  // _api_build_backup に退避するため、ここで webpack 除外は不要
-  //
-  // NOTE:
-  // 静的エクスポート用ビルドでは app/api を一時退避しているため、
-  // Next.js の自動生成された型バリデータ (.next/dev/types/validator.ts) が
-  // 一部の route.js を解決できず TypeScript エラーになることがあります。
-  // 本番ビルド時のみ型エラーを無視することで、実行時の挙動を変えずに
-  // ビルドを通すようにしています（開発中の型チェックは従来どおり有効）。
+  // rewrites は開発時のみ使用。output: export と併存するため Next が警告するが、開発では有効・本番では使わない想定。→ docs/NOTES.md
+  async rewrites() {
+    if (process.env.NODE_ENV === "development") {
+      return [{ source: "/api/:path*", destination: "http://127.0.0.1:3002/api/:path*" }];
+    }
+    return [];
+  },
+  images: {
+    unoptimized: true,
+    remotePatterns: [
+      { protocol: "https", hostname: "journey-photo.com", pathname: "/uploads/**" },
+      { protocol: "https", hostname: "www.journey-photo.com", pathname: "/uploads/**" },
+      { protocol: "https", hostname: "d1s3dwwzgxf5ni.cloudfront.net", pathname: "/uploads/**" },
+    ],
+  },
+  // 静的エクスポート: API は app に含めず、本番は API Gateway + Lambda、開発時は rewrites で serverless-offline にプロキシ。
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
 };
 

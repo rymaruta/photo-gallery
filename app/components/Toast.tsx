@@ -11,17 +11,23 @@ function ToastItem({ toast }: { toast: ToastType }) {
     const { removeToast } = useToast();
     const [isVisible, setIsVisible] = React.useState(false);
     const [isRemoving, setIsRemoving] = React.useState(false);
+    const closeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
-        // アニメーション用の遅延
-        setTimeout(() => setIsVisible(true), 10);
+        const t = setTimeout(() => setIsVisible(true), 10);
+        return () => clearTimeout(t);
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            if (closeTimeoutRef.current != null) clearTimeout(closeTimeoutRef.current);
+        };
     }, []);
 
     const handleClose = () => {
         setIsRemoving(true);
-        setTimeout(() => {
-            removeToast(toast.id);
-        }, 300);
+        const t = setTimeout(() => removeToast(toast.id), 300);
+        closeTimeoutRef.current = t;
     };
 
     const getIcon = () => {

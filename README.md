@@ -134,43 +134,61 @@ npm run start
 npm run lint
 ```
 
+### 本番環境の動作確認
+
+```bash
+npm run diagnose:prod
+```
+
+API・静的アセット・画像の疎通を確認します。詳細は [docs/DEPLOY.md](./docs/DEPLOY.md) のトラブルシューティングを参照してください。
+
 ---
 
 ## 7. ディレクトリ構成
 
 ```
 photo-gallery/
-├── app/                      # アプリケーションコード
+├── app/                      # Next.js App Router（ページ・API・レイアウト）
 │   ├── about/               # About ページ
-│   ├── components/          # React コンポーネント
-│   │   ├── FilterBar.tsx    # フィルターバー
-│   │   ├── GalleryGrid.tsx  # ギャラリーグリッド
-│   │   ├── GalleryModal.tsx # モーダル表示
-│   │   ├── HeaderNav.tsx    # ヘッダーナビゲーション
-│   │   ├── LocaleToggle.tsx # 言語切り替え
-│   │   └── ProtectedPortrait.tsx
-│   ├── data/                # データファイル
-│   │   └── photos.ts        # 写真データ
-│   ├── gallery/             # ギャラリーページ
-│   ├── hooks/               # カスタムフック
-│   │   └── useGallery.tsx   # ギャラリー用フック
-│   ├── i18n/                # 国際化
-│   │   └── labels.ts        # ラベル定義
-│   ├── layout.tsx           # ルートレイアウト
-│   ├── page.tsx             # ホームページ
-│   └── globals.css          # グローバルスタイル
-├── public/                  # 静的ファイル (画像など)
-├── .gitignore
-├── eslint.config.mjs
-├── next-env.d.ts
-├── next.config.ts           # Next.js 設定
-├── package.json
-├── package-lock.json
-├── postcss.config.js
-├── tailwind.config.js       # Tailwind CSS 設定
-├── tsconfig.json            # TypeScript 設定
-└── README.md
+│   ├── admin/               # 管理（一覧・編集）
+│   ├── api/                 # API Routes（開発時のみ。本番は Lambda）
+│   │   ├── og/              # OGP 用（photo/[id]）
+│   │   ├── photos/          # 写真一覧・単体取得
+│   │   └── upload/          # アップロード（presigned-url, save）
+│   ├── auth/                # Cognito 認証コンテキスト
+│   ├── components/          # 共通 UI
+│   │   ├── FilterBar, GalleryGrid, GalleryModal, HeaderNav
+│   │   ├── LocaleToggle, Toast, ToastProvider, PwaRegister
+│   │   └── ProtectedPortrait, DeleteConfirmModal
+│   ├── data/                # 写真データ
+│   │   ├── photos.ts        # 型・BASE_PHOTOS・ヘルパー
+│   │   ├── dev-photos.json  # 開発用一覧
+│   │   └── prod-photos.json # 本番用一覧（convert:photos:prod で生成）
+│   ├── favorites/, gallery/, history/, news/
+│   ├── i18n/                # 多言語（context, labels, about, news）
+│   ├── layout.tsx, page.tsx, globals.css
+│   ├── photo/[id]/          # 写真詳細（SSG + クライアントで id 解決）
+│   ├── upload/, login/
+│   └── error.tsx, not-found.tsx, loading.tsx, robots.ts, sitemap.ts
+├── lib/                     # 共有ロジック（型・API・認証・ユーティリティ・フック）
+│   ├── auth/                # Cognito, config
+│   ├── aws/                 # Secrets 取得
+│   ├── hooks/               # useGallery, useFavorites, useToast, useViewHistory, useSwipe, useImagePreloader
+│   ├── types/               # ギャラリーフィルタ等の型
+│   ├── utils/               # api, log, seo, string, share, exif（*.test.ts は単体テスト）
+│   └── photos-initial.ts    # 一覧のキャッシュ・ビルド時データ
+├── api/                     # 本番 API（Serverless / Lambda）
+│   ├── handler.js
+│   └── serverless.yml
+├── scripts/                 # デプロイ・データ・診断用（一覧は scripts/README.md）
+├── docs/                    # セットアップ・デプロイ・設計（docs/README.md 参照）
+├── public/                  # 静的ファイル（画像, manifest, sw.js）
+├── next.config.ts, tailwind.config.js, tsconfig.json, eslint.config.mjs
+└── package.json, README.md
 ```
+
+- スクリプトの役割一覧: [scripts/README.md](./scripts/README.md)
+- フォルダ構成・設計の考え方: [docs/DESIGN.md](./docs/DESIGN.md)（「フォルダ構成」「構成の見直し案」）
 
 ---
 
@@ -224,6 +242,7 @@ npm install @sls-next/serverless-component@latest
 - **[docs/README.md](./docs/README.md)** — ドキュメント一覧・どこを読めばよいか
 - **[クイックスタート](./docs/QUICK_START.md)** — 5分で始める
 - **[本番デプロイ](./docs/DEPLOY.md)** — 開発/本番デプロイ・CloudFront・トラブル対処
+- **[改善バックログ](./docs/IMPROVEMENTS.md)** — 技術的負債・今後の改善候補一覧
 
 ---
 

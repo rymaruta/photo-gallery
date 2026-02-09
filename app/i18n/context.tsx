@@ -14,30 +14,17 @@ type LocaleContextType = {
 const LocaleContext = createContext<LocaleContextType | undefined>(undefined);
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-    // 初期値はローカルストレージから読み込む（クライアント側のみ）
-    // サーバー側では常に"ja"を返す
-    const [locale, setLocaleState] = useState<Locale>(() => {
-        if (typeof window === "undefined") return "ja";
-        const saved = localStorage.getItem("locale");
-        return (saved === "en" || saved === "ja") ? saved : "ja";
-    });
+    // 初期値は常に "ja"。F5 時にサーバーとクライアントで同じ HTML になるようハイドレーション不一致を防ぐ
+    const [locale, setLocaleState] = useState<Locale>("ja");
 
-    // クライアント側でのみローカルストレージからロケールを読み込む
-    // デフォルトは日本語（"ja"）
+    // マウント後に localStorage から復元（クライアントのみ・ハイドレーション後）
     useEffect(() => {
-        // 初回訪問時はlocalStorageを確認せず、日本語をデフォルトにする
-        // ユーザーが明示的に言語を切り替えた場合のみlocalStorageから読み込む
         const saved = localStorage.getItem("locale");
-        // 保存されている値が有効な場合のみ使用（初回訪問時は"ja"のまま）
         if (saved === "en" || saved === "ja") {
-            // ただし、初回訪問時（localStorageに保存されていない場合）は日本語を優先
-            // 既に保存されている場合のみ、保存された値を使用
-            if (saved && saved !== locale) {
-                // eslint-disable-next-line react-hooks/set-state-in-effect
-                setLocaleState(saved);
-            }
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- マウント後にストレージから locale を復元する意図的な 1 回実行
+            setLocaleState(saved);
         }
-    }, [locale]);
+    }, []);
 
     // ロケール変更時にローカルストレージに保存
     const setLocale = (newLocale: Locale) => {

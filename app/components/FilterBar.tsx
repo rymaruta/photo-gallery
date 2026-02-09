@@ -77,7 +77,7 @@ function FilterBarInner({
     const [localQuery, setLocalQuery] = useState(() => values.query || "");
     useEffect(() => {
         if (localQuery !== (values.query || "")) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- 親の values 変更時にローカル入力を同期する意図的な実行
             setLocalQuery(values.query || "");
         }
     }, [values.query, localQuery]);
@@ -245,14 +245,6 @@ function FilterBarInner({
                         key={c}
                         type="button"
                         onClick={() => onChange({ category: c })}
-                        onTouchStart={(e) => {
-                            e.stopPropagation();
-                        }}
-                        onTouchEnd={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            onChange({ category: c });
-                        }}
                         aria-pressed={active}
                         aria-label={labelForCategory(c)}
                         className={`inline-flex items-center justify-center gap-2 text-xs focus:outline-none focus:ring-0 font-normal ${active ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
@@ -274,14 +266,6 @@ function FilterBarInner({
             <button
                 type="button"
                 onClick={() => onChange({ category: "all" })}
-                onTouchStart={(e) => {
-                    e.stopPropagation();
-                }}
-                onTouchEnd={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    onChange({ category: "all" });
-                }}
                 aria-pressed={values.category === "all"}
                 aria-label={labelForCategory("all")}
                 className={`inline-flex items-center justify-center gap-2 text-xs focus:outline-none focus:ring-0 font-normal ${values.category === "all" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
@@ -317,14 +301,6 @@ function FilterBarInner({
                         key={t}
                         type="button"
                         onClick={() => toggleTag(t)}
-                        onTouchStart={(e) => {
-                            e.stopPropagation();
-                        }}
-                        onTouchEnd={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            toggleTag(t);
-                        }}
                         onKeyDown={(e) => onChipKey(e, t)}
                         role="switch"
                         aria-checked={active}
@@ -381,7 +357,7 @@ function FilterBarInner({
                             value={localQuery}
                             onChange={(e) => onQueryChange(e.target.value)}
                             placeholder={(rawLabels?.search as Record<string, unknown> | undefined)?.placeholder as string | undefined ?? labels.search?.placeholder ?? "Search"}
-                            className="w-full rounded-md bg-white/5 text-white placeholder:text-white/40 text-sm pl-10 pr-10 border border-white/10 focus:border-white/30 focus:bg-white/8 transition-all duration-200 outline-none"
+                            className="filter-search-input w-full rounded-md bg-white/5 text-white placeholder:text-white/40 text-sm pl-10 pr-10 border border-white/10 focus:border-white/30 focus:bg-white/8 transition-all duration-200 outline-none"
                             style={{ padding: "8px 36px 8px 36px", fontSize: 13 }}
                         />
                         {/* クリアボタン（入力時のみ表示） */}
@@ -389,15 +365,6 @@ function FilterBarInner({
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setLocalQuery("");
-                                    debouncedApply("");
-                                }}
-                                onTouchStart={(e) => {
-                                    e.stopPropagation();
-                                }}
-                                onTouchEnd={(e) => {
-                                    e.stopPropagation();
-                                    e.preventDefault();
                                     setLocalQuery("");
                                     debouncedApply("");
                                 }}
@@ -423,14 +390,6 @@ function FilterBarInner({
                                     ref={sortButtonRef}
                                     type="button"
                                     onClick={() => setSortOpen((s) => !s)}
-                                    onTouchStart={(e) => {
-                                        e.stopPropagation();
-                                    }}
-                                    onTouchEnd={(e) => {
-                                        e.stopPropagation();
-                                        e.preventDefault();
-                                        setSortOpen((s) => !s);
-                                    }}
                                     aria-haspopup="listbox"
                                     aria-expanded={isSortOpen}
                                     aria-controls="sort-menu"
@@ -465,16 +424,6 @@ function FilterBarInner({
                                                     data-value={opt}
                                                     aria-selected={isActive}
                                                     onClick={() => {
-                                                        onChange({ sort: opt as "new" | "old" | "popular" });
-                                                        setSortOpen(false);
-                                                        setTimeout(() => sortButtonRef.current?.focus(), 0);
-                                                    }}
-                                                    onTouchStart={(e) => {
-                                                        e.stopPropagation();
-                                                    }}
-                                                    onTouchEnd={(e) => {
-                                                        e.stopPropagation();
-                                                        e.preventDefault();
                                                         onChange({ sort: opt as "new" | "old" | "popular" });
                                                         setSortOpen(false);
                                                         setTimeout(() => sortButtonRef.current?.focus(), 0);
@@ -519,14 +468,6 @@ function FilterBarInner({
                         <button
                             type="button"
                             onClick={toggleShowAll}
-                            onTouchStart={(e) => {
-                                e.stopPropagation();
-                            }}
-                            onTouchEnd={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                toggleShowAll();
-                            }}
                             aria-expanded={showAllTags}
                             className={`inline-flex items-center gap-2 text-xs focus:outline-none focus:ring-0 font-normal ${showAllTags ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
                             style={{
@@ -541,16 +482,6 @@ function FilterBarInner({
                         <button
                             type="button"
                             onClick={clearTags}
-                            onTouchStart={(e) => {
-                                e.stopPropagation();
-                            }}
-                            onTouchEnd={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                if (!isPending && values.selectedTags && values.selectedTags.length > 0) {
-                                    clearTags();
-                                }
-                            }}
                             disabled={!values.selectedTags || values.selectedTags.length === 0 || isPending}
                             aria-disabled={!values.selectedTags || values.selectedTags.length === 0 || isPending}
                             className={`inline-flex items-center gap-2 text-xs focus:outline-none focus:ring-0 font-normal ${isPending ? "opacity-60 pointer-events-none text-white/60" : !values.selectedTags || values.selectedTags.length === 0 ? "opacity-50 pointer-events-none text-white/60" : "bg-white/5 text-white/80"}`}

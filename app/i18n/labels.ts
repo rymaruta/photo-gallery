@@ -36,6 +36,16 @@ export type Labels = {
     gallery?: {
         emptyMessage?: string;
         resultsCount?: string;
+        /** ページネーション: 表示範囲 e.g. "1-10 of 21" / "1-10 件目（全 21 件）" */
+        pageRange?: string;
+        /** 前のページ */
+        prevPage?: string;
+        /** 次のページ */
+        nextPage?: string;
+        /** "もっと見る" ボタン（ページネーション未使用時用） */
+        loadMore?: string;
+        /** 残り件数表示 e.g. "残り {{count}} 件" / "{{count}} more" */
+        loadMoreRemaining?: string;
     };
     navigation?: {
         works?: string;
@@ -48,6 +58,13 @@ export type Labels = {
         admin?: string;
         login?: string;
         logout?: string;
+    };
+    /** 404 ページ */
+    notFound?: {
+        title?: string;
+        description?: string;
+        navLabel?: string;
+        top?: string;
     };
 };
 
@@ -86,6 +103,11 @@ const enLabels: Labels = {
     gallery: {
         emptyMessage: "No photos found.",
         resultsCount: "Results",
+        pageRange: "{{from}}-{{to}} of {{total}}",
+        prevPage: "Previous",
+        nextPage: "Next",
+        loadMore: "Load more",
+        loadMoreRemaining: "{{count}} more",
     },
     navigation: {
         works: "Works",
@@ -98,6 +120,12 @@ const enLabels: Labels = {
         admin: "Manage",
         login: "Login",
         logout: "Logout",
+    },
+    notFound: {
+        title: "Page not found",
+        description: "The page you're looking for doesn't exist or may have been moved.",
+        navLabel: "Navigation",
+        top: "Back to top",
     },
 };
 
@@ -134,6 +162,11 @@ export const ja: Labels = {
     gallery: {
         emptyMessage: "該当する写真がありません。",
         resultsCount: "結果",
+        pageRange: "{{from}}-{{to}} 件目（全 {{total}} 件）",
+        prevPage: "前へ",
+        nextPage: "次へ",
+        loadMore: "もっと見る",
+        loadMoreRemaining: "残り {{count}} 件",
     },
     navigation: {
         works: "作品",
@@ -146,6 +179,12 @@ export const ja: Labels = {
         admin: "管理",
         login: "ログイン",
         logout: "ログアウト",
+    },
+    notFound: {
+        title: "ページが見つかりません",
+        description: "お探しのページは存在しないか、移動した可能性があります。",
+        navLabel: "ナビゲーション",
+        top: "トップへ",
     },
 };
 

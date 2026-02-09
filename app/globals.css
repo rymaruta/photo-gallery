@@ -24,6 +24,7 @@
 /* 全体リセット / 基本 */
 html {
   scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html,
@@ -40,7 +41,28 @@ body,
   color: var(--color-foreground);
 }
 
+/* スマホ: 横スクロール防止・セーフエリア対応 */
+@media (max-width: 1024px) {
+  html, body {
+    overflow-x: hidden;
+  }
+}
+
+/* ノッチ・ホームインジケータ対応（iOS /  Android のセーフエリア） */
+.safe-area-header {
+  padding-top: env(safe-area-inset-top, 0);
+  padding-left: env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
+}
+
+.safe-area-body {
+  padding-left: env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
 /* モーダルコントロール: PCではホバー時のみ表示、スマホではタップで表示（画像と重ならない） */
+/* 閉じるボタンは常に表示（?photo= で開いたときや初回で「写真だけ」にならないようにする） */
 @media (hover: hover) {
   .modal-controls-hover {
     opacity: 0;
@@ -48,6 +70,10 @@ body,
   }
   .modal-controls-hover * {
     pointer-events: none !important;
+  }
+  .modal-controls-hover .modal-close-always {
+    opacity: 1 !important;
+    pointer-events: auto !important;
   }
   .group:hover .modal-controls-hover,
   .group:focus-within .modal-controls-hover {
@@ -310,3 +336,17 @@ body {
 }
 
 /* 既存の footer/caption 等を壊さないよう余白/カラーは制御しない（必要な場合は個別に上書きしてください） */
+
+/* 検索入力: ブラウザ標準の虫眼鏡を無効化（大きく重なって見えるバグ対策） */
+.filter-search-input {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.filter-search-input::-webkit-search-decoration,
+.filter-search-input::-webkit-search-cancel-button,
+.filter-search-input::-webkit-search-results-button,
+.filter-search-input::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}

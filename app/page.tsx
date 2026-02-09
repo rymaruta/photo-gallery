@@ -1,42 +1,71 @@
 "use client";
 
-import React from "react";
+import React, { startTransition } from "react";
 import FilterBar from "./components/FilterBar";
 import LocaleToggle from "./components/LocaleToggle";
 import { useLocale } from "./i18n/context";
 
 import type { Photo } from "./data/photos";
-import useGallery from "./hooks/useGallery";
+import useGallery from "@/lib/hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
-import GalleryModal from "./components/GalleryModal";
 import { capitalize } from "../lib/utils/string";
 import { generateStructuredData, generateOrganizationStructuredData, generateCollectionPageStructuredData } from "../lib/utils/seo";
 import { log } from "../lib/utils/log";
 import { publicFetch, PUBLIC_FETCH_TIMEOUT_MS } from "../lib/utils/api";
+import {
+  getBuildTimePhotosList,
+  getCachedPhotos,
+  setCachedPhotos,
+  normalizePhotos,
+  applyPublished,
+} from "../lib/photos-initial";
+
+/** 一覧は 10 件ごとにページ分割 */
+const PAGE_SIZE = 10;
 
 export default function Page() {
   const { locale, setLocale, labels } = useLocale();
-  const [photos, setPhotos] = React.useState<Photo[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  // 初期値は常にビルド時データ（F5 時のハイドレーション不一致を防ぐ）。例外時は空配列で落ちないようにする
+  const [photos, setPhotos] = React.useState<Photo[]>(() => {
+    try {
+      return getBuildTimePhotosList();
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = React.useState(false);
   const [loadError, setLoadError] = React.useState(false);
   /** "timeout" = タイムアウト, "error" = その他 */
   const [loadErrorType, setLoadErrorType] = React.useState<"timeout" | "error">("error");
 
   const loadPhotos = React.useCallback(async () => {
     setLoadError(false);
-    setLoading(true);
 
-    const normalize = (data: unknown): Photo[] => {
-      const list = Array.isArray(data) ? data : [];
-      return list.filter((p): p is Photo => p && typeof p === "object" && "id" in p);
+    const cached = getCachedPhotos();
+    if (cached && cached.length > 0) {
+      setPhotos(cached);
+    }
+    const initial = cached && cached.length > 0 ? cached : getBuildTimePhotosList();
+    if (initial.length === 0) {
+      setLoading(true);
+    }
+
+    const finishLoading = (list: Photo[]) => {
+      startTransition(() => {
+        setPhotos(list);
+        setCachedPhotos(list);
+        setLoadError(false);
+        setLoading(false);
+      });
     };
-    const applyPublished = (list: Photo[]) =>
-      list.filter((p) => p.published !== false);
 
     try {
-      // 1) 同一オリジンの静的 JSON を優先（Lambda に依存しない＝ぐるぐるしない）
-      const staticUrl = "/app/data/photos.json";
-      const staticTimeoutMs = 5000;
+      // 1) 同一オリジンの静的 JSON を優先（本番で確実に同じオリジンへ問い合わせるため絶対URLを使用）
+      const staticUrl =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/app/data/photos.json`
+          : "/app/data/photos.json";
+      const staticTimeoutMs = 2500;
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), staticTimeoutMs);
       let fromStatic = false;
@@ -45,19 +74,15 @@ export default function Page() {
         clearTimeout(timeoutId);
         if (res.ok) {
           const data = await res.json();
-          const list = applyPublished(normalize(data));
-          setPhotos(list);
-          setLoadError(false);
+          finishLoading(applyPublished(normalizePhotos(data)));
           fromStatic = true;
+          return;
         }
-      } catch (_) {
+      } catch {
         clearTimeout(timeoutId);
       }
 
-      if (fromStatic) {
-        setLoading(false);
-        return;
-      }
+      if (fromStatic) return;
 
       // 2) フォールバック: API から取得
       const response = await publicFetch(
@@ -67,9 +92,7 @@ export default function Page() {
       );
       if (response.ok) {
         const data = await response.json();
-        const publishedOnly = applyPublished(normalize(data));
-        setPhotos(publishedOnly);
-        setLoadError(false);
+        finishLoading(applyPublished(normalizePhotos(data)));
       } else {
         log.error("写真の取得に失敗しました");
         setLoadErrorType("error");
@@ -90,16 +113,36 @@ export default function Page() {
     loadPhotos();
   }, [loadPhotos]);
 
-  // 長時間ロードに陥ったとき用：10秒経っても loading ならエラー表示にして再試行できるようにする
+  // LCP 短縮: 先頭1枚だけ画像を preload し、ブラウザの帯域を集中させる（12枚まとめより体感が速い）
   React.useEffect(() => {
-    if (!loading) return;
+    if (!photos.length) return;
+    const src = photos[0]?.src;
+    if (!src || !src.startsWith("http")) return;
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
+    link.href = src;
+    document.head.appendChild(link);
+    return () => {
+      try {
+        link.remove();
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [photos]);
+
+  // 初回でデータが無いときに長時間ロードしたらタイムアウト表示にして再試行できるようにする
+  React.useEffect(() => {
+    if (!loading || photos.length > 0) return;
+    const timeoutMs = 8000;
     const t = setTimeout(() => {
       setLoadError(true);
       setLoadErrorType("timeout");
       setLoading(false);
-    }, 10000);
+    }, timeoutMs);
     return () => clearTimeout(t);
-  }, [loading]);
+  }, [loading, photos.length]);
 
   // タブに戻ったときに一覧を再取得（スマホで別タブで編集・アップロードした変更を即時反映）
   React.useEffect(() => {
@@ -110,35 +153,32 @@ export default function Page() {
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [loadPhotos]);
 
-  const {
-    PHOTOS,
-    filters,
-    setFilters,
-    filteredPhotos,
-    currentIndex,
-    open,
-    close,
-    next,
-    prev,
-  } = useGallery(photos);
+  // トップは詳細リンク方式のためモーダル用の currentIndex/open/close は未使用。フィルター・一覧用のみ利用。
+  const { PHOTOS, filters, setFilters, filteredPhotos } = useGallery(photos);
 
-  // URLパラメータから画像IDを取得してモーダルを開く
+  // 10 件ごとのページネーション（1 始まり）
+  const [currentPage, setCurrentPage] = React.useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPhotos.length / PAGE_SIZE));
+
+  // フィルター変更時は 1 ページ目に戻す
+  const filtersSignature = React.useMemo(
+    () => JSON.stringify({ c: filters.category, t: filters.selectedTags, q: filters.query, s: filters.sort }),
+    [filters.category, filters.selectedTags, filters.query, filters.sort]
+  );
   React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    
-    const params = new URLSearchParams(window.location.search);
-    const photoId = params.get("photo");
-    
-    if (photoId && filteredPhotos.length > 0) {
-      const index = filteredPhotos.findIndex(p => p.id === photoId);
-      if (index !== -1) {
-        open(index);
-        // URLからパラメータを削除（履歴に残さない）
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, "", newUrl);
-      }
-    }
-  }, [filteredPhotos, open]);
+    setCurrentPage(1);
+  }, [filtersSignature]);
+
+  // 現在ページのスライス（フィルタは使わずスライスのみ。src が無い場合は GalleryGrid 内でプレースホルダー表示）
+  const photosToShow = React.useMemo(
+    () => filteredPhotos.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filteredPhotos, currentPage]
+  );
+  const pageFrom = filteredPhotos.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const pageTo = Math.min(currentPage * PAGE_SIZE, filteredPhotos.length);
+  const hasPrev = currentPage > 1;
+  const hasNext = currentPage < totalPages;
 
   const categories = React.useMemo(() => {
     const set = new Set<string>();
@@ -158,9 +198,11 @@ export default function Page() {
 
   const categoryDisplayMap = React.useMemo(() => {
     const map: Record<string, string> = {};
-    const names = labels.category.names ?? {};
+    const category = labels?.category;
+    const names = category?.names ?? {};
+    const allLabel = category?.all ?? "All";
     for (const key of categories) {
-      map[key] = key === "all" ? labels.category.all : names[key] ?? capitalize(key.replace(/-/g, " "));
+      map[key] = key === "all" ? allLabel : names[key] ?? capitalize(key.replace(/-/g, " "));
     }
     for (const p of PHOTOS) {
       const k = (p.category ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
@@ -198,35 +240,66 @@ export default function Page() {
     );
   };
 
-  // 構造化データ（JSON-LD）
-  const structuredData = React.useMemo(
-    () => generateStructuredData(PHOTOS),
-    [PHOTOS]
-  );
+  // 構造化データ（JSON-LD）。例外時は空オブジェクトで落ちないようにする
+  const structuredData = React.useMemo(() => {
+    try {
+      return generateStructuredData(PHOTOS ?? []);
+    } catch {
+      return { "@context": "https://schema.org", "@type": "ImageGallery", image: [] };
+    }
+  }, [PHOTOS]);
 
-  const collectionPageData = React.useMemo(
-    () => generateCollectionPageStructuredData(PHOTOS),
-    [PHOTOS]
-  );
+  const collectionPageData = React.useMemo(() => {
+    try {
+      return generateCollectionPageStructuredData(PHOTOS ?? []);
+    } catch {
+      return { "@context": "https://schema.org", "@type": "CollectionPage", mainEntity: { "@type": "ItemList", numberOfItems: 0, itemListElement: [] } };
+    }
+  }, [PHOTOS]);
 
-  const organizationData = React.useMemo(
-    () => generateOrganizationStructuredData(),
-    []
-  );
+  const organizationData = React.useMemo(() => {
+    try {
+      return generateOrganizationStructuredData();
+    } catch {
+      return { "@context": "https://schema.org", "@type": "Organization", name: "PhotoGallery" };
+    }
+  }, []);
+
+  const structuredDataHtml = React.useMemo(() => {
+    try {
+      return JSON.stringify(structuredData);
+    } catch {
+      return "{}";
+    }
+  }, [structuredData]);
+  const collectionPageDataHtml = React.useMemo(() => {
+    try {
+      return JSON.stringify(collectionPageData);
+    } catch {
+      return "{}";
+    }
+  }, [collectionPageData]);
+  const organizationDataHtml = React.useMemo(() => {
+    try {
+      return JSON.stringify(organizationData);
+    } catch {
+      return "{}";
+    }
+  }, [organizationData]);
 
   return (
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        dangerouslySetInnerHTML={{ __html: structuredDataHtml }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionPageData) }}
+        dangerouslySetInnerHTML={{ __html: collectionPageDataHtml }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationData) }}
+        dangerouslySetInnerHTML={{ __html: organizationDataHtml }}
       />
       <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6 min-h-[64px]">
@@ -257,30 +330,11 @@ export default function Page() {
           categoryDisplayMap={categoryDisplayMap}
         />
 
-        {loading && !loadError ? (
-          <>
-            <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/50" aria-hidden>
-              {locale === "en" ? "Loading…" : "読み込み中…"}
-            </div>
-            <p className="mb-2 text-xs text-white/40" aria-live="polite">
-              {locale === "en"
-                ? "If it takes over 10 seconds, a retry button will appear."
-                : "10秒以上かかると「再試行」ボタンが表示されます。"}
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-0" role="status" aria-live="polite">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="w-full relative overflow-hidden bg-white/10"
-                  style={{ paddingTop: "75%" }}
-                >
-                  <div className="absolute inset-0 animate-pulse bg-white/5" />
-                </div>
-              ))}
-            </div>
-            <p className="sr-only">読み込み中</p>
-          </>
-        ) : loadError ? (
+        {loading && !loadError && photos.length === 0 ? (
+          <p className="text-center text-white/50 text-sm py-8" role="status" aria-live="polite" aria-label={locale === "en" ? "Loading" : "読み込み中"}>
+            {locale === "en" ? "Loading…" : "読み込み中…"}
+          </p>
+        ) : loadError && photos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <p className="text-white/80 mb-4">
               {loadErrorType === "timeout"
@@ -303,30 +357,60 @@ export default function Page() {
         ) : (
           <>
             <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
-              {locale === "en" 
+              {locale === "en"
                 ? `${labels.gallery?.resultsCount ?? "Results"}: ${filteredPhotos.length}`
                 : `${labels.gallery?.resultsCount ?? "結果"}: ${filteredPhotos.length} 件`}
+              {filteredPhotos.length > 0 && (
+                <span className="text-white/50 ml-1">
+                  {(labels.gallery?.pageRange ?? (locale === "en" ? "{{from}}-{{to}} of {{total}}" : "{{from}}-{{to}} 件目（全 {{total}} 件）"))
+                    .replace("{{from}}", String(pageFrom))
+                    .replace("{{to}}", String(pageTo))
+                    .replace("{{total}}", String(filteredPhotos.length))}
+                </span>
+              )}
             </div>
 
             <GalleryGrid
-              photos={filteredPhotos}
-              onOpen={open}
+              photos={photosToShow}
+              linkToDetailPage
               locale={locale}
               categoryDisplayMap={categoryDisplayMap}
             />
-          </>
-        )}
 
-        {currentIndex !== null && filteredPhotos[currentIndex] && (
-          <GalleryModal
-            photos={filteredPhotos}
-            currentIndex={currentIndex}
-            onClose={close}
-            onNext={next}
-            onPrev={prev}
-            locale={locale}
-            categoryDisplayMap={categoryDisplayMap}
-          />
+            {totalPages > 1 && (
+              <div className="mt-6 relative z-[50] min-h-[52px] flex items-center justify-center" style={{ isolation: "isolate" }}>
+                <nav
+                  className="flex items-center justify-center gap-3 py-2"
+                  aria-label={locale === "en" ? "Pagination" : "ページネーション"}
+                  style={{ touchAction: "manipulation" }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={!hasPrev}
+                    style={{ touchAction: "manipulation", minHeight: "44px" }}
+                    className="px-4 py-2 bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:pointer-events-none disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 cursor-pointer"
+                    aria-label={labels.gallery?.prevPage ?? (locale === "en" ? "Previous page" : "前のページ")}
+                  >
+                    {labels.gallery?.prevPage ?? (locale === "en" ? "Previous" : "前へ")}
+                  </button>
+                  <span className="text-white/60 text-sm tabular-nums">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={!hasNext}
+                    style={{ touchAction: "manipulation", minHeight: "44px" }}
+                    className="px-4 py-2 bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:pointer-events-none disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 cursor-pointer"
+                    aria-label={labels.gallery?.nextPage ?? (locale === "en" ? "Next page" : "次のページ")}
+                  >
+                    {labels.gallery?.nextPage ?? (locale === "en" ? "Next" : "次へ")}
+                  </button>
+                </nav>
+              </div>
+            )}
+          </>
         )}
       </main>
     </>

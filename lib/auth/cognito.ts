@@ -104,7 +104,6 @@ export async function signIn(username: string, password: string): Promise<{
                         error: errorMessage,
                     });
                 },
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 newPasswordRequired: (_userAttributes, _requiredAttributes) => {
                     log.info("新しいパスワードが必要");
                     resolve({

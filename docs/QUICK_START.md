@@ -102,7 +102,7 @@ npm run dev
 
 ### Q: ローカルと本番の構成を揃えたい
 
-**A:** [ローカル環境を本番に近づける方法](./LOCAL_ENVIRONMENT_OPTIONS.md)（Part 1: 方針とおすすめ）を参照してください。
+**A:** [ローカル環境を本番に近づける方法](./LOCAL_ENVIRONMENT_OPTIONS.md) を参照してください。
 
 ---
 

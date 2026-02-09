@@ -21,6 +21,7 @@ PhotoGallery の API 仕様と、API（Lambda + API Gateway）の dev/prod デ�
 |---------|------|------|------|
 | GET | `/api/photos` | 写真一覧を取得 | 不要 |
 | GET | `/api/photos/[id]` | 特定の写真を取得 | 不要 |
+| GET | `/api/og/photo/[id]` | OGP 用メタ情報（title / description / imageUrl / url）を JSON で取得。Lambda@Edge 等で即時反映に利用 | 不要 |
 | PUT | `/api/photos/[id]` | 写真を更新 | 必要（Cognito JWT） |
 | DELETE | `/api/photos/[id]` | 写真を削除 | 必要 |
 | POST | `/api/upload/presigned-url` | S3 アップロード用 Presigned URL 取得 | 必要 |
@@ -125,6 +126,16 @@ aws secretsmanager put-secret-value --secret-id dev-journey-photo-upload --secre
 
 - `api/serverless.yml` と `api/handler.js` を dev も prod も共有。`--stage dev` / `--stage prod` で参照する Secrets Manager とデプロイ先が切り替わる。
 - ローカルと本番の構成を揃える方針は [LOCAL_ENVIRONMENT_OPTIONS.md](./LOCAL_ENVIRONMENT_OPTIONS.md) を参照。
+
+---
+
+## 静的エクスポートと API の扱い
+
+- **現在の構成**: 静的エクスポートは `output: "export"` で S3 + CloudFront 用に `out/` を生成。Next の `app/api` は廃止。開発時は serverless-offline（`api/` の Lambda）を別プロセスで起動し、Next の `rewrites` で `/api/*` を `http://127.0.0.1:3002` にプロキシ。本番は API Gateway + Lambda のまま。
+- **開発時の API**: Next のみなら `npm run dev`。API を使う開発ならターミナル 2 つで `npm run dev` と `npm run dev:api`。`dev:api` は serverless-offline をポート 3002 で起動し、`USE_LOCAL_PHOTOS=true` でローカル `app/data/dev-photos.json` を読み書き。
+- **app/api を廃止した理由**: 静的エクスポートでは Request に依存する Route Handlers は未サポート。本番 API は API Gateway + Lambda で提供するため Next のビルド対象に API を含めず、開発時は serverless-offline に統一して型チェック・ビルドの不整合を解消。
+
+**参考**: [Static Exports | Next.js](https://nextjs.org/docs/app/building-your-application/deploying/static-exports)
 
 ---
 
