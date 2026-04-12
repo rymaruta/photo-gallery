@@ -160,11 +160,22 @@ export default function GalleryModal({
     const modalRef = useRef<HTMLDivElement | null>(null);
     const firstFocusableRef = useRef<HTMLButtonElement | null>(null);
     const lastFocusableRef = useRef<HTMLButtonElement | null>(null);
+    const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // スワイプジェスチャー
+    // ヘルプオーバーレイ（ref で effect 内の stale closure を防ぐ）
+    const [helpOpen, setHelpOpen] = useState(false);
+    const helpOpenRef = useRef(false);
+    useEffect(() => { helpOpenRef.current = helpOpen; }, [helpOpen]);
+
+    // 現在の写真 ID を ref で追跡（キーボードハンドラーの stale closure 対策）
+    const currentPhotoIdRef = useRef(p?.id ?? "");
+    useEffect(() => { currentPhotoIdRef.current = p?.id ?? ""; }, [p?.id]);
+
+    // スワイプジェスチャー（下スワイプで閉じる）
     const { handlers: swipeHandlers } = useSwipe({
         onSwipeLeft: onNext,
         onSwipeRight: onPrev,
+        onSwipeDown: onClose,
         threshold: 50,
         velocityThreshold: 0.3,
     });
@@ -221,34 +232,17 @@ export default function GalleryModal({
         }
     };
 
-    // 画像のプリロード（前後の画像を積極的にプリロード）
+    // 画像のプリロード（現在 + 前後1枚ずつ、計3枚）
     useEffect(() => {
         if (!p?.src) return;
 
-        // 現在の画像を確実にプリロード
         preload(p.src);
 
-        // 前後の画像もプリロード
         const nextIndex = (currentIndex + 1) % photos.length;
         const prevIndex = (currentIndex - 1 + photos.length) % photos.length;
 
-        if (photos[nextIndex]?.src) {
-            preload(photos[nextIndex].src);
-        }
-        if (photos[prevIndex]?.src) {
-            preload(photos[prevIndex].src);
-        }
-
-        // さらに先の画像もプリロード（2枚先まで）
-        const nextNextIndex = (currentIndex + 2) % photos.length;
-        const prevPrevIndex = (currentIndex - 2 + photos.length) % photos.length;
-
-        if (photos[nextNextIndex]?.src) {
-            preload(photos[nextNextIndex].src);
-        }
-        if (photos[prevPrevIndex]?.src) {
-            preload(photos[prevPrevIndex].src);
-        }
+        if (photos[nextIndex]?.src) preload(photos[nextIndex].src);
+        if (photos[prevIndex]?.src) preload(photos[prevIndex].src);
     }, [currentIndex, photos, p?.src, preload]);
 
     // フォーカストラップとキーボード操作
@@ -264,7 +258,18 @@ export default function GalleryModal({
             }
             if (e.key === "Escape") {
                 e.preventDefault();
+                if (helpOpenRef.current) { setHelpOpen(false); return; }
                 onClose();
+            }
+            if (e.key === "?") {
+                e.preventDefault();
+                setHelpOpen((v) => !v);
+                return;
+            }
+            if (e.key === "h" || e.key === "H") {
+                e.preventDefault();
+                toggleFavorite(currentPhotoIdRef.current);
+                return;
             }
             // Tab キーでフォーカストラップ
             if (e.key === "Tab") {
@@ -297,11 +302,12 @@ export default function GalleryModal({
         window.addEventListener("keydown", onKey);
 
         // モーダルが開いたら最初のフォーカス可能要素にフォーカス
-        setTimeout(() => {
+        focusTimerRef.current = setTimeout(() => {
             firstFocusableRef.current?.focus();
         }, 100);
 
         return () => {
+            if (focusTimerRef.current !== null) clearTimeout(focusTimerRef.current);
             window.removeEventListener("keydown", onKey);
             unlockBodyScroll();
             try {
@@ -313,7 +319,7 @@ export default function GalleryModal({
             }
             prevActiveElementRef.current = null;
         };
-    }, [onClose, onNext, onPrev, currentIndex]);
+    }, [onClose, onNext, onPrev]);
 
     // Ensure overlay click explicitly unlocks before closing to avoid timing races
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -722,6 +728,39 @@ export default function GalleryModal({
                     </div>
                 </div>
             </div>
+
+            {/* キーボードショートカットヘルプ（? キーで開閉、Esc で閉じる） */}
+            {helpOpen && (
+                <div
+                    className="absolute inset-0 z-30 flex items-center justify-center bg-black/70"
+                    onClick={(e) => { e.stopPropagation(); setHelpOpen(false); }}
+                >
+                    <div
+                        className="bg-[#0f1113] border border-white/15 rounded-xl p-6 w-72 shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 className="text-sm font-semibold text-white mb-4">
+                            {locale === "en" ? "Keyboard Shortcuts" : "キーボードショートカット"}
+                        </h3>
+                        <ul className="space-y-2.5 text-sm">
+                            {[
+                                { key: "← →", label: locale === "en" ? "Prev / Next photo" : "前後の写真" },
+                                { key: "Esc", label: locale === "en" ? "Close" : "閉じる" },
+                                { key: "H", label: locale === "en" ? "Toggle favorite" : "お気に入り切替" },
+                                { key: "?", label: locale === "en" ? "Show this help" : "このヘルプを表示" },
+                            ].map(({ key, label }) => (
+                                <li key={key} className="flex items-center justify-between gap-4">
+                                    <kbd className="px-2 py-0.5 rounded bg-white/10 text-white/80 font-mono text-xs tracking-wide">{key}</kbd>
+                                    <span className="text-white/60 text-xs">{label}</span>
+                                </li>
+                            ))}
+                        </ul>
+                        <p className="mt-4 text-xs text-white/30 text-center">
+                            {locale === "en" ? "Swipe ↓ to close on mobile" : "モバイルは下スワイプで閉じる"}
+                        </p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

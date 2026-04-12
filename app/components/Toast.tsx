@@ -3,7 +3,7 @@
 
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { XMarkIcon, CheckCircleIcon, ExclamationCircleIcon, InformationCircleIcon } from "@heroicons/react/24/outline";
 import { useToast, type Toast as ToastType } from "../../lib/hooks/useToast";
 
@@ -11,15 +11,23 @@ function ToastItem({ toast }: { toast: ToastType }) {
     const { removeToast } = useToast();
     const [isVisible, setIsVisible] = React.useState(false);
     const [isRemoving, setIsRemoving] = React.useState(false);
+    const removeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
-        // アニメーション用の遅延
-        setTimeout(() => setIsVisible(true), 10);
+        const timer = setTimeout(() => setIsVisible(true), 10);
+        return () => clearTimeout(timer);
+    }, []);
+
+    // アンマウント時に削除タイマーをクリア
+    useEffect(() => {
+        return () => {
+            if (removeTimerRef.current !== null) clearTimeout(removeTimerRef.current);
+        };
     }, []);
 
     const handleClose = () => {
         setIsRemoving(true);
-        setTimeout(() => {
+        removeTimerRef.current = setTimeout(() => {
             removeToast(toast.id);
         }, 300);
     };

@@ -117,7 +117,15 @@ export function useSwipe(options: SwipeOptions = {}) {
             }
         },
         onTouchEnd: (e) => {
-            e.preventDefault();
+            // 水平スワイプが確定した場合のみ preventDefault
+            // （縦スクロールや他のデフォルト動作を不必要にブロックしない）
+            if (touchStartRef.current && touchMoveRef.current) {
+                const dx = Math.abs(touchMoveRef.current.x - touchStartRef.current.x);
+                const dy = Math.abs(touchMoveRef.current.y - touchStartRef.current.y);
+                if (dx > dy && dx > threshold) {
+                    e.preventDefault();
+                }
+            }
             handleEnd();
         },
         onMouseDown: (e) => {

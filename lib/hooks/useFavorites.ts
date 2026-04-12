@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 
 const FAVORITES_STORAGE_KEY = "photo-gallery-favorites";
+const FAVORITES_EVENT = "favorites-updated";
 
 export function useFavorites() {
     const [favorites, setFavorites] = useState<string[]>([]);
@@ -24,17 +25,19 @@ export function useFavorites() {
         }
     }, []);
 
-    // ローカルストレージからお気に入りを読み込み
+    // ローカルストレージからお気に入りを読み込み + 同タブ内の変更を購読
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         void loadFavorites();
+        window.addEventListener(FAVORITES_EVENT, loadFavorites);
+        return () => window.removeEventListener(FAVORITES_EVENT, loadFavorites);
     }, [loadFavorites]);
 
-    // お気に入りを保存
+    // お気に入りを保存してイベントを通知
     const saveFavorites = useCallback((newFavorites: string[]) => {
         try {
             localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(newFavorites));
             setFavorites(newFavorites);
+            window.dispatchEvent(new CustomEvent(FAVORITES_EVENT));
         } catch (error) {
             console.error("Failed to save favorites:", error);
         }
@@ -55,7 +58,7 @@ export function useFavorites() {
                 // 常に最新のローカルストレージから読み込む（ステートに依存しない）
                 const stored = localStorage.getItem(FAVORITES_STORAGE_KEY);
                 let currentFavorites: string[] = [];
-                
+
                 if (stored) {
                     try {
                         currentFavorites = JSON.parse(stored) as string[];
@@ -64,17 +67,16 @@ export function useFavorites() {
                         currentFavorites = [];
                     }
                 }
-                
+
                 // 既にお気に入りにある場合は削除、ない場合は追加
                 const updated = currentFavorites.includes(photoId)
                     ? currentFavorites.filter(id => id !== photoId)
                     : [...currentFavorites, photoId];
-                
-                // ローカルストレージに保存
+
+                // ローカルストレージに保存して全インスタンスに通知
                 localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(updated));
-                
-                // ステートも更新
                 setFavorites(updated);
+                window.dispatchEvent(new CustomEvent(FAVORITES_EVENT));
             } catch (error) {
                 console.error("Failed to toggle favorite:", error);
             }

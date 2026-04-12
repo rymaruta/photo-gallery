@@ -229,8 +229,8 @@ function FilterBarInner({
         () => ({
             container: { backgroundColor: "var(--filter-bg, #07090a)", border: "1px solid rgba(255,255,255,0.10)", padding: 8 },
             input: { padding: "6px 10px", border: "1px solid rgba(255,255,255,0.06)", outline: "none", fontSize: 13 } as React.CSSProperties,
-            chipBase: { padding: "2px 8px", minHeight: 32, borderRadius: 6, width: "auto" } as React.CSSProperties,
-            controlBtn: { padding: "2px 8px", minHeight: 32, borderRadius: 6, whiteSpace: "nowrap" } as React.CSSProperties,
+            chipBase: { padding: "2px 8px", minHeight: 44, borderRadius: 6, width: "auto" } as React.CSSProperties,
+            controlBtn: { padding: "2px 8px", minHeight: 44, borderRadius: 6, whiteSpace: "nowrap" } as React.CSSProperties,
         }),
         []
     );
@@ -406,8 +406,8 @@ function FilterBarInner({
                                 style={{ 
                                     touchAction: "manipulation",
                                     WebkitTapHighlightColor: "transparent",
-                                    minWidth: "32px",
-                                    minHeight: "32px"
+                                    minWidth: "44px",
+                                    minHeight: "44px"
                                 }}
                             >
                                 <XMarkIcon className="w-4 h-4 text-white/60 hover:text-white/90" />
@@ -481,11 +481,11 @@ function FilterBarInner({
                                                     }}
                                                     className="w-full text-left px-3 py-2 text-xs"
                                                     style={{ 
-                                                        background: isActive ? "rgba(255,255,255,0.06)" : "transparent", 
+                                                        background: isActive ? "rgba(255,255,255,0.06)" : "transparent",
                                                         color: "#fff",
                                                         touchAction: "manipulation",
                                                         WebkitTapHighlightColor: "transparent",
-                                                        minHeight: "32px"
+                                                        minHeight: "44px"
                                                     }}
                                                 >
                                                     {(() => {

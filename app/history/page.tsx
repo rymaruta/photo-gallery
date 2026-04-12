@@ -3,42 +3,19 @@
 import React from "react";
 import { useViewHistory } from "../../lib/hooks/useViewHistory";
 import { useImagePreloader } from "../../lib/hooks/useImagePreloader";
+import { usePhotos } from "../../lib/hooks/usePhotos";
 import type { Photo } from "../data/photos";
 import GalleryGrid from "../components/GalleryGrid";
 import GalleryModal from "../components/GalleryModal";
 import LocaleToggle from "../components/LocaleToggle";
 import { useLocale } from "../i18n/context";
 import { capitalize } from "../../lib/utils/string";
-import { log } from "../../lib/utils/log";
 
 export default function HistoryPage() {
     const { locale, setLocale, labels } = useLocale();
     const { history, clearHistory } = useViewHistory();
     const { preloadMultiple } = useImagePreloader();
-    const [allPhotos, setAllPhotos] = React.useState<Photo[]>([]);
-    const [loading, setLoading] = React.useState(true);
-
-    // APIから写真を読み込む（編集済みのベース写真も含む）
-    React.useEffect(() => {
-        const loadPhotos = async () => {
-            try {
-                const { publicFetch } = await import("../../lib/utils/api");
-                const response = await publicFetch("/photos", { cache: "no-store" });
-                if (response.ok) {
-                    const data = await response.json();
-                    setAllPhotos(data);
-                } else {
-                    log.error("写真の取得に失敗しました");
-                }
-            } catch (error) {
-                log.error("写真取得エラー:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadPhotos();
-    }, []);
+    const { photos: allPhotos, loading } = usePhotos();
 
     // モーダル管理
     const [currentIndex, setCurrentIndex] = React.useState<number | null>(null);

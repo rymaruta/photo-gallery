@@ -1,5 +1,5 @@
 // app/hooks/useGallery.ts
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Photo, LocalizedText, LocalizedParagraphs } from "../data/photos";
 import { getLocalized, getLocalizedParagraphs } from "../data/photos";
 import type { GalleryFilters } from "../../lib/types/gallery";
@@ -13,32 +13,58 @@ const toISO = (s?: string) => {
     return isNaN(d.getTime()) ? "" : d.toISOString();
 };
 
+function readFiltersFromUrl(): Partial<GalleryFilters> {
+    if (typeof window === "undefined") return {};
+    const params = new URLSearchParams(window.location.search);
+    const out: Partial<GalleryFilters> = {};
+    const cat = params.get("category");
+    if (cat) out.category = cat;
+    const q = params.get("q");
+    if (q) out.query = q;
+    const sort = params.get("sort");
+    if (sort === "new" || sort === "old" || sort === "popular") out.sort = sort;
+    const tags = params.get("tags");
+    if (tags) out.selectedTags = tags.split(",").filter(Boolean);
+    return out;
+}
+
 export default function useGallery(raw: Photo[]) {
+    // ISO日付を正規化ステップで一度だけ計算（ソート時の繰り返しパースを回避）
     const PHOTOS = useMemo(
         () =>
             raw.map((p) => {
                 const category = normalizeKey(p.category);
                 const tags = (p.tags ?? []).map((t) => (t ?? "").toString().trim()).filter(Boolean);
                 const date = p.date ?? p.createdAt ?? "";
+                const _dateISO = toISO(date);
 
-                return {
-                    ...p,
-                    category,
-                    tags,
-                    date,
-                };
+                return { ...p, category, tags, date, _dateISO };
             }),
         [raw]
     );
 
-    const [filters, setFilters] = useState<GalleryFilters>({
+    // URL から初期フィルターを読み込む（マウント時一度だけ）
+    const [filters, setFilters] = useState<GalleryFilters>(() => ({
         category: "all",
         selectedTags: [],
         query: "",
         sort: "new",
-    });
+        ...readFiltersFromUrl(),
+    }));
 
     const [currentIndex, setCurrentIndex] = useState<number | null>(null);
+
+    // フィルターが変わるたびに URL を更新（pushせず replaceState で履歴を汚さない）
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const params = new URLSearchParams();
+        if (filters.category && filters.category !== "all") params.set("category", filters.category);
+        if (filters.query) params.set("q", filters.query);
+        if (filters.sort && filters.sort !== "new") params.set("sort", filters.sort);
+        if (filters.selectedTags.length) params.set("tags", filters.selectedTags.join(","));
+        const search = params.toString();
+        window.history.replaceState({}, "", search ? `?${search}` : window.location.pathname);
+    }, [filters]);
 
     const filteredPhotos = useMemo(() => {
         let arr = PHOTOS.slice();
@@ -49,41 +75,32 @@ export default function useGallery(raw: Photo[]) {
         if (filters.query.trim()) {
             const q = filters.query.toLowerCase();
             arr = arr.filter((p) => {
-                // title: localized join of ja & en
                 const titleJa = typeof p.title === "string" ? p.title : getLocalized(p.title as LocalizedText, "ja");
                 const titleEn = typeof p.title === "string" ? p.title : getLocalized(p.title as LocalizedText, "en");
-                const title = `${titleJa} ${titleEn}`;
 
-                // description: handle string | LocalizedParagraphs properly
                 let descJa = "";
                 let descEn = "";
                 if (typeof p.description === "string") {
                     descJa = p.description;
                     descEn = p.description;
                 } else {
-                    const jaArr = getLocalizedParagraphs(p.description as LocalizedParagraphs, "ja");
-                    const enArr = getLocalizedParagraphs(p.description as LocalizedParagraphs, "en");
-                    descJa = jaArr.join(" ");
-                    descEn = enArr.join(" ");
+                    descJa = getLocalizedParagraphs(p.description as LocalizedParagraphs, "ja").join(" ");
+                    descEn = getLocalizedParagraphs(p.description as LocalizedParagraphs, "en").join(" ");
                 }
-                const desc = `${descJa} ${descEn}`;
 
-                return (title + " " + desc).toLowerCase().includes(q);
+                // location も検索対象に含める
+                const loc = p.location ?? "";
+
+                const haystack = `${titleJa} ${titleEn} ${descJa} ${descEn} ${loc}`.toLowerCase();
+                return haystack.includes(q);
             });
         }
 
+        // 事前計算済みの _dateISO を使ってソート（パースなし）
         if (filters.sort === "new") {
-            arr.sort((a, b) => {
-                const ia = toISO(b.date);
-                const ib = toISO(a.date);
-                return ia.localeCompare(ib);
-            });
+            arr.sort((a, b) => b._dateISO.localeCompare(a._dateISO));
         } else if (filters.sort === "old") {
-            arr.sort((a, b) => {
-                const ia = toISO(a.date);
-                const ib = toISO(b.date);
-                return ia.localeCompare(ib);
-            });
+            arr.sort((a, b) => a._dateISO.localeCompare(b._dateISO));
         } else if (filters.sort === "popular") {
             arr.sort((a, b) => (b.likes ?? 0) - (a.likes ?? 0));
         }
@@ -91,38 +108,31 @@ export default function useGallery(raw: Photo[]) {
         return arr;
     }, [filters, PHOTOS]);
 
-    const open = useCallback(
-        (i: number) => {
-            setCurrentIndex(i >= 0 && i < filteredPhotos.length ? i : null);
-        },
-        [filteredPhotos.length]
-    );
+    // filteredPhotos を ref で追跡 → コールバックを安定させる
+    const filteredPhotosRef = useRef(filteredPhotos);
+    useEffect(() => {
+        filteredPhotosRef.current = filteredPhotos;
+    }, [filteredPhotos]);
+
+    // 依存配列なし → 参照が変わらない安定したコールバック
+    const open = useCallback((i: number) => {
+        const len = filteredPhotosRef.current.length;
+        setCurrentIndex(i >= 0 && i < len ? i : null);
+    }, []);
 
     const close = useCallback(() => setCurrentIndex(null), []);
 
-    const next = useCallback(
-        () =>
-            setCurrentIndex((i) =>
-                i === null ? null : filteredPhotos.length ? (i + 1) % filteredPhotos.length : null
-            ),
-        [filteredPhotos.length]
-    );
+    const next = useCallback(() =>
+        setCurrentIndex((i) => {
+            const len = filteredPhotosRef.current.length;
+            return i === null ? null : len ? (i + 1) % len : null;
+        }), []);
 
-    const prev = useCallback(
-        () =>
-            setCurrentIndex((i) =>
-                i === null ? null : filteredPhotos.length ? (i - 1 + filteredPhotos.length) % filteredPhotos.length : null
-            ),
-        [filteredPhotos.length]
-    );
-
-    // NOTE: modal keyboard / body overflow side effects removed from hook.
-    // Modal component should manage focus/overflow/keyboard to avoid duplication and race conditions.
-    // If you want hook-driven modal side-effects, implement a shared counter + refs (similar to GalleryModal).
-    useEffect(() => {
-        // no-op; kept in case you want to add global side effects later
-        return () => { };
-    }, []);
+    const prev = useCallback(() =>
+        setCurrentIndex((i) => {
+            const len = filteredPhotosRef.current.length;
+            return i === null ? null : len ? (i - 1 + len) % len : null;
+        }), []);
 
     const updateFilters = useCallback((next: Partial<GalleryFilters>) => {
         setFilters((s) => ({ ...s, ...next }));
