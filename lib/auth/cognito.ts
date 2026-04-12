@@ -1,5 +1,6 @@
 import { CognitoUserPool, AuthenticationDetails, CognitoUser, CognitoUserSession } from "amazon-cognito-identity-js";
 import { cognitoConfig, ADMIN_GROUP_NAME } from "./config";
+import { log } from "../utils/log";
 
 // Cognito User Poolの初期化（遅延初期化）
 function getUserPool(): CognitoUserPool {
@@ -7,22 +8,10 @@ function getUserPool(): CognitoUserPool {
         throw new Error("Cognito User Pool ID and Client ID must be set. Please check your environment variables.");
     }
 
-    const poolConfig: {
-        UserPoolId: string;
-        ClientId: string;
-        ClientSecret?: string;
-    } = {
+    return new CognitoUserPool({
         UserPoolId: cognitoConfig.userPoolId,
         ClientId: cognitoConfig.clientId,
-    };
-
-    // シークレットが設定されている場合のみ追加
-    // ⚠️ 注意: シークレットありのクライアントを使用する場合は、CognitoUserPoolが自動的にSECRET_HASHを計算します
-    if (cognitoConfig.clientSecret) {
-        poolConfig.ClientSecret = cognitoConfig.clientSecret;
-    }
-
-    return new CognitoUserPool(poolConfig);
+    });
 }
 
 // ログイン

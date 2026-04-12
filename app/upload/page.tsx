@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { PhotoIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useToast } from "../../lib/hooks/useToast";
@@ -16,6 +16,16 @@ export default function UploadPage() {
     const { showToast } = useToast();
 
     // すべてのHooksを早期リターンの前に定義
+    const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        return () => {
+            if (redirectTimerRef.current !== null) {
+                clearTimeout(redirectTimerRef.current);
+            }
+        };
+    }, []);
+
     const [file, setFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
@@ -284,7 +294,7 @@ export default function UploadPage() {
             );
 
             // 少し待ってからリダイレクト
-            setTimeout(() => {
+            redirectTimerRef.current = setTimeout(() => {
                 router.push("/");
             }, 1000);
         } catch (error: unknown) {

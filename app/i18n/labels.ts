@@ -74,6 +74,7 @@ const enLabels: Labels = {
             nature: "Nature",
             landscape: "Landscape",
             architecture: "Architecture",
+            street: "Street",
         },
     },
     sort: {

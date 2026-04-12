@@ -7,7 +7,6 @@ export const cognitoConfig = {
     // このプロジェクトは静的エクスポート（output: "export"）を使用しているため、すべてのコードがクライアントサイドで実行されます
     // そのため、NEXT_PUBLIC_プレフィックスがついた環境変数はクライアントサイドに公開されます
     // 機密クライアント（Confidential Client）を使用する場合は、別の認証方式を検討してください
-    clientSecret: process.env.NEXT_PUBLIC_COGNITO_CLIENT_SECRET || "",
     region: process.env.NEXT_PUBLIC_AWS_REGION || "ap-northeast-1",
 };
 
