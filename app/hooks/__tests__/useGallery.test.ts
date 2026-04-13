@@ -1,7 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import useGallery from "../useGallery";
 import type { Photo } from "../../data/photos";
+
+// URLのフィルター同期（useEffect）がテスト間で状態汚染しないようリセット
+beforeEach(() => {
+    window.history.replaceState({}, "", "/");
+});
 
 const mockPhotos: Photo[] = [
     {
