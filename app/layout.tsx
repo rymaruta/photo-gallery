@@ -1,6 +1,6 @@
 // app/layout.tsx
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Inter } from "next/font/google";
 import HeaderNav from "./components/HeaderNav";
@@ -11,6 +11,14 @@ import { LocaleProvider } from "./i18n/context";
 import { siteConfig, generateWebSiteStructuredData } from "../lib/utils/seo";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "700", "900"] });
+
+// Instagram IAB / iOS Safari でブラウザUIを除いた実際の表示領域を使う
+// viewportFit=cover でノッチ・ホームインジケーター領域の safe-area-inset を有効化
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
