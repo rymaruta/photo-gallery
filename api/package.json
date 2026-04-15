@@ -1,0 +1,22 @@
+{
+  "name": "photo-gallery-api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "deploy:prod": "serverless deploy --stage prod",
+    "deploy:dev": "serverless deploy --stage dev"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@aws-sdk/s3-request-presigner": "^3.0.0",
+    "uuid": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.149",
+    "@types/uuid": "^10.0.0",
+    "esbuild": "^0.25.0",
+    "serverless": "^4.0.0",
+    "serverless-esbuild": "^1.54.0",
+    "typescript": "^5.0.0"
+  }
+}

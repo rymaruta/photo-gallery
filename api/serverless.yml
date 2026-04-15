@@ -1,0 +1,104 @@
+service: photo-gallery-api
+
+frameworkVersion: '4'
+
+plugins:
+  - serverless-esbuild
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: ap-northeast-1
+
+  environment:
+    PHOTOS_BUCKET: ${param:photosBucket, 'journey-photo.com'}
+    PHOTOS_KEY: app/data/photos.json
+    UPLOAD_BUCKET: ${param:uploadBucket, 'prod-journey-photo-upload'}
+    CLOUDFRONT_URL: ${param:cloudfrontUrl, ''}
+
+  httpApi:
+    cors: true
+    authorizers:
+      cognitoAuthorizer:
+        type: jwt
+        identitySource: $request.header.Authorization
+        issuerUrl: https://cognito-idp.${aws:region}.amazonaws.com/${param:cognitoUserPoolId}
+        audience:
+          - ${param:cognitoClientId}
+
+  iam:
+    role:
+      statements:
+        # photos.json の読み書き
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+          Resource: arn:aws:s3:::${param:photosBucket, 'journey-photo.com'}/app/data/photos.json
+        # アップロード画像の管理（Presigned URL 発行・削除）
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:DeleteObject
+          Resource: arn:aws:s3:::${param:uploadBucket, 'prod-journey-photo-upload'}/*
+
+custom:
+  esbuild:
+    bundle: true
+    minify: true
+    sourcemap: false
+    target: node22
+    platform: node
+    exclude:
+      - '@aws-sdk/*'
+
+functions:
+  getPhotos:
+    handler: src/photos.getPhotos
+    events:
+      - httpApi:
+          path: /photos
+          method: GET
+
+  getPhoto:
+    handler: src/photos.getPhoto
+    events:
+      - httpApi:
+          path: /photos/{id}
+          method: GET
+
+  updatePhoto:
+    handler: src/photosMutate.updatePhoto
+    events:
+      - httpApi:
+          path: /photos/{id}
+          method: PUT
+          authorizer:
+            name: cognitoAuthorizer
+
+  deletePhoto:
+    handler: src/photosMutate.deletePhoto
+    events:
+      - httpApi:
+          path: /photos/{id}
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
+  presignedUrl:
+    handler: src/upload.presignedUrl
+    events:
+      - httpApi:
+          path: /upload/presigned-url
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  savePhoto:
+    handler: src/upload.savePhoto
+    events:
+      - httpApi:
+          path: /upload/save
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
