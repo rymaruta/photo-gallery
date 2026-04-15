@@ -581,18 +581,22 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                                     {mergedExif.imageSize}
                                 </div>
                             )}
-                            {mergedExif.dateTimeOriginal && (
-                                <div className="col-span-2">
-                                    <span className="text-white/40">{locale === "en" ? "Date Taken" : "撮影日時"}: </span>
-                                    {new Date(mergedExif.dateTimeOriginal).toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
-                                        year: "numeric",
-                                        month: "long",
-                                        day: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit"
-                                    })}
-                                </div>
-                            )}
+                            {mergedExif.dateTimeOriginal && (() => {
+                                const d = new Date(mergedExif.dateTimeOriginal);
+                                const formatted = isNaN(d.getTime()) ? null : d.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
+                                    year: "numeric",
+                                    month: "long",
+                                    day: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit"
+                                });
+                                return formatted ? (
+                                    <div className="col-span-2">
+                                        <span className="text-white/40">{locale === "en" ? "Date Taken" : "撮影日時"}: </span>
+                                        {formatted}
+                                    </div>
+                                ) : null;
+                            })()}
                         </div>
                     </div>
                 )}
@@ -602,16 +606,8 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                     {/* お気に入りボタン */}
                     <button
                         onClick={() => toggleFavorite(photo.id)}
-                        onTouchStart={(e) => {
-                            e.stopPropagation();
-                        }}
-                        onTouchEnd={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            toggleFavorite(photo.id);
-                        }}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
-                        style={{ 
+                        style={{
                             touchAction: "manipulation",
                             WebkitTapHighlightColor: "transparent",
                             minHeight: "44px"
