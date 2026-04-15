@@ -2,7 +2,7 @@ import type { Photo } from "../../data/photos";
 import RAW_PHOTOS from "../../data/photos";
 import PhotoPageClient from "./PhotoPageClient";
 import type { Metadata } from "next";
-import { siteConfig, generatePhotoStructuredData, generateBreadcrumbStructuredData } from "../../../lib/utils/seo";
+import { siteConfig, generatePhotoStructuredData } from "../../../lib/utils/seo";
 import { getLocalized, getLocalizedParagraphs } from "../../data/photos";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";

@@ -181,35 +181,6 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleNavigation("/gallery");
-                                                }}
-                                                onTouchStart={(e) => {
-                                                    e.stopPropagation();
-                                                }}
-                                                onTouchEnd={(e) => {
-                                                    e.stopPropagation();
-                                                    e.preventDefault();
-                                                    handleNavigation("/gallery");
-                                                }}
-                                                className={`${linkBase} ${inactiveClasses} w-full text-left`}
-                                                style={{ 
-                                                    touchAction: "manipulation",
-                                                    WebkitTapHighlightColor: "transparent",
-                                                    minHeight: "44px",
-                                                    display: "block",
-                                                    position: "relative",
-                                                    zIndex: 10,
-                                                    cursor: "pointer"
-                                                }}
-                                            >
-                                                {navLabels.gallery || "Gallery"}
-                                            </button>
-                                        </li>
-
-                                        <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
                                                     handleNavigation("/favorites");
                                                 }}
                                                 onTouchStart={(e) => {

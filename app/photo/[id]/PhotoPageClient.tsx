@@ -581,18 +581,22 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                                     {mergedExif.imageSize}
                                 </div>
                             )}
-                            {mergedExif.dateTimeOriginal && (
-                                <div className="col-span-2">
-                                    <span className="text-white/40">{locale === "en" ? "Date Taken" : "撮影日時"}: </span>
-                                    {new Date(mergedExif.dateTimeOriginal).toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
-                                        year: "numeric",
-                                        month: "long",
-                                        day: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit"
-                                    })}
-                                </div>
-                            )}
+                            {mergedExif.dateTimeOriginal && (() => {
+                                const d = new Date(mergedExif.dateTimeOriginal);
+                                const formatted = isNaN(d.getTime()) ? null : d.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
+                                    year: "numeric",
+                                    month: "long",
+                                    day: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit"
+                                });
+                                return formatted ? (
+                                    <div className="col-span-2">
+                                        <span className="text-white/40">{locale === "en" ? "Date Taken" : "撮影日時"}: </span>
+                                        {formatted}
+                                    </div>
+                                ) : null;
+                            })()}
                         </div>
                     </div>
                 )}
@@ -602,16 +606,8 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                     {/* お気に入りボタン */}
                     <button
                         onClick={() => toggleFavorite(photo.id)}
-                        onTouchStart={(e) => {
-                            e.stopPropagation();
-                        }}
-                        onTouchEnd={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            toggleFavorite(photo.id);
-                        }}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
-                        style={{ 
+                        style={{
                             touchAction: "manipulation",
                             WebkitTapHighlightColor: "transparent",
                             minHeight: "44px"
@@ -638,15 +634,8 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                         <div className="flex flex-wrap gap-2">
                             <button
                                 onClick={handleShare}
-                                onTouchStart={(e) => {
-                                    e.stopPropagation();
-                                }}
-                                onTouchEnd={(e) => {
-                                    e.stopPropagation();
-                                    handleShare();
-                                }}
                                 className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
-                                style={{ 
+                                style={{
                                     touchAction: "manipulation",
                                     WebkitTapHighlightColor: "transparent",
                                     minHeight: "44px"
@@ -657,15 +646,8 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                             </button>
                             <button
                                 onClick={handleCopyLink}
-                                onTouchStart={(e) => {
-                                    e.stopPropagation();
-                                }}
-                                onTouchEnd={(e) => {
-                                    e.stopPropagation();
-                                    handleCopyLink();
-                                }}
                                 className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
-                                style={{ 
+                                style={{
                                     touchAction: "manipulation",
                                     WebkitTapHighlightColor: "transparent",
                                     minHeight: "44px"
@@ -676,15 +658,8 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                             </button>
                             <button
                                 onClick={() => shareToTwitter(currentUrl, shareText)}
-                                onTouchStart={(e) => {
-                                    e.stopPropagation();
-                                }}
-                                onTouchEnd={(e) => {
-                                    e.stopPropagation();
-                                    shareToTwitter(currentUrl, shareText);
-                                }}
                                 className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
-                                style={{ 
+                                style={{
                                     touchAction: "manipulation",
                                     WebkitTapHighlightColor: "transparent",
                                     minHeight: "44px"
@@ -697,15 +672,8 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                             </button>
                             <button
                                 onClick={() => shareToFacebook(currentUrl)}
-                                onTouchStart={(e) => {
-                                    e.stopPropagation();
-                                }}
-                                onTouchEnd={(e) => {
-                                    e.stopPropagation();
-                                    shareToFacebook(currentUrl);
-                                }}
                                 className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
-                                style={{ 
+                                style={{
                                     touchAction: "manipulation",
                                     WebkitTapHighlightColor: "transparent",
                                     minHeight: "44px"
@@ -719,15 +687,8 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                             {locale === "ja" && (
                                 <button
                                     onClick={() => shareToLine(currentUrl, shareText)}
-                                    onTouchStart={(e) => {
-                                        e.stopPropagation();
-                                    }}
-                                    onTouchEnd={(e) => {
-                                        e.stopPropagation();
-                                        shareToLine(currentUrl, shareText);
-                                    }}
                                     className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
-                                    style={{ 
+                                    style={{
                                         touchAction: "manipulation",
                                         WebkitTapHighlightColor: "transparent",
                                         minHeight: "44px"

@@ -161,6 +161,8 @@ export default function AdminPage() {
             );
         } finally {
             setDeletingId(null);
+            setDeleteModalOpen(false);
+            setPhotoToDelete(null);
         }
     };
 

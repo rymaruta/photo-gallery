@@ -64,28 +64,21 @@ function ModalImage({ src, alt, focalPoint }: { src: string; alt: string; focalP
 // Module-scope lock state to avoid per-instance races
 let _openModalCount = 0;
 let _prevBodyOverflow: string | null = null;
-let _prevHtmlOverflow: string | null = null;
-let _prevBodyPositionStyle: string | null = null;
-let _prevBodyTop: string | null = null;
 let _prevScrollY = 0;
 
 function lockBodyScroll() {
     if (_openModalCount === 0) {
-        _prevBodyOverflow = document.body.style.overflow ?? "";
-        _prevHtmlOverflow = document.documentElement.style.overflow ?? "";
-        _prevBodyPositionStyle = document.body.style.position ?? "";
-        _prevBodyTop = document.body.style.top ?? "";
         _prevScrollY = window.scrollY || window.pageYOffset || 0;
+        _prevBodyOverflow = document.body.style.overflow ?? "";
 
-        // simplest: hide overflow on body + html
+        // position:fixed アプローチ:
+        // overflow:hidden のみではInstagram/Facebook IABやiOS Safariで
+        // バックグラウンドスクロールが止まらないケースに対応する
         document.body.style.overflow = "hidden";
-        document.documentElement.style.overflow = "hidden";
-
-        // alternative robust approach (prevent layout shift):
-        // document.body.style.position = "fixed";
-        // document.body.style.top = `-${_prevScrollY}px`;
-        // document.body.style.left = "0";
-        // document.body.style.right = "0";
+        document.body.style.position = "fixed";
+        document.body.style.top = `-${_prevScrollY}px`;
+        document.body.style.left = "0";
+        document.body.style.right = "0";
     }
     _openModalCount += 1;
 }
@@ -94,32 +87,16 @@ function unlockBodyScroll() {
     _openModalCount = Math.max(0, _openModalCount - 1);
     if (_openModalCount === 0) {
         document.body.style.overflow = _prevBodyOverflow ?? "";
-        document.documentElement.style.overflow = _prevHtmlOverflow ?? "";
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.left = "";
+        document.body.style.right = "";
 
-        if (_prevBodyPositionStyle === "fixed") {
-            document.body.style.position = _prevBodyPositionStyle ?? "";
-            document.body.style.top = _prevBodyTop ?? "";
-            window.scrollTo(0, _prevScrollY);
-        } else {
-            document.body.style.position = _prevBodyPositionStyle ?? "";
-            document.body.style.top = _prevBodyTop ?? "";
-        }
+        // position:fixed 解除後にスクロール位置を復元
+        window.scrollTo(0, _prevScrollY);
 
         _prevBodyOverflow = null;
-        _prevHtmlOverflow = null;
-        _prevBodyPositionStyle = null;
-        _prevBodyTop = null;
         _prevScrollY = 0;
-
-        // Force-clear fallback (race protection)
-        if (getComputedStyle(document.body).overflow === "hidden") {
-            document.body.style.overflow = "";
-            document.documentElement.style.overflow = "";
-            setTimeout(() => {
-                document.body.style.overflow = "";
-                document.documentElement.style.overflow = "";
-            }, 50);
-        }
     }
 }
 

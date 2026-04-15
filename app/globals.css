@@ -23,9 +23,9 @@ html {
   scroll-behavior: smooth;
 }
 
+/* #__next は Next.js App Router では存在しないため削除 */
 html,
-body,
-#__next {
+body {
   height: 100%;
   margin: 0;
   padding: 0;
@@ -35,6 +35,20 @@ body,
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--color-background);
   color: var(--color-foreground);
+}
+
+/* Instagram IAB / iOS Safari 対応:
+   min-h-screen (100vh) はブラウザのツールバーを含む高さになるため
+   dvh (dynamic viewport height) で実際の表示領域に追従させる */
+@supports (min-height: 100dvh) {
+  body {
+    min-height: 100dvh;
+  }
+}
+
+/* safe-area-inset: ノッチ・ホームインジケーター対応 */
+body {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* ヘッダー（既存の site-header を上書き） */
