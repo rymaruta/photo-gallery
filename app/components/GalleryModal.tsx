@@ -297,11 +297,10 @@ export default function GalleryModal({
             }
             prevActiveElementRef.current = null;
         };
-    }, [onClose, onNext, onPrev]);
+    }, [onClose, onNext, onPrev, toggleFavorite]);
 
     // Ensure overlay click explicitly unlocks before closing to avoid timing races
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const handleOverlayClick = (_e: React.MouseEvent) => {
+    const handleOverlayClick = () => {
         try {
             unlockBodyScroll();
         } catch {

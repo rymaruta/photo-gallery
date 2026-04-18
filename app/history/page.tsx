@@ -22,11 +22,6 @@ export default function HistoryPage() {
 
     // 閲覧履歴の写真を取得（閲覧日時の新しい順）
     const historyPhotos = React.useMemo(() => {
-        const historyMap = new Map<string, string>();
-        history.forEach(item => {
-            historyMap.set(item.photoId, item.viewedAt);
-        });
-
         // 履歴の順序を保持しながら写真を取得
         const photos = history
             .map(item => {

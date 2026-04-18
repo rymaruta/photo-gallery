@@ -114,7 +114,7 @@ function FilterBarInner({
         startTransition(() => {
             onChange({ selectedTags: [] });
         });
-    }, [values.selectedTags, debouncedApply, onChange, startTransition]);
+    }, [values.selectedTags, debouncedApply, onChange]);
 
     // labels for categories
     const labelForCategory = useCallback(

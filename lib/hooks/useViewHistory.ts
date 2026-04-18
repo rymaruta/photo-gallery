@@ -108,13 +108,18 @@ export function useViewHistory() {
         saveHistory([]);
     }, [saveHistory]);
 
-    // 特定の画像を履歴から削除
+    // 特定の画像を履歴から削除（stale closure を避けるため localStorage から直接読む）
     const removeFromHistory = useCallback(
         (photoId: string) => {
-            const filtered = history.filter(item => item.photoId !== photoId);
-            saveHistory(filtered);
+            try {
+                const stored = localStorage.getItem(VIEW_HISTORY_STORAGE_KEY);
+                const current: ViewHistoryItem[] = stored ? (JSON.parse(stored) as ViewHistoryItem[]) : [];
+                saveHistory(current.filter(item => item.photoId !== photoId));
+            } catch (error) {
+                log.error("Failed to remove from history:", error);
+            }
         },
-        [history, saveHistory]
+        [saveHistory]
     );
 
     // 閲覧履歴の件数を取得

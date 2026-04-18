@@ -63,13 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
-    // 初回ロード時に認証状態をチェック
-    useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        void checkAuth();
-    }, [checkAuth]);
-
-    // パス変更時に認証状態をチェック
+    // 初回ロードおよびパス変更時に認証状態をチェック
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         void checkAuth();

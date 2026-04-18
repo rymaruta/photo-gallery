@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -22,6 +22,12 @@ export default function AdminPage() {
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [photoToDelete, setPhotoToDelete] = useState<Photo | null>(null);
+    const isMountedRef = useRef(true);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => { isMountedRef.current = false; };
+    }, []);
 
     // 認証チェック
     useEffect(() => {
@@ -35,11 +41,11 @@ export default function AdminPage() {
     // 写真一覧を取得
     useEffect(() => {
         if (isAuthenticated && isAdminUser) {
-            loadPhotos();
+            void loadPhotos();
         }
-    }, [isAuthenticated, isAdminUser]);
+    }, [isAuthenticated, isAdminUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const loadPhotos = async () => {
+    const loadPhotos = useCallback(async () => {
         try {
             setLoadingPhotos(true);
             // 管理者ページでは常に最新データを取得するためキャッシュを無効化
@@ -72,11 +78,10 @@ export default function AdminPage() {
             }
         } catch (error) {
             log.error("写真取得エラー:", error);
-            // 取得失敗のトーストは出さない（静かに失敗させる）
         } finally {
-            setLoadingPhotos(false);
+            if (isMountedRef.current) setLoadingPhotos(false);
         }
-    };
+    }, []);
 
     const handleDeleteClick = (photo: Photo) => {
         setPhotoToDelete(photo);
@@ -113,15 +118,9 @@ export default function AdminPage() {
                 // 削除された写真をローカル状態からも削除（即座に反映）
                 setPhotos((prevPhotos) => prevPhotos.filter((p) => p.id !== photoToDelete.id));
                 
-                // サーバー側の更新を待ってから再読み込み（オプション）
-                // 少し待ってから再読み込みすることで、サーバー側のキャッシュ更新を待つ
-                setTimeout(async () => {
-                    try {
-                        await loadPhotos();
-                    } catch (error) {
-                        // 再読み込みに失敗しても、既にローカル状態は更新済みなので無視
-                        log.warn("削除後の再読み込みに失敗しました（既にローカル状態は更新済み）:", error);
-                    }
+                // サーバー側のキャッシュ更新を待ってから再読み込み
+                setTimeout(() => {
+                    if (isMountedRef.current) void loadPhotos();
                 }, 500);
             } else {
                 const errorText = await response.text().catch(() => "Unknown error");

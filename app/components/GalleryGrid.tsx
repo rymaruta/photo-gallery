@@ -92,7 +92,7 @@ const GalleryItem = React.memo(function GalleryItem({
                     className="relative w-full overflow-hidden"
                     style={{ paddingTop: "75%", backgroundColor: placeholderColor, fontSize: 0, lineHeight: 0 }}
                 >
-                    <div className="absolute inset-0" aria-hidden />
+                    <div className="absolute inset-0" aria-hidden={true} />
 
                     {imageLoading && !imageError && (
                         <div className="absolute inset-0 flex items-center justify-center bg-gray-900 animate-pulse">
