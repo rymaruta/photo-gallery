@@ -347,9 +347,9 @@ function FilterBarInner({
                         <label htmlFor="filter-query" className="sr-only">
                             {(rawLabels?.search as Record<string, unknown> | undefined)?.placeholder as string | undefined ?? labels.search?.placeholder ?? "Search"}
                         </label>
-                        {/* 検索アイコン */}
+                        {/* 検索アイコン（デバウンス中は点滅） */}
                         <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none z-10">
-                            <MagnifyingGlassIcon className="w-4 h-4 text-white/40" />
+                            <MagnifyingGlassIcon className={`w-4 h-4 ${localQuery !== (values.query || "") ? "text-white/70 animate-pulse" : "text-white/40"}`} />
                         </div>
                         <input
                             id="filter-query"

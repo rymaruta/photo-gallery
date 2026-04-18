@@ -215,6 +215,7 @@ export default function GalleryModal({
 
         preload(p.src);
 
+        if (photos.length < 2) return;
         const nextIndex = (currentIndex + 1) % photos.length;
         const prevIndex = (currentIndex - 1 + photos.length) % photos.length;
 

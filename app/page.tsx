@@ -161,17 +161,32 @@ export default function Page() {
         ) : (
           <>
             <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
-              {locale === "en" 
+              {locale === "en"
                 ? `${labels.gallery?.resultsCount ?? "Results"}: ${filteredPhotos.length}`
                 : `${labels.gallery?.resultsCount ?? "結果"}: ${filteredPhotos.length} 件`}
             </div>
 
-            <GalleryGrid
-              photos={filteredPhotos}
-              onOpen={open}
-              locale={locale}
-              categoryDisplayMap={categoryDisplayMap}
-            />
+            {filteredPhotos.length === 0 && PHOTOS.length > 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
+                <p className="text-sm">
+                  {locale === "en" ? "No photos match the current filters." : "条件に一致する写真がありません。"}
+                </p>
+                <button
+                  onClick={() => setFilters({ category: "all", selectedTags: [], query: "", sort: "new" })}
+                  className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
+                  style={{ touchAction: "manipulation" }}
+                >
+                  {locale === "en" ? "Reset filters" : "フィルターをリセット"}
+                </button>
+              </div>
+            ) : (
+              <GalleryGrid
+                photos={filteredPhotos}
+                onOpen={open}
+                locale={locale}
+                categoryDisplayMap={categoryDisplayMap}
+              />
+            )}
           </>
         )}
 
