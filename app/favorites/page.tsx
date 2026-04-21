@@ -14,7 +14,7 @@ export default function FavoritesPage() {
     const { locale, setLocale, labels } = useLocale();
     const { favorites } = useFavorites();
     const { preloadMultiple } = useImagePreloader();
-    const { photos: allPhotos, loading } = usePhotos();
+    const { photos: allPhotos } = usePhotos();
 
     // モーダル管理
     const [currentIndex, setCurrentIndex] = React.useState<number | null>(null);
@@ -90,11 +90,7 @@ export default function FavoritesPage() {
                 </div>
             </div>
 
-            {loading ? (
-                <div className="flex items-center justify-center py-12">
-                    <div className="w-12 h-12 border-3 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                </div>
-            ) : favoritePhotos.length === 0 ? (
+            {favoritePhotos.length === 0 ? (
                 <div className="text-center py-12">
                     <svg
                         className="w-16 h-16 mx-auto mb-4 text-white/40"
