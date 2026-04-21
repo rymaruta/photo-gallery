@@ -10,7 +10,7 @@ import { AuthProvider } from "./auth/context";
 import { LocaleProvider } from "./i18n/context";
 import { siteConfig, generateWebSiteStructuredData } from "../lib/utils/seo";
 
-const inter = Inter({ subsets: ["latin"], weight: ["400", "700", "900"] });
+const inter = Inter({ subsets: ["latin"], weight: ["400", "700", "900"], display: "swap" });
 
 // Instagram IAB / iOS Safari でブラウザUIを除いた実際の表示領域を使う
 // viewportFit=cover でノッチ・ホームインジケーター領域の safe-area-inset を有効化

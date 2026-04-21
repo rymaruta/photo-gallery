@@ -29,13 +29,23 @@ if (!fs.existsSync(outDir)) {
 
 console.log(`\n[deploy] Uploading ${outDir} → s3://${bucket}/`);
 
-// Sync HTML files with no-cache
+// Step 1: Upload new assets WITHOUT --delete.
+// New hashed files (JS/CSS) are added to S3 alongside old ones.
+// Old assets are preserved so any in-flight requests to the current HTML still work.
+execSync(
+    `aws s3 sync "${outDir}" "s3://${bucket}" --cache-control "public, max-age=31536000, immutable" --exclude "*.html" --exclude "*.txt"`,
+    { stdio: "inherit", cwd: root }
+);
+
+// Step 2: Swap HTML to point at the newly uploaded assets.
+// Only now do users receive HTML that references the new hashes, which are already live.
 execSync(
     `aws s3 sync "${outDir}" "s3://${bucket}" --delete --cache-control "no-cache, no-store, must-revalidate" --exclude "*" --include "*.html" --include "*.txt"`,
     { stdio: "inherit", cwd: root }
 );
 
-// Sync static assets with long-lived cache
+// Step 3: Remove stale assets that are no longer referenced by any HTML.
+// Safe to delete now because HTML was already swapped in step 2.
 execSync(
     `aws s3 sync "${outDir}" "s3://${bucket}" --delete --cache-control "public, max-age=31536000, immutable" --exclude "*.html" --exclude "*.txt"`,
     { stdio: "inherit", cwd: root }

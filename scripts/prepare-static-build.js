@@ -16,7 +16,16 @@ const backupDir = path.join(root, "_api_build_backup");
 
 function move(src, dest) {
     if (fs.existsSync(src)) {
-        fs.renameSync(src, dest);
+        try {
+            fs.renameSync(src, dest);
+        } catch (err) {
+            if (err.code === "EXDEV") {
+                fs.cpSync(src, dest, { recursive: true });
+                fs.rmSync(src, { recursive: true, force: true });
+            } else {
+                throw err;
+            }
+        }
         console.log(`  Moved: ${path.relative(root, src)} → ${path.relative(root, dest)}`);
     }
 }
