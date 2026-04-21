@@ -4,9 +4,7 @@
 :root {
   --color-background: #000000;
   --color-foreground: #ffffff;
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  
+
   /* Gallery page CSS variables */
   --gallery-font: "Noto Sans JP", "Noto Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
   --fg: rgba(255, 255, 255, 0.95);
