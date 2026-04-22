@@ -15,6 +15,7 @@ import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
 import { ShareIcon, LinkIcon } from "@heroicons/react/24/outline";
 import { shareUrl, copyToClipboard, shareToTwitter, shareToFacebook, shareToLine } from "../../lib/utils/share";
 import { siteConfig } from "../../lib/utils/seo";
+import { ROUTES } from "../../lib/routes";
 
 // モーダル用画像コンポーネント（エラーハンドリング付き）
 function ModalImage({ src, alt, focalPoint }: { src: string; alt: string; focalPoint?: { x: number; y: number } }) {
@@ -178,9 +179,9 @@ export default function GalleryModal({
     }, [p?.id, addToHistory]);
 
     // 共有機能（個別ページのURLを使用）
-    const currentUrl = typeof window !== "undefined" 
-        ? `${window.location.origin}/photo/${p.id}` 
-        : `${siteConfig.url}/photo/${p.id}`;
+    const currentUrl = typeof window !== "undefined"
+        ? `${window.location.origin}${ROUTES.PHOTO(p.id)}`
+        : `${siteConfig.url}${ROUTES.PHOTO(p.id)}`;
     const shareText = titleText || "Photo";
 
     const handleShare = (e?: React.MouseEvent) => {
@@ -555,7 +556,7 @@ export default function GalleryModal({
                     {/* 個別ページへのリンク（撮影情報は個別ページでのみ表示） */}
                     <div className="mt-4 pt-4 border-t border-white/10">
                         <Link
-                            href={`/photo/${p.id}`}
+                            href={ROUTES.PHOTO(p.id)}
                             onClick={(e) => e.stopPropagation()}
                             onTouchStart={(e) => e.stopPropagation()}
                             className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"

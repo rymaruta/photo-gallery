@@ -5,7 +5,7 @@ import FilterBar from "./components/FilterBar";
 import LocaleToggle from "./components/LocaleToggle";
 import { useLocale } from "./i18n/context";
 
-import useGallery from "./hooks/useGallery";
+import useGallery from "../lib/hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
 import GalleryModal from "./components/GalleryModal";
 import { capitalize } from "../lib/utils/string";

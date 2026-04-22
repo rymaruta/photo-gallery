@@ -1,4 +1,3 @@
-// app/components/HeaderNav.tsx
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -7,6 +6,7 @@ import { XMarkIcon, Bars3Icon } from "@heroicons/react/24/solid";
 import { useAuth } from "../auth/context";
 import { useLocale } from "../i18n/context";
 import { log } from "../../lib/utils/log";
+import { ROUTES } from "../../lib/routes";
 
 export default function HeaderNav({ className = "" }: { className?: string }) {
     const router = useRouter();
@@ -152,7 +152,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleNavigation("/");
+                                                    handleNavigation(ROUTES.HOME);
                                                 }}
                                                 onTouchStart={(e) => {
                                                     e.stopPropagation();
@@ -160,7 +160,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                 onTouchEnd={(e) => {
                                                     e.stopPropagation();
                                                     e.preventDefault();
-                                                    handleNavigation("/");
+                                                    handleNavigation(ROUTES.HOME);
                                                 }}
                                                 className={`${linkBase} ${inactiveClasses} w-full text-left`}
                                                 style={{ 
@@ -181,7 +181,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleNavigation("/favorites");
+                                                    handleNavigation(ROUTES.FAVORITES);
                                                 }}
                                                 onTouchStart={(e) => {
                                                     e.stopPropagation();
@@ -189,7 +189,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                 onTouchEnd={(e) => {
                                                     e.stopPropagation();
                                                     e.preventDefault();
-                                                    handleNavigation("/favorites");
+                                                    handleNavigation(ROUTES.FAVORITES);
                                                 }}
                                                 className={`${linkBase} ${inactiveClasses} w-full text-left`}
                                                 style={{ 
@@ -210,7 +210,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleNavigation("/history");
+                                                    handleNavigation(ROUTES.HISTORY);
                                                 }}
                                                 onTouchStart={(e) => {
                                                     e.stopPropagation();
@@ -218,7 +218,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                 onTouchEnd={(e) => {
                                                     e.stopPropagation();
                                                     e.preventDefault();
-                                                    handleNavigation("/history");
+                                                    handleNavigation(ROUTES.HISTORY);
                                                 }}
                                                 className={`${linkBase} ${inactiveClasses} w-full text-left`}
                                                 style={{ 
@@ -239,7 +239,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleNavigation("/about");
+                                                    handleNavigation(ROUTES.ABOUT);
                                                 }}
                                                 onTouchStart={(e) => {
                                                     e.stopPropagation();
@@ -247,7 +247,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                 onTouchEnd={(e) => {
                                                     e.stopPropagation();
                                                     e.preventDefault();
-                                                    handleNavigation("/about");
+                                                    handleNavigation(ROUTES.ABOUT);
                                                 }}
                                                 className={`${linkBase} ${inactiveClasses} w-full text-left`}
                                                 style={{ 
@@ -270,7 +270,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        handleNavigation("/admin");
+                                                        handleNavigation(ROUTES.ADMIN);
                                                     }}
                                                     onTouchStart={(e) => {
                                                         e.stopPropagation();
@@ -278,7 +278,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                     onTouchEnd={(e) => {
                                                         e.stopPropagation();
                                                         e.preventDefault();
-                                                        handleNavigation("/admin");
+                                                        handleNavigation(ROUTES.ADMIN);
                                                     }}
                                                     className={`${linkBase} ${inactiveClasses} w-full text-left`}
                                                     style={{ 
@@ -331,7 +331,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        handleNavigation("/login");
+                                                        handleNavigation(ROUTES.LOGIN);
                                                     }}
                                                     onTouchStart={(e) => {
                                                         e.stopPropagation();
@@ -339,7 +339,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                     onTouchEnd={(e) => {
                                                         e.stopPropagation();
                                                         e.preventDefault();
-                                                        handleNavigation("/login");
+                                                        handleNavigation(ROUTES.LOGIN);
                                                     }}
                                                     className={`${linkBase} ${inactiveClasses} w-full text-left`}
                                                     style={{ 

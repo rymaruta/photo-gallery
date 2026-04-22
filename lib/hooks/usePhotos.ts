@@ -2,8 +2,8 @@
 // 写真一覧をAPIから取得する共通フック（AbortController対応）
 
 import { useState, useEffect } from "react";
-import type { Photo } from "../../app/data/photos";
-import BASE_PHOTOS from "../../app/data/photos";
+import type { Photo } from "../data/photos";
+import BASE_PHOTOS from "../data/photos";
 import { log } from "../utils/log";
 
 export function usePhotos() {
