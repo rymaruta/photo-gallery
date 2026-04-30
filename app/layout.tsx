@@ -24,13 +24,14 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: {
     default: siteConfig.name,
-    template: `%s | ${siteConfig.name}`,
+    template: `%s | Journey Photo 旅フォトギャラリー`,
   },
   description: siteConfig.description,
   keywords: [
+    "旅行写真", "旅フォト", "旅の写真", "旅行記", "旅行ギャラリー",
+    "風景写真", "スナップ写真", "海外旅行", "国内旅行",
     "旅行", "旅", "ジャーニー", "フォト", "写真", "ギャラリー",
-    "旅行写真", "風景写真", "travel", "journey", "photo", "photography", "gallery",
-    "travel photography", "landscape", "journey photo",
+    "travel", "journey", "photo", "photography", "travel photography",
   ],
   authors: [{ name: "Journey Photo" }],
   creator: "Journey Photo",

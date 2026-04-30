@@ -2,8 +2,8 @@
 // SEO設定と構造化データ生成用のユーティリティ
 
 export const siteConfig = {
-    name: "Journey Photo",
-    description: "旅の記憶を写真で。ジャーニーフォトは旅行・風景・日常のフォトギャラリーです。",
+    name: "Journey Photo | 旅フォトギャラリー",
+    description: "旅の記憶を写真で残す。国内外の旅行写真・風景写真・スナップ写真を集めたフォトギャラリー。旅先の景色や日常のひとこまを届けます。",
     descriptionEn: "A travel photography gallery capturing journeys, landscapes, and everyday moments.",
     url: process.env.NEXT_PUBLIC_SITE_URL || "https://journey-photo.com",
     ogImage: "/images/og-image.jpg",
