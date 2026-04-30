@@ -20,6 +20,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Compiled Lambda bundles (esbuild output)
+    "api-user/dist/**",
+    "api-user/node_modules/**",
   ]),
 ]);
 

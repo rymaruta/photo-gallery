@@ -26,9 +26,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
     // アンマウント時に全タイマーをクリア
     useEffect(() => {
-        return () => {
-            timersRef.current.forEach(clearTimeout);
-        };
+        const timers = timersRef.current;
+        return () => { timers.forEach(clearTimeout); };
     }, []);
 
     const showToast = useCallback((message: string, type: ToastType = "success", duration: number = 3000) => {

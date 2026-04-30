@@ -5,14 +5,16 @@ const STORAGE_KEY = "photo-gallery-favorites";
 const CHANGE_EVENT = "favorites-updated";
 
 export function useFavorites() {
-    const [favorites, setFavorites] = useState<string[]>([]);
+    const [favorites, setFavorites] = useState<string[]>(() => {
+        if (typeof window === "undefined") return [];
+        return storageGet<string[]>(STORAGE_KEY) ?? [];
+    });
 
     const load = useCallback(() => {
         setFavorites(storageGet<string[]>(STORAGE_KEY) ?? []);
     }, []);
 
     useEffect(() => {
-        load();
         window.addEventListener(CHANGE_EVENT, load);
         return () => window.removeEventListener(CHANGE_EVENT, load);
     }, [load]);

@@ -18,10 +18,11 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     // localStorage の読み込みは useEffect でマウント後に行う
     const [locale, setLocaleState] = useState<Locale>("ja");
 
-    // マウント後に localStorage から保存済みロケールを読み込む
+    // マウント後に localStorage から保存済みロケールを読み込む（SSRハイドレーション対応）
     useEffect(() => {
         const saved = localStorage.getItem("locale");
         if (saved === "en" || saved === "ja") {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setLocaleState(saved);
         }
     }, []);

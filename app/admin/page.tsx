@@ -11,6 +11,7 @@ import { PencilIcon, TrashIcon, PlusIcon } from "@heroicons/react/24/outline";
 import type { Photo } from "../data/photos";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import { log } from "../../lib/utils/log";
+import { ROUTES } from "../../lib/routes";
 
 export default function AdminPage() {
     const { isAuthenticated, isAdminUser, loading } = useAuth();
@@ -217,7 +218,7 @@ export default function AdminPage() {
                         {locale === "en" ? "Photo Management" : "写真管理"}
                     </h1>
                     <Link
-                        href="/upload"
+                        href={ROUTES.UPLOAD}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-white text-black rounded-md font-medium hover:bg-white/90 transition-colors"
                     >
                         <PlusIcon className="w-5 h-5" />

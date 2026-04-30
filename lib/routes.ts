@@ -5,6 +5,6 @@ export const ROUTES = {
     HISTORY: "/history",
     ADMIN: "/admin",
     LOGIN: "/login",
-    UPLOAD: "/upload",
+    UPLOAD: "/user/upload",
     PHOTO: (id: string) => `/photo/${id}`,
 } as const;

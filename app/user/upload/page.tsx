@@ -3,11 +3,11 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { PhotoIcon, XMarkIcon } from "@heroicons/react/24/outline";
-import { useToast } from "../../lib/hooks/useToast";
-import { useAuth } from "../auth/context";
-import LocaleToggle from "../components/LocaleToggle";
-import { useLocale } from "../i18n/context";
-import { log } from "../../lib/utils/log";
+import { useToast } from "../../../lib/hooks/useToast";
+import { useAuth } from "../../auth/context";
+import LocaleToggle from "../../components/LocaleToggle";
+import { useLocale } from "../../i18n/context";
+import { log } from "../../../lib/utils/log";
 
 export default function UploadPage() {
     const { isAuthenticated, isAdminUser, loading } = useAuth();
@@ -65,7 +65,7 @@ export default function UploadPage() {
             setPreview(reader.result as string);
         };
         reader.readAsDataURL(selectedFile);
-    }, [locale, showToast]);
+    }, [locale]);
 
     // ファイルをクリア
     const handleClearFile = useCallback(() => {
@@ -94,7 +94,7 @@ export default function UploadPage() {
             // 注意: 本番環境では、より安全な認証方法（JWT等）の使用を推奨します
             // 1. Presigned URLを取得
             setProgress(10);
-            const { authenticatedFetch, userFetch } = await import("../../lib/utils/api");
+            const { authenticatedFetch, userFetch } = await import("../../../lib/utils/api");
             const apiFetch = isAdminUser ? authenticatedFetch : userFetch;
 
             let presignedResponse: Response;
@@ -237,7 +237,7 @@ export default function UploadPage() {
                 const errorName = fetchError instanceof Error ? fetchError.name : "Unknown";
                 const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
                 const errorStack = fetchError instanceof Error ? fetchError.stack : undefined;
-                console.error("Fetch error詳細:", {
+                log.error("Fetch error詳細:", {
                     name: errorName,
                     message: errorMessage,
                     stack: errorStack,
@@ -277,7 +277,7 @@ export default function UploadPage() {
                 const raw = await saveResponse.text();
                 let err: { error?: string } = {};
                 try { err = raw ? JSON.parse(raw) : {}; } catch { err = { error: raw.slice(0, 150) }; }
-                console.error("[3/3] 写真データの保存エラー:", { status: saveResponse.status, body: err, rawPreview: raw.slice(0, 200) });
+                log.error("[3/3] 写真データの保存エラー:", { status: saveResponse.status, body: err, rawPreview: raw.slice(0, 200) });
                 throw new Error(`[3/3] ${err.error || "写真データの保存に失敗しました"}`);
             }
 
@@ -305,7 +305,7 @@ export default function UploadPage() {
             setUploading(false);
             setProgress(0);
         }
-    }, [file, title, description, location, category, tags, locale, showToast, router]);
+    }, [file, title, description, location, category, tags, locale, showToast, router, isAdminUser]);
 
     // 認証チェック - 管理者以外はリダイレクト
     useEffect(() => {

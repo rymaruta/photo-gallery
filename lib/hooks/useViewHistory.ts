@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { storageGet, storageSet } from "../utils/storage";
 
 const STORAGE_KEY = "photo-gallery-view-history";
@@ -16,12 +16,10 @@ function sortByDate(items: ViewHistoryItem[]): ViewHistoryItem[] {
 }
 
 export function useViewHistory() {
-    const [history, setHistory] = useState<ViewHistoryItem[]>([]);
-
-    useEffect(() => {
-        const loaded = storageGet<ViewHistoryItem[]>(STORAGE_KEY) ?? [];
-        setHistory(sortByDate(loaded));
-    }, []);
+    const [history, setHistory] = useState<ViewHistoryItem[]>(() => {
+        if (typeof window === "undefined") return [];
+        return sortByDate(storageGet<ViewHistoryItem[]>(STORAGE_KEY) ?? []);
+    });
 
     const saveHistory = useCallback((items: ViewHistoryItem[]) => {
         const sorted = sortByDate(items).slice(0, MAX_ITEMS);

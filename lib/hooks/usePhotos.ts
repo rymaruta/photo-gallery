@@ -9,8 +9,7 @@ import { log } from "../utils/log";
 export function usePhotos() {
     // BASE_PHOTOSを初期値とすることで、APIが遅延・失敗しても即時コンテンツ表示を保証する
     const [photos, setPhotos] = useState<Photo[]>(BASE_PHOTOS);
-    // BASE_PHOTOSがあるためスピナーは不要（APIデータはバックグラウンドでサイレント更新）
-    const [loading, setLoading] = useState(false);
+    const loading = false;
 
     useEffect(() => {
         const controller = new AbortController();
