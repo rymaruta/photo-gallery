@@ -15,18 +15,13 @@ export default function HistoryPage() {
     const { locale, setLocale, labels } = useLocale();
     const { history, clearHistory } = useViewHistory();
     const { preloadMultiple } = useImagePreloader();
-    const { photos: allPhotos, loading } = usePhotos();
+    const { photos: allPhotos } = usePhotos();
 
     // モーダル管理
     const [currentIndex, setCurrentIndex] = React.useState<number | null>(null);
 
     // 閲覧履歴の写真を取得（閲覧日時の新しい順）
     const historyPhotos = React.useMemo(() => {
-        const historyMap = new Map<string, string>();
-        history.forEach(item => {
-            historyMap.set(item.photoId, item.viewedAt);
-        });
-
         // 履歴の順序を保持しながら写真を取得
         const photos = history
             .map(item => {
@@ -119,11 +114,7 @@ export default function HistoryPage() {
                 </div>
             </div>
 
-            {loading ? (
-                <div className="flex items-center justify-center py-12">
-                    <div className="w-12 h-12 border-3 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                </div>
-            ) : historyPhotos.length === 0 ? (
+            {historyPhotos.length === 0 ? (
                 <div className="text-center py-12">
                     <svg
                         className="w-16 h-16 mx-auto mb-4 text-white/40"

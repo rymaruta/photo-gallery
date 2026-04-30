@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/react/24/solid";
+import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 import { HeartIcon } from "@heroicons/react/24/solid";
 import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
 import { ShareIcon, LinkIcon } from "@heroicons/react/24/outline";
@@ -228,14 +228,6 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
         return allPhotos.find(p => p.id === photoId);
     }, [photoId, allPhotos]);
 
-    // 全写真のインデックスを取得（前後の写真へのナビゲーション用）
-    const currentIndex = useMemo(() => {
-        return allPhotos.findIndex(p => p.id === photoId);
-    }, [photoId, allPhotos]);
-
-    const prevPhoto = currentIndex > 0 ? allPhotos[currentIndex - 1] : null;
-    const nextPhoto = currentIndex < allPhotos.length - 1 ? allPhotos[currentIndex + 1] : null;
-
     // お気に入り機能
     const { isFavorite, toggleFavorite } = useFavorites();
     const isFav = photo ? isFavorite(photo.id) : false;
@@ -436,43 +428,6 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                     onExifLoaded={setExtractedExif}
                 />
                 
-                {/* 前後の写真へのナビゲーション（モバイル - 写真の上にオーバーレイ） */}
-                {(prevPhoto || nextPhoto) && (
-                    <div className="flex items-center justify-between absolute bottom-4 left-4 right-4 sm:hidden z-10 pointer-events-none">
-                        {prevPhoto ? (
-                            <Link
-                                href={`/photo/${prevPhoto.id}`}
-                                className="inline-flex items-center gap-2 px-3 py-2 bg-black/60 hover:bg-black/80 backdrop-blur-sm text-white rounded-md transition-colors pointer-events-auto"
-                                style={{ 
-                                    touchAction: "manipulation",
-                                    WebkitTapHighlightColor: "transparent",
-                                    minHeight: "44px"
-                                }}
-                            >
-                                <ArrowLeftIcon className="w-4 h-4" />
-                                <span className="text-sm">{locale === "en" ? "Previous" : "前へ"}</span>
-                            </Link>
-                        ) : (
-                            <div />
-                        )}
-                        {nextPhoto ? (
-                            <Link
-                                href={`/photo/${nextPhoto.id}`}
-                                className="inline-flex items-center gap-2 px-3 py-2 bg-black/60 hover:bg-black/80 backdrop-blur-sm text-white rounded-md transition-colors pointer-events-auto"
-                                style={{ 
-                                    touchAction: "manipulation",
-                                    WebkitTapHighlightColor: "transparent",
-                                    minHeight: "44px"
-                                }}
-                            >
-                                <span className="text-sm">{locale === "en" ? "Next" : "次へ"}</span>
-                                <ArrowRightIcon className="w-4 h-4" />
-                            </Link>
-                        ) : (
-                            <div />
-                        )}
-                    </div>
-                )}
             </div>
 
             {/* 写真情報 */}
@@ -704,49 +659,6 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                     </div>
                 </div>
 
-                {/* 前後の写真へのナビゲーション（デスクトップ） */}
-                {(prevPhoto || nextPhoto) && (
-                    <div className="pt-4 border-t border-white/10 hidden sm:flex items-center justify-between">
-                        {prevPhoto ? (
-                            <Link
-                                href={`/photo/${prevPhoto.id}`}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
-                                style={{ 
-                                    touchAction: "manipulation",
-                                    WebkitTapHighlightColor: "transparent",
-                                    minHeight: "44px"
-                                }}
-                            >
-                                <ArrowLeftIcon className="w-5 h-5" />
-                                <div className="text-left">
-                                    <div className="text-xs text-white/60">{locale === "en" ? "Previous" : "前へ"}</div>
-                                    <div className="text-sm font-medium">{getLocalized(prevPhoto.title, locale) || prevPhoto.id}</div>
-                                </div>
-                            </Link>
-                        ) : (
-                            <div />
-                        )}
-                        {nextPhoto ? (
-                            <Link
-                                href={`/photo/${nextPhoto.id}`}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
-                                style={{ 
-                                    touchAction: "manipulation",
-                                    WebkitTapHighlightColor: "transparent",
-                                    minHeight: "44px"
-                                }}
-                            >
-                                <div className="text-right">
-                                    <div className="text-xs text-white/60">{locale === "en" ? "Next" : "次へ"}</div>
-                                    <div className="text-sm font-medium">{getLocalized(nextPhoto.title, locale) || nextPhoto.id}</div>
-                                </div>
-                                <ArrowRightIcon className="w-5 h-5" />
-                            </Link>
-                        ) : (
-                            <div />
-                        )}
-                    </div>
-                    )}
                 </div>
             </main>
         </>

@@ -30,6 +30,7 @@ export default function UploadPage() {
     const [preview, setPreview] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
     const [progress, setProgress] = useState(0);
+    const [fileError, setFileError] = useState<string | null>(null);
 
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
@@ -42,23 +43,17 @@ export default function UploadPage() {
         const selectedFile = e.target.files?.[0];
         if (!selectedFile) return;
 
+        setFileError(null);
+
         // ファイルサイズチェック（10MB制限）
         if (selectedFile.size > 10 * 1024 * 1024) {
-            showToast(
-                locale === "en"
-                    ? "File size is too large (max 10MB)"
-                    : "ファイルサイズが大きすぎます（最大10MB）"
-            );
+            setFileError(locale === "en" ? "File size is too large (max 10MB)" : "ファイルサイズが大きすぎます（最大10MB）");
             return;
         }
 
         // 画像ファイルかチェック
         if (!selectedFile.type.startsWith("image/")) {
-            showToast(
-                locale === "en"
-                    ? "Please select an image file"
-                    : "画像ファイルを選択してください"
-            );
+            setFileError(locale === "en" ? "Please select an image file" : "画像ファイルを選択してください");
             return;
         }
 
@@ -410,6 +405,10 @@ export default function UploadPage() {
                         </div>
                     )}
                 </div>
+
+                {fileError && (
+                    <p className="text-sm text-red-400 mt-1" role="alert">{fileError}</p>
+                )}
 
                 {/* タイトル */}
                 <div>

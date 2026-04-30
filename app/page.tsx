@@ -14,7 +14,7 @@ import { usePhotos } from "../lib/hooks/usePhotos";
 
 export default function Page() {
   const { locale, setLocale, labels } = useLocale();
-  const { photos, loading } = usePhotos();
+  const { photos } = usePhotos();
 
   const {
     PHOTOS,
@@ -154,26 +154,35 @@ export default function Page() {
           categoryDisplayMap={categoryDisplayMap}
         />
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="w-12 h-12 border-3 border-white/20 border-t-white/60 rounded-full animate-spin" />
+        <>
+          <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
+            {locale === "en"
+              ? `${labels.gallery?.resultsCount ?? "Results"}: ${filteredPhotos.length}`
+              : `${labels.gallery?.resultsCount ?? "結果"}: ${filteredPhotos.length} 件`}
           </div>
-        ) : (
-          <>
-            <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
-              {locale === "en" 
-                ? `${labels.gallery?.resultsCount ?? "Results"}: ${filteredPhotos.length}`
-                : `${labels.gallery?.resultsCount ?? "結果"}: ${filteredPhotos.length} 件`}
-            </div>
 
+          {filteredPhotos.length === 0 && PHOTOS.length > 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
+              <p className="text-sm">
+                {locale === "en" ? "No photos match the current filters." : "条件に一致する写真がありません。"}
+              </p>
+              <button
+                onClick={() => setFilters({ category: "all", selectedTags: [], query: "", sort: "new" })}
+                className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
+                style={{ touchAction: "manipulation" }}
+              >
+                {locale === "en" ? "Reset filters" : "フィルターをリセット"}
+              </button>
+            </div>
+          ) : (
             <GalleryGrid
               photos={filteredPhotos}
               onOpen={open}
               locale={locale}
               categoryDisplayMap={categoryDisplayMap}
             />
-          </>
-        )}
+          )}
+        </>
 
         {currentIndex !== null && filteredPhotos[currentIndex] && (
           <GalleryModal
