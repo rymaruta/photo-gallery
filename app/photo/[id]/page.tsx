@@ -1,9 +1,9 @@
-import type { Photo } from "../../data/photos";
-import RAW_PHOTOS from "../../data/photos";
+import type { Photo } from "../../../lib/data/photos";
+import RAW_PHOTOS from "../../../lib/data/photos";
 import PhotoPageClient from "./PhotoPageClient";
 import type { Metadata } from "next";
 import { siteConfig } from "../../../lib/utils/seo";
-import { getLocalized, getLocalizedParagraphs } from "../../data/photos";
+import { getLocalized, getLocalizedParagraphs } from "../../../lib/data/photos";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";

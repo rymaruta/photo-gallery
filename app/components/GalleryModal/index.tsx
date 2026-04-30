@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
-import type { Photo, Locale } from "../../data/photos";
-import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "../../data/photos";
+import type { Photo, Locale } from "../../../lib/data/photos";
+import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "../../../lib/data/photos";
 import { useSwipe } from "../../../lib/hooks/useSwipe";
 import { useFavorites } from "../../../lib/hooks/useFavorites";
 import { useViewHistory } from "../../../lib/hooks/useViewHistory";

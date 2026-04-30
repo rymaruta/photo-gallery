@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
-import BASE_PHOTOS from "../../data/photos";
-import type { Photo } from "../../data/photos";
+import BASE_PHOTOS from "../../../lib/data/photos";
+import type { Photo } from "../../../lib/data/photos";
 
 // 静的エクスポートではAPI Routesは生成されない（本番環境ではAPI Gateway + Lambdaを使用）
 

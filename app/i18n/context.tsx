@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { getLabels } from "./labels";
 import type { Labels } from "./labels";
-import type { Locale } from "../data/photos";
+import type { Locale } from "../../lib/data/photos";
 
 type LocaleContextType = {
     locale: Locale;
