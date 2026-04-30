@@ -2,13 +2,13 @@
 // SEO設定と構造化データ生成用のユーティリティ
 
 export const siteConfig = {
-    name: "PhotoGallery",
-    description: "小さな写真サイトへようこそ。",
-    descriptionEn: "Welcome to a small photography site.",
-    url: process.env.NEXT_PUBLIC_SITE_URL || "https://your-domain.com",
+    name: "Journey Photo",
+    description: "旅の記憶を写真で。ジャーニーフォトは旅行・風景・日常のフォトギャラリーです。",
+    descriptionEn: "A travel photography gallery capturing journeys, landscapes, and everyday moments.",
+    url: process.env.NEXT_PUBLIC_SITE_URL || "https://journey-photo.com",
     ogImage: "/images/og-image.jpg",
-    twitterHandle: "@PhotoGallery",
-    author: "PhotoGallery",
+    twitterHandle: "@JourneyPhoto",
+    author: "Journey Photo",
     locale: {
         ja: "ja_JP",
         en: "en_US",

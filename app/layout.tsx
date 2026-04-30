@@ -27,9 +27,13 @@ export const metadata: Metadata = {
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
-  keywords: ["写真", "ギャラリー", "作品", "photography", "gallery", "works"],
-  authors: [{ name: "PhotoGallery" }],
-  creator: "PhotoGallery",
+  keywords: [
+    "旅行", "旅", "ジャーニー", "フォト", "写真", "ギャラリー",
+    "旅行写真", "風景写真", "travel", "journey", "photo", "photography", "gallery",
+    "travel photography", "landscape", "journey photo",
+  ],
+  authors: [{ name: "Journey Photo" }],
+  creator: "Journey Photo",
   openGraph: {
     type: "website",
     locale: siteConfig.locale.ja,
@@ -102,7 +106,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       href="/" 
                       className="inline-block hover:opacity-70 transition-opacity duration-200 relative group"
                     >
-                      <span className="relative z-10">PhotoGallery</span>
+                      <span className="relative z-10">Journey Photo</span>
                       <span className="absolute inset-0 bg-white/5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 -z-0" />
               </Link>
             </h1>
