@@ -1,7 +1,7 @@
 // lib/hooks/useToast.tsx
 // トースト通知機能用のカスタムフック
 
-import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo, ReactNode } from "react";
 
 export type ToastType = "success" | "error" | "info";
 
@@ -56,8 +56,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         setToasts((prev) => prev.filter((t) => t.id !== id));
     }, []);
 
+    const value = useMemo(() => ({ toasts, showToast, removeToast }), [toasts, showToast, removeToast]);
+
     return (
-        <ToastContext.Provider value={{ toasts, showToast, removeToast }}>
+        <ToastContext.Provider value={value}>
             {children}
         </ToastContext.Provider>
     );

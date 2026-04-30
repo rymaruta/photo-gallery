@@ -4,9 +4,6 @@
 :root {
   --color-background: #000000;
   --color-foreground: #ffffff;
-
-  /* Gallery page CSS variables */
-  --gallery-font: "Noto Sans JP", "Noto Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
   --fg: rgba(255, 255, 255, 0.95);
   --muted: rgba(255, 255, 255, 0.82);
   --muted-2: rgba(255, 255, 255, 0.72);
@@ -16,12 +13,10 @@
   --subtle-shadow: 0 1px 8px rgba(0, 0, 0, 0.65);
 }
 
-/* 全体リセット / 基本 */
 html {
   scroll-behavior: smooth;
 }
 
-/* #__next は Next.js App Router では存在しないため削除 */
 html,
 body {
   height: 100%;
@@ -33,251 +28,34 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--color-background);
   color: var(--color-foreground);
+  font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Instagram IAB / iOS Safari 対応:
-   min-h-screen (100vh) はブラウザのツールバーを含む高さになるため
-   dvh (dynamic viewport height) で実際の表示領域に追従させる */
+/* dvh: Instagram IAB / iOS Safari のツールバーを除いた実際の表示領域 */
 @supports (min-height: 100dvh) {
   body {
     min-height: 100dvh;
   }
 }
 
-/* safe-area-inset: ノッチ・ホームインジケーター対応 */
+/* ノッチ・ホームインジケーター対応 */
 body {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* ヘッダー（既存の site-header を上書き） */
-.site-header {
-  font-family: "Noto Sans JP", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  font-weight: 700;
+/* HeaderNav で使用 */
+.site-header__nav {
+  font-family: "Noto Sans JP", system-ui, -apple-system, sans-serif;
 }
 
-/* ヘッダーロゴ用サイズ（レスポンシブ対応） */
-.site-header__logo {
-  font-weight: 700;
-  font-size: 1.5rem;
-  /* 24px */
-  line-height: 1;
-  letter-spacing: -0.01em;
-}
-
-@media (min-width: 768px) {
-  .site-header__logo {
-    font-size: 1.875rem;
-    /* 30px */
-  }
-}
-
-@media (min-width: 1024px) {
-  .site-header__logo {
-    font-size: 2.5rem;
-    /* 40px */
-  }
-}
-
-/* ヘッダータイトル（必要なら個別調整） */
-.site-header__title {
-  font-weight: 700;
-  font-size: 1.25rem;
-  letter-spacing: -0.01em;
-}
-
-/* フォールバックフォント */
-body {
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* app/globals.css */
-.site-footer {
-  background-color: #ffffff;
-  color: #000000;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-/* 内部コンテナ：大きめの余白と中央寄せ、必要なら min-height で高さを保証 */
-/* フッターのタイポグラフィ（オフィシャル感） */
-.site-footer__inner {
-  /* フォントは Playfair Display を推奨（serif） */
-  font-family: "Noto Sans JP", Georgia, serif;
-  font-weight: 700;
-  /* 太め */
-  font-size: 1.125rem;
-  /* 18px 相当、少し大きめ */
-  letter-spacing: -0.01em;
-  /* タイトル感を保つ微調整 */
-  line-height: 1.4;
-  text-transform: none;
-  color: #000000;
-  /* 既存のレイアウトプロパティはそのまま維持 */
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 2.5rem 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  min-height: 96px;
-}
-
-@media (min-width: 768px) {
-  .site-footer__inner {
-    padding: 3rem 2rem;
-    min-height: 120px;
-    font-size: 1.125rem;
-    /* mdでも同じサイズにする場合 */
-  }
-}
-
-/* ---------------------------
-   追加: モバイル向け文字縮小（既存デザインを崩さず全体を小さくする）
-   メディアクエリは必要最低限の上書きのみ。ファイル末尾に置くと安全。
-   --------------------------- */
+/* モバイル: ベースフォントサイズを少し下げる */
 @media (max-width: 639px) {
-
-  /* ベースを少し下げる（remベースなら全体が縮む） */
   html,
-  body,
-  #__next {
+  body {
     font-size: 14px;
-    /* 必要に応じて 13px / 15px に調整 */
   }
 
-  /* 見出しの微調整（既存のサイズを壊さない程度に） */
-  h1 {
-    font-size: 1.25rem;
-  }
-
-  /* ~20px */
-  h2 {
-    font-size: 1.125rem;
-  }
-
-  /* ~18px */
-  h3 {
-    font-size: 1rem;
-  }
-
-  /* ~16px */
-
-  /* Tailwind や既存ユーティリティで指定された小さいテキストをさらに微調整 */
-  .text-sm {
-    font-size: 0.78rem !important;
-  }
-
-  /* ~12.5px */
-  .text-xs {
-    font-size: 0.7rem !important;
-  }
-
-  /* ~11px */
-
-  /* ヘッダー文字を少し小さく */
-  .site-header__logo {
-    font-size: 1.125rem !important;
-  }
-
-  /* ~18px */
-  .site-header__title {
-    font-size: 0.95rem !important;
-  }
-
-  /* フィルタバー、カードキャプションの縮小（既存UIの見た目を保持） */
-  .filter-bar,
-  .filter-bar button,
-  .filter-bar input,
-  .filter-bar select {
-    font-size: 0.78rem !important;
-  }
-
-  .card-caption .title {
-    font-size: 0.78rem !important;
-  }
-
-  .card-caption .sub {
-    font-size: 0.64rem !important;
-  }
-
-  /* ページ左右パディングを少し詰めて情報密度を確保 */
-  .px-4,
-  .px-2 {
-    padding-left: 8px !important;
-    padding-right: 8px !important;
-  }
+  h1 { font-size: 1.25rem; }
+  h2 { font-size: 1.125rem; }
+  h3 { font-size: 1rem; }
 }
-
-/* ---------------------------
-   追加: ギャラリー用の最小ユーティリティ（既存の Tailwind と競合しにくい）
-   目的: インスタ風の3列・隙間ゼロを実現しつつ、行の下端を揃える簡易ルール
-   --------------------------- */
-
-/* ギャラリー外枠（任意で使う） */
-.gallery-grid {
-  width: 100%;
-  max-width: none;
-  padding: 0;
-  margin: 0;
-}
-
-/* 各カード基礎 */
-.gallery-item {
-  box-sizing: border-box;
-}
-
-/* サムネ外側ラッパー（paddingTop でアスペクト比を作る場合に使う） */
-.thumb-wrap {
-  display: block;
-  width: 100%;
-  padding: 0;
-  margin: 0;
-  background: transparent;
-}
-
-/* 内側: 画像を下端に揃えるための最小スタイル（行のボトムを揃える） */
-.thumb-inner {
-  display: flex;
-  align-items: flex-end;
-  /* 重要: 画像を下に揃える */
-  justify-content: center;
-  width: 100%;
-  overflow: hidden;
-  background: transparent;
-}
-
-/* Next/Image や通常 img に効く基本ルール（intrinsic レイアウト想定） */
-.next-image,
-.thumb-inner img {
-  display: block;
-  width: 100%;
-  height: auto;
-  object-fit: cover;
-  object-position: 50% 50%;
-}
-
-/* 左寄せ/中央/右寄せの小さなユーティリティ */
-.crop-left .next-image,
-.crop-left img {
-  object-position: 20% 50%;
-}
-
-.crop-center .next-image,
-.crop-center img {
-  object-position: 50% 50%;
-}
-
-.crop-right .next-image,
-.crop-right img {
-  object-position: 80% 50%;
-}
-
-/* 軽いトランジション（任意） */
-.obj-transition .next-image,
-.obj-transition img {
-  transition: object-position 180ms ease;
-}
-
-/* 既存の footer/caption 等を壊さないよう余白/カラーは制御しない（必要な場合は個別に上書きしてください） */

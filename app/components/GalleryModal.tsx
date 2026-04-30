@@ -16,6 +16,7 @@ import { ShareIcon, LinkIcon } from "@heroicons/react/24/outline";
 import { shareUrl, copyToClipboard, shareToTwitter, shareToFacebook, shareToLine } from "../../lib/utils/share";
 import { siteConfig } from "../../lib/utils/seo";
 import { ROUTES } from "../../lib/routes";
+import { log } from "../../lib/utils/log";
 
 // モーダル用画像コンポーネント（エラーハンドリング付き）
 function ModalImage({ src, alt, focalPoint }: { src: string; alt: string; focalPoint?: { x: number; y: number } }) {
@@ -202,7 +203,7 @@ export default function GalleryModal({
                 "success"
             );
         } catch (error) {
-            console.error("Failed to copy:", error);
+            log.error("Failed to copy:", error);
             showToast(
                 locale === "en" ? "Failed to copy link" : "リンクのコピーに失敗しました",
                 "error"
