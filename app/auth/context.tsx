@@ -2,12 +2,13 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { signIn, signOut, isAuthenticated, isAdmin } from "../../lib/auth/cognito";
+import { signIn, signOut, isAuthenticated, isAdmin, isGeneralUser } from "../../lib/auth/cognito";
 import { log } from "../../lib/utils/log";
 
 type AuthContextType = {
     isAuthenticated: boolean;
     isAdminUser: boolean;
+    isGeneralUser: boolean;
     loading: boolean;
     login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
     logout: () => void;
@@ -19,6 +20,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [authState, setAuthState] = useState({
         isAuthenticated: false,
         isAdminUser: false,
+        isGeneralUser: false,
         loading: true,
     });
     const router = useRouter();
@@ -32,10 +34,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                                     process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID;
 
             if (!hasCognitoConfig) {
-                // 環境変数が設定されていない場合は認証なしとして扱う
                 setAuthState({
                     isAuthenticated: false,
                     isAdminUser: false,
+                    isGeneralUser: false,
                     loading: false,
                 });
                 return { authenticated: false, admin: false };
@@ -43,20 +45,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const authenticated = await isAuthenticated();
             const admin = authenticated ? await isAdmin() : false;
+            const general = authenticated && !admin ? await isGeneralUser() : false;
 
             setAuthState({
                 isAuthenticated: authenticated,
                 isAdminUser: admin,
+                isGeneralUser: general,
                 loading: false,
             });
 
             return { authenticated, admin };
         } catch (error) {
-            // 認証チェックでエラーが発生した場合は認証なしとして扱う
             log.warn("Auth check error (non-blocking):", error);
             setAuthState({
                 isAuthenticated: false,
                 isAdminUser: false,
+                isGeneralUser: false,
                 loading: false,
             });
             return { authenticated: false, admin: false };
@@ -85,28 +89,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (result.success && result.session) {
                 const admin = result.groups?.includes("admin") || false;
-                log.info("AuthContext: 認証成功", { admin, groups: result.groups });
-                
-                // 認証状態を即座に更新
+                const general = !admin && (result.groups?.includes("user") || false);
+                log.info("AuthContext: 認証成功", { admin, general, groups: result.groups });
+
                 setAuthState({
                     isAuthenticated: true,
                     isAdminUser: admin,
+                    isGeneralUser: general,
                     loading: false,
                 });
 
-                // 認証状態の更新を確実にするため、少し待つ
                 await new Promise(resolve => setTimeout(resolve, 200));
 
-                // 認証状態を再確認
                 const authenticated = await isAuthenticated();
                 const adminCheck = authenticated ? await isAdmin() : false;
-                
-                log.info("AuthContext: 認証状態再確認", { authenticated, adminCheck });
-                
-                // 再確認した状態で更新
+                const generalCheck = authenticated && !adminCheck ? await isGeneralUser() : false;
+
                 setAuthState({
                     isAuthenticated: authenticated,
                     isAdminUser: adminCheck,
+                    isGeneralUser: generalCheck,
                     loading: false,
                 });
 
@@ -130,6 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setAuthState({
             isAuthenticated: false,
             isAdminUser: false,
+            isGeneralUser: false,
             loading: false,
         });
         router.push("/");
@@ -140,6 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             value={{
                 isAuthenticated: authState.isAuthenticated,
                 isAdminUser: authState.isAdminUser,
+                isGeneralUser: authState.isGeneralUser,
                 loading: authState.loading,
                 login,
                 logout,

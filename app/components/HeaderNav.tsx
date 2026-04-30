@@ -10,7 +10,7 @@ import { ROUTES } from "../../lib/routes";
 
 export default function HeaderNav({ className = "" }: { className?: string }) {
     const router = useRouter();
-    const { isAuthenticated, isAdminUser, logout, loading } = useAuth();
+    const { isAuthenticated, isAdminUser, isGeneralUser, logout, loading } = useAuth();
     const { labels } = useLocale();
     
     // デバッグ情報（開発環境のみ、コンソールに出力）
@@ -264,6 +264,28 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                             </button>
                                         </li>
 
+                                        {/* ログイン済みユーザー: アップロードリンク */}
+                                        {(isAdminUser || isGeneralUser) && (
+                                            <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleNavigation(ROUTES.UPLOAD);
+                                                    }}
+                                                    onTouchStart={(e) => { e.stopPropagation(); }}
+                                                    onTouchEnd={(e) => {
+                                                        e.stopPropagation();
+                                                        e.preventDefault();
+                                                        handleNavigation(ROUTES.UPLOAD);
+                                                    }}
+                                                    className={`${linkBase} ${inactiveClasses} w-full text-left`}
+                                                    style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", minHeight: "44px", display: "block", position: "relative", zIndex: 10, cursor: "pointer" }}
+                                                >
+                                                    {navLabels.upload || "Upload"}
+                                                </button>
+                                            </li>
+                                        )}
+
                                         {/* 管理者専用リンク */}
                                         {isAdminUser && (
                                             <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
@@ -272,24 +294,14 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                                         e.stopPropagation();
                                                         handleNavigation(ROUTES.ADMIN);
                                                     }}
-                                                    onTouchStart={(e) => {
-                                                        e.stopPropagation();
-                                                    }}
+                                                    onTouchStart={(e) => { e.stopPropagation(); }}
                                                     onTouchEnd={(e) => {
                                                         e.stopPropagation();
                                                         e.preventDefault();
                                                         handleNavigation(ROUTES.ADMIN);
                                                     }}
                                                     className={`${linkBase} ${inactiveClasses} w-full text-left`}
-                                                    style={{ 
-                                                        touchAction: "manipulation",
-                                                        WebkitTapHighlightColor: "transparent",
-                                                        minHeight: "44px",
-                                                        display: "block",
-                                                        position: "relative",
-                                                        zIndex: 10,
-                                                        cursor: "pointer"
-                                                    }}
+                                                    style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", minHeight: "44px", display: "block", position: "relative", zIndex: 10, cursor: "pointer" }}
                                                 >
                                                     {navLabels.admin || "Manage"}
                                                 </button>

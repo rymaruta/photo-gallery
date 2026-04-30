@@ -10,8 +10,9 @@ export const cognitoConfig = {
     region: process.env.NEXT_PUBLIC_AWS_REGION || "ap-northeast-1",
 };
 
-// 管理者グループ名
+// グループ名
 export const ADMIN_GROUP_NAME = "admin";
+export const USER_GROUP_NAME = "user";
 
 // 認証が必要なページパス
 export const PROTECTED_PATHS = ["/upload"];

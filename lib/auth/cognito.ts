@@ -1,5 +1,5 @@
 import { CognitoUserPool, AuthenticationDetails, CognitoUser, CognitoUserSession } from "amazon-cognito-identity-js";
-import { cognitoConfig, ADMIN_GROUP_NAME } from "./config";
+import { cognitoConfig, ADMIN_GROUP_NAME, USER_GROUP_NAME } from "./config";
 import { log } from "../utils/log";
 
 // Cognito User Poolの初期化（遅延初期化）
@@ -184,6 +184,12 @@ export async function getCurrentUserGroups(): Promise<string[]> {
 export async function isAdmin(): Promise<boolean> {
     const groups = await getCurrentUserGroups();
     return groups.includes(ADMIN_GROUP_NAME);
+}
+
+// 一般ユーザー（userグループ、adminは含まない）かどうかをチェック
+export async function isGeneralUser(): Promise<boolean> {
+    const groups = await getCurrentUserGroups();
+    return groups.includes(USER_GROUP_NAME) && !groups.includes(ADMIN_GROUP_NAME);
 }
 
 // 認証されているかチェック

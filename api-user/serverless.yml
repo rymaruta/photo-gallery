@@ -1,0 +1,69 @@
+service: photo-gallery-user-api
+
+frameworkVersion: '4'
+
+plugins:
+  - serverless-esbuild
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: ap-northeast-1
+
+  environment:
+    PHOTOS_BUCKET: ${param:photosBucket, 'prod-journey-photo.com'}
+    PHOTOS_KEY: app/data/photos.json
+    UPLOAD_BUCKET: ${param:uploadBucket, 'prod-journey-photo-upload'}
+    CLOUDFRONT_URL: ${param:cloudfrontUrl, 'https://d1s3dwwzgxf5ni.cloudfront.net'}
+
+  httpApi:
+    cors: true
+    authorizers:
+      cognitoAuthorizer:
+        type: jwt
+        identitySource: $request.header.Authorization
+        issuerUrl: https://cognito-idp.${aws:region}.amazonaws.com/${param:cognitoUserPoolId}
+        audience:
+          - ${param:cognitoClientId}
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+          Resource: arn:aws:s3:::${param:photosBucket, 'prod-journey-photo.com'}/app/data/photos.json
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+          Resource: arn:aws:s3:::${param:uploadBucket, 'prod-journey-photo-upload'}/uploads/*
+
+custom:
+  esbuild:
+    bundle: true
+    minify: true
+    sourcemap: false
+    target: node22
+    platform: node
+    exclude:
+      - '@aws-sdk/*'
+
+functions:
+  presignedUrl:
+    handler: src/upload.presignedUrl
+    events:
+      - httpApi:
+          path: /upload/presigned-url
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  savePhoto:
+    handler: src/upload.savePhoto
+    events:
+      - httpApi:
+          path: /upload/save
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer

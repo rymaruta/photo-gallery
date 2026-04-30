@@ -94,11 +94,12 @@ export default function UploadPage() {
             // 注意: 本番環境では、より安全な認証方法（JWT等）の使用を推奨します
             // 1. Presigned URLを取得
             setProgress(10);
-            const { authenticatedFetch } = await import("../../lib/utils/api");
-            
+            const { authenticatedFetch, userFetch } = await import("../../lib/utils/api");
+            const apiFetch = isAdminUser ? authenticatedFetch : userFetch;
+
             let presignedResponse: Response;
             try {
-                presignedResponse = await authenticatedFetch("/upload/presigned-url", {
+                presignedResponse = await apiFetch("/upload/presigned-url", {
                     method: "POST",
                     body: JSON.stringify({
                         fileName: file.name,
@@ -256,7 +257,7 @@ export default function UploadPage() {
             setProgress(70);
 
             // 3. 写真データを保存
-            const saveResponse = await authenticatedFetch("/upload/save", {
+            const saveResponse = await apiFetch("/upload/save", {
                 method: "POST",
                 body: JSON.stringify({
                     key,
