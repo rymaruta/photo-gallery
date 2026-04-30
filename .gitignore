@@ -3,6 +3,9 @@
 # dependencies
 /node_modules
 /api/node_modules
+/api-user/node_modules
+/api-user/dist
+/api-user/user-api.zip
 /.pnp
 .pnp.*
 .yarn/*
