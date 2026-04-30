@@ -198,6 +198,53 @@ export async function isAuthenticated(): Promise<boolean> {
     return session !== null && session.isValid();
 }
 
+// パスワードリセットコードを送信
+export async function forgotPassword(username: string): Promise<{ success: boolean; error?: string }> {
+    return new Promise((resolve) => {
+        try {
+            const userPool = getUserPool();
+            const cognitoUser = new CognitoUser({ Username: username, Pool: userPool });
+            cognitoUser.forgotPassword({
+                onSuccess: () => resolve({ success: true }),
+                onFailure: (err: { message?: string; code?: string }) => {
+                    let msg = err.message || "エラーが発生しました";
+                    if (err.code === "UserNotFoundException") msg = "メールアドレスが見つかりません";
+                    if (err.code === "LimitExceededException") msg = "しばらく時間をおいてから再試行してください";
+                    resolve({ success: false, error: msg });
+                },
+            });
+        } catch (e) {
+            resolve({ success: false, error: e instanceof Error ? e.message : "エラーが発生しました" });
+        }
+    });
+}
+
+// パスワードリセットを確定
+export async function confirmForgotPassword(
+    username: string,
+    code: string,
+    newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+    return new Promise((resolve) => {
+        try {
+            const userPool = getUserPool();
+            const cognitoUser = new CognitoUser({ Username: username, Pool: userPool });
+            cognitoUser.confirmPassword(code, newPassword, {
+                onSuccess: () => resolve({ success: true }),
+                onFailure: (err: { message?: string; code?: string }) => {
+                    let msg = err.message || "エラーが発生しました";
+                    if (err.code === "CodeMismatchException") msg = "確認コードが正しくありません";
+                    if (err.code === "ExpiredCodeException") msg = "確認コードの有効期限が切れています";
+                    if (err.code === "InvalidPasswordException") msg = "パスワードは8文字以上で、英大文字・小文字・数字を含む必要があります";
+                    resolve({ success: false, error: msg });
+                },
+            });
+        } catch (e) {
+            resolve({ success: false, error: e instanceof Error ? e.message : "エラーが発生しました" });
+        }
+    });
+}
+
 // IDトークンを取得（JWT文字列として）
 export async function getIdToken(): Promise<string | null> {
     const session = await getCurrentSession();

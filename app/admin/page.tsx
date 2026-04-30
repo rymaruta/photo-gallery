@@ -32,8 +32,10 @@ export default function AdminPage() {
     // 認証チェック
     useEffect(() => {
         if (!loading) {
-            if (!isAuthenticated || !isAdminUser) {
-                router.push("/login");
+            if (!isAuthenticated) {
+                router.push("/admin/login");
+            } else if (!isAdminUser) {
+                router.push("/");
             }
         }
     }, [isAuthenticated, isAdminUser, loading, router]);
