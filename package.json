@@ -22,7 +22,7 @@
     "fix:dev-secrets": "node scripts/fix-dev-secrets.js",
     "check:lambda-dev": "node scripts/check-lambda-dev.js",
     "create:deployment-bucket": "node scripts/create-deployment-bucket.js",
-    "web:deploy:prod": "node scripts/deploy-static-site.js --bucket journey-photo.com",
+    "web:deploy:prod": "node scripts/deploy-static-site.js --bucket prod-journey-photo.com",
     "deploy:prod": "npm run api:deploy:prod && npm run web:deploy:prod"
   },
   "dependencies": {
