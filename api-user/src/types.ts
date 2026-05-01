@@ -7,6 +7,8 @@ export type Photo = {
     tags?: string[];
     location?: string;
     published?: boolean;
+    userId?: string;
+    uploadedBy?: string;
     createdAt?: string;
     updatedAt?: string;
     exif?: {

@@ -59,15 +59,14 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: "削除権限がありません" }) };
         }
 
-        // S3 から画像ファイルを削除
+        // S3 から画像ファイルを削除（失敗してもDynamoDBレコードは削除する）
         if (photo.src && typeof photo.src === "string" && photo.src.startsWith("http")) {
             try {
                 const url = new URL(photo.src);
                 const key = url.pathname.substring(1);
                 await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));
             } catch (s3Err) {
-                console.error("S3 delete error:", s3Err);
-                return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "S3からの削除に失敗しました" }) };
+                console.error("S3 delete error (non-fatal):", s3Err);
             }
         }
 

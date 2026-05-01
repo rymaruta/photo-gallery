@@ -3,7 +3,7 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
 import { putPhoto } from "./ddb-photos";
-import { requireAdmin } from "./auth";
+import { requireAdmin, getCallerUserId } from "./auth";
 import type { Photo } from "./types";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
@@ -57,6 +57,7 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
 export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const authError = requireAdmin(event);
     if (authError) return authError;
+    const uploaderId = getCallerUserId(event);
 
     let body: {
         key?: string;
@@ -89,6 +90,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         ...(category ? { category } : {}),
         tags: Array.isArray(tags) ? tags : [],
         ...(exif && Object.keys(exif).length > 0 ? { exif } : {}),
+        userId: uploaderId,
+        uploadedBy: uploaderId,
         published: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
