@@ -1,4 +1,4 @@
-import { CognitoUserPool, AuthenticationDetails, CognitoUser, CognitoUserSession } from "amazon-cognito-identity-js";
+import { CognitoUserPool, AuthenticationDetails, CognitoUser, CognitoUserSession, CognitoUserAttribute } from "amazon-cognito-identity-js";
 import { cognitoConfig, ADMIN_GROUP_NAME, USER_GROUP_NAME } from "./config";
 import { log } from "../utils/log";
 
@@ -241,6 +241,85 @@ export async function confirmForgotPassword(
             });
         } catch (e) {
             resolve({ success: false, error: e instanceof Error ? e.message : "エラーが発生しました" });
+        }
+    });
+}
+
+// 新規ユーザー登録
+export async function signUp(email: string, password: string): Promise<{
+    success: boolean;
+    userConfirmed?: boolean;
+    error?: string;
+}> {
+    return new Promise((resolve) => {
+        try {
+            const userPool = getUserPool();
+            const attributes = [
+                new CognitoUserAttribute({ Name: "email", Value: email }),
+            ];
+            userPool.signUp(email, password, attributes, [], (err, result) => {
+                if (err) {
+                    let msg = err.message || "登録に失敗しました";
+                    if (err.name === "UsernameExistsException") msg = "このメールアドレスはすでに登録されています";
+                    if (err.name === "InvalidPasswordException") msg = "パスワードは8文字以上で、英大文字・小文字・数字を含む必要があります";
+                    if (err.name === "InvalidParameterException") msg = "入力内容に誤りがあります";
+                    resolve({ success: false, error: msg });
+                    return;
+                }
+                resolve({ success: true, userConfirmed: result?.user ? false : true });
+            });
+        } catch (e) {
+            resolve({ success: false, error: e instanceof Error ? e.message : "登録処理中にエラーが発生しました" });
+        }
+    });
+}
+
+// メール確認コードで登録を確定
+export async function confirmSignUp(email: string, code: string): Promise<{
+    success: boolean;
+    error?: string;
+}> {
+    return new Promise((resolve) => {
+        try {
+            const userPool = getUserPool();
+            const cognitoUser = new CognitoUser({ Username: email, Pool: userPool });
+            cognitoUser.confirmRegistration(code, true, (err) => {
+                if (err) {
+                    let msg = err.message || "確認に失敗しました";
+                    if (err.name === "CodeMismatchException") msg = "確認コードが正しくありません";
+                    if (err.name === "ExpiredCodeException") msg = "確認コードの有効期限が切れています。再送してください";
+                    if (err.name === "NotAuthorizedException") msg = "すでに確認済みです";
+                    resolve({ success: false, error: msg });
+                    return;
+                }
+                resolve({ success: true });
+            });
+        } catch (e) {
+            resolve({ success: false, error: e instanceof Error ? e.message : "確認処理中にエラーが発生しました" });
+        }
+    });
+}
+
+// 確認コードを再送
+export async function resendConfirmationCode(email: string): Promise<{
+    success: boolean;
+    error?: string;
+}> {
+    return new Promise((resolve) => {
+        try {
+            const userPool = getUserPool();
+            const cognitoUser = new CognitoUser({ Username: email, Pool: userPool });
+            cognitoUser.resendConfirmationCode((err) => {
+                if (err) {
+                    let msg = err.message || "再送に失敗しました";
+                    if (err.name === "LimitExceededException") msg = "送信回数の上限に達しました。しばらく時間をおいてから再試行してください";
+                    resolve({ success: false, error: msg });
+                    return;
+                }
+                resolve({ success: true });
+            });
+        } catch (e) {
+            resolve({ success: false, error: e instanceof Error ? e.message : "再送処理中にエラーが発生しました" });
         }
     });
 }

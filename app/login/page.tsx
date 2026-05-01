@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
@@ -164,6 +165,13 @@ export default function LoginPage() {
                         >
                             パスワードをお忘れですか？
                         </button>
+
+                        <p className="text-center text-xs text-white/40 pt-1">
+                            アカウントをお持ちでない方は{" "}
+                            <Link href="/signup" className="text-white/60 hover:text-white underline transition-colors">
+                                新規登録
+                            </Link>
+                        </p>
                     </form>
                 )}
 

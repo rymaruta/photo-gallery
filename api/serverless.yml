@@ -46,6 +46,11 @@ provider:
             - s3:PutObject
             - s3:DeleteObject
           Resource: arn:aws:s3:::${param:uploadBucket, 'prod-journey-photo-upload'}/*
+        # PostConfirmation トリガー: 確認済みユーザーを user グループへ追加
+        - Effect: Allow
+          Action:
+            - cognito-idp:AdminAddUserToGroup
+          Resource: arn:aws:cognito-idp:${aws:region}:${aws:accountId}:userpool/${param:cognitoUserPoolId}
 
 custom:
   esbuild:
@@ -107,3 +112,11 @@ functions:
           method: POST
           authorizer:
             name: cognitoAuthorizer
+
+  postConfirmation:
+    handler: src/cognitoTrigger.postConfirmation
+    events:
+      - cognitoUserPool:
+          pool: prod-journey-photo-client-spa
+          trigger: PostConfirmation
+          existing: true
