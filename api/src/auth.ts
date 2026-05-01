@@ -30,10 +30,11 @@ export function getCallerUserId(event: APIGatewayProxyEventV2WithJWTAuthorizer):
 
 export function requireAdmin(
     event: APIGatewayProxyEventV2WithJWTAuthorizer
-): { statusCode: 403; body: string } | null {
+): { statusCode: 403; headers: Record<string, string>; body: string } | null {
     if (!isAdmin(event)) {
         return {
             statusCode: 403,
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ error: "管理者権限が必要です" }),
         };
     }

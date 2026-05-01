@@ -45,9 +45,10 @@ async function scan() {
         lastKey = res.LastEvaluatedKey;
     } while (lastKey);
 
-    // createdAt 降順でソート
-    items.sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
-    return items;
+    // 公開済みのみ絞り込んで createdAt 降順でソート
+    return items
+        .filter(item => item.published !== false)
+        .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
 }
 
 async function main() {
@@ -64,7 +65,7 @@ async function main() {
         process.exit(0); // ビルドを止めない
     }
 
-    console.log(`\n[sync] ${photos.length} 件取得`);
+    console.log(`\n[sync] ${photos.length} 件取得（公開済みのみ）`);
 
     if (DRY_RUN) {
         console.log("[sync] DRY_RUN=1 のためファイル書き込みをスキップ");

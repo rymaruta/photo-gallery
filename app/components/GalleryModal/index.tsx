@@ -34,6 +34,8 @@ export default function GalleryModal({
     mapLabel = { ja: "地図で見る", en: "View on map" },
 }: Props) {
     const p = photos[currentIndex];
+    // 写真削除などで配列が縮小した場合の安全ガード
+    if (!p) return null;
     const titleText = getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : "");
     const altText = getLocalized(p.alt, locale) || titleText || "";
     const locationText = typeof p.location === "string" ? p.location : "";

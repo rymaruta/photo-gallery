@@ -23,7 +23,7 @@ export const getPhoto: APIGatewayProxyHandlerV2 = async (event) => {
     }
     try {
         const photo = await getPhotoById(id);
-        if (!photo) {
+        if (!photo || photo.published === false) {
             return { statusCode: 404, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ error: "写真が見つかりません" }) };
         }
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(photo) };

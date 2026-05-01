@@ -20,10 +20,13 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 
     // マウント後に localStorage から保存済みロケールを読み込む（SSRハイドレーション対応）
     useEffect(() => {
-        const saved = localStorage.getItem("locale");
-        if (saved === "en" || saved === "ja") {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setLocaleState(saved);
+        try {
+            const saved = localStorage.getItem("locale");
+            if (saved === "en" || saved === "ja") {
+                setLocaleState(saved);
+            }
+        } catch {
+            // プライベートブラウジングなど localStorage が使えない環境では無視
         }
     }, []);
 
@@ -35,8 +38,10 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     // ロケール変更時にローカルストレージに保存
     const setLocale = (newLocale: Locale) => {
         setLocaleState(newLocale);
-        if (typeof window !== "undefined") {
+        try {
             localStorage.setItem("locale", newLocale);
+        } catch {
+            // プライベートブラウジングなど localStorage が使えない環境では無視
         }
     };
 

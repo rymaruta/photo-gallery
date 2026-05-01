@@ -19,11 +19,13 @@ export async function listPhotos(): Promise<Photo[]> {
         const res = await ddb.send(new ScanCommand({
             TableName: TABLE,
             ExclusiveStartKey: lastKey,
+            // 未公開写真を除外（published が明示的に false のものを除く）
+            FilterExpression: "attribute_not_exists(published) OR published = :pub",
+            ExpressionAttributeValues: { ":pub": true },
         }));
         items.push(...((res.Items ?? []) as Photo[]));
         lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
     } while (lastKey);
-    // 作成日時の新しい順に並べる
     return items.sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
 }
 
