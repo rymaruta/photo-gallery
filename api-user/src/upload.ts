@@ -2,7 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
-import { loadPhotos, savePhotos } from "./s3";
+import { putPhoto, countUserPhotos } from "./ddb-photos";
 import type { Photo } from "./types";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
@@ -10,13 +10,48 @@ const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
 const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? "";
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
-// JWT authorizer が通過した時点で認証済み。グループは問わず全ユーザーOK。
-// ただし claims.sub が存在することで有効なユーザーであることを確認する。
-function getUsername(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[0]): string {
+function getUserId(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[0]): string {
     return String(event.requestContext.authorizer.jwt.claims.sub ?? "unknown");
 }
 
+function isAdmin(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[0]): boolean {
+    const groups = event.requestContext.authorizer.jwt.claims["cognito:groups"];
+    if (!groups) return false;
+    let list: string[];
+    if (Array.isArray(groups)) {
+        list = groups as string[];
+    } else {
+        const str = String(groups).trim();
+        if (str.startsWith("[")) {
+            try { list = JSON.parse(str) as string[]; } catch { list = [str]; }
+        } else {
+            list = str.split(",").map((g) => g.trim());
+        }
+    }
+    return list.includes("admin");
+}
+
+const PHOTO_LIMIT_PER_USER = 100;
+
 export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const userId = getUserId(event);
+
+    // 100枚制限チェック（adminは除外）
+    if (!isAdmin(event)) {
+        try {
+            const count = await countUserPhotos(userId);
+            if (count >= PHOTO_LIMIT_PER_USER) {
+                return {
+                    statusCode: 403,
+                    headers: JSON_HEADERS,
+                    body: JSON.stringify({ error: `アップロード上限（${PHOTO_LIMIT_PER_USER}枚）に達しています` }),
+                };
+            }
+        } catch (e) {
+            console.error("photo count check error:", e);
+        }
+    }
+
     let body: { fileName?: string; fileType?: string; fileSize?: number };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -57,7 +92,7 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
 };
 
 export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
-    const uploadedBy = getUsername(event);
+    const userId = getUserId(event);
 
     let body: {
         key?: string;
@@ -81,6 +116,22 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイル情報が必要です" }) };
     }
 
+    // 100枚制限の二重チェック（adminは除外）
+    if (!isAdmin(event)) {
+        try {
+            const count = await countUserPhotos(userId);
+            if (count >= PHOTO_LIMIT_PER_USER) {
+                return {
+                    statusCode: 403,
+                    headers: JSON_HEADERS,
+                    body: JSON.stringify({ error: `アップロード上限（${PHOTO_LIMIT_PER_USER}枚）に達しています` }),
+                };
+            }
+        } catch (e) {
+            console.error("photo count check error:", e);
+        }
+    }
+
     const photo: Photo = {
         id: photoId ?? uuidv4(),
         src: publicUrl,
@@ -90,17 +141,15 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         ...(category ? { category } : {}),
         tags: Array.isArray(tags) ? tags : [],
         ...(exif && Object.keys(exif).length > 0 ? { exif } : {}),
-        uploadedBy,
+        userId,
+        uploadedBy: userId,
         published: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     };
 
     try {
-        const photos = await loadPhotos();
-        photos.push(photo);
-        await savePhotos(photos);
-
+        await putPhoto(photo);
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo }) };
     } catch (e) {
         console.error("savePhoto error:", e);

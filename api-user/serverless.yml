@@ -11,10 +11,9 @@ provider:
   region: ap-northeast-1
 
   environment:
-    PHOTOS_BUCKET: ${param:photosBucket, 'prod-journey-photo.com'}
-    PHOTOS_KEY: app/data/photos.json
     UPLOAD_BUCKET: ${param:uploadBucket, 'prod-journey-photo-upload'}
     CLOUDFRONT_URL: ${param:cloudfrontUrl, 'https://d1s3dwwzgxf5ni.cloudfront.net'}
+    PHOTOS_TABLE: prod-photo-gallery-photos
 
   httpApi:
     cors: true
@@ -31,13 +30,15 @@ provider:
       statements:
         - Effect: Allow
           Action:
-            - s3:GetObject
-            - s3:PutObject
-          Resource: arn:aws:s3:::${param:photosBucket, 'prod-journey-photo.com'}/app/data/photos.json
-        - Effect: Allow
-          Action:
             - s3:PutObject
           Resource: arn:aws:s3:::${param:uploadBucket, 'prod-journey-photo-upload'}/uploads/*
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:Query
+          Resource:
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-photos
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-photos/index/*
 
 custom:
   esbuild:

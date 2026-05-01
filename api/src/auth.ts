@@ -10,11 +10,22 @@ export function isAdmin(event: APIGatewayProxyEventV2WithJWTAuthorizer): boolean
     const claims = event.requestContext.authorizer.jwt.claims;
     const groups = claims["cognito:groups"];
     if (!groups) return false;
-    // groups は文字列（カンマ区切り）または配列の場合がある
-    const groupList = Array.isArray(groups)
-        ? groups
-        : String(groups).split(",").map((g) => g.trim());
+    let groupList: string[];
+    if (Array.isArray(groups)) {
+        groupList = groups as string[];
+    } else {
+        const str = String(groups).trim();
+        if (str.startsWith("[")) {
+            try { groupList = JSON.parse(str) as string[]; } catch { groupList = [str]; }
+        } else {
+            groupList = str.split(",").map((g) => g.trim());
+        }
+    }
     return groupList.includes(ADMIN_GROUP);
+}
+
+export function getCallerUserId(event: APIGatewayProxyEventV2WithJWTAuthorizer): string {
+    return String(event.requestContext.authorizer.jwt.claims.sub ?? "unknown");
 }
 
 export function requireAdmin(

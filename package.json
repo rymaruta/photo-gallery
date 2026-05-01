@@ -26,10 +26,12 @@
     "deploy:prod": "npm run api:deploy:prod && npm run web:deploy:prod"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1040.0",
     "@aws-sdk/client-lambda": "^3.970.0",
     "@aws-sdk/client-s3": "^3.970.0",
     "@aws-sdk/client-secrets-manager": "^3.970.0",
     "@aws-sdk/client-sts": "^3.970.0",
+    "@aws-sdk/lib-dynamodb": "^3.1040.0",
     "@aws-sdk/s3-request-presigner": "^3.970.0",
     "@heroicons/react": "^2.2.0",
     "amazon-cognito-identity-js": "^6.3.16",

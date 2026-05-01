@@ -2,7 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
-import { loadPhotos, savePhotos } from "./s3";
+import { putPhoto } from "./ddb-photos";
 import { requireAdmin } from "./auth";
 import type { Photo } from "./types";
 
@@ -95,10 +95,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     };
 
     try {
-        const photos = await loadPhotos();
-        photos.push(photo);
-        await savePhotos(photos);
-
+        await putPhoto(photo);
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo }) };
     } catch (e) {
         console.error("savePhoto error:", e);

@@ -3,8 +3,10 @@
 
 import { useState, useEffect } from "react";
 import type { Photo } from "../data/photos";
-import BASE_PHOTOS from "../data/photos";
+import BASE_PHOTOS_JSON from "../../app/data/photos.json";
 import { log } from "../utils/log";
+
+const BASE_PHOTOS = BASE_PHOTOS_JSON as Photo[];
 
 export function usePhotos() {
     // BASE_PHOTOSを初期値とすることで、APIが遅延・失敗しても即時コンテンツ表示を保証する

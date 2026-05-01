@@ -11,8 +11,7 @@ provider:
   region: ap-northeast-1
 
   environment:
-    PHOTOS_BUCKET: ${param:photosBucket, 'journey-photo.com'}
-    PHOTOS_KEY: app/data/photos.json
+    PHOTOS_TABLE: prod-photo-gallery-photos
     UPLOAD_BUCKET: ${param:uploadBucket, 'prod-journey-photo-upload'}
     CLOUDFRONT_URL: ${param:cloudfrontUrl, ''}
 
@@ -29,12 +28,18 @@ provider:
   iam:
     role:
       statements:
-        # photos.json の読み書き
+        # 写真データ DynamoDB CRUD
         - Effect: Allow
           Action:
-            - s3:GetObject
-            - s3:PutObject
-          Resource: arn:aws:s3:::${param:photosBucket, 'journey-photo.com'}/app/data/photos.json
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Scan
+            - dynamodb:Query
+          Resource:
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-photos
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-photos/index/*
         # アップロード画像の管理（Presigned URL 発行・削除）
         - Effect: Allow
           Action:
