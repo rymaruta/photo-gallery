@@ -45,10 +45,13 @@ function LoginForm() {
                     try {
                         const action = JSON.parse(postLoginRaw) as { action: string; username: string; displayName: string };
                         if (action.action === "createProfile") {
-                            await createUser({ username: action.username, displayName: action.displayName });
+                            const profileResult = await createUser({ username: action.username, displayName: action.displayName });
+                            if (!profileResult.success && profileResult.error !== "プロフィールは既に作成されています") {
+                                showToast(`プロフィールの作成に失敗しました: ${profileResult.error ?? "エラー"} — /users/me/edit から再設定できます`, "error");
+                            }
                         }
                     } catch {
-                        // Non-fatal: user can set up profile later
+                        showToast("プロフィールの作成に失敗しました — /users/me/edit から再設定できます", "error");
                     }
                 }
                 showToast("ログインしました", "success");

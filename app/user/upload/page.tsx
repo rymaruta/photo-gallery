@@ -45,9 +45,9 @@ export default function UploadPage() {
 
         setFileError(null);
 
-        // ファイルサイズチェック（10MB制限）
-        if (selectedFile.size > 10 * 1024 * 1024) {
-            setFileError(locale === "en" ? "File size is too large (max 10MB)" : "ファイルサイズが大きすぎます（最大10MB）");
+        // ファイルサイズチェック（50MB制限）
+        if (selectedFile.size > 50 * 1024 * 1024) {
+            setFileError(locale === "en" ? "File size is too large (max 50MB)" : "ファイルサイズが大きすぎます（最大50MB）");
             return;
         }
 
@@ -368,8 +368,8 @@ export default function UploadPage() {
                                 </p>
                                 <p className="text-xs text-white/40">
                                     {locale === "en"
-                                        ? "PNG, JPG, GIF up to 10MB"
-                                        : "PNG、JPG、GIF（最大10MB）"}
+                                        ? "PNG, JPG, GIF up to 50MB"
+                                        : "PNG、JPG、GIF（最大50MB）"}
                                 </p>
                             </div>
                             <input
