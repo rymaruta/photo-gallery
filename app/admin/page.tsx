@@ -266,7 +266,7 @@ export default function AdminPage() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Link
-                                        href={`/admin/edit/${photo.id}`}
+                                        href={`/admin/edit?id=${photo.id}`}
                                         className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-md transition-colors text-sm"
                                     >
                                         <PencilIcon className="w-4 h-4" />

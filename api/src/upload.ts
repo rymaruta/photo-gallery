@@ -26,8 +26,8 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     if (!fileName || !fileType) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイル名とファイルタイプが必要です" }) };
     }
-    if (fileSize && fileSize > 10 * 1024 * 1024) {
-        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイルサイズが大きすぎます（最大10MB）" }) };
+    if (fileSize && fileSize > 50 * 1024 * 1024) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイルサイズが大きすぎます（最大50MB）" }) };
     }
     if (!fileType.startsWith("image/")) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "画像ファイルを選択してください" }) };
