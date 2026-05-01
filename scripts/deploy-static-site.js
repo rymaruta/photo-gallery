@@ -27,6 +27,16 @@ if (!fs.existsSync(outDir)) {
     process.exit(1);
 }
 
+// Lambda APIが /app/data/photos.json から写真一覧を読むため、
+// app/data/photos.json が存在すれば out/ にコピーしてS3にデプロイする
+const photosJsonSrc = path.join(root, "app", "data", "photos.json");
+const photosJsonDest = path.join(outDir, "app", "data", "photos.json");
+if (fs.existsSync(photosJsonSrc)) {
+    fs.mkdirSync(path.dirname(photosJsonDest), { recursive: true });
+    fs.copyFileSync(photosJsonSrc, photosJsonDest);
+    console.log(`[deploy] Copied app/data/photos.json → out/`);
+}
+
 console.log(`\n[deploy] Uploading ${outDir} → s3://${bucket}/`);
 
 // Step 1: Upload new assets WITHOUT --delete.
