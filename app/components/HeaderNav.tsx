@@ -116,30 +116,29 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                     ref={panelRef}
                     className="fixed left-0 right-0 bottom-0 top-[64px] md:top-[72px] z-50"
                 >
-                    <div 
-                        className="absolute inset-0 bg-black/70" 
-                        onClick={() => setOpen(false)} 
+                    <div
+                        className="absolute inset-0 bg-black/70"
+                        onClick={() => setOpen(false)}
                         onTouchStart={(e) => {
                             e.stopPropagation();
                             setOpen(false);
                         }}
-                        aria-hidden="true" 
+                        aria-hidden="true"
                     />
 
-                    <div className="relative w-full max-w-screen-lg mx-auto h-full px-6 md:px-8 pointer-events-none">
-                        <div className="flex h-full items-start justify-end">
-                            <div
-                                className="relative w-[48%] max-w-[200px] pointer-events-auto"
-                                style={{
-                                    backgroundColor: bg,
-                                    border: `2px solid ${outerBorder}`,
-                                    boxShadow: `${subtleShadow}, ${subtleInset}`,
-                                    borderRadius: 12,
-                                    overflow: "hidden",
-                                    zIndex: 10
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                            >
+                    <div
+                        className="absolute top-0 right-6 md:right-8 w-[48%] max-w-[200px]"
+                        style={{
+                            backgroundColor: bg,
+                            border: `2px solid ${outerBorder}`,
+                            boxShadow: `${subtleShadow}, ${subtleInset}`,
+                            borderRadius: 12,
+                            overflow: "hidden",
+                            zIndex: 10
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
+                    >
                                 <nav aria-label="Mobile menu">
                                     <ul
                                         className="flex flex-col m-0 p-0"
@@ -370,8 +369,6 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                         )}
                                     </ul>
                                 </nav>
-                            </div>
-                        </div>
                     </div>
                 </div>
             )}
