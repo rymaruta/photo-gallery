@@ -22,7 +22,10 @@ export function usePhotos() {
                 });
                 if (response.ok) {
                     const data = await response.json() as Photo[];
-                    setPhotos(data);
+                    // APIが空配列を返した場合はBASE_PHOTOSを維持する
+                    if (Array.isArray(data) && data.length > 0) {
+                        setPhotos(data);
+                    }
                 } else {
                     log.warn("写真の取得に失敗しました", { status: response.status });
                 }
