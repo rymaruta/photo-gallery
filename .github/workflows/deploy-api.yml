@@ -50,10 +50,8 @@ jobs:
 
       - name: Serverless deploy
         working-directory: api
-        env:
-          SERVERLESS_ACCESS_KEY: ${{ secrets.SERVERLESS_ACCESS_KEY }}
         run: |
-          npx serverless deploy --stage prod \
+          npx serverless@3 deploy --stage prod \
             --param "photosBucket=${{ env.PHOTOS_BUCKET }}" \
             --param "uploadBucket=${{ env.UPLOAD_BUCKET }}" \
             --param "cloudfrontUrl=${{ env.CLOUDFRONT_URL }}" \
@@ -87,10 +85,8 @@ jobs:
 
       - name: Serverless deploy
         working-directory: api-user
-        env:
-          SERVERLESS_ACCESS_KEY: ${{ secrets.SERVERLESS_ACCESS_KEY }}
         run: |
-          npx serverless deploy --stage prod \
+          npx serverless@3 deploy --stage prod \
             --param "photosBucket=${{ env.PHOTOS_BUCKET }}" \
             --param "uploadBucket=${{ env.UPLOAD_BUCKET }}" \
             --param "cloudfrontUrl=${{ env.CLOUDFRONT_URL }}" \
