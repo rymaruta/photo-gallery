@@ -12,11 +12,39 @@ const JSON_HEADERS = { "Content-Type": "application/json" };
 
 // JWT authorizer が通過した時点で認証済み。グループは問わず全ユーザーOK。
 // ただし claims.sub が存在することで有効なユーザーであることを確認する。
-function getUsername(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[0]): string {
+function getUserId(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[0]): string {
     return String(event.requestContext.authorizer.jwt.claims.sub ?? "unknown");
 }
 
+function isAdmin(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[0]): boolean {
+    const groups = event.requestContext.authorizer.jwt.claims["cognito:groups"];
+    if (!groups) return false;
+    const list = Array.isArray(groups) ? groups : String(groups).split(",").map((g) => g.trim());
+    return list.includes("admin");
+}
+
+const PHOTO_LIMIT_PER_USER = 100;
+
 export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    // 100枚制限チェック（adminは除外）
+    const userId = getUserId(event);
+    if (!isAdmin(event)) {
+        try {
+            const photos = await loadPhotos();
+            const userPhotoCount = photos.filter((p) => (p as { userId?: string; uploadedBy?: string }).userId === userId
+                || (p as { userId?: string; uploadedBy?: string }).uploadedBy === userId).length;
+            if (userPhotoCount >= PHOTO_LIMIT_PER_USER) {
+                return {
+                    statusCode: 403,
+                    headers: JSON_HEADERS,
+                    body: JSON.stringify({ error: `アップロード上限（${PHOTO_LIMIT_PER_USER}枚）に達しています` }),
+                };
+            }
+        } catch (e) {
+            console.error("photo count check error:", e);
+        }
+    }
+
     let body: { fileName?: string; fileType?: string; fileSize?: number };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -57,7 +85,7 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
 };
 
 export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
-    const uploadedBy = getUsername(event);
+    const userId = getUserId(event);
 
     let body: {
         key?: string;
@@ -81,23 +109,37 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイル情報が必要です" }) };
     }
 
-    const photo: Photo = {
-        id: photoId ?? uuidv4(),
-        src: publicUrl,
-        title: title ?? { ja: "無題", en: "Untitled" },
-        ...(description ? { description } : {}),
-        ...(location ? { location } : {}),
-        ...(category ? { category } : {}),
-        tags: Array.isArray(tags) ? tags : [],
-        ...(exif && Object.keys(exif).length > 0 ? { exif } : {}),
-        uploadedBy,
-        published: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-    };
-
     try {
         const photos = await loadPhotos();
+        // 100枚制限の二重チェック（adminは除外）
+        if (!isAdmin(event)) {
+            const userPhotoCount = photos.filter((p) => (p as { userId?: string; uploadedBy?: string }).userId === userId
+                || (p as { userId?: string; uploadedBy?: string }).uploadedBy === userId).length;
+            if (userPhotoCount >= PHOTO_LIMIT_PER_USER) {
+                return {
+                    statusCode: 403,
+                    headers: JSON_HEADERS,
+                    body: JSON.stringify({ error: `アップロード上限（${PHOTO_LIMIT_PER_USER}枚）に達しています` }),
+                };
+            }
+        }
+
+        const photo: Photo = {
+            id: photoId ?? uuidv4(),
+            src: publicUrl,
+            title: title ?? { ja: "無題", en: "Untitled" },
+            ...(description ? { description } : {}),
+            ...(location ? { location } : {}),
+            ...(category ? { category } : {}),
+            tags: Array.isArray(tags) ? tags : [],
+            ...(exif && Object.keys(exif).length > 0 ? { exif } : {}),
+            userId,
+            uploadedBy: userId, // 既存コードとの互換のため両方保存
+            published: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        };
+
         photos.push(photo);
         await savePhotos(photos);
 

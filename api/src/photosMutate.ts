@@ -1,16 +1,17 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { loadPhotos, savePhotos } from "./s3";
-import { requireAdmin } from "./auth";
+import { isAdmin } from "./auth";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
-export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
-    const authError = requireAdmin(event);
-    if (authError) return authError;
+function getCallerUserId(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[0]): string {
+    return String(event.requestContext.authorizer.jwt.claims.sub ?? "");
+}
 
+export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const id = event.pathParameters?.id;
     if (!id) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "IDが必要です" }) };
@@ -30,6 +31,13 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
         }
 
+        // 自分の写真 or admin のみ編集可
+        const callerId = getCallerUserId(event);
+        const ownerId = (photos[idx].userId ?? photos[idx].uploadedBy) as string | undefined;
+        if (!isAdmin(event) && ownerId !== callerId) {
+            return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: "編集権限がありません" }) };
+        }
+
         const updated = { ...photos[idx], ...body, updatedAt: new Date().toISOString() };
         photos[idx] = updated;
         await savePhotos(photos);
@@ -42,9 +50,6 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
 };
 
 export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
-    const authError = requireAdmin(event);
-    if (authError) return authError;
-
     const id = event.pathParameters?.id;
     if (!id) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "IDが必要です" }) };
@@ -55,6 +60,13 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         const photo = photos.find((p) => p.id === id);
         if (!photo) {
             return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
+        }
+
+        // 自分の写真 or admin のみ削除可
+        const callerId = getCallerUserId(event);
+        const ownerId = (photo.userId ?? photo.uploadedBy) as string | undefined;
+        if (!isAdmin(event) && ownerId !== callerId) {
+            return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: "削除権限がありません" }) };
         }
 
         // S3 から画像ファイルを削除
