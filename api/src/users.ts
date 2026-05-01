@@ -19,7 +19,17 @@ function getCallerSub(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorize
 function isAdmin(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[0]): boolean {
     const groups = event.requestContext.authorizer.jwt.claims["cognito:groups"];
     if (!groups) return false;
-    const list = Array.isArray(groups) ? groups : String(groups).split(",").map((g) => g.trim());
+    let list: string[];
+    if (Array.isArray(groups)) {
+        list = groups as string[];
+    } else {
+        const str = String(groups).trim();
+        if (str.startsWith("[")) {
+            try { list = JSON.parse(str) as string[]; } catch { list = [str]; }
+        } else {
+            list = str.split(",").map((g) => g.trim());
+        }
+    }
     return list.includes("admin");
 }
 
