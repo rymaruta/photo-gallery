@@ -1,16 +1,20 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { forgotPassword, confirmForgotPassword } from "../../lib/auth/cognito";
+import { createUser } from "../../lib/utils/userApi";
+import { ROUTES } from "../../lib/routes";
 import { LockClosedIcon, EnvelopeIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 type Step = "login" | "forgot-send" | "forgot-confirm" | "forgot-done";
 
-export default function LoginPage() {
+function LoginForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { login, isAuthenticated, loading } = useAuth();
     const { showToast } = useToast();
 
@@ -21,6 +25,7 @@ export default function LoginPage() {
     const [newPassword, setNewPassword] = useState("");
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
+    const verified = searchParams.get("verified") === "1";
 
     useEffect(() => {
         if (!loading && isAuthenticated) router.push("/");
@@ -33,6 +38,19 @@ export default function LoginPage() {
         try {
             const result = await login(username, password);
             if (result.success) {
+                // Handle post-signup profile creation
+                const postLoginRaw = sessionStorage.getItem("postLoginAction");
+                if (postLoginRaw) {
+                    sessionStorage.removeItem("postLoginAction");
+                    try {
+                        const action = JSON.parse(postLoginRaw) as { action: string; username: string; displayName: string };
+                        if (action.action === "createProfile") {
+                            await createUser({ username: action.username, displayName: action.displayName });
+                        }
+                    } catch {
+                        // Non-fatal: user can set up profile later
+                    }
+                }
                 showToast("ログインしました", "success");
                 router.push("/");
             } else {
@@ -106,6 +124,13 @@ export default function LoginPage() {
                         <p className="text-white/40 text-sm mt-2">{username} に送信されたコードを入力してください</p>
                     )}
                 </div>
+
+                {/* メール確認完了メッセージ */}
+                {verified && step === "login" && (
+                    <div className="mb-6 px-4 py-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
+                        メールアドレスが確認されました。ログインしてください。
+                    </div>
+                )}
 
                 {/* エラー */}
                 {error && (
@@ -257,7 +282,24 @@ export default function LoginPage() {
                         </button>
                     </div>
                 )}
+
+                {step === "login" && (
+                    <p className="text-center text-xs text-white/40 mt-6">
+                        アカウントをお持ちでない方は{" "}
+                        <Link href={ROUTES.SIGNUP} className="text-white/60 hover:text-white underline transition-colors">
+                            新規登録
+                        </Link>
+                    </p>
+                )}
             </div>
         </main>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense>
+            <LoginForm />
+        </Suspense>
     );
 }
