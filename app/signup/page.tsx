@@ -22,6 +22,7 @@ export default function SignupPage() {
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [code, setCode] = useState("");
+    const [cognitoUsername, setCognitoUsername] = useState(""); // signUp が返す UUID
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [resending, setResending] = useState(false);
@@ -55,7 +56,8 @@ export default function SignupPage() {
         setSubmitting(true);
         try {
             const result = await signUp(email, password);
-            if (result.success) {
+            if (result.success && result.username) {
+                setCognitoUsername(result.username);
                 setStep("verify");
                 setResendCooldown(60);
             } else {
@@ -71,7 +73,7 @@ export default function SignupPage() {
         setError("");
         setSubmitting(true);
         try {
-            const result = await confirmSignUp(email, code.trim());
+            const result = await confirmSignUp(cognitoUsername, code.trim());
             if (result.success) {
                 setStep("done");
             } else {
@@ -86,7 +88,7 @@ export default function SignupPage() {
         if (resendCooldown > 0 || resending) return;
         setResending(true);
         try {
-            const result = await resendConfirmationCode(email);
+            const result = await resendConfirmationCode(cognitoUsername);
             if (result.success) {
                 showToast("確認コードを再送しました", "success");
                 setResendCooldown(60);
@@ -160,7 +162,7 @@ export default function SignupPage() {
                                 disabled={submitting}
                                 className={inputCls}
                             />
-                            <p className="text-xs text-white/30 mt-1.5">英大文字・小文字・数字をそれぞれ1文字以上含めてください</p>
+                            <p className="text-xs text-white/30 mt-1.5">英大文字・小文字・数字・記号（!@#$など）をそれぞれ1文字以上含めてください</p>
                         </div>
                         <div>
                             <label className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード（確認）</label>

@@ -1,5 +1,6 @@
 import { CognitoUserPool, AuthenticationDetails, CognitoUser, CognitoUserSession, CognitoUserAttribute } from "amazon-cognito-identity-js";
 import { cognitoConfig, ADMIN_GROUP_NAME, USER_GROUP_NAME } from "./config";
+import { v4 as uuidv4 } from "uuid";
 import { log } from "../utils/log";
 
 // Cognito User Poolの初期化（遅延初期化）
@@ -246,27 +247,29 @@ export async function confirmForgotPassword(
 }
 
 // 新規ユーザー登録
+// このプールは AliasAttributes:email なので username は UUID、email は属性として渡す
 export async function signUp(email: string, password: string): Promise<{
     success: boolean;
-    userConfirmed?: boolean;
+    username?: string;  // 確認コード送信に使うUUID
     error?: string;
 }> {
     return new Promise((resolve) => {
         try {
             const userPool = getUserPool();
+            const username = uuidv4();
             const attributes = [
                 new CognitoUserAttribute({ Name: "email", Value: email }),
             ];
-            userPool.signUp(email, password, attributes, [], (err, result) => {
+            userPool.signUp(username, password, attributes, [], (err) => {
                 if (err) {
                     let msg = err.message || "登録に失敗しました";
                     if (err.name === "UsernameExistsException") msg = "このメールアドレスはすでに登録されています";
-                    if (err.name === "InvalidPasswordException") msg = "パスワードは8文字以上で、英大文字・小文字・数字を含む必要があります";
-                    if (err.name === "InvalidParameterException") msg = "入力内容に誤りがあります";
+                    if (err.name === "InvalidPasswordException") msg = "パスワードは8文字以上で、英大文字・小文字・数字・記号を含む必要があります";
+                    if (err.name === "AliasExistsException") msg = "このメールアドレスはすでに登録されています";
                     resolve({ success: false, error: msg });
                     return;
                 }
-                resolve({ success: true, userConfirmed: result?.user ? false : true });
+                resolve({ success: true, username });
             });
         } catch (e) {
             resolve({ success: false, error: e instanceof Error ? e.message : "登録処理中にエラーが発生しました" });
@@ -274,15 +277,15 @@ export async function signUp(email: string, password: string): Promise<{
     });
 }
 
-// メール確認コードで登録を確定
-export async function confirmSignUp(email: string, code: string): Promise<{
+// メール確認コードで登録を確定（username は signUp が返した UUID）
+export async function confirmSignUp(username: string, code: string): Promise<{
     success: boolean;
     error?: string;
 }> {
     return new Promise((resolve) => {
         try {
             const userPool = getUserPool();
-            const cognitoUser = new CognitoUser({ Username: email, Pool: userPool });
+            const cognitoUser = new CognitoUser({ Username: username, Pool: userPool });
             cognitoUser.confirmRegistration(code, true, (err) => {
                 if (err) {
                     let msg = err.message || "確認に失敗しました";
@@ -300,15 +303,15 @@ export async function confirmSignUp(email: string, code: string): Promise<{
     });
 }
 
-// 確認コードを再送
-export async function resendConfirmationCode(email: string): Promise<{
+// 確認コードを再送（username は signUp が返した UUID）
+export async function resendConfirmationCode(username: string): Promise<{
     success: boolean;
     error?: string;
 }> {
     return new Promise((resolve) => {
         try {
             const userPool = getUserPool();
-            const cognitoUser = new CognitoUser({ Username: email, Pool: userPool });
+            const cognitoUser = new CognitoUser({ Username: username, Pool: userPool });
             cognitoUser.resendConfirmationCode((err) => {
                 if (err) {
                     let msg = err.message || "再送に失敗しました";
