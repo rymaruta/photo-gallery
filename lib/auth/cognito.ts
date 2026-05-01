@@ -262,10 +262,12 @@ export async function signUp(email: string, password: string): Promise<{
             ];
             userPool.signUp(username, password, attributes, [], (err) => {
                 if (err) {
+                    log.error("signUp error:", { name: err.name, message: err.message });
                     let msg = err.message || "登録に失敗しました";
                     if (err.name === "UsernameExistsException") msg = "このメールアドレスはすでに登録されています";
-                    if (err.name === "InvalidPasswordException") msg = "パスワードは8文字以上で、英大文字・小文字・数字・記号を含む必要があります";
                     if (err.name === "AliasExistsException") msg = "このメールアドレスはすでに登録されています";
+                    if (err.name === "InvalidPasswordException") msg = "パスワードは8文字以上で、英大文字・小文字・数字・記号（!@#$%など）をそれぞれ1文字以上含める必要があります";
+                    if (err.name === "InvalidParameterException") msg = `入力エラー: ${err.message}`;
                     resolve({ success: false, error: msg });
                     return;
                 }
