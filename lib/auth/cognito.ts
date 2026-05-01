@@ -21,6 +21,7 @@ export async function signIn(username: string, password: string): Promise<{
     session?: CognitoUserSession;
     error?: string;
     groups?: string[];
+    needsVerification?: boolean;
 }> {
     return new Promise((resolve) => {
         try {
@@ -82,6 +83,9 @@ export async function signIn(username: string, password: string): Promise<{
                         errorMessage = "メールアドレスまたはパスワードが正しくありません";
                     } else if (err.code === "UserNotFoundException") {
                         errorMessage = "ユーザーが見つかりません";
+                    } else if (err.code === "UserNotConfirmedException") {
+                        resolve({ success: false, error: "メールアドレスの確認が完了していません", needsVerification: true });
+                        return;
                     } else if (err.code === "InvalidParameterException") {
                         errorMessage = "入力内容に誤りがあります";
                     } else if (err.message?.includes("SECRET_HASH")) {
@@ -252,6 +256,7 @@ export async function signUp(email: string, password: string): Promise<{
     success: boolean;
     username?: string;  // 確認コード送信に使うUUID
     error?: string;
+    aliasExists?: boolean;
 }> {
     return new Promise((resolve) => {
         try {
@@ -264,10 +269,12 @@ export async function signUp(email: string, password: string): Promise<{
                 if (err) {
                     log.error("signUp error:", { name: err.name, message: err.message });
                     let msg = err.message || "登録に失敗しました";
-                    if (err.name === "UsernameExistsException") msg = "このメールアドレスはすでに登録されています";
-                    if (err.name === "AliasExistsException") msg = "このメールアドレスはすでに登録されています";
                     if (err.name === "InvalidPasswordException") msg = "パスワードは8文字以上で、英大文字・小文字・数字・記号（!@#$%など）をそれぞれ1文字以上含める必要があります";
                     if (err.name === "InvalidParameterException") msg = `入力エラー: ${err.message}`;
+                    if (err.name === "UsernameExistsException" || err.name === "AliasExistsException") {
+                        resolve({ success: false, error: "このメールアドレスはすでに登録されています", aliasExists: true });
+                        return;
+                    }
                     resolve({ success: false, error: msg });
                     return;
                 }

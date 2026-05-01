@@ -10,7 +10,7 @@ type AuthContextType = {
     isAdminUser: boolean;
     isGeneralUser: boolean;
     loading: boolean;
-    login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    login: (username: string, password: string) => Promise<{ success: boolean; error?: string; needsVerification?: boolean }>;
     logout: () => void;
 };
 
@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } else {
                 console.error("AuthContext: ログイン失敗", result.error);
                 setAuthState((prev) => ({ ...prev, loading: false }));
-                return { success: false, error: result.error || "ログインに失敗しました" };
+                return { success: false, error: result.error || "ログインに失敗しました", needsVerification: result.needsVerification };
             }
         } catch (error: unknown) {
             console.error("AuthContext: ログイン例外", error);

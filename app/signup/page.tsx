@@ -12,6 +12,24 @@ type Step = "register" | "verify" | "done";
 
 const inputCls = "w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 focus:bg-white/8 transition-colors disabled:opacity-50";
 
+const PENDING_TTL = 24 * 60 * 60 * 1000;
+
+function savePending(em: string, username: string) {
+    try { localStorage.setItem(`jp_verify_${em}`, JSON.stringify({ username, t: Date.now() })); } catch { /* ignore */ }
+}
+function loadPending(em: string): string | null {
+    try {
+        const raw = localStorage.getItem(`jp_verify_${em}`);
+        if (!raw) return null;
+        const { username, t } = JSON.parse(raw) as { username: string; t: number };
+        if (Date.now() - t > PENDING_TTL) { localStorage.removeItem(`jp_verify_${em}`); return null; }
+        return username;
+    } catch { return null; }
+}
+function clearPending(em: string) {
+    try { localStorage.removeItem(`jp_verify_${em}`); } catch { /* ignore */ }
+}
+
 export default function SignupPage() {
     const router = useRouter();
     const { isAuthenticated, loading } = useAuth();
@@ -32,6 +50,21 @@ export default function SignupPage() {
     useEffect(() => {
         if (!loading && isAuthenticated) router.push("/");
     }, [isAuthenticated, loading, router]);
+
+    // URLパラメータ or localStorage から verify ステップを復元
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const emailParam = params.get("email");
+        if (!emailParam) return;
+        const savedUsername = loadPending(emailParam);
+        if (savedUsername) {
+            setEmail(emailParam);
+            setCognitoUsername(savedUsername);
+            setStep("verify");
+        } else {
+            setEmail(emailParam);
+        }
+    }, []);
 
     // 再送クールダウンタイマー
     useEffect(() => {
@@ -57,9 +90,23 @@ export default function SignupPage() {
         try {
             const result = await signUp(email, password);
             if (result.success && result.username) {
+                savePending(email, result.username);
                 setCognitoUsername(result.username);
                 setStep("verify");
                 setResendCooldown(60);
+            } else if (result.aliasExists) {
+                // 登録済みだが未確認の場合、localStorage から UUID を復元して verify へ
+                const savedUsername = loadPending(email);
+                if (savedUsername) {
+                    setCognitoUsername(savedUsername);
+                    setStep("verify");
+                    showToast("確認コードを再送しました", "success");
+                    setResendCooldown(60);
+                    // 再送も試みる
+                    resendConfirmationCode(savedUsername).catch(() => { /* ignore */ });
+                } else {
+                    setError("このメールアドレスはすでに登録されています。ログインするか、パスワードリセットをお試しください。");
+                }
             } else {
                 setError(result.error ?? "登録に失敗しました");
             }
@@ -75,6 +122,7 @@ export default function SignupPage() {
         try {
             const result = await confirmSignUp(cognitoUsername, code.trim());
             if (result.success) {
+                clearPending(email);
                 setStep("done");
             } else {
                 setError(result.error ?? "確認に失敗しました");
@@ -234,7 +282,7 @@ export default function SignupPage() {
                         <div className="flex items-center justify-between pt-1">
                             <button
                                 type="button"
-                                onClick={() => { setStep("register"); setError(""); setCode(""); }}
+                                onClick={() => { setStep("register"); setError(""); setCode(""); setResendCooldown(0); }}
                                 className="text-xs text-white/40 hover:text-white/60 transition-colors flex items-center gap-1"
                             >
                                 <ArrowLeftIcon className="w-3 h-3" /> 戻る

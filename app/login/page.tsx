@@ -22,6 +22,7 @@ export default function LoginPage() {
     const [newPassword, setNewPassword] = useState("");
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
+    const [needsVerification, setNeedsVerification] = useState(false);
 
     useEffect(() => {
         if (!loading && isAuthenticated) router.push("/");
@@ -30,12 +31,16 @@ export default function LoginPage() {
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
+        setNeedsVerification(false);
         setSubmitting(true);
         try {
             const result = await login(username, password);
             if (result.success) {
                 showToast("ログインしました", "success");
                 router.push("/");
+            } else if (result.needsVerification) {
+                setNeedsVerification(true);
+                setError(result.error || "メールアドレスの確認が完了していません");
             } else {
                 setError(result.error || "ログインに失敗しました");
             }
@@ -110,8 +115,21 @@ export default function LoginPage() {
 
                 {/* エラー */}
                 {error && (
-                    <div className="mb-6 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                    <div className="mb-4 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
                         {error}
+                    </div>
+                )}
+
+                {/* 未確認アカウント誘導 */}
+                {needsVerification && step === "login" && (
+                    <div className="mb-6 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm">
+                        <p className="text-amber-300/80 mb-2 text-xs">確認コードのメールが届いているか確認してください。</p>
+                        <Link
+                            href={`/signup?email=${encodeURIComponent(username)}`}
+                            className="text-amber-300 hover:text-amber-200 underline text-xs transition-colors"
+                        >
+                            確認コードを入力・再送する →
+                        </Link>
                     </div>
                 )}
 
