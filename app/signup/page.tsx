@@ -21,7 +21,10 @@ function loadPending(em: string): string | null {
     try {
         const raw = localStorage.getItem(`jp_verify_${em}`);
         if (!raw) return null;
-        const { username, t } = JSON.parse(raw) as { username: string; t: number };
+        const parsed: unknown = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object") return null;
+        const { username, t } = parsed as Record<string, unknown>;
+        if (typeof username !== "string" || typeof t !== "number") return null;
         if (Date.now() - t > PENDING_TTL) { localStorage.removeItem(`jp_verify_${em}`); return null; }
         return username;
     } catch { return null; }

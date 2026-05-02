@@ -55,7 +55,7 @@ export async function signIn(username: string, password: string): Promise<{
                     // ユーザーグループを取得
                     const idToken = session.getIdToken();
                     const payload = idToken.payload;
-                    const groups = payload["cognito:groups"] || [];
+                    const groups = Array.isArray(payload["cognito:groups"]) ? payload["cognito:groups"] : [];
                     
                     // デバッグ情報を詳細に出力（開発環境のみ）
                     log.debug("IDトークンのペイロード:", {
@@ -181,8 +181,8 @@ export async function getCurrentUserGroups(): Promise<string[]> {
     }
 
     const idToken = session.getIdToken();
-    const groups = idToken.payload["cognito:groups"] || [];
-    return groups as string[];
+    const groups = idToken.payload["cognito:groups"];
+    return Array.isArray(groups) ? (groups as string[]) : [];
 }
 
 // 管理者かどうかをチェック

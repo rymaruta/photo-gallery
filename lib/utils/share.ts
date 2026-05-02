@@ -2,23 +2,25 @@
 // 共有機能用のユーティリティ
 
 /**
- * Web Share APIを使用してURLを共有
+ * Web Share APIを使用してURLを共有。
+ * Web Share API が利用不可の場合はクリップボードにコピーし true を返す（呼び出し元でトーストを表示する）。
  */
-export function shareUrl(url: string, title?: string, text?: string): void {
-    if (typeof window === "undefined") return;
+export async function shareUrl(url: string, title?: string, text?: string): Promise<boolean> {
+    if (typeof window === "undefined") return false;
 
     if (navigator.share) {
-        navigator.share({
-            title: title || "",
-            text: text || "",
-            url: url,
-        }).catch((error) => {
+        try {
+            await navigator.share({ title: title || "", text: text || "", url });
+        } catch (error) {
+            // ユーザーがキャンセルした場合も含む — 無視してよい
             console.error("Error sharing:", error);
-        });
-    } else {
-        // Web Share APIがサポートされていない場合はクリップボードにコピー
-        copyToClipboard(url);
+        }
+        return false;
     }
+
+    // フォールバック: クリップボードにコピー
+    await copyToClipboard(url);
+    return true;
 }
 
 /**

@@ -99,19 +99,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     loading: false,
                 });
 
-                await new Promise(resolve => setTimeout(resolve, 200));
-
-                const authenticated = await isAuthenticated();
-                const adminCheck = authenticated ? await isAdmin() : false;
-                const generalCheck = authenticated && !adminCheck ? await isGeneralUser() : false;
-
-                setAuthState({
-                    isAuthenticated: authenticated,
-                    isAdminUser: adminCheck,
-                    isGeneralUser: generalCheck,
-                    loading: false,
-                });
-
                 return { success: true };
             } else {
                 console.error("AuthContext: ログイン失敗", result.error);

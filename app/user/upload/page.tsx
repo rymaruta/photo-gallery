@@ -10,7 +10,7 @@ import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
 
 export default function UploadPage() {
-    const { isAuthenticated, isAdminUser, loading } = useAuth();
+    const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
     const router = useRouter();
     const { locale, setLocale, labels } = useLocale();
     const { showToast } = useToast();
@@ -307,17 +307,17 @@ export default function UploadPage() {
         }
     }, [file, title, description, location, category, tags, locale, showToast, router, isAdminUser]);
 
-    // 認証チェック - 管理者以外はリダイレクト
+    // 認証チェック - 未認証ユーザーはリダイレクト（admin / user グループ両方可）
     useEffect(() => {
         if (!loading) {
-            if (!isAuthenticated || !isAdminUser) {
+            if (!isAuthenticated || (!isAdminUser && !isGeneralUser)) {
                 router.push("/login");
             }
         }
-    }, [isAuthenticated, isAdminUser, loading, router]);
+    }, [isAuthenticated, isAdminUser, isGeneralUser, loading, router]);
 
     // ローディング中または認証されていない場合は何も表示しない
-    if (loading || !isAuthenticated || !isAdminUser) {
+    if (loading || !isAuthenticated || (!isAdminUser && !isGeneralUser)) {
         return (
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-3xl mx-auto w-full flex items-center justify-center">
                 <div className="w-12 h-12 border-3 border-white/20 border-t-white/60 rounded-full animate-spin" />

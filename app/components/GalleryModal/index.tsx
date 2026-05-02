@@ -134,7 +134,10 @@ export default function GalleryModal({
         : `${siteConfig.url}${ROUTES.PHOTO(p.id)}`;
     const shareText = titleText || "Photo";
 
-    const handleShare = () => shareUrl(currentUrl, shareText, paragraphs.join(" "));
+    const handleShare = async () => {
+        const usedClipboard = await shareUrl(currentUrl, shareText, paragraphs.join(" "));
+        if (usedClipboard) showToast(locale === "en" ? "Link copied to clipboard!" : "リンクをクリップボードにコピーしました", "success");
+    };
 
     const handleCopyLink = async () => {
         try {
