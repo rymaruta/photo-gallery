@@ -211,10 +211,10 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                     const data = await response.json();
                     setAllPhotos(data);
                 } else {
-                    console.error("写真の取得に失敗しました");
+                    log.error("写真の取得に失敗しました", { status: response.status });
                 }
             } catch (error) {
-                console.error("写真取得エラー:", error);
+                log.error("写真取得エラー:", error);
             } finally {
                 setLoading(false);
             }
@@ -357,11 +357,10 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
         : `${siteConfig.url}/photo/${photo.id}`;
     const shareText = titleText || "Photo";
 
-    const handleShare = (e?: React.MouseEvent) => {
-        if (e) {
-            e.stopPropagation();
-        }
-        shareUrl(currentUrl, shareText, paragraphs.join(" "));
+    const handleShare = async (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        const usedClipboard = await shareUrl(currentUrl, shareText, paragraphs.join(" "));
+        if (usedClipboard) showToast(locale === "en" ? "Link copied to clipboard!" : "リンクをクリップボードにコピーしました", "success");
     };
 
     const handleCopyLink = async (e?: React.MouseEvent) => {

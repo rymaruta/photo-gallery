@@ -17,8 +17,8 @@ type Props = {
     categoryDisplayMap: Record<string, string>;
     currentUrl: string;
     shareText: string;
-    onShare: () => void;
-    onCopyLink: () => void;
+    onShare: () => void | Promise<void>;
+    onCopyLink: () => void | Promise<void>;
 };
 
 const SHARE_BTN =
@@ -115,9 +115,8 @@ export default function ModalCaption({
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <button
-                        onClick={(e) => { stop(e); onShare(); }}
+                        onClick={(e) => { stop(e); void onShare(); }}
                         onTouchStart={stop}
-                        onTouchEnd={(e) => { stop(e); onShare(); }}
                         className={SHARE_BTN}
                         aria-label={locale === "en" ? "Share" : "共有"}
                         style={SHARE_STYLE}
@@ -127,9 +126,8 @@ export default function ModalCaption({
                     </button>
 
                     <button
-                        onClick={(e) => { stop(e); onCopyLink(); }}
+                        onClick={(e) => { stop(e); void onCopyLink(); }}
                         onTouchStart={stop}
-                        onTouchEnd={(e) => { stop(e); onCopyLink(); }}
                         className={SHARE_BTN}
                         aria-label={locale === "en" ? "Copy link" : "リンクをコピー"}
                         style={SHARE_STYLE}
