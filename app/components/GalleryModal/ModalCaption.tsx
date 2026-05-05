@@ -139,7 +139,6 @@ export default function ModalCaption({
                     <button
                         onClick={(e) => { stop(e); shareToTwitter(currentUrl, shareText); }}
                         onTouchStart={stop}
-                        onTouchEnd={(e) => { stop(e); shareToTwitter(currentUrl, shareText); }}
                         className={SHARE_BTN}
                         aria-label="Share on Twitter"
                         style={SHARE_STYLE}
@@ -153,7 +152,6 @@ export default function ModalCaption({
                     <button
                         onClick={(e) => { stop(e); shareToFacebook(currentUrl); }}
                         onTouchStart={stop}
-                        onTouchEnd={(e) => { stop(e); shareToFacebook(currentUrl); }}
                         className={SHARE_BTN}
                         aria-label="Share on Facebook"
                         style={SHARE_STYLE}
@@ -168,7 +166,6 @@ export default function ModalCaption({
                         <button
                             onClick={(e) => { stop(e); shareToLine(currentUrl, shareText); }}
                             onTouchStart={stop}
-                            onTouchEnd={(e) => { stop(e); shareToLine(currentUrl, shareText); }}
                             className={SHARE_BTN}
                             aria-label="Share on LINE"
                             style={SHARE_STYLE}

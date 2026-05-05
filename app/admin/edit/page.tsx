@@ -159,7 +159,7 @@ function AdminEditContent() {
                 showToast(locale === "en" ? "Saved" : "保存しました", "success");
                 router.push(ROUTES.ADMIN);
             } else {
-                const err = await res.json() as { error?: string };
+                const err = await res.json().catch(() => ({})) as { error?: string };
                 showToast(err.error ?? (locale === "en" ? "Save failed" : "保存に失敗しました"), "error");
             }
         } catch (e) {
