@@ -23,6 +23,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
         try {
             const saved = localStorage.getItem("locale");
             if (saved === "en" || saved === "ja") {
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setLocaleState(saved);
             }
         } catch {

@@ -1,7 +1,7 @@
 // lib/hooks/useImagePreloader.ts
 // 画像のプリロード機能用のカスタムフック
 
-import { useRef, useMemo, useCallback } from "react";
+import { useRef, useCallback } from "react";
 import { log } from "../utils/log";
 
 /**

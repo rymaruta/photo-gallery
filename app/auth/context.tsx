@@ -101,12 +101,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 return { success: true };
             } else {
-                console.error("AuthContext: ログイン失敗", result.error);
+                log.error("AuthContext: ログイン失敗", result.error);
                 setAuthState((prev) => ({ ...prev, loading: false }));
                 return { success: false, error: result.error || "ログインに失敗しました", needsVerification: result.needsVerification };
             }
         } catch (error: unknown) {
-            console.error("AuthContext: ログイン例外", error);
+            log.error("AuthContext: ログイン例外", error);
             setAuthState((prev) => ({ ...prev, loading: false }));
             const errorMessage = error instanceof Error ? error.message : "ログインに失敗しました";
             return { success: false, error: errorMessage };
