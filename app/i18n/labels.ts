@@ -28,6 +28,14 @@ export type Labels = {
     };
     tags: {
         title: string;
+        multiple?: string;
+        single?: string;
+        none?: string;
+    };
+    actions?: {
+        clearTags?: string;
+        showAll?: string;
+        showAllGeneric?: string;
     };
     search: {
         placeholder: string;

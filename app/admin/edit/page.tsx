@@ -118,7 +118,7 @@ function AdminEditContent() {
         };
 
         void fetchPhoto();
-    }, [photoId, isAuthenticated, isAdminUser]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [photoId, isAuthenticated, isAdminUser, showToast, router, locale]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();

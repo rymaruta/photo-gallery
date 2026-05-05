@@ -34,22 +34,8 @@ export default function AdminLoginPage() {
         try {
             const result = await login(username, password);
             if (result.success) {
-                // ログイン成功後、グループを確認
-                // isAdminUser の更新を useEffect で拾うので少し待つ
-                await new Promise(r => setTimeout(r, 600));
-                // useEffect が処理するが、万が一のため直接確認
-                const { isAdmin: checkAdmin } = await import("../../../lib/auth/cognito");
-                const admin = await checkAdmin();
-                if (admin) {
-                    showToast("ログインしました", "success");
-                    router.push("/admin");
-                } else {
-                    showToast("管理者権限が必要です", "error");
-                    // ログアウトして一般ページへ
-                    const { signOut } = await import("../../../lib/auth/cognito");
-                    signOut();
-                    router.push("/");
-                }
+                showToast("ログインしました", "success");
+                // useEffect handles redirect based on isAdminUser / isGeneralUser state
             } else {
                 setError(result.error || "ログインに失敗しました");
             }
