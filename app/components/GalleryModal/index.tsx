@@ -150,7 +150,6 @@ export default function GalleryModal({
     };
 
     const handleOverlayClick = () => {
-        try { unlockBodyScroll(); } catch { /* noop */ }
         onClose();
     };
 

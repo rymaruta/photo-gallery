@@ -1,11 +1,19 @@
 let _openModalCount = 0;
 let _prevBodyOverflow: string | null = null;
+let _prevBodyPaddingRight: string | null = null;
 let _prevScrollY = 0;
 
 export function lockBodyScroll() {
     if (_openModalCount === 0) {
         _prevScrollY = window.scrollY || window.pageYOffset || 0;
         _prevBodyOverflow = document.body.style.overflow ?? "";
+        _prevBodyPaddingRight = document.body.style.paddingRight ?? "";
+
+        // スクロールバーが消えることによる水平レイアウトシフトを防ぐ
+        const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
+        if (scrollBarWidth > 0) {
+            document.body.style.paddingRight = `${scrollBarWidth}px`;
+        }
 
         // position:fixed アプローチ:
         // overflow:hidden のみではInstagram/Facebook IABやiOS Safariで
@@ -27,11 +35,13 @@ export function unlockBodyScroll() {
         document.body.style.top = "";
         document.body.style.left = "";
         document.body.style.right = "";
+        document.body.style.paddingRight = _prevBodyPaddingRight ?? "";
 
         // position:fixed 解除後にスクロール位置を復元
         window.scrollTo(0, _prevScrollY);
 
         _prevBodyOverflow = null;
+        _prevBodyPaddingRight = null;
         _prevScrollY = 0;
     }
 }
