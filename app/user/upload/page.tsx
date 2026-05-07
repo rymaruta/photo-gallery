@@ -219,6 +219,7 @@ export default function UploadPage() {
                     body: file,
                     headers: {
                         "Content-Type": file.type,
+                        "Cache-Control": "max-age=31536000",
                     },
                 });
 

@@ -13,7 +13,7 @@ provider:
   environment:
     PHOTOS_TABLE: prod-photo-gallery-photos
     UPLOAD_BUCKET: ${param:uploadBucket, 'prod-journey-photo-upload'}
-    CLOUDFRONT_URL: ${param:cloudfrontUrl, ''}
+    CLOUDFRONT_URL: ${param:cloudfrontUrl, 'https://d1s3dwwzgxf5ni.cloudfront.net'}
 
   httpApi:
     cors: true
