@@ -81,7 +81,8 @@ export default function UploadPage() {
             showToast(
                 locale === "en"
                     ? "Please select a file"
-                    : "ファイルを選択してください"
+                    : "ファイルを選択してください",
+                "error"
             );
             return;
         }
@@ -300,7 +301,8 @@ export default function UploadPage() {
             showToast(
                 locale === "en"
                     ? `Upload failed: ${errorMessage}`
-                    : `アップロードに失敗しました: ${errorMessage}`
+                    : `アップロードに失敗しました: ${errorMessage}`,
+                "error"
             );
         } finally {
             setUploading(false);
