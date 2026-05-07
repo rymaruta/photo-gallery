@@ -80,10 +80,12 @@ const GalleryItem = React.memo(function GalleryItem({
 
     return (
         <div className="w-full m-0 p-0">
-            <button
-                onClick={() => onOpen(index)}
+            {/* href でクローラーが /photo/[id] を発見できるようにしつつ、クリックはモーダルで開く */}
+            <a
+                href={`/photo/${photo.id}`}
+                onClick={(e) => { e.preventDefault(); onOpen(index); }}
                 className="block w-full p-0 border-0 bg-transparent cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-                aria-label={localizedTitle ? `Open ${localizedTitle}` : "Open photo"}
+                aria-label={localizedTitle ? `${localizedTitle} を開く` : "写真を開く"}
                 title={localizedTitle}
                 style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}
                 data-photo-id={photo.id}
@@ -155,7 +157,7 @@ const GalleryItem = React.memo(function GalleryItem({
                                     </div>
                                 </div>
                             </div>
-                        </button>
+                        </a>
                     </div>
                 );
 });

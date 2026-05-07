@@ -104,15 +104,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-md border-b border-white/10">
                 <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
                 <div className="relative max-w-5xl mx-auto flex items-center justify-between h-[64px] md:h-[72px] px-6 md:px-8">
-                  <h1 className={`${inter.className} text-2xl md:text-3xl font-bold tracking-tight text-white`}>
-                    <Link 
-                      href="/" 
+                  <p className={`${inter.className} text-2xl md:text-3xl font-bold tracking-tight text-white m-0`}>
+                    <Link
+                      href="/"
                       className="inline-block hover:opacity-70 transition-opacity duration-200 relative group"
                     >
                       <span className="relative z-10">Journey Photo</span>
                       <span className="absolute inset-0 bg-white/5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 -z-0" />
               </Link>
-            </h1>
+            </p>
 
             <HeaderNav />
           </div>
