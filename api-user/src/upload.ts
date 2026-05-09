@@ -14,6 +14,11 @@ function getUserId(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[
     return String(event.requestContext.authorizer.jwt.claims.sub ?? "unknown");
 }
 
+function getEmail(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[0]): string | undefined {
+    const email = event.requestContext.authorizer.jwt.claims.email;
+    return email ? String(email) : undefined;
+}
+
 function isAdmin(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[0]): boolean {
     const groups = event.requestContext.authorizer.jwt.claims["cognito:groups"];
     if (!groups) return false;
@@ -104,6 +109,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         category?: string;
         tags?: string[];
         exif?: Photo["exif"];
+        displayName?: string;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -111,7 +117,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なリクエスト" }) };
     }
 
-    const { key, publicUrl, photoId, title, description, location, category, tags, exif } = body;
+    const { key, publicUrl, photoId, title, description, location, category, tags, exif, displayName } = body;
     if (!key || !publicUrl) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイル情報が必要です" }) };
     }
@@ -132,6 +138,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         }
     }
 
+    const resolvedDisplayName = displayName?.trim() || getEmail(event);
+
     const photo: Photo = {
         id: photoId ?? uuidv4(),
         src: publicUrl,
@@ -141,6 +149,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         ...(category ? { category } : {}),
         tags: Array.isArray(tags) ? tags : [],
         ...(exif && Object.keys(exif).length > 0 ? { exif } : {}),
+        ...(resolvedDisplayName ? { displayName: resolvedDisplayName } : {}),
         userId,
         uploadedBy: userId,
         published: true,

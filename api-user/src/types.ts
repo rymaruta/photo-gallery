@@ -9,6 +9,7 @@ export type Photo = {
     published?: boolean;
     userId?: string;
     uploadedBy?: string;
+    displayName?: string;
     createdAt?: string;
     updatedAt?: string;
     exif?: {

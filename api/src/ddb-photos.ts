@@ -72,3 +72,21 @@ export async function countUserPhotos(userId: string): Promise<number> {
     }));
     return res.Count ?? 0;
 }
+
+export async function listPhotosByUser(userId: string): Promise<Photo[]> {
+    const items: Photo[] = [];
+    let lastKey: Record<string, unknown> | undefined;
+    do {
+        const res = await ddb.send(new QueryCommand({
+            TableName: TABLE,
+            IndexName: USER_INDEX,
+            KeyConditionExpression: "userId = :uid",
+            FilterExpression: "attribute_not_exists(published) OR published = :pub",
+            ExpressionAttributeValues: { ":uid": userId, ":pub": true },
+            ExclusiveStartKey: lastKey,
+        }));
+        items.push(...((res.Items ?? []) as Photo[]));
+        lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
+    } while (lastKey);
+    return items.sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+}

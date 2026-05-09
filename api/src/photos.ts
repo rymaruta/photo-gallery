@@ -1,14 +1,15 @@
 import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
-import { listPhotos, getPhotoById } from "./ddb-photos";
+import { listPhotos, listPhotosByUser, getPhotoById } from "./ddb-photos";
 
 const JSON_HEADERS = {
     "Content-Type": "application/json",
     "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
 };
 
-export const getPhotos: APIGatewayProxyHandlerV2 = async () => {
+export const getPhotos: APIGatewayProxyHandlerV2 = async (event) => {
     try {
-        const photos = await listPhotos();
+        const userId = event.queryStringParameters?.userId;
+        const photos = userId ? await listPhotosByUser(userId) : await listPhotos();
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(photos) };
     } catch (e) {
         console.error("getPhotos error:", e);

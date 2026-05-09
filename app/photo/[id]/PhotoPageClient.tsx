@@ -481,6 +481,25 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                     </div>
                 )}
 
+                {/* アップロードユーザーへのリンク */}
+                {photo.userId && (
+                    <div className="text-sm">
+                        <a
+                            href={`/users?id=${encodeURIComponent(photo.userId)}`}
+                            className="inline-flex items-center gap-1.5 text-white/50 hover:text-white/80 transition-colors"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            <span>
+                                {photo.displayName
+                                    ? (locale === "en" ? `View ${photo.displayName}'s photos` : `${photo.displayName} の写真を見る`)
+                                    : (locale === "en" ? "View uploader's photos" : "アップロード者の写真を見る")}
+                            </span>
+                        </a>
+                    </div>
+                )}
+
                 {/* EXIF情報 */}
                 {(mergedExif.camera || mergedExif.lens || mergedExif.aperture || mergedExif.exposure || mergedExif.iso || mergedExif.focalLength || mergedExif.whiteBalance || mergedExif.imageSize || mergedExif.dateTimeOriginal) && (
                     <div className="pt-4 border-t border-white/10">
