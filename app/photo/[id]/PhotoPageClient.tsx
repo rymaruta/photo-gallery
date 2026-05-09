@@ -193,20 +193,21 @@ function PhotoImage({
 
 type PhotoPageClientProps = {
     photoId: string;
+    initialPhoto?: Photo;
 };
 
-export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
+export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClientProps) {
     const { locale, setLocale, labels } = useLocale();
     const [extractedExif, setExtractedExif] = useState<ExtractedExif | null>(null);
-    const [allPhotos, setAllPhotos] = useState<Photo[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [allPhotos, setAllPhotos] = useState<Photo[]>(initialPhoto ? [initialPhoto] : []);
+    const [loading, setLoading] = useState(!initialPhoto);
 
-    // APIから写真を読み込む（編集済みのベース写真も含む）
+    // APIから写真を読み込む（編集済みのデータで静的ビルド時データを上書き）
     useEffect(() => {
         const loadPhotos = async () => {
             try {
                 const { publicFetch } = await import("../../../lib/utils/api");
-                const response = await publicFetch("/photos", { cache: "no-store" });
+                const response = await publicFetch("/photos");
                 if (response.ok) {
                     const data = await response.json();
                     setAllPhotos(data);

@@ -112,5 +112,6 @@ type PageProps = {
 
 export default async function PhotoPage({ params }: PageProps) {
     const { id } = await params;
-    return <PhotoPageClient photoId={id} />;
+    const photo = await loadPhoto(id);
+    return <PhotoPageClient photoId={id} initialPhoto={photo ?? undefined} />;
 }
