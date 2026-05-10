@@ -484,7 +484,7 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                 {/* アップロードユーザーへのリンク */}
                 {photo.userId && photo.displayName && (
                     <div className="text-sm">
-                        <a
+                        <Link
                             href={`/users?id=${encodeURIComponent(photo.userId)}`}
                             className="inline-flex items-center gap-1.5 text-white/50 hover:text-white/80 transition-colors"
                         >
@@ -494,7 +494,7 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                             <span>
                                 {locale === "en" ? `View ${photo.displayName}'s photos` : `${photo.displayName} の写真を見る`}
                             </span>
-                        </a>
+                        </Link>
                     </div>
                 )}
 
