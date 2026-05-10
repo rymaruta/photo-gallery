@@ -138,7 +138,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         }
     }
 
-    const resolvedDisplayName = displayName?.trim() || getEmail(event);
+    const resolvedDisplayName = (displayName?.trim() ?? "").slice(0, 100) || getEmail(event);
 
     const photo: Photo = {
         id: photoId ?? uuidv4(),

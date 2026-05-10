@@ -66,8 +66,12 @@ function UsersPageInner() {
                     signal: controller.signal,
                 });
                 if (res.ok) {
-                    const data = await res.json() as Photo[];
-                    setPhotos(data);
+                    const data = await res.json() as unknown;
+                    if (Array.isArray(data)) {
+                        setPhotos(data as Photo[]);
+                    } else {
+                        setError("fetch-error");
+                    }
                 } else {
                     setError("fetch-error");
                 }
