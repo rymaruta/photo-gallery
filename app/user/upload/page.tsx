@@ -32,7 +32,6 @@ export default function UploadPage() {
     const [progress, setProgress] = useState(0);
     const [fileError, setFileError] = useState<string | null>(null);
 
-    const [displayName, setDisplayName] = useState("");
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [location, setLocation] = useState("");
@@ -273,7 +272,6 @@ export default function UploadPage() {
                     tags: tags
                         ? tags.split(",").map((t) => t.trim()).filter(Boolean)
                         : undefined,
-                    displayName: displayName.trim() || undefined,
                 }),
             });
 
@@ -310,7 +308,7 @@ export default function UploadPage() {
             setUploading(false);
             setProgress(0);
         }
-    }, [file, displayName, title, description, location, category, tags, locale, showToast, router, isAdminUser]);
+    }, [file, title, description, location, category, tags, locale, showToast, router, isAdminUser]);
 
     // 認証チェック - 未認証ユーザーはリダイレクト（admin / user グループ両方可）
     useEffect(() => {
@@ -415,27 +413,6 @@ export default function UploadPage() {
                 {fileError && (
                     <p className="text-sm text-red-400 mt-1" role="alert">{fileError}</p>
                 )}
-
-                {/* 表示名 */}
-                <div>
-                    <label className="block text-sm font-medium text-white/70 mb-2">
-                        {locale === "en" ? "Display Name" : "表示名"}
-                    </label>
-                    <input
-                        type="text"
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        placeholder={locale === "en" ? "Your name shown on profile" : "プロフィールに表示される名前"}
-                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-md text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/50 focus:border-white/30 text-base"
-                        disabled={uploading}
-                        style={{ fontSize: "16px" }}
-                    />
-                    <p className="mt-1 text-xs text-white/40">
-                        {locale === "en"
-                            ? "Leave blank to use your email address"
-                            : "空白の場合はメールアドレスが使用されます"}
-                    </p>
-                </div>
 
                 {/* タイトル */}
                 <div>
