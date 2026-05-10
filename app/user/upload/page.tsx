@@ -2,12 +2,15 @@
 
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { PhotoIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { PhotoIcon, XMarkIcon, UserCircleIcon } from "@heroicons/react/24/outline";
 import { useToast } from "../../../lib/hooks/useToast";
 import { useAuth } from "../../auth/context";
 import LocaleToggle from "../../components/LocaleToggle";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
+import { getCurrentSession } from "../../../lib/auth/cognito";
+
+const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
 export default function UploadPage() {
     const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
@@ -37,6 +40,20 @@ export default function UploadPage() {
     const [location, setLocation] = useState("");
     const [category, setCategory] = useState("");
     const [tags, setTags] = useState("");
+
+    // プロフィール写真用
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+    const [avatarUploading, setAvatarUploading] = useState(false);
+    const [avatarCacheBust, setAvatarCacheBust] = useState(Date.now());
+
+    useEffect(() => {
+        getCurrentSession().then(session => {
+            const sub = session?.getIdToken()?.payload?.sub as string | undefined;
+            if (sub) setCurrentUserId(sub);
+        }).catch(() => { /* ignore */ });
+    }, []);
 
     // ファイル選択
     const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -507,6 +524,97 @@ export default function UploadPage() {
                     <p className="mt-1 text-xs text-white/40">
                         {locale === "en" ? "Example: Tokyo, night view, tower, city" : "例: 東京, 夜景, タワー, 都市"}
                     </p>
+                </div>
+
+                {/* ──────────────────────────────
+                    プロフィール写真
+                ────────────────────────────── */}
+                <div className="border border-white/10 rounded-lg p-4 space-y-4">
+                    <h2 className="text-sm font-medium text-white/70">
+                        {locale === "en" ? "Profile Photo" : "プロフィール写真"}
+                    </h2>
+                    <div className="flex items-center gap-4">
+                        {/* 現在のアバター */}
+                        <div className="w-16 h-16 rounded-full overflow-hidden bg-white/10 flex items-center justify-center flex-shrink-0">
+                            {avatarPreview ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
+                            ) : currentUserId && CLOUDFRONT_URL ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                    src={`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(currentUserId)}?v=${avatarCacheBust}`}
+                                    alt=""
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                                />
+                            ) : (
+                                <UserCircleIcon className="w-10 h-10 text-white/40" />
+                            )}
+                        </div>
+                        <div className="space-y-2">
+                            <label className="inline-block cursor-pointer">
+                                <span className="px-3 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
+                                    style={{ touchAction: "manipulation", minHeight: "44px", display: "inline-flex", alignItems: "center" }}>
+                                    {locale === "en" ? "Choose photo" : "写真を選択"}
+                                </span>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    disabled={avatarUploading}
+                                    onChange={(e) => {
+                                        const f = e.target.files?.[0];
+                                        if (!f) return;
+                                        if (!f.type.startsWith("image/")) return;
+                                        setAvatarFile(f);
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => setAvatarPreview(reader.result as string);
+                                        reader.readAsDataURL(f);
+                                        e.target.value = "";
+                                    }}
+                                />
+                            </label>
+                            {avatarFile && (
+                                <button
+                                    onClick={async () => {
+                                        if (!avatarFile) return;
+                                        setAvatarUploading(true);
+                                        try {
+                                            const { userFetch, authenticatedFetch } = await import("../../../lib/utils/api");
+                                            const apiFetch = isAdminUser ? authenticatedFetch : userFetch;
+                                            const res = await apiFetch("/profile/avatar/presigned-url", {
+                                                method: "POST",
+                                                body: JSON.stringify({ fileType: avatarFile.type }),
+                                            });
+                                            if (!res.ok) throw new Error("Presigned URL取得失敗");
+                                            const { presignedUrl } = await res.json() as { presignedUrl: string };
+                                            const upload = await fetch(presignedUrl, {
+                                                method: "PUT",
+                                                body: avatarFile,
+                                                headers: { "Content-Type": avatarFile.type },
+                                            });
+                                            if (!upload.ok) throw new Error("S3アップロード失敗");
+                                            setAvatarFile(null);
+                                            setAvatarCacheBust(Date.now());
+                                            showToast(locale === "en" ? "Profile photo updated!" : "プロフィール写真を更新しました");
+                                        } catch (e) {
+                                            log.error("avatar upload error:", e);
+                                            showToast(locale === "en" ? "Upload failed" : "アップロードに失敗しました", "error");
+                                        } finally {
+                                            setAvatarUploading(false);
+                                        }
+                                    }}
+                                    disabled={avatarUploading}
+                                    className="px-3 py-2 text-sm bg-white text-black rounded-md font-medium hover:bg-white/90 transition-colors disabled:opacity-50"
+                                    style={{ touchAction: "manipulation", minHeight: "44px" }}
+                                >
+                                    {avatarUploading
+                                        ? (locale === "en" ? "Uploading..." : "アップロード中...")
+                                        : (locale === "en" ? "Save" : "保存")}
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 {/* アップロードボタン */}

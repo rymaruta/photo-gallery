@@ -10,12 +10,41 @@ import type { Photo } from "../data/photos";
 import { getLocalized } from "../data/photos";
 import { log } from "../../lib/utils/log";
 
+const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
+
+function ProfileAvatar({ userId, size = "md" }: { userId: string; size?: "md" | "lg" }) {
+    const [avatarError, setAvatarError] = useState(false);
+    const avatarUrl = CLOUDFRONT_URL ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(userId)}` : "";
+    const dim = size === "lg" ? "w-16 h-16 sm:w-20 sm:h-20" : "w-10 h-10";
+    const iconDim = size === "lg" ? "w-10 h-10 sm:w-12 sm:h-12" : "w-6 h-6";
+
+    if (!avatarUrl || avatarError) {
+        return (
+            <div className={`${dim} rounded-full bg-white/10 flex items-center justify-center flex-shrink-0`}>
+                <UserCircleIcon className={`${iconDim} text-white/40`} />
+            </div>
+        );
+    }
+
+    return (
+        <div className={`${dim} rounded-full overflow-hidden bg-white/10 flex-shrink-0`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+                src={avatarUrl}
+                alt=""
+                className="w-full h-full object-cover"
+                onError={() => setAvatarError(true)}
+            />
+        </div>
+    );
+}
+
 function PhotoCard({ photo, locale }: { photo: Photo; locale: string }) {
     const [imageError, setImageError] = useState(false);
     const title = getLocalized(photo.title, locale as "ja" | "en") || (typeof photo.title === "string" ? photo.title : "");
 
     return (
-        <a
+        <Link
             href={`/photo/${photo.id}`}
             className="block relative overflow-hidden bg-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
             style={{ paddingTop: "100%" }}
@@ -38,7 +67,7 @@ function PhotoCard({ photo, locale }: { photo: Photo; locale: string }) {
                 </div>
             )}
             <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors" />
-        </a>
+        </Link>
     );
 }
 
@@ -136,9 +165,7 @@ function UsersPageInner() {
 
                 {/* プロフィールヘッダー */}
                 <div className="flex items-center gap-4 py-6">
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-                        <UserCircleIcon className="w-10 h-10 sm:w-12 sm:h-12 text-white/40" />
-                    </div>
+                    <ProfileAvatar userId={userId} size="lg" />
                     <div>
                         <h1 className="text-xl sm:text-2xl font-bold">
                             {displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}

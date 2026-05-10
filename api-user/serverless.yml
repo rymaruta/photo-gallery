@@ -31,7 +31,9 @@ provider:
         - Effect: Allow
           Action:
             - s3:PutObject
-          Resource: arn:aws:s3:::${param:uploadBucket, 'prod-journey-photo-upload'}/uploads/*
+          Resource:
+            - arn:aws:s3:::${param:uploadBucket, 'prod-journey-photo-upload'}/uploads/*
+            - arn:aws:s3:::${param:uploadBucket, 'prod-journey-photo-upload'}/profiles/*
         - Effect: Allow
           Action:
             - dynamodb:PutItem
@@ -65,6 +67,15 @@ functions:
     events:
       - httpApi:
           path: /upload/save
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  profileAvatarPresignedUrl:
+    handler: src/profile.profileAvatarPresignedUrl
+    events:
+      - httpApi:
+          path: /profile/avatar/presigned-url
           method: POST
           authorizer:
             name: cognitoAuthorizer
