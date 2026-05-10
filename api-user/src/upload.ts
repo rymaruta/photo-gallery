@@ -14,10 +14,6 @@ function getUserId(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[
     return String(event.requestContext.authorizer.jwt.claims.sub ?? "unknown");
 }
 
-function getEmail(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[0]): string | undefined {
-    const email = event.requestContext.authorizer.jwt.claims.email;
-    return email ? String(email) : undefined;
-}
 
 function isAdmin(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[0]): boolean {
     const groups = event.requestContext.authorizer.jwt.claims["cognito:groups"];
@@ -138,7 +134,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         }
     }
 
-    const resolvedDisplayName = (displayName?.trim() ?? "").slice(0, 100) || getEmail(event);
+    const resolvedDisplayName = (displayName?.trim() ?? "").slice(0, 100) || undefined;
 
     const photo: Photo = {
         id: photoId ?? uuidv4(),
