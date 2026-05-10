@@ -16,6 +16,7 @@
       "iso": 50,
       "focalLength": "75mm"
     },
+    "displayName": "丸田 竜平",
     "date": "2026-04-29",
     "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/a129394d-f386-4795-9623-2d6e915d20c7.jpeg",
     "updatedAt": "2026-04-29T13:25:07.841Z",
@@ -66,6 +67,7 @@
       "iso": 50,
       "focalLength": "90mm"
     },
+    "displayName": "丸田 竜平",
     "date": "2026-04-29",
     "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/88c66c1d-c2fc-4875-9b52-55756db18dbc.jpeg",
     "updatedAt": "2026-04-29T07:30:30.240Z",
@@ -113,6 +115,7 @@
       "lens": "E 28-200mm F2.8-5.6 A071",
       "focalLength": "28mm"
     },
+    "displayName": "丸田 竜平",
     "date": "2024-10-12",
     "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/edb09f51-c821-4ec4-8b84-6ea467d77131.jpeg",
     "updatedAt": "2026-04-12T14:24:05.104Z",
@@ -145,6 +148,7 @@
       "lens": "E 28-200mm F2.8-5.6 A071",
       "focalLength": "28mm"
     },
+    "displayName": "丸田 竜平",
     "date": "2024-10-11",
     "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/a5951859-7334-43c6-9e6a-e65d8c6fe70f.jpeg",
     "updatedAt": "2026-04-12T13:31:42.579Z",
@@ -176,6 +180,7 @@
       "lens": "FE 16-35mm F2.8 GM II",
       "focalLength": "35mm"
     },
+    "displayName": "丸田 竜平",
     "date": "2025-08-31",
     "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/ab5e9442-d146-4eb4-9506-89cb8ed18daf.jpeg",
     "updatedAt": "2026-02-12T12:19:54.476Z",
@@ -213,6 +218,7 @@
       "lens": "E 28-200mm F2.8-5.6 A071",
       "focalLength": "72mm"
     },
+    "displayName": "丸田 竜平",
     "date": "2024-03-24",
     "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/50b9f638-c86c-4df7-95ad-0bc2050ec535.jpeg",
     "updatedAt": "2026-02-12T12:12:33.650Z",
@@ -249,6 +255,7 @@
       "lens": "FE 28-70mm F3.5-5.6 OSS",
       "focalLength": "28mm"
     },
+    "displayName": "丸田 竜平",
     "date": "2023-06-21",
     "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/65300204-f4d3-4faf-9724-6cdd83bda35a.jpeg",
     "updatedAt": "2026-02-12T12:08:38.478Z",
@@ -285,6 +292,7 @@
       "lens": "FE 16-35mm F2.8 GM II",
       "focalLength": "35mm"
     },
+    "displayName": "丸田 竜平",
     "date": "2026-01-02",
     "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/30891834-7d3b-45c4-a3c5-d5d455b725a2.jpeg",
     "updatedAt": "2026-02-12T11:57:28.933Z",
@@ -308,6 +316,7 @@
     }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/8e82737f-5a6a-43b1-b42d-07d6b1913f2b.jpg",
     "published": true,
     "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/f26e7dff-ddbe-43d3-9be1-1c8cb10a5b58.jpeg",
@@ -336,11 +345,12 @@
     "src": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/98846554-af2e-4e99-8da0-5edb06c1f430.jpg",
     "location": "福岡",
     "published": true,
+    "createdAt": "2026-02-12T03:49:23.528Z",
+    "displayName": "丸田 竜平",
     "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/98846554-af2e-4e99-8da0-5edb06c1f430.jpeg",
     "updatedAt": "2026-02-12T03:49:23.528Z",
     "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "風景",
-    "createdAt": "2026-02-12T03:49:23.528Z",
     "description": {
       "en": [
         "At Houman-gu Kamado Shrine. Deep green in the season of new leaves. Moss-covered stone steps and a tunnel of maple trees beautifully frame the entrance to the sacred ground."
@@ -362,11 +372,12 @@
     "src": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/1f724eba-ea68-4310-9996-b3d7e47065a7.jpg",
     "location": "フランス",
     "published": true,
+    "createdAt": "2026-02-12T03:38:05.648Z",
+    "displayName": "丸田 竜平",
     "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/1f724eba-ea68-4310-9996-b3d7e47065a7.jpeg",
     "updatedAt": "2026-02-12T03:38:05.648Z",
     "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "建築",
-    "createdAt": "2026-02-12T03:38:05.648Z",
     "description": {
       "en": [
         "The Temple of Love at Petit Trianon, Versailles. A dome supported by twelve columns with geometric reliefs inside. The GM lens captured every detail of the sculpture that changes with the light. The craftsmen's skill is visible in the gradient from highlight to shadow."
@@ -385,6 +396,7 @@
     }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/3efd3a7c-a625-473e-9622-8daaffca1cf8.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:38.373Z",
@@ -424,6 +436,7 @@
     }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/d0e10f85-6e15-4e1a-a298-f5a968195492.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:38.153Z",
@@ -470,10 +483,20 @@
     "src": "https://journey-photo.com/uploads/c4e2dac4-b319-43f9-876a-395e9e7e9000.jpg",
     "location": "フランス ヴェルサイユ",
     "published": true,
+    "createdAt": "2026-01-20T07:32:16.524Z",
+    "exif": {
+      "aperture": "f/3.5",
+      "exposure": "1/4000s",
+      "iso": 160,
+      "whiteBalance": "Manual",
+      "camera": "SONY ILCE-7M3",
+      "lens": "E 28-200mm F2.8-5.6 A071",
+      "focalLength": "31mm"
+    },
+    "displayName": "丸田 竜平",
     "updatedAt": "2026-01-20T08:35:37.939Z",
     "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "architecture",
-    "createdAt": "2026-01-20T07:32:16.524Z",
     "description": {
       "en": [
         "One of the palaces in the Trianon ensemble.",
@@ -485,15 +508,6 @@
         "プチトランと呼ばれる小さな列車で庭園を巡った。",
         "大理石と列柱が織りなす落ち着いた佇まいが印象的だった。"
       ]
-    },
-    "exif": {
-      "aperture": "f/3.5",
-      "exposure": "1/4000s",
-      "iso": 160,
-      "whiteBalance": "Manual",
-      "camera": "SONY ILCE-7M3",
-      "lens": "E 28-200mm F2.8-5.6 A071",
-      "focalLength": "31mm"
     },
     "id": "c4e2dac4-b319-43f9-876a-395e9e7e9000",
     "tags": [
@@ -509,10 +523,20 @@
     "src": "https://journey-photo.com/uploads/28e09a2a-918b-43f7-8ffe-e62d8822c6bf.jpg",
     "location": "パリ, フランス",
     "published": true,
+    "createdAt": "2026-01-20T07:32:16.291Z",
+    "exif": {
+      "aperture": "f/2.8",
+      "exposure": "1/160s",
+      "iso": 320,
+      "whiteBalance": "Manual",
+      "camera": "SONY ILCE-7M3",
+      "lens": "E 28-200mm F2.8-5.6 A071",
+      "focalLength": "28mm"
+    },
+    "displayName": "丸田 竜平",
     "updatedAt": "2026-01-20T08:35:37.535Z",
     "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "street",
-    "createdAt": "2026-01-20T07:32:16.291Z",
     "description": {
       "en": [
         "Paris turns almost any scene into a postcard.",
@@ -522,15 +546,6 @@
         "パリは何を撮っても絵になる街だ。",
         "光がじんわりと広がる、そんな日常の一コマだ。"
       ]
-    },
-    "exif": {
-      "aperture": "f/2.8",
-      "exposure": "1/160s",
-      "iso": 320,
-      "whiteBalance": "Manual",
-      "camera": "SONY ILCE-7M3",
-      "lens": "E 28-200mm F2.8-5.6 A071",
-      "focalLength": "28mm"
     },
     "id": "28e09a2a-918b-43f7-8ffe-e62d8822c6bf",
     "tags": [
@@ -546,10 +561,20 @@
     "src": "https://journey-photo.com/uploads/ecb99a5f-ef3f-4951-bb4f-b255d36270d9.jpg",
     "location": "フランス ヴェルサイユ",
     "published": true,
+    "createdAt": "2026-01-20T07:32:16.199Z",
+    "exif": {
+      "aperture": "f/2.8",
+      "exposure": "1/800s",
+      "iso": 100,
+      "whiteBalance": "Manual",
+      "camera": "SONY ILCE-7M3",
+      "lens": "E 28-200mm F2.8-5.6 A071",
+      "focalLength": "28mm"
+    },
+    "displayName": "丸田 竜平",
     "updatedAt": "2026-01-20T08:35:37.320Z",
     "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "architecture",
-    "createdAt": "2026-01-20T07:32:16.199Z",
     "description": {
       "en": [
         "Vast gardens and manicured avenues.",
@@ -561,15 +586,6 @@
         "そんな帰り際の1枚。人生で一番美しい夕焼けだった。",
         "ー 黄昏のヴェルサイユ宮殿 ー"
       ]
-    },
-    "exif": {
-      "aperture": "f/2.8",
-      "exposure": "1/800s",
-      "iso": 100,
-      "whiteBalance": "Manual",
-      "camera": "SONY ILCE-7M3",
-      "lens": "E 28-200mm F2.8-5.6 A071",
-      "focalLength": "28mm"
     },
     "id": "ecb99a5f-ef3f-4951-bb4f-b255d36270d9",
     "tags": [
@@ -585,10 +601,20 @@
     "src": "https://journey-photo.com/uploads/18c7ad60-5600-4020-bbe0-edc84332e9ce.jpg",
     "location": "北海道",
     "published": true,
+    "createdAt": "2026-01-20T07:32:16.012Z",
+    "exif": {
+      "aperture": "f/4",
+      "exposure": "1/640s",
+      "iso": 100,
+      "whiteBalance": "Manual",
+      "camera": "SONY ILCE-7M3",
+      "lens": "E 28-200mm F2.8-5.6 A071",
+      "focalLength": "70mm"
+    },
+    "displayName": "丸田 竜平",
     "updatedAt": "2026-01-20T08:35:37.003Z",
     "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "nature",
-    "createdAt": "2026-01-20T07:32:16.012Z",
     "description": {
       "en": [
         "Spring has come to Hokkaido, and cherry trees are in full bloom.",
@@ -598,15 +624,6 @@
         "北海道にも春が訪れ、桜が咲き誇る季節となった。",
         "木々の隙間から差し込む柔らかな光が、花びらを優しく照らしている。"
       ]
-    },
-    "exif": {
-      "aperture": "f/4",
-      "exposure": "1/640s",
-      "iso": 100,
-      "whiteBalance": "Manual",
-      "camera": "SONY ILCE-7M3",
-      "lens": "E 28-200mm F2.8-5.6 A071",
-      "focalLength": "70mm"
     },
     "id": "18c7ad60-5600-4020-bbe0-edc84332e9ce",
     "tags": [
@@ -622,10 +639,20 @@
     "src": "https://journey-photo.com/uploads/e4e47af3-08e9-4791-8fd3-d8688a52d22c.jpg",
     "location": "オペラ・ガルニエ（パリ）",
     "published": true,
+    "createdAt": "2026-01-20T07:32:15.400Z",
+    "exif": {
+      "aperture": "f/2.8",
+      "exposure": "1/3s",
+      "iso": 320,
+      "whiteBalance": "Manual",
+      "camera": "SONY ILCE-7M3",
+      "lens": "E 28-200mm F2.8-5.6 A071",
+      "focalLength": "28mm"
+    },
+    "displayName": "丸田 竜平",
     "updatedAt": "2026-01-20T08:35:36.676Z",
     "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "architecture",
-    "createdAt": "2026-01-20T07:32:15.400Z",
     "description": {
       "en": [
         "One of the world's great opera houses, the Palais Garnier.",
@@ -639,15 +666,6 @@
         "ー 細部まで威厳ある装飾と光が織り成す美しさ ー",
         "それを確かめたくてシャッターを切った。"
       ]
-    },
-    "exif": {
-      "aperture": "f/2.8",
-      "exposure": "1/3s",
-      "iso": 320,
-      "whiteBalance": "Manual",
-      "camera": "SONY ILCE-7M3",
-      "lens": "E 28-200mm F2.8-5.6 A071",
-      "focalLength": "28mm"
     },
     "id": "e4e47af3-08e9-4791-8fd3-d8688a52d22c",
     "tags": [
@@ -663,10 +681,20 @@
     "src": "https://journey-photo.com/uploads/a0e0e987-4686-437a-a5fd-b6eaa2debd84.jpg",
     "location": "香川県 観音寺市 高屋神社",
     "published": true,
+    "createdAt": "2026-01-20T07:32:14.512Z",
+    "exif": {
+      "aperture": "f/2.8",
+      "exposure": "1/1000s",
+      "iso": 100,
+      "whiteBalance": "Manual",
+      "camera": "SONY ILCE-7M3",
+      "lens": "FE 16-35mm F2.8 GM II",
+      "focalLength": "28mm"
+    },
+    "displayName": "丸田 竜平",
     "updatedAt": "2026-01-20T08:35:36.047Z",
     "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "landscape",
-    "createdAt": "2026-01-20T07:32:14.512Z",
     "description": {
       "en": [
         "The view from the torii at the summit was truly breathtaking.",
@@ -678,15 +706,6 @@
         "下宮までの道中、タクシーの運転手さんは香川が一番好きだと言っていた。",
         "愛が感じられる土地だ。"
       ]
-    },
-    "exif": {
-      "aperture": "f/2.8",
-      "exposure": "1/1000s",
-      "iso": 100,
-      "whiteBalance": "Manual",
-      "camera": "SONY ILCE-7M3",
-      "lens": "FE 16-35mm F2.8 GM II",
-      "focalLength": "28mm"
     },
     "id": "a0e0e987-4686-437a-a5fd-b6eaa2debd84",
     "tags": [
@@ -700,6 +719,7 @@
     }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/e2ff51a0-3364-4b9d-a6a3-c4a2c837b006.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:35.602Z",
@@ -736,6 +756,7 @@
     }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/27501725-7d8b-4ff8-a5db-21e458145fcc.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:35.191Z",
@@ -773,6 +794,7 @@
     }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/f854f680-602d-4cc4-9ac5-a98c06fb8c1a.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:34.976Z",
@@ -813,6 +835,7 @@
     }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/3729f868-9f21-4cef-913f-f05bc16b3255.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:34.767Z",
@@ -855,6 +878,7 @@
     }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/fa0d51c9-f3ff-4812-bc29-4d88515081ea.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:34.538Z",
@@ -892,6 +916,7 @@
     }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/21cf9fd2-e836-431d-85cd-cf41da7e56e9.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:34.244Z",
@@ -931,6 +956,7 @@
     }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/cb10f0d4-4fe1-4fb7-b72f-24cf72e69866.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:34.029Z",
@@ -970,6 +996,7 @@
     }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/2354a297-a017-4001-afbf-70e9d9fa36f7.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:33.804Z",
@@ -1011,6 +1038,7 @@
     }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/ca5a98b3-27c2-42d4-a26c-a3437609ec31.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:33.574Z",
@@ -1055,6 +1083,7 @@
     }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/bb470019-c4a2-484e-bdbd-51e4b20fa4ef.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:33.345Z",
@@ -1097,10 +1126,20 @@
     "src": "https://journey-photo.com/uploads/29de9197-5d15-490e-83ae-491e7386bb34.jpg",
     "location": "茨城県 ひたちなか市 国営ひたち海浜公園",
     "published": true,
+    "createdAt": "2026-01-20T07:32:08.689Z",
+    "exif": {
+      "aperture": "f/5.6",
+      "exposure": "1/1250s",
+      "iso": 100,
+      "whiteBalance": "Manual",
+      "camera": "SONY ILCE-7M3",
+      "lens": "E 28-200mm F2.8-5.6 A071",
+      "focalLength": "200mm"
+    },
+    "displayName": "丸田 竜平",
     "updatedAt": "2026-01-20T08:35:33.124Z",
     "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "landscape",
-    "createdAt": "2026-01-20T07:32:08.689Z",
     "description": {
       "en": [
         "A vast sea of nemophila stretching in soft blue tones.",
@@ -1112,15 +1151,6 @@
         "公園の中で見つけたポピーを軸に切り取った一枚だ。",
         "少し歩くと遊園地もあり、家族連れで賑わっていた。"
       ]
-    },
-    "exif": {
-      "aperture": "f/5.6",
-      "exposure": "1/1250s",
-      "iso": 100,
-      "whiteBalance": "Manual",
-      "camera": "SONY ILCE-7M3",
-      "lens": "E 28-200mm F2.8-5.6 A071",
-      "focalLength": "200mm"
     },
     "id": "29de9197-5d15-490e-83ae-491e7386bb34",
     "tags": [
