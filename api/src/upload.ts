@@ -90,6 +90,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         ...(category ? { category } : {}),
         tags: Array.isArray(tags) ? tags : [],
         ...(exif && Object.keys(exif).length > 0 ? { exif } : {}),
+        displayName: "丸田 竜平",
         userId: uploaderId,
         uploadedBy: uploaderId,
         published: true,
