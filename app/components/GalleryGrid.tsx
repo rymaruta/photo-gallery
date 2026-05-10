@@ -74,9 +74,10 @@ const GalleryItem = React.memo(function GalleryItem({
     onOpen: (index: number) => void;
 }) {
     const [imageError, setImageError] = useState(false);
-    const [imageLoading, setImageLoading] = useState(true);
+    const [imageLoaded, setImageLoaded] = useState(false);
     const { isFavorite } = useFavorites();
     const isFav = isFavorite(photo.id);
+    const isPriority = index < 8;
 
     return (
         <div className="w-full m-0 p-0">
@@ -96,26 +97,21 @@ const GalleryItem = React.memo(function GalleryItem({
                 >
                     <div className="absolute inset-0" aria-hidden={true} />
 
-                    {imageLoading && !imageError && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-gray-900 animate-pulse">
-                            <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                        </div>
-                    )}
                     {!imageError ? (
                         <Image
                             src={photo.src}
                             alt={localizedAlt}
                             fill
-                            className="object-cover"
-                            sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
-                            loading="lazy"
-                            style={objectPosition ? { objectPosition } : undefined}
-                            priority={false}
-                            onError={() => {
-                                setImageError(true);
-                                setImageLoading(false);
+                            className="object-cover transition-opacity duration-300"
+                            style={{
+                                ...(objectPosition ? { objectPosition } : {}),
+                                opacity: imageLoaded ? 1 : 0,
                             }}
-                            onLoad={() => setImageLoading(false)}
+                            sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
+                            loading={isPriority ? "eager" : "lazy"}
+                            priority={isPriority}
+                            onError={() => setImageError(true)}
+                            onLoad={() => setImageLoaded(true)}
                         />
                     ) : (
                         <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
