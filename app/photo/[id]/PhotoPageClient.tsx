@@ -482,7 +482,7 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                 )}
 
                 {/* アップロードユーザーへのリンク */}
-                {photo.userId && (
+                {photo.userId && photo.displayName && (
                     <div className="text-sm">
                         <a
                             href={`/users?id=${encodeURIComponent(photo.userId)}`}
@@ -492,9 +492,7 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
                             <span>
-                                {photo.displayName
-                                    ? (locale === "en" ? `View ${photo.displayName}'s photos` : `${photo.displayName} の写真を見る`)
-                                    : (locale === "en" ? "View uploader's photos" : "アップロード者の写真を見る")}
+                                {locale === "en" ? `View ${photo.displayName}'s photos` : `${photo.displayName} の写真を見る`}
                             </span>
                         </a>
                     </div>
