@@ -74,7 +74,6 @@ const GalleryItem = React.memo(function GalleryItem({
     onOpen: (index: number) => void;
 }) {
     const [imageError, setImageError] = useState(false);
-    const [imageLoaded, setImageLoaded] = useState(false);
     const { isFavorite } = useFavorites();
     const isFav = isFavorite(photo.id);
     const isPriority = index < 8;
@@ -102,16 +101,12 @@ const GalleryItem = React.memo(function GalleryItem({
                             src={photo.src}
                             alt={localizedAlt}
                             fill
-                            className="object-cover transition-opacity duration-300"
-                            style={{
-                                ...(objectPosition ? { objectPosition } : {}),
-                                opacity: imageLoaded ? 1 : 0,
-                            }}
+                            className="object-cover"
+                            style={objectPosition ? { objectPosition } : undefined}
                             sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
                             loading={isPriority ? "eager" : "lazy"}
                             priority={isPriority}
                             onError={() => setImageError(true)}
-                            onLoad={() => setImageLoaded(true)}
                         />
                     ) : (
                         <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
