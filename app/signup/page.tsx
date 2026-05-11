@@ -101,12 +101,15 @@ export default function SignupPage() {
                 // 登録済みだが未確認の場合、localStorage から UUID を復元して verify へ
                 const savedUsername = loadPending(email);
                 if (savedUsername) {
-                    setCognitoUsername(savedUsername);
-                    setStep("verify");
-                    showToast("確認コードを再送しました", "success");
-                    setResendCooldown(60);
-                    // 再送も試みる
-                    resendConfirmationCode(savedUsername).catch(() => { /* ignore */ });
+                    const resendResult = await resendConfirmationCode(savedUsername);
+                    if (resendResult.success) {
+                        setCognitoUsername(savedUsername);
+                        setStep("verify");
+                        showToast("確認コードを再送しました", "success");
+                        setResendCooldown(60);
+                    } else {
+                        setError("このメールアドレスはすでに登録されています。ログインするか、パスワードリセットをお試しください。");
+                    }
                 } else {
                     setError("このメールアドレスはすでに登録されています。ログインするか、パスワードリセットをお試しください。");
                 }

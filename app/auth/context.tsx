@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { signIn, signOut, isAuthenticated, isAdmin, isGeneralUser } from "../../lib/auth/cognito";
+import { signIn, signOut, getCurrentSession } from "../../lib/auth/cognito";
 import { log } from "../../lib/utils/log";
 
 type AuthContextType = {
@@ -43,9 +43,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return { authenticated: false, admin: false };
             }
 
-            const authenticated = await isAuthenticated();
-            const admin = authenticated ? await isAdmin() : false;
-            const general = authenticated && !admin ? await isGeneralUser() : false;
+            const session = await getCurrentSession();
+            const authenticated = session !== null;
+            const groups: string[] = authenticated
+                ? (Array.isArray(session!.getIdToken().payload["cognito:groups"])
+                    ? session!.getIdToken().payload["cognito:groups"] as string[]
+                    : [])
+                : [];
+            const admin = groups.includes("admin");
+            const general = !admin && groups.includes("user");
 
             setAuthState({
                 isAuthenticated: authenticated,

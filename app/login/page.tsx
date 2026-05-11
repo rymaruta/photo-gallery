@@ -250,7 +250,7 @@ export default function LoginPage() {
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
                                 required
-                                placeholder="8文字以上、英大文字・小文字・数字を含む"
+                                placeholder="8文字以上、英大・小文字・数字・記号を含む"
                                 disabled={submitting}
                                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
                             />
