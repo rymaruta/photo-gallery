@@ -149,6 +149,13 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                         </button>
                                     </li>
                                 )}
+                                {(isAdminUser || isGeneralUser) && (
+                                    <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                        <button onClick={() => handleNavigation(ROUTES.PROFILE_EDIT)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
+                                            {navLabels.profile || "Profile"}
+                                        </button>
+                                    </li>
+                                )}
                                 {isAdminUser && (
                                     <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
                                         <button onClick={() => handleNavigation(ROUTES.ADMIN)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>

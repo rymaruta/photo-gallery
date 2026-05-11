@@ -14,6 +14,7 @@ provider:
     UPLOAD_BUCKET: ${param:uploadBucket, 'prod-journey-photo-upload'}
     CLOUDFRONT_URL: ${param:cloudfrontUrl, 'https://d1s3dwwzgxf5ni.cloudfront.net'}
     PHOTOS_TABLE: prod-photo-gallery-photos
+    USERS_TABLE: prod-photo-gallery-users
 
   httpApi:
     cors: true
@@ -41,6 +42,12 @@ provider:
           Resource:
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-photos
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-photos/index/*
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+          Resource:
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-users
 
 custom:
   esbuild:
@@ -79,3 +86,28 @@ functions:
           method: POST
           authorizer:
             name: cognitoAuthorizer
+
+  getMyProfile:
+    handler: src/userProfile.getMyProfile
+    events:
+      - httpApi:
+          path: /user/profile
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  updateMyProfile:
+    handler: src/userProfile.updateMyProfile
+    events:
+      - httpApi:
+          path: /user/profile
+          method: PUT
+          authorizer:
+            name: cognitoAuthorizer
+
+  getPublicProfile:
+    handler: src/userProfile.getPublicProfile
+    events:
+      - httpApi:
+          path: /profile/{userId}
+          method: GET

@@ -6,5 +6,6 @@ export const ROUTES = {
     ADMIN: "/admin",
     LOGIN: "/login",
     UPLOAD: "/user/upload",
+    PROFILE_EDIT: "/user/profile",
     PHOTO: (id: string) => `/photo/${id}`,
 } as const;
