@@ -8,23 +8,23 @@ import type { Photo } from "../../data/photos";
 // 静的エクスポートではAPI Routesは生成されない（本番環境ではAPI Gateway + Lambdaを使用）
 
 // 写真一覧を取得
-export async function GET() {
+export async function GET(request: Request) {
     try {
+        const { searchParams } = new URL(request.url);
+        const userId = searchParams.get("userId");
+
         const photosDataPath = path.join(process.cwd(), "app", "data", "photos.json");
 
         // photos.json が存在する場合は、それを「正」として返す（S3参照に統一するため）
+        let allPhotos: Photo[];
         if (existsSync(photosDataPath)) {
             const data = await readFile(photosDataPath, "utf-8");
-            const savedPhotos = JSON.parse(data);
-            return NextResponse.json(savedPhotos, {
-                headers: {
-                    "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
-                },
-            });
+            allPhotos = JSON.parse(data) as Photo[];
+        } else {
+            allPhotos = [...BASE_PHOTOS];
         }
 
-        // photos.json がない場合のみ BASE_PHOTOS を返す
-        const photos: Photo[] = [...BASE_PHOTOS];
+        const photos = userId ? allPhotos.filter(p => p.userId === userId) : allPhotos;
 
         return NextResponse.json(photos, {
             headers: {

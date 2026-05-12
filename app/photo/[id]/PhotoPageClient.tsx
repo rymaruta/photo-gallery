@@ -204,10 +204,11 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
 
     // APIから写真を読み込む（編集済みのデータで静的ビルド時データを上書き）
     useEffect(() => {
+        const controller = new AbortController();
         const loadPhotos = async () => {
             try {
                 const { publicFetch } = await import("../../../lib/utils/api");
-                const response = await publicFetch("/photos");
+                const response = await publicFetch("/photos", { signal: controller.signal });
                 if (response.ok) {
                     const data = await response.json();
                     setAllPhotos(data);
@@ -215,13 +216,16 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                     log.error("写真の取得に失敗しました", { status: response.status });
                 }
             } catch (error) {
-                log.error("写真取得エラー:", error);
+                if ((error as { name?: string }).name !== "AbortError") {
+                    log.error("写真取得エラー:", error);
+                }
             } finally {
                 setLoading(false);
             }
         };
 
         loadPhotos();
+        return () => controller.abort();
     }, []);
 
     // 全写真から該当する写真を検索
