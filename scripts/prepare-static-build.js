@@ -61,7 +61,11 @@ try {
     exitCode = err.status ?? 1;
 } finally {
     console.log("\n[build] app/api を復元...");
-    restore();
+    try {
+        restore();
+    } catch (restoreErr) {
+        console.error("[build] app/api の復元に失敗しました:", restoreErr);
+    }
 }
 
 process.exit(exitCode);
