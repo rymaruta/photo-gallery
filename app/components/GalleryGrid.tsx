@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
-import type { Photo, Locale } from "../data/photos";
-import { getLocalized } from "../data/photos";
+import type { Photo, Locale } from "@/lib/data/photos";
+import { getLocalized } from "@/lib/data/photos";
 import { getLabels } from "../i18n/labels";
 import { useFavorites } from "../../lib/hooks/useFavorites";
 import { HeartIcon } from "@heroicons/react/24/solid";

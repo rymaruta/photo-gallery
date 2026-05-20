@@ -2,8 +2,7 @@
 
 import React from "react";
 import { TrashIcon } from "@heroicons/react/24/outline";
-import type { Photo } from "../data/photos";
-import type { Locale } from "../data/photos";
+import type { Photo, Locale } from "@/lib/data/photos";
 
 type Props = {
     photo: Photo | null;

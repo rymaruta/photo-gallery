@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import type { Locale } from "../../data/photos";
+import type { Locale } from "@/lib/data/photos";
 
 const SHORTCUTS = [
     { key: "← →", ja: "前後の写真", en: "Prev / Next photo" },

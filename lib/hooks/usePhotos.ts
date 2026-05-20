@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import type { Photo } from "../data/photos";
-import BASE_PHOTOS_JSON from "../../app/data/photos.json";
+import BASE_PHOTOS_JSON from "@/app/data/photos.json";
 import { log } from "../utils/log";
 
 const BASE_PHOTOS = BASE_PHOTOS_JSON as Photo[];

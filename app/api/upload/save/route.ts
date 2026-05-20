@@ -5,7 +5,7 @@ import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { getConfig } from "../../../../lib/aws/secrets";
 import exifr from "exifr";
-import type { Photo } from "../../../data/photos";
+import type { Photo } from "@/lib/data/photos";
 import { log } from "../../../../lib/utils/log";
 
 // 静的エクスポートではAPI Routesは生成されない（本番環境ではAPI Gateway + Lambdaを使用）

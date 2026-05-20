@@ -4,7 +4,7 @@ import React from "react";
 import { useViewHistory } from "../../lib/hooks/useViewHistory";
 import { useImagePreloader } from "../../lib/hooks/useImagePreloader";
 import { usePhotos } from "../../lib/hooks/usePhotos";
-import type { Photo } from "../data/photos";
+import type { Photo } from "@/lib/data/photos";
 import GalleryGrid from "../components/GalleryGrid";
 import GalleryModal from "../components/GalleryModal";
 import LocaleToggle from "../components/LocaleToggle";

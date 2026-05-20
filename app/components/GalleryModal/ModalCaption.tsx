@@ -2,7 +2,7 @@
 import React from "react";
 import Link from "next/link";
 import { ShareIcon, LinkIcon } from "@heroicons/react/24/outline";
-import type { Photo, Locale } from "../../data/photos";
+import type { Photo, Locale } from "@/lib/data/photos";
 import { shareToTwitter, shareToFacebook, shareToLine } from "../../../lib/utils/share";
 import { ROUTES } from "../../../lib/routes";
 

@@ -8,7 +8,7 @@ import { useAuth } from "../auth/context";
 import { useLocale } from "../i18n/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { PencilIcon, TrashIcon, PlusIcon } from "@heroicons/react/24/outline";
-import type { Photo } from "../data/photos";
+import type { Photo } from "@/lib/data/photos";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import { log } from "../../lib/utils/log";
 import { ROUTES } from "../../lib/routes";

@@ -3,8 +3,8 @@ import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import { siteConfig } from "../lib/utils/seo";
-import RAW_PHOTOS from "./data/photos";
-import type { Photo } from "./data/photos";
+import RAW_PHOTOS from "@/lib/data/photos";
+import type { Photo } from "@/lib/data/photos";
 
 export const dynamic = "force-static";
 

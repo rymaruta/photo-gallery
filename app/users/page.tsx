@@ -6,8 +6,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeftIcon, UserCircleIcon, GlobeAltIcon } from "@heroicons/react/24/outline";
 import { useLocale } from "../i18n/context";
-import type { Photo } from "../data/photos";
-import { getLocalized } from "../data/photos";
+import type { Photo } from "@/lib/data/photos";
+import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../lib/utils/log";
 
 type UserProfile = {

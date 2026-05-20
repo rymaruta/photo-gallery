@@ -7,7 +7,7 @@ import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
-import type { Photo, LocalizedParagraphs } from "../../data/photos";
+import type { Photo, LocalizedParagraphs } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
 

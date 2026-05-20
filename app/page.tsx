@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { siteConfig, generateStructuredData, generateOrganizationStructuredData } from "../lib/utils/seo";
-import PHOTOS from "./data/photos";
+import PHOTOS from "@/lib/data/photos";
 import GalleryPageClient from "./GalleryPageClient";
 
 export const metadata: Metadata = {

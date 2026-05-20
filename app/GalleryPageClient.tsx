@@ -9,7 +9,7 @@ import GalleryGrid from "./components/GalleryGrid";
 import GalleryModal from "./components/GalleryModal";
 import { capitalize } from "../lib/utils/string";
 import { usePhotos } from "../lib/hooks/usePhotos";
-import type { Photo } from "./data/photos";
+import type { Photo } from "@/lib/data/photos";
 
 export default function GalleryPageClient() {
   const { locale, setLocale, labels } = useLocale();
