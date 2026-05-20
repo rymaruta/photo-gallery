@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
             photos = JSON.parse(data);
         } else {
             // 既存のBASE_PHOTOSを読み込む
-            const { default: BASE_PHOTOS } = await import("../../../data/photos");
+            const { default: BASE_PHOTOS } = await import("@/lib/data/photos");
             photos = [...BASE_PHOTOS];
         }
 
