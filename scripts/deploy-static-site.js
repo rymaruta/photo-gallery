@@ -9,6 +9,15 @@
 
 const fs = require("fs");
 const path = require("path");
+
+// .env.local から AWS 認証情報を読み込む
+const envLocalPath = path.resolve(__dirname, "../.env.local");
+if (fs.existsSync(envLocalPath)) {
+    for (const line of fs.readFileSync(envLocalPath, "utf8").split("\n")) {
+        const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
+        if (m) process.env[m[1]] ??= m[2].replace(/^["']|["']$/g, "");
+    }
+}
 const { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } = require("@aws-sdk/client-s3");
 const { CloudFrontClient, CreateInvalidationCommand } = require("@aws-sdk/client-cloudfront");
 const { lookup: mimeLookup } = require("mime-types");

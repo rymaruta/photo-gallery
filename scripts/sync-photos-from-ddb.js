@@ -20,6 +20,15 @@ const { DynamoDBDocumentClient, ScanCommand } = require("@aws-sdk/lib-dynamodb")
 const fs = require("fs");
 const path = require("path");
 
+// .env.local から AWS 認証情報を読み込む
+const envLocalPath = path.resolve(__dirname, "../.env.local");
+if (fs.existsSync(envLocalPath)) {
+    for (const line of fs.readFileSync(envLocalPath, "utf8").split("\n")) {
+        const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
+        if (m) process.env[m[1]] ??= m[2].replace(/^["']|["']$/g, "");
+    }
+}
+
 const REGION = process.env.AWS_REGION ?? "ap-northeast-1";
 const TABLE = process.env.PHOTOS_TABLE ?? "prod-photo-gallery-photos";
 const OUTPUT = path.resolve(__dirname, "../app/data/photos.json");
