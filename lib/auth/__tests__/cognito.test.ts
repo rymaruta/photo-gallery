@@ -9,7 +9,7 @@ vi.mock("../config", () => ({
 }));
 
 // Cognito SDK モック
-const mockGetCurrentUser = vi.hoisted(() => vi.fn<[], null | object>(() => null));
+const mockGetCurrentUser = vi.hoisted(() => vi.fn(() => null as null | object));
 const mockSignUp        = vi.hoisted(() => vi.fn());
 const mockConfirmReg    = vi.hoisted(() => vi.fn());
 const mockResendCode    = vi.hoisted(() => vi.fn());
