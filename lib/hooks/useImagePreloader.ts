@@ -42,8 +42,7 @@ export function useImagePreloader() {
         preloadedRef.current.add(src);
 
         preloadImage(src).catch(() => {
-            preloadedRef.current.delete(src);
-            log.warn(`Preload failed, will retry on next access: ${src}`);
+            log.warn(`Preload failed: ${src}`);
         });
     }, []);
 

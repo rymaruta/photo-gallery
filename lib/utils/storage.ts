@@ -1,11 +1,11 @@
 /** Safe localStorage helpers — all operations are no-ops when localStorage is unavailable. */
 
-export function storageGet<T>(key: string): T | null {
+export function storageGet<T>(key: string): T | undefined {
     try {
         const raw = localStorage.getItem(key);
-        return raw ? (JSON.parse(raw) as T) : null;
+        return raw ? (JSON.parse(raw) as T) : undefined;
     } catch {
-        return null;
+        return undefined;
     }
 }
 
