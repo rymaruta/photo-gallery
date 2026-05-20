@@ -59,11 +59,13 @@ describe("LocaleProvider", () => {
             </LocaleProvider>
         );
         await user.click(screen.getByText("English"));
-        expect(localStorageMock.getItem("locale")).toBe("en");
+        // storageSet は JSON.stringify するので値は `"en"` (JSON-encoded string)
+        expect(JSON.parse(localStorageMock.getItem("locale")!)).toBe("en");
     });
 
     it("localStorage に en が保存済みなら en で初期化される", async () => {
-        localStorageMock.setItem("locale", "en");
+        // storageGet は JSON.parse するので JSON-encoded で保存する
+        localStorageMock.setItem("locale", JSON.stringify("en"));
         render(
             <LocaleProvider>
                 <LocaleDisplay />

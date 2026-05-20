@@ -1,9 +1,10 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { getLabels } from "./labels";
 import type { Labels } from "./labels";
 import type { Locale } from "@/lib/data/photos";
+import { storageGet, storageSet } from "@/lib/utils/storage";
 
 type LocaleContextType = {
     locale: Locale;
@@ -20,14 +21,10 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 
     // マウント後に localStorage から保存済みロケールを読み込む（SSRハイドレーション対応）
     useEffect(() => {
-        try {
-            const saved = localStorage.getItem("locale");
-            if (saved === "en" || saved === "ja") {
-                // eslint-disable-next-line react-hooks/set-state-in-effect
-                setLocaleState(saved);
-            }
-        } catch {
-            // プライベートブラウジングなど localStorage が使えない環境では無視
+        const saved = storageGet<string>("locale");
+        if (saved === "en" || saved === "ja") {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setLocaleState(saved);
         }
     }, []);
 
@@ -37,14 +34,10 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     }, [locale]);
 
     // ロケール変更時にローカルストレージに保存
-    const setLocale = (newLocale: Locale) => {
+    const setLocale = useCallback((newLocale: Locale) => {
         setLocaleState(newLocale);
-        try {
-            localStorage.setItem("locale", newLocale);
-        } catch {
-            // プライベートブラウジングなど localStorage が使えない環境では無視
-        }
-    };
+        storageSet("locale", newLocale);
+    }, []);
 
     // ラベルを取得
     const labels = useMemo(() => getLabels(locale), [locale]);
