@@ -41,7 +41,7 @@ export async function authenticatedFetch(path: string, options?: RequestInit): P
 
     // Cognito セッションから JWT トークンを取得
     const session = await getCurrentSession();
-    const token = session?.getIdToken().getJwtToken();
+    const token = session?.getIdToken()?.getJwtToken();
 
     if (!token) {
         throw new Error("認証が必要です。ログインしてください。");
@@ -65,7 +65,7 @@ export async function userFetch(path: string, options?: RequestInit): Promise<Re
     const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
 
     const session = await getCurrentSession();
-    const token = session?.getIdToken().getJwtToken();
+    const token = session?.getIdToken()?.getJwtToken();
 
     if (!token) {
         throw new Error("認証が必要です。ログインしてください。");

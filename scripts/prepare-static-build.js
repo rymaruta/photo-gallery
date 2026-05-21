@@ -39,6 +39,17 @@ if (fs.existsSync(backupDir)) {
     fs.rmSync(backupDir, { recursive: true, force: true });
 }
 
+// DynamoDB から写真データを同期（失敗してもビルドは継続）
+const syncScript = path.join(__dirname, "sync-photos-from-ddb.js");
+if (fs.existsSync(syncScript)) {
+    console.log("\n[build] DynamoDB から写真データを同期...");
+    try {
+        execSync(`node ${syncScript}`, { stdio: "inherit", cwd: root });
+    } catch {
+        console.warn("[build] DynamoDB 同期に失敗しました（既存の photos.json を使用）");
+    }
+}
+
 console.log("\n[build] app/api を一時退避...");
 move(apiDir, backupDir);
 
@@ -50,7 +61,11 @@ try {
     exitCode = err.status ?? 1;
 } finally {
     console.log("\n[build] app/api を復元...");
-    restore();
+    try {
+        restore();
+    } catch (restoreErr) {
+        console.error("[build] app/api の復元に失敗しました:", restoreErr);
+    }
 }
 
 process.exit(exitCode);

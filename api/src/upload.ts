@@ -2,8 +2,8 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
-import { loadPhotos, savePhotos } from "./s3";
-import { requireAdmin } from "./auth";
+import { putPhoto } from "./ddb-photos";
+import { requireAdmin, getCallerUserId } from "./auth";
 import type { Photo } from "./types";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
@@ -57,6 +57,7 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
 export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const authError = requireAdmin(event);
     if (authError) return authError;
+    const uploaderId = getCallerUserId(event);
 
     let body: {
         key?: string;
@@ -80,7 +81,6 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイル情報が必要です" }) };
     }
 
-    const userId = String(event.requestContext.authorizer.jwt.claims.sub ?? "");
     const photo: Photo = {
         id: photoId ?? uuidv4(),
         src: publicUrl,
@@ -90,17 +90,16 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         ...(category ? { category } : {}),
         tags: Array.isArray(tags) ? tags : [],
         ...(exif && Object.keys(exif).length > 0 ? { exif } : {}),
-        userId,
+        displayName: "丸田 竜平",
+        userId: uploaderId,
+        uploadedBy: uploaderId,
         published: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     };
 
     try {
-        const photos = await loadPhotos();
-        photos.push(photo);
-        await savePhotos(photos);
-
+        await putPhoto(photo);
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo }) };
     } catch (e) {
         console.error("savePhoto error:", e);

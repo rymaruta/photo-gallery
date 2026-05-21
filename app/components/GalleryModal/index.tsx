@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
-import type { Photo, Locale } from "../../../lib/data/photos";
-import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "../../../lib/data/photos";
+import type { Photo, Locale } from "@/lib/data/photos";
+import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
 import { useSwipe } from "../../../lib/hooks/useSwipe";
 import { useFavorites } from "../../../lib/hooks/useFavorites";
 import { useViewHistory } from "../../../lib/hooks/useViewHistory";
@@ -34,13 +34,8 @@ export default function GalleryModal({
     mapLabel = { ja: "地図で見る", en: "View on map" },
 }: Props) {
     const p = photos[currentIndex];
-    const titleText = getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : "");
-    const altText = getLocalized(p.alt, locale) || titleText || "";
-    const locationText = typeof p.location === "string" ? p.location : "";
-    const mapText = locale === "ja" ? mapLabel.ja : mapLabel.en;
-    const paragraphs = getLocalizedParagraphs(p.description, locale);
-    const preferred = getPreferredMapLink(p);
-    const mapHref = preferred?.href ?? (p.coords ? makeGoogleSearch(p.coords.lat, p.coords.lng) : undefined);
+
+    // --- All hooks must be called unconditionally before any early return ---
 
     const modalRef = useRef<HTMLDivElement | null>(null);
     const firstFocusableRef = useRef<HTMLButtonElement | null>(null);
@@ -65,23 +60,6 @@ export default function GalleryModal({
     const { preload } = useImagePreloader();
 
     useEffect(() => { if (p?.id) addToHistory(p.id); }, [p?.id, addToHistory]);
-
-    const currentUrl = typeof window !== "undefined"
-        ? `${window.location.origin}${ROUTES.PHOTO(p.id)}`
-        : `${siteConfig.url}${ROUTES.PHOTO(p.id)}`;
-    const shareText = titleText || "Photo";
-
-    const handleShare = () => shareUrl(currentUrl, shareText, paragraphs.join(" "));
-
-    const handleCopyLink = async () => {
-        try {
-            await copyToClipboard(currentUrl);
-            showToast(locale === "en" ? "Link copied to clipboard!" : "リンクをクリップボードにコピーしました", "success");
-        } catch (error) {
-            log.error("Failed to copy:", error);
-            showToast(locale === "en" ? "Failed to copy link" : "リンクのコピーに失敗しました", "error");
-        }
-    };
 
     // 前後の画像をプリロード
     useEffect(() => {
@@ -140,8 +118,38 @@ export default function GalleryModal({
         };
     }, [onClose, onNext, onPrev, toggleFavorite]);
 
+    // --- Now safe to do the null guard ---
+    if (!p) return null;
+
+    const titleText = getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : "");
+    const altText = getLocalized(p.alt, locale) || titleText || "";
+    const locationText = typeof p.location === "string" ? p.location : "";
+    const mapText = locale === "ja" ? mapLabel.ja : mapLabel.en;
+    const paragraphs = getLocalizedParagraphs(p.description, locale);
+    const preferred = getPreferredMapLink(p);
+    const mapHref = preferred?.href ?? (p.coords ? makeGoogleSearch(p.coords.lat, p.coords.lng) : undefined);
+
+    const currentUrl = typeof window !== "undefined"
+        ? `${window.location.origin}${ROUTES.PHOTO(p.id)}`
+        : `${siteConfig.url}${ROUTES.PHOTO(p.id)}`;
+    const shareText = titleText || "Photo";
+
+    const handleShare = async () => {
+        const usedClipboard = await shareUrl(currentUrl, shareText, paragraphs.join(" "));
+        if (usedClipboard) showToast(locale === "en" ? "Link copied to clipboard!" : "リンクをクリップボードにコピーしました", "success");
+    };
+
+    const handleCopyLink = async () => {
+        try {
+            await copyToClipboard(currentUrl);
+            showToast(locale === "en" ? "Link copied to clipboard!" : "リンクをクリップボードにコピーしました", "success");
+        } catch (error) {
+            log.error("Failed to copy:", error);
+            showToast(locale === "en" ? "Failed to copy link" : "リンクのコピーに失敗しました", "error");
+        }
+    };
+
     const handleOverlayClick = () => {
-        try { unlockBodyScroll(); } catch { /* noop */ }
         onClose();
     };
 
@@ -166,7 +174,7 @@ export default function GalleryModal({
                     style={{ height: "60vh", minHeight: "300px", fontSize: 0, lineHeight: 0, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}
                 >
                     <div className="relative w-full h-full" {...swipeHandlers}>
-                        <ModalImage src={p.src} alt={altText} focalPoint={p.focalPoint} />
+                        <ModalImage key={p.id} src={p.src} alt={altText} focalPoint={p.focalPoint} />
                     </div>
 
                     <ModalControls

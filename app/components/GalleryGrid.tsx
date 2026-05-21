@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
-import type { Photo, Locale } from "../../lib/data/photos";
-import { getLocalized } from "../../lib/data/photos";
+import type { Photo, Locale } from "@/lib/data/photos";
+import { getLocalized } from "@/lib/data/photos";
 import { getLabels } from "../i18n/labels";
 import { useFavorites } from "../../lib/hooks/useFavorites";
 import { HeartIcon } from "@heroicons/react/24/solid";
@@ -74,16 +74,18 @@ const GalleryItem = React.memo(function GalleryItem({
     onOpen: (index: number) => void;
 }) {
     const [imageError, setImageError] = useState(false);
-    const [imageLoading, setImageLoading] = useState(true);
     const { isFavorite } = useFavorites();
     const isFav = isFavorite(photo.id);
+    const isPriority = index < 8;
 
     return (
         <div className="w-full m-0 p-0">
-            <button
-                onClick={() => onOpen(index)}
+            {/* href でクローラーが /photo/[id] を発見できるようにしつつ、クリックはモーダルで開く */}
+            <a
+                href={`/photo/${photo.id}`}
+                onClick={(e) => { e.preventDefault(); onOpen(index); }}
                 className="block w-full p-0 border-0 bg-transparent cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-                aria-label={localizedTitle ? `Open ${localizedTitle}` : "Open photo"}
+                aria-label={localizedTitle ? `${localizedTitle} を開く` : "写真を開く"}
                 title={localizedTitle}
                 style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}
                 data-photo-id={photo.id}
@@ -94,26 +96,17 @@ const GalleryItem = React.memo(function GalleryItem({
                 >
                     <div className="absolute inset-0" aria-hidden={true} />
 
-                    {imageLoading && !imageError && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-gray-900 animate-pulse">
-                            <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                        </div>
-                    )}
                     {!imageError ? (
                         <Image
                             src={photo.src}
                             alt={localizedAlt}
                             fill
                             className="object-cover"
-                            sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
-                            loading="lazy"
                             style={objectPosition ? { objectPosition } : undefined}
-                            priority={false}
-                            onError={() => {
-                                setImageError(true);
-                                setImageLoading(false);
-                            }}
-                            onLoad={() => setImageLoading(false)}
+                            sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
+                            loading={isPriority ? "eager" : "lazy"}
+                            priority={isPriority}
+                            onError={() => setImageError(true)}
                         />
                     ) : (
                         <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
@@ -155,7 +148,7 @@ const GalleryItem = React.memo(function GalleryItem({
                                     </div>
                                 </div>
                             </div>
-                        </button>
+                        </a>
                     </div>
                 );
 });

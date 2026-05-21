@@ -6,23 +6,22 @@ import { useAuth } from "../../auth/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { LockClosedIcon, ShieldCheckIcon } from "@heroicons/react/24/outline";
 
-type Step = "login" | "forgot";
-
 export default function AdminLoginPage() {
     const router = useRouter();
     const { login, isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
     const { showToast } = useToast();
 
-    const [step, setStep] = useState<Step>("login");
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
 
+    // 管理者でログイン済み → /admin へ
     useEffect(() => {
         if (!loading && isAuthenticated && isAdminUser) {
             router.push("/admin");
         }
+        // 一般ユーザーでログイン済み → / へ（管理ページは見せない）
         if (!loading && isAuthenticated && isGeneralUser) {
             router.push("/");
         }
@@ -35,18 +34,8 @@ export default function AdminLoginPage() {
         try {
             const result = await login(username, password);
             if (result.success) {
-                await new Promise(r => setTimeout(r, 600));
-                const { isAdmin: checkAdmin } = await import("../../../lib/auth/cognito");
-                const admin = await checkAdmin();
-                if (admin) {
-                    showToast("ログインしました", "success");
-                    router.push("/admin");
-                } else {
-                    showToast("管理者権限が必要です", "error");
-                    const { signOut } = await import("../../../lib/auth/cognito");
-                    signOut();
-                    router.push("/");
-                }
+                showToast("ログインしました", "success");
+                // useEffect handles redirect based on isAdminUser / isGeneralUser state
             } else {
                 setError(result.error || "ログインに失敗しました");
             }
@@ -72,85 +61,56 @@ export default function AdminLoginPage() {
                         <ShieldCheckIcon className="w-5 h-5 text-white/60" />
                     </div>
                     <p className="text-white/30 text-xs tracking-widest uppercase mb-2">Journey Photo</p>
-                    <h1 className="text-xl font-bold text-white">ログイン</h1>
+                    <h1 className="text-xl font-bold text-white">管理者ログイン</h1>
                 </div>
 
-                {step === "login" && (
-                    <>
-                        {error && (
-                            <div className="mb-6 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                                {error}
-                            </div>
-                        )}
-
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
-                                <input
-                                    type="email"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    required
-                                    autoComplete="email"
-                                    placeholder="admin@example.com"
-                                    disabled={submitting}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード</label>
-                                <input
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    required
-                                    autoComplete="current-password"
-                                    placeholder="••••••••"
-                                    disabled={submitting}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
-                                />
-                            </div>
-
-                            <button
-                                type="submit"
-                                disabled={submitting || !username || !password}
-                                className="w-full py-3 bg-white text-black text-sm font-semibold rounded-lg hover:bg-white/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
-                            >
-                                {submitting ? (
-                                    <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                                ) : (
-                                    <LockClosedIcon className="w-4 h-4" />
-                                )}
-                                {submitting ? "ログイン中..." : "ログイン"}
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => { setStep("forgot"); setError(""); }}
-                                className="w-full text-center text-xs text-white/40 hover:text-white/60 transition-colors py-2"
-                            >
-                                パスワードをお忘れですか？
-                            </button>
-                        </form>
-                    </>
-                )}
-
-                {step === "forgot" && (
-                    <div className="text-center space-y-6">
-                        <div className="px-4 py-5 rounded-lg bg-white/5 border border-white/10 text-sm text-white/70 leading-relaxed">
-                            <p className="mb-2 font-medium text-white/90">パスワードのリセットについて</p>
-                            <p>管理者アカウントのパスワードリセットは、セキュリティ上の理由からセルフサービスでは行えません。</p>
-                            <p className="mt-2">システム管理者にお問い合わせください。</p>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setStep("login")}
-                            className="w-full text-center text-xs text-white/40 hover:text-white/60 transition-colors py-2"
-                        >
-                            ← ログインに戻る
-                        </button>
+                {error && (
+                    <div className="mb-6 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                        {error}
                     </div>
                 )}
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
+                        <input
+                            type="email"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            required
+                            autoComplete="email"
+                            placeholder="admin@example.com"
+                            disabled={submitting}
+                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード</label>
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            autoComplete="current-password"
+                            placeholder="••••••••"
+                            disabled={submitting}
+                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
+                        />
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={submitting || !username || !password}
+                        className="w-full py-3 bg-white text-black text-sm font-semibold rounded-lg hover:bg-white/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+                    >
+                        {submitting ? (
+                            <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                        ) : (
+                            <LockClosedIcon className="w-4 h-4" />
+                        )}
+                        {submitting ? "ログイン中..." : "ログイン"}
+                    </button>
+                </form>
             </div>
         </main>
     );

@@ -11,11 +11,9 @@ provider:
   region: ap-northeast-1
 
   environment:
-    PHOTOS_BUCKET: ${param:photosBucket, 'journey-photo.com'}
-    PHOTOS_KEY: app/data/photos.json
+    PHOTOS_TABLE: prod-photo-gallery-photos
     UPLOAD_BUCKET: ${param:uploadBucket, 'prod-journey-photo-upload'}
-    CLOUDFRONT_URL: ${param:cloudfrontUrl, ''}
-    USERS_TABLE: ${param:usersTable, 'prod-photo-gallery-users'}
+    CLOUDFRONT_URL: ${param:cloudfrontUrl, 'https://d1s3dwwzgxf5ni.cloudfront.net'}
 
   httpApi:
     cors: true
@@ -30,28 +28,29 @@ provider:
   iam:
     role:
       statements:
-        # photos.json の読み書き
+        # 写真データ DynamoDB CRUD
         - Effect: Allow
           Action:
-            - s3:GetObject
-            - s3:PutObject
-          Resource: arn:aws:s3:::${param:photosBucket, 'journey-photo.com'}/app/data/photos.json
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Scan
+            - dynamodb:Query
+          Resource:
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-photos
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-photos/index/*
         # アップロード画像の管理（Presigned URL 発行・削除）
         - Effect: Allow
           Action:
             - s3:PutObject
             - s3:DeleteObject
           Resource: arn:aws:s3:::${param:uploadBucket, 'prod-journey-photo-upload'}/*
-        # Users テーブル CRUD + GSI 利用
+        # PostConfirmation トリガー: 確認済みユーザーを user グループへ追加
         - Effect: Allow
           Action:
-            - dynamodb:GetItem
-            - dynamodb:PutItem
-            - dynamodb:UpdateItem
-            - dynamodb:Query
-          Resource:
-            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable, 'prod-photo-gallery-users'}
-            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable, 'prod-photo-gallery-users'}/index/*
+            - cognito-idp:AdminAddUserToGroup
+          Resource: arn:aws:cognito-idp:${aws:region}:${aws:accountId}:userpool/${param:cognitoUserPoolId}
 
 custom:
   esbuild:
@@ -114,37 +113,10 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
-  # ===== Users API =====
-  getUserPublic:
-    handler: src/users.getUserPublic
+  postConfirmation:
+    handler: src/cognitoTrigger.postConfirmation
     events:
-      - httpApi:
-          path: /users/{username}
-          method: GET
-
-  getMe:
-    handler: src/users.getMe
-    events:
-      - httpApi:
-          path: /users/me
-          method: GET
-          authorizer:
-            name: cognitoAuthorizer
-
-  createUser:
-    handler: src/users.createUser
-    events:
-      - httpApi:
-          path: /users
-          method: POST
-          authorizer:
-            name: cognitoAuthorizer
-
-  updateMe:
-    handler: src/users.updateMe
-    events:
-      - httpApi:
-          path: /users/me
-          method: PUT
-          authorizer:
-            name: cognitoAuthorizer
+      - cognitoUserPool:
+          pool: prod-journey-photo-client-spa
+          trigger: PostConfirmation
+          existing: true

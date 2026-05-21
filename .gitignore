@@ -54,5 +54,5 @@ app/data/photos.json.bak-*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-.env.local
-.env*.local
+api/.serverless/
+api-user/.serverless/

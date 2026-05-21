@@ -1,7 +1,7 @@
 // lib/hooks/useImagePreloader.ts
 // 画像のプリロード機能用のカスタムフック
 
-import { useRef, useMemo } from "react";
+import { useRef, useCallback } from "react";
 import { log } from "../utils/log";
 
 /**
@@ -37,23 +37,17 @@ export function preloadImages(srcs: string[]): Promise<void[]> {
 export function useImagePreloader() {
     const preloadedRef = useRef<Set<string>>(new Set());
 
-    const preload = useMemo(() => {
-        return (src: string) => {
-            if (preloadedRef.current.has(src)) return;
-            preloadedRef.current.add(src);
+    const preload = useCallback((src: string) => {
+        if (preloadedRef.current.has(src)) return;
+        preloadedRef.current.add(src);
 
-            preloadImage(src).catch(() => {
-                // 失敗した URL は Set から除いて再試行を許可
-                preloadedRef.current.delete(src);
-                log.warn(`Preload failed, will retry on next access: ${src}`);
-            });
-        };
+        preloadImage(src).catch(() => {
+            log.warn(`Preload failed: ${src}`);
+        });
     }, []);
 
-    const preloadMultiple = useMemo(() => {
-        return (srcs: string[]) => {
-            for (const src of srcs) preload(src);
-        };
+    const preloadMultiple = useCallback((srcs: string[]) => {
+        for (const src of srcs) preload(src);
     }, [preload]);
 
     return { preload, preloadMultiple };

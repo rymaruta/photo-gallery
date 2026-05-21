@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { signIn, signOut, isAuthenticated, isAdmin, isGeneralUser } from "../../lib/auth/cognito";
+import { signIn, signOut, getCurrentSession } from "../../lib/auth/cognito";
 import { log } from "../../lib/utils/log";
 
 type AuthContextType = {
@@ -10,7 +10,7 @@ type AuthContextType = {
     isAdminUser: boolean;
     isGeneralUser: boolean;
     loading: boolean;
-    login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    login: (username: string, password: string) => Promise<{ success: boolean; error?: string; needsVerification?: boolean }>;
     logout: () => void;
 };
 
@@ -43,9 +43,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return { authenticated: false, admin: false };
             }
 
-            const authenticated = await isAuthenticated();
-            const admin = authenticated ? await isAdmin() : false;
-            const general = authenticated && !admin ? await isGeneralUser() : false;
+            const session = await getCurrentSession();
+            const authenticated = session !== null;
+            const groups: string[] = authenticated
+                ? (Array.isArray(session!.getIdToken().payload["cognito:groups"])
+                    ? session!.getIdToken().payload["cognito:groups"] as string[]
+                    : [])
+                : [];
+            const admin = groups.includes("admin");
+            const general = !admin && groups.includes("user");
 
             setAuthState({
                 isAuthenticated: authenticated,
@@ -99,27 +105,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     loading: false,
                 });
 
-                await new Promise(resolve => setTimeout(resolve, 200));
-
-                const authenticated = await isAuthenticated();
-                const adminCheck = authenticated ? await isAdmin() : false;
-                const generalCheck = authenticated && !adminCheck ? await isGeneralUser() : false;
-
-                setAuthState({
-                    isAuthenticated: authenticated,
-                    isAdminUser: adminCheck,
-                    isGeneralUser: generalCheck,
-                    loading: false,
-                });
-
                 return { success: true };
             } else {
-                console.error("AuthContext: ログイン失敗", result.error);
+                log.error("AuthContext: ログイン失敗", result.error);
                 setAuthState((prev) => ({ ...prev, loading: false }));
-                return { success: false, error: result.error || "ログインに失敗しました" };
+                return { success: false, error: result.error || "ログインに失敗しました", needsVerification: result.needsVerification };
             }
         } catch (error: unknown) {
-            console.error("AuthContext: ログイン例外", error);
+            log.error("AuthContext: ログイン例外", error);
             setAuthState((prev) => ({ ...prev, loading: false }));
             const errorMessage = error instanceof Error ? error.message : "ログインに失敗しました";
             return { success: false, error: errorMessage };

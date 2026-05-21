@@ -8,8 +8,8 @@ import { HeartIcon } from "@heroicons/react/24/solid";
 import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
 import { ShareIcon, LinkIcon } from "@heroicons/react/24/outline";
 import exifr from "exifr";
-import type { Photo } from "../../../lib/data/photos";
-import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "../../../lib/data/photos";
+import type { Photo } from "@/lib/data/photos";
+import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
 import { useFavorites } from "../../../lib/hooks/useFavorites";
 import { useViewHistory } from "../../../lib/hooks/useViewHistory";
 import { useToast } from "../../../lib/hooks/useToast";
@@ -193,34 +193,39 @@ function PhotoImage({
 
 type PhotoPageClientProps = {
     photoId: string;
+    initialPhoto?: Photo;
 };
 
-export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
+export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClientProps) {
     const { locale, setLocale, labels } = useLocale();
     const [extractedExif, setExtractedExif] = useState<ExtractedExif | null>(null);
-    const [allPhotos, setAllPhotos] = useState<Photo[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [allPhotos, setAllPhotos] = useState<Photo[]>(initialPhoto ? [initialPhoto] : []);
+    const [loading, setLoading] = useState(!initialPhoto);
 
-    // APIから写真を読み込む（編集済みのベース写真も含む）
+    // APIから写真を読み込む（編集済みのデータで静的ビルド時データを上書き）
     useEffect(() => {
+        const controller = new AbortController();
         const loadPhotos = async () => {
             try {
                 const { publicFetch } = await import("../../../lib/utils/api");
-                const response = await publicFetch("/photos", { cache: "no-store" });
+                const response = await publicFetch("/photos", { signal: controller.signal });
                 if (response.ok) {
                     const data = await response.json();
                     setAllPhotos(data);
                 } else {
-                    console.error("写真の取得に失敗しました");
+                    log.error("写真の取得に失敗しました", { status: response.status });
                 }
             } catch (error) {
-                console.error("写真取得エラー:", error);
+                if ((error as { name?: string }).name !== "AbortError") {
+                    log.error("写真取得エラー:", error);
+                }
             } finally {
                 setLoading(false);
             }
         };
 
         loadPhotos();
+        return () => controller.abort();
     }, []);
 
     // 全写真から該当する写真を検索
@@ -357,11 +362,10 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
         : `${siteConfig.url}/photo/${photo.id}`;
     const shareText = titleText || "Photo";
 
-    const handleShare = (e?: React.MouseEvent) => {
-        if (e) {
-            e.stopPropagation();
-        }
-        shareUrl(currentUrl, shareText, paragraphs.join(" "));
+    const handleShare = async (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        const usedClipboard = await shareUrl(currentUrl, shareText, paragraphs.join(" "));
+        if (usedClipboard) showToast(locale === "en" ? "Link copied to clipboard!" : "リンクをクリップボードにコピーしました", "success");
     };
 
     const handleCopyLink = async (e?: React.MouseEvent) => {
@@ -478,6 +482,23 @@ export default function PhotoPageClient({ photoId }: PhotoPageClientProps) {
                         {photo.photographer && <span>{photo.photographer}</span>}
                         {photo.photographer && photo.license && <span className="mx-2">·</span>}
                         {photo.license && <span>{photo.license}</span>}
+                    </div>
+                )}
+
+                {/* アップロードユーザーへのリンク */}
+                {photo.userId && photo.displayName && (
+                    <div className="text-sm">
+                        <Link
+                            href={`/users?id=${encodeURIComponent(photo.userId)}`}
+                            className="inline-flex items-center gap-1.5 text-white/50 hover:text-white/80 transition-colors"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            <span>
+                                {locale === "en" ? `View ${photo.displayName}'s photos` : `${photo.displayName} の写真を見る`}
+                            </span>
+                        </Link>
                     </div>
                 )}
 

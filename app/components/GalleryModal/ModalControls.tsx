@@ -36,9 +36,7 @@ export default function ModalControls({
     firstFocusableRef, lastFocusableRef,
 }: Props) {
     const stopAndCall = (fn: () => void) => ({
-        onClick: (e: React.MouseEvent) => { e.stopPropagation(); e.preventDefault(); fn(); },
-        onTouchStart: (e: React.TouchEvent) => { e.stopPropagation(); },
-        onTouchEnd: (e: React.TouchEvent) => { e.stopPropagation(); e.preventDefault(); fn(); },
+        onClick: (e: React.MouseEvent) => { e.stopPropagation(); fn(); },
     });
 
     return (

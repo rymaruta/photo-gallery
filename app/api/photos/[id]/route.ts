@@ -4,10 +4,9 @@ import { existsSync } from "fs";
 import path from "path";
 import { getConfig } from "../../../../lib/aws/secrets";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import BASE_PHOTOS from "../../../../lib/data/photos";
-import { log } from "../../../../lib/utils/log";
-
-import type { Photo } from "../../../../lib/data/photos";
+import BASE_PHOTOS from "@/lib/data/photos";
+import { log } from "@/lib/utils/log";
+import type { Photo } from "@/lib/data/photos";
 
 // 静的エクスポートではAPI Routesは生成されない（本番環境ではAPI Gateway + Lambdaを使用）
 

@@ -10,19 +10,13 @@ export function isAdmin(event: APIGatewayProxyEventV2WithJWTAuthorizer): boolean
     const claims = event.requestContext.authorizer.jwt.claims;
     const groups = claims["cognito:groups"];
     if (!groups) return false;
-    // API Gateway HTTP API は配列クレームを JSON 文字列として渡す: '["admin"]'
-    // カンマ区切り文字列や実配列にも対応
     let groupList: string[];
     if (Array.isArray(groups)) {
         groupList = groups as string[];
     } else {
         const str = String(groups).trim();
         if (str.startsWith("[")) {
-            try {
-                groupList = JSON.parse(str) as string[];
-            } catch {
-                groupList = [str];
-            }
+            try { groupList = JSON.parse(str) as string[]; } catch { groupList = [str]; }
         } else {
             groupList = str.split(",").map((g) => g.trim());
         }
@@ -30,12 +24,17 @@ export function isAdmin(event: APIGatewayProxyEventV2WithJWTAuthorizer): boolean
     return groupList.includes(ADMIN_GROUP);
 }
 
+export function getCallerUserId(event: APIGatewayProxyEventV2WithJWTAuthorizer): string {
+    return String(event.requestContext.authorizer.jwt.claims.sub ?? "unknown");
+}
+
 export function requireAdmin(
     event: APIGatewayProxyEventV2WithJWTAuthorizer
-): { statusCode: 403; body: string } | null {
+): { statusCode: 403; headers: Record<string, string>; body: string } | null {
     if (!isAdmin(event)) {
         return {
             statusCode: 403,
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ error: "管理者権限が必要です" }),
         };
     }

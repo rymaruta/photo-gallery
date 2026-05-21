@@ -2,7 +2,7 @@
 import React from "react";
 import Link from "next/link";
 import { ShareIcon, LinkIcon } from "@heroicons/react/24/outline";
-import type { Photo, Locale } from "../../../lib/data/photos";
+import type { Photo, Locale } from "@/lib/data/photos";
 import { shareToTwitter, shareToFacebook, shareToLine } from "../../../lib/utils/share";
 import { ROUTES } from "../../../lib/routes";
 
@@ -17,8 +17,8 @@ type Props = {
     categoryDisplayMap: Record<string, string>;
     currentUrl: string;
     shareText: string;
-    onShare: () => void;
-    onCopyLink: () => void;
+    onShare: () => void | Promise<void>;
+    onCopyLink: () => void | Promise<void>;
 };
 
 const SHARE_BTN =
@@ -92,6 +92,23 @@ export default function ModalCaption({
                 {photo.license && <span>{photo.license}</span>}
             </div>
 
+            {/* 撮影者リンク */}
+            {photo.userId && photo.displayName && (
+                <div className="mt-3">
+                    <a
+                        href={`/users?id=${encodeURIComponent(photo.userId)}`}
+                        onClick={stop}
+                        className="inline-flex items-center gap-2 text-xs sm:text-sm text-white/60 hover:text-white/90 transition-colors"
+                        style={{ touchAction: "manipulation" }}
+                    >
+                        <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span>{photo.displayName}</span>
+                    </a>
+                </div>
+            )}
+
             {/* 個別ページへのリンク */}
             <div className="mt-4 pt-4 border-t border-white/10">
                 <Link
@@ -115,9 +132,8 @@ export default function ModalCaption({
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <button
-                        onClick={(e) => { stop(e); onShare(); }}
+                        onClick={(e) => { stop(e); void onShare(); }}
                         onTouchStart={stop}
-                        onTouchEnd={(e) => { stop(e); onShare(); }}
                         className={SHARE_BTN}
                         aria-label={locale === "en" ? "Share" : "共有"}
                         style={SHARE_STYLE}
@@ -127,9 +143,8 @@ export default function ModalCaption({
                     </button>
 
                     <button
-                        onClick={(e) => { stop(e); onCopyLink(); }}
+                        onClick={(e) => { stop(e); void onCopyLink(); }}
                         onTouchStart={stop}
-                        onTouchEnd={(e) => { stop(e); onCopyLink(); }}
                         className={SHARE_BTN}
                         aria-label={locale === "en" ? "Copy link" : "リンクをコピー"}
                         style={SHARE_STYLE}
@@ -141,7 +156,6 @@ export default function ModalCaption({
                     <button
                         onClick={(e) => { stop(e); shareToTwitter(currentUrl, shareText); }}
                         onTouchStart={stop}
-                        onTouchEnd={(e) => { stop(e); shareToTwitter(currentUrl, shareText); }}
                         className={SHARE_BTN}
                         aria-label="Share on Twitter"
                         style={SHARE_STYLE}
@@ -155,7 +169,6 @@ export default function ModalCaption({
                     <button
                         onClick={(e) => { stop(e); shareToFacebook(currentUrl); }}
                         onTouchStart={stop}
-                        onTouchEnd={(e) => { stop(e); shareToFacebook(currentUrl); }}
                         className={SHARE_BTN}
                         aria-label="Share on Facebook"
                         style={SHARE_STYLE}
@@ -170,7 +183,6 @@ export default function ModalCaption({
                         <button
                             onClick={(e) => { stop(e); shareToLine(currentUrl, shareText); }}
                             onTouchStart={stop}
-                            onTouchEnd={(e) => { stop(e); shareToLine(currentUrl, shareText); }}
                             className={SHARE_BTN}
                             aria-label="Share on LINE"
                             style={SHARE_STYLE}

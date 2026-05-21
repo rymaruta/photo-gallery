@@ -1,5 +1,6 @@
-import { CognitoUserPool, AuthenticationDetails, CognitoUser, CognitoUserSession, CognitoUserAttribute, ISignUpResult } from "amazon-cognito-identity-js";
+import { CognitoUserPool, AuthenticationDetails, CognitoUser, CognitoUserSession, CognitoUserAttribute } from "amazon-cognito-identity-js";
 import { cognitoConfig, ADMIN_GROUP_NAME, USER_GROUP_NAME } from "./config";
+import { v4 as uuidv4 } from "uuid";
 import { log } from "../utils/log";
 
 // Cognito User Poolの初期化（遅延初期化）
@@ -20,6 +21,7 @@ export async function signIn(username: string, password: string): Promise<{
     session?: CognitoUserSession;
     error?: string;
     groups?: string[];
+    needsVerification?: boolean;
 }> {
     return new Promise((resolve) => {
         try {
@@ -53,7 +55,7 @@ export async function signIn(username: string, password: string): Promise<{
                     // ユーザーグループを取得
                     const idToken = session.getIdToken();
                     const payload = idToken.payload;
-                    const groups = payload["cognito:groups"] || [];
+                    const groups = Array.isArray(payload["cognito:groups"]) ? payload["cognito:groups"] : [];
                     
                     // デバッグ情報を詳細に出力（開発環境のみ）
                     log.debug("IDトークンのペイロード:", {
@@ -81,6 +83,9 @@ export async function signIn(username: string, password: string): Promise<{
                         errorMessage = "メールアドレスまたはパスワードが正しくありません";
                     } else if (err.code === "UserNotFoundException") {
                         errorMessage = "ユーザーが見つかりません";
+                    } else if (err.code === "UserNotConfirmedException") {
+                        resolve({ success: false, error: "メールアドレスの確認が完了していません", needsVerification: true });
+                        return;
                     } else if (err.code === "InvalidParameterException") {
                         errorMessage = "入力内容に誤りがあります";
                     } else if (err.message?.includes("SECRET_HASH")) {
@@ -176,8 +181,8 @@ export async function getCurrentUserGroups(): Promise<string[]> {
     }
 
     const idToken = session.getIdToken();
-    const groups = idToken.payload["cognito:groups"] || [];
-    return groups as string[];
+    const groups = idToken.payload["cognito:groups"];
+    return Array.isArray(groups) ? (groups as string[]) : [];
 }
 
 // 管理者かどうかをチェック
@@ -245,33 +250,35 @@ export async function confirmForgotPassword(
     });
 }
 
-// 新規アカウント登録（メアド + パスワード）
-// 確認コードがメールに送信される。完了後 confirmSignUp を呼ぶこと。
+// 新規ユーザー登録
+// このプールは AliasAttributes:email なので username は UUID、email は属性として渡す
 export async function signUp(email: string, password: string): Promise<{
     success: boolean;
-    result?: ISignUpResult;
+    username?: string;  // 確認コード送信に使うUUID
     error?: string;
+    aliasExists?: boolean;
 }> {
     return new Promise((resolve) => {
         try {
-            if (!cognitoConfig.userPoolId || !cognitoConfig.clientId) {
-                resolve({ success: false, error: "Cognitoの設定が正しくありません。環境変数を確認してください。" });
-                return;
-            }
             const userPool = getUserPool();
-            const attrs = [new CognitoUserAttribute({ Name: "email", Value: email })];
-            // Cognito username = email（AliasAttributesで email エイリアスありなので OK）
-            userPool.signUp(email, password, attrs, [], (err, result) => {
+            const username = uuidv4();
+            const attributes = [
+                new CognitoUserAttribute({ Name: "email", Value: email }),
+            ];
+            userPool.signUp(username, password, attributes, [], (err) => {
                 if (err) {
+                    log.error("signUp error:", { name: err.name, message: err.message });
                     let msg = err.message || "登録に失敗しました";
-                    const code = (err as { code?: string }).code;
-                    if (code === "UsernameExistsException") msg = "このメールアドレスは既に登録されています";
-                    if (code === "InvalidPasswordException") msg = "パスワードは8文字以上で、英大文字・小文字・数字・記号を含む必要があります";
-                    if (code === "InvalidParameterException") msg = "入力内容に誤りがあります";
+                    if (err.name === "InvalidPasswordException") msg = "パスワードは8文字以上で、英大文字・小文字・数字・記号（!@#$%など）をそれぞれ1文字以上含める必要があります";
+                    if (err.name === "InvalidParameterException") msg = `入力エラー: ${err.message}`;
+                    if (err.name === "UsernameExistsException" || err.name === "AliasExistsException") {
+                        resolve({ success: false, error: "このメールアドレスはすでに登録されています", aliasExists: true });
+                        return;
+                    }
                     resolve({ success: false, error: msg });
                     return;
                 }
-                resolve({ success: true, result });
+                resolve({ success: true, username });
             });
         } catch (e) {
             resolve({ success: false, error: e instanceof Error ? e.message : "登録処理中にエラーが発生しました" });
@@ -279,19 +286,21 @@ export async function signUp(email: string, password: string): Promise<{
     });
 }
 
-// 登録時の確認コードを検証
-export async function confirmSignUp(email: string, code: string): Promise<{ success: boolean; error?: string }> {
+// メール確認コードで登録を確定（username は signUp が返した UUID）
+export async function confirmSignUp(username: string, code: string): Promise<{
+    success: boolean;
+    error?: string;
+}> {
     return new Promise((resolve) => {
         try {
             const userPool = getUserPool();
-            const cognitoUser = new CognitoUser({ Username: email, Pool: userPool });
+            const cognitoUser = new CognitoUser({ Username: username, Pool: userPool });
             cognitoUser.confirmRegistration(code, true, (err) => {
                 if (err) {
                     let msg = err.message || "確認に失敗しました";
-                    const code2 = (err as { code?: string }).code;
-                    if (code2 === "CodeMismatchException") msg = "確認コードが正しくありません";
-                    if (code2 === "ExpiredCodeException") msg = "確認コードの有効期限が切れています";
-                    if (code2 === "NotAuthorizedException") msg = "既に確認済みのアカウントです";
+                    if (err.name === "CodeMismatchException") msg = "確認コードが正しくありません";
+                    if (err.name === "ExpiredCodeException") msg = "確認コードの有効期限が切れています。再送してください";
+                    if (err.name === "NotAuthorizedException") msg = "すでに確認済みです";
                     resolve({ success: false, error: msg });
                     return;
                 }
@@ -303,18 +312,19 @@ export async function confirmSignUp(email: string, code: string): Promise<{ succ
     });
 }
 
-// 確認コードを再送
-export async function resendConfirmationCode(email: string): Promise<{ success: boolean; error?: string }> {
+// 確認コードを再送（username は signUp が返した UUID）
+export async function resendConfirmationCode(username: string): Promise<{
+    success: boolean;
+    error?: string;
+}> {
     return new Promise((resolve) => {
         try {
             const userPool = getUserPool();
-            const cognitoUser = new CognitoUser({ Username: email, Pool: userPool });
+            const cognitoUser = new CognitoUser({ Username: username, Pool: userPool });
             cognitoUser.resendConfirmationCode((err) => {
                 if (err) {
                     let msg = err.message || "再送に失敗しました";
-                    const code = (err as { code?: string }).code;
-                    if (code === "LimitExceededException") msg = "しばらく時間をおいてから再試行してください";
-                    if (code === "InvalidParameterException") msg = "既に確認済みのアカウントです";
+                    if (err.name === "LimitExceededException") msg = "送信回数の上限に達しました。しばらく時間をおいてから再試行してください";
                     resolve({ success: false, error: msg });
                     return;
                 }
@@ -324,14 +334,6 @@ export async function resendConfirmationCode(email: string): Promise<{ success: 
             resolve({ success: false, error: e instanceof Error ? e.message : "再送処理中にエラーが発生しました" });
         }
     });
-}
-
-// 現在のユーザーのCognito sub（userId）を取得
-export async function getCurrentUserId(): Promise<string | null> {
-    const session = await getCurrentSession();
-    if (!session) return null;
-    const sub = session.getIdToken().payload.sub;
-    return typeof sub === "string" ? sub : null;
 }
 
 // IDトークンを取得（JWT文字列として）

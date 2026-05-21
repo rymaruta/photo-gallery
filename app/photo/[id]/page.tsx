@@ -1,9 +1,9 @@
-import type { Photo } from "../../../lib/data/photos";
-import RAW_PHOTOS from "../../../lib/data/photos";
+import type { Photo } from "@/lib/data/photos";
+import RAW_PHOTOS from "@/lib/data/photos";
 import PhotoPageClient from "./PhotoPageClient";
 import type { Metadata } from "next";
-import { siteConfig } from "../../../lib/utils/seo";
-import { getLocalized, getLocalizedParagraphs } from "../../../lib/data/photos";
+import { siteConfig } from "@/lib/utils/seo";
+import { getLocalized, getLocalizedParagraphs } from "@/lib/data/photos";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
@@ -112,5 +112,6 @@ type PageProps = {
 
 export default async function PhotoPage({ params }: PageProps) {
     const { id } = await params;
-    return <PhotoPageClient photoId={id} />;
+    const photo = await loadPhoto(id);
+    return <PhotoPageClient photoId={id} initialPhoto={photo ?? undefined} />;
 }

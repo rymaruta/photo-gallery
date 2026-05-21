@@ -8,6 +8,7 @@ export const ROUTES = {
     SIGNUP: "/signup",
     SIGNUP_CONFIRM: "/signup/confirm",
     UPLOAD: "/user/upload",
+    PROFILE_EDIT: "/user/profile",
     PHOTO: (id: string) => `/photo/${id}`,
     USER_PROFILE: (username: string) => `/users?u=${encodeURIComponent(username)}`,
     USER_EDIT: "/users/me/edit",

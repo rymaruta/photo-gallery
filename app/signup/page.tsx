@@ -1,110 +1,198 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { signUp } from "../../lib/auth/cognito";
-import { createUser } from "../../lib/utils/userApi";
-import { ROUTES } from "../../lib/routes";
-import { UserIcon, EnvelopeIcon, LockClosedIcon } from "@heroicons/react/24/outline";
+import { useRouter } from "next/navigation";
+import { useAuth } from "../auth/context";
+import { useToast } from "../../lib/hooks/useToast";
+import { signUp, confirmSignUp, resendConfirmationCode } from "../../lib/auth/cognito";
+import { EnvelopeIcon, LockClosedIcon, CheckCircleIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
-type Step = "form" | "done";
+type Step = "register" | "verify" | "done";
 
-const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
-const RESERVED = new Set(["admin", "root", "api", "users", "user", "login", "logout", "signup", "me", "about", "help", "support", "terms", "privacy"]);
+const inputCls = "w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 focus:bg-white/8 transition-colors disabled:opacity-50";
+
+const PENDING_TTL = 24 * 60 * 60 * 1000;
+
+function savePending(em: string, username: string) {
+    try { localStorage.setItem(`jp_verify_${em}`, JSON.stringify({ username, t: Date.now() })); } catch { /* ignore */ }
+}
+function loadPending(em: string): string | null {
+    try {
+        const raw = localStorage.getItem(`jp_verify_${em}`);
+        if (!raw) return null;
+        const parsed: unknown = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object") return null;
+        const { username, t } = parsed as Record<string, unknown>;
+        if (typeof username !== "string" || typeof t !== "number") return null;
+        if (Date.now() - t > PENDING_TTL) { localStorage.removeItem(`jp_verify_${em}`); return null; }
+        return username;
+    } catch { return null; }
+}
+function clearPending(em: string) {
+    try { localStorage.removeItem(`jp_verify_${em}`); } catch { /* ignore */ }
+}
 
 export default function SignupPage() {
     const router = useRouter();
-    const [step, setStep] = useState<Step>("form");
+    const { isAuthenticated, loading } = useAuth();
+    const { showToast } = useToast();
+
+    const [step, setStep] = useState<Step>("register");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [passwordConfirm, setPasswordConfirm] = useState("");
-    const [username, setUsername] = useState("");
-    const [displayName, setDisplayName] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [code, setCode] = useState("");
+    const [cognitoUsername, setCognitoUsername] = useState(""); // signUp が返す UUID
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
+    const [resending, setResending] = useState(false);
+    const [resendCooldown, setResendCooldown] = useState(0);
 
-    const validate = (): string | null => {
-        if (!email || !password || !username || !displayName) return "すべての項目を入力してください";
-        if (password !== passwordConfirm) return "パスワードが一致しません";
-        if (password.length < 8) return "パスワードは8文字以上必要です";
-        if (!USERNAME_RE.test(username)) return "ユーザー名は3〜20文字の半角英数字・アンダースコアのみ使用できます";
-        if (RESERVED.has(username.toLowerCase())) return `「${username}」は使用できないユーザー名です`;
-        if (displayName.length > 50) return "表示名は50文字以内で入力してください";
-        return null;
-    };
+    // ログイン済みならトップへ
+    useEffect(() => {
+        if (!loading && isAuthenticated) router.push("/");
+    }, [isAuthenticated, loading, router]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    // URLパラメータ or localStorage から verify ステップを復元
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const emailParam = params.get("email");
+        if (!emailParam) return;
+        const savedUsername = loadPending(emailParam);
+        if (savedUsername) {
+            setEmail(emailParam);
+            setCognitoUsername(savedUsername);
+            setStep("verify");
+        } else {
+            setEmail(emailParam);
+        }
+    }, []);
+
+    // 再送クールダウンタイマー
+    useEffect(() => {
+        if (resendCooldown <= 0) return;
+        const t = setTimeout(() => setResendCooldown((v) => v - 1), 1000);
+        return () => clearTimeout(t);
+    }, [resendCooldown]);
+
+    const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
-        const validationError = validate();
-        if (validationError) { setError(validationError); return; }
+
+        if (password !== confirmPassword) {
+            setError("パスワードが一致しません");
+            return;
+        }
+        if (password.length < 8) {
+            setError("パスワードは8文字以上で入力してください");
+            return;
+        }
 
         setSubmitting(true);
         try {
-            // Step 1: Cognito sign up
-            const signUpResult = await signUp(email, password);
-            if (!signUpResult.success) {
-                setError(signUpResult.error ?? "登録に失敗しました");
-                return;
+            const result = await signUp(email, password);
+            if (result.success && result.username) {
+                savePending(email, result.username);
+                setCognitoUsername(result.username);
+                setStep("verify");
+                setResendCooldown(60);
+            } else if (result.aliasExists) {
+                // 登録済みだが未確認の場合、localStorage から UUID を復元して verify へ
+                const savedUsername = loadPending(email);
+                if (savedUsername) {
+                    const resendResult = await resendConfirmationCode(savedUsername);
+                    if (resendResult.success) {
+                        setCognitoUsername(savedUsername);
+                        setStep("verify");
+                        showToast("確認コードを再送しました", "success");
+                        setResendCooldown(60);
+                    } else {
+                        setError("このメールアドレスはすでに登録されています。ログインするか、パスワードリセットをお試しください。");
+                    }
+                } else {
+                    setError("このメールアドレスはすでに登録されています。ログインするか、パスワードリセットをお試しください。");
+                }
+            } else {
+                setError(result.error ?? "登録に失敗しました");
             }
-
-            // Step 2: Create user profile in DynamoDB (requires JWT - sign in first)
-            // Profile creation is deferred to after email confirmation + first login
-            // Store pending profile data in sessionStorage
-            sessionStorage.setItem("pendingProfile", JSON.stringify({ username, displayName }));
-            sessionStorage.setItem("pendingEmail", email);
-
-            setStep("done");
         } finally {
             setSubmitting(false);
         }
     };
 
-    if (step === "done") {
+    const handleVerify = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError("");
+        setSubmitting(true);
+        try {
+            const result = await confirmSignUp(cognitoUsername, code.trim());
+            if (result.success) {
+                clearPending(email);
+                setStep("done");
+            } else {
+                setError(result.error ?? "確認に失敗しました");
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleResend = async () => {
+        if (resendCooldown > 0 || resending) return;
+        setResending(true);
+        try {
+            const result = await resendConfirmationCode(cognitoUsername);
+            if (result.success) {
+                showToast("確認コードを再送しました", "success");
+                setResendCooldown(60);
+            } else {
+                setError(result.error ?? "再送に失敗しました");
+            }
+        } finally {
+            setResending(false);
+        }
+    };
+
+    if (loading) {
         return (
-            <main className="min-h-screen bg-black flex items-center justify-center px-4">
-                <div className="w-full max-w-sm space-y-8">
-                    <div className="text-center">
-                        <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
-                            <EnvelopeIcon className="w-7 h-7 text-white" />
-                        </div>
-                        <h1 className="text-xl font-semibold text-white mb-2">確認メールを送信しました</h1>
-                        <p className="text-white/50 text-sm leading-relaxed">
-                            {email} に確認コードを送信しました。<br />
-                            メールを確認してコードを入力してください。
-                        </p>
-                    </div>
-                    <button
-                        onClick={() => router.push(`${ROUTES.SIGNUP_CONFIRM}?email=${encodeURIComponent(email)}`)}
-                        className="w-full py-3 bg-white text-black text-sm font-semibold rounded-lg hover:bg-white/90 transition-colors"
-                    >
-                        確認コードを入力する
-                    </button>
-                </div>
+            <main className="min-h-screen bg-black flex items-center justify-center">
+                <div className="w-10 h-10 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
             </main>
         );
     }
 
     return (
         <main className="min-h-screen bg-black flex items-center justify-center px-4">
-            <div className="w-full max-w-sm space-y-8">
-                <div className="text-center">
-                    <h1 className="text-2xl font-semibold text-white tracking-tight">アカウント作成</h1>
-                    <p className="text-white/40 text-sm mt-1">Journey Photo Gallery</p>
+            <div className="w-full max-w-sm">
+
+                {/* ヘッダー */}
+                <div className="mb-10 text-center">
+                    <p className="text-white/40 text-xs tracking-widest uppercase mb-3">Journey Photo</p>
+                    <h1 className="text-2xl font-bold text-white">
+                        {step === "register" && "アカウント作成"}
+                        {step === "verify" && "メールを確認"}
+                        {step === "done" && "登録完了"}
+                    </h1>
+                    <p className="text-white/40 text-sm mt-2">
+                        {step === "register" && "写真のアップロードができるようになります"}
+                        {step === "verify" && `${email} に確認コードを送信しました`}
+                        {step === "done" && "アカウントが有効になりました"}
+                    </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {error && (
-                        <div className="px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
-                            {error}
-                        </div>
-                    )}
+                {/* エラー */}
+                {error && (
+                    <div className="mb-6 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                        {error}
+                    </div>
+                )}
 
-                    <div>
-                        <label className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
-                        <div className="relative">
-                            <EnvelopeIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                {/* ステップ1: 登録フォーム */}
+                {step === "register" && (
+                    <form onSubmit={handleRegister} className="space-y-4">
+                        <div>
+                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
                             <input
                                 type="email"
                                 value={email}
@@ -113,52 +201,11 @@ export default function SignupPage() {
                                 autoComplete="email"
                                 placeholder="example@email.com"
                                 disabled={submitting}
-                                className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
+                                className={inputCls}
                             />
                         </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-xs text-white/50 mb-1.5 tracking-wide">ユーザー名 <span className="text-white/30">（@username、後から変更不可）</span></label>
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">@</span>
-                            <input
-                                type="text"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                                required
-                                autoComplete="username"
-                                placeholder="ryuhei"
-                                disabled={submitting}
-                                pattern="[a-zA-Z0-9_]{3,20}"
-                                className="w-full pl-8 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
-                            />
-                        </div>
-                        <p className="text-xs text-white/30 mt-1">3〜20文字、半角英数字・アンダースコアのみ</p>
-                    </div>
-
-                    <div>
-                        <label className="block text-xs text-white/50 mb-1.5 tracking-wide">表示名</label>
-                        <div className="relative">
-                            <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-                            <input
-                                type="text"
-                                value={displayName}
-                                onChange={(e) => setDisplayName(e.target.value)}
-                                required
-                                autoComplete="name"
-                                placeholder="丸田 竜平"
-                                disabled={submitting}
-                                maxLength={50}
-                                className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード</label>
-                        <div className="relative">
-                            <LockClosedIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        <div>
+                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード</label>
                             <input
                                 type="password"
                                 value={password}
@@ -167,44 +214,117 @@ export default function SignupPage() {
                                 autoComplete="new-password"
                                 placeholder="8文字以上"
                                 disabled={submitting}
-                                className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
+                                className={inputCls}
                             />
+                            <p className="text-xs text-white/30 mt-1.5">英大文字・小文字・数字・記号（!@#$など）をそれぞれ1文字以上含めてください</p>
                         </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード（確認）</label>
-                        <div className="relative">
-                            <LockClosedIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        <div>
+                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード（確認）</label>
                             <input
                                 type="password"
-                                value={passwordConfirm}
-                                onChange={(e) => setPasswordConfirm(e.target.value)}
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
                                 required
                                 autoComplete="new-password"
-                                placeholder="パスワードを再入力"
+                                placeholder="••••••••"
                                 disabled={submitting}
-                                className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
+                                className={inputCls}
                             />
                         </div>
+
+                        <button
+                            type="submit"
+                            disabled={submitting || !email || !password || !confirmPassword}
+                            className="w-full py-3 bg-white text-black text-sm font-semibold rounded-lg hover:bg-white/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+                        >
+                            {submitting ? (
+                                <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                            ) : (
+                                <EnvelopeIcon className="w-4 h-4" />
+                            )}
+                            {submitting ? "送信中..." : "確認コードを送信"}
+                        </button>
+
+                        <p className="text-center text-xs text-white/40 pt-2">
+                            すでにアカウントをお持ちの方は{" "}
+                            <Link href="/login" className="text-white/60 hover:text-white underline transition-colors">
+                                ログイン
+                            </Link>
+                        </p>
+                    </form>
+                )}
+
+                {/* ステップ2: 確認コード入力 */}
+                {step === "verify" && (
+                    <form onSubmit={handleVerify} className="space-y-4">
+                        <div>
+                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">確認コード</label>
+                            <input
+                                type="text"
+                                value={code}
+                                onChange={(e) => setCode(e.target.value)}
+                                required
+                                inputMode="numeric"
+                                placeholder="メールに届いた6桁のコード"
+                                disabled={submitting}
+                                className={inputCls + " tracking-[0.3em] text-center text-lg"}
+                                maxLength={6}
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={submitting || code.trim().length < 6}
+                            className="w-full py-3 bg-white text-black text-sm font-semibold rounded-lg hover:bg-white/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {submitting ? (
+                                <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                            ) : (
+                                <LockClosedIcon className="w-4 h-4" />
+                            )}
+                            {submitting ? "確認中..." : "登録を確定する"}
+                        </button>
+
+                        <div className="flex items-center justify-between pt-1">
+                            <button
+                                type="button"
+                                onClick={() => { setStep("register"); setError(""); setCode(""); setResendCooldown(0); }}
+                                className="text-xs text-white/40 hover:text-white/60 transition-colors flex items-center gap-1"
+                            >
+                                <ArrowLeftIcon className="w-3 h-3" /> 戻る
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleResend}
+                                disabled={resendCooldown > 0 || resending}
+                                className="text-xs text-white/40 hover:text-white/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                {resendCooldown > 0
+                                    ? `再送（${resendCooldown}秒後）`
+                                    : resending ? "送信中..." : "コードを再送する"}
+                            </button>
+                        </div>
+                    </form>
+                )}
+
+                {/* ステップ3: 完了 */}
+                {step === "done" && (
+                    <div className="text-center space-y-6">
+                        <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mx-auto">
+                            <CheckCircleIcon className="w-8 h-8 text-white" />
+                        </div>
+                        <p className="text-white/60 text-sm leading-relaxed">
+                            登録が完了しました。<br />
+                            ログインして写真のアップロードをお楽しみください。
+                        </p>
+                        <Link
+                            href="/login"
+                            className="block w-full py-3 bg-white text-black text-sm font-semibold rounded-lg hover:bg-white/90 transition-colors text-center"
+                        >
+                            ログインする
+                        </Link>
                     </div>
-
-                    <button
-                        type="submit"
-                        disabled={submitting || !email || !password || !username || !displayName}
-                        className="w-full py-3 bg-white text-black text-sm font-semibold rounded-lg hover:bg-white/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
-                    >
-                        {submitting && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
-                        {submitting ? "登録中..." : "アカウントを作成"}
-                    </button>
-                </form>
-
-                <p className="text-center text-xs text-white/40">
-                    すでにアカウントをお持ちの方は{" "}
-                    <Link href={ROUTES.LOGIN} className="text-white/60 hover:text-white underline transition-colors">
-                        ログイン
-                    </Link>
-                </p>
+                )}
             </div>
         </main>
     );

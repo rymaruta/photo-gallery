@@ -1,20 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { forgotPassword, confirmForgotPassword } from "../../lib/auth/cognito";
-import { createUser } from "../../lib/utils/userApi";
-import { ROUTES } from "../../lib/routes";
 import { LockClosedIcon, EnvelopeIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 type Step = "login" | "forgot-send" | "forgot-confirm" | "forgot-done";
 
-function LoginForm() {
+export default function LoginPage() {
     const router = useRouter();
-    const searchParams = useSearchParams();
     const { login, isAuthenticated, loading } = useAuth();
     const { showToast } = useToast();
 
@@ -25,7 +22,7 @@ function LoginForm() {
     const [newPassword, setNewPassword] = useState("");
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
-    const verified = searchParams.get("verified") === "1";
+    const [needsVerification, setNeedsVerification] = useState(false);
 
     useEffect(() => {
         if (!loading && isAuthenticated) router.push("/");
@@ -34,28 +31,16 @@ function LoginForm() {
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
+        setNeedsVerification(false);
         setSubmitting(true);
         try {
             const result = await login(username, password);
             if (result.success) {
-                // Handle post-signup profile creation
-                const postLoginRaw = sessionStorage.getItem("postLoginAction");
-                if (postLoginRaw) {
-                    sessionStorage.removeItem("postLoginAction");
-                    try {
-                        const action = JSON.parse(postLoginRaw) as { action: string; username: string; displayName: string };
-                        if (action.action === "createProfile") {
-                            const profileResult = await createUser({ username: action.username, displayName: action.displayName });
-                            if (!profileResult.success && profileResult.error !== "プロフィールは既に作成されています") {
-                                showToast(`プロフィールの作成に失敗しました: ${profileResult.error ?? "エラー"} — /users/me/edit から再設定できます`, "error");
-                            }
-                        }
-                    } catch {
-                        showToast("プロフィールの作成に失敗しました — /users/me/edit から再設定できます", "error");
-                    }
-                }
                 showToast("ログインしました", "success");
                 router.push("/");
+            } else if (result.needsVerification) {
+                setNeedsVerification(true);
+                setError(result.error || "メールアドレスの確認が完了していません");
             } else {
                 setError(result.error || "ログインに失敗しました");
             }
@@ -128,17 +113,23 @@ function LoginForm() {
                     )}
                 </div>
 
-                {/* メール確認完了メッセージ */}
-                {verified && step === "login" && (
-                    <div className="mb-6 px-4 py-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
-                        メールアドレスが確認されました。ログインしてください。
+                {/* エラー */}
+                {error && (
+                    <div className="mb-4 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                        {error}
                     </div>
                 )}
 
-                {/* エラー */}
-                {error && (
-                    <div className="mb-6 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                        {error}
+                {/* 未確認アカウント誘導 */}
+                {needsVerification && step === "login" && (
+                    <div className="mb-6 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm">
+                        <p className="text-amber-300/80 mb-2 text-xs">確認コードのメールが届いているか確認してください。</p>
+                        <Link
+                            href={`/signup?email=${encodeURIComponent(username)}`}
+                            className="text-amber-300 hover:text-amber-200 underline text-xs transition-colors"
+                        >
+                            確認コードを入力・再送する →
+                        </Link>
                     </div>
                 )}
 
@@ -192,6 +183,13 @@ function LoginForm() {
                         >
                             パスワードをお忘れですか？
                         </button>
+
+                        <p className="text-center text-xs text-white/40 pt-1">
+                            アカウントをお持ちでない方は{" "}
+                            <Link href="/signup" className="text-white/60 hover:text-white underline transition-colors">
+                                新規登録
+                            </Link>
+                        </p>
                     </form>
                 )}
 
@@ -252,7 +250,7 @@ function LoginForm() {
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
                                 required
-                                placeholder="8文字以上、英大文字・小文字・数字を含む"
+                                placeholder="8文字以上、英大・小文字・数字・記号を含む"
                                 disabled={submitting}
                                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
                             />
@@ -285,24 +283,7 @@ function LoginForm() {
                         </button>
                     </div>
                 )}
-
-                {step === "login" && (
-                    <p className="text-center text-xs text-white/40 mt-6">
-                        アカウントをお持ちでない方は{" "}
-                        <Link href={ROUTES.SIGNUP} className="text-white/60 hover:text-white underline transition-colors">
-                            新規登録
-                        </Link>
-                    </p>
-                )}
             </div>
         </main>
-    );
-}
-
-export default function LoginPage() {
-    return (
-        <Suspense>
-            <LoginForm />
-        </Suspense>
     );
 }

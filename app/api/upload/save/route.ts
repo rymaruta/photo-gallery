@@ -5,7 +5,7 @@ import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { getConfig } from "../../../../lib/aws/secrets";
 import exifr from "exifr";
-import type { Photo } from "../../../../lib/data/photos";
+import type { Photo } from "@/lib/data/photos";
 import { log } from "../../../../lib/utils/log";
 
 // 静的エクスポートではAPI Routesは生成されない（本番環境ではAPI Gateway + Lambdaを使用）
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
             photos = JSON.parse(data);
         } else {
             // 既存のBASE_PHOTOSを読み込む
-            const { default: BASE_PHOTOS } = await import("../../../data/photos");
+            const { default: BASE_PHOTOS } = await import("@/lib/data/photos");
             photos = [...BASE_PHOTOS];
         }
 

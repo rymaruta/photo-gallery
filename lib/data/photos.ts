@@ -40,6 +40,8 @@ export type Photo = {
     dominantColor?: string;
     focalPoint?: { x: number; y: number };
     published?: boolean;
+    userId?: string;
+    displayName?: string;
     createdAt?: string;
     updatedAt?: string;
     exif?: {

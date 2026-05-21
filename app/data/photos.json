@@ -1,8 +1,8 @@
 [
   {
     "src": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/a129394d-f386-4795-9623-2d6e915d20c7.jpg",
-    "published": true,
     "location": "山中湖",
+    "published": true,
     "alt": {
       "en": "Swans on Lake Yamanaka",
       "ja": "山中湖の白鳥"
@@ -16,9 +16,11 @@
       "iso": 50,
       "focalLength": "75mm"
     },
+    "displayName": "丸田 竜平",
     "date": "2026-04-29",
     "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/a129394d-f386-4795-9623-2d6e915d20c7.jpeg",
     "updatedAt": "2026-04-29T13:25:07.841Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "動物",
     "description": {
       "en": [
@@ -46,13 +48,12 @@
     "title": {
       "en": "Swans on the Lake",
       "ja": "白鳥と湖"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
     "src": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/88c66c1d-c2fc-4875-9b52-55756db18dbc.jpg",
-    "published": true,
     "location": "山中湖",
+    "published": true,
     "alt": {
       "en": "Tree trunk blanketed in moss",
       "ja": "苔に覆われた木の幹"
@@ -66,9 +67,11 @@
       "iso": 50,
       "focalLength": "90mm"
     },
+    "displayName": "丸田 竜平",
     "date": "2026-04-29",
     "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/88c66c1d-c2fc-4875-9b52-55756db18dbc.jpeg",
     "updatedAt": "2026-04-29T07:30:30.240Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "自然",
     "description": {
       "en": [
@@ -96,13 +99,12 @@
     "title": {
       "en": "Moss-Covered Tree",
       "ja": "木を覆う苔"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
     "src": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/edb09f51-c821-4ec4-8b84-6ea467d77131.jpg",
-    "published": true,
     "location": "バルセロナ",
+    "published": true,
     "createdAt": "2026-04-12T14:24:05.104Z",
     "exif": {
       "aperture": "f/3.2",
@@ -113,9 +115,11 @@
       "lens": "E 28-200mm F2.8-5.6 A071",
       "focalLength": "28mm"
     },
+    "displayName": "丸田 竜平",
     "date": "2024-10-12",
     "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/edb09f51-c821-4ec4-8b84-6ea467d77131.jpeg",
     "updatedAt": "2026-04-12T14:24:05.104Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "建築",
     "description": {
       "en": [],
@@ -128,13 +132,12 @@
       "スペイン",
       "バルセロナ"
     ],
-    "title": "未完の大聖堂",
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    "title": "未完の大聖堂"
   },
   {
     "src": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/a5951859-7334-43c6-9e6a-e65d8c6fe70f.jpg",
-    "published": true,
     "location": "パリ",
+    "published": true,
     "createdAt": "2026-04-12T13:31:42.579Z",
     "exif": {
       "aperture": "f/3.5",
@@ -145,9 +148,11 @@
       "lens": "E 28-200mm F2.8-5.6 A071",
       "focalLength": "28mm"
     },
+    "displayName": "丸田 竜平",
     "date": "2024-10-11",
     "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/a5951859-7334-43c6-9e6a-e65d8c6fe70f.jpeg",
     "updatedAt": "2026-04-12T13:31:42.579Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "風景",
     "description": {
       "en": [],
@@ -159,13 +164,12 @@
     "tags": [
       "パリ"
     ],
-    "title": "ヴァンドーム広場",
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    "title": "ヴァンドーム広場"
   },
   {
     "src": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/ab5e9442-d146-4eb4-9506-89cb8ed18daf.jpg",
-    "published": true,
     "location": "大阪",
+    "published": true,
     "createdAt": "2026-02-12T12:18:23.899Z",
     "exif": {
       "aperture": "f/2.8",
@@ -176,9 +180,11 @@
       "lens": "FE 16-35mm F2.8 GM II",
       "focalLength": "35mm"
     },
+    "displayName": "丸田 竜平",
     "date": "2025-08-31",
     "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/ab5e9442-d146-4eb4-9506-89cb8ed18daf.jpeg",
     "updatedAt": "2026-02-12T12:19:54.476Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "風景",
     "description": {
       "en": [
@@ -196,13 +202,12 @@
     "title": {
       "en": "Autumn gradient",
       "ja": "秋のグラデーション"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
     "src": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/50b9f638-c86c-4df7-95ad-0bc2050ec535.jpg",
-    "published": true,
     "location": "東京",
+    "published": true,
     "createdAt": "2026-02-12T12:12:33.650Z",
     "exif": {
       "aperture": "f/18",
@@ -213,9 +218,11 @@
       "lens": "E 28-200mm F2.8-5.6 A071",
       "focalLength": "72mm"
     },
+    "displayName": "丸田 竜平",
     "date": "2024-03-24",
     "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/50b9f638-c86c-4df7-95ad-0bc2050ec535.jpeg",
     "updatedAt": "2026-02-12T12:12:33.650Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "風景",
     "description": {
       "en": [
@@ -232,13 +239,12 @@
     "title": {
       "en": "Red and white",
       "ja": "紅白"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
     "src": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/65300204-f4d3-4faf-9724-6cdd83bda35a.jpg",
-    "published": true,
     "location": "東京",
+    "published": true,
     "createdAt": "2026-02-12T12:08:38.478Z",
     "exif": {
       "aperture": "f/7.1",
@@ -249,9 +255,11 @@
       "lens": "FE 28-70mm F3.5-5.6 OSS",
       "focalLength": "28mm"
     },
+    "displayName": "丸田 竜平",
     "date": "2023-06-21",
     "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/65300204-f4d3-4faf-9724-6cdd83bda35a.jpeg",
     "updatedAt": "2026-02-12T12:08:38.478Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "建物",
     "description": {
       "en": [
@@ -268,13 +276,12 @@
     "title": {
       "en": "Cafe",
       "ja": "Cafe"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
     "src": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/30891834-7d3b-45c4-a3c5-d5d455b725a2.jpg",
-    "published": true,
     "location": "フィンランド",
+    "published": true,
     "createdAt": "2026-02-12T11:56:08.043Z",
     "exif": {
       "aperture": "f/2.8",
@@ -285,9 +292,11 @@
       "lens": "FE 16-35mm F2.8 GM II",
       "focalLength": "35mm"
     },
+    "displayName": "丸田 竜平",
     "date": "2026-01-02",
     "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/30891834-7d3b-45c4-a3c5-d5d455b725a2.jpeg",
     "updatedAt": "2026-02-12T11:57:28.933Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "ご飯",
     "description": {
       "en": [
@@ -304,14 +313,15 @@
     "title": {
       "en": "Dinner at Kämp",
       "ja": "カンプのディナー"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/8e82737f-5a6a-43b1-b42d-07d6b1913f2b.jpg",
-    "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/f26e7dff-ddbe-43d3-9be1-1c8cb10a5b58.jpeg",
     "published": true,
+    "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/f26e7dff-ddbe-43d3-9be1-1c8cb10a5b58.jpeg",
     "updatedAt": "2026-02-12T08:06:01.164Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "自然",
     "createdAt": "2026-02-12T03:56:41.317Z",
     "description": {
@@ -329,17 +339,18 @@
     "title": {
       "en": "Hydrangea",
       "ja": "紫陽花"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
     "src": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/98846554-af2e-4e99-8da0-5edb06c1f430.jpg",
-    "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/98846554-af2e-4e99-8da0-5edb06c1f430.jpeg",
     "location": "福岡",
     "published": true,
-    "updatedAt": "2026-02-12T03:49:23.528Z",
-    "category": "風景",
     "createdAt": "2026-02-12T03:49:23.528Z",
+    "displayName": "丸田 竜平",
+    "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/98846554-af2e-4e99-8da0-5edb06c1f430.jpeg",
+    "updatedAt": "2026-02-12T03:49:23.528Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
+    "category": "風景",
     "description": {
       "en": [
         "At Houman-gu Kamado Shrine. Deep green in the season of new leaves. Moss-covered stone steps and a tunnel of maple trees beautifully frame the entrance to the sacred ground."
@@ -355,17 +366,18 @@
     "title": {
       "en": "Breath of the forest",
       "ja": "森の呼吸"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
     "src": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/1f724eba-ea68-4310-9996-b3d7e47065a7.jpg",
-    "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/1f724eba-ea68-4310-9996-b3d7e47065a7.jpeg",
     "location": "フランス",
     "published": true,
-    "updatedAt": "2026-02-12T03:38:05.648Z",
-    "category": "建築",
     "createdAt": "2026-02-12T03:38:05.648Z",
+    "displayName": "丸田 竜平",
+    "srcOriginal": "https://d1s3dwwzgxf5ni.cloudfront.net/uploads/originals/1f724eba-ea68-4310-9996-b3d7e47065a7.jpeg",
+    "updatedAt": "2026-02-12T03:38:05.648Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
+    "category": "建築",
     "description": {
       "en": [
         "The Temple of Love at Petit Trianon, Versailles. A dome supported by twelve columns with geometric reliefs inside. The GM lens captured every detail of the sculpture that changes with the light. The craftsmen's skill is visible in the gradient from highlight to shadow."
@@ -381,13 +393,14 @@
     "title": {
       "en": "Stone detail and light",
       "ja": "石のディテールと光の諧調"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/3efd3a7c-a625-473e-9622-8daaffca1cf8.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:38.373Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "landscape",
     "createdAt": "2026-01-20T07:32:17.252Z",
     "description": {
@@ -400,7 +413,6 @@
         "静けさの中、街灯が光を放っている。"
       ]
     },
-    "id": "3efd3a7c-a625-473e-9622-8daaffca1cf8",
     "exif": {
       "aperture": "f/2.8",
       "exposure": "1/25s",
@@ -410,6 +422,7 @@
       "lens": "FE 24-70mm F2.8 GM II",
       "focalLength": "24mm"
     },
+    "id": "3efd3a7c-a625-473e-9622-8daaffca1cf8",
     "tags": [
       "finland",
       "saariselka",
@@ -420,13 +433,14 @@
     "title": {
       "en": "Streetlights of Saariselkä",
       "ja": "サーリセルカの街灯"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/d0e10f85-6e15-4e1a-a298-f5a968195492.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:38.153Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "landscape",
     "createdAt": "2026-01-20T07:32:17.089Z",
     "description": {
@@ -443,7 +457,6 @@
         "さすが北欧だ。"
       ]
     },
-    "id": "d0e10f85-6e15-4e1a-a298-f5a968195492",
     "exif": {
       "aperture": "f/2.8",
       "exposure": "1/15s",
@@ -453,6 +466,7 @@
       "lens": "FE 24-70mm F2.8 GM II",
       "focalLength": "26mm"
     },
+    "id": "d0e10f85-6e15-4e1a-a298-f5a968195492",
     "tags": [
       "finland",
       "nordic",
@@ -463,16 +477,26 @@
     "title": {
       "en": "Nordic Morning",
       "ja": "北欧の朝"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
     "src": "https://journey-photo.com/uploads/c4e2dac4-b319-43f9-876a-395e9e7e9000.jpg",
     "location": "フランス ヴェルサイユ",
     "published": true,
-    "updatedAt": "2026-01-20T08:35:37.939Z",
-    "category": "architecture",
     "createdAt": "2026-01-20T07:32:16.524Z",
+    "exif": {
+      "aperture": "f/3.5",
+      "exposure": "1/4000s",
+      "iso": 160,
+      "whiteBalance": "Manual",
+      "camera": "SONY ILCE-7M3",
+      "lens": "E 28-200mm F2.8-5.6 A071",
+      "focalLength": "31mm"
+    },
+    "displayName": "丸田 竜平",
+    "updatedAt": "2026-01-20T08:35:37.939Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
+    "category": "architecture",
     "description": {
       "en": [
         "One of the palaces in the Trianon ensemble.",
@@ -486,15 +510,6 @@
       ]
     },
     "id": "c4e2dac4-b319-43f9-876a-395e9e7e9000",
-    "exif": {
-      "aperture": "f/3.5",
-      "exposure": "1/4000s",
-      "iso": 160,
-      "whiteBalance": "Manual",
-      "camera": "SONY ILCE-7M3",
-      "lens": "E 28-200mm F2.8-5.6 A071",
-      "focalLength": "31mm"
-    },
     "tags": [
       "versailles",
       "trianon"
@@ -502,16 +517,26 @@
     "title": {
       "en": "Grand Trianon",
       "ja": "大トリアノン宮殿"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
     "src": "https://journey-photo.com/uploads/28e09a2a-918b-43f7-8ffe-e62d8822c6bf.jpg",
     "location": "パリ, フランス",
     "published": true,
-    "updatedAt": "2026-01-20T08:35:37.535Z",
-    "category": "street",
     "createdAt": "2026-01-20T07:32:16.291Z",
+    "exif": {
+      "aperture": "f/2.8",
+      "exposure": "1/160s",
+      "iso": 320,
+      "whiteBalance": "Manual",
+      "camera": "SONY ILCE-7M3",
+      "lens": "E 28-200mm F2.8-5.6 A071",
+      "focalLength": "28mm"
+    },
+    "displayName": "丸田 竜平",
+    "updatedAt": "2026-01-20T08:35:37.535Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
+    "category": "street",
     "description": {
       "en": [
         "Paris turns almost any scene into a postcard.",
@@ -523,15 +548,6 @@
       ]
     },
     "id": "28e09a2a-918b-43f7-8ffe-e62d8822c6bf",
-    "exif": {
-      "aperture": "f/2.8",
-      "exposure": "1/160s",
-      "iso": 320,
-      "whiteBalance": "Manual",
-      "camera": "SONY ILCE-7M3",
-      "lens": "E 28-200mm F2.8-5.6 A071",
-      "focalLength": "28mm"
-    },
     "tags": [
       "paris",
       "street"
@@ -539,16 +555,26 @@
     "title": {
       "en": "Streets of Paris",
       "ja": "パリの街中"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
     "src": "https://journey-photo.com/uploads/ecb99a5f-ef3f-4951-bb4f-b255d36270d9.jpg",
     "location": "フランス ヴェルサイユ",
     "published": true,
-    "updatedAt": "2026-01-20T08:35:37.320Z",
-    "category": "architecture",
     "createdAt": "2026-01-20T07:32:16.199Z",
+    "exif": {
+      "aperture": "f/2.8",
+      "exposure": "1/800s",
+      "iso": 100,
+      "whiteBalance": "Manual",
+      "camera": "SONY ILCE-7M3",
+      "lens": "E 28-200mm F2.8-5.6 A071",
+      "focalLength": "28mm"
+    },
+    "displayName": "丸田 竜平",
+    "updatedAt": "2026-01-20T08:35:37.320Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
+    "category": "architecture",
     "description": {
       "en": [
         "Vast gardens and manicured avenues.",
@@ -562,15 +588,6 @@
       ]
     },
     "id": "ecb99a5f-ef3f-4951-bb4f-b255d36270d9",
-    "exif": {
-      "aperture": "f/2.8",
-      "exposure": "1/800s",
-      "iso": 100,
-      "whiteBalance": "Manual",
-      "camera": "SONY ILCE-7M3",
-      "lens": "E 28-200mm F2.8-5.6 A071",
-      "focalLength": "28mm"
-    },
     "tags": [
       "versailles",
       "palace"
@@ -578,16 +595,26 @@
     "title": {
       "en": "Palace of Versailles",
       "ja": "ヴェルサイユ宮殿"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
     "src": "https://journey-photo.com/uploads/18c7ad60-5600-4020-bbe0-edc84332e9ce.jpg",
     "location": "北海道",
     "published": true,
-    "updatedAt": "2026-01-20T08:35:37.003Z",
-    "category": "nature",
     "createdAt": "2026-01-20T07:32:16.012Z",
+    "exif": {
+      "aperture": "f/4",
+      "exposure": "1/640s",
+      "iso": 100,
+      "whiteBalance": "Manual",
+      "camera": "SONY ILCE-7M3",
+      "lens": "E 28-200mm F2.8-5.6 A071",
+      "focalLength": "70mm"
+    },
+    "displayName": "丸田 竜平",
+    "updatedAt": "2026-01-20T08:35:37.003Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
+    "category": "nature",
     "description": {
       "en": [
         "Spring has come to Hokkaido, and cherry trees are in full bloom.",
@@ -599,15 +626,6 @@
       ]
     },
     "id": "18c7ad60-5600-4020-bbe0-edc84332e9ce",
-    "exif": {
-      "aperture": "f/4",
-      "exposure": "1/640s",
-      "iso": 100,
-      "whiteBalance": "Manual",
-      "camera": "SONY ILCE-7M3",
-      "lens": "E 28-200mm F2.8-5.6 A071",
-      "focalLength": "70mm"
-    },
     "tags": [
       "cherry",
       "hokkaido"
@@ -615,16 +633,26 @@
     "title": {
       "en": "Cherry Blossoms in Hokkaido",
       "ja": "北海道の桜"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
     "src": "https://journey-photo.com/uploads/e4e47af3-08e9-4791-8fd3-d8688a52d22c.jpg",
     "location": "オペラ・ガルニエ（パリ）",
     "published": true,
-    "updatedAt": "2026-01-20T08:35:36.676Z",
-    "category": "architecture",
     "createdAt": "2026-01-20T07:32:15.400Z",
+    "exif": {
+      "aperture": "f/2.8",
+      "exposure": "1/3s",
+      "iso": 320,
+      "whiteBalance": "Manual",
+      "camera": "SONY ILCE-7M3",
+      "lens": "E 28-200mm F2.8-5.6 A071",
+      "focalLength": "28mm"
+    },
+    "displayName": "丸田 竜平",
+    "updatedAt": "2026-01-20T08:35:36.676Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
+    "category": "architecture",
     "description": {
       "en": [
         "One of the world's great opera houses, the Palais Garnier.",
@@ -640,15 +668,6 @@
       ]
     },
     "id": "e4e47af3-08e9-4791-8fd3-d8688a52d22c",
-    "exif": {
-      "aperture": "f/2.8",
-      "exposure": "1/3s",
-      "iso": 320,
-      "whiteBalance": "Manual",
-      "camera": "SONY ILCE-7M3",
-      "lens": "E 28-200mm F2.8-5.6 A071",
-      "focalLength": "28mm"
-    },
     "tags": [
       "opera",
       "theater"
@@ -656,16 +675,26 @@
     "title": {
       "en": "Palais Garnier",
       "ja": "オペラ・ガルニエ"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
     "src": "https://journey-photo.com/uploads/a0e0e987-4686-437a-a5fd-b6eaa2debd84.jpg",
     "location": "香川県 観音寺市 高屋神社",
     "published": true,
-    "updatedAt": "2026-01-20T08:35:36.047Z",
-    "category": "landscape",
     "createdAt": "2026-01-20T07:32:14.512Z",
+    "exif": {
+      "aperture": "f/2.8",
+      "exposure": "1/1000s",
+      "iso": 100,
+      "whiteBalance": "Manual",
+      "camera": "SONY ILCE-7M3",
+      "lens": "FE 16-35mm F2.8 GM II",
+      "focalLength": "28mm"
+    },
+    "displayName": "丸田 竜平",
+    "updatedAt": "2026-01-20T08:35:36.047Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
+    "category": "landscape",
     "description": {
       "en": [
         "The view from the torii at the summit was truly breathtaking.",
@@ -679,15 +708,6 @@
       ]
     },
     "id": "a0e0e987-4686-437a-a5fd-b6eaa2debd84",
-    "exif": {
-      "aperture": "f/2.8",
-      "exposure": "1/1000s",
-      "iso": 100,
-      "whiteBalance": "Manual",
-      "camera": "SONY ILCE-7M3",
-      "lens": "FE 16-35mm F2.8 GM II",
-      "focalLength": "28mm"
-    },
     "tags": [
       "torii",
       "shrine",
@@ -696,13 +716,14 @@
     "title": {
       "en": "Torii in the Sky",
       "ja": "天空の鳥居"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/e2ff51a0-3364-4b9d-a6a3-c4a2c837b006.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:35.602Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "nature",
     "createdAt": "2026-01-20T07:32:13.748Z",
     "description": {
@@ -713,7 +734,6 @@
         "美しすぎて言葉にならない、フィンランドの大地。"
       ]
     },
-    "id": "e2ff51a0-3364-4b9d-a6a3-c4a2c837b006",
     "exif": {
       "aperture": "f/1.8",
       "exposure": "1/7000s",
@@ -723,6 +743,7 @@
       "lens": "iPhone 14 Pro back triple camera 6.86mm f/1.78",
       "focalLength": "7mm"
     },
+    "id": "e2ff51a0-3364-4b9d-a6a3-c4a2c837b006",
     "tags": [
       "finland",
       "landscape",
@@ -732,13 +753,14 @@
     "title": {
       "en": "Land of Finland",
       "ja": "フィンランドの大地"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/27501725-7d8b-4ff8-a5db-21e458145fcc.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:35.191Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "landscape",
     "createdAt": "2026-01-20T07:32:13.134Z",
     "description": {
@@ -749,7 +771,6 @@
         "夕焼けとシルエットが織りなす、静かな陰影。"
       ]
     },
-    "id": "27501725-7d8b-4ff8-a5db-21e458145fcc",
     "exif": {
       "aperture": "f/5.6",
       "exposure": "1/800s",
@@ -759,6 +780,7 @@
       "lens": "FE 70-200mm F2.8 GM OSS II",
       "focalLength": "164mm"
     },
+    "id": "27501725-7d8b-4ff8-a5db-21e458145fcc",
     "tags": [
       "finland",
       "restaurant",
@@ -769,13 +791,14 @@
     "title": {
       "en": "Sunset from the Restaurant",
       "ja": "レストランからの夕焼け"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/f854f680-602d-4cc4-9ac5-a98c06fb8c1a.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:34.976Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "landscape",
     "createdAt": "2026-01-20T07:32:12.605Z",
     "description": {
@@ -788,7 +811,6 @@
         "視界に入るすべてが絵になる、洗練された空間。"
       ]
     },
-    "id": "f854f680-602d-4cc4-9ac5-a98c06fb8c1a",
     "exif": {
       "aperture": "f/2.8",
       "exposure": "1/50s",
@@ -798,6 +820,7 @@
       "lens": "FE 70-200mm F2.8 GM OSS II",
       "focalLength": "200mm"
     },
+    "id": "f854f680-602d-4cc4-9ac5-a98c06fb8c1a",
     "tags": [
       "finland",
       "helsinki",
@@ -809,13 +832,14 @@
     "title": {
       "en": "Löyly Restaurant",
       "ja": "Löylyのレストラン"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/3729f868-9f21-4cef-913f-f05bc16b3255.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:34.767Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "landscape",
     "createdAt": "2026-01-20T07:32:12.085Z",
     "description": {
@@ -830,7 +854,6 @@
         "──ヴァンター、Kuusijärviにて。"
       ]
     },
-    "id": "3729f868-9f21-4cef-913f-f05bc16b3255",
     "exif": {
       "aperture": "f/3.2",
       "exposure": "1/100s",
@@ -840,6 +863,7 @@
       "lens": "FE 24-70mm F2.8 GM II",
       "focalLength": "70mm"
     },
+    "id": "3729f868-9f21-4cef-913f-f05bc16b3255",
     "tags": [
       "finland",
       "cabin",
@@ -851,13 +875,14 @@
     "title": {
       "en": "Cabin in the Forest",
       "ja": "森の中の小屋"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/fa0d51c9-f3ff-4812-bc29-4d88515081ea.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:34.538Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "nature",
     "createdAt": "2026-01-20T07:32:11.995Z",
     "description": {
@@ -868,7 +893,6 @@
         "フィンランドの森は、緑が深く、木々が高く、空が青く、水が透明である。"
       ]
     },
-    "id": "fa0d51c9-f3ff-4812-bc29-4d88515081ea",
     "exif": {
       "aperture": "f/2.8",
       "exposure": "1/3s",
@@ -878,6 +902,7 @@
       "lens": "FE 24-70mm F2.8 GM II",
       "focalLength": "24mm"
     },
+    "id": "fa0d51c9-f3ff-4812-bc29-4d88515081ea",
     "tags": [
       "finland",
       "forest",
@@ -888,13 +913,14 @@
     "title": {
       "en": "Nordic Forest",
       "ja": "北欧の森"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/21cf9fd2-e836-431d-85cd-cf41da7e56e9.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:34.244Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "landscape",
     "createdAt": "2026-01-20T07:32:11.407Z",
     "description": {
@@ -907,7 +933,6 @@
         "歴史ある石造りの建物が並ぶ、ヘルシンキらしい街角。"
       ]
     },
-    "id": "21cf9fd2-e836-431d-85cd-cf41da7e56e9",
     "exif": {
       "aperture": "f/5",
       "exposure": "1/125s",
@@ -917,6 +942,7 @@
       "lens": "FE 16-35mm F2.8 GM II",
       "focalLength": "35mm"
     },
+    "id": "21cf9fd2-e836-431d-85cd-cf41da7e56e9",
     "tags": [
       "finland",
       "helsinki",
@@ -927,13 +953,14 @@
     "title": {
       "en": "Streets of Helsinki",
       "ja": "ヘルシンキの街並み"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/cb10f0d4-4fe1-4fb7-b72f-24cf72e69866.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:34.029Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "landscape",
     "createdAt": "2026-01-20T07:32:10.860Z",
     "description": {
@@ -946,7 +973,6 @@
         "ここで食べたピザは、生地が薄くサクサク。シンプルでありながらいつでも食べたい美味しさだった。"
       ]
     },
-    "id": "cb10f0d4-4fe1-4fb7-b72f-24cf72e69866",
     "exif": {
       "aperture": "f/3.2",
       "exposure": "1/30s",
@@ -956,6 +982,7 @@
       "lens": "FE 24-70mm F2.8 GM II",
       "focalLength": "24mm"
     },
+    "id": "cb10f0d4-4fe1-4fb7-b72f-24cf72e69866",
     "tags": [
       "finland",
       "restaurant",
@@ -966,13 +993,14 @@
     "title": {
       "en": "Pizza Shop Window",
       "ja": "ピザ店の窓"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/2354a297-a017-4001-afbf-70e9d9fa36f7.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:33.804Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "landscape",
     "createdAt": "2026-01-20T07:32:10.304Z",
     "description": {
@@ -987,7 +1015,6 @@
         "冬の青空の下でも、この建物だけが発光しているように白く輝いていた。"
       ]
     },
-    "id": "2354a297-a017-4001-afbf-70e9d9fa36f7",
     "exif": {
       "aperture": "f/8",
       "exposure": "1/400s",
@@ -997,6 +1024,7 @@
       "lens": "FE 16-35mm F2.8 GM II",
       "focalLength": "35mm"
     },
+    "id": "2354a297-a017-4001-afbf-70e9d9fa36f7",
     "tags": [
       "finland",
       "helsinki",
@@ -1007,13 +1035,14 @@
     "title": {
       "en": "Helsinki Cathedral",
       "ja": "ヘルシンキ大聖堂"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/ca5a98b3-27c2-42d4-a26c-a3437609ec31.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:33.574Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "landscape",
     "createdAt": "2026-01-20T07:32:09.751Z",
     "description": {
@@ -1030,7 +1059,6 @@
         "フィンランドの冬を肌で感じた一日。一生忘れられない体験になった。"
       ]
     },
-    "id": "ca5a98b3-27c2-42d4-a26c-a3437609ec31",
     "exif": {
       "aperture": "f/4.5",
       "exposure": "1/200s",
@@ -1040,6 +1068,7 @@
       "lens": "FE 70-200mm F2.8 GM OSS II",
       "focalLength": "70mm"
     },
+    "id": "ca5a98b3-27c2-42d4-a26c-a3437609ec31",
     "tags": [
       "finland",
       "helsinki",
@@ -1051,13 +1080,14 @@
     "title": {
       "en": "Löyly",
       "ja": "Löyly"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
+    "displayName": "丸田 竜平",
     "src": "https://journey-photo.com/uploads/bb470019-c4a2-484e-bdbd-51e4b20fa4ef.jpg",
     "published": true,
     "updatedAt": "2026-01-20T08:35:33.345Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
     "category": "landscape",
     "createdAt": "2026-01-20T07:32:09.244Z",
     "description": {
@@ -1070,7 +1100,6 @@
         "低い太陽のオレンジ色が凍り付いたケミ川に反射している。"
       ]
     },
-    "id": "bb470019-c4a2-484e-bdbd-51e4b20fa4ef",
     "exif": {
       "aperture": "f/5",
       "exposure": "1/250s",
@@ -1080,6 +1109,7 @@
       "lens": "FE 24-70mm F2.8 GM II",
       "focalLength": "70mm"
     },
+    "id": "bb470019-c4a2-484e-bdbd-51e4b20fa4ef",
     "tags": [
       "finland",
       "rovaniemi",
@@ -1090,16 +1120,26 @@
     "title": {
       "en": "Lumberjack's Candle Bridge",
       "ja": "木こりのろうそく橋"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   },
   {
     "src": "https://journey-photo.com/uploads/29de9197-5d15-490e-83ae-491e7386bb34.jpg",
     "location": "茨城県 ひたちなか市 国営ひたち海浜公園",
     "published": true,
-    "updatedAt": "2026-01-20T08:35:33.124Z",
-    "category": "landscape",
     "createdAt": "2026-01-20T07:32:08.689Z",
+    "exif": {
+      "aperture": "f/5.6",
+      "exposure": "1/1250s",
+      "iso": 100,
+      "whiteBalance": "Manual",
+      "camera": "SONY ILCE-7M3",
+      "lens": "E 28-200mm F2.8-5.6 A071",
+      "focalLength": "200mm"
+    },
+    "displayName": "丸田 竜平",
+    "updatedAt": "2026-01-20T08:35:33.124Z",
+    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868",
+    "category": "landscape",
     "description": {
       "en": [
         "A vast sea of nemophila stretching in soft blue tones.",
@@ -1113,15 +1153,6 @@
       ]
     },
     "id": "29de9197-5d15-490e-83ae-491e7386bb34",
-    "exif": {
-      "aperture": "f/5.6",
-      "exposure": "1/1250s",
-      "iso": 100,
-      "whiteBalance": "Manual",
-      "camera": "SONY ILCE-7M3",
-      "lens": "E 28-200mm F2.8-5.6 A071",
-      "focalLength": "200mm"
-    },
     "tags": [
       "park",
       "flowers",
@@ -1130,7 +1161,6 @@
     "title": {
       "en": "Sea of Nemophila",
       "ja": "海"
-    },
-    "userId": "67d49a68-80f1-7083-b0e0-c767886ef868"
+    }
   }
 ]
