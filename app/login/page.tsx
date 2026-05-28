@@ -7,7 +7,6 @@ import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { forgotPassword, confirmForgotPassword } from "../../lib/auth/cognito";
 import { createUser } from "../../lib/utils/userApi";
-import { ROUTES } from "../../lib/routes";
 import { LockClosedIcon, EnvelopeIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 type Step = "login" | "forgot-send" | "forgot-confirm" | "forgot-done";
@@ -40,7 +39,6 @@ function LoginForm() {
         try {
             const result = await login(username, password);
             if (result.success) {
-                // Handle post-signup profile creation
                 const postLoginRaw = sessionStorage.getItem("postLoginAction");
                 if (postLoginRaw) {
                     sessionStorage.removeItem("postLoginAction");
@@ -133,10 +131,10 @@ function LoginForm() {
                     )}
                 </div>
 
-                {/* メール確認完了メッセージ */}
+                {/* メール認証完了バナー */}
                 {verified && step === "login" && (
-                    <div className="mb-6 px-4 py-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
-                        メールアドレスが確認されました。ログインしてください。
+                    <div className="mb-4 px-4 py-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
+                        ✓ メールアドレスの確認が完了しました。ログインしてください。
                     </div>
                 )}
 
@@ -309,15 +307,6 @@ function LoginForm() {
                             ログインする
                         </button>
                     </div>
-                )}
-
-                {step === "login" && (
-                    <p className="text-center text-xs text-white/40 mt-6">
-                        アカウントをお持ちでない方は{" "}
-                        <Link href={ROUTES.SIGNUP} className="text-white/60 hover:text-white underline transition-colors">
-                            新規登録
-                        </Link>
-                    </p>
                 )}
             </div>
         </main>

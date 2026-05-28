@@ -388,7 +388,7 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
             {structuredData && (
                 <script
                     type="application/ld+json"
-                    dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c").replace(/>/g, "\\u003e") }}
                 />
             )}
             {breadcrumbData && (

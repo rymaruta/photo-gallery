@@ -1,14 +1,18 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, Suspense } from "react";
+import React, { useEffect, useState, useMemo, useCallback, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeftIcon, UserCircleIcon, GlobeAltIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, UserCircleIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon } from "@heroicons/react/24/outline";
 import { useLocale } from "../i18n/context";
+import { useToast } from "../../lib/hooks/useToast";
 import type { Photo } from "@/lib/data/photos";
 import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../lib/utils/log";
+import { getCurrentSession } from "../../lib/auth/cognito";
+import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
+import PHOTOS_JSON from "../data/photos.json";
 
 type UserProfile = {
     userId: string;
@@ -47,40 +51,92 @@ function ProfileAvatar({ userId, size = "md" }: { userId: string; size?: "md" | 
     );
 }
 
-function PhotoCard({ photo, locale }: { photo: Photo; locale: string }) {
-    const [imageError, setImageError] = useState(false);
-    const title = getLocalized(photo.title, locale as "ja" | "en") || (typeof photo.title === "string" ? photo.title : "");
+function CoverPhoto({ userId }: { userId: string }) {
+    const [coverError, setCoverError] = useState(false);
+    const coverUrl = CLOUDFRONT_URL ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(userId)}/cover` : "";
+
+    if (!coverUrl || coverError) {
+        return <div className="w-full h-20 sm:h-28 bg-gradient-to-b from-white/5 to-black" />;
+    }
 
     return (
-        <Link
-            href={`/photo/${photo.id}`}
-            className="block relative overflow-hidden bg-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-            style={{ paddingTop: "100%" }}
-        >
-            {!imageError ? (
-                <Image
-                    src={photo.src}
-                    alt={title}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width:640px) 33vw, (max-width:1024px) 25vw, 20vw"
-                    loading="lazy"
-                    onError={() => setImageError(true)}
-                />
-            ) : (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
-                    <svg className="w-8 h-8 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+        <div className="w-full h-32 sm:h-44 relative overflow-hidden bg-black">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+                src={coverUrl}
+                alt=""
+                className="w-full h-full object-cover"
+                onError={() => setCoverError(true)}
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60" />
+        </div>
+    );
+}
+
+function PhotoCard({ photo, locale, isOwner, onTogglePublish }: {
+    photo: Photo;
+    locale: string;
+    isOwner: boolean;
+    onTogglePublish?: (id: string, published: boolean) => void;
+}) {
+    const [imageError, setImageError] = useState(false);
+    const title = getLocalized(photo.title, locale as "ja" | "en") || (typeof photo.title === "string" ? photo.title : "");
+    const isHidden = photo.published === false;
+
+    return (
+        <div className="relative" style={{ paddingTop: "100%" }}>
+            <Link
+                href={`/photo/${photo.id}`}
+                className={`absolute inset-0 overflow-hidden bg-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${isHidden ? "opacity-40" : ""}`}
+            >
+                {!imageError ? (
+                    <Image
+                        src={photo.src}
+                        alt={title}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width:640px) 33vw, (max-width:1024px) 25vw, 20vw"
+                        loading="lazy"
+                        onError={() => setImageError(true)}
+                    />
+                ) : (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
+                        <svg className="w-8 h-8 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                )}
+                <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors" />
+            </Link>
+
+            {/* 自分のプロフィール: 公開/非公開トグル */}
+            {isOwner && (
+                <button
+                    onClick={(e) => { e.preventDefault(); onTogglePublish?.(photo.id, !isHidden); }}
+                    className={`absolute top-1.5 right-1.5 p-1.5 rounded-full transition-colors z-10 ${
+                        isHidden
+                            ? "bg-black/80 text-white/80 hover:bg-black"
+                            : "bg-black/0 text-white/0 hover:bg-black/60 hover:text-white/80"
+                    }`}
+                    title={isHidden ? (locale === "en" ? "Show" : "公開する") : (locale === "en" ? "Hide" : "非公開にする")}
+                >
+                    <EyeSlashIcon className="w-4 h-4" />
+                </button>
+            )}
+
+            {/* 非公開バッジ */}
+            {isOwner && isHidden && (
+                <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-black/80 rounded text-xs text-white/70 pointer-events-none">
+                    {locale === "en" ? "Hidden" : "非公開"}
                 </div>
             )}
-            <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors" />
-        </Link>
+        </div>
     );
 }
 
 function UsersPageInner() {
     const { locale } = useLocale();
+    const { showToast } = useToast();
     const searchParams = useSearchParams();
     const userId = searchParams.get("id");
 
@@ -88,6 +144,7 @@ function UsersPageInner() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+    const [isOwner, setIsOwner] = useState(false);
 
     useEffect(() => {
         if (!userId) {
@@ -96,32 +153,42 @@ function UsersPageInner() {
             return;
         }
 
+        // JSON から即時表示（API 待ちなし）
+        const jsonPhotos = (PHOTOS_JSON as Photo[]).filter(p => p.userId === userId);
+        setPhotos(jsonPhotos);
+        setLoading(false);
+
         const controller = new AbortController();
         const load = async () => {
             try {
-                const { publicFetch } = await import("../../lib/utils/api");
-                const [photosRes, profileRes] = await Promise.all([
-                    publicFetch(`/photos?userId=${encodeURIComponent(userId)}`, { signal: controller.signal }),
-                    fetch(`${process.env.NEXT_PUBLIC_USER_API_BASE_URL ?? ""}/profile/${encodeURIComponent(userId)}`, { signal: controller.signal }),
+                const userApiBase = process.env.NEXT_PUBLIC_USER_API_BASE_URL ?? "";
+                const [profileRes, sessionResult] = await Promise.all([
+                    fetch(`${userApiBase}/profile/${encodeURIComponent(userId)}`, { signal: controller.signal }),
+                    getCurrentSession(),
                 ]);
-                if (photosRes.ok) {
-                    const data = await photosRes.json() as unknown;
-                    if (Array.isArray(data)) setPhotos(data as Photo[]);
-                    else setError("fetch-error");
-                } else {
-                    setError("fetch-error");
-                }
                 if (profileRes.ok) {
                     const prof = await profileRes.json() as UserProfile;
                     setUserProfile(prof);
                 }
+                const isCurrentUserOwner = !!sessionResult &&
+                    (sessionResult.getIdToken().payload["sub"] as string | undefined) === userId;
+                if (isCurrentUserOwner) setIsOwner(true);
+
+                // API から新しい写真も取得（オーナー以外のみ — オーナーは非公開写真がJSONにある）
+                if (!isCurrentUserOwner) {
+                    const { publicFetch } = await import("../../lib/utils/api");
+                    const photosRes = await publicFetch(`/photos?userId=${encodeURIComponent(userId)}`, { signal: controller.signal });
+                    if (photosRes.ok) {
+                        const data = await photosRes.json() as unknown;
+                        if (Array.isArray(data) && (data as Photo[]).length > 0) {
+                            setPhotos(data as Photo[]);
+                        }
+                    }
+                }
             } catch (e) {
                 if ((e as { name?: string }).name !== "AbortError") {
-                    log.error("user fetch error:", e);
-                    setError("fetch-error");
+                    log.error("user profile fetch error:", e);
                 }
-            } finally {
-                setLoading(false);
             }
         };
         void load();
@@ -133,6 +200,38 @@ function UsersPageInner() {
         if (photos.length === 0) return null;
         return photos.find(p => p.displayName)?.displayName ?? null;
     }, [userProfile, photos]);
+
+    const handleTogglePublish = useCallback(async (photoId: string, publish: boolean) => {
+        try {
+            const { userFetch } = await import("../../lib/utils/api");
+            const res = await userFetch(`/photos/${photoId}`, {
+                method: "PUT",
+                body: JSON.stringify({ published: publish }),
+            });
+            if (res.ok) {
+                setPhotos(prev => prev.map(p => p.id === photoId ? { ...p, published: publish } : p));
+                showToast(publish
+                    ? (locale === "en" ? "Photo is now public" : "写真を公開しました")
+                    : (locale === "en" ? "Photo is now hidden" : "写真を非公開にしました"),
+                    "success"
+                );
+            } else {
+                showToast(locale === "en" ? "Failed to update" : "更新に失敗しました", "error");
+            }
+        } catch {
+            showToast(locale === "en" ? "Failed to update" : "更新に失敗しました", "error");
+        }
+    }, [locale, showToast]);
+
+    const handleShareProfile = useCallback(async () => {
+        const url = typeof window !== "undefined" ? window.location.href : "";
+        try {
+            await copyToClipboard(url);
+            showToast(locale === "en" ? "Link copied!" : "リンクをコピーしました", "success");
+        } catch {
+            showToast(locale === "en" ? "Failed to copy" : "コピーに失敗しました", "error");
+        }
+    }, [locale, showToast]);
 
     if (!userId || error === "no-id") {
         return (
@@ -164,35 +263,69 @@ function UsersPageInner() {
     }
 
     return (
-        <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
-            <div className="mb-6">
-                <Link
-                    href="/"
-                    className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-6"
-                    style={{ minHeight: "44px" }}
-                >
-                    <ArrowLeftIcon className="w-4 h-4" />
-                    <span className="text-sm">{locale === "en" ? "Back to Gallery" : "ギャラリーに戻る"}</span>
-                </Link>
+        <main className="min-h-screen text-white bg-black">
+            {/* カバー写真 */}
+            <CoverPhoto userId={userId} />
+
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
+                {/* 戻るリンク（カバー写真の上に重ねる） */}
+                <div className="-mt-8 relative z-10 mb-4">
+                    <Link
+                        href="/"
+                        className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors drop-shadow"
+                        style={{ minHeight: "44px" }}
+                    >
+                        <ArrowLeftIcon className="w-4 h-4" />
+                        <span className="text-sm">{locale === "en" ? "Back to Gallery" : "ギャラリーに戻る"}</span>
+                    </Link>
+                </div>
 
                 {/* プロフィールヘッダー */}
-                <div className="py-6">
-                    <div className="flex items-start gap-4 mb-4">
-                        <ProfileAvatar userId={userId} size="lg" />
-                        <div className="flex-1 min-w-0">
-                            <h1 className="text-xl sm:text-2xl font-bold">
+                <div className="pb-6">
+                    {/* アバター + 名前・投稿数 */}
+                    <div className="flex items-end gap-4 mb-4 -mt-8">
+                        <div className="ring-4 ring-black rounded-full flex-shrink-0">
+                            <ProfileAvatar userId={userId} size="lg" />
+                        </div>
+                        <div className="flex-1 min-w-0 pb-1">
+                            <h1 className="text-xl sm:text-2xl font-bold leading-tight truncate">
                                 {displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}
                             </h1>
-                            <p className="text-sm text-white/50 mt-1">
-                                {locale === "en"
-                                    ? `${photos.length} photo${photos.length !== 1 ? "s" : ""}`
-                                    : `${photos.length} 枚`}
-                            </p>
+                            {/* 投稿数 + シェアボタン */}
+                            <div className="flex items-center gap-3 mt-1">
+                                <span className="inline-flex items-baseline gap-1">
+                                    <span className="text-base font-bold">{isOwner ? photos.length : photos.filter(p => p.published !== false).length}</span>
+                                    <span className="text-xs text-white/50">{locale === "en" ? "posts" : "投稿"}</span>
+                                </span>
+                                <div className="flex items-center gap-0.5 ml-auto">
+                                    <button
+                                        onClick={() => void handleShareProfile()}
+                                        className="p-1.5 rounded-full text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
+                                        title={locale === "en" ? "Copy profile link" : "リンクをコピー"}
+                                    >
+                                        <LinkIcon className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                        onClick={() => shareToTwitter(typeof window !== "undefined" ? window.location.href : "", displayName ?? "")}
+                                        className="p-1.5 rounded-full text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
+                                        title="X"
+                                    >
+                                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                                    </button>
+                                    <button
+                                        onClick={() => shareToLine(typeof window !== "undefined" ? window.location.href : "", displayName ?? "")}
+                                        className="p-1.5 rounded-full text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
+                                        title="LINE"
+                                    >
+                                        <ShareIcon className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     {userProfile?.bio && (
-                        <p className="text-sm text-white/70 whitespace-pre-wrap mb-3">{userProfile.bio}</p>
+                        <p className="text-sm text-white/70 whitespace-pre-wrap mb-3 leading-relaxed">{userProfile.bio}</p>
                     )}
 
                     {(userProfile?.instagram || userProfile?.website) && (
@@ -210,7 +343,7 @@ function UsersPageInner() {
                                     <span>@{userProfile.instagram}</span>
                                 </a>
                             )}
-                            {userProfile.website && (
+                            {userProfile.website && /^https?:\/\//.test(userProfile.website) && (
                                 <a
                                     href={userProfile.website}
                                     target="_blank"
@@ -225,23 +358,23 @@ function UsersPageInner() {
                     )}
                 </div>
 
-                <div className="border-t border-white/10" />
-            </div>
+                <div className="border-t border-white/10 mb-0.5" />
 
-            {photos.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-white/50 gap-2">
-                    <UserCircleIcon className="w-12 h-12" />
-                    <p className="text-sm">
-                        {locale === "en" ? "No photos yet." : "まだ写真がありません。"}
-                    </p>
-                </div>
-            ) : (
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-0.5">
-                    {photos.map(photo => (
-                        <PhotoCard key={photo.id} photo={photo} locale={locale} />
-                    ))}
-                </div>
-            )}
+                {photos.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-white/50 gap-2">
+                        <UserCircleIcon className="w-12 h-12" />
+                        <p className="text-sm">
+                            {locale === "en" ? "No photos yet." : "まだ写真がありません。"}
+                        </p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-0.5">
+                        {(isOwner ? photos : photos.filter(p => p.published !== false)).map(photo => (
+                            <PhotoCard key={photo.id} photo={photo} locale={locale} isOwner={isOwner} onTogglePublish={handleTogglePublish} />
+                        ))}
+                    </div>
+                )}
+            </div>
         </main>
     );
 }

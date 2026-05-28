@@ -10,6 +10,6 @@ export const ROUTES = {
     UPLOAD: "/user/upload",
     PROFILE_EDIT: "/user/profile",
     PHOTO: (id: string) => `/photo/${id}`,
-    USER_PROFILE: (username: string) => `/users?u=${encodeURIComponent(username)}`,
+    USER_PROFILE: (id: string) => `/users?id=${encodeURIComponent(id)}`,
     USER_EDIT: "/users/me/edit",
 } as const;
