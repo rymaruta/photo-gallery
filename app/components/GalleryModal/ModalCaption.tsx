@@ -5,6 +5,7 @@ import { ShareIcon, LinkIcon } from "@heroicons/react/24/outline";
 import type { Photo, Locale } from "@/lib/data/photos";
 import { shareToTwitter, shareToFacebook, shareToLine } from "../../../lib/utils/share";
 import { ROUTES } from "../../../lib/routes";
+import ProfileLink from "../ProfileLink";
 
 type Props = {
     photo: Photo;
@@ -95,17 +96,13 @@ export default function ModalCaption({
             {/* 撮影者リンク */}
             {photo.userId && photo.displayName && (
                 <div className="mt-3">
-                    <a
-                        href={`/users?id=${encodeURIComponent(photo.userId)}`}
+                    <ProfileLink
+                        userId={photo.userId}
+                        displayName={photo.displayName}
+                        uploaderUsername={photo.uploaderUsername}
+                        size="sm"
                         onClick={stop}
-                        className="inline-flex items-center gap-2 text-xs sm:text-sm text-white/60 hover:text-white/90 transition-colors"
-                        style={{ touchAction: "manipulation" }}
-                    >
-                        <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                        <span>{photo.displayName}</span>
-                    </a>
+                    />
                 </div>
             )}
 
