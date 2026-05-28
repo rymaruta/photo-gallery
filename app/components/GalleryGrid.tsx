@@ -104,7 +104,7 @@ const GalleryItem = React.memo(function GalleryItem({
                             draggable={false}
                             onContextMenu={(e) => e.preventDefault()}
                             className="object-cover select-none"
-                            style={objectPosition ? { objectPosition } : undefined}
+                            style={{ WebkitTouchCallout: "none", ...(objectPosition ? { objectPosition } : {}) }}
                             sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
                             loading={isPriority ? "eager" : "lazy"}
                             priority={isPriority}

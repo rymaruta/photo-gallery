@@ -181,6 +181,7 @@ function PhotoImage({
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1200px"
                     priority
                     style={{
+                        WebkitTouchCallout: "none",
                         ...(focalPoint ? { objectPosition: `${focalPoint.x * 100}% ${focalPoint.y * 100}%` } : {}),
                     }}
                     onError={() => {
