@@ -12,6 +12,38 @@ import { getCurrentSession } from "../../../lib/auth/cognito";
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
+async function compressImage(file: File, maxPx = 1920, quality = 0.85): Promise<File> {
+    return new Promise((resolve, reject) => {
+        const img = new window.Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            let { width, height } = img;
+            if (width > maxPx || height > maxPx) {
+                if (width >= height) { height = Math.round(height * maxPx / width); width = maxPx; }
+                else { width = Math.round(width * maxPx / height); height = maxPx; }
+            }
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) { resolve(file); return; }
+            ctx.drawImage(img, 0, 0, width, height);
+            canvas.toBlob(
+                (blob) => {
+                    if (!blob) { resolve(file); return; }
+                    const baseName = file.name.replace(/\.[^.]+$/, "");
+                    resolve(new File([blob], `${baseName}.jpg`, { type: "image/jpeg" }));
+                },
+                "image/jpeg",
+                quality,
+            );
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("画像の読み込みに失敗しました")); };
+        img.src = url;
+    });
+}
+
 export default function UploadPage() {
     const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
     const router = useRouter();
@@ -108,9 +140,15 @@ export default function UploadPage() {
         setProgress(0);
 
         try {
-            // APIキーを取得（環境変数から）
-            // 注意: 本番環境では、より安全な認証方法（JWT等）の使用を推奨します
             // 1. Presigned URLを取得
+            setProgress(5);
+            let uploadFile = file;
+            try {
+                uploadFile = await compressImage(file);
+                log.info("画像圧縮完了:", { original: file.size, compressed: uploadFile.size });
+            } catch (compressErr) {
+                log.error("画像圧縮失敗（元ファイルを使用）:", compressErr);
+            }
             setProgress(10);
             const { authenticatedFetch, userFetch } = await import("../../../lib/utils/api");
             const apiFetch = isAdminUser ? authenticatedFetch : userFetch;
@@ -120,9 +158,9 @@ export default function UploadPage() {
                 presignedResponse = await apiFetch("/upload/presigned-url", {
                     method: "POST",
                     body: JSON.stringify({
-                        fileName: file.name,
-                        fileType: file.type,
-                        fileSize: file.size,
+                        fileName: uploadFile.name,
+                        fileType: uploadFile.type,
+                        fileSize: uploadFile.size,
                     }),
                 });
             } catch (fetchError: unknown) {
@@ -227,16 +265,16 @@ export default function UploadPage() {
             try {
                 log.info("S3アップロード開始:", {
                     method: "PUT",
-                    contentType: file.type,
-                    fileSize: file.size,
-                    fileName: file.name,
+                    contentType: uploadFile.type,
+                    fileSize: uploadFile.size,
+                    fileName: uploadFile.name,
                 });
-                
+
                 const uploadResponse = await fetch(presignedUrl, {
                     method: "PUT",
-                    body: file,
+                    body: uploadFile,
                     headers: {
-                        "Content-Type": file.type,
+                        "Content-Type": uploadFile.type,
                         "Cache-Control": "max-age=31536000",
                     },
                 });
@@ -580,18 +618,20 @@ export default function UploadPage() {
                                         if (!avatarFile) return;
                                         setAvatarUploading(true);
                                         try {
+                                            let compressedAvatar = avatarFile;
+                                            try { compressedAvatar = await compressImage(avatarFile, 512, 0.9); } catch { /* use original */ }
                                             const { userFetch, authenticatedFetch } = await import("../../../lib/utils/api");
                                             const apiFetch = isAdminUser ? authenticatedFetch : userFetch;
                                             const res = await apiFetch("/profile/avatar/presigned-url", {
                                                 method: "POST",
-                                                body: JSON.stringify({ fileType: avatarFile.type }),
+                                                body: JSON.stringify({ fileType: compressedAvatar.type }),
                                             });
                                             if (!res.ok) throw new Error("Presigned URL取得失敗");
                                             const { presignedUrl } = await res.json() as { presignedUrl: string };
                                             const upload = await fetch(presignedUrl, {
                                                 method: "PUT",
-                                                body: avatarFile,
-                                                headers: { "Content-Type": avatarFile.type },
+                                                body: compressedAvatar,
+                                                headers: { "Content-Type": compressedAvatar.type },
                                             });
                                             if (!upload.ok) throw new Error("S3アップロード失敗");
                                             setAvatarFile(null);

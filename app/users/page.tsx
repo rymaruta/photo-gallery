@@ -12,6 +12,7 @@ import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../lib/utils/log";
 import { getCurrentSession } from "../../lib/auth/cognito";
 import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
+import PHOTOS_JSON from "../data/photos.json";
 
 type UserProfile = {
     userId: string;
@@ -152,38 +153,40 @@ function UsersPageInner() {
             return;
         }
 
+        // JSON から即時表示（API 待ちなし）
+        const jsonPhotos = (PHOTOS_JSON as Photo[]).filter(p => p.userId === userId);
+        setPhotos(jsonPhotos);
+        setLoading(false);
+
         const controller = new AbortController();
         const load = async () => {
             try {
-                const { publicFetch } = await import("../../lib/utils/api");
-                const [photosRes, profileRes] = await Promise.all([
-                    publicFetch(`/photos?userId=${encodeURIComponent(userId)}`, { signal: controller.signal }),
-                    fetch(`${process.env.NEXT_PUBLIC_USER_API_BASE_URL ?? ""}/profile/${encodeURIComponent(userId)}`, { signal: controller.signal }),
+                const userApiBase = process.env.NEXT_PUBLIC_USER_API_BASE_URL ?? "";
+                const [profileRes, sessionResult] = await Promise.all([
+                    fetch(`${userApiBase}/profile/${encodeURIComponent(userId)}`, { signal: controller.signal }),
+                    getCurrentSession(),
                 ]);
-                if (photosRes.ok) {
-                    const data = await photosRes.json() as unknown;
-                    if (Array.isArray(data)) setPhotos(data as Photo[]);
-                    else setError("fetch-error");
-                } else {
-                    setError("fetch-error");
-                }
                 if (profileRes.ok) {
                     const prof = await profileRes.json() as UserProfile;
                     setUserProfile(prof);
                 }
-                // 自分のプロフィールか判定
-                const session = await getCurrentSession();
-                if (session) {
-                    const sub = session.getIdToken().payload["sub"] as string | undefined;
+                if (sessionResult) {
+                    const sub = sessionResult.getIdToken().payload["sub"] as string | undefined;
                     if (sub && sub === userId) setIsOwner(true);
+                }
+                // API から新しい写真も取得して差分マージ
+                const { publicFetch } = await import("../../lib/utils/api");
+                const photosRes = await publicFetch(`/photos?userId=${encodeURIComponent(userId)}`, { signal: controller.signal });
+                if (photosRes.ok) {
+                    const data = await photosRes.json() as unknown;
+                    if (Array.isArray(data) && (data as Photo[]).length > 0) {
+                        setPhotos(data as Photo[]);
+                    }
                 }
             } catch (e) {
                 if ((e as { name?: string }).name !== "AbortError") {
-                    log.error("user fetch error:", e);
-                    setError("fetch-error");
+                    log.error("user profile fetch error:", e);
                 }
-            } finally {
-                setLoading(false);
             }
         };
         void load();
