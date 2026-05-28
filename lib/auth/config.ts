@@ -1,7 +1,7 @@
 // AWS Cognito設定
 export const cognitoConfig = {
-    userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID || "",
-    clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID || "",
+    userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID || "ap-northeast-1_ZbuhDQsWz",
+    clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID || "21cs4cd8dkttmg3snloj72u8mu",
     // ⚠️ セキュリティ警告: 通常、Cognito App Clientにはシークレットを設定しません（公開クライアント）
     // シークレットが必要な場合は、サーバーサイドでのみ使用してください（クライアントに公開しない）
     // このプロジェクトは静的エクスポート（output: "export"）を使用しているため、すべてのコードがクライアントサイドで実行されます
