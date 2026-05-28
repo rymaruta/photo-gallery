@@ -81,6 +81,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイル情報が必要です" }) };
     }
 
+    const userId = String(event.requestContext.authorizer.jwt.claims.sub ?? "");
     const photo: Photo = {
         id: photoId ?? uuidv4(),
         src: publicUrl,

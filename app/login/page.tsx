@@ -6,12 +6,15 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { forgotPassword, confirmForgotPassword } from "../../lib/auth/cognito";
+import { createUser } from "../../lib/utils/userApi";
+import { ROUTES } from "../../lib/routes";
 import { LockClosedIcon, EnvelopeIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 type Step = "login" | "forgot-send" | "forgot-confirm" | "forgot-done";
 
-export default function LoginPage() {
+function LoginForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { login, isAuthenticated, loading } = useAuth();
     const { showToast } = useToast();
 
@@ -36,6 +39,22 @@ export default function LoginPage() {
         try {
             const result = await login(username, password);
             if (result.success) {
+                // Handle post-signup profile creation
+                const postLoginRaw = sessionStorage.getItem("postLoginAction");
+                if (postLoginRaw) {
+                    sessionStorage.removeItem("postLoginAction");
+                    try {
+                        const action = JSON.parse(postLoginRaw) as { action: string; username: string; displayName: string };
+                        if (action.action === "createProfile") {
+                            const profileResult = await createUser({ username: action.username, displayName: action.displayName });
+                            if (!profileResult.success && profileResult.error !== "プロフィールは既に作成されています") {
+                                showToast(`プロフィールの作成に失敗しました: ${profileResult.error ?? "エラー"} — /users/me/edit から再設定できます`, "error");
+                            }
+                        }
+                    } catch {
+                        showToast("プロフィールの作成に失敗しました — /users/me/edit から再設定できます", "error");
+                    }
+                }
                 showToast("ログインしました", "success");
                 router.push("/");
             } else if (result.needsVerification) {
@@ -112,6 +131,13 @@ export default function LoginPage() {
                         <p className="text-white/40 text-sm mt-2">{username} に送信されたコードを入力してください</p>
                     )}
                 </div>
+
+                {/* メール確認完了メッセージ */}
+                {verified && step === "login" && (
+                    <div className="mb-6 px-4 py-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
+                        メールアドレスが確認されました。ログインしてください。
+                    </div>
+                )}
 
                 {/* エラー */}
                 {error && (
@@ -283,7 +309,24 @@ export default function LoginPage() {
                         </button>
                     </div>
                 )}
+
+                {step === "login" && (
+                    <p className="text-center text-xs text-white/40 mt-6">
+                        アカウントをお持ちでない方は{" "}
+                        <Link href={ROUTES.SIGNUP} className="text-white/60 hover:text-white underline transition-colors">
+                            新規登録
+                        </Link>
+                    </p>
+                )}
             </div>
         </main>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense>
+            <LoginForm />
+        </Suspense>
     );
 }

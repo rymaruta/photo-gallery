@@ -12,6 +12,8 @@ export type Photo = {
     displayName?: string;
     createdAt?: string;
     updatedAt?: string;
+    userId?: string;
+    uploadedBy?: string;
     exif?: {
         camera?: string;
         lens?: string;

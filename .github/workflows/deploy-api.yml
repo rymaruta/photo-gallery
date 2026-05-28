@@ -1,0 +1,94 @@
+name: Deploy API Lambdas (Manual)
+
+# 手動トリガー: GitHub UIの "Actions" タブから "Run workflow" で実行
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "デプロイ対象"
+        required: true
+        default: "both"
+        type: choice
+        options:
+          - both
+          - admin-api
+          - user-api
+
+env:
+  AWS_REGION: ap-northeast-1
+  COGNITO_USER_POOL_ID: ap-northeast-1_ZbuhDQsWz
+  COGNITO_CLIENT_ID: 21cs4cd8dkttmg3snloj72u8mu
+  PHOTOS_BUCKET: prod-journey-photo.com
+  UPLOAD_BUCKET: prod-journey-photo-upload
+  CLOUDFRONT_URL: https://d1s3dwwzgxf5ni.cloudfront.net
+  USERS_TABLE: prod-photo-gallery-users
+
+jobs:
+  deploy-admin-api:
+    name: Deploy admin API (api/)
+    if: ${{ github.event.inputs.target == 'both' || github.event.inputs.target == 'admin-api' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: api
+        run: npm ci
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Serverless deploy
+        working-directory: api
+        run: |
+          npx serverless@3 deploy --stage prod \
+            --param "photosBucket=${{ env.PHOTOS_BUCKET }}" \
+            --param "uploadBucket=${{ env.UPLOAD_BUCKET }}" \
+            --param "cloudfrontUrl=${{ env.CLOUDFRONT_URL }}" \
+            --param "cognitoUserPoolId=${{ env.COGNITO_USER_POOL_ID }}" \
+            --param "cognitoClientId=${{ env.COGNITO_CLIENT_ID }}" \
+            --param "usersTable=${{ env.USERS_TABLE }}"
+
+  deploy-user-api:
+    name: Deploy user API (api-user/)
+    if: ${{ github.event.inputs.target == 'both' || github.event.inputs.target == 'user-api' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: api-user/package-lock.json
+
+      - name: Install dependencies
+        working-directory: api-user
+        run: npm ci
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Serverless deploy
+        working-directory: api-user
+        run: |
+          npx serverless@3 deploy --stage prod \
+            --param "photosBucket=${{ env.PHOTOS_BUCKET }}" \
+            --param "uploadBucket=${{ env.UPLOAD_BUCKET }}" \
+            --param "cloudfrontUrl=${{ env.CLOUDFRONT_URL }}" \
+            --param "cognitoUserPoolId=${{ env.COGNITO_USER_POOL_ID }}" \
+            --param "cognitoClientId=${{ env.COGNITO_CLIENT_ID }}"

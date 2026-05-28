@@ -11,6 +11,7 @@ export type Photo = {
     uploadedBy?: string;
     createdAt?: string;
     updatedAt?: string;
+    userId?: string; // Cognito sub - 投稿者
     exif?: {
         camera?: string;
         lens?: string;
@@ -22,4 +23,16 @@ export type Photo = {
         imageSize?: string;
     };
     [key: string]: unknown;
+};
+
+export type User = {
+    userId: string;       // PK - Cognito sub
+    username: string;     // GSI - 一意のhandle (例: ryuhei)
+    displayName: string;  // 表示名
+    email: string;
+    bio?: string;
+    avatarKey?: string;   // S3キー (例: avatars/xxx.jpg)
+    role?: "admin" | "user";
+    createdAt: string;
+    updatedAt: string;
 };
