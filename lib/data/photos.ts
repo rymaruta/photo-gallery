@@ -61,7 +61,6 @@ export type Photo = {
     views?: number;
     sourceUrl?: string;
     sensitive?: boolean;
-    userId?: string;
     uploadedBy?: string;
     uploaderUsername?: string;
     uploaderDisplayName?: string;
