@@ -174,7 +174,9 @@ function PhotoImage({
                     alt={alt}
                     width={1200}
                     height={800}
-                    className="w-full h-auto object-contain max-h-[80vh]"
+                    draggable={false}
+                    onContextMenu={(e) => e.preventDefault()}
+                    className="w-full h-auto object-contain max-h-[80vh] select-none"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1200px"
                     priority
                     style={{
