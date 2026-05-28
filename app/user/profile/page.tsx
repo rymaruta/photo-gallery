@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, UserCircleIcon, CameraIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
@@ -17,30 +17,34 @@ type UserProfile = {
     website?: string;
 };
 
+const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
+
 export default function ProfileEditPage() {
     const { isAuthenticated, loading } = useAuth();
     const { locale } = useLocale();
     const router = useRouter();
     const { showToast } = useToast();
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [fetching, setFetching] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [avatarUploading, setAvatarUploading] = useState(false);
 
     const [displayName, setDisplayName] = useState("");
     const [bio, setBio] = useState("");
     const [instagram, setInstagram] = useState("");
     const [website, setWebsite] = useState("");
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+    const [avatarError, setAvatarError] = useState(false);
 
     useEffect(() => {
-        if (!loading && !isAuthenticated) {
-            router.replace("/login");
-        }
+        if (!loading && !isAuthenticated) router.replace("/login");
     }, [isAuthenticated, loading, router]);
 
     useEffect(() => {
         if (!isAuthenticated) return;
-        const load = async () => {
+        void (async () => {
             try {
                 const res = await userFetch("/user/profile");
                 if (res.ok) {
@@ -51,14 +55,47 @@ export default function ProfileEditPage() {
                     setInstagram(data.instagram ?? "");
                     setWebsite(data.website ?? "");
                 }
-            } catch {
-                /* ignore */
-            } finally {
+            } catch { /* ignore */ } finally {
                 setFetching(false);
             }
-        };
-        void load();
+        })();
     }, [isAuthenticated]);
+
+    const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // プレビュー表示
+        const reader = new FileReader();
+        reader.onload = (ev) => setAvatarPreview(ev.target?.result as string);
+        reader.readAsDataURL(file);
+
+        setAvatarUploading(true);
+        try {
+            // Presigned URL 取得
+            const res = await userFetch("/profile/avatar/presigned-url", {
+                method: "POST",
+                body: JSON.stringify({ fileType: file.type }),
+            });
+            if (!res.ok) { showToast("アバターのアップロードに失敗しました", "error"); return; }
+            const { presignedUrl } = await res.json() as { presignedUrl: string };
+
+            // S3 に直接アップロード
+            const uploadRes = await fetch(presignedUrl, {
+                method: "PUT",
+                body: file,
+                headers: { "Content-Type": file.type },
+            });
+            if (!uploadRes.ok) { showToast("アバターのアップロードに失敗しました", "error"); return; }
+
+            setAvatarError(false);
+            showToast("プロフィール写真を更新しました", "success");
+        } catch {
+            showToast("アバターのアップロードに失敗しました", "error");
+        } finally {
+            setAvatarUploading(false);
+        }
+    };
 
     const handleSave = async () => {
         setSaving(true);
@@ -87,23 +124,73 @@ export default function ProfileEditPage() {
         );
     }
 
-    const inputClass = "w-full bg-white/5 border border-white/10 rounded-md px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30";
-    const labelClass = "block text-xs text-white/50 mb-1";
+    const currentAvatarUrl = profile?.userId && CLOUDFRONT_URL
+        ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}`
+        : null;
+
+    const inputClass = "w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors";
+    const labelClass = "block text-xs text-white/50 mb-1.5 tracking-wide";
 
     return (
-        <main className="min-h-screen bg-black text-white px-4 py-8 sm:px-6">
-            <div className="max-w-lg mx-auto">
+        <main className="min-h-screen bg-black text-white">
+            <div className="max-w-sm mx-auto px-4 pt-12 pb-16">
                 <Link
                     href="/"
-                    className="inline-flex items-center gap-2 text-white/50 hover:text-white transition-colors text-sm mb-8"
+                    className="inline-flex items-center gap-1.5 text-xs text-white/40 hover:text-white/60 transition-colors mb-10"
                 >
-                    <ArrowLeftIcon className="w-4 h-4" />
+                    <ArrowLeftIcon className="w-3 h-3" />
                     {locale === "en" ? "Back" : "戻る"}
                 </Link>
 
                 <h1 className="text-xl font-bold mb-8">
                     {locale === "en" ? "Edit Profile" : "プロフィール編集"}
                 </h1>
+
+                {/* アバター */}
+                <div className="flex flex-col items-center mb-8">
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={avatarUploading}
+                        className="relative group"
+                        aria-label={locale === "en" ? "Change profile photo" : "プロフィール写真を変更"}
+                    >
+                        <div className="w-20 h-20 rounded-full overflow-hidden bg-white/10 ring-2 ring-white/20 group-hover:ring-white/50 transition-all">
+                            {avatarPreview ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
+                            ) : currentAvatarUrl && !avatarError ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                    src={currentAvatarUrl}
+                                    alt=""
+                                    className="w-full h-full object-cover"
+                                    onError={() => setAvatarError(true)}
+                                />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                    <UserCircleIcon className="w-10 h-10 text-white/30" />
+                                </div>
+                            )}
+                        </div>
+                        <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {avatarUploading
+                                ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                : <CameraIcon className="w-6 h-6 text-white" />
+                            }
+                        </div>
+                    </button>
+                    <p className="text-xs text-white/40 mt-2">
+                        {locale === "en" ? "Tap to change photo" : "タップして写真を変更"}
+                    </p>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => void handleAvatarChange(e)}
+                    />
+                </div>
 
                 <div className="space-y-5">
                     <div>
@@ -129,7 +216,7 @@ export default function ProfileEditPage() {
                             onChange={e => setBio(e.target.value)}
                             maxLength={300}
                             rows={4}
-                            placeholder={locale === "en" ? "Tell us about yourself..." : "自己紹介を書いてください..."}
+                            placeholder={locale === "en" ? "Tell us about yourself..." : "旅と写真が好きです…"}
                             className={`${inputClass} resize-none`}
                         />
                         <div className="text-right text-xs text-white/30 mt-1">{bio.length}/300</div>
@@ -138,7 +225,7 @@ export default function ProfileEditPage() {
                     <div>
                         <label className={labelClass}>Instagram</label>
                         <div className="flex items-center">
-                            <span className="text-white/40 text-sm px-3 py-2 bg-white/5 border border-r-0 border-white/10 rounded-l-md">@</span>
+                            <span className="text-white/40 text-sm px-3 py-3 bg-white/5 border border-r-0 border-white/10 rounded-l-lg">@</span>
                             <input
                                 type="text"
                                 value={instagram}
@@ -164,12 +251,13 @@ export default function ProfileEditPage() {
                         />
                     </div>
 
-                    <div className="pt-4">
+                    <div className="pt-2">
                         <button
                             onClick={() => void handleSave()}
-                            disabled={saving}
-                            className="w-full py-3 bg-white text-black text-sm font-medium rounded-md hover:bg-white/90 transition-colors disabled:opacity-50"
+                            disabled={saving || avatarUploading}
+                            className="w-full py-3 bg-white text-black text-sm font-semibold rounded-lg hover:bg-white/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
+                            {saving && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
                             {saving
                                 ? (locale === "en" ? "Saving..." : "保存中...")
                                 : (locale === "en" ? "Save" : "保存する")}
