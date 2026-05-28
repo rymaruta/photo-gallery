@@ -1,14 +1,17 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, Suspense } from "react";
+import React, { useEffect, useState, useMemo, useCallback, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeftIcon, UserCircleIcon, GlobeAltIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, UserCircleIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon } from "@heroicons/react/24/outline";
 import { useLocale } from "../i18n/context";
+import { useToast } from "../../lib/hooks/useToast";
 import type { Photo } from "@/lib/data/photos";
 import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../lib/utils/log";
+import { getCurrentSession } from "../../lib/auth/cognito";
+import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
 
 type UserProfile = {
     userId: string;
@@ -69,40 +72,70 @@ function CoverPhoto({ userId }: { userId: string }) {
     );
 }
 
-function PhotoCard({ photo, locale }: { photo: Photo; locale: string }) {
+function PhotoCard({ photo, locale, isOwner, onTogglePublish }: {
+    photo: Photo;
+    locale: string;
+    isOwner: boolean;
+    onTogglePublish?: (id: string, published: boolean) => void;
+}) {
     const [imageError, setImageError] = useState(false);
     const title = getLocalized(photo.title, locale as "ja" | "en") || (typeof photo.title === "string" ? photo.title : "");
+    const isHidden = photo.published === false;
 
     return (
-        <Link
-            href={`/photo/${photo.id}`}
-            className="block relative overflow-hidden bg-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-            style={{ paddingTop: "100%" }}
-        >
-            {!imageError ? (
-                <Image
-                    src={photo.src}
-                    alt={title}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width:640px) 33vw, (max-width:1024px) 25vw, 20vw"
-                    loading="lazy"
-                    onError={() => setImageError(true)}
-                />
-            ) : (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
-                    <svg className="w-8 h-8 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+        <div className="relative" style={{ paddingTop: "100%" }}>
+            <Link
+                href={`/photo/${photo.id}`}
+                className={`absolute inset-0 overflow-hidden bg-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${isHidden ? "opacity-40" : ""}`}
+            >
+                {!imageError ? (
+                    <Image
+                        src={photo.src}
+                        alt={title}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width:640px) 33vw, (max-width:1024px) 25vw, 20vw"
+                        loading="lazy"
+                        onError={() => setImageError(true)}
+                    />
+                ) : (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
+                        <svg className="w-8 h-8 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                )}
+                <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors" />
+            </Link>
+
+            {/* 自分のプロフィール: 公開/非公開トグル */}
+            {isOwner && (
+                <button
+                    onClick={(e) => { e.preventDefault(); onTogglePublish?.(photo.id, !isHidden); }}
+                    className={`absolute top-1.5 right-1.5 p-1.5 rounded-full transition-colors z-10 ${
+                        isHidden
+                            ? "bg-black/80 text-white/80 hover:bg-black"
+                            : "bg-black/0 text-white/0 hover:bg-black/60 hover:text-white/80"
+                    }`}
+                    title={isHidden ? (locale === "en" ? "Show" : "公開する") : (locale === "en" ? "Hide" : "非公開にする")}
+                >
+                    <EyeSlashIcon className="w-4 h-4" />
+                </button>
+            )}
+
+            {/* 非公開バッジ */}
+            {isOwner && isHidden && (
+                <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-black/80 rounded text-xs text-white/70 pointer-events-none">
+                    {locale === "en" ? "Hidden" : "非公開"}
                 </div>
             )}
-            <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors" />
-        </Link>
+        </div>
     );
 }
 
 function UsersPageInner() {
     const { locale } = useLocale();
+    const { showToast } = useToast();
     const searchParams = useSearchParams();
     const userId = searchParams.get("id");
 
@@ -110,6 +143,7 @@ function UsersPageInner() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+    const [isOwner, setIsOwner] = useState(false);
 
     useEffect(() => {
         if (!userId) {
@@ -137,6 +171,12 @@ function UsersPageInner() {
                     const prof = await profileRes.json() as UserProfile;
                     setUserProfile(prof);
                 }
+                // 自分のプロフィールか判定
+                const session = await getCurrentSession();
+                if (session) {
+                    const sub = session.getIdToken().payload["sub"] as string | undefined;
+                    if (sub && sub === userId) setIsOwner(true);
+                }
             } catch (e) {
                 if ((e as { name?: string }).name !== "AbortError") {
                     log.error("user fetch error:", e);
@@ -155,6 +195,38 @@ function UsersPageInner() {
         if (photos.length === 0) return null;
         return photos.find(p => p.displayName)?.displayName ?? null;
     }, [userProfile, photos]);
+
+    const handleTogglePublish = useCallback(async (photoId: string, publish: boolean) => {
+        try {
+            const { authenticatedFetch } = await import("../../lib/utils/api");
+            const res = await authenticatedFetch(`/photos/${photoId}`, {
+                method: "PUT",
+                body: JSON.stringify({ published: publish }),
+            });
+            if (res.ok) {
+                setPhotos(prev => prev.map(p => p.id === photoId ? { ...p, published: publish } : p));
+                showToast(publish
+                    ? (locale === "en" ? "Photo is now public" : "写真を公開しました")
+                    : (locale === "en" ? "Photo is now hidden" : "写真を非公開にしました"),
+                    "success"
+                );
+            } else {
+                showToast(locale === "en" ? "Failed to update" : "更新に失敗しました", "error");
+            }
+        } catch {
+            showToast(locale === "en" ? "Failed to update" : "更新に失敗しました", "error");
+        }
+    }, [locale, showToast]);
+
+    const handleShareProfile = useCallback(async () => {
+        const url = typeof window !== "undefined" ? window.location.href : "";
+        try {
+            await copyToClipboard(url);
+            showToast(locale === "en" ? "Link copied!" : "リンクをコピーしました", "success");
+        } catch {
+            showToast(locale === "en" ? "Failed to copy" : "コピーに失敗しました", "error");
+        }
+    }, [locale, showToast]);
 
     if (!userId || error === "no-id") {
         return (
@@ -211,13 +283,39 @@ function UsersPageInner() {
                             <ProfileAvatar userId={userId} size="lg" />
                         </div>
                         <div className="flex-1 min-w-0 pb-1">
-                            <h1 className="text-xl sm:text-2xl font-bold leading-tight">
-                                {displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}
-                            </h1>
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-xl sm:text-2xl font-bold leading-tight">
+                                    {displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}
+                                </h1>
+                                {/* シェアボタン */}
+                                <div className="flex items-center gap-1 ml-auto">
+                                    <button
+                                        onClick={() => void handleShareProfile()}
+                                        className="p-2 rounded-full text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
+                                        title={locale === "en" ? "Copy profile link" : "プロフィールリンクをコピー"}
+                                    >
+                                        <LinkIcon className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => shareToTwitter(typeof window !== "undefined" ? window.location.href : "", displayName ?? "")}
+                                        className="p-2 rounded-full text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
+                                        title="Share on X"
+                                    >
+                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                                    </button>
+                                    <button
+                                        onClick={() => shareToLine(typeof window !== "undefined" ? window.location.href : "", displayName ?? "")}
+                                        className="p-2 rounded-full text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
+                                        title="Share on LINE"
+                                    >
+                                        <ShareIcon className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
                             {/* 投稿数バッジ */}
                             <div className="flex items-center gap-3 mt-1.5">
                                 <span className="inline-flex flex-col items-center">
-                                    <span className="text-base font-bold">{photos.length}</span>
+                                    <span className="text-base font-bold">{isOwner ? photos.length : photos.filter(p => p.published !== false).length}</span>
                                     <span className="text-xs text-white/50">{locale === "en" ? "posts" : "投稿"}</span>
                                 </span>
                             </div>
@@ -269,8 +367,8 @@ function UsersPageInner() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-0.5">
-                        {photos.map(photo => (
-                            <PhotoCard key={photo.id} photo={photo} locale={locale} />
+                        {(isOwner ? photos : photos.filter(p => p.published !== false)).map(photo => (
+                            <PhotoCard key={photo.id} photo={photo} locale={locale} isOwner={isOwner} onTogglePublish={handleTogglePublish} />
                         ))}
                     </div>
                 )}
