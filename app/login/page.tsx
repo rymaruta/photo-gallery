@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { forgotPassword, confirmForgotPassword } from "../../lib/auth/cognito";
@@ -10,8 +10,10 @@ import { LockClosedIcon, EnvelopeIcon, ArrowLeftIcon } from "@heroicons/react/24
 
 type Step = "login" | "forgot-send" | "forgot-confirm" | "forgot-done";
 
-export default function LoginPage() {
+function LoginForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const verified = searchParams?.get("verified") === "1";
     const { login, isAuthenticated, loading } = useAuth();
     const { showToast } = useToast();
 
@@ -285,5 +287,13 @@ export default function LoginPage() {
                 )}
             </div>
         </main>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense>
+            <LoginForm />
+        </Suspense>
     );
 }

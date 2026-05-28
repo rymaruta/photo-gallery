@@ -38,6 +38,15 @@ if (!fs.existsSync(outDir)) {
     process.exit(1);
 }
 
+// photos.json を out/ にコピー（Lambda が S3 から読む用）
+const photosJsonSrc = path.join(root, "app", "data", "photos.json");
+const photosJsonDest = path.join(outDir, "app", "data", "photos.json");
+if (fs.existsSync(photosJsonSrc)) {
+    fs.mkdirSync(path.dirname(photosJsonDest), { recursive: true });
+    fs.copyFileSync(photosJsonSrc, photosJsonDest);
+    console.log(`[deploy] Copied app/data/photos.json → out/app/data/`);
+}
+
 const region = "ap-northeast-1";
 const s3 = new S3Client({ region });
 const cf = new CloudFrontClient({ region });
