@@ -56,7 +56,7 @@ function CoverPhoto({ userId }: { userId: string }) {
     const coverUrl = CLOUDFRONT_URL ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(userId)}/cover` : "";
 
     if (!coverUrl || coverError) {
-        return <div className="w-full h-32 sm:h-44 bg-gradient-to-b from-white/5 to-black" />;
+        return <div className="w-full h-20 sm:h-28 bg-gradient-to-b from-white/5 to-black" />;
     }
 
     return (
@@ -281,46 +281,43 @@ function UsersPageInner() {
                 {/* プロフィールヘッダー */}
                 <div className="pb-6">
                     {/* アバター + 名前・投稿数 */}
-                    <div className="flex items-end gap-4 mb-4 -mt-10">
-                        <div className="ring-4 ring-black rounded-full">
+                    <div className="flex items-end gap-4 mb-4 -mt-8">
+                        <div className="ring-4 ring-black rounded-full flex-shrink-0">
                             <ProfileAvatar userId={userId} size="lg" />
                         </div>
                         <div className="flex-1 min-w-0 pb-1">
-                            <div className="flex items-center gap-2">
-                                <h1 className="text-xl sm:text-2xl font-bold leading-tight">
-                                    {displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}
-                                </h1>
-                                {/* シェアボタン */}
-                                <div className="flex items-center gap-1 ml-auto">
-                                    <button
-                                        onClick={() => void handleShareProfile()}
-                                        className="p-2 rounded-full text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
-                                        title={locale === "en" ? "Copy profile link" : "プロフィールリンクをコピー"}
-                                    >
-                                        <LinkIcon className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        onClick={() => shareToTwitter(typeof window !== "undefined" ? window.location.href : "", displayName ?? "")}
-                                        className="p-2 rounded-full text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
-                                        title="Share on X"
-                                    >
-                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                                    </button>
-                                    <button
-                                        onClick={() => shareToLine(typeof window !== "undefined" ? window.location.href : "", displayName ?? "")}
-                                        className="p-2 rounded-full text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
-                                        title="Share on LINE"
-                                    >
-                                        <ShareIcon className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </div>
-                            {/* 投稿数バッジ */}
-                            <div className="flex items-center gap-3 mt-1.5">
-                                <span className="inline-flex flex-col items-center">
+                            <h1 className="text-xl sm:text-2xl font-bold leading-tight truncate">
+                                {displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}
+                            </h1>
+                            {/* 投稿数 + シェアボタン */}
+                            <div className="flex items-center gap-3 mt-1">
+                                <span className="inline-flex items-baseline gap-1">
                                     <span className="text-base font-bold">{isOwner ? photos.length : photos.filter(p => p.published !== false).length}</span>
                                     <span className="text-xs text-white/50">{locale === "en" ? "posts" : "投稿"}</span>
                                 </span>
+                                <div className="flex items-center gap-0.5 ml-auto">
+                                    <button
+                                        onClick={() => void handleShareProfile()}
+                                        className="p-1.5 rounded-full text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
+                                        title={locale === "en" ? "Copy profile link" : "リンクをコピー"}
+                                    >
+                                        <LinkIcon className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                        onClick={() => shareToTwitter(typeof window !== "undefined" ? window.location.href : "", displayName ?? "")}
+                                        className="p-1.5 rounded-full text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
+                                        title="X"
+                                    >
+                                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                                    </button>
+                                    <button
+                                        onClick={() => shareToLine(typeof window !== "undefined" ? window.location.href : "", displayName ?? "")}
+                                        className="p-1.5 rounded-full text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
+                                        title="LINE"
+                                    >
+                                        <ShareIcon className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

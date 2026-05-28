@@ -439,7 +439,7 @@ function FilterBarInner({
                     </div>
 
                     <div className="ml-auto flex items-center gap-2">
-                        <div className="hidden sm:block text-xs text-white/60">{selectedSummary}</div>
+                        {tags.length > mobileCollapseLimit && (
                         <button
                             type="button"
                             onClick={toggleShowAll}
@@ -451,23 +451,25 @@ function FilterBarInner({
                                 WebkitTapHighlightColor: "transparent",
                             }}
                         >
-                            {showAllFixedLabel}
+                            {showAllTags ? (locale === "en" ? "Less" : "閉じる") : showAllFixedLabel}
                         </button>
+                        )}
 
+                        {values.selectedTags && values.selectedTags.length > 0 && (
                         <button
                             type="button"
                             onClick={clearTags}
-                            disabled={!values.selectedTags || values.selectedTags.length === 0 || isPending}
-                            aria-disabled={!values.selectedTags || values.selectedTags.length === 0 || isPending}
-                            className={`inline-flex items-center gap-2 text-xs focus:outline-none focus:ring-0 font-normal ${isPending ? "opacity-60 pointer-events-none text-white/60" : !values.selectedTags || values.selectedTags.length === 0 ? "opacity-50 pointer-events-none text-white/60" : "bg-white/5 text-white/80"}`}
+                            disabled={isPending}
+                            className={`inline-flex items-center gap-2 text-xs focus:outline-none focus:ring-0 font-normal ${isPending ? "opacity-60 pointer-events-none text-white/60" : "bg-white/5 text-white/80"}`}
                             style={{
                                 ...STYLE.controlBtn,
                                 touchAction: "manipulation",
                                 WebkitTapHighlightColor: "transparent",
                             }}
                         >
-                            {isPending ? "Clearing..." : clearLabel}
+                            {isPending ? "..." : clearLabel}
                         </button>
+                        )}
                     </div>
                 </div>
             </div>
