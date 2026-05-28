@@ -47,6 +47,28 @@ function ProfileAvatar({ userId, size = "md" }: { userId: string; size?: "md" | 
     );
 }
 
+function CoverPhoto({ userId }: { userId: string }) {
+    const [coverError, setCoverError] = useState(false);
+    const coverUrl = CLOUDFRONT_URL ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(userId)}/cover` : "";
+
+    if (!coverUrl || coverError) {
+        return <div className="w-full h-32 sm:h-44 bg-gradient-to-b from-white/5 to-black" />;
+    }
+
+    return (
+        <div className="w-full h-32 sm:h-44 relative overflow-hidden bg-black">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+                src={coverUrl}
+                alt=""
+                className="w-full h-full object-cover"
+                onError={() => setCoverError(true)}
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60" />
+        </div>
+    );
+}
+
 function PhotoCard({ photo, locale }: { photo: Photo; locale: string }) {
     const [imageError, setImageError] = useState(false);
     const title = getLocalized(photo.title, locale as "ja" | "en") || (typeof photo.title === "string" ? photo.title : "");
@@ -164,35 +186,46 @@ function UsersPageInner() {
     }
 
     return (
-        <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
-            <div className="mb-6">
-                <Link
-                    href="/"
-                    className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-6"
-                    style={{ minHeight: "44px" }}
-                >
-                    <ArrowLeftIcon className="w-4 h-4" />
-                    <span className="text-sm">{locale === "en" ? "Back to Gallery" : "ギャラリーに戻る"}</span>
-                </Link>
+        <main className="min-h-screen text-white bg-black">
+            {/* カバー写真 */}
+            <CoverPhoto userId={userId} />
+
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
+                {/* 戻るリンク（カバー写真の上に重ねる） */}
+                <div className="-mt-8 relative z-10 mb-4">
+                    <Link
+                        href="/"
+                        className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors drop-shadow"
+                        style={{ minHeight: "44px" }}
+                    >
+                        <ArrowLeftIcon className="w-4 h-4" />
+                        <span className="text-sm">{locale === "en" ? "Back to Gallery" : "ギャラリーに戻る"}</span>
+                    </Link>
+                </div>
 
                 {/* プロフィールヘッダー */}
-                <div className="py-6">
-                    <div className="flex items-start gap-4 mb-4">
-                        <ProfileAvatar userId={userId} size="lg" />
-                        <div className="flex-1 min-w-0">
-                            <h1 className="text-xl sm:text-2xl font-bold">
+                <div className="pb-6">
+                    {/* アバター + 名前・投稿数 */}
+                    <div className="flex items-end gap-4 mb-4 -mt-10">
+                        <div className="ring-4 ring-black rounded-full">
+                            <ProfileAvatar userId={userId} size="lg" />
+                        </div>
+                        <div className="flex-1 min-w-0 pb-1">
+                            <h1 className="text-xl sm:text-2xl font-bold leading-tight">
                                 {displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}
                             </h1>
-                            <p className="text-sm text-white/50 mt-1">
-                                {locale === "en"
-                                    ? `${photos.length} photo${photos.length !== 1 ? "s" : ""}`
-                                    : `${photos.length} 枚`}
-                            </p>
+                            {/* 投稿数バッジ */}
+                            <div className="flex items-center gap-3 mt-1.5">
+                                <span className="inline-flex flex-col items-center">
+                                    <span className="text-base font-bold">{photos.length}</span>
+                                    <span className="text-xs text-white/50">{locale === "en" ? "posts" : "投稿"}</span>
+                                </span>
+                            </div>
                         </div>
                     </div>
 
                     {userProfile?.bio && (
-                        <p className="text-sm text-white/70 whitespace-pre-wrap mb-3">{userProfile.bio}</p>
+                        <p className="text-sm text-white/70 whitespace-pre-wrap mb-3 leading-relaxed">{userProfile.bio}</p>
                     )}
 
                     {(userProfile?.instagram || userProfile?.website) && (
@@ -225,23 +258,23 @@ function UsersPageInner() {
                     )}
                 </div>
 
-                <div className="border-t border-white/10" />
-            </div>
+                <div className="border-t border-white/10 mb-0.5" />
 
-            {photos.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-white/50 gap-2">
-                    <UserCircleIcon className="w-12 h-12" />
-                    <p className="text-sm">
-                        {locale === "en" ? "No photos yet." : "まだ写真がありません。"}
-                    </p>
-                </div>
-            ) : (
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-0.5">
-                    {photos.map(photo => (
-                        <PhotoCard key={photo.id} photo={photo} locale={locale} />
-                    ))}
-                </div>
-            )}
+                {photos.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-white/50 gap-2">
+                        <UserCircleIcon className="w-12 h-12" />
+                        <p className="text-sm">
+                            {locale === "en" ? "No photos yet." : "まだ写真がありません。"}
+                        </p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-0.5">
+                        {photos.map(photo => (
+                            <PhotoCard key={photo.id} photo={photo} locale={locale} />
+                        ))}
+                    </div>
+                )}
+            </div>
         </main>
     );
 }

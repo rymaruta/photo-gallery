@@ -14,19 +14,20 @@ function getUserId(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[
 export const profileAvatarPresignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
 
-    let body: { fileType?: string };
+    let body: { fileType?: string; type?: string };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
     } catch {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なリクエスト" }) };
     }
 
-    const { fileType } = body;
+    const { fileType, type } = body;
     if (!fileType || !fileType.startsWith("image/")) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "画像ファイルを選択してください" }) };
     }
 
-    const key = `profiles/${userId}`;
+    // type: "cover" → profiles/{userId}/cover, それ以外 → profiles/{userId}
+    const key = type === "cover" ? `profiles/${userId}/cover` : `profiles/${userId}`;
 
     const presigned = await getSignedUrl(
         s3,

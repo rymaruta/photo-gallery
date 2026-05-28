@@ -37,6 +37,10 @@ export default function ProfileEditPage() {
     const [website, setWebsite] = useState("");
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [avatarError, setAvatarError] = useState(false);
+    const coverInputRef = useRef<HTMLInputElement>(null);
+    const [coverPreview, setCoverPreview] = useState<string | null>(null);
+    const [coverError, setCoverError] = useState(false);
+    const [coverUploading, setCoverUploading] = useState(false);
 
     useEffect(() => {
         if (!loading && !isAuthenticated) router.replace("/login");
@@ -60,6 +64,35 @@ export default function ProfileEditPage() {
             }
         })();
     }, [isAuthenticated]);
+
+    const handleCoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => setCoverPreview(ev.target?.result as string);
+        reader.readAsDataURL(file);
+        setCoverUploading(true);
+        try {
+            const res = await userFetch("/profile/avatar/presigned-url", {
+                method: "POST",
+                body: JSON.stringify({ fileType: file.type, type: "cover" }),
+            });
+            if (!res.ok) { showToast("カバー写真のアップロードに失敗しました", "error"); return; }
+            const { presignedUrl } = await res.json() as { presignedUrl: string };
+            const uploadRes = await fetch(presignedUrl, {
+                method: "PUT",
+                body: file,
+                headers: { "Content-Type": file.type },
+            });
+            if (!uploadRes.ok) { showToast("カバー写真のアップロードに失敗しました", "error"); return; }
+            setCoverError(false);
+            showToast("カバー写真を更新しました", "success");
+        } catch {
+            showToast("カバー写真のアップロードに失敗しました", "error");
+        } finally {
+            setCoverUploading(false);
+        }
+    };
 
     const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -127,6 +160,9 @@ export default function ProfileEditPage() {
     const currentAvatarUrl = profile?.userId && CLOUDFRONT_URL
         ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}`
         : null;
+    const currentCoverUrl = profile?.userId && CLOUDFRONT_URL
+        ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}/cover`
+        : null;
 
     const inputClass = "w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors";
     const labelClass = "block text-xs text-white/50 mb-1.5 tracking-wide";
@@ -142,9 +178,40 @@ export default function ProfileEditPage() {
                     {locale === "en" ? "Back" : "戻る"}
                 </Link>
 
-                <h1 className="text-xl font-bold mb-8">
+                <h1 className="text-xl font-bold mb-6">
                     {locale === "en" ? "Edit Profile" : "プロフィール編集"}
                 </h1>
+
+                {/* カバー写真 */}
+                <div className="mb-6">
+                    <p className={labelClass}>{locale === "en" ? "Cover photo" : "カバー写真"}</p>
+                    <button
+                        type="button"
+                        onClick={() => coverInputRef.current?.click()}
+                        disabled={coverUploading}
+                        className="relative w-full h-28 rounded-lg overflow-hidden bg-white/5 border border-white/10 hover:border-white/30 transition-colors group"
+                    >
+                        {coverPreview ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={coverPreview} alt="" className="w-full h-full object-cover" />
+                        ) : currentCoverUrl && !coverError ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={currentCoverUrl} alt="" className="w-full h-full object-cover" onError={() => setCoverError(true)} />
+                        ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-white/30">
+                                <CameraIcon className="w-6 h-6" />
+                                <span className="text-xs">{locale === "en" ? "Add cover photo" : "カバー写真を追加"}</span>
+                            </div>
+                        )}
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {coverUploading
+                                ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                : <CameraIcon className="w-6 h-6 text-white" />}
+                        </div>
+                    </button>
+                    <input ref={coverInputRef} type="file" accept="image/*" className="hidden"
+                        onChange={(e) => void handleCoverChange(e)} />
+                </div>
 
                 {/* アバター */}
                 <div className="flex flex-col items-center mb-8">
