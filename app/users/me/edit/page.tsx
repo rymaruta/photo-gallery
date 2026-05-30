@@ -68,7 +68,7 @@ export default function EditProfilePage() {
         <main className="min-h-screen bg-black text-white">
             <div className="max-w-sm mx-auto px-4 pt-16 pb-16">
                 <button
-                    onClick={() => profile ? router.push(ROUTES.USER_PROFILE(profile.username)) : router.push(ROUTES.HOME)}
+                    onClick={() => profile ? router.push(ROUTES.USER_PROFILE(profile.userId)) : router.push(ROUTES.HOME)}
                     className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/60 transition-colors mb-8"
                 >
                     <ArrowLeftIcon className="w-3 h-3" />

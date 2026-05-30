@@ -109,8 +109,15 @@ export default function UploadPage() {
         setProgress(0);
 
         try {
-            // APIキーを取得（環境変数から）
-            // 注意: 本番環境では、より安全な認証方法（JWT等）の使用を推奨します
+            setProgress(5);
+            let uploadFile = file;
+            try {
+                uploadFile = await compressImage(file);
+                log.info("画像圧縮完了:", { original: file.size, compressed: uploadFile.size });
+            } catch (compressErr) {
+                log.error("画像圧縮失敗（元ファイルを使用）:", compressErr);
+            }
+
             // 1. Presigned URLを取得
             setProgress(10);
             const { authenticatedFetch, userFetch } = await import("../../../lib/utils/api");
@@ -121,9 +128,9 @@ export default function UploadPage() {
                 presignedResponse = await apiFetch("/upload/presigned-url", {
                     method: "POST",
                     body: JSON.stringify({
-                        fileName: file.name,
-                        fileType: file.type,
-                        fileSize: file.size,
+                        fileName: uploadFile.name,
+                        fileType: uploadFile.type,
+                        fileSize: uploadFile.size,
                     }),
                 });
             } catch (fetchError: unknown) {
@@ -228,16 +235,16 @@ export default function UploadPage() {
             try {
                 log.info("S3アップロード開始:", {
                     method: "PUT",
-                    contentType: file.type,
-                    fileSize: file.size,
-                    fileName: file.name,
+                    contentType: uploadFile.type,
+                    fileSize: uploadFile.size,
+                    fileName: uploadFile.name,
                 });
-                
+
                 const uploadResponse = await fetch(presignedUrl, {
                     method: "PUT",
-                    body: file,
+                    body: uploadFile,
                     headers: {
-                        "Content-Type": file.type,
+                        "Content-Type": uploadFile.type,
                         "Cache-Control": "max-age=31536000",
                     },
                 });
@@ -581,18 +588,20 @@ export default function UploadPage() {
                                         if (!avatarFile) return;
                                         setAvatarUploading(true);
                                         try {
+                                            let compressedAvatar = avatarFile;
+                                            try { compressedAvatar = await compressImage(avatarFile, 512, 0.9); } catch { /* use original */ }
                                             const { userFetch, authenticatedFetch } = await import("../../../lib/utils/api");
                                             const apiFetch = isAdminUser ? authenticatedFetch : userFetch;
                                             const res = await apiFetch("/profile/avatar/presigned-url", {
                                                 method: "POST",
-                                                body: JSON.stringify({ fileType: avatarFile.type }),
+                                                body: JSON.stringify({ fileType: compressedAvatar.type }),
                                             });
                                             if (!res.ok) throw new Error("Presigned URL取得失敗");
                                             const { presignedUrl } = await res.json() as { presignedUrl: string };
                                             const upload = await fetch(presignedUrl, {
                                                 method: "PUT",
-                                                body: avatarFile,
-                                                headers: { "Content-Type": avatarFile.type },
+                                                body: compressedAvatar,
+                                                headers: { "Content-Type": compressedAvatar.type },
                                             });
                                             if (!upload.ok) throw new Error("S3アップロード失敗");
                                             setAvatarFile(null);

@@ -12,6 +12,7 @@ import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../lib/utils/log";
 import { getCurrentSession } from "../../lib/auth/cognito";
 import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
+import { publicFetch, userFetch } from "../../lib/utils/api";
 import PHOTOS_JSON from "../data/photos.json";
 
 type UserProfile = {
@@ -176,11 +177,10 @@ function UsersPageInner() {
 
                 // API から新しい写真も取得（オーナー以外のみ — オーナーは非公開写真がJSONにある）
                 if (!isCurrentUserOwner) {
-                    const { publicFetch } = await import("../../lib/utils/api");
                     const photosRes = await publicFetch(`/photos?userId=${encodeURIComponent(userId)}`, { signal: controller.signal });
                     if (photosRes.ok) {
                         const data = await photosRes.json() as unknown;
-                        if (Array.isArray(data) && (data as Photo[]).length > 0) {
+                        if (Array.isArray(data)) {
                             setPhotos(data as Photo[]);
                         }
                     }
@@ -197,13 +197,16 @@ function UsersPageInner() {
 
     const displayName = useMemo(() => {
         if (userProfile?.displayName) return userProfile.displayName;
-        if (photos.length === 0) return null;
         return photos.find(p => p.displayName)?.displayName ?? null;
     }, [userProfile, photos]);
 
+    const publishedPhotos = useMemo(
+        () => photos.filter(p => p.published !== false),
+        [photos]
+    );
+
     const handleTogglePublish = useCallback(async (photoId: string, publish: boolean) => {
         try {
-            const { userFetch } = await import("../../lib/utils/api");
             const res = await userFetch(`/photos/${photoId}`, {
                 method: "PUT",
                 body: JSON.stringify({ published: publish }),
@@ -294,7 +297,7 @@ function UsersPageInner() {
                             {/* 投稿数 + シェアボタン */}
                             <div className="flex items-center gap-3 mt-1">
                                 <span className="inline-flex items-baseline gap-1">
-                                    <span className="text-base font-bold">{isOwner ? photos.length : photos.filter(p => p.published !== false).length}</span>
+                                    <span className="text-base font-bold">{isOwner ? photos.length : publishedPhotos.length}</span>
                                     <span className="text-xs text-white/50">{locale === "en" ? "posts" : "投稿"}</span>
                                 </span>
                                 <div className="flex items-center gap-0.5 ml-auto">
@@ -369,7 +372,7 @@ function UsersPageInner() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-0.5">
-                        {(isOwner ? photos : photos.filter(p => p.published !== false)).map(photo => (
+                        {(isOwner ? photos : publishedPhotos).map(photo => (
                             <PhotoCard key={photo.id} photo={photo} locale={locale} isOwner={isOwner} onTogglePublish={handleTogglePublish} />
                         ))}
                     </div>
