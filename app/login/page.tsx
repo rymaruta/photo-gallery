@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { forgotPassword, confirmForgotPassword } from "../../lib/auth/cognito";
-import { createUser } from "../../lib/utils/userApi";
+import { userFetch } from "../../lib/utils/api";
 import { LockClosedIcon, EnvelopeIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 type Step = "login" | "forgot-send" | "forgot-confirm" | "forgot-done";
@@ -39,19 +39,20 @@ function LoginForm() {
         try {
             const result = await login(username, password);
             if (result.success) {
-                const postLoginRaw = sessionStorage.getItem("postLoginAction");
-                if (postLoginRaw) {
-                    sessionStorage.removeItem("postLoginAction");
+                // 新規登録時に保存した表示名があれば、プロフィールを作成
+                let pendingDisplayName: string | null = null;
+                try { pendingDisplayName = localStorage.getItem("jp_pending_displayName"); } catch { /* ignore */ }
+                if (pendingDisplayName) {
                     try {
-                        const action = JSON.parse(postLoginRaw) as { action: string; username: string; displayName: string };
-                        if (action.action === "createProfile") {
-                            const profileResult = await createUser({ username: action.username, displayName: action.displayName });
-                            if (!profileResult.success && profileResult.error !== "プロフィールは既に作成されています") {
-                                showToast(`プロフィールの作成に失敗しました: ${profileResult.error ?? "エラー"} — /users/me/edit から再設定できます`, "error");
-                            }
+                        const res = await userFetch("/user/profile", {
+                            method: "PUT",
+                            body: JSON.stringify({ displayName: pendingDisplayName }),
+                        });
+                        if (res.ok) {
+                            try { localStorage.removeItem("jp_pending_displayName"); } catch { /* ignore */ }
                         }
                     } catch {
-                        showToast("プロフィールの作成に失敗しました — /users/me/edit から再設定できます", "error");
+                        /* プロフィール作成失敗してもログインは成功させる — /user/profile から再設定できる */
                     }
                 }
                 showToast("ログインしました", "success");

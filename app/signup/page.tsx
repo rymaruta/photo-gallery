@@ -42,6 +42,7 @@ export default function SignupPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [displayName, setDisplayName] = useState("");
     const [code, setCode] = useState("");
     const [cognitoUsername, setCognitoUsername] = useState(""); // signUp が返す UUID
     const [error, setError] = useState("");
@@ -94,6 +95,9 @@ export default function SignupPage() {
             const result = await signUp(email, password);
             if (result.success && result.username) {
                 savePending(email, result.username);
+                if (displayName.trim()) {
+                    try { localStorage.setItem("jp_pending_displayName", displayName.trim()); } catch { /* ignore */ }
+                }
                 setCognitoUsername(result.username);
                 setStep("verify");
                 setResendCooldown(60);
@@ -191,6 +195,19 @@ export default function SignupPage() {
                 {/* ステップ1: 登録フォーム */}
                 {step === "register" && (
                     <form onSubmit={handleRegister} className="space-y-4">
+                        <div>
+                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">表示名</label>
+                            <input
+                                type="text"
+                                value={displayName}
+                                onChange={(e) => setDisplayName(e.target.value)}
+                                autoComplete="nickname"
+                                placeholder="あなたの名前（後で変更できます）"
+                                maxLength={50}
+                                disabled={submitting}
+                                className={inputCls}
+                            />
+                        </div>
                         <div>
                             <label className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
                             <input

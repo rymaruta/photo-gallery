@@ -29,6 +29,15 @@ body {
   background-color: var(--color-background);
   color: var(--color-foreground);
   font-family: Arial, Helvetica, sans-serif;
+  /* iOS / Instagram IAB の 300ms タップ遅延を解消 */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Instagram IAB / iOS Safari: button/a に cursor:pointer がないとタップが効かないことがある */
+button, a {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* dvh: Instagram IAB / iOS Safari のツールバーを除いた実際の表示領域 */
