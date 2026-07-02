@@ -53,13 +53,16 @@ function UploadPageInner() {
     const [fileError, setFileError] = useState<string | null>(null);
     const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // アンマウント時の Object URL 解放用に最新の items を ref で保持
+    // （useEffect([]) のクロージャは初期の空配列しか見えないため）
+    const itemsRef = useRef<Item[]>([]);
+    itemsRef.current = items;
+
     useEffect(() => {
         return () => {
             if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
-            // 解放: object URL のクリーンアップ
-            items.forEach((it) => { try { URL.revokeObjectURL(it.preview); } catch { /* ignore */ } });
+            itemsRef.current.forEach((it) => { try { URL.revokeObjectURL(it.preview); } catch { /* ignore */ } });
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // 認証チェック
@@ -69,19 +72,27 @@ function UploadPageInner() {
         }
     }, [isAuthenticated, isAdminUser, isGeneralUser, loading, router]);
 
-    // PWA Share Target で渡された写真の取り込み
+    // PWA Share Target で渡された写真の取り込み。
+    // ログインリダイレクトで ?from=share が失われても、IndexedDB に残った
+    // 新しいペイロード（1時間以内）は次回のページ表示時に取り込む。
+    const shareImportedRef = useRef(false);
     useEffect(() => {
-        if (!fromShare) return;
+        if (loading || !isAuthenticated || shareImportedRef.current) return;
+        shareImportedRef.current = true;
         void (async () => {
             const payload = await readSharedPayload();
-            if (payload && payload.files.length > 0) {
-                await addFiles(payload.files);
+            if (!payload || payload.files.length === 0) return;
+            const isFresh = Date.now() - payload.t < 60 * 60 * 1000;
+            if (!fromShare && !isFresh) {
                 await clearSharedPayload();
-                showToast(locale === "en" ? `${payload.files.length} photo(s) imported` : `${payload.files.length} 枚を取り込みました`, "success");
+                return;
             }
+            await addFiles(payload.files, { title: payload.title, text: payload.text });
+            await clearSharedPayload();
+            showToast(locale === "en" ? `${payload.files.length} photo(s) imported` : `${payload.files.length} 枚を取り込みました`, "success");
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [fromShare]);
+    }, [fromShare, loading, isAuthenticated]);
 
     // プロフィール写真
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -97,7 +108,7 @@ function UploadPageInner() {
         }).catch(() => { /* ignore */ });
     }, []);
 
-    const addFiles = useCallback(async (files: File[]) => {
+    const addFiles = useCallback(async (files: File[], shared?: { title?: string; text?: string }) => {
         setFileError(null);
 
         const accepted: File[] = [];
@@ -111,12 +122,16 @@ function UploadPageInner() {
         }
         if (accepted.length === 0) return;
 
+        // 共有シート経由のタイトルは単一ファイルのときのみ適用、テキストは全ファイルの説明に適用
+        const sharedTitle = shared?.title?.trim() && accepted.length === 1 ? shared.title.trim() : "";
+        const sharedText = shared?.text?.trim() ?? "";
+
         const newItems: Item[] = accepted.map((file) => ({
             id: makeId(),
             file,
             preview: URL.createObjectURL(file),
-            title: "",
-            description: "",
+            title: sharedTitle,
+            description: sharedText,
             location: "",
             expanded: false,
             status: "pending",
@@ -247,9 +262,8 @@ function UploadPageInner() {
                     : `${successCount} 枚アップロードしました`,
                 "success",
             );
-            // 全件成功時はトップへ
-            const remaining = items.filter((it) => it.status === "pending" || it.status === "error").length;
-            if (remaining === 0 || successCount === pending.length) {
+            // 全件成功時はトップへ（items はループ開始時のクロージャなのでカウントで判定する）
+            if (successCount === pending.length) {
                 redirectTimerRef.current = setTimeout(() => router.push("/"), 1500);
             }
         }

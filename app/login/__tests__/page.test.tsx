@@ -150,7 +150,11 @@ describe("LoginPage - 表示名持ち越しによるプロフィール作成", (
     it("jp_pending_displayName があれば PUT /user/profile を呼んで成功時に削除する", async () => {
         localStorageMock.setItem("jp_pending_displayName", "テスト太郎");
         mockLogin.mockResolvedValue({ success: true });
-        mockUserFetch.mockResolvedValue({ ok: true });
+        // GET（プロフィール未作成: displayName なし）→ PUT の順で呼ばれる
+        mockUserFetch.mockImplementation(async (_path: string, options?: RequestInit) => {
+            if (!options?.method) return { ok: true, json: async () => ({ userId: "u1" }) };
+            return { ok: true };
+        });
 
         const user = userEvent.setup();
         render(<LoginPage />);
@@ -171,6 +175,30 @@ describe("LoginPage - 表示名持ち越しによるプロフィール作成", (
             expect(localStorageMock.getItem("jp_pending_displayName")).toBeNull();
         });
         expect(mockPush).toHaveBeenCalledWith("/");
+    });
+
+    it("既にプロフィールに displayName がある場合は PUT せず、pending キーだけ削除する", async () => {
+        localStorageMock.setItem("jp_pending_displayName", "古い名前");
+        mockLogin.mockResolvedValue({ success: true });
+        mockUserFetch.mockImplementation(async (_path: string, options?: RequestInit) => {
+            if (!options?.method) return { ok: true, json: async () => ({ userId: "u1", displayName: "既存の名前", bio: "自己紹介" }) };
+            return { ok: true };
+        });
+
+        const user = userEvent.setup();
+        render(<LoginPage />);
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), "u@example.com");
+        await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
+        await user.click(screen.getByRole("button", { name: "ログイン" }));
+
+        await waitFor(() => { expect(mockPush).toHaveBeenCalledWith("/"); });
+        // PUT は呼ばれていない（既存プロフィールを上書きしない）
+        const putCalls = mockUserFetch.mock.calls.filter(
+            (c: unknown[]) => (c[1] as RequestInit | undefined)?.method === "PUT",
+        );
+        expect(putCalls).toHaveLength(0);
+        // pending キーは掃除される
+        expect(localStorageMock.getItem("jp_pending_displayName")).toBeNull();
     });
 
     it("jp_pending_displayName が無ければ PUT /user/profile を呼ばない", async () => {

@@ -44,12 +44,19 @@ function LoginForm() {
                 try { pendingDisplayName = localStorage.getItem("jp_pending_displayName"); } catch { /* ignore */ }
                 if (pendingDisplayName) {
                     try {
-                        const res = await userFetch("/user/profile", {
-                            method: "PUT",
-                            body: JSON.stringify({ displayName: pendingDisplayName }),
-                        });
-                        if (res.ok) {
+                        // PUT /user/profile は全置換なので、既にプロフィールがある場合は上書きしない
+                        const check = await userFetch("/user/profile");
+                        const existing = check.ok ? await check.json() as { displayName?: string } : null;
+                        if (existing?.displayName) {
                             try { localStorage.removeItem("jp_pending_displayName"); } catch { /* ignore */ }
+                        } else {
+                            const res = await userFetch("/user/profile", {
+                                method: "PUT",
+                                body: JSON.stringify({ displayName: pendingDisplayName }),
+                            });
+                            if (res.ok) {
+                                try { localStorage.removeItem("jp_pending_displayName"); } catch { /* ignore */ }
+                            }
                         }
                     } catch {
                         /* プロフィール作成失敗してもログインは成功させる — /user/profile から再設定できる */
