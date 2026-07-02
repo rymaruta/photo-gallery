@@ -7,6 +7,7 @@ import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { forgotPassword, confirmForgotPassword } from "../../lib/auth/cognito";
 import { userFetch } from "../../lib/utils/api";
+import { ROUTES } from "../../lib/routes";
 import { LockClosedIcon, EnvelopeIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 type Step = "login" | "forgot-send" | "forgot-confirm" | "forgot-done";
@@ -15,7 +16,7 @@ function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const verified = searchParams?.get("verified") === "1";
-    const { login, isAuthenticated, loading } = useAuth();
+    const { login, isAuthenticated, loading, userId } = useAuth();
     const { showToast } = useToast();
 
     const [step, setStep] = useState<Step>("login");
@@ -28,8 +29,10 @@ function LoginForm() {
     const [needsVerification, setNeedsVerification] = useState(false);
 
     useEffect(() => {
-        if (!loading && isAuthenticated) router.push("/");
-    }, [isAuthenticated, loading, router]);
+        if (!loading && isAuthenticated) {
+            router.push(userId ? ROUTES.USER_PROFILE(userId) : "/");
+        }
+    }, [isAuthenticated, loading, router, userId]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -63,7 +66,8 @@ function LoginForm() {
                     }
                 }
                 showToast("ログインしました", "success");
-                router.push("/");
+                // インスタ風: ログイン後は自分のプロフィールページへ
+                router.push(result.userId ? ROUTES.USER_PROFILE(result.userId) : "/");
             } else if (result.needsVerification) {
                 setNeedsVerification(true);
                 setError(result.error || "メールアドレスの確認が完了していません");

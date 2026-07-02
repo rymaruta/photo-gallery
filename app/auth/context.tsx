@@ -9,18 +9,26 @@ type AuthContextType = {
     isAuthenticated: boolean;
     isAdminUser: boolean;
     isGeneralUser: boolean;
+    userId: string | null;
     loading: boolean;
-    login: (username: string, password: string) => Promise<{ success: boolean; error?: string; needsVerification?: boolean }>;
+    login: (username: string, password: string) => Promise<{ success: boolean; error?: string; needsVerification?: boolean; userId?: string }>;
     logout: () => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [authState, setAuthState] = useState({
+    const [authState, setAuthState] = useState<{
+        isAuthenticated: boolean;
+        isAdminUser: boolean;
+        isGeneralUser: boolean;
+        userId: string | null;
+        loading: boolean;
+    }>({
         isAuthenticated: false,
         isAdminUser: false,
         isGeneralUser: false,
+        userId: null,
         loading: true,
     });
     const router = useRouter();
@@ -38,6 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     isAuthenticated: false,
                     isAdminUser: false,
                     isGeneralUser: false,
+                    userId: null,
                     loading: false,
                 });
                 return { authenticated: false, admin: false };
@@ -45,18 +54,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const session = await getCurrentSession();
             const authenticated = session !== null;
-            const groups: string[] = authenticated
-                ? (Array.isArray(session!.getIdToken().payload["cognito:groups"])
-                    ? session!.getIdToken().payload["cognito:groups"] as string[]
-                    : [])
+            const payload = authenticated ? session!.getIdToken().payload : {};
+            const groups: string[] = Array.isArray(payload["cognito:groups"])
+                ? payload["cognito:groups"] as string[]
                 : [];
             const admin = groups.includes("admin");
             const general = !admin && groups.includes("user");
+            const sub = typeof payload["sub"] === "string" ? payload["sub"] : null;
 
             setAuthState({
                 isAuthenticated: authenticated,
                 isAdminUser: admin,
                 isGeneralUser: general,
+                userId: sub,
                 loading: false,
             });
 
@@ -67,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 isAuthenticated: false,
                 isAdminUser: false,
                 isGeneralUser: false,
+                userId: null,
                 loading: false,
             });
             return { authenticated: false, admin: false };
@@ -96,16 +107,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (result.success && result.session) {
                 const admin = result.groups?.includes("admin") || false;
                 const general = !admin && (result.groups?.includes("user") || false);
+                const sub = result.session.getIdToken().payload["sub"] as string | undefined;
                 log.info("AuthContext: 認証成功", { admin, general, groups: result.groups });
 
                 setAuthState({
                     isAuthenticated: true,
                     isAdminUser: admin,
                     isGeneralUser: general,
+                    userId: sub ?? null,
                     loading: false,
                 });
 
-                return { success: true };
+                return { success: true, userId: sub };
             } else {
                 log.error("AuthContext: ログイン失敗", result.error);
                 setAuthState((prev) => ({ ...prev, loading: false }));
@@ -126,6 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             isAuthenticated: false,
             isAdminUser: false,
             isGeneralUser: false,
+            userId: null,
             loading: false,
         });
         router.push("/");
@@ -137,6 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 isAuthenticated: authState.isAuthenticated,
                 isAdminUser: authState.isAdminUser,
                 isGeneralUser: authState.isGeneralUser,
+                userId: authState.userId,
                 loading: authState.loading,
                 login,
                 logout,

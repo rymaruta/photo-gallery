@@ -10,7 +10,7 @@ import { ROUTES } from "../../lib/routes";
 
 export default function HeaderNav({ className = "" }: { className?: string }) {
     const router = useRouter();
-    const { isAuthenticated, isAdminUser, isGeneralUser, logout, loading } = useAuth();
+    const { isAuthenticated, isAdminUser, isGeneralUser, userId, logout, loading } = useAuth();
     const { labels } = useLocale();
 
     useEffect(() => {
@@ -142,6 +142,13 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                         {navLabels.about || "About"}
                                     </button>
                                 </li>
+                                {isAuthenticated && userId && (
+                                    <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                        <button onClick={() => handleNavigation(ROUTES.USER_PROFILE(userId))} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
+                                            {navLabels.mypage || "My Page"}
+                                        </button>
+                                    </li>
+                                )}
                                 {(isAdminUser || isGeneralUser) && (
                                     <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
                                         <button onClick={() => handleNavigation(ROUTES.UPLOAD)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>

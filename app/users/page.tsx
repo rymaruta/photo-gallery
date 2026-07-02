@@ -359,6 +359,26 @@ function UsersPageInner() {
                             )}
                         </div>
                     )}
+
+                    {/* 自分のプロフィール: 編集・アップロード導線（インスタ風） */}
+                    {isOwner && (
+                        <div className="flex gap-2 mt-4">
+                            <Link
+                                href="/user/profile"
+                                className="flex-1 text-center px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium rounded-lg transition-colors"
+                                style={{ touchAction: "manipulation", minHeight: "40px", lineHeight: "24px" }}
+                            >
+                                {locale === "en" ? "Edit profile" : "プロフィール編集"}
+                            </Link>
+                            <Link
+                                href="/user/upload"
+                                className="flex-1 text-center px-4 py-2 bg-white text-black text-sm font-medium rounded-lg hover:bg-white/90 transition-colors"
+                                style={{ touchAction: "manipulation", minHeight: "40px", lineHeight: "24px" }}
+                            >
+                                {locale === "en" ? "Add photos" : "写真を追加"}
+                            </Link>
+                        </div>
+                    )}
                 </div>
 
                 <div className="border-t border-white/10 mb-0.5" />

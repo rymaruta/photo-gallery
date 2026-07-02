@@ -94,7 +94,22 @@ describe("LoginPage - 基本フロー", () => {
         expect(screen.queryByText(/メールアドレスの確認が完了しました/)).not.toBeInTheDocument();
     });
 
-    it("ログイン成功 → ルートへリダイレクト + トースト表示", async () => {
+    it("ログイン成功（userIdあり）→ 自分のプロフィールページへリダイレクト", async () => {
+        mockLogin.mockResolvedValue({ success: true, userId: "my-sub-123" });
+        const user = userEvent.setup();
+        render(<LoginPage />);
+
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), "user@example.com");
+        await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
+        await user.click(screen.getByRole("button", { name: "ログイン" }));
+
+        await waitFor(() => {
+            expect(mockPush).toHaveBeenCalledWith("/users?id=my-sub-123");
+        });
+        expect(mockShowToast).toHaveBeenCalledWith("ログインしました", "success");
+    });
+
+    it("ログイン成功（userIdなし）→ ルートへリダイレクト + トースト表示", async () => {
         mockLogin.mockResolvedValue({ success: true });
         const user = userEvent.setup();
         render(<LoginPage />);
