@@ -2,8 +2,27 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Photo, LocalizedText, LocalizedParagraphs } from "../data/photos";
 import { getLocalized, getLocalizedParagraphs } from "../data/photos";
 import type { GalleryFilters } from "../types/gallery";
+import { getLabels } from "../../app/i18n/labels";
 
-const normalizeKey = (s?: string) => (s ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
+// 表示名 → 正規キーの逆引きマップ（例: "風景" → "landscape"）。
+// 日本語名でカテゴリ登録された写真と英語キーの写真が
+// 同じカテゴリとして扱われるようにする（フィルタチップの重複表示も防ぐ）。
+const DISPLAY_TO_KEY: Record<string, string> = (() => {
+    const map: Record<string, string> = {};
+    for (const loc of ["ja", "en"] as const) {
+        const names = getLabels(loc).category.names ?? {};
+        for (const [key, display] of Object.entries(names)) {
+            if (key === "all") continue;
+            map[display.trim().toLowerCase()] = key;
+        }
+    }
+    return map;
+})();
+
+const normalizeKey = (s?: string) => {
+    const base = (s ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
+    return DISPLAY_TO_KEY[base] ?? base;
+};
 
 // safe ISO date parse helper — returns ISO string or empty
 const toISO = (s?: string) => {

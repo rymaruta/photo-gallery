@@ -57,6 +57,15 @@ body {
   font-family: "Noto Sans JP", system-ui, -apple-system, sans-serif;
 }
 
+/* 横スクロール行のスクロールバー非表示（FilterBar チップ列など） */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* モバイル: ベースフォントサイズを少し下げる */
 @media (max-width: 639px) {
   html,

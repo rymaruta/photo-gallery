@@ -206,10 +206,8 @@ function FilterBarInner({
     // Styles memoized to avoid re-creating objects on each render
     const STYLE = useMemo(
         () => ({
-            container: { backgroundColor: "var(--filter-bg, #07090a)", border: "1px solid rgba(255,255,255,0.10)", padding: 8 },
-            input: { padding: "6px 10px", border: "1px solid rgba(255,255,255,0.06)", outline: "none", fontSize: 13 } as React.CSSProperties,
-            chipBase: { padding: "2px 8px", minHeight: 44, borderRadius: 6, width: "auto" } as React.CSSProperties,
-            controlBtn: { padding: "2px 8px", minHeight: 44, borderRadius: 6, whiteSpace: "nowrap" } as React.CSSProperties,
+            chipBase: { padding: "6px 14px", minHeight: 32, borderRadius: 9999, width: "auto", flexShrink: 0 } as React.CSSProperties,
+            controlBtn: { padding: "6px 14px", minHeight: 32, borderRadius: 9999, whiteSpace: "nowrap", flexShrink: 0 } as React.CSSProperties,
         }),
         []
     );
@@ -226,7 +224,7 @@ function FilterBarInner({
                         onClick={() => onChange({ category: c })}
                         aria-pressed={active}
                         aria-label={labelForCategory(c)}
-                        className={`inline-flex items-center justify-center gap-2 text-xs focus:outline-none focus:ring-0 font-normal ${active ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+                        className={`inline-flex items-center justify-center text-[13px] focus:outline-none focus:ring-0 transition-colors ${active ? "bg-white text-black font-medium" : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"}`}
                         style={{
                             ...STYLE.controlBtn,
                             touchAction: "manipulation",
@@ -247,7 +245,7 @@ function FilterBarInner({
                 onClick={() => onChange({ category: "all" })}
                 aria-pressed={values.category === "all"}
                 aria-label={labelForCategory("all")}
-                className={`inline-flex items-center justify-center gap-2 text-xs focus:outline-none focus:ring-0 font-normal ${values.category === "all" ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+                className={`inline-flex items-center justify-center text-[13px] focus:outline-none focus:ring-0 transition-colors ${values.category === "all" ? "bg-white text-black font-medium" : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"}`}
                 style={{
                     ...STYLE.controlBtn,
                     touchAction: "manipulation",
@@ -284,7 +282,7 @@ function FilterBarInner({
                         role="switch"
                         aria-checked={active}
                         aria-label={ariaLabel}
-                        className={`inline-flex items-center gap-2 text-xs focus:outline-none focus:ring-0 transition-colors font-normal ${active ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+                        className={`inline-flex items-center gap-1.5 text-[13px] focus:outline-none focus:ring-0 transition-colors ${active ? "bg-white text-black font-medium" : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"}`}
                         style={{
                             ...STYLE.chipBase,
                             touchAction: "manipulation",
@@ -294,7 +292,7 @@ function FilterBarInner({
                         <span className="truncate" style={{ maxWidth: 160 }}>
                             {display}
                         </span>
-                        {showCount ? <span className="text-[11px] text-white/60">{count}</span> : null}
+                        {showCount ? <span className={`text-[11px] ${active ? "text-black/50" : "text-white/40"}`}>{count}</span> : null}
                     </button>
                 );
             }),
@@ -307,27 +305,22 @@ function FilterBarInner({
 
     return (
         <section className={`mb-2 ${className}`}>
-            <div className="rounded-lg" style={STYLE.container}>
-                {/* categories */}
-                <div className="flex items-center gap-2 flex-wrap" style={{ marginBottom: 6 }}>
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-white/70 mr-1">{labels.category.title}</span>
-                        <div className="flex gap-1 flex-wrap">
-                            {renderAllButton}
-                            {renderCategoryButtons}
-                        </div>
-                    </div>
+            <div className="space-y-2.5">
+                {/* カテゴリ: 1行横スクロールのピル */}
+                <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
+                    {renderAllButton}
+                    {renderCategoryButtons}
                 </div>
 
-                {/* search + mobile sort */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2" style={{ marginBottom: 6 }}>
-                    <div style={{ flex: "1 1 auto", position: "relative" }}>
+                {/* 検索 + 並び替え */}
+                <div className="flex items-center gap-1.5">
+                    <div className="relative flex-1">
                         <label htmlFor="filter-query" className="sr-only">
                             {labels.search.placeholder}
                         </label>
                         {/* 検索アイコン（デバウンス中は点滅） */}
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none z-10">
-                            <MagnifyingGlassIcon className={`w-4 h-4 ${localQuery !== (values.query || "") ? "text-white/70 animate-pulse" : "text-white/40"}`} />
+                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10">
+                            <MagnifyingGlassIcon className={`w-4 h-4 ${localQuery !== (values.query || "") ? "text-white/70 animate-pulse" : "text-white/35"}`} />
                         </div>
                         <input
                             id="filter-query"
@@ -335,8 +328,8 @@ function FilterBarInner({
                             value={localQuery}
                             onChange={(e) => onQueryChange(e.target.value)}
                             placeholder={labels.search.placeholder}
-                            className="w-full rounded-md bg-white/5 text-white placeholder:text-white/40 text-sm pl-10 pr-10 border border-white/10 focus:border-white/30 focus:bg-white/8 transition-all duration-200 outline-none"
-                            style={{ padding: "8px 36px 8px 36px", fontSize: 13 }}
+                            className="w-full rounded-full bg-white/[0.06] text-white placeholder:text-white/35 border border-transparent focus:border-white/20 focus:bg-white/10 transition-all duration-200 outline-none"
+                            style={{ padding: "8px 38px 8px 38px", fontSize: 13, minHeight: 36 }}
                         />
                         {/* クリアボタン（入力時のみ表示） */}
                         {localQuery && (
@@ -346,13 +339,11 @@ function FilterBarInner({
                                     setLocalQuery("");
                                     debouncedApply("");
                                 }}
-                                className="absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-full hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30"
+                                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-white/10 transition-colors focus:outline-none"
                                 aria-label={locale === "en" ? "Clear search" : "検索をクリア"}
-                                style={{ 
+                                style={{
                                     touchAction: "manipulation",
                                     WebkitTapHighlightColor: "transparent",
-                                    minWidth: "44px",
-                                    minHeight: "44px"
                                 }}
                             >
                                 <XMarkIcon className="w-4 h-4 text-white/60 hover:text-white/90" />
@@ -360,107 +351,112 @@ function FilterBarInner({
                         )}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-2 md:hidden">
-                            <span className="text-xs text-white/70">{labels.sort.label}</span>
-                            <div className="relative">
-                                <button
-                                    ref={sortButtonRef}
-                                    type="button"
-                                    onClick={() => setSortOpen((s) => !s)}
-                                    aria-haspopup="listbox"
-                                    aria-expanded={isSortOpen}
-                                    aria-controls="sort-menu"
-                                    className="inline-flex items-center gap-2 text-xs focus:outline-none bg-transparent"
-                                    style={{
-                                        ...STYLE.controlBtn,
-                                        touchAction: "manipulation",
-                                        WebkitTapHighlightColor: "transparent",
-                                    }}
-                                >
-                                    <span>{sortLabel}</span>
-                                    <svg className="h-4 w-4 text-white/70" viewBox="0 0 20 20" fill="none" aria-hidden>
-                                        <path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                                    </svg>
-                                </button>
+                    {/* 並び替え */}
+                    <div className="relative flex-shrink-0">
+                        <button
+                            ref={sortButtonRef}
+                            type="button"
+                            onClick={() => setSortOpen((s) => !s)}
+                            aria-haspopup="listbox"
+                            aria-expanded={isSortOpen}
+                            aria-controls="sort-menu"
+                            className="inline-flex items-center gap-1 text-[13px] text-white/60 hover:text-white/90 focus:outline-none bg-transparent transition-colors"
+                            style={{
+                                padding: "8px 4px 8px 10px",
+                                minHeight: 36,
+                                whiteSpace: "nowrap",
+                                touchAction: "manipulation",
+                                WebkitTapHighlightColor: "transparent",
+                            }}
+                        >
+                            <span>{sortLabel}</span>
+                            <svg className={`h-3.5 w-3.5 transition-transform ${isSortOpen ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="none" aria-hidden>
+                                <path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                        </button>
 
-                                {isSortOpen && (
-                                    <div
-                                        ref={sortMenuRef}
-                                        id="sort-menu"
-                                        role="listbox"
-                                        aria-label={labels.sort.label}
-                                        className="absolute right-0 mt-2 z-50"
-                                        style={{ minWidth: 140, borderRadius: 8, overflow: "hidden", background: "#07090a", border: "1px solid rgba(255,255,255,0.08)" }}
-                                    >
-                                        {sortOptions.map((opt) => {
-                                            const isActive = values.sort === opt;
-                                            return (
-                                                <button
-                                                    key={opt}
-                                                    role="option"
-                                                    data-value={opt}
-                                                    aria-selected={isActive}
-                                                    onClick={() => {
-                                                        onChange({ sort: opt as "new" | "old" | "popular" });
-                                                        setSortOpen(false);
-                                                        setTimeout(() => sortButtonRef.current?.focus(), 0);
-                                                    }}
-                                                    className="w-full text-left px-3 py-2 text-xs"
-                                                    style={{ 
-                                                        background: isActive ? "rgba(255,255,255,0.06)" : "transparent",
-                                                        color: "#fff",
-                                                        touchAction: "manipulation",
-                                                        WebkitTapHighlightColor: "transparent",
-                                                        minHeight: "44px"
-                                                    }}
-                                                >
-                                                    {labels.sort.options[opt] ?? opt}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                )}
+                        {isSortOpen && (
+                            <div
+                                ref={sortMenuRef}
+                                id="sort-menu"
+                                role="listbox"
+                                aria-label={labels.sort.label}
+                                className="absolute right-0 mt-1 z-50 shadow-xl"
+                                style={{ minWidth: 130, borderRadius: 12, overflow: "hidden", background: "#101214", border: "1px solid rgba(255,255,255,0.10)" }}
+                            >
+                                {sortOptions.map((opt) => {
+                                    const isActive = values.sort === opt;
+                                    return (
+                                        <button
+                                            key={opt}
+                                            role="option"
+                                            data-value={opt}
+                                            aria-selected={isActive}
+                                            onClick={() => {
+                                                onChange({ sort: opt as "new" | "old" | "popular" });
+                                                setSortOpen(false);
+                                                setTimeout(() => sortButtonRef.current?.focus(), 0);
+                                            }}
+                                            className="w-full text-left px-4 py-2.5 text-[13px] hover:bg-white/5 transition-colors"
+                                            style={{
+                                                background: isActive ? "rgba(255,255,255,0.08)" : "transparent",
+                                                color: isActive ? "#fff" : "rgba(255,255,255,0.7)",
+                                                touchAction: "manipulation",
+                                                WebkitTapHighlightColor: "transparent",
+                                            }}
+                                        >
+                                            {labels.sort.options[opt] ?? opt}
+                                        </button>
+                                    );
+                                })}
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
 
-                {/* tags */}
-                <div className="flex items-center gap-2 flex-wrap" style={{ marginBottom: 0 }}>
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-white/70 mr-1">{labels.tags.title}</span>
-                        <div className="flex gap-1 flex-wrap">
-                            {renderTagChips}
-                            {!showAllTags && tags.length > mobileCollapseLimit && (
-                                <div className="flex items-center text-xs text-white/60 px-2">+{tags.length - mobileCollapseLimit}</div>
-                            )}
-                        </div>
-                    </div>
+                {/* タグ: 折り畳み時は1行横スクロール、展開時は折り返し */}
+                <div className={`flex items-center gap-1.5 ${showAllTags ? "flex-wrap" : "overflow-x-auto no-scrollbar -mx-1 px-1"}`}>
+                    {renderTagChips}
 
-                    <div className="ml-auto flex items-center gap-2">
-                        {tags.length > mobileCollapseLimit && (
+                    {/* 「+N」自体が展開ボタン */}
+                    {!showAllTags && tags.length > mobileCollapseLimit && (
                         <button
                             type="button"
                             onClick={toggleShowAll}
-                            aria-expanded={showAllTags}
-                            className={`inline-flex items-center gap-2 text-xs focus:outline-none focus:ring-0 font-normal ${showAllTags ? "bg-white text-black" : "bg-white/5 text-white/80"}`}
+                            aria-expanded={false}
+                            aria-label={showAllFixedLabel}
+                            className="inline-flex items-center text-[13px] text-white/50 hover:text-white/90 bg-transparent border border-white/15 hover:border-white/40 focus:outline-none transition-colors"
                             style={{
                                 ...STYLE.controlBtn,
                                 touchAction: "manipulation",
                                 WebkitTapHighlightColor: "transparent",
                             }}
                         >
-                            {showAllTags ? (locale === "en" ? "Less" : "閉じる") : showAllFixedLabel}
+                            +{tags.length - mobileCollapseLimit}
                         </button>
-                        )}
+                    )}
+                    {showAllTags && tags.length > mobileCollapseLimit && (
+                        <button
+                            type="button"
+                            onClick={toggleShowAll}
+                            aria-expanded={true}
+                            className="inline-flex items-center text-[13px] text-white/50 hover:text-white/90 bg-transparent border border-white/15 hover:border-white/40 focus:outline-none transition-colors"
+                            style={{
+                                ...STYLE.controlBtn,
+                                touchAction: "manipulation",
+                                WebkitTapHighlightColor: "transparent",
+                            }}
+                        >
+                            {locale === "en" ? "Less" : "閉じる"}
+                        </button>
+                    )}
 
-                        {values.selectedTags && values.selectedTags.length > 0 && (
+                    {values.selectedTags && values.selectedTags.length > 0 && (
                         <button
                             type="button"
                             onClick={clearTags}
                             disabled={isPending}
-                            className={`inline-flex items-center gap-2 text-xs focus:outline-none focus:ring-0 font-normal ${isPending ? "opacity-60 pointer-events-none text-white/60" : "bg-white/5 text-white/80"}`}
+                            className={`inline-flex items-center text-[13px] focus:outline-none transition-colors ${isPending ? "opacity-60 pointer-events-none text-white/50" : "text-white/50 hover:text-white/90"} bg-transparent border border-white/15 hover:border-white/40`}
                             style={{
                                 ...STYLE.controlBtn,
                                 touchAction: "manipulation",
@@ -469,8 +465,7 @@ function FilterBarInner({
                         >
                             {isPending ? "..." : clearLabel}
                         </button>
-                        )}
-                    </div>
+                    )}
                 </div>
             </div>
         </section>
