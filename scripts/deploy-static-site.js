@@ -70,12 +70,16 @@ function isHtmlOrTxt(filePath) {
     return filePath.endsWith(".html") || filePath.endsWith(".txt");
 }
 
+// ハッシュ名でないため内容が変わりうるファイル。ブラウザに長期キャッシュさせない。
+// （sw.js が immutable だと Service Worker の更新が届かなくなる）
+const NO_CACHE_KEYS = new Set(["sw.js", "manifest.webmanifest", "app/data/photos.json"]);
+
 async function uploadFile(filePath) {
     const fullPath = path.join(outDir, filePath);
     const key = filePath.split(path.sep).join("/"); // S3 uses forward slashes
     const body = fs.readFileSync(fullPath);
     const contentType = mimeLookup(filePath) || "application/octet-stream";
-    const cacheControl = isHtmlOrTxt(filePath)
+    const cacheControl = isHtmlOrTxt(filePath) || NO_CACHE_KEYS.has(key)
         ? "no-cache, no-store, must-revalidate"
         : "public, max-age=31536000, immutable";
 
@@ -88,8 +92,8 @@ async function uploadFile(filePath) {
     }));
 }
 
-async function listS3Keys() {
-    const keys = [];
+async function listS3Objects() {
+    const objects = [];
     let continuationToken;
     do {
         const res = await s3.send(new ListObjectsV2Command({
@@ -97,16 +101,36 @@ async function listS3Keys() {
             ContinuationToken: continuationToken,
         }));
         for (const obj of res.Contents ?? []) {
-            if (obj.Key) keys.push(obj.Key);
+            if (obj.Key) objects.push({ key: obj.Key, lastModified: obj.LastModified });
         }
         continuationToken = res.NextContinuationToken;
     } while (continuationToken);
-    return keys;
+    return objects;
 }
 
-async function deleteStaleKeys(localKeys, remoteKeys) {
+// 旧アセットの削除猶予期間。
+// キャッシュされた古い HTML（ブラウザ・アプリ内ブラウザ・CDNエッジ）は
+// 旧ハッシュ名の JS/CSS を参照し続けるため、即削除するとその HTML を持つ
+// 端末で JS が 404 になり「表示はされるが一切タップできない」状態になる。
+// HTML は no-cache なので即削除してよいが、アセットは猶予期間だけ残す。
+const ASSET_GRACE_MS = 7 * 24 * 60 * 60 * 1000; // 7日
+
+async function deleteStaleKeys(localKeys, remoteObjects) {
     const localSet = new Set(localKeys.map(k => k.split(path.sep).join("/")));
-    const toDelete = remoteKeys.filter(k => !localSet.has(k));
+    const now = Date.now();
+    const toDelete = [];
+    let kept = 0;
+    for (const obj of remoteObjects) {
+        if (localSet.has(obj.key)) continue;
+        const isHtml = isHtmlOrTxt(obj.key);
+        const age = obj.lastModified ? now - obj.lastModified.getTime() : Infinity;
+        if (isHtml || age > ASSET_GRACE_MS) {
+            toDelete.push(obj.key);
+        } else {
+            kept++;
+        }
+    }
+    if (kept > 0) console.log(`[deploy] Keeping ${kept} stale asset(s) within ${ASSET_GRACE_MS / 86400000}-day grace period.`);
     if (toDelete.length === 0) return;
     // DeleteObjects accepts up to 1000 keys at a time
     for (let i = 0; i < toDelete.length; i += 1000) {
@@ -135,10 +159,10 @@ async function main() {
     console.log(`[deploy] Step 2/3: uploading ${htmlFiles.length} HTML/txt file(s)...`);
     for (const f of htmlFiles) await uploadFile(f);
 
-    // Step 3: Remove stale assets no longer referenced by any HTML.
+    // Step 3: Remove stale objects (assets get a grace period; see deleteStaleKeys).
     console.log("[deploy] Step 3/3: removing stale S3 objects...");
-    const remoteKeys = await listS3Keys();
-    await deleteStaleKeys(allFiles, remoteKeys);
+    const remoteObjects = await listS3Objects();
+    await deleteStaleKeys(allFiles, remoteObjects);
 
     console.log("\n[deploy] S3 sync complete.");
 
