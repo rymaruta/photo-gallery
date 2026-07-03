@@ -62,11 +62,11 @@ export default function ModalControls({
                 <ArrowRightIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </button>
 
-            {/* お気に入り */}
+            {/* お気に入り（閉じるボタンは right-2 + 幅44px ≈ 52px を占有するため、重ならないよう 64px 以上離す） */}
             <button
                 {...stopAndCall(onToggleFavorite)}
                 aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
-                className={`${BTN_BASE} top-2 sm:top-3 right-12 sm:right-16`}
+                className={`${BTN_BASE} top-2 sm:top-3 right-[64px] sm:right-[72px]`}
                 style={BTN_STYLE}
             >
                 {isFav
