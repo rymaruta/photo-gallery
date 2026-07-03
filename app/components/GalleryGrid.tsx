@@ -101,8 +101,10 @@ const GalleryItem = React.memo(function GalleryItem({
                             src={photo.src}
                             alt={localizedAlt}
                             fill
-                            className="object-cover"
-                            style={objectPosition ? { objectPosition } : undefined}
+                            draggable={false}
+                            onContextMenu={(e) => e.preventDefault()}
+                            className="object-cover select-none"
+                            style={{ WebkitTouchCallout: "none", ...(objectPosition ? { objectPosition } : {}) }}
                             sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
                             loading={isPriority ? "eager" : "lazy"}
                             priority={isPriority}

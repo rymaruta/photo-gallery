@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(git add .github/workflows/deploy.yml)",
+      "PowerShell(git commit -m \"Add workflow_dispatch trigger for manual deployment testing\")",
+      "PowerShell(git push origin claude/improve-site-stability-u85Vz)"
+    ]
+  }
+}

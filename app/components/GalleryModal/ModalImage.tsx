@@ -36,10 +36,15 @@ export default function ModalImage({ src, alt, focalPoint }: Props) {
                 src={src}
                 alt={alt}
                 fill
-                className="object-contain"
+                draggable={false}
+                onContextMenu={(e) => e.preventDefault()}
+                className="object-contain select-none"
                 sizes="(max-width: 640px) 100vw, 90vw"
                 priority
-                style={focalPoint ? { objectPosition: `${focalPoint.x * 100}% ${focalPoint.y * 100}%` } : undefined}
+                style={{
+                    WebkitTouchCallout: "none",
+                    ...(focalPoint ? { objectPosition: `${focalPoint.x * 100}% ${focalPoint.y * 100}%` } : {}),
+                }}
                 onError={() => { setImageError(true); setImageLoading(false); }}
                 onLoad={() => setImageLoading(false)}
             />

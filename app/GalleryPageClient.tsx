@@ -93,7 +93,8 @@ export default function GalleryPageClient() {
 
   return (
     <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6 min-h-[64px]">
+      {/* タイトル: モバイルでは非表示（ヘッダーナビにサイト名がある） */}
+      <div className="hidden sm:flex sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
         <div className="flex-1">
           <h1 id="site-title" className="text-2xl sm:text-3xl font-bold mb-0">
             {labels.site?.title ?? "Gallery"}
@@ -107,6 +108,14 @@ export default function GalleryPageClient() {
             labels={labels.ui?.language ?? { ja: "日本語", en: "English" }}
           />
         </div>
+      </div>
+      {/* モバイル: 言語切り替えのみ */}
+      <div className="flex sm:hidden justify-end mb-2">
+        <LocaleToggle
+          locale={locale}
+          setLocale={setLocale}
+          labels={labels.ui?.language ?? { ja: "日本語", en: "English" }}
+        />
       </div>
 
       <FilterBar

@@ -15,6 +15,7 @@ import { useViewHistory } from "../../../lib/hooks/useViewHistory";
 import { useToast } from "../../../lib/hooks/useToast";
 import { shareUrl, copyToClipboard, shareToTwitter, shareToFacebook, shareToLine } from "../../../lib/utils/share";
 import { siteConfig, generatePhotoStructuredData, generateBreadcrumbStructuredData } from "../../../lib/utils/seo";
+import ProfileLink from "../../components/ProfileLink";
 import LocaleToggle from "../../components/LocaleToggle";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
@@ -174,10 +175,13 @@ function PhotoImage({
                     alt={alt}
                     width={1200}
                     height={800}
-                    className="w-full h-auto object-contain max-h-[80vh]"
+                    draggable={false}
+                    onContextMenu={(e) => e.preventDefault()}
+                    className="w-full h-auto object-contain max-h-[80vh] select-none"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1200px"
                     priority
                     style={{
+                        WebkitTouchCallout: "none",
                         ...(focalPoint ? { objectPosition: `${focalPoint.x * 100}% ${focalPoint.y * 100}%` } : {}),
                     }}
                     onError={() => {
@@ -487,18 +491,13 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
 
                 {/* アップロードユーザーへのリンク */}
                 {photo.userId && photo.displayName && (
-                    <div className="text-sm">
-                        <Link
-                            href={`/users?id=${encodeURIComponent(photo.userId)}`}
-                            className="inline-flex items-center gap-1.5 text-white/50 hover:text-white/80 transition-colors"
-                        >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                            <span>
-                                {locale === "en" ? `View ${photo.displayName}'s photos` : `${photo.displayName} の写真を見る`}
-                            </span>
-                        </Link>
+                    <div>
+                        <ProfileLink
+                            userId={photo.userId}
+                            displayName={photo.displayName}
+                            uploaderUsername={photo.uploaderUsername}
+                            size="md"
+                        />
                     </div>
                 )}
 
