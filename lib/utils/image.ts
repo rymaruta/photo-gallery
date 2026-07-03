@@ -1,3 +1,40 @@
+// JPEG から EXIF（APP1）/ IPTC（APP13）セグメントをバイトレベルで除去する。
+// canvas 圧縮が失敗して元ファイルをアップロードするフォールバック時に、
+// GPS 位置情報などのメタデータが公開されるのを防ぐ。
+export async function stripJpegExif(file: File): Promise<File> {
+    if (file.type !== "image/jpeg") return file;
+    try {
+        const buf = new Uint8Array(await file.arrayBuffer());
+        // SOI マーカー確認
+        if (buf.length < 4 || buf[0] !== 0xFF || buf[1] !== 0xD8) return file;
+
+        const parts: Uint8Array[] = [buf.slice(0, 2)];
+        let i = 2;
+        while (i + 4 <= buf.length) {
+            if (buf[i] !== 0xFF) break; // 壊れた構造 — 以降はそのまま保持
+            const marker = buf[i + 1];
+            if (marker === 0xDA) { // SOS: 以降は画像データなので全部保持
+                parts.push(buf.slice(i));
+                i = buf.length;
+                break;
+            }
+            const len = (buf[i + 2] << 8) | buf[i + 3];
+            if (len < 2) break;
+            const segEnd = i + 2 + len;
+            // APP1 (Exif/XMP) と APP13 (IPTC) を除去、それ以外は保持
+            if (marker !== 0xE1 && marker !== 0xED) {
+                parts.push(buf.slice(i, segEnd));
+            }
+            i = segEnd;
+        }
+        if (i < buf.length) parts.push(buf.slice(i));
+
+        return new File([new Blob(parts as BlobPart[], { type: "image/jpeg" })], file.name, { type: "image/jpeg" });
+    } catch {
+        return file;
+    }
+}
+
 export async function compressImage(file: File, maxPx = 1920, quality = 0.85): Promise<File> {
     // GIFはアニメーションを保持するため圧縮しない
     if (file.type === "image/gif") return file;

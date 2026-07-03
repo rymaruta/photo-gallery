@@ -9,7 +9,7 @@ import LocaleToggle from "../../components/LocaleToggle";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
 import { getCurrentSession } from "../../../lib/auth/cognito";
-import { compressImage } from "../../../lib/utils/image";
+import { compressImage, stripJpegExif } from "../../../lib/utils/image";
 import { extractExifFromFile, reverseGeocode } from "../../../lib/utils/exif";
 import { readSharedPayload, clearSharedPayload } from "../../../lib/utils/shareStore";
 
@@ -52,6 +52,19 @@ function UploadPageInner() {
     const [uploading, setUploading] = useState(false);
     const [fileError, setFileError] = useState<string | null>(null);
     const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // GPS からの撮影地自動入力（プライバシー配慮でオフにできる。設定は保持）
+    const [gpsAutofill, setGpsAutofill] = useState(true);
+    useEffect(() => {
+        try { setGpsAutofill(localStorage.getItem("jp_gps_autofill") !== "0"); } catch { /* ignore */ }
+    }, []);
+    const toggleGpsAutofill = useCallback(() => {
+        setGpsAutofill((v) => {
+            const next = !v;
+            try { localStorage.setItem("jp_gps_autofill", next ? "1" : "0"); } catch { /* ignore */ }
+            return next;
+        });
+    }, []);
 
     // アンマウント時の Object URL 解放用に最新の items を ref で保持
     // （useEffect([]) のクロージャは初期の空配列しか見えないため）
@@ -154,17 +167,19 @@ function UploadPageInner() {
             };
         }));
 
-        // GPS → 場所名（Nominatim 1秒/req のため直列）
-        for (const r of exifResults) {
-            if (r.meta.latitude !== undefined && r.meta.longitude !== undefined) {
-                const place = await reverseGeocode(r.meta.latitude, r.meta.longitude, locale);
-                if (place) {
-                    setItems((prev) => prev.map((it) => (it.id === r.id && !it.location ? { ...it, location: place } : it)));
+        // GPS → 場所名（Nominatim 1秒/req のため直列）。トグルOFF時はスキップ
+        if (gpsAutofill) {
+            for (const r of exifResults) {
+                if (r.meta.latitude !== undefined && r.meta.longitude !== undefined) {
+                    const place = await reverseGeocode(r.meta.latitude, r.meta.longitude, locale);
+                    if (place) {
+                        setItems((prev) => prev.map((it) => (it.id === r.id && !it.location ? { ...it, location: place } : it)));
+                    }
+                    await new Promise((res) => setTimeout(res, 1100));
                 }
-                await new Promise((res) => setTimeout(res, 1100));
             }
         }
-    }, [locale]);
+    }, [locale, gpsAutofill]);
 
     const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files ?? []);
@@ -204,7 +219,11 @@ function UploadPageInner() {
             try {
                 let uploadFile = item.file;
                 try { uploadFile = await compressImage(item.file); }
-                catch (e) { log.error("compress fail, using original:", e); }
+                catch (e) {
+                    // 圧縮失敗時は元ファイルを使うが、GPS等のメタデータは必ず除去する
+                    log.error("compress fail, stripping EXIF from original:", e);
+                    uploadFile = await stripJpegExif(item.file);
+                }
                 updateItem(item.id, { progress: 20 });
 
                 const presignedResponse = await apiFetch("/upload/presigned-url", {
@@ -324,6 +343,23 @@ function UploadPageInner() {
                     onChange={handleFileSelect}
                     disabled={uploading}
                 />
+            </label>
+
+            {/* GPS 自動入力トグル */}
+            <label className="flex items-center gap-2 mb-4 cursor-pointer select-none" style={{ touchAction: "manipulation" }}>
+                <input
+                    type="checkbox"
+                    checked={gpsAutofill}
+                    onChange={toggleGpsAutofill}
+                    disabled={uploading}
+                    className="w-4 h-4 accent-white"
+                />
+                <span className="text-xs text-white/60">
+                    <MapPinIcon className="w-3.5 h-3.5 inline -mt-0.5 mr-0.5" />
+                    {locale === "en"
+                        ? "Auto-fill shooting location from photo GPS (city level)"
+                        : "写真のGPSから撮影地を自動入力（市区町村レベル）"}
+                </span>
             </label>
 
             {fileError && <p className="text-sm text-red-400 mb-3">{fileError}</p>}
@@ -523,7 +559,8 @@ function UploadPageInner() {
                                     setAvatarUploading(true);
                                     try {
                                         let compressed = avatarFile;
-                                        try { compressed = await compressImage(avatarFile, 512, 0.9); } catch { /* use original */ }
+                                        try { compressed = await compressImage(avatarFile, 512, 0.9); }
+                                        catch { compressed = await stripJpegExif(avatarFile); }
                                         const { userFetch, authenticatedFetch } = await import("../../../lib/utils/api");
                                         const apiFetch = isAdminUser ? authenticatedFetch : userFetch;
                                         const res = await apiFetch("/profile/avatar/presigned-url", {
