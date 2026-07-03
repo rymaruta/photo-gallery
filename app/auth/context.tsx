@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { signIn, signOut, getCurrentSession } from "../../lib/auth/cognito";
+import { cognitoConfig } from "../../lib/auth/config";
 import { log } from "../../lib/utils/log";
 
 type AuthContextType = {
@@ -37,9 +38,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 認証状態をチェック
     const checkAuth = useCallback(async () => {
         try {
-            // 環境変数が設定されていない場合は認証機能を無効化
-            const hasCognitoConfig = process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID && 
-                                    process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID;
+            // 設定が解決できない場合は認証機能を無効化
+            // （config.ts が検証済みフォールバックを持つため、通常は常に有効）
+            const hasCognitoConfig = cognitoConfig.userPoolId && cognitoConfig.clientId;
 
             if (!hasCognitoConfig) {
                 setAuthState({

@@ -30,8 +30,12 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
-          NEXT_PUBLIC_USER_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_USER_API_BASE_URL }}
+          # 全て公開値（シークレットではない）。Secrets 未設定でも既定の本番値でビルドできる。
+          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL || 'https://ionr4ik01e.execute-api.ap-northeast-1.amazonaws.com' }}
+          NEXT_PUBLIC_USER_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_USER_API_BASE_URL || 'https://gu7kxwdc5l.execute-api.ap-northeast-1.amazonaws.com' }}
+          NEXT_PUBLIC_COGNITO_USER_POOL_ID: ${{ secrets.NEXT_PUBLIC_COGNITO_USER_POOL_ID || 'ap-northeast-1_ZbuhDQsWz' }}
+          NEXT_PUBLIC_COGNITO_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_COGNITO_CLIENT_ID || '21cs4cd8dkttmg3snloj72u8mu' }}
+          NEXT_PUBLIC_CLOUDFRONT_URL: ${{ secrets.NEXT_PUBLIC_CLOUDFRONT_URL || 'https://d1s3dwwzgxf5ni.cloudfront.net' }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
