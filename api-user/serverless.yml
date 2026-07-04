@@ -42,9 +42,16 @@ provider:
             - dynamodb:GetItem
             - dynamodb:UpdateItem
             - dynamodb:Scan
+            - dynamodb:DeleteItem
           Resource:
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-photos
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-photos/index/*
+        # 期限切れストーリーの物理削除用
+        - Effect: Allow
+          Action:
+            - s3:DeleteObject
+          Resource:
+            - arn:aws:s3:::${param:uploadBucket, 'prod-journey-photo-upload'}/uploads/*
         - Effect: Allow
           Action:
             - dynamodb:GetItem
@@ -139,3 +146,27 @@ functions:
           method: POST
           authorizer:
             name: cognitoAuthorizer
+
+  viewStory:
+    handler: src/stories.viewStory
+    events:
+      - httpApi:
+          path: /stories/{id}/view
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  getStoryViewers:
+    handler: src/stories.getStoryViewers
+    events:
+      - httpApi:
+          path: /stories/{id}/viewers
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  cleanupStories:
+    handler: src/stories.cleanupExpiredStories
+    events:
+      # 毎日 04:00 JST (19:00 UTC) に期限切れストーリーを物理削除
+      - schedule: cron(0 19 * * ? *)

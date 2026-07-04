@@ -1,36 +1,83 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { XMarkIcon, UserCircleIcon } from "@heroicons/react/24/outline";
-import type { StoryGroup } from "@/lib/stories";
+import { XMarkIcon, UserCircleIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon } from "@heroicons/react/24/outline";
+import type { StoryGroup, StoryViewer as ViewerEntry } from "@/lib/stories";
 import { timeAgo } from "@/lib/stories";
+import { log } from "@/lib/utils/log";
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
-const STORY_DURATION_MS = 5000;
+const STORY_DURATION_MS = 5000; // 画像の表示時間
 const TICK_MS = 50;
 
 type Props = {
     groups: StoryGroup[];
     initialGroupIndex: number;
     locale: "ja" | "en";
+    ownUserId?: string | null;
+    isAuthenticated: boolean;
     onSeen: (storyId: string) => void;
     onClose: () => void;
 };
 
-export default function StoryViewer({ groups, initialGroupIndex, locale, onSeen, onClose }: Props) {
+export default function StoryViewer({ groups, initialGroupIndex, locale, ownUserId, isAuthenticated, onSeen, onClose }: Props) {
     const [g, setG] = useState(initialGroupIndex);
     const [i, setI] = useState(0);
     const [progress, setProgress] = useState(0); // 0-100
     const [paused, setPaused] = useState(false);
+    const [muted, setMuted] = useState(true);
     const [avatarError, setAvatarError] = useState(false);
+    const [viewers, setViewers] = useState<ViewerEntry[] | null>(null);
+    const [viewersOpen, setViewersOpen] = useState(false);
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+    const reportedRef = useRef<Set<string>>(new Set());
 
     const group = groups[g];
     const item = group?.items[i];
+    const isVideo = item?.mediaType === "video";
+    const isOwnStory = !!ownUserId && group?.userId === ownUserId;
 
-    // 表示したストーリーを既読にする
+    // 表示したストーリーを既読にする（端末側）
     useEffect(() => {
         if (item) onSeen(item.id);
     }, [item, onSeen]);
+
+    // 閲覧をサーバーに記録（ログイン済み・他人のストーリーのみ・セッション内1回）
+    useEffect(() => {
+        if (!item || !isAuthenticated || isOwnStory) return;
+        if (reportedRef.current.has(item.id)) return;
+        reportedRef.current.add(item.id);
+        void (async () => {
+            try {
+                const { userFetch } = await import("../../../lib/utils/api");
+                await userFetch(`/stories/${encodeURIComponent(item.id)}/view`, {
+                    method: "POST",
+                    body: JSON.stringify({}),
+                });
+            } catch (e) {
+                log.warn("story view report error:", e);
+            }
+        })();
+    }, [item, isAuthenticated, isOwnStory]);
+
+    // 自分のストーリー表示中は閲覧者リストを取得
+    useEffect(() => {
+        setViewers(null);
+        setViewersOpen(false);
+        if (!item || !isOwnStory) return;
+        void (async () => {
+            try {
+                const { userFetch } = await import("../../../lib/utils/api");
+                const res = await userFetch(`/stories/${encodeURIComponent(item.id)}/viewers`);
+                if (res.ok) {
+                    const data = await res.json() as { viewers?: ViewerEntry[] };
+                    setViewers(Array.isArray(data.viewers) ? data.viewers : []);
+                }
+            } catch (e) {
+                log.warn("story viewers fetch error:", e);
+            }
+        })();
+    }, [item, isOwnStory]);
 
     const goNext = useCallback(() => {
         setProgress(0);
@@ -55,26 +102,31 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, onSeen,
         }
     }, [groups, g, i]);
 
-    // 自動送りタイマー
+    // 画像: 自動送りタイマー / 動画: timeupdate で進捗（下の video ハンドラ）
     useEffect(() => {
-        if (paused || !item) return;
+        if (paused || !item || isVideo) return;
         const timer = setInterval(() => {
-            setProgress((p) => {
-                const next = p + (TICK_MS / STORY_DURATION_MS) * 100;
-                return next >= 100 ? 100 : next;
-            });
+            setProgress((p) => Math.min(100, p + (TICK_MS / STORY_DURATION_MS) * 100));
         }, TICK_MS);
         return () => clearInterval(timer);
+    }, [paused, item, isVideo]);
+
+    useEffect(() => {
+        if (!isVideo && progress >= 100) goNext();
+    }, [progress, goNext, isVideo]);
+
+    // 一時停止/再開を動画にも反映
+    useEffect(() => {
+        const v = videoRef.current;
+        if (!v) return;
+        if (paused) v.pause();
+        else void v.play().catch(() => { /* ignore */ });
     }, [paused, item]);
 
-    useEffect(() => {
-        if (progress >= 100) goNext();
-    }, [progress, goNext]);
-
-    // 次の画像をプリロード
+    // 次の画像をプリロード（動画はブラウザに任せる）
     useEffect(() => {
         const next = group?.items[i + 1] ?? groups[g + 1]?.items[0];
-        if (next) {
+        if (next && next.mediaType !== "video") {
             const img = new window.Image();
             img.src = next.src;
         }
@@ -109,15 +161,42 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, onSeen,
             aria-modal="true"
             aria-label={locale === "en" ? "Stories" : "ストーリー"}
         >
-            {/* 画像 */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-                key={item.id}
-                src={item.src}
-                alt=""
-                className="max-w-full max-h-full object-contain"
-                draggable={false}
-            />
+            {/* メディア */}
+            {isVideo ? (
+                <video
+                    key={item.id}
+                    ref={videoRef}
+                    src={item.src}
+                    className="max-w-full max-h-full object-contain"
+                    autoPlay
+                    playsInline
+                    muted={muted}
+                    onTimeUpdate={(e) => {
+                        const v = e.currentTarget;
+                        if (v.duration > 0) setProgress((v.currentTime / v.duration) * 100);
+                    }}
+                    onEnded={goNext}
+                    onError={goNext}
+                />
+            ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                    key={item.id}
+                    src={item.src}
+                    alt=""
+                    className="max-w-full max-h-full object-contain"
+                    draggable={false}
+                />
+            )}
+
+            {/* キャプション */}
+            {item.caption && (
+                <div className="absolute inset-x-0 bottom-20 px-6 flex justify-center pointer-events-none">
+                    <p className="max-w-md text-center text-white text-base font-semibold leading-relaxed px-4 py-2 rounded-2xl bg-black/50 backdrop-blur-sm whitespace-pre-wrap break-words">
+                        {item.caption}
+                    </p>
+                </div>
+            )}
 
             {/* 上部グラデーション + プログレスバー + ヘッダー */}
             <div className="absolute top-0 inset-x-0 bg-gradient-to-b from-black/70 to-transparent pt-2 pb-8 px-2 pointer-events-none">
@@ -145,33 +224,111 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, onSeen,
                 </div>
             </div>
 
-            {/* 閉じる */}
-            <button
-                onClick={onClose}
-                aria-label={locale === "en" ? "Close" : "閉じる"}
-                className="absolute top-3 right-2 z-20 p-2.5 text-white/80 hover:text-white"
-                style={{ touchAction: "manipulation", marginTop: "env(safe-area-inset-top, 0px)" }}
-            >
-                <XMarkIcon className="w-6 h-6" />
-            </button>
+            {/* 閉じる / ミュート切り替え */}
+            <div className="absolute top-3 right-2 z-20 flex items-center gap-1" style={{ marginTop: "env(safe-area-inset-top, 0px)" }}>
+                {isVideo && (
+                    <button
+                        onClick={() => setMuted((m) => !m)}
+                        aria-label={muted ? (locale === "en" ? "Unmute" : "ミュート解除") : (locale === "en" ? "Mute" : "ミュート")}
+                        className="p-2.5 text-white/80 hover:text-white"
+                        style={{ touchAction: "manipulation" }}
+                    >
+                        {muted ? <SpeakerXMarkIcon className="w-5 h-5" /> : <SpeakerWaveIcon className="w-5 h-5" />}
+                    </button>
+                )}
+                <button
+                    onClick={onClose}
+                    aria-label={locale === "en" ? "Close" : "閉じる"}
+                    className="p-2.5 text-white/80 hover:text-white"
+                    style={{ touchAction: "manipulation" }}
+                >
+                    <XMarkIcon className="w-6 h-6" />
+                </button>
+            </div>
 
             {/* タップ領域: 左1/3で戻る、右2/3で進む。長押しで一時停止 */}
             <div
-                className="absolute inset-y-0 left-0 w-1/3 z-10"
+                className="absolute left-0 w-1/3 z-10"
+                style={{ top: 80, bottom: 88, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 onClick={goPrev}
                 onPointerDown={() => setPaused(true)}
                 onPointerUp={() => setPaused(false)}
                 onPointerLeave={() => setPaused(false)}
-                style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
             />
             <div
-                className="absolute inset-y-0 right-0 w-2/3 z-10"
+                className="absolute right-0 w-2/3 z-10"
+                style={{ top: 80, bottom: 88, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 onClick={goNext}
                 onPointerDown={() => setPaused(true)}
                 onPointerUp={() => setPaused(false)}
                 onPointerLeave={() => setPaused(false)}
-                style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
             />
+
+            {/* 自分のストーリー: 閲覧者数（タップでリスト表示） */}
+            {isOwnStory && (
+                <button
+                    onClick={() => setViewersOpen(true)}
+                    className="absolute bottom-4 left-4 z-20 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm"
+                    style={{ marginBottom: "env(safe-area-inset-bottom, 0px)", touchAction: "manipulation" }}
+                >
+                    <EyeIcon className="w-4 h-4" />
+                    {viewers === null
+                        ? "..."
+                        : locale === "en"
+                            ? `${viewers.length} viewer${viewers.length === 1 ? "" : "s"}`
+                            : `閲覧 ${viewers.length}人`}
+                </button>
+            )}
+
+            {/* 閲覧者リスト（ボトムシート） */}
+            {viewersOpen && isOwnStory && (
+                <div className="absolute inset-0 z-30" onClick={() => setViewersOpen(false)}>
+                    <div
+                        className="absolute inset-x-0 bottom-0 bg-[#101214] rounded-t-2xl max-h-[60%] flex flex-col"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+                    >
+                        <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                            <h3 className="text-sm font-semibold text-white">
+                                {locale === "en" ? "Viewers" : "閲覧者"}
+                                <span className="ml-2 text-white/50 font-normal">{viewers?.length ?? 0}</span>
+                            </h3>
+                            <button onClick={() => setViewersOpen(false)} className="p-1 text-white/60 hover:text-white" aria-label={locale === "en" ? "Close" : "閉じる"}>
+                                <XMarkIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="overflow-y-auto p-2">
+                            {(viewers ?? []).length === 0 ? (
+                                <p className="text-xs text-white/40 text-center py-8">
+                                    {locale === "en" ? "No viewers yet." : "まだ閲覧者はいません（ログインユーザーの閲覧のみ記録されます）"}
+                                </p>
+                            ) : (
+                                (viewers ?? []).map((v) => (
+                                    <div key={v.userId} className="flex items-center gap-3 px-3 py-2.5">
+                                        <div className="w-9 h-9 rounded-full overflow-hidden bg-white/10 flex items-center justify-center flex-shrink-0">
+                                            {CLOUDFRONT_URL ? (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img
+                                                    src={`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(v.userId)}`}
+                                                    alt=""
+                                                    className="w-full h-full object-cover"
+                                                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                                                />
+                                            ) : (
+                                                <UserCircleIcon className="w-5 h-5 text-white/40" />
+                                            )}
+                                        </div>
+                                        <span className="text-sm text-white/90 flex-1 truncate">
+                                            {v.displayName || (locale === "en" ? "User" : "ユーザー")}
+                                        </span>
+                                        {v.at && <span className="text-[11px] text-white/40">{timeAgo(v.at, locale)}</span>}
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

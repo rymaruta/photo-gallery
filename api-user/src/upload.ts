@@ -79,8 +79,10 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     if (fileSize && fileSize > 50 * 1024 * 1024) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイルサイズが大きすぎます（最大50MB）" }) };
     }
-    if (!fileType.startsWith("image/")) {
-        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "画像ファイルを選択してください" }) };
+    // 画像に加えて動画も許可（ストーリー用。mp4 / webm / QuickTime）
+    const ALLOWED_VIDEO = new Set(["video/mp4", "video/webm", "video/quicktime"]);
+    if (!fileType.startsWith("image/") && !ALLOWED_VIDEO.has(fileType)) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "画像または動画ファイルを選択してください" }) };
     }
 
     const photoId = uuidv4();

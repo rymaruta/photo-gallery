@@ -5,8 +5,16 @@ export type Story = {
     src: string;
     userId: string;
     displayName?: string;
+    mediaType?: "image" | "video";
+    caption?: string;
     createdAt: string;
     expiresAt: string;
+};
+
+export type StoryViewer = {
+    userId: string;
+    displayName?: string;
+    at?: string;
 };
 
 export type StoryGroup = {
