@@ -8,20 +8,30 @@ const ADMIN_GROUP = "admin";
  */
 export function isAdmin(event: APIGatewayProxyEventV2WithJWTAuthorizer): boolean {
     const claims = event.requestContext.authorizer.jwt.claims;
-    const groups = claims["cognito:groups"];
-    if (!groups) return false;
-    let groupList: string[];
-    if (Array.isArray(groups)) {
-        groupList = groups as string[];
-    } else {
-        const str = String(groups).trim();
-        if (str.startsWith("[")) {
-            try { groupList = JSON.parse(str) as string[]; } catch { groupList = [str]; }
-        } else {
-            groupList = str.split(",").map((g) => g.trim());
-        }
+    return parseGroupsClaim(claims["cognito:groups"]).includes(ADMIN_GROUP);
+}
+
+/**
+ * cognito:groups クレームをグループ名の配列に正規化する。
+ *
+ * API Gateway (HTTP API) の JWT オーソライザーは配列クレームを
+ * "[admin user]" という引用符なし・スペース区切りの文字列に変換して渡す
+ * （JSON として不正なので JSON.parse では読めない）。
+ * この形式に加えて、実配列・JSON文字列・カンマ区切りにも対応する。
+ */
+export function parseGroupsClaim(groups: unknown): string[] {
+    if (!groups) return [];
+    if (Array.isArray(groups)) return groups.map(String);
+    const str = String(groups).trim();
+    if (str.startsWith("[")) {
+        try {
+            const parsed = JSON.parse(str) as unknown;
+            if (Array.isArray(parsed)) return parsed.map(String);
+        } catch { /* fall through */ }
+        // "[admin user]" 形式: ブラケットを外してスペース/カンマで分割
+        return str.replace(/^\[|\]$/g, "").split(/[\s,]+/).filter(Boolean);
     }
-    return groupList.includes(ADMIN_GROUP);
+    return str.split(",").map((g) => g.trim()).filter(Boolean);
 }
 
 export function getCallerUserId(event: APIGatewayProxyEventV2WithJWTAuthorizer): string {

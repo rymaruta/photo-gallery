@@ -1,6 +1,7 @@
 import type { APIGatewayProxyHandlerV2, APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { GetCommand, PutCommand, UpdateCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, USERS_TABLE, USERNAME_INDEX } from "./dynamodb";
+import { parseGroupsClaim } from "./auth";
 import type { User } from "./types";
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
@@ -17,20 +18,7 @@ function getCallerSub(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorize
 }
 
 function isAdmin(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[0]): boolean {
-    const groups = event.requestContext.authorizer.jwt.claims["cognito:groups"];
-    if (!groups) return false;
-    let list: string[];
-    if (Array.isArray(groups)) {
-        list = groups as string[];
-    } else {
-        const str = String(groups).trim();
-        if (str.startsWith("[")) {
-            try { list = JSON.parse(str) as string[]; } catch { list = [str]; }
-        } else {
-            list = str.split(",").map((g) => g.trim());
-        }
-    }
-    return list.includes("admin");
+    return parseGroupsClaim(event.requestContext.authorizer.jwt.claims["cognito:groups"]).includes("admin");
 }
 
 async function getUserByUsername(username: string): Promise<User | null> {

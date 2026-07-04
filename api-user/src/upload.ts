@@ -20,11 +20,13 @@ function isAdmin(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[0]
     if (!groups) return false;
     let list: string[];
     if (Array.isArray(groups)) {
-        list = groups as string[];
+        list = groups.map(String);
     } else {
         const str = String(groups).trim();
         if (str.startsWith("[")) {
-            try { list = JSON.parse(str) as string[]; } catch { list = [str]; }
+            // API Gateway (HTTP API) は配列クレームを "[admin user]"
+            // （引用符なし・スペース区切り）で渡すため、JSON.parse は使えない
+            list = str.replace(/^\[|\]$/g, "").split(/[\s,]+/).filter(Boolean);
         } else {
             list = str.split(",").map((g) => g.trim());
         }

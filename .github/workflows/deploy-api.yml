@@ -1,7 +1,15 @@
-name: Deploy API Lambdas (Manual)
+name: Deploy API Lambdas
 
-# 手動トリガー: GitHub UIの "Actions" タブから "Run workflow" で実行
+# main への push（api/ または api-user/ の変更時）で自動デプロイ。
+# GitHub UIの "Actions" タブから "Run workflow" で手動実行も可能。
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "api/**"
+      - "api-user/**"
+      - ".github/workflows/deploy-api.yml"
   workflow_dispatch:
     inputs:
       target:
@@ -26,7 +34,7 @@ env:
 jobs:
   deploy-admin-api:
     name: Deploy admin API (api/)
-    if: ${{ github.event.inputs.target == 'both' || github.event.inputs.target == 'admin-api' }}
+    if: ${{ github.event_name == 'push' || github.event.inputs.target == 'both' || github.event.inputs.target == 'admin-api' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -61,7 +69,7 @@ jobs:
 
   deploy-user-api:
     name: Deploy user API (api-user/)
-    if: ${{ github.event.inputs.target == 'both' || github.event.inputs.target == 'user-api' }}
+    if: ${{ github.event_name == 'push' || github.event.inputs.target == 'both' || github.event.inputs.target == 'user-api' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
