@@ -7,11 +7,11 @@ export type Photo = {
     tags?: string[];
     location?: string;
     published?: boolean;
-    userId?: string;
+    userId?: string; // Cognito sub - 投稿者
     uploadedBy?: string;
     createdAt?: string;
     updatedAt?: string;
-    userId?: string; // Cognito sub - 投稿者
+    coords?: { lat: number; lng: number }; // 撮影地（約1km精度に丸め済み）
     exif?: {
         camera?: string;
         lens?: string;

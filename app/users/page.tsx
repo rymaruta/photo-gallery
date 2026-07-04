@@ -13,6 +13,7 @@ import { log } from "../../lib/utils/log";
 import { getCurrentSession } from "../../lib/auth/cognito";
 import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
 import { publicFetch, userFetch } from "../../lib/utils/api";
+import { ROUTES } from "../../lib/routes";
 import PHOTOS_JSON from "../data/photos.json";
 
 type UserProfile = {
@@ -87,7 +88,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish }: {
     return (
         <div className="relative" style={{ paddingTop: "100%" }}>
             <Link
-                href={`/photo/${photo.id}`}
+                href={ROUTES.PHOTO(photo.id)}
                 className={`absolute inset-0 overflow-hidden bg-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${isHidden ? "opacity-40" : ""}`}
             >
                 {!imageError ? (

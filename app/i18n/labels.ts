@@ -51,6 +51,7 @@ export type Labels = {
         about?: string;
         favorites?: string;
         history?: string;
+        map?: string;
         mypage?: string;
         upload?: string;
         profile?: string;
@@ -103,6 +104,7 @@ const enLabels: Labels = {
         about: "About",
         favorites: "Favorites",
         history: "History",
+        map: "Map",
         mypage: "My Page",
         upload: "Upload",
         profile: "Profile",
@@ -152,6 +154,7 @@ export const ja: Labels = {
         about: "制作について",
         favorites: "お気に入り",
         history: "閲覧履歴",
+        map: "撮影地マップ",
         mypage: "マイページ",
         upload: "アップロード",
         profile: "プロフィール",

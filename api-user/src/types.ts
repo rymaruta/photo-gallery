@@ -12,8 +12,7 @@ export type Photo = {
     displayName?: string;
     createdAt?: string;
     updatedAt?: string;
-    userId?: string;
-    uploadedBy?: string;
+    coords?: { lat: number; lng: number }; // 撮影地（約1km精度に丸め済み）
     exif?: {
         camera?: string;
         lens?: string;

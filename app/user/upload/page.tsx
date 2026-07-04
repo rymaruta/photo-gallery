@@ -249,6 +249,11 @@ function UploadPageInner() {
                 if (!uploadResponse.ok) throw new Error(`S3 ${uploadResponse.status}`);
                 updateItem(item.id, { progress: 80 });
 
+                // 撮影地座標: GPS自動入力がONのときのみ、約1km精度に丸めて保存
+                const coords = gpsAutofill && item.latitude !== undefined && item.longitude !== undefined
+                    ? { lat: Math.round(item.latitude * 100) / 100, lng: Math.round(item.longitude * 100) / 100 }
+                    : undefined;
+
                 const saveResponse = await apiFetch("/upload/save", {
                     method: "POST",
                     body: JSON.stringify({
@@ -258,6 +263,7 @@ function UploadPageInner() {
                         location: item.location || undefined,
                         category: category || undefined,
                         tags: tagList,
+                        ...(coords ? { coords } : {}),
                     }),
                 });
                 if (!saveResponse.ok) {
@@ -294,7 +300,7 @@ function UploadPageInner() {
                 "error",
             );
         }
-    }, [items, category, tags, isAdminUser, locale, router, showToast, updateItem]);
+    }, [items, category, tags, gpsAutofill, isAdminUser, locale, router, showToast, updateItem]);
 
     if (loading || !isAuthenticated || (!isAdminUser && !isGeneralUser)) {
         return (

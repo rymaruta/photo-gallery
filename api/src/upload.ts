@@ -11,6 +11,16 @@ const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
 const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? "";
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
+// 撮影地座標の検証と丸め。プライバシーのため約1km精度（小数第2位）に丸めて保存する
+export function sanitizeCoords(coords: unknown): { lat: number; lng: number } | null {
+    if (!coords || typeof coords !== "object") return null;
+    const { lat, lng } = coords as { lat?: unknown; lng?: unknown };
+    if (typeof lat !== "number" || typeof lng !== "number") return null;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+    return { lat: Math.round(lat * 100) / 100, lng: Math.round(lng * 100) / 100 };
+}
+
 export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const authError = requireAdmin(event);
     if (authError) return authError;
@@ -69,6 +79,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         category?: string;
         tags?: string[];
         exif?: Photo["exif"];
+        coords?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -76,12 +87,12 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なリクエスト" }) };
     }
 
-    const { key, publicUrl, photoId, title, description, location, category, tags, exif } = body;
+    const { key, publicUrl, photoId, title, description, location, category, tags, exif, coords } = body;
     if (!key || !publicUrl) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイル情報が必要です" }) };
     }
 
-    const userId = String(event.requestContext.authorizer.jwt.claims.sub ?? "");
+    const safeCoords = sanitizeCoords(coords);
     const photo: Photo = {
         id: photoId ?? uuidv4(),
         src: publicUrl,
@@ -91,6 +102,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         ...(category ? { category } : {}),
         tags: Array.isArray(tags) ? tags : [],
         ...(exif && Object.keys(exif).length > 0 ? { exif } : {}),
+        ...(safeCoords ? { coords: safeCoords } : {}),
         displayName: "丸田 竜平",
         userId: uploaderId,
         uploadedBy: uploaderId,

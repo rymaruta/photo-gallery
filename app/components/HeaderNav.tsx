@@ -128,6 +128,11 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                     </button>
                                 </li>
                                 <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                    <button onClick={() => handleNavigation(ROUTES.MAP)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
+                                        {navLabels.map || "Map"}
+                                    </button>
+                                </li>
+                                <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
                                     <button onClick={() => handleNavigation(ROUTES.FAVORITES)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                         {navLabels.favorites || "Favorites"}
                                     </button>

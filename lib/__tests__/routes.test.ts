@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { ROUTES } from "../routes";
+import PHOTOS_JSON from "@/app/data/photos.json";
+
+const builtIds = (PHOTOS_JSON as Array<{ id: string }>).map((p) => p.id);
 
 describe("ROUTES", () => {
     it("静的ルートが正しいパスを持つ", () => {
@@ -11,15 +14,22 @@ describe("ROUTES", () => {
         expect(ROUTES.LOGIN).toBe("/login");
         expect(ROUTES.UPLOAD).toBe("/user/upload");
         expect(ROUTES.PROFILE_EDIT).toBe("/user/profile");
+        expect(ROUTES.MAP).toBe("/map");
     });
 
-    it("ROUTES.PHOTO(id) は /photo/:id の形式を返す", () => {
-        expect(ROUTES.PHOTO("abc-123")).toBe("/photo/abc-123");
-        expect(ROUTES.PHOTO("xyz")).toBe("/photo/xyz");
+    it("ビルド時に存在する写真は /photo/:id を返す", () => {
+        if (builtIds.length === 0) return; // photos.json が空の環境ではスキップ
+        const id = builtIds[0];
+        expect(ROUTES.PHOTO(id)).toBe(`/photo/${id}`);
     });
 
-    it("ROUTES.PHOTO は UUID 形式の id でも動作する", () => {
-        const uuid = "3efd3a7c-a625-473e-9622-8daaffca1cf8";
-        expect(ROUTES.PHOTO(uuid)).toBe(`/photo/${uuid}`);
+    it("ビルド後にアップロードされた（JSONにない）写真はモーダル表示のURLにフォールバックする", () => {
+        const newId = "not-in-build-00000000-0000-0000-0000-000000000000";
+        expect(builtIds).not.toContain(newId);
+        expect(ROUTES.PHOTO(newId)).toBe(`/?photo=${newId}`);
+    });
+
+    it("フォールバックURLでは id が URL エンコードされる", () => {
+        expect(ROUTES.PHOTO("a b/c")).toBe(`/?photo=${encodeURIComponent("a b/c")}`);
     });
 });
