@@ -10,6 +10,14 @@ const BUILT_PHOTO_IDS = new Set(
     (PHOTOS_JSON as Array<{ id: string }>).map((p) => p.id),
 );
 
+// ビルド時に投稿があるユーザーは /users/<id> が静的生成されている
+// （ユーザー個別の OGP カード付き）。それ以外はクエリ版にフォールバック。
+const BUILT_USER_IDS = new Set(
+    (PHOTOS_JSON as Array<{ userId?: string; published?: boolean }>)
+        .filter((p) => p.userId && p.published !== false)
+        .map((p) => p.userId as string),
+);
+
 export const ROUTES = {
     HOME: "/",
     ABOUT: "/about",
@@ -25,5 +33,8 @@ export const ROUTES = {
         BUILT_PHOTO_IDS.has(id)
             ? `/photo/${id}`
             : `/?photo=${encodeURIComponent(id)}`,
-    USER_PROFILE: (id: string) => `/users?id=${encodeURIComponent(id)}`,
+    USER_PROFILE: (id: string) =>
+        BUILT_USER_IDS.has(id)
+            ? `/users/${encodeURIComponent(id)}`
+            : `/users?id=${encodeURIComponent(id)}`,
 } as const;
