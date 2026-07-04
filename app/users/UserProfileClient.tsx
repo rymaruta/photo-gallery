@@ -13,6 +13,7 @@ import { getCurrentSession } from "../../lib/auth/cognito";
 import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
 import { publicFetch, userFetch } from "../../lib/utils/api";
 import { ROUTES } from "../../lib/routes";
+import UserAvatar from "../components/UserAvatar";
 import PHOTOS_JSON from "../data/photos.json";
 
 type UserProfile = {
@@ -24,33 +25,6 @@ type UserProfile = {
 };
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
-
-function ProfileAvatar({ userId, size = "md" }: { userId: string; size?: "md" | "lg" }) {
-    const [avatarError, setAvatarError] = useState(false);
-    const avatarUrl = CLOUDFRONT_URL ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(userId)}` : "";
-    const dim = size === "lg" ? "w-16 h-16 sm:w-20 sm:h-20" : "w-10 h-10";
-    const iconDim = size === "lg" ? "w-10 h-10 sm:w-12 sm:h-12" : "w-6 h-6";
-
-    if (!avatarUrl || avatarError) {
-        return (
-            <div className={`${dim} rounded-full bg-white/10 flex items-center justify-center flex-shrink-0`}>
-                <UserCircleIcon className={`${iconDim} text-white/40`} />
-            </div>
-        );
-    }
-
-    return (
-        <div className={`${dim} rounded-full overflow-hidden bg-white/10 flex-shrink-0`}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-                src={avatarUrl}
-                alt=""
-                className="w-full h-full object-cover"
-                onError={() => setAvatarError(true)}
-            />
-        </div>
-    );
-}
 
 function CoverPhoto({ userId }: { userId: string }) {
     const [coverError, setCoverError] = useState(false);
@@ -142,17 +116,15 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     const { locale } = useLocale();
     const { showToast } = useToast();
 
-    const [photos, setPhotos] = useState<Photo[]>([]);
-    const [loading, setLoading] = useState(true);
+    // ビルド時 JSON から同期的に初期表示（API 待ちなし）。
+    // userId が変わるケースは呼び出し側の key={userId} でコンポーネントごと作り直す。
+    const [photos, setPhotos] = useState<Photo[]>(
+        () => (PHOTOS_JSON as Photo[]).filter(p => p.userId === userId),
+    );
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [isOwner, setIsOwner] = useState(false);
 
     useEffect(() => {
-        // JSON から即時表示（API 待ちなし）
-        const jsonPhotos = (PHOTOS_JSON as Photo[]).filter(p => p.userId === userId);
-        setPhotos(jsonPhotos);
-        setLoading(false);
-
         const controller = new AbortController();
         const load = async () => {
             try {
@@ -235,16 +207,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         }
     }, [locale, showToast, shareUrl]);
 
-    if (loading) {
-        return (
-            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
-                <div className="flex items-center justify-center min-h-[60vh]">
-                    <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                </div>
-            </main>
-        );
-    }
-
     return (
         <main className="min-h-screen text-white bg-black">
             {/* カバー写真 */}
@@ -268,7 +230,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     {/* アバター + 名前・投稿数 */}
                     <div className="flex items-end gap-4 mb-4 -mt-8">
                         <div className="ring-4 ring-black rounded-full flex-shrink-0">
-                            <ProfileAvatar userId={userId} size="lg" />
+                            <UserAvatar userId={userId} className="w-16 h-16 sm:w-20 sm:h-20" iconClassName="w-10 h-10 sm:w-12 sm:h-12" />
                         </div>
                         <div className="flex-1 min-w-0 pb-1">
                             <h1 className="text-xl sm:text-2xl font-bold leading-tight truncate">

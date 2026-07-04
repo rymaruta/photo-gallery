@@ -4,35 +4,11 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
 import { putPhoto, countUserPhotos } from "./ddb-photos";
 import type { Photo } from "./types";
+import { JSON_HEADERS, getUserId, isAdmin } from "./http";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
 const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? "";
-const JSON_HEADERS = { "Content-Type": "application/json" };
-
-function getUserId(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[0]): string {
-    return String(event.requestContext.authorizer.jwt.claims.sub ?? "unknown");
-}
-
-
-function isAdmin(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[0]): boolean {
-    const groups = event.requestContext.authorizer.jwt.claims["cognito:groups"];
-    if (!groups) return false;
-    let list: string[];
-    if (Array.isArray(groups)) {
-        list = groups.map(String);
-    } else {
-        const str = String(groups).trim();
-        if (str.startsWith("[")) {
-            // API Gateway (HTTP API) は配列クレームを "[admin user]"
-            // （引用符なし・スペース区切り）で渡すため、JSON.parse は使えない
-            list = str.replace(/^\[|\]$/g, "").split(/[\s,]+/).filter(Boolean);
-        } else {
-            list = str.split(",").map((g) => g.trim());
-        }
-    }
-    return list.includes("admin");
-}
 
 const PHOTO_LIMIT_PER_USER = 100;
 

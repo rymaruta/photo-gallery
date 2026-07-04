@@ -1,11 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
-import { UserCircleIcon } from "@heroicons/react/24/outline";
 import { ROUTES } from "@/lib/routes";
-
-const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
+import UserAvatar from "./UserAvatar";
 
 type Props = {
     userId: string;
@@ -18,8 +16,6 @@ type Props = {
 };
 
 export default function ProfileLink({ userId, displayName, size = "md", onClick }: Props) {
-    const [avatarError, setAvatarError] = useState(false);
-    const avatarUrl = CLOUDFRONT_URL ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(userId)}` : "";
     const href = ROUTES.USER_PROFILE(userId);
 
     const dim = size === "sm" ? "w-7 h-7" : "w-9 h-9";
@@ -32,20 +28,8 @@ export default function ProfileLink({ userId, displayName, size = "md", onClick 
             style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}
         >
             {/* アバター */}
-            <div className={`${dim} rounded-full overflow-hidden bg-white/10 flex-shrink-0 ring-1 ring-white/20 group-hover:ring-white/50 transition-all`}>
-                {avatarUrl && !avatarError ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                        src={avatarUrl}
-                        alt={displayName}
-                        className="w-full h-full object-cover"
-                        onError={() => setAvatarError(true)}
-                    />
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                        <UserCircleIcon className="w-4 h-4 text-white/40" />
-                    </div>
-                )}
+            <div className="rounded-full ring-1 ring-white/20 group-hover:ring-white/50 transition-all flex-shrink-0">
+                <UserAvatar userId={userId} className={dim} iconClassName="w-4 h-4" />
             </div>
             {/* 名前 */}
             <span className="text-xs sm:text-sm text-white/60 group-hover:text-white/90 transition-colors">

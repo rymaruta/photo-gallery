@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { PlusIcon, UserCircleIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import UserAvatar from "../UserAvatar";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
@@ -13,7 +14,6 @@ import {
 } from "../../../lib/stories";
 import StoryViewer from "./StoryViewer";
 
-const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 const USER_API_BASE = process.env.NEXT_PUBLIC_USER_API_BASE_URL ?? "";
 
 const ALLOWED_VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
@@ -22,24 +22,6 @@ const MAX_FILE_BYTES = 50 * 1024 * 1024;
 
 // インスタ風のグラデーションリング
 const RING_UNSEEN = "conic-gradient(from 210deg, #f9ce34, #ee2a7b, #6228d7, #f9ce34)";
-
-function Avatar({ userId, size = 56 }: { userId: string; size?: number }) {
-    const [err, setErr] = useState(false);
-    const url = CLOUDFRONT_URL ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(userId)}` : "";
-    return (
-        <div
-            className="rounded-full overflow-hidden bg-white/10 flex items-center justify-center"
-            style={{ width: size, height: size }}
-        >
-            {url && !err ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={url} alt="" className="w-full h-full object-cover" onError={() => setErr(true)} />
-            ) : (
-                <UserCircleIcon className="text-white/40" style={{ width: size * 0.6, height: size * 0.6 }} />
-            )}
-        </div>
-    );
-}
 
 // 動画の再生時間を取得（メタデータのみ読み込み）
 function getVideoDuration(file: File): Promise<number> {
@@ -223,7 +205,7 @@ export default function StoriesBar() {
                         <div className="relative">
                             <div className="p-[3px] rounded-full" style={{ background: "rgba(255,255,255,0.15)" }}>
                                 <div className="p-[2px] rounded-full bg-black">
-                                    <Avatar userId={userId} />
+                                    <UserAvatar userId={userId} className="w-14 h-14" iconClassName="w-8 h-8" />
                                 </div>
                             </div>
                             <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-sky-500 ring-2 ring-black flex items-center justify-center">
@@ -253,7 +235,7 @@ export default function StoriesBar() {
                                 style={{ background: unseen ? RING_UNSEEN : "rgba(255,255,255,0.2)" }}
                             >
                                 <div className="p-[2px] rounded-full bg-black">
-                                    <Avatar userId={group.userId} />
+                                    <UserAvatar userId={group.userId} className="w-14 h-14" iconClassName="w-8 h-8" />
                                 </div>
                             </div>
                             <span className="text-[11px] text-white/60 max-w-[64px] truncate">

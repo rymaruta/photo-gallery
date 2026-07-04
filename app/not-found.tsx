@@ -1,39 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
+import { resolveNotFoundRedirect } from "../lib/utils/notFoundRedirect";
 
 // 静的エクスポートの 404 ページ（out/404.html）。
-// ビルド後にアップロードされた写真の /photo/<id> リンクはまだ静的ページが
-// 存在しないためここに落ちる。その場合はトップページのモーダル表示
-// （/?photo=<id>）へ自動リダイレクトして写真を表示する。
+// ビルド後にアップロードされた写真の /photo/<id> や新規ユーザーの /users/<id> は
+// まだ静的ページが存在しないためここに落ちる。その場合はクエリパラメータ版の
+// URL へ自動リダイレクトして表示を救済する。
 // ※ CloudFront 側で 403/404 エラーを /404.html にフォールバックさせる設定が必要。
 export default function NotFound() {
-    const [redirecting, setRedirecting] = useState(false);
-
     useEffect(() => {
-        if (typeof window === "undefined") return;
-        const photoMatch = window.location.pathname.match(/^\/photo\/([^/]+?)(?:\.html)?\/?$/);
-        if (photoMatch && photoMatch[1]) {
-            setRedirecting(true);
-            window.location.replace(`/?photo=${encodeURIComponent(photoMatch[1])}`);
-            return;
-        }
-        // ビルド後に登録された新規ユーザーのプロフィールURLはクエリ版で救済
-        const userMatch = window.location.pathname.match(/^\/users\/([^/]+?)(?:\.html)?\/?$/);
-        if (userMatch && userMatch[1]) {
-            setRedirecting(true);
-            window.location.replace(`/users?id=${encodeURIComponent(userMatch[1])}`);
-        }
+        const target = resolveNotFoundRedirect(window.location.pathname);
+        if (target) window.location.replace(target);
     }, []);
-
-    if (redirecting) {
-        return (
-            <main className="min-h-screen bg-black flex items-center justify-center">
-                <div className="w-10 h-10 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-            </main>
-        );
-    }
 
     return (
         <main className="min-h-screen bg-black text-white flex items-center justify-center px-4">

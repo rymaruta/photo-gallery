@@ -34,7 +34,7 @@ function UsersPageInner() {
         );
     }
 
-    return <UserProfileClient userId={userId} />;
+    return <UserProfileClient key={userId} userId={userId} />;
 }
 
 export default function UsersPage() {

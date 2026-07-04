@@ -22,9 +22,6 @@ type Props = {
     onCopyLink: () => void | Promise<void>;
 };
 
-const SHARE_BTN =
-    "inline-flex items-center gap-1.5 px-3 py-2 text-xs bg-white/5 hover:bg-white/10 " +
-    "text-white/80 rounded-md transition-colors";
 
 const SHARE_STYLE: React.CSSProperties = {
     touchAction: "manipulation",

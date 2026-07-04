@@ -1,12 +1,7 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { UpdateCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
-
-const JSON_HEADERS = { "Content-Type": "application/json" };
-
-function getCallerId(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[0]): string {
-    return String(event.requestContext.authorizer.jwt.claims.sub ?? "");
-}
+import { JSON_HEADERS, getUserId } from "./http";
 
 export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const id = event.pathParameters?.id;
@@ -31,7 +26,7 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         if (!existing.Item) {
             return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
         }
-        const callerId = getCallerId(event);
+        const callerId = getUserId(event);
         const ownerId = (existing.Item.userId ?? existing.Item.uploadedBy) as string | undefined;
         if (!ownerId || ownerId !== callerId) {
             return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: "権限がありません" }) };

@@ -1,0 +1,279 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// DynamoDB / S3 をモック
+const mockDdbSend = vi.hoisted(() => vi.fn());
+const mockS3Send = vi.hoisted(() => vi.fn());
+
+vi.mock("../dynamodb", () => ({
+    ddb: { send: mockDdbSend },
+    PHOTOS_TABLE: "photos-test",
+    USER_INDEX: "userId-createdAt-index",
+}));
+
+vi.mock("@aws-sdk/client-s3", () => ({
+    S3Client: class { send = mockS3Send; },
+    DeleteObjectCommand: class { input: unknown; constructor(input: unknown) { this.input = input; } },
+}));
+
+// 環境変数はモジュール読込時に評価されるため、stub してから動的 import する
+// （静的 import はファイル先頭に巻き上げられ stubEnv より先に実行されてしまう）
+vi.stubEnv("CLOUDFRONT_URL", "https://cdn.test");
+vi.stubEnv("UPLOAD_BUCKET", "bucket-test");
+const { getStories, createStory, viewStory, getStoryViewers, cleanupExpiredStories } = await import("../stories");
+
+type LambdaResult = { statusCode: number; headers?: Record<string, string>; body: string };
+// テストでは最小限のイベントだけ渡すため any 経由で呼び出す
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const invoke = (handler: unknown, event: unknown): Promise<LambdaResult> => (handler as any)(event);
+
+function authedEvent(sub: string | undefined, overrides: Record<string, unknown> = {}) {
+    return {
+        requestContext: { authorizer: { jwt: { claims: { sub } } } },
+        ...overrides,
+    };
+}
+
+beforeEach(() => {
+    mockDdbSend.mockReset();
+    mockS3Send.mockReset();
+});
+
+// ────────────────────────────────
+// GET /stories
+// ────────────────────────────────
+describe("getStories", () => {
+    it("有効なストーリーを作成順で返し、viewers は公開レスポンスから除外する", async () => {
+        mockDdbSend.mockResolvedValueOnce({
+            Items: [
+                { id: "s2", createdAt: "2026-07-04T11:00:00Z", viewers: { "u9": { at: "x" } } },
+                { id: "s1", createdAt: "2026-07-04T10:00:00Z" },
+            ],
+        });
+        const res = await invoke(getStories, {});
+        expect(res.statusCode).toBe(200);
+        const items = JSON.parse(res.body) as Array<Record<string, unknown>>;
+        expect(items.map((i) => i.id)).toEqual(["s1", "s2"]);
+        expect(items.find((i) => i.id === "s2")?.viewers).toBeUndefined();
+        expect(res.headers?.["Cache-Control"]).toContain("s-maxage=60");
+    });
+
+    it("ページネーション（LastEvaluatedKey）を辿って全件返す", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Items: [{ id: "a", createdAt: "1" }], LastEvaluatedKey: { id: "a" } })
+            .mockResolvedValueOnce({ Items: [{ id: "b", createdAt: "2" }] });
+        const res = await invoke(getStories, {});
+        const items = JSON.parse(res.body) as Array<Record<string, unknown>>;
+        expect(items).toHaveLength(2);
+        expect(mockDdbSend).toHaveBeenCalledTimes(2);
+    });
+
+    it("DynamoDB エラーは 500", async () => {
+        mockDdbSend.mockRejectedValueOnce(new Error("boom"));
+        const res = await invoke(getStories, {});
+        expect(res.statusCode).toBe(500);
+    });
+});
+
+// ────────────────────────────────
+// POST /stories
+// ────────────────────────────────
+describe("createStory", () => {
+    it("認証なし（sub 欠落）は 401", async () => {
+        const res = await invoke(createStory, authedEvent(undefined, { body: "{}" }));
+        expect(res.statusCode).toBe(401);
+    });
+
+    it("publicUrl なしは 400", async () => {
+        const res = await invoke(createStory, authedEvent("u1", { body: JSON.stringify({}) }));
+        expect(res.statusCode).toBe(400);
+    });
+
+    it("配信ドメイン外の publicUrl は 400", async () => {
+        const res = await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({ publicUrl: "https://evil.example.com/x.jpg" }),
+        }));
+        expect(res.statusCode).toBe(400);
+    });
+
+    it("uploads/ 以外の key は 400", async () => {
+        const res = await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", key: "profiles/hack" }),
+        }));
+        expect(res.statusCode).toBe(400);
+    });
+
+    it("正常系: story=true / published=false / 24時間の期限付きで保存される", async () => {
+        mockDdbSend.mockResolvedValueOnce({});
+        const before = Date.now();
+        const res = await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({
+                publicUrl: "https://cdn.test/uploads/a.jpg",
+                key: "uploads/a.jpg",
+                caption: "  旅の思い出  ",
+                displayName: "旅人",
+            }),
+        }));
+        expect(res.statusCode).toBe(201);
+        const put = mockDdbSend.mock.calls[0][0] as { input: { Item: Record<string, unknown> } };
+        const item = put.input.Item;
+        expect(item.story).toBe(true);
+        expect(item.published).toBe(false);
+        expect(item.userId).toBe("u1");
+        expect(item.mediaType).toBe("image");
+        expect(item.caption).toBe("旅の思い出");
+        expect(item.key).toBe("uploads/a.jpg");
+        expect(String(item.id)).toMatch(/^story-/);
+        const ttl = Date.parse(String(item.expiresAt)) - Date.parse(String(item.createdAt));
+        expect(ttl).toBe(24 * 60 * 60 * 1000);
+        expect(Date.parse(String(item.createdAt))).toBeGreaterThanOrEqual(before - 1000);
+    });
+
+    it("mediaType=video が保存される（不正値は image に落ちる）", async () => {
+        mockDdbSend.mockResolvedValue({});
+        await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/v.mp4", mediaType: "video" }),
+        }));
+        let item = (mockDdbSend.mock.calls[0][0] as { input: { Item: Record<string, unknown> } }).input.Item;
+        expect(item.mediaType).toBe("video");
+
+        await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/x.jpg", mediaType: "gif" }),
+        }));
+        item = (mockDdbSend.mock.calls[1][0] as { input: { Item: Record<string, unknown> } }).input.Item;
+        expect(item.mediaType).toBe("image");
+    });
+
+    it("キャプションは200文字に切り詰められる", async () => {
+        mockDdbSend.mockResolvedValueOnce({});
+        await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", caption: "あ".repeat(300) }),
+        }));
+        const item = (mockDdbSend.mock.calls[0][0] as { input: { Item: Record<string, unknown> } }).input.Item;
+        expect(String(item.caption)).toHaveLength(200);
+    });
+});
+
+// ────────────────────────────────
+// POST /stories/{id}/view
+// ────────────────────────────────
+describe("viewStory", () => {
+    it("id なしは 400", async () => {
+        const res = await invoke(viewStory, authedEvent("u1", { body: "{}" }));
+        expect(res.statusCode).toBe(400);
+    });
+
+    it("存在しない / ストーリーでないレコードは 404", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: undefined });
+        let res = await invoke(viewStory, authedEvent("u1", { pathParameters: { id: "story-x" }, body: "{}" }));
+        expect(res.statusCode).toBe(404);
+
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "photo-1", story: undefined } });
+        res = await invoke(viewStory, authedEvent("u1", { pathParameters: { id: "photo-1" }, body: "{}" }));
+        expect(res.statusCode).toBe(404);
+    });
+
+    it("本人の閲覧は記録しない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "u1" } });
+        const res = await invoke(viewStory, authedEvent("u1", { pathParameters: { id: "story-1" }, body: "{}" }));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).self).toBe(true);
+        expect(mockDdbSend).toHaveBeenCalledTimes(1); // Get のみ、Update なし
+    });
+
+    it("他人の閲覧は viewers マップに初回時刻つきで記録する", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } })
+            .mockResolvedValueOnce({}) // viewers マップ初期化
+            .mockResolvedValueOnce({}); // 閲覧者エントリ追加
+        const res = await invoke(viewStory, authedEvent("viewer-1", {
+            pathParameters: { id: "story-1" },
+            body: JSON.stringify({ displayName: "見た人" }),
+        }));
+        expect(res.statusCode).toBe(200);
+        expect(mockDdbSend).toHaveBeenCalledTimes(3);
+        const initExpr = (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string } }).input.UpdateExpression;
+        expect(initExpr).toContain("if_not_exists(viewers");
+        const addCall = (mockDdbSend.mock.calls[2][0] as { input: { UpdateExpression: string; ExpressionAttributeNames: Record<string, string> } }).input;
+        expect(addCall.ExpressionAttributeNames["#uid"]).toBe("viewer-1");
+        expect(addCall.UpdateExpression).toContain("if_not_exists(viewers.#uid"); // 初回閲覧時刻を上書きしない
+    });
+});
+
+// ────────────────────────────────
+// GET /stories/{id}/viewers
+// ────────────────────────────────
+describe("getStoryViewers", () => {
+    it("投稿者以外は 403", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } });
+        const res = await invoke(getStoryViewers, authedEvent("stranger", { pathParameters: { id: "story-1" } }));
+        expect(res.statusCode).toBe(403);
+    });
+
+    it("投稿者本人には閲覧時刻の新しい順でリストを返す", async () => {
+        mockDdbSend.mockResolvedValueOnce({
+            Item: {
+                id: "story-1", story: true, userId: "owner",
+                viewers: {
+                    "u-a": { displayName: "A", at: "2026-07-04T10:00:00Z" },
+                    "u-b": { displayName: "B", at: "2026-07-04T11:00:00Z" },
+                },
+            },
+        });
+        const res = await invoke(getStoryViewers, authedEvent("owner", { pathParameters: { id: "story-1" } }));
+        expect(res.statusCode).toBe(200);
+        const body = JSON.parse(res.body) as { viewers: Array<{ userId: string }>; count: number };
+        expect(body.count).toBe(2);
+        expect(body.viewers.map((v) => v.userId)).toEqual(["u-b", "u-a"]);
+    });
+
+    it("viewers 未設定なら空リスト", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } });
+        const res = await invoke(getStoryViewers, authedEvent("owner", { pathParameters: { id: "story-1" } }));
+        expect(JSON.parse(res.body)).toEqual({ viewers: [], count: 0 });
+    });
+});
+
+// ────────────────────────────────
+// 期限切れクリーンアップ
+// ────────────────────────────────
+describe("cleanupExpiredStories", () => {
+    it("期限切れストーリーの S3 オブジェクトと DDB レコードを削除する", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Items: [{ id: "story-1", key: "uploads/a.jpg", src: "https://cdn.test/uploads/a.jpg" }] }) // scan
+            .mockResolvedValueOnce({}); // delete
+        mockS3Send.mockResolvedValueOnce({});
+
+        const result = await cleanupExpiredStories();
+        expect(result.deleted).toBe(1);
+        const s3Input = (mockS3Send.mock.calls[0][0] as { input: { Bucket: string; Key: string } }).input;
+        expect(s3Input).toEqual({ Bucket: "bucket-test", Key: "uploads/a.jpg" });
+    });
+
+    it("key が無い場合は src の URL パスから導出する", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Items: [{ id: "story-2", src: "https://cdn.test/uploads/b.mp4" }] })
+            .mockResolvedValueOnce({});
+        mockS3Send.mockResolvedValueOnce({});
+
+        await cleanupExpiredStories();
+        const s3Input = (mockS3Send.mock.calls[0][0] as { input: { Key: string } }).input;
+        expect(s3Input.Key).toBe("uploads/b.mp4");
+    });
+
+    it("S3 削除に失敗しても DDB レコードは削除する", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Items: [{ id: "story-3", key: "uploads/c.jpg" }] })
+            .mockResolvedValueOnce({});
+        mockS3Send.mockRejectedValueOnce(new Error("s3 down"));
+
+        const result = await cleanupExpiredStories();
+        expect(result.deleted).toBe(1);
+    });
+
+    it("期限切れが無ければ何もしない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Items: [] });
+        const result = await cleanupExpiredStories();
+        expect(result.deleted).toBe(0);
+        expect(mockS3Send).not.toHaveBeenCalled();
+    });
+});

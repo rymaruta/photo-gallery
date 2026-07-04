@@ -4,11 +4,7 @@ import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const USERS_TABLE = process.env.USERS_TABLE ?? "prod-photo-gallery-users";
-const JSON_HEADERS = { "Content-Type": "application/json" };
-
-function getUserId(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[0]): string {
-    return String(event.requestContext.authorizer.jwt.claims.sub ?? "unknown");
-}
+import { JSON_HEADERS, getUserId } from "./http";
 
 export type UserProfile = {
     userId: string;

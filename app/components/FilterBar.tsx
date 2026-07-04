@@ -44,12 +44,8 @@ function FilterBarInner({
     const safeLocale = locale === "en" ? "en" : "ja";
     const labels = useMemo(() => getLabels(safeLocale), [safeLocale]);
 
-    const tagLabels = labels.tags;
     const actionLabels = labels.actions;
 
-    const multipleLabel = tagLabels.multiple ?? "tags";
-    const singleLabel = tagLabels.single ?? "tag";
-    const noneLabel = tagLabels.none ?? "No tags";
     const clearLabel = actionLabels?.clearTags ?? "Clear";
     const showAllFixedLabel = actionLabels?.showAllGeneric ?? actionLabels?.showAll ?? "Show";
 
@@ -193,14 +189,6 @@ function FilterBarInner({
             }
         },
         [toggleTag]
-    );
-
-    const selectedSummary = useMemo(
-        () =>
-            values.selectedTags.length > 0
-                ? `${values.selectedTags.length} ${values.selectedTags.length > 1 ? multipleLabel : singleLabel}`
-                : noneLabel,
-        [values.selectedTags.length, multipleLabel, singleLabel, noneLabel]
     );
 
     // Styles memoized to avoid re-creating objects on each render

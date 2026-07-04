@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { XMarkIcon, UserCircleIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon } from "@heroicons/react/24/outline";
+import UserAvatar from "../UserAvatar";
 import type { StoryGroup, StoryViewer as ViewerEntry } from "@/lib/stories";
 import { timeAgo } from "@/lib/stories";
 import { log } from "@/lib/utils/log";
 
-const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 const STORY_DURATION_MS = 5000; // 画像の表示時間
 const TICK_MS = 50;
 
@@ -26,7 +26,6 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const [progress, setProgress] = useState(0); // 0-100
     const [paused, setPaused] = useState(false);
     const [muted, setMuted] = useState(true);
-    const [avatarError, setAvatarError] = useState(false);
     const [viewers, setViewers] = useState<ViewerEntry[] | null>(null);
     const [viewersOpen, setViewersOpen] = useState(false);
     const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -152,8 +151,6 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
 
     if (!group || !item) return null;
 
-    const avatarUrl = CLOUDFRONT_URL ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(group.userId)}` : "";
-
     return (
         <div
             className="fixed inset-0 z-[90] bg-black flex items-center justify-center select-none"
@@ -211,14 +208,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                     ))}
                 </div>
                 <div className="flex items-center gap-2 px-1">
-                    <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 flex items-center justify-center flex-shrink-0">
-                        {avatarUrl && !avatarError ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={avatarUrl} alt="" className="w-full h-full object-cover" onError={() => setAvatarError(true)} />
-                        ) : (
-                            <UserCircleIcon className="w-5 h-5 text-white/50" />
-                        )}
-                    </div>
+                    <UserAvatar userId={group.userId} className="w-8 h-8" iconClassName="w-5 h-5" />
                     <span className="text-sm font-semibold text-white drop-shadow">{group.displayName}</span>
                     <span className="text-xs text-white/60">{timeAgo(item.createdAt, locale)}</span>
                 </div>
@@ -305,19 +295,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                             ) : (
                                 (viewers ?? []).map((v) => (
                                     <div key={v.userId} className="flex items-center gap-3 px-3 py-2.5">
-                                        <div className="w-9 h-9 rounded-full overflow-hidden bg-white/10 flex items-center justify-center flex-shrink-0">
-                                            {CLOUDFRONT_URL ? (
-                                                // eslint-disable-next-line @next/next/no-img-element
-                                                <img
-                                                    src={`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(v.userId)}`}
-                                                    alt=""
-                                                    className="w-full h-full object-cover"
-                                                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                                                />
-                                            ) : (
-                                                <UserCircleIcon className="w-5 h-5 text-white/40" />
-                                            )}
-                                        </div>
+                                        <UserAvatar userId={v.userId} className="w-9 h-9" iconClassName="w-5 h-5" />
                                         <span className="text-sm text-white/90 flex-1 truncate">
                                             {v.displayName || (locale === "en" ? "User" : "ユーザー")}
                                         </span>

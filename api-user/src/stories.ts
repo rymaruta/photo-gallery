@@ -3,17 +3,13 @@ import { ScanCommand, PutCommand, GetCommand, UpdateCommand, DeleteCommand } fro
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
+import { JSON_HEADERS, getUserId } from "./http";
 
-const JSON_HEADERS = { "Content-Type": "application/json" };
 const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? "";
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET ?? "";
 const STORY_TTL_MS = 24 * 60 * 60 * 1000; // 24時間
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
-
-function getUserId(event: Parameters<APIGatewayProxyHandlerV2WithJWTAuthorizer>[0]): string {
-    return String(event.requestContext.authorizer.jwt.claims.sub ?? "");
-}
 
 async function scanStories(filter: "active" | "expired"): Promise<Record<string, unknown>[]> {
     const now = new Date().toISOString();
