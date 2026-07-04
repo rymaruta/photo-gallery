@@ -2,6 +2,7 @@
 
 import React from "react";
 import FilterBar from "./components/FilterBar";
+import StoriesBar from "./components/stories/StoriesBar";
 import LocaleToggle from "./components/LocaleToggle";
 import { useLocale } from "./i18n/context";
 import useGallery from "../lib/hooks/useGallery";
@@ -117,6 +118,9 @@ export default function GalleryPageClient() {
           labels={labels.ui?.language ?? { ja: "日本語", en: "English" }}
         />
       </div>
+
+      {/* ストーリー（24時間で消える投稿） */}
+      <StoriesBar />
 
       <FilterBar
         categories={categories}

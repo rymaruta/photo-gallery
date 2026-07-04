@@ -41,6 +41,7 @@ provider:
             - dynamodb:Query
             - dynamodb:GetItem
             - dynamodb:UpdateItem
+            - dynamodb:Scan
           Resource:
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-photos
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-photos/index/*
@@ -120,5 +121,21 @@ functions:
       - httpApi:
           path: /photos/{id}
           method: PUT
+          authorizer:
+            name: cognitoAuthorizer
+
+  getStories:
+    handler: src/stories.getStories
+    events:
+      - httpApi:
+          path: /stories
+          method: GET
+
+  createStory:
+    handler: src/stories.createStory
+    events:
+      - httpApi:
+          path: /stories
+          method: POST
           authorizer:
             name: cognitoAuthorizer
