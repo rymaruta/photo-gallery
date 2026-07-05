@@ -10,7 +10,8 @@ import { ShareIcon, LinkIcon } from "@heroicons/react/24/outline";
 import exifr from "exifr";
 import type { Photo } from "@/lib/data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
-import { useFavorites } from "../../../lib/hooks/useFavorites";
+import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
+import { useAuth } from "../../auth/context";
 import { useViewHistory } from "../../../lib/hooks/useViewHistory";
 import { useToast } from "../../../lib/hooks/useToast";
 import { shareUrl, copyToClipboard, shareToTwitter, shareToFacebook, shareToLine } from "../../../lib/utils/share";
@@ -237,9 +238,10 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
         return allPhotos.find(p => p.id === photoId);
     }, [photoId, allPhotos]);
 
-    // お気に入り機能
-    const { isFavorite, toggleFavorite } = useFavorites();
-    const isFav = photo ? isFavorite(photo.id) : false;
+    // いいね機能（ハート＝ローカルお気に入り + サーバーいいね数）
+    const { isAuthenticated } = useAuth();
+    const { liked: isFav, count: likeCount, pending: likePending, toggle: toggleLike } =
+        usePhotoLikes(photoId, photo?.likes ?? 0, isAuthenticated);
 
     // 閲覧履歴機能
     const { addToHistory } = useViewHistory();
@@ -578,26 +580,31 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
 
                 {/* アクションボタン */}
                 <div className="pt-4 border-t border-white/10 space-y-4">
-                    {/* お気に入りボタン */}
+                    {/* いいねボタン（数を表示） */}
                     <button
-                        onClick={() => toggleFavorite(photo.id)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
+                        onClick={() => void toggleLike()}
+                        disabled={likePending}
+                        aria-pressed={isFav}
+                        aria-label={isFav
+                            ? (locale === "en" ? "Unlike" : "いいねを取り消す")
+                            : (locale === "en" ? "Like" : "いいね")}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors disabled:opacity-60"
                         style={{
                             touchAction: "manipulation",
                             WebkitTapHighlightColor: "transparent",
                             minHeight: "44px"
                         }}
                     >
-                        {isFav ? (
-                            <>
-                                <HeartIcon className="w-5 h-5 text-red-500" />
-                                <span>{locale === "en" ? "Remove from Favorites" : "お気に入りから削除"}</span>
-                            </>
-                        ) : (
-                            <>
-                                <HeartIconOutline className="w-5 h-5" />
-                                <span>{locale === "en" ? "Add to Favorites" : "お気に入りに追加"}</span>
-                            </>
+                        {isFav
+                            ? <HeartIcon className="w-5 h-5 text-red-500" />
+                            : <HeartIconOutline className="w-5 h-5" />}
+                        <span>
+                            {isFav
+                                ? (locale === "en" ? "Liked" : "いいね済み")
+                                : (locale === "en" ? "Like" : "いいね")}
+                        </span>
+                        {likeCount > 0 && (
+                            <span className="text-sm text-white/60 tabular-nums">{likeCount}</span>
                         )}
                     </button>
 

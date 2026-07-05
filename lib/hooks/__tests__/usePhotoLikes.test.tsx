@@ -1,0 +1,89 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { renderHook, act, waitFor } from "@testing-library/react";
+
+// localStorage モック
+const store: Record<string, string> = {};
+Object.defineProperty(globalThis, "localStorage", {
+    value: {
+        getItem: (k: string) => store[k] ?? null,
+        setItem: (k: string, v: string) => { store[k] = v; },
+        removeItem: (k: string) => { delete store[k]; },
+        clear: () => { for (const k of Object.keys(store)) delete store[k]; },
+    },
+    configurable: true,
+});
+
+// api モジュール（publicFetch / userFetch）をモック
+const mockPublicFetch = vi.hoisted(() => vi.fn());
+const mockUserFetch = vi.hoisted(() => vi.fn());
+vi.mock("../../utils/api", () => ({
+    publicFetch: (...a: unknown[]) => mockPublicFetch(...a),
+    userFetch: (...a: unknown[]) => mockUserFetch(...a),
+}));
+
+import { usePhotoLikes } from "../usePhotoLikes";
+
+beforeEach(() => {
+    for (const k of Object.keys(store)) delete store[k];
+    mockPublicFetch.mockReset();
+    mockUserFetch.mockReset();
+    // デフォルト: 初回のカウント取得は失敗扱い（初期値を維持）
+    mockPublicFetch.mockResolvedValue({ ok: false });
+});
+
+afterEach(() => vi.clearAllMocks());
+
+describe("usePhotoLikes", () => {
+    it("初期状態は未いいね・初期カウント", () => {
+        const { result } = renderHook(() => usePhotoLikes("p1", 10, true));
+        expect(result.current.liked).toBe(false);
+        expect(result.current.count).toBe(10);
+    });
+
+    it("マウント時にサーバーの最新カウントを反映する", async () => {
+        mockPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ likes: 42 }) });
+        const { result } = renderHook(() => usePhotoLikes("p1", 10, true));
+        await waitFor(() => expect(result.current.count).toBe(42));
+    });
+
+    it("ログイン時: いいねで楽観+1 → サーバー確定値を反映", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ likes: 6 }) });
+        const { result } = renderHook(() => usePhotoLikes("p1", 5, true));
+
+        await act(async () => { await result.current.toggle(); });
+
+        expect(result.current.liked).toBe(true);
+        expect(result.current.count).toBe(6);
+        expect(mockUserFetch).toHaveBeenCalledWith("/photos/p1/like", { method: "POST" });
+    });
+
+    it("いいね済みから解除で DELETE を呼ぶ", async () => {
+        store["photo-gallery-favorites"] = JSON.stringify(["p1"]); // 既にお気に入り
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ likes: 4 }) });
+        const { result } = renderHook(() => usePhotoLikes("p1", 5, true));
+        expect(result.current.liked).toBe(true);
+
+        await act(async () => { await result.current.toggle(); });
+
+        expect(result.current.liked).toBe(false);
+        expect(mockUserFetch).toHaveBeenCalledWith("/photos/p1/like", { method: "DELETE" });
+    });
+
+    it("未ログイン時はローカルのみ変更しサーバーを呼ばない", async () => {
+        const { result } = renderHook(() => usePhotoLikes("p1", 5, false));
+        await act(async () => { await result.current.toggle(); });
+        expect(result.current.liked).toBe(true);
+        expect(result.current.count).toBe(6); // 楽観更新のみ
+        expect(mockUserFetch).not.toHaveBeenCalled();
+    });
+
+    it("サーバー失敗時は楽観更新を巻き戻す", async () => {
+        mockUserFetch.mockResolvedValue({ ok: false });
+        const { result } = renderHook(() => usePhotoLikes("p1", 5, true));
+
+        await act(async () => { await result.current.toggle(); });
+
+        expect(result.current.liked).toBe(false); // 巻き戻し
+        expect(result.current.count).toBe(5);
+    });
+});

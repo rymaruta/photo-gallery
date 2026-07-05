@@ -158,6 +158,31 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  getLikeCount:
+    handler: src/likes.getLikeCount
+    events:
+      - httpApi:
+          path: /photos/{id}/like
+          method: GET
+
+  likePhoto:
+    handler: src/likes.likePhoto
+    events:
+      - httpApi:
+          path: /photos/{id}/like
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  unlikePhoto:
+    handler: src/likes.unlikePhoto
+    events:
+      - httpApi:
+          path: /photos/{id}/like
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
   viewStory:
     handler: src/stories.viewStory
     events:
