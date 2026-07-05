@@ -14,7 +14,6 @@ import {
 } from "../../../lib/stories";
 import StoryViewer from "./StoryViewer";
 
-const USER_API_BASE = process.env.NEXT_PUBLIC_USER_API_BASE_URL ?? "";
 
 const ALLOWED_VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
 const MAX_VIDEO_SECONDS = 60;
@@ -61,9 +60,10 @@ export default function StoriesBar() {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const loadStories = useCallback(async () => {
-        if (!USER_API_BASE) return;
         try {
-            const res = await fetch(`${USER_API_BASE}/stories`);
+            // ストーリーはログインユーザー限定。認証トークン付きで取得する。
+            const { userFetch } = await import("../../../lib/utils/api");
+            const res = await userFetch("/stories");
             if (!res.ok) return;
             const data = await res.json() as Story[];
             if (Array.isArray(data)) {
@@ -75,9 +75,14 @@ export default function StoriesBar() {
     }, [userId]);
 
     useEffect(() => {
+        // 未ログインではストーリーを取得も表示もしない
+        if (!isAuthenticated) {
+            setGroups([]);
+            return;
+        }
         setSeen(loadSeenStoryIds());
         void loadStories();
-    }, [loadStories]);
+    }, [isAuthenticated, loadStories]);
 
     const handleSeen = useCallback((storyId: string) => {
         markStorySeen(storyId);
@@ -175,7 +180,15 @@ export default function StoriesBar() {
                     ...(displayName ? { displayName } : {}),
                 }),
             });
-            if (!saveRes.ok) throw new Error(`save ${saveRes.status}`);
+            if (!saveRes.ok) {
+                // 投稿上限（429）はユーザーにそのまま伝える
+                if (saveRes.status === 429) {
+                    const err = await saveRes.json().catch(() => ({})) as { error?: string };
+                    showToast(err.error ?? (locale === "en" ? "Daily story limit reached" : "投稿上限に達しています"), "error");
+                    return;
+                }
+                throw new Error(`save ${saveRes.status}`);
+            }
 
             showToast(locale === "en" ? "Story posted!" : "ストーリーを投稿しました", "success");
             closeDraft();
@@ -188,8 +201,24 @@ export default function StoriesBar() {
         }
     }, [draft, caption, locale, showToast, loadStories, closeDraft]);
 
-    // 未ログインでストーリーが無ければバー自体を出さない
-    if (!isAuthenticated && groups.length === 0) return null;
+    // 自分のストーリーを削除
+    const handleDeleteStory = useCallback(async (storyId: string) => {
+        try {
+            const { userFetch } = await import("../../../lib/utils/api");
+            const res = await userFetch(`/stories/${encodeURIComponent(storyId)}`, { method: "DELETE" });
+            if (!res.ok) throw new Error(`delete ${res.status}`);
+            showToast(locale === "en" ? "Story deleted" : "ストーリーを削除しました", "success");
+            await loadStories();
+            return true;
+        } catch (e) {
+            log.error("story delete error:", e);
+            showToast(locale === "en" ? "Failed to delete" : "削除に失敗しました", "error");
+            return false;
+        }
+    }, [locale, showToast, loadStories]);
+
+    // ストーリーはログインユーザー限定。未ログインではバー自体を出さない
+    if (!isAuthenticated) return null;
 
     return (
         <div className="mb-4">
@@ -311,6 +340,7 @@ export default function StoriesBar() {
                     ownUserId={userId}
                     isAuthenticated={isAuthenticated}
                     onSeen={handleSeen}
+                    onDelete={handleDeleteStory}
                     onClose={() => setViewerGroup(null)}
                 />
             )}

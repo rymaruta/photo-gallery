@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon } from "@heroicons/react/24/outline";
 import UserAvatar from "../UserAvatar";
 import type { StoryGroup, StoryViewer as ViewerEntry } from "@/lib/stories";
 import { timeAgo } from "@/lib/stories";
@@ -17,10 +17,12 @@ type Props = {
     ownUserId?: string | null;
     isAuthenticated: boolean;
     onSeen: (storyId: string) => void;
+    /** 自分のストーリーを削除。成功時 true を返すと閉じる */
+    onDelete?: (storyId: string) => Promise<boolean>;
     onClose: () => void;
 };
 
-export default function StoryViewer({ groups, initialGroupIndex, locale, ownUserId, isAuthenticated, onSeen, onClose }: Props) {
+export default function StoryViewer({ groups, initialGroupIndex, locale, ownUserId, isAuthenticated, onSeen, onDelete, onClose }: Props) {
     const [g, setG] = useState(initialGroupIndex);
     const [i, setI] = useState(0);
     const [progress, setProgress] = useState(0); // 0-100
@@ -28,6 +30,8 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const [muted, setMuted] = useState(true);
     const [viewers, setViewers] = useState<ViewerEntry[] | null>(null);
     const [viewersOpen, setViewersOpen] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const reportedRef = useRef<Set<string>>(new Set());
 
@@ -101,14 +105,17 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         }
     }, [groups, g, i]);
 
+    // ダイアログ表示中は自動送りを止める
+    const frozen = paused || viewersOpen || confirmDelete;
+
     // 画像: 自動送りタイマー / 動画: timeupdate で進捗（下の video ハンドラ）
     useEffect(() => {
-        if (paused || !item || isVideo) return;
+        if (frozen || !item || isVideo) return;
         const timer = setInterval(() => {
             setProgress((p) => Math.min(100, p + (TICK_MS / STORY_DURATION_MS) * 100));
         }, TICK_MS);
         return () => clearInterval(timer);
-    }, [paused, item, isVideo]);
+    }, [frozen, item, isVideo]);
 
     useEffect(() => {
         if (!isVideo && progress >= 100) goNext();
@@ -118,9 +125,18 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     useEffect(() => {
         const v = videoRef.current;
         if (!v) return;
-        if (paused) v.pause();
+        if (frozen) v.pause();
         else void v.play().catch(() => { /* ignore */ });
-    }, [paused, item]);
+    }, [frozen, item]);
+
+    const handleDelete = useCallback(async () => {
+        if (!item || !onDelete) return;
+        setDeleting(true);
+        const ok = await onDelete(item.id);
+        setDeleting(false);
+        if (ok) onClose();
+        else setConfirmDelete(false);
+    }, [item, onDelete, onClose]);
 
     // 次の画像をプリロード（動画はブラウザに任せる）
     useEffect(() => {
@@ -226,6 +242,16 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         {muted ? <SpeakerXMarkIcon className="w-5 h-5" /> : <SpeakerWaveIcon className="w-5 h-5" />}
                     </button>
                 )}
+                {isOwnStory && onDelete && (
+                    <button
+                        onClick={() => setConfirmDelete(true)}
+                        aria-label={locale === "en" ? "Delete story" : "ストーリーを削除"}
+                        className="p-2.5 text-white/80 hover:text-white"
+                        style={{ touchAction: "manipulation" }}
+                    >
+                        <TrashIcon className="w-5 h-5" />
+                    </button>
+                )}
                 <button
                     onClick={onClose}
                     aria-label={locale === "en" ? "Close" : "閉じる"}
@@ -303,6 +329,39 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                     </div>
                                 ))
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 削除確認ダイアログ */}
+            {confirmDelete && (
+                <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70 px-6" onClick={() => !deleting && setConfirmDelete(false)}>
+                    <div className="w-full max-w-xs rounded-2xl bg-[#101214] p-5 text-center" onClick={(e) => e.stopPropagation()}>
+                        <p className="text-white text-sm font-semibold mb-1">
+                            {locale === "en" ? "Delete this story?" : "このストーリーを削除しますか？"}
+                        </p>
+                        <p className="text-white/50 text-xs mb-5">
+                            {locale === "en" ? "This can't be undone." : "この操作は取り消せません。"}
+                        </p>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setConfirmDelete(false)}
+                                disabled={deleting}
+                                className="flex-1 py-2.5 rounded-full bg-white/10 text-white text-sm font-medium hover:bg-white/15 disabled:opacity-50"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                {locale === "en" ? "Cancel" : "キャンセル"}
+                            </button>
+                            <button
+                                onClick={() => void handleDelete()}
+                                disabled={deleting}
+                                className="flex-1 py-2.5 rounded-full bg-red-500 text-white text-sm font-semibold hover:bg-red-600 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                {deleting && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+                                {locale === "en" ? "Delete" : "削除"}
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -19,7 +19,7 @@ vi.mock("@aws-sdk/client-s3", () => ({
 // （静的 import はファイル先頭に巻き上げられ stubEnv より先に実行されてしまう）
 vi.stubEnv("CLOUDFRONT_URL", "https://cdn.test");
 vi.stubEnv("UPLOAD_BUCKET", "bucket-test");
-const { getStories, createStory, viewStory, getStoryViewers, cleanupExpiredStories } = await import("../stories");
+const { getStories, createStory, deleteStory, viewStory, getStoryViewers, cleanupExpiredStories } = await import("../stories");
 
 type LambdaResult = { statusCode: number; headers?: Record<string, string>; body: string };
 // テストでは最小限のイベントだけ渡すため any 経由で呼び出す
@@ -42,26 +42,32 @@ beforeEach(() => {
 // GET /stories
 // ────────────────────────────────
 describe("getStories", () => {
-    it("有効なストーリーを作成順で返し、viewers は公開レスポンスから除外する", async () => {
+    it("未ログイン（sub 欠落）は 401 でストーリーを返さない", async () => {
+        const res = await invoke(getStories, authedEvent(undefined));
+        expect(res.statusCode).toBe(401);
+        expect(mockDdbSend).not.toHaveBeenCalled();
+    });
+
+    it("ログイン済みなら作成順で返し、viewers は除外・共有キャッシュもしない", async () => {
         mockDdbSend.mockResolvedValueOnce({
             Items: [
                 { id: "s2", createdAt: "2026-07-04T11:00:00Z", viewers: { "u9": { at: "x" } } },
                 { id: "s1", createdAt: "2026-07-04T10:00:00Z" },
             ],
         });
-        const res = await invoke(getStories, {});
+        const res = await invoke(getStories, authedEvent("viewer"));
         expect(res.statusCode).toBe(200);
         const items = JSON.parse(res.body) as Array<Record<string, unknown>>;
         expect(items.map((i) => i.id)).toEqual(["s1", "s2"]);
         expect(items.find((i) => i.id === "s2")?.viewers).toBeUndefined();
-        expect(res.headers?.["Cache-Control"]).toContain("s-maxage=60");
+        expect(res.headers?.["Cache-Control"]).toContain("no-store");
     });
 
     it("ページネーション（LastEvaluatedKey）を辿って全件返す", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Items: [{ id: "a", createdAt: "1" }], LastEvaluatedKey: { id: "a" } })
             .mockResolvedValueOnce({ Items: [{ id: "b", createdAt: "2" }] });
-        const res = await invoke(getStories, {});
+        const res = await invoke(getStories, authedEvent("viewer"));
         const items = JSON.parse(res.body) as Array<Record<string, unknown>>;
         expect(items).toHaveLength(2);
         expect(mockDdbSend).toHaveBeenCalledTimes(2);
@@ -69,7 +75,7 @@ describe("getStories", () => {
 
     it("DynamoDB エラーは 500", async () => {
         mockDdbSend.mockRejectedValueOnce(new Error("boom"));
-        const res = await invoke(getStories, {});
+        const res = await invoke(getStories, authedEvent("viewer"));
         expect(res.statusCode).toBe(500);
     });
 });
@@ -102,8 +108,11 @@ describe("createStory", () => {
         expect(res.statusCode).toBe(400);
     });
 
+    // 投稿は「本数カウントの Query → Put」の順に DynamoDB を呼ぶ
     it("正常系: story=true / published=false / 24時間の期限付きで保存される", async () => {
-        mockDdbSend.mockResolvedValueOnce({});
+        mockDdbSend
+            .mockResolvedValueOnce({ Count: 0 }) // 本日の投稿数
+            .mockResolvedValueOnce({}); // Put
         const before = Date.now();
         const res = await invoke(createStory, authedEvent("u1", {
             body: JSON.stringify({
@@ -114,7 +123,7 @@ describe("createStory", () => {
             }),
         }));
         expect(res.statusCode).toBe(201);
-        const put = mockDdbSend.mock.calls[0][0] as { input: { Item: Record<string, unknown> } };
+        const put = mockDdbSend.mock.calls[1][0] as { input: { Item: Record<string, unknown> } };
         const item = put.input.Item;
         expect(item.story).toBe(true);
         expect(item.published).toBe(false);
@@ -129,27 +138,91 @@ describe("createStory", () => {
     });
 
     it("mediaType=video が保存される（不正値は image に落ちる）", async () => {
-        mockDdbSend.mockResolvedValue({});
+        mockDdbSend.mockResolvedValue({}); // Query({Count:undefined→0}) と Put の両方に効く
         await invoke(createStory, authedEvent("u1", {
             body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/v.mp4", mediaType: "video" }),
         }));
-        let item = (mockDdbSend.mock.calls[0][0] as { input: { Item: Record<string, unknown> } }).input.Item;
+        // 1件目: calls[0]=Query, calls[1]=Put
+        let item = (mockDdbSend.mock.calls[1][0] as { input: { Item: Record<string, unknown> } }).input.Item;
         expect(item.mediaType).toBe("video");
 
         await invoke(createStory, authedEvent("u1", {
             body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/x.jpg", mediaType: "gif" }),
         }));
-        item = (mockDdbSend.mock.calls[1][0] as { input: { Item: Record<string, unknown> } }).input.Item;
+        // 2件目: calls[2]=Query, calls[3]=Put
+        item = (mockDdbSend.mock.calls[3][0] as { input: { Item: Record<string, unknown> } }).input.Item;
         expect(item.mediaType).toBe("image");
     });
 
     it("キャプションは200文字に切り詰められる", async () => {
-        mockDdbSend.mockResolvedValueOnce({});
+        mockDdbSend.mockResolvedValueOnce({ Count: 0 }).mockResolvedValueOnce({});
         await invoke(createStory, authedEvent("u1", {
             body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", caption: "あ".repeat(300) }),
         }));
-        const item = (mockDdbSend.mock.calls[0][0] as { input: { Item: Record<string, unknown> } }).input.Item;
+        const item = (mockDdbSend.mock.calls[1][0] as { input: { Item: Record<string, unknown> } }).input.Item;
         expect(String(item.caption)).toHaveLength(200);
+    });
+
+    it("24時間の投稿上限に達していたら 429 で保存しない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Count: 20 }); // 上限ちょうど
+        const res = await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg" }),
+        }));
+        expect(res.statusCode).toBe(429);
+        expect(mockDdbSend).toHaveBeenCalledTimes(1); // Query のみ、Put なし
+    });
+
+    it("投稿数カウントが失敗しても投稿は継続する", async () => {
+        mockDdbSend
+            .mockRejectedValueOnce(new Error("query down")) // カウント失敗
+            .mockResolvedValueOnce({}); // Put は成功
+        const res = await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg" }),
+        }));
+        expect(res.statusCode).toBe(201);
+    });
+});
+
+// ────────────────────────────────
+// DELETE /stories/{id}
+// ────────────────────────────────
+describe("deleteStory", () => {
+    it("id なしは 400", async () => {
+        const res = await invoke(deleteStory, authedEvent("u1", { pathParameters: undefined }));
+        expect(res.statusCode).toBe(400);
+    });
+
+    it("存在しない / ストーリーでないものは 404", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: undefined });
+        const res = await invoke(deleteStory, authedEvent("u1", { pathParameters: { id: "story-x" } }));
+        expect(res.statusCode).toBe(404);
+    });
+
+    it("投稿者以外は 403（他人のストーリーは消せない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } });
+        const res = await invoke(deleteStory, authedEvent("attacker", { pathParameters: { id: "story-1" } }));
+        expect(res.statusCode).toBe(403);
+        expect(mockS3Send).not.toHaveBeenCalled();
+    });
+
+    it("投稿者本人は DDB レコードと S3 オブジェクトを削除できる", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "u1", key: "uploads/a.jpg" } }) // Get
+            .mockResolvedValueOnce({}); // Delete
+        mockS3Send.mockResolvedValueOnce({});
+        const res = await invoke(deleteStory, authedEvent("u1", { pathParameters: { id: "story-1" } }));
+        expect(res.statusCode).toBe(200);
+        const s3Input = (mockS3Send.mock.calls[0][0] as { input: { Key: string } }).input;
+        expect(s3Input.Key).toBe("uploads/a.jpg");
+    });
+
+    it("S3 削除に失敗しても DDB レコードは削除する", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "u1", key: "uploads/a.jpg" } })
+            .mockResolvedValueOnce({});
+        mockS3Send.mockRejectedValueOnce(new Error("s3 down"));
+        const res = await invoke(deleteStory, authedEvent("u1", { pathParameters: { id: "story-1" } }));
+        expect(res.statusCode).toBe(200);
     });
 });
 

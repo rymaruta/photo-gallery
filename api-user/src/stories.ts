@@ -1,15 +1,50 @@
-import type { APIGatewayProxyHandlerV2, APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
-import { ScanCommand, PutCommand, GetCommand, UpdateCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
+import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
+import { ScanCommand, QueryCommand, PutCommand, GetCommand, UpdateCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
-import { ddb, PHOTOS_TABLE } from "./dynamodb";
-import { JSON_HEADERS, getUserId } from "./http";
+import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
+import { JSON_HEADERS, getUserId, jsonError } from "./http";
 
 const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? "";
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET ?? "";
 const STORY_TTL_MS = 24 * 60 * 60 * 1000; // 24時間
+const STORY_DAILY_LIMIT = 20; // 1ユーザーが24時間に投稿できるストーリー数
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
+
+// ストーリーレコードから S3 オブジェクトキーを導出する
+// （key フィールド優先、無ければ src の URL パスから）
+function deriveStoryKey(item: Record<string, unknown>): string {
+    if (typeof item.key === "string" && item.key) return item.key;
+    if (typeof item.src === "string") {
+        try {
+            const path = new URL(item.src).pathname.replace(/^\//, "");
+            if (path.startsWith("uploads/")) return path;
+        } catch { /* ignore */ }
+    }
+    return "";
+}
+
+// 過去24時間にこのユーザーが投稿したストーリー数を数える（レート制限用）
+async function countRecentStories(userId: string): Promise<number> {
+    const since = new Date(Date.now() - STORY_TTL_MS).toISOString();
+    let count = 0;
+    let lastKey: Record<string, unknown> | undefined;
+    do {
+        const res = await ddb.send(new QueryCommand({
+            TableName: PHOTOS_TABLE,
+            IndexName: USER_INDEX,
+            KeyConditionExpression: "userId = :u AND createdAt >= :since",
+            FilterExpression: "story = :t",
+            ExpressionAttributeValues: { ":u": userId, ":since": since, ":t": true },
+            Select: "COUNT",
+            ExclusiveStartKey: lastKey,
+        }));
+        count += res.Count ?? 0;
+        lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
+    } while (lastKey);
+    return count;
+}
 
 async function scanStories(filter: "active" | "expired"): Promise<Record<string, unknown>[]> {
     const now = new Date().toISOString();
@@ -28,9 +63,12 @@ async function scanStories(filter: "active" | "expired"): Promise<Record<string,
     return items;
 }
 
-// GET /stories — 有効期限内のストーリー一覧（公開・認証不要）
-// viewers（閲覧者情報）は本人しか見られないため、公開レスポンスからは除外する。
-export const getStories: APIGatewayProxyHandlerV2 = async () => {
+// GET /stories — 有効期限内のストーリー一覧（ログインユーザー限定）
+// ストーリーは「消える・身内向け」の性質上、閲覧もログインユーザーに限定する。
+// viewers（閲覧者情報）は本人しか見られないため、レスポンスからは常に除外する。
+export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const userId = getUserId(event);
+    if (!userId) return jsonError(401, "認証が必要です");
     try {
         const items = await scanStories("active");
         for (const item of items) {
@@ -38,13 +76,14 @@ export const getStories: APIGatewayProxyHandlerV2 = async () => {
         }
         items.sort((a, b) => String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? "")));
         return {
+            // 認証済みユーザー個別のレスポンスなので共有キャッシュには載せない
             statusCode: 200,
-            headers: { ...JSON_HEADERS, "Cache-Control": "public, s-maxage=60" },
+            headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
             body: JSON.stringify(items),
         };
     } catch (e) {
         console.error("getStories error:", e);
-        return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "取得に失敗しました" }) };
+        return jsonError(500, "取得に失敗しました");
     }
 };
 
@@ -80,6 +119,15 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     const mediaType = body.mediaType === "video" ? "video" : "image";
     const caption = (body.caption ?? "").trim().slice(0, 200) || undefined;
     const displayName = (body.displayName ?? "").trim().slice(0, 100) || undefined;
+
+    // 1日の投稿上限チェック（スパム防止）
+    try {
+        if (await countRecentStories(userId) >= STORY_DAILY_LIMIT) {
+            return jsonError(429, `24時間の投稿上限（${STORY_DAILY_LIMIT}件）に達しています`);
+        }
+    } catch (e) {
+        console.error("countRecentStories error:", e); // 数え上げ失敗は投稿を止めない
+    }
 
     const now = Date.now();
     const story = {
@@ -184,6 +232,35 @@ export const getStoryViewers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     }
 };
 
+// DELETE /stories/{id} — 自分のストーリーを削除（投稿者本人 or 管理者）
+// DynamoDB レコードと S3 オブジェクトの両方を消す。
+export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const callerId = getUserId(event);
+    const storyId = event.pathParameters?.id;
+    if (!callerId || !storyId) return jsonError(400, "不正なリクエスト");
+
+    try {
+        const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: storyId } }));
+        const item = res.Item as Record<string, unknown> | undefined;
+        if (!item || item.story !== true) return jsonError(404, "ストーリーが見つかりません");
+        if (item.userId !== callerId) return jsonError(403, "権限がありません");
+
+        const key = deriveStoryKey(item);
+        if (key && UPLOAD_BUCKET) {
+            try {
+                await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));
+            } catch (e) {
+                console.error(`deleteStory: S3 delete failed for ${key}:`, e); // S3失敗でもレコードは消す
+            }
+        }
+        await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyId } }));
+        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
+    } catch (e) {
+        console.error("deleteStory error:", e);
+        return jsonError(500, "削除に失敗しました");
+    }
+};
+
 // 期限切れストーリーの物理削除（毎日スケジュール実行）
 // DynamoDB のレコードと S3 の画像/動画本体の両方を削除する。
 export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
@@ -194,14 +271,7 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
         const id = String(item.id ?? "");
         if (!id) continue;
 
-        // S3 オブジェクトの削除（key フィールド優先、無ければ src の URL パスから導出）
-        let key = typeof item.key === "string" ? item.key : "";
-        if (!key && typeof item.src === "string") {
-            try {
-                const path = new URL(item.src).pathname.replace(/^\//, "");
-                if (path.startsWith("uploads/")) key = path;
-            } catch { /* ignore */ }
-        }
+        const key = deriveStoryKey(item);
         if (key && UPLOAD_BUCKET) {
             try {
                 await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));

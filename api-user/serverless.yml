@@ -137,6 +137,8 @@ functions:
       - httpApi:
           path: /stories
           method: GET
+          authorizer:
+            name: cognitoAuthorizer
 
   createStory:
     handler: src/stories.createStory
@@ -144,6 +146,15 @@ functions:
       - httpApi:
           path: /stories
           method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  deleteStory:
+    handler: src/stories.deleteStory
+    events:
+      - httpApi:
+          path: /stories/{id}
+          method: DELETE
           authorizer:
             name: cognitoAuthorizer
 
