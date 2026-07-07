@@ -122,6 +122,13 @@ functions:
           path: /profile/{userId}
           method: GET
 
+  musicSearch:
+    handler: src/musicSearch.musicSearch
+    events:
+      - httpApi:
+          path: /music/search
+          method: GET
+
   updatePhotoVisibility:
     handler: src/photoUpdate.updatePhotoVisibility
     events:

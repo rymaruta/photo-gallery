@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon, UserCircleIcon, CameraIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, UserCircleIcon, CameraIcon, MusicalNoteIcon, MagnifyingGlassIcon, XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { userFetch } from "../../../lib/utils/api";
-import { parseMusicEmbed, musicServiceLabel } from "../../../lib/utils/music";
+import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../../lib/utils/music";
+import SongPlayer from "../../components/SongPlayer";
 
 type UserProfile = {
     userId: string;
@@ -19,6 +20,10 @@ type UserProfile = {
     songUrl?: string;
     songStart?: number;
     songEnd?: number;
+    songTitle?: string;
+    songArtist?: string;
+    songArtwork?: string;
+    songPreviewUrl?: string;
 };
 
 // "1:23" / "83" → 秒。空や不正は undefined。
@@ -52,6 +57,14 @@ export default function ProfileEditPage() {
     const [bio, setBio] = useState("");
     const [instagram, setInstagram] = useState("");
     const [website, setWebsite] = useState("");
+    // テーマソング: アプリ内検索で選んだ曲
+    const [selectedSong, setSelectedSong] = useState<SongResult | null>(null);
+    const [songQuery, setSongQuery] = useState("");
+    const [songResults, setSongResults] = useState<SongResult[]>([]);
+    const [searching, setSearching] = useState(false);
+    const [searchError, setSearchError] = useState(false);
+    // テーマソング: リンク貼付（上級者向け・フル尺/区間指定）
+    const [showUrlMethod, setShowUrlMethod] = useState(false);
     const [songUrl, setSongUrl] = useState("");
     const [songStartText, setSongStartText] = useState("");
     const [songEndText, setSongEndText] = useState("");
@@ -78,9 +91,23 @@ export default function ProfileEditPage() {
                     setBio(data.bio ?? "");
                     setInstagram(data.instagram ?? "");
                     setWebsite(data.website ?? "");
-                    setSongUrl(data.songUrl ?? "");
-                    setSongStartText(secToMMSS(data.songStart));
-                    setSongEndText(secToMMSS(data.songEnd));
+                    if (data.songPreviewUrl && data.songTitle) {
+                        // アプリ内検索で選ばれた曲
+                        setSelectedSong({
+                            id: data.songPreviewUrl,
+                            title: data.songTitle,
+                            artist: data.songArtist ?? "",
+                            artwork: data.songArtwork ?? "",
+                            previewUrl: data.songPreviewUrl,
+                            trackUrl: data.songUrl ?? "",
+                        });
+                    } else if (data.songUrl) {
+                        // リンク貼付で設定された曲
+                        setShowUrlMethod(true);
+                        setSongUrl(data.songUrl);
+                        setSongStartText(secToMMSS(data.songStart));
+                        setSongEndText(secToMMSS(data.songEnd));
+                    }
                 }
             } catch { /* ignore */ } finally {
                 setFetching(false);
@@ -153,25 +180,58 @@ export default function ProfileEditPage() {
         }
     };
 
-    const handleSave = async () => {
-        // 曲URLが未対応サービスなら保存前に知らせる
-        const trimmedSong = songUrl.trim();
-        if (trimmedSong && !parseMusicEmbed(trimmedSong)) {
-            showToast(locale === "en"
-                ? "Song link must be Spotify, YouTube, or Apple Music."
-                : "曲のリンクは Spotify / YouTube / Apple Music に対応しています。", "error");
-            return;
+    const handleSongSearch = async () => {
+        const q = songQuery.trim();
+        if (!q) return;
+        setSearching(true);
+        setSearchError(false);
+        try {
+            setSongResults(await searchSongs(q));
+        } catch {
+            setSearchError(true);
+            setSongResults([]);
+        } finally {
+            setSearching(false);
         }
-        const songStart = mmssToSec(songStartText);
-        const songEnd = mmssToSec(songEndText);
+    };
+
+    const handleSave = async () => {
+        // テーマソングのペイロードを設定方法（検索 / リンク / 未設定）に応じて組み立てる
+        let songPayload: Record<string, unknown>;
+        if (selectedSong) {
+            songPayload = {
+                songUrl: selectedSong.trackUrl,
+                songTitle: selectedSong.title,
+                songArtist: selectedSong.artist,
+                songArtwork: selectedSong.artwork,
+                songPreviewUrl: selectedSong.previewUrl,
+                songStart: undefined, songEnd: undefined,
+            };
+        } else if (showUrlMethod && songUrl.trim()) {
+            const trimmedSong = songUrl.trim();
+            if (!parseMusicEmbed(trimmedSong)) {
+                showToast(locale === "en"
+                    ? "Song link must be Spotify, YouTube, or Apple Music."
+                    : "曲のリンクは Spotify / YouTube / Apple Music に対応しています。", "error");
+                return;
+            }
+            songPayload = {
+                songUrl: trimmedSong,
+                songStart: mmssToSec(songStartText),
+                songEnd: mmssToSec(songEndText),
+                songTitle: "", songArtist: "", songArtwork: "", songPreviewUrl: "",
+            };
+        } else {
+            // 未設定 → 全クリア（PUT は全置換なので空で消える）
+            songPayload = { songUrl: "", songStart: undefined, songEnd: undefined, songTitle: "", songArtist: "", songArtwork: "", songPreviewUrl: "" };
+        }
         setSaving(true);
         try {
             const res = await userFetch("/user/profile", {
                 method: "PUT",
                 body: JSON.stringify({
                     displayName, bio, instagram, website,
-                    songUrl: trimmedSong,
-                    songStart, songEnd,
+                    ...songPayload,
                 }),
             });
             if (res.ok) {
@@ -365,88 +425,175 @@ export default function ProfileEditPage() {
                             <MusicalNoteIcon className="w-4 h-4 text-fuchsia-400" />
                             <span className="text-sm font-semibold">{locale === "en" ? "Theme song" : "テーマソング"}</span>
                         </div>
-                        <p className="text-xs text-white/40 -mt-1">
-                            {locale === "en"
-                                ? "Paste a Spotify / YouTube / Apple Music link. It plays on your profile."
-                                : "Spotify / YouTube / Apple Music のリンクを貼るとプロフィールで再生できます。"}
-                        </p>
-                        <div>
-                            <input
-                                type="url"
-                                value={songUrl}
-                                onChange={e => setSongUrl(e.target.value)}
-                                maxLength={500}
-                                placeholder="https://open.spotify.com/track/..."
-                                className={inputClass}
-                            />
-                            {songInvalid && (
-                                <p className="text-xs text-amber-400/80 mt-1.5">
-                                    {locale === "en"
-                                        ? "Unsupported link. Use Spotify, YouTube, or Apple Music."
-                                        : "未対応のリンクです。Spotify / YouTube / Apple Music を使ってください。"}
-                                </p>
-                            )}
-                        </div>
 
-                        {/* 好きな部分だけ再生（YouTube のみ） */}
-                        {songPreview && (
+                        {selectedSong ? (
+                            <div className="space-y-2">
+                                <SongPlayer
+                                    key={selectedSong.previewUrl}
+                                    title={selectedSong.title}
+                                    artist={selectedSong.artist}
+                                    artwork={selectedSong.artwork}
+                                    previewUrl={selectedSong.previewUrl}
+                                    trackUrl={selectedSong.trackUrl}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => { setSelectedSong(null); setSongResults([]); setSongQuery(""); }}
+                                    className="inline-flex items-center gap-1 text-xs text-white/50 hover:text-white/80 transition"
+                                >
+                                    <XMarkIcon className="w-3.5 h-3.5" /> {locale === "en" ? "Remove / change" : "曲を変更・削除"}
+                                </button>
+                            </div>
+                        ) : (
                             <>
-                                <div className="flex items-center gap-2">
-                                    <div className="flex-1">
-                                        <label className="block text-[11px] text-white/40 mb-1">{locale === "en" ? "Start (m:ss)" : "開始 (m:ss)"}</label>
-                                        <input
-                                            type="text"
-                                            inputMode="numeric"
-                                            value={songStartText}
-                                            onChange={e => setSongStartText(e.target.value)}
-                                            disabled={!isYouTubePreview}
-                                            placeholder="1:12"
-                                            className={`${inputClass} py-2 disabled:opacity-40`}
-                                        />
-                                    </div>
-                                    <div className="flex-1">
-                                        <label className="block text-[11px] text-white/40 mb-1">{locale === "en" ? "End (m:ss)" : "終了 (m:ss)"}</label>
-                                        <input
-                                            type="text"
-                                            inputMode="numeric"
-                                            value={songEndText}
-                                            onChange={e => setSongEndText(e.target.value)}
-                                            disabled={!isYouTubePreview}
-                                            placeholder="1:35"
-                                            className={`${inputClass} py-2 disabled:opacity-40`}
-                                        />
-                                    </div>
-                                </div>
-                                <p className="text-[11px] text-white/35">
-                                    {isYouTubePreview
-                                        ? (locale === "en" ? "Set a start/end to loop your favorite part." : "開始・終了を指定すると好きな部分だけ再生できます。")
-                                        : (locale === "en" ? `Trimming a section works with YouTube links only (${musicServiceLabel(songPreview.service)} plays from the start).` : `好きな部分の指定は YouTube リンクのみ対応です（${musicServiceLabel(songPreview.service)} は先頭から再生）。`)}
+                                <p className="text-xs text-white/40 -mt-1">
+                                    {locale === "en"
+                                        ? "Search a song — a 30s preview plays on your profile."
+                                        : "曲名で検索して選ぶと、プロフィールで30秒プレビューが流れます。"}
                                 </p>
-
-                                {/* ライブプレビュー */}
-                                <div className="rounded-xl overflow-hidden ring-1 ring-white/10 bg-black">
-                                    {isYouTubePreview ? (
-                                        <div className="relative w-full" style={{ aspectRatio: "16 / 9" }}>
-                                            <iframe
-                                                key={songPreview.embedUrl}
-                                                src={songPreview.embedUrl}
-                                                title="theme song preview"
-                                                className="absolute inset-0 w-full h-full"
-                                                allow="encrypted-media; picture-in-picture; web-share"
-                                                referrerPolicy="strict-origin-when-cross-origin"
-                                                loading="lazy"
-                                            />
-                                        </div>
-                                    ) : (
-                                        <iframe
-                                            key={songPreview.embedUrl}
-                                            src={songPreview.embedUrl}
-                                            title="theme song preview"
-                                            className="w-full"
-                                            style={{ height: songPreview.height ?? 152 }}
-                                            allow="encrypted-media; autoplay; clipboard-write"
-                                            loading="lazy"
+                                <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                        <MagnifyingGlassIcon className="w-4 h-4 text-white/30 absolute left-3 top-1/2 -translate-y-1/2" />
+                                        <input
+                                            type="text"
+                                            value={songQuery}
+                                            onChange={e => setSongQuery(e.target.value)}
+                                            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void handleSongSearch(); } }}
+                                            placeholder={locale === "en" ? "Song or artist" : "曲名・アーティスト名"}
+                                            className={`${inputClass} pl-9`}
                                         />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => void handleSongSearch()}
+                                        disabled={searching || !songQuery.trim()}
+                                        className="px-4 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 transition text-sm disabled:opacity-40 flex items-center justify-center min-w-[64px]"
+                                    >
+                                        {searching
+                                            ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            : (locale === "en" ? "Search" : "検索")}
+                                    </button>
+                                </div>
+
+                                {searchError && (
+                                    <p className="text-xs text-amber-400/80">
+                                        {locale === "en" ? "Search failed. Try again." : "検索に失敗しました。もう一度お試しください。"}
+                                    </p>
+                                )}
+
+                                {songResults.length > 0 && (
+                                    <ul className="rounded-xl ring-1 ring-white/10 divide-y divide-white/5 overflow-hidden max-h-72 overflow-y-auto no-scrollbar">
+                                        {songResults.map(song => (
+                                            <li key={song.id}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSelectedSong(song)}
+                                                    className="w-full flex items-center gap-3 p-2.5 hover:bg-white/5 active:bg-white/10 transition text-left"
+                                                >
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img src={song.artwork} alt="" loading="lazy" className="w-10 h-10 rounded-md object-cover bg-white/10 flex-shrink-0" />
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-sm text-white truncate">{song.title}</p>
+                                                        <p className="text-xs text-white/50 truncate">{song.artist}</p>
+                                                    </div>
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+
+                                {/* リンク貼付（上級者向け: フル尺 / 区間指定） */}
+                                <div className="pt-1 border-t border-white/5">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowUrlMethod(v => !v)}
+                                        className="w-full flex items-center justify-between text-xs text-white/45 hover:text-white/70 transition pt-2"
+                                    >
+                                        <span>{locale === "en" ? "Or paste a link (full song / pick a section)" : "またはリンクを貼る（フル尺・区間指定）"}</span>
+                                        <ChevronDownIcon className={`w-4 h-4 transition-transform ${showUrlMethod ? "rotate-180" : ""}`} />
+                                    </button>
+
+                                    {showUrlMethod && (
+                                        <div className="space-y-3 pt-3">
+                                            <div>
+                                                <input
+                                                    type="url"
+                                                    value={songUrl}
+                                                    onChange={e => setSongUrl(e.target.value)}
+                                                    maxLength={500}
+                                                    placeholder="https://youtu.be/..."
+                                                    className={inputClass}
+                                                />
+                                                {songInvalid && (
+                                                    <p className="text-xs text-amber-400/80 mt-1.5">
+                                                        {locale === "en"
+                                                            ? "Unsupported link. Use Spotify, YouTube, or Apple Music."
+                                                            : "未対応のリンクです。Spotify / YouTube / Apple Music を使ってください。"}
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            {songPreview && (
+                                                <>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="flex-1">
+                                                            <label className="block text-[11px] text-white/40 mb-1">{locale === "en" ? "Start (m:ss)" : "開始 (m:ss)"}</label>
+                                                            <input
+                                                                type="text"
+                                                                inputMode="numeric"
+                                                                value={songStartText}
+                                                                onChange={e => setSongStartText(e.target.value)}
+                                                                disabled={!isYouTubePreview}
+                                                                placeholder="1:12"
+                                                                className={`${inputClass} py-2 disabled:opacity-40`}
+                                                            />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <label className="block text-[11px] text-white/40 mb-1">{locale === "en" ? "End (m:ss)" : "終了 (m:ss)"}</label>
+                                                            <input
+                                                                type="text"
+                                                                inputMode="numeric"
+                                                                value={songEndText}
+                                                                onChange={e => setSongEndText(e.target.value)}
+                                                                disabled={!isYouTubePreview}
+                                                                placeholder="1:35"
+                                                                className={`${inputClass} py-2 disabled:opacity-40`}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-[11px] text-white/35">
+                                                        {isYouTubePreview
+                                                            ? (locale === "en" ? "Set a start/end to play your favorite part." : "開始・終了を指定すると好きな部分だけ再生できます。")
+                                                            : (locale === "en" ? `Section trim works with YouTube only (${musicServiceLabel(songPreview.service)} plays from the start).` : `区間指定は YouTube のみ対応（${musicServiceLabel(songPreview.service)} は先頭から再生）。`)}
+                                                    </p>
+                                                    <div className="rounded-xl overflow-hidden ring-1 ring-white/10 bg-black">
+                                                        {isYouTubePreview ? (
+                                                            <div className="relative w-full" style={{ aspectRatio: "16 / 9" }}>
+                                                                <iframe
+                                                                    key={songPreview.embedUrl}
+                                                                    src={songPreview.embedUrl}
+                                                                    title="theme song preview"
+                                                                    className="absolute inset-0 w-full h-full"
+                                                                    allow="encrypted-media; picture-in-picture; web-share"
+                                                                    referrerPolicy="strict-origin-when-cross-origin"
+                                                                    loading="lazy"
+                                                                />
+                                                            </div>
+                                                        ) : (
+                                                            <iframe
+                                                                key={songPreview.embedUrl}
+                                                                src={songPreview.embedUrl}
+                                                                title="theme song preview"
+                                                                className="w-full"
+                                                                style={{ height: songPreview.height ?? 152 }}
+                                                                allow="encrypted-media; autoplay; clipboard-write"
+                                                                loading="lazy"
+                                                            />
+                                                        )}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             </>

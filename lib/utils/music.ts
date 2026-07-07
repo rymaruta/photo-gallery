@@ -2,7 +2,29 @@
 // 埋め込みプレイヤー URL に変換する。既知のホスト + サニタイズ済み ID からのみ
 // iframe src を組み立てるため、任意 URL の埋め込み（iframe インジェクション）を防ぐ。
 
+import { userFetch } from "./api";
+
 export type MusicService = "spotify" | "youtube" | "appleMusic";
+
+// アプリ内検索で選べる曲（iTunes 検索の結果をユーザーAPI経由で取得）
+export type SongResult = {
+    id: string;
+    title: string;
+    artist: string;
+    artwork: string;
+    previewUrl: string;
+    trackUrl: string;
+};
+
+/** 曲名でアプリ内検索する。認証済みユーザー（プロフィール編集中）から呼ぶ想定。 */
+export async function searchSongs(q: string, signal?: AbortSignal): Promise<SongResult[]> {
+    const query = q.trim();
+    if (!query) return [];
+    const res = await userFetch(`/music/search?q=${encodeURIComponent(query)}`, { signal });
+    if (!res.ok) throw new Error("music search failed");
+    const data = (await res.json()) as { results?: SongResult[] };
+    return Array.isArray(data.results) ? data.results : [];
+}
 
 export type MusicEmbed = {
     service: MusicService;

@@ -6,6 +6,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
+import SongPlayer from "../components/SongPlayer";
 import { HeartIcon } from "@heroicons/react/24/solid";
 import { useLocale } from "../i18n/context";
 import { useToast } from "../../lib/hooks/useToast";
@@ -28,6 +29,10 @@ type UserProfile = {
     songUrl?: string;
     songStart?: number;
     songEnd?: number;
+    songTitle?: string;
+    songArtist?: string;
+    songArtwork?: string;
+    songPreviewUrl?: string;
 };
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
@@ -530,8 +535,20 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         </div>
                     )}
 
-                    {/* テーマソング: 埋め込みプレイヤー（好きな部分だけ再生） */}
-                    {songEmbed && (
+                    {/* テーマソング: アプリ内検索の曲は自作プレイヤー、URL貼付は埋め込み */}
+                    {userProfile?.songPreviewUrl && userProfile?.songTitle ? (
+                        <div className="mt-4">
+                            <SongPlayer
+                                key={userProfile.songPreviewUrl}
+                                title={userProfile.songTitle}
+                                artist={userProfile.songArtist ?? ""}
+                                artwork={userProfile.songArtwork}
+                                previewUrl={userProfile.songPreviewUrl}
+                                trackUrl={userProfile.songUrl}
+                                label={locale === "en" ? "Theme song" : "テーマソング"}
+                            />
+                        </div>
+                    ) : songEmbed && (
                         <div className="mt-4 rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden max-w-md">
                             <div className="flex items-center gap-1.5 px-3.5 pt-2.5 pb-2">
                                 <MusicalNoteIcon className="w-3.5 h-3.5 text-fuchsia-400" />

@@ -12,11 +12,16 @@ export type UserProfile = {
     bio?: string;
     instagram?: string;
     website?: string;
-    // テーマソング: Spotify / YouTube / Apple Music のリンクと、
-    // 「好きな部分」だけ再生するための開始・終了位置（秒, YouTube のみ有効）。
+    // テーマソング。設定方法は2通り:
+    //  (A) アプリ内検索(iTunes)で選択 → songPreviewUrl(30秒) + メタデータを保存
+    //  (B) Spotify / YouTube / Apple Music のURLを貼付 → songUrl + 開始/終了(YouTubeのみ)
     songUrl?: string;
     songStart?: number;
     songEnd?: number;
+    songTitle?: string;
+    songArtist?: string;
+    songArtwork?: string;
+    songPreviewUrl?: string;
     updatedAt?: string;
 };
 
@@ -46,6 +51,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     let body: {
         displayName?: string; bio?: string; instagram?: string; website?: string;
         songUrl?: string; songStart?: number; songEnd?: number;
+        songTitle?: string; songArtist?: string; songArtwork?: string; songPreviewUrl?: string;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -67,6 +73,16 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     const songStart = songUrl ? clampSec(body.songStart) : undefined;
     const songEnd = songUrl ? clampSec(body.songEnd) : undefined;
 
+    // アプリ内検索で選んだ曲。プレビュー音源・アートワークは Apple のホストのみ許可。
+    const httpsOnly = (v: string | undefined, max: number): string | undefined => {
+        const s = v?.trim().slice(0, max);
+        return s && /^https:\/\//.test(s) ? s : undefined;
+    };
+    const songPreviewUrl = httpsOnly(body.songPreviewUrl, 500);
+    const songArtwork = httpsOnly(body.songArtwork, 500);
+    const songTitle = body.songTitle?.trim().slice(0, 200) || undefined;
+    const songArtist = body.songArtist?.trim().slice(0, 200) || undefined;
+
     const profile: UserProfile = {
         userId,
         ...(displayName ? { displayName } : {}),
@@ -76,6 +92,10 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         ...(songUrl ? { songUrl } : {}),
         ...(songStart ? { songStart } : {}),
         ...(songEnd && (!songStart || songEnd > songStart) ? { songEnd } : {}),
+        ...(songPreviewUrl ? { songPreviewUrl } : {}),
+        ...(songArtwork ? { songArtwork } : {}),
+        ...(songTitle ? { songTitle } : {}),
+        ...(songArtist ? { songArtist } : {}),
         updatedAt: new Date().toISOString(),
     };
 
