@@ -162,6 +162,13 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                         {navLabels.about || "About"}
                                     </button>
                                 </li>
+                                {isAuthenticated && (
+                                    <li style={{ margin: 0, padding: "10px 12px 4px", borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                        <span className="text-[10px] tracking-widest uppercase text-white/35">
+                                            {navLabels.account || "Account"}
+                                        </span>
+                                    </li>
+                                )}
                                 {isAuthenticated && userId && (
                                     <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
                                         <button onClick={() => handleNavigation(ROUTES.USER_PROFILE(userId))} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
@@ -173,13 +180,6 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                     <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
                                         <button onClick={() => handleNavigation(ROUTES.UPLOAD)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                             {navLabels.upload || "Upload"}
-                                        </button>
-                                    </li>
-                                )}
-                                {(isAdminUser || isGeneralUser) && (
-                                    <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
-                                        <button onClick={() => handleNavigation(ROUTES.PROFILE_EDIT)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
-                                            {navLabels.profile || "Profile"}
                                         </button>
                                     </li>
                                 )}

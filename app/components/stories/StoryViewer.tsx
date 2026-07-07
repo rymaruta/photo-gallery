@@ -367,31 +367,34 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
 
             {/* 削除確認ダイアログ */}
             {confirmDelete && (
-                <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70 px-6" onClick={() => !deleting && setConfirmDelete(false)}>
-                    <div className="w-full max-w-xs rounded-2xl bg-[#101214] p-5 text-center" onClick={(e) => e.stopPropagation()}>
-                        <p className="text-white text-sm font-semibold mb-1">
+                <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-sm px-6 story-media-in" onClick={() => !deleting && setConfirmDelete(false)}>
+                    <div className="w-full max-w-[300px] rounded-3xl bg-[#16181c] ring-1 ring-white/10 shadow-2xl p-6 text-center" onClick={(e) => e.stopPropagation()}>
+                        <div className="w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center mx-auto mb-4">
+                            <TrashIcon className="w-6 h-6 text-red-400" />
+                        </div>
+                        <p className="text-white text-[15px] font-semibold mb-1.5">
                             {locale === "en" ? "Delete this story?" : "このストーリーを削除しますか？"}
                         </p>
-                        <p className="text-white/50 text-xs mb-5">
+                        <p className="text-white/50 text-xs mb-6 leading-relaxed">
                             {locale === "en" ? "This can't be undone." : "この操作は取り消せません。"}
                         </p>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setConfirmDelete(false)}
-                                disabled={deleting}
-                                className="flex-1 py-2.5 rounded-full bg-white/10 text-white text-sm font-medium hover:bg-white/15 disabled:opacity-50"
-                                style={{ touchAction: "manipulation" }}
-                            >
-                                {locale === "en" ? "Cancel" : "キャンセル"}
-                            </button>
+                        <div className="flex flex-col gap-2">
                             <button
                                 onClick={() => void handleDelete()}
                                 disabled={deleting}
-                                className="flex-1 py-2.5 rounded-full bg-red-500 text-white text-sm font-semibold hover:bg-red-600 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                className="w-full py-3 rounded-full bg-red-500 text-white text-sm font-semibold hover:bg-red-600 active:scale-[0.98] transition disabled:opacity-50 flex items-center justify-center gap-1.5"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 {deleting && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
-                                {locale === "en" ? "Delete" : "削除"}
+                                {locale === "en" ? "Delete" : "削除する"}
+                            </button>
+                            <button
+                                onClick={() => setConfirmDelete(false)}
+                                disabled={deleting}
+                                className="w-full py-3 rounded-full text-white/70 text-sm font-medium hover:bg-white/5 active:scale-[0.98] transition disabled:opacity-50"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                {locale === "en" ? "Cancel" : "キャンセル"}
                             </button>
                         </div>
                     </div>

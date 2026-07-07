@@ -88,7 +88,7 @@ describe("StoryViewer", () => {
         // 確認ダイアログ
         const dialog = await screen.findByText("このストーリーを削除しますか？");
         expect(dialog).toBeInTheDocument();
-        fireEvent.click(screen.getByRole("button", { name: "削除" }));
+        fireEvent.click(screen.getByRole("button", { name: "削除する" }));
         await waitFor(() => expect(onDelete).toHaveBeenCalledWith("s1"));
         await waitFor(() => expect(onClose).toHaveBeenCalled());
     });

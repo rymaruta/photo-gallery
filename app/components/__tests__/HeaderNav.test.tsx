@@ -72,10 +72,11 @@ describe("HeaderNav - ロール別のメニュー表示", () => {
         const items = menuItems();
         expect(items).toContain("My Page");
         expect(items).toContain("Upload");
-        expect(items).toContain("Profile");
         expect(items).toContain("Logout");
         expect(items).not.toContain("Manage");
         expect(items).not.toContain("Login");
+        // プロフィール編集はマイページ/ヘッダーアバターへ集約したためメニューからは除外
+        expect(items).not.toContain("Profile");
     });
 
     it("管理者: 管理メニューが表示される", async () => {

@@ -68,8 +68,8 @@ function buildTimeline(photos: Photo[], locale: "ja" | "en"): TimelineGroup[] {
     return Array.from(map.values());
 }
 
-// ヒーロー背景としてのカバー写真。プロフィールヘッダー（アバター・名前・
-// 統計・アクション）全体の裏に敷き、下方向を黒へグラデーションで馴染ませる。
+// ヒーロー背景としてのカバー写真。上部の横長バンドに写真をくっきり表示し、
+// バンドの下は黒（フェードで徐々に黒くする演出はしない）。
 function CoverBackground({ userId }: { userId: string }) {
     const [coverError, setCoverError] = useState(false);
     const coverUrl = CLOUDFRONT_URL ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(userId)}/cover` : "";
@@ -79,9 +79,8 @@ function CoverBackground({ userId }: { userId: string }) {
         <div className="absolute inset-0 overflow-hidden bg-black" aria-hidden="true">
             {hasCover ? (
                 <>
-                    {/* カバーは上部の横長バンドに限定（縦長ヒーロー全体を覆うと
-                        object-cover で強く切り取られ "どアップ" に見えるため）。
-                        バンドの高さ内で全幅にフィットさせ、下は黒へフェード。 */}
+                    {/* カバーは上部の横長バンドに限定（縦長ヒーロー全体を object-cover で
+                        覆うと強く切り取られ "どアップ" に見えるため）。写真は暗くしない。 */}
                     <div className="absolute top-0 inset-x-0 h-56 sm:h-64 overflow-hidden">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
@@ -90,13 +89,14 @@ function CoverBackground({ userId }: { userId: string }) {
                             className="w-full h-full object-cover object-center"
                             onError={() => setCoverError(true)}
                         />
-                        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/10 to-black" />
+                        {/* 戻るリンクの視認性用に上端のみ薄いスクリム（全体は暗くしない） */}
+                        <div className="absolute top-0 inset-x-0 h-16 bg-gradient-to-b from-black/45 to-transparent" />
                     </div>
-                    {/* バンド下端から下は黒で塗る */}
+                    {/* バンド下端から下は黒（グラデーションなし） */}
                     <div className="absolute inset-x-0 top-56 sm:top-64 bottom-0 bg-black" />
                 </>
             ) : (
-                <div className="w-full h-full bg-gradient-to-b from-white/[0.06] via-transparent to-black" />
+                <div className="w-full h-full bg-black" />
             )}
         </div>
     );
