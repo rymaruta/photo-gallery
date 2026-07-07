@@ -11,7 +11,7 @@ type Props = {
     previewUrl: string;
     /** 外部（Apple Music など）へのリンク */
     trackUrl?: string;
-    /** カード上部のラベル。既定は「テーマソング」 */
+    /** カード上部のラベル。既定は「マイBGM」 */
     label?: string;
 };
 
@@ -34,7 +34,7 @@ export default function SongPlayer({ title, artist, artwork, previewUrl, trackUr
         <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden max-w-md">
             <div className="flex items-center gap-1.5 px-3.5 pt-2.5 pb-1.5">
                 <MusicalNoteIcon className="w-3.5 h-3.5 text-fuchsia-400" />
-                <span className="text-[11px] tracking-widest uppercase text-white/45">{label ?? "テーマソング"}</span>
+                <span className="text-[11px] tracking-widest uppercase text-white/45">{label ?? "マイBGM"}</span>
             </div>
             <div className="flex items-center gap-3 px-3 pb-3">
                 <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-white/10 flex-shrink-0 ring-1 ring-white/10">

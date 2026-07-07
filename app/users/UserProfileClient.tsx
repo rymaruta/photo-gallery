@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import SongPlayer from "../components/SongPlayer";
 import { HeartIcon } from "@heroicons/react/24/solid";
@@ -264,6 +264,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
 
     const [tab, setTab] = useState<TabKey>("posts");
     const [shareOpen, setShareOpen] = useState(false);
+    const [showAllPlaces, setShowAllPlaces] = useState(false);
+    const [mvOpen, setMvOpen] = useState(false);
     const mapPhotos = useMemo(() => visiblePhotos.filter(p => p.coords), [visiblePhotos]);
     const timeline = useMemo(() => buildTimeline(visiblePhotos, locale as "ja" | "en"), [visiblePhotos, locale]);
 
@@ -279,13 +281,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             .filter(t => !isNaN(t))
             .sort((a, b) => a - b);
 
-        // アクティブ日数: 写真を撮った（投稿した）ユニークな日付の数。常に算出できる。
-        const days = new Set<string>();
-        for (const p of visiblePhotos) {
-            const t = Date.parse(String(p.date ?? p.createdAt ?? ""));
-            if (!isNaN(t)) days.add(new Date(t).toISOString().slice(0, 10));
-        }
-
         // 旅した総移動距離: 位置情報つき写真を撮影日順につなぎ、大円距離を積算
         const geo = visiblePhotos
             .filter(p => p.coords && typeof p.coords.lat === "number" && typeof p.coords.lng === "number")
@@ -295,7 +290,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         let distanceKm = 0;
         for (let i = 1; i < geo.length; i++) distanceKm += haversineKm(geo[i - 1].c, geo[i].c);
 
-        return { places: places.size, first: times[0], last: times[times.length - 1], distanceKm, geoCount: geo.length, activeDays: days.size };
+        return { places: places.size, first: times[0], last: times[times.length - 1], distanceKm, geoCount: geo.length };
     }, [visiblePhotos]);
 
     const spanLabel = useMemo(() => {
@@ -461,26 +456,20 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             <span className="text-sm font-bold tabular-nums leading-none">{totalLikes.toLocaleString()}</span>
                             <span className="text-[11px] text-white/60">{locale === "en" ? "likes" : "いいね"}</span>
                         </div>
-                        {/* 3つ目は自明な指標のみ: 旅した距離（GPSあり）→ 無ければアクティブ日数 */}
-                        {footprint.geoCount >= 2 && footprint.distanceKm >= 1 ? (
+                        {/* 3つ目は自明な指標のみ: 旅した距離（GPSがある時だけ）。無ければ出さない */}
+                        {footprint.geoCount >= 2 && footprint.distanceKm >= 1 && (
                             <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5" title={locale === "en" ? "Total distance traveled" : "旅した総移動距離"}>
                                 <GlobeAltIcon className="w-3 h-3 text-sky-400" />
                                 <span className="text-sm font-bold tabular-nums leading-none">{Math.round(footprint.distanceKm).toLocaleString()}</span>
                                 <span className="text-[11px] text-white/60">km</span>
                             </div>
-                        ) : footprint.activeDays > 0 ? (
-                            <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5" title={locale === "en" ? "Days with memories" : "思い出のある日数"}>
-                                <CalendarDaysIcon className="w-3 h-3 text-amber-400" />
-                                <span className="text-sm font-bold tabular-nums leading-none">{footprint.activeDays}</span>
-                                <span className="text-[11px] text-white/60">{locale === "en" ? "days" : "日"}</span>
-                            </div>
-                        ) : null}
+                        )}
                     </div>
 
-                    {/* 訪れた場所チップ: 実際の地名を見せ、タップで足あとマップへ */}
+                    {/* 訪れた場所チップ: 実際の地名を見せる。各チップはマップへ、+Nはその場で全部展開 */}
                     {placeNames.length > 0 && (
                         <div className="flex flex-wrap items-center gap-1.5 mb-4">
-                            {placeNames.slice(0, 5).map((name) => (
+                            {(showAllPlaces ? placeNames : placeNames.slice(0, 5)).map((name) => (
                                 <button
                                     key={name}
                                     onClick={() => setTab("map")}
@@ -493,10 +482,13 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             ))}
                             {placeNames.length > 5 && (
                                 <button
-                                    onClick={() => setTab("map")}
-                                    className="inline-flex items-center rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-white/50 hover:text-white/80 active:scale-95 transition"
+                                    onClick={() => setShowAllPlaces((v) => !v)}
+                                    className="inline-flex items-center gap-0.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-white/50 hover:text-white/80 active:scale-95 transition"
+                                    aria-expanded={showAllPlaces}
                                 >
-                                    +{placeNames.length - 5}
+                                    {showAllPlaces
+                                        ? (locale === "en" ? "Show less" : "閉じる")
+                                        : `+${placeNames.length - 5}`}
                                 </button>
                             )}
                         </div>
@@ -535,7 +527,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         </div>
                     )}
 
-                    {/* テーマソング: アプリ内検索の曲は自作プレイヤー、URL貼付は埋め込み */}
+                    {/* マイBGM: アプリ内検索の曲は自作プレイヤー、URL貼付は埋め込み */}
                     {userProfile?.songPreviewUrl && userProfile?.songTitle ? (
                         <div className="mt-4">
                             <SongPlayer
@@ -545,31 +537,44 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                 artwork={userProfile.songArtwork}
                                 previewUrl={userProfile.songPreviewUrl}
                                 trackUrl={userProfile.songUrl}
-                                label={locale === "en" ? "Theme song" : "テーマソング"}
+                                label={locale === "en" ? "My BGM" : "マイBGM"}
                             />
                         </div>
                     ) : songEmbed && (
                         <div className="mt-4 rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden max-w-md">
-                            <div className="flex items-center gap-1.5 px-3.5 pt-2.5 pb-2">
+                            <div className="flex items-center gap-1.5 px-3.5 py-2.5">
                                 <MusicalNoteIcon className="w-3.5 h-3.5 text-fuchsia-400" />
-                                <span className="text-[11px] tracking-widest uppercase text-white/45">{locale === "en" ? "Theme song" : "テーマソング"}</span>
+                                <span className="text-[11px] tracking-widest uppercase text-white/45">{locale === "en" ? "My BGM" : "マイBGM"}</span>
                                 <span className="ml-auto text-[10px] text-white/30">{musicServiceLabel(songEmbed.service)}</span>
+                                {/* MV(YouTube)は大きいので折りたたみ式 */}
+                                {songEmbed.service === "youtube" && (
+                                    <button
+                                        onClick={() => setMvOpen((v) => !v)}
+                                        aria-expanded={mvOpen}
+                                        className="inline-flex items-center gap-0.5 text-[11px] text-white/60 hover:text-white active:scale-95 transition"
+                                    >
+                                        {mvOpen ? (locale === "en" ? "Hide" : "畳む") : (locale === "en" ? "Play MV" : "MVを開く")}
+                                        <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform ${mvOpen ? "rotate-180" : ""}`} />
+                                    </button>
+                                )}
                             </div>
                             {songEmbed.service === "youtube" ? (
-                                <div className="relative w-full" style={{ aspectRatio: "16 / 9" }}>
-                                    <iframe
-                                        src={songEmbed.embedUrl}
-                                        title="theme song"
-                                        className="absolute inset-0 w-full h-full"
-                                        allow="encrypted-media; picture-in-picture; web-share"
-                                        referrerPolicy="strict-origin-when-cross-origin"
-                                        loading="lazy"
-                                    />
-                                </div>
+                                mvOpen && (
+                                    <div className="relative w-full" style={{ aspectRatio: "16 / 9" }}>
+                                        <iframe
+                                            src={songEmbed.embedUrl}
+                                            title="my bgm"
+                                            className="absolute inset-0 w-full h-full"
+                                            allow="encrypted-media; picture-in-picture; web-share"
+                                            referrerPolicy="strict-origin-when-cross-origin"
+                                            loading="lazy"
+                                        />
+                                    </div>
+                                )
                             ) : (
                                 <iframe
                                     src={songEmbed.embedUrl}
-                                    title="theme song"
+                                    title="my bgm"
                                     className="w-full"
                                     style={{ height: songEmbed.height ?? 152 }}
                                     allow="encrypted-media; autoplay; clipboard-write"

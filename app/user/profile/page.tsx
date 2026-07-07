@@ -423,7 +423,7 @@ export default function ProfileEditPage() {
                     <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 space-y-3">
                         <div className="flex items-center gap-1.5">
                             <MusicalNoteIcon className="w-4 h-4 text-fuchsia-400" />
-                            <span className="text-sm font-semibold">{locale === "en" ? "Theme song" : "テーマソング"}</span>
+                            <span className="text-sm font-semibold">{locale === "en" ? "My BGM" : "マイBGM"}</span>
                         </div>
 
                         {selectedSong ? (
@@ -435,6 +435,7 @@ export default function ProfileEditPage() {
                                     artwork={selectedSong.artwork}
                                     previewUrl={selectedSong.previewUrl}
                                     trackUrl={selectedSong.trackUrl}
+                                    label={locale === "en" ? "My BGM" : "マイBGM"}
                                 />
                                 <button
                                     type="button"
