@@ -30,24 +30,25 @@ export default function DeleteConfirmModal({ photo, isOpen, onClose, onConfirm, 
             />
 
             {/* モーダル本体 */}
-            <div className="relative z-10 w-full max-w-sm rounded-3xl bg-[#16181c] ring-1 ring-white/10 shadow-2xl p-6 text-center story-media-in">
-                <div className="w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center mx-auto mb-4">
-                    <TrashIcon className="w-6 h-6 text-red-400" />
+            <div className="relative z-10 w-full max-w-sm rounded-3xl bg-gradient-to-b from-[#1c1f25] to-[#141619] ring-1 ring-white/10 shadow-2xl shadow-black/60 p-6 pt-7 text-center story-media-in">
+                <div className="relative w-14 h-14 rounded-full bg-red-500/12 ring-1 ring-red-500/25 flex items-center justify-center mx-auto mb-4">
+                    <div className="absolute inset-0 rounded-full bg-red-500/20 blur-xl" aria-hidden="true" />
+                    <TrashIcon className="relative w-6 h-6 text-red-400" />
                 </div>
-                <h2 className="text-[15px] font-semibold text-white mb-1.5">
+                <h2 className="text-base font-bold tracking-tight text-white mb-1.5">
                     {locale === "en" ? "Delete this photo?" : "この写真を削除しますか？"}
                 </h2>
-                <p className="text-white/50 text-xs mb-6 leading-relaxed">
+                <p className="text-white/45 text-[13px] mb-6 leading-relaxed">
                     {title
                         ? (locale === "en" ? `"${title}" will be removed. This can't be undone.` : `「${title}」を削除します。この操作は取り消せません。`)
                         : (locale === "en" ? "This can't be undone." : "この操作は取り消せません。")}
                 </p>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2.5">
                     <button
                         onClick={onConfirm}
                         disabled={deleting}
-                        className="w-full py-3 rounded-full bg-red-500 hover:bg-red-600 active:scale-[0.98] transition text-white font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        className="w-full py-3 rounded-2xl bg-gradient-to-b from-[#ff4d4d] to-[#e5322f] text-white font-semibold text-[15px] shadow-lg shadow-red-900/40 ring-1 ring-inset ring-white/15 hover:brightness-110 active:scale-[0.98] transition disabled:opacity-60 flex items-center justify-center gap-1.5"
                         style={{ touchAction: "manipulation" }}
                     >
                         {deleting && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
@@ -56,7 +57,7 @@ export default function DeleteConfirmModal({ photo, isOpen, onClose, onConfirm, 
                     <button
                         onClick={onClose}
                         disabled={deleting}
-                        className="w-full py-3 rounded-full text-white/70 hover:bg-white/5 active:scale-[0.98] transition text-sm font-medium disabled:opacity-50"
+                        className="w-full py-3 rounded-2xl text-white/60 hover:bg-white/[0.06] hover:text-white/80 active:scale-[0.98] transition text-[15px] font-medium disabled:opacity-50"
                         style={{ touchAction: "manipulation" }}
                     >
                         {locale === "en" ? "Cancel" : "キャンセル"}

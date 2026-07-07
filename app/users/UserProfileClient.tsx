@@ -245,6 +245,33 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     const mapPhotos = useMemo(() => visiblePhotos.filter(p => p.coords), [visiblePhotos]);
     const timeline = useMemo(() => buildTimeline(visiblePhotos, locale as "ja" | "en"), [visiblePhotos, locale]);
 
+    // 足あとサマリー: 訪れた場所数（ユニークな location）と旅の期間（撮影日の最古〜最新）
+    const footprint = useMemo(() => {
+        const places = new Set<string>();
+        for (const p of visiblePhotos) {
+            const loc = (p.location ?? "").trim().toLowerCase();
+            if (loc) places.add(loc);
+        }
+        const times = visiblePhotos
+            .map(p => Date.parse(String(p.date ?? p.createdAt ?? "")))
+            .filter(t => !isNaN(t))
+            .sort((a, b) => a - b);
+        return { places: places.size, first: times[0], last: times[times.length - 1] };
+    }, [visiblePhotos]);
+
+    const spanLabel = useMemo(() => {
+        if (!footprint.first || !footprint.last) return "";
+        const fmt = (t: number) => {
+            const d = new Date(t);
+            return locale === "en"
+                ? d.toLocaleDateString("en-US", { year: "numeric", month: "short" })
+                : `${d.getFullYear()}年${d.getMonth() + 1}月`;
+        };
+        const a = fmt(footprint.first);
+        const b = fmt(footprint.last);
+        return a === b ? a : `${a} – ${b}`;
+    }, [footprint, locale]);
+
     // 共有には常に正規URL（静的生成済みなら /users/<id>）を使う
     const shareUrl = useMemo(() => {
         const path = ROUTES.USER_PROFILE(userId);
@@ -288,15 +315,14 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 <CoverBackground userId={userId} />
 
                 <div className="relative max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
-                    {/* 戻るリンク（カバー写真の上） */}
+                    {/* 戻る: カバー写真を邪魔しない丸アイコンボタン（左上） */}
                     <div className="pt-4 mb-2">
                         <Link
                             href="/"
-                            className="inline-flex items-center gap-2 text-white/80 hover:text-white transition-colors drop-shadow-md"
-                            style={{ minHeight: "44px" }}
+                            aria-label={locale === "en" ? "Back to Gallery" : "ギャラリーに戻る"}
+                            className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-black/40 backdrop-blur-md ring-1 ring-white/15 text-white/90 hover:bg-black/60 active:scale-95 transition shadow-lg shadow-black/30"
                         >
-                            <ArrowLeftIcon className="w-4 h-4" />
-                            <span className="text-sm">{locale === "en" ? "Back to Gallery" : "ギャラリーに戻る"}</span>
+                            <ArrowLeftIcon className="w-5 h-5" />
                         </Link>
                     </div>
 
@@ -472,10 +498,34 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                 </p>
                             </div>
                         ) : (
-                            <div className="rounded-xl overflow-hidden border border-white/10 h-[60vh] min-h-[360px] relative">
-                                <MapView photos={mapPhotos} locale={locale as "ja" | "en"} />
-                                <div className="absolute top-3 left-3 z-[500] px-2.5 py-1 rounded-full bg-black/70 text-[11px] text-white/90 pointer-events-none">
-                                    <MapPinIcon className="w-3.5 h-3.5 inline -mt-0.5" /> {mapPhotos.length}
+                            <div className="space-y-3">
+                                {/* 足あとサマリー: スポット数 / 訪れた場所 / 旅の期間 */}
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <div className="inline-flex items-baseline gap-1.5 rounded-full bg-white/5 ring-1 ring-white/10 px-3 py-1.5">
+                                        <span className="text-sm font-bold tabular-nums leading-none">{mapPhotos.length}</span>
+                                        <span className="text-[11px] text-white/60">{locale === "en" ? "spots" : "スポット"}</span>
+                                    </div>
+                                    {footprint.places > 0 && (
+                                        <div className="inline-flex items-baseline gap-1.5 rounded-full bg-white/5 ring-1 ring-white/10 px-3 py-1.5">
+                                            <span className="text-sm font-bold tabular-nums leading-none">{footprint.places}</span>
+                                            <span className="text-[11px] text-white/60">{locale === "en" ? "places" : "箇所"}</span>
+                                        </div>
+                                    )}
+                                    {spanLabel && (
+                                        <div className="inline-flex items-center gap-1.5 rounded-full bg-white/5 ring-1 ring-white/10 px-3 py-1.5">
+                                            <CalendarDaysIcon className="w-3 h-3 text-white/50" />
+                                            <span className="text-[11px] text-white/70">{spanLabel}</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="rounded-2xl overflow-hidden ring-1 ring-white/10 h-[60vh] min-h-[360px] relative">
+                                    <MapView photos={mapPhotos} locale={locale as "ja" | "en"} showRoute />
+                                    {/* 始点・終点の凡例 */}
+                                    <div className="absolute top-3 left-3 z-[500] flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur-sm text-[11px] text-white/90 pointer-events-none">
+                                        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400" />{locale === "en" ? "Start" : "はじまり"}</span>
+                                        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-400" />{locale === "en" ? "Latest" : "さいきん"}</span>
+                                    </div>
                                 </div>
                             </div>
                         )}

@@ -371,22 +371,24 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
 
             {/* 削除確認ダイアログ */}
             {confirmDelete && (
-                <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-sm px-6 story-media-in" onClick={() => !deleting && setConfirmDelete(false)}>
-                    <div className="w-full max-w-[300px] rounded-3xl bg-[#16181c] ring-1 ring-white/10 shadow-2xl p-6 text-center" onClick={(e) => e.stopPropagation()}>
-                        <div className="w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center mx-auto mb-4">
-                            <TrashIcon className="w-6 h-6 text-red-400" />
+                <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-md px-6 story-media-in" onClick={() => !deleting && setConfirmDelete(false)}>
+                    <div className="w-full max-w-[300px] rounded-3xl bg-gradient-to-b from-[#1c1f25] to-[#141619] ring-1 ring-white/10 shadow-2xl shadow-black/60 p-6 pt-7 text-center" onClick={(e) => e.stopPropagation()}>
+                        {/* アイコン: リング + ほのかな赤グローで奥行き */}
+                        <div className="relative w-14 h-14 rounded-full bg-red-500/12 ring-1 ring-red-500/25 flex items-center justify-center mx-auto mb-4">
+                            <div className="absolute inset-0 rounded-full bg-red-500/20 blur-xl" aria-hidden="true" />
+                            <TrashIcon className="relative w-6 h-6 text-red-400" />
                         </div>
-                        <p className="text-white text-[15px] font-semibold mb-1.5">
+                        <p className="text-white text-base font-bold tracking-tight mb-1.5">
                             {locale === "en" ? "Delete this story?" : "このストーリーを削除しますか？"}
                         </p>
-                        <p className="text-white/50 text-xs mb-6 leading-relaxed">
+                        <p className="text-white/45 text-[13px] mb-6 leading-relaxed">
                             {locale === "en" ? "This can't be undone." : "この操作は取り消せません。"}
                         </p>
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-2.5">
                             <button
                                 onClick={() => void handleDelete()}
                                 disabled={deleting}
-                                className="w-full py-3 rounded-full bg-red-500 text-white text-sm font-semibold hover:bg-red-600 active:scale-[0.98] transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                className="w-full py-3 rounded-2xl bg-gradient-to-b from-[#ff4d4d] to-[#e5322f] text-white text-[15px] font-semibold shadow-lg shadow-red-900/40 ring-1 ring-inset ring-white/15 hover:brightness-110 active:scale-[0.98] transition disabled:opacity-60 flex items-center justify-center gap-1.5"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 {deleting && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
@@ -395,7 +397,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                             <button
                                 onClick={() => setConfirmDelete(false)}
                                 disabled={deleting}
-                                className="w-full py-3 rounded-full text-white/70 text-sm font-medium hover:bg-white/5 active:scale-[0.98] transition disabled:opacity-50"
+                                className="w-full py-3 rounded-2xl text-white/60 text-[15px] font-medium hover:bg-white/[0.06] hover:text-white/80 active:scale-[0.98] transition disabled:opacity-50"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 {locale === "en" ? "Cancel" : "キャンセル"}

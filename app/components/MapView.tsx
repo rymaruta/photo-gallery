@@ -10,11 +10,14 @@ import { ROUTES } from "@/lib/routes";
 type Props = {
     photos: Photo[];
     locale: "ja" | "en";
+    // 撮影日順に写真をつなぐ「足あと」ルートを描く（プロフィールの足あとタブ用）。
+    // 全ユーザーの写真を混在表示する /map では意味をなさないため既定は false。
+    showRoute?: boolean;
 };
 
 // 撮影地マップ本体。Leaflet は window に依存するため、
 // このコンポーネントは必ず dynamic(..., { ssr: false }) 経由で読み込むこと。
-export default function MapView({ photos, locale }: Props) {
+export default function MapView({ photos, locale, showRoute = false }: Props) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<L.Map | null>(null);
 
@@ -48,18 +51,44 @@ export default function MapView({ photos, locale }: Props) {
         const layer = L.layerGroup().addTo(map);
         const bounds: L.LatLngTuple[] = [];
 
-        for (const photo of photos) {
-            const c = photo.coords;
-            if (!c || typeof c.lat !== "number" || typeof c.lng !== "number") continue;
-            if (photo.published === false) continue;
+        const mappable = photos.filter(
+            (p) => p.coords && typeof p.coords.lat === "number" && typeof p.coords.lng === "number" && p.published !== false,
+        );
+
+        // 「足あと」ルート: 撮影日（date 優先、なければ createdAt）の昇順で写真をつなぐ。
+        // 始点・終点を色分けして「どこから旅が始まりどこで終わったか」が一目でわかるようにする。
+        let startId = "";
+        let endId = "";
+        if (showRoute) {
+            const dated = mappable
+                .map((p) => ({ p, t: Date.parse(String(p.date ?? p.createdAt ?? "")) }))
+                .filter((x) => !isNaN(x.t))
+                .sort((a, b) => a.t - b.t)
+                .map((x) => x.p);
+            if (dated.length >= 2) {
+                const routeCoords = dated.map((p) => [p.coords!.lat, p.coords!.lng] as L.LatLngTuple);
+                startId = dated[0].id;
+                endId = dated[dated.length - 1].id;
+                // 下地のグロー + 点線（足あと）の2本重ねで奥行きを出す
+                L.polyline(routeCoords, { color: "#38bdf8", weight: 7, opacity: 0.12, lineJoin: "round" }).addTo(layer);
+                L.polyline(routeCoords, { color: "#7dd3fc", weight: 2, opacity: 0.9, dashArray: "1 9", lineCap: "round" }).addTo(layer);
+            }
+        }
+
+        for (const photo of mappable) {
+            const c = photo.coords!;
             bounds.push([c.lat, c.lng]);
 
+            const isStart = showRoute && photo.id === startId;
+            const isEnd = showRoute && photo.id === endId;
+            const fillColor = isStart ? "#34d399" : isEnd ? "#fb7185" : "#38bdf8";
+
             const marker = L.circleMarker([c.lat, c.lng], {
-                radius: 9,
+                radius: isStart || isEnd ? 10 : 9,
                 color: "#ffffff",
                 weight: 2,
-                fillColor: "#38bdf8",
-                fillOpacity: 0.85,
+                fillColor,
+                fillOpacity: 0.9,
             }).addTo(layer);
 
             // ポップアップは DOM 生成で組み立てる（title等の文字列を innerHTML に入れない）
@@ -93,7 +122,7 @@ export default function MapView({ photos, locale }: Props) {
         return () => {
             layer.remove();
         };
-    }, [photos, locale]);
+    }, [photos, locale, showRoute]);
 
     return <div ref={containerRef} className="w-full h-full" style={{ background: "#0a0d10" }} />;
 }

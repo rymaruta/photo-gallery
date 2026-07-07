@@ -65,18 +65,19 @@ describe("HeaderNav - ロール別のメニュー表示", () => {
         expect(items).not.toContain("Logout");
     });
 
-    it("一般ユーザー: マイページ・アップロード・プロフィールは出るが管理は出ない", async () => {
+    it("一般ユーザー: マイページ・ログアウトは出るが管理は出ない", async () => {
         setRole("general");
         render(<HeaderNav />);
         await openMenu();
         const items = menuItems();
         expect(items).toContain("My Page");
-        expect(items).toContain("Upload");
         expect(items).toContain("Logout");
         expect(items).not.toContain("Manage");
         expect(items).not.toContain("Login");
         // プロフィール編集はマイページ/ヘッダーアバターへ集約したためメニューからは除外
         expect(items).not.toContain("Profile");
+        // アップロードはマイページの「写真を追加」に集約したためメニューからは除外
+        expect(items).not.toContain("Upload");
     });
 
     it("管理者: 管理メニューが表示される", async () => {
