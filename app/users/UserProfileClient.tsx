@@ -3,7 +3,8 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeftIcon, UserCircleIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon } from "@heroicons/react/24/outline";
+import { HeartIcon } from "@heroicons/react/24/solid";
 import { useLocale } from "../i18n/context";
 import { useToast } from "../../lib/hooks/useToast";
 import type { Photo } from "@/lib/data/photos";
@@ -58,18 +59,20 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish }: {
     const title = getLocalized(photo.title, locale as "ja" | "en") || (typeof photo.title === "string" ? photo.title : "");
     const isHidden = photo.published === false;
 
+    const likeCount = typeof photo.likes === "number" && photo.likes > 0 ? photo.likes : 0;
+
     return (
-        <div className="relative" style={{ paddingTop: "100%" }}>
+        <div className="relative rounded-md overflow-hidden group" style={{ paddingTop: "100%" }}>
             <Link
                 href={ROUTES.PHOTO(photo.id)}
-                className={`absolute inset-0 overflow-hidden bg-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${isHidden ? "opacity-40" : ""}`}
+                className={`absolute inset-0 overflow-hidden bg-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${isHidden ? "opacity-40" : ""}`}
             >
                 {!imageError ? (
                     <Image
                         src={photo.src}
                         alt={title}
                         fill
-                        className="object-cover"
+                        className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
                         sizes="(max-width:640px) 33vw, (max-width:1024px) 25vw, 20vw"
                         loading="lazy"
                         onError={() => setImageError(true)}
@@ -81,7 +84,13 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish }: {
                         </svg>
                     </div>
                 )}
-                <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors" />
+                {/* ホバー: いいね数オーバーレイ */}
+                {likeCount > 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center gap-1.5 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <HeartIcon className="w-5 h-5 text-white" />
+                        <span className="text-white font-semibold text-sm tabular-nums">{likeCount}</span>
+                    </div>
+                )}
             </Link>
 
             {/* 自分のプロフィール: 公開/非公開トグル */}
@@ -171,6 +180,14 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         [photos]
     );
 
+    // 表示対象の写真（オーナーは非公開含む）
+    const visiblePhotos = isOwner ? photos : publishedPhotos;
+    const postCount = visiblePhotos.length;
+    const totalLikes = useMemo(
+        () => visiblePhotos.reduce((sum, p) => sum + (typeof p.likes === "number" && p.likes > 0 ? p.likes : 0), 0),
+        [visiblePhotos]
+    );
+
     // 共有には常に正規URL（静的生成済みなら /users/<id>）を使う
     const shareUrl = useMemo(() => {
         const path = ROUTES.USER_PROFILE(userId);
@@ -227,44 +244,54 @@ export default function UserProfileClient({ userId }: { userId: string }) {
 
                 {/* プロフィールヘッダー */}
                 <div className="pb-6">
-                    {/* アバター + 名前・投稿数 */}
-                    <div className="flex items-end gap-4 mb-4 -mt-8">
-                        <div className="ring-4 ring-black rounded-full flex-shrink-0">
-                            <UserAvatar userId={userId} className="w-16 h-16 sm:w-20 sm:h-20" iconClassName="w-10 h-10 sm:w-12 sm:h-12" />
+                    {/* アバター（グラデーションリング）+ 名前 + 共有 */}
+                    <div className="flex items-end gap-4 mb-5 -mt-10 sm:-mt-12">
+                        <div className="rounded-full p-[3px] bg-gradient-to-tr from-fuchsia-500 via-rose-500 to-amber-400 flex-shrink-0 shadow-lg shadow-black/40">
+                            <div className="rounded-full p-[3px] bg-black">
+                                <UserAvatar userId={userId} className="w-20 h-20 sm:w-24 sm:h-24" iconClassName="w-11 h-11 sm:w-14 sm:h-14" />
+                            </div>
                         </div>
-                        <div className="flex-1 min-w-0 pb-1">
-                            <h1 className="text-xl sm:text-2xl font-bold leading-tight truncate">
+                        <div className="flex-1 min-w-0 pb-1 flex items-center justify-between gap-2">
+                            <h1 className="text-2xl sm:text-3xl font-bold leading-tight truncate">
                                 {displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}
                             </h1>
-                            {/* 投稿数 + シェアボタン */}
-                            <div className="flex items-center gap-3 mt-1">
-                                <span className="inline-flex items-baseline gap-1">
-                                    <span className="text-base font-bold">{isOwner ? photos.length : publishedPhotos.length}</span>
-                                    <span className="text-xs text-white/50">{locale === "en" ? "posts" : "投稿"}</span>
-                                </span>
-                                <div className="flex items-center gap-0.5 ml-auto">
-                                    <button
-                                        onClick={() => void handleShareProfile()}
-                                        className="p-1.5 rounded-full text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
-                                        title={locale === "en" ? "Copy profile link" : "リンクをコピー"}
-                                    >
-                                        <LinkIcon className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                        onClick={() => shareToTwitter(shareUrl, displayName ?? "")}
-                                        className="p-1.5 rounded-full text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
-                                        title="X"
-                                    >
-                                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                                    </button>
-                                    <button
-                                        onClick={() => shareToLine(shareUrl, displayName ?? "")}
-                                        className="p-1.5 rounded-full text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
-                                        title="LINE"
-                                    >
-                                        <ShareIcon className="w-3.5 h-3.5" />
-                                    </button>
-                                </div>
+                            <div className="flex items-center gap-0.5 flex-shrink-0">
+                                <button
+                                    onClick={() => void handleShareProfile()}
+                                    className="p-2 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                                    title={locale === "en" ? "Copy profile link" : "リンクをコピー"}
+                                >
+                                    <LinkIcon className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={() => shareToTwitter(shareUrl, displayName ?? "")}
+                                    className="p-2 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                                    title="X"
+                                >
+                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                                </button>
+                                <button
+                                    onClick={() => shareToLine(shareUrl, displayName ?? "")}
+                                    className="p-2 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                                    title="LINE"
+                                >
+                                    <ShareIcon className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 統計（投稿数 / 総いいね数） */}
+                    <div className="flex items-stretch gap-2 mb-4">
+                        <div className="flex-1 rounded-xl bg-white/[0.05] py-2.5 text-center">
+                            <div className="text-lg font-bold tabular-nums leading-none">{postCount}</div>
+                            <div className="text-[11px] text-white/50 mt-1">{locale === "en" ? "Posts" : "投稿"}</div>
+                        </div>
+                        <div className="flex-1 rounded-xl bg-white/[0.05] py-2.5 text-center">
+                            <div className="text-lg font-bold tabular-nums leading-none">{totalLikes.toLocaleString()}</div>
+                            <div className="text-[11px] text-white/50 mt-1 inline-flex items-center gap-0.5">
+                                <HeartIcon className="w-3 h-3 text-rose-400/70" />
+                                {locale === "en" ? "Likes" : "いいね"}
                             </div>
                         </div>
                     </div>
@@ -307,34 +334,52 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         <div className="flex gap-2 mt-4">
                             <Link
                                 href="/user/profile"
-                                className="flex-1 text-center px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium rounded-lg transition-colors"
-                                style={{ touchAction: "manipulation", minHeight: "40px", lineHeight: "24px" }}
+                                className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white text-sm font-medium rounded-full transition-colors"
+                                style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >
+                                <PencilSquareIcon className="w-4 h-4" />
                                 {locale === "en" ? "Edit profile" : "プロフィール編集"}
                             </Link>
                             <Link
                                 href="/user/upload"
-                                className="flex-1 text-center px-4 py-2 bg-white text-black text-sm font-medium rounded-lg hover:bg-white/90 transition-colors"
-                                style={{ touchAction: "manipulation", minHeight: "40px", lineHeight: "24px" }}
+                                className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors"
+                                style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >
+                                <PlusIcon className="w-4 h-4" strokeWidth={2.5} />
                                 {locale === "en" ? "Add photos" : "写真を追加"}
                             </Link>
                         </div>
                     )}
                 </div>
 
-                <div className="border-t border-white/10 mb-0.5" />
+                {/* タブバー風の区切り */}
+                <div className="flex items-center justify-center gap-1.5 border-t border-white/10 py-3 mb-1">
+                    <Squares2X2Icon className="w-4 h-4 text-white/80" />
+                    <span className="text-xs font-medium text-white/80 tracking-wide">
+                        {locale === "en" ? "Posts" : "投稿"}
+                    </span>
+                </div>
 
-                {photos.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-white/50 gap-2">
-                        <UserCircleIcon className="w-12 h-12" />
+                {postCount === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-24 text-white/40 gap-3">
+                        <div className="w-16 h-16 rounded-full border-2 border-white/15 flex items-center justify-center">
+                            <PhotoStackIcon className="w-7 h-7" />
+                        </div>
                         <p className="text-sm">
                             {locale === "en" ? "No photos yet." : "まだ写真がありません。"}
                         </p>
+                        {isOwner && (
+                            <Link
+                                href="/user/upload"
+                                className="mt-1 px-5 py-2 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors"
+                            >
+                                {locale === "en" ? "Share your first photo" : "最初の写真を投稿"}
+                            </Link>
+                        )}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-0.5">
-                        {(isOwner ? photos : publishedPhotos).map(photo => (
+                    <div className="grid grid-cols-3 gap-1 pb-8">
+                        {visiblePhotos.map(photo => (
                             <PhotoCard key={photo.id} photo={photo} locale={locale} isOwner={isOwner} onTogglePublish={handleTogglePublish} />
                         ))}
                     </div>
