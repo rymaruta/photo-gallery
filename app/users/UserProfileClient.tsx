@@ -315,8 +315,9 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 <CoverBackground userId={userId} />
 
                 <div className="relative max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
-                    {/* 戻る: カバー写真を邪魔しない丸アイコンボタン（左上） */}
-                    <div className="pt-4 mb-2">
+                    {/* 上部バー: 戻る（左）+ 共有（右）。どちらもカバー上のガラスボタンで
+                        背景に関わらず視認性を確保し、左右対称でバランスを取る。 */}
+                    <div className="pt-4 mb-2 flex items-center justify-between">
                         <Link
                             href="/"
                             aria-label={locale === "en" ? "Back to Gallery" : "ギャラリーに戻る"}
@@ -324,6 +325,32 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         >
                             <ArrowLeftIcon className="w-5 h-5" />
                         </Link>
+                        <div className="flex items-center gap-1.5">
+                            <button
+                                onClick={() => void handleShareProfile()}
+                                className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-black/40 backdrop-blur-md ring-1 ring-white/15 text-white/90 hover:bg-black/60 active:scale-95 transition shadow-lg shadow-black/30"
+                                title={locale === "en" ? "Copy profile link" : "リンクをコピー"}
+                                aria-label={locale === "en" ? "Copy profile link" : "リンクをコピー"}
+                            >
+                                <LinkIcon className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => shareToTwitter(shareUrl, displayName ?? "")}
+                                className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-black/40 backdrop-blur-md ring-1 ring-white/15 text-white/90 hover:bg-black/60 active:scale-95 transition shadow-lg shadow-black/30"
+                                title="X"
+                                aria-label={locale === "en" ? "Share on X" : "Xで共有"}
+                            >
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                            </button>
+                            <button
+                                onClick={() => shareToLine(shareUrl, displayName ?? "")}
+                                className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-black/40 backdrop-blur-md ring-1 ring-white/15 text-white/90 hover:bg-black/60 active:scale-95 transition shadow-lg shadow-black/30"
+                                title="LINE"
+                                aria-label={locale === "en" ? "Share on LINE" : "LINEで共有"}
+                            >
+                                <ShareIcon className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
 
                     {/* プロフィールヘッダー（アバターがカバーバンドの下端に重なる） */}
@@ -335,33 +362,10 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                 <UserAvatar userId={userId} className="w-20 h-20 sm:w-24 sm:h-24" iconClassName="w-11 h-11 sm:w-14 sm:h-14" />
                             </div>
                         </div>
-                        <div className="flex-1 min-w-0 pb-1 flex items-center justify-between gap-2">
-                            <h1 className="text-2xl sm:text-3xl font-bold leading-tight truncate">
+                        <div className="flex-1 min-w-0 pb-1">
+                            <h1 className="text-2xl sm:text-3xl font-bold leading-tight truncate drop-shadow-md">
                                 {displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}
                             </h1>
-                            <div className="flex items-center gap-0.5 flex-shrink-0">
-                                <button
-                                    onClick={() => void handleShareProfile()}
-                                    className="p-2 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-colors"
-                                    title={locale === "en" ? "Copy profile link" : "リンクをコピー"}
-                                >
-                                    <LinkIcon className="w-4 h-4" />
-                                </button>
-                                <button
-                                    onClick={() => shareToTwitter(shareUrl, displayName ?? "")}
-                                    className="p-2 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-colors"
-                                    title="X"
-                                >
-                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                                </button>
-                                <button
-                                    onClick={() => shareToLine(shareUrl, displayName ?? "")}
-                                    className="p-2 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-colors"
-                                    title="LINE"
-                                >
-                                    <ShareIcon className="w-4 h-4" />
-                                </button>
-                            </div>
                         </div>
                     </div>
 
