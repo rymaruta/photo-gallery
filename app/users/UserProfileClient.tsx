@@ -306,6 +306,23 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         return a === b ? a : `${a} – ${b}`;
     }, [footprint, locale]);
 
+    // 訪れた場所（地名）を新しい順・重複なしで。抽象的な「N箇所」ではなく実際の地名を見せる。
+    const placeNames = useMemo(() => {
+        const sorted = [...visiblePhotos].sort((a, b) => {
+            const ta = Date.parse(String(a.date ?? a.createdAt ?? "")) || 0;
+            const tb = Date.parse(String(b.date ?? b.createdAt ?? "")) || 0;
+            return tb - ta;
+        });
+        const seen = new Set<string>();
+        const ordered: string[] = [];
+        for (const p of sorted) {
+            const loc = (p.location ?? "").trim();
+            const key = loc.toLowerCase();
+            if (loc && !seen.has(key)) { seen.add(key); ordered.push(loc); }
+        }
+        return ordered;
+    }, [visiblePhotos]);
+
     // テーマソング: 保存された URL を埋め込みプレイヤーに変換（好きな部分の開始・終了つき）
     const songEmbed = useMemo(
         () => (userProfile?.songUrl ? parseMusicEmbed(userProfile.songUrl, userProfile.songStart, userProfile.songEnd) : null),
@@ -439,18 +456,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             <span className="text-sm font-bold tabular-nums leading-none">{totalLikes.toLocaleString()}</span>
                             <span className="text-[11px] text-white/60">{locale === "en" ? "likes" : "いいね"}</span>
                         </div>
-                        {/* 旅した総移動距離（位置情報があるとき）。無ければ訪れた場所数にフォールバック */}
+                        {/* 3つ目は自明な指標のみ: 旅した距離（GPSあり）→ 無ければアクティブ日数 */}
                         {footprint.geoCount >= 2 && footprint.distanceKm >= 1 ? (
                             <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5" title={locale === "en" ? "Total distance traveled" : "旅した総移動距離"}>
                                 <GlobeAltIcon className="w-3 h-3 text-sky-400" />
                                 <span className="text-sm font-bold tabular-nums leading-none">{Math.round(footprint.distanceKm).toLocaleString()}</span>
                                 <span className="text-[11px] text-white/60">km</span>
-                            </div>
-                        ) : footprint.places > 0 ? (
-                            <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5" title={locale === "en" ? "Places visited" : "訪れた場所"}>
-                                <MapPinIcon className="w-3 h-3 text-emerald-400" />
-                                <span className="text-sm font-bold tabular-nums leading-none">{footprint.places}</span>
-                                <span className="text-[11px] text-white/60">{locale === "en" ? "places" : "箇所"}</span>
                             </div>
                         ) : footprint.activeDays > 0 ? (
                             <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5" title={locale === "en" ? "Days with memories" : "思い出のある日数"}>
@@ -460,6 +471,31 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             </div>
                         ) : null}
                     </div>
+
+                    {/* 訪れた場所チップ: 実際の地名を見せ、タップで足あとマップへ */}
+                    {placeNames.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 mb-4">
+                            {placeNames.slice(0, 5).map((name) => (
+                                <button
+                                    key={name}
+                                    onClick={() => setTab("map")}
+                                    className="inline-flex items-center gap-1 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-white/75 hover:text-white hover:ring-white/25 active:scale-95 transition max-w-[160px]"
+                                    title={locale === "en" ? "See on map" : "地図で見る"}
+                                >
+                                    <MapPinIcon className="w-2.5 h-2.5 text-emerald-400 flex-shrink-0" />
+                                    <span className="truncate">{name}</span>
+                                </button>
+                            ))}
+                            {placeNames.length > 5 && (
+                                <button
+                                    onClick={() => setTab("map")}
+                                    className="inline-flex items-center rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-white/50 hover:text-white/80 active:scale-95 transition"
+                                >
+                                    +{placeNames.length - 5}
+                                </button>
+                            )}
+                        </div>
+                    )}
 
                     {userProfile?.bio && (
                         <p className="text-sm text-white/85 whitespace-pre-wrap mb-3 leading-relaxed drop-shadow-sm">{userProfile.bio}</p>
