@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon } from "@heroicons/react/24/outline";
 import { HeartIcon } from "@heroicons/react/24/solid";
 import { useLocale } from "../i18n/context";
 import { useToast } from "../../lib/hooks/useToast";
@@ -39,6 +39,18 @@ const MapView = dynamic(() => import("../components/MapView"), {
 });
 
 type TabKey = "posts" | "map" | "timeline";
+
+// 2点間の大円距離（km）。旅した総移動距離の算出に使う。
+function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+    const R = 6371;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const h =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
 
 // 写真を「YYYY年 / M月」で時系列グループ化（撮影日 date 優先、なければ createdAt）
 type TimelineGroup = { key: string; year: string; label: string; photos: Photo[] };
@@ -242,6 +254,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     );
 
     const [tab, setTab] = useState<TabKey>("posts");
+    const [shareOpen, setShareOpen] = useState(false);
     const mapPhotos = useMemo(() => visiblePhotos.filter(p => p.coords), [visiblePhotos]);
     const timeline = useMemo(() => buildTimeline(visiblePhotos, locale as "ja" | "en"), [visiblePhotos, locale]);
 
@@ -256,7 +269,17 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             .map(p => Date.parse(String(p.date ?? p.createdAt ?? "")))
             .filter(t => !isNaN(t))
             .sort((a, b) => a - b);
-        return { places: places.size, first: times[0], last: times[times.length - 1] };
+
+        // 旅した総移動距離: 位置情報つき写真を撮影日順につなぎ、大円距離を積算
+        const geo = visiblePhotos
+            .filter(p => p.coords && typeof p.coords.lat === "number" && typeof p.coords.lng === "number")
+            .map(p => ({ c: p.coords as { lat: number; lng: number }, t: Date.parse(String(p.date ?? p.createdAt ?? "")) }))
+            .filter(x => !isNaN(x.t))
+            .sort((a, b) => a.t - b.t);
+        let distanceKm = 0;
+        for (let i = 1; i < geo.length; i++) distanceKm += haversineKm(geo[i - 1].c, geo[i].c);
+
+        return { places: places.size, first: times[0], last: times[times.length - 1], distanceKm, geoCount: geo.length };
     }, [visiblePhotos]);
 
     const spanLabel = useMemo(() => {
@@ -325,31 +348,50 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         >
                             <ArrowLeftIcon className="w-5 h-5" />
                         </Link>
-                        <div className="flex items-center gap-1.5">
+                        {/* 共有: 戻ると対になる単一のガラスボタン。タップでメニューを開く */}
+                        <div className="relative">
                             <button
-                                onClick={() => void handleShareProfile()}
-                                className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-black/40 backdrop-blur-md ring-1 ring-white/15 text-white/90 hover:bg-black/60 active:scale-95 transition shadow-lg shadow-black/30"
-                                title={locale === "en" ? "Copy profile link" : "リンクをコピー"}
-                                aria-label={locale === "en" ? "Copy profile link" : "リンクをコピー"}
-                            >
-                                <LinkIcon className="w-4 h-4" />
-                            </button>
-                            <button
-                                onClick={() => shareToTwitter(shareUrl, displayName ?? "")}
-                                className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-black/40 backdrop-blur-md ring-1 ring-white/15 text-white/90 hover:bg-black/60 active:scale-95 transition shadow-lg shadow-black/30"
-                                title="X"
-                                aria-label={locale === "en" ? "Share on X" : "Xで共有"}
-                            >
-                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                            </button>
-                            <button
-                                onClick={() => shareToLine(shareUrl, displayName ?? "")}
-                                className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-black/40 backdrop-blur-md ring-1 ring-white/15 text-white/90 hover:bg-black/60 active:scale-95 transition shadow-lg shadow-black/30"
-                                title="LINE"
-                                aria-label={locale === "en" ? "Share on LINE" : "LINEで共有"}
+                                onClick={() => setShareOpen((v) => !v)}
+                                aria-haspopup="menu"
+                                aria-expanded={shareOpen}
+                                className={`inline-flex items-center justify-center w-9 h-9 rounded-full backdrop-blur-md ring-1 transition shadow-lg shadow-black/30 active:scale-95 ${shareOpen ? "bg-white text-black ring-white" : "bg-black/40 text-white/90 ring-white/15 hover:bg-black/60"}`}
+                                title={locale === "en" ? "Share" : "共有"}
+                                aria-label={locale === "en" ? "Share profile" : "プロフィールを共有"}
                             >
                                 <ShareIcon className="w-4 h-4" />
                             </button>
+
+                            {shareOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setShareOpen(false)} aria-hidden="true" />
+                                    <div role="menu" className="absolute right-0 top-full mt-2 z-50 w-48 rounded-2xl bg-[#16181c]/95 backdrop-blur-md ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in">
+                                        <button
+                                            role="menuitem"
+                                            onClick={() => { setShareOpen(false); void handleShareProfile(); }}
+                                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white/85 hover:bg-white/10 active:bg-white/15 transition text-left"
+                                        >
+                                            <LinkIcon className="w-[18px] h-[18px] text-white/50" />
+                                            {locale === "en" ? "Copy link" : "リンクをコピー"}
+                                        </button>
+                                        <button
+                                            role="menuitem"
+                                            onClick={() => { setShareOpen(false); shareToTwitter(shareUrl, displayName ?? ""); }}
+                                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white/85 hover:bg-white/10 active:bg-white/15 transition text-left border-t border-white/5"
+                                        >
+                                            <svg className="w-[18px] h-[18px] text-white/50" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                                            {locale === "en" ? "Share on X" : "Xで共有"}
+                                        </button>
+                                        <button
+                                            role="menuitem"
+                                            onClick={() => { setShareOpen(false); shareToLine(shareUrl, displayName ?? ""); }}
+                                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white/85 hover:bg-white/10 active:bg-white/15 transition text-left border-t border-white/5"
+                                        >
+                                            <ChatBubbleOvalLeftIcon className="w-[18px] h-[18px] text-emerald-400/80" />
+                                            {locale === "en" ? "Share on LINE" : "LINEで共有"}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
 
@@ -369,8 +411,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         </div>
                     </div>
 
-                    {/* 統計（投稿数 / 総いいね数）— コンパクトなガラス調ピル */}
-                    <div className="flex items-center gap-2 mb-4">
+                    {/* 統計（投稿数 / 総いいね数 / 旅した距離）— コンパクトなガラス調ピル */}
+                    <div className="flex flex-wrap items-center gap-2 mb-4">
                         <div className="inline-flex items-baseline gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
                             <span className="text-sm font-bold tabular-nums leading-none">{postCount}</span>
                             <span className="text-[11px] text-white/60">{locale === "en" ? "posts" : "投稿"}</span>
@@ -380,6 +422,20 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             <span className="text-sm font-bold tabular-nums leading-none">{totalLikes.toLocaleString()}</span>
                             <span className="text-[11px] text-white/60">{locale === "en" ? "likes" : "いいね"}</span>
                         </div>
+                        {/* 旅した総移動距離（位置情報があるとき）。無ければ訪れた場所数にフォールバック */}
+                        {footprint.geoCount >= 2 && footprint.distanceKm >= 1 ? (
+                            <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5" title={locale === "en" ? "Total distance traveled" : "旅した総移動距離"}>
+                                <GlobeAltIcon className="w-3 h-3 text-sky-400" />
+                                <span className="text-sm font-bold tabular-nums leading-none">{Math.round(footprint.distanceKm).toLocaleString()}</span>
+                                <span className="text-[11px] text-white/60">km</span>
+                            </div>
+                        ) : footprint.places > 0 ? (
+                            <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5" title={locale === "en" ? "Places visited" : "訪れた場所"}>
+                                <MapPinIcon className="w-3 h-3 text-emerald-400" />
+                                <span className="text-sm font-bold tabular-nums leading-none">{footprint.places}</span>
+                                <span className="text-[11px] text-white/60">{locale === "en" ? "places" : "箇所"}</span>
+                            </div>
+                        ) : null}
                     </div>
 
                     {userProfile?.bio && (
