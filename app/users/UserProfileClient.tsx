@@ -6,6 +6,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
+import { useSwipe } from "../../lib/hooks/useSwipe";
 import SongPlayer from "../components/SongPlayer";
 import { HeartIcon } from "@heroicons/react/24/solid";
 import { useLocale } from "../i18n/context";
@@ -49,6 +50,7 @@ const MapView = dynamic(() => import("../components/MapView"), {
 });
 
 type TabKey = "posts" | "map" | "timeline";
+const TAB_ORDER: TabKey[] = ["posts", "map", "timeline"];
 
 // 2点間の大円距離（km）。旅した総移動距離の算出に使う。
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
@@ -267,6 +269,20 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     const [shareOpen, setShareOpen] = useState(false);
     const [showAllPlaces, setShowAllPlaces] = useState(false);
     const [mvOpen, setMvOpen] = useState(false);
+
+    // タブを横スワイプで切り替え（投稿 ⇄ 足あと ⇄ 年表）
+    const goTab = useCallback((dir: 1 | -1) => {
+        setTab((cur) => {
+            const i = TAB_ORDER.indexOf(cur);
+            return TAB_ORDER[Math.min(TAB_ORDER.length - 1, Math.max(0, i + dir))];
+        });
+    }, []);
+    const { handlers: tabSwipe } = useSwipe({
+        onSwipeLeft: () => goTab(1),
+        onSwipeRight: () => goTab(-1),
+        threshold: 60,
+        velocityThreshold: 0.3,
+    });
     const mapPhotos = useMemo(() => visiblePhotos.filter(p => p.coords), [visiblePhotos]);
     const timeline = useMemo(() => buildTimeline(visiblePhotos, locale as "ja" | "en"), [visiblePhotos, locale]);
 
@@ -432,11 +448,19 @@ export default function UserProfileClient({ userId }: { userId: string }) {
 
                     {/* プロフィールヘッダー（アバターがカバーバンドの下端に重なる） */}
                     <div className="pb-6 pt-24 sm:pt-32">
-                        {/* アバター（グラデーションリング）+ 名前 + 共有 */}
+                        {/* アバター（オリジナルのオーロラリング: 旅パレットで回転）+ 名前 + 共有 */}
                         <div className="flex items-end gap-4 mb-5">
-                        <div className="rounded-full p-[3px] bg-gradient-to-tr from-fuchsia-500 via-rose-500 to-amber-400 flex-shrink-0 shadow-lg shadow-black/40">
-                            <div className="rounded-full p-[3px] bg-black">
-                                <UserAvatar userId={userId} className="w-20 h-20 sm:w-24 sm:h-24" iconClassName="w-11 h-11 sm:w-14 sm:h-14" />
+                        <div className="relative flex-shrink-0 rounded-full shadow-lg shadow-sky-500/20">
+                            {/* 回転するグラデーション層（アバターは静止したまま背面だけ回る） */}
+                            <div
+                                className="absolute inset-0 rounded-full avatar-orbit"
+                                style={{ background: "conic-gradient(from 0deg, #38bdf8, #34d399, #2dd4bf, #38bdf8)" }}
+                                aria-hidden="true"
+                            />
+                            <div className="relative rounded-full p-[3px]">
+                                <div className="rounded-full p-[2px] bg-black">
+                                    <UserAvatar userId={userId} className="w-20 h-20 sm:w-24 sm:h-24" iconClassName="w-11 h-11 sm:w-14 sm:h-14" />
+                                </div>
                             </div>
                         </div>
                         <div className="flex-1 min-w-0 pb-1">
@@ -636,6 +660,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     })}
                 </div>
 
+                {/* タブ内容: 地図以外は横スワイプでタブ切替（地図は自身のジェスチャを優先） */}
+                <div {...(tab !== "map" ? tabSwipe : {})}>
                 {/* 投稿タブ */}
                 {tab === "posts" && (
                     postCount === 0 ? (
@@ -737,6 +763,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         )}
                     </div>
                 )}
+                </div>
             </div>
         </main>
     );

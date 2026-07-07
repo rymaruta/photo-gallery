@@ -23,9 +23,29 @@ describe("parseMusicEmbed", () => {
         expect(e?.embedUrl).toBe("https://www.youtube.com/embed/dQw4w9WgXcQ");
     });
 
+    it("music.youtube.com の watch URL にも対応する", () => {
+        const e = parseMusicEmbed("https://music.youtube.com/watch?v=dQw4w9WgXcQ");
+        expect(e?.embedUrl).toBe("https://www.youtube.com/embed/dQw4w9WgXcQ");
+    });
+
+    it("再生リスト等の余分なクエリがあっても v を抽出する", () => {
+        const e = parseMusicEmbed("https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=RDabc&index=2");
+        expect(e?.embedUrl).toBe("https://www.youtube.com/embed/dQw4w9WgXcQ");
+    });
+
     it("YouTube は start / end（秒）で好きな部分を再生できる", () => {
         const e = parseMusicEmbed("https://youtu.be/dQw4w9WgXcQ", 72, 95);
         expect(e?.embedUrl).toBe("https://www.youtube.com/embed/dQw4w9WgXcQ?start=72&end=95");
+    });
+
+    it("start のみ指定できる", () => {
+        const e = parseMusicEmbed("https://youtu.be/dQw4w9WgXcQ", 40);
+        expect(e?.embedUrl).toBe("https://www.youtube.com/embed/dQw4w9WgXcQ?start=40");
+    });
+
+    it("小数の start は切り捨てる", () => {
+        const e = parseMusicEmbed("https://youtu.be/dQw4w9WgXcQ", 40.9);
+        expect(e?.embedUrl).toBe("https://www.youtube.com/embed/dQw4w9WgXcQ?start=40");
     });
 
     it("end <= start のときは end を付けない", () => {
@@ -37,6 +57,15 @@ describe("parseMusicEmbed", () => {
         const e = parseMusicEmbed("https://music.apple.com/jp/album/foo/123456?i=789");
         expect(e?.service).toBe("appleMusic");
         expect(e?.embedUrl).toBe("https://embed.music.apple.com/jp/album/foo/123456?i=789");
+    });
+
+    it("Apple Music の song パスにも対応する", () => {
+        const e = parseMusicEmbed("https://music.apple.com/us/song/foo/1555");
+        expect(e?.service).toBe("appleMusic");
+    });
+
+    it("Apple Music でも不正なパスは null", () => {
+        expect(parseMusicEmbed("https://music.apple.com/browse")).toBeNull();
     });
 
     it("非対応・不正なURLは null", () => {

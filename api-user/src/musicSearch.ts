@@ -46,7 +46,8 @@ export const musicSearch: APIGatewayProxyHandlerV2 = async (event) => {
     if (!q) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "検索語が必要です" }) };
     }
-    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=12&country=JP`;
+    // アーティスト名検索でほぼ全曲を出せるよう多めに取得（iTunes の上限は 200）
+    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=50&country=JP`;
     try {
         const res = await fetch(url, { headers: { Accept: "application/json" } });
         if (!res.ok) {

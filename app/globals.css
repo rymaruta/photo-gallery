@@ -87,8 +87,17 @@ body {
   animation-fill-mode: forwards;
   will-change: transform;
 }
+/* プロフィールのアバター: 旅パレット(sky→emerald)のオーロラリングをゆっくり回転 */
+@keyframes avatar-orbit {
+  to { transform: rotate(360deg); }
+}
+.avatar-orbit {
+  animation: avatar-orbit 10s linear infinite;
+  will-change: transform;
+}
 @media (prefers-reduced-motion: reduce) {
   .story-media-in { animation: none; }
+  .avatar-orbit { animation: none; }
 }
 
 /* モバイル: ベースフォントサイズを少し下げる */
