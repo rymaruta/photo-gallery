@@ -74,6 +74,19 @@ body {
 .story-media-in {
   animation: story-media-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+/* ストーリー: プログレスバー（コンポジタ側で滑らかに 0→100%） */
+@keyframes story-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.story-progress-fill {
+  transform-origin: left center;
+  animation-name: story-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  will-change: transform;
+}
 @media (prefers-reduced-motion: reduce) {
   .story-media-in { animation: none; }
 }

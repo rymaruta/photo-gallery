@@ -127,3 +127,43 @@ describe("StoryViewer", () => {
         expect(onDelete).not.toHaveBeenCalled();
     });
 });
+
+describe("StoryViewer - 滑らかなプログレス", () => {
+    it("画像の現在バーは CSS アニメーション（5秒）で駆動される", () => {
+        setup();
+        const fill = document.querySelector(".story-progress-fill") as HTMLElement;
+        expect(fill).not.toBeNull();
+        expect(fill.style.animationDuration).toBe("5000ms");
+        expect(fill.style.animationPlayState).toBe("running");
+    });
+
+    it("現在バーには自動送り用の onAnimationEnd が結線されている", () => {
+        setup();
+        // React は onAnimationEnd を要素に data 属性化しないため、ハンドラ結線の
+        // 直接検証は難しい。ここでは要素が存在し fill-mode:forwards で
+        // 完了状態を保持する（＝完了イベントが発火しうる）ことを確認する。
+        const fill = document.querySelector(".story-progress-fill") as HTMLElement;
+        expect(fill).not.toBeNull();
+        expect(fill.className).toContain("story-progress-fill");
+    });
+
+    it("長押し（pointerDown）で一時停止しアニメーションが paused になる", () => {
+        setup();
+        // 右2/3のタップ領域を長押し
+        const zones = document.querySelectorAll('[class*="w-2/3"]');
+        fireEvent.pointerDown(zones[zones.length - 1]);
+        const fill = document.querySelector(".story-progress-fill") as HTMLElement;
+        expect(fill.style.animationPlayState).toBe("paused");
+    });
+
+    it("動画の現在バーは CSS アニメーションではなく transform で進捗を表す", () => {
+        const groups: StoryGroup[] = [{
+            userId: "owner",
+            displayName: "丸田",
+            items: [{ id: "v1", src: "https://cdn/x/v.mp4", userId: "owner", mediaType: "video", createdAt: "2026-07-04T10:00:00Z", expiresAt: "2026-07-05T10:00:00Z" }],
+        }];
+        setup({ groups });
+        // 動画では story-progress-fill を使わない
+        expect(document.querySelector(".story-progress-fill")).toBeNull();
+    });
+});

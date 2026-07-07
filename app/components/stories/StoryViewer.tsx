@@ -8,7 +8,6 @@ import { timeAgo } from "@/lib/stories";
 import { log } from "@/lib/utils/log";
 
 const STORY_DURATION_MS = 5000; // 画像の表示時間
-const TICK_MS = 50;
 
 type Props = {
     groups: StoryGroup[];
@@ -108,18 +107,8 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     // ダイアログ表示中は自動送りを止める
     const frozen = paused || viewersOpen || confirmDelete;
 
-    // 画像: 自動送りタイマー / 動画: timeupdate で進捗（下の video ハンドラ）
-    useEffect(() => {
-        if (frozen || !item || isVideo) return;
-        const timer = setInterval(() => {
-            setProgress((p) => Math.min(100, p + (TICK_MS / STORY_DURATION_MS) * 100));
-        }, TICK_MS);
-        return () => clearInterval(timer);
-    }, [frozen, item, isVideo]);
-
-    useEffect(() => {
-        if (!isVideo && progress >= 100) goNext();
-    }, [progress, goNext, isVideo]);
+    // 画像の進捗は CSS アニメーション（60fps・再描画なし）が駆動し、
+    // 完了は onAnimationEnd で検知する。動画は下の onTimeUpdate で進捗を更新。
 
     // 一時停止/再開を動画にも反映
     useEffect(() => {
@@ -230,14 +219,39 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             {/* 上部グラデーション + プログレスバー + ヘッダー */}
             <div className="absolute top-0 inset-x-0 bg-gradient-to-b from-black/70 to-transparent pt-2 pb-8 px-2 pointer-events-none">
                 <div className="flex gap-1 mb-3" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
-                    {group.items.map((s, idx) => (
-                        <div key={s.id} className="flex-1 h-[2.5px] rounded-full bg-white/30 overflow-hidden">
-                            <div
-                                className="h-full bg-white rounded-full"
-                                style={{ width: idx < i ? "100%" : idx === i ? `${progress}%` : "0%" }}
-                            />
-                        </div>
-                    ))}
+                    {group.items.map((s, idx) => {
+                        const done = idx < i;
+                        const active = idx === i;
+                        return (
+                            <div key={s.id} className="flex-1 h-[2.5px] rounded-full bg-white/30 overflow-hidden">
+                                {active ? (
+                                    isVideo ? (
+                                        // 動画: 進捗値を scaleX で反映しつつ、更新間を transition で補間
+                                        <div
+                                            className="h-full w-full bg-white rounded-full origin-left"
+                                            style={{ transform: `scaleX(${progress / 100})`, transition: "transform 120ms linear" }}
+                                        />
+                                    ) : (
+                                        // 画像: CSS アニメーションが 0→100% を滑らかに駆動
+                                        <div
+                                            key={item.id}
+                                            className="h-full w-full bg-white rounded-full story-progress-fill"
+                                            style={{
+                                                animationDuration: `${STORY_DURATION_MS}ms`,
+                                                animationPlayState: frozen ? "paused" : "running",
+                                            }}
+                                            onAnimationEnd={goNext}
+                                        />
+                                    )
+                                ) : (
+                                    <div
+                                        className="h-full w-full bg-white rounded-full origin-left"
+                                        style={{ transform: done ? "scaleX(1)" : "scaleX(0)" }}
+                                    />
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
                 <div className="flex items-center gap-2 px-1">
                     <UserAvatar userId={group.userId} className="w-8 h-8" iconClassName="w-5 h-5" />
