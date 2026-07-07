@@ -33,6 +33,7 @@ type UserProfile = {
     songArtist?: string;
     songArtwork?: string;
     songPreviewUrl?: string;
+    songTrackUrl?: string;
 };
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
@@ -536,7 +537,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                 artist={userProfile.songArtist ?? ""}
                                 artwork={userProfile.songArtwork}
                                 previewUrl={userProfile.songPreviewUrl}
-                                trackUrl={userProfile.songUrl}
+                                trackUrl={userProfile.songTrackUrl}
                                 label={locale === "en" ? "My BGM" : "マイBGM"}
                             />
                         </div>

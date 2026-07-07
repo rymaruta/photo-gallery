@@ -24,6 +24,7 @@ type UserProfile = {
     songArtist?: string;
     songArtwork?: string;
     songPreviewUrl?: string;
+    songTrackUrl?: string;
 };
 
 // "1:23" / "83" → 秒。空や不正は undefined。
@@ -91,18 +92,18 @@ export default function ProfileEditPage() {
                     setBio(data.bio ?? "");
                     setInstagram(data.instagram ?? "");
                     setWebsite(data.website ?? "");
+                    // 検索の曲と貼付リンクは独立して復元する（両方保持される）
                     if (data.songPreviewUrl && data.songTitle) {
-                        // アプリ内検索で選ばれた曲
                         setSelectedSong({
                             id: data.songPreviewUrl,
                             title: data.songTitle,
                             artist: data.songArtist ?? "",
                             artwork: data.songArtwork ?? "",
                             previewUrl: data.songPreviewUrl,
-                            trackUrl: data.songUrl ?? "",
+                            trackUrl: data.songTrackUrl ?? "",
                         });
-                    } else if (data.songUrl) {
-                        // リンク貼付で設定された曲
+                    }
+                    if (data.songUrl) {
                         setShowUrlMethod(true);
                         setSongUrl(data.songUrl);
                         setSongStartText(secToMMSS(data.songStart));
@@ -196,35 +197,28 @@ export default function ProfileEditPage() {
     };
 
     const handleSave = async () => {
-        // テーマソングのペイロードを設定方法（検索 / リンク / 未設定）に応じて組み立てる
-        let songPayload: Record<string, unknown>;
-        if (selectedSong) {
-            songPayload = {
-                songUrl: selectedSong.trackUrl,
-                songTitle: selectedSong.title,
-                songArtist: selectedSong.artist,
-                songArtwork: selectedSong.artwork,
-                songPreviewUrl: selectedSong.previewUrl,
-                songStart: undefined, songEnd: undefined,
-            };
-        } else if (showUrlMethod && songUrl.trim()) {
-            const trimmedSong = songUrl.trim();
-            if (!parseMusicEmbed(trimmedSong)) {
-                showToast(locale === "en"
-                    ? "Song link must be Spotify, YouTube, or Apple Music."
-                    : "曲のリンクは Spotify / YouTube / Apple Music に対応しています。", "error");
-                return;
-            }
-            songPayload = {
-                songUrl: trimmedSong,
-                songStart: mmssToSec(songStartText),
-                songEnd: mmssToSec(songEndText),
-                songTitle: "", songArtist: "", songArtwork: "", songPreviewUrl: "",
-            };
-        } else {
-            // 未設定 → 全クリア（PUT は全置換なので空で消える）
-            songPayload = { songUrl: "", songStart: undefined, songEnd: undefined, songTitle: "", songArtist: "", songArtwork: "", songPreviewUrl: "" };
+        // 検索の曲 と 貼付リンク を独立して保存する。
+        //  - 曲(検索)があれば表示は曲を優先（UserProfileClient 側で判定）
+        //  - リンクはそのまま保持され、曲を消すとリンクが使われる
+        const trimmedUrl = songUrl.trim();
+        if (trimmedUrl && !parseMusicEmbed(trimmedUrl)) {
+            showToast(locale === "en"
+                ? "Song link must be Spotify, YouTube, or Apple Music."
+                : "曲のリンクは Spotify / YouTube / Apple Music に対応しています。", "error");
+            return;
         }
+        const songPayload = {
+            // 貼付リンク（独立）
+            songUrl: trimmedUrl,
+            songStart: mmssToSec(songStartText),
+            songEnd: mmssToSec(songEndText),
+            // 検索で選んだ曲（独立）
+            songTitle: selectedSong?.title ?? "",
+            songArtist: selectedSong?.artist ?? "",
+            songArtwork: selectedSong?.artwork ?? "",
+            songPreviewUrl: selectedSong?.previewUrl ?? "",
+            songTrackUrl: selectedSong?.trackUrl ?? "",
+        };
         setSaving(true);
         try {
             const res = await userFetch("/user/profile", {
@@ -503,18 +497,29 @@ export default function ProfileEditPage() {
                                     </ul>
                                 )}
 
-                                {/* リンク貼付（上級者向け: フル尺 / 区間指定） */}
-                                <div className="pt-1 border-t border-white/5">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowUrlMethod(v => !v)}
-                                        className="w-full flex items-center justify-between text-xs text-white/45 hover:text-white/70 transition pt-2"
-                                    >
-                                        <span>{locale === "en" ? "Or paste a link (full song / pick a section)" : "またはリンクを貼る（フル尺・区間指定）"}</span>
-                                        <ChevronDownIcon className={`w-4 h-4 transition-transform ${showUrlMethod ? "rotate-180" : ""}`} />
-                                    </button>
+                            </>
+                        )}
 
-                                    {showUrlMethod && (
+                        {/* リンク: 検索の曲とは独立して保存。曲があれば曲を優先し、曲を消すとこのリンクが使われる */}
+                        <div className="pt-1 border-t border-white/5">
+                            <button
+                                type="button"
+                                onClick={() => setShowUrlMethod(v => !v)}
+                                className="w-full flex items-center justify-between text-xs text-white/45 hover:text-white/70 transition pt-2"
+                            >
+                                <span>{locale === "en" ? "Or paste a link (full song / pick a section)" : "またはリンクを貼る（フル尺・区間指定）"}</span>
+                                <ChevronDownIcon className={`w-4 h-4 transition-transform ${showUrlMethod ? "rotate-180" : ""}`} />
+                            </button>
+
+                            {selectedSong && (songUrl.trim() || showUrlMethod) && (
+                                <p className="text-[11px] text-white/35 pt-2">
+                                    {locale === "en"
+                                        ? "A picked song plays first — this link is kept and used when no song is set."
+                                        : "曲を選ぶとそちらが優先。リンクは保存され、曲を消すと使われます。"}
+                                </p>
+                            )}
+
+                            {showUrlMethod && (
                                         <div className="space-y-3 pt-3">
                                             <div>
                                                 <input
@@ -597,8 +602,6 @@ export default function ProfileEditPage() {
                                         </div>
                                     )}
                                 </div>
-                            </>
-                        )}
                     </div>
 
                     <div className="pt-2">
