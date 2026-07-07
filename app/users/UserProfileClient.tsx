@@ -38,15 +38,21 @@ function CoverBackground({ userId }: { userId: string }) {
         <div className="absolute inset-0 overflow-hidden bg-black" aria-hidden="true">
             {hasCover ? (
                 <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                        src={coverUrl}
-                        alt=""
-                        className="w-full h-full object-cover"
-                        onError={() => setCoverError(true)}
-                    />
-                    {/* 上=わずかに暗く（戻るリンクの視認性）、下=黒へフェード */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black" />
+                    {/* カバーは上部の横長バンドに限定（縦長ヒーロー全体を覆うと
+                        object-cover で強く切り取られ "どアップ" に見えるため）。
+                        バンドの高さ内で全幅にフィットさせ、下は黒へフェード。 */}
+                    <div className="absolute top-0 inset-x-0 h-56 sm:h-64 overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={coverUrl}
+                            alt=""
+                            className="w-full h-full object-cover object-center"
+                            onError={() => setCoverError(true)}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/10 to-black" />
+                    </div>
+                    {/* バンド下端から下は黒で塗る */}
+                    <div className="absolute inset-x-0 top-56 sm:top-64 bottom-0 bg-black" />
                 </>
             ) : (
                 <div className="w-full h-full bg-gradient-to-b from-white/[0.06] via-transparent to-black" />
@@ -249,8 +255,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         </Link>
                     </div>
 
-                    {/* プロフィールヘッダー（カバーの上に乗る。上に余白をとってカバー写真を見せる） */}
-                    <div className="pb-6 pt-14 sm:pt-20">
+                    {/* プロフィールヘッダー（アバターがカバーバンドの下端に重なる） */}
+                    <div className="pb-6 pt-24 sm:pt-32">
                         {/* アバター（グラデーションリング）+ 名前 + 共有 */}
                         <div className="flex items-end gap-4 mb-5">
                         <div className="rounded-full p-[3px] bg-gradient-to-tr from-fuchsia-500 via-rose-500 to-amber-400 flex-shrink-0 shadow-lg shadow-black/40">
@@ -288,18 +294,16 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         </div>
                     </div>
 
-                    {/* 統計（投稿数 / 総いいね数）— カバー写真の上に乗るためガラス調 */}
-                    <div className="flex items-stretch gap-2 mb-4">
-                        <div className="flex-1 rounded-xl bg-black/30 backdrop-blur-md ring-1 ring-white/10 py-2.5 text-center">
-                            <div className="text-lg font-bold tabular-nums leading-none">{postCount}</div>
-                            <div className="text-[11px] text-white/70 mt-1">{locale === "en" ? "Posts" : "投稿"}</div>
+                    {/* 統計（投稿数 / 総いいね数）— コンパクトなガラス調ピル */}
+                    <div className="flex items-center gap-2 mb-4">
+                        <div className="inline-flex items-baseline gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
+                            <span className="text-sm font-bold tabular-nums leading-none">{postCount}</span>
+                            <span className="text-[11px] text-white/60">{locale === "en" ? "posts" : "投稿"}</span>
                         </div>
-                        <div className="flex-1 rounded-xl bg-black/30 backdrop-blur-md ring-1 ring-white/10 py-2.5 text-center">
-                            <div className="text-lg font-bold tabular-nums leading-none">{totalLikes.toLocaleString()}</div>
-                            <div className="text-[11px] text-white/70 mt-1 inline-flex items-center gap-0.5">
-                                <HeartIcon className="w-3 h-3 text-rose-400" />
-                                {locale === "en" ? "Likes" : "いいね"}
-                            </div>
+                        <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
+                            <HeartIcon className="w-3 h-3 text-rose-400" />
+                            <span className="text-sm font-bold tabular-nums leading-none">{totalLikes.toLocaleString()}</span>
+                            <span className="text-[11px] text-white/60">{locale === "en" ? "likes" : "いいね"}</span>
                         </div>
                     </div>
 
