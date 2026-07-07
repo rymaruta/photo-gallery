@@ -3,7 +3,8 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon } from "@heroicons/react/24/outline";
+import dynamic from "next/dynamic";
+import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon } from "@heroicons/react/24/outline";
 import { HeartIcon } from "@heroicons/react/24/solid";
 import { useLocale } from "../i18n/context";
 import { useToast } from "../../lib/hooks/useToast";
@@ -26,6 +27,46 @@ type UserProfile = {
 };
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
+
+// Leaflet は window 依存のため SSG では読み込まない
+const MapView = dynamic(() => import("../components/MapView"), {
+    ssr: false,
+    loading: () => (
+        <div className="h-full flex items-center justify-center">
+            <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+        </div>
+    ),
+});
+
+type TabKey = "posts" | "map" | "timeline";
+
+// 写真を「YYYY年 / M月」で時系列グループ化（撮影日 date 優先、なければ createdAt）
+type TimelineGroup = { key: string; year: string; label: string; photos: Photo[] };
+function buildTimeline(photos: Photo[], locale: "ja" | "en"): TimelineGroup[] {
+    const withDate = photos
+        .map((p) => ({ p, t: Date.parse(String(p.date ?? p.createdAt ?? "")) }))
+        .filter((x) => !isNaN(x.t))
+        .sort((a, b) => b.t - a.t);
+    const map = new Map<string, TimelineGroup>();
+    for (const { p, t } of withDate) {
+        const d = new Date(t);
+        const y = d.getFullYear();
+        const m = d.getMonth() + 1;
+        const key = `${y}-${m}`;
+        if (!map.has(key)) {
+            map.set(key, {
+                key,
+                year: String(y),
+                label: locale === "en"
+                    ? d.toLocaleDateString("en-US", { year: "numeric", month: "long" })
+                    : `${y}年${m}月`,
+                photos: [],
+            });
+        }
+        map.get(key)!.photos.push(p);
+    }
+    return Array.from(map.values());
+}
 
 // ヒーロー背景としてのカバー写真。プロフィールヘッダー（アバター・名前・
 // 統計・アクション）全体の裏に敷き、下方向を黒へグラデーションで馴染ませる。
@@ -200,6 +241,10 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         [visiblePhotos]
     );
 
+    const [tab, setTab] = useState<TabKey>("posts");
+    const mapPhotos = useMemo(() => visiblePhotos.filter(p => p.coords), [visiblePhotos]);
+    const timeline = useMemo(() => buildTimeline(visiblePhotos, locale as "ja" | "en"), [visiblePhotos, locale]);
+
     // 共有には常に正規URL（静的生成済みなら /users/<id>）を使う
     const shareUrl = useMemo(() => {
         const path = ROUTES.USER_PROFILE(userId);
@@ -365,38 +410,107 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 </div>
             </div>
 
-            {/* 投稿一覧（黒背景） */}
+            {/* コンテンツ（黒背景）: 投稿 / 足あとマップ / タイムライン */}
             <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
-                {/* タブバー風の区切り */}
-                <div className="flex items-center justify-center gap-1.5 border-t border-white/10 py-3 mb-1">
-                    <Squares2X2Icon className="w-4 h-4 text-white/80" />
-                    <span className="text-xs font-medium text-white/80 tracking-wide">
-                        {locale === "en" ? "Posts" : "投稿"}
-                    </span>
+                {/* タブバー */}
+                <div className="grid grid-cols-3 border-t border-white/10 mb-1">
+                    {([
+                        { key: "posts", icon: Squares2X2Icon, label: locale === "en" ? "Posts" : "投稿" },
+                        { key: "map", icon: MapPinIcon, label: locale === "en" ? "Map" : "足あと" },
+                        { key: "timeline", icon: CalendarDaysIcon, label: locale === "en" ? "Timeline" : "年表" },
+                    ] as const).map(({ key, icon: Icon, label }) => {
+                        const active = tab === key;
+                        return (
+                            <button
+                                key={key}
+                                onClick={() => setTab(key)}
+                                aria-pressed={active}
+                                className={`relative flex items-center justify-center gap-1.5 py-3 text-xs font-medium tracking-wide transition-colors ${active ? "text-white" : "text-white/40 hover:text-white/70"}`}
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                <Icon className="w-4 h-4" />
+                                <span>{label}</span>
+                                {active && <span className="absolute -top-px inset-x-0 h-0.5 bg-white rounded-full" />}
+                            </button>
+                        );
+                    })}
                 </div>
 
-                {postCount === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-24 text-white/40 gap-3">
-                        <div className="w-16 h-16 rounded-full border-2 border-white/15 flex items-center justify-center">
-                            <PhotoStackIcon className="w-7 h-7" />
+                {/* 投稿タブ */}
+                {tab === "posts" && (
+                    postCount === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-24 text-white/40 gap-3">
+                            <div className="w-16 h-16 rounded-full border-2 border-white/15 flex items-center justify-center">
+                                <PhotoStackIcon className="w-7 h-7" />
+                            </div>
+                            <p className="text-sm">{locale === "en" ? "No photos yet." : "まだ写真がありません。"}</p>
+                            {isOwner && (
+                                <Link href="/user/upload" className="mt-1 px-5 py-2 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors">
+                                    {locale === "en" ? "Share your first photo" : "最初の写真を投稿"}
+                                </Link>
+                            )}
                         </div>
-                        <p className="text-sm">
-                            {locale === "en" ? "No photos yet." : "まだ写真がありません。"}
-                        </p>
-                        {isOwner && (
-                            <Link
-                                href="/user/upload"
-                                className="mt-1 px-5 py-2 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors"
-                            >
-                                {locale === "en" ? "Share your first photo" : "最初の写真を投稿"}
-                            </Link>
+                    ) : (
+                        <div className="grid grid-cols-3 gap-1 pb-8">
+                            {visiblePhotos.map(photo => (
+                                <PhotoCard key={photo.id} photo={photo} locale={locale} isOwner={isOwner} onTogglePublish={handleTogglePublish} />
+                            ))}
+                        </div>
+                    )
+                )}
+
+                {/* 足あとマップタブ */}
+                {tab === "map" && (
+                    <div className="pb-8">
+                        {mapPhotos.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-24 text-white/40 gap-3">
+                                <MapPinIcon className="w-10 h-10" />
+                                <p className="text-sm text-center max-w-xs">
+                                    {locale === "en"
+                                        ? "No location data yet. Photos uploaded with GPS will appear on the map."
+                                        : "位置情報つきの写真がまだありません。GPS付きでアップロードすると地図に足あとが残ります。"}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="rounded-xl overflow-hidden border border-white/10 h-[60vh] min-h-[360px] relative">
+                                <MapView photos={mapPhotos} locale={locale as "ja" | "en"} />
+                                <div className="absolute top-3 left-3 z-[500] px-2.5 py-1 rounded-full bg-black/70 text-[11px] text-white/90 pointer-events-none">
+                                    <MapPinIcon className="w-3.5 h-3.5 inline -mt-0.5" /> {mapPhotos.length}
+                                </div>
+                            </div>
                         )}
                     </div>
-                ) : (
-                    <div className="grid grid-cols-3 gap-1 pb-8">
-                        {visiblePhotos.map(photo => (
-                            <PhotoCard key={photo.id} photo={photo} locale={locale} isOwner={isOwner} onTogglePublish={handleTogglePublish} />
-                        ))}
+                )}
+
+                {/* タイムラインタブ */}
+                {tab === "timeline" && (
+                    <div className="pb-8 pt-2">
+                        {timeline.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-24 text-white/40 gap-3">
+                                <CalendarDaysIcon className="w-10 h-10" />
+                                <p className="text-sm">{locale === "en" ? "No dated photos yet." : "撮影日のある写真がまだありません。"}</p>
+                            </div>
+                        ) : (
+                            <div className="relative pl-6">
+                                {/* 縦の軸線 */}
+                                <div className="absolute left-[7px] top-2 bottom-2 w-px bg-white/15" />
+                                {timeline.map((g) => (
+                                    <div key={g.key} className="relative mb-6">
+                                        {/* 節点 + 月ラベル */}
+                                        <div className="flex items-center gap-2 mb-2 -ml-6">
+                                            <span className="w-3.5 h-3.5 rounded-full bg-white ring-4 ring-black flex-shrink-0" />
+                                            <span className="text-sm font-bold">{g.label}</span>
+                                            <span className="text-[11px] text-white/40">{g.photos.length}{locale === "en" ? "" : "枚"}</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-1">
+                                            {g.photos.map((photo) => (
+                                                <PhotoCard key={photo.id} photo={photo} locale={locale} isOwner={isOwner} onTogglePublish={handleTogglePublish} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
