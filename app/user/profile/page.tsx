@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, UserCircleIcon, CameraIcon, MusicalNoteIcon, MagnifyingGlassIcon, XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
@@ -64,6 +65,9 @@ export default function ProfileEditPage() {
     const [songResults, setSongResults] = useState<SongResult[]>([]);
     const [searching, setSearching] = useState(false);
     const [searchError, setSearchError] = useState(false);
+    // 検索結果の試聴（同時に1曲だけ）
+    const [previewId, setPreviewId] = useState<string | null>(null);
+    const previewAudioRef = useRef<HTMLAudioElement | null>(null);
     // テーマソング: リンク貼付（上級者向け・フル尺/区間指定）
     const [showUrlMethod, setShowUrlMethod] = useState(false);
     const [songUrl, setSongUrl] = useState("");
@@ -181,9 +185,33 @@ export default function ProfileEditPage() {
         }
     };
 
+    const stopPreview = () => {
+        previewAudioRef.current?.pause();
+        setPreviewId(null);
+    };
+
+    const togglePreview = (song: SongResult) => {
+        if (!previewAudioRef.current) previewAudioRef.current = new Audio();
+        const a = previewAudioRef.current;
+        if (previewId === song.id) {
+            a.pause();
+            setPreviewId(null);
+            return;
+        }
+        a.src = song.previewUrl;
+        a.currentTime = 0;
+        a.onended = () => setPreviewId(null);
+        void a.play().catch(() => { /* 再生できない環境は無視 */ });
+        setPreviewId(song.id);
+    };
+
+    // 画面を離れたら試聴を止める
+    useEffect(() => () => { previewAudioRef.current?.pause(); }, []);
+
     const handleSongSearch = async () => {
         const q = songQuery.trim();
         if (!q) return;
+        stopPreview();
         setSearching(true);
         setSearchError(false);
         try {
@@ -478,22 +506,38 @@ export default function ProfileEditPage() {
 
                                 {songResults.length > 0 && (
                                     <ul className="rounded-xl ring-1 ring-white/10 divide-y divide-white/5 overflow-hidden max-h-72 overflow-y-auto no-scrollbar">
-                                        {songResults.map(song => (
-                                            <li key={song.id}>
+                                        {songResults.map(song => {
+                                            const isPreviewing = previewId === song.id;
+                                            return (
+                                            <li key={song.id} className="flex items-center gap-1 pr-2 hover:bg-white/5 transition">
+                                                {/* 試聴（選択とは別。同時に1曲だけ再生） */}
                                                 <button
                                                     type="button"
-                                                    onClick={() => setSelectedSong(song)}
-                                                    className="w-full flex items-center gap-3 p-2.5 hover:bg-white/5 active:bg-white/10 transition text-left"
+                                                    onClick={() => togglePreview(song)}
+                                                    aria-label={isPreviewing ? `${song.title}を停止` : `${song.title}を試聴`}
+                                                    className="relative w-10 h-10 ml-2 my-2 rounded-md overflow-hidden bg-white/10 flex-shrink-0 group"
                                                 >
                                                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                    <img src={song.artwork} alt="" loading="lazy" className="w-10 h-10 rounded-md object-cover bg-white/10 flex-shrink-0" />
+                                                    <img src={song.artwork} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+                                                    <span className={`absolute inset-0 flex items-center justify-center bg-black/45 ${isPreviewing ? "" : "opacity-0 group-hover:opacity-100"} transition-opacity`}>
+                                                        {isPreviewing ? <PauseIcon className="w-4 h-4 text-white" /> : <PlayIcon className="w-4 h-4 text-white ml-0.5" />}
+                                                    </span>
+                                                </button>
+                                                {/* 選択 */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { stopPreview(); setSelectedSong(song); }}
+                                                    className="min-w-0 flex-1 flex items-center py-2.5 text-left active:opacity-70 transition"
+                                                >
                                                     <div className="min-w-0 flex-1">
-                                                        <p className="text-sm text-white truncate">{song.title}</p>
+                                                        <p className={`text-sm truncate ${isPreviewing ? "text-fuchsia-300" : "text-white"}`}>{song.title}</p>
                                                         <p className="text-xs text-white/50 truncate">{song.artist}</p>
                                                     </div>
+                                                    <span className="text-[11px] text-white/40 flex-shrink-0 pl-2">{locale === "en" ? "Pick" : "選ぶ"}</span>
                                                 </button>
                                             </li>
-                                        ))}
+                                            );
+                                        })}
                                     </ul>
                                 )}
 
