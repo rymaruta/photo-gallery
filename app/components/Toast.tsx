@@ -52,7 +52,7 @@ function ToastItem({ toast }: { toast: ToastType }) {
                 bg-[#16181c]/90 ring-1 ring-white/10 rounded-2xl pl-2.5 pr-3 py-2.5 min-w-[280px] max-w-[400px]
                 flex items-center gap-2.5 shadow-2xl backdrop-blur-md
                 transition-all duration-300 ease-out
-                ${isVisible && !isRemoving ? "opacity-100 translate-x-0 scale-100" : "opacity-0 translate-x-4 scale-95"}
+                ${isVisible && !isRemoving ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-3 scale-95"}
             `}
             role="alert"
             aria-live="polite"
@@ -77,7 +77,7 @@ export default function ToastContainer() {
 
     return (
         <div
-            className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none"
+            className="fixed bottom-4 inset-x-0 z-[100] flex flex-col items-center gap-2 px-4 pointer-events-none"
             aria-live="assertive"
         >
             {toasts.map((toast) => (

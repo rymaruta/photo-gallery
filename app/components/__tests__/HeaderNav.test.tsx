@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 
 // ロールごとの認証状態を切り替えられるモック
 const authState = vi.hoisted(() => ({
@@ -119,5 +119,74 @@ describe("HeaderNav - ロール別のメニュー表示", () => {
         setRole("anonymous");
         render(<HeaderNav />);
         expect(screen.queryByLabelText("My Page")).toBeNull();
+    });
+});
+
+// メニューが「反応しなくなる」回帰を毎回捕まえるための専用テスト。
+// ハンバーガーの開閉・各種クローズ経路・遷移・スクロールロックを網羅する。
+describe("HeaderNav - メニュー開閉の回帰ガード", () => {
+    beforeEach(() => {
+        setRole("general");
+        document.body.style.overflow = "";
+    });
+
+    it("ハンバーガーで開いて、もう一度押すと閉じる（トグルが効く）", () => {
+        render(<HeaderNav />);
+        // 初期は閉じている
+        expect(screen.getByLabelText("Open menu")).toHaveAttribute("aria-expanded", "false");
+        expect(screen.queryByRole("dialog")).toBeNull();
+
+        // 開く
+        fireEvent.click(screen.getByLabelText("Open menu"));
+        expect(screen.getByRole("dialog")).toBeInTheDocument();
+        const closeBtn = screen.getByLabelText("Close menu");
+        expect(closeBtn).toHaveAttribute("aria-expanded", "true");
+
+        // 同じボタンで閉じる
+        fireEvent.click(closeBtn);
+        expect(screen.queryByRole("dialog")).toBeNull();
+        expect(screen.getByLabelText("Open menu")).toHaveAttribute("aria-expanded", "false");
+    });
+
+    it("背景（バックドロップ）タップで閉じる", () => {
+        render(<HeaderNav />);
+        fireEvent.click(screen.getByLabelText("Open menu"));
+        const dialog = screen.getByRole("dialog");
+        // 最初の子要素がバックドロップ
+        fireEvent.click(dialog.firstElementChild as Element);
+        expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    it("Escape キーで閉じる", () => {
+        render(<HeaderNav />);
+        fireEvent.click(screen.getByLabelText("Open menu"));
+        expect(screen.getByRole("dialog")).toBeInTheDocument();
+        fireEvent.keyDown(document, { key: "Escape" });
+        expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    it("メニュー項目を押すと遷移し、メニューが閉じる", () => {
+        render(<HeaderNav />);
+        fireEvent.click(screen.getByLabelText("Open menu"));
+        const dialog = screen.getByRole("dialog");
+        fireEvent.click(within(dialog).getByText("Map"));
+        expect(mockPush).toHaveBeenCalledTimes(1);
+        expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    it("開くと body のスクロールがロックされ、閉じると解除される", () => {
+        render(<HeaderNav />);
+        fireEvent.click(screen.getByLabelText("Open menu"));
+        expect(document.body.style.overflow).toBe("hidden");
+        fireEvent.click(screen.getByLabelText("Close menu"));
+        expect(document.body.style.overflow).toBe("");
+    });
+
+    it("ハンバーガーボタンは常に表示され、ラベルが状態に追従する", () => {
+        render(<HeaderNav />);
+        const btn = screen.getByLabelText("Open menu");
+        expect(btn).toBeInTheDocument();
+        fireEvent.click(btn);
+        expect(screen.getByLabelText("Close menu")).toBeInTheDocument();
     });
 });
