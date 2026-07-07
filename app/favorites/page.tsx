@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { HeartIcon } from "@heroicons/react/24/solid";
 import { useFavorites } from "../../lib/hooks/useFavorites";
 import { useImagePreloader } from "../../lib/hooks/useImagePreloader";
 import { usePhotos } from "../../lib/hooks/usePhotos";
@@ -91,22 +92,15 @@ export default function FavoritesPage() {
             </div>
 
             {favoritePhotos.length === 0 ? (
-                <div className="text-center py-12">
-                    <svg
-                        className="w-16 h-16 mx-auto mb-4 text-white/40"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                        />
-                    </svg>
-                    <p className="text-white/60">
+                <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
+                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
+                        <HeartIcon className="w-8 h-8 text-white/30" />
+                    </div>
+                    <p className="text-white/70 text-sm">
                         {locale === "en" ? "No favorites yet." : "お気に入りはまだありません。"}
+                    </p>
+                    <p className="text-white/40 text-xs">
+                        {locale === "en" ? "Tap the heart on a photo to save it here." : "写真のハートを押すとここに保存されます。"}
                     </p>
                 </div>
             ) : (

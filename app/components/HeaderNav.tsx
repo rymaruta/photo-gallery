@@ -21,7 +21,6 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     const navLabels = labels.navigation || {};
     const bg = "#07090a";
     const outerBorder = "rgba(255,255,255,0.26)";
-    const innerLine = "rgba(255,255,255,0.12)";
     const subtleInset = "inset 0 1px 0 rgba(255,255,255,0.02)";
     const subtleShadow = "0 1px 8px rgba(0,0,0,0.65)";
 
@@ -60,9 +59,8 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
         };
     }, [open]);
 
-    const dividerThickness = 2;
-    const linkBase = "block px-3 py-4 whitespace-nowrap text-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/10";
-    const inactiveClasses = "text-white bg-transparent hover:bg-white hover:text-black";
+    const linkBase = "block px-4 py-3.5 whitespace-nowrap text-base transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/10";
+    const inactiveClasses = "text-white/90 bg-transparent hover:bg-white/10 hover:text-white";
     const btnStyle: React.CSSProperties = {
         touchAction: "manipulation",
         WebkitTapHighlightColor: "transparent",
@@ -118,86 +116,79 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                 >
                     {/* Backdrop */}
                     <div
-                        className="absolute inset-0 bg-black/70"
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                         onClick={() => setOpen(false)}
                         aria-hidden="true"
                     />
 
                     {/* Menu panel */}
                     <div
-                        className="absolute top-0 right-6 md:right-8 w-[48%] max-w-[200px]"
-                        style={{
-                            backgroundColor: bg,
-                            border: `2px solid ${outerBorder}`,
-                            boxShadow: `${subtleShadow}, ${subtleInset}`,
-                            borderRadius: 12,
-                            overflow: "hidden",
-                            zIndex: 10,
-                        }}
+                        className="absolute top-2 right-4 md:right-8 w-[52%] max-w-[220px] rounded-2xl ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in"
+                        style={{ backgroundColor: "#16181c", zIndex: 10 }}
                     >
                         <nav aria-label="Mobile menu">
-                            <ul className="flex flex-col m-0 p-0" style={{ borderTop: `${dividerThickness}px solid ${innerLine}`, listStyle: "none" }}>
-                                <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                            <ul className="flex flex-col m-0 p-0 divide-y divide-white/5" style={{ listStyle: "none" }}>
+                                <li style={{ margin: 0, padding: 0 }}>
                                     <button onClick={() => handleNavigation(ROUTES.HOME)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                         {navLabels.works || "Works"}
                                     </button>
                                 </li>
-                                <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                <li style={{ margin: 0, padding: 0 }}>
                                     <button onClick={() => handleNavigation(ROUTES.MAP)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                         {navLabels.map || "Map"}
                                     </button>
                                 </li>
-                                <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                <li style={{ margin: 0, padding: 0 }}>
                                     <button onClick={() => handleNavigation(ROUTES.FAVORITES)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                         {navLabels.favorites || "Favorites"}
                                     </button>
                                 </li>
-                                <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                <li style={{ margin: 0, padding: 0 }}>
                                     <button onClick={() => handleNavigation(ROUTES.HISTORY)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                         {navLabels.history || "History"}
                                     </button>
                                 </li>
-                                <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                <li style={{ margin: 0, padding: 0 }}>
                                     <button onClick={() => handleNavigation(ROUTES.ABOUT)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                         {navLabels.about || "About"}
                                     </button>
                                 </li>
                                 {isAuthenticated && (
-                                    <li style={{ margin: 0, padding: "10px 12px 4px", borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                    <li style={{ margin: 0, padding: "10px 12px 4px" }}>
                                         <span className="text-[10px] tracking-widest uppercase text-white/35">
                                             {navLabels.account || "Account"}
                                         </span>
                                     </li>
                                 )}
                                 {isAuthenticated && userId && (
-                                    <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                    <li style={{ margin: 0, padding: 0 }}>
                                         <button onClick={() => handleNavigation(ROUTES.USER_PROFILE(userId))} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                             {navLabels.mypage || "My Page"}
                                         </button>
                                     </li>
                                 )}
                                 {(isAdminUser || isGeneralUser) && (
-                                    <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                    <li style={{ margin: 0, padding: 0 }}>
                                         <button onClick={() => handleNavigation(ROUTES.UPLOAD)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                             {navLabels.upload || "Upload"}
                                         </button>
                                     </li>
                                 )}
                                 {isAdminUser && (
-                                    <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                    <li style={{ margin: 0, padding: 0 }}>
                                         <button onClick={() => handleNavigation(ROUTES.ADMIN)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                             {navLabels.admin || "Manage"}
                                         </button>
                                     </li>
                                 )}
                                 {isAuthenticated ? (
-                                    <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                    <li style={{ margin: 0, padding: 0 }}>
                                         <button onClick={() => { setOpen(false); logout(); }} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                             {navLabels.logout || "Logout"}
                                         </button>
                                     </li>
                                 ) : (
-                                    <li style={{ margin: 0, padding: 0, borderBottom: `${dividerThickness}px solid ${innerLine}` }}>
+                                    <li style={{ margin: 0, padding: 0 }}>
                                         <button onClick={() => handleNavigation(ROUTES.LOGIN)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                             {navLabels.login || "Login"}
                                         </button>

@@ -66,7 +66,7 @@ export default function AboutPage() {
                                     <h2 className="text-lg md:text-2xl font-semibold">
                                         {about.photographer?.name ?? ""}
                                     </h2>
-                                    <p className="mt-1 text-sm text-gray-300">
+                                    <p className="mt-1 text-sm text-white/60">
                                         {about.photographer?.title ?? ""}
                                     </p>
                                 </div>
@@ -90,8 +90,8 @@ export default function AboutPage() {
 
                             {/* 右カラム（本文） */}
                             <article className="md:col-span-2">
-                                <div className="rounded-xl p-6 md:p-8 bg-gradient-to-b from-white/2 to-transparent ring-1 ring-white/6 backdrop-blur-sm">
-                                    <div className="text-base md:text-lg leading-relaxed text-gray-200">
+                                <div className="rounded-2xl p-6 md:p-8 bg-white/5 ring-1 ring-white/10">
+                                    <div className="text-base md:text-lg leading-relaxed text-white/75">
                                         {paras.length > 0 ? (
                                             paras.map((p, i) =>
                                                 p === "" ? (
@@ -103,11 +103,11 @@ export default function AboutPage() {
                                                 )
                                             )
                                         ) : (
-                                            <p className="text-gray-400">No content available.</p>
+                                            <p className="text-white/50">No content available.</p>
                                         )}
 
                                         {/* 本文下：i18n から取得した文言のみ表示 */}
-                                        <div className="mt-6 pt-6 border-t border-white/6">
+                                        <div className="mt-6 pt-6 border-t border-white/10">
                                             {contactTitle ? <p className="text-xs text-white/60 mb-2">{contactTitle}</p> : null}
 
                                             {contactPrompt ? <p className="text-sm text-white/90">{contactPrompt}</p> : null}

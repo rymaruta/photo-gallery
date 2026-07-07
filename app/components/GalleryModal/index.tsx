@@ -160,12 +160,11 @@ export default function GalleryModal({
             aria-modal="true"
             aria-label={titleText || "Photo"}
             onClick={handleOverlayClick}
-            className="fixed inset-0 z-50 flex items-center justify-center"
-            style={{ background: "rgba(0,0,0,0.9)", padding: "0" }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md"
         >
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="relative w-full h-full sm:h-auto sm:max-h-[95vh] flex flex-col sm:mx-4 sm:rounded-lg overflow-hidden bg-black"
+                className="relative w-full h-full sm:h-auto sm:max-h-[95vh] flex flex-col sm:mx-4 sm:rounded-2xl overflow-hidden bg-black sm:ring-1 sm:ring-white/10"
                 style={{ maxWidth: "980px" }}
             >
                 {/* 画像エリア */}

@@ -329,13 +329,17 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
 
             {/* 閲覧者リスト（ボトムシート） */}
             {viewersOpen && isOwnStory && (
-                <div className="absolute inset-0 z-30" onClick={() => setViewersOpen(false)}>
+                <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={() => setViewersOpen(false)}>
                     <div
-                        className="absolute inset-x-0 bottom-0 bg-[#101214] rounded-t-2xl max-h-[60%] flex flex-col"
+                        className="absolute inset-x-0 bottom-0 bg-[#16181c] ring-1 ring-white/10 rounded-t-3xl max-h-[60%] flex flex-col shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
                     >
-                        <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                        {/* グラバー */}
+                        <div className="flex justify-center pt-2.5 pb-1">
+                            <span className="w-9 h-1 rounded-full bg-white/20" />
+                        </div>
+                        <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
                             <h3 className="text-sm font-semibold text-white">
                                 {locale === "en" ? "Viewers" : "閲覧者"}
                                 <span className="ml-2 text-white/50 font-normal">{viewers?.length ?? 0}</span>

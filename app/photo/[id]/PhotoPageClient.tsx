@@ -167,7 +167,7 @@ function PhotoImage({
         <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ minHeight: "400px", position: "relative" }}>
             {imageLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
-                    <div className="w-12 h-12 border-3 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                    <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                 </div>
             )}
             <div className="relative w-full bg-black" style={{ minHeight: "400px", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -317,7 +317,7 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
         return (
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
                 <div className="flex items-center justify-center min-h-[60vh]">
-                    <div className="w-12 h-12 border-3 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                    <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                 </div>
             </main>
         );

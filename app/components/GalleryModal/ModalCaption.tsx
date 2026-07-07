@@ -109,7 +109,7 @@ export default function ModalCaption({
                     href={ROUTES.PHOTO(photo.id)}
                     onClick={stop}
                     onTouchStart={stop}
-                    className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-white/10 hover:bg-white/20 active:scale-[0.98] text-white rounded-full transition"
                     style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", minHeight: "44px" }}
                 >
                     <span>{locale === "en" ? "View Full Page" : "個別ページを見る"}</span>
@@ -121,12 +121,12 @@ export default function ModalCaption({
 
             {/* 共有 */}
             <div className="mt-4 pt-3 border-t border-white/10 pb-4">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                     <span className="text-xs text-white/50 mr-1">{locale === "en" ? "Share:" : "共有:"}</span>
                     <button
                         onClick={(e) => { stop(e); void onShare(); }}
                         onTouchStart={stop}
-                        className="p-2 rounded-md bg-white/5 hover:bg-white/15 text-white/70 hover:text-white transition-colors"
+                        className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white/70 hover:text-white transition"
                         aria-label={locale === "en" ? "Share" : "共有"}
                         title={locale === "en" ? "Share" : "共有"}
                         style={SHARE_STYLE}
@@ -136,7 +136,7 @@ export default function ModalCaption({
                     <button
                         onClick={(e) => { stop(e); void onCopyLink(); }}
                         onTouchStart={stop}
-                        className="p-2 rounded-md bg-white/5 hover:bg-white/15 text-white/70 hover:text-white transition-colors"
+                        className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white/70 hover:text-white transition"
                         aria-label={locale === "en" ? "Copy link" : "リンクをコピー"}
                         title={locale === "en" ? "Copy link" : "リンクをコピー"}
                         style={SHARE_STYLE}
@@ -146,7 +146,7 @@ export default function ModalCaption({
                     <button
                         onClick={(e) => { stop(e); shareToTwitter(currentUrl, shareText); }}
                         onTouchStart={stop}
-                        className="p-2 rounded-md bg-white/5 hover:bg-white/15 text-white/70 hover:text-white transition-colors"
+                        className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white/70 hover:text-white transition"
                         aria-label="Share on X"
                         title="X (Twitter)"
                         style={SHARE_STYLE}
@@ -159,7 +159,7 @@ export default function ModalCaption({
                         <button
                             onClick={(e) => { stop(e); shareToLine(currentUrl, shareText); }}
                             onTouchStart={stop}
-                            className="p-2 rounded-md bg-white/5 hover:bg-white/15 text-white/70 hover:text-white transition-colors"
+                            className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white/70 hover:text-white transition"
                             aria-label="Share on LINE"
                             title="LINE"
                             style={SHARE_STYLE}

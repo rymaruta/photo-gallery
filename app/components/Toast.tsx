@@ -32,52 +32,39 @@ function ToastItem({ toast }: { toast: ToastType }) {
         }, 300);
     };
 
+    // アイコンを色付きの円バッジに包む（アプリ共通の質感）
     const getIcon = () => {
         switch (toast.type) {
             case "success":
-                return <CheckCircleIcon className="w-5 h-5 text-green-400" />;
+                return <span className="w-7 h-7 rounded-full bg-green-500/15 flex items-center justify-center flex-shrink-0"><CheckCircleIcon className="w-[18px] h-[18px] text-green-400" /></span>;
             case "error":
-                return <ExclamationCircleIcon className="w-5 h-5 text-red-400" />;
+                return <span className="w-7 h-7 rounded-full bg-red-500/15 flex items-center justify-center flex-shrink-0"><ExclamationCircleIcon className="w-[18px] h-[18px] text-red-400" /></span>;
             case "info":
-                return <InformationCircleIcon className="w-5 h-5 text-blue-400" />;
+                return <span className="w-7 h-7 rounded-full bg-sky-500/15 flex items-center justify-center flex-shrink-0"><InformationCircleIcon className="w-[18px] h-[18px] text-sky-400" /></span>;
             default:
-                return <InformationCircleIcon className="w-5 h-5 text-white/60" />;
-        }
-    };
-
-    const getBgColor = () => {
-        switch (toast.type) {
-            case "success":
-                return "bg-green-500/10 border-green-500/30";
-            case "error":
-                return "bg-red-500/10 border-red-500/30";
-            case "info":
-                return "bg-blue-500/10 border-blue-500/30";
-            default:
-                return "bg-white/10 border-white/20";
+                return <span className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0"><InformationCircleIcon className="w-[18px] h-[18px] text-white/60" /></span>;
         }
     };
 
     return (
         <div
             className={`
-                ${getBgColor()}
-                border rounded-lg px-4 py-3 min-w-[280px] max-w-[400px]
-                flex items-center gap-3 shadow-lg backdrop-blur-sm
-                transition-all duration-300 ease-in-out
-                ${isVisible && !isRemoving ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full"}
+                bg-[#16181c]/90 ring-1 ring-white/10 rounded-2xl pl-2.5 pr-3 py-2.5 min-w-[280px] max-w-[400px]
+                flex items-center gap-2.5 shadow-2xl backdrop-blur-md
+                transition-all duration-300 ease-out
+                ${isVisible && !isRemoving ? "opacity-100 translate-x-0 scale-100" : "opacity-0 translate-x-4 scale-95"}
             `}
             role="alert"
             aria-live="polite"
         >
             {getIcon()}
-            <p className="flex-1 text-sm text-white/90">{toast.message}</p>
+            <p className="flex-1 text-sm text-white/90 leading-snug">{toast.message}</p>
             <button
                 onClick={handleClose}
-                className="p-1 rounded-full hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30"
+                className="p-1.5 rounded-full hover:bg-white/10 active:scale-90 transition focus:outline-none flex-shrink-0"
                 aria-label="Close"
             >
-                <XMarkIcon className="w-4 h-4 text-white/60 hover:text-white/90" />
+                <XMarkIcon className="w-4 h-4 text-white/50 hover:text-white/90" />
             </button>
         </div>
     );

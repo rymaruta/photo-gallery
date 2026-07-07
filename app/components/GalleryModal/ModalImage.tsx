@@ -29,7 +29,7 @@ export default function ModalImage({ src, alt, focalPoint }: Props) {
         <>
             {imageLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-10">
-                    <div className="w-12 h-12 border-3 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                    <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                 </div>
             )}
             <Image

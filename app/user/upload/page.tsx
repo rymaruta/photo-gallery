@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { PhotoIcon, XMarkIcon, UserCircleIcon, MapPinIcon, CalendarIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import { PhotoIcon, XMarkIcon, UserCircleIcon, MapPinIcon, CalendarIcon, ChevronDownIcon, CheckCircleIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import { useToast } from "../../../lib/hooks/useToast";
 import { useAuth } from "../../auth/context";
 import LocaleToggle from "../../components/LocaleToggle";
@@ -366,7 +366,7 @@ function UploadPageInner() {
         );
     }
 
-    const inputCls = "w-full px-3 py-2 bg-white/5 border border-white/10 rounded-md text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/30";
+    const inputCls = "w-full px-3.5 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
     const doneCount = items.filter((i) => i.status === "done").length;
     const pendingCount = items.filter((i) => i.status === "pending" || i.status === "error").length;
 
@@ -428,7 +428,7 @@ function UploadPageInner() {
 
             {/* 共通設定 */}
             {items.length > 0 && (
-                <div className="border border-white/10 rounded-lg p-3 mb-4 space-y-2">
+                <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-3.5 mb-4 space-y-2">
                     <p className="text-xs text-white/50 uppercase tracking-wide">
                         {locale === "en" ? "Common settings (applied to all)" : "共通設定（全写真に適用）"}
                     </p>
@@ -539,15 +539,15 @@ function UploadPageInner() {
                         {it.status !== "pending" && (
                             <div className="px-3 pb-3">
                                 {it.status === "uploading" && (
-                                    <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
-                                        <div className="bg-white h-full transition-all" style={{ width: `${it.progress}%` }} />
+                                    <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+                                        <div className="h-full rounded-full bg-gradient-to-r from-white/70 to-white transition-all" style={{ width: `${it.progress}%` }} />
                                     </div>
                                 )}
                                 {it.status === "done" && (
-                                    <p className="text-xs text-green-400">✓ {locale === "en" ? "Uploaded" : "アップロード完了"}</p>
+                                    <p className="text-xs text-green-400 inline-flex items-center gap-1"><CheckCircleIcon className="w-4 h-4" />{locale === "en" ? "Uploaded" : "アップロード完了"}</p>
                                 )}
                                 {it.status === "error" && (
-                                    <p className="text-xs text-red-400">⚠ {it.error ?? (locale === "en" ? "Failed" : "失敗")}</p>
+                                    <p className="text-xs text-red-400 inline-flex items-center gap-1"><ExclamationTriangleIcon className="w-4 h-4" />{it.error ?? (locale === "en" ? "Failed" : "失敗")}</p>
                                 )}
                             </div>
                         )}
@@ -578,7 +578,7 @@ function UploadPageInner() {
             )}
 
             {/* プロフィール写真 */}
-            <div className="border border-white/10 rounded-lg p-4 space-y-4 mt-8">
+            <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 space-y-4 mt-8">
                 <h2 className="text-sm font-medium text-white/70">
                     {locale === "en" ? "Profile Photo" : "プロフィール写真"}
                 </h2>
@@ -601,7 +601,7 @@ function UploadPageInner() {
                     </div>
                     <div className="space-y-2">
                         <label className="inline-block cursor-pointer">
-                            <span className="px-3 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors inline-flex items-center"
+                            <span className="px-3.5 py-2 text-sm bg-white/10 hover:bg-white/20 active:scale-95 text-white rounded-lg transition inline-flex items-center"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}>
                                 {locale === "en" ? "Choose photo" : "写真を選択"}
                             </span>

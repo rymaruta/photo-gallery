@@ -177,7 +177,7 @@ export default function AdminPage() {
     if (loading || !isAuthenticated || !isAdminUser) {
         return (
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-7xl mx-auto w-full flex items-center justify-center">
-                <div className="w-12 h-12 border-3 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
             </main>
         );
     }
@@ -229,7 +229,7 @@ export default function AdminPage() {
 
             {loadingPhotos ? (
                 <div className="flex items-center justify-center py-12">
-                    <div className="w-12 h-12 border-3 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                    <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                 </div>
             ) : photos.length === 0 ? (
                 <div className="text-center py-12 text-white/60">

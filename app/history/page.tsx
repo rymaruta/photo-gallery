@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { ClockIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { useViewHistory } from "../../lib/hooks/useViewHistory";
 import { useImagePreloader } from "../../lib/hooks/useImagePreloader";
 import { usePhotos } from "../../lib/hooks/usePhotos";
@@ -98,9 +99,10 @@ export default function HistoryPage() {
                     {historyPhotos.length > 0 && (
                         <button
                             onClick={handleClearHistory}
-                            className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs bg-white/5 hover:bg-white/10 active:scale-95 text-white/80 rounded-full transition"
                             aria-label={locale === "en" ? "Clear history" : "履歴をクリア"}
                         >
+                            <TrashIcon className="w-3.5 h-3.5" />
                             {locale === "en" ? "Clear History" : "履歴をクリア"}
                         </button>
                     )}
@@ -115,22 +117,15 @@ export default function HistoryPage() {
             </div>
 
             {historyPhotos.length === 0 ? (
-                <div className="text-center py-12">
-                    <svg
-                        className="w-16 h-16 mx-auto mb-4 text-white/40"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                    </svg>
-                    <p className="text-white/60">
+                <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
+                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
+                        <ClockIcon className="w-8 h-8 text-white/30" />
+                    </div>
+                    <p className="text-white/70 text-sm">
                         {locale === "en" ? "No viewing history yet." : "閲覧履歴はまだありません。"}
+                    </p>
+                    <p className="text-white/40 text-xs">
+                        {locale === "en" ? "Photos you open will show up here." : "開いた写真がここに表示されます。"}
                     </p>
                 </div>
             ) : (

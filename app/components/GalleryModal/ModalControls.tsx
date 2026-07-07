@@ -5,11 +5,11 @@ import { HeartIcon } from "@heroicons/react/24/solid";
 import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
 
 const BTN_BASE =
-    "absolute rounded-full bg-white/6 hover:bg-white/12 active:bg-white/20 " +
-    "focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 shadow-lg transition-colors z-20";
+    "absolute rounded-full bg-black/30 ring-1 ring-white/10 hover:bg-black/50 active:scale-95 " +
+    "focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 shadow-lg transition z-20";
 
 const BTN_STYLE: React.CSSProperties = {
-    backdropFilter: "blur(4px)",
+    backdropFilter: "blur(8px)",
     touchAction: "manipulation",
     WebkitTapHighlightColor: "transparent",
     minWidth: "44px",
