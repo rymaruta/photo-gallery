@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon, UserCircleIcon, CameraIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, UserCircleIcon, CameraIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { userFetch } from "../../../lib/utils/api";
+import { parseMusicEmbed, musicServiceLabel } from "../../../lib/utils/music";
 
 type UserProfile = {
     userId: string;
@@ -15,7 +16,23 @@ type UserProfile = {
     bio?: string;
     instagram?: string;
     website?: string;
+    songUrl?: string;
+    songStart?: number;
+    songEnd?: number;
 };
+
+// "1:23" / "83" → 秒。空や不正は undefined。
+function mmssToSec(v: string): number | undefined {
+    const t = v.trim();
+    if (!t) return undefined;
+    if (/^\d+$/.test(t)) return Number(t);
+    const m = t.match(/^(\d+):([0-5]?\d)$/);
+    return m ? Number(m[1]) * 60 + Number(m[2]) : undefined;
+}
+function secToMMSS(s?: number): string {
+    if (!s || s <= 0) return "";
+    return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+}
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
@@ -35,6 +52,9 @@ export default function ProfileEditPage() {
     const [bio, setBio] = useState("");
     const [instagram, setInstagram] = useState("");
     const [website, setWebsite] = useState("");
+    const [songUrl, setSongUrl] = useState("");
+    const [songStartText, setSongStartText] = useState("");
+    const [songEndText, setSongEndText] = useState("");
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [avatarError, setAvatarError] = useState(false);
     const coverInputRef = useRef<HTMLInputElement>(null);
@@ -58,6 +78,9 @@ export default function ProfileEditPage() {
                     setBio(data.bio ?? "");
                     setInstagram(data.instagram ?? "");
                     setWebsite(data.website ?? "");
+                    setSongUrl(data.songUrl ?? "");
+                    setSongStartText(secToMMSS(data.songStart));
+                    setSongEndText(secToMMSS(data.songEnd));
                 }
             } catch { /* ignore */ } finally {
                 setFetching(false);
@@ -131,11 +154,25 @@ export default function ProfileEditPage() {
     };
 
     const handleSave = async () => {
+        // 曲URLが未対応サービスなら保存前に知らせる
+        const trimmedSong = songUrl.trim();
+        if (trimmedSong && !parseMusicEmbed(trimmedSong)) {
+            showToast(locale === "en"
+                ? "Song link must be Spotify, YouTube, or Apple Music."
+                : "曲のリンクは Spotify / YouTube / Apple Music に対応しています。", "error");
+            return;
+        }
+        const songStart = mmssToSec(songStartText);
+        const songEnd = mmssToSec(songEndText);
         setSaving(true);
         try {
             const res = await userFetch("/user/profile", {
                 method: "PUT",
-                body: JSON.stringify({ displayName, bio, instagram, website }),
+                body: JSON.stringify({
+                    displayName, bio, instagram, website,
+                    songUrl: trimmedSong,
+                    songStart, songEnd,
+                }),
             });
             if (res.ok) {
                 showToast(locale === "en" ? "Profile saved." : "プロフィールを保存しました。", "success");
@@ -166,6 +203,10 @@ export default function ProfileEditPage() {
 
     const inputClass = "w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors";
     const labelClass = "block text-xs text-white/50 mb-1.5 tracking-wide";
+
+    const songPreview = parseMusicEmbed(songUrl, mmssToSec(songStartText), mmssToSec(songEndText));
+    const songInvalid = songUrl.trim().length > 0 && !songPreview;
+    const isYouTubePreview = songPreview?.service === "youtube";
 
     return (
         <main className="min-h-screen bg-black text-white">
@@ -316,6 +357,100 @@ export default function ProfileEditPage() {
                             placeholder="https://example.com"
                             className={inputClass}
                         />
+                    </div>
+
+                    {/* テーマソング */}
+                    <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 space-y-3">
+                        <div className="flex items-center gap-1.5">
+                            <MusicalNoteIcon className="w-4 h-4 text-fuchsia-400" />
+                            <span className="text-sm font-semibold">{locale === "en" ? "Theme song" : "テーマソング"}</span>
+                        </div>
+                        <p className="text-xs text-white/40 -mt-1">
+                            {locale === "en"
+                                ? "Paste a Spotify / YouTube / Apple Music link. It plays on your profile."
+                                : "Spotify / YouTube / Apple Music のリンクを貼るとプロフィールで再生できます。"}
+                        </p>
+                        <div>
+                            <input
+                                type="url"
+                                value={songUrl}
+                                onChange={e => setSongUrl(e.target.value)}
+                                maxLength={500}
+                                placeholder="https://open.spotify.com/track/..."
+                                className={inputClass}
+                            />
+                            {songInvalid && (
+                                <p className="text-xs text-amber-400/80 mt-1.5">
+                                    {locale === "en"
+                                        ? "Unsupported link. Use Spotify, YouTube, or Apple Music."
+                                        : "未対応のリンクです。Spotify / YouTube / Apple Music を使ってください。"}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* 好きな部分だけ再生（YouTube のみ） */}
+                        {songPreview && (
+                            <>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex-1">
+                                        <label className="block text-[11px] text-white/40 mb-1">{locale === "en" ? "Start (m:ss)" : "開始 (m:ss)"}</label>
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            value={songStartText}
+                                            onChange={e => setSongStartText(e.target.value)}
+                                            disabled={!isYouTubePreview}
+                                            placeholder="1:12"
+                                            className={`${inputClass} py-2 disabled:opacity-40`}
+                                        />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="block text-[11px] text-white/40 mb-1">{locale === "en" ? "End (m:ss)" : "終了 (m:ss)"}</label>
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            value={songEndText}
+                                            onChange={e => setSongEndText(e.target.value)}
+                                            disabled={!isYouTubePreview}
+                                            placeholder="1:35"
+                                            className={`${inputClass} py-2 disabled:opacity-40`}
+                                        />
+                                    </div>
+                                </div>
+                                <p className="text-[11px] text-white/35">
+                                    {isYouTubePreview
+                                        ? (locale === "en" ? "Set a start/end to loop your favorite part." : "開始・終了を指定すると好きな部分だけ再生できます。")
+                                        : (locale === "en" ? `Trimming a section works with YouTube links only (${musicServiceLabel(songPreview.service)} plays from the start).` : `好きな部分の指定は YouTube リンクのみ対応です（${musicServiceLabel(songPreview.service)} は先頭から再生）。`)}
+                                </p>
+
+                                {/* ライブプレビュー */}
+                                <div className="rounded-xl overflow-hidden ring-1 ring-white/10 bg-black">
+                                    {isYouTubePreview ? (
+                                        <div className="relative w-full" style={{ aspectRatio: "16 / 9" }}>
+                                            <iframe
+                                                key={songPreview.embedUrl}
+                                                src={songPreview.embedUrl}
+                                                title="theme song preview"
+                                                className="absolute inset-0 w-full h-full"
+                                                allow="encrypted-media; picture-in-picture; web-share"
+                                                referrerPolicy="strict-origin-when-cross-origin"
+                                                loading="lazy"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <iframe
+                                            key={songPreview.embedUrl}
+                                            src={songPreview.embedUrl}
+                                            title="theme song preview"
+                                            className="w-full"
+                                            style={{ height: songPreview.height ?? 152 }}
+                                            allow="encrypted-media; autoplay; clipboard-write"
+                                            loading="lazy"
+                                        />
+                                    )}
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     <div className="pt-2">

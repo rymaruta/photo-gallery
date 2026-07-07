@@ -4,7 +4,8 @@ import React, { useEffect, useState, useMemo, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
+import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { HeartIcon } from "@heroicons/react/24/solid";
 import { useLocale } from "../i18n/context";
 import { useToast } from "../../lib/hooks/useToast";
@@ -24,6 +25,9 @@ type UserProfile = {
     bio?: string;
     instagram?: string;
     website?: string;
+    songUrl?: string;
+    songStart?: number;
+    songEnd?: number;
 };
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
@@ -270,6 +274,13 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             .filter(t => !isNaN(t))
             .sort((a, b) => a - b);
 
+        // アクティブ日数: 写真を撮った（投稿した）ユニークな日付の数。常に算出できる。
+        const days = new Set<string>();
+        for (const p of visiblePhotos) {
+            const t = Date.parse(String(p.date ?? p.createdAt ?? ""));
+            if (!isNaN(t)) days.add(new Date(t).toISOString().slice(0, 10));
+        }
+
         // 旅した総移動距離: 位置情報つき写真を撮影日順につなぎ、大円距離を積算
         const geo = visiblePhotos
             .filter(p => p.coords && typeof p.coords.lat === "number" && typeof p.coords.lng === "number")
@@ -279,7 +290,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         let distanceKm = 0;
         for (let i = 1; i < geo.length; i++) distanceKm += haversineKm(geo[i - 1].c, geo[i].c);
 
-        return { places: places.size, first: times[0], last: times[times.length - 1], distanceKm, geoCount: geo.length };
+        return { places: places.size, first: times[0], last: times[times.length - 1], distanceKm, geoCount: geo.length, activeDays: days.size };
     }, [visiblePhotos]);
 
     const spanLabel = useMemo(() => {
@@ -294,6 +305,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         const b = fmt(footprint.last);
         return a === b ? a : `${a} – ${b}`;
     }, [footprint, locale]);
+
+    // テーマソング: 保存された URL を埋め込みプレイヤーに変換（好きな部分の開始・終了つき）
+    const songEmbed = useMemo(
+        () => (userProfile?.songUrl ? parseMusicEmbed(userProfile.songUrl, userProfile.songStart, userProfile.songEnd) : null),
+        [userProfile?.songUrl, userProfile?.songStart, userProfile?.songEnd],
+    );
 
     // 共有には常に正規URL（静的生成済みなら /users/<id>）を使う
     const shareUrl = useMemo(() => {
@@ -435,6 +452,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                 <span className="text-sm font-bold tabular-nums leading-none">{footprint.places}</span>
                                 <span className="text-[11px] text-white/60">{locale === "en" ? "places" : "箇所"}</span>
                             </div>
+                        ) : footprint.activeDays > 0 ? (
+                            <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5" title={locale === "en" ? "Days with memories" : "思い出のある日数"}>
+                                <CalendarDaysIcon className="w-3 h-3 text-amber-400" />
+                                <span className="text-sm font-bold tabular-nums leading-none">{footprint.activeDays}</span>
+                                <span className="text-[11px] text-white/60">{locale === "en" ? "days" : "日"}</span>
+                            </div>
                         ) : null}
                     </div>
 
@@ -467,6 +490,38 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                     <GlobeAltIcon className="w-3.5 h-3.5" />
                                     <span className="truncate max-w-[180px]">{userProfile.website.replace(/^https?:\/\//, "")}</span>
                                 </a>
+                            )}
+                        </div>
+                    )}
+
+                    {/* テーマソング: 埋め込みプレイヤー（好きな部分だけ再生） */}
+                    {songEmbed && (
+                        <div className="mt-4 rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden max-w-md">
+                            <div className="flex items-center gap-1.5 px-3.5 pt-2.5 pb-2">
+                                <MusicalNoteIcon className="w-3.5 h-3.5 text-fuchsia-400" />
+                                <span className="text-[11px] tracking-widest uppercase text-white/45">{locale === "en" ? "Theme song" : "テーマソング"}</span>
+                                <span className="ml-auto text-[10px] text-white/30">{musicServiceLabel(songEmbed.service)}</span>
+                            </div>
+                            {songEmbed.service === "youtube" ? (
+                                <div className="relative w-full" style={{ aspectRatio: "16 / 9" }}>
+                                    <iframe
+                                        src={songEmbed.embedUrl}
+                                        title="theme song"
+                                        className="absolute inset-0 w-full h-full"
+                                        allow="encrypted-media; picture-in-picture; web-share"
+                                        referrerPolicy="strict-origin-when-cross-origin"
+                                        loading="lazy"
+                                    />
+                                </div>
+                            ) : (
+                                <iframe
+                                    src={songEmbed.embedUrl}
+                                    title="theme song"
+                                    className="w-full"
+                                    style={{ height: songEmbed.height ?? 152 }}
+                                    allow="encrypted-media; autoplay; clipboard-write"
+                                    loading="lazy"
+                                />
                             )}
                         </div>
                     )}
