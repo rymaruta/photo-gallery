@@ -102,4 +102,20 @@ describe("HeaderNav - ロール別のメニュー表示", () => {
         await openMenu();
         expect(screen.getByRole("dialog")).toBeInTheDocument();
     });
+
+    it("ログイン中はヘッダーのアバターからマイページへ直行できる", () => {
+        setRole("general");
+        render(<HeaderNav />);
+        const avatarBtn = screen.getByLabelText("My Page");
+        fireEvent.click(avatarBtn);
+        expect(mockPush).toHaveBeenCalledTimes(1);
+        const dest = mockPush.mock.calls[0][0] as string;
+        expect(dest === "/users/user-1" || dest === "/users?id=user-1").toBe(true);
+    });
+
+    it("未ログインではヘッダーにアバターを出さない", () => {
+        setRole("anonymous");
+        render(<HeaderNav />);
+        expect(screen.queryByLabelText("My Page")).toBeNull();
+    });
 });

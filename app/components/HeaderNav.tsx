@@ -7,6 +7,7 @@ import { useAuth } from "../auth/context";
 import { useLocale } from "../i18n/context";
 import { log } from "../../lib/utils/log";
 import { ROUTES } from "../../lib/routes";
+import UserAvatar from "./UserAvatar";
 
 export default function HeaderNav({ className = "" }: { className?: string }) {
     const router = useRouter();
@@ -73,7 +74,21 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     };
 
     return (
-        <nav className={`site-header__nav flex items-center ${className}`}>
+        <nav className={`site-header__nav flex items-center gap-2 ${className}`}>
+            {/* ログイン中は自分のアバターを表示 → ワンタップでマイページ */}
+            {isAuthenticated && userId && (
+                <button
+                    onClick={() => handleNavigation(ROUTES.USER_PROFILE(userId))}
+                    aria-label={navLabels.mypage || "My Page"}
+                    title={navLabels.mypage || "My Page"}
+                    className="rounded-full p-[2px] bg-gradient-to-tr from-fuchsia-500 via-rose-500 to-amber-400 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-white/30 transition-opacity"
+                    style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                >
+                    <span className="block rounded-full p-[2px] bg-black">
+                        <UserAvatar userId={userId} className="w-8 h-8" iconClassName="w-5 h-5" />
+                    </span>
+                </button>
+            )}
             <button
                 aria-expanded={open}
                 aria-controls="site-menu"

@@ -37,6 +37,62 @@ function makeId() {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// アップロード写真のプレビュー。写真全体を表示しつつ、ギャラリー一覧で
+// 表示される「中央の正方形」を白枠で示し、枠外を暗くして
+// "どこまで反映されるか" を明示する。
+function CropPreview({ src, hint }: { src: string; hint: string }) {
+    const imgRef = useRef<HTMLImageElement>(null);
+    const [box, setBox] = useState<{ side: number; left: number; top: number } | null>(null);
+
+    const measure = useCallback(() => {
+        const el = imgRef.current;
+        if (!el) return;
+        const w = el.clientWidth, h = el.clientHeight;
+        if (!w || !h) return;
+        const side = Math.min(w, h);
+        setBox({ side, left: (w - side) / 2, top: (h - side) / 2 });
+    }, []);
+
+    useEffect(() => {
+        window.addEventListener("resize", measure);
+        return () => window.removeEventListener("resize", measure);
+    }, [measure]);
+
+    return (
+        <div className="relative bg-black flex justify-center">
+            <div className="relative inline-block overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                    ref={imgRef}
+                    src={src}
+                    alt=""
+                    onLoad={measure}
+                    className="block w-auto max-h-56 max-w-full"
+                    draggable={false}
+                />
+                {box && (
+                    <div
+                        className="absolute border-2 border-white/90 pointer-events-none"
+                        style={{
+                            width: box.side,
+                            height: box.side,
+                            left: box.left,
+                            top: box.top,
+                            // 枠外を暗くする（コンテナで overflow-hidden 済み）
+                            boxShadow: "0 0 0 9999px rgba(0,0,0,0.5)",
+                        }}
+                    >
+                        <span className="absolute -top-px left-0 right-0 h-px bg-white/40" />
+                    </div>
+                )}
+            </div>
+            <span className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full bg-black/70 text-[11px] text-white/90 pointer-events-none whitespace-nowrap">
+                {hint}
+            </span>
+        </div>
+    );
+}
+
 function UploadPageInner() {
     const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
     const router = useRouter();
@@ -401,9 +457,25 @@ function UploadPageInner() {
             <div className="space-y-3 mb-6">
                 {items.map((it) => (
                     <div key={it.id} className="border border-white/10 rounded-lg overflow-hidden bg-white/5">
-                        <div className="flex gap-3 p-3">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={it.preview} alt="" className="w-20 h-20 object-cover rounded-md flex-shrink-0" />
+                        {/* トリミングプレビュー（一覧表示範囲を白枠で明示） */}
+                        <div className="relative">
+                            <CropPreview
+                                src={it.preview}
+                                hint={locale === "en" ? "White frame = shown in the grid" : "白い枠が一覧に表示されます"}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => removeItem(it.id)}
+                                disabled={uploading || it.status === "uploading"}
+                                className="absolute top-2 right-2 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white transition-colors disabled:opacity-30 z-10"
+                                aria-label={locale === "en" ? "Remove" : "削除"}
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                <XMarkIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-3">
                             <div className="flex-1 min-w-0 space-y-1.5">
                                 <input
                                     type="text"
@@ -462,15 +534,6 @@ function UploadPageInner() {
                                     {locale === "en" ? "Details" : "詳細"}
                                 </button>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => removeItem(it.id)}
-                                disabled={uploading || it.status === "uploading"}
-                                className="text-white/40 hover:text-white/80 transition-colors disabled:opacity-30 self-start"
-                                aria-label={locale === "en" ? "Remove" : "削除"}
-                            >
-                                <XMarkIcon className="w-5 h-5" />
-                            </button>
                         </div>
                         {/* ステータス */}
                         {it.status !== "pending" && (

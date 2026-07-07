@@ -27,24 +27,30 @@ type UserProfile = {
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
-function CoverPhoto({ userId }: { userId: string }) {
+// ヒーロー背景としてのカバー写真。プロフィールヘッダー（アバター・名前・
+// 統計・アクション）全体の裏に敷き、下方向を黒へグラデーションで馴染ませる。
+function CoverBackground({ userId }: { userId: string }) {
     const [coverError, setCoverError] = useState(false);
     const coverUrl = CLOUDFRONT_URL ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(userId)}/cover` : "";
-
-    if (!coverUrl || coverError) {
-        return <div className="w-full h-20 sm:h-28 bg-gradient-to-b from-white/5 to-black" />;
-    }
+    const hasCover = coverUrl && !coverError;
 
     return (
-        <div className="w-full h-32 sm:h-44 relative overflow-hidden bg-black">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-                src={coverUrl}
-                alt=""
-                className="w-full h-full object-cover"
-                onError={() => setCoverError(true)}
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60" />
+        <div className="absolute inset-0 overflow-hidden bg-black" aria-hidden="true">
+            {hasCover ? (
+                <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                        src={coverUrl}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onError={() => setCoverError(true)}
+                    />
+                    {/* 上=わずかに暗く（戻るリンクの視認性）、下=黒へフェード */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black" />
+                </>
+            ) : (
+                <div className="w-full h-full bg-gradient-to-b from-white/[0.06] via-transparent to-black" />
+            )}
         </div>
     );
 }
@@ -226,26 +232,27 @@ export default function UserProfileClient({ userId }: { userId: string }) {
 
     return (
         <main className="min-h-screen text-white bg-black">
-            {/* カバー写真 */}
-            <CoverPhoto userId={userId} />
+            {/* ヒーロー: カバー写真を背景に、戻る/アバター/名前/統計/アクションを重ねる */}
+            <div className="relative">
+                <CoverBackground userId={userId} />
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
-                {/* 戻るリンク（カバー写真の上に重ねる） */}
-                <div className="-mt-8 relative z-10 mb-4">
-                    <Link
-                        href="/"
-                        className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors drop-shadow"
-                        style={{ minHeight: "44px" }}
-                    >
-                        <ArrowLeftIcon className="w-4 h-4" />
-                        <span className="text-sm">{locale === "en" ? "Back to Gallery" : "ギャラリーに戻る"}</span>
-                    </Link>
-                </div>
+                <div className="relative max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
+                    {/* 戻るリンク（カバー写真の上） */}
+                    <div className="pt-4 mb-2">
+                        <Link
+                            href="/"
+                            className="inline-flex items-center gap-2 text-white/80 hover:text-white transition-colors drop-shadow-md"
+                            style={{ minHeight: "44px" }}
+                        >
+                            <ArrowLeftIcon className="w-4 h-4" />
+                            <span className="text-sm">{locale === "en" ? "Back to Gallery" : "ギャラリーに戻る"}</span>
+                        </Link>
+                    </div>
 
-                {/* プロフィールヘッダー */}
-                <div className="pb-6">
-                    {/* アバター（グラデーションリング）+ 名前 + 共有 */}
-                    <div className="flex items-end gap-4 mb-5 -mt-10 sm:-mt-12">
+                    {/* プロフィールヘッダー（カバーの上に乗る。上に余白をとってカバー写真を見せる） */}
+                    <div className="pb-6 pt-14 sm:pt-20">
+                        {/* アバター（グラデーションリング）+ 名前 + 共有 */}
+                        <div className="flex items-end gap-4 mb-5">
                         <div className="rounded-full p-[3px] bg-gradient-to-tr from-fuchsia-500 via-rose-500 to-amber-400 flex-shrink-0 shadow-lg shadow-black/40">
                             <div className="rounded-full p-[3px] bg-black">
                                 <UserAvatar userId={userId} className="w-20 h-20 sm:w-24 sm:h-24" iconClassName="w-11 h-11 sm:w-14 sm:h-14" />
@@ -281,23 +288,23 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         </div>
                     </div>
 
-                    {/* 統計（投稿数 / 総いいね数） */}
+                    {/* 統計（投稿数 / 総いいね数）— カバー写真の上に乗るためガラス調 */}
                     <div className="flex items-stretch gap-2 mb-4">
-                        <div className="flex-1 rounded-xl bg-white/[0.05] py-2.5 text-center">
+                        <div className="flex-1 rounded-xl bg-black/30 backdrop-blur-md ring-1 ring-white/10 py-2.5 text-center">
                             <div className="text-lg font-bold tabular-nums leading-none">{postCount}</div>
-                            <div className="text-[11px] text-white/50 mt-1">{locale === "en" ? "Posts" : "投稿"}</div>
+                            <div className="text-[11px] text-white/70 mt-1">{locale === "en" ? "Posts" : "投稿"}</div>
                         </div>
-                        <div className="flex-1 rounded-xl bg-white/[0.05] py-2.5 text-center">
+                        <div className="flex-1 rounded-xl bg-black/30 backdrop-blur-md ring-1 ring-white/10 py-2.5 text-center">
                             <div className="text-lg font-bold tabular-nums leading-none">{totalLikes.toLocaleString()}</div>
-                            <div className="text-[11px] text-white/50 mt-1 inline-flex items-center gap-0.5">
-                                <HeartIcon className="w-3 h-3 text-rose-400/70" />
+                            <div className="text-[11px] text-white/70 mt-1 inline-flex items-center gap-0.5">
+                                <HeartIcon className="w-3 h-3 text-rose-400" />
                                 {locale === "en" ? "Likes" : "いいね"}
                             </div>
                         </div>
                     </div>
 
                     {userProfile?.bio && (
-                        <p className="text-sm text-white/70 whitespace-pre-wrap mb-3 leading-relaxed">{userProfile.bio}</p>
+                        <p className="text-sm text-white/85 whitespace-pre-wrap mb-3 leading-relaxed drop-shadow-sm">{userProfile.bio}</p>
                     )}
 
                     {(userProfile?.instagram || userProfile?.website) && (
@@ -334,7 +341,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         <div className="flex gap-2 mt-4">
                             <Link
                                 href="/user/profile"
-                                className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white text-sm font-medium rounded-full transition-colors"
+                                className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-black/30 backdrop-blur-md ring-1 ring-white/15 hover:bg-black/40 text-white text-sm font-medium rounded-full transition-colors"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >
                                 <PencilSquareIcon className="w-4 h-4" />
@@ -350,8 +357,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             </Link>
                         </div>
                     )}
+                    </div>
                 </div>
+            </div>
 
+            {/* 投稿一覧（黒背景） */}
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
                 {/* タブバー風の区切り */}
                 <div className="flex items-center justify-center gap-1.5 border-t border-white/10 py-3 mb-1">
                     <Squares2X2Icon className="w-4 h-4 text-white/80" />
