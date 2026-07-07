@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
-import { useSwipe } from "../../lib/hooks/useSwipe";
+import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import SongPlayer from "../components/SongPlayer";
 import { HeartIcon } from "@heroicons/react/24/solid";
 import { useLocale } from "../i18n/context";
@@ -270,19 +270,20 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     const [showAllPlaces, setShowAllPlaces] = useState(false);
     const [mvOpen, setMvOpen] = useState(false);
 
-    // タブを横スワイプで切り替え（投稿 ⇄ 足あと ⇄ 年表）
-    const goTab = useCallback((dir: 1 | -1) => {
-        setTab((cur) => {
-            const i = TAB_ORDER.indexOf(cur);
-            return TAB_ORDER[Math.min(TAB_ORDER.length - 1, Math.max(0, i + dir))];
-        });
+    // タブを横スワイプで切り替え（投稿 ⇄ 足あと ⇄ 年表）。
+    // Pointer Events で PC(マウス)・スマホ(タッチ)・ペンを一本化。
+    // touch-action: pan-y を併用し、縦スクロールは残しつつ横ジェスチャを JS が拾う。
+    const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+    const onTabPointerDown = useCallback((e: React.PointerEvent) => {
+        swipeStartRef.current = { x: e.clientX, y: e.clientY };
     }, []);
-    const { handlers: tabSwipe } = useSwipe({
-        onSwipeLeft: () => goTab(1),
-        onSwipeRight: () => goTab(-1),
-        threshold: 60,
-        velocityThreshold: 0.3,
-    });
+    const onTabPointerUp = useCallback((e: React.PointerEvent) => {
+        const s = swipeStartRef.current;
+        swipeStartRef.current = null;
+        if (!s) return;
+        const dir = swipeDirection(e.clientX - s.x, e.clientY - s.y);
+        if (dir !== 0) setTab((cur) => stepInList(TAB_ORDER, cur, dir));
+    }, []);
     const mapPhotos = useMemo(() => visiblePhotos.filter(p => p.coords), [visiblePhotos]);
     const timeline = useMemo(() => buildTimeline(visiblePhotos, locale as "ja" | "en"), [visiblePhotos, locale]);
 
@@ -661,7 +662,13 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 </div>
 
                 {/* タブ内容: 地図以外は横スワイプでタブ切替（地図は自身のジェスチャを優先） */}
-                <div {...(tab !== "map" ? tabSwipe : {})}>
+                <div
+                    data-testid="tab-swipe-area"
+                    onPointerDown={tab !== "map" ? onTabPointerDown : undefined}
+                    onPointerUp={tab !== "map" ? onTabPointerUp : undefined}
+                    onPointerCancel={() => { swipeStartRef.current = null; }}
+                    style={tab !== "map" ? { touchAction: "pan-y" } : undefined}
+                >
                 {/* 投稿タブ */}
                 {tab === "posts" && (
                     postCount === 0 ? (
