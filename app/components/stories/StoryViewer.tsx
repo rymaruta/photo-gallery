@@ -126,7 +126,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         const v = videoRef.current;
         if (!v) return;
         if (frozen) v.pause();
-        else void v.play().catch(() => { /* ignore */ });
+        else void v.play()?.catch?.(() => { /* 自動再生ブロック等は無視 */ });
     }, [frozen, item]);
 
     const handleDelete = useCallback(async () => {
@@ -300,6 +300,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             {isOwnStory && (
                 <button
                     onClick={() => setViewersOpen(true)}
+                    aria-label={locale === "en" ? "Viewers" : "閲覧者を見る"}
                     className="absolute bottom-4 left-4 z-20 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm"
                     style={{ marginBottom: "env(safe-area-inset-bottom, 0px)", touchAction: "manipulation" }}
                 >
