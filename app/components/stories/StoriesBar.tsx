@@ -19,8 +19,9 @@ const ALLOWED_VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime
 const MAX_VIDEO_SECONDS = 60;
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
 
-// インスタ風のグラデーションリング
-const RING_UNSEEN = "conic-gradient(from 210deg, #f9ce34, #ee2a7b, #6228d7, #f9ce34)";
+// 未読リング（Instagram のブランドグラデーション）と既読リング（上品なグレー）
+const RING_UNSEEN = "linear-gradient(45deg, #FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5)";
+const RING_SEEN = "#3a3a3d";
 
 // 動画の再生時間を取得（メタデータのみ読み込み）
 function getVideoDuration(file: File): Promise<number> {
@@ -221,30 +222,30 @@ export default function StoriesBar() {
     if (!isAuthenticated) return null;
 
     return (
-        <div className="mb-4">
-            <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-1 px-1 py-1">
+        <div className="mb-5">
+            <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-1 px-1 py-1">
                 {/* 自分の「+」（ログイン時のみ） */}
                 {isAuthenticated && userId && (
                     <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={posting}
-                        className="flex flex-col items-center gap-1 flex-shrink-0 disabled:opacity-50"
+                        className="flex flex-col items-center gap-1.5 flex-shrink-0 disabled:opacity-50 group"
                         style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                     >
                         <div className="relative">
-                            <div className="p-[3px] rounded-full" style={{ background: "rgba(255,255,255,0.15)" }}>
-                                <div className="p-[2px] rounded-full bg-black">
-                                    <UserAvatar userId={userId} className="w-14 h-14" iconClassName="w-8 h-8" />
+                            <div className="rounded-full p-[2.5px] bg-white/10 group-active:scale-95 transition-transform">
+                                <div className="rounded-full p-[2.5px] bg-black">
+                                    <UserAvatar userId={userId} className="w-[64px] h-[64px]" iconClassName="w-8 h-8" />
                                 </div>
                             </div>
-                            <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-sky-500 ring-2 ring-black flex items-center justify-center">
+                            <div className="absolute bottom-0 right-0 w-[22px] h-[22px] rounded-full ring-[3px] ring-black flex items-center justify-center" style={{ background: "#0095F6" }}>
                                 {posting
-                                    ? <div className="w-2.5 h-2.5 border border-white/40 border-t-white rounded-full animate-spin" />
+                                    ? <div className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                                     : <PlusIcon className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
                             </div>
                         </div>
-                        <span className="text-[11px] text-white/50">
-                            {locale === "en" ? "Add story" : "ストーリー"}
+                        <span className="text-[11px] text-white/70 leading-none">
+                            {locale === "en" ? "Your story" : "あなた"}
                         </span>
                     </button>
                 )}
@@ -256,18 +257,18 @@ export default function StoriesBar() {
                         <button
                             key={group.userId}
                             onClick={() => setViewerGroup(idx)}
-                            className="flex flex-col items-center gap-1 flex-shrink-0"
+                            className="flex flex-col items-center gap-1.5 flex-shrink-0 group"
                             style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                         >
                             <div
-                                className="p-[3px] rounded-full"
-                                style={{ background: unseen ? RING_UNSEEN : "rgba(255,255,255,0.2)" }}
+                                className="rounded-full p-[2.5px] group-active:scale-95 transition-transform"
+                                style={{ background: unseen ? RING_UNSEEN : RING_SEEN }}
                             >
-                                <div className="p-[2px] rounded-full bg-black">
-                                    <UserAvatar userId={group.userId} className="w-14 h-14" iconClassName="w-8 h-8" />
+                                <div className="rounded-full p-[2.5px] bg-black">
+                                    <UserAvatar userId={group.userId} className="w-[64px] h-[64px]" iconClassName="w-8 h-8" />
                                 </div>
                             </div>
-                            <span className="text-[11px] text-white/60 max-w-[64px] truncate">
+                            <span className={`text-[11px] max-w-[68px] truncate leading-none ${unseen ? "text-white/90" : "text-white/50"}`}>
                                 {group.displayName}
                             </span>
                         </button>

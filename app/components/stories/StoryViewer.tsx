@@ -174,13 +174,26 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             aria-modal="true"
             aria-label={locale === "en" ? "Stories" : "ストーリー"}
         >
+            {/* アンビエント背景: メディアをぼかして letterbox を埋める（黒帯の安っぽさを消す） */}
+            {!isVideo && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                    key={`bg-${item.id}`}
+                    src={item.src}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40 pointer-events-none"
+                    draggable={false}
+                />
+            )}
+
             {/* メディア */}
             {isVideo ? (
                 <video
                     key={item.id}
                     ref={videoRef}
                     src={item.src}
-                    className="max-w-full max-h-full object-contain"
+                    className="relative max-w-full max-h-full object-contain rounded-lg story-media-in"
                     autoPlay
                     playsInline
                     muted={muted}
@@ -197,15 +210,18 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                     key={item.id}
                     src={item.src}
                     alt=""
-                    className="max-w-full max-h-full object-contain"
+                    className="relative max-w-full max-h-full object-contain rounded-lg story-media-in"
                     draggable={false}
                 />
             )}
 
+            {/* 下部スクリム（キャプション・閲覧者ピルの視認性を上げる） */}
+            <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+
             {/* キャプション */}
             {item.caption && (
-                <div className="absolute inset-x-0 bottom-20 px-6 flex justify-center pointer-events-none">
-                    <p className="max-w-md text-center text-white text-base font-semibold leading-relaxed px-4 py-2 rounded-2xl bg-black/50 backdrop-blur-sm whitespace-pre-wrap break-words">
+                <div className="absolute inset-x-0 bottom-24 px-6 flex justify-center pointer-events-none">
+                    <p className="max-w-md text-center text-white text-[15px] font-medium leading-relaxed px-4 py-2.5 rounded-2xl bg-black/45 backdrop-blur-md whitespace-pre-wrap break-words shadow-lg">
                         {item.caption}
                     </p>
                 </div>
@@ -213,11 +229,11 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
 
             {/* 上部グラデーション + プログレスバー + ヘッダー */}
             <div className="absolute top-0 inset-x-0 bg-gradient-to-b from-black/70 to-transparent pt-2 pb-8 px-2 pointer-events-none">
-                <div className="flex gap-1 mb-2.5" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+                <div className="flex gap-1 mb-3" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
                     {group.items.map((s, idx) => (
-                        <div key={s.id} className="flex-1 h-0.5 rounded-full bg-white/25 overflow-hidden">
+                        <div key={s.id} className="flex-1 h-[2.5px] rounded-full bg-white/30 overflow-hidden">
                             <div
-                                className="h-full bg-white"
+                                className="h-full bg-white rounded-full"
                                 style={{ width: idx < i ? "100%" : idx === i ? `${progress}%` : "0%" }}
                             />
                         </div>
