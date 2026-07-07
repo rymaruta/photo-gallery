@@ -219,7 +219,7 @@ export default function AdminPage() {
                     </h1>
                     <Link
                         href={ROUTES.UPLOAD}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-white text-black rounded-md font-medium hover:bg-white/90 transition-colors"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-full font-semibold text-sm hover:bg-white/90 active:scale-[0.98] transition"
                     >
                         <PlusIcon className="w-5 h-5" />
                         <span>{locale === "en" ? "Upload New Photo" : "新しい写真をアップロード"}</span>
@@ -232,15 +232,25 @@ export default function AdminPage() {
                     <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                 </div>
             ) : photos.length === 0 ? (
-                <div className="text-center py-12 text-white/60">
-                    <p>{locale === "en" ? "No photos found." : "写真がありません。"}</p>
+                <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
+                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
+                        <PlusIcon className="w-8 h-8 text-white/30" />
+                    </div>
+                    <p className="text-white/70 text-sm">{locale === "en" ? "No photos found." : "写真がありません。"}</p>
+                    <Link
+                        href={ROUTES.UPLOAD}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 mt-1 bg-white text-black rounded-full text-sm font-semibold hover:bg-white/90 active:scale-[0.98] transition"
+                    >
+                        <PlusIcon className="w-4 h-4" />
+                        {locale === "en" ? "Upload your first photo" : "最初の写真をアップロード"}
+                    </Link>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {photos.map((photo) => (
                         <div
                             key={photo.id}
-                            className="bg-white/5 border border-white/10 rounded-lg overflow-hidden hover:border-white/20 transition-colors"
+                            className="bg-[#16181c] ring-1 ring-white/10 rounded-2xl overflow-hidden hover:ring-white/20 transition"
                         >
                             <div className="relative aspect-square bg-black">
                                 <Image
@@ -256,7 +266,7 @@ export default function AdminPage() {
                                 <h3 className="font-medium mb-2 line-clamp-2">{getTitle(photo)}</h3>
                                 <div className="flex items-center gap-2 text-sm text-white/60 mb-3">
                                     {photo.category && (
-                                        <span className="px-2 py-1 bg-white/10 rounded text-xs">
+                                        <span className="px-2.5 py-1 bg-white/10 rounded-full text-xs">
                                             {photo.category}
                                         </span>
                                     )}
@@ -267,7 +277,7 @@ export default function AdminPage() {
                                 <div className="flex items-center gap-2">
                                     <Link
                                         href={`/admin/edit?id=${photo.id}`}
-                                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-md transition-colors text-sm"
+                                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 active:scale-[0.98] rounded-full transition text-sm"
                                     >
                                         <PencilIcon className="w-4 h-4" />
                                         <span>{locale === "en" ? "Edit" : "編集"}</span>
@@ -275,7 +285,7 @@ export default function AdminPage() {
                                     <button
                                         onClick={() => handleDeleteClick(photo)}
                                         disabled={deletingId === photo.id}
-                                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-md transition-colors text-sm text-white/70 hover:text-white/90 disabled:opacity-50"
+                                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 ring-1 ring-white/10 hover:ring-white/20 active:scale-[0.98] rounded-full transition text-sm text-white/70 hover:text-white/90 disabled:opacity-50"
                                     >
                                         <TrashIcon className="w-4 h-4" />
                                         <span>{locale === "en" ? "Delete" : "削除"}</span>

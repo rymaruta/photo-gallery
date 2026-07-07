@@ -104,7 +104,7 @@ export default function AdminLoginPage() {
                             <button
                                 type="submit"
                                 disabled={submitting || !username || !password}
-                                className="w-full py-3 bg-white text-black text-sm font-semibold rounded-lg hover:bg-white/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+                                className="w-full py-3 bg-white text-black text-sm font-semibold rounded-lg hover:bg-white/90 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
                             >
                                 {submitting ? (
                                     <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />

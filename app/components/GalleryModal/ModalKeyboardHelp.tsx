@@ -14,11 +14,11 @@ type Props = { locale: Locale; onClose: () => void };
 export default function ModalKeyboardHelp({ locale, onClose }: Props) {
     return (
         <div
-            className="absolute inset-0 z-30 flex items-center justify-center bg-black/70"
+            className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 backdrop-blur-sm"
             onClick={(e) => { e.stopPropagation(); onClose(); }}
         >
             <div
-                className="bg-[#0f1113] border border-white/15 rounded-xl p-6 w-72 shadow-2xl"
+                className="bg-[#16181c] ring-1 ring-white/10 rounded-2xl p-6 w-72 shadow-2xl story-media-in"
                 onClick={(e) => e.stopPropagation()}
             >
                 <h3 className="text-sm font-semibold text-white mb-4">
@@ -27,7 +27,7 @@ export default function ModalKeyboardHelp({ locale, onClose }: Props) {
                 <ul className="space-y-2.5 text-sm">
                     {SHORTCUTS.map(({ key, ja, en }) => (
                         <li key={key} className="flex items-center justify-between gap-4">
-                            <kbd className="px-2 py-0.5 rounded bg-white/10 text-white/80 font-mono text-xs tracking-wide">{key}</kbd>
+                            <kbd className="px-2 py-0.5 rounded-md bg-white/10 ring-1 ring-white/10 text-white/80 font-mono text-xs tracking-wide">{key}</kbd>
                             <span className="text-white/60 text-xs">{locale === "en" ? en : ja}</span>
                         </li>
                     ))}
