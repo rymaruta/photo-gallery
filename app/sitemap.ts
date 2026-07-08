@@ -8,6 +8,10 @@ import type { Photo } from "@/lib/data/photos";
 
 export const dynamic = "force-static";
 
+// サイトマップはビルドごとに最新の photos.json（DynamoDB から同期）で再生成される。
+// deploy.yml の毎日 03:00 JST の再ビルドにより、新しい写真・ユーザーは
+// 少なくとも1日1回自動的に検索エンジンへ通知される内容に反映される。
+
 async function loadPhotos(): Promise<Photo[]> {
     const photosDataPath = path.join(process.cwd(), "app", "data", "photos.json");
     if (existsSync(photosDataPath)) {
@@ -17,19 +21,38 @@ async function loadPhotos(): Promise<Photo[]> {
     return RAW_PHOTOS as Photo[];
 }
 
+function toAbsolute(src: string): string {
+    return src.startsWith("http") ? src : `${siteConfig.url}${src}`;
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const baseUrl = siteConfig.url;
     const now = new Date().toISOString();
-    const photos = await loadPhotos();
+    const photos = (await loadPhotos()).filter((p) => p.published !== false);
 
-    const photoUrls: MetadataRoute.Sitemap = photos
-        .filter((p) => p.published !== false)
-        .map((p) => ({
-            url: `${baseUrl}/photo/${p.id}`,
-            lastModified: p.updatedAt ?? p.createdAt ?? now,
-            changeFrequency: "monthly",
-            priority: 0.8,
-        }));
+    // 写真ページ: 画像サイトマップ付き（Google 画像検索への露出を強化）
+    const photoUrls: MetadataRoute.Sitemap = photos.map((p) => ({
+        url: `${baseUrl}/photo/${p.id}`,
+        lastModified: p.updatedAt ?? p.createdAt ?? now,
+        changeFrequency: "monthly",
+        priority: 0.8,
+        images: [toAbsolute(p.src)],
+    }));
+
+    // ユーザープロフィール: 投稿があるユーザーごと。lastmod は最新投稿日時
+    const byUser = new Map<string, string>();
+    for (const p of photos) {
+        if (!p.userId) continue;
+        const t = String(p.updatedAt ?? p.createdAt ?? p.date ?? "");
+        const cur = byUser.get(p.userId);
+        if (!cur || t > cur) byUser.set(p.userId, t);
+    }
+    const userUrls: MetadataRoute.Sitemap = Array.from(byUser.entries()).map(([userId, last]) => ({
+        url: `${baseUrl}/users/${userId}`,
+        lastModified: last || now,
+        changeFrequency: "weekly",
+        priority: 0.6,
+    }));
 
     return [
         {
@@ -39,11 +62,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             priority: 1.0,
         },
         {
+            url: `${baseUrl}/map`,
+            lastModified: now,
+            changeFrequency: "daily",
+            priority: 0.7,
+        },
+        {
             url: `${baseUrl}/about`,
             lastModified: now,
             changeFrequency: "monthly",
             priority: 0.5,
         },
         ...photoUrls,
+        ...userUrls,
     ];
 }
