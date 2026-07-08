@@ -38,7 +38,11 @@ export default function MapView({ photos, locale, showRoute = false, replayToken
             zoom: 5,
             scrollWheelZoom: true,
             zoomControl: true,
+            // 帰属表示はライセンス上必須だが、Leaflet ロゴを外し
+            // 極小・黒半透明のカスタムスタイル（globals.css）で目立たなくする
+            attributionControl: false,
         });
+        L.control.attribution({ prefix: false, position: "bottomright" }).addTo(map);
         mapRef.current = map;
 
         // ベースマップ: Google マップ風の CARTO Voyager を既定に、
@@ -55,7 +59,7 @@ export default function MapView({ photos, locale, showRoute = false, replayToken
             "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
             {
                 maxZoom: 19,
-                attribution: "Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics",
+                attribution: "&copy; Esri",
             },
         );
         const dark = L.tileLayer(
