@@ -4,10 +4,12 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from "react"
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, RectangleStackIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { geocodePlace, type GeoPoint } from "../../lib/utils/geocode";
+import { haversineKm } from "../../lib/utils/journey";
+import { buildTrips, type Trip } from "../../lib/utils/trips";
 import SongPlayer from "../components/SongPlayer";
 import { HeartIcon, PlayIcon, StopIcon } from "@heroicons/react/24/solid";
 import { useLocale } from "../i18n/context";
@@ -50,20 +52,8 @@ const MapView = dynamic(() => import("../components/MapView"), {
     ),
 });
 
-type TabKey = "posts" | "map" | "timeline";
-const TAB_ORDER: TabKey[] = ["posts", "map", "timeline"];
-
-// 2点間の大円距離（km）。旅した総移動距離の算出に使う。
-function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-    const R = 6371;
-    const toRad = (d: number) => (d * Math.PI) / 180;
-    const dLat = toRad(b.lat - a.lat);
-    const dLng = toRad(b.lng - a.lng);
-    const h =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
-    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
-}
+type TabKey = "posts" | "trips" | "map" | "timeline";
+const TAB_ORDER: TabKey[] = ["posts", "trips", "map", "timeline"];
 
 // 写真を「YYYY年 / M月」で時系列グループ化（撮影日 date 優先、なければ createdAt）
 type TimelineGroup = { key: string; year: string; label: string; photos: Photo[] };
@@ -190,6 +180,70 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish }: {
             {isOwner && isHidden && (
                 <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-black/80 rounded text-xs text-white/70 pointer-events-none">
                     {locale === "en" ? "Hidden" : "非公開"}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// 旅アルバムのカード。カバー写真 + タイトル + 期間/枚数/距離。タップで写真を展開。
+function TripCard({ trip, locale, isOwner, onTogglePublish, open, onToggle }: {
+    trip: Trip;
+    locale: string;
+    isOwner: boolean;
+    onTogglePublish?: (id: string, published: boolean) => void;
+    open: boolean;
+    onToggle: () => void;
+}) {
+    const en = locale === "en";
+    const cover = trip.photos[0];
+
+    const title = trip.places.length > 0
+        ? (en ? trip.places.slice(0, 2).join(" · ") : `${trip.places.slice(0, 2).join("・")}の旅`)
+        : (en
+            ? `${new Date(trip.start).toLocaleDateString("en-US", { month: "long", year: "numeric" })} trip`
+            : `${new Date(trip.start).getFullYear()}年${new Date(trip.start).getMonth() + 1}月の旅`);
+
+    const fmt = (t: number) => {
+        const d = new Date(t);
+        return en ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : `${d.getMonth() + 1}/${d.getDate()}`;
+    };
+    const sameDay = new Date(trip.start).toDateString() === new Date(trip.end).toDateString();
+    const range = sameDay ? fmt(trip.start) : `${fmt(trip.start)} – ${fmt(trip.end)}`;
+    const year = new Date(trip.start).getFullYear();
+    const stats = [
+        en ? `${range}, ${year}` : `${year}年 ${range}`,
+        en ? `${trip.photos.length} photos` : `${trip.photos.length}枚`,
+        ...(trip.distanceKm >= 1 ? [`${Math.round(trip.distanceKm).toLocaleString()}km`] : []),
+    ].join(" ・ ");
+
+    return (
+        <div className="rounded-2xl overflow-hidden ring-1 ring-white/10 bg-[#16181c]">
+            <button onClick={onToggle} aria-expanded={open} className="relative w-full text-left group" style={{ touchAction: "manipulation" }}>
+                <div className="relative w-full" style={{ aspectRatio: "16 / 7" }}>
+                    <Image
+                        src={cover.src}
+                        alt={title}
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                        sizes="(max-width: 640px) 100vw, 640px"
+                        loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
+                </div>
+                <div className="absolute bottom-0 inset-x-0 p-4 flex items-end justify-between gap-3">
+                    <div className="min-w-0">
+                        <h3 className="text-lg font-bold leading-tight truncate drop-shadow">{title}</h3>
+                        <p className="text-xs text-white/70 mt-0.5">{stats}</p>
+                    </div>
+                    <ChevronDownIcon className={`w-5 h-5 text-white/70 flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+                </div>
+            </button>
+            {open && (
+                <div className="grid grid-cols-3 gap-1 p-1">
+                    {trip.photos.map((photo) => (
+                        <PhotoCard key={photo.id} photo={photo} locale={locale} isOwner={isOwner} onTogglePublish={onTogglePublish} />
+                    ))}
                 </div>
             )}
         </div>
@@ -363,6 +417,10 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     const hasApprox = useMemo(() => mapPhotos.some(p => p.geoApprox), [mapPhotos]);
     const geoResolving = pendingGeoNames.some(n => geoByPlace[n] === undefined);
     const timeline = useMemo(() => buildTimeline(visiblePhotos, locale as "ja" | "en"), [visiblePhotos, locale]);
+
+    // 旅アルバム: 撮影日の間隔で自動グルーピング
+    const trips = useMemo(() => buildTrips(visiblePhotos), [visiblePhotos]);
+    const [openTripId, setOpenTripId] = useState<string | null>(null);
 
     // 足あとサマリー: 訪れた場所数（ユニークな location）と旅の期間（撮影日の最古〜最新）
     const footprint = useMemo(() => {
@@ -687,9 +745,10 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             {/* コンテンツ（黒背景）: 投稿 / 足あとマップ / タイムライン */}
             <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
                 {/* タブバー */}
-                <div className="grid grid-cols-3 border-t border-white/10 mb-1">
+                <div className="grid grid-cols-4 border-t border-white/10 mb-1">
                     {([
                         { key: "posts", icon: Squares2X2Icon, label: locale === "en" ? "Posts" : "投稿" },
+                        { key: "trips", icon: RectangleStackIcon, label: locale === "en" ? "Trips" : "旅" },
                         { key: "map", icon: MapPinIcon, label: locale === "en" ? "Map" : "足あと" },
                         { key: "timeline", icon: CalendarDaysIcon, label: locale === "en" ? "Timeline" : "年表" },
                     ] as const).map(({ key, icon: Icon, label }) => {
@@ -740,6 +799,41 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             ))}
                         </div>
                     )
+                )}
+
+                {/* 旅アルバムタブ: 撮影日から自動生成される旅ごとのアルバム */}
+                {tab === "trips" && (
+                    <div className="pb-8 pt-2">
+                        {trips.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-24 text-white/40 gap-3">
+                                <RectangleStackIcon className="w-10 h-10" />
+                                <p className="text-sm text-center max-w-xs">
+                                    {locale === "en"
+                                        ? "Photos with dates are automatically grouped into trips."
+                                        : "撮影日のある写真があると、旅ごとのアルバムが自動でできます。"}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                <p className="text-[11px] text-white/40">
+                                    {locale === "en"
+                                        ? `${trips.length} trips, grouped automatically from your photo dates.`
+                                        : `${trips.length}つの旅 — 撮影日から自動でまとまります。`}
+                                </p>
+                                {trips.map((trip) => (
+                                    <TripCard
+                                        key={trip.id}
+                                        trip={trip}
+                                        locale={locale}
+                                        isOwner={isOwner}
+                                        onTogglePublish={handleTogglePublish}
+                                        open={openTripId === trip.id}
+                                        onToggle={() => setOpenTripId((cur) => (cur === trip.id ? null : trip.id))}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 )}
 
                 {/* 足あとマップタブ */}

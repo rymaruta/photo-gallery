@@ -10,6 +10,18 @@ export type JourneyPoint = {
     t: number;
 };
 
+/** 2点間の大円距離（km）。移動距離の積算に使う。 */
+export function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+    const R = 6371;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const h =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
 /**
  * 再生対象のポイント列（撮影日 date 優先、なければ createdAt の昇順）。
  * - 位置情報なし / 非公開 / 日付不明の写真は除外

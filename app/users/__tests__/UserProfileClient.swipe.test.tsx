@@ -14,7 +14,7 @@ vi.mock("../../../lib/utils/api", () => ({
 
 import UserProfileClient from "../UserProfileClient";
 
-function tabButton(name: "Posts" | "Map" | "Timeline") {
+function tabButton(name: "Posts" | "Trips" | "Map" | "Timeline") {
     return screen.getByRole("button", { name: new RegExp(name) });
 }
 function activeTab(): string {
@@ -41,8 +41,10 @@ describe("UserProfileClient - タブの横スワイプ（タッチ操作の保�
         expect(activeTab()).toContain("Posts");
     });
 
-    it("左スワイプで 投稿 → 足あと に切り替わる", () => {
+    it("左スワイプで 投稿 → 旅 → 足あと と順に切り替わる", () => {
         render(<UserProfileClient userId="nobody" />);
+        swipe("left");
+        expect(activeTab()).toContain("Trips");
         swipe("left");
         expect(activeTab()).toContain("Map");
     });
@@ -71,18 +73,18 @@ describe("UserProfileClient - タブの横スワイプ（タッチ操作の保�
 
     it("足あとタブ（地図が空）でも左右スワイプでタブを切り替えられる", () => {
         render(<UserProfileClient userId="nobody" />);
-        swipe("left"); // posts -> map（このユーザーはGPS写真なし＝空状態）
+        fireEvent.click(tabButton("Map")); // 足あとへ（このユーザーはGPS写真なし＝空状態）
         expect(activeTab()).toContain("Map");
-        swipe("right"); // map -> posts に戻れること（スクショで報告された不具合の回帰ガード）
-        expect(activeTab()).toContain("Posts");
+        swipe("right"); // map -> trips に戻れること（スクショで報告された不具合の回帰ガード）
+        expect(activeTab()).toContain("Trips");
         swipe("left");
-        swipe("left"); // map -> timeline
+        swipe("left"); // trips -> map -> timeline
         expect(activeTab()).toContain("Timeline");
     });
 
     it("Leaflet 地図の中で始まった操作はタブ切替に使わない（地図のパンを優先）", () => {
         render(<UserProfileClient userId="nobody" />);
-        swipe("left"); // posts -> map
+        fireEvent.click(tabButton("Map"));
         expect(activeTab()).toContain("Map");
         // 地図(leaflet-container)内で始まるドラッグではタブが変わらない
         const map = document.querySelector(".leaflet-container");
