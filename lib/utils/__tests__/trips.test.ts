@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildTrips } from "../trips";
+import { buildTrips, tripAutoTitle, tripDisplayTitle } from "../trips";
 import type { Photo } from "@/lib/data/photos";
 
 function photo(id: string, date: string, extra: Partial<Photo> = {}): Photo {
@@ -67,5 +67,27 @@ describe("buildTrips", () => {
         const photos = [photo("a", "2026-05-01"), photo("b", "2026-05-04")];
         expect(buildTrips(photos, 1)).toHaveLength(2);
         expect(buildTrips(photos, 5)).toHaveLength(1);
+    });
+});
+
+describe("tripAutoTitle / tripDisplayTitle", () => {
+    const base = { id: "trip-1", places: ["京都", "大阪", "奈良"], start: Date.parse("2026-05-03") };
+
+    it("場所があれば上位2つで「〜の旅」", () => {
+        expect(tripAutoTitle(base, "ja")).toBe("京都・大阪の旅");
+        expect(tripAutoTitle(base, "en")).toBe("京都 · 大阪");
+    });
+
+    it("場所が無ければ年月にフォールバック", () => {
+        const t = { ...base, places: [] };
+        expect(tripAutoTitle(t, "ja")).toBe("2026年5月の旅");
+        expect(tripAutoTitle(t, "en")).toContain("2026");
+    });
+
+    it("カスタム名があれば最優先、空白のみなら自動タイトル", () => {
+        expect(tripDisplayTitle(base, { "trip-1": "新婚旅行🌸" }, "ja")).toBe("新婚旅行🌸");
+        expect(tripDisplayTitle(base, { "trip-1": "   " }, "ja")).toBe("京都・大阪の旅");
+        expect(tripDisplayTitle(base, undefined, "ja")).toBe("京都・大阪の旅");
+        expect(tripDisplayTitle(base, { "trip-999": "別の旅" }, "ja")).toBe("京都・大阪の旅");
     });
 });

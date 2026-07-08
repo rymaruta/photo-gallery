@@ -25,6 +25,8 @@ export type UserProfile = {
     songArtwork?: string;
     songPreviewUrl?: string;
     songTrackUrl?: string;
+    // 旅アルバムのカスタム名（trip-<epoch> → タイトル）。未設定の旅は自動タイトル。
+    tripTitles?: Record<string, string>;
     updatedAt?: string;
 };
 
@@ -55,6 +57,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         displayName?: string; bio?: string; instagram?: string; website?: string;
         songUrl?: string; songStart?: number; songEnd?: number;
         songTitle?: string; songArtist?: string; songArtwork?: string; songPreviewUrl?: string; songTrackUrl?: string;
+        tripTitles?: Record<string, string>;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -87,6 +90,16 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     const songTitle = body.songTitle?.trim().slice(0, 200) || undefined;
     const songArtist = body.songArtist?.trim().slice(0, 200) || undefined;
 
+    // 旅アルバムのカスタム名: キーは trip-<epoch> 形式のみ・最大100件・各80文字
+    let tripTitles: Record<string, string> | undefined;
+    if (body.tripTitles && typeof body.tripTitles === "object" && !Array.isArray(body.tripTitles)) {
+        const entries = Object.entries(body.tripTitles)
+            .filter(([k, v]) => /^trip-\d+$/.test(k) && typeof v === "string" && v.trim())
+            .slice(0, 100)
+            .map(([k, v]) => [k, (v as string).trim().slice(0, 80)] as const);
+        if (entries.length > 0) tripTitles = Object.fromEntries(entries);
+    }
+
     const profile: UserProfile = {
         userId,
         ...(displayName ? { displayName } : {}),
@@ -103,6 +116,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         ...(songTitle ? { songTitle } : {}),
         ...(songArtist ? { songArtist } : {}),
         ...(songTrackUrl ? { songTrackUrl } : {}),
+        ...(tripTitles ? { tripTitles } : {}),
         updatedAt: new Date().toISOString(),
     };
 

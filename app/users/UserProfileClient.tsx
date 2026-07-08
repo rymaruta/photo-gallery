@@ -9,7 +9,8 @@ import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { geocodePlace, type GeoPoint } from "../../lib/utils/geocode";
 import { haversineKm } from "../../lib/utils/journey";
-import { buildTrips, type Trip } from "../../lib/utils/trips";
+import { buildTrips, tripAutoTitle, tripDisplayTitle, type Trip } from "../../lib/utils/trips";
+import { computeBadges } from "../../lib/utils/badges";
 import SongPlayer from "../components/SongPlayer";
 import { HeartIcon, PlayIcon, StopIcon } from "@heroicons/react/24/solid";
 import { useLocale } from "../i18n/context";
@@ -38,6 +39,7 @@ type UserProfile = {
     songArtwork?: string;
     songPreviewUrl?: string;
     songTrackUrl?: string;
+    tripTitles?: Record<string, string>;
 };
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
@@ -187,22 +189,25 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish }: {
 }
 
 // 旅アルバムのカード。カバー写真 + タイトル + 期間/枚数/距離。タップで写真を展開。
-function TripCard({ trip, locale, isOwner, onTogglePublish, open, onToggle }: {
+// オーナーは展開時に旅の名前を編集できる（カスタム名はプロフィールに保存され全員に見える）。
+function TripCard({ trip, locale, isOwner, onTogglePublish, open, onToggle, customTitle, onRename }: {
     trip: Trip;
     locale: string;
     isOwner: boolean;
     onTogglePublish?: (id: string, published: boolean) => void;
     open: boolean;
     onToggle: () => void;
+    customTitle?: string;
+    onRename?: (title: string | null) => void;
 }) {
     const en = locale === "en";
     const cover = trip.photos[0];
+    const [editing, setEditing] = useState(false);
+    const [draft, setDraft] = useState("");
 
-    const title = trip.places.length > 0
-        ? (en ? trip.places.slice(0, 2).join(" · ") : `${trip.places.slice(0, 2).join("・")}の旅`)
-        : (en
-            ? `${new Date(trip.start).toLocaleDateString("en-US", { month: "long", year: "numeric" })} trip`
-            : `${new Date(trip.start).getFullYear()}年${new Date(trip.start).getMonth() + 1}月の旅`);
+    const autoTitle = tripAutoTitle(trip, en ? "en" : "ja");
+    const title = tripDisplayTitle(trip, customTitle ? { [trip.id]: customTitle } : undefined, en ? "en" : "ja");
+    const editable = isOwner && !!onRename;
 
     const fmt = (t: number) => {
         const d = new Date(t);
@@ -240,11 +245,60 @@ function TripCard({ trip, locale, isOwner, onTogglePublish, open, onToggle }: {
                 </div>
             </button>
             {open && (
-                <div className="grid grid-cols-3 gap-1 p-1">
-                    {trip.photos.map((photo) => (
-                        <PhotoCard key={photo.id} photo={photo} locale={locale} isOwner={isOwner} onTogglePublish={onTogglePublish} />
-                    ))}
-                </div>
+                <>
+                    {/* オーナー: 旅の名前を編集 */}
+                    {editable && (
+                        editing ? (
+                            <div className="flex items-center gap-2 px-3 pt-3">
+                                <input
+                                    type="text"
+                                    value={draft}
+                                    onChange={(e) => setDraft(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === "Enter") { onRename?.(draft.trim() || null); setEditing(false); } }}
+                                    maxLength={80}
+                                    placeholder={autoTitle}
+                                    autoFocus
+                                    className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
+                                />
+                                <button
+                                    onClick={() => { onRename?.(draft.trim() || null); setEditing(false); }}
+                                    className="px-3.5 py-2 rounded-full bg-white text-black text-xs font-semibold hover:bg-white/90 active:scale-95 transition flex-shrink-0"
+                                >
+                                    {en ? "Save" : "保存"}
+                                </button>
+                                <button
+                                    onClick={() => setEditing(false)}
+                                    className="px-2.5 py-2 rounded-full text-white/50 hover:text-white/80 text-xs active:scale-95 transition flex-shrink-0"
+                                >
+                                    {en ? "Cancel" : "キャンセル"}
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-3 px-3 pt-2.5">
+                                <button
+                                    onClick={() => { setDraft(customTitle ?? ""); setEditing(true); }}
+                                    className="inline-flex items-center gap-1 text-xs text-white/50 hover:text-white/80 active:scale-95 transition"
+                                >
+                                    <PencilSquareIcon className="w-3.5 h-3.5" />
+                                    {en ? "Rename trip" : "旅の名前を変更"}
+                                </button>
+                                {customTitle && (
+                                    <button
+                                        onClick={() => onRename?.(null)}
+                                        className="text-xs text-white/40 hover:text-white/70 active:scale-95 transition"
+                                    >
+                                        {en ? "Reset to auto" : "自動タイトルに戻す"}
+                                    </button>
+                                )}
+                            </div>
+                        )
+                    )}
+                    <div className="grid grid-cols-3 gap-1 p-1 pt-2">
+                        {trip.photos.map((photo) => (
+                            <PhotoCard key={photo.id} photo={photo} locale={locale} isOwner={isOwner} onTogglePublish={onTogglePublish} />
+                        ))}
+                    </div>
+                </>
             )}
         </div>
     );
@@ -422,6 +476,42 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     const trips = useMemo(() => buildTrips(visiblePhotos), [visiblePhotos]);
     const [openTripId, setOpenTripId] = useState<string | null>(null);
 
+    // 旅のカスタム名（オーナーが編集可能・プロフィールに保存され全員に見える）
+    const tripTitles = userProfile?.tripTitles;
+    const renameTrip = useCallback(async (tripId: string, title: string | null) => {
+        const prev = userProfile?.tripTitles ?? {};
+        const next = { ...prev };
+        if (title) next[tripId] = title; else delete next[tripId];
+        // 楽観的更新
+        setUserProfile((p) => (p ? { ...p, tripTitles: next } : p));
+        try {
+            // PUT は全置換のため、既知のプロフィール項目を丸ごと送り返す
+            const res = await userFetch("/user/profile", {
+                method: "PUT",
+                body: JSON.stringify({
+                    displayName: userProfile?.displayName,
+                    bio: userProfile?.bio,
+                    instagram: userProfile?.instagram,
+                    website: userProfile?.website,
+                    songUrl: userProfile?.songUrl,
+                    songStart: userProfile?.songStart,
+                    songEnd: userProfile?.songEnd,
+                    songTitle: userProfile?.songTitle,
+                    songArtist: userProfile?.songArtist,
+                    songArtwork: userProfile?.songArtwork,
+                    songPreviewUrl: userProfile?.songPreviewUrl,
+                    songTrackUrl: userProfile?.songTrackUrl,
+                    tripTitles: next,
+                }),
+            });
+            if (!res.ok) throw new Error(String(res.status));
+            showToast(locale === "en" ? "Trip name saved" : "旅の名前を保存しました", "success");
+        } catch {
+            setUserProfile((p) => (p ? { ...p, tripTitles: prev } : p));
+            showToast(locale === "en" ? "Failed to save" : "保存に失敗しました", "error");
+        }
+    }, [userProfile, locale, showToast]);
+
     // 足あとサマリー: 訪れた場所数（ユニークな location）と旅の期間（撮影日の最古〜最新）
     const footprint = useMemo(() => {
         const places = new Set<string>();
@@ -445,6 +535,23 @@ export default function UserProfileClient({ userId }: { userId: string }) {
 
         return { places: places.size, first: times[0], last: times[times.length - 1], distanceKm, geoCount: geo.length };
     }, [visiblePhotos]);
+
+    // 旅の実績バッジ: 距離・訪問地・旅の回数などから自動判定
+    const badges = useMemo(() => {
+        const categories = new Set<string>();
+        for (const p of visiblePhotos) {
+            const c = (p.category ?? "").trim().toLowerCase();
+            if (c) categories.add(c);
+        }
+        return computeBadges({
+            photoCount: postCount,
+            distanceKm: footprint.distanceKm,
+            places: footprint.places,
+            tripCount: trips.length,
+            categories: categories.size,
+            likes: totalLikes,
+        });
+    }, [visiblePhotos, postCount, footprint, trips.length, totalLikes]);
 
     const spanLabel = useMemo(() => {
         if (!footprint.first || !footprint.last) return "";
@@ -626,6 +733,22 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             </div>
                         )}
                     </div>
+
+                    {/* 旅の実績バッジ: 旅の深さを誇れる称号（自動判定） */}
+                    {badges.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 mb-4">
+                            {badges.map((b) => (
+                                <span
+                                    key={b.id}
+                                    title={locale === "en" ? b.detail.en : b.detail.ja}
+                                    className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/15 via-fuchsia-500/10 to-sky-500/15 ring-1 ring-white/15 px-2.5 py-1 text-[11px] text-white/85 backdrop-blur-md"
+                                >
+                                    <span aria-hidden="true">{b.emoji}</span>
+                                    {locale === "en" ? b.label.en : b.label.ja}
+                                </span>
+                            ))}
+                        </div>
+                    )}
 
                     {userProfile?.bio && (
                         <p className="text-sm text-white/85 whitespace-pre-wrap mb-3 leading-relaxed drop-shadow-sm">{userProfile.bio}</p>
@@ -829,6 +952,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                         onTogglePublish={handleTogglePublish}
                                         open={openTripId === trip.id}
                                         onToggle={() => setOpenTripId((cur) => (cur === trip.id ? null : trip.id))}
+                                        customTitle={tripTitles?.[trip.id]}
+                                        onRename={isOwner ? (title) => void renameTrip(trip.id, title) : undefined}
                                     />
                                 ))}
                             </div>

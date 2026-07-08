@@ -26,6 +26,7 @@ type UserProfile = {
     songArtwork?: string;
     songPreviewUrl?: string;
     songTrackUrl?: string;
+    tripTitles?: Record<string, string>;
 };
 
 // "1:23" / "83" → 秒。空や不正は undefined。
@@ -254,6 +255,8 @@ export default function ProfileEditPage() {
                 body: JSON.stringify({
                     displayName, bio, instagram, website,
                     ...songPayload,
+                    // PUT は全置換のため、このページで編集しない旅のカスタム名も送り返す
+                    tripTitles: profile?.tripTitles,
                 }),
             });
             if (res.ok) {

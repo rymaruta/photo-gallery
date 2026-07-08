@@ -19,6 +19,28 @@ export type Trip = {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** 旅の自動タイトル。場所があれば「京都・大阪の旅」、無ければ「2026年5月の旅」。 */
+export function tripAutoTitle(trip: Pick<Trip, "places" | "start">, locale: "ja" | "en"): string {
+    if (trip.places.length > 0) {
+        const head = trip.places.slice(0, 2);
+        return locale === "en" ? head.join(" · ") : `${head.join("・")}の旅`;
+    }
+    const d = new Date(trip.start);
+    return locale === "en"
+        ? `${d.toLocaleDateString("en-US", { month: "long", year: "numeric" })} trip`
+        : `${d.getFullYear()}年${d.getMonth() + 1}月の旅`;
+}
+
+/** 表示タイトル。オーナーが付けたカスタム名があればそれを優先する。 */
+export function tripDisplayTitle(
+    trip: Pick<Trip, "id" | "places" | "start">,
+    customTitles: Record<string, string> | undefined,
+    locale: "ja" | "en",
+): string {
+    const custom = customTitles?.[trip.id]?.trim();
+    return custom || tripAutoTitle(trip, locale);
+}
+
 /**
  * 写真を旅ごとにまとめる。呼び出し側で可視性（公開/非公開）は絞っておくこと。
  * 撮影日（date 優先、なければ createdAt）が無い写真は対象外。
