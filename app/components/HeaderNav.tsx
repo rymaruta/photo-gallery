@@ -8,6 +8,7 @@ import { useLocale } from "../i18n/context";
 import { log } from "../../lib/utils/log";
 import { ROUTES } from "../../lib/routes";
 import UserAvatar from "./UserAvatar";
+import NotificationsBell from "./NotificationsBell";
 
 export default function HeaderNav({ className = "" }: { className?: string }) {
     const router = useRouter();
@@ -73,6 +74,8 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
 
     return (
         <nav className={`site-header__nav flex items-center gap-2 ${className}`}>
+            {/* 通知ベル: 「あなたの写真が誰かを旅立たせました」が届く */}
+            {isAuthenticated && <NotificationsBell />}
             {/* ログイン中は自分のアバターを表示 → ワンタップでマイページ */}
             {isAuthenticated && userId && (
                 <button
@@ -164,6 +167,13 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                     <li style={{ margin: 0, padding: 0 }}>
                                         <button onClick={() => handleNavigation(ROUTES.USER_PROFILE(userId))} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                             {navLabels.mypage || "My Page"}
+                                        </button>
+                                    </li>
+                                )}
+                                {isAuthenticated && (
+                                    <li style={{ margin: 0, padding: 0 }}>
+                                        <button onClick={() => handleNavigation(ROUTES.WISHLIST)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
+                                            {navLabels.wishlist || "Travel List"}
                                         </button>
                                     </li>
                                 )}

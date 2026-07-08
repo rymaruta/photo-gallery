@@ -6,6 +6,7 @@ import type { Photo, Locale } from "@/lib/data/photos";
 import { shareToTwitter, shareToLine } from "../../../lib/utils/share";
 import { ROUTES } from "../../../lib/routes";
 import ProfileLink from "../ProfileLink";
+import GoButton from "../GoButton";
 
 type Props = {
     photo: Photo;
@@ -103,8 +104,9 @@ export default function ModalCaption({
                 </div>
             )}
 
-            {/* 個別ページへのリンク */}
-            <div className="mt-4 pt-4 border-t border-white/10">
+            {/* 行く + 個別ページへのリンク */}
+            <div className="mt-4 pt-4 border-t border-white/10 flex flex-wrap gap-2">
+                <GoButton photoId={photo.id} locale={locale} />
                 <Link
                     href={ROUTES.PHOTO(photo.id)}
                     onClick={stop}

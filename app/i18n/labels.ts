@@ -53,6 +53,7 @@ export type Labels = {
         history?: string;
         map?: string;
         mypage?: string;
+        wishlist?: string;
         account?: string;
         upload?: string;
         profile?: string;
@@ -107,6 +108,7 @@ const enLabels: Labels = {
         history: "History",
         map: "Map",
         mypage: "My Page",
+        wishlist: "Travel List",
         account: "Account",
         upload: "Upload",
         profile: "Profile",
@@ -158,6 +160,7 @@ export const ja: Labels = {
         history: "閲覧履歴",
         map: "撮影地マップ",
         mypage: "マイページ",
+        wishlist: "行きたいリスト",
         account: "アカウント",
         upload: "アップロード",
         profile: "プロフィール",

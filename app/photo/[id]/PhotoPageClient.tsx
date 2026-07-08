@@ -5,12 +5,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 import { HeartIcon } from "@heroicons/react/24/solid";
+import { PaperAirplaneIcon } from "@heroicons/react/24/solid";
 import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
+import { PaperAirplaneIcon as PaperAirplaneIconOutline } from "@heroicons/react/24/outline";
 import { ShareIcon, LinkIcon } from "@heroicons/react/24/outline";
 import exifr from "exifr";
 import type { Photo } from "@/lib/data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
 import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
+import { useGoTo } from "../../../lib/hooks/useGoTo";
 import { useAuth } from "../../auth/context";
 import { useViewHistory } from "../../../lib/hooks/useViewHistory";
 import { useToast } from "../../../lib/hooks/useToast";
@@ -242,6 +245,10 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
     const { isAuthenticated } = useAuth();
     const { liked: isFav, count: likeCount, pending: likePending, toggle: toggleLike } =
         usePhotoLikes(photoId, photo?.likes ?? 0, isAuthenticated);
+
+    // 「行く」= この場所に行きたい（行きたいリストへ）。行けば投稿者に通知が届く
+    const { going, goCount, moved, pending: goPending, toggle: toggleGo } =
+        useGoTo(photoId, isAuthenticated);
 
     // 閲覧履歴機能
     const { addToHistory } = useViewHistory();
@@ -580,33 +587,82 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
 
                 {/* アクションボタン */}
                 <div className="pt-4 border-t border-white/10 space-y-4">
-                    {/* いいねボタン（数を表示） */}
-                    <button
-                        onClick={() => void toggleLike()}
-                        disabled={likePending}
-                        aria-pressed={isFav}
-                        aria-label={isFav
-                            ? (locale === "en" ? "Unlike" : "いいねを取り消す")
-                            : (locale === "en" ? "Like" : "いいね")}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors disabled:opacity-60"
-                        style={{
-                            touchAction: "manipulation",
-                            WebkitTapHighlightColor: "transparent",
-                            minHeight: "44px"
-                        }}
-                    >
-                        {isFav
-                            ? <HeartIcon className="w-5 h-5 text-red-500" />
-                            : <HeartIconOutline className="w-5 h-5" />}
-                        <span>
-                            {isFav
-                                ? (locale === "en" ? "Liked" : "いいね済み")
+                    {/* この写真が動かした人数 */}
+                    {moved > 0 && (
+                        <p className="text-sm text-sky-300/90 flex items-center gap-1.5">
+                            <PaperAirplaneIcon className="w-4 h-4 -rotate-45" />
+                            {locale === "en"
+                                ? `This photo has moved ${moved} ${moved === 1 ? "person" : "people"} to travel.`
+                                : `この写真は ${moved}人 を旅立たせました`}
+                        </p>
+                    )}
+
+                    <div className="flex flex-wrap gap-2">
+                        {/* いいねボタン（数を表示） */}
+                        <button
+                            onClick={() => void toggleLike()}
+                            disabled={likePending}
+                            aria-pressed={isFav}
+                            aria-label={isFav
+                                ? (locale === "en" ? "Unlike" : "いいねを取り消す")
                                 : (locale === "en" ? "Like" : "いいね")}
-                        </span>
-                        {likeCount > 0 && (
-                            <span className="text-sm text-white/60 tabular-nums">{likeCount}</span>
-                        )}
-                    </button>
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors disabled:opacity-60 active:scale-[0.98]"
+                            style={{
+                                touchAction: "manipulation",
+                                WebkitTapHighlightColor: "transparent",
+                                minHeight: "44px"
+                            }}
+                        >
+                            {isFav
+                                ? <HeartIcon className="w-5 h-5 text-red-500" />
+                                : <HeartIconOutline className="w-5 h-5" />}
+                            <span>
+                                {isFav
+                                    ? (locale === "en" ? "Liked" : "いいね済み")
+                                    : (locale === "en" ? "Like" : "いいね")}
+                            </span>
+                            {likeCount > 0 && (
+                                <span className="text-sm text-white/60 tabular-nums">{likeCount}</span>
+                            )}
+                        </button>
+
+                        {/* 「行く」ボタン: 行きたいリストへ。行けば投稿者に通知が届く */}
+                        <button
+                            onClick={() => {
+                                void (async () => {
+                                    const r = await toggleGo();
+                                    if (r === "auth-required") {
+                                        showToast(locale === "en" ? "Log in to save places you want to visit" : "ログインすると「行く」で行きたいリストに保存できます", "info");
+                                    } else if (r === "added") {
+                                        showToast(locale === "en" ? "Added to your travel list 🧭" : "行きたいリストに追加しました 🧭", "success");
+                                    }
+                                })();
+                            }}
+                            disabled={goPending}
+                            aria-pressed={going}
+                            aria-label={going
+                                ? (locale === "en" ? "Remove from travel list" : "行きたいを取り消す")
+                                : (locale === "en" ? "I'll go here" : "この場所に行く")}
+                            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full transition-colors disabled:opacity-60 active:scale-[0.98] ${going ? "bg-sky-500/20 text-sky-300 ring-1 ring-sky-400/40" : "bg-white/10 hover:bg-white/20 text-white"}`}
+                            style={{
+                                touchAction: "manipulation",
+                                WebkitTapHighlightColor: "transparent",
+                                minHeight: "44px"
+                            }}
+                        >
+                            {going
+                                ? <PaperAirplaneIcon className="w-5 h-5 -rotate-45 text-sky-400" />
+                                : <PaperAirplaneIconOutline className="w-5 h-5 -rotate-45" />}
+                            <span>
+                                {going
+                                    ? (locale === "en" ? "Going!" : "行く！")
+                                    : (locale === "en" ? "I'll go" : "行く")}
+                            </span>
+                            {goCount > 0 && (
+                                <span className="text-sm text-white/60 tabular-nums">{goCount}</span>
+                            )}
+                        </button>
+                    </div>
 
                     {/* 共有機能 */}
                     <div>

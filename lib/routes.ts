@@ -23,6 +23,7 @@ export const ROUTES = {
     ABOUT: "/about",
     FAVORITES: "/favorites",
     HISTORY: "/history",
+    WISHLIST: "/wishlist",
     ADMIN: "/admin",
     LOGIN: "/login",
     SIGNUP: "/signup",

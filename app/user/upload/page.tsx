@@ -326,6 +326,18 @@ function UploadPageInner() {
                     const t = await saveResponse.text();
                     throw new Error(`Save ${saveResponse.status}: ${t.slice(0, 80)}`);
                 }
+                // 行きたいリストの場所に到達していたら祝う
+                try {
+                    const saved = await saveResponse.json() as { inspired?: number };
+                    if (typeof saved.inspired === "number" && saved.inspired > 0) {
+                        showToast(
+                            locale === "en"
+                                ? "You made it to a place on your travel list! 🎉"
+                                : "行きたかった場所に到達！撮影者に伝わりました 🎉",
+                            "success",
+                        );
+                    }
+                } catch { /* レスポンス解析失敗は無視 */ }
                 updateItem(item.id, { status: "done", progress: 100 });
                 successCount++;
             } catch (err) {
