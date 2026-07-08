@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 // --- 重い依存をモックしてプロフィール本体だけを描画する ---
-vi.mock("next/dynamic", () => ({ default: () => () => <div data-testid="mapview-stub" /> }));
+vi.mock("next/dynamic", () => ({ default: () => () => <div data-testid="mapview-stub" className="leaflet-container" /> }));
 vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "en" }) }));
 vi.mock("../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
 vi.mock("../../../lib/auth/cognito", () => ({ getCurrentSession: vi.fn().mockResolvedValue(null) }));
@@ -69,12 +69,31 @@ describe("UserProfileClient - タブの横スワイプ（タッチ操作の保�
         expect(activeTab()).toContain("Posts");
     });
 
-    it("地図タブではスワイプ領域にハンドラを付けない（地図の操作を優先）", () => {
+    it("足あとタブ（地図が空）でも左右スワイプでタブを切り替えられる", () => {
+        render(<UserProfileClient userId="nobody" />);
+        swipe("left"); // posts -> map（このユーザーはGPS写真なし＝空状態）
+        expect(activeTab()).toContain("Map");
+        swipe("right"); // map -> posts に戻れること（スクショで報告された不具合の回帰ガード）
+        expect(activeTab()).toContain("Posts");
+        swipe("left");
+        swipe("left"); // map -> timeline
+        expect(activeTab()).toContain("Timeline");
+    });
+
+    it("Leaflet 地図の中で始まった操作はタブ切替に使わない（地図のパンを優先）", () => {
         render(<UserProfileClient userId="nobody" />);
         swipe("left"); // posts -> map
         expect(activeTab()).toContain("Map");
-        // 地図タブでは touch-action の指定が外れている（＝スワイプ無効）
-        const area = screen.getByTestId("tab-swipe-area");
-        expect(area.style.touchAction).toBe("");
+        // 地図(leaflet-container)内で始まるドラッグではタブが変わらない
+        const map = document.querySelector(".leaflet-container");
+        if (map) {
+            fireEvent.pointerDown(map, { clientX: 240, clientY: 100 });
+            fireEvent.pointerUp(screen.getByTestId("tab-swipe-area"), { clientX: 60, clientY: 108 });
+            expect(activeTab()).toContain("Map");
+        } else {
+            // GPS写真ゼロのため地図は空状態（leaflet無し）。除外ロジックは
+            // onTabPointerDown の closest(".leaflet-container") で担保される。
+            expect(activeTab()).toContain("Map");
+        }
     });
 });

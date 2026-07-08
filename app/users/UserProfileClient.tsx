@@ -275,6 +275,13 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     // touch-action: pan-y を併用し、縦スクロールは残しつつ横ジェスチャを JS が拾う。
     const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
     const onTabPointerDown = useCallback((e: React.PointerEvent) => {
+        // 地図(Leaflet)内で始まった操作はタブ切替に使わない（地図のパンを優先）。
+        // 地図の外（サマリー・空状態・他タブ）ではどのタブでもスワイプ可能。
+        const target = e.target as HTMLElement | null;
+        if (target?.closest?.(".leaflet-container")) {
+            swipeStartRef.current = null;
+            return;
+        }
         swipeStartRef.current = { x: e.clientX, y: e.clientY };
     }, []);
     const onTabPointerUp = useCallback((e: React.PointerEvent) => {
@@ -661,13 +668,14 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     })}
                 </div>
 
-                {/* タブ内容: 地図以外は横スワイプでタブ切替（地図は自身のジェスチャを優先） */}
+                {/* タブ内容: 横スワイプでタブ切替。Leaflet 地図内で始まる操作だけ除外
+                    （.leaflet-container は自前で touch-action:none を持つため pan-y と競合しない） */}
                 <div
                     data-testid="tab-swipe-area"
-                    onPointerDown={tab !== "map" ? onTabPointerDown : undefined}
-                    onPointerUp={tab !== "map" ? onTabPointerUp : undefined}
+                    onPointerDown={onTabPointerDown}
+                    onPointerUp={onTabPointerUp}
                     onPointerCancel={() => { swipeStartRef.current = null; }}
-                    style={tab !== "map" ? { touchAction: "pan-y" } : undefined}
+                    style={{ touchAction: "pan-y" }}
                 >
                 {/* 投稿タブ */}
                 {tab === "posts" && (
