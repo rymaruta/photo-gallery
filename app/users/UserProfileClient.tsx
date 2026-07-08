@@ -10,7 +10,6 @@ import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { geocodePlace, type GeoPoint } from "../../lib/utils/geocode";
 import { haversineKm } from "../../lib/utils/journey";
 import { buildTrips, tripAutoTitle, tripDisplayTitle, type Trip } from "../../lib/utils/trips";
-import { computeBadges } from "../../lib/utils/badges";
 import SongPlayer from "../components/SongPlayer";
 import { HeartIcon, PlayIcon, StopIcon } from "@heroicons/react/24/solid";
 import { useLocale } from "../i18n/context";
@@ -536,23 +535,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         return { places: places.size, first: times[0], last: times[times.length - 1], distanceKm, geoCount: geo.length };
     }, [visiblePhotos]);
 
-    // 旅の実績バッジ: 距離・訪問地・旅の回数などから自動判定
-    const badges = useMemo(() => {
-        const categories = new Set<string>();
-        for (const p of visiblePhotos) {
-            const c = (p.category ?? "").trim().toLowerCase();
-            if (c) categories.add(c);
-        }
-        return computeBadges({
-            photoCount: postCount,
-            distanceKm: footprint.distanceKm,
-            places: footprint.places,
-            tripCount: trips.length,
-            categories: categories.size,
-            likes: totalLikes,
-        });
-    }, [visiblePhotos, postCount, footprint, trips.length, totalLikes]);
-
     const spanLabel = useMemo(() => {
         if (!footprint.first || !footprint.last) return "";
         const fmt = (t: number) => {
@@ -734,21 +716,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         )}
                     </div>
 
-                    {/* 旅の実績バッジ: 旅の深さを誇れる称号（自動判定） */}
-                    {badges.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-1.5 mb-4">
-                            {badges.map((b) => (
-                                <span
-                                    key={b.id}
-                                    title={locale === "en" ? b.detail.en : b.detail.ja}
-                                    className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/15 via-fuchsia-500/10 to-sky-500/15 ring-1 ring-white/15 px-2.5 py-1 text-[11px] text-white/85 backdrop-blur-md"
-                                >
-                                    <span aria-hidden="true">{b.emoji}</span>
-                                    {locale === "en" ? b.label.en : b.label.ja}
-                                </span>
-                            ))}
-                        </div>
-                    )}
 
                     {userProfile?.bio && (
                         <p className="text-sm text-white/85 whitespace-pre-wrap mb-3 leading-relaxed drop-shadow-sm">{userProfile.bio}</p>
