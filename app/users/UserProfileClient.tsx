@@ -227,13 +227,24 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     (sessionResult.getIdToken().payload["sub"] as string | undefined) === userId;
                 if (isCurrentUserOwner) setIsOwner(true);
 
-                // API から新しい写真も取得（オーナー以外のみ — オーナーは非公開写真がJSONにある）
-                if (!isCurrentUserOwner) {
-                    const photosRes = await publicFetch(`/photos?userId=${encodeURIComponent(userId)}`, { signal: controller.signal });
-                    if (photosRes.ok) {
-                        const data = await photosRes.json() as unknown;
-                        if (Array.isArray(data)) {
-                            setPhotos(data as Photo[]);
+                // API から最新の写真を取得。オーナーも取得することで、アップロードや
+                // 場所の修正がビルドを待たずに足あと・地名へ即反映される。
+                // オーナーは API に無いビルド時JSONの写真（非公開など）を残してマージする。
+                const photosRes = await publicFetch(`/photos?userId=${encodeURIComponent(userId)}`, {
+                    signal: controller.signal,
+                    cache: "no-store",
+                });
+                if (photosRes.ok) {
+                    const data = await photosRes.json() as unknown;
+                    if (Array.isArray(data)) {
+                        const fresh = data as Photo[];
+                        if (isCurrentUserOwner) {
+                            setPhotos((prev) => {
+                                const ids = new Set(fresh.map((p) => p.id));
+                                return [...fresh, ...prev.filter((p) => !ids.has(p.id))];
+                            });
+                        } else {
+                            setPhotos(fresh);
                         }
                     }
                 }
@@ -519,34 +530,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         )}
                     </div>
 
-                    {/* 訪れた場所チップ: 実際の地名を見せる。各チップはマップへ、+Nはその場で全部展開 */}
-                    {placeNames.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-1.5 mb-4">
-                            {(showAllPlaces ? placeNames : placeNames.slice(0, 5)).map((name) => (
-                                <button
-                                    key={name}
-                                    onClick={() => setTab("map")}
-                                    className="inline-flex items-center gap-1 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-white/75 hover:text-white hover:ring-white/25 active:scale-95 transition max-w-[160px]"
-                                    title={locale === "en" ? "See on map" : "地図で見る"}
-                                >
-                                    <MapPinIcon className="w-2.5 h-2.5 text-emerald-400 flex-shrink-0" />
-                                    <span className="truncate">{name}</span>
-                                </button>
-                            ))}
-                            {placeNames.length > 5 && (
-                                <button
-                                    onClick={() => setShowAllPlaces((v) => !v)}
-                                    className="inline-flex items-center gap-0.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-white/50 hover:text-white/80 active:scale-95 transition"
-                                    aria-expanded={showAllPlaces}
-                                >
-                                    {showAllPlaces
-                                        ? (locale === "en" ? "Show less" : "閉じる")
-                                        : `+${placeNames.length - 5}`}
-                                </button>
-                            )}
-                        </div>
-                    )}
-
                     {userProfile?.bio && (
                         <p className="text-sm text-white/85 whitespace-pre-wrap mb-3 leading-relaxed drop-shadow-sm">{userProfile.bio}</p>
                     )}
@@ -723,6 +706,29 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 {/* 足あとマップタブ */}
                 {tab === "map" && (
                     <div className="pb-8">
+                        {/* 訪れた場所: アップロード・編集で付けた地名がここに反映される（新しい順） */}
+                        {placeNames.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1.5 pt-2 pb-3">
+                                {(showAllPlaces ? placeNames : placeNames.slice(0, 8)).map((name) => (
+                                    <span
+                                        key={name}
+                                        className="inline-flex items-center gap-1 rounded-full bg-white/5 ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-white/75 max-w-[180px]"
+                                    >
+                                        <MapPinIcon className="w-2.5 h-2.5 text-emerald-400 flex-shrink-0" />
+                                        <span className="truncate">{name}</span>
+                                    </span>
+                                ))}
+                                {placeNames.length > 8 && (
+                                    <button
+                                        onClick={() => setShowAllPlaces((v) => !v)}
+                                        className="inline-flex items-center rounded-full bg-white/5 ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-white/50 hover:text-white/80 active:scale-95 transition"
+                                        aria-expanded={showAllPlaces}
+                                    >
+                                        {showAllPlaces ? (locale === "en" ? "Show less" : "閉じる") : `+${placeNames.length - 8}`}
+                                    </button>
+                                )}
+                            </div>
+                        )}
                         {mapPhotos.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-24 text-white/40 gap-3">
                                 <MapPinIcon className="w-10 h-10" />
