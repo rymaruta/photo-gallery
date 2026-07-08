@@ -8,7 +8,7 @@ import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilS
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import SongPlayer from "../components/SongPlayer";
-import { HeartIcon } from "@heroicons/react/24/solid";
+import { HeartIcon, PlayIcon, StopIcon } from "@heroicons/react/24/solid";
 import { useLocale } from "../i18n/context";
 import { useToast } from "../../lib/hooks/useToast";
 import type { Photo } from "@/lib/data/photos";
@@ -269,6 +269,26 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     const [shareOpen, setShareOpen] = useState(false);
     const [showAllPlaces, setShowAllPlaces] = useState(false);
     const [mvOpen, setMvOpen] = useState(false);
+
+    // Journey Replay: 足あとの旅を再生（BGMがあれば一緒に流す）
+    const [replayToken, setReplayToken] = useState(0);
+    const replayAudioRef = useRef<HTMLAudioElement | null>(null);
+    const startReplay = useCallback(() => {
+        setReplayToken((v) => v + 1);
+        const src = userProfile?.songPreviewUrl;
+        if (src) {
+            if (!replayAudioRef.current) replayAudioRef.current = new Audio();
+            const a = replayAudioRef.current;
+            a.src = src;
+            a.currentTime = 0;
+            void a.play().catch(() => { /* 再生できない環境は無視 */ });
+        }
+    }, [userProfile?.songPreviewUrl]);
+    const stopReplay = useCallback(() => {
+        setReplayToken(0);
+        replayAudioRef.current?.pause();
+    }, []);
+    useEffect(() => () => { replayAudioRef.current?.pause(); }, []);
 
     // タブを横スワイプで切り替え（投稿 ⇄ 足あと ⇄ 年表）。
     // Pointer Events で PC(マウス)・スマホ(タッチ)・ペンを一本化。
@@ -732,10 +752,27 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                             <span className="text-[11px] text-white/70">{spanLabel}</span>
                                         </div>
                                     )}
+                                    {/* Journey Replay: 旅を時系列で再生（BGM付き） */}
+                                    {mapPhotos.length >= 2 && (
+                                        <button
+                                            onClick={replayToken ? stopReplay : startReplay}
+                                            className={`ml-auto inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold active:scale-95 transition ${replayToken ? "bg-white/10 text-white ring-1 ring-white/20" : "bg-white text-black hover:bg-white/90"}`}
+                                        >
+                                            {replayToken
+                                                ? (<><StopIcon className="w-3.5 h-3.5" />{locale === "en" ? "Stop" : "停止"}</>)
+                                                : (<><PlayIcon className="w-3.5 h-3.5" />{locale === "en" ? "Replay journey" : "旅を再生"}</>)}
+                                        </button>
+                                    )}
                                 </div>
 
                                 <div className="rounded-2xl overflow-hidden ring-1 ring-white/10 h-[60vh] min-h-[360px] relative">
-                                    <MapView photos={mapPhotos} locale={locale as "ja" | "en"} showRoute />
+                                    <MapView
+                                        photos={mapPhotos}
+                                        locale={locale as "ja" | "en"}
+                                        showRoute
+                                        replayToken={replayToken}
+                                        onReplayEnd={stopReplay}
+                                    />
                                     {/* 始点・終点の凡例 */}
                                     <div className="absolute top-3 left-3 z-[500] flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur-sm text-[11px] text-white/90 pointer-events-none">
                                         <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400" />{locale === "en" ? "Start" : "はじまり"}</span>

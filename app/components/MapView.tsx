@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { Photo } from "@/lib/data/photos";
 import { getLocalized } from "@/lib/data/photos";
+import { buildJourneyPoints } from "@/lib/utils/journey";
 import { ROUTES } from "@/lib/routes";
 
 type Props = {
@@ -13,13 +14,21 @@ type Props = {
     // 撮影日順に写真をつなぐ「足あと」ルートを描く（プロフィールの足あとタブ用）。
     // 全ユーザーの写真を混在表示する /map では意味をなさないため既定は false。
     showRoute?: boolean;
+    // Journey Replay: 0 以外に変わると旅の再生を開始。0 に戻すと中断。
+    replayToken?: number;
+    // 再生が最後まで到達したときに呼ばれる
+    onReplayEnd?: () => void;
 };
 
 // 撮影地マップ本体。Leaflet は window に依存するため、
 // このコンポーネントは必ず dynamic(..., { ssr: false }) 経由で読み込むこと。
-export default function MapView({ photos, locale, showRoute = false }: Props) {
+export default function MapView({ photos, locale, showRoute = false, replayToken = 0, onReplayEnd }: Props) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<L.Map | null>(null);
+    // 再生中は静的レイヤーを消してアニメーションだけ見せる
+    const [isReplaying, setIsReplaying] = useState(false);
+    const onReplayEndRef = useRef(onReplayEnd);
+    useEffect(() => { onReplayEndRef.current = onReplayEnd; }, [onReplayEnd]);
 
     useEffect(() => {
         if (!containerRef.current || mapRef.current) return;
@@ -47,6 +56,7 @@ export default function MapView({ photos, locale, showRoute = false }: Props) {
     useEffect(() => {
         const map = mapRef.current;
         if (!map) return;
+        if (isReplaying) return; // 再生中はアニメーションレイヤーに任せる
 
         const layer = L.layerGroup().addTo(map);
         const bounds: L.LatLngTuple[] = [];
@@ -122,7 +132,71 @@ export default function MapView({ photos, locale, showRoute = false }: Props) {
         return () => {
             layer.remove();
         };
-    }, [photos, locale, showRoute]);
+    }, [photos, locale, showRoute, isReplaying]);
+
+    // Journey Replay: 撮影日順にピンが打たれ、ルートが伸び、写真がポップアップする
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map || !replayToken) return;
+        const pts = buildJourneyPoints(photos);
+        if (pts.length < 2) { onReplayEndRef.current?.(); return; }
+
+        setIsReplaying(true);
+        const layer = L.layerGroup().addTo(map);
+        const glow = L.polyline([], { color: "#38bdf8", weight: 7, opacity: 0.15, lineJoin: "round" }).addTo(layer);
+        const line = L.polyline([], { color: "#7dd3fc", weight: 2.5, opacity: 0.95, lineCap: "round" }).addTo(layer);
+        let popup: L.Popup | null = null;
+        let i = 0;
+
+        map.flyTo([pts[0].lat, pts[0].lng], Math.max(map.getZoom(), 6), { duration: 0.7 });
+
+        const step = () => {
+            const p = pts[i];
+            glow.addLatLng([p.lat, p.lng]);
+            line.addLatLng([p.lat, p.lng]);
+            L.circleMarker([p.lat, p.lng], {
+                radius: i === 0 || i === pts.length - 1 ? 9 : 7,
+                color: "#ffffff",
+                weight: 2,
+                fillColor: i === 0 ? "#34d399" : i === pts.length - 1 ? "#fb7185" : "#38bdf8",
+                fillOpacity: 0.95,
+            }).addTo(layer);
+            map.panTo([p.lat, p.lng], { animate: true, duration: 0.8 });
+            popup?.remove();
+            const img = document.createElement("img");
+            img.src = p.photo.src;
+            img.alt = "";
+            img.loading = "eager";
+            img.style.cssText = "width:110px;height:78px;object-fit:cover;border-radius:8px;display:block;";
+            popup = L.popup({ closeButton: false, autoPan: false, offset: [0, -8] })
+                .setLatLng([p.lat, p.lng])
+                .setContent(img)
+                .openOn(map);
+            i++;
+        };
+
+        step();
+        const timer = window.setInterval(() => {
+            if (i >= pts.length) {
+                window.clearInterval(timer);
+                window.setTimeout(() => {
+                    popup?.remove();
+                    map.fitBounds(pts.map((p) => [p.lat, p.lng] as L.LatLngTuple), { padding: [50, 50], maxZoom: 10 });
+                    setIsReplaying(false);
+                    onReplayEndRef.current?.();
+                }, 1400);
+                return;
+            }
+            step();
+        }, 1000);
+
+        return () => {
+            window.clearInterval(timer);
+            popup?.remove();
+            layer.remove();
+            setIsReplaying(false);
+        };
+    }, [replayToken, photos]);
 
     return <div ref={containerRef} className="w-full h-full" style={{ background: "#0a0d10" }} />;
 }
