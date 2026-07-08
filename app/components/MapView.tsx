@@ -41,16 +41,46 @@ export default function MapView({ photos, locale, showRoute = false, replayToken
         });
         mapRef.current = map;
 
-        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            maxZoom: 18,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        }).addTo(map);
+        // ベースマップ: Google マップ風の CARTO Voyager を既定に、
+        // 衛星（Esri）とダーク（CARTO）をレイヤー切替で提供。すべて API キー不要。
+        const standard = L.tileLayer(
+            "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+            {
+                maxZoom: 20,
+                subdomains: "abcd",
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            },
+        ).addTo(map);
+        const satellite = L.tileLayer(
+            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            {
+                maxZoom: 19,
+                attribution: "Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics",
+            },
+        );
+        const dark = L.tileLayer(
+            "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+            {
+                maxZoom: 20,
+                subdomains: "abcd",
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            },
+        );
+        L.control.layers(
+            locale === "en"
+                ? { Standard: standard, Satellite: satellite, Dark: dark }
+                : { "標準": standard, "衛星": satellite, "ダーク": dark },
+            undefined,
+            { position: "topright" },
+        ).addTo(map);
 
         return () => {
             map.remove();
             mapRef.current = null;
         };
-    }, []);
+        // locale はレイヤー切替のラベルにのみ使用。マップは初回のみ生成する
+        // （mapRef ガードにより locale 変更で再生成はされない）。
+    }, [locale]);
 
     // 写真マーカーの描画（photos の更新に追従）
     useEffect(() => {
