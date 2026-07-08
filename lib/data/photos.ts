@@ -29,6 +29,8 @@ export type Photo = {
     photographer?: string;
     location?: string;
     coords?: { lat: number; lng: number };
+    // coords が location 名からのジオコーディング（おおよその位置）であることを示す
+    geoApprox?: boolean;
     mapLinks?: { google?: string; osm?: string; label?: string };
     license?: string;
     copyrightOwner?: string;

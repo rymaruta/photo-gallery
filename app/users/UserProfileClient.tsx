@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
+import { geocodePlace, type GeoPoint } from "../../lib/utils/geocode";
 import SongPlayer from "../components/SongPlayer";
 import { HeartIcon, PlayIcon, StopIcon } from "@heroicons/react/24/solid";
 import { useLocale } from "../i18n/context";
@@ -322,7 +323,45 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         const dir = swipeDirection(e.clientX - s.x, e.clientY - s.y);
         if (dir !== 0) setTab((cur) => stepInList(TAB_ORDER, cur, dir));
     }, []);
-    const mapPhotos = useMemo(() => visiblePhotos.filter(p => p.coords), [visiblePhotos]);
+    // GPSなしでも地図に出す: 場所テキストをおおよその座標にジオコーディングする。
+    // 解決結果は場所名ごとに保持（undefined=未解決, null=見つからず）。
+    const [geoByPlace, setGeoByPlace] = useState<Record<string, GeoPoint | null>>({});
+    const pendingGeoNames = useMemo(() => {
+        const names = new Set<string>();
+        for (const p of visiblePhotos) {
+            const loc = (p.location ?? "").trim();
+            if (!p.coords && loc) names.add(loc);
+        }
+        return Array.from(names);
+    }, [visiblePhotos]);
+
+    useEffect(() => {
+        let alive = true;
+        void (async () => {
+            for (const name of pendingGeoNames) {
+                if (geoByPlace[name] !== undefined) continue;
+                const pt = await geocodePlace(name);
+                if (!alive) return;
+                setGeoByPlace((prev) => (prev[name] !== undefined ? prev : { ...prev, [name]: pt }));
+            }
+        })();
+        return () => { alive = false; };
+        // geoByPlace は進捗の読み取りにだけ使う（依存に入れると解決のたびにループが再走する）
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pendingGeoNames]);
+
+    const mapPhotos = useMemo(() => {
+        const out: Photo[] = [];
+        for (const p of visiblePhotos) {
+            if (p.coords) { out.push(p); continue; }
+            const loc = (p.location ?? "").trim();
+            const g = loc ? geoByPlace[loc] : null;
+            if (g) out.push({ ...p, coords: { lat: g.lat, lng: g.lng }, geoApprox: true });
+        }
+        return out;
+    }, [visiblePhotos, geoByPlace]);
+    const hasApprox = useMemo(() => mapPhotos.some(p => p.geoApprox), [mapPhotos]);
+    const geoResolving = pendingGeoNames.some(n => geoByPlace[n] === undefined);
     const timeline = useMemo(() => buildTimeline(visiblePhotos, locale as "ja" | "en"), [visiblePhotos, locale]);
 
     // 足あとサマリー: 訪れた場所数（ユニークな location）と旅の期間（撮影日の最古〜最新）
@@ -731,12 +770,25 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         )}
                         {mapPhotos.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-24 text-white/40 gap-3">
-                                <MapPinIcon className="w-10 h-10" />
-                                <p className="text-sm text-center max-w-xs">
-                                    {locale === "en"
-                                        ? "No location data yet. Photos uploaded with GPS will appear on the map."
-                                        : "位置情報つきの写真がまだありません。GPS付きでアップロードすると地図に足あとが残ります。"}
-                                </p>
+                                {geoResolving ? (
+                                    <>
+                                        <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                                        <p className="text-sm text-center max-w-xs">
+                                            {locale === "en"
+                                                ? "Locating places from your photo locations..."
+                                                : "場所の情報からおおよその位置を取得しています…"}
+                                        </p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <MapPinIcon className="w-10 h-10" />
+                                        <p className="text-sm text-center max-w-xs">
+                                            {locale === "en"
+                                                ? "No location data yet. Photos uploaded with GPS or a place name will appear on the map."
+                                                : "位置情報つきの写真がまだありません。GPS付き、または場所名を付けてアップロードすると地図に足あとが残ります。"}
+                                        </p>
+                                    </>
+                                )}
                             </div>
                         ) : (
                             <div className="space-y-3">
@@ -779,10 +831,16 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                         replayToken={replayToken}
                                         onReplayEnd={stopReplay}
                                     />
-                                    {/* 始点・終点の凡例 */}
+                                    {/* 始点・終点の凡例（ジオコーディング分は「おおよそ」注記） */}
                                     <div className="absolute top-3 left-3 z-[500] flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur-sm text-[11px] text-white/90 pointer-events-none">
                                         <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400" />{locale === "en" ? "Start" : "はじまり"}</span>
                                         <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-400" />{locale === "en" ? "Latest" : "さいきん"}</span>
+                                        {hasApprox && (
+                                            <span className="inline-flex items-center gap-1 text-white/60">
+                                                <span className="w-2 h-2 rounded-full border border-dashed border-white/60" />
+                                                {locale === "en" ? "Approx." : "おおよそ"}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             </div>

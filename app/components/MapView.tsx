@@ -98,7 +98,8 @@ export default function MapView({ photos, locale, showRoute = false, replayToken
                 color: "#ffffff",
                 weight: 2,
                 fillColor,
-                fillOpacity: 0.9,
+                // 場所名からのおおよその位置は破線リング + 薄めの塗りで区別する
+                ...(photo.geoApprox ? { dashArray: "3 4", fillOpacity: 0.55 } : { fillOpacity: 0.9 }),
             }).addTo(layer);
 
             // ポップアップは DOM 生成で組み立てる（title等の文字列を innerHTML に入れない）
