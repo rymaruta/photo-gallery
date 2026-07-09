@@ -6,6 +6,7 @@ import { PaperAirplaneIcon as PaperAirplaneIconOutline } from "@heroicons/react/
 import { useAuth } from "../auth/context";
 import { useGoTo } from "../../lib/hooks/useGoTo";
 import { useToast } from "../../lib/hooks/useToast";
+import { hapticTap } from "../../lib/utils/haptics";
 import type { Locale } from "@/lib/data/photos";
 
 // 「行く」ボタン（コンパクト版）。ギャラリーモーダル等に置く。
@@ -18,6 +19,7 @@ export default function GoButton({ photoId, locale }: { photoId: string; locale:
     const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         void (async () => {
+            hapticTap();
             const r = await toggle();
             if (r === "auth-required") {
                 showToast(locale === "en" ? "Log in to save places you want to visit" : "ログインすると「行く」で行きたいリストに保存できます", "info");

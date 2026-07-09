@@ -9,7 +9,7 @@ import LocaleToggle from "../../components/LocaleToggle";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
 import { getCurrentSession } from "../../../lib/auth/cognito";
-import { compressImage, stripJpegExif } from "../../../lib/utils/image";
+import { compressImage, stripJpegExif, extractDominantColor } from "../../../lib/utils/image";
 import { extractExifFromFile, reverseGeocode } from "../../../lib/utils/exif";
 import { readSharedPayload, clearSharedPayload } from "../../../lib/utils/shareStore";
 
@@ -310,6 +310,9 @@ function UploadPageInner() {
                     ? { lat: Math.round(item.latitude * 100) / 100, lng: Math.round(item.longitude * 100) / 100 }
                     : undefined;
 
+                // 代表色: グリッドの読み込みプレースホルダーに使う（失敗しても続行）
+                const dominantColor = await extractDominantColor(item.file);
+
                 const saveResponse = await apiFetch("/upload/save", {
                     method: "POST",
                     body: JSON.stringify({
@@ -320,6 +323,7 @@ function UploadPageInner() {
                         category: category || undefined,
                         tags: tagList,
                         ...(coords ? { coords } : {}),
+                        ...(dominantColor ? { dominantColor } : {}),
                     }),
                 });
                 if (!saveResponse.ok) {

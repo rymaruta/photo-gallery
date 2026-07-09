@@ -14,6 +14,7 @@ import type { Photo } from "@/lib/data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
 import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
 import { useGoTo } from "../../../lib/hooks/useGoTo";
+import { hapticTap } from "../../../lib/utils/haptics";
 import { useAuth } from "../../auth/context";
 import { useViewHistory } from "../../../lib/hooks/useViewHistory";
 import { useToast } from "../../../lib/hooks/useToast";
@@ -600,7 +601,7 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                     <div className="flex flex-wrap gap-2">
                         {/* いいねボタン（数を表示） */}
                         <button
-                            onClick={() => void toggleLike()}
+                            onClick={() => { hapticTap(); void toggleLike(); }}
                             disabled={likePending}
                             aria-pressed={isFav}
                             aria-label={isFav
@@ -629,6 +630,7 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                         {/* 「行く」ボタン: 行きたいリストへ。行けば投稿者に通知が届く */}
                         <button
                             onClick={() => {
+                                hapticTap();
                                 void (async () => {
                                     const r = await toggleGo();
                                     if (r === "auth-required") {

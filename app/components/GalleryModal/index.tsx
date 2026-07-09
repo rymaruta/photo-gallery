@@ -12,6 +12,8 @@ import { siteConfig } from "../../../lib/utils/seo";
 import { ROUTES } from "../../../lib/routes";
 import { log } from "../../../lib/utils/log";
 import { lockBodyScroll, unlockBodyScroll } from "./scrollLock";
+import { hapticTap } from "../../../lib/utils/haptics";
+import { HeartIcon } from "@heroicons/react/24/solid";
 import ModalImage from "./ModalImage";
 import ModalControls from "./ModalControls";
 import ModalCaption from "./ModalCaption";
@@ -58,6 +60,22 @@ export default function GalleryModal({
     const { addToHistory } = useViewHistory();
     const { showToast } = useToast();
     const { preload } = useImagePreloader();
+
+    // ダブルタップいいね（Instagram風）。連続タップ350ms以内で発火し、
+    // ハートが弾ける。いいね済みでも解除はしない（演出のみ）。
+    const lastTapRef = useRef(0);
+    const [heartBurstKey, setHeartBurstKey] = useState(0);
+    const handleImageTap = () => {
+        const now = Date.now();
+        if (now - lastTapRef.current < 350) {
+            lastTapRef.current = 0;
+            if (!isFavorite(currentPhotoIdRef.current)) toggleFavorite(currentPhotoIdRef.current);
+            hapticTap();
+            setHeartBurstKey(now);
+        } else {
+            lastTapRef.current = now;
+        }
+    };
 
     useEffect(() => { if (p?.id) addToHistory(p.id); }, [p?.id, addToHistory]);
 
@@ -172,8 +190,21 @@ export default function GalleryModal({
                     className="relative w-full flex-shrink-0 bg-black sm:bg-transparent"
                     style={{ height: "60vh", minHeight: "300px", fontSize: 0, lineHeight: 0, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}
                 >
-                    <div className="relative w-full h-full" {...swipeHandlers}>
+                    <div className="relative w-full h-full" {...swipeHandlers} onClick={handleImageTap}>
                         <ModalImage key={p.id} src={p.src} alt={altText} focalPoint={p.focalPoint} />
+                        {/* ダブルタップいいねのハート */}
+                        {heartBurstKey > 0 && (
+                            <div
+                                key={heartBurstKey}
+                                className="absolute inset-0 flex items-center justify-center pointer-events-none z-30"
+                                aria-hidden="true"
+                            >
+                                <HeartIcon
+                                    className="w-24 h-24 text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.5)] heart-burst"
+                                    onAnimationEnd={() => setHeartBurstKey(0)}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <ModalControls
@@ -181,7 +212,7 @@ export default function GalleryModal({
                         onNext={onNext}
                         onClose={onClose}
                         isFav={isFavorite(p.id)}
-                        onToggleFavorite={() => toggleFavorite(p.id)}
+                        onToggleFavorite={() => { hapticTap(); toggleFavorite(p.id); }}
                         firstFocusableRef={firstFocusableRef}
                         lastFocusableRef={lastFocusableRef}
                     />

@@ -78,3 +78,46 @@ export async function compressImage(file: File, maxPx = 1920, quality = 0.85): P
         img.src = url;
     });
 }
+
+// ---- 代表色（ドミナントカラー）の抽出 ----
+// グリッドの読み込みプレースホルダーに使う。写真を小さなキャンバスに描いて
+// ピクセルの平均色を取る（厳密な支配色ではなく「その写真らしい色」で十分）。
+
+/** RGBA ピクセル列の平均色を #rrggbb で返す（透明ピクセルは除外） */
+export function averagePixelsToHex(data: Uint8ClampedArray): string | null {
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let i = 0; i + 3 < data.length; i += 4) {
+        if (data[i + 3] < 32) continue; // ほぼ透明は無視
+        r += data[i]; g += data[i + 1]; b += data[i + 2]; n++;
+    }
+    if (n === 0) return null;
+    const toHex = (v: number) => Math.round(v / n).toString(16).padStart(2, "0");
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+/** 画像ファイルから代表色を抽出する。失敗したら null（アップロードは止めない） */
+export async function extractDominantColor(file: File): Promise<string | null> {
+    try {
+        const url = URL.createObjectURL(file);
+        try {
+            const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+                const el = new Image();
+                el.onload = () => resolve(el);
+                el.onerror = () => reject(new Error("image load failed"));
+                el.src = url;
+            });
+            const size = 16; // 16x16 に縮小して平均を取れば十分
+            const canvas = document.createElement("canvas");
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return null;
+            ctx.drawImage(img, 0, 0, size, size);
+            return averagePixelsToHex(ctx.getImageData(0, 0, size, size).data);
+        } finally {
+            URL.revokeObjectURL(url);
+        }
+    } catch {
+        return null;
+    }
+}

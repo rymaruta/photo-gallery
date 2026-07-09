@@ -9,6 +9,7 @@ import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { geocodePlace, type GeoPoint } from "../../lib/utils/geocode";
 import { haversineKm } from "../../lib/utils/journey";
+import { hapticTap } from "../../lib/utils/haptics";
 import { buildTrips, tripAutoTitle, tripDisplayTitle, type Trip } from "../../lib/utils/trips";
 import SongPlayer from "../components/SongPlayer";
 import { HeartIcon, PlayIcon, StopIcon } from "@heroicons/react/24/solid";
@@ -135,6 +136,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish }: {
             <Link
                 href={ROUTES.PHOTO(photo.id)}
                 className={`absolute inset-0 overflow-hidden bg-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${isHidden ? "opacity-40" : ""}`}
+                style={photo.dominantColor ? { backgroundColor: photo.dominantColor } : undefined}
             >
                 {!imageError ? (
                     <Image
@@ -428,7 +430,10 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         swipeStartRef.current = null;
         if (!s) return;
         const dir = swipeDirection(e.clientX - s.x, e.clientY - s.y);
-        if (dir !== 0) setTab((cur) => stepInList(TAB_ORDER, cur, dir));
+        if (dir !== 0) {
+            hapticTap(8);
+            setTab((cur) => stepInList(TAB_ORDER, cur, dir));
+        }
     }, []);
     // GPSなしでも地図に出す: 場所テキストをおおよその座標にジオコーディングする。
     // 解決結果は場所名ごとに保持（undefined=未解決, null=見つからず）。

@@ -74,6 +74,8 @@ const GalleryItem = React.memo(function GalleryItem({
     onOpen: (index: number) => void;
 }) {
     const [imageError, setImageError] = useState(false);
+    // 代表色プレースホルダー → 読み込み完了でふわっと表示（体感速度の向上）
+    const [imageLoaded, setImageLoaded] = useState(false);
     const { isFavorite } = useFavorites();
     const isFav = isFavorite(photo.id);
     const isPriority = index < 8;
@@ -103,11 +105,12 @@ const GalleryItem = React.memo(function GalleryItem({
                             fill
                             draggable={false}
                             onContextMenu={(e) => e.preventDefault()}
-                            className="object-cover select-none"
+                            className={`object-cover select-none transition-opacity duration-500 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
                             style={{ WebkitTouchCallout: "none", ...(objectPosition ? { objectPosition } : {}) }}
                             sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
                             loading={isPriority ? "eager" : "lazy"}
                             priority={isPriority}
+                            onLoad={() => setImageLoaded(true)}
                             onError={() => setImageError(true)}
                         />
                     ) : (

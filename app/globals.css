@@ -111,8 +111,23 @@ body {
   animation: avatar-orbit 10s linear infinite;
   will-change: transform;
 }
+
+/* ダブルタップいいね: 画面中央でハートが弾けて消える（Instagram風） */
+@keyframes heart-burst {
+  0% { transform: scale(0); opacity: 0; }
+  18% { transform: scale(1.25); opacity: 1; }
+  32% { transform: scale(0.95); }
+  45% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+.heart-burst {
+  animation: heart-burst 850ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .story-media-in { animation: none; }
+  .heart-burst { animation-duration: 300ms; }
   .avatar-orbit { animation: none; }
 }
 

@@ -98,6 +98,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         exif?: Photo["exif"];
         displayName?: string;
         coords?: unknown;
+        dominantColor?: string;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -105,7 +106,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なリクエスト" }) };
     }
 
-    const { key, publicUrl, photoId, title, description, location, category, tags, exif, displayName, coords } = body;
+    const { key, publicUrl, photoId, title, description, location, category, tags, exif, displayName, coords, dominantColor } = body;
     if (!key || !publicUrl) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイル情報が必要です" }) };
     }
@@ -128,6 +129,10 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
 
     const resolvedDisplayName = (displayName?.trim() ?? "").slice(0, 100) || undefined;
     const safeCoords = sanitizeCoords(coords);
+    // 代表色: グリッドのプレースホルダー用。#rrggbb 形式のみ受け付ける
+    const safeDominantColor = typeof dominantColor === "string" && /^#[0-9a-fA-F]{6}$/.test(dominantColor)
+        ? dominantColor.toLowerCase()
+        : undefined;
 
     const photo: Photo = {
         id: photoId ?? uuidv4(),
@@ -139,6 +144,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         tags: Array.isArray(tags) ? tags : [],
         ...(exif && Object.keys(exif).length > 0 ? { exif } : {}),
         ...(safeCoords ? { coords: safeCoords } : {}),
+        ...(safeDominantColor ? { dominantColor: safeDominantColor } : {}),
         ...(resolvedDisplayName ? { displayName: resolvedDisplayName } : {}),
         userId,
         uploadedBy: userId,
