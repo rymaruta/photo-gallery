@@ -11,7 +11,7 @@ import { geocodePlace, type GeoPoint } from "../../lib/utils/geocode";
 import { haversineKm } from "../../lib/utils/journey";
 import { hapticTap } from "../../lib/utils/haptics";
 import { buildTrips, tripAutoTitle, tripDisplayTitle, pickTripCover, type Trip } from "../../lib/utils/trips";
-import SongPlayer from "../components/SongPlayer";
+import MusicCard from "../components/MusicCard";
 import { HeartIcon, PlayIcon, StopIcon, StarIcon } from "@heroicons/react/24/solid";
 import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
 import { themeRingGradient } from "../../lib/utils/color";
@@ -104,56 +104,6 @@ function buildTimeline(photos: Photo[], locale: "ja" | "en"): TimelineGroup[] {
         map.get(key)!.photos.push(p);
     }
     return Array.from(map.values());
-}
-
-// マイBGMプレイリスト。1曲ずつ SongPlayer で再生し、終了で自動的に次へ。
-function PlaylistPlayer({ songs, label, locale }: { songs: SongEntry[]; label: string; locale: string }) {
-    const [index, setIndex] = useState(0);
-    const [autoNext, setAutoNext] = useState(false);
-    const i = Math.min(index, songs.length - 1);
-    const cur = songs[i];
-    const step = (d: number) => {
-        setAutoNext(true);
-        setIndex((v) => (v + d + songs.length) % songs.length);
-    };
-    return (
-        <div className="max-w-md">
-            <SongPlayer
-                key={cur.previewUrl}
-                title={cur.title}
-                artist={cur.artist ?? ""}
-                artwork={cur.artwork}
-                previewUrl={cur.previewUrl}
-                trackUrl={cur.trackUrl}
-                label={songs.length > 1 ? `${label} ${i + 1}/${songs.length}` : label}
-                autoPlay={autoNext}
-                onEnded={() => { if (songs.length > 1) step(1); }}
-            />
-            {songs.length > 1 && (
-                <div className="flex items-center justify-center gap-4 mt-1.5">
-                    <button
-                        onClick={() => step(-1)}
-                        aria-label={locale === "en" ? "Previous song" : "前の曲"}
-                        className="px-3 py-1 rounded-full text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition text-sm"
-                    >
-                        ‹
-                    </button>
-                    <div className="flex items-center gap-1.5">
-                        {songs.map((_, d) => (
-                            <span key={d} className={`w-1.5 h-1.5 rounded-full transition-colors ${d === i ? "bg-white/80" : "bg-white/25"}`} />
-                        ))}
-                    </div>
-                    <button
-                        onClick={() => step(1)}
-                        aria-label={locale === "en" ? "Next song" : "次の曲"}
-                        className="px-3 py-1 rounded-full text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition text-sm"
-                    >
-                        ›
-                    </button>
-                </div>
-            )}
-        </div>
-    );
 }
 
 // ヒーロー背景としてのカバー写真。上部の横長バンドに写真をくっきり表示し、
@@ -430,14 +380,12 @@ function TripCard({ trip, locale, isOwner, onTogglePublish, open, onToggle, cust
                     {(song || (editable && onSetSong)) && (
                         <div className="px-2 pt-2 space-y-2">
                             {song && (
-                                <SongPlayer
+                                <MusicCard
                                     key={song.previewUrl}
-                                    title={song.title}
-                                    artist={song.artist ?? ""}
-                                    artwork={song.artwork}
-                                    previewUrl={song.previewUrl}
-                                    trackUrl={song.trackUrl}
+                                    queueKey={`trip:${trip.id}`}
+                                    songs={[song]}
                                     label={en ? "Trip BGM" : "この旅のBGM"}
+                                    locale={locale}
                                     autoPlay
                                 />
                             )}
@@ -1083,7 +1031,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     {/* マイBGM: プレイリスト（検索曲・最大5曲）優先、URL貼付は埋め込み */}
                     {(userProfile?.songs?.length || (userProfile?.songPreviewUrl && userProfile?.songTitle)) ? (
                         <div className="mt-4">
-                            <PlaylistPlayer
+                            <MusicCard
+                                queueKey={`bgm:${userId}`}
                                 songs={userProfile.songs?.length
                                     ? userProfile.songs
                                     : [{

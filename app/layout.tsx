@@ -11,6 +11,8 @@ import AssetRecovery from "./components/AssetRecovery";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ServiceWorkerRegister from "./components/ServiceWorkerRegister";
 import { AuthProvider } from "./auth/context";
+import { MusicProvider } from "./music/MusicContext";
+import MiniPlayer from "./components/MiniPlayer";
 import { LocaleProvider } from "./i18n/context";
 import { siteConfig, generateWebSiteStructuredData } from "../lib/utils/seo";
 
@@ -107,6 +109,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ToastProvider>
           <LocaleProvider>
             <AuthProvider>
+              <MusicProvider>
               {/* Header: 黒背景に白字のモダンなデザイン */}
               <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-md border-b border-white/10">
                 <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
@@ -132,6 +135,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
               {/* Footer: 公式サイト風の洗練されたデザイン */}
               <Footer />
+
+              {/* グローバル音楽のミニプレイヤー（再生中のみ表示） */}
+              <MiniPlayer />
+              </MusicProvider>
             </AuthProvider>
           </LocaleProvider>
         </ToastProvider>

@@ -6,6 +6,7 @@ import UserAvatar from "../UserAvatar";
 import type { StoryGroup, StoryViewer as ViewerEntry } from "@/lib/stories";
 import { timeAgo } from "@/lib/stories";
 import { log } from "@/lib/utils/log";
+import { useMusic } from "../../music/MusicContext";
 
 const STORY_DURATION_MS = 5000; // 画像の表示時間
 
@@ -31,6 +32,10 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     // ストーリーBGM: 表示中のストーリーに曲が付いていれば再生する。
     // ブラウザの自動再生ポリシーに合わせて既定はミュート（チップかスピーカーで解除）。
     const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    // グローバル音楽（マイBGM等）とは同時に鳴らさない
+    const { stop: stopGlobalMusic } = useMusic();
+    useEffect(() => { stopGlobalMusic(); }, [stopGlobalMusic]);
     const [viewers, setViewers] = useState<ViewerEntry[] | null>(null);
     const [viewersOpen, setViewersOpen] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
