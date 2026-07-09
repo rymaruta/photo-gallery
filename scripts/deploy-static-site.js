@@ -22,20 +22,23 @@ const { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectsCommand }
 const { CloudFrontClient, CreateInvalidationCommand } = require("@aws-sdk/client-cloudfront");
 const { lookup: mimeLookup } = require("mime-types");
 
-// Parse --bucket argument
+// Parse --bucket argument（バリデーションは直接実行時のみ。テストからの
+// require では判定関数だけを使うため process.exit しない）
 const args = process.argv.slice(2);
 const bucketIndex = args.indexOf("--bucket");
-if (bucketIndex === -1 || !args[bucketIndex + 1]) {
-    console.error("Usage: node scripts/deploy-static-site.js --bucket <bucket-name>");
-    process.exit(1);
-}
-const bucket = args[bucketIndex + 1];
+const bucket = bucketIndex !== -1 ? args[bucketIndex + 1] : undefined;
 const root = path.resolve(__dirname, "..");
 const outDir = path.join(root, "out");
 
-if (!fs.existsSync(outDir)) {
-    console.error(`ERROR: out/ directory not found. Run 'npm run build' first.`);
-    process.exit(1);
+if (require.main === module) {
+    if (!bucket) {
+        console.error("Usage: node scripts/deploy-static-site.js --bucket <bucket-name>");
+        process.exit(1);
+    }
+    if (!fs.existsSync(outDir)) {
+        console.error(`ERROR: out/ directory not found. Run 'npm run build' first.`);
+        process.exit(1);
+    }
 }
 
 // photos.json を out/ にコピー（Lambda が S3 から読む用）
@@ -113,23 +116,31 @@ async function listS3Objects() {
 // 旧ハッシュ名の JS/CSS を参照し続けるため、即削除するとその HTML を持つ
 // 端末で JS が 404 になり「表示はされるが一切タップできない」状態になる。
 // HTML は no-cache なので即削除してよいが、アセットは猶予期間だけ残す。
-const ASSET_GRACE_MS = 7 * 24 * 60 * 60 * 1000; // 7日
+const ASSET_GRACE_MS = 30 * 24 * 60 * 60 * 1000; // 30日（コスト僅少・安全側に倒す）
 
-async function deleteStaleKeys(localKeys, remoteObjects) {
+// 削除対象の判定（純関数・テスト対象）。
+// - 今回のビルドに含まれるキーは絶対に削除しない
+// - ビルドに無い HTML/txt は即削除（HTML は no-store 配信のため安全）
+// - ビルドに無いアセットは猶予期間内なら保持（古い HTML を持つ端末の 404 防止）
+function classifyStaleObjects(localKeys, remoteObjects, now, graceMs) {
     const localSet = new Set(localKeys.map(k => k.split(path.sep).join("/")));
-    const now = Date.now();
     const toDelete = [];
     let kept = 0;
     for (const obj of remoteObjects) {
         if (localSet.has(obj.key)) continue;
         const isHtml = isHtmlOrTxt(obj.key);
         const age = obj.lastModified ? now - obj.lastModified.getTime() : Infinity;
-        if (isHtml || age > ASSET_GRACE_MS) {
+        if (isHtml || age > graceMs) {
             toDelete.push(obj.key);
         } else {
             kept++;
         }
     }
+    return { toDelete, kept };
+}
+
+async function deleteStaleKeys(localKeys, remoteObjects) {
+    const { toDelete, kept } = classifyStaleObjects(localKeys, remoteObjects, Date.now(), ASSET_GRACE_MS);
     if (kept > 0) console.log(`[deploy] Keeping ${kept} stale asset(s) within ${ASSET_GRACE_MS / 86400000}-day grace period.`);
     if (toDelete.length === 0) return;
     // DeleteObjects accepts up to 1000 keys at a time
@@ -185,7 +196,10 @@ async function main() {
     console.log("\n[deploy] Done.\n");
 }
 
-main().catch(err => {
+// テストから判定ロジックを検証できるようにエクスポート
+module.exports = { classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS };
+
+if (require.main === module) main().catch(err => {
     console.error("[deploy] ERROR:", err.message ?? err);
     process.exit(1);
 });

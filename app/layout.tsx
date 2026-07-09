@@ -7,6 +7,7 @@ import HeaderNav from "./components/HeaderNav";
 import Footer from "./components/Footer";
 import ToastProvider from "./components/ToastProvider";
 import DisableSave from "./components/DisableSave";
+import AssetRecovery from "./components/AssetRecovery";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ServiceWorkerRegister from "./components/ServiceWorkerRegister";
 import { AuthProvider } from "./auth/context";
@@ -100,6 +101,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${inter.className} min-h-screen flex flex-col bg-black text-white`}>
         <DisableSave />
+        <AssetRecovery />
         <ErrorBoundary>
         <ServiceWorkerRegister />
         <ToastProvider>
