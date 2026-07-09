@@ -438,6 +438,7 @@ function TripCard({ trip, locale, isOwner, onTogglePublish, open, onToggle, cust
                                     previewUrl={song.previewUrl}
                                     trackUrl={song.trackUrl}
                                     label={en ? "Trip BGM" : "この旅のBGM"}
+                                    autoPlay
                                 />
                             )}
                             {editable && onSetSong && (

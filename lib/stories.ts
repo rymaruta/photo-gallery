@@ -7,6 +7,8 @@ export type Story = {
     displayName?: string;
     mediaType?: "image" | "video";
     caption?: string;
+    /** ストーリーBGM（30秒プレビュー）。付いていると視聴中に再生できる */
+    song?: { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string };
     createdAt: string;
     expiresAt: string;
 };

@@ -95,7 +95,7 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証が必要です" }) };
     }
 
-    let body: { publicUrl?: string; key?: string; displayName?: string; caption?: string; mediaType?: string };
+    let body: { publicUrl?: string; key?: string; displayName?: string; caption?: string; mediaType?: string; song?: unknown };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
     } catch {
@@ -120,6 +120,30 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     const caption = (body.caption ?? "").trim().slice(0, 200) || undefined;
     const displayName = (body.displayName ?? "").trim().slice(0, 100) || undefined;
 
+    // ストーリーBGM: title + https の previewUrl 必須（30秒プレビュー）
+    let song: { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string } | undefined;
+    if (body.song && typeof body.song === "object" && !Array.isArray(body.song)) {
+        const o = body.song as Record<string, unknown>;
+        const httpsOnly = (v: unknown, max: number): string | undefined => {
+            const t = typeof v === "string" ? v.trim().slice(0, max) : "";
+            return t && /^https:\/\//.test(t) ? t : undefined;
+        };
+        const previewUrl = httpsOnly(o.previewUrl, 500);
+        const title = typeof o.title === "string" ? o.title.trim().slice(0, 200) : "";
+        if (previewUrl && title) {
+            const artist = typeof o.artist === "string" ? o.artist.trim().slice(0, 200) : "";
+            const artwork = httpsOnly(o.artwork, 500);
+            const trackUrl = httpsOnly(o.trackUrl, 500);
+            song = {
+                title,
+                previewUrl,
+                ...(artist ? { artist } : {}),
+                ...(artwork ? { artwork } : {}),
+                ...(trackUrl ? { trackUrl } : {}),
+            };
+        }
+    }
+
     // 1日の投稿上限チェック（スパム防止）
     try {
         if (await countRecentStories(userId) >= STORY_DAILY_LIMIT) {
@@ -138,6 +162,7 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         ...(key ? { key } : {}), // 期限切れ削除時に S3 オブジェクトを消すために保持
         mediaType,
         ...(caption ? { caption } : {}),
+        ...(song ? { song } : {}),
         userId,
         ...(displayName ? { displayName } : {}),
         createdAt: new Date(now).toISOString(),

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
 import UserAvatar from "../UserAvatar";
 import type { StoryGroup, StoryViewer as ViewerEntry } from "@/lib/stories";
 import { timeAgo } from "@/lib/stories";
@@ -27,6 +27,10 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const [progress, setProgress] = useState(0); // 0-100
     const [paused, setPaused] = useState(false);
     const [muted, setMuted] = useState(true);
+
+    // ストーリーBGM: 表示中のストーリーに曲が付いていれば再生する。
+    // ブラウザの自動再生ポリシーに合わせて既定はミュート（チップかスピーカーで解除）。
+    const audioRef = useRef<HTMLAudioElement | null>(null);
     const [viewers, setViewers] = useState<ViewerEntry[] | null>(null);
     const [viewersOpen, setViewersOpen] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -118,6 +122,22 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         else void v.play()?.catch?.(() => { /* 自動再生ブロック等は無視 */ });
     }, [frozen, item]);
 
+    // ストーリーBGM: 曲つきストーリーの表示中だけ再生（frozenで一時停止）
+    useEffect(() => {
+        const a = audioRef.current;
+        if (!a) return;
+        if (!item?.song || frozen) {
+            a.pause();
+            return;
+        }
+        void a.play().catch(() => { /* 自動再生ブロック等は無視 */ });
+    }, [frozen, item]);
+
+    // muted は React の属性反映が不安定なため直接同期する
+    useEffect(() => {
+        if (audioRef.current) audioRef.current.muted = muted;
+    }, [muted, item]);
+
     const handleDelete = useCallback(async () => {
         if (!item || !onDelete) return;
         setDeleting(true);
@@ -204,8 +224,37 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 />
             )}
 
+            {/* ストーリーBGM音源（表示中のストーリーに追従） */}
+            {item.song && (
+                <audio key={`audio-${item.id}`} ref={audioRef} src={item.song.previewUrl} loop muted preload="auto" />
+            )}
+
             {/* 下部スクリム（キャプション・閲覧者ピルの視認性を上げる） */}
             <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+
+            {/* 曲クレジット（タップで音を出す/消す） */}
+            {item.song && (
+                <div className="absolute inset-x-0 bottom-36 px-6 flex justify-center z-20">
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
+                        className="inline-flex items-center gap-1.5 max-w-[80vw] px-3.5 py-1.5 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/15 text-white/90 text-xs active:scale-95 transition"
+                        style={{ touchAction: "manipulation" }}
+                        aria-label={muted ? (locale === "en" ? "Turn sound on" : "音を出す") : (locale === "en" ? "Mute" : "ミュート")}
+                    >
+                        {muted
+                            ? <SpeakerXMarkIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/60" />
+                            : <MusicalNoteIcon className="w-3.5 h-3.5 flex-shrink-0 text-fuchsia-300" />}
+                        <span className="truncate">
+                            {item.song.title}{item.song.artist ? ` — ${item.song.artist}` : ""}
+                        </span>
+                        {muted && (
+                            <span className="text-[10px] text-white/50 flex-shrink-0">
+                                {locale === "en" ? "Tap for sound" : "タップで再生"}
+                            </span>
+                        )}
+                    </button>
+                </div>
+            )}
 
             {/* キャプション */}
             {item.caption && (
@@ -262,7 +311,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
 
             {/* 閉じる / ミュート切り替え */}
             <div className="absolute top-3 right-2 z-20 flex items-center gap-1" style={{ marginTop: "env(safe-area-inset-top, 0px)" }}>
-                {isVideo && (
+                {(isVideo || item.song) && (
                     <button
                         onClick={() => setMuted((m) => !m)}
                         aria-label={muted ? (locale === "en" ? "Unmute" : "ミュート解除") : (locale === "en" ? "Mute" : "ミュート")}

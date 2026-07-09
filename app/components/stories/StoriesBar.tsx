@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, XMarkIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
 import UserAvatar from "../UserAvatar";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { compressImage, stripJpegExif } from "../../../lib/utils/image";
+import { searchSongs, type SongResult } from "../../../lib/utils/music";
 import { log } from "../../../lib/utils/log";
 import {
     groupStories, hasUnseen, loadSeenStoryIds, markStorySeen,
@@ -58,6 +59,24 @@ export default function StoriesBar() {
     const [posting, setPosting] = useState(false);
     const [draft, setDraft] = useState<Draft | null>(null);
     const [caption, setCaption] = useState("");
+    // ストーリーBGM（任意・1曲）
+    const [draftSong, setDraftSong] = useState<SongResult | null>(null);
+    const [songPickerOpen, setSongPickerOpen] = useState(false);
+    const [songQuery, setSongQuery] = useState("");
+    const [songResults, setSongResults] = useState<SongResult[]>([]);
+    const [songSearching, setSongSearching] = useState(false);
+    const searchDraftSongs = async () => {
+        const q = songQuery.trim();
+        if (!q) return;
+        setSongSearching(true);
+        try {
+            setSongResults(await searchSongs(q));
+        } catch {
+            setSongResults([]);
+        } finally {
+            setSongSearching(false);
+        }
+    };
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const loadStories = useCallback(async () => {
@@ -99,6 +118,10 @@ export default function StoriesBar() {
         if (draft) { try { URL.revokeObjectURL(draft.previewUrl); } catch { /* ignore */ } }
         setDraft(null);
         setCaption("");
+        setDraftSong(null);
+        setSongPickerOpen(false);
+        setSongQuery("");
+        setSongResults([]);
     }, [draft]);
 
     // ファイル選択 → 検証 → 投稿プレビューを開く
@@ -178,6 +201,7 @@ export default function StoriesBar() {
                     ...(key ? { key } : {}),
                     mediaType: draft.mediaType,
                     ...(caption.trim() ? { caption: caption.trim() } : {}),
+                    ...(draftSong ? { song: { title: draftSong.title, artist: draftSong.artist, artwork: draftSong.artwork, previewUrl: draftSong.previewUrl, trackUrl: draftSong.trackUrl } } : {}),
                     ...(displayName ? { displayName } : {}),
                 }),
             });
@@ -200,7 +224,7 @@ export default function StoriesBar() {
         } finally {
             setPosting(false);
         }
-    }, [draft, caption, locale, showToast, loadStories, closeDraft]);
+    }, [draft, caption, draftSong, locale, showToast, loadStories, closeDraft]);
 
     // 自分のストーリーを削除
     const handleDeleteStory = useCallback(async (storyId: string) => {
@@ -318,6 +342,76 @@ export default function StoriesBar() {
                             className="w-full px-4 py-3 bg-white/10 rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-white/15"
                             style={{ fontSize: "16px" }}
                         />
+
+                        {/* ストーリーBGM（任意） */}
+                        {draftSong ? (
+                            <div className="flex items-center gap-2.5 rounded-full bg-white/10 pl-2 pr-3 py-1.5">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={draftSong.artwork} alt="" className="w-8 h-8 rounded-full object-cover bg-white/10 flex-shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs text-white truncate">🎵 {draftSong.title}</p>
+                                    <p className="text-[11px] text-white/50 truncate">{draftSong.artist}</p>
+                                </div>
+                                <button onClick={() => setDraftSong(null)} disabled={posting} className="p-1 text-white/50 hover:text-white active:scale-90 transition" aria-label={locale === "en" ? "Remove song" : "曲を外す"}>
+                                    <XMarkIcon className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ) : songPickerOpen ? (
+                            <div className="rounded-2xl bg-white/10 p-2.5 space-y-2">
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={songQuery}
+                                        onChange={(e) => setSongQuery(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void searchDraftSongs(); } }}
+                                        placeholder={locale === "en" ? "Song or artist" : "曲名・アーティスト名"}
+                                        autoFocus
+                                        className="flex-1 min-w-0 px-3 py-2 bg-white/10 rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-white/15"
+                                        style={{ fontSize: "16px" }}
+                                    />
+                                    <button onClick={() => void searchDraftSongs()} disabled={songSearching || !songQuery.trim()}
+                                        className="px-3.5 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 transition text-xs text-white disabled:opacity-40 min-w-[56px]">
+                                        {songSearching
+                                            ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" />
+                                            : (locale === "en" ? "Search" : "検索")}
+                                    </button>
+                                    <button onClick={() => { setSongPickerOpen(false); setSongResults([]); setSongQuery(""); }}
+                                        className="px-2 text-xs text-white/50 hover:text-white/80 active:scale-95 transition">
+                                        {locale === "en" ? "Cancel" : "閉じる"}
+                                    </button>
+                                </div>
+                                {songResults.length > 0 && (
+                                    <ul className="rounded-xl bg-black/40 divide-y divide-white/5 overflow-hidden max-h-44 overflow-y-auto no-scrollbar">
+                                        {songResults.map((r) => (
+                                            <li key={r.id}>
+                                                <button
+                                                    onClick={() => { setDraftSong(r); setSongPickerOpen(false); setSongResults([]); setSongQuery(""); }}
+                                                    className="w-full flex items-center gap-2.5 p-2 hover:bg-white/10 active:bg-white/15 transition text-left"
+                                                >
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img src={r.artwork} alt="" loading="lazy" className="w-8 h-8 rounded object-cover bg-white/10 flex-shrink-0" />
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-xs text-white truncate">{r.title}</p>
+                                                        <p className="text-[11px] text-white/50 truncate">{r.artist}</p>
+                                                    </div>
+                                                    <span className="text-[11px] text-white/40 flex-shrink-0">{locale === "en" ? "Set" : "設定"}</span>
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => setSongPickerOpen(true)}
+                                disabled={posting}
+                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/10 hover:bg-white/15 text-white/80 text-xs active:scale-95 transition"
+                            >
+                                <MusicalNoteIcon className="w-4 h-4 text-fuchsia-300" />
+                                {locale === "en" ? "Add music" : "曲を付ける"}
+                            </button>
+                        )}
+
                         <button
                             onClick={() => void handlePost()}
                             disabled={posting}
