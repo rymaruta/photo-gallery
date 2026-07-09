@@ -55,7 +55,11 @@ const MapView = dynamic(() => import("../components/MapView"), {
 });
 
 type TabKey = "posts" | "trips" | "map" | "timeline";
-const TAB_ORDER: TabKey[] = ["posts", "trips", "map", "timeline"];
+// 足あと（地図）タブは一旦非表示。戻すときはこのフラグを true にするだけ。
+const SHOW_MAP_TAB = false;
+const TAB_ORDER: TabKey[] = SHOW_MAP_TAB
+    ? ["posts", "trips", "map", "timeline"]
+    : ["posts", "trips", "timeline"];
 
 // 写真を「YYYY年 / M月」で時系列グループ化（撮影日 date 優先、なければ createdAt）
 type TimelineGroup = { key: string; year: string; label: string; photos: Photo[] };
@@ -448,6 +452,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     }, [visiblePhotos]);
 
     useEffect(() => {
+        if (!SHOW_MAP_TAB) return; // 足あとタブ非表示中は外部ジオコーディングを行わない
         let alive = true;
         void (async () => {
             for (const name of pendingGeoNames) {
@@ -840,13 +845,13 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             {/* コンテンツ（黒背景）: 投稿 / 足あとマップ / タイムライン */}
             <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
                 {/* タブバー */}
-                <div className="grid grid-cols-4 border-t border-white/10 mb-1">
+                <div className={`grid ${TAB_ORDER.length === 4 ? "grid-cols-4" : "grid-cols-3"} border-t border-white/10 mb-1`}>
                     {([
                         { key: "posts", icon: Squares2X2Icon, label: locale === "en" ? "Posts" : "投稿" },
                         { key: "trips", icon: RectangleStackIcon, label: locale === "en" ? "Trips" : "旅" },
                         { key: "map", icon: MapPinIcon, label: locale === "en" ? "Map" : "足あと" },
                         { key: "timeline", icon: CalendarDaysIcon, label: locale === "en" ? "Timeline" : "年表" },
-                    ] as const).map(({ key, icon: Icon, label }) => {
+                    ] as const).filter(({ key }) => (TAB_ORDER as string[]).includes(key)).map(({ key, icon: Icon, label }) => {
                         const active = tab === key;
                         return (
                             <button

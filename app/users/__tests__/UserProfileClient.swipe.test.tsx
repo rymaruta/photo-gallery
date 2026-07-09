@@ -41,12 +41,17 @@ describe("UserProfileClient - タブの横スワイプ（タッチ操作の保�
         expect(activeTab()).toContain("Posts");
     });
 
-    it("左スワイプで 投稿 → 旅 → 足あと と順に切り替わる", () => {
+    it("足あとタブは非表示（SHOW_MAP_TAB=false の間）", () => {
+        render(<UserProfileClient userId="nobody" />);
+        expect(screen.queryByRole("button", { name: /Map/ })).toBeNull();
+    });
+
+    it("左スワイプで 投稿 → 旅 → 年表 と順に切り替わる", () => {
         render(<UserProfileClient userId="nobody" />);
         swipe("left");
         expect(activeTab()).toContain("Trips");
         swipe("left");
-        expect(activeTab()).toContain("Map");
+        expect(activeTab()).toContain("Timeline");
     });
 
     it("左端で右スワイプしてもクランプされ、投稿のまま", () => {
@@ -55,12 +60,19 @@ describe("UserProfileClient - タブの横スワイプ（タッチ操作の保�
         expect(activeTab()).toContain("Posts");
     });
 
-    it("年表タブから右スワイプで 足あと に戻る（前方向スワイプ）", () => {
+    it("年表タブから右スワイプで 旅 に戻る（前方向スワイプ）", () => {
         render(<UserProfileClient userId="nobody" />);
         fireEvent.click(tabButton("Timeline"));
         expect(activeTab()).toContain("Timeline");
         swipe("right");
-        expect(activeTab()).toContain("Map");
+        expect(activeTab()).toContain("Trips");
+    });
+
+    it("右端（年表）で左スワイプしてもクランプされる", () => {
+        render(<UserProfileClient userId="nobody" />);
+        fireEvent.click(tabButton("Timeline"));
+        swipe("left");
+        expect(activeTab()).toContain("Timeline");
     });
 
     it("縦方向の動きではタブが変わらない（縦スクロールを奪わない）", () => {
@@ -69,33 +81,5 @@ describe("UserProfileClient - タブの横スワイプ（タッチ操作の保�
         fireEvent.pointerDown(area, { clientX: 100, clientY: 60 });
         fireEvent.pointerUp(area, { clientX: 108, clientY: 320 }); // 主に縦移動
         expect(activeTab()).toContain("Posts");
-    });
-
-    it("足あとタブ（地図が空）でも左右スワイプでタブを切り替えられる", () => {
-        render(<UserProfileClient userId="nobody" />);
-        fireEvent.click(tabButton("Map")); // 足あとへ（このユーザーはGPS写真なし＝空状態）
-        expect(activeTab()).toContain("Map");
-        swipe("right"); // map -> trips に戻れること（スクショで報告された不具合の回帰ガード）
-        expect(activeTab()).toContain("Trips");
-        swipe("left");
-        swipe("left"); // trips -> map -> timeline
-        expect(activeTab()).toContain("Timeline");
-    });
-
-    it("Leaflet 地図の中で始まった操作はタブ切替に使わない（地図のパンを優先）", () => {
-        render(<UserProfileClient userId="nobody" />);
-        fireEvent.click(tabButton("Map"));
-        expect(activeTab()).toContain("Map");
-        // 地図(leaflet-container)内で始まるドラッグではタブが変わらない
-        const map = document.querySelector(".leaflet-container");
-        if (map) {
-            fireEvent.pointerDown(map, { clientX: 240, clientY: 100 });
-            fireEvent.pointerUp(screen.getByTestId("tab-swipe-area"), { clientX: 60, clientY: 108 });
-            expect(activeTab()).toContain("Map");
-        } else {
-            // GPS写真ゼロのため地図は空状態（leaflet無し）。除外ロジックは
-            // onTabPointerDown の closest(".leaflet-container") で担保される。
-            expect(activeTab()).toContain("Map");
-        }
     });
 });
