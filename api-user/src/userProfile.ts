@@ -27,6 +27,8 @@ export type UserProfile = {
     songTrackUrl?: string;
     // 旅アルバムのカスタム名（trip-<epoch> → タイトル）。未設定の旅は自動タイトル。
     tripTitles?: Record<string, string>;
+    // 旅アルバムのカバー写真（trip-<epoch> → photoId）。未設定は先頭の写真。
+    tripCovers?: Record<string, string>;
     // マイページのパーソナライズ
     themeColor?: string;          // #rrggbb（アバターリング等のアクセント色）
     statusText?: string;          // 名前の下に出る「ひとこと」（絵文字OK・60文字）
@@ -62,6 +64,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         songUrl?: string; songStart?: number; songEnd?: number;
         songTitle?: string; songArtist?: string; songArtwork?: string; songPreviewUrl?: string; songTrackUrl?: string;
         tripTitles?: Record<string, string>;
+        tripCovers?: Record<string, string>;
         themeColor?: string; statusText?: string; pinnedPhotoIds?: string[];
     };
     try {
@@ -109,15 +112,17 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         if (uniq.length > 0) pinnedPhotoIds = uniq;
     }
 
-    // 旅アルバムのカスタム名: キーは trip-<epoch> 形式のみ・最大100件・各80文字
-    let tripTitles: Record<string, string> | undefined;
-    if (body.tripTitles && typeof body.tripTitles === "object" && !Array.isArray(body.tripTitles)) {
-        const entries = Object.entries(body.tripTitles)
-            .filter(([k, v]) => /^trip-\d+$/.test(k) && typeof v === "string" && v.trim())
+    // 旅アルバムのカスタム名/カバー: キーは trip-<epoch> 形式のみ・最大100件
+    const sanitizeTripMap = (input: unknown, maxLen: number): Record<string, string> | undefined => {
+        if (!input || typeof input !== "object" || Array.isArray(input)) return undefined;
+        const entries = Object.entries(input as Record<string, unknown>)
+            .filter(([k, v]) => /^trip-\d+$/.test(k) && typeof v === "string" && (v as string).trim())
             .slice(0, 100)
-            .map(([k, v]) => [k, (v as string).trim().slice(0, 80)] as const);
-        if (entries.length > 0) tripTitles = Object.fromEntries(entries);
-    }
+            .map(([k, v]) => [k, (v as string).trim().slice(0, maxLen)] as const);
+        return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+    };
+    const tripTitles = sanitizeTripMap(body.tripTitles, 80);
+    const tripCovers = sanitizeTripMap(body.tripCovers, 64);
 
     const profile: UserProfile = {
         userId,
@@ -136,6 +141,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         ...(songArtist ? { songArtist } : {}),
         ...(songTrackUrl ? { songTrackUrl } : {}),
         ...(tripTitles ? { tripTitles } : {}),
+        ...(tripCovers ? { tripCovers } : {}),
         ...(themeColor ? { themeColor } : {}),
         ...(statusText ? { statusText } : {}),
         ...(pinnedPhotoIds ? { pinnedPhotoIds } : {}),

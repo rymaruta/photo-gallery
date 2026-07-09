@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildTrips, tripAutoTitle, tripDisplayTitle } from "../trips";
+import { buildTrips, tripAutoTitle, tripDisplayTitle, pickTripCover } from "../trips";
 import type { Photo } from "@/lib/data/photos";
 
 function photo(id: string, date: string, extra: Partial<Photo> = {}): Photo {
@@ -89,5 +89,19 @@ describe("tripAutoTitle / tripDisplayTitle", () => {
         expect(tripDisplayTitle(base, { "trip-1": "   " }, "ja")).toBe("京都・大阪の旅");
         expect(tripDisplayTitle(base, undefined, "ja")).toBe("京都・大阪の旅");
         expect(tripDisplayTitle(base, { "trip-999": "別の旅" }, "ja")).toBe("京都・大阪の旅");
+    });
+});
+
+describe("pickTripCover", () => {
+    const photos = [
+        { id: "a", src: "/a.jpg" },
+        { id: "b", src: "/b.jpg" },
+    ] as never[];
+    it("カバー指定があればその写真", () => {
+        expect(pickTripCover({ photos } as never, "b")).toMatchObject({ id: "b" });
+    });
+    it("指定なし・不一致なら先頭の写真", () => {
+        expect(pickTripCover({ photos } as never, undefined)).toMatchObject({ id: "a" });
+        expect(pickTripCover({ photos } as never, "zzz")).toMatchObject({ id: "a" });
     });
 });

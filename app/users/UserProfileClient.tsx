@@ -4,13 +4,13 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from "react"
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, RectangleStackIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, RectangleStackIcon, QrCodeIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { geocodePlace, type GeoPoint } from "../../lib/utils/geocode";
 import { haversineKm } from "../../lib/utils/journey";
 import { hapticTap } from "../../lib/utils/haptics";
-import { buildTrips, tripAutoTitle, tripDisplayTitle, type Trip } from "../../lib/utils/trips";
+import { buildTrips, tripAutoTitle, tripDisplayTitle, pickTripCover, type Trip } from "../../lib/utils/trips";
 import SongPlayer from "../components/SongPlayer";
 import { HeartIcon, PlayIcon, StopIcon, StarIcon } from "@heroicons/react/24/solid";
 import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
@@ -42,6 +42,7 @@ type UserProfile = {
     songPreviewUrl?: string;
     songTrackUrl?: string;
     tripTitles?: Record<string, string>;
+    tripCovers?: Record<string, string>;
     themeColor?: string;
     statusText?: string;
     pinnedPhotoIds?: string[];
@@ -128,13 +129,15 @@ function CoverBackground({ userId }: { userId: string }) {
     );
 }
 
-function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, onTogglePin }: {
+function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, onTogglePin, coverSelected = false, onSetCover }: {
     photo: Photo;
     locale: string;
     isOwner: boolean;
     onTogglePublish?: (id: string, published: boolean) => void;
     pinned?: boolean;
     onTogglePin?: (id: string, pin: boolean) => void;
+    coverSelected?: boolean;
+    onSetCover?: (id: string) => void;
 }) {
     const [imageError, setImageError] = useState(false);
     const title = getLocalized(photo.title, locale as "ja" | "en") || (typeof photo.title === "string" ? photo.title : "");
@@ -209,6 +212,23 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                 </button>
             )}
 
+            {/* 旅アルバムのカバー選択（オーナーのみ・右下） */}
+            {isOwner && onSetCover && (
+                <button
+                    onClick={(e) => { e.preventDefault(); onSetCover(photo.id); }}
+                    className={`absolute bottom-1.5 right-1.5 p-1.5 rounded-full transition-colors z-10 ${
+                        coverSelected
+                            ? "bg-sky-400/90 text-black"
+                            : "bg-black/0 text-white/0 hover:bg-black/60 hover:text-white/80"
+                    }`}
+                    title={coverSelected
+                        ? (locale === "en" ? "Cover (tap to reset)" : "カバー中（タップで自動に戻す）")
+                        : (locale === "en" ? "Use as cover" : "この写真をカバーにする")}
+                >
+                    <PhotoStackIcon className="w-4 h-4" />
+                </button>
+            )}
+
             {/* 非公開バッジ */}
             {isOwner && isHidden && (
                 <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-black/80 rounded text-xs text-white/70 pointer-events-none">
@@ -221,7 +241,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
 
 // 旅アルバムのカード。カバー写真 + タイトル + 期間/枚数/距離。タップで写真を展開。
 // オーナーは展開時に旅の名前を編集できる（カスタム名はプロフィールに保存され全員に見える）。
-function TripCard({ trip, locale, isOwner, onTogglePublish, open, onToggle, customTitle, onRename }: {
+function TripCard({ trip, locale, isOwner, onTogglePublish, open, onToggle, customTitle, onRename, coverId, onSetCover }: {
     trip: Trip;
     locale: string;
     isOwner: boolean;
@@ -230,9 +250,11 @@ function TripCard({ trip, locale, isOwner, onTogglePublish, open, onToggle, cust
     onToggle: () => void;
     customTitle?: string;
     onRename?: (title: string | null) => void;
+    coverId?: string;
+    onSetCover?: (photoId: string) => void;
 }) {
     const en = locale === "en";
-    const cover = trip.photos[0];
+    const cover = pickTripCover(trip, coverId);
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState("");
 
@@ -326,7 +348,15 @@ function TripCard({ trip, locale, isOwner, onTogglePublish, open, onToggle, cust
                     )}
                     <div className="grid grid-cols-3 gap-1 p-1 pt-2">
                         {trip.photos.map((photo) => (
-                            <PhotoCard key={photo.id} photo={photo} locale={locale} isOwner={isOwner} onTogglePublish={onTogglePublish} />
+                            <PhotoCard
+                                key={photo.id}
+                                photo={photo}
+                                locale={locale}
+                                isOwner={isOwner}
+                                onTogglePublish={onTogglePublish}
+                                coverSelected={photo.id === cover.id}
+                                onSetCover={editable && onSetCover ? onSetCover : undefined}
+                            />
                         ))}
                     </div>
                 </>
@@ -418,6 +448,9 @@ export default function UserProfileClient({ userId }: { userId: string }) {
 
     const [tab, setTab] = useState<TabKey>("posts");
     const [shareOpen, setShareOpen] = useState(false);
+    // プロフィールQRコード（対面共有用）
+    const [qrOpen, setQrOpen] = useState(false);
+    const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
     const [showAllPlaces, setShowAllPlaces] = useState(false);
     const [mvOpen, setMvOpen] = useState(false);
 
@@ -534,6 +567,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     songPreviewUrl: base.songPreviewUrl,
                     songTrackUrl: base.songTrackUrl,
                     tripTitles: base.tripTitles,
+                    tripCovers: base.tripCovers,
                     themeColor: base.themeColor,
                     statusText: base.statusText,
                     pinnedPhotoIds: base.pinnedPhotoIds,
@@ -555,6 +589,20 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         if (title) next[tripId] = title; else delete next[tripId];
         await saveProfilePatch({ tripTitles: next }, locale === "en" ? "Trip name saved" : "旅の名前を保存しました");
     }, [userProfile?.tripTitles, saveProfilePatch, locale]);
+
+    // 旅アルバムのカバー写真（同じ写真をもう一度選ぶと自動に戻る）
+    const tripCovers = userProfile?.tripCovers;
+    const setTripCover = useCallback(async (tripId: string, photoId: string) => {
+        const next = { ...(userProfile?.tripCovers ?? {}) };
+        const reset = next[tripId] === photoId;
+        if (reset) delete next[tripId]; else next[tripId] = photoId;
+        await saveProfilePatch(
+            { tripCovers: next },
+            reset
+                ? (locale === "en" ? "Cover reset to auto" : "カバーを自動に戻しました")
+                : (locale === "en" ? "Cover updated 🖼" : "カバーを設定しました 🖼"),
+        );
+    }, [userProfile?.tripCovers, saveProfilePatch, locale]);
 
     // ピン留め（投稿タブ先頭に固定・最大3枚・全員に見える）
     const pinnedPhotoIds = useMemo(() => userProfile?.pinnedPhotoIds ?? [], [userProfile?.pinnedPhotoIds]);
@@ -736,6 +784,24 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                         >
                                             <ChatBubbleOvalLeftIcon className="w-[18px] h-[18px] text-emerald-400/80" />
                                             {locale === "en" ? "Share on LINE" : "LINEで共有"}
+                                        </button>
+                                        <button
+                                            role="menuitem"
+                                            onClick={() => {
+                                                setShareOpen(false);
+                                                setQrOpen(true);
+                                                if (!qrDataUrl) {
+                                                    void import("qrcode").then((QRCode) =>
+                                                        QRCode.toDataURL(shareUrl, { width: 512, margin: 1 })
+                                                            .then(setQrDataUrl)
+                                                            .catch(() => { /* 生成失敗時はスピナーのまま */ }),
+                                                    );
+                                                }
+                                            }}
+                                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white/85 hover:bg-white/10 active:bg-white/15 transition text-left border-t border-white/5"
+                                        >
+                                            <QrCodeIcon className="w-[18px] h-[18px] text-white/50" />
+                                            {locale === "en" ? "QR code" : "QRコードを表示"}
                                         </button>
                                     </div>
                                 </>
@@ -1004,6 +1070,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                         onToggle={() => setOpenTripId((cur) => (cur === trip.id ? null : trip.id))}
                                         customTitle={tripTitles?.[trip.id]}
                                         onRename={isOwner ? (title) => void renameTrip(trip.id, title) : undefined}
+                                        coverId={tripCovers?.[trip.id]}
+                                        onSetCover={isOwner ? (photoId) => void setTripCover(trip.id, photoId) : undefined}
                                     />
                                 ))}
                             </div>
@@ -1150,6 +1218,43 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 )}
                 </div>
             </div>
+
+            {/* プロフィールQRコード */}
+            {qrOpen && (
+                <div
+                    className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm px-6"
+                    onClick={() => setQrOpen(false)}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={locale === "en" ? "Profile QR code" : "プロフィールQRコード"}
+                >
+                    <div
+                        className="w-full max-w-[300px] rounded-3xl bg-white p-6 text-center shadow-2xl story-media-in"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {qrDataUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={qrDataUrl} alt="QR" className="w-full rounded-xl" />
+                        ) : (
+                            <div className="aspect-square flex items-center justify-center">
+                                <div className="w-8 h-8 border-2 border-black/20 border-t-black/60 rounded-full animate-spin" />
+                            </div>
+                        )}
+                        <p className="mt-3 text-sm font-bold text-black truncate">
+                            {displayName ?? (locale === "en" ? "Profile" : "プロフィール")}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-black/50">
+                            {locale === "en" ? "Scan to open this profile" : "スキャンしてプロフィールを開く"}
+                        </p>
+                        <button
+                            onClick={() => setQrOpen(false)}
+                            className="mt-4 w-full py-2.5 rounded-full bg-black text-white text-sm font-semibold active:scale-[0.98] transition"
+                        >
+                            {locale === "en" ? "Close" : "閉じる"}
+                        </button>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }

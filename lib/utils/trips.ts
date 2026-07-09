@@ -31,6 +31,11 @@ export function tripAutoTitle(trip: Pick<Trip, "places" | "start">, locale: "ja"
         : `${d.getFullYear()}年${d.getMonth() + 1}月の旅`;
 }
 
+/** 旅アルバムのカバー写真。オーナーが選んだ写真があればそれ、無ければ先頭の写真。 */
+export function pickTripCover(trip: Pick<Trip, "photos">, coverId?: string): Photo {
+    return trip.photos.find((p) => p.id === coverId) ?? trip.photos[0];
+}
+
 /** 表示タイトル。オーナーが付けたカスタム名があればそれを優先する。 */
 export function tripDisplayTitle(
     trip: Pick<Trip, "id" | "places" | "start">,

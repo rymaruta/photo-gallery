@@ -27,6 +27,7 @@ type UserProfile = {
     songPreviewUrl?: string;
     songTrackUrl?: string;
     tripTitles?: Record<string, string>;
+    tripCovers?: Record<string, string>;
     themeColor?: string;
     statusText?: string;
     pinnedPhotoIds?: string[];
@@ -266,6 +267,7 @@ export default function ProfileEditPage() {
                     ...songPayload,
                     // PUT は全置換のため、このページで編集しない項目も送り返す
                     tripTitles: profile?.tripTitles,
+                    tripCovers: profile?.tripCovers,
                     pinnedPhotoIds: profile?.pinnedPhotoIds,
                 }),
             });
