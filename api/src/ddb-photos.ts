@@ -19,8 +19,11 @@ export async function listPhotos(): Promise<Photo[]> {
         const res = await ddb.send(new ScanCommand({
             TableName: TABLE,
             ExclusiveStartKey: lastKey,
-            // 未公開写真を除外（published が明示的に false のものを除く）
-            FilterExpression: "attribute_not_exists(published) OR published = :pub",
+            // 未公開写真を除外し、写真以外の管理レコードも除外する。
+            // このテーブルには写真のほかに like#/go# マーカーや golist#/notifs# 文書が
+            // 同居しており、それらには published が無いため published 条件だけでは素通りする。
+            // 写真は必ず src を持つので attribute_exists(src) で写真だけに絞る。
+            FilterExpression: "(attribute_not_exists(published) OR published = :pub) AND attribute_exists(src)",
             ExpressionAttributeValues: { ":pub": true },
         }));
         items.push(...((res.Items ?? []) as Photo[]));
@@ -81,7 +84,7 @@ export async function listPhotosByUser(userId: string): Promise<Photo[]> {
             TableName: TABLE,
             IndexName: USER_INDEX,
             KeyConditionExpression: "userId = :uid",
-            FilterExpression: "attribute_not_exists(published) OR published = :pub",
+            FilterExpression: "(attribute_not_exists(published) OR published = :pub) AND attribute_exists(src)",
             ExpressionAttributeValues: { ":uid": userId, ":pub": true },
             ExclusiveStartKey: lastKey,
         }));

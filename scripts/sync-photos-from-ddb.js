@@ -54,9 +54,11 @@ async function scan() {
         lastKey = res.LastEvaluatedKey;
     } while (lastKey);
 
-    // 公開済みのみ絞り込んで createdAt 降順でソート
+    // 公開済みの「写真」のみ絞り込んで createdAt 降順でソート。
+    // テーブルには like#/go# マーカーや golist#/notifs# 文書が同居しているため、
+    // src を持つ item（=写真）だけを photos.json に出す（プライバシー保護）。
     return items
-        .filter(item => item.published !== false)
+        .filter(item => item.src && item.published !== false)
         .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
 }
 
