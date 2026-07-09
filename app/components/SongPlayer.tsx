@@ -13,15 +13,25 @@ type Props = {
     trackUrl?: string;
     /** カード上部のラベル。既定は「マイBGM」 */
     label?: string;
+    /** 再生終了時（プレイリストの次曲送りに使う） */
+    onEnded?: () => void;
+    /** マウント時に自動再生を試みる（曲送り時。失敗しても無視） */
+    autoPlay?: boolean;
 };
 
 // 30秒プレビュー音源を再生する自作の "Now Playing" カード。
 // iframe 埋め込みより軽く、デザイン言語に揃った見た目にできる。
-export default function SongPlayer({ title, artist, artwork, previewUrl, trackUrl, label }: Props) {
+export default function SongPlayer({ title, artist, artwork, previewUrl, trackUrl, label, onEnded, autoPlay = false }: Props) {
     // 曲が変わったら、親側で key={previewUrl} を渡して作り直す前提（stateリセット不要）
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const [playing, setPlaying] = useState(false);
     const [progress, setProgress] = useState(0); // 0..1
+
+    // 曲送りで作り直されたときは自動で再生を試みる（ブロックされたら無視）
+    React.useEffect(() => {
+        if (autoPlay) void audioRef.current?.play().catch(() => { /* noop */ });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const toggle = () => {
         const a = audioRef.current;
@@ -72,7 +82,7 @@ export default function SongPlayer({ title, artist, artwork, previewUrl, trackUr
                 preload="none"
                 onPlay={() => setPlaying(true)}
                 onPause={() => setPlaying(false)}
-                onEnded={() => { setPlaying(false); setProgress(0); }}
+                onEnded={() => { setPlaying(false); setProgress(0); onEnded?.(); }}
                 onTimeUpdate={(e) => {
                     const a = e.currentTarget;
                     if (a.duration) setProgress(a.currentTime / a.duration);

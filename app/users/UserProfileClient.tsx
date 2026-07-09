@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from "react"
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, RectangleStackIcon, QrCodeIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, RectangleStackIcon, QrCodeIcon, TrophyIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { geocodePlace, type GeoPoint } from "../../lib/utils/geocode";
@@ -27,6 +27,14 @@ import { ROUTES } from "../../lib/routes";
 import UserAvatar from "../components/UserAvatar";
 import PHOTOS_JSON from "../data/photos.json";
 
+type SongEntry = {
+    title: string;
+    artist?: string;
+    artwork?: string;
+    previewUrl: string;
+    trackUrl?: string;
+};
+
 type UserProfile = {
     userId: string;
     displayName?: string;
@@ -41,6 +49,8 @@ type UserProfile = {
     songArtwork?: string;
     songPreviewUrl?: string;
     songTrackUrl?: string;
+    songs?: SongEntry[];
+    ranking?: { title?: string; items: string[] };
     tripTitles?: Record<string, string>;
     tripCovers?: Record<string, string>;
     themeColor?: string;
@@ -93,6 +103,56 @@ function buildTimeline(photos: Photo[], locale: "ja" | "en"): TimelineGroup[] {
         map.get(key)!.photos.push(p);
     }
     return Array.from(map.values());
+}
+
+// マイBGMプレイリスト。1曲ずつ SongPlayer で再生し、終了で自動的に次へ。
+function PlaylistPlayer({ songs, label, locale }: { songs: SongEntry[]; label: string; locale: string }) {
+    const [index, setIndex] = useState(0);
+    const [autoNext, setAutoNext] = useState(false);
+    const i = Math.min(index, songs.length - 1);
+    const cur = songs[i];
+    const step = (d: number) => {
+        setAutoNext(true);
+        setIndex((v) => (v + d + songs.length) % songs.length);
+    };
+    return (
+        <div className="max-w-md">
+            <SongPlayer
+                key={cur.previewUrl}
+                title={cur.title}
+                artist={cur.artist ?? ""}
+                artwork={cur.artwork}
+                previewUrl={cur.previewUrl}
+                trackUrl={cur.trackUrl}
+                label={songs.length > 1 ? `${label} ${i + 1}/${songs.length}` : label}
+                autoPlay={autoNext}
+                onEnded={() => { if (songs.length > 1) step(1); }}
+            />
+            {songs.length > 1 && (
+                <div className="flex items-center justify-center gap-4 mt-1.5">
+                    <button
+                        onClick={() => step(-1)}
+                        aria-label={locale === "en" ? "Previous song" : "前の曲"}
+                        className="px-3 py-1 rounded-full text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition text-sm"
+                    >
+                        ‹
+                    </button>
+                    <div className="flex items-center gap-1.5">
+                        {songs.map((_, d) => (
+                            <span key={d} className={`w-1.5 h-1.5 rounded-full transition-colors ${d === i ? "bg-white/80" : "bg-white/25"}`} />
+                        ))}
+                    </div>
+                    <button
+                        onClick={() => step(1)}
+                        aria-label={locale === "en" ? "Next song" : "次の曲"}
+                        className="px-3 py-1 rounded-full text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition text-sm"
+                    >
+                        ›
+                    </button>
+                </div>
+            )}
+        </div>
+    );
 }
 
 // ヒーロー背景としてのカバー写真。上部の横長バンドに写真をくっきり表示し、
@@ -459,7 +519,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     const replayAudioRef = useRef<HTMLAudioElement | null>(null);
     const startReplay = useCallback(() => {
         setReplayToken((v) => v + 1);
-        const src = userProfile?.songPreviewUrl;
+        const src = userProfile?.songs?.[0]?.previewUrl ?? userProfile?.songPreviewUrl;
         if (src) {
             if (!replayAudioRef.current) replayAudioRef.current = new Audio();
             const a = replayAudioRef.current;
@@ -467,7 +527,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             a.currentTime = 0;
             void a.play().catch(() => { /* 再生できない環境は無視 */ });
         }
-    }, [userProfile?.songPreviewUrl]);
+    }, [userProfile?.songs, userProfile?.songPreviewUrl]);
     const stopReplay = useCallback(() => {
         setReplayToken(0);
         replayAudioRef.current?.pause();
@@ -566,6 +626,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     songArtwork: base.songArtwork,
                     songPreviewUrl: base.songPreviewUrl,
                     songTrackUrl: base.songTrackUrl,
+                    songs: base.songs,
+                    ranking: base.ranking,
                     tripTitles: base.tripTitles,
                     tripCovers: base.tripCovers,
                     themeColor: base.themeColor,
@@ -891,17 +953,21 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         </div>
                     )}
 
-                    {/* マイBGM: アプリ内検索の曲は自作プレイヤー、URL貼付は埋め込み */}
-                    {userProfile?.songPreviewUrl && userProfile?.songTitle ? (
+                    {/* マイBGM: プレイリスト（検索曲・最大5曲）優先、URL貼付は埋め込み */}
+                    {(userProfile?.songs?.length || (userProfile?.songPreviewUrl && userProfile?.songTitle)) ? (
                         <div className="mt-4">
-                            <SongPlayer
-                                key={userProfile.songPreviewUrl}
-                                title={userProfile.songTitle}
-                                artist={userProfile.songArtist ?? ""}
-                                artwork={userProfile.songArtwork}
-                                previewUrl={userProfile.songPreviewUrl}
-                                trackUrl={userProfile.songTrackUrl}
+                            <PlaylistPlayer
+                                songs={userProfile.songs?.length
+                                    ? userProfile.songs
+                                    : [{
+                                        title: userProfile.songTitle!,
+                                        artist: userProfile.songArtist,
+                                        artwork: userProfile.songArtwork,
+                                        previewUrl: userProfile.songPreviewUrl!,
+                                        trackUrl: userProfile.songTrackUrl,
+                                    }]}
                                 label={locale === "en" ? "My BGM" : "マイBGM"}
+                                locale={locale}
                             />
                         </div>
                     ) : songEmbed && (
@@ -947,6 +1013,26 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             )}
                         </div>
                     )}
+
+                    {/* マイランキング */}
+                    {userProfile?.ranking?.items?.length ? (
+                        <div className="mt-4 rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 max-w-md">
+                            <div className="flex items-center gap-1.5 mb-2.5">
+                                <TrophyIcon className="w-3.5 h-3.5 text-amber-400" />
+                                <span className="text-[11px] tracking-widest uppercase text-white/45">
+                                    {userProfile.ranking.title || (locale === "en" ? "My Ranking" : "マイランキング")}
+                                </span>
+                            </div>
+                            <ol className="space-y-1.5">
+                                {userProfile.ranking.items.map((item, idx) => (
+                                    <li key={idx} className="flex items-center gap-2.5 text-sm text-white/85">
+                                        <span className="w-6 text-center flex-shrink-0">{["🥇", "🥈", "🥉"][idx] ?? `${idx + 1}.`}</span>
+                                        <span className="truncate">{item}</span>
+                                    </li>
+                                ))}
+                            </ol>
+                        </div>
+                    ) : null}
 
                     {/* 自分のプロフィール: 編集・アップロード導線（インスタ風） */}
                     {isOwner && (

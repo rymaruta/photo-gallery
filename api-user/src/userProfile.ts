@@ -6,6 +6,14 @@ const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast
 const USERS_TABLE = process.env.USERS_TABLE ?? "prod-photo-gallery-users";
 import { JSON_HEADERS, getUserId } from "./http";
 
+export type SongEntry = {
+    title: string;
+    artist?: string;
+    artwork?: string;
+    previewUrl: string;
+    trackUrl?: string;
+};
+
 export type UserProfile = {
     userId: string;
     displayName?: string;
@@ -25,10 +33,14 @@ export type UserProfile = {
     songArtwork?: string;
     songPreviewUrl?: string;
     songTrackUrl?: string;
+    // マイBGMプレイリスト（最大5曲・順に再生）。従来の単曲フィールドは後方互換用
+    songs?: SongEntry[];
     // 旅アルバムのカスタム名（trip-<epoch> → タイトル）。未設定の旅は自動タイトル。
     tripTitles?: Record<string, string>;
     // 旅アルバムのカバー写真（trip-<epoch> → photoId）。未設定は先頭の写真。
     tripCovers?: Record<string, string>;
+    // マイランキング（自由なお題 + 最大5項目）
+    ranking?: { title?: string; items: string[] };
     // マイページのパーソナライズ
     themeColor?: string;          // #rrggbb（アバターリング等のアクセント色）
     statusText?: string;          // 名前の下に出る「ひとこと」（絵文字OK・60文字）
@@ -66,6 +78,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         tripTitles?: Record<string, string>;
         tripCovers?: Record<string, string>;
         themeColor?: string; statusText?: string; pinnedPhotoIds?: string[];
+        songs?: unknown; ranking?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -97,6 +110,44 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     const songTrackUrl = httpsOnly(body.songTrackUrl, 500);
     const songTitle = body.songTitle?.trim().slice(0, 200) || undefined;
     const songArtist = body.songArtist?.trim().slice(0, 200) || undefined;
+
+    // マイBGMプレイリスト: 各曲 previewUrl(https) と title 必須・最大5曲
+    let songs: SongEntry[] | undefined;
+    if (Array.isArray(body.songs)) {
+        const cleaned: SongEntry[] = [];
+        for (const raw of body.songs.slice(0, 5)) {
+            if (!raw || typeof raw !== "object") continue;
+            const o = raw as Record<string, unknown>;
+            const previewUrl = httpsOnly(typeof o.previewUrl === "string" ? o.previewUrl : undefined, 500);
+            const title = typeof o.title === "string" ? o.title.trim().slice(0, 200) : "";
+            if (!previewUrl || !title) continue;
+            const artist = typeof o.artist === "string" ? o.artist.trim().slice(0, 200) : "";
+            const artwork = httpsOnly(typeof o.artwork === "string" ? o.artwork : undefined, 500);
+            const trackUrl = httpsOnly(typeof o.trackUrl === "string" ? o.trackUrl : undefined, 500);
+            cleaned.push({
+                title,
+                previewUrl,
+                ...(artist ? { artist } : {}),
+                ...(artwork ? { artwork } : {}),
+                ...(trackUrl ? { trackUrl } : {}),
+            });
+        }
+        if (cleaned.length > 0) songs = cleaned;
+    }
+
+    // マイランキング: タイトル40文字・項目は最大5件・各60文字
+    let ranking: { title?: string; items: string[] } | undefined;
+    if (body.ranking && typeof body.ranking === "object" && !Array.isArray(body.ranking)) {
+        const r = body.ranking as { title?: unknown; items?: unknown };
+        const items = Array.isArray(r.items)
+            ? r.items
+                .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+                .map((x) => x.trim().slice(0, 60))
+                .slice(0, 5)
+            : [];
+        const title = typeof r.title === "string" ? r.title.trim().slice(0, 40) : "";
+        if (items.length > 0) ranking = { ...(title ? { title } : {}), items };
+    }
 
     // マイページのパーソナライズ
     const themeColor = typeof body.themeColor === "string" && /^#[0-9a-fA-F]{6}$/.test(body.themeColor.trim())
@@ -140,6 +191,8 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         ...(songTitle ? { songTitle } : {}),
         ...(songArtist ? { songArtist } : {}),
         ...(songTrackUrl ? { songTrackUrl } : {}),
+        ...(songs ? { songs } : {}),
+        ...(ranking ? { ranking } : {}),
         ...(tripTitles ? { tripTitles } : {}),
         ...(tripCovers ? { tripCovers } : {}),
         ...(themeColor ? { themeColor } : {}),

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon, UserCircleIcon, CameraIcon, MusicalNoteIcon, MagnifyingGlassIcon, XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, UserCircleIcon, CameraIcon, MusicalNoteIcon, MagnifyingGlassIcon, XMarkIcon, ChevronDownIcon, TrophyIcon } from "@heroicons/react/24/outline";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
 import { useAuth } from "../../auth/context";
@@ -10,7 +10,14 @@ import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { userFetch } from "../../../lib/utils/api";
 import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../../lib/utils/music";
-import SongPlayer from "../../components/SongPlayer";
+
+type SongEntry = {
+    title: string;
+    artist?: string;
+    artwork?: string;
+    previewUrl: string;
+    trackUrl?: string;
+};
 
 type UserProfile = {
     userId: string;
@@ -26,6 +33,8 @@ type UserProfile = {
     songArtwork?: string;
     songPreviewUrl?: string;
     songTrackUrl?: string;
+    songs?: SongEntry[];
+    ranking?: { title?: string; items: string[] };
     tripTitles?: Record<string, string>;
     tripCovers?: Record<string, string>;
     themeColor?: string;
@@ -66,8 +75,11 @@ export default function ProfileEditPage() {
     const [themeColor, setThemeColor] = useState("");
     const [instagram, setInstagram] = useState("");
     const [website, setWebsite] = useState("");
-    // テーマソング: アプリ内検索で選んだ曲
-    const [selectedSong, setSelectedSong] = useState<SongResult | null>(null);
+    // マイBGMプレイリスト: アプリ内検索で選んだ曲（最大5曲・順に再生）
+    const [selectedSongs, setSelectedSongs] = useState<SongResult[]>([]);
+    // マイランキング
+    const [rankingTitle, setRankingTitle] = useState("");
+    const [rankingItems, setRankingItems] = useState<string[]>(["", "", "", "", ""]);
     const [songQuery, setSongQuery] = useState("");
     const [songResults, setSongResults] = useState<SongResult[]>([]);
     const [searching, setSearching] = useState(false);
@@ -106,16 +118,27 @@ export default function ProfileEditPage() {
                     setInstagram(data.instagram ?? "");
                     setWebsite(data.website ?? "");
                     // 検索の曲と貼付リンクは独立して復元する（両方保持される）
-                    if (data.songPreviewUrl && data.songTitle) {
-                        setSelectedSong({
+                    if (data.songs && data.songs.length > 0) {
+                        setSelectedSongs(data.songs.map((sg) => ({
+                            id: sg.previewUrl,
+                            title: sg.title,
+                            artist: sg.artist ?? "",
+                            artwork: sg.artwork ?? "",
+                            previewUrl: sg.previewUrl,
+                            trackUrl: sg.trackUrl ?? "",
+                        })));
+                    } else if (data.songPreviewUrl && data.songTitle) {
+                        setSelectedSongs([{
                             id: data.songPreviewUrl,
                             title: data.songTitle,
                             artist: data.songArtist ?? "",
                             artwork: data.songArtwork ?? "",
                             previewUrl: data.songPreviewUrl,
                             trackUrl: data.songTrackUrl ?? "",
-                        });
+                        }]);
                     }
+                    setRankingTitle(data.ranking?.title ?? "");
+                    setRankingItems([...(data.ranking?.items ?? []), "", "", "", "", ""].slice(0, 5));
                     if (data.songUrl) {
                         setShowUrlMethod(true);
                         setSongUrl(data.songUrl);
@@ -217,6 +240,30 @@ export default function ProfileEditPage() {
     // 画面を離れたら試聴を止める
     useEffect(() => () => { previewAudioRef.current?.pause(); }, []);
 
+    const addSong = (song: SongResult) => {
+        setSelectedSongs((cur) => {
+            if (cur.some((x) => x.previewUrl === song.previewUrl)) {
+                showToast(locale === "en" ? "Already in your playlist" : "すでにプレイリストにあります", "info");
+                return cur;
+            }
+            if (cur.length >= 5) {
+                showToast(locale === "en" ? "Up to 5 songs" : "プレイリストは5曲までです", "info");
+                return cur;
+            }
+            return [...cur, song];
+        });
+    };
+    const removeSong = (previewUrl: string) =>
+        setSelectedSongs((cur) => cur.filter((x) => x.previewUrl !== previewUrl));
+    const moveSong = (idx: number, d: number) =>
+        setSelectedSongs((cur) => {
+            const j = idx + d;
+            if (j < 0 || j >= cur.length) return cur;
+            const next = [...cur];
+            [next[idx], next[j]] = [next[j], next[idx]];
+            return next;
+        });
+
     const handleSongSearch = async () => {
         const q = songQuery.trim();
         if (!q) return;
@@ -250,11 +297,18 @@ export default function ProfileEditPage() {
             songStart: mmssToSec(songStartText),
             songEnd: mmssToSec(songEndText),
             // 検索で選んだ曲（独立）
-            songTitle: selectedSong?.title ?? "",
-            songArtist: selectedSong?.artist ?? "",
-            songArtwork: selectedSong?.artwork ?? "",
-            songPreviewUrl: selectedSong?.previewUrl ?? "",
-            songTrackUrl: selectedSong?.trackUrl ?? "",
+            songTitle: selectedSongs[0]?.title ?? "",
+            songArtist: selectedSongs[0]?.artist ?? "",
+            songArtwork: selectedSongs[0]?.artwork ?? "",
+            songPreviewUrl: selectedSongs[0]?.previewUrl ?? "",
+            songTrackUrl: selectedSongs[0]?.trackUrl ?? "",
+            songs: selectedSongs.map((sg) => ({
+                title: sg.title,
+                artist: sg.artist,
+                artwork: sg.artwork,
+                previewUrl: sg.previewUrl,
+                trackUrl: sg.trackUrl,
+            })),
         };
         setSaving(true);
         try {
@@ -266,6 +320,7 @@ export default function ProfileEditPage() {
                     themeColor,
                     ...songPayload,
                     // PUT は全置換のため、このページで編集しない項目も送り返す
+                    ranking: { title: rankingTitle, items: rankingItems.map((t) => t.trim()).filter(Boolean) },
                     tripTitles: profile?.tripTitles,
                     tripCovers: profile?.tripCovers,
                     pinnedPhotoIds: profile?.pinnedPhotoIds,
@@ -502,31 +557,40 @@ export default function ProfileEditPage() {
                             <span className="text-sm font-semibold">{locale === "en" ? "My BGM" : "マイBGM"}</span>
                         </div>
 
-                        {selectedSong ? (
-                            <div className="space-y-2">
-                                <SongPlayer
-                                    key={selectedSong.previewUrl}
-                                    title={selectedSong.title}
-                                    artist={selectedSong.artist}
-                                    artwork={selectedSong.artwork}
-                                    previewUrl={selectedSong.previewUrl}
-                                    trackUrl={selectedSong.trackUrl}
-                                    label={locale === "en" ? "My BGM" : "マイBGM"}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => { setSelectedSong(null); setSongResults([]); setSongQuery(""); }}
-                                    className="inline-flex items-center gap-1 text-xs text-white/50 hover:text-white/80 transition"
-                                >
-                                    <XMarkIcon className="w-3.5 h-3.5" /> {locale === "en" ? "Remove / change" : "曲を変更・削除"}
-                                </button>
-                            </div>
-                        ) : (
+                        {/* 選択済みプレイリスト（並べ替え・削除つき） */}
+                        {selectedSongs.length > 0 && (
+                            <ul className="space-y-1.5">
+                                {selectedSongs.map((song, idx) => (
+                                    <li key={song.previewUrl} className="flex items-center gap-2 rounded-xl bg-white/5 ring-1 ring-white/10 p-2">
+                                        <span className="w-4 text-center text-xs text-white/50 tabular-nums flex-shrink-0">{idx + 1}</span>
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={song.artwork} alt="" loading="lazy" className="w-9 h-9 rounded-md object-cover bg-white/10 flex-shrink-0" />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-xs text-white truncate">{song.title}</p>
+                                            <p className="text-[11px] text-white/50 truncate">{song.artist}</p>
+                                        </div>
+                                        <button type="button" onClick={() => moveSong(idx, -1)} disabled={idx === 0}
+                                            aria-label={locale === "en" ? "Move up" : "上へ"}
+                                            className="px-1.5 py-1 text-white/40 hover:text-white disabled:opacity-25 active:scale-90 transition text-sm">↑</button>
+                                        <button type="button" onClick={() => moveSong(idx, 1)} disabled={idx === selectedSongs.length - 1}
+                                            aria-label={locale === "en" ? "Move down" : "下へ"}
+                                            className="px-1.5 py-1 text-white/40 hover:text-white disabled:opacity-25 active:scale-90 transition text-sm">↓</button>
+                                        <button type="button" onClick={() => removeSong(song.previewUrl)}
+                                            aria-label={locale === "en" ? "Remove" : "削除"}
+                                            className="px-1.5 py-1 text-white/40 hover:text-red-400 active:scale-90 transition">
+                                            <XMarkIcon className="w-4 h-4" />
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+
+                        {selectedSongs.length < 5 && (
                             <>
                                 <p className="text-xs text-white/40 -mt-1">
                                     {locale === "en"
-                                        ? "Search a song — a 30s preview plays on your profile."
-                                        : "曲名で検索して選ぶと、プロフィールで30秒プレビューが流れます。"}
+                                        ? `Search songs — up to 5 play in order on your profile (${selectedSongs.length}/5).`
+                                        : `曲名で検索して追加。プロフィールで順に再生されます（${selectedSongs.length}/5曲）。`}
                                 </p>
                                 <div className="flex gap-2">
                                     <div className="relative flex-1">
@@ -580,14 +644,14 @@ export default function ProfileEditPage() {
                                                 {/* 選択 */}
                                                 <button
                                                     type="button"
-                                                    onClick={() => { stopPreview(); setSelectedSong(song); }}
+                                                    onClick={() => { stopPreview(); addSong(song); }}
                                                     className="min-w-0 flex-1 flex items-center py-2.5 text-left active:opacity-70 transition"
                                                 >
                                                     <div className="min-w-0 flex-1">
                                                         <p className={`text-sm truncate ${isPreviewing ? "text-fuchsia-300" : "text-white"}`}>{song.title}</p>
                                                         <p className="text-xs text-white/50 truncate">{song.artist}</p>
                                                     </div>
-                                                    <span className="text-[11px] text-white/40 flex-shrink-0 pl-2">{locale === "en" ? "Pick" : "選ぶ"}</span>
+                                                    <span className="text-[11px] text-white/40 flex-shrink-0 pl-2">{locale === "en" ? "Add" : "追加"}</span>
                                                 </button>
                                             </li>
                                             );
@@ -609,7 +673,7 @@ export default function ProfileEditPage() {
                                 <ChevronDownIcon className={`w-4 h-4 transition-transform ${showUrlMethod ? "rotate-180" : ""}`} />
                             </button>
 
-                            {selectedSong && (songUrl.trim() || showUrlMethod) && (
+                            {selectedSongs.length > 0 && (songUrl.trim() || showUrlMethod) && (
                                 <p className="text-[11px] text-white/35 pt-2">
                                     {locale === "en"
                                         ? "A picked song plays first — this link is kept and used when no song is set."
@@ -700,6 +764,45 @@ export default function ProfileEditPage() {
                                         </div>
                                     )}
                                 </div>
+                    </div>
+
+                    {/* マイランキング */}
+                    <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 space-y-3">
+                        <div className="flex items-center gap-1.5">
+                            <TrophyIcon className="w-4 h-4 text-amber-400" />
+                            <span className="text-sm font-semibold">{locale === "en" ? "My Ranking" : "マイランキング"}</span>
+                        </div>
+                        <p className="text-xs text-white/40 -mt-1">
+                            {locale === "en"
+                                ? "Make your own top 5 — best onsen, best views, anything."
+                                : "「行ってよかった温泉TOP5」など、自由なお題でランキングを作れます。"}
+                        </p>
+                        <input
+                            type="text"
+                            value={rankingTitle}
+                            onChange={e => setRankingTitle(e.target.value)}
+                            maxLength={40}
+                            placeholder={locale === "en" ? "Ranking title (e.g. Best views)" : "お題（例: 行ってよかった絶景ランキング）"}
+                            className={inputClass}
+                        />
+                        <div className="space-y-2">
+                            {rankingItems.map((v, i) => (
+                                <div key={i} className="flex items-center gap-2">
+                                    <span className="w-7 text-center flex-shrink-0">{["🥇", "🥈", "🥉"][i] ?? `${i + 1}.`}</span>
+                                    <input
+                                        type="text"
+                                        value={v}
+                                        onChange={e => setRankingItems((cur) => cur.map((x, j) => (j === i ? e.target.value : x)))}
+                                        maxLength={60}
+                                        placeholder={i === 0 ? (locale === "en" ? "e.g. Shirakawa-go" : "例: 白川郷") : ""}
+                                        className={`${inputClass} py-2`}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-[11px] text-white/35">
+                            {locale === "en" ? "Empty rows are skipped. Clear all to remove the ranking." : "空欄はスキップされます。全部空にするとランキング自体が消えます。"}
+                        </p>
                     </div>
 
                     <div className="pt-2">
