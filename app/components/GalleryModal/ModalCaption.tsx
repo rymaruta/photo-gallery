@@ -1,7 +1,9 @@
 "use client";
 import React from "react";
 import Link from "next/link";
-import { ShareIcon, LinkIcon } from "@heroicons/react/24/outline";
+import { ShareIcon, LinkIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
+import { PlayIcon } from "@heroicons/react/24/solid";
+import { useMusic } from "../../music/MusicContext";
 import type { Photo, Locale } from "@/lib/data/photos";
 import { shareToTwitter, shareToLine } from "../../../lib/utils/share";
 import { ROUTES } from "../../../lib/routes";
@@ -35,6 +37,7 @@ export default function ModalCaption({
     categoryDisplayMap, currentUrl, shareText, onShare, onCopyLink,
 }: Props) {
     const stop = (e: React.MouseEvent | React.TouchEvent) => e.stopPropagation();
+    const music = useMusic();
 
     return (
         <div
@@ -50,6 +53,23 @@ export default function ModalCaption({
             <div className="text-xs sm:text-sm text-white/60 mb-2">
                 {categoryDisplayMap[photo.category ?? ""] ?? (photo.category ?? "")}
             </div>
+
+            {/* 写真BGM: タップでミニプレイヤー再生（閉じても流れ続ける） */}
+            {photo.song && (
+                <button
+                    onClick={(e) => {
+                        stop(e);
+                        music.play(`photo:${photo.id}`, [photo.song!], 0, locale === "en" ? "Photo BGM" : "この写真のBGM");
+                    }}
+                    onTouchStart={stop}
+                    className="mb-2 inline-flex items-center gap-1.5 max-w-full px-3 py-1.5 rounded-full bg-fuchsia-500/15 ring-1 ring-fuchsia-400/30 text-fuchsia-200 text-xs hover:bg-fuchsia-500/25 active:scale-95 transition"
+                    style={SHARE_STYLE}
+                >
+                    <MusicalNoteIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="truncate">{photo.song.title}{photo.song.artist ? ` — ${photo.song.artist}` : ""}</span>
+                    <PlayIcon className="w-3 h-3 flex-shrink-0" />
+                </button>
+            )}
 
             {paragraphs.length > 0 && (
                 <div className="mt-2 text-xs sm:text-sm text-white/70" role="note">

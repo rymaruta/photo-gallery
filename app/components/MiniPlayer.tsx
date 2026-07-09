@@ -6,12 +6,12 @@
 
 import React from "react";
 import { PlayIcon, PauseIcon, ForwardIcon, BackwardIcon } from "@heroicons/react/24/solid";
-import { XMarkIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, MusicalNoteIcon, ArrowsRightLeftIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 import { useMusic } from "../music/MusicContext";
 
 export default function MiniPlayer() {
     const music = useMusic();
-    const { current, playing, progress, queue, label } = music;
+    const { current, playing, progress, queue, label, shuffle, repeatOne } = music;
     if (!current) return null;
 
     return (
@@ -41,6 +41,24 @@ export default function MiniPlayer() {
                         </p>
                     </div>
 
+                    {queue.length > 1 && (
+                        <button
+                            onClick={music.toggleShuffle}
+                            aria-label="シャッフル"
+                            aria-pressed={shuffle}
+                            className={`p-1.5 active:scale-90 transition ${shuffle ? "text-fuchsia-300" : "text-white/40 hover:text-white/70"}`}
+                        >
+                            <ArrowsRightLeftIcon className="w-4 h-4" />
+                        </button>
+                    )}
+                    <button
+                        onClick={music.toggleRepeatOne}
+                        aria-label="1曲リピート"
+                        aria-pressed={repeatOne}
+                        className={`p-1.5 active:scale-90 transition ${repeatOne ? "text-fuchsia-300" : "text-white/40 hover:text-white/70"}`}
+                    >
+                        <ArrowPathIcon className="w-4 h-4" />
+                    </button>
                     {queue.length > 1 && (
                         <button onClick={music.prev} aria-label="前の曲" className="p-1.5 text-white/60 hover:text-white active:scale-90 transition">
                             <BackwardIcon className="w-4 h-4" />

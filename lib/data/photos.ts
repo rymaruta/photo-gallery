@@ -31,6 +31,8 @@ export type Photo = {
     coords?: { lat: number; lng: number };
     // coords が location 名からのジオコーディング（おおよその位置）であることを示す
     geoApprox?: boolean;
+    // 写真BGM（オーナーが1曲添えられる。30秒プレビュー）
+    song?: { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string };
     mapLinks?: { google?: string; osm?: string; label?: string };
     license?: string;
     copyrightOwner?: string;

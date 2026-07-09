@@ -80,3 +80,35 @@ describe("MusicContext（グローバル音楽プレイヤー）", () => {
         expect(result.current.current).toBeNull();
     });
 });
+
+describe("シャッフルと1曲リピート", () => {
+    it("toggleShuffle / toggleRepeatOne で状態が切り替わる", () => {
+        const { result } = renderHook(() => useMusic(), { wrapper });
+        act(() => result.current.play("bgm:u1", songs, 0));
+        act(() => result.current.toggleShuffle());
+        expect(result.current.shuffle).toBe(true);
+        act(() => result.current.toggleRepeatOne());
+        expect(result.current.repeatOne).toBe(true);
+        act(() => result.current.toggleShuffle());
+        expect(result.current.shuffle).toBe(false);
+    });
+
+    it("シャッフル時の next は今と違う曲を選ぶ", () => {
+        const rand = vi.spyOn(Math, "random").mockReturnValue(0); // → 候補の先頭
+        const { result } = renderHook(() => useMusic(), { wrapper });
+        act(() => result.current.play("bgm:u1", songs, 0));
+        act(() => result.current.toggleShuffle());
+        act(() => result.current.next());
+        // index 0 の曲は除外されるので、必ず別の曲になる
+        expect(result.current.index).not.toBe(0);
+        rand.mockRestore();
+    });
+
+    it("キューを差し替えてもシャッフル/リピート設定は保持される", () => {
+        const { result } = renderHook(() => useMusic(), { wrapper });
+        act(() => result.current.play("bgm:u1", songs, 0));
+        act(() => result.current.toggleShuffle());
+        act(() => result.current.play("trip:t1", [songs[1]], 0));
+        expect(result.current.shuffle).toBe(true);
+    });
+});

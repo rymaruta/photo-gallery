@@ -15,6 +15,10 @@ import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSe
 import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
 import { useGoTo } from "../../../lib/hooks/useGoTo";
 import { hapticTap } from "../../../lib/utils/haptics";
+import { searchSongs, type SongResult } from "../../../lib/utils/music";
+import { type SongEntry } from "../../music/MusicContext";
+import MusicCard from "../../components/MusicCard";
+import { MusicalNoteIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../../auth/context";
 import { useViewHistory } from "../../../lib/hooks/useViewHistory";
 import { useToast } from "../../../lib/hooks/useToast";
@@ -243,13 +247,50 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
     }, [photoId, allPhotos]);
 
     // いいね機能（ハート＝ローカルお気に入り + サーバーいいね数）
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, userId: authUserId } = useAuth();
     const { liked: isFav, count: likeCount, pending: likePending, toggle: toggleLike } =
         usePhotoLikes(photoId, photo?.likes ?? 0, isAuthenticated);
 
     // 「行く」= この場所に行きたい（行きたいリストへ）。行けば投稿者に通知が届く
     const { going, goCount, moved, pending: goPending, toggle: toggleGo } =
         useGoTo(photoId, isAuthenticated);
+
+    // 写真BGM: オーナーが1曲添えられる（全員が写真ページで再生できる）
+    const isOwnPhoto = isAuthenticated && !!authUserId && photo?.userId === authUserId;
+    const [photoSong, setPhotoSong] = useState<SongEntry | null>(null);
+    useEffect(() => { setPhotoSong((photo?.song as SongEntry | undefined) ?? null); }, [photo?.id, photo?.song]);
+    const [songPickerOpen, setSongPickerOpen] = useState(false);
+    const [songQuery, setSongQuery] = useState("");
+    const [songResults, setSongResults] = useState<SongResult[]>([]);
+    const [songSearching, setSongSearching] = useState(false);
+    const searchPhotoSongs = async () => {
+        const q = songQuery.trim();
+        if (!q) return;
+        setSongSearching(true);
+        try { setSongResults(await searchSongs(q)); } catch { setSongResults([]); } finally { setSongSearching(false); }
+    };
+    const savePhotoSong = async (song: SongEntry | null) => {
+        try {
+            const { userFetch } = await import("../../../lib/utils/api");
+            const res = await userFetch(`/photos/${encodeURIComponent(photoId)}`, {
+                method: "PUT",
+                body: JSON.stringify({ song }),
+            });
+            if (!res.ok) throw new Error(String(res.status));
+            setPhotoSong(song);
+            setSongPickerOpen(false);
+            setSongResults([]);
+            setSongQuery("");
+            showToast(
+                song
+                    ? (locale === "en" ? "Photo BGM set 🎵" : "この写真のBGMを設定しました 🎵")
+                    : (locale === "en" ? "Photo BGM removed" : "BGMを外しました"),
+                "success",
+            );
+        } catch {
+            showToast(locale === "en" ? "Failed to save" : "保存に失敗しました", "error");
+        }
+    };
 
     // 閲覧履歴機能
     const { addToHistory } = useViewHistory();
@@ -583,6 +624,94 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                                 ) : null;
                             })()}
                         </div>
+                    </div>
+                )}
+
+                {/* この写真のBGM */}
+                {(photoSong || isOwnPhoto) && (
+                    <div className="pt-4 border-t border-white/10 space-y-2">
+                        {photoSong && (
+                            <MusicCard
+                                key={photoSong.previewUrl}
+                                queueKey={`photo:${photoId}`}
+                                songs={[photoSong]}
+                                label={locale === "en" ? "Photo BGM" : "この写真のBGM"}
+                                locale={locale}
+                            />
+                        )}
+                        {isOwnPhoto && (
+                            songPickerOpen ? (
+                                <div className="rounded-xl bg-white/5 ring-1 ring-white/10 p-2.5 space-y-2 max-w-md">
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={songQuery}
+                                            onChange={(e) => setSongQuery(e.target.value)}
+                                            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void searchPhotoSongs(); } }}
+                                            placeholder={locale === "en" ? "Song or artist" : "曲名・アーティスト名"}
+                                            autoFocus
+                                            className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
+                                        />
+                                        <button
+                                            onClick={() => void searchPhotoSongs()}
+                                            disabled={songSearching || !songQuery.trim()}
+                                            className="px-3.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 transition text-xs disabled:opacity-40 flex items-center justify-center min-w-[56px]"
+                                        >
+                                            {songSearching
+                                                ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                : (locale === "en" ? "Search" : "検索")}
+                                        </button>
+                                        <button
+                                            onClick={() => { setSongPickerOpen(false); setSongResults([]); setSongQuery(""); }}
+                                            className="px-2 rounded-lg text-white/50 hover:text-white/80 text-xs active:scale-95 transition"
+                                        >
+                                            {locale === "en" ? "Cancel" : "閉じる"}
+                                        </button>
+                                    </div>
+                                    {songResults.length > 0 && (
+                                        <ul className="rounded-lg ring-1 ring-white/10 divide-y divide-white/5 overflow-hidden max-h-56 overflow-y-auto no-scrollbar">
+                                            {songResults.map((r) => (
+                                                <li key={r.id}>
+                                                    <button
+                                                        onClick={() => void savePhotoSong({ title: r.title, artist: r.artist, artwork: r.artwork, previewUrl: r.previewUrl, trackUrl: r.trackUrl })}
+                                                        className="w-full flex items-center gap-2.5 p-2 hover:bg-white/5 active:bg-white/10 transition text-left"
+                                                    >
+                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                        <img src={r.artwork} alt="" loading="lazy" className="w-8 h-8 rounded object-cover bg-white/10 flex-shrink-0" />
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-xs text-white truncate">{r.title}</p>
+                                                            <p className="text-[11px] text-white/50 truncate">{r.artist}</p>
+                                                        </div>
+                                                        <span className="text-[11px] text-white/40 flex-shrink-0">{locale === "en" ? "Set" : "設定"}</span>
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => setSongPickerOpen(true)}
+                                        className="inline-flex items-center gap-1 text-xs text-white/50 hover:text-white/80 active:scale-95 transition"
+                                    >
+                                        <MusicalNoteIcon className="w-3.5 h-3.5 text-fuchsia-300" />
+                                        {photoSong
+                                            ? (locale === "en" ? "Change BGM" : "BGMを変更")
+                                            : (locale === "en" ? "Add a BGM to this photo" : "この写真にBGMを付ける")}
+                                    </button>
+                                    {photoSong && (
+                                        <button
+                                            onClick={() => void savePhotoSong(null)}
+                                            className="inline-flex items-center gap-0.5 text-xs text-white/40 hover:text-white/70 active:scale-95 transition"
+                                        >
+                                            <XMarkIcon className="w-3 h-3" />
+                                            {locale === "en" ? "Remove" : "外す"}
+                                        </button>
+                                    )}
+                                </div>
+                            )
+                        )}
                     </div>
                 )}
 

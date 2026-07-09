@@ -22,6 +22,8 @@ type MusicState = {
     playing: boolean;
     progress: number;          // 0..1
     label: string | null;      // ミニプレイヤーに出す出所ラベル（"マイBGM" など）
+    shuffle: boolean;          // 次の曲をランダムに選ぶ
+    repeatOne: boolean;        // 曲が終わったら同じ曲をもう一度
 };
 
 type MusicApi = MusicState & {
@@ -32,13 +34,15 @@ type MusicApi = MusicState & {
     next: () => void;
     prev: () => void;
     stop: () => void;
+    toggleShuffle: () => void;
+    toggleRepeatOne: () => void;
 };
 
-const EMPTY: MusicState = { queueKey: null, queue: [], index: 0, playing: false, progress: 0, label: null };
+const EMPTY: MusicState = { queueKey: null, queue: [], index: 0, playing: false, progress: 0, label: null, shuffle: false, repeatOne: false };
 
 // Provider の外（テスト等）でも安全に使える no-op 既定値
 const noop = () => { /* noop */ };
-const MusicContext = createContext<MusicApi>({ ...EMPTY, current: null, play: noop, toggle: noop, next: noop, prev: noop, stop: noop });
+const MusicContext = createContext<MusicApi>({ ...EMPTY, current: null, play: noop, toggle: noop, next: noop, prev: noop, stop: noop, toggleShuffle: noop, toggleRepeatOne: noop });
 
 export function useMusic(): MusicApi {
     return useContext(MusicContext);
@@ -66,7 +70,7 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
                 void a?.play().catch(noop);
                 return { ...prev, playing: true };
             }
-            return { queueKey, queue, index: safeIndex, playing: true, progress: 0, label: label ?? null };
+            return { ...prev, queueKey, queue, index: safeIndex, playing: true, progress: 0, label: label ?? null };
         });
     }, []);
 
@@ -86,7 +90,14 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
     const step = useCallback((d: number) => {
         setSt((prev) => {
             if (prev.queue.length === 0) return prev;
-            const index = (prev.index + d + prev.queue.length) % prev.queue.length;
+            // シャッフル時は「今と違う曲」からランダムに選ぶ
+            let index: number;
+            if (prev.shuffle && prev.queue.length > 1) {
+                index = Math.floor(Math.random() * (prev.queue.length - 1));
+                if (index >= prev.index) index++;
+            } else {
+                index = (prev.index + d + prev.queue.length) % prev.queue.length;
+            }
             return { ...prev, index, progress: 0, playing: true };
         });
     }, []);
@@ -97,6 +108,9 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
         audioRef.current?.pause();
         setSt(EMPTY);
     }, []);
+
+    const toggleShuffle = useCallback(() => setSt((p) => ({ ...p, shuffle: !p.shuffle })), []);
+    const toggleRepeatOne = useCallback(() => setSt((p) => ({ ...p, repeatOne: !p.repeatOne })), []);
 
     // src（曲）が切り替わったら再生を試みる
     const lastSrcRef = useRef<string | null>(null);
@@ -114,7 +128,7 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [current?.previewUrl]);
 
-    const api: MusicApi = { ...st, current, play, toggle, next, prev, stop };
+    const api: MusicApi = { ...st, current, play, toggle, next, prev, stop, toggleShuffle, toggleRepeatOne };
 
     return (
         <MusicContext.Provider value={api}>
@@ -124,7 +138,17 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
                     ref={audioRef}
                     src={current.previewUrl}
                     preload="none"
-                    onEnded={() => { if (st.queue.length > 1) next(); else setSt((p) => ({ ...p, playing: false, progress: 0 })); }}
+                    onEnded={() => {
+                        if (st.repeatOne) {
+                            const a = audioRef.current;
+                            if (a) { a.currentTime = 0; void a.play().catch(noop); }
+                            setSt((p) => ({ ...p, progress: 0 }));
+                        } else if (st.queue.length > 1) {
+                            next();
+                        } else {
+                            setSt((p) => ({ ...p, playing: false, progress: 0 }));
+                        }
+                    }}
                     onTimeUpdate={(e) => {
                         const a = e.currentTarget;
                         if (!a.duration) return;
