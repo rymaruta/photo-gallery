@@ -8,6 +8,7 @@ import React, { useEffect } from "react";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import { MusicalNoteIcon } from "@heroicons/react/24/outline";
 import { useMusic, type SongEntry } from "../music/MusicContext";
+import SmoothProgress from "./SmoothProgress";
 
 type Props = {
     /** 再生キューの識別子（例: "bgm:<userId>" / "trip:<tripId>"） */
@@ -25,7 +26,6 @@ export default function MusicCard({ queueKey, songs, label, locale, autoPlay = f
     const index = active ? music.index : 0;
     const cur = songs[Math.min(index, songs.length - 1)];
     const playing = active && music.playing;
-    const progress = active ? music.progress : 0;
 
     // 開いたときに自動再生（タップ起点なのでブラウザに許可されやすい。失敗時は手動で）
     useEffect(() => {
@@ -62,9 +62,12 @@ export default function MusicCard({ queueKey, songs, label, locale, autoPlay = f
                         <p className="text-sm font-semibold text-white truncate">{cur.title}</p>
                     )}
                     <p className="text-xs text-white/50 truncate">{cur.artist ?? ""}</p>
-                    <div className="mt-1.5 h-1 rounded-full bg-white/10 overflow-hidden">
-                        <div className="h-full bg-white/70 rounded-full transition-[width] duration-300" style={{ width: `${Math.round(progress * 100)}%` }} />
-                    </div>
+                    <SmoothProgress
+                        getAudio={music.getAudio}
+                        active={active}
+                        className="mt-1.5 h-1 rounded-full bg-white/10 overflow-hidden"
+                        barClassName="bg-white/70 rounded-full"
+                    />
                 </div>
                 <button
                     onClick={() => music.play(queueKey, songs, index, label)}

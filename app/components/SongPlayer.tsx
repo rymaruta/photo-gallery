@@ -3,6 +3,7 @@
 import React, { useRef, useState } from "react";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import { MusicalNoteIcon } from "@heroicons/react/24/outline";
+import SmoothProgress from "./SmoothProgress";
 
 type Props = {
     title: string;
@@ -25,7 +26,6 @@ export default function SongPlayer({ title, artist, artwork, previewUrl, trackUr
     // 曲が変わったら、親側で key={previewUrl} を渡して作り直す前提（stateリセット不要）
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const [playing, setPlaying] = useState(false);
-    const [progress, setProgress] = useState(0); // 0..1
 
     // 曲送りで作り直されたときは自動で再生を試みる（ブロックされたら無視）
     React.useEffect(() => {
@@ -64,9 +64,12 @@ export default function SongPlayer({ title, artist, artwork, previewUrl, trackUr
                         <p className="text-sm font-semibold text-white truncate">{title}</p>
                     )}
                     <p className="text-xs text-white/50 truncate">{artist}</p>
-                    <div className="mt-1.5 h-1 rounded-full bg-white/10 overflow-hidden">
-                        <div className="h-full bg-white/70 rounded-full transition-[width] duration-150" style={{ width: `${Math.round(progress * 100)}%` }} />
-                    </div>
+                    <SmoothProgress
+                        getAudio={() => audioRef.current}
+                        active
+                        className="mt-1.5 h-1 rounded-full bg-white/10 overflow-hidden"
+                        barClassName="bg-white/70 rounded-full"
+                    />
                 </div>
                 <button
                     onClick={toggle}
@@ -82,11 +85,7 @@ export default function SongPlayer({ title, artist, artwork, previewUrl, trackUr
                 preload="none"
                 onPlay={() => setPlaying(true)}
                 onPause={() => setPlaying(false)}
-                onEnded={() => { setPlaying(false); setProgress(0); onEnded?.(); }}
-                onTimeUpdate={(e) => {
-                    const a = e.currentTarget;
-                    if (a.duration) setProgress(a.currentTime / a.duration);
-                }}
+                onEnded={() => { setPlaying(false); onEnded?.(); }}
             />
         </div>
     );

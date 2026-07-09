@@ -100,6 +100,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteStructuredData).replace(/</g, "\\u003c").replace(/>/g, "\\u003e") }}
         />
+        {/*
+          アセット読み込み失敗からの自己修復（インライン版）。
+          React バンドル自体が読み込めないケースでは AssetRecovery コンポーネントは
+          動かないため、HTML に直接埋め込んで CSS/JS の読み込み失敗を検知し
+          1回だけ自動リロードする。lib/utils/assetRecovery.ts と同じキー・
+          クールダウン（60秒）を共有するので二重リロードにはならない。
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var KEY="jp_asset_reload_at";addEventListener("error",function(e){var t=e.target;if(!t||typeof t.tagName!=="string")return;var tag=t.tagName.toUpperCase();var isAsset=tag==="SCRIPT"||(tag==="LINK"&&String(t.rel||"").toLowerCase().indexOf("stylesheet")>-1);if(!isAsset)return;var now=Date.now();var last=0;try{last=Number(sessionStorage.getItem(KEY)||0)}catch(x){return}if(last&&now-last<60000)return;try{sessionStorage.setItem(KEY,String(now))}catch(x){return}location.reload()},true)}catch(e){}})();`,
+          }}
+        />
       </head>
       <body className={`${inter.className} min-h-screen flex flex-col bg-black text-white`}>
         <DisableSave />

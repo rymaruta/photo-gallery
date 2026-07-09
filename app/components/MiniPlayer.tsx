@@ -8,10 +8,11 @@ import React from "react";
 import { PlayIcon, PauseIcon, ForwardIcon, BackwardIcon } from "@heroicons/react/24/solid";
 import { XMarkIcon, MusicalNoteIcon, ArrowsRightLeftIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 import { useMusic } from "../music/MusicContext";
+import SmoothProgress from "./SmoothProgress";
 
 export default function MiniPlayer() {
     const music = useMusic();
-    const { current, playing, progress, queue, label, shuffle, repeatOne } = music;
+    const { current, playing, queue, label, shuffle, repeatOne } = music;
     if (!current) return null;
 
     return (
@@ -20,8 +21,13 @@ export default function MiniPlayer() {
             style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}
         >
             <div className="relative rounded-2xl bg-[#16181c]/95 backdrop-blur-md ring-1 ring-white/15 shadow-2xl shadow-black/50 overflow-hidden">
-                {/* プログレス（上辺） */}
-                <div className="absolute top-0 left-0 h-0.5 bg-fuchsia-400/80 transition-[width] duration-300" style={{ width: `${Math.round(progress * 100)}%` }} />
+                {/* プログレス（上辺・rAFで滑らかに更新） */}
+                <SmoothProgress
+                    getAudio={music.getAudio}
+                    active
+                    className="absolute top-0 left-0 right-0 h-0.5"
+                    barClassName="bg-fuchsia-400/80"
+                />
 
                 <div className="flex items-center gap-2.5 pl-2.5 pr-1.5 py-2">
                     <div className="relative w-9 h-9 rounded-lg overflow-hidden bg-white/10 flex-shrink-0">
