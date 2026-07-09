@@ -27,6 +27,9 @@ type UserProfile = {
     songPreviewUrl?: string;
     songTrackUrl?: string;
     tripTitles?: Record<string, string>;
+    themeColor?: string;
+    statusText?: string;
+    pinnedPhotoIds?: string[];
 };
 
 // "1:23" / "83" → 秒。空や不正は undefined。
@@ -58,6 +61,8 @@ export default function ProfileEditPage() {
 
     const [displayName, setDisplayName] = useState("");
     const [bio, setBio] = useState("");
+    const [statusText, setStatusText] = useState("");
+    const [themeColor, setThemeColor] = useState("");
     const [instagram, setInstagram] = useState("");
     const [website, setWebsite] = useState("");
     // テーマソング: アプリ内検索で選んだ曲
@@ -95,6 +100,8 @@ export default function ProfileEditPage() {
                     setProfile(data);
                     setDisplayName(data.displayName ?? "");
                     setBio(data.bio ?? "");
+                    setStatusText(data.statusText ?? "");
+                    setThemeColor(data.themeColor ?? "");
                     setInstagram(data.instagram ?? "");
                     setWebsite(data.website ?? "");
                     // 検索の曲と貼付リンクは独立して復元する（両方保持される）
@@ -254,9 +261,12 @@ export default function ProfileEditPage() {
                 method: "PUT",
                 body: JSON.stringify({
                     displayName, bio, instagram, website,
+                    statusText,
+                    themeColor,
                     ...songPayload,
-                    // PUT は全置換のため、このページで編集しない旅のカスタム名も送り返す
+                    // PUT は全置換のため、このページで編集しない項目も送り返す
                     tripTitles: profile?.tripTitles,
+                    pinnedPhotoIds: profile?.pinnedPhotoIds,
                 }),
             });
             if (res.ok) {
@@ -413,6 +423,45 @@ export default function ProfileEditPage() {
                             className={`${inputClass} resize-none`}
                         />
                         <div className="text-right text-xs text-white/30 mt-1">{bio.length}/300</div>
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>
+                            {locale === "en" ? "Status (one line)" : "今のひとこと"}
+                        </label>
+                        <input
+                            type="text"
+                            value={statusText}
+                            onChange={e => setStatusText(e.target.value)}
+                            maxLength={60}
+                            placeholder={locale === "en" ? "🎒 Planning my next trip" : "🎒 次は北海道に行きたい"}
+                            className={inputClass}
+                        />
+                        <p className="text-xs text-white/30 mt-1.5">
+                            {locale === "en" ? "Shown under your name. Emoji welcome." : "名前の下に表示されます。絵文字もOK。"}
+                        </p>
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>
+                            {locale === "en" ? "Theme color" : "テーマカラー"}
+                        </label>
+                        <div className="flex flex-wrap gap-2.5">
+                            {["#38bdf8", "#34d399", "#f472b6", "#a78bfa", "#fb7185", "#fbbf24", "#f97316", "#22d3ee"].map((c) => (
+                                <button
+                                    key={c}
+                                    type="button"
+                                    onClick={() => setThemeColor(themeColor === c ? "" : c)}
+                                    aria-label={c}
+                                    aria-pressed={themeColor === c}
+                                    className={`w-9 h-9 rounded-full ring-2 ring-offset-2 ring-offset-black active:scale-90 transition ${themeColor === c ? "ring-white scale-110" : "ring-transparent"}`}
+                                    style={{ backgroundColor: c }}
+                                />
+                            ))}
+                        </div>
+                        <p className="text-xs text-white/30 mt-1.5">
+                            {locale === "en" ? "Colors your avatar ring and accents. Tap again to reset." : "アバターのリングなどの色になります。もう一度押すと解除。"}
+                        </p>
                     </div>
 
                     <div>

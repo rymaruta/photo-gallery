@@ -12,7 +12,9 @@ import { haversineKm } from "../../lib/utils/journey";
 import { hapticTap } from "../../lib/utils/haptics";
 import { buildTrips, tripAutoTitle, tripDisplayTitle, type Trip } from "../../lib/utils/trips";
 import SongPlayer from "../components/SongPlayer";
-import { HeartIcon, PlayIcon, StopIcon } from "@heroicons/react/24/solid";
+import { HeartIcon, PlayIcon, StopIcon, StarIcon } from "@heroicons/react/24/solid";
+import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
+import { themeRingGradient } from "../../lib/utils/color";
 import { useLocale } from "../i18n/context";
 import { useToast } from "../../lib/hooks/useToast";
 import type { Photo } from "@/lib/data/photos";
@@ -40,6 +42,9 @@ type UserProfile = {
     songPreviewUrl?: string;
     songTrackUrl?: string;
     tripTitles?: Record<string, string>;
+    themeColor?: string;
+    statusText?: string;
+    pinnedPhotoIds?: string[];
 };
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
@@ -123,11 +128,13 @@ function CoverBackground({ userId }: { userId: string }) {
     );
 }
 
-function PhotoCard({ photo, locale, isOwner, onTogglePublish }: {
+function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, onTogglePin }: {
     photo: Photo;
     locale: string;
     isOwner: boolean;
     onTogglePublish?: (id: string, published: boolean) => void;
+    pinned?: boolean;
+    onTogglePin?: (id: string, pin: boolean) => void;
 }) {
     const [imageError, setImageError] = useState(false);
     const title = getLocalized(photo.title, locale as "ja" | "en") || (typeof photo.title === "string" ? photo.title : "");
@@ -167,6 +174,25 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish }: {
                     </div>
                 )}
             </Link>
+
+            {/* ピン留め: オーナーはトグル、訪問者にはバッジ */}
+            {isOwner && onTogglePin ? (
+                <button
+                    onClick={(e) => { e.preventDefault(); onTogglePin(photo.id, !pinned); }}
+                    className={`absolute top-1.5 left-1.5 p-1.5 rounded-full transition-colors z-10 ${
+                        pinned
+                            ? "bg-amber-400/90 text-black"
+                            : "bg-black/0 text-white/0 hover:bg-black/60 hover:text-white/80"
+                    }`}
+                    title={pinned ? (locale === "en" ? "Unpin" : "ピン留め解除") : (locale === "en" ? "Pin to top" : "先頭にピン留め")}
+                >
+                    {pinned ? <StarIcon className="w-4 h-4" /> : <StarIconOutline className="w-4 h-4" />}
+                </button>
+            ) : pinned ? (
+                <span className="absolute top-1.5 left-1.5 p-1 rounded-full bg-black/50 text-amber-300 z-10 pointer-events-none">
+                    <StarIcon className="w-3.5 h-3.5" />
+                </span>
+            ) : null}
 
             {/* 自分のプロフィール: 公開/非公開トグル */}
             {isOwner && (
@@ -485,41 +511,77 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     const trips = useMemo(() => buildTrips(visiblePhotos), [visiblePhotos]);
     const [openTripId, setOpenTripId] = useState<string | null>(null);
 
-    // 旅のカスタム名（オーナーが編集可能・プロフィールに保存され全員に見える）
-    const tripTitles = userProfile?.tripTitles;
-    const renameTrip = useCallback(async (tripId: string, title: string | null) => {
-        const prev = userProfile?.tripTitles ?? {};
-        const next = { ...prev };
-        if (title) next[tripId] = title; else delete next[tripId];
+    // プロフィール項目の部分更新。PUT は全置換のため、既知の項目を丸ごと送り返す。
+    const saveProfilePatch = useCallback(async (patch: Partial<UserProfile>, successMsg: string) => {
+        const prev = userProfile;
         // 楽観的更新
-        setUserProfile((p) => (p ? { ...p, tripTitles: next } : p));
+        setUserProfile((p) => (p ? { ...p, ...patch } : ({ userId, ...patch } as UserProfile)));
         try {
-            // PUT は全置換のため、既知のプロフィール項目を丸ごと送り返す
+            const base = userProfile ?? ({ userId } as UserProfile);
             const res = await userFetch("/user/profile", {
                 method: "PUT",
                 body: JSON.stringify({
-                    displayName: userProfile?.displayName,
-                    bio: userProfile?.bio,
-                    instagram: userProfile?.instagram,
-                    website: userProfile?.website,
-                    songUrl: userProfile?.songUrl,
-                    songStart: userProfile?.songStart,
-                    songEnd: userProfile?.songEnd,
-                    songTitle: userProfile?.songTitle,
-                    songArtist: userProfile?.songArtist,
-                    songArtwork: userProfile?.songArtwork,
-                    songPreviewUrl: userProfile?.songPreviewUrl,
-                    songTrackUrl: userProfile?.songTrackUrl,
-                    tripTitles: next,
+                    displayName: base.displayName,
+                    bio: base.bio,
+                    instagram: base.instagram,
+                    website: base.website,
+                    songUrl: base.songUrl,
+                    songStart: base.songStart,
+                    songEnd: base.songEnd,
+                    songTitle: base.songTitle,
+                    songArtist: base.songArtist,
+                    songArtwork: base.songArtwork,
+                    songPreviewUrl: base.songPreviewUrl,
+                    songTrackUrl: base.songTrackUrl,
+                    tripTitles: base.tripTitles,
+                    themeColor: base.themeColor,
+                    statusText: base.statusText,
+                    pinnedPhotoIds: base.pinnedPhotoIds,
+                    ...patch,
                 }),
             });
             if (!res.ok) throw new Error(String(res.status));
-            showToast(locale === "en" ? "Trip name saved" : "旅の名前を保存しました", "success");
+            showToast(successMsg, "success");
         } catch {
-            setUserProfile((p) => (p ? { ...p, tripTitles: prev } : p));
+            setUserProfile(prev ?? null);
             showToast(locale === "en" ? "Failed to save" : "保存に失敗しました", "error");
         }
-    }, [userProfile, locale, showToast]);
+    }, [userProfile, userId, locale, showToast]);
+
+    // 旅のカスタム名（オーナーが編集可能・プロフィールに保存され全員に見える）
+    const tripTitles = userProfile?.tripTitles;
+    const renameTrip = useCallback(async (tripId: string, title: string | null) => {
+        const next = { ...(userProfile?.tripTitles ?? {}) };
+        if (title) next[tripId] = title; else delete next[tripId];
+        await saveProfilePatch({ tripTitles: next }, locale === "en" ? "Trip name saved" : "旅の名前を保存しました");
+    }, [userProfile?.tripTitles, saveProfilePatch, locale]);
+
+    // ピン留め（投稿タブ先頭に固定・最大3枚・全員に見える）
+    const pinnedPhotoIds = useMemo(() => userProfile?.pinnedPhotoIds ?? [], [userProfile?.pinnedPhotoIds]);
+    const togglePin = useCallback(async (photoId: string, pin: boolean) => {
+        const cur = userProfile?.pinnedPhotoIds ?? [];
+        if (pin && cur.length >= 3) {
+            showToast(locale === "en" ? "You can pin up to 3 photos" : "ピン留めは3枚までです", "info");
+            return;
+        }
+        const next = pin ? [...cur, photoId] : cur.filter((id) => id !== photoId);
+        await saveProfilePatch(
+            { pinnedPhotoIds: next },
+            pin
+                ? (locale === "en" ? "Pinned to top ⭐" : "先頭にピン留めしました ⭐")
+                : (locale === "en" ? "Unpinned" : "ピン留めを解除しました"),
+        );
+    }, [userProfile?.pinnedPhotoIds, saveProfilePatch, locale, showToast]);
+
+    // 投稿タブの表示順: ピン留めが先頭
+    const orderedPhotos = useMemo(() => {
+        if (pinnedPhotoIds.length === 0) return visiblePhotos;
+        const pinned = pinnedPhotoIds
+            .map((id) => visiblePhotos.find((p) => p.id === id))
+            .filter((p): p is Photo => !!p);
+        const rest = visiblePhotos.filter((p) => !pinnedPhotoIds.includes(p.id));
+        return [...pinned, ...rest];
+    }, [visiblePhotos, pinnedPhotoIds]);
 
     // 足あとサマリー: 訪れた場所数（ユニークな location）と旅の期間（撮影日の最古〜最新）
     const footprint = useMemo(() => {
@@ -689,7 +751,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             {/* 回転するグラデーション層（アバターは静止したまま背面だけ回る） */}
                             <div
                                 className="absolute inset-0 rounded-full avatar-orbit"
-                                style={{ background: "conic-gradient(from 0deg, #38bdf8, #34d399, #2dd4bf, #38bdf8)" }}
+                                style={{ background: themeRingGradient(userProfile?.themeColor) }}
                                 aria-hidden="true"
                             />
                             <div className="relative rounded-full p-[3px]">
@@ -702,6 +764,9 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             <h1 className="text-2xl sm:text-3xl font-bold leading-tight truncate drop-shadow-md">
                                 {displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}
                             </h1>
+                            {userProfile?.statusText && (
+                                <p className="text-sm text-white/80 truncate mt-0.5 drop-shadow-sm">{userProfile.statusText}</p>
+                            )}
                         </div>
                     </div>
 
@@ -863,7 +928,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             >
                                 <Icon className="w-4 h-4" />
                                 <span>{label}</span>
-                                {active && <span className="absolute -top-px inset-x-0 h-0.5 bg-white rounded-full" />}
+                                {active && <span className="absolute -top-px inset-x-0 h-0.5 rounded-full" style={{ backgroundColor: userProfile?.themeColor ?? "#ffffff" }} />}
                             </button>
                         );
                     })}
@@ -894,8 +959,16 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         </div>
                     ) : (
                         <div className="grid grid-cols-3 gap-1 pb-8">
-                            {visiblePhotos.map(photo => (
-                                <PhotoCard key={photo.id} photo={photo} locale={locale} isOwner={isOwner} onTogglePublish={handleTogglePublish} />
+                            {orderedPhotos.map(photo => (
+                                <PhotoCard
+                                    key={photo.id}
+                                    photo={photo}
+                                    locale={locale}
+                                    isOwner={isOwner}
+                                    onTogglePublish={handleTogglePublish}
+                                    pinned={pinnedPhotoIds.includes(photo.id)}
+                                    onTogglePin={isOwner ? (id, pin) => void togglePin(id, pin) : undefined}
+                                />
                             ))}
                         </div>
                     )

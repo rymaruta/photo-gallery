@@ -27,6 +27,10 @@ export type UserProfile = {
     songTrackUrl?: string;
     // 旅アルバムのカスタム名（trip-<epoch> → タイトル）。未設定の旅は自動タイトル。
     tripTitles?: Record<string, string>;
+    // マイページのパーソナライズ
+    themeColor?: string;          // #rrggbb（アバターリング等のアクセント色）
+    statusText?: string;          // 名前の下に出る「ひとこと」（絵文字OK・60文字）
+    pinnedPhotoIds?: string[];    // ピン留め（投稿タブ先頭に固定・最大3枚）
     updatedAt?: string;
 };
 
@@ -58,6 +62,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         songUrl?: string; songStart?: number; songEnd?: number;
         songTitle?: string; songArtist?: string; songArtwork?: string; songPreviewUrl?: string; songTrackUrl?: string;
         tripTitles?: Record<string, string>;
+        themeColor?: string; statusText?: string; pinnedPhotoIds?: string[];
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -90,6 +95,20 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     const songTitle = body.songTitle?.trim().slice(0, 200) || undefined;
     const songArtist = body.songArtist?.trim().slice(0, 200) || undefined;
 
+    // マイページのパーソナライズ
+    const themeColor = typeof body.themeColor === "string" && /^#[0-9a-fA-F]{6}$/.test(body.themeColor.trim())
+        ? body.themeColor.trim().toLowerCase()
+        : undefined;
+    const statusText = body.statusText?.trim().slice(0, 60) || undefined;
+    let pinnedPhotoIds: string[] | undefined;
+    if (Array.isArray(body.pinnedPhotoIds)) {
+        const cleaned = body.pinnedPhotoIds
+            .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+            .map((x) => x.trim().slice(0, 64));
+        const uniq = Array.from(new Set(cleaned)).slice(0, 3);
+        if (uniq.length > 0) pinnedPhotoIds = uniq;
+    }
+
     // 旅アルバムのカスタム名: キーは trip-<epoch> 形式のみ・最大100件・各80文字
     let tripTitles: Record<string, string> | undefined;
     if (body.tripTitles && typeof body.tripTitles === "object" && !Array.isArray(body.tripTitles)) {
@@ -117,6 +136,9 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         ...(songArtist ? { songArtist } : {}),
         ...(songTrackUrl ? { songTrackUrl } : {}),
         ...(tripTitles ? { tripTitles } : {}),
+        ...(themeColor ? { themeColor } : {}),
+        ...(statusText ? { statusText } : {}),
+        ...(pinnedPhotoIds ? { pinnedPhotoIds } : {}),
         updatedAt: new Date().toISOString(),
     };
 
