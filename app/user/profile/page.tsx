@@ -37,6 +37,7 @@ type UserProfile = {
     ranking?: { title?: string; items: string[] };
     tripTitles?: Record<string, string>;
     tripCovers?: Record<string, string>;
+    tripSongs?: Record<string, SongEntry>;
     themeColor?: string;
     statusText?: string;
     pinnedPhotoIds?: string[];
@@ -323,6 +324,7 @@ export default function ProfileEditPage() {
                     ranking: { title: rankingTitle, items: rankingItems.map((t) => t.trim()).filter(Boolean) },
                     tripTitles: profile?.tripTitles,
                     tripCovers: profile?.tripCovers,
+                    tripSongs: profile?.tripSongs,
                     pinnedPhotoIds: profile?.pinnedPhotoIds,
                 }),
             });

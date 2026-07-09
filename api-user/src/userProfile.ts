@@ -39,6 +39,8 @@ export type UserProfile = {
     tripTitles?: Record<string, string>;
     // 旅アルバムのカバー写真（trip-<epoch> → photoId）。未設定は先頭の写真。
     tripCovers?: Record<string, string>;
+    // 旅アルバムごとのBGM（trip-<epoch> → 曲）。旅を開くとその曲を再生できる。
+    tripSongs?: Record<string, SongEntry>;
     // マイランキング（自由なお題 + 最大5項目）
     ranking?: { title?: string; items: string[] };
     // マイページのパーソナライズ
@@ -77,6 +79,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         songTitle?: string; songArtist?: string; songArtwork?: string; songPreviewUrl?: string; songTrackUrl?: string;
         tripTitles?: Record<string, string>;
         tripCovers?: Record<string, string>;
+        tripSongs?: unknown;
         themeColor?: string; statusText?: string; pinnedPhotoIds?: string[];
         songs?: unknown; ranking?: unknown;
     };
@@ -175,6 +178,30 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     const tripTitles = sanitizeTripMap(body.tripTitles, 80);
     const tripCovers = sanitizeTripMap(body.tripCovers, 64);
 
+    // 旅アルバムのBGM: キーは trip-<epoch>、曲は songs と同じ検証（title + https preview 必須）
+    let tripSongs: Record<string, SongEntry> | undefined;
+    if (body.tripSongs && typeof body.tripSongs === "object" && !Array.isArray(body.tripSongs)) {
+        const out: Record<string, SongEntry> = {};
+        for (const [k, raw] of Object.entries(body.tripSongs as Record<string, unknown>).slice(0, 100)) {
+            if (!/^trip-\d+$/.test(k) || !raw || typeof raw !== "object") continue;
+            const o = raw as Record<string, unknown>;
+            const previewUrl = httpsOnly(typeof o.previewUrl === "string" ? o.previewUrl : undefined, 500);
+            const title = typeof o.title === "string" ? o.title.trim().slice(0, 200) : "";
+            if (!previewUrl || !title) continue;
+            const artist = typeof o.artist === "string" ? o.artist.trim().slice(0, 200) : "";
+            const artwork = httpsOnly(typeof o.artwork === "string" ? o.artwork : undefined, 500);
+            const trackUrl = httpsOnly(typeof o.trackUrl === "string" ? o.trackUrl : undefined, 500);
+            out[k] = {
+                title,
+                previewUrl,
+                ...(artist ? { artist } : {}),
+                ...(artwork ? { artwork } : {}),
+                ...(trackUrl ? { trackUrl } : {}),
+            };
+        }
+        if (Object.keys(out).length > 0) tripSongs = out;
+    }
+
     const profile: UserProfile = {
         userId,
         ...(displayName ? { displayName } : {}),
@@ -195,6 +222,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         ...(ranking ? { ranking } : {}),
         ...(tripTitles ? { tripTitles } : {}),
         ...(tripCovers ? { tripCovers } : {}),
+        ...(tripSongs ? { tripSongs } : {}),
         ...(themeColor ? { themeColor } : {}),
         ...(statusText ? { statusText } : {}),
         ...(pinnedPhotoIds ? { pinnedPhotoIds } : {}),

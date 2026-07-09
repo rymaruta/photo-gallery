@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, RectangleStackIcon, QrCodeIcon, TrophyIcon } from "@heroicons/react/24/outline";
-import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
+import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { geocodePlace, type GeoPoint } from "../../lib/utils/geocode";
 import { haversineKm } from "../../lib/utils/journey";
@@ -53,6 +53,7 @@ type UserProfile = {
     ranking?: { title?: string; items: string[] };
     tripTitles?: Record<string, string>;
     tripCovers?: Record<string, string>;
+    tripSongs?: Record<string, SongEntry>;
     themeColor?: string;
     statusText?: string;
     pinnedPhotoIds?: string[];
@@ -301,7 +302,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
 
 // 旅アルバムのカード。カバー写真 + タイトル + 期間/枚数/距離。タップで写真を展開。
 // オーナーは展開時に旅の名前を編集できる（カスタム名はプロフィールに保存され全員に見える）。
-function TripCard({ trip, locale, isOwner, onTogglePublish, open, onToggle, customTitle, onRename, coverId, onSetCover }: {
+function TripCard({ trip, locale, isOwner, onTogglePublish, open, onToggle, customTitle, onRename, coverId, onSetCover, song, onSetSong }: {
     trip: Trip;
     locale: string;
     isOwner: boolean;
@@ -312,11 +313,30 @@ function TripCard({ trip, locale, isOwner, onTogglePublish, open, onToggle, cust
     onRename?: (title: string | null) => void;
     coverId?: string;
     onSetCover?: (photoId: string) => void;
+    song?: SongEntry;
+    onSetSong?: (song: SongEntry | null) => void;
 }) {
     const en = locale === "en";
     const cover = pickTripCover(trip, coverId);
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState("");
+    // 旅のBGM設定（オーナーのみ）: インライン曲検索
+    const [songPickerOpen, setSongPickerOpen] = useState(false);
+    const [songQuery, setSongQuery] = useState("");
+    const [songResults, setSongResults] = useState<SongResult[]>([]);
+    const [songSearching, setSongSearching] = useState(false);
+    const searchTripSongs = async () => {
+        const q = songQuery.trim();
+        if (!q) return;
+        setSongSearching(true);
+        try {
+            setSongResults(await searchSongs(q));
+        } catch {
+            setSongResults([]);
+        } finally {
+            setSongSearching(false);
+        }
+    };
 
     const autoTitle = tripAutoTitle(trip, en ? "en" : "ja");
     const title = tripDisplayTitle(trip, customTitle ? { [trip.id]: customTitle } : undefined, en ? "en" : "ja");
@@ -406,6 +426,98 @@ function TripCard({ trip, locale, isOwner, onTogglePublish, open, onToggle, cust
                             </div>
                         )
                     )}
+                    {/* この旅のBGM */}
+                    {(song || (editable && onSetSong)) && (
+                        <div className="px-2 pt-2 space-y-2">
+                            {song && (
+                                <SongPlayer
+                                    key={song.previewUrl}
+                                    title={song.title}
+                                    artist={song.artist ?? ""}
+                                    artwork={song.artwork}
+                                    previewUrl={song.previewUrl}
+                                    trackUrl={song.trackUrl}
+                                    label={en ? "Trip BGM" : "この旅のBGM"}
+                                />
+                            )}
+                            {editable && onSetSong && (
+                                songPickerOpen ? (
+                                    <div className="rounded-xl bg-white/5 ring-1 ring-white/10 p-2.5 space-y-2">
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={songQuery}
+                                                onChange={(e) => setSongQuery(e.target.value)}
+                                                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void searchTripSongs(); } }}
+                                                placeholder={en ? "Song or artist" : "曲名・アーティスト名"}
+                                                autoFocus
+                                                className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
+                                            />
+                                            <button
+                                                onClick={() => void searchTripSongs()}
+                                                disabled={songSearching || !songQuery.trim()}
+                                                className="px-3.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 transition text-xs disabled:opacity-40 flex items-center justify-center min-w-[56px]"
+                                            >
+                                                {songSearching
+                                                    ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                    : (en ? "Search" : "検索")}
+                                            </button>
+                                            <button
+                                                onClick={() => { setSongPickerOpen(false); setSongResults([]); setSongQuery(""); }}
+                                                className="px-2 rounded-lg text-white/50 hover:text-white/80 text-xs active:scale-95 transition"
+                                            >
+                                                {en ? "Cancel" : "閉じる"}
+                                            </button>
+                                        </div>
+                                        {songResults.length > 0 && (
+                                            <ul className="rounded-lg ring-1 ring-white/10 divide-y divide-white/5 overflow-hidden max-h-56 overflow-y-auto no-scrollbar">
+                                                {songResults.map((r) => (
+                                                    <li key={r.id}>
+                                                        <button
+                                                            onClick={() => {
+                                                                onSetSong({ title: r.title, artist: r.artist, artwork: r.artwork, previewUrl: r.previewUrl, trackUrl: r.trackUrl });
+                                                                setSongPickerOpen(false);
+                                                                setSongResults([]);
+                                                                setSongQuery("");
+                                                            }}
+                                                            className="w-full flex items-center gap-2.5 p-2 hover:bg-white/5 active:bg-white/10 transition text-left"
+                                                        >
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img src={r.artwork} alt="" loading="lazy" className="w-8 h-8 rounded object-cover bg-white/10 flex-shrink-0" />
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className="text-xs text-white truncate">{r.title}</p>
+                                                                <p className="text-[11px] text-white/50 truncate">{r.artist}</p>
+                                                            </div>
+                                                            <span className="text-[11px] text-white/40 flex-shrink-0">{en ? "Set" : "設定"}</span>
+                                                        </button>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={() => setSongPickerOpen(true)}
+                                            className="inline-flex items-center gap-1 text-xs text-white/50 hover:text-white/80 active:scale-95 transition"
+                                        >
+                                            <MusicalNoteIcon className="w-3.5 h-3.5" />
+                                            {song ? (en ? "Change BGM" : "BGMを変更") : (en ? "Add a BGM to this trip" : "この旅にBGMを付ける")}
+                                        </button>
+                                        {song && (
+                                            <button
+                                                onClick={() => onSetSong(null)}
+                                                className="text-xs text-white/40 hover:text-white/70 active:scale-95 transition"
+                                            >
+                                                {en ? "Remove" : "外す"}
+                                            </button>
+                                        )}
+                                    </div>
+                                )
+                            )}
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-3 gap-1 p-1 pt-2">
                         {trip.photos.map((photo) => (
                             <PhotoCard
@@ -630,6 +742,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     ranking: base.ranking,
                     tripTitles: base.tripTitles,
                     tripCovers: base.tripCovers,
+                    tripSongs: base.tripSongs,
                     themeColor: base.themeColor,
                     statusText: base.statusText,
                     pinnedPhotoIds: base.pinnedPhotoIds,
@@ -665,6 +778,19 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 : (locale === "en" ? "Cover updated 🖼" : "カバーを設定しました 🖼"),
         );
     }, [userProfile?.tripCovers, saveProfilePatch, locale]);
+
+    // 旅アルバムのBGM（1旅1曲）。null で解除
+    const tripSongs = userProfile?.tripSongs;
+    const setTripSong = useCallback(async (tripId: string, song: SongEntry | null) => {
+        const next = { ...(userProfile?.tripSongs ?? {}) };
+        if (song) next[tripId] = song; else delete next[tripId];
+        await saveProfilePatch(
+            { tripSongs: next },
+            song
+                ? (locale === "en" ? "Trip BGM set 🎵" : "この旅のBGMを設定しました 🎵")
+                : (locale === "en" ? "Trip BGM removed" : "この旅のBGMを外しました"),
+        );
+    }, [userProfile?.tripSongs, saveProfilePatch, locale]);
 
     // ピン留め（投稿タブ先頭に固定・最大3枚・全員に見える）
     const pinnedPhotoIds = useMemo(() => userProfile?.pinnedPhotoIds ?? [], [userProfile?.pinnedPhotoIds]);
@@ -1158,6 +1284,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                         onRename={isOwner ? (title) => void renameTrip(trip.id, title) : undefined}
                                         coverId={tripCovers?.[trip.id]}
                                         onSetCover={isOwner ? (photoId) => void setTripCover(trip.id, photoId) : undefined}
+                                        song={tripSongs?.[trip.id]}
+                                        onSetSong={isOwner ? (sg) => void setTripSong(trip.id, sg) : undefined}
                                     />
                                 ))}
                             </div>
