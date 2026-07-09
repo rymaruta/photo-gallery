@@ -223,7 +223,8 @@ export const getNotifications: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
     const uid = getUserId(event);
     try {
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: notifsId(uid) } }));
-        const items = Array.isArray(res.Item?.items) ? res.Item.items : [];
+        // 書き込みは list_append の追記のみなので、上限の切り詰めは取得時に行う
+        const items = (Array.isArray(res.Item?.items) ? res.Item.items : []).slice(0, NOTIFS_MAX);
         const unread = typeof res.Item?.unread === "number" ? res.Item.unread : 0;
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ items, unread }) };
     } catch (e) {
@@ -286,7 +287,9 @@ export async function checkGoFulfillment(
             ExpressionAttributeValues: { ":z": 0, ":one": 1 },
         })).catch(() => { /* 元写真が削除済みなら数えない */ });
 
-        // 元写真の投稿者に通知（自分自身の写真は除く）
+        // 元写真の投稿者に通知（自分自身の写真は除く）。
+        // 同時成立で通知が失われないよう list_append + ADD でアトミックに追記する
+        // （件数の上限は取得時に切り詰める）。
         if (entry.ownerId && entry.ownerId !== uid) {
             const notif: Notif = {
                 type: "inspired",
@@ -297,13 +300,21 @@ export async function checkGoFulfillment(
                 t: now,
             };
             try {
-                const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: notifsId(entry.ownerId) } }));
-                const items = Array.isArray(res.Item?.items) ? (res.Item.items as Notif[]) : [];
-                const unread = typeof res.Item?.unread === "number" ? res.Item.unread : 0;
-                items.unshift(notif);
-                await ddb.send(new PutCommand({
+                await ddb.send(new UpdateCommand({
                     TableName: PHOTOS_TABLE,
-                    Item: { id: notifsId(entry.ownerId), uid: entry.ownerId, items: items.slice(0, NOTIFS_MAX), unread: unread + 1, updatedAt: now },
+                    Key: { id: notifsId(entry.ownerId) },
+                    UpdateExpression:
+                        "SET #items = list_append(:new, if_not_exists(#items, :empty)), " +
+                        "unread = if_not_exists(unread, :z) + :one, uid = :owner, updatedAt = :now",
+                    ExpressionAttributeNames: { "#items": "items" },
+                    ExpressionAttributeValues: {
+                        ":new": [notif],
+                        ":empty": [],
+                        ":z": 0,
+                        ":one": 1,
+                        ":owner": entry.ownerId,
+                        ":now": now,
+                    },
                 }));
             } catch (e) {
                 console.error("notify error:", e);

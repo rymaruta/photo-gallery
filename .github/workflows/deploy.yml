@@ -6,9 +6,10 @@ on:
       - main
   workflow_dispatch:
   schedule:
-    # 毎日 03:00 JST に再ビルド。/photo/[id] の静的ページに
-    # 前日アップロードされた写真を反映する（photos.json の再同期）
-    - cron: "0 18 * * *"
+    # 6時間ごとに再ビルド（JST 03:00 / 09:00 / 15:00 / 21:00）。
+    # /photo/[id] の静的ページやサイトマップに新しい写真を反映する
+    # （photos.json の再同期）。アップロード直後はモーダル表示で閲覧できる。
+    - cron: "0 0,6,12,18 * * *"
 
 jobs:
   deploy-frontend:
