@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from "react"
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, RectangleStackIcon, QrCodeIcon, TrophyIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, RectangleStackIcon, QrCodeIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { geocodePlace, type GeoPoint } from "../../lib/utils/geocode";
@@ -12,6 +12,7 @@ import { haversineKm } from "../../lib/utils/journey";
 import { hapticTap } from "../../lib/utils/haptics";
 import { buildTrips, tripAutoTitle, tripDisplayTitle, pickTripCover, type Trip } from "../../lib/utils/trips";
 import MusicCard from "../components/MusicCard";
+import RankingCard from "../components/RankingCard";
 import { HeartIcon, PlayIcon, StopIcon, StarIcon } from "@heroicons/react/24/solid";
 import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
 import { themeRingGradient } from "../../lib/utils/color";
@@ -1090,24 +1091,14 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         </div>
                     )}
 
-                    {/* マイランキング */}
+                    {/* マイランキング（表彰台カード） */}
                     {userProfile?.ranking?.items?.length ? (
-                        <div className="mt-4 rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 max-w-md">
-                            <div className="flex items-center gap-1.5 mb-2.5">
-                                <TrophyIcon className="w-3.5 h-3.5 text-amber-400" />
-                                <span className="text-[11px] tracking-widest uppercase text-white/45">
-                                    {userProfile.ranking.title || (locale === "en" ? "My Ranking" : "マイランキング")}
-                                </span>
-                            </div>
-                            <ol className="space-y-1.5">
-                                {userProfile.ranking.items.map((item, idx) => (
-                                    <li key={idx} className="flex items-center gap-2.5 text-sm text-white/85">
-                                        <span className="w-6 text-center flex-shrink-0">{["🥇", "🥈", "🥉"][idx] ?? `${idx + 1}.`}</span>
-                                        <span className="truncate">{item}</span>
-                                    </li>
-                                ))}
-                            </ol>
-                        </div>
+                        <RankingCard
+                            title={userProfile.ranking.title}
+                            items={userProfile.ranking.items}
+                            locale={locale}
+                            className="mt-4 max-w-md"
+                        />
                     ) : null}
 
                     {/* 自分のプロフィール: 編集・アップロード導線（インスタ風） */}

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon, UserCircleIcon, CameraIcon, MusicalNoteIcon, MagnifyingGlassIcon, XMarkIcon, ChevronDownIcon, TrophyIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, UserCircleIcon, CameraIcon, MusicalNoteIcon, MagnifyingGlassIcon, XMarkIcon, ChevronDownIcon, ChevronUpIcon, TrophyIcon } from "@heroicons/react/24/outline";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
 import { useAuth } from "../../auth/context";
@@ -10,6 +10,7 @@ import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { userFetch } from "../../../lib/utils/api";
 import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../../lib/utils/music";
+import RankingCard from "../../components/RankingCard";
 
 type SongEntry = {
     title: string;
@@ -790,7 +791,18 @@ export default function ProfileEditPage() {
                         <div className="space-y-2">
                             {rankingItems.map((v, i) => (
                                 <div key={i} className="flex items-center gap-2">
-                                    <span className="w-7 text-center flex-shrink-0">{["🥇", "🥈", "🥉"][i] ?? `${i + 1}.`}</span>
+                                    {/* 金・銀・銅のミニメダル（表示カードと同じ配色） */}
+                                    <span
+                                        className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[11px] font-black tabular-nums ${
+                                            [
+                                                "bg-gradient-to-br from-amber-100 via-yellow-400 to-amber-600 text-amber-950",
+                                                "bg-gradient-to-br from-slate-50 via-slate-300 to-slate-500 text-slate-900",
+                                                "bg-gradient-to-br from-orange-200 via-orange-400 to-orange-700 text-orange-950",
+                                            ][i] ?? "bg-white/10 text-white/55"
+                                        }`}
+                                    >
+                                        {i + 1}
+                                    </span>
                                     <input
                                         type="text"
                                         value={v}
@@ -799,12 +811,48 @@ export default function ProfileEditPage() {
                                         placeholder={i === 0 ? (locale === "en" ? "e.g. Shirakawa-go" : "例: 白川郷") : ""}
                                         className={`${inputClass} py-2`}
                                     />
+                                    {/* 並べ替え（上下の値を入れ替える） */}
+                                    <div className="flex flex-col flex-shrink-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => setRankingItems((cur) => cur.map((x, j) => (j === i ? cur[i - 1] : j === i - 1 ? cur[i] : x)))}
+                                            disabled={i === 0}
+                                            aria-label={locale === "en" ? `Move item ${i + 1} up` : `${i + 1}番目を上へ`}
+                                            className="p-0.5 text-white/40 hover:text-white disabled:opacity-20 disabled:cursor-default transition"
+                                            style={{ touchAction: "manipulation" }}
+                                        >
+                                            <ChevronUpIcon className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setRankingItems((cur) => cur.map((x, j) => (j === i ? cur[i + 1] : j === i + 1 ? cur[i] : x)))}
+                                            disabled={i === rankingItems.length - 1}
+                                            aria-label={locale === "en" ? `Move item ${i + 1} down` : `${i + 1}番目を下へ`}
+                                            className="p-0.5 text-white/40 hover:text-white disabled:opacity-20 disabled:cursor-default transition"
+                                            style={{ touchAction: "manipulation" }}
+                                        >
+                                            <ChevronDownIcon className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
                         <p className="text-[11px] text-white/35">
                             {locale === "en" ? "Empty rows are skipped. Clear all to remove the ranking." : "空欄はスキップされます。全部空にするとランキング自体が消えます。"}
                         </p>
+                        {/* 実際の見た目のプレビュー（入力に合わせてリアルタイム更新） */}
+                        {rankingItems.some((t) => t.trim()) && (
+                            <div className="pt-1">
+                                <p className="text-[11px] tracking-widest uppercase text-white/35 mb-1.5">
+                                    {locale === "en" ? "Preview" : "プレビュー"}
+                                </p>
+                                <RankingCard
+                                    title={rankingTitle}
+                                    items={rankingItems.map((t) => t.trim()).filter(Boolean)}
+                                    locale={locale}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <div className="pt-2">
