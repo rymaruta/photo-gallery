@@ -50,7 +50,7 @@ export default function FavoritesPage() {
     // お気に入りの画像をプリロード
     React.useEffect(() => {
         if (favoritePhotos.length > 0) {
-            const imageSrcs = favoritePhotos.map(p => p.src);
+            const imageSrcs = favoritePhotos.map(p => p.thumbSrc ?? p.src);
             // 最初の10枚を優先的にプリロード
             preloadMultiple(imageSrcs.slice(0, 10));
         }

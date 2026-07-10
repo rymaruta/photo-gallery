@@ -100,7 +100,7 @@ const GalleryItem = React.memo(function GalleryItem({
 
                     {!imageError ? (
                         <Image
-                            src={photo.src}
+                            src={photo.thumbSrc ?? photo.src}
                             alt={localizedAlt}
                             fill
                             draggable={false}

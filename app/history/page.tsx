@@ -59,7 +59,7 @@ export default function HistoryPage() {
     // 閲覧履歴の画像をプリロード
     React.useEffect(() => {
         if (historyPhotos.length > 0) {
-            const imageSrcs = historyPhotos.map(p => p.src);
+            const imageSrcs = historyPhotos.map(p => p.thumbSrc ?? p.src);
             // 最初の10枚を優先的にプリロード
             preloadMultiple(imageSrcs.slice(0, 10));
         }

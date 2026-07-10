@@ -1,6 +1,7 @@
 export type Photo = {
     id: string;
     src: string;
+    thumbSrc?: string; // 一覧グリッド用の軽量サムネイル（512px WebP）。ない写真は src を使う
     title?: string | Record<string, string>;
     description?: string | Record<string, string[]>;
     category?: string;

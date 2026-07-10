@@ -165,7 +165,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
             >
                 {!imageError ? (
                     <Image
-                        src={photo.src}
+                        src={photo.thumbSrc ?? photo.src}
                         alt={title}
                         fill
                         className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"

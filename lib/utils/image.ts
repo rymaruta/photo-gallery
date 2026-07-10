@@ -35,48 +35,99 @@ export async function stripJpegExif(file: File): Promise<File> {
     }
 }
 
+/** 長辺が maxPx に収まる縮小後サイズを返す（拡大はしない） */
+export function scaleDimensions(width: number, height: number, maxPx: number): { width: number; height: number } {
+    if (width <= maxPx && height <= maxPx) return { width, height };
+    if (width >= height) return { width: maxPx, height: Math.round(height * maxPx / width) };
+    return { width: Math.round(width * maxPx / height), height: maxPx };
+}
+
+/** サムネイルのファイル名（拡張子を差し替え、_thumb を付ける） */
+export function thumbFileName(name: string, ext: string): string {
+    return `${name.replace(/\.[^.]+$/, "")}_thumb.${ext}`;
+}
+
+function loadImageFromFile(file: File): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+        const img = new window.Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("画像の読み込みに失敗しました")); };
+        img.src = url;
+    });
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob | null> {
+    return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+}
+
+// canvas を WebP 優先でエンコードする。WebP は JPEG より 25〜35% 小さく透過も保持できる。
+// 非対応ブラウザ（toBlob が null または別 type を返す）は従来どおり PNG/JPEG に落とす。
+async function encodeCanvas(
+    canvas: HTMLCanvasElement,
+    img: HTMLImageElement,
+    sourceType: string,
+    quality: number,
+): Promise<{ blob: Blob; type: string; ext: string } | null> {
+    const webp = await canvasToBlob(canvas, "image/webp", quality);
+    if (webp && webp.type === "image/webp") return { blob: webp, type: "image/webp", ext: "webp" };
+
+    // フォールバック: PNG は透過保持のため PNG のまま、それ以外は白背景の JPEG
+    const outputType = sourceType === "image/png" ? "image/png" : "image/jpeg";
+    const ctx = canvas.getContext("2d");
+    if (outputType === "image/jpeg" && ctx) {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    }
+    const blob = await canvasToBlob(canvas, outputType, quality);
+    if (!blob) return null;
+    return { blob, type: outputType, ext: outputType === "image/png" ? "png" : "jpg" };
+}
+
 export async function compressImage(file: File, maxPx = 1920, quality = 0.85): Promise<File> {
     // GIFはアニメーションを保持するため圧縮しない
     if (file.type === "image/gif") return file;
 
-    return new Promise((resolve, reject) => {
-        const img = new window.Image();
-        const url = URL.createObjectURL(file);
-        img.onload = () => {
-            URL.revokeObjectURL(url);
-            let { width, height } = img;
-            if (width > maxPx || height > maxPx) {
-                if (width >= height) { height = Math.round(height * maxPx / width); width = maxPx; }
-                else { width = Math.round(width * maxPx / height); height = maxPx; }
-            }
-            const canvas = document.createElement("canvas");
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) { resolve(file); return; }
+    const img = await loadImageFromFile(file);
+    const { width, height } = scaleDimensions(img.width, img.height, maxPx);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(img, 0, 0, width, height);
 
-            // JPEG は透過をサポートしないので白背景を敷く
-            const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
-            if (outputType === "image/jpeg") {
-                ctx.fillStyle = "#ffffff";
-                ctx.fillRect(0, 0, width, height);
-            }
-            ctx.drawImage(img, 0, 0, width, height);
+    const encoded = await encodeCanvas(canvas, img, file.type, quality);
+    if (!encoded) return file;
+    const baseName = file.name.replace(/\.[^.]+$/, "");
+    return new File([encoded.blob], `${baseName}.${encoded.ext}`, { type: encoded.type });
+}
 
-            const ext = outputType === "image/png" ? "png" : "jpg";
-            const baseName = file.name.replace(/\.[^.]+$/, "");
-            canvas.toBlob(
-                (blob) => {
-                    if (!blob) { resolve(file); return; }
-                    resolve(new File([blob], `${baseName}.${ext}`, { type: outputType }));
-                },
-                outputType,
-                quality,
-            );
-        };
-        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("画像の読み込みに失敗しました")); };
-        img.src = url;
-    });
+/**
+ * 一覧グリッド配信用の小さなサムネイル（既定 512px・WebP 優先）を生成する。
+ * フル画像（〜1920px）をグリッドの小さなマスに流すのは帯域の無駄で表示も遅いため、
+ * アップロード時に軽量版を併せて作って別キーに保存する。
+ * 失敗したら null（サムネなしでもアップロード自体は成立させる）。
+ */
+export async function createThumbnail(file: File, maxPx = 512, quality = 0.75): Promise<File | null> {
+    if (!file.type.startsWith("image/") || file.type === "image/gif") return null;
+    try {
+        const img = await loadImageFromFile(file);
+        const { width, height } = scaleDimensions(img.width, img.height, maxPx);
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return null;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const encoded = await encodeCanvas(canvas, img, file.type, quality);
+        if (!encoded) return null;
+        return new File([encoded.blob], thumbFileName(file.name, encoded.ext), { type: encoded.type });
+    } catch {
+        return null;
+    }
 }
 
 // ---- 代表色（ドミナントカラー）の抽出 ----

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { stripJpegExif } from "../image";
+import { stripJpegExif, scaleDimensions, thumbFileName } from "../image";
 
 // 合成 JPEG バイト列を組み立てるヘルパー
 function segment(marker: number, payload: number[]): number[] {
@@ -94,5 +94,50 @@ describe("stripJpegExif", () => {
         const result = await stripJpegExif(file);
         expect(result.name).toBe("旅の写真.jpg");
         expect(result.type).toBe("image/jpeg");
+    });
+});
+
+describe("scaleDimensions", () => {
+    it("横長画像は長辺（幅）を maxPx に合わせる", () => {
+        expect(scaleDimensions(4000, 3000, 1920)).toEqual({ width: 1920, height: 1440 });
+    });
+
+    it("縦長画像は長辺（高さ）を maxPx に合わせる", () => {
+        expect(scaleDimensions(3000, 4000, 1920)).toEqual({ width: 1440, height: 1920 });
+    });
+
+    it("正方形は両辺 maxPx になる", () => {
+        expect(scaleDimensions(2048, 2048, 512)).toEqual({ width: 512, height: 512 });
+    });
+
+    it("maxPx 以下の画像は拡大しない", () => {
+        expect(scaleDimensions(800, 600, 1920)).toEqual({ width: 800, height: 600 });
+    });
+
+    it("サムネイルサイズ（512px）への縮小", () => {
+        expect(scaleDimensions(1920, 1080, 512)).toEqual({ width: 512, height: 288 });
+    });
+
+    it("端数は四捨五入される", () => {
+        const { height } = scaleDimensions(1000, 333, 512);
+        expect(height).toBe(Math.round(333 * 512 / 1000));
+    });
+});
+
+describe("thumbFileName", () => {
+    it("拡張子を差し替えて _thumb を付ける", () => {
+        expect(thumbFileName("photo.jpg", "webp")).toBe("photo_thumb.webp");
+    });
+
+    it("拡張子がない名前にも対応する", () => {
+        expect(thumbFileName("photo", "webp")).toBe("photo_thumb.webp");
+    });
+
+    it("複数ドットは最後の拡張子のみ差し替える", () => {
+        expect(thumbFileName("trip.2024.png", "jpg")).toBe("trip.2024_thumb.jpg");
+    });
+
+    it("日本語ファイル名も維持する", () => {
+        expect(thumbFileName("旅の写真.jpeg", "webp")).toBe("旅の写真_thumb.webp");
     });
 });

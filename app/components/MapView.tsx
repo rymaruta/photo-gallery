@@ -142,7 +142,7 @@ export default function MapView({ photos, locale, showRoute = false, replayToken
             el.href = ROUTES.PHOTO(photo.id);
             el.style.cssText = "display:block;width:140px;text-decoration:none;color:#111;";
             const img = document.createElement("img");
-            img.src = photo.src;
+            img.src = photo.thumbSrc ?? photo.src;
             img.alt = title;
             img.loading = "lazy";
             img.style.cssText = "width:140px;height:100px;object-fit:cover;border-radius:6px;display:block;";
@@ -199,7 +199,7 @@ export default function MapView({ photos, locale, showRoute = false, replayToken
             map.panTo([p.lat, p.lng], { animate: true, duration: 0.8 });
             popup?.remove();
             const img = document.createElement("img");
-            img.src = p.photo.src;
+            img.src = p.photo.thumbSrc ?? p.photo.src;
             img.alt = "";
             img.loading = "eager";
             img.style.cssText = "width:110px;height:78px;object-fit:cover;border-radius:8px;display:block;";

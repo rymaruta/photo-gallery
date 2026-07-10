@@ -254,7 +254,7 @@ export default function AdminPage() {
                         >
                             <div className="relative aspect-square bg-black">
                                 <Image
-                                    src={photo.src}
+                                    src={photo.thumbSrc ?? photo.src}
                                     alt={getTitle(photo)}
                                     fill
                                     className="object-cover"

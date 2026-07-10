@@ -9,7 +9,7 @@ import LocaleToggle from "../../components/LocaleToggle";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
 import { getCurrentSession } from "../../../lib/auth/cognito";
-import { compressImage, stripJpegExif, extractDominantColor } from "../../../lib/utils/image";
+import { compressImage, createThumbnail, stripJpegExif, extractDominantColor } from "../../../lib/utils/image";
 import { extractExifFromFile, reverseGeocode } from "../../../lib/utils/exif";
 import { readSharedPayload, clearSharedPayload } from "../../../lib/utils/shareStore";
 
@@ -303,7 +303,33 @@ function UploadPageInner() {
                     headers: { "Content-Type": uploadFile.type, "Cache-Control": "max-age=31536000" },
                 });
                 if (!uploadResponse.ok) throw new Error(`S3 ${uploadResponse.status}`);
-                updateItem(item.id, { progress: 80 });
+                updateItem(item.id, { progress: 70 });
+
+                // 一覧グリッド用の 512px WebP サムネイルを併せてアップロードする。
+                // グリッドがフル画像（〜1920px）を落とすのが読み込みの遅さの主因。
+                // サムネ生成/アップロードに失敗しても本体の投稿は成立させる。
+                let thumbUrl: string | undefined;
+                try {
+                    const thumb = await createThumbnail(item.file);
+                    if (thumb) {
+                        const thumbPresign = await apiFetch("/upload/presigned-url", {
+                            method: "POST",
+                            body: JSON.stringify({ fileName: thumb.name, fileType: thumb.type, fileSize: thumb.size }),
+                        });
+                        if (thumbPresign.ok) {
+                            const t = await thumbPresign.json() as { presignedUrl: string; publicUrl: string };
+                            const thumbPut = await fetch(t.presignedUrl, {
+                                method: "PUT",
+                                body: thumb,
+                                headers: { "Content-Type": thumb.type, "Cache-Control": "max-age=31536000" },
+                            });
+                            if (thumbPut.ok) thumbUrl = t.publicUrl;
+                        }
+                    }
+                } catch (e) {
+                    log.error("thumbnail upload failed (continuing without thumb):", e);
+                }
+                updateItem(item.id, { progress: 85 });
 
                 // 撮影地座標: GPS自動入力がONのときのみ、約1km精度に丸めて保存
                 const coords = gpsAutofill && item.latitude !== undefined && item.longitude !== undefined
@@ -324,6 +350,7 @@ function UploadPageInner() {
                         tags: tagList,
                         ...(coords ? { coords } : {}),
                         ...(dominantColor ? { dominantColor } : {}),
+                        ...(thumbUrl ? { thumbUrl } : {}),
                     }),
                 });
                 if (!saveResponse.ok) {

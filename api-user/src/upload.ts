@@ -99,6 +99,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         displayName?: string;
         coords?: unknown;
         dominantColor?: string;
+        thumbUrl?: string;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -106,7 +107,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なリクエスト" }) };
     }
 
-    const { key, publicUrl, photoId, title, description, location, category, tags, exif, displayName, coords, dominantColor } = body;
+    const { key, publicUrl, photoId, title, description, location, category, tags, exif, displayName, coords, dominantColor, thumbUrl } = body;
     if (!key || !publicUrl) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイル情報が必要です" }) };
     }
@@ -133,6 +134,10 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     const safeDominantColor = typeof dominantColor === "string" && /^#[0-9a-fA-F]{6}$/.test(dominantColor)
         ? dominantColor.toLowerCase()
         : undefined;
+    // サムネイルURL: 一覧グリッド配信用の軽量版（publicUrl と同じ信頼レベル）。https のみ
+    const safeThumbSrc = typeof thumbUrl === "string" && thumbUrl.startsWith("https://") && thumbUrl.length <= 500
+        ? thumbUrl
+        : undefined;
 
     const photo: Photo = {
         id: photoId ?? uuidv4(),
@@ -145,6 +150,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         ...(exif && Object.keys(exif).length > 0 ? { exif } : {}),
         ...(safeCoords ? { coords: safeCoords } : {}),
         ...(safeDominantColor ? { dominantColor: safeDominantColor } : {}),
+        ...(safeThumbSrc ? { thumbSrc: safeThumbSrc } : {}),
         ...(resolvedDisplayName ? { displayName: resolvedDisplayName } : {}),
         userId,
         uploadedBy: userId,
