@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { XMarkIcon, Bars3Icon } from "@heroicons/react/24/solid";
 import { useAuth } from "../auth/context";
@@ -109,7 +110,10 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                 {open ? <XMarkIcon className="h-6 w-6 text-white" /> : <Bars3Icon className="h-6 w-6 text-white" />}
             </button>
 
-            {open && (
+            {/* メニューは body へポータルする。ヘッダーは backdrop-blur を持ち、
+                backdrop-filter は CSS 仕様で position:fixed の包含ブロックになるため、
+                ヘッダー内に置くと「高さ0の不可視ダイアログ」に潰れる（実害のあった不具合）。 */}
+            {open && createPortal(
                 <div
                     id="site-menu"
                     role="dialog"
@@ -200,7 +204,8 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                             </ul>
                         </nav>
                     </div>
-                </div>
+                </div>,
+                document.body,
             )}
         </nav>
     );

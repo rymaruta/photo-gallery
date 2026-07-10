@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { BellIcon } from "@heroicons/react/24/outline";
 import { PaperAirplaneIcon } from "@heroicons/react/24/solid";
 import { userFetch } from "../../lib/utils/api";
@@ -74,7 +75,10 @@ export default function NotificationsBell() {
 
             {open && (
                 <>
-                    <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
+                    {createPortal(
+                        <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />,
+                        document.body,
+                    )}
                     <div className="absolute right-0 top-full mt-2 z-50 w-80 max-w-[85vw] rounded-2xl bg-[#16181c]/95 backdrop-blur-md ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in">
                         <div className="px-4 py-2.5 border-b border-white/5">
                             <span className="text-xs font-semibold tracking-widest uppercase text-white/45">

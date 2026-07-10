@@ -51,6 +51,15 @@ jobs:
           NEXT_PUBLIC_COGNITO_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_COGNITO_CLIENT_ID || '21cs4cd8dkttmg3snloj72u8mu' }}
           NEXT_PUBLIC_CLOUDFRONT_URL: ${{ secrets.NEXT_PUBLIC_CLOUDFRONT_URL || 'https://d1s3dwwzgxf5ni.cloudfront.net' }}
 
+      # 実ブラウザでメニュー・モーダル・タブを実際にタップして検証。
+      # 「見た目は正常だがタップできない」系の回帰（不可視オーバーレイ・
+      # ハイドレーション不全・包含ブロック事故）はここで止まる。
+      - name: Install Chromium for smoke test
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser smoke test (tap the real UI)
+        run: node scripts/e2e-smoke.mjs
+
       - name: Deploy to S3
         run: node scripts/deploy-static-site.js --bucket prod-journey-photo.com
         env:
