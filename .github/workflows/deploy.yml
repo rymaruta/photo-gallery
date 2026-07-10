@@ -41,6 +41,13 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
 
+      # thumbSrc を持たない写真のサムネイル（512px WebP）を S3 元画像から生成する。
+      # 冪等（生成済みはスキップ）なので毎回実行してよい。クライアント側の
+      # サムネ生成が失敗した写真も、次のデプロイ/定期再ビルドで自動修復される。
+      # ビルド前に実行することで photos.json に thumbSrc が反映される。
+      - name: Generate missing thumbnails
+        run: node scripts/generate-thumbnails.js
+
       - name: Build
         run: npm run build
         env:
