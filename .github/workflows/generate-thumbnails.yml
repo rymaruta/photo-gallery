@@ -1,0 +1,43 @@
+name: Generate Thumbnails (migration)
+
+# 既存写真のサムネイル一括生成（手動実行のみ）。
+# thumbSrc を持たない写真の S3 元画像から 512px WebP を生成して保存し、
+# DynamoDB に thumbSrc を書き込む。冪等なので何度実行しても安全。
+# 実行後はサイトの再ビルド（Deploy to Production）で photos.json に反映される。
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "1 で対象一覧の確認のみ（生成しない）"
+        required: false
+        default: "0"
+
+jobs:
+  generate:
+    name: Generate thumbnails for existing photos
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+
+      - name: Generate thumbnails
+        run: node scripts/generate-thumbnails.js
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
