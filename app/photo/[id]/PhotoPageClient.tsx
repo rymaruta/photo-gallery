@@ -18,7 +18,7 @@ import { hapticTap } from "../../../lib/utils/haptics";
 import { searchSongs, type SongResult } from "../../../lib/utils/music";
 import { type SongEntry } from "../../music/MusicContext";
 import MusicCard from "../../components/MusicCard";
-import { MusicalNoteIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { MusicalNoteIcon, XMarkIcon, MapPinIcon, CameraIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../../auth/context";
 import { useViewHistory } from "../../../lib/hooks/useViewHistory";
 import { useToast } from "../../../lib/hooks/useToast";
@@ -493,9 +493,11 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
             <div className="space-y-4">
                 {/* タイトルとカテゴリ */}
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold mb-2">{titleText}</h1>
+                    <h1 className="text-2xl sm:text-3xl font-bold mb-2.5">{titleText}</h1>
                     {categoryDisplayName && (
-                        <div className="text-sm text-white/60 mb-2">{categoryDisplayName}</div>
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-white/10 ring-1 ring-white/10 text-xs text-white/70">
+                            {categoryDisplayName}
+                        </span>
                     )}
                 </div>
 
@@ -510,23 +512,27 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                     </div>
                 )}
 
-                {/* 場所と地図リンク */}
+                {/* 場所チップ（地図リンクがあればそのまま地図へ飛べる） */}
                 {locationText && (
                     <div>
-                        <div className="text-sm text-white/60 mb-2">{locationText}</div>
-                        {href && (
+                        {href ? (
                             <a
                                 href={href}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 text-sm text-white/60 underline hover:text-white/80 transition-colors"
+                                className="inline-flex items-center gap-1.5 max-w-full px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-sm text-white/75 hover:bg-white/10 hover:text-white active:scale-[0.98] transition"
+                                style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                                title={locale === "ja" ? "地図で見る" : "View on map"}
                             >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" className="text-white/60">
-                                    <path d="M12 2C8.686 2 6 4.686 6 8c0 5.25 6 12 6 12s6-6.75 6-12c0-3.314-2.686-6-6-6z" fill="currentColor" />
-                                    <circle cx="12" cy="8" r="2.2" fill="black" />
-                                </svg>
-                                <span>{locale === "ja" ? "地図で見る" : "View on map"}</span>
+                                <MapPinIcon className="w-4 h-4 text-sky-400 flex-shrink-0" />
+                                <span className="truncate">{locationText}</span>
+                                <span className="text-[11px] text-white/40 flex-shrink-0">{locale === "ja" ? "地図" : "Map"} ↗</span>
                             </a>
+                        ) : (
+                            <span className="inline-flex items-center gap-1.5 max-w-full px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-sm text-white/75">
+                                <MapPinIcon className="w-4 h-4 text-sky-400 flex-shrink-0" />
+                                <span className="truncate">{locationText}</span>
+                            </span>
                         )}
                     </div>
                 )}
@@ -552,80 +558,50 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                     </div>
                 )}
 
-                {/* EXIF情報 */}
-                {(mergedExif.camera || mergedExif.lens || mergedExif.aperture || mergedExif.exposure || mergedExif.iso || mergedExif.focalLength || mergedExif.whiteBalance || mergedExif.imageSize || mergedExif.dateTimeOriginal) && (
-                    <div className="pt-4 border-t border-white/10">
-                        <div className="text-sm font-medium text-white/70 mb-3">
-                            {locale === "en" ? "Camera Settings" : "撮影情報"}
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 text-sm text-white/50">
-                            {mergedExif.camera && (
-                                <div>
-                                    <span className="text-white/40">{locale === "en" ? "Camera" : "カメラ"}: </span>
-                                    {mergedExif.camera}
-                                </div>
-                            )}
-                            {mergedExif.lens && (
-                                <div>
-                                    <span className="text-white/40">{locale === "en" ? "Lens" : "レンズ"}: </span>
-                                    {mergedExif.lens}
-                                </div>
-                            )}
-                            {mergedExif.aperture && (
-                                <div>
-                                    <span className="text-white/40">{locale === "en" ? "Aperture" : "絞り"}: </span>
-                                    {mergedExif.aperture}
-                                </div>
-                            )}
-                            {mergedExif.exposure && (
-                                <div>
-                                    <span className="text-white/40">{locale === "en" ? "Exposure" : "シャッター速度"}: </span>
-                                    {mergedExif.exposure}
-                                </div>
-                            )}
-                            {mergedExif.iso && (
-                                <div>
-                                    <span className="text-white/40">ISO: </span>
-                                    {mergedExif.iso}
-                                </div>
-                            )}
-                            {mergedExif.focalLength && (
-                                <div>
-                                    <span className="text-white/40">{locale === "en" ? "Focal Length" : "焦点距離"}: </span>
-                                    {mergedExif.focalLength}
-                                </div>
-                            )}
-                            {mergedExif.whiteBalance && (
-                                <div>
-                                    <span className="text-white/40">{locale === "en" ? "White Balance" : "ホワイトバランス"}: </span>
-                                    {mergedExif.whiteBalance}
-                                </div>
-                            )}
-                            {mergedExif.imageSize && (
-                                <div>
-                                    <span className="text-white/40">{locale === "en" ? "Image Size" : "画像サイズ"}: </span>
-                                    {mergedExif.imageSize}
-                                </div>
-                            )}
-                            {mergedExif.dateTimeOriginal && (() => {
-                                const d = new Date(mergedExif.dateTimeOriginal);
-                                const formatted = isNaN(d.getTime()) ? null : d.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", {
-                                    year: "numeric",
-                                    month: "long",
-                                    day: "numeric",
-                                    hour: "2-digit",
-                                    minute: "2-digit"
-                                });
-                                return formatted ? (
-                                    <div className="col-span-2">
-                                        <span className="text-white/40">{locale === "en" ? "Date Taken" : "撮影日時"}: </span>
-                                        {formatted}
+                {/* EXIF情報: カメラのスペックシート風カード（ラベル上・値下の2列グリッド） */}
+                {(() => {
+                    const specs: Array<{ label: string; value: string; wide?: boolean }> = [];
+                    const add = (label: string, value: string | number | undefined | null, wide = false) => {
+                        if (value !== undefined && value !== null && `${value}`.trim() !== "") specs.push({ label, value: `${value}`, wide });
+                    };
+                    add(locale === "en" ? "Camera" : "カメラ", mergedExif.camera);
+                    add(locale === "en" ? "Lens" : "レンズ", mergedExif.lens);
+                    add(locale === "en" ? "Aperture" : "絞り", mergedExif.aperture);
+                    add(locale === "en" ? "Shutter" : "シャッター速度", mergedExif.exposure);
+                    add("ISO", mergedExif.iso);
+                    add(locale === "en" ? "Focal Length" : "焦点距離", mergedExif.focalLength);
+                    add(locale === "en" ? "White Balance" : "ホワイトバランス", mergedExif.whiteBalance);
+                    add(locale === "en" ? "Image Size" : "画像サイズ", mergedExif.imageSize);
+                    if (mergedExif.dateTimeOriginal) {
+                        const d = new Date(mergedExif.dateTimeOriginal);
+                        if (!isNaN(d.getTime())) {
+                            add(
+                                locale === "en" ? "Date Taken" : "撮影日時",
+                                d.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }),
+                                true,
+                            );
+                        }
+                    }
+                    if (specs.length === 0) return null;
+                    return (
+                        <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 max-w-md">
+                            <div className="flex items-center gap-1.5 mb-3">
+                                <CameraIcon className="w-3.5 h-3.5 text-white/50" />
+                                <span className="text-[11px] tracking-widest uppercase text-white/45">
+                                    {locale === "en" ? "Camera Settings" : "撮影情報"}
+                                </span>
+                            </div>
+                            <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+                                {specs.map((s) => (
+                                    <div key={s.label} className={s.wide ? "col-span-2" : ""}>
+                                        <dt className="text-[10px] uppercase tracking-wider text-white/35">{s.label}</dt>
+                                        <dd className="text-[13px] text-white/85 mt-0.5 break-words">{s.value}</dd>
                                     </div>
-                                ) : null;
-                            })()}
+                                ))}
+                            </dl>
                         </div>
-                    </div>
-                )}
+                    );
+                })()}
 
                 {/* この写真のBGM */}
                 {(photoSong || isOwnPhoto) && (
@@ -795,80 +771,69 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                         </button>
                     </div>
 
-                    {/* 共有機能 */}
+                    {/* 共有: 丸形のガラスアイコンボタン列（プロフィールの共有ボタンと同じ質感） */}
                     <div>
-                        <div className="text-sm font-medium text-white/70 mb-2">
+                        <div className="text-[11px] tracking-widest uppercase text-white/45 mb-2.5">
                             {locale === "en" ? "Share" : "共有"}
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                            <button
-                                onClick={handleShare}
-                                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
-                                style={{
-                                    touchAction: "manipulation",
-                                    WebkitTapHighlightColor: "transparent",
-                                    minHeight: "44px"
-                                }}
-                            >
-                                <ShareIcon className="w-4 h-4" />
-                                <span>{locale === "en" ? "Share" : "共有"}</span>
-                            </button>
-                            <button
-                                onClick={handleCopyLink}
-                                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
-                                style={{
-                                    touchAction: "manipulation",
-                                    WebkitTapHighlightColor: "transparent",
-                                    minHeight: "44px"
-                                }}
-                            >
-                                <LinkIcon className="w-4 h-4" />
-                                <span>{locale === "en" ? "Copy Link" : "リンクをコピー"}</span>
-                            </button>
-                            <button
-                                onClick={() => shareToTwitter(currentUrl, shareText)}
-                                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
-                                style={{
-                                    touchAction: "manipulation",
-                                    WebkitTapHighlightColor: "transparent",
-                                    minHeight: "44px"
-                                }}
-                            >
-                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                                </svg>
-                                <span>Twitter</span>
-                            </button>
-                            <button
-                                onClick={() => shareToFacebook(currentUrl)}
-                                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
-                                style={{
-                                    touchAction: "manipulation",
-                                    WebkitTapHighlightColor: "transparent",
-                                    minHeight: "44px"
-                                }}
-                            >
-                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                                </svg>
-                                <span>Facebook</span>
-                            </button>
-                            {locale === "ja" && (
+                        <div className="flex flex-wrap gap-2.5">
+                            {([
+                                {
+                                    key: "native",
+                                    label: locale === "en" ? "Share" : "共有",
+                                    onClick: handleShare,
+                                    icon: <ShareIcon className="w-5 h-5" />,
+                                },
+                                {
+                                    key: "copy",
+                                    label: locale === "en" ? "Copy link" : "リンクをコピー",
+                                    onClick: handleCopyLink,
+                                    icon: <LinkIcon className="w-5 h-5" />,
+                                },
+                                {
+                                    key: "x",
+                                    label: locale === "en" ? "Share on X" : "Xで共有",
+                                    onClick: () => shareToTwitter(currentUrl, shareText),
+                                    icon: (
+                                        <svg className="w-[18px] h-[18px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                                        </svg>
+                                    ),
+                                },
+                                {
+                                    key: "facebook",
+                                    label: locale === "en" ? "Share on Facebook" : "Facebookで共有",
+                                    onClick: () => shareToFacebook(currentUrl),
+                                    icon: (
+                                        <svg className="w-[18px] h-[18px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                                        </svg>
+                                    ),
+                                },
+                                ...(locale === "ja"
+                                    ? [{
+                                        key: "line",
+                                        label: "LINEで共有",
+                                        onClick: () => shareToLine(currentUrl, shareText),
+                                        icon: (
+                                            <svg className="w-[18px] h-[18px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.63.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.086.766.063 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314" />
+                                            </svg>
+                                        ),
+                                    }]
+                                    : []),
+                            ]).map((b) => (
                                 <button
-                                    onClick={() => shareToLine(currentUrl, shareText)}
-                                    className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-white/5 hover:bg-white/10 text-white/80 rounded-md transition-colors"
-                                    style={{
-                                        touchAction: "manipulation",
-                                        WebkitTapHighlightColor: "transparent",
-                                        minHeight: "44px"
-                                    }}
+                                    key={b.key}
+                                    onClick={b.onClick}
+                                    aria-label={b.label}
+                                    title={b.label}
+                                    className="inline-flex items-center justify-center w-11 h-11 rounded-full bg-white/5 ring-1 ring-white/10 text-white/75 hover:bg-white/10 hover:text-white active:scale-95 transition"
+                                    style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                                 >
-                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                        <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.63.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.086.766.063 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314" />
-                                    </svg>
-                                    <span>LINE</span>
+                                    {b.icon}
                                 </button>
-                            )}
+                            ))}
                         </div>
                     </div>
                 </div>

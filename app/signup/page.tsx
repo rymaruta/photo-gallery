@@ -252,7 +252,7 @@ export default function SignupPage() {
                         <button
                             type="submit"
                             disabled={submitting || !email || !password || !confirmPassword}
-                            className="w-full py-3 bg-white text-black text-sm font-semibold rounded-lg hover:bg-white/90 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+                            className="w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
                         >
                             {submitting ? (
                                 <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -292,7 +292,7 @@ export default function SignupPage() {
                         <button
                             type="submit"
                             disabled={submitting || code.trim().length < 6}
-                            className="w-full py-3 bg-white text-black text-sm font-semibold rounded-lg hover:bg-white/90 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {submitting ? (
                                 <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -336,7 +336,7 @@ export default function SignupPage() {
                         </p>
                         <Link
                             href="/login"
-                            className="block w-full py-3 bg-white text-black text-sm font-semibold rounded-lg hover:bg-white/90 active:scale-[0.98] transition text-center"
+                            className="block w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 active:scale-[0.98] transition text-center"
                         >
                             ログインする
                         </Link>

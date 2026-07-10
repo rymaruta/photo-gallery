@@ -609,7 +609,7 @@ function UploadPageInner() {
                         <button
                             onClick={handleUploadAll}
                             disabled={uploading || pendingCount === 0}
-                            className="px-6 py-3 bg-white text-black text-sm font-semibold rounded-md hover:bg-white/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="px-6 py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             style={{ touchAction: "manipulation", minHeight: "44px" }}
                         >
                             {uploading
@@ -698,7 +698,7 @@ function UploadPageInner() {
                                     }
                                 }}
                                 disabled={avatarUploading}
-                                className="px-3 py-2 text-sm bg-white text-black rounded-md font-medium hover:bg-white/90 transition-colors disabled:opacity-50"
+                                className="px-3 py-2 text-sm bg-white text-black rounded-full font-medium hover:bg-white/90 transition-colors disabled:opacity-50"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >
                                 {avatarUploading
