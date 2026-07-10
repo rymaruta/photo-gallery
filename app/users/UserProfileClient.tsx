@@ -947,11 +947,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         </div>
                     </div>
 
-                    {/* プロフィールヘッダー（アバターがカバーバンドの下端に重なる） */}
+                    {/* プロフィールヘッダー: アバターだけがカバーバンドの下端に重なり、
+                        名前と一言はカバーの外（黒背景）に置く。カバー写真の柄と
+                        文字が重なって読みにくくなるのを避けるため。 */}
                     <div className="pb-6 pt-24 sm:pt-32">
-                        {/* アバター（オリジナルのオーロラリング: 旅パレットで回転）+ 名前 + 共有 */}
-                        <div className="flex items-end gap-4 mb-5">
-                        <div className="relative flex-shrink-0 rounded-full shadow-lg shadow-sky-500/20">
+                        {/* アバター（オリジナルのオーロラリング: 旅パレットで回転） */}
+                        <div className="relative w-fit rounded-full shadow-lg shadow-sky-500/20">
                             {/* 回転するグラデーション層（アバターは静止したまま背面だけ回る） */}
                             <div
                                 className="absolute inset-0 rounded-full avatar-orbit"
@@ -964,15 +965,22 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                 </div>
                             </div>
                         </div>
-                        <div className="flex-1 min-w-0 pb-1">
-                            <h1 className="text-2xl sm:text-3xl font-bold leading-tight truncate drop-shadow-md">
+
+                        {/* 名前 + 一言（カバーの下・黒背景の上） */}
+                        <div className="mt-3.5 mb-4">
+                            <h1 className="text-2xl sm:text-3xl font-bold leading-tight truncate">
                                 {displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}
                             </h1>
                             {userProfile?.statusText && (
-                                <p className="text-sm text-white/80 truncate mt-0.5 drop-shadow-sm">{userProfile.statusText}</p>
+                                <div className="mt-2.5 inline-flex items-start gap-2 max-w-full rounded-2xl rounded-tl-md bg-white/[0.06] ring-1 ring-white/10 px-3.5 py-2 story-media-in">
+                                    <span aria-hidden className="font-serif text-lg leading-none text-white/30 -mt-0.5 flex-shrink-0">“</span>
+                                    <p className="text-[13px] text-white/85 leading-relaxed break-words min-w-0">
+                                        {userProfile.statusText}
+                                    </p>
+                                    <span aria-hidden className="font-serif text-lg leading-none text-white/30 self-end -mb-1 flex-shrink-0">”</span>
+                                </div>
                             )}
                         </div>
-                    </div>
 
                     {/* 統計（投稿数 / 総いいね数 / 旅した距離）— コンパクトなガラス調ピル */}
                     <div className="flex flex-wrap items-center gap-2 mb-4">
