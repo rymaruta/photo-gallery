@@ -27,7 +27,8 @@ export default function GalleryGrid({
     }
 
     return (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-0">
+        {/* 写真同士は少し余白を空けて呼吸させる（ユーザー好みで gap-0 から変更） */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1 sm:gap-1.5">
             {photos.map((p, idx) => {
                 const localizedTitle = getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : "");
                 const localizedAlt = getLocalized(p.alt, locale) || localizedTitle || "";
