@@ -1,6 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, beforeEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import RankingCard, { podiumOrder } from "../RankingCard";
+
+beforeEach(() => localStorage.clear());
 
 describe("podiumOrder", () => {
     it("0件は空", () => {
@@ -74,5 +76,25 @@ describe("RankingCard", () => {
         expect(screen.getByLabelText("1st")).toBeInTheDocument();
         expect(screen.getByLabelText("2nd")).toBeInTheDocument();
         expect(screen.getByLabelText("3rd")).toBeInTheDocument();
+    });
+
+    it("ヘッダータップで折りたたみ・再タップで展開できる（お題は常に見える）", () => {
+        render(<RankingCard title="今行きたい国" items={items} />);
+        const header = screen.getByRole("button", { expanded: true });
+        fireEvent.click(header);
+        expect(screen.queryByText("白川郷")).toBeNull();
+        expect(screen.getByText("今行きたい国")).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { expanded: false }));
+        expect(screen.getByText("白川郷")).toBeInTheDocument();
+    });
+
+    it("折りたたみ状態を localStorage に記憶し、次回は閉じた状態で始まる", () => {
+        const { unmount } = render(<RankingCard items={items} />);
+        fireEvent.click(screen.getByRole("button", { expanded: true }));
+        expect(localStorage.getItem("jp_ranking_open")).toBe("0");
+        unmount();
+        render(<RankingCard items={items} />);
+        expect(screen.queryByText("白川郷")).toBeNull();
+        expect(screen.getByRole("button", { expanded: false })).toBeInTheDocument();
     });
 });
