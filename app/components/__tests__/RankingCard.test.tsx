@@ -1,27 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import RankingCard, { podiumOrder } from "../RankingCard";
+import RankingCard from "../RankingCard";
 
 beforeEach(() => localStorage.clear());
-
-describe("podiumOrder", () => {
-    it("0件は空", () => {
-        expect(podiumOrder(0)).toEqual([]);
-    });
-
-    it("1件は1位のみ", () => {
-        expect(podiumOrder(1)).toEqual([0]);
-    });
-
-    it("2件は 2位 → 1位", () => {
-        expect(podiumOrder(2)).toEqual([1, 0]);
-    });
-
-    it("3件以上は 2位 → 1位 → 3位（表彰台の並び）", () => {
-        expect(podiumOrder(3)).toEqual([1, 0, 2]);
-        expect(podiumOrder(5)).toEqual([1, 0, 2]);
-    });
-});
 
 describe("RankingCard", () => {
     const items = ["白川郷", "屋久島", "宮島", "美瑛", "直島"];
