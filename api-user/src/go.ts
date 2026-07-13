@@ -2,6 +2,7 @@ import type { APIGatewayProxyHandlerV2, APIGatewayProxyHandlerV2WithJWTAuthorize
 import { PutCommand, DeleteCommand, UpdateCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
+import { notifsId, pushNotification, lookupDisplayName, type Notif } from "./notify";
 
 // 「行く」= いいねの上位互換となる本アプリの中核メカニクス。
 //   1. 誰かの写真に「行く」を押す → 行きたいリストに入る（goマーカー + golist文書）
@@ -27,21 +28,11 @@ export type GoEntry = {
     fulfilledAt?: string;
 };
 
-type Notif = {
-    type: "inspired";
-    photoId: string;
-    photoSrc: string;
-    byName: string;
-    atLocation?: string;
-    t: string;
-};
-
 const GOLIST_MAX = 200;
 const NOTIFS_MAX = 50;
 const FULFILL_RADIUS_KM = 30;
 
 const golistId = (uid: string) => `golist#${uid}`;
-const notifsId = (uid: string) => `notifs#${uid}`;
 const markerId = (photoId: string, uid: string) => `go#${photoId}#${uid}`;
 
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
@@ -117,9 +108,9 @@ export const goPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
     if (!uid || !photoId) return jsonError(400, "不正なリクエスト");
 
     try {
-        // 対象写真のスナップショット（成立判定・リスト表示に使う）
+        // 対象写真のスナップショット（成立判定・リスト表示・通知に使う）
         const photoRes = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: photoId } }));
-        const photo = photoRes.Item as (GoEntry & { id: string; userId?: string; src?: string; title?: unknown }) | undefined;
+        const photo = photoRes.Item as (GoEntry & { id: string; userId?: string; src?: string; thumbSrc?: string; title?: unknown }) | undefined;
         if (!photo || !photo.src) return jsonError(404, "写真が見つかりません");
 
         // マーカー（既にあれば冪等リターン）
@@ -158,6 +149,19 @@ export const goPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
                 t: new Date().toISOString(),
             });
             await writeGoList(uid, list);
+        }
+
+        // 投稿者へ「行きたいリストに追加されました」通知（自分の写真は除く）
+        const owner = photo.userId ? String(photo.userId) : undefined;
+        if (owner && owner !== uid) {
+            await pushNotification(owner, {
+                type: "go",
+                photoId,
+                photoSrc: String(photo.thumbSrc ?? photo.src),
+                byName: await lookupDisplayName(uid),
+                ...(photo.location ? { atLocation: photo.location } : {}),
+                t: new Date().toISOString(),
+            });
         }
 
         const goCount = (upd.Attributes?.goCount as number | undefined) ?? 1;
@@ -287,9 +291,7 @@ export async function checkGoFulfillment(
             ExpressionAttributeValues: { ":z": 0, ":one": 1 },
         })).catch(() => { /* 元写真が削除済みなら数えない */ });
 
-        // 元写真の投稿者に通知（自分自身の写真は除く）。
-        // 同時成立で通知が失われないよう list_append + ADD でアトミックに追記する
-        // （件数の上限は取得時に切り詰める）。
+        // 元写真の投稿者に通知（自分自身の写真は除く）
         if (entry.ownerId && entry.ownerId !== uid) {
             const notif: Notif = {
                 type: "inspired",
@@ -299,26 +301,7 @@ export async function checkGoFulfillment(
                 ...(entry.location ? { atLocation: entry.location } : {}),
                 t: now,
             };
-            try {
-                await ddb.send(new UpdateCommand({
-                    TableName: PHOTOS_TABLE,
-                    Key: { id: notifsId(entry.ownerId) },
-                    UpdateExpression:
-                        "SET #items = list_append(:new, if_not_exists(#items, :empty)), " +
-                        "unread = if_not_exists(unread, :z) + :one, uid = :owner, updatedAt = :now",
-                    ExpressionAttributeNames: { "#items": "items" },
-                    ExpressionAttributeValues: {
-                        ":new": [notif],
-                        ":empty": [],
-                        ":z": 0,
-                        ":one": 1,
-                        ":owner": entry.ownerId,
-                        ":now": now,
-                    },
-                }));
-            } catch (e) {
-                console.error("notify error:", e);
-            }
+            await pushNotification(entry.ownerId, notif);
         }
     }
 

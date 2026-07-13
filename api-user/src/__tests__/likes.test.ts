@@ -71,6 +71,52 @@ describe("likePhoto", () => {
         expect(mockDdbSend).toHaveBeenCalledTimes(2); // Update されない
     });
 
+    it("初回いいねで投稿者に通知が積まれる（byName は Users テーブルから）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({}) // Put marker
+            .mockResolvedValueOnce({ Attributes: { likes: 1, userId: "owner", src: "https://c/p.jpg", thumbSrc: "https://c/p_thumb.webp", location: "北海道" } }) // Update ALL_NEW
+            .mockResolvedValueOnce({ Item: { displayName: "旅子" } }) // lookupDisplayName
+            .mockResolvedValueOnce({}); // pushNotification
+        const res = await invoke(likePhoto, ev("u1", "p1"));
+        expect(res.statusCode).toBe(200);
+        expect(mockDdbSend).toHaveBeenCalledTimes(4);
+        const notif = mockDdbSend.mock.calls[3][0] as { input: { Key: { id: string }; ExpressionAttributeValues: Record<string, unknown> } };
+        expect(notif.input.Key.id).toBe("notifs#owner");
+        const item = (notif.input.ExpressionAttributeValues[":new"] as Array<Record<string, unknown>>)[0];
+        expect(item.type).toBe("like");
+        expect(item.byName).toBe("旅子");
+        expect(item.photoSrc).toBe("https://c/p_thumb.webp"); // サムネ優先
+        expect(item.atLocation).toBe("北海道");
+    });
+
+    it("自分の写真へのいいねは通知しない", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({}) // Put marker
+            .mockResolvedValueOnce({ Attributes: { likes: 1, userId: "u1", src: "https://c/p.jpg" } }); // 自分が投稿者
+        const res = await invoke(likePhoto, ev("u1", "p1"));
+        expect(res.statusCode).toBe(200);
+        expect(mockDdbSend).toHaveBeenCalledTimes(2); // 通知の書き込みなし
+    });
+
+    it("いいね済み（連打）では通知されない", async () => {
+        mockDdbSend
+            .mockRejectedValueOnce(condFail()) // マーカー既存
+            .mockResolvedValueOnce({ Item: { likes: 7 } });
+        await invoke(likePhoto, ev("u1", "p1"));
+        expect(mockDdbSend).toHaveBeenCalledTimes(2); // 通知の書き込みなし
+    });
+
+    it("通知の書き込み失敗はいいね自体を失敗させない", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({}) // Put marker
+            .mockResolvedValueOnce({ Attributes: { likes: 1, userId: "owner", src: "https://c/p.jpg" } })
+            .mockRejectedValueOnce(new Error("users table down")) // lookupDisplayName 失敗 → 既定名
+            .mockRejectedValueOnce(new Error("notify down")); // pushNotification 失敗 → 握りつぶす
+        const res = await invoke(likePhoto, ev("u1", "p1"));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body)).toEqual({ liked: true, likes: 1 });
+    });
+
     it("写真が存在しない場合はマーカーを巻き戻して 404", async () => {
         mockDdbSend
             .mockResolvedValueOnce({}) // Put marker

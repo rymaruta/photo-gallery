@@ -1,0 +1,62 @@
+import { GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { ddb, PHOTOS_TABLE } from "./dynamodb";
+
+// 通知の共通ヘルパー。
+// 通知は "notifs#<uid>" 文書に list_append + ADD unread でアトミックに追記する
+// （同時書き込みでも失われない）。件数上限の切り詰めは取得時に行う。
+
+export type Notif = {
+    type: "inspired" | "like" | "go";
+    photoId: string;
+    photoSrc: string;
+    byName: string;
+    atLocation?: string;
+    t: string;
+};
+
+export const notifsId = (uid: string) => `notifs#${uid}`;
+
+const USERS_TABLE = process.env.USERS_TABLE ?? "prod-photo-gallery-users";
+const DEFAULT_NAME = "旅人";
+
+/** 表示名を Users テーブルから引く（クライアント申告を信用しない）。無ければ既定名 */
+export async function lookupDisplayName(uid: string): Promise<string> {
+    try {
+        const res = await ddb.send(new GetCommand({
+            TableName: USERS_TABLE,
+            Key: { userId: uid },
+            ProjectionExpression: "displayName",
+        }));
+        const name = typeof res.Item?.displayName === "string" ? res.Item.displayName.trim() : "";
+        return name || DEFAULT_NAME;
+    } catch {
+        return DEFAULT_NAME;
+    }
+}
+
+/**
+ * 通知を積む。通知は本流の操作（いいね等）を失敗させないよう、
+ * エラーはログに残して握りつぶす。
+ */
+export async function pushNotification(ownerId: string, notif: Notif): Promise<void> {
+    try {
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: notifsId(ownerId) },
+            UpdateExpression:
+                "SET #items = list_append(:new, if_not_exists(#items, :empty)), " +
+                "unread = if_not_exists(unread, :z) + :one, uid = :owner, updatedAt = :now",
+            ExpressionAttributeNames: { "#items": "items" },
+            ExpressionAttributeValues: {
+                ":new": [notif],
+                ":empty": [],
+                ":z": 0,
+                ":one": 1,
+                ":owner": ownerId,
+                ":now": notif.t,
+            },
+        }));
+    } catch (e) {
+        console.error("pushNotification error:", e);
+    }
+}

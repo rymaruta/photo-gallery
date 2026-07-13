@@ -2,6 +2,7 @@ import type { APIGatewayProxyHandlerV2, APIGatewayProxyHandlerV2WithJWTAuthorize
 import { PutCommand, DeleteCommand, UpdateCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
+import { pushNotification, lookupDisplayName } from "./notify";
 
 // いいねはアグリゲート数を写真レコードの `likes` 属性に持ち、
 // 二重カウント防止のために「誰がいいねしたか」をマーカー item で記録する。
@@ -62,7 +63,8 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             throw e;
         }
 
-        // 写真カウンタを +1（写真が存在する場合のみ）
+        // 写真カウンタを +1（写真が存在する場合のみ）。
+        // ALL_NEW で写真の属性ごと受け取り、通知用の追加読み取りを省く
         try {
             const res = await ddb.send(new UpdateCommand({
                 TableName: PHOTOS_TABLE,
@@ -70,9 +72,25 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 UpdateExpression: "SET likes = if_not_exists(likes, :z) + :one",
                 ConditionExpression: "attribute_exists(id)",
                 ExpressionAttributeValues: { ":z": 0, ":one": 1 },
-                ReturnValues: "UPDATED_NEW",
+                ReturnValues: "ALL_NEW",
             }));
             const likes = (res.Attributes?.likes as number | undefined) ?? 1;
+
+            // 投稿者へ「いいねされました」通知（自分の写真は除く）。
+            // 初回いいね（マーカー新規作成）の時だけここに到達するので連打では鳴らない
+            const photo = res.Attributes as { userId?: string; src?: string; thumbSrc?: string; location?: string } | undefined;
+            const owner = photo?.userId ? String(photo.userId) : undefined;
+            if (owner && owner !== userId && photo?.src) {
+                await pushNotification(owner, {
+                    type: "like",
+                    photoId,
+                    photoSrc: String(photo.thumbSrc ?? photo.src),
+                    byName: await lookupDisplayName(userId),
+                    ...(photo.location ? { atLocation: photo.location } : {}),
+                    t: new Date().toISOString(),
+                });
+            }
+
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: true, likes }) };
         } catch (e) {
             // 写真が存在しない → マーカーを巻き戻して 404

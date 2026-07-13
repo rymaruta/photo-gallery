@@ -2,13 +2,15 @@
 
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { BellIcon } from "@heroicons/react/24/outline";
-import { PaperAirplaneIcon } from "@heroicons/react/24/solid";
+import { PaperAirplaneIcon, HeartIcon, MapPinIcon } from "@heroicons/react/24/solid";
 import { userFetch } from "../../lib/utils/api";
 import { useLocale } from "../i18n/context";
+import { ROUTES } from "../../lib/routes";
 
 type Notif = {
-    type: "inspired";
+    type: "inspired" | "like" | "go";
     photoId: string;
     photoSrc: string;
     byName: string;
@@ -16,8 +18,9 @@ type Notif = {
     t: string;
 };
 
-// 通知ベル: 「あなたの写真が◯◯さんを旅立たせました」を受け取る場所。
-// 認証済みヘッダーにのみ表示。開くと既読になる。
+// 通知ベル: 「いいねされた」「行きたいリストに入った」
+// 「あなたの写真が◯◯さんを旅立たせた」が届く場所。
+// 認証済みヘッダーにのみ表示。開くと既読になり、通知タップで写真へ飛べる。
 export default function NotificationsBell() {
     const { locale } = useLocale();
     const [open, setOpen] = useState(false);
@@ -88,24 +91,49 @@ export default function NotificationsBell() {
                         {items.length === 0 ? (
                             <p className="px-4 py-8 text-center text-xs text-white/40">
                                 {locale === "en"
-                                    ? "When your photo moves someone to travel, you'll hear about it here."
-                                    : "あなたの写真が誰かを旅立たせると、ここに届きます。"}
+                                    ? "Likes, travel-list adds, and journeys your photos inspire will show up here."
+                                    : "いいね・行きたいリスト追加・旅立ちの報告がここに届きます。"}
                             </p>
                         ) : (
                             <ul className="max-h-96 overflow-y-auto no-scrollbar divide-y divide-white/5">
                                 {items.map((n, i) => (
-                                    <li key={`${n.photoId}-${n.t}-${i}`} className="flex items-start gap-3 px-4 py-3">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img src={n.photoSrc} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
-                                        <div className="min-w-0 flex-1">
-                                            <p className="text-[13px] text-white/85 leading-snug">
-                                                <PaperAirplaneIcon className="w-3.5 h-3.5 -rotate-45 text-sky-400 inline -mt-0.5 mr-1" />
-                                                {locale === "en"
-                                                    ? <>Your photo moved <span className="font-semibold">{n.byName}</span> to travel{n.atLocation ? ` to ${n.atLocation}` : ""}!</>
-                                                    : <>あなたの写真が <span className="font-semibold">{n.byName}</span> さんを{n.atLocation ? `「${n.atLocation}」へ` : ""}旅立たせました！</>}
-                                            </p>
-                                            <p className="text-[11px] text-white/35 mt-0.5">{fmtTime(n.t)}</p>
-                                        </div>
+                                    <li key={`${n.photoId}-${n.t}-${i}`}>
+                                        <Link
+                                            href={ROUTES.PHOTO(n.photoId)}
+                                            onClick={() => setOpen(false)}
+                                            className="flex items-start gap-3 px-4 py-3 hover:bg-white/5 active:bg-white/10 transition-colors"
+                                            style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                                        >
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={n.photoSrc} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-[13px] text-white/85 leading-snug">
+                                                    {n.type === "like" ? (
+                                                        <>
+                                                            <HeartIcon className="w-3.5 h-3.5 text-rose-400 inline -mt-0.5 mr-1" />
+                                                            {locale === "en"
+                                                                ? <><span className="font-semibold">{n.byName}</span> liked your photo</>
+                                                                : <><span className="font-semibold">{n.byName}</span> さんがあなたの写真にいいねしました</>}
+                                                        </>
+                                                    ) : n.type === "go" ? (
+                                                        <>
+                                                            <MapPinIcon className="w-3.5 h-3.5 text-emerald-400 inline -mt-0.5 mr-1" />
+                                                            {locale === "en"
+                                                                ? <><span className="font-semibold">{n.byName}</span> added your photo to their travel list!</>
+                                                                : <><span className="font-semibold">{n.byName}</span> さんがあなたの写真を行きたいリストに追加しました！</>}
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <PaperAirplaneIcon className="w-3.5 h-3.5 -rotate-45 text-sky-400 inline -mt-0.5 mr-1" />
+                                                            {locale === "en"
+                                                                ? <>Your photo moved <span className="font-semibold">{n.byName}</span> to travel{n.atLocation ? ` to ${n.atLocation}` : ""}!</>
+                                                                : <>あなたの写真が <span className="font-semibold">{n.byName}</span> さんを{n.atLocation ? `「${n.atLocation}」へ` : ""}旅立たせました！</>}
+                                                        </>
+                                                    )}
+                                                </p>
+                                                <p className="text-[11px] text-white/35 mt-0.5">{fmtTime(n.t)}</p>
+                                            </div>
+                                        </Link>
                                     </li>
                                 ))}
                             </ul>
