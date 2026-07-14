@@ -75,6 +75,23 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
 
     return (
         <nav className={`site-header__nav flex items-center gap-2 ${className}`}>
+            {/* PC(md以上): 主要リンクをインライン表示。モバイルはメニュー内に集約 */}
+            <div className="hidden md:flex items-center gap-0.5 mr-1">
+                {[
+                    { href: ROUTES.HOME, label: navLabels.works || "Works" },
+                    { href: ROUTES.MAP, label: navLabels.map || "Map" },
+                    { href: ROUTES.ABOUT, label: navLabels.about || "About" },
+                ].map(({ href, label }) => (
+                    <button
+                        key={href}
+                        onClick={() => handleNavigation(href)}
+                        className="px-3 py-2 rounded-full text-sm text-white/65 hover:text-white hover:bg-white/10 transition-colors"
+                        style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                    >
+                        {label}
+                    </button>
+                ))}
+            </div>
             {/* 通知ベル: 「あなたの写真が誰かを旅立たせました」が届く */}
             {isAuthenticated && <NotificationsBell />}
             {/* ログイン中は自分のアバターを表示 → ワンタップでマイページ */}

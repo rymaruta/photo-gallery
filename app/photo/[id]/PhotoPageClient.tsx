@@ -478,19 +478,23 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                 </div>
             </div>
 
+            {/* PC(lg以上)は2カラム: 左に写真（スクロールに追従）、右に情報。
+                モバイルは従来どおり縦積み */}
+            <div className="lg:grid lg:grid-cols-5 lg:gap-10 lg:items-start">
+
             {/* 写真 */}
-            <div className="mb-6 relative">
+            <div className="mb-6 relative lg:col-span-3 lg:mb-0 lg:sticky lg:top-8">
                 <PhotoImage
                     src={photo.src}
                     alt={altText}
                     focalPoint={photo.focalPoint}
                     onExifLoaded={setExtractedExif}
                 />
-                
+
             </div>
 
             {/* 写真情報 */}
-            <div className="space-y-4">
+            <div className="space-y-4 lg:col-span-2">
                 {/* タイトルとカテゴリ */}
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-bold mb-2.5">{titleText}</h1>
@@ -839,6 +843,8 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                 </div>
 
                 </div>
+
+            </div>{/* /2カラムグリッド */}
             </main>
         </>
     );
