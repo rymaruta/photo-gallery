@@ -9,7 +9,6 @@ describe("ROUTES", () => {
         expect(ROUTES.HOME).toBe("/");
         expect(ROUTES.ABOUT).toBe("/about");
         expect(ROUTES.FAVORITES).toBe("/favorites");
-        expect(ROUTES.HISTORY).toBe("/history");
         expect(ROUTES.ADMIN).toBe("/admin");
         expect(ROUTES.LOGIN).toBe("/login");
         expect(ROUTES.UPLOAD).toBe("/user/upload");

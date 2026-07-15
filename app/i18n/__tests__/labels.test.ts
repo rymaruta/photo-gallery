@@ -35,7 +35,7 @@ describe("i18n labels", () => {
         });
 
         it("必須ナビゲーションキーが存在する", () => {
-            const required = ["works", "gallery", "about", "favorites", "history", "login", "logout"] as const;
+            const required = ["works", "gallery", "about", "favorites", "login", "logout"] as const;
             required.forEach((key) => {
                 expect(en.navigation?.[key], `en.navigation.${key}`).toBeTruthy();
                 expect(ja.navigation?.[key], `ja.navigation.${key}`).toBeTruthy();

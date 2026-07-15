@@ -10,7 +10,7 @@ import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
 import { getCurrentSession } from "../../../lib/auth/cognito";
 import { compressImage, createThumbnail, stripJpegExif, extractDominantColor } from "../../../lib/utils/image";
-import { extractExifFromFile, reverseGeocode } from "../../../lib/utils/exif";
+import { extractExifFromFile, extractCameraExif, reverseGeocode } from "../../../lib/utils/exif";
 import { readSharedPayload, clearSharedPayload } from "../../../lib/utils/shareStore";
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
@@ -339,6 +339,10 @@ function UploadPageInner() {
                 // 代表色: グリッドの読み込みプレースホルダーに使う（失敗しても続行）
                 const dominantColor = await extractDominantColor(item.file);
 
+                // 撮影情報（カメラ・レンズ・絞り等）: 圧縮で EXIF が失われる前に
+                // 元ファイルから抽出して保存する。GPS は含めない（coords で別管理）
+                const cameraExif = await extractCameraExif(item.file);
+
                 const saveResponse = await apiFetch("/upload/save", {
                     method: "POST",
                     body: JSON.stringify({
@@ -351,6 +355,7 @@ function UploadPageInner() {
                         ...(coords ? { coords } : {}),
                         ...(dominantColor ? { dominantColor } : {}),
                         ...(thumbUrl ? { thumbUrl } : {}),
+                        ...(Object.keys(cameraExif).length > 0 ? { exif: cameraExif } : {}),
                     }),
                 });
                 if (!saveResponse.ok) {

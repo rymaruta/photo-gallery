@@ -4,7 +4,6 @@ import type { Photo, Locale } from "@/lib/data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
 import { useSwipe } from "../../../lib/hooks/useSwipe";
 import { useFavorites } from "../../../lib/hooks/useFavorites";
-import { useViewHistory } from "../../../lib/hooks/useViewHistory";
 import { useToast } from "../../../lib/hooks/useToast";
 import { useImagePreloader } from "../../../lib/hooks/useImagePreloader";
 import { copyToClipboard, shareUrl } from "../../../lib/utils/share";
@@ -57,7 +56,6 @@ export default function GalleryModal({
         threshold: 50, velocityThreshold: 0.3,
     });
     const { isFavorite, toggleFavorite } = useFavorites();
-    const { addToHistory } = useViewHistory();
     const { showToast } = useToast();
     const { preload } = useImagePreloader();
 
@@ -76,8 +74,6 @@ export default function GalleryModal({
             lastTapRef.current = now;
         }
     };
-
-    useEffect(() => { if (p?.id) addToHistory(p.id); }, [p?.id, addToHistory]);
 
     // 前後の画像をプリロード
     useEffect(() => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { shareToTwitter, shareToFacebook, shareToLine, shareUrl } from "../share";
+import { shareToTwitter, shareToLine, shareUrl } from "../share";
 
 const openMock = vi.fn();
 Object.defineProperty(window, "open", { value: openMock, writable: true });
@@ -19,16 +19,6 @@ describe("shareToTwitter", () => {
     it("text が省略されてもエラーにならない", () => {
         expect(() => shareToTwitter("https://example.com")).not.toThrow();
         expect(openMock).toHaveBeenCalledOnce();
-    });
-});
-
-describe("shareToFacebook", () => {
-    it("facebook.com の URL を window.open で開く", () => {
-        shareToFacebook("https://example.com/photo/1");
-        expect(openMock).toHaveBeenCalledOnce();
-        const url = openMock.mock.calls[0][0] as string;
-        expect(url).toContain("facebook.com/sharer");
-        expect(url).toContain(encodeURIComponent("https://example.com/photo/1"));
     });
 });
 

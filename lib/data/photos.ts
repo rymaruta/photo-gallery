@@ -59,6 +59,7 @@ export type Photo = {
         whiteBalance?: string;
         imageSize?: string;
         fileFormat?: string;
+        dateTimeOriginal?: string;
     };
     translationStatus?: { ja?: boolean; en?: boolean };
     relatedIds?: string[];

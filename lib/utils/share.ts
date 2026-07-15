@@ -61,11 +61,6 @@ export function shareToTwitter(url: string, text?: string): void {
 /**
  * Facebookで共有
  */
-export function shareToFacebook(url: string): void {
-    if (typeof window === "undefined") return;
-    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
-    window.open(facebookUrl, "_blank", "width=550,height=420");
-}
 
 /**
  * LINEで共有

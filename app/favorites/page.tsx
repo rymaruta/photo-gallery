@@ -73,12 +73,12 @@ export default function FavoritesPage() {
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6 min-h-[64px]">
                 <div className="flex-1">
                     <h1 id="site-title" className="text-2xl sm:text-3xl font-bold mb-0">
-                        {locale === "en" ? "Favorites" : "お気に入り"}
+                        {locale === "en" ? "Liked Photos" : "いいねした写真"}
                     </h1>
                     <p className="text-sm text-white/60 mt-1">
                         {locale === "en"
-                            ? `${favoritePhotos.length} favorite photo${favoritePhotos.length !== 1 ? "s" : ""}`
-                            : `${favoritePhotos.length} 件のお気に入り`}
+                            ? `${favoritePhotos.length} liked photo${favoritePhotos.length !== 1 ? "s" : ""}`
+                            : `いいねした写真 ${favoritePhotos.length} 件`}
                     </p>
                 </div>
 
@@ -97,10 +97,10 @@ export default function FavoritesPage() {
                         <HeartIcon className="w-8 h-8 text-white/30" />
                     </div>
                     <p className="text-white/70 text-sm">
-                        {locale === "en" ? "No favorites yet." : "お気に入りはまだありません。"}
+                        {locale === "en" ? "No liked photos yet." : "いいねした写真はまだありません。"}
                     </p>
                     <p className="text-white/40 text-xs">
-                        {locale === "en" ? "Tap the heart on a photo to save it here." : "写真のハートを押すとここに保存されます。"}
+                        {locale === "en" ? "Tap the heart on a photo and it will be collected here." : "写真のハート（いいね）を押すとここに集まります。"}
                     </p>
                 </div>
             ) : (

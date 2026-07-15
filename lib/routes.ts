@@ -22,7 +22,6 @@ export const ROUTES = {
     HOME: "/",
     ABOUT: "/about",
     FAVORITES: "/favorites",
-    HISTORY: "/history",
     WISHLIST: "/wishlist",
     ADMIN: "/admin",
     LOGIN: "/login",

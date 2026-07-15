@@ -91,3 +91,37 @@ describe("savePhoto: 基本バリデーション", () => {
         expect(mockPutPhoto).not.toHaveBeenCalled();
     });
 });
+
+describe("savePhoto: exif（撮影情報）のサニタイズ", () => {
+    it("既知のフィールドだけが保存される（GPSや未知キーは落ちる）", async () => {
+        const res = await invoke(event("u1", {
+            ...BASE,
+            exif: {
+                camera: "SONY ILCE-7M3", lens: "FE 24-70mm", aperture: "f/4",
+                exposure: "1/640s", iso: 100, focalLength: "70mm",
+                whiteBalance: "Manual", imageSize: "6000x4000",
+                dateTimeOriginal: "2026-01-20T07:32:00.000Z",
+                GPSLatitude: 35.0, evil: "<script>",
+            },
+        }));
+        expect(res.statusCode).toBe(200);
+        const exif = savedPhoto().exif as Record<string, unknown>;
+        expect(exif.camera).toBe("SONY ILCE-7M3");
+        expect(exif.iso).toBe(100);
+        expect(exif.dateTimeOriginal).toBe("2026-01-20T07:32:00.000Z");
+        expect("GPSLatitude" in exif).toBe(false);
+        expect("evil" in exif).toBe(false);
+    });
+
+    it("文字列は100文字に切り詰められる", async () => {
+        const res = await invoke(event("u1", { ...BASE, exif: { camera: "x".repeat(300) } }));
+        expect(res.statusCode).toBe(200);
+        expect((savedPhoto().exif as { camera: string }).camera.length).toBe(100);
+    });
+
+    it("空・不正な exif は保存されない", async () => {
+        const res = await invoke(event("u1", { ...BASE, exif: { iso: -5, camera: "  " } }));
+        expect(res.statusCode).toBe(200);
+        expect("exif" in savedPhoto()).toBe(false);
+    });
+});

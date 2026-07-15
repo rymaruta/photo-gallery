@@ -13,6 +13,20 @@ const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? "";
 
 const PHOTO_LIMIT_PER_USER = 100;
 
+// 撮影情報のサニタイズ: 既知のキーだけを通し、文字列は100文字に制限。
+// GPS など想定外のフィールドは保存しない
+function sanitizeExif(exif: unknown): Photo["exif"] {
+    if (!exif || typeof exif !== "object") return undefined;
+    const src = exif as Record<string, unknown>;
+    const out: Record<string, string | number> = {};
+    for (const k of ["camera", "lens", "aperture", "exposure", "focalLength", "whiteBalance", "imageSize", "dateTimeOriginal"]) {
+        const v = src[k];
+        if (typeof v === "string" && v.trim()) out[k] = v.trim().slice(0, 100);
+    }
+    if (typeof src.iso === "number" && Number.isFinite(src.iso) && src.iso > 0) out.iso = Math.round(src.iso);
+    return Object.keys(out).length > 0 ? (out as Photo["exif"]) : undefined;
+}
+
 // 撮影地座標の検証と丸め。プライバシーのため約1km精度（小数第2位）に丸めて保存する
 function sanitizeCoords(coords: unknown): { lat: number; lng: number } | null {
     if (!coords || typeof coords !== "object") return null;
@@ -147,7 +161,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         ...(location ? { location } : {}),
         ...(category ? { category } : {}),
         tags: Array.isArray(tags) ? tags : [],
-        ...(exif && Object.keys(exif).length > 0 ? { exif } : {}),
+        ...(() => { const safeExif = sanitizeExif(exif); return safeExif ? { exif: safeExif } : {}; })(),
         ...(safeCoords ? { coords: safeCoords } : {}),
         ...(safeDominantColor ? { dominantColor: safeDominantColor } : {}),
         ...(safeThumbSrc ? { thumbSrc: safeThumbSrc } : {}),

@@ -50,7 +50,6 @@ export type Labels = {
         gallery?: string;
         about?: string;
         favorites?: string;
-        history?: string;
         map?: string;
         mypage?: string;
         wishlist?: string;
@@ -104,8 +103,7 @@ const enLabels: Labels = {
         works: "Works",
         gallery: "Gallery",
         about: "About",
-        favorites: "Favorites",
-        history: "History",
+        favorites: "Liked Photos",
         map: "Map",
         mypage: "My Page",
         wishlist: "Travel List",
@@ -156,8 +154,7 @@ export const ja: Labels = {
         works: "作品",
         gallery: "ギャラリー",
         about: "制作について",
-        favorites: "お気に入り",
-        history: "閲覧履歴",
+        favorites: "いいねした写真",
         map: "撮影地マップ",
         mypage: "マイページ",
         wishlist: "行きたいリスト",

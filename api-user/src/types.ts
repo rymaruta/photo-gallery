@@ -23,6 +23,7 @@ export type Photo = {
         focalLength?: string;
         whiteBalance?: string;
         imageSize?: string;
+        dateTimeOriginal?: string;
     };
     [key: string]: unknown;
 };

@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 const mockParse = vi.hoisted(() => vi.fn());
 vi.mock("exifr", () => ({ default: { parse: mockParse } }));
 
-import { extractExifFromFile, reverseGeocode } from "../exif";
+import { extractExifFromFile, extractCameraExif, formatCameraName, formatExposure, reverseGeocode } from "../exif";
 
 beforeEach(() => {
     mockParse.mockReset();
@@ -104,5 +104,79 @@ describe("reverseGeocode", () => {
         expect(await reverseGeocode(35, 135, "ja")).toBeNull();
         vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network")));
         expect(await reverseGeocode(35, 135, "ja")).toBeNull();
+    });
+});
+
+describe("formatCameraName", () => {
+    it("Make と Model を結合する", () => {
+        expect(formatCameraName("Canon", "EOS R5")).toBe("Canon EOS R5");
+    });
+
+    it("Model が Make で始まる場合は Model のみ（SONY の重複を防ぐ）", () => {
+        expect(formatCameraName("SONY", "SONY ILCE-7M3")).toBe("SONY ILCE-7M3");
+        expect(formatCameraName("sony", "SONY ILCE-7M3")).toBe("SONY ILCE-7M3");
+    });
+
+    it("片方だけでも返す・両方なければ undefined", () => {
+        expect(formatCameraName("SONY", undefined)).toBe("SONY");
+        expect(formatCameraName(undefined, "ILCE-7M3")).toBe("ILCE-7M3");
+        expect(formatCameraName(undefined, undefined)).toBeUndefined();
+        expect(formatCameraName("  ", " ")).toBeUndefined();
+    });
+});
+
+describe("formatExposure", () => {
+    it("1秒未満は 1/x 表記", () => {
+        expect(formatExposure(1 / 640)).toBe("1/640s");
+        expect(formatExposure(0.5)).toBe("1/2s");
+    });
+
+    it("1秒以上は秒表記", () => {
+        expect(formatExposure(2)).toBe("2s");
+        expect(formatExposure(1.5)).toBe("1.5s");
+    });
+
+    it("不正値は undefined", () => {
+        expect(formatExposure(0)).toBeUndefined();
+        expect(formatExposure(-1)).toBeUndefined();
+        expect(formatExposure(undefined)).toBeUndefined();
+    });
+});
+
+describe("extractCameraExif", () => {
+    it("EXIF から撮影情報を整形して返す（GPSは含めない）", async () => {
+        mockParse.mockResolvedValueOnce({
+            Make: "SONY", Model: "SONY ILCE-7M3", LensModel: "FE 24-70mm",
+            FNumber: 4, ExposureTime: 1 / 640, ISO: 100.4, FocalLength: 70.2,
+            WhiteBalance: 1, ExifImageWidth: 6000, ExifImageHeight: 4000,
+            DateTimeOriginal: new Date("2026-01-20T07:32:00Z"),
+        });
+        const exif = await extractCameraExif(new File(["x"], "p.jpg", { type: "image/jpeg" }));
+        expect(exif).toEqual({
+            camera: "SONY ILCE-7M3",
+            lens: "FE 24-70mm",
+            aperture: "f/4",
+            exposure: "1/640s",
+            iso: 100,
+            focalLength: "70mm",
+            whiteBalance: "Manual",
+            imageSize: "6000x4000",
+            dateTimeOriginal: "2026-01-20T07:32:00.000Z",
+        });
+    });
+
+    it("EXIF がなければ空オブジェクト", async () => {
+        mockParse.mockResolvedValueOnce(undefined);
+        expect(await extractCameraExif(new File(["x"], "p.jpg", { type: "image/jpeg" }))).toEqual({});
+    });
+
+    it("解析エラーでも空オブジェクト（アップロードを止めない）", async () => {
+        mockParse.mockRejectedValueOnce(new Error("broken"));
+        expect(await extractCameraExif(new File(["x"], "p.jpg", { type: "image/jpeg" }))).toEqual({});
+    });
+
+    it("WhiteBalance 0 は Auto になる", async () => {
+        mockParse.mockResolvedValueOnce({ WhiteBalance: 0 });
+        expect((await extractCameraExif(new File(["x"], "p.jpg", { type: "image/jpeg" }))).whiteBalance).toBe("Auto");
     });
 });

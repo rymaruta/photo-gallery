@@ -168,11 +168,6 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                     </button>
                                 </li>
                                 <li style={{ margin: 0, padding: 0 }}>
-                                    <button onClick={() => handleNavigation(ROUTES.HISTORY)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
-                                        {navLabels.history || "History"}
-                                    </button>
-                                </li>
-                                <li style={{ margin: 0, padding: 0 }}>
                                     <button onClick={() => handleNavigation(ROUTES.ABOUT)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                         {navLabels.about || "About"}
                                     </button>
