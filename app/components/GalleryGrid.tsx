@@ -1,21 +1,21 @@
 import React, { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import type { Photo, Locale } from "@/lib/data/photos";
 import { getLocalized } from "@/lib/data/photos";
 import { getLabels } from "../i18n/labels";
 import { useFavorites } from "../../lib/hooks/useFavorites";
 import { HeartIcon } from "@heroicons/react/24/solid";
+import { ROUTES } from "../../lib/routes";
 
 type Props = {
     photos: Photo[];
-    onOpen: (index: number) => void;
     locale: Locale;
     categoryDisplayMap?: Record<string, string>;
 };
 
 export default function GalleryGrid({
     photos,
-    onOpen,
     locale,
     categoryDisplayMap = {},
 }: Props) {
@@ -46,7 +46,6 @@ export default function GalleryGrid({
                         placeholderColor={placeholderColor}
                         objectPosition={objectPosition}
                         categoryDisplayMap={categoryDisplayMap}
-                        onOpen={onOpen}
                     />
                 );
             })}
@@ -63,7 +62,6 @@ const GalleryItem = React.memo(function GalleryItem({
     placeholderColor,
     objectPosition,
     categoryDisplayMap,
-    onOpen,
 }: {
     photo: Photo;
     index: number;
@@ -72,7 +70,6 @@ const GalleryItem = React.memo(function GalleryItem({
     placeholderColor: string;
     objectPosition?: string;
     categoryDisplayMap?: Record<string, string>;
-    onOpen: (index: number) => void;
 }) {
     const [imageError, setImageError] = useState(false);
     // 代表色プレースホルダー → 読み込み完了でふわっと表示（体感速度の向上）
@@ -83,10 +80,10 @@ const GalleryItem = React.memo(function GalleryItem({
 
     return (
         <div className="w-full m-0 p-0">
-            {/* href でクローラーが /photo/[id] を発見できるようにしつつ、クリックはモーダルで開く */}
-            <a
-                href={`/photo/${photo.id}`}
-                onClick={(e) => { e.preventDefault(); onOpen(index); }}
+            {/* タップで個別ページへ直接遷移する。まだ静的ページが無い新着写真は
+                ROUTES.PHOTO が /?photo=<id> を返し、ホームがモーダルで表示する */}
+            <Link
+                href={ROUTES.PHOTO(photo.id)}
                 className="block w-full p-0 border-0 bg-transparent cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
                 aria-label={localizedTitle ? `${localizedTitle} を開く` : "写真を開く"}
                 title={localizedTitle}
@@ -154,7 +151,7 @@ const GalleryItem = React.memo(function GalleryItem({
                                     </div>
                                 </div>
                             </div>
-                        </a>
+                        </Link>
                     </div>
                 );
 });

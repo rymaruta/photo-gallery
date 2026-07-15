@@ -28,17 +28,24 @@ export default function GalleryPageClient() {
     prev,
   } = useGallery(photos);
 
-  // URLパラメータから画像IDを取得してモーダルを開く
+  // URLパラメータ(?photo=)から画像IDを取得してモーダルを開く。
+  // 一覧タップは個別ページへ直接遷移するが、ビルド前の新着写真は
+  // 静的ページが無いため、この経路（モーダル）だけが閲覧手段になる。
+  // useGallery の URL 同期(replaceState)がマウント直後に ?photo= を消すため、
+  // effect で読むと間に合わない。初回レンダー時に ref へ先読みしておく。
+  const initialPhotoIdRef = React.useRef<string | null | undefined>(undefined);
+  if (initialPhotoIdRef.current === undefined) {
+    initialPhotoIdRef.current = typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search).get("photo");
+  }
   React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    const photoId = params.get("photo");
-    if (photoId && filteredPhotos.length > 0) {
-      const index = filteredPhotos.findIndex((p: Photo) => p.id === photoId);
-      if (index !== -1) {
-        open(index);
-        window.history.replaceState({}, "", window.location.pathname);
-      }
+    const photoId = initialPhotoIdRef.current;
+    if (!photoId || filteredPhotos.length === 0) return;
+    const index = filteredPhotos.findIndex((p: Photo) => p.id === photoId);
+    if (index !== -1) {
+      initialPhotoIdRef.current = null;
+      open(index);
     }
   }, [filteredPhotos, open]);
 
@@ -155,7 +162,6 @@ export default function GalleryPageClient() {
         ) : (
           <GalleryGrid
             photos={filteredPhotos}
-            onOpen={open}
             locale={locale}
             categoryDisplayMap={categoryDisplayMap}
           />

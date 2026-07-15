@@ -153,12 +153,24 @@ async function main() {
             check("言語切替が反応する", switched);
         }
 
-        // 3) 写真モーダルを開いて閉じたあともメニューが動く
+        // 3) 一覧タップで個別ページへ直接遷移する
         const firstPhoto = page.locator("a[data-photo-id]").first();
         if (await firstPhoto.isVisible().catch(() => false)) {
+            const pid = await firstPhoto.getAttribute("data-photo-id");
             await firstPhoto.tap().catch(() => {});
+            const navigated = await page.waitForURL(/\/photo\//, { timeout: 10000 }).then(() => true).catch(() => false);
+            check("一覧タップで個別ページに遷移する", navigated, page.url());
+            if (navigated) {
+                const h1 = await page.waitForSelector("h1", { timeout: 8000 }).then(() => true).catch(() => false);
+                check("個別ページが表示される", h1);
+                await expectMenuWorks(page, "個別ページ");
+            }
+
+            // 4) ビルド前の新着写真フォールバック: /?photo=<id> でモーダルが開く
+            await page.goto(`http://localhost:${PORT}/?photo=${encodeURIComponent(pid ?? "")}`, { waitUntil: "domcontentloaded" });
+            await waitForHydration(page);
             const modal = await page.waitForSelector('[role="dialog"][aria-modal="true"]', { timeout: 10000 }).then(() => true).catch(() => false);
-            check("写真モーダルが開く", modal);
+            check("?photo= フォールバックでモーダルが開く", modal);
             if (modal) {
                 // Escape で閉じ、確実に消えるまで待つ（後続チェックを汚染しない）
                 let closed = false;

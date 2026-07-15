@@ -6,7 +6,6 @@ import { useFavorites } from "../../lib/hooks/useFavorites";
 import { useImagePreloader } from "../../lib/hooks/useImagePreloader";
 import { usePhotos } from "../../lib/hooks/usePhotos";
 import GalleryGrid from "../components/GalleryGrid";
-import GalleryModal from "../components/GalleryModal";
 import LocaleToggle from "../components/LocaleToggle";
 import { useLocale } from "../i18n/context";
 import { capitalize } from "../../lib/utils/string";
@@ -17,35 +16,11 @@ export default function FavoritesPage() {
     const { preloadMultiple } = useImagePreloader();
     const { photos: allPhotos } = usePhotos();
 
-    // モーダル管理
-    const [currentIndex, setCurrentIndex] = React.useState<number | null>(null);
-
-    // お気に入りの写真を取得
+    // いいねした写真を取得
     const favoritePhotos = React.useMemo(() => {
         const favoriteSet = new Set(favorites);
         return allPhotos.filter((p) => favoriteSet.has(p.id));
     }, [favorites, allPhotos]);
-
-    // モーダル操作
-    const openModal = React.useCallback((index: number) => {
-        setCurrentIndex(index);
-    }, []);
-
-    const closeModal = React.useCallback(() => {
-        setCurrentIndex(null);
-    }, []);
-
-    const nextPhoto = React.useCallback(() => {
-        setCurrentIndex((i) =>
-            i === null ? null : favoritePhotos.length ? (i + 1) % favoritePhotos.length : null
-        );
-    }, [favoritePhotos.length]);
-
-    const prevPhoto = React.useCallback(() => {
-        setCurrentIndex((i) =>
-            i === null ? null : favoritePhotos.length ? (i - 1 + favoritePhotos.length) % favoritePhotos.length : null
-        );
-    }, [favoritePhotos.length]);
 
     // お気に入りの画像をプリロード
     React.useEffect(() => {
@@ -104,25 +79,11 @@ export default function FavoritesPage() {
                     </p>
                 </div>
             ) : (
-                <>
-                    <GalleryGrid
-                        photos={favoritePhotos}
-                        onOpen={openModal}
-                        locale={locale}
-                        categoryDisplayMap={categoryDisplayMap}
-                    />
-                    {currentIndex !== null && favoritePhotos[currentIndex] && (
-                        <GalleryModal
-                            photos={favoritePhotos}
-                            currentIndex={currentIndex}
-                            onClose={closeModal}
-                            onNext={nextPhoto}
-                            onPrev={prevPhoto}
-                            locale={locale}
-                            categoryDisplayMap={categoryDisplayMap}
-                        />
-                    )}
-                </>
+                <GalleryGrid
+                    photos={favoritePhotos}
+                    locale={locale}
+                    categoryDisplayMap={categoryDisplayMap}
+                />
             )}
         </main>
     );

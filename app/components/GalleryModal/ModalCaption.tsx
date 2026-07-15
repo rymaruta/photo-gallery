@@ -124,6 +124,19 @@ export default function ModalCaption({
                 </div>
             )}
 
+            {/* 撮影情報（簡易版）: ビルド前の新着写真は個別ページが無く
+                モーダルでしか見られないため、ここにも1行で出す */}
+            {photo.exif && (() => {
+                const e = photo.exif;
+                const parts = [
+                    e.camera, e.lens, e.aperture, e.exposure,
+                    e.iso ? `ISO${e.iso}` : undefined, e.focalLength,
+                ].filter(Boolean);
+                return parts.length > 0 ? (
+                    <p className="mt-3 text-[11px] leading-relaxed text-white/45">{parts.join(" ・ ")}</p>
+                ) : null;
+            })()}
+
             {/* 行く + 個別ページへのリンク */}
             <div className="mt-4 pt-4 border-t border-white/10 flex flex-wrap gap-2">
                 <GoButton photoId={photo.id} locale={locale} />
