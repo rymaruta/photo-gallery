@@ -25,6 +25,10 @@ import { shareUrl, copyToClipboard, shareToTwitter, shareToLine } from "../../..
 import { siteConfig, generatePhotoStructuredData, generateBreadcrumbStructuredData } from "../../../lib/utils/seo";
 import ProfileLink from "../../components/ProfileLink";
 import LocaleToggle from "../../components/LocaleToggle";
+import RelatedPhotos from "../../components/RelatedPhotos";
+import { sameAuthorPhotos, sameLocationPhotos, adjacentPhotos } from "../../../lib/utils/related";
+import { ROUTES } from "../../../lib/routes";
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
 
@@ -349,6 +353,16 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
             { name: title, url: `${siteConfig.url}/photo/${photo.id}` },
         ]);
     }, [photo, locale]);
+
+    // 回遊導線: 同じ投稿者の写真 / 同じ場所の写真 / 前後の写真
+    const related = useMemo(() => {
+        if (!photo) return { author: [] as Photo[], location: [] as Photo[], prev: null as Photo | null, next: null as Photo | null };
+        return {
+            author: sameAuthorPhotos(photo, allPhotos, 8),
+            location: sameLocationPhotos(photo, allPhotos, 8),
+            ...adjacentPhotos(photo, allPhotos),
+        };
+    }, [photo, allPhotos]);
 
     // ローディング中
     if (loading) {
@@ -824,6 +838,61 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                 </div>
 
             </div>{/* /2カラムグリッド */}
+
+            {/* 回遊導線: 前後の写真 + 同じ投稿者 / 同じ場所 */}
+            {(related.prev || related.next || related.author.length > 0 || related.location.length > 0) && (
+                <div className="mt-10 space-y-6">
+                    {/* 前後の写真（新しい順で隣接） */}
+                    {(related.prev || related.next) && (
+                        <nav className="flex items-stretch gap-2.5" aria-label={locale === "en" ? "Adjacent photos" : "前後の写真"}>
+                            {related.prev ? (
+                                <Link
+                                    href={ROUTES.PHOTO(related.prev.id)}
+                                    data-photo-id={related.prev.id}
+                                    className="flex-1 inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 active:scale-[0.99] transition min-w-0"
+                                    style={{ touchAction: "manipulation" }}
+                                >
+                                    <ChevronLeftIcon className="w-5 h-5 flex-shrink-0 text-white/50" />
+                                    <span className="min-w-0">
+                                        <span className="block text-[10px] uppercase tracking-wider text-white/35">{locale === "en" ? "Newer" : "新しい写真"}</span>
+                                        <span className="block text-sm text-white/85 truncate">{getLocalized(related.prev.title, locale) || (locale === "en" ? "Photo" : "写真")}</span>
+                                    </span>
+                                </Link>
+                            ) : <span className="flex-1" />}
+                            {related.next ? (
+                                <Link
+                                    href={ROUTES.PHOTO(related.next.id)}
+                                    data-photo-id={related.next.id}
+                                    className="flex-1 inline-flex items-center justify-end gap-2 px-4 py-3 rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 active:scale-[0.99] transition min-w-0 text-right"
+                                    style={{ touchAction: "manipulation" }}
+                                >
+                                    <span className="min-w-0">
+                                        <span className="block text-[10px] uppercase tracking-wider text-white/35">{locale === "en" ? "Older" : "前の写真"}</span>
+                                        <span className="block text-sm text-white/85 truncate">{getLocalized(related.next.title, locale) || (locale === "en" ? "Photo" : "写真")}</span>
+                                    </span>
+                                    <ChevronRightIcon className="w-5 h-5 flex-shrink-0 text-white/50" />
+                                </Link>
+                            ) : <span className="flex-1" />}
+                        </nav>
+                    )}
+
+                    <RelatedPhotos
+                        title={photo.displayName
+                            ? (locale === "en" ? `More from ${photo.displayName}` : `${photo.displayName}さんの他の写真`)
+                            : (locale === "en" ? "More photos" : "他の写真")}
+                        photos={related.author}
+                        locale={locale}
+                    />
+
+                    <RelatedPhotos
+                        title={locationText
+                            ? (locale === "en" ? `More in ${locationText}` : `「${locationText}」の他の写真`)
+                            : (locale === "en" ? "Nearby" : "同じ場所の写真")}
+                        photos={related.location}
+                        locale={locale}
+                    />
+                </div>
+            )}
             </main>
         </>
     );
