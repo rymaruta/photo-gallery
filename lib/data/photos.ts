@@ -64,6 +64,9 @@ export type Photo = {
     translationStatus?: { ja?: boolean; en?: boolean };
     relatedIds?: string[];
     likes?: number;
+    goCount?: number;     // 「行きたい」人数
+    movedCount?: number;  // この写真がきっかけで実際に旅立った人数
+    commentCount?: number;// コメント数
     views?: number;
     sourceUrl?: string;
     sensitive?: boolean;

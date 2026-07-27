@@ -13,6 +13,7 @@ import { hapticTap } from "../../lib/utils/haptics";
 import { buildTrips, tripAutoTitle, tripDisplayTitle, pickTripCover, type Trip } from "../../lib/utils/trips";
 import MusicCard from "../components/MusicCard";
 import RankingCard from "../components/RankingCard";
+import TravelerLevelCard from "../components/TravelerLevelCard";
 import { HeartIcon, PlayIcon, StopIcon, StarIcon } from "@heroicons/react/24/solid";
 import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
 import { themeRingGradient } from "../../lib/utils/color";
@@ -1002,6 +1003,17 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             </div>
                         )}
                     </div>
+
+                    {/* 旅人レベル / 実績バッジ（旅立たせた人数を軸に算出） */}
+                    <TravelerLevelCard
+                        photos={visiblePhotos}
+                        locale={locale as "ja" | "en"}
+                        isOwner={isOwner}
+                        onLevelUp={(level, title) => showToast(
+                            locale === "en" ? `Level up! Lv.${level} ${title}` : `レベルアップ！ Lv.${level} ${title}`,
+                            "success",
+                        )}
+                    />
 
 
                     {userProfile?.bio && (
