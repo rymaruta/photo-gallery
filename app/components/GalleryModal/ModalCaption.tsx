@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import Link from "next/link";
-import { ShareIcon, LinkIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
+import { ShareIcon, LinkIcon, MusicalNoteIcon, ChatBubbleOvalLeftIcon } from "@heroicons/react/24/outline";
 import { PlayIcon } from "@heroicons/react/24/solid";
 import { useMusic } from "../../music/MusicContext";
 import type { Photo, Locale } from "@/lib/data/photos";
@@ -136,6 +136,14 @@ export default function ModalCaption({
                     <p className="mt-3 text-[11px] leading-relaxed text-white/45">{parts.join(" ・ ")}</p>
                 ) : null;
             })()}
+
+            {/* コメント数（個別ページで読める） */}
+            {typeof photo.commentCount === "number" && photo.commentCount > 0 && (
+                <p className="mt-2 text-xs text-white/50 inline-flex items-center gap-1.5">
+                    <ChatBubbleOvalLeftIcon className="w-3.5 h-3.5" />
+                    {locale === "en" ? `${photo.commentCount} comments` : `コメント ${photo.commentCount}件`}
+                </p>
+            )}
 
             {/* 行く + 個別ページへのリンク */}
             <div className="mt-4 pt-4 border-t border-white/10 flex flex-wrap gap-2">

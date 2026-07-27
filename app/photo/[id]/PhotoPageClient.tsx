@@ -26,6 +26,7 @@ import { siteConfig, generatePhotoStructuredData, generateBreadcrumbStructuredDa
 import ProfileLink from "../../components/ProfileLink";
 import LocaleToggle from "../../components/LocaleToggle";
 import RelatedPhotos from "../../components/RelatedPhotos";
+import CommentSection from "../../components/CommentSection";
 import { sameAuthorPhotos, sameLocationPhotos, adjacentPhotos } from "../../../lib/utils/related";
 import { ROUTES } from "../../../lib/routes";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
@@ -838,6 +839,16 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                 </div>
 
             </div>{/* /2カラムグリッド */}
+
+            {/* コメント欄 */}
+            <div className="mt-8 max-w-2xl">
+                <CommentSection
+                    photoId={photo.id}
+                    photoOwnerId={photo.userId}
+                    locale={locale}
+                    initialCount={typeof photo.commentCount === "number" ? photo.commentCount : 0}
+                />
+            </div>
 
             {/* 回遊導線: 前後の写真 + 同じ投稿者 / 同じ場所 */}
             {(related.prev || related.next || related.author.length > 0 || related.location.length > 0) && (

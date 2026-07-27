@@ -3,18 +3,19 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { BellIcon } from "@heroicons/react/24/outline";
+import { BellIcon, ChatBubbleOvalLeftIcon } from "@heroicons/react/24/outline";
 import { PaperAirplaneIcon, HeartIcon, MapPinIcon } from "@heroicons/react/24/solid";
 import { userFetch } from "../../lib/utils/api";
 import { useLocale } from "../i18n/context";
 import { ROUTES } from "../../lib/routes";
 
 type Notif = {
-    type: "inspired" | "like" | "go";
+    type: "inspired" | "like" | "go" | "comment" | "follow";
     photoId: string;
     photoSrc: string;
     byName: string;
     atLocation?: string;
+    targetUserId?: string;
     t: string;
 };
 
@@ -121,6 +122,13 @@ export default function NotificationsBell() {
                                                             {locale === "en"
                                                                 ? <><span className="font-semibold">{n.byName}</span> added your photo to their travel list!</>
                                                                 : <><span className="font-semibold">{n.byName}</span> さんがあなたの写真を行きたいリストに追加しました！</>}
+                                                        </>
+                                                    ) : n.type === "comment" ? (
+                                                        <>
+                                                            <ChatBubbleOvalLeftIcon className="w-3.5 h-3.5 text-fuchsia-400 inline -mt-0.5 mr-1" />
+                                                            {locale === "en"
+                                                                ? <><span className="font-semibold">{n.byName}</span> commented on your photo</>
+                                                                : <><span className="font-semibold">{n.byName}</span> さんがあなたの写真にコメントしました</>}
                                                         </>
                                                     ) : (
                                                         <>

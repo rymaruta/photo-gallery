@@ -6,11 +6,13 @@ import { ddb, PHOTOS_TABLE } from "./dynamodb";
 // （同時書き込みでも失われない）。件数上限の切り詰めは取得時に行う。
 
 export type Notif = {
-    type: "inspired" | "like" | "go";
+    type: "inspired" | "like" | "go" | "comment" | "follow";
     photoId: string;
     photoSrc: string;
     byName: string;
     atLocation?: string;
+    // follow 通知は写真を伴わないため、リンク先のユーザーIDを持つ
+    targetUserId?: string;
     t: string;
 };
 

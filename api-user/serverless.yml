@@ -190,6 +190,31 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  getComments:
+    handler: src/comments.getComments
+    events:
+      - httpApi:
+          path: /photos/{id}/comments
+          method: GET
+
+  postComment:
+    handler: src/comments.postComment
+    events:
+      - httpApi:
+          path: /photos/{id}/comments
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  deleteComment:
+    handler: src/comments.deleteComment
+    events:
+      - httpApi:
+          path: /photos/{id}/comments/{commentId}
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
   getGoStatus:
     handler: src/go.getGoStatus
     events:
