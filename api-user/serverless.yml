@@ -249,6 +249,40 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  followUser:
+    handler: src/follow.followUser
+    events:
+      - httpApi:
+          path: /users/{uid}/follow
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  unfollowUser:
+    handler: src/follow.unfollowUser
+    events:
+      - httpApi:
+          path: /users/{uid}/follow
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
+  getFollowStats:
+    handler: src/follow.getFollowStats
+    events:
+      - httpApi:
+          path: /users/{uid}/follow
+          method: GET
+
+  getMyFollowing:
+    handler: src/follow.getMyFollowing
+    events:
+      - httpApi:
+          path: /user/following
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
   getNotifications:
     handler: src/go.getNotifications
     events:

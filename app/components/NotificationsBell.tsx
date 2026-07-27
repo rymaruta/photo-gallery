@@ -3,11 +3,12 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { BellIcon, ChatBubbleOvalLeftIcon } from "@heroicons/react/24/outline";
+import { BellIcon, ChatBubbleOvalLeftIcon, UserPlusIcon } from "@heroicons/react/24/outline";
 import { PaperAirplaneIcon, HeartIcon, MapPinIcon } from "@heroicons/react/24/solid";
 import { userFetch } from "../../lib/utils/api";
 import { useLocale } from "../i18n/context";
 import { ROUTES } from "../../lib/routes";
+import UserAvatar from "./UserAvatar";
 
 type Notif = {
     type: "inspired" | "like" | "go" | "comment" | "follow";
@@ -98,18 +99,29 @@ export default function NotificationsBell() {
                         ) : (
                             <ul className="max-h-96 overflow-y-auto no-scrollbar divide-y divide-white/5">
                                 {items.map((n, i) => (
-                                    <li key={`${n.photoId}-${n.t}-${i}`}>
+                                    <li key={`${n.photoId || n.targetUserId}-${n.t}-${i}`}>
                                         <Link
-                                            href={ROUTES.PHOTO(n.photoId)}
+                                            href={n.type === "follow" && n.targetUserId ? ROUTES.USER_PROFILE(n.targetUserId) : ROUTES.PHOTO(n.photoId)}
                                             onClick={() => setOpen(false)}
                                             className="flex items-start gap-3 px-4 py-3 hover:bg-white/5 active:bg-white/10 transition-colors"
                                             style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                                         >
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src={n.photoSrc} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
+                                            {n.type === "follow" && n.targetUserId ? (
+                                                <UserAvatar userId={n.targetUserId} className="w-10 h-10 flex-shrink-0" iconClassName="w-5 h-5" />
+                                            ) : (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img src={n.photoSrc} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
+                                            )}
                                             <div className="min-w-0 flex-1">
                                                 <p className="text-[13px] text-white/85 leading-snug">
-                                                    {n.type === "like" ? (
+                                                    {n.type === "follow" ? (
+                                                        <>
+                                                            <UserPlusIcon className="w-3.5 h-3.5 text-sky-400 inline -mt-0.5 mr-1" />
+                                                            {locale === "en"
+                                                                ? <><span className="font-semibold">{n.byName}</span> followed you</>
+                                                                : <><span className="font-semibold">{n.byName}</span> さんがあなたをフォローしました</>}
+                                                        </>
+                                                    ) : n.type === "like" ? (
                                                         <>
                                                             <HeartIcon className="w-3.5 h-3.5 text-rose-400 inline -mt-0.5 mr-1" />
                                                             {locale === "en"

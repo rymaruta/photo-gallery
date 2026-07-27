@@ -192,7 +192,8 @@ async function main() {
             await page.goto(`http://localhost:${PORT}/users/${profiles[0].replace(/\.html$/, "")}`, { waitUntil: "domcontentloaded" });
             check("プロフィール: ハイドレーション完了", await waitForHydration(page));
             const clicked = await page.evaluate(() => {
-                const tabs = [...document.querySelectorAll("button[aria-pressed]")];
+                // プロフィールのタブに限定（フォローボタン等の aria-pressed と混ざらないように）
+                const tabs = [...document.querySelectorAll("button[data-profile-tab][aria-pressed]")];
                 const inactive = tabs.find((t) => t.getAttribute("aria-pressed") === "false");
                 if (!inactive) return null;
                 inactive.setAttribute("data-e2e-tab", "1");

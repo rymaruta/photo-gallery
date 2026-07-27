@@ -46,7 +46,7 @@ function readFiltersFromUrl(): Partial<GalleryFilters> {
     return out;
 }
 
-export default function useGallery(raw: Photo[]) {
+export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
     // ISO日付を正規化ステップで一度だけ計算（ソート時の繰り返しパースを回避）
     const PHOTOS = useMemo(
         () =>
@@ -67,6 +67,7 @@ export default function useGallery(raw: Photo[]) {
         selectedTags: [],
         query: "",
         sort: "new",
+        feed: "all",
         ...readFiltersFromUrl(),
     }));
 
@@ -86,6 +87,12 @@ export default function useGallery(raw: Photo[]) {
 
     const filteredPhotos = useMemo(() => {
         let arr = PHOTOS.slice();
+
+        // フォロー中フィード: フォローしているユーザーの写真だけに絞る
+        if (filters.feed === "following") {
+            const set = followingIds ?? new Set<string>();
+            arr = arr.filter((p) => p.userId && set.has(p.userId));
+        }
 
         if (filters.category !== "all") arr = arr.filter((p) => p.category === filters.category);
         if (filters.selectedTags.length)
@@ -124,7 +131,7 @@ export default function useGallery(raw: Photo[]) {
         }
 
         return arr;
-    }, [filters, PHOTOS]);
+    }, [filters, PHOTOS, followingIds]);
 
     // filteredPhotos を ref で追跡 → コールバックを安定させる
     const filteredPhotosRef = useRef(filteredPhotos);

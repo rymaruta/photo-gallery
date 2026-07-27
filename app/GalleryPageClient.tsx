@@ -10,11 +10,23 @@ import GalleryGrid from "./components/GalleryGrid";
 import GalleryModal from "./components/GalleryModal";
 import { capitalize } from "../lib/utils/string";
 import { usePhotos } from "../lib/hooks/usePhotos";
+import { useAuth } from "./auth/context";
+import { fetchFollowingSet } from "../lib/hooks/useFollow";
 import type { Photo } from "@/lib/data/photos";
 
 export default function GalleryPageClient() {
   const { locale, setLocale, labels } = useLocale();
   const { photos } = usePhotos();
+  const { isAuthenticated } = useAuth();
+
+  // フォロー中フィード用: フォローしている userId 集合（認証時のみ取得）
+  const [followingIds, setFollowingIds] = React.useState<Set<string>>(new Set());
+  React.useEffect(() => {
+    if (!isAuthenticated) { setFollowingIds(new Set()); return; }
+    let aborted = false;
+    void fetchFollowingSet().then((set) => { if (!aborted) setFollowingIds(new Set(set)); });
+    return () => { aborted = true; };
+  }, [isAuthenticated]);
 
   const {
     PHOTOS,
@@ -26,7 +38,7 @@ export default function GalleryPageClient() {
     close,
     next,
     prev,
-  } = useGallery(photos);
+  } = useGallery(photos, followingIds);
 
   // URLパラメータ(?photo=)から画像IDを取得してモーダルを開く。
   // 一覧タップは個別ページへ直接遷移するが、ビルド前の新着写真は
@@ -126,6 +138,25 @@ export default function GalleryPageClient() {
         />
       </div>
 
+      {/* フィード切替: すべて / フォロー中（ログイン時のみ表示） */}
+      {isAuthenticated && (
+        <div className="inline-flex items-center gap-1 p-1 mb-3 rounded-full bg-white/5 ring-1 ring-white/10">
+          {(["all", "following"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilters({ feed: f })}
+              aria-pressed={filters.feed === f}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                filters.feed === f ? "bg-white text-black" : "text-white/70 hover:text-white"
+              }`}
+              style={{ touchAction: "manipulation" }}
+            >
+              {f === "all" ? (locale === "en" ? "All" : "すべて") : (locale === "en" ? "Following" : "フォロー中")}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* ストーリー（24時間で消える投稿） */}
       <StoriesBar />
 
@@ -146,13 +177,28 @@ export default function GalleryPageClient() {
             : `${labels.gallery?.resultsCount ?? "結果"}: ${filteredPhotos.length} 件`}
         </div>
 
-        {filteredPhotos.length === 0 && PHOTOS.length > 0 ? (
+        {filteredPhotos.length === 0 && filters.feed === "following" ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3 text-white/60 text-center">
+            <p className="text-sm">
+              {locale === "en"
+                ? "Photos from people you follow will show up here."
+                : "フォローした人の写真がここに集まります。"}
+            </p>
+            <button
+              onClick={() => setFilters({ feed: "all" })}
+              className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+              style={{ touchAction: "manipulation" }}
+            >
+              {locale === "en" ? "Explore all photos" : "みんなの写真を見る"}
+            </button>
+          </div>
+        ) : filteredPhotos.length === 0 && PHOTOS.length > 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
             <p className="text-sm">
               {locale === "en" ? "No photos match the current filters." : "条件に一致する写真がありません。"}
             </p>
             <button
-              onClick={() => setFilters({ category: "all", selectedTags: [], query: "", sort: "new" })}
+              onClick={() => setFilters({ category: "all", selectedTags: [], query: "", sort: "new", feed: "all" })}
               className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
               style={{ touchAction: "manipulation" }}
             >

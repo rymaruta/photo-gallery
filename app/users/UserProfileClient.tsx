@@ -14,6 +14,7 @@ import { buildTrips, tripAutoTitle, tripDisplayTitle, pickTripCover, type Trip }
 import MusicCard from "../components/MusicCard";
 import RankingCard from "../components/RankingCard";
 import TravelerLevelCard from "../components/TravelerLevelCard";
+import FollowButton from "../components/FollowButton";
 import { HeartIcon, PlayIcon, StopIcon, StarIcon } from "@heroicons/react/24/solid";
 import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
 import { themeRingGradient } from "../../lib/utils/color";
@@ -502,6 +503,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     );
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [isOwner, setIsOwner] = useState(false);
+    const [viewerAuthed, setViewerAuthed] = useState(false);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -516,6 +518,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     const prof = await profileRes.json() as UserProfile;
                     setUserProfile(prof);
                 }
+                if (sessionResult) setViewerAuthed(true);
                 const isCurrentUserOwner = !!sessionResult &&
                     (sessionResult.getIdToken().payload["sub"] as string | undefined) === userId;
                 if (isCurrentUserOwner) setIsOwner(true);
@@ -1004,6 +1007,14 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         )}
                     </div>
 
+                    {/* フォロワー/フォロー中の数 + フォローボタン */}
+                    <FollowButton
+                        targetUserId={userId}
+                        isOwner={isOwner}
+                        isAuthenticated={viewerAuthed}
+                        locale={locale as "ja" | "en"}
+                    />
+
                     {/* 旅人レベル / 実績バッジ（旅立たせた人数を軸に算出） */}
                     <TravelerLevelCard
                         photos={visiblePhotos}
@@ -1162,6 +1173,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                 key={key}
                                 onClick={() => setTab(key)}
                                 aria-pressed={active}
+                                data-profile-tab={key}
                                 className={`relative flex items-center justify-center gap-1.5 py-3 text-xs font-medium tracking-wide transition-colors ${active ? "text-white" : "text-white/40 hover:text-white/70"}`}
                                 style={{ touchAction: "manipulation" }}
                             >
