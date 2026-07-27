@@ -5,6 +5,22 @@ import { JSON_HEADERS, getUserId } from "./http";
 
 type PhotoSong = { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string };
 
+// YouTube URL の検証（フル再生MV用）。youtube.com/watch?v= と youtu.be/ を許可。
+// lib/utils/music.ts の parseYouTube と同等の安全策（ホワイトリスト + ID書式）。
+export function isValidYouTubeUrl(raw: unknown): string | undefined {
+    if (typeof raw !== "string") return undefined;
+    const s = raw.trim().slice(0, 500);
+    if (!/^https:\/\//.test(s)) return undefined;
+    let u: URL;
+    try { u = new URL(s); } catch { return undefined; }
+    const host = u.hostname.replace(/^www\./, "");
+    let id = "";
+    if (host === "youtu.be") id = u.pathname.slice(1);
+    else if (host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com") id = u.searchParams.get("v") ?? "";
+    else return undefined;
+    return /^[A-Za-z0-9_-]{6,20}$/.test(id) ? s : undefined;
+}
+
 // PUT /photos/{id} — 自分の写真の更新（公開/非公開・写真BGM）
 export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const id = event.pathParameters?.id;
@@ -12,7 +28,7 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "IDが必要です" }) };
     }
 
-    let body: { published?: boolean; song?: unknown };
+    let body: { published?: boolean; song?: unknown; songYoutubeUrl?: unknown };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
     } catch {
@@ -21,8 +37,23 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
 
     const hasPublished = typeof body.published === "boolean";
     const hasSong = "song" in body;
-    if (!hasPublished && !hasSong) {
+    const hasYoutube = "songYoutubeUrl" in body;
+    if (!hasPublished && !hasSong && !hasYoutube) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "更新項目がありません" }) };
+    }
+
+    // フル再生MV: 有効な YouTube URL のみ保存、null/空で解除
+    let youtubeUrl: string | undefined;
+    let removeYoutube = false;
+    if (hasYoutube) {
+        if (body.songYoutubeUrl === null || body.songYoutubeUrl === "") {
+            removeYoutube = true;
+        } else {
+            youtubeUrl = isValidYouTubeUrl(body.songYoutubeUrl);
+            if (!youtubeUrl) {
+                return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なYouTube URLです" }) };
+            }
+        }
     }
 
     // 写真BGM: null で解除、オブジェクトなら title + https の previewUrl 必須
@@ -73,8 +104,12 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         const values: Record<string, unknown> = { ":t": new Date().toISOString() };
         if (hasPublished) { sets.push("published = :p"); values[":p"] = body.published; }
         if (song) { sets.push("song = :s"); values[":s"] = song; }
+        if (youtubeUrl) { sets.push("songYoutubeUrl = :yt"); values[":yt"] = youtubeUrl; }
+        const removes: string[] = [];
+        if (removeSong) removes.push("song");
+        if (removeYoutube) removes.push("songYoutubeUrl");
         let expr = `SET ${sets.join(", ")}`;
-        if (removeSong) expr += " REMOVE song";
+        if (removes.length) expr += ` REMOVE ${removes.join(", ")}`;
         await ddb.send(new UpdateCommand({
             TableName: PHOTOS_TABLE,
             Key: { id },

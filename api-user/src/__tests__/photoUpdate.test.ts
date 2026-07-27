@@ -8,7 +8,7 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 
-import { updatePhotoVisibility } from "../photoUpdate";
+import { updatePhotoVisibility, isValidYouTubeUrl } from "../photoUpdate";
 
 type LambdaResult = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -76,5 +76,45 @@ describe("updatePhotoVisibility", () => {
         mockDdbSend.mockRejectedValueOnce(new Error("boom"));
         const res = await invoke(event("u1", "p1", { published: true }));
         expect(res.statusCode).toBe(500);
+    });
+
+    it("有効な YouTube URL は songYoutubeUrl に保存される", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } })
+            .mockResolvedValueOnce({});
+        const res = await invoke(event("u1", "p1", { songYoutubeUrl: "https://youtu.be/dQw4w9WgXcQ" }));
+        expect(res.statusCode).toBe(200);
+        const update = (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string; ExpressionAttributeValues: Record<string, unknown> } }).input;
+        expect(update.UpdateExpression).toContain("songYoutubeUrl");
+        expect(update.ExpressionAttributeValues[":yt"]).toBe("https://youtu.be/dQw4w9WgXcQ");
+    });
+
+    it("不正な YouTube URL は 400", async () => {
+        const res = await invoke(event("u1", "p1", { songYoutubeUrl: "https://evil.example.com/x" }));
+        expect(res.statusCode).toBe(400);
+    });
+
+    it("空文字の songYoutubeUrl は REMOVE になる", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } })
+            .mockResolvedValueOnce({});
+        const res = await invoke(event("u1", "p1", { songYoutubeUrl: "" }));
+        expect(res.statusCode).toBe(200);
+        const update = (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string } }).input;
+        expect(update.UpdateExpression).toContain("REMOVE songYoutubeUrl");
+    });
+});
+
+describe("isValidYouTubeUrl", () => {
+    it("youtube.com / youtu.be を許可", () => {
+        expect(isValidYouTubeUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ")).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+        expect(isValidYouTubeUrl("https://youtu.be/dQw4w9WgXcQ")).toBe("https://youtu.be/dQw4w9WgXcQ");
+    });
+
+    it("他ホスト・http・非文字列は undefined", () => {
+        expect(isValidYouTubeUrl("https://vimeo.com/12345")).toBeUndefined();
+        expect(isValidYouTubeUrl("http://youtu.be/dQw4w9WgXcQ")).toBeUndefined();
+        expect(isValidYouTubeUrl(123)).toBeUndefined();
+        expect(isValidYouTubeUrl("not a url")).toBeUndefined();
     });
 });

@@ -15,7 +15,8 @@ import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSe
 import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
 import { useGoTo } from "../../../lib/hooks/useGoTo";
 import { hapticTap } from "../../../lib/utils/haptics";
-import { searchSongs, type SongResult } from "../../../lib/utils/music";
+import { searchSongs, parseMusicEmbed, type SongResult } from "../../../lib/utils/music";
+import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { type SongEntry } from "../../music/MusicContext";
 import MusicCard from "../../components/MusicCard";
 import { MusicalNoteIcon, XMarkIcon, MapPinIcon, CameraIcon } from "@heroicons/react/24/outline";
@@ -263,6 +264,35 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
     const isOwnPhoto = isAuthenticated && !!authUserId && photo?.userId === authUserId;
     const [photoSong, setPhotoSong] = useState<SongEntry | null>(null);
     useEffect(() => { setPhotoSong((photo?.song as SongEntry | undefined) ?? null); }, [photo?.id, photo?.song]);
+
+    // フル再生MV（YouTube リンク）。30秒プレビューとは別枠で共存
+    const [photoYtUrl, setPhotoYtUrl] = useState<string | null>(null);
+    useEffect(() => { setPhotoYtUrl((photo?.songYoutubeUrl as string | undefined) ?? null); }, [photo?.id, photo?.songYoutubeUrl]);
+    const [mvOpen, setMvOpen] = useState(false);
+    const [ytInput, setYtInput] = useState("");
+    const [ytSaving, setYtSaving] = useState(false);
+    const mvEmbed = useMemo(() => (photoYtUrl ? parseMusicEmbed(photoYtUrl) : null), [photoYtUrl]);
+    const savePhotoYoutube = async (url: string | null) => {
+        setYtSaving(true);
+        try {
+            const { userFetch } = await import("../../../lib/utils/api");
+            const res = await userFetch(`/photos/${encodeURIComponent(photoId)}`, {
+                method: "PUT",
+                body: JSON.stringify({ songYoutubeUrl: url ?? "" }),
+            });
+            if (!res.ok) throw new Error(String(res.status));
+            setPhotoYtUrl(url);
+            setYtInput("");
+            showToast(
+                url ? (locale === "en" ? "MV added 🎬" : "MVを設定しました 🎬") : (locale === "en" ? "MV removed" : "MVを外しました"),
+                "success",
+            );
+        } catch {
+            showToast(locale === "en" ? "Invalid YouTube link" : "YouTubeリンクが正しくありません", "error");
+        } finally {
+            setYtSaving(false);
+        }
+    };
     const [songPickerOpen, setSongPickerOpen] = useState(false);
     const [songQuery, setSongQuery] = useState("");
     const [songResults, setSongResults] = useState<SongResult[]>([]);
@@ -612,7 +642,7 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                 })()}
 
                 {/* この写真のBGM */}
-                {(photoSong || isOwnPhoto) && (
+                {(photoSong || photoYtUrl || isOwnPhoto) && (
                     <div className="pt-4 border-t border-white/10 space-y-2">
                         {photoSong && (
                             <MusicCard
@@ -622,6 +652,36 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                                 label={locale === "en" ? "Photo BGM" : "この写真のBGM"}
                                 locale={locale}
                             />
+                        )}
+
+                        {/* フル再生MV（YouTube）。大きいので折りたたみ式 */}
+                        {mvEmbed && (
+                            <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden max-w-md">
+                                <div className="flex items-center gap-1.5 px-3.5 py-2.5">
+                                    <MusicalNoteIcon className="w-3.5 h-3.5 text-fuchsia-400" />
+                                    <span className="text-[11px] tracking-widest uppercase text-white/45">{locale === "en" ? "Full MV" : "フル再生MV"}</span>
+                                    <button
+                                        onClick={() => setMvOpen((v) => !v)}
+                                        aria-expanded={mvOpen}
+                                        className="ml-auto inline-flex items-center gap-0.5 text-[11px] text-white/60 hover:text-white active:scale-95 transition"
+                                    >
+                                        {mvOpen ? (locale === "en" ? "Hide" : "畳む") : (locale === "en" ? "Play MV" : "MVを開く")}
+                                        <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform ${mvOpen ? "rotate-180" : ""}`} />
+                                    </button>
+                                </div>
+                                {mvOpen && (
+                                    <div className="relative w-full" style={{ aspectRatio: "16 / 9" }}>
+                                        <iframe
+                                            src={mvEmbed.embedUrl}
+                                            title="photo mv"
+                                            className="absolute inset-0 w-full h-full"
+                                            allow="encrypted-media; picture-in-picture; web-share"
+                                            referrerPolicy="strict-origin-when-cross-origin"
+                                            loading="lazy"
+                                        />
+                                    </div>
+                                )}
+                            </div>
                         )}
                         {isOwnPhoto && (
                             songPickerOpen ? (
@@ -695,6 +755,41 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                                     )}
                                 </div>
                             )
+                        )}
+
+                        {/* オーナー: フル再生MV（YouTube リンク）の設定 */}
+                        {isOwnPhoto && !songPickerOpen && (
+                            <div className="flex items-center gap-2 max-w-md">
+                                <input
+                                    type="url"
+                                    value={ytInput}
+                                    onChange={(e) => setYtInput(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === "Enter" && ytInput.trim()) { e.preventDefault(); void savePhotoYoutube(ytInput.trim()); } }}
+                                    placeholder={photoYtUrl
+                                        ? (locale === "en" ? "Change YouTube MV link" : "YouTube MV リンクを変更")
+                                        : (locale === "en" ? "Paste a YouTube link for full playback" : "YouTubeリンクを貼るとフル再生MVに")}
+                                    className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
+                                    style={{ fontSize: "16px" }}
+                                />
+                                <button
+                                    onClick={() => void savePhotoYoutube(ytInput.trim())}
+                                    disabled={ytSaving || !ytInput.trim()}
+                                    className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 transition text-xs disabled:opacity-40 flex-shrink-0"
+                                >
+                                    {ytSaving
+                                        ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        : (locale === "en" ? "Set MV" : "MV設定")}
+                                </button>
+                                {photoYtUrl && (
+                                    <button
+                                        onClick={() => void savePhotoYoutube(null)}
+                                        aria-label={locale === "en" ? "Remove MV" : "MVを外す"}
+                                        className="p-1.5 text-white/40 hover:text-white/70 active:scale-95 transition flex-shrink-0"
+                                    >
+                                        <XMarkIcon className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
                         )}
                     </div>
                 )}

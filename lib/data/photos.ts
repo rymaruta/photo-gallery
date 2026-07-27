@@ -34,6 +34,8 @@ export type Photo = {
     geoApprox?: boolean;
     // 写真BGM（オーナーが1曲添えられる。30秒プレビュー）
     song?: { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string };
+    // 写真のフル再生MV（YouTube リンク）。30秒プレビューとは別枠で共存
+    songYoutubeUrl?: string;
     mapLinks?: { google?: string; osm?: string; label?: string };
     license?: string;
     copyrightOwner?: string;
