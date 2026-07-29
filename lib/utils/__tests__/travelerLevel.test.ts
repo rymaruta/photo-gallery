@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Photo } from "../../data/photos";
-import { computeTravelerStats, travelerScore, travelerLevel, earnedBadges } from "../travelerLevel";
+import { computeTravelerStats, travelerScore, travelerLevel, earnedBadges, travelerBadgeBoard } from "../travelerLevel";
 
 function p(over: Partial<Photo> & { id: string }): Photo {
     return { src: `https://cdn/${over.id}.jpg`, ...over } as Photo;
@@ -110,8 +110,46 @@ describe("earnedBadges", () => {
         expect(keys).toEqual(["distance", "likes", "moved", "places", "posts"]);
     });
 
-    it("英語ラベル", () => {
+    it("英語ラベルとtier/categoryKeyを含む", () => {
         const badges = earnedBadges({ ...empty, totalMoved: 5 }, "en");
-        expect(badges[0].label).toContain("Moved 5 to travel");
+        expect(badges[0].label).toContain("Moved");
+        expect(badges[0].label).toContain("5");
+        expect(badges[0].categoryKey).toBe("moved");
+        expect(badges[0].tier).toBe(1); // 5 は tiers[1]=5 到達 → tier 1
+    });
+});
+
+describe("travelerBadgeBoard", () => {
+    const empty = { postCount: 0, totalLikes: 0, totalMoved: 0, distanceKm: 0, placeCount: 0, tripCount: 0 };
+
+    it("全5カテゴリを常に返す（未獲得含む）", () => {
+        const board = travelerBadgeBoard(empty);
+        expect(board.length).toBe(5);
+        expect(board.map((s) => s.categoryKey).sort()).toEqual(["distance", "likes", "moved", "places", "posts"]);
+    });
+
+    it("未獲得は tier=-1 で nextThreshold が最初のしきい値", () => {
+        const moved = travelerBadgeBoard(empty).find((s) => s.categoryKey === "moved")!;
+        expect(moved.tier).toBe(-1);
+        expect(moved.nextThreshold).toBe(1); // moved tiers[0]=1
+    });
+
+    it("中間段は tier と次しきい値が正しい", () => {
+        const moved = travelerBadgeBoard({ ...empty, totalMoved: 25 }).find((s) => s.categoryKey === "moved")!;
+        expect(moved.tier).toBe(2);  // 20 到達
+        expect(moved.nextThreshold).toBe(50);
+        expect(moved.currentValue).toBe(25);
+    });
+
+    it("最高段は nextThreshold=null", () => {
+        const moved = travelerBadgeBoard({ ...empty, totalMoved: 100 }).find((s) => s.categoryKey === "moved")!;
+        expect(moved.tier).toBe(3);
+        expect(moved.maxTier).toBe(3);
+        expect(moved.nextThreshold).toBeNull();
+    });
+
+    it("ロケールで categoryLabel が変わる", () => {
+        expect(travelerBadgeBoard(empty, "ja").find((s) => s.categoryKey === "moved")!.categoryLabel).toBe("旅立たせた");
+        expect(travelerBadgeBoard(empty, "en").find((s) => s.categoryKey === "moved")!.categoryLabel).toBe("Moved");
     });
 });

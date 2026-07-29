@@ -29,6 +29,20 @@ export type Badge = {
     key: string;
     emoji: string;
     label: string;        // ロケール依存
+    tier: number;         // 到達段位 0..（ブロンズ=0, シルバー=1, ゴールド=2, プラチナ=3）
+    categoryKey: string;  // moved / distance / likes / places / posts
+};
+
+// バッジ棚（コレクション）の1マス。未獲得も含めて全カテゴリを返す。
+export type BadgeSlot = {
+    categoryKey: string;
+    emoji: string;
+    categoryLabel: string; // 「旅立たせた」等（ロケール依存）
+    valueLabel: string;    // 「20人」等（現在値・ロケール依存）
+    tier: number;          // -1（未獲得）..3（最高段）
+    maxTier: number;       // そのカテゴリの最大段（= tiers.length - 1）
+    currentValue: number;
+    nextThreshold: number | null; // 次段のしきい値（最高段なら null）
 };
 
 const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : 0);
@@ -104,43 +118,88 @@ export function travelerLevel(s: TravelerStats, locale: "ja" | "en" = "ja"): Tra
 }
 
 // バッジ: しきい値到達で付与。各カテゴリで到達した最大段のみ表示する。
+// categoryLabel（種類名）と valueLabel（現在値）を分けて持ち、トロフィー棚で
+// 「種類名 + 実数 + 段位」を別々に見せられるようにする。
 const BADGE_TIERS: Array<{
     key: string;
     emoji: string;
     value: (s: TravelerStats) => number;
     tiers: number[];
-    label: (n: number, tier: number, locale: "ja" | "en") => string;
+    categoryLabel: (locale: "ja" | "en") => string;
+    valueLabel: (n: number, locale: "ja" | "en") => string;
 }> = [
     {
         key: "moved", emoji: "🧭", value: (s) => s.totalMoved, tiers: [1, 5, 20, 50],
-        label: (n, _t, l) => (l === "en" ? `Moved ${n} to travel` : `${n}人を旅立たせた`),
+        categoryLabel: (l) => (l === "en" ? "Moved" : "旅立たせた"),
+        valueLabel: (n, l) => (l === "en" ? `${n.toLocaleString()} people` : `${n.toLocaleString()}人`),
     },
     {
         key: "distance", emoji: "🌏", value: (s) => Math.round(s.distanceKm), tiers: [100, 1000, 5000, 20000],
-        label: (n, _t, l) => (l === "en" ? `${n.toLocaleString()} km traveled` : `${n.toLocaleString()}km 旅した`),
+        categoryLabel: (l) => (l === "en" ? "Distance" : "旅した距離"),
+        valueLabel: (n, l) => (l === "en" ? `${n.toLocaleString()} km` : `${n.toLocaleString()}km`),
     },
     {
         key: "likes", emoji: "❤️", value: (s) => s.totalLikes, tiers: [10, 50, 200, 1000],
-        label: (n, _t, l) => (l === "en" ? `${n.toLocaleString()} likes` : `${n.toLocaleString()} いいね`),
+        categoryLabel: (l) => (l === "en" ? "Likes" : "いいね"),
+        valueLabel: (n, l) => (l === "en" ? `${n.toLocaleString()}` : `${n.toLocaleString()}`),
     },
     {
         key: "places", emoji: "🗺️", value: (s) => s.placeCount, tiers: [3, 10, 30, 80],
-        label: (n, _t, l) => (l === "en" ? `${n} places` : `${n} か所を巡った`),
+        categoryLabel: (l) => (l === "en" ? "Places" : "巡った場所"),
+        valueLabel: (n, l) => (l === "en" ? `${n.toLocaleString()}` : `${n.toLocaleString()}か所`),
     },
     {
         key: "posts", emoji: "📸", value: (s) => s.postCount, tiers: [5, 25, 60, 100],
-        label: (n, _t, l) => (l === "en" ? `${n} posts` : `${n} 投稿`),
+        categoryLabel: (l) => (l === "en" ? "Posts" : "投稿"),
+        valueLabel: (n, l) => (l === "en" ? `${n.toLocaleString()}` : `${n.toLocaleString()}`),
     },
 ];
+
+/** 到達段位（0..）を返す。未到達は -1 */
+function tierOf(value: number, tiers: number[]): number {
+    let hit = -1;
+    for (let i = 0; i < tiers.length; i++) if (value >= tiers[i]) hit = i;
+    return hit;
+}
 
 /** 獲得済みバッジ（各カテゴリ、到達した最大しきい値のみ） */
 export function earnedBadges(s: TravelerStats, locale: "ja" | "en" = "ja"): Badge[] {
     const out: Badge[] = [];
     for (const b of BADGE_TIERS) {
         const v = b.value(s);
-        let hit = -1;
-        for (let i = 0; i < b.tiers.length; i++) if (v >= b.tiers[i]) hit = i;
-        if (hit >= 0) out.push({ key: `${b.key}-${b.tiers[hit]}`, emoji: b.emoji, label: b.label(v, b.tiers[hit], locale) });
+        const tier = tierOf(v, b.tiers);
+        if (tier >= 0) {
+            out.push({
+                key: `${b.key}-${b.tiers[tier]}`,
+                emoji: b.emoji,
+                label: `${b.categoryLabel(locale)} ${b.valueLabel(v, locale)}`.trim(),
+                tier,
+                categoryKey: b.key,
+            });
+        }
     }
     return out;
+}
+
+/**
+ * バッジ棚（コレクション）: 全カテゴリを未獲得も含めて返す。
+ * トロフィー棚で「集めたくなる」中毒性を出すため、未獲得のマスも見せる。
+ */
+export function travelerBadgeBoard(s: TravelerStats, locale: "ja" | "en" = "ja"): BadgeSlot[] {
+    return BADGE_TIERS.map((b) => {
+        const v = b.value(s);
+        const tier = tierOf(v, b.tiers);
+        const maxTier = b.tiers.length - 1;
+        const nextThreshold = tier < maxTier ? b.tiers[tier + 1] : null;
+        return {
+            categoryKey: b.key,
+            emoji: b.emoji,
+            categoryLabel: b.categoryLabel(locale),
+            valueLabel: b.valueLabel(v, locale),
+            tier,
+            maxTier,
+            currentValue: v,
+            nextThreshold,
+        };
+    });
 }
