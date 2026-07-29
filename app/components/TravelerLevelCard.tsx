@@ -15,15 +15,14 @@ type Props = {
     onLevelUp?: (level: number, title: string) => void;
 };
 
-// 段位ごとのメタルカラー（RankingCard と同系の放射グラデ）。
-// tier -1=未獲得（ロック）, 0=ブロンズ, 1=シルバー, 2=ゴールド, 3=プラチナ
-const TIER_METAL = [
-    "radial-gradient(circle at 32% 26%, #ffdfba, #e8943a 48%, #7c3f0d 100%)",  // bronze
-    "radial-gradient(circle at 32% 26%, #ffffff, #cbd5e1 48%, #64748b 100%)",  // silver
-    "radial-gradient(circle at 32% 26%, #fff8d9, #fbbf24 48%, #a16207 100%)",  // gold
-    "radial-gradient(circle at 32% 26%, #ffffff, #a5f3fc 45%, #0e7490 100%)",  // platinum
+// 段位ごとのリアル金属パレット（明 / 中 / 暗 / 地）。
+// tier 0=ブロンズ, 1=シルバー, 2=ゴールド, 3=プラチナ
+const METALS = [
+    { light: "#ffe2bd", mid: "#c97b38", dark: "#6e3a12", base: "#b5642a" }, // bronze
+    { light: "#ffffff", mid: "#c7cfd6", dark: "#5b636b", base: "#9aa4ad" }, // silver
+    { light: "#fff3bf", mid: "#f0bf3f", dark: "#8a5a10", base: "#e0a91e" }, // gold
+    { light: "#ffffff", mid: "#dbe6ee", dark: "#7d8a95", base: "#c3d0da" }, // platinum
 ];
-const TIER_RING = ["ring-amber-300/40", "ring-slate-200/50", "ring-amber-200/60", "ring-cyan-200/60"];
 
 function tierLabel(tier: number, locale: "ja" | "en"): string {
     const ja = ["ブロンズ", "シルバー", "ゴールド", "プラチナ"];
@@ -31,30 +30,81 @@ function tierLabel(tier: number, locale: "ja" | "en"): string {
     return (locale === "en" ? en : ja)[tier] ?? "";
 }
 
-// トロフィー棚の1マス（メダリオン）
+// 打ち出しコインのベゼル（上フチの光・下フチの影・内リムの磨き・落ち影・外周）
+const BEZEL = [
+    "inset 0 1.5px 1px rgba(255,255,255,0.8)",
+    "inset 0 -2px 2px rgba(0,0,0,0.45)",
+    "inset 0 0 0 1px rgba(255,255,255,0.25)",
+    "0 2px 5px rgba(0,0,0,0.5)",
+    "0 0 0 1px rgba(0,0,0,0.35)",
+].join(", ");
+
+// トロフィー棚の1マス（メダリオン）。実物のコイン光学を多層で再現する。
 function BadgeMedallion({ slot, locale }: { slot: BadgeSlot; locale: "ja" | "en" }) {
     const earned = slot.tier >= 0;
     const isTop = slot.tier === slot.maxTier;
+    const m = earned ? METALS[slot.tier] : null;
     return (
         <div className="flex flex-col items-center gap-1 min-w-0">
             {/* ディスク */}
             <div
-                className={`relative w-11 h-11 rounded-full flex items-center justify-center text-base ring-2 ${
-                    earned ? `${TIER_RING[slot.tier]} shadow-[0_2px_12px_rgba(0,0,0,0.35)]` : "ring-white/10"
-                }`}
-                style={earned
-                    ? { backgroundImage: TIER_METAL[slot.tier] }
-                    : { backgroundColor: "#1c1f24", borderStyle: "dashed" }}
+                className="relative w-12 h-12 rounded-full overflow-hidden flex items-center justify-center text-base"
+                style={m
+                    ? {
+                        // 異方性シーン（円周を回る明暗の金属反射）を地にする。これが金属感の要
+                        background: `conic-gradient(from 220deg, ${m.dark}, ${m.mid}, ${m.light}, ${m.mid}, ${m.base}, ${m.dark}, ${m.mid}, ${m.light}, ${m.mid}, ${m.dark})`,
+                        boxShadow: BEZEL,
+                    }
+                    : {
+                        backgroundColor: "#15181c",
+                        boxShadow: "inset 0 2px 4px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.06)",
+                        border: "1px dashed rgba(255,255,255,0.12)",
+                    }}
                 title={earned ? `${slot.categoryLabel} ${slot.valueLabel} ・ ${tierLabel(slot.tier, locale)}` : slot.categoryLabel}
             >
-                <span aria-hidden className={earned ? "" : "opacity-25 grayscale"}>{slot.emoji}</span>
+                {m && (
+                    <>
+                        {/* ドーム陰影: 上に光・下エッジに影を乗せて球面の丸みを出す */}
+                        <span
+                            aria-hidden
+                            className="absolute inset-0 rounded-full pointer-events-none"
+                            style={{
+                                background:
+                                    "radial-gradient(circle at 50% 30%, rgba(255,255,255,0.4), rgba(255,255,255,0) 42%)," +
+                                    "radial-gradient(circle at 50% 118%, rgba(0,0,0,0.55), rgba(0,0,0,0) 55%)",
+                            }}
+                        />
+                        {/* 最高段: ゆっくり回る薄いシーンで“生きた金属”の揺らぎ */}
+                        {isTop && (
+                            <span
+                                aria-hidden
+                                className="absolute inset-0 rounded-full mix-blend-overlay opacity-50 metal-sheen"
+                                style={{ background: `conic-gradient(from 0deg, transparent, ${m.light}, transparent 40%, ${m.light} 60%, transparent 75%)` }}
+                            />
+                        )}
+                        {/* 鏡面スペキュラ（左上の小さな光点） */}
+                        <span
+                            aria-hidden
+                            className="absolute inset-0 rounded-full pointer-events-none"
+                            style={{ background: "radial-gradient(circle at 32% 24%, rgba(255,255,255,0.95), rgba(255,255,255,0) 18%)" }}
+                        />
+                    </>
+                )}
+                {/* 絵文字: 金属に刻印されたエンボス */}
+                <span
+                    aria-hidden
+                    className={`relative ${earned ? "" : "opacity-20 grayscale"}`}
+                    style={earned ? { filter: "drop-shadow(0 1px 0 rgba(255,255,255,0.55)) drop-shadow(0 -1px 1px rgba(0,0,0,0.4))" } : undefined}
+                >
+                    {slot.emoji}
+                </span>
                 {/* 最高段だけ光沢スイープ */}
                 {earned && isTop && (
-                    <span aria-hidden className="medal-shine absolute top-0 bottom-0 w-1/3 bg-white/50 blur-[2px] rounded-full overflow-hidden" />
+                    <span aria-hidden className="medal-shine absolute top-0 bottom-0 w-1/3 bg-white/50 blur-[2px]" />
                 )}
                 {/* 段位ピップ（右下に小さく） */}
                 {earned && (
-                    <span className="absolute -bottom-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-black/80 ring-1 ring-white/20 text-[8px] font-bold text-white flex items-center justify-center tabular-nums">
+                    <span className="absolute bottom-0 right-0 min-w-[14px] h-[14px] px-0.5 rounded-full bg-black/85 ring-1 ring-white/25 text-[8px] font-bold text-white flex items-center justify-center tabular-nums">
                         {slot.tier + 1}
                     </span>
                 )}
