@@ -207,11 +207,18 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                         </button>
                                     </li>
                                 ) : (
-                                    <li style={{ margin: 0, padding: 0 }}>
-                                        <button onClick={() => handleNavigation(ROUTES.LOGIN)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
-                                            {navLabels.login || "Login"}
-                                        </button>
-                                    </li>
+                                    <>
+                                        <li style={{ margin: 0, padding: 0 }}>
+                                            <button onClick={() => handleNavigation(ROUTES.LOGIN)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
+                                                {navLabels.login || "Login"}
+                                            </button>
+                                        </li>
+                                        <li style={{ margin: 0, padding: 0 }}>
+                                            <button onClick={() => handleNavigation(ROUTES.SIGNUP)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
+                                                {navLabels.signup || "Sign up"}
+                                            </button>
+                                        </li>
+                                    </>
                                 )}
                             </ul>
                         </nav>

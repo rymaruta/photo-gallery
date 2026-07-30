@@ -11,6 +11,7 @@ import { useToast } from "../../../lib/hooks/useToast";
 import { userFetch } from "../../../lib/utils/api";
 import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../../lib/utils/music";
 import RankingCard from "../../components/RankingCard";
+import DeleteAccountModal from "../../components/DeleteAccountModal";
 
 type SongEntry = {
     title: string;
@@ -60,11 +61,15 @@ function secToMMSS(s?: number): string {
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
 export default function ProfileEditPage() {
-    const { isAuthenticated, loading } = useAuth();
+    const { isAuthenticated, loading, deleteAccount } = useAuth();
     const { locale } = useLocale();
     const router = useRouter();
     const { showToast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // 退会（アカウント削除）
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deletingAccount, setDeletingAccount] = useState(false);
 
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [fetching, setFetching] = useState(true);
@@ -338,6 +343,25 @@ export default function ProfileEditPage() {
             showToast(locale === "en" ? "Failed to save." : "保存に失敗しました。", "error");
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        setDeletingAccount(true);
+        try {
+            const result = await deleteAccount();
+            if (result.success) {
+                // deleteAccount 内でトップへ遷移済み。トーストで結果を伝える。
+                showToast(locale === "en" ? "Your account has been deleted." : "退会が完了しました。ご利用ありがとうございました。", "success");
+            } else {
+                showToast(result.error || (locale === "en" ? "Failed to delete account." : "退会処理に失敗しました。"), "error");
+                setShowDeleteModal(false);
+            }
+        } catch {
+            showToast(locale === "en" ? "Failed to delete account." : "退会処理に失敗しました。", "error");
+            setShowDeleteModal(false);
+        } finally {
+            setDeletingAccount(false);
         }
     };
 
@@ -867,8 +891,41 @@ export default function ProfileEditPage() {
                                 : (locale === "en" ? "Save" : "保存する")}
                         </button>
                     </div>
+
+                    {/* 危険な操作: 退会（アカウント削除） */}
+                    <div className="mt-10 pt-6 border-t border-white/10">
+                        <p className="text-[11px] tracking-widest uppercase text-red-400/70 mb-2">
+                            {locale === "en" ? "Danger zone" : "危険な操作"}
+                        </p>
+                        <div className="rounded-2xl bg-red-500/[0.05] ring-1 ring-red-500/15 p-4">
+                            <p className="text-sm font-semibold text-white/90 mb-1">
+                                {locale === "en" ? "Delete account" : "退会（アカウント削除）"}
+                            </p>
+                            <p className="text-xs text-white/45 leading-relaxed mb-3">
+                                {locale === "en"
+                                    ? "Permanently deletes your photos, stories, profile, and account. This can't be undone."
+                                    : "写真・ストーリー・プロフィール・アカウントをすべて完全に削除します。取り消しはできません。"}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => setShowDeleteModal(true)}
+                                className="w-full py-2.5 rounded-xl bg-transparent text-red-400 text-sm font-medium ring-1 ring-inset ring-red-500/30 hover:bg-red-500/10 active:scale-[0.98] transition"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                {locale === "en" ? "Delete my account" : "退会する"}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            <DeleteAccountModal
+                isOpen={showDeleteModal}
+                onClose={() => setShowDeleteModal(false)}
+                onConfirm={() => void handleDeleteAccount()}
+                locale={locale}
+                deleting={deletingAccount}
+            />
         </main>
     );
 }

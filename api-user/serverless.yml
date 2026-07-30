@@ -46,16 +46,18 @@ provider:
           Resource:
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-photos
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-photos/index/*
-        # 期限切れストーリーの物理削除用
+        # 期限切れストーリーの物理削除 / 退会時の写真・アバター・カバー削除用
         - Effect: Allow
           Action:
             - s3:DeleteObject
           Resource:
             - arn:aws:s3:::${param:uploadBucket, 'prod-journey-photo-upload'}/uploads/*
+            - arn:aws:s3:::${param:uploadBucket, 'prod-journey-photo-upload'}/profiles/*
         - Effect: Allow
           Action:
             - dynamodb:GetItem
             - dynamodb:PutItem
+            - dynamodb:DeleteItem
           Resource:
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-users
 
@@ -316,6 +318,15 @@ functions:
       - httpApi:
           path: /stories/{id}/viewers
           method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  deleteAccount:
+    handler: src/account.deleteAccount
+    events:
+      - httpApi:
+          path: /user/account
+          method: DELETE
           authorizer:
             name: cognitoAuthorizer
 

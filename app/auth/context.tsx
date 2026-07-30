@@ -2,8 +2,9 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { signIn, signOut, getCurrentSession } from "../../lib/auth/cognito";
+import { signIn, signOut, getCurrentSession, deleteAccount as cognitoDeleteAccount } from "../../lib/auth/cognito";
 import { cognitoConfig } from "../../lib/auth/config";
+import { userFetch } from "../../lib/utils/api";
 import { log } from "../../lib/utils/log";
 
 type AuthContextType = {
@@ -14,6 +15,7 @@ type AuthContextType = {
     loading: boolean;
     login: (username: string, password: string) => Promise<{ success: boolean; error?: string; needsVerification?: boolean; userId?: string }>;
     logout: () => void;
+    deleteAccount: () => Promise<{ success: boolean; error?: string }>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -146,6 +148,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.push("/");
     }, [router]);
 
+    // 退会（アカウント削除）。慎重な削除順序:
+    //   1. サーバー側の自分のデータを削除（失敗したら Cognito 削除に進まない）
+    //   2. Cognito アカウントを削除（不可逆）
+    //   3. ローカルのサインアウト + 状態リセット + トップへ
+    const deleteAccount = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+        try {
+            const res = await userFetch("/user/account", { method: "DELETE" });
+            if (!res.ok) {
+                return { success: false, error: "退会処理に失敗しました。時間をおいて再度お試しください" };
+            }
+            const del = await cognitoDeleteAccount();
+            if (!del.success) {
+                return { success: false, error: del.error || "アカウントの削除に失敗しました" };
+            }
+            signOut();
+            setAuthState({
+                isAuthenticated: false,
+                isAdminUser: false,
+                isGeneralUser: false,
+                userId: null,
+                loading: false,
+            });
+            router.push("/");
+            return { success: true };
+        } catch (error) {
+            log.error("AuthContext: 退会処理例外", error);
+            return { success: false, error: error instanceof Error ? error.message : "退会処理中にエラーが発生しました" };
+        }
+    }, [router]);
+
     return (
         <AuthContext.Provider
             value={{
@@ -156,6 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 loading: authState.loading,
                 login,
                 logout,
+                deleteAccount,
             }}
         >
             {children}

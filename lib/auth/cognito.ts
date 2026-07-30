@@ -336,6 +336,37 @@ export async function resendConfirmationCode(username: string): Promise<{
     });
 }
 
+// Cognito アカウントを削除（退会）。現在ログイン中のユーザーが対象。
+// deleteUser は有効なセッションが必要なため、先に getSession でトークンを整える。
+export async function deleteAccount(): Promise<{ success: boolean; error?: string }> {
+    return new Promise((resolve) => {
+        try {
+            const userPool = getUserPool();
+            const cognitoUser = userPool.getCurrentUser();
+            if (!cognitoUser) {
+                resolve({ success: false, error: "ログインしていません" });
+                return;
+            }
+            cognitoUser.getSession((err: Error | null, session: CognitoUserSession | null) => {
+                if (err || !session || !session.isValid()) {
+                    resolve({ success: false, error: "セッションが無効です。再度ログインしてください" });
+                    return;
+                }
+                cognitoUser.deleteUser((deleteErr) => {
+                    if (deleteErr) {
+                        log.error("deleteUser error:", deleteErr);
+                        resolve({ success: false, error: deleteErr.message || "アカウント削除に失敗しました" });
+                        return;
+                    }
+                    resolve({ success: true });
+                });
+            });
+        } catch (e) {
+            resolve({ success: false, error: e instanceof Error ? e.message : "アカウント削除中にエラーが発生しました" });
+        }
+    });
+}
+
 // IDトークンを取得（JWT文字列として）
 export async function getIdToken(): Promise<string | null> {
     const session = await getCurrentSession();

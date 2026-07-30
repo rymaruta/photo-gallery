@@ -59,6 +59,7 @@ export type Labels = {
         admin?: string;
         login?: string;
         logout?: string;
+        signup?: string;
     };
 };
 
@@ -113,6 +114,7 @@ const enLabels: Labels = {
         admin: "Manage",
         login: "Login",
         logout: "Logout",
+        signup: "Sign up",
     },
 };
 
@@ -164,6 +166,7 @@ export const ja: Labels = {
         admin: "管理",
         login: "ログイン",
         logout: "ログアウト",
+        signup: "新規登録",
     },
 };
 
