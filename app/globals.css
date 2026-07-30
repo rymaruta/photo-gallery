@@ -138,21 +138,11 @@ body {
   will-change: left;
 }
 
-/* 実績メダル: 円周を回る金属の反射（conic シーンをゆっくり回して“生きた金属”に） */
-@keyframes metal-rotate {
-  to { transform: rotate(360deg); }
-}
-.metal-sheen {
-  animation: metal-rotate 8s linear infinite;
-  will-change: transform;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .story-media-in { animation: none; }
   .heart-burst { animation-duration: 300ms; }
   .avatar-orbit { animation: none; }
   .medal-shine { animation: none; opacity: 0; }
-  .metal-sheen { animation: none; }
 }
 
 /* モバイル: ベースフォントサイズを少し下げる */

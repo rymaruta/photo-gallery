@@ -4,6 +4,7 @@
 // このアプリ固有の「旅立たせた人数」を軸に、レベル・称号・進捗・実績バッジを見せる。
 
 import React, { useEffect, useRef } from "react";
+import { PaperAirplaneIcon, GlobeAltIcon, HeartIcon, MapPinIcon, CameraIcon } from "@heroicons/react/24/outline";
 import type { Photo } from "@/lib/data/photos";
 import { computeTravelerStats, travelerLevel, travelerBadgeBoard, type BadgeSlot } from "../../lib/utils/travelerLevel";
 
@@ -15,104 +16,46 @@ type Props = {
     onLevelUp?: (level: number, title: string) => void;
 };
 
-// 段位ごとのリアル金属パレット（明 / 中 / 暗 / 地）。
-// tier 0=ブロンズ, 1=シルバー, 2=ゴールド, 3=プラチナ
-const METALS = [
-    { light: "#ffe2bd", mid: "#c97b38", dark: "#6e3a12", base: "#b5642a" }, // bronze
-    { light: "#ffffff", mid: "#c7cfd6", dark: "#5b636b", base: "#9aa4ad" }, // silver
-    { light: "#fff3bf", mid: "#f0bf3f", dark: "#8a5a10", base: "#e0a91e" }, // gold
-    { light: "#ffffff", mid: "#dbe6ee", dark: "#7d8a95", base: "#c3d0da" }, // platinum
-];
+// カテゴリ→サイト共通の単色線アイコン（絵文字をやめてトーンを揃える）
+const CATEGORY_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
+    moved: (p) => <PaperAirplaneIcon {...p} />,
+    distance: GlobeAltIcon,
+    likes: HeartIcon,
+    places: MapPinIcon,
+    posts: CameraIcon,
+};
 
-function tierLabel(tier: number, locale: "ja" | "en"): string {
-    const ja = ["ブロンズ", "シルバー", "ゴールド", "プラチナ"];
-    const en = ["Bronze", "Silver", "Gold", "Platinum"];
-    return (locale === "en" ? en : ja)[tier] ?? "";
-}
+// 段位のアクセント色（金属ではなく“色の格”で静かに示す。淡く）
+const TIER_ACCENT = ["text-white/55", "text-sky-300", "text-emerald-300", "text-amber-200"];
+const TIER_DOT = ["bg-white/55", "bg-sky-300", "bg-emerald-300", "bg-amber-200"];
 
-// 打ち出しコインのベゼル（上フチの光・下フチの影・内リムの磨き・落ち影・外周）
-const BEZEL = [
-    "inset 0 1.5px 1px rgba(255,255,255,0.8)",
-    "inset 0 -2px 2px rgba(0,0,0,0.45)",
-    "inset 0 0 0 1px rgba(255,255,255,0.25)",
-    "0 2px 5px rgba(0,0,0,0.5)",
-    "0 0 0 1px rgba(0,0,0,0.35)",
-].join(", ");
-
-// トロフィー棚の1マス（メダリオン）。実物のコイン光学を多層で再現する。
+// トロフィー棚の1マス。サイト共通のダーク・ガラス＋単色アイコン＋控えめアクセント。
 function BadgeMedallion({ slot, locale }: { slot: BadgeSlot; locale: "ja" | "en" }) {
     const earned = slot.tier >= 0;
-    const isTop = slot.tier === slot.maxTier;
-    const m = earned ? METALS[slot.tier] : null;
+    const Icon = CATEGORY_ICON[slot.categoryKey] ?? CameraIcon;
+    const accent = earned ? TIER_ACCENT[slot.tier] : "text-white/25";
     return (
-        <div className="flex flex-col items-center gap-1 min-w-0">
-            {/* ディスク */}
-            <div
-                className="relative w-12 h-12 rounded-full overflow-hidden flex items-center justify-center text-base"
-                style={m
-                    ? {
-                        // 異方性シーン（円周を回る明暗の金属反射）を地にする。これが金属感の要
-                        background: `conic-gradient(from 220deg, ${m.dark}, ${m.mid}, ${m.light}, ${m.mid}, ${m.base}, ${m.dark}, ${m.mid}, ${m.light}, ${m.mid}, ${m.dark})`,
-                        boxShadow: BEZEL,
-                    }
-                    : {
-                        backgroundColor: "#15181c",
-                        boxShadow: "inset 0 2px 4px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.06)",
-                        border: "1px dashed rgba(255,255,255,0.12)",
-                    }}
-                title={earned ? `${slot.categoryLabel} ${slot.valueLabel} ・ ${tierLabel(slot.tier, locale)}` : slot.categoryLabel}
-            >
-                {m && (
-                    <>
-                        {/* ドーム陰影: 上に光・下エッジに影を乗せて球面の丸みを出す */}
-                        <span
-                            aria-hidden
-                            className="absolute inset-0 rounded-full pointer-events-none"
-                            style={{
-                                background:
-                                    "radial-gradient(circle at 50% 30%, rgba(255,255,255,0.4), rgba(255,255,255,0) 42%)," +
-                                    "radial-gradient(circle at 50% 118%, rgba(0,0,0,0.55), rgba(0,0,0,0) 55%)",
-                            }}
-                        />
-                        {/* 最高段: ゆっくり回る薄いシーンで“生きた金属”の揺らぎ */}
-                        {isTop && (
-                            <span
-                                aria-hidden
-                                className="absolute inset-0 rounded-full mix-blend-overlay opacity-50 metal-sheen"
-                                style={{ background: `conic-gradient(from 0deg, transparent, ${m.light}, transparent 40%, ${m.light} 60%, transparent 75%)` }}
-                            />
-                        )}
-                        {/* 鏡面スペキュラ（左上の小さな光点） */}
-                        <span
-                            aria-hidden
-                            className="absolute inset-0 rounded-full pointer-events-none"
-                            style={{ background: "radial-gradient(circle at 32% 24%, rgba(255,255,255,0.95), rgba(255,255,255,0) 18%)" }}
-                        />
-                    </>
-                )}
-                {/* 絵文字: 金属に刻印されたエンボス */}
-                <span
-                    aria-hidden
-                    className={`relative ${earned ? "" : "opacity-20 grayscale"}`}
-                    style={earned ? { filter: "drop-shadow(0 1px 0 rgba(255,255,255,0.55)) drop-shadow(0 -1px 1px rgba(0,0,0,0.4))" } : undefined}
-                >
-                    {slot.emoji}
-                </span>
-                {/* 最高段だけ光沢スイープ */}
-                {earned && isTop && (
-                    <span aria-hidden className="medal-shine absolute top-0 bottom-0 w-1/3 bg-white/50 blur-[2px]" />
-                )}
-                {/* 段位ピップ（右下に小さく） */}
-                {earned && (
-                    <span className="absolute bottom-0 right-0 min-w-[14px] h-[14px] px-0.5 rounded-full bg-black/85 ring-1 ring-white/25 text-[8px] font-bold text-white flex items-center justify-center tabular-nums">
-                        {slot.tier + 1}
-                    </span>
-                )}
+        <div
+            className={`flex flex-col items-center gap-1.5 rounded-2xl px-1.5 pt-2.5 pb-2 ring-1 ${
+                earned ? "bg-white/[0.05] ring-white/10" : "bg-white/[0.02] ring-white/[0.06] ring-dashed"
+            }`}
+            title={earned ? `${slot.categoryLabel} ${slot.valueLabel}` : slot.categoryLabel}
+        >
+            {/* アイコン（moved は紙飛行機を斜めに） */}
+            <Icon className={`w-5 h-5 ${accent} ${slot.categoryKey === "moved" ? "-rotate-45" : ""} ${earned ? "" : "opacity-60"}`} />
+
+            {/* 段位ドット（獲得段=アクセント色 / 未獲得段=薄い白） */}
+            <div className="flex items-center gap-0.5" aria-hidden>
+                {Array.from({ length: slot.maxTier + 1 }).map((_, i) => (
+                    <span key={i} className={`w-1 h-1 rounded-full ${earned && i <= slot.tier ? TIER_DOT[slot.tier] : "bg-white/15"}`} />
+                ))}
             </div>
-            {/* ラベル */}
+
+            {/* カテゴリ名 */}
             <span className={`text-[10px] leading-tight text-center truncate w-full ${earned ? "text-white/70" : "text-white/30"}`}>
                 {slot.categoryLabel}
             </span>
+            {/* 値 or 次目標 */}
             <span className={`text-[10px] leading-none text-center tabular-nums ${earned ? "text-white/90 font-semibold" : "text-white/25"}`}>
                 {earned
                     ? slot.valueLabel
