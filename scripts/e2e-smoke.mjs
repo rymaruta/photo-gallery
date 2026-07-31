@@ -75,6 +75,15 @@ function check(name, ok, detail = "") {
     else { console.error(`  ❌ ${name}${detail ? ` — ${detail}` : ""}`); failures.push(name); }
 }
 
+// スモークは外部リクエスト（API/CDN）を route.abort() で遮断する密閉型。
+// その遮断は WebKit では pageerror（"Load failed" / "access control checks" 等）として
+// 表面化し、Chromium では console の net::ERR_FAILED になる——いずれも本番では成功する
+// 通信であり、アプリのバグではない。ゲート判定ではこれらの「想定内ネットワーク雑音」を除外し、
+// 本物の JS 例外（水和クラッシュ等）だけで失敗させる。
+function isExpectedNetworkNoise(msg) {
+    return /access control checks|Load failed|Access-Control-Allow-Origin|Failed to load resource|ERR_FAILED|ERR_ABORTED|net::|execute-api|amazonaws|cloudfront|写真取得エラー/i.test(String(msg));
+}
+
 // ページの実行時例外・console.error を集める（エンジン固有の実行時例外を診断するため）。
 function attachDiagnostics(page) {
     const bag = { pageErrors: [], consoleErrors: [] };
@@ -226,7 +235,8 @@ async function runChecks(browser, eng) {
         await expectMenuWorks(page, `[${eng}] プロフィール`);
     }
 
-    check(`[${eng}] 実行時のJSエラーがない`, bag.pageErrors.length === 0, bag.pageErrors.slice(0, 3).join(" / "));
+    const realErrors = bag.pageErrors.filter((m) => !isExpectedNetworkNoise(m));
+    check(`[${eng}] 実行時のJSエラーがない`, realErrors.length === 0, realErrors.slice(0, 3).join(" / "));
     reportDiagnostics(`${eng}/mobile`, bag);
     await ctx.close();
 
@@ -254,7 +264,8 @@ async function runChecks(browser, eng) {
         await waitForHydration(dpage);
         await expectMenuWorks(dpage, `[${eng}] プロフィール(デスクトップ)`);
     }
-    check(`[${eng}] デスクトップ: 実行時のJSエラーがない`, dbag.pageErrors.length === 0, dbag.pageErrors.slice(0, 3).join(" / "));
+    const dRealErrors = dbag.pageErrors.filter((m) => !isExpectedNetworkNoise(m));
+    check(`[${eng}] デスクトップ: 実行時のJSエラーがない`, dRealErrors.length === 0, dRealErrors.slice(0, 3).join(" / "));
     reportDiagnostics(`${eng}/desktop`, dbag);
     await dctx.close();
 }

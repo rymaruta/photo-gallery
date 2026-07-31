@@ -1,0 +1,30 @@
+name: Safari (WebKit) diagnose
+
+# 一時的な検証用ワークフロー。WebKit スモークが緑になることを確認したら削除する。
+
+on:
+  push:
+    branches:
+      - claude/improve-site-stability-u85Vz
+    paths:
+      - "scripts/e2e-smoke.mjs"
+      - ".github/workflows/safari-diagnose.yml"
+  workflow_dispatch:
+
+jobs:
+  webkit-diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Install browsers (chromium + webkit)
+        run: npx playwright install --with-deps chromium webkit
+      - name: Run smoke on Chromium + WebKit (must pass)
+        run: SMOKE_ENGINES=chromium,webkit node scripts/e2e-smoke.mjs
