@@ -61,11 +61,13 @@ jobs:
       # 実ブラウザでメニュー・モーダル・タブを実際にタップして検証。
       # 「見た目は正常だがタップできない」系の回帰（不可視オーバーレイ・
       # ハイドレーション不全・包含ブロック事故）はここで止まる。
-      - name: Install Chromium for smoke test
-        run: npx playwright install --with-deps chromium
+      # Chromium だけでなく WebKit(Safari エンジン)でもタップ可能を保証する。
+      # 「iOS Safari では見た目正常だが全無反応」系の回帰をデプロイ前に止めるため。
+      - name: Install browsers for smoke test (chromium + webkit)
+        run: npx playwright install --with-deps chromium webkit
 
-      - name: Browser smoke test (tap the real UI)
-        run: node scripts/e2e-smoke.mjs
+      - name: Browser smoke test (tap the real UI — Chromium + WebKit)
+        run: SMOKE_ENGINES=chromium,webkit node scripts/e2e-smoke.mjs
 
       - name: Deploy to S3
         run: node scripts/deploy-static-site.js --bucket prod-journey-photo.com

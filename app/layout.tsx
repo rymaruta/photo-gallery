@@ -112,6 +112,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: `(function(){try{var KEY="jp_asset_reload_at";addEventListener("error",function(e){var t=e.target;if(!t||typeof t.tagName!=="string")return;var tag=t.tagName.toUpperCase();var isAsset=tag==="SCRIPT"||(tag==="LINK"&&String(t.rel||"").toLowerCase().indexOf("stylesheet")>-1);if(!isAsset)return;var now=Date.now();var last=0;try{last=Number(sessionStorage.getItem(KEY)||0)}catch(x){return}if(last&&now-last<60000)return;try{sessionStorage.setItem(KEY,String(now))}catch(x){return}location.reload()},true)}catch(e){}})();`,
           }}
         />
+        {/*
+          ハイドレーション・ウォッチドッグ（自己修復）。
+          「見た目は正常だが一切タップできない（＝JS が水和していない）」状態は、
+          古い Service Worker やキャッシュされた壊れたアプリシェルを iOS Safari 等が
+          配信し続けると起こり、通常のリロードでは直らない（同じキャッシュを再配信するため）。
+          そこで: 読み込み後 12 秒たっても data-hydrated が付かなければ（React が動いていない）、
+          SW を解除しキャッシュを全消しして 1 回だけ再読込する。10 分クールダウンでループを防ぐ。
+          正常時は水和と同時にフラグが立つため発火しない。React に依存せず <head> で動く。
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var K="jp_hydrate_recover_at";function reheal(){try{if(document.documentElement.getAttribute("data-hydrated")==="1")return;var now=Date.now(),last=0;try{last=Number(localStorage.getItem(K)||0)}catch(e){}if(last&&now-last<600000)return;try{localStorage.setItem(K,String(now))}catch(e){}var done=false,go=function(){if(done)return;done=true;location.reload()};var ps=[];try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations){ps.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}).catch(function(){}))}}catch(e){}try{if(window.caches&&caches.keys){ps.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}).catch(function(){}))}}catch(e){}Promise.all(ps).then(go,go);setTimeout(go,3000)}catch(e){}}addEventListener("load",function(){setTimeout(reheal,12000)})}catch(e){}})();`,
+          }}
+        />
       </head>
       <body className={`${inter.className} min-h-screen flex flex-col bg-black text-white`}>
         <DisableSave />

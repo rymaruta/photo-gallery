@@ -6,7 +6,20 @@ const SHARE_DB = "journey-photo-share";
 const SHARE_STORE = "files";
 
 self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener("activate", (e) => e.waitUntil((async () => {
+    // 過去バージョンの SW が作った Cache Storage を全消しする。
+    // 現行 SW は GET を一切キャッシュしない（Share Target のみ）ため、
+    // 残存キャッシュは「古いアプリシェルを配信し続けて無反応になる」原因にしかならない。
+    try {
+        if (self.caches && caches.keys) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+    } catch (e) {
+        // 失敗しても致命的ではない
+    }
+    await self.clients.claim();
+})()));
 
 function openShareDb() {
     return new Promise((resolve, reject) => {
