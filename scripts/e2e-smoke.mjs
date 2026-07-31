@@ -1,18 +1,26 @@
 // デプロイ前のブラウザ・スモークテスト。
 // jsdom では検知できない「見た目は正常なのにタップが効かない」系の回帰
-// （不可視オーバーレイ・ハイドレーション失敗・チャンク欠落）を、
+// （不可視オーバーレイ・ハイドレーション失敗・チャンク欠落・エンジン固有の実行時例外）を、
 // ビルド済み out/ を実ブラウザで開いて実際にタップして検証する。
 // 1つでも失敗すると exit 1 になり、デプロイが止まる。
+//
+// エンジンは SMOKE_ENGINES 環境変数で指定（既定 "chromium"）。
+// CI では "chromium,webkit" を指定し、Chromium だけでなく WebKit(Safari エンジン)でも
+// タップ可能なことを保証する（iOS Safari 固有の「見た目正常だが全無反応」を捕捉するため）。
 
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium } from "playwright-core";
+import { chromium, webkit } from "playwright-core";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.resolve(__dirname, "..", "out");
 const PORT = 4173;
+
+const BROWSER_TYPES = { chromium, webkit };
+const ENGINES = (process.env.SMOKE_ENGINES || "chromium")
+    .split(",").map((s) => s.trim()).filter(Boolean);
 
 const MIME = {
     ".html": "text/html; charset=utf-8",
@@ -67,8 +75,31 @@ function check(name, ok, detail = "") {
     else { console.error(`  ❌ ${name}${detail ? ` — ${detail}` : ""}`); failures.push(name); }
 }
 
+// ページの実行時例外・console.error を集める（エンジン固有の実行時例外を診断するため）。
+function attachDiagnostics(page) {
+    const bag = { pageErrors: [], consoleErrors: [] };
+    page.on("pageerror", (e) => bag.pageErrors.push(String(e.message ?? e)));
+    page.on("console", (msg) => { if (msg.type() === "error") bag.consoleErrors.push(msg.text()); });
+    return bag;
+}
+function reportDiagnostics(label, bag) {
+    // 失敗診断用に、拾った例外・エラーを必ず出力する（成功時も参考として）。
+    for (const e of bag.pageErrors) console.log(`     ⚠️ [${label}] pageerror: ${e}`);
+    for (const e of bag.consoleErrors.slice(0, 5)) console.log(`     ⚠️ [${label}] console.error: ${e}`);
+}
+
+// タッチ context では tap、非タッチ（デスクトップ）context では click にフォールバック
+async function tapOrClick(page, sel, opts) {
+    try {
+        return await page.tap(sel, opts);
+    } catch (e) {
+        if (String(e.message).includes("does not support tap")) return page.click(sel, opts);
+        throw e;
+    }
+}
+
 // React のハイドレーション完了を待つ（メニューボタンに React のハンドラが
-// 付くまでポーリング）。固定スリープだと遅い環境で誤検知するため。
+// 付くまでポーリング）。false のままなら JS が走っていない（実行時例外など）。
 async function waitForHydration(page, timeoutMs = 20000) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
@@ -81,16 +112,6 @@ async function waitForHydration(page, timeoutMs = 20000) {
         await page.waitForTimeout(250);
     }
     return false;
-}
-
-// タッチ context では tap、非タッチ（デスクトップ）context では click にフォールバック
-async function tapOrClick(page, sel, opts) {
-    try {
-        return await page.tap(sel, opts);
-    } catch (e) {
-        if (String(e.message).includes("does not support tap")) return page.click(sel, opts);
-        throw e;
-    }
 }
 
 async function expectMenuWorks(page, label) {
@@ -122,149 +143,169 @@ async function expectMenuWorks(page, label) {
     }
 }
 
+// 1エンジン分の検査一式（モバイル context + デスクトップ context）。
+async function runChecks(browser, eng) {
+    // ── モバイル（タッチ）context ──
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    // 外部リクエスト（CloudFront画像・API等）を即座に遮断して密閉型にする。
+    await ctx.route("**/*", (route) => {
+        const host = new URL(route.request().url()).hostname;
+        if (host === "localhost" || host === "127.0.0.1") return route.continue();
+        return route.abort();
+    });
+    const page = await ctx.newPage();
+    const bag = attachDiagnostics(page);
+
+    console.log(`\n[${eng}][1] ホーム（モバイル・タッチ）`);
+    await page.goto(`http://localhost:${PORT}/`, { waitUntil: "domcontentloaded" });
+    const hydrated = await waitForHydration(page);
+    check(`[${eng}] Reactがハイドレーションを完了する`, hydrated);
+    if (!hydrated) reportDiagnostics(`${eng}/home`, bag); // 無反応の主因診断
+    await expectMenuWorks(page, `[${eng}] 初期表示`);
+
+    // 言語切替が反応する
+    const langButton = page.locator("button", { hasText: "English" }).first();
+    if (await langButton.isVisible().catch(() => false)) {
+        await langButton.tap().catch(() => {});
+        const switched = await page.locator("button", { hasText: "日本語" }).first().isVisible().catch(() => false);
+        check(`[${eng}] 言語切替が反応する`, switched);
+    }
+
+    // 一覧タップで個別ページへ直接遷移する
+    const firstPhoto = page.locator("a[data-photo-id]").first();
+    if (await firstPhoto.isVisible().catch(() => false)) {
+        const pid = await firstPhoto.getAttribute("data-photo-id");
+        await firstPhoto.tap().catch(() => {});
+        const navigated = await page.waitForURL(/\/photo\//, { timeout: 10000 }).then(() => true).catch(() => false);
+        check(`[${eng}] 一覧タップで個別ページに遷移する`, navigated, page.url());
+        if (navigated) {
+            const h1 = await page.waitForSelector("h1", { timeout: 8000 }).then(() => true).catch(() => false);
+            check(`[${eng}] 個別ページが表示される`, h1);
+            await expectMenuWorks(page, `[${eng}] 個別ページ`);
+        }
+
+        // ビルド前の新着写真フォールバック: /?photo=<id> でモーダルが開く
+        await page.goto(`http://localhost:${PORT}/?photo=${encodeURIComponent(pid ?? "")}`, { waitUntil: "domcontentloaded" });
+        await waitForHydration(page);
+        const modal = await page.waitForSelector('[role="dialog"][aria-modal="true"]', { timeout: 10000 }).then(() => true).catch(() => false);
+        check(`[${eng}] ?photo= フォールバックでモーダルが開く`, modal);
+        if (modal) {
+            let closed = false;
+            for (let k = 0; k < 5 && !closed; k++) {
+                await page.keyboard.press("Escape");
+                closed = await page.waitForSelector('[role="dialog"][aria-modal="true"]', { state: "detached", timeout: 2000 }).then(() => true).catch(() => false);
+            }
+            check(`[${eng}] 写真モーダルが閉じる`, closed);
+        }
+        await expectMenuWorks(page, `[${eng}] モーダル閉止後`);
+    }
+
+    // プロフィールページ: タブが切り替わる
+    const profiles = fs.existsSync(path.join(OUT, "users"))
+        ? fs.readdirSync(path.join(OUT, "users")).filter((f) => f.endsWith(".html"))
+        : [];
+    if (profiles.length > 0) {
+        console.log(`\n[${eng}][2] プロフィール`);
+        await page.goto(`http://localhost:${PORT}/users/${profiles[0].replace(/\.html$/, "")}`, { waitUntil: "domcontentloaded" });
+        check(`[${eng}] プロフィール: ハイドレーション完了`, await waitForHydration(page));
+        const clicked = await page.evaluate(() => {
+            const tabs = [...document.querySelectorAll("button[data-profile-tab][aria-pressed]")];
+            const inactive = tabs.find((t) => t.getAttribute("aria-pressed") === "false");
+            if (!inactive) return null;
+            inactive.setAttribute("data-e2e-tab", "1");
+            inactive.click();
+            return true;
+        });
+        if (clicked) {
+            const switched = await page.waitForFunction(
+                () => document.querySelector('[data-e2e-tab]')?.getAttribute("aria-pressed") === "true",
+                undefined, { timeout: 4000 },
+            ).then(() => true).catch(() => false);
+            check(`[${eng}] プロフィールのタブが切り替わる`, switched);
+        }
+        await expectMenuWorks(page, `[${eng}] プロフィール`);
+    }
+
+    check(`[${eng}] 実行時のJSエラーがない`, bag.pageErrors.length === 0, bag.pageErrors.slice(0, 3).join(" / "));
+    reportDiagnostics(`${eng}/mobile`, bag);
+    await ctx.close();
+
+    // ── デスクトップ（hover/マウス）context ──
+    // ミニプレイヤーのドラッグはデスクトップ限定なので、モバイル context では
+    // この経路を通らずメニュー被り不具合をすり抜けていた。ここで塞ぐ。
+    console.log(`\n[${eng}][3] デスクトップ（hover・マウス）`);
+    const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await dctx.route("**/*", (route) => {
+        const host = new URL(route.request().url()).hostname;
+        if (host === "localhost" || host === "127.0.0.1") return route.continue();
+        return route.abort();
+    });
+    // 保存位置を右上(ヘッダー上)に seed。将来ミニプレイヤーがそこに出てもメニューを塞がないこと（クランプ）を確認。
+    await dctx.addInitScript(() => {
+        try { localStorage.setItem("jp_miniplayer_pos", JSON.stringify({ x: 99999, y: 0 })); } catch { /* ignore */ }
+    });
+    const dpage = await dctx.newPage();
+    const dbag = attachDiagnostics(dpage);
+    await dpage.goto(`http://localhost:${PORT}/`, { waitUntil: "domcontentloaded" });
+    check(`[${eng}] デスクトップ: ハイドレーション完了`, await waitForHydration(dpage));
+    await expectMenuWorks(dpage, `[${eng}] 初期表示(デスクトップ)`);
+    if (profiles.length > 0) {
+        await dpage.goto(`http://localhost:${PORT}/users/${profiles[0].replace(/\.html$/, "")}`, { waitUntil: "domcontentloaded" });
+        await waitForHydration(dpage);
+        await expectMenuWorks(dpage, `[${eng}] プロフィール(デスクトップ)`);
+    }
+    check(`[${eng}] デスクトップ: 実行時のJSエラーがない`, dbag.pageErrors.length === 0, dbag.pageErrors.slice(0, 3).join(" / "));
+    reportDiagnostics(`${eng}/desktop`, dbag);
+    await dctx.close();
+}
+
+async function launchEngine(eng) {
+    const type = BROWSER_TYPES[eng];
+    if (!type) { console.log(`\n(未知のエンジン ${eng} をスキップ)`); return null; }
+    try {
+        return await type.launch({
+            executablePath: eng === "chromium" ? resolveChromium() : undefined,
+            args: eng === "chromium" ? ["--no-sandbox"] : [],
+        });
+    } catch (e) {
+        // ローカルに未インストールのエンジンはスキップ（CI では playwright install 済み）。
+        console.log(`\n  ⚠️ ${eng} を起動できないためスキップ: ${String(e.message).split("\n")[0]}`);
+        return null;
+    }
+}
+
 async function main() {
     if (!fs.existsSync(path.join(OUT, "index.html"))) {
         console.error("out/index.html がありません。先に npm run build を実行してください。");
         process.exit(1);
     }
     const server = await serveOut();
-    const browser = await chromium.launch({ executablePath: resolveChromium(), args: ["--no-sandbox"] });
-
+    let ran = 0;
     try {
-        const ctx = await browser.newContext({
-            viewport: { width: 390, height: 844 },
-            hasTouch: true,
-            isMobile: true,
-        });
-        // 外部リクエスト（CloudFront画像・API等）を即座に遮断して密閉型にする。
-        // ネットワーク状態に依存せず、どの環境でも同じ結果になる。
-        await ctx.route("**/*", (route) => {
-            const host = new URL(route.request().url()).hostname;
-            if (host === "localhost" || host === "127.0.0.1") return route.continue();
-            return route.abort();
-        });
-        const page = await ctx.newPage();
-        const pageErrors = [];
-        page.on("pageerror", (e) => pageErrors.push(e.message));
-
-        // 1) ホーム: 初期状態でメニューが動く
-        console.log("\n[1] ホーム（モバイル・タッチ）");
-        await page.goto(`http://localhost:${PORT}/`, { waitUntil: "domcontentloaded" });
-        const hydrated = await waitForHydration(page);
-        check("Reactがハイドレーションを完了する", hydrated);
-        await expectMenuWorks(page, "初期表示");
-
-        // 2) 言語切替が反応する
-        const langButton = page.locator("button", { hasText: "English" }).first();
-        const langVisible = await langButton.isVisible().catch(() => false);
-        if (langVisible) {
-            await langButton.tap().catch(() => {});
-            const switched = await page.locator("button", { hasText: "日本語" }).first().isVisible().catch(() => false);
-            check("言語切替が反応する", switched);
-        }
-
-        // 3) 一覧タップで個別ページへ直接遷移する
-        const firstPhoto = page.locator("a[data-photo-id]").first();
-        if (await firstPhoto.isVisible().catch(() => false)) {
-            const pid = await firstPhoto.getAttribute("data-photo-id");
-            await firstPhoto.tap().catch(() => {});
-            const navigated = await page.waitForURL(/\/photo\//, { timeout: 10000 }).then(() => true).catch(() => false);
-            check("一覧タップで個別ページに遷移する", navigated, page.url());
-            if (navigated) {
-                const h1 = await page.waitForSelector("h1", { timeout: 8000 }).then(() => true).catch(() => false);
-                check("個別ページが表示される", h1);
-                await expectMenuWorks(page, "個別ページ");
+        for (const eng of ENGINES) {
+            const browser = await launchEngine(eng);
+            if (!browser) continue;
+            ran++;
+            console.log(`\n===== エンジン: ${eng} =====`);
+            try {
+                await runChecks(browser, eng);
+            } finally {
+                await browser.close();
             }
-
-            // 4) ビルド前の新着写真フォールバック: /?photo=<id> でモーダルが開く
-            await page.goto(`http://localhost:${PORT}/?photo=${encodeURIComponent(pid ?? "")}`, { waitUntil: "domcontentloaded" });
-            await waitForHydration(page);
-            const modal = await page.waitForSelector('[role="dialog"][aria-modal="true"]', { timeout: 10000 }).then(() => true).catch(() => false);
-            check("?photo= フォールバックでモーダルが開く", modal);
-            if (modal) {
-                // Escape で閉じ、確実に消えるまで待つ（後続チェックを汚染しない）
-                let closed = false;
-                for (let k = 0; k < 5 && !closed; k++) {
-                    await page.keyboard.press("Escape");
-                    closed = await page.waitForSelector('[role="dialog"][aria-modal="true"]', { state: "detached", timeout: 2000 }).then(() => true).catch(() => false);
-                }
-                check("写真モーダルが閉じる", closed);
-            }
-            await expectMenuWorks(page, "モーダル閉止後");
         }
-
-        // 4) プロフィールページ: タブが切り替わる
-        const profiles = fs.existsSync(path.join(OUT, "users"))
-            ? fs.readdirSync(path.join(OUT, "users")).filter((f) => f.endsWith(".html"))
-            : [];
-        if (profiles.length > 0) {
-            console.log("\n[2] プロフィール");
-            await page.goto(`http://localhost:${PORT}/users/${profiles[0].replace(/\.html$/, "")}`, { waitUntil: "domcontentloaded" });
-            check("プロフィール: ハイドレーション完了", await waitForHydration(page));
-            const clicked = await page.evaluate(() => {
-                // プロフィールのタブに限定（フォローボタン等の aria-pressed と混ざらないように）
-                const tabs = [...document.querySelectorAll("button[data-profile-tab][aria-pressed]")];
-                const inactive = tabs.find((t) => t.getAttribute("aria-pressed") === "false");
-                if (!inactive) return null;
-                inactive.setAttribute("data-e2e-tab", "1");
-                inactive.click();
-                return true;
-            });
-            if (clicked) {
-                const switched = await page.waitForFunction(
-                    () => document.querySelector('[data-e2e-tab]')?.getAttribute("aria-pressed") === "true",
-                    undefined,
-                    { timeout: 4000 },
-                ).then(() => true).catch(() => false);
-                check("プロフィールのタブが切り替わる", switched);
-            }
-            await expectMenuWorks(page, "プロフィール");
-        }
-
-        // 5) ページ全体のJSエラー
-        check("実行時のJSエラーがない", pageErrors.length === 0, pageErrors.slice(0, 3).join(" / "));
-
-        // 6) デスクトップ（hover/fine pointer）でのメニュー被り回帰。
-        //    ミニプレイヤーのドラッグはデスクトップ限定なので、モバイルcontextでは
-        //    この経路を通らずメニュー被り不具合をすり抜けていた。ここで塞ぐ。
-        //    保存位置を右上(ヘッダー上)に seed しておき、将来ミニプレイヤーが
-        //    その位置に出てもメニューを塞がないこと（クランプが効くこと）を確かめる。
-        //    （現ビルドは曲データが無くミニプレイヤーは通常mountされないが、
-        //     クランプ本体は miniPlayerPos の単体テスト＋MiniPlayer のコンポーネント
-        //     テストで別途固定している。ここは実レイアウトでの網羅として残す。）
-        console.log("\n[3] デスクトップ（hover・マウス）");
-        const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-        await dctx.route("**/*", (route) => {
-            const host = new URL(route.request().url()).hostname;
-            if (host === "localhost" || host === "127.0.0.1") return route.continue();
-            return route.abort();
-        });
-        await dctx.addInitScript(() => {
-            try { localStorage.setItem("jp_miniplayer_pos", JSON.stringify({ x: 99999, y: 0 })); } catch { /* ignore */ }
-        });
-        const dpage = await dctx.newPage();
-        const dErrors = [];
-        dpage.on("pageerror", (e) => dErrors.push(e.message));
-        await dpage.goto(`http://localhost:${PORT}/`, { waitUntil: "domcontentloaded" });
-        check("デスクトップ: ハイドレーション完了", await waitForHydration(dpage));
-        await expectMenuWorks(dpage, "初期表示(デスクトップ)");
-        if (profiles.length > 0) {
-            await dpage.goto(`http://localhost:${PORT}/users/${profiles[0].replace(/\.html$/, "")}`, { waitUntil: "domcontentloaded" });
-            await waitForHydration(dpage);
-            await expectMenuWorks(dpage, "プロフィール(デスクトップ)");
-        }
-        check("デスクトップ: 実行時のJSエラーがない", dErrors.length === 0, dErrors.slice(0, 3).join(" / "));
-        await dctx.close();
     } finally {
-        await browser.close();
         server.close();
     }
 
+    if (ran === 0) {
+        console.error("\n💥 実行できたエンジンがありません（ブラウザ未インストール）");
+        process.exit(1);
+    }
     if (failures.length > 0) {
         console.error(`\n💥 スモークテスト失敗: ${failures.length}件 — デプロイを中止します`);
         process.exit(1);
     }
-    console.log("\n🎉 ブラウザ・スモークテスト全パス");
+    console.log(`\n🎉 ブラウザ・スモークテスト全パス（エンジン: ${ENGINES.join(", ")}）`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

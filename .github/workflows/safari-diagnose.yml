@@ -1,0 +1,35 @@
+name: Safari (WebKit) diagnose
+
+# 一時的な診断用ワークフロー。iOS Safari で「見た目正常だが全無反応」になる不具合を
+# WebKit エンジンで再現し、pageerror / console.error を採取する。
+# 失敗してもジョブは成功扱い（|| true）にしてログを読めるようにする。
+# 原因特定後に削除する。
+
+on:
+  push:
+    branches:
+      - claude/improve-site-stability-u85Vz
+    paths:
+      - "scripts/e2e-smoke.mjs"
+      - ".github/workflows/safari-diagnose.yml"
+  workflow_dispatch:
+
+jobs:
+  webkit-diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Install browsers (chromium + webkit)
+        run: npx playwright install --with-deps chromium webkit
+      - name: Run smoke on WebKit (diagnostic, non-blocking)
+        run: SMOKE_ENGINES=webkit node scripts/e2e-smoke.mjs || echo "=== webkit smoke exited non-zero (expected during diagnosis) ==="
+      - name: Run smoke on Chromium (control)
+        run: SMOKE_ENGINES=chromium node scripts/e2e-smoke.mjs || echo "=== chromium smoke exited non-zero ==="
