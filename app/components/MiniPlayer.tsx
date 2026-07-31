@@ -13,10 +13,23 @@ import { PlayIcon, PauseIcon, ForwardIcon, BackwardIcon } from "@heroicons/react
 import { XMarkIcon, MusicalNoteIcon, ArrowsRightLeftIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 import { useMusic } from "../music/MusicContext";
 import SmoothProgress from "./SmoothProgress";
+import { clampMiniPlayerPos } from "../../lib/utils/miniPlayerPos";
 
 const STORAGE_KEY = "jp_miniplayer_pos";
 
 type Pos = { x: number; y: number };
+
+// ヘッダー（メニューバー）の高さ + 余白。ミニプレイヤーはこの帯へ絶対に侵入させない。
+function headerBandHeight(): number {
+    if (typeof document === "undefined") return 72 + 8;
+    const h = document.querySelector("header")?.getBoundingClientRect().height;
+    return (h && h > 0 ? h : 72) + 8;
+}
+
+// 現在のビューポート・ヘッダー高さで位置をクランプ（ヘッダー帯を避け画面内へ）。
+function clampToView(pos: Pos, w: number, h: number): Pos {
+    return clampMiniPlayerPos(pos, { w, h }, { vw: window.innerWidth, vh: window.innerHeight }, headerBandHeight());
+}
 
 export default function MiniPlayer() {
     const music = useMusic();
@@ -51,10 +64,7 @@ export default function MiniPlayer() {
             const h = el?.offsetHeight ?? 60;
             // localStorage からの初期同期（マウント時 1 回）なのでこのパターンは許容
             // eslint-disable-next-line react-hooks/set-state-in-effect
-            setPos({
-                x: Math.min(Math.max(0, p.x), Math.max(0, window.innerWidth - w)),
-                y: Math.min(Math.max(0, p.y), Math.max(0, window.innerHeight - h)),
-            });
+            setPos(clampToView({ x: p.x, y: p.y }, w, h));
         } catch { /* ignore */ }
     }, [draggable]);
 
@@ -66,10 +76,7 @@ export default function MiniPlayer() {
             if (!el) return;
             const w = el.offsetWidth;
             const h = el.offsetHeight;
-            setPos((p) => p ? {
-                x: Math.min(Math.max(0, p.x), Math.max(0, window.innerWidth - w)),
-                y: Math.min(Math.max(0, p.y), Math.max(0, window.innerHeight - h)),
-            } : p);
+            setPos((p) => p ? clampToView(p, w, h) : p);
         };
         window.addEventListener("resize", clamp);
         return () => window.removeEventListener("resize", clamp);
@@ -88,10 +95,7 @@ export default function MiniPlayer() {
     const onPointerMove = useCallback((e: React.PointerEvent) => {
         const d = dragRef.current;
         if (!d) return;
-        setPos({
-            x: Math.min(Math.max(0, e.clientX - d.dx), Math.max(0, window.innerWidth - d.w)),
-            y: Math.min(Math.max(0, e.clientY - d.dy), Math.max(0, window.innerHeight - d.h)),
-        });
+        setPos(clampToView({ x: e.clientX - d.dx, y: e.clientY - d.dy }, d.w, d.h));
     }, []);
 
     const endDrag = useCallback((e: React.PointerEvent) => {
@@ -107,8 +111,11 @@ export default function MiniPlayer() {
     if (!current) return null;
 
     // 移動済み（デスクトップ）は left/top で自由配置。既定はこれまで通り画面下中央に固定。
+    // z-index はヘッダー(z-50)より下(z-40)。常駐する装飾はヘッダーより前面に出さない
+    // （万一クランプが崩れてもメニューボタンが hit-test で必ず勝つ）。ヘッダー帯へは
+    // clampMiniPlayerPos が物理的に侵入させないので、視覚的な重なりも起きない。
     const positioned = draggable && pos !== null;
-    const outerClass = positioned ? "fixed z-[70]" : "fixed inset-x-3 z-[70] max-w-md mx-auto";
+    const outerClass = positioned ? "fixed z-40" : "fixed inset-x-3 z-40 max-w-md mx-auto";
     const outerStyle: React.CSSProperties = positioned
         ? { left: pos!.x, top: pos!.y, width: "min(28rem, calc(100vw - 24px))" }
         : { bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" };

@@ -83,6 +83,16 @@ async function waitForHydration(page, timeoutMs = 20000) {
     return false;
 }
 
+// タッチ context では tap、非タッチ（デスクトップ）context では click にフォールバック
+async function tapOrClick(page, sel, opts) {
+    try {
+        return await page.tap(sel, opts);
+    } catch (e) {
+        if (String(e.message).includes("does not support tap")) return page.click(sel, opts);
+        throw e;
+    }
+}
+
 async function expectMenuWorks(page, label) {
     // ハンバーガーの中心を実際に覆っている要素を検査（不可視オーバーレイ検知）
     const cover = await page.evaluate(() => {
@@ -100,13 +110,13 @@ async function expectMenuWorks(page, label) {
     let lastErr = "";
     const deadline = Date.now() + 20000;
     while (!opened && Date.now() < deadline) {
-        lastErr = await page.tap('[aria-label="Open menu"]', { timeout: 3000 }).then(() => "").catch((e) => e.message.replace(/\n/g, " | "));
+        lastErr = await tapOrClick(page, '[aria-label="Open menu"]', { timeout: 3000 }).then(() => "").catch((e) => e.message.replace(/\n/g, " | "));
         opened = await page.waitForSelector('#site-menu[role="dialog"]', { timeout: 1500 }).then(() => true).catch(() => false);
         if (!opened) await page.waitForTimeout(500);
     }
     check(`${label}: タップでメニューが開く`, opened, lastErr);
     if (opened) {
-        await page.tap('[aria-label="Close menu"]').catch(() => {});
+        await tapOrClick(page, '[aria-label="Close menu"]').catch(() => {});
         const closed = await page.waitForSelector('#site-menu', { state: "detached", timeout: 5000 }).then(() => true).catch(() => false);
         check(`${label}: メニューが閉じる`, closed);
     }
@@ -213,6 +223,38 @@ async function main() {
 
         // 5) ページ全体のJSエラー
         check("実行時のJSエラーがない", pageErrors.length === 0, pageErrors.slice(0, 3).join(" / "));
+
+        // 6) デスクトップ（hover/fine pointer）でのメニュー被り回帰。
+        //    ミニプレイヤーのドラッグはデスクトップ限定なので、モバイルcontextでは
+        //    この経路を通らずメニュー被り不具合をすり抜けていた。ここで塞ぐ。
+        //    保存位置を右上(ヘッダー上)に seed しておき、将来ミニプレイヤーが
+        //    その位置に出てもメニューを塞がないこと（クランプが効くこと）を確かめる。
+        //    （現ビルドは曲データが無くミニプレイヤーは通常mountされないが、
+        //     クランプ本体は miniPlayerPos の単体テスト＋MiniPlayer のコンポーネント
+        //     テストで別途固定している。ここは実レイアウトでの網羅として残す。）
+        console.log("\n[3] デスクトップ（hover・マウス）");
+        const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+        await dctx.route("**/*", (route) => {
+            const host = new URL(route.request().url()).hostname;
+            if (host === "localhost" || host === "127.0.0.1") return route.continue();
+            return route.abort();
+        });
+        await dctx.addInitScript(() => {
+            try { localStorage.setItem("jp_miniplayer_pos", JSON.stringify({ x: 99999, y: 0 })); } catch { /* ignore */ }
+        });
+        const dpage = await dctx.newPage();
+        const dErrors = [];
+        dpage.on("pageerror", (e) => dErrors.push(e.message));
+        await dpage.goto(`http://localhost:${PORT}/`, { waitUntil: "domcontentloaded" });
+        check("デスクトップ: ハイドレーション完了", await waitForHydration(dpage));
+        await expectMenuWorks(dpage, "初期表示(デスクトップ)");
+        if (profiles.length > 0) {
+            await dpage.goto(`http://localhost:${PORT}/users/${profiles[0].replace(/\.html$/, "")}`, { waitUntil: "domcontentloaded" });
+            await waitForHydration(dpage);
+            await expectMenuWorks(dpage, "プロフィール(デスクトップ)");
+        }
+        check("デスクトップ: 実行時のJSエラーがない", dErrors.length === 0, dErrors.slice(0, 3).join(" / "));
+        await dctx.close();
     } finally {
         await browser.close();
         server.close();
