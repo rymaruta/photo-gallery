@@ -1,0 +1,29 @@
+name: Safari (WebKit) diagnose
+
+# 一時的な診断ワークフロー。本番マイページを WebKit/Chromium で開いて
+# 実データ時の例外・水和有無・メニュー開閉を採取する。原因特定後に削除。
+
+on:
+  push:
+    branches:
+      - claude/improve-site-stability-u85Vz
+    paths:
+      - "scripts/diagnose-profile.mjs"
+      - ".github/workflows/safari-diagnose.yml"
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Install browsers (chromium + webkit)
+        run: npx playwright install --with-deps chromium webkit
+      - name: Diagnose production profile (WebKit + Chromium)
+        run: node scripts/diagnose-profile.mjs
