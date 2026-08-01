@@ -154,6 +154,77 @@ async function deleteStaleKeys(localKeys, remoteObjects) {
     }
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// 同時実行数を絞ってタスクを処理する。S3 への一斉 PutObject は 503(SlowDown) を誘発し、
+// その最中に CloudFront が取得した 5xx がエッジにキャッシュされると「一部チャンクだけ
+// 503 → Safari が実行拒否 → 水和不全」を招く。バーストを避けるため上限付きで流す。
+async function runPool(items, worker, concurrency = 12) {
+    let i = 0;
+    const runners = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+        while (i < items.length) {
+            const idx = i++;
+            await worker(items[idx]);
+        }
+    });
+    await Promise.all(runners);
+}
+
+const SITE_URL = (process.env.SITE_URL || "https://journey-photo.com").replace(/\/$/, "");
+
+/**
+ * デプロイ後の健全性チェック。配信ドメイン経由で全 JS/CSS チャンクを取得し、
+ * 200 かつスクリプト/スタイルの Content-Type であることを検証する。
+ * エッジにキャッシュされた 5xx を検知し、再インバリデーションで洗い流す。
+ * リトライしても不健全なものが残ればデプロイを失敗させる（本番を壊れたまま出さない）。
+ */
+async function verifyAssets(assetKeys, cfDistId) {
+    const targets = assetKeys
+        .map((k) => k.split(path.sep).join("/"))
+        .filter((k) => /\.(js|css)$/.test(k));
+    if (targets.length === 0) return;
+
+    async function scan() {
+        const bad = [];
+        for (const key of targets) {
+            const url = `${SITE_URL}/${key}`;
+            let ok = false;
+            let info = "";
+            for (let attempt = 0; attempt < 4 && !ok; attempt++) {
+                try {
+                    const res = await fetch(url, { redirect: "follow" });
+                    const ct = (res.headers.get("content-type") || "").toLowerCase();
+                    const scriptish = ct.includes("javascript") || ct.includes("text/css");
+                    if (res.status === 200 && scriptish) { ok = true; break; }
+                    info = `status=${res.status} ct=${ct || "-"}`;
+                } catch (e) {
+                    info = e.message.split("\n")[0];
+                }
+                await sleep(1200 * (attempt + 1));
+            }
+            if (!ok) bad.push(`${key} (${info})`);
+        }
+        return bad;
+    }
+
+    console.log(`[deploy] Verifying ${targets.length} JS/CSS asset(s) via ${SITE_URL} ...`);
+    let bad = await scan();
+    if (bad.length && cfDistId) {
+        console.warn(`[deploy] ${bad.length} asset(s) unhealthy at the edge — re-invalidating and re-checking:`, bad.slice(0, 8));
+        await cf.send(new CreateInvalidationCommand({
+            DistributionId: cfDistId,
+            InvalidationBatch: { CallerReference: `reheal-${Date.now()}`, Paths: { Quantity: 1, Items: ["/*"] } },
+        }));
+        await sleep(25000); // 反映待ち
+        bad = await scan();
+    }
+    if (bad.length) {
+        console.error(`[deploy] ERROR: ${bad.length} asset(s) still not served as 200+script MIME:`, bad.slice(0, 12));
+        process.exit(1);
+    }
+    console.log("[deploy] All JS/CSS assets verified healthy (200 + script/style MIME).");
+}
+
 async function main() {
     console.log(`\n[deploy] Uploading ${outDir} → s3://${bucket}/`);
 
@@ -163,8 +234,10 @@ async function main() {
 
     // Step 1: Upload new hashed assets first (JS/CSS/images), no --delete yet.
     //         Old assets stay so in-flight requests to current HTML still work.
+    //         同時実行を絞って S3 503(SlowDown) を避ける（→ CloudFront に 5xx がキャッシュされ
+    //         「一部チャンクだけ 503 で Safari が水和できない」事故を防ぐ）。
     console.log(`[deploy] Step 1/3: uploading ${assets.length} asset(s)...`);
-    await Promise.all(assets.map(uploadFile));
+    await runPool(assets, uploadFile, 12);
 
     // Step 2: Swap HTML — users now receive HTML pointing at the new assets.
     console.log(`[deploy] Step 2/3: uploading ${htmlFiles.length} HTML/txt file(s)...`);
@@ -189,9 +262,14 @@ async function main() {
             },
         }));
         console.log("[deploy] CloudFront invalidation created.");
+        await sleep(15000); // インバリデーション反映の初期待ち
     } else {
         console.log("[deploy] CLOUDFRONT_DISTRIBUTION_ID not set — skipping invalidation.");
     }
+
+    // Step 4: 配信の健全性を検証（エッジにキャッシュされた 5xx を検知・洗浄し、
+    //         壊れた状態のままデプロイ完了にしない）。
+    await verifyAssets(assets, cfDistId);
 
     console.log("\n[deploy] Done.\n");
 }
