@@ -1,47 +1,46 @@
-name: EXIF diagnose
+name: EXIF backfill (manual)
 
-# 一時診断: 本番の写真ページ/一覧に EXIF が実際に載っているか（配信HTML＋API）を確認する。
-# 原因特定後に削除する。
+# S3 のオリジナル画像から EXIF を再抽出して DynamoDB に書き戻す保守ジョブ。
+# 既定は DRY-RUN。実書き込みは workflow_dispatch の apply=true で。
+# 動作確認後に削除する。
 
 on:
   push:
     branches:
       - claude/improve-site-stability-u85Vz
     paths:
+      - "scripts/backfill-exif-from-s3.js"
       - ".github/workflows/safari-diagnose.yml"
   workflow_dispatch:
+    inputs:
+      apply:
+        description: "true で DynamoDB に書き込む（false=dry-run）"
+        type: boolean
+        default: false
+
+env:
+  AWS_REGION: ap-northeast-1
+  PHOTOS_TABLE: prod-photo-gallery-photos
+  UPLOAD_BUCKET: prod-journey-photo-upload
 
 jobs:
-  exif-diagnose:
+  backfill:
     runs-on: ubuntu-latest
     steps:
-      - name: API — count photos with exif
-        run: |
-          echo "=== admin API /photos ==="
-          curl -s --max-time 30 "https://ionr4ik01e.execute-api.ap-northeast-1.amazonaws.com/photos" -o api.json -w "HTTP %{http_code} size %{size_download}\n"
-          node -e '
-            const d=JSON.parse(require("fs").readFileSync("api.json","utf8"));
-            const ps=Array.isArray(d)?d:(d.photos||d.items||[]);
-            const withE=ps.filter(p=>p&&p.exif&&Object.keys(p.exif).length);
-            console.log("photos:",ps.length,"withExif:",withE.length);
-            for (const p of ps.slice(0,6)) console.log("  ",String(p.id).slice(0,8),"exif:",p.exif?Object.keys(p.exif).join(","):"NONE","src?",!!p.src);
-            // pick one WITH exif and one WITHOUT for detail-page checks
-            const yes=withE[0]&&withE[0].id, no=(ps.find(p=>!p.exif||!Object.keys(p.exif).length)||{}).id;
-            require("fs").writeFileSync("ids.txt",(yes||"")+"\n"+(no||""));
-          '
-      - name: Detail pages — is exif baked into the live HTML?
-        run: |
-          YES=$(sed -n '1p' ids.txt); NO=$(sed -n '2p' ids.txt)
-          for id in "$YES" "$NO"; do
-            [ -z "$id" ] && continue
-            echo "=== /photo/$id ==="
-            curl -s --max-time 30 "https://journey-photo.com/photo/$id" -o d.html -w "HTTP %{http_code} size %{size_download}\n"
-            echo -n "  has 'Camera Settings'/'撮影情報' label: "; grep -c -e "Camera Settings" -e "撮影情報" d.html || true
-            echo -n "  has \"exif\" JSON in page data: "; grep -o '\\\"exif\\\"' d.html | head -1 || true
-            echo -n "  has camera/aperture value: "; grep -o -e '\\\"camera\\\"' -e '\\\"aperture\\\"' d.html | sort -u | tr '\n' ' '; echo
-          done
-      - name: Home — does embedded/fetched data carry exif?
-        run: |
-          echo "=== home / ==="
-          curl -s --max-time 30 "https://journey-photo.com/" -o h.html -w "HTTP %{http_code} size %{size_download}\n"
-          echo -n "  occurrences of \"exif\" in home HTML: "; grep -o '\\\"exif\\\"' h.html | wc -l
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Run backfill
+        run: node scripts/backfill-exif-from-s3.js
+        env:
+          APPLY: ${{ github.event.inputs.apply == 'true' && '1' || '' }}
