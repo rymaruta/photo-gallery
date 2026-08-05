@@ -41,76 +41,82 @@ export function formatExposure(t?: number): string | undefined {
     return `1/${Math.round(1 / t)}s`;
 }
 
-/** ファイルから撮影情報を抽出する。失敗したら空オブジェクト（アップロードは止めない） */
-export async function extractCameraExif(file: File): Promise<CameraExif> {
-    try {
-        const data = await exifr.parse(file, {
-            pick: [
-                "Make", "Model", "LensModel", "FNumber", "ExposureTime", "ISO",
-                "FocalLength", "WhiteBalance", "ExifImageWidth", "ExifImageHeight",
-                "DateTimeOriginal", "CreateDate",
-            ],
-        }) as Record<string, unknown> | undefined;
-        if (!data) return {};
+const CAMERA_PICK = [
+    "Make", "Model", "LensModel", "FNumber", "ExposureTime", "ISO",
+    "FocalLength", "WhiteBalance", "ExifImageWidth", "ExifImageHeight",
+    "DateTimeOriginal", "CreateDate",
+];
+const META_PICK = [
+    "DateTimeOriginal", "CreateDate", "GPSLatitude", "GPSLongitude",
+    "latitude", "longitude", "Make", "Model",
+];
 
-        const out: CameraExif = {};
-        const camera = formatCameraName(
-            typeof data.Make === "string" ? data.Make : undefined,
-            typeof data.Model === "string" ? data.Model : undefined,
-        );
-        if (camera) out.camera = camera;
-        if (typeof data.LensModel === "string" && data.LensModel.trim()) out.lens = data.LensModel.trim();
-        if (typeof data.FNumber === "number" && data.FNumber > 0) out.aperture = `f/${Number(data.FNumber.toFixed(1))}`;
-        const exposure = formatExposure(typeof data.ExposureTime === "number" ? data.ExposureTime : undefined);
-        if (exposure) out.exposure = exposure;
-        if (typeof data.ISO === "number" && data.ISO > 0) out.iso = Math.round(data.ISO);
-        if (typeof data.FocalLength === "number" && data.FocalLength > 0) out.focalLength = `${Math.round(data.FocalLength)}mm`;
-        // WhiteBalance は数値（0=Auto/1=Manual）または文字列で返る
-        if (data.WhiteBalance === 0 || data.WhiteBalance === "Auto") out.whiteBalance = "Auto";
-        else if (data.WhiteBalance === 1 || data.WhiteBalance === "Manual") out.whiteBalance = "Manual";
-        if (typeof data.ExifImageWidth === "number" && typeof data.ExifImageHeight === "number") {
-            out.imageSize = `${data.ExifImageWidth}x${data.ExifImageHeight}`;
-        }
-        const dt = data.DateTimeOriginal ?? data.CreateDate;
-        if (dt instanceof Date && !isNaN(dt.getTime())) out.dateTimeOriginal = dt.toISOString();
-        return out;
+/** exifr.parse を安全に呼ぶ（例外・未対応形式は undefined を返す） */
+async function parseSafe(file: File, options: Record<string, unknown>): Promise<Record<string, unknown> | undefined> {
+    try {
+        return (await exifr.parse(file, options)) as Record<string, unknown> | undefined;
     } catch {
-        return {};
+        return undefined;
     }
 }
 
-export async function extractExifFromFile(file: File): Promise<ExtractedMeta> {
-    try {
-        const data = await exifr.parse(file, {
-            pick: [
-                "DateTimeOriginal",
-                "CreateDate",
-                "GPSLatitude",
-                "GPSLongitude",
-                "latitude",
-                "longitude",
-                "Make",
-                "Model",
-            ],
-        }) as Record<string, unknown> | undefined;
-
-        if (!data) return {};
-
-        const meta: ExtractedMeta = {};
-        const dt = data.DateTimeOriginal ?? data.CreateDate;
-        if (dt instanceof Date && !isNaN(dt.getTime())) {
-            meta.dateTimeOriginal = dt.toISOString();
-        }
-        if (typeof data.latitude === "number" && typeof data.longitude === "number") {
-            meta.latitude = data.latitude;
-            meta.longitude = data.longitude;
-        }
-        if (typeof data.Make === "string") meta.cameraMake = data.Make.trim();
-        if (typeof data.Model === "string") meta.cameraModel = data.Model.trim();
-        return meta;
-    } catch {
-        return {};
+/** exifr の生データ → 撮影情報カード用 CameraExif */
+function mapCameraExif(data: Record<string, unknown> | undefined): CameraExif {
+    if (!data) return {};
+    const out: CameraExif = {};
+    const camera = formatCameraName(
+        typeof data.Make === "string" ? data.Make : undefined,
+        typeof data.Model === "string" ? data.Model : undefined,
+    );
+    if (camera) out.camera = camera;
+    if (typeof data.LensModel === "string" && data.LensModel.trim()) out.lens = data.LensModel.trim();
+    if (typeof data.FNumber === "number" && data.FNumber > 0) out.aperture = `f/${Number(data.FNumber.toFixed(1))}`;
+    const exposure = formatExposure(typeof data.ExposureTime === "number" ? data.ExposureTime : undefined);
+    if (exposure) out.exposure = exposure;
+    if (typeof data.ISO === "number" && data.ISO > 0) out.iso = Math.round(data.ISO);
+    if (typeof data.FocalLength === "number" && data.FocalLength > 0) out.focalLength = `${Math.round(data.FocalLength)}mm`;
+    // WhiteBalance は数値（0=Auto/1=Manual）または文字列で返る
+    if (data.WhiteBalance === 0 || data.WhiteBalance === "Auto") out.whiteBalance = "Auto";
+    else if (data.WhiteBalance === 1 || data.WhiteBalance === "Manual") out.whiteBalance = "Manual";
+    if (typeof data.ExifImageWidth === "number" && typeof data.ExifImageHeight === "number") {
+        out.imageSize = `${data.ExifImageWidth}x${data.ExifImageHeight}`;
     }
+    const dt = data.DateTimeOriginal ?? data.CreateDate;
+    if (dt instanceof Date && !isNaN(dt.getTime())) out.dateTimeOriginal = dt.toISOString();
+    return out;
+}
+
+/** exifr の生データ → 日付/GPS/カメラの ExtractedMeta */
+function mapMeta(data: Record<string, unknown> | undefined): ExtractedMeta {
+    if (!data) return {};
+    const meta: ExtractedMeta = {};
+    const dt = data.DateTimeOriginal ?? data.CreateDate;
+    if (dt instanceof Date && !isNaN(dt.getTime())) meta.dateTimeOriginal = dt.toISOString();
+    if (typeof data.latitude === "number" && typeof data.longitude === "number") {
+        meta.latitude = data.latitude;
+        meta.longitude = data.longitude;
+    }
+    if (typeof data.Make === "string") meta.cameraMake = data.Make.trim();
+    if (typeof data.Model === "string") meta.cameraModel = data.Model.trim();
+    return meta;
+}
+
+/**
+ * ファイルから撮影情報を抽出する。失敗したら空オブジェクト（アップロードは止めない）。
+ * まず速い chunked+pick で読み、取れなければファイル全体を読んで再挑戦する。
+ * これは iPhone の HEIC など EXIF が既定チャンクより後方にある形式での取りこぼしを防ぐため
+ * （chunked 読みだと EXIF ブロックに届かず空を返すことがある）。全読みはミス時のみ実行。
+ */
+export async function extractCameraExif(file: File): Promise<CameraExif> {
+    const fast = mapCameraExif(await parseSafe(file, { pick: CAMERA_PICK }));
+    if (Object.keys(fast).length > 0) return fast;
+    return mapCameraExif(await parseSafe(file, { chunked: false }));
+}
+
+export async function extractExifFromFile(file: File): Promise<ExtractedMeta> {
+    const fast = mapMeta(await parseSafe(file, { pick: META_PICK }));
+    if (Object.keys(fast).length > 0) return fast;
+    return mapMeta(await parseSafe(file, { chunked: false }));
 }
 
 // 簡易リバースジオコーディング（OpenStreetMap Nominatim、無料・APIキー不要）

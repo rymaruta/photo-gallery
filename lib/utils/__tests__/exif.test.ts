@@ -59,6 +59,49 @@ describe("extractExifFromFile", () => {
         const meta = await extractExifFromFile(dummyFile);
         expect(meta.dateTimeOriginal).toBeUndefined();
     });
+
+    it("chunked(pick)で空でも、全読みフォールバックで復元する（HEIC対策）", async () => {
+        // 1回目（pick）は空、2回目（chunked:false=全読み）でEXIFが取れるケース
+        mockParse
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce({ DateTimeOriginal: new Date("2026-05-01T00:00:00Z"), Make: "Apple", Model: "iPhone 15 Pro" });
+        const meta = await extractExifFromFile(dummyFile);
+        expect(meta.cameraModel).toBe("iPhone 15 Pro");
+        expect(meta.dateTimeOriginal).toBe("2026-05-01T00:00:00.000Z");
+        // 2回目の呼び出しは chunked:false（全読み）で行われる
+        expect(mockParse).toHaveBeenCalledTimes(2);
+        expect(mockParse.mock.calls[1][1]).toMatchObject({ chunked: false });
+    });
+});
+
+describe("extractCameraExif", () => {
+    const f = new File([new Uint8Array([1, 2, 3]) as BlobPart], "p.heic", { type: "image/heic" });
+
+    it("chunked(pick)で取れればそのまま返す（全読みはしない）", async () => {
+        mockParse.mockResolvedValueOnce({ Make: "SONY", Model: "ILCE-7M3", FNumber: 4, ISO: 100 });
+        const exif = await extractCameraExif(f);
+        expect(exif.camera).toBe("SONY ILCE-7M3");
+        expect(exif.aperture).toBe("f/4");
+        expect(exif.iso).toBe(100);
+        expect(mockParse).toHaveBeenCalledTimes(1);
+    });
+
+    it("chunkedで空なら全読みフォールバックでカメラ情報を復元する（HEIC対策）", async () => {
+        mockParse
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce({ Make: "Apple", Model: "iPhone 15 Pro", FNumber: 1.8, FocalLength: 24 });
+        const exif = await extractCameraExif(f);
+        expect(exif.camera).toBe("Apple iPhone 15 Pro");
+        expect(exif.aperture).toBe("f/1.8");
+        expect(exif.focalLength).toBe("24mm");
+        expect(mockParse).toHaveBeenCalledTimes(2);
+        expect(mockParse.mock.calls[1][1]).toMatchObject({ chunked: false });
+    });
+
+    it("両方空なら空オブジェクト", async () => {
+        mockParse.mockResolvedValue(undefined);
+        expect(await extractCameraExif(f)).toEqual({});
+    });
 });
 
 describe("reverseGeocode", () => {
