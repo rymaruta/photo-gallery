@@ -3,6 +3,7 @@ import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import { siteConfig } from "../lib/utils/seo";
+import { collectEntries, collectionPath, type CollectionType } from "../lib/utils/collections";
 import RAW_PHOTOS from "@/lib/data/photos";
 import type { Photo } from "@/lib/data/photos";
 
@@ -54,6 +55,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6,
     }));
 
+    // 集約（ランディング）ページ: タグ / 撮影地 / カテゴリ。ロングテール検索の受け皿。
+    const collectionUrls: MetadataRoute.Sitemap = (["tag", "location", "category"] as CollectionType[])
+        .flatMap((type) =>
+            collectEntries(photos, type).map((e) => ({
+                url: `${baseUrl}${collectionPath(type, e.slug)}`,
+                lastModified: now,
+                changeFrequency: "weekly" as const,
+                priority: 0.5,
+            }))
+        );
+
     return [
         {
             url: baseUrl,
@@ -75,5 +87,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         },
         ...photoUrls,
         ...userUrls,
+        ...collectionUrls,
     ];
 }
