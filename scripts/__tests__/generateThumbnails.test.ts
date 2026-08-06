@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { keyFromSrc, thumbKeyFor, shouldProcess } = require("../generate-thumbnails.js");
+const { keyFromSrc, thumbKeyFor, shouldProcess, needsThumb, needsMeta, buildMetaFields, hexFromChannel } = require("../generate-thumbnails.js");
 
 describe("keyFromSrc", () => {
     it("CloudFront URL から S3 キーを取り出す", () => {
@@ -38,15 +38,41 @@ describe("thumbKeyFor", () => {
     });
 });
 
-describe("shouldProcess", () => {
+describe("shouldProcess / needsThumb / needsMeta", () => {
     const src = "https://cdn.example.com/uploads/p1.jpg";
+    const thumbSrc = "https://cdn.example.com/uploads/p1_thumb.webp";
+    const fullMeta = { dominantColor: "#123456", width: 4000, height: 3000, aspectRatio: 1.3333 };
 
-    it("thumbSrc がない写真は対象", () => {
-        expect(shouldProcess({ id: "p1", src })).toBe(true);
+    it("thumbSrc もメタも無い写真は対象（thumb+meta）", () => {
+        const p = { id: "p1", src };
+        expect(needsThumb(p)).toBe(true);
+        expect(needsMeta(p)).toBe(true);
+        expect(shouldProcess(p)).toBe(true);
     });
 
-    it("thumbSrc が既にある写真はスキップ（冪等）", () => {
-        expect(shouldProcess({ id: "p1", src, thumbSrc: "https://cdn.example.com/uploads/p1_thumb.webp" })).toBe(false);
+    it("thumbSrc があってもメタが欠けていればメタのみ対象", () => {
+        const p = { id: "p1", src, thumbSrc };
+        expect(needsThumb(p)).toBe(false);
+        expect(needsMeta(p)).toBe(true);
+        expect(shouldProcess(p)).toBe(true);
+    });
+
+    it("一部メタだけ欠けていても対象（dominantColor 欠落）", () => {
+        const p = { id: "p1", src, thumbSrc, width: 4000, height: 3000, aspectRatio: 1.3333 };
+        expect(needsMeta(p)).toBe(true);
+        expect(shouldProcess(p)).toBe(true);
+    });
+
+    it("thumbSrc とメタが全て揃っていればスキップ（冪等）", () => {
+        const p = { id: "p1", src, thumbSrc, ...fullMeta };
+        expect(needsThumb(p)).toBe(false);
+        expect(needsMeta(p)).toBe(false);
+        expect(shouldProcess(p)).toBe(false);
+    });
+
+    it("空文字のメタは未補完として扱う", () => {
+        const p = { id: "p1", src, thumbSrc, ...fullMeta, dominantColor: "" };
+        expect(needsMeta(p)).toBe(true);
     });
 
     it("src を持たない item（like#/go# マーカー等）はスキップ", () => {
@@ -66,5 +92,45 @@ describe("shouldProcess", () => {
 
     it("URL として不正な src はスキップ", () => {
         expect(shouldProcess({ id: "p1", src: "broken" })).toBe(false);
+    });
+});
+
+describe("buildMetaFields", () => {
+    it("寸法・アスペクト比・支配色を組み立てる", () => {
+        const m = buildMetaFields({ width: 4000, height: 3000, dominant: { r: 18, g: 52, b: 86 } });
+        expect(m).toEqual({ width: 4000, height: 3000, aspectRatio: 1.3333, dominantColor: "#123456" });
+    });
+
+    it("EXIF orientation 6（90度回転）で幅・高さを入れ替える", () => {
+        const m = buildMetaFields({ width: 4000, height: 3000, orientation: 6, dominant: { r: 0, g: 0, b: 0 } });
+        expect(m.width).toBe(3000);
+        expect(m.height).toBe(4000);
+        expect(m.aspectRatio).toBe(0.75);
+    });
+
+    it("orientation 1-4 は入れ替えない", () => {
+        const m = buildMetaFields({ width: 4000, height: 3000, orientation: 1, dominant: { r: 255, g: 255, b: 255 } });
+        expect(m.width).toBe(4000);
+        expect(m.dominantColor).toBe("#ffffff");
+    });
+
+    it("寸法が無ければ aspectRatio は付けない", () => {
+        expect(buildMetaFields({ dominant: { r: 1, g: 2, b: 3 } })).toEqual({ dominantColor: "#010203" });
+        expect(buildMetaFields({})).toEqual({});
+    });
+});
+
+describe("hexFromChannel", () => {
+    it("0-255 を 2 桁 16 進に丸める", () => {
+        expect(hexFromChannel(0)).toBe("00");
+        expect(hexFromChannel(255)).toBe("ff");
+        expect(hexFromChannel(9)).toBe("09");
+        expect(hexFromChannel(127.6)).toBe("80");
+    });
+
+    it("範囲外はクランプする", () => {
+        expect(hexFromChannel(-5)).toBe("00");
+        expect(hexFromChannel(300)).toBe("ff");
+        expect(hexFromChannel(undefined)).toBe("00");
     });
 });

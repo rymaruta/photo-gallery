@@ -9,7 +9,6 @@ import { PaperAirplaneIcon } from "@heroicons/react/24/solid";
 import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
 import { PaperAirplaneIcon as PaperAirplaneIconOutline } from "@heroicons/react/24/outline";
 import { ShareIcon, LinkIcon } from "@heroicons/react/24/outline";
-import exifr from "exifr";
 import type { Photo } from "@/lib/data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
 import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
@@ -50,118 +49,75 @@ type ExtractedExif = {
     Orientation?: number;
 };
 
+const EXIF_PICK = [
+    "Make", "Model", "LensModel", "FNumber", "ExposureTime", "ISO",
+    "FocalLength", "WhiteBalance", "DateTimeOriginal", "ImageWidth", "ImageHeight", "Orientation",
+];
+
+/** データ側 exif に表示可能な情報が既にあるか（あればクライアント再抽出は不要） */
+function hasStoredExif(exif?: Photo["exif"]): boolean {
+    return !!exif && Object.values(exif).some((v) => v !== undefined && v !== null && v !== "");
+}
+
 // 画像コンポーネント（エラーハンドリング付き、EXIF読み取り機能付き）
-function PhotoImage({ 
-    src, 
-    alt, 
+function PhotoImage({
+    src,
+    alt,
     focalPoint,
-    onExifLoaded 
-}: { 
-    src: string; 
-    alt: string; 
+    extractExif = false,
+    onExifLoaded
+}: {
+    src: string;
+    alt: string;
     focalPoint?: { x: number; y: number };
+    // データ側 exif が無い写真だけ true。画像から EXIF をクライアント抽出する
+    extractExif?: boolean;
     onExifLoaded?: (exif: ExtractedExif | null) => void;
 }) {
     const [imageError, setImageError] = useState(false);
     const [imageLoading, setImageLoading] = useState(true);
 
-    // EXIF情報を読み取る（画像が読み込まれた後）
+    // データ側 exif が欠けている写真のみ、画像読み込み後に EXIF をクライアント抽出する。
+    // exifr は重いので初期バンドルに含めず、必要時だけ動的 import する。
     useEffect(() => {
+        if (!extractExif) return;              // 既に photo.exif がある場合は再ダウンロード/解析しない
         if (imageLoading || imageError) return;
 
+        let cancelled = false;
         const loadExif = async () => {
             try {
-                // S3のURLや外部URLの場合でもCORSエラーを適切にハンドリング
-                // exifrはURL、Blob、ArrayBufferを受け取れる
-                
-                // S3のURL（http/httpsで始まる）の場合、CORSが設定されていれば直接URLを使用
-                // CORSエラーが発生する可能性があるため、まずURLを直接試し、失敗した場合はfetchで取得
-                if (src.startsWith('http://') || src.startsWith('https://')) {
+                const { default: exifr } = await import("exifr"); // 遅延ロード
+                const opts = { pick: EXIF_PICK, translateKeys: false } as const;
+                let exif: ExtractedExif | null = null;
+
+                if (src.startsWith("http://") || src.startsWith("https://")) {
+                    // まず URL を直接試し（CORS が正しければ動作）、ダメなら fetch → blob で再試行
                     try {
-                        // まずURLを直接試す（CORSが正しく設定されていれば動作する）
-                        const exif = await exifr.parse(src, {
-                            pick: [
-                                'Make',
-                                'Model',
-                                'LensModel',
-                                'FNumber',
-                                'ExposureTime',
-                                'ISO',
-                                'FocalLength',
-                                'WhiteBalance',
-                                'DateTimeOriginal',
-                                'ImageWidth',
-                                'ImageHeight',
-                                'Orientation'
-                            ],
-                            translateKeys: false,
-                        });
-                        onExifLoaded?.(exif || null);
-                        return;
+                        exif = await exifr.parse(src, opts);
                     } catch {
-                        // URL直接読み取りに失敗した場合、fetchで取得を試みる
                         try {
-                            const response = await fetch(src, {
-                                mode: 'cors',
-                                credentials: 'omit',
-                            });
-                            if (response.ok) {
-                                const blob = await response.blob();
-                                const exif = await exifr.parse(blob, {
-                                    pick: [
-                                        'Make',
-                                        'Model',
-                                        'LensModel',
-                                        'FNumber',
-                                        'ExposureTime',
-                                        'ISO',
-                                        'FocalLength',
-                                        'WhiteBalance',
-                                        'DateTimeOriginal',
-                                        'ImageWidth',
-                                        'ImageHeight',
-                                        'Orientation'
-                                    ],
-                                    translateKeys: false,
-                                });
-                                onExifLoaded?.(exif || null);
-                                return;
-                            }
+                            const response = await fetch(src, { mode: "cors", credentials: "omit" });
+                            if (response.ok) exif = await exifr.parse(await response.blob(), opts);
                         } catch (fetchError) {
-                            // fetchも失敗した場合はURLを直接使用（最終試行）
-                            log.warn('Failed to fetch image for EXIF, trying URL directly:', fetchError);
+                            log.warn("Failed to fetch image for EXIF:", fetchError);
                         }
                     }
+                } else {
+                    // ローカルパス（/images/ 等）は URL を直接使用
+                    exif = await exifr.parse(src, opts);
                 }
-                
-                // ローカルパス（/images/で始まる）の場合はURLを直接使用
-                const exif = await exifr.parse(src, {
-                    pick: [
-                        'Make',
-                        'Model',
-                        'LensModel',
-                        'FNumber',
-                        'ExposureTime',
-                        'ISO',
-                        'FocalLength',
-                        'WhiteBalance',
-                        'DateTimeOriginal',
-                        'ImageWidth',
-                        'ImageHeight',
-                        'Orientation'
-                    ],
-                    translateKeys: false,
-                });
-                onExifLoaded?.(exif || null);
+
+                if (!cancelled) onExifLoaded?.(exif || null);
             } catch (error) {
-                // EXIF読み取りに失敗した場合はnullを返す（photo.exifをフォールバックとして使用）
-                log.warn('Failed to read EXIF data from image:', error);
-                onExifLoaded?.(null);
+                // 失敗時は null（photo.exif をフォールバックとして使用）
+                log.warn("Failed to read EXIF data from image:", error);
+                if (!cancelled) onExifLoaded?.(null);
             }
         };
 
         loadExif();
-    }, [imageLoading, imageError, src, onExifLoaded]);
+        return () => { cancelled = true; };
+    }, [extractExif, imageLoading, imageError, src, onExifLoaded]);
 
     if (imageError) {
         return (
@@ -522,6 +478,7 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                     src={photo.src}
                     alt={altText}
                     focalPoint={photo.focalPoint}
+                    extractExif={!hasStoredExif(photo.exif)}
                     onExifLoaded={setExtractedExif}
                 />
 

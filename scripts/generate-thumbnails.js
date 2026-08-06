@@ -1,9 +1,12 @@
 /**
- * generate-thumbnails.js — 既存写真のサムネイル一括生成（移行スクリプト）
+ * generate-thumbnails.js — 既存写真のサムネイル生成＋表示メタデータ補完（移行スクリプト）
  *
- * thumbSrc を持たない既存の写真について、S3 の元画像から 512px WebP の
- * サムネイルを生成して同じバケットに保存し、DynamoDB に thumbSrc を書き込む。
- * （新規アップロードはクライアント側で生成されるため、これは過去分の移行用）
+ * S3 の元画像から次を生成して DynamoDB に書き戻す:
+ *   - thumbSrc        : 512px WebP サムネイル（同バケットに保存）
+ *   - width / height  : 元画像の表示寸法（EXIF 回転を反映）
+ *   - aspectRatio     : width / height
+ *   - dominantColor   : 支配的な色（#rrggbb）… グリッドの色プレースホルダ(LQIP)に使用
+ * （新規アップロードはクライアント側で thumbSrc 等を生成するため、これは過去分の移行用）
  *
  * 使い方:
  *   node scripts/generate-thumbnails.js            # 実行
@@ -15,7 +18,8 @@
  *   UPLOAD_BUCKET   (default: prod-journey-photo-upload)
  *   CLOUDFRONT_URL  (default: https://d1s3dwwzgxf5ni.cloudfront.net)
  *
- * 冪等: thumbSrc が既にある写真はスキップするので何度実行しても安全。
+ * 冪等: thumbSrc とメタデータが揃っている写真はスキップするので何度実行しても安全。
+ * サムネだけ在ってメタが無い写真は、サムネ再生成せずメタのみ補完する。
  * 1件の失敗は記録して続行する（全体を止めない）。
  */
 
@@ -60,14 +64,65 @@ function thumbKeyFor(key) {
     return `${dir}${base}_thumb.webp`;
 }
 
-/** この写真がサムネ生成の対象か（写真であり、まだ thumbSrc がない） */
-function shouldProcess(item) {
+// サムネ以外に補完する表示メタデータのフィールド
+const META_FIELDS = ["dominantColor", "width", "height", "aspectRatio"];
+
+const isBlank = (v) => v === undefined || v === null || v === "";
+
+/** サムネ生成対象になり得る「写真」か（src を持ち、動画/GIF でない） */
+function isProcessableImage(item) {
     if (!item || typeof item.src !== "string" || !item.src) return false; // like#/go# マーカー等
-    if (item.thumbSrc) return false; // 生成済み
     const key = keyFromSrc(item.src);
     if (!key) return false;
     const ext = key.split(".").pop()?.toLowerCase() ?? "";
     return !SKIP_EXTENSIONS.has(ext);
+}
+
+/** サムネイル未生成か */
+function needsThumb(item) {
+    return isProcessableImage(item) && isBlank(item.thumbSrc);
+}
+
+/** 表示メタデータ（寸法・支配色）が未補完か */
+function needsMeta(item) {
+    return isProcessableImage(item) && META_FIELDS.some((f) => isBlank(item[f]));
+}
+
+/** この写真に対して何らかの処理（サムネ or メタ補完）が必要か */
+function shouldProcess(item) {
+    return needsThumb(item) || needsMeta(item);
+}
+
+/** 0-255 のチャンネル値を 2 桁 16 進に */
+function hexFromChannel(c) {
+    return Math.max(0, Math.min(255, Math.round(c ?? 0))).toString(16).padStart(2, "0");
+}
+
+/**
+ * sharp の metadata()/stats() の生値から DynamoDB に書く表示メタを作る（純関数・テスト可能）。
+ * EXIF orientation 5-8 は 90/270 度回転のため、表示上の幅・高さを入れ替える。
+ */
+function buildMetaFields({ width, height, orientation, dominant } = {}) {
+    let w = width, h = height;
+    if (orientation && orientation >= 5) { const t = w; w = h; h = t; }
+    const out = {};
+    if (typeof w === "number" && w > 0) out.width = w;
+    if (typeof h === "number" && h > 0) out.height = h;
+    if (out.width && out.height) out.aspectRatio = Number((out.width / out.height).toFixed(4));
+    if (dominant) out.dominantColor = `#${hexFromChannel(dominant.r)}${hexFromChannel(dominant.g)}${hexFromChannel(dominant.b)}`;
+    return out;
+}
+
+/** 元画像バッファから表示メタを算出する */
+async function computeMetaFromBuffer(sharp, buf) {
+    const meta = await sharp(buf).metadata();
+    const stats = await sharp(buf).stats();
+    return buildMetaFields({
+        width: meta.width,
+        height: meta.height,
+        orientation: meta.orientation,
+        dominant: stats.dominant,
+    });
 }
 
 async function main() {
@@ -93,9 +148,12 @@ async function main() {
     } while (lastKey);
 
     const targets = items.filter(shouldProcess);
-    console.log(`[thumbs] ${items.length} 件中、生成対象 ${targets.length} 件`);
+    console.log(`[thumbs] ${items.length} 件中、処理対象 ${targets.length} 件`);
     if (DRY_RUN) {
-        for (const t of targets) console.log(`  - ${t.id}  ${keyFromSrc(t.src)}`);
+        for (const t of targets) {
+            const jobs = [needsThumb(t) && "thumb", needsMeta(t) && "meta"].filter(Boolean).join("+");
+            console.log(`  - ${t.id}  ${keyFromSrc(t.src)}  [${jobs}]`);
+        }
         console.log("[thumbs] DRY_RUN=1 のため生成せず終了");
         return;
     }
@@ -103,41 +161,61 @@ async function main() {
     let ok = 0, failed = 0;
     for (const [i, item] of targets.entries()) {
         const key = keyFromSrc(item.src);
-        const thumbKey = thumbKeyFor(key);
+        const doThumb = needsThumb(item);
+        const doMeta = needsMeta(item);
         try {
-            // 1) 元画像を取得
+            // 1) 元画像を取得（サムネ・メタどちらにも必要）
             const obj = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
             const buf = Buffer.from(await obj.Body.transformToByteArray());
 
-            // 2) 512px WebP を生成（EXIF の向きを反映しつつメタデータは持ち越さない）
-            const thumb = await sharp(buf)
-                .rotate()
-                .resize({ width: THUMB_MAX_PX, height: THUMB_MAX_PX, fit: "inside", withoutEnlargement: true })
-                .webp({ quality: THUMB_QUALITY })
-                .toBuffer();
+            // 書き込むフィールドを組み立てる
+            const fields = {};
+            let thumbInfo = "";
 
-            // 3) アップロード
-            await s3.send(new PutObjectCommand({
-                Bucket: BUCKET,
-                Key: thumbKey,
-                Body: thumb,
-                ContentType: "image/webp",
-                CacheControl: "max-age=31536000",
-            }));
+            if (doThumb) {
+                // 512px WebP を生成（EXIF の向きを反映しつつメタデータは持ち越さない）
+                const thumbKey = thumbKeyFor(key);
+                const thumb = await sharp(buf)
+                    .rotate()
+                    .resize({ width: THUMB_MAX_PX, height: THUMB_MAX_PX, fit: "inside", withoutEnlargement: true })
+                    .webp({ quality: THUMB_QUALITY })
+                    .toBuffer();
+                await s3.send(new PutObjectCommand({
+                    Bucket: BUCKET,
+                    Key: thumbKey,
+                    Body: thumb,
+                    ContentType: "image/webp",
+                    CacheControl: "max-age=31536000",
+                }));
+                fields.thumbSrc = `${CLOUDFRONT_URL}/${thumbKey}`;
+                thumbInfo = ` ${(buf.length / 1024).toFixed(0)}KB → ${(thumb.length / 1024).toFixed(0)}KB`;
+            }
 
-            // 4) DynamoDB に thumbSrc を記録
-            const thumbSrc = `${CLOUDFRONT_URL}/${thumbKey}`;
+            if (doMeta) {
+                Object.assign(fields, await computeMetaFromBuffer(sharp, buf));
+            }
+
+            // 2) DynamoDB へ動的 SET（更新するフィールドだけ書く）
+            const names = {}, values = { ":u": new Date().toISOString() };
+            const sets = ["updatedAt = :u"];
+            for (const [k, v] of Object.entries(fields)) {
+                names[`#${k}`] = k;
+                values[`:${k}`] = v;
+                sets.push(`#${k} = :${k}`);
+            }
             await ddb.send(new UpdateCommand({
                 TableName: TABLE,
                 Key: { id: item.id },
-                UpdateExpression: "SET thumbSrc = :t, updatedAt = :u",
-                // 再スキャンとの競合や削除済み写真への復活書き込みを防ぐ
-                ConditionExpression: "attribute_exists(id) AND attribute_not_exists(thumbSrc)",
-                ExpressionAttributeValues: { ":t": thumbSrc, ":u": new Date().toISOString() },
+                UpdateExpression: "SET " + sets.join(", "),
+                // 削除済み写真への復活書き込みを防ぐ
+                ConditionExpression: "attribute_exists(id)",
+                ExpressionAttributeNames: Object.keys(names).length ? names : undefined,
+                ExpressionAttributeValues: values,
             }));
 
             ok++;
-            console.log(`  [${i + 1}/${targets.length}] ✅ ${item.id}  ${(buf.length / 1024).toFixed(0)}KB → ${(thumb.length / 1024).toFixed(0)}KB`);
+            const jobs = [doThumb && "thumb", doMeta && "meta"].filter(Boolean).join("+");
+            console.log(`  [${i + 1}/${targets.length}] ✅ ${item.id}  [${jobs}]${thumbInfo}`);
         } catch (err) {
             failed++;
             console.error(`  [${i + 1}/${targets.length}] ❌ ${item.id} (${key}): ${err.message ?? err}`);
@@ -149,7 +227,10 @@ async function main() {
     if (targets.length > 0 && ok === 0) process.exit(1);
 }
 
-module.exports = { keyFromSrc, thumbKeyFor, shouldProcess };
+module.exports = {
+    keyFromSrc, thumbKeyFor, shouldProcess,
+    needsThumb, needsMeta, buildMetaFields, hexFromChannel,
+};
 
 if (require.main === module) {
     main().catch((err) => {
