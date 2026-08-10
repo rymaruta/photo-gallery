@@ -13,6 +13,14 @@
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
+  "shortcuts": [
+    {
+      "name": "写真をアップロード",
+      "short_name": "アップロード",
+      "url": "/user/upload",
+      "description": "写真をアップロードする"
+    }
+  ],
   "share_target": {
     "action": "/user/upload",
     "method": "POST",

@@ -2,10 +2,11 @@
 
 import React, { useState, useCallback, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { PhotoIcon, XMarkIcon, UserCircleIcon, MapPinIcon, CalendarIcon, ChevronDownIcon, CheckCircleIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import { PhotoIcon, XMarkIcon, UserCircleIcon, MapPinIcon, CalendarIcon, ChevronDownIcon, CheckCircleIcon, ExclamationTriangleIcon, CameraIcon } from "@heroicons/react/24/outline";
 import { useToast } from "../../../lib/hooks/useToast";
 import { useAuth } from "../../auth/context";
 import LocaleToggle from "../../components/LocaleToggle";
+import AddToHomeScreenHint from "../../components/AddToHomeScreenHint";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
 import { getCurrentSession } from "../../../lib/auth/cognito";
@@ -431,6 +432,9 @@ function UploadPageInner() {
                 />
             </div>
 
+            {/* iOS向け「ホーム画面に追加」ヒント（該当時のみ表示） */}
+            <AddToHomeScreenHint />
+
             {/* ファイル選択 */}
             <label
                 htmlFor="files-input"
@@ -450,6 +454,25 @@ function UploadPageInner() {
                     multiple
                     className="hidden"
                     accept="image/*"
+                    onChange={handleFileSelect}
+                    disabled={uploading}
+                />
+            </label>
+
+            {/* カメラ直撮り（スマホで背面カメラを直接起動）。ギャラリー選択とは別入力にする */}
+            <label
+                htmlFor="camera-input"
+                className="flex items-center justify-center gap-2 w-full rounded-lg bg-white/5 ring-1 ring-white/10 hover:bg-white/10 transition-colors mb-4 cursor-pointer text-sm text-white/80"
+                style={{ touchAction: "manipulation", minHeight: "44px" }}
+            >
+                <CameraIcon className="w-5 h-5 text-white/60" />
+                {locale === "en" ? "Take a photo" : "写真を撮る"}
+                <input
+                    id="camera-input"
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
                     onChange={handleFileSelect}
                     disabled={uploading}
                 />

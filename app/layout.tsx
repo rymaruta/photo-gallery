@@ -29,6 +29,19 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   manifest: "/manifest.webmanifest",
+  // iOS Safari「ホーム画面に追加」で全画面スタンドアロン起動（アプリ体験）にする
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Journey Photo",
+  },
+  icons: {
+    apple: "/icon-192.png",
+  },
+  // 旧 iOS 互換のため従来名も明示（Next は標準名 mobile-web-app-capable を出力するため）
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+  },
   title: {
     default: siteConfig.name,
     template: `%s | Journey Photo 旅フォトギャラリー`,
