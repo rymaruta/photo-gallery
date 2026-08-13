@@ -92,6 +92,35 @@ describe("savePhoto: 基本バリデーション", () => {
     });
 });
 
+describe("savePhoto: 下書き（published フラグ）", () => {
+    it("既定（published 未指定）は公開で保存し、go成立判定を実行する", async () => {
+        const res = await invoke(event("u1", { ...BASE }));
+        expect(res.statusCode).toBe(200);
+        expect(savedPhoto().published).toBe(true);
+        expect(mockCheckGoFulfillment).toHaveBeenCalledTimes(1);
+    });
+
+    it("published:false は下書き（非公開）で保存し、go成立判定=通知を出さない", async () => {
+        const res = await invoke(event("u1", { ...BASE, published: false }));
+        expect(res.statusCode).toBe(200);
+        expect(savedPhoto().published).toBe(false);
+        expect(mockCheckGoFulfillment).not.toHaveBeenCalled();
+    });
+
+    it("published:true を明示した場合も公開で保存する", async () => {
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(savedPhoto().published).toBe(true);
+        expect(mockCheckGoFulfillment).toHaveBeenCalledTimes(1);
+    });
+
+    it("下書きは必須項目なしでも保存できる（title 未指定は既定の無題）", async () => {
+        const res = await invoke(event("u1", { ...BASE, published: false }));
+        expect(res.statusCode).toBe(200);
+        expect(savedPhoto().title).toEqual({ ja: "無題", en: "Untitled" });
+    });
+});
+
 describe("savePhoto: exif（撮影情報）のサニタイズ", () => {
     it("既知のフィールドだけが保存される（GPSや未知キーは落ちる）", async () => {
         const res = await invoke(event("u1", {

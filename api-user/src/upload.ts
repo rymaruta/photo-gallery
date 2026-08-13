@@ -6,36 +6,13 @@ import { putPhoto, countUserPhotos } from "./ddb-photos";
 import { checkGoFulfillment } from "./go";
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
+import { sanitizeExif, sanitizeCoords } from "./sanitize";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
 const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? "";
 
 const PHOTO_LIMIT_PER_USER = 100;
-
-// 撮影情報のサニタイズ: 既知のキーだけを通し、文字列は100文字に制限。
-// GPS など想定外のフィールドは保存しない
-function sanitizeExif(exif: unknown): Photo["exif"] {
-    if (!exif || typeof exif !== "object") return undefined;
-    const src = exif as Record<string, unknown>;
-    const out: Record<string, string | number> = {};
-    for (const k of ["camera", "lens", "aperture", "exposure", "focalLength", "whiteBalance", "imageSize", "dateTimeOriginal"]) {
-        const v = src[k];
-        if (typeof v === "string" && v.trim()) out[k] = v.trim().slice(0, 100);
-    }
-    if (typeof src.iso === "number" && Number.isFinite(src.iso) && src.iso > 0) out.iso = Math.round(src.iso);
-    return Object.keys(out).length > 0 ? (out as Photo["exif"]) : undefined;
-}
-
-// 撮影地座標の検証と丸め。プライバシーのため約1km精度（小数第2位）に丸めて保存する
-function sanitizeCoords(coords: unknown): { lat: number; lng: number } | null {
-    if (!coords || typeof coords !== "object") return null;
-    const { lat, lng } = coords as { lat?: unknown; lng?: unknown };
-    if (typeof lat !== "number" || typeof lng !== "number") return null;
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
-    return { lat: Math.round(lat * 100) / 100, lng: Math.round(lng * 100) / 100 };
-}
 
 export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
@@ -114,6 +91,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         coords?: unknown;
         dominantColor?: string;
         thumbUrl?: string;
+        published?: boolean;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -122,6 +100,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     }
 
     const { key, publicUrl, photoId, title, description, location, category, tags, exif, displayName, coords, dominantColor, thumbUrl } = body;
+    // 下書き保存: published === false のときだけ非公開。既定（未指定/true）は従来通り公開。
+    const isPublished = body.published !== false;
     if (!key || !publicUrl) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイル情報が必要です" }) };
     }
@@ -168,7 +148,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         ...(resolvedDisplayName ? { displayName: resolvedDisplayName } : {}),
         userId,
         uploadedBy: userId,
-        published: true,
+        published: isPublished,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     };
@@ -176,12 +156,15 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     try {
         await putPhoto(photo);
         // 「行った」成立判定: 行きたいリストの場所に到達していれば、
-        // 元写真の投稿者へ「あなたの写真が旅立たせました」通知が飛ぶ
+        // 元写真の投稿者へ「あなたの写真が旅立たせました」通知が飛ぶ。
+        // 下書き（非公開）では通知を出さない（公開時に改めて判定される）。
         let inspired = 0;
-        try {
-            inspired = await checkGoFulfillment(userId, photo, resolvedDisplayName);
-        } catch (err) {
-            console.error("checkGoFulfillment error:", err);
+        if (isPublished) {
+            try {
+                inspired = await checkGoFulfillment(userId, photo, resolvedDisplayName);
+            } catch (err) {
+                console.error("checkGoFulfillment error:", err);
+            }
         }
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo, inspired }) };
     } catch (e) {

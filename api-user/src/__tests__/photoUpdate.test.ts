@@ -105,6 +105,80 @@ describe("updatePhotoVisibility", () => {
     });
 });
 
+type UpdateInput = {
+    UpdateExpression: string;
+    ExpressionAttributeValues: Record<string, unknown>;
+    ExpressionAttributeNames?: Record<string, string>;
+};
+const lastUpdate = (): UpdateInput => (mockDdbSend.mock.calls[1][0] as { input: UpdateInput }).input;
+
+describe("updatePhotoVisibility: 下書きのメタデータ編集", () => {
+    it("メタ項目が何も無ければ 400（更新項目なし）", async () => {
+        const res = await invoke(event("u1", "p1", { foo: "bar" }));
+        expect(res.statusCode).toBe(400);
+    });
+
+    it("所有者は title/location/category/tags を更新でき、#名前で SET される", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } })
+            .mockResolvedValueOnce({});
+        const res = await invoke(event("u1", "p1", {
+            title: "夕焼けの湖", location: "山中湖", category: "風景", tags: ["夕焼け", "湖"], date: "2026-01-20",
+        }));
+        expect(res.statusCode).toBe(200);
+        const u = lastUpdate();
+        expect(u.ExpressionAttributeNames?.["#title"]).toBe("title");
+        expect(u.ExpressionAttributeNames?.["#location"]).toBe("location");
+        expect(u.ExpressionAttributeValues[":title"]).toBe("夕焼けの湖");
+        expect(u.ExpressionAttributeValues[":location"]).toBe("山中湖");
+        expect(u.ExpressionAttributeValues[":category"]).toBe("風景");
+        expect(u.ExpressionAttributeValues[":tags"]).toEqual(["夕焼け", "湖"]);
+        expect(u.ExpressionAttributeValues[":date"]).toBe("2026-01-20");
+    });
+
+    it("メタ編集と公開を同時に行える（下書き→公開）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: false } })
+            .mockResolvedValueOnce({});
+        const res = await invoke(event("u1", "p1", { title: "タイトル", published: true }));
+        expect(res.statusCode).toBe(200);
+        const u = lastUpdate();
+        expect(u.ExpressionAttributeValues[":p"]).toBe(true);
+        expect(u.ExpressionAttributeValues[":title"]).toBe("タイトル");
+    });
+
+    it("空文字/空配列のメタは REMOVE でクリアされる", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } })
+            .mockResolvedValueOnce({});
+        const res = await invoke(event("u1", "p1", { title: "  ", tags: [] }));
+        expect(res.statusCode).toBe(200);
+        const u = lastUpdate();
+        expect(u.UpdateExpression).toContain("REMOVE");
+        expect(u.UpdateExpression).toContain("#title");
+        expect(u.UpdateExpression).toContain("#tags");
+    });
+
+    it("メタ編集も所有権チェックされる（他人の写真は 403）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "owner" } });
+        const res = await invoke(event("attacker", "p1", { title: "乗っ取り" }));
+        expect(res.statusCode).toBe(403);
+        expect(mockDdbSend).toHaveBeenCalledTimes(1);
+    });
+
+    it("tags は文字列以外を除去し30件・各50文字に制限", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } })
+            .mockResolvedValueOnce({});
+        const res = await invoke(event("u1", "p1", { tags: ["ok", 123, "  ", "x".repeat(80)] }));
+        expect(res.statusCode).toBe(200);
+        const tags = lastUpdate().ExpressionAttributeValues[":tags"] as string[];
+        expect(tags).toContain("ok");
+        expect(tags).not.toContain(123);
+        expect(tags.every((t) => t.length <= 50)).toBe(true);
+    });
+});
+
 describe("isValidYouTubeUrl", () => {
     it("youtube.com / youtu.be を許可", () => {
         expect(isValidYouTubeUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ")).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");

@@ -108,6 +108,15 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  getMyPhotos:
+    handler: src/userPhotos.getMyPhotos
+    events:
+      - httpApi:
+          path: /user/photos
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
   updateMyProfile:
     handler: src/userProfile.updateMyProfile
     events:

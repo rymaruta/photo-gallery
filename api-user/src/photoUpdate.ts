@@ -2,8 +2,12 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { UpdateCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId } from "./http";
+import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords } from "./sanitize";
 
 type PhotoSong = { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string };
+
+// 下書き編集で更新できるメタデータ項目。キーが body にあれば更新対象。
+const META_KEYS = ["title", "description", "location", "category", "tags", "date", "coords"] as const;
 
 // YouTube URL の検証（フル再生MV用）。youtube.com/watch?v= と youtu.be/ を許可。
 // lib/utils/music.ts の parseYouTube と同等の安全策（ホワイトリスト + ID書式）。
@@ -28,7 +32,11 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "IDが必要です" }) };
     }
 
-    let body: { published?: boolean; song?: unknown; songYoutubeUrl?: unknown };
+    let body: {
+        published?: boolean; song?: unknown; songYoutubeUrl?: unknown;
+        title?: unknown; description?: unknown; location?: unknown;
+        category?: unknown; tags?: unknown; date?: unknown; coords?: unknown;
+    };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
     } catch {
@@ -38,7 +46,8 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
     const hasPublished = typeof body.published === "boolean";
     const hasSong = "song" in body;
     const hasYoutube = "songYoutubeUrl" in body;
-    if (!hasPublished && !hasSong && !hasYoutube) {
+    const hasMeta = META_KEYS.some((k) => k in body);
+    if (!hasPublished && !hasSong && !hasYoutube && !hasMeta) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "更新項目がありません" }) };
     }
 
@@ -102,12 +111,34 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
 
         const sets: string[] = ["updatedAt = :t"];
         const values: Record<string, unknown> = { ":t": new Date().toISOString() };
+        const names: Record<string, string> = {};
+        const removes: string[] = [];
         if (hasPublished) { sets.push("published = :p"); values[":p"] = body.published; }
         if (song) { sets.push("song = :s"); values[":s"] = song; }
         if (youtubeUrl) { sets.push("songYoutubeUrl = :yt"); values[":yt"] = youtubeUrl; }
-        const removes: string[] = [];
         if (removeSong) removes.push("song");
         if (removeYoutube) removes.push("songYoutubeUrl");
+
+        // 下書き編集: キーが来ていれば、有効値は SET、空なら REMOVE（クリア）。
+        // 予約語（location 等）を避けるため属性名は #プレースホルダで指定する。
+        const applyMeta = (col: string, present: boolean, value: unknown) => {
+            if (!present) return;
+            names[`#${col}`] = col;
+            if (value === undefined || value === null || (Array.isArray(value) && value.length === 0)) {
+                removes.push(`#${col}`);
+            } else {
+                sets.push(`#${col} = :${col}`);
+                values[`:${col}`] = value;
+            }
+        };
+        applyMeta("title", "title" in body, sanitizeTitle(body.title));
+        applyMeta("description", "description" in body, sanitizeDescription(body.description));
+        applyMeta("location", "location" in body, sanitizeText(body.location, 200));
+        applyMeta("category", "category" in body, sanitizeText(body.category, 100));
+        applyMeta("tags", "tags" in body, sanitizeTags(body.tags));
+        applyMeta("date", "date" in body, sanitizeText(body.date, 40));
+        applyMeta("coords", "coords" in body, sanitizeCoords(body.coords) ?? undefined);
+
         let expr = `SET ${sets.join(", ")}`;
         if (removes.length) expr += ` REMOVE ${removes.join(", ")}`;
         await ddb.send(new UpdateCommand({
@@ -115,6 +146,7 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             Key: { id },
             UpdateExpression: expr,
             ExpressionAttributeValues: values,
+            ...(Object.keys(names).length ? { ExpressionAttributeNames: names } : {}),
         }));
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
     } catch (e) {
