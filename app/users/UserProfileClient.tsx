@@ -1153,6 +1153,17 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             </Link>
                         </div>
                     )}
+                    {isOwner && (
+                        <div className="mt-2 text-center">
+                            <Link
+                                href="/user/drafts"
+                                className="inline-flex items-center justify-center px-3 py-1.5 text-sm text-white/60 hover:text-white transition-colors"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                {locale === "en" ? "Drafts →" : "下書き →"}
+                            </Link>
+                        </div>
+                    )}
                     </div>
                 </div>
             </div>

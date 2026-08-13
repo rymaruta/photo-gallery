@@ -13,6 +13,7 @@ import { getCurrentSession } from "../../../lib/auth/cognito";
 import { compressImage, createThumbnail, stripJpegExif, extractDominantColor } from "../../../lib/utils/image";
 import { extractExifFromFile, extractCameraExif, reverseGeocode } from "../../../lib/utils/exif";
 import { readSharedPayload, clearSharedPayload } from "../../../lib/utils/shareStore";
+import { ROUTES } from "../../../lib/routes";
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
@@ -257,7 +258,7 @@ function UploadPageInner() {
         });
     }, []);
 
-    const handleUploadAll = useCallback(async () => {
+    const handleUploadAll = useCallback(async (published: boolean) => {
         const pending = items.filter((it) => it.status === "pending" || it.status === "error");
         if (pending.length === 0) {
             showToast(locale === "en" ? "Nothing to upload" : "アップロードする写真がありません", "error");
@@ -348,6 +349,7 @@ function UploadPageInner() {
                     method: "POST",
                     body: JSON.stringify({
                         key, publicUrl, photoId,
+                        published,
                         title: item.title || undefined,
                         description: item.description || undefined,
                         location: item.location || undefined,
@@ -387,14 +389,18 @@ function UploadPageInner() {
         setUploading(false);
         if (successCount > 0) {
             showToast(
-                locale === "en"
-                    ? `${successCount} photo(s) uploaded`
-                    : `${successCount} 枚アップロードしました`,
+                published
+                    ? (locale === "en" ? `${successCount} photo(s) uploaded` : `${successCount} 枚アップロードしました`)
+                    : (locale === "en"
+                        ? `Saved ${successCount} draft(s). Fill in details later and publish.`
+                        : `${successCount} 枚を下書き保存しました。あとで編集して公開できます`),
                 "success",
             );
-            // 全件成功時はトップへ（items はループ開始時のクロージャなのでカウントで判定する）
+            // 全件成功時に遷移（items はループ開始時のクロージャなのでカウントで判定する）。
+            // 公開はトップへ、下書きは下書き一覧へ。
             if (successCount === pending.length) {
-                redirectTimerRef.current = setTimeout(() => router.push("/"), 1500);
+                const dest = published ? "/" : ROUTES.DRAFTS;
+                redirectTimerRef.current = setTimeout(() => router.push(dest), 1500);
             }
         }
         if (successCount < pending.length) {
@@ -629,21 +635,32 @@ function UploadPageInner() {
             {/* アップロードバー（固定） */}
             {items.length > 0 && (
                 <div className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/10 p-4 z-40">
-                    <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
-                        <p className="text-sm text-white/70">
+                    <div className="max-w-3xl mx-auto flex items-center justify-between gap-2">
+                        <p className="hidden sm:block text-sm text-white/70 flex-shrink-0">
                             {doneCount > 0 ? `${doneCount}/${items.length} ` : ""}
-                            {locale === "en" ? `${pendingCount} ready` : `${pendingCount} 枚アップロード待ち`}
+                            {locale === "en" ? `${pendingCount} ready` : `${pendingCount} 枚待ち`}
                         </p>
-                        <button
-                            onClick={handleUploadAll}
-                            disabled={uploading || pendingCount === 0}
-                            className="px-6 py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                            style={{ touchAction: "manipulation", minHeight: "44px" }}
-                        >
-                            {uploading
-                                ? (locale === "en" ? "Uploading..." : "アップロード中...")
-                                : (locale === "en" ? `Upload ${pendingCount}` : `${pendingCount}枚アップロード`)}
-                        </button>
+                        <div className="flex items-center gap-2 flex-1 sm:flex-none justify-end">
+                            {/* 下書き保存: 必須項目なしで非公開保存。あとで編集して公開できる */}
+                            <button
+                                onClick={() => handleUploadAll(false)}
+                                disabled={uploading || pendingCount === 0}
+                                className="px-4 py-3 bg-white/10 hover:bg-white/20 text-white text-sm font-semibold rounded-full ring-1 ring-white/15 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                style={{ touchAction: "manipulation", minHeight: "44px" }}
+                            >
+                                {locale === "en" ? "Save draft" : "下書き保存"}
+                            </button>
+                            <button
+                                onClick={() => handleUploadAll(true)}
+                                disabled={uploading || pendingCount === 0}
+                                className="px-6 py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                style={{ touchAction: "manipulation", minHeight: "44px" }}
+                            >
+                                {uploading
+                                    ? (locale === "en" ? "Uploading..." : "アップロード中...")
+                                    : (locale === "en" ? `Publish ${pendingCount}` : `${pendingCount}枚を公開`)}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
