@@ -96,6 +96,19 @@ const GalleryItem = React.memo(function GalleryItem({
                 >
                     <div className="absolute inset-0" aria-hidden={true} />
 
+                    {/* blur-up: 極小ぼかしプレビューを即表示。本画像がロードされると上にふわっと重なる */}
+                    {photo.blurDataURL && !imageError && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                            src={photo.blurDataURL}
+                            alt=""
+                            aria-hidden={true}
+                            draggable={false}
+                            className="absolute inset-0 w-full h-full object-cover"
+                            style={{ filter: "blur(12px)", transform: "scale(1.1)", ...(objectPosition ? { objectPosition } : {}) }}
+                        />
+                    )}
+
                     {!imageError ? (
                         <Image
                             src={photo.thumbSrc ?? photo.src}

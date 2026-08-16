@@ -65,7 +65,11 @@ function thumbKeyFor(key) {
 }
 
 // サムネ以外に補完する表示メタデータのフィールド
-const META_FIELDS = ["dominantColor", "width", "height", "aspectRatio"];
+const META_FIELDS = ["dominantColor", "width", "height", "aspectRatio", "blurDataURL"];
+
+// ぼかしプレビューの元サイズ（長辺px）。極小にして base64 を軽く保つ
+const BLUR_MAX_PX = 20;
+const BLUR_QUALITY = 40;
 
 const isBlank = (v) => v === undefined || v === null || v === "";
 
@@ -113,16 +117,24 @@ function buildMetaFields({ width, height, orientation, dominant } = {}) {
     return out;
 }
 
-/** 元画像バッファから表示メタを算出する */
+/** 元画像バッファから表示メタを算出する（寸法・支配色・ぼかしプレビュー） */
 async function computeMetaFromBuffer(sharp, buf) {
     const meta = await sharp(buf).metadata();
     const stats = await sharp(buf).stats();
-    return buildMetaFields({
+    const out = buildMetaFields({
         width: meta.width,
         height: meta.height,
         orientation: meta.orientation,
         dominant: stats.dominant,
     });
+    // 極小ぼかしプレビュー（blur-up 用）。EXIF 回転を反映しつつ 20px WebP に。
+    const blur = await sharp(buf)
+        .rotate()
+        .resize({ width: BLUR_MAX_PX, height: BLUR_MAX_PX, fit: "inside", withoutEnlargement: true })
+        .webp({ quality: BLUR_QUALITY })
+        .toBuffer();
+    out.blurDataURL = `data:image/webp;base64,${blur.toString("base64")}`;
+    return out;
 }
 
 async function main() {

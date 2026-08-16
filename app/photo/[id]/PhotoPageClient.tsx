@@ -64,12 +64,14 @@ function PhotoImage({
     src,
     alt,
     focalPoint,
+    blurDataURL,
     extractExif = false,
     onExifLoaded
 }: {
     src: string;
     alt: string;
     focalPoint?: { x: number; y: number };
+    blurDataURL?: string;
     // データ側 exif が無い写真だけ true。画像から EXIF をクライアント抽出する
     extractExif?: boolean;
     onExifLoaded?: (exif: ExtractedExif | null) => void;
@@ -134,12 +136,23 @@ function PhotoImage({
 
     return (
         <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ minHeight: "400px", position: "relative" }}>
-            {imageLoading && (
+            {/* blur-up: ぼかしプレビューを背景に即表示。本画像がロードされるとフェードで重なる */}
+            {blurDataURL && imageLoading && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                    src={blurDataURL}
+                    alt=""
+                    aria-hidden={true}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    style={{ filter: "blur(24px)", transform: "scale(1.1)" }}
+                />
+            )}
+            {imageLoading && !blurDataURL && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
                     <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                 </div>
             )}
-            <div className="relative w-full bg-black" style={{ minHeight: "400px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div className="relative w-full" style={{ minHeight: "400px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Image
                     src={src}
                     alt={alt}
@@ -147,7 +160,7 @@ function PhotoImage({
                     height={800}
                     draggable={false}
                     onContextMenu={(e) => e.preventDefault()}
-                    className="w-full h-auto object-contain max-h-[80vh] select-none"
+                    className={`w-full h-auto object-contain max-h-[80vh] select-none transition-opacity duration-500 ${imageLoading ? "opacity-0" : "opacity-100"}`}
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1200px"
                     priority
                     style={{
@@ -478,6 +491,7 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                     src={photo.src}
                     alt={altText}
                     focalPoint={photo.focalPoint}
+                    blurDataURL={photo.blurDataURL}
                     extractExif={!hasStoredExif(photo.exif)}
                     onExifLoaded={setExtractedExif}
                 />

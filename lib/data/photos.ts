@@ -45,6 +45,8 @@ export type Photo = {
     height?: number;
     aspectRatio?: number;
     dominantColor?: string;
+    // 極小のぼかしプレビュー（data:image/webp;base64,...）。読み込み中の blur-up 表示に使う
+    blurDataURL?: string;
     focalPoint?: { x: number; y: number };
     published?: boolean;
     userId?: string;

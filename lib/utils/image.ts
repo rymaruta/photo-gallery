@@ -130,6 +130,34 @@ export async function createThumbnail(file: File, maxPx = 512, quality = 0.75): 
     }
 }
 
+/**
+ * blur-up 用の極小ぼかしプレビュー（data:image/webp;base64,...）を作る。
+ * 長辺 ~20px に縮小して data URI 化（描画時に CSS で blur をかける）。
+ * WebP 非対応ブラウザは jpeg/png にフォールバック。失敗/巨大なら null。
+ */
+export async function createBlurPlaceholder(file: File, maxPx = 20): Promise<string | null> {
+    if (!file.type.startsWith("image/") || file.type === "image/gif") return null;
+    try {
+        const img = await loadImageFromFile(file);
+        const { width, height } = scaleDimensions(img.width, img.height, maxPx);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, width);
+        canvas.height = Math.max(1, height);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return null;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        // toDataURL は未対応形式だと image/png を返すため、要求形式と一致した時だけ採用
+        for (const type of ["image/webp", "image/jpeg"]) {
+            const url = canvas.toDataURL(type, 0.4);
+            if (url.startsWith(`data:${type}`) && url.length <= 4000) return url;
+        }
+        const png = canvas.toDataURL("image/png");
+        return png.length <= 4000 ? png : null;
+    } catch {
+        return null;
+    }
+}
+
 // ---- 代表色（ドミナントカラー）の抽出 ----
 // グリッドの読み込みプレースホルダーに使う。写真を小さなキャンバスに描いて
 // ピクセルの平均色を取る（厳密な支配色ではなく「その写真らしい色」で十分）。

@@ -41,7 +41,7 @@ describe("thumbKeyFor", () => {
 describe("shouldProcess / needsThumb / needsMeta", () => {
     const src = "https://cdn.example.com/uploads/p1.jpg";
     const thumbSrc = "https://cdn.example.com/uploads/p1_thumb.webp";
-    const fullMeta = { dominantColor: "#123456", width: 4000, height: 3000, aspectRatio: 1.3333 };
+    const fullMeta = { dominantColor: "#123456", width: 4000, height: 3000, aspectRatio: 1.3333, blurDataURL: "data:image/webp;base64,UklGRAAA" };
 
     it("thumbSrc もメタも無い写真は対象（thumb+meta）", () => {
         const p = { id: "p1", src };

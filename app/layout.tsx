@@ -109,6 +109,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ja">
       <head>
+        {/* 画像配信元(CloudFront)へ事前接続し、最初の画像の DNS+TLS 待ちを削減（LCP改善） */}
+        <link rel="preconnect" href="https://d1s3dwwzgxf5ni.cloudfront.net" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://d1s3dwwzgxf5ni.cloudfront.net" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteStructuredData).replace(/</g, "\\u003c").replace(/>/g, "\\u003e") }}
