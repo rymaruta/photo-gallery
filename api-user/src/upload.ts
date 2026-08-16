@@ -6,7 +6,7 @@ import { putPhoto, countUserPhotos } from "./ddb-photos";
 import { checkGoFulfillment } from "./go";
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
-import { sanitizeExif, sanitizeCoords } from "./sanitize";
+import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL } from "./sanitize";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
@@ -92,6 +92,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         dominantColor?: string;
         thumbUrl?: string;
         published?: boolean;
+        blurDataURL?: string;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -99,7 +100,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なリクエスト" }) };
     }
 
-    const { key, publicUrl, photoId, title, description, location, category, tags, exif, displayName, coords, dominantColor, thumbUrl } = body;
+    const { key, publicUrl, photoId, title, description, location, category, tags, exif, displayName, coords, dominantColor, thumbUrl, blurDataURL } = body;
     // 下書き保存: published === false のときだけ非公開。既定（未指定/true）は従来通り公開。
     const isPublished = body.published !== false;
     if (!key || !publicUrl) {
@@ -132,6 +133,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     const safeThumbSrc = typeof thumbUrl === "string" && thumbUrl.startsWith("https://") && thumbUrl.length <= 500
         ? thumbUrl
         : undefined;
+    // ぼかしプレビュー（data:image/webp;base64,...）: 画像 data URI のみ許可
+    const safeBlurDataURL = sanitizeBlurDataURL(blurDataURL);
 
     const photo: Photo = {
         id: photoId ?? uuidv4(),
@@ -145,6 +148,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         ...(safeCoords ? { coords: safeCoords } : {}),
         ...(safeDominantColor ? { dominantColor: safeDominantColor } : {}),
         ...(safeThumbSrc ? { thumbSrc: safeThumbSrc } : {}),
+        ...(safeBlurDataURL ? { blurDataURL: safeBlurDataURL } : {}),
         ...(resolvedDisplayName ? { displayName: resolvedDisplayName } : {}),
         userId,
         uploadedBy: userId,

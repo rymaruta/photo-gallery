@@ -1,0 +1,38 @@
+import { describe, it, expect } from "vitest";
+import { sanitizeBlurDataURL, sanitizeTags, sanitizeTitle, sanitizeText } from "../sanitize";
+
+describe("sanitizeBlurDataURL", () => {
+    it("webp/jpeg/png の base64 data URI を許可", () => {
+        const webp = "data:image/webp;base64,UklGRAAAAA";
+        expect(sanitizeBlurDataURL(webp)).toBe(webp);
+        expect(sanitizeBlurDataURL("data:image/jpeg;base64,/9j/4AAQ==")).toBe("data:image/jpeg;base64,/9j/4AAQ==");
+        expect(sanitizeBlurDataURL("data:image/png;base64,iVBORw0K")).toBe("data:image/png;base64,iVBORw0K");
+    });
+    it("http/その他スキーム・svg・非文字列は弾く", () => {
+        expect(sanitizeBlurDataURL("https://x/x.webp")).toBeUndefined();
+        expect(sanitizeBlurDataURL("data:image/svg+xml;base64,PHN2Zz4=")).toBeUndefined();
+        expect(sanitizeBlurDataURL("data:text/html;base64,PGh0bWw+")).toBeUndefined();
+        expect(sanitizeBlurDataURL(123)).toBeUndefined();
+        expect(sanitizeBlurDataURL(undefined)).toBeUndefined();
+    });
+    it("4000文字超は弾く", () => {
+        expect(sanitizeBlurDataURL("data:image/webp;base64," + "A".repeat(4100))).toBeUndefined();
+    });
+});
+
+describe("sanitize 基本ヘルパ", () => {
+    it("sanitizeText は trim/空/上限", () => {
+        expect(sanitizeText("  hi ", 10)).toBe("hi");
+        expect(sanitizeText("", 10)).toBeUndefined();
+        expect(sanitizeText("x".repeat(20), 5)).toBe("xxxxx");
+    });
+    it("sanitizeTags は文字列のみ・重複排除・上限", () => {
+        expect(sanitizeTags(["a", "a", 1, "  ", "b"])).toEqual(["a", "b"]);
+        expect(sanitizeTags("nope")).toBeUndefined();
+    });
+    it("sanitizeTitle は string/{ja,en}/空", () => {
+        expect(sanitizeTitle("  T ")).toBe("T");
+        expect(sanitizeTitle({ ja: "あ", en: "" })).toEqual({ ja: "あ" });
+        expect(sanitizeTitle("   ")).toBeUndefined();
+    });
+});

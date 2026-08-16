@@ -8,6 +8,7 @@ export type Photo = {
     tags?: string[];
     location?: string;
     published?: boolean;
+    blurDataURL?: string; // 極小ぼかしプレビュー（data:image/webp;base64,...）
     userId?: string;
     uploadedBy?: string;
     displayName?: string;

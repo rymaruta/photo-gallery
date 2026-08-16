@@ -92,6 +92,26 @@ describe("savePhoto: 基本バリデーション", () => {
     });
 });
 
+describe("savePhoto: blurDataURL（ぼかしプレビュー）", () => {
+    const blur = "data:image/webp;base64,UklGRAAAAABXRUJQ";
+    it("有効な画像 data URI は blurDataURL として保存される", async () => {
+        const res = await invoke(event("u1", { ...BASE, blurDataURL: blur }));
+        expect(res.statusCode).toBe(200);
+        expect(savedPhoto().blurDataURL).toBe(blur);
+    });
+    it("data URI でない文字列は破棄される", async () => {
+        const res = await invoke(event("u1", { ...BASE, blurDataURL: "https://evil.example.com/x.webp" }));
+        expect(res.statusCode).toBe(200);
+        expect("blurDataURL" in savedPhoto()).toBe(false);
+    });
+    it("4000文字を超えるものは破棄される", async () => {
+        const big = "data:image/webp;base64," + "A".repeat(4100);
+        const res = await invoke(event("u1", { ...BASE, blurDataURL: big }));
+        expect(res.statusCode).toBe(200);
+        expect("blurDataURL" in savedPhoto()).toBe(false);
+    });
+});
+
 describe("savePhoto: 下書き（published フラグ）", () => {
     it("既定（published 未指定）は公開で保存し、go成立判定を実行する", async () => {
         const res = await invoke(event("u1", { ...BASE }));

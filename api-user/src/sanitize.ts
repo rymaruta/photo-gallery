@@ -32,6 +32,15 @@ export function sanitizeText(v: unknown, max: number): string | undefined {
     return typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined;
 }
 
+// ぼかしプレビュー: 画像の data URI（webp/jpeg/png の base64）のみ許可。長すぎるものは破棄。
+// 極小画像想定のため上限は 4000 文字（~3KB）。
+export function sanitizeBlurDataURL(v: unknown): string | undefined {
+    if (typeof v !== "string") return undefined;
+    const s = v.trim();
+    if (s.length > 4000) return undefined;
+    return /^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/]+={0,2}$/.test(s) ? s : undefined;
+}
+
 // タグ配列: 文字列のみ・trim・各50文字・重複排除・最大30件（空配列も返しうる＝全消し）
 export function sanitizeTags(v: unknown): string[] | undefined {
     if (!Array.isArray(v)) return undefined;
