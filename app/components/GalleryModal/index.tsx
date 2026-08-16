@@ -187,7 +187,7 @@ export default function GalleryModal({
                     style={{ height: "60vh", minHeight: "300px", fontSize: 0, lineHeight: 0, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}
                 >
                     <div className="relative w-full h-full" {...swipeHandlers} onClick={handleImageTap}>
-                        <ModalImage key={p.id} src={p.src} alt={altText} focalPoint={p.focalPoint} />
+                        <ModalImage key={p.id} src={p.src} srcAvif={p.srcAvif} alt={altText} focalPoint={p.focalPoint} />
                         {/* ダブルタップいいねのハート */}
                         {heartBurstKey > 0 && (
                             <div

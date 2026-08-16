@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 import { HeartIcon } from "@heroicons/react/24/solid";
@@ -65,6 +64,7 @@ function PhotoImage({
     alt,
     focalPoint,
     blurDataURL,
+    srcAvif,
     extractExif = false,
     onExifLoaded
 }: {
@@ -72,6 +72,7 @@ function PhotoImage({
     alt: string;
     focalPoint?: { x: number; y: number };
     blurDataURL?: string;
+    srcAvif?: string;
     // データ側 exif が無い写真だけ true。画像から EXIF をクライアント抽出する
     extractExif?: boolean;
     onExifLoaded?: (exif: ExtractedExif | null) => void;
@@ -153,26 +154,30 @@ function PhotoImage({
                 </div>
             )}
             <div className="relative w-full" style={{ minHeight: "400px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Image
-                    src={src}
-                    alt={alt}
-                    width={1200}
-                    height={800}
-                    draggable={false}
-                    onContextMenu={(e) => e.preventDefault()}
-                    className={`w-full h-auto object-contain max-h-[80vh] select-none transition-opacity duration-500 ${imageLoading ? "opacity-0" : "opacity-100"}`}
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1200px"
-                    priority
-                    style={{
-                        WebkitTouchCallout: "none",
-                        ...(focalPoint ? { objectPosition: `${focalPoint.x * 100}% ${focalPoint.y * 100}%` } : {}),
-                    }}
-                    onError={() => {
-                        setImageError(true);
-                        setImageLoading(false);
-                    }}
-                    onLoad={() => setImageLoading(false)}
-                />
+                {/* AVIF があれば優先（詳細=LCP を軽く）、無ければ従来 src(WebP) にフォールバック */}
+                <picture className="w-full flex items-center justify-center">
+                    {srcAvif && <source type="image/avif" srcSet={srcAvif} />}
+                    <img
+                        src={src}
+                        alt={alt}
+                        width={1200}
+                        height={800}
+                        draggable={false}
+                        onContextMenu={(e) => e.preventDefault()}
+                        fetchPriority="high"
+                        decoding="async"
+                        className={`w-full h-auto object-contain max-h-[80vh] select-none transition-opacity duration-500 ${imageLoading ? "opacity-0" : "opacity-100"}`}
+                        style={{
+                            WebkitTouchCallout: "none",
+                            ...(focalPoint ? { objectPosition: `${focalPoint.x * 100}% ${focalPoint.y * 100}%` } : {}),
+                        }}
+                        onError={() => {
+                            setImageError(true);
+                            setImageLoading(false);
+                        }}
+                        onLoad={() => setImageLoading(false)}
+                    />
+                </picture>
             </div>
         </div>
     );
@@ -492,6 +497,7 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                     alt={altText}
                     focalPoint={photo.focalPoint}
                     blurDataURL={photo.blurDataURL}
+                    srcAvif={photo.srcAvif}
                     extractExif={!hasStoredExif(photo.exif)}
                     onExifLoaded={setExtractedExif}
                 />

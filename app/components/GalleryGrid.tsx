@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import Image from "next/image";
+import React from "react";
 import Link from "next/link";
 import type { Photo, Locale } from "@/lib/data/photos";
 import { getLocalized } from "@/lib/data/photos";
@@ -7,6 +6,7 @@ import { getLabels } from "../i18n/labels";
 import { useFavorites } from "../../lib/hooks/useFavorites";
 import { HeartIcon } from "@heroicons/react/24/solid";
 import { ROUTES } from "../../lib/routes";
+import Thumb from "./Thumb";
 
 type Props = {
     photos: Photo[];
@@ -71,9 +71,6 @@ const GalleryItem = React.memo(function GalleryItem({
     objectPosition?: string;
     categoryDisplayMap?: Record<string, string>;
 }) {
-    const [imageError, setImageError] = useState(false);
-    // 代表色プレースホルダー → 読み込み完了でふわっと表示（体感速度の向上）
-    const [imageLoaded, setImageLoaded] = useState(false);
     const { isFavorite } = useFavorites();
     const isFav = isFavorite(photo.id);
     const isPriority = index < 8;
@@ -96,44 +93,14 @@ const GalleryItem = React.memo(function GalleryItem({
                 >
                     <div className="absolute inset-0" aria-hidden={true} />
 
-                    {/* blur-up: 極小ぼかしプレビューを即表示。本画像がロードされると上にふわっと重なる */}
-                    {photo.blurDataURL && !imageError && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                            src={photo.blurDataURL}
-                            alt=""
-                            aria-hidden={true}
-                            draggable={false}
-                            className="absolute inset-0 w-full h-full object-cover"
-                            style={{ filter: "blur(12px)", transform: "scale(1.1)", ...(objectPosition ? { objectPosition } : {}) }}
-                        />
-                    )}
-
-                    {!imageError ? (
-                        <Image
-                            src={photo.thumbSrc ?? photo.src}
-                            alt={localizedAlt}
-                            fill
-                            draggable={false}
-                            onContextMenu={(e) => e.preventDefault()}
-                            className={`object-cover select-none transition-opacity duration-500 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
-                            style={{ WebkitTouchCallout: "none", ...(objectPosition ? { objectPosition } : {}) }}
-                            sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
-                            loading={isPriority ? "eager" : "lazy"}
-                            priority={isPriority}
-                            onLoad={() => setImageLoaded(true)}
-                            onError={() => setImageError(true)}
-                        />
-                    ) : (
-                        <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
-                            <div className="text-white/40 text-xs text-center px-4">
-                                <svg className="w-8 h-8 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                <p>画像を読み込めません</p>
-                            </div>
-                        </div>
-                    )}
+                    {/* AVIF/WebP・256/512 を <picture> で出し分け（派生が無ければ従来サムネにフォールバック）。blur-up 内包 */}
+                    <Thumb
+                        photo={photo}
+                        alt={localizedAlt}
+                        sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
+                        priority={isPriority}
+                        objectPosition={objectPosition}
+                    />
 
                                 {/* お気に入りアイコン */}
                                 {isFav && (

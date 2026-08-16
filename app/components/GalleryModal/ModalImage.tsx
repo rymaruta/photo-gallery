@@ -1,14 +1,14 @@
 "use client";
 import React, { useState } from "react";
-import Image from "next/image";
 
 type Props = {
     src: string;
     alt: string;
+    srcAvif?: string;
     focalPoint?: { x: number; y: number };
 };
 
-export default function ModalImage({ src, alt, focalPoint }: Props) {
+export default function ModalImage({ src, alt, srcAvif, focalPoint }: Props) {
     const [imageError, setImageError] = useState(false);
     const [imageLoading, setImageLoading] = useState(true);
 
@@ -32,22 +32,25 @@ export default function ModalImage({ src, alt, focalPoint }: Props) {
                     <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                 </div>
             )}
-            <Image
-                src={src}
-                alt={alt}
-                fill
-                draggable={false}
-                onContextMenu={(e) => e.preventDefault()}
-                className="object-contain select-none"
-                sizes="(max-width: 640px) 100vw, 90vw"
-                priority
-                style={{
-                    WebkitTouchCallout: "none",
-                    ...(focalPoint ? { objectPosition: `${focalPoint.x * 100}% ${focalPoint.y * 100}%` } : {}),
-                }}
-                onError={() => { setImageError(true); setImageLoading(false); }}
-                onLoad={() => setImageLoading(false)}
-            />
+            {/* AVIF があれば優先、無ければ従来 src(WebP) にフォールバック */}
+            <picture>
+                {srcAvif && <source type="image/avif" srcSet={srcAvif} />}
+                <img
+                    src={src}
+                    alt={alt}
+                    draggable={false}
+                    onContextMenu={(e) => e.preventDefault()}
+                    decoding="async"
+                    fetchPriority="high"
+                    className="absolute inset-0 w-full h-full object-contain select-none"
+                    style={{
+                        WebkitTouchCallout: "none",
+                        ...(focalPoint ? { objectPosition: `${focalPoint.x * 100}% ${focalPoint.y * 100}%` } : {}),
+                    }}
+                    onError={() => { setImageError(true); setImageLoading(false); }}
+                    onLoad={() => setImageLoading(false)}
+                />
+            </picture>
         </>
     );
 }
