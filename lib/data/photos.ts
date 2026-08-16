@@ -47,6 +47,11 @@ export type Photo = {
     dominantColor?: string;
     // 極小のぼかしプレビュー（data:image/webp;base64,...）。読み込み中の blur-up 表示に使う
     blurDataURL?: string;
+    // レスポンシブ/AVIF 派生（バックフィル生成）。無ければ thumbSrc/src にフォールバック
+    thumbAvif?: string;   // 512 AVIF
+    thumbSm?: string;     // 256 WebP
+    thumbSmAvif?: string; // 256 AVIF
+    srcAvif?: string;     // 詳細用（≤1600）AVIF
     focalPoint?: { x: number; y: number };
     published?: boolean;
     userId?: string;

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { keyFromSrc, thumbKeyFor, shouldProcess, needsThumb, needsMeta, buildMetaFields, hexFromChannel } = require("../generate-thumbnails.js");
+const { keyFromSrc, thumbKeyFor, derivativeKey, shouldProcess, needsThumb, needsMeta, needsDerivatives, buildMetaFields, hexFromChannel } = require("../generate-thumbnails.js");
 
 describe("keyFromSrc", () => {
     it("CloudFront URL から S3 キーを取り出す", () => {
@@ -41,7 +41,8 @@ describe("thumbKeyFor", () => {
 describe("shouldProcess / needsThumb / needsMeta", () => {
     const src = "https://cdn.example.com/uploads/p1.jpg";
     const thumbSrc = "https://cdn.example.com/uploads/p1_thumb.webp";
-    const fullMeta = { dominantColor: "#123456", width: 4000, height: 3000, aspectRatio: 1.3333, blurDataURL: "data:image/webp;base64,UklGRAAA" };
+    const derivatives = { thumbAvif: "https://cdn/x_thumb.avif", thumbSm: "https://cdn/x_thumb_sm.webp", thumbSmAvif: "https://cdn/x_thumb_sm.avif", srcAvif: "https://cdn/x_lg.avif" };
+    const fullMeta = { dominantColor: "#123456", width: 4000, height: 3000, aspectRatio: 1.3333, blurDataURL: "data:image/webp;base64,UklGRAAA", ...derivatives };
 
     it("thumbSrc もメタも無い写真は対象（thumb+meta）", () => {
         const p = { id: "p1", src };
@@ -63,11 +64,20 @@ describe("shouldProcess / needsThumb / needsMeta", () => {
         expect(shouldProcess(p)).toBe(true);
     });
 
-    it("thumbSrc とメタが全て揃っていればスキップ（冪等）", () => {
+    it("thumbSrc とメタと派生が全て揃っていればスキップ（冪等）", () => {
         const p = { id: "p1", src, thumbSrc, ...fullMeta };
         expect(needsThumb(p)).toBe(false);
         expect(needsMeta(p)).toBe(false);
+        expect(needsDerivatives(p)).toBe(false);
         expect(shouldProcess(p)).toBe(false);
+    });
+
+    it("派生（AVIF/256）だけ欠けていても対象", () => {
+        const p = { id: "p1", src, thumbSrc, ...fullMeta, thumbAvif: "" };
+        expect(needsThumb(p)).toBe(false);
+        expect(needsMeta(p)).toBe(false);
+        expect(needsDerivatives(p)).toBe(true);
+        expect(shouldProcess(p)).toBe(true);
     });
 
     it("空文字のメタは未補完として扱う", () => {
@@ -92,6 +102,18 @@ describe("shouldProcess / needsThumb / needsMeta", () => {
 
     it("URL として不正な src はスキップ", () => {
         expect(shouldProcess({ id: "p1", src: "broken" })).toBe(false);
+    });
+});
+
+describe("derivativeKey", () => {
+    it("接尾辞と拡張子を付けた派生キーを作る", () => {
+        expect(derivativeKey("uploads/x.jpg", "_thumb", "avif")).toBe("uploads/x_thumb.avif");
+        expect(derivativeKey("uploads/x.jpg", "_thumb_sm", "webp")).toBe("uploads/x_thumb_sm.webp");
+        expect(derivativeKey("uploads/x.jpg", "_lg", "avif")).toBe("uploads/x_lg.avif");
+        expect(derivativeKey("a/b/c.jpeg", "_thumb_sm", "avif")).toBe("a/b/c_thumb_sm.avif");
+    });
+    it("thumbKeyFor は _thumb.webp（派生と整合）", () => {
+        expect(thumbKeyFor("uploads/x.jpg")).toBe("uploads/x_thumb.webp");
     });
 });
 

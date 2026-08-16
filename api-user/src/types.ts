@@ -9,6 +9,10 @@ export type Photo = {
     location?: string;
     published?: boolean;
     blurDataURL?: string; // 極小ぼかしプレビュー（data:image/webp;base64,...）
+    thumbAvif?: string;   // 512 AVIF（レスポンシブ/AVIF 派生）
+    thumbSm?: string;     // 256 WebP
+    thumbSmAvif?: string; // 256 AVIF
+    srcAvif?: string;     // 詳細用（≤1600）AVIF
     userId?: string;
     uploadedBy?: string;
     displayName?: string;

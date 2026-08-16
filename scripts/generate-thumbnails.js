@@ -44,6 +44,11 @@ const DRY_RUN = process.env.DRY_RUN === "1";
 const THUMB_MAX_PX = 512;
 const THUMB_QUALITY = 75;
 
+// レスポンシブ/AVIF 派生の設定
+const THUMB_SM_PX = 256;    // モバイル2列用の小サムネ
+const DETAIL_MAX_PX = 1600; // 詳細ページ用の大 AVIF
+const AVIF_QUALITY = 50;    // AVIF は同画質で WebP より小さいので低めでよい
+
 // 動画やアニメGIFはサムネ生成の対象外（クライアント側の挙動と揃える）
 const SKIP_EXTENSIONS = new Set(["mp4", "webm", "mov", "gif"]);
 
@@ -57,15 +62,23 @@ function keyFromSrc(src) {
     }
 }
 
-/** 元キーからサムネイルのキーを作る（例: uploads/x.jpg → uploads/x_thumb.webp） */
-function thumbKeyFor(key) {
+/** 元キーに接尾辞＋拡張子を付けた派生キーを作る（例: uploads/x.jpg,"_thumb","webp" → uploads/x_thumb.webp） */
+function derivativeKey(key, suffix, ext) {
     const dir = key.includes("/") ? key.slice(0, key.lastIndexOf("/") + 1) : "";
     const base = key.slice(dir.length).replace(/\.[^.]+$/, "");
-    return `${dir}${base}_thumb.webp`;
+    return `${dir}${base}${suffix}.${ext}`;
+}
+
+/** 元キーからサムネイルのキーを作る（例: uploads/x.jpg → uploads/x_thumb.webp） */
+function thumbKeyFor(key) {
+    return derivativeKey(key, "_thumb", "webp");
 }
 
 // サムネ以外に補完する表示メタデータのフィールド
 const META_FIELDS = ["dominantColor", "width", "height", "aspectRatio", "blurDataURL"];
+
+// レスポンシブ/AVIF 派生の URL フィールド
+const DERIVATIVE_FIELDS = ["thumbAvif", "thumbSm", "thumbSmAvif", "srcAvif"];
 
 // ぼかしプレビューの元サイズ（長辺px）。極小にして base64 を軽く保つ
 const BLUR_MAX_PX = 20;
@@ -92,9 +105,14 @@ function needsMeta(item) {
     return isProcessableImage(item) && META_FIELDS.some((f) => isBlank(item[f]));
 }
 
-/** この写真に対して何らかの処理（サムネ or メタ補完）が必要か */
+/** レスポンシブ/AVIF 派生（256/AVIF/詳細AVIF）が未生成か */
+function needsDerivatives(item) {
+    return isProcessableImage(item) && DERIVATIVE_FIELDS.some((f) => isBlank(item[f]));
+}
+
+/** この写真に対して何らかの処理（サムネ / メタ / 派生）が必要か */
 function shouldProcess(item) {
-    return needsThumb(item) || needsMeta(item);
+    return needsThumb(item) || needsMeta(item) || needsDerivatives(item);
 }
 
 /** 0-255 のチャンネル値を 2 桁 16 進に */
@@ -137,6 +155,35 @@ async function computeMetaFromBuffer(sharp, buf) {
     return out;
 }
 
+/**
+ * レスポンシブ/AVIF 派生を生成して S3 にアップロードし、URL フィールドを返す。
+ * 512 AVIF / 256 WebP / 256 AVIF / 詳細(≤1600) AVIF。EXIF 回転を反映。
+ */
+async function generateDerivatives({ sharp, s3, PutObjectCommand }, buf, key) {
+    const variants = [
+        { field: "thumbAvif", suffix: "_thumb", ext: "avif", type: "image/avif", px: THUMB_MAX_PX, enc: (p) => p.avif({ quality: AVIF_QUALITY }) },
+        { field: "thumbSm", suffix: "_thumb_sm", ext: "webp", type: "image/webp", px: THUMB_SM_PX, enc: (p) => p.webp({ quality: THUMB_QUALITY }) },
+        { field: "thumbSmAvif", suffix: "_thumb_sm", ext: "avif", type: "image/avif", px: THUMB_SM_PX, enc: (p) => p.avif({ quality: AVIF_QUALITY }) },
+        { field: "srcAvif", suffix: "_lg", ext: "avif", type: "image/avif", px: DETAIL_MAX_PX, enc: (p) => p.avif({ quality: AVIF_QUALITY }) },
+    ];
+    const fields = {};
+    for (const v of variants) {
+        const out = await v.enc(
+            sharp(buf).rotate().resize({ width: v.px, height: v.px, fit: "inside", withoutEnlargement: true })
+        ).toBuffer();
+        const outKey = derivativeKey(key, v.suffix, v.ext);
+        await s3.send(new PutObjectCommand({
+            Bucket: BUCKET,
+            Key: outKey,
+            Body: out,
+            ContentType: v.type,
+            CacheControl: "max-age=31536000",
+        }));
+        fields[v.field] = `${CLOUDFRONT_URL}/${outKey}`;
+    }
+    return fields;
+}
+
 async function main() {
     const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
     const { DynamoDBDocumentClient, ScanCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
@@ -163,7 +210,7 @@ async function main() {
     console.log(`[thumbs] ${items.length} 件中、処理対象 ${targets.length} 件`);
     if (DRY_RUN) {
         for (const t of targets) {
-            const jobs = [needsThumb(t) && "thumb", needsMeta(t) && "meta"].filter(Boolean).join("+");
+            const jobs = [needsThumb(t) && "thumb", needsMeta(t) && "meta", needsDerivatives(t) && "deriv"].filter(Boolean).join("+");
             console.log(`  - ${t.id}  ${keyFromSrc(t.src)}  [${jobs}]`);
         }
         console.log("[thumbs] DRY_RUN=1 のため生成せず終了");
@@ -175,6 +222,7 @@ async function main() {
         const key = keyFromSrc(item.src);
         const doThumb = needsThumb(item);
         const doMeta = needsMeta(item);
+        const doDerivatives = needsDerivatives(item);
         try {
             // 1) 元画像を取得（サムネ・メタどちらにも必要）
             const obj = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
@@ -207,6 +255,11 @@ async function main() {
                 Object.assign(fields, await computeMetaFromBuffer(sharp, buf));
             }
 
+            if (doDerivatives) {
+                // レスポンシブ/AVIF 派生（512 AVIF・256 WebP・256 AVIF・詳細 AVIF）
+                Object.assign(fields, await generateDerivatives({ sharp, s3, PutObjectCommand }, buf, key));
+            }
+
             // 2) DynamoDB へ動的 SET（更新するフィールドだけ書く）
             const names = {}, values = { ":u": new Date().toISOString() };
             const sets = ["updatedAt = :u"];
@@ -226,7 +279,7 @@ async function main() {
             }));
 
             ok++;
-            const jobs = [doThumb && "thumb", doMeta && "meta"].filter(Boolean).join("+");
+            const jobs = [doThumb && "thumb", doMeta && "meta", doDerivatives && "deriv"].filter(Boolean).join("+");
             console.log(`  [${i + 1}/${targets.length}] ✅ ${item.id}  [${jobs}]${thumbInfo}`);
         } catch (err) {
             failed++;
@@ -240,8 +293,8 @@ async function main() {
 }
 
 module.exports = {
-    keyFromSrc, thumbKeyFor, shouldProcess,
-    needsThumb, needsMeta, buildMetaFields, hexFromChannel,
+    keyFromSrc, thumbKeyFor, derivativeKey, shouldProcess,
+    needsThumb, needsMeta, needsDerivatives, buildMetaFields, hexFromChannel,
 };
 
 if (require.main === module) {
