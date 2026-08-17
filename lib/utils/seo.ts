@@ -13,6 +13,11 @@ export const siteConfig = {
         ja: "ja_JP",
         en: "en_US",
     },
+    // 計測（すべて公開情報・ページソースに出る値）。未設定なら何も出さない。
+    gaId: process.env.NEXT_PUBLIC_GA_ID || "",                       // GA4 測定ID（G-XXXXXXX）
+    plausibleDomain: process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || "", // Plausible を使う場合のドメイン（GA未使用時）
+    gscVerification: process.env.NEXT_PUBLIC_GSC_VERIFICATION || "", // Google Search Console のメタタグ確認トークン
+    bingVerification: process.env.NEXT_PUBLIC_BING_VERIFICATION || "", // Bing の msvalidate.01
 };
 
 /**

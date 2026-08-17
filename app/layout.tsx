@@ -10,6 +10,7 @@ import DisableSave from "./components/DisableSave";
 import AssetRecovery from "./components/AssetRecovery";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ServiceWorkerRegister from "./components/ServiceWorkerRegister";
+import Analytics from "./components/Analytics";
 import { AuthProvider } from "./auth/context";
 import { MusicProvider } from "./music/MusicContext";
 import MiniPlayer from "./components/MiniPlayer";
@@ -98,8 +99,9 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    // Google Search Console の検証コードを追加する場合
-    // google: "your-google-verification-code",
+    // Search Console / Bing の確認トークン（siteConfig 経由・未設定なら出力しない）
+    ...(siteConfig.gscVerification ? { google: siteConfig.gscVerification } : {}),
+    ...(siteConfig.bingVerification ? { other: { "msvalidate.01": siteConfig.bingVerification } } : {}),
   },
 };
 
@@ -144,6 +146,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className={`${inter.className} min-h-screen flex flex-col bg-black text-white`}>
+        <Analytics />
         <DisableSave />
         <AssetRecovery />
         <ErrorBoundary>
