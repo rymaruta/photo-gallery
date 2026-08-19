@@ -9,6 +9,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 // .env.local から AWS 認証情報を読み込む
 const envLocalPath = path.resolve(__dirname, "../.env.local");
@@ -47,27 +48,94 @@ const outDir = path.join(root, "out");
  * 1ページずつ並べるより安く、上限にも当たらない）。
  */
 function invalidationPathsFor(keys) {
-    const paths = new Set(["/"]); // ルート（index.html の配信URL）
+    const wildcards = new Set();
+    const exact = new Set();
+
+    /** 実パスを足す（拡張子なしのURLでも配信されるので両方消す） */
+    const addExact = (k) => {
+        if (k === "index.html") {
+            exact.add("/"); // ルートは index.html の配信URL
+            return;
+        }
+        exact.add(`/${k}`);
+        if (k.endsWith(".html")) exact.add(`/${k.slice(0, -".html".length)}`);
+    };
+
+    // 対象を先頭ディレクトリごとにまとめる
+    const byDir = new Map();
     for (const key of keys) {
         const k = key.split(path.sep).join("/");
         if (!(isHtmlOrTxt(k) || NO_CACHE_KEYS.has(k))) continue;
-        // 先頭の名前でまとめる。/users.html・/users.txt・/users/xxx.html を
-        // 「/users*」1本にできるので、パス数（＝課金単位）が数分の1になる。
         const slash = k.indexOf("/");
-        const head = slash === -1 ? k.replace(/\.(html|txt)$/, "") : k.slice(0, slash);
-        if (!head) continue;
-        paths.add(`/${head}*`);
+        if (slash === -1) {
+            addExact(k); // 直下のファイルはそのまま
+            continue;
+        }
+        const dir = k.slice(0, slash);
+        if (!byDir.has(dir)) byDir.set(dir, []);
+        byDir.get(dir).push(k);
     }
-    // 別のワイルドカードに含まれるものは落とす（/user* があれば /users* は不要）
-    const all = [...paths].sort();
-    const out = all.filter((p) => !all.some((q) => q !== p && q.endsWith("*") && p.startsWith(q.slice(0, -1))));
+
+    // ページ数の多いディレクトリだけワイルドカードにする。
+    // ワイルドカードは同時実行数の上限（15）があり、少数のページのために
+    // 1枠使うと、写真ページやタグページの分が入らなくなる。
+    for (const [dir, files] of byDir) {
+        if (files.length > WILDCARD_MIN_FILES) wildcards.add(`/${dir}/*`);
+        else files.forEach(addExact);
+    }
+
+    const out = [...wildcards, ...exact].sort();
+
     // 写真を巻き込んでいないことを必ず確かめる。ここを間違えると、
     // デプロイのたびに全写真がエッジから消えて遅くなる（元の "/*" の状態）。
-    const purgesUploads = out.some((p) => p === "/*" || "/uploads/".startsWith(p.replace(/\*$/, "")) && p !== "/");
-    if (purgesUploads) {
+    if (out.some((p) => p === "/*" || p.startsWith("/uploads"))) {
         throw new Error(`[deploy] 無効化パスが /uploads/ を巻き込みます: ${out.join(" ")}`);
     }
+    // CloudFront は「実行中のワイルドカード無効化」を15個までしか受け付けない。
+    // 超えると無効化そのものが弾かれ、デプロイが最後の最後で失敗する（実際に踏んだ）。
+    //
+    // 全ページが変わるビルド（レイアウト変更など）ではここに当たる。その場合は
+    // 諦めて "/*" にする。写真も一度エッジから消えるが、デプロイを失敗させて
+    // 古いページが残り続けるよりはよい。通常のビルド（写真の追加・編集）は
+    // 変更ファイルが少ないので、ここには来ない。
+    if (wildcards.size > MAX_WILDCARD_PATHS) {
+        console.warn(
+            `[deploy] 変更が広範囲（ワイルドカード ${wildcards.size} 個）のため "/*" で無効化します。` +
+            "写真も一度エッジから消えます。",
+        );
+        return ["/*"];
+    }
     return out;
+}
+
+// CloudFront の制限。実行中のワイルドカード無効化はアカウント全体で15個まで。
+// 直前のデプロイ分がまだ動いていることもあるので、余裕を持って使う。
+const MAX_WILDCARD_PATHS = 10;
+// これ以下のページ数ならワイルドカードを使わず実パスで消す
+const WILDCARD_MIN_FILES = 5;
+
+/**
+ * 今回のビルドで中身が変わったファイルだけを返す。
+ *
+ * 定期ビルド（1日4回）の多くは前回とまったく同じ出力になる。それでも毎回
+ * 無効化していたので、無効化のパス数（＝課金単位）を無駄に使い、
+ * "/*" だった頃は写真まで巻き添えでエッジから消していた。
+ *
+ * S3 の ETag は単一パートのアップロードなら中身の MD5。ここで上げている
+ * ファイルはどれも小さく単一パートなので、そのまま比較できる。
+ */
+function changedKeys(localFiles, remoteObjects) {
+    const remote = new Map(remoteObjects.map((o) => [o.key, (o.etag ?? "").replace(/"/g, "")]));
+    const changed = [];
+    for (const file of localFiles) {
+        const key = file.split(path.sep).join("/");
+        // キャッシュさせていないものだけが無効化の対象
+        // （/_next/static は内容ハッシュ付きなので名前が変われば別物になる）
+        if (!(isHtmlOrTxt(key) || NO_CACHE_KEYS.has(key))) continue;
+        const md5 = crypto.createHash("md5").update(fs.readFileSync(path.join(outDir, file))).digest("hex");
+        if (remote.get(key) !== md5) changed.push(file);
+    }
+    return changed;
 }
 
 if (require.main === module) {
@@ -152,7 +220,9 @@ async function listS3Objects() {
             ContinuationToken: continuationToken,
         }));
         for (const obj of res.Contents ?? []) {
-            if (obj.Key) objects.push({ key: obj.Key, lastModified: obj.LastModified });
+            // ETag は単一パートのアップロードなら中身の MD5。
+            // 「今回のビルドで実際に変わったファイル」を見分けるのに使う。
+            if (obj.Key) objects.push({ key: obj.Key, lastModified: obj.LastModified, etag: obj.ETag });
         }
         continuationToken = res.NextContinuationToken;
     } while (continuationToken);
@@ -299,6 +369,10 @@ async function main() {
     const assets = allFiles.filter(f => !isHtmlOrTxt(f));
     const htmlFiles = allFiles.filter(f => isHtmlOrTxt(f));
 
+    // アップロード前の状態を控えておく。「実際に中身が変わったファイル」だけを
+    // 無効化するために使う（定期ビルドの多くは出力が前回と同じ）。
+    const beforeUpload = await listS3Objects();
+
     // Step 1: Upload new hashed assets first (JS/CSS/images), no --delete yet.
     //         Old assets stay so in-flight requests to current HTML still work.
     //         同時実行を絞って S3 503(SlowDown) を避ける（→ CloudFront に 5xx がキャッシュされ
@@ -320,17 +394,22 @@ async function main() {
     // CloudFront invalidation
     const cfDistId = process.env.CLOUDFRONT_DISTRIBUTION_ID;
     if (cfDistId) {
-        const invalidationPaths = invalidationPathsFor(allFiles);
-        console.log(`[deploy] Invalidating CloudFront distribution ${cfDistId}...`);
-        await cf.send(new CreateInvalidationCommand({
-            DistributionId: cfDistId,
-            InvalidationBatch: {
-                CallerReference: String(Date.now()),
-                Paths: { Quantity: invalidationPaths.length, Items: invalidationPaths },
-            },
-        }));
-        console.log(`[deploy] CloudFront invalidation created (${invalidationPaths.length} paths): ${invalidationPaths.join(" ")}`);
-        await sleep(5000); // 反映の初期待ち（この後の検証は参考ログのみ）
+        const changed = changedKeys(allFiles, beforeUpload);
+        const invalidationPaths = invalidationPathsFor(changed);
+        if (invalidationPaths.length === 0) {
+            console.log("[deploy] 中身の変わったページはありません。CloudFront の無効化はしません。");
+        } else {
+            console.log(`[deploy] ${changed.length} file(s) changed. Invalidating CloudFront distribution ${cfDistId}...`);
+            await cf.send(new CreateInvalidationCommand({
+                DistributionId: cfDistId,
+                InvalidationBatch: {
+                    CallerReference: String(Date.now()),
+                    Paths: { Quantity: invalidationPaths.length, Items: invalidationPaths },
+                },
+            }));
+            console.log(`[deploy] CloudFront invalidation created (${invalidationPaths.length} paths): ${invalidationPaths.join(" ")}`);
+            await sleep(5000); // 反映の初期待ち（この後の検証は参考ログのみ）
+        }
     } else {
         console.log("[deploy] CLOUDFRONT_DISTRIBUTION_ID not set — skipping invalidation.");
     }
@@ -344,7 +423,7 @@ async function main() {
 }
 
 // テストから判定ロジックを検証できるようにエクスポート
-module.exports = { classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor };
+module.exports = { classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys };
 
 if (require.main === module) main().catch(err => {
     console.error("[deploy] ERROR:", err.message ?? err);

@@ -85,10 +85,18 @@ const { invalidationPathsFor } = require("../deploy-static-site.js");
 // 配信していて max-age=31536000 を付けているのに、push と1日4回の定期ビルドの
 // たびに全写真をエッジから追い出しており、長いキャッシュが無意味になっていた。
 describe("invalidationPathsFor", () => {
-    it("写真（uploads/）は絶対に含めない", () => {
+    it("変更が無ければ何も無効化しない（定期ビルドの大半はこれ）", () => {
+        expect(invalidationPathsFor([])).toEqual([]);
+    });
+
+    it("写真1枚の追加なら、その分だけを消す（写真本体は消さない）", () => {
         const paths = invalidationPathsFor([
-            "index.html", "photo/abc.html", "tag/winter.html", "sitemap.xml",
+            "index.html", "photo/new.html", "sitemap.xml", "app/data/photos.json",
         ]);
+        expect(paths).toContain("/");
+        expect(paths).toContain("/photo/new.html");
+        expect(paths).toContain("/photo/new");       // 拡張子なしのURLでも配信される
+        expect(paths).toContain("/sitemap.xml");
         expect(paths).not.toContain("/*");
         expect(paths.some((p: string) => p.startsWith("/uploads"))).toBe(false);
     });
@@ -96,29 +104,60 @@ describe("invalidationPathsFor", () => {
     it("ハッシュ付きアセットは無効化しない（内容が変われば名前も変わる）", () => {
         const paths = invalidationPathsFor(["_next/static/chunks/main-abc123.js", "index.html"]);
         expect(paths.some((p: string) => p.startsWith("/_next"))).toBe(false);
+        expect(paths).toEqual(["/"]);
     });
 
-    it("HTML とキャッシュさせないファイルは無効化する", () => {
-        const paths = invalidationPathsFor([
-            "index.html", "photo/abc.html", "sitemap.xml", "sw.js", "robots.txt",
-        ]);
-        const covers = (url: string) =>
-            paths.some((p: string) => p === url || (p.endsWith("*") && url.startsWith(p.slice(0, -1))));
-        expect(covers("/")).toBe(true);
-        expect(covers("/photo/abc.html")).toBe(true);
-        expect(covers("/sitemap.xml")).toBe(true);
-        expect(covers("/sw.js")).toBe(true);
-        expect(covers("/robots.txt")).toBe(true);
+    it("同じディレクトリのページが多ければワイルドカードにまとめる", () => {
+        const many = Array.from({ length: 20 }, (_, i) => `photo/p${i}.html`);
+        expect(invalidationPathsFor(many)).toEqual(["/photo/*"]);
     });
 
-    it("先頭の名前でまとめる（パス数＝課金単位を抑える）", () => {
-        const paths = invalidationPathsFor([
-            "users.html", "users.txt", "users/a.html", "users/b.html", "users/search.html",
-        ]);
-        expect(paths).toEqual(["/", "/users*"]);
+    it("ワイルドカードが多くなりすぎたら /* に落とす（デプロイを失敗させない）", () => {
+        // CloudFront は実行中のワイルドカード無効化を15個までしか受け付けない
+        const dirs = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"];
+        const files = dirs.flatMap((d) => Array.from({ length: 20 }, (_, i) => `${d}/p${i}.html`));
+        expect(invalidationPathsFor(files)).toEqual(["/*"]);
     });
 
     it("uploads/ を巻き込む入力は例外にする（安全側に倒す）", () => {
         expect(() => invalidationPathsFor(["uploads/a.html"])).toThrow(/uploads/);
+    });
+});
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const nodeFs = require("fs");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const nodePath = require("path");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const nodeCrypto = require("crypto");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { changedKeys } = require("../deploy-static-site.js");
+
+// 定期ビルド（1日4回）の多くは前回とまったく同じ出力になる。
+// それでも毎回無効化していたので、無効化のパス数（＝課金単位）を無駄に使い、
+// "/*" だった頃は写真まで巻き添えでエッジから消していた。
+describe("changedKeys", () => {
+    const md5 = (file: string) =>
+        nodeCrypto.createHash("md5").update(nodeFs.readFileSync(nodePath.join("out", file))).digest("hex");
+
+    // 実ビルド成果物から2つだけ拾う（無ければスキップ）
+    const sample = nodeFs.existsSync("out/index.html") ? ["index.html"] : [];
+
+    it.skipIf(sample.length === 0)("中身が同じなら変更なし", () => {
+        const remote = sample.map((f) => ({ key: f, etag: `"${md5(f)}"` }));
+        expect(changedKeys(sample, remote)).toEqual([]);
+    });
+
+    it.skipIf(sample.length === 0)("ETag が違えば変更あり", () => {
+        const remote = sample.map((f) => ({ key: f, etag: '"deadbeef"' }));
+        expect(changedKeys(sample, remote)).toEqual(sample);
+    });
+
+    it.skipIf(sample.length === 0)("リモートに無ければ変更あり（新規ページ）", () => {
+        expect(changedKeys(sample, [])).toEqual(sample);
+    });
+
+    it("ハッシュ付きアセットは比較対象にしない", () => {
+        expect(changedKeys(["_next/static/chunks/main-abc.js"], [])).toEqual([]);
     });
 });
