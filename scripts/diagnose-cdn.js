@@ -107,8 +107,12 @@ async function inspectDistribution() {
         console.log(`  [${name}] compress=${b.Compress} cachePolicy=${b.CachePolicyId ?? "(legacy)"} minTTL=${b.MinTTL ?? "-"} defaultTTL=${b.DefaultTTL ?? "-"} maxTTL=${b.MaxTTL ?? "-"}`);
         const fns = b.FunctionAssociations?.Items ?? [];
         const lambdas = b.LambdaFunctionAssociations?.Items ?? [];
-        if (fns.length) console.log(`  [${name}] CloudFront Functions: ${fns.map((f) => f.EventType).join(", ")}`);
-        if (lambdas.length) console.log(`  [${name}] Lambda@Edge: ${lambdas.map((f) => f.EventType).join(", ")}`);
+        if (fns.length) console.log(`  [${name}] CloudFront Functions: ${fns.map((f) => `${f.EventType}=${f.FunctionARN}`).join(", ")}`);
+        // Lambda@Edge は全リクエスト（CSS/JSも含む）を通るため、失敗すると 5xx になる。
+        // どの関数が挟まっているかを ARN まで出す。
+        if (lambdas.length) {
+            for (const f of lambdas) console.log(`  [${name}] Lambda@Edge ${f.EventType}: ${f.LambdaFunctionARN}`);
+        }
     };
     console.log("キャッシュ動作:");
     describe(cfg.DefaultCacheBehavior, "default");
@@ -193,10 +197,78 @@ async function analyzeLogs(cfg) {
     }
 }
 
+/** 4. WAF のルール（レート制限があるとアセットの並列取得で 403 になりうる） */
+async function inspectWaf(cfg) {
+    line("4. WAF のルール");
+    if (!cfg?.WebACLId) { console.log("WAF は未アタッチ"); return; }
+    let wafv2;
+    try {
+        wafv2 = require("@aws-sdk/client-wafv2");
+    } catch {
+        console.log("@aws-sdk/client-wafv2 が無いためスキップ（ワークフローで --no-save インストールされる想定）");
+        return;
+    }
+    // CloudFront の WebACL は必ず us-east-1 / スコープ CLOUDFRONT
+    const client = new wafv2.WAFV2Client({ region: "us-east-1" });
+    const m = /webacl\/([^/]+)\/([^/]+)$/.exec(cfg.WebACLId);
+    if (!m) { console.log(`ARN を解釈できず: ${cfg.WebACLId}`); return; }
+    try {
+        const res = await client.send(new wafv2.GetWebACLCommand({ Name: m[1], Id: m[2], Scope: "CLOUDFRONT" }));
+        const acl = res.WebACL;
+        console.log(`名前: ${acl.Name} / 既定アクション: ${JSON.stringify(acl.DefaultAction)}`);
+        for (const r of acl.Rules ?? []) {
+            const action = r.Action ? Object.keys(r.Action)[0] : (r.OverrideAction ? `managed(${Object.keys(r.OverrideAction)[0]})` : "?");
+            let detail = "";
+            if (r.Statement?.RateBasedStatement) {
+                const rb = r.Statement.RateBasedStatement;
+                detail = ` ← レート制限 ${rb.Limit} req / ${rb.EvaluationWindowSec ?? 300}秒 (${rb.AggregateKeyType})`;
+            }
+            if (r.Statement?.ManagedRuleGroupStatement) {
+                detail = ` ← マネージドルール ${r.Statement.ManagedRuleGroupStatement.Name}`;
+            }
+            console.log(`  [${r.Priority}] ${r.Name}: ${action}${detail}`);
+            if (r.Statement?.RateBasedStatement && action === "block") {
+                console.log("      ⚠️  1ページで十数個のアセットを並列取得するため、制限が低いと実ユーザーが 403 を踏みうる");
+            }
+        }
+    } catch (e) {
+        console.log(`WebACL を取得できず: ${e.name} — ${e.message}`);
+        console.log("（デプロイ用 IAM に wafv2:GetWebACL が無い可能性）");
+    }
+}
+
+/** 5. 実ブラウザに近い並列取得で 403 を踏まないか試す */
+async function probeBurst() {
+    line("5. 並列取得（実ページと同じ数のアセットを一度に取る）");
+    const fs = require("fs");
+    const path = require("path");
+    let keys = [];
+    try {
+        const idx = fs.readFileSync(path.resolve(__dirname, "../out/index.html"), "utf8");
+        keys = Array.from(idx.matchAll(/\/_next\/static\/[^"']+\.(?:js|css)/g)).map((m) => m[0]);
+        keys = Array.from(new Set(keys));
+    } catch { /* out/ が無ければスキップ */ }
+    if (keys.length === 0) { console.log("out/index.html が無いためスキップ"); return; }
+
+    console.log(`${keys.length} 本を同時取得します`);
+    const results = await Promise.all(keys.map(async (k) => {
+        try {
+            const res = await fetch(`${SITE_URL}${k}`);
+            return { k, status: res.status, ct: res.headers.get("content-type") || "-" };
+        } catch (e) { return { k, status: 0, ct: e.message.split("\n")[0] }; }
+    }));
+    const bad = results.filter((r) => r.status !== 200);
+    console.log(`200: ${results.length - bad.length} / ${results.length}`);
+    for (const b of bad) console.log(`  ⚠️  ${b.status} ${b.ct} ${b.k}`);
+    if (bad.length === 0) console.log("並列取得でも全て 200（この経路では再現せず）");
+}
+
 (async () => {
     console.log(`診断対象: ${SITE_URL} (distribution ${DIST_ID})`);
     await probeDelivery();
     const cfg = await inspectDistribution();
+    await inspectWaf(cfg);
+    await probeBurst();
     await analyzeLogs(cfg);
     console.log("\n診断完了（設定は一切変更していません）");
 })().catch((e) => {

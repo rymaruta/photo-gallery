@@ -58,6 +58,8 @@ provider:
             - dynamodb:GetItem
             - dynamodb:PutItem
             - dynamodb:DeleteItem
+            # ユーザー検索（表示名の部分一致）。ユーザー数が増えたら GSI に置き換える
+            - dynamodb:Scan
           Resource:
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-users
 
@@ -131,6 +133,13 @@ functions:
     events:
       - httpApi:
           path: /profile/{userId}
+          method: GET
+
+  searchUsers:
+    handler: src/userSearch.searchUsers
+    events:
+      - httpApi:
+          path: /users/search
           method: GET
 
   musicSearch:

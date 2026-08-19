@@ -24,6 +24,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # WAF のルール確認用（通常のビルドには不要なのでリポジトリには入れない）
+      - name: Install WAF client (diagnostic only)
+        run: npm install --no-save @aws-sdk/client-wafv2
+
+      # 実ページと同じアセット一覧を得るためにビルドする（並列取得の再現に使う）
+      - name: Build (for asset list)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: https://ionr4ik01e.execute-api.ap-northeast-1.amazonaws.com
+          NEXT_PUBLIC_USER_API_BASE_URL: https://gu7kxwdc5l.execute-api.ap-northeast-1.amazonaws.com
+          NEXT_PUBLIC_COGNITO_USER_POOL_ID: ap-northeast-1_ZbuhDQsWz
+          NEXT_PUBLIC_COGNITO_CLIENT_ID: 21cs4cd8dkttmg3snloj72u8mu
+          NEXT_PUBLIC_CLOUDFRONT_URL: https://d1s3dwwzgxf5ni.cloudfront.net
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
