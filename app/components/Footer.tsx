@@ -14,6 +14,7 @@ export default function Footer() {
     const links = [
         { href: ROUTES.HOME, label: navLabels.works || (locale === "en" ? "Works" : "作品") },
         { href: ROUTES.FAVORITES, label: navLabels.favorites || (locale === "en" ? "Liked Photos" : "いいねした写真") },
+        { href: ROUTES.PRIVACY, label: locale === "en" ? "Privacy" : "プライバシーポリシー" },
     ];
 
     return (

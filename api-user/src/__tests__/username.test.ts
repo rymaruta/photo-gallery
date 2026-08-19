@@ -42,9 +42,14 @@ describe("normalizeUsername", () => {
         }
     });
 
-    it("admin は予約しない（管理者本人が使う。先に取得すれば一意性で他人は取れない）", () => {
-        expect(normalizeUsername("admin").username).toBe("admin");
-        expect(normalizeUsername("@Admin").username).toBe("admin");
+    it("admin は誰も使えない（予約語）", () => {
+        expect(normalizeUsername("admin").error).toBeTruthy();
+        expect(normalizeUsername("@Admin").error).toBeTruthy();
+    });
+
+    it("通常のユーザー名は通る", () => {
+        expect(normalizeUsername("ryuhei").username).toBe("ryuhei");
+        expect(normalizeUsername("@Ryuhei_01").username).toBe("ryuhei_01");
     });
 
     it("文字列以外はエラー", () => {
@@ -71,7 +76,7 @@ describe("USERNAME_RE / RESERVED_USERNAMES", () => {
         }
     });
 
-    it("admin は予約されていない（本人用）", () => {
-        expect(RESERVED_USERNAMES.has("admin")).toBe(false);
+    it("admin も予約されている", () => {
+        expect(RESERVED_USERNAMES.has("admin")).toBe(true);
     });
 });

@@ -82,6 +82,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             changeFrequency: "daily",
             priority: 1.0,
         },
+        {
+            url: `${baseUrl}/privacy`,
+            lastModified: now,
+            changeFrequency: "yearly",
+            priority: 0.2,
+        },
         ...photoUrls,
         ...userUrls,
         ...collectionUrls,

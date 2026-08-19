@@ -21,6 +21,7 @@ const BUILT_USER_IDS = new Set(
 export const ROUTES = {
     HOME: "/",
     FAVORITES: "/favorites",
+    PRIVACY: "/privacy",
     ADMIN: "/admin",
     LOGIN: "/login",
     SIGNUP: "/signup",

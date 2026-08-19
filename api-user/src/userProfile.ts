@@ -55,13 +55,7 @@ export type UserProfile = {
 // サイト内ユーザー名（@ハンドル）の規則。小文字英数字とアンダースコアのみ。
 export const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 
-/**
- * 他のユーザーに取らせないユーザー名。
- *
- * ※ "admin" はこのリストに**入れていない**。サイト管理者本人が使うため。
- *    ユーザー名は全体で一意なので、本人が先に取得すれば他の人は取れなくなる
- *    （予約アイテムへの条件付き書き込みで 409 になる）。
- */
+/** 誰にも取らせないユーザー名（ルート衝突・なりすまし・紛らわしい語）。 */
 export const RESERVED_USERNAMES = new Set([
     // 1) サイトのルート名と衝突する語（将来URLに使う可能性も考えて確保）
     "user", "users", "photo", "photos", "tag", "tags", "location", "locations",
@@ -71,7 +65,7 @@ export const RESERVED_USERNAMES = new Set([
     "sitemap", "robots", "assets", "static", "public", "new", "me", "home",
 
     // 2) 運営・公式を騙れてしまう語（なりすまし防止）
-    "administrator", "root", "system", "moderator", "mod", "staff", "official",
+    "admin", "administrator", "root", "system", "moderator", "mod", "staff", "official",
     "support", "help", "contact", "info", "team", "owner", "master",
     "journey", "journeyphoto", "journey_photo", "journeyphotocom",
 
