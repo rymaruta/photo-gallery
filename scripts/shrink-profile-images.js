@@ -12,9 +12,15 @@
  *
  * 既定はドライラン（何バイト減るかだけ出す）。--apply で実際に置き換える。
  * 冪等: 既に十分小さいものはスキップするので、何度実行しても問題ない。
+ *
+ * 縮小とは別に、Cache-Control の修復も行う。アイコンは profiles/{userId} という
+ * ハッシュの付かない固定キーなので no-store でなければならない（アップロード側の
+ * api-user/src/profile.ts もそう署名している）。過去にこのスクリプトが
+ * max-age=86400 を書いてしまった分があり、縮小済みで小さいものは上の
+ * スキップ条件に当たって二度と直らないため、中身に触らず属性だけ差し替える。
  */
 
-const { S3Client, ListObjectsV2Command, GetObjectCommand, PutObjectCommand } = require("@aws-sdk/client-s3");
+const { S3Client, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, HeadObjectCommand, CopyObjectCommand } = require("@aws-sdk/client-s3");
 const { CloudFrontClient, CreateInvalidationCommand } = require("@aws-sdk/client-cloudfront");
 const sharp = require("sharp");
 
@@ -33,6 +39,9 @@ const cf = new CloudFrontClient({ region: REGION });
 const DIST_ID = process.env.CLOUDFRONT_DISTRIBUTION_ID || "";
 
 const fmtKB = (n) => `${Math.round(n / 1024)}KB`;
+
+// アイコン・カバーに付けるべき Cache-Control（固定キーなのでキャッシュさせない）
+const WANT_CACHE_CONTROL = "no-store";
 
 async function listProfileObjects() {
     const out = [];
@@ -110,10 +119,47 @@ async function listProfileObjects() {
     }
     if (!APPLY && touched > 0) console.log("ドライランのため書き換えていません。");
 
+    // Cache-Control の修復。縮小の対象外（既に小さい）でも、属性が違えば直す。
+    // 中身は触らないので、再エンコードによる劣化は起きない。
+    let fixed = 0;
+    console.log("");
+    for (const obj of objects) {
+        let head;
+        try {
+            head = await s3.send(new HeadObjectCommand({ Bucket: BUCKET, Key: obj.key }));
+        } catch (e) {
+            failed++;
+            console.log(`  ${obj.key}: Cache-Control の確認に失敗 ${e.name}`);
+            continue;
+        }
+        if ((head.CacheControl ?? "") === WANT_CACHE_CONTROL) continue;
+
+        console.log(`  ${obj.key}: Cache-Control "${head.CacheControl ?? "(未設定)"}" → "${WANT_CACHE_CONTROL}"`);
+        fixed++;
+        if (!APPLY) continue;
+        try {
+            await s3.send(new CopyObjectCommand({
+                Bucket: BUCKET,
+                Key: obj.key,
+                // "/" は区切りとして残し、それ以外の記号だけ escape する
+                CopySource: `${BUCKET}/${obj.key.split("/").map(encodeURIComponent).join("/")}`,
+                MetadataDirective: "REPLACE",
+                ContentType: head.ContentType ?? "image/webp",
+                CacheControl: WANT_CACHE_CONTROL,
+            }));
+        } catch (e) {
+            failed++;
+            console.log(`  ${obj.key}: Cache-Control の修復に失敗 ${e.name} — ${e.message.split("\n")[0]}`);
+        }
+    }
+    console.log(fixed > 0
+        ? `Cache-Control の修復: ${fixed}件${APPLY ? "" : "（ドライランのため未適用）"}`
+        : "Cache-Control はすべて no-store（修復不要）");
+
     // 書き換えたオブジェクトをエッジから追い出す。
     // アイコンは profiles/{userId} という固定キーなので、無効化しないと
     // 既にキャッシュされている古い画像が配信され続ける。
-    if (APPLY && touched > 0 && DIST_ID) {
+    if (APPLY && (touched > 0 || fixed > 0) && DIST_ID) {
         await cf.send(new CreateInvalidationCommand({
             DistributionId: DIST_ID,
             InvalidationBatch: {
