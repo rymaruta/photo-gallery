@@ -12,6 +12,7 @@ on:
           - shrink-profiles   # 既存のプロフィール画像を縮小
           - enable-cdn-logs   # CloudFront のアクセスログを有効化
           - who-liked         # 自分の写真にいいねした人を特定
+          - image-perf        # 写真表示の速さに効く材料が揃っているか測る
         required: true
       apply:
         description: "true で実際に適用（false は内容の確認のみ）"
@@ -56,3 +57,9 @@ jobs:
       - name: 自分の写真にいいねした人を特定
         if: inputs.task == 'who-liked'
         run: node scripts/who-liked.js
+
+      # 読み取り専用。apply の指定は不要
+      - name: 写真表示の速さを測る
+        if: inputs.task == 'image-perf'
+        run: node scripts/diagnose-image-perf.js
+        timeout-minutes: 10
