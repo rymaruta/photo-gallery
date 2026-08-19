@@ -491,7 +491,7 @@ export default function ProfileEditPage() {
                                 value={username}
                                 onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
                                 maxLength={20}
-                                placeholder="ryuhei_photo"
+                                placeholder="travel_photo"
                                 className={inputClass}
                                 autoCapitalize="none"
                                 autoCorrect="off"
