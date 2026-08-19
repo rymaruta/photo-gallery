@@ -1,0 +1,44 @@
+name: Fix CDN static behavior
+
+# 手動実行のみ。/_next/static/* から Lambda@Edge を外し、
+# 初回アクセスで CSS/JS が 503 になる問題を根本から止める。
+# 既定はドライラン。apply を true にしたときだけ CloudFront を変更する。
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "true で実際に適用（false は変更内容の確認のみ）"
+        type: boolean
+        default: false
+
+jobs:
+  fix:
+    name: Remove Lambda@Edge from /_next/static/*
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+
+      - name: Apply
+        run: node scripts/fix-cdn-static-behavior.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 10
+        env:
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
