@@ -23,6 +23,9 @@ const STORY_DURATION_CHOICES = [3, 5, 7, 10, 15];
 // iTunes プレビューの長さ。「好きな部分」の開始位置はこの範囲で選ぶ
 const SONG_PREVIEW_SEC = 30;
 
+// 0:07 形式（プレビューは30秒なので分は常に0）
+const fmtSec = (s: number) => `0:${String(Math.floor(s)).padStart(2, "0")}`;
+
 const ALLOWED_VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
 const MAX_VIDEO_SECONDS = 60;
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
@@ -80,21 +83,52 @@ export default function StoriesBar() {
     // 試聴用オーディオ（検索結果も選択中の曲も、常に1つだけ鳴らす）
     const previewAudioRef = useRef<HTMLAudioElement | null>(null);
     const [previewingId, setPreviewingId] = useState<string | null>(null);
+    // 再生位置（秒）。選んだ範囲のどこを鳴らしているかを見せる
+    const [previewTime, setPreviewTime] = useState(0);
+    // 繰り返す範囲。timeupdate から最新値を読むため ref に持つ
+    const loopRangeRef = useRef<{ start: number; end: number } | null>(null);
 
     const stopPreview = useCallback(() => {
         previewAudioRef.current?.pause();
+        loopRangeRef.current = null;
         setPreviewingId(null);
     }, []);
 
-    const playPreview = useCallback((song: SongResult, startSec = 0) => {
+    /**
+     * 曲を試聴する。loopSec を渡すと start〜start+loopSec だけを繰り返す
+     * （インスタと同じで、ストーリーに実際に乗る範囲がそのまま聴ける）。
+     */
+    const playPreview = useCallback((song: SongResult, startSec = 0, loopSec?: number) => {
         let a = previewAudioRef.current;
         if (!a) {
             a = new Audio();
-            a.onended = () => setPreviewingId(null);
+            a.onended = () => {
+                const range = loopRangeRef.current;
+                const el = previewAudioRef.current;
+                if (range && el) {
+                    try { el.currentTime = range.start; } catch { /* ignore */ }
+                    void el.play().catch(() => setPreviewingId(null));
+                    return;
+                }
+                setPreviewingId(null);
+            };
+            a.ontimeupdate = () => {
+                const el = previewAudioRef.current;
+                if (!el) return;
+                setPreviewTime(el.currentTime);
+                const range = loopRangeRef.current;
+                if (range && el.currentTime >= range.end) {
+                    try { el.currentTime = range.start; } catch { /* ignore */ }
+                }
+            };
             previewAudioRef.current = a;
         }
+        loopRangeRef.current = loopSec
+            ? { start: startSec, end: Math.min(SONG_PREVIEW_SEC, startSec + loopSec) }
+            : null;
         if (a.src !== song.previewUrl) a.src = song.previewUrl;
         try { a.currentTime = startSec; } catch { /* seek 未対応は無視 */ }
+        setPreviewTime(startSec);
         void a.play()
             .then(() => setPreviewingId(song.id))
             .catch(() => setPreviewingId(null)); // 自動再生ブロック等
@@ -102,6 +136,17 @@ export default function StoriesBar() {
 
     // 画面を離れるときに音を止める
     useEffect(() => () => { previewAudioRef.current?.pause(); }, []);
+
+    // 曲を流す長さ＝ストーリーの表示時間（動画は長さが可変なのでプレビュー全体を使う）
+    const songWindowSec = draft?.mediaType === "video" ? SONG_PREVIEW_SEC : durationSec;
+    const maxSongStart = Math.max(0, SONG_PREVIEW_SEC - songWindowSec);
+
+    // 再生中に範囲や長さを変えたら、繰り返す区間も追従させる
+    useEffect(() => {
+        if (draftSong && previewingId === draftSong.id) {
+            loopRangeRef.current = { start: songStart, end: Math.min(SONG_PREVIEW_SEC, songStart + songWindowSec) };
+        }
+    }, [songStart, songWindowSec, draftSong, previewingId]);
 
     const searchDraftSongs = async () => {
         const q = songQuery.trim();
@@ -422,7 +467,7 @@ export default function StoriesBar() {
                                         <p className="text-[11px] text-white/50 truncate">{draftSong.artist}</p>
                                     </div>
                                     <button
-                                        onClick={() => previewingId === draftSong.id ? stopPreview() : playPreview(draftSong, songStart)}
+                                        onClick={() => previewingId === draftSong.id ? stopPreview() : playPreview(draftSong, songStart, songWindowSec)}
                                         disabled={posting}
                                         className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center active:scale-90 transition flex-shrink-0"
                                         aria-label={previewingId === draftSong.id ? (locale === "en" ? "Pause" : "停止") : (locale === "en" ? "Play" : "再生")}
@@ -436,35 +481,59 @@ export default function StoriesBar() {
                                     </button>
                                 </div>
 
-                                {/* 好きな部分（30秒プレビュー内の開始位置）*/}
+                                {/* 好きな部分。ストーリーに乗る範囲を白枠で示し、その中だけを
+                                    繰り返し再生する（インスタと同じ考え方）。秒数を頭で考えなくていい */}
                                 <div>
-                                    <div className="flex items-center justify-between mb-1">
+                                    <div className="flex items-center justify-between mb-1.5">
                                         <span className="text-[11px] text-white/60">
-                                            {locale === "en" ? "Start from" : "好きな部分から"}
+                                            {locale === "en" ? "Drag to pick the part" : "ドラッグで好きな部分を選ぶ"}
                                         </span>
                                         <span className="text-[11px] text-white/80 tabular-nums">
-                                            {`0:${String(songStart).padStart(2, "0")}`}
+                                            {fmtSec(songStart)} – {fmtSec(Math.min(SONG_PREVIEW_SEC, songStart + songWindowSec))}
                                         </span>
                                     </div>
-                                    <input
-                                        type="range"
-                                        min={0}
-                                        max={SONG_PREVIEW_SEC - 1}
-                                        step={1}
-                                        value={songStart}
-                                        disabled={posting}
-                                        onChange={(e) => {
-                                            const v = Number(e.target.value);
-                                            setSongStart(v);
-                                            // ドラッグ中も音を追従させる（どこから始まるか耳で確認できる）
-                                            const a = previewAudioRef.current;
-                                            if (a && previewingId === draftSong.id) {
-                                                try { a.currentTime = v; } catch { /* ignore */ }
-                                            }
-                                        }}
-                                        className="w-full accent-white h-1.5"
-                                        aria-label={locale === "en" ? "Song start position" : "曲の開始位置"}
-                                    />
+                                    <div className="relative h-10 rounded-lg bg-white/10 overflow-hidden">
+                                        {/* 選ばれている範囲 */}
+                                        <div
+                                            className="absolute inset-y-0 bg-white/25 ring-2 ring-white/70 rounded-lg pointer-events-none transition-[left] duration-75"
+                                            style={{
+                                                left: `${(songStart / SONG_PREVIEW_SEC) * 100}%`,
+                                                width: `${(songWindowSec / SONG_PREVIEW_SEC) * 100}%`,
+                                            }}
+                                        />
+                                        {/* 再生位置 */}
+                                        {previewingId === draftSong.id && (
+                                            <div
+                                                className="absolute inset-y-0 w-[2px] bg-white pointer-events-none"
+                                                style={{ left: `${(previewTime / SONG_PREVIEW_SEC) * 100}%` }}
+                                            />
+                                        )}
+                                        <input
+                                            type="range"
+                                            min={0}
+                                            max={maxSongStart}
+                                            step={1}
+                                            value={Math.min(songStart, maxSongStart)}
+                                            disabled={posting}
+                                            onChange={(e) => {
+                                                const v = Number(e.target.value);
+                                                setSongStart(v);
+                                                // 再生中でもドラッグでそのまま頭出しする（止めない）
+                                                const a = previewAudioRef.current;
+                                                if (a && previewingId === draftSong.id) {
+                                                    try { a.currentTime = v; } catch { /* ignore */ }
+                                                    setPreviewTime(v);
+                                                }
+                                            }}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                            aria-label={locale === "en" ? "Song start position" : "曲の開始位置"}
+                                        />
+                                    </div>
+                                    <p className="mt-1.5 text-[10px] text-white/40">
+                                        {locale === "en"
+                                            ? `Plays ${songWindowSec}s from here, matching the story length.`
+                                            : `ここから${songWindowSec}秒（ストーリーの表示時間ぶん）が流れます`}
+                                    </p>
                                 </div>
                             </div>
                         ) : songPickerOpen ? (
@@ -547,7 +616,11 @@ export default function StoriesBar() {
                                     {STORY_DURATION_CHOICES.map((s) => (
                                         <button
                                             key={s}
-                                            onClick={() => setDurationSec(s)}
+                                            onClick={() => {
+                                                setDurationSec(s);
+                                                // 表示時間を伸ばしたら、曲の範囲が30秒を超えないように詰める
+                                                setSongStart((v) => Math.min(v, Math.max(0, SONG_PREVIEW_SEC - s)));
+                                            }}
                                             disabled={posting}
                                             aria-pressed={durationSec === s}
                                             className={`px-3 py-1.5 rounded-full text-xs transition active:scale-95 ${durationSec === s

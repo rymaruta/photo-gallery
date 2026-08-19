@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon, UserCircleIcon, CameraIcon, MusicalNoteIcon, MagnifyingGlassIcon, XMarkIcon, ChevronDownIcon, ChevronUpIcon, TrophyIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, UserCircleIcon, CameraIcon, MusicalNoteIcon, MagnifyingGlassIcon, XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
 import { useAuth } from "../../auth/context";
@@ -36,7 +36,6 @@ type UserProfile = {
     songPreviewUrl?: string;
     songTrackUrl?: string;
     songs?: SongEntry[];
-    ranking?: { title?: string; items: string[] };
     tripTitles?: Record<string, string>;
     tripCovers?: Record<string, string>;
     tripSongs?: Record<string, SongEntry>;
@@ -60,6 +59,9 @@ function secToMMSS(s?: number): string {
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
+// テーマカラーの見本。ここに無い色はパレット（input type="color"）から選べる
+const THEME_COLOR_PRESETS = ["#38bdf8", "#34d399", "#f472b6", "#a78bfa", "#fb7185", "#fbbf24", "#f97316", "#22d3ee"];
+
 export default function ProfileEditPage() {
     const { isAuthenticated, loading, deleteAccount } = useAuth();
     const { locale } = useLocale();
@@ -80,13 +82,12 @@ export default function ProfileEditPage() {
     const [displayName, setDisplayName] = useState("");
     const [bio, setBio] = useState("");
     const [themeColor, setThemeColor] = useState("");
+    // 見本に無い色＝パレットで選んだ色（右端の丸を選択中として見せる）
+    const isCustomTheme = !!themeColor && !THEME_COLOR_PRESETS.includes(themeColor);
     const [instagram, setInstagram] = useState("");
     const [website, setWebsite] = useState("");
     // マイBGMプレイリスト: アプリ内検索で選んだ曲（最大5曲・順に再生）
     const [selectedSongs, setSelectedSongs] = useState<SongResult[]>([]);
-    // マイランキング
-    const [rankingTitle, setRankingTitle] = useState("");
-    const [rankingItems, setRankingItems] = useState<string[]>(["", "", "", "", ""]);
     const [songQuery, setSongQuery] = useState("");
     const [songResults, setSongResults] = useState<SongResult[]>([]);
     const [searching, setSearching] = useState(false);
@@ -144,8 +145,6 @@ export default function ProfileEditPage() {
                         }]);
                     }
                     setUsername(data.username ?? "");
-                    setRankingTitle(data.ranking?.title ?? "");
-                    setRankingItems([...(data.ranking?.items ?? []), "", "", "", "", ""].slice(0, 5));
                     if (data.songUrl) {
                         setShowUrlMethod(true);
                         setSongUrl(data.songUrl);
@@ -327,7 +326,6 @@ export default function ProfileEditPage() {
                     themeColor,
                     ...songPayload,
                     // PUT は全置換のため、このページで編集しない項目も送り返す
-                    ranking: { title: rankingTitle, items: rankingItems.map((t) => t.trim()).filter(Boolean) },
                     tripTitles: profile?.tripTitles,
                     tripCovers: profile?.tripCovers,
                     tripSongs: profile?.tripSongs,
@@ -539,8 +537,8 @@ export default function ProfileEditPage() {
                         <label className={labelClass}>
                             {locale === "en" ? "Theme color" : "テーマカラー"}
                         </label>
-                        <div className="flex flex-wrap gap-2.5">
-                            {["#38bdf8", "#34d399", "#f472b6", "#a78bfa", "#fb7185", "#fbbf24", "#f97316", "#22d3ee"].map((c) => (
+                        <div className="flex flex-wrap items-center gap-2.5">
+                            {THEME_COLOR_PRESETS.map((c) => (
                                 <button
                                     key={c}
                                     type="button"
@@ -551,9 +549,40 @@ export default function ProfileEditPage() {
                                     style={{ backgroundColor: c }}
                                 />
                             ))}
+
+                            {/* パレットから自由に選ぶ。見本の中に無い色もここで決められる */}
+                            <label
+                                className={`relative w-9 h-9 rounded-full ring-2 ring-offset-2 ring-offset-black active:scale-90 transition cursor-pointer overflow-hidden ${isCustomTheme ? "ring-white scale-110" : "ring-white/30"}`}
+                                style={{
+                                    background: isCustomTheme
+                                        ? themeColor
+                                        : "conic-gradient(#f87171, #fbbf24, #34d399, #38bdf8, #a78bfa, #f472b6, #f87171)",
+                                }}
+                                title={locale === "en" ? "Pick any color" : "パレットから選ぶ"}
+                            >
+                                <input
+                                    type="color"
+                                    value={/^#[0-9a-fA-F]{6}$/.test(themeColor) ? themeColor : "#38bdf8"}
+                                    onChange={(e) => setThemeColor(e.target.value.toLowerCase())}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    aria-label={locale === "en" ? "Pick any color" : "パレットから色を選ぶ"}
+                                />
+                            </label>
+
+                            {themeColor && (
+                                <button
+                                    type="button"
+                                    onClick={() => setThemeColor("")}
+                                    className="px-3 py-2 rounded-full text-xs text-white/60 hover:text-white bg-white/5 ring-1 ring-white/10 active:scale-95 transition"
+                                >
+                                    {locale === "en" ? "Reset" : "解除"}
+                                </button>
+                            )}
                         </div>
                         <p className="text-xs text-white/30 mt-1.5">
-                            {locale === "en" ? "Colors your avatar ring and accents. Tap again to reset." : "アバターのリングなどの色になります。もう一度押すと解除。"}
+                            {locale === "en"
+                                ? "Colors your avatar ring and accents. The last swatch opens a full color picker."
+                                : "アバターのリングなどの色になります。右端の丸を押すとパレットから自由に選べます。"}
                         </p>
                     </div>
 
@@ -800,79 +829,6 @@ export default function ProfileEditPage() {
                                         </div>
                                     )}
                                 </div>
-                    </div>
-
-                    {/* マイランキング */}
-                    <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 space-y-3">
-                        <div className="flex items-center gap-1.5">
-                            <TrophyIcon className="w-4 h-4 text-amber-400" />
-                            <span className="text-sm font-semibold">{locale === "en" ? "My Ranking" : "マイランキング"}</span>
-                        </div>
-                        <p className="text-xs text-white/40 -mt-1">
-                            {locale === "en"
-                                ? "Make your own top 5 — best onsen, best views, anything."
-                                : "「行ってよかった温泉TOP5」など、自由なお題でランキングを作れます。"}
-                        </p>
-                        <input
-                            type="text"
-                            value={rankingTitle}
-                            onChange={e => setRankingTitle(e.target.value)}
-                            maxLength={40}
-                            placeholder={locale === "en" ? "Ranking title (e.g. Best views)" : "お題（例: 行ってよかった絶景ランキング）"}
-                            className={inputClass}
-                        />
-                        <div className="space-y-2">
-                            {rankingItems.map((v, i) => (
-                                <div key={i} className="flex items-center gap-2">
-                                    {/* 金・銀・銅のミニメダル（表示カードと同じ配色） */}
-                                    <span
-                                        className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[11px] font-black tabular-nums ${
-                                            [
-                                                "bg-gradient-to-br from-amber-100 via-yellow-400 to-amber-600 text-amber-950",
-                                                "bg-gradient-to-br from-slate-50 via-slate-300 to-slate-500 text-slate-900",
-                                                "bg-gradient-to-br from-orange-200 via-orange-400 to-orange-700 text-orange-950",
-                                            ][i] ?? "bg-white/10 text-white/55"
-                                        }`}
-                                    >
-                                        {i + 1}
-                                    </span>
-                                    <input
-                                        type="text"
-                                        value={v}
-                                        onChange={e => setRankingItems((cur) => cur.map((x, j) => (j === i ? e.target.value : x)))}
-                                        maxLength={60}
-                                        placeholder={i === 0 ? (locale === "en" ? "e.g. Shirakawa-go" : "例: 白川郷") : ""}
-                                        className={`${inputClass} py-2`}
-                                    />
-                                    {/* 並べ替え（上下の値を入れ替える） */}
-                                    <div className="flex flex-col flex-shrink-0">
-                                        <button
-                                            type="button"
-                                            onClick={() => setRankingItems((cur) => cur.map((x, j) => (j === i ? cur[i - 1] : j === i - 1 ? cur[i] : x)))}
-                                            disabled={i === 0}
-                                            aria-label={locale === "en" ? `Move item ${i + 1} up` : `${i + 1}番目を上へ`}
-                                            className="p-0.5 text-white/40 hover:text-white disabled:opacity-20 disabled:cursor-default transition"
-                                            style={{ touchAction: "manipulation" }}
-                                        >
-                                            <ChevronUpIcon className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setRankingItems((cur) => cur.map((x, j) => (j === i ? cur[i + 1] : j === i + 1 ? cur[i] : x)))}
-                                            disabled={i === rankingItems.length - 1}
-                                            aria-label={locale === "en" ? `Move item ${i + 1} down` : `${i + 1}番目を下へ`}
-                                            className="p-0.5 text-white/40 hover:text-white disabled:opacity-20 disabled:cursor-default transition"
-                                            style={{ touchAction: "manipulation" }}
-                                        >
-                                            <ChevronDownIcon className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        <p className="text-[11px] text-white/35">
-                            {locale === "en" ? "Empty rows are skipped. Clear all to remove the ranking." : "空欄はスキップされます。全部空にするとランキング自体が消えます。"}
-                        </p>
                     </div>
 
                     <div className="pt-2">

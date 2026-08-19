@@ -229,7 +229,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
 
     return (
         <div
-            className="fixed inset-0 z-[90] bg-black flex items-center justify-center select-none"
+            className="fixed inset-0 z-[90] bg-black flex flex-col items-center justify-center select-none"
             role="dialog"
             aria-modal="true"
             aria-label={locale === "en" ? "Stories" : "ストーリー"}
@@ -247,10 +247,8 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 />
             )}
 
-            {/* メディア + その上に重ねる曲・キャプション。
-                ラッパーはメディアの実寸に縮むので、レターボックスの黒帯ではなく
-                「写真の上」に曲チップとキャプションが乗る。 */}
-            <div className="relative max-w-full max-h-full">
+            {/* メディア。写真そのものには何も重ねない（構図を隠さないため） */}
+            <div className="relative flex-1 min-h-0 w-full flex items-center justify-center">
                 {isVideo ? (
                     <video
                         key={item.id}
@@ -277,43 +275,41 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         draggable={false}
                     />
                 )}
-
-                {/* 写真の下端のスクリム（曲名・キャプションを読めるように） */}
-                {(item.song || item.caption) && (
-                    <div className="absolute inset-x-0 bottom-0 h-40 rounded-b-lg bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
-                )}
-
-                {/* 曲チップ → キャプションの順で写真の上に重ねる */}
-                {(item.song || item.caption) && (
-                    <div className="absolute inset-x-0 bottom-0 z-20 px-4 pb-4 flex flex-col items-center gap-2">
-                        {item.song && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
-                                className="inline-flex items-center gap-1.5 max-w-full px-3.5 py-1.5 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/15 text-white/90 text-xs active:scale-95 transition"
-                                style={{ touchAction: "manipulation" }}
-                                aria-label={muted ? (locale === "en" ? "Turn sound on" : "音を出す") : (locale === "en" ? "Mute" : "ミュート")}
-                            >
-                                {muted
-                                    ? <SpeakerXMarkIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/60" />
-                                    : <MusicalNoteIcon className="w-3.5 h-3.5 flex-shrink-0 text-fuchsia-300" />}
-                                <span className="truncate">
-                                    {item.song.title}{item.song.artist ? ` — ${item.song.artist}` : ""}
-                                </span>
-                                {muted && (
-                                    <span className="text-[10px] text-white/50 flex-shrink-0">
-                                        {locale === "en" ? "Tap for sound" : "タップで再生"}
-                                    </span>
-                                )}
-                            </button>
-                        )}
-                        {item.caption && (
-                            <p className="max-w-md text-center text-white text-[15px] font-medium leading-relaxed px-4 py-2.5 rounded-2xl bg-black/45 backdrop-blur-md whitespace-pre-wrap break-words shadow-lg pointer-events-none">
-                                {item.caption}
-                            </p>
-                        )}
-                    </div>
-                )}
             </div>
+
+            {/* 曲・キャプションは写真のすぐ下（黒帯側）に置く */}
+            {(item.song || item.caption) && (
+                <div
+                    className={`relative z-20 flex-shrink-0 w-full px-4 pt-3 flex flex-col items-center gap-2 ${isOwnStory ? "pb-16" : "pb-6"}`}
+                    style={{ paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + ${isOwnStory ? 64 : 24}px)` }}
+                >
+                    {item.song && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
+                            className="inline-flex items-center gap-1.5 max-w-full px-3.5 py-1.5 rounded-full bg-white/10 ring-1 ring-white/15 text-white/90 text-xs active:scale-95 transition"
+                            style={{ touchAction: "manipulation" }}
+                            aria-label={muted ? (locale === "en" ? "Turn sound on" : "音を出す") : (locale === "en" ? "Mute" : "ミュート")}
+                        >
+                            {muted
+                                ? <SpeakerXMarkIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/60" />
+                                : <MusicalNoteIcon className="w-3.5 h-3.5 flex-shrink-0 text-fuchsia-300" />}
+                            <span className="truncate">
+                                {item.song.title}{item.song.artist ? ` — ${item.song.artist}` : ""}
+                            </span>
+                            {muted && (
+                                <span className="text-[10px] text-white/50 flex-shrink-0">
+                                    {locale === "en" ? "Tap for sound" : "タップで再生"}
+                                </span>
+                            )}
+                        </button>
+                    )}
+                    {item.caption && (
+                        <p className="max-w-md text-center text-white text-[15px] font-medium leading-relaxed whitespace-pre-wrap break-words">
+                            {item.caption}
+                        </p>
+                    )}
+                </div>
+            )}
 
             {/* ストーリーBGM音源（表示中のストーリーに追従） */}
             {item.song && (

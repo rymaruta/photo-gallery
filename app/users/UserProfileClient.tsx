@@ -49,7 +49,6 @@ type UserProfile = {
     songPreviewUrl?: string;
     songTrackUrl?: string;
     songs?: SongEntry[];
-    ranking?: { title?: string; items: string[] };
     tripTitles?: Record<string, string>;
     tripCovers?: Record<string, string>;
     tripSongs?: Record<string, SongEntry>;
@@ -365,7 +364,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     songPreviewUrl: base.songPreviewUrl,
                     songTrackUrl: base.songTrackUrl,
                     songs: base.songs,
-                    ranking: base.ranking,
                     tripTitles: base.tripTitles,
                     tripCovers: base.tripCovers,
                     tripSongs: base.tripSongs,

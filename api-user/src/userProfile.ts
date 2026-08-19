@@ -44,7 +44,6 @@ export type UserProfile = {
     // 旅アルバムごとのBGM（trip-<epoch> → 曲）。旅を開くとその曲を再生できる。
     tripSongs?: Record<string, SongEntry>;
     // マイランキング（自由なお題 + 最大5項目）
-    ranking?: { title?: string; items: string[] };
     // マイページのパーソナライズ
     themeColor?: string;          // #rrggbb（アバターリング等のアクセント色）
     statusText?: string;          // 名前の下に出る「ひとこと」（絵文字OK・60文字）
@@ -163,7 +162,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         tripCovers?: Record<string, string>;
         tripSongs?: unknown;
         themeColor?: string; statusText?: string; pinnedPhotoIds?: string[];
-        songs?: unknown; ranking?: unknown;
+        songs?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -225,20 +224,6 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
             });
         }
         if (cleaned.length > 0) songs = cleaned;
-    }
-
-    // マイランキング: タイトル40文字・項目は最大5件・各60文字
-    let ranking: { title?: string; items: string[] } | undefined;
-    if (body.ranking && typeof body.ranking === "object" && !Array.isArray(body.ranking)) {
-        const r = body.ranking as { title?: unknown; items?: unknown };
-        const items = Array.isArray(r.items)
-            ? r.items
-                .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
-                .map((x) => x.trim().slice(0, 60))
-                .slice(0, 5)
-            : [];
-        const title = typeof r.title === "string" ? r.title.trim().slice(0, 40) : "";
-        if (items.length > 0) ranking = { ...(title ? { title } : {}), items };
     }
 
     // マイページのパーソナライズ
@@ -309,7 +294,6 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         ...(songArtist ? { songArtist } : {}),
         ...(songTrackUrl ? { songTrackUrl } : {}),
         ...(songs ? { songs } : {}),
-        ...(ranking ? { ranking } : {}),
         ...(tripTitles ? { tripTitles } : {}),
         ...(tripCovers ? { tripCovers } : {}),
         ...(tripSongs ? { tripSongs } : {}),
