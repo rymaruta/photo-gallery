@@ -163,6 +163,40 @@ describe("createStory", () => {
         expect(String(item.caption)).toHaveLength(200);
     });
 
+    it("表示秒数は3〜15秒に丸め、既定の5秒なら保存しない", async () => {
+        mockDdbSend.mockResolvedValue({});
+        await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", durationSec: 10 }),
+        }));
+        expect((mockDdbSend.mock.calls[1][0] as { input: { Item: Record<string, unknown> } }).input.Item.durationSec).toBe(10);
+
+        await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", durationSec: 999 }),
+        }));
+        expect((mockDdbSend.mock.calls[3][0] as { input: { Item: Record<string, unknown> } }).input.Item.durationSec).toBe(15);
+
+        await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", durationSec: 5 }),
+        }));
+        expect((mockDdbSend.mock.calls[5][0] as { input: { Item: Record<string, unknown> } }).input.Item.durationSec).toBeUndefined();
+    });
+
+    it("曲の開始位置（好きな部分）は0〜29秒に丸めて保存する", async () => {
+        mockDdbSend.mockResolvedValue({});
+        const song = { title: "Song", previewUrl: "https://cdn.test/p.m4a" };
+        await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", song: { ...song, startSec: 12.4 } }),
+        }));
+        let item = (mockDdbSend.mock.calls[1][0] as { input: { Item: Record<string, unknown> } }).input.Item;
+        expect((item.song as { startSec?: number }).startSec).toBe(12);
+
+        await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", song: { ...song, startSec: 120 } }),
+        }));
+        item = (mockDdbSend.mock.calls[3][0] as { input: { Item: Record<string, unknown> } }).input.Item;
+        expect((item.song as { startSec?: number }).startSec).toBe(29);
+    });
+
     it("24時間の投稿上限に達していたら 429 で保存しない", async () => {
         mockDdbSend.mockResolvedValueOnce({ Count: 20 }); // 上限ちょうど
         const res = await invoke(createStory, authedEvent("u1", {

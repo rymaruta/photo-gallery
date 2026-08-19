@@ -205,47 +205,27 @@ function AdminEditContent() {
 
                 <form onSubmit={(e) => void handleSave(e)} className="space-y-5">
 
-                    {/* タイトル */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className={labelCls}>{isJa ? "タイトル（日本語）" : "Title (Japanese)"}</label>
-                            <input type="text" value={titleJa} onChange={(e) => setTitleJa(e.target.value)} className={inputCls} />
-                        </div>
-                        <div>
-                            <label className={labelCls}>{isJa ? "タイトル（英語）" : "Title (English)"}</label>
-                            <input type="text" value={titleEn} onChange={(e) => setTitleEn(e.target.value)} className={inputCls} />
-                        </div>
+                    {/* タイトル。英語欄は廃止（サイト表示は日本語のみ）。
+                        既存の英語テキストは JSON-LD 等で使うため、保存時にそのまま引き継ぐ。 */}
+                    <div>
+                        <label className={labelCls}>{isJa ? "タイトル" : "Title"}</label>
+                        <input type="text" value={titleJa} onChange={(e) => setTitleJa(e.target.value)} className={inputCls} />
                     </div>
 
                     {/* 説明 */}
                     <div className={sectionCls}>
-                        <p className="text-xs text-white/40 mb-3">{isJa ? "説明（1行 = 1段落）" : "Description (1 line = 1 paragraph)"}</p>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className={labelCls}>{isJa ? "説明（日本語）" : "Description (Japanese)"}</label>
-                                <textarea
-                                    value={descJa}
-                                    onChange={(e) => setDescJa(e.target.value)}
-                                    rows={5}
-                                    className={inputCls + " resize-y"}
-                                    placeholder={isJa ? "段落ごとに改行" : "One paragraph per line"}
-                                />
-                            </div>
-                            <div>
-                                <label className={labelCls}>{isJa ? "説明（英語）" : "Description (English)"}</label>
-                                <textarea
-                                    value={descEn}
-                                    onChange={(e) => setDescEn(e.target.value)}
-                                    rows={5}
-                                    className={inputCls + " resize-y"}
-                                    placeholder={isJa ? "段落ごとに改行" : "One paragraph per line"}
-                                />
-                            </div>
-                        </div>
+                        <label className={labelCls}>{isJa ? "説明（1行 = 1段落）" : "Description (1 line = 1 paragraph)"}</label>
+                        <textarea
+                            value={descJa}
+                            onChange={(e) => setDescJa(e.target.value)}
+                            rows={5}
+                            className={inputCls + " resize-y"}
+                            placeholder={isJa ? "段落ごとに改行" : "One paragraph per line"}
+                        />
                     </div>
 
                     {/* メタデータ */}
-                    <div className={sectionCls + " grid grid-cols-2 gap-4"}>
+                    <div className={sectionCls + " grid grid-cols-2 gap-4 [&>div]:min-w-0"}>
                         <div>
                             <label className={labelCls}>{isJa ? "場所" : "Location"}</label>
                             <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className={inputCls} />
@@ -273,7 +253,7 @@ function AdminEditContent() {
                     {/* EXIF */}
                     <div className={sectionCls}>
                         <p className="text-xs text-white/40 mb-3">EXIF</p>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-4 [&>div]:min-w-0">
                             <div>
                                 <label className={labelCls}>{isJa ? "カメラ" : "Camera"}</label>
                                 <input type="text" value={exifCamera} onChange={(e) => setExifCamera(e.target.value)} className={inputCls} placeholder="Sony α7IV" />

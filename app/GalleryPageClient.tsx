@@ -13,6 +13,9 @@ import { useAuth } from "./auth/context";
 import { fetchFollowingSet } from "../lib/hooks/useFollow";
 import type { Photo } from "@/lib/data/photos";
 
+// フィルタバーに出すタグ数の上限（枚数の多い順）。残りは検索で辿る
+const POPULAR_TAG_LIMIT = 10;
+
 export default function GalleryPageClient() {
   const { locale, labels } = useLocale();
   const { photos } = usePhotos();
@@ -68,13 +71,25 @@ export default function GalleryPageClient() {
     return [...Array.from(set)];
   }, [PHOTOS]);
 
-  const tags = React.useMemo(() => {
-    const set = new Set<string>();
+  // タグの写真枚数。フィルタバーの並び順と件数バッジに使う
+  const tagCounts = React.useMemo(() => {
+    const map: Record<string, number> = {};
     for (const p of PHOTOS) {
-      for (const t of p.tags ?? []) set.add(t);
+      for (const t of p.tags ?? []) map[t] = (map[t] ?? 0) + 1;
     }
-    return Array.from(set);
+    return map;
   }, [PHOTOS]);
+
+  // 表示するのは「よく使うタグ」だけ。1枚しかないタグまで全部並べても選べないので、
+  // 枚数の多い順に上位だけ出し、残りは検索で辿ってもらう。
+  const tags = React.useMemo(() => {
+    const popular = Object.keys(tagCounts)
+      .sort((a, b) => (tagCounts[b] - tagCounts[a]) || a.localeCompare(b))
+      .slice(0, POPULAR_TAG_LIMIT);
+    // 選択中のタグは上位に無くても必ず出す（消えると解除できなくなるため）
+    const extra = filters.selectedTags.filter((t) => !popular.includes(t));
+    return [...popular, ...extra];
+  }, [tagCounts, filters.selectedTags]);
 
   const categoryDisplayMap = React.useMemo(() => {
     const map: Record<string, string> = {};
@@ -152,6 +167,7 @@ export default function GalleryPageClient() {
         className="mb-4"
         locale={locale}
         categoryDisplayMap={categoryDisplayMap}
+        tagCounts={tagCounts}
       />
 
       <>

@@ -47,13 +47,12 @@ describe("FilterBar", () => {
         expect(onChange).toHaveBeenCalledWith({ selectedTags: [] });
     });
 
-    it("折り畳み時は「+N」チップが出て、クリックで全タグ展開 → 閉じるで戻る", () => {
-        setup(); // 8 タグ / 表示上限 6 → +2
-        expect(screen.queryByRole("switch", { name: /sauna/ })).toBeNull();
-        fireEvent.click(screen.getByRole("button", { name: "Show" })); // +N (aria-label は Show)
+    it("渡されたタグはすべて1行に並ぶ（展開ボタンは廃止）", () => {
+        setup(); // 8 タグ
+        expect(screen.getByRole("switch", { name: /swan/ })).toBeInTheDocument();
         expect(screen.getByRole("switch", { name: /sauna/ })).toBeInTheDocument();
-        fireEvent.click(screen.getByRole("button", { name: "閉じる" }));
-        expect(screen.queryByRole("switch", { name: /sauna/ })).toBeNull();
+        expect(screen.queryByRole("button", { name: "Show" })).toBeNull();
+        expect(screen.queryByRole("button", { name: "閉じる" })).toBeNull();
     });
 
     it("クリアボタンはタグ選択時のみ表示され、クリックで全解除する", () => {

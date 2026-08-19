@@ -942,7 +942,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                     style={{ touchAction: "manipulation" }}
                                 >
                                     <span className="min-w-0">
-                                        <span className="block text-[10px] uppercase tracking-wider text-white/35">{locale === "en" ? "Older" : "前の写真"}</span>
+                                        <span className="block text-[10px] uppercase tracking-wider text-white/35">{locale === "en" ? "Older" : "古い写真"}</span>
                                         <span className="block text-sm text-white/85 truncate">{getLocalized(related.next.title, locale) || (locale === "en" ? "Photo" : "写真")}</span>
                                     </span>
                                     <ChevronRightIcon className="w-5 h-5 flex-shrink-0 text-white/50" />

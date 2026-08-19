@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -13,6 +13,12 @@ import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import { log } from "../../lib/utils/log";
 import { ROUTES } from "../../lib/routes";
 
+// 検索対象のテキスト（タイトル・場所・カテゴリ・タグ）を1本の文字列にする
+function photoSearchText(p: Photo): string {
+    const title = typeof p.title === "string" ? p.title : [p.title?.ja, p.title?.en].filter(Boolean).join(" ");
+    return [title, p.location, p.category, ...(p.tags ?? [])].filter(Boolean).join(" ").toLowerCase();
+}
+
 export default function AdminPage() {
     const { isAuthenticated, isAdminUser, loading } = useAuth();
     const router = useRouter();
@@ -23,6 +29,10 @@ export default function AdminPage() {
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [photoToDelete, setPhotoToDelete] = useState<Photo | null>(null);
+    // 写真が増えても目的の1枚にたどり着けるように、絞り込みと並び替えを持つ
+    const [query, setQuery] = useState("");
+    const [status, setStatus] = useState<"all" | "published" | "draft">("all");
+    const [sort, setSort] = useState<"new" | "old">("new");
     const isMountedRef = useRef(true);
 
     useEffect(() => {
@@ -173,6 +183,19 @@ export default function AdminPage() {
         setPhotoToDelete(null);
     };
 
+    // 検索・絞り込み・並び替え（写真が増えても古い1枚に手が届くように）
+    const visiblePhotos = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        const filtered = photos.filter((p) => {
+            if (status === "published" && p.published === false) return false;
+            if (status === "draft" && p.published !== false) return false;
+            if (!q) return true;
+            return photoSearchText(p).includes(q);
+        });
+        const time = (p: Photo) => Date.parse(p.date ?? p.updatedAt ?? p.createdAt ?? "") || 0;
+        return [...filtered].sort((a, b) => sort === "new" ? time(b) - time(a) : time(a) - time(b));
+    }, [photos, query, status, sort]);
+
     // ローディング中または認証されていない場合
     if (loading || !isAuthenticated || !isAdminUser) {
         return (
@@ -225,6 +248,45 @@ export default function AdminPage() {
                         <span>{locale === "en" ? "Upload New Photo" : "新しい写真をアップロード"}</span>
                     </Link>
                 </div>
+
+                {/* 検索・絞り込み・並び替え。ページを上から舐めずに目的の1枚へ */}
+                {photos.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <input
+                            type="search"
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            placeholder={locale === "en" ? "Search title, place, tag" : "タイトル・場所・タグで検索"}
+                            className="flex-1 min-w-[200px] px-4 py-2.5 bg-white/5 ring-1 ring-white/10 rounded-full text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-white/25"
+                            style={{ fontSize: "16px" }}
+                            aria-label={locale === "en" ? "Search photos" : "写真を検索"}
+                        />
+                        <div className="flex gap-1.5">
+                            {([
+                                ["all", locale === "en" ? "All" : "すべて"],
+                                ["published", locale === "en" ? "Published" : "公開"],
+                                ["draft", locale === "en" ? "Drafts" : "下書き"],
+                            ] as const).map(([key, label]) => (
+                                <button
+                                    key={key}
+                                    onClick={() => setStatus(key)}
+                                    aria-pressed={status === key}
+                                    className={`px-3.5 py-2 rounded-full text-xs transition active:scale-95 ${status === key ? "bg-white text-black font-semibold" : "bg-white/5 ring-1 ring-white/10 text-white/60 hover:text-white/90"}`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                        <button
+                            onClick={() => setSort((s) => (s === "new" ? "old" : "new"))}
+                            className="px-3.5 py-2 rounded-full text-xs bg-white/5 ring-1 ring-white/10 text-white/60 hover:text-white/90 transition active:scale-95"
+                        >
+                            {sort === "new"
+                                ? (locale === "en" ? "Newest" : "新しい順")
+                                : (locale === "en" ? "Oldest" : "古い順")}
+                        </button>
+                    </div>
+                )}
             </div>
 
             {loadingPhotos ? (
@@ -246,55 +308,65 @@ export default function AdminPage() {
                     </Link>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {photos.map((photo) => (
-                        <div
-                            key={photo.id}
-                            className="bg-[#16181c] ring-1 ring-white/10 rounded-2xl overflow-hidden hover:ring-white/20 transition"
-                        >
-                            <div className="relative aspect-square bg-black">
-                                <Image
-                                    src={photo.thumbSrc ?? photo.src}
-                                    alt={getTitle(photo)}
-                                    fill
-                                    className="object-cover"
-                                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                                    loading="lazy"
-                                />
-                            </div>
-                            <div className="p-4">
-                                <h3 className="font-medium mb-2 line-clamp-2">{getTitle(photo)}</h3>
-                                <div className="flex items-center gap-2 text-sm text-white/60 mb-3">
-                                    {photo.category && (
-                                        <span className="px-2.5 py-1 bg-white/10 rounded-full text-xs">
-                                            {photo.category}
+                <>
+                    <p className="text-xs text-white/40 mb-3">
+                        {locale === "en"
+                            ? `${visiblePhotos.length} of ${photos.length} photos`
+                            : `${photos.length}枚中 ${visiblePhotos.length}枚`}
+                    </p>
+                    {visiblePhotos.length === 0 ? (
+                        <p className="py-12 text-center text-sm text-white/40">
+                            {locale === "en" ? "No photos match." : "条件に合う写真がありません。"}
+                        </p>
+                    ) : (
+                        // タイル1枚＝写真1枚。文字は写真の上に重ねてカードの縦幅を詰める
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                            {visiblePhotos.map((photo) => (
+                                <div key={photo.id} className="group relative aspect-square rounded-xl overflow-hidden bg-[#16181c] ring-1 ring-white/10 hover:ring-white/25 transition">
+                                    <Image
+                                        src={photo.thumbSrc ?? photo.src}
+                                        alt={getTitle(photo)}
+                                        fill
+                                        className="object-cover"
+                                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                                        loading="lazy"
+                                    />
+                                    {photo.published === false && (
+                                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/70 text-[10px] text-white/80">
+                                            {locale === "en" ? "Draft" : "下書き"}
                                         </span>
                                     )}
-                                    {photo.location && (
-                                        <span className="text-xs truncate">{photo.location}</span>
-                                    )}
+                                    {/* 操作: 右上に小さく常時表示（モバイルでもホバーなしで押せる） */}
+                                    <div className="absolute top-1.5 right-1.5 flex gap-1">
+                                        <Link
+                                            href={`/admin/edit?id=${photo.id}`}
+                                            aria-label={`${getTitle(photo)} ${locale === "en" ? "edit" : "を編集"}`}
+                                            className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white/85 hover:bg-black/80 active:scale-90 transition"
+                                        >
+                                            <PencilIcon className="w-4 h-4" />
+                                        </Link>
+                                        <button
+                                            onClick={() => handleDeleteClick(photo)}
+                                            disabled={deletingId === photo.id}
+                                            aria-label={`${getTitle(photo)} ${locale === "en" ? "delete" : "を削除"}`}
+                                            className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white/85 hover:bg-black/80 active:scale-90 transition disabled:opacity-50"
+                                        >
+                                            <TrashIcon className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                    <div className="absolute inset-x-0 bottom-0 p-2 pt-6 bg-gradient-to-t from-black/85 to-transparent">
+                                        <p className="text-xs text-white font-medium truncate">{getTitle(photo)}</p>
+                                        {(photo.location || photo.category) && (
+                                            <p className="text-[10px] text-white/55 truncate">
+                                                {[photo.location, photo.category].filter(Boolean).join(" · ")}
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <Link
-                                        href={`/admin/edit?id=${photo.id}`}
-                                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 active:scale-[0.98] rounded-full transition text-sm"
-                                    >
-                                        <PencilIcon className="w-4 h-4" />
-                                        <span>{locale === "en" ? "Edit" : "編集"}</span>
-                                    </Link>
-                                    <button
-                                        onClick={() => handleDeleteClick(photo)}
-                                        disabled={deletingId === photo.id}
-                                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 ring-1 ring-white/10 hover:ring-white/20 active:scale-[0.98] rounded-full transition text-sm text-white/70 hover:text-white/90 disabled:opacity-50"
-                                    >
-                                        <TrashIcon className="w-4 h-4" />
-                                        <span>{locale === "en" ? "Delete" : "削除"}</span>
-                                    </button>
-                                </div>
-                            </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
+                    )}
+                </>
             )}
 
             {/* 削除確認モーダル */}

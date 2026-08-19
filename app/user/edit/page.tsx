@@ -183,7 +183,7 @@ function EditContent() {
                             placeholder={isJa ? "任意（改行で段落）" : "Optional (newline = paragraph)"} />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-4 [&>div]:min-w-0">
                         <div>
                             <label className={labelCls}>{isJa ? "場所" : "Location"}</label>
                             <input type="text" value={location} onChange={(e) => setLocation(e.target.value)}

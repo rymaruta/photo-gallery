@@ -26,7 +26,6 @@ type Props = {
     categoryDisplayMap?: Record<string, string>;
     tagDisplayMap?: Record<string, TagInfo>;
     tagCounts?: Record<string, number>;
-    mobileCollapseLimit?: number;
 };
 
 function FilterBarInner({
@@ -39,7 +38,6 @@ function FilterBarInner({
     categoryDisplayMap,
     tagDisplayMap = {},
     tagCounts = {},
-    mobileCollapseLimit = 6,
 }: Props) {
     const safeLocale = locale === "en" ? "en" : "ja";
     const labels = useMemo(() => getLabels(safeLocale), [safeLocale]);
@@ -47,7 +45,6 @@ function FilterBarInner({
     const actionLabels = labels.actions;
 
     const clearLabel = actionLabels?.clearTags ?? "Clear";
-    const showAllFixedLabel = actionLabels?.showAllGeneric ?? actionLabels?.showAll ?? "Show";
 
     // local query state + debounced apply
     const [localQuery, setLocalQuery] = useState(() => values.query || "");
@@ -176,10 +173,6 @@ function FilterBarInner({
         [debouncedApply]
     );
 
-    // showAll toggle (visual only)
-    const [showAllTags, setShowAllTags] = useState(false);
-    const toggleShowAll = useCallback(() => setShowAllTags((s) => !s), []);
-
     // chip keyboard handler
     const onChipKey = useCallback(
         (e: React.KeyboardEvent, t: string) => {
@@ -246,14 +239,9 @@ function FilterBarInner({
         [values.category, onChange, labelForCategory, STYLE.controlBtn]
     );
 
-    const visibleTags = useMemo(
-        () => (showAllTags ? tags : tags.slice(0, Math.max(0, mobileCollapseLimit))),
-        [showAllTags, tags, mobileCollapseLimit]
-    );
-
     const renderTagChips = useMemo(
         () =>
-            visibleTags.map((t) => {
+            tags.map((t) => {
                 const active = values.selectedTags.includes(t);
                 const info = tagDisplayMap[t];
                 const display = info?.label ?? t;
@@ -284,7 +272,7 @@ function FilterBarInner({
                     </button>
                 );
             }),
-        [visibleTags, values.selectedTags, tagDisplayMap, counts, toggleTag, onChipKey, STYLE.chipBase]
+        [tags, values.selectedTags, tagDisplayMap, counts, toggleTag, onChipKey, STYLE.chipBase]
     );
 
     const sortLabel = useMemo(() => {
@@ -402,42 +390,10 @@ function FilterBarInner({
                     </div>
                 </div>
 
-                {/* タグ: 折り畳み時は1行横スクロール、展開時は折り返し */}
-                <div className={`flex items-center gap-1.5 ${showAllTags ? "flex-wrap" : "overflow-x-auto no-scrollbar -mx-1 px-1"}`}>
+                {/* タグ: よく使うものだけを1行で。全件（数十個）並べても選べないので、
+                    残りは検索で探してもらう */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
                     {renderTagChips}
-
-                    {/* 「+N」自体が展開ボタン */}
-                    {!showAllTags && tags.length > mobileCollapseLimit && (
-                        <button
-                            type="button"
-                            onClick={toggleShowAll}
-                            aria-expanded={false}
-                            aria-label={showAllFixedLabel}
-                            className="inline-flex items-center text-[13px] text-white/50 hover:text-white/90 bg-transparent border border-white/15 hover:border-white/40 focus:outline-none transition-colors"
-                            style={{
-                                ...STYLE.controlBtn,
-                                touchAction: "manipulation",
-                                WebkitTapHighlightColor: "transparent",
-                            }}
-                        >
-                            +{tags.length - mobileCollapseLimit}
-                        </button>
-                    )}
-                    {showAllTags && tags.length > mobileCollapseLimit && (
-                        <button
-                            type="button"
-                            onClick={toggleShowAll}
-                            aria-expanded={true}
-                            className="inline-flex items-center text-[13px] text-white/50 hover:text-white/90 bg-transparent border border-white/15 hover:border-white/40 focus:outline-none transition-colors"
-                            style={{
-                                ...STYLE.controlBtn,
-                                touchAction: "manipulation",
-                                WebkitTapHighlightColor: "transparent",
-                            }}
-                        >
-                            {locale === "en" ? "Less" : "閉じる"}
-                        </button>
-                    )}
 
                     {values.selectedTags && values.selectedTags.length > 0 && (
                         <button
