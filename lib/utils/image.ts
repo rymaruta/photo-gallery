@@ -85,6 +85,15 @@ async function encodeCanvas(
     return { blob, type: outputType, ext: outputType === "image/png" ? "png" : "jpg" };
 }
 
+/**
+ * プロフィール画像の保存サイズ（長辺px）。
+ * 表示は最大96px四方なので3倍解像度でも足りる。原寸（カメラ写真は数MB）を
+ * そのまま置くと、アイコンが並ぶだけで数十MBのダウンロードになる。
+ */
+export const AVATAR_MAX_PX = 512;
+/** カバー写真の保存サイズ（長辺px）。横幅いっぱいの帯なのでこの程度で足りる。 */
+export const COVER_MAX_PX = 1280;
+
 export async function compressImage(file: File, maxPx = 1920, quality = 0.85): Promise<File> {
     // GIFはアニメーションを保持するため圧縮しない
     if (file.type === "image/gif") return file;

@@ -9,7 +9,7 @@ import AddToHomeScreenHint from "../../components/AddToHomeScreenHint";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
 import { getCurrentSession } from "../../../lib/auth/cognito";
-import { compressImage, createThumbnail, stripJpegExif, extractDominantColor, createBlurPlaceholder } from "../../../lib/utils/image";
+import { compressImage, createThumbnail, stripJpegExif, extractDominantColor, createBlurPlaceholder, AVATAR_MAX_PX } from "../../../lib/utils/image";
 import { extractExifFromFile, extractCameraExif, reverseGeocode } from "../../../lib/utils/exif";
 import { readSharedPayload, clearSharedPayload } from "../../../lib/utils/shareStore";
 import { ROUTES } from "../../../lib/routes";
@@ -717,7 +717,7 @@ function UploadPageInner() {
                                     setAvatarUploading(true);
                                     try {
                                         let compressed = avatarFile;
-                                        try { compressed = await compressImage(avatarFile, 512, 0.9); }
+                                        try { compressed = await compressImage(avatarFile, AVATAR_MAX_PX, 0.9); }
                                         catch { compressed = await stripJpegExif(avatarFile); }
                                         const { userFetch, authenticatedFetch } = await import("../../../lib/utils/api");
                                         const apiFetch = isAdminUser ? authenticatedFetch : userFetch;

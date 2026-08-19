@@ -10,6 +10,7 @@ import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { userFetch } from "../../../lib/utils/api";
 import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../../lib/utils/music";
+import { compressImage, AVATAR_MAX_PX, COVER_MAX_PX } from "../../../lib/utils/image";
 import DeleteAccountModal from "../../components/DeleteAccountModal";
 
 type SongEntry = {
@@ -58,6 +59,7 @@ function secToMMSS(s?: number): string {
 }
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
+
 
 // テーマカラーの見本。ここに無い色はパレット（input type="color"）から選べる
 const THEME_COLOR_PRESETS = ["#38bdf8", "#34d399", "#f472b6", "#a78bfa", "#fb7185", "#fbbf24", "#f97316", "#22d3ee"];
@@ -166,16 +168,20 @@ export default function ProfileEditPage() {
         reader.readAsDataURL(file);
         setCoverUploading(true);
         try {
+            // 表示は横幅いっぱいの帯なので、原寸ではなく1280pxまで縮めて送る
+            let upload = file;
+            try { upload = await compressImage(file, COVER_MAX_PX, 0.85); } catch { /* 原寸で続行 */ }
+
             const res = await userFetch("/profile/avatar/presigned-url", {
                 method: "POST",
-                body: JSON.stringify({ fileType: file.type, type: "cover" }),
+                body: JSON.stringify({ fileType: upload.type, type: "cover" }),
             });
             if (!res.ok) { showToast("カバー写真のアップロードに失敗しました", "error"); return; }
             const { presignedUrl } = await res.json() as { presignedUrl: string };
             const uploadRes = await fetch(presignedUrl, {
                 method: "PUT",
-                body: file,
-                headers: { "Content-Type": file.type },
+                body: upload,
+                headers: { "Content-Type": upload.type },
             });
             if (!uploadRes.ok) { showToast("カバー写真のアップロードに失敗しました", "error"); return; }
             setCoverError(false);
@@ -198,19 +204,23 @@ export default function ProfileEditPage() {
 
         setAvatarUploading(true);
         try {
+            // 表示サイズに合わせて縮小（失敗したら原寸のまま送る）
+            let upload = file;
+            try { upload = await compressImage(file, AVATAR_MAX_PX, 0.85); } catch { /* 原寸で続行 */ }
+
             // Presigned URL 取得
             const res = await userFetch("/profile/avatar/presigned-url", {
                 method: "POST",
-                body: JSON.stringify({ fileType: file.type }),
+                body: JSON.stringify({ fileType: upload.type }),
             });
             if (!res.ok) { showToast("アバターのアップロードに失敗しました", "error"); return; }
             const { presignedUrl } = await res.json() as { presignedUrl: string };
 
-            // S3 に直接アップロード
+            // S3 に直接アップロード（表示サイズに合わせて縮小してから送る）
             const uploadRes = await fetch(presignedUrl, {
                 method: "PUT",
-                body: file,
-                headers: { "Content-Type": file.type },
+                body: upload,
+                headers: { "Content-Type": upload.type },
             });
             if (!uploadRes.ok) { showToast("アバターのアップロードに失敗しました", "error"); return; }
 
