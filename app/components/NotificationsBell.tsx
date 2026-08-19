@@ -15,6 +15,8 @@ type Notif = {
     photoId: string;
     photoSrc: string;
     byName: string;
+    /** 通知を起こした本人。プロフィールへ飛ぶために使う */
+    byId?: string;
     atLocation?: string;
     targetUserId?: string;
     t: string;
@@ -99,19 +101,30 @@ export default function NotificationsBell() {
                         ) : (
                             <ul className="max-h-96 overflow-y-auto no-scrollbar divide-y divide-white/5">
                                 {items.map((n, i) => (
-                                    <li key={`${n.photoId || n.targetUserId}-${n.t}-${i}`}>
+                                    <li key={`${n.photoId || n.targetUserId}-${n.t}-${i}`} className="flex items-start gap-3 px-4 py-3 hover:bg-white/5 transition-colors">
+                                        {/* 左のアイコンは相手のプロフィールへ。
+                                            名前だけだと、名前未設定の人は既定名で表示されて
+                                            誰なのか辿れず、フォローしに行けないため */}
+                                        {(n.byId || n.targetUserId) ? (
+                                            <Link
+                                                href={ROUTES.USER_PROFILE(String(n.byId || n.targetUserId))}
+                                                onClick={() => setOpen(false)}
+                                                aria-label={locale === "en" ? `Open ${n.byName}'s profile` : `${n.byName} さんのプロフィール`}
+                                                className="flex-shrink-0 rounded-full active:scale-95 transition"
+                                                style={{ touchAction: "manipulation" }}
+                                            >
+                                                <UserAvatar userId={String(n.byId || n.targetUserId)} className="w-10 h-10" iconClassName="w-5 h-5" />
+                                            </Link>
+                                        ) : (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={n.photoSrc} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
+                                        )}
                                         <Link
                                             href={n.type === "follow" && n.targetUserId ? ROUTES.USER_PROFILE(n.targetUserId) : ROUTES.PHOTO(n.photoId)}
                                             onClick={() => setOpen(false)}
-                                            className="flex items-start gap-3 px-4 py-3 hover:bg-white/5 active:bg-white/10 transition-colors"
+                                            className="flex items-start gap-3 min-w-0 flex-1 active:opacity-80 transition"
                                             style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                                         >
-                                            {n.type === "follow" && n.targetUserId ? (
-                                                <UserAvatar userId={n.targetUserId} className="w-10 h-10 flex-shrink-0" iconClassName="w-5 h-5" />
-                                            ) : (
-                                                // eslint-disable-next-line @next/next/no-img-element
-                                                <img src={n.photoSrc} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
-                                            )}
                                             <div className="min-w-0 flex-1">
                                                 <p className="text-[13px] text-white/85 leading-snug">
                                                     {n.type === "follow" ? (
@@ -153,6 +166,11 @@ export default function NotificationsBell() {
                                                 </p>
                                                 <p className="text-[11px] text-white/35 mt-0.5">{fmtTime(n.t)}</p>
                                             </div>
+                                            {/* どの写真のことかが分かるよう、右端にその写真を出す */}
+                                            {n.type !== "follow" && n.photoSrc && (n.byId || n.targetUserId) && (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img src={n.photoSrc} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
+                                            )}
                                         </Link>
                                     </li>
                                 ))}

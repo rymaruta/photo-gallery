@@ -10,6 +10,10 @@ export type Notif = {
     photoId: string;
     photoSrc: string;
     byName: string;
+    // 通知を起こした本人の userId。
+    // 名前だけだと、名前未設定の人は既定名で表示され、誰なのか辿れない。
+    // これがあれば通知からその人のプロフィールへ飛べる。
+    byId?: string;
     atLocation?: string;
     // follow 通知は写真を伴わないため、リンク先のユーザーIDを持つ
     targetUserId?: string;

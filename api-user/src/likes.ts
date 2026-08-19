@@ -86,6 +86,7 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                     photoId,
                     photoSrc: String(photo.thumbSrc ?? photo.src),
                     byName: await lookupDisplayName(userId),
+                    byId: userId,
                     ...(photo.location ? { atLocation: photo.location } : {}),
                     t: new Date().toISOString(),
                 });

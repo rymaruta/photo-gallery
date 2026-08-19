@@ -93,6 +93,7 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
             photoId: "",
             photoSrc: "",
             byName: await lookupDisplayName(me),
+            byId: me,
             targetUserId: me,
             t: new Date().toISOString(),
         });

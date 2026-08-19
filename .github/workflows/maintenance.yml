@@ -10,6 +10,8 @@ on:
         options:
           - cdn-error-pages   # 存在しないURLを自作404へ
           - shrink-profiles   # 既存のプロフィール画像を縮小
+          - enable-cdn-logs   # CloudFront のアクセスログを有効化
+          - who-liked         # 自分の写真にいいねした人を特定
         required: true
       apply:
         description: "true で実際に適用（false は内容の確認のみ）"
@@ -43,3 +45,14 @@ jobs:
         if: inputs.task == 'shrink-profiles'
         run: node scripts/shrink-profile-images.js ${{ inputs.apply && '--apply' || '' }}
         timeout-minutes: 25
+
+      - name: CloudFront のアクセスログを有効化
+        if: inputs.task == 'enable-cdn-logs'
+        run: node scripts/enable-cdn-logs.js ${{ inputs.apply && '--apply' || '' }}
+        env:
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+
+      # 読み取り専用。apply の指定は不要
+      - name: 自分の写真にいいねした人を特定
+        if: inputs.task == 'who-liked'
+        run: node scripts/who-liked.js

@@ -103,6 +103,7 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
                 photoId,
                 photoSrc: String(photo.thumbSrc ?? photo.src),
                 byName: comment.name,
+                byId: uid,
                 ...(photo.location ? { atLocation: photo.location } : {}),
                 t: comment.t,
             });
