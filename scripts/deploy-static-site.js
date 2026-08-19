@@ -75,7 +75,15 @@ function isHtmlOrTxt(filePath) {
 
 // ハッシュ名でないため内容が変わりうるファイル。ブラウザに長期キャッシュさせない。
 // （sw.js が immutable だと Service Worker の更新が届かなくなる）
-const NO_CACHE_KEYS = new Set(["sw.js", "manifest.webmanifest", "app/data/photos.json"]);
+// サイトマップは写真を追加するたびに変わるため、immutable だと検索エンジンに
+// 更新が届かなくなる。robots.txt は .txt なので isHtmlOrTxt 側でカバー済み。
+const NO_CACHE_KEYS = new Set([
+    "sw.js",
+    "manifest.webmanifest",
+    "app/data/photos.json",
+    "sitemap.xml",
+    "sitemap-images.xml",
+]);
 
 async function uploadFile(filePath) {
     const fullPath = path.join(outDir, filePath);
