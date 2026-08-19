@@ -50,6 +50,13 @@ async function probeDelivery() {
 
     const targets = [
         { label: "トップページ", url: `${SITE_URL}/` },
+        // 拡張子なしのページURL。S3には users/search.html として置かれるため、
+        // 誰かが /users/search → /users/search.html に書き換える必要がある。
+        // 既存ページと新規ページで結果が違えば、書き換えが経路表方式だと分かる。
+        { label: "既存2階層ページ", url: `${SITE_URL}/user/drafts` },
+        { label: "新規2階層ページ", url: `${SITE_URL}/users/search` },
+        { label: "明示的な .html", url: `${SITE_URL}/users/search.html` },
+        { label: "既存1階層ページ", url: `${SITE_URL}/favorites` },
         ...(realCss ? [{ label: "実在する CSS", url: `${SITE_URL}${realCss}` }] : []),
         { label: "存在しない CSS", url: `${SITE_URL}/_next/static/chunks/diagnose-missing-0000000000000000.css` },
         { label: "存在しない JS", url: `${SITE_URL}/_next/static/chunks/diagnose-missing-0000000000000000.js` },
