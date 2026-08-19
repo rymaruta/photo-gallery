@@ -6,7 +6,9 @@
  * いいね自体は like#{photoId}#{userId} という行で1件ずつ記録されているので、
  * そこから userId を引いてプロフィールのURLを出す。
  *
- * 表示するのは「自分の写真に対するいいね」だけ。
+ * 表示するのは指定したユーザーの写真に対するいいねだけ。
+ * OWNER_USER_ID は必須。未指定で全員分を出すと、CIログに全ユーザーの
+ * 表示名・@ユーザー名・いいね関係が並んでしまう。
  */
 
 const { DynamoDBClient, ScanCommand, GetItemCommand } = require("@aws-sdk/client-dynamodb");
@@ -16,8 +18,8 @@ const REGION = "ap-northeast-1";
 const PHOTOS_TABLE = process.env.PHOTOS_TABLE ?? "prod-photo-gallery-photos";
 const USERS_TABLE = process.env.USERS_TABLE ?? "prod-photo-gallery-users";
 const SITE_URL = (process.env.SITE_URL || "https://journey-photo.com").replace(/\/$/, "");
-// 自分の userId。未指定なら「写真を1枚でも持っている人」を対象にする
-const OWNER_ID = process.env.OWNER_USER_ID || "";
+// 対象ユーザーの userId。必須。
+const OWNER_ID = (process.env.OWNER_USER_ID || "").trim();
 
 const ddb = new DynamoDBClient({ region: REGION });
 
@@ -33,14 +35,20 @@ async function scanAll(params) {
 }
 
 (async () => {
-    // 1. 自分の写真
+    if (!OWNER_ID) {
+        console.error("OWNER_USER_ID が未指定です。対象のユーザーIDを指定してください。");
+        console.error("（未指定で実行すると全ユーザーのいいね関係がログに出てしまうため中止します）");
+        process.exit(1);
+    }
+
+    // 1. 対象ユーザーの写真
     const photos = await scanAll({
         TableName: PHOTOS_TABLE,
         FilterExpression: "attribute_exists(userId)",
         ProjectionExpression: "id, userId, title",
     });
-    const mine = OWNER_ID ? photos.filter((p) => p.userId === OWNER_ID) : photos;
-    console.log(`対象の写真: ${mine.length}枚${OWNER_ID ? "" : "（OWNER_USER_ID 未指定のため全員分）"}`);
+    const mine = photos.filter((p) => p.userId === OWNER_ID);
+    console.log(`対象の写真: ${mine.length}枚`);
     const mineIds = new Set(mine.map((p) => p.id));
 
     // 2. いいねの記録
@@ -52,7 +60,7 @@ async function scanAll(params) {
         ProjectionExpression: "id, photoId, uid, createdAt",
     });
     const onMine = likes.filter((l) => mineIds.has(l.photoId));
-    console.log(`自分の写真へのいいね: ${onMine.length}件`);
+    console.log(`この人の写真へのいいね: ${onMine.length}件`);
 
     // 3. いいねした人ごとにまとめ、プロフィールの有無を見る
     const byUser = new Map();

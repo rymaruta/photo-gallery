@@ -15,6 +15,7 @@
  */
 
 const { S3Client, ListObjectsV2Command, GetObjectCommand, PutObjectCommand } = require("@aws-sdk/client-s3");
+const { CloudFrontClient, CreateInvalidationCommand } = require("@aws-sdk/client-cloudfront");
 const sharp = require("sharp");
 
 const REGION = "ap-northeast-1";
@@ -28,6 +29,8 @@ const COVER_MAX_PX = 1280;
 const SKIP_BYTES = 120 * 1024;
 
 const s3 = new S3Client({ region: REGION });
+const cf = new CloudFrontClient({ region: REGION });
+const DIST_ID = process.env.CLOUDFRONT_DISTRIBUTION_ID || "";
 
 const fmtKB = (n) => `${Math.round(n / 1024)}KB`;
 
@@ -88,8 +91,10 @@ async function listProfileObjects() {
                     Key: obj.key,
                     Body: resized,
                     ContentType: "image/webp",
-                    // 画像はキーが固定でハッシュが付かないため、長期キャッシュにはしない
-                    CacheControl: "public, max-age=86400",
+                    // アップロード側（api-user/src/profile.ts）が no-store で署名しているのに
+                    // 合わせる。アイコンは profiles/{userId} という固定キーでハッシュが付かず、
+                    // キャッシュさせるとアイコンを変えても古いものが出続けてしまう。
+                    CacheControl: "no-store",
                 }));
             }
             touched++;
@@ -104,4 +109,20 @@ async function listProfileObjects() {
         console.log(`合計 ${fmtKB(before)} → ${fmtKB(after)}（${Math.round((1 - after / before) * 100)}% 削減）`);
     }
     if (!APPLY && touched > 0) console.log("ドライランのため書き換えていません。");
+
+    // 書き換えたオブジェクトをエッジから追い出す。
+    // アイコンは profiles/{userId} という固定キーなので、無効化しないと
+    // 既にキャッシュされている古い画像が配信され続ける。
+    if (APPLY && touched > 0 && DIST_ID) {
+        await cf.send(new CreateInvalidationCommand({
+            DistributionId: DIST_ID,
+            InvalidationBatch: {
+                CallerReference: `shrink-profiles-${Date.now()}`,
+                Paths: { Quantity: 1, Items: ["/profiles/*"] },
+            },
+        }));
+        console.log("CloudFront の /profiles/* を無効化しました。");
+    } else if (APPLY && touched > 0) {
+        console.log("CLOUDFRONT_DISTRIBUTION_ID が無いため無効化はスキップ（古い画像が残る可能性）。");
+    }
 })().catch((e) => { console.error("エラー:", e); process.exit(1); });

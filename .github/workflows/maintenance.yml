@@ -18,6 +18,10 @@ on:
         description: "true で実際に適用（false は内容の確認のみ）"
         type: boolean
         default: false
+      owner_user_id:
+        description: "who-liked のときの対象ユーザーID（必須）"
+        type: string
+        default: ""
 
 jobs:
   run:
@@ -46,6 +50,9 @@ jobs:
         if: inputs.task == 'shrink-profiles'
         run: node scripts/shrink-profile-images.js ${{ inputs.apply && '--apply' || '' }}
         timeout-minutes: 25
+        env:
+          # 書き換えた分をエッジから追い出す（アイコンは固定キーのため）
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
 
       - name: CloudFront のアクセスログを有効化
         if: inputs.task == 'enable-cdn-logs'
@@ -54,9 +61,12 @@ jobs:
           CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
 
       # 読み取り専用。apply の指定は不要
-      - name: 自分の写真にいいねした人を特定
+      - name: 指定ユーザーの写真にいいねした人を特定
         if: inputs.task == 'who-liked'
         run: node scripts/who-liked.js
+        env:
+          # 未指定だとスクリプト側が中止する（全ユーザー分がログに出るのを防ぐため）
+          OWNER_USER_ID: ${{ inputs.owner_user_id }}
 
       # 読み取り専用。apply の指定は不要
       - name: 写真表示の速さを測る
