@@ -111,6 +111,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ja">
       <head>
+        {/*
+          CSS が届かなかったときの最低限の下地。
+          スタイルシートが 404/403 になると真っ白＋既定フォントで「壊れた」ページに
+          見えてしまう。下の自己修復が効くまでの数百ミリ秒を、せめて黒背景で見せる。
+          本体CSS（globals.css）が同じ値を指定するので、正常時の見た目は変わらない。
+        */}
+        <style dangerouslySetInnerHTML={{ __html: "html,body{background:#000;color:#fff;margin:0}" }} />
         {/* 画像配信元(CloudFront)へ事前接続し、最初の画像の DNS+TLS 待ちを削減（LCP改善） */}
         <link rel="preconnect" href="https://d1s3dwwzgxf5ni.cloudfront.net" crossOrigin="" />
         <link rel="dns-prefetch" href="https://d1s3dwwzgxf5ni.cloudfront.net" />
@@ -124,10 +131,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           動かないため、HTML に直接埋め込んで CSS/JS の読み込み失敗を検知し
           1回だけ自動リロードする。lib/utils/assetRecovery.ts と同じキー・
           クールダウン（60秒）を共有するので二重リロードにはならない。
+
+          error イベントだけでは取りこぼす経路が2つある:
+          (1) <link rel=stylesheet> は Next が head の先頭に置くため、
+              このスクリプトが動く前に error が発火しうる（キャッシュ済みの失敗など）
+          (2) CDN/WAF が 200 + HTML本文 を返すと error にならず「規則ゼロ」になる
+          そこで load 後に「CSS規則が1つでも当たっているか」を直接確かめる。
+          JS だけ動いて CSS が無い状態は水和ウォッチドッグでは検知できないため必須。
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var KEY="jp_asset_reload_at";addEventListener("error",function(e){var t=e.target;if(!t||typeof t.tagName!=="string")return;var tag=t.tagName.toUpperCase();var isAsset=tag==="SCRIPT"||(tag==="LINK"&&String(t.rel||"").toLowerCase().indexOf("stylesheet")>-1);if(!isAsset)return;var now=Date.now();var last=0;try{last=Number(sessionStorage.getItem(KEY)||0)}catch(x){return}if(last&&now-last<60000)return;try{sessionStorage.setItem(KEY,String(now))}catch(x){return}location.reload()},true)}catch(e){}})();`,
+            __html: `(function(){try{var KEY="jp_asset_reload_at";function rl(){var now=Date.now(),last=0;try{last=Number(sessionStorage.getItem(KEY)||0)}catch(x){return}if(last&&now-last<60000)return;try{sessionStorage.setItem(KEY,String(now))}catch(x){return}location.reload()}addEventListener("error",function(e){var t=e.target;if(!t||typeof t.tagName!=="string")return;var tag=t.tagName.toUpperCase();var isAsset=tag==="SCRIPT"||(tag==="LINK"&&String(t.rel||"").toLowerCase().indexOf("stylesheet")>-1);if(!isAsset)return;rl()},true);addEventListener("load",function(){try{var ls=document.querySelectorAll('link[rel~="stylesheet"]');if(!ls.length)return;for(var i=0;i<ls.length;i++){var s=ls[i].sheet;if(!s)continue;try{if(s.cssRules&&s.cssRules.length)return}catch(x){return}}rl()}catch(e){}})}catch(e){}})();`,
           }}
         />
         {/*

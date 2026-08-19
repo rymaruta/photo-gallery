@@ -43,3 +43,31 @@ export function markReloaded(now = Date.now(), storage: Storage | null = getStor
         storage?.setItem(KEY, String(now));
     } catch { /* ignore */ }
 }
+
+/**
+ * CSS が実際に効いているかを確かめる。
+ *
+ * error イベントだけに頼ると取りこぼす場合がある:
+ * - <link rel=stylesheet> は HTML の先頭に置かれるため、error が
+ *   リスナー登録より先に発火しうる（キャッシュ済みの 404 など）
+ * - CDN/WAF が 200 + HTML 本文を返した場合、ブラウザによっては
+ *   error にならず「読み込めたが規則ゼロ」になる
+ *
+ * JS だけ動いて CSS が無い状態は水和ウォッチドッグでも検知できないため、
+ * 「規則が1つも無い＝当たっていない」を直接見る。
+ */
+export function stylesheetsApplied(doc: Document): boolean {
+    const links = doc.querySelectorAll<HTMLLinkElement>('link[rel~="stylesheet"]');
+    if (links.length === 0) return true; // そもそも外部CSSが無いページは対象外
+    for (const link of Array.from(links)) {
+        const sheet = link.sheet;
+        if (!sheet) continue; // 読み込み失敗 or 未完了
+        try {
+            if (sheet.cssRules && sheet.cssRules.length > 0) return true;
+        } catch {
+            // クロスオリジンで規則を読めない = 読み込みは成功している
+            return true;
+        }
+    }
+    return false;
+}

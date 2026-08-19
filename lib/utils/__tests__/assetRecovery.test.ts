@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { isAssetElement, shouldAutoReload, markReloaded } from "../assetRecovery";
+import { isAssetElement, shouldAutoReload, markReloaded, stylesheetsApplied } from "../assetRecovery";
 
 // 外部ブラウザ等で CSS/JS の読み込みに失敗し「壊れたページ」になったとき、
 // 1回だけ自動リロードして復旧する仕組みの回帰ガード。
@@ -59,5 +59,42 @@ describe("shouldAutoReload / markReloaded（リロードループ防止）", () 
 
     it("storage が使えない環境ではリロードしない（安全側）", () => {
         expect(shouldAutoReload(1_000_000, null)).toBe(false);
+    });
+});
+
+describe("stylesheetsApplied", () => {
+    function docWith(links: Array<{ rel: string; sheet: unknown }>): Document {
+        return {
+            querySelectorAll: (sel: string) =>
+                (sel.includes("stylesheet") ? links.filter((l) => l.rel.split(/\s+/).includes("stylesheet")) : []) as unknown as NodeListOf<HTMLLinkElement>,
+        } as unknown as Document;
+    }
+
+    it("外部CSSが無いページは対象外（true）", () => {
+        expect(stylesheetsApplied(docWith([]))).toBe(true);
+    });
+
+    it("規則が読み込まれていれば true", () => {
+        expect(stylesheetsApplied(docWith([{ rel: "stylesheet", sheet: { cssRules: { length: 42 } } }]))).toBe(true);
+    });
+
+    it("読み込みに失敗（sheet が null）なら false", () => {
+        expect(stylesheetsApplied(docWith([{ rel: "stylesheet", sheet: null }]))).toBe(false);
+    });
+
+    it("200で中身が空（規則ゼロ）でも false", () => {
+        expect(stylesheetsApplied(docWith([{ rel: "stylesheet", sheet: { cssRules: { length: 0 } } }]))).toBe(false);
+    });
+
+    it("1つでも当たっていれば true（他が失敗していても）", () => {
+        expect(stylesheetsApplied(docWith([
+            { rel: "stylesheet", sheet: null },
+            { rel: "stylesheet", sheet: { cssRules: { length: 3 } } },
+        ]))).toBe(true);
+    });
+
+    it("クロスオリジンで規則を読めない場合は成功扱い（true）", () => {
+        const crossOrigin = { get cssRules() { throw new Error("SecurityError"); } };
+        expect(stylesheetsApplied(docWith([{ rel: "stylesheet", sheet: crossOrigin }]))).toBe(true);
     });
 });
