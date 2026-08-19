@@ -79,7 +79,6 @@ export default function ProfileEditPage() {
     const [username, setUsername] = useState("");
     const [displayName, setDisplayName] = useState("");
     const [bio, setBio] = useState("");
-    const [statusText, setStatusText] = useState("");
     const [themeColor, setThemeColor] = useState("");
     const [instagram, setInstagram] = useState("");
     const [website, setWebsite] = useState("");
@@ -121,7 +120,6 @@ export default function ProfileEditPage() {
                     setProfile(data);
                     setDisplayName(data.displayName ?? "");
                     setBio(data.bio ?? "");
-                    setStatusText(data.statusText ?? "");
                     setThemeColor(data.themeColor ?? "");
                     setInstagram(data.instagram ?? "");
                     setWebsite(data.website ?? "");
@@ -326,7 +324,6 @@ export default function ProfileEditPage() {
                 body: JSON.stringify({
                     username: username.trim().toLowerCase().replace(/^@/, ""),
                     displayName, bio, instagram, website,
-                    statusText,
                     themeColor,
                     ...songPayload,
                     // PUT は全置換のため、このページで編集しない項目も送り返す
@@ -537,22 +534,6 @@ export default function ProfileEditPage() {
                         <div className="text-right text-xs text-white/30 mt-1">{bio.length}/300</div>
                     </div>
 
-                    <div>
-                        <label className={labelClass}>
-                            {locale === "en" ? "Status (one line)" : "今のひとこと"}
-                        </label>
-                        <input
-                            type="text"
-                            value={statusText}
-                            onChange={e => setStatusText(e.target.value)}
-                            maxLength={60}
-                            placeholder={locale === "en" ? "🎒 Planning my next trip" : "🎒 次は北海道に行きたい"}
-                            className={inputClass}
-                        />
-                        <p className="text-xs text-white/30 mt-1.5">
-                            {locale === "en" ? "Shown under your name. Emoji welcome." : "名前の下に表示されます。絵文字もOK。"}
-                        </p>
-                    </div>
 
                     <div>
                         <label className={labelClass}>

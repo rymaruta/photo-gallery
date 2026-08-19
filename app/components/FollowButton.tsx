@@ -23,14 +23,14 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale }: 
     // フラグメントで返す。並びと余白は親のフレックス行が決める。
     return (
         <>
-            {/* カウントピル（全員に表示） */}
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
-                <span className="text-sm font-bold tabular-nums leading-none">{followers.toLocaleString()}</span>
-                <span className="text-[11px] text-white/60">{locale === "en" ? "followers" : "フォロワー"}</span>
-            </div>
+            {/* カウントピル（全員に表示）。フォロー中 → フォロワー の順 */}
             <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
                 <span className="text-sm font-bold tabular-nums leading-none">{following.toLocaleString()}</span>
                 <span className="text-[11px] text-white/60">{locale === "en" ? "following" : "フォロー中"}</span>
+            </div>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
+                <span className="text-sm font-bold tabular-nums leading-none">{followers.toLocaleString()}</span>
+                <span className="text-[11px] text-white/60">{locale === "en" ? "followers" : "フォロワー"}</span>
             </div>
 
         </>

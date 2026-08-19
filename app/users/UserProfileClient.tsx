@@ -592,27 +592,36 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             </div>
                         </div>
 
-                        {/* 名前 + 一言（カバーの下・黒背景の上） */}
-                        <div className="mt-3.5 mb-4">
-                            <h1 className="text-2xl sm:text-3xl font-bold leading-tight truncate">
-                                {displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}
-                            </h1>
-                            {/* サイト内ユーザー名: 名前のすぐ下に置いて目立たせる */}
-                            {userProfile?.username && (
-                                <p className="mt-0.5 text-sm text-white/50 truncate">@{userProfile.username}</p>
-                            )}
-                            {userProfile?.statusText && (
-                                <div className="mt-2.5 inline-flex items-start gap-2 max-w-full rounded-2xl rounded-tl-md bg-white/[0.06] ring-1 ring-white/10 px-3.5 py-2 story-media-in">
-                                    <span aria-hidden className="font-serif text-lg leading-none text-white/30 -mt-0.5 flex-shrink-0">“</span>
-                                    <p className="text-[13px] text-white/85 leading-relaxed break-words min-w-0">
-                                        {userProfile.statusText}
-                                    </p>
-                                    <span aria-hidden className="font-serif text-lg leading-none text-white/30 self-end -mb-1 flex-shrink-0">”</span>
+                        {/* 名前 + @ユーザー名 + フォローボタン（同じ行の右端）。
+                            縦の場所を使わずに主要アクションを見せるため。名前は truncate し、
+                            ボタン側は縮ませないので、長い名前でも崩れない。 */}
+                        <div className="mt-3.5 mb-3 flex items-start gap-3">
+                            <div className="min-w-0 flex-1">
+                                <h1 className="text-2xl sm:text-3xl font-bold leading-tight truncate">
+                                    {displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}
+                                </h1>
+                                {userProfile?.username && (
+                                    <p className="mt-0.5 text-sm text-white/50 truncate">@{userProfile.username}</p>
+                                )}
+                            </div>
+                            {!isOwner && (
+                                <div className="flex-shrink-0">
+                                    <FollowAction
+                                        targetUserId={userId}
+                                        isOwner={isOwner}
+                                        isAuthenticated={viewerAuthed}
+                                        locale={locale as "ja" | "en"}
+                                    />
                                 </div>
                             )}
                         </div>
 
-                    {/* 統計（投稿 / いいね / フォロワー / フォロー中）— 1行にまとめる */}
+                        {/* 自己紹介: 名前のすぐ下（従来ステータスがあった位置）に置く */}
+                        {userProfile?.bio && (
+                            <p className="text-sm text-white/85 whitespace-pre-wrap mb-4 leading-relaxed">{userProfile.bio}</p>
+                        )}
+
+                    {/* 統計（投稿 / いいね / フォロー中 / フォロワー）— 1行にまとめる */}
                     <div className="flex flex-wrap items-center gap-2 mb-4">
                         <div className="inline-flex items-baseline gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
                             <span className="text-sm font-bold tabular-nums leading-none">{postCount}</span>
@@ -641,9 +650,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     </div>
 
 
-                    {userProfile?.bio && (
-                        <p className="text-sm text-white/85 whitespace-pre-wrap mb-3 leading-relaxed drop-shadow-sm">{userProfile.bio}</p>
-                    )}
 
                     {userProfile?.website && (
                         <div className="flex flex-wrap gap-3">
@@ -757,17 +763,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         </div>
                     )}
 
-                    {/* 他人のプロフィール: フォローボタン（オーナーの操作行と同じ位置） */}
-                    {!isOwner && (
-                        <div className="flex gap-2 mt-4">
-                            <FollowAction
-                                targetUserId={userId}
-                                isOwner={isOwner}
-                                isAuthenticated={viewerAuthed}
-                                locale={locale as "ja" | "en"}
-                            />
-                        </div>
-                    )}
                     </div>
                 </div>
             </div>
