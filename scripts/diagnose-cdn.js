@@ -240,27 +240,37 @@ async function inspectWaf(cfg) {
 /** 5. 実ブラウザに近い並列取得で 403 を踏まないか試す */
 async function probeBurst() {
     line("5. 並列取得（実ページと同じ数のアセットを一度に取る）");
-    const fs = require("fs");
-    const path = require("path");
+    // 本番に配信されている HTML から拾う。ローカルビルドのハッシュは未デプロイで
+    // 403 になり、判定を汚すため使わない。
     let keys = [];
     try {
-        const idx = fs.readFileSync(path.resolve(__dirname, "../out/index.html"), "utf8");
-        keys = Array.from(idx.matchAll(/\/_next\/static\/[^"']+\.(?:js|css)/g)).map((m) => m[0]);
-        keys = Array.from(new Set(keys));
-    } catch { /* out/ が無ければスキップ */ }
-    if (keys.length === 0) { console.log("out/index.html が無いためスキップ"); return; }
+        const res = await fetch(`${SITE_URL}/`, { cache: "no-store" });
+        const html = await res.text();
+        keys = Array.from(new Set(Array.from(html.matchAll(/\/_next\/static\/[^"']+?\.(?:js|css)/g)).map((m) => m[0])));
+    } catch (e) {
+        console.log(`トップページを取得できずスキップ: ${e.message.split("\n")[0]}`);
+        return;
+    }
+    if (keys.length === 0) { console.log("アセットを抽出できずスキップ"); return; }
 
-    console.log(`${keys.length} 本を同時取得します`);
-    const results = await Promise.all(keys.map(async (k) => {
-        try {
-            const res = await fetch(`${SITE_URL}${k}`);
-            return { k, status: res.status, ct: res.headers.get("content-type") || "-" };
-        } catch (e) { return { k, status: 0, ct: e.message.split("\n")[0] }; }
-    }));
-    const bad = results.filter((r) => r.status !== 200);
-    console.log(`200: ${results.length - bad.length} / ${results.length}`);
-    for (const b of bad) console.log(`  ⚠️  ${b.status} ${b.ct} ${b.k}`);
-    if (bad.length === 0) console.log("並列取得でも全て 200（この経路では再現せず）");
+    // 3回まわして再現性を見る（1回だけだと偶然か判断できない）
+    for (let round = 1; round <= 3; round++) {
+        const results = await Promise.all(keys.map(async (k) => {
+            try {
+                const res = await fetch(`${SITE_URL}${k}`, { cache: "no-store" });
+                let body = "";
+                if (res.status !== 200) body = (await res.text()).replace(/\s+/g, " ").slice(0, 200);
+                return { k, status: res.status, ct: res.headers.get("content-type") || "-", body };
+            } catch (e) { return { k, status: 0, ct: e.message.split("\n")[0], body: "" }; }
+        }));
+        const bad = results.filter((r) => r.status !== 200);
+        console.log(`\n[${round}回目] ${keys.length}本を同時取得 → 200: ${results.length - bad.length} / ${results.length}`);
+        for (const b of bad) {
+            console.log(`  ⚠️  ${b.status} ${b.ct} ${b.k}`);
+            if (b.body) console.log(`      body: ${b.body}`);
+        }
+        if (bad.length === 0) console.log("  全て 200");
+    }
 }
 
 (async () => {
