@@ -12,6 +12,7 @@ provider:
 
   environment:
     PHOTOS_TABLE: prod-photo-gallery-photos
+    USERS_TABLE: prod-photo-gallery-users
     UPLOAD_BUCKET: ${param:uploadBucket, 'prod-journey-photo-upload'}
     CLOUDFRONT_URL: ${param:cloudfrontUrl, 'https://d1s3dwwzgxf5ni.cloudfront.net'}
 
@@ -40,6 +41,12 @@ provider:
           Resource:
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-photos
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-photos/index/*
+        # 登録完了時にプロフィール行を作る（PostConfirmation トリガー）
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+          Resource:
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-users
         # アップロード画像の管理（Presigned URL 発行・削除）
         - Effect: Allow
           Action:

@@ -19,7 +19,10 @@ export type Notif = {
 export const notifsId = (uid: string) => `notifs#${uid}`;
 
 const USERS_TABLE = process.env.USERS_TABLE ?? "prod-photo-gallery-users";
-const DEFAULT_NAME = "旅人";
+// プロフィール未設定の人に使う表示。人名に見える語（以前は「旅人」）だと
+// 「そういう名前の人がいる」と誤解され、検索しても見つからず混乱するため、
+// 明らかに未設定と分かる表記にする。
+const DEFAULT_NAME = "名前未設定さん";
 
 /** 表示名を Users テーブルから引く（クライアント申告を信用しない）。無ければ既定名 */
 export async function lookupDisplayName(uid: string): Promise<string> {

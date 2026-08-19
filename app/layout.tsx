@@ -8,6 +8,7 @@ import Footer from "./components/Footer";
 import ToastProvider from "./components/ToastProvider";
 import DisableSave from "./components/DisableSave";
 import AssetRecovery from "./components/AssetRecovery";
+import ProfileSetupBanner from "./components/ProfileSetupBanner";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ServiceWorkerRegister from "./components/ServiceWorkerRegister";
 import Analytics from "./components/Analytics";
@@ -186,6 +187,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <HeaderNav />
           </div>
         </header>
+
+        {/* 名前が未設定のログインユーザーに、名前を決めてもらうよう促す */}
+        <ProfileSetupBanner />
 
         {/* Main - 各ページで管理 */}
           <div className="flex-1">
