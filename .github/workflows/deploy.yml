@@ -26,6 +26,14 @@ jobs:
     # 2026-08-19 にブラウザインストールで4時間以上ハングした実績があるため必須。
     timeout-minutes: 30
 
+    # スモークテスト用のブラウザと OS ライブラリが入った公式イメージで動かす。
+    # 以前は `playwright install --with-deps` が毎回 apt で約130個のパッケージを
+    # 取りに行っており、ミラーが遅い日にタイムアウトしてデプロイが落ちていた
+    # （2026-08-19 の失敗はこれ）。イメージに同梱させて apt 自体を無くす。
+    # ⚠️ package.json の playwright を上げたら、このタグも同じ版に上げること。
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-noble
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -69,18 +77,11 @@ jobs:
           NEXT_PUBLIC_COGNITO_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_COGNITO_CLIENT_ID || '21cs4cd8dkttmg3snloj72u8mu' }}
           NEXT_PUBLIC_CLOUDFRONT_URL: ${{ secrets.NEXT_PUBLIC_CLOUDFRONT_URL || 'https://d1s3dwwzgxf5ni.cloudfront.net' }}
 
-      # ブラウザ本体をキャッシュする。毎回ダウンロードすると所要時間が読めず、
-      # ここでハングした実績があるため（キャッシュヒット時はほぼ即完了）。
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            playwright-${{ runner.os }}-
-
-      - name: Install browsers for smoke test (chromium + webkit)
-        run: npx playwright install --with-deps chromium webkit
+      # ブラウザはコンテナイメージに同梱済みなので通常は即終了する。
+      # package.json の playwright だけ上げてイメージのタグが古いときの保険として
+      # 実行する（--with-deps は付けない。apt を走らせないことがこの構成の要点）。
+      - name: Ensure browsers match the installed Playwright
+        run: npx playwright install chromium webkit
         timeout-minutes: 10
 
       # 実ブラウザでメニュー・モーダル・タブを実際にタップして検証。
