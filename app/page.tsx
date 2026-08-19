@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { siteConfig, generateStructuredData, generateOrganizationStructuredData } from "../lib/utils/seo";
-import PHOTOS from "@/lib/data/photos";
+import { loadAllPhotos } from "../lib/server/photos";
 import GalleryPageClient from "./GalleryPageClient";
 
 export const metadata: Metadata = {
@@ -34,8 +34,12 @@ export const metadata: Metadata = {
     },
 };
 
-export default function Page() {
-    const structuredData = generateStructuredData(PHOTOS);
+export default async function Page() {
+    // 実データはビルド時に生成される app/data/photos.json 側にある。
+    // lib/data/photos の既定エクスポート（BASE_PHOTOS）は空配列なので、
+    // そのまま渡すと構造化データの image が常に空になっていた。
+    const photos = await loadAllPhotos();
+    const structuredData = generateStructuredData(photos.filter((p) => p.published !== false));
     const organizationData = generateOrganizationStructuredData();
 
     return (

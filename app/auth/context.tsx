@@ -6,6 +6,7 @@ import { signIn, signOut, getCurrentSession, deleteAccount as cognitoDeleteAccou
 import { cognitoConfig } from "../../lib/auth/config";
 import { userFetch } from "../../lib/utils/api";
 import { log } from "../../lib/utils/log";
+import { resetFollowingCache } from "../../lib/hooks/useFollow";
 
 type AuthContextType = {
     isAuthenticated: boolean;
@@ -138,6 +139,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // ログアウト
     const logout = useCallback(() => {
         signOut();
+        // フォロー中の一覧はモジュール変数に持っている。ログアウトは
+        // クライアント遷移でモジュール状態が残るため、明示的に捨てないと
+        // 同じタブで別の人がログインしたときに前の人の一覧が使われる。
+        resetFollowingCache();
         setAuthState({
             isAuthenticated: false,
             isAdminUser: false,

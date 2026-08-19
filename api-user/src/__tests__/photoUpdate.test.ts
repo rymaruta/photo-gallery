@@ -133,7 +133,8 @@ describe("updatePhotoVisibility: 下書きのメタデータ編集", () => {
         expect(u.ExpressionAttributeValues[":location"]).toBe("山中湖");
         expect(u.ExpressionAttributeValues[":category"]).toBe("風景");
         expect(u.ExpressionAttributeValues[":tags"]).toEqual(["夕焼け", "湖"]);
-        expect(u.ExpressionAttributeValues[":date"]).toBe("2026-01-20");
+        // 撮影日は upload.ts と同じ検証（sanitizeDate）を通すので ISO に正規化される
+        expect(u.ExpressionAttributeValues[":date"]).toBe("2026-01-20T00:00:00.000Z");
     });
 
     it("メタ編集と公開を同時に行える（下書き→公開）", async () => {
@@ -190,5 +191,27 @@ describe("isValidYouTubeUrl", () => {
         expect(isValidYouTubeUrl("http://youtu.be/dQw4w9WgXcQ")).toBeUndefined();
         expect(isValidYouTubeUrl(123)).toBeUndefined();
         expect(isValidYouTubeUrl("not a url")).toBeUndefined();
+    });
+});
+
+// 撮影日は年表の並び順の元になる。保存経路によって検証が違うと、
+// 編集経由だけ任意の文字列が入って並びが壊れる。
+describe("updatePhotoVisibility: 撮影日の検証", () => {
+    it("日付でない文字列は保存しない", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } })
+            .mockResolvedValueOnce({});
+        const res = await invoke(event("u1", "p1", { date: "きのう撮った写真です" }));
+        expect(res.statusCode).toBe(200);
+        // 不正な値は SET されない（sanitizeDate が弾く）
+        expect(lastUpdate().ExpressionAttributeValues?.[":date"]).toBeUndefined();
+    });
+
+    it("YYYY-MM-DD も ISO に正規化して保存する（保存経路で表記を揃える）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } })
+            .mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { date: "2024-05-01" }));
+        expect(lastUpdate().ExpressionAttributeValues[":date"]).toBe("2024-05-01T00:00:00.000Z");
     });
 });

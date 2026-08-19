@@ -35,10 +35,23 @@ function deriveUploadKey(v: unknown): string {
     return "";
 }
 
-/** 写真/ストーリー item から削除すべき S3 キー（本体 + サムネ + key 属性）を重複なく集める */
+/**
+ * 写真/ストーリー item から削除すべき S3 キーを重複なく集める。
+ *
+ * 本体とサムネだけでは足りない。AVIF や小サイズの派生画像、そして
+ * srcOriginal（EXIF を落とす前の原本）が残る。srcOriginal には GPS が
+ * 入ったままなので、退会後も公開URLで取得できる状態は避ける。
+ * scripts/generate-thumbnails.js が作る派生を全部並べておく。
+ */
+const MEDIA_FIELDS = [
+    "key", "src", "srcOriginal", "srcAvif", "src256",
+    "thumbSrc", "thumbSm", "thumbAvif", "thumbSmAvif",
+] as const;
+
 function mediaKeys(item: Record<string, unknown>): string[] {
     const keys = new Set<string>();
-    for (const k of [deriveUploadKey(item.key), deriveUploadKey(item.src), deriveUploadKey(item.thumbSrc)]) {
+    for (const field of MEDIA_FIELDS) {
+        const k = deriveUploadKey(item[field]);
         if (k) keys.add(k);
     }
     return [...keys];
@@ -125,6 +138,16 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         await s3Delete(`profiles/${uid}/cover`);
 
         // 3. プロフィール（USERS_TABLE）
+        //    ユーザー名の予約（username#<handle>）も一緒に消す。残すと本人が
+        //    再登録しても同じ名前を取り戻せない（releaseUsername は ownerId 一致が条件）。
+        //    handle はプロフィールにしか無いので、削除より先に読む。
+        try {
+            const prof = await ddb.send(new GetCommand({ TableName: USERS_TABLE, Key: { userId: uid } }));
+            const handle = typeof prof.Item?.username === "string" ? prof.Item.username : "";
+            if (handle) await ddbDelete(USERS_TABLE, { userId: `username#${handle}` });
+        } catch (e) {
+            console.error("deleteAccount: release username failed:", e);
+        }
         await ddbDelete(USERS_TABLE, { userId: uid });
 
         // 4. 自分が押した「行く」: golist の各エントリの go# マーカーを削除し、対象写真の goCount を戻す

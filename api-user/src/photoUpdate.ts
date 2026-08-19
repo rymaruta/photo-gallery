@@ -2,7 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { UpdateCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId } from "./http";
-import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords } from "./sanitize";
+import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeDate } from "./sanitize";
 
 type PhotoSong = { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string };
 
@@ -136,7 +136,9 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         applyMeta("location", "location" in body, sanitizeText(body.location, 200));
         applyMeta("category", "category" in body, sanitizeText(body.category, 100));
         applyMeta("tags", "tags" in body, sanitizeTags(body.tags));
-        applyMeta("date", "date" in body, sanitizeText(body.date, 40));
+        // 撮影日は upload.ts と同じ検証を通す。sanitizeText だと40文字までの
+        // 任意の文字列が入り、年表の並び順が壊れる
+        applyMeta("date", "date" in body, sanitizeDate(body.date));
         applyMeta("coords", "coords" in body, sanitizeCoords(body.coords) ?? undefined);
 
         let expr = `SET ${sets.join(", ")}`;

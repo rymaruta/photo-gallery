@@ -8,7 +8,7 @@ vi.mock("@aws-sdk/client-dynamodb", () => ({
     DeleteItemCommand: class {},
 }));
 
-import { normalizeUsername, USERNAME_RE, RESERVED_USERNAMES } from "../userProfile";
+import { normalizeUsername, USERNAME_RE, RESERVED_USERNAMES, getPublicProfile } from "../userProfile";
 
 describe("normalizeUsername", () => {
     it("小文字化し、先頭の @ を落とす", () => {
@@ -78,5 +78,23 @@ describe("USERNAME_RE / RESERVED_USERNAMES", () => {
 
     it("admin も予約されている", () => {
         expect(RESERVED_USERNAMES.has("admin")).toBe(true);
+    });
+});
+
+// @ハンドル → Cognito の内部ID が引けないことの回帰ガード。
+// 予約アイテム（username#<handle>）は ownerId を持つため、
+// 公開エンドポイントから引けると内部IDの一覧化に使える。
+describe("getPublicProfile: 予約アイテムを引かせない", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const invokePublic = (event: unknown) => (getPublicProfile as any)(event) as Promise<{ statusCode: number }>;
+
+    it("username# を含む userId は 404", async () => {
+        const res = await invokePublic({ pathParameters: { userId: "username#alice" } });
+        expect(res.statusCode).toBe(404);
+    });
+
+    it("通常の userId は引ける", async () => {
+        const res = await invokePublic({ pathParameters: { userId: "some-user-id" } });
+        expect(res.statusCode).toBe(200);
     });
 });

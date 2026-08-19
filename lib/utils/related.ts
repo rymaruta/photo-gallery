@@ -18,7 +18,10 @@ export function sameLocation(a?: string, b?: string): boolean {
 
 /** createdAt/date の新しい順で安定ソートするための比較キー */
 function timeKey(p: Photo): string {
-    return (p.createdAt ?? p.date ?? "");
+    // ホームの既定ソート（lib/hooks/useGallery.ts）と同じ優先順位にする。
+    // 逆にすると、一覧で隣にあった写真と「次の写真」が食い違う
+    // （撮影日と投稿日は普通ズレるため）。
+    return (p.date ?? p.createdAt ?? "");
 }
 
 function sortByNewest(a: Photo, b: Photo): number {

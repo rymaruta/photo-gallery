@@ -335,15 +335,36 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     }
 };
 
+// 公開プロフィールとして返してよい項目だけを抜き出す。
+// テーブルの中身をそのまま返すと、将来追加された内部用の項目まで公開されてしまう。
+function toPublicProfile(p: UserProfile): Partial<UserProfile> {
+    const {
+        userId, username, displayName, bio, instagram, website, themeColor,
+        songUrl, songStart, songEnd, songTitle, songArtist, songArtwork,
+        songPreviewUrl, songTrackUrl, songs, pinnedPhotoIds, updatedAt,
+    } = p;
+    return {
+        userId, username, displayName, bio, instagram, website, themeColor,
+        songUrl, songStart, songEnd, songTitle, songArtist, songArtwork,
+        songPreviewUrl, songTrackUrl, songs, pinnedPhotoIds, updatedAt,
+    };
+}
+
 export const getPublicProfile: APIGatewayProxyHandlerV2 = async (event) => {
     const userId = event.pathParameters?.userId;
     if (!userId) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "userIdが必要です" }) };
     }
+    // ユーザー名の予約アイテム（username#<handle>）は引かせない。
+    // 引けると @ハンドル から Cognito の内部ID（ownerId）が辿れてしまう。
+    // userSearch.ts も同じ理由で予約アイテムを除外している。
+    if (userId.includes("#")) {
+        return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "見つかりません" }) };
+    }
     try {
         const profile = await getProfile(userId);
         if (!profile) return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ userId }) };
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(profile) };
+        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(toPublicProfile(profile)) };
     } catch (e) {
         console.error("getPublicProfile error:", e);
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "取得に失敗しました" }) };

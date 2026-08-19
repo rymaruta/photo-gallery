@@ -59,19 +59,29 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: "削除権限がありません" }) };
         }
 
-        // S3 から画像ファイルを削除（失敗してもDynamoDBレコードは削除する）
-        if (photo.src && typeof photo.src === "string" && photo.src.startsWith("http")) {
+        // S3 から画像ファイルを削除（失敗してもDynamoDBレコードは削除する）。
+        // 本体だけでなく派生画像も消す。特に srcOriginal は EXIF を落とす前の原本で
+        // GPS が入ったままなので、消し残すと削除後も公開URLで取得できてしまう。
+        const mediaFields = [
+            "src", "srcOriginal", "srcAvif", "src256",
+            "thumbSrc", "thumbSm", "thumbAvif", "thumbSmAvif",
+        ] as const;
+        const keys = new Set<string>();
+        for (const field of mediaFields) {
+            const v = (photo as Record<string, unknown>)[field];
+            if (typeof v !== "string" || !v.startsWith("http")) continue;
             try {
-                const url = new URL(photo.src);
-                const key = url.pathname.substring(1);
+                const key = new URL(v).pathname.substring(1);
                 // 消してよいのはアップロード領域だけ。src は過去に検証なしで保存された
                 // ものがあり、そのままキーにすると他人のアイコン（profiles/...）まで
                 // 消せてしまう。
-                if (!key.startsWith("uploads/")) {
-                    console.warn(`deletePhoto: skip S3 delete for unexpected key ${key}`);
-                } else {
-                    await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));
-                }
+                if (key.startsWith("uploads/")) keys.add(key);
+                else console.warn(`deletePhoto: skip S3 delete for unexpected key ${key}`);
+            } catch { /* URL でなければ無視 */ }
+        }
+        for (const key of keys) {
+            try {
+                await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));
             } catch (s3Err) {
                 console.error("S3 delete error (non-fatal):", s3Err);
             }

@@ -12,6 +12,13 @@
  *    ブラウザの自己修復もSEOも壊れる。
  *
  * 既定はドライラン。--apply を付けたときだけ変更する。冪等。
+ *
+ * ⚠️ この設定はディストリビューション全体に効く。
+ *    現在は API を API Gateway の直URLで呼んでいる（deploy.yml が
+ *    NEXT_PUBLIC_API_BASE_URL に execute-api のURLを渡している）ため、
+ *    CloudFront の /api/* を通る通信は無く、APIのエラー応答に影響しない。
+ *    将来 API を相対パス（/api/...）経由に切り替えると、APIが返す403まで
+ *    404のHTMLに置き換わるので、そのときはこの設定を見直すこと。
  */
 
 const { CloudFrontClient, GetDistributionConfigCommand, UpdateDistributionCommand } = require("@aws-sdk/client-cloudfront");

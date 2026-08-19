@@ -183,3 +183,60 @@ describe("deleteAccount", () => {
         expect(ids).toContain("p2");
     });
 });
+
+// 退会は取り消せない。消し残しは個人情報が公開URLに残ることを意味するので、
+// 「何を消すか」をテストで固定しておく。
+describe("deleteAccount: 消し残しを作らない", () => {
+    function setupWithPhoto(item: Record<string, unknown>, profile?: Record<string, unknown>) {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [{ id: "p1", userId: "me" }] });
+            if (name === "GetCommand") {
+                const key = cmd.input.Key as { id?: string; userId?: string };
+                if (key.id === "p1") return Promise.resolve({ Item: item });
+                if (key.userId === "me") return Promise.resolve({ Item: profile ?? {} });
+                return Promise.resolve({});
+            }
+            return Promise.resolve({});
+        });
+    }
+
+    it("EXIF付きの原本と派生画像もすべて消す", async () => {
+        // srcOriginal は EXIF を落とす前の原本。GPS が入ったままなので
+        // 消し残すと退会後も公開URLで取得できてしまう。
+        setupWithPhoto({
+            id: "p1",
+            userId: "me",
+            src: "https://cdn.test/uploads/p1.jpg",
+            srcOriginal: "https://cdn.test/uploads/p1_orig.jpg",
+            srcAvif: "https://cdn.test/uploads/p1.avif",
+            src256: "https://cdn.test/uploads/p1_256.webp",
+            thumbSrc: "https://cdn.test/uploads/p1_thumb.webp",
+            thumbSm: "https://cdn.test/uploads/p1_sm.webp",
+            thumbAvif: "https://cdn.test/uploads/p1_thumb.avif",
+            thumbSmAvif: "https://cdn.test/uploads/p1_sm.avif",
+        });
+        const res = await invoke(deleteAccount, ev("me"));
+        expect(res.statusCode).toBe(200);
+        const keys = deletedS3Keys();
+        for (const k of [
+            "uploads/p1.jpg", "uploads/p1_orig.jpg", "uploads/p1.avif", "uploads/p1_256.webp",
+            "uploads/p1_thumb.webp", "uploads/p1_sm.webp", "uploads/p1_thumb.avif", "uploads/p1_sm.avif",
+        ]) {
+            expect(keys).toContain(k);
+        }
+    });
+
+    it("ユーザー名の予約も解放する（再登録で同じ名前を取り戻せるように）", async () => {
+        setupWithPhoto({ id: "p1", userId: "me", src: "https://cdn.test/uploads/p1.jpg" }, { userId: "me", username: "ryuhei" });
+        const res = await invoke(deleteAccount, ev("me"));
+        expect(res.statusCode).toBe(200);
+        expect(deletedDdbIds()).toContain("username#ryuhei");
+    });
+
+    it("ユーザー名が未設定なら予約の削除は行わない", async () => {
+        setupWithPhoto({ id: "p1", userId: "me", src: "https://cdn.test/uploads/p1.jpg" }, { userId: "me" });
+        await invoke(deleteAccount, ev("me"));
+        expect(deletedDdbIds().some((id) => id.startsWith("username#"))).toBe(false);
+    });
+});
