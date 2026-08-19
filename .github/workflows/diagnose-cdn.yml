@@ -1,0 +1,38 @@
+name: Diagnose CDN
+
+# 手動実行のみ。読み取り専用の診断で、AWS の設定は一切変更しない。
+# 「初回アクセスで CSS が当たらない」の原因を実データで確かめるために使う。
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    name: Diagnose CDN delivery
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+
+      - name: Diagnose
+        run: node scripts/diagnose-cdn.js
+        timeout-minutes: 10
+        env:
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
