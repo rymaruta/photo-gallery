@@ -5,8 +5,10 @@
 import type { Metadata } from "next";
 import { loadAllPhotos } from "./photos";
 import {
+    canonicalCategorySlug,
     collectEntries,
     isIndexableCollection,
+    legacyCategorySlugs,
     photosInCollection,
     labelForSlug,
     collectionCopy,
@@ -18,7 +20,12 @@ import { siteConfig } from "../utils/seo";
 /** 静的エクスポート用: そのタイプの全 slug を列挙（列挙外のパスは 404） */
 export async function collectionStaticParams(type: CollectionType, paramKey: string) {
     const photos = await loadAllPhotos();
-    return collectEntries(photos, type).map((e) => ({ [paramKey]: e.slug }));
+    const slugs = collectEntries(photos, type).map((e) => e.slug);
+    // カテゴリは日本語表記を英語キーへ統合している。統合前に公開していた
+    // `/category/風景` などもページとして残す（静的エクスポートではリダイレクトが
+    // 張れず、消すとハード404になるため）。中身は統合後と同じで、canonical で寄せる。
+    if (type === "category") slugs.push(...legacyCategorySlugs(photos));
+    return slugs.map((slug) => ({ [paramKey]: slug }));
 }
 
 /** ランディングページのメタデータ（title/description/canonical/OG/Twitter） */
@@ -27,7 +34,10 @@ export async function collectionMetadata(type: CollectionType, slug: string): Pr
     const matched = photosInCollection(photos, type, slug);
     const label = labelForSlug(photos, type, slug);
     const { title, description } = collectionCopy(type, label, matched.length);
-    const url = `${siteConfig.url}${collectionPath(type, slug)}`;
+    // canonical は統合後のURLに向ける。旧スラッグ（/category/風景）でも
+    // 評価が統合後（/category/landscape）にまとまるようにする。
+    const canonicalSlug = type === "category" ? canonicalCategorySlug(slug) : slug;
+    const url = `${siteConfig.url}${collectionPath(type, canonicalSlug)}`;
 
     const first = matched[0];
     const rawImage = first?.thumbSrc || first?.src;

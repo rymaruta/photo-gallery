@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import type { Photo } from "@/lib/data/photos";
+import { isImageReady } from "@/lib/utils/imageReady";
 
 /** 256w/512w の srcset 文字列を組み立てる（無い分は除外） */
 function buildSrcSet(w256?: string, w512?: string): string | undefined {
@@ -27,6 +28,11 @@ type Props = {
  */
 export default function Thumb({ photo, alt, sizes, priority = false, objectPosition, className = "" }: Props) {
     const [loaded, setLoaded] = useState(false);
+
+    // キャッシュ済みで load を取り逃したときに表示へ切り替える（imageReady.ts 参照）
+    const revealIfAlreadyLoaded = useCallback((img: HTMLImageElement | null) => {
+        if (isImageReady(img)) setLoaded(true);
+    }, []);
     const [error, setError] = useState(false);
 
     const fallback = photo.thumbSrc || photo.src;
@@ -61,6 +67,7 @@ export default function Thumb({ photo, alt, sizes, priority = false, objectPosit
                 {avifSet && <source type="image/avif" srcSet={avifSet} sizes={sizes} />}
                 {webpSet && <source type="image/webp" srcSet={webpSet} sizes={sizes} />}
                 <img
+                    ref={revealIfAlreadyLoaded}
                     src={fallback}
                     alt={alt}
                     draggable={false}

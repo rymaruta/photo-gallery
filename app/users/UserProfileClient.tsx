@@ -342,11 +342,20 @@ export default function UserProfileClient({ userId }: { userId: string }) {
 
     // プロフィール項目の部分更新。PUT は全置換のため、既知の項目を丸ごと送り返す。
     const saveProfilePatch = useCallback(async (patch: Partial<UserProfile>, successMsg: string) => {
+        // PUT /user/profile は全項目の置換なので、送らなかった項目は消える。
+        // プロフィールの取得に失敗した状態（userProfile === null）で保存すると、
+        // 表示名・自己紹介・リンク・BGM・テーマ色がまとめて失われるため保存しない。
+        if (!userProfile) {
+            showToast(locale === "en"
+                ? "Could not load your profile. Please reload and try again."
+                : "プロフィールを読み込めていません。再読み込みしてからお試しください。", "error");
+            return;
+        }
         const prev = userProfile;
         // 楽観的更新
         setUserProfile((p) => (p ? { ...p, ...patch } : ({ userId, ...patch } as UserProfile)));
         try {
-            const base = userProfile ?? ({ userId } as UserProfile);
+            const base = userProfile;
             const res = await userFetch("/user/profile", {
                 method: "PUT",
                 body: JSON.stringify({

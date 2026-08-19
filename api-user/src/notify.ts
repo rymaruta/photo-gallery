@@ -43,13 +43,21 @@ export async function lookupDisplayName(uid: string): Promise<string> {
     }
 }
 
+// 保持する通知の件数。DynamoDB の1アイテム上限（400KB）に達すると
+// 以後の書き込みが全部失敗し、しかもこの関数はエラーを握りつぶすため、
+// その人には二度と通知が届かなくなる。追記時に必ず切り詰める。
+export const NOTIFS_MAX = 50;
+
 /**
  * 通知を積む。通知は本流の操作（いいね等）を失敗させないよう、
  * エラーはログに残して握りつぶす。
+ *
+ * 追記は list_append の1回で済ませたいが、それだと際限なく伸びる。
+ * 溢れそうなときだけ読み直して切り詰める（通常は追記1回のまま）。
  */
 export async function pushNotification(ownerId: string, notif: Notif): Promise<void> {
     try {
-        await ddb.send(new UpdateCommand({
+        const res = await ddb.send(new UpdateCommand({
             TableName: PHOTOS_TABLE,
             Key: { id: notifsId(ownerId) },
             UpdateExpression:
@@ -64,7 +72,20 @@ export async function pushNotification(ownerId: string, notif: Notif): Promise<v
                 ":owner": ownerId,
                 ":now": notif.t,
             },
+            ReturnValues: "UPDATED_NEW",
         }));
+
+        // 上限を超えたら新しい方から NOTIFS_MAX 件だけ残す
+        const items = res.Attributes?.items;
+        if (Array.isArray(items) && items.length > NOTIFS_MAX) {
+            await ddb.send(new UpdateCommand({
+                TableName: PHOTOS_TABLE,
+                Key: { id: notifsId(ownerId) },
+                UpdateExpression: "SET #items = :trimmed",
+                ExpressionAttributeNames: { "#items": "items" },
+                ExpressionAttributeValues: { ":trimmed": items.slice(0, NOTIFS_MAX) },
+            }));
+        }
     } catch (e) {
         console.error("pushNotification error:", e);
     }

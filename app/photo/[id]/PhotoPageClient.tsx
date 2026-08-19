@@ -28,6 +28,7 @@ import { ROUTES } from "../../../lib/routes";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
+import { isImageReady } from "../../../lib/utils/imageReady";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -173,6 +174,8 @@ function PhotoImage({
                             setImageLoading(false);
                         }}
                         onLoad={() => setImageLoading(false)}
+                        // キャッシュ済みで load を取り逃した場合の保険（imageReady.ts 参照）
+                        ref={(img) => { if (isImageReady(img)) setImageLoading(false); }}
                     />
                 </picture>
             </div>
@@ -463,7 +466,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
             {breadcrumbData && (
                 <script
                     type="application/ld+json"
-                    dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
+                    // 写真のタイトルが入るためエスケープ必須（直前の構造化データと同じ扱い）
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData).replace(/</g, "\\u003c").replace(/>/g, "\\u003e") }}
                 />
             )}
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">

@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import { putPhoto, countUserPhotos } from "./ddb-photos";
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
-import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate } from "./sanitize";
+import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags } from "./sanitize";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
@@ -184,11 +184,13 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // 既存写真の更新は photoUpdate.ts が担当する。
         id: uuidv4(),
         src: publicUrl,
-        title: title ?? { ja: "無題", en: "Untitled" },
-        ...(description ? { description } : {}),
-        ...(location ? { location } : {}),
-        ...(category ? { category } : {}),
-        tags: Array.isArray(tags) ? tags : [],
+        // 保存時にもサニタイズを通す。photoUpdate.ts は通しているのにここだけ
+        // 素通しで、任意の長さ・任意の構造の値が静的HTMLまで届いていた。
+        title: sanitizeTitle(title) ?? { ja: "無題", en: "Untitled" },
+        ...(() => { const d = sanitizeDescription(description); return d ? { description: d } : {}; })(),
+        ...(() => { const l = sanitizeText(location, 200); return l ? { location: l } : {}; })(),
+        ...(() => { const c = sanitizeText(category, 100); return c ? { category: c } : {}; })(),
+        tags: sanitizeTags(tags) ?? [],
         ...(() => { const safeExif = sanitizeExif(exif); return safeExif ? { exif: safeExif } : {}; })(),
         ...(safeCoords ? { coords: safeCoords } : {}),
         ...(safeDominantColor ? { dominantColor: safeDominantColor } : {}),

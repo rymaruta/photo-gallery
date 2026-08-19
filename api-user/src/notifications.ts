@@ -2,14 +2,11 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { UpdateCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
-import { notifsId } from "./notify";
+import { notifsId, NOTIFS_MAX } from "./notify";
 
 // 通知の取得と既読化。
 // 通知本体は "notifs#<uid>" 文書に { items: Notif[], unread: number } として持つ。
 // 書き込みは各操作（いいね・コメント・フォロー）から notify.ts 経由で追記される。
-
-// 保持する通知の件数。書き込みは追記のみなので、切り詰めは取得時に行う
-const NOTIFS_MAX = 50;
 
 // GET /user/notifications — 通知一覧（認証必要）
 export const getNotifications: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {

@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { isImageReady } from "../../../lib/utils/imageReady";
 
 type Props = {
     src: string;
@@ -49,6 +50,8 @@ export default function ModalImage({ src, alt, srcAvif, focalPoint }: Props) {
                     }}
                     onError={() => { setImageError(true); setImageLoading(false); }}
                     onLoad={() => setImageLoading(false)}
+                    // キャッシュ済みで load を取り逃した場合の保険（imageReady.ts 参照）
+                    ref={(img) => { if (isImageReady(img)) setImageLoading(false); }}
                 />
             </picture>
         </>

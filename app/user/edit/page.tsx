@@ -14,7 +14,9 @@ import { ROUTES } from "../../../lib/routes";
 const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
 const labelCls = "block text-sm text-white/60 mb-1";
 
-// title/description は string か {ja,en}/{ja:[],en:[]} の両対応。編集は単一フィールドに集約する。
+// title/description は string か {ja,en}/{ja:[],en:[]} の両対応。
+// 編集欄は日本語だけを扱うが、保存時に英語側を残す（消すと JSON-LD と
+// sr-only の英語併記まで失われるため）。
 function titleToText(t: Photo["title"]): string {
     if (!t) return "";
     if (typeof t === "string") return t;
@@ -29,6 +31,47 @@ function descToText(d: Photo["description"]): string {
     return Array.isArray(arr) ? arr.join("\n") : "";
 }
 
+/** ISO 文字列を <input type="date"> が受け付ける YYYY-MM-DD にする */
+export function toDateInputValue(raw?: string): string {
+    if (!raw) return "";
+    const m = /^(\d{4}-\d{2}-\d{2})/.exec(raw);
+    if (m) return m[1];
+    const t = Date.parse(raw);
+    if (Number.isNaN(t)) return "";
+    return new Date(t).toISOString().slice(0, 10);
+}
+
+/**
+ * 入力された日付（YYYY-MM-DD）に、元の値が持っていた時刻を戻す。
+ * 日付だけを編集させているのに時刻まで落とすと、同じ日に撮った写真の
+ * 並び順が崩れるため。
+ */
+export function mergeDate(original: string | undefined, input: string): string {
+    if (!input) return "";
+    if (!original) return input;
+    const t = Date.parse(original);
+    if (Number.isNaN(t)) return input;
+    // 元の日付と同じなら元の値（時刻つき）をそのまま使う
+    return new Date(t).toISOString().slice(0, 10) === input ? original : input;
+}
+
+/** 日本語だけ差し替え、英語側は元のまま残す */
+export function mergeLocalizedTitle(original: Photo["title"], ja: string): Photo["title"] {
+    const en = original && typeof original === "object" ? (original as Record<string, string>).en : undefined;
+    if (!en) return ja;
+    return { ...(ja ? { ja } : {}), en };
+}
+
+/** 説明も同様に、英語側の段落を残す */
+export function mergeLocalizedDescription(original: Photo["description"], ja: string): Photo["description"] {
+    const lines = ja.split("\n").map((l) => l.trim()).filter(Boolean);
+    const en = original && typeof original === "object" && !Array.isArray(original)
+        ? (original as LocalizedParagraphs).en
+        : undefined;
+    if (!en || en.length === 0) return ja;
+    return { ...(lines.length ? { ja: lines } : {}), en };
+}
+
 function EditContent() {
     const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
     const router = useRouter();
@@ -41,6 +84,9 @@ function EditContent() {
 
     const [photo, setPhoto] = useState<Photo | null>(null);
     const [loadingPhoto, setLoadingPhoto] = useState(true);
+    // 読み込んだ元データ。編集欄に出していない項目（英語のタイトル・説明、
+    // 撮影日の時刻）を保存時に失わないために持っておく。
+    const [original, setOriginal] = useState<Photo | null>(null);
     const [saving, setSaving] = useState(false);
 
     const [title, setTitle] = useState("");
@@ -70,11 +116,14 @@ function EditContent() {
                     const found = Array.isArray(all) ? all.find((p) => p.id === photoId) ?? null : null;
                     if (found) {
                         setPhoto(found);
+                        setOriginal(found);
                         setTitle(titleToText(found.title));
                         setDescription(descToText(found.description));
                         setLocation(found.location ?? "");
                         setCategory(found.category ?? "");
-                        setDate(found.date ?? "");
+                        // <input type="date"> は YYYY-MM-DD しか受け付けない。
+                        // 保存値は ISO 文字列なので、そのまま入れると空欄になる。
+                        setDate(toDateInputValue(found.date));
                         setTagsInput(Array.isArray(found.tags) ? found.tags.join(", ") : "");
                     } else {
                         showToast(isJa ? "写真が見つかりません" : "Photo not found", "error");
@@ -102,11 +151,13 @@ function EditContent() {
             const res = await userFetch(`/photos/${photoId}`, {
                 method: "PUT",
                 body: JSON.stringify({
-                    title,
-                    description,
+                    // 英語側が入っていれば残したまま日本語だけ差し替える
+                    title: mergeLocalizedTitle(original?.title, title),
+                    description: mergeLocalizedDescription(original?.description, description),
                     location,
                     category,
-                    date,
+                    // 日付だけを編集させているので、元の時刻を保つ
+                    date: mergeDate(original?.date, date),
                     tags,
                     published,
                 }),
@@ -129,7 +180,7 @@ function EditContent() {
         } finally {
             setSaving(false);
         }
-    }, [photoId, title, description, location, category, date, tagsInput, isJa, router, showToast]);
+    }, [photoId, original, title, description, location, category, date, tagsInput, isJa, router, showToast]);
 
     if (loading || loadingPhoto) {
         return (

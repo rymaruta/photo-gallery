@@ -42,6 +42,31 @@ export function isIndexableCollection(count: number): boolean {
     return count >= MIN_INDEXABLE_COUNT;
 }
 
+/**
+ * 統合前の旧スラッグのうち、実際に写真が使っているもの。
+ *
+ * カテゴリを統合すると、それまで公開していた `/category/風景` などが
+ * 生成されなくなる。静的エクスポート + dynamicParams=false ではリダイレクトの
+ * 層が無いためハード404になり、外部リンクや検索結果からの流入を落としてしまう。
+ * 旧URLもページとして残し、canonical で統合後へ寄せる。
+ */
+export function legacyCategorySlugs(photos: Photo[]): string[] {
+    const out = new Set<string>();
+    for (const p of photos) {
+        if (!isPublished(p)) continue;
+        const raw = (p.category ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
+        // 別名表に載っていて、かつ統合後の名前と違うものだけが「旧URL」
+        const canonical = CATEGORY_ALIASES[raw];
+        if (canonical && canonical !== raw) out.add(raw);
+    }
+    return [...out];
+}
+
+/** 統合後の正しいスラッグ（旧スラッグを渡すと統合後を返す） */
+export function canonicalCategorySlug(slug: string): string {
+    return slugify(decodeURIComponentSafe(slug), "category");
+}
+
 /** ルートパラメータ（既にデコード済みのことが多いが念のため）を安全にデコードして正規化 */
 function normalizeParam(slug: string, type?: CollectionType): string {
     let s = slug ?? "";
