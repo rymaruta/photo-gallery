@@ -207,7 +207,14 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                 const response = await publicFetch("/photos", { signal: controller.signal });
                 if (response.ok) {
                     const data = await response.json();
-                    setAllPhotos(data);
+                    // 空配列で静的ビルド時のデータを潰さない。潰すと、いま表示できて
+                    // いる写真が「写真が見つかりません」に化ける（usePhotos.ts にも
+                    // 同じガードがある）。
+                    if (Array.isArray(data) && data.length > 0) {
+                        setAllPhotos(data);
+                    } else {
+                        log.warn("写真APIが空を返したため静的データを維持します");
+                    }
                 } else {
                     log.error("写真の取得に失敗しました", { status: response.status });
                 }
@@ -230,9 +237,9 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     }, [photoId, allPhotos]);
 
     // いいね機能（ハート＝ローカルお気に入り + サーバーいいね数）
-    const { isAuthenticated, userId: authUserId } = useAuth();
+    const { isAuthenticated, userId: authUserId, loading: authLoading } = useAuth();
     const { liked: isFav, count: likeCount, pending: likePending, toggle: toggleLike } =
-        usePhotoLikes(photoId, photo?.likes ?? 0, isAuthenticated);
+        usePhotoLikes(photoId, photo?.likes ?? 0, isAuthenticated, authLoading);
 
 
     // 写真BGM: オーナーが1曲添えられる（全員が写真ページで再生できる）

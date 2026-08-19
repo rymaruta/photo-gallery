@@ -133,3 +133,46 @@ describe("isSearchableQuery", () => {
         expect(isSearchableQuery("")).toBe(false);
     });
 });
+
+// 以前は Scan を1ページ読んで LastEvaluatedKey を捨てていた。
+// ユーザー名を登録した人は予約アイテムでもう1行増えるため、実質500人ほどで
+// 打ち切られ、それ以降に登録した人は表示名で検索しても出てこなかった。
+describe("searchUsers: スキャンのページ送り", () => {
+    it("2ページ目にいるユーザーも見つかる", async () => {
+        const page1 = [{ userId: "a1", displayName: "無関係" }];
+        const page2 = [{ userId: "a2", displayName: "さくら" }];
+        let call = 0;
+        mockSend.mockImplementation((cmd: { kind: string }) => {
+            if (cmd.kind !== "scan") return Promise.resolve({});
+            call++;
+            return call === 1
+                ? Promise.resolve({ Items: page1.map((u) => marshall(u)), LastEvaluatedKey: marshall({ userId: "a1" }) })
+                : Promise.resolve({ Items: page2.map((u) => marshall(u)) });
+        });
+
+        const res = await invoke(searchUsers, ev("さくら"));
+        const users = JSON.parse(res.body).users as Array<{ userId: string }>;
+        expect(users.map((u) => u.userId)).toContain("a2");
+        expect(call).toBe(2);
+    });
+
+    it("予約アイテムはサーバー側のフィルタで除外する（読み取り枠を食わせない）", async () => {
+        mockScanOnly();
+        await invoke(searchUsers, ev("さくら"));
+        const scanCall = mockSend.mock.calls.find((c) => (c[0] as { kind: string }).kind === "scan");
+        const input = (scanCall![0] as { input: { FilterExpression?: string } }).input;
+        expect(input.FilterExpression).toContain("NOT begins_with(userId");
+    });
+
+    it("ページを辿り続けても上限で止まる（検索語を変えた総なめを防ぐ）", async () => {
+        let call = 0;
+        mockSend.mockImplementation((cmd: { kind: string }) => {
+            if (cmd.kind !== "scan") return Promise.resolve({});
+            call++;
+            // 常に「まだ続きがある」を返す
+            return Promise.resolve({ Items: [], LastEvaluatedKey: marshall({ userId: `x${call}` }) });
+        });
+        await invoke(searchUsers, ev("さくら"));
+        expect(call).toBe(10);
+    });
+});

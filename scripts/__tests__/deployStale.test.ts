@@ -77,3 +77,48 @@ describe("classifyStaleObjects（デプロイ時の削除判定）", () => {
         expect(ASSET_GRACE_MS).toBeGreaterThanOrEqual(30 * DAY);
     });
 });
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { invalidationPathsFor } = require("../deploy-static-site.js");
+
+// 以前は毎回 "/*" を無効化していた。写真も同じディストリビューションから
+// 配信していて max-age=31536000 を付けているのに、push と1日4回の定期ビルドの
+// たびに全写真をエッジから追い出しており、長いキャッシュが無意味になっていた。
+describe("invalidationPathsFor", () => {
+    it("写真（uploads/）は絶対に含めない", () => {
+        const paths = invalidationPathsFor([
+            "index.html", "photo/abc.html", "tag/winter.html", "sitemap.xml",
+        ]);
+        expect(paths).not.toContain("/*");
+        expect(paths.some((p: string) => p.startsWith("/uploads"))).toBe(false);
+    });
+
+    it("ハッシュ付きアセットは無効化しない（内容が変われば名前も変わる）", () => {
+        const paths = invalidationPathsFor(["_next/static/chunks/main-abc123.js", "index.html"]);
+        expect(paths.some((p: string) => p.startsWith("/_next"))).toBe(false);
+    });
+
+    it("HTML とキャッシュさせないファイルは無効化する", () => {
+        const paths = invalidationPathsFor([
+            "index.html", "photo/abc.html", "sitemap.xml", "sw.js", "robots.txt",
+        ]);
+        const covers = (url: string) =>
+            paths.some((p: string) => p === url || (p.endsWith("*") && url.startsWith(p.slice(0, -1))));
+        expect(covers("/")).toBe(true);
+        expect(covers("/photo/abc.html")).toBe(true);
+        expect(covers("/sitemap.xml")).toBe(true);
+        expect(covers("/sw.js")).toBe(true);
+        expect(covers("/robots.txt")).toBe(true);
+    });
+
+    it("先頭の名前でまとめる（パス数＝課金単位を抑える）", () => {
+        const paths = invalidationPathsFor([
+            "users.html", "users.txt", "users/a.html", "users/b.html", "users/search.html",
+        ]);
+        expect(paths).toEqual(["/", "/users*"]);
+    });
+
+    it("uploads/ を巻き込む入力は例外にする（安全側に倒す）", () => {
+        expect(() => invalidationPathsFor(["uploads/a.html"])).toThrow(/uploads/);
+    });
+});

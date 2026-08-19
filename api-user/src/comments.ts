@@ -19,6 +19,7 @@ export type Comment = {
 };
 
 const COMMENTS_MAX = 200;   // 保持する上限（書き込み時に切り詰め・読み取りもこの数）
+const DELETE_RETRIES = 3;   // 削除の添字がずれたときの読み直し回数
 const TEXT_MAX = 500;
 
 const commentsId = (photoId: string) => `comments#${photoId}`;
@@ -65,8 +66,17 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     try {
         // 写真の存在確認（通知先とサムネ取得も兼ねる）
         const photoRes = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: photoId } }));
-        const photo = photoRes.Item as { src?: string; thumbSrc?: string; userId?: string; location?: string } | undefined;
+        const photo = photoRes.Item as {
+            src?: string; thumbSrc?: string; userId?: string; location?: string;
+            published?: boolean; story?: boolean;
+        } | undefined;
         if (!photo || !photo.src) return jsonError(404, "写真が見つかりません");
+        // 下書きとストーリーにはコメントさせない。以前は存在チェックだけだったので、
+        // IDさえ分かれば非公開の写真にコメントを付けてオーナーに通知を飛ばせた
+        // （しかも一覧APIは公開なので、そのコメントは誰でも読めた）。
+        if (photo.published === false || photo.story === true) {
+            return jsonError(404, "写真が見つかりません");
+        }
 
         const comment: Comment = {
             id: uuidv4(),
@@ -144,18 +154,45 @@ export const deleteComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         const photoRes = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: photoId } }));
         const ownerId = photoRes.Item ? String(photoRes.Item.userId ?? photoRes.Item.uploadedBy ?? "") : "";
 
-        const all = await readComments(photoId);
-        const target = all.find((c) => c.id === commentId);
-        if (!target) return jsonError(404, "コメントが見つかりません");
-        // 投稿者本人 or 写真オーナーのみ
-        if (target.uid !== uid && ownerId !== uid) return jsonError(403, "権限がありません");
+        // 該当の1要素だけを添字で消す。
+        //
+        // 以前は「全部読む → 除いて無条件で Put」だった。読んでから書くまでの間に
+        // 入った新しいコメントは、書き戻す配列に入っていないので消えていた
+        // （投稿者には200が返り、画面にも出ているのに）。
+        // 添字指定の REMOVE なら末尾への追記と衝突しない。念のため
+        // 「その添字が今も目的のコメントであること」を条件に付け、
+        // ずれていたら読み直す。
+        let removed = false;
+        let gone = false; // 再試行中に他の経路で消えた（結果は同じなので成功扱い）
+        for (let attempt = 0; attempt <= DELETE_RETRIES && !removed && !gone; attempt++) {
+            const all = await readComments(photoId);
+            const index = all.findIndex((c) => c.id === commentId);
+            if (index < 0) {
+                if (attempt === 0) return jsonError(404, "コメントが見つかりません");
+                gone = true;
+                break;
+            }
+            // 投稿者本人 or 写真オーナーのみ
+            if (all[index].uid !== uid && ownerId !== uid) return jsonError(403, "権限がありません");
 
-        const next = all.filter((c) => c.id !== commentId);
-        // read-modify-write で1件除去
-        await ddb.send(new PutCommand({
-            TableName: PHOTOS_TABLE,
-            Item: { id: commentsId(photoId), items: next, photoId, updatedAt: new Date().toISOString() },
-        }));
+            try {
+                await ddb.send(new UpdateCommand({
+                    TableName: PHOTOS_TABLE,
+                    Key: { id: commentsId(photoId) },
+                    UpdateExpression: `REMOVE #items[${index}] SET updatedAt = :now`,
+                    ConditionExpression: `#items[${index}].id = :cid`,
+                    ExpressionAttributeNames: { "#items": "items" },
+                    ExpressionAttributeValues: { ":cid": commentId, ":now": new Date().toISOString() },
+                }));
+                removed = true;
+            } catch (e) {
+                if ((e as { name?: string }).name !== "ConditionalCheckFailedException") throw e;
+                // 添字がずれた（同時に別のコメントが消えた）。読み直してやり直す
+            }
+        }
+        if (!removed && !gone) return jsonError(409, "混み合っています。もう一度お試しください");
+        // 他で消えていた場合は数を動かさない（二重に減らさないため）
+        if (gone) return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) };
 
         // commentCount −1（0未満ガード）
         await ddb.send(new UpdateCommand({

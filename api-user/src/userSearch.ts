@@ -21,8 +21,11 @@ export type UserSearchHit = {
 };
 
 const MAX_RESULTS = 20;
-// 1回のスキャン上限。ユーザー数が増えたら GSI に置き換える（それまではこれで足りる）
-const SCAN_LIMIT = 1000;
+// 1ページあたりの読み取り件数。ユーザー数が増えたら GSI に置き換える。
+const SCAN_PAGE_SIZE = 500;
+// 走査するページ数の上限。青天井にすると、1文字違いの検索語を並べるだけで
+// テーブル全体のスキャンを何度でも起こせてしまうため、上限は要る。
+const SCAN_MAX_PAGES = 10;
 
 /** ユーザー名の予約アイテム（userId="username#xxx"）は検索結果に出さない */
 function isReservationItem(userId: unknown): boolean {
@@ -103,16 +106,35 @@ export const searchUsers: APIGatewayProxyHandlerV2 = async (event) => {
         }
 
         // 部分一致はスキャンで拾う。件数が少ないうちはこれで十分速い。
-        const scan = await ddb.send(new ScanCommand({
-            TableName: USERS_TABLE,
-            Limit: SCAN_LIMIT,
-            ProjectionExpression: "userId, username, displayName, bio, themeColor",
-        }));
-        for (const raw of scan.Items ?? []) {
-            const hit = toHit(unmarshall(raw));
-            if (!hit || hits.has(hit.userId)) continue;
-            const score = scoreUser(hit, q);
-            if (score > 0) hits.set(hit.userId, { hit, score });
+        //
+        // 以前は1ページ読んで LastEvaluatedKey を捨てていた。ユーザー名を
+        // 登録した人は予約アイテム（username#<handle>）でもう1行増えるので、
+        // 実質500人ほどで打ち切られ、それ以降に登録した人は表示名で検索しても
+        // 出てこなかった。しかも @ハンドル完全一致だけは別経路で引けるため、
+        // 「一部の人だけ検索できない」という分かりにくい壊れ方をしていた。
+        // 予約アイテムはサーバー側で弾いて、読み取り枠を食わせない。
+        let lastKey: Record<string, unknown> | undefined;
+        let pages = 0;
+        do {
+            const scan = await ddb.send(new ScanCommand({
+                TableName: USERS_TABLE,
+                Limit: SCAN_PAGE_SIZE,
+                ProjectionExpression: "userId, username, displayName, bio, themeColor",
+                FilterExpression: "NOT begins_with(userId, :reserved)",
+                ExpressionAttributeValues: marshall({ ":reserved": "username#" }),
+                ...(lastKey ? { ExclusiveStartKey: lastKey } : {}),
+            }));
+            for (const raw of scan.Items ?? []) {
+                const hit = toHit(unmarshall(raw));
+                if (!hit || hits.has(hit.userId)) continue;
+                const score = scoreUser(hit, q);
+                if (score > 0) hits.set(hit.userId, { hit, score });
+            }
+            lastKey = scan.LastEvaluatedKey as Record<string, unknown> | undefined;
+            pages++;
+        } while (lastKey && pages < SCAN_MAX_PAGES);
+        if (lastKey) {
+            console.warn(`searchUsers: ${SCAN_MAX_PAGES}ページで打ち切りました（GSI への移行時期）`);
         }
 
         const users = Array.from(hits.values())

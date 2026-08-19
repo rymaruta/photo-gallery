@@ -150,6 +150,28 @@ export const getMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     }
 };
 
+/**
+ * 保存済みのプロフィールに、今回指定された項目だけを重ねる。
+ *
+ * changes に載っているキーだけを触る。値が undefined なら消す。
+ * 載っていない項目は既存のまま残す（送り忘れで消えないようにするのが目的）。
+ */
+export function mergeProfile(
+    prev: UserProfile | null,
+    userId: string,
+    changes: Record<string, unknown>,
+): UserProfile {
+    const merged: Record<string, unknown> = { ...(prev ?? {}) };
+    for (const [key, value] of Object.entries(changes)) {
+        if (value === undefined) delete merged[key];
+        else merged[key] = value;
+    }
+    // userId は書き換えさせない。更新時刻は必ず今にする。
+    merged.userId = userId;
+    merged.updatedAt = new Date().toISOString();
+    return merged as UserProfile;
+}
+
 export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
 
@@ -276,40 +298,48 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         if (Object.keys(out).length > 0) tripSongs = out;
     }
 
-    const profile: UserProfile = {
-        userId,
-        ...(username ? { username } : {}),
-        ...(displayName ? { displayName } : {}),
-        ...(bio ? { bio } : {}),
-        ...(instagram ? { instagram } : {}),
-        ...(website ? { website } : {}),
-        // 貼ったリンク（独立）
-        ...(songUrl ? { songUrl } : {}),
-        ...(songStart ? { songStart } : {}),
-        ...(songEnd && (!songStart || songEnd > songStart) ? { songEnd } : {}),
-        // 検索で選んだ曲（独立）
-        ...(songPreviewUrl ? { songPreviewUrl } : {}),
-        ...(songArtwork ? { songArtwork } : {}),
-        ...(songTitle ? { songTitle } : {}),
-        ...(songArtist ? { songArtist } : {}),
-        ...(songTrackUrl ? { songTrackUrl } : {}),
-        ...(songs ? { songs } : {}),
-        ...(tripTitles ? { tripTitles } : {}),
-        ...(tripCovers ? { tripCovers } : {}),
-        ...(tripSongs ? { tripSongs } : {}),
-        ...(themeColor ? { themeColor } : {}),
-        ...(statusText ? { statusText } : {}),
-        ...(pinnedPhotoIds ? { pinnedPhotoIds } : {}),
-        updatedAt: new Date().toISOString(),
+    // 送られてきた項目だけを反映する（部分更新）。
+    //
+    // 以前はここで作った item をそのまま PutItem していた（全置換）。
+    // そのため呼び出し側は毎回すべての項目を送り返す必要があり、1つでも
+    // 書き漏らすとその項目が黙って消えた。実際に
+    //  - 公開プロフィールAPIが返さなくなった旅アルバムとひとことが、
+    //    写真をピン留めするだけで消える
+    //  - プロフィール編集画面が statusText を送っておらず、保存すると消える
+    // という2つの事故が起きている。呼び出し側の注意力に頼るのをやめる。
+    //
+    // 「body にキーがある」= その項目を指定した、という意味にする。
+    // 値が空（サニタイズ後に undefined）なら消す、キーが無ければ触らない。
+    // 既存の呼び出し側はクリア時に空文字を送っているのでそのまま動く。
+    const changes: Record<string, unknown> = {};
+    const apply = (key: string, addressed: boolean, value: unknown) => {
+        if (addressed) changes[key] = value; // undefined は「消す」
     };
+    apply("username", hasUsernameKey, username);
+    apply("displayName", "displayName" in body, displayName);
+    apply("bio", "bio" in body, bio);
+    apply("instagram", "instagram" in body, instagram);
+    apply("website", "website" in body, website);
+    // 貼ったリンク（独立）
+    apply("songUrl", "songUrl" in body, songUrl);
+    apply("songStart", "songStart" in body, songStart);
+    apply("songEnd", "songEnd" in body, songEnd && (!songStart || songEnd > songStart) ? songEnd : undefined);
+    // 検索で選んだ曲（独立）
+    apply("songPreviewUrl", "songPreviewUrl" in body, songPreviewUrl);
+    apply("songArtwork", "songArtwork" in body, songArtwork);
+    apply("songTitle", "songTitle" in body, songTitle);
+    apply("songArtist", "songArtist" in body, songArtist);
+    apply("songTrackUrl", "songTrackUrl" in body, songTrackUrl);
+    apply("songs", "songs" in body, songs);
+    apply("tripTitles", "tripTitles" in body, tripTitles);
+    apply("tripCovers", "tripCovers" in body, tripCovers);
+    apply("tripSongs", "tripSongs" in body, tripSongs);
+    apply("themeColor", "themeColor" in body, themeColor);
+    apply("statusText", "statusText" in body, statusText);
+    apply("pinnedPhotoIds", "pinnedPhotoIds" in body, pinnedPhotoIds);
 
     try {
         const prev = await getProfile(userId);
-        // このAPIはプロフィール全体を PutItem で置き換えるため、リクエストに username が
-        // 含まれない保存（他項目だけの更新）で既存のユーザー名が消えないようにする。
-        if (!hasUsernameKey && prev?.username) {
-            profile.username = prev.username;
-        }
 
         // ユーザー名の一意性を先に確保する（他人が使っていれば 409 で中断）
         if (hasUsernameKey && username && username !== prev?.username) {
@@ -318,6 +348,8 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
                 return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({ error: "そのユーザー名は既に使われています" }) };
             }
         }
+
+        const profile = mergeProfile(prev, userId, changes);
 
         await ddb.send(new PutItemCommand({
             TableName: USERS_TABLE,

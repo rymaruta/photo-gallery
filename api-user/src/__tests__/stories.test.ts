@@ -38,6 +38,17 @@ beforeEach(() => {
     mockS3Send.mockReset();
 });
 
+/**
+ * 保存されたストーリー item を順に取り出す。
+ * 呼び出し回数の添字で拾うと、間に読み取りが1つ増えるだけで
+ * 全部のテストが壊れる（表示名をサーバーで引くようにしたときに実際に壊れた）。
+ */
+function storyPuts(): Record<string, unknown>[] {
+    return mockDdbSend.mock.calls
+        .map((c) => (c[0] as { input?: { Item?: Record<string, unknown> } })?.input?.Item)
+        .filter((item): item is Record<string, unknown> => !!item && item.story === true);
+}
+
 // ────────────────────────────────
 // GET /stories
 // ────────────────────────────────
@@ -123,8 +134,7 @@ describe("createStory", () => {
             }),
         }));
         expect(res.statusCode).toBe(201);
-        const put = mockDdbSend.mock.calls[1][0] as { input: { Item: Record<string, unknown> } };
-        const item = put.input.Item;
+        const item = storyPuts()[0];
         expect(item.story).toBe(true);
         expect(item.published).toBe(false);
         expect(item.userId).toBe("u1");
@@ -142,16 +152,30 @@ describe("createStory", () => {
         await invoke(createStory, authedEvent("u1", {
             body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/v.mp4", mediaType: "video" }),
         }));
-        // 1件目: calls[0]=Query, calls[1]=Put
-        let item = (mockDdbSend.mock.calls[1][0] as { input: { Item: Record<string, unknown> } }).input.Item;
+        let item = storyPuts()[0];
         expect(item.mediaType).toBe("video");
 
         await invoke(createStory, authedEvent("u1", {
             body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/x.jpg", mediaType: "gif" }),
         }));
-        // 2件目: calls[2]=Query, calls[3]=Put
-        item = (mockDdbSend.mock.calls[3][0] as { input: { Item: Record<string, unknown> } }).input.Item;
+        item = storyPuts()[1];
         expect(item.mediaType).toBe("image");
+    });
+
+    // ストーリーはログイン中の全員のトレイに並ぶ。表示名をクライアントに
+    // 決めさせると「Journey 運営」のような名前でそのまま全員に届く。
+    it("表示名はサーバーで引く（クライアントの申告は使わない）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Count: 0 })                              // 本日の投稿数
+            .mockResolvedValueOnce({ Item: { displayName: "本物の名前" } })     // 表示名の解決
+            .mockResolvedValueOnce({});                                       // Put
+        await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({
+                publicUrl: "https://cdn.test/uploads/a.jpg",
+                displayName: "Journey 運営",
+            }),
+        }));
+        expect(storyPuts()[0].displayName).toBe("本物の名前");
     });
 
     it("キャプションは200文字に切り詰められる", async () => {
@@ -159,7 +183,7 @@ describe("createStory", () => {
         await invoke(createStory, authedEvent("u1", {
             body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", caption: "あ".repeat(300) }),
         }));
-        const item = (mockDdbSend.mock.calls[1][0] as { input: { Item: Record<string, unknown> } }).input.Item;
+        const item = storyPuts()[0];
         expect(String(item.caption)).toHaveLength(200);
     });
 
@@ -168,17 +192,17 @@ describe("createStory", () => {
         await invoke(createStory, authedEvent("u1", {
             body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", durationSec: 10 }),
         }));
-        expect((mockDdbSend.mock.calls[1][0] as { input: { Item: Record<string, unknown> } }).input.Item.durationSec).toBe(10);
+        expect(storyPuts()[0].durationSec).toBe(10);
 
         await invoke(createStory, authedEvent("u1", {
             body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", durationSec: 999 }),
         }));
-        expect((mockDdbSend.mock.calls[3][0] as { input: { Item: Record<string, unknown> } }).input.Item.durationSec).toBe(15);
+        expect(storyPuts()[1].durationSec).toBe(15);
 
         await invoke(createStory, authedEvent("u1", {
             body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", durationSec: 5 }),
         }));
-        expect((mockDdbSend.mock.calls[5][0] as { input: { Item: Record<string, unknown> } }).input.Item.durationSec).toBeUndefined();
+        expect(storyPuts()[2].durationSec).toBeUndefined();
     });
 
     it("曲の開始位置（好きな部分）は0〜29秒に丸めて保存する", async () => {
@@ -187,13 +211,13 @@ describe("createStory", () => {
         await invoke(createStory, authedEvent("u1", {
             body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", song: { ...song, startSec: 12.4 } }),
         }));
-        let item = (mockDdbSend.mock.calls[1][0] as { input: { Item: Record<string, unknown> } }).input.Item;
+        let item = storyPuts()[0];
         expect((item.song as { startSec?: number }).startSec).toBe(12);
 
         await invoke(createStory, authedEvent("u1", {
             body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", song: { ...song, startSec: 120 } }),
         }));
-        item = (mockDdbSend.mock.calls[3][0] as { input: { Item: Record<string, unknown> } }).input.Item;
+        item = storyPuts()[1];
         expect((item.song as { startSec?: number }).startSec).toBe(29);
     });
 

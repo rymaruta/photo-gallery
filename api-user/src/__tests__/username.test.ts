@@ -8,7 +8,7 @@ vi.mock("@aws-sdk/client-dynamodb", () => ({
     DeleteItemCommand: class {},
 }));
 
-import { normalizeUsername, USERNAME_RE, RESERVED_USERNAMES, getPublicProfile, toPublicProfile } from "../userProfile";
+import { normalizeUsername, USERNAME_RE, RESERVED_USERNAMES, getPublicProfile, toPublicProfile, mergeProfile } from "../userProfile";
 import type { UserProfile } from "../userProfile";
 
 describe("normalizeUsername", () => {
@@ -144,5 +144,61 @@ describe("toPublicProfile: 画面に出る項目を落とさない", () => {
         const pub = toPublicProfile(withSecret) as Record<string, unknown>;
         expect(pub).not.toHaveProperty("internalNote");
         expect(pub).not.toHaveProperty("email");
+    });
+});
+
+// PUT /user/profile は以前「全置換」だった。呼び出し側は毎回すべての項目を
+// 送り返す必要があり、1つでも書き漏らすとその項目が黙って消えた。
+// 実際に2つの事故（ピン留めで旅アルバムが消える / 保存でひとことが消える）を
+// 起こしているので、送られていない項目には触らない。
+describe("mergeProfile: 送られていない項目は触らない", () => {
+    const prev = {
+        userId: "u1",
+        username: "ryuhei",
+        displayName: "旅人",
+        bio: "こんにちは",
+        statusText: "旅に出ています",
+        tripTitles: { "trip-1": "北海道" },
+        pinnedPhotoIds: ["p1"],
+        updatedAt: "2026-01-01T00:00:00.000Z",
+    } as unknown as UserProfile;
+
+    it("指定していない項目は残る", () => {
+        const out = mergeProfile(prev, "u1", { displayName: "旅人2" }) as Record<string, unknown>;
+        expect(out.displayName).toBe("旅人2");
+        expect(out.statusText).toBe("旅に出ています");
+        expect(out.tripTitles).toEqual({ "trip-1": "北海道" });
+        expect(out.pinnedPhotoIds).toEqual(["p1"]);
+        expect(out.username).toBe("ryuhei");
+        expect(out.bio).toBe("こんにちは");
+    });
+
+    it("ピン留めだけ変えても旅アルバムとひとことは消えない（回帰ガード）", () => {
+        const out = mergeProfile(prev, "u1", { pinnedPhotoIds: ["p2"] }) as Record<string, unknown>;
+        expect(out.pinnedPhotoIds).toEqual(["p2"]);
+        expect(out.tripTitles).toEqual({ "trip-1": "北海道" });
+        expect(out.statusText).toBe("旅に出ています");
+    });
+
+    it("undefined を指定した項目は消す（クリア）", () => {
+        const out = mergeProfile(prev, "u1", { bio: undefined }) as Record<string, unknown>;
+        expect(out).not.toHaveProperty("bio");
+        expect(out.displayName).toBe("旅人"); // 他は残る
+    });
+
+    it("既存が無ければ指定した項目だけの新規プロフィールになる", () => {
+        const out = mergeProfile(null, "u1", { displayName: "新人" }) as Record<string, unknown>;
+        expect(out.userId).toBe("u1");
+        expect(out.displayName).toBe("新人");
+    });
+
+    it("userId は書き換えさせない", () => {
+        const out = mergeProfile(prev, "u1", { userId: "他人のsub" }) as Record<string, unknown>;
+        expect(out.userId).toBe("u1");
+    });
+
+    it("updatedAt は必ず更新する", () => {
+        const out = mergeProfile(prev, "u1", {}) as Record<string, unknown>;
+        expect(out.updatedAt).not.toBe("2026-01-01T00:00:00.000Z");
     });
 });

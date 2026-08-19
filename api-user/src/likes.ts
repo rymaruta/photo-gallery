@@ -63,15 +63,21 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             throw e;
         }
 
-        // 写真カウンタを +1（写真が存在する場合のみ）。
-        // ALL_NEW で写真の属性ごと受け取り、通知用の追加読み取りを省く
+        // 写真カウンタを +1（公開されている写真の場合のみ）。
+        // ALL_NEW で写真の属性ごと受け取り、通知用の追加読み取りを省く。
+        //
+        // 条件で下書き（published:false）とストーリー（story:true）を弾く。
+        // 以前は存在チェックだけだったので、IDさえ分かれば非公開の写真に
+        // いいねを付けてオーナーに通知を飛ばせた。読み取りを増やさずに済むよう、
+        // 判定は既にある ConditionExpression に足している。
         try {
             const res = await ddb.send(new UpdateCommand({
                 TableName: PHOTOS_TABLE,
                 Key: { id: photoId },
                 UpdateExpression: "SET likes = if_not_exists(likes, :z) + :one",
-                ConditionExpression: "attribute_exists(id)",
-                ExpressionAttributeValues: { ":z": 0, ":one": 1 },
+                ConditionExpression:
+                    "attribute_exists(id) AND (attribute_not_exists(published) OR published = :pub) AND attribute_not_exists(story)",
+                ExpressionAttributeValues: { ":z": 0, ":one": 1, ":pub": true },
                 ReturnValues: "ALL_NEW",
             }));
             const likes = (res.Attributes?.likes as number | undefined) ?? 1;
@@ -94,7 +100,7 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
 
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: true, likes }) };
         } catch (e) {
-            // 写真が存在しない → マーカーを巻き戻して 404
+            // 存在しない / 非公開（下書き・ストーリー）→ マーカーを巻き戻して 404
             if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
                 await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: markerId(photoId, userId) } })).catch(() => { /* ignore */ });
                 return jsonError(404, "写真が見つかりません");

@@ -32,6 +32,59 @@ async function readFollowing(uid: string): Promise<string[]> {
     return Array.isArray(list) ? (list as string[]) : [];
 }
 
+/**
+ * following# の list を安全に書き換える。
+ *
+ * 以前は「読む → 変える → 無条件で Put」だった。1秒のうちに2人フォローすると
+ * 2つの Lambda が同じ空リストを読み、片方の書き込みがもう片方を丸ごと
+ * 上書きして、フォローが1件に減っていた。しかも follow# マーカーは両方
+ * 残るので、もう一度フォローしても「既にフォロー済み」で早期 return し、
+ * 一覧は欠けたまま直らない（フィードにその人の写真が出なくなる）。
+ *
+ * 順序（新しくフォローした順）を保ちたいので集合型には替えず、
+ * リビジョン番号で衝突を検出して読み直す。
+ */
+const FOLLOWING_WRITE_RETRIES = 3;
+
+async function updateFollowing(uid: string, mutate: (list: string[]) => string[] | null): Promise<void> {
+    for (let attempt = 0; attempt <= FOLLOWING_WRITE_RETRIES; attempt++) {
+        const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: followingId(uid) } }));
+        const current = Array.isArray(res.Item?.list) ? (res.Item.list as string[]) : [];
+        const rev = typeof res.Item?.rev === "number" ? res.Item.rev : 0;
+
+        const next = mutate([...current]);
+        if (next === null) return; // 変更なし
+
+        // 読んでから今までに他の書き込みが入っていないこと。
+        // rev を持たない既存データ（この仕組みを入れる前の item）も通す必要が
+        // あるので、rev が無いときだけ条件を緩める。
+        // DynamoDB は値どうしの比較を許さないため、分岐は JS 側で作る。
+        const guard = rev === 0
+            ? "attribute_not_exists(id) OR attribute_not_exists(rev) OR rev = :rev"
+            : "rev = :rev";
+
+        try {
+            await ddb.send(new PutCommand({
+                TableName: PHOTOS_TABLE,
+                Item: {
+                    id: followingId(uid),
+                    uid,
+                    list: next.slice(0, FOLLOWING_MAX),
+                    rev: rev + 1,
+                    updatedAt: new Date().toISOString(),
+                },
+                ConditionExpression: guard,
+                ExpressionAttributeValues: { ":rev": rev },
+            }));
+            return;
+        } catch (e) {
+            if ((e as { name?: string }).name !== "ConditionalCheckFailedException") throw e;
+            // 競合。読み直してやり直す
+        }
+    }
+    console.error(`updateFollowing: ${uid} の一覧更新が競合し続けたため諦めました`);
+}
+
 async function bumpStat(uid: string, field: "followers" | "following", delta: 1 | -1): Promise<void> {
     if (delta === 1) {
         await ddb.send(new UpdateCommand({
@@ -77,15 +130,12 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
         await bumpStat(target, "followers", 1);
         await bumpStat(me, "following", 1);
 
-        // 自分の following リストに追加
-        const list = await readFollowing(me);
-        if (!list.includes(target)) {
+        // 自分の following リストに追加（新しい順の先頭へ）
+        await updateFollowing(me, (list) => {
+            if (list.includes(target)) return null;
             list.unshift(target);
-            await ddb.send(new PutCommand({
-                TableName: PHOTOS_TABLE,
-                Item: { id: followingId(me), uid: me, list: list.slice(0, FOLLOWING_MAX), updatedAt: new Date().toISOString() },
-            }));
-        }
+            return list;
+        });
 
         // 相手に通知
         await pushNotification(target, {
@@ -128,14 +178,10 @@ export const unfollowUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
         await bumpStat(target, "followers", -1);
         await bumpStat(me, "following", -1);
 
-        const list = await readFollowing(me);
-        const next = list.filter((x) => x !== target);
-        if (next.length !== list.length) {
-            await ddb.send(new PutCommand({
-                TableName: PHOTOS_TABLE,
-                Item: { id: followingId(me), uid: me, list: next, updatedAt: new Date().toISOString() },
-            }));
-        }
+        await updateFollowing(me, (list) => {
+            const next = list.filter((x) => x !== target);
+            return next.length === list.length ? null : next;
+        });
 
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ following: false, followers: (await readStats(target)).followers }) };
     } catch (e) {

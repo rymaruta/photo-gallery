@@ -6,8 +6,8 @@ import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { lookupDisplayName } from "./notify";
 import { mediaKeys } from "./mediaKeys";
+import { isOwnUploadUrl } from "./upload";
 
-const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? "";
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET ?? "";
 const STORY_TTL_MS = 24 * 60 * 60 * 1000; // 24時間
 const STORY_DAILY_LIMIT = 20; // 1ユーザーが24時間に投稿できるストーリー数
@@ -113,7 +113,8 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証が必要です" }) };
     }
 
-    let body: { publicUrl?: string; key?: string; displayName?: string; caption?: string; mediaType?: string; song?: unknown; durationSec?: unknown };
+    // displayName は受け取らない（なりすまし防止のためサーバーで引く）
+    let body: { publicUrl?: string; key?: string; caption?: string; mediaType?: string; song?: unknown; durationSec?: unknown };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
     } catch {
@@ -124,8 +125,11 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     if (!publicUrl) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "画像URLが必要です" }) };
     }
-    // 自サイトの配信ドメイン以外のURLは受け付けない
-    if (CLOUDFRONT_URL && !publicUrl.startsWith(`${CLOUDFRONT_URL}/`)) {
+    // 自サイトの配信ドメイン以外のURLは受け付けない。
+    // 以前は CLOUDFRONT_URL が設定されているときだけ検証していたため、
+    // 未設定の環境では検証ごと飛んでいた（写真アップロード側で直したのと同じ穴）。
+    // 判定は upload.ts の isOwnUploadUrl に寄せる（未設定なら通さない）。
+    if (!isOwnUploadUrl(publicUrl)) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正な画像URLです" }) };
     }
 
@@ -136,7 +140,6 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
 
     const mediaType = body.mediaType === "video" ? "video" : "image";
     const caption = (body.caption ?? "").trim().slice(0, 200) || undefined;
-    const displayName = (body.displayName ?? "").trim().slice(0, 100) || undefined;
 
     // 画像ストーリーの表示秒数。投稿者が選べる（既定5秒）。
     // 3秒未満は読み切れず、15秒を超えると見る側が飽きるため範囲を固定する。
@@ -183,6 +186,12 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     } catch (e) {
         console.error("countRecentStories error:", e); // 数え上げ失敗は投稿を止めない
     }
+
+    // 表示名はサーバーで引く。クライアントの申告を保存していたため、
+    // 「Journey 運営」のような名前でストーリーを出せた（ストーリーは
+    // ログイン中の全員のトレイに並ぶので、なりすましがそのまま届く）。
+    // 閲覧記録（viewStory）は既に同じ方針。
+    const displayName = await lookupDisplayName(userId) || undefined;
 
     const now = Date.now();
     const story = {

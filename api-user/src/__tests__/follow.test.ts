@@ -115,3 +115,81 @@ describe("getFollowStats / getMyFollowing", () => {
         expect(JSON.parse((await invoke(getMyFollowing, ev("u1", undefined))).body)).toEqual({ userIds: ["a", "b"] });
     });
 });
+
+// following# の一覧は以前「読む → 変える → 無条件で Put」だった。
+// 短時間に2人フォローすると両方が同じリストを読み、片方の書き込みが
+// もう片方を丸ごと上げ書きして一覧からフォローが消える。しかも
+// follow# マーカーは残るため、再フォローしても早期 return で直らない。
+describe("フォロー一覧の同時更新", () => {
+    /** followUser の DDB 呼び出しを順に組み立てる（マーカー→カウンタ×2→一覧） */
+    function setupFollow(listResponses: unknown[], putResults: ("ok" | "conflict")[]) {
+        let listCall = 0;
+        let putCall = 0;
+        mockDdbSend.mockImplementation((cmd: { input?: Record<string, unknown> }) => {
+            const input = cmd.input ?? {};
+            const key = input.Key as { id?: string } | undefined;
+            // following# の読み取り
+            if (key?.id?.startsWith("following#")) {
+                return Promise.resolve(listResponses[listCall++] ?? {});
+            }
+            // following# への書き込み
+            const item = input.Item as { id?: string } | undefined;
+            if (item?.id?.startsWith("following#")) {
+                const outcome = putResults[putCall++] ?? "ok";
+                return outcome === "conflict" ? Promise.reject(condFail()) : Promise.resolve({});
+            }
+            return Promise.resolve({});
+        });
+    }
+
+    it("書き込みが競合したら読み直して、既存のフォローを残したまま追加する", async () => {
+        setupFollow(
+            [
+                { Item: { list: [], rev: 0 } },        // 1回目: 空に見えた
+                { Item: { list: ["b"], rev: 1 } },     // 競合後の読み直し: 他が b を入れていた
+            ],
+            ["conflict", "ok"],
+        );
+
+        const res = await invoke(followUser, ev("me", "c"));
+        expect(res.statusCode).toBe(200);
+
+        const puts = mockDdbSend.mock.calls
+            .map((c) => (c[0] as { input?: { Item?: { id?: string; list?: string[] } } }).input?.Item)
+            .filter((i) => i?.id?.startsWith("following#"));
+        // 最後の書き込みには両方入っている（b を消していない）
+        expect(puts[puts.length - 1]!.list).toEqual(["c", "b"]);
+    });
+
+    it("書き込みにはリビジョンの条件が付く（無条件の上書きをしない）", async () => {
+        setupFollow([{ Item: { list: ["b"], rev: 3 } }], ["ok"]);
+        await invoke(followUser, ev("me", "c"));
+
+        const put = mockDdbSend.mock.calls
+            .map((c) => (c[0] as { input?: Record<string, unknown> }).input!)
+            .find((i) => (i.Item as { id?: string } | undefined)?.id?.startsWith("following#"))!;
+        expect(put.ConditionExpression).toContain("rev = :rev");
+        expect((put.ExpressionAttributeValues as Record<string, unknown>)[":rev"]).toBe(3);
+        expect((put.Item as { rev: number }).rev).toBe(4);
+    });
+
+    it("rev を持たない既存データも書き込める（後方互換）", async () => {
+        setupFollow([{ Item: { list: ["b"] } }], ["ok"]);
+        await invoke(followUser, ev("me", "c"));
+
+        const put = mockDdbSend.mock.calls
+            .map((c) => (c[0] as { input?: Record<string, unknown> }).input!)
+            .find((i) => (i.Item as { id?: string } | undefined)?.id?.startsWith("following#"))!;
+        expect(put.ConditionExpression).toContain("attribute_not_exists(rev)");
+    });
+
+    it("既にフォロー済みなら一覧を書き換えない", async () => {
+        setupFollow([{ Item: { list: ["c"], rev: 2 } }], ["ok"]);
+        await invoke(followUser, ev("me", "c"));
+
+        const puts = mockDdbSend.mock.calls
+            .map((c) => (c[0] as { input?: { Item?: { id?: string } } }).input?.Item)
+            .filter((i) => i?.id?.startsWith("following#"));
+        expect(puts).toHaveLength(0);
+    });
+});

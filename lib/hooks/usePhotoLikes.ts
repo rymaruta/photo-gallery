@@ -9,7 +9,17 @@ import { log } from "../utils/log";
 //
 // 未ログインでもローカルのお気に入りは動くが、サーバーカウントは
 // 認証済みのときだけ増減する（userFetch が失敗しても UI は壊さない）。
-export function usePhotoLikes(photoId: string, initialLikes: number, isAuthenticated: boolean) {
+//
+// authLoading は「まだログイン状態が分からない」期間。ここを見ないと、
+// 共有リンクを開いた直後（セッション復元の往復中）に押したいいねが
+// 「未ログイン」と判定されてローカル保存だけで終わり、サーバーには
+// 何も送られない。リロードすると数が戻り、通知も飛ばない。
+export function usePhotoLikes(
+    photoId: string,
+    initialLikes: number,
+    isAuthenticated: boolean,
+    authLoading = false,
+) {
     const { isFavorite, toggleFavorite } = useFavorites();
     const liked = isFavorite(photoId);
     const [count, setCount] = useState(initialLikes);
@@ -33,6 +43,9 @@ export function usePhotoLikes(photoId: string, initialLikes: number, isAuthentic
 
     const toggle = useCallback(async () => {
         if (busyRef.current) return;
+        // ログイン状態が確定するまで待つ。確定前に処理すると、ログイン済みでも
+        // 「未ログイン」扱いになってサーバーへ届かない。
+        if (authLoading) return;
         busyRef.current = true;
         setPending(true);
 
@@ -68,7 +81,7 @@ export function usePhotoLikes(photoId: string, initialLikes: number, isAuthentic
             busyRef.current = false;
             setPending(false);
         }
-    }, [liked, photoId, isAuthenticated, toggleFavorite]);
+    }, [liked, photoId, isAuthenticated, authLoading, toggleFavorite]);
 
-    return { liked, count, pending, toggle };
+    return { liked, count, pending: pending || authLoading, toggle };
 }

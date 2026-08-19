@@ -29,7 +29,10 @@ function timeAgo(iso: string, locale: "ja" | "en"): string {
 }
 
 export default function CommentSection({ photoId, photoOwnerId, locale, initialCount = 0 }: Props) {
-    const { isAuthenticated, userId } = useAuth();
+    // authLoading = ログイン状態がまだ分からない期間。ここを見ないと、
+    // ログイン済みの人にも一瞬「ログインするとコメントできます」が出て、
+    // その間にリンクを押すとログインページ経由で別の場所へ飛ばされる。
+    const { isAuthenticated, userId, loading: authLoading } = useAuth();
     const { showToast } = useToast();
     const { items, count, loading, pending, add, remove } = useComments(photoId, isAuthenticated, initialCount);
     const [text, setText] = useState("");
@@ -75,6 +78,10 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                             : (locale === "en" ? "Post" : "送信")}
                     </button>
                 </div>
+            ) : authLoading ? (
+                // 判定中は入力欄の高さだけ確保する。ここで「ログインしてください」を
+                // 出すと、ログイン済みの人にも一瞬表示されて誤操作を誘う。
+                <div className="mb-4 h-[68px]" aria-hidden={true} />
             ) : (
                 <p className="mb-4 text-xs text-white/40">
                     <Link href={ROUTES.LOGIN} className="text-white/70 underline hover:text-white">

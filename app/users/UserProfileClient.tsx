@@ -276,8 +276,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                 const ids = new Set(fresh.map((p) => p.id));
                                 return [...fresh, ...prev.filter((p) => !ids.has(p.id))];
                             });
-                        } else {
+                        } else if (fresh.length > 0) {
                             setPhotos(fresh);
+                        } else {
+                            // 空配列で静的ビルド時のデータを潰さない。潰すと、
+                            // 見えていた写真が「まだ写真がありません」に化ける。
+                            log.warn("写真APIが空を返したため静的データを維持します");
                         }
                     }
                 }
@@ -340,11 +344,10 @@ export default function UserProfileClient({ userId }: { userId: string }) {
 
     // 旅アルバム: 撮影日の間隔で自動グルーピング
 
-    // プロフィール項目の部分更新。PUT は全置換のため、既知の項目を丸ごと送り返す。
+    // プロフィール項目の部分更新。変更する項目だけ送る。
     const saveProfilePatch = useCallback(async (patch: Partial<UserProfile>, successMsg: string) => {
-        // PUT /user/profile は全項目の置換なので、送らなかった項目は消える。
-        // プロフィールの取得に失敗した状態（userProfile === null）で保存すると、
-        // 表示名・自己紹介・リンク・BGM・テーマ色がまとめて失われるため保存しない。
+        // 読み込めていない状態では、楽観的更新の巻き戻し先が無く、
+        // 画面と保存内容が食い違ったままになるため保存しない。
         if (!userProfile) {
             showToast(locale === "en"
                 ? "Could not load your profile. Please reload and try again."
@@ -355,32 +358,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         // 楽観的更新
         setUserProfile((p) => (p ? { ...p, ...patch } : ({ userId, ...patch } as UserProfile)));
         try {
-            const base = userProfile;
+            // PUT は部分更新なので、変更する項目だけ送れば足りる。
+            // 以前は全置換だったため全項目を送り返す必要があり、
+            // 公開プロフィールAPIが返さなくなった項目が消える事故を起こした。
             const res = await userFetch("/user/profile", {
                 method: "PUT",
-                body: JSON.stringify({
-                    username: base.username,
-                    displayName: base.displayName,
-                    bio: base.bio,
-                    instagram: base.instagram,
-                    website: base.website,
-                    songUrl: base.songUrl,
-                    songStart: base.songStart,
-                    songEnd: base.songEnd,
-                    songTitle: base.songTitle,
-                    songArtist: base.songArtist,
-                    songArtwork: base.songArtwork,
-                    songPreviewUrl: base.songPreviewUrl,
-                    songTrackUrl: base.songTrackUrl,
-                    songs: base.songs,
-                    tripTitles: base.tripTitles,
-                    tripCovers: base.tripCovers,
-                    tripSongs: base.tripSongs,
-                    themeColor: base.themeColor,
-                    statusText: base.statusText,
-                    pinnedPhotoIds: base.pinnedPhotoIds,
-                    ...patch,
-                }),
+                body: JSON.stringify(patch),
             });
             if (!res.ok) throw new Error(String(res.status));
             showToast(successMsg, "success");

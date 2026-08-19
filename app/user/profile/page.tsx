@@ -348,15 +348,13 @@ export default function ProfileEditPage() {
             const res = await userFetch("/user/profile", {
                 method: "PUT",
                 body: JSON.stringify({
+                    // PUT は部分更新なので、このページで編集する項目だけ送る。
+                    // 旅アルバム・ピン留め・ひとことは送らなければ触られない
+                    // （以前は全置換で、送り忘れた項目が消えていた）。
                     username: username.trim().toLowerCase().replace(/^@/, ""),
                     displayName, bio, instagram, website,
                     themeColor,
                     ...songPayload,
-                    // PUT は全置換のため、このページで編集しない項目も送り返す
-                    tripTitles: profile?.tripTitles,
-                    tripCovers: profile?.tripCovers,
-                    tripSongs: profile?.tripSongs,
-                    pinnedPhotoIds: profile?.pinnedPhotoIds,
                 }),
             });
             if (res.ok) {

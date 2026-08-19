@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useFavorites } from "../useFavorites";
+import { useFavorites, resetFavoritesCache } from "../useFavorites";
 
 const localStorageMock = (() => {
     let store: Record<string, string> = {};
@@ -13,7 +13,12 @@ const localStorageMock = (() => {
 })();
 Object.defineProperty(window, "localStorage", { value: localStorageMock });
 
-beforeEach(() => localStorageMock.clear());
+beforeEach(() => {
+    localStorageMock.clear();
+    // 保存済みの値はモジュール内にキャッシュされる（useSyncExternalStore は
+    // 参照が安定したスナップショットを要求するため）。テスト間で持ち越さない。
+    resetFavoritesCache();
+});
 
 describe("useFavorites", () => {
     it("初期値は空配列", () => {

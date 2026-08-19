@@ -30,6 +30,46 @@ const bucket = bucketIndex !== -1 ? args[bucketIndex + 1] : undefined;
 const root = path.resolve(__dirname, "..");
 const outDir = path.join(root, "out");
 
+/**
+ * デプロイのたびにエッジから追い出すパスを、実際に上げたファイルから決める。
+ *
+ * 以前は "/*" だった。写真も同じディストリビューションから配信していて
+ * （src の多くが https://journey-photo.com/uploads/...）、しかも
+ * max-age=31536000 を付けているのに、push と1日4回の定期ビルドのたびに
+ * 全写真をパージしていた。各エッジで最初に見た人が毎回フル解像度の
+ * JPEG を取り直すことになり、長いキャッシュ期間が意味を成していなかった。
+ *
+ * 対象はキャッシュさせていないファイル（HTML・sitemap・photos.json など）だけ。
+ * /_next/static/ 配下は内容ハッシュ付きなので無効化は要らない。
+ *
+ * CloudFront のワイルドカードは末尾にしか置けないため、入れ子のページは
+ * 「/photo/*」のようにディレクトリ単位へまとめる（課金もパス数単位なので
+ * 1ページずつ並べるより安く、上限にも当たらない）。
+ */
+function invalidationPathsFor(keys) {
+    const paths = new Set(["/"]); // ルート（index.html の配信URL）
+    for (const key of keys) {
+        const k = key.split(path.sep).join("/");
+        if (!(isHtmlOrTxt(k) || NO_CACHE_KEYS.has(k))) continue;
+        // 先頭の名前でまとめる。/users.html・/users.txt・/users/xxx.html を
+        // 「/users*」1本にできるので、パス数（＝課金単位）が数分の1になる。
+        const slash = k.indexOf("/");
+        const head = slash === -1 ? k.replace(/\.(html|txt)$/, "") : k.slice(0, slash);
+        if (!head) continue;
+        paths.add(`/${head}*`);
+    }
+    // 別のワイルドカードに含まれるものは落とす（/user* があれば /users* は不要）
+    const all = [...paths].sort();
+    const out = all.filter((p) => !all.some((q) => q !== p && q.endsWith("*") && p.startsWith(q.slice(0, -1))));
+    // 写真を巻き込んでいないことを必ず確かめる。ここを間違えると、
+    // デプロイのたびに全写真がエッジから消えて遅くなる（元の "/*" の状態）。
+    const purgesUploads = out.some((p) => p === "/*" || "/uploads/".startsWith(p.replace(/\*$/, "")) && p !== "/");
+    if (purgesUploads) {
+        throw new Error(`[deploy] 無効化パスが /uploads/ を巻き込みます: ${out.join(" ")}`);
+    }
+    return out;
+}
+
 if (require.main === module) {
     if (!bucket) {
         console.error("Usage: node scripts/deploy-static-site.js --bucket <bucket-name>");
@@ -280,15 +320,16 @@ async function main() {
     // CloudFront invalidation
     const cfDistId = process.env.CLOUDFRONT_DISTRIBUTION_ID;
     if (cfDistId) {
+        const invalidationPaths = invalidationPathsFor(allFiles);
         console.log(`[deploy] Invalidating CloudFront distribution ${cfDistId}...`);
         await cf.send(new CreateInvalidationCommand({
             DistributionId: cfDistId,
             InvalidationBatch: {
                 CallerReference: String(Date.now()),
-                Paths: { Quantity: 1, Items: ["/*"] },
+                Paths: { Quantity: invalidationPaths.length, Items: invalidationPaths },
             },
         }));
-        console.log("[deploy] CloudFront invalidation created.");
+        console.log(`[deploy] CloudFront invalidation created (${invalidationPaths.length} paths): ${invalidationPaths.join(" ")}`);
         await sleep(5000); // 反映の初期待ち（この後の検証は参考ログのみ）
     } else {
         console.log("[deploy] CLOUDFRONT_DISTRIBUTION_ID not set — skipping invalidation.");
@@ -303,7 +344,7 @@ async function main() {
 }
 
 // テストから判定ロジックを検証できるようにエクスポート
-module.exports = { classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS };
+module.exports = { classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor };
 
 if (require.main === module) main().catch(err => {
     console.error("[deploy] ERROR:", err.message ?? err);
