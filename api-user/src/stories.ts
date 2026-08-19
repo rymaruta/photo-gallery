@@ -4,6 +4,7 @@ import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
 import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
+import { lookupDisplayName } from "./notify";
 
 const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? "";
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET ?? "";
@@ -202,14 +203,6 @@ export const viewStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なリクエスト" }) };
     }
 
-    let body: { displayName?: string };
-    try {
-        body = JSON.parse(event.body ?? "{}") as typeof body;
-    } catch {
-        body = {};
-    }
-    const displayName = (body.displayName ?? "").trim().slice(0, 100) || undefined;
-
     try {
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: storyId } }));
         const item = res.Item as Record<string, unknown> | undefined;
@@ -219,6 +212,11 @@ export const viewStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         if (item.userId === viewerId) {
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, self: true }) };
         }
+
+        // 表示名はサーバーで引く。クライアント申告を保存すると、改造したクライアントから
+        // 任意の名前で閲覧履歴に載れてしまう（notify.ts も同じ理由で申告を信用していない）。
+        // 記録すると決まってから引く（本人の閲覧や404では無駄に叩かない）。
+        const displayName = await lookupDisplayName(viewerId);
 
         // viewers マップが無ければ作ってから、閲覧者エントリを追加（初回閲覧時刻を保持）
         await ddb.send(new UpdateCommand({

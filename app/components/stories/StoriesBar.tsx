@@ -447,7 +447,7 @@ export default function StoriesBar() {
                         キャプションや曲を入れている間もずっと写真を見ていられる。 */}
                     <div className="absolute inset-0 flex items-center justify-center">
                         {draft.mediaType === "video" ? (
-                            <video src={draft.previewUrl} className="w-full h-full object-contain" playsInline muted loop autoPlay />
+                            <video src={draft.previewUrl} className="w-full h-full object-contain" controls playsInline muted loop autoPlay />
                         ) : (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={draft.previewUrl} alt="" className="w-full h-full object-contain" />
@@ -504,7 +504,16 @@ export default function StoriesBar() {
                                 </div>
 
                                 {/* 好きな部分。ストーリーに乗る範囲を白枠で示し、その中だけを
-                                    繰り返し再生する（インスタと同じ考え方）。秒数を頭で考えなくていい */}
+                                    繰り返し再生する（インスタと同じ考え方）。秒数を頭で考えなくていい。
+                                    動画は長さが可変で、曲は動画の長さぶん流れるため区間を選ぶ意味がない
+                                    （可動域ゼロのバーを出すと「ドラッグしても動かない」ように見える）。 */}
+                                {draft.mediaType === "video" ? (
+                                    <p className="text-[11px] text-white/45">
+                                        {locale === "en"
+                                            ? "Plays from the start, for the length of the video."
+                                            : "動画の長さぶん、曲の頭から流れます"}
+                                    </p>
+                                ) : (
                                 <div>
                                     <div className="flex items-center justify-between mb-1.5">
                                         <span className="text-[11px] text-white/60">
@@ -578,6 +587,7 @@ export default function StoriesBar() {
                                             : `ここから${songWindowSec}秒（ストーリーの表示時間ぶん）が流れます`}
                                     </p>
                                 </div>
+                                )}
                             </div>
                         ) : songPickerOpen ? (
                             <div className="rounded-2xl bg-black/60 backdrop-blur-sm ring-1 ring-white/10 p-2.5 space-y-2">

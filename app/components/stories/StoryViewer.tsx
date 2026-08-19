@@ -108,6 +108,8 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
 
     // 再生し直し用のカウンタ。進捗アニメーション/動画/BGM を最初から流し直す
     const [replay, setReplay] = useState(0);
+    // BGM の頭出し判定用（「再生し直しで値が変わったか」を見る）
+    const lastReplayRef = useRef(0);
     // 「今のストーリーが始まってからの経過」。左タップの挙動を切り替えるのに使う
     const startedAtRef = useRef(Date.now());
     useEffect(() => { startedAtRef.current = Date.now(); }, [item, replay]);
@@ -153,6 +155,28 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         }
     }, [groups, g, i, restart]);
 
+    // 「タップ」か「長押し・スワイプ」かの判定。
+    // click は指を離せば必ず発火するため、これが無いと長押しで一時停止したあと
+    // 離した瞬間に前後へ移動してしまう。
+    const pressRef = useRef<{ t: number; x: number; y: number } | null>(null);
+    const LONG_PRESS_MS = 350;
+    const MOVE_TOLERANCE_PX = 12;
+
+    const onZonePointerDown = useCallback((e: React.PointerEvent) => {
+        pressRef.current = { t: Date.now(), x: e.clientX, y: e.clientY };
+        setPaused(true);
+    }, []);
+
+    /** 直前の操作が短いタップだったか（長押し・指の移動があれば false） */
+    const wasTap = useCallback((e: React.MouseEvent): boolean => {
+        const p = pressRef.current;
+        pressRef.current = null;
+        if (!p) return true; // ポインタ情報が取れない環境では従来どおり動かす
+        if (Date.now() - p.t >= LONG_PRESS_MS) return false;
+        const moved = Math.hypot(e.clientX - p.x, e.clientY - p.y);
+        return moved <= MOVE_TOLERANCE_PX;
+    }, []);
+
     // ダイアログ表示中は自動送りを止める
     const frozen = paused || viewersOpen || confirmDelete;
 
@@ -177,8 +201,13 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             return;
         }
         const start = songStartSec(item.song.startSec);
-        // 頭出しは開始時と再生し直しのときだけ（一時停止からの復帰では続きから）
-        if (a.paused && a.currentTime < start) {
+        // 頭出しするのは「別のストーリーに移った」「最初から再生し直した」ときだけ。
+        // 一時停止からの復帰では続きから鳴らす。
+        // ここを a.paused で判定すると、再生中に呼ばれる再生し直しでは頭出しされず、
+        // 映像だけ戻って音楽が続くことになる（startSec が 0 のときは条件自体が常に偽）。
+        const replayChanged = lastReplayRef.current !== replay;
+        lastReplayRef.current = replay;
+        if (replayChanged || a.currentTime < start) {
             try { a.currentTime = start; } catch { /* seek 未対応は無視 */ }
         }
         void a.play().catch(() => { /* 自動再生ブロック等は無視 */ });
@@ -257,7 +286,9 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         className="block max-w-full max-h-full object-contain rounded-lg story-media-in"
                         autoPlay
                         playsInline
-                        muted={muted}
+                        // 曲が付いている動画は動画側を常に消す。両方を muted に
+                        // 連動させると、ミュート解除で動画の音とBGMが同時に鳴る。
+                        muted={muted || !!item.song}
                         onTimeUpdate={(e) => {
                             const v = e.currentTarget;
                             if (v.duration > 0) setProgress((v.currentTime / v.duration) * 100);
@@ -295,7 +326,9 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             )}
 
             {/* 上部グラデーション + プログレスバー + ヘッダー */}
-            <div className="absolute top-0 inset-x-0 bg-gradient-to-b from-black/70 to-transparent pt-2 pb-8 px-2 pointer-events-none">
+            {/* z-20: 下のタップ領域(z-10)より前面。ノッチ端末では safe-area の分だけ
+                ヘッダーが下がり、曲チップがタップ領域に潜って押せなくなるため。 */}
+            <div className="absolute top-0 inset-x-0 z-20 bg-gradient-to-b from-black/70 to-transparent pt-2 pb-8 px-2 pointer-events-none">
                 <div className="flex gap-1 mb-3" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
                     {group.items.map((s, idx) => {
                         const done = idx < i;
@@ -395,20 +428,22 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 </button>
             </div>
 
-            {/* タップ領域: 左1/3で戻る、右2/3で進む。長押しで一時停止 */}
+            {/* タップ領域: 左1/3で戻る、右2/3で進む。長押しで一時停止。
+                長押し・スワイプでは移動しない（キャプションを読むために止めたのに
+                指を離した瞬間に話が進んでしまうのを防ぐ）。 */}
             <div
                 className="absolute left-0 w-1/3 z-10"
                 style={{ top: 80, bottom: 88, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
-                onClick={goPrev}
-                onPointerDown={() => setPaused(true)}
+                onClick={(e) => { if (wasTap(e)) goPrev(); }}
+                onPointerDown={onZonePointerDown}
                 onPointerUp={() => setPaused(false)}
                 onPointerLeave={() => setPaused(false)}
             />
             <div
                 className="absolute right-0 w-2/3 z-10"
                 style={{ top: 80, bottom: 88, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
-                onClick={goNext}
-                onPointerDown={() => setPaused(true)}
+                onClick={(e) => { if (wasTap(e)) goNext(); }}
+                onPointerDown={onZonePointerDown}
                 onPointerUp={() => setPaused(false)}
                 onPointerLeave={() => setPaused(false)}
             />

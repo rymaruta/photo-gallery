@@ -290,19 +290,29 @@ describe("viewStory", () => {
     it("他人の閲覧は viewers マップに初回時刻つきで記録する", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } })
+            .mockResolvedValueOnce({ Item: { displayName: "本当の名前" } }) // 表示名をテーブルから引く
             .mockResolvedValueOnce({}) // viewers マップ初期化
             .mockResolvedValueOnce({}); // 閲覧者エントリ追加
         const res = await invoke(viewStory, authedEvent("viewer-1", {
             pathParameters: { id: "story-1" },
-            body: JSON.stringify({ displayName: "見た人" }),
+            body: JSON.stringify({ displayName: "なりすまし" }),
         }));
         expect(res.statusCode).toBe(200);
-        expect(mockDdbSend).toHaveBeenCalledTimes(3);
-        const initExpr = (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string } }).input.UpdateExpression;
+        expect(mockDdbSend).toHaveBeenCalledTimes(4);
+        const initExpr = (mockDdbSend.mock.calls[2][0] as { input: { UpdateExpression: string } }).input.UpdateExpression;
         expect(initExpr).toContain("if_not_exists(viewers");
-        const addCall = (mockDdbSend.mock.calls[2][0] as { input: { UpdateExpression: string; ExpressionAttributeNames: Record<string, string> } }).input;
+        const addCall = (mockDdbSend.mock.calls[3][0] as {
+            input: {
+                UpdateExpression: string;
+                ExpressionAttributeNames: Record<string, string>;
+                ExpressionAttributeValues: Record<string, { displayName?: string }>;
+            };
+        }).input;
         expect(addCall.ExpressionAttributeNames["#uid"]).toBe("viewer-1");
         expect(addCall.UpdateExpression).toContain("if_not_exists(viewers.#uid"); // 初回閲覧時刻を上書きしない
+        // 名前はテーブルから引いた値を使う。リクエストの申告は無視する
+        // （改造したクライアントから任意の名前で閲覧履歴に載れないように）
+        expect(addCall.ExpressionAttributeValues[":v"].displayName).toBe("本当の名前");
     });
 });
 
