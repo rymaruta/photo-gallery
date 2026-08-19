@@ -36,6 +36,7 @@ type SongEntry = {
 
 type UserProfile = {
     userId: string;
+    username?: string;
     displayName?: string;
     bio?: string;
     instagram?: string;
@@ -599,6 +600,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             const res = await userFetch("/user/profile", {
                 method: "PUT",
                 body: JSON.stringify({
+                    username: base.username,
                     displayName: base.displayName,
                     bio: base.bio,
                     instagram: base.instagram,
@@ -867,6 +869,10 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             <h1 className="text-2xl sm:text-3xl font-bold leading-tight truncate">
                                 {displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}
                             </h1>
+                            {/* サイト内ユーザー名: 名前のすぐ下に置いて目立たせる */}
+                            {userProfile?.username && (
+                                <p className="mt-0.5 text-sm text-white/50 truncate">@{userProfile.username}</p>
+                            )}
                             {userProfile?.statusText && (
                                 <div className="mt-2.5 inline-flex items-start gap-2 max-w-full rounded-2xl rounded-tl-md bg-white/[0.06] ring-1 ring-white/10 px-3.5 py-2 story-media-in">
                                     <span aria-hidden className="font-serif text-lg leading-none text-white/30 -mt-0.5 flex-shrink-0">“</span>

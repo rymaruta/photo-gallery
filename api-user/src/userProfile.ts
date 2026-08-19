@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer, APIGatewayProxyHandlerV2 } from "aws-lambda";
-import { DynamoDBClient, GetItemCommand, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, GetItemCommand, PutItemCommand, DeleteItemCommand } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
@@ -16,6 +16,8 @@ export type SongEntry = {
 
 export type UserProfile = {
     userId: string;
+    /** サイト内のユーザー名（@ハンドル）。表示用で、URLには使わない。全体で一意。 */
+    username?: string;
     displayName?: string;
     bio?: string;
     instagram?: string;
@@ -50,6 +52,75 @@ export type UserProfile = {
     updatedAt?: string;
 };
 
+// サイト内ユーザー名（@ハンドル）の規則。小文字英数字とアンダースコアのみ。
+export const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
+
+// ルートや紛らわしい語は取らせない
+export const RESERVED_USERNAMES = new Set([
+    "admin", "administrator", "root", "system", "support", "help", "about", "api",
+    "login", "signup", "logout", "user", "users", "photo", "photos", "tag", "tags",
+    "location", "category", "camera", "lens", "map", "favorites", "wishlist",
+    "drafts", "edit", "upload", "profile", "settings", "search", "new", "me",
+    "journey", "journeyphoto", "official", "staff", "null", "undefined",
+]);
+
+/** 入力を正規化して検証する。不正なら理由を返す。 */
+export function normalizeUsername(raw: unknown): { username?: string; error?: string } {
+    if (raw === null || raw === "") return {};            // 明示的なクリア
+    if (typeof raw !== "string") return { error: "ユーザー名の形式が不正です" };
+    const u = raw.trim().toLowerCase().replace(/^@/, "");
+    if (!u) return {};
+    if (!USERNAME_RE.test(u)) {
+        return { error: "ユーザー名は英小文字・数字・_ の3〜20文字で入力してください" };
+    }
+    if (RESERVED_USERNAMES.has(u)) return { error: "そのユーザー名は使用できません" };
+    return { username: u };
+}
+
+/** 一意性の予約アイテムのキー（同じ users テーブルに載せる） */
+const usernameKey = (u: string) => `username#${u}`;
+
+/**
+ * ユーザー名を予約する。既に他人が使っていれば false。
+ * GetItem/PutItem だけで完結するので、既存のIAM権限（Query不要）で動く。
+ * 条件付き書き込みなので同時実行でも二重取得しない。
+ */
+async function reserveUsername(username: string, ownerId: string): Promise<boolean> {
+    try {
+        await ddb.send(new PutItemCommand({
+            TableName: USERS_TABLE,
+            Item: marshall({ userId: usernameKey(username), ownerId, updatedAt: new Date().toISOString() }),
+            ConditionExpression: "attribute_not_exists(userId)",
+        }));
+        return true;
+    } catch (e) {
+        // 既に存在する場合、それが自分の予約なら OK（付け直し・再保存）
+        if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
+            const cur = await ddb.send(new GetItemCommand({
+                TableName: USERS_TABLE,
+                Key: marshall({ userId: usernameKey(username) }),
+            }));
+            const owner = cur.Item ? (unmarshall(cur.Item) as { ownerId?: string }).ownerId : undefined;
+            return owner === ownerId;
+        }
+        throw e;
+    }
+}
+
+/** 古いユーザー名の予約を解放する（自分のものだけ） */
+async function releaseUsername(username: string, ownerId: string): Promise<void> {
+    try {
+        await ddb.send(new DeleteItemCommand({
+            TableName: USERS_TABLE,
+            Key: marshall({ userId: usernameKey(username) }),
+            ConditionExpression: "ownerId = :o",
+            ExpressionAttributeValues: marshall({ ":o": ownerId }),
+        }));
+    } catch {
+        // 他人のものだった/既に無い場合は何もしない
+    }
+}
+
 async function getProfile(userId: string): Promise<UserProfile | null> {
     const res = await ddb.send(new GetItemCommand({
         TableName: USERS_TABLE,
@@ -74,6 +145,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     const userId = getUserId(event);
 
     let body: {
+        username?: unknown;
         displayName?: string; bio?: string; instagram?: string; website?: string;
         songUrl?: string; songStart?: number; songEnd?: number;
         songTitle?: string; songArtist?: string; songArtwork?: string; songPreviewUrl?: string; songTrackUrl?: string;
@@ -93,6 +165,13 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     const bio = body.bio?.trim().slice(0, 300) || undefined;
     const instagram = body.instagram?.trim().slice(0, 100) || undefined;
     const website = body.website?.trim().slice(0, 200) || undefined;
+
+    // サイト内ユーザー名（@ハンドル）。形式・予約語を検証し、一意性は予約アイテムで担保する。
+    const hasUsernameKey = "username" in body;
+    const { username, error: usernameError } = normalizeUsername(body.username);
+    if (usernameError) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: usernameError }) };
+    }
     const songUrl = body.songUrl?.trim().slice(0, 500) || undefined;
     // 開始・終了位置は 0〜24時間(秒)の範囲に丸める。songUrl が無ければ無視。
     const clampSec = (v: unknown): number | undefined => {
@@ -204,6 +283,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
 
     const profile: UserProfile = {
         userId,
+        ...(username ? { username } : {}),
         ...(displayName ? { displayName } : {}),
         ...(bio ? { bio } : {}),
         ...(instagram ? { instagram } : {}),
@@ -230,10 +310,30 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     };
 
     try {
+        const prev = await getProfile(userId);
+        // このAPIはプロフィール全体を PutItem で置き換えるため、リクエストに username が
+        // 含まれない保存（他項目だけの更新）で既存のユーザー名が消えないようにする。
+        if (!hasUsernameKey && prev?.username) {
+            profile.username = prev.username;
+        }
+
+        // ユーザー名の一意性を先に確保する（他人が使っていれば 409 で中断）
+        if (hasUsernameKey && username && username !== prev?.username) {
+            const ok = await reserveUsername(username, userId);
+            if (!ok) {
+                return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({ error: "そのユーザー名は既に使われています" }) };
+            }
+        }
+
         await ddb.send(new PutItemCommand({
             TableName: USERS_TABLE,
             Item: marshall(profile),
         }));
+
+        // 保存できたら古いユーザー名の予約を解放する（付け替え・クリア時）
+        if (hasUsernameKey && prev?.username && prev.username !== username) {
+            await releaseUsername(prev.username, userId);
+        }
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(profile) };
     } catch (e) {
         console.error("updateMyProfile error:", e);

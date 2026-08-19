@@ -22,6 +22,7 @@ type SongEntry = {
 
 type UserProfile = {
     userId: string;
+    username?: string;
     displayName?: string;
     bio?: string;
     instagram?: string;
@@ -75,6 +76,7 @@ export default function ProfileEditPage() {
     const [saving, setSaving] = useState(false);
     const [avatarUploading, setAvatarUploading] = useState(false);
 
+    const [username, setUsername] = useState("");
     const [displayName, setDisplayName] = useState("");
     const [bio, setBio] = useState("");
     const [statusText, setStatusText] = useState("");
@@ -143,6 +145,7 @@ export default function ProfileEditPage() {
                             trackUrl: data.songTrackUrl ?? "",
                         }]);
                     }
+                    setUsername(data.username ?? "");
                     setRankingTitle(data.ranking?.title ?? "");
                     setRankingItems([...(data.ranking?.items ?? []), "", "", "", "", ""].slice(0, 5));
                     if (data.songUrl) {
@@ -321,6 +324,7 @@ export default function ProfileEditPage() {
             const res = await userFetch("/user/profile", {
                 method: "PUT",
                 body: JSON.stringify({
+                    username: username.trim().toLowerCase().replace(/^@/, ""),
                     displayName, bio, instagram, website,
                     statusText,
                     themeColor,
@@ -479,6 +483,31 @@ export default function ProfileEditPage() {
                 </div>
 
                 <div className="space-y-5">
+                    <div>
+                        <label className={labelClass}>
+                            {locale === "en" ? "Username" : "ユーザー名"}
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-white/40 text-sm">@</span>
+                            <input
+                                type="text"
+                                value={username}
+                                onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                                maxLength={20}
+                                placeholder="ryuhei_photo"
+                                className={inputClass}
+                                autoCapitalize="none"
+                                autoCorrect="off"
+                                spellCheck={false}
+                            />
+                        </div>
+                        <p className="text-[11px] text-white/40 mt-1">
+                            {locale === "en"
+                                ? "Lowercase letters, numbers and _ (3-20). Shown under your name."
+                                : "英小文字・数字・_ の3〜20文字。プロフィールの名前の下に表示されます。"}
+                        </p>
+                    </div>
+
                     <div>
                         <label className={labelClass}>
                             {locale === "en" ? "Display name" : "表示名"}
