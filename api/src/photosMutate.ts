@@ -64,7 +64,14 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             try {
                 const url = new URL(photo.src);
                 const key = url.pathname.substring(1);
-                await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));
+                // 消してよいのはアップロード領域だけ。src は過去に検証なしで保存された
+                // ものがあり、そのままキーにすると他人のアイコン（profiles/...）まで
+                // 消せてしまう。
+                if (!key.startsWith("uploads/")) {
+                    console.warn(`deletePhoto: skip S3 delete for unexpected key ${key}`);
+                } else {
+                    await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));
+                }
             } catch (s3Err) {
                 console.error("S3 delete error (non-fatal):", s3Err);
             }

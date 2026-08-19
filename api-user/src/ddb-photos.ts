@@ -2,8 +2,18 @@ import { PutCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
 import type { Photo } from "./types";
 
+/**
+ * 新規写真を保存する。既存の id には絶対に書き込まない。
+ * このテーブルには写真以外（通知・コメント・フォロー関係）も同じキー空間に入っており、
+ * 無条件の Put だと他人のレコードを丸ごと置き換えられてしまうため。
+ * 既存写真の更新は photoUpdate.ts の UpdateCommand を使うこと。
+ */
 export async function putPhoto(photo: Photo): Promise<void> {
-    await ddb.send(new PutCommand({ TableName: PHOTOS_TABLE, Item: photo }));
+    await ddb.send(new PutCommand({
+        TableName: PHOTOS_TABLE,
+        Item: photo,
+        ConditionExpression: "attribute_not_exists(id)",
+    }));
 }
 
 export async function countUserPhotos(userId: string): Promise<number> {

@@ -11,6 +11,32 @@ const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
 const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? "";
 
+/**
+ * 自分のアップロード領域（uploads/ 配下）を指すURLかどうか。
+ * 配信ドメインが設定されていればホストも照合する。
+ * 保存された src は削除時にそのまま S3 のキーになるため、ここが最後の砦になる。
+ */
+export function isOwnUploadUrl(raw: unknown): boolean {
+    if (typeof raw !== "string" || !raw) return false;
+    let u: URL;
+    try {
+        u = new URL(raw);
+    } catch {
+        return false;
+    }
+    if (u.protocol !== "https:") return false;
+    if (!u.pathname.startsWith("/uploads/")) return false;
+    // 配信ドメインの照合。CLOUDFRONT_URL は serverless.yml で既定値が入るので
+    // デプロイ環境では必ず設定されている。未設定なら「検証できない」ので通さない
+    // （安全側に倒す。ここは他人のファイルを消せるかどうかを分ける境界）。
+    try {
+        if (u.host !== new URL(CLOUDFRONT_URL).host) return false;
+    } catch {
+        return false;
+    }
+    return true;
+}
+
 const PHOTO_LIMIT_PER_USER = 100;
 
 export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
@@ -100,11 +126,25 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なリクエスト" }) };
     }
 
-    const { key, publicUrl, photoId, title, description, location, category, tags, exif, displayName, coords, dominantColor, thumbUrl, blurDataURL } = body;
+    const { key, publicUrl, title, description, location, category, tags, exif, displayName, coords, dominantColor, thumbUrl, blurDataURL } = body;
     // 下書き保存: published === false のときだけ非公開。既定（未指定/true）は従来通り公開。
     const isPublished = body.published !== false;
     if (!key || !publicUrl) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイル情報が必要です" }) };
+    }
+    // アップロード領域を指すURLだけを受け付ける。
+    //
+    // ここを検証しないと、他人のアイコン（profiles/<相手のID>）のURLを保存させたうえで
+    // 自分のその写真を削除でき、相手のファイルを S3 から消せてしまう
+    // （削除は保存された src のパスをそのまま S3 のキーとして使うため）。
+    //
+    // key は保存されず削除にも使われないので、要になるのは publicUrl の方。
+    // CLOUDFRONT_URL が未設定の環境でも効くよう、パスは常に検証する。
+    if (!isOwnUploadUrl(publicUrl)) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正な画像URLです" }) };
+    }
+    if (!String(key).startsWith("uploads/")) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なキーです" }) };
     }
 
     // 100枚制限の二重チェック（adminは除外）
@@ -139,7 +179,10 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     const safeDate = sanitizeDate(body.date);
 
     const photo: Photo = {
-        id: photoId ?? uuidv4(),
+        // ID は必ずサーバーで採番する。リクエストから受け取ると、他人の写真IDを
+        // 指定して丸ごと上書きできてしまう（通知やコメントの文書も同じテーブルにある）。
+        // 既存写真の更新は photoUpdate.ts が担当する。
+        id: uuidv4(),
         src: publicUrl,
         title: title ?? { ja: "無題", en: "Untitled" },
         ...(description ? { description } : {}),

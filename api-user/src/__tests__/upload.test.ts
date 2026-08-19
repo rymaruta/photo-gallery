@@ -8,7 +8,9 @@ vi.mock("../ddb-photos", () => ({
     countUserPhotos: mockCountUserPhotos,
 }));
 
-import { savePhoto } from "../upload";
+// 環境変数はモジュール読込時に評価されるため、stub してから動的 import する
+vi.stubEnv("CLOUDFRONT_URL", "https://cdn.example.com");
+const { savePhoto } = await import("../upload");
 import type { Photo } from "../types";
 
 type LambdaResult = { statusCode: number; body: string };
@@ -164,5 +166,40 @@ describe("savePhoto: exif（撮影情報）のサニタイズ", () => {
         const res = await invoke(event("u1", { ...BASE, exif: { iso: -5, camera: "  " } }));
         expect(res.statusCode).toBe(200);
         expect("exif" in savedPhoto()).toBe(false);
+    });
+});
+
+// 他人のデータを壊せる経路を塞いだことの回帰ガード。
+// いずれも「ログインしていれば誰でも実行できた」ものなので、外れたら即座に気づけるようにする。
+describe("savePhoto: 他人のデータを壊せないこと", () => {
+    it("リクエストの photoId は無視し、必ずサーバーで採番する", async () => {
+        // 写真IDはURLで公開されている。受け取ってしまうと、他人の写真や
+        // 通知文書（notifs#...）を丸ごと上書きできてしまう。
+        const victimId = "someone-elses-photo-id";
+        const res = await invoke(event("u1", { ...BASE, photoId: victimId }));
+        expect(res.statusCode).toBe(200);
+        expect(savedPhoto().id).not.toBe(victimId);
+        expect(savedPhoto().id).toMatch(/^[0-9a-f-]{36}$/);
+    });
+
+    it("配信ドメイン外の publicUrl は弾く", async () => {
+        const res = await invoke(event("u1", { ...BASE, publicUrl: "https://evil.example.com/uploads/x.jpg" }));
+        expect(res.statusCode).toBe(400);
+        expect(mockPutPhoto).not.toHaveBeenCalled();
+    });
+
+    it("uploads/ 以外を指す publicUrl は弾く（他人のアイコンを消せてしまうため）", async () => {
+        const res = await invoke(event("u1", {
+            ...BASE,
+            publicUrl: "https://cdn.example.com/profiles/victim-user-id",
+        }));
+        expect(res.statusCode).toBe(400);
+        expect(mockPutPhoto).not.toHaveBeenCalled();
+    });
+
+    it("uploads/ 以外の key は弾く", async () => {
+        const res = await invoke(event("u1", { ...BASE, key: "profiles/victim-user-id" }));
+        expect(res.statusCode).toBe(400);
+        expect(mockPutPhoto).not.toHaveBeenCalled();
     });
 });
