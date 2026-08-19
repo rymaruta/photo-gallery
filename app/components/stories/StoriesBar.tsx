@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { PlusIcon, XMarkIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
+import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import UserAvatar from "../UserAvatar";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
@@ -15,6 +16,12 @@ import {
 } from "../../../lib/stories";
 import StoryViewer from "./StoryViewer";
 
+
+// 画像ストーリーの表示秒数。投稿者が選べる（既定5秒）
+const STORY_DEFAULT_DURATION_SEC = 5;
+const STORY_DURATION_CHOICES = [3, 5, 7, 10, 15];
+// iTunes プレビューの長さ。「好きな部分」の開始位置はこの範囲で選ぶ
+const SONG_PREVIEW_SEC = 30;
 
 const ALLOWED_VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
 const MAX_VIDEO_SECONDS = 60;
@@ -65,6 +72,37 @@ export default function StoriesBar() {
     const [songQuery, setSongQuery] = useState("");
     const [songResults, setSongResults] = useState<SongResult[]>([]);
     const [songSearching, setSongSearching] = useState(false);
+    // 曲の「好きな部分」= 30秒プレビュー内の開始位置（秒）
+    const [songStart, setSongStart] = useState(0);
+    // 画像ストーリーの表示秒数（投稿者が選ぶ）
+    const [durationSec, setDurationSec] = useState(STORY_DEFAULT_DURATION_SEC);
+
+    // 試聴用オーディオ（検索結果も選択中の曲も、常に1つだけ鳴らす）
+    const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+    const [previewingId, setPreviewingId] = useState<string | null>(null);
+
+    const stopPreview = useCallback(() => {
+        previewAudioRef.current?.pause();
+        setPreviewingId(null);
+    }, []);
+
+    const playPreview = useCallback((song: SongResult, startSec = 0) => {
+        let a = previewAudioRef.current;
+        if (!a) {
+            a = new Audio();
+            a.onended = () => setPreviewingId(null);
+            previewAudioRef.current = a;
+        }
+        if (a.src !== song.previewUrl) a.src = song.previewUrl;
+        try { a.currentTime = startSec; } catch { /* seek 未対応は無視 */ }
+        void a.play()
+            .then(() => setPreviewingId(song.id))
+            .catch(() => setPreviewingId(null)); // 自動再生ブロック等
+    }, []);
+
+    // 画面を離れるときに音を止める
+    useEffect(() => () => { previewAudioRef.current?.pause(); }, []);
+
     const searchDraftSongs = async () => {
         const q = songQuery.trim();
         if (!q) return;
@@ -116,13 +154,16 @@ export default function StoriesBar() {
 
     const closeDraft = useCallback(() => {
         if (draft) { try { URL.revokeObjectURL(draft.previewUrl); } catch { /* ignore */ } }
+        stopPreview();
         setDraft(null);
         setCaption("");
         setDraftSong(null);
         setSongPickerOpen(false);
         setSongQuery("");
         setSongResults([]);
-    }, [draft]);
+        setSongStart(0);
+        setDurationSec(STORY_DEFAULT_DURATION_SEC);
+    }, [draft, stopPreview]);
 
     // ファイル選択 → 検証 → 投稿プレビューを開く
     const handleFileSelect = useCallback(async (file: File) => {
@@ -156,6 +197,7 @@ export default function StoriesBar() {
     const handlePost = useCallback(async () => {
         if (!draft) return;
         setPosting(true);
+        stopPreview();
         try {
             let uploadFile = draft.file;
             if (draft.mediaType === "image") {
@@ -201,7 +243,8 @@ export default function StoriesBar() {
                     ...(key ? { key } : {}),
                     mediaType: draft.mediaType,
                     ...(caption.trim() ? { caption: caption.trim() } : {}),
-                    ...(draftSong ? { song: { title: draftSong.title, artist: draftSong.artist, artwork: draftSong.artwork, previewUrl: draftSong.previewUrl, trackUrl: draftSong.trackUrl } } : {}),
+                    ...(draftSong ? { song: { title: draftSong.title, artist: draftSong.artist, artwork: draftSong.artwork, previewUrl: draftSong.previewUrl, trackUrl: draftSong.trackUrl, ...(songStart > 0 ? { startSec: songStart } : {}) } } : {}),
+                    ...(draft.mediaType === "image" ? { durationSec } : {}),
                     ...(displayName ? { displayName } : {}),
                 }),
             });
@@ -224,7 +267,7 @@ export default function StoriesBar() {
         } finally {
             setPosting(false);
         }
-    }, [draft, caption, draftSong, locale, showToast, loadStories, closeDraft]);
+    }, [draft, caption, draftSong, songStart, durationSec, locale, showToast, loadStories, closeDraft, stopPreview]);
 
     // 自分のストーリーを削除
     const handleDeleteStory = useCallback(async (storyId: string) => {
@@ -245,37 +288,55 @@ export default function StoriesBar() {
     // ストーリーはログインユーザー限定。未ログインではバー自体を出さない
     if (!isAuthenticated) return null;
 
+    // 自分のストーリーは「あなた」の枠に統合して表示する（同じ人が2つ並ばないように）
+    const ownGroupIdx = userId ? groups.findIndex((g) => g.userId === userId) : -1;
+    const ownUnseen = ownGroupIdx >= 0 && hasUnseen(groups[ownGroupIdx], seen);
+
     return (
         <div className="mb-5">
             <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-1 px-1 py-1">
-                {/* 自分の「+」（ログイン時のみ） */}
+                {/* 自分の枠は常に1つだけ。すでに投稿があればリング＝自分のストーリー、
+                    右下の「+」で追加投稿。まだ無ければ「+」だけを出す。 */}
                 {isAuthenticated && userId && (
-                    <button
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={posting}
-                        className="flex flex-col items-center gap-1.5 flex-shrink-0 disabled:opacity-50 group"
-                        style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
-                    >
-                        <div className="relative">
-                            <div className="rounded-full p-[2.5px] bg-white/10 group-active:scale-95 transition-transform">
+                    <div className="relative flex flex-col items-center gap-1.5 flex-shrink-0">
+                        <button
+                            onClick={() => { if (ownGroupIdx >= 0) setViewerGroup(ownGroupIdx); else fileInputRef.current?.click(); }}
+                            disabled={posting}
+                            className="disabled:opacity-50 group"
+                            style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                            aria-label={ownGroupIdx >= 0
+                                ? (locale === "en" ? "View your story" : "自分のストーリーを見る")
+                                : (locale === "en" ? "Add a story" : "ストーリーを追加")}
+                        >
+                            <div
+                                className="rounded-full p-[2.5px] group-active:scale-95 transition-transform"
+                                style={{ background: ownGroupIdx >= 0 ? (ownUnseen ? RING_UNSEEN : RING_SEEN) : "rgba(255,255,255,0.1)" }}
+                            >
                                 <div className="rounded-full p-[2.5px] bg-black">
                                     <UserAvatar userId={userId} className="w-[64px] h-[64px]" iconClassName="w-8 h-8" />
                                 </div>
                             </div>
-                            <div className="absolute bottom-0 right-0 w-[22px] h-[22px] rounded-full ring-[3px] ring-black flex items-center justify-center" style={{ background: "#0095F6" }}>
-                                {posting
-                                    ? <div className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                                    : <PlusIcon className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
-                            </div>
-                        </div>
+                        </button>
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={posting}
+                            className="absolute top-[50px] right-0 w-[22px] h-[22px] rounded-full ring-[3px] ring-black flex items-center justify-center active:scale-90 transition disabled:opacity-50"
+                            style={{ background: "#0095F6", touchAction: "manipulation" }}
+                            aria-label={locale === "en" ? "Add a story" : "ストーリーを追加"}
+                        >
+                            {posting
+                                ? <div className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                : <PlusIcon className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
+                        </button>
                         <span className="text-[11px] text-white/70 leading-none">
                             {locale === "en" ? "Your story" : "あなた"}
                         </span>
-                    </button>
+                    </div>
                 )}
 
-                {/* 各ユーザーのストーリーリング */}
+                {/* 他ユーザーのストーリーリング（自分は上の枠に統合済みなので除く） */}
                 {groups.map((group, idx) => {
+                    if (idx === ownGroupIdx) return null;
                     const unseen = hasUnseen(group, seen);
                     return (
                         <button
@@ -314,24 +375,31 @@ export default function StoriesBar() {
 
             {/* 投稿プレビュー（キャプション入力つき） */}
             {draft && (
-                <div className="fixed inset-0 z-[95] bg-black/95 flex flex-col" role="dialog" aria-modal="true">
-                    <div className="flex items-center justify-between p-3" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}>
-                        <h2 className="text-sm font-semibold text-white">
+                <div className="fixed inset-0 z-[95] bg-black flex flex-col" role="dialog" aria-modal="true">
+                    {/* 写真は画面いっぱいの背面に固定。入力欄はその上に重ねるので、
+                        キャプションや曲を入れている間もずっと写真を見ていられる。 */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        {draft.mediaType === "video" ? (
+                            <video src={draft.previewUrl} className="w-full h-full object-contain" playsInline muted loop autoPlay />
+                        ) : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={draft.previewUrl} alt="" className="w-full h-full object-contain" />
+                        )}
+                    </div>
+                    {/* 上下のスクリム（文字と写真が重なっても読めるように） */}
+                    <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
+                    <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/90 via-black/60 to-transparent pointer-events-none" />
+
+                    <div className="relative flex items-center justify-between p-3" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}>
+                        <h2 className="text-sm font-semibold text-white drop-shadow">
                             {locale === "en" ? "New story" : "新しいストーリー"}
                         </h2>
-                        <button onClick={closeDraft} disabled={posting} className="p-2 text-white/70 hover:text-white" aria-label={locale === "en" ? "Cancel" : "キャンセル"}>
+                        <button onClick={closeDraft} disabled={posting} className="p-2 text-white/80 hover:text-white drop-shadow" aria-label={locale === "en" ? "Cancel" : "キャンセル"}>
                             <XMarkIcon className="w-6 h-6" />
                         </button>
                     </div>
-                    <div className="flex-1 min-h-0 flex items-center justify-center px-4">
-                        {draft.mediaType === "video" ? (
-                            <video src={draft.previewUrl} className="max-w-full max-h-full rounded-lg" controls playsInline muted loop autoPlay />
-                        ) : (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={draft.previewUrl} alt="" className="max-w-full max-h-full rounded-lg object-contain" />
-                        )}
-                    </div>
-                    <div className="p-4 space-y-3" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}>
+                    <div className="flex-1 min-h-0" />
+                    <div className="relative p-4 space-y-3 max-h-[70%] overflow-y-auto no-scrollbar" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}>
                         <input
                             type="text"
                             value={caption}
@@ -339,25 +407,68 @@ export default function StoriesBar() {
                             maxLength={200}
                             placeholder={locale === "en" ? "Add a caption..." : "キャプションを追加..."}
                             disabled={posting}
-                            className="w-full px-4 py-3 bg-white/10 rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-white/15"
+                            className="w-full px-4 py-3 bg-black/55 backdrop-blur-sm ring-1 ring-white/10 rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-black/70"
                             style={{ fontSize: "16px" }}
                         />
 
                         {/* ストーリーBGM（任意） */}
                         {draftSong ? (
-                            <div className="flex items-center gap-2.5 rounded-full bg-white/10 pl-2 pr-3 py-1.5">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={draftSong.artwork} alt="" className="w-8 h-8 rounded-full object-cover bg-white/10 flex-shrink-0" />
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-xs text-white truncate">🎵 {draftSong.title}</p>
-                                    <p className="text-[11px] text-white/50 truncate">{draftSong.artist}</p>
+                            <div className="rounded-2xl bg-black/50 backdrop-blur-sm ring-1 ring-white/10 p-2.5 space-y-2.5">
+                                <div className="flex items-center gap-2.5">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={draftSong.artwork} alt="" className="w-9 h-9 rounded-lg object-cover bg-white/10 flex-shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-xs text-white truncate">{draftSong.title}</p>
+                                        <p className="text-[11px] text-white/50 truncate">{draftSong.artist}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => previewingId === draftSong.id ? stopPreview() : playPreview(draftSong, songStart)}
+                                        disabled={posting}
+                                        className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center active:scale-90 transition flex-shrink-0"
+                                        aria-label={previewingId === draftSong.id ? (locale === "en" ? "Pause" : "停止") : (locale === "en" ? "Play" : "再生")}
+                                    >
+                                        {previewingId === draftSong.id
+                                            ? <PauseIcon className="w-4 h-4 text-white" />
+                                            : <PlayIcon className="w-4 h-4 text-white" />}
+                                    </button>
+                                    <button onClick={() => { stopPreview(); setDraftSong(null); setSongStart(0); }} disabled={posting} className="p-1 text-white/50 hover:text-white active:scale-90 transition flex-shrink-0" aria-label={locale === "en" ? "Remove song" : "曲を外す"}>
+                                        <XMarkIcon className="w-4 h-4" />
+                                    </button>
                                 </div>
-                                <button onClick={() => setDraftSong(null)} disabled={posting} className="p-1 text-white/50 hover:text-white active:scale-90 transition" aria-label={locale === "en" ? "Remove song" : "曲を外す"}>
-                                    <XMarkIcon className="w-4 h-4" />
-                                </button>
+
+                                {/* 好きな部分（30秒プレビュー内の開始位置）*/}
+                                <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="text-[11px] text-white/60">
+                                            {locale === "en" ? "Start from" : "好きな部分から"}
+                                        </span>
+                                        <span className="text-[11px] text-white/80 tabular-nums">
+                                            {`0:${String(songStart).padStart(2, "0")}`}
+                                        </span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min={0}
+                                        max={SONG_PREVIEW_SEC - 1}
+                                        step={1}
+                                        value={songStart}
+                                        disabled={posting}
+                                        onChange={(e) => {
+                                            const v = Number(e.target.value);
+                                            setSongStart(v);
+                                            // ドラッグ中も音を追従させる（どこから始まるか耳で確認できる）
+                                            const a = previewAudioRef.current;
+                                            if (a && previewingId === draftSong.id) {
+                                                try { a.currentTime = v; } catch { /* ignore */ }
+                                            }
+                                        }}
+                                        className="w-full accent-white h-1.5"
+                                        aria-label={locale === "en" ? "Song start position" : "曲の開始位置"}
+                                    />
+                                </div>
                             </div>
                         ) : songPickerOpen ? (
-                            <div className="rounded-2xl bg-white/10 p-2.5 space-y-2">
+                            <div className="rounded-2xl bg-black/60 backdrop-blur-sm ring-1 ring-white/10 p-2.5 space-y-2">
                                 <div className="flex gap-2">
                                     <input
                                         type="text"
@@ -375,7 +486,7 @@ export default function StoriesBar() {
                                             ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" />
                                             : (locale === "en" ? "Search" : "検索")}
                                     </button>
-                                    <button onClick={() => { setSongPickerOpen(false); setSongResults([]); setSongQuery(""); }}
+                                    <button onClick={() => { stopPreview(); setSongPickerOpen(false); setSongResults([]); setSongQuery(""); }}
                                         className="px-2 text-xs text-white/50 hover:text-white/80 active:scale-95 transition">
                                         {locale === "en" ? "Cancel" : "閉じる"}
                                     </button>
@@ -383,13 +494,27 @@ export default function StoriesBar() {
                                 {songResults.length > 0 && (
                                     <ul className="rounded-xl bg-black/40 divide-y divide-white/5 overflow-hidden max-h-44 overflow-y-auto no-scrollbar">
                                         {songResults.map((r) => (
-                                            <li key={r.id}>
+                                            <li key={r.id} className="flex items-center gap-1 pr-2">
+                                                {/* 試聴（曲を決める前に雰囲気を確かめられる）*/}
                                                 <button
-                                                    onClick={() => { setDraftSong(r); setSongPickerOpen(false); setSongResults([]); setSongQuery(""); }}
-                                                    className="w-full flex items-center gap-2.5 p-2 hover:bg-white/10 active:bg-white/15 transition text-left"
+                                                    onClick={() => previewingId === r.id ? stopPreview() : playPreview(r)}
+                                                    className="relative w-8 h-8 ml-2 my-2 rounded overflow-hidden flex-shrink-0 active:scale-90 transition"
+                                                    aria-label={previewingId === r.id
+                                                        ? (locale === "en" ? `Pause ${r.title}` : `${r.title} を停止`)
+                                                        : (locale === "en" ? `Play ${r.title}` : `${r.title} を試聴`)}
                                                 >
                                                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                    <img src={r.artwork} alt="" loading="lazy" className="w-8 h-8 rounded object-cover bg-white/10 flex-shrink-0" />
+                                                    <img src={r.artwork} alt="" loading="lazy" className="w-full h-full object-cover bg-white/10" />
+                                                    <span className="absolute inset-0 bg-black/45 flex items-center justify-center">
+                                                        {previewingId === r.id
+                                                            ? <PauseIcon className="w-4 h-4 text-white" />
+                                                            : <PlayIcon className="w-4 h-4 text-white" />}
+                                                    </span>
+                                                </button>
+                                                <button
+                                                    onClick={() => { stopPreview(); setDraftSong(r); setSongStart(0); setSongPickerOpen(false); setSongResults([]); setSongQuery(""); }}
+                                                    className="flex-1 min-w-0 flex items-center gap-2.5 py-2 hover:bg-white/10 active:bg-white/15 transition text-left"
+                                                >
                                                     <div className="min-w-0 flex-1">
                                                         <p className="text-xs text-white truncate">{r.title}</p>
                                                         <p className="text-[11px] text-white/50 truncate">{r.artist}</p>
@@ -405,11 +530,36 @@ export default function StoriesBar() {
                             <button
                                 onClick={() => setSongPickerOpen(true)}
                                 disabled={posting}
-                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/10 hover:bg-white/15 text-white/80 text-xs active:scale-95 transition"
+                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/10 hover:bg-black/70 text-white/85 text-xs active:scale-95 transition"
                             >
                                 <MusicalNoteIcon className="w-4 h-4 text-fuchsia-300" />
                                 {locale === "en" ? "Add music" : "曲を付ける"}
                             </button>
+                        )}
+
+                        {/* 表示時間（画像のみ。動画は動画の長さで決まる）*/}
+                        {draft.mediaType === "image" && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-[11px] text-white/60 flex-shrink-0">
+                                    {locale === "en" ? "Duration" : "表示時間"}
+                                </span>
+                                <div className="flex gap-1.5">
+                                    {STORY_DURATION_CHOICES.map((s) => (
+                                        <button
+                                            key={s}
+                                            onClick={() => setDurationSec(s)}
+                                            disabled={posting}
+                                            aria-pressed={durationSec === s}
+                                            className={`px-3 py-1.5 rounded-full text-xs transition active:scale-95 ${durationSec === s
+                                                ? "bg-white text-black font-semibold"
+                                                : "bg-black/55 backdrop-blur-sm ring-1 ring-white/10 text-white/70"}`}
+                                        >
+                                            {s}
+                                            {locale === "en" ? "s" : "秒"}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         )}
 
                         <button

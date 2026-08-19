@@ -8,7 +8,23 @@ import { timeAgo } from "@/lib/stories";
 import { log } from "@/lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
 
-const STORY_DURATION_MS = 5000; // 画像の表示時間
+const STORY_DEFAULT_DURATION_SEC = 5; // 画像の表示時間（投稿時に未指定だったとき）
+const STORY_MIN_DURATION_SEC = 3;
+const STORY_MAX_DURATION_SEC = 15;
+
+/** 曲の再生開始位置（30秒プレビュー内の秒数）。未指定・範囲外は 0。 */
+export function songStartSec(startSec: unknown): number {
+    const n = typeof startSec === "number" ? startSec : Number(startSec);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return Math.min(29, Math.round(n));
+}
+
+/** 投稿者が指定した表示秒数をミリ秒に。未指定・範囲外は既定値に丸める。 */
+export function storyDurationMs(durationSec: unknown): number {
+    const n = typeof durationSec === "number" ? durationSec : Number(durationSec);
+    if (!Number.isFinite(n)) return STORY_DEFAULT_DURATION_SEC * 1000;
+    return Math.min(STORY_MAX_DURATION_SEC, Math.max(STORY_MIN_DURATION_SEC, Math.round(n))) * 1000;
+}
 
 type Props = {
     groups: StoryGroup[];
@@ -90,8 +106,15 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         })();
     }, [item, isOwnStory]);
 
+    // 再生し直し用のカウンタ。進捗アニメーション/動画/BGM を最初から流し直す
+    const [replay, setReplay] = useState(0);
+    // 「今のストーリーが始まってからの経過」。左タップの挙動を切り替えるのに使う
+    const startedAtRef = useRef(Date.now());
+    useEffect(() => { startedAtRef.current = Date.now(); }, [item, replay]);
+
     const goNext = useCallback(() => {
         setProgress(0);
+        setReplay(0);
         if (group && i < group.items.length - 1) {
             setI(i + 1);
         } else if (g < groups.length - 1) {
@@ -102,16 +125,33 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         }
     }, [group, groups.length, g, i, onClose]);
 
-    const goPrev = useCallback(() => {
+    // 今のストーリーを最初から再生し直す
+    const restart = useCallback(() => {
         setProgress(0);
+        setReplay((n) => n + 1);
+        const v = videoRef.current;
+        if (v) { try { v.currentTime = 0; } catch { /* ignore */ } }
+    }, []);
+
+    // インスタと同じ: 左タップは「今のストーリーを最初から」。
+    // 始まった直後（0.8秒以内）にもう一度押したときだけ1つ前へ戻る。
+    const goPrev = useCallback(() => {
+        if (Date.now() - startedAtRef.current > 800) {
+            restart();
+            return;
+        }
+        setProgress(0);
+        setReplay(0);
         if (i > 0) {
             setI(i - 1);
         } else if (g > 0) {
             const prevGroup = groups[g - 1];
             setG(g - 1);
             setI(Math.max(0, prevGroup.items.length - 1));
+        } else {
+            restart();
         }
-    }, [groups, g, i]);
+    }, [groups, g, i, restart]);
 
     // ダイアログ表示中は自動送りを止める
     const frozen = paused || viewersOpen || confirmDelete;
@@ -127,7 +167,8 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         else void v.play()?.catch?.(() => { /* 自動再生ブロック等は無視 */ });
     }, [frozen, item]);
 
-    // ストーリーBGM: 曲つきストーリーの表示中だけ再生（frozenで一時停止）
+    // ストーリーBGM: 曲つきストーリーの表示中だけ再生（frozenで一時停止）。
+    // 投稿者が「好きな部分」を指定していればそこから流す。
     useEffect(() => {
         const a = audioRef.current;
         if (!a) return;
@@ -135,8 +176,13 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             a.pause();
             return;
         }
+        const start = songStartSec(item.song.startSec);
+        // 頭出しは開始時と再生し直しのときだけ（一時停止からの復帰では続きから）
+        if (a.paused && a.currentTime < start) {
+            try { a.currentTime = start; } catch { /* seek 未対応は無視 */ }
+        }
         void a.play().catch(() => { /* 自動再生ブロック等は無視 */ });
-    }, [frozen, item]);
+    }, [frozen, item, replay]);
 
     // muted は React の属性反映が不安定なため直接同期する
     useEffect(() => {
@@ -201,73 +247,89 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 />
             )}
 
-            {/* メディア */}
-            {isVideo ? (
-                <video
-                    key={item.id}
-                    ref={videoRef}
-                    src={item.src}
-                    className="relative max-w-full max-h-full object-contain rounded-lg story-media-in"
-                    autoPlay
-                    playsInline
-                    muted={muted}
-                    onTimeUpdate={(e) => {
-                        const v = e.currentTarget;
-                        if (v.duration > 0) setProgress((v.currentTime / v.duration) * 100);
-                    }}
-                    onEnded={goNext}
-                    onError={goNext}
-                />
-            ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                    key={item.id}
-                    src={item.src}
-                    alt=""
-                    className="relative max-w-full max-h-full object-contain rounded-lg story-media-in"
-                    draggable={false}
-                />
-            )}
+            {/* メディア + その上に重ねる曲・キャプション。
+                ラッパーはメディアの実寸に縮むので、レターボックスの黒帯ではなく
+                「写真の上」に曲チップとキャプションが乗る。 */}
+            <div className="relative max-w-full max-h-full">
+                {isVideo ? (
+                    <video
+                        key={item.id}
+                        ref={videoRef}
+                        src={item.src}
+                        className="block max-w-full max-h-full object-contain rounded-lg story-media-in"
+                        autoPlay
+                        playsInline
+                        muted={muted}
+                        onTimeUpdate={(e) => {
+                            const v = e.currentTarget;
+                            if (v.duration > 0) setProgress((v.currentTime / v.duration) * 100);
+                        }}
+                        onEnded={goNext}
+                        onError={goNext}
+                    />
+                ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                        key={item.id}
+                        src={item.src}
+                        alt=""
+                        className="block max-w-full max-h-full object-contain rounded-lg story-media-in"
+                        draggable={false}
+                    />
+                )}
+
+                {/* 写真の下端のスクリム（曲名・キャプションを読めるように） */}
+                {(item.song || item.caption) && (
+                    <div className="absolute inset-x-0 bottom-0 h-40 rounded-b-lg bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
+                )}
+
+                {/* 曲チップ → キャプションの順で写真の上に重ねる */}
+                {(item.song || item.caption) && (
+                    <div className="absolute inset-x-0 bottom-0 z-20 px-4 pb-4 flex flex-col items-center gap-2">
+                        {item.song && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
+                                className="inline-flex items-center gap-1.5 max-w-full px-3.5 py-1.5 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/15 text-white/90 text-xs active:scale-95 transition"
+                                style={{ touchAction: "manipulation" }}
+                                aria-label={muted ? (locale === "en" ? "Turn sound on" : "音を出す") : (locale === "en" ? "Mute" : "ミュート")}
+                            >
+                                {muted
+                                    ? <SpeakerXMarkIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/60" />
+                                    : <MusicalNoteIcon className="w-3.5 h-3.5 flex-shrink-0 text-fuchsia-300" />}
+                                <span className="truncate">
+                                    {item.song.title}{item.song.artist ? ` — ${item.song.artist}` : ""}
+                                </span>
+                                {muted && (
+                                    <span className="text-[10px] text-white/50 flex-shrink-0">
+                                        {locale === "en" ? "Tap for sound" : "タップで再生"}
+                                    </span>
+                                )}
+                            </button>
+                        )}
+                        {item.caption && (
+                            <p className="max-w-md text-center text-white text-[15px] font-medium leading-relaxed px-4 py-2.5 rounded-2xl bg-black/45 backdrop-blur-md whitespace-pre-wrap break-words shadow-lg pointer-events-none">
+                                {item.caption}
+                            </p>
+                        )}
+                    </div>
+                )}
+            </div>
 
             {/* ストーリーBGM音源（表示中のストーリーに追従） */}
             {item.song && (
-                <audio key={`audio-${item.id}`} ref={audioRef} src={item.song.previewUrl} loop muted preload="auto" />
-            )}
-
-            {/* 下部スクリム（キャプション・閲覧者ピルの視認性を上げる） */}
-            <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
-
-            {/* 曲クレジット（タップで音を出す/消す） */}
-            {item.song && (
-                <div className="absolute inset-x-0 bottom-36 px-6 flex justify-center z-20">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
-                        className="inline-flex items-center gap-1.5 max-w-[80vw] px-3.5 py-1.5 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/15 text-white/90 text-xs active:scale-95 transition"
-                        style={{ touchAction: "manipulation" }}
-                        aria-label={muted ? (locale === "en" ? "Turn sound on" : "音を出す") : (locale === "en" ? "Mute" : "ミュート")}
-                    >
-                        {muted
-                            ? <SpeakerXMarkIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/60" />
-                            : <MusicalNoteIcon className="w-3.5 h-3.5 flex-shrink-0 text-fuchsia-300" />}
-                        <span className="truncate">
-                            {item.song.title}{item.song.artist ? ` — ${item.song.artist}` : ""}
-                        </span>
-                        {muted && (
-                            <span className="text-[10px] text-white/50 flex-shrink-0">
-                                {locale === "en" ? "Tap for sound" : "タップで再生"}
-                            </span>
-                        )}
-                    </button>
-                </div>
-            )}
-
-            {/* キャプション */}
-            {item.caption && (
-                <div className="absolute inset-x-0 bottom-24 px-6 flex justify-center pointer-events-none">
-                    <p className="max-w-md text-center text-white text-[15px] font-medium leading-relaxed px-4 py-2.5 rounded-2xl bg-black/45 backdrop-blur-md whitespace-pre-wrap break-words shadow-lg">
-                        {item.caption}
-                    </p>
-                </div>
+                <audio
+                    key={`audio-${item.id}`}
+                    ref={audioRef}
+                    src={item.song.previewUrl}
+                    muted
+                    preload="auto"
+                    // 指定された「好きな部分」から繰り返す（loop属性だと必ず0秒に戻ってしまう）
+                    onEnded={(e) => {
+                        const a = e.currentTarget;
+                        try { a.currentTime = songStartSec(item.song?.startSec); } catch { /* ignore */ }
+                        void a.play().catch(() => { /* ignore */ });
+                    }}
+                />
             )}
 
             {/* 上部グラデーション + プログレスバー + ヘッダー */}
@@ -288,10 +350,10 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                     ) : (
                                         // 画像: CSS アニメーションが 0→100% を滑らかに駆動
                                         <div
-                                            key={item.id}
+                                            key={`${item.id}-${replay}`}
                                             className="h-full w-full bg-white rounded-full story-progress-fill"
                                             style={{
-                                                animationDuration: `${STORY_DURATION_MS}ms`,
+                                                animationDuration: `${storyDurationMs(item.durationSec)}ms`,
                                                 animationPlayState: frozen ? "paused" : "running",
                                             }}
                                             onAnimationEnd={goNext}
@@ -425,38 +487,33 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
 
             {/* 削除確認ダイアログ */}
             {confirmDelete && (
-                <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-md px-6 story-media-in" onClick={() => !deleting && setConfirmDelete(false)}>
-                    <div className="w-full max-w-[300px] rounded-3xl bg-gradient-to-b from-[#1c1f25] to-[#141619] ring-1 ring-white/10 shadow-2xl shadow-black/60 p-6 pt-7 text-center" onClick={(e) => e.stopPropagation()}>
-                        {/* アイコン: リング + ほのかな赤グローで奥行き */}
-                        <div className="relative w-14 h-14 rounded-full bg-red-500/12 ring-1 ring-red-500/25 flex items-center justify-center mx-auto mb-4">
-                            <div className="absolute inset-0 rounded-full bg-red-500/20 blur-xl" aria-hidden="true" />
-                            <TrashIcon className="relative w-6 h-6 text-red-400" />
-                        </div>
-                        <p className="text-white text-base font-bold tracking-tight mb-1.5">
-                            {locale === "en" ? "Delete this story?" : "このストーリーを削除しますか？"}
-                        </p>
-                        <p className="text-white/45 text-[13px] mb-6 leading-relaxed">
-                            {locale === "en" ? "This can't be undone." : "この操作は取り消せません。"}
-                        </p>
-                        <div className="flex flex-col gap-2.5">
+                <div className="absolute inset-0 z-40 flex items-end sm:items-center justify-center bg-black/60 px-3 pb-3 sm:pb-0" onClick={() => !deleting && setConfirmDelete(false)}>
+                    {/* iOS のアクションシート風。装飾は最小限にして、文字そのもので選ばせる */}
+                    <div className="w-full max-w-[340px] space-y-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl overflow-hidden">
+                            <p className="px-4 py-3.5 text-center text-[13px] text-white/55 leading-snug">
+                                {locale === "en"
+                                    ? "This story will be deleted. This can't be undone."
+                                    : "このストーリーを削除します。この操作は取り消せません。"}
+                            </p>
                             <button
                                 onClick={() => void handleDelete()}
                                 disabled={deleting}
-                                className="w-full py-3 rounded-2xl bg-gradient-to-b from-[#ff4d4d] to-[#e5322f] text-white text-[15px] font-semibold shadow-lg shadow-red-900/40 ring-1 ring-inset ring-white/15 hover:brightness-110 active:scale-[0.98] transition disabled:opacity-60 flex items-center justify-center gap-1.5"
+                                className="w-full py-3.5 border-t border-white/10 text-[#ff453a] text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition disabled:opacity-50 flex items-center justify-center gap-2"
                                 style={{ touchAction: "manipulation" }}
                             >
-                                {deleting && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
-                                {locale === "en" ? "Delete" : "削除する"}
-                            </button>
-                            <button
-                                onClick={() => setConfirmDelete(false)}
-                                disabled={deleting}
-                                className="w-full py-3 rounded-2xl text-white/60 text-[15px] font-medium hover:bg-white/[0.06] hover:text-white/80 active:scale-[0.98] transition disabled:opacity-50"
-                                style={{ touchAction: "manipulation" }}
-                            >
-                                {locale === "en" ? "Cancel" : "キャンセル"}
+                                {deleting && <div className="w-3.5 h-3.5 border-2 border-[#ff453a]/40 border-t-[#ff453a] rounded-full animate-spin" />}
+                                {locale === "en" ? "Delete" : "削除"}
                             </button>
                         </div>
+                        <button
+                            onClick={() => setConfirmDelete(false)}
+                            disabled={deleting}
+                            className="w-full py-3.5 rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl text-white text-[17px] font-semibold hover:bg-[#2c2c2e]/95 active:bg-[#2c2c2e] transition disabled:opacity-50"
+                            style={{ touchAction: "manipulation", marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+                        >
+                            {locale === "en" ? "Cancel" : "キャンセル"}
+                        </button>
                     </div>
                 </div>
             )}

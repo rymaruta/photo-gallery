@@ -9,6 +9,7 @@ const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? "";
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET ?? "";
 const STORY_TTL_MS = 24 * 60 * 60 * 1000; // 24時間
 const STORY_DAILY_LIMIT = 20; // 1ユーザーが24時間に投稿できるストーリー数
+const STORY_DEFAULT_DURATION_SEC = 5; // 画像ストーリーの既定表示秒数（この値なら保存しない）
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 
@@ -95,7 +96,7 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証が必要です" }) };
     }
 
-    let body: { publicUrl?: string; key?: string; displayName?: string; caption?: string; mediaType?: string; song?: unknown };
+    let body: { publicUrl?: string; key?: string; displayName?: string; caption?: string; mediaType?: string; song?: unknown; durationSec?: unknown };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
     } catch {
@@ -120,8 +121,17 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     const caption = (body.caption ?? "").trim().slice(0, 200) || undefined;
     const displayName = (body.displayName ?? "").trim().slice(0, 100) || undefined;
 
+    // 画像ストーリーの表示秒数。投稿者が選べる（既定5秒）。
+    // 3秒未満は読み切れず、15秒を超えると見る側が飽きるため範囲を固定する。
+    const durationSec = (() => {
+        const n = typeof body.durationSec === "number" ? body.durationSec : Number(body.durationSec);
+        if (!Number.isFinite(n)) return undefined;
+        const clamped = Math.round(Math.min(15, Math.max(3, n)));
+        return clamped === STORY_DEFAULT_DURATION_SEC ? undefined : clamped;
+    })();
+
     // ストーリーBGM: title + https の previewUrl 必須（30秒プレビュー）
-    let song: { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string } | undefined;
+    let song: { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string; startSec?: number } | undefined;
     if (body.song && typeof body.song === "object" && !Array.isArray(body.song)) {
         const o = body.song as Record<string, unknown>;
         const httpsOnly = (v: unknown, max: number): string | undefined => {
@@ -134,12 +144,16 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             const artist = typeof o.artist === "string" ? o.artist.trim().slice(0, 200) : "";
             const artwork = httpsOnly(o.artwork, 500);
             const trackUrl = httpsOnly(o.trackUrl, 500);
+            // 「好きな部分」= 30秒プレビュー内の再生開始位置（0〜29秒）
+            const rawStart = typeof o.startSec === "number" ? o.startSec : Number(o.startSec);
+            const startSec = Number.isFinite(rawStart) && rawStart > 0 ? Math.min(29, Math.round(rawStart)) : undefined;
             song = {
                 title,
                 previewUrl,
                 ...(artist ? { artist } : {}),
                 ...(artwork ? { artwork } : {}),
                 ...(trackUrl ? { trackUrl } : {}),
+                ...(startSec ? { startSec } : {}),
             };
         }
     }
@@ -163,6 +177,7 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         mediaType,
         ...(caption ? { caption } : {}),
         ...(song ? { song } : {}),
+        ...(durationSec ? { durationSec } : {}),
         userId,
         ...(displayName ? { displayName } : {}),
         createdAt: new Date(now).toISOString(),

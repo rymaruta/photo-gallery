@@ -86,9 +86,9 @@ describe("StoryViewer", () => {
         const { onClose } = setup({ onDelete });
         fireEvent.click(screen.getByLabelText("ストーリーを削除"));
         // 確認ダイアログ
-        const dialog = await screen.findByText("このストーリーを削除しますか？");
+        const dialog = await screen.findByText(/この操作は取り消せません/);
         expect(dialog).toBeInTheDocument();
-        fireEvent.click(screen.getByRole("button", { name: "削除する" }));
+        fireEvent.click(screen.getByRole("button", { name: "削除" }));
         await waitFor(() => expect(onDelete).toHaveBeenCalledWith("s1"));
         await waitFor(() => expect(onClose).toHaveBeenCalled());
     });
@@ -122,7 +122,7 @@ describe("StoryViewer", () => {
         const onDelete = vi.fn().mockResolvedValue(true);
         setup({ onDelete });
         fireEvent.click(screen.getByLabelText("ストーリーを削除"));
-        await screen.findByText("このストーリーを削除しますか？");
+        await screen.findByText(/この操作は取り消せません/);
         fireEvent.click(screen.getByRole("button", { name: "キャンセル" }));
         expect(onDelete).not.toHaveBeenCalled();
     });

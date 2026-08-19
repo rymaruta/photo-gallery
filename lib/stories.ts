@@ -8,7 +8,10 @@ export type Story = {
     mediaType?: "image" | "video";
     caption?: string;
     /** ストーリーBGM（30秒プレビュー）。付いていると視聴中に再生できる */
-    song?: { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string };
+    /** startSec = 30秒プレビュー内の再生開始位置（投稿者が「好きな部分」を指定できる） */
+    song?: { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string; startSec?: number };
+    /** 画像ストーリーの表示秒数（投稿者が指定）。未指定なら既定の5秒 */
+    durationSec?: number;
     createdAt: string;
     expiresAt: string;
 };
