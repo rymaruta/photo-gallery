@@ -9,6 +9,7 @@ import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { compressImage, stripJpegExif } from "../../../lib/utils/image";
 import { searchSongs, type SongResult } from "../../../lib/utils/music";
+import { startFromPointer, clampStart } from "../../../lib/utils/songTrim";
 import { log } from "../../../lib/utils/log";
 import {
     groupStories, hasUnseen, loadSeenStoryIds, markStorySeen,
@@ -140,6 +141,27 @@ export default function StoriesBar() {
     // 曲を流す長さ＝ストーリーの表示時間（動画は長さが可変なのでプレビュー全体を使う）
     const songWindowSec = draft?.mediaType === "video" ? SONG_PREVIEW_SEC : durationSec;
     const maxSongStart = Math.max(0, SONG_PREVIEW_SEC - songWindowSec);
+
+    // 「好きな部分」バーのドラッグ
+    const trimBarRef = useRef<HTMLDivElement | null>(null);
+    const [trimDragging, setTrimDragging] = useState(false);
+
+    /** 開始秒を反映し、再生中なら音もその場で追従させる（止めない） */
+    const applyTrimStart = useCallback((raw: number) => {
+        const next = clampStart(raw, songWindowSec, SONG_PREVIEW_SEC);
+        setSongStart(next);
+        const a = previewAudioRef.current;
+        if (a && draftSong && previewingId === draftSong.id) {
+            try { a.currentTime = next; } catch { /* ignore */ }
+            setPreviewTime(next);
+        }
+    }, [songWindowSec, draftSong, previewingId]);
+
+    const applyTrimFromPointer = useCallback((clientX: number) => {
+        const rect = trimBarRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        applyTrimStart(startFromPointer(clientX, rect.left, rect.width, songWindowSec, SONG_PREVIEW_SEC));
+    }, [applyTrimStart, songWindowSec]);
 
     // 再生中に範囲や長さを変えたら、繰り返す区間も追従させる
     useEffect(() => {
@@ -492,15 +514,56 @@ export default function StoriesBar() {
                                             {fmtSec(songStart)} – {fmtSec(Math.min(SONG_PREVIEW_SEC, songStart + songWindowSec))}
                                         </span>
                                     </div>
-                                    <div className="relative h-10 rounded-lg bg-white/10 overflow-hidden">
+                                    {/* バーのどこを押しても、押した位置が範囲の中央になる。
+                                        透明な range 入力だと iOS では見えないつまみを掴まないと
+                                        動かず「反応しない」ため、ポインタを直接扱う。 */}
+                                    <div
+                                        ref={trimBarRef}
+                                        role="slider"
+                                        tabIndex={posting ? -1 : 0}
+                                        aria-label={locale === "en" ? "Song start position" : "曲の開始位置"}
+                                        aria-valuemin={0}
+                                        aria-valuemax={maxSongStart}
+                                        aria-valuenow={Math.min(songStart, maxSongStart)}
+                                        aria-valuetext={`${fmtSec(songStart)} – ${fmtSec(Math.min(SONG_PREVIEW_SEC, songStart + songWindowSec))}`}
+                                        onPointerDown={(e) => {
+                                            if (posting) return;
+                                            e.currentTarget.setPointerCapture(e.pointerId);
+                                            setTrimDragging(true);
+                                            applyTrimFromPointer(e.clientX);
+                                        }}
+                                        onPointerMove={(e) => {
+                                            if (!trimDragging) return;
+                                            e.preventDefault();
+                                            applyTrimFromPointer(e.clientX);
+                                        }}
+                                        onPointerUp={(e) => {
+                                            setTrimDragging(false);
+                                            try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+                                        }}
+                                        onPointerCancel={() => setTrimDragging(false)}
+                                        onKeyDown={(e) => {
+                                            const step = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
+                                            if (step === 0 && e.key !== "Home" && e.key !== "End") return;
+                                            e.preventDefault();
+                                            const next = e.key === "Home" ? 0 : e.key === "End" ? maxSongStart : songStart + step;
+                                            applyTrimStart(next);
+                                        }}
+                                        className={`relative h-12 rounded-lg bg-white/10 overflow-hidden select-none ${posting ? "opacity-50" : "cursor-pointer"} focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60`}
+                                        // 縦スクロールにドラッグを取られないようにする
+                                        style={{ touchAction: "none", WebkitTapHighlightColor: "transparent" }}
+                                    >
                                         {/* 選ばれている範囲 */}
                                         <div
-                                            className="absolute inset-y-0 bg-white/25 ring-2 ring-white/70 rounded-lg pointer-events-none transition-[left] duration-75"
+                                            className={`absolute inset-y-0 bg-white/25 ring-2 ring-white/70 rounded-lg pointer-events-none ${trimDragging ? "" : "transition-[left] duration-75"}`}
                                             style={{
                                                 left: `${(songStart / SONG_PREVIEW_SEC) * 100}%`,
                                                 width: `${(songWindowSec / SONG_PREVIEW_SEC) * 100}%`,
                                             }}
-                                        />
+                                        >
+                                            {/* 掴めることが分かるつまみ */}
+                                            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-1 rounded-full bg-white/80" />
+                                        </div>
                                         {/* 再生位置 */}
                                         {previewingId === draftSong.id && (
                                             <div
@@ -508,26 +571,6 @@ export default function StoriesBar() {
                                                 style={{ left: `${(previewTime / SONG_PREVIEW_SEC) * 100}%` }}
                                             />
                                         )}
-                                        <input
-                                            type="range"
-                                            min={0}
-                                            max={maxSongStart}
-                                            step={1}
-                                            value={Math.min(songStart, maxSongStart)}
-                                            disabled={posting}
-                                            onChange={(e) => {
-                                                const v = Number(e.target.value);
-                                                setSongStart(v);
-                                                // 再生中でもドラッグでそのまま頭出しする（止めない）
-                                                const a = previewAudioRef.current;
-                                                if (a && previewingId === draftSong.id) {
-                                                    try { a.currentTime = v; } catch { /* ignore */ }
-                                                    setPreviewTime(v);
-                                                }
-                                            }}
-                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                            aria-label={locale === "en" ? "Song start position" : "曲の開始位置"}
-                                        />
                                     </div>
                                     <p className="mt-1.5 text-[10px] text-white/40">
                                         {locale === "en"

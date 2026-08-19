@@ -277,40 +277,6 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 )}
             </div>
 
-            {/* 曲・キャプションは写真のすぐ下（黒帯側）に置く */}
-            {(item.song || item.caption) && (
-                <div
-                    className={`relative z-20 flex-shrink-0 w-full px-4 pt-3 flex flex-col items-center gap-2 ${isOwnStory ? "pb-16" : "pb-6"}`}
-                    style={{ paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + ${isOwnStory ? 64 : 24}px)` }}
-                >
-                    {item.song && (
-                        <button
-                            onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
-                            className="inline-flex items-center gap-1.5 max-w-full px-3.5 py-1.5 rounded-full bg-white/10 ring-1 ring-white/15 text-white/90 text-xs active:scale-95 transition"
-                            style={{ touchAction: "manipulation" }}
-                            aria-label={muted ? (locale === "en" ? "Turn sound on" : "音を出す") : (locale === "en" ? "Mute" : "ミュート")}
-                        >
-                            {muted
-                                ? <SpeakerXMarkIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/60" />
-                                : <MusicalNoteIcon className="w-3.5 h-3.5 flex-shrink-0 text-fuchsia-300" />}
-                            <span className="truncate">
-                                {item.song.title}{item.song.artist ? ` — ${item.song.artist}` : ""}
-                            </span>
-                            {muted && (
-                                <span className="text-[10px] text-white/50 flex-shrink-0">
-                                    {locale === "en" ? "Tap for sound" : "タップで再生"}
-                                </span>
-                            )}
-                        </button>
-                    )}
-                    {item.caption && (
-                        <p className="max-w-md text-center text-white text-[15px] font-medium leading-relaxed whitespace-pre-wrap break-words">
-                            {item.caption}
-                        </p>
-                    )}
-                </div>
-            )}
-
             {/* ストーリーBGM音源（表示中のストーリーに追従） */}
             {item.song && (
                 <audio
@@ -365,10 +331,35 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         );
                     })}
                 </div>
-                <div className="flex items-center gap-2 px-1">
+                <div className="flex items-start gap-2 px-1 pr-24">
                     <UserAvatar userId={group.userId} className="w-8 h-8" iconClassName="w-5 h-5" />
-                    <span className="text-sm font-semibold text-white drop-shadow">{group.displayName}</span>
-                    <span className="text-xs text-white/60">{timeAgo(item.createdAt, locale)}</span>
+                    <div className="min-w-0">
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-sm font-semibold text-white drop-shadow truncate">{group.displayName}</span>
+                            <span className="text-xs text-white/60 flex-shrink-0">{timeAgo(item.createdAt, locale)}</span>
+                        </div>
+                        {/* 曲は名前のすぐ下の段（親は pointer-events-none なのでここで戻す） */}
+                        {item.song && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
+                                className="pointer-events-auto mt-1 inline-flex items-center gap-1.5 max-w-full px-2.5 py-1 rounded-full bg-white/15 ring-1 ring-white/15 text-white/90 text-[11px] active:scale-95 transition"
+                                style={{ touchAction: "manipulation" }}
+                                aria-label={muted ? (locale === "en" ? "Turn sound on" : "音を出す") : (locale === "en" ? "Mute" : "ミュート")}
+                            >
+                                {muted
+                                    ? <SpeakerXMarkIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/60" />
+                                    : <MusicalNoteIcon className="w-3.5 h-3.5 flex-shrink-0 text-fuchsia-300" />}
+                                <span className="truncate">
+                                    {item.song.title}{item.song.artist ? ` — ${item.song.artist}` : ""}
+                                </span>
+                                {muted && (
+                                    <span className="text-[10px] text-white/50 flex-shrink-0">
+                                        {locale === "en" ? "Tap for sound" : "タップで再生"}
+                                    </span>
+                                )}
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -422,21 +413,33 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 onPointerLeave={() => setPaused(false)}
             />
 
-            {/* 自分のストーリー: 閲覧者数（タップでリスト表示） */}
-            {isOwnStory && (
-                <button
-                    onClick={() => setViewersOpen(true)}
-                    aria-label={locale === "en" ? "Viewers" : "閲覧者を見る"}
-                    className="absolute bottom-4 left-4 z-20 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm"
-                    style={{ marginBottom: "env(safe-area-inset-bottom, 0px)", touchAction: "manipulation" }}
+            {/* 画面下: 閲覧者数（自分のみ）とキャプションを同じ段に並べる */}
+            {(isOwnStory || item.caption) && (
+                <div
+                    className="absolute bottom-4 left-4 right-4 z-20 flex items-center gap-2"
+                    style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
                 >
-                    <EyeIcon className="w-4 h-4" />
-                    {viewers === null
-                        ? "..."
-                        : locale === "en"
-                            ? `${viewers.length} viewer${viewers.length === 1 ? "" : "s"}`
-                            : `閲覧 ${viewers.length}人`}
-                </button>
+                    {isOwnStory && (
+                        <button
+                            onClick={() => setViewersOpen(true)}
+                            aria-label={locale === "en" ? "Viewers" : "閲覧者を見る"}
+                            className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm"
+                            style={{ touchAction: "manipulation" }}
+                        >
+                            <EyeIcon className="w-4 h-4" />
+                            {viewers === null
+                                ? "..."
+                                : locale === "en"
+                                    ? `${viewers.length} viewer${viewers.length === 1 ? "" : "s"}`
+                                    : `閲覧 ${viewers.length}人`}
+                        </button>
+                    )}
+                    {item.caption && (
+                        <p className="min-w-0 flex-1 text-white text-sm leading-snug whitespace-pre-wrap break-words line-clamp-3 drop-shadow pointer-events-none">
+                            {item.caption}
+                        </p>
+                    )}
+                </div>
             )}
 
             {/* 閲覧者リスト（ボトムシート） */}
