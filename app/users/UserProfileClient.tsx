@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Image from "next/image";
+import Thumb from "../components/Thumb";
 import Link from "next/link";
 import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, RectangleStackIcon, QrCodeIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../lib/utils/music";
@@ -138,7 +139,6 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
     coverSelected?: boolean;
     onSetCover?: (id: string) => void;
 }) {
-    const [imageError, setImageError] = useState(false);
     const title = getLocalized(photo.title, locale as "ja" | "en") || (typeof photo.title === "string" ? photo.title : "");
     const isHidden = photo.published === false;
 
@@ -151,23 +151,13 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                 className={`absolute inset-0 overflow-hidden bg-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${isHidden ? "opacity-40" : ""}`}
                 style={photo.dominantColor ? { backgroundColor: photo.dominantColor } : undefined}
             >
-                {!imageError ? (
-                    <Image
-                        src={photo.thumbSrc ?? photo.src}
-                        alt={title}
-                        fill
-                        className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
-                        sizes="(max-width:640px) 33vw, (max-width:1024px) 25vw, 20vw"
-                        loading="lazy"
-                        onError={() => setImageError(true)}
-                    />
-                ) : (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
-                        <svg className="w-8 h-8 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                    </div>
-                )}
+                {/* Thumb が AVIF/256・blur-up・エラー表示まで内包する */}
+                <Thumb
+                    photo={photo}
+                    alt={title}
+                    sizes="(max-width:640px) 33vw, (max-width:1024px) 33vw, 340px"
+                    className="transition-transform duration-300 group-hover:scale-[1.04]"
+                />
                 {/* ホバー: いいね数オーバーレイ */}
                 {likeCount > 0 && (
                     <div className="absolute inset-0 flex items-center justify-center gap-1.5 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">

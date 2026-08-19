@@ -4,7 +4,7 @@
 // タップでその写真の個別ページへ遷移する（サイト内の内部リンク＝SEOにも有利）。
 
 import React from "react";
-import Image from "next/image";
+import Thumb from "./Thumb";
 import Link from "next/link";
 import type { Photo } from "@/lib/data/photos";
 import { getLocalized } from "@/lib/data/photos";
@@ -39,13 +39,11 @@ export default function RelatedPhotos({ title, photos, locale }: Props) {
                                 className="relative w-full overflow-hidden rounded-lg ring-1 ring-white/10"
                                 style={{ paddingTop: "100%", backgroundColor: p.dominantColor ?? "#16181c" }}
                             >
-                                <Image
-                                    src={p.thumbSrc ?? p.src}
+                                <Thumb
+                                    photo={p}
                                     alt={t}
-                                    fill
-                                    className="object-cover transition-transform duration-300 group-hover:scale-[1.05]"
-                                    sizes="128px"
-                                    loading="lazy"
+                                    sizes="(max-width:640px) 112px, 128px"
+                                    className="transition-transform duration-300 group-hover:scale-[1.05]"
                                 />
                             </div>
                             {t && (
