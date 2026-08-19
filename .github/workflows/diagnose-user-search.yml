@@ -1,0 +1,32 @@
+name: Diagnose user search
+
+# 手動実行のみ・読み取り専用。
+# 「表示名で検索しても出てこない」原因を実データで切り分ける。
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: "検索語（例: 旅人）"
+        type: string
+        default: "旅人"
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+      - run: node scripts/diagnose-user-search.js
+        timeout-minutes: 5
+        env:
+          SEARCH_QUERY: ${{ inputs.query }}
