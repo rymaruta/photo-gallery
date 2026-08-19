@@ -6,6 +6,7 @@ import {
     labelForSlug,
     collectionPath,
     collectionCopy,
+    relatedEntries,
 } from "../collections";
 import type { Photo } from "../../data/photos";
 
@@ -95,6 +96,25 @@ describe("collectionPath", () => {
     it("日本語 slug を percent-encode したパスを返す", () => {
         expect(collectionPath("tag", "白鳥")).toBe(`/tag/${encodeURIComponent("白鳥")}`);
         expect(collectionPath("location", "パリ")).toBe(`/location/${encodeURIComponent("パリ")}`);
+    });
+});
+
+describe("relatedEntries", () => {
+    it("同タイプの他エントリを返す（自分自身は除外・件数順）", () => {
+        const rel = relatedEntries(photos, "tag", "白鳥", 10);
+        const slugs = rel.map((e) => e.slug);
+        expect(slugs).not.toContain("白鳥");
+        expect(slugs).toContain("swan");
+        expect(slugs).toContain("lake");
+    });
+
+    it("percent-encoded slug でも自分自身を除外する", () => {
+        const rel = relatedEntries(photos, "tag", encodeURIComponent("白鳥"), 10);
+        expect(rel.map((e) => e.slug)).not.toContain("白鳥");
+    });
+
+    it("limit で件数を制限する", () => {
+        expect(relatedEntries(photos, "tag", "白鳥", 2)).toHaveLength(2);
     });
 });
 

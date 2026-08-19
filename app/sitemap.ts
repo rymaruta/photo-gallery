@@ -3,7 +3,7 @@ import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import { siteConfig } from "../lib/utils/seo";
-import { collectEntries, collectionPath, type CollectionType } from "../lib/utils/collections";
+import { collectEntries, collectionPath, photosInCollection, type CollectionType } from "../lib/utils/collections";
 import RAW_PHOTOS from "@/lib/data/photos";
 import type { Photo } from "@/lib/data/photos";
 
@@ -56,14 +56,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }));
 
     // 集約（ランディング）ページ: タグ / 撮影地 / カテゴリ。ロングテール検索の受け皿。
+    // lastModified は「その集約内で最も新しい写真」の日時、代表画像も添える。
     const collectionUrls: MetadataRoute.Sitemap = (["tag", "location", "category"] as CollectionType[])
         .flatMap((type) =>
-            collectEntries(photos, type).map((e) => ({
-                url: `${baseUrl}${collectionPath(type, e.slug)}`,
-                lastModified: now,
-                changeFrequency: "weekly" as const,
-                priority: 0.5,
-            }))
+            collectEntries(photos, type).map((e) => {
+                const matched = photosInCollection(photos, type, e.slug);
+                const last = matched
+                    .map((p) => String(p.updatedAt ?? p.createdAt ?? p.date ?? ""))
+                    .reduce((a, b) => (b > a ? b : a), "");
+                const rep = matched[0]?.src;
+                return {
+                    url: `${baseUrl}${collectionPath(type, e.slug)}`,
+                    lastModified: last || now,
+                    changeFrequency: "weekly" as const,
+                    priority: 0.5,
+                    ...(rep ? { images: [toAbsolute(rep)] } : {}),
+                };
+            })
         );
 
     return [

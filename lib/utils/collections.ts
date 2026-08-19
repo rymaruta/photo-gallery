@@ -92,7 +92,7 @@ export function collectionPath(type: CollectionType, slug: string): string {
 
 export type CollectionCopy = { title: string; description: string; heading: string; breadcrumb: string };
 
-/** ランディングページの見出し・メタ文言（日本語主体・簡潔に） */
+/** ランディングページの見出し・メタ文言（日本語主体・ページ固有の導入文つき） */
 export function collectionCopy(type: CollectionType, label: string, count: number): CollectionCopy {
     const kindJa = type === "tag" ? "タグ" : type === "location" ? "撮影地" : "カテゴリ";
     const heading =
@@ -100,9 +100,28 @@ export function collectionCopy(type: CollectionType, label: string, count: numbe
     const title = `${label}の写真${count ? `（${count}枚）` : ""} | 旅フォトギャラリー`;
     const description =
         type === "location"
-            ? `${label}で撮影した旅の写真${count ? `${count}枚` : ""}。風景・スナップなど、${label}の一枚を集めました。`
+            ? `${label}で撮影した旅の写真${count ? `${count}枚` : ""}を掲載。現地で切り取った風景やスナップを、撮影地・カメラ情報（EXIF）付きで紹介します。${label}への旅の参考にどうぞ。`
             : type === "category"
-                ? `${label}カテゴリの旅写真${count ? `${count}枚` : ""}。${label}の作品をまとめて閲覧できます。`
-                : `「${label}」に関する旅の写真${count ? `${count}枚` : ""}。${label}のタグが付いた写真を集めました。`;
+                ? `${label}カテゴリの旅写真${count ? `${count}枚` : ""}を掲載。国内外の旅先で撮影した${label}の作品を、撮影地やカメラ情報（EXIF）と合わせて閲覧できます。`
+                : `「${label}」に関する旅の写真${count ? `${count}枚` : ""}を掲載。${label}のタグが付いた作品を、撮影地・カメラ情報（EXIF）付きでまとめています。`;
     return { title, description, heading, breadcrumb: `${kindJa}: ${label}` };
+}
+
+/**
+ * 同タイプの他の集約エントリ（現在の slug を除く・件数順）。
+ * ランディングページ同士の相互リンク（孤立防止・回遊）に使う。
+ */
+export function relatedEntries(photos: Photo[], type: CollectionType, slug: string, limit = 12): CollectionEntry[] {
+    const current = slugify(decodeURIComponentSafe(slug));
+    return collectEntries(photos, type)
+        .filter((e) => e.slug !== current)
+        .slice(0, limit);
+}
+
+function decodeURIComponentSafe(s: string): string {
+    try {
+        return decodeURIComponent(s);
+    } catch {
+        return s;
+    }
 }

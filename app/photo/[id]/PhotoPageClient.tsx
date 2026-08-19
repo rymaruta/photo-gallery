@@ -22,6 +22,7 @@ import { useAuth } from "../../auth/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { shareUrl, copyToClipboard, shareToTwitter, shareToLine } from "../../../lib/utils/share";
 import { siteConfig, generatePhotoStructuredData, generateBreadcrumbStructuredData } from "../../../lib/utils/seo";
+import { slugify, collectionPath } from "../../../lib/utils/collections";
 import ProfileLink from "../../components/ProfileLink";
 import LocaleToggle from "../../components/LocaleToggle";
 import RelatedPhotos from "../../components/RelatedPhotos";
@@ -183,12 +184,16 @@ function PhotoImage({
     );
 }
 
+type RelatedSets = { author: Photo[]; location: Photo[]; prev: Photo | null; next: Photo | null };
+
 type PhotoPageClientProps = {
     photoId: string;
     initialPhoto?: Photo;
+    // ビルド時にサーバで計算した回遊リンク。クライアント取得完了までのSSR/初期表示に使う
+    initialRelated?: RelatedSets;
 };
 
-export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClientProps) {
+export default function PhotoPageClient({ photoId, initialPhoto, initialRelated }: PhotoPageClientProps) {
     const { locale, setLocale, labels } = useLocale();
     const [extractedExif, setExtractedExif] = useState<ExtractedExif | null>(null);
     const [allPhotos, setAllPhotos] = useState<Photo[]>(initialPhoto ? [initialPhoto] : []);
@@ -359,15 +364,18 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
         ]);
     }, [photo, locale]);
 
-    // 回遊導線: 同じ投稿者の写真 / 同じ場所の写真 / 前後の写真
+    // 回遊導線: 同じ投稿者の写真 / 同じ場所の写真 / 前後の写真。
+    // クライアント取得前（allPhotos が initialPhoto だけの間）はサーバ計算済みの
+    // initialRelated を使う＝静的HTMLに内部リンクが焼き込まれる（SEO）。
     const related = useMemo(() => {
         if (!photo) return { author: [] as Photo[], location: [] as Photo[], prev: null as Photo | null, next: null as Photo | null };
+        if (allPhotos.length <= 1 && initialRelated) return initialRelated;
         return {
             author: sameAuthorPhotos(photo, allPhotos, 8),
             location: sameLocationPhotos(photo, allPhotos, 8),
             ...adjacentPhotos(photo, allPhotos),
         };
-    }, [photo, allPhotos]);
+    }, [photo, allPhotos, initialRelated]);
 
     // ローディング中
     if (loading) {
@@ -412,6 +420,11 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
 
     const titleText = getLocalized(photo.title, locale) || (typeof photo.title === "string" ? photo.title : "");
     const altText = getLocalized(photo.alt, locale) || titleText || "";
+    // もう一方の言語のテキスト。視覚非表示(sr-only)で静的HTMLに含め、
+    // 日英どちらの検索クエリでも拾えるようにする（既定SSRは ja のため主に英語が対象）
+    const otherLocale: "ja" | "en" = locale === "ja" ? "en" : "ja";
+    const otherTitle = getLocalized(photo.title, otherLocale);
+    const otherParagraphs = getLocalizedParagraphs(photo.description, otherLocale);
     const locationText = typeof photo.location === "string" ? photo.location : "";
     const paragraphs = getLocalizedParagraphs(photo.description, locale);
 
@@ -509,10 +522,15 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                 {/* タイトルとカテゴリ */}
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-bold mb-2.5">{titleText}</h1>
-                    {categoryDisplayName && (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-white/10 ring-1 ring-white/10 text-xs text-white/70">
+                    {categoryDisplayName && photo.category && (
+                        // カテゴリの集約ページへ（内部リンク＝SEO・回遊）
+                        <Link
+                            href={collectionPath("category", slugify(photo.category))}
+                            className="inline-flex items-center px-2.5 py-1 rounded-full bg-white/10 ring-1 ring-white/10 text-xs text-white/70 hover:bg-white/20 hover:text-white transition-colors"
+                            style={{ touchAction: "manipulation" }}
+                        >
                             {categoryDisplayName}
-                        </span>
+                        </Link>
                     )}
                 </div>
 
@@ -527,9 +545,19 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                     </div>
                 )}
 
-                {/* 場所チップ（地図リンクがあればそのまま地図へ飛べる） */}
+                {/* 他言語のタイトル/説明（視覚非表示・検索エンジン向け。見た目は不変） */}
+                {((otherTitle && otherTitle !== titleText) || (otherParagraphs.length > 0 && otherParagraphs.join(" ") !== paragraphs.join(" "))) && (
+                    <div className="sr-only" lang={otherLocale}>
+                        {otherTitle && otherTitle !== titleText && <p>{otherTitle}</p>}
+                        {otherParagraphs.join(" ") !== paragraphs.join(" ") && otherParagraphs.map((line, i) => (
+                            <p key={i}>{line}</p>
+                        ))}
+                    </div>
+                )}
+
+                {/* 場所チップ（地図リンクがあればそのまま地図へ飛べる）＋この場所の写真一覧へ */}
                 {locationText && (
-                    <div>
+                    <div className="flex flex-wrap items-center gap-2">
                         {href ? (
                             <a
                                 href={href}
@@ -549,6 +577,30 @@ export default function PhotoPageClient({ photoId, initialPhoto }: PhotoPageClie
                                 <span className="truncate">{locationText}</span>
                             </span>
                         )}
+                        {/* 同じ場所の集約ページへ（内部リンク） */}
+                        <Link
+                            href={collectionPath("location", slugify(locationText))}
+                            className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-sm text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                            style={{ touchAction: "manipulation" }}
+                        >
+                            {locale === "en" ? "Photos from here" : "この場所の写真"}
+                        </Link>
+                    </div>
+                )}
+
+                {/* タグ（集約ページへの内部リンク） */}
+                {(photo.tags?.length ?? 0) > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                        {(photo.tags ?? []).map((tag) => (
+                            <Link
+                                key={tag}
+                                href={collectionPath("tag", slugify(tag))}
+                                className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                #{tag}
+                            </Link>
+                        ))}
                     </div>
                 )}
 

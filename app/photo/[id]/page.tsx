@@ -1,38 +1,20 @@
 import type { Photo } from "@/lib/data/photos";
-import RAW_PHOTOS from "@/lib/data/photos";
 import PhotoPageClient from "./PhotoPageClient";
 import type { Metadata } from "next";
 import { siteConfig } from "@/lib/utils/seo";
 import { getLocalized, getLocalizedParagraphs } from "@/lib/data/photos";
-import { readFile } from "fs/promises";
-import { existsSync } from "fs";
-import path from "path";
+import { loadAllPhotos } from "@/lib/server/photos";
+import { sameAuthorPhotos, sameLocationPhotos, adjacentPhotos } from "@/lib/utils/related";
 
 // 写真データを読み込む関数
 async function loadPhoto(id: string): Promise<Photo | null> {
-    const photosDataPath = path.join(process.cwd(), "app", "data", "photos.json");
-    
-    if (existsSync(photosDataPath)) {
-        const data = await readFile(photosDataPath, "utf-8");
-        const photos: Photo[] = JSON.parse(data);
-        return photos.find((p) => p.id === id) || null;
-    }
-    
-    return (RAW_PHOTOS as Photo[]).find((p) => p.id === id) || null;
+    const photos = await loadAllPhotos();
+    return photos.find((p) => p.id === id) || null;
 }
 
 // 静的生成用のパラメータ生成関数
 export async function generateStaticParams() {
-    const photosDataPath = path.join(process.cwd(), "app", "data", "photos.json");
-    let photos: Photo[];
-    
-    if (existsSync(photosDataPath)) {
-        const data = await readFile(photosDataPath, "utf-8");
-        photos = JSON.parse(data);
-    } else {
-        photos = RAW_PHOTOS as Photo[];
-    }
-    
+    const photos = await loadAllPhotos();
     return photos
         .filter((photo) => photo.published !== false)
         .map((photo) => ({
@@ -112,6 +94,16 @@ type PageProps = {
 
 export default async function PhotoPage({ params }: PageProps) {
     const { id } = await params;
-    const photo = await loadPhoto(id);
-    return <PhotoPageClient photoId={id} initialPhoto={photo ?? undefined} />;
+    const photos = await loadAllPhotos();
+    const photo = photos.find((p) => p.id === id) ?? null;
+    // 回遊リンク（同投稿者/同場所/前後）をビルド時に計算して静的HTMLに焼き込む。
+    // クライアント取得を待たずにクローラーが内部リンクを辿れるようにする（SEO）。
+    const initialRelated = photo
+        ? {
+            author: sameAuthorPhotos(photo, photos, 8),
+            location: sameLocationPhotos(photo, photos, 8),
+            ...adjacentPhotos(photo, photos),
+        }
+        : undefined;
+    return <PhotoPageClient photoId={id} initialPhoto={photo ?? undefined} initialRelated={initialRelated} />;
 }

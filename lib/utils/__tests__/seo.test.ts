@@ -74,6 +74,52 @@ describe("generatePhotoStructuredData", () => {
         );
         expect(data.name).toBe("English Title");
     });
+
+    it("もう一方の言語タイトルを alternateName に入れる（日英露出）", () => {
+        const data = generatePhotoStructuredData(
+            { ...base, title: { ja: "白鳥", en: "Swan" } },
+            "ja"
+        );
+        expect(data.name).toBe("白鳥");
+        expect(data.alternateName).toBe("Swan");
+    });
+
+    it("説明は日英併記になり caption にも入る", () => {
+        const data = generatePhotoStructuredData({
+            ...base,
+            description: { ja: ["湖の白鳥"], en: ["Swans on the lake"] },
+        });
+        expect(String(data.description)).toContain("湖の白鳥");
+        expect(String(data.description)).toContain("Swans on the lake");
+        expect(data.caption).toBe(data.description);
+    });
+
+    it("thumbnailUrl / keywords / datePublished / representativeOfPage を含む", () => {
+        const data = generatePhotoStructuredData({
+            ...base,
+            thumbSrc: "https://cdn.example.com/abc_thumb.webp",
+            tags: ["白鳥", "swan"],
+            createdAt: "2026-05-01T00:00:00.000Z",
+        });
+        expect(data.thumbnailUrl).toBe("https://cdn.example.com/abc_thumb.webp");
+        expect(data.keywords).toBe("白鳥, swan");
+        expect(data.datePublished).toBe("2026-05-01T00:00:00.000Z");
+        expect(data.representativeOfPage).toBe(true);
+    });
+
+    it("license は URL のみ有効。自由文は copyrightNotice に回す", () => {
+        const url = generatePhotoStructuredData({ ...base, license: "https://creativecommons.org/licenses/by/4.0/" });
+        expect(url.license).toBe("https://creativecommons.org/licenses/by/4.0/");
+        expect(url.acquireLicensePage).toContain("/photo/abc");
+        const text = generatePhotoStructuredData({ ...base, license: "All rights reserved" });
+        expect(text.license).toBeUndefined();
+        expect(text.copyrightNotice).toBe("All rights reserved");
+    });
+
+    it("photographer/displayName は creditText に入る", () => {
+        const data = generatePhotoStructuredData({ ...base, displayName: "丸田" });
+        expect(data.creditText).toBe("丸田");
+    });
 });
 
 describe("generateBreadcrumbStructuredData", () => {

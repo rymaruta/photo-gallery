@@ -11,8 +11,11 @@ export default function robots(): MetadataRoute.Robots {
             userAgent: "*",
             allow: "/",
             // 個人用・認証系・管理ページはクロール対象外（薄いコンテンツを検索から除外）
-            disallow: ["/api/", "/admin", "/user/", "/login", "/signup", "/favorites", "/history"],
+            disallow: ["/api/", "/admin", "/user/", "/login", "/signup", "/favorites", "/history", "/wishlist"],
         },
-        sitemap: `${siteConfig.url}/sitemap.xml`,
+        sitemap: [
+            `${siteConfig.url}/sitemap.xml`,
+            `${siteConfig.url}/sitemap-images.xml`,
+        ],
     };
 }

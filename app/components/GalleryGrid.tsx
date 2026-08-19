@@ -31,7 +31,11 @@ export default function GalleryGrid({
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1 sm:gap-1.5">
             {photos.map((p, idx) => {
                 const localizedTitle = getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : "");
-                const localizedAlt = getLocalized(p.alt, locale) || localizedTitle || "";
+                // alt に撮影地を併記（画像検索のキーワード関連性を強化。場所が既に含まれる場合は重複させない）
+                const baseAlt = getLocalized(p.alt, locale) || localizedTitle || "";
+                const localizedAlt = baseAlt && p.location && !baseAlt.includes(p.location)
+                    ? `${baseAlt}（${p.location}）`
+                    : baseAlt;
                 const placeholderColor = p.dominantColor ?? "#111";
                 const objectPosition =
                     p.focalPoint ? `${Math.round(p.focalPoint.x * 100)}% ${Math.round(p.focalPoint.y * 100)}%` : undefined;

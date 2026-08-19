@@ -56,7 +56,13 @@ export function generatePhotoStructuredData(photo: {
     title?: string | { ja?: string; en?: string };
     description?: string | { ja?: string[]; en?: string[] };
     src: string;
+    thumbSrc?: string;
+    tags?: string[];
     photographer?: string;
+    displayName?: string;
+    license?: string;
+    copyrightOwner?: string;
+    copyrightYear?: string;
     location?: string;
     coords?: { lat: number; lng: number };
     createdAt?: string;
@@ -64,35 +70,61 @@ export function generatePhotoStructuredData(photo: {
     width?: number;
     height?: number;
 }, locale: "ja" | "en" = "ja") {
-    const title = typeof photo.title === "string" 
-        ? photo.title 
-        : photo.title?.[locale] || photo.title?.ja || photo.title?.en || "";
-    
-    let description = "";
-    if (typeof photo.description === "string") {
-        description = photo.description;
-    } else if (photo.description && typeof photo.description === "object") {
-        if (Array.isArray(photo.description[locale])) {
-            description = photo.description[locale]?.join(" ") || "";
-        } else if (Array.isArray(photo.description.ja)) {
-            description = photo.description.ja.join(" ");
-        }
-    }
-    
-    const imageUrl = photo.src.startsWith("http") 
-        ? photo.src 
+    const titleOf = (loc: "ja" | "en") =>
+        typeof photo.title === "string" ? photo.title : photo.title?.[loc] || "";
+    const descOf = (loc: "ja" | "en") => {
+        if (typeof photo.description === "string") return photo.description;
+        const arr = photo.description?.[loc];
+        return Array.isArray(arr) ? arr.join(" ") : "";
+    };
+    const other: "ja" | "en" = locale === "ja" ? "en" : "ja";
+    const title = titleOf(locale) || titleOf(other) || "";
+    const altTitle = titleOf(other);
+    // 説明は日英を併記（両言語のクエリで拾えるように）
+    const descMain = descOf(locale);
+    const descOther = descOf(other);
+    const description = [descMain, descOther && descOther !== descMain ? descOther : ""]
+        .filter(Boolean).join(" / ");
+
+    const imageUrl = photo.src.startsWith("http")
+        ? photo.src
         : `${siteConfig.url}${photo.src}`;
-    
+
     const structuredData: Record<string, unknown> = {
         "@context": "https://schema.org",
         "@type": "ImageObject",
         "@id": `${siteConfig.url}/photo/${photo.id}`,
         contentUrl: imageUrl,
         name: title,
+        ...(altTitle && altTitle !== title ? { alternateName: altTitle } : {}),
         description: description || siteConfig.description,
+        ...(description ? { caption: description } : {}),
         url: `${siteConfig.url}/photo/${photo.id}`,
+        representativeOfPage: true,
     };
-    
+
+    // Google 画像検索向けメタデータ（データがある項目だけ出力）
+    if (photo.thumbSrc) {
+        structuredData.thumbnailUrl = photo.thumbSrc.startsWith("http")
+            ? photo.thumbSrc
+            : `${siteConfig.url}${photo.thumbSrc}`;
+    }
+    if (photo.tags && photo.tags.length > 0) {
+        structuredData.keywords = photo.tags.join(", ");
+    }
+    // license は URL 形式のみ有効（自由文はここでは出さない）。取得ページとして写真ページを提示
+    if (photo.license && /^https?:\/\//.test(photo.license)) {
+        structuredData.license = photo.license;
+        structuredData.acquireLicensePage = `${siteConfig.url}/photo/${photo.id}`;
+    }
+    // 権利表記（自由文OKのフィールド）
+    const credit = photo.photographer || photo.displayName;
+    if (credit) structuredData.creditText = credit;
+    const copyright = photo.license && !/^https?:\/\//.test(photo.license)
+        ? photo.license
+        : (photo.copyrightOwner ? `© ${photo.copyrightYear ?? ""} ${photo.copyrightOwner}`.replace(/\s+/g, " ").trim() : "");
+    if (copyright) structuredData.copyrightNotice = copyright;
+
     if (photo.photographer) {
         structuredData.creator = {
             "@type": "Person",
@@ -124,12 +156,13 @@ export function generatePhotoStructuredData(photo: {
     
     if (photo.createdAt) {
         structuredData.dateCreated = photo.createdAt;
+        structuredData.datePublished = photo.createdAt;
     }
-    
+
     if (photo.updatedAt) {
         structuredData.dateModified = photo.updatedAt;
     }
-    
+
     return structuredData;
 }
 

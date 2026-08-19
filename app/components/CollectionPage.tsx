@@ -9,6 +9,7 @@ import {
     labelForSlug,
     collectionCopy,
     collectionPath,
+    relatedEntries,
     type CollectionType,
 } from "@/lib/utils/collections";
 import { siteConfig, generateStructuredData, generateBreadcrumbStructuredData } from "@/lib/utils/seo";
@@ -23,6 +24,12 @@ export default async function CollectionPage({ type, slug }: { type: CollectionT
     const label = labelForSlug(photos, type, slug);
     const { heading, description, breadcrumb } = collectionCopy(type, label, matched.length);
     const pageUrl = `${siteConfig.url}${collectionPath(type, slug)}`;
+    // 同タイプの他ページへの相互リンク（孤立防止・回遊・SEO）
+    const related = relatedEntries(photos, type, slug, 12).map((e) => ({
+        label: e.label,
+        count: e.count,
+        path: collectionPath(type, e.slug),
+    }));
 
     const galleryData = generateStructuredData(matched);
     const breadcrumbData = generateBreadcrumbStructuredData([
@@ -34,7 +41,7 @@ export default async function CollectionPage({ type, slug }: { type: CollectionT
         <>
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(galleryData) }} />
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbData) }} />
-            <CollectionPageClient photos={matched} heading={heading} description={description} breadcrumb={breadcrumb} />
+            <CollectionPageClient photos={matched} heading={heading} description={description} breadcrumb={breadcrumb} type={type} related={related} />
         </>
     );
 }
