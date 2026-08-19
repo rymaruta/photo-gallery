@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { loadAllPhotos } from "./photos";
 import {
     collectEntries,
+    isIndexableCollection,
     photosInCollection,
     labelForSlug,
     collectionCopy,
@@ -37,8 +38,10 @@ export async function collectionMetadata(type: CollectionType, slug: string): Pr
         description,
         keywords: [label, "旅", "写真", "フォトギャラリー"].filter(Boolean),
         alternates: { canonical: url },
-        // 万一該当0件のページが生成されてもインデックスさせない
-        robots: matched.length === 0 ? { index: false, follow: true } : undefined,
+        // 写真が少ないページは検索エンジンに載せない。
+        // 写真1〜2枚＋定型文だけのページを大量に作ると「中身の薄いサイト」と
+        // 判断され、サイト全体の評価が下がる。サイト内から辿る分には見られる。
+        robots: isIndexableCollection(matched.length) ? undefined : { index: false, follow: true },
         openGraph: {
             type: "website",
             locale: siteConfig.locale.ja,

@@ -235,40 +235,6 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
-  getGoStatus:
-    handler: src/go.getGoStatus
-    events:
-      - httpApi:
-          path: /photos/{id}/go
-          method: GET
-
-  goPhoto:
-    handler: src/go.goPhoto
-    events:
-      - httpApi:
-          path: /photos/{id}/go
-          method: POST
-          authorizer:
-            name: cognitoAuthorizer
-
-  ungoPhoto:
-    handler: src/go.ungoPhoto
-    events:
-      - httpApi:
-          path: /photos/{id}/go
-          method: DELETE
-          authorizer:
-            name: cognitoAuthorizer
-
-  getMyGoList:
-    handler: src/go.getMyGoList
-    events:
-      - httpApi:
-          path: /user/go
-          method: GET
-          authorizer:
-            name: cognitoAuthorizer
-
   followUser:
     handler: src/follow.followUser
     events:
@@ -304,7 +270,7 @@ functions:
             name: cognitoAuthorizer
 
   getNotifications:
-    handler: src/go.getNotifications
+    handler: src/notifications.getNotifications
     events:
       - httpApi:
           path: /user/notifications
@@ -313,7 +279,7 @@ functions:
             name: cognitoAuthorizer
 
   readNotifications:
-    handler: src/go.readNotifications
+    handler: src/notifications.readNotifications
     events:
       - httpApi:
           path: /user/notifications

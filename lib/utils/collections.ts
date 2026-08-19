@@ -6,20 +6,51 @@ import type { Photo } from "../data/photos";
 
 export type CollectionType = "tag" | "location" | "category";
 
+/**
+ * カテゴリの日本語表記を英語キーへ寄せる表。
+ * 「風景」と「landscape」が別ページになると、同じ内容が2つのURLに分かれて
+ * どちらも弱くなるため、集約ページを作る段階で1つにまとめる。
+ * 表記ゆれ（建物→建築）もここで吸収する。
+ */
+const CATEGORY_ALIASES: Record<string, string> = {
+    "風景": "landscape",
+    "自然": "nature",
+    "建築": "architecture",
+    "建物": "architecture",
+    "街": "street",
+    "写真": "photography",
+    "イラスト": "illustration",
+    "デザイン": "design",
+};
+
 /** 値を URL スラッグへ正規化（小文字化・trim・空白をハイフンに）。日本語はそのまま（URLでは percent-encoded）。 */
-export function slugify(value: string): string {
-    return (value ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
+export function slugify(value: string, type?: CollectionType): string {
+    const base = (value ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
+    if (type === "category") return CATEGORY_ALIASES[base] ?? base;
+    return base;
+}
+
+/**
+ * 検索エンジンに載せてよい最小の写真枚数。
+ * 写真1〜2枚＋定型文だけのページを大量に作ると「中身の薄いサイト」と
+ * 判断されて全体の評価が下がる。人がサイト内から辿る分には見られる。
+ */
+export const MIN_INDEXABLE_COUNT = 3;
+
+/** そのページを検索エンジンに載せてよいか */
+export function isIndexableCollection(count: number): boolean {
+    return count >= MIN_INDEXABLE_COUNT;
 }
 
 /** ルートパラメータ（既にデコード済みのことが多いが念のため）を安全にデコードして正規化 */
-function normalizeParam(slug: string): string {
+function normalizeParam(slug: string, type?: CollectionType): string {
     let s = slug ?? "";
     try {
         s = decodeURIComponent(s);
     } catch {
         // 不正な % シーケンスはそのまま扱う
     }
-    return slugify(s);
+    return slugify(s, type);
 }
 
 /** 写真から、指定タイプの生の値（表示ラベル候補）を取り出す */
@@ -48,7 +79,7 @@ export function collectEntries(photos: Photo[], type: CollectionType): Collectio
         if (!isPublished(p)) continue;
         const seen = new Set<string>();
         for (const v of valuesFor(p, type)) {
-            const slug = slugify(v);
+            const slug = slugify(v, type);
             if (!slug || seen.has(slug)) continue;
             seen.add(slug);
             const cur = bySlug.get(slug);
@@ -63,17 +94,17 @@ export function collectEntries(photos: Photo[], type: CollectionType): Collectio
 
 /** 指定 slug に一致する（公開）写真を返す */
 export function photosInCollection(photos: Photo[], type: CollectionType, slug: string): Photo[] {
-    const target = normalizeParam(slug);
+    const target = normalizeParam(slug, type);
     if (!target) return [];
-    return photos.filter((p) => isPublished(p) && valuesFor(p, type).some((v) => slugify(v) === target));
+    return photos.filter((p) => isPublished(p) && valuesFor(p, type).some((v) => slugify(v, type) === target));
 }
 
 /** slug に対応する代表表示ラベル（最初に一致した生の値）。無ければデコードした slug。 */
 export function labelForSlug(photos: Photo[], type: CollectionType, slug: string): string {
-    const target = normalizeParam(slug);
+    const target = normalizeParam(slug, type);
     for (const p of photos) {
         for (const v of valuesFor(p, type)) {
-            if (slugify(v) === target) return v;
+            if (slugify(v, type) === target) return v;
         }
     }
     try {
@@ -112,7 +143,7 @@ export function collectionCopy(type: CollectionType, label: string, count: numbe
  * ランディングページ同士の相互リンク（孤立防止・回遊）に使う。
  */
 export function relatedEntries(photos: Photo[], type: CollectionType, slug: string, limit = 12): CollectionEntry[] {
-    const current = slugify(decodeURIComponentSafe(slug));
+    const current = slugify(decodeURIComponentSafe(slug), type);
     return collectEntries(photos, type)
         .filter((e) => e.slug !== current)
         .slice(0, limit);

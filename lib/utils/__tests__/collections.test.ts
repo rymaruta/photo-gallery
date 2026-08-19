@@ -52,13 +52,21 @@ describe("collectEntries", () => {
         expect(entries.find((e) => e.slug === "山中湖")?.count).toBe(2);
     });
 
-    it("category を集約", () => {
+    it("category を集約し、日本語表記は英語キーへまとめる", () => {
         const entries = collectEntries(photos, "category");
         const slugs = entries.map((e) => e.slug).sort();
-        // 風景 / landscape は別スラッグ（v1は言語別ページ）
-        expect(slugs).toContain("風景");
+        // 「風景」と「landscape」は同じ意味なので1ページにまとめる。
+        // 別々のURLに分かれると、同じ内容で競合してどちらも弱くなる。
+        expect(slugs).not.toContain("風景");
         expect(slugs).toContain("landscape");
+        // 完全一致の別名だけを寄せる（「街-スナップ」は「街」ではないので残る）
         expect(slugs).toContain("街-スナップ");
+    });
+
+    it("まとめたカテゴリは両方の写真を拾う", () => {
+        // 「風景」と「landscape」の写真が同じページに集まる
+        const both = photosInCollection(photos, "category", "landscape").map((p) => p.id).sort();
+        expect(both.length).toBeGreaterThanOrEqual(2);
     });
 });
 

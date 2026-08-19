@@ -511,7 +511,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     {categoryDisplayName && photo.category && (
                         // カテゴリの集約ページへ（内部リンク＝SEO・回遊）
                         <Link
-                            href={collectionPath("category", slugify(photo.category))}
+                            href={collectionPath("category", slugify(photo.category, "category"))}
                             className="inline-flex items-center px-2.5 py-1 rounded-full bg-white/10 ring-1 ring-white/10 text-xs text-white/70 hover:bg-white/20 hover:text-white transition-colors"
                             style={{ touchAction: "manipulation" }}
                         >

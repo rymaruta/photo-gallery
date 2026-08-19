@@ -3,7 +3,6 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
 import { putPhoto, countUserPhotos } from "./ddb-photos";
-import { checkGoFulfillment } from "./go";
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
 import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate } from "./sanitize";
@@ -163,18 +162,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
 
     try {
         await putPhoto(photo);
-        // 「行った」成立判定: 行きたいリストの場所に到達していれば、
-        // 元写真の投稿者へ「あなたの写真が旅立たせました」通知が飛ぶ。
-        // 下書き（非公開）では通知を出さない（公開時に改めて判定される）。
-        let inspired = 0;
-        if (isPublished) {
-            try {
-                inspired = await checkGoFulfillment(userId, photo, resolvedDisplayName);
-            } catch (err) {
-                console.error("checkGoFulfillment error:", err);
-            }
-        }
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo, inspired }) };
+        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo }) };
     } catch (e) {
         console.error("savePhoto error:", e);
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "保存に失敗しました" }) };
