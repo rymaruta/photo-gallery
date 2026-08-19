@@ -54,6 +54,22 @@ const fmtKB = (n) => `${Math.round(n / 1024)}KB`;
         console.log(`  ${mark} ${label.padEnd(24)} ${n}/${photos.length}`);
     }
 
+    // 写真そのものではなく「写真の情報」の量。
+    // 一覧データはビルド時にJSへ埋め込まれ、さらに起動後にAPIからも取り直すため、
+    // 重いと最初の表示までの待ち時間に直接効く（画像より先に効く）。
+    console.log("\n写真の情報（メタデータ）の量:");
+    const sizeOf = (o) => Buffer.byteLength(JSON.stringify(o), "utf8");
+    const total = sizeOf(photos);
+    const blur = photos.reduce((n, p) => n + (p.blurDataURL ? Buffer.byteLength(String(p.blurDataURL), "utf8") : 0), 0);
+    const desc = photos.reduce((n, p) => n + (p.description ? sizeOf(p.description) : 0), 0);
+    const exif = photos.reduce((n, p) => n + (p.exif ? sizeOf(p.exif) : 0), 0);
+    console.log(`  一覧データ全体: ${fmtKB(total)}`);
+    console.log(`    うち ぼかし画像: ${fmtKB(blur)}（${Math.round(blur / total * 100)}%）`);
+    console.log(`    うち 説明文    : ${fmtKB(desc)}（${Math.round(desc / total * 100)}%）`);
+    console.log(`    うち 撮影情報  : ${fmtKB(exif)}（${Math.round(exif / total * 100)}%）`);
+    console.log(`  ※ この量が JS に埋め込まれ、起動後に API からも同じ量を取り直している`);
+    console.log(`  → 初回に実質 ${fmtKB(total * 2)} 相当のやり取りが発生する`);
+
     // 実際の転送量。一覧の1画面（先頭9枚）でどれだけ落とすか
     const sample = photos.slice(0, 9);
     console.log(`\n一覧の1画面ぶん（先頭${sample.length}枚）の実測:`);
