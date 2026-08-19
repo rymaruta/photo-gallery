@@ -3,6 +3,7 @@
 import React from "react";
 import FilterBar from "./components/FilterBar";
 import StoriesBar from "./components/stories/StoriesBar";
+import UserSearchResults from "./components/UserSearchResults";
 import { useLocale } from "./i18n/context";
 import useGallery from "../lib/hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
@@ -171,6 +172,9 @@ export default function GalleryPageClient() {
       />
 
       <>
+        {/* 検索語に一致するユーザー（いなければ何も出ない）。写真より先に人を出す */}
+        <UserSearchResults query={filters.query ?? ""} locale={locale} />
+
         <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
           {locale === "en"
             ? `${labels.gallery?.resultsCount ?? "Results"}: ${filteredPhotos.length}`

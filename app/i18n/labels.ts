@@ -95,7 +95,7 @@ const enLabels: Labels = {
         options: { new: "Newest", old: "Oldest", popular: "Popular" },
     },
     tags: { title: "Tags" },
-    search: { placeholder: "Search title or description", clear: "Clear" },
+    search: { placeholder: "Search photos or people (@username)", clear: "Clear" },
     gallery: {
         emptyMessage: "No photos found.",
         resultsCount: "Results",
@@ -147,7 +147,7 @@ export const ja: Labels = {
         options: { new: "新しい順", old: "古い順", popular: "人気順" },
     },
     tags: { title: "タグ" },
-    search: { placeholder: "タイトルや説明で検索", clear: "クリア" },
+    search: { placeholder: "写真・ユーザー（@名前）を検索", clear: "クリア" },
     gallery: {
         emptyMessage: "該当する写真がありません。",
         resultsCount: "結果",
