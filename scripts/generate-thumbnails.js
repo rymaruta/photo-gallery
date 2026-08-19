@@ -77,6 +77,12 @@ function thumbKeyFor(key) {
 // サムネ以外に補完する表示メタデータのフィールド
 const META_FIELDS = ["dominantColor", "width", "height", "aspectRatio", "blurDataURL"];
 
+// 撮影日(date)は EXIF からしか復元できず、圧縮済みの通常画像には EXIF が残っていない。
+// そのため「srcOriginal（EXIF付きの元画像）を持つ写真」だけを補完対象にする。
+function needsShotDate(item) {
+    return isProcessableImage(item) && isBlank(item.date) && !!item.srcOriginal;
+}
+
 // レスポンシブ/AVIF 派生の URL フィールド
 const DERIVATIVE_FIELDS = ["thumbAvif", "thumbSm", "thumbSmAvif", "srcAvif"];
 
@@ -112,7 +118,7 @@ function needsDerivatives(item) {
 
 /** この写真に対して何らかの処理（サムネ / メタ / 派生）が必要か */
 function shouldProcess(item) {
-    return needsThumb(item) || needsMeta(item) || needsDerivatives(item);
+    return needsThumb(item) || needsMeta(item) || needsDerivatives(item) || needsShotDate(item);
 }
 
 /** 0-255 のチャンネル値を 2 桁 16 進に */
@@ -184,11 +190,31 @@ async function generateDerivatives({ sharp, s3, PutObjectCommand }, buf, key) {
     return fields;
 }
 
+/**
+ * EXIF付きの元画像（srcOriginal）から撮影日を読む。
+ * 通常の src は圧縮時に EXIF が除去されているため使えない。
+ * 取得できない/日付が不正なら undefined。
+ */
+async function readShotDate({ s3, GetObjectCommand, exifr }, srcOriginal) {
+    const key = keyFromSrc(srcOriginal);
+    if (!key) return undefined;
+    const obj = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+    const buf = Buffer.from(await obj.Body.transformToByteArray());
+    const data = await exifr.parse(buf, { pick: ["DateTimeOriginal", "CreateDate"] });
+    const dt = data?.DateTimeOriginal ?? data?.CreateDate;
+    if (!(dt instanceof Date) || isNaN(dt.getTime())) return undefined;
+    const year = dt.getUTCFullYear();
+    // カメラの日付未設定（1970/1980）や未来日は捨てる
+    if (year < 1990 || dt.getTime() > Date.now() + 24 * 60 * 60 * 1000) return undefined;
+    return dt.toISOString();
+}
+
 async function main() {
     const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
     const { DynamoDBDocumentClient, ScanCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
     const { S3Client, GetObjectCommand, PutObjectCommand } = require("@aws-sdk/client-s3");
     const sharp = require("sharp");
+    const exifr = require("exifr");
 
     const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }), {
         marshallOptions: { removeUndefinedValues: true },
@@ -210,7 +236,7 @@ async function main() {
     console.log(`[thumbs] ${items.length} 件中、処理対象 ${targets.length} 件`);
     if (DRY_RUN) {
         for (const t of targets) {
-            const jobs = [needsThumb(t) && "thumb", needsMeta(t) && "meta", needsDerivatives(t) && "deriv"].filter(Boolean).join("+");
+            const jobs = [needsThumb(t) && "thumb", needsMeta(t) && "meta", needsDerivatives(t) && "deriv", needsShotDate(t) && "date"].filter(Boolean).join("+");
             console.log(`  - ${t.id}  ${keyFromSrc(t.src)}  [${jobs}]`);
         }
         console.log("[thumbs] DRY_RUN=1 のため生成せず終了");
@@ -223,6 +249,7 @@ async function main() {
         const doThumb = needsThumb(item);
         const doMeta = needsMeta(item);
         const doDerivatives = needsDerivatives(item);
+        const doShotDate = needsShotDate(item);
         try {
             // 1) 元画像を取得（サムネ・メタどちらにも必要）
             const obj = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
@@ -260,6 +287,16 @@ async function main() {
                 Object.assign(fields, await generateDerivatives({ sharp, s3, PutObjectCommand }, buf, key));
             }
 
+            if (doShotDate) {
+                // 撮影日: EXIF付きの元画像が残っている写真だけ復元できる
+                try {
+                    const shot = await readShotDate({ s3, GetObjectCommand, exifr }, item.srcOriginal);
+                    if (shot) fields.date = shot;
+                } catch (err) {
+                    console.warn(`    撮影日を読めませんでした (${item.id}): ${err.message ?? err}`);
+                }
+            }
+
             // 2) DynamoDB へ動的 SET（更新するフィールドだけ書く）
             const names = {}, values = { ":u": new Date().toISOString() };
             const sets = ["updatedAt = :u"];
@@ -279,7 +316,7 @@ async function main() {
             }));
 
             ok++;
-            const jobs = [doThumb && "thumb", doMeta && "meta", doDerivatives && "deriv"].filter(Boolean).join("+");
+            const jobs = [doThumb && "thumb", doMeta && "meta", doDerivatives && "deriv", doShotDate && "date"].filter(Boolean).join("+");
             console.log(`  [${i + 1}/${targets.length}] ✅ ${item.id}  [${jobs}]${thumbInfo}`);
         } catch (err) {
             failed++;
@@ -294,7 +331,7 @@ async function main() {
 
 module.exports = {
     keyFromSrc, thumbKeyFor, derivativeKey, shouldProcess,
-    needsThumb, needsMeta, needsDerivatives, buildMetaFields, hexFromChannel,
+    needsThumb, needsMeta, needsDerivatives, needsShotDate, buildMetaFields, hexFromChannel,
 };
 
 if (require.main === module) {

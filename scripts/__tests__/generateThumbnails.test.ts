@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { keyFromSrc, thumbKeyFor, derivativeKey, shouldProcess, needsThumb, needsMeta, needsDerivatives, buildMetaFields, hexFromChannel } = require("../generate-thumbnails.js");
+const { keyFromSrc, thumbKeyFor, derivativeKey, shouldProcess, needsThumb, needsMeta, needsDerivatives, needsShotDate, buildMetaFields, hexFromChannel } = require("../generate-thumbnails.js");
 
 describe("keyFromSrc", () => {
     it("CloudFront URL から S3 キーを取り出す", () => {
@@ -154,5 +154,22 @@ describe("hexFromChannel", () => {
         expect(hexFromChannel(-5)).toBe("00");
         expect(hexFromChannel(300)).toBe("ff");
         expect(hexFromChannel(undefined)).toBe("00");
+    });
+});
+
+describe("needsShotDate（撮影日の補完対象）", () => {
+    const src = "https://cdn.example.com/uploads/p1.jpg";
+    const orig = "https://cdn.example.com/uploads/originals/p1.jpeg";
+
+    it("date が無く、EXIF付き元画像(srcOriginal)がある写真は対象", () => {
+        expect(needsShotDate({ id: "p1", src, srcOriginal: orig })).toBe(true);
+    });
+
+    it("srcOriginal が無ければ対象外（圧縮済み画像にEXIFは残っていない）", () => {
+        expect(needsShotDate({ id: "p1", src })).toBe(false);
+    });
+
+    it("date が既にあれば対象外（冪等）", () => {
+        expect(needsShotDate({ id: "p1", src, srcOriginal: orig, date: "2024-10-12" })).toBe(false);
     });
 });

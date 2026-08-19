@@ -6,7 +6,7 @@ import { putPhoto, countUserPhotos } from "./ddb-photos";
 import { checkGoFulfillment } from "./go";
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
-import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL } from "./sanitize";
+import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate } from "./sanitize";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
@@ -93,6 +93,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         thumbUrl?: string;
         published?: boolean;
         blurDataURL?: string;
+        date?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -135,6 +136,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         : undefined;
     // ぼかしプレビュー（data:image/webp;base64,...）: 画像 data URI のみ許可
     const safeBlurDataURL = sanitizeBlurDataURL(blurDataURL);
+    // 撮影日（EXIF 由来）。年表を「撮った順」で並べるために保存する。
+    const safeDate = sanitizeDate(body.date);
 
     const photo: Photo = {
         id: photoId ?? uuidv4(),
@@ -149,6 +152,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         ...(safeDominantColor ? { dominantColor: safeDominantColor } : {}),
         ...(safeThumbSrc ? { thumbSrc: safeThumbSrc } : {}),
         ...(safeBlurDataURL ? { blurDataURL: safeBlurDataURL } : {}),
+        ...(safeDate ? { date: safeDate } : {}),
         ...(resolvedDisplayName ? { displayName: resolvedDisplayName } : {}),
         userId,
         uploadedBy: userId,

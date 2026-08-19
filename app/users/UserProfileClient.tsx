@@ -1,15 +1,13 @@
 "use client";
 
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import Image from "next/image";
 import Thumb from "../components/Thumb";
 import Link from "next/link";
-import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, RectangleStackIcon, QrCodeIcon } from "@heroicons/react/24/outline";
-import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../lib/utils/music";
+import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon } from "@heroicons/react/24/outline";
+import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { haversineKm } from "../../lib/utils/journey";
 import { hapticTap } from "../../lib/utils/haptics";
-import { buildTrips, tripAutoTitle, tripDisplayTitle, pickTripCover, type Trip } from "../../lib/utils/trips";
 import MusicCard from "../components/MusicCard";
 import FollowButton, { FollowAction } from "../components/FollowButton";
 import { HeartIcon, StarIcon } from "@heroicons/react/24/solid";
@@ -64,8 +62,8 @@ const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
 // Leaflet は window 依存のため SSG では読み込まない
 
-type TabKey = "posts" | "trips" | "timeline";
-const TAB_ORDER: TabKey[] = ["posts", "trips", "timeline"];
+type TabKey = "posts" | "timeline";
+const TAB_ORDER: TabKey[] = ["posts", "timeline"];
 
 // 写真を「YYYY年 / M月」で時系列グループ化（撮影日 date 優先、なければ createdAt）
 type TimelineGroup = { key: string; year: string; label: string; photos: Photo[] };
@@ -230,241 +228,6 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
 
 // 旅アルバムのカード。カバー写真 + タイトル + 期間/枚数/距離。タップで写真を展開。
 // オーナーは展開時に旅の名前を編集できる（カスタム名はプロフィールに保存され全員に見える）。
-function TripCard({ trip, locale, isOwner, onTogglePublish, open, onToggle, customTitle, onRename, coverId, onSetCover, song, onSetSong }: {
-    trip: Trip;
-    locale: string;
-    isOwner: boolean;
-    onTogglePublish?: (id: string, published: boolean) => void;
-    open: boolean;
-    onToggle: () => void;
-    customTitle?: string;
-    onRename?: (title: string | null) => void;
-    coverId?: string;
-    onSetCover?: (photoId: string) => void;
-    song?: SongEntry;
-    onSetSong?: (song: SongEntry | null) => void;
-}) {
-    const en = locale === "en";
-    const cover = pickTripCover(trip, coverId);
-    const [editing, setEditing] = useState(false);
-    const [draft, setDraft] = useState("");
-    // 旅のBGM設定（オーナーのみ）: インライン曲検索
-    const [songPickerOpen, setSongPickerOpen] = useState(false);
-    const [songQuery, setSongQuery] = useState("");
-    const [songResults, setSongResults] = useState<SongResult[]>([]);
-    const [songSearching, setSongSearching] = useState(false);
-    const searchTripSongs = async () => {
-        const q = songQuery.trim();
-        if (!q) return;
-        setSongSearching(true);
-        try {
-            setSongResults(await searchSongs(q));
-        } catch {
-            setSongResults([]);
-        } finally {
-            setSongSearching(false);
-        }
-    };
-
-    const autoTitle = tripAutoTitle(trip, en ? "en" : "ja");
-    const title = tripDisplayTitle(trip, customTitle ? { [trip.id]: customTitle } : undefined, en ? "en" : "ja");
-    const editable = isOwner && !!onRename;
-
-    const fmt = (t: number) => {
-        const d = new Date(t);
-        return en ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : `${d.getMonth() + 1}/${d.getDate()}`;
-    };
-    const sameDay = new Date(trip.start).toDateString() === new Date(trip.end).toDateString();
-    const range = sameDay ? fmt(trip.start) : `${fmt(trip.start)} – ${fmt(trip.end)}`;
-    const year = new Date(trip.start).getFullYear();
-    const stats = [
-        en ? `${range}, ${year}` : `${year}年 ${range}`,
-        en ? `${trip.photos.length} photos` : `${trip.photos.length}枚`,
-        ...(trip.distanceKm >= 1 ? [`${Math.round(trip.distanceKm).toLocaleString()}km`] : []),
-    ].join(" ・ ");
-
-    return (
-        <div className="rounded-2xl overflow-hidden ring-1 ring-white/10 bg-[#16181c]">
-            <button onClick={onToggle} aria-expanded={open} className="relative w-full text-left group" style={{ touchAction: "manipulation" }}>
-                <div className="relative w-full" style={{ aspectRatio: "16 / 7" }}>
-                    <Image
-                        src={cover.src}
-                        alt={title}
-                        fill
-                        className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                        sizes="(max-width: 640px) 100vw, 640px"
-                        loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
-                </div>
-                <div className="absolute bottom-0 inset-x-0 p-4 flex items-end justify-between gap-3">
-                    <div className="min-w-0">
-                        <h3 className="text-lg font-bold leading-tight truncate drop-shadow">{title}</h3>
-                        <p className="text-xs text-white/70 mt-0.5">{stats}</p>
-                    </div>
-                    <ChevronDownIcon className={`w-5 h-5 text-white/70 flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
-                </div>
-            </button>
-            {open && (
-                <>
-                    {/* オーナー: 旅の名前を編集 */}
-                    {editable && (
-                        editing ? (
-                            <div className="flex items-center gap-2 px-3 pt-3">
-                                <input
-                                    type="text"
-                                    value={draft}
-                                    onChange={(e) => setDraft(e.target.value)}
-                                    onKeyDown={(e) => { if (e.key === "Enter") { onRename?.(draft.trim() || null); setEditing(false); } }}
-                                    maxLength={80}
-                                    placeholder={autoTitle}
-                                    autoFocus
-                                    className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
-                                />
-                                <button
-                                    onClick={() => { onRename?.(draft.trim() || null); setEditing(false); }}
-                                    className="px-3.5 py-2 rounded-full bg-white text-black text-xs font-semibold hover:bg-white/90 active:scale-95 transition flex-shrink-0"
-                                >
-                                    {en ? "Save" : "保存"}
-                                </button>
-                                <button
-                                    onClick={() => setEditing(false)}
-                                    className="px-2.5 py-2 rounded-full text-white/50 hover:text-white/80 text-xs active:scale-95 transition flex-shrink-0"
-                                >
-                                    {en ? "Cancel" : "キャンセル"}
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-3 px-3 pt-2.5">
-                                <button
-                                    onClick={() => { setDraft(customTitle ?? ""); setEditing(true); }}
-                                    className="inline-flex items-center gap-1 text-xs text-white/50 hover:text-white/80 active:scale-95 transition"
-                                >
-                                    <PencilSquareIcon className="w-3.5 h-3.5" />
-                                    {en ? "Rename trip" : "旅の名前を変更"}
-                                </button>
-                                {customTitle && (
-                                    <button
-                                        onClick={() => onRename?.(null)}
-                                        className="text-xs text-white/40 hover:text-white/70 active:scale-95 transition"
-                                    >
-                                        {en ? "Reset to auto" : "自動タイトルに戻す"}
-                                    </button>
-                                )}
-                            </div>
-                        )
-                    )}
-                    {/* この旅のBGM */}
-                    {(song || (editable && onSetSong)) && (
-                        <div className="px-2 pt-2 space-y-2">
-                            {song && (
-                                <MusicCard
-                                    key={song.previewUrl}
-                                    queueKey={`trip:${trip.id}`}
-                                    songs={[song]}
-                                    label={en ? "Trip BGM" : "この旅のBGM"}
-                                    locale={locale}
-                                    autoPlay
-                                />
-                            )}
-                            {editable && onSetSong && (
-                                songPickerOpen ? (
-                                    <div className="rounded-xl bg-white/5 ring-1 ring-white/10 p-2.5 space-y-2">
-                                        <div className="flex gap-2">
-                                            <input
-                                                type="text"
-                                                value={songQuery}
-                                                onChange={(e) => setSongQuery(e.target.value)}
-                                                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void searchTripSongs(); } }}
-                                                placeholder={en ? "Song or artist" : "曲名・アーティスト名"}
-                                                autoFocus
-                                                className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
-                                            />
-                                            <button
-                                                onClick={() => void searchTripSongs()}
-                                                disabled={songSearching || !songQuery.trim()}
-                                                className="px-3.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 transition text-xs disabled:opacity-40 flex items-center justify-center min-w-[56px]"
-                                            >
-                                                {songSearching
-                                                    ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                    : (en ? "Search" : "検索")}
-                                            </button>
-                                            <button
-                                                onClick={() => { setSongPickerOpen(false); setSongResults([]); setSongQuery(""); }}
-                                                className="px-2 rounded-lg text-white/50 hover:text-white/80 text-xs active:scale-95 transition"
-                                            >
-                                                {en ? "Cancel" : "閉じる"}
-                                            </button>
-                                        </div>
-                                        {songResults.length > 0 && (
-                                            <ul className="rounded-lg ring-1 ring-white/10 divide-y divide-white/5 overflow-hidden max-h-56 overflow-y-auto no-scrollbar">
-                                                {songResults.map((r) => (
-                                                    <li key={r.id}>
-                                                        <button
-                                                            onClick={() => {
-                                                                onSetSong({ title: r.title, artist: r.artist, artwork: r.artwork, previewUrl: r.previewUrl, trackUrl: r.trackUrl });
-                                                                setSongPickerOpen(false);
-                                                                setSongResults([]);
-                                                                setSongQuery("");
-                                                            }}
-                                                            className="w-full flex items-center gap-2.5 p-2 hover:bg-white/5 active:bg-white/10 transition text-left"
-                                                        >
-                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                            <img src={r.artwork} alt="" loading="lazy" className="w-8 h-8 rounded object-cover bg-white/10 flex-shrink-0" />
-                                                            <div className="min-w-0 flex-1">
-                                                                <p className="text-xs text-white truncate">{r.title}</p>
-                                                                <p className="text-[11px] text-white/50 truncate">{r.artist}</p>
-                                                            </div>
-                                                            <span className="text-[11px] text-white/40 flex-shrink-0">{en ? "Set" : "設定"}</span>
-                                                        </button>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center gap-3">
-                                        <button
-                                            onClick={() => setSongPickerOpen(true)}
-                                            className="inline-flex items-center gap-1 text-xs text-white/50 hover:text-white/80 active:scale-95 transition"
-                                        >
-                                            <MusicalNoteIcon className="w-3.5 h-3.5" />
-                                            {song ? (en ? "Change BGM" : "BGMを変更") : (en ? "Add a BGM to this trip" : "この旅にBGMを付ける")}
-                                        </button>
-                                        {song && (
-                                            <button
-                                                onClick={() => onSetSong(null)}
-                                                className="text-xs text-white/40 hover:text-white/70 active:scale-95 transition"
-                                            >
-                                                {en ? "Remove" : "外す"}
-                                            </button>
-                                        )}
-                                    </div>
-                                )
-                            )}
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-3 gap-1 p-1 pt-2">
-                        {trip.photos.map((photo) => (
-                            <PhotoCard
-                                key={photo.id}
-                                photo={photo}
-                                locale={locale}
-                                isOwner={isOwner}
-                                onTogglePublish={onTogglePublish}
-                                coverSelected={photo.id === cover.id}
-                                onSetCover={editable && onSetCover ? onSetCover : undefined}
-                            />
-                        ))}
-                    </div>
-                </>
-            )}
-        </div>
-    );
-}
-
-// ユーザープロフィール画面本体。
 // /users/<id>（静的生成・OGP付き）と /users?id=<id>（新規ユーザー向けフォールバック）の
 // 両方から使われる。
 export default function UserProfileClient({ userId }: { userId: string }) {
@@ -577,8 +340,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     const timeline = useMemo(() => buildTimeline(visiblePhotos, locale as "ja" | "en"), [visiblePhotos, locale]);
 
     // 旅アルバム: 撮影日の間隔で自動グルーピング
-    const trips = useMemo(() => buildTrips(visiblePhotos), [visiblePhotos]);
-    const [openTripId, setOpenTripId] = useState<string | null>(null);
 
     // プロフィール項目の部分更新。PUT は全置換のため、既知の項目を丸ごと送り返す。
     const saveProfilePatch = useCallback(async (patch: Partial<UserProfile>, successMsg: string) => {
@@ -623,39 +384,16 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     }, [userProfile, userId, locale, showToast]);
 
     // 旅のカスタム名（オーナーが編集可能・プロフィールに保存され全員に見える）
-    const tripTitles = userProfile?.tripTitles;
-    const renameTrip = useCallback(async (tripId: string, title: string | null) => {
-        const next = { ...(userProfile?.tripTitles ?? {}) };
-        if (title) next[tripId] = title; else delete next[tripId];
-        await saveProfilePatch({ tripTitles: next }, locale === "en" ? "Trip name saved" : "旅の名前を保存しました");
-    }, [userProfile?.tripTitles, saveProfilePatch, locale]);
+
+
 
     // 旅アルバムのカバー写真（同じ写真をもう一度選ぶと自動に戻る）
-    const tripCovers = userProfile?.tripCovers;
-    const setTripCover = useCallback(async (tripId: string, photoId: string) => {
-        const next = { ...(userProfile?.tripCovers ?? {}) };
-        const reset = next[tripId] === photoId;
-        if (reset) delete next[tripId]; else next[tripId] = photoId;
-        await saveProfilePatch(
-            { tripCovers: next },
-            reset
-                ? (locale === "en" ? "Cover reset to auto" : "カバーを自動に戻しました")
-                : (locale === "en" ? "Cover updated 🖼" : "カバーを設定しました 🖼"),
-        );
-    }, [userProfile?.tripCovers, saveProfilePatch, locale]);
+
+
 
     // 旅アルバムのBGM（1旅1曲）。null で解除
-    const tripSongs = userProfile?.tripSongs;
-    const setTripSong = useCallback(async (tripId: string, song: SongEntry | null) => {
-        const next = { ...(userProfile?.tripSongs ?? {}) };
-        if (song) next[tripId] = song; else delete next[tripId];
-        await saveProfilePatch(
-            { tripSongs: next },
-            song
-                ? (locale === "en" ? "Trip BGM set 🎵" : "この旅のBGMを設定しました 🎵")
-                : (locale === "en" ? "Trip BGM removed" : "この旅のBGMを外しました"),
-        );
-    }, [userProfile?.tripSongs, saveProfilePatch, locale]);
+
+
 
     // ピン留め（投稿タブ先頭に固定・最大3枚・全員に見える）
     const pinnedPhotoIds = useMemo(() => userProfile?.pinnedPhotoIds ?? [], [userProfile?.pinnedPhotoIds]);
@@ -1037,10 +775,9 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             {/* コンテンツ（黒背景）: 投稿 / 足あとマップ / タイムライン */}
             <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
                 {/* タブバー */}
-                <div className={"grid grid-cols-3 border-t border-white/10 mb-1"}>
+                <div className={"grid grid-cols-2 border-t border-white/10 mb-1"}>
                     {([
                         { key: "posts", icon: Squares2X2Icon, label: locale === "en" ? "Posts" : "投稿" },
-                        { key: "trips", icon: RectangleStackIcon, label: locale === "en" ? "Trips" : "旅" },
                         { key: "timeline", icon: CalendarDaysIcon, label: locale === "en" ? "Timeline" : "年表" },
                     ] as const).filter(({ key }) => (TAB_ORDER as string[]).includes(key)).map(({ key, icon: Icon, label }) => {
                         const active = tab === key;
@@ -1102,46 +839,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 )}
 
                 {/* 旅アルバムタブ: 撮影日から自動生成される旅ごとのアルバム */}
-                {tab === "trips" && (
-                    <div className="pb-8 pt-2">
-                        {trips.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-24 text-white/40 gap-3">
-                                <RectangleStackIcon className="w-10 h-10" />
-                                <p className="text-sm text-center max-w-xs">
-                                    {locale === "en"
-                                        ? "Photos with dates are automatically grouped into trips."
-                                        : "撮影日のある写真があると、旅ごとのアルバムが自動でできます。"}
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                <p className="text-[11px] text-white/40">
-                                    {locale === "en"
-                                        ? `${trips.length} trips, grouped automatically from your photo dates.`
-                                        : `${trips.length}つの旅 — 撮影日から自動でまとまります。`}
-                                </p>
-                                {trips.map((trip) => (
-                                    <TripCard
-                                        key={trip.id}
-                                        trip={trip}
-                                        locale={locale}
-                                        isOwner={isOwner}
-                                        onTogglePublish={handleTogglePublish}
-                                        open={openTripId === trip.id}
-                                        onToggle={() => setOpenTripId((cur) => (cur === trip.id ? null : trip.id))}
-                                        customTitle={tripTitles?.[trip.id]}
-                                        onRename={isOwner ? (title) => void renameTrip(trip.id, title) : undefined}
-                                        coverId={tripCovers?.[trip.id]}
-                                        onSetCover={isOwner ? (photoId) => void setTripCover(trip.id, photoId) : undefined}
-                                        song={tripSongs?.[trip.id]}
-                                        onSetSong={isOwner ? (sg) => void setTripSong(trip.id, sg) : undefined}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
-
                 {/* タイムラインタブ */}
                 {tab === "timeline" && (
                     <div className="pb-8 pt-2">

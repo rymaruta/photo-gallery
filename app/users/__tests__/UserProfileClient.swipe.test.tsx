@@ -41,15 +41,21 @@ describe("UserProfileClient - タブの横スワイプ（タッチ操作の保�
         expect(activeTab()).toContain("Posts");
     });
 
-    it("足あとタブは存在しない（撮影地マップは廃止）", () => {
+    it("廃止したタブ（足あと・旅）は存在しない", () => {
         render(<UserProfileClient userId="nobody" />);
         expect(screen.queryByRole("button", { name: /Map/ })).toBeNull();
+        expect(screen.queryByRole("button", { name: /Trips/ })).toBeNull();
     });
 
-    it("左スワイプで 投稿 → 旅 → 年表 と順に切り替わる", () => {
+    it("左スワイプで 投稿 → 年表 に切り替わる", () => {
         render(<UserProfileClient userId="nobody" />);
         swipe("left");
-        expect(activeTab()).toContain("Trips");
+        expect(activeTab()).toContain("Timeline");
+    });
+
+    it("右端で左スワイプしてもクランプされ、年表のまま", () => {
+        render(<UserProfileClient userId="nobody" />);
+        swipe("left");
         swipe("left");
         expect(activeTab()).toContain("Timeline");
     });
@@ -60,12 +66,12 @@ describe("UserProfileClient - タブの横スワイプ（タッチ操作の保�
         expect(activeTab()).toContain("Posts");
     });
 
-    it("年表タブから右スワイプで 旅 に戻る（前方向スワイプ）", () => {
+    it("年表タブから右スワイプで 投稿 に戻る（前方向スワイプ）", () => {
         render(<UserProfileClient userId="nobody" />);
         fireEvent.click(tabButton("Timeline"));
         expect(activeTab()).toContain("Timeline");
         swipe("right");
-        expect(activeTab()).toContain("Trips");
+        expect(activeTab()).toContain("Posts");
     });
 
     it("右端（年表）で左スワイプしてもクランプされる", () => {

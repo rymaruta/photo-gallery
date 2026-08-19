@@ -352,6 +352,9 @@ function UploadPageInner() {
                     body: JSON.stringify({
                         key, publicUrl, photoId,
                         published,
+                        // 撮影日: EXIF から読み取った日時。年表を「撮った順」で並べるために必須。
+                        // 送らないと createdAt（アップロード日）にフォールバックしてしまう。
+                        ...(item.dateTimeOriginal ? { date: item.dateTimeOriginal } : {}),
                         title: item.title || undefined,
                         description: item.description || undefined,
                         location: item.location || undefined,

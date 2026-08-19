@@ -32,6 +32,20 @@ export function sanitizeText(v: unknown, max: number): string | undefined {
     return typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined;
 }
 
+/**
+ * 撮影日。ISO 文字列（または解釈可能な日付）を ISO に正規化する。
+ * 未来すぎる / 古すぎる値は誤検出とみなして捨てる（EXIF が壊れている写真がある）。
+ */
+export function sanitizeDate(v: unknown): string | undefined {
+    if (typeof v !== "string" || !v.trim()) return undefined;
+    const t = Date.parse(v.trim());
+    if (Number.isNaN(t)) return undefined;
+    const year = new Date(t).getUTCFullYear();
+    // 写真が存在しうる範囲。カメラの日付未設定（1970/1980）や未来日を弾く
+    if (year < 1990 || t > Date.now() + 24 * 60 * 60 * 1000) return undefined;
+    return new Date(t).toISOString();
+}
+
 // ぼかしプレビュー: 画像の data URI（webp/jpeg/png の base64）のみ許可。長すぎるものは破棄。
 // 極小画像想定のため上限は 4000 文字（~3KB）。
 export function sanitizeBlurDataURL(v: unknown): string | undefined {

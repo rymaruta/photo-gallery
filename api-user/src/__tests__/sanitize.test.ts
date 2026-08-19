@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sanitizeBlurDataURL, sanitizeTags, sanitizeTitle, sanitizeText } from "../sanitize";
+import { sanitizeBlurDataURL, sanitizeTags, sanitizeTitle, sanitizeText, sanitizeDate } from "../sanitize";
 
 describe("sanitizeBlurDataURL", () => {
     it("webp/jpeg/png の base64 data URI を許可", () => {
@@ -34,5 +34,26 @@ describe("sanitize 基本ヘルパ", () => {
         expect(sanitizeTitle("  T ")).toBe("T");
         expect(sanitizeTitle({ ja: "あ", en: "" })).toEqual({ ja: "あ" });
         expect(sanitizeTitle("   ")).toBeUndefined();
+    });
+});
+
+describe("sanitizeDate（撮影日）", () => {
+    it("ISO 文字列を ISO に正規化する", () => {
+        expect(sanitizeDate("2024-10-12T07:32:00.000Z")).toBe("2024-10-12T07:32:00.000Z");
+        expect(sanitizeDate("2024-10-12")).toBe("2024-10-12T00:00:00.000Z");
+    });
+    it("空・非文字列・解釈不能はundefined", () => {
+        expect(sanitizeDate("")).toBeUndefined();
+        expect(sanitizeDate("   ")).toBeUndefined();
+        expect(sanitizeDate(12345)).toBeUndefined();
+        expect(sanitizeDate("いつか")).toBeUndefined();
+    });
+    it("カメラの日付未設定（1990年より前）は捨てる", () => {
+        expect(sanitizeDate("1970-01-01T00:00:00.000Z")).toBeUndefined();
+        expect(sanitizeDate("1980-01-01T00:00:00.000Z")).toBeUndefined();
+    });
+    it("未来日は捨てる", () => {
+        const future = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
+        expect(sanitizeDate(future)).toBeUndefined();
     });
 });
