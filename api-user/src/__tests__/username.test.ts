@@ -36,10 +36,15 @@ describe("normalizeUsername", () => {
         expect(normalizeUsername("a".repeat(21)).error).toBeTruthy();
     });
 
-    it("予約語は使えない（ルートと衝突する語・紛らわしい語）", () => {
-        for (const w of ["admin", "photo", "tag", "camera", "login", "official"]) {
+    it("予約語は使えない（ルート衝突・なりすまし・紛らわしい語）", () => {
+        for (const w of ["photo", "tag", "camera", "login", "official", "staff", "support", "null", "guest"]) {
             expect(normalizeUsername(w).error).toBeTruthy();
         }
+    });
+
+    it("admin は予約しない（管理者本人が使う。先に取得すれば一意性で他人は取れない）", () => {
+        expect(normalizeUsername("admin").username).toBe("admin");
+        expect(normalizeUsername("@Admin").username).toBe("admin");
     });
 
     it("文字列以外はエラー", () => {
@@ -55,8 +60,18 @@ describe("USERNAME_RE / RESERVED_USERNAMES", () => {
         expect(USERNAME_RE.test("ab")).toBe(false);
     });
     it("主要ルート名が予約されている", () => {
-        for (const w of ["users", "photo", "tag", "location", "category", "camera", "lens"]) {
+        for (const w of ["users", "photo", "tag", "location", "category", "camera", "lens", "upload", "drafts"]) {
             expect(RESERVED_USERNAMES.has(w)).toBe(true);
         }
+    });
+
+    it("なりすまし系も予約されている", () => {
+        for (const w of ["official", "staff", "support", "administrator", "journeyphoto"]) {
+            expect(RESERVED_USERNAMES.has(w)).toBe(true);
+        }
+    });
+
+    it("admin は予約されていない（本人用）", () => {
+        expect(RESERVED_USERNAMES.has("admin")).toBe(false);
     });
 });

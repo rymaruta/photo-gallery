@@ -55,13 +55,29 @@ export type UserProfile = {
 // サイト内ユーザー名（@ハンドル）の規則。小文字英数字とアンダースコアのみ。
 export const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 
-// ルートや紛らわしい語は取らせない
+/**
+ * 他のユーザーに取らせないユーザー名。
+ *
+ * ※ "admin" はこのリストに**入れていない**。サイト管理者本人が使うため。
+ *    ユーザー名は全体で一意なので、本人が先に取得すれば他の人は取れなくなる
+ *    （予約アイテムへの条件付き書き込みで 409 になる）。
+ */
 export const RESERVED_USERNAMES = new Set([
-    "admin", "administrator", "root", "system", "support", "help", "about", "api",
-    "login", "signup", "logout", "user", "users", "photo", "photos", "tag", "tags",
-    "location", "category", "camera", "lens", "map", "favorites", "wishlist",
-    "drafts", "edit", "upload", "profile", "settings", "search", "new", "me",
-    "journey", "journeyphoto", "official", "staff", "null", "undefined",
+    // 1) サイトのルート名と衝突する語（将来URLに使う可能性も考えて確保）
+    "user", "users", "photo", "photos", "tag", "tags", "location", "locations",
+    "category", "categories", "camera", "cameras", "lens", "lenses", "map",
+    "favorites", "favorite", "wishlist", "drafts", "draft", "edit", "upload",
+    "profile", "settings", "search", "login", "signup", "logout", "api",
+    "sitemap", "robots", "assets", "static", "public", "new", "me", "home",
+
+    // 2) 運営・公式を騙れてしまう語（なりすまし防止）
+    "administrator", "root", "system", "moderator", "mod", "staff", "official",
+    "support", "help", "contact", "info", "team", "owner", "master",
+    "journey", "journeyphoto", "journey_photo", "journeyphotocom",
+
+    // 3) 技術的に紛らわしい語（表示やデバッグで事故りやすい）
+    "null", "undefined", "true", "false", "none", "nan",
+    "anonymous", "guest", "unknown", "deleted", "test",
 ]);
 
 /** 入力を正規化して検証する。不正なら理由を返す。 */
