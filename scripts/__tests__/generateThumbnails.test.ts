@@ -51,6 +51,27 @@ describe("shouldProcess / needsThumb / needsMeta", () => {
         expect(shouldProcess(p)).toBe(true);
     });
 
+    // 派生画像は max-age=31536000 で公開バケットに焼かれる一方、ストーリーの
+    // 削除・期限切れ処理は原本しか消していなかった。24時間で消えるはずの
+    // ストーリーの複製が公開URLで永久に残るため、そもそも作らない。
+    it("ストーリーは対象外（24時間で消えるものの複製を作らない）", () => {
+        const p = { id: "story-1", src, story: true, published: false };
+        expect(needsThumb(p)).toBe(false);
+        expect(needsMeta(p)).toBe(false);
+        expect(needsDerivatives(p)).toBe(false);
+        expect(shouldProcess(p)).toBe(false);
+    });
+
+    it("下書き（published:false）は対象外（公開前に取得できてしまう）", () => {
+        const p = { id: "p1", src, published: false };
+        expect(shouldProcess(p)).toBe(false);
+    });
+
+    it("published が未設定の写真は従来どおり対象（公開扱い）", () => {
+        expect(shouldProcess({ id: "p1", src })).toBe(true);
+        expect(shouldProcess({ id: "p1", src, published: true })).toBe(true);
+    });
+
     it("thumbSrc があってもメタが欠けていればメタのみ対象", () => {
         const p = { id: "p1", src, thumbSrc };
         expect(needsThumb(p)).toBe(false);

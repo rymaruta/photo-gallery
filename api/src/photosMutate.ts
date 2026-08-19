@@ -7,6 +7,31 @@ const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
+/**
+ * PUT /photos/{id} で書き換えてよい項目。
+ *
+ * 以前はリクエストの中身をそのまま DynamoDB に SET していたため、
+ * 自分の写真に対して {"userId": "他人のsub"} を送るだけで、その写真を
+ * 他人のギャラリーへ移せた（userId は GSI のハッシュキー）。
+ * 同様に src を外部URLへ差し替える、いいね数を作る、story:true を付けて
+ * ストーリー欄に差し込む、といったことができた。
+ *
+ * 「編集画面で触れるもの」だけを通し、素性（id / userId / src 系）と
+ * 集計値（likes / commentCount）と種別（story / expiresAt）は受け付けない。
+ */
+const EDITABLE_FIELDS = [
+    "title", "description", "location", "category", "date", "tags", "published", "exif",
+] as const;
+
+/** body から書き換えてよい項目だけを取り出す（undefined は「触らない」） */
+export function pickEditableFields(body: Record<string, unknown>): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    for (const key of EDITABLE_FIELDS) {
+        if (key in body && body[key] !== undefined) out[key] = body[key];
+    }
+    return out;
+}
+
 export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const id = event.pathParameters?.id;
     if (!id) {
@@ -32,7 +57,7 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: "編集権限がありません" }) };
         }
 
-        const updates = { ...body, updatedAt: new Date().toISOString() };
+        const updates = { ...pickEditableFields(body), updatedAt: new Date().toISOString() };
         const updated = await updatePhotoFields(id, updates);
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: updated }) };
     } catch (e) {

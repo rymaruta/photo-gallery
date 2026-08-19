@@ -3,6 +3,7 @@ import { QueryCommand, GetCommand, DeleteCommand, UpdateCommand } from "@aws-sdk
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
+import { mediaKeys } from "./mediaKeys";
 
 // 退会（アカウント削除）。DELETE /user/account、認証必須、呼び出し元の sub のみ対象。
 // 不可逆な破壊操作のため「確実に引ける範囲を確実に消す」方針:
@@ -23,39 +24,6 @@ const USERS_TABLE = process.env.USERS_TABLE ?? "prod-photo-gallery-users";
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET ?? "";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
-
-/** URL もしくは生キーから uploads/ 配下の S3 オブジェクトキーを導出する（それ以外は空文字） */
-function deriveUploadKey(v: unknown): string {
-    if (typeof v !== "string" || !v) return "";
-    if (v.startsWith("uploads/")) return v;
-    try {
-        const path = new URL(v).pathname.replace(/^\//, "");
-        if (path.startsWith("uploads/")) return path;
-    } catch { /* URL でなければ無視 */ }
-    return "";
-}
-
-/**
- * 写真/ストーリー item から削除すべき S3 キーを重複なく集める。
- *
- * 本体とサムネだけでは足りない。AVIF や小サイズの派生画像、そして
- * srcOriginal（EXIF を落とす前の原本）が残る。srcOriginal には GPS が
- * 入ったままなので、退会後も公開URLで取得できる状態は避ける。
- * scripts/generate-thumbnails.js が作る派生を全部並べておく。
- */
-const MEDIA_FIELDS = [
-    "key", "src", "srcOriginal", "srcAvif", "src256",
-    "thumbSrc", "thumbSm", "thumbAvif", "thumbSmAvif",
-] as const;
-
-function mediaKeys(item: Record<string, unknown>): string[] {
-    const keys = new Set<string>();
-    for (const field of MEDIA_FIELDS) {
-        const k = deriveUploadKey(item[field]);
-        if (k) keys.add(k);
-    }
-    return [...keys];
-}
 
 async function s3Delete(key: string): Promise<void> {
     if (!key || !UPLOAD_BUCKET) return;

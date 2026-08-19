@@ -107,6 +107,39 @@ describe("postComment", () => {
         const res = await invoke(postComment, ev("u1", { id: "p1" }, { text: "x".repeat(800) }));
         expect(JSON.parse(res.body).comment.text.length).toBe(500);
     });
+
+    // 追記だけだと DynamoDB のアイテム上限(400KB)に達し、以後そのフォトには
+    // 誰も二度とコメントできなくなる（縮む経路が無い）。上限で切り詰める。
+    it("200件を超えたら古い方を捨てて200件に切り詰める", async () => {
+        const stored = Array.from({ length: 201 }, (_, i) => ({
+            id: `c${i}`, uid: "u", name: "n", text: "t", t: "2026-01-01",
+        }));
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner" } }) // photo
+            .mockResolvedValueOnce({ Attributes: { items: stored } })                        // append
+            .mockResolvedValueOnce({})                                                        // trim
+            .mockResolvedValueOnce({});                                                       // count +1
+
+        await invoke(postComment, ev("u1", { id: "p1" }, { text: "hi" }));
+
+        const trim = mockDdbSend.mock.calls[2][0].input;
+        expect(trim.UpdateExpression).toContain(":trimmed");
+        expect(trim.ExpressionAttributeValues[":trimmed"]).toHaveLength(200);
+        // 残るのは新しい方（末尾追記なので後ろが新しい）
+        expect(trim.ExpressionAttributeValues[":trimmed"][0].id).toBe("c1");
+        expect(trim.ExpressionAttributeValues[":trimmed"][199].id).toBe("c200");
+    });
+
+    it("200件以下なら切り詰めの書き込みをしない", async () => {
+        const stored = Array.from({ length: 5 }, (_, i) => ({ id: `c${i}` }));
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner" } })
+            .mockResolvedValueOnce({ Attributes: { items: stored } })
+            .mockResolvedValueOnce({});
+        await invoke(postComment, ev("u1", { id: "p1" }, { text: "hi" }));
+        // photo get / append / commentCount+1 の3回だけ
+        expect(mockDdbSend).toHaveBeenCalledTimes(3);
+    });
 });
 
 describe("deleteComment", () => {

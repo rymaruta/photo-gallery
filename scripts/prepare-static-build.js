@@ -39,14 +39,19 @@ if (fs.existsSync(backupDir)) {
     fs.rmSync(backupDir, { recursive: true, force: true });
 }
 
-// DynamoDB から写真データを同期（失敗してもビルドは継続）
+// DynamoDB から写真データを同期。
+// ローカル（認証情報なし）では失敗してもビルドを続けるが、CI では止める。
+// 古い photos.json のままビルドが通ると、デプロイが「その後に増えた写真の
+// ページ」を S3 から削除してしまうため（HTML は猶予期間なしで消える）。
+// 止めるかどうかの判断は sync 側の終了コードに委ねている。
 const syncScript = path.join(__dirname, "sync-photos-from-ddb.js");
 if (fs.existsSync(syncScript)) {
     console.log("\n[build] DynamoDB から写真データを同期...");
     try {
         execSync(`node ${syncScript}`, { stdio: "inherit", cwd: root });
     } catch {
-        console.warn("[build] DynamoDB 同期に失敗しました（既存の photos.json を使用）");
+        console.error("[build] DynamoDB 同期に失敗しました。ビルドを中止します。");
+        process.exit(1);
     }
 }
 

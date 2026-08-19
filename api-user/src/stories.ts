@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { lookupDisplayName } from "./notify";
+import { mediaKeys } from "./mediaKeys";
 
 const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? "";
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET ?? "";
@@ -25,6 +26,21 @@ function deriveStoryKey(item: Record<string, unknown>): string {
         } catch { /* ignore */ }
     }
     return "";
+}
+
+/**
+ * ストーリー削除時に消すべき S3 キー。
+ *
+ * 原本（key / src）だけでは足りない。サムネ生成スクリプトが以前ストーリーも
+ * 対象にしていたため、AVIF や小サイズの派生が max-age=31536000 で
+ * 残っている個体がある。原本だけ消すと「24時間で消えるはずのものが
+ * 公開URLで取得できる」状態になる。退会処理と同じ列挙を使う。
+ */
+function storyMediaKeys(item: Record<string, unknown>): string[] {
+    const keys = new Set(mediaKeys(item));
+    const primary = deriveStoryKey(item);
+    if (primary) keys.add(primary);
+    return [...keys];
 }
 
 // 過去24時間にこのユーザーが投稿したストーリー数を数える（レート制限用）
@@ -283,8 +299,10 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         if (!item || item.story !== true) return jsonError(404, "ストーリーが見つかりません");
         if (item.userId !== callerId) return jsonError(403, "権限がありません");
 
-        const key = deriveStoryKey(item);
-        if (key && UPLOAD_BUCKET) {
+        // 原本だけでなく派生画像も消す。過去にサムネ生成がストーリーも対象に
+        // していた時期があり、その分が max-age=31536000 で残っている。
+        for (const key of storyMediaKeys(item)) {
+            if (!UPLOAD_BUCKET) break;
             try {
                 await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));
             } catch (e) {
@@ -309,8 +327,8 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
         const id = String(item.id ?? "");
         if (!id) continue;
 
-        const key = deriveStoryKey(item);
-        if (key && UPLOAD_BUCKET) {
+        for (const key of storyMediaKeys(item)) {
+            if (!UPLOAD_BUCKET) break;
             try {
                 await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));
             } catch (e) {

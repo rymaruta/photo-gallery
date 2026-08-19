@@ -8,7 +8,8 @@ vi.mock("@aws-sdk/client-dynamodb", () => ({
     DeleteItemCommand: class {},
 }));
 
-import { normalizeUsername, USERNAME_RE, RESERVED_USERNAMES, getPublicProfile } from "../userProfile";
+import { normalizeUsername, USERNAME_RE, RESERVED_USERNAMES, getPublicProfile, toPublicProfile } from "../userProfile";
+import type { UserProfile } from "../userProfile";
 
 describe("normalizeUsername", () => {
     it("小文字化し、先頭の @ を落とす", () => {
@@ -96,5 +97,52 @@ describe("getPublicProfile: 予約アイテムを引かせない", () => {
     it("通常の userId は引ける", async () => {
         const res = await invokePublic({ pathParameters: { userId: "some-user-id" } });
         expect(res.statusCode).toBe(200);
+    });
+});
+
+// 公開プロフィールから項目を落とすと、その項目は「消える」。
+// UserProfileClient はこの戻り値を編集元として PUT に丸ごと送り返し、
+// PUT は全置換なので、返さなかった項目は DynamoDB から削除される。
+// 一度 tripTitles/tripCovers/tripSongs/statusText を落として、
+// ピン留めするだけで旅アルバムとひとことが消える事故を起こしている。
+describe("toPublicProfile: 画面に出る項目を落とさない", () => {
+    const full = {
+        userId: "u1",
+        username: "ryuhei",
+        displayName: "旅人",
+        bio: "こんにちは",
+        instagram: "ig",
+        website: "https://example.com",
+        themeColor: "#123456",
+        songUrl: "https://youtu.be/x",
+        songStart: 10,
+        songEnd: 40,
+        songTitle: "曲",
+        songArtist: "人",
+        songArtwork: "https://cdn/a.jpg",
+        songPreviewUrl: "https://cdn/p.m4a",
+        songTrackUrl: "https://music/x",
+        songs: [],
+        pinnedPhotoIds: ["p1"],
+        updatedAt: "2026-08-19T00:00:00.000Z",
+        tripTitles: { "trip-1": "北海道" },
+        tripCovers: { "trip-1": "p1" },
+        tripSongs: { "trip-1": { title: "曲", previewUrl: "https://cdn/p.m4a" } },
+        statusText: "旅に出ています",
+    } as unknown as UserProfile;
+
+    it.each([
+        "tripTitles", "tripCovers", "tripSongs", "statusText",
+        "pinnedPhotoIds", "songs", "themeColor", "displayName", "username", "bio",
+    ])("%s を返す（保存時の往復で消えないこと）", (field) => {
+        const pub = toPublicProfile(full) as Record<string, unknown>;
+        expect(pub[field]).toEqual((full as unknown as Record<string, unknown>)[field]);
+    });
+
+    it("許可していない項目は返さない", () => {
+        const withSecret = { ...full, internalNote: "みせない", email: "a@example.com" } as unknown as UserProfile;
+        const pub = toPublicProfile(withSecret) as Record<string, unknown>;
+        expect(pub).not.toHaveProperty("internalNote");
+        expect(pub).not.toHaveProperty("email");
     });
 });

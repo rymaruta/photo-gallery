@@ -337,16 +337,25 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
 
 // 公開プロフィールとして返してよい項目だけを抜き出す。
 // テーブルの中身をそのまま返すと、将来追加された内部用の項目まで公開されてしまう。
-function toPublicProfile(p: UserProfile): Partial<UserProfile> {
+//
+// 注意: ここから項目を外すと、その項目は「消える」。
+// PUT /user/profile は全置換で、UserProfileClient はこの戻り値を編集元として
+// そのまま送り返すため、返さなかった項目は保存時に body から欠け、
+// DynamoDB から削除される。プロフィール画面に出るものは必ずここに含めること。
+// （tripTitles / tripCovers / tripSongs / statusText を一度落として、
+//   ピン留めするだけで旅アルバムとひとことが消える事故を起こしている）
+export function toPublicProfile(p: UserProfile): Partial<UserProfile> {
     const {
         userId, username, displayName, bio, instagram, website, themeColor,
         songUrl, songStart, songEnd, songTitle, songArtist, songArtwork,
         songPreviewUrl, songTrackUrl, songs, pinnedPhotoIds, updatedAt,
+        tripTitles, tripCovers, tripSongs, statusText,
     } = p;
     return {
         userId, username, displayName, bio, instagram, website, themeColor,
         songUrl, songStart, songEnd, songTitle, songArtist, songArtwork,
         songPreviewUrl, songTrackUrl, songs, pinnedPhotoIds, updatedAt,
+        tripTitles, tripCovers, tripSongs, statusText,
     };
 }
 

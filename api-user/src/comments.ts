@@ -18,7 +18,7 @@ export type Comment = {
     t: string;
 };
 
-const COMMENTS_MAX = 200;   // 読み取り時に新しい順で切り詰め
+const COMMENTS_MAX = 200;   // 保持する上限（書き込み時に切り詰め・読み取りもこの数）
 const TEXT_MAX = 500;
 
 const commentsId = (photoId: string) => `comments#${photoId}`;
@@ -76,15 +76,31 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             t: new Date().toISOString(),
         };
 
-        // コメントドキュメントへ原子追記
-        await ddb.send(new UpdateCommand({
+        // コメントドキュメントへ原子追記。
+        // 追記だけだと際限なく伸び、DynamoDB のアイテム上限（400KB）に達した時点で
+        // 以後そのフォトには誰もコメントできなくなる（縮む経路が無い）。
+        // notify.ts と同じく、溢れたときだけ読み直して切り詰める。
+        const appended = await ddb.send(new UpdateCommand({
             TableName: PHOTOS_TABLE,
             Key: { id: commentsId(photoId) },
             UpdateExpression:
                 "SET #items = list_append(if_not_exists(#items, :empty), :new), photoId = :pid, updatedAt = :now",
             ExpressionAttributeNames: { "#items": "items" },
             ExpressionAttributeValues: { ":new": [comment], ":empty": [], ":pid": photoId, ":now": comment.t },
+            ReturnValues: "UPDATED_NEW",
         }));
+
+        // 上限を超えたら古い方を捨てて COMMENTS_MAX 件だけ残す（末尾が新しい）
+        const stored = appended.Attributes?.items;
+        if (Array.isArray(stored) && stored.length > COMMENTS_MAX) {
+            await ddb.send(new UpdateCommand({
+                TableName: PHOTOS_TABLE,
+                Key: { id: commentsId(photoId) },
+                UpdateExpression: "SET #items = :trimmed",
+                ExpressionAttributeNames: { "#items": "items" },
+                ExpressionAttributeValues: { ":trimmed": stored.slice(-COMMENTS_MAX) },
+            }));
+        }
 
         // 写真の commentCount +1
         await ddb.send(new UpdateCommand({

@@ -13,6 +13,16 @@
  *   AWS_REGION          (default: ap-northeast-1)
  *   PHOTOS_TABLE        (default: prod-photo-gallery-photos)
  *   DRY_RUN=1           ファイルを書かずに件数だけ確認
+ *   CI                  取得に失敗したらビルドを止める（Actions では自動で入る）
+ *
+ * 安全装置（どちらもデプロイ事故を防ぐためのもの）:
+ *   1. 取得に失敗したとき、CI では異常終了する。
+ *      以前は常に exit 0 で、失敗しても古い photos.json のままビルドが緑で通り、
+ *      デプロイが「新しい写真のページ」を S3 から消していた（HTML は猶予なしで削除）。
+ *      ローカルは今まで通り警告のみ（認証情報なしでもビルドを回せるように）。
+ *   2. 件数が0、または既存ファイルの半分未満に減る書き込みは拒否する。
+ *      空のテーブルを指したスキャンで photos.json が空になり、次のビルドで
+ *      全ページが消えるのを防ぐ。意図した大量削除のときは --force を付ける。
  */
 
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
@@ -33,6 +43,37 @@ const REGION = process.env.AWS_REGION ?? "ap-northeast-1";
 const TABLE = process.env.PHOTOS_TABLE ?? "prod-photo-gallery-photos";
 const OUTPUT = path.resolve(__dirname, "../app/data/photos.json");
 const DRY_RUN = process.env.DRY_RUN === "1";
+const FORCE = process.argv.includes("--force");
+const IS_CI = !!process.env.CI;
+
+// 既存ファイルからここまで減る書き込みは事故とみなす（0.5 = 半減）
+const SHRINK_LIMIT = 0.5;
+
+/** 既存の photos.json の件数。無い・壊れているときは null（＝比較しない） */
+function existingCount(file) {
+    try {
+        const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+        return Array.isArray(parsed) ? parsed.length : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * この書き込みを許してよいか。
+ * 「取得できた件数が急に減った」は、テーブルを間違えた・権限が欠けた・
+ * スキャンが途中で切れた、のどれかである可能性が高い。上書きすると
+ * 次のビルドでページが消え、デプロイがそれを S3 からも削除してしまう。
+ */
+function checkWriteSafety(nextCount, prevCount) {
+    if (FORCE) return { ok: true, reason: "--force" };
+    if (nextCount === 0) return { ok: false, reason: "取得できた写真が0件です" };
+    if (prevCount === null || prevCount === 0) return { ok: true, reason: "比較対象なし" };
+    if (nextCount < prevCount * SHRINK_LIMIT) {
+        return { ok: false, reason: `${prevCount}件 → ${nextCount}件 と大きく減っています` };
+    }
+    return { ok: true, reason: "" };
+}
 
 async function scan() {
     const client = new DynamoDBClient({ region: REGION });
@@ -73,7 +114,9 @@ async function main() {
     } catch (err) {
         console.error("\n[sync] DynamoDB scan failed:", err.message ?? err);
         console.warn("[sync] photos.json は更新しません（既存ファイルを維持）");
-        process.exit(0); // ビルドを止めない
+        // CI で古いスナップショットのままビルドを通すと、デプロイが
+        // 「その後に増えた写真のページ」を S3 から消してしまう。止める。
+        process.exit(IS_CI ? 1 : 0);
     }
 
     console.log(`\n[sync] ${photos.length} 件取得（公開済みのみ）`);
@@ -83,11 +126,24 @@ async function main() {
         return;
     }
 
+    const prev = existingCount(OUTPUT);
+    const safety = checkWriteSafety(photos.length, prev);
+    if (!safety.ok) {
+        console.error(`\n[sync] 書き込みを中止しました: ${safety.reason}`);
+        console.error("[sync] テーブル名・リージョン・認証情報を確認してください。");
+        console.error("[sync] 意図した削除であれば --force を付けて再実行します。");
+        process.exit(1);
+    }
+
     fs.writeFileSync(OUTPUT, JSON.stringify(photos, null, 2) + "\n", "utf-8");
     console.log(`[sync] ${OUTPUT} に書き込みました`);
 }
 
-main().catch((err) => {
-    console.error("[sync] unexpected error:", err);
-    process.exit(0); // ビルドを止めない
-});
+if (require.main === module) {
+    main().catch((err) => {
+        console.error("[sync] unexpected error:", err);
+        process.exit(IS_CI ? 1 : 0);
+    });
+}
+
+module.exports = { checkWriteSafety, existingCount };

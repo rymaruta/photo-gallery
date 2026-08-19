@@ -108,6 +108,11 @@ export default function ProfileEditPage() {
     const [coverPreview, setCoverPreview] = useState<string | null>(null);
     const [coverError, setCoverError] = useState(false);
     const [coverUploading, setCoverUploading] = useState(false);
+    // プロフィールの読み込みに失敗したか。
+    // PUT は全置換なので、読み込めていない（=フォームが空欄の）状態で保存すると
+    // 自己紹介・リンク・テーマ色・BGM・ピン留め・旅アルバムがまとめて消える。
+    // app/users/UserProfileClient.tsx にも同じ理由のガードがある。
+    const [loadFailed, setLoadFailed] = useState(false);
 
     useEffect(() => {
         if (!loading && !isAuthenticated) router.replace("/login");
@@ -153,8 +158,12 @@ export default function ProfileEditPage() {
                         setSongStartText(secToMMSS(data.songStart));
                         setSongEndText(secToMMSS(data.songEnd));
                     }
+                } else {
+                    setLoadFailed(true);
                 }
-            } catch { /* ignore */ } finally {
+            } catch {
+                setLoadFailed(true);
+            } finally {
                 setFetching(false);
             }
         })();
@@ -297,6 +306,14 @@ export default function ProfileEditPage() {
     };
 
     const handleSave = async () => {
+        // 読み込めていない状態で保存すると、PUT が全置換なので既存の項目が
+        // まとめて消える。保存させず、再読み込みを促す。
+        if (loadFailed) {
+            showToast(locale === "en"
+                ? "Could not load your profile. Please reload and try again."
+                : "プロフィールを読み込めていません。再読み込みしてからお試しください。", "error");
+            return;
+        }
         // 検索の曲 と 貼付リンク を独立して保存する。
         //  - 曲(検索)があれば表示は曲を優先（UserProfileClient 側で判定）
         //  - リンクはそのまま保持され、曲を消すとリンクが使われる
@@ -405,6 +422,16 @@ export default function ProfileEditPage() {
                     <ArrowLeftIcon className="w-3 h-3" />
                     {locale === "en" ? "Back" : "戻る"}
                 </Link>
+
+                {/* 読み込めていないことを黙って空欄で見せると、書き直して保存され
+                    既存のプロフィールが消える。はっきり伝えて保存させない。 */}
+                {loadFailed && (
+                    <div className="mb-8 rounded-lg border border-red-400/30 bg-red-500/10 px-4 py-3 text-xs leading-relaxed text-red-200">
+                        {locale === "en"
+                            ? "Could not load your profile. The fields below are empty because of this, not because your profile is empty. Reload before editing — saving now would erase it."
+                            : "プロフィールを読み込めませんでした。下の欄が空なのはそのためで、登録内容が消えたわけではありません。このまま保存すると上書きされてしまうので、再読み込みしてください。"}
+                    </div>
+                )}
 
                 <h1 className="text-xl font-bold mb-6">
                     {locale === "en" ? "Edit Profile" : "プロフィール編集"}

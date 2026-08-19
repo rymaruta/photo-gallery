@@ -258,6 +258,40 @@ describe("deleteStory", () => {
         const res = await invoke(deleteStory, authedEvent("u1", { pathParameters: { id: "story-1" } }));
         expect(res.statusCode).toBe(200);
     });
+
+    // 以前はサムネ生成スクリプトがストーリーも対象にしていたため、
+    // 派生画像（AVIF・小サイズ）が max-age=31536000 で残っている個体がある。
+    // 原本だけ消すと、24時間で消えるはずのものが公開URLで取得できてしまう。
+    it("派生画像も残さず消す", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({
+                Item: {
+                    id: "story-1", story: true, userId: "u1",
+                    key: "uploads/a.jpg",
+                    src: "https://cdn.example.com/uploads/a.jpg",
+                    srcOriginal: "https://cdn.example.com/uploads/a_orig.jpg",
+                    srcAvif: "https://cdn.example.com/uploads/a_lg.avif",
+                    thumbSrc: "https://cdn.example.com/uploads/a_thumb.webp",
+                    thumbAvif: "https://cdn.example.com/uploads/a_thumb.avif",
+                    thumbSm: "https://cdn.example.com/uploads/a_thumb_sm.webp",
+                    thumbSmAvif: "https://cdn.example.com/uploads/a_thumb_sm.avif",
+                },
+            })
+            .mockResolvedValueOnce({});
+        mockS3Send.mockResolvedValue({});
+
+        const res = await invoke(deleteStory, authedEvent("u1", { pathParameters: { id: "story-1" } }));
+        expect(res.statusCode).toBe(200);
+
+        const deleted = mockS3Send.mock.calls.map((c) => (c[0] as { input: { Key: string } }).input.Key);
+        expect(deleted).toEqual(expect.arrayContaining([
+            "uploads/a.jpg", "uploads/a_orig.jpg", "uploads/a_lg.avif",
+            "uploads/a_thumb.webp", "uploads/a_thumb.avif",
+            "uploads/a_thumb_sm.webp", "uploads/a_thumb_sm.avif",
+        ]));
+        // key と src は同じオブジェクトなので重複して消さない
+        expect(new Set(deleted).size).toBe(deleted.length);
+    });
 });
 
 // ────────────────────────────────

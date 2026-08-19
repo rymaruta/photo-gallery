@@ -95,6 +95,12 @@ const isBlank = (v) => v === undefined || v === null || v === "";
 /** サムネ生成対象になり得る「写真」か（src を持ち、動画/GIF でない） */
 function isProcessableImage(item) {
     if (!item || typeof item.src !== "string" || !item.src) return false; // like#/go# マーカー等
+    // ストーリーと下書きには派生画像を作らない。
+    // 派生は max-age=31536000 で公開バケットに焼かれる一方、ストーリーの
+    // 削除・期限切れ処理は原本しか消さないため、24時間で消えるはずのものが
+    // 公開URLで永久に残ってしまう。下書きも公開前に取得できてしまう。
+    if (item.story === true) return false;
+    if (item.published === false) return false;
     const key = keyFromSrc(item.src);
     if (!key) return false;
     const ext = key.split(".").pop()?.toLowerCase() ?? "";
