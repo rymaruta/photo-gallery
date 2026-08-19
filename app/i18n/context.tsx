@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useCall
 import { getLabels } from "./labels";
 import type { Labels } from "./labels";
 import type { Locale } from "@/lib/data/photos";
-import { storageGet, storageSet } from "@/lib/utils/storage";
+import { storageGet, storageSet, storageRemove } from "@/lib/utils/storage";
 
 type LocaleContextType = {
     locale: Locale;
@@ -19,13 +19,12 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     // localStorage の読み込みは useEffect でマウント後に行う
     const [locale, setLocaleState] = useState<Locale>("ja");
 
-    // マウント後に localStorage から保存済みロケールを読み込む（SSRハイドレーション対応）
+    // 言語切替UIは廃止し、表示は日本語のみになった。
+    // 切替があった頃に "en" を選んでいた端末は、その設定が localStorage に
+    // 残っていると英語のまま戻す手段が無くなるため、見つけ次第消して日本語に戻す。
     useEffect(() => {
         const saved = storageGet<string>("locale");
-        if (saved === "en" || saved === "ja") {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setLocaleState(saved);
-        }
+        if (saved && saved !== "ja") storageRemove("locale");
     }, []);
 
     // ロケール変更時に <html lang> を更新

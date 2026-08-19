@@ -1,0 +1,45 @@
+name: Maintenance
+
+# 手動実行の保守作業。既定はドライランで、apply を true にしたときだけ変更する。
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "実行する作業"
+        type: choice
+        options:
+          - cdn-error-pages   # 存在しないURLを自作404へ
+          - shrink-profiles   # 既存のプロフィール画像を縮小
+        required: true
+      apply:
+        description: "true で実際に適用（false は内容の確認のみ）"
+        type: boolean
+        default: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+
+      - name: 存在しないURLを自作404へ
+        if: inputs.task == 'cdn-error-pages'
+        run: node scripts/fix-cdn-error-pages.js ${{ inputs.apply && '--apply' || '' }}
+        env:
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+
+      - name: 既存のプロフィール画像を縮小
+        if: inputs.task == 'shrink-profiles'
+        run: node scripts/shrink-profile-images.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 25

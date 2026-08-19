@@ -63,17 +63,17 @@ describe("LocaleProvider", () => {
         expect(JSON.parse(localStorageMock.getItem("locale")!)).toBe("en");
     });
 
-    it("localStorage に en が保存済みなら en で初期化される", async () => {
-        // storageGet は JSON.parse するので JSON-encoded で保存する
+    // 言語切替UIは廃止済み。過去に en を選んだ端末が英語のまま戻せなくなるのを防ぐ
+    it("localStorage に en が残っていても日本語で表示し、その設定を消す", async () => {
         localStorageMock.setItem("locale", JSON.stringify("en"));
         render(
             <LocaleProvider>
                 <LocaleDisplay />
             </LocaleProvider>
         );
-        // useEffect でマウント後に localStorage を読む実装なので act で flush
         await act(async () => {});
-        expect(screen.getByTestId("locale").textContent).toBe("en");
+        expect(screen.getByTestId("locale").textContent).toBe("ja");
+        expect(localStorageMock.getItem("locale")).toBeNull();
     });
 
     it("useLocale を Provider 外で呼ぶとエラー", () => {
