@@ -46,14 +46,25 @@ function FilterBarInner({
 
     const clearLabel = actionLabels?.clearTags ?? "Clear";
 
-    // local query state + debounced apply
+    // 入力欄の値は自分で持ち、確定した値だけ 300ms 後に親へ渡す。
     const [localQuery, setLocalQuery] = useState(() => values.query || "");
+
+    // 親から来た値を入力欄に反映するのは「外部で変わったとき」だけにする。
+    // 以前は localQuery !== values.query なら常に上書きしていたため、
+    // 入力してから親に反映されるまでの300msの間に入力欄が空へ戻され、
+    // 日本語の変換中の文字まで消えていた（1文字ずつしか入らない原因）。
+    const appliedQueryRef = useRef(values.query || "");
     useEffect(() => {
-        if (localQuery !== (values.query || "")) {
+        const next = values.query || "";
+        if (next !== appliedQueryRef.current) {
+            appliedQueryRef.current = next;
             // eslint-disable-next-line react-hooks/set-state-in-effect
-            setLocalQuery(values.query || "");
+            setLocalQuery(next);
         }
-    }, [values.query, localQuery]);
+    }, [values.query]);
+
+    // 日本語入力の変換中は確定させない（変換候補の途中で検索が走らないように）
+    const composingRef = useRef(false);
 
     const debouncedApply = useMemo(
         () =>
@@ -168,6 +179,21 @@ function FilterBarInner({
     const onQueryChange = useCallback(
         (v: string) => {
             setLocalQuery(v);
+            // 自分で流した値は「外部からの変更」と見なさない（上の効果で打ち消さないため）
+            appliedQueryRef.current = v;
+            // 変換中は流さない。確定（compositionend）でまとめて流す
+            if (!composingRef.current) debouncedApply(v);
+        },
+        [debouncedApply]
+    );
+
+    /** 変換確定。確定した文字列で即座に検索する */
+    const onCompositionEnd = useCallback(
+        (e: React.CompositionEvent<HTMLInputElement>) => {
+            composingRef.current = false;
+            const v = e.currentTarget.value;
+            setLocalQuery(v);
+            appliedQueryRef.current = v;
             debouncedApply(v);
         },
         [debouncedApply]
@@ -303,6 +329,8 @@ function FilterBarInner({
                             type="search"
                             value={localQuery}
                             onChange={(e) => onQueryChange(e.target.value)}
+                            onCompositionStart={() => { composingRef.current = true; }}
+                            onCompositionEnd={onCompositionEnd}
                             placeholder={labels.search.placeholder}
                             className="w-full rounded-full bg-white/[0.06] text-white placeholder:text-white/35 border border-transparent focus:border-white/20 focus:bg-white/10 transition-all duration-200 outline-none"
                             style={{ padding: "8px 38px 8px 38px", fontSize: 13, minHeight: 36 }}
@@ -313,6 +341,7 @@ function FilterBarInner({
                                 type="button"
                                 onClick={() => {
                                     setLocalQuery("");
+                                    appliedQueryRef.current = "";
                                     debouncedApply("");
                                 }}
                                 className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-white/10 transition-colors focus:outline-none"

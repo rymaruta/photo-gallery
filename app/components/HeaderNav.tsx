@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { XMarkIcon, Bars3Icon } from "@heroicons/react/24/solid";
+import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../auth/context";
 import { useLocale } from "../i18n/context";
 import { log } from "../../lib/utils/log";
@@ -15,7 +16,7 @@ import { useFavorites } from "../../lib/hooks/useFavorites";
 export default function HeaderNav({ className = "" }: { className?: string }) {
     const router = useRouter();
     const { isAuthenticated, isAdminUser, userId, logout, loading } = useAuth();
-    const { labels } = useLocale();
+    const { locale, labels } = useLocale();
     const { favorites } = useFavorites();
 
     useEffect(() => {
@@ -77,6 +78,16 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
 
     return (
         <nav className={`site-header__nav flex items-center gap-2 ${className}`}>
+            {/* ユーザーを探す。知り合いを見つけてフォローする導線をどのページからも1タップに */}
+            <button
+                onClick={() => handleNavigation(ROUTES.USER_SEARCH)}
+                aria-label={locale === "en" ? "Find people" : "ユーザーを探す"}
+                title={locale === "en" ? "Find people" : "ユーザーを探す"}
+                className="p-2 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30"
+                style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", minHeight: "44px", minWidth: "44px" }}
+            >
+                <MagnifyingGlassIcon className="h-6 w-6" />
+            </button>
             {/* 通知ベル: 「あなたの写真が誰かを旅立たせました」が届く */}
             {isAuthenticated && <NotificationsBell />}
             {/* ログイン中は自分のアバターを表示 → ワンタップでマイページ */}

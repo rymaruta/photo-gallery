@@ -12,9 +12,20 @@ export type UserHit = {
     themeColor?: string;
 };
 
-/** 検索語が2文字未満なら検索しない（候補が多すぎて意味がないため。サーバー側と同じ基準） */
-export const MIN_QUERY_LENGTH = 2;
-const DEBOUNCE_MS = 300;
+/**
+ * 検索を始める最小文字数。
+ * 英数字は2文字（"a" では候補が多すぎる）。日本語・中国語などは
+ * 1文字でも十分に絞り込めるうえ、名前自体が短いので1文字から検索する。
+ */
+export function isSearchableQuery(q: string): boolean {
+    if (!q) return false;
+    // ASCII 以外（かな・漢字など）を含むなら1文字から
+    if (/[^\u0000-\u007F]/.test(q)) return q.length >= 1;
+    return q.length >= 2;
+}
+
+// 入力欄側で既に300ms待っているので、ここは短くして体感を落とさない
+const DEBOUNCE_MS = 120;
 
 /**
  * 検索語に一致するユーザーを引く。写真の検索と同じ入力欄から呼ぶ想定。
@@ -26,7 +37,7 @@ export function useUserSearch(query: string): { users: UserHit[]; loading: boole
 
     useEffect(() => {
         const q = query.trim().replace(/^@+/, "");
-        if (q.length < MIN_QUERY_LENGTH) {
+        if (!isSearchableQuery(q)) {
             setUsers([]);
             setLoading(false);
             return;

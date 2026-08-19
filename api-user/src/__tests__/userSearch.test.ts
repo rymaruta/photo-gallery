@@ -10,7 +10,7 @@ vi.mock("@aws-sdk/client-dynamodb", () => ({
     ScanCommand: class { input: unknown; readonly kind = "scan"; constructor(input: unknown) { this.input = input; } },
 }));
 
-const { searchUsers, scoreUser, normalizeQuery } = await import("../userSearch");
+const { searchUsers, scoreUser, normalizeQuery, isSearchableQuery } = await import("../userSearch");
 
 type LambdaResult = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -63,7 +63,7 @@ describe("scoreUser", () => {
 });
 
 describe("searchUsers", () => {
-    it("2文字未満は検索せず空で返す（DynamoDBも叩かない）", async () => {
+    it("英数字1文字では検索せず空で返す（DynamoDBも叩かない）", async () => {
         const res = await invoke(searchUsers, ev("a"));
         expect(res.statusCode).toBe(200);
         expect(JSON.parse(res.body).users).toEqual([]);
@@ -117,5 +117,19 @@ describe("searchUsers", () => {
         mockSend.mockRejectedValue(new Error("boom"));
         const res = await invoke(searchUsers, ev("さくら"));
         expect(res.statusCode).toBe(500);
+    });
+});
+
+describe("isSearchableQuery", () => {
+    it("英数字は2文字から", () => {
+        expect(isSearchableQuery("a")).toBe(false);
+        expect(isSearchableQuery("ab")).toBe(true);
+    });
+    it("日本語は1文字から（名前が短く、1文字でも十分絞り込めるため）", () => {
+        expect(isSearchableQuery("た")).toBe(true);
+        expect(isSearchableQuery("丸")).toBe(true);
+    });
+    it("空は不可", () => {
+        expect(isSearchableQuery("")).toBe(false);
     });
 });

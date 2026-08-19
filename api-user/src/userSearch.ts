@@ -60,6 +60,13 @@ export function scoreUser(hit: UserSearchHit, q: string): number {
     return 0;
 }
 
+/** 検索を始めてよい語かどうか。英数字は2文字以上、日本語などは1文字以上。 */
+export function isSearchableQuery(q: string): boolean {
+    if (!q) return false;
+    if (/[^\u0000-\u007F]/.test(q)) return q.length >= 1;
+    return q.length >= 2;
+}
+
 /** 検索語の正規化。先頭の @ を落とし、前後の空白を削る。 */
 export function normalizeQuery(raw: unknown): string {
     if (typeof raw !== "string") return "";
@@ -69,8 +76,9 @@ export function normalizeQuery(raw: unknown): string {
 // GET /users/search?q=...
 export const searchUsers: APIGatewayProxyHandlerV2 = async (event) => {
     const q = normalizeQuery(event.queryStringParameters?.q);
-    // 1文字だと候補が多すぎて意味がないので2文字から
-    if (q.length < 2) {
+    // 英数字は2文字から（1文字では候補が多すぎる）。
+    // 日本語などASCII外を含む場合は1文字でも十分絞り込めるので許可する。
+    if (!isSearchableQuery(q)) {
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ users: [] }) };
     }
 

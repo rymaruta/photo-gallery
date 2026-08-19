@@ -29,6 +29,7 @@ export const ROUTES = {
     DRAFTS: "/user/drafts",
     EDIT: (id: string) => `/user/edit?id=${encodeURIComponent(id)}`,
     PROFILE_EDIT: "/user/profile",
+    USER_SEARCH: "/users/search",
     PHOTO: (id: string) =>
         BUILT_PHOTO_IDS.has(id)
             ? `/photo/${id}`
