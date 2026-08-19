@@ -15,7 +15,7 @@
  */
 
 const {
-    S3Client, CreateBucketCommand, HeadBucketCommand,
+    S3Client, CreateBucketCommand, HeadBucketCommand, ListObjectsV2Command,
     PutBucketOwnershipControlsCommand, PutBucketAclCommand,
     PutBucketLifecycleConfigurationCommand, PutPublicAccessBlockCommand,
 } = require("@aws-sdk/client-s3");
@@ -133,10 +133,35 @@ async function enableLogging() {
     console.log("有効にしました。ログが出始めるまで数十分かかります。");
 }
 
+/**
+ * 実際にログが届いているかを見る。
+ * 有効化してもすぐには出ず、最初のファイルまで数十分かかる。
+ * 「設定した」と「動いている」は別なので、後から確認できるようにしておく。
+ */
+async function reportDelivery() {
+    let res;
+    try {
+        res = await s3.send(new ListObjectsV2Command({
+            Bucket: LOG_BUCKET, Prefix: LOG_PREFIX, MaxKeys: 5,
+        }));
+    } catch (e) {
+        console.log(`\n配信状況: 確認できません（${e.name}）`);
+        return;
+    }
+    const items = res.Contents ?? [];
+    if (items.length === 0) {
+        console.log("\n配信状況: まだログファイルはありません（有効化直後なら数十分待つ）");
+        return;
+    }
+    const latest = items.reduce((a, b) => (a.LastModified > b.LastModified ? a : b));
+    console.log(`\n配信状況: ログファイルあり（直近 ${latest.Key} / ${latest.LastModified.toISOString()}）`);
+}
+
 (async () => {
     console.log(APPLY ? "モード: 適用（作成・変更します）" : "モード: ドライラン（変更しません）");
     await ensureBucket();
     await enableLogging();
+    await reportDelivery();
     if (!APPLY) console.log("\nドライランのため何も変更していません。");
 })().catch((e) => {
     console.error("エラー:", e.name, e.message);
