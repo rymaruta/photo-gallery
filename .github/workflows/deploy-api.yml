@@ -31,11 +31,17 @@ env:
   CLOUDFRONT_URL: https://d1s3dwwzgxf5ni.cloudfront.net
   USERS_TABLE: prod-photo-gallery-users
 
+# Lambda デプロイを同時に走らせない（serverless deploy の競合を防ぐ）。
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
 jobs:
   # デプロイ前にバックエンドのテストを必ず通す（落ちたらデプロイされない）
   test:
     name: Run API tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -52,6 +58,7 @@ jobs:
     needs: test
     if: ${{ github.event_name == 'push' || github.event.inputs.target == 'both' || github.event.inputs.target == 'admin-api' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -88,6 +95,7 @@ jobs:
     needs: test
     if: ${{ github.event_name == 'push' || github.event.inputs.target == 'both' || github.event.inputs.target == 'user-api' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 

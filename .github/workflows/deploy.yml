@@ -11,10 +11,20 @@ on:
     # （photos.json の再同期）。アップロード直後はモーダル表示で閲覧できる。
     - cron: "0 0,6,12,18 * * *"
 
+# 本番デプロイを同時に走らせない。実行中のものはキャンセルせず待たせる
+# （S3 アップロードの途中で中断すると、新旧が混ざった中途半端な状態になるため）。
+# 待機中の古い実行は新しい実行に置き換わる。
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
   deploy-frontend:
     name: Deploy Frontend (S3 + CloudFront)
     runs-on: ubuntu-latest
+    # ハングしても必ず終わらせる（GitHub の既定は6時間。実際の所要は約15分）。
+    # 2026-08-19 にブラウザインストールで4時間以上ハングした実績があるため必須。
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -31,6 +41,7 @@ jobs:
 
       - name: Run tests
         run: npm test
+        timeout-minutes: 10
 
       # ビルド前に AWS 認証情報を設定する（ビルド内の DynamoDB → photos.json 同期に必要。
       # 認証情報がないと同期がスキップされ、コミット済みの古い photos.json でビルドされる）
@@ -58,18 +69,31 @@ jobs:
           NEXT_PUBLIC_COGNITO_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_COGNITO_CLIENT_ID || '21cs4cd8dkttmg3snloj72u8mu' }}
           NEXT_PUBLIC_CLOUDFRONT_URL: ${{ secrets.NEXT_PUBLIC_CLOUDFRONT_URL || 'https://d1s3dwwzgxf5ni.cloudfront.net' }}
 
+      # ブラウザ本体をキャッシュする。毎回ダウンロードすると所要時間が読めず、
+      # ここでハングした実績があるため（キャッシュヒット時はほぼ即完了）。
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install browsers for smoke test (chromium + webkit)
+        run: npx playwright install --with-deps chromium webkit
+        timeout-minutes: 10
+
       # 実ブラウザでメニュー・モーダル・タブを実際にタップして検証。
       # 「見た目は正常だがタップできない」系の回帰（不可視オーバーレイ・
       # ハイドレーション不全・包含ブロック事故）はここで止まる。
       # Chromium だけでなく WebKit(Safari エンジン)でもタップ可能を保証する。
       # 「iOS Safari では見た目正常だが全無反応」系の回帰をデプロイ前に止めるため。
-      - name: Install browsers for smoke test (chromium + webkit)
-        run: npx playwright install --with-deps chromium webkit
-
       - name: Browser smoke test (tap the real UI — Chromium + WebKit)
         run: SMOKE_ENGINES=chromium,webkit node scripts/e2e-smoke.mjs
+        timeout-minutes: 10
 
       - name: Deploy to S3
         run: node scripts/deploy-static-site.js --bucket prod-journey-photo.com
+        timeout-minutes: 20
         env:
           CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}

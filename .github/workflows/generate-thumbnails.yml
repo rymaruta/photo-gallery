@@ -12,10 +12,16 @@ on:
         required: false
         default: "0"
 
+# 画像処理が重なると S3 への書き込みが競合するため同時実行しない。
+concurrency:
+  group: generate-thumbnails
+  cancel-in-progress: false
+
 jobs:
   generate:
     name: Generate thumbnails for existing photos
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
