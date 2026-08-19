@@ -6,12 +6,11 @@ import { useFavorites } from "../../lib/hooks/useFavorites";
 import { useImagePreloader } from "../../lib/hooks/useImagePreloader";
 import { usePhotos } from "../../lib/hooks/usePhotos";
 import GalleryGrid from "../components/GalleryGrid";
-import LocaleToggle from "../components/LocaleToggle";
 import { useLocale } from "../i18n/context";
 import { capitalize } from "../../lib/utils/string";
 
 export default function FavoritesPage() {
-    const { locale, setLocale, labels } = useLocale();
+    const { locale, labels } = useLocale();
     const { favorites } = useFavorites();
     const { preloadMultiple } = useImagePreloader();
     const { photos: allPhotos } = usePhotos();
@@ -57,13 +56,6 @@ export default function FavoritesPage() {
                     </p>
                 </div>
 
-                <div className="flex-shrink-0">
-                    <LocaleToggle
-                        locale={locale}
-                        setLocale={setLocale}
-                        labels={labels.ui?.language ?? { ja: "日本語", en: "English" }}
-                    />
-                </div>
             </div>
 
             {favoritePhotos.length === 0 ? (

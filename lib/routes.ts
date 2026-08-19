@@ -20,9 +20,7 @@ const BUILT_USER_IDS = new Set(
 
 export const ROUTES = {
     HOME: "/",
-    ABOUT: "/about",
     FAVORITES: "/favorites",
-    WISHLIST: "/wishlist",
     ADMIN: "/admin",
     LOGIN: "/login",
     SIGNUP: "/signup",
@@ -30,7 +28,6 @@ export const ROUTES = {
     DRAFTS: "/user/drafts",
     EDIT: (id: string) => `/user/edit?id=${encodeURIComponent(id)}`,
     PROFILE_EDIT: "/user/profile",
-    MAP: "/map",
     PHOTO: (id: string) =>
         BUILT_PHOTO_IDS.has(id)
             ? `/photo/${id}`

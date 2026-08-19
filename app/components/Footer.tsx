@@ -13,9 +13,7 @@ export default function Footer() {
 
     const links = [
         { href: ROUTES.HOME, label: navLabels.works || (locale === "en" ? "Works" : "作品") },
-        { href: ROUTES.MAP, label: navLabels.map || (locale === "en" ? "Map" : "撮影地マップ") },
         { href: ROUTES.FAVORITES, label: navLabels.favorites || (locale === "en" ? "Liked Photos" : "いいねした写真") },
-        { href: ROUTES.ABOUT, label: navLabels.about || (locale === "en" ? "About" : "制作について") },
     ];
 
     return (

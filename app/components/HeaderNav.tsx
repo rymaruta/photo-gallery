@@ -10,11 +10,13 @@ import { log } from "../../lib/utils/log";
 import { ROUTES } from "../../lib/routes";
 import UserAvatar from "./UserAvatar";
 import NotificationsBell from "./NotificationsBell";
+import { useFavorites } from "../../lib/hooks/useFavorites";
 
 export default function HeaderNav({ className = "" }: { className?: string }) {
     const router = useRouter();
     const { isAuthenticated, isAdminUser, userId, logout, loading } = useAuth();
     const { labels } = useLocale();
+    const { favorites } = useFavorites();
 
     useEffect(() => {
         log.info("HeaderNav: 認証状態", { isAuthenticated, isAdminUser, loading });
@@ -79,8 +81,6 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
             <div className="hidden md:flex items-center gap-0.5 mr-1">
                 {[
                     { href: ROUTES.HOME, label: navLabels.works || "Works" },
-                    { href: ROUTES.MAP, label: navLabels.map || "Map" },
-                    { href: ROUTES.ABOUT, label: navLabels.about || "About" },
                 ].map(({ href, label }) => (
                     <button
                         key={href}
@@ -157,21 +157,15 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                         {navLabels.works || "Works"}
                                     </button>
                                 </li>
-                                <li style={{ margin: 0, padding: 0 }}>
-                                    <button onClick={() => handleNavigation(ROUTES.MAP)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
-                                        {navLabels.map || "Map"}
-                                    </button>
-                                </li>
-                                <li style={{ margin: 0, padding: 0 }}>
-                                    <button onClick={() => handleNavigation(ROUTES.FAVORITES)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
-                                        {navLabels.favorites || "Favorites"}
-                                    </button>
-                                </li>
-                                <li style={{ margin: 0, padding: 0 }}>
-                                    <button onClick={() => handleNavigation(ROUTES.ABOUT)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
-                                        {navLabels.about || "About"}
-                                    </button>
-                                </li>
+                                {/* いいねした写真: 未ログインの初回訪問者には出さない（空ページになるため）。
+                                    ログイン中、または実際にお気に入りがある人にだけ表示する。 */}
+                                {(isAuthenticated || favorites.length > 0) && (
+                                    <li style={{ margin: 0, padding: 0 }}>
+                                        <button onClick={() => handleNavigation(ROUTES.FAVORITES)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
+                                            {navLabels.favorites || "Favorites"}
+                                        </button>
+                                    </li>
+                                )}
                                 {isAuthenticated && (
                                     <li style={{ margin: 0, padding: "10px 12px 4px" }}>
                                         <span className="text-[10px] tracking-widest uppercase text-white/35">
@@ -183,13 +177,6 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                     <li style={{ margin: 0, padding: 0 }}>
                                         <button onClick={() => handleNavigation(ROUTES.USER_PROFILE(userId))} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                             {navLabels.mypage || "My Page"}
-                                        </button>
-                                    </li>
-                                )}
-                                {isAuthenticated && (
-                                    <li style={{ margin: 0, padding: 0 }}>
-                                        <button onClick={() => handleNavigation(ROUTES.WISHLIST)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
-                                            {navLabels.wishlist || "Travel List"}
                                         </button>
                                     </li>
                                 )}

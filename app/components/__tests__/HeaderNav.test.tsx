@@ -169,7 +169,7 @@ describe("HeaderNav - メニュー開閉の回帰ガード", () => {
         render(<HeaderNav />);
         fireEvent.click(screen.getByLabelText("Open menu"));
         const dialog = screen.getByRole("dialog");
-        fireEvent.click(within(dialog).getByText("Map"));
+        fireEvent.click(within(dialog).getByText("Works"));
         expect(mockPush).toHaveBeenCalledTimes(1);
         expect(screen.queryByRole("dialog")).toBeNull();
     });

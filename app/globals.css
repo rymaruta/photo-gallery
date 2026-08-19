@@ -87,21 +87,6 @@ body {
   animation-fill-mode: forwards;
   will-change: transform;
 }
-/* 地図の帰属表示: ライセンス上必須のため非表示にはできないが、
-   黒半透明・極小・低コントラストでアプリに溶け込ませる */
-.leaflet-control-attribution {
-  background: rgba(0, 0, 0, 0.5) !important;
-  color: rgba(255, 255, 255, 0.4) !important;
-  font-size: 9px !important;
-  line-height: 1.5;
-  padding: 1px 6px !important;
-  border-radius: 8px 0 0 0;
-  backdrop-filter: blur(4px);
-}
-.leaflet-control-attribution a {
-  color: rgba(255, 255, 255, 0.5) !important;
-  text-decoration: none !important;
-}
 
 /* プロフィールのアバター: 旅パレット(sky→emerald)のオーロラリングをゆっくり回転 */
 @keyframes avatar-orbit {

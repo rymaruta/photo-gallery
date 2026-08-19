@@ -3,19 +3,15 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import dynamic from "next/dynamic";
-import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, MapPinIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, RectangleStackIcon, QrCodeIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, RectangleStackIcon, QrCodeIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
-import { geocodePlace, type GeoPoint } from "../../lib/utils/geocode";
 import { haversineKm } from "../../lib/utils/journey";
 import { hapticTap } from "../../lib/utils/haptics";
 import { buildTrips, tripAutoTitle, tripDisplayTitle, pickTripCover, type Trip } from "../../lib/utils/trips";
 import MusicCard from "../components/MusicCard";
-import RankingCard from "../components/RankingCard";
-import TravelerLevelCard from "../components/TravelerLevelCard";
-import FollowButton from "../components/FollowButton";
-import { HeartIcon, PlayIcon, StopIcon, StarIcon } from "@heroicons/react/24/solid";
+import FollowButton, { FollowAction } from "../components/FollowButton";
+import { HeartIcon, StarIcon } from "@heroicons/react/24/solid";
 import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
 import { themeRingGradient } from "../../lib/utils/color";
 import { useLocale } from "../i18n/context";
@@ -65,21 +61,9 @@ type UserProfile = {
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
 // Leaflet は window 依存のため SSG では読み込まない
-const MapView = dynamic(() => import("../components/MapView"), {
-    ssr: false,
-    loading: () => (
-        <div className="h-full flex items-center justify-center">
-            <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-        </div>
-    ),
-});
 
-type TabKey = "posts" | "trips" | "map" | "timeline";
-// 足あと（地図）タブは一旦非表示。戻すときはこのフラグを true にするだけ。
-const SHOW_MAP_TAB = false;
-const TAB_ORDER: TabKey[] = SHOW_MAP_TAB
-    ? ["posts", "trips", "map", "timeline"]
-    : ["posts", "trips", "timeline"];
+type TabKey = "posts" | "trips" | "timeline";
+const TAB_ORDER: TabKey[] = ["posts", "trips", "timeline"];
 
 // 写真を「YYYY年 / M月」で時系列グループ化（撮影日 date 優先、なければ createdAt）
 type TimelineGroup = { key: string; year: string; label: string; photos: Photo[] };
@@ -577,41 +561,14 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     // プロフィールQRコード（対面共有用）
     const [qrOpen, setQrOpen] = useState(false);
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-    const [showAllPlaces, setShowAllPlaces] = useState(false);
     const [mvOpen, setMvOpen] = useState(false);
 
-    // Journey Replay: 足あとの旅を再生（BGMがあれば一緒に流す）
-    const [replayToken, setReplayToken] = useState(0);
-    const replayAudioRef = useRef<HTMLAudioElement | null>(null);
-    const startReplay = useCallback(() => {
-        setReplayToken((v) => v + 1);
-        const src = userProfile?.songs?.[0]?.previewUrl ?? userProfile?.songPreviewUrl;
-        if (src) {
-            if (!replayAudioRef.current) replayAudioRef.current = new Audio();
-            const a = replayAudioRef.current;
-            a.src = src;
-            a.currentTime = 0;
-            void a.play().catch(() => { /* 再生できない環境は無視 */ });
-        }
-    }, [userProfile?.songs, userProfile?.songPreviewUrl]);
-    const stopReplay = useCallback(() => {
-        setReplayToken(0);
-        replayAudioRef.current?.pause();
-    }, []);
-    useEffect(() => () => { replayAudioRef.current?.pause(); }, []);
 
     // タブを横スワイプで切り替え（投稿 ⇄ 足あと ⇄ 年表）。
     // Pointer Events で PC(マウス)・スマホ(タッチ)・ペンを一本化。
     // touch-action: pan-y を併用し、縦スクロールは残しつつ横ジェスチャを JS が拾う。
     const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
     const onTabPointerDown = useCallback((e: React.PointerEvent) => {
-        // 地図(Leaflet)内で始まった操作はタブ切替に使わない（地図のパンを優先）。
-        // 地図の外（サマリー・空状態・他タブ）ではどのタブでもスワイプ可能。
-        const target = e.target as HTMLElement | null;
-        if (target?.closest?.(".leaflet-container")) {
-            swipeStartRef.current = null;
-            return;
-        }
         swipeStartRef.current = { x: e.clientX, y: e.clientY };
     }, []);
     const onTabPointerUp = useCallback((e: React.PointerEvent) => {
@@ -624,46 +581,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             setTab((cur) => stepInList(TAB_ORDER, cur, dir));
         }
     }, []);
-    // GPSなしでも地図に出す: 場所テキストをおおよその座標にジオコーディングする。
-    // 解決結果は場所名ごとに保持（undefined=未解決, null=見つからず）。
-    const [geoByPlace, setGeoByPlace] = useState<Record<string, GeoPoint | null>>({});
-    const pendingGeoNames = useMemo(() => {
-        const names = new Set<string>();
-        for (const p of visiblePhotos) {
-            const loc = (p.location ?? "").trim();
-            if (!p.coords && loc) names.add(loc);
-        }
-        return Array.from(names);
-    }, [visiblePhotos]);
 
-    useEffect(() => {
-        if (!SHOW_MAP_TAB) return; // 足あとタブ非表示中は外部ジオコーディングを行わない
-        let alive = true;
-        void (async () => {
-            for (const name of pendingGeoNames) {
-                if (geoByPlace[name] !== undefined) continue;
-                const pt = await geocodePlace(name);
-                if (!alive) return;
-                setGeoByPlace((prev) => (prev[name] !== undefined ? prev : { ...prev, [name]: pt }));
-            }
-        })();
-        return () => { alive = false; };
-        // geoByPlace は進捗の読み取りにだけ使う（依存に入れると解決のたびにループが再走する）
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pendingGeoNames]);
 
-    const mapPhotos = useMemo(() => {
-        const out: Photo[] = [];
-        for (const p of visiblePhotos) {
-            if (p.coords) { out.push(p); continue; }
-            const loc = (p.location ?? "").trim();
-            const g = loc ? geoByPlace[loc] : null;
-            if (g) out.push({ ...p, coords: { lat: g.lat, lng: g.lng }, geoApprox: true });
-        }
-        return out;
-    }, [visiblePhotos, geoByPlace]);
-    const hasApprox = useMemo(() => mapPhotos.some(p => p.geoApprox), [mapPhotos]);
-    const geoResolving = pendingGeoNames.some(n => geoByPlace[n] === undefined);
     const timeline = useMemo(() => buildTimeline(visiblePhotos, locale as "ja" | "en"), [visiblePhotos, locale]);
 
     // 旅アルバム: 撮影日の間隔で自動グルーピング
@@ -797,35 +716,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         return { places: places.size, first: times[0], last: times[times.length - 1], distanceKm, geoCount: geo.length };
     }, [visiblePhotos]);
 
-    const spanLabel = useMemo(() => {
-        if (!footprint.first || !footprint.last) return "";
-        const fmt = (t: number) => {
-            const d = new Date(t);
-            return locale === "en"
-                ? d.toLocaleDateString("en-US", { year: "numeric", month: "short" })
-                : `${d.getFullYear()}年${d.getMonth() + 1}月`;
-        };
-        const a = fmt(footprint.first);
-        const b = fmt(footprint.last);
-        return a === b ? a : `${a} – ${b}`;
-    }, [footprint, locale]);
 
     // 訪れた場所（地名）を新しい順・重複なしで。抽象的な「N箇所」ではなく実際の地名を見せる。
-    const placeNames = useMemo(() => {
-        const sorted = [...visiblePhotos].sort((a, b) => {
-            const ta = Date.parse(String(a.date ?? a.createdAt ?? "")) || 0;
-            const tb = Date.parse(String(b.date ?? b.createdAt ?? "")) || 0;
-            return tb - ta;
-        });
-        const seen = new Set<string>();
-        const ordered: string[] = [];
-        for (const p of sorted) {
-            const loc = (p.location ?? "").trim();
-            const key = loc.toLowerCase();
-            if (loc && !seen.has(key)) { seen.add(key); ordered.push(loc); }
-        }
-        return ordered;
-    }, [visiblePhotos]);
 
     // テーマソング: 保存された URL を埋め込みプレイヤーに変換（好きな部分の開始・終了つき）
     const songEmbed = useMemo(
@@ -986,7 +878,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             )}
                         </div>
 
-                    {/* 統計（投稿数 / 総いいね数 / 旅した距離）— コンパクトなガラス調ピル */}
+                    {/* 統計（投稿 / いいね / フォロワー / フォロー中）— 1行にまとめる */}
                     <div className="flex flex-wrap items-center gap-2 mb-4">
                         <div className="inline-flex items-baseline gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
                             <span className="text-sm font-bold tabular-nums leading-none">{postCount}</span>
@@ -1005,47 +897,22 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                 <span className="text-[11px] text-white/60">km</span>
                             </div>
                         )}
+                        {/* フォロワー / フォロー中（同じ行に並べる） */}
+                        <FollowButton
+                            targetUserId={userId}
+                            isOwner={isOwner}
+                            isAuthenticated={viewerAuthed}
+                            locale={locale as "ja" | "en"}
+                        />
                     </div>
-
-                    {/* フォロワー/フォロー中の数 + フォローボタン */}
-                    <FollowButton
-                        targetUserId={userId}
-                        isOwner={isOwner}
-                        isAuthenticated={viewerAuthed}
-                        locale={locale as "ja" | "en"}
-                    />
-
-                    {/* 旅人レベル / 実績バッジ（旅立たせた人数を軸に算出） */}
-                    <TravelerLevelCard
-                        photos={visiblePhotos}
-                        locale={locale as "ja" | "en"}
-                        isOwner={isOwner}
-                        onLevelUp={(level, title) => showToast(
-                            locale === "en" ? `Level up! Lv.${level} ${title}` : `レベルアップ！ Lv.${level} ${title}`,
-                            "success",
-                        )}
-                    />
 
 
                     {userProfile?.bio && (
                         <p className="text-sm text-white/85 whitespace-pre-wrap mb-3 leading-relaxed drop-shadow-sm">{userProfile.bio}</p>
                     )}
 
-                    {(userProfile?.instagram || userProfile?.website) && (
+                    {userProfile?.website && (
                         <div className="flex flex-wrap gap-3">
-                            {userProfile.instagram && (
-                                <a
-                                    href={`https://instagram.com/${userProfile.instagram}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-white/80 transition-colors"
-                                >
-                                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-                                    </svg>
-                                    <span>@{userProfile.instagram}</span>
-                                </a>
-                            )}
                             {userProfile.website && /^https?:\/\//.test(userProfile.website) && (
                                 <a
                                     href={userProfile.website}
@@ -1122,15 +989,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         </div>
                     )}
 
-                    {/* マイランキング（表彰台カード） */}
-                    {userProfile?.ranking?.items?.length ? (
-                        <RankingCard
-                            title={userProfile.ranking.title}
-                            items={userProfile.ranking.items}
-                            locale={locale}
-                            className="mt-4 max-w-md"
-                        />
-                    ) : null}
 
                     {/* 自分のプロフィール: 編集・アップロード導線（インスタ風） */}
                     {isOwner && (
@@ -1164,6 +1022,18 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             </Link>
                         </div>
                     )}
+
+                    {/* 他人のプロフィール: フォローボタン（オーナーの操作行と同じ位置） */}
+                    {!isOwner && (
+                        <div className="flex gap-2 mt-4">
+                            <FollowAction
+                                targetUserId={userId}
+                                isOwner={isOwner}
+                                isAuthenticated={viewerAuthed}
+                                locale={locale as "ja" | "en"}
+                            />
+                        </div>
+                    )}
                     </div>
                 </div>
             </div>
@@ -1171,11 +1041,10 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             {/* コンテンツ（黒背景）: 投稿 / 足あとマップ / タイムライン */}
             <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
                 {/* タブバー */}
-                <div className={`grid ${TAB_ORDER.length === 4 ? "grid-cols-4" : "grid-cols-3"} border-t border-white/10 mb-1`}>
+                <div className={"grid grid-cols-3 border-t border-white/10 mb-1"}>
                     {([
                         { key: "posts", icon: Squares2X2Icon, label: locale === "en" ? "Posts" : "投稿" },
                         { key: "trips", icon: RectangleStackIcon, label: locale === "en" ? "Trips" : "旅" },
-                        { key: "map", icon: MapPinIcon, label: locale === "en" ? "Map" : "足あと" },
                         { key: "timeline", icon: CalendarDaysIcon, label: locale === "en" ? "Timeline" : "年表" },
                     ] as const).filter(({ key }) => (TAB_ORDER as string[]).includes(key)).map(({ key, icon: Icon, label }) => {
                         const active = tab === key;
@@ -1197,7 +1066,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 </div>
 
                 {/* タブ内容: 横スワイプでタブ切替。Leaflet 地図内で始まる操作だけ除外
-                    （.leaflet-container は自前で touch-action:none を持つため pan-y と競合しない） */}
+                     */}
                 <div
                     data-testid="tab-swipe-area"
                     onPointerDown={onTabPointerDown}
@@ -1272,112 +1141,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                         onSetSong={isOwner ? (sg) => void setTripSong(trip.id, sg) : undefined}
                                     />
                                 ))}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* 足あとマップタブ */}
-                {tab === "map" && (
-                    <div className="pb-8">
-                        {/* 訪れた場所: アップロード・編集で付けた地名がここに反映される（新しい順） */}
-                        {placeNames.length > 0 && (
-                            <div className="flex flex-wrap items-center gap-1.5 pt-2 pb-3">
-                                {(showAllPlaces ? placeNames : placeNames.slice(0, 8)).map((name) => (
-                                    <span
-                                        key={name}
-                                        className="inline-flex items-center gap-1 rounded-full bg-white/5 ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-white/75 max-w-[180px]"
-                                    >
-                                        <MapPinIcon className="w-2.5 h-2.5 text-emerald-400 flex-shrink-0" />
-                                        <span className="truncate">{name}</span>
-                                    </span>
-                                ))}
-                                {placeNames.length > 8 && (
-                                    <button
-                                        onClick={() => setShowAllPlaces((v) => !v)}
-                                        className="inline-flex items-center rounded-full bg-white/5 ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-white/50 hover:text-white/80 active:scale-95 transition"
-                                        aria-expanded={showAllPlaces}
-                                    >
-                                        {showAllPlaces ? (locale === "en" ? "Show less" : "閉じる") : `+${placeNames.length - 8}`}
-                                    </button>
-                                )}
-                            </div>
-                        )}
-                        {mapPhotos.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-24 text-white/40 gap-3">
-                                {geoResolving ? (
-                                    <>
-                                        <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                                        <p className="text-sm text-center max-w-xs">
-                                            {locale === "en"
-                                                ? "Locating places from your photo locations..."
-                                                : "場所の情報からおおよその位置を取得しています…"}
-                                        </p>
-                                    </>
-                                ) : (
-                                    <>
-                                        <MapPinIcon className="w-10 h-10" />
-                                        <p className="text-sm text-center max-w-xs">
-                                            {locale === "en"
-                                                ? "No location data yet. Photos uploaded with GPS or a place name will appear on the map."
-                                                : "位置情報つきの写真がまだありません。GPS付き、または場所名を付けてアップロードすると地図に足あとが残ります。"}
-                                        </p>
-                                    </>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {/* 足あとサマリー: スポット数 / 訪れた場所 / 旅の期間 */}
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <div className="inline-flex items-baseline gap-1.5 rounded-full bg-white/5 ring-1 ring-white/10 px-3 py-1.5">
-                                        <span className="text-sm font-bold tabular-nums leading-none">{mapPhotos.length}</span>
-                                        <span className="text-[11px] text-white/60">{locale === "en" ? "spots" : "スポット"}</span>
-                                    </div>
-                                    {footprint.places > 0 && (
-                                        <div className="inline-flex items-baseline gap-1.5 rounded-full bg-white/5 ring-1 ring-white/10 px-3 py-1.5">
-                                            <span className="text-sm font-bold tabular-nums leading-none">{footprint.places}</span>
-                                            <span className="text-[11px] text-white/60">{locale === "en" ? "places" : "箇所"}</span>
-                                        </div>
-                                    )}
-                                    {spanLabel && (
-                                        <div className="inline-flex items-center gap-1.5 rounded-full bg-white/5 ring-1 ring-white/10 px-3 py-1.5">
-                                            <CalendarDaysIcon className="w-3 h-3 text-white/50" />
-                                            <span className="text-[11px] text-white/70">{spanLabel}</span>
-                                        </div>
-                                    )}
-                                    {/* Journey Replay: 旅を時系列で再生（BGM付き） */}
-                                    {mapPhotos.length >= 2 && (
-                                        <button
-                                            onClick={replayToken ? stopReplay : startReplay}
-                                            className={`ml-auto inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold active:scale-95 transition ${replayToken ? "bg-white/10 text-white ring-1 ring-white/20" : "bg-white text-black hover:bg-white/90"}`}
-                                        >
-                                            {replayToken
-                                                ? (<><StopIcon className="w-3.5 h-3.5" />{locale === "en" ? "Stop" : "停止"}</>)
-                                                : (<><PlayIcon className="w-3.5 h-3.5" />{locale === "en" ? "Replay journey" : "旅を再生"}</>)}
-                                        </button>
-                                    )}
-                                </div>
-
-                                <div className="rounded-2xl overflow-hidden ring-1 ring-white/10 h-[60vh] min-h-[360px] relative">
-                                    <MapView
-                                        photos={mapPhotos}
-                                        locale={locale as "ja" | "en"}
-                                        showRoute
-                                        replayToken={replayToken}
-                                        onReplayEnd={stopReplay}
-                                    />
-                                    {/* 始点・終点の凡例（ジオコーディング分は「おおよそ」注記） */}
-                                    <div className="absolute top-3 left-3 z-[500] flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur-sm text-[11px] text-white/90 pointer-events-none">
-                                        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400" />{locale === "en" ? "Start" : "はじまり"}</span>
-                                        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-400" />{locale === "en" ? "Latest" : "さいきん"}</span>
-                                        {hasApprox && (
-                                            <span className="inline-flex items-center gap-1 text-white/60">
-                                                <span className="w-2 h-2 rounded-full border border-dashed border-white/60" />
-                                                {locale === "en" ? "Approx." : "おおよそ"}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
                             </div>
                         )}
                     </div>

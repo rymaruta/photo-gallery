@@ -3,7 +3,6 @@
 import React from "react";
 import FilterBar from "./components/FilterBar";
 import StoriesBar from "./components/stories/StoriesBar";
-import LocaleToggle from "./components/LocaleToggle";
 import { useLocale } from "./i18n/context";
 import useGallery from "../lib/hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
@@ -15,7 +14,7 @@ import { fetchFollowingSet } from "../lib/hooks/useFollow";
 import type { Photo } from "@/lib/data/photos";
 
 export default function GalleryPageClient() {
-  const { locale, setLocale, labels } = useLocale();
+  const { locale, labels } = useLocale();
   const { photos } = usePhotos();
   const { isAuthenticated } = useAuth();
 
@@ -121,21 +120,6 @@ export default function GalleryPageClient() {
           </h1>
           {renderSubtitle(labels.site?.subtitle)}
         </div>
-        <div className="flex-shrink-0">
-          <LocaleToggle
-            locale={locale}
-            setLocale={setLocale}
-            labels={labels.ui?.language ?? { ja: "日本語", en: "English" }}
-          />
-        </div>
-      </div>
-      {/* モバイル: 言語切り替えのみ */}
-      <div className="flex sm:hidden justify-end mb-2">
-        <LocaleToggle
-          locale={locale}
-          setLocale={setLocale}
-          labels={labels.ui?.language ?? { ja: "日本語", en: "English" }}
-        />
       </div>
 
       {/* フィード切替: すべて / フォロー中（ログイン時のみ表示） */}

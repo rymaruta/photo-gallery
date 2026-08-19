@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 // --- 重い依存をモックしてプロフィール本体だけを描画する ---
-vi.mock("next/dynamic", () => ({ default: () => () => <div data-testid="mapview-stub" className="leaflet-container" /> }));
+vi.mock("next/dynamic", () => ({ default: () => () => <div data-testid="dynamic-stub" /> }));
 vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "en" }) }));
 vi.mock("../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
 vi.mock("../../../lib/auth/cognito", () => ({ getCurrentSession: vi.fn().mockResolvedValue(null) }));
@@ -41,7 +41,7 @@ describe("UserProfileClient - タブの横スワイプ（タッチ操作の保�
         expect(activeTab()).toContain("Posts");
     });
 
-    it("足あとタブは非表示（SHOW_MAP_TAB=false の間）", () => {
+    it("足あとタブは存在しない（撮影地マップは廃止）", () => {
         render(<UserProfileClient userId="nobody" />);
         expect(screen.queryByRole("button", { name: /Map/ })).toBeNull();
     });

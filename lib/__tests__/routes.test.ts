@@ -7,13 +7,11 @@ const builtIds = (PHOTOS_JSON as Array<{ id: string }>).map((p) => p.id);
 describe("ROUTES", () => {
     it("静的ルートが正しいパスを持つ", () => {
         expect(ROUTES.HOME).toBe("/");
-        expect(ROUTES.ABOUT).toBe("/about");
         expect(ROUTES.FAVORITES).toBe("/favorites");
         expect(ROUTES.ADMIN).toBe("/admin");
         expect(ROUTES.LOGIN).toBe("/login");
         expect(ROUTES.UPLOAD).toBe("/user/upload");
         expect(ROUTES.PROFILE_EDIT).toBe("/user/profile");
-        expect(ROUTES.MAP).toBe("/map");
     });
 
     it("ビルド時に存在する写真は /photo/:id を返す", () => {

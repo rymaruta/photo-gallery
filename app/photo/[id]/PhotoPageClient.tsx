@@ -4,14 +4,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 import { HeartIcon } from "@heroicons/react/24/solid";
-import { PaperAirplaneIcon } from "@heroicons/react/24/solid";
 import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
-import { PaperAirplaneIcon as PaperAirplaneIconOutline } from "@heroicons/react/24/outline";
 import { ShareIcon, LinkIcon } from "@heroicons/react/24/outline";
 import type { Photo } from "@/lib/data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
 import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
-import { useGoTo } from "../../../lib/hooks/useGoTo";
 import { hapticTap } from "../../../lib/utils/haptics";
 import { searchSongs, parseMusicEmbed, type SongResult } from "../../../lib/utils/music";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
@@ -24,7 +21,6 @@ import { shareUrl, copyToClipboard, shareToTwitter, shareToLine } from "../../..
 import { siteConfig, generatePhotoStructuredData, generateBreadcrumbStructuredData } from "../../../lib/utils/seo";
 import { slugify, collectionPath } from "../../../lib/utils/collections";
 import ProfileLink from "../../components/ProfileLink";
-import LocaleToggle from "../../components/LocaleToggle";
 import RelatedPhotos from "../../components/RelatedPhotos";
 import CommentSection from "../../components/CommentSection";
 import { sameAuthorPhotos, sameLocationPhotos, adjacentPhotos } from "../../../lib/utils/related";
@@ -194,7 +190,7 @@ type PhotoPageClientProps = {
 };
 
 export default function PhotoPageClient({ photoId, initialPhoto, initialRelated }: PhotoPageClientProps) {
-    const { locale, setLocale, labels } = useLocale();
+    const { locale, labels } = useLocale();
     const [extractedExif, setExtractedExif] = useState<ExtractedExif | null>(null);
     const [allPhotos, setAllPhotos] = useState<Photo[]>(initialPhoto ? [initialPhoto] : []);
     const [loading, setLoading] = useState(!initialPhoto);
@@ -235,9 +231,6 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     const { liked: isFav, count: likeCount, pending: likePending, toggle: toggleLike } =
         usePhotoLikes(photoId, photo?.likes ?? 0, isAuthenticated);
 
-    // 「行く」= この場所に行きたい（行きたいリストへ）。行けば投稿者に通知が届く
-    const { going, goCount, moved, pending: goPending, toggle: toggleGo } =
-        useGoTo(photoId, isAuthenticated);
 
     // 写真BGM: オーナーが1曲添えられる（全員が写真ページで再生できる）
     const isOwnPhoto = isAuthenticated && !!authUserId && photo?.userId === authUserId;
@@ -489,13 +482,6 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                         <ArrowLeftIcon className="w-4 h-4" />
                         <span className="text-sm">{locale === "en" ? "Back to Gallery" : "ギャラリーに戻る"}</span>
                     </Link>
-                </div>
-                <div className="flex-shrink-0">
-                    <LocaleToggle
-                        locale={locale}
-                        setLocale={setLocale}
-                        labels={labels.ui?.language ?? { ja: "日本語", en: "English" }}
-                    />
                 </div>
             </div>
 
@@ -825,15 +811,6 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
 
                 {/* アクションボタン */}
                 <div className="pt-4 border-t border-white/10 space-y-4">
-                    {/* この写真が動かした人数 */}
-                    {moved > 0 && (
-                        <p className="text-sm text-sky-300/90 flex items-center gap-1.5">
-                            <PaperAirplaneIcon className="w-4 h-4 -rotate-45" />
-                            {locale === "en"
-                                ? `This photo has moved ${moved} ${moved === 1 ? "person" : "people"} to travel.`
-                                : `この写真は ${moved}人 を旅立たせました`}
-                        </p>
-                    )}
 
                     <div className="flex flex-wrap gap-2">
                         {/* いいねボタン（数を表示） */}
@@ -864,43 +841,6 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                             )}
                         </button>
 
-                        {/* 「行く」ボタン: 行きたいリストへ。行けば投稿者に通知が届く */}
-                        <button
-                            onClick={() => {
-                                hapticTap();
-                                void (async () => {
-                                    const r = await toggleGo();
-                                    if (r === "auth-required") {
-                                        showToast(locale === "en" ? "Log in to save places you want to visit" : "ログインすると「行く」で行きたいリストに保存できます", "info");
-                                    } else if (r === "added") {
-                                        showToast(locale === "en" ? "Added to your travel list 🧭" : "行きたいリストに追加しました 🧭", "success");
-                                    }
-                                })();
-                            }}
-                            disabled={goPending}
-                            aria-pressed={going}
-                            aria-label={going
-                                ? (locale === "en" ? "Remove from travel list" : "行きたいを取り消す")
-                                : (locale === "en" ? "I'll go here" : "この場所に行く")}
-                            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full transition-colors disabled:opacity-60 active:scale-[0.98] ${going ? "bg-sky-500/20 text-sky-300 ring-1 ring-sky-400/40" : "bg-white/10 hover:bg-white/20 text-white"}`}
-                            style={{
-                                touchAction: "manipulation",
-                                WebkitTapHighlightColor: "transparent",
-                                minHeight: "44px"
-                            }}
-                        >
-                            {going
-                                ? <PaperAirplaneIcon className="w-5 h-5 -rotate-45 text-sky-400" />
-                                : <PaperAirplaneIconOutline className="w-5 h-5 -rotate-45" />}
-                            <span>
-                                {going
-                                    ? (locale === "en" ? "Going!" : "行く！")
-                                    : (locale === "en" ? "I'll go" : "行く")}
-                            </span>
-                            {goCount > 0 && (
-                                <span className="text-sm text-white/60 tabular-nums">{goCount}</span>
-                            )}
-                        </button>
                     </div>
 
                     {/* 共有: 丸形のガラスアイコンボタン列（プロフィールの共有ボタンと同じ質感） */}

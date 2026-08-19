@@ -10,7 +10,6 @@ import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { userFetch } from "../../../lib/utils/api";
 import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../../lib/utils/music";
-import RankingCard from "../../components/RankingCard";
 import DeleteAccountModal from "../../components/DeleteAccountModal";
 
 type SongEntry = {
@@ -864,19 +863,6 @@ export default function ProfileEditPage() {
                         <p className="text-[11px] text-white/35">
                             {locale === "en" ? "Empty rows are skipped. Clear all to remove the ranking." : "空欄はスキップされます。全部空にするとランキング自体が消えます。"}
                         </p>
-                        {/* 実際の見た目のプレビュー（入力に合わせてリアルタイム更新） */}
-                        {rankingItems.some((t) => t.trim()) && (
-                            <div className="pt-1">
-                                <p className="text-[11px] tracking-widest uppercase text-white/35 mb-1.5">
-                                    {locale === "en" ? "Preview" : "プレビュー"}
-                                </p>
-                                <RankingCard
-                                    title={rankingTitle}
-                                    items={rankingItems.map((t) => t.trim()).filter(Boolean)}
-                                    locale={locale}
-                                />
-                            </div>
-                        )}
                     </div>
 
                     <div className="pt-2">

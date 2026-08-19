@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { PhotoIcon, XMarkIcon, UserCircleIcon, MapPinIcon, CalendarIcon, ChevronDownIcon, CheckCircleIcon, ExclamationTriangleIcon, CameraIcon } from "@heroicons/react/24/outline";
 import { useToast } from "../../../lib/hooks/useToast";
 import { useAuth } from "../../auth/context";
-import LocaleToggle from "../../components/LocaleToggle";
 import AddToHomeScreenHint from "../../components/AddToHomeScreenHint";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
@@ -99,7 +98,7 @@ function UploadPageInner() {
     const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { locale, setLocale, labels } = useLocale();
+    const { locale } = useLocale();
     const { showToast } = useToast();
 
     const fromShare = searchParams?.get("from") === "share";
@@ -435,11 +434,6 @@ function UploadPageInner() {
                 <h1 className="text-2xl sm:text-3xl font-bold">
                     {locale === "en" ? "Upload Photos" : "写真をアップロード"}
                 </h1>
-                <LocaleToggle
-                    locale={locale}
-                    setLocale={setLocale}
-                    labels={labels.ui?.language ?? { ja: "日本語", en: "English" }}
-                />
             </div>
 
             {/* iOS向け「ホーム画面に追加」ヒント（該当時のみ表示） */}
