@@ -13,11 +13,14 @@ Object.defineProperty(globalThis, "localStorage", {
     configurable: true,
 });
 
-// api モジュール（publicFetch / userFetch）をモック
+// api モジュールをモック。
+// いいね数の読み取りは userPublicFetch（ユーザーAPI）を使う。
+// publicFetch は管理APIを向いており、いいね/コメント/フォローの経路は存在しない。
 const mockPublicFetch = vi.hoisted(() => vi.fn());
 const mockUserFetch = vi.hoisted(() => vi.fn());
 vi.mock("../../utils/api", () => ({
     publicFetch: (...a: unknown[]) => mockPublicFetch(...a),
+    userPublicFetch: (...a: unknown[]) => mockPublicFetch(...a),
     userFetch: (...a: unknown[]) => mockUserFetch(...a),
 }));
 

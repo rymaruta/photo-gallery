@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { publicFetch, userFetch } from "../utils/api";
+import { userPublicFetch, userFetch } from "../utils/api";
 import { log } from "../utils/log";
 
 // 写真コメント。公開読み取り + 認証投稿/削除。楽観更新は最小限（投稿は成功後に反映）。
@@ -24,7 +24,7 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
         const controller = new AbortController();
         void (async () => {
             try {
-                const res = await publicFetch(`/photos/${encodeURIComponent(photoId)}/comments`, { signal: controller.signal });
+                const res = await userPublicFetch(`/photos/${encodeURIComponent(photoId)}/comments`, { signal: controller.signal });
                 if (res.ok) {
                     const data = await res.json() as { items?: CommentItem[]; count?: number };
                     if (!aborted) {

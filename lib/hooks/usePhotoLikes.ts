@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFavorites } from "./useFavorites";
-import { publicFetch, userFetch } from "../utils/api";
+import { userPublicFetch, userFetch } from "../utils/api";
 import { log } from "../utils/log";
 
 // 写真の「いいね」。ハート1つで2つの役割を担う:
@@ -22,7 +22,7 @@ export function usePhotoLikes(photoId: string, initialLikes: number, isAuthentic
         const controller = new AbortController();
         void (async () => {
             try {
-                const res = await publicFetch(`/photos/${encodeURIComponent(photoId)}/like`, { signal: controller.signal });
+                const res = await userPublicFetch(`/photos/${encodeURIComponent(photoId)}/like`, { signal: controller.signal });
                 if (!res.ok) return;
                 const data = await res.json() as { likes?: number };
                 if (!aborted && typeof data.likes === "number") setCount(data.likes);

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { publicFetch, userFetch } from "../utils/api";
+import { userPublicFetch, userFetch } from "../utils/api";
 import { log } from "../utils/log";
 
 // フォロー。フォロー中の userId 集合はセッション内キャッシュ（useGoTo の goSet と同型）。
@@ -46,7 +46,7 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
         const controller = new AbortController();
         void (async () => {
             try {
-                const res = await publicFetch(`/users/${encodeURIComponent(targetUserId)}/follow`, { signal: controller.signal });
+                const res = await userPublicFetch(`/users/${encodeURIComponent(targetUserId)}/follow`, { signal: controller.signal });
                 if (res.ok) {
                     const data = await res.json() as { followers?: number; following?: number };
                     if (!aborted) {

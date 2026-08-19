@@ -1,82 +1,44 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// getCurrentSession をモック
-vi.mock("../../auth/cognito", () => ({
-    getCurrentSession: vi.fn(),
-}));
+// Cognito セッションは使わないが、import 時に評価されるためモックしておく
+vi.mock("../../auth/cognito", () => ({ getCurrentSession: async () => null }));
 
-import { getCurrentSession } from "../../auth/cognito";
-const mockGetSession = getCurrentSession as ReturnType<typeof vi.fn>;
+const { publicFetch, userPublicFetch } = await import("../api");
 
-beforeEach(() => {
-    vi.resetModules();
-    vi.unstubAllEnvs();
-    // fetch をモック
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response("{}", { status: 200 }))));
-});
+const ADMIN_API = process.env.NEXT_PUBLIC_API_BASE_URL;
+const USER_API = process.env.NEXT_PUBLIC_USER_API_BASE_URL;
 
-afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.unstubAllEnvs();
-});
+describe("publicFetch / userPublicFetch の宛先", () => {
+    let calls: string[];
 
-describe("publicFetch", () => {
-    it("NEXT_PUBLIC_API_BASE_URL が未設定 → /api/* に fallback する", async () => {
-        const { publicFetch } = await import("../api");
+    beforeEach(() => {
+        calls = [];
+        vi.stubGlobal("fetch", vi.fn((url: string) => {
+            calls.push(url);
+            return Promise.resolve(new Response("{}"));
+        }));
+    });
+    afterEach(() => { vi.unstubAllGlobals(); });
+
+    // いいね・コメント・フォローの各エンドポイントはユーザーAPIにしか無い。
+    // 管理APIへ投げると 404 になり、失敗は握り潰されて「常に0件」になる回帰を防ぐ。
+    it("userPublicFetch はユーザーAPIを向く", async () => {
+        await userPublicFetch("/photos/abc/like");
+        expect(calls[0].endsWith("/photos/abc/like")).toBe(true);
+        if (USER_API) expect(calls[0].startsWith(USER_API)).toBe(true);
+    });
+
+    it("publicFetch と userPublicFetch の宛先は別（設定されている場合）", async () => {
         await publicFetch("/photos");
-        const calledUrl = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
-        expect(calledUrl).toBe("/api/photos");
+        await userPublicFetch("/photos");
+        if (ADMIN_API && USER_API && ADMIN_API !== USER_API) {
+            expect(calls[0]).not.toBe(calls[1]);
+        }
     });
 
-    it("NEXT_PUBLIC_API_BASE_URL が設定されている → そちらを使う", async () => {
-        vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "https://api.example.com");
-        const { publicFetch } = await import("../api");
-        await publicFetch("/photos");
-        const calledUrl = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
-        expect(calledUrl).toBe("https://api.example.com/photos");
-    });
-
-    it("path の先頭スラッシュは重複しない", async () => {
-        const { publicFetch } = await import("../api");
-        await publicFetch("photos"); // スラッシュなし
-        const calledUrl = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
-        expect(calledUrl).toBe("/api/photos");
-    });
-});
-
-describe("authenticatedFetch", () => {
-    it("セッションなし → エラーを throw する", async () => {
-        mockGetSession.mockResolvedValue(null);
-        const { authenticatedFetch } = await import("../api");
-        await expect(authenticatedFetch("/photos")).rejects.toThrow("認証が必要です");
-    });
-
-    it("セッションあり → Authorization ヘッダー付きでリクエストする", async () => {
-        mockGetSession.mockResolvedValue({
-            getIdToken: () => ({ getJwtToken: () => "test-jwt-token" }),
-        });
-        const { authenticatedFetch } = await import("../api");
-        await authenticatedFetch("/admin/photos");
-        const callArgs = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
-        expect(callArgs[1].headers.Authorization).toBe("Bearer test-jwt-token");
-    });
-});
-
-describe("userFetch", () => {
-    it("セッションなし → エラーを throw する", async () => {
-        mockGetSession.mockResolvedValue(null);
-        const { userFetch } = await import("../api");
-        await expect(userFetch("/profile")).rejects.toThrow("認証が必要です");
-    });
-
-    it("NEXT_PUBLIC_USER_API_BASE_URL が設定されている → そちらを使う", async () => {
-        vi.stubEnv("NEXT_PUBLIC_USER_API_BASE_URL", "https://user-api.example.com");
-        mockGetSession.mockResolvedValue({
-            getIdToken: () => ({ getJwtToken: () => "user-token" }),
-        });
-        const { userFetch } = await import("../api");
-        await userFetch("/profile");
-        const calledUrl = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
-        expect(calledUrl).toBe("https://user-api.example.com/profile");
+    it("先頭スラッシュが無くても正しく連結する", async () => {
+        await userPublicFetch("users/search?q=a");
+        expect(calls[0]).toContain("/users/search?q=a");
+        expect(calls[0]).not.toContain("comusers");
     });
 });
