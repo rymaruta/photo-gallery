@@ -3,33 +3,49 @@ import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getPhotoById, updatePhotoFields, deletePhotoById } from "./ddb-photos";
 import { isAdmin, getCallerUserId } from "./auth";
 import { requestSiteRebuild } from "./rebuild";
+import {
+    sanitizeExif, sanitizeText, sanitizeDate, sanitizeTags,
+    sanitizeTitle, sanitizeDescription,
+} from "./sanitize";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
 /**
- * PUT /photos/{id} で書き換えてよい項目。
+ * body から書き換えてよい項目だけを取り出し、**値も整える**（undefined は「触らない」）。
  *
- * 以前はリクエストの中身をそのまま DynamoDB に SET していたため、
- * 自分の写真に対して {"userId": "他人のsub"} を送るだけで、その写真を
- * 他人のギャラリーへ移せた（userId は GSI のハッシュキー）。
- * 同様に src を外部URLへ差し替える、いいね数を作る、story:true を付けて
- * ストーリー欄に差し込む、といったことができた。
+ * 通すのは「編集画面で触れるもの」だけ。素性（id / userId / src 系）・
+ * 集計値（likes / commentCount）・種別（story / expiresAt）は受け付けない。
+ * 以前はリクエストの中身をそのまま SET していたので、自分の写真に
+ * {"userId": "他人のsub"} を送るだけで、その写真を他人のギャラリーへ
+ * 移せた（userId は GSI のハッシュキー）。
  *
- * 「編集画面で触れるもの」だけを通し、素性（id / userId / src 系）と
- * 集計値（likes / commentCount）と種別（story / expiresAt）は受け付けない。
+ * キー名だけ見て値を素通ししていた頃は、この経路だけがサニタイズを通らず、
+ * ユーザーAPI側（api-user/src/photoUpdate.ts）と保存されるものが違っていた。
+ * どちらのホストもクライアントのバンドルに入っているので、利用者はどちらでも
+ * 叩ける——つまり「緩い方」が実際の仕様になっていた。具体的には:
+ *   - exif に gpsLatitude / gpsLongitude を入れると、そのまま保存され
+ *     公開の GET /photos で配られ、静的HTMLにも焼き込まれた
+ *     （sanitizeExif は既知のキーだけを通し、GPS を明示的に落とす）
+ *   - tags を数千件、title を深くネストしたオブジェクト、なども通った
  */
-const EDITABLE_FIELDS = [
-    "title", "description", "location", "category", "date", "tags", "published", "exif",
-] as const;
-
-/** body から書き換えてよい項目だけを取り出す（undefined は「触らない」） */
 export function pickEditableFields(body: Record<string, unknown>): Record<string, unknown> {
     const out: Record<string, unknown> = {};
-    for (const key of EDITABLE_FIELDS) {
-        if (key in body && body[key] !== undefined) out[key] = body[key];
-    }
+    const put = (key: string, value: unknown) => {
+        // キーが body にあるときだけ触る。値が空になった場合も
+        // 「その項目を空にする」意図なので、undefined のまま入れる
+        if (key in body && body[key] !== undefined) out[key] = value;
+    };
+    put("title", sanitizeTitle(body.title));
+    put("description", sanitizeDescription(body.description));
+    put("location", sanitizeText(body.location, 200));
+    put("category", sanitizeText(body.category, 100));
+    put("date", sanitizeDate(body.date));
+    put("tags", sanitizeTags(body.tags));
+    put("exif", sanitizeExif(body.exif));
+    // 公開状態は真偽値だけ。文字列の "false" などを通さない
+    if (typeof body.published === "boolean") out.published = body.published;
     return out;
 }
 
@@ -57,9 +73,26 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         if (!isAdmin(event) && ownerId !== callerId) {
             return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: "編集権限がありません" }) };
         }
+        // ストーリーはこのAPIの対象外。published:true を書き込むと
+        // 永久の写真ページになり、24時間後の期限切れ掃除が実体だけ消して
+        // 壊れたページとサイトマップの項目が残る。しかもストーリーは動画も
+        // 許しているので、写真ギャラリーに動画を差し込む経路にもなる。
+        // ユーザーAPI側（api-user/src/photoUpdate.ts）と同じ扱いにする。
+        if (photo.story === true) {
+            return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
+        }
 
-        const updates = { ...pickEditableFields(body), updatedAt: new Date().toISOString() };
+        const fields = pickEditableFields(body);
+        const updates = { ...fields, updatedAt: new Date().toISOString() };
         const updated = await updatePhotoFields(id, updates);
+
+        // 公開状態が**実際に変わったとき**だけ静的ページの作り直しを頼む。
+        // 指定されただけで毎回頼むと、同じ値を送り続けるだけで
+        // Actions の枠を使い切れる（ユーザーAPI側で踏んだのと同じ）。
+        if ("published" in fields && fields.published !== (photo.published !== false)) {
+            await requestSiteRebuild(`photo visibility changed: ${id}`);
+        }
+
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: updated }) };
     } catch (e) {
         console.error("updatePhoto error:", e);

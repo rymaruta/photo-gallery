@@ -24,7 +24,14 @@ export async function listPhotos(): Promise<Photo[]> {
             // このテーブルには写真のほかに like#/go# マーカーや golist#/notifs# 文書が
             // 同居しており、それらには published が無いため published 条件だけでは素通りする。
             // 写真は必ず src を持つので attribute_exists(src) で写真だけに絞る。
-            FilterExpression: "(attribute_not_exists(published) OR published = :pub) AND attribute_exists(src)",
+            //
+            // ストーリーも除く。ストーリーは src と userId を持ち published:false で
+            // 保存されるので、何かの拍子に published:true になると
+            // （実際に PUT /photos/{id} から書けた）そのまま公開一覧に出て、
+            // photos.json に載り、静的ページとサイトマップの項目までできた。
+            // 24時間後の掃除は実体しか消さないので、壊れたページが残る。
+            // ハンドラ側でも弾いているが、ここでも保証する。
+            FilterExpression: "(attribute_not_exists(published) OR published = :pub) AND attribute_exists(src) AND attribute_not_exists(story)",
             ExpressionAttributeValues: { ":pub": true },
         }));
         items.push(...((res.Items ?? []) as Photo[]));
@@ -135,7 +142,8 @@ export async function listPhotosByUser(userId: string): Promise<Photo[]> {
             TableName: TABLE,
             IndexName: USER_INDEX,
             KeyConditionExpression: "userId = :uid",
-            FilterExpression: "(attribute_not_exists(published) OR published = :pub) AND attribute_exists(src)",
+            // listPhotos と同じ条件。ストーリーもここから出さない
+            FilterExpression: "(attribute_not_exists(published) OR published = :pub) AND attribute_exists(src) AND attribute_not_exists(story)",
             ExpressionAttributeValues: { ":uid": userId, ":pub": true },
             ExclusiveStartKey: lastKey,
         }));

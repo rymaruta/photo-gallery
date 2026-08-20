@@ -5,6 +5,10 @@ import { v4 as uuidv4 } from "uuid";
 import { putPhoto } from "./ddb-photos";
 import { requireAdmin, getCallerUserId } from "./auth";
 import type { Photo } from "./types";
+import {
+    sanitizeCoords as sanitizeCoordsFn, sanitizeExif, sanitizeTags,
+    sanitizeTitle, sanitizeDescription, sanitizeText,
+} from "./sanitize";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
@@ -22,14 +26,42 @@ const ALLOWED_IMAGE_TYPES = new Map([
     ["image/avif", "avif"], ["image/gif", "gif"], ["image/heic", "heic"], ["image/heif", "heif"],
 ]);
 
-// 撮影地座標の検証と丸め。プライバシーのため約1km精度（小数第2位）に丸めて保存する
-export function sanitizeCoords(coords: unknown): { lat: number; lng: number } | null {
-    if (!coords || typeof coords !== "object") return null;
-    const { lat, lng } = coords as { lat?: unknown; lng?: unknown };
-    if (typeof lat !== "number" || typeof lng !== "number") return null;
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
-    return { lat: Math.round(lat * 100) / 100, lng: Math.round(lng * 100) / 100 };
+// 定義は sanitize.ts に置いてある（1パッケージ1定義）。
+// 既存の import 元を壊さないよう、ここから再エクスポートする。
+export { sanitizeCoords } from "./sanitize";
+
+/**
+ * 自分たちのアップロード領域を指すURLかどうか。
+ *
+ * 保存された src は削除時にそのまま S3 のキーになるので、ここが最後の砦。
+ * 管理者専用の口だが、無検証だと外部URLや profiles/ を src にできてしまう
+ * （削除で他人のアイコンが消える）。
+ * 判定は api-user/src/uploadPolicy.ts の isOwnUploadUrl と同じ形。
+ * あちらは投稿者ごとの接頭辞まで見るが、管理APIのキーは
+ * uploads/<uuid> のままなので、ここは uploads/ 配下かどうかまで。
+ */
+export function isOwnUploadUrl(raw: unknown): boolean {
+    if (typeof raw !== "string" || !raw) return false;
+    let u: URL;
+    try {
+        u = new URL(raw);
+    } catch {
+        return false;
+    }
+    if (u.protocol !== "https:") return false;
+    try {
+        if (u.host !== new URL(CLOUDFRONT_URL).host) return false;
+    } catch {
+        return false; // 配信ドメインが未設定なら検証できない＝通さない
+    }
+    let pathname: string;
+    try {
+        pathname = decodeURIComponent(u.pathname);
+    } catch {
+        return false;
+    }
+    if (pathname.includes("..")) return false;
+    return pathname.startsWith("/uploads/") && pathname.length > "/uploads/".length;
 }
 
 export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
@@ -113,17 +145,34 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     if (!key || !publicUrl) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイル情報が必要です" }) };
     }
+    // 保存する src は削除時にそのまま S3 のキーになる。
+    // ここが無検証だと、外部URLや profiles/<他人のID> を src にできた。
+    if (!isOwnUploadUrl(publicUrl)) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正な画像URLです" }) };
+    }
+    if (!String(key).startsWith("uploads/")) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なキーです" }) };
+    }
 
-    const safeCoords = sanitizeCoords(coords);
+    // 保存する値も整える。ここも素通しだったので、GPS 入りの exif や
+    // 数千件のタグがそのまま公開データに入った（ユーザーAPI側は通している）。
+    const safeCoords = sanitizeCoordsFn(coords);
+    const safeTitle = sanitizeTitle(title);
+    const safeDescription = sanitizeDescription(description);
+    const safeLocation = sanitizeText(location, 200);
+    const safeCategory = sanitizeText(category, 100);
+    const safeTags = sanitizeTags(tags);
+    const safeExif = sanitizeExif(exif);
+
     const photo: Photo = {
         id: uuidv4(),
         src: publicUrl,
-        title: title ?? { ja: "無題", en: "Untitled" },
-        ...(description ? { description } : {}),
-        ...(location ? { location } : {}),
-        ...(category ? { category } : {}),
-        tags: Array.isArray(tags) ? tags : [],
-        ...(exif && Object.keys(exif).length > 0 ? { exif } : {}),
+        title: safeTitle ?? { ja: "無題", en: "Untitled" },
+        ...(safeDescription ? { description: safeDescription } : {}),
+        ...(safeLocation ? { location: safeLocation } : {}),
+        ...(safeCategory ? { category: safeCategory } : {}),
+        tags: safeTags ?? [],
+        ...(safeExif ? { exif: safeExif } : {}),
         ...(safeCoords ? { coords: safeCoords } : {}),
         displayName: "丸田 竜平",
         userId: uploaderId,

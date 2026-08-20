@@ -12,7 +12,7 @@ describe("pickEditableFields", () => {
             description: { ja: ["説明"], en: ["desc"] },
             location: "北海道",
             category: "風景",
-            date: "2026-01-01",
+            date: "2026-01-01T00:00:00.000Z",
             tags: ["雪"],
             published: true,
             exif: { camera: "X100V" },
@@ -51,5 +51,60 @@ describe("pickEditableFields", () => {
 
     it("空の body は空を返す", () => {
         expect(pickEditableFields({})).toEqual({});
+    });
+});
+
+
+// ここは api-user/src/photoUpdate.ts と**同じ道**の別実装。
+// どちらのホストもクライアントのバンドルに入っているので利用者はどちらでも
+// 叩ける——つまり緩い方が実際の仕様になる。
+// 値を素通ししていた頃にできたこと:
+//   - exif に GPS を入れると保存され、公開の GET /photos で配られ、
+//     静的HTMLにも焼き込まれた（sanitizeExif は GPS を明示的に落とす）
+//   - タグを数千件、タイトルを深くネストしたオブジェクト、なども通った
+describe("pickEditableFields: 値も整える", () => {
+    it("exif の GPS は保存しない", () => {
+        const out = pickEditableFields({
+            exif: { camera: "X100V", gpsLatitude: "35.6812", gpsLongitude: "139.7671" },
+        });
+        expect(out.exif).toEqual({ camera: "X100V" });
+    });
+
+    it("exif の文字列は100文字までに切る", () => {
+        const out = pickEditableFields({ exif: { camera: "x".repeat(500) } });
+        expect((out.exif as { camera: string }).camera.length).toBe(100);
+    });
+
+    it("タグは件数と長さの上限で切る", () => {
+        const out = pickEditableFields({ tags: Array.from({ length: 5000 }, (_, i) => `t${i}`) });
+        expect((out.tags as string[]).length).toBe(30);
+    });
+
+    it("タグの重複と空文字は落とす", () => {
+        const out = pickEditableFields({ tags: ["雪", "雪", "  ", "", 123, "山"] });
+        expect(out.tags).toEqual(["雪", "山"]);
+    });
+
+    it("タイトルが想定外の形なら undefined（保存時に触らない扱い）", () => {
+        expect(pickEditableFields({ title: { ja: { nested: "deep" } } }).title).toBeUndefined();
+        expect(pickEditableFields({ title: [1, 2, 3] }).title).toBeUndefined();
+    });
+
+    it("撮影日は ISO に正規化し、あり得ない値は落とす", () => {
+        expect(pickEditableFields({ date: "2026-01-01" }).date).toBe("2026-01-01T00:00:00.000Z");
+        // カメラの日付未設定（1980年など）や未来日は誤検出として捨てる
+        expect(pickEditableFields({ date: "1980-01-01" }).date).toBeUndefined();
+        expect(pickEditableFields({ date: "なにか" }).date).toBeUndefined();
+    });
+
+    it("published は真偽値だけ受け付ける", () => {
+        expect(pickEditableFields({ published: false }).published).toBe(false);
+        expect("published" in pickEditableFields({ published: "false" })).toBe(false);
+        expect("published" in pickEditableFields({ published: 1 })).toBe(false);
+    });
+
+    it("説明の段落数と長さも上限で切る", () => {
+        const out = pickEditableFields({ description: { ja: Array.from({ length: 200 }, () => "行") } });
+        expect((out.description as { ja: string[] }).ja.length).toBe(50);
     });
 });
