@@ -8,6 +8,23 @@ import { requireEnv } from "./env";
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const USERS_TABLE = requireEnv("USERS_TABLE");
 
+/**
+ * 「https の URL としては正しいが、許可ホストではない」か。
+ *
+ * 旧ルール時代（ホストを見ていなかった頃）に保存された曲は必ずこの形。
+ * 形そのものが壊れているもの（URLでない・http・空）と区別するために使う。
+ * 区別しないと、クライアントの不具合で送られた壊れた値を
+ * 「消したい意思」と読んでしまう。
+ */
+function isLegacyHostUrl(v: unknown): boolean {
+    if (typeof v !== "string" || !v.trim()) return false;
+    try {
+        return new URL(v.trim()).protocol === "https:";
+    } catch {
+        return false;
+    }
+}
+
 export type SongEntry = {
     title: string;
     artist?: string;
@@ -247,9 +264,17 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         for (const raw of body.songs.slice(0, 5)) {
             if (!raw || typeof raw !== "object") { songsMalformed = true; continue; }
             const o = raw as Record<string, unknown>;
-            const previewUrl = safeSongPreviewUrl(o.previewUrl);
             const title = typeof o.title === "string" ? o.title.trim().slice(0, 200) : "";
-            if (!title || typeof o.previewUrl !== "string" || !o.previewUrl.trim()) { songsMalformed = true; continue; }
+            const previewUrl = safeSongPreviewUrl(o.previewUrl);
+            // 「旧ルール時代のデータ」と言えるのは、**ホストだけが許可外**のとき。
+            // それ以外（題名が無い・URLでない・https でない）は形が壊れている
+            // ＝クライアントの不具合なので、下で「触らない」に倒す。
+            //
+            // ここも一度間違えた。`if (!previewUrl) continue;` に落ちる経路が
+            // 残っていたので、`previewUrl: "undefined"` や `http://...` のような
+            // 壊れた文字列が「旧データ」として数えられ、有効な曲を3件持つ人の
+            // プレイリストが黙って全部消えた（症状は {songs:[null,null]} と同じ）。
+            if (!title || !isLegacyHostUrl(o.previewUrl)) { songsMalformed = true; continue; }
             if (!previewUrl) continue;
             const artist = typeof o.artist === "string" ? o.artist.trim().slice(0, 200) : "";
             const artwork = safeSongArtworkUrl(o.artwork);
@@ -327,7 +352,13 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
                 ...(trackUrl ? { trackUrl } : {}),
             };
         }
+        // songs と同じ扱い。全部弾かれたときに「消す」と読んではいけない
+        // ——画面は既存の tripSongs をそのまま送り返すので、旧ホストの曲を
+        // 設定している人が自己紹介文だけ直して保存すると、旅アルバムの
+        // BGM が黙って全部消えていた（songs 側だけ直して、隣は開いたままだった）。
+        // 本当に消したいときは空オブジェクトが送られてくる。
         if (Object.keys(out).length > 0) tripSongs = out;
+        else if (Object.keys(body.tripSongs as Record<string, unknown>).length === 0) tripSongs = {};
     }
 
     // 送られてきた項目だけを反映する（部分更新）。
@@ -372,7 +403,9 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     let songsAddressed = songs !== undefined;
     apply("tripTitles", "tripTitles" in body, tripTitles);
     apply("tripCovers", "tripCovers" in body, tripCovers);
-    apply("tripSongs", "tripSongs" in body, tripSongs);
+    // songs と同じく「決まったときだけ触る」。undefined のまま apply すると
+    // mergeProfile が「消す」と読む。
+    apply("tripSongs", tripSongs !== undefined, tripSongs);
     apply("themeColor", "themeColor" in body, themeColor);
     apply("statusText", "statusText" in body, statusText);
     apply("pinnedPhotoIds", "pinnedPhotoIds" in body, pinnedPhotoIds);

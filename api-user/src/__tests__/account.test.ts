@@ -156,12 +156,66 @@ describe("deleteAccount", () => {
         expect(updates).not.toContain("followstats#userA");
     });
 
-    it("条件不成立（前回で処理済み・相手の集計が0）ならマーカーだけ片付ける", async () => {
-        followingIs(["userA"], () => Promise.reject(
-            Object.assign(new Error("cancelled"), { name: "TransactionCanceledException" })));
+    // TransactionCanceledException = 条件不成立、ではない。
+    // 名前だけを見てマーカーを消していた頃は、人気ユーザーへの同時フォローと
+    // ぶつかった（= 未コミットの）キャンセルでもマーカーを消していたので、
+    // 相手のフォロワー数が1多いまま誰にも直せなくなった。
+    // CancellationReasons を1件ずつ見る必要がある。
+    const cancelled = (codes: string[]) => Object.assign(
+        new Error("cancelled"),
+        { name: "TransactionCanceledException", CancellationReasons: codes.map((Code) => ({ Code })) },
+    );
+
+    it("マーカーが既に無い（前回で処理済み）なら、何も消さずに片付いた扱い", async () => {
+        followingIs(["userA"], () => Promise.reject(cancelled(["ConditionalCheckFailed", "None"])));
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        // 借りは無いので単体削除もしない
+        expect(deletedDdbIds()).not.toContain("follow#userA#me");
+        expect(deletedDdbIds()).toContain("following#me");
+    });
+
+    it("相手の集計が無い/0 のときだけ、マーカーを単体で消す", async () => {
+        followingIs(["userA"], () => Promise.reject(cancelled(["None", "ConditionalCheckFailed"])));
         expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
         expect(deletedDdbIds()).toContain("follow#userA#me");
-        expect(deletedDdbIds()).toContain("following#me");   // 片付いたので消してよい
+        expect(deletedDdbIds()).toContain("following#me");
+    });
+
+    it("競合（未コミット）ではマーカーを消さない——引き算が永久に消えるため", async () => {
+        // 相手が人気ユーザーだと、他の人のフォロー操作（followstats# への
+        // 素の UpdateItem）とぶつかってキャンセルされる。日常的に起きる。
+        followingIs(["userA"], () => Promise.reject(cancelled(["None", "TransactionConflict"])));
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        expect(deletedDdbIds()).not.toContain("follow#userA#me");
+        expect(deletedDdbIds()).not.toContain("following#me");  // やり直す手がかりを残す
+    });
+
+    it("スロットリングでも同じ（未コミット扱い）", async () => {
+        followingIs(["userA"], () => Promise.reject(cancelled(["None", "ThrottlingError"])));
+        await invoke(deleteAccount, ev("me"));
+        expect(deletedDdbIds()).not.toContain("follow#userA#me");
+    });
+
+    it("理由が分からないキャンセルでも何も消さない", async () => {
+        followingIs(["userA"], () => Promise.reject(
+            Object.assign(new Error("cancelled"), { name: "TransactionCanceledException" })));
+        await invoke(deleteAccount, ev("me"));
+        expect(deletedDdbIds()).not.toContain("follow#userA#me");
+        expect(deletedDdbIds()).not.toContain("following#me");
+    });
+
+    it("競合はその場でやり直す（一度きりで諦めない）", async () => {
+        // ここで諦めると、呼べる人がもういないので永久に直らない。
+        let n = 0;
+        followingIs(["userA"], () => {
+            n++;
+            return n === 1
+                ? Promise.reject(cancelled(["None", "TransactionConflict"]))
+                : Promise.resolve({});
+        });
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        expect(n).toBe(2);
+        expect(deletedDdbIds()).toContain("following#me");   // 片付いた
     });
 
     // 「消せたか分からない」失敗が残ったら、やり直す手がかりを消さない。

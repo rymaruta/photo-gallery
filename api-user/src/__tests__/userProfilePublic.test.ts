@@ -177,8 +177,73 @@ describe("updateMyProfile: 旧ホストの曲が残っている人の保存", ()
         expect(JSON.parse(res.body).songs).toEqual([]);
     });
 
+    it("URL として壊れた音源は「旧データ」に数えない（有効な曲を守る）", async () => {
+        // previewUrl が "undefined" という文字列だったり http:// だったりする
+        // のはクライアントの不具合。件数の比較に混ぜると、有効な曲を持つ人の
+        // プレイリストが黙って全部消える（{songs:[null,null]} と同じ症状）。
+        const valid = Array.from({ length: 3 }, (_, i) => ({
+            title: `曲${i}`, previewUrl: `https://audio-ssl.itunes.apple.com/${i}.m4a`,
+        }));
+        for (const broken of ["undefined", "http://audio-ssl.itunes.apple.com/x.m4a", "   "]) {
+            const res = await runSave(valid, [{ title: "A", previewUrl: broken }, { title: "B", previewUrl: broken }]);
+            expect(JSON.parse(res.body).songs).toHaveLength(3);
+        }
+    });
+
     it("空配列で送れば消す", async () => {
         const res = await runSave(legacy(3), []);
         expect(JSON.parse(res.body).songs).toEqual([]);
+    });
+});
+
+// 旅アルバムのBGM。songs と同じ穴が隣に開いていた。
+//
+// 画面は既存の tripSongs をそのまま送り返すので、旧ホストの曲を設定して
+// いる人が自己紹介文だけ直して保存すると、全部弾かれて「消す」と読まれ、
+// 旅アルバムのBGMが黙って全部消えていた。
+describe("updateMyProfile: 旅アルバムのBGM", () => {
+    const legacySong = { title: "旧", previewUrl: "https://tracker.example.com/1.m4a" };
+
+    const runTripSave = async (stored: unknown, sent: unknown) => {
+        vi.resetModules();
+        vi.stubEnv("USERS_TABLE", "users-test");
+        const { marshall } = await import("@aws-sdk/util-dynamodb");
+        vi.doMock("@aws-sdk/client-dynamodb", () => ({
+            DynamoDBClient: class {
+                send(cmd: { constructor: { name: string } }) {
+                    if (cmd.constructor.name === "GetItemCommand") {
+                        return Promise.resolve({ Item: marshall({ userId: "u1", tripSongs: stored }) });
+                    }
+                    return Promise.resolve({});
+                }
+            },
+            GetItemCommand: class { input: unknown; constructor(i: unknown) { this.input = i; } },
+            PutItemCommand: class { input: unknown; constructor(i: unknown) { this.input = i; } },
+            DeleteItemCommand: class { input: unknown; constructor(i: unknown) { this.input = i; } },
+        }));
+        const { updateMyProfile } = await import("../userProfile");
+        return (updateMyProfile as unknown as (e: unknown) => Promise<{ statusCode: number; body: string }>)({
+            requestContext: { authorizer: { jwt: { claims: { sub: "u1" } } } },
+            body: JSON.stringify({ tripSongs: sent }),
+        });
+    };
+
+    it("そのまま送り返しただけなら消さない", async () => {
+        const stored = { "trip-1": legacySong };
+        const res = await runTripSave(stored, stored);
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).tripSongs).toBeTruthy();
+    });
+
+    it("空で送れば消す", async () => {
+        const res = await runTripSave({ "trip-1": legacySong }, {});
+        expect(JSON.parse(res.body).tripSongs).toEqual({});
+    });
+
+    it("有効な曲は今までどおり保存する", async () => {
+        const res = await runTripSave({}, {
+            "trip-1": { title: "Apple", previewUrl: "https://audio-ssl.itunes.apple.com/1.m4a" },
+        });
+        expect(Object.keys(JSON.parse(res.body).tripSongs)).toEqual(["trip-1"]);
     });
 });

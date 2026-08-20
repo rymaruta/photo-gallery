@@ -22,6 +22,13 @@ import { requestSiteRebuild } from "./rebuild";
 // リコンサイル（Scan バッチ）で掃除できる。
 
 const USERS_TABLE = requireEnv("USERS_TABLE");
+
+/**
+ * フォロー解除の片付けを試す回数。
+ * 一番多い失敗（相手が人気ユーザーのときの TransactionConflict）は
+ * その場でやり直せば通る。通らなかった分は following# に残して次に託す。
+ */
+const FOLLOW_CLEANUP_ATTEMPTS = 3;
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET ?? "";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
@@ -108,13 +115,31 @@ async function readList(id: string): Promise<{ list: unknown[]; ok: boolean }> {
  *
  * どちらも「別々の書き込みなので、片方だけ効いた状態が残る」ことが原因。
  * DynamoDB のトランザクションなら、両方効くか両方効かないかのどちらかに
- * なる。タイムアウトで結果が分からなくても、再実行すれば
+ * なる。タイムアウトで結果が分からなくても、やり直せば
  *   - 前回コミット済み → マーカーが無いので条件不成立 → 何も起きない
  *   - 前回未コミット   → 両方まとめて適用される
- * のどちらかに収束する。何度実行しても正しい数になる。
+ * のどちらかに収束する。
  *
- * 戻り値は「この呼び出しで処理し終えたか」。false なら再実行が要る。
+ * ただし **TransactionCanceledException = 条件不成立、ではない**。
+ * ここも一度誤った。名前だけを見て「条件不成立だから引き算は不要」と
+ * 決めつけ、マーカーを無条件に消していたので:
+ *
+ *   人気ユーザー T をフォロー中の U が退会 → ほぼ同時に別の人が T を
+ *   フォロー（bumpStat が followstats#T へ素の UpdateItem を撃つ）→
+ *   競合でトランザクション側がキャンセル（CancellationReasons[1].Code =
+ *   "TransactionConflict"、**未コミット**）→ それをマーカー削除の合図と
+ *   読んでマーカーだけ消す → T の followers は U の分が引かれないまま、
+ *   マーカーも一覧も無い＝**誰にも直せない +1**。
+ *
+ * followstats#<人気ユーザー> は全フォロー/解除が触るので、競合は日常。
+ * しかも TransactionCanceledException は SDK の自動再試行の対象外（400系）。
+ * だから CancellationReasons を1つずつ読んで、
+ * 「本当に条件不成立だったのか」を確かめる。
+ *
+ * 戻り値は「この呼び出しで処理し終えたか」。false ならやり直しが要る。
  */
+type CancelReason = { Code?: string };
+
 async function unfollowAtomically(target: string, uid: string): Promise<boolean> {
     try {
         await ddb.send(new TransactWriteCommand({
@@ -142,22 +167,45 @@ async function unfollowAtomically(target: string, uid: string): Promise<boolean>
         return true;
     } catch (e) {
         const name = (e as { name?: string }).name ?? "";
-        if (name === "TransactionCanceledException") {
-            // 条件不成立。マーカーが既に無い（前回で処理済み）か、
-            // 相手の集計が無い/0（減らすものが無い）。どちらも引き算は不要だが、
-            // 後者ではマーカーが残るので単体で消しておく。
+        if (name !== "TransactionCanceledException") {
+            console.error(`deleteAccount: unfollow transaction failed for ${target}:`, e);
+            return false;
+        }
+        const reasons = (e as { CancellationReasons?: CancelReason[] }).CancellationReasons;
+        if (!Array.isArray(reasons) || reasons.length < 2) {
+            // 理由が分からないなら何も消さない。消してしまうと、
+            // 未コミットだった場合に減算が永久に失われる。
+            console.error(`deleteAccount: transaction cancelled without reasons for ${target}:`, e);
+            return false;
+        }
+        const [markerReason, statsReason] = reasons;
+        if (markerReason?.Code === "ConditionalCheckFailed") {
+            // マーカーが既に無い＝前回の実行で処理済み。借りは無い。
+            return true;
+        }
+        if (statsReason?.Code === "ConditionalCheckFailed") {
+            // 相手の集計が無い / 既に0。減らすものが無い。
+            // （followUser は「マーカーは書けたが +1 が失敗」を作りうるので、
+            //   この組み合わせは実在する。借りていないので引かない。）
+            // マーカーだけが残るので単体で消す。
             try {
                 await ddb.send(new DeleteCommand({
                     TableName: PHOTOS_TABLE,
                     Key: { id: `follow#${target}#${uid}` },
+                    ConditionExpression: "attribute_exists(id)",
                 }));
                 return true;
             } catch (e2) {
+                if ((e2 as { name?: string }).name === "ConditionalCheckFailedException") return true;
                 console.error(`deleteAccount: follow marker delete failed for ${target}:`, e2);
                 return false;
             }
         }
-        console.error(`deleteAccount: unfollow transaction failed for ${target}:`, e);
+        // TransactionConflict / ThrottlingError / ProvisionedThroughputExceeded /
+        // ValidationError など。**未コミット**なので何も消さない。
+        console.error(
+            `deleteAccount: transaction cancelled for ${target} ` +
+            `(${reasons.map((r) => r?.Code ?? "?").join(",")})`);
         return false;
     }
 }
@@ -234,13 +282,30 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // 片付け切れなかったときは following# を残す。消してしまうと
         // やり直す手がかりが無くなり、相手のフォロワー数が1多いまま
         // 誰にも直せなくなる（こちらはもうアカウントが無い）。
+        //
+        // 直列で最大2000件回していたが、写真の削除と同じく並列にする
+        // （すぐ上の mapWithConcurrency）。1件ずつ待っていると、
+        // フォローの多い人の退会が実行時間を使い切って途中で切れる。
+        //
+        // 失敗した分はその場でやり直す。ここで一番多い失敗は
+        // TransactionConflict——相手が人気ユーザーだと、他の人のフォロー操作と
+        // ぶつかる。一度きりで諦めると、その1件は誰にも直せないまま残る
+        // （この関数を呼べる人はもう存在しない）。
         const following = await readList(`following#${uid}`);
-        let followCleanupComplete = following.ok;
-        for (const target of following.list) {
-            const t = typeof target === "string" ? target : "";
-            if (!t) continue;
-            if (!await unfollowAtomically(t, uid)) followCleanupComplete = false;
+        let targets = following.list
+            .map((t) => (typeof t === "string" ? t : ""))
+            .filter(Boolean);
+        for (let attempt = 0; attempt < FOLLOW_CLEANUP_ATTEMPTS && targets.length > 0; attempt++) {
+            const failed: string[] = [];
+            await mapWithConcurrency(targets, 8, async (t) => {
+                if (!await unfollowAtomically(t, uid)) failed.push(t);
+            });
+            targets = failed;
+            if (targets.length) {
+                console.warn(`deleteAccount: retrying follow cleanup for ${targets.length} target(s)`);
+            }
         }
+        const followCleanupComplete = following.ok && targets.length === 0;
 
         // 5. 自分の各ドキュメント（既知キー）
         await ddbDelete(PHOTOS_TABLE, { id: `notifs#${uid}` });
@@ -253,8 +318,16 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
             // 恒常的に失敗する種類だと、**写真もプロフィールも消えたのに
             // ログインできるアカウントだけが残り、退会が永久に完了しない**。
             // 一度そうしてしまい、静的ページの掃除依頼（下）も飛ばしていた。
-            // 残っているのは「相手のフォロワー数」だけなので、印を残して続ける。
-            console.error(`deleteAccount: follow cleanup incomplete for ${uid}; keeping following# for a later sweep`);
+            //
+            // ただし 200 を返すと、この uid で退会APIを呼べる人はもういない
+            // （Cognito のアカウントごと消える）。つまり following# を残しても
+            // **自動でやり直す主体はいない**。残っているズレは
+            // 「相手のフォロワー数が1多い」だけなので、掃除役ができるまでは
+            // 手がかりとして残す、という割り切り。定期の掃除は入れていない
+            // （Actions の枠の判断が要るので勝手に足さない）。
+            console.error(
+                `deleteAccount: follow cleanup incomplete for ${uid}; ` +
+                "keeping following# (needs a manual reconcile; no sweeper exists)");
         }
 
         // 静的ページの掃除を頼む。DynamoDB と S3 を消しても、既に配ってある
