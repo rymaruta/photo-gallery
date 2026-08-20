@@ -75,6 +75,8 @@
 | カスタムドメイン | なし（既定ドメインのみ・`robots.txt` で全拒否） |
 | Cognito User Pool ID | `ap-northeast-1_DSQ16c6vO` |
 | Cognito Client ID | `1qjl9c8gmqidigps55jhv4foi` |
+| API Gateway (管理API) | `https://rfq22dzchf.execute-api.ap-northeast-1.amazonaws.com` |
+| API Gateway (ユーザーAPI) | `https://y9f8ajacc2.execute-api.ap-northeast-1.amazonaws.com` |
 | Cognito プール名 | `staging-journey-photo-client-spa` |
 | DynamoDB テーブル | `staging-photo-gallery-photos` / `staging-photo-gallery-users`（オンデマンド） |
 

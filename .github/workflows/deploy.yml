@@ -79,8 +79,8 @@ jobs:
               # どれも公開識別子（Cognito の2つはビルド後のJSに埋め込まれて
               # ブラウザに配られる）で、秘密ではない。
               siteUrl=https://d15fn3rcaiymu9.cloudfront.net
-              apiBaseUrl=STAGING_API_PLACEHOLDER
-              userApiBaseUrl=STAGING_USER_API_PLACEHOLDER
+              apiBaseUrl=https://rfq22dzchf.execute-api.ap-northeast-1.amazonaws.com
+              userApiBaseUrl=https://y9f8ajacc2.execute-api.ap-northeast-1.amazonaws.com
               cognitoUserPoolId=ap-northeast-1_DSQ16c6vO
               cognitoClientId=1qjl9c8gmqidigps55jhv4foi
               cloudfrontUrl=https://d15fn3rcaiymu9.cloudfront.net
