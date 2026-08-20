@@ -199,12 +199,36 @@ async function runChecks(browser, eng) {
         const modal = await page.waitForSelector('[role="dialog"][aria-modal="true"]', { timeout: 10000 }).then(() => true).catch(() => false);
         check(`[${eng}] ?photo= フォールバックでモーダルが開く`, modal);
         if (modal) {
+            // 開いている間は URL に残っていること。消えていると、再読込・
+            // ブックマーク・アドレスバーのコピーのどれでも写真に戻れない。
+            await page.waitForTimeout(500);
+            check(`[${eng}] モーダル表示中は URL に ?photo= が残る`,
+                page.url().includes(`photo=${encodeURIComponent(pid ?? "")}`));
+
             let closed = false;
             for (let k = 0; k < 5 && !closed; k++) {
                 await page.keyboard.press("Escape");
                 closed = await page.waitForSelector('[role="dialog"][aria-modal="true"]', { state: "detached", timeout: 2000 }).then(() => true).catch(() => false);
             }
             check(`[${eng}] 写真モーダルが閉じる`, closed);
+            if (closed) {
+                await page.waitForTimeout(400);
+                check(`[${eng}] 閉じると URL から ?photo= が消える`, !page.url().includes("photo="));
+
+                // 同じ写真をもう一度開けること。
+                // 「閉じた覚え」を解除し忘れると、2回目が無反応になる
+                // （静的ページの無い新着写真にとっては唯一の閲覧手段）。
+                await page.goto(`http://localhost:${PORT}/?photo=${encodeURIComponent(pid ?? "")}`, { waitUntil: "domcontentloaded" });
+                await waitForHydration(page);
+                const reopened = await page.waitForSelector('[role="dialog"][aria-modal="true"]', { timeout: 10000 }).then(() => true).catch(() => false);
+                check(`[${eng}] 同じ写真をもう一度開ける`, reopened);
+                if (reopened) {
+                    for (let k = 0; k < 5; k++) {
+                        await page.keyboard.press("Escape");
+                        if (await page.waitForSelector('[role="dialog"][aria-modal="true"]', { state: "detached", timeout: 1500 }).then(() => true).catch(() => false)) break;
+                    }
+                }
+            }
         }
         await expectMenuWorks(page, `[${eng}] モーダル閉止後`);
     }
