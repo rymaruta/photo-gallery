@@ -25,7 +25,7 @@ const { deleteAccount } = await import("../account");
 
 type LambdaResult = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const invoke = (handler: unknown, event: unknown): Promise<LambdaResult> => (handler as any)(event);
+const invoke = (handler: unknown, event: unknown, context?: unknown): Promise<LambdaResult> => (handler as any)(event, context);
 
 function ev(sub: string | undefined) {
     return { requestContext: { authorizer: { jwt: { claims: { sub } } } } };
@@ -253,6 +253,59 @@ describe("deleteAccount", () => {
         await invoke(deleteAccount, ev("me"));
         expect(deletedDdbIds()).not.toContain("follow#userA#me");
         expect(deletedDdbIds()).not.toContain("following#me");
+    });
+
+    // 残り時間を見て打ち切る。打ち切らないとハンドラが返らず、
+    // 呼び出し側は Cognito の削除に進まない——写真もプロフィールも
+    // 消えたのにログインできるアカウントだけが残る。しかも静的ページの
+    // 掃除依頼はこのループの**後ろ**にあるので、それも飛ぶ。
+    it("残り時間が足りなければ打ち切り、掃除の依頼には必ず到達する", async () => {
+        let calls = 0;
+        let timeChecks = 0;
+        followingIs(["userA", "userB"], () => {
+            calls++;
+            return Promise.reject(cancelled(["None", "TransactionConflict"]));
+        });
+        const res = await invoke(deleteAccount, ev("me"), {
+            getRemainingTimeInMillis: () => { timeChecks++; return 1000; },
+        });
+
+        expect(res.statusCode).toBe(200);
+        expect(calls).toBe(0);                    // 1件も撃たずに打ち切る
+        expect(mockRebuild).toHaveBeenCalled();   // 掃除は必ず頼む
+        expect(deletedDdbIds()).not.toContain("following#me");
+        // 打ち切ったら回り直さない。外側で抜けないと、時間切れと分かって
+        // いるのに3回とも回して待ち時間まで挟む（掃除の依頼が更に遠のく）。
+        // 1回目の入口(1) + その回の2件(2) で 3 回まで。
+        expect(timeChecks).toBeLessThanOrEqual(3);
+    });
+
+    it("回っている途中で時間切れになったら、そこから先は撃たない", async () => {
+        // 入口では足りていたが、処理中に尽きた場合。ここで撃ち続けると
+        // 掃除の依頼まで届かない。残りは following# に残して次に託す。
+        let n = 0;
+        followingIs(["userA", "userB"]);
+        const res = await invoke(deleteAccount, ev("me"), {
+            // 1回目（ループの入口）だけ十分、以降は足りない
+            getRemainingTimeInMillis: () => (++n === 1 ? 25000 : 1000),
+        });
+
+        expect(res.statusCode).toBe(200);
+        expect(transacts()).toHaveLength(0);      // 1件も撃たない
+        expect(mockRebuild).toHaveBeenCalled();
+        expect(deletedDdbIds()).not.toContain("following#me");
+    });
+
+    it("残り時間が十分なら今までどおり回る", async () => {
+        followingIs(["userA"]);
+        expect((await invoke(deleteAccount, ev("me"), { getRemainingTimeInMillis: () => 25000 })).statusCode).toBe(200);
+        expect(transacts()).toHaveLength(1);
+    });
+
+    it("context が無くても動く（テスト・ローカル実行）", async () => {
+        followingIs(["userA"]);
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        expect(transacts()).toHaveLength(1);
     });
 
     it("競合はその場でやり直す（一度きりで諦めない）", async () => {
