@@ -146,7 +146,21 @@ jobs:
 
       - name: Serverless deploy
         working-directory: api
+        env:
+          # 秘密はコマンドラインに載せない（ps で見える）。
+          # 空のまま渡すのも駄目——serverless v3 は --param "k=" を
+          # 「不正な形式」として弾き、**全変数の解決に失敗して**デプロイが
+          # 落ちる。staging は rebuildRepo を意図的に空にしているので、
+          # 空のときは旗ごと渡さない（serverless.yml 側に既定値 '' がある）。
+          REBUILD_REPO: ${{ needs.config.outputs.rebuildRepo }}
+          REBUILD_TOKEN: ${{ secrets.REBUILD_DISPATCH_TOKEN }}
         run: |
+          set -euo pipefail
+          extra=()
+          if [ -n "$REBUILD_REPO" ]; then extra+=(--param "rebuildRepo=$REBUILD_REPO"); fi
+          if [ -n "$REBUILD_TOKEN" ]; then extra+=(--param "rebuildToken=$REBUILD_TOKEN"); fi
+          echo "再ビルド依頼: repo=$([ -n "$REBUILD_REPO" ] && echo "$REBUILD_REPO" || echo '(なし)')" \
+               "token=$([ -n "$REBUILD_TOKEN" ] && echo '設定あり' || echo '(なし)')"
           npx serverless@3 deploy --stage ${{ needs.config.outputs.envName }} \
             --param "photosTable=${{ needs.config.outputs.photosTable }}" \
             --param "usersTable=${{ needs.config.outputs.usersTable }}" \
@@ -155,8 +169,7 @@ jobs:
             --param "cognitoUserPoolId=${{ needs.config.outputs.cognitoUserPoolId }}" \
             --param "cognitoClientId=${{ needs.config.outputs.cognitoClientId }}" \
             --param "cognitoPoolName=${{ needs.config.outputs.cognitoPoolName }}" \
-            --param "rebuildRepo=${{ needs.config.outputs.rebuildRepo }}" \
-            --param "rebuildToken=${{ secrets.REBUILD_DISPATCH_TOKEN }}"
+            ${extra[@]+"${extra[@]}"}
 
   deploy-user-api:
     name: Deploy user API (api-user/)
@@ -186,7 +199,21 @@ jobs:
 
       - name: Serverless deploy
         working-directory: api-user
+        env:
+          # 秘密はコマンドラインに載せない（ps で見える）。
+          # 空のまま渡すのも駄目——serverless v3 は --param "k=" を
+          # 「不正な形式」として弾き、**全変数の解決に失敗して**デプロイが
+          # 落ちる。staging は rebuildRepo を意図的に空にしているので、
+          # 空のときは旗ごと渡さない（serverless.yml 側に既定値 '' がある）。
+          REBUILD_REPO: ${{ needs.config.outputs.rebuildRepo }}
+          REBUILD_TOKEN: ${{ secrets.REBUILD_DISPATCH_TOKEN }}
         run: |
+          set -euo pipefail
+          extra=()
+          if [ -n "$REBUILD_REPO" ]; then extra+=(--param "rebuildRepo=$REBUILD_REPO"); fi
+          if [ -n "$REBUILD_TOKEN" ]; then extra+=(--param "rebuildToken=$REBUILD_TOKEN"); fi
+          echo "再ビルド依頼: repo=$([ -n "$REBUILD_REPO" ] && echo "$REBUILD_REPO" || echo '(なし)')" \
+               "token=$([ -n "$REBUILD_TOKEN" ] && echo '設定あり' || echo '(なし)')"
           npx serverless@3 deploy --stage ${{ needs.config.outputs.envName }} \
             --param "photosTable=${{ needs.config.outputs.photosTable }}" \
             --param "usersTable=${{ needs.config.outputs.usersTable }}" \
@@ -194,5 +221,4 @@ jobs:
             --param "cloudfrontUrl=${{ needs.config.outputs.cloudfrontUrl }}" \
             --param "cognitoUserPoolId=${{ needs.config.outputs.cognitoUserPoolId }}" \
             --param "cognitoClientId=${{ needs.config.outputs.cognitoClientId }}" \
-            --param "rebuildRepo=${{ needs.config.outputs.rebuildRepo }}" \
-            --param "rebuildToken=${{ secrets.REBUILD_DISPATCH_TOKEN }}"
+            ${extra[@]+"${extra[@]}"}
