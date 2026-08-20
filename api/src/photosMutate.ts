@@ -42,7 +42,12 @@ export function pickEditableFields(body: Record<string, unknown>): Record<string
     put("location", sanitizeText(body.location, 200));
     put("category", sanitizeText(body.category, 100));
     put("date", sanitizeDate(body.date));
-    put("tags", sanitizeTags(body.tags));
+    // 空配列は「そのタグを外す」指定。undefined にしておくと
+    // updatePhotoFields が REMOVE を組み立てる（ユーザーAPI側と同じ姿になる）。
+    // SET tags = [] にしていた頃は、同じ写真でも叩いたAPIによって
+    // 「属性が空配列」と「属性が無い」に分かれ、再ビルドの判定が食い違った。
+    const tags = sanitizeTags(body.tags);
+    put("tags", Array.isArray(tags) && tags.length === 0 ? undefined : tags);
     put("exif", sanitizeExif(body.exif));
     // 公開状態は真偽値だけ。文字列の "false" などを通さない
     if (typeof body.published === "boolean") out.published = body.published;
@@ -96,10 +101,10 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // （exif を含む）を送るので、何も変えずに保存を押すだけで
         // ビルドが走る（1本8分・月2,000分）。値そのものを突き合わせる。
         const visibilityChanged = "published" in fields && fields.published !== (photo.published !== false);
-        // 比べるのは**書いたあとの姿**。null は REMOVE になるので undefined と同じ扱い。
+        // 比べるのは**書いたあとの姿**。pickEditableFields が空を undefined に
+        // 揃えてあり、updatePhotoFields はそれを REMOVE にする。
         const metaChanged = ["title", "description", "location", "category", "date", "tags", "exif"]
-            .some((k) => k in fields
-                && !sameStoredValue(fields[k] ?? undefined, (photo as Record<string, unknown>)[k]));
+            .some((k) => k in fields && !sameStoredValue(fields[k], (photo as Record<string, unknown>)[k]));
         if (visibilityChanged || metaChanged) {
             await requestSiteRebuild(`photo updated: ${id}`, { coalesce: true });
         }

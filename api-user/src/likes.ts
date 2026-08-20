@@ -26,7 +26,8 @@ function markerId(photoId: string, userId: string): string {
  * 引っかかって減らせない。つまり**誰にも直せない +1** が残る。
  *
  * だから戻すのは「適用されていないと言い切れる」失敗だけにする。
- * 分からない失敗ではマーカーを残す——本人の取り消しで直せる状態の方がよい。
+ * 分からない失敗ではマーカーを残す。それで必ず直るわけではないが、
+ * 消すと「誰にも減らせない +1」で確実に詰むので、まだ動かせる方を選ぶ。
  */
 function definitelyNotApplied(e: unknown): boolean {
     const name = (e as { name?: string }).name ?? "";

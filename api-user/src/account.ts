@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
-import { QueryCommand, GetCommand, DeleteCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { QueryCommand, GetCommand, DeleteCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { S3Client, DeleteObjectCommand, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
@@ -76,30 +76,90 @@ async function ddbDelete(table: string, key: Record<string, unknown>): Promise<v
     }
 }
 
-/** golist#/following# 文書の list 配列を読む（無ければ空配列。エラーも空配列） */
-async function readList(id: string): Promise<unknown[]> {
+/**
+ * following# 文書の list 配列を読む。
+ *
+ * 失敗を「空」と混ぜてはいけない。エラーも空配列で返していた頃は、
+ * `following#<uid>` の GetItem がスロットリングされると**ループが1回も
+ * 回らないまま** following# を消していた。50人フォローしていた人が退会
+ * すると、50個のマーカーが孤児になり、50人のフォロワー数が1多いまま
+ * 誰にも直せなくなる（本人はもうアカウントが無い）。
+ */
+async function readList(id: string): Promise<{ list: unknown[]; ok: boolean }> {
     try {
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
         const list = res.Item?.list;
-        return Array.isArray(list) ? list : [];
+        return { list: Array.isArray(list) ? list : [], ok: true };
     } catch (e) {
         console.error(`deleteAccount: read list failed for ${id}:`, e);
-        return [];
+        return { list: [], ok: false };
     }
 }
 
-/** カウンタを 1 減らす（0 以下・item 消滅・属性欠落は無視） */
-async function decrement(id: string, field: string): Promise<void> {
+/**
+ * follow# マーカーの削除と、相手の followers の減算を**1つの書き込みにする**。
+ *
+ * ここは2度作りを誤っている。
+ *   1回目: どちらも無条件 → 途中で実行時間を使い切って再実行されると、
+ *          既に消えたマーカーの分までもう一度減って**引きすぎ**た。
+ *   2回目: 「消せたと確かめられたときだけ減らす」にしたが、
+ *          タイムアウト（＝実際は削除成功）だと減らずに終わり、再実行しても
+ *          今度は条件不成立で減らないので**引き足りない**まま固定された。
+ *
+ * どちらも「別々の書き込みなので、片方だけ効いた状態が残る」ことが原因。
+ * DynamoDB のトランザクションなら、両方効くか両方効かないかのどちらかに
+ * なる。タイムアウトで結果が分からなくても、再実行すれば
+ *   - 前回コミット済み → マーカーが無いので条件不成立 → 何も起きない
+ *   - 前回未コミット   → 両方まとめて適用される
+ * のどちらかに収束する。何度実行しても正しい数になる。
+ *
+ * 戻り値は「この呼び出しで処理し終えたか」。false なら再実行が要る。
+ */
+async function unfollowAtomically(target: string, uid: string): Promise<boolean> {
     try {
-        await ddb.send(new UpdateCommand({
-            TableName: PHOTOS_TABLE,
-            Key: { id },
-            UpdateExpression: "SET #f = #f - :one",
-            ConditionExpression: "attribute_exists(id) AND #f > :z",
-            ExpressionAttributeNames: { "#f": field },
-            ExpressionAttributeValues: { ":z": 0, ":one": 1 },
+        await ddb.send(new TransactWriteCommand({
+            TransactItems: [
+                {
+                    Delete: {
+                        TableName: PHOTOS_TABLE,
+                        Key: { id: `follow#${target}#${uid}` },
+                        ConditionExpression: "attribute_exists(id)",
+                    },
+                },
+                {
+                    Update: {
+                        TableName: PHOTOS_TABLE,
+                        Key: { id: `followstats#${target}` },
+                        UpdateExpression: "SET followers = followers - :one",
+                        // 相手の集計が無い・既に0なら減らさない。その場合は
+                        // トランザクションごと落ちるので、下でマーカーだけ消す。
+                        ConditionExpression: "attribute_exists(id) AND followers > :z",
+                        ExpressionAttributeValues: { ":z": 0, ":one": 1 },
+                    },
+                },
+            ],
         }));
-    } catch { /* 0 / 無し / 消滅は無視 */ }
+        return true;
+    } catch (e) {
+        const name = (e as { name?: string }).name ?? "";
+        if (name === "TransactionCanceledException") {
+            // 条件不成立。マーカーが既に無い（前回で処理済み）か、
+            // 相手の集計が無い/0（減らすものが無い）。どちらも引き算は不要だが、
+            // 後者ではマーカーが残るので単体で消しておく。
+            try {
+                await ddb.send(new DeleteCommand({
+                    TableName: PHOTOS_TABLE,
+                    Key: { id: `follow#${target}#${uid}` },
+                }));
+                return true;
+            } catch (e2) {
+                console.error(`deleteAccount: follow marker delete failed for ${target}:`, e2);
+                return false;
+            }
+        }
+        console.error(`deleteAccount: unfollow transaction failed for ${target}:`, e);
+        return false;
+    }
 }
 
 // DELETE /user/account — 退会（認証必須・自分のデータのみ削除）
@@ -171,52 +231,31 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         //    減らすので、**他人のフォロワー数が実際より小さくなる**
         //    （相手には直す手段が無い。こちらはもうアカウントが無いので
         //    フォローし直すこともできない）。
-        // 1件でも「消せたか分からない」失敗が出たら、following# は残して
-        // 失敗を返す。減らさないだけにして 200 を返していた頃は、直後に
-        // following# を消していたので**再実行しても対象リストが空**で、
-        // 相手のフォロワー数が1多いまま誰にも直せなくなっていた
-        // （こちらはもうアカウントが無い）。
-        let followCleanupFailed = false;
-        for (const target of await readList(`following#${uid}`)) {
+        // 片付け切れなかったときは following# を残す。消してしまうと
+        // やり直す手がかりが無くなり、相手のフォロワー数が1多いまま
+        // 誰にも直せなくなる（こちらはもうアカウントが無い）。
+        const following = await readList(`following#${uid}`);
+        let followCleanupComplete = following.ok;
+        for (const target of following.list) {
             const t = typeof target === "string" ? target : "";
             if (!t) continue;
-            let removed = true;
-            try {
-                await ddb.send(new DeleteCommand({
-                    TableName: PHOTOS_TABLE,
-                    Key: { id: `follow#${t}#${uid}` },
-                    ConditionExpression: "attribute_exists(id)",
-                }));
-            } catch (e) {
-                // どんな理由で落ちてもマーカーは残っている扱いにする。
-                //
-                // 以前は ConditionalCheckFailedException のときだけ removed を
-                // 下ろしていた。スロットリングやタイムアウトで落ちると
-                // 「マーカーは消えていないのにカウンタだけ減らす」ので、
-                // 呼び出し側が「もう一度お試しください」で再実行したとき、
-                // 今度は削除が成功して**もう一度**減る——直そうとした
-                // 二重減算がそのまま残っていた。
-                // 減らすのは「消せたと確かめられたとき」だけにする。
-                removed = false;
-                if ((e as { name?: string }).name !== "ConditionalCheckFailedException") {
-                    followCleanupFailed = true;
-                    console.error(`deleteAccount: follow marker delete failed for ${t}:`, e);
-                }
-            }
-            if (removed) await decrement(`followstats#${t}`, "followers");
+            if (!await unfollowAtomically(t, uid)) followCleanupComplete = false;
         }
 
         // 5. 自分の各ドキュメント（既知キー）
         await ddbDelete(PHOTOS_TABLE, { id: `notifs#${uid}` });
         await ddbDelete(PHOTOS_TABLE, { id: `followstats#${uid}` });
-        if (followCleanupFailed) {
-            // ここで following# を消すと、やり直す手がかりが無くなる。
-            // 残して失敗を返す（画面は「もう一度お試しください」を出す）。
-            // 写真・プロフィールは既に消えているので、再実行は残りを片付ける。
-            console.error("deleteAccount: follow cleanup incomplete; keeping following# for retry");
-            return jsonError(500, "退会処理の一部が完了しませんでした。もう一度お試しください");
+        if (followCleanupComplete) {
+            await ddbDelete(PHOTOS_TABLE, { id: `following#${uid}` });
+        } else {
+            // ここで 500 を返してはいけない。呼び出し側（app/auth/context.tsx）は
+            // !res.ok だと Cognito の削除に進まないので、権限や設定の誤りで
+            // 恒常的に失敗する種類だと、**写真もプロフィールも消えたのに
+            // ログインできるアカウントだけが残り、退会が永久に完了しない**。
+            // 一度そうしてしまい、静的ページの掃除依頼（下）も飛ばしていた。
+            // 残っているのは「相手のフォロワー数」だけなので、印を残して続ける。
+            console.error(`deleteAccount: follow cleanup incomplete for ${uid}; keeping following# for a later sweep`);
         }
-        await ddbDelete(PHOTOS_TABLE, { id: `following#${uid}` });
 
         // 静的ページの掃除を頼む。DynamoDB と S3 を消しても、既に配ってある
         // 写真ページ・プロフィールページのHTMLは残っている（本文も撮影地も

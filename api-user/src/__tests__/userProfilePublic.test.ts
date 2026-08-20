@@ -163,6 +163,20 @@ describe("updateMyProfile: 旧ホストの曲が残っている人の保存", ()
         expect(JSON.parse(res.body).songs).toHaveLength(3);
     });
 
+    it("有効な曲と旧ホストが混ざっていても、減らせば消せる", async () => {
+        // 保存済み = [Apple 1件, 旧ホスト2件]。画面から Apple の曲だけ消して
+        // 保存すると、送られるのは旧ホスト2件で全部弾かれる。
+        // 「保存済みに有効な曲がある」を条件にしていた頃は触らない判断になり、
+        // 200 を返しながら3件とも残っていた（保存しましたと出るのに元どおり）。
+        const mixed = [
+            { title: "Apple", previewUrl: "https://audio-ssl.itunes.apple.com/0.m4a" },
+            ...legacy(2),
+        ];
+        const res = await runSave(mixed, legacy(2));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).songs).toEqual([]);
+    });
+
     it("空配列で送れば消す", async () => {
         const res = await runSave(legacy(3), []);
         expect(JSON.parse(res.body).songs).toEqual([]);

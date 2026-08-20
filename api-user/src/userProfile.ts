@@ -238,14 +238,19 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     // 全曲弾かれたときに「送られてきた件数」を覚えておく（0 は該当なし）。
     // 保存済みより少なければ削除の意思とみなす（下の prev 読み込み後）。
     let songsAllRejected = 0;
+    // 形そのものが壊れている曲があったか（null・題名なし・音源URLなし）。
+    // 「許可ホストでない」とは別に数える——前者はクライアントの不具合、
+    // 後者は旧ルール時代のデータで、取るべき対応が正反対だから。
+    let songsMalformed = false;
     if (Array.isArray(body.songs)) {
         const cleaned: SongEntry[] = [];
         for (const raw of body.songs.slice(0, 5)) {
-            if (!raw || typeof raw !== "object") continue;
+            if (!raw || typeof raw !== "object") { songsMalformed = true; continue; }
             const o = raw as Record<string, unknown>;
             const previewUrl = safeSongPreviewUrl(o.previewUrl);
             const title = typeof o.title === "string" ? o.title.trim().slice(0, 200) : "";
-            if (!previewUrl || !title) continue;
+            if (!title || typeof o.previewUrl !== "string" || !o.previewUrl.trim()) { songsMalformed = true; continue; }
+            if (!previewUrl) continue;
             const artist = typeof o.artist === "string" ? o.artist.trim().slice(0, 200) : "";
             const artwork = safeSongArtworkUrl(o.artwork);
             const trackUrl = safeSongTrackUrl(o.trackUrl);
@@ -257,23 +262,22 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
                 ...(trackUrl ? { trackUrl } : {}),
             });
         }
-        // 全部弾かれたときの扱い。
+        // 全部弾かれたときの扱い。3つの場合を分ける。
         //
-        // 旧ルール時代に別ホストの音源を保存していた人が、自己紹介文だけ
-        // 直して保存すると——画面は既存の songs をそのまま送り返すので——
-        // 全曲が弾かれ、200 が返ってプレイリストが丸ごと消えていた
-        // （エラー表示も無し・復旧不能）。だから「そのまま送り返された」
-        // ときは触らない。
-        //
-        // ただし「触らない」を全部の場合に広げると、逆に**消せなくなる**。
-        // 3曲のうち2曲を消して保存 → 残る1曲も旧ホストで弾かれる →
-        // 「触らない」→ 3曲とも残る。画面は「保存しました」と出すのに、
-        // 開き直すと元どおり。
-        // 送られてきた数が保存済みより少なければ、それは削除の意思なので
-        // 尊重する（判定は prev を読んだあと）。
+        // (a) 形が壊れている曲が混ざっていた → **何も触らない**。
+        //     クライアントの不具合や古いバージョンなので、これを
+        //     「消したい」と読むと有効な曲まで巻き添えになる。
+        // (b) 全部が「許可ホストでない」だけ、かつ保存済みと同じ件数
+        //     → 画面がそのまま送り返しただけ。触らない。
+        //     （旧ルール時代の曲を持つ人が自己紹介文だけ直して保存すると
+        //       これになる。触ると 200 を返しながらプレイリストが丸ごと
+        //       消えていた——エラー表示も無く復旧不能。）
+        // (c) 全部が「許可ホストでない」だけ、かつ件数が減っている
+        //     → 消したい意思。空にする。
+        //     （件数の比較には prev が要るので判断は下でする。）
         if (cleaned.length > 0) songs = cleaned;
         else if (body.songs.length === 0) songs = [];
-        else songsAllRejected = body.songs.length;
+        else if (!songsMalformed) songsAllRejected = body.songs.length;
     }
 
     // マイページのパーソナライズ
@@ -359,8 +363,13 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     apply("songArtist", "songArtist" in body, songArtist);
     apply("songTrackUrl", "songTrackUrl" in body, songTrackUrl);
     // songs の最終判断は prev を読んだあと（songsAllRejected の扱い）。
-    // ここでは「触る/触らない」だけを決める。
-    let songsAddressed = "songs" in body && songsAllRejected === 0;
+    //
+    // 「触る」のは songs が決まったときだけ。上の (a)(b)——形が壊れている、
+    // そのまま送り返された——では songs は undefined のままで、
+    // ここを true にすると apply が「消す」と読んでしまう（実際に一度
+    // そうなっていて、{songs:[null,null]} で有効な曲が全部消えた）。
+    // 消したいときは必ず空配列が入る。
+    let songsAddressed = songs !== undefined;
     apply("tripTitles", "tripTitles" in body, tripTitles);
     apply("tripCovers", "tripCovers" in body, tripCovers);
     apply("tripSongs", "tripSongs" in body, tripSongs);
@@ -371,21 +380,18 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     try {
         const prev = await getProfile(userId);
 
-        // 全曲弾かれた保存の扱い。
+        // 上の (c): 全部が「許可ホストでない」だけで、件数が減っている。
         //
-        // 件数だけで「消したい意思」と判断してはいけない。曲が弾かれる理由は
-        // 旧ホストだけではなく、object でない・title が空・previewUrl が無い、
-        // でも弾かれる。件数だけを見ていた頃は、有効な曲を3件持っている人に
-        // `{songs:[null,null]}` を送るだけで（クライアントのマッピング不具合や
-        // 古いバージョンで起こりうる）**有効な3件が消えて 200** が返った。
-        //
-        // 消してよいのは「保存済みも全部いまの規則では保存できない」＝
-        // 旧ルール時代のデータしか無い人に限る。そこでだけ、送られた件数が
-        // 保存済みより少ないことを削除の意思として扱う。
+        // 「保存済みが全部いまの規則で保存できない人だけ」に絞ったことがあるが、
+        // それだと混ざっている人が消せなくなった。保存済みが
+        // [Apple 1件, 旧ホスト2件] の人が Apple の曲だけ画面から消して保存すると、
+        // 送られるのは旧ホスト2件で全部弾かれる。「保存済みに有効な曲がある」
+        // ので触らない判断になり、200 を返しながら3件とも残っていた
+        // ——まさに直そうとした「保存しましたと出るのに元どおり」の再発。
+        // 形の壊れた曲は上で弾いてあるので、ここは件数だけを見てよい。
         if (songsAllRejected > 0) {
-            const stored = Array.isArray(prev?.songs) ? prev.songs : [];
-            const storedStillValid = stored.filter((s) => safeSongPreviewUrl((s as SongEntry)?.previewUrl) && (s as SongEntry)?.title);
-            if (storedStillValid.length === 0 && songsAllRejected < stored.length) {
+            const storedCount = Array.isArray(prev?.songs) ? prev.songs.length : 0;
+            if (songsAllRejected < storedCount) {
                 songs = [];
                 songsAddressed = true;
             }

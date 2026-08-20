@@ -114,58 +114,41 @@ describe("deleteAccount", () => {
     // 「行きたいリスト」は書き込む経路がどこにも無い（通知の型に残っていた
     // だけで、マーカーを作る口も UI のボタンも存在しない）。
     // 消す側だけ持っていても、カウンタを直せるわけではないので落とした。
-    it("フォロー中の follow# を消し、相手の followers を減らす", async () => {
+    // マーカー削除と相手のカウンタ減算は**1つのトランザクション**にする。
+    // 別々の書き込みだった頃は、片方だけ効いた状態が残って
+    //   1回目の作り: どちらも無条件 → 再実行で引きすぎ
+    //   2回目の作り: 消せたときだけ減らす → タイムアウトで引き足りない
+    // のどちらかに必ず倒れた。両方効くか両方効かないかにすれば、
+    // 何度実行しても正しい数に収束する。
+    const transacts = () => mockDdbSend.mock.calls
+        .map((c) => c[0])
+        .filter((cmd) => cmd?.constructor?.name === "TransactWriteCommand");
+
+    const followingIs = (list: string[], onTransact?: () => Promise<unknown>) => {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
             const name = cmd.constructor.name;
             if (name === "QueryCommand") return Promise.resolve({ Items: [] });
             if (name === "GetCommand") {
                 const id = String((cmd.input.Key as { id?: string }).id ?? "");
-                if (id === "following#me") return Promise.resolve({ Item: { list: ["userA", "userB"] } });
+                if (id === "following#me") return Promise.resolve({ Item: { list } });
                 return Promise.resolve({ Item: undefined });
             }
+            if (name === "TransactWriteCommand" && onTransact) return onTransact();
             return Promise.resolve({});
         });
+    };
 
-        const res = await invoke(deleteAccount, ev("me"));
-        expect(res.statusCode).toBe(200);
-
-        const ids = deletedDdbIds();
-        expect(ids).toContain("follow#userA#me");
-        expect(ids).toContain("follow#userB#me");
-
-        const updates = mockDdbSend.mock.calls
-            .map((c) => c[0])
-            .filter((cmd) => cmd?.constructor?.name === "UpdateCommand")
-            .map((cmd) => String(cmd.input?.Key?.id ?? ""));
-        expect(updates).toContain("followstats#userA");
-        expect(updates).toContain("followstats#userB");
-    });
-
-    // 退会は直列で最大2000件回るので途中で実行時間を使い切ることがあり、
-    // 画面は「もう一度お試しください」と出す。二度目の実行で、既に消えた
-    // マーカーの分まで**もう一度**減らすと、他人のフォロワー数が実際より
-    // 小さくなる（相手には直す手段が無い）。
-    it("マーカーが既に無ければ相手のカウンタを減らさない（再実行で引きすぎない）", async () => {
-        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
-            const name = cmd.constructor.name;
-            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
-            if (name === "GetCommand") {
-                const id = String((cmd.input.Key as { id?: string }).id ?? "");
-                if (id === "following#me") return Promise.resolve({ Item: { list: ["userA"] } });
-                return Promise.resolve({ Item: undefined });
-            }
-            if (name === "DeleteCommand") {
-                const id = String((cmd.input.Key as { id?: string }).id ?? "");
-                // 前回の実行で消えている
-                if (id === "follow#userA#me") {
-                    return Promise.reject(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
-                }
-            }
-            return Promise.resolve({});
-        });
-
+    it("フォロー中の解除は、削除と減算を1つの書き込みで行う", async () => {
+        followingIs(["userA", "userB"]);
         expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
 
+        const items = transacts().map((cmd) => cmd.input.TransactItems as Record<string, { Key?: { id?: string } }>[]);
+        expect(items).toHaveLength(2);
+        for (const [i, target] of ["userA", "userB"].entries()) {
+            expect(items[i][0].Delete?.Key?.id).toBe(`follow#${target}#me`);
+            expect(items[i][1].Update?.Key?.id).toBe(`followstats#${target}`);
+        }
+        // 片方だけを書く経路は残っていない
         const updates = mockDdbSend.mock.calls
             .map((c) => c[0])
             .filter((cmd) => cmd?.constructor?.name === "UpdateCommand")
@@ -173,44 +156,46 @@ describe("deleteAccount", () => {
         expect(updates).not.toContain("followstats#userA");
     });
 
-    // 「消せたと確かめられたときだけ減らす」。条件不成立だけを見ていた頃は、
-    // スロットリングやタイムアウトで落ちた分も「消えた」扱いで減らしていた。
-    // 呼び出し側は失敗を見て再実行するので、次はマーカー削除が成功して
-    // **もう一度**減る——直そうとした二重減算がそのまま残っていた。
-    it("マーカーを消せたか分からない失敗でも減らさない", async () => {
+    it("条件不成立（前回で処理済み・相手の集計が0）ならマーカーだけ片付ける", async () => {
+        followingIs(["userA"], () => Promise.reject(
+            Object.assign(new Error("cancelled"), { name: "TransactionCanceledException" })));
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        expect(deletedDdbIds()).toContain("follow#userA#me");
+        expect(deletedDdbIds()).toContain("following#me");   // 片付いたので消してよい
+    });
+
+    // 「消せたか分からない」失敗が残ったら、やり直す手がかりを消さない。
+    // following# まで消していた頃は、再実行しても対象リストが空になり、
+    // 相手のフォロワー数が1多いまま誰にも直せなかった。
+    it("片付け切れなかったら following# を残す（ただし 500 にはしない）", async () => {
+        followingIs(["userA"], () => Promise.reject(
+            Object.assign(new Error("throttled"), { name: "ProvisionedThroughputExceededException" })));
+        const res = await invoke(deleteAccount, ev("me"));
+
+        // 500 を返すと、呼び出し側は Cognito の削除に進まない。恒常的に失敗する
+        // 種類だと、写真もプロフィールも消えたのにログインできるアカウントだけが
+        // 残り、退会が永久に完了しない。静的ページの掃除依頼も飛んでしまう。
+        expect(res.statusCode).toBe(200);
+        expect(mockRebuild).toHaveBeenCalled();
+        expect(deletedDdbIds()).not.toContain("following#me");
+    });
+
+    // following# 自体が読めなかったときも同じ。エラーを「空」と混ぜて
+    // following# を消していた頃は、50人フォローしていた人の退会で
+    // 50個のマーカーが孤児になり、50人の数字が1多いまま固定された。
+    it("フォロー一覧が読めなかったら following# を残す", async () => {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
             const name = cmd.constructor.name;
             if (name === "QueryCommand") return Promise.resolve({ Items: [] });
             if (name === "GetCommand") {
                 const id = String((cmd.input.Key as { id?: string }).id ?? "");
-                if (id === "following#me") return Promise.resolve({ Item: { list: ["userA"] } });
+                if (id === "following#me") return Promise.reject(new Error("throttled"));
                 return Promise.resolve({ Item: undefined });
-            }
-            if (name === "DeleteCommand") {
-                const id = String((cmd.input.Key as { id?: string }).id ?? "");
-                // スロットリング。適用されたかどうか分からない
-                if (id === "follow#userA#me") {
-                    return Promise.reject(Object.assign(new Error("throttled"), { name: "ProvisionedThroughputExceededException" }));
-                }
             }
             return Promise.resolve({});
         });
-
-        // 減らさないだけにして 200 を返していた頃は、直後に following# を
-        // 消していたので**再実行しても対象リストが空**になり、相手の
-        // フォロワー数が1多いまま誰にも直せなくなっていた。
-        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(500);
-
-        const cmds = mockDdbSend.mock.calls.map((c) => c[0]);
-        const updates = cmds
-            .filter((cmd) => cmd?.constructor?.name === "UpdateCommand")
-            .map((cmd) => String(cmd.input?.Key?.id ?? ""));
-        expect(updates).not.toContain("followstats#userA");
-        // やり直す手がかりを残す
-        const deletes = cmds
-            .filter((cmd) => cmd?.constructor?.name === "DeleteCommand")
-            .map((cmd) => String(cmd.input?.Key?.id ?? ""));
-        expect(deletes).not.toContain("following#me");
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        expect(deletedDdbIds()).not.toContain("following#me");
     });
 
     it("個別削除が1件失敗しても続行し 200 を返す（耐障害）", async () => {
