@@ -107,6 +107,11 @@ function UploadPageInner() {
     const [category, setCategory] = useState("");
     const [tags, setTags] = useState("");
     const [uploading, setUploading] = useState(false);
+    // EXIF の読み取りと撮影地の逆引きが終わるまで公開させない。
+    // これらは写真を選んだ後に非同期で入るので、すぐ「公開」を押すと
+    // 撮影日・撮影地・座標が入る前の状態で保存されていた
+    // （日付が無いと投稿日が使われ、年表の並びが狂う）。
+    const [metaLoading, setMetaLoading] = useState(false);
     const [fileError, setFileError] = useState<string | null>(null);
     const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -210,6 +215,8 @@ function UploadPageInner() {
         setItems((prev) => [...prev, ...newItems]);
 
         // EXIF を順次抽出（並列）。GPS リバースジオコードはレート制限のため直列。
+        setMetaLoading(true);
+        try {
         const exifResults = await Promise.all(
             newItems.map(async (it) => ({ id: it.id, meta: await extractExifFromFile(it.file) }))
         );
@@ -235,6 +242,9 @@ function UploadPageInner() {
                     await new Promise((res) => setTimeout(res, 1100));
                 }
             }
+        }
+        } finally {
+            setMetaLoading(false);
         }
     }, [locale, gpsAutofill]);
 
@@ -652,7 +662,7 @@ function UploadPageInner() {
                             {/* 下書き保存: 必須項目なしで非公開保存。あとで編集して公開できる */}
                             <button
                                 onClick={() => handleUploadAll(false)}
-                                disabled={uploading || pendingCount === 0}
+                                disabled={uploading || metaLoading || pendingCount === 0}
                                 className="px-4 py-3 bg-white/10 hover:bg-white/20 text-white text-sm font-semibold rounded-full ring-1 ring-white/15 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >
@@ -660,13 +670,15 @@ function UploadPageInner() {
                             </button>
                             <button
                                 onClick={() => handleUploadAll(true)}
-                                disabled={uploading || pendingCount === 0}
+                                disabled={uploading || metaLoading || pendingCount === 0}
                                 className="px-6 py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >
                                 {uploading
                                     ? (locale === "en" ? "Uploading..." : "アップロード中...")
-                                    : (locale === "en" ? `Publish ${pendingCount}` : `${pendingCount}枚を公開`)}
+                                    : metaLoading
+                                        ? (locale === "en" ? "Reading photo info..." : "撮影情報を読み取り中…")
+                                        : (locale === "en" ? `Publish ${pendingCount}` : `${pendingCount}枚を公開`)}
                             </button>
                         </div>
                     </div>
@@ -736,7 +748,10 @@ function UploadPageInner() {
                                         const upload = await fetch(presignedUrl, {
                                             method: "PUT",
                                             body: compressed,
-                                            headers: { "Content-Type": compressed.type },
+                                            // Cache-Control は署名対象外ヘッダなので presigned URL 側では
+                                            // 指定できない。クライアントが送らないと S3 に何も付かず、
+                                            // CDN の既定TTLで配信されてアイコンを変えても反映されない。
+                                            headers: { "Content-Type": compressed.type, "Cache-Control": "no-store" },
                                         });
                                         if (!upload.ok) throw new Error("S3 upload fail");
                                         setAvatarFile(null);

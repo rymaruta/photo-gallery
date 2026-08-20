@@ -72,10 +72,15 @@ function AdminEditContent() {
         const fetchPhoto = async () => {
             setLoadingPhoto(true);
             try {
-                const { publicFetch } = await import("../../../lib/utils/api");
-                const res = await publicFetch(`/photos/${photoId}`);
+                // 公開API（/photos/{id}）は下書きを404にするため、非公開にした
+                // 写真をこの画面で開けず、公開に戻す手段が無くなっていた。
+                // 管理専用の一覧から引く（下書きも含まれる）。
+                const { authenticatedFetch } = await import("../../../lib/utils/api");
+                const res = await authenticatedFetch("/admin/photos", { cache: "no-store" });
                 if (res.ok) {
-                    const data = await res.json() as Photo;
+                    const all = await res.json() as Photo[];
+                    const data = Array.isArray(all) ? all.find((p) => p.id === photoId) : undefined;
+                    if (!data) throw new Error("not found");
                     setPhoto(data);
 
                     const t = data.title;
@@ -129,14 +134,22 @@ function AdminEditContent() {
             const { authenticatedFetch } = await import("../../../lib/utils/api");
             const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
 
-            const exif: Record<string, string | number> = {};
-            if (exifCamera) exif.camera = exifCamera;
-            if (exifLens) exif.lens = exifLens;
-            if (exifAperture) exif.aperture = exifAperture;
-            if (exifExposure) exif.exposure = exifExposure;
-            if (exifIso) exif.iso = Number(exifIso);
-            if (exifFocalLength) exif.focalLength = exifFocalLength;
-            if (exifWhiteBalance) exif.whiteBalance = exifWhiteBalance;
+            // サーバーは exif を丸ごと置き換える。このフォームは7項目しか扱わないので、
+            // 組み直すと imageSize や dateTimeOriginal など画面に出ない項目が消える
+            // （撮影情報カードから解像度と撮影時刻が失われていた）。
+            // 既存の値の上にフォームの内容を重ねる。
+            const exif: Record<string, string | number> = { ...(photo?.exif ?? {}) };
+            const setExifField = (key: string, value: string | number, filled: boolean) => {
+                if (filled) exif[key] = value;
+                else delete exif[key]; // 空にしたら消せるようにする
+            };
+            setExifField("camera", exifCamera, !!exifCamera);
+            setExifField("lens", exifLens, !!exifLens);
+            setExifField("aperture", exifAperture, !!exifAperture);
+            setExifField("exposure", exifExposure, !!exifExposure);
+            setExifField("iso", Number(exifIso), !!exifIso);
+            setExifField("focalLength", exifFocalLength, !!exifFocalLength);
+            setExifField("whiteBalance", exifWhiteBalance, !!exifWhiteBalance);
 
             const descJaParagraphs = descJa.split("\n").map((s) => s.trim()).filter(Boolean);
             const descEnParagraphs = descEn.split("\n").map((s) => s.trim()).filter(Boolean);
@@ -146,12 +159,15 @@ function AdminEditContent() {
                 body: JSON.stringify({
                     title: { ja: titleJa, en: titleEn },
                     description: { ja: descJaParagraphs, en: descEnParagraphs },
-                    location: location || undefined,
-                    category: category || undefined,
-                    date: date || undefined,
+                    // 空文字で送る。undefined だと JSON.stringify がキーごと落とし、
+                    // サーバーの部分更新が「指定なし＝触らない」と解釈するため、
+                    // 一度入れた場所やカテゴリを空にできなかった。
+                    location,
+                    category,
+                    date,
                     tags,
                     published,
-                    exif: Object.keys(exif).length > 0 ? exif : undefined,
+                    exif,
                 }),
             });
 

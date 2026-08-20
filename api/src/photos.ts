@@ -1,5 +1,6 @@
-import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
-import { listPhotos, listPhotosByUser, getPhotoById } from "./ddb-photos";
+import type { APIGatewayProxyHandlerV2, APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
+import { listPhotos, listPhotosByUser, getPhotoById, listAllPhotosForAdmin } from "./ddb-photos";
+import { isAdmin } from "./auth";
 
 const JSON_HEADERS = {
     "Content-Type": "application/json",
@@ -38,6 +39,31 @@ export const getPhoto: APIGatewayProxyHandlerV2 = async (event) => {
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(photo) };
     } catch (e) {
         console.error("getPhoto error:", e);
+        return { statusCode: 500, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ error: "写真の取得に失敗しました" }) };
+    }
+};
+
+/**
+ * GET /admin/photos — 下書きも含めた全写真（管理者のみ）。
+ *
+ * 公開の GET /photos は下書きを隠す。管理画面がそれだけを見ていたため、
+ * 写真を非公開にすると一覧からも編集画面からも消え、戻す手段が無かった。
+ * 「下書き」フィルタが常に空だったのも同じ理由。
+ */
+export const getPhotosForAdmin: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    if (!isAdmin(event)) {
+        return { statusCode: 403, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ error: "権限がありません" }) };
+    }
+    try {
+        const photos = await listAllPhotosForAdmin();
+        return {
+            statusCode: 200,
+            // 管理者個別のレスポンス。下書きが混ざるので共有キャッシュには載せない
+            headers: { "Content-Type": "application/json", "Cache-Control": "private, no-store" },
+            body: JSON.stringify(photos),
+        };
+    } catch (e) {
+        console.error("getPhotosForAdmin error:", e);
         return { statusCode: 500, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ error: "写真の取得に失敗しました" }) };
     }
 };

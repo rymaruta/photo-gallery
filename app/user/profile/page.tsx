@@ -12,6 +12,7 @@ import { userFetch } from "../../../lib/utils/api";
 import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../../lib/utils/music";
 import { toUploadSafeFile, AVATAR_MAX_PX, COVER_MAX_PX } from "../../../lib/utils/image";
 import { log } from "../../../lib/utils/log";
+import { useMusic } from "../../music/MusicContext";
 import DeleteAccountModal from "../../components/DeleteAccountModal";
 
 type SongEntry = {
@@ -70,6 +71,7 @@ export default function ProfileEditPage() {
     const { locale } = useLocale();
     const router = useRouter();
     const { showToast } = useToast();
+    const { stop: stopGlobalMusic } = useMusic();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // 退会（アカウント削除）
@@ -198,7 +200,10 @@ export default function ProfileEditPage() {
             const uploadRes = await fetch(presignedUrl, {
                 method: "PUT",
                 body: upload,
-                headers: { "Content-Type": upload.type },
+                // Cache-Control は署名対象外ヘッダなので presigned URL 側では指定できない。
+                // クライアントが送らないと S3 に何も付かず、CDN の既定TTLで配信されて
+                // アイコンを変えても他人には古いものが出続ける（固定キーのため）。
+                headers: { "Content-Type": upload.type, "Cache-Control": "no-store" },
             });
             if (!uploadRes.ok) { showToast("カバー写真のアップロードに失敗しました", "error"); return; }
             setCoverError(false);
@@ -244,7 +249,10 @@ export default function ProfileEditPage() {
             const uploadRes = await fetch(presignedUrl, {
                 method: "PUT",
                 body: upload,
-                headers: { "Content-Type": upload.type },
+                // Cache-Control は署名対象外ヘッダなので presigned URL 側では指定できない。
+                // クライアントが送らないと S3 に何も付かず、CDN の既定TTLで配信されて
+                // アイコンを変えても他人には古いものが出続ける（固定キーのため）。
+                headers: { "Content-Type": upload.type, "Cache-Control": "no-store" },
             });
             if (!uploadRes.ok) { showToast("アバターのアップロードに失敗しました", "error"); return; }
 
@@ -270,6 +278,9 @@ export default function ProfileEditPage() {
             setPreviewId(null);
             return;
         }
+        // BGM が鳴っていたら止める。止めないとミニプレイヤーの曲と試聴が
+        // 同時に鳴り、しかもミニプレイヤーは再生中のまま見える。
+        stopGlobalMusic();
         a.src = song.previewUrl;
         a.currentTime = 0;
         a.onended = () => setPreviewId(null);
@@ -342,8 +353,12 @@ export default function ProfileEditPage() {
         const songPayload = {
             // 貼付リンク（独立）
             songUrl: trimmedUrl,
-            songStart: mmssToSec(songStartText),
-            songEnd: mmssToSec(songEndText),
+            // null で送る。undefined だと JSON.stringify がキーごと落とし、
+            // サーバーの部分更新が「指定なし＝触らない」と解釈するため、
+            // 一度入れた開始/終了位置を空にしても消えなかった
+            // （他の項目は空文字を送っているので影響がない）。
+            songStart: mmssToSec(songStartText) ?? null,
+            songEnd: mmssToSec(songEndText) ?? null,
             // 検索で選んだ曲（独立）
             songTitle: selectedSongs[0]?.title ?? "",
             songArtist: selectedSongs[0]?.artist ?? "",

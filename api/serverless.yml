@@ -84,6 +84,16 @@ functions:
           path: /photos/{id}
           method: GET
 
+  # 管理画面用。下書きも返すので必ず認証を要求する（ハンドラ側でも admin を確認）
+  getPhotosForAdmin:
+    handler: src/photos.getPhotosForAdmin
+    events:
+      - httpApi:
+          path: /admin/photos
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
   updatePhoto:
     handler: src/photosMutate.updatePhoto
     events:

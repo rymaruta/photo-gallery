@@ -32,6 +32,30 @@ export async function listPhotos(): Promise<Photo[]> {
     return items.sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
 }
 
+/**
+ * 下書き（published:false）も含めた全写真。管理画面専用。
+ *
+ * 公開APIは下書きを隠すため、管理画面が公開APIだけを見ていると
+ * 「非公開にした瞬間に管理画面からも消えて、二度と戻せない」状態になっていた
+ * （他人の写真を非公開にすると AWS コンソール以外に復旧手段が無かった）。
+ * ストーリーは管理対象ではないので除く。
+ */
+export async function listAllPhotosForAdmin(): Promise<Photo[]> {
+    const items: Photo[] = [];
+    let lastKey: Record<string, unknown> | undefined;
+    do {
+        const res = await ddb.send(new ScanCommand({
+            TableName: TABLE,
+            ExclusiveStartKey: lastKey,
+            // published は見ない（下書きも欲しい）。写真以外のレコードだけ除く。
+            FilterExpression: "attribute_exists(src) AND attribute_not_exists(story)",
+        }));
+        items.push(...((res.Items ?? []) as Photo[]));
+        lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
+    } while (lastKey);
+    return items.sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+}
+
 export async function getPhotoById(id: string): Promise<Photo | null> {
     const res = await ddb.send(new GetCommand({ TableName: TABLE, Key: { id } }));
     return (res.Item as Photo | undefined) ?? null;

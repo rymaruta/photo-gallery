@@ -9,11 +9,17 @@
 // タッチ端末ではスクロールと競合するため従来どおり画面下に固定する。
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { PlayIcon, PauseIcon, ForwardIcon, BackwardIcon } from "@heroicons/react/24/solid";
 import { XMarkIcon, MusicalNoteIcon, ArrowsRightLeftIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 import { useMusic } from "../music/MusicContext";
 import SmoothProgress from "./SmoothProgress";
 import { clampMiniPlayerPos } from "../../lib/utils/miniPlayerPos";
+
+// 画面下に固定の操作バーを持つページ。ミニプレイヤーをその上へ逃がす。
+const PAGES_WITH_BOTTOM_BAR = ["/user/upload", "/user/edit"];
+// バーの高さの目安（p-4 + ボタン44px + 枠線）
+const BOTTOM_BAR_HEIGHT_PX = 80;
 
 const STORAGE_KEY = "jp_miniplayer_pos";
 
@@ -38,6 +44,7 @@ export default function MiniPlayer() {
     const boxRef = useRef<HTMLDivElement | null>(null);
     const [draggable, setDraggable] = useState(false);
     const [pos, setPos] = useState<Pos | null>(null);
+    const pathname = usePathname();
     // ドラッグ中の状態: ポインタと要素左上のオフセット + 要素サイズ
     const dragRef = useRef<{ dx: number; dy: number; w: number; h: number } | null>(null);
 
@@ -116,9 +123,13 @@ export default function MiniPlayer() {
     // clampMiniPlayerPos が物理的に侵入させないので、視覚的な重なりも起きない。
     const positioned = draggable && pos !== null;
     const outerClass = positioned ? "fixed z-40" : "fixed inset-x-3 z-40 max-w-md mx-auto";
+    // 画面下に固定バーがあるページでは、その上に逃がす。
+    // 同じ z-40 でミニプレイヤーが後に描画されるため、重なると「公開」ボタンを
+    // 押したつもりでプレイヤーのボタンが反応していた（iPhone で顕著）。
+    const bottomBarOffsetPx = PAGES_WITH_BOTTOM_BAR.includes(pathname ?? "") ? BOTTOM_BAR_HEIGHT_PX : 0;
     const outerStyle: React.CSSProperties = positioned
         ? { left: pos!.x, top: pos!.y, width: "min(28rem, calc(100vw - 24px))" }
-        : { bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" };
+        : { bottom: `calc(env(safe-area-inset-bottom, 0px) + ${12 + bottomBarOffsetPx}px)` };
 
     return (
         <div ref={boxRef} className={outerClass} style={outerStyle}>

@@ -31,6 +31,11 @@ export const profileAvatarPresignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorize
             Bucket: UPLOAD_BUCKET,
             Key: key,
             ContentType: fileType,
+            // 注意: cache-control は SigV4 の ALWAYS_UNSIGNABLE_HEADERS に入っており、
+            // presigned URL では効かない（S3 にはクライアントが送った値だけが載る）。
+            // ここは意図の記録で、実際に効かせているのはアップロード側が
+            // PUT に付ける Cache-Control: no-store。アイコンは profiles/{userId} という
+            // ハッシュの付かない固定キーなので、キャッシュさせると変更が反映されない。
             CacheControl: "no-store",
         }),
         { expiresIn: 900 }

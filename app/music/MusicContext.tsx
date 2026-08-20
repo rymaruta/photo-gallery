@@ -52,6 +52,19 @@ export function useMusic(): MusicApi {
 export function MusicProvider({ children }: { children: React.ReactNode }) {
     const [st, setSt] = useState<MusicState>(EMPTY);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    /**
+     * 再生を試み、失敗したら「再生中」表示を取り消す。
+     *
+     * 以前は play() の失敗を握りつぶして必ず playing:true を返していたため、
+     * 音が出ていないのにミニプレイヤーが一時停止アイコンのまま止まり、
+     * 進捗も0%から動かない状態になっていた（低電力モードの iPhone など、
+     * ブラウザが自動再生を拒否する場面で起きる）。
+     */
+    const playOrMarkStopped = useCallback((a: HTMLAudioElement | null | undefined) => {
+        if (!a) return;
+        void a.play().catch(() => setSt((p) => ({ ...p, playing: false })));
+    }, []);
     const current = st.queue[st.index] ?? null;
 
     const play = useCallback((queueKey: string, queue: SongEntry[], index = 0, label?: string) => {
@@ -68,12 +81,12 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
                     a?.pause();
                     return { ...prev, playing: false };
                 }
-                void a?.play().catch(noop);
+                playOrMarkStopped(a);
                 return { ...prev, playing: true };
             }
             return { ...prev, queueKey, queue, index: safeIndex, playing: true, label: label ?? null };
         });
-    }, []);
+    }, [playOrMarkStopped]);
 
     const toggle = useCallback(() => {
         setSt((prev) => {
@@ -83,10 +96,10 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
                 a?.pause();
                 return { ...prev, playing: false };
             }
-            void a?.play().catch(noop);
+            playOrMarkStopped(a);
             return { ...prev, playing: true };
         });
-    }, []);
+    }, [playOrMarkStopped]);
 
     const step = useCallback((d: number) => {
         setSt((prev) => {

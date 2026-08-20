@@ -61,9 +61,12 @@ export default function AdminPage() {
     const loadPhotos = useCallback(async () => {
         try {
             setLoadingPhotos(true);
-            // 管理者ページでは常に最新データを取得するためキャッシュを無効化
-            const { publicFetch } = await import("../../lib/utils/api");
-            const response = await publicFetch("/photos", {
+            // 管理者ページでは常に最新データを取得するためキャッシュを無効化。
+            // 公開API（/photos）は下書きを隠すので、管理専用の経路から取る。
+            // 以前は公開APIを見ていたため、非公開にした写真が一覧から消えて
+            // 戻せなくなり、「下書き」フィルタも常に空だった。
+            const { authenticatedFetch } = await import("../../lib/utils/api");
+            const response = await authenticatedFetch("/admin/photos", {
                 cache: "no-store",
             });
             if (response.ok) {
