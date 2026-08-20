@@ -100,6 +100,7 @@ describe("postComment", () => {
     it("投稿: 追記 + commentCount+1 + 名前はサーバー解決、オーナーに通知", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", thumbSrc: "https://cdn/p1_thumb.webp", userId: "owner", location: "北海道" } }) // photo
+            .mockResolvedValueOnce({ Item: { items: [] } })  // 自分のコメント数の確認
             .mockResolvedValueOnce({}) // append
             .mockResolvedValueOnce({}); // count +1
         const res = await invoke(postComment, ev("u1", { id: "p1" }, { text: "  すてき  " }));
@@ -117,6 +118,7 @@ describe("postComment", () => {
     it("自分の写真には通知しない", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "u1" } })
+            .mockResolvedValueOnce({ Item: { items: [] } })  // 自分のコメント数の確認
             .mockResolvedValueOnce({})
             .mockResolvedValueOnce({});
         await invoke(postComment, ev("u1", { id: "p1" }, { text: "self" }));
@@ -126,10 +128,34 @@ describe("postComment", () => {
     it("500文字を超えるテキストは切り詰められる", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner" } })
+            .mockResolvedValueOnce({ Item: { items: [] } })  // 自分のコメント数の確認
             .mockResolvedValueOnce({})
             .mockResolvedValueOnce({});
         const res = await invoke(postComment, ev("u1", { id: "p1" }, { text: "x".repeat(800) }));
         expect(JSON.parse(res.body).comment.text.length).toBe(500);
+    });
+
+    // 上限200の輪（古いものから落ちる）なので、1人が200件書けば
+    // その写真の議論を全部消せる。履歴もどこにも残らない。
+    it("同じ写真への自分のコメントが多すぎたら 429（他人の履歴を流せない）", async () => {
+        const mine = Array.from({ length: 10 }, (_, i) => ({ id: `c${i}`, uid: "u1" }));
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner" } })
+            .mockResolvedValueOnce({ Item: { items: mine } });
+        const res = await invoke(postComment, ev("u1", { id: "p1" }, { text: "hi" }));
+        expect(res.statusCode).toBe(429);
+        // 追記していない
+        expect(mockDdbSend).toHaveBeenCalledTimes(2);
+    });
+
+    it("他人のコメントは自分の上限に数えない", async () => {
+        const others = Array.from({ length: 50 }, (_, i) => ({ id: `c${i}`, uid: `other${i}` }));
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner" } })
+            .mockResolvedValueOnce({ Item: { items: others } })
+            .mockResolvedValueOnce({ Attributes: { items: others } })
+            .mockResolvedValueOnce({});
+        expect((await invoke(postComment, ev("u1", { id: "p1" }, { text: "hi" }))).statusCode).toBe(200);
     });
 
     // 追記だけだと DynamoDB のアイテム上限(400KB)に達し、以後そのフォトには
@@ -140,13 +166,14 @@ describe("postComment", () => {
         }));
         mockDdbSend
             .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner" } }) // photo
+            .mockResolvedValueOnce({ Item: { items: [] } })  // 自分のコメント数の確認
             .mockResolvedValueOnce({ Attributes: { items: stored } })                        // append
             .mockResolvedValueOnce({})                                                        // trim
             .mockResolvedValueOnce({});                                                       // count +1
 
         await invoke(postComment, ev("u1", { id: "p1" }, { text: "hi" }));
 
-        const trim = mockDdbSend.mock.calls[2][0].input;
+        const trim = mockDdbSend.mock.calls[3][0].input;
         expect(trim.UpdateExpression).toContain(":trimmed");
         expect(trim.ExpressionAttributeValues[":trimmed"]).toHaveLength(200);
         // 残るのは新しい方（末尾追記なので後ろが新しい）
@@ -160,11 +187,12 @@ describe("postComment", () => {
         const stored = Array.from({ length: 201 }, (_, i) => ({ id: `c${i}` }));
         mockDdbSend
             .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner" } })
+            .mockResolvedValueOnce({ Item: { items: [] } })  // 自分のコメント数の確認
             .mockResolvedValueOnce({ Attributes: { items: stored } })
             .mockResolvedValueOnce({})
             .mockResolvedValueOnce({});
         await invoke(postComment, ev("u1", { id: "p1" }, { text: "hi" }));
-        const trim = mockDdbSend.mock.calls[2][0].input;
+        const trim = mockDdbSend.mock.calls[3][0].input;
         expect(trim.ConditionExpression).toBe("size(#items) = :len");
         expect(trim.ExpressionAttributeValues[":len"]).toBe(201);
     });
@@ -174,6 +202,7 @@ describe("postComment", () => {
         const conflict = Object.assign(new Error("conflict"), { name: "ConditionalCheckFailedException" });
         mockDdbSend
             .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner" } })
+            .mockResolvedValueOnce({ Item: { items: [] } })  // 自分のコメント数の確認
             .mockResolvedValueOnce({ Attributes: { items: stored } })
             .mockRejectedValueOnce(conflict)
             .mockResolvedValueOnce({});
@@ -185,11 +214,12 @@ describe("postComment", () => {
         const stored = Array.from({ length: 5 }, (_, i) => ({ id: `c${i}` }));
         mockDdbSend
             .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner" } })
+            .mockResolvedValueOnce({ Item: { items: [] } })  // 自分のコメント数の確認
             .mockResolvedValueOnce({ Attributes: { items: stored } })
             .mockResolvedValueOnce({});
         await invoke(postComment, ev("u1", { id: "p1" }, { text: "hi" }));
-        // photo get / append / commentCount+1 の3回だけ
-        expect(mockDdbSend).toHaveBeenCalledTimes(3);
+        // photo get / 自分のコメント数 / append / commentCount+1 の4回だけ
+        expect(mockDdbSend).toHaveBeenCalledTimes(4);
     });
 });
 

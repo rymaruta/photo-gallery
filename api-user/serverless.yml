@@ -150,12 +150,20 @@ functions:
           path: /users/search
           method: GET
 
+  # 曲検索。呼び出しは曲を選ぶ画面（プロフィール編集・ストーリー投稿）だけで、
+  # どちらもログインが要る。未認証で開けておくと、外向き通信を1本ずつ抱えた
+  # Lambda を好きなだけ起こせて、同時実行枠（アカウント全体で共有）を
+  # 埋められる——退会処理など無関係な処理まで詰まる。
   musicSearch:
     handler: src/musicSearch.musicSearch
+    # 外向きの通信を待つので、詰まらせない上限を明示しておく
+    reservedConcurrency: 10
     events:
       - httpApi:
           path: /music/search
           method: GET
+          authorizer:
+            name: cognitoAuthorizer
 
   updatePhotoVisibility:
     handler: src/photoUpdate.updatePhotoVisibility

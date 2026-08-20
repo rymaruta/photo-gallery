@@ -79,6 +79,25 @@ describe("followUser", () => {
         expect(mockPush).not.toHaveBeenCalled();
     });
 
+    it("同じ相手を繰り返しフォローしても通知は積まない", async () => {
+        // 解除するとマーカーが消えるので、フォロー→解除の繰り返しで
+        // 通知を何度でも積めた。通知は50件の輪なので、100回ほどで
+        // 相手の通知欄を自分の通知だけで埋め尽くせる
+        // （読んでいないいいね・コメントの知らせが全部消える）。
+        queueUserExists();
+        mockDdbSend
+            .mockResolvedValueOnce({})                              // Put marker
+            .mockResolvedValueOnce({})                              // bump followers
+            .mockResolvedValueOnce({})                              // bump following
+            .mockResolvedValueOnce({ Item: { list: [] } })          // readFollowing
+            .mockResolvedValueOnce({})                              // Put following list
+            .mockRejectedValueOnce(condFail())                      // 通知の間引き（直近に通知済み）
+            .mockResolvedValueOnce({ Item: { followers: 1, following: 0 } });
+        const res = await invoke(followUser, ev(ME, OTHER));
+        expect(res.statusCode).toBe(200);
+        expect(mockPush).not.toHaveBeenCalled();
+    });
+
     it("実在確認に失敗したときは通す（実在する相手を弾かない）", async () => {
         mockDdbSend.mockRejectedValueOnce(new Error("ddb down"));
         mockDdbSend
@@ -86,6 +105,7 @@ describe("followUser", () => {
             .mockResolvedValueOnce({})
             .mockResolvedValueOnce({})
             .mockResolvedValueOnce({ Item: { list: [] } })
+            .mockResolvedValueOnce({})
             .mockResolvedValueOnce({})
             .mockResolvedValueOnce({ Item: { followers: 1, following: 0 } });
         expect((await invoke(followUser, ev(ME, OTHER))).statusCode).toBe(200);
@@ -99,6 +119,7 @@ describe("followUser", () => {
             .mockResolvedValueOnce({})                              // bump me.following
             .mockResolvedValueOnce({ Item: { list: [] } })         // readFollowing
             .mockResolvedValueOnce({})                              // Put following list
+            .mockResolvedValueOnce({})                              // 通知の間引き判定
             .mockResolvedValueOnce({ Item: { followers: 1, following: 0 } }); // readStats
         const res = await invoke(followUser, ev(ME, OTHER));
         expect(res.statusCode).toBe(200);

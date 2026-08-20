@@ -19,6 +19,15 @@ export type Comment = {
 };
 
 const COMMENTS_MAX = 200;   // 保持する上限（書き込み時に切り詰め・読み取りもこの数）
+/**
+ * 1人がひとつの写真に付けられる数の上限。
+ *
+ * 上限200の輪（古いものから落ちる）なので、1人が200件書けば
+ * **その写真の議論を全部消せる**。履歴もどこにも残らない。
+ * 200回のリクエストで他人のコメント欄を無に帰せるのは、
+ * 会話の場としてもたない。1人あたりを絞れば、この経路は塞がる。
+ */
+const COMMENTS_MAX_PER_USER = 10;
 const DELETE_RETRIES = 3;   // 削除の添字がずれたときの読み直し回数
 const TEXT_MAX = 500;
 
@@ -88,6 +97,12 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // （しかも一覧APIは公開なので、そのコメントは誰でも読めた）。
         if (photo.published === false || photo.story === true) {
             return jsonError(404, "写真が見つかりません");
+        }
+
+        // 自分がこの写真に何件書いているか（上限の輪を1人で埋めさせない）
+        const existing = await readComments(photoId);
+        if (existing.filter((c) => c.uid === uid).length >= COMMENTS_MAX_PER_USER) {
+            return jsonError(429, `同じ写真へのコメントは${COMMENTS_MAX_PER_USER}件までです`);
         }
 
         const comment: Comment = {

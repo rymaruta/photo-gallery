@@ -8,6 +8,7 @@ import { lookupDisplayName } from "./notify";
 import { mediaKeys, deriveUploadKey } from "./mediaKeys";
 import { isOwnUploadUrl } from "./upload";
 import { keyFromUploadUrl, canonicalUploadUrl } from "./uploadPolicy";
+import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET ?? "";
 const STORY_TTL_MS = 24 * 60 * 60 * 1000; // 24時間
@@ -194,16 +195,15 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     let song: { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string; startSec?: number } | undefined;
     if (body.song && typeof body.song === "object" && !Array.isArray(body.song)) {
         const o = body.song as Record<string, unknown>;
-        const httpsOnly = (v: unknown, max: number): string | undefined => {
-            const t = typeof v === "string" ? v.trim().slice(0, max) : "";
-            return t && /^https:\/\//.test(t) ? t : undefined;
-        };
-        const previewUrl = httpsOnly(o.previewUrl, 500);
+        // ホストまで確かめる。ストーリーはログイン中の全員のトレイに出るので、
+        // https だけを見ていた頃は、1回仕込むだけで利用者ほぼ全員の
+        // IP・User-Agent・時刻を集められた（音源は先読みされる）。
+        const previewUrl = safeSongPreviewUrl(o.previewUrl);
         const title = typeof o.title === "string" ? o.title.trim().slice(0, 200) : "";
         if (previewUrl && title) {
             const artist = typeof o.artist === "string" ? o.artist.trim().slice(0, 200) : "";
-            const artwork = httpsOnly(o.artwork, 500);
-            const trackUrl = httpsOnly(o.trackUrl, 500);
+            const artwork = safeSongArtworkUrl(o.artwork);
+            const trackUrl = safeSongTrackUrl(o.trackUrl);
             // 「好きな部分」= 30秒プレビュー内の再生開始位置（0〜29秒）
             const rawStart = typeof o.startSec === "number" ? o.startSec : Number(o.startSec);
             const startSec = Number.isFinite(rawStart) && rawStart > 0 ? Math.min(29, Math.round(rawStart)) : undefined;

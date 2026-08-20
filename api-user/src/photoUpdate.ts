@@ -4,6 +4,7 @@ import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId } from "./http";
 import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeDate } from "./sanitize";
 import { requestSiteRebuild } from "./rebuild";
+import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 
 type PhotoSong = { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string };
 
@@ -74,18 +75,17 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             removeSong = true;
         } else if (body.song && typeof body.song === "object" && !Array.isArray(body.song)) {
             const o = body.song as Record<string, unknown>;
-            const httpsOnly = (v: unknown, max: number): string | undefined => {
-                const t = typeof v === "string" ? v.trim().slice(0, max) : "";
-                return t && /^https:\/\//.test(t) ? t : undefined;
-            };
-            const previewUrl = httpsOnly(o.previewUrl, 500);
+            // ホストまで確かめる。https だけを見ていた頃は、任意のURLを
+            // 仕込んで「開いた人全員の IP を集める」ことができた
+            // （音源は先読みされ、アートワークは <img> で読み込まれる）。
+            const previewUrl = safeSongPreviewUrl(o.previewUrl);
             const title = typeof o.title === "string" ? o.title.trim().slice(0, 200) : "";
             if (!previewUrl || !title) {
                 return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正な曲データです" }) };
             }
             const artist = typeof o.artist === "string" ? o.artist.trim().slice(0, 200) : "";
-            const artwork = httpsOnly(o.artwork, 500);
-            const trackUrl = httpsOnly(o.trackUrl, 500);
+            const artwork = safeSongArtworkUrl(o.artwork);
+            const trackUrl = safeSongTrackUrl(o.trackUrl);
             song = {
                 title,
                 previewUrl,
@@ -157,11 +157,17 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             ExpressionAttributeValues: values,
             ...(Object.keys(names).length ? { ExpressionAttributeNames: names } : {}),
         }));
-        // 非公開にしたときは静的ページの掃除を頼む。DynamoDB を書き換えても
-        // 既に配ってある /photo/<id> の HTML は残り続ける（本文も撮影地も
-        // 表示名入りの JSON-LD も焼き込まれている）。公開に切り替えた場合も
-        // 同じ理由で載せ直したいので、published を触ったときは常に頼む。
-        if (hasPublished) await requestSiteRebuild(`photo visibility changed: ${id}`);
+        // 公開状態が**実際に変わったとき**だけ静的ページの掃除を頼む。
+        //
+        // 「published が指定されていたら毎回」だと、同じ値を送り続けるだけで
+        // 再ビルドを何度でも起こせた。1回8分かかるので、1分おきに叩けば
+        // 30分ほどで GitHub Actions の枠を使い切る——枠が尽きると
+        // **この不具合の修正を含め、あらゆるデプロイができなくなる**。
+        // 自分の写真1枚あれば誰でもできた。
+        const wasPublished = existing.Item.published !== false;
+        if (hasPublished && body.published !== wasPublished) {
+            await requestSiteRebuild(`photo visibility changed: ${id}`);
+        }
 
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
     } catch (e) {

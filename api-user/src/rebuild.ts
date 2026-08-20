@@ -21,11 +21,50 @@
 const REBUILD_REPO = process.env.REBUILD_REPO ?? "";
 const REBUILD_TOKEN = process.env.REBUILD_DISPATCH_TOKEN ?? "";
 
+/**
+ * 依頼の最短間隔。
+ *
+ * ビルドは1回およそ8分で、GitHub Actions の枠は月あたり有限。
+ * 削除は本来まれだが、まとめて何枚も消せば依頼も同じ数だけ飛ぶ。
+ * 1回動けば「その時点の全データ」で作り直されるので、短時間に
+ * 何度も回す意味は無い。最初の1回だけ通して、あとは見送る。
+ */
+const REBUILD_COOLDOWN_MS = 10 * 60 * 1000;
+const LOCK_ID = "rebuild#lock";
+
+/**
+ * 直近に依頼していなければ印を付けて true を返す（＝自分が依頼してよい）。
+ * 条件付き書き込みなので、同時に走っても通るのは1つだけ。
+ */
+async function claimRebuildSlot(now: number): Promise<boolean> {
+    try {
+        const { ddb, PHOTOS_TABLE } = await import("./dynamodb");
+        const { UpdateCommand } = await import("@aws-sdk/lib-dynamodb");
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: LOCK_ID },
+            UpdateExpression: "SET lastAt = :now",
+            ConditionExpression: "attribute_not_exists(lastAt) OR lastAt < :cutoff",
+            ExpressionAttributeValues: { ":now": now, ":cutoff": now - REBUILD_COOLDOWN_MS },
+        }));
+        return true;
+    } catch (e) {
+        if ((e as { name?: string }).name === "ConditionalCheckFailedException") return false;
+        // 判定できないときは通す。掃除が遅れる方が、掃除されないより困る
+        console.error("claimRebuildSlot error:", e);
+        return true;
+    }
+}
+
 /** 呼び出し元を止めない。成否だけ返す（ログ用） */
 export async function requestSiteRebuild(reason: string): Promise<boolean> {
     if (!REBUILD_REPO || !REBUILD_TOKEN) {
         console.warn(`requestSiteRebuild: 未設定のため再ビルドを頼めません（${reason}）。` +
             "REBUILD_REPO と REBUILD_DISPATCH_TOKEN を設定すると、削除後に静的ページも消えます。");
+        return false;
+    }
+    if (!(await claimRebuildSlot(Date.now()))) {
+        console.log(`requestSiteRebuild: 直近に依頼済みのため見送ります（${reason}）`);
         return false;
     }
     try {

@@ -2,6 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer, APIGatewayProxyHandlerV
 import { DynamoDBClient, GetItemCommand, PutItemCommand, DeleteItemCommand } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { JSON_HEADERS, getUserId } from "./http";
+import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { requireEnv } from "./env";
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
@@ -222,13 +223,13 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     const songEnd = songUrl ? clampSec(body.songEnd) : undefined;
 
     // アプリ内検索で選んだ曲。プレビュー音源・アートワークは Apple のホストのみ許可。
-    const httpsOnly = (v: string | undefined, max: number): string | undefined => {
-        const s = v?.trim().slice(0, max);
-        return s && /^https:\/\//.test(s) ? s : undefined;
-    };
-    const songPreviewUrl = httpsOnly(body.songPreviewUrl, 500);
-    const songArtwork = httpsOnly(body.songArtwork, 500);
-    const songTrackUrl = httpsOnly(body.songTrackUrl, 500);
+    //
+    // ……とコメントには書いてあったが、実装は https かどうかしか見ていなかった。
+    // プロフィールは未認証でも読めるので、任意のURLを1つ入れるだけで
+    // 訪問者の IP を集められた。写真の thumbUrl で塞いだのと同じ穴。
+    const songPreviewUrl = safeSongPreviewUrl(body.songPreviewUrl);
+    const songArtwork = safeSongArtworkUrl(body.songArtwork);
+    const songTrackUrl = safeSongTrackUrl(body.songTrackUrl);
     const songTitle = body.songTitle?.trim().slice(0, 200) || undefined;
     const songArtist = body.songArtist?.trim().slice(0, 200) || undefined;
 
@@ -239,12 +240,12 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         for (const raw of body.songs.slice(0, 5)) {
             if (!raw || typeof raw !== "object") continue;
             const o = raw as Record<string, unknown>;
-            const previewUrl = httpsOnly(typeof o.previewUrl === "string" ? o.previewUrl : undefined, 500);
+            const previewUrl = safeSongPreviewUrl(o.previewUrl);
             const title = typeof o.title === "string" ? o.title.trim().slice(0, 200) : "";
             if (!previewUrl || !title) continue;
             const artist = typeof o.artist === "string" ? o.artist.trim().slice(0, 200) : "";
-            const artwork = httpsOnly(typeof o.artwork === "string" ? o.artwork : undefined, 500);
-            const trackUrl = httpsOnly(typeof o.trackUrl === "string" ? o.trackUrl : undefined, 500);
+            const artwork = safeSongArtworkUrl(o.artwork);
+            const trackUrl = safeSongTrackUrl(o.trackUrl);
             cleaned.push({
                 title,
                 previewUrl,
@@ -289,12 +290,12 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         for (const [k, raw] of Object.entries(body.tripSongs as Record<string, unknown>).slice(0, 100)) {
             if (!/^trip-\d+$/.test(k) || !raw || typeof raw !== "object") continue;
             const o = raw as Record<string, unknown>;
-            const previewUrl = httpsOnly(typeof o.previewUrl === "string" ? o.previewUrl : undefined, 500);
+            const previewUrl = safeSongPreviewUrl(o.previewUrl);
             const title = typeof o.title === "string" ? o.title.trim().slice(0, 200) : "";
             if (!previewUrl || !title) continue;
             const artist = typeof o.artist === "string" ? o.artist.trim().slice(0, 200) : "";
-            const artwork = httpsOnly(typeof o.artwork === "string" ? o.artwork : undefined, 500);
-            const trackUrl = httpsOnly(typeof o.trackUrl === "string" ? o.trackUrl : undefined, 500);
+            const artwork = safeSongArtworkUrl(o.artwork);
+            const trackUrl = safeSongTrackUrl(o.trackUrl);
             out[k] = {
                 title,
                 previewUrl,

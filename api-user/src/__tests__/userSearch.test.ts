@@ -10,7 +10,7 @@ vi.mock("@aws-sdk/client-dynamodb", () => ({
     ScanCommand: class { input: unknown; readonly kind = "scan"; constructor(input: unknown) { this.input = input; } },
 }));
 
-const { searchUsers, scoreUser, normalizeQuery, isSearchableQuery } = await import("../userSearch");
+const {searchUsers, scoreUser, normalizeQuery, isSearchableQuery, resetUserCache } = await import("../userSearch");
 
 type LambdaResult = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -33,7 +33,11 @@ function mockScanOnly() {
     });
 }
 
-beforeEach(() => { mockSend.mockReset(); });
+beforeEach(() => {
+    // 一覧はインスタンス内で使い回すので、テストごとに捨てる
+    resetUserCache();
+    mockSend.mockReset();
+});
 
 describe("normalizeQuery", () => {
     it("前後の空白と先頭の @ を落とす", () => {
@@ -174,5 +178,38 @@ describe("searchUsers: スキャンのページ送り", () => {
         });
         await invoke(searchUsers, ev("さくら"));
         expect(call).toBe(10);
+    });
+});
+
+
+// この口は未ログインでも叩ける。1リクエストで最大5,000件を読むので、
+// 2文字の検索語を総当たりするだけ（676通り）で、その回数だけ
+// テーブル全体の読み取りが起きていた。レスポンスに付けている
+// public, max-age=60 は、API の手前に共有キャッシュが無いので効かない。
+describe("searchUsers: 読み取りの使い回し", () => {
+    const user = (id: string, name: string) => ({
+        userId: { S: id }, displayName: { S: name },
+    });
+
+    it("検索語を変えてもテーブルは読み直さない", async () => {
+        mockSend.mockResolvedValue({ Items: [user("u1", "たろう"), user("u2", "はなこ")] });
+
+        await invoke(searchUsers, { queryStringParameters: { q: "たろ" } });
+        const afterFirst = mockSend.mock.calls.length;
+        expect(afterFirst).toBeGreaterThan(0);
+
+        // 別の検索語でもう一度
+        await invoke(searchUsers, { queryStringParameters: { q: "はな" } });
+        expect(mockSend.mock.calls.length).toBe(afterFirst);
+    });
+
+    it("使い回していても検索結果は検索語ごとに正しい", async () => {
+        mockSend.mockResolvedValue({ Items: [user("u1", "たろう"), user("u2", "はなこ")] });
+
+        const first = JSON.parse((await invoke(searchUsers, { queryStringParameters: { q: "たろ" } })).body);
+        expect(first.users.map((u: { userId: string }) => u.userId)).toEqual(["u1"]);
+
+        const second = JSON.parse((await invoke(searchUsers, { queryStringParameters: { q: "はな" } })).body);
+        expect(second.users.map((u: { userId: string }) => u.userId)).toEqual(["u2"]);
     });
 });

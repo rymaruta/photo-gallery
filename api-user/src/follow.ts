@@ -128,6 +128,35 @@ async function updateFollowing(uid: string, mutate: (list: string[]) => string[]
     throw new FollowingListError(`${uid} の一覧更新が競合し続けました`);
 }
 
+/**
+ * 同じ相手へのフォロー通知の最短間隔。
+ * 解除するとマーカーが消えるので、フォロー→解除を繰り返すだけで
+ * 何度でも通知できてしまう。通知は50件の輪なので、100回ほどで
+ * 相手の通知欄を自分の通知だけで埋め尽くせる。
+ */
+const FOLLOW_NOTIFY_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+const notifyMarkerId = (target: string, by: string) => `follownotify#${target}#${by}`;
+
+/** 直近に通知していなければ印を付けて true（＝通知してよい） */
+async function shouldNotifyFollow(target: string, by: string): Promise<boolean> {
+    const now = Date.now();
+    try {
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: notifyMarkerId(target, by) },
+            UpdateExpression: "SET lastAt = :now",
+            ConditionExpression: "attribute_not_exists(lastAt) OR lastAt < :cutoff",
+            ExpressionAttributeValues: { ":now": now, ":cutoff": now - FOLLOW_NOTIFY_COOLDOWN_MS },
+        }));
+        return true;
+    } catch (e) {
+        if ((e as { name?: string }).name === "ConditionalCheckFailedException") return false;
+        // 判定できないときは通知する（本来の通知を落とさない方を優先）
+        console.error("shouldNotifyFollow error:", e);
+        return true;
+    }
+}
+
 async function bumpStat(uid: string, field: "followers" | "following", delta: 1 | -1): Promise<void> {
     if (delta === 1) {
         await ddb.send(new UpdateCommand({
@@ -201,16 +230,24 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
             return jsonError(500, "フォローに失敗しました。もう一度お試しください");
         }
 
-        // 相手に通知
-        await pushNotification(target, {
-            type: "follow",
-            photoId: "",
-            photoSrc: "",
-            byName: await lookupDisplayName(me),
-            byId: me,
-            targetUserId: me,
-            t: new Date().toISOString(),
-        });
+        // 相手に通知。
+        //
+        // ただし「同じ相手への連続したフォロー通知」は間引く。
+        // 解除するとマーカーが消えるので、フォロー→解除を繰り返すだけで
+        // 通知を何度でも積めた。通知は50件の輪（古いものから落ちる）なので、
+        // 100回ほどで**相手の通知欄を自分の通知だけで埋め尽くせる**。
+        // まだ読んでいないいいねやコメントの知らせが全部消える。
+        if (await shouldNotifyFollow(target, me)) {
+            await pushNotification(target, {
+                type: "follow",
+                photoId: "",
+                photoSrc: "",
+                byName: await lookupDisplayName(me),
+                byId: me,
+                targetUserId: me,
+                t: new Date().toISOString(),
+            });
+        }
 
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ following: true, followers: (await readStats(target)).followers }) };
     } catch (e) {

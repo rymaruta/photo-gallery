@@ -7,11 +7,42 @@ const JSON_HEADERS = {
     "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
 };
 
+/**
+ * 公開一覧の使い回し（同じ Lambda インスタンス内だけ）。
+ *
+ * この口は未ログインでも叩けて、1回ごとにテーブル全体を読む。
+ * しかもこのテーブルには写真だけでなく、いいね・フォローのマーカーや
+ * コメント・通知の文書も同居していて、絞り込みは**読んだあと**に効く
+ * ——つまり全部の読み取り費用を払っている。マーカーは退会しても
+ * 消えないので、増えるほど1回が重くなる。
+ *
+ * レスポンスには s-maxage=60 を付けているが、API の手前に共有キャッシュは
+ * 無いので効いていない（クライアントは execute-api を直接叩く）。
+ * 見つからないクエリ文字列を足すだけで何度でも叩ける。
+ *
+ * 同じ約束（60秒）でサーバー側に持つ。返すものは変わらない。
+ */
+const LIST_CACHE_TTL_MS = 60 * 1000;
+let listCache: { at: number; json: string } | null = null;
+
+/** テストから状態を消せるようにしておく */
+export function resetPhotosCache(): void {
+    listCache = null;
+}
+
 export const getPhotos: APIGatewayProxyHandlerV2 = async (event) => {
     try {
         const userId = event.queryStringParameters?.userId;
-        const photos = userId ? await listPhotosByUser(userId) : await listPhotos();
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(photos) };
+        if (userId) {
+            // 特定の人の分は GSI の Query なので、その人の枚数で収まる
+            const photos = await listPhotosByUser(userId);
+            return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(photos) };
+        }
+        const now = Date.now();
+        if (!listCache || now - listCache.at >= LIST_CACHE_TTL_MS) {
+            listCache = { at: now, json: JSON.stringify(await listPhotos()) };
+        }
+        return { statusCode: 200, headers: JSON_HEADERS, body: listCache.json };
     } catch (e) {
         console.error("getPhotos error:", e);
         return { statusCode: 500, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ error: "写真の取得に失敗しました" }) };

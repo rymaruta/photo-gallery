@@ -28,6 +28,26 @@ const SCAN_PAGE_SIZE = 500;
 // テーブル全体のスキャンを何度でも起こせてしまうため、上限は要る。
 const SCAN_MAX_PAGES = 10;
 
+/**
+ * 読み込んだ利用者一覧の使い回し（同じ Lambda インスタンス内だけ）。
+ *
+ * この口は未ログインでも叩ける。1リクエストごとに最大5,000件を読むので、
+ * 2文字の検索語を総当たりするだけ（676通り）で、その回数だけ
+ * テーブル全体の読み取りが起きた。レスポンスに付けている
+ * `public, max-age=60` は、API の手前に共有キャッシュが無いので効かない。
+ *
+ * 検索語ごとではなく「一覧そのもの」を短時間持つ。人数は多くないので
+ * 丸ごと持てるし、こうすれば検索語を変えられても読み直しは起きない。
+ * 反映は最大60秒遅れる（プロフィール更新の反映と同じ約束）。
+ */
+const USER_CACHE_TTL_MS = 60 * 1000;
+let userCache: { at: number; users: UserSearchHit[] } | null = null;
+
+/** テストから状態を消せるようにしておく */
+export function resetUserCache(): void {
+    userCache = null;
+}
+
 /** ユーザー名の予約アイテム（userId="username#xxx"）は検索結果に出さない */
 function isReservationItem(userId: unknown): boolean {
     return typeof userId === "string" && userId.startsWith("username#");
@@ -114,28 +134,38 @@ export const searchUsers: APIGatewayProxyHandlerV2 = async (event) => {
         // 出てこなかった。しかも @ハンドル完全一致だけは別経路で引けるため、
         // 「一部の人だけ検索できない」という分かりにくい壊れ方をしていた。
         // 予約アイテムはサーバー側で弾いて、読み取り枠を食わせない。
-        let lastKey: Record<string, unknown> | undefined;
-        let pages = 0;
-        do {
-            const scan = await ddb.send(new ScanCommand({
-                TableName: USERS_TABLE,
-                Limit: SCAN_PAGE_SIZE,
-                ProjectionExpression: "userId, username, displayName, bio, themeColor",
-                FilterExpression: "NOT begins_with(userId, :reserved)",
-                ExpressionAttributeValues: marshall({ ":reserved": "username#" }),
-                ...(lastKey ? { ExclusiveStartKey: lastKey } : {}),
-            }));
-            for (const raw of scan.Items ?? []) {
-                const hit = toHit(unmarshall(raw));
-                if (!hit || hits.has(hit.userId)) continue;
-                const score = scoreUser(hit, q);
-                if (score > 0) hits.set(hit.userId, { hit, score });
+        const now = Date.now();
+        let all = userCache && now - userCache.at < USER_CACHE_TTL_MS ? userCache.users : null;
+        if (!all) {
+            all = [];
+            let lastKey: Record<string, unknown> | undefined;
+            let pages = 0;
+            do {
+                const scan = await ddb.send(new ScanCommand({
+                    TableName: USERS_TABLE,
+                    Limit: SCAN_PAGE_SIZE,
+                    ProjectionExpression: "userId, username, displayName, bio, themeColor",
+                    FilterExpression: "NOT begins_with(userId, :reserved)",
+                    ExpressionAttributeValues: marshall({ ":reserved": "username#" }),
+                    ...(lastKey ? { ExclusiveStartKey: lastKey } : {}),
+                }));
+                for (const raw of scan.Items ?? []) {
+                    const hit = toHit(unmarshall(raw));
+                    if (hit) all.push(hit);
+                }
+                lastKey = scan.LastEvaluatedKey as Record<string, unknown> | undefined;
+                pages++;
+            } while (lastKey && pages < SCAN_MAX_PAGES);
+            if (lastKey) {
+                console.warn(`searchUsers: ${SCAN_MAX_PAGES}ページで打ち切りました（GSI への移行時期）`);
             }
-            lastKey = scan.LastEvaluatedKey as Record<string, unknown> | undefined;
-            pages++;
-        } while (lastKey && pages < SCAN_MAX_PAGES);
-        if (lastKey) {
-            console.warn(`searchUsers: ${SCAN_MAX_PAGES}ページで打ち切りました（GSI への移行時期）`);
+            userCache = { at: now, users: all };
+        }
+
+        for (const hit of all) {
+            if (hits.has(hit.userId)) continue;
+            const score = scoreUser(hit, q);
+            if (score > 0) hits.set(hit.userId, { hit, score });
         }
 
         const users = Array.from(hits.values())

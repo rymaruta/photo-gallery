@@ -254,9 +254,23 @@ describe("createStory", () => {
         expect(storyPuts()[2].durationSec).toBeUndefined();
     });
 
+    it("外部ホストの音源URLは保存しない（曲ごと落とす）", async () => {
+        // ストーリーはログイン中の全員のトレイに出るので、任意のURLを
+        // 1回仕込むだけで利用者ほぼ全員の IP・User-Agent・時刻を集められた。
+        mockDdbSend.mockResolvedValueOnce({ Count: 0 }).mockResolvedValueOnce({});
+        await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({
+                publicUrl: "https://cdn.test/uploads/u1/a.jpg",
+                song: { title: "Song", previewUrl: "https://attacker.tld/beacon.mp3" },
+            }),
+        }));
+        expect(storyPuts()[0].song).toBeUndefined();
+    });
+
     it("曲の開始位置（好きな部分）は0〜29秒に丸めて保存する", async () => {
         mockDdbSend.mockResolvedValue({});
-        const song = { title: "Song", previewUrl: "https://cdn.test/p.m4a" };
+        // 音源は Apple のホストのみ受け付ける（外部URLは開いた人のIPを集められる）
+        const song = { title: "Song", previewUrl: "https://audio-ssl.itunes.apple.com/p.m4a" };
         await invoke(createStory, authedEvent("u1", {
             body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.jpg", song: { ...song, startSec: 12.4 } }),
         }));
