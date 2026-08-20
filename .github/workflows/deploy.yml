@@ -44,7 +44,6 @@ jobs:
       cognitoUserPoolId: ${{ steps.pick.outputs.cognitoUserPoolId }}
       cognitoClientId: ${{ steps.pick.outputs.cognitoClientId }}
       cloudfrontUrl: ${{ steps.pick.outputs.cloudfrontUrl }}
-      distributionId: ${{ steps.pick.outputs.distributionId }}
       gaId: ${{ steps.pick.outputs.gaId }}
     steps:
       - id: pick
@@ -86,7 +85,7 @@ jobs:
               ;;
           esac
           for k in siteBucket photosTable uploadBucket siteUrl apiBaseUrl userApiBaseUrl \
-                   cognitoUserPoolId cognitoClientId cloudfrontUrl distributionId; do
+                   cognitoUserPoolId cognitoClientId cloudfrontUrl; do
             v="${!k}"
             if [ -z "$v" ]; then
               echo "::error::$envName の $k が未設定です。Secrets / Variables を確認してください。"
@@ -94,6 +93,13 @@ jobs:
             fi
             echo "$k=$v" >> "$GITHUB_OUTPUT"
           done
+          # distributionId は「有無だけ」確認して値は出力しない。
+          # シークレット由来の値は job output に載せられず（マスクされて空になる）、
+          # 受け取った側で CloudFront の無効化が黙ってスキップされるため。
+          if [ -z "$distributionId" ]; then
+            echo "::error::$envName の distributionId が未設定です。"
+            exit 1
+          fi
           echo "gaId=$gaId" >> "$GITHUB_OUTPUT"
           echo "envName=$envName" >> "$GITHUB_OUTPUT"
           echo "デプロイ先: $envName"
@@ -194,5 +200,7 @@ jobs:
         run: node scripts/deploy-static-site.js --bucket "${{ needs.config.outputs.siteBucket }}"
         timeout-minutes: 20
         env:
-          CLOUDFRONT_DISTRIBUTION_ID: ${{ needs.config.outputs.distributionId }}
+          # config の output 経由にしない。シークレット由来の値はマスクされて
+          # 空で届き、無効化が黙ってスキップされる（実際に踏んだ）。
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ needs.config.outputs.envName == 'prod' && secrets.CLOUDFRONT_DISTRIBUTION_ID || vars.STAGING_DISTRIBUTION_ID }}
           SITE_URL: ${{ needs.config.outputs.siteUrl }}

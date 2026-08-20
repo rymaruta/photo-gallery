@@ -1,0 +1,46 @@
+name: Provision environment
+
+# 新しい環境（staging）の AWS リソースを作る。手動実行のみ。
+# 既定はドライランで、apply を true にしたときだけ作成する。
+# 何度実行しても既にあるものは飛ばす（冪等）。
+on:
+  workflow_dispatch:
+    inputs:
+      envName:
+        description: "作る環境名（prod は指定できない）"
+        required: true
+        default: "staging"
+        type: string
+      apply:
+        description: "true で実際に作成（false は内容の確認のみ）"
+        type: boolean
+        default: false
+
+env:
+  AWS_REGION: ap-northeast-1
+  # CloudFront の設定はここからコピーする（キャッシュ動作やエラーページを
+  # 手で書き起こすとズレるため）。独自ドメイン・証明書・WAF・ログは引き継がない。
+  SOURCE_DISTRIBUTION_ID: EYRLTGCPOS9E4
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Provision
+        run: node scripts/provision-env.js ${{ inputs.apply && '--apply' || '' }}
+        env:
+          ENV_NAME: ${{ inputs.envName }}
+          SOURCE_DISTRIBUTION_ID: ${{ env.SOURCE_DISTRIBUTION_ID }}
