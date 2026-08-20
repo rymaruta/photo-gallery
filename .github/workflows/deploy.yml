@@ -66,20 +66,25 @@ jobs:
               cognitoClientId=21cs4cd8dkttmg3snloj72u8mu
               cloudfrontUrl=https://d1s3dwwzgxf5ni.cloudfront.net
               distributionId='${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}'
-              gaId='${{ vars.PROD_GA_ID }}'
+              # GA4 の測定ID。公開情報（ページソースに出る）なのでここに直書きする。
+              # 一度 vars 参照にしたが、その変数が未作成で本番の解析タグが消えた。
+              gaId=G-7TFN1YPBE3
               ;;
             develop)
               envName=staging
               siteBucket=staging-journey-photo.com
               photosTable=staging-photo-gallery-photos
               uploadBucket=staging-journey-photo-upload
-              siteUrl='${{ vars.STAGING_CLOUDFRONT_URL }}'
-              apiBaseUrl='${{ vars.STAGING_API_BASE_URL }}'
-              userApiBaseUrl='${{ vars.STAGING_USER_API_BASE_URL }}'
-              cognitoUserPoolId='${{ vars.STAGING_COGNITO_USER_POOL_ID }}'
-              cognitoClientId='${{ vars.STAGING_COGNITO_CLIENT_ID }}'
-              cloudfrontUrl='${{ vars.STAGING_CLOUDFRONT_URL }}'
-              distributionId='${{ vars.STAGING_DISTRIBUTION_ID }}'
+              # staging の値も本番と同じくここに直書きする。
+              # どれも公開識別子（Cognito の2つはビルド後のJSに埋め込まれて
+              # ブラウザに配られる）で、秘密ではない。
+              siteUrl=https://d15fn3rcaiymu9.cloudfront.net
+              apiBaseUrl=STAGING_API_PLACEHOLDER
+              userApiBaseUrl=STAGING_USER_API_PLACEHOLDER
+              cognitoUserPoolId=ap-northeast-1_DSQ16c6vO
+              cognitoClientId=1qjl9c8gmqidigps55jhv4foi
+              cloudfrontUrl=https://d15fn3rcaiymu9.cloudfront.net
+              distributionId=EF2TFEBBP24DL
               allowEmptyPhotos=1
               ;;
             *)
@@ -91,9 +96,16 @@ jobs:
                    cognitoUserPoolId cognitoClientId cloudfrontUrl; do
             v="${!k}"
             if [ -z "$v" ]; then
-              echo "::error::$envName の $k が未設定です。Secrets / Variables を確認してください。"
+              echo "::error::$envName の $k が未設定です。"
               exit 1
             fi
+            # 埋め忘れたプレースホルダで動き出さないようにする
+            case "$v" in
+              *PLACEHOLDER*)
+                echo "::error::$envName の $k がプレースホルダのままです（$v）。実際の値に置き換えてください。"
+                exit 1
+                ;;
+            esac
             echo "$k=$v" >> "$GITHUB_OUTPUT"
           done
           # distributionId は「有無だけ」確認して値は出力しない。
@@ -212,5 +224,5 @@ jobs:
         env:
           # config の output 経由にしない。シークレット由来の値はマスクされて
           # 空で届き、無効化が黙ってスキップされる（実際に踏んだ）。
-          CLOUDFRONT_DISTRIBUTION_ID: ${{ needs.config.outputs.envName == 'prod' && secrets.CLOUDFRONT_DISTRIBUTION_ID || vars.STAGING_DISTRIBUTION_ID }}
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ needs.config.outputs.envName == 'prod' && secrets.CLOUDFRONT_DISTRIBUTION_ID || 'EF2TFEBBP24DL' }}
           SITE_URL: ${{ needs.config.outputs.siteUrl }}

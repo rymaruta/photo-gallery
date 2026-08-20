@@ -35,8 +35,7 @@ concurrency:
 
 jobs:
   # ブランチから環境を決める。
-  # 本番の値はここに直書き（公開情報で、変わらない）。
-  # staging の値はリポジトリの Variables から取る（プロビジョニング後に登録する）。
+  # 値はここに直書きする。どれも公開識別子（シークレットではない）。
   # 1つでも空なら止める——空のまま進むと serverless のパラメータが空文字になり、
   # 何が起きるか読めないため。
   config:
@@ -71,9 +70,10 @@ jobs:
               photosTable=staging-photo-gallery-photos
               usersTable=staging-photo-gallery-users
               uploadBucket=staging-journey-photo-upload
-              cloudfrontUrl='${{ vars.STAGING_CLOUDFRONT_URL }}'
-              cognitoUserPoolId='${{ vars.STAGING_COGNITO_USER_POOL_ID }}'
-              cognitoClientId='${{ vars.STAGING_COGNITO_CLIENT_ID }}'
+              # 公開識別子なので直書き（本番の値も同じ扱い）
+              cloudfrontUrl=https://d15fn3rcaiymu9.cloudfront.net
+              cognitoUserPoolId=ap-northeast-1_DSQ16c6vO
+              cognitoClientId=1qjl9c8gmqidigps55jhv4foi
               cognitoPoolName=staging-journey-photo-client-spa
               ;;
             *)
