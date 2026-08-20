@@ -62,6 +62,28 @@
 | DynamoDB テーブル | `prod-photo-gallery-photos` |
 | AWS リージョン | `ap-northeast-1` |
 
+## AWS ステージングリソース一覧
+
+2026-08-20 に `provision-env.yml` で作成。本番と同じ構成で、接頭辞だけが違う。
+
+| リソース | 名前 / ID |
+|---|---|
+| 静的サイト S3 バケット | `staging-journey-photo.com` |
+| 画像アップロード S3 バケット | `staging-journey-photo-upload` |
+| CloudFront ディストリビューション ID | `EF2TFEBBP24DL` |
+| CloudFront ドメイン | `d15fn3rcaiymu9.cloudfront.net` |
+| カスタムドメイン | なし（既定ドメインのみ・`robots.txt` で全拒否） |
+| Cognito User Pool ID | `ap-northeast-1_DSQ16c6vO` |
+| Cognito Client ID | `1qjl9c8gmqidigps55jhv4foi` |
+| Cognito プール名 | `staging-journey-photo-client-spa` |
+| DynamoDB テーブル | `staging-photo-gallery-photos` / `staging-photo-gallery-users`（オンデマンド） |
+
+- **本番の写真はコピーしていない**。空から始める（GPS 入りの写真を複製しないため）。
+- ユーザーも空。staging で使うには新規登録が必要。
+- CloudFront には**本番の API Gateway オリジンを引き継いでいない**
+  （コピーすると staging の `/api/*` が本番APIに届くため）。
+- 環境を増やすときは `provision-env.yml` を `envName` 指定で実行する（冪等）。
+
 ## デプロイ手順
 
 ### 静的サイト（フロントエンド）
