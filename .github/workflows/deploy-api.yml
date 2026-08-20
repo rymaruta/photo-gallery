@@ -54,6 +54,7 @@ jobs:
       # トークン（REBUILD_DISPATCH_TOKEN）が未設定なら「頼まない」だけで、
       # 削除そのものは成功する。本番だけ設定する（staging は検索避けなので不要）。
       rebuildRepo: ${{ steps.pick.outputs.rebuildRepo }}
+      musicSearchReserved: ${{ steps.pick.outputs.musicSearchReserved }}
     steps:
       - id: pick
         run: |
@@ -70,6 +71,8 @@ jobs:
               cognitoPoolName=prod-journey-photo-client-spa
               # 削除・非公開のあとに再ビルドを頼む先
               rebuildRepo=${{ github.repository }}
+              # 曲検索の同時実行予約。アカウント全体の枠から取るので本番だけ
+              musicSearchReserved=10
               ;;
             develop)
               envName=staging
@@ -83,6 +86,9 @@ jobs:
               cognitoPoolName=staging-journey-photo-client-spa
               # staging は検索避け（robots で全拒否）なので再ビルドは頼まない
               rebuildRepo=""
+              # 予約は本番に譲る。両方で取ると未予約の枠が最低値を下回り、
+              # デプロイそのものが落ちる（UnreservedConcurrentExecution < 10）
+              musicSearchReserved=""
               ;;
             *)
               echo "::error::${{ github.ref_name }} は環境に紐づいていません（main=本番 / develop=staging）"
@@ -99,6 +105,7 @@ jobs:
             echo "$k=$v" >> "$GITHUB_OUTPUT"
           done
           echo "rebuildRepo=$rebuildRepo" >> "$GITHUB_OUTPUT"
+          echo "musicSearchReserved=$musicSearchReserved" >> "$GITHUB_OUTPUT"
           echo "envName=$envName" >> "$GITHUB_OUTPUT"
           echo "デプロイ先: $envName"
 
@@ -207,13 +214,16 @@ jobs:
           # 空のときは旗ごと渡さない（serverless.yml 側に既定値 '' がある）。
           REBUILD_REPO: ${{ needs.config.outputs.rebuildRepo }}
           REBUILD_TOKEN: ${{ secrets.REBUILD_DISPATCH_TOKEN }}
+          MUSIC_SEARCH_RESERVED: ${{ needs.config.outputs.musicSearchReserved }}
         run: |
           set -euo pipefail
           extra=()
           if [ -n "$REBUILD_REPO" ]; then extra+=(--param "rebuildRepo=$REBUILD_REPO"); fi
           if [ -n "$REBUILD_TOKEN" ]; then extra+=(--param "rebuildToken=$REBUILD_TOKEN"); fi
+          if [ -n "$MUSIC_SEARCH_RESERVED" ]; then extra+=(--param "musicSearchReserved=$MUSIC_SEARCH_RESERVED"); fi
           echo "再ビルド依頼: repo=$([ -n "$REBUILD_REPO" ] && echo "$REBUILD_REPO" || echo '(なし)')" \
-               "token=$([ -n "$REBUILD_TOKEN" ] && echo '設定あり' || echo '(なし)')"
+               "token=$([ -n "$REBUILD_TOKEN" ] && echo '設定あり' || echo '(なし)')" \
+               "曲検索の予約=$([ -n "$MUSIC_SEARCH_RESERVED" ] && echo "$MUSIC_SEARCH_RESERVED" || echo '(なし)')"
           npx serverless@3 deploy --stage ${{ needs.config.outputs.envName }} \
             --param "photosTable=${{ needs.config.outputs.photosTable }}" \
             --param "usersTable=${{ needs.config.outputs.usersTable }}" \

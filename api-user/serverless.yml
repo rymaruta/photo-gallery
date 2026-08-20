@@ -156,8 +156,14 @@ functions:
   # 埋められる——退会処理など無関係な処理まで詰まる。
   musicSearch:
     handler: src/musicSearch.musicSearch
-    # 外向きの通信を待つので、詰まらせない上限を明示しておく
-    reservedConcurrency: 10
+    # 外向きの通信を待つので、詰まらせない上限を明示しておく。
+    #
+    # ただし予約はアカウント全体の枠から取る。本番と staging の両方で
+    # 予約すると「未予約の枠が最低値(10)を下回る」で**デプロイごと落ちる**
+    # （実際に staging の作成後、ここで UPDATE_FAILED になった）。
+    # 渡されたときだけ予約する（渡さなければプロパティごと出力されない）。
+    # staging は検索避けの低トラフィックなので予約しない。
+    reservedConcurrency: ${param:musicSearchReserved, null}
     events:
       - httpApi:
           path: /music/search
