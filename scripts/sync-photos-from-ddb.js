@@ -46,6 +46,9 @@ const OUTPUT = path.resolve(__dirname, "../app/data/photos.json");
 const DRY_RUN = process.env.DRY_RUN === "1";
 const FORCE = process.argv.includes("--force");
 const IS_CI = !!process.env.CI;
+// 「この環境にはまだ写真が無い」を許す。新しく作った環境の最初のビルド用。
+// 本番では絶対に立てない（0件を通すと全ページが消える）。
+const ALLOW_EMPTY = process.env.ALLOW_EMPTY_PHOTOS === "1";
 
 // 既存ファイルからここまで減る書き込みは事故とみなす（0.5 = 半減）
 const SHRINK_LIMIT = 0.5;
@@ -66,8 +69,12 @@ function existingCount(file) {
  * スキャンが途中で切れた、のどれかである可能性が高い。上書きすると
  * 次のビルドでページが消え、デプロイがそれを S3 からも削除してしまう。
  */
-function checkWriteSafety(nextCount, prevCount) {
+function checkWriteSafety(nextCount, prevCount, { allowEmpty = ALLOW_EMPTY } = {}) {
     if (FORCE) return { ok: true, reason: "--force" };
+    // 作りたての環境はテーブルが空。リポジトリにコミットされている photos.json は
+    // 本番の写真なので、ここで拒否すると staging が本番の写真を並べてしまう。
+    // 「空でよい」と明示された環境だけ、0件と大幅減を許す。
+    if (allowEmpty) return { ok: true, reason: "ALLOW_EMPTY_PHOTOS=1" };
     if (nextCount === 0) return { ok: false, reason: "取得できた写真が0件です" };
     if (prevCount === null || prevCount === 0) return { ok: true, reason: "比較対象なし" };
     if (nextCount < prevCount * SHRINK_LIMIT) {

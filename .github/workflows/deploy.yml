@@ -2,23 +2,22 @@ name: Deploy Site
 
 # main → 本番、develop → staging。
 on:
+  # フロントの反映は本番だけ自動。staging は手動実行（workflow_dispatch で
+  # develop を選ぶ）。1回8分かかるので、push のたびには回さない。
   push:
     branches:
       - main
-      - develop
   workflow_dispatch:
-  schedule:
-    # 1日1回 再ビルド（JST 03:00）。
-    # /photo/[id] の静的ページやサイトマップに新しい写真を反映する
-    # （photos.json の再同期）。アップロード直後はモーダル表示で閲覧できるので、
-    # ここで待つのは「個別ページのURL」と「検索エンジンへの登録」だけ。
-    #
-    # 以前は6時間ごとだった。1回のデプロイに約8分かかるため、月およそ960分を
-    # 「中身が変わらないビルド」に使っていた（非公開リポジトリの無料枠は2,000分/月）。
-    # 写真の追加は月に数枚なので、この頻度は実態と釣り合っていない。
-    # すぐ反映したいときは Actions から手動実行できる（workflow_dispatch）。
-    # 定期ビルドは本番だけ（staging に cron は置かない。Actions の枠を食うだけ）。
-    - cron: "0 18 * * *"
+  # 定期ビルドは一時停止中。
+  #
+  # 2026-08-20 時点で GitHub Actions の枠を 1,804/2,000 分（90%）消費しており、
+  # 1回8分のこのワークフローを毎日回すと12日間で約96分。残枠の半分を
+  # 「中身の変わらないビルド」に使うことになる。
+  # 目的は新しい写真の個別ページとサイトマップの生成で、写真の追加は月に数枚。
+  # 必要なときは Actions から手動実行する（workflow_dispatch）。
+  # 枠がリセットされたら戻すか判断する。
+  # schedule:
+  #   - cron: "0 18 * * *"
 
 # 同じ環境へのデプロイを同時に走らせない。実行中のものはキャンセルせず待たせる
 # （S3 アップロードの途中で中断すると、新旧が混ざった中途半端な状態になるため）。
@@ -45,12 +44,15 @@ jobs:
       cognitoClientId: ${{ steps.pick.outputs.cognitoClientId }}
       cloudfrontUrl: ${{ steps.pick.outputs.cloudfrontUrl }}
       gaId: ${{ steps.pick.outputs.gaId }}
+      allowEmptyPhotos: ${{ steps.pick.outputs.allowEmptyPhotos }}
     steps:
       - id: pick
         run: |
           set -euo pipefail
           # gaId だけは空を許す（staging で解析を止めるため）
           gaId=""
+          # 作りたての環境はテーブルが空。本番では絶対に立てない（0件を通すと全ページが消える）
+          allowEmptyPhotos=0
           case "${{ github.ref_name }}" in
             main)
               envName=prod
@@ -78,6 +80,7 @@ jobs:
               cognitoClientId='${{ vars.STAGING_COGNITO_CLIENT_ID }}'
               cloudfrontUrl='${{ vars.STAGING_CLOUDFRONT_URL }}'
               distributionId='${{ vars.STAGING_DISTRIBUTION_ID }}'
+              allowEmptyPhotos=1
               ;;
             *)
               echo "::error::${{ github.ref_name }} は環境に紐づいていません（main=本番 / develop=staging）"
@@ -101,6 +104,7 @@ jobs:
             exit 1
           fi
           echo "gaId=$gaId" >> "$GITHUB_OUTPUT"
+          echo "allowEmptyPhotos=$allowEmptyPhotos" >> "$GITHUB_OUTPUT"
           echo "envName=$envName" >> "$GITHUB_OUTPUT"
           echo "デプロイ先: $envName"
 
@@ -179,11 +183,16 @@ jobs:
           NEXT_PUBLIC_ENV_NAME: ${{ needs.config.outputs.envName }}
           # ビルド中の photos.json 同期先
           PHOTOS_TABLE: ${{ needs.config.outputs.photosTable }}
+          # 新しい環境は写真が0件。リポジトリにコミットされている photos.json は
+          # 本番の写真なので、拒否すると staging が本番の写真を並べてしまう。
+          ALLOW_EMPTY_PHOTOS: ${{ needs.config.outputs.allowEmptyPhotos }}
 
       # ブラウザはコンテナイメージに同梱済みなので通常は即終了する。
       # package.json の playwright だけ上げてイメージのタグが古いときの保険として
       # 実行する（--with-deps は付けない。apt を走らせないことがこの構成の要点）。
+      # スモークテストは本番の反映前だけ。staging では省く（Actions の枠の節約）。
       - name: Ensure browsers match the installed Playwright
+        if: needs.config.outputs.envName == 'prod'
         run: npx playwright install chromium webkit
         timeout-minutes: 10
 
@@ -193,6 +202,7 @@ jobs:
       # Chromium だけでなく WebKit(Safari エンジン)でもタップ可能を保証する。
       # 「iOS Safari では見た目正常だが全無反応」系の回帰をデプロイ前に止めるため。
       - name: Browser smoke test (tap the real UI — Chromium + WebKit)
+        if: needs.config.outputs.envName == 'prod'
         run: SMOKE_ENGINES=chromium,webkit node scripts/e2e-smoke.mjs
         timeout-minutes: 10
 
