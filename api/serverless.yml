@@ -50,12 +50,15 @@ provider:
             - dynamodb:PutItem
           Resource:
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable}
-        # アップロード画像の管理（Presigned URL 発行・削除）
+        # アップロード画像の管理（Presigned URL 発行・削除）。
+        # uploads/ 配下に限る。バケット全体を許すと profiles/*（他人のアイコン）
+        # まで届き、ハンドラ側の uploads/ チェック1か所が唯一の防波堤になる。
+        # api-user 側は最初からこの粒度で切ってある。
         - Effect: Allow
           Action:
             - s3:PutObject
             - s3:DeleteObject
-          Resource: arn:aws:s3:::${param:uploadBucket}/*
+          Resource: arn:aws:s3:::${param:uploadBucket}/uploads/*
         # PostConfirmation トリガー: 確認済みユーザーを user グループへ追加
         - Effect: Allow
           Action:

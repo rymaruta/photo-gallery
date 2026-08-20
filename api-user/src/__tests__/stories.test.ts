@@ -112,11 +112,27 @@ describe("createStory", () => {
         expect(res.statusCode).toBe(400);
     });
 
-    it("uploads/ 以外の key は 400", async () => {
+    it("他人の領域を指す publicUrl は 400", async () => {
+        // uploads/ 配下かどうかしか見ていなかった頃は、他人の写真のURLを
+        // 自分のストーリーとして登録し、削除するだけで相手のファイルを消せた。
         const res = await invoke(createStory, authedEvent("u1", {
-            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", key: "profiles/hack" }),
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u2/victim.jpg" }),
         }));
         expect(res.statusCode).toBe(400);
+    });
+
+    it("クライアントが送った key は使わず、publicUrl から導く", async () => {
+        // key をそのまま信じていた頃は、自分の正当な publicUrl と一緒に
+        // 他人のキーを送るだけで、削除時にそのファイルが消えた。
+        mockDdbSend.mockResolvedValueOnce({ Count: 0 }).mockResolvedValueOnce({});
+        const res = await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({
+                publicUrl: "https://cdn.test/uploads/u1/a.jpg",
+                key: "uploads/u2/victim.jpg",
+            }),
+        }));
+        expect(res.statusCode).toBe(201);
+        expect(storyPuts()[0].key).toBe("uploads/u1/a.jpg");
     });
 
     // 投稿は「本数カウントの Query → Put」の順に DynamoDB を呼ぶ
@@ -127,8 +143,7 @@ describe("createStory", () => {
         const before = Date.now();
         const res = await invoke(createStory, authedEvent("u1", {
             body: JSON.stringify({
-                publicUrl: "https://cdn.test/uploads/a.jpg",
-                key: "uploads/a.jpg",
+                publicUrl: "https://cdn.test/uploads/u1/a.jpg",
                 caption: "  旅の思い出  ",
                 displayName: "旅人",
             }),
@@ -140,7 +155,7 @@ describe("createStory", () => {
         expect(item.userId).toBe("u1");
         expect(item.mediaType).toBe("image");
         expect(item.caption).toBe("旅の思い出");
-        expect(item.key).toBe("uploads/a.jpg");
+        expect(item.key).toBe("uploads/u1/a.jpg");
         expect(String(item.id)).toMatch(/^story-/);
         const ttl = Date.parse(String(item.expiresAt)) - Date.parse(String(item.createdAt));
         expect(ttl).toBe(24 * 60 * 60 * 1000);
@@ -150,13 +165,13 @@ describe("createStory", () => {
     it("mediaType=video が保存される（不正値は image に落ちる）", async () => {
         mockDdbSend.mockResolvedValue({}); // Query({Count:undefined→0}) と Put の両方に効く
         await invoke(createStory, authedEvent("u1", {
-            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/v.mp4", mediaType: "video" }),
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/v.mp4", mediaType: "video" }),
         }));
         let item = storyPuts()[0];
         expect(item.mediaType).toBe("video");
 
         await invoke(createStory, authedEvent("u1", {
-            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/x.jpg", mediaType: "gif" }),
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/x.jpg", mediaType: "gif" }),
         }));
         item = storyPuts()[1];
         expect(item.mediaType).toBe("image");
@@ -171,7 +186,7 @@ describe("createStory", () => {
             .mockResolvedValueOnce({});                                       // Put
         await invoke(createStory, authedEvent("u1", {
             body: JSON.stringify({
-                publicUrl: "https://cdn.test/uploads/a.jpg",
+                publicUrl: "https://cdn.test/uploads/u1/a.jpg",
                 displayName: "Journey 運営",
             }),
         }));
@@ -181,7 +196,7 @@ describe("createStory", () => {
     it("キャプションは200文字に切り詰められる", async () => {
         mockDdbSend.mockResolvedValueOnce({ Count: 0 }).mockResolvedValueOnce({});
         await invoke(createStory, authedEvent("u1", {
-            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", caption: "あ".repeat(300) }),
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.jpg", caption: "あ".repeat(300) }),
         }));
         const item = storyPuts()[0];
         expect(String(item.caption)).toHaveLength(200);
@@ -190,17 +205,17 @@ describe("createStory", () => {
     it("表示秒数は3〜15秒に丸め、既定の5秒なら保存しない", async () => {
         mockDdbSend.mockResolvedValue({});
         await invoke(createStory, authedEvent("u1", {
-            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", durationSec: 10 }),
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.jpg", durationSec: 10 }),
         }));
         expect(storyPuts()[0].durationSec).toBe(10);
 
         await invoke(createStory, authedEvent("u1", {
-            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", durationSec: 999 }),
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.jpg", durationSec: 999 }),
         }));
         expect(storyPuts()[1].durationSec).toBe(15);
 
         await invoke(createStory, authedEvent("u1", {
-            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", durationSec: 5 }),
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.jpg", durationSec: 5 }),
         }));
         expect(storyPuts()[2].durationSec).toBeUndefined();
     });
@@ -209,13 +224,13 @@ describe("createStory", () => {
         mockDdbSend.mockResolvedValue({});
         const song = { title: "Song", previewUrl: "https://cdn.test/p.m4a" };
         await invoke(createStory, authedEvent("u1", {
-            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", song: { ...song, startSec: 12.4 } }),
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.jpg", song: { ...song, startSec: 12.4 } }),
         }));
         let item = storyPuts()[0];
         expect((item.song as { startSec?: number }).startSec).toBe(12);
 
         await invoke(createStory, authedEvent("u1", {
-            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg", song: { ...song, startSec: 120 } }),
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.jpg", song: { ...song, startSec: 120 } }),
         }));
         item = storyPuts()[1];
         expect((item.song as { startSec?: number }).startSec).toBe(29);
@@ -224,7 +239,7 @@ describe("createStory", () => {
     it("24時間の投稿上限に達していたら 429 で保存しない", async () => {
         mockDdbSend.mockResolvedValueOnce({ Count: 20 }); // 上限ちょうど
         const res = await invoke(createStory, authedEvent("u1", {
-            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg" }),
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.jpg" }),
         }));
         expect(res.statusCode).toBe(429);
         expect(mockDdbSend).toHaveBeenCalledTimes(1); // Query のみ、Put なし
@@ -235,7 +250,7 @@ describe("createStory", () => {
             .mockRejectedValueOnce(new Error("query down")) // カウント失敗
             .mockResolvedValueOnce({}); // Put は成功
         const res = await invoke(createStory, authedEvent("u1", {
-            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/a.jpg" }),
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.jpg" }),
         }));
         expect(res.statusCode).toBe(201);
     });

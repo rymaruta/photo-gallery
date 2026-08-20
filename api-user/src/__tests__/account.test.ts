@@ -13,6 +13,7 @@ vi.mock("../dynamodb", () => ({
 vi.mock("@aws-sdk/client-s3", () => ({
     S3Client: class { send = mockS3Send; },
     DeleteObjectCommand: class { input: unknown; constructor(input: unknown) { this.input = input; } },
+    DeleteObjectsCommand: class { input: unknown; constructor(input: unknown) { this.input = input; } },
 }));
 
 vi.stubEnv("UPLOAD_BUCKET", "bucket-test");
@@ -34,8 +35,17 @@ function deletedDdbIds(): string[] {
         .filter((cmd) => cmd?.constructor?.name === "DeleteCommand")
         .map((cmd) => String(cmd.input?.Key?.id ?? cmd.input?.Key?.userId ?? ""));
 }
+// 写真の派生画像は DeleteObjects でまとめて消す（1枚ごとに直列で消していた頃は
+// 写真が数十枚あるだけで Lambda の実行時間を使い切っていた）。
+// アバター/カバーは決定的キーなので単発の DeleteObject のまま。
 function deletedS3Keys(): string[] {
-    return mockS3Send.mock.calls.map((c) => String(c[0]?.input?.Key ?? ""));
+    const keys: string[] = [];
+    for (const call of mockS3Send.mock.calls) {
+        const input = call[0]?.input as { Key?: unknown; Delete?: { Objects?: { Key?: unknown }[] } } | undefined;
+        if (input?.Key) keys.push(String(input.Key));
+        for (const o of input?.Delete?.Objects ?? []) keys.push(String(o.Key));
+    }
+    return keys;
 }
 
 beforeEach(() => {

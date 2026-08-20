@@ -3,10 +3,11 @@ import { ScanCommand, QueryCommand, PutCommand, GetCommand, UpdateCommand, Delet
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
 import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
-import { JSON_HEADERS, getUserId, jsonError } from "./http";
+import { JSON_HEADERS, getUserId, jsonError, isAdmin } from "./http";
 import { lookupDisplayName } from "./notify";
 import { mediaKeys } from "./mediaKeys";
 import { isOwnUploadUrl } from "./upload";
+import { keyFromUploadUrl } from "./uploadPolicy";
 
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET ?? "";
 const STORY_TTL_MS = 24 * 60 * 60 * 1000; // 24時間
@@ -113,8 +114,9 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証が必要です" }) };
     }
 
-    // displayName は受け取らない（なりすまし防止のためサーバーで引く）
-    let body: { publicUrl?: string; key?: string; caption?: string; mediaType?: string; song?: unknown; durationSec?: unknown };
+    // displayName は受け取らない（なりすまし防止のためサーバーで引く）。
+    // key も受け取らない（publicUrl から導く。下のコメント参照）。
+    let body: { publicUrl?: string; caption?: string; mediaType?: string; song?: unknown; durationSec?: unknown };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
     } catch {
@@ -125,18 +127,17 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     if (!publicUrl) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "画像URLが必要です" }) };
     }
-    // 自サイトの配信ドメイン以外のURLは受け付けない。
-    // 以前は CLOUDFRONT_URL が設定されているときだけ検証していたため、
-    // 未設定の環境では検証ごと飛んでいた（写真アップロード側で直したのと同じ穴）。
+    // 自分のアップロード領域を指すURLだけを受け付ける。
     // 判定は upload.ts の isOwnUploadUrl に寄せる（未設定なら通さない）。
-    if (!isOwnUploadUrl(publicUrl)) {
+    // userId を渡して「他人の領域」を弾くのが要（下の key の話と対になる）。
+    if (!isOwnUploadUrl(publicUrl, userId)) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正な画像URLです" }) };
     }
 
-    const key = (body.key ?? "").trim();
-    if (key && !key.startsWith("uploads/")) {
-        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なキーです" }) };
-    }
+    // 削除用のキーはクライアントから受け取らず、検証済みの publicUrl から導く。
+    // 受け取っていた頃は、自分の正当な publicUrl と一緒に他人のキーを送り、
+    // 直後に自分のストーリーを削除するだけで相手のファイルを消せた。
+    const key = keyFromUploadUrl(publicUrl);
 
     const mediaType = body.mediaType === "video" ? "video" : "image";
     const caption = (body.caption ?? "").trim().slice(0, 200) || undefined;
@@ -306,7 +307,10 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: storyId } }));
         const item = res.Item as Record<string, unknown> | undefined;
         if (!item || item.story !== true) return jsonError(404, "ストーリーが見つかりません");
-        if (item.userId !== callerId) return jsonError(403, "権限がありません");
+        // 見出しどおり「本人 or 管理者」。管理者の分岐が抜けていたため、
+        // 全員のトレイに出る不適切なストーリーを消す手段が無かった
+        // （AWS コンソールを開くか24時間待つしかなかった）。
+        if (item.userId !== callerId && !isAdmin(event)) return jsonError(403, "権限がありません");
 
         // 原本だけでなく派生画像も消す。過去にサムネ生成がストーリーも対象に
         // していた時期があり、その分が max-age=31536000 で残っている。

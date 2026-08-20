@@ -1,6 +1,6 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { QueryCommand, GetCommand, DeleteCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
-import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, DeleteObjectCommand, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { mediaKeys } from "./mediaKeys";
@@ -33,6 +33,39 @@ async function s3Delete(key: string): Promise<void> {
     } catch (e) {
         console.error(`deleteAccount: S3 delete failed for ${key}:`, e);
     }
+}
+
+/**
+ * 複数キーをまとめて削除する（1リクエスト最大1000件）。
+ * 1件ずつ直列に消していた頃は、写真が数十枚あるだけで Lambda の実行時間を
+ * 使い切っていた。途中で切られると呼び出し側が「失敗」と表示するのに
+ * データは半分消えている、という一番まずい状態になる。
+ */
+async function s3DeleteMany(keys: string[]): Promise<void> {
+    if (!UPLOAD_BUCKET || keys.length === 0) return;
+    for (let i = 0; i < keys.length; i += 1000) {
+        const chunk = keys.slice(i, i + 1000);
+        try {
+            await s3.send(new DeleteObjectsCommand({
+                Bucket: UPLOAD_BUCKET,
+                Delete: { Objects: chunk.map((Key) => ({ Key })), Quiet: true },
+            }));
+        } catch (e) {
+            console.error(`deleteAccount: S3 batch delete failed (${chunk.length} keys):`, e);
+        }
+    }
+}
+
+/** items を最大 limit 本の並列で処理する（Lambda の実行時間を使い切らないため） */
+async function mapWithConcurrency<T>(items: T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {
+    let cursor = 0;
+    const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+        while (cursor < items.length) {
+            const item = items[cursor++];
+            await fn(item);
+        }
+    });
+    await Promise.all(workers);
 }
 
 async function ddbDelete(table: string, key: Record<string, unknown>): Promise<void> {
@@ -86,9 +119,13 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                 ExpressionAttributeValues: { ":u": uid },
                 ExclusiveStartKey: lastKey,
             }));
-            for (const projected of (res.Items ?? []) as Record<string, unknown>[]) {
-                const id = String(projected.id ?? "");
-                if (!id) continue;
+            // 1ページ分をまとめて処理する。1枚ずつ直列に回すと、写真が数十枚で
+            // 実行時間を使い切って途中終了していた。S3 は消してから DDB を消す
+            // （逆にすると、途中で切れたときに GPS 入りの原本だけが公開のまま残る）。
+            const projectedItems = ((res.Items ?? []) as Record<string, unknown>[])
+                .filter((p) => String(p.id ?? ""));
+            await mapWithConcurrency(projectedItems, 8, async (projected) => {
+                const id = String(projected.id);
                 let item = projected;
                 try {
                     const full = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
@@ -96,9 +133,9 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                 } catch (e) {
                     console.error(`deleteAccount: get photo failed for ${id}:`, e);
                 }
-                for (const k of mediaKeys(item)) await s3Delete(k);
+                await s3DeleteMany(mediaKeys(item));
                 await ddbDelete(PHOTOS_TABLE, { id });
-            }
+            });
             lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
         } while (lastKey);
 

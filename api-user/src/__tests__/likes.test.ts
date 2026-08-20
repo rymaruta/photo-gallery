@@ -61,6 +61,19 @@ describe("likePhoto", () => {
         expect(put.input.Item.userId).toBeUndefined(); // GSI を汚さない
     });
 
+    it("いいねの条件式は「写真であること」まで確かめる", async () => {
+        // attribute_exists(src) が無かった頃は、同じテーブルに同居している
+        // 通知（notifs#<相手のsub>）やコメント（comments#<写真ID>）の文書にも
+        // likes 属性を書き込めた。ID を当てられるかどうかの確認にも使えた。
+        mockDdbSend
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Attributes: { likes: 1 } });
+        await invoke(likePhoto, ev("u1", "p1"));
+        const update = mockDdbSend.mock.calls[1][0] as { input: { ConditionExpression: string } };
+        expect(update.input.ConditionExpression).toContain("attribute_exists(src)");
+        expect(update.input.ConditionExpression).toContain("attribute_not_exists(story)");
+    });
+
     it("いいね済み（マーカー重複）は冪等に現在数を返す（カウンタ増やさない）", async () => {
         mockDdbSend
             .mockRejectedValueOnce(condFail()) // Put marker → 既存

@@ -310,6 +310,11 @@ functions:
 
   deleteAccount:
     handler: src/account.deleteAccount
+    # 既定の6秒だと、写真の多い人の退会が途中で打ち切られる。
+    # 呼び出し側は HTTP のステータスを見て Cognito 側の削除に進むかを決めるので、
+    # 途中で切れると「削除に失敗しました」と出たまま写真だけ半分消えた状態になる。
+    # API Gateway (HTTP API) の上限が29秒なので、そこに合わせる。
+    timeout: 29
     events:
       - httpApi:
           path: /user/account
@@ -319,6 +324,9 @@ functions:
 
   cleanupStories:
     handler: src/stories.cleanupExpiredStories
+    # テーブル全体の Scan と S3 の直列削除。6秒では完走できない
+    # （黙って途中で切れ、期限切れが消え残る）。日次バッチなので長めに取る。
+    timeout: 300
     events:
       # 毎日 04:00 JST (19:00 UTC) に期限切れストーリーを物理削除
       - schedule: cron(0 19 * * ? *)

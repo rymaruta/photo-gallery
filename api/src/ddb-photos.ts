@@ -63,7 +63,15 @@ export async function getPhotoById(id: string): Promise<Photo | null> {
 }
 
 export async function putPhoto(photo: Photo): Promise<void> {
-    await ddb.send(new PutCommand({ TableName: TABLE, Item: photo }));
+    // 新規作成専用。条件を付けないと、同じIDの既存レコードを丸ごと置き換える。
+    // このテーブルには通知（notifs#...）やコメント（comments#...）も同居しているので、
+    // ID を指定できるだけで他人の通知を全部消せてしまう（元に戻せない）。
+    // 更新は updatePhotoFields を使うこと。
+    await ddb.send(new PutCommand({
+        TableName: TABLE,
+        Item: photo,
+        ConditionExpression: "attribute_not_exists(id)",
+    }));
 }
 
 export async function updatePhotoFields(id: string, updates: Record<string, unknown>): Promise<Photo | null> {

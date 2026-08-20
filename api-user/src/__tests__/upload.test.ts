@@ -24,7 +24,9 @@ function event(sub: string, body: unknown) {
     };
 }
 
-const BASE = { key: "uploads/p1.webp", publicUrl: "https://cdn.example.com/uploads/p1.webp" };
+// キーは投稿者ごとの領域（uploads/<userId>/）に置く。ここが「他人のファイルを
+// 自分の写真として登録できない」ことの土台になっている。
+const BASE = { key: "uploads/u1/p1.webp", publicUrl: "https://cdn.example.com/uploads/u1/p1.webp" };
 
 function savedPhoto(): Photo {
     return mockPutPhoto.mock.calls[0][0] as Photo;
@@ -37,7 +39,7 @@ beforeEach(() => {
 
 describe("savePhoto: thumbUrl（一覧グリッド用サムネイル）", () => {
     it("https の thumbUrl は thumbSrc として保存される", async () => {
-        const thumbUrl = "https://cdn.example.com/uploads/t1.webp";
+        const thumbUrl = "https://cdn.example.com/uploads/u1/t1.webp";
         const res = await invoke(event("u1", { ...BASE, thumbUrl }));
         expect(res.statusCode).toBe(200);
         expect(savedPhoto().thumbSrc).toBe(thumbUrl);
@@ -56,7 +58,7 @@ describe("savePhoto: thumbUrl（一覧グリッド用サムネイル）", () => 
     });
 
     it("500文字を超える thumbUrl は破棄される", async () => {
-        const thumbUrl = `https://cdn.example.com/${"a".repeat(500)}.webp`;
+        const thumbUrl = `https://cdn.example.com/uploads/u1/${"a".repeat(500)}.webp`;
         const res = await invoke(event("u1", { ...BASE, thumbUrl }));
         expect(res.statusCode).toBe(200);
         expect("thumbSrc" in savedPhoto()).toBe(false);
@@ -201,5 +203,33 @@ describe("savePhoto: 他人のデータを壊せないこと", () => {
         const res = await invoke(event("u1", { ...BASE, key: "profiles/victim-user-id" }));
         expect(res.statusCode).toBe(400);
         expect(mockPutPhoto).not.toHaveBeenCalled();
+    });
+
+    it("他人の領域を指す publicUrl は弾く", async () => {
+        // 以前は uploads/ 配下かどうかしか見ていなかったので、他人の写真の
+        // 公開URLを自分の写真の src として登録でき、その写真を削除すると
+        // 相手の実ファイルが S3 から消えた（元に戻せない）。
+        const res = await invoke(event("u1", {
+            key: "uploads/u2/victim.jpg",
+            publicUrl: "https://cdn.example.com/uploads/u2/victim.jpg",
+        }));
+        expect(res.statusCode).toBe(400);
+        expect(mockPutPhoto).not.toHaveBeenCalled();
+    });
+
+    it("他人の領域を指す thumbUrl は捨てる", async () => {
+        // thumbSrc も退会時の削除対象なので、publicUrl と同じ強さで確かめる。
+        const res = await invoke(event("u1", {
+            ...BASE,
+            thumbUrl: "https://cdn.example.com/uploads/u2/victim.jpg",
+        }));
+        expect(res.statusCode).toBe(200);
+        expect("thumbSrc" in savedPhoto()).toBe(false);
+    });
+
+    it("外部ドメインの thumbUrl は捨てる（訪問者のIPを他所に渡さない）", async () => {
+        const res = await invoke(event("u1", { ...BASE, thumbUrl: "https://evil.example/tracker.gif" }));
+        expect(res.statusCode).toBe(200);
+        expect("thumbSrc" in savedPhoto()).toBe(false);
     });
 });

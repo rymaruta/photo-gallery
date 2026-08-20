@@ -6,41 +6,32 @@ import { putPhoto, countUserPhotos } from "./ddb-photos";
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
 import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags } from "./sanitize";
+import { extForType, uploadPrefix, isOwnUploadUrl as isOwnUploadUrlFor } from "./uploadPolicy";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
 const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? "";
 
 /**
- * 自分のアップロード領域（uploads/ 配下）を指すURLかどうか。
- * 配信ドメインが設定されていればホストも照合する。
+ * 自分のアップロード領域を指すURLかどうか。
+ *
  * 保存された src は削除時にそのまま S3 のキーになるため、ここが最後の砦になる。
+ * `userId` を渡すと「その人の領域か」まで見る。新しくURLを結び付ける場面
+ * （写真の保存・ストーリーの作成）では必ず渡すこと。判定の中身は
+ * uploadPolicy.ts にある。
  */
-export function isOwnUploadUrl(raw: unknown): boolean {
-    if (typeof raw !== "string" || !raw) return false;
-    let u: URL;
-    try {
-        u = new URL(raw);
-    } catch {
-        return false;
-    }
-    if (u.protocol !== "https:") return false;
-    if (!u.pathname.startsWith("/uploads/")) return false;
-    // 配信ドメインの照合。CLOUDFRONT_URL は serverless.yml で既定値が入るので
-    // デプロイ環境では必ず設定されている。未設定なら「検証できない」ので通さない
-    // （安全側に倒す。ここは他人のファイルを消せるかどうかを分ける境界）。
-    try {
-        if (u.host !== new URL(CLOUDFRONT_URL).host) return false;
-    } catch {
-        return false;
-    }
-    return true;
+export function isOwnUploadUrl(raw: unknown, userId?: string): boolean {
+    return isOwnUploadUrlFor(raw, CLOUDFRONT_URL, userId);
 }
 
 const PHOTO_LIMIT_PER_USER = 100;
 
 export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
+    // sub が取れないと領域を切れない（uploads// になって全員が同じ場所を共有する）
+    if (!userId) {
+        return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証が必要です" }) };
+    }
 
     // 100枚制限チェック（adminは除外）
     if (!isAdmin(event)) {
@@ -72,19 +63,29 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     if (fileSize && fileSize > 50 * 1024 * 1024) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイルサイズが大きすぎます（最大50MB）" }) };
     }
-    // 画像に加えて動画も許可（ストーリー用。mp4 / webm / QuickTime）
-    const ALLOWED_VIDEO = new Set(["video/mp4", "video/webm", "video/quicktime"]);
-    if (!fileType.startsWith("image/") && !ALLOWED_VIDEO.has(fileType)) {
-        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "画像または動画ファイルを選択してください" }) };
+    // 画像に加えて動画も許可（ストーリー用。mp4 / webm / QuickTime）。
+    // 許可リストで判定する（"image/" で始まるかどうかでは svg が通ってしまう）。
+    // 拡張子もファイル名からではなく種別から決める。ファイル名由来だと
+    // "a.svg" のような名前がそのまま S3 のキーになっていた。
+    const ext = extForType(fileType, true);
+    if (!ext) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "対応していない形式です（JPEG・PNG・WebP・AVIF・HEIC・GIF、動画は MP4・WebM・MOV）" }) };
     }
 
     const photoId = uuidv4();
-    const ext = fileName.split(".").pop()?.toLowerCase() ?? "jpg";
-    const key = `uploads/${photoId}.${ext}`;
+    // 投稿者ごとの領域に置く。URL だけで持ち主が分かるようにして、
+    // 他人のファイルを自分の写真として登録・削除できないようにする。
+    const key = `${uploadPrefix(userId)}${photoId}.${ext}`;
 
     const presigned = await getSignedUrl(
         s3,
-        new PutObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key, ContentType: fileType, CacheControl: "max-age=31536000" }),
+        new PutObjectCommand({
+            Bucket: UPLOAD_BUCKET,
+            Key: key,
+            // クライアントが送ってきた文字列ではなく、許可済みの種別だけを焼き付ける
+            ContentType: fileType.split(";")[0].trim().toLowerCase(),
+            CacheControl: "max-age=31536000",
+        }),
         { expiresIn: 900 }
     );
 
@@ -101,6 +102,9 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
 
 export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
+    if (!userId) {
+        return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証が必要です" }) };
+    }
 
     let body: {
         key?: string;
@@ -132,18 +136,16 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     if (!key || !publicUrl) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイル情報が必要です" }) };
     }
-    // アップロード領域を指すURLだけを受け付ける。
+    // 「自分のアップロード領域」を指すURLだけを受け付ける。
     //
-    // ここを検証しないと、他人のアイコン（profiles/<相手のID>）のURLを保存させたうえで
-    // 自分のその写真を削除でき、相手のファイルを S3 から消せてしまう
-    // （削除は保存された src のパスをそのまま S3 のキーとして使うため）。
-    //
-    // key は保存されず削除にも使われないので、要になるのは publicUrl の方。
-    // CLOUDFRONT_URL が未設定の環境でも効くよう、パスは常に検証する。
-    if (!isOwnUploadUrl(publicUrl)) {
+    // uploads/ 配下かどうかしか見ていなかった頃は、他人の写真の公開URLを
+    // 自分の写真の src として登録でき、そのままその写真を削除すると
+    // 相手の実ファイルが S3 から消えた（削除は src のパスをそのまま
+    // キーとして使うため。元に戻せない）。投稿者ごとの接頭辞まで確かめる。
+    if (!isOwnUploadUrl(publicUrl, userId)) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正な画像URLです" }) };
     }
-    if (!String(key).startsWith("uploads/")) {
+    if (!String(key).startsWith(uploadPrefix(userId))) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なキーです" }) };
     }
 
@@ -169,8 +171,12 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     const safeDominantColor = typeof dominantColor === "string" && /^#[0-9a-fA-F]{6}$/.test(dominantColor)
         ? dominantColor.toLowerCase()
         : undefined;
-    // サムネイルURL: 一覧グリッド配信用の軽量版（publicUrl と同じ信頼レベル）。https のみ
-    const safeThumbSrc = typeof thumbUrl === "string" && thumbUrl.startsWith("https://") && thumbUrl.length <= 500
+    // サムネイルURL: 一覧グリッド配信用の軽量版。
+    // 「https で始まる」しか見ていなかったので、外部の任意URLを入れて
+    // ギャラリーを見た人全員の IP を集めることができたし、他人の
+    // uploads/ を指すこともできた（退会時にその実ファイルが消える）。
+    // publicUrl とまったく同じ判定にする。
+    const safeThumbSrc = isOwnUploadUrl(thumbUrl, userId) && String(thumbUrl).length <= 500
         ? thumbUrl
         : undefined;
     // ぼかしプレビュー（data:image/webp;base64,...）: 画像 data URI のみ許可

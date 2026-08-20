@@ -75,8 +75,11 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 TableName: PHOTOS_TABLE,
                 Key: { id: photoId },
                 UpdateExpression: "SET likes = if_not_exists(likes, :z) + :one",
+                // attribute_exists(src) が「写真であること」の判定。これが無いと
+                // notifs#<相手のsub> や comments#<写真ID> といった内部の文書にも
+                // likes 属性を書き込めてしまった（同じテーブルに同居しているため）。
                 ConditionExpression:
-                    "attribute_exists(id) AND (attribute_not_exists(published) OR published = :pub) AND attribute_not_exists(story)",
+                    "attribute_exists(id) AND attribute_exists(src) AND (attribute_not_exists(published) OR published = :pub) AND attribute_not_exists(story)",
                 ExpressionAttributeValues: { ":z": 0, ":one": 1, ":pub": true },
                 ReturnValues: "ALL_NEW",
             }));
