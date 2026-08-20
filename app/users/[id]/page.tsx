@@ -44,7 +44,12 @@ export async function generateStaticParams() {
     const photos = await loadPhotos();
     const ids = new Set<string>();
     for (const p of photos) {
-        if (p.userId && p.published !== false) ids.add(p.userId);
+        // 公開写真の有無で絞らない。
+        // 全部を非公開にした人のページが次のビルドで消え、
+        // dynamicParams = false のためハード404になっていた
+        // （プロフィールのURLを配っていても、本人にも見えなくなる）。
+        // 中身は UserProfileClient がAPIから引くので、枠だけあれば足りる。
+        if (p.userId) ids.add(p.userId);
     }
     // ユーザーが0人でも1件は返す（空だと output: export がビルドを落とす）
     return withPlaceholderParam(Array.from(ids).map((id) => ({ id })), "id");

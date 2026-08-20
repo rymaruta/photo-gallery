@@ -291,12 +291,17 @@ async function main() {
         process.exit(1);
     }
     const server = await serveOut();
-    let ran = 0;
+    // 「起動できたエンジン」と「頼まれたのに起動できなかったエンジン」を分けて持つ。
+    // 以前は最後に ENGINES をそのまま並べて「全パス」と出していたので、
+    // CI で WebKit が起動できなくても「chromium, webkit で全パス」と表示され、
+    // Safari 側の確認が抜けたまま緑になっていた。
+    const ranEngines = [];
+    const skipped = [];
     try {
         for (const eng of ENGINES) {
             const browser = await launchEngine(eng);
-            if (!browser) continue;
-            ran++;
+            if (!browser) { skipped.push(eng); continue; }
+            ranEngines.push(eng);
             console.log(`\n===== エンジン: ${eng} =====`);
             try {
                 await runChecks(browser, eng);
@@ -308,15 +313,27 @@ async function main() {
         server.close();
     }
 
-    if (ran === 0) {
+    if (ranEngines.length === 0) {
         console.error("\n💥 実行できたエンジンがありません（ブラウザ未インストール）");
         process.exit(1);
+    }
+    if (skipped.length > 0) {
+        // SMOKE_ENGINES を明示している＝CI で意図して指定している。
+        // そこで起動できないのは環境の不備なので、黙って通さない。
+        // 指定が無い（＝ローカルの既定）ときだけ、未インストールを許す。
+        const explicit = !!process.env.SMOKE_ENGINES;
+        const msg = `起動できなかったエンジン: ${skipped.join(", ")}`;
+        if (explicit) {
+            console.error(`\n💥 ${msg} — SMOKE_ENGINES で指定されているため失敗にします`);
+            process.exit(1);
+        }
+        console.warn(`\n⚠️ ${msg}（未指定のためスキップ）`);
     }
     if (failures.length > 0) {
         console.error(`\n💥 スモークテスト失敗: ${failures.length}件 — デプロイを中止します`);
         process.exit(1);
     }
-    console.log(`\n🎉 ブラウザ・スモークテスト全パス（エンジン: ${ENGINES.join(", ")}）`);
+    console.log(`\n🎉 ブラウザ・スモークテスト全パス（エンジン: ${ranEngines.join(", ")}）`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

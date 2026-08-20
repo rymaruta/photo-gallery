@@ -68,8 +68,12 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
     }, [photoId, isAuthenticated]);
 
     const remove = useCallback(async (commentId: string): Promise<boolean> => {
-        // 楽観削除 + 失敗時ロールバック
+        // 楽観削除 + 失敗時ロールバック。
+        // 件数は「元の件数」を覚えて戻す。items.length で戻していた頃は、
+        // 表示件数（上限200）と実際の件数がずれている写真で、削除に失敗した
+        // 瞬間にヘッダーの件数が 200 に書き換わり、再読込まで直らなかった。
         const prevItems = items;
+        const prevCount = count;
         setItems((prev) => prev.filter((c) => c.id !== commentId));
         setCount((c) => Math.max(0, c - 1));
         try {
@@ -81,10 +85,10 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
         } catch (e) {
             log.error("comment delete error:", e);
             setItems(prevItems);
-            setCount(prevItems.length);
+            setCount(prevCount);
             return false;
         }
-    }, [photoId, items]);
+    }, [photoId, items, count]);
 
     return { items, count, loading, pending, add, remove };
 }

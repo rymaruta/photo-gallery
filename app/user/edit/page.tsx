@@ -61,6 +61,8 @@ function EditContent() {
 
     const [photo, setPhoto] = useState<Photo | null>(null);
     const [loadingPhoto, setLoadingPhoto] = useState(true);
+    // 読み込みに失敗したか。トーストは数秒で消えるので、画面にも残す。
+    const [loadFailed, setLoadFailed] = useState(false);
     // 読み込んだ元データ。編集欄に出していない項目（英語のタイトル・説明、
     // 撮影日の時刻）を保存時に失わないために持っておく。
     const [original, setOriginal] = useState<Photo | null>(null);
@@ -82,7 +84,11 @@ function EditContent() {
 
     // 対象写真の取得: 公開 /photos/{id} は下書きを404にするため、認証済み /user/photos から探す
     useEffect(() => {
-        if (!photoId || !isAuthenticated || (!isAdminUser && !isGeneralUser)) return;
+        // ?id が無いまま開かれたら、待っても何も来ない。
+        // 以前はここで return するだけだったので loadingPhoto が true のまま
+        // スピナーが永久に回り、戻る導線も出なかった。
+        if (!photoId) { setLoadingPhoto(false); return; }
+        if (!isAuthenticated || (!isAdminUser && !isGeneralUser)) return;
         const load = async () => {
             setLoadingPhoto(true);
             try {
@@ -108,10 +114,12 @@ function EditContent() {
                     }
                 } else {
                     showToast(isJa ? "読み込みに失敗しました" : "Failed to load", "error");
+                    setLoadFailed(true);
                 }
             } catch (e) {
                 log.error("edit load error:", e);
                 showToast(isJa ? "読み込みに失敗しました" : "Failed to load", "error");
+                setLoadFailed(true);
             } finally {
                 setLoadingPhoto(false);
             }
@@ -166,7 +174,29 @@ function EditContent() {
             </div>
         );
     }
-    if (!photo) return null;
+    // 写真が無いまま何も描かないと、真っ白な画面だけが残る
+    // （トーストは消えるので、何が起きたのかも分からない）。
+    if (!photo) {
+        const message = !photoId
+            ? (isJa ? "編集する写真が指定されていません。" : "No photo was specified.")
+            : loadFailed
+                ? (isJa ? "写真を読み込めませんでした。" : "Could not load this photo.")
+                : (isJa ? "写真が見つかりません。" : "Photo not found.");
+        return (
+            <main className="min-h-screen bg-black text-white flex items-center justify-center px-6">
+                <div className="text-center">
+                    <p className="text-sm text-white/70 mb-4">{message}</p>
+                    <Link
+                        href={ROUTES.DRAFTS}
+                        className="inline-block px-4 py-2.5 text-sm bg-white text-black font-semibold rounded-full hover:bg-white/90 transition-colors"
+                        style={{ touchAction: "manipulation", minHeight: "44px" }}
+                    >
+                        {isJa ? "下書き一覧へ" : "Back to drafts"}
+                    </Link>
+                </div>
+            </main>
+        );
+    }
 
     const isDraft = photo.published === false;
     const ex = photo.exif ?? {};

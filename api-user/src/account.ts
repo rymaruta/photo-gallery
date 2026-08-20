@@ -185,8 +185,11 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // 写真ページ・プロフィールページのHTMLは残っている（本文も撮影地も
         // 表示名入りの JSON-LD も焼き込まれている）。定期ビルドは止めてあるので、
         // ここで頼まないと誰かが push するまで消えない。
-        // 失敗しても退会自体は成立しているので待たない・止めない。
-        void requestSiteRebuild(`account deleted: ${uid}`);
+        // 待つ。Lambda はハンドラが返った瞬間に実行環境を凍らせるので、
+        // 投げっぱなしにすると TLS ハンドシェイクの途中で止まり、依頼は届かない
+        // （しかも何も記録されないので、届いたように見える）。
+        // この関数は例外を飲んで真偽値を返すので、待っても失敗にはならない。
+        await requestSiteRebuild(`account deleted: ${uid}`);
 
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) };
     } catch (e) {

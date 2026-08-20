@@ -143,7 +143,19 @@ const TYPE_PATH: Record<CollectionType, string> = { tag: "tag", location: "locat
 
 /** 集約ページの相対 URL（/tag/<encoded slug> 等） */
 export function collectionPath(type: CollectionType, slug: string): string {
-    return `/${TYPE_PATH[type]}/${encodeURIComponent(slug)}`;
+    // slug は「素の値」でも「パーセントエンコード済み」でも来る
+    // （ルートのパラメータは非ASCIIだとエンコードされた形で渡ってくる）。
+    // そのまま encodeURIComponent すると % 自体が %25 になり、
+    // /location/%25E6%259D%25B1%25E4%25BA%25AC のような**存在しないURL**を
+    // canonical に出していた（検索エンジンには 404 を正規URLとして申告していた）。
+    // 一度デコードしてから1回だけエンコードする。
+    let raw = slug ?? "";
+    try {
+        raw = decodeURIComponent(raw);
+    } catch {
+        // 不正な % シーケンスはそのまま扱う
+    }
+    return `/${TYPE_PATH[type]}/${encodeURIComponent(raw)}`;
 }
 
 export type CollectionCopy = { title: string; description: string; heading: string; breadcrumb: string };

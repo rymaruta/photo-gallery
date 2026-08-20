@@ -19,6 +19,9 @@ const DISPLAY_TO_KEY: Record<string, string> = (() => {
     return map;
 })();
 
+/** タグ比較用の正規化。lib/utils/collections.ts の slugify と同じ規則 */
+const tagSlug = (s?: string) => (s ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
+
 const normalizeKey = (s?: string) => {
     const base = (s ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
     return DISPLAY_TO_KEY[base] ?? base;
@@ -83,8 +86,20 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
         }
 
         if (filters.category !== "all") arr = arr.filter((p) => p.category === filters.category);
-        if (filters.selectedTags.length)
-            arr = arr.filter((p) => filters.selectedTags.every((t) => (p.tags || []).includes(t)));
+        if (filters.selectedTags.length) {
+            // タグは slug に正規化してから比べる。
+            //
+            // 写真ページのタグリンクは slugify した形（"Mount Fuji" → "mount-fuji"）
+            // を指す。まだ /tag/mount-fuji が生成されていない新着写真では
+            // 404 → /?tags=mount-fuji に振り替わるが、ここが生のタグとの
+            // 完全一致だったため、一覧に写真が読み込まれているのに
+            // 「条件に一致する写真がありません」になっていた。
+            const wanted = filters.selectedTags.map((t) => tagSlug(t));
+            arr = arr.filter((p) => {
+                const have = new Set((p.tags || []).map((t) => tagSlug(t)));
+                return wanted.every((t) => have.has(t));
+            });
+        }
         if (filters.query.trim()) {
             const q = filters.query.toLowerCase();
             arr = arr.filter((p) => {

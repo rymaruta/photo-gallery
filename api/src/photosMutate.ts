@@ -119,7 +119,7 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // /photo/<id> の HTML はそのまま残る（本文・撮影地・EXIF・
         // 表示名入りの JSON-LD まで焼き込まれている）。定期ビルドは
         // 止めてあるので、頼まないと誰かが push するまで消えない。
-        void requestSiteRebuild(`photo deleted: ${id}`);
+        await requestSiteRebuild(`photo deleted: ${id}`);
 
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
     } catch (e) {

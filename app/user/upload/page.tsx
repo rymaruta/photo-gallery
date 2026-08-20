@@ -32,7 +32,15 @@ type Item = {
     status: Status;
     progress: number;
     error?: string;
+    // S3 へ上げ終わったが保存に失敗したときの置き場所。
+    // 捨てて presign を取り直すと、再試行のたびに参照されない
+    // オブジェクトが増える（どの削除経路も DynamoDB の項目からキーを
+    // 引くので、項目の無いオブジェクトには永久に手が届かない）。
+    uploaded?: { key: string; publicUrl: string; thumbUrl?: string };
 };
+
+/** 前回のサムネを使い回すときにアップロード処理を飛ばすための合図 */
+class SkipThumb extends Error {}
 
 function makeId() {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -111,7 +119,11 @@ function UploadPageInner() {
     // これらは写真を選んだ後に非同期で入るので、すぐ「公開」を押すと
     // 撮影日・撮影地・座標が入る前の状態で保存されていた
     // （日付が無いと投稿日が使われ、年表の並びが狂う）。
-    const [metaLoading, setMetaLoading] = useState(false);
+    // 走っている EXIF/位置情報の解析の本数。真偽値だと、1回目の解析中に
+    // 2回目の追加をしたとき、短い方の finally が先に false を書いてしまい、
+    // まだ場所を引けていない写真のまま「公開」が押せた。
+    const [metaJobs, setMetaJobs] = useState(0);
+    const metaLoading = metaJobs > 0;
     const [fileError, setFileError] = useState<string | null>(null);
     const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -187,13 +199,27 @@ function UploadPageInner() {
         setFileError(null);
 
         const accepted: File[] = [];
+        // 弾いたファイルは黙って捨てない。
+        // 以前は画像以外を無言で continue していたので、HEIC が読めない端末や
+        // 動画を選んだときに「何も起きない」ように見えた（原因が分からない）。
+        const rejected: string[] = [];
         for (const f of files) {
-            if (!f.type.startsWith("image/")) continue;
+            if (!f.type.startsWith("image/")) {
+                rejected.push(f.name);
+                continue;
+            }
             if (f.size > 50 * 1024 * 1024) {
                 setFileError(locale === "en" ? `Skipped ${f.name} (over 50MB)` : `${f.name} は50MBを超えるためスキップしました`);
                 continue;
             }
             accepted.push(f);
+        }
+        if (rejected.length > 0) {
+            // 1件ずつ出すと連打になるのでまとめて1つ
+            const names = rejected.slice(0, 3).join("、") + (rejected.length > 3 ? ` ほか${rejected.length - 3}件` : "");
+            setFileError(locale === "en"
+                ? `Not an image, skipped: ${names}`
+                : `画像ではないためスキップしました: ${names}`);
         }
         if (accepted.length === 0) return;
 
@@ -215,7 +241,11 @@ function UploadPageInner() {
         setItems((prev) => [...prev, ...newItems]);
 
         // EXIF を順次抽出（並列）。GPS リバースジオコードはレート制限のため直列。
-        setMetaLoading(true);
+        //
+        // 真偽値ではなく本数で持つ。1回目の解析中に2回目の追加をすると、
+        // 短い方の finally が先に false を書いて「公開」が押せるようになり、
+        // まだ場所を引けていない写真が location 無しで保存されていた。
+        setMetaJobs((n) => n + 1);
         try {
         const exifResults = await Promise.all(
             newItems.map(async (it) => ({ id: it.id, meta: await extractExifFromFile(it.file) }))
@@ -244,7 +274,7 @@ function UploadPageInner() {
             }
         }
         } finally {
-            setMetaLoading(false);
+            setMetaJobs((n) => Math.max(0, n - 1));
         }
     }, [locale, gpsAutofill]);
 
@@ -279,7 +309,7 @@ function UploadPageInner() {
         // 常に true で保存するため、「下書き保存」を押しても即公開になっていた
         // （しかも撮影日・サムネURL・代表色・ぼかしも受け取らないので全部捨てられる）。
         // ユーザーAPI側は isAdmin を見て100枚制限だけ免除している。
-        const { userFetch } = await import("../../../lib/utils/api");
+        const { userFetch, readApiError } = await import("../../../lib/utils/api");
         const apiFetch = userFetch;
 
         const tagList = tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
@@ -304,34 +334,51 @@ function UploadPageInner() {
                 }
                 updateItem(item.id, { progress: 20 });
 
-                const presignedResponse = await apiFetch("/upload/presigned-url", {
-                    method: "POST",
-                    body: JSON.stringify({
-                        fileName: uploadFile.name,
-                        fileType: uploadFile.type,
-                        fileSize: uploadFile.size,
-                    }),
-                });
-                if (!presignedResponse.ok) {
-                    const t = await presignedResponse.text();
-                    throw new Error(`Presigned URL ${presignedResponse.status}: ${t.slice(0, 80)}`);
-                }
-                const { presignedUrl, key, publicUrl, photoId } = await presignedResponse.json();
-                updateItem(item.id, { progress: 40 });
+                // 前回この写真の S3 アップロードまでは成功していたら、それを使い回す。
+                //
+                // 以前は失敗のたびに presign を取り直していたので、再試行するたびに
+                // 参照されないオブジェクトが2つ（本体＋サムネ）増えていた。
+                // どの削除経路（写真削除・退会・ストーリー掃除）も DynamoDB の
+                // 項目からキーを引くので、項目の無いオブジェクトには永久に手が届かない。
+                let key = item.uploaded?.key;
+                let publicUrl = item.uploaded?.publicUrl;
+                let thumbUrl = item.uploaded?.thumbUrl;
 
-                const uploadResponse = await fetch(presignedUrl, {
-                    method: "PUT",
-                    body: uploadFile,
-                    headers: { "Content-Type": uploadFile.type, "Cache-Control": "max-age=31536000" },
-                });
-                if (!uploadResponse.ok) throw new Error(`S3 ${uploadResponse.status}`);
+                if (!key || !publicUrl) {
+                    const presignedResponse = await apiFetch("/upload/presigned-url", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            fileName: uploadFile.name,
+                            fileType: uploadFile.type,
+                            fileSize: uploadFile.size,
+                        }),
+                    });
+                    if (!presignedResponse.ok) {
+                        // サーバーは日本語の理由を返す（例: アップロード上限に達しています）。
+                        // 生のJSONを80文字で切って出していたので、肝心の一文が
+                        // 途中で切れたクラッシュログのように見えていた。
+                        throw new Error(await readApiError(presignedResponse,
+                            locale === "en" ? "Could not start the upload." : "アップロードを開始できませんでした。"));
+                    }
+                    const presigned = await presignedResponse.json();
+                    key = presigned.key as string;
+                    publicUrl = presigned.publicUrl as string;
+                    updateItem(item.id, { progress: 40 });
+
+                    const uploadResponse = await fetch(presigned.presignedUrl, {
+                        method: "PUT",
+                        body: uploadFile,
+                        headers: { "Content-Type": uploadFile.type, "Cache-Control": "max-age=31536000" },
+                    });
+                    if (!uploadResponse.ok) throw new Error(`S3 ${uploadResponse.status}`);
+                }
                 updateItem(item.id, { progress: 70 });
 
                 // 一覧グリッド用の 512px WebP サムネイルを併せてアップロードする。
                 // グリッドがフル画像（〜1920px）を落とすのが読み込みの遅さの主因。
                 // サムネ生成/アップロードに失敗しても本体の投稿は成立させる。
-                let thumbUrl: string | undefined;
                 try {
+                    if (thumbUrl) throw new SkipThumb(); // 前回上げた分を使う
                     const thumb = await createThumbnail(item.file);
                     if (thumb) {
                         const thumbPresign = await apiFetch("/upload/presigned-url", {
@@ -349,9 +396,10 @@ function UploadPageInner() {
                         }
                     }
                 } catch (e) {
-                    log.error("thumbnail upload failed (continuing without thumb):", e);
+                    if (!(e instanceof SkipThumb)) log.error("thumbnail upload failed (continuing without thumb):", e);
                 }
-                updateItem(item.id, { progress: 85 });
+                // ここまでで S3 には上がっている。保存に失敗しても捨てないよう控える
+                updateItem(item.id, { uploaded: { key, publicUrl, ...(thumbUrl ? { thumbUrl } : {}) }, progress: 85 });
 
                 // 撮影地座標: GPS自動入力がONのときのみ、約1km精度に丸めて保存
                 const coords = gpsAutofill && item.latitude !== undefined && item.longitude !== undefined
@@ -371,7 +419,7 @@ function UploadPageInner() {
                 const saveResponse = await apiFetch("/upload/save", {
                     method: "POST",
                     body: JSON.stringify({
-                        key, publicUrl, photoId,
+                        key, publicUrl,
                         published,
                         // 撮影日: EXIF から読み取った日時。年表を「撮った順」で並べるために必須。
                         // 送らないと createdAt（アップロード日）にフォールバックしてしまう。
@@ -389,21 +437,9 @@ function UploadPageInner() {
                     }),
                 });
                 if (!saveResponse.ok) {
-                    const t = await saveResponse.text();
-                    throw new Error(`Save ${saveResponse.status}: ${t.slice(0, 80)}`);
+                    throw new Error(await readApiError(saveResponse,
+                        locale === "en" ? "Could not save the photo." : "写真を保存できませんでした。"));
                 }
-                // 行きたいリストの場所に到達していたら祝う
-                try {
-                    const saved = await saveResponse.json() as { inspired?: number };
-                    if (typeof saved.inspired === "number" && saved.inspired > 0) {
-                        showToast(
-                            locale === "en"
-                                ? "You made it to a place on your travel list! 🎉"
-                                : "行きたかった場所に到達！撮影者に伝わりました 🎉",
-                            "success",
-                        );
-                    }
-                } catch { /* レスポンス解析失敗は無視 */ }
                 updateItem(item.id, { status: "done", progress: 100 });
                 successCount++;
             } catch (err) {

@@ -74,8 +74,13 @@ function buildTimeline(photos: Photo[], locale: "ja" | "en"): TimelineGroup[] {
     const map = new Map<string, TimelineGroup>();
     for (const { p, t } of withDate) {
         const d = new Date(t);
-        const y = d.getFullYear();
-        const m = d.getMonth() + 1;
+        // 年月は UTC で切る。撮影日は "2024-01-01" のような日付だけの形で
+        // 保存されており、Date.parse はこれを UTC 0時として読む。
+        // そこにローカル時刻の getFullYear/getMonth を当てると、
+        // UTC より西の閲覧者（例: ニューヨーク）には1日の写真が
+        // 前月・前年の見出しに入って見える。
+        const y = d.getUTCFullYear();
+        const m = d.getUTCMonth() + 1;
         const key = `${y}-${m}`;
         if (!map.has(key)) {
             map.set(key, {
@@ -485,12 +490,16 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     }, [locale, showToast]);
 
     const handleShareProfile = useCallback(async () => {
-        try {
-            await copyToClipboard(shareUrl);
-            showToast(locale === "en" ? "Link copied!" : "リンクをコピーしました", "success");
-        } catch {
-            showToast(locale === "en" ? "Failed to copy" : "コピーに失敗しました", "error");
-        }
+        // copyToClipboard は投げずに真偽値を返す（他の画面は移行済みで、
+        // ここだけ try/catch が残っていた）。catch は死んでいたので、
+        // クリップボードに書けない環境でも「コピーしました」と出ていた。
+        const copied = await copyToClipboard(shareUrl);
+        showToast(
+            copied
+                ? (locale === "en" ? "Link copied!" : "リンクをコピーしました")
+                : (locale === "en" ? "Failed to copy" : "コピーに失敗しました"),
+            copied ? "success" : "error",
+        );
     }, [locale, showToast, shareUrl]);
 
     return (

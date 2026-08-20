@@ -34,9 +34,41 @@ function restore() {
     move(backupDir, apiDir);
 }
 
-// 万が一前回の退避が残っていたらクリーンアップ
+// 前回の退避が残っていたときの後始末。
+//
+// 以前は無条件に消していた。ところが**中断されたビルドの後は、その退避先が
+// app/api そのもの**（退避してから復元する前に Ctrl-C / SIGTERM / OOM で
+// 落ちた状態）。_api_build_backup は gitignore されているので、次に
+// npm run build を叩いた瞬間に app/api がディスクから消える。
+// 未コミットのルート実装はそこで失われる。
+// 本体が無いなら「残骸」ではなく「退避中」なので、戻す。
 if (fs.existsSync(backupDir)) {
-    fs.rmSync(backupDir, { recursive: true, force: true });
+    if (!fs.existsSync(apiDir)) {
+        console.log("[build] 前回のビルドが中断していました。app/api を復元します...");
+        restore();
+    } else {
+        fs.rmSync(backupDir, { recursive: true, force: true });
+    }
+}
+
+// 中断されても退避したままにしない。
+// finally は SIGINT/SIGTERM では走らないので、明示的に拾う。
+let restored = false;
+const restoreOnce = () => {
+    if (restored) return;
+    restored = true;
+    try {
+        if (fs.existsSync(backupDir) && !fs.existsSync(apiDir)) restore();
+    } catch (e) {
+        console.error("[build] app/api の復元に失敗しました:", e);
+    }
+};
+for (const sig of ["SIGINT", "SIGTERM"]) {
+    process.on(sig, () => {
+        console.log(`\n[build] ${sig} を受け取りました。app/api を復元します...`);
+        restoreOnce();
+        process.exit(1);
+    });
 }
 
 // DynamoDB から写真データを同期。

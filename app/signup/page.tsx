@@ -96,7 +96,14 @@ export default function SignupPage() {
             if (result.success && result.username) {
                 savePending(email, result.username);
                 if (displayName.trim()) {
-                    try { localStorage.setItem("jp_pending_displayName", displayName.trim()); } catch { /* ignore */ }
+                    // メールアドレスで区切る。
+                    // 以前はグローバルな1キーだったので、登録を途中でやめた人の
+                    // 表示名がそのまま残り、**次にその端末でログインした別人**の
+                    // プロフィールに付いていた（共有のiPadなどで起きる）。
+                    // 本人にはどこから来た名前なのか分からない。
+                    try {
+                        localStorage.setItem(`jp_pending_name_${email}`, displayName.trim());
+                    } catch { /* ignore */ }
                 }
                 setCognitoUsername(result.username);
                 setStep("verify");

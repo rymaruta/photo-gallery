@@ -97,17 +97,20 @@ async function main() {
         }
     }
 
-    // 生きているストーリーに storyFeed を書く。
-    // 索引の作成中でも書いてよい（作成完了時に反映される）。
-    const now = new Date().toISOString();
+    // 全ストーリーに storyFeed を書く。索引の作成中でも書いてよい。
+    //
+    // 期限切れも対象にする。掃除バッチ（cleanupExpiredStories）も同じ索引を
+    // 引くようになったので、ここで生きている分だけ入れると、
+    // **移行時点で既に期限切れだったストーリーが永久に消えなくなる**
+    // （DynamoDB の項目も S3 の実体も残り続ける）。
     let scanned = 0;
     let target = 0;
     let lastKey;
     do {
         const res = await ddb.send(new ScanCommand({
             TableName: TABLE,
-            FilterExpression: "story = :t AND expiresAt > :now AND attribute_not_exists(storyFeed)",
-            ExpressionAttributeValues: { ":t": true, ":now": now },
+            FilterExpression: "story = :t AND attribute_not_exists(storyFeed)",
+            ExpressionAttributeValues: { ":t": true },
             ExclusiveStartKey: lastKey,
         }));
         scanned += res.ScannedCount ?? 0;
@@ -126,7 +129,7 @@ async function main() {
         lastKey = res.LastEvaluatedKey;
     } while (lastKey);
 
-    console.log(`[story-index] 走査 ${scanned} 件 / storyFeed が必要なストーリー ${target} 件`);
+    console.log(`[story-index] 走査 ${scanned} 件 / storyFeed が必要なストーリー ${target} 件（期限切れを含む）`);
     if (!apply) console.log("\n[story-index] ドライランのため何も変更していません。");
     else console.log("\n[story-index] 完了。索引が ACTIVE になるまでは Scan にフォールバックします。");
 }

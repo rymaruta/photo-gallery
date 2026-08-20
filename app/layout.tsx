@@ -164,8 +164,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Analytics />
         <DisableSave />
         <AssetRecovery />
-        <ErrorBoundary>
+        {/* ErrorBoundary の外に置く。
+            data-hydrated="1" を立てているのはこの中の effect で、
+            <head> の見張りはそれを「JSが動いた」の合図にしている。
+            境界の中に入れていると、どこかのレンダーが投げた瞬間に
+            この effect ごと捨てられ、フラグが立たない。
+            利用者は「予期しないエラー」カードを読んでいるだけなのに、
+            12秒後に見張りが Service Worker を解除し Cache Storage を消して
+            強制リロードする（入力中のものは失われる）。 */}
         <ServiceWorkerRegister />
+        <ErrorBoundary>
         <ToastProvider>
           <LocaleProvider>
             <AuthProvider>

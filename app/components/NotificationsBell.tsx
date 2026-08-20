@@ -4,14 +4,17 @@ import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { BellIcon, ChatBubbleOvalLeftIcon, UserPlusIcon } from "@heroicons/react/24/outline";
-import { PaperAirplaneIcon, HeartIcon, MapPinIcon } from "@heroicons/react/24/solid";
+import { HeartIcon } from "@heroicons/react/24/solid";
 import { userFetch } from "../../lib/utils/api";
 import { useLocale } from "../i18n/context";
 import { ROUTES } from "../../lib/routes";
 import UserAvatar from "./UserAvatar";
 
 type Notif = {
-    type: "inspired" | "like" | "go" | "comment" | "follow";
+    // 実際に作られるのは like / comment / follow の3種類。
+    // inspired / go は「行きたいリスト」機能のもので、通知を作る側が
+    // どこにも無い（マーカーを書く経路も、UIのボタンも存在しない）。
+    type: "like" | "comment" | "follow";
     photoId: string;
     photoSrc: string;
     byName: string;
@@ -141,13 +144,6 @@ export default function NotificationsBell() {
                                                                 ? <><span className="font-semibold">{n.byName}</span> liked your photo</>
                                                                 : <><span className="font-semibold">{n.byName}</span> さんがあなたの写真にいいねしました</>}
                                                         </>
-                                                    ) : n.type === "go" ? (
-                                                        <>
-                                                            <MapPinIcon className="w-3.5 h-3.5 text-emerald-400 inline -mt-0.5 mr-1" />
-                                                            {locale === "en"
-                                                                ? <><span className="font-semibold">{n.byName}</span> added your photo to their travel list!</>
-                                                                : <><span className="font-semibold">{n.byName}</span> さんがあなたの写真を行きたいリストに追加しました！</>}
-                                                        </>
                                                     ) : n.type === "comment" ? (
                                                         <>
                                                             <ChatBubbleOvalLeftIcon className="w-3.5 h-3.5 text-fuchsia-400 inline -mt-0.5 mr-1" />
@@ -155,14 +151,9 @@ export default function NotificationsBell() {
                                                                 ? <><span className="font-semibold">{n.byName}</span> commented on your photo</>
                                                                 : <><span className="font-semibold">{n.byName}</span> さんがあなたの写真にコメントしました</>}
                                                         </>
-                                                    ) : (
-                                                        <>
-                                                            <PaperAirplaneIcon className="w-3.5 h-3.5 -rotate-45 text-sky-400 inline -mt-0.5 mr-1" />
-                                                            {locale === "en"
-                                                                ? <>Your photo moved <span className="font-semibold">{n.byName}</span> to travel{n.atLocation ? ` to ${n.atLocation}` : ""}!</>
-                                                                : <>あなたの写真が <span className="font-semibold">{n.byName}</span> さんを{n.atLocation ? `「${n.atLocation}」へ` : ""}旅立たせました！</>}
-                                                        </>
-                                                    )}
+                                                    ) : null /* 知らない種類は何も出さない。
+                                                        以前はここが「旅立たせました！」の分岐で、
+                                                        将来わけの分からない通知が全部その文言で出る作りだった */}
                                                 </p>
                                                 <p className="text-[11px] text-white/35 mt-0.5">{fmtTime(n.t)}</p>
                                             </div>

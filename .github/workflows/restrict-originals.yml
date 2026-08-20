@@ -51,15 +51,30 @@ jobs:
       - name: Resolve environment
         id: cfg
         run: |
+          set -euo pipefail
           if [ "${{ inputs.envName }}" = "prod" ]; then
-            echo "photosTable=prod-photo-gallery-photos" >> "$GITHUB_OUTPUT"
-            echo "uploadBucket=prod-journey-photo-upload" >> "$GITHUB_OUTPUT"
-            echo "cloudfrontUrl=https://d1s3dwwzgxf5ni.cloudfront.net" >> "$GITHUB_OUTPUT"
+            photosTable=prod-photo-gallery-photos
+            uploadBucket=prod-journey-photo-upload
+            cloudfrontUrl=https://d1s3dwwzgxf5ni.cloudfront.net
+            distributionId='${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}'
           else
-            echo "photosTable=staging-photo-gallery-photos" >> "$GITHUB_OUTPUT"
-            echo "uploadBucket=staging-journey-photo-upload" >> "$GITHUB_OUTPUT"
-            echo "cloudfrontUrl=https://d15fn3rcaiymu9.cloudfront.net" >> "$GITHUB_OUTPUT"
+            photosTable=staging-photo-gallery-photos
+            uploadBucket=staging-journey-photo-upload
+            cloudfrontUrl=https://d15fn3rcaiymu9.cloudfront.net
+            distributionId=EF2TFEBBP24DL
           fi
+          # 空のまま進めない。
+          # `A && B || C` の形で本番のIDを引いていたとき、シークレットが
+          # 空だと**ステージングのID**に落ちていた。バケットは本番を触るのに
+          # 無効化はステージングへ、という一番気づきにくい壊れ方をする。
+          for k in photosTable uploadBucket cloudfrontUrl distributionId; do
+            v="${!k}"
+            if [ -z "$v" ]; then
+              echo "::error::${{ inputs.envName }} の $k が未設定です"
+              exit 1
+            fi
+            echo "$k=$v" >> "$GITHUB_OUTPUT"
+          done
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -84,10 +99,7 @@ jobs:
         run: node scripts/restrict-originals.js ${{ inputs.apply && '--apply' || '' }}
         env:
           UPLOAD_BUCKET: ${{ steps.cfg.outputs.uploadBucket }}
-          CLOUDFRONT_DISTRIBUTION_ID: >-
-            ${{ inputs.envName == 'prod'
-                && secrets.CLOUDFRONT_DISTRIBUTION_ID
-                || 'EF2TFEBBP24DL' }}
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ steps.cfg.outputs.distributionId }}
 
       - name: Next steps
         run: |

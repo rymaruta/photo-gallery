@@ -47,7 +47,12 @@ beforeEach(() => {
     localStorage.clear();
     resetFavoritesCache(); // お気に入りはモジュール内にキャッシュされる
     mockUserPublicFetch.mockReset().mockResolvedValue({ ok: true, json: async () => ({ likes: 3 }) });
-    mockUserFetch.mockReset().mockResolvedValue({ ok: true, json: async () => ({ likes: 4 }) });
+    // /user/likes/<id>（自分のいいね状態）と /photos/<id>/like（更新）で
+    // 返すものが違う。パスで出し分ける。
+    mockUserFetch.mockReset().mockImplementation((path: string) =>
+        Promise.resolve(path.startsWith("/user/likes/")
+            ? { ok: true, json: async () => ({ liked: false }) }
+            : { ok: true, json: async () => ({ likes: 4 }) }));
 });
 afterEach(() => { localStorage.clear(); });
 
@@ -79,7 +84,6 @@ describe("GalleryModal のいいね", () => {
     it("いいね済みならもう一度押すと DELETE する", async () => {
         setup();
         fireEvent.click(screen.getByRole("button", { name: "Add to favorites" }));
-        await waitFor(() => expect(mockUserFetch).toHaveBeenCalledTimes(1));
         await waitFor(() => screen.getByRole("button", { name: "Remove from favorites" }));
         fireEvent.click(screen.getByRole("button", { name: "Remove from favorites" }));
         await waitFor(() => {

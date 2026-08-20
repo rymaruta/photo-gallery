@@ -130,6 +130,14 @@ function FilterBarInner({
             setSortOpen(false);
         };
         const onKey = (e: KeyboardEvent) => {
+            // 並び替えメニューが開いているときだけ反応する。
+            // 以前は常に document で拾って並び替えボタンに焦点を移していたので、
+            //   - 一覧の下の方で写真モーダルを Esc で閉じると、位置が戻った直後に
+            //     ページ先頭のボタンへ焦点が飛んでスクロールが巻き戻る
+            //   - 検索欄で Esc（type="search" の消去）を押すと焦点を奪われ、
+            //     続きが打てなくなる
+            // が起きていた。
+            if (!isSortOpen) return;
             if (e.key === "Escape") {
                 setSortOpen(false);
                 setTimeout(() => sortButtonRef.current?.focus(), 0);

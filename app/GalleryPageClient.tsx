@@ -56,7 +56,11 @@ export default function GalleryPageClient() {
   // 一度開いて閉じた写真を、同じ ?photo= のまま開き直さないための記録
   const dismissedRef = React.useRef<string | null>(null);
   React.useEffect(() => {
-    if (!photoParam || photoParam === dismissedRef.current) return;
+    // ?photo= が外れたら「閉じた覚え」も捨てる。
+    // 捨てないと、同じ写真へもう一度遷移しても永久に開かなくなる
+    // （通知からその写真を2回開こうとすると2回目が無反応になっていた）。
+    if (!photoParam) { dismissedRef.current = null; return; }
+    if (photoParam === dismissedRef.current) return;
     if (filteredPhotos.length === 0) return; // 一覧の到着待ち
     if (openById(photoParam)) dismissedRef.current = null;
   }, [photoParam, filteredPhotos, openById]);

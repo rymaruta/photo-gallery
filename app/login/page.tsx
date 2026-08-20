@@ -43,22 +43,26 @@ function LoginForm() {
             const result = await login(username, password);
             if (result.success) {
                 // 新規登録時に保存した表示名があれば、プロフィールを作成
+                // 登録したときと同じメールアドレスの分だけを使う。
+                // グローバルな1キーだった頃は、別人が登録途中で残した名前を
+                // 拾ってしまい、こちらのプロフィールに勝手に付いていた。
+                const pendingKey = `jp_pending_name_${username}`;
                 let pendingDisplayName: string | null = null;
-                try { pendingDisplayName = localStorage.getItem("jp_pending_displayName"); } catch { /* ignore */ }
+                try { pendingDisplayName = localStorage.getItem(pendingKey); } catch { /* ignore */ }
                 if (pendingDisplayName) {
                     try {
                         // PUT /user/profile は全置換なので、既にプロフィールがある場合は上書きしない
                         const check = await userFetch("/user/profile");
                         const existing = check.ok ? await check.json() as { displayName?: string } : null;
                         if (existing?.displayName) {
-                            try { localStorage.removeItem("jp_pending_displayName"); } catch { /* ignore */ }
+                            try { localStorage.removeItem(pendingKey); } catch { /* ignore */ }
                         } else {
                             const res = await userFetch("/user/profile", {
                                 method: "PUT",
                                 body: JSON.stringify({ displayName: pendingDisplayName }),
                             });
                             if (res.ok) {
-                                try { localStorage.removeItem("jp_pending_displayName"); } catch { /* ignore */ }
+                                try { localStorage.removeItem(pendingKey); } catch { /* ignore */ }
                             }
                         }
                     } catch {

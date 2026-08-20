@@ -197,9 +197,19 @@ async function uploadFile(filePath) {
     const key = filePath.split(path.sep).join("/"); // S3 uses forward slashes
     const body = fs.readFileSync(fullPath);
     const contentType = mimeLookup(filePath) || "application/octet-stream";
+    // 長いキャッシュを許すのは内容ハッシュ付きのものだけ（_next/static/**）。
+    //
+    // 以前は「HTML でなければ1年 immutable」だったので、public/ にある
+    // 固定名のファイル（favicon.ico・icon-512.png・images/*）まで
+    // 1年 immutable で配っていた。差し替えても、既に取得した人の
+    // ブラウザは再検証すらしないので新しいものが永久に届かない
+    // （ホーム画面に追加した PWA のアイコンが変わらない）。
+    // しかも無効化の対象からも外していたので、直す手段が無かった。
     const cacheControl = isHtmlOrTxt(filePath) || NO_CACHE_KEYS.has(key)
         ? "no-cache, no-store, must-revalidate"
-        : "public, max-age=31536000, immutable";
+        : key.startsWith("_next/")
+            ? "public, max-age=31536000, immutable"
+            : "public, max-age=3600";
 
     await s3.send(new PutObjectCommand({
         Bucket: bucket,

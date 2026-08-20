@@ -73,6 +73,8 @@ export function generatePhotoStructuredData(photo: {
     copyrightYear?: string;
     location?: string;
     coords?: { lat: number; lng: number };
+    /** 撮影日（EXIF 由来）。dateCreated はこちらを使う */
+    date?: string;
     createdAt?: string;
     updatedAt?: string;
     width?: number;
@@ -133,10 +135,13 @@ export function generatePhotoStructuredData(photo: {
         : (photo.copyrightOwner ? `© ${photo.copyrightYear ?? ""} ${photo.copyrightOwner}`.replace(/\s+/g, " ").trim() : "");
     if (copyright) structuredData.copyrightNotice = copyright;
 
-    if (photo.photographer) {
+    // 作者。photographer だけを見ていたため、実データ（30件中0件）では
+    // 一度も出力されていなかった。creditText 側は displayName に落ちているので、
+    // 同じ値を使う（「クレジットはあるのに作者は空」という状態をやめる）。
+    if (credit) {
         structuredData.creator = {
             "@type": "Person",
-            name: photo.photographer,
+            name: credit,
         };
     }
     
@@ -162,10 +167,13 @@ export function generatePhotoStructuredData(photo: {
         structuredData.height = photo.height;
     }
     
-    if (photo.createdAt) {
-        structuredData.dateCreated = photo.createdAt;
-        structuredData.datePublished = photo.createdAt;
-    }
+    // dateCreated は「撮った日」。createdAt（登録日時）を入れていたため、
+    // ページ本文が 2024-10-12 と表示している写真の構造化データが
+    // 2026-04-12 を申告していた（実データで約1年半のずれ）。
+    // datePublished（公開日）は登録日時のままでよい。
+    const shotAt = photo.date || photo.createdAt;
+    if (shotAt) structuredData.dateCreated = shotAt;
+    if (photo.createdAt) structuredData.datePublished = photo.createdAt;
 
     if (photo.updatedAt) {
         structuredData.dateModified = photo.updatedAt;
@@ -229,5 +237,24 @@ export function generateWebSiteStructuredData() {
             },
             "query-input": "required name=search_term_string",
         },
+    };
+}
+
+/**
+ * ログイン後に使う画面（お気に入り・アップロード・管理など）のメタデータ。
+ *
+ * これらは "use client" のページで metadata を持てないため、ルートの
+ * メタデータをそのまま継承していた。結果として **canonical がトップページを
+ * 指し**、検索エンジンには「/favorites はトップと同じページ」と申告していた。
+ * 中身も（ログインしないと何も出ないので）検索結果に出す価値が無い。
+ *
+ * 各セグメントの layout.tsx から使う。
+ */
+export function appPageMetadata(path: string, title: string) {
+    return {
+        title,
+        alternates: { canonical: `${siteConfig.url}${path}` },
+        // 検索結果に出さない。リンクは辿ってよい（サイト内の回遊は残す）
+        robots: { index: false, follow: true },
     };
 }

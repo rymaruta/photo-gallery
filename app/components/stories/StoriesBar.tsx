@@ -220,7 +220,7 @@ export default function StoriesBar() {
     }, []);
 
     const closeDraft = useCallback(() => {
-        if (draft) { try { URL.revokeObjectURL(draft.previewUrl); } catch { /* ignore */ } }
+        // 解放は上の effect が担う（✕ を押さずに離れた場合も拾うため）
         stopPreview();
         setDraft(null);
         setCaption("");
@@ -230,7 +230,18 @@ export default function StoriesBar() {
         setSongResults([]);
         setSongStart(0);
         setDurationSec(STORY_DEFAULT_DURATION_SEC);
-    }, [draft, stopPreview]);
+    }, [stopPreview]);
+
+    // 下書きのプレビューURLを必ず解放する。
+    // 解放は closeDraft の中だけにあったので、✕ を押さずに離れたとき
+    // （ブラウザの戻る・写真をタップして別ページへ）に、選んだファイルが
+    // まるごとメモリに残り続けていた。動画は数十MBあるので、
+    // 何度か繰り返すと iOS Safari はタブごと落とす。
+    useEffect(() => {
+        const url = draft?.previewUrl;
+        if (!url) return;
+        return () => { try { URL.revokeObjectURL(url); } catch { /* ignore */ } };
+    }, [draft?.previewUrl]);
 
     // ファイル選択 → 検証 → 投稿プレビューを開く
     const handleFileSelect = useCallback(async (file: File) => {

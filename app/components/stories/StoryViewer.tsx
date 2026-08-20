@@ -236,16 +236,31 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         }
     }, [group, groups, g, i]);
 
-    // Escで閉じる / 矢印キーで移動
+    // Escで閉じる / 矢印キーで移動。
+    //
+    // シートが開いているときは矢印で送らない。以前は送れてしまい、
+    // 「削除しますか」を出したまま → を押すと、背後のストーリーだけが
+    // 次に進んで、そのまま「削除」を押すと**別のストーリーが消えた**
+    // （しかも成功トーストが出る。元に戻せない）。
+    // Esc も同じで、シートを閉じずにビューア全体を閉じていた
+    // （他の確認ダイアログと逆の挙動）。
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
+            if (confirmDelete || viewersOpen) {
+                if (e.key === "Escape") { setConfirmDelete(false); setViewersOpen(false); }
+                return;
+            }
             if (e.key === "Escape") onClose();
             else if (e.key === "ArrowRight") goNext();
             else if (e.key === "ArrowLeft") goPrev();
         };
         document.addEventListener("keydown", onKey);
         return () => document.removeEventListener("keydown", onKey);
-    }, [onClose, goNext, goPrev]);
+    }, [onClose, goNext, goPrev, confirmDelete, viewersOpen]);
+
+    // 表示中のストーリーが変わったら確認シートを閉じる。
+    // 開いたときの対象と、押したときの対象がずれないようにする。
+    useEffect(() => { setConfirmDelete(false); }, [item?.id]);
 
     // 背景スクロールロック
     useEffect(() => {

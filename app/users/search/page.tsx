@@ -40,7 +40,11 @@ export default function UserSearchPage() {
         if (!composingRef.current) setQuery(v);
     }, []);
 
-    const showEmpty = isSearchableQuery(input.trim().replace(/^@+/, "")) && !loading && users.length === 0;
+    // 「見つかりませんでした」は、実際に検索した語（query）を基準に出す。
+    // input を見ていた頃は、日本語入力の変換中（composing）は query が
+    // 空のまま＝検索が走っていないのに、1文字目から
+    // 「見つかりませんでした」が出続けていた。
+    const showEmpty = isSearchableQuery(query.trim().replace(/^@+/, "")) && !loading && users.length === 0;
 
     return (
         <main className="min-h-screen bg-black text-white max-w-2xl mx-auto w-full px-4 pb-16">

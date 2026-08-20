@@ -74,13 +74,25 @@ function subscribe(userId: string, fn: () => void): () => void {
     return () => { set?.delete(fn); };
 }
 
-/** 相手のフォロー数を取り込む。同時に複数から呼ばれても問い合わせは1回。 */
-function loadCounts(userId: string, signal?: AbortSignal): Promise<void> {
+/**
+ * 相手のフォロー数を取り込む。同時に複数から呼ばれても問い合わせは1回。
+ *
+ * 中断（signal）は受け取らない。以前は呼び出し側の AbortSignal を
+ * 渡していたが、問い合わせは共有しているのに signal は**最初の呼び出し元の
+ * ものだけ**が効いていた。その1人が片付けを走らせると、まだ待っている
+ * 他の購読者の分ごと中断される。しかも inflight の掃除は1マイクロタスク
+ * 遅れるので、直後の再実行は「実行中」と見なされて何も投げ直さない。
+ * 結果、フォロー数が 0 のまま固まる（リロードするまで直らない）。
+ *
+ * 結果は共有ストアに書くだけでコンポーネントの状態には触らないので、
+ * 中断しなくても不整合は起きない。
+ */
+function loadCounts(userId: string): Promise<void> {
     const running = inflight.get(userId);
     if (running) return running;
     const p = (async () => {
         try {
-            const res = await userPublicFetch(`/users/${encodeURIComponent(userId)}/follow`, { signal });
+            const res = await userPublicFetch(`/users/${encodeURIComponent(userId)}/follow`);
             if (!res.ok) return;
             const data = await res.json() as { followers?: number; following?: number };
             setCounts(userId, {
@@ -110,12 +122,11 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
     useEffect(() => {
         if (!targetUserId) return;
         let aborted = false;
-        const controller = new AbortController();
-        void loadCounts(targetUserId, controller.signal);
+        void loadCounts(targetUserId);
         if (isAuthenticated) {
             void fetchFollowingSet().then((set) => { if (!aborted) setIsFollowing(set.has(targetUserId)); });
         }
-        return () => { aborted = true; controller.abort(); };
+        return () => { aborted = true; };
     }, [targetUserId, isAuthenticated]);
 
     const toggle = useCallback(async (): Promise<"followed" | "unfollowed" | "auth-required" | "error"> => {

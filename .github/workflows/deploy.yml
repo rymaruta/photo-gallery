@@ -30,10 +30,15 @@ on:
 # 待機中の古い実行は新しい実行に置き換わる。
 concurrency:
   group: deploy-site-${{ github.ref_name }}
-  # 削除による再ビルド（repository_dispatch）は待っている分をまとめる。
-  # 写真を続けて何枚も消したときに、その回数だけ8分のビルドを回さないため。
-  # 人が押した push / 手動実行は取りこぼしたくないので従来どおり待たせる。
-  cancel-in-progress: ${{ github.event_name == 'repository_dispatch' }}
+  # 実行中のものはキャンセルしない。
+  #
+  # 一度 repository_dispatch のときだけ true にしたが、これは誤りだった。
+  # cancel-in-progress は「新しく積まれた実行が、実行中のものを殺す」設定で、
+  # repository_dispatch は既定ブランチ＝main のグループに入る。つまり
+  # 「人が push したデプロイの途中で誰かが写真を1枚消すと、そのデプロイが死ぬ」。
+  # 連続削除をまとめたいだけなら何もしなくてよい——GitHub は同じグループで
+  # **待機中**の実行を常に1つに畳むので、8分のビルドが何本も走ることはない。
+  cancel-in-progress: false
 
 jobs:
   # ブランチから環境を決める。deploy-api.yml と同じ考え方。

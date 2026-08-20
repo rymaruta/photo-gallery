@@ -161,7 +161,7 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // 既に配ってある /photo/<id> の HTML は残り続ける（本文も撮影地も
         // 表示名入りの JSON-LD も焼き込まれている）。公開に切り替えた場合も
         // 同じ理由で載せ直したいので、published を触ったときは常に頼む。
-        if (hasPublished) void requestSiteRebuild(`photo visibility changed: ${id}`);
+        if (hasPublished) await requestSiteRebuild(`photo visibility changed: ${id}`);
 
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
     } catch (e) {

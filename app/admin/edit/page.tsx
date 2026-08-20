@@ -71,7 +71,11 @@ function AdminEditContent() {
     }, [isAuthenticated, isAdminUser, loading, router]);
 
     useEffect(() => {
-        if (!photoId || !isAuthenticated || !isAdminUser) return;
+        // ?id が無いまま開かれたら待っても何も来ない。
+        // 以前はここで return するだけだったので、スピナーが永久に回り、
+        // 戻る導線も出なかった（ブックマークからクエリが落ちた場合など）。
+        if (!photoId) { setLoadingPhoto(false); return; }
+        if (!isAuthenticated || !isAdminUser) return;
 
         const fetchPhoto = async () => {
             setLoadingPhoto(true);
@@ -122,8 +126,12 @@ function AdminEditContent() {
                     router.push(ROUTES.ADMIN);
                 }
             } catch (e) {
+                // ここに来ると photo が null のままで、下の `if (!photo) return null`
+                // が真っ白な画面を返していた（ヘッダーも戻るリンクも無い）。
+                // res.ok === false の分岐と同じく管理画面へ戻す。
                 log.error("fetchPhoto error:", e);
                 showToast(locale === "en" ? "Failed to load photo" : "写真の読み込みに失敗しました", "error");
+                router.push(ROUTES.ADMIN);
             } finally {
                 setLoadingPhoto(false);
             }
@@ -203,7 +211,26 @@ function AdminEditContent() {
         );
     }
 
-    if (!photo) return null;
+    // 指定が無い / 見つからない場合は、真っ白ではなく戻る導線を出す
+    // （見つからない・失敗の経路は上で /admin に戻している）。
+    if (!photo) {
+        return (
+            <div className="min-h-screen bg-black text-white flex items-center justify-center px-6">
+                <div className="text-center">
+                    <p className="text-sm text-white/70 mb-4">
+                        {locale === "en" ? "No photo was specified." : "編集する写真が指定されていません。"}
+                    </p>
+                    <Link
+                        href={ROUTES.ADMIN}
+                        className="inline-block px-4 py-2.5 text-sm bg-white text-black font-semibold rounded-full hover:bg-white/90 transition-colors"
+                        style={{ touchAction: "manipulation", minHeight: "44px" }}
+                    >
+                        {locale === "en" ? "Back to admin" : "管理画面へ"}
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     const isJa = locale === "ja";
 

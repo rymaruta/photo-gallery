@@ -2,7 +2,10 @@ const sharp = require("sharp");
 const path = require("path");
 const fs = require("fs");
 
-const out = "/home/user/photo-gallery/public";
+// 出力先は「このスクリプトから見た public」。以前は特定の環境の
+// 絶対パス直書きで、別の場所にクローンすると ENOENT で落ちるか、
+// 作業ツリーの外に書き込んで public/ が更新されなかった。
+const out = path.resolve(__dirname, "..", "public");
 
 const svg = (size) => `
 <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">

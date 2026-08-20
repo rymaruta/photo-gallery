@@ -250,7 +250,7 @@ async function main() {
         return;
     }
 
-    let ok = 0, failed = 0;
+    let ok = 0, failed = 0, skipped = 0;
     for (const [i, item] of targets.entries()) {
         const key = keyFromSrc(item.src);
         const doThumb = needsThumb(item);
@@ -305,13 +305,26 @@ async function main() {
             }
 
             // 2) DynamoDB へ動的 SET（更新するフィールドだけ書く）
-            const names = {}, values = { ":u": new Date().toISOString() };
-            const sets = ["updatedAt = :u"];
+            //
+            // updatedAt は sitemap の lastmod に使われる＝「中身が変わった日」。
+            // このスクリプトはサムネや代表色といった表示用の補完をするだけで、
+            // 本文・撮影地・タイトルは触らない。それでも無条件に updatedAt を
+            // 書いていたので、移行を1回流すだけで全写真が「今日更新」になり、
+            // lastmod ごと信用されなくなっていた。
+            // 撮影日（date）を復元したときだけは中身の変更なので更新する。
+            const contentChanged = "date" in fields;
+            const names = {}, values = {};
+            const sets = [];
+            if (contentChanged) {
+                values[":u"] = new Date().toISOString();
+                sets.push("updatedAt = :u");
+            }
             for (const [k, v] of Object.entries(fields)) {
                 names[`#${k}`] = k;
                 values[`:${k}`] = v;
                 sets.push(`#${k} = :${k}`);
             }
+            if (sets.length === 0) { skipped++; continue; } // 書くものが無い（updatedAt も動かさない）
             await ddb.send(new UpdateCommand({
                 TableName: TABLE,
                 Key: { id: item.id },
@@ -331,7 +344,7 @@ async function main() {
         }
     }
 
-    console.log(`\n[thumbs] 完了: 成功 ${ok} / 失敗 ${failed}`);
+    console.log(`\n[thumbs] 完了: 成功 ${ok} / スキップ ${skipped} / 失敗 ${failed}`);
     // 生成対象があったのに1件も成功しなかった場合のみ異常終了
     if (targets.length > 0 && ok === 0) process.exit(1);
 }

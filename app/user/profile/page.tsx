@@ -395,7 +395,13 @@ export default function ProfileEditPage() {
             if (res.ok) {
                 showToast(locale === "en" ? "Profile saved." : "プロフィールを保存しました。", "success");
             } else {
-                showToast(locale === "en" ? "Failed to save." : "保存に失敗しました。", "error");
+                // サーバーは理由を返している（「そのユーザー名は既に使われています」など）。
+                // 「保存に失敗しました。」だけだと、@名が重複しているのか通信が
+                // 切れたのか分からず、同じ操作を何度も繰り返すことになる。
+                // 保存は1件も書かれていない（サーバー側で先に弾いている）。
+                const { readApiError } = await import("../../../lib/utils/api");
+                showToast(await readApiError(res,
+                    locale === "en" ? "Failed to save." : "保存に失敗しました。"), "error");
             }
         } catch {
             showToast(locale === "en" ? "Failed to save." : "保存に失敗しました。", "error");

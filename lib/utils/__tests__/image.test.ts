@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { stripJpegExif, scaleDimensions, thumbFileName, toUploadSafeFile, UnstrippableFileError } from "../image";
+import { stripJpegExif, stripJpegExifDetailed, scaleDimensions, thumbFileName, toUploadSafeFile, UnstrippableFileError } from "../image";
 
 // 合成 JPEG バイト列を組み立てるヘルパー
 function segment(marker: number, payload: number[]): number[] {
@@ -35,6 +35,62 @@ function findMarker(buf: Uint8Array, marker: number): boolean {
     }
     return false;
 }
+
+// `stripped` は「本当に落としたか」の申告。
+// 呼び出し側（toUploadSafeFile）はこれを見て公開してよいか決めるので、
+// **消せていないのに true** が一番まずい壊れ方になる。
+describe("stripJpegExifDetailed: 消せたかどうかの申告", () => {
+    const asFile = (b: Uint8Array) =>
+        new File([b as BlobPart], "photo.jpg", { type: "image/jpeg" });
+
+    it("落とせたら stripped = true", async () => {
+        const r = await stripJpegExifDetailed(asFile(buildJpeg({ withExif: true })));
+        expect(r.stripped).toBe(true);
+        expect(findMarker(new Uint8Array(await r.file.arrayBuffer()), 0xE1)).toBe(false);
+    });
+
+    it("元から無い場合も stripped = true（最後まで読めているため）", async () => {
+        expect((await stripJpegExifDetailed(asFile(buildJpeg({ withExif: false })))).stripped).toBe(true);
+    });
+
+    it("マーカー前の詰め物（FF FF）があっても正しく落とす", async () => {
+        // JPEG は マーカーの直前に 0xFF を任意個置ける（ITU T.81 B.1.1.2）。
+        // 読み飛ばさずに buf[i+1] をマーカー扱いしていた頃は、0xFF を
+        // マーカー・続く2バイトを長さと読んで走査が止まり、APP1 を含む
+        // 残り全部がそのまま積まれていた。しかも「新しい File」が返るので
+        // 呼び出し側は同一性判定で「消せた」と誤認していた。
+        const src = Array.from(buildJpeg({ withExif: true }));
+        const at = src.findIndex((b, i) => b === 0xFF && src[i + 1] === 0xE1);
+        src.splice(at, 0, 0xFF, 0xFF); // APP1 の直前に詰め物を2つ
+        const r = await stripJpegExifDetailed(asFile(new Uint8Array(src)));
+        expect(r.stripped).toBe(true);
+        expect(findMarker(new Uint8Array(await r.file.arrayBuffer()), 0xE1)).toBe(false);
+    });
+
+    it("途中で構造を読めなくなったら stripped = false", async () => {
+        // 長さが壊れている＝以降に何が入っているか分からない。
+        // 「1つ落とせたから大丈夫」ではない——XMP を別の APP1 に置く機材では
+        // 2つ目に GPS が残る。
+        const src = Array.from(buildJpeg({ withExif: true }));
+        const dqt = src.findIndex((b, i) => b === 0xFF && src[i + 1] === 0xDB);
+        src[dqt + 2] = 0xFF; // 長さを buffer 超えにする
+        src[dqt + 3] = 0xFF;
+        const r = await stripJpegExifDetailed(asFile(new Uint8Array(src)));
+        expect(r.stripped).toBe(false);
+    });
+
+    it("JPEG でなければ stripped = false（消せていない）", async () => {
+        const png = new File([new Uint8Array([0x89, 0x50]) as BlobPart], "a.png", { type: "image/png" });
+        const r = await stripJpegExifDetailed(png);
+        expect(r.stripped).toBe(false);
+        expect(r.file).toBe(png);
+    });
+
+    it("SOI が無い（JPEG として壊れている）なら stripped = false", async () => {
+        const r = await stripJpegExifDetailed(asFile(new Uint8Array([0x00, 0x01, 0x02, 0x03, 0x04])));
+        expect(r.stripped).toBe(false);
+    });
+});
 
 describe("stripJpegExif", () => {
     it("APP1 (Exif) セグメントを除去する", async () => {

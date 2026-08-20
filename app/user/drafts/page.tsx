@@ -19,6 +19,9 @@ export default function DraftsPage() {
 
     const [drafts, setDrafts] = useState<Photo[]>([]);
     const [loadingDrafts, setLoadingDrafts] = useState(true);
+    // 取得に失敗したかどうか。失敗を「下書き0件」と同じ見た目にすると、
+    // 保存した下書きが消えたように見える（実際はサーバーに残っている）。
+    const [loadError, setLoadError] = useState(false);
 
     useEffect(() => {
         if (!loading && (!isAuthenticated || (!isAdminUser && !isGeneralUser))) {
@@ -28,6 +31,11 @@ export default function DraftsPage() {
 
     const load = useCallback(async () => {
         setLoadingDrafts(true);
+        // 取れなかったことを画面にも残す。
+        // 以前は失敗してもログを出すだけで drafts が [] のままだったので、
+        // 「下書きはありません」＋アップロードの誘導が出た。
+        // 保存した下書きが消えたように見えるが、実際はサーバーに残っている。
+        setLoadError(false);
         try {
             const { userFetch } = await import("../../../lib/utils/api");
             const res = await userFetch("/user/photos");
@@ -36,9 +44,11 @@ export default function DraftsPage() {
                 setDrafts(Array.isArray(all) ? all.filter((p) => p.published === false) : []);
             } else {
                 log.error("drafts fetch failed", { status: res.status });
+                setLoadError(true);
             }
         } catch (e) {
             log.error("drafts load error:", e);
+            setLoadError(true);
         } finally {
             setLoadingDrafts(false);
         }
@@ -87,6 +97,21 @@ export default function DraftsPage() {
                 {loadingDrafts ? (
                     <div className="py-16 flex justify-center">
                         <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                    </div>
+                ) : loadError ? (
+                    <div className="py-16 text-center text-white/50">
+                        <p className="text-sm mb-1">{isJa ? "下書きを読み込めませんでした" : "Could not load your drafts"}</p>
+                        <p className="text-xs mb-4 text-white/40">
+                            {isJa ? "消えたわけではありません。通信を確かめてもう一度お試しください。"
+                                : "Nothing was lost. Check your connection and try again."}
+                        </p>
+                        <button
+                            onClick={() => void load()}
+                            className="inline-block px-4 py-2.5 text-sm bg-white text-black font-semibold rounded-full hover:bg-white/90 transition-colors"
+                            style={{ touchAction: "manipulation", minHeight: "44px" }}
+                        >
+                            {isJa ? "再試行" : "Retry"}
+                        </button>
                     </div>
                 ) : drafts.length === 0 ? (
                     <div className="py-16 text-center text-white/50">
