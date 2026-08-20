@@ -59,6 +59,30 @@ describe("getPhotos: 読み取りの使い回し", () => {
         expect(mockListPhotos).not.toHaveBeenCalled();
     });
 
+    // 使い回しの窓は10秒。60秒にしていた頃は、公開アップロードの導線
+    // 「保存 → 1.5秒後にトップへ」で上げた本人に最大60秒「無い」ように見えた。
+    // 書き込みは api-user・読み取りは api と別サービスなので、書いた側から
+    // キャッシュを落とせない。無いと思ってもう一度上げると同じ写真が2枚になり、
+    // 100枚の上限も1枚減る。
+    it("10秒を過ぎたら読み直す（上げた直後の写真を隠さない）", async () => {
+        vi.useFakeTimers();
+        try {
+            vi.setSystemTime(new Date("2026-08-20T00:00:00Z"));
+            await invoke({});
+            expect(mockListPhotos).toHaveBeenCalledTimes(1);
+
+            vi.setSystemTime(new Date("2026-08-20T00:00:09Z"));  // まだ窓の中
+            await invoke({});
+            expect(mockListPhotos).toHaveBeenCalledTimes(1);
+
+            vi.setSystemTime(new Date("2026-08-20T00:00:11Z"));  // 窓を過ぎた
+            await invoke({});
+            expect(mockListPhotos).toHaveBeenCalledTimes(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it("読み取りが失敗したら 500（失敗をキャッシュしない）", async () => {
         mockListPhotos.mockRejectedValue(new Error("ddb down"));
         expect((await invoke({})).statusCode).toBe(500);

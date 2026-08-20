@@ -4,12 +4,20 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 const mockUserFetch = vi.hoisted(() => vi.fn());
 const mockUserPublicFetch = vi.hoisted(() => vi.fn());
 
-vi.mock("../../utils/api", () => ({
-    userFetch: (...a: unknown[]) => mockUserFetch(...a),
-    userPublicFetch: (...a: unknown[]) => mockUserPublicFetch(...a),
-    publicFetch: vi.fn(),
-    authenticatedFetch: vi.fn(),
-}));
+// readApiError だけは本物を使う。useComments はサーバーの文言を
+// そのまま画面に出すためにこれを通しているので、ここを差し替えると
+// 「文言が届くか」を確かめられなくなる（api.ts は Cognito を import
+// するだけで、モジュール読み込み時に通信はしない）。
+vi.mock("../../utils/api", async () => {
+    const actual = await vi.importActual<typeof import("../../utils/api")>("../../utils/api");
+    return {
+        userFetch: (...a: unknown[]) => mockUserFetch(...a),
+        userPublicFetch: (...a: unknown[]) => mockUserPublicFetch(...a),
+        publicFetch: vi.fn(),
+        authenticatedFetch: vi.fn(),
+        readApiError: actual.readApiError,
+    };
+});
 
 import { useComments } from "../useComments";
 
@@ -68,5 +76,58 @@ describe("useComments: 削除の巻き戻し", () => {
         await act(async () => { await result.current.remove("c1"); });
         expect(result.current.count).toBe(1);
         expect(result.current.items).toHaveLength(1);
+    });
+});
+
+// 断られた理由は、サーバーが日本語で返している
+// （「同じ写真へのコメントは10件までです」など）。
+// それを捨てて「投稿に失敗しました」とだけ出していたので、利用者は
+// 障害だと思って何度も送り直していた——そのたびにサーバーは写真と
+// 200件のコメント文書を読み直す。
+describe("useComments: 断られた理由", () => {
+    const mounted = async () => {
+        mockList([], 0);
+        const { result } = renderHook(() => useComments("p1", true, 0));
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        return result;
+    };
+
+    it("サーバーの文言をそのまま持つ", async () => {
+        const result = await mounted();
+        mockUserFetch.mockResolvedValue({
+            ok: false, status: 429,
+            json: async () => ({ error: "同じ写真へのコメントは10件までです" }),
+        });
+
+        let r = "";
+        await act(async () => { r = await result.current.add("もう1件"); });
+        expect(r).toBe("error");
+        expect(result.current.lastError).toBe("同じ写真へのコメントは10件までです");
+    });
+
+    it("文言が無ければ既定文にする", async () => {
+        const result = await mounted();
+        mockUserFetch.mockResolvedValue({
+            ok: false, status: 500, json: async () => { throw new Error("not json"); },
+        });
+
+        await act(async () => { await result.current.add("こんにちは"); });
+        expect(result.current.lastError).toBe("投稿に失敗しました");
+    });
+
+    it("次の投稿が通ったら理由は消える", async () => {
+        const result = await mounted();
+        mockUserFetch.mockResolvedValue({
+            ok: false, status: 429, json: async () => ({ error: "上限です" }),
+        });
+        await act(async () => { await result.current.add("1件目"); });
+        expect(result.current.lastError).toBe("上限です");
+
+        mockUserFetch.mockResolvedValue({
+            ok: true, json: async () => ({ comment: comment("c9") }),
+        });
+        await act(async () => { await result.current.add("2件目"); });
+        expect(result.current.lastError).toBeNull();
+        expect(result.current.items.map((c) => c.id)).toEqual(["c9"]);
     });
 });
