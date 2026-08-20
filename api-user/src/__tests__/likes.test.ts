@@ -8,7 +8,7 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 
-const { getLikeCount, likePhoto, unlikePhoto } = await import("../likes");
+const { getLikeCount, getMyLike, likePhoto, unlikePhoto } = await import("../likes");
 
 type Result = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -38,6 +38,41 @@ describe("getLikeCount", () => {
 
         mockDdbSend.mockResolvedValueOnce({ Item: {} });
         expect(JSON.parse((await invoke(getLikeCount, ev(undefined, "p2"))).body)).toEqual({ likes: 0 });
+    });
+});
+
+// 「自分がいいね済みか」をサーバーに聞く口。
+// これが無かった頃、フロントは端末のお気に入り（localStorage）だけで
+// 判断していた。未ログインで押した状態のままログインすると、次の一押しが
+// DELETE になって取り消し扱いになり、投稿者にいいねも通知も届かない。
+// 別の端末では逆に、いいね済みの写真が未いいねに見える。
+describe("getMyLike", () => {
+    it("マーカーがあれば liked=true", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "like#p1#u1" } });
+        const res = await invoke(getMyLike, ev("u1", "p1"));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body)).toEqual({ liked: true });
+        expect((mockDdbSend.mock.calls[0][0] as { input: { Key: { id: string } } }).input.Key.id)
+            .toBe("like#p1#u1");
+    });
+
+    it("マーカーが無ければ liked=false", async () => {
+        mockDdbSend.mockResolvedValueOnce({});
+        expect(JSON.parse((await invoke(getMyLike, ev("u1", "p1"))).body)).toEqual({ liked: false });
+    });
+
+    it("共有キャッシュには載せない（他人の状態が配られるため）", async () => {
+        mockDdbSend.mockResolvedValueOnce({});
+        const res = await invoke(getMyLike, ev("u1", "p1")) as unknown as {
+            headers: Record<string, string>;
+        };
+        expect(res.headers["Cache-Control"]).toContain("no-store");
+        expect(res.headers["Cache-Control"]).not.toContain("public");
+    });
+
+    it("認証・id なしは 400", async () => {
+        expect((await invoke(getMyLike, ev(undefined, "p1"))).statusCode).toBe(400);
+        expect((await invoke(getMyLike, ev("u1", undefined))).statusCode).toBe(400);
     });
 });
 

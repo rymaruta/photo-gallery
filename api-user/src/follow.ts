@@ -46,6 +46,14 @@ async function readFollowing(uid: string): Promise<string[]> {
  */
 const FOLLOWING_WRITE_RETRIES = 3;
 
+/** 一覧の書き込みを諦めたときのエラー。呼び出し側が打ち消し処理に使う */
+class FollowingListError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "FollowingListError";
+    }
+}
+
 async function updateFollowing(uid: string, mutate: (list: string[]) => string[] | null): Promise<void> {
     for (let attempt = 0; attempt <= FOLLOWING_WRITE_RETRIES; attempt++) {
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: followingId(uid) } }));
@@ -82,7 +90,14 @@ async function updateFollowing(uid: string, mutate: (list: string[]) => string[]
             // 競合。読み直してやり直す
         }
     }
-    console.error(`updateFollowing: ${uid} の一覧更新が競合し続けたため諦めました`);
+    // 諦めたことを黙って飲み込まない。
+    //
+    // 以前はログを1行出して正常終了していた。呼び出し側は成功として 200 を返すが、
+    // follow# マーカーは書かれていて一覧だけが欠ける。もう一度フォローしても
+    // 「既にフォロー済み」で早期 return するので、**二度と直らない**
+    // （その人の写真がフィードに出ないままになる）。
+    // 呼び出し側で打ち消して 500 を返せるように投げる。
+    throw new FollowingListError(`${uid} の一覧更新が競合し続けました`);
 }
 
 async function bumpStat(uid: string, field: "followers" | "following", delta: 1 | -1): Promise<void> {
@@ -130,12 +145,25 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
         await bumpStat(target, "followers", 1);
         await bumpStat(me, "following", 1);
 
-        // 自分の following リストに追加（新しい順の先頭へ）
-        await updateFollowing(me, (list) => {
-            if (list.includes(target)) return null;
-            list.unshift(target);
-            return list;
-        });
+        // 自分の following リストに追加（新しい順の先頭へ）。
+        // ここで失敗したらマーカーとカウンタを戻す。戻さないと
+        // 「フォロー済み扱いなのに一覧に出ない」状態が固定され、
+        // 押し直しても早期 return で直らない。
+        try {
+            await updateFollowing(me, (list) => {
+                if (list.includes(target)) return null;
+                list.unshift(target);
+                return list;
+            });
+        } catch (e) {
+            if ((e as { name?: string }).name !== "FollowingListError") throw e;
+            await bumpStat(target, "followers", -1);
+            await bumpStat(me, "following", -1);
+            await ddb.send(new DeleteCommand({
+                TableName: PHOTOS_TABLE, Key: { id: markerId(target, me) },
+            })).catch(() => { /* 既に無ければそれでよい */ });
+            return jsonError(500, "フォローに失敗しました。もう一度お試しください");
+        }
 
         // 相手に通知
         await pushNotification(target, {
@@ -178,10 +206,22 @@ export const unfollowUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
         await bumpStat(target, "followers", -1);
         await bumpStat(me, "following", -1);
 
-        await updateFollowing(me, (list) => {
-            const next = list.filter((x) => x !== target);
-            return next.length === list.length ? null : next;
-        });
+        // 解除も同じ。失敗したらマーカーを戻して再試行できるようにする。
+        try {
+            await updateFollowing(me, (list) => {
+                const next = list.filter((x) => x !== target);
+                return next.length === list.length ? null : next;
+            });
+        } catch (e) {
+            if ((e as { name?: string }).name !== "FollowingListError") throw e;
+            await bumpStat(target, "followers", 1);
+            await bumpStat(me, "following", 1);
+            await ddb.send(new PutCommand({
+                TableName: PHOTOS_TABLE,
+                Item: { id: markerId(target, me), follow: true, target, uid: me, createdAt: new Date().toISOString() },
+            })).catch(() => { /* 復元できなければログのみ */ });
+            return jsonError(500, "フォロー解除に失敗しました。もう一度お試しください");
+        }
 
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ following: false, followers: (await readStats(target)).followers }) };
     } catch (e) {

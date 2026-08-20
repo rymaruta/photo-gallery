@@ -8,6 +8,8 @@ vi.mock("../dynamodb", () => ({
     ddb: { send: mockDdbSend },
     PHOTOS_TABLE: "photos-test",
     USER_INDEX: "userId-createdAt-index",
+    STORY_INDEX: "storyFeed-expiresAt-index",
+    STORY_FEED_KEY: "1",
 }));
 
 vi.mock("@aws-sdk/client-s3", () => ({
@@ -89,6 +91,36 @@ describe("getStories", () => {
         const res = await invoke(getStories, authedEvent("viewer"));
         expect(res.statusCode).toBe(500);
     });
+
+    it("Scan ではなく専用の索引を Query する", async () => {
+        // 以前はテーブル全体の Scan だった。写真もコメント文書も
+        // いいね/フォローのマーカー（退会しても消えない）も同居しているので、
+        // 増えるほど遅くなり、いずれ実行時間を超えて
+        // 「ログイン中の全員のストーリー欄が同時に壊れる」。
+        mockDdbSend.mockResolvedValueOnce({ Items: [] });
+        await invoke(getStories, authedEvent("viewer"));
+        const input = mockDdbSend.mock.calls[0][0].input as {
+            IndexName?: string; KeyConditionExpression?: string; FilterExpression?: string;
+        };
+        expect(input.IndexName).toBe("storyFeed-expiresAt-index");
+        expect(input.KeyConditionExpression).toContain("storyFeed = :k");
+        expect(input.KeyConditionExpression).toContain("expiresAt > :now");
+        expect(input.FilterExpression).toBeUndefined();
+    });
+
+    it("索引がまだ無いテーブルでは Scan に落ちる（機能ごと止めない）", async () => {
+        // 索引を足すのはデプロイとは別作業なので、順序が前後しても
+        // ストーリーが見えなくならないようにする。
+        const missing = Object.assign(new Error("index not found"), { name: "ValidationException" });
+        mockDdbSend
+            .mockRejectedValueOnce(missing)
+            .mockResolvedValueOnce({ Items: [{ id: "s1", createdAt: "1" }] });
+        const res = await invoke(getStories, authedEvent("viewer"));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body)).toHaveLength(1);
+        const fallback = mockDdbSend.mock.calls[1][0].input as { FilterExpression?: string };
+        expect(fallback.FilterExpression).toContain("story = :t");
+    });
 });
 
 // ────────────────────────────────
@@ -156,6 +188,8 @@ describe("createStory", () => {
         expect(item.mediaType).toBe("image");
         expect(item.caption).toBe("旅の思い出");
         expect(item.key).toBe("uploads/u1/a.jpg");
+        // 一覧用の索引に載せるための定数。これが無いと Query に出てこない
+        expect(item.storyFeed).toBe("1");
         expect(String(item.id)).toMatch(/^story-/);
         const ttl = Date.parse(String(item.expiresAt)) - Date.parse(String(item.createdAt));
         expect(ttl).toBe(24 * 60 * 60 * 1000);

@@ -2,7 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { ScanCommand, QueryCommand, PutCommand, GetCommand, UpdateCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
-import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
+import { ddb, PHOTOS_TABLE, USER_INDEX, STORY_INDEX, STORY_FEED_KEY } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError, isAdmin } from "./http";
 import { lookupDisplayName } from "./notify";
 import { mediaKeys } from "./mediaKeys";
@@ -65,6 +65,46 @@ async function countRecentStories(userId: string): Promise<number> {
     return count;
 }
 
+/**
+ * ストーリーを引く。
+ *
+ * GSI（storyFeed-expiresAt-index）を Query する。以前はテーブル全体の Scan で、
+ * 同居しているいいね/フォローのマーカー（退会しても消えない）が増えるほど
+ * 重くなり、いずれ実行時間を超えて「ログイン中の全員のストーリー欄が
+ * 同時に壊れる」という壊れ方をする作りだった。
+ *
+ * GSI がまだ無いテーブル（作成直後・移行前）では Scan に落ちる。
+ * ここを落とすと機能ごと止まるので、遅くても動く方に倒す。
+ * ストーリーは24時間で入れ替わるので、GSI を足せば1日で全件が載る。
+ */
+async function queryStories(filter: "active" | "expired"): Promise<Record<string, unknown>[]> {
+    const now = new Date().toISOString();
+    const items: Record<string, unknown>[] = [];
+    let lastKey: Record<string, unknown> | undefined;
+    try {
+        do {
+            const res = await ddb.send(new QueryCommand({
+                TableName: PHOTOS_TABLE,
+                IndexName: STORY_INDEX,
+                KeyConditionExpression: filter === "active"
+                    ? "storyFeed = :k AND expiresAt > :now"
+                    : "storyFeed = :k AND expiresAt <= :now",
+                ExpressionAttributeValues: { ":k": STORY_FEED_KEY, ":now": now },
+                ExclusiveStartKey: lastKey,
+            }));
+            items.push(...((res.Items ?? []) as Record<string, unknown>[]));
+            lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
+        } while (lastKey);
+        return items;
+    } catch (e) {
+        const name = (e as { name?: string }).name;
+        if (name !== "ValidationException" && name !== "ResourceNotFoundException") throw e;
+        console.warn(`queryStories: ${STORY_INDEX} が無いため Scan にフォールバックします`);
+    }
+    return scanStories(filter);
+}
+
+/** GSI が無い環境向けのフォールバック。テーブル全体を読むので遅い */
 async function scanStories(filter: "active" | "expired"): Promise<Record<string, unknown>[]> {
     const now = new Date().toISOString();
     const items: Record<string, unknown>[] = [];
@@ -89,7 +129,7 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
     const userId = getUserId(event);
     if (!userId) return jsonError(401, "認証が必要です");
     try {
-        const items = await scanStories("active");
+        const items = await queryStories("active");
         for (const item of items) {
             delete item.viewers;
         }
@@ -198,6 +238,9 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     const story = {
         id: `story-${randomUUID()}`,
         story: true,
+        // ストーリー一覧用 GSI のパーティションキー。定数なので story 項目だけが
+        // この索引に載る（写真もマーカーもコメント文書も載らない）。
+        storyFeed: STORY_FEED_KEY,
         published: false, // ギャラリー・photos.json から除外するため
         src: publicUrl,
         ...(key ? { key } : {}), // 期限切れ削除時に S3 オブジェクトを消すために保持
@@ -333,7 +376,7 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
 // 期限切れストーリーの物理削除（毎日スケジュール実行）
 // DynamoDB のレコードと S3 の画像/動画本体の両方を削除する。
 export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
-    const expired = await scanStories("expired");
+    const expired = await queryStories("expired");
     let deleted = 0;
 
     for (const item of expired) {

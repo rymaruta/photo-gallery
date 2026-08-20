@@ -173,6 +173,26 @@ describe("フォロー一覧の同時更新", () => {
         expect((put.Item as { rev: number }).rev).toBe(4);
     });
 
+    it("一覧の更新を諦めたら失敗を返し、マーカーも取り消す", async () => {
+        // 以前はログを1行出して 200 を返していた。マーカーは残るので
+        // 「フォロー済み扱いなのに一覧に出ない」状態が固定され、
+        // 押し直しても「既にフォロー済み」で早期 return して直らない
+        // （その人の写真がフィードに二度と出てこない）。
+        setupFollow(
+            Array.from({ length: 5 }, () => ({ Item: { list: [], rev: 0 } })),
+            ["conflict", "conflict", "conflict", "conflict"],
+        );
+
+        const res = await invoke(followUser, ev("me", "c"));
+        expect(res.statusCode).toBe(500);
+
+        // 押し直せるように follow# マーカーを消している
+        const deletedIds = mockDdbSend.mock.calls
+            .map((c) => (c[0] as { input?: { Key?: { id?: string } } }).input?.Key?.id)
+            .filter(Boolean);
+        expect(deletedIds).toContain("follow#c#me");
+    });
+
     it("rev を持たない既存データも書き込める（後方互換）", async () => {
         setupFollow([{ Item: { list: ["b"] } }], ["ok"]);
         await invoke(followUser, ev("me", "c"));

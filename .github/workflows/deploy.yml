@@ -8,6 +8,12 @@ on:
     branches:
       - main
   workflow_dispatch:
+  # 退会・写真削除・非公開のあとに API から呼ばれる。
+  # 静的エクスポートなので、実体を消しても配ってある HTML は残り続ける。
+  # 定期ビルドを止めている今、ここが唯一の掃除経路。
+  # 連続削除は下の concurrency でまとめられる（枠を食い潰さない）。
+  repository_dispatch:
+    types: [site-rebuild]
   # 定期ビルドは一時停止中。
   #
   # 2026-08-20 時点で GitHub Actions の枠を 1,804/2,000 分（90%）消費しており、
@@ -24,7 +30,10 @@ on:
 # 待機中の古い実行は新しい実行に置き換わる。
 concurrency:
   group: deploy-site-${{ github.ref_name }}
-  cancel-in-progress: false
+  # 削除による再ビルド（repository_dispatch）は待っている分をまとめる。
+  # 写真を続けて何枚も消したときに、その回数だけ8分のビルドを回さないため。
+  # 人が押した push / 手動実行は取りこぼしたくないので従来どおり待たせる。
+  cancel-in-progress: ${{ github.event_name == 'repository_dispatch' }}
 
 jobs:
   # ブランチから環境を決める。deploy-api.yml と同じ考え方。

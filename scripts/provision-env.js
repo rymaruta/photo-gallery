@@ -90,16 +90,32 @@ async function ensurePhotosTable() {
             { AttributeName: "id", AttributeType: "S" },
             { AttributeName: "userId", AttributeType: "S" },
             { AttributeName: "createdAt", AttributeType: "S" },
+            { AttributeName: "storyFeed", AttributeType: "S" },
+            { AttributeName: "expiresAt", AttributeType: "S" },
         ],
         KeySchema: [{ AttributeName: "id", KeyType: "HASH" }],
-        GlobalSecondaryIndexes: [{
-            IndexName: "userId-createdAt-index",
-            KeySchema: [
-                { AttributeName: "userId", KeyType: "HASH" },
-                { AttributeName: "createdAt", KeyType: "RANGE" },
-            ],
-            Projection: { ProjectionType: "ALL" },
-        }],
+        GlobalSecondaryIndexes: [
+            {
+                IndexName: "userId-createdAt-index",
+                KeySchema: [
+                    { AttributeName: "userId", KeyType: "HASH" },
+                    { AttributeName: "createdAt", KeyType: "RANGE" },
+                ],
+                Projection: { ProjectionType: "ALL" },
+            },
+            {
+                // ストーリー一覧用。storyFeed は story 項目にだけ入る定数なので、
+                // この索引には写真もマーカーも載らない。
+                // 以前は「今生きているストーリー」をテーブル全体の Scan で
+                // 引いており、同居するマーカーが増えるほど重くなっていた。
+                IndexName: "storyFeed-expiresAt-index",
+                KeySchema: [
+                    { AttributeName: "storyFeed", KeyType: "HASH" },
+                    { AttributeName: "expiresAt", KeyType: "RANGE" },
+                ],
+                Projection: { ProjectionType: "ALL" },
+            },
+        ],
     }));
     log("作成しました。");
 }

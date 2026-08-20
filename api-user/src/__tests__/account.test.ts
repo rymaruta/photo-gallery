@@ -16,6 +16,9 @@ vi.mock("@aws-sdk/client-s3", () => ({
     DeleteObjectsCommand: class { input: unknown; constructor(input: unknown) { this.input = input; } },
 }));
 
+const mockRebuild = vi.hoisted(() => vi.fn());
+vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRebuild }));
+
 vi.stubEnv("UPLOAD_BUCKET", "bucket-test");
 vi.stubEnv("USERS_TABLE", "users-test");
 const { deleteAccount } = await import("../account");
@@ -49,6 +52,7 @@ function deletedS3Keys(): string[] {
 }
 
 beforeEach(() => {
+    mockRebuild.mockReset().mockResolvedValue(true);
     mockDdbSend.mockReset();
     mockS3Send.mockReset().mockResolvedValue({});
 });
@@ -248,5 +252,19 @@ describe("deleteAccount: 消し残しを作らない", () => {
         setupWithPhoto({ id: "p1", userId: "me", src: "https://cdn.test/uploads/p1.jpg" }, { userId: "me" });
         await invoke(deleteAccount, ev("me"));
         expect(deletedDdbIds().some((id) => id.startsWith("username#"))).toBe(false);
+    });
+});
+
+// 退会しても静的ページ（/photo/<id>・/users/<id>）は S3 に残り続ける。
+// 本文も撮影地も表示名入りの JSON-LD も焼き込まれているので、
+// 「消したのに検索から見える」状態になる。定期ビルドは止めてあるため、
+// ここで頼まないと誰かが push するまで直らない。
+describe("deleteAccount: 静的ページの掃除", () => {
+    it("成功したらサイトの再ビルドを頼む", async () => {
+        mockDdbSend.mockResolvedValue({});
+        const res = await invoke(deleteAccount, ev("me"));
+        expect(res.statusCode).toBe(200);
+        expect(mockRebuild).toHaveBeenCalledTimes(1);
+        expect(String(mockRebuild.mock.calls[0][0])).toContain("me");
     });
 });

@@ -100,16 +100,28 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             ReturnValues: "UPDATED_NEW",
         }));
 
-        // 上限を超えたら古い方を捨てて COMMENTS_MAX 件だけ残す（末尾が新しい）
+        // 上限を超えたら古い方を捨てて COMMENTS_MAX 件だけ残す（末尾が新しい）。
+        //
+        // 読んでから書き戻すまでの間に別の投稿が入ると、その投稿ごと
+        // 消えていた（自分には200が返り画面にも出ているのに、あとで消える）。
+        // 「読んだときと同じ長さのままなら書く」条件を付けて、外れたら諦める
+        // ——次の投稿がまた切り詰めるので、放っておいて問題ない。
         const stored = appended.Attributes?.items;
         if (Array.isArray(stored) && stored.length > COMMENTS_MAX) {
             await ddb.send(new UpdateCommand({
                 TableName: PHOTOS_TABLE,
                 Key: { id: commentsId(photoId) },
                 UpdateExpression: "SET #items = :trimmed",
+                ConditionExpression: "size(#items) = :len",
                 ExpressionAttributeNames: { "#items": "items" },
-                ExpressionAttributeValues: { ":trimmed": stored.slice(-COMMENTS_MAX) },
-            }));
+                ExpressionAttributeValues: {
+                    ":trimmed": stored.slice(-COMMENTS_MAX),
+                    ":len": stored.length,
+                },
+            })).catch((e: { name?: string }) => {
+                if (e?.name !== "ConditionalCheckFailedException") throw e;
+                // 競合。次の投稿が切り詰める
+            });
         }
 
         // 写真の commentCount +1

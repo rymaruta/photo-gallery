@@ -2,6 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getPhotoById, updatePhotoFields, deletePhotoById } from "./ddb-photos";
 import { isAdmin, getCallerUserId } from "./auth";
+import { requestSiteRebuild } from "./rebuild";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
@@ -113,6 +114,13 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         }
 
         await deletePhotoById(id);
+
+        // 静的ページの掃除を頼む。実体を消しても、既に配ってある
+        // /photo/<id> の HTML はそのまま残る（本文・撮影地・EXIF・
+        // 表示名入りの JSON-LD まで焼き込まれている）。定期ビルドは
+        // 止めてあるので、頼まないと誰かが push するまで消えない。
+        void requestSiteRebuild(`photo deleted: ${id}`);
+
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
     } catch (e) {
         console.error("deletePhoto error:", e);

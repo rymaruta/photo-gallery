@@ -297,10 +297,18 @@ export async function confirmSignUp(username: string, code: string): Promise<{
             const cognitoUser = new CognitoUser({ Username: username, Pool: userPool });
             cognitoUser.confirmRegistration(code, true, (err) => {
                 if (err) {
+                    // 「すでに確認済み」は成功として扱う。
+                    // PostConfirmation トリガーが失敗すると ConfirmSignUp も
+                    // 失敗するが、Cognito 側では既に確認が済んでいる。
+                    // ここで失敗を返すと、コードを入れ直しても永久に
+                    // 確認画面から出られなくなる（登録完了に進めない）。
+                    if (err.name === "NotAuthorizedException") {
+                        resolve({ success: true });
+                        return;
+                    }
                     let msg = err.message || "確認に失敗しました";
                     if (err.name === "CodeMismatchException") msg = "確認コードが正しくありません";
                     if (err.name === "ExpiredCodeException") msg = "確認コードの有効期限が切れています。再送してください";
-                    if (err.name === "NotAuthorizedException") msg = "すでに確認済みです";
                     resolve({ success: false, error: msg });
                     return;
                 }

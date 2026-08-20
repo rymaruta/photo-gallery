@@ -5,6 +5,7 @@ import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { mediaKeys } from "./mediaKeys";
 import { requireEnv } from "./env";
+import { requestSiteRebuild } from "./rebuild";
 
 // 退会（アカウント削除）。DELETE /user/account、認証必須、呼び出し元の sub のみ対象。
 // 不可逆な破壊操作のため「確実に引ける範囲を確実に消す」方針:
@@ -179,6 +180,13 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         await ddbDelete(PHOTOS_TABLE, { id: `notifs#${uid}` });
         await ddbDelete(PHOTOS_TABLE, { id: `followstats#${uid}` });
         await ddbDelete(PHOTOS_TABLE, { id: `following#${uid}` });
+
+        // 静的ページの掃除を頼む。DynamoDB と S3 を消しても、既に配ってある
+        // 写真ページ・プロフィールページのHTMLは残っている（本文も撮影地も
+        // 表示名入りの JSON-LD も焼き込まれている）。定期ビルドは止めてあるので、
+        // ここで頼まないと誰かが push するまで消えない。
+        // 失敗しても退会自体は成立しているので待たない・止めない。
+        void requestSiteRebuild(`account deleted: ${uid}`);
 
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) };
     } catch (e) {

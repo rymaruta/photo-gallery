@@ -94,8 +94,26 @@ export async function updatePhotoFields(id: string, updates: Record<string, unkn
     return (res.Attributes as Photo | undefined) ?? null;
 }
 
+/**
+ * 写真そのものと、その写真にぶら下がる文書を消す。
+ *
+ * 以前は写真の item だけを消していた。コメントは写真ごとに
+ * `comments#<photoId>` という別文書に溜まっており、そちらが残るので、
+ * **写真を消してもコメント本文・投稿者名・投稿者IDが誰でも読めるまま**
+ * だった（一覧APIは公開で、写真の存在確認もしていない）。
+ * 「不適切なコメントが付いたので写真を消してほしい」に応えられていない。
+ *
+ * いいねマーカー（like#<photoId>#<uid>）は per-photo に引く手段が無く、
+ * 全件 Scan が要るので今回は対象外。中身を持たないので実害は軽い。
+ */
 export async function deletePhotoById(id: string): Promise<void> {
     await ddb.send(new DeleteCommand({ TableName: TABLE, Key: { id } }));
+    try {
+        await ddb.send(new DeleteCommand({ TableName: TABLE, Key: { id: `comments#${id}` } }));
+    } catch (e) {
+        // 写真本体は消えているので、ここで失敗しても全体は失敗にしない
+        console.error(`deletePhotoById: comments#${id} の削除に失敗:`, e);
+    }
 }
 
 export async function countUserPhotos(userId: string): Promise<number> {

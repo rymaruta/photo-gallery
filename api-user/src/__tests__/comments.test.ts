@@ -130,6 +130,33 @@ describe("postComment", () => {
         expect(trim.ExpressionAttributeValues[":trimmed"][199].id).toBe("c200");
     });
 
+    it("切り詰めは「読んだときと同じ長さのまま」を条件にする", async () => {
+        // 無条件に書き戻していた頃は、読んでから書くまでに入った投稿が
+        // まるごと消えた（投稿者には200が返り画面にも出ているのに、あとで消える）。
+        const stored = Array.from({ length: 201 }, (_, i) => ({ id: `c${i}` }));
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner" } })
+            .mockResolvedValueOnce({ Attributes: { items: stored } })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({});
+        await invoke(postComment, ev("u1", { id: "p1" }, { text: "hi" }));
+        const trim = mockDdbSend.mock.calls[2][0].input;
+        expect(trim.ConditionExpression).toBe("size(#items) = :len");
+        expect(trim.ExpressionAttributeValues[":len"]).toBe(201);
+    });
+
+    it("切り詰めが競合しても投稿自体は成功する（次の投稿が詰める）", async () => {
+        const stored = Array.from({ length: 201 }, (_, i) => ({ id: `c${i}` }));
+        const conflict = Object.assign(new Error("conflict"), { name: "ConditionalCheckFailedException" });
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner" } })
+            .mockResolvedValueOnce({ Attributes: { items: stored } })
+            .mockRejectedValueOnce(conflict)
+            .mockResolvedValueOnce({});
+        const res = await invoke(postComment, ev("u1", { id: "p1" }, { text: "hi" }));
+        expect(res.statusCode).toBe(200);
+    });
+
     it("200件以下なら切り詰めの書き込みをしない", async () => {
         const stored = Array.from({ length: 5 }, (_, i) => ({ id: `c${i}` }));
         mockDdbSend

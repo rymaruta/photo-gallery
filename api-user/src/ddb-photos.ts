@@ -16,15 +16,33 @@ export async function putPhoto(photo: Photo): Promise<void> {
     }));
 }
 
+/**
+ * 100枚制限の判定に使う「その人の写真の枚数」。
+ *
+ * 以前は Query 1回の Count をそのまま返していた。DynamoDB の Query は
+ * 1MB 読んだ時点で打ち切られるので、写真が増えるほど**少なめに数える**。
+ * さらにストーリーや下書きも一緒に数えていた（この GSI には userId を持つ
+ * 項目が全部載る）ので、上限の意味がぶれていた。
+ * ページングして最後まで数え、写真だけに絞る。
+ */
 export async function countUserPhotos(userId: string): Promise<number> {
-    const res = await ddb.send(new QueryCommand({
-        TableName: PHOTOS_TABLE,
-        IndexName: USER_INDEX,
-        KeyConditionExpression: "userId = :uid",
-        ExpressionAttributeValues: { ":uid": userId },
-        Select: "COUNT",
-    }));
-    return res.Count ?? 0;
+    let count = 0;
+    let lastKey: Record<string, unknown> | undefined;
+    do {
+        const res = await ddb.send(new QueryCommand({
+            TableName: PHOTOS_TABLE,
+            IndexName: USER_INDEX,
+            KeyConditionExpression: "userId = :uid",
+            // 写真だけ（ストーリーは除く）。listMyPhotos と同じ条件にする。
+            FilterExpression: "attribute_exists(src) AND attribute_not_exists(story)",
+            ExpressionAttributeValues: { ":uid": userId },
+            Select: "COUNT",
+            ExclusiveStartKey: lastKey,
+        }));
+        count += res.Count ?? 0;
+        lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
+    } while (lastKey);
+    return count;
 }
 
 // 自分の写真を新しい順で全件取得（下書き=非公開も含む）。

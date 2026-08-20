@@ -18,6 +18,11 @@ provider:
     CLOUDFRONT_URL: ${param:cloudfrontUrl}
     PHOTOS_TABLE: ${param:photosTable}
     USERS_TABLE: ${param:usersTable}
+    # 退会・写真削除・非公開のあとに静的サイトの再ビルドを頼むための設定。
+    # 未設定なら「頼まない」だけで、削除そのものは成功する（警告を1行出す）。
+    # 設定しないと、消した写真のページが次に誰かが push するまで公開のまま残る。
+    REBUILD_REPO: ${param:rebuildRepo, ''}
+    REBUILD_DISPATCH_TOKEN: ${param:rebuildToken, ''}
 
   httpApi:
     cors: true
@@ -194,6 +199,17 @@ functions:
       - httpApi:
           path: /photos/{id}/like
           method: GET
+
+  # 自分がいいね済みかどうか。公開の getLikeCount とは別口にする
+  # （あちらは共有キャッシュに載せているので、利用者ごとの値を混ぜられない）。
+  getMyLike:
+    handler: src/likes.getMyLike
+    events:
+      - httpApi:
+          path: /user/likes/{id}
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
 
   likePhoto:
     handler: src/likes.likePhoto

@@ -41,6 +41,39 @@ export const getLikeCount: APIGatewayProxyHandlerV2 = async (event) => {
     }
 };
 
+// GET /user/likes/{id} — 自分がこの写真にいいねしているか（認証必要）
+//
+// 公開の getLikeCount に混ぜてはいけない。あちらは共有キャッシュに
+// 載せている（public, s-maxage=30）ので、利用者ごとに違う liked を
+// 入れると他人の状態が配られる。別のエンドポイントに分ける。
+//
+// なぜ必要か: これまでフロントは「いいね済みか」を端末のお気に入り
+// （localStorage）だけで判断していた。未ログインで押した状態のまま
+// ログインすると、次の一押しが DELETE になって取り消し扱いになり、
+// 投稿者にいいねも通知も届かない。別の端末では逆に、いいね済みの写真が
+// 未いいねに見える。サーバーの真値を返す口を用意する。
+export const getMyLike: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const userId = getUserId(event);
+    const photoId = event.pathParameters?.id;
+    if (!userId || !photoId) return jsonError(400, "不正なリクエスト");
+    try {
+        const res = await ddb.send(new GetCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: markerId(photoId, userId) },
+            ProjectionExpression: "id",
+        }));
+        return {
+            statusCode: 200,
+            // 利用者ごとの答えなので共有キャッシュには載せない
+            headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
+            body: JSON.stringify({ liked: !!res.Item }),
+        };
+    } catch (e) {
+        console.error("getMyLike error:", e);
+        return jsonError(500, "取得に失敗しました");
+    }
+};
+
 // POST /photos/{id}/like — いいね（認証必要・冪等）
 export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);

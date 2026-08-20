@@ -50,6 +50,10 @@ jobs:
       cognitoUserPoolId: ${{ steps.pick.outputs.cognitoUserPoolId }}
       cognitoClientId: ${{ steps.pick.outputs.cognitoClientId }}
       cognitoPoolName: ${{ steps.pick.outputs.cognitoPoolName }}
+      # 退会・削除・非公開のあとに静的サイトの再ビルドを頼む先。
+      # トークン（REBUILD_DISPATCH_TOKEN）が未設定なら「頼まない」だけで、
+      # 削除そのものは成功する。本番だけ設定する（staging は検索避けなので不要）。
+      rebuildRepo: ${{ steps.pick.outputs.rebuildRepo }}
     steps:
       - id: pick
         run: |
@@ -64,6 +68,8 @@ jobs:
               cognitoUserPoolId=ap-northeast-1_ZbuhDQsWz
               cognitoClientId=21cs4cd8dkttmg3snloj72u8mu
               cognitoPoolName=prod-journey-photo-client-spa
+              # 削除・非公開のあとに再ビルドを頼む先
+              rebuildRepo=${{ github.repository }}
               ;;
             develop)
               envName=staging
@@ -75,12 +81,15 @@ jobs:
               cognitoUserPoolId=ap-northeast-1_DSQ16c6vO
               cognitoClientId=1qjl9c8gmqidigps55jhv4foi
               cognitoPoolName=staging-journey-photo-client-spa
+              # staging は検索避け（robots で全拒否）なので再ビルドは頼まない
+              rebuildRepo=""
               ;;
             *)
               echo "::error::${{ github.ref_name }} は環境に紐づいていません（main=本番 / develop=staging）"
               exit 1
               ;;
           esac
+          # rebuildRepo は staging で意図的に空にするため、この必須チェックには入れない
           for k in photosTable usersTable uploadBucket cloudfrontUrl cognitoUserPoolId cognitoClientId cognitoPoolName; do
             v="${!k}"
             if [ -z "$v" ]; then
@@ -89,6 +98,7 @@ jobs:
             fi
             echo "$k=$v" >> "$GITHUB_OUTPUT"
           done
+          echo "rebuildRepo=$rebuildRepo" >> "$GITHUB_OUTPUT"
           echo "envName=$envName" >> "$GITHUB_OUTPUT"
           echo "デプロイ先: $envName"
 
@@ -144,7 +154,9 @@ jobs:
             --param "cloudfrontUrl=${{ needs.config.outputs.cloudfrontUrl }}" \
             --param "cognitoUserPoolId=${{ needs.config.outputs.cognitoUserPoolId }}" \
             --param "cognitoClientId=${{ needs.config.outputs.cognitoClientId }}" \
-            --param "cognitoPoolName=${{ needs.config.outputs.cognitoPoolName }}"
+            --param "cognitoPoolName=${{ needs.config.outputs.cognitoPoolName }}" \
+            --param "rebuildRepo=${{ needs.config.outputs.rebuildRepo }}" \
+            --param "rebuildToken=${{ secrets.REBUILD_DISPATCH_TOKEN }}"
 
   deploy-user-api:
     name: Deploy user API (api-user/)
@@ -181,4 +193,6 @@ jobs:
             --param "uploadBucket=${{ needs.config.outputs.uploadBucket }}" \
             --param "cloudfrontUrl=${{ needs.config.outputs.cloudfrontUrl }}" \
             --param "cognitoUserPoolId=${{ needs.config.outputs.cognitoUserPoolId }}" \
-            --param "cognitoClientId=${{ needs.config.outputs.cognitoClientId }}"
+            --param "cognitoClientId=${{ needs.config.outputs.cognitoClientId }}" \
+            --param "rebuildRepo=${{ needs.config.outputs.rebuildRepo }}" \
+            --param "rebuildToken=${{ secrets.REBUILD_DISPATCH_TOKEN }}"

@@ -8,7 +8,7 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 
-import { listMyPhotos } from "../ddb-photos";
+import { listMyPhotos, countUserPhotos } from "../ddb-photos";
 import { getMyPhotos } from "../userPhotos";
 
 type LambdaResult = { statusCode: number; body: string };
@@ -71,5 +71,33 @@ describe("getMyPhotos handler", () => {
         mockDdbSend.mockRejectedValueOnce(new Error("boom"));
         const res = await invoke(event("u1"));
         expect(res.statusCode).toBe(500);
+    });
+});
+
+// 100枚制限の判定に使う件数。
+// 以前は Query 1回の Count をそのまま返していた。DynamoDB は1MB読んだ時点で
+// 打ち切るので写真が増えるほど少なく数え、上限が効かなくなる。
+// さらにストーリーまで数えていたので、上限の意味もぶれていた。
+describe("countUserPhotos", () => {
+    it("ページを辿って全部足す（1回のCountで打ち切らない）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Count: 60, LastEvaluatedKey: { id: "x" } })
+            .mockResolvedValueOnce({ Count: 45 });
+        expect(await countUserPhotos("u1")).toBe(105);
+        expect(mockDdbSend).toHaveBeenCalledTimes(2);
+    });
+
+    it("写真だけを数える（ストーリーは含めない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Count: 3 });
+        await countUserPhotos("u1");
+        const input = (mockDdbSend.mock.calls[0][0] as { input: Record<string, unknown> }).input;
+        expect(input.FilterExpression).toContain("attribute_exists(src)");
+        expect(input.FilterExpression).toContain("attribute_not_exists(story)");
+        expect(input.Select).toBe("COUNT");
+    });
+
+    it("0件でも落ちない", async () => {
+        mockDdbSend.mockResolvedValueOnce({});
+        expect(await countUserPhotos("u1")).toBe(0);
     });
 });
