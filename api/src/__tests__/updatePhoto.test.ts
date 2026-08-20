@@ -67,6 +67,17 @@ describe("updatePhoto", () => {
         expect(mockUpdatePhotoFields).not.toHaveBeenCalled();
     });
 
+    // 空配列は「そのタグを外す」指定。SET tags = [] にしていた頃は、
+    // 同じ写真でも叩いたAPIによって「属性が空配列」と「属性が無い」に
+    // 分かれ、再ビルドの判定が食い違っていた。
+    it("タグを空で送ったら、属性ごと外す指定にする", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/p1.jpg", tags: ["海"] });
+        await invoke(ev("p1", { tags: [] }));
+        const fields = mockUpdatePhotoFields.mock.calls[0][1] as Record<string, unknown>;
+        expect("tags" in fields).toBe(true);
+        expect(fields.tags).toBeUndefined();
+    });
+
     it("GPS 入りの exif は保存されない", async () => {
         mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/p1.jpg" });
         await invoke(ev("p1", { exif: { camera: "X100V", gpsLatitude: "35.6812" } }));
