@@ -53,6 +53,15 @@ describe("updatePhotoVisibility", () => {
         expect(mockDdbSend).toHaveBeenCalledTimes(1); // Update は実行されない
     });
 
+    it("自分のストーリーでも 404（写真として公開させない）", async () => {
+        // ストーリーに published:true を書き込むと永久の写真ページになり、
+        // 24時間後の期限切れ掃除が実体だけ消して壊れたページが残った。
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "story-1", userId: "u1", story: true } });
+        const res = await invoke(event("u1", "story-1", { published: true }));
+        expect(res.statusCode).toBe(404);
+        expect(mockDdbSend).toHaveBeenCalledTimes(1); // Update は実行されない
+    });
+
     it("userId が無い写真は uploadedBy で所有権を判定する", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "p1", uploadedBy: "u1" } })

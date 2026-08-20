@@ -9,14 +9,30 @@ import path from "path";
 import RAW_PHOTOS from "@/lib/data/photos";
 import type { Photo } from "@/lib/data/photos";
 
+/**
+ * 公開してはいけない項目（scripts/sync-photos-from-ddb.js の PRIVATE_FIELDS と対）。
+ * ここで読んだものは静的HTML と RSC ペイロードに載る＝全員に配られるため、
+ * 古い photos.json が残っていても漏れないように、読み出し側でも落とす。
+ * srcOriginal は EXIF を落とす前の原本（GPS 入り）のURL。
+ */
+const PRIVATE_FIELDS = ["srcOriginal", "key"] as const;
+
+function stripPrivateFields(photos: Photo[]): Photo[] {
+    return photos.map((p) => {
+        const out = { ...p } as Photo & Record<string, unknown>;
+        for (const f of PRIVATE_FIELDS) delete out[f];
+        return out;
+    });
+}
+
 export async function loadAllPhotos(): Promise<Photo[]> {
     const photosDataPath = path.join(process.cwd(), "app", "data", "photos.json");
     if (existsSync(photosDataPath)) {
         try {
-            return JSON.parse(await readFile(photosDataPath, "utf-8")) as Photo[];
+            return stripPrivateFields(JSON.parse(await readFile(photosDataPath, "utf-8")) as Photo[]);
         } catch {
             // 破損時はバンドル済みへフォールバック
         }
     }
-    return RAW_PHOTOS as Photo[];
+    return stripPrivateFields(RAW_PHOTOS as Photo[]);
 }

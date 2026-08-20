@@ -37,7 +37,11 @@ export async function listMyPhotos(userId: string): Promise<Photo[]> {
             TableName: PHOTOS_TABLE,
             IndexName: USER_INDEX,
             KeyConditionExpression: "userId = :uid",
-            FilterExpression: "attribute_exists(src)",
+            // ストーリーを除く。ストーリーも src と userId と published:false を
+            // 持つので、これが無いと「下書き」として一覧に出る。そこから
+            // 「公開する」を押すと永久の写真ページになり、24時間後の期限切れ
+            // 掃除が実体だけ消して壊れたページが残った。
+            FilterExpression: "attribute_exists(src) AND attribute_not_exists(story)",
             ExpressionAttributeValues: { ":uid": userId },
             ScanIndexForward: false, // createdAt ソートキーの降順（新しい順）
             ExclusiveStartKey: lastKey,

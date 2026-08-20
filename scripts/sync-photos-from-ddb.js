@@ -83,6 +83,27 @@ function checkWriteSafety(nextCount, prevCount, { allowEmpty = ALLOW_EMPTY } = {
     return { ok: true, reason: "" };
 }
 
+/**
+ * 公開してはいけない項目。
+ *
+ * photos.json はビルドの入力であり、そのまま
+ *   - クライアントのJSバンドル（lib/routes.ts が丸ごと import している）
+ *   - 各ページの静的HTML
+ * に展開される。つまりここに残った値は全員に配られる。
+ *
+ * - srcOriginal … EXIF を落とす**前**の原本のURL。GPS が入ったまま。
+ *   撮影日のバックフィル（scripts/generate-thumbnails.js）は DynamoDB を
+ *   直接読むので、photos.json から落としても支障は無い。
+ * - key … S3 のオブジェクトキー。バケット構造を公開する理由が無い。
+ */
+const PRIVATE_FIELDS = ["srcOriginal", "key"];
+
+function stripPrivateFields(item) {
+    const out = { ...item };
+    for (const f of PRIVATE_FIELDS) delete out[f];
+    return out;
+}
+
 async function scan() {
     const client = new DynamoDBClient({ region: REGION });
     const ddb = DynamoDBDocumentClient.from(client, {
@@ -107,7 +128,8 @@ async function scan() {
     // テーブルには like#/go# マーカーや golist#/notifs# 文書が同居しているため、
     // src を持つ item（=写真）だけを photos.json に出す（プライバシー保護）。
     return items
-        .filter(item => item.src && item.published !== false)
+        .filter(item => item.src && item.published !== false && item.story !== true)
+        .map(stripPrivateFields)
         .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
 }
 

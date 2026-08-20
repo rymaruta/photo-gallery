@@ -38,6 +38,17 @@ describe("listMyPhotos", () => {
         expect(input.ScanIndexForward).toBe(false); // 新しい順
     });
 
+    it("ストーリーは下書き一覧に出さない", async () => {
+        // ストーリーも src / userId / published:false を持つので、
+        // 除外しないと「下書き」として並び、そこから「公開する」を押せた。
+        // 公開すると永久の写真ページになり、24時間後の期限切れ掃除が
+        // 実体だけ消して壊れたページが残った。
+        mockDdbSend.mockResolvedValueOnce({ Items: [], LastEvaluatedKey: undefined });
+        await listMyPhotos("u1");
+        const input = (mockDdbSend.mock.calls[0][0] as { input: Record<string, unknown> }).input;
+        expect(String(input.FilterExpression)).toContain("attribute_not_exists(story)");
+    });
+
     it("ページネーション（LastEvaluatedKey）を辿って全件返す", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Items: [{ id: "a", src: "s" }], LastEvaluatedKey: { id: "a" } })

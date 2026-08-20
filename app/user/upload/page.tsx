@@ -275,8 +275,12 @@ function UploadPageInner() {
         }
 
         setUploading(true);
-        const { authenticatedFetch, userFetch } = await import("../../../lib/utils/api");
-        const apiFetch = isAdminUser ? authenticatedFetch : userFetch;
+        // 管理者でもユーザーAPIを使う。管理APIの savePhoto は published を見ずに
+        // 常に true で保存するため、「下書き保存」を押しても即公開になっていた
+        // （しかも撮影日・サムネURL・代表色・ぼかしも受け取らないので全部捨てられる）。
+        // ユーザーAPI側は isAdmin を見て100枚制限だけ免除している。
+        const { userFetch } = await import("../../../lib/utils/api");
+        const apiFetch = userFetch;
 
         const tagList = tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
 
@@ -737,9 +741,11 @@ function UploadPageInner() {
                                     try {
                                         // 消せない形式は上げない（アイコンも公開URLで配信される）
                                         const compressed = await toUploadSafeFile(avatarFile, AVATAR_MAX_PX, 0.9);
-                                        const { userFetch, authenticatedFetch } = await import("../../../lib/utils/api");
-                                        const apiFetch = isAdminUser ? authenticatedFetch : userFetch;
-                                        const res = await apiFetch("/profile/avatar/presigned-url", {
+                                        // アイコンのアップロードは管理APIに経路が無い
+                                        // （/profile/avatar/presigned-url はユーザーAPIだけ）。
+                                        // 管理者だと 404 になって「Presigned URL fail」で終わっていた。
+                                        const { userFetch } = await import("../../../lib/utils/api");
+                                        const res = await userFetch("/profile/avatar/presigned-url", {
                                             method: "POST",
                                             body: JSON.stringify({ fileType: compressed.type }),
                                         });

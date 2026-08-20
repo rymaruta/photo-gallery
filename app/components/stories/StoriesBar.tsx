@@ -7,7 +7,7 @@ import UserAvatar from "../UserAvatar";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
-import { compressImage, stripJpegExif } from "../../../lib/utils/image";
+import { toUploadSafeFile, UnstrippableFileError } from "../../../lib/utils/image";
 import { searchSongs, type SongResult } from "../../../lib/utils/music";
 import { startFromPointer, clampStart } from "../../../lib/utils/songTrim";
 import { log } from "../../../lib/utils/log";
@@ -268,8 +268,30 @@ export default function StoriesBar() {
         try {
             let uploadFile = draft.file;
             if (draft.mediaType === "image") {
-                try { uploadFile = await compressImage(draft.file, 1440, 0.85); }
-                catch { uploadFile = await stripJpegExif(draft.file); }
+                // 写真アップロードと同じ「消せたものだけ上げる」経路を使う。
+                // 以前は compressImage → 失敗したら stripJpegExif という順だったが、
+                // compressImage は GIF・getContext が null・エンコード失敗のときに
+                // 投げずに元ファイルをそのまま返すので catch に入らず、
+                // GPS 入りの原本がそのまま公開されていた。
+                try {
+                    uploadFile = await toUploadSafeFile(draft.file, 1440, 0.85);
+                } catch (e) {
+                    if (e instanceof UnstrippableFileError) {
+                        showToast(
+                            locale === "en"
+                                ? "This format can't be uploaded safely. Please save it as JPEG or PNG and try again."
+                                : "この形式は安全にアップロードできません。JPEG か PNG で保存し直してください。",
+                            "error",
+                        );
+                    } else {
+                        log.error("story image prepare failed:", e);
+                        showToast(
+                            locale === "en" ? "Failed to prepare the image" : "画像の準備に失敗しました",
+                            "error",
+                        );
+                    }
+                    return; // setPosting(false) は下の finally が担当する
+                }
             }
 
             // ストーリーは常にユーザーAPI経由（動画対応・管理者トークンでも有効）
