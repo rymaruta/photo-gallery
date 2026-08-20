@@ -1,0 +1,96 @@
+name: Restrict Originals
+
+# uploads/originals/*（EXIF を落とす前の原本・GPS 入り）の公開配信を止める。
+#
+# コミット cdeb4cc で photos.json と静的HTML から URL は消したが、S3 の実体は
+# CloudFront の /uploads/* ビヘイビアからそのまま取れる状態が残っていた。
+# URL を消しただけでは隠したことにしかならない。
+#
+# 手順は「先に撮影日を回収 → そのあと止める」。順序が逆だと、原本にしか
+# 残っていない撮影日を二度と復元できない（30枚中22枚が日付なし）。
+#
+# 手元から流さずここで流すのは、AWS 認証情報がリポジトリのシークレットに
+# あるため。パラメータの渡し忘れも起きにくい。
+
+on:
+  workflow_dispatch:
+    inputs:
+      envName:
+        description: "対象環境"
+        type: choice
+        options: [prod, staging]
+        default: prod
+      backfillDates:
+        description: "先に撮影日のバックフィルを流す（原本が読めるうちに）"
+        type: boolean
+        default: true
+      apply:
+        description: "実際に適用する（オフならドライラン）"
+        type: boolean
+        default: false
+
+concurrency:
+  group: restrict-originals-${{ inputs.envName }}
+  cancel-in-progress: false
+
+jobs:
+  restrict:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      # 環境ごとの値を決める。欠けたら止める（本番値へのフォールバックは置かない）。
+      - name: Resolve environment
+        id: cfg
+        run: |
+          if [ "${{ inputs.envName }}" = "prod" ]; then
+            echo "photosTable=prod-photo-gallery-photos" >> "$GITHUB_OUTPUT"
+            echo "uploadBucket=prod-journey-photo-upload" >> "$GITHUB_OUTPUT"
+            echo "cloudfrontUrl=https://d1s3dwwzgxf5ni.cloudfront.net" >> "$GITHUB_OUTPUT"
+          else
+            echo "photosTable=staging-photo-gallery-photos" >> "$GITHUB_OUTPUT"
+            echo "uploadBucket=staging-journey-photo-upload" >> "$GITHUB_OUTPUT"
+            echo "cloudfrontUrl=https://d15fn3rcaiymu9.cloudfront.net" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+
+      # 1. 撮影日の回収。原本の EXIF からしか取れないので、止める前に済ませる。
+      #    冪等（既に日付がある写真はスキップ）。
+      - name: Backfill shooting dates from originals
+        if: inputs.backfillDates
+        run: node scripts/generate-thumbnails.js
+        env:
+          PHOTOS_TABLE: ${{ steps.cfg.outputs.photosTable }}
+          UPLOAD_BUCKET: ${{ steps.cfg.outputs.uploadBucket }}
+          CLOUDFRONT_URL: ${{ steps.cfg.outputs.cloudfrontUrl }}
+          DRY_RUN: ${{ inputs.apply && '0' || '1' }}
+
+      # 2. 配信を止める。バケットポリシーに Deny を足し、エッジの分を無効化する。
+      - name: Restrict originals
+        run: node scripts/restrict-originals.js ${{ inputs.apply && '--apply' || '' }}
+        env:
+          UPLOAD_BUCKET: ${{ steps.cfg.outputs.uploadBucket }}
+          CLOUDFRONT_DISTRIBUTION_ID: >-
+            ${{ inputs.envName == 'prod'
+                && secrets.CLOUDFRONT_DISTRIBUTION_ID
+                || 'EF2TFEBBP24DL' }}
+
+      - name: Next steps
+        run: |
+          echo "配信が止まったことを確認してください:"
+          echo "  curl -I ${{ steps.cfg.outputs.cloudfrontUrl }}/uploads/originals/<id>.jpeg  → 403"
+          echo "  curl -I ${{ steps.cfg.outputs.cloudfrontUrl }}/uploads/<id>.jpg             → 200 のまま"
