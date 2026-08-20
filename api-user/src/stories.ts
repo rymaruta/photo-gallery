@@ -5,9 +5,9 @@ import { randomUUID } from "crypto";
 import { ddb, PHOTOS_TABLE, USER_INDEX, STORY_INDEX, STORY_FEED_KEY } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError, isAdmin } from "./http";
 import { lookupDisplayName } from "./notify";
-import { mediaKeys } from "./mediaKeys";
+import { mediaKeys, deriveUploadKey } from "./mediaKeys";
 import { isOwnUploadUrl } from "./upload";
-import { keyFromUploadUrl } from "./uploadPolicy";
+import { keyFromUploadUrl, canonicalUploadUrl } from "./uploadPolicy";
 
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET ?? "";
 const STORY_TTL_MS = 24 * 60 * 60 * 1000; // 24時間
@@ -19,14 +19,11 @@ const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 // ストーリーレコードから S3 オブジェクトキーを導出する
 // （key フィールド優先、無ければ src の URL パスから）
 function deriveStoryKey(item: Record<string, unknown>): string {
-    if (typeof item.key === "string" && item.key) return item.key;
-    if (typeof item.src === "string") {
-        try {
-            const path = new URL(item.src).pathname.replace(/^\//, "");
-            if (path.startsWith("uploads/")) return path;
-        } catch { /* ignore */ }
-    }
-    return "";
+    // 判定は mediaKeys の deriveUploadKey に寄せる（デコードしてから見る）。
+    // ここだけ生のパスで見ていると、保存時の検証と食い違って
+    // 「作れるが消せない」オブジェクトができる。
+    if (typeof item.key === "string" && item.key) return deriveUploadKey(item.key);
+    return deriveUploadKey(item.src);
 }
 
 /**
@@ -178,6 +175,8 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     // 受け取っていた頃は、自分の正当な publicUrl と一緒に他人のキーを送り、
     // 直後に自分のストーリーを削除するだけで相手のファイルを消せた。
     const key = keyFromUploadUrl(publicUrl);
+    // 保存する src も、検証したときに見ていた形に揃える
+    const safeSrc = canonicalUploadUrl(publicUrl, process.env.CLOUDFRONT_URL ?? "");
 
     const mediaType = body.mediaType === "video" ? "video" : "image";
     const caption = (body.caption ?? "").trim().slice(0, 200) || undefined;
@@ -242,7 +241,7 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // この索引に載る（写真もマーカーもコメント文書も載らない）。
         storyFeed: STORY_FEED_KEY,
         published: false, // ギャラリー・photos.json から除外するため
-        src: publicUrl,
+        src: safeSrc,
         ...(key ? { key } : {}), // 期限切れ削除時に S3 オブジェクトを消すために保持
         mediaType,
         ...(caption ? { caption } : {}),

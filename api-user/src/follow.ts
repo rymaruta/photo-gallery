@@ -3,6 +3,34 @@ import { PutCommand, DeleteCommand, UpdateCommand, GetCommand } from "@aws-sdk/l
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { pushNotification, lookupDisplayName } from "./notify";
+import { requireEnv } from "./env";
+
+const USERS_TABLE = requireEnv("USERS_TABLE");
+
+/**
+ * Cognito の sub（UUID）の形かどうか。
+ * ここを見ないと、任意の文字列を相手に見立ててマーカー・カウンタ・
+ * 通知文書を作れる（テーブルにゴミが際限なく積める）。
+ */
+function isUserId(v: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+}
+
+/** その人が実在するか（プロフィール行の有無で見る） */
+async function userExists(userId: string): Promise<boolean> {
+    try {
+        const res = await ddb.send(new GetCommand({
+            TableName: USERS_TABLE,
+            Key: { userId },
+            ProjectionExpression: "userId",
+        }));
+        return !!res.Item;
+    } catch (e) {
+        console.error("userExists error:", e);
+        // 判定できないときは通す（実在する相手をフォローできない方が困る）
+        return true;
+    }
+}
 
 // フォロー。すべて PHOTOS_TABLE・単一キー id で完結し GSI は汚さない。
 //   - "follow#<targetUid>#<followerUid>" … 冪等マーカー（follower は uid 属性）
@@ -125,6 +153,14 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
     const target = event.pathParameters?.uid;
     if (!me || !target) return jsonError(400, "不正なリクエスト");
     if (me === target) return jsonError(400, "自分はフォローできません");
+    // 実在しない相手をフォローさせない。
+    // 形も存在も見ていなかったので、でたらめなIDを投げるだけで
+    // follow# マーカー・followstats# ・notifs# の3つが作られた。
+    // このテーブルは公開一覧やストーリー掃除が端から端まで読むので、
+    // ゴミが増えるほど全員の表示が遅くなる。しかも notifs# は
+    // 退会処理でも消えない。
+    if (!isUserId(target)) return jsonError(400, "不正なリクエスト");
+    if (!(await userExists(target))) return jsonError(404, "ユーザーが見つかりません");
 
     try {
         // マーカー（既にあれば冪等）

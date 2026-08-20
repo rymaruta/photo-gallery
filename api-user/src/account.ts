@@ -136,6 +136,11 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                 }
                 await s3DeleteMany(mediaKeys(item));
                 await ddbDelete(PHOTOS_TABLE, { id });
+                // その写真に付いたコメントも消す。写真だけ消していたので、
+                // 退会後も「本文・投稿者名・投稿者のsub」が誰でも読めるまま
+                // 残っていた（一覧APIは公開で、写真の存在確認もしない）。
+                // 消したい本人からは、もう手の届かない場所に残る。
+                await ddbDelete(PHOTOS_TABLE, { id: `comments#${id}` });
             });
             lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
         } while (lastKey);

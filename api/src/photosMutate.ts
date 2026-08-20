@@ -97,11 +97,17 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             const v = (photo as Record<string, unknown>)[field];
             if (typeof v !== "string" || !v.startsWith("http")) continue;
             try {
-                const key = new URL(v).pathname.substring(1);
+                // パスはデコードしてから見る。生のままだと、保存時の検証
+                // （デコードして判定している）と食い違い、
+                // https://cdn/up%6Coads/... のようなURLが「保存はできるが
+                // 削除では対象外」になる。CloudFront は %6C をデコードして
+                // 解決するので、実体だけが公開URLに残り続ける。
+                let key = new URL(v).pathname.substring(1);
+                try { key = decodeURIComponent(key); } catch { /* 不正な % はそのまま */ }
                 // 消してよいのはアップロード領域だけ。src は過去に検証なしで保存された
                 // ものがあり、そのままキーにすると他人のアイコン（profiles/...）まで
                 // 消せてしまう。
-                if (key.startsWith("uploads/")) keys.add(key);
+                if (key.startsWith("uploads/") && !key.includes("..")) keys.add(key);
                 else console.warn(`deletePhoto: skip S3 delete for unexpected key ${key}`);
             } catch { /* URL でなければ無視 */ }
         }

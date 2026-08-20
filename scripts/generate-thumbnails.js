@@ -345,8 +345,12 @@ async function main() {
     }
 
     console.log(`\n[thumbs] 完了: 成功 ${ok} / スキップ ${skipped} / 失敗 ${failed}`);
-    // 生成対象があったのに1件も成功しなかった場合のみ異常終了
-    if (targets.length > 0 && ok === 0) process.exit(1);
+    // 「対象があったのに1件も成功しなかった」だけを異常とする。
+    //
+    // スキップは異常ではない。撮影日の復元だけが目的で、原本の EXIF に
+    // 撮影日が入っていない写真は、何度流しても書くものが無い＝毎回スキップ。
+    // これを失敗扱いにすると、直しようのない理由でジョブが永久に赤くなる。
+    if (targets.length > 0 && ok === 0 && skipped === 0) process.exit(1);
 }
 
 module.exports = {

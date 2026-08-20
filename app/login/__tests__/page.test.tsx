@@ -255,7 +255,7 @@ describe("LoginPage - 表示名持ち越しによるプロフィール作成", (
     });
 
     it("PUT /user/profile が失敗してもログインは成功扱いで `/` へリダイレクトする", async () => {
-        localStorageMock.setItem("jp_pending_displayName", "失敗太郎");
+        localStorageMock.setItem("jp_pending_name_u@example.com", "失敗太郎");
         mockLogin.mockResolvedValue({ success: true });
         mockUserFetch.mockResolvedValue({ ok: false, status: 500 });
 
@@ -267,11 +267,11 @@ describe("LoginPage - 表示名持ち越しによるプロフィール作成", (
 
         await waitFor(() => { expect(mockPush).toHaveBeenCalledWith("/"); });
         // 失敗時は localStorage に残ったまま（次回ログインで再試行できる）
-        expect(localStorageMock.getItem("jp_pending_displayName")).toBe("失敗太郎");
+        expect(localStorageMock.getItem("jp_pending_name_u@example.com")).toBe("失敗太郎");
     });
 
     it("PUT /user/profile が例外を投げてもログイン成功扱いで `/` へリダイレクトする", async () => {
-        localStorageMock.setItem("jp_pending_displayName", "例外太郎");
+        localStorageMock.setItem("jp_pending_name_u@example.com", "例外太郎");
         mockLogin.mockResolvedValue({ success: true });
         mockUserFetch.mockRejectedValue(new Error("network down"));
 
@@ -283,7 +283,7 @@ describe("LoginPage - 表示名持ち越しによるプロフィール作成", (
 
         await waitFor(() => { expect(mockPush).toHaveBeenCalledWith("/"); });
         // 例外時も localStorage に残す（再ログインで再試行）
-        expect(localStorageMock.getItem("jp_pending_displayName")).toBe("例外太郎");
+        expect(localStorageMock.getItem("jp_pending_name_u@example.com")).toBe("例外太郎");
     });
 });
 

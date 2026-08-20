@@ -259,6 +259,26 @@ describe("deleteAccount: 消し残しを作らない", () => {
 // 本文も撮影地も表示名入りの JSON-LD も焼き込まれているので、
 // 「消したのに検索から見える」状態になる。定期ビルドは止めてあるため、
 // ここで頼まないと誰かが push するまで直らない。
+// 写真だけ消していたので、退会後も「本文・投稿者名・投稿者のsub」が
+// 誰でも読めるまま残っていた（一覧APIは公開で、写真の存在確認もしない）。
+// 消したい本人からは、もう手の届かない場所に残る。
+describe("deleteAccount: コメントの消し残し", () => {
+    it("写真と一緒に comments#<写真ID> も消す", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input?: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "QueryCommand") {
+                return Promise.resolve({ Items: [{ id: "p1" }] });
+            }
+            if (cmd.constructor.name === "GetCommand") {
+                return Promise.resolve({ Item: { id: "p1", src: "https://cdn/uploads/me/p1.jpg" } });
+            }
+            return Promise.resolve({});
+        });
+        await invoke(deleteAccount, ev("me"));
+        expect(deletedDdbIds()).toContain("p1");
+        expect(deletedDdbIds()).toContain("comments#p1");
+    });
+});
+
 describe("deleteAccount: 静的ページの掃除", () => {
     it("成功したらサイトの再ビルドを頼む", async () => {
         mockDdbSend.mockResolvedValue({});

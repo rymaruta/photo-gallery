@@ -3,12 +3,27 @@
 // 退会（account.ts）とストーリー削除（stories.ts）で同じ列挙が要る。
 // 片方だけ直すと、もう片方に消し残しが出る。定義は1か所にする。
 
-/** URL もしくは生キーから uploads/ 配下の S3 オブジェクトキーを導出する（それ以外は空文字） */
+/**
+ * URL もしくは生キーから uploads/ 配下の S3 オブジェクトキーを導出する（それ以外は空文字）。
+ *
+ * パスは**デコードしてから**判定する。保存時の検証（uploadPolicy.isOwnUploadUrl）は
+ * デコードして見ているのに、ここが生のままだったため、両者の判断が食い違っていた:
+ *   https://cdn/up%6Coads/<uid>/x.jpg
+ *     → 検証側: デコードすると /uploads/... なので「自分の領域」＝保存OK
+ *     → 削除側: "up%6Coads/..." は uploads/ で始まらない＝削除対象から外れる
+ * CloudFront と S3 は %6C をデコードして解決するので画像は普通に表示される。
+ * つまり「写真を消しても、退会しても、実体だけ公開URLに残り続ける」状態を
+ * 自分で作れた。消えたと表示され、成功も返るのに残る——一番まずい壊れ方。
+ */
 export function deriveUploadKey(v: unknown): string {
     if (typeof v !== "string" || !v) return "";
-    if (v.startsWith("uploads/")) return v;
+    const decodeOnce = (s: string) => { try { return decodeURIComponent(s); } catch { return s; } };
+    if (v.startsWith("uploads/")) return decodeOnce(v);
     try {
-        const path = new URL(v).pathname.replace(/^\//, "");
+        const path = decodeOnce(new URL(v).pathname).replace(/^\//, "");
+        // ".." を含むキーは扱わない（S3 のキーとしては正当だが、
+        // 意図せず別の場所を指す形になっていないかを確かめる術が無い）
+        if (path.includes("..")) return "";
         if (path.startsWith("uploads/")) return path;
     } catch { /* URL でなければ無視 */ }
     return "";

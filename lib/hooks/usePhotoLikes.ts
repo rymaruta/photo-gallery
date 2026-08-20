@@ -32,8 +32,14 @@ export function usePhotoLikes(
     // 本人がもう押したあとかどうか。サーバーの初期値の到着が遅れると、
     // せっかく押したハートを古い値で上書きしてしまう。
     const touchedRef = useRef(false);
+    // 今どの写真を扱っているか。await の後に「まだ同じ写真か」を確かめるのに使う。
+    const photoIdRef = useRef(photoId);
     const liked = serverLiked ?? isFavorite(photoId);
     const [count, setCount] = useState(initialLikes);
+    // 写真が変わったときに戻す先。props をそのまま effect の依存に入れると
+    // 親の再レンダーごとに件数が巻き戻るので、ref で持つ。
+    const initialLikesRef = useRef(initialLikes);
+    initialLikesRef.current = initialLikes;
     const [pending, setPending] = useState(false);
     const busyRef = useRef(false);
 
@@ -58,8 +64,13 @@ export function usePhotoLikes(
     // しかも touchedRef が立ったままなので本当の状態を聞き直しても捨ててしまう。
     // 結果、2枚目のハートを押すと DELETE が飛んで「いいねが付かない」。
     useEffect(() => {
+        photoIdRef.current = photoId;
         touchedRef.current = false;
         setServerLiked(null);
+        // 件数も写真ごとに戻す。戻さないと、次の写真の件数取得が失敗したときに
+        // 前の写真の数がそのまま表示され続ける（42いいねの写真から送ると、
+        // 次の写真も42と出たまま直らない）。
+        setCount(initialLikesRef.current);
     }, [photoId]);
 
     // ログイン中は自分のいいね状態をサーバーに聞く
@@ -107,24 +118,35 @@ export function usePhotoLikes(
             return;
         }
 
+        // 応答が返る頃には別の写真に送られているかもしれない。
+        // serverLiked と count は写真ごとの表示なので、
+        // 「まだ同じ写真か」を確かめてから書く。確かめずに書いていた頃は、
+        // Aで押した結果がBのハートと件数に反映されていた
+        // （Bがいいね済みでも空になり、次の一押しが POST になる）。
+        const stillSamePhoto = () => photoIdRef.current === photoId;
+
         try {
             const res = await userFetch(`/photos/${encodeURIComponent(photoId)}/like`, {
                 method: wasLiked ? "DELETE" : "POST",
             });
             if (res.ok) {
                 const data = await res.json() as { likes?: number };
-                if (typeof data.likes === "number") setCount(data.likes); // サーバーの真値で確定
+                if (typeof data.likes === "number" && stillSamePhoto()) setCount(data.likes); // サーバーの真値で確定
             } else {
                 // 失敗 → 楽観更新を巻き戻す
                 if (didToggleFavorite) toggleFavorite(photoId);
-                setServerLiked(wasLiked);
-                setCount((c) => Math.max(0, c + (wasLiked ? 1 : -1)));
+                if (stillSamePhoto()) {
+                    setServerLiked(wasLiked);
+                    setCount((c) => Math.max(0, c + (wasLiked ? 1 : -1)));
+                }
             }
         } catch (e) {
             log.warn("like toggle error:", e);
             if (didToggleFavorite) toggleFavorite(photoId);
-            setServerLiked(wasLiked);
-            setCount((c) => Math.max(0, c + (wasLiked ? 1 : -1)));
+            if (stillSamePhoto()) {
+                setServerLiked(wasLiked);
+                setCount((c) => Math.max(0, c + (wasLiked ? 1 : -1)));
+            }
         } finally {
             busyRef.current = false;
             setPending(false);

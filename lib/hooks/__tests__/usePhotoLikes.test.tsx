@@ -91,7 +91,7 @@ describe("usePhotoLikes", () => {
     describe("サーバー側のいいね状態", () => {
         it("端末のお気に入りより、サーバーの答えを優先する", async () => {
             // 端末には「いいね済み」が残っているが、サーバーには無い
-            store["jp_favorites"] = JSON.stringify(["p1"]);
+            store["photo-gallery-favorites"] = JSON.stringify(["p1"]);
             resetFavoritesCache();
             mockUserFetch.mockImplementation((path: string) =>
                 Promise.resolve(path.startsWith("/user/likes/")
@@ -141,6 +141,58 @@ describe("usePhotoLikes", () => {
             mockUserFetch.mockClear();
             await act(async () => { await result.current.toggle(); });
             expect(mockUserFetch).toHaveBeenCalledWith("/photos/p2/like", { method: "POST" });
+        });
+
+        it("応答が返る前に別の写真へ送っても、そちらのハートと件数を壊さない", async () => {
+            // モーダルは同じフックのまま次の写真へ進む。await の後に
+            // 「まだ同じ写真か」を見ずに書いていた頃は、Aで押した結果が
+            // Bのハートと件数に反映されていた（Bがいいね済みでも空になり、
+            // 次の一押しが POST になって二重に付く）。
+            let failA: ((v: unknown) => void) | undefined;
+            mockUserFetch.mockImplementation((path: string) => {
+                if (path.startsWith("/user/likes/")) {
+                    return Promise.resolve({ ok: true, json: async () => ({ liked: false }) });
+                }
+                if (path === "/photos/A/like") return new Promise((r) => { failA = r; });
+                return Promise.resolve({ ok: true, json: async () => ({ likes: 3 }) });
+            });
+
+            const { result, rerender } = renderHook(
+                ({ id, likes }) => usePhotoLikes(id, likes, true),
+                { initialProps: { id: "A", likes: 10 } });
+
+            // A のいいねを開始（応答はまだ返さない）
+            let pending: Promise<void> | undefined;
+            act(() => { pending = result.current.toggle(); });
+
+            // 応答を待たずに B へ送る
+            rerender({ id: "B", likes: 3 });
+            await waitFor(() => expect(result.current.count).toBe(3));
+
+            // ここで A の要求が失敗して返る
+            await act(async () => {
+                failA?.({ ok: false });
+                await pending;
+            });
+
+            // B の表示は壊れていない
+            expect(result.current.count).toBe(3);
+            expect(result.current.liked).toBe(false);
+        });
+
+        it("写真を送ると件数も引き継がない", async () => {
+            mockUserFetch.mockImplementation(() =>
+                Promise.resolve({ ok: false }));   // 件数の取得は失敗させる
+            mockPublicFetch.mockResolvedValue({ ok: false });
+
+            const { result, rerender } = renderHook(
+                ({ id, likes }) => usePhotoLikes(id, likes, true),
+                { initialProps: { id: "A", likes: 42 } });
+            await waitFor(() => expect(result.current.count).toBe(42));
+
+            rerender({ id: "B", likes: 3 });
+            // 42 のまま出し続けない
+            await waitFor(() => expect(result.current.count).toBe(3));
         });
 
         it("答えが遅れて届いても、先に押したハートを上書きしない", async () => {

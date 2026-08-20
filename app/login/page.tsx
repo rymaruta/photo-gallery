@@ -8,6 +8,7 @@ import { useToast } from "../../lib/hooks/useToast";
 import { forgotPassword, confirmForgotPassword } from "../../lib/auth/cognito";
 import { userFetch } from "../../lib/utils/api";
 import { ROUTES } from "../../lib/routes";
+import { pendingNameKey } from "../../lib/utils/pendingName";
 import { LockClosedIcon, EnvelopeIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 type Step = "login" | "forgot-send" | "forgot-confirm" | "forgot-done";
@@ -46,7 +47,7 @@ function LoginForm() {
                 // 登録したときと同じメールアドレスの分だけを使う。
                 // グローバルな1キーだった頃は、別人が登録途中で残した名前を
                 // 拾ってしまい、こちらのプロフィールに勝手に付いていた。
-                const pendingKey = `jp_pending_name_${username}`;
+                const pendingKey = pendingNameKey(username);
                 let pendingDisplayName: string | null = null;
                 try { pendingDisplayName = localStorage.getItem(pendingKey); } catch { /* ignore */ }
                 if (pendingDisplayName) {

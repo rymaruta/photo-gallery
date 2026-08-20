@@ -97,3 +97,17 @@ export function keyFromUploadUrl(raw: string): string {
         return "";
     }
 }
+
+/**
+ * 保存する URL を正規化する。
+ *
+ * 検証はデコードしてから行うので `https://cdn/up%6Coads/<uid>/x.jpg` も通る。
+ * これをそのまま保存すると、あとから見る側（削除・派生生成）と
+ * 表記が食い違い、対象から漏れる余地が残る。
+ * 「検証したときに見ていた形」で保存して、以降は迷わないようにする。
+ */
+export function canonicalUploadUrl(raw: string, cloudfrontUrl: string): string {
+    const key = keyFromUploadUrl(raw);
+    if (!key) return raw;
+    return `${cloudfrontUrl.replace(/\/$/, "")}/${key.split("/").map(encodeURIComponent).join("/")}`;
+}

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { signUp, confirmSignUp, resendConfirmationCode } from "../../lib/auth/cognito";
+import { pendingNameKey } from "../../lib/utils/pendingName";
 import { EnvelopeIcon, LockClosedIcon, CheckCircleIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 type Step = "register" | "verify" | "done";
@@ -102,7 +103,7 @@ export default function SignupPage() {
                     // プロフィールに付いていた（共有のiPadなどで起きる）。
                     // 本人にはどこから来た名前なのか分からない。
                     try {
-                        localStorage.setItem(`jp_pending_name_${email}`, displayName.trim());
+                        localStorage.setItem(pendingNameKey(email), displayName.trim());
                     } catch { /* ignore */ }
                 }
                 setCognitoUsername(result.username);

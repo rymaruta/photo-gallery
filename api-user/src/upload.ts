@@ -6,7 +6,7 @@ import { putPhoto, countUserPhotos } from "./ddb-photos";
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
 import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags } from "./sanitize";
-import { extForType, uploadPrefix, isOwnUploadUrl as isOwnUploadUrlFor } from "./uploadPolicy";
+import { extForType, uploadPrefix, canonicalUploadUrl, isOwnUploadUrl as isOwnUploadUrlFor } from "./uploadPolicy";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
@@ -177,7 +177,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     // uploads/ を指すこともできた（退会時にその実ファイルが消える）。
     // publicUrl とまったく同じ判定にする。
     const safeThumbSrc = isOwnUploadUrl(thumbUrl, userId) && String(thumbUrl).length <= 500
-        ? thumbUrl
+        ? canonicalUploadUrl(String(thumbUrl), CLOUDFRONT_URL)
         : undefined;
     // ぼかしプレビュー（data:image/webp;base64,...）: 画像 data URI のみ許可
     const safeBlurDataURL = sanitizeBlurDataURL(blurDataURL);
@@ -189,7 +189,10 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // 指定して丸ごと上書きできてしまう（通知やコメントの文書も同じテーブルにある）。
         // 既存写真の更新は photoUpdate.ts が担当する。
         id: uuidv4(),
-        src: publicUrl,
+        // 検証したときに見ていた形で保存する（デコード済みのパスで組み直す）。
+        // 生のまま保存すると、削除や派生生成で見る側と表記が食い違い、
+        // 対象から漏れる余地が残る。
+        src: canonicalUploadUrl(publicUrl, CLOUDFRONT_URL),
         // 保存時にもサニタイズを通す。photoUpdate.ts は通しているのにここだけ
         // 素通しで、任意の長さ・任意の構造の値が静的HTMLまで届いていた。
         title: sanitizeTitle(title) ?? { ja: "無題", en: "Untitled" },

@@ -258,3 +258,28 @@ export function appPageMetadata(path: string, title: string) {
         robots: { index: false, follow: true },
     };
 }
+
+
+/**
+ * 配下に複数ページを持つセグメント用。canonical は持たせない。
+ *
+ * レイアウトのメタデータは子のページにも継承される。canonical を書くと
+ * /user/upload も /user/drafts も「/user が正規URL」と名乗ることになり、
+ * しかも /user というページは存在しない——存在しないURLを正規URLとして
+ * 申告する形になる（撮影地ページの二重エンコードで踏んだのと同じ形）。
+ */
+export function noindexMetadata(title: string) {
+    return {
+        title,
+        // canonical は出さない。
+        //
+        // 書くと子のページにも継承され、/user/upload も /user/drafts も
+        // 「/user が正規URL」と名乗る（しかも /user というページは無い）。
+        // かといって省くと、ルートの canonical をそのまま継承して
+        // 「これはトップページです」と申告する——どちらも嘘になる。
+        // null を渡すと <link rel="canonical"> 自体が出なくなる。
+        // 検索結果に出さないページなので、これでよい。
+        alternates: { canonical: null },
+        robots: { index: false, follow: true },
+    };
+}

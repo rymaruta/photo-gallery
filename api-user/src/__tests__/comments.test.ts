@@ -39,11 +39,34 @@ describe("getComments", () => {
         expect((await invoke(getComments, ev(undefined, undefined))).statusCode).toBe(400);
     });
 
+    // 読み取り側は写真の状態を見ていなかった。投稿側は下書き・ストーリーを
+    // 弾いているのに、読む方は素通しだったので、
+    //   - 非公開に戻した写真のコメントが誰でも読めたまま
+    //   - 削除された写真・退会した人の写真のコメントも読めたまま
+    // だった。「不適切なコメントが付いたので非公開にする」が効かない。
+    const publicPhoto = { Item: { src: "https://cdn/p1.jpg", published: true } };
+
+    it("非公開の写真のコメントは返さない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", published: false } });
+        expect((await invoke(getComments, ev(undefined, { id: "p1" }))).statusCode).toBe(404);
+    });
+
+    it("ストーリーのコメントは返さない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { src: "https://cdn/s1.jpg", story: true } });
+        expect((await invoke(getComments, ev(undefined, { id: "s1" }))).statusCode).toBe(404);
+    });
+
+    it("消えた写真（退会後など）のコメントは返さない", async () => {
+        mockDdbSend.mockResolvedValueOnce({});
+        expect((await invoke(getComments, ev(undefined, { id: "gone" }))).statusCode).toBe(404);
+    });
+
     it("新しい順（末尾追記の逆順）で返し、件数も返す", async () => {
         const items = [
             { id: "c1", uid: "u1", name: "A", text: "古い", t: "2026-01-01" },
             { id: "c2", uid: "u2", name: "B", text: "新しい", t: "2026-01-02" },
         ];
+        mockDdbSend.mockResolvedValueOnce(publicPhoto);
         mockDdbSend.mockResolvedValueOnce({ Item: { items } });
         const res = await invoke(getComments, ev(undefined, { id: "p1" }));
         expect(res.statusCode).toBe(200);
@@ -53,6 +76,7 @@ describe("getComments", () => {
     });
 
     it("コメントが無ければ空配列", async () => {
+        mockDdbSend.mockResolvedValueOnce(publicPhoto);
         mockDdbSend.mockResolvedValueOnce({ Item: undefined });
         const data = JSON.parse((await invoke(getComments, ev(undefined, { id: "p1" }))).body);
         expect(data).toEqual({ items: [], count: 0 });

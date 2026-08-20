@@ -35,6 +35,18 @@ export const getComments: APIGatewayProxyHandlerV2 = async (event) => {
     const photoId = event.pathParameters?.id;
     if (!photoId) return jsonError(400, "IDが必要です");
     try {
+        // 写真の状態を先に見る。ここが素通しだったので、
+        //   - 非公開に戻した写真のコメントが誰でも読めたまま
+        //   - 削除された写真・退会した人の写真のコメントも読めたまま
+        // だった。投稿側（postComment）は同じ条件で弾いているのに、
+        // 読み取り側だけ何も見ていなかった。
+        // 「不適切なコメントが付いたので非公開にする」が効かない状態。
+        const photoRes = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: photoId } }));
+        const photo = photoRes.Item as { src?: string; published?: boolean; story?: boolean } | undefined;
+        if (!photo?.src || photo.published === false || photo.story === true) {
+            return jsonError(404, "写真が見つかりません");
+        }
+
         const all = await readComments(photoId);
         const items = all.slice(-COMMENTS_MAX).reverse(); // 末尾追記なので後ろが新しい
         return {
