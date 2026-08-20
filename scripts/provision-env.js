@@ -204,6 +204,10 @@ async function allowCloudFrontRead(bucket, distributionArn) {
  *   - Aliases / ViewerCertificate … 独自ドメインと証明書は staging には無い
  *   - WebACLId                    … WAF は本番専用
  *   - Logging                     … 余計なS3コストを作らない
+ *   - API Gateway のオリジンと、それを指すキャッシュ動作
+ *     … コピーすると staging の /api/* が本番APIに届いてしまう。
+ *       アプリは API Gateway の直URL（NEXT_PUBLIC_*_API_BASE_URL）を使うので
+ *       この経路は実際には使われていない。残す理由がなく、残すと危険なので消す。
  * 差し替えるもの:
  *   - Origins の DomainName       … staging のバケットへ
  */
@@ -216,14 +220,29 @@ function buildStagingConfig(source) {
     cfg.WebACLId = "";
     cfg.Logging = { Enabled: false, IncludeCookies: false, Bucket: "", Prefix: "" };
 
+    // 別環境（本番）を指したままになるオリジンを落とす
+    const dropped = new Set();
+    const keptOrigins = [];
     for (const o of cfg.Origins?.Items ?? []) {
-        // 本番の静的サイト用オリジンを staging のバケットへ向け直す。
-        // 画像用オリジンが別に居る場合も同じ規則で置き換える。
+        if (o.DomainName?.includes("execute-api")) {
+            dropped.add(o.Id);
+            continue;
+        }
         if (o.DomainName?.includes("journey-photo.com")) {
             o.DomainName = `${names.siteBucket}.s3.${REGION}.amazonaws.com`;
         } else if (o.DomainName?.includes("journey-photo-upload")) {
             o.DomainName = `${names.uploadBucket}.s3.${REGION}.amazonaws.com`;
         }
+        keptOrigins.push(o);
+    }
+    cfg.Origins = { Quantity: keptOrigins.length, Items: keptOrigins };
+
+    // 落としたオリジンを指すキャッシュ動作も消す（残すと作成が失敗する）
+    const keptBehaviors = (cfg.CacheBehaviors?.Items ?? []).filter((b) => !dropped.has(b.TargetOriginId));
+    cfg.CacheBehaviors = { Quantity: keptBehaviors.length, Items: keptBehaviors };
+
+    if (dropped.size > 0) {
+        cfg._droppedOrigins = [...dropped]; // ログ用（送信前に消す）
     }
     return cfg;
 }
@@ -236,6 +255,10 @@ async function ensureDistribution() {
     log(`コピー元: ${SOURCE_DIST}`);
     log(`  オリジン: ${(cfg.Origins?.Items ?? []).map((o) => o.DomainName).join(", ")}`);
     log("  独自ドメイン・証明書・WAF・ログは引き継がない");
+    if (cfg._droppedOrigins) {
+        log(`  外したオリジン（別環境を指すため）: ${cfg._droppedOrigins.join(", ")}`);
+    }
+    delete cfg._droppedOrigins;
     log(`  キャッシュ動作: 既定 + ${cfg.CacheBehaviors?.Quantity ?? 0} 件（本番と同じ）`);
     log(`  カスタムエラーページ: ${cfg.CustomErrorResponses?.Quantity ?? 0} 件（本番と同じ）`);
 
