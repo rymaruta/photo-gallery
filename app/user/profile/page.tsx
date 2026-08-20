@@ -174,6 +174,9 @@ export default function ProfileEditPage() {
 
     const handleCoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
+        // 同じファイルを選び直しても change が発火するように値を空にしておく。
+        // アップロードに失敗したあと同じ写真でやり直せなかった。
+        e.target.value = "";
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (ev) => setCoverPreview(ev.target?.result as string);
@@ -217,6 +220,8 @@ export default function ProfileEditPage() {
 
     const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
+        // 同じファイルを選び直せるように値を空にする（失敗後のやり直し用）
+        e.target.value = "";
         if (!file) return;
 
         // プレビュー表示

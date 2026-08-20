@@ -32,10 +32,9 @@ export type Labels = {
         single?: string;
         none?: string;
     };
-    actions?: {
-        clearTags?: string;
-        showAll?: string;
-        showAllGeneric?: string;
+    actions: {
+        /** タグの選択解除ボタン。日本語UIなのに "Clear" が出ていたため必須にした */
+        clearTags: string;
     };
     search: {
         placeholder: string;
@@ -95,6 +94,7 @@ const enLabels: Labels = {
         options: { new: "Newest", old: "Oldest", popular: "Popular" },
     },
     tags: { title: "Tags" },
+    actions: { clearTags: "Clear" },
     search: { placeholder: "Search title or description", clear: "Clear" },
     gallery: {
         emptyMessage: "No photos found.",
@@ -147,6 +147,7 @@ export const ja: Labels = {
         options: { new: "新しい順", old: "古い順", popular: "人気順" },
     },
     tags: { title: "タグ" },
+    actions: { clearTags: "選択を解除" },
     search: { placeholder: "タイトルや説明で検索", clear: "クリア" },
     gallery: {
         emptyMessage: "該当する写真がありません。",

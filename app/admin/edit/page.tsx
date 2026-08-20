@@ -10,8 +10,12 @@ import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import type { Photo, LocalizedParagraphs } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
+import { toDateInputValue, mergeDate } from "../../../lib/utils/dateInput";
 
-const inputCls = "w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-white/50";
+// text-base（16px）にする。iOS Safari は 16px 未満の入力欄にフォーカスすると
+// ページを拡大し、blur しても戻さない。他のページでは inline style で
+// 16px を当てて回避しているが、ここは共通クラスなのでクラス側で揃える。
+const inputCls = "w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-base focus:outline-none focus:border-white/50";
 const labelCls = "block text-sm text-white/60 mb-1";
 const sectionCls = "border-t border-white/10 pt-5";
 
@@ -98,7 +102,10 @@ function AdminEditContent() {
 
                     setLocation(data.location ?? "");
                     setCategory(data.category ?? "");
-                    setDate(data.date ?? "");
+                    // 保存値は ISO 文字列。そのまま <input type="date"> に入れると
+                    // 黙って空欄になり、「撮影日が無い」と誤解した人が選び直して
+                    // 時刻を落としてしまう。
+                    setDate(toDateInputValue(data.date));
                     setTagsInput(Array.isArray(data.tags) ? data.tags.join(", ") : "");
                     setPublished(data.published !== false);
 
@@ -164,7 +171,9 @@ function AdminEditContent() {
                     // 一度入れた場所やカテゴリを空にできなかった。
                     location,
                     category,
-                    date,
+                    // 日付だけ編集させているので、元の値が持っていた時刻は戻す
+                    // （落とすと同じ日に撮った写真の並びが崩れる）
+                    date: mergeDate(photo?.date, date),
                     tags,
                     published,
                     exif,

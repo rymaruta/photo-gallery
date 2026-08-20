@@ -57,14 +57,22 @@ describe("FilterBar", () => {
 
     it("クリアボタンはタグ選択時のみ表示され、クリックで全解除する", () => {
         const { onChange } = setup({ values: { ...baseValues, selectedTags: ["swan", "lake"] } });
-        const clear = screen.getByRole("button", { name: "Clear" });
+        const clear = screen.getByRole("button", { name: "選択を解除" });
         fireEvent.click(clear);
         expect(onChange).toHaveBeenCalledWith({ selectedTags: [] });
     });
 
     it("タグ未選択ならクリアボタンは出ない", () => {
         setup();
-        expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
+        expect(screen.queryByRole("button", { name: "選択を解除" })).toBeNull();
+    });
+
+    // 以前は辞書に actions が無く、日本語UIでも英語の "Clear" が出ていた。
+    // 言語ごとに正しい文言が出ることを固定する。
+    it("クリアボタンの文言は言語で切り替わる", () => {
+        setup({ locale: "en", values: { ...baseValues, selectedTags: ["swan"] } });
+        expect(screen.getByRole("button", { name: "Clear" })).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "選択を解除" })).toBeNull();
     });
 
     it("検索入力は300msのデバウンス後に onChange が呼ばれる", async () => {

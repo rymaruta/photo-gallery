@@ -443,19 +443,23 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
 
     const handleShare = async (e?: React.MouseEvent) => {
         if (e) e.stopPropagation();
-        const usedClipboard = await shareUrl(currentUrl, shareText, paragraphs.join(" "));
-        if (usedClipboard) showToast(locale === "en" ? "Link copied to clipboard!" : "リンクをクリップボードにコピーしました", "success");
+        const result = await shareUrl(currentUrl, shareText, paragraphs.join(" "));
+        // cancelled（利用者が閉じた）と shared は何も出さない
+        if (result === "copied") {
+            showToast(locale === "en" ? "Link copied to clipboard!" : "リンクをクリップボードにコピーしました", "success");
+        } else if (result === "failed") {
+            showToast(locale === "en" ? "Could not share" : "共有できませんでした", "error");
+        }
     };
 
     const handleCopyLink = async (e?: React.MouseEvent) => {
         if (e) {
             e.stopPropagation();
         }
-        try {
-            await copyToClipboard(currentUrl);
+        if (await copyToClipboard(currentUrl)) {
             showToast(locale === "en" ? "Link copied!" : "リンクをコピーしました");
-        } catch {
-            showToast(locale === "en" ? "Failed to copy link" : "リンクのコピーに失敗しました");
+        } else {
+            showToast(locale === "en" ? "Failed to copy link" : "リンクのコピーに失敗しました", "error");
         }
     };
 

@@ -10,6 +10,7 @@ import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import type { Photo, LocalizedParagraphs } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
+import { toDateInputValue, mergeDate } from "../../../lib/utils/dateInput";
 
 const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
 const labelCls = "block text-sm text-white/60 mb-1";
@@ -29,30 +30,6 @@ function descToText(d: Photo["description"]): string {
     const o = d as LocalizedParagraphs;
     const arr = o.ja && o.ja.length ? o.ja : o.en;
     return Array.isArray(arr) ? arr.join("\n") : "";
-}
-
-/** ISO 文字列を <input type="date"> が受け付ける YYYY-MM-DD にする */
-export function toDateInputValue(raw?: string): string {
-    if (!raw) return "";
-    const m = /^(\d{4}-\d{2}-\d{2})/.exec(raw);
-    if (m) return m[1];
-    const t = Date.parse(raw);
-    if (Number.isNaN(t)) return "";
-    return new Date(t).toISOString().slice(0, 10);
-}
-
-/**
- * 入力された日付（YYYY-MM-DD）に、元の値が持っていた時刻を戻す。
- * 日付だけを編集させているのに時刻まで落とすと、同じ日に撮った写真の
- * 並び順が崩れるため。
- */
-export function mergeDate(original: string | undefined, input: string): string {
-    if (!input) return "";
-    if (!original) return input;
-    const t = Date.parse(original);
-    if (Number.isNaN(t)) return input;
-    // 元の日付と同じなら元の値（時刻つき）をそのまま使う
-    return new Date(t).toISOString().slice(0, 10) === input ? original : input;
 }
 
 /** 日本語だけ差し替え、英語側は元のまま残す */

@@ -44,7 +44,7 @@ function FilterBarInner({
 
     const actionLabels = labels.actions;
 
-    const clearLabel = actionLabels?.clearTags ?? "Clear";
+    const clearLabel = actionLabels.clearTags;
 
     // 入力欄の値は自分で持ち、確定した値だけ 300ms 後に親へ渡す。
     const [localQuery, setLocalQuery] = useState(() => values.query || "");

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { toDateInputValue, mergeDate, mergeLocalizedTitle, mergeLocalizedDescription } from "../page";
+import { mergeLocalizedTitle, mergeLocalizedDescription } from "../page";
+import { toDateInputValue, mergeDate } from "../../../../lib/utils/dateInput";
 
 // 編集画面は日本語と日付だけを扱うが、保存は全項目の置換になる。
 // 画面に出していない値（英語のタイトル・説明、撮影日の時刻）を
