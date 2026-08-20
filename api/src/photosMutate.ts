@@ -5,7 +5,7 @@ import { isAdmin, getCallerUserId } from "./auth";
 import { requestSiteRebuild } from "./rebuild";
 import {
     sanitizeExif, sanitizeText, sanitizeDate, sanitizeTags,
-    sanitizeTitle, sanitizeDescription,
+    sanitizeTitle, sanitizeDescription, sameStoredValue,
 } from "./sanitize";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
@@ -90,9 +90,14 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // 「公開状態が変わったときだけ」では狭い——本文や撮影地を消しても
         // 静的HTMLに残ってしまう。連打は coalesce で畳む
         // （ユーザーAPI側 api-user/src/photoUpdate.ts と同じ扱い）。
+        //
+        // 「キーが fields にあるか」で見ていた時期があるが、それは
+        // 「毎回」と同じだった——/admin/edit は保存のたびに全項目
+        // （exif を含む）を送るので、何も変えずに保存を押すだけで
+        // ビルドが走る（1本8分・月2,000分）。値そのものを突き合わせる。
         const visibilityChanged = "published" in fields && fields.published !== (photo.published !== false);
         const metaChanged = ["title", "description", "location", "category", "date", "tags", "exif"]
-            .some((k) => k in fields);
+            .some((k) => k in fields && !sameStoredValue(fields[k], (photo as Record<string, unknown>)[k]));
         if (visibilityChanged || metaChanged) {
             await requestSiteRebuild(`photo updated: ${id}`, { coalesce: true });
         }

@@ -175,6 +175,33 @@ describe("likePhoto", () => {
         const del = mockDdbSend.mock.calls[2][0] as { input: { Key: { id: string } } };
         expect(del.input.Key.id).toBe("like#ghost#u1");
     });
+
+    // 巻き戻すのは「増えていないと言い切れる」失敗だけ。
+    // どんな失敗でも巻き戻していた頃は、タイムアウト（実際には +1 済み
+    // かもしれない）でもマーカーを消していたので、本人が取り消しても
+    // マーカーが無くて弾かれ、**誰にも減らせない +1** が公開の数字に残った。
+    it("スロットリング（未適用と言い切れる）ならマーカーを巻き戻す", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({})
+            .mockRejectedValueOnce(Object.assign(new Error("throttled"), { name: "ProvisionedThroughputExceededException" }))
+            .mockResolvedValueOnce({});
+        expect((await invoke(likePhoto, ev("u1", "p1"))).statusCode).toBe(500);
+        const deletes = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string } })
+            .filter((c) => c.constructor.name === "DeleteCommand");
+        expect(deletes).toHaveLength(1);
+    });
+
+    it("タイムアウト（適用されたか分からない）ではマーカーを消さない", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({})
+            .mockRejectedValueOnce(Object.assign(new Error("timeout"), { name: "TimeoutError" }));
+        expect((await invoke(likePhoto, ev("u1", "p1"))).statusCode).toBe(500);
+        const deletes = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string } })
+            .filter((c) => c.constructor.name === "DeleteCommand");
+        expect(deletes).toHaveLength(0);
+    });
 });
 
 describe("unlikePhoto", () => {
@@ -204,5 +231,30 @@ describe("unlikePhoto", () => {
         const res = await invoke(unlikePhoto, ev("u1", "p1"));
         expect(res.statusCode).toBe(200);
         expect(JSON.parse(res.body)).toEqual({ liked: false, likes: 0 });
+    });
+
+    it("スロットリング（未適用と言い切れる）ならマーカーを書き戻す", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({})
+            .mockRejectedValueOnce(Object.assign(new Error("throttled"), { name: "ThrottlingException" }))
+            .mockResolvedValueOnce({});
+        expect((await invoke(unlikePhoto, ev("u1", "p1"))).statusCode).toBe(500);
+        const puts = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string } })
+            .filter((c) => c.constructor.name === "PutCommand");
+        expect(puts).toHaveLength(1);
+    });
+
+    it("タイムアウトではマーカーを書き戻さない（二重に減らさない）", async () => {
+        // 書き戻すと画面は「いいね済み」に見えるので、本人がもう一度
+        // 取り消して二重に減る。実際より小さい数字はいいねし直しても直らない。
+        mockDdbSend
+            .mockResolvedValueOnce({})
+            .mockRejectedValueOnce(Object.assign(new Error("timeout"), { name: "TimeoutError" }));
+        expect((await invoke(unlikePhoto, ev("u1", "p1"))).statusCode).toBe(500);
+        const puts = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string } })
+            .filter((c) => c.constructor.name === "PutCommand");
+        expect(puts).toHaveLength(0);
     });
 });

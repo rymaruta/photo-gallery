@@ -26,7 +26,7 @@
  */
 
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
-const { DynamoDBDocumentClient, ScanCommand } = require("@aws-sdk/lib-dynamodb");
+const { DynamoDBDocumentClient, ScanCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
 const fs = require("fs");
 const path = require("path");
 const { requireEnv } = require("./lib/env");
@@ -133,6 +133,37 @@ async function scan() {
         .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
 }
 
+/**
+ * 再ビルドの「直近に依頼済み」印を下ろす。
+ *
+ * Lambda 側（api-user/src/rebuild.ts）は、編集による依頼を10分間畳んでいる。
+ * 畳まれた依頼は後から実行されないので、そのまま放っておくと
+ * 「12:00:00 に誰かが編集してビルドが始まり、12:00:20 に別の人が
+ * 説明に書いた電話番号を消して保存」した分が、次に誰かが編集するまで
+ * 静的HTMLに残り続ける（定期ビルドは止めてある）。
+ *
+ * このビルドはたった今テーブルを読んだので、ここまでの編集は反映される。
+ * 印を下ろしておけば、これ以降の編集はすぐ次のビルドを起こせる
+ * ——畳まれる窓が「10分」から「読み終わるまで」に縮む。
+ *
+ * 権限が無い環境（デプロイ用ロールが読み取りのみ）では警告1行で通す。
+ * 失敗してもビルドは正しい。畳まれる窓が今までどおり10分に戻るだけ。
+ */
+async function clearRebuildLock() {
+    try {
+        const client = new DynamoDBClient({ region: REGION });
+        const ddb = DynamoDBDocumentClient.from(client);
+        await ddb.send(new UpdateCommand({
+            TableName: TABLE,
+            Key: { id: "rebuild#lock" },
+            UpdateExpression: "REMOVE lastAt, pending",
+        }));
+        console.log("[sync] 再ビルドの畳み込み印を下ろしました（rebuild#lock）");
+    } catch (err) {
+        console.warn(`[sync] rebuild#lock を下ろせませんでした（続行）: ${err.message ?? err}`);
+    }
+}
+
 async function main() {
     console.log(`\n[sync] DynamoDB → ${path.relative(process.cwd(), OUTPUT)}`);
     console.log(`  table : ${TABLE}`);
@@ -167,6 +198,8 @@ async function main() {
 
     fs.writeFileSync(OUTPUT, JSON.stringify(photos, null, 2) + "\n", "utf-8");
     console.log(`[sync] ${OUTPUT} に書き込みました`);
+
+    await clearRebuildLock();
 }
 
 if (require.main === module) {

@@ -148,16 +148,37 @@ describe("postComment", () => {
         expect(mockDdbSend).toHaveBeenCalledTimes(2);
     });
 
+    // 上限の判定は「誰が投稿しようとしているか」で変わる。
+    // 呼び出しの順番だけを見るテストにすると、オーナー判定を外しても
+    // 別の理由（モックが尽きて 500）で赤くなり、何も確かめていないのに
+    // 通ったつもりになる。**同じ材料で結果が分かれること**を見る。
+    const fiftyBy = (uid: string) => Array.from({ length: 50 }, (_, i) => ({ id: `c${i}`, uid }));
+    const commentsGets = () => mockDdbSend.mock.calls
+        .filter((c) => c[0].constructor.name === "GetCommand")
+        .filter((c) => c[0].input?.Key?.id === "comments#p1");
+
     it("写真のオーナーは上限の対象外（自分の写真の会話に返信し続けられる）", async () => {
         // 30人にお礼を書くと11人目で止まり、以後は自分のコメントを消すまで
         // 参加できなかった。オーナーには「議論を流す」動機が無いし、
         // 消したければ写真ごと消せる。
-        const mine = Array.from({ length: 50 }, (_, i) => ({ id: `c${i}`, uid: "owner" }));
         mockDdbSend
             .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner" } })
-            .mockResolvedValueOnce({ Attributes: { items: mine } })
+            .mockResolvedValueOnce({ Item: { items: fiftyBy("owner") } })
+            .mockResolvedValueOnce({ Attributes: { items: fiftyBy("owner") } })
             .mockResolvedValueOnce({});
         expect((await invoke(postComment, ev("owner", { id: "p1" }, { text: "ありがとう" }))).statusCode).toBe(200);
+        // 数えに行っていないこと自体を見る（数えたら 50 >= 10 で 429 になる）
+        expect(commentsGets()).toHaveLength(0);
+    });
+
+    it("同じ材料でも、オーナーでなければ 429（上限そのものは効いている）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner" } })
+            .mockResolvedValueOnce({ Item: { items: fiftyBy("u1") } })
+            .mockResolvedValueOnce({ Attributes: { items: fiftyBy("u1") } })
+            .mockResolvedValueOnce({});
+        expect((await invoke(postComment, ev("u1", { id: "p1" }, { text: "hi" }))).statusCode).toBe(429);
+        expect(commentsGets()).toHaveLength(1);
     });
 
     it("切り詰めたら commentCount を実数に合わせる", async () => {
@@ -174,6 +195,24 @@ describe("postComment", () => {
         const countUpdate = mockDdbSend.mock.calls[4][0].input;
         expect(countUpdate.UpdateExpression).toBe("SET commentCount = :max");
         expect(countUpdate.ExpressionAttributeValues[":max"]).toBe(200);
+    });
+
+    it("切り詰めが書けなかったら、件数は上限値に書き換えない", async () => {
+        // 印を先に立てていた頃は、条件が外れて切り詰めが起きなかったのに
+        // commentCount だけ 200 に書き換えていた（同時に別の削除が入ると
+        // 起きる）。実数とずれたまま残り、モーダルとページで数字が食い違う。
+        const stored = Array.from({ length: 201 }, (_, i) => ({ id: `c${i}`, uid: "other" }));
+        const cond = Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" });
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner" } })
+            .mockResolvedValueOnce({ Item: { items: [] } })
+            .mockResolvedValueOnce({ Attributes: { items: stored } })
+            .mockRejectedValueOnce(cond)      // 切り詰めが競合で外れる
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({});
+        await invoke(postComment, ev("u1", { id: "p1" }, { text: "hi" }));
+        const countUpdate = mockDdbSend.mock.calls[4][0].input;
+        expect(countUpdate.UpdateExpression).toBe("SET commentCount = if_not_exists(commentCount, :z) + :one");
     });
 
     it("切り詰めが起きなければ従来どおり +1", async () => {

@@ -143,7 +143,10 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         const stored = appended.Attributes?.items;
         let trimmed = false;
         if (Array.isArray(stored) && stored.length > COMMENTS_MAX) {
-            trimmed = true;
+            // 印を立てるのは**書けたときだけ**。先に立てていた頃は、
+            // 条件が外れて切り詰めが起きなかったのに commentCount を
+            // 上限値に書き換えていたので、実際の件数とずれたまま残った
+            // （下の「実数に合わせる」が実数でなくなる）。
             await ddb.send(new UpdateCommand({
                 TableName: PHOTOS_TABLE,
                 Key: { id: commentsId(photoId) },
@@ -154,7 +157,7 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
                     ":trimmed": stored.slice(-COMMENTS_MAX),
                     ":len": stored.length,
                 },
-            })).catch((e: { name?: string }) => {
+            })).then(() => { trimmed = true; }).catch((e: { name?: string }) => {
                 if (e?.name !== "ConditionalCheckFailedException") throw e;
                 // 競合。次の投稿が切り詰める
             });

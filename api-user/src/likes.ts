@@ -15,6 +15,33 @@ function markerId(photoId: string, userId: string): string {
     return `like#${photoId}#${userId}`;
 }
 
+/**
+ * 「この失敗は、書き込みが**適用されていない**と言い切れるか」。
+ *
+ * マーカーとカウンタは別々の書き込みなので、片方が落ちたらもう片方を
+ * 戻さないと食い違う。ところが「どんな失敗でも戻す」にすると、
+ * タイムアウトや応答の取りこぼし——**適用されたかどうか分からない**失敗
+ * ——でも戻してしまう。いいねの場合、実際には +1 されているのに
+ * マーカーだけ消えるので、本人が取り消しても `attribute_exists(id)` に
+ * 引っかかって減らせない。つまり**誰にも直せない +1** が残る。
+ *
+ * だから戻すのは「適用されていないと言い切れる」失敗だけにする。
+ * 分からない失敗ではマーカーを残す——本人の取り消しで直せる状態の方がよい。
+ */
+function definitelyNotApplied(e: unknown): boolean {
+    const name = (e as { name?: string }).name ?? "";
+    return [
+        "ConditionalCheckFailedException",
+        "ValidationException",
+        "ResourceNotFoundException",
+        "AccessDeniedException",
+        // スロットリングは SDK が再試行を使い切ってから投げる＝未適用
+        "ProvisionedThroughputExceededException",
+        "ThrottlingException",
+        "RequestLimitExceeded",
+    ].includes(name);
+}
+
 async function readLikeCount(photoId: string): Promise<number> {
     const res = await ddb.send(new GetCommand({
         TableName: PHOTOS_TABLE,
@@ -136,16 +163,19 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
 
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: true, likes }) };
         } catch (e) {
-            // カウンタを増やせなかったら、先に書いたマーカーを必ず戻す。
+            // カウンタを増やせなかったら、先に書いたマーカーを戻す。
             //
-            // 以前は ConditionalCheckFailedException のときだけ戻していた。
-            // スロットリングやタイムアウトで落ちるとマーカーだけが残り、
-            // サーバーは「いいね済み」、カウンタは増えていない、という
-            // 食い違いが**恒久的に**残った。次に取り消すと、増えていない分を
-            // 減らすので公開の数字が実際より小さくなる（直す手段が無い）。
-            await ddb.send(new DeleteCommand({
-                TableName: PHOTOS_TABLE, Key: { id: markerId(photoId, userId) },
-            })).catch(() => { /* 戻せなくてもこれ以上できることは無い */ });
+            // ただし戻すのは「増えていないと言い切れる」失敗のときだけ。
+            // どんな失敗でも戻していた頃は、タイムアウト（実際には +1 済み
+            // かもしれない）でもマーカーを消していたので、本人が取り消しても
+            // マーカーが無く `attribute_exists(id)` で弾かれ、
+            // **誰にも減らせない +1** が公開の数字に残った。
+            // 分からない失敗ではマーカーを残す——本人の取り消しで直せる。
+            if (definitelyNotApplied(e)) {
+                await ddb.send(new DeleteCommand({
+                    TableName: PHOTOS_TABLE, Key: { id: markerId(photoId, userId) },
+                })).catch(() => { /* 戻せなくてもこれ以上できることは無い */ });
+            }
             // 存在しない / 非公開（下書き・ストーリー）
             if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
                 return jsonError(404, "写真が見つかりません");
@@ -197,13 +227,20 @@ export const unlikePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: false, likes: await readLikeCount(photoId) }) };
             }
-            // それ以外（スロットリング・タイムアウトなど）はマーカーを戻す。
+            // 減っていないと言い切れる失敗（スロットリング等）ならマーカーを戻す。
             // 戻さないと「マーカーは消えたのにカウンタは減っていない」状態が
-            // 恒久的に残り、公開の数字が実際より大きいままになる。
-            await ddb.send(new PutCommand({
-                TableName: PHOTOS_TABLE,
-                Item: { id: markerId(photoId, userId), like: true, photoId, uid: userId, createdAt: new Date().toISOString() },
-            })).catch(() => { /* 戻せなくてもこれ以上できることは無い */ });
+            // 残り、公開の数字が実際より大きいままになる。
+            //
+            // 適用されたか分からない失敗（タイムアウト・応答の取りこぼし）では
+            // 戻さない。戻すと画面は「いいね済み」に見えるので、本人が
+            // もう一度取り消して**二重に減る**——実際より小さい数字は
+            // いいねし直しても直らない（マーカーが既にあると +1 されない）。
+            if (definitelyNotApplied(e)) {
+                await ddb.send(new PutCommand({
+                    TableName: PHOTOS_TABLE,
+                    Item: { id: markerId(photoId, userId), like: true, photoId, uid: userId, createdAt: new Date().toISOString() },
+                })).catch(() => { /* 戻せなくてもこれ以上できることは無い */ });
+            }
             throw e;
         }
     } catch (e) {

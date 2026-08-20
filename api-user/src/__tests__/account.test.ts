@@ -173,6 +173,38 @@ describe("deleteAccount", () => {
         expect(updates).not.toContain("followstats#userA");
     });
 
+    // 「消せたと確かめられたときだけ減らす」。条件不成立だけを見ていた頃は、
+    // スロットリングやタイムアウトで落ちた分も「消えた」扱いで減らしていた。
+    // 呼び出し側は失敗を見て再実行するので、次はマーカー削除が成功して
+    // **もう一度**減る——直そうとした二重減算がそのまま残っていた。
+    it("マーカーを消せたか分からない失敗でも減らさない", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                if (id === "following#me") return Promise.resolve({ Item: { list: ["userA"] } });
+                return Promise.resolve({ Item: undefined });
+            }
+            if (name === "DeleteCommand") {
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                // スロットリング。適用されたかどうか分からない
+                if (id === "follow#userA#me") {
+                    return Promise.reject(Object.assign(new Error("throttled"), { name: "ProvisionedThroughputExceededException" }));
+                }
+            }
+            return Promise.resolve({});
+        });
+
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+
+        const updates = mockDdbSend.mock.calls
+            .map((c) => c[0])
+            .filter((cmd) => cmd?.constructor?.name === "UpdateCommand")
+            .map((cmd) => String(cmd.input?.Key?.id ?? ""));
+        expect(updates).not.toContain("followstats#userA");
+    });
+
     it("個別削除が1件失敗しても続行し 200 を返す（耐障害）", async () => {
         mockS3Send.mockRejectedValue(new Error("s3 down")); // すべての S3 削除が失敗
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {

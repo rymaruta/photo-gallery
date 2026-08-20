@@ -93,3 +93,35 @@ export function sanitizeDescription(v: unknown): Photo["description"] | undefine
     }
     return undefined;
 }
+
+
+/**
+ * 保存済みの値と、これから書く値が同じか。
+ *
+ * 「静的ページを作り直すか」の判定に使う。以前は「キーが body にあるか」
+ * だけを見ていたが、/user/edit も /admin/edit も**保存のたびに全項目を
+ * 送る**ので、何も変えずに保存しただけで毎回ビルドを頼んでいた。
+ * ビルドは1回8分で、Actions の枠は月2,000分しかない。
+ *
+ * キーの順番は DynamoDB を通ると変わり得るので JSON 文字列の比較では
+ * 足りない。配列は順番が意味を持つ（タグの並び）ので順番も見る。
+ */
+export function sameStoredValue(a: unknown, b: unknown): boolean {
+    if (a === b) return true;
+    // undefined と null は「無い」として同じ扱い（クリアは REMOVE になる）
+    if (a === undefined || a === null) return b === undefined || b === null;
+    if (b === undefined || b === null) return false;
+    if (Array.isArray(a) || Array.isArray(b)) {
+        if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+        return a.every((v, i) => sameStoredValue(v, b[i]));
+    }
+    if (typeof a === "object" && typeof b === "object") {
+        const ao = a as Record<string, unknown>;
+        const bo = b as Record<string, unknown>;
+        const ak = Object.keys(ao).filter((k) => ao[k] !== undefined);
+        const bk = Object.keys(bo).filter((k) => bo[k] !== undefined);
+        if (ak.length !== bk.length) return false;
+        return ak.every((k) => k in bo && sameStoredValue(ao[k], bo[k]));
+    }
+    return false;
+}

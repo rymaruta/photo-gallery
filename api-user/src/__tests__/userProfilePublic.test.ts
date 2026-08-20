@@ -93,3 +93,58 @@ describe("toPublicProfile: 曲まわりのURL", () => {
         expect(out.songs).toBeUndefined();
     });
 });
+
+// 保存側: 旧ルール時代の（許可ホストでない）曲だけが残っている人の
+// 「曲を減らして保存」。
+//
+// 「全部弾かれたら触らない」だけにすると、消したはずの曲が残り続ける
+// ——画面は「保存しました」と出すのに、開き直すと元どおり。
+// かといって常に反映すると、自己紹介文だけ直した保存でプレイリストが
+// 丸ごと消える（画面は既存の曲をそのまま送り返すため）。
+// 送られてきた件数が保存済みより少ないかどうかで分ける。
+describe("updateMyProfile: 旧ホストの曲が残っている人の保存", () => {
+    const legacy = (n: number) => Array.from({ length: n }, (_, i) => ({
+        title: `曲${i}`, previewUrl: `https://tracker.example.com/${i}.m4a`,
+    }));
+
+    const runSave = async (stored: unknown[], sent: unknown[]) => {
+        vi.resetModules();
+        vi.stubEnv("USERS_TABLE", "users-test");
+        const { marshall } = await import("@aws-sdk/util-dynamodb");
+        vi.doMock("@aws-sdk/client-dynamodb", () => ({
+            DynamoDBClient: class {
+                send(cmd: { constructor: { name: string } }) {
+                    if (cmd.constructor.name === "GetItemCommand") {
+                        return Promise.resolve({ Item: marshall({ userId: "u1", songs: stored }) });
+                    }
+                    return Promise.resolve({});
+                }
+            },
+            GetItemCommand: class { input: unknown; constructor(i: unknown) { this.input = i; } },
+            PutItemCommand: class { input: unknown; constructor(i: unknown) { this.input = i; } },
+            DeleteItemCommand: class { input: unknown; constructor(i: unknown) { this.input = i; } },
+        }));
+        const { updateMyProfile } = await import("../userProfile");
+        return (updateMyProfile as unknown as (e: unknown) => Promise<{ statusCode: number; body: string }>)({
+            requestContext: { authorizer: { jwt: { claims: { sub: "u1" } } } },
+            body: JSON.stringify({ songs: sent }),
+        });
+    };
+
+    it("減らして送ったら、消したい意思として扱う", async () => {
+        const res = await runSave(legacy(3), legacy(1));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).songs).toEqual([]);
+    });
+
+    it("そのまま送り返しただけなら触らない（丸ごと消さない）", async () => {
+        const res = await runSave(legacy(3), legacy(3));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).songs).toHaveLength(3);
+    });
+
+    it("空配列で送れば消す", async () => {
+        const res = await runSave(legacy(3), []);
+        expect(JSON.parse(res.body).songs).toEqual([]);
+    });
+});

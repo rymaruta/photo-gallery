@@ -84,6 +84,10 @@ describe("useComments: 削除の巻き戻し", () => {
 // それを捨てて「投稿に失敗しました」とだけ出していたので、利用者は
 // 障害だと思って何度も送り直していた——そのたびにサーバーは写真と
 // 200件のコメント文書を読み直す。
+//
+// 理由は **戻り値** で渡す。state に入れて呼び出し側に読ませると、
+// 呼び出し側の関数はその描画時点の値を掴んでいるので、初回は必ず
+// 既定文、2回目に1回目の文言、とずれる（実際そうなっていた）。
 describe("useComments: 断られた理由", () => {
     const mounted = async () => {
         mockList([], 0);
@@ -92,17 +96,17 @@ describe("useComments: 断られた理由", () => {
         return result;
     };
 
-    it("サーバーの文言をそのまま持つ", async () => {
+    it("サーバーの文言をその場で返す（1回目から）", async () => {
         const result = await mounted();
         mockUserFetch.mockResolvedValue({
             ok: false, status: 429,
             json: async () => ({ error: "同じ写真へのコメントは10件までです" }),
         });
 
-        let r = "";
+        let r: Awaited<ReturnType<typeof result.current.add>> | undefined;
         await act(async () => { r = await result.current.add("もう1件"); });
-        expect(r).toBe("error");
-        expect(result.current.lastError).toBe("同じ写真へのコメントは10件までです");
+        expect(r?.status).toBe("error");
+        expect(r?.message).toBe("同じ写真へのコメントは10件までです");
     });
 
     it("文言が無ければ既定文にする", async () => {
@@ -111,23 +115,37 @@ describe("useComments: 断られた理由", () => {
             ok: false, status: 500, json: async () => { throw new Error("not json"); },
         });
 
-        await act(async () => { await result.current.add("こんにちは"); });
-        expect(result.current.lastError).toBe("投稿に失敗しました");
+        let r: Awaited<ReturnType<typeof result.current.add>> | undefined;
+        await act(async () => { r = await result.current.add("こんにちは"); });
+        expect(r?.message).toBe("投稿に失敗しました");
     });
 
-    it("次の投稿が通ったら理由は消える", async () => {
+    it("通信そのものが落ちたら、前回の理由を引きずらない", async () => {
+        const result = await mounted();
+        mockUserFetch.mockResolvedValue({
+            ok: false, status: 429, json: async () => ({ error: "同じ写真へのコメントは10件までです" }),
+        });
+        await act(async () => { await result.current.add("1件目"); });
+
+        mockUserFetch.mockRejectedValue(new Error("offline"));
+        let r: Awaited<ReturnType<typeof result.current.add>> | undefined;
+        await act(async () => { r = await result.current.add("2件目"); });
+        expect(r?.message).toBe("通信に失敗しました");
+    });
+
+    it("通ったときは理由を付けない", async () => {
         const result = await mounted();
         mockUserFetch.mockResolvedValue({
             ok: false, status: 429, json: async () => ({ error: "上限です" }),
         });
         await act(async () => { await result.current.add("1件目"); });
-        expect(result.current.lastError).toBe("上限です");
 
         mockUserFetch.mockResolvedValue({
             ok: true, json: async () => ({ comment: comment("c9") }),
         });
-        await act(async () => { await result.current.add("2件目"); });
-        expect(result.current.lastError).toBeNull();
+        let r: Awaited<ReturnType<typeof result.current.add>> | undefined;
+        await act(async () => { r = await result.current.add("2件目"); });
+        expect(r).toEqual({ status: "ok" });
         expect(result.current.items.map((c) => c.id)).toEqual(["c9"]);
     });
 });

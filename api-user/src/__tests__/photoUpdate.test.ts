@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockDdbSend = vi.hoisted(() => vi.fn());
+const mockRebuild = vi.hoisted(() => vi.fn());
 
 vi.mock("../dynamodb", () => ({
     ddb: { send: mockDdbSend },
     PHOTOS_TABLE: "photos-test",
     USER_INDEX: "userId-createdAt-index",
 }));
+vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRebuild }));
 
 import { updatePhotoVisibility, isValidYouTubeUrl } from "../photoUpdate";
 
@@ -22,7 +24,7 @@ function event(sub: string, id: string | undefined, body: unknown) {
     };
 }
 
-beforeEach(() => mockDdbSend.mockReset());
+beforeEach(() => { mockDdbSend.mockReset(); mockRebuild.mockReset().mockResolvedValue(true); });
 
 describe("updatePhotoVisibility", () => {
     it("id なしは 400", async () => {
@@ -222,5 +224,52 @@ describe("updatePhotoVisibility: 撮影日の検証", () => {
             .mockResolvedValueOnce({});
         await invoke(event("u1", "p1", { date: "2024-05-01" }));
         expect(lastUpdate().ExpressionAttributeValues[":date"]).toBe("2024-05-01T00:00:00.000Z");
+    });
+});
+
+
+// 静的ページの作り直しを頼むかどうか。
+//
+// 「キーが body にあるか」で見ていた時期があるが、それは実質「毎回」
+// だった——/user/edit は保存のたびに title/description/location/category/
+// date/tags/published を必ず全部送る。何も書き換えずに保存を2回押すだけで
+// ビルドが2本走る（1本8分・Actions の枠は月2,000分）。
+describe("updatePhotoVisibility: 静的ページの作り直し", () => {
+    const stored = {
+        id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true,
+        title: { ja: "海" }, description: { ja: ["静かだった"] },
+        location: "北海道", category: "風景", tags: ["海", "夏"],
+    };
+    const fullSave = (over: Record<string, unknown> = {}) => ({
+        title: { ja: "海" }, description: { ja: ["静かだった"] },
+        location: "北海道", category: "風景", tags: ["海", "夏"],
+        published: true, ...over,
+    });
+
+    it("同じ内容を送り直す保存では頼まない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: stored }).mockResolvedValueOnce({});
+        expect((await invoke(event("owner", "p1", fullSave()))).statusCode).toBe(200);
+        expect(mockRebuild).not.toHaveBeenCalled();
+    });
+
+    it("説明を消したら頼む（静的HTMLと JSON-LD に残るため）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: stored }).mockResolvedValueOnce({});
+        await invoke(event("owner", "p1", fullSave({ description: "" })));
+        expect(mockRebuild).toHaveBeenCalledTimes(1);
+        expect(mockRebuild.mock.calls[0][1]).toEqual({ coalesce: true });
+    });
+
+    it("公開状態を変えたら頼む", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: stored }).mockResolvedValueOnce({});
+        await invoke(event("owner", "p1", fullSave({ published: false })));
+        expect(mockRebuild).toHaveBeenCalledTimes(1);
+    });
+
+    it("写真BGMだけ変えても頼まない（静的ページに出ない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: stored }).mockResolvedValueOnce({});
+        await invoke(event("owner", "p1", {
+            song: { title: "曲", previewUrl: "https://audio-ssl.itunes.apple.com/x.m4a" },
+        }));
+        expect(mockRebuild).not.toHaveBeenCalled();
     });
 });

@@ -182,9 +182,19 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                     ConditionExpression: "attribute_exists(id)",
                 }));
             } catch (e) {
-                // 既に消えている＝前回の実行で減らし済み。二重に引かない
-                if ((e as { name?: string }).name === "ConditionalCheckFailedException") removed = false;
-                else console.error(`deleteAccount: follow marker delete failed for ${t}:`, e);
+                // どんな理由で落ちてもマーカーは残っている扱いにする。
+                //
+                // 以前は ConditionalCheckFailedException のときだけ removed を
+                // 下ろしていた。スロットリングやタイムアウトで落ちると
+                // 「マーカーは消えていないのにカウンタだけ減らす」ので、
+                // 呼び出し側が「もう一度お試しください」で再実行したとき、
+                // 今度は削除が成功して**もう一度**減る——直そうとした
+                // 二重減算がそのまま残っていた。
+                // 減らすのは「消せたと確かめられたとき」だけにする。
+                removed = false;
+                if ((e as { name?: string }).name !== "ConditionalCheckFailedException") {
+                    console.error(`deleteAccount: follow marker delete failed for ${t}:`, e);
+                }
             }
             if (removed) await decrement(`followstats#${t}`, "followers");
         }

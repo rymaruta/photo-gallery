@@ -17,8 +17,6 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
     const [count, setCount] = useState(initialCount);
     const [loading, setLoading] = useState(true);
     const [pending, setPending] = useState(false);
-    // 直近の投稿が断られた理由（サーバーの文言をそのまま出す）
-    const [lastError, setLastError] = useState<string | null>(null);
     const busyRef = useRef(false);
 
     useEffect(() => {
@@ -42,18 +40,26 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
     }, [photoId]);
 
     /**
- * 投稿の結果。`error` のときは `lastError` に理由が入る。
+ * 投稿の結果。`error` のときは `message` に理由が入る。
  *
  * サーバーは断る理由を日本語で返している（「同じ写真へのコメントは
  * 10件までです」など）が、本文を捨てて「投稿に失敗しました」とだけ
  * 出していたので、利用者は障害だと思って何度も送り直していた
  * （そのたびに写真と200件のコメント文書を読み直す）。
+ *
+ * 理由を state で渡してはいけない。呼び出し側は
+ * `const r = await add(text)` の直後に読むので、その関数が作られた
+ * 描画時点の値——つまり**1回前の理由**——を見てしまう。
+ * 初回の 429 では null のまま「投稿に失敗しました」が出て、
+ * 2回目にようやく1回目の文言が出る、という形で踏んでいた。
+ * だから理由は戻り値だけで渡す。
  */
-    const add = useCallback(async (text: string): Promise<"ok" | "auth-required" | "empty" | "error"> => {
+    type AddResult = { status: "ok" | "auth-required" | "empty" | "error"; message?: string };
+    const add = useCallback(async (text: string): Promise<AddResult> => {
         const trimmed = text.trim().slice(0, 500);
-        if (!trimmed) return "empty";
-        if (!isAuthenticated) return "auth-required";
-        if (busyRef.current) return "error";
+        if (!trimmed) return { status: "empty" };
+        if (!isAuthenticated) return { status: "auth-required" };
+        if (busyRef.current) return { status: "error" };
         busyRef.current = true;
         setPending(true);
         try {
@@ -63,19 +69,19 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
             });
             if (!res.ok) {
                 const { readApiError } = await import("../utils/api");
-                setLastError(await readApiError(res, "投稿に失敗しました"));
-                return "error";
+                return { status: "error", message: await readApiError(res, "投稿に失敗しました") };
             }
-            setLastError(null);
             const data = await res.json() as { comment?: CommentItem };
             if (data.comment) {
                 setItems((prev) => [data.comment as CommentItem, ...prev]);
                 setCount((c) => c + 1);
             }
-            return "ok";
+            return { status: "ok" };
         } catch (e) {
             log.error("comment add error:", e);
-            return "error";
+            // 通信そのものが落ちた場合も、前回の理由を残さない
+            // （無関係な失敗に「10件までです」が出ていた）
+            return { status: "error", message: "通信に失敗しました" };
         } finally {
             busyRef.current = false;
             setPending(false);
@@ -105,5 +111,5 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
         }
     }, [photoId, items, count]);
 
-    return { items, count, loading, pending, lastError, add, remove };
+    return { items, count, loading, pending, add, remove };
 }

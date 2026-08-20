@@ -235,6 +235,9 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
 
     // マイBGMプレイリスト: 各曲 previewUrl(https) と title 必須・最大5曲
     let songs: SongEntry[] | undefined;
+    // 全曲弾かれたときに「送られてきた件数」を覚えておく（0 は該当なし）。
+    // 保存済みより少なければ削除の意思とみなす（下の prev 読み込み後）。
+    let songsAllRejected = 0;
     if (Array.isArray(body.songs)) {
         const cleaned: SongEntry[] = [];
         for (const raw of body.songs.slice(0, 5)) {
@@ -254,15 +257,23 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
                 ...(trackUrl ? { trackUrl } : {}),
             });
         }
-        // 全部弾かれたときは「消す」ではなく「触らない」。
+        // 全部弾かれたときの扱い。
         //
         // 旧ルール時代に別ホストの音源を保存していた人が、自己紹介文だけ
         // 直して保存すると——画面は既存の songs をそのまま送り返すので——
         // 全曲が弾かれ、200 が返ってプレイリストが丸ごと消えていた
-        // （エラー表示も無し・復旧不能）。
-        // 本当に消したいときは空配列が送られてくるので、そちらは尊重する。
+        // （エラー表示も無し・復旧不能）。だから「そのまま送り返された」
+        // ときは触らない。
+        //
+        // ただし「触らない」を全部の場合に広げると、逆に**消せなくなる**。
+        // 3曲のうち2曲を消して保存 → 残る1曲も旧ホストで弾かれる →
+        // 「触らない」→ 3曲とも残る。画面は「保存しました」と出すのに、
+        // 開き直すと元どおり。
+        // 送られてきた数が保存済みより少なければ、それは削除の意思なので
+        // 尊重する（判定は prev を読んだあと）。
         if (cleaned.length > 0) songs = cleaned;
         else if (body.songs.length === 0) songs = [];
+        else songsAllRejected = body.songs.length;
     }
 
     // マイページのパーソナライズ
@@ -347,7 +358,9 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     apply("songTitle", "songTitle" in body, songTitle);
     apply("songArtist", "songArtist" in body, songArtist);
     apply("songTrackUrl", "songTrackUrl" in body, songTrackUrl);
-    apply("songs", "songs" in body, songs);
+    // songs の最終判断は prev を読んだあと（songsAllRejected の扱い）。
+    // ここでは「触る/触らない」だけを決める。
+    let songsAddressed = "songs" in body && songsAllRejected === 0;
     apply("tripTitles", "tripTitles" in body, tripTitles);
     apply("tripCovers", "tripCovers" in body, tripCovers);
     apply("tripSongs", "tripSongs" in body, tripSongs);
@@ -357,6 +370,18 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
 
     try {
         const prev = await getProfile(userId);
+
+        // 全曲弾かれた保存の扱い。保存済みより少ない件数が送られてきたなら
+        // 「消したい」なので空にする。同じ件数（＝画面がそのまま送り返した）
+        // なら触らない。
+        if (songsAllRejected > 0) {
+            const storedCount = Array.isArray(prev?.songs) ? prev.songs.length : 0;
+            if (songsAllRejected < storedCount) {
+                songs = [];
+                songsAddressed = true;
+            }
+        }
+        apply("songs", songsAddressed, songs);
 
         // ユーザー名の一意性を先に確保する（他人が使っていれば 409 で中断）
         if (hasUsernameKey && username && username !== prev?.username) {

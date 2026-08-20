@@ -2,7 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { UpdateCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId } from "./http";
-import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeDate } from "./sanitize";
+import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeDate, sameStoredValue } from "./sanitize";
 import { requestSiteRebuild } from "./rebuild";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 
@@ -128,8 +128,13 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
 
         // 下書き編集: キーが来ていれば、有効値は SET、空なら REMOVE（クリア）。
         // 予約語（location 等）を避けるため属性名は #プレースホルダで指定する。
+        //
+        // あわせて「本当に値が変わったか」も数える。静的ページの作り直しを
+        // 頼むかの判定に使う（下の requestSiteRebuild）。
+        let metaChanged = false;
         const applyMeta = (col: string, present: boolean, value: unknown) => {
             if (!present) return;
+            if (!sameStoredValue(value, existing.Item?.[col])) metaChanged = true;
             names[`#${col}`] = col;
             if (value === undefined || value === null || (Array.isArray(value) && value.length === 0)) {
                 removes.push(`#${col}`);
@@ -169,9 +174,13 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // かといって「指定されたら毎回」に戻すと、同じ値を送り続けるだけで
         // Actions の枠を使い切れる。だから条件は「実際に変わったか」で見つつ、
         // 対象を静的ページに載る項目まで広げ、連打は coalesce で畳む。
+        //
+        // 「キーが body にあるか」で見ていた時期があるが、それは
+        // 「毎回」と同じだった——/user/edit は保存のたびに全項目を送るので、
+        // 何も変えずに保存を2回押すだけでビルドが2本走る（1本8分・月2,000分）。
+        // metaChanged は applyMeta の中で保存済みの値と突き合わせている。
         const wasPublished = existing.Item.published !== false;
         const visibilityChanged = hasPublished && body.published !== wasPublished;
-        const metaChanged = META_KEYS.some((k) => k in body);
         if (visibilityChanged || metaChanged) {
             await requestSiteRebuild(`photo updated: ${id}`, { coalesce: true });
         }

@@ -125,4 +125,57 @@ describe("requestSiteRebuild: クールダウン", () => {
             .filter((u) => u === "REMOVE lastAt");
         expect(removes).toHaveLength(1);
     });
+
+    // 戻すのは**自分が書いた印**だけ。無条件に消していた頃は、
+    // 判定に失敗して素通しした呼び出し（何も書いていない）が失敗すると、
+    // 同じ瞬間に印を取って実際にビルドを始めた別の呼び出しの印まで
+    // 消していた——ロックが無いより弱い。
+    it("戻すときは自分が書いた印かどうかを条件に付ける", async () => {
+        globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => "bad" }) as unknown as typeof fetch;
+        const { requestSiteRebuild } = await loadWith({ REBUILD_REPO: "o/r", REBUILD_DISPATCH_TOKEN: "tok" });
+        await requestSiteRebuild("x", { coalesce: true });
+        const release = mockDdbSend.mock.calls
+            .map((c) => (c[0] as { input?: Record<string, unknown> }).input)
+            .find((i) => i?.UpdateExpression === "REMOVE lastAt");
+        expect(release?.ConditionExpression).toBe("lastAt = :mine");
+        const claim = mockDdbSend.mock.calls
+            .map((c) => (c[0] as { input?: Record<string, unknown> }).input)
+            .find((i) => String(i?.UpdateExpression ?? "").startsWith("SET lastAt"));
+        const claimed = (claim?.ExpressionAttributeValues as Record<string, unknown>)[":now"];
+        expect((release?.ExpressionAttributeValues as Record<string, unknown>)[":mine"]).toBe(claimed);
+    });
+
+    it("印を書けていない呼び出しは、他人の印を消しに行かない", async () => {
+        // 判定そのものが落ちた（＝素通しした）ケース。書いていないので戻すものも無い。
+        mockDdbSend.mockRejectedValue(new Error("ddb down"));
+        globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => "bad" }) as unknown as typeof fetch;
+        const { requestSiteRebuild } = await loadWith({ REBUILD_REPO: "o/r", REBUILD_DISPATCH_TOKEN: "tok" });
+        expect(await requestSiteRebuild("x", { coalesce: true })).toBe(false);
+        const removes = mockDdbSend.mock.calls
+            .map((c) => (c[0] as { input?: { UpdateExpression?: string } }).input?.UpdateExpression)
+            .filter((u) => u === "REMOVE lastAt");
+        expect(removes).toHaveLength(0);
+    });
+
+    // 見送りは「次の依頼が来れば一緒に走る」前提だった。その編集が最後だと、
+    // 消したはずの文言が静的HTMLに残ったままになる（定期ビルドは止めてある）。
+    it("見送ったら、見送ったことを記録する", async () => {
+        const { requestSiteRebuild } = await setup();
+        mockDdbSend.mockRejectedValueOnce(condFail());
+        expect(await requestSiteRebuild("photo updated: p1", { coalesce: true })).toBe(false);
+        const pending = mockDdbSend.mock.calls
+            .map((c) => (c[0] as { input?: Record<string, unknown> }).input)
+            .find((i) => i?.UpdateExpression === "SET pending = :r");
+        expect(pending?.Key).toEqual({ id: "rebuild#lock" });
+        expect((pending?.ExpressionAttributeValues as Record<string, unknown>)[":r"]).toBe("photo updated: p1");
+    });
+
+    it("依頼できたときは見送りの記録を下ろす", async () => {
+        const { requestSiteRebuild } = await setup();
+        expect(await requestSiteRebuild("photo updated: p1", { coalesce: true })).toBe(true);
+        const claim = mockDdbSend.mock.calls
+            .map((c) => (c[0] as { input?: Record<string, unknown> }).input)
+            .find((i) => String(i?.UpdateExpression ?? "").startsWith("SET lastAt"));
+        expect(claim?.UpdateExpression).toContain("REMOVE pending");
+    });
 });

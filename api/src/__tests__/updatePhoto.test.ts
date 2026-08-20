@@ -87,16 +87,66 @@ describe("updatePhoto", () => {
             expect(mockRebuild).not.toHaveBeenCalled();
         });
 
-        it("本文や撮影地を変えたときも頼む", async () => {
+        it("本文や撮影地を消したときも頼む", async () => {
             // 静的HTMLには本文・撮影地・EXIF・表示名入りの JSON-LD が焼き込まれている。
             // 「公開状態が変わったときだけ」に絞ると、説明に書いてしまった
             // 個人情報を消して保存しても、静的HTMLには残り続ける。
-            mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true });
-            await invoke(ev("p1", { location: "" , description: "" }));
+            mockGetPhotoById.mockResolvedValue({
+                id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true,
+                location: "北海道", description: { ja: ["最寄りは○○駅"] },
+            });
+            await invoke(ev("p1", { location: "", description: "" }));
             expect(mockRebuild).toHaveBeenCalledTimes(1);
         });
 
-        it("何も変えない保存では頼まない", async () => {
+        // 「キーが来ているか」で見ていた時期があるが、それは実質「毎回」
+        // だった——/admin/edit は保存のたびに全項目（exif 込み）を送る。
+        // 何も書き換えずに保存を押すだけでビルドが走る（1本8分・月2,000分）。
+        // 空の body で確かめても意味が無い（そんな保存は画面から起きない）。
+        it("同じ内容を送り直す保存では頼まない（画面は毎回全項目を送る）", async () => {
+            const stored = {
+                id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true,
+                title: { ja: "海", en: "Sea" },
+                description: { ja: ["静かだった"] },
+                location: "北海道",
+                category: "風景",
+                date: "2026-07-01T09:00:00.000Z",
+                tags: ["海", "夏"],
+                exif: { camera: "X100V" },
+            };
+            mockGetPhotoById.mockResolvedValue(stored);
+            await invoke(ev("p1", {
+                title: { ja: "海", en: "Sea" },
+                description: { ja: ["静かだった"] },
+                location: "北海道",
+                category: "風景",
+                date: "2026-07-01T09:00:00.000Z",
+                tags: ["海", "夏"],
+                exif: { camera: "X100V" },
+                published: true,
+            }));
+            expect(mockUpdatePhotoFields).toHaveBeenCalledTimes(1);   // 保存自体はする
+            expect(mockRebuild).not.toHaveBeenCalled();               // ビルドは頼まない
+        });
+
+        it("1項目でも中身が変われば頼む", async () => {
+            mockGetPhotoById.mockResolvedValue({
+                id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true,
+                location: "北海道", tags: ["海", "夏"],
+            });
+            await invoke(ev("p1", { location: "北海道", tags: ["海", "冬"], published: true }));
+            expect(mockRebuild).toHaveBeenCalledTimes(1);
+        });
+
+        it("タグの並び替えも「変わった」扱いにする（表示順が変わる）", async () => {
+            mockGetPhotoById.mockResolvedValue({
+                id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true, tags: ["海", "夏"],
+            });
+            await invoke(ev("p1", { tags: ["夏", "海"], published: true }));
+            expect(mockRebuild).toHaveBeenCalledTimes(1);
+        });
+
+        it("項目を指定しない保存では頼まない", async () => {
             mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true });
             await invoke(ev("p1", {}));
             expect(mockRebuild).not.toHaveBeenCalled();

@@ -47,26 +47,41 @@ async function lockTable() {
     return { ddb, PHOTOS_TABLE, UpdateCommand };
 }
 
+type Claim =
+    /** 印を書けた。`stamp` は書いた値——戻すときはこれと一致する場合だけ消す */
+    | { allowed: true; stamp: number }
+    /** 通してよいが印は書けていない（判定不能）。戻すものが無い */
+    | { allowed: true; stamp: null }
+    /** 直近に誰かが依頼済み */
+    | { allowed: false; stamp: null };
+
 /**
- * 直近に依頼していなければ印を付けて true を返す（＝自分が依頼してよい）。
+ * 直近に依頼していなければ印を付ける。
  * 条件付き書き込みなので、同時に走っても通るのは1つだけ。
+ *
+ * 「通してよいか」と「印を書けたか」は別に返す。ひとまとめにしていた頃は、
+ * 判定に失敗して素通しした（＝何も書いていない）呼び出しが、あとで
+ * releaseRebuildSlot を呼び、**別の呼び出しが取った有効な印を消して**いた。
  */
-async function claimRebuildSlot(now: number): Promise<boolean> {
+async function claimRebuildSlot(now: number): Promise<Claim> {
     try {
         const { ddb, PHOTOS_TABLE, UpdateCommand } = await lockTable();
         await ddb.send(new UpdateCommand({
             TableName: PHOTOS_TABLE,
             Key: { id: LOCK_ID },
-            UpdateExpression: "SET lastAt = :now",
+            // pending は「見送った依頼が溜まっている」印。自分が依頼するので下ろす
+            UpdateExpression: "SET lastAt = :now REMOVE pending",
             ConditionExpression: "attribute_not_exists(lastAt) OR lastAt < :cutoff",
             ExpressionAttributeValues: { ":now": now, ":cutoff": now - REBUILD_COOLDOWN_MS },
         }));
-        return true;
+        return { allowed: true, stamp: now };
     } catch (e) {
-        if ((e as { name?: string }).name === "ConditionalCheckFailedException") return false;
+        if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
+            return { allowed: false, stamp: null };
+        }
         // 判定できないときは通す。掃除が遅れる方が、掃除されないより困る
         console.error("claimRebuildSlot error:", e);
-        return true;
+        return { allowed: true, stamp: null };
     }
 }
 
@@ -74,17 +89,48 @@ async function claimRebuildSlot(now: number): Promise<boolean> {
  * 取った印を戻す。依頼そのものが失敗したのに印だけ残ると、
  * 次の依頼まで見送られて掃除が落ちる（トークン失効中に削除した分が
  * 直したあとも走らない、という形で踏む）。
+ *
+ * **自分が書いた印のときだけ**消す。無条件に消していた頃は、
+ * 判定に失敗して素通しした呼び出しの失敗が、同じ瞬間に印を取って
+ * 実際にビルドを始めた別の呼び出しの印まで消していた
+ * （＝ロックが無いより弱く、続けて2本走る）。
  */
-async function releaseRebuildSlot(): Promise<void> {
+async function releaseRebuildSlot(stamp: number): Promise<void> {
     try {
         const { ddb, PHOTOS_TABLE, UpdateCommand } = await lockTable();
         await ddb.send(new UpdateCommand({
             TableName: PHOTOS_TABLE,
             Key: { id: LOCK_ID },
             UpdateExpression: "REMOVE lastAt",
+            ConditionExpression: "lastAt = :mine",
+            ExpressionAttributeValues: { ":mine": stamp },
         }));
     } catch (e) {
+        if ((e as { name?: string }).name === "ConditionalCheckFailedException") return;
         console.error("releaseRebuildSlot error:", e);
+    }
+}
+
+/**
+ * 見送った依頼があることを記録する。
+ *
+ * 見送りは「あとでまとめて走るから捨ててよい」という前提だったが、
+ * それは**次の依頼が来れば**の話だった。その編集が最後だと、
+ * 消したはずの文言が静的HTMLと JSON-LD に残ったままになる
+ * （定期ビルドは止めてある）。印を残しておけば、次の依頼が
+ * 見送り分ごと連れて行く。
+ */
+async function markRebuildPending(reason: string): Promise<void> {
+    try {
+        const { ddb, PHOTOS_TABLE, UpdateCommand } = await lockTable();
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: LOCK_ID },
+            UpdateExpression: "SET pending = :r",
+            ExpressionAttributeValues: { ":r": reason },
+        }));
+    } catch (e) {
+        console.error("markRebuildPending error:", e);
     }
 }
 
@@ -104,10 +150,16 @@ export async function requestSiteRebuild(reason: string, options: RebuildOptions
             "REBUILD_REPO と REBUILD_DISPATCH_TOKEN を設定すると、削除後に静的ページも消えます。");
         return false;
     }
-    const claimed = options.coalesce === true;
-    if (claimed && !(await claimRebuildSlot(Date.now()))) {
-        console.log(`requestSiteRebuild: 直近に依頼済みのため見送ります（${reason}）`);
-        return false;
+    let stamp: number | null = null;
+    if (options.coalesce === true) {
+        const claim = await claimRebuildSlot(Date.now());
+        if (!claim.allowed) {
+            // 捨てずに印を残す。次の依頼がこの分ごと連れて行く
+            await markRebuildPending(reason);
+            console.log(`requestSiteRebuild: 直近に依頼済みのため見送ります（${reason}）`);
+            return false;
+        }
+        stamp = claim.stamp;
     }
     try {
         const res = await fetch(`https://api.github.com/repos/${REBUILD_REPO}/dispatches`, {
@@ -122,14 +174,14 @@ export async function requestSiteRebuild(reason: string, options: RebuildOptions
         });
         if (!res.ok) {
             console.error(`requestSiteRebuild: ${res.status} ${await res.text().catch(() => "")}`);
-            if (claimed) await releaseRebuildSlot();
+            if (stamp !== null) await releaseRebuildSlot(stamp);
             return false;
         }
         console.log(`requestSiteRebuild: 再ビルドを依頼しました（${reason}）`);
         return true;
     } catch (e) {
         console.error("requestSiteRebuild error:", e);
-        if (claimed) await releaseRebuildSlot();
+        if (stamp !== null) await releaseRebuildSlot(stamp);
         return false;
     }
 }
