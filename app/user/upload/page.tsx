@@ -9,7 +9,7 @@ import AddToHomeScreenHint from "../../components/AddToHomeScreenHint";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
 import { getCurrentSession } from "../../../lib/auth/cognito";
-import { compressImage, createThumbnail, stripJpegExif, extractDominantColor, createBlurPlaceholder, AVATAR_MAX_PX } from "../../../lib/utils/image";
+import { createThumbnail, toUploadSafeFile, UnstrippableFileError, extractDominantColor, createBlurPlaceholder, AVATAR_MAX_PX } from "../../../lib/utils/image";
 import { extractExifFromFile, extractCameraExif, reverseGeocode } from "../../../lib/utils/exif";
 import { readSharedPayload, clearSharedPayload } from "../../../lib/utils/shareStore";
 import { ROUTES } from "../../../lib/routes";
@@ -274,12 +274,19 @@ function UploadPageInner() {
         for (const item of pending) {
             updateItem(item.id, { status: "uploading", progress: 0, error: undefined });
             try {
-                let uploadFile = item.file;
-                try { uploadFile = await compressImage(item.file); }
-                catch (e) {
-                    // 圧縮失敗時は元ファイルを使うが、GPS等のメタデータは必ず除去する
-                    log.error("compress fail, stripping EXIF from original:", e);
-                    uploadFile = await stripJpegExif(item.file);
+                // メタデータを除去できたものだけ上げる（消せない形式は上げない）
+                let uploadFile: File;
+                try {
+                    uploadFile = await toUploadSafeFile(item.file);
+                } catch (e) {
+                    log.error("could not strip metadata, skipping upload:", e);
+                    updateItem(item.id, {
+                        status: "error",
+                        error: locale === "en"
+                            ? "This format can't be uploaded safely. Please save it as JPEG or PNG and try again."
+                            : "この形式は安全にアップロードできません。JPEG か PNG で保存し直してください。",
+                    });
+                    continue;
                 }
                 updateItem(item.id, { progress: 20 });
 
@@ -716,9 +723,8 @@ function UploadPageInner() {
                                     if (!avatarFile) return;
                                     setAvatarUploading(true);
                                     try {
-                                        let compressed = avatarFile;
-                                        try { compressed = await compressImage(avatarFile, AVATAR_MAX_PX, 0.9); }
-                                        catch { compressed = await stripJpegExif(avatarFile); }
+                                        // 消せない形式は上げない（アイコンも公開URLで配信される）
+                                        const compressed = await toUploadSafeFile(avatarFile, AVATAR_MAX_PX, 0.9);
                                         const { userFetch, authenticatedFetch } = await import("../../../lib/utils/api");
                                         const apiFetch = isAdminUser ? authenticatedFetch : userFetch;
                                         const res = await apiFetch("/profile/avatar/presigned-url", {
@@ -738,7 +744,14 @@ function UploadPageInner() {
                                         showToast(locale === "en" ? "Profile photo updated!" : "プロフィール写真を更新しました");
                                     } catch (e) {
                                         log.error("avatar upload error:", e);
-                                        showToast(locale === "en" ? "Upload failed" : "アップロードに失敗しました", "error");
+                                        showToast(
+                                            e instanceof UnstrippableFileError
+                                                ? (locale === "en"
+                                                    ? "This format can't be uploaded safely. Please save it as JPEG or PNG."
+                                                    : "この形式は安全にアップロードできません。JPEG か PNG で保存し直してください。")
+                                                : (locale === "en" ? "Upload failed" : "アップロードに失敗しました"),
+                                            "error",
+                                        );
                                     } finally {
                                         setAvatarUploading(false);
                                     }

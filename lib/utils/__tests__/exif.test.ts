@@ -223,3 +223,34 @@ describe("extractCameraExif", () => {
         expect((await extractCameraExif(new File(["x"], "p.jpg", { type: "image/jpeg" }))).whiteBalance).toBe("Auto");
     });
 });
+
+// exifr の pick は生タグへのフィルタとして働く。Ref タグを外すと
+//   de(deg,min,sec,ref) → "S"/"W" のときだけ符号反転
+// の ref が undefined になり、南緯・西経が正の値になる（＝地球の反対側）。
+// このテストは exifr をモックしているので符号そのものは再現できない。
+// pick に Ref が入っていることを見張るのが唯一の砦。
+describe("GPS の符号（南緯・西経）", () => {
+    const dummyFile = new File([new Uint8Array([1, 2, 3]) as BlobPart], "p.jpg", { type: "image/jpeg" });
+
+    it("pick に GPSLatitudeRef / GPSLongitudeRef を含める", async () => {
+        mockParse.mockResolvedValue({ latitude: 21.28, longitude: -157.83 });
+        await extractExifFromFile(dummyFile);
+
+        const options = mockParse.mock.calls[0][1] as { pick?: string[] };
+        expect(options.pick).toContain("GPSLatitudeRef");
+        expect(options.pick).toContain("GPSLongitudeRef");
+    });
+
+    it("負の座標（南緯・西経）をそのまま通す", async () => {
+        mockParse.mockResolvedValue({ latitude: -33.87, longitude: 151.21 }); // シドニー
+        const meta = await extractExifFromFile(dummyFile);
+        expect(meta.latitude).toBe(-33.87);
+        expect(meta.longitude).toBe(151.21);
+    });
+
+    it("西経も符号を保つ", async () => {
+        mockParse.mockResolvedValue({ latitude: 21.28, longitude: -157.83 }); // ホノルル
+        const meta = await extractExifFromFile(dummyFile);
+        expect(meta.longitude).toBe(-157.83);
+    });
+});

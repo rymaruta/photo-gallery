@@ -198,8 +198,15 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     const website = body.website?.trim().slice(0, 200) || undefined;
 
     // サイト内ユーザー名（@ハンドル）。形式・予約語を検証し、一意性は予約アイテムで担保する。
+    //
+    // 検証は「username を指定してきたとき」だけ行う。この API は部分更新なので、
+    // キーが無いリクエスト（ピン留めだけ、表示名だけ）が普通に来る。
+    // normalizeUsername は null と "" をクリアとして通す一方 undefined は
+    // 「形式が不正」として弾くため、無条件に呼ぶとそれらが全部 400 になる。
     const hasUsernameKey = "username" in body;
-    const { username, error: usernameError } = normalizeUsername(body.username);
+    const { username, error: usernameError } = hasUsernameKey
+        ? normalizeUsername(body.username)
+        : {};
     if (usernameError) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: usernameError }) };
     }

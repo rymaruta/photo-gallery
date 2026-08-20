@@ -48,6 +48,13 @@ const CAMERA_PICK = [
 ];
 const META_PICK = [
     "DateTimeOriginal", "CreateDate", "GPSLatitude", "GPSLongitude",
+    // 南緯・西経の符号はこの2つで決まる。exifr は
+    //   de(deg,min,sec,ref) → "S"/"W" のときだけ符号を反転
+    // という実装で、pick は生タグへのフィルタなので、Ref を外すと ref が
+    // undefined になり反転が効かない＝座標が常に正になる。
+    // 全ファイル読みのフォールバックは fast パスが空のときしか走らないため、
+    // 撮影日やメーカー名がある写真（ほぼ全部）は救済されない。
+    "GPSLatitudeRef", "GPSLongitudeRef",
     "latitude", "longitude", "Make", "Model",
 ];
 

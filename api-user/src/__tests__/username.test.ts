@@ -8,7 +8,7 @@ vi.mock("@aws-sdk/client-dynamodb", () => ({
     DeleteItemCommand: class {},
 }));
 
-import { normalizeUsername, USERNAME_RE, RESERVED_USERNAMES, getPublicProfile, toPublicProfile, mergeProfile } from "../userProfile";
+import { normalizeUsername, USERNAME_RE, RESERVED_USERNAMES, getPublicProfile, toPublicProfile, mergeProfile, updateMyProfile } from "../userProfile";
 import type { UserProfile } from "../userProfile";
 
 describe("normalizeUsername", () => {
@@ -200,5 +200,38 @@ describe("mergeProfile: 送られていない項目は触らない", () => {
     it("updatedAt は必ず更新する", () => {
         const out = mergeProfile(prev, "u1", {}) as Record<string, unknown>;
         expect(out.updatedAt).not.toBe("2026-01-01T00:00:00.000Z");
+    });
+});
+
+// この API は部分更新なので、username を含まないリクエスト（ピン留めだけ、
+// 表示名だけ）が普通に来る。normalizeUsername は null と "" をクリアとして
+// 通す一方 undefined は「形式が不正」として弾くため、検証を無条件に呼ぶと
+// それらが全部 400 になる。実際にピン留めが本番で全滅した。
+describe("updateMyProfile: username を送らないリクエストを弾かない", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const invoke = (body: unknown) => (updateMyProfile as any)({
+        requestContext: { authorizer: { jwt: { claims: { sub: "u1" } } } },
+        body: JSON.stringify(body),
+    }) as Promise<{ statusCode: number; body: string }>;
+
+    it("ピン留めだけ送っても 200（回帰ガード）", async () => {
+        const res = await invoke({ pinnedPhotoIds: ["p1"] });
+        expect(res.statusCode).toBe(200);
+    });
+
+    it("表示名だけ送っても 200（初回ログインの表示名保存）", async () => {
+        const res = await invoke({ displayName: "旅人" });
+        expect(res.statusCode).toBe(200);
+    });
+
+    it("username を明示的に送れば従来どおり検証する", async () => {
+        expect((await invoke({ username: "ryu hei" })).statusCode).toBe(400);
+        expect((await invoke({ username: "admin" })).statusCode).toBe(400);
+        expect((await invoke({ username: "ryuhei" })).statusCode).toBe(200);
+    });
+
+    it("空文字・null はクリア扱いで通す", async () => {
+        expect((await invoke({ username: "" })).statusCode).toBe(200);
+        expect((await invoke({ username: null })).statusCode).toBe(200);
     });
 });

@@ -10,7 +10,8 @@ import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { userFetch } from "../../../lib/utils/api";
 import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../../lib/utils/music";
-import { compressImage, AVATAR_MAX_PX, COVER_MAX_PX } from "../../../lib/utils/image";
+import { toUploadSafeFile, AVATAR_MAX_PX, COVER_MAX_PX } from "../../../lib/utils/image";
+import { log } from "../../../lib/utils/log";
 import DeleteAccountModal from "../../components/DeleteAccountModal";
 
 type SongEntry = {
@@ -177,9 +178,16 @@ export default function ProfileEditPage() {
         reader.readAsDataURL(file);
         setCoverUploading(true);
         try {
-            // 表示は横幅いっぱいの帯なので、原寸ではなく1280pxまで縮めて送る
-            let upload = file;
-            try { upload = await compressImage(file, COVER_MAX_PX, 0.85); } catch { /* 原寸で続行 */ }
+            // 表示は横幅いっぱいの帯なので、原寸ではなく1280pxまで縮めて送る。
+            // 縮小に失敗しても原寸で続行してはいけない（EXIF の GPS が公開URLに乗る）。
+            let upload: File;
+            try {
+                upload = await toUploadSafeFile(file, COVER_MAX_PX, 0.85);
+            } catch (e) {
+                log.error("cover: could not strip metadata:", e);
+                showToast("この形式は安全にアップロードできません。JPEG か PNG で保存し直してください。", "error");
+                return;
+            }
 
             const res = await userFetch("/profile/avatar/presigned-url", {
                 method: "POST",
@@ -213,9 +221,16 @@ export default function ProfileEditPage() {
 
         setAvatarUploading(true);
         try {
-            // 表示サイズに合わせて縮小（失敗したら原寸のまま送る）
-            let upload = file;
-            try { upload = await compressImage(file, AVATAR_MAX_PX, 0.85); } catch { /* 原寸で続行 */ }
+            // 表示サイズに合わせて縮小。
+            // 縮小に失敗しても原寸で続行してはいけない（EXIF の GPS が公開URLに乗る）。
+            let upload: File;
+            try {
+                upload = await toUploadSafeFile(file, AVATAR_MAX_PX, 0.85);
+            } catch (e) {
+                log.error("avatar: could not strip metadata:", e);
+                showToast("この形式は安全にアップロードできません。JPEG か PNG で保存し直してください。", "error");
+                return;
+            }
 
             // Presigned URL 取得
             const res = await userFetch("/profile/avatar/presigned-url", {

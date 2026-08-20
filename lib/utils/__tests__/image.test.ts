@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { stripJpegExif, scaleDimensions, thumbFileName } from "../image";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { stripJpegExif, scaleDimensions, thumbFileName, toUploadSafeFile, UnstrippableFileError } from "../image";
 
 // 合成 JPEG バイト列を組み立てるヘルパー
 function segment(marker: number, payload: number[]): number[] {
@@ -139,5 +139,57 @@ describe("thumbFileName", () => {
 
     it("日本語ファイル名も維持する", () => {
         expect(thumbFileName("旅の写真.jpeg", "webp")).toBe("旅の写真_thumb.webp");
+    });
+});
+
+// アップロードの入口。「EXIF を落として公開する」という前提には抜け道があった:
+//   - canvas 再エンコード（本命）は GIF・2Dコンテキスト不可・エンコード失敗で素通し
+//   - 保険の stripJpegExif は JPEG 以外では何もしない
+// PC の Chrome から HEIC を選ぶと圧縮が失敗して素通しになり、
+// GPS 入りの原本がそのまま公開URLで配信されていた。
+describe("toUploadSafeFile", () => {
+    const bytes = () => new Uint8Array([1, 2, 3]) as BlobPart;
+
+    // jsdom は画像をデコードしないので onload も onerror も鳴らない。
+    // 実ブラウザでは非対応形式で onerror が鳴るので、それを再現する。
+    beforeEach(() => {
+        vi.useFakeTimers();
+        Object.defineProperty(window.Image.prototype, "src", {
+            configurable: true,
+            set(this: HTMLImageElement) { queueMicrotask(() => this.onerror?.(new Event("error"))); },
+        });
+        window.URL.createObjectURL = () => "blob:test";
+        window.URL.revokeObjectURL = () => {};
+    });
+    afterEach(() => { vi.useRealTimers(); });
+
+    it("HEIC は上げない（Chrome ではデコードできず素通しになる形式）", async () => {
+        const heic = new File([bytes()], "IMG_0001.HEIC", { type: "image/heic" });
+        await expect(toUploadSafeFile(heic)).rejects.toBeInstanceOf(UnstrippableFileError);
+    });
+
+    it("GIF は上げない（圧縮を意図的に素通しするため EXIF が残る）", async () => {
+        const gif = new File([bytes()], "a.gif", { type: "image/gif" });
+        await expect(toUploadSafeFile(gif)).rejects.toBeInstanceOf(UnstrippableFileError);
+    });
+
+    it("MIME 不明のファイルも上げない", async () => {
+        const unknown = new File([bytes()], "a.bin", { type: "" });
+        await expect(toUploadSafeFile(unknown)).rejects.toBeInstanceOf(UnstrippableFileError);
+    });
+
+    it("JPEG は圧縮に失敗してもバイト列から EXIF を除去して通す", async () => {
+        // jsdom には canvas が無いので compressImage は必ず失敗する＝保険の経路を通る
+        const jpeg = new File([buildJpeg({ withExif: true }) as BlobPart], "p.jpg", { type: "image/jpeg" });
+        const out = await toUploadSafeFile(jpeg);
+        expect(out).not.toBe(jpeg); // 別ファイルになっている＝除去された
+        const buf = new Uint8Array(await out.arrayBuffer());
+        expect(findMarker(buf, 0xE1)).toBe(false); // APP1 が無い
+        expect(findMarker(buf, 0xE0)).toBe(true);  // JFIF は残る
+    });
+
+    it("エラーには形式が入る（原因が分かるように）", async () => {
+        const heic = new File([bytes()], "a.heic", { type: "image/heic" });
+        await expect(toUploadSafeFile(heic)).rejects.toThrow(/image\/heic/);
     });
 });
