@@ -254,7 +254,15 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
                 ...(trackUrl ? { trackUrl } : {}),
             });
         }
+        // 全部弾かれたときは「消す」ではなく「触らない」。
+        //
+        // 旧ルール時代に別ホストの音源を保存していた人が、自己紹介文だけ
+        // 直して保存すると——画面は既存の songs をそのまま送り返すので——
+        // 全曲が弾かれ、200 が返ってプレイリストが丸ごと消えていた
+        // （エラー表示も無し・復旧不能）。
+        // 本当に消したいときは空配列が送られてくるので、そちらは尊重する。
         if (cleaned.length > 0) songs = cleaned;
+        else if (body.songs.length === 0) songs = [];
     }
 
     // マイページのパーソナライズ
@@ -385,6 +393,44 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
 // DynamoDB から削除される。プロフィール画面に出るものは必ずここに含めること。
 // （tripTitles / tripCovers / tripSongs / statusText を一度落として、
 //   ピン留めするだけで旅アルバムとひとことが消える事故を起こしている）
+/**
+ * 曲まわりのURLは**返すときにも**確かめる。
+ *
+ * 書き込み側にホストの許可リストを入れたのは後からなので、それ以前に
+ * 保存された外部URLはそのまま残っている。プロフィールは未認証でも読めて、
+ * 音源は <audio preload="auto"> で先読みされ、アートワークは <img> で
+ * 読み込まれる——つまり入口を塞いだだけでは、既存データが訪問者の IP を
+ * 集め続ける。読む側でも落とせば、データの掃除も要らない。
+ */
+function withCheckedSongUrls(p: Partial<UserProfile>): Partial<UserProfile> {
+    const cleanSong = (s: SongEntry): SongEntry | null => {
+        const previewUrl = safeSongPreviewUrl(s?.previewUrl);
+        if (!previewUrl || !s?.title) return null;
+        return {
+            ...s,
+            previewUrl,
+            ...(safeSongArtworkUrl(s.artwork) ? { artwork: safeSongArtworkUrl(s.artwork) } : { artwork: undefined }),
+            ...(safeSongTrackUrl(s.trackUrl) ? { trackUrl: safeSongTrackUrl(s.trackUrl) } : { trackUrl: undefined }),
+        } as SongEntry;
+    };
+    const trips = p.tripSongs
+        ? Object.fromEntries(
+            Object.entries(p.tripSongs)
+                .map(([k, v]) => [k, cleanSong(v as SongEntry)])
+                .filter(([, v]) => v !== null) as [string, SongEntry][])
+        : undefined;
+    return {
+        ...p,
+        songPreviewUrl: safeSongPreviewUrl(p.songPreviewUrl),
+        songArtwork: safeSongArtworkUrl(p.songArtwork),
+        songTrackUrl: safeSongTrackUrl(p.songTrackUrl),
+        ...(Array.isArray(p.songs)
+            ? { songs: p.songs.map(cleanSong).filter((x): x is SongEntry => x !== null) }
+            : {}),
+        ...(trips ? { tripSongs: trips } : {}),
+    };
+}
+
 export function toPublicProfile(p: UserProfile): Partial<UserProfile> {
     const {
         userId, username, displayName, bio, instagram, website, themeColor,
@@ -392,12 +438,12 @@ export function toPublicProfile(p: UserProfile): Partial<UserProfile> {
         songPreviewUrl, songTrackUrl, songs, pinnedPhotoIds, updatedAt,
         tripTitles, tripCovers, tripSongs, statusText,
     } = p;
-    return {
+    return withCheckedSongUrls({
         userId, username, displayName, bio, instagram, website, themeColor,
         songUrl, songStart, songEnd, songTitle, songArtist, songArtwork,
         songPreviewUrl, songTrackUrl, songs, pinnedPhotoIds, updatedAt,
         tripTitles, tripCovers, tripSongs, statusText,
-    };
+    });
 }
 
 export const getPublicProfile: APIGatewayProxyHandlerV2 = async (event) => {

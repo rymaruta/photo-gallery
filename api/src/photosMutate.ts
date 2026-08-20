@@ -86,11 +86,15 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         const updates = { ...fields, updatedAt: new Date().toISOString() };
         const updated = await updatePhotoFields(id, updates);
 
-        // 公開状態が**実際に変わったとき**だけ静的ページの作り直しを頼む。
-        // 指定されただけで毎回頼むと、同じ値を送り続けるだけで
-        // Actions の枠を使い切れる（ユーザーAPI側で踏んだのと同じ）。
-        if ("published" in fields && fields.published !== (photo.published !== false)) {
-            await requestSiteRebuild(`photo visibility changed: ${id}`);
+        // 静的ページに焼かれる内容が変わったら作り直しを頼む。
+        // 「公開状態が変わったときだけ」では狭い——本文や撮影地を消しても
+        // 静的HTMLに残ってしまう。連打は coalesce で畳む
+        // （ユーザーAPI側 api-user/src/photoUpdate.ts と同じ扱い）。
+        const visibilityChanged = "published" in fields && fields.published !== (photo.published !== false);
+        const metaChanged = ["title", "description", "location", "category", "date", "tags", "exif"]
+            .some((k) => k in fields);
+        if (visibilityChanged || metaChanged) {
+            await requestSiteRebuild(`photo updated: ${id}`, { coalesce: true });
         }
 
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: updated }) };

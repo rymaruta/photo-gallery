@@ -106,19 +106,20 @@ describe("deleteAccount", () => {
         const ids = deletedDdbIds();
         expect(ids).toContain("p1");
         expect(ids).toContain("me"); // USERS_TABLE の {userId: "me"}
-        expect(ids).toContain("golist#me");
         expect(ids).toContain("notifs#me");
         expect(ids).toContain("followstats#me");
         expect(ids).toContain("following#me");
     });
 
-    it("golist の go# マーカー削除と対象写真 goCount 減算、following の follow# 削除と followers 減算", async () => {
+    // 「行きたいリスト」は書き込む経路がどこにも無い（通知の型に残っていた
+    // だけで、マーカーを作る口も UI のボタンも存在しない）。
+    // 消す側だけ持っていても、カウンタを直せるわけではないので落とした。
+    it("フォロー中の follow# を消し、相手の followers を減らす", async () => {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
             const name = cmd.constructor.name;
             if (name === "QueryCommand") return Promise.resolve({ Items: [] });
             if (name === "GetCommand") {
                 const id = String((cmd.input.Key as { id?: string }).id ?? "");
-                if (id === "golist#me") return Promise.resolve({ Item: { list: [{ photoId: "ph1" }, { photoId: "ph2" }] } });
                 if (id === "following#me") return Promise.resolve({ Item: { list: ["userA", "userB"] } });
                 return Promise.resolve({ Item: undefined });
             }
@@ -129,22 +130,47 @@ describe("deleteAccount", () => {
         expect(res.statusCode).toBe(200);
 
         const ids = deletedDdbIds();
-        // go マーカー
-        expect(ids).toContain("go#ph1#me");
-        expect(ids).toContain("go#ph2#me");
-        // follow マーカー
         expect(ids).toContain("follow#userA#me");
         expect(ids).toContain("follow#userB#me");
 
-        // goCount / followers の減算 Update が対象キーに対して送られている
         const updates = mockDdbSend.mock.calls
             .map((c) => c[0])
             .filter((cmd) => cmd?.constructor?.name === "UpdateCommand")
             .map((cmd) => String(cmd.input?.Key?.id ?? ""));
-        expect(updates).toContain("ph1");
-        expect(updates).toContain("ph2");
         expect(updates).toContain("followstats#userA");
         expect(updates).toContain("followstats#userB");
+    });
+
+    // 退会は直列で最大2000件回るので途中で実行時間を使い切ることがあり、
+    // 画面は「もう一度お試しください」と出す。二度目の実行で、既に消えた
+    // マーカーの分まで**もう一度**減らすと、他人のフォロワー数が実際より
+    // 小さくなる（相手には直す手段が無い）。
+    it("マーカーが既に無ければ相手のカウンタを減らさない（再実行で引きすぎない）", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                if (id === "following#me") return Promise.resolve({ Item: { list: ["userA"] } });
+                return Promise.resolve({ Item: undefined });
+            }
+            if (name === "DeleteCommand") {
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                // 前回の実行で消えている
+                if (id === "follow#userA#me") {
+                    return Promise.reject(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
+                }
+            }
+            return Promise.resolve({});
+        });
+
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+
+        const updates = mockDdbSend.mock.calls
+            .map((c) => c[0])
+            .filter((cmd) => cmd?.constructor?.name === "UpdateCommand")
+            .map((cmd) => String(cmd.input?.Key?.id ?? ""));
+        expect(updates).not.toContain("followstats#userA");
     });
 
     it("個別削除が1件失敗しても続行し 200 を返す（耐障害）", async () => {

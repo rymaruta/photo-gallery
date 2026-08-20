@@ -76,11 +76,14 @@ describe("usePhotoLikes", () => {
         expect(mockUserFetch).toHaveBeenCalledWith("/photos/p1/like", { method: "DELETE" });
     });
 
-    it("未ログイン時はローカルのみ変更しサーバーを呼ばない", async () => {
+    it("未ログイン時はローカルのみ変更し、公開の件数は動かさない", async () => {
+        // 動かしていた頃は、42いいねの写真でハートを押すと「43」に見え、
+        // もう一度押すと「42」に戻った——サーバーには何も送っていないので、
+        // 公開の数字を勝手に上下させているだけだった。
         const { result } = renderHook(() => usePhotoLikes("p1", 5, false));
         await act(async () => { await result.current.toggle(); });
-        expect(result.current.liked).toBe(true);
-        expect(result.current.count).toBe(6); // 楽観更新のみ
+        expect(result.current.liked).toBe(true);   // お気に入りには入る
+        expect(result.current.count).toBe(5);      // 公開の件数は動かさない
         expect(mockUserFetch).not.toHaveBeenCalled();
     });
 

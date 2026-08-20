@@ -148,6 +148,45 @@ describe("postComment", () => {
         expect(mockDdbSend).toHaveBeenCalledTimes(2);
     });
 
+    it("写真のオーナーは上限の対象外（自分の写真の会話に返信し続けられる）", async () => {
+        // 30人にお礼を書くと11人目で止まり、以後は自分のコメントを消すまで
+        // 参加できなかった。オーナーには「議論を流す」動機が無いし、
+        // 消したければ写真ごと消せる。
+        const mine = Array.from({ length: 50 }, (_, i) => ({ id: `c${i}`, uid: "owner" }));
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner" } })
+            .mockResolvedValueOnce({ Attributes: { items: mine } })
+            .mockResolvedValueOnce({});
+        expect((await invoke(postComment, ev("owner", { id: "p1" }, { text: "ありがとう" }))).statusCode).toBe(200);
+    });
+
+    it("切り詰めたら commentCount を実数に合わせる", async () => {
+        // 足すだけだったので、上限を超えて捨てた分もカウントに残り、
+        // モーダルは「250件」、個別ページは「200」と同じ写真に2つの数字が出た。
+        const stored = Array.from({ length: 201 }, (_, i) => ({ id: `c${i}`, uid: "other" }));
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner" } })
+            .mockResolvedValueOnce({ Item: { items: [] } })
+            .mockResolvedValueOnce({ Attributes: { items: stored } })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({});
+        await invoke(postComment, ev("u1", { id: "p1" }, { text: "hi" }));
+        const countUpdate = mockDdbSend.mock.calls[4][0].input;
+        expect(countUpdate.UpdateExpression).toBe("SET commentCount = :max");
+        expect(countUpdate.ExpressionAttributeValues[":max"]).toBe(200);
+    });
+
+    it("切り詰めが起きなければ従来どおり +1", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner" } })
+            .mockResolvedValueOnce({ Item: { items: [] } })
+            .mockResolvedValueOnce({ Attributes: { items: [{ id: "c1" }] } })
+            .mockResolvedValueOnce({});
+        await invoke(postComment, ev("u1", { id: "p1" }, { text: "hi" }));
+        const countUpdate = mockDdbSend.mock.calls[3][0].input;
+        expect(countUpdate.UpdateExpression).toContain("if_not_exists(commentCount, :z) + :one");
+    });
+
     it("他人のコメントは自分の上限に数えない", async () => {
         const others = Array.from({ length: 50 }, (_, i) => ({ id: `c${i}`, uid: `other${i}` }));
         mockDdbSend

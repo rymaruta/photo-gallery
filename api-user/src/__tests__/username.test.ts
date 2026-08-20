@@ -120,14 +120,14 @@ describe("toPublicProfile: 画面に出る項目を落とさない", () => {
         songTitle: "曲",
         songArtist: "人",
         songArtwork: "https://cdn/a.jpg",
-        songPreviewUrl: "https://cdn/p.m4a",
+        songPreviewUrl: "https://audio-ssl.itunes.apple.com/p.m4a",
         songTrackUrl: "https://music/x",
         songs: [],
         pinnedPhotoIds: ["p1"],
         updatedAt: "2026-08-19T00:00:00.000Z",
         tripTitles: { "trip-1": "北海道" },
         tripCovers: { "trip-1": "p1" },
-        tripSongs: { "trip-1": { title: "曲", previewUrl: "https://cdn/p.m4a" } },
+        tripSongs: { "trip-1": { title: "曲", previewUrl: "https://audio-ssl.itunes.apple.com/p.m4a" } },
         statusText: "旅に出ています",
     } as unknown as UserProfile;
 

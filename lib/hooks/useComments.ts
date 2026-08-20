@@ -17,6 +17,8 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
     const [count, setCount] = useState(initialCount);
     const [loading, setLoading] = useState(true);
     const [pending, setPending] = useState(false);
+    // 直近の投稿が断られた理由（サーバーの文言をそのまま出す）
+    const [lastError, setLastError] = useState<string | null>(null);
     const busyRef = useRef(false);
 
     useEffect(() => {
@@ -39,6 +41,14 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
         return () => { aborted = true; controller.abort(); };
     }, [photoId]);
 
+    /**
+ * 投稿の結果。`error` のときは `lastError` に理由が入る。
+ *
+ * サーバーは断る理由を日本語で返している（「同じ写真へのコメントは
+ * 10件までです」など）が、本文を捨てて「投稿に失敗しました」とだけ
+ * 出していたので、利用者は障害だと思って何度も送り直していた
+ * （そのたびに写真と200件のコメント文書を読み直す）。
+ */
     const add = useCallback(async (text: string): Promise<"ok" | "auth-required" | "empty" | "error"> => {
         const trimmed = text.trim().slice(0, 500);
         if (!trimmed) return "empty";
@@ -51,7 +61,12 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
                 method: "POST",
                 body: JSON.stringify({ text: trimmed }),
             });
-            if (!res.ok) throw new Error(String(res.status));
+            if (!res.ok) {
+                const { readApiError } = await import("../utils/api");
+                setLastError(await readApiError(res, "投稿に失敗しました"));
+                return "error";
+            }
+            setLastError(null);
             const data = await res.json() as { comment?: CommentItem };
             if (data.comment) {
                 setItems((prev) => [data.comment as CommentItem, ...prev]);
@@ -90,5 +105,5 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
         }
     }, [photoId, items, count]);
 
-    return { items, count, loading, pending, add, remove };
+    return { items, count, loading, pending, lastError, add, remove };
 }

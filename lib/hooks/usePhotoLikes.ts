@@ -109,14 +109,17 @@ export function usePhotoLikes(
         const didToggleFavorite = isFavorite(photoId) !== !wasLiked;
         if (didToggleFavorite) toggleFavorite(photoId);
         setServerLiked(!wasLiked);
-        setCount((c) => Math.max(0, c + (wasLiked ? -1 : 1)));
 
         if (!isAuthenticated) {
-            // 未ログインはローカルのみ（サーバーカウントは動かさない）
+            // 未ログインはローカルのお気に入りだけ。**表示中の件数も動かさない**。
+            // 動かしていた頃は、42いいねの写真でハートを押すと「43」に見え、
+            // もう一度押すと「42」に戻った——サーバーには何も送っていないので、
+            // 公開の数字を勝手に上下させているだけだった。
             busyRef.current = false;
             setPending(false);
             return;
         }
+        setCount((c) => Math.max(0, c + (wasLiked ? -1 : 1)));
 
         // 応答が返る頃には別の写真に送られているかもしれない。
         // serverLiked と count は写真ごとの表示なので、

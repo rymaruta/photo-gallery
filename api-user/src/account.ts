@@ -12,8 +12,7 @@ import { requestSiteRebuild } from "./rebuild";
 //   - 自分の写真/ストーリー … GSI(userId-createdAt-index) で列挙 → S3 本体 + DDB item 削除
 //   - アバター/カバー       … profiles/<uid>・profiles/<uid>/cover（決定的キー）
 //   - プロフィール          … USERS_TABLE の {userId}
-//   - 自分の各ドキュメント  … golist#/notifs#/followstats#/following#
-//   - 自分が押した「行く」   … golist の各エントリの go# マーカー削除 + 対象写真 goCount 減算
+//   - 自分の各ドキュメント  … notifs#/followstats#/following#
 //   - 自分の「フォロー中」   … following の各 target の follow# マーカー削除 + target.followers 減算
 // 1件失敗しても続行（stories cleanup と同じ耐障害方針）。最後に { ok: true }。
 //
@@ -162,26 +161,35 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         }
         await ddbDelete(USERS_TABLE, { userId: uid });
 
-        // 4. 自分が押した「行く」: golist の各エントリの go# マーカーを削除し、対象写真の goCount を戻す
-        for (const entry of await readList(`golist#${uid}`)) {
-            const photoId = typeof (entry as { photoId?: unknown })?.photoId === "string"
-                ? (entry as { photoId: string }).photoId
-                : "";
-            if (!photoId) continue;
-            await ddbDelete(PHOTOS_TABLE, { id: `go#${photoId}#${uid}` });
-            await decrement(photoId, "goCount");
-        }
-
-        // 5. 自分の「フォロー中」: following の各 target の follow# マーカーを削除し、target.followers を戻す
+        // 4. 自分の「フォロー中」: follow# マーカーを消し、消せたときだけ
+        //    相手の followers を戻す。
+        //
+        //    以前は無条件に消して無条件に減らしていた。この処理は直列で
+        //    最大2000件回るので途中で実行時間を使い切ることがあり、
+        //    しかも呼び出し側は失敗を見て「もう一度お試しください」と出す。
+        //    もう一度走ると、既に消えたマーカーの分まで**もう一度**
+        //    減らすので、**他人のフォロワー数が実際より小さくなる**
+        //    （相手には直す手段が無い。こちらはもうアカウントが無いので
+        //    フォローし直すこともできない）。
         for (const target of await readList(`following#${uid}`)) {
             const t = typeof target === "string" ? target : "";
             if (!t) continue;
-            await ddbDelete(PHOTOS_TABLE, { id: `follow#${t}#${uid}` });
-            await decrement(`followstats#${t}`, "followers");
+            let removed = true;
+            try {
+                await ddb.send(new DeleteCommand({
+                    TableName: PHOTOS_TABLE,
+                    Key: { id: `follow#${t}#${uid}` },
+                    ConditionExpression: "attribute_exists(id)",
+                }));
+            } catch (e) {
+                // 既に消えている＝前回の実行で減らし済み。二重に引かない
+                if ((e as { name?: string }).name === "ConditionalCheckFailedException") removed = false;
+                else console.error(`deleteAccount: follow marker delete failed for ${t}:`, e);
+            }
+            if (removed) await decrement(`followstats#${t}`, "followers");
         }
 
-        // 6. 自分の各ドキュメント（既知キー）
-        await ddbDelete(PHOTOS_TABLE, { id: `golist#${uid}` });
+        // 5. 自分の各ドキュメント（既知キー）
         await ddbDelete(PHOTOS_TABLE, { id: `notifs#${uid}` });
         await ddbDelete(PHOTOS_TABLE, { id: `followstats#${uid}` });
         await ddbDelete(PHOTOS_TABLE, { id: `following#${uid}` });

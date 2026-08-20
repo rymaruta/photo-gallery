@@ -22,15 +22,30 @@ const REBUILD_REPO = process.env.REBUILD_REPO ?? "";
 const REBUILD_TOKEN = process.env.REBUILD_DISPATCH_TOKEN ?? "";
 
 /**
- * 依頼の最短間隔。
+ * 依頼の最短間隔（`coalesce` を指定したときだけ効く）。
  *
- * ビルドは1回およそ8分で、GitHub Actions の枠は月あたり有限。
- * 削除は本来まれだが、まとめて何枚も消せば依頼も同じ数だけ飛ぶ。
- * 1回動けば「その時点の全データ」で作り直されるので、短時間に
- * 何度も回す意味は無い。最初の1回だけ通して、あとは見送る。
+ * ここは一度作りを誤った。すべての依頼に一律でクールダウンをかけたところ、
+ * 当たった依頼は**見送られるだけで後から実行されない**ので、
+ * 「12:00 に写真削除 → 12:04 に別の人が退会」だと退会分の掃除が
+ * 永久に走らなくなった（定期ビルドは止めてある。本人はもうアカウントが
+ * 無いので手動実行もできない）。
+ *
+ * 連打の畳み込みは**ワークフロー側で既に済んでいる**——同じ
+ * concurrency グループで待機中の実行は GitHub が常に1つにまとめ、
+ * その1本は最新のデータで走る。だからここで要るのは
+ * 「データを壊さずに何度でも起こせる操作」を抑えることだけ。
+ *
+ *   - 削除・退会 … 実データを1件消さないと起こせない → 素通し
+ *   - 公開状態や本文の編集 … 何度でも押せる → coalesce する
  */
 const REBUILD_COOLDOWN_MS = 10 * 60 * 1000;
 const LOCK_ID = "rebuild#lock";
+
+async function lockTable() {
+    const { ddb, PHOTOS_TABLE } = await import("./dynamodb");
+    const { UpdateCommand } = await import("@aws-sdk/lib-dynamodb");
+    return { ddb, PHOTOS_TABLE, UpdateCommand };
+}
 
 /**
  * 直近に依頼していなければ印を付けて true を返す（＝自分が依頼してよい）。
@@ -38,8 +53,7 @@ const LOCK_ID = "rebuild#lock";
  */
 async function claimRebuildSlot(now: number): Promise<boolean> {
     try {
-        const { ddb, PHOTOS_TABLE } = await import("./dynamodb");
-        const { UpdateCommand } = await import("@aws-sdk/lib-dynamodb");
+        const { ddb, PHOTOS_TABLE, UpdateCommand } = await lockTable();
         await ddb.send(new UpdateCommand({
             TableName: PHOTOS_TABLE,
             Key: { id: LOCK_ID },
@@ -56,14 +70,42 @@ async function claimRebuildSlot(now: number): Promise<boolean> {
     }
 }
 
+/**
+ * 取った印を戻す。依頼そのものが失敗したのに印だけ残ると、
+ * 次の依頼まで見送られて掃除が落ちる（トークン失効中に削除した分が
+ * 直したあとも走らない、という形で踏む）。
+ */
+async function releaseRebuildSlot(): Promise<void> {
+    try {
+        const { ddb, PHOTOS_TABLE, UpdateCommand } = await lockTable();
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: LOCK_ID },
+            UpdateExpression: "REMOVE lastAt",
+        }));
+    } catch (e) {
+        console.error("releaseRebuildSlot error:", e);
+    }
+}
+
+type RebuildOptions = {
+    /**
+     * true なら直近の依頼があるとき見送る。
+     * 「何度でも無料で起こせる操作」にだけ付けること。
+     * 削除・退会に付けてはいけない——その分の掃除が永久に落ちる。
+     */
+    coalesce?: boolean;
+};
+
 /** 呼び出し元を止めない。成否だけ返す（ログ用） */
-export async function requestSiteRebuild(reason: string): Promise<boolean> {
+export async function requestSiteRebuild(reason: string, options: RebuildOptions = {}): Promise<boolean> {
     if (!REBUILD_REPO || !REBUILD_TOKEN) {
         console.warn(`requestSiteRebuild: 未設定のため再ビルドを頼めません（${reason}）。` +
             "REBUILD_REPO と REBUILD_DISPATCH_TOKEN を設定すると、削除後に静的ページも消えます。");
         return false;
     }
-    if (!(await claimRebuildSlot(Date.now()))) {
+    const claimed = options.coalesce === true;
+    if (claimed && !(await claimRebuildSlot(Date.now()))) {
         console.log(`requestSiteRebuild: 直近に依頼済みのため見送ります（${reason}）`);
         return false;
     }
@@ -80,12 +122,14 @@ export async function requestSiteRebuild(reason: string): Promise<boolean> {
         });
         if (!res.ok) {
             console.error(`requestSiteRebuild: ${res.status} ${await res.text().catch(() => "")}`);
+            if (claimed) await releaseRebuildSlot();
             return false;
         }
         console.log(`requestSiteRebuild: 再ビルドを依頼しました（${reason}）`);
         return true;
     } catch (e) {
         console.error("requestSiteRebuild error:", e);
+        if (claimed) await releaseRebuildSlot();
         return false;
     }
 }

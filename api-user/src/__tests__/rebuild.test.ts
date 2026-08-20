@@ -11,7 +11,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // 失敗させてはいけない。「消えたけど掃除は後回し」は許容できるが、
 // 「消せませんでした」と言いながらデータは半分消えた、は許容できない。
 
+// クールダウンの判定は DynamoDB を叩く。モックしないと、テストが
+// 実エンドポイントへ発射して遅く・不安定になる（資格情報が無いと
+// 数秒かけて失敗し、fail-open で「通った」ことになる）。
+const mockDdbSend = vi.hoisted(() => vi.fn());
+vi.mock("../dynamodb", () => ({ ddb: { send: mockDdbSend }, PHOTOS_TABLE: "photos-test" }));
+
 const originalFetch = globalThis.fetch;
+const condFail = () => Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" });
 
 async function loadWith(env: Record<string, string | undefined>) {
     vi.resetModules();
@@ -22,7 +29,7 @@ async function loadWith(env: Record<string, string | undefined>) {
     return import("../rebuild");
 }
 
-beforeEach(() => { vi.unstubAllEnvs(); });
+beforeEach(() => { vi.unstubAllEnvs(); mockDdbSend.mockReset().mockResolvedValue({}); });
 afterEach(() => { globalThis.fetch = originalFetch; vi.unstubAllEnvs(); });
 
 describe("requestSiteRebuild", () => {
@@ -70,5 +77,52 @@ describe("requestSiteRebuild", () => {
         globalThis.fetch = vi.fn().mockRejectedValue(new Error("network down")) as unknown as typeof fetch;
         const { requestSiteRebuild } = await loadWith({ REBUILD_REPO: "o/r", REBUILD_DISPATCH_TOKEN: "tok" });
         expect(await requestSiteRebuild("test")).toBe(false);
+    });
+});
+
+
+// クールダウンは一度作りを誤った。すべての依頼に一律でかけたところ、
+// 当たった依頼は**見送られるだけで後から実行されない**ので、
+// 「12:00 に写真削除 → 12:04 に別の人が退会」だと退会分の掃除が
+// 永久に走らなくなった（定期ビルドは止めてあり、本人はもうアカウントが
+// 無いので手動実行もできない）。
+// 連打の畳み込みはワークフロー側で済んでいるので、ここで要るのは
+// 「データを壊さずに何度でも起こせる操作」を抑えることだけ。
+describe("requestSiteRebuild: クールダウン", () => {
+    const setup = async () => {
+        globalThis.fetch = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
+        return loadWith({ REBUILD_REPO: "o/r", REBUILD_DISPATCH_TOKEN: "tok" });
+    };
+
+    it("削除・退会は畳まない（指定しなければ素通し）", async () => {
+        const { requestSiteRebuild } = await setup();
+        mockDdbSend.mockRejectedValue(condFail());   // 直近に依頼済みでも
+        expect(await requestSiteRebuild("photo deleted: p1")).toBe(true);
+        expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("coalesce を指定したときだけ、直近の依頼があれば見送る", async () => {
+        const { requestSiteRebuild } = await setup();
+        mockDdbSend.mockRejectedValue(condFail());
+        expect(await requestSiteRebuild("photo updated: p1", { coalesce: true })).toBe(false);
+        expect(globalThis.fetch).not.toHaveBeenCalled();
+    });
+
+    it("直近の依頼が無ければ通す", async () => {
+        const { requestSiteRebuild } = await setup();
+        expect(await requestSiteRebuild("photo updated: p1", { coalesce: true })).toBe(true);
+        expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("依頼そのものが失敗したら印を戻す（次の依頼を巻き添えにしない）", async () => {
+        // トークン失効中に削除 → 印だけ残ると、直したあとも次の依頼が
+        // 見送られて掃除が落ちる。
+        globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => "bad" }) as unknown as typeof fetch;
+        const { requestSiteRebuild } = await loadWith({ REBUILD_REPO: "o/r", REBUILD_DISPATCH_TOKEN: "tok" });
+        expect(await requestSiteRebuild("x", { coalesce: true })).toBe(false);
+        const removes = mockDdbSend.mock.calls
+            .map((c) => (c[0] as { input?: { UpdateExpression?: string } }).input?.UpdateExpression)
+            .filter((u) => u === "REMOVE lastAt");
+        expect(removes).toHaveLength(1);
     });
 });

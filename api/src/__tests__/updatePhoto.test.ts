@@ -80,19 +80,32 @@ describe("updatePhoto", () => {
             expect(mockRebuild).toHaveBeenCalledTimes(1);
         });
 
-        it("同じ値を送っても頼まない（枠を使い切らせない）", async () => {
-            // 指定されただけで毎回頼むと、同じ値を送り続けるだけで
-            // GitHub Actions の枠を使い切れる（ユーザーAPI側で踏んだのと同じ）。
+        it("公開状態が同じで他も変えなければ頼まない", async () => {
             mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true });
             await invoke(ev("p1", { published: true }));
             await invoke(ev("p1", { published: true }));
             expect(mockRebuild).not.toHaveBeenCalled();
         });
 
-        it("公開状態を触らない編集では頼まない", async () => {
+        it("本文や撮影地を変えたときも頼む", async () => {
+            // 静的HTMLには本文・撮影地・EXIF・表示名入りの JSON-LD が焼き込まれている。
+            // 「公開状態が変わったときだけ」に絞ると、説明に書いてしまった
+            // 個人情報を消して保存しても、静的HTMLには残り続ける。
             mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true });
-            await invoke(ev("p1", { location: "北海道" }));
+            await invoke(ev("p1", { location: "" , description: "" }));
+            expect(mockRebuild).toHaveBeenCalledTimes(1);
+        });
+
+        it("何も変えない保存では頼まない", async () => {
+            mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true });
+            await invoke(ev("p1", {}));
             expect(mockRebuild).not.toHaveBeenCalled();
+        });
+
+        it("連打で枠を使い切らせないよう畳む指定を付ける", async () => {
+            mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true });
+            await invoke(ev("p1", { published: false }));
+            expect(mockRebuild.mock.calls[0][1]).toEqual({ coalesce: true });
         });
 
         it("published が未設定の写真（＝公開扱い）を非公開にしたら頼む", async () => {

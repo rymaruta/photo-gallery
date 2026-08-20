@@ -34,14 +34,20 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
     // その間にリンクを押すとログインページ経由で別の場所へ飛ばされる。
     const { isAuthenticated, userId, loading: authLoading } = useAuth();
     const { showToast } = useToast();
-    const { items, count, loading, pending, add, remove } = useComments(photoId, isAuthenticated, initialCount);
+    const { items, count, loading, pending, lastError, add, remove } = useComments(photoId, isAuthenticated, initialCount);
     const [text, setText] = useState("");
 
     const submit = async () => {
         const r = await add(text);
         if (r === "ok") { setText(""); }
         else if (r === "auth-required") showToast(locale === "en" ? "Log in to comment" : "コメントするにはログインしてください", "info");
-        else if (r === "error") showToast(locale === "en" ? "Failed to post" : "投稿に失敗しました", "error");
+        // 断られた理由はサーバーが日本語で返している
+        // （「同じ写真へのコメントは10件までです」など）。
+        // 一律「投稿に失敗しました」だと障害だと思って送り直され、
+        // そのたびに写真と200件のコメント文書を読み直すことになる。
+        else if (r === "error") {
+            showToast(lastError ?? (locale === "en" ? "Failed to post" : "投稿に失敗しました"), "error");
+        }
     };
 
     return (

@@ -157,16 +157,23 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             ExpressionAttributeValues: values,
             ...(Object.keys(names).length ? { ExpressionAttributeNames: names } : {}),
         }));
-        // 公開状態が**実際に変わったとき**だけ静的ページの掃除を頼む。
+        // 静的ページに焼かれる内容が変わったら、作り直しを頼む。
         //
-        // 「published が指定されていたら毎回」だと、同じ値を送り続けるだけで
-        // 再ビルドを何度でも起こせた。1回8分かかるので、1分おきに叩けば
-        // 30分ほどで GitHub Actions の枠を使い切る——枠が尽きると
-        // **この不具合の修正を含め、あらゆるデプロイができなくなる**。
-        // 自分の写真1枚あれば誰でもできた。
+        // 一度「published が実際に変わったときだけ」に絞ったが、これは狭すぎた。
+        // この口は下書き編集（タイトル・説明・撮影地・タグ・日付）も通り、
+        // /user/edit は保存のたびに published を必ず同梱する。つまり
+        // 「説明に書いてしまった自宅の最寄り駅を消して保存」しても
+        // published は変わらないので依頼されず、**消したはずの文言が
+        // /photo/<id> の静的HTMLと JSON-LD に残り続ける**。
+        //
+        // かといって「指定されたら毎回」に戻すと、同じ値を送り続けるだけで
+        // Actions の枠を使い切れる。だから条件は「実際に変わったか」で見つつ、
+        // 対象を静的ページに載る項目まで広げ、連打は coalesce で畳む。
         const wasPublished = existing.Item.published !== false;
-        if (hasPublished && body.published !== wasPublished) {
-            await requestSiteRebuild(`photo visibility changed: ${id}`);
+        const visibilityChanged = hasPublished && body.published !== wasPublished;
+        const metaChanged = META_KEYS.some((k) => k in body);
+        if (visibilityChanged || metaChanged) {
+            await requestSiteRebuild(`photo updated: ${id}`, { coalesce: true });
         }
 
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };

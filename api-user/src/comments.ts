@@ -99,10 +99,17 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             return jsonError(404, "写真が見つかりません");
         }
 
-        // 自分がこの写真に何件書いているか（上限の輪を1人で埋めさせない）
-        const existing = await readComments(photoId);
-        if (existing.filter((c) => c.uid === uid).length >= COMMENTS_MAX_PER_USER) {
-            return jsonError(429, `同じ写真へのコメントは${COMMENTS_MAX_PER_USER}件までです`);
+        // 自分がこの写真に何件書いているか（上限の輪を1人で埋めさせない）。
+        // 写真のオーナーは対象外——自分の写真の会話に返信し続けられなくなる
+        // （30人にお礼を書くと11人目で止まり、以後は自分のコメントを消すまで
+        // 参加できなかった）。オーナーには「議論を流す」動機が無いし、
+        // 消したければ写真ごと消せる。
+        const isOwner = photo.userId === uid;
+        if (!isOwner) {
+            const existing = await readComments(photoId);
+            if (existing.filter((c) => c.uid === uid).length >= COMMENTS_MAX_PER_USER) {
+                return jsonError(429, `同じ写真へのコメントは${COMMENTS_MAX_PER_USER}件までです`);
+            }
         }
 
         const comment: Comment = {
@@ -134,7 +141,9 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // 「読んだときと同じ長さのままなら書く」条件を付けて、外れたら諦める
         // ——次の投稿がまた切り詰めるので、放っておいて問題ない。
         const stored = appended.Attributes?.items;
+        let trimmed = false;
         if (Array.isArray(stored) && stored.length > COMMENTS_MAX) {
+            trimmed = true;
             await ddb.send(new UpdateCommand({
                 TableName: PHOTOS_TABLE,
                 Key: { id: commentsId(photoId) },
@@ -151,13 +160,25 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             });
         }
 
-        // 写真の commentCount +1
+        // 写真の commentCount を更新する。
+        //
+        // 切り詰めが起きたときは「+1」ではなく実数（＝上限）に合わせる。
+        // 足すだけだったので、上限を超えて捨てた分もカウントに残り、
+        // モーダルは「コメント 250件」、個別ページは「200」と**同じ写真に
+        // 2つの数字**が出ていた。全部消すと 50件のまま残りもした。
         await ddb.send(new UpdateCommand({
             TableName: PHOTOS_TABLE,
             Key: { id: photoId },
-            UpdateExpression: "SET commentCount = if_not_exists(commentCount, :z) + :one",
+            ...(trimmed
+                ? {
+                    UpdateExpression: "SET commentCount = :max",
+                    ExpressionAttributeValues: { ":max": COMMENTS_MAX },
+                }
+                : {
+                    UpdateExpression: "SET commentCount = if_not_exists(commentCount, :z) + :one",
+                    ExpressionAttributeValues: { ":z": 0, ":one": 1 },
+                }),
             ConditionExpression: "attribute_exists(id)",
-            ExpressionAttributeValues: { ":z": 0, ":one": 1 },
         })).catch(() => { /* 写真が消えていても本文は保存済み */ });
 
         // 写真オーナーへ通知（自分の写真は除く）

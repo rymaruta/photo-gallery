@@ -136,9 +136,18 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
 
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: true, likes }) };
         } catch (e) {
-            // 存在しない / 非公開（下書き・ストーリー）→ マーカーを巻き戻して 404
+            // カウンタを増やせなかったら、先に書いたマーカーを必ず戻す。
+            //
+            // 以前は ConditionalCheckFailedException のときだけ戻していた。
+            // スロットリングやタイムアウトで落ちるとマーカーだけが残り、
+            // サーバーは「いいね済み」、カウンタは増えていない、という
+            // 食い違いが**恒久的に**残った。次に取り消すと、増えていない分を
+            // 減らすので公開の数字が実際より小さくなる（直す手段が無い）。
+            await ddb.send(new DeleteCommand({
+                TableName: PHOTOS_TABLE, Key: { id: markerId(photoId, userId) },
+            })).catch(() => { /* 戻せなくてもこれ以上できることは無い */ });
+            // 存在しない / 非公開（下書き・ストーリー）
             if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
-                await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: markerId(photoId, userId) } })).catch(() => { /* ignore */ });
                 return jsonError(404, "写真が見つかりません");
             }
             throw e;
@@ -183,10 +192,18 @@ export const unlikePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             const likes = (res.Attributes?.likes as number | undefined) ?? 0;
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: false, likes }) };
         } catch (e) {
-            // likes が既に0 or 写真なし → 現在数（0）を返す
+            // likes が既に0 or 写真なし → 現在数（0）を返す。
+            // この場合は「減らすものが無かった」だけなので、マーカーは戻さない。
             if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: false, likes: await readLikeCount(photoId) }) };
             }
+            // それ以外（スロットリング・タイムアウトなど）はマーカーを戻す。
+            // 戻さないと「マーカーは消えたのにカウンタは減っていない」状態が
+            // 恒久的に残り、公開の数字が実際より大きいままになる。
+            await ddb.send(new PutCommand({
+                TableName: PHOTOS_TABLE,
+                Item: { id: markerId(photoId, userId), like: true, photoId, uid: userId, createdAt: new Date().toISOString() },
+            })).catch(() => { /* 戻せなくてもこれ以上できることは無い */ });
             throw e;
         }
     } catch (e) {
