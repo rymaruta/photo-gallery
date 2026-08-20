@@ -5,6 +5,7 @@ import path from "path";
 import type { Photo } from "@/lib/data/photos";
 import { siteConfig } from "@/lib/utils/seo";
 import UserProfileClient from "../UserProfileClient";
+import { withPlaceholderParam } from "../../../lib/server/staticParams";
 
 // ユーザープロフィールの静的生成版（/users/<userId>）。
 // ビルド時点の photos.json に投稿があるユーザーごとにページを生成し、
@@ -45,7 +46,8 @@ export async function generateStaticParams() {
     for (const p of photos) {
         if (p.userId && p.published !== false) ids.add(p.userId);
     }
-    return Array.from(ids).map((id) => ({ id }));
+    // ユーザーが0人でも1件は返す（空だと output: export がビルドを落とす）
+    return withPlaceholderParam(Array.from(ids).map((id) => ({ id })), "id");
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {

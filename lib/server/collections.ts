@@ -16,6 +16,7 @@ import {
     type CollectionType,
 } from "../utils/collections";
 import { siteConfig } from "../utils/seo";
+import { withPlaceholderParam } from "./staticParams";
 
 /** 静的エクスポート用: そのタイプの全 slug を列挙（列挙外のパスは 404） */
 export async function collectionStaticParams(type: CollectionType, paramKey: string) {
@@ -25,7 +26,8 @@ export async function collectionStaticParams(type: CollectionType, paramKey: str
     // `/category/風景` などもページとして残す（静的エクスポートではリダイレクトが
     // 張れず、消すとハード404になるため）。中身は統合後と同じで、canonical で寄せる。
     if (type === "category") slugs.push(...legacyCategorySlugs(photos));
-    return slugs.map((slug) => ({ [paramKey]: slug }));
+    // 写真が0件でも1件は返す（空だと output: export がビルドを落とす）
+    return withPlaceholderParam(slugs.map((slug) => ({ [paramKey]: slug })), paramKey);
 }
 
 /** ランディングページのメタデータ（title/description/canonical/OG/Twitter） */

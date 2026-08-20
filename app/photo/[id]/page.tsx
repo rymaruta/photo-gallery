@@ -5,6 +5,7 @@ import { siteConfig } from "@/lib/utils/seo";
 import { getLocalized, getLocalizedParagraphs } from "@/lib/data/photos";
 import { loadAllPhotos } from "@/lib/server/photos";
 import { sameAuthorPhotos, sameLocationPhotos, adjacentPhotos } from "@/lib/utils/related";
+import { withPlaceholderParam } from "../../../lib/server/staticParams";
 
 // 写真データを読み込む関数
 async function loadPhoto(id: string): Promise<Photo | null> {
@@ -15,11 +16,13 @@ async function loadPhoto(id: string): Promise<Photo | null> {
 // 静的生成用のパラメータ生成関数
 export async function generateStaticParams() {
     const photos = await loadAllPhotos();
-    return photos
-        .filter((photo) => photo.published !== false)
-        .map((photo) => ({
-            id: photo.id,
-        }));
+    // 写真が0件でも1件は返す（空だと output: export がビルドを落とす）
+    return withPlaceholderParam(
+        photos
+            .filter((photo) => photo.published !== false)
+            .map((photo) => ({ id: photo.id })),
+        "id",
+    );
 }
 
 // メタデータ生成
