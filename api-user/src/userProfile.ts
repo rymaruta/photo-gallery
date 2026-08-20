@@ -2,24 +2,39 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer, APIGatewayProxyHandlerV
 import { DynamoDBClient, GetItemCommand, PutItemCommand, DeleteItemCommand } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { JSON_HEADERS, getUserId } from "./http";
-import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
+import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl, SONG_URL_MAX } from "./mediaHosts";
 import { requireEnv } from "./env";
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const USERS_TABLE = requireEnv("USERS_TABLE");
 
 /**
- * 「https の URL としては正しいが、許可ホストではない」か。
+ * https の URL として**形が整っている**か。ホストは見ない。
  *
- * 旧ルール時代（ホストを見ていなかった頃）に保存された曲は必ずこの形。
- * 形そのものが壊れているもの（URLでない・http・空）と区別するために使う。
- * 区別しないと、クライアントの不具合で送られた壊れた値を
- * 「消したい意思」と読んでしまう。
+ * ホストの許可判定は safeSongPreviewUrl が持っているので、ここで
+ * 重ねてはいけない。「許可ホストでないこと」まで見る実装にすると、
+ * 呼び出し側（下の `!isWellFormedHttpsUrl(...)`）が有効な曲を
+ * 「形が壊れている」と判定し、**プレイリストの保存が全員で無言の
+ * no-op になる**。名前とコメントが実装とずれていたので直した
+ * （旧名 isLegacyHostUrl は「ホストを見ている」と読める）。
+ *
+ * ここで分けたいのは:
+ *   形が整っている + ホストが許可外 → 旧ルール時代のデータ
+ *   形が壊れている（URLでない・http・空）→ クライアントの不具合
+ * 前者は「消したい意思」の判定に数え、後者は何も触らない。
+ *
+ * 長さの切り詰めは safeSongPreviewUrl と揃える（SONG_URL_MAX）。
+ * 揃えないと、500字を超えるURLで「こちらは全文を見て整っている /
+ * あちらは先頭500字だけ見て弾く」と食い違い、同じ値の分類がぶれる。
+ *
+ * なお切り詰めた結果が「整った https の許可外ホスト」になる細工URLは、
+ * 本物の旧データと区別できない。これは塞げないが、この判定が効くのは
+ * **自分のプロフィールだけ**なので、細工して消せるのも自分の曲だけ。
  */
-function isLegacyHostUrl(v: unknown): boolean {
+function isWellFormedHttpsUrl(v: unknown): boolean {
     if (typeof v !== "string" || !v.trim()) return false;
     try {
-        return new URL(v.trim()).protocol === "https:";
+        return new URL(v.trim().slice(0, SONG_URL_MAX)).protocol === "https:";
     } catch {
         return false;
     }
@@ -274,7 +289,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
             // 残っていたので、`previewUrl: "undefined"` や `http://...` のような
             // 壊れた文字列が「旧データ」として数えられ、有効な曲を3件持つ人の
             // プレイリストが黙って全部消えた（症状は {songs:[null,null]} と同じ）。
-            if (!title || !isLegacyHostUrl(o.previewUrl)) { songsMalformed = true; continue; }
+            if (!title || !isWellFormedHttpsUrl(o.previewUrl)) { songsMalformed = true; continue; }
             if (!previewUrl) continue;
             const artist = typeof o.artist === "string" ? o.artist.trim().slice(0, 200) : "";
             const artwork = safeSongArtworkUrl(o.artwork);

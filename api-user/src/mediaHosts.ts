@@ -40,6 +40,9 @@ function hostAllowed(host: string, allowed: readonly string[]): boolean {
     return allowed.some((a) => h === a || h.endsWith(`.${a}`));
 }
 
+/** URL として見る長さの上限。userProfile.ts の形チェックと揃えること */
+export const SONG_URL_MAX = 500;
+
 function checkedUrl(v: unknown, max: number, allowed: readonly string[]): string | undefined {
     if (typeof v !== "string") return undefined;
     const s = v.trim().slice(0, max);
@@ -54,10 +57,10 @@ function checkedUrl(v: unknown, max: number, allowed: readonly string[]): string
 }
 
 /** 曲のプレビュー音源URL。許可ホスト以外は undefined */
-export const safeSongPreviewUrl = (v: unknown, max = 500) => checkedUrl(v, max, PREVIEW_HOSTS);
+export const safeSongPreviewUrl = (v: unknown, max = SONG_URL_MAX) => checkedUrl(v, max, PREVIEW_HOSTS);
 /** 曲のアートワークURL。許可ホスト以外は undefined */
-export const safeSongArtworkUrl = (v: unknown, max = 500) => checkedUrl(v, max, ARTWORK_HOSTS);
+export const safeSongArtworkUrl = (v: unknown, max = SONG_URL_MAX) => checkedUrl(v, max, ARTWORK_HOSTS);
 /** 曲ページへのリンク。許可ホスト以外は undefined */
-export const safeSongTrackUrl = (v: unknown, max = 500) => checkedUrl(v, max, TRACK_HOSTS);
+export const safeSongTrackUrl = (v: unknown, max = SONG_URL_MAX) => checkedUrl(v, max, TRACK_HOSTS);
 
 export const MEDIA_HOSTS = { PREVIEW_HOSTS, ARTWORK_HOSTS, TRACK_HOSTS } as const;

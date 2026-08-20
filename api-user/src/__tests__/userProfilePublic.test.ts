@@ -131,6 +131,39 @@ describe("updateMyProfile: 旧ホストの曲が残っている人の保存", ()
         });
     };
 
+    // 正常系。ここが空白だった。
+    //
+    // 「弾かれた理由」を分けるヒューリスティクスは全部この上に乗っているのに、
+    // 有効な曲を送って保存されることを確かめるテストが1本も無かった。
+    // 実際、形チェックの関数をコメントどおり（ホストまで見る）に直すと
+    // 保存が全ユーザーで無言の no-op になるのに、1,023件すべて通っていた。
+    it("有効な曲は保存される", async () => {
+        const sent = [
+            { title: "Song A", artist: "A", previewUrl: "https://audio-ssl.itunes.apple.com/a.m4a" },
+            { title: "Song B", previewUrl: "https://audio-ssl.itunes.apple.com/b.m4a" },
+        ];
+        const res = await runSave([], sent);
+        expect(res.statusCode).toBe(200);
+        const songs = JSON.parse(res.body).songs as { title: string; previewUrl: string }[];
+        expect(songs.map((s) => s.title)).toEqual(["Song A", "Song B"]);
+        expect(songs[0].previewUrl).toBe("https://audio-ssl.itunes.apple.com/a.m4a");
+    });
+
+    it("既存の曲を有効な曲で置き換えられる", async () => {
+        const res = await runSave(legacy(3), [
+            { title: "New", previewUrl: "https://audio-ssl.itunes.apple.com/new.m4a" },
+        ]);
+        expect(JSON.parse(res.body).songs.map((s: { title: string }) => s.title)).toEqual(["New"]);
+    });
+
+    it("有効な曲と旧ホストが混ざって送られたら、有効な方だけ残す", async () => {
+        const res = await runSave([], [
+            ...legacy(1),
+            { title: "Apple", previewUrl: "https://audio-ssl.itunes.apple.com/a.m4a" },
+        ]);
+        expect(JSON.parse(res.body).songs.map((s: { title: string }) => s.title)).toEqual(["Apple"]);
+    });
+
     it("減らして送ったら、消したい意思として扱う", async () => {
         const res = await runSave(legacy(3), legacy(1));
         expect(res.statusCode).toBe(200);
