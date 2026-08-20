@@ -29,6 +29,25 @@ const USERS_TABLE = requireEnv("USERS_TABLE");
  * その場でやり直せば通る。通らなかった分は following# に残して次に託す。
  */
 const FOLLOW_CLEANUP_ATTEMPTS = 3;
+
+/**
+ * やり直しの前に待つ時間（ミリ秒）。回を追うごとに倍にする。
+ * TransactionConflict は待てば解けるが、スロットリングは待たずに
+ * 撃ち直すと悪化する。同じループで両方を扱うので、短く待つ。
+ */
+const FOLLOW_RETRY_BASE_MS = 150;
+
+/**
+ * この時間を切ったらフォローの片付けを打ち切る（ミリ秒）。
+ *
+ * 打ち切らないと、フォローの多い人の退会で実行時間を使い切って
+ * **ハンドラが返らない**。呼び出し側は !res.ok を見て Cognito の削除に
+ * 進まないので、「写真もプロフィールも消えたのにログインできる
+ * アカウントだけが残る」——このファイルが繰り返し避けようとしている状態
+ * ——に落ちる。しかも静的ページの掃除依頼はこのループの**後ろ**にあるので、
+ * それも飛ぶ。フォロワー数のズレより、そちらを優先して残す。
+ */
+const CLEANUP_RESERVE_MS = 6000;
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET ?? "";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
@@ -185,8 +204,14 @@ async function unfollowAtomically(target: string, uid: string): Promise<boolean>
         }
         if (statsReason?.Code === "ConditionalCheckFailed") {
             // 相手の集計が無い / 既に0。減らすものが無い。
-            // （followUser は「マーカーは書けたが +1 が失敗」を作りうるので、
-            //   この組み合わせは実在する。借りていないので引かない。）
+            //
+            // 実在する主な理由は「相手が先に退会している」こと。退会は
+            // 自分の followstats# を消す一方、自分への被フォローのマーカー
+            // （follow#<自分>#<フォロワー>）は消さない（このファイル冒頭の
+            // スコープ外の項）。だから「マーカーはあるが集計が無い」が残る。
+            // followers は bumpStat が if_not_exists で必ず数値にし、
+            // 減算側は followers > 0 条件付きなので負にはならない。
+            // 0 なのは上記か過去の引きすぎで、どちらも「引かない」が正しい。
             // マーカーだけが残るので単体で消す。
             try {
                 await ddb.send(new DeleteCommand({
@@ -211,7 +236,7 @@ async function unfollowAtomically(target: string, uid: string): Promise<boolean>
 }
 
 // DELETE /user/account — 退会（認証必須・自分のデータのみ削除）
-export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event, context) => {
     const uid = getUserId(event);
     if (!uid) return jsonError(401, "認証が必要です");
 
@@ -291,17 +316,30 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // TransactionConflict——相手が人気ユーザーだと、他の人のフォロー操作と
         // ぶつかる。一度きりで諦めると、その1件は誰にも直せないまま残る
         // （この関数を呼べる人はもう存在しない）。
+        //
+        // 残り時間を見て打ち切る。掃除の依頼（下）に必ず到達させる。
+        const timeLeft = () => context?.getRemainingTimeInMillis?.() ?? Infinity;
         const following = await readList(`following#${uid}`);
         let targets = following.list
             .map((t) => (typeof t === "string" ? t : ""))
             .filter(Boolean);
         for (let attempt = 0; attempt < FOLLOW_CLEANUP_ATTEMPTS && targets.length > 0; attempt++) {
+            if (timeLeft() < CLEANUP_RESERVE_MS) {
+                console.warn(`deleteAccount: out of time; ${targets.length} follow target(s) left`);
+                break;
+            }
+            if (attempt > 0) {
+                // 待たずに撃ち直すと、スロットリング由来の失敗は悪化する
+                await new Promise((r) => setTimeout(r, FOLLOW_RETRY_BASE_MS * 2 ** (attempt - 1)));
+            }
             const failed: string[] = [];
             await mapWithConcurrency(targets, 8, async (t) => {
+                if (timeLeft() < CLEANUP_RESERVE_MS) { failed.push(t); return; }
                 if (!await unfollowAtomically(t, uid)) failed.push(t);
             });
             targets = failed;
-            if (targets.length) {
+            // 最後の回では「やり直す」と書かない（実際にはもう回らない）
+            if (targets.length && attempt < FOLLOW_CLEANUP_ATTEMPTS - 1) {
                 console.warn(`deleteAccount: retrying follow cleanup for ${targets.length} target(s)`);
             }
         }

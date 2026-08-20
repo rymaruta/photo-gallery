@@ -179,6 +179,57 @@ describe("deleteAccount", () => {
         expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
         expect(deletedDdbIds()).toContain("follow#userA#me");
         expect(deletedDdbIds()).toContain("following#me");
+        // 単体削除にも条件を付ける。無条件だと、この分岐に来る前に別経路で
+        // 消えていた場合に「消したつもり」で通る（＝取りこぼしに気づけない）
+        const del = mockDdbSend.mock.calls
+            .map((c) => c[0])
+            .find((cmd) => cmd?.constructor?.name === "DeleteCommand"
+                && cmd.input?.Key?.id === "follow#userA#me");
+        expect(del.input.ConditionExpression).toBe("attribute_exists(id)");
+    });
+
+    it("単体削除が条件不成立でも片付いた扱いにする（既に消えている）", async () => {
+        // 前回の実行で消えていた場合。ここで false にすると、
+        // やり直す当てが無いのに following# を残し続けることになる。
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                if (id === "following#me") return Promise.resolve({ Item: { list: ["userA"] } });
+                return Promise.resolve({ Item: undefined });
+            }
+            if (name === "TransactWriteCommand") {
+                return Promise.reject(cancelled(["None", "ConditionalCheckFailed"]));
+            }
+            if (name === "DeleteCommand" && String((cmd.input.Key as { id?: string }).id ?? "") === "follow#userA#me") {
+                return Promise.reject(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
+            }
+            return Promise.resolve({});
+        });
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        expect(deletedDdbIds()).toContain("following#me");   // 片付いた扱い
+    });
+
+    it("単体削除がそれ以外で落ちたら、片付いていない扱いにする", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                if (id === "following#me") return Promise.resolve({ Item: { list: ["userA"] } });
+                return Promise.resolve({ Item: undefined });
+            }
+            if (name === "TransactWriteCommand") {
+                return Promise.reject(cancelled(["None", "ConditionalCheckFailed"]));
+            }
+            if (name === "DeleteCommand" && String((cmd.input.Key as { id?: string }).id ?? "") === "follow#userA#me") {
+                return Promise.reject(Object.assign(new Error("throttled"), { name: "ThrottlingException" }));
+            }
+            return Promise.resolve({});
+        });
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        expect(deletedDdbIds()).not.toContain("following#me");   // やり直す手がかりを残す
     });
 
     it("競合（未コミット）ではマーカーを消さない——引き算が永久に消えるため", async () => {

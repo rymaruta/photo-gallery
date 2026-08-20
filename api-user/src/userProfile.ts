@@ -367,10 +367,18 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
                 ...(trackUrl ? { trackUrl } : {}),
             };
         }
-        // songs と同じ扱い。全部弾かれたときに「消す」と読んではいけない
-        // ——画面は既存の tripSongs をそのまま送り返すので、旧ホストの曲を
-        // 設定している人が自己紹介文だけ直して保存すると、旅アルバムの
-        // BGM が黙って全部消えていた（songs 側だけ直して、隣は開いたままだった）。
+        // songs と同じ扱い。全部弾かれたときに「消す」と読まない。
+        //
+        // ※ 現時点で tripSongs を送るクライアントは無い（grep 済み。
+        //   app/user/profile/page.tsx も UserProfileClient.tsx も型宣言だけで、
+        //   送信本文には入れていない）。以前ここに「画面がそのまま送り返すので
+        //   全部消えていた」と書いたが、それは songs の話で、こちらは誤り。
+        //   つまりこれは実害の記録ではなく、songs と同じ形に揃えておく
+        //   ——将来この口を使うときに同じ穴を踏まないための備え。
+        //
+        // なお songs にある「件数が減っていたら削除の意思」は付けていない。
+        // 送る側がいないので確かめようがなく、確かめられない分岐を増やしても
+        // 次に誰かが踏むだけになる。使うときに一緒に入れる。
         // 本当に消したいときは空オブジェクトが送られてくる。
         if (Object.keys(out).length > 0) tripSongs = out;
         else if (Object.keys(body.tripSongs as Record<string, unknown>).length === 0) tripSongs = {};
