@@ -184,3 +184,51 @@ describe("changedKeys", () => {
         expect(changedKeys(["_next/static/chunks/main-abc.js"], [])).toEqual([]);
     });
 });
+
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { assertNoForbiddenContent } = require("../deploy-static-site.js");
+
+// 一度、EXIF を落とす前の原本のURL（srcOriginal）が photos.json 経由で
+// 全ページのHTMLに埋まっていた。同期スクリプトと読み出し側の両方で落とす
+// ようにしたが、どちらかが将来また素通ししたときに気づける場所が無い。
+// S3 に上げる直前＝最後に止められる場所で見る。
+describe("assertNoForbiddenContent", () => {
+    // outDir はモジュール読み込み時に決まるので、実際の out/ を使って確かめる
+    it("今の出力は通る（誤検知しない）", () => {
+        if (!nodeFs.existsSync(nodePath.join(process.cwd(), "out", "index.html"))) return;
+        const files = ["index.html"];
+        expect(() => assertNoForbiddenContent(files)).not.toThrow();
+    });
+
+    it("GPS入りの原本URLが混ざっていたら止める", () => {
+        const outIndex = nodePath.join(process.cwd(), "out", "_guard_test_.html");
+        nodeFs.writeFileSync(outIndex, '<html>{"srcOriginal":"https://cdn/uploads/originals/x.jpeg"}</html>');
+        try {
+            expect(() => assertNoForbiddenContent(["_guard_test_.html"])).toThrow(/srcOriginal/);
+        } finally {
+            nodeFs.rmSync(outIndex, { force: true });
+        }
+    });
+
+    it("内部文書のIDが混ざっていたら止める", () => {
+        const f = nodePath.join(process.cwd(), "out", "_guard_test2_.html");
+        nodeFs.writeFileSync(f, '<html>notifs#abc</html>');
+        try {
+            expect(() => assertNoForbiddenContent(["_guard_test2_.html"])).toThrow(/notifs#/);
+        } finally {
+            nodeFs.rmSync(f, { force: true });
+        }
+    });
+
+    it("ハッシュ付きアセットは見ない（ビルドIDなどで誤検知しないため）", () => {
+        const f = nodePath.join(process.cwd(), "out", "_next", "_guard_test3_.js");
+        nodeFs.mkdirSync(nodePath.dirname(f), { recursive: true });
+        nodeFs.writeFileSync(f, 'var x="srcOriginal"');
+        try {
+            expect(() => assertNoForbiddenContent(["_next/_guard_test3_.js"])).not.toThrow();
+        } finally {
+            nodeFs.rmSync(f, { force: true });
+        }
+    });
+});

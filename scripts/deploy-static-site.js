@@ -377,10 +377,52 @@ async function verifyAssets(assetKeys, cfDistId) {
     }
 }
 
+/**
+ * 配ってはいけないものが出力に混ざっていないか、上げる前に見る。
+ *
+ * このサイトは「EXIF を落とし、座標は約1kmに丸めて公開する」前提で作られている。
+ * ところが一度、EXIF を落とす**前**の原本のURL（srcOriginal）が photos.json 経由で
+ * 全ページのHTMLに埋まっていた。同期スクリプトと読み出し側の両方で落とすように
+ * したが、どちらかが将来また素通ししたときに気づける場所が無い。
+ *
+ * ここは「S3 に上げる直前」＝最後に止められる場所。見つけたら止める。
+ * 設定ミスは「本番に出す」ではなく「デプロイが落ちる」に倒す。
+ */
+const FORBIDDEN_IN_OUTPUT = [
+    // EXIF を落とす前の原本（GPS が入ったまま）
+    "srcOriginal",
+    "uploads/originals",
+    // 内部文書のID。写真以外が同じテーブルに同居しているので、
+    // 出ているなら公開データの絞り込みが漏れている
+    "notifs#",
+    "comments#",
+    "followstats#",
+];
+
+function assertNoForbiddenContent(files) {
+    const hits = [];
+    for (const file of files) {
+        const key = file.split(path.sep).join("/");
+        if (!(isHtmlOrTxt(key) || key === "app/data/photos.json")) continue;
+        const text = fs.readFileSync(path.join(outDir, file), "utf8");
+        for (const needle of FORBIDDEN_IN_OUTPUT) {
+            if (text.includes(needle)) hits.push(`${key}: ${needle}`);
+        }
+    }
+    if (hits.length > 0) {
+        throw new Error(
+            "[deploy] 出力に公開してはいけない値が入っています。デプロイを中止します:\n  " +
+            hits.slice(0, 20).join("\n  ") +
+            (hits.length > 20 ? `\n  ...ほか ${hits.length - 20} 件` : ""),
+        );
+    }
+}
+
 async function main() {
     console.log(`\n[deploy] Uploading ${outDir} → s3://${bucket}/`);
 
     const allFiles = collectFiles(outDir);
+    assertNoForbiddenContent(allFiles);
     const assets = allFiles.filter(f => !isHtmlOrTxt(f));
     const htmlFiles = allFiles.filter(f => isHtmlOrTxt(f));
 
@@ -442,7 +484,9 @@ async function main() {
 }
 
 // テストから判定ロジックを検証できるようにエクスポート
-module.exports = { classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys };
+module.exports = {
+    assertNoForbiddenContent,
+    FORBIDDEN_IN_OUTPUT, classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys };
 
 if (require.main === module) main().catch(err => {
     console.error("[deploy] ERROR:", err.message ?? err);

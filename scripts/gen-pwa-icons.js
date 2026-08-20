@@ -1,6 +1,5 @@
 const sharp = require("sharp");
 const path = require("path");
-const fs = require("fs");
 
 // 出力先は「このスクリプトから見た public」。以前は特定の環境の
 // 絶対パス直書きで、別の場所にクローンすると ENOENT で落ちるか、
