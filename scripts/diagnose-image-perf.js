@@ -8,9 +8,10 @@
 
 const { DynamoDBClient, ScanCommand } = require("@aws-sdk/client-dynamodb");
 const { unmarshall } = require("@aws-sdk/util-dynamodb");
+const { requireEnv } = require("./lib/env");
 
 const REGION = "ap-northeast-1";
-const PHOTOS_TABLE = process.env.PHOTOS_TABLE ?? "prod-photo-gallery-photos";
+const PHOTOS_TABLE = requireEnv("PHOTOS_TABLE");
 const ddb = new DynamoDBClient({ region: REGION });
 
 const FIELDS = [

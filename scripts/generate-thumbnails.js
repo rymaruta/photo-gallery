@@ -14,9 +14,9 @@
  *
  * 環境変数:
  *   AWS_REGION      (default: ap-northeast-1)
- *   PHOTOS_TABLE    (default: prod-photo-gallery-photos)
- *   UPLOAD_BUCKET   (default: prod-journey-photo-upload)
- *   CLOUDFRONT_URL  (default: https://d1s3dwwzgxf5ni.cloudfront.net)
+ *   PHOTOS_TABLE    (必須)
+ *   UPLOAD_BUCKET   (必須)
+ *   CLOUDFRONT_URL  (必須)
  *
  * 冪等: thumbSrc とメタデータが揃っている写真はスキップするので何度実行しても安全。
  * サムネだけ在ってメタが無い写真は、サムネ再生成せずメタのみ補完する。
@@ -25,6 +25,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { requireEnv } = require("./lib/env");
 
 // .env.local から AWS 認証情報を読み込む（ローカル実行用。CI では環境変数で渡る）
 const envLocalPath = path.resolve(__dirname, "../.env.local");
@@ -36,9 +37,9 @@ if (fs.existsSync(envLocalPath)) {
 }
 
 const REGION = process.env.AWS_REGION ?? "ap-northeast-1";
-const TABLE = process.env.PHOTOS_TABLE ?? "prod-photo-gallery-photos";
-const BUCKET = process.env.UPLOAD_BUCKET ?? "prod-journey-photo-upload";
-const CLOUDFRONT_URL = (process.env.CLOUDFRONT_URL ?? "https://d1s3dwwzgxf5ni.cloudfront.net").replace(/\/$/, "");
+const TABLE = requireEnv("PHOTOS_TABLE");
+const BUCKET = requireEnv("UPLOAD_BUCKET");
+const CLOUDFRONT_URL = requireEnv("CLOUDFRONT_URL").replace(/\/$/, "");
 const DRY_RUN = process.env.DRY_RUN === "1";
 
 const THUMB_MAX_PX = 512;

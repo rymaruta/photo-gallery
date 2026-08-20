@@ -3,8 +3,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // NEXT_PUBLIC_ 環境変数はモジュール読み込み時に評価されるため、
 // 各テストで resetModules + 動的 import して評価し直す。
 
-const PROD_POOL_ID = "ap-northeast-1_ZbuhDQsWz";
-const PROD_CLIENT_ID = "21cs4cd8dkttmg3snloj72u8mu";
+// 本番値へのフォールバックは廃止した。値が無い・不正なら空になる。
+// 以前は本番へフォールバックしており、staging のビルドで値を渡し忘れると
+// 本番のユーザープールで認証されてしまう状態だった。
 
 async function loadConfig() {
     const mod = await import("../config");
@@ -25,9 +26,9 @@ describe("cognitoConfig - userPoolId の形式検証", () => {
         expect((await loadConfig()).userPoolId).toBe("us-east-1_AbCdEf123");
     });
 
-    it("未設定なら本番の値にフォールバック", async () => {
+    it("未設定なら空（本番へフォールバックしない）", async () => {
         vi.stubEnv("NEXT_PUBLIC_COGNITO_USER_POOL_ID", "");
-        expect((await loadConfig()).userPoolId).toBe(PROD_POOL_ID);
+        expect((await loadConfig()).userPoolId).toBe("");
     });
 
     it("末尾に改行(CRLF)が混じっていても trim して使う", async () => {
@@ -40,14 +41,14 @@ describe("cognitoConfig - userPoolId の形式検証", () => {
         expect((await loadConfig()).userPoolId).toBe("us-east-1_AbCdEf123");
     });
 
-    it("不正形式（アンダースコアなし）ならフォールバック", async () => {
+    it("不正形式（アンダースコアなし）なら空", async () => {
         vi.stubEnv("NEXT_PUBLIC_COGNITO_USER_POOL_ID", "not-a-pool-id");
-        expect((await loadConfig()).userPoolId).toBe(PROD_POOL_ID);
+        expect((await loadConfig()).userPoolId).toBe("");
     });
 
-    it("不正形式（引用符混入）ならフォールバック", async () => {
-        vi.stubEnv("NEXT_PUBLIC_COGNITO_USER_POOL_ID", '"ap-northeast-1_ZbuhDQsWz"');
-        expect((await loadConfig()).userPoolId).toBe(PROD_POOL_ID);
+    it("不正形式（引用符混入）なら空", async () => {
+        vi.stubEnv("NEXT_PUBLIC_COGNITO_USER_POOL_ID", '"us-east-1_AbCdEf123"');
+        expect((await loadConfig()).userPoolId).toBe("");
     });
 });
 
@@ -57,9 +58,9 @@ describe("cognitoConfig - clientId の形式検証", () => {
         expect((await loadConfig()).clientId).toBe("abc123def456");
     });
 
-    it("未設定なら本番の値にフォールバック", async () => {
+    it("未設定なら空（本番へフォールバックしない）", async () => {
         vi.stubEnv("NEXT_PUBLIC_COGNITO_CLIENT_ID", "");
-        expect((await loadConfig()).clientId).toBe(PROD_CLIENT_ID);
+        expect((await loadConfig()).clientId).toBe("");
     });
 
     it("改行混入は trim して使う", async () => {

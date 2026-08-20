@@ -4,6 +4,7 @@ import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { mediaKeys } from "./mediaKeys";
+import { requireEnv } from "./env";
 
 // 退会（アカウント削除）。DELETE /user/account、認証必須、呼び出し元の sub のみ対象。
 // 不可逆な破壊操作のため「確実に引ける範囲を確実に消す」方針:
@@ -20,7 +21,7 @@ import { mediaKeys } from "./mediaKeys";
 // 写真が消えれば実害は軽微（孤立マーカー + 他人側の軽微なカウント残り）で、将来の定期
 // リコンサイル（Scan バッチ）で掃除できる。
 
-const USERS_TABLE = process.env.USERS_TABLE ?? "prod-photo-gallery-users";
+const USERS_TABLE = requireEnv("USERS_TABLE");
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET ?? "";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });

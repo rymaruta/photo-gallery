@@ -13,9 +13,10 @@
 
 const { DynamoDBClient, ScanCommand } = require("@aws-sdk/client-dynamodb");
 const { unmarshall } = require("@aws-sdk/util-dynamodb");
+const { requireEnv } = require("./lib/env");
 
 const REGION = "ap-northeast-1";
-const USERS_TABLE = process.env.USERS_TABLE ?? "prod-photo-gallery-users";
+const USERS_TABLE = requireEnv("USERS_TABLE");
 const USER_API = (process.env.USER_API_BASE_URL || "https://gu7kxwdc5l.execute-api.ap-northeast-1.amazonaws.com").replace(/\/$/, "");
 const QUERY = process.env.SEARCH_QUERY || "旅人";
 

@@ -13,8 +13,12 @@ export const siteConfig = {
         ja: "ja_JP",
         en: "en_US",
     },
+    // 環境名（prod / staging）。ビルド時に注入する。robots.txt の出し分けに使う。
+    envName: process.env.NEXT_PUBLIC_ENV_NAME || "prod",
     // 計測（すべて公開情報・ページソースに出る値）。未設定なら何も出さない。
-    gaId: process.env.NEXT_PUBLIC_GA_ID || "G-7TFN1YPBE3",           // GA4 測定ID（公開情報）
+    // 既定値は置かない。以前は本番の GA4 ID が既定だったため、
+    // staging のアクセスが本番の解析に混ざる状態だった。
+    gaId: process.env.NEXT_PUBLIC_GA_ID || "",                       // GA4 測定ID（公開情報）
     plausibleDomain: process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || "", // Plausible を使う場合のドメイン（GA未使用時）
     gscVerification: process.env.NEXT_PUBLIC_GSC_VERIFICATION || "", // Google Search Console のメタタグ確認トークン
     // 問い合わせ先（プライバシーポリシーに掲載）。AdSense の審査では連絡手段が見られる。

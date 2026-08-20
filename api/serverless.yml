@@ -10,11 +10,14 @@ provider:
   runtime: nodejs22.x
   region: ap-northeast-1
 
+  # 環境ごとの値。既定値は置かない——未指定ならデプロイを失敗させる。
+  # 以前はテーブル名がリテラルの prod-... で、--stage を変えても
+  # 読み書き先が本番のままだった（ステージングを作ると本番を壊す状態）。
   environment:
-    PHOTOS_TABLE: prod-photo-gallery-photos
-    USERS_TABLE: prod-photo-gallery-users
-    UPLOAD_BUCKET: ${param:uploadBucket, 'prod-journey-photo-upload'}
-    CLOUDFRONT_URL: ${param:cloudfrontUrl, 'https://d1s3dwwzgxf5ni.cloudfront.net'}
+    PHOTOS_TABLE: ${param:photosTable}
+    USERS_TABLE: ${param:usersTable}
+    UPLOAD_BUCKET: ${param:uploadBucket}
+    CLOUDFRONT_URL: ${param:cloudfrontUrl}
 
   httpApi:
     cors: true
@@ -39,20 +42,20 @@ provider:
             - dynamodb:Scan
             - dynamodb:Query
           Resource:
-            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-photos
-            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-photos/index/*
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}/index/*
         # 登録完了時にプロフィール行を作る（PostConfirmation トリガー）
         - Effect: Allow
           Action:
             - dynamodb:PutItem
           Resource:
-            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/prod-photo-gallery-users
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable}
         # アップロード画像の管理（Presigned URL 発行・削除）
         - Effect: Allow
           Action:
             - s3:PutObject
             - s3:DeleteObject
-          Resource: arn:aws:s3:::${param:uploadBucket, 'prod-journey-photo-upload'}/*
+          Resource: arn:aws:s3:::${param:uploadBucket}/*
         # PostConfirmation トリガー: 確認済みユーザーを user グループへ追加
         - Effect: Allow
           Action:
@@ -133,7 +136,9 @@ functions:
   postConfirmation:
     handler: src/cognitoTrigger.postConfirmation
     events:
+      # ⚠️ existing: true は「既にあるプールを書き換える」。プール名を間違えると
+      # 別環境のプールのトリガーを奪う（本番の新規登録が壊れる）。既定値は置かない。
       - cognitoUserPool:
-          pool: prod-journey-photo-client-spa
+          pool: ${param:cognitoPoolName}
           trigger: PostConfirmation
           existing: true

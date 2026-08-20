@@ -1,9 +1,10 @@
 import { CognitoIdentityProviderClient, AdminAddUserToGroupCommand } from "@aws-sdk/client-cognito-identity-provider";
 import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { marshall } from "@aws-sdk/util-dynamodb";
+import { requireEnv } from "./env";
 
 const USER_GROUP = "user";
-const USERS_TABLE = process.env.USERS_TABLE ?? "prod-photo-gallery-users";
+const USERS_TABLE = requireEnv("USERS_TABLE");
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 

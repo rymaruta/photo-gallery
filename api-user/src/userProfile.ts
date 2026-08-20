@@ -1,10 +1,11 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer, APIGatewayProxyHandlerV2 } from "aws-lambda";
 import { DynamoDBClient, GetItemCommand, PutItemCommand, DeleteItemCommand } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { JSON_HEADERS, getUserId } from "./http";
+import { requireEnv } from "./env";
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
-const USERS_TABLE = process.env.USERS_TABLE ?? "prod-photo-gallery-users";
-import { JSON_HEADERS, getUserId } from "./http";
+const USERS_TABLE = requireEnv("USERS_TABLE");
 
 export type SongEntry = {
     title: string;

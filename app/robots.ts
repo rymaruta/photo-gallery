@@ -6,6 +6,11 @@ import { MetadataRoute } from "next";
 import { siteConfig } from "../lib/utils/seo";
 
 export default function robots(): MetadataRoute.Robots {
+    // 本番以外は全面的にクロールを拒否する。
+    // staging は本番と同じ内容を別URLで配信するので、拾われると重複コンテンツになる。
+    if (siteConfig.envName !== "prod") {
+        return { rules: { userAgent: "*", disallow: "/" } };
+    }
     return {
         rules: {
             userAgent: "*",

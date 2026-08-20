@@ -20,10 +20,11 @@ const {
     PutBucketLifecycleConfigurationCommand, PutPublicAccessBlockCommand,
 } = require("@aws-sdk/client-s3");
 const { CloudFrontClient, GetDistributionConfigCommand, UpdateDistributionCommand } = require("@aws-sdk/client-cloudfront");
+const { requireEnv } = require("./lib/env");
 
 const REGION = "ap-northeast-1";
-const DIST_ID = process.env.CLOUDFRONT_DISTRIBUTION_ID || "EYRLTGCPOS9E4";
-const LOG_BUCKET = process.env.LOG_BUCKET || "prod-journey-photo-cdn-logs";
+const DIST_ID = requireEnv("CLOUDFRONT_DISTRIBUTION_ID");
+const LOG_BUCKET = requireEnv("LOG_BUCKET");
 const LOG_PREFIX = "cloudfront/";
 // ログを残す日数。原因究明には十分で、これ以上持つと保管料が無駄に増える
 const RETENTION_DAYS = 30;

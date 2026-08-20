@@ -13,10 +13,11 @@
 
 const { DynamoDBClient, ScanCommand, GetItemCommand } = require("@aws-sdk/client-dynamodb");
 const { marshall, unmarshall } = require("@aws-sdk/util-dynamodb");
+const { requireEnv } = require("./lib/env");
 
 const REGION = "ap-northeast-1";
-const PHOTOS_TABLE = process.env.PHOTOS_TABLE ?? "prod-photo-gallery-photos";
-const USERS_TABLE = process.env.USERS_TABLE ?? "prod-photo-gallery-users";
+const PHOTOS_TABLE = requireEnv("PHOTOS_TABLE");
+const USERS_TABLE = requireEnv("USERS_TABLE");
 const SITE_URL = (process.env.SITE_URL || "https://journey-photo.com").replace(/\/$/, "");
 // 対象ユーザーの userId。必須。
 const OWNER_ID = (process.env.OWNER_USER_ID || "").trim();

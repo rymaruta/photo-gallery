@@ -1,11 +1,13 @@
 name: Deploy API Lambdas
 
-# main への push（api/ または api-user/ の変更時）で自動デプロイ。
-# GitHub UIの "Actions" タブから "Run workflow" で手動実行も可能。
+# main → 本番、develop → staging。api/ または api-user/ の変更時に自動デプロイ。
+# GitHub UIの "Actions" タブから "Run workflow" で手動実行も可能
+# （そのとき選んだブランチで環境が決まる）。
 on:
   push:
     branches:
       - main
+      - develop
     paths:
       - "api/**"
       - "api-user/**"
@@ -24,19 +26,72 @@ on:
 
 env:
   AWS_REGION: ap-northeast-1
-  COGNITO_USER_POOL_ID: ap-northeast-1_ZbuhDQsWz
-  COGNITO_CLIENT_ID: 21cs4cd8dkttmg3snloj72u8mu
-  PHOTOS_BUCKET: prod-journey-photo.com
-  UPLOAD_BUCKET: prod-journey-photo-upload
-  CLOUDFRONT_URL: https://d1s3dwwzgxf5ni.cloudfront.net
-  USERS_TABLE: prod-photo-gallery-users
 
 # Lambda デプロイを同時に走らせない（serverless deploy の競合を防ぐ）。
+# 環境ごとに分ける（本番の反映を staging の反映が待たされないように）。
 concurrency:
-  group: deploy-api
+  group: deploy-api-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
+  # ブランチから環境を決める。
+  # 本番の値はここに直書き（公開情報で、変わらない）。
+  # staging の値はリポジトリの Variables から取る（プロビジョニング後に登録する）。
+  # 1つでも空なら止める——空のまま進むと serverless のパラメータが空文字になり、
+  # 何が起きるか読めないため。
+  config:
+    name: Resolve environment
+    runs-on: ubuntu-latest
+    outputs:
+      envName: ${{ steps.pick.outputs.envName }}
+      photosTable: ${{ steps.pick.outputs.photosTable }}
+      usersTable: ${{ steps.pick.outputs.usersTable }}
+      uploadBucket: ${{ steps.pick.outputs.uploadBucket }}
+      cloudfrontUrl: ${{ steps.pick.outputs.cloudfrontUrl }}
+      cognitoUserPoolId: ${{ steps.pick.outputs.cognitoUserPoolId }}
+      cognitoClientId: ${{ steps.pick.outputs.cognitoClientId }}
+      cognitoPoolName: ${{ steps.pick.outputs.cognitoPoolName }}
+    steps:
+      - id: pick
+        run: |
+          set -euo pipefail
+          case "${{ github.ref_name }}" in
+            main)
+              envName=prod
+              photosTable=prod-photo-gallery-photos
+              usersTable=prod-photo-gallery-users
+              uploadBucket=prod-journey-photo-upload
+              cloudfrontUrl=https://d1s3dwwzgxf5ni.cloudfront.net
+              cognitoUserPoolId=ap-northeast-1_ZbuhDQsWz
+              cognitoClientId=21cs4cd8dkttmg3snloj72u8mu
+              cognitoPoolName=prod-journey-photo-client-spa
+              ;;
+            develop)
+              envName=staging
+              photosTable=staging-photo-gallery-photos
+              usersTable=staging-photo-gallery-users
+              uploadBucket=staging-journey-photo-upload
+              cloudfrontUrl='${{ vars.STAGING_CLOUDFRONT_URL }}'
+              cognitoUserPoolId='${{ vars.STAGING_COGNITO_USER_POOL_ID }}'
+              cognitoClientId='${{ vars.STAGING_COGNITO_CLIENT_ID }}'
+              cognitoPoolName=staging-journey-photo-client-spa
+              ;;
+            *)
+              echo "::error::${{ github.ref_name }} は環境に紐づいていません（main=本番 / develop=staging）"
+              exit 1
+              ;;
+          esac
+          for k in photosTable usersTable uploadBucket cloudfrontUrl cognitoUserPoolId cognitoClientId cognitoPoolName; do
+            v="${!k}"
+            if [ -z "$v" ]; then
+              echo "::error::$envName の $k が未設定です。リポジトリの Variables を確認してください。"
+              exit 1
+            fi
+            echo "$k=$v" >> "$GITHUB_OUTPUT"
+          done
+          echo "envName=$envName" >> "$GITHUB_OUTPUT"
+          echo "デプロイ先: $envName"
+
   # デプロイ前にバックエンドのテストを必ず通す（落ちたらデプロイされない）
   test:
     name: Run API tests
@@ -55,7 +110,7 @@ jobs:
 
   deploy-admin-api:
     name: Deploy admin API (api/)
-    needs: test
+    needs: [test, config]
     if: ${{ github.event_name == 'push' || github.event.inputs.target == 'both' || github.event.inputs.target == 'admin-api' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -82,17 +137,18 @@ jobs:
       - name: Serverless deploy
         working-directory: api
         run: |
-          npx serverless@3 deploy --stage prod \
-            --param "photosBucket=${{ env.PHOTOS_BUCKET }}" \
-            --param "uploadBucket=${{ env.UPLOAD_BUCKET }}" \
-            --param "cloudfrontUrl=${{ env.CLOUDFRONT_URL }}" \
-            --param "cognitoUserPoolId=${{ env.COGNITO_USER_POOL_ID }}" \
-            --param "cognitoClientId=${{ env.COGNITO_CLIENT_ID }}" \
-            --param "usersTable=${{ env.USERS_TABLE }}"
+          npx serverless@3 deploy --stage ${{ needs.config.outputs.envName }} \
+            --param "photosTable=${{ needs.config.outputs.photosTable }}" \
+            --param "usersTable=${{ needs.config.outputs.usersTable }}" \
+            --param "uploadBucket=${{ needs.config.outputs.uploadBucket }}" \
+            --param "cloudfrontUrl=${{ needs.config.outputs.cloudfrontUrl }}" \
+            --param "cognitoUserPoolId=${{ needs.config.outputs.cognitoUserPoolId }}" \
+            --param "cognitoClientId=${{ needs.config.outputs.cognitoClientId }}" \
+            --param "cognitoPoolName=${{ needs.config.outputs.cognitoPoolName }}"
 
   deploy-user-api:
     name: Deploy user API (api-user/)
-    needs: test
+    needs: [test, config]
     if: ${{ github.event_name == 'push' || github.event.inputs.target == 'both' || github.event.inputs.target == 'user-api' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -119,9 +175,10 @@ jobs:
       - name: Serverless deploy
         working-directory: api-user
         run: |
-          npx serverless@3 deploy --stage prod \
-            --param "photosBucket=${{ env.PHOTOS_BUCKET }}" \
-            --param "uploadBucket=${{ env.UPLOAD_BUCKET }}" \
-            --param "cloudfrontUrl=${{ env.CLOUDFRONT_URL }}" \
-            --param "cognitoUserPoolId=${{ env.COGNITO_USER_POOL_ID }}" \
-            --param "cognitoClientId=${{ env.COGNITO_CLIENT_ID }}"
+          npx serverless@3 deploy --stage ${{ needs.config.outputs.envName }} \
+            --param "photosTable=${{ needs.config.outputs.photosTable }}" \
+            --param "usersTable=${{ needs.config.outputs.usersTable }}" \
+            --param "uploadBucket=${{ needs.config.outputs.uploadBucket }}" \
+            --param "cloudfrontUrl=${{ needs.config.outputs.cloudfrontUrl }}" \
+            --param "cognitoUserPoolId=${{ needs.config.outputs.cognitoUserPoolId }}" \
+            --param "cognitoClientId=${{ needs.config.outputs.cognitoClientId }}"

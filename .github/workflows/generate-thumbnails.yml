@@ -17,6 +17,15 @@ concurrency:
   group: generate-thumbnails
   cancel-in-progress: false
 
+# これらは本番専用の保守ワークフロー。スクリプト側の「既定で本番」を撤去したので、
+# ここで環境を明示する（渡し忘れたらスクリプトが止まる）。
+env:
+  AWS_REGION: ap-northeast-1
+  PHOTOS_TABLE: prod-photo-gallery-photos
+  USERS_TABLE: prod-photo-gallery-users
+  UPLOAD_BUCKET: prod-journey-photo-upload
+  CLOUDFRONT_URL: https://d1s3dwwzgxf5ni.cloudfront.net
+
 jobs:
   generate:
     name: Generate thumbnails for existing photos

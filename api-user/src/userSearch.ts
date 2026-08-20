@@ -7,9 +7,10 @@ import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
 import { DynamoDBClient, GetItemCommand, ScanCommand } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { JSON_HEADERS } from "./http";
+import { requireEnv } from "./env";
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
-const USERS_TABLE = process.env.USERS_TABLE ?? "prod-photo-gallery-users";
+const USERS_TABLE = requireEnv("USERS_TABLE");
 
 /** 検索結果1件。プロフィール全体ではなく、一覧に必要な項目だけ返す。 */
 export type UserSearchHit = {

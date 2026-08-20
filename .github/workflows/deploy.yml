@@ -1,9 +1,11 @@
-name: Deploy to Production
+name: Deploy Site
 
+# main → 本番、develop → staging。
 on:
   push:
     branches:
       - main
+      - develop
   workflow_dispatch:
   schedule:
     # 1日1回 再ビルド（JST 03:00）。
@@ -15,18 +17,90 @@ on:
     # 「中身が変わらないビルド」に使っていた（非公開リポジトリの無料枠は2,000分/月）。
     # 写真の追加は月に数枚なので、この頻度は実態と釣り合っていない。
     # すぐ反映したいときは Actions から手動実行できる（workflow_dispatch）。
+    # 定期ビルドは本番だけ（staging に cron は置かない。Actions の枠を食うだけ）。
     - cron: "0 18 * * *"
 
-# 本番デプロイを同時に走らせない。実行中のものはキャンセルせず待たせる
+# 同じ環境へのデプロイを同時に走らせない。実行中のものはキャンセルせず待たせる
 # （S3 アップロードの途中で中断すると、新旧が混ざった中途半端な状態になるため）。
 # 待機中の古い実行は新しい実行に置き換わる。
 concurrency:
-  group: deploy-production
+  group: deploy-site-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
+  # ブランチから環境を決める。deploy-api.yml と同じ考え方。
+  # 1つでも空なら止める（空のまま進むと本番の値にフォールバックしかねない）。
+  config:
+    name: Resolve environment
+    runs-on: ubuntu-latest
+    outputs:
+      envName: ${{ steps.pick.outputs.envName }}
+      siteBucket: ${{ steps.pick.outputs.siteBucket }}
+      photosTable: ${{ steps.pick.outputs.photosTable }}
+      uploadBucket: ${{ steps.pick.outputs.uploadBucket }}
+      siteUrl: ${{ steps.pick.outputs.siteUrl }}
+      apiBaseUrl: ${{ steps.pick.outputs.apiBaseUrl }}
+      userApiBaseUrl: ${{ steps.pick.outputs.userApiBaseUrl }}
+      cognitoUserPoolId: ${{ steps.pick.outputs.cognitoUserPoolId }}
+      cognitoClientId: ${{ steps.pick.outputs.cognitoClientId }}
+      cloudfrontUrl: ${{ steps.pick.outputs.cloudfrontUrl }}
+      distributionId: ${{ steps.pick.outputs.distributionId }}
+      gaId: ${{ steps.pick.outputs.gaId }}
+    steps:
+      - id: pick
+        run: |
+          set -euo pipefail
+          # gaId だけは空を許す（staging で解析を止めるため）
+          gaId=""
+          case "${{ github.ref_name }}" in
+            main)
+              envName=prod
+              siteBucket=prod-journey-photo.com
+              photosTable=prod-photo-gallery-photos
+              uploadBucket=prod-journey-photo-upload
+              siteUrl=https://journey-photo.com
+              apiBaseUrl=https://ionr4ik01e.execute-api.ap-northeast-1.amazonaws.com
+              userApiBaseUrl=https://gu7kxwdc5l.execute-api.ap-northeast-1.amazonaws.com
+              cognitoUserPoolId=ap-northeast-1_ZbuhDQsWz
+              cognitoClientId=21cs4cd8dkttmg3snloj72u8mu
+              cloudfrontUrl=https://d1s3dwwzgxf5ni.cloudfront.net
+              distributionId='${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}'
+              gaId='${{ vars.PROD_GA_ID }}'
+              ;;
+            develop)
+              envName=staging
+              siteBucket=staging-journey-photo.com
+              photosTable=staging-photo-gallery-photos
+              uploadBucket=staging-journey-photo-upload
+              siteUrl='${{ vars.STAGING_CLOUDFRONT_URL }}'
+              apiBaseUrl='${{ vars.STAGING_API_BASE_URL }}'
+              userApiBaseUrl='${{ vars.STAGING_USER_API_BASE_URL }}'
+              cognitoUserPoolId='${{ vars.STAGING_COGNITO_USER_POOL_ID }}'
+              cognitoClientId='${{ vars.STAGING_COGNITO_CLIENT_ID }}'
+              cloudfrontUrl='${{ vars.STAGING_CLOUDFRONT_URL }}'
+              distributionId='${{ vars.STAGING_DISTRIBUTION_ID }}'
+              ;;
+            *)
+              echo "::error::${{ github.ref_name }} は環境に紐づいていません（main=本番 / develop=staging）"
+              exit 1
+              ;;
+          esac
+          for k in siteBucket photosTable uploadBucket siteUrl apiBaseUrl userApiBaseUrl \
+                   cognitoUserPoolId cognitoClientId cloudfrontUrl distributionId; do
+            v="${!k}"
+            if [ -z "$v" ]; then
+              echo "::error::$envName の $k が未設定です。Secrets / Variables を確認してください。"
+              exit 1
+            fi
+            echo "$k=$v" >> "$GITHUB_OUTPUT"
+          done
+          echo "gaId=$gaId" >> "$GITHUB_OUTPUT"
+          echo "envName=$envName" >> "$GITHUB_OUTPUT"
+          echo "デプロイ先: $envName"
+
   deploy-frontend:
     name: Deploy Frontend (S3 + CloudFront)
+    needs: config
     runs-on: ubuntu-latest
     # ハングしても必ず終わらせる（GitHub の既定は6時間。実際の所要は約15分）。
     # 2026-08-19 にブラウザインストールで4時間以上ハングした実績があるため必須。
@@ -72,16 +146,33 @@ jobs:
       # ビルド前に実行することで photos.json に thumbSrc が反映される。
       - name: Generate missing thumbnails
         run: node scripts/generate-thumbnails.js
+        env:
+          # このスクリプトは DynamoDB と S3 に「書く」。環境を渡し忘れると
+          # 以前は本番へ書いていた（スクリプト側の既定値が本番だった）。
+          PHOTOS_TABLE: ${{ needs.config.outputs.photosTable }}
+          UPLOAD_BUCKET: ${{ needs.config.outputs.uploadBucket }}
+          CLOUDFRONT_URL: ${{ needs.config.outputs.cloudfrontUrl }}
 
       - name: Build
         run: npm run build
         env:
-          # 全て公開値（シークレットではない）。Secrets 未設定でも既定の本番値でビルドできる。
-          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL || 'https://ionr4ik01e.execute-api.ap-northeast-1.amazonaws.com' }}
-          NEXT_PUBLIC_USER_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_USER_API_BASE_URL || 'https://gu7kxwdc5l.execute-api.ap-northeast-1.amazonaws.com' }}
-          NEXT_PUBLIC_COGNITO_USER_POOL_ID: ${{ secrets.NEXT_PUBLIC_COGNITO_USER_POOL_ID || 'ap-northeast-1_ZbuhDQsWz' }}
-          NEXT_PUBLIC_COGNITO_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_COGNITO_CLIENT_ID || '21cs4cd8dkttmg3snloj72u8mu' }}
-          NEXT_PUBLIC_CLOUDFRONT_URL: ${{ secrets.NEXT_PUBLIC_CLOUDFRONT_URL || 'https://d1s3dwwzgxf5ni.cloudfront.net' }}
+          # 全て公開値（シークレットではない）。config ジョブが環境ごとに解決する。
+          # 以前は `secrets.X || '本番リテラル'` で、値が欠けても緑のまま
+          # 本番を向いてビルドされていた。今は config 側で空を弾く。
+          NEXT_PUBLIC_API_BASE_URL: ${{ needs.config.outputs.apiBaseUrl }}
+          NEXT_PUBLIC_USER_API_BASE_URL: ${{ needs.config.outputs.userApiBaseUrl }}
+          NEXT_PUBLIC_COGNITO_USER_POOL_ID: ${{ needs.config.outputs.cognitoUserPoolId }}
+          NEXT_PUBLIC_COGNITO_CLIENT_ID: ${{ needs.config.outputs.cognitoClientId }}
+          NEXT_PUBLIC_CLOUDFRONT_URL: ${{ needs.config.outputs.cloudfrontUrl }}
+          # canonical・sitemap・robots の基準。staging が本番URLを名乗ると
+          # 重複コンテンツになるので必ず渡す。
+          NEXT_PUBLIC_SITE_URL: ${{ needs.config.outputs.siteUrl }}
+          # staging では空＝解析タグを出さない
+          NEXT_PUBLIC_GA_ID: ${{ needs.config.outputs.gaId }}
+          # robots.txt を環境で切り替えるため（staging は全拒否）
+          NEXT_PUBLIC_ENV_NAME: ${{ needs.config.outputs.envName }}
+          # ビルド中の photos.json 同期先
+          PHOTOS_TABLE: ${{ needs.config.outputs.photosTable }}
 
       # ブラウザはコンテナイメージに同梱済みなので通常は即終了する。
       # package.json の playwright だけ上げてイメージのタグが古いときの保険として
@@ -100,7 +191,8 @@ jobs:
         timeout-minutes: 10
 
       - name: Deploy to S3
-        run: node scripts/deploy-static-site.js --bucket prod-journey-photo.com
+        run: node scripts/deploy-static-site.js --bucket "${{ needs.config.outputs.siteBucket }}"
         timeout-minutes: 20
         env:
-          CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ needs.config.outputs.distributionId }}
+          SITE_URL: ${{ needs.config.outputs.siteUrl }}

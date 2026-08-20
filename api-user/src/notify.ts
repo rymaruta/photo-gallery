@@ -1,5 +1,6 @@
 import { GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
+import { requireEnv } from "./env";
 
 // 通知の共通ヘルパー。
 // 通知は "notifs#<uid>" 文書に list_append + ADD unread でアトミックに追記する
@@ -22,7 +23,7 @@ export type Notif = {
 
 export const notifsId = (uid: string) => `notifs#${uid}`;
 
-const USERS_TABLE = process.env.USERS_TABLE ?? "prod-photo-gallery-users";
+const USERS_TABLE = requireEnv("USERS_TABLE");
 // プロフィール未設定の人に使う表示。人名に見える語（以前は「旅人」）だと
 // 「そういう名前の人がいる」と誤解され、検索しても見つからず混乱するため、
 // 明らかに未設定と分かる表記にする。

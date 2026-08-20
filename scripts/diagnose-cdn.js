@@ -14,9 +14,10 @@
 const { CloudFrontClient, GetDistributionConfigCommand } = require("@aws-sdk/client-cloudfront");
 const { S3Client, ListObjectsV2Command, GetObjectCommand } = require("@aws-sdk/client-s3");
 const zlib = require("zlib");
+const { requireEnv } = require("./lib/env");
 
 const REGION = "ap-northeast-1";
-const DIST_ID = process.env.CLOUDFRONT_DISTRIBUTION_ID || "EYRLTGCPOS9E4";
+const DIST_ID = requireEnv("CLOUDFRONT_DISTRIBUTION_ID");
 const SITE_URL = (process.env.SITE_URL || "https://journey-photo.com").replace(/\/$/, "");
 const LOG_FILES_TO_READ = 40; // 直近のログファイル数（多すぎると実行時間が延びる）
 

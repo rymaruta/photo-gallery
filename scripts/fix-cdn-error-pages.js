@@ -22,9 +22,10 @@
  */
 
 const { CloudFrontClient, GetDistributionConfigCommand, UpdateDistributionCommand } = require("@aws-sdk/client-cloudfront");
+const { requireEnv } = require("./lib/env");
 
 const REGION = "ap-northeast-1";
-const DIST_ID = process.env.CLOUDFRONT_DISTRIBUTION_ID || "EYRLTGCPOS9E4";
+const DIST_ID = requireEnv("CLOUDFRONT_DISTRIBUTION_ID");
 const APPLY = process.argv.includes("--apply");
 
 // 404ページ自体は静的エクスポートが /404.html として出力する

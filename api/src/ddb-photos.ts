@@ -8,8 +8,9 @@ import {
 } from "@aws-sdk/lib-dynamodb";
 import { ddb } from "./dynamodb";
 import type { Photo } from "./types";
+import { requireEnv } from "./env";
 
-const TABLE = process.env.PHOTOS_TABLE ?? "prod-photo-gallery-photos";
+const TABLE = requireEnv("PHOTOS_TABLE");
 const USER_INDEX = "userId-createdAt-index";
 
 export async function listPhotos(): Promise<Photo[]> {

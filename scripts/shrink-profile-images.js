@@ -23,9 +23,10 @@
 const { S3Client, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, HeadObjectCommand, CopyObjectCommand } = require("@aws-sdk/client-s3");
 const { CloudFrontClient, CreateInvalidationCommand } = require("@aws-sdk/client-cloudfront");
 const sharp = require("sharp");
+const { requireEnv } = require("./lib/env");
 
 const REGION = "ap-northeast-1";
-const BUCKET = process.env.UPLOAD_BUCKET || "prod-journey-photo-upload";
+const BUCKET = requireEnv("UPLOAD_BUCKET");
 const APPLY = process.argv.includes("--apply");
 
 // フロントの lib/utils/image.ts と同じ値

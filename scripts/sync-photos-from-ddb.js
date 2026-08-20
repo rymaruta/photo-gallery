@@ -1,7 +1,7 @@
 /**
  * sync-photos-from-ddb.js
  *
- * DynamoDB の prod-photo-gallery-photos テーブルから全写真を取得して
+ * DynamoDB の写真テーブル（PHOTOS_TABLE）から全写真を取得して
  * app/data/photos.json に書き出す。
  * 静的エクスポートビルド前に実行することで、/photo/[id] の SSG に使う。
  *
@@ -11,7 +11,7 @@
  *
  * 環境変数:
  *   AWS_REGION          (default: ap-northeast-1)
- *   PHOTOS_TABLE        (default: prod-photo-gallery-photos)
+ *   PHOTOS_TABLE        (必須)
  *   DRY_RUN=1           ファイルを書かずに件数だけ確認
  *   CI                  取得に失敗したらビルドを止める（Actions では自動で入る）
  *
@@ -29,6 +29,7 @@ const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, ScanCommand } = require("@aws-sdk/lib-dynamodb");
 const fs = require("fs");
 const path = require("path");
+const { requireEnv } = require("./lib/env");
 
 // .env.local から AWS 認証情報を読み込む
 const envLocalPath = path.resolve(__dirname, "../.env.local");
@@ -40,7 +41,7 @@ if (fs.existsSync(envLocalPath)) {
 }
 
 const REGION = process.env.AWS_REGION ?? "ap-northeast-1";
-const TABLE = process.env.PHOTOS_TABLE ?? "prod-photo-gallery-photos";
+const TABLE = requireEnv("PHOTOS_TABLE");
 const OUTPUT = path.resolve(__dirname, "../app/data/photos.json");
 const DRY_RUN = process.env.DRY_RUN === "1";
 const FORCE = process.argv.includes("--force");
