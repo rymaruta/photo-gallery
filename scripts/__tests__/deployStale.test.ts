@@ -112,11 +112,34 @@ describe("invalidationPathsFor", () => {
         expect(invalidationPathsFor(many)).toEqual(["/photo/*"]);
     });
 
-    it("ワイルドカードが多くなりすぎたら /* に落とす（デプロイを失敗させない）", () => {
-        // CloudFront は実行中のワイルドカード無効化を15個までしか受け付けない
-        const dirs = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"];
+    it("全ページが変わるビルドでも /* にしない（＝写真を巻き添えにしない）", () => {
+        // これが実際のデプロイの姿。generateBuildId はコミットごとに変わり、
+        // ビルドIDは全ページの RSC ペイロードに埋まるので、**毎回**全HTMLが変わる。
+        // 以前はここで "/*" に落ちていたため、「写真がエッジから消える問題を
+        // 直した」はずが、実際のデプロイでは一度も直っていなかった。
+        const dirs = ["_not-found", "admin", "category", "favorites", "location",
+            "login", "photo", "privacy", "signup", "tag", "user", "users"];
         const files = dirs.flatMap((d) => Array.from({ length: 20 }, (_, i) => `${d}/p${i}.html`));
-        expect(invalidationPathsFor(files)).toEqual(["/*"]);
+        const paths = invalidationPathsFor(files);
+        expect(paths).not.toContain("/*");
+        expect(paths.some((p: string) => p.startsWith("/uploads"))).toBe(false);
+        // 各ディレクトリはワイルドカード1本にまとまる
+        for (const d of dirs) expect(paths).toContain(`/${d}/*`);
+    });
+
+    it("ワイルドカードの枠を超えた分は実パスで消す（/* には落とさない）", () => {
+        // 枠は「ページ数の多いディレクトリ」から使う。あふれた分は実パスへ。
+        const dirs = Array.from({ length: 20 }, (_, i) => `d${i}`);
+        const files = dirs.flatMap((d, di) =>
+            // d0 が最多、d19 が最少になるようにする
+            Array.from({ length: 40 - di }, (_, i) => `${d}/p${i}.html`));
+        const paths = invalidationPathsFor(files);
+        expect(paths).not.toContain("/*");
+        const wildcards = paths.filter((p: string) => p.endsWith("/*"));
+        expect(wildcards.length).toBeLessThanOrEqual(12);
+        expect(wildcards).toContain("/d0/*");        // 多い方が枠を取る
+        expect(wildcards).not.toContain("/d19/*");   // あふれた分は
+        expect(paths).toContain("/d19/p0.html");     // 実パスで消える
     });
 
     it("uploads/ を巻き込む入力は例外にする（安全側に倒す）", () => {

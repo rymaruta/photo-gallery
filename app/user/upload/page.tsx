@@ -438,7 +438,7 @@ function UploadPageInner() {
                 "error",
             );
         }
-    }, [items, category, tags, gpsAutofill, isAdminUser, locale, router, showToast, updateItem]);
+    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem]);
 
     if (loading || !isAuthenticated || (!isAdminUser && !isGeneralUser)) {
         return (

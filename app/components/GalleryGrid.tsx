@@ -12,12 +12,18 @@ type Props = {
     photos: Photo[];
     locale: Locale;
     categoryDisplayMap?: Record<string, string>;
+    /**
+     * 静的ページの無い新着写真をその場でモーダル表示できる画面（ホーム）が渡す。
+     * 渡されていれば、/?photo=<id> への遷移ではなく直接モーダルを開く。
+     */
+    onOpenPhoto?: (photoId: string) => boolean;
 };
 
 export default function GalleryGrid({
     photos,
     locale,
     categoryDisplayMap = {},
+    onOpenPhoto,
 }: Props) {
     const labels = React.useMemo(() => getLabels(locale), [locale]);
     const emptyMessage = labels.gallery?.emptyMessage ?? (locale === "en" ? "No photos found." : "該当する写真がありません。");
@@ -50,6 +56,7 @@ export default function GalleryGrid({
                         placeholderColor={placeholderColor}
                         objectPosition={objectPosition}
                         categoryDisplayMap={categoryDisplayMap}
+                        onOpenPhoto={onOpenPhoto}
                     />
                 );
             })}
@@ -66,6 +73,7 @@ const GalleryItem = React.memo(function GalleryItem({
     placeholderColor,
     objectPosition,
     categoryDisplayMap,
+    onOpenPhoto,
 }: {
     photo: Photo;
     index: number;
@@ -74,17 +82,28 @@ const GalleryItem = React.memo(function GalleryItem({
     placeholderColor: string;
     objectPosition?: string;
     categoryDisplayMap?: Record<string, string>;
+    onOpenPhoto?: (photoId: string) => boolean;
 }) {
     const { isFavorite } = useFavorites();
     const isFav = isFavorite(photo.id);
     const isPriority = index < 8;
+    const href = ROUTES.PHOTO(photo.id);
+    // 静的ページが無い写真は /?photo=<id> を指す。ホームで開いている場合、
+    // これは「今いるURLへの遷移」なので Next のルーターが何もせず、
+    // タップしても無反応だった。同じ画面で開けるならその場で開く。
+    const opensHere = href.startsWith("/?photo=") && !!onOpenPhoto;
 
     return (
         <div className="w-full m-0 p-0">
             {/* タップで個別ページへ直接遷移する。まだ静的ページが無い新着写真は
                 ROUTES.PHOTO が /?photo=<id> を返し、ホームがモーダルで表示する */}
             <Link
-                href={ROUTES.PHOTO(photo.id)}
+                href={href}
+                onClick={opensHere ? (e) => {
+                    // 新しいタブ・別ウィンドウで開く操作は邪魔しない
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                    if (onOpenPhoto(photo.id)) e.preventDefault();
+                } : undefined}
                 className="block w-full p-0 border-0 bg-transparent cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
                 aria-label={localizedTitle ? `${localizedTitle} を開く` : "写真を開く"}
                 title={localizedTitle}

@@ -76,43 +76,42 @@ function invalidationPathsFor(keys) {
         byDir.get(dir).push(k);
     }
 
-    // ページ数の多いディレクトリだけワイルドカードにする。
-    // ワイルドカードは同時実行数の上限（15）があり、少数のページのために
-    // 1枠使うと、写真ページやタグページの分が入らなくなる。
-    for (const [dir, files] of byDir) {
-        if (files.length > WILDCARD_MIN_FILES) wildcards.add(`/${dir}/*`);
+    // ページ数の多いディレクトリからワイルドカードに割り当てる。
+    // ワイルドカードには実行中の本数に上限があるので、枠は「効く順」に使う。
+    // 枠に入らなかったディレクトリは実パスで消す（実パスは1リクエスト3,000本まで）。
+    const dirs = [...byDir.entries()].sort((a, b) => b[1].length - a[1].length);
+    for (const [dir, files] of dirs) {
+        const worthWildcard = files.length > WILDCARD_MIN_FILES && wildcards.size < MAX_WILDCARD_PATHS;
+        if (worthWildcard) wildcards.add(`/${dir}/*`);
         else files.forEach(addExact);
     }
 
     const out = [...wildcards, ...exact].sort();
 
     // 写真を巻き込んでいないことを必ず確かめる。ここを間違えると、
-    // デプロイのたびに全写真がエッジから消えて遅くなる（元の "/*" の状態）。
+    // デプロイのたびに全写真がエッジから消えて遅くなる。
+    //
+    // 以前はこの検査の**後ろ**に「ワイルドカードが多すぎたら "/*" にする」
+    // という逃げ道があり、検査を素通りしていた。しかも generateBuildId が
+    // コミットごとに変わる＝全HTMLが変わるので、**実際のデプロイでは毎回**
+    // その逃げ道に落ちていた（out/ の実データで確認: ワイルドカード12個 > 上限10）。
+    // つまり「写真がエッジから消える問題を直した」はずが、直っていなかった。
+    // 逃げ道は塞ぐ。多すぎる分は実パスに落とす。
     if (out.some((p) => p === "/*" || p.startsWith("/uploads"))) {
         throw new Error(`[deploy] 無効化パスが /uploads/ を巻き込みます: ${out.join(" ")}`);
-    }
-    // CloudFront は「実行中のワイルドカード無効化」を15個までしか受け付けない。
-    // 超えると無効化そのものが弾かれ、デプロイが最後の最後で失敗する（実際に踏んだ）。
-    //
-    // 全ページが変わるビルド（レイアウト変更など）ではここに当たる。その場合は
-    // 諦めて "/*" にする。写真も一度エッジから消えるが、デプロイを失敗させて
-    // 古いページが残り続けるよりはよい。通常のビルド（写真の追加・編集）は
-    // 変更ファイルが少ないので、ここには来ない。
-    if (wildcards.size > MAX_WILDCARD_PATHS) {
-        console.warn(
-            `[deploy] 変更が広範囲（ワイルドカード ${wildcards.size} 個）のため "/*" で無効化します。` +
-            "写真も一度エッジから消えます。",
-        );
-        return ["/*"];
     }
     return out;
 }
 
-// CloudFront の制限。実行中のワイルドカード無効化はアカウント全体で15個まで。
-// 直前のデプロイ分がまだ動いていることもあるので、余裕を持って使う。
-const MAX_WILDCARD_PATHS = 10;
+// CloudFront の制限。実行中のワイルドカード無効化は15本まで
+// （25本を1リクエストで投げて実際に弾かれた）。直前のデプロイ分がまだ
+// 動いていることもあるので、サイトの実際のディレクトリ数(12前後)に対して
+// ぎりぎりにならない範囲で余裕を残す。
+const MAX_WILDCARD_PATHS = 12;
 // これ以下のページ数ならワイルドカードを使わず実パスで消す
 const WILDCARD_MIN_FILES = 5;
+// 1回の無効化リクエストに入れられるパス数の上限
+const MAX_PATHS_PER_REQUEST = 3000;
 
 /**
  * 今回のビルドで中身が変わったファイルだけを返す。
@@ -340,9 +339,15 @@ async function verifyAssets(assetKeys, cfDistId) {
     if (bad.length && has5xx && cfDistId) {
         console.warn(`[deploy] advisory: ${bad.length} asset(s) returned 5xx — re-invalidating once to flush cached errors.`);
         try {
+            // 失敗したアセットだけを消す。"/*" だと写真まで巻き添えでエッジから
+            // 消える（このスクリプトが避けているはずのこと）。
+            const rehealPaths = [...new Set(bad.map((b) => `/${b.split(" ")[0]}`))];
             await cf.send(new CreateInvalidationCommand({
                 DistributionId: cfDistId,
-                InvalidationBatch: { CallerReference: `reheal-${Date.now()}`, Paths: { Quantity: 1, Items: ["/*"] } },
+                InvalidationBatch: {
+                    CallerReference: `reheal-${Date.now()}`,
+                    Paths: { Quantity: rehealPaths.length, Items: rehealPaths },
+                },
             }));
         } catch (e) {
             console.warn("[deploy] advisory: re-invalidation failed:", e.message);
@@ -400,13 +405,17 @@ async function main() {
             console.log("[deploy] 中身の変わったページはありません。CloudFront の無効化はしません。");
         } else {
             console.log(`[deploy] ${changed.length} file(s) changed. Invalidating CloudFront distribution ${cfDistId}...`);
-            await cf.send(new CreateInvalidationCommand({
-                DistributionId: cfDistId,
-                InvalidationBatch: {
-                    CallerReference: String(Date.now()),
-                    Paths: { Quantity: invalidationPaths.length, Items: invalidationPaths },
-                },
-            }));
+            // 1リクエストあたりのパス数には上限がある。超える分は分けて投げる
+            for (let i = 0; i < invalidationPaths.length; i += MAX_PATHS_PER_REQUEST) {
+                const chunk = invalidationPaths.slice(i, i + MAX_PATHS_PER_REQUEST);
+                await cf.send(new CreateInvalidationCommand({
+                    DistributionId: cfDistId,
+                    InvalidationBatch: {
+                        CallerReference: `${Date.now()}-${i}`,
+                        Paths: { Quantity: chunk.length, Items: chunk },
+                    },
+                }));
+            }
             console.log(`[deploy] CloudFront invalidation created (${invalidationPaths.length} paths): ${invalidationPaths.join(" ")}`);
             await sleep(5000); // 反映の初期待ち（この後の検証は参考ログのみ）
         }

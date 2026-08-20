@@ -7,11 +7,11 @@ import { useLocale } from "./i18n/context";
 import useGallery from "../lib/hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
 import GalleryModal from "./components/GalleryModal";
+import SearchParamWatcher from "./components/SearchParamWatcher";
 import { capitalize } from "../lib/utils/string";
 import { usePhotos } from "../lib/hooks/usePhotos";
 import { useAuth } from "./auth/context";
 import { fetchFollowingSet } from "../lib/hooks/useFollow";
-import type { Photo } from "@/lib/data/photos";
 
 // フィルタバーに出すタグ数の上限（枚数の多い順）。残りは検索で辿る
 const POPULAR_TAG_LIMIT = 10;
@@ -36,32 +36,35 @@ export default function GalleryPageClient() {
     setFilters,
     filteredPhotos,
     currentIndex,
-    open,
+    openPhotoId,
+    openById,
     close,
     next,
     prev,
   } = useGallery(photos, followingIds);
 
-  // URLパラメータ(?photo=)から画像IDを取得してモーダルを開く。
+  // URLパラメータ(?photo=)で写真モーダルを開く。
   // 一覧タップは個別ページへ直接遷移するが、ビルド前の新着写真は
   // 静的ページが無いため、この経路（モーダル）だけが閲覧手段になる。
-  // useGallery の URL 同期(replaceState)がマウント直後に ?photo= を消すため、
-  // effect で読むと間に合わない。初回レンダー時に ref へ先読みしておく。
-  const initialPhotoIdRef = React.useRef<string | null | undefined>(undefined);
-  if (initialPhotoIdRef.current === undefined) {
-    initialPhotoIdRef.current = typeof window === "undefined"
-      ? null
-      : new URLSearchParams(window.location.search).get("photo");
-  }
+  //
+  // 以前は初回レンダー時に一度だけ読んでいた。ホームに居るときの
+  // /?photo=<id> への遷移は「同じルート」なのでこの画面は再マウントされず、
+  // 読み終わった ref のままで何も起きなかった——つまり新着写真は
+  // タップしても開けず、通知からも開けなかった（唯一の閲覧手段なのに）。
+  // useSearchParams は遷移のたびに更新されるので、そちらを見る。
+  const [photoParam, setPhotoParam] = React.useState<string | null>(null);
+  // 一度開いて閉じた写真を、同じ ?photo= のまま開き直さないための記録
+  const dismissedRef = React.useRef<string | null>(null);
   React.useEffect(() => {
-    const photoId = initialPhotoIdRef.current;
-    if (!photoId || filteredPhotos.length === 0) return;
-    const index = filteredPhotos.findIndex((p: Photo) => p.id === photoId);
-    if (index !== -1) {
-      initialPhotoIdRef.current = null;
-      open(index);
-    }
-  }, [filteredPhotos, open]);
+    if (!photoParam || photoParam === dismissedRef.current) return;
+    if (filteredPhotos.length === 0) return; // 一覧の到着待ち
+    if (openById(photoParam)) dismissedRef.current = null;
+  }, [photoParam, filteredPhotos, openById]);
+
+  const handleClose = React.useCallback(() => {
+    dismissedRef.current = openPhotoId ?? null;
+    close();
+  }, [openPhotoId, close]);
 
   const categories = React.useMemo(() => {
     const set = new Set<string>();
@@ -210,15 +213,18 @@ export default function GalleryPageClient() {
             photos={filteredPhotos}
             locale={locale}
             categoryDisplayMap={categoryDisplayMap}
+            onOpenPhoto={openById}
           />
         )}
       </>
+
+      <SearchParamWatcher name="photo" onChange={setPhotoParam} />
 
       {currentIndex !== null && filteredPhotos[currentIndex] && (
         <GalleryModal
           photos={filteredPhotos}
           currentIndex={currentIndex}
-          onClose={close}
+          onClose={handleClose}
           onNext={next}
           onPrev={prev}
           locale={locale}

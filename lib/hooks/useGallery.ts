@@ -73,18 +73,6 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
 
     const [currentIndex, setCurrentIndex] = useState<number | null>(null);
 
-    // フィルターが変わるたびに URL を更新（pushせず replaceState で履歴を汚さない）
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        const params = new URLSearchParams();
-        if (filters.category && filters.category !== "all") params.set("category", filters.category);
-        if (filters.query) params.set("q", filters.query);
-        if (filters.sort && filters.sort !== "new") params.set("sort", filters.sort);
-        if (filters.selectedTags.length) params.set("tags", filters.selectedTags.join(","));
-        const search = params.toString();
-        window.history.replaceState({}, "", search ? `?${search}` : window.location.pathname);
-    }, [filters]);
-
     const filteredPhotos = useMemo(() => {
         let arr = PHOTOS.slice();
 
@@ -139,10 +127,39 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
         filteredPhotosRef.current = filteredPhotos;
     }, [filteredPhotos]);
 
+    /** モーダルで開いている写真のID（閉じているときは undefined） */
+    const openPhotoId = currentIndex === null ? undefined : filteredPhotos[currentIndex]?.id;
+
+    // フィルターが変わるたびに URL を更新（pushせず replaceState で履歴を汚さない）。
+    //
+    // 以前はここで URL を filters だけから作り直していたため、
+    // /?photo=<id> で開いた共有リンクの ?photo= がマウント直後に消えていた。
+    // 見えている写真とアドレスバーが食い違い、再読込・ブックマーク・
+    // アドレスバーのコピーのどれでも写真に戻れなかった。
+    // 開いている写真も URL に残す。
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const params = new URLSearchParams();
+        if (filters.category && filters.category !== "all") params.set("category", filters.category);
+        if (filters.query) params.set("q", filters.query);
+        if (filters.sort && filters.sort !== "new") params.set("sort", filters.sort);
+        if (filters.selectedTags.length) params.set("tags", filters.selectedTags.join(","));
+        if (openPhotoId) params.set("photo", openPhotoId);
+        const search = params.toString();
+        window.history.replaceState({}, "", search ? `?${search}` : window.location.pathname);
+    }, [filters, openPhotoId]);
+
     // 依存配列なし → 参照が変わらない安定したコールバック
     const open = useCallback((i: number) => {
         const len = filteredPhotosRef.current.length;
         setCurrentIndex(i >= 0 && i < len ? i : null);
+    }, []);
+
+    /** 写真IDでモーダルを開く（見つからなければ何もしない）。URL の ?photo= 用 */
+    const openById = useCallback((id: string) => {
+        const i = filteredPhotosRef.current.findIndex((p) => p.id === id);
+        if (i !== -1) setCurrentIndex(i);
+        return i !== -1;
     }, []);
 
     const close = useCallback(() => setCurrentIndex(null), []);
@@ -169,7 +186,9 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
         setFilters: updateFilters,
         filteredPhotos,
         currentIndex,
+        openPhotoId,
         open,
+        openById,
         close,
         next,
         prev,

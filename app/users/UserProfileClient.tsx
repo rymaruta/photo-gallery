@@ -260,9 +260,26 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     (sessionResult.getIdToken().payload["sub"] as string | undefined) === userId;
                 if (isCurrentUserOwner) setIsOwner(true);
 
-                // API から最新の写真を取得。オーナーも取得することで、アップロードや
-                // 場所の修正がビルドを待たずに足あと・地名へ即反映される。
-                // オーナーは API に無いビルド時JSONの写真（非公開など）を残してマージする。
+                // 自分のプロフィールは認証済みの一覧を「正」にする。
+                //
+                // 以前は公開一覧（published = true だけ）に、ビルド時JSONの
+                // 残りをマージしていた。photos.json の写真は全部 published: true
+                // なので、非公開にした写真も削除した写真も「公開中」の姿で
+                // 復活していた。非公開バッジも出ないので本人には見分けが付かず、
+                // もう一度目のアイコンを押すと今度は本当に再公開してしまう。
+                if (isCurrentUserOwner) {
+                    const mineRes = await userFetch("/user/photos", { signal: controller.signal });
+                    if (mineRes.ok) {
+                        const mine = await mineRes.json() as unknown;
+                        if (Array.isArray(mine)) {
+                            setPhotos(mine as Photo[]);
+                            return; // 公開一覧は見ない（下書き・非公開まで含む正）
+                        }
+                    }
+                    log.warn("自分の写真一覧を取得できませんでした。公開一覧で代用します");
+                }
+
+                // API から最新の写真を取得。ビルドを待たずに足あと・地名へ反映される。
                 const photosRes = await publicFetch(`/photos?userId=${encodeURIComponent(userId)}`, {
                     signal: controller.signal,
                     cache: "no-store",
@@ -271,12 +288,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     const data = await photosRes.json() as unknown;
                     if (Array.isArray(data)) {
                         const fresh = data as Photo[];
-                        if (isCurrentUserOwner) {
-                            setPhotos((prev) => {
-                                const ids = new Set(fresh.map((p) => p.id));
-                                return [...fresh, ...prev.filter((p) => !ids.has(p.id))];
-                            });
-                        } else if (fresh.length > 0) {
+                        if (fresh.length > 0) {
                             setPhotos(fresh);
                         } else {
                             // 空配列で静的ビルド時のデータを潰さない。潰すと、

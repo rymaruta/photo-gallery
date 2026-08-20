@@ -150,6 +150,60 @@ describe("useGallery", () => {
         });
     });
 
+    describe("URL 同期（?photo=）", () => {
+        // 共有リンク /?photo=<id> で開いても、フィルタ同期の replaceState が
+        // ?photo= を消していた。見えている写真とアドレスバーが食い違い、
+        // 再読込・ブックマーク・アドレスバーのコピーのどれでも戻れなかった。
+        it("モーダルを開くと ?photo= がURLに載る", () => {
+            const { result } = renderHook(() => useGallery(mockPhotos));
+            act(() => { result.current.open(0); });
+            expect(new URLSearchParams(window.location.search).get("photo"))
+                .toBe(result.current.filteredPhotos[0].id);
+        });
+
+        it("閉じると ?photo= が消える", () => {
+            const { result } = renderHook(() => useGallery(mockPhotos));
+            act(() => { result.current.open(0); });
+            act(() => { result.current.close(); });
+            expect(new URLSearchParams(window.location.search).get("photo")).toBeNull();
+        });
+
+        it("前後に送ると ?photo= も追従する", () => {
+            const { result } = renderHook(() => useGallery(mockPhotos));
+            act(() => { result.current.open(0); });
+            act(() => { result.current.next(); });
+            expect(new URLSearchParams(window.location.search).get("photo"))
+                .toBe(result.current.filteredPhotos[1].id);
+        });
+
+        it("フィルタと同時に載る（どちらも失わない）", () => {
+            const { result } = renderHook(() => useGallery(mockPhotos));
+            act(() => { result.current.setFilters({ category: "landscape" }); });
+            act(() => { result.current.open(0); });
+            const params = new URLSearchParams(window.location.search);
+            expect(params.get("category")).toBe("landscape");
+            expect(params.get("photo")).toBe(result.current.filteredPhotos[0].id);
+        });
+    });
+
+    describe("openById（?photo= からの復元）", () => {
+        it("IDで開ける", () => {
+            const { result } = renderHook(() => useGallery(mockPhotos));
+            let ok = false;
+            act(() => { ok = result.current.openById("3"); });
+            expect(ok).toBe(true);
+            expect(result.current.filteredPhotos[result.current.currentIndex!].id).toBe("3");
+        });
+
+        it("一覧に無いIDでは何も起きない（false を返す）", () => {
+            const { result } = renderHook(() => useGallery(mockPhotos));
+            let ok = true;
+            act(() => { ok = result.current.openById("nope"); });
+            expect(ok).toBe(false);
+            expect(result.current.currentIndex).toBeNull();
+        });
+    });
+
     describe("モーダル操作", () => {
         it("open で currentIndex が設定される", () => {
             const { result } = renderHook(() => useGallery(mockPhotos));

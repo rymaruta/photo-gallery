@@ -3,7 +3,8 @@ import React, { useEffect, useRef, useState } from "react";
 import type { Photo, Locale } from "@/lib/data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
 import { useSwipe } from "../../../lib/hooks/useSwipe";
-import { useFavorites } from "../../../lib/hooks/useFavorites";
+import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
+import { useAuth } from "../../auth/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { useImagePreloader } from "../../../lib/hooks/useImagePreloader";
 import { copyToClipboard, shareUrl } from "../../../lib/utils/share";
@@ -48,14 +49,24 @@ export default function GalleryModal({
     const helpOpenRef = useRef(false);
     useEffect(() => { helpOpenRef.current = helpOpen; }, [helpOpen]);
 
-    const currentPhotoIdRef = useRef(p?.id ?? "");
-    useEffect(() => { currentPhotoIdRef.current = p?.id ?? ""; }, [p?.id]);
 
     const { handlers: swipeHandlers } = useSwipe({
         onSwipeLeft: onNext, onSwipeRight: onPrev, onSwipeDown: onClose,
         threshold: 50, velocityThreshold: 0.3,
     });
-    const { isFavorite, toggleFavorite } = useFavorites();
+    // いいねはサーバーにも届ける。
+    // 以前ここだけ useFavorites を直接使っていたため、モーダルで押した
+    // いいねは端末ローカルに溜まるだけで、公開の件数も投稿者への通知も
+    // 動かなかった（個別ページでは動く）。新着写真はモーダルでしか
+    // 見られないので、その写真へのいいねは必ず失われていた。
+    const { isAuthenticated, loading: authLoading } = useAuth();
+    const { liked, toggle: toggleLike } = usePhotoLikes(p?.id ?? "", p?.likes ?? 0, isAuthenticated, authLoading);
+    // キーボードハンドラ用。toggle は liked が変わるたびに新しい関数になるので、
+    // 直接 deps に入れるとキー購読を張り直し続けることになる（フォーカストラップも巻き添え）。
+    const likedRef = useRef(liked);
+    useEffect(() => { likedRef.current = liked; }, [liked]);
+    const toggleLikeRef = useRef(toggleLike);
+    useEffect(() => { toggleLikeRef.current = toggleLike; }, [toggleLike]);
     const { showToast } = useToast();
     const { preload } = useImagePreloader();
 
@@ -67,7 +78,8 @@ export default function GalleryModal({
         const now = Date.now();
         if (now - lastTapRef.current < 350) {
             lastTapRef.current = 0;
-            if (!isFavorite(currentPhotoIdRef.current)) toggleFavorite(currentPhotoIdRef.current);
+            // いいね済みなら解除しない（ダブルタップは演出のみ）
+            if (!likedRef.current) void toggleLike();
             hapticTap();
             setHeartBurstKey(now);
         } else {
@@ -98,7 +110,7 @@ export default function GalleryModal({
                 return;
             }
             if (e.key === "?") { e.preventDefault(); setHelpOpen((v) => !v); return; }
-            if (e.key === "h" || e.key === "H") { e.preventDefault(); toggleFavorite(currentPhotoIdRef.current); return; }
+            if (e.key === "h" || e.key === "H") { e.preventDefault(); void toggleLikeRef.current(); return; }
             if (e.key === "Tab") {
                 const focusable = modalRef.current?.querySelectorAll<HTMLElement>(
                     'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -130,7 +142,7 @@ export default function GalleryModal({
             } catch { /* noop */ }
             prevActiveElementRef.current = null;
         };
-    }, [onClose, onNext, onPrev, toggleFavorite]);
+    }, [onClose, onNext, onPrev]);
 
     // --- Now safe to do the null guard ---
     if (!p) return null;
@@ -211,8 +223,8 @@ export default function GalleryModal({
                         onPrev={onPrev}
                         onNext={onNext}
                         onClose={onClose}
-                        isFav={isFavorite(p.id)}
-                        onToggleFavorite={() => { hapticTap(); toggleFavorite(p.id); }}
+                        isFav={liked}
+                        onToggleFavorite={() => { hapticTap(); void toggleLike(); }}
                         firstFocusableRef={firstFocusableRef}
                         lastFocusableRef={lastFocusableRef}
                     />
