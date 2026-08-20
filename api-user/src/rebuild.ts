@@ -69,8 +69,7 @@ async function claimRebuildSlot(now: number): Promise<Claim> {
         await ddb.send(new UpdateCommand({
             TableName: PHOTOS_TABLE,
             Key: { id: LOCK_ID },
-            // pending は「見送った依頼が溜まっている」印。自分が依頼するので下ろす
-            UpdateExpression: "SET lastAt = :now REMOVE pending",
+            UpdateExpression: "SET lastAt = :now",
             ConditionExpression: "attribute_not_exists(lastAt) OR lastAt < :cutoff",
             ExpressionAttributeValues: { ":now": now, ":cutoff": now - REBUILD_COOLDOWN_MS },
         }));
@@ -111,29 +110,6 @@ async function releaseRebuildSlot(stamp: number): Promise<void> {
     }
 }
 
-/**
- * 見送った依頼があることを記録する。
- *
- * 見送りは「あとでまとめて走るから捨ててよい」という前提だったが、
- * それは**次の依頼が来れば**の話だった。その編集が最後だと、
- * 消したはずの文言が静的HTMLと JSON-LD に残ったままになる
- * （定期ビルドは止めてある）。印を残しておけば、次の依頼が
- * 見送り分ごと連れて行く。
- */
-async function markRebuildPending(reason: string): Promise<void> {
-    try {
-        const { ddb, PHOTOS_TABLE, UpdateCommand } = await lockTable();
-        await ddb.send(new UpdateCommand({
-            TableName: PHOTOS_TABLE,
-            Key: { id: LOCK_ID },
-            UpdateExpression: "SET pending = :r",
-            ExpressionAttributeValues: { ":r": reason },
-        }));
-    } catch (e) {
-        console.error("markRebuildPending error:", e);
-    }
-}
-
 type RebuildOptions = {
     /**
      * true なら直近の依頼があるとき見送る。
@@ -154,8 +130,18 @@ export async function requestSiteRebuild(reason: string, options: RebuildOptions
     if (options.coalesce === true) {
         const claim = await claimRebuildSlot(Date.now());
         if (!claim.allowed) {
-            // 捨てずに印を残す。次の依頼がこの分ごと連れて行く
-            await markRebuildPending(reason);
+            // 見送った分は**後から実行されない**。
+            //
+            // 一度「見送った」印を lock に書いたが、それを読む所がどこにも
+            // 無く、書くだけの死にコードだった（見送りのたびに DynamoDB へ
+            // 1回書くだけ）。読む側を作らないなら置かない。
+            //
+            // 実際の取りこぼしは、ビルド開始時に
+            // scripts/sync-photos-from-ddb.js が印を下ろすことで
+            // 「10分」から「テーブルを読み終わるまで」に縮めてある。
+            // それでも scan の最中に着地した編集は次の依頼まで載らない。
+            // ここを完全に閉じるには定期ビルドか掃除役が要る（Actions の枠の
+            // 判断が要るので、勝手には足さない）。
             console.log(`requestSiteRebuild: 直近に依頼済みのため見送ります（${reason}）`);
             return false;
         }

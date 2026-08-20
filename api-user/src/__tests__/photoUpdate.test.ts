@@ -252,6 +252,27 @@ describe("updatePhotoVisibility: 静的ページの作り直し", () => {
         expect(mockRebuild).not.toHaveBeenCalled();
     });
 
+    // タグ未入力の下書きは `tags` 属性そのものを持たない。/user/edit は
+    // タグ欄が空でも必ず `tags: []` を送るので、空配列をそのまま比べていた
+    // 頃は毎回「変わった」になった。しかも書き込みは REMOVE（＝何も変えない）
+    // なので次の保存でも同じ判定になり、**永久に**ビルドが走り続けた。
+    it("タグを持たない写真に空のタグを送っても頼まない", async () => {
+        const noTags = { id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true, title: { ja: "海" } };
+        mockDdbSend.mockResolvedValueOnce({ Item: noTags }).mockResolvedValueOnce({});
+        await invoke(event("owner", "p1", { title: { ja: "海" }, tags: [], published: true }));
+        expect(mockRebuild).not.toHaveBeenCalled();
+        // 書き込み自体は今までどおり REMOVE を組み立てる
+        const update = (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string } }).input;
+        expect(update.UpdateExpression).toContain("REMOVE #tags");
+    });
+
+    it("タグが付いていた写真から全部外したら頼む", async () => {
+        const withTags = { id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true, tags: ["海"] };
+        mockDdbSend.mockResolvedValueOnce({ Item: withTags }).mockResolvedValueOnce({});
+        await invoke(event("owner", "p1", { tags: [], published: true }));
+        expect(mockRebuild).toHaveBeenCalledTimes(1);
+    });
+
     it("説明を消したら頼む（静的HTMLと JSON-LD に残るため）", async () => {
         mockDdbSend.mockResolvedValueOnce({ Item: stored }).mockResolvedValueOnce({});
         await invoke(event("owner", "p1", fullSave({ description: "" })));

@@ -157,25 +157,13 @@ describe("requestSiteRebuild: クールダウン", () => {
         expect(removes).toHaveLength(0);
     });
 
-    // 見送りは「次の依頼が来れば一緒に走る」前提だった。その編集が最後だと、
-    // 消したはずの文言が静的HTMLに残ったままになる（定期ビルドは止めてある）。
-    it("見送ったら、見送ったことを記録する", async () => {
+    // 見送った分は後から実行されない。一度「見送った」印を lock に書いたが、
+    // それを読む所がどこにも無く、書くだけの死にコードだった。読む側を
+    // 作らないなら置かない——見送りのたびに DynamoDB へ1回書くだけ損をする。
+    it("見送るときに余計な書き込みをしない", async () => {
         const { requestSiteRebuild } = await setup();
         mockDdbSend.mockRejectedValueOnce(condFail());
         expect(await requestSiteRebuild("photo updated: p1", { coalesce: true })).toBe(false);
-        const pending = mockDdbSend.mock.calls
-            .map((c) => (c[0] as { input?: Record<string, unknown> }).input)
-            .find((i) => i?.UpdateExpression === "SET pending = :r");
-        expect(pending?.Key).toEqual({ id: "rebuild#lock" });
-        expect((pending?.ExpressionAttributeValues as Record<string, unknown>)[":r"]).toBe("photo updated: p1");
-    });
-
-    it("依頼できたときは見送りの記録を下ろす", async () => {
-        const { requestSiteRebuild } = await setup();
-        expect(await requestSiteRebuild("photo updated: p1", { coalesce: true })).toBe(true);
-        const claim = mockDdbSend.mock.calls
-            .map((c) => (c[0] as { input?: Record<string, unknown> }).input)
-            .find((i) => String(i?.UpdateExpression ?? "").startsWith("SET lastAt"));
-        expect(claim?.UpdateExpression).toContain("REMOVE pending");
+        expect(mockDdbSend).toHaveBeenCalledTimes(1);   // 印を取ろうとした1回だけ
     });
 });

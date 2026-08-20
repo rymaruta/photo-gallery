@@ -196,13 +196,21 @@ describe("deleteAccount", () => {
             return Promise.resolve({});
         });
 
-        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        // 減らさないだけにして 200 を返していた頃は、直後に following# を
+        // 消していたので**再実行しても対象リストが空**になり、相手の
+        // フォロワー数が1多いまま誰にも直せなくなっていた。
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(500);
 
-        const updates = mockDdbSend.mock.calls
-            .map((c) => c[0])
+        const cmds = mockDdbSend.mock.calls.map((c) => c[0]);
+        const updates = cmds
             .filter((cmd) => cmd?.constructor?.name === "UpdateCommand")
             .map((cmd) => String(cmd.input?.Key?.id ?? ""));
         expect(updates).not.toContain("followstats#userA");
+        // やり直す手がかりを残す
+        const deletes = cmds
+            .filter((cmd) => cmd?.constructor?.name === "DeleteCommand")
+            .map((cmd) => String(cmd.input?.Key?.id ?? ""));
+        expect(deletes).not.toContain("following#me");
     });
 
     it("個別削除が1件失敗しても続行し 200 を返す（耐障害）", async () => {

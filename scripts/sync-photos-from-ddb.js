@@ -156,7 +156,7 @@ async function clearRebuildLock() {
         await ddb.send(new UpdateCommand({
             TableName: TABLE,
             Key: { id: "rebuild#lock" },
-            UpdateExpression: "REMOVE lastAt, pending",
+            UpdateExpression: "REMOVE lastAt",
         }));
         console.log("[sync] 再ビルドの畳み込み印を下ろしました（rebuild#lock）");
     } catch (err) {

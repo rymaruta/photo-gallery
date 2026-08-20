@@ -96,8 +96,10 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // （exif を含む）を送るので、何も変えずに保存を押すだけで
         // ビルドが走る（1本8分・月2,000分）。値そのものを突き合わせる。
         const visibilityChanged = "published" in fields && fields.published !== (photo.published !== false);
+        // 比べるのは**書いたあとの姿**。null は REMOVE になるので undefined と同じ扱い。
         const metaChanged = ["title", "description", "location", "category", "date", "tags", "exif"]
-            .some((k) => k in fields && !sameStoredValue(fields[k], (photo as Record<string, unknown>)[k]));
+            .some((k) => k in fields
+                && !sameStoredValue(fields[k] ?? undefined, (photo as Record<string, unknown>)[k]));
         if (visibilityChanged || metaChanged) {
             await requestSiteRebuild(`photo updated: ${id}`, { coalesce: true });
         }

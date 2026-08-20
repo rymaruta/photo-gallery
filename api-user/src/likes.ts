@@ -35,6 +35,11 @@ function definitelyNotApplied(e: unknown): boolean {
         "ValidationException",
         "ResourceNotFoundException",
         "AccessDeniedException",
+        "SerializationException",
+        // 資格情報切れ。Lambda の実行中にも起こりうる（確実に未適用）
+        "ExpiredTokenException",
+        "UnrecognizedClientException",
+        "InvalidSignatureException",
         // スロットリングは SDK が再試行を使い切ってから投げる＝未適用
         "ProvisionedThroughputExceededException",
         "ThrottlingException",
@@ -170,7 +175,8 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             // かもしれない）でもマーカーを消していたので、本人が取り消しても
             // マーカーが無く `attribute_exists(id)` で弾かれ、
             // **誰にも減らせない +1** が公開の数字に残った。
-            // 分からない失敗ではマーカーを残す——本人の取り消しで直せる。
+            // 分からない失敗ではマーカーを残す。直せるとは限らないが、
+            // 消すと「誰にも減らせない +1」で確実に詰むので、まだ動かせる方を選ぶ。
             if (definitelyNotApplied(e)) {
                 await ddb.send(new DeleteCommand({
                     TableName: PHOTOS_TABLE, Key: { id: markerId(photoId, userId) },

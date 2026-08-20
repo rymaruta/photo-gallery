@@ -171,6 +171,12 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         //    減らすので、**他人のフォロワー数が実際より小さくなる**
         //    （相手には直す手段が無い。こちらはもうアカウントが無いので
         //    フォローし直すこともできない）。
+        // 1件でも「消せたか分からない」失敗が出たら、following# は残して
+        // 失敗を返す。減らさないだけにして 200 を返していた頃は、直後に
+        // following# を消していたので**再実行しても対象リストが空**で、
+        // 相手のフォロワー数が1多いまま誰にも直せなくなっていた
+        // （こちらはもうアカウントが無い）。
+        let followCleanupFailed = false;
         for (const target of await readList(`following#${uid}`)) {
             const t = typeof target === "string" ? target : "";
             if (!t) continue;
@@ -193,6 +199,7 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                 // 減らすのは「消せたと確かめられたとき」だけにする。
                 removed = false;
                 if ((e as { name?: string }).name !== "ConditionalCheckFailedException") {
+                    followCleanupFailed = true;
                     console.error(`deleteAccount: follow marker delete failed for ${t}:`, e);
                 }
             }
@@ -202,6 +209,13 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // 5. 自分の各ドキュメント（既知キー）
         await ddbDelete(PHOTOS_TABLE, { id: `notifs#${uid}` });
         await ddbDelete(PHOTOS_TABLE, { id: `followstats#${uid}` });
+        if (followCleanupFailed) {
+            // ここで following# を消すと、やり直す手がかりが無くなる。
+            // 残して失敗を返す（画面は「もう一度お試しください」を出す）。
+            // 写真・プロフィールは既に消えているので、再実行は残りを片付ける。
+            console.error("deleteAccount: follow cleanup incomplete; keeping following# for retry");
+            return jsonError(500, "退会処理の一部が完了しませんでした。もう一度お試しください");
+        }
         await ddbDelete(PHOTOS_TABLE, { id: `following#${uid}` });
 
         // 静的ページの掃除を頼む。DynamoDB と S3 を消しても、既に配ってある

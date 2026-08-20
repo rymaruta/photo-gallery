@@ -143,6 +143,26 @@ describe("updateMyProfile: 旧ホストの曲が残っている人の保存", ()
         expect(JSON.parse(res.body).songs).toHaveLength(3);
     });
 
+    it("保存済みが有効なら、壊れた payload で消さない", async () => {
+        // 件数だけで「消したい意思」と判断していた頃は、有効な曲を3件持つ人に
+        // {songs:[null,null]} を送るだけで（クライアントのマッピング不具合や
+        // 古いバージョンで起こりうる）3件とも消えて 200 が返った。
+        const valid = Array.from({ length: 3 }, (_, i) => ({
+            title: `曲${i}`, previewUrl: `https://audio-ssl.itunes.apple.com/${i}.m4a`,
+        }));
+        const res = await runSave(valid, [null, null]);
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).songs).toHaveLength(3);
+    });
+
+    it("保存済みが有効なら、題名の無い曲を送っても消さない", async () => {
+        const valid = Array.from({ length: 3 }, (_, i) => ({
+            title: `曲${i}`, previewUrl: `https://audio-ssl.itunes.apple.com/${i}.m4a`,
+        }));
+        const res = await runSave(valid, [{ previewUrl: "https://audio-ssl.itunes.apple.com/x.m4a" }]);
+        expect(JSON.parse(res.body).songs).toHaveLength(3);
+    });
+
     it("空配列で送れば消す", async () => {
         const res = await runSave(legacy(3), []);
         expect(JSON.parse(res.body).songs).toEqual([]);

@@ -134,9 +134,15 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         let metaChanged = false;
         const applyMeta = (col: string, present: boolean, value: unknown) => {
             if (!present) return;
-            if (!sameStoredValue(value, existing.Item?.[col])) metaChanged = true;
+            const willRemove = value === undefined || value === null || (Array.isArray(value) && value.length === 0);
+            // 「変わったか」は**書いたあとの姿**で見る。空配列をそのまま比べていた頃は、
+            // タグ属性を持たない写真（タグ未入力の下書きは全部これ）に対して
+            // /user/edit が必ず送る tags: [] が毎回「変わった」になり、
+            // 実際には REMOVE が何もしないので次の保存でも同じ判定になった
+            // ——何も書き換えずに保存するだけでビルドが走り続ける。
+            if (!sameStoredValue(willRemove ? undefined : value, existing.Item?.[col])) metaChanged = true;
             names[`#${col}`] = col;
-            if (value === undefined || value === null || (Array.isArray(value) && value.length === 0)) {
+            if (willRemove) {
                 removes.push(`#${col}`);
             } else {
                 sets.push(`#${col} = :${col}`);

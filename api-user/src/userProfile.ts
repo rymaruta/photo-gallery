@@ -371,12 +371,21 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     try {
         const prev = await getProfile(userId);
 
-        // 全曲弾かれた保存の扱い。保存済みより少ない件数が送られてきたなら
-        // 「消したい」なので空にする。同じ件数（＝画面がそのまま送り返した）
-        // なら触らない。
+        // 全曲弾かれた保存の扱い。
+        //
+        // 件数だけで「消したい意思」と判断してはいけない。曲が弾かれる理由は
+        // 旧ホストだけではなく、object でない・title が空・previewUrl が無い、
+        // でも弾かれる。件数だけを見ていた頃は、有効な曲を3件持っている人に
+        // `{songs:[null,null]}` を送るだけで（クライアントのマッピング不具合や
+        // 古いバージョンで起こりうる）**有効な3件が消えて 200** が返った。
+        //
+        // 消してよいのは「保存済みも全部いまの規則では保存できない」＝
+        // 旧ルール時代のデータしか無い人に限る。そこでだけ、送られた件数が
+        // 保存済みより少ないことを削除の意思として扱う。
         if (songsAllRejected > 0) {
-            const storedCount = Array.isArray(prev?.songs) ? prev.songs.length : 0;
-            if (songsAllRejected < storedCount) {
+            const stored = Array.isArray(prev?.songs) ? prev.songs : [];
+            const storedStillValid = stored.filter((s) => safeSongPreviewUrl((s as SongEntry)?.previewUrl) && (s as SongEntry)?.title);
+            if (storedStillValid.length === 0 && songsAllRejected < stored.length) {
                 songs = [];
                 songsAddressed = true;
             }

@@ -82,19 +82,36 @@ export async function putPhoto(photo: Photo): Promise<void> {
 }
 
 export async function updatePhotoFields(id: string, updates: Record<string, unknown>): Promise<Photo | null> {
-    const setExprs = Object.keys(updates).map((k) => `#${k} = :${k}`).join(", ");
+    // undefined は「その項目を空にする」指定。SET に混ぜてはいけない。
+    //
+    // DocumentClient は removeUndefinedValues: true なので、
+    // ExpressionAttributeValues から :location ごと落ちる。式には
+    // `SET #location = :location` が残るため DynamoDB は ValidationException を
+    // 返し、ハンドラは 500 になる——つまり /admin/edit で撮影地や説明を
+    // 空にして保存すると、必ず「更新に失敗しました」になっていた。
+    // ユーザーAPI側（api-user/src/photoUpdate.ts）は REMOVE を組み立てている。
+    const sets: string[] = [];
+    const removes: string[] = [];
     const names: Record<string, string> = {};
     const values: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(updates)) {
         names[`#${k}`] = k;
-        values[`:${k}`] = v;
+        if (v === undefined || v === null) {
+            removes.push(`#${k}`);
+        } else {
+            sets.push(`#${k} = :${k}`);
+            values[`:${k}`] = v;
+        }
     }
+    if (sets.length === 0 && removes.length === 0) return getPhotoById(id);
+    let expr = sets.length ? `SET ${sets.join(", ")}` : "";
+    if (removes.length) expr += `${expr ? " " : ""}REMOVE ${removes.join(", ")}`;
     const res = await ddb.send(new UpdateCommand({
         TableName: TABLE,
         Key: { id },
-        UpdateExpression: `SET ${setExprs}`,
+        UpdateExpression: expr,
         ExpressionAttributeNames: names,
-        ExpressionAttributeValues: values,
+        ...(Object.keys(values).length ? { ExpressionAttributeValues: values } : {}),
         ConditionExpression: "attribute_exists(id)",
         ReturnValues: "ALL_NEW",
     }));
