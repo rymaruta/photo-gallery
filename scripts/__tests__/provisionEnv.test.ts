@@ -106,3 +106,33 @@ describe("buildStagingConfig: 本番の資源を持ち込まない", () => {
         expect(src.Aliases.Items).toEqual(["journey-photo.com"]);
     });
 });
+
+// `ENV_NAME=Prod` がガードを素通りし、`Prod-photo-gallery-photos` の
+// テーブルだけ作って S3 で失敗していた（バケット名は小文字しか使えない）。
+// 中途半端に作られた資源が残る。スクリプトは env を読んだ時点で
+// process.exit するので、子プロセスとして起動して終了コードを見る。
+describe("ENV_NAME の受け付け方", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { spawnSync } = require("child_process");
+    const run = (envName: string) => spawnSync(
+        process.execPath, ["scripts/provision-env.js"],
+        { env: { ...process.env, ENV_NAME: envName, SOURCE_DISTRIBUTION_ID: "X", AWS_REGION: "ap-northeast-1" },
+            encoding: "utf8", timeout: 20000 },
+    );
+
+    it("prod は大文字混じりでも弾く", () => {
+        for (const v of ["prod", "Prod", "PROD"]) {
+            const r = run(v);
+            expect(r.status).toBe(1);
+            expect(String(r.stderr)).toContain("prod は指定できません");
+        }
+    });
+
+    it("AWS の名前規則に合わない環境名は、作り始める前に弾く", () => {
+        for (const v of ["Staging", "1staging", "staging_2", "staging.a"]) {
+            const r = run(v);
+            expect(r.status).toBe(1);
+            expect(String(r.stderr)).toContain("英小文字で始まり");
+        }
+    });
+});

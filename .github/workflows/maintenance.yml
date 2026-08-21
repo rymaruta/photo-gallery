@@ -34,6 +34,15 @@ env:
   CLOUDFRONT_URL: https://d1s3dwwzgxf5ni.cloudfront.net
   LOG_BUCKET: prod-journey-photo-cdn-logs
 
+# 変更系の作業を二重に走らせない。
+# shrink-profiles --apply を同時に2本動かすと、同じ
+# profiles/<uid> のキーを奪い合って、どちらの縮小結果が残るか決まらない。
+# 他の変更系ワークフロー（generate-thumbnails / restrict-originals）には
+# 既に入っている。
+concurrency:
+  group: maintenance
+  cancel-in-progress: false
+
 jobs:
   run:
     runs-on: ubuntu-latest

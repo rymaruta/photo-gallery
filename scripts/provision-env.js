@@ -43,8 +43,17 @@ const ENV = requireEnv("ENV_NAME", "作る環境名（例: ENV_NAME=staging）")
 const SOURCE_DIST = requireEnv("SOURCE_DISTRIBUTION_ID", "CloudFront 設定のコピー元（本番のディストリビューションID）");
 const APPLY = process.argv.includes("--apply");
 
-if (ENV === "prod") {
+// 大文字小文字を無視して弾く。`ENV_NAME=Prod` はこのガードを素通りし、
+// `Prod-photo-gallery-photos` のテーブルだけ作って S3 で失敗していた
+// （バケット名は小文字しか使えない）。中途半端に作られた資源が残る。
+if (ENV.toLowerCase() === "prod") {
     console.error("ENV_NAME=prod は指定できません。既存の本番を壊しかねません。");
+    process.exit(1);
+}
+// AWS の名前規則（S3 バケット）に合わせて、作る前に形を確かめる。
+// 途中で失敗すると、作れたものだけが残って後片付けが要る。
+if (!/^[a-z][a-z0-9-]*$/.test(ENV)) {
+    console.error(`ENV_NAME=${ENV} は使えません。英小文字で始まり、英小文字・数字・ハイフンだけにしてください。`);
     process.exit(1);
 }
 

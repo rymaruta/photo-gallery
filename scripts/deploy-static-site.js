@@ -269,7 +269,7 @@ function classifyStaleObjects(localKeys, remoteObjects, now, graceMs) {
 async function deleteStaleKeys(localKeys, remoteObjects) {
     const { toDelete, kept } = classifyStaleObjects(localKeys, remoteObjects, Date.now(), ASSET_GRACE_MS);
     if (kept > 0) console.log(`[deploy] Keeping ${kept} stale asset(s) within ${ASSET_GRACE_MS / 86400000}-day grace period.`);
-    if (toDelete.length === 0) return;
+    if (toDelete.length === 0) return [];
     // DeleteObjects accepts up to 1000 keys at a time
     for (let i = 0; i < toDelete.length; i += 1000) {
         const batch = toDelete.slice(i, i + 1000).map(Key => ({ Key }));
@@ -279,6 +279,7 @@ async function deleteStaleKeys(localKeys, remoteObjects) {
         }));
         console.log(`[deploy] Deleted ${batch.length} stale object(s).`);
     }
+    return toDelete;
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -317,10 +318,13 @@ async function verifyAssets(assetKeys, cfDistId) {
         .filter((k) => /\.(js|css)$/.test(k));
     if (targets.length === 0) return;
 
+    // **並列で見る。** 直列だと 1件あたり最大 2回×1.5秒 の待ちが積み上がり、
+    // 403 が続く回は**1回のデプロイで最大4.5分**を「参考ログ」のためだけに使う。
+    // 同じファイルの runPool をそのまま使う（アップロードと同じ仕掛け）。
     async function scan() {
         const bad = [];
         let has5xx = false;
-        for (const key of targets) {
+        await runPool(targets, async (key) => {
             const url = `${SITE_URL}/${key}`;
             let ok = false;
             let info = "";
@@ -338,7 +342,9 @@ async function verifyAssets(assetKeys, cfDistId) {
                 if (!ok) await sleep(1500);
             }
             if (!ok) bad.push(`${key} (${info})`);
-        }
+        }, 8);
+        // 並列にすると順序が入れ替わるので、ログの読みやすさのために揃える
+        bad.sort();
         return { bad, has5xx };
     }
 
@@ -420,6 +426,20 @@ function assertNoForbiddenContent(files) {
 
 
 /**
+ * 無効化すべきキーを決める。
+ *
+ * 「中身が変わったもの」だけでは足りない。**消したものも入れる**——
+ * 消しただけではエッジに残った古い実体が返り続ける。今は HTML を
+ * no-store で配っているから表面化していないだけで、キャッシュ設定を
+ * 変えた瞬間に「消したページが出続ける」に化ける。削除は写真を消した
+ * ときの掃除経路そのものなので、ここが効かないと消した内容が
+ * 公開されたままになる。
+ */
+function invalidationTargets(localFiles, beforeUpload, deletedKeys) {
+    return [...changedKeys(localFiles, beforeUpload), ...(deletedKeys ?? [])];
+}
+
+/**
  * 上げ先と robots.txt が食い違っていたら止める。
  *
  * ここは**両方向**の取り違えを見る:
@@ -481,14 +501,14 @@ async function main() {
     // Step 3: Remove stale objects (assets get a grace period; see deleteStaleKeys).
     console.log("[deploy] Step 3/3: removing stale S3 objects...");
     const remoteObjects = await listS3Objects();
-    await deleteStaleKeys(allFiles, remoteObjects);
+    const deletedKeys = await deleteStaleKeys(allFiles, remoteObjects);
 
     console.log("\n[deploy] S3 sync complete.");
 
     // CloudFront invalidation
     const cfDistId = process.env.CLOUDFRONT_DISTRIBUTION_ID;
     if (cfDistId) {
-        const changed = changedKeys(allFiles, beforeUpload);
+        const changed = invalidationTargets(allFiles, beforeUpload, deletedKeys);
         const invalidationPaths = invalidationPathsFor(changed);
         if (invalidationPaths.length === 0) {
             console.log("[deploy] 中身の変わったページはありません。CloudFront の無効化はしません。");
@@ -522,7 +542,7 @@ async function main() {
 
 // テストから判定ロジックを検証できるようにエクスポート
 module.exports = {
-    assertNoForbiddenContent, assertRobotsMatchesTarget,
+    assertNoForbiddenContent, assertRobotsMatchesTarget, invalidationTargets,
     FORBIDDEN_IN_OUTPUT, classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys };
 
 if (require.main === module) main().catch(err => {

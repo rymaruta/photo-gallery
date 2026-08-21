@@ -8,9 +8,15 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "1 で対象一覧の確認のみ（生成しない）"
-        required: false
-        default: "0"
+        # 自由入力だと `=== "1"` の比較を外れた値（"true" など）が
+        # **本番に書く側**に落ちる。選ぶだけにして取り違えを無くす。
+        description: "対象一覧の確認のみにするか"
+        type: choice
+        options:
+          - "1"   # 確認のみ（既定）
+          - "0"   # 実際に生成して DynamoDB に書く
+        required: true
+        default: "1"
 
 # 画像処理が重なると S3 への書き込みが競合するため同時実行しない。
 concurrency:

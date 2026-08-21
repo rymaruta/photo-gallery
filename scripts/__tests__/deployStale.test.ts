@@ -287,3 +287,35 @@ describe("assertRobotsMatchesTarget（上げ先と robots.txt の食い違い）
         expect(() => assertRobotsMatchesTarget("staging-journey-photo.com", "")).toThrow();
     });
 });
+
+// 消したキーが無効化の対象に入っていなかった。消しただけではエッジに
+// 残った古い実体が返り続ける。今は HTML を no-store で配っているから
+// 表面化していないだけで、キャッシュ設定を変えた瞬間に
+// 「消したページが出続ける」に化ける。削除は写真を消したときの
+// 掃除経路そのものなので、ここが効かないと消した内容が公開されたままになる。
+describe("削除したキーも無効化の対象に入れる", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { invalidationTargets } = require("../deploy-static-site.js");
+
+    it("消したキーが対象に入る", () => {
+        // 変更は無し（ローカルにファイルが無いので changedKeys は空）
+        expect(invalidationTargets([], [], ["photo/gone.html"]))
+            .toEqual(["photo/gone.html"]);
+    });
+
+    it("消したものが無ければ、変更ぶんだけ（今までの動きを壊していない）", () => {
+        expect(invalidationTargets([], [], [])).toEqual([]);
+        expect(invalidationTargets([], [], undefined)).toEqual([]);
+    });
+
+    it("消したページは拡張子ありでもなしでも無効化される", () => {
+        const paths = invalidationPathsFor(invalidationTargets([], [], ["photo/gone.html"]));
+        expect(paths).toContain("/photo/gone.html");
+        expect(paths).toContain("/photo/gone");   // 拡張子なしのURLでも配信される
+    });
+
+    it("消したぶんを混ぜても uploads/ を巻き込まない（安全側に倒す）", () => {
+        expect(() => invalidationPathsFor(invalidationTargets([], [], ["uploads/a.html"])))
+            .toThrow(/uploads/);
+    });
+});
