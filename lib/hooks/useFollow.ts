@@ -110,6 +110,13 @@ function loadCounts(userId: string): Promise<void> {
 export function useFollow(targetUserId: string | undefined, isAuthenticated: boolean) {
     const [isFollowing, setIsFollowing] = useState(false);
     const [pending, setPending] = useState(false);
+    // フォロー中かどうかが**まだ分かっていない**間を表す。
+    // 初期値の false を「未フォロー」と同じ扱いにしていた頃は、
+    // 一覧を取り終える前にボタンが「フォロー」と出て、押すと
+    // 既にフォロー済みなのに冪等の 200 が返る（画面は変わらない）。
+    // ログイン済みなのに「ログインしてください」が出る場面もあった。
+    // 分かるまでは押させない。
+    const [resolved, setResolved] = useState(false);
     const busyRef = useRef(false);
 
     // 数は共有ストアから読む（同じ相手を見ている他のコンポーネントと同期する）
@@ -122,9 +129,16 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
     useEffect(() => {
         if (!targetUserId) return;
         let aborted = false;
+        setResolved(false);
         void loadCounts(targetUserId);
         if (isAuthenticated) {
-            void fetchFollowingSet().then((set) => { if (!aborted) setIsFollowing(set.has(targetUserId)); });
+            void fetchFollowingSet()
+                .then((set) => { if (!aborted) setIsFollowing(set.has(targetUserId)); })
+                .finally(() => { if (!aborted) setResolved(true); });
+        } else {
+            // 未ログインなら「フォローしていない」が確定している
+            setIsFollowing(false);
+            setResolved(true);
         }
         return () => { aborted = true; };
     }, [targetUserId, isAuthenticated]);
@@ -166,5 +180,5 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
         }
     }, [targetUserId, isFollowing, isAuthenticated]);
 
-    return { isFollowing, followers, following, pending, toggle };
+    return { isFollowing, followers, following, pending, resolved, toggle };
 }

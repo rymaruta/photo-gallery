@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 
 // 「写真のGPSから撮影地を自動入力」を切っているのに、iOS の共有シート経由
 // だけ効いていなかった件（2-4）。
@@ -87,5 +87,32 @@ describe("共有シート経由の取り込みと GPS 自動入力の設定", ()
     it("未設定なら既定でオン", async () => {
         render(<UploadPage />);
         await waitFor(() => expect(mockReverseGeocode).toHaveBeenCalled());
+    });
+});
+
+// 大きすぎるファイルの警告が、あとから出す非画像の警告に**上書きされて**
+// いた。落ちた枚数が伝わらず、利用者は「なぜか1枚少ない」まま公開する。
+describe("受け付けなかったファイルの伝え方", () => {
+    it("理由が2つあれば両方まとめて出す", async () => {
+        const big = new File([new Uint8Array(1)], "でかい.jpg", { type: "image/jpeg" });
+        Object.defineProperty(big, "size", { value: 51 * 1024 * 1024 });
+        mockReadSharedPayload.mockResolvedValue({
+            files: [
+                big,
+                new File(["x"], "しょるい.pdf", { type: "application/pdf" }),
+                new File(["x"], "ふつう.jpg", { type: "image/jpeg" }),
+            ],
+            title: "", text: "", t: Date.now(),
+        });
+
+        render(<UploadPage />);
+
+        const msg = await screen.findByText(/スキップしました/);
+        // 片方だけではなく両方の理由が残っている
+        expect(msg.textContent).toContain("でかい.jpg");
+        expect(msg.textContent).toContain("しょるい.pdf");
+        expect(msg.textContent).toContain("2件");
+        // 通る1枚は取り込まれている
+        await waitFor(() => expect(mockExtractExif).toHaveBeenCalled());
     });
 });

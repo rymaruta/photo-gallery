@@ -179,7 +179,16 @@ export default function ProfileEditPage() {
         e.target.value = "";
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (ev) => setCoverPreview(ev.target?.result as string);
+        // 失敗したらプレビューを消す。残したままだと**保存された気になる**
+        // ——画面には新しい写真が出ているのに、S3 にもプロフィールにも
+        // 入っていない。次に開くと元に戻っていて、何が起きたのか分からない。
+        //
+        // FileReader は非同期なので、**先に失敗する順序がある**
+        // （presign が 503 で即返るなど）。あとから onload が発火して
+        // 消したはずのプレビューを描き直さないよう、両方の順序を見る。
+        let saved = false;
+        let failed = false;
+        reader.onload = (ev) => { if (!failed) setCoverPreview(ev.target?.result as string); };
         reader.readAsDataURL(file);
         setCoverUploading(true);
         try {
@@ -210,11 +219,13 @@ export default function ProfileEditPage() {
             });
             if (!uploadRes.ok) { showToast("カバー写真のアップロードに失敗しました", "error"); return; }
             setCoverError(false);
+            saved = true;
             showToast("カバー写真を更新しました", "success");
         } catch {
             showToast("カバー写真のアップロードに失敗しました", "error");
         } finally {
             setCoverUploading(false);
+            if (!saved) { failed = true; setCoverPreview(null); }
         }
     };
 
@@ -226,7 +237,11 @@ export default function ProfileEditPage() {
 
         // プレビュー表示
         const reader = new FileReader();
-        reader.onload = (ev) => setAvatarPreview(ev.target?.result as string);
+        // カバーと同じ。失敗したらプレビューを消す（保存された気にさせない）。
+        // FileReader が後から発火して描き直さないよう、両方の順序を見る。
+        let saved = false;
+        let failed = false;
+        reader.onload = (ev) => { if (!failed) setAvatarPreview(ev.target?.result as string); };
         reader.readAsDataURL(file);
 
         setAvatarUploading(true);
@@ -262,11 +277,13 @@ export default function ProfileEditPage() {
             if (!uploadRes.ok) { showToast("アバターのアップロードに失敗しました", "error"); return; }
 
             setAvatarError(false);
+            saved = true;
             showToast("プロフィール写真を更新しました", "success");
         } catch {
             showToast("アバターのアップロードに失敗しました", "error");
         } finally {
             setAvatarUploading(false);
+            if (!saved) { failed = true; setAvatarPreview(null); }
         }
     };
 

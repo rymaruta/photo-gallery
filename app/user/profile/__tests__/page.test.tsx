@@ -26,6 +26,13 @@ vi.mock("../../../../lib/utils/api", () => ({
     userFetch: (...args: unknown[]) => mockUserFetch(...args),
 }));
 
+vi.mock("../../../../lib/utils/image", () => ({
+    toUploadSafeFile: async (f: File) => f,
+    UnstrippableFileError: class extends Error {},
+    AVATAR_MAX_PX: 512,
+    COVER_MAX_PX: 1280,
+}));
+
 vi.mock("../../../components/DeleteAccountModal", () => ({
     default: () => null,
 }));
@@ -83,5 +90,34 @@ describe("プロフィール編集: 読み込み失敗時に保存させない",
 
         await waitFor(() => expect(mockUserFetch).toHaveBeenCalledTimes(2));
         expect(mockUserFetch.mock.calls[1][1]).toMatchObject({ method: "PUT" });
+    });
+});
+
+// アップロードに失敗してもプレビューが残っていた。画面には新しい写真が
+// 出ているのに S3 にもプロフィールにも入っておらず、**保存された気になる**。
+// 次に開くと元に戻っていて、何が起きたのか分からない。
+describe("プロフィール写真: 失敗したらプレビューを残さない", () => {
+    // アバターとカバーは別のハンドラで、同じ間違いを別々にしうる。
+    // **両方**を叩く（片方だけだと、もう片方を壊しても通ってしまう）。
+    it.each([0, 1])("アップロードに失敗したら、選んだ画像のプレビューを消す（入力 %i）", async (idx) => {
+        mockUserFetch.mockImplementation((url: string) => {
+            if (url === "/user/profile") return Promise.resolve(ok({ displayName: "自分" }));
+            return Promise.resolve({ ok: false, status: 503, json: async () => ({ error: "だめでした" }) });
+        });
+        const { container } = render(<ProfilePage />);
+        await screen.findByDisplayValue("自分");
+
+        const fileInputs = container.querySelectorAll('input[type="file"]');
+        expect(fileInputs.length).toBeGreaterThan(idx);
+        await userEvent.upload(fileInputs[idx] as HTMLInputElement,
+            new File(["x"], "pic.jpg", { type: "image/jpeg" }));
+
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
+            expect.stringContaining("失敗"), "error"));
+        // data: URL のプレビューが残っていない
+        await waitFor(() => {
+            const imgs = Array.from(container.querySelectorAll("img"));
+            expect(imgs.some((i) => i.getAttribute("src")?.startsWith("data:"))).toBe(false);
+        });
     });
 });

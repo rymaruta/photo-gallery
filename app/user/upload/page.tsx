@@ -217,24 +217,42 @@ function UploadPageInner() {
         // 弾いたファイルは黙って捨てない。
         // 以前は画像以外を無言で continue していたので、HEIC が読めない端末や
         // 動画を選んだときに「何も起きない」ように見えた（原因が分からない）。
-        const rejected: string[] = [];
+        // 理由ごとに分けて集める。**別々に setFileError していた頃は、
+        // あとから出した非画像の警告が「50MBを超える」を上書きしていた**
+        // ——落ちた枚数が伝わらず、利用者は「なぜか1枚少ない」まま公開する。
+        const notImage: string[] = [];
+        const tooLarge: string[] = [];
         for (const f of files) {
             if (!f.type.startsWith("image/")) {
-                rejected.push(f.name);
+                notImage.push(f.name);
                 continue;
             }
             if (f.size > 50 * 1024 * 1024) {
-                setFileError(locale === "en" ? `Skipped ${f.name} (over 50MB)` : `${f.name} は50MBを超えるためスキップしました`);
+                tooLarge.push(f.name);
                 continue;
             }
             accepted.push(f);
         }
-        if (rejected.length > 0) {
-            // 1件ずつ出すと連打になるのでまとめて1つ
-            const names = rejected.slice(0, 3).join("、") + (rejected.length > 3 ? ` ほか${rejected.length - 3}件` : "");
+        // 1件ずつ出すと連打になるのでまとめて1つ。理由が2つあれば両方並べる。
+        const names = (list: string[]) =>
+            list.slice(0, 3).join(locale === "en" ? ", " : "、")
+            + (list.length > 3 ? (locale === "en" ? ` and ${list.length - 3} more` : ` ほか${list.length - 3}件`) : "");
+        const reasons: string[] = [];
+        if (tooLarge.length > 0) {
+            reasons.push(locale === "en"
+                ? `over 50MB: ${names(tooLarge)}`
+                : `50MBを超える: ${names(tooLarge)}`);
+        }
+        if (notImage.length > 0) {
+            reasons.push(locale === "en"
+                ? `not an image: ${names(notImage)}`
+                : `画像ではない: ${names(notImage)}`);
+        }
+        if (reasons.length > 0) {
+            const skipped = tooLarge.length + notImage.length;
             setFileError(locale === "en"
-                ? `Not an image, skipped: ${names}`
-                : `画像ではないためスキップしました: ${names}`);
+                ? `Skipped ${skipped} file(s) — ${reasons.join(" / ")}`
+                : `${skipped}件をスキップしました（${reasons.join(" / ")}）`);
         }
         if (accepted.length === 0) return;
 

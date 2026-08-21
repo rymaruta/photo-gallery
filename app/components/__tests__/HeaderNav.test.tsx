@@ -190,3 +190,32 @@ describe("HeaderNav - メニュー開閉の回帰ガード", () => {
         expect(screen.getByLabelText("Close menu")).toBeInTheDocument();
     });
 });
+
+// `loading` を受け取っているのに使っておらず、Cognito のセッション確認が
+// 終わる前は isAuthenticated が false なので、**ログイン済みの人にも一瞬
+// 「ログイン / 新規登録」が並んでいた**。押すとログイン済みのまま
+// ログイン画面に飛ぶ。
+describe("認証状態が分かるまで", () => {
+    it("判定中はログイン/新規登録もログアウトも出さない", () => {
+        authState.current = { ...authState.current, isAuthenticated: false, loading: true };
+        render(<HeaderNav />);
+        fireEvent.click(screen.getByLabelText(/メニュー|Menu/i));
+
+        expect(screen.queryByRole("button", { name: /Login|ログイン/ })).toBeNull();
+        expect(screen.queryByRole("button", { name: /Sign up|新規登録/ })).toBeNull();
+        expect(screen.queryByRole("button", { name: /Logout|ログアウト/ })).toBeNull();
+    });
+
+    it("判定が終われば従来どおり出し分ける", () => {
+        authState.current = { ...authState.current, isAuthenticated: false, loading: false };
+        const { unmount } = render(<HeaderNav />);
+        fireEvent.click(screen.getByLabelText(/メニュー|Menu/i));
+        expect(screen.getByRole("button", { name: /Login|ログイン/ })).toBeInTheDocument();
+        unmount();
+
+        authState.current = { ...authState.current, isAuthenticated: true, loading: false };
+        render(<HeaderNav />);
+        fireEvent.click(screen.getByLabelText(/メニュー|Menu/i));
+        expect(screen.getByRole("button", { name: /Logout|ログアウト/ })).toBeInTheDocument();
+    });
+});

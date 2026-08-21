@@ -178,7 +178,17 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                         </button>
                                     </li>
                                 )}
-                                {isAuthenticated ? (
+                                {/* **判定中は出し分けない。** `loading` を受け取っているのに
+                                    使っておらず、Cognito のセッション確認が終わる前は
+                                    isAuthenticated が false なので、ログイン済みの人にも
+                                    一瞬「ログイン / 新規登録」が並んでいた。押すと
+                                    ログイン済みのままログイン画面に飛ぶ。
+                                    分かるまでは、この行だけ何も出さない。 */}
+                                {loading ? (
+                                    <li aria-hidden style={{ margin: 0, padding: 0 }}>
+                                        <span className={`${linkBase} block opacity-0`} style={{ minHeight: "44px" }}>&nbsp;</span>
+                                    </li>
+                                ) : isAuthenticated ? (
                                     <li style={{ margin: 0, padding: 0 }}>
                                         <button onClick={() => { setOpen(false); logout(); }} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                             {navLabels.logout || "Logout"}

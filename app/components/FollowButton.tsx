@@ -42,7 +42,7 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale }: 
  * プロフィールのアクション行（編集/写真を追加 と同じ場所）に置けるようにする。
  */
 export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale }: Props) {
-    const { isFollowing, pending, toggle } = useFollow(targetUserId, isAuthenticated);
+    const { isFollowing, pending, resolved, toggle } = useFollow(targetUserId, isAuthenticated);
     const { showToast } = useToast();
 
     if (isOwner) return null;
@@ -57,7 +57,10 @@ export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale }:
     return (
         <button
             onClick={() => void onClick()}
-            disabled={pending}
+            // 判定が終わるまで押させない。初期値の false を「未フォロー」と
+            // 同じ扱いにしていた頃は、一覧を取り終える前にボタンが「フォロー」と
+            // 出て、押しても既にフォロー済みで画面が変わらなかった。
+            disabled={pending || !resolved}
             aria-pressed={isFollowing}
             className={`flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 ${
                 isFollowing
