@@ -60,6 +60,12 @@ function transactItems(): TxItem[][] {
         .filter((cmd) => cmd?.constructor?.name === "TransactWriteCommand")
         .map((cmd) => cmd.input.TransactItems as TxItem[]);
 }
+/** トランザクション以外の単発コマンド（打ち消しの最後の手段を見るため） */
+function commandsNamed(name: string): { input: Record<string, unknown> }[] {
+    return mockDdbSend.mock.calls
+        .map((c) => c[0])
+        .filter((cmd) => cmd?.constructor?.name === name);
+}
 
 /**
  * followUser は最初に「相手が実在するか」を USERS_TABLE に聞く。
@@ -161,6 +167,30 @@ describe("followUser", () => {
         expect(items[2].Update?.ConditionExpression).toBeUndefined();
     });
 
+    // 「1つの書き込みか」「条件が付いているか」だけを見ていて、
+    // **向き（+1 か -1 か）とどのフィールドを触るか**を一度も確かめて
+    // いなかった。`+ :one` を `- :one` に変えても、followers と following を
+    // 入れ替えても、テストは全部通っていた——「フォロワー数が永久に
+    // ずれるのを直す」というコミットで、いちばん肝心な部分が無検証だった。
+    it("加算は増やす向きで、相手は followers・自分は following を触る", async () => {
+        queueUserExists();
+        mockDdbSend
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Item: { list: [] } })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Item: { followers: 1, following: 0 } });
+        await invoke(followUser, ev(ME, OTHER));
+
+        const items = transactItems()[0];
+        expect(items[1].Update?.Key?.id).toBe(`followstats#${OTHER}`);
+        expect(items[1].Update?.UpdateExpression)
+            .toBe("SET followers = if_not_exists(followers, :z) + :one, uid = :uid");
+        expect(items[2].Update?.Key?.id).toBe(`followstats#${ME}`);
+        expect(items[2].Update?.UpdateExpression)
+            .toBe("SET following = if_not_exists(following, :z) + :one, uid = :uid");
+    });
+
     it("既にフォロー済みは冪等（カウンタ・通知なし）", async () => {
         queueUserExists();
         mockDdbSend
@@ -175,16 +205,39 @@ describe("followUser", () => {
     // マーカー以外の理由で落ちたときは**何も書かれていない**。
     // 冪等の 200 を返すと「フォロー済み扱いなのにカウンタが増えていない」
     // 状態が固定される（押し直しても早期 return で直らない）。
-    it("マーカー以外の理由でキャンセルされたら 500（冪等扱いにしない）", async () => {
+    it("マーカー以外の理由で撃ち直しても駄目なら 500（冪等扱いにしない）", async () => {
+        queueUserExists();
+        // 撃ち直す回数ぶん落ちてもらう（TX_ATTEMPTS = 3）
+        for (let i = 0; i < 3; i++) {
+            mockDdbSend.mockRejectedValueOnce(txCancelled(["None", "TransactionConflict", "None"]));
+        }
+        // 冪等の道が通れるように readStats の応答も積んでおく。
+        // 積まないとモックが尽きて**別の理由で** 500 になり、
+        // 判定を潰しても落ちない（今日ずっと直している型）。
+        mockDdbSend.mockResolvedValueOnce({ Item: { followers: 3, following: 0 } });
+        expect((await invoke(followUser, ev(ME, OTHER))).statusCode).toBe(500);
+        expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    // TransactionCanceledException は 400 系なので SDK が自動で撃ち直さない。
+    // 人気ユーザーの followstats# は全フォロー/解除が触るので
+    // TransactionConflict は日常的に起きる。ここで諦めると
+    // 「うまくいきませんでした」が出るだけで、押し直せば通る。
+    it("競合で落ちたら待って撃ち直す（1回目で諦めない）", async () => {
         queueUserExists();
         mockDdbSend
             .mockRejectedValueOnce(txCancelled(["None", "TransactionConflict", "None"]))
-            // 冪等の道が通れるように readStats の応答も積んでおく。
-            // 積まないとモックが尽きて**別の理由で** 500 になり、
-            // 判定を潰しても落ちない（今日ずっと直している型）。
-            .mockResolvedValueOnce({ Item: { followers: 3, following: 0 } });
-        expect((await invoke(followUser, ev(ME, OTHER))).statusCode).toBe(500);
-        expect(mockPush).not.toHaveBeenCalled();
+            .mockResolvedValueOnce({})                              // 2回目は通る
+            .mockResolvedValueOnce({ Item: { list: [] } })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Item: { followers: 1, following: 0 } });
+        expect((await invoke(followUser, ev(ME, OTHER))).statusCode).toBe(200);
+
+        // 撃ち直しでは項目を落とさない（借りがあるのは変わらないため）
+        const tx = transactItems();
+        expect(tx).toHaveLength(2);
+        expect(tx[1]).toHaveLength(3);
     });
 
     it("一覧の更新を諦めたら失敗を返し、マーカーもカウンタも取り消す", async () => {
@@ -229,12 +282,20 @@ describe("unfollowUser", () => {
         expect(tx[0][2].Update?.Key?.id).toBe(`followstats#${ME}`);
     });
 
-    // 減算にも条件を付けない。付けると「マーカーは消せるがカウンタは
-    // 減らせない」組み合わせが生まれ、キャンセル理由の分岐が増える。
-    // 減算はマーカーの存在が前提なので、マーカー1個につき最大1回しか
-    // 起きない。負になるのは元から少なすぎた場合だけで、
-    // そのときも readStats が 0 に丸めて返す（下の describe で固定）。
-    it("条件を持つのはマーカーだけ（減算には付けない）", async () => {
+    it("自分を解除は 400", async () => {
+        // 通すと1つのトランザクションが followstats#<自分> を2回触ることになり、
+        // DynamoDB が ValidationException で丸ごと拒否する（条件の評価より前
+        // なので 500）。followUser 側と同じく入口で断る。
+        expect((await invoke(unfollowUser, ev(ME, ME))).statusCode).toBe(400);
+        expect(mockDdbSend).not.toHaveBeenCalled();
+    });
+
+    // 減算には**床**（`> :z`）と**存在条件**を付ける。一度これを外したが誤り。
+    //   - 床が無いと: 既にずれて1少ないカウンタが解除で -1 になり、
+    //     次の本物のフォローが 0 に戻すだけ。**その1人分が永久に吸収される**。
+    //   - 存在条件が無いと: 退会で消えた followstats# を followers: -1 で
+    //     作り直す（GSI に載らないので誰も消せない行が増える）。
+    it("減算には床と存在条件を付ける（誤差が増えるのを止める）", async () => {
         mockDdbSend
             .mockResolvedValueOnce({})
             .mockResolvedValueOnce({ Item: { list: [OTHER] } })
@@ -243,8 +304,44 @@ describe("unfollowUser", () => {
         await invoke(unfollowUser, ev(ME, OTHER));
 
         const items = transactItems()[0];
-        expect(items[1].Update?.ConditionExpression).toBeUndefined();
-        expect(items[2].Update?.ConditionExpression).toBeUndefined();
+        expect(items[1].Update?.ConditionExpression).toBe("attribute_exists(id) AND followers > :z");
+        expect(items[2].Update?.ConditionExpression).toBe("attribute_exists(id) AND following > :z");
+    });
+
+    it("減算は減らす向きで、相手は followers・自分は following を触る", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Item: { list: [OTHER] } })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Item: { followers: 0, following: 0 } });
+        await invoke(unfollowUser, ev(ME, OTHER));
+
+        const items = transactItems()[0];
+        expect(items[1].Update?.Key?.id).toBe(`followstats#${OTHER}`);
+        expect(items[1].Update?.UpdateExpression).toBe("SET followers = followers - :one");
+        expect(items[2].Update?.Key?.id).toBe(`followstats#${ME}`);
+        expect(items[2].Update?.UpdateExpression).toBe("SET following = following - :one");
+    });
+
+    // 床を付けた代償として「マーカーは消せるがカウンタは減らせない」が
+    // 起こりうる。トランザクションは丸ごと拒否されるので、そのままだと
+    // **解除できない人**が出る（0 に張り付いたカウンタが解除を永久に塞ぐ）。
+    // 減らせない項目だけ落として組み直す。
+    it("既に0のカウンタは落として、マーカーと残りは同じ書き込みのまま通す", async () => {
+        mockDdbSend
+            .mockRejectedValueOnce(txCancelled(["None", "ConditionalCheckFailed", "None"]))
+            .mockResolvedValueOnce({})                              // 落として撃ち直し
+            .mockResolvedValueOnce({ Item: { list: [OTHER] } })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Item: { followers: 0, following: 0 } });
+        expect((await invoke(unfollowUser, ev(ME, OTHER))).statusCode).toBe(200);
+
+        const tx = transactItems();
+        expect(tx).toHaveLength(2);
+        // 減らせなかった相手のカウンタだけが消え、マーカーと自分のぶんは残る
+        expect(tx[1]).toHaveLength(2);
+        expect(tx[1][0].Delete?.Key?.id).toBe(`follow#${OTHER}#${ME}`);
+        expect(tx[1][1].Update?.Key?.id).toBe(`followstats#${ME}`);
     });
 
     it("フォローしていなければ冪等", async () => {
@@ -256,12 +353,13 @@ describe("unfollowUser", () => {
         expect(JSON.parse(res.body).following).toBe(false);
     });
 
-    it("マーカー以外の理由でキャンセルされたら 500（冪等扱いにしない）", async () => {
+    it("マーカー以外の理由で撃ち直しても駄目なら 500（冪等扱いにしない）", async () => {
         // ここで 200 を返すと「解除済み扱いなのにカウンタが減っていない」
         // 状態が固定される（押し直しても早期 return で直らない）。
-        mockDdbSend
-            .mockRejectedValueOnce(txCancelled(["None", "ThrottlingError", "None"]))
-            .mockResolvedValueOnce({ Item: { followers: 3, following: 0 } });
+        for (let i = 0; i < 3; i++) {
+            mockDdbSend.mockRejectedValueOnce(txCancelled(["None", "ThrottlingError", "None"]));
+        }
+        mockDdbSend.mockResolvedValueOnce({ Item: { followers: 3, following: 0 } });
         expect((await invoke(unfollowUser, ev(ME, OTHER))).statusCode).toBe(500);
     });
 
@@ -280,6 +378,53 @@ describe("unfollowUser", () => {
         expect(tx).toHaveLength(2);
         expect(tx[1][0].Put?.Item?.id).toBe(`follow#${OTHER}#${ME}`);
         expect(tx[1][1].Update?.Key?.id).toBe(`followstats#${OTHER}`);
+    });
+});
+
+// 打ち消しをトランザクション1本にしただけだと、そこが競合で落ちた瞬間に
+// 「マーカーと一覧が食い違う」状態が固定される。一覧から作る画面
+// （useFollow は /user/following を見る）は逆の状態を表示し、押しても
+// 冪等の早期 return で直らない——**二度と直らない**。
+// カウンタのズレは残るが、そちらは readStats が丸めるしあとから直せる。
+describe("打ち消しが失敗したときの最後の手段", () => {
+    /** マーカーを指す単発コマンドを拾う（一覧の Put と混ざらないように） */
+    function markerPuts() {
+        return commandsNamed("PutCommand")
+            .map((c) => (c.input.Item as { id?: string } | undefined)?.id)
+            .filter((id) => id?.startsWith("follow#"));
+    }
+
+    it("フォローの打ち消しが落ちても、マーカーだけは消す", async () => {
+        queueUserExists();
+        mockDdbSend.mockResolvedValueOnce({});                       // フォローのトランザクション
+        for (let i = 0; i < 4; i++) {
+            mockDdbSend
+                .mockResolvedValueOnce({ Item: { list: [] } })
+                .mockRejectedValueOnce(condFail());                  // 一覧の Put が競合し続ける
+        }
+        mockDdbSend
+            .mockRejectedValueOnce(new Error("打ち消しも落ちた"))      // 打ち消しのトランザクション
+            .mockResolvedValueOnce({});                              // 単発の Delete
+        expect((await invoke(followUser, ev(ME, OTHER))).statusCode).toBe(500);
+
+        const deletes = commandsNamed("DeleteCommand")
+            .map((c) => (c.input.Key as { id?: string } | undefined)?.id);
+        expect(deletes).toContain(`follow#${OTHER}#${ME}`);
+    });
+
+    it("解除の打ち消しが落ちても、マーカーだけは戻す", async () => {
+        mockDdbSend.mockResolvedValueOnce({});                       // 解除のトランザクション
+        for (let i = 0; i < 4; i++) {
+            mockDdbSend
+                .mockResolvedValueOnce({ Item: { list: [OTHER] } })
+                .mockRejectedValueOnce(condFail());
+        }
+        mockDdbSend
+            .mockRejectedValueOnce(new Error("打ち消しも落ちた"))
+            .mockResolvedValueOnce({});                              // 単発の Put
+        expect((await invoke(unfollowUser, ev(ME, OTHER))).statusCode).toBe(500);
+
+        expect(markerPuts()).toContain(`follow#${OTHER}#${ME}`);
     });
 });
 

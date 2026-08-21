@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandlerV2, APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
-import { PutCommand, UpdateCommand, GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
+import { PutCommand, DeleteCommand, UpdateCommand, GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { pushNotification, lookupDisplayName } from "./notify";
@@ -184,59 +184,160 @@ async function shouldNotifyFollow(target: string, by: string): Promise<boolean> 
  * だから CancellationReasons[0] だけを見ればよい。
  */
 type CancelReason = { Code?: string };
+const CCF = "ConditionalCheckFailed";
 
-/** 「マーカーの条件が外れた」＝既にフォロー済み / 既に未フォロー か */
-function markerConditionFailed(e: unknown): boolean {
-    if ((e as { name?: string }).name !== "TransactionCanceledException") return false;
-    const reasons = (e as { CancellationReasons?: CancelReason[] }).CancellationReasons;
-    return Array.isArray(reasons) && reasons[0]?.Code === "ConditionalCheckFailed";
+/** トランザクションのキャンセル理由。別の失敗なら null */
+function cancelReasons(e: unknown): CancelReason[] | null {
+    if ((e as { name?: string }).name !== "TransactionCanceledException") return null;
+    const r = (e as { CancellationReasons?: CancelReason[] }).CancellationReasons;
+    return Array.isArray(r) ? r : null;
 }
 
+/**
+ * TransactionCanceledException は SDK の自動再試行の対象外（400系）。
+ * 人気ユーザーの followstats# は全フォロー/解除が触るので、
+ * TransactionConflict は日常的に起きる。ここで諦めると利用者に
+ * 「うまくいきませんでした」が出るだけなので、少し待って撃ち直す。
+ * account.ts の退会処理も同じ理由で再試行している。
+ */
+const TX_ATTEMPTS = 3;
+const TX_RETRY_BASE_MS = 100;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * カウンタの増減。
+ *
+ * **減算には必ず床（`> :z`）を付ける。** 一度これを外したが誤りだった。
+ * 床は表示のためではなく「誤差が増えるのを止める」ためにある:
+ *   古い実装のせいで followstats#T が実際より1少ない状態が既にある
+ *   → 床が無いと解除で -1 になる
+ *   → 次の本物のフォローが 0 に戻すだけで、表示は 0 のまま
+ *   → **その1人分が永久に吸収される**（床があれば解除は空振りして、
+ *     次のフォローで正しく1になる）
+ * `attribute_exists(id)` も要る。無いと、退会で消えた followstats# を
+ * `followers: -1` で作り直してしまう（誰も消せない行が増える）。
+ */
 function statBump(uid: string, field: "followers" | "following", delta: 1 | -1) {
+    if (delta === 1) {
+        return {
+            Update: {
+                TableName: PHOTOS_TABLE,
+                Key: { id: statsId(uid) },
+                UpdateExpression: `SET ${field} = if_not_exists(${field}, :z) + :one, uid = :uid`,
+                ExpressionAttributeValues: { ":z": 0, ":one": 1, ":uid": uid },
+            },
+        };
+    }
     return {
         Update: {
             TableName: PHOTOS_TABLE,
             Key: { id: statsId(uid) },
-            UpdateExpression: delta === 1
-                ? `SET ${field} = if_not_exists(${field}, :z) + :one, uid = :uid`
-                : `SET ${field} = if_not_exists(${field}, :z) - :one, uid = :uid`,
-            ExpressionAttributeValues: { ":z": 0, ":one": 1, ":uid": uid },
+            UpdateExpression: `SET ${field} = ${field} - :one`,
+            ConditionExpression: `attribute_exists(id) AND ${field} > :z`,
+            ExpressionAttributeValues: { ":z": 0, ":one": 1 },
         },
     };
 }
 
-/** フォロー（マーカー作成 + 双方のカウンタ +1）を1つの書き込みで */
-async function followAtomically(target: string, me: string): Promise<void> {
-    await ddb.send(new TransactWriteCommand({
-        TransactItems: [
-            {
-                Put: {
-                    TableName: PHOTOS_TABLE,
-                    Item: { id: markerId(target, me), follow: true, target, uid: me, createdAt: new Date().toISOString() },
-                    ConditionExpression: "attribute_not_exists(id)",
-                },
-            },
-            statBump(target, "followers", 1),
-            statBump(me, "following", 1),
-        ],
-    }));
+type TxItem = ReturnType<typeof statBump> | Record<string, unknown>;
+
+/**
+ * マーカーとカウンタを1つの書き込みで動かす。
+ *
+ * 戻り値の "already" は「マーカーの条件が外れた」＝
+ * 既にフォロー済み / 既に未フォロー。冪等に扱ってよい。
+ *
+ * 減らせないカウンタ（既に0・行が無い）があったら、その項目だけ落として
+ * 組み直す。**落としてよいのは「借りが無い」と確かめられたときだけ**で、
+ * マーカーとまだ減らせるカウンタは同じ書き込みのまま保つ。
+ */
+async function runMarkerTx(marker: TxItem, bumps: TxItem[]): Promise<"done" | "already"> {
+    let items: TxItem[] = [marker, ...bumps];
+    for (let attempt = 0; attempt < TX_ATTEMPTS; attempt++) {
+        try {
+            await ddb.send(new TransactWriteCommand({ TransactItems: items }));
+            return "done";
+        } catch (e) {
+            const reasons = cancelReasons(e);
+            if (!reasons) throw e;                       // 別の失敗。何も書かれていない
+            if (reasons[0]?.Code === CCF) return "already";
+
+            // 減らせないカウンタを落として組み直す（理由は現在の items と同じ並び）
+            const dropped = items.filter((_, i) => i === 0 || reasons[i]?.Code !== CCF);
+            if (dropped.length < items.length) {
+                items = dropped;
+                continue;
+            }
+            // 競合・スロットリング。待って撃ち直す
+            if (attempt < TX_ATTEMPTS - 1) {
+                await sleep(TX_RETRY_BASE_MS * 2 ** attempt);
+                continue;
+            }
+            throw e;
+        }
+    }
+    throw new Error("unreachable");
 }
 
-/** 解除（マーカー削除 + 双方のカウンタ -1）を1つの書き込みで */
-async function unfollowAtomically(target: string, me: string): Promise<void> {
-    await ddb.send(new TransactWriteCommand({
-        TransactItems: [
-            {
-                Delete: {
-                    TableName: PHOTOS_TABLE,
-                    Key: { id: markerId(target, me) },
-                    ConditionExpression: "attribute_exists(id)",
-                },
-            },
-            statBump(target, "followers", -1),
-            statBump(me, "following", -1),
-        ],
-    }));
+/**
+ * 打ち消しが失敗したときは、**せめてマーカーだけ**元に戻す。
+ *
+ * 打ち消しをトランザクション1本にしただけだと、そこが競合で落ちた瞬間に
+ * 「マーカーはあるが一覧に無い」が固定される。一覧から作る画面
+ * （useFollow は /user/following を見る）はボタンを「フォロー」と表示し、
+ * 押しても冪等の早期 return で一覧は直らない——**二度と直らない**。
+ * カウンタのズレは残るが、そちらは表示が丸めるし、あとから直せる。
+ */
+async function undoFollow(target: string, me: string): Promise<void> {
+    try {
+        await unfollowAtomically(target, me);
+    } catch {
+        await ddb.send(new DeleteCommand({
+            TableName: PHOTOS_TABLE, Key: { id: markerId(target, me) },
+        })).catch(() => { /* これ以上できることは無い */ });
+    }
+}
+
+/** 解除の打ち消し。こちらもマーカーだけは戻す */
+async function undoUnfollow(target: string, me: string): Promise<void> {
+    try {
+        await followAtomically(target, me);
+    } catch {
+        await ddb.send(new PutCommand({
+            TableName: PHOTOS_TABLE,
+            Item: { id: markerId(target, me), follow: true, target, uid: me, createdAt: new Date().toISOString() },
+        })).catch(() => { /* これ以上できることは無い */ });
+    }
+}
+
+const followMarker = (target: string, me: string) => ({
+    Put: {
+        TableName: PHOTOS_TABLE,
+        Item: { id: markerId(target, me), follow: true, target, uid: me, createdAt: new Date().toISOString() },
+        ConditionExpression: "attribute_not_exists(id)",
+    },
+});
+
+/** フォロー（マーカー作成 + 双方のカウンタ +1） */
+function followAtomically(target: string, me: string): Promise<"done" | "already"> {
+    return runMarkerTx(followMarker(target, me), [
+        statBump(target, "followers", 1),
+        statBump(me, "following", 1),
+    ]);
+}
+
+/** 解除（マーカー削除 + 双方のカウンタ -1） */
+function unfollowAtomically(target: string, me: string): Promise<"done" | "already"> {
+    return runMarkerTx({
+        Delete: {
+            TableName: PHOTOS_TABLE,
+            Key: { id: markerId(target, me) },
+            ConditionExpression: "attribute_exists(id)",
+        },
+    }, [
+        statBump(target, "followers", -1),
+        statBump(me, "following", -1),
+    ]);
 }
 
 // POST /users/{uid}/follow — フォロー（認証必要・冪等）
@@ -256,13 +357,8 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
 
     try {
         // マーカー作成とカウンタ加算を1つの書き込みで（既にあれば冪等）
-        try {
-            await followAtomically(target, me);
-        } catch (e) {
-            if (markerConditionFailed(e)) {
-                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ following: true, followers: (await readStats(target)).followers }) };
-            }
-            throw e;
+        if (await followAtomically(target, me) === "already") {
+            return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ following: true, followers: (await readStats(target)).followers }) };
         }
 
         // 自分の following リストに追加（新しい順の先頭へ）。
@@ -279,7 +375,7 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
             });
         } catch (e) {
             if ((e as { name?: string }).name !== "FollowingListError") throw e;
-            await unfollowAtomically(target, me).catch(() => { /* 戻せなくてもこれ以上できることは無い */ });
+            await undoFollow(target, me);
             return jsonError(500, "フォローに失敗しました。もう一度お試しください");
         }
 
@@ -314,15 +410,15 @@ export const unfollowUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     const me = getUserId(event);
     const target = event.pathParameters?.uid;
     if (!me || !target) return jsonError(400, "不正なリクエスト");
+    // 自分自身は followUser 側で弾いているのでマーカーは存在しないが、
+    // ここを通すと1つのトランザクションが同じ項目（followstats#<自分>）を
+    // 2回触ることになり、DynamoDB が ValidationException で丸ごと拒否する
+    // ——条件の評価より前なので 500 になる。以前は 200 だった。
+    if (me === target) return jsonError(400, "自分はフォロー解除できません");
 
     try {
-        try {
-            await unfollowAtomically(target, me);
-        } catch (e) {
-            if (markerConditionFailed(e)) {
-                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ following: false, followers: (await readStats(target)).followers }) };
-            }
-            throw e;
+        if (await unfollowAtomically(target, me) === "already") {
+            return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ following: false, followers: (await readStats(target)).followers }) };
         }
 
         // 解除も同じ。失敗したらマーカーを戻して再試行できるようにする。
@@ -333,7 +429,7 @@ export const unfollowUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
             });
         } catch (e) {
             if ((e as { name?: string }).name !== "FollowingListError") throw e;
-            await followAtomically(target, me).catch(() => { /* 戻せなくてもこれ以上できることは無い */ });
+            await undoUnfollow(target, me);
             return jsonError(500, "フォロー解除に失敗しました。もう一度お試しください");
         }
 
