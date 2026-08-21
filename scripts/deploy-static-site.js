@@ -418,10 +418,47 @@ function assertNoForbiddenContent(files) {
     }
 }
 
+
+/**
+ * 上げ先と robots.txt が食い違っていたら止める。
+ *
+ * ここは**両方向**の取り違えを見る:
+ *   - 本番バケットに「全面拒否」を上げる → サイトが検索から消える
+ *   - staging バケットに「許可」を上げる  → 同じ内容が2つのURLで拾われる
+ *
+ * どちらも NEXT_PUBLIC_ENV_NAME の注入忘れで起きる。`npm run web:deploy:prod`
+ * は**ビルドせずアップロードだけ**するので、環境変数の無いビルド成果物が
+ * そのまま本番へ行く経路が実在した。CI の必須チェックだけでは塞げない。
+ */
+function assertRobotsMatchesTarget(bucketName, robotsText) {
+    const isProdTarget = String(bucketName ?? "").startsWith("prod-");
+    // Next.js の robots.txt は "User-Agent: *" と "Disallow: /" だけを出す
+    const blocksEverything = /^\s*Disallow:\s*\/\s*$/mi.test(robotsText ?? "");
+    if (isProdTarget && blocksEverything) {
+        throw new Error(
+            "[deploy] 本番バケットに『全面拒否』の robots.txt を上げようとしています。\n" +
+            "  NEXT_PUBLIC_ENV_NAME=prod を付けてビルドし直してください。",
+        );
+    }
+    if (!isProdTarget && !blocksEverything) {
+        throw new Error(
+            `[deploy] ${bucketName} に『クロール許可』の robots.txt を上げようとしています。\n` +
+            "  本番以外は全面拒否で配信します。NEXT_PUBLIC_ENV_NAME を確認してください。",
+        );
+    }
+}
+
 async function main() {
     console.log(`\n[deploy] Uploading ${outDir} → s3://${bucket}/`);
 
     const allFiles = collectFiles(outDir);
+    // robots.txt は必ずある（app/robots.ts が静的に出す）。無い＝ビルドが
+    // 途中で終わっているので、それも止める。
+    const robotsPath = path.join(outDir, "robots.txt");
+    if (!fs.existsSync(robotsPath)) {
+        throw new Error("[deploy] out/robots.txt がありません。ビルドが完了していない可能性があります。");
+    }
+    assertRobotsMatchesTarget(bucket, fs.readFileSync(robotsPath, "utf8"));
     assertNoForbiddenContent(allFiles);
     const assets = allFiles.filter(f => !isHtmlOrTxt(f));
     const htmlFiles = allFiles.filter(f => isHtmlOrTxt(f));
@@ -485,7 +522,7 @@ async function main() {
 
 // テストから判定ロジックを検証できるようにエクスポート
 module.exports = {
-    assertNoForbiddenContent,
+    assertNoForbiddenContent, assertRobotsMatchesTarget,
     FORBIDDEN_IN_OUTPUT, classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys };
 
 if (require.main === module) main().catch(err => {

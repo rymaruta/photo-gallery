@@ -214,6 +214,16 @@ async function allowCloudFrontRead(bucket, distributionArn) {
 // ────────────────────────────── CloudFront
 
 /**
+ * キャッシュ動作から Lambda@Edge / CloudFront Functions の紐付けを外す。
+ * どちらも「別環境の関数を実行してしまう」という同じ壊れ方をする。
+ */
+function stripLambdaAssociations(behavior) {
+    if (!behavior) return;
+    behavior.LambdaFunctionAssociations = { Quantity: 0, Items: [] };
+    behavior.FunctionAssociations = { Quantity: 0, Items: [] };
+}
+
+/**
  * 本番の設定をひな型に、staging 用のディストリビューションを作る。
  *
  * 引き継がないもの:
@@ -256,6 +266,16 @@ function buildStagingConfig(source) {
     // 落としたオリジンを指すキャッシュ動作も消す（残すと作成が失敗する）
     const keptBehaviors = (cfg.CacheBehaviors?.Items ?? []).filter((b) => !dropped.has(b.TargetOriginId));
     cfg.CacheBehaviors = { Quantity: keptBehaviors.length, Items: keptBehaviors };
+
+    // **本番の Lambda@Edge を引き継がない。**
+    // 本番の既定ビヘイビアには OGP 書き換え用の Lambda@Edge が付いている
+    // （scripts/fix-cdn-static-behavior.js の説明を参照）。コピーしたままだと
+    // staging の全リクエストが**本番の関数**を実行し、本番のログと課金に乗る。
+    // さらに Lambda@Edge は参照している配信が1つでもあるとバージョンを消せないので、
+    // 本番側の掃除が数時間〜数日ブロックされる。
+    // execute-api オリジンを落としているのと同じ理由・同じ扱い。
+    stripLambdaAssociations(cfg.DefaultCacheBehavior);
+    for (const b of cfg.CacheBehaviors.Items) stripLambdaAssociations(b);
 
     if (dropped.size > 0) {
         cfg._droppedOrigins = [...dropped]; // ログ用（送信前に消す）
@@ -355,7 +375,7 @@ async function ensureUserPool() {
 
 // ────────────────────────────── main
 
-(async () => {
+async function main() {
     log(`環境: ${ENV}`);
     log(APPLY ? "モード: 適用（AWS にリソースを作ります）" : "モード: ドライラン（何も作りません）");
     const who = await sts.send(new GetCallerIdentityCommand({}));
@@ -388,11 +408,19 @@ async function ensureUserPool() {
     log("");
     log("  STAGING_API_BASE_URL / STAGING_USER_API_BASE_URL は、");
     log("  develop ブランチに push して API をデプロイすると出力される URL を登録してください。");
-})().catch((e) => {
-    console.error("\nエラー:", e.name, e.message);
-    if (String(e.name).includes("AccessDenied") || String(e.name).includes("NotAuthorized")) {
-        console.error("デプロイ用 IAM に、テーブル・バケット・ディストリビューション・");
-        console.error("ユーザープールの作成権限が必要です。");
-    }
-    process.exit(1);
-});
+}
+
+// テストから判定ロジックだけを読めるようにする。
+// require しただけで本番のリソースを触りにいかないよう、実行はここで区切る。
+if (require.main === module) {
+    main().catch((e) => {
+        console.error("\nエラー:", e.name, e.message);
+        if (String(e.name).includes("AccessDenied") || String(e.name).includes("NotAuthorized")) {
+            console.error("デプロイ用 IAM に、テーブル・バケット・ディストリビューション・");
+            console.error("ユーザープールの作成権限が必要です。");
+        }
+        process.exit(1);
+    });
+}
+
+module.exports = { buildStagingConfig, stripLambdaAssociations };

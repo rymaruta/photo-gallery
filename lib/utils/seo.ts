@@ -14,7 +14,17 @@ export const siteConfig = {
         en: "en_US",
     },
     // 環境名（prod / staging）。ビルド時に注入する。robots.txt の出し分けに使う。
-    envName: process.env.NEXT_PUBLIC_ENV_NAME || "prod",
+    //
+    // **既定を "prod" にしない。** ここが最後まで残っていた「本番への
+    // フォールバック」で、よりによってクロール許可の切り替えだった。
+    // 注入し忘れたビルドは「許可する側の robots.txt」を出すので、
+    // staging の内容が本番と同じURLの重複コンテンツとして拾われる。
+    // 未設定なら prod ではない扱い＝全面拒否に倒す。
+    //
+    // 逆側（本番なのに拒否を出してしまう取り違え）は、
+    // scripts/deploy-static-site.js の assertRobotsMatchesTarget が
+    // アップロード直前に止める。
+    envName: process.env.NEXT_PUBLIC_ENV_NAME || "",
     // 計測（すべて公開情報・ページソースに出る値）。未設定なら何も出さない。
     // 既定値は置かない。以前は本番の GA4 ID が既定だったため、
     // staging のアクセスが本番の解析に混ざる状態だった。

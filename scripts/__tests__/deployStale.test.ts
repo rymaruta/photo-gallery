@@ -246,3 +246,44 @@ describe("assertNoForbiddenContent", () => {
         }
     });
 });
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { assertRobotsMatchesTarget } = require("../deploy-static-site.js");
+
+// 最後まで残っていた「本番へのフォールバック」が、よりによって
+// クロール許可の切り替えだった（lib/utils/seo.ts の envName）。
+// `npm run web:deploy:prod` は**ビルドせずアップロードだけ**するので、
+// 環境変数の無いビルド成果物がそのまま本番へ行く経路が実在した。
+// CI の必須チェックだけでは塞げないので、上げる直前にも見る。
+describe("assertRobotsMatchesTarget（上げ先と robots.txt の食い違い）", () => {
+    const ALLOW = "User-Agent: *\nAllow: /\nDisallow: /admin\n\nSitemap: https://journey-photo.com/sitemap.xml\n";
+    const BLOCK = "User-Agent: *\nDisallow: /\n";
+
+    it("本番バケットに全面拒否を上げようとしたら止める（検索から消える）", () => {
+        expect(() => assertRobotsMatchesTarget("prod-journey-photo.com", BLOCK))
+            .toThrow(/全面拒否/);
+    });
+
+    it("staging に許可を上げようとしたら止める（重複コンテンツになる）", () => {
+        expect(() => assertRobotsMatchesTarget("staging-journey-photo.com", ALLOW))
+            .toThrow(/クロール許可/);
+    });
+
+    it("正しい組み合わせは通す", () => {
+        expect(() => assertRobotsMatchesTarget("prod-journey-photo.com", ALLOW)).not.toThrow();
+        expect(() => assertRobotsMatchesTarget("staging-journey-photo.com", BLOCK)).not.toThrow();
+    });
+
+    // `Disallow: /admin` を「全面拒否」と読み違えると、正しい本番の
+    // デプロイが毎回止まる（直すために弱める、が起きる）。
+    it("部分的な Disallow を全面拒否と読み違えない", () => {
+        expect(() => assertRobotsMatchesTarget("prod-journey-photo.com",
+            "User-Agent: *\nAllow: /\nDisallow: /user/\nDisallow: /login\n")).not.toThrow();
+    });
+
+    it("robots.txt が空なら本番では止める", () => {
+        expect(() => assertRobotsMatchesTarget("prod-journey-photo.com", "")).not.toThrow();
+        // 空は「許可」側なので staging では止まる
+        expect(() => assertRobotsMatchesTarget("staging-journey-photo.com", "")).toThrow();
+    });
+});

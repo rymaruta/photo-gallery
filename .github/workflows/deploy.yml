@@ -106,7 +106,9 @@ jobs:
               exit 1
               ;;
           esac
-          for k in siteBucket photosTable uploadBucket siteUrl apiBaseUrl userApiBaseUrl \
+          # envName も必須。抜けるとビルドが「環境不明」になり、
+          # robots.txt が全面拒否になる（そのまま本番に上げると検索から消える）。
+          for k in envName siteBucket photosTable uploadBucket siteUrl apiBaseUrl userApiBaseUrl \
                    cognitoUserPoolId cognitoClientId cloudfrontUrl; do
             v="${!k}"
             if [ -z "$v" ]; then
@@ -241,10 +243,31 @@ jobs:
         timeout-minutes: 10
 
       - name: Deploy to S3
-        run: node scripts/deploy-static-site.js --bucket "${{ needs.config.outputs.siteBucket }}"
         timeout-minutes: 20
         env:
           # config の output 経由にしない。シークレット由来の値はマスクされて
           # 空で届き、無効化が黙ってスキップされる（実際に踏んだ）。
-          CLOUDFRONT_DISTRIBUTION_ID: ${{ needs.config.outputs.envName == 'prod' && secrets.CLOUDFRONT_DISTRIBUTION_ID || 'EF2TFEBBP24DL' }}
+          #
+          # `A && B || C` は使わない。本番のシークレットが空だと
+          # **ステージングの配信ID**に落ち、バケットは本番を触るのに無効化は
+          # ステージングへ、という一番気づきにくい壊れ方をする。
+          # restrict-originals.yml が同じ罠を明文化している。
+          # 環境ごとに別の変数で渡し、選んでから空を弾く。
+          ENV_NAME: ${{ needs.config.outputs.envName }}
+          PROD_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+          STAGING_DISTRIBUTION_ID: EF2TFEBBP24DL
+          SITE_BUCKET: ${{ needs.config.outputs.siteBucket }}
           SITE_URL: ${{ needs.config.outputs.siteUrl }}
+        run: |
+          set -euo pipefail
+          if [ "$ENV_NAME" = "prod" ]; then
+            distributionId="$PROD_DISTRIBUTION_ID"
+          else
+            distributionId="$STAGING_DISTRIBUTION_ID"
+          fi
+          if [ -z "$distributionId" ]; then
+            echo "::error::$ENV_NAME の配信IDが空です。別環境のIDに落とさず、ここで止めます。"
+            exit 1
+          fi
+          CLOUDFRONT_DISTRIBUTION_ID="$distributionId" \
+            node scripts/deploy-static-site.js --bucket "$SITE_BUCKET"
