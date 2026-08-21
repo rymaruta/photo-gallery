@@ -1,0 +1,63 @@
+name: Checks
+
+# develop に入るフロント・ライブラリ・スクリプトの変更を検査する。
+#
+# これが無かった頃、develop への push で走る CI は
+# `deploy-api.yml`（api/** api-user/** のみ）だけだった。
+# つまり app/** lib/** scripts/** .github/** の変更は**検査ゼロ**で、
+# ローカル実行だけが関門になっていた。実際に eslint を通さずに
+# push した回があり、誰も気づけなかった（5b73dca）。
+#
+# ビルドも Playwright も走らせない。型・lint・テストだけなので
+# 1回2分弱で、Actions の枠（月2,000分）への影響は小さい。
+# フロントの実際の反映は今までどおり手動（deploy.yml）。
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - "app/**"
+      - "lib/**"
+      - "scripts/**"
+      - "public/**"
+      - ".github/workflows/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "vitest.config.ts"
+      - "vitest.setup.ts"
+  workflow_dispatch:
+
+# 同じブランチに連続で push したら、古い方は打ち切る（枠を無駄にしない）。
+# デプロイと違って途中で止めても困らない検査なので cancel-in-progress: true。
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: 型・lint・テスト
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint .
+
+      - name: Test
+        run: npx vitest run

@@ -14,6 +14,7 @@ on:
           - who-liked         # 自分の写真にいいねした人を特定
           - image-perf        # 写真表示の速さに効く材料が揃っているか測る
           - story-index       # ストーリー一覧用の GSI を足す（全件 Scan をやめる）
+          - normalize-image-urls  # 保存済みの画像URLのホスト名を配信URLに揃える
         required: true
       apply:
         description: "true で実際に適用（false は内容の確認のみ）"
@@ -79,6 +80,20 @@ jobs:
         run: node scripts/enable-cdn-logs.js ${{ inputs.apply && '--apply' || '' }}
         env:
           CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+
+      # 保存済みの画像URLのホスト名を揃える。
+      # サムネ生成が CloudFront の既定ドメインを土台にしていた時期があり、
+      # 同じサイトの画像が2つのホスト名で保存された（実測30件中11件）。
+      # サイトマップが両方を <image:loc> に載せるので、画像のインデックスが
+      # 2ホストに割れる。以後の書き込みは直したので、これは後片付け。
+      # 既定はドライラン。値を見てから apply を判断できる。
+      - name: 画像URLのホスト名を配信URLに揃える
+        if: inputs.task == 'normalize-image-urls'
+        run: node scripts/normalize-image-urls.js ${{ inputs.apply && '--apply' || '' }}
+        env:
+          # 揃える先。CLOUDFRONT_URL ではなく、実際に配信しているURL
+          PUBLIC_BASE_URL: https://journey-photo.com
+          OLD_HOSTS: d1s3dwwzgxf5ni.cloudfront.net
 
       # 読み取り専用。apply の指定は不要
       - name: 指定ユーザーの写真にいいねした人を特定
