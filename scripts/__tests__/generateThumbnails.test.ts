@@ -274,8 +274,11 @@ describe("保存する画像URLの土台", () => {
 
     it("スクリプトは PUBLIC_BASE_URL を優先する（ワークフローが siteUrl を渡す）", () => {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const src = require("fs").readFileSync(
-            require("path").join(__dirname, "..", "generate-thumbnails.js"), "utf8");
+        const nodeFs = require("fs");
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const nodePath = require("path");
+        const src = nodeFs.readFileSync(
+            nodePath.join(__dirname, "..", "generate-thumbnails.js"), "utf8");
         expect(src).toContain("process.env.PUBLIC_BASE_URL || requireEnv(\"CLOUDFRONT_URL\")");
     });
 });
