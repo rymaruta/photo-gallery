@@ -153,19 +153,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.push("/");
     }, [router]);
 
-    // 退会（アカウント削除）。慎重な削除順序:
+    // 退会（アカウント削除）。順序:
+    //   0. **先に Cognito のセッションが使えるかを確かめる**
     //   1. サーバー側の自分のデータを削除（失敗したら Cognito 削除に進まない）
     //   2. Cognito アカウントを削除（不可逆）
     //   3. ローカルのサインアウト + 状態リセット + トップへ
+    //
+    // 0 が無かった頃、**利用者に何も知らせないまま矛盾した状態**が作れた:
+    //   ログインしたままタブを放置してリフレッシュトークンが古くなる
+    //   → 退会を押す → DELETE は 200（写真も S3 もプロフィールも全部消える）
+    //   → cognitoDeleteAccount が「セッションが無効です」で失敗
+    //   → 画面には「退会処理に失敗しました」とだけ出てモーダルが開き直る
+    // 利用者はログインしたままで、ギャラリーだけが空になる。しかも
+    // 「失敗した」と言われているので、消えたことに気づく手がかりが無い。
+    //
+    // 不可逆な削除の前に、後段が通ることを先に確かめる。
     const deleteAccount = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
         try {
+            const session = await getCurrentSession();
+            if (!session || !session.isValid()) {
+                return {
+                    success: false,
+                    error: "ログインの有効期限が切れています。一度ログインし直してからお試しください",
+                };
+            }
+
             const res = await userFetch("/user/account", { method: "DELETE" });
             if (!res.ok) {
                 return { success: false, error: "退会処理に失敗しました。時間をおいて再度お試しください" };
             }
             const del = await cognitoDeleteAccount();
             if (!del.success) {
-                return { success: false, error: del.error || "アカウントの削除に失敗しました" };
+                // ここに来た時点で**サーバー側のデータはもう消えている**。
+                // 「失敗しました」とだけ返すと、何も起きなかったように読める。
+                log.error("AuthContext: データ削除後に Cognito 削除が失敗", del.error);
+                return {
+                    success: false,
+                    error: "写真とプロフィールは削除されました。アカウント自体の削除だけが残っています。"
+                        + "お手数ですが、もう一度ログインしてから退会をお試しください",
+                };
             }
             signOut();
             setAuthState({
