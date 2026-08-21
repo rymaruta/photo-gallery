@@ -3,13 +3,20 @@ import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getPhotoById, updatePhotoFields, deletePhotoById } from "./ddb-photos";
 import { isAdmin, getCallerUserId } from "./auth";
 import { requestSiteRebuild } from "./rebuild";
+import { requireEnv } from "./env";
 import {
     sanitizeExif, sanitizeText, sanitizeDate, sanitizeTags,
     sanitizeTitle, sanitizeDescription, sameStoredValue,
 } from "./sanitize";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
-const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
+// **未設定なら起動時に止める。** `?? ""` / `!` にしていた頃は、環境変数が
+// 空でも S3 の削除を**黙って飛ばして** DynamoDB の行だけ消し、成功を返していた。
+// GPS 入りの原本（srcOriginal）を含む実体が公開URLに残り、項目が消えている
+// ので**どの削除経路からも二度と辿れない**。
+// 取り返しのつかない削除なので「分からないなら止める」に倒す
+// （profile.ts と同じ扱い。CLAUDE.md の方針）。
+const UPLOAD_BUCKET = requireEnv("UPLOAD_BUCKET");
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
 /**

@@ -48,12 +48,18 @@ const FOLLOW_RETRY_BASE_MS = 150;
  * それも飛ぶ。フォロワー数のズレより、そちらを優先して残す。
  */
 const CLEANUP_RESERVE_MS = 6000;
-const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET ?? "";
+// **未設定なら起動時に止める。** `?? ""` / `!` にしていた頃は、環境変数が
+// 空でも S3 の削除を**黙って飛ばして** DynamoDB の行だけ消し、成功を返していた。
+// GPS 入りの原本（srcOriginal）を含む実体が公開URLに残り、項目が消えている
+// ので**どの削除経路からも二度と辿れない**。
+// 取り返しのつかない削除なので「分からないなら止める」に倒す
+// （profile.ts と同じ扱い。CLAUDE.md の方針）。
+const UPLOAD_BUCKET = requireEnv("UPLOAD_BUCKET");
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 
 async function s3Delete(key: string): Promise<void> {
-    if (!key || !UPLOAD_BUCKET) return;
+    if (!key) return;
     try {
         await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));
     } catch (e) {
@@ -68,7 +74,7 @@ async function s3Delete(key: string): Promise<void> {
  * データは半分消えている、という一番まずい状態になる。
  */
 async function s3DeleteMany(keys: string[]): Promise<void> {
-    if (!UPLOAD_BUCKET || keys.length === 0) return;
+    if (keys.length === 0) return;
     for (let i = 0; i < keys.length; i += 1000) {
         const chunk = keys.slice(i, i + 1000);
         try {

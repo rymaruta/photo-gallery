@@ -9,8 +9,15 @@ import { mediaKeys, deriveUploadKey } from "./mediaKeys";
 import { isOwnUploadUrl } from "./upload";
 import { keyFromUploadUrl, canonicalUploadUrl } from "./uploadPolicy";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
+import { requireEnv } from "./env";
 
-const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET ?? "";
+// **未設定なら起動時に止める。** `?? ""` / `!` にしていた頃は、環境変数が
+// 空でも S3 の削除を**黙って飛ばして** DynamoDB の行だけ消し、成功を返していた。
+// GPS 入りの原本（srcOriginal）を含む実体が公開URLに残り、項目が消えている
+// ので**どの削除経路からも二度と辿れない**。
+// 取り返しのつかない削除なので「分からないなら止める」に倒す
+// （profile.ts と同じ扱い。CLAUDE.md の方針）。
+const UPLOAD_BUCKET = requireEnv("UPLOAD_BUCKET");
 const STORY_TTL_MS = 24 * 60 * 60 * 1000; // 24時間
 const STORY_DAILY_LIMIT = 20; // 1ユーザーが24時間に投稿できるストーリー数
 const STORY_DEFAULT_DURATION_SEC = 5; // 画像ストーリーの既定表示秒数（この値なら保存しない）
@@ -378,7 +385,6 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // 原本だけでなく派生画像も消す。過去にサムネ生成がストーリーも対象に
         // していた時期があり、その分が max-age=31536000 で残っている。
         for (const key of storyMediaKeys(item)) {
-            if (!UPLOAD_BUCKET) break;
             try {
                 await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));
             } catch (e) {
@@ -404,7 +410,6 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
         if (!id) continue;
 
         for (const key of storyMediaKeys(item)) {
-            if (!UPLOAD_BUCKET) break;
             try {
                 await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));
             } catch (e) {
