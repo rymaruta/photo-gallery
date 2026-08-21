@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "fs";
+import path from "path";
 
 // 管理APIのアップロード。**このファイルにはテストが1本も無かった。**
 //
@@ -205,6 +207,20 @@ describe("savePhoto", () => {
         expect(saved.location).toBe("北海道");
         expect(saved.tags).toEqual(["海", "夏"]);
         expect(saved.published).toBe(true);
+    });
+
+    it("表示名は付けない（個人名の直書きを消した）", async () => {
+        // 以前は "丸田 竜平" が直書きされていて、誰が上げても同じ名前が
+        // 付いた。そのまま静的HTMLと JSON-LD の author に載る。
+        await invoke(savePhoto, ev(ok));
+        const saved = mockPutPhoto.mock.calls[0][0] as Record<string, unknown>;
+        expect(saved).not.toHaveProperty("displayName");
+    });
+
+    it("ソースに個人名を持たない", async () => {
+        // 直書きが戻ってきたら気づけるようにしておく。
+        const src = readFileSync(path.join(__dirname, "..", "upload.ts"), "utf-8");
+        expect(src).not.toContain("丸田");
     });
 
     it("ファイル情報が無ければ 400", async () => {

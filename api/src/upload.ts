@@ -174,7 +174,20 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         tags: safeTags ?? [],
         ...(safeExif ? { exif: safeExif } : {}),
         ...(safeCoords ? { coords: safeCoords } : {}),
-        displayName: "丸田 竜平",
+        // 表示名は付けない。
+        //
+        // 以前はここに個人名が直書きされていて、**誰が上げても同じ名前**が
+        // 付いた（そのまま静的HTMLと JSON-LD の author に載る）。
+        // 管理者が2人になったら他人の名前で公開される。
+        //
+        // ユーザーAPI側は lookupDisplayNameIfSet でプロフィールから引くが、
+        // こちらは同じことができない——この関数の IAM は usersTable に
+        // PutItem しか許していない（serverless.yml:52-57。わざと絞ってある）。
+        // 権限を広げてまで付ける価値は無い: この口はクライアントから
+        // 呼ばれていない（app/user/upload/page.tsx:308「管理者でも
+        // ユーザーAPIを使う」）ので、表示に影響しない。
+        // 付けないと写真ページの投稿者導線が出ないが、それは
+        // 名前を設定していない利用者と同じ扱いで、既存の写真には影響しない。
         userId: uploaderId,
         uploadedBy: uploaderId,
         published: true,
