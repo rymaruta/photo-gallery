@@ -209,7 +209,7 @@ async function unfollowAtomically(target: string, uid: string): Promise<boolean>
             // 自分の followstats# を消す一方、自分への被フォローのマーカー
             // （follow#<自分>#<フォロワー>）は消さない（このファイル冒頭の
             // スコープ外の項）。だから「マーカーはあるが集計が無い」が残る。
-            // followers は bumpStat が if_not_exists で必ず数値にし、
+            // followers は follow.ts の statBump が if_not_exists で必ず数値にし、
             // 減算側は followers > 0 条件付きなので負にはならない。
             // 0 なのは上記か過去の引きすぎで、どちらも「引かない」が正しい。
             // マーカーだけが残るので単体で消す。

@@ -23,6 +23,9 @@ const updates = (): Input[] => mockDdbSend.mock.calls
     .map((c) => c[0])
     .filter((cmd) => cmd?.constructor?.name === "UpdateCommand")
     .map((cmd) => cmd.input as Input);
+// 追記（1本目）より後の書き込み。追記自体も `unread` を触るので、
+// 切り詰め側を見るときは必ずこちらで絞る。
+const afterAppend = (): Input[] => updates().slice(1);
 
 const notif = (t = "2026-08-20T00:00:00Z") => ({
     type: "like" as const, photoId: "p1", photoSrc: "https://cdn/p1.jpg", byName: "旅人", t,
@@ -88,17 +91,53 @@ describe("pushNotification: 切り詰め", () => {
         mockDdbSend.mockResolvedValueOnce({ Attributes: { items: list(NOTIFS_MAX + 1), unread: 200 } });
         await pushNotification("owner", notif());
 
-        const trim = updates()[1];
-        expect(trim.UpdateExpression).toContain("unread = :cap");
-        expect(trim.ExpressionAttributeValues?.[":cap"]).toBe(NOTIFS_MAX);
+        const cap = afterAppend().find((u) => u.UpdateExpression?.includes("unread"))!;
+        expect(cap.UpdateExpression).toContain("unread = :cap");
+        expect(cap.ExpressionAttributeValues?.[":cap"]).toBe(NOTIFS_MAX);
     });
 
     it("未読数が上限以下なら触らない（既読を未読に戻さない）", async () => {
         mockDdbSend.mockResolvedValueOnce({ Attributes: { items: list(NOTIFS_MAX + 1), unread: 2 } });
         await pushNotification("owner", notif());
 
-        const trim = updates()[1];
+        expect(afterAppend().some((u) => u.UpdateExpression?.includes("unread"))).toBe(false);
+    });
+
+    // 切り詰めは「読む → 書き戻す」なので、その隙に通知欄を開かれうる。
+    // 件数と未読数を1つの書き込みに乗せていた頃は、`size(#items) = :len`
+    // が件数しか見ないため、既読化（notifications.ts の `SET unread = :z`）
+    // を追い越して `unread = 50` を書き戻していた——**消したはずのバッジが
+    // 復活する**。未読側には未読側の条件が要る。
+    it("未読数を書き戻すのは、それが減っていないときだけ", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Attributes: { items: list(NOTIFS_MAX + 1), unread: 200 } });
+        await pushNotification("owner", notif());
+
+        const cap = afterAppend().find((u) => u.UpdateExpression?.includes("unread"))!;
+        expect(cap.ConditionExpression).toBe("unread > :cap");
+    });
+
+    // 2つを1本にまとめて条件を足すのは誤り。未読側の条件が外れた回に
+    // 件数の切り詰めまで巻き添えで止まり、通知文書が伸び続ける
+    // （次の通知でも unread は小さいままなので永久に切り詰まらない）。
+    it("件数の切り詰めと未読の頭打ちは別の書き込みにする", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Attributes: { items: list(NOTIFS_MAX + 1), unread: 200 } });
+        await pushNotification("owner", notif());
+
+        const trim = afterAppend().find((u) => u.UpdateExpression?.includes("#items = :trimmed"))!;
+        const cap = afterAppend().find((u) => u.UpdateExpression?.includes("unread"))!;
+        expect(trim).not.toBe(cap);
+        // 件数側は未読の条件に巻き込まれない
+        expect(trim.ConditionExpression).toBe("size(#items) = :len");
         expect(trim.UpdateExpression).not.toContain("unread");
+    });
+
+    it("未読の頭打ちが条件で外れても投げない（件数は切り詰め済み）", async () => {
+        const cond = Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" });
+        mockDdbSend
+            .mockResolvedValueOnce({ Attributes: { items: list(NOTIFS_MAX + 1), unread: 200 } })
+            .mockResolvedValueOnce({})          // 件数の切り詰めは通る
+            .mockRejectedValueOnce(cond);       // 未読の頭打ちだけ外れる
+        await expect(pushNotification("owner", notif())).resolves.toBeUndefined();
     });
 });
 

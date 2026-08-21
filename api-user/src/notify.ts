@@ -106,29 +106,41 @@ export async function pushNotification(ownerId: string, notif: Notif): Promise<v
         const items = res.Attributes?.items;
         const unread = typeof res.Attributes?.unread === "number" ? res.Attributes.unread : 0;
         if (Array.isArray(items) && items.length > NOTIFS_MAX) {
-            const sets = ["#items = :trimmed"];
-            const values: Record<string, unknown> = {
-                ":trimmed": items.slice(0, NOTIFS_MAX),
-                ":len": items.length,
+            const ignoreCondFail = (e: { name?: string }) => {
+                if (e?.name !== "ConditionalCheckFailedException") throw e;
+                // 競合。次の通知が切り詰める
             };
-            // 未読数は「前回開いてからの件数」なので保存件数と同じではないが、
-            // **保存件数を超えることはあり得ない**。捨てた分まで数え続けると、
-            // 開かずに200件溜めた人のバッジが「200」なのに中身は50件になる。
-            if (unread > NOTIFS_MAX) {
-                sets.push("unread = :cap");
-                values[":cap"] = NOTIFS_MAX;
-            }
+
             await ddb.send(new UpdateCommand({
                 TableName: PHOTOS_TABLE,
                 Key: { id: notifsId(ownerId) },
-                UpdateExpression: "SET " + sets.join(", "),
+                UpdateExpression: "SET #items = :trimmed",
                 ConditionExpression: "size(#items) = :len",
                 ExpressionAttributeNames: { "#items": "items" },
-                ExpressionAttributeValues: values,
-            })).catch((e: { name?: string }) => {
-                if (e?.name !== "ConditionalCheckFailedException") throw e;
-                // 競合。次の通知が切り詰める
-            });
+                ExpressionAttributeValues: { ":trimmed": items.slice(0, NOTIFS_MAX), ":len": items.length },
+            })).catch(ignoreCondFail);
+
+            // 未読数は「前回開いてからの件数」なので保存件数と同じではないが、
+            // **保存件数を超えることはあり得ない**。捨てた分まで数え続けると、
+            // 開かずに200件溜めた人のバッジが「200」なのに中身は50件になる。
+            //
+            // **件数の切り詰めとは別の書き込みにする。** 1本にまとめていた頃は、
+            // `size(#items) = :len` が件数しか見ないので、この隙に通知欄を
+            // 開かれる（notifications.ts の `SET unread = :z`）と、その既読化を
+            // 追い越して `unread = 50` を書き戻していた——消したはずのバッジが
+            // 復活する。かといって同じ1本に `unread > :cap` を足すのも誤りで、
+            // 外れた回に件数の切り詰めまで巻き添えで止まり、通知文書が
+            // 伸び続ける（次の通知でも unread は小さいままなので永久に
+            // 切り詰まらない）。だから条件ごと分ける。
+            if (unread > NOTIFS_MAX) {
+                await ddb.send(new UpdateCommand({
+                    TableName: PHOTOS_TABLE,
+                    Key: { id: notifsId(ownerId) },
+                    UpdateExpression: "SET unread = :cap",
+                    ConditionExpression: "unread > :cap",
+                    ExpressionAttributeValues: { ":cap": NOTIFS_MAX },
+                })).catch(ignoreCondFail);
+            }
         }
     } catch (e) {
         console.error("pushNotification error:", e);

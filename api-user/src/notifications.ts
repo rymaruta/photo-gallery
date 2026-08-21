@@ -14,7 +14,11 @@ export const getNotifications: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
     try {
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: notifsId(uid) } }));
         const items = (Array.isArray(res.Item?.items) ? res.Item.items : []).slice(0, NOTIFS_MAX);
-        const unread = typeof res.Item?.unread === "number" ? res.Item.unread : 0;
+        // 未読数は保存件数を超えられない。書き込み側は notify.ts で頭打ちに
+        // してあるが、それより前に溜まった行は `unread > items.length` の
+        // まま残っている（バッジが「200」なのに開くと50件）。読み側でも丸める。
+        const stored = typeof res.Item?.unread === "number" ? res.Item.unread : 0;
+        const unread = Math.max(0, Math.min(stored, items.length));
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ items, unread }) };
     } catch (e) {
         console.error("getNotifications error:", e);
