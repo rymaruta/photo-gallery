@@ -128,17 +128,32 @@ function UploadPageInner() {
     const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // GPS からの撮影地自動入力（プライバシー配慮でオフにできる。設定は保持）
+    //
+    // **現在値は ref からも読めるようにしておく。** 取り込み処理（addFiles）が
+    // state を直接見ていた頃、iOS の共有シート経由だけ設定が効かなかった:
+    // 共有の effect は deps を絞ってあるので、**マウント時の addFiles を
+    // 掴んだまま**呼ぶ。localStorage からの復元は effect なのでその後に走り、
+    // 掴まれた addFiles の中では gpsAutofill が恒久的に true のままになる。
+    // 漏れるのは逆ジオコーディングで得た地名だけだが、それは公開される。
+    //
+    // state を同期的に初期化する手もあるが、静的書き出し（SSR）では
+    // localStorage が無く、サーバーとクライアントで初期値が食い違って
+    // チェックボックスがハイドレーション不一致になる。ref なら描画に
+    // 関わらないので、その副作用が無い。
     const [gpsAutofill, setGpsAutofill] = useState(true);
+    const gpsAutofillRef = useRef(true);
+    const applyGpsAutofill = useCallback((next: boolean) => {
+        gpsAutofillRef.current = next;
+        setGpsAutofill(next);
+    }, []);
     useEffect(() => {
-        try { setGpsAutofill(localStorage.getItem("jp_gps_autofill") !== "0"); } catch { /* ignore */ }
-    }, []);
+        try { applyGpsAutofill(localStorage.getItem("jp_gps_autofill") !== "0"); } catch { /* ignore */ }
+    }, [applyGpsAutofill]);
     const toggleGpsAutofill = useCallback(() => {
-        setGpsAutofill((v) => {
-            const next = !v;
-            try { localStorage.setItem("jp_gps_autofill", next ? "1" : "0"); } catch { /* ignore */ }
-            return next;
-        });
-    }, []);
+        const next = !gpsAutofillRef.current;
+        try { localStorage.setItem("jp_gps_autofill", next ? "1" : "0"); } catch { /* ignore */ }
+        applyGpsAutofill(next);
+    }, [applyGpsAutofill]);
 
     // アンマウント時の Object URL 解放用に最新の items を ref で保持
     // （useEffect([]) のクロージャは初期の空配列しか見えないため）
@@ -261,8 +276,11 @@ function UploadPageInner() {
             };
         }));
 
-        // GPS → 場所名（Nominatim 1秒/req のため直列）。トグルOFF時はスキップ
-        if (gpsAutofill) {
+        // GPS → 場所名（Nominatim 1秒/req のため直列）。トグルOFF時はスキップ。
+        // state ではなく ref を読む——共有シート経由の呼び出しは
+        // マウント時の addFiles を掴んでいるので、state だと復元前の
+        // 初期値（true）に張り付く。
+        if (gpsAutofillRef.current) {
             for (const r of exifResults) {
                 if (r.meta.latitude !== undefined && r.meta.longitude !== undefined) {
                     const place = await reverseGeocode(r.meta.latitude, r.meta.longitude, locale);
@@ -276,7 +294,7 @@ function UploadPageInner() {
         } finally {
             setMetaJobs((n) => Math.max(0, n - 1));
         }
-    }, [locale, gpsAutofill]);
+    }, [locale]);
 
     const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files ?? []);

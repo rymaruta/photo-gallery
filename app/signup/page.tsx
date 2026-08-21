@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { signUp, confirmSignUp, resendConfirmationCode } from "../../lib/auth/cognito";
-import { pendingNameKey } from "../../lib/utils/pendingName";
+import { pendingNameKey, pendingVerifyKey } from "../../lib/utils/pendingName";
 import { EnvelopeIcon, LockClosedIcon, CheckCircleIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 type Step = "register" | "verify" | "done";
@@ -16,22 +16,22 @@ const inputCls = "w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg 
 const PENDING_TTL = 24 * 60 * 60 * 1000;
 
 function savePending(em: string, username: string) {
-    try { localStorage.setItem(`jp_verify_${em}`, JSON.stringify({ username, t: Date.now() })); } catch { /* ignore */ }
+    try { localStorage.setItem(pendingVerifyKey(em), JSON.stringify({ username, t: Date.now() })); } catch { /* ignore */ }
 }
 function loadPending(em: string): string | null {
     try {
-        const raw = localStorage.getItem(`jp_verify_${em}`);
+        const raw = localStorage.getItem(pendingVerifyKey(em));
         if (!raw) return null;
         const parsed: unknown = JSON.parse(raw);
         if (!parsed || typeof parsed !== "object") return null;
         const { username, t } = parsed as Record<string, unknown>;
         if (typeof username !== "string" || typeof t !== "number") return null;
-        if (Date.now() - t > PENDING_TTL) { localStorage.removeItem(`jp_verify_${em}`); return null; }
+        if (Date.now() - t > PENDING_TTL) { localStorage.removeItem(pendingVerifyKey(em)); return null; }
         return username;
     } catch { return null; }
 }
 function clearPending(em: string) {
-    try { localStorage.removeItem(`jp_verify_${em}`); } catch { /* ignore */ }
+    try { localStorage.removeItem(pendingVerifyKey(em)); } catch { /* ignore */ }
 }
 
 export default function SignupPage() {
