@@ -3,19 +3,22 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockListPhotos = vi.hoisted(() => vi.fn());
 const mockListPhotosByUser = vi.hoisted(() => vi.fn());
 
+const mockGetPhotoById = vi.hoisted(() => vi.fn());
 vi.mock("../ddb-photos", () => ({
     listPhotos: mockListPhotos,
     listPhotosByUser: mockListPhotosByUser,
-    getPhotoById: vi.fn(),
+    getPhotoById: mockGetPhotoById,
     listAllPhotosForAdmin: vi.fn(),
 }));
 
 vi.stubEnv("PHOTOS_TABLE", "photos-test");
-const { getPhotos, resetPhotosCache } = await import("../photos");
+const { getPhotos, getPhoto, resetPhotosCache } = await import("../photos");
 
 type Result = { statusCode: number; body: string; headers?: Record<string, string> };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const invoke = (event: unknown): Promise<Result> => (getPhotos as any)(event);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const invokeOne = (event: unknown): Promise<Result> => (getPhoto as any)(event);
 
 beforeEach(() => {
     resetPhotosCache();
@@ -89,5 +92,72 @@ describe("getPhotos: 読み取りの使い回し", () => {
         // 次の呼び出しでちゃんと読み直す
         mockListPhotos.mockResolvedValue([{ id: "p1" }]);
         expect((await invoke({})).statusCode).toBe(200);
+    });
+});
+
+// 公開の読み取りは認可なしで誰でも叩ける（serverless.yml の
+// GET /photos と GET /photos/{id} に authorizer は無い）。
+// 静的側は2か所で落としているのに、この経路だけ DynamoDB の項目を
+// そのまま返していたので、静的HTMLから消したはずのURLが API からは
+// 取れたままだった。srcOriginal は EXIF を落とす前の原本（GPS入り）。
+describe("公開の読み取り: 非公開項目を返さない", () => {
+    const full = {
+        id: "p1", src: "https://cdn/p1.jpg", title: { ja: "海" },
+        srcOriginal: "https://cdn/uploads/originals/p1.jpeg",
+        key: "uploads/67d49a68-owner-sub/p1.jpg",
+    };
+
+    it("一覧は srcOriginal と key を落とす", async () => {
+        mockListPhotos.mockResolvedValue([full]);
+        const body = JSON.parse((await invoke({})).body) as Record<string, unknown>[];
+        expect(body[0]).not.toHaveProperty("srcOriginal");
+        expect(body[0]).not.toHaveProperty("key");
+        expect(body[0].src).toBe("https://cdn/p1.jpg");   // 表示に要る分は残す
+        expect(body[0].title).toEqual({ ja: "海" });
+    });
+
+    it("特定の人の一覧でも落とす", async () => {
+        mockListPhotosByUser.mockResolvedValue([full]);
+        const body = JSON.parse((await invoke({ queryStringParameters: { userId: "u1" } })).body) as Record<string, unknown>[];
+        expect(body[0]).not.toHaveProperty("srcOriginal");
+        expect(body[0]).not.toHaveProperty("key");
+    });
+
+    it("詳細でも落とす", async () => {
+        mockGetPhotoById.mockResolvedValue(full);
+        const body = JSON.parse((await invokeOne({ pathParameters: { id: "p1" } })).body) as Record<string, unknown>;
+        expect(body).not.toHaveProperty("srcOriginal");
+        expect(body).not.toHaveProperty("key");
+        expect(body.src).toBe("https://cdn/p1.jpg");
+    });
+
+    // 削除は同じ getPhotoById から srcOriginal を読んで原本を消す。
+    // データ層で落とすと「GPS入りの原本が削除されなくなる」ので、
+    // 落とすのはハンドラ側だけ、を固定する。
+    it("データ層は落とさない（削除が原本を消せなくなるため）", async () => {
+        mockGetPhotoById.mockResolvedValue(full);
+        await invokeOne({ pathParameters: { id: "p1" } });
+        // ハンドラに渡された元の項目はそのまま
+        expect(full).toHaveProperty("srcOriginal");
+    });
+});
+
+describe("getPhoto: ストーリーを詳細でも弾く", () => {
+    it("published:true になっているストーリーでも 404", async () => {
+        // 一覧3か所は attribute_not_exists(story) で弾いているのに、
+        // 詳細だけ間接的な判定しかなく、viewers（閲覧者全員の userId と
+        // 表示名）ごと返っていた。
+        mockGetPhotoById.mockResolvedValue({
+            id: "story-1", src: "https://cdn/s.mp4", story: true, published: true,
+            viewers: { "viewer-sub": { displayName: "見た人", at: "2026-08-20T00:00:00Z" } },
+        });
+        const res = await invokeOne({ pathParameters: { id: "story-1" } });
+        expect(res.statusCode).toBe(404);
+        expect(res.body).not.toContain("viewer-sub");
+    });
+
+    it("普通の写真は今までどおり返る", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", src: "https://cdn/p1.jpg", published: true });
+        expect((await invokeOne({ pathParameters: { id: "p1" } })).statusCode).toBe(200);
     });
 });

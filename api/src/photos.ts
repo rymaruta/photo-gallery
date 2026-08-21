@@ -28,6 +28,32 @@ const JSON_HEADERS = {
 // もう一度上げてしまう（同じ写真が2枚。100枚上限も1枚減る）。
 // 10秒なら、まとめて叩かれたときの読み取り削減はほぼ変わらず、
 // 「反映されない」と感じる窓は普通の配信の遅れと同じ程度に収まる。
+/**
+ * 公開の読み取りで返してはいけない項目。
+ *
+ * `srcOriginal` は EXIF を落とす**前**の原本のURL（GPS が入っている）、
+ * `key` は S3 のオブジェクトキー（投稿者の sub を含む）。
+ * 静的側は2か所で落としている:
+ *   - scripts/sync-photos-from-ddb.js（photos.json を書くとき）
+ *   - lib/server/photos.ts（読み出すとき。古い photos.json 対策）
+ * ところが Lambda の公開読み取り（GET /photos・GET /photos/{id}、
+ * どちらも認可なし）は DynamoDB の項目をそのまま返していたので、
+ * **静的HTMLから消したURLが API からは取れたまま**だった。
+ * restrict-originals はS3側の配信を止める道具で、URLの配布は止められない。
+ *
+ * **落とすのはここ（ハンドラ側）で、ddb-photos.ts ではない。**
+ * photosMutate.ts の deletePhoto は同じ getPhotoById から srcOriginal を
+ * 読んで原本を消しているので、データ層で落とすと
+ * 「GPS入りの原本が削除されなくなる」——直しに来たものより悪くなる。
+ */
+const PRIVATE_FIELDS = ["srcOriginal", "key"] as const;
+
+function stripPrivate<T extends Record<string, unknown>>(photo: T): T {
+    const out = { ...photo };
+    for (const f of PRIVATE_FIELDS) delete out[f];
+    return out;
+}
+
 const LIST_CACHE_TTL_MS = 10 * 1000;
 let listCache: { at: number; json: string } | null = null;
 
@@ -42,11 +68,11 @@ export const getPhotos: APIGatewayProxyHandlerV2 = async (event) => {
         if (userId) {
             // 特定の人の分は GSI の Query なので、その人の枚数で収まる
             const photos = await listPhotosByUser(userId);
-            return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(photos) };
+            return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(photos.map(stripPrivate)) };
         }
         const now = Date.now();
         if (!listCache || now - listCache.at >= LIST_CACHE_TTL_MS) {
-            listCache = { at: now, json: JSON.stringify(await listPhotos()) };
+            listCache = { at: now, json: JSON.stringify((await listPhotos()).map(stripPrivate)) };
         }
         return { statusCode: 200, headers: JSON_HEADERS, body: listCache.json };
     } catch (e) {
@@ -69,11 +95,16 @@ export const getPhoto: APIGatewayProxyHandlerV2 = async (event) => {
     }
     try {
         const photo = await getPhotoById(id);
-        // src を持つものだけが写真（listPhotos も同じ条件で絞っている）
-        if (!photo || !photo.src || photo.published === false) {
+        // src を持つものだけが写真（listPhotos も同じ条件で絞っている）。
+        // ストーリーも弾く。一覧の3か所（ddb-photos.ts）は
+        // attribute_not_exists(story) で弾いているのに、詳細だけ
+        // published:false 経由の間接的な判定しかなく、
+        // 何かの拍子に published:true になった story-<id> を直に引くと
+        // viewers（閲覧者全員の userId と表示名）ごと返っていた。
+        if (!photo || !photo.src || photo.published === false || photo.story === true) {
             return { statusCode: 404, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ error: "写真が見つかりません" }) };
         }
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(photo) };
+        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(stripPrivate(photo)) };
     } catch (e) {
         console.error("getPhoto error:", e);
         return { statusCode: 500, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ error: "写真の取得に失敗しました" }) };
