@@ -29,6 +29,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
 import { isImageReady } from "../../../lib/utils/imageReady";
+import { formatStoredDateTime } from "@/lib/utils/photoDate";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -347,7 +348,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                 ? extracted.WhiteBalance === 0 ? "Auto" : "Manual"
                 : fallback.whiteBalance || undefined,
             imageSize: imageSize,
-            dateTimeOriginal: extracted.DateTimeOriginal || fallback.dateTimeOriginal || photo?.date || photo?.createdAt || undefined,
+            // **createdAt にフォールバックしない。** 撮影日を持つのは30枚中8枚で、
+            // 残りは「撮影日時」の欄にアップロード時刻が分単位で出ていた
+            // （しかも日付だけの値には無い 00:00 まで作っていた）。
+            // 分からないなら、その行を出さない。
+            dateTimeOriginal: extracted.DateTimeOriginal || fallback.dateTimeOriginal || photo?.date || undefined,
         };
     }, [extractedExif, photo]);
 
@@ -640,15 +645,14 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     add(locale === "en" ? "Focal Length" : "焦点距離", mergedExif.focalLength);
                     add(locale === "en" ? "White Balance" : "ホワイトバランス", mergedExif.whiteBalance);
                     add(locale === "en" ? "Image Size" : "画像サイズ", mergedExif.imageSize);
-                    if (mergedExif.dateTimeOriginal) {
-                        const d = new Date(mergedExif.dateTimeOriginal);
-                        if (!isNaN(d.getTime())) {
-                            add(
-                                locale === "en" ? "Date Taken" : "撮影日時",
-                                d.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }),
-                                true,
-                            );
-                        }
+                    // 撮影日時は**保存されている通り**に出す。toLocaleString を
+                    // 描画中に呼んでいた頃は、ビルド(UTC)と閲覧者のゾーンで
+                    // 文字列が食い違ってハイドレーション不一致になり、しかも
+                    // 日付だけの値（"2024-10-12"）が UTC 0時として読まれるため
+                    // ニューヨークからは前日と表示されていた。
+                    const shotAt = formatStoredDateTime(mergedExif.dateTimeOriginal, locale === "en" ? "en" : "ja");
+                    if (shotAt) {
+                        add(locale === "en" ? "Date Taken" : "撮影日時", shotAt, true);
                     }
                     if (specs.length === 0) return null;
                     return (

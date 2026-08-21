@@ -31,7 +31,11 @@ export default async function CollectionPage({ type, slug }: { type: CollectionT
         path: collectionPath(type, e.slug),
     }));
 
-    const galleryData = generateStructuredData(matched);
+    const galleryData = generateStructuredData(matched, {
+        name: heading,
+        description,
+        url: pageUrl,
+    });
     const breadcrumbData = generateBreadcrumbStructuredData([
         { name: "ホーム", url: siteConfig.url },
         { name: breadcrumb, url: pageUrl },

@@ -50,7 +50,10 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     const pageUrl = `${siteConfig.url}/photo/${id}`;
     
     return {
-        title: `${title} | ${siteConfig.name}`,
+        // サイト名は app/layout.tsx の `template` が付ける。ここでも足すと
+        // `未完の大聖堂 | Journey Photo | 旅フォトギャラリー | Journey Photo 旅フォトギャラリー`
+        // になり、検索結果で切られる位置に定型文が45〜60字並ぶ。
+        title,
         description: description,
         keywords: [
             ...(photo.tags || []),

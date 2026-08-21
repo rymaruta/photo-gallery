@@ -165,7 +165,8 @@ export function collectionCopy(type: CollectionType, label: string, count: numbe
     const kindJa = type === "tag" ? "タグ" : type === "location" ? "撮影地" : "カテゴリ";
     const heading =
         type === "location" ? `${label}の写真` : type === "category" ? `${label}の写真` : `#${label} の写真`;
-    const title = `${label}の写真${count ? `（${count}枚）` : ""} | 旅フォトギャラリー`;
+    // サイト名は app/layout.tsx の `template` が付ける（同上）
+    const title = `${label}の写真${count ? `（${count}枚）` : ""}`;
     const description =
         type === "location"
             ? `${label}で撮影した旅の写真${count ? `${count}枚` : ""}を掲載。現地で切り取った風景やスナップを、撮影地・カメラ情報（EXIF）付きで紹介します。${label}への旅の参考にどうぞ。`

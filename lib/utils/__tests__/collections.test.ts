@@ -137,3 +137,20 @@ describe("collectionCopy", () => {
         expect(l.description).toContain("山中湖");
     });
 });
+
+// `<title>` にサイト名が2回入っていた。実際の出力:
+//   「バルセロナの写真（1枚） | 旅フォトギャラリー | Journey Photo 旅フォトギャラリー」
+// app/layout.tsx の `template` が付けるので、ここでは付けない。
+// 検索結果で切られる位置に定型文が45〜60字並んでいた。
+describe("collectionCopy: タイトルにサイト名を足さない", () => {
+    it("サイト名は layout の template に任せる", () => {
+        const { title } = collectionCopy("location", "バルセロナ", 1);
+        expect(title).toBe("バルセロナの写真（1枚）");
+        expect(title).not.toContain("旅フォトギャラリー");
+        expect(title).not.toContain("Journey Photo");
+    });
+
+    it("枚数が無ければ枚数を出さない", () => {
+        expect(collectionCopy("tag", "海", 0).title).toBe("海の写真");
+    });
+});

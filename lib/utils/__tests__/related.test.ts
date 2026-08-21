@@ -59,9 +59,21 @@ describe("sameLocationPhotos", () => {
         p({ id: "other-loc", userId: "u3", location: "沖縄", createdAt: "2026-02-20" }),
     ];
 
-    it("同じ場所の写真を返すが、同一投稿者は除外（投稿者列と重複させない）", () => {
+    // 以前は同一投稿者を除いていた。投稿者が実質1人のこのサイトでは
+    // 条件が常に偽になり、out/photo/*.html 30枚すべてで「同じ場所の写真」が
+    // **1件も出ていなかった**（実測 0/30）。SEO のために作った内部リンク面が
+    // 丸ごと死んでいたので、除外をやめた。
+    it("同じ場所の写真を返す（同一投稿者も含める）", () => {
         const res = sameLocationPhotos(cur, all);
-        expect(res.map((x) => x.id)).toEqual(["same-loc"]);
+        expect(res.map((x) => x.id)).toEqual(["same-author-same-loc", "same-loc"]);
+    });
+
+    it("自分自身は含めない", () => {
+        expect(sameLocationPhotos(cur, all).map((x) => x.id)).not.toContain("c");
+    });
+
+    it("違う場所は含めない", () => {
+        expect(sameLocationPhotos(cur, all).map((x) => x.id)).not.toContain("other-loc");
     });
 
     it("location が無ければ空", () => {

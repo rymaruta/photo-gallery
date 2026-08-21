@@ -31,13 +31,20 @@ export const siteConfig = {
 /**
  * 構造化データ（JSON-LD）を生成 - ギャラリーページ用
  */
-export function generateStructuredData(photos: Array<{ id: string; title?: string | { ja?: string; en?: string }; src: string }>) {
+export function generateStructuredData(
+    photos: Array<{ id: string; title?: string | { ja?: string; en?: string }; src: string }>,
+    // タグ・撮影地・カテゴリのページも同じ関数を使う。渡さないと
+    // **約35個のURLが「自分はトップページだ」と申告する**（name も
+    // description も url も siteConfig 直書きだった）。
+    // 正しい値は CollectionPage.tsx が既に組み立てている。
+    page?: { name?: string; description?: string; url?: string },
+) {
     return {
         "@context": "https://schema.org",
         "@type": "ImageGallery",
-        name: siteConfig.name,
-        description: siteConfig.description,
-        url: siteConfig.url,
+        name: page?.name || siteConfig.name,
+        description: page?.description || siteConfig.description,
+        url: page?.url || siteConfig.url,
         image: photos
             .filter((photo) => photo.id && photo.src)
             .map((photo) => {
@@ -171,8 +178,11 @@ export function generatePhotoStructuredData(photo: {
     // ページ本文が 2024-10-12 と表示している写真の構造化データが
     // 2026-04-12 を申告していた（実データで約1年半のずれ）。
     // datePublished（公開日）は登録日時のままでよい。
-    const shotAt = photo.date || photo.createdAt;
-    if (shotAt) structuredData.dateCreated = shotAt;
+    // **createdAt にフォールバックしない。** 撮影日を持つのは30枚中8枚で、
+    // 残りは「撮った日」としてアップロード日を申告していた。
+    // 本文側（PhotoPageClient）も同じ理由で行ごと出さないようにしてある。
+    // 分からないなら黙る方が、嘘を機械可読で配るより良い。
+    if (photo.date) structuredData.dateCreated = photo.date;
     if (photo.createdAt) structuredData.datePublished = photo.createdAt;
 
     if (photo.updatedAt) {

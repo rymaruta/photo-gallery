@@ -57,7 +57,10 @@ export function sameLocationPhotos(current: Photo, all: Photo[], limit = 8): Pho
             (p) =>
                 p.id !== current.id &&
                 isPublic(p) &&
-                p.userId !== current.userId &&
+                // **同一投稿者を除かない。** 投稿者が実質1人なので、この条件が
+                // あると常に偽になり、out/photo/*.html 30枚すべてで
+                // 「同じ場所の写真」が1件も出ていなかった（実測 0/30）。
+                // SEO のために作った内部リンク面が丸ごと死んでいた。
                 sameLocation(p.location, loc),
         )
         .sort(sortByNewest)
