@@ -225,13 +225,18 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         }
     }
 
-    // 1日の投稿上限チェック（スパム防止）
+    // 1日の投稿上限チェック（スパム防止）。
+    // **数えられなかったら止める。** 「数え上げ失敗は投稿を止めない」に
+    // していた頃は、スロットリングを起こせば上限を素通りできた。
+    // 写真の100枚制限（upload.ts の photoLimitError）は同じ判断を
+    // 「数えられなければ 503」に倒してあり、こちらだけ逆向きだった。
     try {
         if (await countRecentStories(userId) >= STORY_DAILY_LIMIT) {
             return jsonError(429, `24時間の投稿上限（${STORY_DAILY_LIMIT}件）に達しています`);
         }
     } catch (e) {
-        console.error("countRecentStories error:", e); // 数え上げ失敗は投稿を止めない
+        console.error("countRecentStories error:", e);
+        return jsonError(503, "投稿数を確認できませんでした。時間をおいてもう一度お試しください");
     }
 
     // 表示名はサーバーで引く。クライアントの申告を保存していたため、

@@ -293,14 +293,25 @@ describe("createStory", () => {
         expect(mockDdbSend).toHaveBeenCalledTimes(1); // Query のみ、Put なし
     });
 
-    it("投稿数カウントが失敗しても投稿は継続する", async () => {
-        mockDdbSend
-            .mockRejectedValueOnce(new Error("query down")) // カウント失敗
-            .mockResolvedValueOnce({}); // Put は成功
+    // 以前は「数え上げ失敗は投稿を止めない」だった（fail-open）。
+    // スロットリングを起こせば1日上限を素通りできる。写真の100枚制限
+    // （upload.ts の photoLimitError）は「数えられなければ 503」に
+    // 倒してあり、こちらだけ逆向きだったので揃えた。
+    it("投稿数を数えられなければ 503 で断る（保存しない）", async () => {
+        // Query だけを落とす。呼び出し順のキューだと、モックの並びが
+        // 実装とずれた回に別の理由で通る（実際にそうなっていた）。
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (cmd?.constructor?.name === "QueryCommand") return Promise.reject(new Error("query down"));
+            return Promise.resolve({});
+        });
         const res = await invoke(createStory, authedEvent("u1", {
             body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.jpg" }),
         }));
-        expect(res.statusCode).toBe(201);
+        expect(res.statusCode).toBe(503);
+        // 保存もしていない
+        const puts = mockDdbSend.mock.calls.filter(
+            (c: unknown[]) => (c[0] as { constructor: { name: string } })?.constructor?.name === "PutCommand");
+        expect(puts).toHaveLength(0);
     });
 });
 

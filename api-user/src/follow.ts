@@ -16,8 +16,18 @@ function isUserId(v: string): boolean {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 }
 
-/** その人が実在するか（プロフィール行の有無で見る） */
-async function userExists(userId: string): Promise<boolean> {
+/**
+ * その人が実在するか（プロフィール行の有無で見る）。
+ *
+ * **判定できなかったときは "unknown" を返し、呼び出し側は 503 で断る。**
+ * 以前は catch で true を返していた（fail-open）。USERS_TABLE が
+ * スロットルされている間は、存在しない UUID でもマーカー・カウンタ・
+ * 通知文書の3つが作られる——この関数のすぐ上のコメントが「ここを見ないと
+ * テーブルにゴミが際限なく積める」と書いている当のものが、失敗時だけ
+ * 素通りだった。photoLimitError・discardUpload と同じく
+ * 「分からないなら止める」に倒す（押し直せば通る）。
+ */
+async function userExists(userId: string): Promise<boolean | "unknown"> {
     try {
         const res = await ddb.send(new GetCommand({
             TableName: USERS_TABLE,
@@ -27,8 +37,7 @@ async function userExists(userId: string): Promise<boolean> {
         return !!res.Item;
     } catch (e) {
         console.error("userExists error:", e);
-        // 判定できないときは通す（実在する相手をフォローできない方が困る）
-        return true;
+        return "unknown";
     }
 }
 
@@ -353,7 +362,11 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
     // ゴミが増えるほど全員の表示が遅くなる。しかも notifs# は
     // 退会処理でも消えない。
     if (!isUserId(target)) return jsonError(400, "不正なリクエスト");
-    if (!(await userExists(target))) return jsonError(404, "ユーザーが見つかりません");
+    const exists = await userExists(target);
+    // 「居ない」と「確認できなかった」を混ぜない。unknown で 404 を返すと
+    // 「見つかりません」という嘘になり、fail-open に戻すとゴミが積める。
+    if (exists === "unknown") return jsonError(503, "確認できませんでした。時間をおいてもう一度お試しください");
+    if (!exists) return jsonError(404, "ユーザーが見つかりません");
 
     try {
         // マーカー作成とカウンタ加算を1つの書き込みで（既にあれば冪等）

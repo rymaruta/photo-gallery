@@ -109,6 +109,19 @@ describe("followUser", () => {
         expect(mockPush).not.toHaveBeenCalled();
     });
 
+    // 以前は「判定できないときは通す」だった（fail-open）。USERS_TABLE が
+    // スロットルされている間は、存在しない UUID でもマーカー・カウンタ・
+    // 通知文書の3つが作られた。「居ない（404）」と「確認できなかった（503）」を
+    // 混ぜずに、分からないなら止める（押し直せば通る）。
+    it("実在を確認できなければ 503（何も書かない・404と混ぜない）", async () => {
+        mockDdbSend.mockImplementationOnce(() => Promise.reject(new Error("throttled")));
+        const res = await invoke(followUser, ev(ME, OTHER));
+        expect(res.statusCode).toBe(503);
+        expect(JSON.parse(res.body).error).toContain("確認できませんでした");
+        expect(mockDdbSend).toHaveBeenCalledTimes(1); // 確認の1回だけ。マーカーは書かない
+        expect(mockPush).not.toHaveBeenCalled();
+    });
+
     it("同じ相手を繰り返しフォローしても通知は積まない", async () => {
         // 解除するとマーカーが消えるので、フォロー→解除の繰り返しで
         // 通知を何度でも積めた。通知は50件の輪なので、100回ほどで
