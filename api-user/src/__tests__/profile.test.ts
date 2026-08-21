@@ -83,3 +83,45 @@ describe("profileAvatarPresignedUrl: 受け付ける形式", () => {
         expect((await invoke(ev("u1", "{"))).statusCode).toBe(400);
     });
 });
+
+describe("profileAvatarPresignedUrl: 返す公開URL", () => {
+    it("配信ドメイン + キー", async () => {
+        const res = await invoke(ev("u1", { fileType: "image/jpeg" }));
+        const { publicUrl, presignedUrl } = JSON.parse(res.body) as { publicUrl: string; presignedUrl: string };
+        expect(publicUrl).toBe("https://cdn.example.com/profiles/u1");
+        expect(presignedUrl).toBe("https://s3.example/presigned");
+    });
+
+    // CLOUDFRONT_URL は環境変数なので、末尾スラッシュ付きで渡されうる。
+    // 詰めていないと `https://cdn.example.com//profiles/u1` になり、
+    // S3 のキーとしては先頭に空の階層を持つ**別物**を指す。保存された
+    // その URL は、あとで削除・派生生成が探すキーと一致しない。
+    // uploadPolicy.ts の canonicalUploadUrl が同じ理由で同じ処理をしている。
+    it("配信ドメインの末尾スラッシュを詰める（二重スラッシュにしない）", async () => {
+        vi.resetModules();
+        vi.stubEnv("CLOUDFRONT_URL", "https://cdn.example.com/");
+        const mod = await import("../profile");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const res = await (mod.profileAvatarPresignedUrl as any)(ev("u1", { fileType: "image/jpeg" })) as Result;
+        expect(JSON.parse(res.body).publicUrl).toBe("https://cdn.example.com/profiles/u1");
+        vi.stubEnv("CLOUDFRONT_URL", "https://cdn.example.com");
+        vi.resetModules();
+    });
+});
+
+// 署名は落ちうる（資格情報の期限切れ・KMS・S3 の一時障害）。
+// 囲っていない頃は Lambda が投げ、API Gateway が **JSON ではない 502 の
+// 素の body** を返していた。呼び出し側は res.json() で落ちるので、
+// 画面には何も出ないまま「押しても反応しない」ように見える。
+describe("profileAvatarPresignedUrl: 署名に失敗したとき", () => {
+    it("JSON の 503 を返す（素の 502 を漏らさない）", async () => {
+        const logged = vi.spyOn(console, "error").mockImplementation(() => { /* 想定内 */ });
+        mockGetSignedUrl.mockImplementationOnce(() => Promise.reject(new Error("kms down")));
+        const res = await invoke(ev("u1", { fileType: "image/jpeg" }));
+        expect(res.statusCode).toBe(503);
+        expect(() => JSON.parse(res.body)).not.toThrow();
+        expect(JSON.parse(res.body).error).toBeTruthy();
+        expect(logged).toHaveBeenCalled();
+        logged.mockRestore();
+    });
+});
