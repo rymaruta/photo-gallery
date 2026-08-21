@@ -76,68 +76,46 @@ describe("pushNotification: 切り詰め", () => {
         expect(trim.ExpressionAttributeValues?.[":len"]).toBe(NOTIFS_MAX + 1);
     });
 
-    it("条件が外れても投げない（次の通知が切り詰める）", async () => {
+    // `resolves.toBeUndefined()` だけでは**何も測っていない**。
+    // pushNotification は外側の try/catch で全部握り潰すので、
+    // 内側の `.catch` を消しても必ず undefined で resolve する
+    // （レビューで実際に消されて、14本とも通ることを確認された）。
+    // 「想定内の競合として黙って流す」と「例外が外まで漏れた」を
+    // 区別できる観測点は console.error しかないので、それを見る。
+    it("条件が外れても投げないし、記録も残さない（想定内の競合）", async () => {
+        const logged = vi.spyOn(console, "error").mockImplementation(() => { /* 記録だけ見る */ });
         const cond = Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" });
         mockDdbSend
             .mockResolvedValueOnce({ Attributes: { items: list(NOTIFS_MAX + 1), unread: 3 } })
-            .mockRejectedValueOnce(cond);
+            .mockImplementationOnce(() => Promise.reject(cond));
         await expect(pushNotification("owner", notif())).resolves.toBeUndefined();
+        expect(logged).not.toHaveBeenCalled();
+        logged.mockRestore();
     });
 
-    // 未読数は「前回開いてからの件数」なので保存件数と同じではないが、
-    // 保存件数を超えることはあり得ない。捨てた分まで数え続けると、
-    // 開かずに溜めた人のバッジが「200」なのに中身は50件、になる。
-    it("未読数が保存件数を超えていたら上限で頭打ちにする", async () => {
-        mockDdbSend.mockResolvedValueOnce({ Attributes: { items: list(NOTIFS_MAX + 1), unread: 200 } });
-        await pushNotification("owner", notif());
-
-        const cap = afterAppend().find((u) => u.UpdateExpression?.includes("unread"))!;
-        expect(cap.UpdateExpression).toContain("unread = :cap");
-        expect(cap.ExpressionAttributeValues?.[":cap"]).toBe(NOTIFS_MAX);
-    });
-
-    it("未読数が上限以下なら触らない（既読を未読に戻さない）", async () => {
-        mockDdbSend.mockResolvedValueOnce({ Attributes: { items: list(NOTIFS_MAX + 1), unread: 2 } });
-        await pushNotification("owner", notif());
-
-        expect(afterAppend().some((u) => u.UpdateExpression?.includes("unread"))).toBe(false);
-    });
-
-    // 切り詰めは「読む → 書き戻す」なので、その隙に通知欄を開かれうる。
-    // 件数と未読数を1つの書き込みに乗せていた頃は、`size(#items) = :len`
-    // が件数しか見ないため、既読化（notifications.ts の `SET unread = :z`）
-    // を追い越して `unread = 50` を書き戻していた——**消したはずのバッジが
-    // 復活する**。未読側には未読側の条件が要る。
-    it("未読数を書き戻すのは、それが減っていないときだけ", async () => {
-        mockDdbSend.mockResolvedValueOnce({ Attributes: { items: list(NOTIFS_MAX + 1), unread: 200 } });
-        await pushNotification("owner", notif());
-
-        const cap = afterAppend().find((u) => u.UpdateExpression?.includes("unread"))!;
-        expect(cap.ConditionExpression).toBe("unread > :cap");
-    });
-
-    // 2つを1本にまとめて条件を足すのは誤り。未読側の条件が外れた回に
-    // 件数の切り詰めまで巻き添えで止まり、通知文書が伸び続ける
-    // （次の通知でも unread は小さいままなので永久に切り詰まらない）。
-    it("件数の切り詰めと未読の頭打ちは別の書き込みにする", async () => {
-        mockDdbSend.mockResolvedValueOnce({ Attributes: { items: list(NOTIFS_MAX + 1), unread: 200 } });
-        await pushNotification("owner", notif());
-
-        const trim = afterAppend().find((u) => u.UpdateExpression?.includes("#items = :trimmed"))!;
-        const cap = afterAppend().find((u) => u.UpdateExpression?.includes("unread"))!;
-        expect(trim).not.toBe(cap);
-        // 件数側は未読の条件に巻き込まれない
-        expect(trim.ConditionExpression).toBe("size(#items) = :len");
-        expect(trim.UpdateExpression).not.toContain("unread");
-    });
-
-    it("未読の頭打ちが条件で外れても投げない（件数は切り詰め済み）", async () => {
-        const cond = Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" });
+    it("条件外れ以外の失敗は外まで伝わり、記録が残る", async () => {
+        const logged = vi.spyOn(console, "error").mockImplementation(() => { /* 想定内 */ });
         mockDdbSend
-            .mockResolvedValueOnce({ Attributes: { items: list(NOTIFS_MAX + 1), unread: 200 } })
-            .mockResolvedValueOnce({})          // 件数の切り詰めは通る
-            .mockRejectedValueOnce(cond);       // 未読の頭打ちだけ外れる
+            .mockResolvedValueOnce({ Attributes: { items: list(NOTIFS_MAX + 1), unread: 3 } })
+            .mockImplementationOnce(() => Promise.reject(new Error("ddb down")));
         await expect(pushNotification("owner", notif())).resolves.toBeUndefined();
+        expect(logged).toHaveBeenCalled();
+        logged.mockRestore();
+    });
+
+    // 切り詰めは `items` だけを触る。
+    //
+    // 一度ここで `unread` も NOTIFS_MAX に丸めていたが、それが
+    // 「消したはずのバッジが復活する」の原因だった。条件を足して守るのでは
+    // なく、書き込みごと消してある——`unread` の生の値を読むのは
+    // getNotifications だけで、そこが保存件数で丸めるため、ここで丸めても
+    // 利用者に見える結果は変わらない（notifications.test.ts で固定）。
+    it("切り詰めは未読数を書き換えない（既読を未読に戻さない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Attributes: { items: list(NOTIFS_MAX + 1), unread: 200 } });
+        await pushNotification("owner", notif());
+
+        expect(afterAppend()).toHaveLength(1);
+        expect(afterAppend()[0].UpdateExpression).not.toContain("unread");
     });
 });
 

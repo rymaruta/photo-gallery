@@ -103,14 +103,21 @@ export async function pushNotification(ownerId: string, notif: Notif): Promise<v
         // comments.ts の切り詰めが同じ理由で `size(#items) = :len` を
         // 付けている（対の実装。片方を直したらもう片方も見ること）。
         // 外れたら諦めてよい——次の通知がまた切り詰める。
+        // **切り詰めが触るのは `items` だけ。`unread` には手を出さない。**
+        //
+        // 一度ここで `unread` も NOTIFS_MAX に丸めていたが、それが
+        // 「消したはずのバッジが復活する」の原因だった。この書き込みは
+        // 「読む → 書き戻す」なので、その隙に通知欄を開かれると
+        // （notifications.ts の `SET unread = :z`）既読化を追い越して
+        // `unread = 50` を書き戻す。
+        //
+        // 条件を足して守るのではなく、書き込みごと消した。`unread` の生の値を
+        // 読むのは getNotifications だけで、そこが保存件数で丸めるため、
+        // ここで丸めても**利用者に見える結果は変わらない**。競合する書き込みは
+        // 守るより無くす方が確実で、しかも安い——通知が上限に達した人は
+        // 毎回ここを通るので、丸めを残すと書き込みが常時3本になっていた。
         const items = res.Attributes?.items;
-        const unread = typeof res.Attributes?.unread === "number" ? res.Attributes.unread : 0;
         if (Array.isArray(items) && items.length > NOTIFS_MAX) {
-            const ignoreCondFail = (e: { name?: string }) => {
-                if (e?.name !== "ConditionalCheckFailedException") throw e;
-                // 競合。次の通知が切り詰める
-            };
-
             await ddb.send(new UpdateCommand({
                 TableName: PHOTOS_TABLE,
                 Key: { id: notifsId(ownerId) },
@@ -118,29 +125,10 @@ export async function pushNotification(ownerId: string, notif: Notif): Promise<v
                 ConditionExpression: "size(#items) = :len",
                 ExpressionAttributeNames: { "#items": "items" },
                 ExpressionAttributeValues: { ":trimmed": items.slice(0, NOTIFS_MAX), ":len": items.length },
-            })).catch(ignoreCondFail);
-
-            // 未読数は「前回開いてからの件数」なので保存件数と同じではないが、
-            // **保存件数を超えることはあり得ない**。捨てた分まで数え続けると、
-            // 開かずに200件溜めた人のバッジが「200」なのに中身は50件になる。
-            //
-            // **件数の切り詰めとは別の書き込みにする。** 1本にまとめていた頃は、
-            // `size(#items) = :len` が件数しか見ないので、この隙に通知欄を
-            // 開かれる（notifications.ts の `SET unread = :z`）と、その既読化を
-            // 追い越して `unread = 50` を書き戻していた——消したはずのバッジが
-            // 復活する。かといって同じ1本に `unread > :cap` を足すのも誤りで、
-            // 外れた回に件数の切り詰めまで巻き添えで止まり、通知文書が
-            // 伸び続ける（次の通知でも unread は小さいままなので永久に
-            // 切り詰まらない）。だから条件ごと分ける。
-            if (unread > NOTIFS_MAX) {
-                await ddb.send(new UpdateCommand({
-                    TableName: PHOTOS_TABLE,
-                    Key: { id: notifsId(ownerId) },
-                    UpdateExpression: "SET unread = :cap",
-                    ConditionExpression: "unread > :cap",
-                    ExpressionAttributeValues: { ":cap": NOTIFS_MAX },
-                })).catch(ignoreCondFail);
-            }
+            })).catch((e: { name?: string }) => {
+                if (e?.name !== "ConditionalCheckFailedException") throw e;
+                // 競合。次の通知が切り詰める
+            });
         }
     } catch (e) {
         console.error("pushNotification error:", e);

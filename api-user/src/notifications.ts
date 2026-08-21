@@ -14,9 +14,13 @@ export const getNotifications: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
     try {
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: notifsId(uid) } }));
         const items = (Array.isArray(res.Item?.items) ? res.Item.items : []).slice(0, NOTIFS_MAX);
-        // 未読数は保存件数を超えられない。書き込み側は notify.ts で頭打ちに
-        // してあるが、それより前に溜まった行は `unread > items.length` の
-        // まま残っている（バッジが「200」なのに開くと50件）。読み側でも丸める。
+        // 未読数は保存件数を超えられない。DynamoDB 側は素のカウンタで、
+        // 開かずに溜め続けると保存件数（NOTIFS_MAX）を超えて伸びる。
+        // 丸めるのは**ここだけ**——切り詰め側で丸めると、その書き込みが
+        // 既読化（下の readNotifications）を追い越してバッジを復活させる。
+        // 見え方への影響は小さい（NotificationsBell は 9 を超えると "9+"
+        // と描くので、ズレるのは「開くと50件しか無い」という点だけ）が、
+        // 未読数と中身が食い違ったままにはしない。
         const stored = typeof res.Item?.unread === "number" ? res.Item.unread : 0;
         const unread = Math.max(0, Math.min(stored, items.length));
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ items, unread }) };

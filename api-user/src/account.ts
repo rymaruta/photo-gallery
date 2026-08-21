@@ -144,7 +144,7 @@ async function readList(id: string): Promise<{ list: unknown[]; ok: boolean }> {
  * 決めつけ、マーカーを無条件に消していたので:
  *
  *   人気ユーザー T をフォロー中の U が退会 → ほぼ同時に別の人が T を
- *   フォロー（bumpStat が followstats#T へ素の UpdateItem を撃つ）→
+ *   フォロー（follow.ts の statBump が followstats#T へ素の UpdateItem を撃つ）→
  *   競合でトランザクション側がキャンセル（CancellationReasons[1].Code =
  *   "TransactionConflict"、**未コミット**）→ それをマーカー削除の合図と
  *   読んでマーカーだけ消す → T の followers は U の分が引かれないまま、
