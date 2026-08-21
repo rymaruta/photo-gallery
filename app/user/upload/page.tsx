@@ -307,13 +307,49 @@ function UploadPageInner() {
         setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
     }, []);
 
+    /**
+     * S3 に上がったが保存に至らなかったキーを片付ける。
+     *
+     * 投稿は「S3 に上げる → DynamoDB に書く」の2段。保存に失敗した項目を
+     * そのまま捨てると**実体だけが S3 に残る**。どの削除経路も DynamoDB の
+     * 項目からキーを引くので、項目の無いオブジェクトには誰も手が届かない
+     * ——退会しても、写真を消しても残り続ける（原本は GPS 入りのまま
+     * 公開URLで取れる）。
+     *
+     * 消せなくても画面は進める（次に同じ写真を選べば上書きされるし、
+     * ここで止めると「消せないから閉じられない」になる）。
+     */
+    const discardUploaded = useCallback(async (uploaded: Item["uploaded"]) => {
+        if (!uploaded) return;
+        const { userFetch } = await import("../../../lib/utils/api");
+        const keys = [uploaded.key];
+        // サムネは別キー。本体だけ消すと 512px WebP が孤児として残る。
+        if (uploaded.thumbUrl) {
+            try {
+                const path = new URL(uploaded.thumbUrl).pathname.replace(/^\//, "");
+                if (path.startsWith("uploads/")) keys.push(decodeURIComponent(path));
+            } catch { /* URL でなければ諦める */ }
+        }
+        for (const key of keys) {
+            try {
+                await userFetch("/upload/discard", { method: "DELETE", body: JSON.stringify({ key }) });
+            } catch (e) {
+                log.warn("discard upload failed (leaving orphan):", e);
+            }
+        }
+    }, []);
+
     const removeItem = useCallback((id: string) => {
         setItems((prev) => {
             const it = prev.find((x) => x.id === id);
-            if (it) { try { URL.revokeObjectURL(it.preview); } catch { /* ignore */ } }
+            if (it) {
+                try { URL.revokeObjectURL(it.preview); } catch { /* ignore */ }
+                // 保存まで通った項目のキーは写真が使っているので触らない
+                if (it.status !== "done") void discardUploaded(it.uploaded);
+            }
             return prev.filter((x) => x.id !== id);
         });
-    }, []);
+    }, [discardUploaded]);
 
     const handleUploadAll = useCallback(async (published: boolean) => {
         const pending = items.filter((it) => it.status === "pending" || it.status === "error");

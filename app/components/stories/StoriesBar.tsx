@@ -316,7 +316,14 @@ export default function StoriesBar() {
                     fileSize: uploadFile.size,
                 }),
             });
-            if (!presignedRes.ok) throw new Error(`presigned ${presignedRes.status}`);
+            if (!presignedRes.ok) {
+                // ステータス番号だけを投げると、下の catch が「投稿に失敗しました」に
+                // まとめてしまう。サーバーは断る理由を文章で返している
+                // （枚数を確認できなかった 503、上限の 403 など）ので、それを出す。
+                const { readApiError } = await import("../../../lib/utils/api");
+                throw new Error(await readApiError(presignedRes,
+                    locale === "en" ? "Could not prepare the upload." : "アップロードの準備に失敗しました。"));
+            }
             const { presignedUrl, publicUrl, key } = await presignedRes.json() as { presignedUrl: string; publicUrl: string; key?: string };
 
             const s3Res = await fetch(presignedUrl, {
@@ -349,6 +356,14 @@ export default function StoriesBar() {
                 }),
             });
             if (!saveRes.ok) {
+                // 保存に至らなかったので、先に上げた実体を消す。
+                // 残すと、どの削除経路も DynamoDB の項目からキーを引くため
+                // 誰にも辿れないオブジェクトになる（公開URLでは取れる）。
+                if (key) {
+                    await userFetch("/upload/discard", {
+                        method: "DELETE", body: JSON.stringify({ key }),
+                    }).catch(() => { /* 消せなくても投稿の失敗は伝える */ });
+                }
                 // 投稿上限（429）はユーザーにそのまま伝える
                 if (saveRes.status === 429) {
                     const err = await saveRes.json().catch(() => ({})) as { error?: string };
@@ -363,7 +378,12 @@ export default function StoriesBar() {
             await loadStories();
         } catch (e) {
             log.error("story upload error:", e);
-            showToast(locale === "en" ? "Failed to post story" : "ストーリーの投稿に失敗しました", "error");
+            // サーバーが断る理由を文章で返している場合はそれを出す。
+            // 固定文言で塗り潰していた頃は、枚数を確認できなかった 503 も
+            // 上限の 403 も、全部「投稿に失敗しました」になっていて、
+            // 利用者は何をすれば通るのか分からなかった。
+            const fallback = locale === "en" ? "Failed to post story" : "ストーリーの投稿に失敗しました";
+            showToast(e instanceof Error && e.message ? e.message : fallback, "error");
         } finally {
             setPosting(false);
         }
