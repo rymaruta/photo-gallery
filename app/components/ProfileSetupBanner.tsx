@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useAuth } from "../auth/context";
 import { useLocale } from "../i18n/context";
 import { userFetch } from "../../lib/utils/api";
@@ -17,22 +18,35 @@ import { ROUTES } from "../../lib/routes";
 export default function ProfileSetupBanner() {
     const { isAuthenticated } = useAuth();
     const { locale } = useLocale();
+    const pathname = usePathname();
     const [needsName, setNeedsName] = useState(false);
+    // 一度「設定済み」と分かったら、それ以上は確かめない（遷移ごとの API を増やさない）
+    const hasNameRef = useRef(false);
     const isJa = locale !== "en";
 
+    // **遷移のたびに確かめ直す（未設定と分かっている間だけ）。**
+    // 取得が `[isAuthenticated]` の1回きりだった頃は、このバナーが
+    // レイアウトに常駐していて再マウントされないため、
+    // 「決める」→ プロフィールで名前を保存 → 戻ってくる、と操作しても
+    // **バナーが「名前を決めましょう」のまま残った**（ハードリロードまで消えない）。
+    // 名前を持つ人は最初の1回で hasNameRef が立ち、以後は何も撃たない。
     useEffect(() => {
-        if (!isAuthenticated) return;
+        if (!isAuthenticated || hasNameRef.current) return;
         let aborted = false;
         void (async () => {
             try {
                 const res = await userFetch("/user/profile");
                 if (!res.ok) return;
                 const data = await res.json() as { displayName?: string };
-                if (!aborted) setNeedsName(!data.displayName?.trim());
+                const hasName = !!data.displayName?.trim();
+                if (!aborted) {
+                    hasNameRef.current = hasName;
+                    setNeedsName(!hasName);
+                }
             } catch { /* 取得できないときは何も出さない */ }
         })();
         return () => { aborted = true; };
-    }, [isAuthenticated]);
+    }, [isAuthenticated, pathname]);
 
     if (!isAuthenticated || !needsName) return null;
 

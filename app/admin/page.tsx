@@ -26,6 +26,10 @@ export default function AdminPage() {
     const { showToast } = useToast();
     const [photos, setPhotos] = useState<Photo[]>([]);
     const [loadingPhotos, setLoadingPhotos] = useState(true);
+    // 取得失敗を「写真がありません。」と混ぜない。混ぜていた頃は、トークン
+    // 失効でも 500 でも空の一覧と同じ見た目になり、理由も再試行の導線も
+    // 無かった（下書き画面 app/user/drafts が先に同じ形で直っている）。
+    const [loadError, setLoadError] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [photoToDelete, setPhotoToDelete] = useState<Photo | null>(null);
@@ -85,15 +89,17 @@ export default function AdminPage() {
                     return new Date(bDate).getTime() - new Date(aDate).getTime();
                 });
                 setPhotos(sortedPhotos);
+                if (isMountedRef.current) setLoadError(false);
             } else {
-                // 取得失敗のトーストは出さない（静かに失敗させる）
                 log.error("写真の取得に失敗しました", {
                     status: response.status,
                     statusText: response.statusText,
                 });
+                if (isMountedRef.current) setLoadError(true);
             }
         } catch (error) {
             log.error("写真取得エラー:", error);
+            if (isMountedRef.current) setLoadError(true);
         } finally {
             if (isMountedRef.current) setLoadingPhotos(false);
         }
@@ -295,6 +301,24 @@ export default function AdminPage() {
             {loadingPhotos ? (
                 <div className="flex items-center justify-center py-12">
                     <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                </div>
+            ) : loadError ? (
+                <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
+                    <p className="text-white/70 text-sm">
+                        {locale === "en" ? "Could not load photos." : "写真の一覧を読み込めませんでした"}
+                    </p>
+                    <p className="text-white/40 text-xs">
+                        {locale === "en"
+                            ? "Nothing was lost. Check your connection or sign in again."
+                            : "消えたわけではありません。通信かログイン状態を確かめてください。"}
+                    </p>
+                    <button
+                        onClick={() => void loadPhotos()}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 mt-1 bg-white text-black rounded-full text-sm font-semibold hover:bg-white/90 active:scale-[0.98] transition"
+                        style={{ touchAction: "manipulation", minHeight: "44px" }}
+                    >
+                        {locale === "en" ? "Retry" : "再試行"}
+                    </button>
                 </div>
             ) : photos.length === 0 ? (
                 <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
