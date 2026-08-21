@@ -11,22 +11,29 @@ name: Checks
 # ビルドも Playwright も走らせない。型・lint・テストだけなので
 # 1回2分弱で、Actions の枠（月2,000分）への影響は小さい。
 # フロントの実際の反映は今までどおり手動（deploy.yml）。
+# **push での自動実行は止めてある。**
+# 2026-08-21 に Actions の枠が 2,000/2,000（100%）に達したため。
+# 枠がリセットされる（毎月1日）か、上限を引き上げるまでは手動実行のみ。
+#
+# 走らせたいときは Actions タブから "Checks" を Run workflow。
+# ローカルでは `npx tsc --noEmit && npx eslint . && npx vitest run` が同じ内容。
 on:
-  push:
-    branches:
-      - develop
-    paths:
-      - "app/**"
-      - "lib/**"
-      - "scripts/**"
-      - "public/**"
-      - ".github/workflows/**"
-      - "package.json"
-      - "package-lock.json"
-      - "tsconfig.json"
-      - "vitest.config.ts"
-      - "vitest.setup.ts"
   workflow_dispatch:
+  # 枠が戻ったら、以下のコメントを外して push での自動実行に戻す。
+  # push:
+  #   branches:
+  #     - develop
+  #   paths:
+  #     - "app/**"
+  #     - "lib/**"
+  #     - "scripts/**"
+  #     - "public/**"
+  #     - ".github/workflows/**"
+  #     - "package.json"
+  #     - "package-lock.json"
+  #     - "tsconfig.json"
+  #     - "vitest.config.ts"
+  #     - "vitest.setup.ts"
 
 # 同じブランチに連続で push したら、古い方は打ち切る（枠を無駄にしない）。
 # デプロイと違って途中で止めても困らない検査なので cancel-in-progress: true。

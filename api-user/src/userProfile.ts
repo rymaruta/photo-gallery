@@ -128,6 +128,12 @@ const usernameKey = (u: string) => `username#${u}`;
  * GetItem/PutItem だけで完結するので、既存のIAM権限（Query不要）で動く。
  * 条件付き書き込みなので同時実行でも二重取得しない。
  */
+/**
+ * 保存が競合したときに読み直してやり直す回数。
+ * follow.ts の FOLLOWING_WRITE_RETRIES と同じ考え方。
+ */
+const PROFILE_WRITE_RETRIES = 3;
+
 async function reserveUsername(username: string, ownerId: string): Promise<boolean> {
     try {
         await ddb.send(new PutItemCommand({
@@ -433,6 +439,8 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     apply("statusText", "statusText" in body, statusText);
     apply("pinnedPhotoIds", "pinnedPhotoIds" in body, pinnedPhotoIds);
 
+    // この呼び出しで新しく押さえたユーザー名（失敗したら戻す）
+    let usernameReserved: string | null = null;
     try {
         const prev = await getProfile(userId);
 
@@ -454,20 +462,63 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         }
         apply("songs", songsAddressed, songs);
 
-        // ユーザー名の一意性を先に確保する（他人が使っていれば 409 で中断）
+        // ユーザー名の一意性を先に確保する（他人が使っていれば 409 で中断）。
+        // 押さえた名前は控えておく。本体の保存が落ちたら戻す（下の catch）。
         if (hasUsernameKey && username && username !== prev?.username) {
             const ok = await reserveUsername(username, userId);
             if (!ok) {
                 return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({ error: "そのユーザー名は既に使われています" }) };
             }
+            usernameReserved = username;
         }
 
-        const profile = mergeProfile(prev, userId, changes);
-
-        await ddb.send(new PutItemCommand({
-            TableName: USERS_TABLE,
-            Item: marshall(profile),
-        }));
+        // **同時保存で先の変更が消えないようにする。**
+        //
+        // 以前は「読む → 全置換 Put」を無条件でやっていた。書き手は2つある——
+        // プロフィール編集画面（app/user/profile/page.tsx）と、ピン留め・
+        // 旅アルバムの設定（app/users/UserProfileClient.tsx）。同時に走ると
+        // 後勝ちで、先の変更が黙って消える。このファイルのコメントが挙げている
+        // 過去2件の事故（「ピン留めするだけで旅アルバムとひとことが消える」）と
+        // 症状が同じで、部分更新に直しても競合経路が残っていた。
+        //
+        // follow.ts の updateFollowing と同じ rev 方式。新しい機構は作らない。
+        // 競合したら**読み直して、この呼び出しの changes を最新の上に重ねる**
+        // ので、触っている項目が違えば両方残る。
+        let profile = mergeProfile(prev, userId, changes);
+        let base = prev;
+        let saved = false;
+        for (let attempt = 0; attempt <= PROFILE_WRITE_RETRIES; attempt++) {
+            const rev = typeof (base as { rev?: unknown } | null)?.rev === "number"
+                ? (base as unknown as { rev: number }).rev : 0;
+            // rev を持たない既存データ（この仕組みを入れる前の item）も通す。
+            // DynamoDB は値どうしの比較を許さないので、分岐は JS 側で作る。
+            const guard = rev === 0
+                ? "attribute_not_exists(userId) OR attribute_not_exists(rev) OR rev = :rev"
+                : "rev = :rev";
+            profile = { ...mergeProfile(base, userId, changes), rev: rev + 1 } as typeof profile;
+            try {
+                await ddb.send(new PutItemCommand({
+                    TableName: USERS_TABLE,
+                    Item: marshall(profile),
+                    ConditionExpression: guard,
+                    ExpressionAttributeValues: marshall({ ":rev": rev }),
+                }));
+                saved = true;
+                break;
+            } catch (e) {
+                if ((e as { name?: string }).name !== "ConditionalCheckFailedException") throw e;
+                base = await getProfile(userId);   // 競合。読み直して重ね直す
+            }
+        }
+        if (!saved) {
+            // **諦めたことを黙って飲み込まない。** ここで 200 を返すと
+            // 「保存しましたと出るのに元どおり」になる。
+            // ユーザー名を新しく予約していたら、それも戻す（下と同じ理由）。
+            if (hasUsernameKey && username && username !== prev?.username) {
+                await releaseUsername(username, userId);
+            }
+            return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({ error: "他の変更と重なりました。もう一度お試しください" }) };
+        }
 
         // 保存できたら古いユーザー名の予約を解放する（付け替え・クリア時）
         if (hasUsernameKey && prev?.username && prev.username !== username) {
@@ -475,6 +526,17 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         }
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(profile) };
     } catch (e) {
+        // **予約だけ残さない。**
+        //
+        // ユーザー名の一意性は本体の保存より先に押さえる（他人に取られない
+        // ため）。そのあと Put が落ちると、以前は `username#<handle>` の
+        // 予約行だけが残っていた。本人は ownerId 一致で付け直せるが、そこで
+        // **別の名前を選ぶと誰も取れないまま永久に残る**——releaseUsername は
+        // 保存済みの旧名しか解放せず、退会の掃除もプロフィール行の username を
+        // 見るので拾えない。
+        if (usernameReserved) {
+            await releaseUsername(usernameReserved, userId);
+        }
         console.error("updateMyProfile error:", e);
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "更新に失敗しました" }) };
     }
