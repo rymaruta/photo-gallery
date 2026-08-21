@@ -12,7 +12,7 @@ export type CollectionType = "tag" | "location" | "category";
  * どちらも弱くなるため、集約ページを作る段階で1つにまとめる。
  * 表記ゆれ（建物→建築）もここで吸収する。
  */
-const CATEGORY_ALIASES: Record<string, string> = {
+export const CATEGORY_ALIASES: Record<string, string> = {
     "風景": "landscape",
     "自然": "nature",
     "建築": "architecture",

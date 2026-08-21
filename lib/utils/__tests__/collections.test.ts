@@ -6,6 +6,7 @@ import {
     labelForSlug,
     collectionPath,
     collectionCopy,
+    CATEGORY_ALIASES,
     relatedEntries,
 } from "../collections";
 import type { Photo } from "../../data/photos";
@@ -152,5 +153,26 @@ describe("collectionCopy: タイトルにサイト名を足さない", () => {
 
     it("枚数が無ければ枚数を出さない", () => {
         expect(collectionCopy("tag", "海", 0).title).toBe("海の写真");
+    });
+});
+
+// カテゴリの別名表が2か所にあり、片方（i18n のラベルから作る表）に
+// 「建物」が無かった。トップの絞り込みでは「建築」と「建物」が別のチップ
+// として並ぶのに、/category/architecture は同じページにまとまる——
+// 同じ写真の集合が、見る場所で違って見えていた。表は collections.ts を正とする。
+describe("CATEGORY_ALIASES: 表記ゆれを1か所で吸収する", () => {
+    it("「建物」も「建築」も同じキーに寄る", () => {
+        expect(slugify("建物", "category")).toBe("architecture");
+        expect(slugify("建築", "category")).toBe("architecture");
+    });
+
+    it("別名表は外から使える（useGallery が同じ表を見るため）", () => {
+        expect(CATEGORY_ALIASES["建物"]).toBe("architecture");
+        expect(CATEGORY_ALIASES["風景"]).toBe("landscape");
+    });
+
+    it("カテゴリ以外の種別には別名を当てない", () => {
+        expect(slugify("建物", "tag")).toBe("建物");
+        expect(slugify("建物", "location")).toBe("建物");
     });
 });

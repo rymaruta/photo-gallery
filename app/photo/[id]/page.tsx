@@ -71,8 +71,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
             images: [
                 {
                     url: imageUrl,
-                    width: photo.width || 1200,
-                    height: photo.height || 630,
+                    // **実寸を持たないなら寸法を出さない。** 1200x630 を決め打ちして
+                    // いたが、width/height を持つ写真は0枚（30枚中）なので
+                    // **全ページが嘘の寸法を申告していた**。SNS 側はそれを信じて
+                    // 領域を確保するので、共有カードで写真が切れる・伸びる。
+                    // 分からないなら黙る方がよい（省略すれば取得側が実寸を見る）。
+                    ...(photo.width && photo.height ? { width: photo.width, height: photo.height } : {}),
                     alt: getLocalized(photo.alt, "ja") || getLocalized(photo.alt, "en") || title,
                 },
             ],
@@ -86,10 +90,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
         },
         alternates: {
             canonical: pageUrl,
-            languages: {
-                ja: pageUrl,
-                en: pageUrl,
-            },
+            // hreflang は出さない。ja と en が**同じURL**を指していて、
+            // 「2言語版がある」と申告しながら中身は1つ、という状態だった。
+            // 言語切替の UI は R-1 で削除済みで、別URLの英語版は存在しない。
         },
     };
 }

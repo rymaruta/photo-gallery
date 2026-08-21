@@ -3,6 +3,7 @@ import type { Photo, LocalizedText, LocalizedParagraphs } from "../data/photos";
 import { getLocalized, getLocalizedParagraphs } from "../data/photos";
 import type { GalleryFilters } from "../types/gallery";
 import { getLabels } from "../../app/i18n/labels";
+import { CATEGORY_ALIASES } from "../utils/collections";
 
 // 表示名 → 正規キーの逆引きマップ（例: "風景" → "landscape"）。
 // 日本語名でカテゴリ登録された写真と英語キーの写真が
@@ -24,7 +25,11 @@ const tagSlug = (s?: string) => (s ?? "").toString().trim().toLowerCase().replac
 
 const normalizeKey = (s?: string) => {
     const base = (s ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
-    return DISPLAY_TO_KEY[base] ?? base;
+    // 別名表は lib/utils/collections.ts を正とする。i18n のラベルから作る表だけを
+    // 見ていた頃は、そこに無い表記ゆれ（「建物」）が抜けていた——トップの絞り込みでは
+    // 「建築」と「建物」が別のチップとして並ぶのに、/category/architecture は
+    // 同じページにまとまる。同じ写真の集合が、見る場所で違って見えていた。
+    return DISPLAY_TO_KEY[base] ?? CATEGORY_ALIASES[base] ?? base;
 };
 
 // safe ISO date parse helper — returns ISO string or empty
@@ -56,7 +61,7 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
             raw.map((p) => {
                 const category = normalizeKey(p.category);
                 const tags = (p.tags ?? []).map((t) => (t ?? "").toString().trim()).filter(Boolean);
-                const date = p.date ?? p.createdAt ?? "";
+                const date = p.date || p.createdAt || "";
                 const _dateISO = toISO(date);
 
                 return { ...p, category, tags, date, _dateISO };

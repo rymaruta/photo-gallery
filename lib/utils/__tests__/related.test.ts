@@ -111,3 +111,17 @@ describe("adjacentPhotos", () => {
         expect(res).toEqual({ prev: null, next: null });
     });
 });
+
+// `date ?? createdAt` は `date: ""` を「値がある」と見なす。空文字は
+// Date.parse で NaN になるので、その写真は年表から消え、並びの最下段に落ちる。
+// `||` なら空文字も「無い」として createdAt に落ちる。
+// lib/utils/seo.ts だけが最初から `||` で正しかったので、そちらに揃えた。
+describe("並び替えの日付: 空文字を「無い」として扱う", () => {
+    it("date が空文字なら createdAt を使う", () => {
+        const withEmpty = p({ id: "e", userId: "u1", date: "", createdAt: "2026-03-01" });
+        const older = p({ id: "o", userId: "u1", createdAt: "2026-01-01" });
+        const res = sameAuthorPhotos(p({ id: "cur", userId: "u1", createdAt: "2026-04-01" }), [withEmpty, older]);
+        // 空文字の写真が最下段に落ちず、createdAt どおり新しい方に来る
+        expect(res.map((x) => x.id)).toEqual(["e", "o"]);
+    });
+});

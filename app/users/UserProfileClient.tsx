@@ -68,7 +68,7 @@ const TAB_ORDER: TabKey[] = ["posts", "timeline"];
 type TimelineGroup = { key: string; year: string; label: string; photos: Photo[] };
 function buildTimeline(photos: Photo[], locale: "ja" | "en"): TimelineGroup[] {
     const withDate = photos
-        .map((p) => ({ p, t: Date.parse(String(p.date ?? p.createdAt ?? "")) }))
+        .map((p) => ({ p, t: Date.parse(String(p.date || p.createdAt || "")) }))
         .filter((x) => !isNaN(x.t))
         .sort((a, b) => b.t - a.t);
     const map = new Map<string, TimelineGroup>();
@@ -437,14 +437,14 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             if (loc) places.add(loc);
         }
         const times = visiblePhotos
-            .map(p => Date.parse(String(p.date ?? p.createdAt ?? "")))
+            .map(p => Date.parse(String(p.date || p.createdAt || "")))
             .filter(t => !isNaN(t))
             .sort((a, b) => a - b);
 
         // 旅した総移動距離: 位置情報つき写真を撮影日順につなぎ、大円距離を積算
         const geo = visiblePhotos
             .filter(p => p.coords && typeof p.coords.lat === "number" && typeof p.coords.lng === "number")
-            .map(p => ({ c: p.coords as { lat: number; lng: number }, t: Date.parse(String(p.date ?? p.createdAt ?? "")) }))
+            .map(p => ({ c: p.coords as { lat: number; lng: number }, t: Date.parse(String(p.date || p.createdAt || "")) }))
             .filter(x => !isNaN(x.t))
             .sort((a, b) => a.t - b.t);
         let distanceKm = 0;
