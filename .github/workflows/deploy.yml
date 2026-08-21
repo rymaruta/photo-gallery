@@ -181,6 +181,14 @@ jobs:
       # サムネ生成が失敗した写真も、次のデプロイ/定期再ビルドで自動修復される。
       # ビルド前に実行することで photos.json に thumbSrc が反映される。
       - name: Generate missing thumbnails
+        # ここで落ちてもデプロイは止めない。
+        #
+        # このステップは「表示用の補完」で、成否はサイトの正しさに関わらない。
+        # 一方この後ろには build と S3 反映があり、しかも削除のたびに走る
+        # site-rebuild（cron を止めた今、消えたページを S3 から消す唯一の経路）も
+        # 同じ道を通る。ここで止めると「消したはずの内容が公開されたまま、
+        # 直すデプロイも打てない」になる。実際その条件を一度入れかけた。
+        continue-on-error: true
         run: node scripts/generate-thumbnails.js
         env:
           # このスクリプトは DynamoDB と S3 に「書く」。環境を渡し忘れると

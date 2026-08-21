@@ -250,7 +250,7 @@ async function main() {
         return;
     }
 
-    let ok = 0, failed = 0, skipped = 0;
+    let ok = 0, failed = 0, skipped = 0, missing = 0;
     for (const [i, item] of targets.entries()) {
         const key = keyFromSrc(item.src);
         const doThumb = needsThumb(item);
@@ -339,23 +339,68 @@ async function main() {
             const jobs = [doThumb && "thumb", doMeta && "meta", doDerivatives && "deriv", doShotDate && "date"].filter(Boolean).join("+");
             console.log(`  [${i + 1}/${targets.length}] ✅ ${item.id}  [${jobs}]${thumbInfo}`);
         } catch (err) {
+            // 原本が S3 に無い行は、この道具では直しようがない。
+            // 失敗に数えると、下の判定で毎回ジョブが赤くなる
+            // （退会処理が途中で切れると「S3は消えたが行は残る」が普通に起きる）。
+            if (isMissingObject(err)) {
+                missing++;
+                console.warn(`  [${i + 1}/${targets.length}] ⚠️ ${item.id} (${key}): 原本が見つかりません`);
+                continue;
+            }
             failed++;
             console.error(`  [${i + 1}/${targets.length}] ❌ ${item.id} (${key}): ${err.message ?? err}`);
         }
     }
 
-    console.log(`\n[thumbs] 完了: 成功 ${ok} / スキップ ${skipped} / 失敗 ${failed}`);
-    // 「対象があったのに1件も成功しなかった」だけを異常とする。
-    //
-    // スキップは異常ではない。撮影日の復元だけが目的で、原本の EXIF に
-    // 撮影日が入っていない写真は、何度流しても書くものが無い＝毎回スキップ。
-    // これを失敗扱いにすると、直しようのない理由でジョブが永久に赤くなる。
-    if (targets.length > 0 && ok === 0 && skipped === 0) process.exit(1);
+    console.log(`\n[thumbs] 完了: 成功 ${ok} / スキップ ${skipped} / 実体なし ${missing} / 失敗 ${failed}`);
+    if (exitCodeFor({ failed }) !== 0) process.exit(1);
+}
+
+/**
+ * 「原本が S3 に無い」エラーか。
+ *
+ * 退会処理は S3 を先に消して DynamoDB を後で消す。途中で実行時間を
+ * 使い切ると「実体は無いが行は残る」が残る（api-user/src/account.ts の
+ * コメントがその前提で書かれている）。この道具では直しようがない。
+ */
+function isMissingObject(err) {
+    const name = err?.name ?? "";
+    const status = err?.$metadata?.httpStatusCode;
+    return name === "NoSuchKey" || name === "NotFound" || status === 404;
+}
+
+/**
+ * このジョブを失敗として終わらせるか（0 = 正常終了）。
+ *
+ * **ここは一度作りを誤って、本番のデプロイを止めかけた。**
+ * 「対象があったのに1件も成功しなかったら exit 1」にしていたが、
+ * 一度うまく回ったあとの定常状態は「直しようのない行だけが対象」なので、
+ * **以後どのデプロイも赤くなる**状態だった。
+ * `.github/workflows/deploy.yml` はこのステップの後に build と S3 反映を
+ * 置いていて、削除のたびに走る site-rebuild（cron を止めた今、消えた
+ * ページを S3 から消す唯一の経路）も同じ道を通る——つまり
+ * 「消したはずの内容が公開されたまま、直すデプロイも打てない」になる。
+ *
+ * 直し方は2つ。呼び出し側を continue-on-error にして**止まらなくし**、
+ * ここは「人が見に行くべきか」の合図だけにする。
+ * 判定は `failed` ひとつで足りる:
+ *   - スキップ … 撮影日が EXIF に無い等。何度流しても書くものが無い
+ *   - 実体なし … 原本が消えている。この道具では直せない（isMissingObject）
+ * のどちらも失敗に数えていないので、残った failed は
+ * 「資格情報・ネットワーク・sharp」など**人が見る価値のあるもの**だけ。
+ *
+ * 条件を足すほど間違える。実際、最初は targets/ok/skipped/missing の
+ * 4つを見る式にしたが、`missing > 0` の枝は `failed === 0` のとき
+ * 冗長で、変異させても赤くならない＝確かめようがなかった。
+ */
+function exitCodeFor({ failed }) {
+    return failed > 0 ? 1 : 0;
 }
 
 module.exports = {
     keyFromSrc, thumbKeyFor, derivativeKey, shouldProcess,
     needsThumb, needsMeta, needsDerivatives, needsShotDate, buildMetaFields, hexFromChannel,
+    isMissingObject, exitCodeFor,
 };
 
 if (require.main === module) {

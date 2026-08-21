@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { keyFromSrc, thumbKeyFor, derivativeKey, shouldProcess, needsThumb, needsMeta, needsDerivatives, needsShotDate, buildMetaFields, hexFromChannel } = require("../generate-thumbnails.js");
+const { keyFromSrc, thumbKeyFor, derivativeKey, shouldProcess, needsThumb, needsMeta, needsDerivatives, needsShotDate, buildMetaFields, hexFromChannel, isMissingObject, exitCodeFor } = require("../generate-thumbnails.js");
 
 describe("keyFromSrc", () => {
     it("CloudFront URL から S3 キーを取り出す", () => {
@@ -192,5 +192,61 @@ describe("needsShotDate（撮影日の補完対象）", () => {
 
     it("date が既にあれば対象外（冪等）", () => {
         expect(needsShotDate({ id: "p1", src, srcOriginal: orig, date: "2024-10-12" })).toBe(false);
+    });
+});
+
+// このジョブの終了コードは、本番デプロイが進むかどうかを決める。
+// deploy.yml はこのステップの後に build と S3 反映を置いていて、
+// 削除のたびに走る site-rebuild（消えたページを S3 から消す唯一の経路）も
+// 同じ道を通る。ここを塞ぐと「消したはずの内容が公開されたまま、
+// 直すデプロイも打てない」になる。
+describe("exitCodeFor: 人が見に行くべきかの合図", () => {
+    const run = (o: Partial<Record<"targets" | "ok" | "skipped" | "missing" | "failed", number>>) =>
+        exitCodeFor({ targets: 0, ok: 0, skipped: 0, missing: 0, failed: 0, ...o });
+
+    it("原本が消えた行しか残っていなければ 0", () => {
+        // 退会処理は S3 を先に消して DynamoDB を後で消すので、途中で切れると
+        // 「実体は無いが行は残る」が残る。一度うまく回ったあとの定常状態は
+        // 「その行だけが対象」——ここを 1 にすると毎回赤くなる。
+        expect(run({ targets: 3, missing: 3 })).toBe(0);
+    });
+
+    it("スキップだけなら 0（撮影日が EXIF に無い写真）", () => {
+        expect(run({ targets: 4, skipped: 4 })).toBe(0);
+    });
+
+    it("対象が無ければ 0", () => {
+        expect(run({ targets: 0 })).toBe(0);
+    });
+
+    it("全部成功なら 0", () => {
+        expect(run({ targets: 3, ok: 3 })).toBe(0);
+    });
+
+    it("直しようのある失敗が1件でもあれば 1（人が見る）", () => {
+        expect(run({ targets: 4, ok: 3, failed: 1 })).toBe(1);
+        expect(run({ targets: 3, failed: 3 })).toBe(1);
+    });
+});
+
+describe("isMissingObject: 原本が無いエラーの見分け", () => {
+    it("NoSuchKey", () => {
+        expect(isMissingObject(Object.assign(new Error("x"), { name: "NoSuchKey" }))).toBe(true);
+    });
+    it("NotFound", () => {
+        expect(isMissingObject(Object.assign(new Error("x"), { name: "NotFound" }))).toBe(true);
+    });
+    it("HTTP 404", () => {
+        expect(isMissingObject({ $metadata: { httpStatusCode: 404 } })).toBe(true);
+    });
+    it("スロットリングは別（直しようがある＝失敗として数える）", () => {
+        expect(isMissingObject(Object.assign(new Error("x"), { name: "ThrottlingException" }))).toBe(false);
+    });
+    it("資格情報切れも別", () => {
+        expect(isMissingObject(Object.assign(new Error("x"), { name: "ExpiredTokenException" }))).toBe(false);
+    });
+    it("null / undefined でも壊れない", () => {
+        expect(isMissingObject(undefined)).toBe(false);
+        expect(isMissingObject(null)).toBe(false);
     });
 });
