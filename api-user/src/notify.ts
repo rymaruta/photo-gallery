@@ -79,16 +79,44 @@ export async function pushNotification(ownerId: string, notif: Notif): Promise<v
             ReturnValues: "UPDATED_NEW",
         }));
 
-        // 上限を超えたら新しい方から NOTIFS_MAX 件だけ残す
+        // 上限を超えたら新しい方から NOTIFS_MAX 件だけ残す。
+        //
+        // 「読んだときと同じ長さのままなら書く」条件を必ず付ける。
+        // 無条件に書いていた頃は、ほぼ同時に2件届くと**片方が消えていた**——
+        // 表示されないのではなく DynamoDB から無くなる。
+        //   50件のオーナーに A のいいねと B のコメントが同時に届く
+        //   → A が51件のスナップショットを持つ
+        //   → B が52件を正しく書く
+        //   → A の切り詰めが「B を含まない50件」で上書きする
+        // comments.ts の切り詰めが同じ理由で `size(#items) = :len` を
+        // 付けている（対の実装。片方を直したらもう片方も見ること）。
+        // 外れたら諦めてよい——次の通知がまた切り詰める。
         const items = res.Attributes?.items;
+        const unread = typeof res.Attributes?.unread === "number" ? res.Attributes.unread : 0;
         if (Array.isArray(items) && items.length > NOTIFS_MAX) {
+            const sets = ["#items = :trimmed"];
+            const values: Record<string, unknown> = {
+                ":trimmed": items.slice(0, NOTIFS_MAX),
+                ":len": items.length,
+            };
+            // 未読数は「前回開いてからの件数」なので保存件数と同じではないが、
+            // **保存件数を超えることはあり得ない**。捨てた分まで数え続けると、
+            // 開かずに200件溜めた人のバッジが「200」なのに中身は50件になる。
+            if (unread > NOTIFS_MAX) {
+                sets.push("unread = :cap");
+                values[":cap"] = NOTIFS_MAX;
+            }
             await ddb.send(new UpdateCommand({
                 TableName: PHOTOS_TABLE,
                 Key: { id: notifsId(ownerId) },
-                UpdateExpression: "SET #items = :trimmed",
+                UpdateExpression: "SET " + sets.join(", "),
+                ConditionExpression: "size(#items) = :len",
                 ExpressionAttributeNames: { "#items": "items" },
-                ExpressionAttributeValues: { ":trimmed": items.slice(0, NOTIFS_MAX) },
-            }));
+                ExpressionAttributeValues: values,
+            })).catch((e: { name?: string }) => {
+                if (e?.name !== "ConditionalCheckFailedException") throw e;
+                // 競合。次の通知が切り詰める
+            });
         }
     } catch (e) {
         console.error("pushNotification error:", e);

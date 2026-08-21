@@ -286,22 +286,43 @@ export const viewStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // 記録すると決まってから引く（本人の閲覧や404では無駄に叩かない）。
         const displayName = await lookupDisplayName(viewerId);
 
-        // viewers マップが無ければ作ってから、閲覧者エントリを追加（初回閲覧時刻を保持）
-        await ddb.send(new UpdateCommand({
-            TableName: PHOTOS_TABLE,
-            Key: { id: storyId },
-            UpdateExpression: "SET viewers = if_not_exists(viewers, :empty)",
-            ExpressionAttributeValues: { ":empty": {} },
-        }));
-        await ddb.send(new UpdateCommand({
-            TableName: PHOTOS_TABLE,
-            Key: { id: storyId },
-            UpdateExpression: "SET viewers.#uid = if_not_exists(viewers.#uid, :v)",
-            ExpressionAttributeNames: { "#uid": viewerId },
-            ExpressionAttributeValues: {
-                ":v": { ...(displayName ? { displayName } : {}), at: new Date().toISOString() },
-            },
-        }));
+        // viewers マップが無ければ作ってから、閲覧者エントリを追加（初回閲覧時刻を保持）。
+        //
+        // **両方に attribute_exists(id) が要る。** DynamoDB の UpdateItem は
+        // キーが無ければ**作る**ので、条件が無いと「見たよ」の報告が
+        // 削除と競合したときに、消えたはずのストーリーIDで新しい行ができる:
+        //   { id: "story-abc", viewers: { <閲覧者のsub>: { displayName, at } } }
+        // この行は story も src も userId も storyFeed も持たないので、
+        // 期限切れ掃除（GSIを引く）・退会削除（GSIを引く）・写真一覧（src必須）の
+        // どれからも辿れない＝誰にも消せないゴミが残る。
+        // しかも「消したストーリーを誰が見たか」が本人の手の届かない場所に残る。
+        // comments.ts:184 と likes.ts が同じ理由で条件を付けている。
+        try {
+            await ddb.send(new UpdateCommand({
+                TableName: PHOTOS_TABLE,
+                Key: { id: storyId },
+                UpdateExpression: "SET viewers = if_not_exists(viewers, :empty)",
+                ConditionExpression: "attribute_exists(id)",
+                ExpressionAttributeValues: { ":empty": {} },
+            }));
+            await ddb.send(new UpdateCommand({
+                TableName: PHOTOS_TABLE,
+                Key: { id: storyId },
+                UpdateExpression: "SET viewers.#uid = if_not_exists(viewers.#uid, :v)",
+                ConditionExpression: "attribute_exists(id)",
+                ExpressionAttributeNames: { "#uid": viewerId },
+                ExpressionAttributeValues: {
+                    ":v": { ...(displayName ? { displayName } : {}), at: new Date().toISOString() },
+                },
+            }));
+        } catch (e) {
+            // 読んだあとに消された。記録するものが無いだけなので 404 で返す
+            // （上の存在チェックと同じ扱い）。
+            if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
+                return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "ストーリーが見つかりません" }) };
+            }
+            throw e;
+        }
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
     } catch (e) {
         console.error("viewStory error:", e);

@@ -408,6 +408,38 @@ describe("viewStory", () => {
         expect(mockDdbSend).toHaveBeenCalledTimes(1); // Get のみ、Update なし
     });
 
+    // DynamoDB の UpdateItem はキーが無ければ**作る**。条件を付けないと、
+    // 「見たよ」の報告が削除と競合したときに、消えたはずのストーリーIDで
+    // 新しい行ができる。その行は story も src も userId も storyFeed も
+    // 持たないので、期限切れ掃除・退会削除・写真一覧のどれからも辿れない
+    // ＝誰にも消せないゴミが残り、消したストーリーの閲覧者名も残る。
+    it("記録の書き込みには存在チェックを付ける（消えた行を作らない）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } })
+            .mockResolvedValueOnce({ Item: { displayName: "本当の名前" } })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({});
+        await invoke(viewStory, authedEvent("viewer-1", { pathParameters: { id: "story-1" }, body: "{}" }));
+
+        const updates = mockDdbSend.mock.calls
+            .map((c) => c[0])
+            .filter((cmd) => cmd?.constructor?.name === "UpdateCommand");
+        expect(updates).toHaveLength(2);
+        for (const u of updates) {
+            expect(u.input.ConditionExpression).toBe("attribute_exists(id)");
+        }
+    });
+
+    it("読んだあとに消されていたら 404（記録しない）", async () => {
+        const cond = Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" });
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } })
+            .mockResolvedValueOnce({ Item: { displayName: "本当の名前" } })
+            .mockRejectedValueOnce(cond);
+        const res = await invoke(viewStory, authedEvent("viewer-1", { pathParameters: { id: "story-1" }, body: "{}" }));
+        expect(res.statusCode).toBe(404);
+    });
+
     it("他人の閲覧は viewers マップに初回時刻つきで記録する", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } })
