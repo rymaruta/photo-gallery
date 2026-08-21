@@ -9,7 +9,7 @@ vi.mock("../dynamodb", () => ({
 
 const { updatePhotoFields } = await import("../ddb-photos");
 
-type Input = { UpdateExpression: string; ExpressionAttributeValues?: Record<string, unknown> };
+type Input = { UpdateExpression: string; ConditionExpression?: string; ExpressionAttributeValues?: Record<string, unknown> };
 const lastInput = (): Input => (mockSend.mock.calls[0][0] as { input: Input }).input;
 
 beforeEach(() => mockSend.mockReset().mockResolvedValue({ Attributes: { id: "p1" } }));
@@ -35,6 +35,13 @@ describe("updatePhotoFields: 空にする指定", () => {
     it("全部が空指定でも壊れない（SET だけの空の式を作らない）", async () => {
         await updatePhotoFields("p1", { location: undefined, category: undefined });
         expect(lastInput().UpdateExpression).toBe("REMOVE #location, #category");
+    });
+
+    // 条件が無いと UpdateItem は行を**作る**。写真ID以外（notifs#… /
+    // comments#… など同じテーブルの内部文書）を指定して行を生やせる。
+    it("存在しない ID で行を作らない条件を必ず付ける", async () => {
+        await updatePhotoFields("p1", { location: "北海道" });
+        expect(lastInput().ConditionExpression).toBe("attribute_exists(id)");
     });
 
     it("値だけなら従来どおり SET のみ", async () => {

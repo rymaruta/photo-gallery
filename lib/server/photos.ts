@@ -17,7 +17,7 @@ import type { Photo } from "@/lib/data/photos";
  */
 const PRIVATE_FIELDS = ["srcOriginal", "key"] as const;
 
-function stripPrivateFields(photos: Photo[]): Photo[] {
+export function stripPrivateFields(photos: Photo[]): Photo[] {
     return photos.map((p) => {
         const out = { ...p } as Photo & Record<string, unknown>;
         for (const f of PRIVATE_FIELDS) delete out[f];

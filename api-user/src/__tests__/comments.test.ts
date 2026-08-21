@@ -314,6 +314,45 @@ describe("deleteComment", () => {
         expect(res.statusCode).toBe(200);
     });
 
+    // 削除は `REMOVE #items[i]` で添字を指す。添字は読んだ時点のもので、
+    // 読んでから書くまでの間に別のコメントが消えると**ずれる**——
+    // 条件が無いと、そのまま**他人のコメントを消す**。
+    // 条件式そのものを見ないと、モックの順番で拒否を仕込んでいるだけでは
+    // 実装から条件を消しても通ってしまう。
+    // 読み側（getComments）には下書き・ストーリー拒否のテストが3本あるのに、
+    // 書き側は0本だった。ID さえ分かれば非公開の写真にコメントを付けて
+    // オーナーに通知を飛ばせる、という同じ穴。
+    it("下書きの写真にはコメントできない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner", published: false } });
+        const res = await invoke(postComment, ev("u1", { id: "p1" }, { text: "hi" }));
+        expect(res.statusCode).toBe(404);
+        expect(mockDdbSend).toHaveBeenCalledTimes(1);   // 何も書かない
+    });
+
+    it("ストーリーにはコメントできない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { src: "https://cdn/s.jpg", userId: "owner", story: true } });
+        const res = await invoke(postComment, ev("u1", { id: "story-1" }, { text: "hi" }));
+        expect(res.statusCode).toBe(404);
+        expect(mockDdbSend).toHaveBeenCalledTimes(1);
+    });
+
+    it("消す対象が本当にそれかを条件で確かめる", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { userId: "owner" } })
+            .mockResolvedValueOnce({ Item: { items: existing } })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({});
+        await invoke(deleteComment, ev("author", { id: "p1", commentId: "c1" }));
+
+        const remove = mockDdbSend.mock.calls
+            .map((c) => c[0])
+            .find((cmd) => String(cmd.input?.UpdateExpression ?? "").startsWith("REMOVE #items["));
+        expect(remove).toBeDefined();
+        const idx = /REMOVE #items\[(\d+)\]/.exec(String(remove.input.UpdateExpression))?.[1];
+        expect(remove.input.ConditionExpression).toBe(`#items[${idx}].id = :cid`);
+        expect(remove.input.ExpressionAttributeValues[":cid"]).toBe("c1");
+    });
+
     it("写真オーナーは他人のコメントを削除できる", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { userId: "owner" } })

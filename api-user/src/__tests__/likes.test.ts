@@ -38,6 +38,11 @@ describe("getLikeCount", () => {
 
         mockDdbSend.mockResolvedValueOnce({ Item: {} });
         expect(JSON.parse((await invoke(getLikeCount, ev(undefined, "p2"))).body)).toEqual({ likes: 0 });
+
+        // 「負値は 0」と名乗っておきながら、負値を一度も渡していなかった。
+        // 過去の引きすぎで負になったデータが表示に出ないことを確かめる。
+        mockDdbSend.mockResolvedValueOnce({ Item: { likes: -2 } });
+        expect(JSON.parse((await invoke(getLikeCount, ev(undefined, "p3"))).body)).toEqual({ likes: 0 });
     });
 });
 
@@ -107,6 +112,11 @@ describe("likePhoto", () => {
         const update = mockDdbSend.mock.calls[1][0] as { input: { ConditionExpression: string } };
         expect(update.input.ConditionExpression).toContain("attribute_exists(src)");
         expect(update.input.ConditionExpression).toContain("attribute_not_exists(story)");
+        // 下書きも弾く。この節が無かった頃は「IDさえ分かれば非公開の写真に
+        // いいねを付けてオーナーに通知を飛ばせた」——ソースのコメントが
+        // 直したと書いている当のものなのに、見張りが無かった。
+        expect(update.input.ConditionExpression).toContain("published = :pub");
+        expect(update.input.ExpressionAttributeValues[":pub"]).toBe(true);
     });
 
     it("いいね済み（マーカー重複）は冪等に現在数を返す（カウンタ増やさない）", async () => {

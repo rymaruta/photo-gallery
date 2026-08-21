@@ -136,6 +136,39 @@ describe("followUser", () => {
         expect(mockPush.mock.calls[0][1].targetUserId).toBe(ME);
     });
 
+    // ここまでの冪等・間引きの検証は、拒否を**呼び出し順**で仕込んでいる。
+    // 拒否は呼び出し番号で起きるので、実装から ConditionExpression を
+    // 消しても同じ結果になる——テストがモックを測っていてコードを
+    // 測っていない。条件式そのものを見る（likes.test.ts と同じ形）。
+    it("フォローが出す条件式（冪等・0下限・通知の間引き）", async () => {
+        queueUserExists();
+        mockDdbSend
+            .mockResolvedValueOnce({})                              // Put marker
+            .mockResolvedValueOnce({})                              // bump followers
+            .mockResolvedValueOnce({})                              // bump following
+            .mockResolvedValueOnce({ Item: { list: [] } })          // readFollowing
+            .mockResolvedValueOnce({})                              // Put following list
+            .mockResolvedValueOnce({})                              // 通知の間引き（通す）
+            .mockResolvedValueOnce({ Item: { followers: 1, following: 0 } });
+        await invoke(followUser, ev(ME, OTHER));
+
+        // Put は Item.id、Update/Delete は Key.id に入る。順番ではなく
+        // 「どのIDを触ったか」で選ぶ（順番で選ぶと実装を測れない）。
+        const byId = (prefix: string) => mockDdbSend.mock.calls
+            .map((c) => c[0])
+            .filter((cmd) => String(cmd.input?.Key?.id ?? cmd.input?.Item?.id ?? "").startsWith(prefix));
+
+        // マーカーは二重に作らない（押し直しでカウンタが増えない根拠）
+        const marker = byId(`follow#${OTHER}#`)[0];
+        expect(marker.input.ConditionExpression).toBe("attribute_not_exists(id)");
+
+        // 通知の間引き。無いとフォロー→解除の繰り返しで相手の通知欄を
+        // 自分の通知だけで埋め尽くせる（50件の輪なので100回ほどで全部流れる）
+        const notifyGuard = byId("follownotify#")[0];
+        expect(notifyGuard.input.ConditionExpression).toContain("attribute_not_exists(lastAt)");
+        expect(notifyGuard.input.ConditionExpression).toContain("lastAt < :cutoff");
+    });
+
     it("既にフォロー済みは冪等（カウンタ・通知なし）", async () => {
         queueUserExists();
         mockDdbSend
@@ -162,6 +195,28 @@ describe("unfollowUser", () => {
         expect(JSON.parse(res.body).following).toBe(false);
     });
 
+    it("解除が出す条件式（冪等・0下限）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({})                              // Delete marker
+            .mockResolvedValueOnce({})                              // bump followers -1
+            .mockResolvedValueOnce({})                              // bump following -1
+            .mockResolvedValueOnce({ Item: { list: [OTHER] } })     // readFollowing
+            .mockResolvedValueOnce({})                              // Put following list
+            .mockResolvedValueOnce({ Item: { followers: 0, following: 0 } });
+        await invoke(unfollowUser, ev(ME, OTHER));
+
+        const cmds = mockDdbSend.mock.calls.map((c) => c[0]);
+
+        // 無いものを消したことにしない（押し直しでカウンタが減らない根拠）
+        const del = cmds.find((c) => String(c.input?.Key?.id ?? c.input?.Item?.id ?? "").startsWith(`follow#${OTHER}#`));
+        expect(del.input.ConditionExpression).toBe("attribute_exists(id)");
+
+        // カウンタの0下限。無いと負の数が表示される
+        const dec = cmds.find((c) => String(c.input?.UpdateExpression ?? "").includes("- :one"));
+        expect(dec.input.ConditionExpression).toContain("> :z");
+        expect(dec.input.ConditionExpression).toContain("attribute_exists(id)");
+    });
+
     it("フォローしていなければ冪等", async () => {
         mockDdbSend
             .mockRejectedValueOnce(condFail())
@@ -178,6 +233,10 @@ describe("getFollowStats / getMyFollowing", () => {
         expect(JSON.parse((await invoke(getFollowStats, ev(undefined, OTHER))).body)).toEqual({ followers: 5, following: 2 });
         mockDdbSend.mockResolvedValueOnce({ Item: undefined });
         expect(JSON.parse((await invoke(getFollowStats, ev(undefined, "u3"))).body)).toEqual({ followers: 0, following: 0 });
+        // 「負値は0」と名乗っておきながら、負値を一度も渡していなかった。
+        // 過去の引きすぎで負になったデータが表示に出ないことを確かめる。
+        mockDdbSend.mockResolvedValueOnce({ Item: { followers: -3, following: -1 } });
+        expect(JSON.parse((await invoke(getFollowStats, ev(undefined, "u4"))).body)).toEqual({ followers: 0, following: 0 });
     });
 
     it("自分の following userId 一覧を返す", async () => {

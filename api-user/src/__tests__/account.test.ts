@@ -142,12 +142,20 @@ describe("deleteAccount", () => {
         followingIs(["userA", "userB"]);
         expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
 
-        const items = transacts().map((cmd) => cmd.input.TransactItems as Record<string, { Key?: { id?: string } }>[]);
+        const items = transacts().map((cmd) => cmd.input.TransactItems as Record<string, { Key?: { id?: string }; ConditionExpression?: string }>[]);
         expect(items).toHaveLength(2);
         for (const [i, target] of ["userA", "userB"].entries()) {
             expect(items[i][0].Delete?.Key?.id).toBe(`follow#${target}#me`);
             expect(items[i][1].Update?.Key?.id).toBe(`followstats#${target}`);
         }
+        // マーカー削除に条件が要る。これが無いと、やり直したときに
+        // 「既に消えたマーカーの分までもう一度減らす」に戻る
+        // ——unfollowAtomically の40行のコメントが丸ごとこの説明。
+        for (const tx of items) {
+            expect(tx[0].Delete?.ConditionExpression).toBe("attribute_exists(id)");
+            expect(tx[1].Update?.ConditionExpression).toContain("followers > :z");
+        }
+
         // 片方だけを書く経路は残っていない
         const updates = mockDdbSend.mock.calls
             .map((c) => c[0])

@@ -546,4 +546,60 @@ describe("cleanupExpiredStories", () => {
         expect(result.deleted).toBe(0);
         expect(mockS3Send).not.toHaveBeenCalled();
     });
+
+    // **どちら側を引くかを固定する。**
+    //
+    // 上の4本は「返ってきたものを消したか」しか見ていない。モックは
+    // 問い合わせの中身に関係なく Items を返すので、抽出条件を
+    // `expiresAt <= :now` から `>` に反転しても4本とも通る——
+    // つまり**毎日 04:00 の cron が生きているストーリーを全部消して、
+    // 期限切れは1件も消さない**ようになっても誰も気づけない。
+    //
+    // 同じファイルの getStories には「Scan ではなく専用の索引を Query する」
+    // という対の検証がある。片側だけ抜けていた。
+    it("期限切れ側は expiresAt <= now を引く（生きている分を消さない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Items: [] });
+        await cleanupExpiredStories();
+
+        const q = mockDdbSend.mock.calls[0][0] as {
+            constructor: { name: string };
+            input: { IndexName?: string; KeyConditionExpression?: string; ExpressionAttributeValues?: Record<string, unknown> };
+        };
+        expect(q.constructor.name).toBe("QueryCommand");
+        expect(q.input.IndexName).toBe("storyFeed-expiresAt-index");
+        expect(q.input.KeyConditionExpression).toBe("storyFeed = :k AND expiresAt <= :now");
+        expect(q.input.ExpressionAttributeValues?.[":k"]).toBe("1");
+    });
+
+    it("索引が無い環境のフォールバックでも expiresAt <= now を引く", async () => {
+        // GSI 未作成の環境（story-index を流す前）はこちらを通る。
+        // ここが反転していると、同じく生きている分を消す。
+        mockDdbSend
+            .mockRejectedValueOnce(Object.assign(new Error("no index"), { name: "ValidationException" }))
+            .mockResolvedValueOnce({ Items: [] });
+        await cleanupExpiredStories();
+
+        const scan = mockDdbSend.mock.calls[1][0] as {
+            constructor: { name: string };
+            input: { FilterExpression?: string; ExpressionAttributeValues?: Record<string, unknown> };
+        };
+        expect(scan.constructor.name).toBe("ScanCommand");
+        expect(scan.input.FilterExpression).toBe("story = :t AND expiresAt <= :now");
+        expect(scan.input.ExpressionAttributeValues?.[":t"]).toBe(true);
+    });
+});
+
+// 一覧側は逆で、生きている分だけを引く。
+// active と expired が同じ三項で分かれているので、両側を固定しないと
+// 「三項ごと潰す」変異を捕まえられない。
+describe("getStories: 生きているストーリーだけを引く", () => {
+    it("expiresAt > now を引く", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Items: [] });
+        await invoke(getStories, authedEvent("u1", {}));
+
+        const q = mockDdbSend.mock.calls[0][0] as {
+            input: { KeyConditionExpression?: string };
+        };
+        expect(q.input.KeyConditionExpression).toBe("storyFeed = :k AND expiresAt > :now");
+    });
 });

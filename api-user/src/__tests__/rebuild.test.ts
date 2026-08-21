@@ -108,6 +108,16 @@ describe("requestSiteRebuild: クールダウン", () => {
         expect(globalThis.fetch).not.toHaveBeenCalled();
     });
 
+    it("見送る判定は条件付き書き込みで行う（呼び出し順ではなく）", async () => {
+        const { requestSiteRebuild } = await setup();
+        await requestSiteRebuild("photo updated: p1", { coalesce: true });
+        const claim = mockDdbSend.mock.calls
+            .map((c) => (c[0] as { input?: Record<string, unknown> }).input)
+            .find((i) => String(i?.UpdateExpression ?? "").startsWith("SET lastAt"));
+        expect(claim?.ConditionExpression).toBe("attribute_not_exists(lastAt) OR lastAt < :cutoff");
+        expect(claim?.Key).toEqual({ id: "rebuild#lock" });
+    });
+
     it("直近の依頼が無ければ通す", async () => {
         const { requestSiteRebuild } = await setup();
         expect(await requestSiteRebuild("photo updated: p1", { coalesce: true })).toBe(true);
