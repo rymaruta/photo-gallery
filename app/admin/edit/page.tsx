@@ -70,12 +70,23 @@ function AdminEditContent() {
         }
     }, [isAuthenticated, isAdminUser, loading, router]);
 
+    // 取得は非同期なので、遅い回線で A を開いて戻り B を開くと、
+    // A の応答が後から届く。中断ガードが無かった頃はフォームが A の内容で
+    // 埋まり、URL と photoId は B のままだったので、保存すると
+    // **B の写真に A のタイトル・説明・タグ・撮影日・公開状態が書き込まれた**。
+    //
+    // 「保存時に photoId とフォームの出どころを突き合わせる」二重の守りも
+    // 書いてみたが、**UI から到達できない**ので入れていない——写真を
+    // 切り替えると取得の開始と同時にスピナーへ変わり、保存ボタンが消える。
+    // 到達しない守りはテストも書けず、次に読む人を迷わせるだけになる。
     useEffect(() => {
         // ?id が無いまま開かれたら待っても何も来ない。
         // 以前はここで return するだけだったので、スピナーが永久に回り、
         // 戻る導線も出なかった（ブックマークからクエリが落ちた場合など）。
         if (!photoId) { setLoadingPhoto(false); return; }
         if (!isAuthenticated || !isAdminUser) return;
+
+        let aborted = false;
 
         const fetchPhoto = async () => {
             setLoadingPhoto(true);
@@ -89,6 +100,8 @@ function AdminEditContent() {
                     const all = await res.json() as Photo[];
                     const data = Array.isArray(all) ? all.find((p) => p.id === photoId) : undefined;
                     if (!data) throw new Error("not found");
+                    // 別の写真に切り替わったあとの応答は捨てる
+                    if (aborted) return;
                     setPhoto(data);
 
                     const t = data.title;
@@ -122,10 +135,12 @@ function AdminEditContent() {
                     setExifFocalLength(ex.focalLength ?? "");
                     setExifWhiteBalance(ex.whiteBalance ?? "");
                 } else {
+                    if (aborted) return;
                     showToast(locale === "en" ? "Photo not found" : "写真が見つかりません", "error");
                     router.push(ROUTES.ADMIN);
                 }
             } catch (e) {
+                if (aborted) return;
                 // ここに来ると photo が null のままで、下の `if (!photo) return null`
                 // が真っ白な画面を返していた（ヘッダーも戻るリンクも無い）。
                 // res.ok === false の分岐と同じく管理画面へ戻す。
@@ -133,11 +148,12 @@ function AdminEditContent() {
                 showToast(locale === "en" ? "Failed to load photo" : "写真の読み込みに失敗しました", "error");
                 router.push(ROUTES.ADMIN);
             } finally {
-                setLoadingPhoto(false);
+                if (!aborted) setLoadingPhoto(false);
             }
         };
 
         void fetchPhoto();
+        return () => { aborted = true; };
     }, [photoId, isAuthenticated, isAdminUser, showToast, router, locale]);
 
     const handleSave = async (e: React.FormEvent) => {
