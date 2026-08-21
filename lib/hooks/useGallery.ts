@@ -125,7 +125,17 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
                 const loc = p.location ?? "";
 
                 const haystack = `${titleJa} ${titleEn} ${descJa} ${descEn} ${loc}`.toLowerCase();
-                return haystack.includes(q);
+                // **スラッグ経由の検索も通す。** 集約ページの404救済
+                // （lib/utils/notFoundRedirect.ts）は /location/<スラッグ> を
+                // `/?q=<スラッグ>` に振り替えるが、スラッグは空白をハイフンに
+                // 潰してある。生の includes だけだと
+                //   "フランス ヴェルサイユ".includes("フランス-ヴェルサイユ") → false
+                // で、**多語の撮影地が必ず「該当なし」に落ちていた**。
+                // タグ側は tagSlug を両側にかけて解決済み（上の分岐）。ここも
+                // 両側に同じ正規化（空白→ハイフン）をかけて比べる。
+                const qSlug = q.replace(/\s+/g, "-");
+                const haySlug = haystack.replace(/\s+/g, "-");
+                return haystack.includes(q) || haySlug.includes(qSlug);
             });
         }
 

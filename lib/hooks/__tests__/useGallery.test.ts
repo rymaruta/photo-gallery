@@ -126,6 +126,42 @@ describe("useGallery", () => {
             });
             expect(result.current.filteredPhotos).toHaveLength(3);
         });
+
+        // 集約ページの404救済は /location/<スラッグ> を `/?q=<スラッグ>` に
+        // 振り替える。スラッグは空白をハイフンに潰してあるので、生の includes
+        // だけだと**多語の撮影地が必ず「該当なし」**に落ちていた
+        // （"フランス ヴェルサイユ".includes("フランス-ヴェルサイユ") は false）。
+        // タグ側は tagSlug を両側にかけて解決済み。location も両側を
+        // 同じ正規化で比べる。
+        it("スラッグ形（空白→ハイフン）のクエリでも撮影地に一致する", () => {
+            const photos = [
+                { ...mockPhotos[0], id: "loc1", location: "フランス ヴェルサイユ" },
+                { ...mockPhotos[1], id: "loc2", location: "Mount Fuji" },
+                { ...mockPhotos[2], id: "loc3", location: "東京" },
+            ];
+            const { result } = renderHook(() => useGallery(photos));
+            act(() => {
+                result.current.setFilters({ query: "フランス-ヴェルサイユ" });
+            });
+            expect(result.current.filteredPhotos.map((p) => p.id)).toEqual(["loc1"]);
+
+            act(() => {
+                result.current.setFilters({ query: "mount-fuji" });
+            });
+            expect(result.current.filteredPhotos.map((p) => p.id)).toEqual(["loc2"]);
+        });
+
+        it("生の撮影地でも従来どおり検索できる（壊していない）", () => {
+            const photos = [
+                { ...mockPhotos[0], id: "loc1", location: "フランス ヴェルサイユ" },
+                { ...mockPhotos[1], id: "loc2", location: "東京" },
+            ];
+            const { result } = renderHook(() => useGallery(photos));
+            act(() => {
+                result.current.setFilters({ query: "ヴェルサイユ" });
+            });
+            expect(result.current.filteredPhotos.map((p) => p.id)).toEqual(["loc1"]);
+        });
     });
 
     describe("ソート", () => {
