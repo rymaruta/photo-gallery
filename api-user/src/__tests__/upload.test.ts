@@ -2,11 +2,26 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockPutPhoto = vi.hoisted(() => vi.fn());
 const mockCountUserPhotos = vi.hoisted(() => vi.fn());
+const mockGetSignedUrl = vi.hoisted(() => vi.fn());
+const mockPutObjectInput = vi.hoisted(() => vi.fn());
 
 vi.mock("../ddb-photos", () => ({
     putPhoto: mockPutPhoto,
     countUserPhotos: mockCountUserPhotos,
 }));
+
+// 署名は必ずモックする。本物を呼ぶと AWS の認証情報を要求するので、
+// 手元では通って CI では落ちる——**テストが実装ではなく環境を測る**。
+// 実際にそれで本番デプロイを止めた（386eeef）。
+// api/src/__tests__/upload.test.ts と profile.test.ts も同じ形。
+vi.mock("@aws-sdk/client-s3", () => ({
+    S3Client: class { send = vi.fn(); },
+    PutObjectCommand: class {
+        input: unknown;
+        constructor(input: unknown) { this.input = input; mockPutObjectInput(input); }
+    },
+}));
+vi.mock("@aws-sdk/s3-request-presigner", () => ({ getSignedUrl: mockGetSignedUrl }));
 
 // 環境変数はモジュール読込時に評価されるため、stub してから動的 import する
 vi.stubEnv("CLOUDFRONT_URL", "https://cdn.example.com");
@@ -37,6 +52,8 @@ function savedPhoto(): Photo {
 beforeEach(() => {
     mockPutPhoto.mockReset().mockResolvedValue(undefined);
     mockCountUserPhotos.mockReset().mockResolvedValue(0);
+    mockGetSignedUrl.mockReset().mockResolvedValue("https://s3.example/presigned");
+    mockPutObjectInput.mockReset();
 });
 
 describe("savePhoto: thumbUrl（一覧グリッド用サムネイル）", () => {
