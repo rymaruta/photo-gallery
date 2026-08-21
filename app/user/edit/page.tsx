@@ -89,6 +89,12 @@ function EditContent() {
         // スピナーが永久に回り、戻る導線も出なかった。
         if (!photoId) { setLoadingPhoto(false); return; }
         if (!isAuthenticated || (!isAdminUser && !isGeneralUser)) return;
+        // 中断ガード。取得は非同期なので、遅い回線で下書き A を開いて戻り B を
+        // 開くと、A の応答が後から届く。無かった頃はフォームが A の内容で埋まり、
+        // save() は現在の photoId（= B）を送るので、**B の写真に A のタイトル・
+        // 説明・タグ・撮影日が上書き保存された**。
+        // 同じ形を /admin/edit に入れてある（app/admin/edit/page.tsx）。
+        let aborted = false;
         const load = async () => {
             setLoadingPhoto(true);
             try {
@@ -96,6 +102,7 @@ function EditContent() {
                 const res = await userFetch("/user/photos");
                 if (res.ok) {
                     const all = await res.json() as Photo[];
+                    if (aborted) return;
                     const found = Array.isArray(all) ? all.find((p) => p.id === photoId) ?? null : null;
                     if (found) {
                         setPhoto(found);
@@ -113,18 +120,21 @@ function EditContent() {
                         router.push(ROUTES.DRAFTS);
                     }
                 } else {
+                    if (aborted) return;
                     showToast(isJa ? "読み込みに失敗しました" : "Failed to load", "error");
                     setLoadFailed(true);
                 }
             } catch (e) {
+                if (aborted) return;
                 log.error("edit load error:", e);
                 showToast(isJa ? "読み込みに失敗しました" : "Failed to load", "error");
                 setLoadFailed(true);
             } finally {
-                setLoadingPhoto(false);
+                if (!aborted) setLoadingPhoto(false);
             }
         };
         void load();
+        return () => { aborted = true; };
     }, [photoId, isAuthenticated, isAdminUser, isGeneralUser, router, showToast, isJa]);
 
     const save = useCallback(async (published: boolean) => {

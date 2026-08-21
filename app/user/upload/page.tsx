@@ -13,6 +13,7 @@ import { createThumbnail, toUploadSafeFile, UnstrippableFileError, extractDomina
 import { extractExifFromFile, extractCameraExif, reverseGeocode } from "../../../lib/utils/exif";
 import { readSharedPayload, clearSharedPayload } from "../../../lib/utils/shareStore";
 import { ROUTES } from "../../../lib/routes";
+import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
@@ -698,7 +699,10 @@ function UploadPageInner() {
                                     {it.dateTimeOriginal && (
                                         <span className="inline-flex items-center gap-0.5">
                                             <CalendarIcon className="w-3 h-3" />
-                                            {new Date(it.dateTimeOriginal).toLocaleDateString(locale === "en" ? "en-US" : "ja-JP")}
+                                            {/* 保存されている通りに出す。toLocaleDateString だと
+                                                UTC より西の端末で**保存される日付より1日前**が
+                                                確認画面に出て、写真ページの表示とも食い違う。 */}
+                                            {formatStoredDateTime(it.dateTimeOriginal, locale === "en" ? "en" : "ja")}
                                         </span>
                                     )}
                                     {it.location && (

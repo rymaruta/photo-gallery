@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { splitStoredDate, formatStoredDateTime } from "../photoDate";
+import { splitStoredDate, formatStoredDateTime, EN_MONTHS } from "../photoDate";
 
 // 写真ページの「撮影日時」は描画中に toLocaleString を呼んでいた。
 // 2つ壊れていた:
@@ -55,5 +55,22 @@ describe("formatStoredDateTime", () => {
     it("整形できなければ null（＝その行を出さない）", () => {
         expect(formatStoredDateTime(undefined, "ja")).toBeNull();
         expect(formatStoredDateTime("", "ja")).toBeNull();
+    });
+});
+
+// 年表の見出しでも同じ月名を使う（並びを2か所に持たない）。
+// グループ分けは UTC なのに英語ラベルだけ toLocaleDateString だったので、
+// UTC より西の閲覧者には **キーが 2024-1 なのに見出しが "December 2023"**
+// という食い違いが出ていた。
+describe("EN_MONTHS", () => {
+    it("1月から12月まで揃っている", () => {
+        expect(EN_MONTHS).toHaveLength(12);
+        expect(EN_MONTHS[0]).toBe("January");
+        expect(EN_MONTHS[11]).toBe("December");
+    });
+
+    it("formatStoredDateTime と同じ月名を使う（表記が割れない）", () => {
+        expect(formatStoredDateTime("2024-01-15", "en")).toContain(EN_MONTHS[0]);
+        expect(formatStoredDateTime("2024-12-15", "en")).toContain(EN_MONTHS[11]);
     });
 });

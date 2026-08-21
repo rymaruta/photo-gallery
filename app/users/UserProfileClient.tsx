@@ -20,7 +20,8 @@ import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../lib/utils/log";
 import { getCurrentSession } from "../../lib/auth/cognito";
 import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
-import { publicFetch, userFetch } from "../../lib/utils/api";
+import { publicFetch, userFetch, userPublicFetch } from "../../lib/utils/api";
+import { EN_MONTHS } from "../../lib/utils/photoDate";
 import { ROUTES } from "../../lib/routes";
 import UserAvatar from "../components/UserAvatar";
 import PHOTOS_JSON from "../data/photos.json";
@@ -86,9 +87,11 @@ function buildTimeline(photos: Photo[], locale: "ja" | "en"): TimelineGroup[] {
             map.set(key, {
                 key,
                 year: String(y),
-                label: locale === "en"
-                    ? d.toLocaleDateString("en-US", { year: "numeric", month: "long" })
-                    : `${y}年${m}月`,
+                // 見出しも UTC で組む。グループ分けは UTC なのに英語ラベルだけ
+                // toLocaleDateString（ローカル時刻）だったので、UTC より西の
+                // 閲覧者には **キーが 2024-1 なのに見出しが "December 2023"**
+                // という食い違いが出ていた。
+                label: locale === "en" ? `${EN_MONTHS[m - 1]} ${y}` : `${y}年${m}月`,
                 photos: [],
             });
         }
@@ -251,9 +254,15 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         const controller = new AbortController();
         const load = async () => {
             try {
-                const userApiBase = process.env.NEXT_PUBLIC_USER_API_BASE_URL ?? "";
+                // **ここだけ生の環境変数で URL を組み立てていた。**
+                // lib/utils/api.ts の getUserApiBaseUrl は、まさにこの問題
+                // （NEXT_PUBLIC_USE_LOCAL_API=true でも .env.local に残った
+                // 本番のユーザーAPIを叩く）を直すために作られている。
+                // 未設定なら `/profile/<id>` になり、静的サイトでは 404 →
+                // 下の `if (profileRes.ok)` が握り潰して、名前・自己紹介・
+                // BGM・ピン留めが**黙って全部出ない**。
                 const [profileRes, sessionResult] = await Promise.all([
-                    fetch(`${userApiBase}/profile/${encodeURIComponent(userId)}`, { signal: controller.signal }),
+                    userPublicFetch(`/profile/${encodeURIComponent(userId)}`, { signal: controller.signal }),
                     getCurrentSession(),
                 ]);
                 if (profileRes.ok) {

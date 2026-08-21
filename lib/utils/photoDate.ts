@@ -37,7 +37,8 @@ export function splitStoredDate(value: unknown): Parts | null {
     return { y, m: mo, d, hh, mm };
 }
 
-const EN_MONTHS = ["January", "February", "March", "April", "May", "June",
+/** 英語の月名。年表の見出しでも使う（同じ並びを2か所に持たない） */
+export const EN_MONTHS = ["January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"];
 
 /** 撮影日時の表示文字列。整形できなければ null（＝その行を出さない） */
