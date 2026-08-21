@@ -7,7 +7,7 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 
-const { updatePhotoFields } = await import("../ddb-photos");
+const { updatePhotoFields, putPhoto } = await import("../ddb-photos");
 
 type Input = { UpdateExpression: string; ConditionExpression?: string; ExpressionAttributeValues?: Record<string, unknown> };
 const lastInput = (): Input => (mockSend.mock.calls[0][0] as { input: Input }).input;
@@ -49,5 +49,18 @@ describe("updatePhotoFields: 空にする指定", () => {
         const input = lastInput();
         expect(input.UpdateExpression).toBe("SET #location = :location, #updatedAt = :updatedAt");
         expect(input.ExpressionAttributeValues).toEqual({ ":location": "北海道", ":updatedAt": "t" });
+    });
+});
+
+// 新規作成専用。条件が無いと、同じIDの既存レコードを丸ごと置き換える。
+// このテーブルには通知（notifs#…）やコメント（comments#…）も同居しているので、
+// ID を指定できるだけで他人の通知を全部消せてしまう（元に戻せない）。
+describe("putPhoto: 既存の行を置き換えない", () => {
+    it("attribute_not_exists(id) を必ず付ける", async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await putPhoto({ id: "p1", src: "https://cdn/p1.jpg" } as any);
+        const input = mockSend.mock.calls[0][0].input as { ConditionExpression?: string; Item?: unknown };
+        expect(input.ConditionExpression).toBe("attribute_not_exists(id)");
+        expect(input.Item).toEqual({ id: "p1", src: "https://cdn/p1.jpg" });
     });
 });

@@ -21,9 +21,14 @@ export async function putPhoto(photo: Photo): Promise<void> {
  *
  * 以前は Query 1回の Count をそのまま返していた。DynamoDB の Query は
  * 1MB 読んだ時点で打ち切られるので、写真が増えるほど**少なめに数える**。
- * さらにストーリーや下書きも一緒に数えていた（この GSI には userId を持つ
- * 項目が全部載る）ので、上限の意味がぶれていた。
- * ページングして最後まで数え、写真だけに絞る。
+ * さらにこの GSI には userId を持つ項目が全部載るので、ストーリーまで
+ * 数えていた。ページングして最後まで数え、ストーリーを外す。
+ *
+ * **下書き（published:false）は数える。** これは容量と費用の上限なので、
+ * 公開しているかどうかは関係ない。外すと「下書きなら無制限に上げられる」
+ * 穴になる。以前このコメントは「下書きも絞る」と書いていたが、
+ * 実装はそうなっておらず、実装の方が正しかった。
+ * 次に読む人が「コメントどおりに直す」と穴が開くので、ここを直した。
  */
 export async function countUserPhotos(userId: string): Promise<number> {
     let count = 0;

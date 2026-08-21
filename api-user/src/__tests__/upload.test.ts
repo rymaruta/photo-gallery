@@ -10,12 +10,14 @@ vi.mock("../ddb-photos", () => ({
 
 // 環境変数はモジュール読込時に評価されるため、stub してから動的 import する
 vi.stubEnv("CLOUDFRONT_URL", "https://cdn.example.com");
-const { savePhoto } = await import("../upload");
+const { savePhoto, presignedUrl } = await import("../upload");
 import type { Photo } from "../types";
 
 type LambdaResult = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const invoke = (event: unknown): Promise<LambdaResult> => (savePhoto as any)(event);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const invokePresign = (event: unknown): Promise<LambdaResult> => (presignedUrl as any)(event);
 
 function event(sub: string, body: unknown) {
     return {
@@ -231,5 +233,76 @@ describe("savePhoto: 他人のデータを壊せないこと", () => {
         const res = await invoke(event("u1", { ...BASE, thumbUrl: "https://evil.example/tracker.gif" }));
         expect(res.statusCode).toBe(200);
         expect("thumbSrc" in savedPhoto()).toBe(false);
+    });
+});
+
+
+// presignedUrl は今まで1本もテストが無かった。
+// ここが決めているのは「どの種別を受け入れるか」と「どこに置くか」で、
+// 後者（uploads/<userId>/）が **他人のファイルを自分の写真として
+// 登録・削除できない**ことの土台そのもの。
+describe("presignedUrl", () => {
+    const ask = (sub: string, body: unknown) => invokePresign({
+        requestContext: { authorizer: { jwt: { claims: { sub } } } },
+        body: typeof body === "string" ? body : JSON.stringify(body),
+    });
+
+    it("sub が取れなければ 401", async () => {
+        // 通すと key が uploads// になり、全員が同じ場所を共有する
+        // ＝所有の判定が成り立たなくなる。
+        const res = await ask("", { fileName: "a.jpg", fileType: "image/jpeg" });
+        expect(res.statusCode).toBe(401);
+    });
+
+    it("キーは投稿者ごとの領域に置く", async () => {
+        const res = await ask("u1", { fileName: "a.jpg", fileType: "image/jpeg" });
+        expect(res.statusCode).toBe(200);
+        const { key, publicUrl } = JSON.parse(res.body) as { key: string; publicUrl: string };
+        expect(key).toMatch(/^uploads\/u1\/[0-9a-f-]{36}\.jpg$/);
+        expect(publicUrl).toBe(`https://cdn.example.com/${key}`);
+    });
+
+    it("拡張子はファイル名ではなく種別から決める", async () => {
+        // ファイル名由来だと "わな.svg" がそのまま S3 のキーになっていた。
+        const res = await ask("u1", { fileName: "わな.svg", fileType: "image/png" });
+        const { key } = JSON.parse(res.body) as { key: string };
+        expect(key.endsWith(".png")).toBe(true);
+        expect(key).not.toContain("svg");
+    });
+
+    it("SVG は通さない（同一オリジンで実行できる文書のため）", async () => {
+        expect((await ask("u1", { fileName: "a.svg", fileType: "image/svg+xml" })).statusCode).toBe(400);
+    });
+
+    it("動画は通す（ストーリー用）", async () => {
+        for (const t of ["video/mp4", "video/webm", "video/quicktime"]) {
+            expect((await ask("u1", { fileName: "a.mp4", fileType: t })).statusCode).toBe(200);
+        }
+    });
+
+    it("画像でも動画でもないものは通さない", async () => {
+        for (const t of ["application/pdf", "text/html"]) {
+            expect((await ask("u1", { fileName: "a", fileType: t })).statusCode).toBe(400);
+        }
+    });
+
+    it("50MB を超えるものは断る", async () => {
+        const res = await ask("u1", { fileName: "a.jpg", fileType: "image/jpeg", fileSize: 51 * 1024 * 1024 });
+        expect(res.statusCode).toBe(400);
+    });
+
+    it("ファイル名とファイルタイプが無ければ 400", async () => {
+        expect((await ask("u1", { fileType: "image/jpeg" })).statusCode).toBe(400);
+        expect((await ask("u1", { fileName: "a.jpg" })).statusCode).toBe(400);
+    });
+
+    it("壊れた JSON は 400", async () => {
+        expect((await ask("u1", "{")).statusCode).toBe(400);
+    });
+
+    it("100枚に達していれば 403（署名を渡さない）", async () => {
+        mockCountUserPhotos.mockResolvedValueOnce(100);
+        const res = await ask("u1", { fileName: "a.jpg", fileType: "image/jpeg" });
+        expect(res.statusCode).toBe(403);
     });
 });

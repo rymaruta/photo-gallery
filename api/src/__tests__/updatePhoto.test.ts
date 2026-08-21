@@ -4,20 +4,22 @@ const mockGetPhotoById = vi.hoisted(() => vi.fn());
 const mockUpdatePhotoFields = vi.hoisted(() => vi.fn());
 const mockRebuild = vi.hoisted(() => vi.fn());
 
+const mockDeletePhotoById = vi.hoisted(() => vi.fn());
 vi.mock("../ddb-photos", () => ({
     getPhotoById: mockGetPhotoById,
     updatePhotoFields: mockUpdatePhotoFields,
-    deletePhotoById: vi.fn(),
+    deletePhotoById: mockDeletePhotoById,
 }));
 vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRebuild }));
+const mockS3Send = vi.hoisted(() => vi.fn());
 vi.mock("@aws-sdk/client-s3", () => ({
-    S3Client: class { send = vi.fn(); },
+    S3Client: class { send = mockS3Send; },
     DeleteObjectCommand: class { input: unknown; constructor(i: unknown) { this.input = i; } },
 }));
 
 vi.stubEnv("PHOTOS_TABLE", "photos-test");
 vi.stubEnv("UPLOAD_BUCKET", "bucket-test");
-const { updatePhoto } = await import("../photosMutate");
+const { updatePhoto, deletePhoto } = await import("../photosMutate");
 
 type Result = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -174,5 +176,98 @@ describe("updatePhoto", () => {
             await invoke(ev("p1", { published: false }));
             expect(mockRebuild).toHaveBeenCalledTimes(1);
         });
+    });
+});
+
+
+// **この口には今までテストが無かった。**
+// `api/src/__tests__/deletePhoto.test.ts` は ddb-photos の deletePhotoById
+// という**別関数**を見ている（名前が紛らわしく、あるものと思われていた）。
+//
+// ここが守っているのは2つ。
+//   1. 他人の写真を消せないこと
+//   2. S3 で消すのはアップロード領域だけ。src は過去に無検証で保存された
+//      ものがあり、そのままキーにすると profiles/<他人> まで消せる
+describe("deletePhoto（ハンドラ）", () => {
+    const s3Keys = () => mockS3Send.mock.calls.map((c) => (c[0] as { input: { Key: string } }).input.Key);
+    const del = (id: string, sub = "owner", groups = "") => ({
+        pathParameters: { id },
+        requestContext: { authorizer: { jwt: { claims: { sub, "cognito:groups": groups } } } },
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const invokeDelete = (e: unknown): Promise<Result> => (deletePhoto as any)(e);
+
+    beforeEach(() => {
+        mockS3Send.mockReset().mockResolvedValue({});
+        mockDeletePhotoById.mockReset().mockResolvedValue(undefined);
+    });
+
+    it("他人の写真は消せない（403）", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "someone-else", src: "https://cdn/uploads/p1.jpg" });
+        expect((await invokeDelete(del("p1"))).statusCode).toBe(403);
+        expect(mockDeletePhotoById).not.toHaveBeenCalled();
+        expect(mockS3Send).not.toHaveBeenCalled();
+    });
+
+    it("管理者は他人の写真も消せる", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "someone-else", src: "https://cdn/uploads/p1.jpg" });
+        expect((await invokeDelete(del("p1", "admin-sub", "admin"))).statusCode).toBe(200);
+        expect(mockDeletePhotoById).toHaveBeenCalledWith("p1");
+    });
+
+    it("存在しない写真は 404", async () => {
+        mockGetPhotoById.mockResolvedValue(null);
+        expect((await invokeDelete(del("nope"))).statusCode).toBe(404);
+    });
+
+    it("GPS 入りの原本を含む派生も全部消す", async () => {
+        // srcOriginal は EXIF を落とす前の原本。消し残すと削除後も
+        // 公開URLで取得できてしまう。
+        mockGetPhotoById.mockResolvedValue({
+            id: "p1", userId: "owner",
+            src: "https://cdn/uploads/p1.jpg",
+            srcOriginal: "https://cdn/uploads/originals/p1.jpeg",
+            srcAvif: "https://cdn/uploads/p1.avif",
+            thumbSrc: "https://cdn/uploads/p1_thumb.webp",
+        });
+        await invokeDelete(del("p1"));
+        expect(s3Keys()).toEqual(expect.arrayContaining([
+            "uploads/p1.jpg", "uploads/originals/p1.jpeg", "uploads/p1.avif", "uploads/p1_thumb.webp",
+        ]));
+    });
+
+    it("アップロード領域の外は消しに行かない（他人のアイコンを守る）", async () => {
+        mockGetPhotoById.mockResolvedValue({
+            id: "p1", userId: "owner",
+            src: "https://cdn/profiles/someone-else",
+            thumbSrc: "https://cdn/uploads/p1_thumb.webp",
+        });
+        await invokeDelete(del("p1"));
+        expect(s3Keys()).toEqual(["uploads/p1_thumb.webp"]);
+    });
+
+    it("パーセント符号化されたパスもデコードしてから見る", async () => {
+        // CloudFront は %6C をデコードして解決するので、生のまま見ると
+        // 「保存はできるが削除では対象外」になり、実体だけが公開URLに残る。
+        mockGetPhotoById.mockResolvedValue({
+            id: "p1", userId: "owner", src: "https://cdn/up%6Coads/p1.jpg",
+        });
+        await invokeDelete(del("p1"));
+        expect(s3Keys()).toEqual(["uploads/p1.jpg"]);
+    });
+
+    it("S3 の削除に失敗しても DynamoDB の行は消す", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/uploads/p1.jpg" });
+        mockS3Send.mockRejectedValueOnce(new Error("s3 down"));
+        expect((await invokeDelete(del("p1"))).statusCode).toBe(200);
+        expect(mockDeletePhotoById).toHaveBeenCalledWith("p1");
+    });
+
+    it("静的ページの掃除を頼む（畳まない）", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/uploads/p1.jpg" });
+        await invokeDelete(del("p1"));
+        expect(mockRebuild).toHaveBeenCalledTimes(1);
+        // 削除は「何度でも無料で起こせる操作」ではないので畳んではいけない
+        expect(mockRebuild.mock.calls[0][1]).toBeUndefined();
     });
 });
