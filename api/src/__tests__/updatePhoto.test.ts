@@ -271,3 +271,49 @@ describe("deletePhoto（ハンドラ）", () => {
         expect(mockRebuild.mock.calls[0][1]).toBeUndefined();
     });
 });
+
+// このテーブルには写真以外（notifs#... / comments#... / following#...）も
+// 同じキー空間に入っている。読み側（getPhoto）は理由コメント付きで
+// `#` を弾いているのに、書き側は素通りだった。所有権の判定は
+// `!isAdmin && ownerId !== callerId` なので**管理者だけ**が
+// `PUT /photos/notifs%23<sub>` で他人の通知文書に title を生やしたり、
+// `DELETE` で丸ごと消したりできた（元に戻せない）。
+describe("写真以外の文書を書き換えさせない", () => {
+    const DOCS = ["notifs#someone", "comments#p1", "following#someone", "followstats#someone"];
+
+    // ファイル共通の beforeEach は deletePhotoById をリセットしない
+    // （他の describe の呼び出しが残ったまま数えると誤判定する）
+    beforeEach(() => {
+        mockDeletePhotoById.mockReset();
+        mockGetPhotoById.mockReset();
+    });
+
+    it("管理者でも # 入りの id は更新できない（404）", async () => {
+        for (const id of DOCS) {
+            // 文書が実在しても届かないことを見る（Get の手前で止まる）
+            mockGetPhotoById.mockResolvedValue({ id, uid: "victim", items: [] });
+            const res = await invoke(ev(id, { title: "乗っ取り" }, "admin-sub", "admin"));
+            expect(res.statusCode).toBe(404);
+        }
+        expect(mockUpdatePhotoFields).not.toHaveBeenCalled();
+        // データ層にすら触らない
+        expect(mockGetPhotoById).not.toHaveBeenCalled();
+    });
+
+    it("管理者でも # 入りの id は削除できない（404）", async () => {
+        for (const id of DOCS) {
+            mockGetPhotoById.mockResolvedValue({ id, uid: "victim", items: [] });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const res = await (deletePhoto as any)(ev(id, {}, "admin-sub", "admin")) as Result;
+            expect(res.statusCode).toBe(404);
+        }
+        expect(mockDeletePhotoById).not.toHaveBeenCalled();
+    });
+
+    it("普通の写真IDは今までどおり更新できる（壊していない）", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", published: true });
+        const res = await invoke(ev("p1", { title: "新しい題" }, "owner"));
+        expect(res.statusCode).toBe(200);
+        expect(mockUpdatePhotoFields).toHaveBeenCalled();
+    });
+});

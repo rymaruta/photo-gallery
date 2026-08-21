@@ -66,6 +66,15 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     if (!id) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "IDが必要です" }) };
     }
+    // このテーブルには写真以外（通知 notifs#... / コメント comments#... /
+    // フォロー関係 following#... など）も同じキー空間に入っている。
+    // 読み側（api/src/photos.ts の getPhoto）は同じ理由で弾いているのに、
+    // 書き側だけ素通りだった。所有権の判定は `!isAdmin && ownerId !== callerId`
+    // なので、**管理者だけ**が `PUT /photos/notifs%23<sub>` で他人の通知文書に
+    // title を生やしたり、`DELETE` で丸ごと消したりできた（元に戻せない）。
+    if (id.includes("#")) {
+        return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
+    }
 
     let body: Record<string, unknown>;
     try {
@@ -127,6 +136,15 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     const id = event.pathParameters?.id;
     if (!id) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "IDが必要です" }) };
+    }
+    // このテーブルには写真以外（通知 notifs#... / コメント comments#... /
+    // フォロー関係 following#... など）も同じキー空間に入っている。
+    // 読み側（api/src/photos.ts の getPhoto）は同じ理由で弾いているのに、
+    // 書き側だけ素通りだった。所有権の判定は `!isAdmin && ownerId !== callerId`
+    // なので、**管理者だけ**が `PUT /photos/notifs%23<sub>` で他人の通知文書に
+    // title を生やしたり、`DELETE` で丸ごと消したりできた（元に戻せない）。
+    if (id.includes("#")) {
+        return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
     }
 
     try {
