@@ -5,9 +5,11 @@ const mockCountUserPhotos = vi.hoisted(() => vi.fn());
 const mockGetSignedUrl = vi.hoisted(() => vi.fn());
 const mockPutObjectInput = vi.hoisted(() => vi.fn());
 
+const mockListMyPhotos = vi.hoisted(() => vi.fn());
 vi.mock("../ddb-photos", () => ({
     putPhoto: mockPutPhoto,
     countUserPhotos: mockCountUserPhotos,
+    listMyPhotos: mockListMyPhotos,
 }));
 
 const mockLookupIfSet = vi.hoisted(() => vi.fn());
@@ -17,18 +19,24 @@ vi.mock("../notify", () => ({ lookupDisplayNameIfSet: mockLookupIfSet }));
 // 手元では通って CI では落ちる——**テストが実装ではなく環境を測る**。
 // 実際にそれで本番デプロイを止めた（386eeef）。
 // api/src/__tests__/upload.test.ts と profile.test.ts も同じ形。
+const mockS3Send = vi.hoisted(() => vi.fn());
+const mockDeleteObjectInput = vi.hoisted(() => vi.fn());
 vi.mock("@aws-sdk/client-s3", () => ({
-    S3Client: class { send = vi.fn(); },
+    S3Client: class { send = mockS3Send; },
     PutObjectCommand: class {
         input: unknown;
         constructor(input: unknown) { this.input = input; mockPutObjectInput(input); }
+    },
+    DeleteObjectCommand: class {
+        input: unknown;
+        constructor(input: unknown) { this.input = input; mockDeleteObjectInput(input); }
     },
 }));
 vi.mock("@aws-sdk/s3-request-presigner", () => ({ getSignedUrl: mockGetSignedUrl }));
 
 // 環境変数はモジュール読込時に評価されるため、stub してから動的 import する
 vi.stubEnv("CLOUDFRONT_URL", "https://cdn.example.com");
-const { savePhoto, presignedUrl } = await import("../upload");
+const { savePhoto, presignedUrl, discardUpload } = await import("../upload");
 import type { Photo } from "../types";
 
 type LambdaResult = { statusCode: number; body: string };
@@ -392,5 +400,96 @@ describe("100枚の上限: 数えられなければ通さない", () => {
     it("数えられれば今までどおり通る", async () => {
         mockCountUserPhotos.mockResolvedValueOnce(3);
         expect((await invoke(event("u1", BASE))).statusCode).toBe(200);
+    });
+});
+
+// 投稿は「S3 に上げる → DynamoDB に書く」の2段。保存に失敗した項目を
+// 画面で捨てると、**実体だけが S3 に残る**。どの削除経路も DynamoDB の
+// 項目からキーを引くので、項目の無いオブジェクトには誰も手が届かない
+// ——退会しても、写真を消しても残り続ける（原本は GPS 入りのまま
+// 公開URLで取れる）。それを消すための口。
+describe("discardUpload", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const discard = (e: unknown): Promise<LambdaResult> => (discardUpload as any)(e);
+    const ME = "11111111-1111-4111-8111-111111111111";
+    const OTHER = "22222222-2222-4222-8222-222222222222";
+    const MY_KEY = `uploads/${ME}/abc.jpg`;
+    const ev = (sub: string | undefined, body: unknown) => ({
+        requestContext: { authorizer: { jwt: { claims: { sub } } } },
+        body: typeof body === "string" ? body : JSON.stringify(body),
+    });
+
+    beforeEach(() => {
+        mockListMyPhotos.mockReset().mockResolvedValue([]);
+        mockS3Send.mockReset().mockResolvedValue({});
+        mockDeleteObjectInput.mockReset();
+    });
+
+    it("認証が無ければ 401", async () => {
+        expect((await discard(ev(undefined, { key: MY_KEY }))).statusCode).toBe(401);
+        expect(mockS3Send).not.toHaveBeenCalled();
+    });
+
+    it("自分の領域の、どこにも使われていないキーは消せる", async () => {
+        const res = await discard(ev(ME, { key: MY_KEY }));
+        expect(res.statusCode).toBe(200);
+        expect(mockDeleteObjectInput.mock.calls[0][0]).toMatchObject({ Key: MY_KEY });
+    });
+
+    // 前置きを見ないと、他人の写真の実体だけを消せる（相手の一覧に
+    // 割れた画像が並び、本人にも直せない）。
+    it("他人の領域のキーは消せない", async () => {
+        const res = await discard(ev(ME, { key: `uploads/${OTHER}/abc.jpg` }));
+        expect(res.statusCode).toBe(403);
+        expect(mockS3Send).not.toHaveBeenCalled();
+    });
+
+    it("uploads/ の外は消せない（アイコンを消させない）", async () => {
+        for (const key of [`profiles/${ME}`, "app/data/photos.json", ""]) {
+            expect((await discard(ev(ME, { key }))).statusCode).toBe(403);
+        }
+        expect(mockS3Send).not.toHaveBeenCalled();
+    });
+
+    it("`..` を含むキーは消せない", async () => {
+        const res = await discard(ev(ME, { key: `uploads/${ME}/../${OTHER}/abc.jpg` }));
+        expect(res.statusCode).toBe(403);
+        expect(mockS3Send).not.toHaveBeenCalled();
+    });
+
+    // ここが肝。使用中の判定が無いと、利用者は**自分の保存済みの写真の
+    // 実体だけ**を消せてしまう（DynamoDB には行が残る）。
+    it("保存済みの写真が使っているキーは消さない", async () => {
+        mockListMyPhotos.mockResolvedValue([
+            { id: "p1", src: `https://cdn.example.com/${MY_KEY}` },
+        ]);
+        const res = await discard(ev(ME, { key: MY_KEY }));
+        expect(res.statusCode).toBe(409);
+        expect(mockS3Send).not.toHaveBeenCalled();
+    });
+
+    it("派生画像として使われていても消さない（原本・サムネ・AVIF）", async () => {
+        for (const field of ["srcOriginal", "thumbSrc", "srcAvif", "src256"]) {
+            mockListMyPhotos.mockResolvedValue([{ id: "p1", [field]: `https://cdn.example.com/${MY_KEY}` }]);
+            expect((await discard(ev(ME, { key: MY_KEY }))).statusCode).toBe(409);
+        }
+        expect(mockS3Send).not.toHaveBeenCalled();
+    });
+
+    // 「分からないなら止める」。ここで通すと取り返しのつかない削除になる。
+    it("使用中かどうか確かめられなければ消さない（503）", async () => {
+        mockListMyPhotos.mockImplementationOnce(() => Promise.reject(new Error("ddb down")));
+        const res = await discard(ev(ME, { key: MY_KEY }));
+        expect(res.statusCode).toBe(503);
+        expect(mockS3Send).not.toHaveBeenCalled();
+    });
+
+    it("S3 の削除が落ちたら 503（成功を装わない）", async () => {
+        mockS3Send.mockImplementationOnce(() => Promise.reject(new Error("s3 down")));
+        expect((await discard(ev(ME, { key: MY_KEY }))).statusCode).toBe(503);
+    });
+
+    it("壊れた JSON は 400", async () => {
+        expect((await discard(ev(ME, "{"))).statusCode).toBe(400);
     });
 });

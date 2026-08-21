@@ -100,6 +100,18 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # S3 には上がったが保存に至らなかった自分のアップロードを消す。
+  # 無いと、保存に失敗した画像の実体が誰にも辿れないまま残り続ける
+  # （どの削除経路も DynamoDB の項目からキーを引くため）。
+  discardUpload:
+    handler: src/upload.discardUpload
+    events:
+      - httpApi:
+          path: /upload/discard
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
   profileAvatarPresignedUrl:
     handler: src/profile.profileAvatarPresignedUrl
     events:

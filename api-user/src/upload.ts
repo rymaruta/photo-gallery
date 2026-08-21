@@ -1,13 +1,14 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
-import { putPhoto, countUserPhotos } from "./ddb-photos";
+import { putPhoto, countUserPhotos, listMyPhotos } from "./ddb-photos";
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
 import { lookupDisplayNameIfSet } from "./notify";
 import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags } from "./sanitize";
 import { extForType, uploadPrefix, canonicalUploadUrl, isOwnUploadUrl as isOwnUploadUrlFor } from "./uploadPolicy";
+import { mediaKeys } from "./mediaKeys";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
@@ -240,4 +241,63 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         console.error("savePhoto error:", e);
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "保存に失敗しました" }) };
     }
+};
+
+/**
+ * DELETE /user/uploads — 保存に至らなかった自分のアップロードを消す。
+ *
+ * 投稿の流れは「S3 に上げる → DynamoDB に書く」の2段。保存に失敗した項目は
+ * 画面上 `error` になるが、そこで捨てる（× を押す／タブを閉じる）と
+ * **実体だけが S3 に残る**。どの削除経路も DynamoDB の項目からキーを引くので、
+ * 項目の無いオブジェクトには誰も手が届かない——退会しても、写真を消しても
+ * 残り続ける（原本 srcOriginal は GPS 入りのまま公開URLで取れる）。
+ *
+ * 消してよいのは「自分の領域にあって、まだどの写真にも使われていない」キーだけ。
+ * 使用中かどうかを確かめるのが要点で、これが無いと利用者は自分の**保存済みの**
+ * 写真の実体だけを消せてしまう（DynamoDB には行が残るので、一覧に
+ * 割れた画像が並び、本人にも直せない）。
+ */
+export const discardUpload: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const userId = getUserId(event);
+    if (!userId) {
+        return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証が必要です" }) };
+    }
+
+    let body: { key?: unknown };
+    try {
+        body = JSON.parse(event.body ?? "{}") as typeof body;
+    } catch {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なリクエスト" }) };
+    }
+
+    const key = typeof body.key === "string" ? body.key : "";
+    // 自分の領域のキーだけ。".." は扱わない（S3 のキーとしては正当だが、
+    // 別の場所を指す形になっていないかを確かめる術が無い）。
+    // 前置きの判定は uploadPolicy.uploadPrefix に寄せる（保存側と同じ根拠）。
+    if (!key || !key.startsWith(uploadPrefix(userId)) || key.includes("..")) {
+        return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: "このファイルは削除できません" }) };
+    }
+
+    // 保存済みの写真が使っているキーは消さない。
+    // 数えられなかったら**消さない**（photoLimitError と同じ考え方——
+    // 分からないなら止める。ここで通すと、取り返しのつかない削除になる）。
+    let mine: Photo[];
+    try {
+        mine = await listMyPhotos(userId);
+    } catch (e) {
+        console.error("discardUpload: listMyPhotos failed:", e);
+        return { statusCode: 503, headers: JSON_HEADERS, body: JSON.stringify({ error: "確認できませんでした。時間をおいてもう一度お試しください" }) };
+    }
+    const inUse = mine.some((p) => mediaKeys(p as unknown as Record<string, unknown>).includes(key));
+    if (inUse) {
+        return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({ error: "この画像は保存済みの写真で使われています" }) };
+    }
+
+    try {
+        await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));
+    } catch (e) {
+        console.error("discardUpload: S3 delete failed:", e);
+        return { statusCode: 503, headers: JSON_HEADERS, body: JSON.stringify({ error: "削除に失敗しました" }) };
+    }
+    return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
 };
