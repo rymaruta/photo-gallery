@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import { putPhoto, countUserPhotos } from "./ddb-photos";
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
+import { lookupDisplayNameIfSet } from "./notify";
 import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags } from "./sanitize";
 import { extForType, uploadPrefix, canonicalUploadUrl, isOwnUploadUrl as isOwnUploadUrlFor } from "./uploadPolicy";
 
@@ -26,6 +27,41 @@ export function isOwnUploadUrl(raw: unknown, userId?: string): boolean {
 
 const PHOTO_LIMIT_PER_USER = 100;
 
+/**
+ * 100枚の上限を確かめる。超えていれば断る理由を返す。
+ *
+ * **数えられなかったら通さない。** 以前は console.error だけ出して
+ * そのまま保存していたので、スロットリングを起こせば上限を超えられた。
+ * これは容量と費用の上限なので、「分からないなら通す」ではなく
+ * 「分からないなら止める」に倒す
+ * （CLAUDE.md の「設定ミスは『本番を触る』ではなく『動かない』に倒す」と同じ）。
+ *
+ * 入口が2つある（presignedUrl と savePhoto）ので、判定はここ1か所に置く。
+ * 片方だけ直しても、もう片方から素通りする。
+ */
+async function photoLimitError(userId: string, admin: boolean) {
+    if (admin) return null;
+    let count: number;
+    try {
+        count = await countUserPhotos(userId);
+    } catch (e) {
+        console.error("photo count check error:", e);
+        return {
+            statusCode: 503,
+            headers: JSON_HEADERS,
+            body: JSON.stringify({ error: "枚数を確認できませんでした。時間をおいてもう一度お試しください" }),
+        };
+    }
+    if (count >= PHOTO_LIMIT_PER_USER) {
+        return {
+            statusCode: 403,
+            headers: JSON_HEADERS,
+            body: JSON.stringify({ error: `アップロード上限（${PHOTO_LIMIT_PER_USER}枚）に達しています` }),
+        };
+    }
+    return null;
+}
+
 export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
     // sub が取れないと領域を切れない（uploads// になって全員が同じ場所を共有する）
@@ -34,20 +70,8 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     }
 
     // 100枚制限チェック（adminは除外）
-    if (!isAdmin(event)) {
-        try {
-            const count = await countUserPhotos(userId);
-            if (count >= PHOTO_LIMIT_PER_USER) {
-                return {
-                    statusCode: 403,
-                    headers: JSON_HEADERS,
-                    body: JSON.stringify({ error: `アップロード上限（${PHOTO_LIMIT_PER_USER}枚）に達しています` }),
-                };
-            }
-        } catch (e) {
-            console.error("photo count check error:", e);
-        }
-    }
+    const limitError = await photoLimitError(userId, isAdmin(event));
+    if (limitError) return limitError;
 
     let body: { fileName?: string; fileType?: string; fileSize?: number };
     try {
@@ -116,7 +140,6 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         category?: string;
         tags?: string[];
         exif?: Photo["exif"];
-        displayName?: string;
         coords?: unknown;
         dominantColor?: string;
         thumbUrl?: string;
@@ -130,7 +153,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なリクエスト" }) };
     }
 
-    const { key, publicUrl, title, description, location, category, tags, exif, displayName, coords, dominantColor, thumbUrl, blurDataURL } = body;
+    const { key, publicUrl, title, description, location, category, tags, exif, coords, dominantColor, thumbUrl, blurDataURL } = body;
     // 下書き保存: published === false のときだけ非公開。既定（未指定/true）は従来通り公開。
     const isPublished = body.published !== false;
     if (!key || !publicUrl) {
@@ -150,22 +173,18 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     }
 
     // 100枚制限の二重チェック（adminは除外）
-    if (!isAdmin(event)) {
-        try {
-            const count = await countUserPhotos(userId);
-            if (count >= PHOTO_LIMIT_PER_USER) {
-                return {
-                    statusCode: 403,
-                    headers: JSON_HEADERS,
-                    body: JSON.stringify({ error: `アップロード上限（${PHOTO_LIMIT_PER_USER}枚）に達しています` }),
-                };
-            }
-        } catch (e) {
-            console.error("photo count check error:", e);
-        }
-    }
+    const limitError = await photoLimitError(userId, isAdmin(event));
+    if (limitError) return limitError;
 
-    const resolvedDisplayName = (displayName?.trim() ?? "").slice(0, 100) || undefined;
+    // 表示名は**サーバーで引く**。本文の値を信用してはいけない。
+    //
+    // 保存された displayName は静的HTMLと JSON-LD の author に焼き込まれる
+    // （lib/utils/seo.ts:131・PhotoPageClient:618）ので、受け取ると
+    // 「運営」や他人の名前を写真ごとに名乗れる。
+    // 同じことをストーリーでは既に禁じている——stories.ts:155 に
+    // 「displayName は受け取らない（なりすまし防止のためサーバーで引く）」
+    // と書かれていて、写真だけが例外だった。
+    const resolvedDisplayName = await lookupDisplayNameIfSet(userId);
     const safeCoords = sanitizeCoords(coords);
     // 代表色: グリッドのプレースホルダー用。#rrggbb 形式のみ受け付ける
     const safeDominantColor = typeof dominantColor === "string" && /^#[0-9a-fA-F]{6}$/.test(dominantColor)

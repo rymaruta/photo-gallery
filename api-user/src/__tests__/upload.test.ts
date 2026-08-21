@@ -10,6 +10,9 @@ vi.mock("../ddb-photos", () => ({
     countUserPhotos: mockCountUserPhotos,
 }));
 
+const mockLookupIfSet = vi.hoisted(() => vi.fn());
+vi.mock("../notify", () => ({ lookupDisplayNameIfSet: mockLookupIfSet }));
+
 // 署名は必ずモックする。本物を呼ぶと AWS の認証情報を要求するので、
 // 手元では通って CI では落ちる——**テストが実装ではなく環境を測る**。
 // 実際にそれで本番デプロイを止めた（386eeef）。
@@ -54,6 +57,7 @@ beforeEach(() => {
     mockCountUserPhotos.mockReset().mockResolvedValue(0);
     mockGetSignedUrl.mockReset().mockResolvedValue("https://s3.example/presigned");
     mockPutObjectInput.mockReset();
+    mockLookupIfSet.mockReset().mockResolvedValue(undefined);
 });
 
 describe("savePhoto: thumbUrl（一覧グリッド用サムネイル）", () => {
@@ -321,5 +325,72 @@ describe("presignedUrl", () => {
         mockCountUserPhotos.mockResolvedValueOnce(100);
         const res = await ask("u1", { fileName: "a.jpg", fileType: "image/jpeg" });
         expect(res.statusCode).toBe(403);
+    });
+});
+
+
+// 保存された displayName は静的HTMLと JSON-LD の author に焼き込まれる
+// （lib/utils/seo.ts:131・PhotoPageClient:618）。本文から受け取ると
+// 「運営」や他人の名前を写真ごとに名乗れる。
+// 同じことをストーリーでは既に禁じていた（stories.ts:155）。
+describe("savePhoto: 表示名はサーバーで引く", () => {
+    it("本文の displayName は無視する", async () => {
+        mockLookupIfSet.mockResolvedValue("本当の名前");
+        await invoke(event("u1", { ...BASE, displayName: "運営" }));
+        expect(savedPhoto().displayName).toBe("本当の名前");
+        expect(mockLookupIfSet).toHaveBeenCalledWith("u1");
+    });
+
+    it("表示名を設定していない人の写真には付けない", async () => {
+        // 既定名（「名前未設定さん」）を入れてしまうと、写真ページに
+        // 「名前未設定さんの他の写真」という導線が新しく出る。表示は変えない。
+        mockLookupIfSet.mockResolvedValue(undefined);
+        await invoke(event("u1", { ...BASE, displayName: "運営" }));
+        expect(savedPhoto().displayName).toBeUndefined();
+    });
+});
+
+// 上限は容量と費用の管理。数えられなかったときに通すと、
+// スロットリングを起こすだけで超えられる。
+describe("100枚の上限: 数えられなければ通さない", () => {
+    it("savePhoto: 数え上げが落ちたら 503（保存しない）", async () => {
+        mockCountUserPhotos.mockRejectedValueOnce(new Error("throttled"));
+        const res = await invoke(event("u1", BASE));
+        expect(res.statusCode).toBe(503);
+        expect(mockPutPhoto).not.toHaveBeenCalled();
+    });
+
+    it("presignedUrl: 数え上げが落ちたら 503（署名を渡さない）", async () => {
+        mockCountUserPhotos.mockRejectedValueOnce(new Error("throttled"));
+        const res = await invokePresign({
+            requestContext: { authorizer: { jwt: { claims: { sub: "u1" } } } },
+            body: JSON.stringify({ fileName: "a.jpg", fileType: "image/jpeg" }),
+        });
+        expect(res.statusCode).toBe(503);
+        expect(mockGetSignedUrl).not.toHaveBeenCalled();
+    });
+
+    it("savePhoto: 上限に達していれば 403", async () => {
+        mockCountUserPhotos.mockResolvedValueOnce(100);
+        expect((await invoke(event("u1", BASE))).statusCode).toBe(403);
+        expect(mockPutPhoto).not.toHaveBeenCalled();
+    });
+
+    it("管理者は数え上げが落ちても通る（上限の対象外）", async () => {
+        mockCountUserPhotos.mockRejectedValue(new Error("throttled"));
+        // 管理者でも「自分の領域」の判定は通る必要がある（所有の根拠なので）
+        const res = await invoke({
+            requestContext: { authorizer: { jwt: { claims: { sub: "admin", "cognito:groups": "[admin]" } } } },
+            body: JSON.stringify({
+                key: "uploads/admin/p1.webp",
+                publicUrl: "https://cdn.example.com/uploads/admin/p1.webp",
+            }),
+        });
+        expect(res.statusCode).toBe(200);
+    });
+
+    it("数えられれば今までどおり通る", async () => {
+        mockCountUserPhotos.mockResolvedValueOnce(3);
+        expect((await invoke(event("u1", BASE))).statusCode).toBe(200);
     });
 });

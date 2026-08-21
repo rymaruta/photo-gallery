@@ -32,8 +32,15 @@ const USERS_TABLE = requireEnv("USERS_TABLE");
 // 明らかに未設定と分かる表記にする。
 const DEFAULT_NAME = "名前未設定さん";
 
-/** 表示名を Users テーブルから引く（クライアント申告を信用しない）。無ければ既定名 */
-export async function lookupDisplayName(uid: string): Promise<string> {
+/**
+ * 設定されている表示名だけを引く（未設定・読めない場合は undefined）。
+ *
+ * 写真の `displayName` はこちらを使う。既定名を入れてしまうと、
+ * 名前を設定していない人の写真ページに
+ * 「名前未設定さんの他の写真」という導線が新しく出てしまう
+ * （今は displayName が無ければ出ない）。表示を勝手に変えない。
+ */
+export async function lookupDisplayNameIfSet(uid: string): Promise<string | undefined> {
     try {
         const res = await ddb.send(new GetCommand({
             TableName: USERS_TABLE,
@@ -41,10 +48,15 @@ export async function lookupDisplayName(uid: string): Promise<string> {
             ProjectionExpression: "displayName",
         }));
         const name = typeof res.Item?.displayName === "string" ? res.Item.displayName.trim() : "";
-        return name || DEFAULT_NAME;
+        return name || undefined;
     } catch {
-        return DEFAULT_NAME;
+        return undefined;
     }
+}
+
+/** 表示名を Users テーブルから引く（クライアント申告を信用しない）。無ければ既定名 */
+export async function lookupDisplayName(uid: string): Promise<string> {
+    return (await lookupDisplayNameIfSet(uid)) ?? DEFAULT_NAME;
 }
 
 // 保持する通知の件数。DynamoDB の1アイテム上限（400KB）に達すると
