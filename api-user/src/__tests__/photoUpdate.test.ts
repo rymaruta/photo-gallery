@@ -294,3 +294,40 @@ describe("updatePhotoVisibility: 静的ページの作り直し", () => {
         expect(mockRebuild).not.toHaveBeenCalled();
     });
 });
+
+// DynamoDB の UpdateItem は、キーが無ければ**行を作る**。
+// ここは「Get で所有権を確かめる → Update」の2段なので、その間に写真が
+// 消えると（別タブで削除・退会の掃除と競合）、`src` も `userId` も持たない
+// 行ができる。一覧（attribute_exists(src)）・GSI（userId 無し）・詳細
+// （!photo.src で404）のどれからも辿れず、本人には消す手段がない。
+//
+// 対の api/src/ddb-photos.ts:115 は同じ理由で同じ条件を付けていて、
+// テスト（api/src/__tests__/ddbPhotos.test.ts）もある。こちらだけ
+// **条件も、それを見るテストも無かった**（付けても外しても25本通った）。
+describe("消えた写真を作り直さない", () => {
+    it("更新には attribute_exists(id) を付ける", async () => {
+        mockDdbSend.mockReset();
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", src: "https://cdn/p1.jpg", published: true } })
+            .mockResolvedValueOnce({});
+        const res = await invoke(event("u1", "p1", { published: false }));
+        expect(res.statusCode).toBe(200);
+
+        const update = mockDdbSend.mock.calls
+            .map((c) => c[0])
+            .find((cmd) => cmd?.constructor?.name === "UpdateCommand");
+        expect(update.input.ConditionExpression).toBe("attribute_exists(id)");
+    });
+
+    it("条件が外れたら 404（500 で「再試行」と読ませない）", async () => {
+        // Get は成功、Update だけ条件で落ちる
+        mockDdbSend.mockReset();
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", src: "https://cdn/p1.jpg", published: true } })
+            .mockImplementationOnce(() => Promise.reject(
+                Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" })));
+        const res = await invoke(event("u1", "p1", { published: false }));
+        expect(res.statusCode).toBe(404);
+        expect(JSON.parse(res.body).error).toContain("見つかりません");
+    });
+});

@@ -167,6 +167,15 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             UpdateExpression: expr,
             ExpressionAttributeValues: values,
             ...(Object.keys(names).length ? { ExpressionAttributeNames: names } : {}),
+            // **DynamoDB の UpdateItem は、キーが無ければ行を作る。**
+            // ここは「Get で所有権を確かめる → Update」の2段なので、その間に
+            // 写真が消えると（別タブで削除・退会の掃除と競合）、
+            // `{ id, updatedAt, published, title... }` という **src も userId も
+            // 持たない行**ができる。一覧（attribute_exists(src)）・GSI（userId 無し）・
+            // 詳細（!photo.src で404）のどれからも辿れず、本人には消す手段がない。
+            // 対の api/src/ddb-photos.ts:115 は同じ理由で同じ条件を付けている。
+            // stories.ts の viewStory も同型の穴をこれで塞いだ。
+            ConditionExpression: "attribute_exists(id)",
         }));
         // 静的ページに焼かれる内容が変わったら、作り直しを頼む。
         //
@@ -193,6 +202,12 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
 
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
     } catch (e) {
+        // 条件が外れた＝Get と Update の間に写真が消えた。作り直さずに
+        // 「見つかりません」と返す（stories.ts の viewStory と同じ扱い）。
+        // 500 のままだと、利用者は「失敗したので再試行」と読んで押し直す。
+        if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
+            return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
+        }
         console.error("updatePhotoVisibility error:", e);
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "更新に失敗しました" }) };
     }
