@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { BellIcon, ChatBubbleOvalLeftIcon, UserPlusIcon } from "@heroicons/react/24/outline";
@@ -25,6 +25,9 @@ type Notif = {
     t: string;
 };
 
+/** 常駐ぶんの再取得の間隔。短くしすぎると人数×頻度でAPI が増える */
+const POLL_MS = 60_000;
+
 // 通知ベル: 「いいねされた」「行きたいリストに入った」
 // 「あなたの写真が◯◯さんを旅立たせた」が届く場所。
 // 認証済みヘッダーにのみ表示。開くと既読になり、通知タップで写真へ飛べる。
@@ -35,25 +38,47 @@ export default function NotificationsBell() {
     const [unread, setUnread] = useState(0);
     const [now, setNow] = useState(0);
 
-    useEffect(() => {
-        void (async () => {
-            try {
-                const res = await userFetch("/user/notifications");
-                if (!res.ok) return;
-                const data = await res.json() as { items?: Notif[]; unread?: number };
-                setItems(Array.isArray(data.items) ? data.items : []);
-                setUnread(typeof data.unread === "number" ? data.unread : 0);
-                setNow(Date.now());
-            } catch { /* 通知は取得できなくてもUIを壊さない */ }
-        })();
+    // 取得は1回きりではいけない。このベルはヘッダーに常駐するので、
+    // `[]` deps だけだと**リロードするまで新着が出ない**——いいねも
+    // コメントもフォローもここに届くのに、開いても前に読み込んだ内容の
+    // ままだった。
+    //
+    // ただしポーリングは足しすぎない。主にするのは「開いたときの再取得」で、
+    // 常駐ぶんは長めの間隔にとどめる（1人あたり60秒に1回）。
+    const load = useCallback(async () => {
+        try {
+            const res = await userFetch("/user/notifications");
+            if (!res.ok) return;
+            const data = await res.json() as { items?: Notif[]; unread?: number };
+            setItems(Array.isArray(data.items) ? data.items : []);
+            setUnread(typeof data.unread === "number" ? data.unread : 0);
+            setNow(Date.now());
+        } catch { /* 通知は取得できなくてもUIを壊さない */ }
     }, []);
+
+    useEffect(() => {
+        // 初回と、以後は一定間隔で。async の中で await してから state を触る
+        // （effect の本体で直接 setState しない）。
+        void (async () => { await load(); })();
+        const timer = setInterval(() => {
+            // 見えていないタブでは叩かない（背面のタブが延々と取りにいくのを避ける）
+            if (typeof document !== "undefined" && document.hidden) return;
+            void load();
+        }, POLL_MS);
+        return () => clearInterval(timer);
+    }, [load]);
 
     const toggleOpen = () => {
         const next = !open;
         setOpen(next);
-        if (next && unread > 0) {
-            setUnread(0);
-            void userFetch("/user/notifications", { method: "PUT" }).catch(() => { /* ignore */ });
+        if (next) {
+            // 開いた時点の中身を出す。バッジが 0 でも、閉じている間に
+            // 届いた通知はここで初めて見える。
+            void load();
+            if (unread > 0) {
+                setUnread(0);
+                void userFetch("/user/notifications", { method: "PUT" }).catch(() => { /* ignore */ });
+            }
         }
     };
 

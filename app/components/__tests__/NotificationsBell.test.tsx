@@ -84,3 +84,50 @@ describe("NotificationsBell", () => {
         expect(screen.getByText(/いいね・行きたいリスト追加・旅立ちの報告がここに届きます/)).toBeInTheDocument();
     });
 });
+
+// このベルはヘッダーに常駐する。取得が `[]` deps の1回きりだった頃は、
+// **リロードするまで新着が出なかった**——いいねもコメントもフォローも
+// ここに届くのに、開いても前に読み込んだ内容のままだった。
+describe("新着の取り込み", () => {
+    it("開いたときに取り直す（閉じている間に届いたぶんが見える）", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({ items: [], unread: 0 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalledWith("/user/notifications"));
+
+        // 閉じている間に1件届いた
+        mockUserFetch.mockResolvedValue(fetchOk({ items: [ITEMS[0]], unread: 1 }));
+        fireEvent.click(screen.getByRole("button"));
+
+        expect(await screen.findByText(/旅子/)).toBeInTheDocument();
+    });
+
+    it("一定間隔でも取り直す（開かなくてもバッジが更新される）", async () => {
+        vi.useFakeTimers();
+        try {
+            mockUserFetch.mockResolvedValue(fetchOk({ items: [], unread: 0 }));
+            render(<NotificationsBell />);
+            const first = mockUserFetch.mock.calls.length;
+
+            await vi.advanceTimersByTimeAsync(61_000);
+            expect(mockUserFetch.mock.calls.length).toBeGreaterThan(first);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("見えていないタブでは取りにいかない", async () => {
+        vi.useFakeTimers();
+        const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+        try {
+            mockUserFetch.mockResolvedValue(fetchOk({ items: [], unread: 0 }));
+            render(<NotificationsBell />);
+            const first = mockUserFetch.mock.calls.length;
+
+            await vi.advanceTimersByTimeAsync(61_000);
+            expect(mockUserFetch.mock.calls.length).toBe(first);
+        } finally {
+            hidden.mockRestore();
+            vi.useRealTimers();
+        }
+    });
+});

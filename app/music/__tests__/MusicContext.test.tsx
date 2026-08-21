@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeAll } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { MusicProvider, useMusic, type SongEntry } from "../MusicContext";
 
 // jsdom は HTMLMediaElement.play/pause を実装しないためスタブする
@@ -110,5 +110,52 @@ describe("シャッフルと1曲リピート", () => {
         act(() => result.current.toggleShuffle());
         act(() => result.current.play("trip:t1", [songs[1]], 0));
         expect(result.current.shuffle).toBe(true);
+    });
+});
+
+// 別の写真が同じ曲を持っていることがある。その写真で再生を押すと
+// queueKey は変わるのに previewUrl は同じなので、src しか見ていなかった頃は
+// 「変わっていない」と判断して再生を始めず、状態だけ playing:true になった
+// ——**「再生中」の見た目のまま音が出ない**。
+describe("同じ曲を持つ別の写真から再生する", () => {
+    it("止まっている状態から、別の列の同じ曲を鳴らせる", async () => {
+        const playSpy = vi.spyOn(HTMLMediaElement.prototype, "play");
+        // 「今は止まっている」ことを再現する
+        vi.spyOn(HTMLMediaElement.prototype, "paused", "get").mockReturnValue(true);
+        const { result } = renderHook(() => useMusic(), { wrapper });
+
+        // 写真Aの列で再生 → 止める
+        act(() => result.current.play("photo-A", [songs[0]], 0));
+        act(() => result.current.toggle());
+        expect(result.current.playing).toBe(false);
+
+        playSpy.mockClear();
+        // 写真Bの列で同じ曲を再生（previewUrl は同じ、queueKey だけ違う）
+        act(() => result.current.play("photo-B", [songs[0]], 0));
+
+        expect(result.current.playing).toBe(true);
+        expect(result.current.current?.previewUrl).toBe(songs[0].previewUrl);
+        // 見た目だけでなく、実際に鳴らしにいっている
+        await waitFor(() => expect(playSpy).toHaveBeenCalled());
+        vi.restoreAllMocks();
+        vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(() => Promise.resolve());
+        vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => { /* noop */ });
+    });
+
+    it("既に同じ音が鳴っているなら触らない（頭出しに戻さない）", async () => {
+        const playSpy = vi.spyOn(HTMLMediaElement.prototype, "play");
+        vi.spyOn(HTMLMediaElement.prototype, "paused", "get").mockReturnValue(false);
+        const { result } = renderHook(() => useMusic(), { wrapper });
+
+        act(() => result.current.play("photo-A", [songs[0]], 0));
+        await waitFor(() => expect(result.current.playing).toBe(true));
+        playSpy.mockClear();
+
+        act(() => result.current.play("photo-B", [songs[0]], 0));
+        await new Promise((r) => setTimeout(r, 10));
+        expect(playSpy).not.toHaveBeenCalled();
+        vi.restoreAllMocks();
+        vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(() => Promise.resolve());
+        vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => { /* noop */ });
     });
 });

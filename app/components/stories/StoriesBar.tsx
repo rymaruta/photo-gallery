@@ -170,16 +170,24 @@ export default function StoriesBar() {
         }
     }, [songStart, songWindowSec, draftSong, previewingId]);
 
+    // 検索の世代。**打ち消したはずの結果が出る**のを止める。
+    // 順序の保証が無かった頃は、遅い1回目の応答が速い2回目より後に届くと
+    // 前の語の結果で上書きされていた（lib/hooks/useUserSearch.ts に
+    // 正しい形がある。同じ仕掛けを使う）。
+    const songSearchGen = useRef(0);
     const searchDraftSongs = async () => {
         const q = songQuery.trim();
         if (!q) return;
+        const gen = ++songSearchGen.current;
         setSongSearching(true);
         try {
-            setSongResults(await searchSongs(q));
+            const found = await searchSongs(q);
+            if (gen !== songSearchGen.current) return;   // もっと新しい検索が走っている
+            setSongResults(found);
         } catch {
-            setSongResults([]);
+            if (gen === songSearchGen.current) setSongResults([]);
         } finally {
-            setSongSearching(false);
+            if (gen === songSearchGen.current) setSongSearching(false);
         }
     };
     const fileInputRef = useRef<HTMLInputElement>(null);

@@ -92,18 +92,27 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         setViewers(null);
         setViewersOpen(false);
         if (!item || !isOwnStory) return;
+        // 中断ガード。ストーリーは左右で次々に切り替わるので、前のストーリーの
+        // 応答が後から届く。無かった頃は**別のストーリーの閲覧者数と名前**が
+        // 出ていた（「誰が見たか」は見せ方として敏感な情報なので、
+        // 取り違えたまま出すのは特に良くない）。
+        // 同じファイルの閲覧報告の effect には既にこの形が入っている。
+        let aborted = false;
         void (async () => {
             try {
                 const { userFetch } = await import("../../../lib/utils/api");
                 const res = await userFetch(`/stories/${encodeURIComponent(item.id)}/viewers`);
+                if (aborted) return;
                 if (res.ok) {
                     const data = await res.json() as { viewers?: ViewerEntry[] };
+                    if (aborted) return;
                     setViewers(Array.isArray(data.viewers) ? data.viewers : []);
                 }
             } catch (e) {
-                log.warn("story viewers fetch error:", e);
+                if (!aborted) log.warn("story viewers fetch error:", e);
             }
         })();
+        return () => { aborted = true; };
     }, [item, isOwnStory]);
 
     // 再生し直し用のカウンタ。進捗アニメーション/動画/BGM を最初から流し直す
