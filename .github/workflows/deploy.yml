@@ -198,6 +198,10 @@ jobs:
           PHOTOS_TABLE: ${{ needs.config.outputs.photosTable }}
           UPLOAD_BUCKET: ${{ needs.config.outputs.uploadBucket }}
           CLOUDFRONT_URL: ${{ needs.config.outputs.cloudfrontUrl }}
+          # 保存する画像URLは**配信に使うURL**にする。CloudFront の既定
+          # ドメインを焼き込むと、同じ画像が2つのホスト名で配信され、
+          # サイトマップが両方を載せてインデックスが割れる。
+          PUBLIC_BASE_URL: ${{ needs.config.outputs.siteUrl }}
 
       - name: Build
         run: npm run build

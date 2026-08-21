@@ -26,7 +26,7 @@
  */
 
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
-const { DynamoDBDocumentClient, ScanCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
+const { DynamoDBDocumentClient, ScanCommand, UpdateCommand, GetCommand } = require("@aws-sdk/lib-dynamodb");
 const fs = require("fs");
 const path = require("path");
 const { requireEnv } = require("./lib/env");
@@ -149,6 +149,54 @@ async function scan() {
  * 権限が無い環境（デプロイ用ロールが読み取りのみ）では警告1行で通す。
  * 失敗してもビルドは正しい。畳まれる窓が今までどおり10分に戻るだけ。
  */
+
+/**
+ * 直近に同期できた写真の件数を控える文書のID。
+ *
+ * 単一テーブルの他の管理用文書（rebuild#lock）と同じ扱い。
+ * `src` を持たないので photos.json には出ない（下の絞り込みで落ちる）。
+ */
+const SYNC_STATS_ID = "syncstats#photos";
+
+/**
+ * 「急に減った」の比較先。
+ *
+ * 以前は git にコミットされている app/data/photos.json の件数と比べていた。
+ * CI はこのファイルを毎回作り直すがコミットはしないので、**比較先は
+ * 最後に手でコミットした30件のまま固定**だった。本番が120枚に育ったあと
+ * 50件しか取れなくても `50 >= 30 * 0.5` で通ってしまう。
+ * 「半分にはできない」と読めて、実際は「15件を下回れない」でしかなかった。
+ *
+ * 前回うまくいった件数をテーブルに控えて、それと比べる。
+ * 読めなければ null を返し、呼び出し側が従来どおりファイルの件数に落とす
+ * （初回や権限が無い環境で、守りが強くなりすぎて止まらないように）。
+ */
+async function readLastSyncedCount(ddb) {
+    try {
+        const res = await ddb.send(new GetCommand({ TableName: TABLE, Key: { id: SYNC_STATS_ID } }));
+        const n = res.Item?.count;
+        return typeof n === "number" && Number.isFinite(n) && n >= 0 ? n : null;
+    } catch (err) {
+        console.warn(`[sync] 前回の件数を読めませんでした（ファイルの件数と比べます）: ${err.message ?? err}`);
+        return null;
+    }
+}
+
+/** 書き込みが通ったあとに控えを更新する。失敗しても本体は成功扱い */
+async function writeLastSyncedCount(ddb, count) {
+    try {
+        await ddb.send(new UpdateCommand({
+            TableName: TABLE,
+            Key: { id: SYNC_STATS_ID },
+            UpdateExpression: "SET #c = :c, at = :at",
+            ExpressionAttributeNames: { "#c": "count" },
+            ExpressionAttributeValues: { ":c": count, ":at": new Date().toISOString() },
+        }));
+    } catch (err) {
+        console.warn(`[sync] 件数の控えを更新できませんでした（続行）: ${err.message ?? err}`);
+    }
+}
+
 async function clearRebuildLock() {
     try {
         const client = new DynamoDBClient({ region: REGION });
@@ -187,7 +235,12 @@ async function main() {
         return;
     }
 
-    const prev = existingCount(OUTPUT);
+    // 比較先は「前回うまくいった件数」。読めなければファイルの件数に落とす。
+    const client = new DynamoDBClient({ region: REGION });
+    const ddb = DynamoDBDocumentClient.from(client);
+    const lastSynced = await readLastSyncedCount(ddb);
+    const prev = lastSynced ?? existingCount(OUTPUT);
+    console.log(`[sync] 比較先: ${lastSynced !== null ? `前回の同期 ${lastSynced}件` : `ファイルの ${prev}件`}`);
     const safety = checkWriteSafety(photos.length, prev);
     if (!safety.ok) {
         console.error(`\n[sync] 書き込みを中止しました: ${safety.reason}`);
@@ -199,6 +252,7 @@ async function main() {
     fs.writeFileSync(OUTPUT, JSON.stringify(photos, null, 2) + "\n", "utf-8");
     console.log(`[sync] ${OUTPUT} に書き込みました`);
 
+    await writeLastSyncedCount(ddb, photos.length);
     await clearRebuildLock();
 }
 
@@ -209,4 +263,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { checkWriteSafety, existingCount };
+module.exports = { checkWriteSafety, existingCount, readLastSyncedCount, writeLastSyncedCount, SYNC_STATS_ID };

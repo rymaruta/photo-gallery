@@ -250,3 +250,32 @@ describe("isMissingObject: 原本が無いエラーの見分け", () => {
         expect(isMissingObject(null)).toBe(false);
     });
 });
+
+// 保存する画像URLに CloudFront の既定ドメインを焼き込んでいた。
+// 実測で30件中11件が d1s3dwwzgxf5ni.cloudfront.net、19件が journey-photo.com。
+// 同じ画像が2つのホスト名で配信され、サイトマップが両方を <image:loc> に
+// 載せるのでインデックスが2ホストに割れる。訪問者にも DNS+TLS が1往復増える。
+describe("保存する画像URLの土台", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { keyFromSrc } = require("../generate-thumbnails.js");
+
+    it("読み取りはホスト名に依存しない（既存データとの互換）", () => {
+        // だから土台を差し替えても、保存済みのURLは今までどおり辿れる
+        expect(keyFromSrc("https://d1s3dwwzgxf5ni.cloudfront.net/uploads/u1/a.jpg"))
+            .toBe("uploads/u1/a.jpg");
+        expect(keyFromSrc("https://journey-photo.com/uploads/u1/a.jpg"))
+            .toBe("uploads/u1/a.jpg");
+    });
+
+    it("パーセントエンコードされていても同じキーになる", () => {
+        expect(keyFromSrc("https://journey-photo.com/up%6Coads/u1/a.jpg"))
+            .toBe("uploads/u1/a.jpg");
+    });
+
+    it("スクリプトは PUBLIC_BASE_URL を優先する（ワークフローが siteUrl を渡す）", () => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const src = require("fs").readFileSync(
+            require("path").join(__dirname, "..", "generate-thumbnails.js"), "utf8");
+        expect(src).toContain("process.env.PUBLIC_BASE_URL || requireEnv(\"CLOUDFRONT_URL\")");
+    });
+});

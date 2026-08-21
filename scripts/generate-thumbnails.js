@@ -16,6 +16,7 @@
  *   AWS_REGION      (default: ap-northeast-1)
  *   PHOTOS_TABLE    (必須)
  *   UPLOAD_BUCKET   (必須)
+ *   PUBLIC_BASE_URL (任意・保存するURLの土台。未設定なら CLOUDFRONT_URL)
  *   CLOUDFRONT_URL  (必須)
  *
  * 冪等: thumbSrc とメタデータが揃っている写真はスキップするので何度実行しても安全。
@@ -39,7 +40,22 @@ if (fs.existsSync(envLocalPath)) {
 const REGION = process.env.AWS_REGION ?? "ap-northeast-1";
 const TABLE = requireEnv("PHOTOS_TABLE");
 const BUCKET = requireEnv("UPLOAD_BUCKET");
-const CLOUDFRONT_URL = requireEnv("CLOUDFRONT_URL").replace(/\/$/, "");
+/**
+ * 保存する画像URLの土台。
+ *
+ * ここで作った URL は `thumbSrc` などとして **DynamoDB に恒久保存**される。
+ * 以前は CloudFront の既定ドメイン（d1s3dwwzgxf5ni.cloudfront.net）を渡して
+ * いたため、同じサイトの画像が2つのホスト名で配信されていた——実測で
+ * 30件中11件が cloudfront.net、19件が journey-photo.com。サイトマップは
+ * 両方を `<image:loc>` に載せるので、画像のインデックスが2ホストに割れる。
+ * 訪問者にも余計な DNS+TLS が1往復増える。
+ *
+ * 以後は配信に使うURL（siteUrl）を渡す。`PUBLIC_BASE_URL` を優先し、
+ * 無ければ従来どおり `CLOUDFRONT_URL` を使う（保守用ワークフローを
+ * 手で叩く経路を壊さないため）。読み取り側は URL のパスだけを見るので
+ * （keyFromSrc）、既に保存済みのURLとの互換は保たれる。
+ */
+const CLOUDFRONT_URL = (process.env.PUBLIC_BASE_URL || requireEnv("CLOUDFRONT_URL")).replace(/\/$/, "");
 const DRY_RUN = process.env.DRY_RUN === "1";
 
 const THUMB_MAX_PX = 512;
