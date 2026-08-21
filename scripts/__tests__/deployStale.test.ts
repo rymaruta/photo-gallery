@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 // デプロイスクリプトの「古いオブジェクト削除」判定。
 // 外部ブラウザで CSS/JS が 404 になり画面が崩れる事故の再発防止ガード。
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -160,23 +160,37 @@ const { changedKeys } = require("../deploy-static-site.js");
 // それでも毎回無効化していたので、無効化のパス数（＝課金単位）を無駄に使い、
 // "/*" だった頃は写真まで巻き添えでエッジから消していた。
 describe("changedKeys", () => {
-    const md5 = (file: string) =>
-        nodeCrypto.createHash("md5").update(nodeFs.readFileSync(nodePath.join("out", file))).digest("hex");
+    // 以前は `out/index.html` の有無で `it.skipIf` していた。
+    // **ビルド成果物の無いクリーンな CI では3本とも黙って消えていた**
+    // ——落ちるのではなく、走らないまま緑になる。実装を壊しても気づけない。
+    //
+    // changedKeys は `out/` を直接読む（deploy-static-site.js:134 の outDir は
+    // モジュール定数）ので、前提はテスト側で作る。実ビルドの成果物とは
+    // 名前が衝突しない専用ファイルにして、必ず後始末する。
+    const FIXTURE = "__changed-keys-fixture__.html";
+    const outDir = nodePath.join(process.cwd(), "out");
+    const fixturePath = nodePath.join(outDir, FIXTURE);
+    const CONTENT = "<!doctype html><title>fixture</title>";
+    const md5 = nodeCrypto.createHash("md5").update(CONTENT).digest("hex");
+    const sample = [FIXTURE];
 
-    // 実ビルド成果物から2つだけ拾う（無ければスキップ）
-    const sample = nodeFs.existsSync("out/index.html") ? ["index.html"] : [];
-
-    it.skipIf(sample.length === 0)("中身が同じなら変更なし", () => {
-        const remote = sample.map((f) => ({ key: f, etag: `"${md5(f)}"` }));
-        expect(changedKeys(sample, remote)).toEqual([]);
+    beforeAll(() => {
+        nodeFs.mkdirSync(outDir, { recursive: true });
+        nodeFs.writeFileSync(fixturePath, CONTENT);
+    });
+    afterAll(() => {
+        nodeFs.rmSync(fixturePath, { force: true });
     });
 
-    it.skipIf(sample.length === 0)("ETag が違えば変更あり", () => {
-        const remote = sample.map((f) => ({ key: f, etag: '"deadbeef"' }));
-        expect(changedKeys(sample, remote)).toEqual(sample);
+    it("中身が同じなら変更なし", () => {
+        expect(changedKeys(sample, [{ key: FIXTURE, etag: `"${md5}"` }])).toEqual([]);
     });
 
-    it.skipIf(sample.length === 0)("リモートに無ければ変更あり（新規ページ）", () => {
+    it("ETag が違えば変更あり", () => {
+        expect(changedKeys(sample, [{ key: FIXTURE, etag: '"deadbeef"' }])).toEqual(sample);
+    });
+
+    it("リモートに無ければ変更あり（新規ページ）", () => {
         expect(changedKeys(sample, [])).toEqual(sample);
     });
 

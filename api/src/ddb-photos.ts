@@ -140,17 +140,6 @@ export async function deletePhotoById(id: string): Promise<void> {
     }
 }
 
-export async function countUserPhotos(userId: string): Promise<number> {
-    const res = await ddb.send(new QueryCommand({
-        TableName: TABLE,
-        IndexName: USER_INDEX,
-        KeyConditionExpression: "userId = :uid",
-        ExpressionAttributeValues: { ":uid": userId },
-        Select: "COUNT",
-    }));
-    return res.Count ?? 0;
-}
-
 export async function listPhotosByUser(userId: string): Promise<Photo[]> {
     const items: Photo[] = [];
     let lastKey: Record<string, unknown> | undefined;

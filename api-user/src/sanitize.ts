@@ -1,5 +1,11 @@
 // api-user/src/sanitize.ts
 // 保存/更新時の入力サニタイズ。upload.ts と photoUpdate.ts で共有する。
+//
+// **api/src/sanitize.ts と対**。2つのパッケージは別々にデプロイされ、
+// ビルドを共有しないので、小さく複製している（MIME 許可リストと同じ扱い）。
+// 片方だけ直すと、同じ `PUT /photos/{id}` でも通るAPIによって
+// 保存されるものが変わってしまう——実際にそうなっていた。
+// 片方を直したらもう片方も直すこと。
 
 import type { Photo } from "./types";
 
