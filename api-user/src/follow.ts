@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandlerV2, APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
-import { PutCommand, DeleteCommand, UpdateCommand, GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
+import { PutCommand, UpdateCommand, GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { pushNotification, lookupDisplayName } from "./notify";
@@ -253,7 +253,13 @@ type TxItem = ReturnType<typeof statBump> | Record<string, unknown>;
  */
 async function runMarkerTx(marker: TxItem, bumps: TxItem[]): Promise<"done" | "already"> {
     let items: TxItem[] = [marker, ...bumps];
-    for (let attempt = 0; attempt < TX_ATTEMPTS; attempt++) {
+    // 落とし直しは**試行回数を食わない**。for の増分に混ぜていた頃は、
+    // 数回スロットルされたあとに本当の条件外れが見えると、組み直した
+    // 書き込みを一度も送らないままループが尽きて 500 になっていた
+    // （本当の DynamoDB のエラーも一緒に捨てていた）。
+    // 落とせるのは高々2件（マーカーは必ず残す）なので、これで回り続けない。
+    let attempt = 0;
+    for (;;) {
         try {
             await ddb.send(new TransactWriteCommand({ TransactItems: items }));
             return "done";
@@ -269,45 +275,39 @@ async function runMarkerTx(marker: TxItem, bumps: TxItem[]): Promise<"done" | "a
                 continue;
             }
             // 競合・スロットリング。待って撃ち直す
-            if (attempt < TX_ATTEMPTS - 1) {
-                await sleep(TX_RETRY_BASE_MS * 2 ** attempt);
-                continue;
-            }
-            throw e;
+            if (++attempt >= TX_ATTEMPTS) throw e;
+            await sleep(TX_RETRY_BASE_MS * 2 ** (attempt - 1));
         }
     }
-    throw new Error("unreachable");
 }
 
 /**
- * 打ち消しが失敗したときは、**せめてマーカーだけ**元に戻す。
+ * 打ち消しが落ちても、**マーカーだけを単発で戻すことはしない**。
  *
- * 打ち消しをトランザクション1本にしただけだと、そこが競合で落ちた瞬間に
- * 「マーカーはあるが一覧に無い」が固定される。一覧から作る画面
- * （useFollow は /user/following を見る）はボタンを「フォロー」と表示し、
- * 押しても冪等の早期 return で一覧は直らない——**二度と直らない**。
- * カウンタのズレは残るが、そちらは表示が丸めるし、あとから直せる。
+ * 一度そう書いたが誤りだった。マーカーは「次の1回の増減を許可する券」
+ * そのものなので、券だけ復活させるとカウンタが二重に動く:
+ *   解除が成立（カウンタ -1）→ 一覧が競合し続ける → 打ち消しも競合で落ちる
+ *   → マーカーだけ戻す → 画面は一覧を見ているので「フォロー中」のまま
+ *   → 利用者が解除を押し直す → マーカーがあるので **もう一度 -1**
+ * 床（`> :z`）は 0 付近しか守らないので、100 が 98 になるのは止められない。
+ * 「誤差が増えるのを止める」ために床を戻したのに、その逃げ道になっていた。
+ *
+ * 代わりに**冪等の道でも一覧を突き合わせる**ようにした（下の2つの handler）。
+ * マーカーと一覧が食い違っても、押し直せば一覧の方が直る。だから打ち消しは
+ * 「取れたら取る」でよく、取れなくても行き止まりにならない。
  */
 async function undoFollow(target: string, me: string): Promise<void> {
-    try {
-        await unfollowAtomically(target, me);
-    } catch {
-        await ddb.send(new DeleteCommand({
-            TableName: PHOTOS_TABLE, Key: { id: markerId(target, me) },
-        })).catch(() => { /* これ以上できることは無い */ });
-    }
+    await unfollowAtomically(target, me).catch((e) => {
+        // 押し直しで一覧が直るので、ここで無理はしない
+        console.error("undoFollow failed:", e);
+    });
 }
 
-/** 解除の打ち消し。こちらもマーカーだけは戻す */
+/** 解除の打ち消し。同じ理由でマーカー単体の復活はしない */
 async function undoUnfollow(target: string, me: string): Promise<void> {
-    try {
-        await followAtomically(target, me);
-    } catch {
-        await ddb.send(new PutCommand({
-            TableName: PHOTOS_TABLE,
-            Item: { id: markerId(target, me), follow: true, target, uid: me, createdAt: new Date().toISOString() },
-        })).catch(() => { /* これ以上できることは無い */ });
-    }
+    await followAtomically(target, me).catch((e) => {
+        console.error("undoUnfollow failed:", e);
+    });
 }
 
 const followMarker = (target: string, me: string) => ({
@@ -357,16 +357,16 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
 
     try {
         // マーカー作成とカウンタ加算を1つの書き込みで（既にあれば冪等）
-        if (await followAtomically(target, me) === "already") {
-            return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ following: true, followers: (await readStats(target)).followers }) };
-        }
+        const outcome = await followAtomically(target, me);
 
         // 自分の following リストに追加（新しい順の先頭へ）。
-        // ここで失敗したらマーカーとカウンタを戻す。戻さないと
-        // 「フォロー済み扱いなのに一覧に出ない」状態が固定され、
-        // 押し直しても早期 return で直らない。
-        // 打ち消しも1つの書き込みで行う（バラバラだと、まさにここで
-        // 直そうとしている「片方だけ効いた状態」を打ち消し側で作る）。
+        //
+        // **既にフォロー済み（"already"）でもここを通す。** 以前は早期 return
+        // していたが、それだと「マーカーはあるが一覧に無い」状態を誰も直せない
+        // ——画面は一覧から作るのでボタンは「フォロー」のまま、押しても
+        // 早期 return で一覧は書かれない。押し直しで直るようにしておけば、
+        // 打ち消しが取れなくても行き止まりにならない。
+        // 一覧に既に居れば mutate が null を返すので、書き込みは増えない。
         try {
             await updateFollowing(me, (list) => {
                 if (list.includes(target)) return null;
@@ -375,7 +375,10 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
             });
         } catch (e) {
             if ((e as { name?: string }).name !== "FollowingListError") throw e;
-            await undoFollow(target, me);
+            // 打ち消すのは**この呼び出しで書いたぶんだけ**。"already" のときは
+            // 何も書いていないので、打ち消すと他人の（前回成立した）
+            // フォローを勝手に解除することになる。
+            if (outcome === "done") await undoFollow(target, me);
             return jsonError(500, "フォローに失敗しました。もう一度お試しください");
         }
 
@@ -386,7 +389,7 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
         // 通知を何度でも積めた。通知は50件の輪（古いものから落ちる）なので、
         // 100回ほどで**相手の通知欄を自分の通知だけで埋め尽くせる**。
         // まだ読んでいないいいねやコメントの知らせが全部消える。
-        if (await shouldNotifyFollow(target, me)) {
+        if (outcome === "done" && await shouldNotifyFollow(target, me)) {
             await pushNotification(target, {
                 type: "follow",
                 photoId: "",
@@ -417,11 +420,10 @@ export const unfollowUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     if (me === target) return jsonError(400, "自分はフォロー解除できません");
 
     try {
-        if (await unfollowAtomically(target, me) === "already") {
-            return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ following: false, followers: (await readStats(target)).followers }) };
-        }
+        const outcome = await unfollowAtomically(target, me);
 
-        // 解除も同じ。失敗したらマーカーを戻して再試行できるようにする。
+        // 解除も同じ。**マーカーが既に無くても一覧は突き合わせる。**
+        // 一覧に居なければ mutate が null を返すので書き込みは増えない。
         try {
             await updateFollowing(me, (list) => {
                 const next = list.filter((x) => x !== target);
@@ -429,7 +431,7 @@ export const unfollowUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
             });
         } catch (e) {
             if ((e as { name?: string }).name !== "FollowingListError") throw e;
-            await undoUnfollow(target, me);
+            if (outcome === "done") await undoUnfollow(target, me);
             return jsonError(500, "フォロー解除に失敗しました。もう一度お試しください");
         }
 
