@@ -119,9 +119,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           本体CSS（globals.css）が同じ値を指定するので、正常時の見た目は変わらない。
         */}
         <style dangerouslySetInnerHTML={{ __html: "html,body{background:#000;color:#fff;margin:0}" }} />
-        {/* 画像配信元(CloudFront)へ事前接続し、最初の画像の DNS+TLS 待ちを削減（LCP改善） */}
-        <link rel="preconnect" href="https://d1s3dwwzgxf5ni.cloudfront.net" crossOrigin="" />
-        <link rel="dns-prefetch" href="https://d1s3dwwzgxf5ni.cloudfront.net" />
+        {/* 画像配信元(CloudFront)へ事前接続し、最初の画像の DNS+TLS 待ちを削減（LCP改善）。
+            **本番ドメインを直書きしない。** 直書きだった頃は staging の全ページが
+            開くたびに本番CDNへ無駄な接続を張り、実際の配信元（staging のCDN）には
+            preconnect が効かない——狙った LCP 改善が staging で再現しなかった。
+            未設定なら出さない（本番へフォールバックしない。CLAUDE.md の方針）。 */}
+        {process.env.NEXT_PUBLIC_CLOUDFRONT_URL ? (
+          <>
+            <link rel="preconnect" href={process.env.NEXT_PUBLIC_CLOUDFRONT_URL} crossOrigin="" />
+            <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_CLOUDFRONT_URL} />
+          </>
+        ) : null}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteStructuredData).replace(/</g, "\\u003c").replace(/>/g, "\\u003e") }}

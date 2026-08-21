@@ -31,6 +31,12 @@ env:
   USERS_TABLE: prod-photo-gallery-users
   UPLOAD_BUCKET: prod-journey-photo-upload
   CLOUDFRONT_URL: https://d1s3dwwzgxf5ni.cloudfront.net
+  # 保存する画像URLの土台は**配信に使うURL**。これを渡さないと CloudFront の
+  # 既定ドメインが DynamoDB に恒久保存され、同じ画像が2つのホスト名で配信されて
+  # サイトマップのインデックスが割れる（実測30件中11件がそうなっていた）。
+  # deploy.yml は渡している。手動の保守経路だけ抜けていると、後片付け
+  # （maintenance の normalize-image-urls）をしてもここを流すたびにまた割れる。
+  PUBLIC_BASE_URL: https://journey-photo.com
 
 jobs:
   generate:

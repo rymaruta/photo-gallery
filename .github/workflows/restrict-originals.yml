@@ -56,18 +56,20 @@ jobs:
             photosTable=prod-photo-gallery-photos
             uploadBucket=prod-journey-photo-upload
             cloudfrontUrl=https://d1s3dwwzgxf5ni.cloudfront.net
+            publicBaseUrl=https://journey-photo.com
             distributionId='${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}'
           else
             photosTable=staging-photo-gallery-photos
             uploadBucket=staging-journey-photo-upload
             cloudfrontUrl=https://d15fn3rcaiymu9.cloudfront.net
+            publicBaseUrl=https://d15fn3rcaiymu9.cloudfront.net
             distributionId=EF2TFEBBP24DL
           fi
           # 空のまま進めない。
           # `A && B || C` の形で本番のIDを引いていたとき、シークレットが
           # 空だと**ステージングのID**に落ちていた。バケットは本番を触るのに
           # 無効化はステージングへ、という一番気づきにくい壊れ方をする。
-          for k in photosTable uploadBucket cloudfrontUrl distributionId; do
+          for k in photosTable uploadBucket cloudfrontUrl publicBaseUrl distributionId; do
             v="${!k}"
             if [ -z "$v" ]; then
               echo "::error::${{ inputs.envName }} の $k が未設定です"
@@ -92,6 +94,8 @@ jobs:
           PHOTOS_TABLE: ${{ steps.cfg.outputs.photosTable }}
           UPLOAD_BUCKET: ${{ steps.cfg.outputs.uploadBucket }}
           CLOUDFRONT_URL: ${{ steps.cfg.outputs.cloudfrontUrl }}
+          # 保存する画像URLの土台（詳細は generate-thumbnails.yml のコメント）
+          PUBLIC_BASE_URL: ${{ steps.cfg.outputs.publicBaseUrl }}
           DRY_RUN: ${{ inputs.apply && '0' || '1' }}
 
       # 2. 配信を止める。バケットポリシーに Deny を足し、エッジの分を無効化する。
