@@ -130,3 +130,25 @@ describe("ストーリー投稿が断られたとき", () => {
         ));
     });
 });
+
+// !ok の分岐だけで消していた頃は、オフライン・DNS 失敗などで
+// userFetch("/stories") 自体が**投げる**と打ち消しを通らず、
+// S3 に上げただけの孤児が残った（再投稿のたびに増える）。
+describe("保存が例外で終わったとき", () => {
+    it("通信ごと失敗しても、先に上げた実体を消す", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (url === "/stories" && init?.method === "POST") {
+                return Promise.reject(new Error("network down"));
+            }
+            return api()(url);
+        });
+
+        await postStory();
+
+        await waitFor(() => expect(discardCalls()).toHaveLength(1));
+        const [, init] = discardCalls()[0] as [string, { body: string }];
+        expect(JSON.parse(init.body)).toEqual({ key: KEY });
+        // 失敗自体は伝える
+        expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), "error");
+    });
+});

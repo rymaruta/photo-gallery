@@ -284,6 +284,18 @@ export default function StoriesBar() {
         if (!draft) return;
         setPosting(true);
         stopPreview();
+        // S3 に上げ終わって、まだ保存に至っていない実体のキー
+        let uploadedKey: string | undefined;
+        const discardUploaded = async () => {
+            if (!uploadedKey) return;
+            try {
+                const { userFetch } = await import("../../../lib/utils/api");
+                await userFetch("/upload/discard", {
+                    method: "DELETE", body: JSON.stringify({ key: uploadedKey }),
+                });
+            } catch { /* 消せなくても投稿の失敗は伝える */ }
+            uploadedKey = undefined;
+        };
         try {
             let uploadFile = draft.file;
             if (draft.mediaType === "image") {
@@ -339,7 +351,14 @@ export default function StoriesBar() {
                 body: uploadFile,
                 headers: { "Content-Type": uploadFile.type },
             });
-            if (!s3Res.ok) throw new Error(`S3 ${s3Res.status}`);
+            if (!s3Res.ok) {
+                log.error("story S3 upload failed:", s3Res.status);
+                throw new Error(locale === "en" ? "Could not upload the file." : "ファイルをアップロードできませんでした。");
+            }
+            // ここから先で失敗したら、上げた実体を消す（catch がまとめて見る）。
+            // 保存が通った時点で undefined に戻す——通ったあとの失敗
+            // （一覧の再読込など）で、**使われている実体**を消さないため。
+            uploadedKey = key;
 
             // 表示名を取得（ベストエフォート）
             let displayName: string | undefined;
@@ -367,24 +386,34 @@ export default function StoriesBar() {
                 // 保存に至らなかったので、先に上げた実体を消す。
                 // 残すと、どの削除経路も DynamoDB の項目からキーを引くため
                 // 誰にも辿れないオブジェクトになる（公開URLでは取れる）。
-                if (key) {
-                    await userFetch("/upload/discard", {
-                        method: "DELETE", body: JSON.stringify({ key }),
-                    }).catch(() => { /* 消せなくても投稿の失敗は伝える */ });
-                }
+                await discardUploaded();
                 // 投稿上限（429）はユーザーにそのまま伝える
                 if (saveRes.status === 429) {
                     const err = await saveRes.json().catch(() => ({})) as { error?: string };
                     showToast(err.error ?? (locale === "en" ? "Daily story limit reached" : "投稿上限に達しています"), "error");
                     return;
                 }
-                throw new Error(`save ${saveRes.status}`);
+                // `save ${status}` のような番号だけの文字列を投げない。
+                // catch は e.message をそのまま出すので、利用者に「save 500」が
+                // 見えていた。サーバーの理由を読めればそれを出す。
+                const { readApiError } = await import("../../../lib/utils/api");
+                throw new Error(await readApiError(saveRes,
+                    locale === "en" ? "Failed to post story" : "ストーリーの投稿に失敗しました"));
             }
+            // 保存済み。印を消して、ここから先の失敗では実体を消さない。
+            // ※ 現状、保存成功後に投げる await は無い（loadStories は内部で
+            //   握り潰す）ので、これは**将来ここに処理を足したとき**のための
+            //   防御。観測できないため変異テストでは固定していない。
+            uploadedKey = undefined;
 
             showToast(locale === "en" ? "Story posted!" : "ストーリーを投稿しました", "success");
             closeDraft();
             await loadStories();
         } catch (e) {
+            // **例外で終わった回も実体を消す。** !ok の分岐だけで消していた頃は、
+            // オフライン・DNS 失敗などで userFetch 自体が投げると打ち消しを
+            // 通らず、S3 に上げただけの孤児が残った（再投稿のたびに増える）。
+            await discardUploaded();
             log.error("story upload error:", e);
             // サーバーが断る理由を文章で返している場合はそれを出す。
             // 固定文言で塗り潰していた頃は、枚数を確認できなかった 503 も
