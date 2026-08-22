@@ -354,24 +354,43 @@ describe("写真以外の文書を書き換えさせない", () => {
 // api-user/src/photoUpdate.ts と同じく 404。500 のままだと利用者は
 // 「失敗したので再試行」と読んで押し直す（調査ラウンド2の指摘）。
 describe("updatePhoto: 更新中に写真が消えた", () => {
-    it("持ち主が空の写真 × sub の無いトークンでも通さない（403）", async () => {
-        // callerId の "" 化で薄くなった一枚。!ownerId まで見る
-        // （対の api-user/src/photoUpdate.ts:109 と同じ）
-        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "" });
-        const noSubEv = {
-            pathParameters: { id: "p1" },
-            body: JSON.stringify({ location: "北海道" }),
-            requestContext: { authorizer: { jwt: { claims: { "cognito:groups": "" } } } },
-        };
-        expect((await invoke(noSubEv)).statusCode).toBe(403);
-        expect(mockUpdatePhotoFields).not.toHaveBeenCalled();
-    });
-
     it("ConditionalCheckFailed は 404（500 で再試行を誘わない）", async () => {
         mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner" });
         mockUpdatePhotoFields.mockRejectedValueOnce(
             Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
         const res = await invoke(ev("p1", { location: "北海道" }));
         expect(res.statusCode).toBe(404);
+    });
+});
+
+
+// 所有判定の薄い一枚（8ba7509）。callerId の "" 化（37a9f59）で
+// 「持ち主が空の行 × sub の無いトークン」が "" === "" で通る形になり、
+// !ownerId まで見る（対の api-user/src/photoUpdate.ts:109 と同じ）。
+// **update と delete の両方に同じガードがある**——片方だけの変異を
+// 素通りさせない（8ba7509 のレビューで delete 側が未計測と実証された）。
+describe("持ち主が空の写真 × sub の無いトークンは通さない", () => {
+    const noSubEv = (id: string, method: "PUT" | "DELETE") => ({
+        pathParameters: { id },
+        ...(method === "PUT" ? { body: JSON.stringify({ location: "北海道" }) } : {}),
+        requestContext: { authorizer: { jwt: { claims: { "cognito:groups": "" } } } },
+    });
+
+    it("updatePhoto は 403", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "" });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        expect((await (updatePhoto as any)(noSubEv("p1", "PUT"))).statusCode).toBe(403);
+        expect(mockUpdatePhotoFields).not.toHaveBeenCalled();
+    });
+
+    it("deletePhoto も 403（何も消さない）", async () => {
+        // トップレベルの beforeEach は S3 モックをリセットしない（S3 を使う
+        // describe が自前でリセットしている）ので、ここでも自前で
+        mockS3Send.mockReset().mockResolvedValue({});
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "", src: "https://cdn/uploads/p1.jpg" });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        expect((await (deletePhoto as any)(noSubEv("p1", "DELETE"))).statusCode).toBe(403);
+        expect(mockDeletePhotoById).not.toHaveBeenCalled();
+        expect(mockS3Send).not.toHaveBeenCalled();
     });
 });
