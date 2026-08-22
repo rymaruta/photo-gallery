@@ -81,6 +81,38 @@ describe("MiniPlayer 配置クランプ（メニューバーを塞がない）",
         expect(left + BOX_W).toBeLessThanOrEqual(1024);
     });
 
+    // deps を [pos] にしていた頃は、位置が変わるたび（ドラッグ中は毎フレーム）
+    // リスナが外れて張り直されていた。購読は1回のまま、リサイズで
+    // クランプが効き続けることを見る。
+    it("リサイズの購読は1回だけで、リサイズのたびに画面内へ収め直す", async () => {
+        setDesktop(true);
+        stubBoxSize();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: 100, y: 200 }));
+        const addSpy = vi.spyOn(window, "addEventListener");
+
+        const { container } = render(<MiniPlayer />);
+        await waitFor(() => expect((container.firstChild as HTMLElement).style.top).not.toBe(""));
+
+        // 画面を狭くしてリサイズ → 位置が収め直される（購読が生きている）
+        Object.defineProperty(window, "innerWidth", { writable: true, configurable: true, value: 600 });
+        window.dispatchEvent(new Event("resize"));
+        await waitFor(() => {
+            const left = parseFloat((container.firstChild as HTMLElement).style.left);
+            expect(left + BOX_W).toBeLessThanOrEqual(600);
+        });
+        Object.defineProperty(window, "innerWidth", { writable: true, configurable: true, value: 500 });
+        window.dispatchEvent(new Event("resize"));
+        await waitFor(() => {
+            const left = parseFloat((container.firstChild as HTMLElement).style.left);
+            expect(left + BOX_W).toBeLessThanOrEqual(500);
+        });
+
+        // 位置が2回変わっても resize の購読は最初の1回だけ
+        const resizeAdds = addSpy.mock.calls.filter((c) => c[0] === "resize").length;
+        expect(resizeAdds).toBe(1);
+        addSpy.mockRestore();
+    });
+
     it("モバイル(タッチ): ドラッグ無効。既定の下部固定のまま top を持たない", () => {
         setDesktop(false);
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: 99999, y: 0 }));

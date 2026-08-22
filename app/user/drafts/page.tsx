@@ -10,6 +10,7 @@ import type { Photo } from "@/lib/data/photos";
 import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
+import { formatStoredDateTime } from "@/lib/utils/photoDate";
 
 export default function DraftsPage() {
     const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
@@ -129,7 +130,11 @@ export default function DraftsPage() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                         {drafts.map((p) => {
                             const title = getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : "");
-                            const dateText = p.exif?.dateTimeOriginal || p.date || "";
+                            // 写真ページ（PhotoPageClient の shotAt）と同じ整形。
+                            // 以前は生の値（"2024-10-12T08:30:15+09:00" 等）を
+                            // そのまま出していた。整形できない値は出さない。
+                            const dateText = formatStoredDateTime(
+                                p.exif?.dateTimeOriginal || p.date, isJa ? "ja" : "en") ?? "";
                             return (
                                 <Link
                                     key={p.id}

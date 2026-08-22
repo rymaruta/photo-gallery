@@ -46,8 +46,9 @@ export function sameAuthorPhotos(current: Photo, all: Photo[], limit = 8): Photo
 }
 
 /**
- * 同じ場所の写真（新しい順）。current自身と、同一投稿者の写真は除く
- * （「同じ投稿者」列と重複させないため）。
+ * 同じ場所の写真（新しい順）。current自身だけを除く。
+ * **同一投稿者は除かない**（下の実装コメント参照。以前この JSDoc が
+ * 「同一投稿者の写真は除く」と逆のことを書いていた）。
  */
 export function sameLocationPhotos(current: Photo, all: Photo[], limit = 8): Photo[] {
     const loc = current.location;

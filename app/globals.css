@@ -111,23 +111,10 @@ body {
 }
 
 /* マイランキング: メダルを斜めに横切る光沢スイープ */
-@keyframes medal-shine {
-  0% { left: -60%; }
-  22% { left: 120%; }
-  100% { left: 120%; }
-}
-.medal-shine {
-  left: -60%;
-  transform: skewX(-20deg);
-  animation: medal-shine 3.4s ease-in-out infinite;
-  will-change: left;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .story-media-in { animation: none; }
   .heart-burst { animation-duration: 300ms; }
   .avatar-orbit { animation: none; }
-  .medal-shine { animation: none; opacity: 0; }
 }
 
 /* モバイル: ベースフォントサイズを少し下げる */

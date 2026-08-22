@@ -75,9 +75,12 @@ export default function MiniPlayer() {
         } catch { /* ignore */ }
     }, [draggable]);
 
-    // 画面リサイズ時に画面外へ出ないよう補正
+    // 画面リサイズ時に画面外へ出ないよう補正。
+    // deps を [pos] にしていた頃は、ドラッグ中の setPos のたびに
+    // リスナが外れて張り直されていた（毎フレーム）。clamp は寸法を
+    // その場で読み、位置は関数型更新で触るので、購読は1回でよい。
+    // pos が無い間（下部固定モード）は clamp が何もしない。
     useEffect(() => {
-        if (!pos) return;
         const clamp = () => {
             const el = boxRef.current;
             if (!el) return;
@@ -87,7 +90,7 @@ export default function MiniPlayer() {
         };
         window.addEventListener("resize", clamp);
         return () => window.removeEventListener("resize", clamp);
-    }, [pos]);
+    }, []);
 
     const onPointerDown = useCallback((e: React.PointerEvent) => {
         if (!draggable) return;
