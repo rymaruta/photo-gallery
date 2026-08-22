@@ -18,9 +18,9 @@ export async function fetchFollowingSet(): Promise<Set<string>> {
     if (followingCache) return followingCache;
     if (!followingPromise) {
         const genAtStart = cacheGen;
-        // finally で自分自身と比較するため、先に宣言してから代入する
-        // （finally は完了時にしか走らないので、代入前に参照されることはない。
-        //   const は初期化子が必須で自己参照と両立しないため let + ! を使う）
+        // finally 内で自分自身（p）と比較する。async 本体は先頭の await で
+        // 必ずサスペンドするため、finally が走る時点で p は初期化済み。
+        // ※ const の自己参照は tsc が TS2454 で弾く（実測）ので let + ! を使う
         let p!: Promise<Set<string>>;
         // eslint-disable-next-line prefer-const
         p = (async () => {

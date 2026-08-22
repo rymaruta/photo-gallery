@@ -14,6 +14,7 @@ import userEvent from "@testing-library/user-event";
 //   「失敗した」と言われているので、消えたことに気づく手がかりが無い。
 
 const mockUserFetch = vi.hoisted(() => vi.fn());
+const mockSignIn = vi.hoisted(() => vi.fn());
 const mockGetCurrentSession = vi.hoisted(() => vi.fn());
 const mockCognitoDelete = vi.hoisted(() => vi.fn());
 const mockSignOut = vi.hoisted(() => vi.fn());
@@ -26,7 +27,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("../../../lib/utils/api", () => ({ userFetch: mockUserFetch }));
 vi.mock("../../../lib/auth/cognito", () => ({
-    signIn: vi.fn(),
+    signIn: mockSignIn,
     signOut: mockSignOut,
     getCurrentSession: mockGetCurrentSession,
     deleteAccount: mockCognitoDelete,
@@ -34,6 +35,7 @@ vi.mock("../../../lib/auth/cognito", () => ({
 vi.mock("../../../lib/hooks/useFollow", () => ({ resetFollowingCache: vi.fn() }));
 
 const { AuthProvider, useAuth } = await import("../context");
+const { resetFollowingCache } = await import("../../../lib/hooks/useFollow");
 
 /** 退会を押して、返ってきた結果をそのまま画面に出すだけの部品 */
 function Harness() {
@@ -67,6 +69,11 @@ beforeEach(() => {
     mockCognitoDelete.mockReset().mockResolvedValue({ success: true });
     mockSignOut.mockReset();
     mockPush.mockReset();
+    mockSignIn.mockReset();
+    // vi.mock の factory はファイルで1回しか走らないため、呼び出し回数は
+    // テスト間で累積する。クリアしないと「成功経路で呼ばれた」の断言が
+    // 他のテストの呼び出しを拾って空振りする（55b20b1 レビューの指摘）。
+    vi.mocked(resetFollowingCache).mockClear();
 });
 
 describe("退会: 消す前に、後段が通ることを確かめる", () => {
@@ -123,7 +130,44 @@ describe("退会: 消す前に、後段が通ることを確かめる", () => {
         expect(mockPush).toHaveBeenCalledWith("/");
         // ログアウトと同じ掃除。退会経路だけ抜けていて、同じタブで次に
         // 登録した人に前の人のフォロー一覧が使われる形が残っていた
-        const { resetFollowingCache } = await import("../../../lib/hooks/useFollow");
         expect(resetFollowingCache).toHaveBeenCalled();
+    });
+});
+
+// セッション失効など「明示ログアウトを通らない切れ方」では logout の掃除が
+// 走らない。どの経路で切れていても新しいログインは白紙から始まるように、
+// ログイン成功時にもキャッシュを捨てる。
+describe("ログイン成功時にフォロー一覧のキャッシュを捨てる", () => {
+    function LoginHarness() {
+        const { login } = useAuth();
+        const [done, setDone] = React.useState("");
+        return (
+            <>
+                <button onClick={() => void login("user@example.com", "pw").then((r) => setDone(JSON.stringify(r)))}>
+                    ログイン
+                </button>
+                <output>{done}</output>
+            </>
+        );
+    }
+
+    it("成功したら resetFollowingCache が呼ばれる", async () => {
+        mockSignIn.mockResolvedValue({
+            success: true,
+            groups: ["user"],
+            session: { getIdToken: () => ({ payload: { sub: "new-user" } }) },
+        });
+        render(<AuthProvider><LoginHarness /></AuthProvider>);
+        await userEvent.click(await screen.findByRole("button", { name: "ログイン" }));
+        await waitFor(() => expect(screen.getByRole("status").textContent).toContain("true"));
+        expect(resetFollowingCache).toHaveBeenCalled();
+    });
+
+    it("失敗したら呼ばれない（触っていないキャッシュを消さない）", async () => {
+        mockSignIn.mockResolvedValue({ success: false, error: "bad" });
+        render(<AuthProvider><LoginHarness /></AuthProvider>);
+        await userEvent.click(await screen.findByRole("button", { name: "ログイン" }));
+        await waitFor(() => expect(screen.getByRole("status").textContent).toContain("false"));
+        expect(resetFollowingCache).not.toHaveBeenCalled();
     });
 });
