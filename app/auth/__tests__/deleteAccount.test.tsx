@@ -33,9 +33,13 @@ vi.mock("../../../lib/auth/cognito", () => ({
     deleteAccount: mockCognitoDelete,
 }));
 vi.mock("../../../lib/hooks/useFollow", () => ({ resetFollowingCache: vi.fn() }));
+vi.mock("../../../lib/utils/shareStore", () => ({ clearSharedPayload: vi.fn(async () => { /* noop */ }) }));
+vi.mock("../../../lib/stories", () => ({ clearSeenStories: vi.fn() }));
 
 const { AuthProvider, useAuth } = await import("../context");
 const { resetFollowingCache } = await import("../../../lib/hooks/useFollow");
+const { clearSharedPayload } = await import("../../../lib/utils/shareStore");
+const { clearSeenStories } = await import("../../../lib/stories");
 
 /** 退会を押して、返ってきた結果をそのまま画面に出すだけの部品 */
 function Harness() {
@@ -74,6 +78,8 @@ beforeEach(() => {
     // テスト間で累積する。クリアしないと「成功経路で呼ばれた」の断言が
     // 他のテストの呼び出しを拾って空振りする（55b20b1 レビューの指摘）。
     vi.mocked(resetFollowingCache).mockClear();
+    vi.mocked(clearSharedPayload).mockClear();
+    vi.mocked(clearSeenStories).mockClear();
 });
 
 describe("退会: 消す前に、後段が通ることを確かめる", () => {
@@ -131,6 +137,9 @@ describe("退会: 消す前に、後段が通ることを確かめる", () => {
         // ログアウトと同じ掃除。退会経路だけ抜けていて、同じタブで次に
         // 登録した人に前の人のフォロー一覧が使われる形が残っていた
         expect(resetFollowingCache).toHaveBeenCalled();
+        // 共有シートのペイロードとストーリー既読も、前の人の分を残さない
+        expect(clearSharedPayload).toHaveBeenCalled();
+        expect(clearSeenStories).toHaveBeenCalled();
     });
 });
 
@@ -169,5 +178,44 @@ describe("ログイン成功時にフォロー一覧のキャッシュを捨て�
         await userEvent.click(await screen.findByRole("button", { name: "ログイン" }));
         await waitFor(() => expect(screen.getByRole("status").textContent).toContain("false"));
         expect(resetFollowingCache).not.toHaveBeenCalled();
+    });
+});
+
+// ログアウトでも同じ掃除が走る。ログイン成功では**走らない**——
+// 「共有シート → ログイン → 取り込み」の本流ペイロードを消さないため。
+describe("端末に残る前の人のデータの掃除", () => {
+    function LogoutHarness() {
+        const { logout } = useAuth();
+        return <button onClick={() => logout()}>ログアウト</button>;
+    }
+
+    it("ログアウトで共有ペイロードとストーリー既読を捨てる", async () => {
+        render(<AuthProvider><LogoutHarness /></AuthProvider>);
+        await userEvent.click(await screen.findByRole("button", { name: "ログアウト" }));
+        expect(clearSharedPayload).toHaveBeenCalled();
+        expect(clearSeenStories).toHaveBeenCalled();
+    });
+
+    it("ログイン成功では捨てない（共有→ログイン→取り込みを壊さない）", async () => {
+        mockSignIn.mockResolvedValue({
+            success: true,
+            groups: ["user"],
+            session: { getIdToken: () => ({ payload: { sub: "u" } }) },
+        });
+        function LoginHarness2() {
+            const { login } = useAuth();
+            const [done, setDone] = React.useState("");
+            return (
+                <>
+                    <button onClick={() => void login("a@example.com", "pw").then((r) => setDone(JSON.stringify(r)))}>ログイン</button>
+                    <output>{done}</output>
+                </>
+            );
+        }
+        render(<AuthProvider><LoginHarness2 /></AuthProvider>);
+        await userEvent.click(await screen.findByRole("button", { name: "ログイン" }));
+        await waitFor(() => expect(screen.getByRole("status").textContent).toContain("true"));
+        expect(clearSharedPayload).not.toHaveBeenCalled();
+        expect(clearSeenStories).not.toHaveBeenCalled();
     });
 });

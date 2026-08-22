@@ -116,6 +116,17 @@ export function markStorySeen(id: string): void {
     }
 }
 
+/**
+ * 既読記録を全部消す。ログアウト・退会で呼ぶ（キーがユーザーで
+ * 分かれていないため、次にログインした別の人に前の人の既読リングが
+ * 付いて見え、未読の見逃しを生む）。
+ */
+export function clearSeenStories(): void {
+    try {
+        localStorage.removeItem(SEEN_KEY);
+    } catch { /* ignore */ }
+}
+
 export function hasUnseen(group: StoryGroup, seen: Set<string>): boolean {
     return group.items.some((s) => !seen.has(s.id));
 }

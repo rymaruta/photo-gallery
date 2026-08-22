@@ -7,6 +7,23 @@ import { cognitoConfig } from "../../lib/auth/config";
 import { userFetch } from "../../lib/utils/api";
 import { log } from "../../lib/utils/log";
 import { resetFollowingCache } from "../../lib/hooks/useFollow";
+import { clearSharedPayload } from "../../lib/utils/shareStore";
+import { clearSeenStories } from "../../lib/stories";
+
+/**
+ * アカウントを離れるとき（ログアウト・退会）に、端末に残る
+ * 「前の人のデータ」を捨てる。ログイン成功では呼ばない——
+ * 共有シート → ログイン → 取り込み、という本流のペイロードを
+ * 消してしまうため（resetFollowingCache だけはログインでも呼ぶ。
+ * それぞれの呼び出し箇所を参照）。
+ */
+function clearAccountLocalState(): void {
+    // PWA 共有シートのペイロード（写真の実体）。残すと1時間以内に
+    // ログインした**別の人**のアップロード画面へ自動取り込みされる
+    void clearSharedPayload();
+    // ストーリー既読。共有キーなので前の人の既読リングが付いて見える
+    clearSeenStories();
+}
 
 type AuthContextType = {
     isAuthenticated: boolean;
@@ -148,6 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // クライアント遷移でモジュール状態が残るため、明示的に捨てないと
         // 同じタブで別の人がログインしたときに前の人の一覧が使われる。
         resetFollowingCache();
+        clearAccountLocalState();
         setAuthState({
             isAuthenticated: false,
             isAdminUser: false,
@@ -203,6 +221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // 呼ぶこと」）。退会経路だけ抜けていて、同じタブで次に登録した
             // 人に前の人のフォロー一覧が使われる形が残っていた。
             resetFollowingCache();
+            clearAccountLocalState();
             setAuthState({
                 isAuthenticated: false,
                 isAdminUser: false,
