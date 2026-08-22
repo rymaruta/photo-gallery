@@ -277,9 +277,14 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                 url ? (locale === "en" ? "MV added 🎬" : "MVを設定しました 🎬") : (locale === "en" ? "MV removed" : "MVを外しました"),
                 "success",
             );
-        } catch {
-            // fetch 自体の失敗（通信断など）。リンクの正誤とは無関係
-            showToast(locale === "en" ? "Network error. Please try again." : "通信に失敗しました。時間をおいてもう一度お試しください", "error");
+        } catch (e) {
+            // fetch 自体の失敗。トークン不在（userFetch が投げる）は
+            // 「時間をおいて」では直らないので、そのまま伝える
+            const { AUTH_REQUIRED_MESSAGE } = await import("../../../lib/utils/api");
+            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
+            showToast(authMissing
+                ? AUTH_REQUIRED_MESSAGE
+                : (locale === "en" ? "Network error. Please try again." : "通信に失敗しました。時間をおいてもう一度お試しください"), "error");
         } finally {
             setYtSaving(false);
         }

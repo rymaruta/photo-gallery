@@ -85,6 +85,23 @@ describe("MV設定の失敗理由が伝わる", () => {
             "通信に失敗しました。時間をおいてもう一度お試しください", "error"));
     });
 
+    it("トークン期限切れ（API GW の 401 定型）は再ログインの文言を出す", async () => {
+        mockUserFetch.mockResolvedValueOnce({
+            ok: false, status: 401, json: async () => ({ message: "Unauthorized" }),
+        });
+        await saveMv("https://www.youtube.com/watch?v=abc123");
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
+            "セッションの有効期限が切れています。ログインし直してください", "error"));
+        expect(mockShowToast).not.toHaveBeenCalledWith("Unauthorized", "error");
+    });
+
+    it("トークン不在（userFetch が投げる）は「時間をおいて」ではなくログインを促す", async () => {
+        const { AUTH_REQUIRED_MESSAGE } = await import("../../../../lib/utils/api");
+        mockUserFetch.mockRejectedValueOnce(new Error(AUTH_REQUIRED_MESSAGE));
+        await saveMv("https://www.youtube.com/watch?v=abc123");
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(AUTH_REQUIRED_MESSAGE, "error"));
+    });
+
     it("保存できたら成功のトースト（今までどおり）", async () => {
         mockUserFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
         await saveMv("https://www.youtube.com/watch?v=abc123");

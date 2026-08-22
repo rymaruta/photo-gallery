@@ -49,7 +49,7 @@ export async function authenticatedFetch(path: string, options?: RequestInit): P
     const token = session?.getIdToken()?.getJwtToken();
 
     if (!token) {
-        throw new Error("認証が必要です。ログインしてください。");
+        throw new Error(AUTH_REQUIRED_MESSAGE);
     }
 
     return fetch(url, {
@@ -73,7 +73,7 @@ export async function userFetch(path: string, options?: RequestInit): Promise<Re
     const token = session?.getIdToken()?.getJwtToken();
 
     if (!token) {
-        throw new Error("認証が必要です。ログインしてください。");
+        throw new Error(AUTH_REQUIRED_MESSAGE);
     }
 
     return fetch(url, {
@@ -109,13 +109,28 @@ export async function userPublicFetch(path: string, options?: RequestInit): Prom
  *
  * 読めなければ渡された既定文に落とす。
  */
+/**
+ * トークンが取れないときに userFetch / userPublicFetch が投げるエラーの文言。
+ * 呼び出し側の catch はこれと比較して「通信の失敗」と「未ログイン」を
+ * 見分ける（文字列の重複比較を散らばらせない）。
+ */
+export const AUTH_REQUIRED_MESSAGE = "認証が必要です。ログインしてください。";
+
+/** 期限切れトークンで API Gateway が返す 401 定型に対する置き換え文言 */
+export const SESSION_EXPIRED_MESSAGE = "セッションの有効期限が切れています。ログインし直してください";
+
 export async function readApiError(res: Response, fallback: string): Promise<string> {
+    let msg = "";
     try {
         const data = await res.json() as { error?: unknown; message?: unknown };
-        const msg = typeof data.error === "string" ? data.error
+        msg = typeof data.error === "string" ? data.error
             : typeof data.message === "string" ? data.message
                 : "";
-        if (msg) return msg;
     } catch { /* JSON でなければ既定文 */ }
-    return fallback;
+    // API Gateway の JWT オーソライザは期限切れトークンに
+    // {"message":"Unauthorized"} を返す。英語の定型を生で出さず、
+    // 何が起きたか（再ログインで直る）が伝わる文言に置き換える。
+    // 自前の API が返す日本語の error（「認証が必要です」等）はそのまま通す。
+    if (res.status === 401 && (!msg || msg === "Unauthorized")) return SESSION_EXPIRED_MESSAGE;
+    return msg || fallback;
 }
