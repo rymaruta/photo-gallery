@@ -113,3 +113,37 @@ describe("/admin/edit: 遅れて届いた別の写真の応答", () => {
         expect(JSON.parse(init.body).location).toBe("Aの場所");
     });
 });
+
+// 素の文字列 title/description は「日本語のみ・英語版なし」。以前は
+// 読み込みで ja/en 両方の欄に同じ文字列が入り、保存で en に日本語が
+// 焼き込まれた（/user/edit の mergeLocalizedTitle は守っている——対の乖離）。
+describe("素の文字列タイトルを en に複製しない", () => {
+    it("読み込んでそのまま保存しても、en に日本語が入らない", async () => {
+        const stringPhoto = {
+            id: "A", src: "https://cdn/A.jpg",
+            title: "夕焼けの湖",                       // 素の文字列
+            description: "湖畔にて。",                  // 素の文字列
+            location: "山中湖", category: "風景",
+            date: "2024-10-12", tags: [], published: true, exif: {},
+        };
+        mockAuthFetch.mockImplementation((_url: string, init?: { method?: string }) => {
+            if (init?.method === "PUT") return Promise.resolve({ ok: true, json: async () => ({ success: true }) });
+            return Promise.resolve({ ok: true, json: async () => [stringPhoto] });
+        });
+
+        render(<EditPage />);
+        await screen.findByDisplayValue("夕焼けの湖");
+
+        await userEvent.click(screen.getByRole("button", { name: /保存/ }));
+        await waitFor(() => expect(putCalls()).toHaveLength(1));
+
+        const body = JSON.parse((putCalls()[0][1] as { body: string }).body) as {
+            title: { ja: string; en: string };
+            description: { ja: string[]; en: string[] };
+        };
+        expect(body.title.ja).toBe("夕焼けの湖");
+        expect(body.title.en).toBe("");                 // 日本語を複製しない
+        expect(body.description.ja).toEqual(["湖畔にて。"]);
+        expect(body.description.en).toEqual([]);
+    });
+});

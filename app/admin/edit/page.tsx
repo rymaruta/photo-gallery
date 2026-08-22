@@ -21,7 +21,11 @@ const sectionCls = "border-t border-white/10 pt-5";
 
 function parseParagraphs(desc: Photo["description"], lang: "ja" | "en"): string {
     if (!desc) return "";
-    if (typeof desc === "string") return desc;
+    // 素の文字列は「日本語のみ・英語版なし」。以前は lang を見ずに両方へ
+    // 返していて、保存時に {ja, en} の**両方へ同じ日本語**が入り、
+    // JSON-LD や英語併記に日本語が焼き込まれた（/user/edit の
+    // mergeLocalizedDescription は英語版なしを守っている——対の乖離）。
+    if (typeof desc === "string") return lang === "ja" ? desc : "";
     const arr = (desc as LocalizedParagraphs)[lang];
     return Array.isArray(arr) ? arr.join("\n") : "";
 }
@@ -108,9 +112,12 @@ function AdminEditContent() {
                     const titleJaVal = typeof t === "object" && t !== null
                         ? (t as Record<string, string>).ja ?? ""
                         : typeof t === "string" ? t : "";
+                    // 素の文字列は英語版なし（en 欄には入れない）。ここに同じ
+                    // 文字列を入れると保存で en に日本語が焼き込まれる。
+                    // 保存時の en:"" はサーバー（sanitizeTitle）が落とす
                     const titleEnVal = typeof t === "object" && t !== null
                         ? (t as Record<string, string>).en ?? ""
-                        : typeof t === "string" ? t : "";
+                        : "";
                     setTitleJa(titleJaVal);
                     setTitleEn(titleEnVal);
 
