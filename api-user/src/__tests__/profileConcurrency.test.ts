@@ -141,6 +141,17 @@ describe("songUrl を触らない更新は再生位置を消さない", () => {
         expect(item.songEnd?.N).toBe("90");
     });
 
+    it("{ songUrl, songEnd: 20 } を保存済み songStart=30 と組ませない（E-8）", async () => {
+        mockSend
+            .mockResolvedValueOnce(profileItem(withSong))
+            .mockResolvedValueOnce({});
+        expect((await invoke({ songUrl: withSong.songUrl, songEnd: 20 })).statusCode).toBe(200);
+        const item = profilePuts().at(-1)!.Item as Record<string, { N?: string }>;
+        expect(item.songStart?.N).toBe("30");
+        // 終了が開始より前の区間は再生されない死んだ値なので保存しない
+        expect(item.songEnd).toBeUndefined();
+    });
+
     it("songUrl を空で送れば位置も一緒に消える（曲を消す回）", async () => {
         mockSend
             .mockResolvedValueOnce(profileItem(withSong))

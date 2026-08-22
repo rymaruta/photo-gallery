@@ -275,4 +275,16 @@ describe("mergeProfile: songUrl を触らない更新は位置も触らない", 
         const merged = mergeProfile(prev, "me", { songUrl: prev.songUrl, songEnd: 45 });
         expect((merged as Record<string, unknown>).songEnd).toBe(45);
     });
+
+    // **書き込み時の修復（意図した挙動として固定する）。**
+    // 検証導入前に保存された不正区間（end <= start）が残っている人は、
+    // 曲に触れない更新（ピン留め等）でも songEnd が落ちる。
+    // 「送られていない項目は触らない」契約の例外だが、end <= start の
+    // 区間はそもそも再生されない死んだ値なので、残す価値が無い。
+    it("保存済みの不正区間は、無関係な更新のついでに songEnd を落とす（修復）", () => {
+        const broken = { userId: "me", songUrl: prev.songUrl, songStart: 30, songEnd: 30 } as unknown as UserProfile;
+        const merged = mergeProfile(broken, "me", { statusText: "旅の途中" });
+        expect((merged as Record<string, unknown>).songStart).toBe(30);
+        expect(merged).not.toHaveProperty("songEnd");
+    });
 });

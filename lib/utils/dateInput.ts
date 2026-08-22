@@ -26,6 +26,11 @@ export function mergeDate(original: string | undefined, input: string): string {
     if (!original) return input;
     const t = Date.parse(original);
     if (Number.isNaN(t)) return input;
-    // 元の日付と同じなら元の値（時刻つき）をそのまま使う
-    return new Date(t).toISOString().slice(0, 10) === input ? original : input;
+    if (new Date(t).toISOString().slice(0, 10) !== input) return input;
+    // 元の日付と同じ。時刻を保つ——ただし「UTC 0時ちょうど」は、
+    // 旧 sanitizeDate が日付だけの入力に付けていた**捏造の時刻**（C-12）。
+    // 保つ価値が無いどころか、ここで返し続けると「日付を変えない再保存」が
+    // 永久に移行されない。日付だけに直して返す。
+    if (original.endsWith("T00:00:00.000Z")) return input;
+    return original;
 }

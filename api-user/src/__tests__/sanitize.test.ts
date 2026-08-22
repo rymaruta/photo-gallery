@@ -49,6 +49,13 @@ describe("sanitizeDate（撮影日）", () => {
         // 範囲チェックは日付だけでも効く
         expect(sanitizeDate("1980-01-01")).toBeUndefined();
     });
+    it("日付だけの未来境界: 昨日は通り、明後日は弾く（+24h マージンとの噛み合い）", () => {
+        // "明日" の date-only は UTC 深夜として +24h マージン内に必ず収まる
+        // （時差で「現地の今日」が弾かれないための余白）。明後日は必ず外れる。
+        const d = (offsetDays: number) => new Date(Date.now() + offsetDays * 864e5).toISOString().slice(0, 10);
+        expect(sanitizeDate(d(-1))).toBe(d(-1));
+        expect(sanitizeDate(d(2))).toBeUndefined();
+    });
     it("空・非文字列・解釈不能はundefined", () => {
         expect(sanitizeDate("")).toBeUndefined();
         expect(sanitizeDate("   ")).toBeUndefined();
