@@ -106,3 +106,31 @@ describe("アカウントを切り替えたら判定を持ち越さない", () =
         expect(screen.queryByText("名前を決めましょう")).toBeNull();
     });
 });
+
+// 上の2本は「フェッチ解決後」しか見ておらず、表示条件から userId の
+// 一致を外す変異が素通りした（実測）。切替直後・確認前の過渡状態で
+// 前の人の判定が使われないことを、フェッチを未解決のまま観測して固定する。
+describe("切替直後・確認前に前の人の判定で描かない", () => {
+    it("名前なしAのバナーは、Bの確認が終わるまで（未解決の間）出ない", async () => {
+        mockUserFetch.mockResolvedValue(profile(undefined));
+        const { rerender } = render(<ProfileSetupBanner />);
+        expect(await screen.findByText("名前を決めましょう")).toBeInTheDocument();
+
+        // ログアウト → B がログイン。B のプロフィール取得は**まだ返さない**
+        auth.isAuthenticated = false;
+        auth.userId = null;
+        rerender(<ProfileSetupBanner />);
+        let resolveB!: (v: unknown) => void;
+        mockUserFetch.mockReturnValue(new Promise((r) => { resolveB = r; }));
+        auth.isAuthenticated = true;
+        auth.userId = "user-b";
+        rerender(<ProfileSetupBanner />);
+
+        // 確認前。A の判定（needsName=true）で描いてはいけない
+        expect(screen.queryByText("名前を決めましょう")).toBeNull();
+
+        resolveB(profile("旅人B"));
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalledTimes(2));
+        expect(screen.queryByText("名前を決めましょう")).toBeNull();
+    });
+});
