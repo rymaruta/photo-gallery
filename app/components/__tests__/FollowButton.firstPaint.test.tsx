@@ -1,6 +1,7 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { render, waitFor } from "@testing-library/react";
 
 // 最初の描画（静的書き出しの HTML と、水和する前の1フレーム）で
 // フォローボタンが押せてしまうと、フォロー中かどうかが分かる前に
@@ -47,5 +48,31 @@ describe("フォローボタンの最初の描画", () => {
             />,
         );
         expect(html).toBe("");
+    });
+});
+
+// 配線の検証: FollowAction は数を描かないので、useFollow に「数は要らない」と
+// 伝える（第3引数 false）。これが外れると、ユーザー検索の結果 N 件で
+// GET /users/<id>/follow が N 本飛ぶ（結果は画面のどこにも描かれない）。
+// フック側の性質は lib/hooks/__tests__/useFollow.test.tsx が測っている。
+// ここはコンポーネントが実際にそう呼んでいることを、マウントして確かめる。
+describe("FollowAction: 数の問い合わせを投げない", () => {
+    it("マウントして判定が終わっても、数の取得（userPublicFetch）は呼ばれない", async () => {
+        const api = await import("../../../lib/utils/api");
+        vi.mocked(api.userPublicFetch).mockClear();
+        vi.mocked(api.userFetch).mockClear();
+
+        render(
+            <FollowAction
+                targetUserId="22222222-2222-4222-8222-222222222222"
+                isOwner={false}
+                isAuthenticated
+                locale="ja"
+            />,
+        );
+        // フォロー中かどうかの一覧は取りに行く（ボタンの表示に必要）
+        await waitFor(() => expect(api.userFetch).toHaveBeenCalled());
+        // 数はどこにも描かないので取りに行かない
+        expect(api.userPublicFetch).not.toHaveBeenCalled();
     });
 });

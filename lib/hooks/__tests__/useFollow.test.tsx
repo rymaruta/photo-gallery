@@ -67,3 +67,26 @@ describe("useFollow: 判定が終わるまで押させない", () => {
         expect(mockUserFetch).not.toHaveBeenCalled();
     });
 });
+
+// 数を描かない呼び出し元（ボタン単体）まで無条件に GET /users/<id>/follow を
+// 投げていた。ユーザー検索では結果1件ごとに1本、どこにも描かれない数の
+// 問い合わせが飛ぶ。数が要るかは呼び出し元が知っているので、引数で断れるようにした。
+describe("useFollow: 数を使わない呼び出し元は数の問い合わせを飛ばさない", () => {
+    it("withCounts=false なら数を取りに行かない", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: [] }) });
+        const useFollow = await load();
+
+        const { result } = renderHook(() => useFollow(TARGET, true, false));
+        await waitFor(() => expect(result.current.resolved).toBe(true));
+        expect(mockPublicFetch).not.toHaveBeenCalled();
+    });
+
+    it("既定では取りに行く（数のピルの表示を壊していない）", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: [] }) });
+        const useFollow = await load();
+
+        const { result } = renderHook(() => useFollow(TARGET, true));
+        await waitFor(() => expect(result.current.followers).toBe(3));
+        expect(mockPublicFetch).toHaveBeenCalledWith(`/users/${encodeURIComponent(TARGET)}/follow`);
+    });
+});

@@ -258,12 +258,19 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     const savePhotoYoutube = async (url: string | null) => {
         setYtSaving(true);
         try {
-            const { userFetch } = await import("../../../lib/utils/api");
+            const { userFetch, readApiError } = await import("../../../lib/utils/api");
             const res = await userFetch(`/photos/${encodeURIComponent(photoId)}`, {
                 method: "PUT",
                 body: JSON.stringify({ songYoutubeUrl: url ?? "" }),
             });
-            if (!res.ok) throw new Error(String(res.status));
+            if (!res.ok) {
+                // 失敗の理由はサーバーの文言をそのまま出す（400 なら
+                // 「不正なYouTube URLです」が返る）。以前は通信断・認証切れ・
+                // 500 まで一律「YouTubeリンクが正しくありません」に潰していて、
+                // 正しいリンクを何度も貼り直させる形だった。
+                showToast(await readApiError(res, locale === "en" ? "Could not save the MV" : "MVを保存できませんでした"), "error");
+                return;
+            }
             setPhotoYtUrl(url);
             setYtInput("");
             showToast(
@@ -271,7 +278,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                 "success",
             );
         } catch {
-            showToast(locale === "en" ? "Invalid YouTube link" : "YouTubeリンクが正しくありません", "error");
+            // fetch 自体の失敗（通信断など）。リンクの正誤とは無関係
+            showToast(locale === "en" ? "Network error. Please try again." : "通信に失敗しました。時間をおいてもう一度お試しください", "error");
         } finally {
             setYtSaving(false);
         }

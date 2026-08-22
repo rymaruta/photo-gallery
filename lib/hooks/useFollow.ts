@@ -107,7 +107,15 @@ function loadCounts(userId: string): Promise<void> {
     return p;
 }
 
-export function useFollow(targetUserId: string | undefined, isAuthenticated: boolean) {
+/**
+ * @param withCounts フォロワー/フォロー中の数を取りに行くか。
+ *   数を描かない呼び出し元（FollowAction＝ボタン単体）は false を渡す。
+ *   以前は無条件に GET /users/<id>/follow を投げていて、ユーザー検索の
+ *   結果一覧では**検索1回につき結果の件数ぶん**の問い合わせが飛んでいた
+ *   （結果は画面のどこにも描かれない）。プロフィールでは数のピル
+ *   （FollowButton）が別に true で呼ぶので、そちらの表示は変わらない。
+ */
+export function useFollow(targetUserId: string | undefined, isAuthenticated: boolean, withCounts = true) {
     const [isFollowing, setIsFollowing] = useState(false);
     const [pending, setPending] = useState(false);
     // フォロー中かどうかが**まだ分かっていない**間を表す。
@@ -130,7 +138,7 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
         if (!targetUserId) return;
         let aborted = false;
         setResolved(false);
-        void loadCounts(targetUserId);
+        if (withCounts) void loadCounts(targetUserId);
         if (isAuthenticated) {
             void fetchFollowingSet()
                 .then((set) => { if (!aborted) setIsFollowing(set.has(targetUserId)); })
@@ -141,7 +149,7 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
             setResolved(true);
         }
         return () => { aborted = true; };
-    }, [targetUserId, isAuthenticated]);
+    }, [targetUserId, isAuthenticated, withCounts]);
 
     const toggle = useCallback(async (): Promise<"followed" | "unfollowed" | "auth-required" | "error"> => {
         if (!targetUserId) return "error";

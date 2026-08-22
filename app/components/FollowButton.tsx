@@ -42,7 +42,9 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale }: 
  * プロフィールのアクション行（編集/写真を追加 と同じ場所）に置けるようにする。
  */
 export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale }: Props) {
-    const { isFollowing, pending, resolved, toggle } = useFollow(targetUserId, isAuthenticated);
+    // 数は描かないので取りに行かない（検索結果 N 件で N 本飛んでいた）。
+    // 数のピルはプロフィールの FollowButton が別に取る。
+    const { isFollowing, pending, resolved, toggle } = useFollow(targetUserId, isAuthenticated, false);
     const { showToast } = useToast();
 
     if (isOwner) return null;
