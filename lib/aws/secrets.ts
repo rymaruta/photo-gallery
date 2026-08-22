@@ -124,3 +124,18 @@ export async function getConfig(): Promise<{
         useIamRole: !config.awsAccessKeyId && !config.awsSecretAccessKey,
     };
 }
+
+/**
+ * 開発用APIのキー検査。**設定が空なら誰も通さない。**
+ *
+ * `apiKey !== config.uploadApiKey` の直接比較だった頃は、UPLOAD_API_KEY が
+ * 未設定（= 空文字）のとき、`x-api-key: ""` と**空文字のヘッダを送るだけで
+ * `"" !== ""` が偽になり認証を通った**。DELETE /api/photos/<id> まで同じ形
+ * だったので、`npm run dev` を上げているマシンの写真を消せた。
+ * app/api/** は開発専用（ビルドから退避される）だが、fail-open にはしない。
+ * 4つの route が同じ検査をするので、判定はここ1か所に置く。
+ */
+export function isAuthorizedApiKey(headerValue: string | null, configuredKey: string): boolean {
+    if (!configuredKey) return false;   // 鍵を設定していないなら、開いているのではなく閉じている
+    return headerValue === configuredKey;
+}
