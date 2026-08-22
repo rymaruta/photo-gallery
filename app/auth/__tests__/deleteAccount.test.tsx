@@ -35,11 +35,13 @@ vi.mock("../../../lib/auth/cognito", () => ({
 vi.mock("../../../lib/hooks/useFollow", () => ({ resetFollowingCache: vi.fn() }));
 vi.mock("../../../lib/utils/shareStore", () => ({ clearSharedPayload: vi.fn(async () => { /* noop */ }) }));
 vi.mock("../../../lib/stories", () => ({ clearSeenStories: vi.fn() }));
+vi.mock("../../../lib/hooks/useFavorites", () => ({ setFavoritesUser: vi.fn() }));
 
 const { AuthProvider, useAuth } = await import("../context");
 const { resetFollowingCache } = await import("../../../lib/hooks/useFollow");
 const { clearSharedPayload } = await import("../../../lib/utils/shareStore");
 const { clearSeenStories } = await import("../../../lib/stories");
+const { setFavoritesUser } = await import("../../../lib/hooks/useFavorites");
 
 /** 退会を押して、返ってきた結果をそのまま画面に出すだけの部品 */
 function Harness() {
@@ -80,6 +82,7 @@ beforeEach(() => {
     vi.mocked(resetFollowingCache).mockClear();
     vi.mocked(clearSharedPayload).mockClear();
     vi.mocked(clearSeenStories).mockClear();
+    vi.mocked(setFavoritesUser).mockClear();
 });
 
 describe("退会: 消す前に、後段が通ることを確かめる", () => {
@@ -140,6 +143,8 @@ describe("退会: 消す前に、後段が通ることを確かめる", () => {
         // 共有シートのペイロードとストーリー既読も、前の人の分を残さない
         expect(clearSharedPayload).toHaveBeenCalled();
         expect(clearSeenStories).toHaveBeenCalled();
+        // お気に入りは共有キー（未ログイン）に戻す
+        expect(setFavoritesUser).toHaveBeenCalledWith(null);
     });
 });
 
@@ -170,6 +175,8 @@ describe("ログイン成功時にフォロー一覧のキャッシュを捨て�
         await userEvent.click(await screen.findByRole("button", { name: "ログイン" }));
         await waitFor(() => expect(screen.getByRole("status").textContent).toContain("true"));
         expect(resetFollowingCache).toHaveBeenCalled();
+        // お気に入りをこのアカウントのキーに向ける
+        expect(setFavoritesUser).toHaveBeenCalledWith("new-user");
     });
 
     it("失敗したら呼ばれない（触っていないキャッシュを消さない）", async () => {
@@ -194,6 +201,7 @@ describe("端末に残る前の人のデータの掃除", () => {
         await userEvent.click(await screen.findByRole("button", { name: "ログアウト" }));
         expect(clearSharedPayload).toHaveBeenCalled();
         expect(clearSeenStories).toHaveBeenCalled();
+        expect(setFavoritesUser).toHaveBeenCalledWith(null);
     });
 
     it("ログイン成功では捨てない（共有→ログイン→取り込みを壊さない）", async () => {

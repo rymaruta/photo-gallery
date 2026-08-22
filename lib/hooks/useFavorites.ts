@@ -1,8 +1,38 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { storageGet, storageSet } from "../utils/storage";
 
-const STORAGE_KEY = "photo-gallery-favorites";
+// 未ログイン（端末）用の従来キー。ログイン中はユーザーごとのキーに分ける。
+// 共有キー1本だった頃は、A のハート一覧が同じ端末の B や未ログイン閲覧者に
+// そのまま見え、いいね判定のフォールバック（usePhotoLikes の
+// `serverLiked ?? isFavorite`）を通じて B の初回押下が DELETE に化けもした。
+const SHARED_KEY = "photo-gallery-favorites";
 const CHANGE_EVENT = "favorites-updated";
+
+let activeUserId: string | null = null;
+const keyFor = (uid: string | null) => (uid ? `${SHARED_KEY}:${uid}` : SHARED_KEY);
+const currentKey = () => keyFor(activeUserId);
+
+/**
+ * いまのアカウントを教える。auth/context が checkAuth / ログイン成功 /
+ * ログアウト / 退会で呼ぶ。ログイン中のハートはユーザーごとのキーに入る。
+ *
+ * 初回ログイン時は従来の共有キーから**引き継いで空にする**——
+ * これまでログイン中に付けたハートは共有キーに溜まっているので、
+ * 引き継がないと全員のお気に入り一覧が空に見える。共有キーを空にするのは、
+ * 次にログインした別の人や未ログイン閲覧者に前の人のハートを見せないため。
+ */
+export function setFavoritesUser(userId: string | null): void {
+    if (activeUserId === userId) return;
+    activeUserId = userId;
+    if (userId !== null && storageGet<string[]>(keyFor(userId)) === undefined) {
+        const shared = storageGet<string[]>(SHARED_KEY);
+        if (shared && shared.length > 0) {
+            storageSet(keyFor(userId), shared);
+            storageSet(SHARED_KEY, []);
+        }
+    }
+    invalidate();
+}
 
 // お気に入りは端末ローカル（localStorage）にしか無い。
 //
@@ -23,7 +53,7 @@ const listeners = new Set<() => void>();
 /** 保存済みの値。参照を安定させないと useSyncExternalStore が無限に再描画する。 */
 function getSnapshot(): readonly string[] {
     if (!loaded) {
-        snapshot = storageGet<string[]>(STORAGE_KEY) ?? EMPTY;
+        snapshot = storageGet<string[]>(currentKey()) ?? EMPTY;
         loaded = true;
     }
     return snapshot;
@@ -58,7 +88,7 @@ export function useFavorites() {
     const favorites = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
     const save = useCallback((next: string[]) => {
-        storageSet(STORAGE_KEY, next);
+        storageSet(currentKey(), next);
         invalidate();
         window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
     }, []);
@@ -70,7 +100,7 @@ export function useFavorites() {
 
     // Always reads from storage to avoid stale-closure issues.
     const toggleFavorite = useCallback((photoId: string) => {
-        const current = storageGet<string[]>(STORAGE_KEY) ?? [];
+        const current = storageGet<string[]>(currentKey()) ?? [];
         save(
             current.includes(photoId)
                 ? current.filter((id) => id !== photoId)
@@ -87,4 +117,5 @@ export function useFavorites() {
 export function resetFavoritesCache(): void {
     loaded = false;
     snapshot = EMPTY;
+    activeUserId = null;
 }

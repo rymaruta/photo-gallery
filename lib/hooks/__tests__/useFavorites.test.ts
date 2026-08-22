@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useFavorites, resetFavoritesCache } from "../useFavorites";
+import { useFavorites, resetFavoritesCache, setFavoritesUser } from "../useFavorites";
 
 const localStorageMock = (() => {
     let store: Record<string, string> = {};
@@ -75,5 +75,46 @@ describe("useFavorites", () => {
             expect(result.current.favorites).toEqual([]);
             expect(JSON.parse(localStorageMock.getItem("photo-gallery-favorites")!)).toEqual([]);
         });
+    });
+});
+
+// お気に入りが共有キー1本だった頃は、A のハート一覧が同じ端末の B や
+// 未ログイン閲覧者にそのまま見えていた。ログイン中はユーザーごとのキーに分ける。
+describe("setFavoritesUser: アカウントごとにハートを分ける", () => {
+    it("A のハートは B に見えず、A に戻れば見える", () => {
+        setFavoritesUser("user-a");
+        const { result, rerender } = renderHook(() => useFavorites());
+        act(() => result.current.toggleFavorite("p1"));
+        expect(result.current.favorites).toEqual(["p1"]);
+
+        act(() => setFavoritesUser("user-b"));
+        rerender();
+        expect(result.current.favorites).toEqual([]);
+
+        act(() => setFavoritesUser("user-a"));
+        rerender();
+        expect(result.current.favorites).toEqual(["p1"]);
+    });
+
+    it("初回ログインで共有キーから引き継ぎ、共有キーは空にする（次の人に見せない）", () => {
+        localStorageMock.setItem("photo-gallery-favorites", JSON.stringify(["p1", "p2"]));
+        act(() => setFavoritesUser("user-a"));
+        const { result } = renderHook(() => useFavorites());
+        expect(result.current.favorites).toEqual(["p1", "p2"]);
+        // 共有キーは空になっている＝ログアウト後の閲覧者・次の人には見えない
+        expect(JSON.parse(localStorageMock.getItem("photo-gallery-favorites")!)).toEqual([]);
+        // 2回目以降のログインでは（自分のキーがあるので）引き継ぎは走らない
+        localStorageMock.setItem("photo-gallery-favorites", JSON.stringify(["stranger"]));
+        act(() => setFavoritesUser(null));
+        act(() => setFavoritesUser("user-a"));
+        const { result: again } = renderHook(() => useFavorites());
+        expect(again.current.favorites).toEqual(["p1", "p2"]);
+    });
+
+    it("ログアウト（null）では共有キーに戻る", () => {
+        localStorageMock.setItem("photo-gallery-favorites", JSON.stringify(["anon"]));
+        act(() => setFavoritesUser(null));
+        const { result } = renderHook(() => useFavorites());
+        expect(result.current.favorites).toEqual(["anon"]);
     });
 });

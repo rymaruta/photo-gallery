@@ -9,6 +9,7 @@ import { log } from "../../lib/utils/log";
 import { resetFollowingCache } from "../../lib/hooks/useFollow";
 import { clearSharedPayload } from "../../lib/utils/shareStore";
 import { clearSeenStories } from "../../lib/stories";
+import { setFavoritesUser } from "../../lib/hooks/useFavorites";
 
 /**
  * アカウントを離れるとき（ログアウト・退会）に、端末に残る
@@ -83,6 +84,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const general = !admin && groups.includes("user");
             const sub = typeof payload["sub"] === "string" ? payload["sub"] : null;
 
+            // お気に入りをこのアカウントのキーに向ける（未ログインなら共有キー）
+            setFavoritesUser(authenticated ? sub : null);
             setAuthState({
                 isAuthenticated: authenticated,
                 isAdminUser: admin,
@@ -136,6 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // 切れた」場合はそちらが走らない。どの経路で切れていても、
                 // **新しいログインは白紙から始める**のが確実。
                 resetFollowingCache();
+                setFavoritesUser(sub ?? null);
                 setAuthState({
                     isAuthenticated: true,
                     isAdminUser: admin,
@@ -166,6 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // 同じタブで別の人がログインしたときに前の人の一覧が使われる。
         resetFollowingCache();
         clearAccountLocalState();
+        setFavoritesUser(null);
         setAuthState({
             isAuthenticated: false,
             isAdminUser: false,
@@ -222,6 +227,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // 人に前の人のフォロー一覧が使われる形が残っていた。
             resetFollowingCache();
             clearAccountLocalState();
+            setFavoritesUser(null);
             setAuthState({
                 isAuthenticated: false,
                 isAdminUser: false,
