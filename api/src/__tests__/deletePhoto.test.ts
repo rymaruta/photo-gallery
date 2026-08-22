@@ -2,9 +2,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockDdbSend = vi.hoisted(() => vi.fn());
 
+// テーブル名は ddb-photos.ts が requireEnv("PHOTOS_TABLE") で env から読む
+// （下の stubEnv が効く）。以前ここに `TABLE: "photos-test"` という
+// **存在しない export** を混ぜていて、モックで差し替わっているように読めた。
 vi.mock("../dynamodb", () => ({
     ddb: { send: mockDdbSend },
-    TABLE: "photos-test",
 }));
 
 vi.stubEnv("PHOTOS_TABLE", "photos-test");

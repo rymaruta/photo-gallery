@@ -64,3 +64,20 @@ describe("putPhoto: 既存の行を置き換えない", () => {
         expect(input.Item).toEqual({ id: "p1", src: "https://cdn/p1.jpg" });
     });
 });
+
+// 削除経路（photosMutate.deletePhoto）は getPhotoById の戻り値から
+// srcOriginal（GPS入り原本）のキーを読んで S3 の実体を消す。
+// データ層がここを「公開向けに」落とすと、**原本が二度と消せなくなる**。
+// 公開APIで落とすのはハンドラ側（photos.ts）だけ——データ層側から固定する。
+describe("getPhotoById: srcOriginal を落とさない", () => {
+    it("保存されている項目をそのまま返す", async () => {
+        mockSend.mockResolvedValueOnce({ Item: {
+            id: "p1", src: "https://cdn/p1.jpg",
+            srcOriginal: "https://cdn/uploads/originals/p1.jpg", key: "uploads/u1/p1.jpg",
+        } });
+        const { getPhotoById } = await import("../ddb-photos");
+        const p = await getPhotoById("p1");
+        expect(p).toHaveProperty("srcOriginal", "https://cdn/uploads/originals/p1.jpg");
+        expect(p).toHaveProperty("key", "uploads/u1/p1.jpg");
+    });
+});

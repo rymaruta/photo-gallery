@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, cleanup, waitFor } from "@testing-library/react";
 
 // 回帰ガード: デスクトップでミニプレイヤーをヘッダー(メニューバー)の上に置こうとしても、
@@ -39,9 +39,26 @@ beforeEach(() => {
     Object.defineProperty(window, "innerHeight", { writable: true, configurable: true, value: 768 });
 });
 
+// jsdom は offsetWidth/offsetHeight が常に 0。以前はそのまま w=0 で
+// クランプ結果を見ていて、「left ≤ 1024」の検証は**箱が丸ごと画面外**
+// （left=1024 に幅448の箱＝右端1472）でも通っていた。実寸を与えて測る。
+const BOX_W = 448;
+const BOX_H = 60;
+const origOffsetW = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetWidth");
+const origOffsetH = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+function stubBoxSize() {
+    Object.defineProperty(HTMLElement.prototype, "offsetWidth", { configurable: true, get: () => BOX_W });
+    Object.defineProperty(HTMLElement.prototype, "offsetHeight", { configurable: true, get: () => BOX_H });
+}
+afterEach(() => {
+    if (origOffsetW) Object.defineProperty(HTMLElement.prototype, "offsetWidth", origOffsetW);
+    if (origOffsetH) Object.defineProperty(HTMLElement.prototype, "offsetHeight", origOffsetH);
+});
+
 describe("MiniPlayer 配置クランプ（メニューバーを塞がない）", () => {
     it("デスクトップ: 保存位置が右上(ヘッダー上)でも、y はヘッダー帯の下へ押し下げられる", async () => {
         setDesktop(true);
+        stubBoxSize();
         // ヘッダー上（y=0）かつ画面外まで右（x=99999）を保存 → 修正前はここに居座り header を覆う
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: 99999, y: 0 }));
 
@@ -59,9 +76,9 @@ describe("MiniPlayer 配置クランプ（メニューバーを塞がない）",
         const left = parseFloat(root.style.left);
         // ヘッダー帯(<header>不在なので既定 72+8=80)より下 = メニューボタンを塞がない
         expect(top).toBeGreaterThanOrEqual(80);
-        // 画面内に収まる
+        // **右端まで**画面内に収まる（left だけ見ると幅0の検証になる）
         expect(left).toBeGreaterThanOrEqual(0);
-        expect(left).toBeLessThanOrEqual(1024);
+        expect(left + BOX_W).toBeLessThanOrEqual(1024);
     });
 
     it("モバイル(タッチ): ドラッグ無効。既定の下部固定のまま top を持たない", () => {
