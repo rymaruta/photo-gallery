@@ -91,7 +91,10 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
 
         const callerId = getCallerUserId(event);
         const ownerId = (photo.userId ?? photo.uploadedBy) as string | undefined;
-        if (!isAdmin(event) && ownerId !== callerId) {
+        // !ownerId まで見る（対の api-user/src/photoUpdate.ts:109 と同じ）。
+        // 無いと「持ち主が空の行 × sub の無いトークン」で "" === "" が
+        // 成立して所有チェックを通過する（callerId の "" 化で薄くなった一枚）
+        if (!isAdmin(event) && (!ownerId || ownerId !== callerId)) {
             return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: "編集権限がありません" }) };
         }
         // ストーリーはこのAPIの対象外。published:true を書き込むと
@@ -163,7 +166,10 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
 
         const callerId = getCallerUserId(event);
         const ownerId = (photo.userId ?? photo.uploadedBy) as string | undefined;
-        if (!isAdmin(event) && ownerId !== callerId) {
+        // !ownerId まで見る（対の api-user/src/photoUpdate.ts:109 と同じ）。
+        // 無いと「持ち主が空の行 × sub の無いトークン」で "" === "" が
+        // 成立して所有チェックを通過する（callerId の "" 化で薄くなった一枚）
+        if (!isAdmin(event) && (!ownerId || ownerId !== callerId)) {
             return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: "削除権限がありません" }) };
         }
 

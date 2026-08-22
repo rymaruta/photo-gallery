@@ -181,6 +181,11 @@ async function getProfile(userId: string): Promise<UserProfile | null> {
 
 export const getMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
+    // sub 欠落の "" で進むと userId="" のプロフィールを読み書きする
+    // （notifications.ts と同じ話。E-5 の横展開でここだけ漏れていた）
+    if (!userId) {
+        return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証が必要です" }) };
+    }
     try {
         const profile = await getProfile(userId);
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(profile ?? { userId }) };
@@ -222,6 +227,9 @@ export function mergeProfile(
 
 export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
+    if (!userId) {
+        return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証が必要です" }) };
+    }
 
     let body: {
         username?: unknown;

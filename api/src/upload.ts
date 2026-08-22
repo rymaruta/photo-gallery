@@ -175,8 +175,9 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     let canonicalSrc = publicUrl;
     try {
         const u = new URL(publicUrl);
-        const key = decodeURIComponent(u.pathname).replace(/^\//, "");
-        canonicalSrc = `${CLOUDFRONT_URL.replace(/\/$/, "")}/${key.split("/").map(encodeURIComponent).join("/")}`;
+        // body の key と紛れないよう別名（あちらは検証にだけ使う）
+        const canonicalKey = decodeURIComponent(u.pathname).replace(/^\//, "");
+        canonicalSrc = `${CLOUDFRONT_URL.replace(/\/$/, "")}/${canonicalKey.split("/").map(encodeURIComponent).join("/")}`;
     } catch { /* isOwnUploadUrl を通っているので実際には来ない */ }
 
     const photo: Photo = {

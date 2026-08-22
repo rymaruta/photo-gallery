@@ -2,6 +2,8 @@ export type Photo = {
     id: string;
     src: string;
     thumbSrc?: string; // 一覧グリッド用の軽量サムネイル（512px WebP）。ない写真は src を使う
+    srcOriginal?: string; // EXIF除去前の原本（GPS入り。削除時に必ず消す）
+    src256?: string;
     title?: string | Record<string, string>;
     description?: string | Record<string, string[]>;
     category?: string;

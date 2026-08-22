@@ -26,7 +26,7 @@ vi.mock("@aws-sdk/client-dynamodb", () => {
     };
 });
 
-const { updateMyProfile } = await import("../userProfile");
+const { updateMyProfile, getMyProfile } = await import("../userProfile");
 
 type Result = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -50,6 +50,22 @@ const usernameDeletes = () => commands
 beforeEach(() => {
     commands.length = 0;
     mockSend.mockReset();
+});
+
+// sub 欠落の "" で進むと userId="" のプロフィールを読み書きする。
+// E-5 の横展開（12f7fe7）でこの2ハンドラだけ漏れていた（PAIR レビューの指摘）。
+describe("sub の無い呼び出しは 401", () => {
+    it("getMyProfile / updateMyProfile とも DDB を触らない", async () => {
+        const noSub = {
+            requestContext: { authorizer: { jwt: { claims: { sub: "" } } } },
+            body: JSON.stringify({}),
+        };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        expect((await (getMyProfile as any)(noSub)).statusCode).toBe(401);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        expect((await (updateMyProfile as any)(noSub)).statusCode).toBe(401);
+        expect(mockSend).not.toHaveBeenCalled();
+    });
 });
 
 describe("同時保存で先の変更が消えない", () => {

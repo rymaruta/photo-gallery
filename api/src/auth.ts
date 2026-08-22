@@ -35,7 +35,8 @@ export function parseGroupsClaim(groups: unknown): string[] {
 }
 
 export function getCallerUserId(event: APIGatewayProxyEventV2WithJWTAuthorizer): string {
-    // sub 欠落は "" を返す（対の api-user/src/http.ts と同じ）。
+    // sub 欠落は "" を返す（対の api-user/src/http.ts と同趣旨。あちらは
+    // String(sub ?? "") で、非文字列の sub の扱いだけ僅かに違う——こちらが安全側）。
     // 以前は "unknown" を返していて、savePhoto が userId:"unknown" の
     // 写真を作れた——そのIDの持ち主は存在せず、本人画面から消せない。
     // 呼び出し側は "" を見て 401 に倒す（見ずに進まない）。

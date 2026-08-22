@@ -248,6 +248,16 @@ describe("deletePhoto（ハンドラ）", () => {
         expect(s3Keys()).toEqual(expect.arrayContaining(["uploads/p1-raw.jpg", "uploads/p1.jpg"]));
     });
 
+    it("生キーの .. はデコード後に見る（%2E%2E も弾く）", async () => {
+        mockGetPhotoById.mockResolvedValue({
+            id: "p1", userId: "owner",
+            key: "uploads/%2E%2E/profiles/victim",
+            src: "https://cdn/uploads/p1.jpg",
+        });
+        await invokeDelete(del("p1"));
+        expect(s3Keys()).toEqual(["uploads/p1.jpg"]);
+    });
+
     it("生キーでも .. を含むものは消しに行かない", async () => {
         mockGetPhotoById.mockResolvedValue({
             id: "p1", userId: "owner",
@@ -344,6 +354,19 @@ describe("写真以外の文書を書き換えさせない", () => {
 // api-user/src/photoUpdate.ts と同じく 404。500 のままだと利用者は
 // 「失敗したので再試行」と読んで押し直す（調査ラウンド2の指摘）。
 describe("updatePhoto: 更新中に写真が消えた", () => {
+    it("持ち主が空の写真 × sub の無いトークンでも通さない（403）", async () => {
+        // callerId の "" 化で薄くなった一枚。!ownerId まで見る
+        // （対の api-user/src/photoUpdate.ts:109 と同じ）
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "" });
+        const noSubEv = {
+            pathParameters: { id: "p1" },
+            body: JSON.stringify({ location: "北海道" }),
+            requestContext: { authorizer: { jwt: { claims: { "cognito:groups": "" } } } },
+        };
+        expect((await invoke(noSubEv)).statusCode).toBe(403);
+        expect(mockUpdatePhotoFields).not.toHaveBeenCalled();
+    });
+
     it("ConditionalCheckFailed は 404（500 で再試行を誘わない）", async () => {
         mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner" });
         mockUpdatePhotoFields.mockRejectedValueOnce(
