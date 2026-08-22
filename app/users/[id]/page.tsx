@@ -44,11 +44,17 @@ export async function generateStaticParams() {
     const photos = await loadPhotos();
     const ids = new Set<string>();
     for (const p of photos) {
-        // 公開写真の有無で絞らない。
-        // 全部を非公開にした人のページが次のビルドで消え、
-        // dynamicParams = false のためハード404になっていた
-        // （プロフィールのURLを配っていても、本人にも見えなくなる）。
-        // 中身は UserProfileClient がAPIから引くので、枠だけあれば足りる。
+        // ここで作れるのは「公開写真が1枚以上ある人」のページだけ。
+        // 入力の photos.json が生成時に非公開とストーリーを落としている
+        // （scripts/sync-photos-from-ddb.js の filter）ので、この行で
+        // 絞りを緩めても、全部を非公開にした人の userId はそもそも来ない。
+        // ※以前ここに「公開写真の有無で絞らない（全非公開でもページを残す）」
+        //   というコメントがあったが、上記の理由で**効いていなかった**。
+        // 全非公開にした人のページは次のビルドで消えるが、ハード404には
+        // ならない: 404ページ（app/not-found.tsx → notFoundRedirect.ts）が
+        // /users?id=<userId> のクエリ版へ振り替え、中身は API から描ける。
+        // 静的な枠を全員分残したければ、ビルド入力に「全ユーザーのID一覧」を
+        // 別途書き出す必要がある（photos.json からは決められない）。
         if (p.userId) ids.add(p.userId);
     }
     // ユーザーが0人でも1件は返す（空だと output: export がビルドを落とす）
