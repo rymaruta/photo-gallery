@@ -33,6 +33,7 @@ env:
   USERS_TABLE: prod-photo-gallery-users
   UPLOAD_BUCKET: prod-journey-photo-upload
   CLOUDFRONT_URL: https://d1s3dwwzgxf5ni.cloudfront.net
+  SITE_URL: https://journey-photo.com
   LOG_BUCKET: prod-journey-photo-cdn-logs
 
 # 変更系の作業を二重に走らせない。
@@ -102,7 +103,6 @@ jobs:
         env:
           # 未指定だとスクリプト側が中止する（全ユーザー分がログに出るのを防ぐため）
           OWNER_USER_ID: ${{ inputs.owner_user_id }}
-          SITE_URL: https://journey-photo.com
 
       # ストーリー一覧が毎回テーブル全体を Scan していた問題の移行。
       # 同居するいいね/フォローのマーカーは退会しても消えないので増える一方で、

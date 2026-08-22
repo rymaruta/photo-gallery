@@ -13,6 +13,7 @@ env:
   USERS_TABLE: prod-photo-gallery-users
   UPLOAD_BUCKET: prod-journey-photo-upload
   CLOUDFRONT_URL: https://d1s3dwwzgxf5ni.cloudfront.net
+  SITE_URL: https://journey-photo.com
 
 jobs:
   diagnose:
@@ -50,4 +51,3 @@ jobs:
         timeout-minutes: 10
         env:
           CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
-          SITE_URL: https://journey-photo.com

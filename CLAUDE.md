@@ -123,7 +123,8 @@
 npm run build
 
 # S3 + CloudFront にデプロイ（正しいバケット名は prod-journey-photo.com）
-CLOUDFRONT_DISTRIBUTION_ID=EYRLTGCPOS9E4 npm run web:deploy:prod
+# SITE_URL が無いと配信チェックと 5xx 時の再インバリデーションが飛ぶ（デプロイ自体は完了）
+CLOUDFRONT_DISTRIBUTION_ID=EYRLTGCPOS9E4 SITE_URL=https://journey-photo.com npm run web:deploy:prod
 ```
 
 > ⚠️ `journey-photo.com` はドメイン名。S3 バケット名は `prod-journey-photo.com`（別物）。

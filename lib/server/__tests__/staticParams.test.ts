@@ -26,4 +26,11 @@ describe("withPlaceholderParam", () => {
         // 先頭のアンダースコアはそのどれとしても現れない。
         expect(EMPTY_PARAM_PLACEHOLDER.startsWith("_")).toBe(true);
     });
+
+    it("値そのものを固定する（.mjs 側がリテラルで参照しているため）", () => {
+        // scripts/e2e-smoke.mjs はこの定数を import できず "_none.html" と
+        // 直書きしてスモーク対象から除外している。改名するとフィルタが
+        // 空振りしてスモークが空枠ページを開くので、ここで連動を固定する。
+        expect(EMPTY_PARAM_PLACEHOLDER).toBe("_none");
+    });
 });

@@ -304,8 +304,10 @@ async function runPool(items, worker, concurrency = 12) {
 }
 
 // 本番URLへのフォールバックは置かない（CLAUDE.md）。未設定なら配信チェックを
-// 飛ばす——このチェックはアドバイザリ（ログのみ）なので、止めるほどではない。
-// deploy.yml は config ジョブの siteUrl を必ず渡している。
+// 飛ばす——飛ぶのはログと **5xx 検知時の1回だけの再インバリデーション**
+// （キャッシュされた 5xx の洗い流し）。デプロイ自体は完了する。
+// deploy.yml は config ジョブの siteUrl を必ず渡している。手元から流す場合は
+// CLAUDE.md の手順どおり SITE_URL も渡すこと。
 const SITE_URL = (process.env.SITE_URL || "").replace(/\/$/, "");
 
 /**
