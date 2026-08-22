@@ -76,10 +76,12 @@ describe("getPhotoById: srcOriginal を落とさない", () => {
             id: "p1", src: "https://cdn/p1.jpg",
             srcOriginal: "https://cdn/uploads/originals/p1.jpg", key: "uploads/u1/p1.jpg",
         };
-        mockSend.mockResolvedValueOnce({ Item: item });
+        // **コピーを渡す。** 同一参照を渡すと、getPhotoById が res.Item を
+        // その場で書き換えて返す改変（delete srcOriginal 等）で p と item が
+        // 同じオブジェクトになり、toEqual が自明に通る（レビューの変異注入で
+        // 実証された空振り）。コピーなら in-place 削除も脱落も両方捕まる。
+        mockSend.mockResolvedValueOnce({ Item: { ...item } });
         const p = await getPhotoById("p1");
-        // 名前どおり「そのまま」を固定する（2項目だけの断言だと、
-        // 他の項目を落とす改変に気づけない）
         expect(p).toEqual(item);
     });
 });

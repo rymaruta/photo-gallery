@@ -51,6 +51,18 @@ describe("下書き一覧の撮影日時表示", () => {
         expect(screen.queryByText(/00:00/)).toBeNull();
     });
 
+    it("exif 側が整形できなくても、有効な date があればそちらを出す", async () => {
+        mockUserFetch.mockResolvedValue({
+            ok: true,
+            json: async () => [draft({
+                exif: { dateTimeOriginal: "2024:10:12 08:30:15" },   // EXIF コロン形式（整形不能）
+                date: "2024-10-12T08:30:15+09:00",
+            })],
+        });
+        render(<DraftsPage />);
+        expect(await screen.findByText(/2024年10月12日 08:30/)).toBeTruthy();
+    });
+
     it("整形できない値は日付を出さない（撮影地だけ残る）", async () => {
         mockUserFetch.mockResolvedValue({
             ok: true,

@@ -91,7 +91,9 @@ describe("MiniPlayer 配置クランプ（メニューバーを塞がない）",
     it("リサイズの購読は1回だけで、リサイズのたびに画面内へ収め直す", async () => {
         setDesktop(true);
         stubBoxSize();
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: 100, y: 200 }));
+        // x=200 は 200+448=648 > 600 なので、1回目のリサイズでも必ず
+        // クランプが動く（x=100 だと 548 ≤ 600 で1回目の断言が無条件に通る）
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: 200, y: 200 }));
         const addSpy = vi.spyOn(window, "addEventListener");
 
         const { container } = render(<MiniPlayer />);

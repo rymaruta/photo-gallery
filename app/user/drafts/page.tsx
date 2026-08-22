@@ -133,8 +133,11 @@ export default function DraftsPage() {
                             // 写真ページ（PhotoPageClient の shotAt）と同じ整形。
                             // 以前は生の値（"2024-10-12T08:30:15+09:00" 等）を
                             // そのまま出していた。整形できない値は出さない。
-                            const dateText = formatStoredDateTime(
-                                p.exif?.dateTimeOriginal || p.date, isJa ? "ja" : "en") ?? "";
+                            // exif 側が整形できない文字列でも、有効な date が
+                            // あればそちらを出す（|| で先に選ぶと丸ごと消える）。
+                            const lc = isJa ? "ja" as const : "en" as const;
+                            const dateText = formatStoredDateTime(p.exif?.dateTimeOriginal, lc)
+                                ?? formatStoredDateTime(p.date, lc) ?? "";
                             return (
                                 <Link
                                     key={p.id}

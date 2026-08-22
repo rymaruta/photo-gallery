@@ -110,7 +110,6 @@ body {
   will-change: transform, opacity;
 }
 
-/* マイランキング: メダルを斜めに横切る光沢スイープ */
 @media (prefers-reduced-motion: reduce) {
   .story-media-in { animation: none; }
   .heart-burst { animation-duration: 300ms; }
