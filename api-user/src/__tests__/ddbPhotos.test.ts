@@ -57,3 +57,18 @@ describe("countUserPhotos", () => {
         expect(input.FilterExpression).not.toContain("published");
     });
 });
+
+// discardUpload の使用中判定が listMyPhotos（ストーリー除外）だった頃は、
+// 自分の生きているストーリーの実体を消せた。ハンドラ側のテストはデータ層を
+// モックするので、**この絞り込み条件はここでしか観測できない**。
+describe("listMyMediaItems", () => {
+    it("ストーリーを除外しない（実体を参照しうるものを全部見る）", async () => {
+        mockSend.mockResolvedValueOnce({ Items: [], LastEvaluatedKey: undefined });
+        const { listMyMediaItems } = await import("../ddb-photos");
+        await listMyMediaItems("me");
+
+        const query = mockSend.mock.calls.at(-1)![0];
+        expect(query.input.FilterExpression).toBe("attribute_exists(src)");
+        expect(query.input.FilterExpression).not.toContain("story");
+    });
+});
