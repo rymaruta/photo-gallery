@@ -50,3 +50,4 @@ jobs:
         timeout-minutes: 10
         env:
           CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+          SITE_URL: https://journey-photo.com

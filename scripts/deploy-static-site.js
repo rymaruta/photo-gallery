@@ -148,13 +148,18 @@ if (require.main === module) {
     }
 }
 
-// photos.json を out/ にコピー（Lambda が S3 から読む用）
-const photosJsonSrc = path.join(root, "app", "data", "photos.json");
-const photosJsonDest = path.join(outDir, "app", "data", "photos.json");
-if (fs.existsSync(photosJsonSrc)) {
-    fs.mkdirSync(path.dirname(photosJsonDest), { recursive: true });
-    fs.copyFileSync(photosJsonSrc, photosJsonDest);
-    console.log(`[deploy] Copied app/data/photos.json → out/app/data/`);
+// photos.json を out/ にコピー（Lambda が S3 から読む用）。
+// **main() から呼ぶ。** 以前はモジュールのトップレベルにあり、テストが
+// このファイルを require しただけで out/app/data/ に書き込んでいた
+// （収集・検証より前に走る副作用でもあった）。
+function copyPhotosJsonIntoOut() {
+    const photosJsonSrc = path.join(root, "app", "data", "photos.json");
+    const photosJsonDest = path.join(outDir, "app", "data", "photos.json");
+    if (fs.existsSync(photosJsonSrc)) {
+        fs.mkdirSync(path.dirname(photosJsonDest), { recursive: true });
+        fs.copyFileSync(photosJsonSrc, photosJsonDest);
+        console.log(`[deploy] Copied app/data/photos.json → out/app/data/`);
+    }
 }
 
 const region = "ap-northeast-1";
@@ -298,7 +303,10 @@ async function runPool(items, worker, concurrency = 12) {
     await Promise.all(runners);
 }
 
-const SITE_URL = (process.env.SITE_URL || "https://journey-photo.com").replace(/\/$/, "");
+// 本番URLへのフォールバックは置かない（CLAUDE.md）。未設定なら配信チェックを
+// 飛ばす——このチェックはアドバイザリ（ログのみ）なので、止めるほどではない。
+// deploy.yml は config ジョブの siteUrl を必ず渡している。
+const SITE_URL = (process.env.SITE_URL || "").replace(/\/$/, "");
 
 /**
  * デプロイ後の配信チェック（アドバイザリ＝参考ログのみ・デプロイは止めない）。
@@ -313,6 +321,10 @@ const SITE_URL = (process.env.SITE_URL || "https://journey-photo.com").replace(/
  * 5xx が主因のときだけ 1 回だけ再インバリデーションして 5xx を洗い流す（それでも失敗はしない）。
  */
 async function verifyAssets(assetKeys, cfDistId) {
+    if (!SITE_URL) {
+        console.warn("[deploy] advisory: SITE_URL が未設定のため配信チェックを飛ばします（デプロイ自体は完了）。");
+        return;
+    }
     const targets = assetKeys
         .map((k) => k.split(path.sep).join("/"))
         .filter((k) => /\.(js|css)$/.test(k));
@@ -471,6 +483,7 @@ function assertRobotsMatchesTarget(bucketName, robotsText) {
 async function main() {
     console.log(`\n[deploy] Uploading ${outDir} → s3://${bucket}/`);
 
+    copyPhotosJsonIntoOut();
     const allFiles = collectFiles(outDir);
     // robots.txt は必ずある（app/robots.ts が静的に出す）。無い＝ビルドが
     // 途中で終わっているので、それも止める。

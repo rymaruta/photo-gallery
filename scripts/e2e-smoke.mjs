@@ -172,13 +172,8 @@ async function runChecks(browser, eng) {
     if (!hydrated) reportDiagnostics(`${eng}/home`, bag); // 無反応の主因診断
     await expectMenuWorks(page, `[${eng}] 初期表示`);
 
-    // 言語切替が反応する
-    const langButton = page.locator("button", { hasText: "English" }).first();
-    if (await langButton.isVisible().catch(() => false)) {
-        await langButton.tap().catch(() => {});
-        const switched = await page.locator("button", { hasText: "日本語" }).first().isVisible().catch(() => false);
-        check(`[${eng}] 言語切替が反応する`, switched);
-    }
+    // 言語切替のチェックは置かない。切替UI（LocaleToggle）は R-1 で削除済みで、
+    // 「見えたら押す」形の旧チェックは一度も走らない死んだ分岐になっていた。
 
     // 一覧タップで個別ページへ直接遷移する
     const firstPhoto = page.locator("a[data-photo-id]").first();
@@ -235,7 +230,10 @@ async function runChecks(browser, eng) {
 
     // プロフィールページ: タブが切り替わる
     const profiles = fs.existsSync(path.join(OUT, "users"))
-        ? fs.readdirSync(path.join(OUT, "users")).filter((f) => f.endsWith(".html"))
+        // "_none.html" はユーザー0人のビルドを通すための空枠
+        // （lib/server/staticParams.ts の EMPTY_PARAM_PLACEHOLDER）。
+        // 実在ページとして開くとタブ検査が空振りするので除く。
+        ? fs.readdirSync(path.join(OUT, "users")).filter((f) => f.endsWith(".html") && f !== "_none.html")
         : [];
     if (profiles.length > 0) {
         console.log(`\n[${eng}][2] プロフィール`);
