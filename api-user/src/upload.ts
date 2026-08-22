@@ -2,7 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
-import { putPhoto, countUserPhotos, listMyPhotos } from "./ddb-photos";
+import { putPhoto, countUserPhotos, listMyMediaItems } from "./ddb-photos";
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
 import { lookupDisplayNameIfSet } from "./notify";
@@ -278,14 +278,17 @@ export const discardUpload: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: "このファイルは削除できません" }) };
     }
 
-    // 保存済みの写真が使っているキーは消さない。
+    // 保存済みの写真**とストーリー**が使っているキーは消さない。
+    // listMyPhotos（ストーリー除外）で判定していた頃は、自分の生きている
+    // ストーリーの実体を消せた——item は残るので、全員のトレイに壊れた
+    // 画像が最大24時間出続ける。
     // 数えられなかったら**消さない**（photoLimitError と同じ考え方——
     // 分からないなら止める。ここで通すと、取り返しのつかない削除になる）。
     let mine: Photo[];
     try {
-        mine = await listMyPhotos(userId);
+        mine = await listMyMediaItems(userId);
     } catch (e) {
-        console.error("discardUpload: listMyPhotos failed:", e);
+        console.error("discardUpload: listMyMediaItems failed:", e);
         return { statusCode: 503, headers: JSON_HEADERS, body: JSON.stringify({ error: "確認できませんでした。時間をおいてもう一度お試しください" }) };
     }
     const inUse = mine.some((p) => mediaKeys(p as unknown as Record<string, unknown>).includes(key));

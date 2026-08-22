@@ -74,3 +74,30 @@ export async function listMyPhotos(userId: string): Promise<Photo[]> {
     } while (lastKey);
     return items;
 }
+
+/**
+ * 自分の「メディアの実体を持つ item」を全件返す（**ストーリーも含む**）。
+ *
+ * discardUpload の使用中判定用。listMyPhotos（ストーリー除外）で判定して
+ * いた頃は、**自分の生きているストーリーの実体を discard で消せた**——
+ * ストーリーの item は残るので、ログイン中の全員のトレイに壊れた画像／
+ * 再生できない動画が最大24時間出続ける。消してよいかを決める場面では、
+ * 実体を参照しうるものを全部見る。
+ */
+export async function listMyMediaItems(userId: string): Promise<Photo[]> {
+    const items: Photo[] = [];
+    let lastKey: Record<string, unknown> | undefined;
+    do {
+        const res = await ddb.send(new QueryCommand({
+            TableName: PHOTOS_TABLE,
+            IndexName: USER_INDEX,
+            KeyConditionExpression: "userId = :uid",
+            FilterExpression: "attribute_exists(src)",
+            ExpressionAttributeValues: { ":uid": userId },
+            ExclusiveStartKey: lastKey,
+        }));
+        items.push(...((res.Items ?? []) as Photo[]));
+        lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
+    } while (lastKey);
+    return items;
+}

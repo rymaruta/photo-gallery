@@ -341,7 +341,12 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
             const failed: string[] = [];
             await mapWithConcurrency(targets, 8, async (t) => {
                 if (timeLeft() < CLEANUP_RESERVE_MS) { failed.push(t); return; }
-                if (!await unfollowAtomically(t, uid)) failed.push(t);
+                if (!await unfollowAtomically(t, uid)) { failed.push(t); return; }
+                // フォロー通知の間引きマーカー（follow.ts の follownotify#）も消す。
+                // 消し忘れていた頃は退会のたびに1件ずつ残り、スコープ外リストにも
+                // 載っていない「誰も消さないゴミ」だった。ただの間引き印なので
+                // ベストエフォート（ddbDelete は失敗を握って続行する）。
+                await ddbDelete(PHOTOS_TABLE, { id: `follownotify#${t}#${uid}` });
             });
             targets = failed;
             // 最後の回では「やり直す」と書かない（実際にはもう回らない）

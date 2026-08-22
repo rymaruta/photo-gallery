@@ -138,6 +138,24 @@ describe("deleteAccount", () => {
         });
     };
 
+    // フォロー通知の間引きマーカー（follownotify#<target>#<自分>）は
+    // 退会の掃除リストに載っておらず、退会のたびに1件ずつ残っていた。
+    // スコープ外リストにも書かれていない「誰も消さないゴミ」。
+    it("解除が済んだ相手の follownotify# マーカーも消す", async () => {
+        followingIs(["userA", "userB"]);
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+
+        const deleted = deletedDdbIds();
+        expect(deleted).toContain("follownotify#userA#me");
+        expect(deleted).toContain("follownotify#userB#me");
+    });
+
+    it("解除に失敗した相手の follownotify# は消さない（借りの手がかりを残す）", async () => {
+        followingIs(["userA"], () => Promise.reject(new Error("throttled")));
+        await invoke(deleteAccount, ev("me"));
+        expect(deletedDdbIds()).not.toContain("follownotify#userA#me");
+    });
+
     it("フォロー中の解除は、削除と減算を1つの書き込みで行う", async () => {
         followingIs(["userA", "userB"]);
         expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);

@@ -5,11 +5,11 @@ const mockCountUserPhotos = vi.hoisted(() => vi.fn());
 const mockGetSignedUrl = vi.hoisted(() => vi.fn());
 const mockPutObjectInput = vi.hoisted(() => vi.fn());
 
-const mockListMyPhotos = vi.hoisted(() => vi.fn());
+const mockListMyMedia = vi.hoisted(() => vi.fn());
 vi.mock("../ddb-photos", () => ({
     putPhoto: mockPutPhoto,
     countUserPhotos: mockCountUserPhotos,
-    listMyPhotos: mockListMyPhotos,
+    listMyMediaItems: mockListMyMedia,
 }));
 
 const mockLookupIfSet = vi.hoisted(() => vi.fn());
@@ -420,7 +420,7 @@ describe("discardUpload", () => {
     });
 
     beforeEach(() => {
-        mockListMyPhotos.mockReset().mockResolvedValue([]);
+        mockListMyMedia.mockReset().mockResolvedValue([]);
         mockS3Send.mockReset().mockResolvedValue({});
         mockDeleteObjectInput.mockReset();
     });
@@ -460,7 +460,7 @@ describe("discardUpload", () => {
     // ここが肝。使用中の判定が無いと、利用者は**自分の保存済みの写真の
     // 実体だけ**を消せてしまう（DynamoDB には行が残る）。
     it("保存済みの写真が使っているキーは消さない", async () => {
-        mockListMyPhotos.mockResolvedValue([
+        mockListMyMedia.mockResolvedValue([
             { id: "p1", src: `https://cdn.example.com/${MY_KEY}` },
         ]);
         const res = await discard(ev(ME, { key: MY_KEY }));
@@ -470,15 +470,27 @@ describe("discardUpload", () => {
 
     it("派生画像として使われていても消さない（原本・サムネ・AVIF）", async () => {
         for (const field of ["srcOriginal", "thumbSrc", "srcAvif", "src256"]) {
-            mockListMyPhotos.mockResolvedValue([{ id: "p1", [field]: `https://cdn.example.com/${MY_KEY}` }]);
+            mockListMyMedia.mockResolvedValue([{ id: "p1", [field]: `https://cdn.example.com/${MY_KEY}` }]);
             expect((await discard(ev(ME, { key: MY_KEY }))).statusCode).toBe(409);
         }
         expect(mockS3Send).not.toHaveBeenCalled();
     });
 
+    // listMyPhotos（ストーリー除外）で判定していた頃は、**自分の生きている
+    // ストーリーの実体を消せた**。item は残るので、ログイン中の全員のトレイに
+    // 壊れた画像／再生できない動画が最大24時間出続ける。
+    it("生きているストーリーが使っているキーも消さない", async () => {
+        mockListMyMedia.mockResolvedValue([
+            { id: "story-1", story: true, src: `https://cdn.example.com/${MY_KEY}` },
+        ]);
+        const res = await discard(ev(ME, { key: MY_KEY }));
+        expect(res.statusCode).toBe(409);
+        expect(mockS3Send).not.toHaveBeenCalled();
+    });
+
     // 「分からないなら止める」。ここで通すと取り返しのつかない削除になる。
     it("使用中かどうか確かめられなければ消さない（503）", async () => {
-        mockListMyPhotos.mockImplementationOnce(() => Promise.reject(new Error("ddb down")));
+        mockListMyMedia.mockImplementationOnce(() => Promise.reject(new Error("ddb down")));
         const res = await discard(ev(ME, { key: MY_KEY }));
         expect(res.statusCode).toBe(503);
         expect(mockS3Send).not.toHaveBeenCalled();
