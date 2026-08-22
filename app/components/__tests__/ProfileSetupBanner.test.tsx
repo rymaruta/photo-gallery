@@ -9,9 +9,10 @@ import { render, screen, waitFor } from "@testing-library/react";
 
 const mockUserFetch = vi.hoisted(() => vi.fn());
 const nav = vi.hoisted(() => ({ pathname: "/" }));
+const auth = vi.hoisted(() => ({ isAuthenticated: true, userId: "user-a" as string | null }));
 
 vi.mock("next/navigation", () => ({ usePathname: () => nav.pathname }));
-vi.mock("../../auth/context", () => ({ useAuth: () => ({ isAuthenticated: true }) }));
+vi.mock("../../auth/context", () => ({ useAuth: () => ({ ...auth }) }));
 vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
 vi.mock("../../../lib/utils/api", () => ({ userFetch: mockUserFetch }));
 
@@ -22,6 +23,8 @@ const profile = (displayName?: string) => ({ ok: true, json: async () => ({ disp
 beforeEach(() => {
     mockUserFetch.mockReset();
     nav.pathname = "/";
+    auth.isAuthenticated = true;
+    auth.userId = "user-a";
 });
 
 describe("名前を設定したらバナーが消える", () => {
@@ -59,5 +62,47 @@ describe("名前を設定したらバナーが消える", () => {
         mockUserFetch.mockResolvedValue(profile(""));
         render(<ProfileSetupBanner />);
         expect(await screen.findByText("名前を決めましょう")).toBeInTheDocument();
+    });
+});
+
+// 判定をアカウントをまたいで持ち越していた（B-2 で入れた回帰）。
+// レイアウト常駐なのでログアウト（クライアント遷移）ではアンマウントされない。
+describe("アカウントを切り替えたら判定を持ち越さない", () => {
+    it("名前ありA→ログアウト→名前なしBで、Bにバナーが出る", async () => {
+        mockUserFetch.mockResolvedValue(profile("旅人A"));
+        const { rerender } = render(<ProfileSetupBanner />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalledTimes(1));
+        expect(screen.queryByText("名前を決めましょう")).toBeNull();
+
+        // ログアウト → 名前なしの B がログイン
+        auth.isAuthenticated = false;
+        auth.userId = null;
+        rerender(<ProfileSetupBanner />);
+        mockUserFetch.mockResolvedValue(profile(undefined));
+        auth.isAuthenticated = true;
+        auth.userId = "user-b";
+        rerender(<ProfileSetupBanner />);
+
+        // B について確かめ直して、バナーが出る
+        expect(await screen.findByText("名前を決めましょう")).toBeInTheDocument();
+    });
+
+    it("名前なしA→ログアウトで、バナーがその場で消える（Bに誤表示しない）", async () => {
+        mockUserFetch.mockResolvedValue(profile(undefined));
+        const { rerender } = render(<ProfileSetupBanner />);
+        expect(await screen.findByText("名前を決めましょう")).toBeInTheDocument();
+
+        auth.isAuthenticated = false;
+        auth.userId = null;
+        rerender(<ProfileSetupBanner />);
+        expect(screen.queryByText("名前を決めましょう")).toBeNull();
+
+        // 名前ありの B がログインしてもバナーは出ない
+        mockUserFetch.mockResolvedValue(profile("旅人B"));
+        auth.isAuthenticated = true;
+        auth.userId = "user-b";
+        rerender(<ProfileSetupBanner />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalledTimes(2));
+        expect(screen.queryByText("名前を決めましょう")).toBeNull();
     });
 });
