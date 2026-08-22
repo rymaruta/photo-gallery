@@ -111,6 +111,66 @@ describe("deleteAccount", () => {
         expect(ids).toContain("following#me");
     });
 
+    // 写真の削除失敗は Cognito を消す前に止める。200 で通すと、GPS 入りの
+    // 原本が公開URLに残ったままアカウントだけ消え、やり直せる人がいなくなる
+    // （フォロー掃除の「残っても200」はフォロワー数のズレだけだから成り立つ
+    // 判断で、写真には当てはまらない——調査ラウンド3の a-2）。
+    describe("写真の削除に失敗が残ったら退会を止める", () => {
+        const photoWorld = () => {
+            mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+                const name = cmd.constructor.name;
+                if (name === "QueryCommand") return Promise.resolve({ Items: [{ id: "p1", userId: "me" }] });
+                if (name === "GetCommand") {
+                    const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                    if (id === "p1") return Promise.resolve({ Item: { id: "p1", userId: "me", src: "https://cdn.test/uploads/p1.jpg" } });
+                    return Promise.resolve({ Item: undefined });
+                }
+                return Promise.resolve({});
+            });
+        };
+
+        it("S3 のバッチ削除が落ちたら 500（プロフィール削除にも進まない）", async () => {
+            photoWorld();
+            mockS3Send.mockImplementation((cmd: { constructor: { name: string } }) => {
+                if (cmd.constructor.name === "DeleteObjectsCommand") return Promise.reject(new Error("s3 down"));
+                return Promise.resolve({});
+            });
+            const res = await invoke(deleteAccount, ev("me"));
+            expect(res.statusCode).toBe(500);
+            expect(JSON.parse(res.body).error).toContain("アカウントはまだ削除されていません");
+            // 後段（プロフィール行の削除）へ進んでいない
+            expect(deletedDdbIds()).not.toContain("me");
+        });
+
+        it("S3 が部分失敗（Errors）を返しても 500", async () => {
+            photoWorld();
+            mockS3Send.mockImplementation((cmd: { constructor: { name: string } }) => {
+                if (cmd.constructor.name === "DeleteObjectsCommand") {
+                    return Promise.resolve({ Errors: [{ Key: "uploads/p1.jpg", Code: "InternalError" }] });
+                }
+                return Promise.resolve({});
+            });
+            expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(500);
+        });
+
+        it("写真行の DDB 削除が落ちても 500", async () => {
+            mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+                const name = cmd.constructor.name;
+                if (name === "QueryCommand") return Promise.resolve({ Items: [{ id: "p1", userId: "me" }] });
+                if (name === "GetCommand") {
+                    const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                    if (id === "p1") return Promise.resolve({ Item: { id: "p1", userId: "me", src: "https://cdn.test/uploads/p1.jpg" } });
+                    return Promise.resolve({ Item: undefined });
+                }
+                if (name === "DeleteCommand" && String((cmd.input.Key as { id?: string }).id ?? "") === "p1") {
+                    return Promise.reject(new Error("ddb down"));
+                }
+                return Promise.resolve({});
+            });
+            expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(500);
+        });
+    });
+
     // 「行きたいリスト」は書き込む経路がどこにも無い（通知の型に残っていた
     // だけで、マーカーを作る口も UI のボタンも存在しない）。
     // 消す側だけ持っていても、カウンタを直せるわけではないので落とした。
@@ -382,8 +442,10 @@ describe("deleteAccount", () => {
         expect(deletedDdbIds()).not.toContain("following#me");
     });
 
-    it("個別削除が1件失敗しても続行し 200 を返す（耐障害）", async () => {
-        mockS3Send.mockRejectedValue(new Error("s3 down")); // すべての S3 削除が失敗
+    // 以前は「すべての S3 削除が失敗しても 200」を耐障害として固定していたが、
+    // それは GPS 入り原本の消し残しを成功と報告する形だった（a-2 で変更）。
+    // ベストエフォートで続行してよいのは**付帯文書**（notifs# 等）だけ。
+    it("付帯文書の削除が失敗しても続行し 200（写真の削除は成功している前提）", async () => {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
             const name = cmd.constructor.name;
             if (name === "QueryCommand") return Promise.resolve({ Items: [{ id: "p1", userId: "me" }] });
@@ -394,7 +456,7 @@ describe("deleteAccount", () => {
             }
             if (name === "DeleteCommand") {
                 const id = String((cmd.input.Key as { id?: string }).id ?? "");
-                if (id === "notifs#me") return Promise.reject(new Error("ddb delete failed")); // 一部失敗
+                if (id === "notifs#me") return Promise.reject(new Error("ddb delete failed")); // 付帯文書だけ失敗
                 return Promise.resolve({});
             }
             return Promise.resolve({});

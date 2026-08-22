@@ -58,12 +58,15 @@ const UPLOAD_BUCKET = requireEnv("UPLOAD_BUCKET");
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 
-async function s3Delete(key: string): Promise<void> {
-    if (!key) return;
+/** @returns 消せたら true（失敗は握らず呼び出し側で数える） */
+async function s3Delete(key: string): Promise<boolean> {
+    if (!key) return true;
     try {
         await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));
+        return true;
     } catch (e) {
         console.error(`deleteAccount: S3 delete failed for ${key}:`, e);
+        return false;
     }
 }
 
@@ -73,19 +76,24 @@ async function s3Delete(key: string): Promise<void> {
  * 使い切っていた。途中で切られると呼び出し側が「失敗」と表示するのに
  * データは半分消えている、という一番まずい状態になる。
  */
-async function s3DeleteMany(keys: string[]): Promise<void> {
-    if (keys.length === 0) return;
+/** @returns 消せなかったキーの数（0 = 全部消えた） */
+async function s3DeleteMany(keys: string[]): Promise<number> {
+    if (keys.length === 0) return 0;
+    let failedCount = 0;
     for (let i = 0; i < keys.length; i += 1000) {
         const chunk = keys.slice(i, i + 1000);
         try {
-            await s3.send(new DeleteObjectsCommand({
+            const res = await s3.send(new DeleteObjectsCommand({
                 Bucket: UPLOAD_BUCKET,
                 Delete: { Objects: chunk.map((Key) => ({ Key })), Quiet: true },
             }));
+            failedCount += res.Errors?.length ?? 0;
         } catch (e) {
             console.error(`deleteAccount: S3 batch delete failed (${chunk.length} keys):`, e);
+            failedCount += chunk.length;
         }
     }
+    return failedCount;
 }
 
 /** items を最大 limit 本の並列で処理する（Lambda の実行時間を使い切らないため） */
@@ -100,11 +108,14 @@ async function mapWithConcurrency<T>(items: T[], limit: number, fn: (item: T) =>
     await Promise.all(workers);
 }
 
-async function ddbDelete(table: string, key: Record<string, unknown>): Promise<void> {
+/** @returns 消せたら true。ベストエフォートの掃除では戻り値を無視してよい */
+async function ddbDelete(table: string, key: Record<string, unknown>): Promise<boolean> {
     try {
         await ddb.send(new DeleteCommand({ TableName: table, Key: key }));
+        return true;
     } catch (e) {
         console.error(`deleteAccount: DDB delete failed for ${JSON.stringify(key)}:`, e);
+        return false;
     }
 }
 
@@ -249,6 +260,7 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
     try {
         // 1. 自分の写真・ストーリー（GSI で列挙）。GSI の射影に依存しないよう id を集めてから
         //    本体を GetItem し、S3 本体/サムネ + DDB item を削除する。
+        let mediaFailures = 0;
         let lastKey: Record<string, unknown> | undefined;
         do {
             const res = await ddb.send(new QueryCommand({
@@ -271,9 +283,12 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                     if (full.Item) item = full.Item as Record<string, unknown>;
                 } catch (e) {
                     console.error(`deleteAccount: get photo failed for ${id}:`, e);
+                    // GSI の射影は全項目を持つとは限らない。読めなかった写真は
+                    // srcOriginal（GPS入り原本）を消し漏らしうるので失敗に数える
+                    mediaFailures++;
                 }
-                await s3DeleteMany(mediaKeys(item));
-                await ddbDelete(PHOTOS_TABLE, { id });
+                mediaFailures += await s3DeleteMany(mediaKeys(item));
+                if (!await ddbDelete(PHOTOS_TABLE, { id })) mediaFailures++;
                 // その写真に付いたコメントも消す。写真だけ消していたので、
                 // 退会後も「本文・投稿者名・投稿者のsub」が誰でも読めるまま
                 // 残っていた（一覧APIは公開で、写真の存在確認もしない）。
@@ -282,6 +297,22 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
             });
             lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
         } while (lastKey);
+
+        // 写真の削除に失敗が残っていたら、**Cognito を消す前に**止める。
+        //
+        // ステップ4（フォロー掃除）は失敗しても 200 で通す——残るのは
+        // 「相手のフォロワー数が1多い」だけで、影響が軽いから成り立つ判断。
+        // 写真は違う。消し残しは **GPS 入りの原本が公開URLに残る**ことを
+        // 意味し、200 を返すとクライアントは Cognito のアカウント削除まで
+        // 進むので、やり直せる人がいなくなる。ここで 500 を返せば
+        // アカウントは残っていて、退会をもう一度押せば続きから消える
+        // （このループは冪等——消えた写真はもう一覧に出ない）。
+        // 恒常的な失敗（権限の破壊など）で退会がブロックされるのは
+        // 受け入れる。写真が消せない状態でアカウントだけ消す方が悪い。
+        if (mediaFailures > 0) {
+            console.error(`deleteAccount: ${mediaFailures} media deletion(s) failed for ${uid}; aborting before Cognito delete`);
+            return jsonError(500, "写真の削除を完了できませんでした。アカウントはまだ削除されていません。時間をおいてもう一度お試しください");
+        }
 
         // 2. アバター/カバー（決定的キー・探索不要）
         await s3Delete(`profiles/${uid}`);
