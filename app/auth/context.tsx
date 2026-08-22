@@ -9,7 +9,7 @@ import { log } from "../../lib/utils/log";
 import { resetFollowingCache } from "../../lib/hooks/useFollow";
 import { clearSharedPayload } from "../../lib/utils/shareStore";
 import { clearSeenStories } from "../../lib/stories";
-import { setFavoritesUser } from "../../lib/hooks/useFavorites";
+import { setFavoritesUser, removeFavoritesUserData } from "../../lib/hooks/useFavorites";
 
 /**
  * アカウントを離れるとき（ログアウト・退会）に、端末に残る
@@ -64,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const hasCognitoConfig = cognitoConfig.userPoolId && cognitoConfig.clientId;
 
             if (!hasCognitoConfig) {
+                setFavoritesUser(null);
                 setAuthState({
                     isAuthenticated: false,
                     isAdminUser: false,
@@ -84,7 +85,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const general = !admin && groups.includes("user");
             const sub = typeof payload["sub"] === "string" ? payload["sub"] : null;
 
-            // お気に入りをこのアカウントのキーに向ける（未ログインなら共有キー）
+            // お気に入りをこのアカウントのキーに向ける（未ログインなら共有キー）。
+            // **setAuthState より先に呼ぶ。** loading が false になった瞬間に
+            // usePhotoLikes のフォールバック（serverLiked ?? isFavorite）が
+            // 読むキーを確定させておくため（順序に意味がある）。
             setFavoritesUser(authenticated ? sub : null);
             setAuthState({
                 isAuthenticated: authenticated,
@@ -97,6 +101,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return { authenticated, admin };
         } catch (error) {
             log.warn("Auth check error (non-blocking):", error);
+            // 成功経路（setFavoritesUser(authenticated ? sub : null)）と対称に、
+            // 判定できなかったときも前のユーザーのキーを向いたままにしない
+            setFavoritesUser(null);
             setAuthState({
                 isAuthenticated: false,
                 isAdminUser: false,
@@ -221,6 +228,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         + "お手数ですが、もう一度ログインしてから退会をお試しください",
                 };
             }
+            // useCallback の deps は [router] のままにする（authState を読むと
+            // stale closure になる）。userId は手元の session から取る
+            const subClaim = (session.getIdToken() as { payload?: Record<string, unknown> } | undefined)?.payload?.["sub"];
+            const deletedUserId = typeof subClaim === "string" ? subClaim : null;
             signOut();
             // ログアウトと同じ掃除（useFollow.ts の doc「ログアウト時に必ず
             // 呼ぶこと」）。退会経路だけ抜けていて、同じタブで次に登録した
@@ -228,6 +239,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             resetFollowingCache();
             clearAccountLocalState();
             setFavoritesUser(null);
+            // 同じ userId では二度とログインできない。読めない鍵付きの
+            // ハート一覧を端末に残さない
+            if (deletedUserId) removeFavoritesUserData(deletedUserId);
             setAuthState({
                 isAuthenticated: false,
                 isAdminUser: false,

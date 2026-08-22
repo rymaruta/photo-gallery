@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useFavorites, resetFavoritesCache, setFavoritesUser } from "../useFavorites";
+import { useFavorites, resetFavoritesCache, setFavoritesUser, removeFavoritesUserData } from "../useFavorites";
 
 const localStorageMock = (() => {
     let store: Record<string, string> = {};
@@ -116,5 +116,42 @@ describe("setFavoritesUser: アカウントごとにハートを分ける", () =
         act(() => setFavoritesUser(null));
         const { result } = renderHook(() => useFavorites());
         expect(result.current.favorites).toEqual(["anon"]);
+    });
+});
+
+// 引き継ぎは端末で1回だけ。「user キーが無ければ初回」という判定だった頃は、
+// 一度もハートしない人が毎回共有キーを吸い、別の人が未ログインで付けた
+// ハートが次に初回ログインしたアカウントへ誤帰属していた（AS 系レビューの指摘）。
+describe("setFavoritesUser: 引き継ぎは端末で1回だけ", () => {
+    it("引き継ぎ済みの端末では、別アカウントの初回ログインでも匿名ハートを吸わない", () => {
+        // user-a が引き継ぎを済ませる
+        localStorageMock.setItem("photo-gallery-favorites", JSON.stringify(["a-old"]));
+        act(() => setFavoritesUser("user-a"));
+        // 匿名ハートが溜まる → user-b が初回ログイン
+        localStorageMock.setItem("photo-gallery-favorites", JSON.stringify(["anon-heart"]));
+        act(() => setFavoritesUser(null));
+        act(() => setFavoritesUser("user-b"));
+        const { result } = renderHook(() => useFavorites());
+        expect(result.current.favorites).toEqual([]);   // 吸っていない
+        // 匿名ハートは共有キーに残っている
+        expect(JSON.parse(localStorageMock.getItem("photo-gallery-favorites")!)).toEqual(["anon-heart"]);
+    });
+
+    it("user キーが空配列でも上書きしない（全ハートを外した状態を尊重）", () => {
+        localStorageMock.setItem("photo-gallery-favorites:user-a", JSON.stringify([]));
+        localStorageMock.setItem("photo-gallery-favorites", JSON.stringify(["x"]));
+        act(() => setFavoritesUser("user-a"));
+        const { result } = renderHook(() => useFavorites());
+        expect(result.current.favorites).toEqual([]);
+    });
+});
+
+describe("removeFavoritesUserData: 退会でそのアカウントのハートを消す", () => {
+    it("指定アカウントのキーだけを消す", () => {
+        localStorageMock.setItem("photo-gallery-favorites:user-a", JSON.stringify(["p1"]));
+        localStorageMock.setItem("photo-gallery-favorites", JSON.stringify(["anon"]));
+        removeFavoritesUserData("user-a");
+        expect(localStorageMock.getItem("photo-gallery-favorites:user-a")).toBeNull();
+        expect(localStorageMock.getItem("photo-gallery-favorites")).not.toBeNull();
     });
 });

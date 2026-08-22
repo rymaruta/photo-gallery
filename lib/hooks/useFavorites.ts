@@ -1,5 +1,5 @@
 import { useCallback, useSyncExternalStore } from "react";
-import { storageGet, storageSet } from "../utils/storage";
+import { storageGet, storageSet, storageRemove } from "../utils/storage";
 
 // 未ログイン（端末）用の従来キー。ログイン中はユーザーごとのキーに分ける。
 // 共有キー1本だった頃は、A のハート一覧が同じ端末の B や未ログイン閲覧者に
@@ -12,26 +12,44 @@ let activeUserId: string | null = null;
 const keyFor = (uid: string | null) => (uid ? `${SHARED_KEY}:${uid}` : SHARED_KEY);
 const currentKey = () => keyFor(activeUserId);
 
+// キー分離を入れる前（共有キー1本）の時代のハートを引き継いだか。
+// この印が無い頃は「user キーが無ければ引き継ぐ」で判定していて、
+// (a) 一度もハートしない人は毎回「初回」と判定されてその時点の共有キーを吸う
+// (b) 別の人が未ログインで付けたハートまで、次に初回ログインした
+//     アカウントへ丸ごと吸い込まれる
+// という誤帰属が残っていた（AS 系レビューの指摘）。引き継ぎは
+// **この端末で1回だけ**にする。旧時代のハートは（実質1人サイトなので）
+// 最初にログインした人の物とみなす。以後の共有キーは純粋に匿名用。
+const MIGRATED_KEY = `${SHARED_KEY}:migrated`;
+
 /**
  * いまのアカウントを教える。auth/context が checkAuth / ログイン成功 /
  * ログアウト / 退会で呼ぶ。ログイン中のハートはユーザーごとのキーに入る。
  *
- * 初回ログイン時は従来の共有キーから**引き継いで空にする**——
- * これまでログイン中に付けたハートは共有キーに溜まっているので、
- * 引き継がないと全員のお気に入り一覧が空に見える。共有キーを空にするのは、
- * 次にログインした別の人や未ログイン閲覧者に前の人のハートを見せないため。
+ * キー分離前の共有キーに溜まったハートは、分離後**最初に**ログインした
+ * アカウントへ1回だけ引き継いで共有キーを空にする（引き継がないと
+ * 既存ユーザーの一覧が空に見える／残すと次の人に見える）。
  */
 export function setFavoritesUser(userId: string | null): void {
     if (activeUserId === userId) return;
     activeUserId = userId;
-    if (userId !== null && storageGet<string[]>(keyFor(userId)) === undefined) {
+    if (userId !== null && storageGet<string>(MIGRATED_KEY) === undefined) {
+        storageSet(MIGRATED_KEY, "1");
         const shared = storageGet<string[]>(SHARED_KEY);
-        if (shared && shared.length > 0) {
+        if (shared && shared.length > 0 && storageGet<string[]>(keyFor(userId)) === undefined) {
             storageSet(keyFor(userId), shared);
             storageSet(SHARED_KEY, []);
         }
     }
     invalidate();
+}
+
+/**
+ * 指定アカウントのハートを端末から消す。退会で呼ぶ（同じ userId では
+ * 二度とログインできないので、読めない鍵付きデータを残さない）。
+ */
+export function removeFavoritesUserData(userId: string): void {
+    storageRemove(keyFor(userId));
 }
 
 // お気に入りは端末ローカル（localStorage）にしか無い。

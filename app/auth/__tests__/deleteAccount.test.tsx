@@ -26,6 +26,9 @@ vi.mock("next/navigation", () => ({
     usePathname: () => "/user/profile",
 }));
 vi.mock("../../../lib/utils/api", () => ({ userFetch: mockUserFetch }));
+// テスト環境は NEXT_PUBLIC_* が無く cognitoConfig が空になり、checkAuth が
+// 「設定なし」経路で止まって成功経路を測れない。設定ありとして通す
+vi.mock("../../../lib/auth/config", () => ({ cognitoConfig: { userPoolId: "pool-test", clientId: "client-test" } }));
 vi.mock("../../../lib/auth/cognito", () => ({
     signIn: mockSignIn,
     signOut: mockSignOut,
@@ -35,13 +38,16 @@ vi.mock("../../../lib/auth/cognito", () => ({
 vi.mock("../../../lib/hooks/useFollow", () => ({ resetFollowingCache: vi.fn() }));
 vi.mock("../../../lib/utils/shareStore", () => ({ clearSharedPayload: vi.fn(async () => { /* noop */ }) }));
 vi.mock("../../../lib/stories", () => ({ clearSeenStories: vi.fn() }));
-vi.mock("../../../lib/hooks/useFavorites", () => ({ setFavoritesUser: vi.fn() }));
+vi.mock("../../../lib/hooks/useFavorites", () => ({
+    setFavoritesUser: vi.fn(),
+    removeFavoritesUserData: vi.fn(),
+}));
 
 const { AuthProvider, useAuth } = await import("../context");
 const { resetFollowingCache } = await import("../../../lib/hooks/useFollow");
 const { clearSharedPayload } = await import("../../../lib/utils/shareStore");
 const { clearSeenStories } = await import("../../../lib/stories");
-const { setFavoritesUser } = await import("../../../lib/hooks/useFavorites");
+const { setFavoritesUser, removeFavoritesUserData } = await import("../../../lib/hooks/useFavorites");
 
 /** 退会を押して、返ってきた結果をそのまま画面に出すだけの部品 */
 function Harness() {
@@ -57,8 +63,18 @@ function Harness() {
     );
 }
 
-const validSession = { isValid: () => true, getIdToken: () => ({ getJwtToken: () => "jwt" }) };
-const expiredSession = { isValid: () => false, getIdToken: () => ({ getJwtToken: () => "jwt" }) };
+// payload まで持たせる。以前は無く、マウント時の checkAuth が
+// payload["cognito:groups"] の TypeError で catch 落ちし、成功経路
+// （setFavoritesUser の配線を含む）がテストで一度も走っていなかった
+// （配線を消しても全テスト緑＝AS 系レビューが変異で実証した穴）。
+const validSession = {
+    isValid: () => true,
+    getIdToken: () => ({ getJwtToken: () => "jwt", payload: { "sub": "user-a", "cognito:groups": ["user"] } }),
+};
+const expiredSession = {
+    isValid: () => false,
+    getIdToken: () => ({ getJwtToken: () => "jwt", payload: { "sub": "user-a", "cognito:groups": ["user"] } }),
+};
 
 const clickDelete = async () => {
     render(<AuthProvider><Harness /></AuthProvider>);
@@ -83,6 +99,7 @@ beforeEach(() => {
     vi.mocked(clearSharedPayload).mockClear();
     vi.mocked(clearSeenStories).mockClear();
     vi.mocked(setFavoritesUser).mockClear();
+    vi.mocked(removeFavoritesUserData).mockClear();
 });
 
 describe("退会: 消す前に、後段が通ることを確かめる", () => {
@@ -143,8 +160,10 @@ describe("退会: 消す前に、後段が通ることを確かめる", () => {
         // 共有シートのペイロードとストーリー既読も、前の人の分を残さない
         expect(clearSharedPayload).toHaveBeenCalled();
         expect(clearSeenStories).toHaveBeenCalled();
-        // お気に入りは共有キー（未ログイン）に戻す
+        // お気に入りは共有キー（未ログイン）に戻し、消したアカウントの
+        // 鍵付きデータも端末から消す
         expect(setFavoritesUser).toHaveBeenCalledWith(null);
+        expect(removeFavoritesUserData).toHaveBeenCalledWith("user-a");
     });
 });
 
@@ -225,5 +244,27 @@ describe("端末に残る前の人のデータの掃除", () => {
         await waitFor(() => expect(screen.getByRole("status").textContent).toContain("true"));
         expect(clearSharedPayload).not.toHaveBeenCalled();
         expect(clearSeenStories).not.toHaveBeenCalled();
+    });
+});
+
+// リロード（マウント時の checkAuth）でもお気に入りをそのアカウントの
+// キーへ向け直す。AS-2 の中核経路だが、validSession が payload を
+// 持たなかった頃は checkAuth が catch 落ちして一度も測れていなかった。
+describe("checkAuth がお気に入りのキーを向け直す", () => {
+    it("マウント時、セッションの sub でキーを向ける", async () => {
+        render(<AuthProvider><Harness /></AuthProvider>);
+        await waitFor(() => expect(setFavoritesUser).toHaveBeenCalledWith("user-a"));
+    });
+
+    it("セッションが無ければ共有キーに向ける", async () => {
+        mockGetCurrentSession.mockResolvedValue(null);
+        render(<AuthProvider><Harness /></AuthProvider>);
+        await waitFor(() => expect(setFavoritesUser).toHaveBeenCalledWith(null));
+    });
+
+    it("判定に失敗したときも前のユーザーのキーを向いたままにしない", async () => {
+        mockGetCurrentSession.mockRejectedValue(new Error("cognito down"));
+        render(<AuthProvider><Harness /></AuthProvider>);
+        await waitFor(() => expect(setFavoritesUser).toHaveBeenCalledWith(null));
     });
 });
