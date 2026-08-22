@@ -236,6 +236,28 @@ describe("deletePhoto（ハンドラ）", () => {
         ]));
     });
 
+    it("key フィールドと生キー（uploads/...）も消す対象に含める", async () => {
+        // api-user/src/mediaKeys.ts の MEDIA_FIELDS と対。以前は URL 形式
+        // しか受けず、key フィールドは列挙にも無かった（PAIR-5）。
+        mockGetPhotoById.mockResolvedValue({
+            id: "p1", userId: "owner",
+            key: "uploads/p1-raw.jpg",
+            src: "https://cdn/uploads/p1.jpg",
+        });
+        await invokeDelete(del("p1"));
+        expect(s3Keys()).toEqual(expect.arrayContaining(["uploads/p1-raw.jpg", "uploads/p1.jpg"]));
+    });
+
+    it("生キーでも .. を含むものは消しに行かない", async () => {
+        mockGetPhotoById.mockResolvedValue({
+            id: "p1", userId: "owner",
+            key: "uploads/u1/../profiles/victim",
+            src: "https://cdn/uploads/p1.jpg",
+        });
+        await invokeDelete(del("p1"));
+        expect(s3Keys()).toEqual(["uploads/p1.jpg"]);
+    });
+
     it("アップロード領域の外は消しに行かない（他人のアイコンを守る）", async () => {
         mockGetPhotoById.mockResolvedValue({
             id: "p1", userId: "owner",

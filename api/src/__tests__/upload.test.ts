@@ -158,6 +158,19 @@ describe("savePhoto", () => {
         expect((await invoke(savePhoto, ev(ok, ""))).statusCode).toBe(403);
     });
 
+    it("src は検証した形（デコード→再エンコード）に正規化して保存する", async () => {
+        // 検証（isOwnUploadUrl）はデコード後のパスで行うので、%6C で綴った
+        // URL も通る。保存が生のままだと、消す側・見る側と表記が食い違う
+        // （api-user 側 canonicalUploadUrl と対。PAIR-4）
+        const res = await invoke(savePhoto, ev({
+            publicUrl: "https://cdn.example.com/up%6Coads/a.jpg",
+            key: "uploads/a.jpg",
+        }));
+        expect(res.statusCode).toBe(200);
+        const saved = mockPutPhoto.mock.calls[0][0] as { src: string };
+        expect(saved.src).toBe("https://cdn.example.com/uploads/a.jpg");
+    });
+
     it("sub の無いトークンは 401（userId が空の写真を作らない）", async () => {
         const noSub = {
             requestContext: { authorizer: { jwt: { claims: { "cognito:groups": "admin" } } } },

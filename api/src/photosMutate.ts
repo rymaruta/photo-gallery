@@ -170,14 +170,24 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // S3 から画像ファイルを削除（失敗してもDynamoDBレコードは削除する）。
         // 本体だけでなく派生画像も消す。特に srcOriginal は EXIF を落とす前の原本で
         // GPS が入ったままなので、消し残すと削除後も公開URLで取得できてしまう。
+        // api-user/src/mediaKeys.ts の MEDIA_FIELDS と**対**。派生を足すときは
+        // 両方を直すこと（片方だけ直すと admin 削除だけ消し残す）。
+        // "key" と生キー（"uploads/..."）も受けるのはあちらと同じ理由。
         const mediaFields = [
-            "src", "srcOriginal", "srcAvif", "src256",
+            "key", "src", "srcOriginal", "srcAvif", "src256",
             "thumbSrc", "thumbSm", "thumbAvif", "thumbSmAvif",
         ] as const;
         const keys = new Set<string>();
         for (const field of mediaFields) {
             const v = (photo as Record<string, unknown>)[field];
-            if (typeof v !== "string" || !v.startsWith("http")) continue;
+            if (typeof v !== "string" || !v) continue;
+            if (v.startsWith("uploads/")) {
+                let raw = v;
+                try { raw = decodeURIComponent(v); } catch { /* 不正な % はそのまま */ }
+                if (!raw.includes("..")) keys.add(raw);
+                continue;
+            }
+            if (!v.startsWith("http")) continue;
             try {
                 // パスはデコードしてから見る。生のままだと、保存時の検証
                 // （デコードして判定している）と食い違い、

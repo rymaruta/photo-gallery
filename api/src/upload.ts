@@ -169,9 +169,19 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     const safeTags = sanitizeTags(tags);
     const safeExif = sanitizeExif(exif);
 
+    // 保存は**検証したときに見ていた形**で行う（api-user/src/uploadPolicy.ts の
+    // canonicalUploadUrl と対）。生のまま保存すると、%6C 等で綴った URL が
+    // 「検証は通るが、消す側・見る側と表記が食い違う」形で残る。
+    let canonicalSrc = publicUrl;
+    try {
+        const u = new URL(publicUrl);
+        const key = decodeURIComponent(u.pathname).replace(/^\//, "");
+        canonicalSrc = `${CLOUDFRONT_URL.replace(/\/$/, "")}/${key.split("/").map(encodeURIComponent).join("/")}`;
+    } catch { /* isOwnUploadUrl を通っているので実際には来ない */ }
+
     const photo: Photo = {
         id: uuidv4(),
-        src: publicUrl,
+        src: canonicalSrc,
         title: safeTitle ?? { ja: "無題", en: "Untitled" },
         ...(safeDescription ? { description: safeDescription } : {}),
         ...(safeLocation ? { location: safeLocation } : {}),
