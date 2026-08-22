@@ -63,6 +63,16 @@ describe("deriveUploadKey", () => {
         expect(deriveUploadKey("uploads/u1/%2E%2E/u2/a.jpg")).toBe("");
     });
 
+    it("見るのは1回デコードまで（二重エンコードはそのまま通る＝境界の記録）", () => {
+        // "%252E%252E" は1回デコードで "%2E%2E" のまま残り、".." 判定に
+        // かからない。この値は S3 の DeleteObject にキーとして文字どおり
+        // 渡るだけで、S3 のキーに遡行の意味は無く、presigned URL は
+        // サーバー採番キーにしか署名しないのでこの名前の実体も作れない。
+        // 「どこまで見るか」を挙動として固定しておく（深掘りするなら
+        // 保存側 uploadPolicy.isOwnUploadUrl と対で変えること）。
+        expect(deriveUploadKey("uploads/u1/%252E%252E/a.jpg")).toBe("uploads/u1/%2E%2E/a.jpg");
+    });
+
     it("URL でも生キーでもない値は空", () => {
         expect(deriveUploadKey(undefined)).toBe("");
         expect(deriveUploadKey(null)).toBe("");

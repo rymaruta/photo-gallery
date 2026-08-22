@@ -23,6 +23,9 @@ export function deriveUploadKey(v: unknown): string {
         // 入っておらず、生キーだけ素通りだった（テストまで逆の挙動を
         // 固定していた）。今の保存経路では `..` 入りのキーは作れないが、
         // 判定を経路で分けない。
+        // ※結果は経路で違いうる: URL 経路は new URL がドットセグメントを
+        //   **畳んでから**判定する（%2E%2E → 解決済みパスで通る）が、
+        //   生キーには畳む主体がいないので **拒否**になる。どちらも安全側。
         const key = decodeOnce(v);
         return key.includes("..") ? "" : key;
     }

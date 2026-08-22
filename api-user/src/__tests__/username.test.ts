@@ -247,10 +247,10 @@ describe("mergeProfile: songUrl を触らない更新は位置も触らない", 
         songEnd: 60,
     } as unknown as UserProfile;
 
-    it("位置は songUrl を伴うときだけ書き換わる（契約の記録）", () => {
-        // updateMyProfile は songTouched（"songUrl" in body）で apply を絞る。
-        // ここでは mergeProfile 側の性質を固定する:
-        // addressed でなければ、値が undefined でも前の値が残る。
+    it("addressed でない項目は undefined でも前の値が残る（契約の記録）", () => {
+        // updateMyProfile 側の配線（songTouched で apply を絞る）は
+        // profileConcurrency.test.ts がハンドラを実際に呼んで測っている。
+        // ここは mergeProfile 側の性質だけを固定する。
         const merged = mergeProfile(prev, "me", {});
         expect((merged as Record<string, unknown>).songStart).toBe(30);
         expect((merged as Record<string, unknown>).songEnd).toBe(60);
@@ -260,19 +260,5 @@ describe("mergeProfile: songUrl を触らない更新は位置も触らない", 
         const merged = mergeProfile(prev, "me", { songUrl: undefined, songStart: undefined, songEnd: undefined });
         expect(merged).not.toHaveProperty("songStart");
         expect(merged).not.toHaveProperty("songEnd");
-    });
-});
-
-// ハンドラ側の配線。songTouched の絞りが外れると、{ songStart: 30 } だけの
-// リクエストで changes に songStart: undefined が入り、上の性質により消える。
-describe("updateMyProfile: { songStart } 単体で保存済みの位置を消さない", () => {
-    it("ソースが songTouched で絞っている（配線の記録）", () => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const nodeFs = require("fs");
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const nodePath = require("path");
-        const src = nodeFs.readFileSync(nodePath.join(__dirname, "..", "userProfile.ts"), "utf8");
-        expect(src).toContain('apply("songStart", songTouched && "songStart" in body, songStart);');
-        expect(src).toMatch(/const songTouched = "songUrl" in body;/);
     });
 });
