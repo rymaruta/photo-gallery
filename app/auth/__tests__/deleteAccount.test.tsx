@@ -121,5 +121,9 @@ describe("退会: 消す前に、後段が通ることを確かめる", () => {
         expect((await result()).success).toBe(true);
         expect(mockSignOut).toHaveBeenCalled();
         expect(mockPush).toHaveBeenCalledWith("/");
+        // ログアウトと同じ掃除。退会経路だけ抜けていて、同じタブで次に
+        // 登録した人に前の人のフォロー一覧が使われる形が残っていた
+        const { resetFollowingCache } = await import("../../../lib/hooks/useFollow");
+        expect(resetFollowingCache).toHaveBeenCalled();
     });
 });

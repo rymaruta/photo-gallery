@@ -91,6 +91,34 @@ describe("fetchFollowingSet: リセット後に古い取得結果を書き戻さ
         expect(mockUserFetch).toHaveBeenCalledTimes(2);
     });
 
+    it("旧い取得が後から完了しても、リセット後の新しい取得の結果が残る", async () => {
+        const oldFetch = deferred<{ ok: boolean; json: () => Promise<unknown> }>();
+        const newFetch = deferred<{ ok: boolean; json: () => Promise<unknown> }>();
+        mockUserFetch.mockReturnValueOnce(oldFetch.promise).mockReturnValueOnce(newFetch.promise);
+        const mod = await import("../useFollow");
+        mod.resetFollowingCache();
+
+        const oldP = mod.fetchFollowingSet();   // Aの取得（未完了）
+        mod.resetFollowingCache();               // ログアウト
+        const newP = mod.fetchFollowingSet();   // Bの取得（未完了）
+
+        // Aの取得が**あとから**完了する
+        oldFetch.resolve({ ok: true, json: async () => ({ userIds: [TARGET] }) });
+        await oldP;
+
+        // 旧い完了が新しい取得の参照を消していない＝3本目を投げない
+        const again = mod.fetchFollowingSet();
+        expect(mockUserFetch).toHaveBeenCalledTimes(2);
+
+        newFetch.resolve({ ok: true, json: async () => ({ userIds: ["b-user"] }) });
+        expect([...(await newP)]).toEqual(["b-user"]);
+        expect([...(await again)]).toEqual(["b-user"]);
+        // キャッシュに残るのはBの一覧（Aのは書き戻されていない）
+        const cached = await mod.fetchFollowingSet();
+        expect([...cached]).toEqual(["b-user"]);
+        expect(mockUserFetch).toHaveBeenCalledTimes(2);
+    });
+
     it("リセットを挟まなければキャッシュされる（取り直さない）", async () => {
         mockUserFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ userIds: [TARGET] }) });
         const mod = await import("../useFollow");

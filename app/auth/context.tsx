@@ -114,6 +114,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const sub = result.session.getIdToken().payload["sub"] as string | undefined;
                 log.info("AuthContext: 認証成功", { admin, general, groups: result.groups });
 
+                // 前の人のフォロー一覧を持ち越さない。ログアウト・退会側でも
+                // 捨てているが、セッション失効など「明示ログアウトを通らずに
+                // 切れた」場合はそちらが走らない。どの経路で切れていても、
+                // **新しいログインは白紙から始める**のが確実。
+                resetFollowingCache();
                 setAuthState({
                     isAuthenticated: true,
                     isAdminUser: admin,
@@ -194,6 +199,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 };
             }
             signOut();
+            // ログアウトと同じ掃除（useFollow.ts の doc「ログアウト時に必ず
+            // 呼ぶこと」）。退会経路だけ抜けていて、同じタブで次に登録した
+            // 人に前の人のフォロー一覧が使われる形が残っていた。
+            resetFollowingCache();
             setAuthState({
                 isAuthenticated: false,
                 isAdminUser: false,

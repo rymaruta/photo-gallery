@@ -18,7 +18,12 @@ export async function fetchFollowingSet(): Promise<Set<string>> {
     if (followingCache) return followingCache;
     if (!followingPromise) {
         const genAtStart = cacheGen;
-        followingPromise = (async () => {
+        // finally で自分自身と比較するため、先に宣言してから代入する
+        // （finally は完了時にしか走らないので、代入前に参照されることはない。
+        //   const は初期化子が必須で自己参照と両立しないため let + ! を使う）
+        let p!: Promise<Set<string>>;
+        // eslint-disable-next-line prefer-const
+        p = (async () => {
             try {
                 const res = await userFetch("/user/following");
                 if (!res.ok) return new Set<string>();
@@ -29,9 +34,14 @@ export async function fetchFollowingSet(): Promise<Set<string>> {
             } catch {
                 return new Set<string>();
             } finally {
-                followingPromise = null;
+                // 自分がまだ「実行中の取得」である場合だけ下ろす。
+                // 無条件に null にすると、リセット後に始まった**新しい取得**の
+                // 参照を古い取得の完了が消してしまい、次の呼び出しが
+                // 3本目の重複リクエストを投げる。
+                if (followingPromise === p) followingPromise = null;
             }
         })();
+        followingPromise = p;
     }
     return followingPromise;
 }
