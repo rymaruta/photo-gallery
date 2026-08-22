@@ -156,6 +156,14 @@ describe("savePhoto", () => {
 
     it("管理者でなければ 403", async () => {
         expect((await invoke(savePhoto, ev(ok, ""))).statusCode).toBe(403);
+    });
+
+    it("sub の無いトークンは 401（userId が空の写真を作らない）", async () => {
+        const noSub = {
+            requestContext: { authorizer: { jwt: { claims: { "cognito:groups": "admin" } } } },
+            body: JSON.stringify({}),
+        };
+        expect((await invoke(savePhoto, noSub)).statusCode).toBe(401);
         expect(mockPutPhoto).not.toHaveBeenCalled();
     });
 

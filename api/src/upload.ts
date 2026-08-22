@@ -120,6 +120,11 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     const authError = requireAdmin(event);
     if (authError) return authError;
     const uploaderId = getCallerUserId(event);
+    // sub の無いトークンで進むと userId が空の写真ができる（持ち主のいない
+    // 行は本人画面から消せない）。api-user 側の全ハンドラと同じ扱いで止める
+    if (!uploaderId) {
+        return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証が必要です" }) };
+    }
 
     // photoId は受け取らない。ID をリクエストで指定できると、既存の写真や
     // 通知・コメントの文書を同じIDで丸ごと置き換えられる（api-user 側は

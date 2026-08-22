@@ -317,3 +317,16 @@ describe("写真以外の文書を書き換えさせない", () => {
         expect(mockUpdatePhotoFields).toHaveBeenCalled();
     });
 });
+
+// Get と Update の間に写真が消えた（条件外れ）は、対の
+// api-user/src/photoUpdate.ts と同じく 404。500 のままだと利用者は
+// 「失敗したので再試行」と読んで押し直す（調査ラウンド2の指摘）。
+describe("updatePhoto: 更新中に写真が消えた", () => {
+    it("ConditionalCheckFailed は 404（500 で再試行を誘わない）", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner" });
+        mockUpdatePhotoFields.mockRejectedValueOnce(
+            Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
+        const res = await invoke(ev("p1", { location: "北海道" }));
+        expect(res.statusCode).toBe(404);
+    });
+});

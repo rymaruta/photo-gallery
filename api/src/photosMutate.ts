@@ -127,6 +127,14 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
 
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: updated }) };
     } catch (e) {
+        // 条件が外れた＝Get と Update の間に写真が消えた。
+        // 対の api-user/src/photoUpdate.ts と同じく 404 で返す
+        // （500 のままだと利用者は「失敗したので再試行」と読んで押し直す）。
+        // 条件（attribute_exists(id)）は揃えてあったのに、エラーの
+        // 読み替えだけ揃っていなかった（調査ラウンド2の指摘）。
+        if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
+            return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
+        }
         console.error("updatePhoto error:", e);
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "更新に失敗しました" }) };
     }
