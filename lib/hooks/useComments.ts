@@ -17,11 +17,18 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
     const [count, setCount] = useState(initialCount);
     const [loading, setLoading] = useState(true);
     const [pending, setPending] = useState(false);
+    // 取得の失敗を「0件」と混ぜない。混ぜると、付いているコメントが
+    // 「まだコメントがありません」に化けて消えたように見える
+    // （admin 一覧・下書き一覧で直したのと同じ型）。再試行で立て直す。
+    const [loadError, setLoadError] = useState(false);
+    // 再試行のたびに増やして effect を回し直す
+    const [reloadKey, setReloadKey] = useState(0);
     const busyRef = useRef(false);
 
     useEffect(() => {
         let aborted = false;
         const controller = new AbortController();
+        setLoadError(false);
         void (async () => {
             try {
                 const res = await userPublicFetch(`/photos/${encodeURIComponent(photoId)}/comments`, { signal: controller.signal });
@@ -31,13 +38,22 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
                         setItems(Array.isArray(data.items) ? data.items : []);
                         if (typeof data.count === "number") setCount(data.count);
                     }
+                } else if (!aborted) {
+                    setLoadError(true);
                 }
-            } catch { /* 表示は空のまま */ } finally {
+            } catch {
+                if (!aborted) setLoadError(true);
+            } finally {
                 if (!aborted) setLoading(false);
             }
         })();
         return () => { aborted = true; controller.abort(); };
-    }, [photoId]);
+    }, [photoId, reloadKey]);
+
+    const reload = useCallback(() => {
+        setLoading(true);
+        setReloadKey((k) => k + 1);
+    }, []);
 
     /**
  * 投稿の結果。`error` のときは `message` に理由が入る。
@@ -111,5 +127,5 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
         }
     }, [photoId, items, count]);
 
-    return { items, count, loading, pending, add, remove };
+    return { items, count, loading, loadError, reload, pending, add, remove };
 }

@@ -198,6 +198,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     const [extractedExif, setExtractedExif] = useState<ExtractedExif | null>(null);
     const [allPhotos, setAllPhotos] = useState<Photo[]>(initialPhoto ? [initialPhoto] : []);
     const [loading, setLoading] = useState(!initialPhoto);
+    // API の取得に失敗したか。静的データに無い新着写真の URL では、失敗を
+    // 黙ると「写真が見つかりません」＝消されたように読める表示に化ける。
+    // 見つからない × 失敗、のときだけ再試行を出す（下の 404 分岐）。
+    const [fetchFailed, setFetchFailed] = useState(false);
+    const [reloadKey, setReloadKey] = useState(0);
 
     // APIから写真を読み込む（編集済みのデータで静的ビルド時データを上書き）
     useEffect(() => {
@@ -216,12 +221,15 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     } else {
                         log.warn("写真APIが空を返したため静的データを維持します");
                     }
+                    setFetchFailed(false);
                 } else {
                     log.error("写真の取得に失敗しました", { status: response.status });
+                    setFetchFailed(true);
                 }
             } catch (error) {
                 if ((error as { name?: string }).name !== "AbortError") {
                     log.error("写真取得エラー:", error);
+                    setFetchFailed(true);
                 }
             } finally {
                 setLoading(false);
@@ -230,7 +238,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
 
         loadPhotos();
         return () => controller.abort();
-    }, []);
+    }, [reloadKey]);
 
     // 全写真から該当する写真を検索
     const photo = useMemo(() => {
@@ -409,7 +417,32 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
         );
     }
 
-    // 写真が見つからない場合は404
+    // 写真が見つからない場合は404。ただし **API の取得に失敗している間は
+    // 「存在しません」と断定しない**——静的データに無い新着写真だと、
+    // 一時的な失敗が「消された」ように読める（実在するのに）。
+    if (!photo && fetchFailed) {
+        return (
+            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+                    <h1 className="text-3xl font-bold mb-4">
+                        {locale === "en" ? "Couldn't load the photo" : "写真を読み込めませんでした"}
+                    </h1>
+                    <p className="text-white/60 mb-6">
+                        {locale === "en"
+                            ? "A temporary network problem may be the cause."
+                            : "一時的な通信の問題かもしれません。"}
+                    </p>
+                    <button
+                        onClick={() => { setLoading(true); setReloadKey((k) => k + 1); }}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 active:scale-95 transition"
+                        style={{ touchAction: "manipulation", minHeight: "44px" }}
+                    >
+                        {locale === "en" ? "Retry" : "もう一度読み込む"}
+                    </button>
+                </div>
+            </main>
+        );
+    }
     if (!photo) {
         return (
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">

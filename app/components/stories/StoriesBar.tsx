@@ -65,6 +65,8 @@ export default function StoriesBar() {
     const { showToast } = useToast();
 
     const [groups, setGroups] = useState<StoryGroup[]>([]);
+    // 取得の失敗を「誰も投稿していない」と混ぜない（コメント一覧と同じ型）
+    const [loadError, setLoadError] = useState(false);
     const [seen, setSeen] = useState<Set<string>>(new Set());
     const [viewerGroup, setViewerGroup] = useState<number | null>(null);
     const [posting, setPosting] = useState(false);
@@ -197,13 +199,18 @@ export default function StoriesBar() {
             // ストーリーはログインユーザー限定。認証トークン付きで取得する。
             const { userFetch } = await import("../../../lib/utils/api");
             const res = await userFetch("/stories");
-            if (!res.ok) return;
+            if (!res.ok) {
+                setLoadError(true);
+                return;
+            }
             const data = await res.json() as Story[];
             if (Array.isArray(data)) {
                 setGroups(groupStories(data, userId));
+                setLoadError(false);
             }
         } catch (e) {
             log.warn("stories fetch error:", e);
+            setLoadError(true);
         }
     }, [userId]);
 
@@ -451,6 +458,16 @@ export default function StoriesBar() {
 
     return (
         <div className="mb-5">
+            {loadError && groups.length === 0 && (
+                // 失敗をバー空表示と混ぜない。他の人のストーリーが
+                // 「誰も投稿していない」ように見えたまま気づけない
+                <p className="text-[11px] text-white/45 px-1 pb-1">
+                    {locale === "en" ? "Couldn't load stories. " : "ストーリーを読み込めませんでした。"}
+                    <button onClick={() => void loadStories()} className="underline text-white/70 hover:text-white">
+                        {locale === "en" ? "Retry" : "再試行"}
+                    </button>
+                </p>
+            )}
             <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-1 px-1 py-1">
                 {/* 自分の枠は常に1つだけ。すでに投稿があればリング＝自分のストーリー、
                     右下の「+」で追加投稿。まだ無ければ「+」だけを出す。 */}

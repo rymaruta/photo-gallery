@@ -90,3 +90,23 @@ describe("CommentSection: 断られた理由の表示", () => {
         expect((screen.getByPlaceholderText("コメントを追加…") as HTMLTextAreaElement).value).toBe("");
     });
 });
+
+// 取得の失敗が「まだコメントがありません」と同じ見た目だった（SW-b2）。
+// 付いているコメントが消えたように見える。失敗は失敗と伝えて再試行を出す。
+describe("CommentSection: 一覧の取得失敗", () => {
+    it("失敗は0件表示と混ぜず、再読み込みで立て直す", async () => {
+        mockUserPublicFetch
+            .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) })
+            .mockResolvedValueOnce({ ok: true, json: async () => ({
+                items: [{ id: "c1", uid: "u1", name: "旅人", text: "きれい", t: "2026-08-01T00:00:00Z" }],
+                count: 1,
+            }) });
+        render(<CommentSection photoId="p1" locale="ja" />);
+
+        expect(await screen.findByText(/コメントを読み込めませんでした/)).toBeInTheDocument();
+        expect(screen.queryByText(/まだコメントがありません/)).toBeNull();
+
+        fireEvent.click(screen.getByRole("button", { name: "再読み込み" }));
+        expect(await screen.findByText("きれい")).toBeInTheDocument();
+    });
+});

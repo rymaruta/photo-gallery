@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 
 // 認証状態を切り替えられるモック
 const authState = vi.hoisted(() => ({ current: { isAuthenticated: false, userId: null as string | null } }));
@@ -52,5 +52,23 @@ describe("StoriesBar - ログイン限定", () => {
         });
         render(<StoriesBar />);
         expect(await screen.findByText("旅人A")).toBeInTheDocument();
+    });
+});
+
+// 取得の失敗がバー空表示（誰も投稿していない見た目）と区別できなかった（SW-b5）
+describe("StoriesBar - 一覧の取得失敗", () => {
+    it("失敗を伝えて、再試行で立て直す", async () => {
+        authState.current = { isAuthenticated: true, userId: "me" };
+        mockUserFetch
+            .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) })
+            .mockResolvedValueOnce({ ok: true, json: async () => [
+                { id: "s1", src: "https://cdn/a.jpg", userId: "u2", displayName: "旅人A", createdAt: "2098-01-01T00:00:00Z", expiresAt: "2099-01-01T00:00:00Z" },
+            ] });
+        render(<StoriesBar />);
+
+        expect(await screen.findByText(/ストーリーを読み込めませんでした/)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "再試行" }));
+        expect(await screen.findByText("旅人A")).toBeInTheDocument();
+        expect(screen.queryByText(/読み込めませんでした/)).toBeNull();
     });
 });

@@ -34,7 +34,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
     // その間にリンクを押すとログインページ経由で別の場所へ飛ばされる。
     const { isAuthenticated, userId, loading: authLoading } = useAuth();
     const { showToast } = useToast();
-    const { items, count, loading, pending, add, remove } = useComments(photoId, isAuthenticated, initialCount);
+    const { items, count, loading, loadError, reload, pending, add, remove } = useComments(photoId, isAuthenticated, initialCount);
     const [text, setText] = useState("");
 
     const submit = async () => {
@@ -104,6 +104,15 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
             {/* 一覧 */}
             {loading ? (
                 <div className="flex justify-center py-6"><div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" /></div>
+            ) : loadError ? (
+                // 取得の失敗を「0件」と混ぜない。付いているコメントが
+                // 消えたように見える（admin 一覧・下書き一覧と同じ扱い）
+                <p className="text-xs text-white/50 py-2">
+                    {locale === "en" ? "Couldn't load comments. " : "コメントを読み込めませんでした。"}
+                    <button onClick={reload} className="underline text-white/70 hover:text-white">
+                        {locale === "en" ? "Retry" : "再読み込み"}
+                    </button>
+                </p>
             ) : items.length === 0 ? (
                 <p className="text-xs text-white/35 py-2">
                     {locale === "en" ? "No comments yet. Be the first!" : "まだコメントがありません。最初のひとことを。"}
