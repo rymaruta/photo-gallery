@@ -414,8 +414,15 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     apply("website", "website" in body, website);
     // 貼ったリンク（独立）
     apply("songUrl", "songUrl" in body, songUrl);
-    apply("songStart", "songStart" in body, songStart);
-    apply("songEnd", "songEnd" in body, songEnd && (!songStart || songEnd > songStart) ? songEnd : undefined);
+    // **songUrl を触らないリクエストでは、開始・終了位置も触らない。**
+    // songStart は songUrl が無いと undefined に落ちる（曲なしの位置は
+    // 意味を持たないため）。その状態で `"songStart" in body` だけを見て
+    // apply すると、部分更新APIなのに `{ songStart: 30 }` だけ送った回で
+    // **保存済みの songStart が消える**。曲を消す回（songUrl を空で送る）は
+    // songUrl キーが body にあるので、位置も一緒に消える——それが正しい。
+    const songTouched = "songUrl" in body;
+    apply("songStart", songTouched && "songStart" in body, songStart);
+    apply("songEnd", songTouched && "songEnd" in body, songEnd && (!songStart || songEnd > songStart) ? songEnd : undefined);
     // 検索で選んだ曲（独立）
     apply("songPreviewUrl", "songPreviewUrl" in body, songPreviewUrl);
     apply("songArtwork", "songArtwork" in body, songArtwork);

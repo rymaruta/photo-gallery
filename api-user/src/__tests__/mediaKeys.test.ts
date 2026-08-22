@@ -56,7 +56,11 @@ describe("deriveUploadKey", () => {
     });
 
     it("生キーに .. が入っていたら扱わない（畳む主体がいないため）", () => {
-        expect(deriveUploadKey("uploads/u1/../u2/a.jpg")).toBe("uploads/u1/../u2/a.jpg");
+        // このテストは以前、**名前と逆**（そのまま返す）を固定していた。
+        // 実装をコメントどおりに直そうとした人が「テストがあるから今のままが
+        // 正しい」と誤読する形だった。名前どおりに直した。
+        expect(deriveUploadKey("uploads/u1/../u2/a.jpg")).toBe("");
+        expect(deriveUploadKey("uploads/u1/%2E%2E/u2/a.jpg")).toBe("");
     });
 
     it("URL でも生キーでもない値は空", () => {

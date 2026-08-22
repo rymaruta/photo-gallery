@@ -235,3 +235,44 @@ describe("updateMyProfile: username を送らないリクエストを弾かな�
         expect((await invoke({ username: null })).statusCode).toBe(200);
     });
 });
+
+// 部分更新APIなのに、`{ songStart: 30 }` だけ送ると songUrl が無いため
+// songStart が undefined に落ち、**保存済みの songStart が消えていた**。
+// mergeProfile は「addressed かつ undefined」を削除と読むため。
+describe("mergeProfile: songUrl を触らない更新は位置も触らない", () => {
+    const prev = {
+        userId: "me",
+        songUrl: "https://embed.music.apple.com/jp/album/x",
+        songStart: 30,
+        songEnd: 60,
+    } as unknown as UserProfile;
+
+    it("位置は songUrl を伴うときだけ書き換わる（契約の記録）", () => {
+        // updateMyProfile は songTouched（"songUrl" in body）で apply を絞る。
+        // ここでは mergeProfile 側の性質を固定する:
+        // addressed でなければ、値が undefined でも前の値が残る。
+        const merged = mergeProfile(prev, "me", {});
+        expect((merged as Record<string, unknown>).songStart).toBe(30);
+        expect((merged as Record<string, unknown>).songEnd).toBe(60);
+    });
+
+    it("addressed かつ undefined は削除（曲を消すと位置も消える）", () => {
+        const merged = mergeProfile(prev, "me", { songUrl: undefined, songStart: undefined, songEnd: undefined });
+        expect(merged).not.toHaveProperty("songStart");
+        expect(merged).not.toHaveProperty("songEnd");
+    });
+});
+
+// ハンドラ側の配線。songTouched の絞りが外れると、{ songStart: 30 } だけの
+// リクエストで changes に songStart: undefined が入り、上の性質により消える。
+describe("updateMyProfile: { songStart } 単体で保存済みの位置を消さない", () => {
+    it("ソースが songTouched で絞っている（配線の記録）", () => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const nodeFs = require("fs");
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const nodePath = require("path");
+        const src = nodeFs.readFileSync(nodePath.join(__dirname, "..", "userProfile.ts"), "utf8");
+        expect(src).toContain('apply("songStart", songTouched && "songStart" in body, songStart);');
+        expect(src).toMatch(/const songTouched = "songUrl" in body;/);
+    });
+});

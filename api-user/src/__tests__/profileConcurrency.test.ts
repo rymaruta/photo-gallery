@@ -109,6 +109,50 @@ describe("同時保存で先の変更が消えない", () => {
     });
 });
 
+// 部分更新で `{ songStart: 45 }` だけ送ると、songStart のサニタイズが
+// `songUrl ? clampSec(...) : undefined` なので undefined に落ち、
+// 「addressed かつ undefined = 削除」の規約により**保存済みの再生位置が
+// 消えていた**。mergeProfile 側の性質は username.test.ts が固定している。
+// こちらは配線（songTouched で apply を絞る）を、ハンドラを実際に呼んで測る。
+describe("songUrl を触らない更新は再生位置を消さない", () => {
+    const withSong = {
+        songUrl: "https://embed.music.apple.com/jp/album/x?i=1",
+        songStart: 30, songEnd: 60, rev: 1,
+    };
+
+    it("{ songStart } 単体では位置を触らない（曲なしの位置は意味を持たない）", async () => {
+        mockSend
+            .mockResolvedValueOnce(profileItem(withSong))
+            .mockResolvedValueOnce({});
+        expect((await invoke({ songStart: 45 })).statusCode).toBe(200);
+        const item = profilePuts().at(-1)!.Item as Record<string, { N?: string }>;
+        expect(item.songStart?.N).toBe("30");
+        expect(item.songEnd?.N).toBe("60");
+    });
+
+    it("曲と一緒に送れば位置は書き換わる（正常系を壊していない）", async () => {
+        mockSend
+            .mockResolvedValueOnce(profileItem(withSong))
+            .mockResolvedValueOnce({});
+        const res = await invoke({ songUrl: withSong.songUrl, songStart: 45, songEnd: 90 });
+        expect(res.statusCode).toBe(200);
+        const item = profilePuts().at(-1)!.Item as Record<string, { N?: string }>;
+        expect(item.songStart?.N).toBe("45");
+        expect(item.songEnd?.N).toBe("90");
+    });
+
+    it("songUrl を空で送れば位置も一緒に消える（曲を消す回）", async () => {
+        mockSend
+            .mockResolvedValueOnce(profileItem(withSong))
+            .mockResolvedValueOnce({});
+        expect((await invoke({ songUrl: "", songStart: 30, songEnd: 60 })).statusCode).toBe(200);
+        const item = profilePuts().at(-1)!.Item as Record<string, { N?: string }>;
+        expect(item.songUrl).toBeUndefined();
+        expect(item.songStart).toBeUndefined();
+        expect(item.songEnd).toBeUndefined();
+    });
+});
+
 // ユーザー名の一意性は本体の保存より先に押さえる（他人に取られないため）。
 // そのあと Put が落ちると、以前は `username#<handle>` の予約行だけが残った。
 // 本人は付け直せるが、**そこで別の名前を選ぶと誰も取れないまま永久に残る**

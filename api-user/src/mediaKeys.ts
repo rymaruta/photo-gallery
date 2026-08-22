@@ -18,7 +18,14 @@
 export function deriveUploadKey(v: unknown): string {
     if (typeof v !== "string" || !v) return "";
     const decodeOnce = (s: string) => { try { return decodeURIComponent(s); } catch { return s; } };
-    if (v.startsWith("uploads/")) return decodeOnce(v);
+    if (v.startsWith("uploads/")) {
+        // docstring の「`..` を含むキーは扱わない」は URL 経路にしか
+        // 入っておらず、生キーだけ素通りだった（テストまで逆の挙動を
+        // 固定していた）。今の保存経路では `..` 入りのキーは作れないが、
+        // 判定を経路で分けない。
+        const key = decodeOnce(v);
+        return key.includes("..") ? "" : key;
+    }
     try {
         const path = decodeOnce(new URL(v).pathname).replace(/^\//, "");
         // ".." を含むキーは扱わない（S3 のキーとしては正当だが、
