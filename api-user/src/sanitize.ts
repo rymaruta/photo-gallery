@@ -44,11 +44,18 @@ export function sanitizeText(v: unknown, max: number): string | undefined {
  */
 export function sanitizeDate(v: unknown): string | undefined {
     if (typeof v !== "string" || !v.trim()) return undefined;
-    const t = Date.parse(v.trim());
+    const s = v.trim();
+    const t = Date.parse(s);
     if (Number.isNaN(t)) return undefined;
     const year = new Date(t).getUTCFullYear();
     // 写真が存在しうる範囲。カメラの日付未設定（1970/1980）や未来日を弾く
     if (year < 1990 || t > Date.now() + 24 * 60 * 60 * 1000) return undefined;
+    // **日付だけの入力は日付のまま保つ。** toISOString に通すと
+    // "2024-10-12" が "2024-10-12T00:00:00.000Z" になり、表示側の
+    // 「時刻は書かれていれば出す」（photoDate.ts の splitStoredDate）が
+    // 0時ちょうどという**存在しない時刻**を描いてしまう。
+    // /user/edit の撮影日入力は日付だけを送ってくる。
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
     return new Date(t).toISOString();
 }
 

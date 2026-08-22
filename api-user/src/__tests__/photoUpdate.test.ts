@@ -144,8 +144,9 @@ describe("updatePhotoVisibility: 下書きのメタデータ編集", () => {
         expect(u.ExpressionAttributeValues[":location"]).toBe("山中湖");
         expect(u.ExpressionAttributeValues[":category"]).toBe("風景");
         expect(u.ExpressionAttributeValues[":tags"]).toEqual(["夕焼け", "湖"]);
-        // 撮影日は upload.ts と同じ検証（sanitizeDate）を通すので ISO に正規化される
-        expect(u.ExpressionAttributeValues[":date"]).toBe("2026-01-20T00:00:00.000Z");
+        // 撮影日は upload.ts と同じ検証（sanitizeDate）を通す。
+        // 日付だけの値は日付のまま（0時を捏造しない）
+        expect(u.ExpressionAttributeValues[":date"]).toBe("2026-01-20");
     });
 
     it("メタ編集と公開を同時に行える（下書き→公開）", async () => {
@@ -218,12 +219,16 @@ describe("updatePhotoVisibility: 撮影日の検証", () => {
         expect(lastUpdate().ExpressionAttributeValues?.[":date"]).toBeUndefined();
     });
 
-    it("YYYY-MM-DD も ISO に正規化して保存する（保存経路で表記を揃える）", async () => {
+    // 以前は「保存経路で表記を揃える」として ISO に正規化していたが、
+    // "2024-05-01" → "…T00:00:00.000Z" は表示側（photoDate.ts の
+    // 「時刻は書かれていれば出す」）に **0時ちょうどという存在しない時刻**を
+    // 描かせていた。/user/edit の撮影日入力は日付だけを送る。日付は保つ。
+    it("YYYY-MM-DD は日付のまま保存する（0時を捏造しない）", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } })
             .mockResolvedValueOnce({});
         await invoke(event("u1", "p1", { date: "2024-05-01" }));
-        expect(lastUpdate().ExpressionAttributeValues[":date"]).toBe("2024-05-01T00:00:00.000Z");
+        expect(lastUpdate().ExpressionAttributeValues[":date"]).toBe("2024-05-01");
     });
 });
 

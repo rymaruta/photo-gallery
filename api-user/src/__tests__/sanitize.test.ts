@@ -40,7 +40,14 @@ describe("sanitize 基本ヘルパ", () => {
 describe("sanitizeDate（撮影日）", () => {
     it("ISO 文字列を ISO に正規化する", () => {
         expect(sanitizeDate("2024-10-12T07:32:00.000Z")).toBe("2024-10-12T07:32:00.000Z");
-        expect(sanitizeDate("2024-10-12")).toBe("2024-10-12T00:00:00.000Z");
+    });
+    // 以前は "2024-10-12" が "2024-10-12T00:00:00.000Z" になり、表示側が
+    // 0時ちょうどという**存在しない時刻**を描いていた（/user/edit の撮影日
+    // 入力は日付だけを送る）。日付だけの入力は日付のまま保つ。
+    it("日付だけの入力は日付のまま保つ（0時を捏造しない）", () => {
+        expect(sanitizeDate("2024-10-12")).toBe("2024-10-12");
+        // 範囲チェックは日付だけでも効く
+        expect(sanitizeDate("1980-01-01")).toBeUndefined();
     });
     it("空・非文字列・解釈不能はundefined", () => {
         expect(sanitizeDate("")).toBeUndefined();

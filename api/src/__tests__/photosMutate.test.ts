@@ -90,8 +90,10 @@ describe("pickEditableFields: 値も整える", () => {
         expect(pickEditableFields({ title: [1, 2, 3] }).title).toBeUndefined();
     });
 
-    it("撮影日は ISO に正規化し、あり得ない値は落とす", () => {
-        expect(pickEditableFields({ date: "2026-01-01" }).date).toBe("2026-01-01T00:00:00.000Z");
+    it("撮影日を検証し、あり得ない値は落とす", () => {
+        // 日付だけの値は日付のまま（0時を捏造しない。api-user 側と対）
+        expect(pickEditableFields({ date: "2026-01-01" }).date).toBe("2026-01-01");
+        expect(pickEditableFields({ date: "2026-01-01T07:32:00.000Z" }).date).toBe("2026-01-01T07:32:00.000Z");
         // カメラの日付未設定（1980年など）や未来日は誤検出として捨てる
         expect(pickEditableFields({ date: "1980-01-01" }).date).toBeUndefined();
         expect(pickEditableFields({ date: "なにか" }).date).toBeUndefined();
