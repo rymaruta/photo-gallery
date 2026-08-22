@@ -67,6 +67,16 @@ describe("getMyPhotos handler", () => {
         expect(JSON.parse(res.body)).toEqual([{ id: "d1", src: "s", published: false }]);
     });
 
+    // E-5（12f7fe7）は sub 空ガードをここに足したが、jsonError の import を
+    // 落としていて、このブランチに入ると ReferenceError → 500 だった。
+    // ルートの tsc は api-user を exclude していて型検査も素通り
+    // （調査ラウンド2の指摘）。ブランチを実際に踏むテストで固定する。
+    it("sub が無ければ 401（DynamoDB を触らない）", async () => {
+        const res = await invoke(event(""));
+        expect(res.statusCode).toBe(401);
+        expect(mockDdbSend).not.toHaveBeenCalled();
+    });
+
     it("DynamoDB エラーは 500", async () => {
         mockDdbSend.mockRejectedValueOnce(new Error("boom"));
         const res = await invoke(event("u1"));

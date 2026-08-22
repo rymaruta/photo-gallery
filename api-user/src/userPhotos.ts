@@ -1,6 +1,6 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { listMyPhotos } from "./ddb-photos";
-import { JSON_HEADERS, getUserId } from "./http";
+import { JSON_HEADERS, getUserId, jsonError } from "./http";
 
 // GET /user/photos — 自分の写真一覧（下書き=非公開を含む）。
 // 認証必須。公開 GET /photos?userId= は下書きを隠すため、下書き閲覧用にこちらを使う。
