@@ -31,6 +31,8 @@ export function mergeDate(original: string | undefined, input: string): string {
     // 旧 sanitizeDate が日付だけの入力に付けていた**捏造の時刻**（C-12）。
     // 保つ価値が無いどころか、ここで返し続けると「日付を変えない再保存」が
     // 永久に移行されない。日付だけに直して返す。
+    // ※本物の UTC 0時（JST 9:00:00 ちょうど等）も巻き添えで日付だけになるが、
+    //   EXIF は秒精度なので1枚あたり 1/86,400。許容する。
     if (original.endsWith("T00:00:00.000Z")) return input;
     return original;
 }

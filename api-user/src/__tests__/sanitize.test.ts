@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { sanitizeBlurDataURL, sanitizeTags, sanitizeTitle, sanitizeText, sanitizeDate } from "../sanitize";
 
 describe("sanitizeBlurDataURL", () => {
@@ -52,9 +52,17 @@ describe("sanitizeDate（撮影日）", () => {
     it("日付だけの未来境界: 昨日は通り、明後日は弾く（+24h マージンとの噛み合い）", () => {
         // "明日" の date-only は UTC 深夜として +24h マージン内に必ず収まる
         // （時差で「現地の今日」が弾かれないための余白）。明後日は必ず外れる。
-        const d = (offsetDays: number) => new Date(Date.now() + offsetDays * 864e5).toISOString().slice(0, 10);
-        expect(sanitizeDate(d(-1))).toBe(d(-1));
-        expect(sanitizeDate(d(2))).toBeUndefined();
+        // 時刻は固定する——d() の計算と sanitizeDate 内部の Date.now() が
+        // UTC 0時をまたぐと両断言が反転しうる（レビュー指摘の μs 窓）。
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-08-22T12:00:00.000Z"));
+        try {
+            const d = (offsetDays: number) => new Date(Date.now() + offsetDays * 864e5).toISOString().slice(0, 10);
+            expect(sanitizeDate(d(-1))).toBe(d(-1));
+            expect(sanitizeDate(d(2))).toBeUndefined();
+        } finally {
+            vi.useRealTimers();
+        }
     });
     it("空・非文字列・解釈不能はundefined", () => {
         expect(sanitizeDate("")).toBeUndefined();

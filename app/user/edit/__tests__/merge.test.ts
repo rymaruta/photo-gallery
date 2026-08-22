@@ -32,6 +32,12 @@ describe("mergeDate", () => {
     it("空にしたら空", () => {
         expect(mergeDate("2024-05-01T10:00:00.000Z", "")).toBe("");
     });
+    // lib/utils/__tests__/dateInput.test.ts と同じ関数の複製スイート。
+    // 新しいケースを片方だけに足すと乖離するので、移行の検証はここにも置く
+    it("元が 0時ちょうど（旧仕様の捏造）なら日付だけに直す（C-12 の移行）", () => {
+        expect(mergeDate("2024-05-01T00:00:00.000Z", "2024-05-01")).toBe("2024-05-01");
+        expect(mergeDate("2024-05-01T00:00:01.000Z", "2024-05-01")).toBe("2024-05-01T00:00:01.000Z");
+    });
 });
 
 describe("mergeLocalizedTitle", () => {

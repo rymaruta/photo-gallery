@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { pickEditableFields } from "../photosMutate";
 
 // PUT /photos/{id} は以前リクエストの中身をそのまま DynamoDB に SET していた。
@@ -97,6 +97,21 @@ describe("pickEditableFields: 値も整える", () => {
         // カメラの日付未設定（1980年など）や未来日は誤検出として捨てる
         expect(pickEditableFields({ date: "1980-01-01" }).date).toBeUndefined();
         expect(pickEditableFields({ date: "なにか" }).date).toBeUndefined();
+    });
+
+    // sanitize.ts は api-user 側と**対の複製**。境界の検証を片側だけに
+    // 置くと、もう片方だけ変えたドリフトに気づけない（api-user 側の
+    // sanitize.test.ts と同じ検証をこちらにも置く）
+    it("日付だけの未来境界: 昨日は通り、明後日は弾く", () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-08-22T12:00:00.000Z"));
+        try {
+            const d = (offsetDays: number) => new Date(Date.now() + offsetDays * 864e5).toISOString().slice(0, 10);
+            expect(pickEditableFields({ date: d(-1) }).date).toBe(d(-1));
+            expect(pickEditableFields({ date: d(2) }).date).toBeUndefined();
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it("published は真偽値だけ受け付ける", () => {
