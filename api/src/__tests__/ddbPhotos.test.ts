@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockSend = vi.hoisted(() => vi.fn());
+// テーブル名は ddb-photos.ts が requireEnv("PHOTOS_TABLE") で env から読む
+// （vitest.setup.ts の test-photo-gallery-photos が効く）。モックに
+// PHOTOS_TABLE を置いても差し替わらないので、誤読を防ぐため置かない。
 vi.mock("../dynamodb", () => ({
     ddb: { send: mockSend },
-    PHOTOS_TABLE: "photos-test",
-    USER_INDEX: "userId-createdAt-index",
 }));
 
-const { updatePhotoFields, putPhoto } = await import("../ddb-photos");
+const { updatePhotoFields, putPhoto, getPhotoById } = await import("../ddb-photos");
 
 type Input = { UpdateExpression: string; ConditionExpression?: string; ExpressionAttributeValues?: Record<string, unknown> };
 const lastInput = (): Input => (mockSend.mock.calls[0][0] as { input: Input }).input;
@@ -71,13 +72,14 @@ describe("putPhoto: 既存の行を置き換えない", () => {
 // 公開APIで落とすのはハンドラ側（photos.ts）だけ——データ層側から固定する。
 describe("getPhotoById: srcOriginal を落とさない", () => {
     it("保存されている項目をそのまま返す", async () => {
-        mockSend.mockResolvedValueOnce({ Item: {
+        const item = {
             id: "p1", src: "https://cdn/p1.jpg",
             srcOriginal: "https://cdn/uploads/originals/p1.jpg", key: "uploads/u1/p1.jpg",
-        } });
-        const { getPhotoById } = await import("../ddb-photos");
+        };
+        mockSend.mockResolvedValueOnce({ Item: item });
         const p = await getPhotoById("p1");
-        expect(p).toHaveProperty("srcOriginal", "https://cdn/uploads/originals/p1.jpg");
-        expect(p).toHaveProperty("key", "uploads/u1/p1.jpg");
+        // 名前どおり「そのまま」を固定する（2項目だけの断言だと、
+        // 他の項目を落とす改変に気づけない）
+        expect(p).toEqual(item);
     });
 });

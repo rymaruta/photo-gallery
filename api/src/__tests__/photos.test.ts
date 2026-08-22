@@ -139,7 +139,11 @@ describe("公開の読み取り: 非公開項目を返さない", () => {
     // 主張していた。
     it("応答用のコピーだけを落とし、取得した項目は書き換えない", async () => {
         mockGetPhotoById.mockResolvedValue(full);
-        await invokeOne({ pathParameters: { id: "p1" } });
+        const res = await invokeOne({ pathParameters: { id: "p1" } });
+        // 200 を確かめて strip 経路が実際に走ったことを固定する。
+        // これが無いと、getPhoto を常時404にしてもこのテストは通る
+        // （575667b のレビューで変異により実証された空振り）。
+        expect(res.statusCode).toBe(200);
         // ハンドラに渡された元の項目はそのまま
         expect(full).toHaveProperty("srcOriginal");
     });

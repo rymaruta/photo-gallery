@@ -51,8 +51,12 @@ function stubBoxSize() {
     Object.defineProperty(HTMLElement.prototype, "offsetHeight", { configurable: true, get: () => BOX_H });
 }
 afterEach(() => {
+    // jsdom では descriptor が実在する（configurable な getter）ことを
+    // 確認済みだが、無い環境でもスタブを残さないよう delete まで書く
     if (origOffsetW) Object.defineProperty(HTMLElement.prototype, "offsetWidth", origOffsetW);
+    else delete (HTMLElement.prototype as { offsetWidth?: unknown }).offsetWidth;
     if (origOffsetH) Object.defineProperty(HTMLElement.prototype, "offsetHeight", origOffsetH);
+    else delete (HTMLElement.prototype as { offsetHeight?: unknown }).offsetHeight;
 });
 
 describe("MiniPlayer 配置クランプ（メニューバーを塞がない）", () => {
