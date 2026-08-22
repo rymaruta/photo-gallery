@@ -297,6 +297,21 @@ describe("createStory", () => {
     // スロットリングを起こせば1日上限を素通りできる。写真の100枚制限
     // （upload.ts の photoLimitError）は「数えられなければ 503」に
     // 倒してあり、こちらだけ逆向きだったので揃えた。
+    // putPhoto と同じ作法。条件が無いと、同じIDの既存文書（notifs#… /
+    // comments#…）を丸ごと置き換えられる。ID は story-<UUID> なので衝突は
+    // 現実には起きないが、1か所だけ緩いと次に書く人がそちらを手本にする。
+    it("作成は新規専用（既存の文書を置き換えない条件が付く）", async () => {
+        mockDdbSend.mockResolvedValue({ Items: [], Count: 0 });
+        const res = await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.jpg" }),
+        }));
+        expect(res.statusCode).toBe(201);
+        const put = mockDdbSend.mock.calls
+            .map((c: unknown[]) => c[0] as { constructor: { name: string }; input: { ConditionExpression?: string } })
+            .find((cmd) => cmd?.constructor?.name === "PutCommand")!;
+        expect(put.input.ConditionExpression).toBe("attribute_not_exists(id)");
+    });
+
     it("投稿数を数えられなければ 503 で断る（保存しない）", async () => {
         // Query だけを落とす。呼び出し順のキューだと、モックの並びが
         // 実装とずれた回に別の理由で通る（実際にそうなっていた）。

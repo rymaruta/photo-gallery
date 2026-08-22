@@ -80,6 +80,16 @@ describe("getNotifications", () => {
     });
 });
 
+describe("認証の無い呼び出し", () => {
+    // getUserId は sub 欠落で "" を返す。見ずに進むと "notifs#"（空uid）という
+    // 共有の1行を読み書きする。他のハンドラは全部見ているのに、ここだけ緩かった。
+    it("sub が無ければ 401（共有の空行を読み書きしない）", async () => {
+        expect((await invoke(getNotifications, ev(""))).statusCode).toBe(401);
+        expect((await invoke(readNotifications, ev(""))).statusCode).toBe(401);
+        expect(mockDdbSend).not.toHaveBeenCalled();
+    });
+});
+
 describe("readNotifications", () => {
     it("未読数を0にする", async () => {
         expect((await invoke(readNotifications, ev())).statusCode).toBe(200);

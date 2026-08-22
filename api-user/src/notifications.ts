@@ -11,6 +11,11 @@ import { notifsId, NOTIFS_MAX } from "./notify";
 // GET /user/notifications — 通知一覧（認証必要）
 export const getNotifications: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const uid = getUserId(event);
+    // getUserId は sub 欠落で "" を返す（http.ts）。見ずに進むと
+    // "notifs#"（空uid）という**共有の1行**を読み書きすることになる。
+    // 他のハンドラは全部見ている。JWT オーソライザーが sub を保証するので
+    // 実害はほぼ無いが、1か所だけ緩い状態を残さない。
+    if (!uid) return jsonError(401, "認証が必要です");
     try {
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: notifsId(uid) } }));
         const items = (Array.isArray(res.Item?.items) ? res.Item.items : []).slice(0, NOTIFS_MAX);
@@ -33,6 +38,7 @@ export const getNotifications: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
 // PUT /user/notifications — 既読化（認証必要）
 export const readNotifications: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const uid = getUserId(event);
+    if (!uid) return jsonError(401, "認証が必要です");
     try {
         await ddb.send(new UpdateCommand({
             TableName: PHOTOS_TABLE,

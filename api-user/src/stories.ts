@@ -267,7 +267,16 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     };
 
     try {
-        await ddb.send(new PutCommand({ TableName: PHOTOS_TABLE, Item: story }));
+        await ddb.send(new PutCommand({
+            TableName: PHOTOS_TABLE,
+            Item: story,
+            // 新規作成専用。このテーブルには通知（notifs#…）やコメント
+            // （comments#…）も同居しているので、条件が無いと同じIDの既存文書を
+            // 丸ごと置き換えられる。ID は story-<UUID> なので衝突は現実には
+            // 起きないが、putPhoto が同じ理由で付けている作法から外れない
+            // （1か所だけ緩いと、次に書く人がそちらを手本にする）。
+            ConditionExpression: "attribute_not_exists(id)",
+        }));
         return { statusCode: 201, headers: JSON_HEADERS, body: JSON.stringify({ success: true, story }) };
     } catch (e) {
         console.error("createStory error:", e);

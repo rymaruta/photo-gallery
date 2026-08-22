@@ -102,6 +102,10 @@ export async function pushNotification(ownerId: string, notif: Notif): Promise<v
         //   → A の切り詰めが「B を含まない50件」で上書きする
         // comments.ts の切り詰めが同じ理由で `size(#items) = :len` を
         // 付けている（対の実装。片方を直したらもう片方も見ること）。
+        // **ただし配列の向きは逆**——こちらは list_append(:new, existing) で
+        // 先頭が新しい（切り詰めは slice(0, N)）、comments.ts は
+        // list_append(existing, :new) で末尾が新しい（slice(-N)）。
+        // 切り詰め処理をそのまま横に移すと**新しい方を捨てる**。
         // 外れたら諦めてよい——次の通知がまた切り詰める。
         // **切り詰めが触るのは `items` だけ。`unread` には手を出さない。**
         //
