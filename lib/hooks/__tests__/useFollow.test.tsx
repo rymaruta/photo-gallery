@@ -68,6 +68,40 @@ describe("useFollow: 判定が終わるまで押させない", () => {
     });
 });
 
+// ログアウトの掃除（resetFollowingCache）と取得中の Promise の競合。
+// 取得中にリセット → 取得完了、の順だと、完了時の `followingCache = set` が
+// 空にしたはずのキャッシュへ**前の人のフォロー一覧を書き戻していた**。
+// 同じタブで別の人がログインすると、その一覧がそのまま使われる。
+describe("fetchFollowingSet: リセット後に古い取得結果を書き戻さない", () => {
+    it("取得中にリセットされたら、結果をキャッシュに残さない（次は取り直す）", async () => {
+        const slow = deferred<{ ok: boolean; json: () => Promise<unknown> }>();
+        mockUserFetch.mockReturnValueOnce(slow.promise);
+        const mod = await import("../useFollow");
+        mod.resetFollowingCache();
+
+        const first = mod.fetchFollowingSet();          // 取得開始（未完了）
+        mod.resetFollowingCache();                       // その間にログアウト
+        slow.resolve({ ok: true, json: async () => ({ userIds: [TARGET] }) });
+        expect([...(await first)]).toEqual([TARGET]);    // 待っていた人には返る
+
+        // キャッシュには残っていない＝次の呼び出しは取り直す
+        mockUserFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ userIds: [] }) });
+        const second = await mod.fetchFollowingSet();
+        expect(second.size).toBe(0);
+        expect(mockUserFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("リセットを挟まなければキャッシュされる（取り直さない）", async () => {
+        mockUserFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ userIds: [TARGET] }) });
+        const mod = await import("../useFollow");
+        mod.resetFollowingCache();
+
+        await mod.fetchFollowingSet();
+        await mod.fetchFollowingSet();
+        expect(mockUserFetch).toHaveBeenCalledTimes(1);
+    });
+});
+
 // 数を描かない呼び出し元（ボタン単体）まで無条件に GET /users/<id>/follow を
 // 投げていた。ユーザー検索では結果1件ごとに1本、どこにも描かれない数の
 // 問い合わせが飛ぶ。数が要るかは呼び出し元が知っているので、引数で断れるようにした。

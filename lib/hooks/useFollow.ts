@@ -6,17 +6,25 @@ import { log } from "../utils/log";
 
 let followingCache: Set<string> | null = null;
 let followingPromise: Promise<Set<string>> | null = null;
+// リセットの世代。resetFollowingCache が進める。
+// 取得の途中でリセットをまたいだら（＝ログアウトして別の人になったかも
+// しれない）、その結果を**キャッシュに書かない**。これが無いと、
+// 取得中にログアウト → リセット → 取得完了、の順で**前の人の
+// フォロー一覧が空にしたはずのキャッシュへ書き戻り**、同じタブで
+// 次にログインした人にそのまま使われる。
+let cacheGen = 0;
 
 export async function fetchFollowingSet(): Promise<Set<string>> {
     if (followingCache) return followingCache;
     if (!followingPromise) {
+        const genAtStart = cacheGen;
         followingPromise = (async () => {
             try {
                 const res = await userFetch("/user/following");
                 if (!res.ok) return new Set<string>();
                 const data = await res.json() as { userIds?: string[] };
                 const set = new Set(Array.isArray(data.userIds) ? data.userIds : []);
-                followingCache = set;
+                if (genAtStart === cacheGen) followingCache = set;
                 return set;
             } catch {
                 return new Set<string>();
@@ -35,6 +43,7 @@ export async function fetchFollowingSet(): Promise<Set<string>> {
  * モジュールの状態が生き残る）。
  */
 export function resetFollowingCache() {
+    cacheGen++;   // 走っている取得の結果を書き戻させない
     followingCache = null;
     followingPromise = null;
     counts.clear();
