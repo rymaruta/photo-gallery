@@ -261,4 +261,18 @@ describe("mergeProfile: songUrl を触らない更新は位置も触らない", 
         expect(merged).not.toHaveProperty("songStart");
         expect(merged).not.toHaveProperty("songEnd");
     });
+
+    // E-8: ハンドラの検証は「今回送られてきた songStart」としか比べられない。
+    // { songUrl, songEnd: 20 } だけ送ると保存済みの songStart=30 と組んで
+    // 終了が開始より前の区間が保存できた。整合はマージ後の姿で見る。
+    it("マージ後に end <= start になる songEnd は保存しない", () => {
+        const merged = mergeProfile(prev, "me", { songUrl: prev.songUrl, songEnd: 20 });
+        expect((merged as Record<string, unknown>).songStart).toBe(30);
+        expect(merged).not.toHaveProperty("songEnd");
+    });
+
+    it("マージ後も end > start なら songEnd は残る（正常系）", () => {
+        const merged = mergeProfile(prev, "me", { songUrl: prev.songUrl, songEnd: 45 });
+        expect((merged as Record<string, unknown>).songEnd).toBe(45);
+    });
 });

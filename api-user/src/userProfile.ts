@@ -209,6 +209,14 @@ export function mergeProfile(
     // userId は書き換えさせない。更新時刻は必ず今にする。
     merged.userId = userId;
     merged.updatedAt = new Date().toISOString();
+    // 再生区間の整合はマージ後の姿で見る。ハンドラ側の検証は「今回
+    // 送られてきた songStart」としか比べられないため、{ songUrl, songEnd }
+    // だけ送ると保存済みの songStart=30 と組んで end <= start が保存できた
+    // （終了が開始より前の区間は再生されない）。成立しない songEnd は落とす。
+    if (typeof merged.songStart === "number" && typeof merged.songEnd === "number"
+        && merged.songEnd <= merged.songStart) {
+        delete merged.songEnd;
+    }
     return merged as UserProfile;
 }
 
