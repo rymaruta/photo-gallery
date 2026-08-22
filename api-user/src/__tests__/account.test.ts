@@ -142,6 +142,97 @@ describe("deleteAccount", () => {
             expect(deletedDdbIds()).not.toContain("me");
         });
 
+        it("S3 の失敗した写真の行は消さない（再実行の手がかりを残す＝冪等）", async () => {
+            // 行は S3 キーの唯一の手がかり。失敗したまま消すと、500 →
+            // 再実行しても GSI に出てこず、原本が公開URLに孤児で残る
+            // （de7b871 レビューが実ハンドラで再現した回帰）。
+            photoWorld();
+            mockS3Send.mockImplementation((cmd: { constructor: { name: string } }) => {
+                if (cmd.constructor.name === "DeleteObjectsCommand") return Promise.reject(new Error("s3 down"));
+                return Promise.resolve({});
+            });
+            await invoke(deleteAccount, ev("me"));
+            expect(deletedDdbIds()).not.toContain("p1");
+            expect(deletedDdbIds()).not.toContain("comments#p1");
+        });
+
+        it("8並列でも失敗カウントが消えない（ロストアップデート）", async () => {
+            // `mediaFailures += await ...` は左辺を await の前に読むため、
+            // 並列だと他の worker の加算を古い値で上書きしていた。
+            // p1 の S3 を遅らせて成功させ、その間に p2 の行削除を失敗させる。
+            mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+                const name = cmd.constructor.name;
+                if (name === "QueryCommand") return Promise.resolve({ Items: [{ id: "p1", userId: "me" }, { id: "p2", userId: "me" }] });
+                if (name === "GetCommand") {
+                    const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                    if (id === "p1" || id === "p2") {
+                        return Promise.resolve({ Item: { id, userId: "me", src: `https://cdn.test/uploads/${id}.jpg` } });
+                    }
+                    return Promise.resolve({ Item: undefined });
+                }
+                if (name === "DeleteCommand" && String((cmd.input.Key as { id?: string }).id ?? "") === "p2") {
+                    return Promise.reject(new Error("ddb down"));
+                }
+                return Promise.resolve({});
+            });
+            mockS3Send.mockImplementation((cmd: { constructor: { name: string }; input?: { Delete?: { Objects?: { Key?: string }[] } } }) => {
+                if (cmd.constructor.name === "DeleteObjectsCommand") {
+                    const keys = (cmd.input?.Delete?.Objects ?? []).map((o) => String(o.Key));
+                    if (keys.some((k) => k.includes("p1"))) {
+                        return new Promise((r) => setTimeout(() => r({}), 50));  // p1 は遅れて成功
+                    }
+                }
+                return Promise.resolve({});
+            });
+            expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(500);
+        });
+
+        it("GSI 縮退（Get 失敗）も失敗に数え、行を消さない", async () => {
+            mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+                const name = cmd.constructor.name;
+                if (name === "QueryCommand") return Promise.resolve({ Items: [{ id: "p1", userId: "me" }] });
+                if (name === "GetCommand" && String((cmd.input.Key as { id?: string }).id ?? "") === "p1") {
+                    return Promise.reject(new Error("ddb get down"));
+                }
+                if (name === "GetCommand") return Promise.resolve({ Item: undefined });
+                return Promise.resolve({});
+            });
+            expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(500);
+            expect(deletedDdbIds()).not.toContain("p1");
+        });
+
+        it("comments# の削除失敗も 500 で止め、行は残す（再実行で拾える）", async () => {
+            mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+                const name = cmd.constructor.name;
+                if (name === "QueryCommand") return Promise.resolve({ Items: [{ id: "p1", userId: "me" }] });
+                if (name === "GetCommand") {
+                    const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                    if (id === "p1") return Promise.resolve({ Item: { id: "p1", userId: "me", src: "https://cdn.test/uploads/p1.jpg" } });
+                    return Promise.resolve({ Item: undefined });
+                }
+                if (name === "DeleteCommand" && String((cmd.input.Key as { id?: string }).id ?? "") === "comments#p1") {
+                    return Promise.reject(new Error("ddb down"));
+                }
+                return Promise.resolve({});
+            });
+            expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(500);
+            expect(deletedDdbIds()).not.toContain("p1");
+        });
+
+        it("アバターの削除失敗も 500（決定的キーなので再実行で必ずやり直せる）", async () => {
+            photoWorld();
+            mockS3Send.mockImplementation((cmd: { constructor: { name: string }; input?: { Key?: string } }) => {
+                if (cmd.constructor.name === "DeleteObjectCommand" && cmd.input?.Key === "profiles/me") {
+                    return Promise.reject(new Error("s3 down"));
+                }
+                return Promise.resolve({});
+            });
+            const res = await invoke(deleteAccount, ev("me"));
+            expect(res.statusCode).toBe(500);
+            // プロフィール行の削除には進まない
+            expect(deletedDdbIds()).not.toContain("me");
+        });
+
         it("S3 が部分失敗（Errors）を返しても 500", async () => {
             photoWorld();
             mockS3Send.mockImplementation((cmd: { constructor: { name: string } }) => {
@@ -150,7 +241,9 @@ describe("deleteAccount", () => {
                 }
                 return Promise.resolve({});
             });
-            expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(500);
+            const res = await invoke(deleteAccount, ev("me"));
+            expect(res.statusCode).toBe(500);
+            expect(deletedDdbIds()).not.toContain("me");
         });
 
         it("写真行の DDB 削除が落ちても 500", async () => {

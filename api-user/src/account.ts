@@ -14,7 +14,8 @@ import { requestSiteRebuild } from "./rebuild";
 //   - プロフィール          … USERS_TABLE の {userId}
 //   - 自分の各ドキュメント  … notifs#/followstats#/following#
 //   - 自分の「フォロー中」   … following の各 target の follow# マーカー削除 + target.followers 減算
-// 1件失敗しても続行（stories cleanup と同じ耐障害方針）。最後に { ok: true }。
+// 写真・アバターの削除失敗は数え、残っていれば Cognito を消す前に 500 で
+// 止める（再実行で収束する。付帯文書だけベストエフォート続行）。成功時 { ok: true }。
 //
 // v1 スコープ外（消さない・許容）: 「いいね」マーカー / 各写真に散在する自分のコメント /
 // 自分への被フォロー。いずれも per-user インデックスが無く全 Scan が必要なため今回は対象外。
@@ -278,6 +279,12 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
             await mapWithConcurrency(projectedItems, 8, async (projected) => {
                 const id = String(projected.id);
                 let item = projected;
+                // この写真の失敗数。共有カウンタへは**最後に1回・同期的に**
+                // 足す。`mediaFailures += await ...` は左辺を await の前に
+                // 読むので、8並列では他の worker が足した分を古い値で
+                // 上書きして**失敗が 0 に戻り**、500 で止まるべき退会が
+                // 200 で通っていた（de7b871 レビューが実ハンドラで再現）。
+                let itemFailures = 0;
                 try {
                     const full = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
                     if (full.Item) item = full.Item as Record<string, unknown>;
@@ -285,18 +292,37 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                     console.error(`deleteAccount: get photo failed for ${id}:`, e);
                     // GSI の射影は全項目を持つとは限らない。読めなかった写真は
                     // srcOriginal（GPS入り原本）を消し漏らしうるので失敗に数える
-                    mediaFailures++;
+                    itemFailures++;
                 }
-                mediaFailures += await s3DeleteMany(mediaKeys(item));
-                if (!await ddbDelete(PHOTOS_TABLE, { id })) mediaFailures++;
+                itemFailures += await s3DeleteMany(mediaKeys(item));
                 // その写真に付いたコメントも消す。写真だけ消していたので、
                 // 退会後も「本文・投稿者名・投稿者のsub」が誰でも読めるまま
                 // 残っていた（一覧APIは公開で、写真の存在確認もしない）。
                 // 消したい本人からは、もう手の届かない場所に残る。
-                await ddbDelete(PHOTOS_TABLE, { id: `comments#${id}` });
+                //
+                // **行（と comments#）を消すのは、その写真の S3 が全部消えた
+                // ときだけ。** 行は S3 キーの唯一の手がかりなので、失敗した
+                // まま消すと、500 → 再実行しても GSI に出てこず
+                // 「消し残しの原本が公開URLに孤児で残る」——このコミット群が
+                // 塞ぎに行った穴そのものに戻る（de7b871 レビューが再現）。
+                // comments# は行より先に消す（逆だと comments# の失敗を
+                // 再実行で拾う手がかりが無くなる）。
+                if (itemFailures === 0) {
+                    if (!await ddbDelete(PHOTOS_TABLE, { id: `comments#${id}` })) itemFailures++;
+                }
+                if (itemFailures === 0) {
+                    if (!await ddbDelete(PHOTOS_TABLE, { id })) itemFailures++;
+                }
+                mediaFailures += itemFailures;
             });
             lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
         } while (lastKey);
+
+        // 2. アバター/カバー（決定的キー・探索不要）。GPS は無いが、
+        //    消し残しは公開URLに残り続けるので写真と同じく失敗に数える
+        //    （キーが決定的なので再実行で必ずやり直せる）
+        if (!await s3Delete(`profiles/${uid}`)) mediaFailures++;
+        if (!await s3Delete(`profiles/${uid}/cover`)) mediaFailures++;
 
         // 写真の削除に失敗が残っていたら、**Cognito を消す前に**止める。
         //
@@ -313,10 +339,6 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
             console.error(`deleteAccount: ${mediaFailures} media deletion(s) failed for ${uid}; aborting before Cognito delete`);
             return jsonError(500, "写真の削除を完了できませんでした。アカウントはまだ削除されていません。時間をおいてもう一度お試しください");
         }
-
-        // 2. アバター/カバー（決定的キー・探索不要）
-        await s3Delete(`profiles/${uid}`);
-        await s3Delete(`profiles/${uid}/cover`);
 
         // 3. プロフィール（USERS_TABLE）
         //    ユーザー名の予約（username#<handle>）も一緒に消す。残すと本人が

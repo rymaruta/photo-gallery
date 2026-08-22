@@ -215,7 +215,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const res = await userFetch("/user/account", { method: "DELETE" });
             if (!res.ok) {
-                return { success: false, error: "退会処理に失敗しました。時間をおいて再度お試しください" };
+                // サーバーの文言を捨てない。写真の削除に失敗した 500 は
+                // 「アカウントはまだ削除されていません…」と状況まで言って
+                // くれる（api-user/src/account.ts）。固定文だけだと、
+                // アカウントが残っているのか消えたのか読み取れない。
+                let serverError = "";
+                try {
+                    const data = await res.json() as { error?: unknown };
+                    if (typeof data.error === "string") serverError = data.error;
+                } catch { /* JSON でなければ既定文 */ }
+                return { success: false, error: serverError || "退会処理に失敗しました。時間をおいて再度お試しください" };
             }
             const del = await cognitoDeleteAccount();
             if (!del.success) {
