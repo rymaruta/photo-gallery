@@ -218,10 +218,14 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     // 同じガードがある）。
                     if (Array.isArray(data) && data.length > 0) {
                         setAllPhotos(data);
+                        setFetchFailed(false);
                     } else {
                         log.warn("写真APIが空を返したため静的データを維持します");
+                        // 隣のガードが「空応答は怪しい」と扱っているのに、
+                        // ここだけ「正」と扱うと、静的未収録の新着写真URL ×
+                        // 怪しい空200 で「存在しません」と断定してしまう
+                        setFetchFailed(true);
                     }
-                    setFetchFailed(false);
                 } else {
                     log.error("写真の取得に失敗しました", { status: response.status });
                     setFetchFailed(true);

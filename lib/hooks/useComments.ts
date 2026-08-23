@@ -91,6 +91,10 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
             if (data.comment) {
                 setItems((prev) => [data.comment as CommentItem, ...prev]);
                 setCount((c) => c + 1);
+                // 一覧の取得失敗の表示が残っていると、投稿は成功したのに
+                // 自分のコメントが画面に出ない（件数だけ増えて不審）。
+                // 投稿できた＝疎通は生きているので、表示を一覧に戻す
+                setLoadError(false);
             }
             return { status: "ok" };
         } catch (e) {

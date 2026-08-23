@@ -205,6 +205,8 @@ export default function StoriesBar() {
             }
             const data = await res.json() as Story[];
             if (Array.isArray(data)) {
+                // 空配列でも成功は成功（全ストーリーが期限切れの朝など）。
+                // ここで下ろさないと、成功なのにエラー行が復活する
                 setGroups(groupStories(data, userId));
                 setLoadError(false);
             }
@@ -218,6 +220,7 @@ export default function StoriesBar() {
         // 未ログインではストーリーを取得も表示もしない
         if (!isAuthenticated) {
             setGroups([]);
+            setLoadError(false);   // 前のセッションの失敗表示を持ち越さない
             return;
         }
         setSeen(loadSeenStoryIds());
@@ -460,7 +463,9 @@ export default function StoriesBar() {
         <div className="mb-5">
             {loadError && groups.length === 0 && (
                 // 失敗をバー空表示と混ぜない。他の人のストーリーが
-                // 「誰も投稿していない」ように見えたまま気づけない
+                // 「誰も投稿していない」ように見えたまま気づけない。
+                // ※古い一覧が見えている間（groups あり）の失敗は**意図して**
+                //   無言にする——バーは装飾的で、古い表示が出ていれば実害が薄い
                 <p className="text-[11px] text-white/45 px-1 pb-1">
                     {locale === "en" ? "Couldn't load stories. " : "ストーリーを読み込めませんでした。"}
                     <button onClick={() => void loadStories()} className="underline text-white/70 hover:text-white">

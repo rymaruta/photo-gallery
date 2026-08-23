@@ -60,6 +60,15 @@ describe("静的データに無い写真 × API失敗", () => {
         expect(await screen.findByRole("heading", { name: "新着" })).toBeInTheDocument();
     });
 
+    it("空の 200 でも「存在しません」とは断定しない（怪しい空応答）", async () => {
+        // 隣のガード（空配列で静的データを潰さない）と同じ疑い方。
+        // 静的未収録の新着写真URL × 怪しい空200 で 404 断定しない
+        mockPublicFetch.mockResolvedValue({ ok: true, json: async () => [] });
+        render(<PhotoPageClient photoId="new-photo" />);
+        expect(await screen.findByText("写真を読み込めませんでした")).toBeInTheDocument();
+        expect(screen.queryByText("写真が見つかりません")).toBeNull();
+    });
+
     it("API が成功して本当に無いときは今までどおり「見つかりません」", async () => {
         mockPublicFetch.mockResolvedValue({ ok: true, json: async () => [newPhoto] });
         render(<PhotoPageClient photoId="really-missing" />);

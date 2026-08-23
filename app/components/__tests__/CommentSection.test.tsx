@@ -110,3 +110,22 @@ describe("CommentSection: 一覧の取得失敗", () => {
         expect(await screen.findByText("きれい")).toBeInTheDocument();
     });
 });
+
+// 失敗表示中に投稿すると、投稿は成功しているのに一覧が「読み込めません
+// でした」のままで自分のコメントが見えなかった（6641bed レビューの指摘）
+describe("CommentSection: 失敗表示中の投稿", () => {
+    it("投稿が成功したら一覧表示へ戻り、自分のコメントが見える", async () => {
+        mockUserPublicFetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({
+            comment: { id: "c9", uid: "me", name: "自分", text: "投稿できた", t: "2026-08-23T00:00:00Z" },
+        }) });
+        render(<CommentSection photoId="p1" locale="ja" />);
+        expect(await screen.findByText(/コメントを読み込めませんでした/)).toBeInTheDocument();
+
+        fireEvent.change(screen.getByPlaceholderText("コメントを追加…"), { target: { value: "投稿できた" } });
+        fireEvent.click(screen.getByRole("button", { name: "送信" }));
+
+        expect(await screen.findByText("投稿できた")).toBeInTheDocument();
+        expect(screen.queryByText(/読み込めませんでした/)).toBeNull();
+    });
+});

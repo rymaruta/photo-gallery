@@ -337,7 +337,7 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // 受け入れる。写真が消せない状態でアカウントだけ消す方が悪い。
         if (mediaFailures > 0) {
             console.error(`deleteAccount: ${mediaFailures} media deletion(s) failed for ${uid}; aborting before Cognito delete`);
-            return jsonError(500, "写真の削除を完了できませんでした。アカウントはまだ削除されていません。時間をおいてもう一度お試しください");
+            return jsonError(500, "画像の削除を完了できませんでした。アカウントはまだ削除されていません。時間をおいてもう一度お試しください");
         }
 
         // 3. プロフィール（USERS_TABLE）

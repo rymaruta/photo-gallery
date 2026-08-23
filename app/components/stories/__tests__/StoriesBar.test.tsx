@@ -72,3 +72,19 @@ describe("StoriesBar - 一覧の取得失敗", () => {
         expect(screen.queryByText(/読み込めませんでした/)).toBeNull();
     });
 });
+
+// 成功時の setLoadError(false) が消えても通っていた（レビューの変異で実証）。
+// 空配列の成功（全ストーリー期限切れ）でもエラー行を復活させない。
+describe("StoriesBar - 再試行が空配列で成功", () => {
+    it("成功ならエラー行は出ない（0件でも）", async () => {
+        authState.current = { isAuthenticated: true, userId: "me" };
+        mockUserFetch
+            .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) })
+            .mockResolvedValueOnce({ ok: true, json: async () => [] });
+        render(<StoriesBar />);
+
+        expect(await screen.findByText(/ストーリーを読み込めませんでした/)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "再試行" }));
+        await waitFor(() => expect(screen.queryByText(/読み込めませんでした/)).toBeNull());
+    });
+});

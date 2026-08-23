@@ -678,3 +678,33 @@ describe("deleteAccount: 静的ページの掃除", () => {
         expect(String(mockRebuild.mock.calls[0][0])).toContain("me");
     });
 });
+
+// 「500 → 再実行で収束する」というコミットの中核主張を通しで固定する
+// （各テストは1回目の挙動しか見ていなかった——2b458ce レビューの指摘）
+describe("退会の再実行で収束する", () => {
+    it("1回目 S3 失敗 → 500、2回目 復旧 → 200 で写真も comments# も消える", async () => {
+        let s3Down = true;
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [{ id: "p1", userId: "me" }] });
+            if (name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                if (id === "p1") return Promise.resolve({ Item: { id: "p1", userId: "me", src: "https://cdn.test/uploads/p1.jpg" } });
+                return Promise.resolve({ Item: undefined });
+            }
+            return Promise.resolve({});
+        });
+        mockS3Send.mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (s3Down && cmd.constructor.name === "DeleteObjectsCommand") return Promise.reject(new Error("s3 down"));
+            return Promise.resolve({});
+        });
+
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(500);
+        expect(deletedDdbIds()).not.toContain("p1");   // 手がかりの行は残る
+
+        s3Down = false;
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        expect(deletedDdbIds()).toContain("p1");
+        expect(deletedDdbIds()).toContain("comments#p1");
+    });
+});
