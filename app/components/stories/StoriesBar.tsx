@@ -78,6 +78,7 @@ export default function StoriesBar() {
     const [songQuery, setSongQuery] = useState("");
     const [songResults, setSongResults] = useState<SongResult[]>([]);
     const [songSearching, setSongSearching] = useState(false);
+    const [songSearchError, setSongSearchError] = useState(false);
     // 曲の「好きな部分」= 30秒プレビュー内の開始位置（秒）
     const [songStart, setSongStart] = useState(0);
     // 画像ストーリーの表示秒数（投稿者が選ぶ）
@@ -182,12 +183,16 @@ export default function StoriesBar() {
         if (!q) return;
         const gen = ++songSearchGen.current;
         setSongSearching(true);
+        setSongSearchError(false);
         try {
             const found = await searchSongs(q);
             if (gen !== songSearchGen.current) return;   // もっと新しい検索が走っている
             setSongResults(found);
         } catch {
-            if (gen === songSearchGen.current) setSongResults([]);
+            if (gen === songSearchGen.current) {
+                setSongResults([]);
+                setSongSearchError(true);   // 0件と同じ無反応にしない（SW-b6）
+            }
         } finally {
             if (gen === songSearchGen.current) setSongSearching(false);
         }
@@ -725,6 +730,11 @@ export default function StoriesBar() {
                                         {locale === "en" ? "Cancel" : "閉じる"}
                                     </button>
                                 </div>
+                                {songSearchError && (
+                                    <p className="text-xs text-amber-400/80">
+                                        {locale === "en" ? "Search failed. Try again." : "検索に失敗しました。もう一度お試しください。"}
+                                    </p>
+                                )}
                                 {songResults.length > 0 && (
                                     <ul className="rounded-xl bg-black/40 divide-y divide-white/5 overflow-hidden max-h-44 overflow-y-auto no-scrollbar">
                                         {songResults.map((r) => (

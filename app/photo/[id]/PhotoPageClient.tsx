@@ -305,11 +305,20 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     const [songQuery, setSongQuery] = useState("");
     const [songResults, setSongResults] = useState<SongResult[]>([]);
     const [songSearching, setSongSearching] = useState(false);
+    // 検索の失敗が「0件」と同じ（結果欄は length>0 でしか描かれない）ので、
+    // 押しても無反応に見えた。プロフィール編集には既に同じ表示がある（SW-b6）
+    const [songSearchError, setSongSearchError] = useState(false);
     const searchPhotoSongs = async () => {
         const q = songQuery.trim();
         if (!q) return;
         setSongSearching(true);
-        try { setSongResults(await searchSongs(q)); } catch { setSongResults([]); } finally { setSongSearching(false); }
+        setSongSearchError(false);
+        try {
+            setSongResults(await searchSongs(q));
+        } catch {
+            setSongResults([]);
+            setSongSearchError(true);
+        } finally { setSongSearching(false); }
     };
     const savePhotoSong = async (song: SongEntry | null) => {
         try {
@@ -796,6 +805,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                             {locale === "en" ? "Cancel" : "閉じる"}
                                         </button>
                                     </div>
+                                    {songSearchError && (
+                                        <p className="text-xs text-amber-400/80">
+                                            {locale === "en" ? "Search failed. Try again." : "検索に失敗しました。もう一度お試しください。"}
+                                        </p>
+                                    )}
                                     {songResults.length > 0 && (
                                         <ul className="rounded-lg ring-1 ring-white/10 divide-y divide-white/5 overflow-hidden max-h-56 overflow-y-auto no-scrollbar">
                                             {songResults.map((r) => (
@@ -884,7 +898,17 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     <div className="flex flex-wrap gap-2">
                         {/* いいねボタン（数を表示） */}
                         <button
-                            onClick={() => { hapticTap(); void toggleLike(); }}
+                            onClick={() => {
+                                hapticTap();
+                                // 失敗すると楽観更新がロールバックしてハートが
+                                // 黙って戻る。フォローは文言を出すのに、いいねだけ
+                                // 無言だった（SW-b4）
+                                void toggleLike().then((ok) => {
+                                    if (!ok) showToast(locale === "en"
+                                        ? "Couldn't save your like. Please try again."
+                                        : "いいねを保存できませんでした。もう一度お試しください", "error");
+                                });
+                            }}
                             disabled={likePending}
                             aria-pressed={isFav}
                             aria-label={isFav

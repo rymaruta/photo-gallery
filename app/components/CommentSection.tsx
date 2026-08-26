@@ -134,7 +134,14 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                                         <span className="text-[11px] text-white/35 flex-shrink-0">{timeAgo(c.t, locale)}</span>
                                         {canDelete && (
                                             <button
-                                                onClick={() => void remove(c.id)}
+                                                onClick={() => void remove(c.id).then((ok) => {
+                                                    // 失敗すると楽観削除がロールバックし、
+                                                    // コメントが一瞬消えて黙って戻る。投稿は
+                                                    // 理由を出すのに削除だけ無言だった（SW-b3）
+                                                    if (!ok) showToast(locale === "en"
+                                                        ? "Couldn't delete the comment. Please try again."
+                                                        : "コメントを削除できませんでした。もう一度お試しください", "error");
+                                                })}
                                                 aria-label={locale === "en" ? "Delete comment" : "コメントを削除"}
                                                 className="ml-auto flex-shrink-0 p-1 text-white/30 hover:text-red-400 transition"
                                                 style={{ touchAction: "manipulation" }}

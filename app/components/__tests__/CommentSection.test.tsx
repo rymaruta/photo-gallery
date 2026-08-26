@@ -129,3 +129,24 @@ describe("CommentSection: 失敗表示中の投稿", () => {
         expect(screen.queryByText(/読み込めませんでした/)).toBeNull();
     });
 });
+
+// コメント削除の失敗が無言だった（楽観削除→黙って戻る）。投稿は理由を
+// 出すのに削除だけ無言、という非対称でもあった（SW-b3）
+describe("CommentSection: 削除の失敗", () => {
+    it("失敗したらトーストで伝える（黙って戻さない）", async () => {
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({
+            items: [{ id: "c1", uid: "me", name: "自分", text: "消したい", t: "2026-08-23T00:00:00Z" }],
+            count: 1,
+        }) });
+        mockUserFetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
+
+        render(<CommentSection photoId="p1" locale="ja" photoOwnerId="me" />);
+        expect(await screen.findByText("消したい")).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "コメントを削除" }));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
+            expect.stringContaining("削除できませんでした"), "error"));
+        // ロールバックされて残っている
+        expect(screen.getByText("消したい")).toBeInTheDocument();
+    });
+});

@@ -90,3 +90,29 @@ describe("閲覧者一覧: 別のストーリーのものを出さない", () =>
         expect(screen.getByText("2枚目を見た人")).toBeInTheDocument();
     });
 });
+
+// 取得の失敗が「まだ閲覧者はいません」と同じ表示だった（SW-b8）
+describe("閲覧者一覧: 取得の失敗", () => {
+    it("0人の表示と混ぜず、読み込めなかったことを伝える", async () => {
+        mockUserFetch.mockImplementation((url: string) => {
+            if (url.includes("/viewers")) return Promise.resolve({ ok: false, status: 500, json: async () => ({}) });
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+
+        render(
+            <StoryViewer
+                groups={groups()}
+                initialGroupIndex={0}
+                locale="ja"
+                isAuthenticated
+                ownUserId="me"
+                onSeen={() => { /* noop */ }}
+                onClose={() => { /* noop */ }}
+            />,
+        );
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+
+        expect(await screen.findByText(/閲覧者を読み込めませんでした/)).toBeInTheDocument();
+        expect(screen.queryByText(/まだ閲覧者はいません/)).toBeNull();
+    });
+});

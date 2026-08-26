@@ -89,11 +89,18 @@ export function usePhotoLikes(
         return () => { aborted = true; controller.abort(); };
     }, [photoId, isAuthenticated, authLoading]);
 
-    const toggle = useCallback(async () => {
-        if (busyRef.current) return;
+    /**
+     * ハートを押す。**失敗したら false を返す**（呼び出し元が伝える）。
+     * 以前は log.warn だけで黙ってロールバックしていたので、押した人には
+     * 「付いたハートが黙って戻る」だけに見えた——フォローは文言を出すのに
+     * いいねだけ無言、という非対称でもあった（SW-b4）。
+     */
+    const toggle = useCallback(async (): Promise<boolean> => {
+        if (busyRef.current) return true;
         // ログイン状態が確定するまで待つ。確定前に処理すると、ログイン済みでも
         // 「未ログイン」扱いになってサーバーへ届かない。
-        if (authLoading) return;
+        if (authLoading) return true;
+        let failed = false;
         touchedRef.current = true;
         busyRef.current = true;
         setPending(true);
@@ -117,7 +124,7 @@ export function usePhotoLikes(
             // 公開の数字を勝手に上下させているだけだった。
             busyRef.current = false;
             setPending(false);
-            return;
+            return true;   // 未ログインはローカル保存だけ＝失敗ではない
         }
         setCount((c) => Math.max(0, c + (wasLiked ? -1 : 1)));
 
@@ -142,6 +149,7 @@ export function usePhotoLikes(
                     setServerLiked(wasLiked);
                     setCount((c) => Math.max(0, c + (wasLiked ? 1 : -1)));
                 }
+                failed = true;
             }
         } catch (e) {
             log.warn("like toggle error:", e);
@@ -150,10 +158,12 @@ export function usePhotoLikes(
                 setServerLiked(wasLiked);
                 setCount((c) => Math.max(0, c + (wasLiked ? 1 : -1)));
             }
+            failed = true;
         } finally {
             busyRef.current = false;
             setPending(false);
         }
+        return !failed;
     }, [liked, photoId, isAuthenticated, authLoading, isFavorite, toggleFavorite]);
 
     return { liked, count, pending: pending || authLoading, toggle };

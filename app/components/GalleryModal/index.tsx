@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { Photo, Locale } from "@/lib/data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
 import { useSwipe } from "../../../lib/hooks/useSwipe";
@@ -68,6 +68,15 @@ export default function GalleryModal({
     const toggleLikeRef = useRef(toggleLike);
     useEffect(() => { toggleLikeRef.current = toggleLike; }, [toggleLike]);
     const { showToast } = useToast();
+    // いいねの失敗を伝える（SW-b4）。ダブルタップ・キーボード（h）からも
+    // 呼ぶので、参照を ref に持って購読の張り直しを避ける
+    const notifyIfLikeFailed = useCallback((ok: boolean) => {
+        if (!ok) showToast(locale === "en"
+            ? "Couldn't save your like. Please try again."
+            : "いいねを保存できませんでした。もう一度お試しください", "error");
+    }, [showToast, locale]);
+    const notifyIfLikeFailedRef = useRef(notifyIfLikeFailed);
+    useEffect(() => { notifyIfLikeFailedRef.current = notifyIfLikeFailed; }, [notifyIfLikeFailed]);
     const { preload } = useImagePreloader();
 
     // ダブルタップいいね（Instagram風）。連続タップ350ms以内で発火し、
@@ -79,7 +88,7 @@ export default function GalleryModal({
         if (now - lastTapRef.current < 350) {
             lastTapRef.current = 0;
             // いいね済みなら解除しない（ダブルタップは演出のみ）
-            if (!likedRef.current) void toggleLike();
+            if (!likedRef.current) void toggleLike().then(notifyIfLikeFailed);
             hapticTap();
             setHeartBurstKey(now);
         } else {
@@ -110,7 +119,7 @@ export default function GalleryModal({
                 return;
             }
             if (e.key === "?") { e.preventDefault(); setHelpOpen((v) => !v); return; }
-            if (e.key === "h" || e.key === "H") { e.preventDefault(); void toggleLikeRef.current(); return; }
+            if (e.key === "h" || e.key === "H") { e.preventDefault(); void toggleLikeRef.current().then(notifyIfLikeFailedRef.current); return; }
             if (e.key === "Tab") {
                 const focusable = modalRef.current?.querySelectorAll<HTMLElement>(
                     'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -224,7 +233,7 @@ export default function GalleryModal({
                         onNext={onNext}
                         onClose={onClose}
                         isFav={liked}
-                        onToggleFavorite={() => { hapticTap(); void toggleLike(); }}
+                        onToggleFavorite={() => { hapticTap(); void toggleLike().then(notifyIfLikeFailed); }}
                         firstFocusableRef={firstFocusableRef}
                         lastFocusableRef={lastFocusableRef}
                     />

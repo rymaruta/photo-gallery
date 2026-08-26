@@ -53,6 +53,8 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const { stop: stopGlobalMusic } = useMusic();
     useEffect(() => { stopGlobalMusic(); }, [stopGlobalMusic]);
     const [viewers, setViewers] = useState<ViewerEntry[] | null>(null);
+    // 取得の失敗を「閲覧者0人」と混ぜない（SW-b8）
+    const [viewersError, setViewersError] = useState(false);
     const [viewersOpen, setViewersOpen] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -107,9 +109,16 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                     const data = await res.json() as { viewers?: ViewerEntry[] };
                     if (aborted) return;
                     setViewers(Array.isArray(data.viewers) ? data.viewers : []);
+                    setViewersError(false);
+                } else {
+                    // 失敗を「まだ閲覧者はいません」と混ぜない（SW-b8）
+                    setViewersError(true);
                 }
             } catch (e) {
-                if (!aborted) log.warn("story viewers fetch error:", e);
+                if (!aborted) {
+                    log.warn("story viewers fetch error:", e);
+                    setViewersError(true);
+                }
             }
         })();
         return () => { aborted = true; };
@@ -525,7 +534,13 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         <div className="overflow-y-auto p-2">
                             {(viewers ?? []).length === 0 ? (
                                 <p className="text-xs text-white/40 text-center py-8">
-                                    {locale === "en" ? "No viewers yet." : "まだ閲覧者はいません（ログインユーザーの閲覧のみ記録されます）"}
+                                    {viewersError
+                                        ? (locale === "en"
+                                            ? "Couldn't load viewers."
+                                            : "閲覧者を読み込めませんでした")
+                                        : (locale === "en"
+                                            ? "No viewers yet."
+                                            : "まだ閲覧者はいません（ログインユーザーの閲覧のみ記録されます）")}
                                 </p>
                             ) : (
                                 (viewers ?? []).map((v) => (

@@ -84,3 +84,15 @@ describe("曲検索: 打ち消した結果を出さない", () => {
         expect(screen.queryByText("ふるい")).toBeNull();
     });
 });
+
+// 検索の失敗が「0件」と同じ（結果欄は length>0 でしか描かれない）ので、
+// 押しても無反応に見えた。プロフィール編集には既に同じ表示がある（SW-b6）
+describe("曲検索: 失敗を伝える", () => {
+    it("失敗したら理由を出す（無反応にしない）", async () => {
+        mockSearchSongs.mockRejectedValue(new Error("network down"));
+        await openSongPicker();
+        const box = screen.getByPlaceholderText("曲名・アーティスト名");
+        await userEvent.type(box, "なにか{Enter}");
+        expect(await screen.findByText(/検索に失敗しました/)).toBeInTheDocument();
+    });
+});

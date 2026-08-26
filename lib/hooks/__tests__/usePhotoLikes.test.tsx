@@ -165,7 +165,7 @@ describe("usePhotoLikes", () => {
                 { initialProps: { id: "A", likes: 10 } });
 
             // A のいいねを開始（応答はまだ返さない）
-            let pending: Promise<void> | undefined;
+            let pending: Promise<boolean> | undefined;
             act(() => { pending = result.current.toggle(); });
 
             // 応答を待たずに B へ送る
@@ -227,5 +227,26 @@ describe("usePhotoLikes", () => {
 
         expect(result.current.liked).toBe(false); // 巻き戻し
         expect(result.current.count).toBe(5);
+    });
+});
+
+// いいねの失敗が log.warn だけで、押した人には「ハートが黙って戻る」
+// としか見えなかった（フォローは文言を出すのに非対称）。呼び出し元が
+// 伝えられるよう、toggle は成否を返す（SW-b4）
+describe("usePhotoLikes: toggle は成否を返す", () => {
+    it("失敗したら false（呼び出し元がトーストを出せる）", async () => {
+        mockUserFetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
+        const { result } = renderHook(() => usePhotoLikes("p1", 10, true));
+        let ok: boolean | undefined;
+        await act(async () => { ok = await result.current.toggle(); });
+        expect(ok).toBe(false);
+    });
+
+    it("成功したら true", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ likes: 11, liked: true }) });
+        const { result } = renderHook(() => usePhotoLikes("p1", 10, true));
+        let ok: boolean | undefined;
+        await act(async () => { ok = await result.current.toggle(); });
+        expect(ok).toBe(true);
     });
 });
