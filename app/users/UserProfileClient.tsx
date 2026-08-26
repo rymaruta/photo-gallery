@@ -249,6 +249,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [isOwner, setIsOwner] = useState(false);
     const [viewerAuthed, setViewerAuthed] = useState(false);
+    // 取得の失敗を無言にしない（SW-b9）。プロフィール（名前・自己紹介・
+    // BGM・ピン留め）が黙って出ないと「未設定の人」に見え、オーナーの
+    // 一覧が黙って公開分だけになると、非公開が消えたと誤解して目の
+    // アイコンを押し直し**本当に再公開してしまう**（下のコメント参照）。
+    const [loadError, setLoadError] = useState<"profile" | "ownPhotos" | null>(null);
+    const [reloadKey, setReloadKey] = useState(0);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -268,6 +274,10 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 if (profileRes.ok) {
                     const prof = await profileRes.json() as UserProfile;
                     setUserProfile(prof);
+                } else {
+                    // 名前・自己紹介・BGM・ピン留めが黙って全部出ない状態を
+                    // 「未設定」と見分けられるようにする
+                    setLoadError("profile");
                 }
                 if (sessionResult) setViewerAuthed(true);
                 const isCurrentUserOwner = !!sessionResult &&
@@ -290,7 +300,13 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             return; // 公開一覧は見ない（下書き・非公開まで含む正）
                         }
                     }
-                    log.warn("自分の写真一覧を取得できませんでした。公開一覧で代用します");
+                    // **公開一覧で代用しない。** 代用すると非公開・下書きが
+                    // 黙って消えて見え、「消えた」と誤解した本人が目のアイコンを
+                    // 押し直して**本当に再公開する**誘導になる（この画面の
+                    // マージ事故コメントと同じ轍）。失敗は失敗と伝える
+                    log.warn("自分の写真一覧を取得できませんでした");
+                    setLoadError("ownPhotos");
+                    return;
                 }
 
                 // API から最新の写真を取得。ビルドを待たずに足あと・地名へ反映される。
@@ -314,12 +330,14 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             } catch (e) {
                 if ((e as { name?: string }).name !== "AbortError") {
                     log.error("user profile fetch error:", e);
+                    setLoadError("profile");
                 }
             }
         };
+        setLoadError(null);
         void load();
         return () => controller.abort();
-    }, [userId]);
+    }, [userId, reloadKey]);
 
     const displayName = useMemo(() => {
         if (userProfile?.displayName) return userProfile.displayName;
@@ -513,6 +531,28 @@ export default function UserProfileClient({ userId }: { userId: string }) {
 
     return (
         <main className="min-h-screen text-white bg-black">
+            {loadError && (
+                // 取得の失敗を無言にしない。プロフィールが「未設定の人」に、
+                // オーナーの一覧が「非公開が消えた」ように見える（SW-b9）
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 pt-3">
+                    <p className="text-xs text-amber-200/90 bg-amber-500/10 ring-1 ring-amber-400/20 rounded-lg px-3 py-2">
+                        {loadError === "ownPhotos"
+                            ? (locale === "en"
+                                ? "Couldn't load your photo list. Drafts and private photos are not shown. "
+                                : "自分の写真一覧を読み込めませんでした。下書き・非公開は表示されていません。")
+                            : (locale === "en"
+                                ? "Couldn't load this profile. "
+                                : "プロフィールを読み込めませんでした。")}
+                        <button
+                            onClick={() => setReloadKey((k) => k + 1)}
+                            className="underline text-amber-100 hover:text-white ml-1"
+                            style={{ touchAction: "manipulation" }}
+                        >
+                            {locale === "en" ? "Retry" : "再読み込み"}
+                        </button>
+                    </p>
+                </div>
+            )}
             {/* ヒーロー: カバー写真を背景に、戻る/アバター/名前/統計/アクションを重ねる */}
             <div className="relative">
                 <CoverBackground userId={userId} />

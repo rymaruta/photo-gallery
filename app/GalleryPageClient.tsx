@@ -23,12 +23,19 @@ export default function GalleryPageClient() {
 
   // フォロー中フィード用: フォローしている userId 集合（認証時のみ取得）
   const [followingIds, setFollowingIds] = React.useState<Set<string>>(new Set());
+  // 一覧の取得失敗を「誰もフォローしていない」と混ぜない（SW-b1）。
+  // 混ぜると、フォロー中フィードが空表示に化けて気づけない
+  const [followingError, setFollowingError] = React.useState(false);
+  const [followingReloadKey, setFollowingReloadKey] = React.useState(0);
   React.useEffect(() => {
     if (!isAuthenticated) { setFollowingIds(new Set()); return; }
     let aborted = false;
-    void fetchFollowingSet().then((set) => { if (!aborted) setFollowingIds(new Set(set)); });
+    setFollowingError(false);
+    fetchFollowingSet()
+      .then((set) => { if (!aborted) setFollowingIds(new Set(set)); })
+      .catch(() => { if (!aborted) setFollowingError(true); });
     return () => { aborted = true; };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, followingReloadKey]);
 
   const {
     PHOTOS,
@@ -184,7 +191,22 @@ export default function GalleryPageClient() {
             : `${labels.gallery?.resultsCount ?? "結果"}: ${filteredPhotos.length} 件`}
         </div>
 
-        {filteredPhotos.length === 0 && filters.feed === "following" ? (
+        {followingError && filters.feed === "following" ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3 text-white/60 text-center">
+            <p className="text-sm">
+              {locale === "en"
+                ? "Couldn't load who you follow."
+                : "フォロー中の一覧を読み込めませんでした。"}
+            </p>
+            <button
+              onClick={() => setFollowingReloadKey((k) => k + 1)}
+              className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+              style={{ touchAction: "manipulation" }}
+            >
+              {locale === "en" ? "Retry" : "もう一度読み込む"}
+            </button>
+          </div>
+        ) : filteredPhotos.length === 0 && filters.feed === "following" ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-white/60 text-center">
             <p className="text-sm">
               {locale === "en"

@@ -14,6 +14,15 @@ let followingPromise: Promise<Set<string>> | null = null;
 // 次にログインした人にそのまま使われる。
 let cacheGen = 0;
 
+/**
+ * フォロー中の userId 集合。**失敗は投げる**（空 Set で誤魔化さない）。
+ * 空 Set を返していた頃は、取得失敗が「誰もフォローしていない」と
+ * 区別できず、フォロー中フィードが「0件」の空表示に化けていた（SW-b1）。
+ * 呼び出し側が catch して見せ方を選ぶ:
+ *   - useFollow のボタン: 失敗しても resolved を立てる（永久に押せない
+ *     ボタンにしない——既存テストで固定済みの判断）
+ *   - フォロー中フィード: 読み込み失敗＋再試行を出す
+ */
 export async function fetchFollowingSet(): Promise<Set<string>> {
     if (followingCache) return followingCache;
     if (!followingPromise) {
@@ -26,13 +35,11 @@ export async function fetchFollowingSet(): Promise<Set<string>> {
         p = (async () => {
             try {
                 const res = await userFetch("/user/following");
-                if (!res.ok) return new Set<string>();
+                if (!res.ok) throw new Error(`following fetch ${res.status}`);
                 const data = await res.json() as { userIds?: string[] };
                 const set = new Set(Array.isArray(data.userIds) ? data.userIds : []);
                 if (genAtStart === cacheGen) followingCache = set;
                 return set;
-            } catch {
-                return new Set<string>();
             } finally {
                 // 自分がまだ「実行中の取得」である場合だけ下ろす。
                 // 無条件に null にすると、リセット後に始まった**新しい取得**の
@@ -161,6 +168,10 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
         if (isAuthenticated) {
             void fetchFollowingSet()
                 .then((set) => { if (!aborted) setIsFollowing(set.has(targetUserId)); })
+                // 失敗しても resolved は立てる（永久に押せないボタンに
+                // しない）。fetchFollowingSet は失敗を投げるようになったが、
+                // ボタン側のこの判断は変えない
+                .catch(() => { /* 既定の「未フォロー」のまま */ })
                 .finally(() => { if (!aborted) setResolved(true); });
         } else {
             // 未ログインなら「フォローしていない」が確定している

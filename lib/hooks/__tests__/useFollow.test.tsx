@@ -152,3 +152,17 @@ describe("useFollow: 数を使わない呼び出し元は数の問い合わせ�
         expect(mockPublicFetch).toHaveBeenCalledWith(`/users/${encodeURIComponent(TARGET)}/follow`);
     });
 });
+
+// 失敗を空 Set で誤魔化さない（SW-b1）。空を返すと、フォロー中フィードが
+// 「誰もフォローしていない」空表示に化けて気づけない。
+describe("fetchFollowingSet: 失敗は投げる", () => {
+    it("!ok は reject（空 Set を返して0件に化けさせない）", async () => {
+        mockUserFetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
+        const mod = await import("../useFollow");
+        mod.resetFollowingCache();
+        await expect(mod.fetchFollowingSet()).rejects.toThrow();
+        // 失敗はキャッシュされない＝次は取り直す
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: [TARGET] }) });
+        expect([...(await mod.fetchFollowingSet())]).toEqual([TARGET]);
+    });
+});
