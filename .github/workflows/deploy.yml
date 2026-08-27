@@ -262,6 +262,11 @@ jobs:
           STAGING_DISTRIBUTION_ID: EF2TFEBBP24DL
           SITE_BUCKET: ${{ needs.config.outputs.siteBucket }}
           SITE_URL: ${{ needs.config.outputs.siteUrl }}
+          # 削除起点の掃除（退会・写真削除の repository_dispatch）では、
+          # 消す量のガードを外す。**掃除が落ちる方が悪い**からで、
+          # 1人が全部の写真を持っている今は退会1回で 88% が消える。
+          # push / 手動実行では外さない（out/ が本番より貧しいときに止める）。
+          ALLOW_BULK_DELETE: ${{ github.event_name == 'repository_dispatch' && '1' || '0' }}
         run: |
           set -euo pipefail
           if [ "$ENV_NAME" = "prod" ]; then

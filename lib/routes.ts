@@ -40,6 +40,9 @@ export const ROUTES = {
             : `/users?id=${encodeURIComponent(id)}`,
 } as const;
 
+/** 同一オリジン判定のためだけの土台。実在しない TLD を使う（誤って外へ出さない） */
+const SAME_ORIGIN_SENTINEL = "https://same-origin.invalid";
+
 /**
  * ログイン後の戻り先として受け取ってよいパスか。
  *
@@ -52,9 +55,24 @@ export const ROUTES = {
  */
 export function safeNextPath(raw: unknown): string | null {
     if (typeof raw !== "string" || !raw) return null;
+    // 相対パス（"photo/abc"）や別スキーム（"javascript:"）を先に落とす
     if (!raw.startsWith("/")) return null;
-    if (raw.startsWith("//") || raw.startsWith("/\\")) return null;
-    return raw;
+    // **前方一致で "//" を弾くだけでは足りなかった。** URL のパーサは
+    // タブ・改行・CR を**解釈の前に取り除く**ので、`/<TAB>/evil.com` は
+    // `//evil.com` と同じ意味になる。前方一致は素通りするので、
+    //   https://journey-photo.com/login?next=%2F%09%2Fevil.com
+    // を踏ませるだけで外部へ飛ばせた（ログイン済みなら無操作で発火する）。
+    // 列挙をやめて**パーサに判定させる**。制御文字もバックスラッシュも、
+    // 将来の解釈差も、これで一括で塞がる。
+    let u: URL;
+    try {
+        u = new URL(raw, SAME_ORIGIN_SENTINEL);
+    } catch {
+        return null;
+    }
+    if (u.origin !== SAME_ORIGIN_SENTINEL) return null;
+    // 解釈しなおした形を返す（紛れ込んだ制御文字はここで落ちる）
+    return u.pathname + u.search + u.hash;
 }
 
 /** ログイン画面へ。戻り先を添える（省略時は既定＝自分のプロフィール） */

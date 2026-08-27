@@ -272,7 +272,7 @@ function classifyStaleObjects(localKeys, remoteObjects, now, graceMs) {
 }
 
 /**
- * 一度のデプロイで消してよい HTML の割合。
+ * 一度のデプロイで消してよいページ（`.html`）の割合。
  *
  * **消す量に歯止めが無かった。** sync 側には「既存より半分以下になる
  * 書き込みは事故とみなす」ガード（SHRINK_LIMIT）があるのに、deploy 側は
@@ -286,9 +286,20 @@ function classifyStaleObjects(localKeys, remoteObjects, now, graceMs) {
  *     で消すようにした）
  *
  * どちらも「out/ が本番より貧しい」形なので、**割合で止める**のが一番効く。
- * 意図して大量に消すときは ALLOW_BULK_DELETE=1 を付ける。
+ *
+ * **閾値は 0.25。** 0.5 にしていたときは効き方が逆だった:
+ *  - 止めたい「古い photos.json」は、スナップショット以降に40枚以上
+ *    増えていないと 50% に届かない（1人100枚上限のこのサイトでは
+ *    事実上到達不能）。10枚の取りこぼしは素通りしていた
+ *  - 逆に**退会の掃除は必ず落ちる**。今の本番は1人が30枚全部を持って
+ *    いるので、その人が退会すると 88% 削除になる。掃除が失敗すると
+ *    退会したユーザーの写真ページが CDN に残り続ける——**失敗の方が悪い**
+ *
+ * なので削除起点の掃除（退会・写真削除の repository_dispatch）では
+ * ワークフローが ALLOW_BULK_DELETE=1 を渡す。手元やブランチ push からの
+ * デプロイでは、削除はほぼ 0 のはずなので 0.25 でも十分に緩い。
  */
-const BULK_DELETE_RATIO = 0.5;
+const BULK_DELETE_RATIO = 0.25;
 /** これ以下の件数なら割合を見ない（小さなサイトで普通の削除を止めない） */
 const BULK_DELETE_MIN = 5;
 
@@ -297,8 +308,14 @@ const BULK_DELETE_MIN = 5;
  * HTML だけを見る（アセットは 30日の猶予があり、消えても表示は壊れない）。
  */
 function bulkDeleteGuard(toDelete, remoteObjects, { ratio = BULK_DELETE_RATIO, min = BULK_DELETE_MIN } = {}) {
-    const htmlToDelete = toDelete.filter(isHtmlOrTxt);
-    const remoteHtml = remoteObjects.filter((o) => isHtmlOrTxt(o.key)).length;
+    // **`.html` だけ数える（RSC の `.txt` を混ぜない）。**
+    // 1ページにつき html 1 + txt 8 が出るので、比率そのものは変わらないが、
+    // Next が RSC の出力名を変える更新では **1,000件超の .txt が一斉に
+    // stale になり必ず発火する**——しかもメッセージは「photos.json が古い」
+    // なので、正しい原因に辿り着けない。ページ数で数える。
+    const isPage = (k) => k.endsWith(".html");
+    const htmlToDelete = toDelete.filter(isPage);
+    const remoteHtml = remoteObjects.filter((o) => isPage(o.key)).length;
     if (htmlToDelete.length < min || remoteHtml === 0) return null;
     if (htmlToDelete.length <= remoteHtml * ratio) return null;
     return `[deploy] 中止: 公開中の HTML ${remoteHtml} 件のうち ${htmlToDelete.length} 件を消そうとしています`
@@ -306,6 +323,7 @@ function bulkDeleteGuard(toDelete, remoteObjects, { ratio = BULK_DELETE_RATIO, m
         + `  out/ が本番より貧しい可能性があります。よくある原因:\n`
         + `    - DynamoDB に繋がらないまま古い app/data/photos.json でビルドした\n`
         + `    - next build が失敗して、前回の out/ が残っている\n`
+        + `    - Next の RSC 出力名が変わる更新（この場合は正常。逃げ道を使ってよい）\n`
         + `  意図した削除なら ALLOW_BULK_DELETE=1 を付けて再実行してください。`;
 }
 
@@ -599,7 +617,7 @@ async function main() {
 module.exports = {
     assertNoForbiddenContent, assertRobotsMatchesTarget, invalidationTargets,
     FORBIDDEN_IN_OUTPUT, classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys,
-    bulkDeleteGuard, BULK_DELETE_RATIO, BULK_DELETE_MIN };
+    bulkDeleteGuard, BULK_DELETE_RATIO, BULK_DELETE_MIN, deleteStaleKeys };
 
 if (require.main === module) main().catch(err => {
     console.error("[deploy] ERROR:", err.message ?? err);

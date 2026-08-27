@@ -1,12 +1,16 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 // デプロイスクリプトの「古いオブジェクト削除」判定。
 // 外部ブラウザで CSS/JS が 404 になり画面が崩れる事故の再発防止ガード。
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { classifyStaleObjects, ASSET_GRACE_MS, bulkDeleteGuard } = require("../deploy-static-site.js") as {
+const { classifyStaleObjects, ASSET_GRACE_MS, bulkDeleteGuard, deleteStaleKeys } = require("../deploy-static-site.js") as {
     bulkDeleteGuard: (
         toDelete: string[],
         remoteObjects: Array<{ key: string; lastModified?: Date }>,
     ) => string | null;
+    deleteStaleKeys: (
+        localKeys: string[],
+        remoteObjects: Array<{ key: string; lastModified?: Date }>,
+    ) => Promise<string[]>;
     classifyStaleObjects: (
         localKeys: string[],
         remoteObjects: Array<{ key: string; lastModified?: Date }>,
@@ -336,7 +340,7 @@ describe("bulkDeleteGuard（消しすぎを止める）", () => {
     const remote = (n: number, prefix = "photo/p") =>
         Array.from({ length: n }, (_, i) => ({ key: `${prefix}${i}.html`, lastModified: new Date() }));
 
-    it("公開中の HTML の半分を超えて消そうとしたら止める", () => {
+    it("公開中のページの割合を超えて消そうとしたら止める", () => {
         const remoteObjects = remote(120);
         // out/ には30枚分しかない＝90枚を消しにいく
         const toDelete = remoteObjects.slice(30).map((o) => o.key);
@@ -350,10 +354,19 @@ describe("bulkDeleteGuard（消しすぎを止める）", () => {
         expect(msg).toContain("ALLOW_BULK_DELETE=1");
     });
 
-    it("半分以下なら通す（ふつうの削除を止めない）", () => {
+    // 閾値は 0.25。0.5 だと「古い photos.json」を止められず（40枚以上の
+    // 取りこぼしが要る＝1人100枚上限では事実上到達不能）、逆に退会の掃除は
+    // 必ず落ちていた（1人が全部持っているので 88%）。
+    it("1〜2割の削除は通す（写真を数枚消したあとのデプロイ）", () => {
         const remoteObjects = remote(120);
-        const toDelete = remoteObjects.slice(0, 60).map((o) => o.key);
+        const toDelete = remoteObjects.slice(0, 20).map((o) => o.key);   // 17%
         expect(bulkDeleteGuard(toDelete, remoteObjects)).toBeNull();
+    });
+
+    it("2割5分を超えたら止める（古い photos.json の取りこぼしを拾う）", () => {
+        const remoteObjects = remote(120);
+        const toDelete = remoteObjects.slice(0, 40).map((o) => o.key);   // 33%
+        expect(bulkDeleteGuard(toDelete, remoteObjects)).toBeTruthy();
     });
 
     it("少数の削除は割合を見ない（小さなサイトを止めない）", () => {
@@ -374,5 +387,55 @@ describe("bulkDeleteGuard（消しすぎを止める）", () => {
 
     it("初回デプロイ（本番が空）は止めない", () => {
         expect(bulkDeleteGuard([], [])).toBeNull();
+    });
+});
+
+
+// **ガードが本番の経路に結線されているか。** 純関数の中身だけを測っていた
+// ので、`deleteStaleKeys` から呼び出しを丸ごと消しても全部緑だった
+// （レビューが実測）。呼び出し側から確かめる。
+describe("deleteStaleKeys がガードを通ること", () => {
+    const remote = (n: number) =>
+        Array.from({ length: n }, (_, i) => ({ key: `photo/p${i}.html`, lastModified: new Date() }));
+    const origEnv = process.env.ALLOW_BULK_DELETE;
+    afterEach(() => {
+        if (origEnv === undefined) delete process.env.ALLOW_BULK_DELETE;
+        else process.env.ALLOW_BULK_DELETE = origEnv;
+    });
+
+    it("消しすぎのときは投げる（S3 を触らせない）", async () => {
+        delete process.env.ALLOW_BULK_DELETE;
+        const remoteObjects = remote(40);
+        // out/ には5枚分しかない＝35枚を消しにいく（87%）
+        await expect(deleteStaleKeys(["photo/p0.html"], remoteObjects)).rejects.toThrow(/中止/);
+    });
+
+    it("ALLOW_BULK_DELETE=1 なら通す（削除起点の掃除デプロイ）", async () => {
+        process.env.ALLOW_BULK_DELETE = "1";
+        const remoteObjects = remote(40);
+        // 実際に S3 を叩くところまでは行かせない——投げないことだけ見る
+        await expect(deleteStaleKeys(["photo/p0.html"], remoteObjects))
+            .rejects.not.toThrow(/中止/);
+    });
+});
+
+// 1ページ = html 1 + RSC txt 8。**Next が RSC の出力名を変える更新**では
+// 1,000件超の .txt が一斉に stale になる。.txt を数えていると必ず発火し、
+// しかもメッセージは「photos.json が古い」なので原因に辿り着けない。
+describe("bulkDeleteGuard: 数えるのはページ（.html）だけ", () => {
+    it("RSC の .txt が大量に入れ替わっても発火しない", () => {
+        const pages = Array.from({ length: 100 }, (_, i) => ({ key: `photo/p${i}.html`, lastModified: new Date() }));
+        const rsc = Array.from({ length: 800 }, (_, i) => ({ key: `__next.route${i}.txt`, lastModified: new Date() }));
+        // .html は1枚も消さず、.txt を全部入れ替える
+        const toDelete = rsc.map((o) => o.key);
+        expect(bulkDeleteGuard(toDelete, [...pages, ...rsc])).toBeNull();
+    });
+
+    it("分母にも .txt を混ぜない（混ぜると割合が薄まって効かなくなる）", () => {
+        const pages = Array.from({ length: 20 }, (_, i) => ({ key: `photo/p${i}.html`, lastModified: new Date() }));
+        const rsc = Array.from({ length: 160 }, (_, i) => ({ key: `__next.r${i}.txt`, lastModified: new Date() }));
+        // ページの半分を消す。分母に .txt を含めると 10/180 = 6% で見逃す
+        const toDelete = pages.slice(0, 10).map((o) => o.key);
+        expect(bulkDeleteGuard(toDelete, [...pages, ...rsc])).toBeTruthy();
     });
 });

@@ -27,7 +27,7 @@ vi.mock("@aws-sdk/client-dynamodb", () => {
     };
 });
 
-const { updateMyProfile } = await import("../userProfile");
+const { updateMyProfile, removePinnedPhoto } = await import("../userProfile");
 
 type Result = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -151,5 +151,60 @@ describe("配列形式は残す（古いタブが読み込んだままの JS の
         await invoke({ pinnedPhotoIds: ["p1"], pinPhotoId: "p2", pin: true });
 
         expect(savedProfile().pinnedPhotoIds).toEqual(["p9", "p2"]);
+    });
+});
+
+
+// 写真を消してもピンの枠は空かなかった。applyPinOp は上限(3)を配列長だけで
+// 数え、写真の実在を見ない。一方で画面は見つからないピンを黙って落とすので、
+// 「3枚留めた → 1枚消した → もう1枚留めようとすると 409。でも画面には2枚しか
+// 出ていない」で詰む（解除ボタンは表示された写真にしか無く、増減方式なので
+// 消えたピンを外す手段が無い）。写真削除のときに外す。
+describe("removePinnedPhoto", () => {
+    it("該当のピンだけ外す（他は残す）", async () => {
+        mockSend
+            .mockResolvedValueOnce(stored({ pinnedPhotoIds: ["a", "p1", "b"], rev: 4 }))
+            .mockResolvedValueOnce({});
+        expect(await removePinnedPhoto("u1", "p1")).toBe(true);
+        expect(savedProfile().pinnedPhotoIds).toEqual(["a", "b"]);
+    });
+
+    it("最後の1枚なら項目ごと消す", async () => {
+        mockSend
+            .mockResolvedValueOnce(stored({ pinnedPhotoIds: ["p1"], rev: 4 }))
+            .mockResolvedValueOnce({});
+        await removePinnedPhoto("u1", "p1");
+        expect(savedProfile()).not.toHaveProperty("pinnedPhotoIds");
+    });
+
+    it("留めていない写真なら書き込まない", async () => {
+        mockSend.mockResolvedValueOnce(stored({ pinnedPhotoIds: ["other"], rev: 4 }));
+        expect(await removePinnedPhoto("u1", "p1")).toBe(true);
+        expect(commands.filter((c) => c.type === "Put")).toHaveLength(0);
+    });
+
+    it("プロフィール行が無い・墓石なら何もしない", async () => {
+        mockSend.mockResolvedValueOnce({});
+        expect(await removePinnedPhoto("u1", "p1")).toBe(true);
+        mockSend.mockResolvedValueOnce(stored({ deletedAt: "2026-08-27T00:00:00.000Z", pinnedPhotoIds: ["p1"] }));
+        expect(await removePinnedPhoto("u1", "p1")).toBe(true);
+        expect(commands.filter((c) => c.type === "Put")).toHaveLength(0);
+    });
+
+    it("競合したら読み直して重ね直す（rev 方式）", async () => {
+        mockSend
+            .mockResolvedValueOnce(stored({ pinnedPhotoIds: ["p1"], rev: 4 }))
+            .mockRejectedValueOnce(condFail())
+            .mockResolvedValueOnce(stored({ pinnedPhotoIds: ["z", "p1"], rev: 5 }))
+            .mockResolvedValueOnce({});
+        expect(await removePinnedPhoto("u1", "p1")).toBe(true);
+        expect(savedProfile().pinnedPhotoIds).toEqual(["z"]);
+    });
+
+    // 落ちたことを黙って飲むと、呼び出し側が「外せた」と思って行を消し、
+    // 宙に浮いたピンが残る
+    it("失敗したら false（呼び出し側が止められるように）", async () => {
+        mockSend.mockRejectedValue(new Error("boom"));
+        expect(await removePinnedPhoto("u1", "p1")).toBe(false);
     });
 });

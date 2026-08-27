@@ -7,6 +7,7 @@ import { requestSiteRebuild } from "./rebuild";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { mediaKeys } from "./mediaKeys";
 import { requireEnv } from "./env";
+import { removePinnedPhoto } from "./userProfile";
 import { S3Client, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 
 type PhotoSong = { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string };
@@ -296,7 +297,18 @@ export const deleteMyPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
             return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "画像の削除を完了できませんでした。時間をおいてもう一度お試しください" }) };
         }
 
-        // 2. その写真に付いたコメント（行より先）
+        // 2. 自分のピン留めから外す（**行を消す前に**）。
+        //    applyPinOp は上限(3)を配列長だけで数え、写真の実在を見ない。
+        //    一方で画面は見つからないピンを黙って落とすので、消した写真が
+        //    **枠を1つ永久に食い潰す**（「3枚留めた → 1枚消した → もう1枚
+        //    留めようとすると 409。でも画面には2枚しか出ていない」で詰む。
+        //    解除ボタンは表示された写真にしか無く、増減方式なので外せない）。
+        //    行を消したあとでは、どのピンが宙に浮いたか分からなくなる。
+        if (!await removePinnedPhoto(callerId, id)) {
+            return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "削除に失敗しました。時間をおいてもう一度お試しください" }) };
+        }
+
+        // 3. その写真に付いたコメント（行より先）
         try {
             await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: `comments#${id}` } }));
         } catch (e) {
@@ -304,14 +316,22 @@ export const deleteMyPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
             return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "削除に失敗しました。時間をおいてもう一度お試しください" }) };
         }
 
-        // 3. 写真の行
+        // 4. 写真の行
         await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
 
-        // 4. 静的ページの掃除。実体を消しても、配ってある /photo/<id> の HTML は
+        // 5. 静的ページの掃除。実体を消しても、配ってある /photo/<id> の HTML は
         //    残る（本文・撮影地・EXIF・表示名入りの JSON-LD まで焼き込み済み）。
         //    非公開だった写真には静的ページが無いので頼まない（A-5d と同じ判定）。
         if (item.published !== false) {
-            await requestSiteRebuild(`photo deleted: ${id}`, { coalesce: true });
+            // **coalesce を付けてはいけない。** rebuild.ts が明記している
+            // とおり「削除・退会は実データを1件消さないと起こせない → 素通し」。
+            // 付けると、同じ画面の『保存』が直前にロックを取っているだけで
+            // 掃除の依頼が**見送られ、後から実行されない**——消したのに
+            // /photo/<id> の静的HTML（本文・撮影地・EXIF・表示名入り JSON-LD）が
+            // 残り、cron を止めている今は誰かが次に依頼するまで消えない。
+            // 3枚まとめて消したときに1枚目しか飛ばない、という形でも踏む。
+            // 対の api/src/photosMutate.ts も account.ts も coalesce 無し。
+            await requestSiteRebuild(`photo deleted: ${id}`);
         }
 
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };

@@ -10,6 +10,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockDdbSend = vi.hoisted(() => vi.fn());
 const mockS3Send = vi.hoisted(() => vi.fn());
 const mockRebuild = vi.hoisted(() => vi.fn());
+const mockRemovePin = vi.hoisted(() => vi.fn());
 
 vi.mock("../dynamodb", () => ({
     ddb: { send: mockDdbSend },
@@ -17,6 +18,9 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRebuild }));
+// userProfile は自前の DynamoDB クライアントを持つ（../dynamodb ではない）。
+// ここでは「ピン留めから外す」を呼ぶことだけを測り、中身は専用のテストで見る。
+vi.mock("../userProfile", () => ({ removePinnedPhoto: mockRemovePin }));
 vi.mock("@aws-sdk/client-s3", () => ({
     S3Client: class { send = mockS3Send; },
     DeleteObjectsCommand: class { input: unknown; readonly kind = "s3delete"; constructor(i: unknown) { this.input = i; } },
@@ -65,6 +69,7 @@ beforeEach(() => {
     mockDdbSend.mockReset();
     mockS3Send.mockReset().mockResolvedValue({});
     mockRebuild.mockReset().mockResolvedValue(true);
+    mockRemovePin.mockReset().mockResolvedValue(true);
 });
 
 describe("deleteMyPhoto", () => {
@@ -113,7 +118,9 @@ describe("deleteMyPhoto", () => {
         expect(deletedIds()).toEqual([]);
     });
 
-    // 持ち主が空の行 × sub の無いトークンで "" === "" が成立させない
+    // `!ownerId` は今は**到達しない守り**（sub 無しは手前の 401 で止まる）。
+    // 多層防御として残しているだけで、この1本が測っているのは
+    // 「ownerId が無い行は消せない」ことまで。
     it("持ち主のいない行は 403", async () => {
         world({ id: "p1", src: "https://cdn.test/uploads/x.jpg" });
         expect((await invoke(ME, "p1")).statusCode).toBe(403);
@@ -151,6 +158,70 @@ describe("deleteMyPhoto", () => {
         world();
         await invoke(ME, "p1");
         expect(mockRebuild).toHaveBeenCalledTimes(1);
+    });
+
+    // **coalesce を付けてはいけない。** rebuild.ts が「削除・退会は素通し」と
+    // 明記している。付けると、同じ画面の『保存』が直前にロックを取っている
+    // だけで掃除の依頼が見送られ、後から実行されない——消したのに
+    // /photo/<id> の静的HTML が残る（cron を止めている今は誰かが次に依頼
+    // するまで消えない）。3枚まとめて消して1枚目しか飛ばない形でも踏む。
+    it("作り直しの依頼を畳み込ませない（coalesce を付けない）", async () => {
+        world();
+        await invoke(ME, "p1");
+        const opts = mockRebuild.mock.calls[0][1] as { coalesce?: boolean } | undefined;
+        expect(opts?.coalesce).toBeUndefined();
+    });
+
+    // 消した写真がピン留めの枠を永久に食い潰すのを防ぐ。
+    // 行を消したあとでは、どのピンが宙に浮いたか分からなくなる。
+    it("ピン留めから外してから行を消す", async () => {
+        const order: string[] = [];
+        mockRemovePin.mockImplementation(async () => { order.push("unpin"); return true; });
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({ Item: PHOTO });
+            if (cmd.constructor.name === "DeleteCommand"
+                && String((cmd.input.Key as { id?: string })?.id) === "p1") order.push("row");
+            return Promise.resolve({});
+        });
+        await invoke(ME, "p1");
+
+        expect(mockRemovePin).toHaveBeenCalledWith(ME, "p1");
+        expect(order).toEqual(["unpin", "row"]);
+    });
+
+    it("ピン留めを外せなかったら 500（行を残す）", async () => {
+        world();
+        mockRemovePin.mockResolvedValue(false);
+        const res = await invoke(ME, "p1");
+
+        expect(res.statusCode).toBe(500);
+        expect(deletedIds()).not.toContain("p1");
+    });
+
+    // 例外（スロットリング・タイムアウト・資格情報切れ）で行を消してしまうと、
+    // GPS 入りの原本が公開URLに孤児で残る。Errors 経路だけでなくここも測る。
+    it("S3 の削除が例外で落ちても行を残して 500", async () => {
+        world();
+        mockS3Send.mockRejectedValue(Object.assign(new Error("throttled"), { name: "SlowDown" }));
+        const res = await invoke(ME, "p1");
+
+        expect(res.statusCode).toBe(500);
+        expect(deletedIds()).not.toContain("p1");
+    });
+
+    it("comments# の削除に失敗したら 500（行を残す）", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({ Item: PHOTO });
+            if (cmd.constructor.name === "DeleteCommand"
+                && String((cmd.input.Key as { id?: string })?.id) === "comments#p1") {
+                return Promise.reject(new Error("throttled"));
+            }
+            return Promise.resolve({});
+        });
+        const res = await invoke(ME, "p1");
+
+        expect(res.statusCode).toBe(500);
+        expect(deletedIds()).not.toContain("p1");
     });
 
     // 下書きには静的ページが無いので作り直す中身が無い（A-5d と同じ判定）

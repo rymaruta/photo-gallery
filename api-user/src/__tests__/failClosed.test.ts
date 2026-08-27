@@ -25,6 +25,8 @@ const MODULES = [
     ["削除を伴うストーリー", () => import("../stories")],
     ["退会", () => import("../account")],
     ["プロフィール画像", () => import("../profile")],
+    // 取り返しのつかない削除を持つモジュールが1つ増えた（写真1枚の削除）
+    ["写真の削除", () => import("../photoUpdate")],
 ] as const;
 
 describe("UPLOAD_BUCKET が無ければ起動しない", () => {

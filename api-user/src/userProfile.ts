@@ -203,6 +203,65 @@ async function createProfileIfMissing(userId: string): Promise<void> {
     }
 }
 
+/**
+ * 消した写真をピン留めから外す。
+ *
+ * **写真を消してもピンの枠は空かなかった。** `applyPinOp` は上限(3)を
+ * `pinnedPhotoIds` の配列長だけで数え、写真の実在は見ない。一方で画面
+ * （UserProfileClient の orderedPhotos）は見つからないピンを黙って落とす。
+ * その結果「3枚ピン留め → 1枚削除 → もう1枚留めようとすると 409
+ * 『3枚までです』。でも画面には2枚しか出ていない」で詰む——解除ボタンは
+ * 表示された写真にしか無く、増減方式なので消えたピンを外す手段が無い。
+ * 退会はプロフィールごと消え、管理APIは他人のプロフィールを触らないので、
+ * **本人の写真削除でだけ起きる**。
+ *
+ * 書き方は updateMyProfile と同じ rev 方式（新しい機構は作らない）。
+ * 触るのは pinnedPhotoIds だけなので、他の項目を巻き込まない。
+ * 戻り値は「気にすべき失敗があったか」。呼び出し側は**行を消す前に**
+ * 呼び、落ちたら止めること（写真が消えたあとでは、やり直す手がかりが
+ * 消えるため）。
+ */
+export async function removePinnedPhoto(userId: string, photoId: string): Promise<boolean> {
+    try {
+        for (let attempt = 0; attempt <= PROFILE_WRITE_RETRIES; attempt++) {
+            const base = await getProfile(userId);
+            // 行が無い / 墓石 / そもそも留めていない → やることが無い
+            if (!base || isDeletedProfile(base)) return true;
+            const cur = Array.isArray(base.pinnedPhotoIds)
+                ? base.pinnedPhotoIds.filter((x): x is string => typeof x === "string")
+                : [];
+            if (!cur.includes(photoId)) return true;
+            const next = cur.filter((id) => id !== photoId);
+            const rev = typeof (base as { rev?: unknown }).rev === "number"
+                ? (base as unknown as { rev: number }).rev : 0;
+            const guard = rev === 0
+                ? "attribute_not_exists(userId) OR attribute_not_exists(rev) OR rev = :rev"
+                : "rev = :rev";
+            const profile = {
+                ...mergeProfile(base, userId, { pinnedPhotoIds: next.length > 0 ? next : undefined }),
+                rev: rev + 1,
+            };
+            try {
+                await ddb.send(new PutItemCommand({
+                    TableName: USERS_TABLE,
+                    Item: marshall(profile, { removeUndefinedValues: true }),
+                    ConditionExpression: guard,
+                    ExpressionAttributeValues: marshall({ ":rev": rev }),
+                }));
+                return true;
+            } catch (e) {
+                if ((e as { name?: string }).name !== "ConditionalCheckFailedException") throw e;
+                // 競合。読み直して重ね直す（次の周回）
+            }
+        }
+        console.error(`removePinnedPhoto: gave up for ${userId}/${photoId}`);
+        return false;
+    } catch (e) {
+        console.error("removePinnedPhoto error:", e);
+        return false;
+    }
+}
+
 export const getMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
     // sub 欠落の "" で進むと userId="" のプロフィールを読み書きする
