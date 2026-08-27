@@ -109,6 +109,20 @@ describe("保存に失敗した項目を捨てるとき", () => {
         expect(JSON.parse(init.body)).toEqual({ key: KEY });
     });
 
+    // 連打しても DELETE は1回。updater の中で `prev` を見ているので、
+    // 2回目は項目が見つからず投げない（この性質があるので、副作用を
+    // updater の外に出す「規約どおりの直し方」は逆効果になる）。
+    it("削除を連打しても DELETE は1回", async () => {
+        await uploadAndFail();
+        const btn = await screen.findByRole("button", { name: "削除" });
+        await userEvent.click(btn);
+        await userEvent.click(btn).catch(() => { /* 消えていれば押せない */ });
+
+        await waitFor(() => expect(discardCalls().length).toBeGreaterThan(0));
+        await new Promise((r) => setTimeout(r, 30));
+        expect(discardCalls()).toHaveLength(1);
+    });
+
     it("保存まで通った項目のキーは消さない（写真が使っている）", async () => {
         mockUserFetch.mockImplementation((url: string) => {
             if (url === "/upload/presigned-url") {

@@ -16,6 +16,7 @@ import {
     type Story, type StoryGroup,
 } from "../../../lib/stories";
 import StoryViewer from "./StoryViewer";
+import { useMusic } from "../../music/MusicContext";
 
 
 // 画像ストーリーの表示秒数。投稿者が選べる（既定5秒）
@@ -63,6 +64,7 @@ export default function StoriesBar() {
     const { isAuthenticated, userId } = useAuth();
     const { locale } = useLocale();
     const { showToast } = useToast();
+    const { stop: stopGlobalMusic } = useMusic();
 
     const [groups, setGroups] = useState<StoryGroup[]>([]);
     // 取得の失敗を「誰も投稿していない」と混ぜない（コメント一覧と同じ型）
@@ -103,6 +105,13 @@ export default function StoriesBar() {
      * （インスタと同じで、ストーリーに実際に乗る範囲がそのまま聴ける）。
      */
     const playPreview = useCallback((song: SongResult, startSec = 0, loopSec?: number) => {
+        // BGM が鳴っていたら止める。止めないとミニプレイヤーの曲と試聴が
+        // 同時に鳴り、しかもミニプレイヤーは再生中のまま見える。
+        // この下書きモーダルは z-[95] でミニプレイヤー（z-40）を覆うので、
+        // 止める手段が画面上に無い（リロードするまで2曲鳴り続ける）。
+        // 同じ場面の app/user/profile/page.tsx の togglePreview と、
+        // StoryViewer の冒頭には既に同じ一行が入っている。ここだけ抜けていた。
+        stopGlobalMusic();
         let a = previewAudioRef.current;
         if (!a) {
             a = new Audio();
@@ -136,7 +145,7 @@ export default function StoriesBar() {
         void a.play()
             .then(() => setPreviewingId(song.id))
             .catch(() => setPreviewingId(null)); // 自動再生ブロック等
-    }, []);
+    }, [stopGlobalMusic]);
 
     // 画面を離れるときに音を止める
     useEffect(() => () => { previewAudioRef.current?.pause(); }, []);

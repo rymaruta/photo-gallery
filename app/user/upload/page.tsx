@@ -184,7 +184,13 @@ function UploadPageInner() {
         shareImportedRef.current = true;
         void (async () => {
             const payload = await readSharedPayload();
-            if (!payload || payload.files.length === 0) return;
+            if (!payload) return;
+            // 空のペイロード（共有シートがファイル無しで来た）も捨てる。
+            // 残すと IndexedDB に居座り続ける（他の分岐は必ず消している）。
+            if (payload.files.length === 0) {
+                await clearSharedPayload();
+                return;
+            }
             const isFresh = Date.now() - payload.t < 60 * 60 * 1000;
             if (!fromShare && !isFresh) {
                 await clearSharedPayload();
@@ -358,6 +364,15 @@ function UploadPageInner() {
         }
     }, []);
 
+    // 副作用（`/upload/discard` の DELETE）を setItems の updater の中で
+    // 呼んでいる。React の規約としては純粋関数であるべきだが、**ここは
+    // 意図的にこのまま**にしている:
+    //  - React 19 + StrictMode で二重呼び出しを実際に試したが、DELETE は
+    //    1回しか飛ばなかった（＝この React では観測できない）
+    //  - updater の中なら `prev` が「まだ消していない一覧」なので、
+    //    連打しても2回目は項目が見つからず DELETE を投げない。外に出して
+    //    ref から引くと、同じ tick の2回目が**古い一覧を見て二重に投げる**
+    //    ——直すつもりの症状を自分で作ることになる
     const removeItem = useCallback((id: string) => {
         setItems((prev) => {
             const it = prev.find((x) => x.id === id);
