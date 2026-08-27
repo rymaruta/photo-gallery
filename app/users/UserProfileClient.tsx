@@ -20,7 +20,7 @@ import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../lib/utils/log";
 import { getCurrentSession } from "../../lib/auth/cognito";
 import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
-import { publicFetch, userFetch, userPublicFetch } from "../../lib/utils/api";
+import { publicFetch, userFetch, userPublicFetch, readApiError } from "../../lib/utils/api";
 import { EN_MONTHS } from "../../lib/utils/photoDate";
 import { ROUTES } from "../../lib/routes";
 import UserAvatar from "../components/UserAvatar";
@@ -404,7 +404,13 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     // 旅アルバム: 撮影日の間隔で自動グルーピング
 
     // プロフィール項目の部分更新。変更する項目だけ送る。
-    const saveProfilePatch = useCallback(async (patch: Partial<UserProfile>, successMsg: string) => {
+    // `patch` は画面に即反映する見込みの値。`wire` を渡すとそちらを送る
+    // （ピン留めのように「配列まるごと」ではなく増減で送りたい場合）。
+    const saveProfilePatch = useCallback(async (
+        patch: Partial<UserProfile>,
+        successMsg: string,
+        wire?: Record<string, unknown>,
+    ) => {
         // 読み込めていない状態では、楽観的更新の巻き戻し先が無く、
         // 画面と保存内容が食い違ったままになるため保存しない。
         if (!userProfile) {
@@ -414,6 +420,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             return;
         }
         const prev = userProfile;
+        const failMsg = locale === "en" ? "Failed to save" : "保存に失敗しました";
         // 楽観的更新
         setUserProfile((p) => (p ? { ...p, ...patch } : ({ userId, ...patch } as UserProfile)));
         try {
@@ -422,13 +429,33 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             // 公開プロフィールAPIが返さなくなった項目が消える事故を起こした。
             const res = await userFetch("/user/profile", {
                 method: "PUT",
-                body: JSON.stringify(patch),
+                body: JSON.stringify(wire ?? patch),
             });
-            if (!res.ok) throw new Error(String(res.status));
+            if (!res.ok) {
+                // サーバーの理由をそのまま出す。以前は全部「保存に失敗しました」
+                // だったので、上限（409「ピン留めは3枚までです」）を踏んでも
+                // 障害と区別が付かず、同じ操作を繰り返すことになっていた。
+                //
+                // throw で catch に流さないのは、通信そのものが落ちた場合の
+                // Error（"Failed to fetch" など英語の生文言）と混ざるため。
+                setUserProfile(prev ?? null);
+                showToast(await readApiError(res, failMsg), "error");
+                return;
+            }
+            // サーバーが返す保存後の姿でピン留めを揃える。増減で送っている
+            // ので、他の端末が先に足した分もここで手元に入る（見込みの値の
+            // ままだと、次の操作がまたその1枚を知らないまま送られる）。
+            const saved = await res.json().catch(() => null) as { pinnedPhotoIds?: unknown } | null;
+            if (saved && "pinnedPhotoIds" in patch) {
+                const pins = Array.isArray(saved.pinnedPhotoIds)
+                    ? saved.pinnedPhotoIds.filter((x): x is string => typeof x === "string")
+                    : [];
+                setUserProfile((p) => (p ? { ...p, pinnedPhotoIds: pins } : p));
+            }
             showToast(successMsg, "success");
         } catch {
             setUserProfile(prev ?? null);
-            showToast(locale === "en" ? "Failed to save" : "保存に失敗しました", "error");
+            showToast(failMsg, "error");
         }
     }, [userProfile, userId, locale, showToast]);
 
@@ -458,6 +485,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             pin
                 ? (locale === "en" ? "Pinned to top ⭐" : "先頭にピン留めしました ⭐")
                 : (locale === "en" ? "Unpinned" : "ピン留めを解除しました"),
+            // **配列ではなく増減を送る。** この画面はプロフィールを開いた
+            // ときに1回読むだけなので、PC のタブを開いたままスマホで
+            // ピン留めすると、次に PC でピン留めしたときスマホの分が
+            // 消えていた（サーバーは新しい rev を普通に書けるため、
+            // 競合として検出されない）。
+            { pinPhotoId: photoId, pin },
         );
     }, [userProfile?.pinnedPhotoIds, saveProfilePatch, locale, showToast]);
 
