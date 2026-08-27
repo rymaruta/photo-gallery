@@ -41,7 +41,12 @@ type Props = {
 export default function StoryViewer({ groups, initialGroupIndex, locale, ownUserId, isAuthenticated, onSeen, onDelete, onClose }: Props) {
     const [g, setG] = useState(initialGroupIndex);
     const [i, setI] = useState(0);
-    const [progress, setProgress] = useState(0); // 0-100
+    // 動画の進捗は **DOM に直接書く**（下の rAF ループ）。
+    // state 経由にしていた頃は timeupdate（仕様上ブラウザ任せ・実測 250ms
+    // 間隔）でしか動かず、120ms の transition で補間しても線が
+    // 「進んでは止まり」を繰り返して見えた。しかも更新のたびにビューア全体が
+    // 再描画されていた。
+    const progressBarRef = useRef<HTMLDivElement | null>(null);
     const [paused, setPaused] = useState(false);
     const [muted, setMuted] = useState(true);
 
@@ -133,8 +138,36 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const startedAtRef = useRef(Date.now());
     useEffect(() => { startedAtRef.current = Date.now(); }, [item, replay]);
 
+    /** 進捗バーを 0 に戻す（DOM 直書きなので state のリセットは無い） */
+    const resetProgressBar = useCallback(() => {
+        const bar = progressBarRef.current;
+        if (bar) bar.style.transform = "scaleX(0)";
+    }, []);
+
+    // 動画の進捗を毎フレーム書く。
+    //
+    // currentTime を毎フレーム読んで transform を直接書けば、画面の
+    // リフレッシュレートで滑らかに動く。React の state を経由しないので、
+    // ビューア全体の再描画も起きない。
+    // 一時停止（長押し）中は currentTime が進まないので、バーも自然に止まる。
+    useEffect(() => {
+        if (!isVideo) return;
+        let raf = 0;
+        const tick = () => {
+            const v = videoRef.current;
+            const bar = progressBarRef.current;
+            if (v && bar && Number.isFinite(v.duration) && v.duration > 0) {
+                const ratio = Math.min(1, Math.max(0, v.currentTime / v.duration));
+                bar.style.transform = `scaleX(${ratio})`;
+            }
+            raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+    }, [isVideo, item?.id, replay]);
+
     const goNext = useCallback(() => {
-        setProgress(0);
+        resetProgressBar();
         setReplay(0);
         if (group && i < group.items.length - 1) {
             setI(i + 1);
@@ -144,15 +177,15 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         } else {
             onClose();
         }
-    }, [group, groups.length, g, i, onClose]);
+    }, [group, groups.length, g, i, onClose, resetProgressBar]);
 
     // 今のストーリーを最初から再生し直す
     const restart = useCallback(() => {
-        setProgress(0);
+        resetProgressBar();
         setReplay((n) => n + 1);
         const v = videoRef.current;
         if (v) { try { v.currentTime = 0; } catch { /* ignore */ } }
-    }, []);
+    }, [resetProgressBar]);
 
     // インスタと同じ: 左タップは「今のストーリーを最初から」。
     // 始まった直後（0.8秒以内）にもう一度押したときだけ1つ前へ戻る。
@@ -161,7 +194,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             restart();
             return;
         }
-        setProgress(0);
+        resetProgressBar();
         setReplay(0);
         if (i > 0) {
             setI(i - 1);
@@ -172,7 +205,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         } else {
             restart();
         }
-    }, [groups, g, i, restart]);
+    }, [groups, g, i, restart, resetProgressBar]);
 
     // 「タップ」か「長押し・スワイプ」かの判定。
     // click は指を離せば必ず発火するため、これが無いと長押しで一時停止したあと
@@ -323,10 +356,6 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         // 曲が付いている動画は動画側を常に消す。両方を muted に
                         // 連動させると、ミュート解除で動画の音とBGMが同時に鳴る。
                         muted={muted || !!item.song}
-                        onTimeUpdate={(e) => {
-                            const v = e.currentTarget;
-                            if (v.duration > 0) setProgress((v.currentTime / v.duration) * 100);
-                        }}
                         onEnded={goNext}
                         onError={goNext}
                     />
@@ -371,10 +400,11 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                             <div key={s.id} className="flex-1 h-[2.5px] rounded-full bg-white/30 overflow-hidden">
                                 {active ? (
                                     isVideo ? (
-                                        // 動画: 進捗値を scaleX で反映しつつ、更新間を transition で補間
+                                        // 動画: rAF が毎フレーム scaleX を書く（補間は要らない）
                                         <div
+                                            ref={progressBarRef}
                                             className="h-full w-full bg-white rounded-full origin-left"
-                                            style={{ transform: `scaleX(${progress / 100})`, transition: "transform 120ms linear" }}
+                                            style={{ transform: "scaleX(0)" }}
                                         />
                                     ) : (
                                         // 画像: CSS アニメーションが 0→100% を滑らかに駆動
