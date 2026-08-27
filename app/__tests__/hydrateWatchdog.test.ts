@@ -74,3 +74,56 @@ describe("ハイドレーション・ウォッチドッグのクールダウン"
         expect(sessionStorage.getItem("jp_hydrate_recover_at")).toBeNull();
     });
 });
+
+
+// 後片付け（SW 解除・キャッシュ全消し）には最大3秒かかる。その間に水和が
+// 終わっても無条件に再読込していたので、**遅い回線で入力中の内容が消えた**
+// （アップロード画面のタイトル・キャプション）。間に合ったなら戻さない。
+describe("後片付けの最中に水和が終わったら", () => {
+    /**
+     * 後片付け（SW 解除・キャッシュ全消し）を**保留にできる**世界を作る。
+     * jsdom には serviceWorker も caches も無く、素だと Promise.all が
+     * 即座に解決して go() が12秒の直後に走る——**実ブラウザの順序
+     * （片付けに数秒かかる）を再現できない**ので、変更の有無で結果が
+     * 変わらなかった（最初これで書いて空振りした）。
+     */
+    function pendingCleanup() {
+        let release!: () => void;
+        const gate = new Promise<void>((r) => { release = r; });
+        Object.defineProperty(navigator, "serviceWorker", {
+            configurable: true,
+            value: { getRegistrations: () => gate.then(() => []) },
+        });
+        Object.defineProperty(window, "caches", {
+            configurable: true,
+            value: { keys: () => gate.then(() => []), delete: async () => true },
+        });
+        return release;
+    }
+
+    it("再読込しない（入力中の内容を捨てない）", async () => {
+        const release = pendingCleanup();
+        new Function(watchdogSource())();
+        window.dispatchEvent(new Event("load"));
+        await vi.advanceTimersByTimeAsync(12_000);
+        expect(reloads).toBe(0);   // まだ片付けの最中
+
+        // ここで React が追いついた → 片付けが終わっても戻さない
+        document.documentElement.setAttribute("data-hydrated", "1");
+        release();
+        await vi.advanceTimersByTimeAsync(3_100);
+
+        expect(reloads).toBe(0);
+    });
+
+    it("追いつかなければ今までどおり再読込する", async () => {
+        const release = pendingCleanup();
+        new Function(watchdogSource())();
+        window.dispatchEvent(new Event("load"));
+        await vi.advanceTimersByTimeAsync(12_000);
+        release();
+        await vi.advanceTimersByTimeAsync(3_100);
+
+        expect(reloads).toBe(1);
+    });
+});

@@ -68,6 +68,15 @@ function main() {
     }
 
     // finally は SIGINT/SIGTERM では走らないので、明示的に拾う。
+    //
+    // **ただし execSync の最中はこのハンドラも走らない**（イベントループが
+    // 塞がるため。実測: next build 中に wrapper だけへ TERM を送っても
+    // ログが出ず、ビルドは最後まで走った）。実際に効いているのは:
+    //   - 端末の Ctrl-C … プロセスグループ全体に届いて子も死ぬので、
+    //     execSync が throw して **finally** が復元する
+    //   - wrapper だけを殺す／SIGKILL … ハンドラは無力。退避したままになるが、
+    //     次回起動時の後始末（main() の冒頭）が拾う
+    // つまりこのハンドラが本当に効くのは「execSync の外で受けたとき」だけ。
     let restored = false;
     const restoreOnce = () => {
         if (restored) return;

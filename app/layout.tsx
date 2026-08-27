@@ -160,6 +160,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           配信し続けると起こり、通常のリロードでは直らない（同じキャッシュを再配信するため）。
           そこで: 読み込み後 12 秒たっても data-hydrated が付かなければ（React が動いていない）、
           SW を解除しキャッシュを全消しして 1 回だけ再読込する。10 分クールダウンでループを防ぐ。
+          **再読込の直前にもう一度 data-hydrated を見る。** 後片付け（SW 解除・
+          キャッシュ全消し）には最大3秒かかり、その間に水和が終わることがある。
+          無条件に再読込していたので、**遅い回線で入力中の内容が消えた**
+          （アップロード画面のタイトル・キャプション）。間に合ったなら戻さない。
           クールダウンの控えは **sessionStorage**（＝タブごと）。localStorage に
           置いていた頃は全タブで共有だったので、1つのタブが自己修復すると、
           同じく壊れている2つ目以降のタブは最大10分そのまま操作できなかった
@@ -169,7 +173,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var K="jp_hydrate_recover_at";function reheal(){try{if(document.documentElement.getAttribute("data-hydrated")==="1")return;var now=Date.now(),last=0;try{last=Number(sessionStorage.getItem(K)||0)}catch(e){}if(last&&now-last<600000)return;try{sessionStorage.setItem(K,String(now))}catch(e){}var done=false,go=function(){if(done)return;done=true;location.reload()};var ps=[];try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations){ps.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}).catch(function(){}))}}catch(e){}try{if(window.caches&&caches.keys){ps.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}).catch(function(){}))}}catch(e){}Promise.all(ps).then(go,go);setTimeout(go,3000)}catch(e){}}addEventListener("load",function(){setTimeout(reheal,12000)})}catch(e){}})();`,
+            __html: `(function(){try{var K="jp_hydrate_recover_at";function reheal(){try{if(document.documentElement.getAttribute("data-hydrated")==="1")return;var now=Date.now(),last=0;try{last=Number(sessionStorage.getItem(K)||0)}catch(e){}if(last&&now-last<600000)return;try{sessionStorage.setItem(K,String(now))}catch(e){}var done=false,go=function(){if(done)return;done=true;if(document.documentElement.getAttribute("data-hydrated")==="1")return;location.reload()};var ps=[];try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations){ps.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}).catch(function(){}))}}catch(e){}try{if(window.caches&&caches.keys){ps.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}).catch(function(){}))}}catch(e){}Promise.all(ps).then(go,go);setTimeout(go,3000)}catch(e){}}addEventListener("load",function(){setTimeout(reheal,12000)})}catch(e){}})();`,
           }}
         />
       </head>
