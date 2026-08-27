@@ -27,16 +27,24 @@ const COMMENTS_MAX = 200;   // 保持する上限（書き込み時に切り詰�
  * 200回のリクエストで他人のコメント欄を無に帰せるのは、
  * 会話の場としてもたない。1人あたりを絞れば、この経路は塞がる。
  */
+const COMMENTS_MAX_PER_USER = 10;
 /** 追記が競合したときのやり直し回数（同時投稿はすぐ収まる） */
 const COMMENT_APPEND_RETRIES = 3;
-const COMMENTS_MAX_PER_USER = 10;
 const DELETE_RETRIES = 3;   // 削除の添字がずれたときの読み直し回数
 const TEXT_MAX = 500;
 
 const commentsId = (photoId: string) => `comments#${photoId}`;
 
-async function readComments(photoId: string): Promise<Comment[]> {
-    const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: commentsId(photoId) } }));
+async function readComments(photoId: string, consistent = false): Promise<Comment[]> {
+    // やり直しのときだけ強整合で読む。既定の結果整合だと、競合した直後の
+    // 読み直しが**競合前の状態**を返し、同じ長さでまた条件が外れる
+    // （待ち時間ゼロで即読み直すので当たりやすい）。上限の健全性は条件式が
+    // 守るので壊れないが、正規の利用者に 409 が出やすくなる。
+    const res = await ddb.send(new GetCommand({
+        TableName: PHOTOS_TABLE,
+        Key: { id: commentsId(photoId) },
+        ...(consistent ? { ConsistentRead: true } : {}),
+    }));
     const items = res.Item?.items;
     return Array.isArray(items) ? (items as Comment[]) : [];
 }
@@ -90,7 +98,7 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // 写真の存在確認（通知先とサムネ取得も兼ねる）
         const photoRes = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: photoId } }));
         const photo = photoRes.Item as {
-            src?: string; thumbSrc?: string; userId?: string; location?: string;
+            src?: string; thumbSrc?: string; userId?: string; uploadedBy?: string; location?: string;
             published?: boolean; story?: boolean;
         } | undefined;
         if (!photo || !photo.src) return jsonError(404, "写真が見つかりません");
@@ -106,7 +114,12 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // （30人にお礼を書くと11人目で止まり、以後は自分のコメントを消すまで
         // 参加できなかった）。オーナーには「議論を流す」動機が無いし、
         // 消したければ写真ごと消せる。
-        const isOwner = photo.userId === uid;
+        // 所有者は `userId ?? uploadedBy` で見る。**ここだけフォールバックが
+        // 無かった。** photoUpdate.ts の2か所と deleteComment は持っていて、
+        // 「userId が無い写真は uploadedBy で判定する」専用テストまである。
+        // 無いと、`uploadedBy` しか持たない古い写真の**本人が11件目で 429**に
+        // なる——免除を入れた理由（30人にお礼を書くと途中で止まる）そのもの。
+        const isOwner = (photo.userId ?? photo.uploadedBy) === uid;
 
         const comment: Comment = {
             id: uuidv4(),
@@ -155,17 +168,32 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             ReturnValues: "UPDATED_NEW" as const,
         });
 
-        let appended;
+        let appended: Awaited<ReturnType<typeof ddb.send>> | undefined;
+        // 追記後の姿。応答を取り逃した回は、読み直した一覧がそれにあたる。
+        let storedItems: unknown;
         if (isOwner) {
             appended = await ddb.send(new UpdateCommand(appendArgs()));
+            storedItems = appended.Attributes?.items;
         } else {
             for (let attempt = 0; ; attempt++) {
-                const existing = await readComments(photoId);
+                const existing = await readComments(photoId, attempt > 0);
+                // **前回の追記が通っていたら、もう足さない。**
+                // 追記がサーバー側では成功したのに応答が失われると、SDK が自前で
+                // 再送し（既定 maxAttempts=3）、再送は条件に外れて
+                // ConditionalCheckFailedException としてこちらに返る。気づかずに
+                // やり直すと**同じ id のコメントが2件入る**（deleteComment は
+                // findIndex で先頭1件しか消さないので、消すのに2回要る）。
+                // comment を ループの外で1回だけ作っているので、id で見分けられる。
+                if (existing.some((c) => c.id === comment.id)) {
+                    storedItems = existing;
+                    break;
+                }
                 if (existing.filter((c) => c.uid === uid).length >= COMMENTS_MAX_PER_USER) {
                     return jsonError(429, `同じ写真へのコメントは${COMMENTS_MAX_PER_USER}件までです`);
                 }
                 try {
                     appended = await ddb.send(new UpdateCommand(appendArgs({ len: existing.length })));
+                    storedItems = appended.Attributes?.items;
                     break;
                 } catch (e) {
                     if ((e as { name?: string }).name !== "ConditionalCheckFailedException") throw e;
@@ -183,7 +211,7 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // 消えていた（自分には200が返り画面にも出ているのに、あとで消える）。
         // 「読んだときと同じ長さのままなら書く」条件を付けて、外れたら諦める
         // ——次の投稿がまた切り詰めるので、放っておいて問題ない。
-        const stored = appended.Attributes?.items;
+        const stored = storedItems;
         let trimmed = false;
         if (Array.isArray(stored) && stored.length > COMMENTS_MAX) {
             // 印を立てるのは**書けたときだけ**。先に立てていた頃は、

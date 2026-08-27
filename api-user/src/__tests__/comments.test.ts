@@ -461,3 +461,130 @@ describe("コメント追記: 読みと書きを条件でつなぐ", () => {
         expect(update!.input.ConditionExpression).toBeUndefined();
     });
 });
+
+
+// **やり直しの経路そのものが1本も測られていなかった**（レビューが実測:
+// やり直し回数を0にしても、読み直しをやめても、34本とも通った）。
+describe("コメント追記: ぶつかったらやり直す", () => {
+    /** 1回目の追記だけ競合させる世界 */
+    function conflictOnce(itemsByRead: Comment[][]) {
+        let reads = 0;
+        let appends = 0;
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string })?.id ?? "");
+                if (id === "p1") return Promise.resolve({ Item: { id: "p1", src: "s", userId: "owner" } });
+                const items = itemsByRead[Math.min(reads++, itemsByRead.length - 1)];
+                return Promise.resolve({ Item: { items } });
+            }
+            if (cmd.constructor.name === "UpdateCommand"
+                && String((cmd.input.Key as { id?: string })?.id ?? "").startsWith("comments#")) {
+                appends++;
+                if (appends === 1) {
+                    return Promise.reject(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
+                }
+                return Promise.resolve({ Attributes: { items: [] } });
+            }
+            return Promise.resolve({});
+        });
+        return { get appends() { return appends; } };
+    }
+
+    const other = (id: string): Comment =>
+        ({ id, uid: "someone", name: "誰か", text: "x", t: "" }) as Comment;
+
+    it("2回目で通る（読み直した長さで条件を組み直す）", async () => {
+        const st = conflictOnce([[other("c1")], [other("c1"), other("c2")]]);
+        const res = await invoke(postComment, ev("me", { id: "p1" }, { text: "やりなおし" }));
+
+        expect(res.statusCode).toBe(200);
+        expect(st.appends).toBe(2);
+        const lens = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> })
+            .filter((c) => c.constructor.name === "UpdateCommand"
+                && String((c.input.Key as { id?: string })?.id ?? "").startsWith("comments#"))
+            .map((c) => (c.input.ExpressionAttributeValues as Record<string, unknown>)[":len"]);
+        // 1回目は1件、2回目は読み直した2件で組み直す
+        expect(lens).toEqual([1, 2]);
+    });
+
+    it("やり直しの読みは強整合（競合直後に古い値を読み続けない）", async () => {
+        conflictOnce([[other("c1")], [other("c1"), other("c2")]]);
+        await invoke(postComment, ev("me", { id: "p1" }, { text: "やりなおし" }));
+
+        const commentGets = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> })
+            .filter((c) => c.constructor.name === "GetCommand"
+                && String((c.input.Key as { id?: string })?.id ?? "").startsWith("comments#"));
+        expect(commentGets[0].input.ConsistentRead).toBeUndefined();   // 1回目は既定のまま
+        expect(commentGets[1].input.ConsistentRead).toBe(true);        // やり直しだけ強整合
+    });
+
+    // 追記がサーバー側では成功したのに応答が失われると、SDK が自前で再送し、
+    // 再送は条件に外れて ConditionalCheckFailedException で返る。気づかずに
+    // やり直すと**同じ id のコメントが2件入る**（消すのに2回要る）。
+    it("前回の追記が通っていたら、もう足さない", async () => {
+        let reads = 0;
+        let appends = 0;
+        let mine: Comment | undefined;
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string })?.id ?? "");
+                if (id === "p1") return Promise.resolve({ Item: { id: "p1", src: "s", userId: "owner" } });
+                reads++;
+                // 2回目の読みでは、自分のコメントが既に入っている
+                return Promise.resolve({ Item: { items: reads === 1 ? [] : [mine] } });
+            }
+            if (cmd.constructor.name === "UpdateCommand"
+                && String((cmd.input.Key as { id?: string })?.id ?? "").startsWith("comments#")) {
+                appends++;
+                // 応答は失われたが、サーバーには入った
+                mine = ((cmd.input.ExpressionAttributeValues as Record<string, unknown>)[":new"] as Comment[])[0];
+                return Promise.reject(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
+            }
+            return Promise.resolve({});
+        });
+        const res = await invoke(postComment, ev("me", { id: "p1" }, { text: "一度だけ" }));
+
+        expect(res.statusCode).toBe(200);
+        expect(appends).toBe(1);   // 2回目は投げない
+    });
+});
+
+
+// 所有者の判定は `userId ?? uploadedBy`。**ここだけフォールバックが無かった。**
+// photoUpdate.ts の2か所と deleteComment は持っていて、「userId が無い写真は
+// uploadedBy で判定する」専用テストまである。無いと、`uploadedBy` しか持たない
+// 古い写真の**本人が11件目で 429** になる——免除を入れた理由そのもの。
+describe("コメント上限の免除: 古い写真の所有者", () => {
+    /** 自分が10件書き終えている状態の世界 */
+    function worldWith(photoAttrs: Record<string, unknown>) {
+        const mine = Array.from({ length: 10 }, (_, i) =>
+            ({ id: `c${i}`, uid: "me", name: "自分", text: "x", t: "" }));
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string })?.id ?? "");
+                if (id === "p1") return Promise.resolve({ Item: { id: "p1", src: "s", ...photoAttrs } });
+                return Promise.resolve({ Item: { items: mine } });
+            }
+            return Promise.resolve({ Attributes: { items: mine } });
+        });
+    }
+
+    it("uploadedBy しか無い写真でも、本人は上限の対象外", async () => {
+        worldWith({ uploadedBy: "me" });
+        const res = await invoke(postComment, ev("me", { id: "p1" }, { text: "11件目" }));
+        expect(res.statusCode).toBe(200);
+    });
+
+    it("userId がある写真は今までどおり（本人は対象外）", async () => {
+        worldWith({ userId: "me" });
+        expect((await invoke(postComment, ev("me", { id: "p1" }, { text: "11件目" }))).statusCode).toBe(200);
+    });
+
+    it("他人は uploadedBy でも上限に当たる", async () => {
+        worldWith({ uploadedBy: "someone-else" });
+        const res = await invoke(postComment, ev("me", { id: "p1" }, { text: "11件目" }));
+        expect(res.statusCode).toBe(429);
+    });
+});

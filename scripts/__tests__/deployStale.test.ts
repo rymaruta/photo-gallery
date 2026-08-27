@@ -250,13 +250,18 @@ describe("assertNoForbiddenContent", () => {
     // 相対パスはちょうど `app/data/photos.json` になる。
     // 次に同じ指摘が来たとき読み直さずに済むよう固定しておく。
     it("out/ にコピーされた app/data/photos.json も見る（死んだ分岐ではない）", () => {
-        const f = nodePath.join(process.cwd(), "out", "app", "data", "photos.json");
+        // **本物の出力パスに書くので、ディレクトリごと片付ける。**
+        // ファイルだけ消すと `out/app/data/` が空で残り、途中で中断されると
+        // `srcOriginal` を含むファイルが残って次のデプロイが中止される
+        // （閉じる方向なので危険ではないが、原因が分からず混乱する）。
+        const dir = nodePath.join(process.cwd(), "out", "app");
+        const f = nodePath.join(dir, "data", "photos.json");
         nodeFs.mkdirSync(nodePath.dirname(f), { recursive: true });
         nodeFs.writeFileSync(f, '[{"srcOriginal":"https://cdn/uploads/originals/x.jpg"}]');
         try {
             expect(() => assertNoForbiddenContent(["app/data/photos.json"])).toThrow(/srcOriginal/);
         } finally {
-            nodeFs.rmSync(f, { force: true });
+            nodeFs.rmSync(dir, { recursive: true, force: true });
         }
     });
 
