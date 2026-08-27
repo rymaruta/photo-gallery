@@ -6,6 +6,25 @@ vi.mock("exifr", () => ({ default: { parse: mockParse } }));
 
 import { extractExifFromFile, extractCameraExif, formatCameraName, formatExposure, reverseGeocode } from "../exif";
 
+/**
+ * 本物の exifr が返すのと**同じ組み方**の Date を作る。
+ *
+ * exifr の reviveDate は EXIF の `"2024:11:01 07:30:00"` を
+ * `new Date(year, month-1, day)` + `setHours(...)` で組む
+ * （node_modules/exifr/src/dicts/tiff-revivers.mjs）。つまり実行環境の
+ * **ローカル時刻**の Date になる。
+ *
+ * ここで `new Date("...Z")` と書いていた頃は、UTC で組んだ Date を渡して
+ * いたので、実装が `toISOString()` でゾーンぶんずらしていても
+ * （テストが UTC で走るぶんには）通ってしまっていた——**実物と違う前提の
+ * テストが、誤った挙動を固定していた**。
+ */
+function exifDate(y: number, mo: number, d: number, hh = 0, mi = 0, ss = 0): Date {
+    const dt = new Date(y, mo - 1, d);
+    dt.setHours(hh); dt.setMinutes(mi); dt.setSeconds(ss); dt.setMilliseconds(0);
+    return dt;
+}
+
 beforeEach(() => {
     mockParse.mockReset();
     vi.restoreAllMocks();
@@ -20,14 +39,14 @@ describe("extractExifFromFile", () => {
 
     it("撮影日時・GPS・カメラ情報を抽出する", async () => {
         mockParse.mockResolvedValue({
-            DateTimeOriginal: new Date("2026-05-01T09:30:00Z"),
+            DateTimeOriginal: exifDate(2026, 5, 1, 9, 30, 0),
             latitude: 35.6586,
             longitude: 139.7454,
             Make: " Sony ",
             Model: "ILCE-7M4",
         });
         const meta = await extractExifFromFile(dummyFile);
-        expect(meta.dateTimeOriginal).toBe("2026-05-01T09:30:00.000Z");
+        expect(meta.dateTimeOriginal).toBe("2026-05-01T09:30:00");
         expect(meta.latitude).toBe(35.6586);
         expect(meta.longitude).toBe(139.7454);
         expect(meta.cameraMake).toBe("Sony");
@@ -35,9 +54,9 @@ describe("extractExifFromFile", () => {
     });
 
     it("DateTimeOriginal が無ければ CreateDate を使う", async () => {
-        mockParse.mockResolvedValue({ CreateDate: new Date("2026-01-02T00:00:00Z") });
+        mockParse.mockResolvedValue({ CreateDate: exifDate(2026, 1, 2) });
         const meta = await extractExifFromFile(dummyFile);
-        expect(meta.dateTimeOriginal).toBe("2026-01-02T00:00:00.000Z");
+        expect(meta.dateTimeOriginal).toBe("2026-01-02T00:00:00");
     });
 
     it("緯度・経度は両方数値のときだけ採用する", async () => {
@@ -64,10 +83,10 @@ describe("extractExifFromFile", () => {
         // 1回目（pick）は空、2回目（chunked:false=全読み）でEXIFが取れるケース
         mockParse
             .mockResolvedValueOnce(undefined)
-            .mockResolvedValueOnce({ DateTimeOriginal: new Date("2026-05-01T00:00:00Z"), Make: "Apple", Model: "iPhone 15 Pro" });
+            .mockResolvedValueOnce({ DateTimeOriginal: exifDate(2026, 5, 1), Make: "Apple", Model: "iPhone 15 Pro" });
         const meta = await extractExifFromFile(dummyFile);
         expect(meta.cameraModel).toBe("iPhone 15 Pro");
-        expect(meta.dateTimeOriginal).toBe("2026-05-01T00:00:00.000Z");
+        expect(meta.dateTimeOriginal).toBe("2026-05-01T00:00:00");
         // 2回目の呼び出しは chunked:false（全読み）で行われる
         expect(mockParse).toHaveBeenCalledTimes(2);
         expect(mockParse.mock.calls[1][1]).toMatchObject({ chunked: false });
@@ -192,7 +211,7 @@ describe("extractCameraExif", () => {
             Make: "SONY", Model: "SONY ILCE-7M3", LensModel: "FE 24-70mm",
             FNumber: 4, ExposureTime: 1 / 640, ISO: 100.4, FocalLength: 70.2,
             WhiteBalance: 1, ExifImageWidth: 6000, ExifImageHeight: 4000,
-            DateTimeOriginal: new Date("2026-01-20T07:32:00Z"),
+            DateTimeOriginal: exifDate(2026, 1, 20, 7, 32, 0),
         });
         const exif = await extractCameraExif(new File(["x"], "p.jpg", { type: "image/jpeg" }));
         expect(exif).toEqual({
@@ -204,7 +223,7 @@ describe("extractCameraExif", () => {
             focalLength: "70mm",
             whiteBalance: "Manual",
             imageSize: "6000x4000",
-            dateTimeOriginal: "2026-01-20T07:32:00.000Z",
+            dateTimeOriginal: "2026-01-20T07:32:00",
         });
     });
 
@@ -253,4 +272,29 @@ describe("GPS の符号（南緯・西経）", () => {
         const meta = await extractExifFromFile(dummyFile);
         expect(meta.longitude).toBe(-157.83);
     });
+});
+
+// EXIF の撮影日時にはゾーンが無い。「その土地の壁時計」なので、
+// アップロードした端末のゾーンで UTC に変換してはいけない。
+// 変換していた頃は、日本（UTC+9）から上げた朝 07:30 の写真が
+// `2024-10-31T22:30:00.000Z` として保存され、表示側は「保存されている
+// 通りに出す」規約（photoDate.ts）なので **前日の 22:30** と出ていた。
+// 年表の月の区切り・並び順・JSON-LD の dateCreated まで同じ値で決まる。
+describe("撮影日時は端末のゾーンに影響されない", () => {
+    const origTz = process.env.TZ;
+    afterEach(() => { process.env.TZ = origTz; });
+
+    it.each(["Asia/Tokyo", "UTC", "America/New_York", "Pacific/Kiritimati"])(
+        "%s の端末から上げても、EXIF に書かれた数字がそのまま保存される",
+        async (tz) => {
+            process.env.TZ = tz;
+            // exifr はローカル時刻で組む＝どのゾーンでも成分は EXIF の数字
+            mockParse.mockResolvedValue({ DateTimeOriginal: exifDate(2024, 11, 1, 7, 30, 0) });
+            const meta = await extractExifFromFile(
+                new File([new Uint8Array([1]) as BlobPart], "p.jpg", { type: "image/jpeg" }));
+
+            expect(meta.dateTimeOriginal).toBe("2024-11-01T07:30:00");
+            // Z を付けない（付けると「UTC の 07:30」という別の意味になる）
+            expect(meta.dateTimeOriginal).not.toContain("Z");
+        });
 });

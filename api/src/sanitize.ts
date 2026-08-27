@@ -56,6 +56,13 @@ export function sanitizeDate(v: unknown): string | undefined {
     // 0時ちょうどという**存在しない時刻**を描いてしまう。
     // /user/edit の撮影日入力は日付だけを送ってくる。
     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // **ゾーンを書いていない日時も、書かれたまま保つ。** 同じ理由。
+    // EXIF の撮影日時にはゾーンが無く「その土地の壁時計」なので、
+    // lib/utils/exif.ts は `2024-11-01T07:30:00` の形で送ってくる。
+    // ここで toISOString に通すと、**この Lambda のゾーン**（既定 UTC）で
+    // 解釈し直した値になる——環境に依存する保存はしない。
+    // 表示側は保存されている数字をそのまま出す（photoDate.ts）。
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(s)) return s;
     return new Date(t).toISOString();
 }
 

@@ -11,6 +11,7 @@ import type { Photo, LocalizedParagraphs } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
 import { toDateInputValue, mergeDate } from "../../../lib/utils/dateInput";
+import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { changedFields } from "../../../lib/utils/changedFields";
 
 const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
@@ -226,7 +227,11 @@ function EditContent() {
 
     const isDraft = photo.published === false;
     const ex = photo.exif ?? {};
-    const exifSummary = [ex.camera, ex.lens, ex.dateTimeOriginal].filter(Boolean).join(" · ");
+    // 撮影日時は生の保存値ではなく整形して出す（他の3か所と同じ）。
+    // ここだけ抜けていて "2024-11-01T07:30:00" がそのまま並んでいた。
+    const exifSummary = [ex.camera, ex.lens,
+        formatStoredDateTime(ex.dateTimeOriginal, locale === "en" ? "en" : "ja")]
+        .filter(Boolean).join(" · ");
 
     return (
         <main className="min-h-screen bg-black text-white">
