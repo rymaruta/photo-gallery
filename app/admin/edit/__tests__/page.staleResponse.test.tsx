@@ -37,7 +37,9 @@ vi.mock("../../../../lib/utils/api", () => ({ authenticatedFetch: mockAuthFetch 
 const EditPage = (await import("../page")).default;
 
 const photo = (id: string, title: string) => ({
-    id, src: `https://cdn/${id}.jpg`, title: { ja: title, en: title },
+    // 実データと同じ {en, ja} 順（DDB を通ると順番が変わる）
+    id, src: `https://cdn/${id}.jpg`, title: { en: `${id} title`, ja: title },
+    description: { en: [`${id} desc`], ja: [`${id}の説明`] },
     location: `${id}の場所`, category: "風景", date: "2024-10-12T00:00:00.000Z",
     tags: [`${id}タグ`], published: true, exif: {},
 });

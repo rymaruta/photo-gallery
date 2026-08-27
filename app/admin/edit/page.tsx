@@ -213,6 +213,9 @@ function AdminEditContent() {
                 tags,
                 exif,
             };
+            // 比較先は「保存されている姿」。素の文字列も {ja,en} の形に
+            // 揃えてから比べる（sameFieldValue は空の en を無視するので、
+            // {ja:"湖"} と {ja:"湖", en:""} は同じと判定される）。
             const prevTitle = photo?.title;
             const originalFields: Record<string, unknown> = {
                 title: typeof prevTitle === "object" && prevTitle !== null

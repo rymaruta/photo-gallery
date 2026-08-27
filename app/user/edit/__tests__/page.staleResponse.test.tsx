@@ -96,7 +96,10 @@ describe("/user/edit: 変えた項目だけ送る（別タブの編集を消さ�
     // 「触っていない項目を送らない」を分けて見たいので、本物の時刻を持つ
     // 写真を使う。
     const REAL = [{
-        id: "A", src: "https://cdn/A.jpg", title: "Aのタイトル", description: "Aの説明",
+        // 実データと同じ {en, ja} 順（JSON 文字列比較では毎回差分に化けていた形）
+        id: "A", src: "https://cdn/A.jpg",
+        title: { en: "A title", ja: "Aのタイトル" },
+        description: { en: ["A desc"], ja: ["Aの説明"] },
         location: "Aの場所", category: "風景", date: "2024-10-12T08:30:00.000Z",
         tags: ["Aタグ"], published: false,
     }];
@@ -136,7 +139,8 @@ describe("/user/edit: 変えた項目だけ送る（別タブの編集を消さ�
         await saveDraft();
         const body = putBody();
         expect(Object.keys(body).sort()).toEqual(["published", "title"]);
-        expect(body.title).toBe("新しいタイトル");
+        // 英語側は保ったまま日本語だけ差し替える（mergeLocalizedTitle）
+        expect(body.title).toEqual({ ja: "新しいタイトル", en: "A title" });
         // 触っていない項目は送らない＝サーバーは触らない
         expect(body).not.toHaveProperty("location");
         expect(body).not.toHaveProperty("tags");
