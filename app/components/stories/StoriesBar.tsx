@@ -447,7 +447,11 @@ export default function StoriesBar() {
         try {
             const { userFetch } = await import("../../../lib/utils/api");
             const res = await userFetch(`/stories/${encodeURIComponent(storyId)}`, { method: "DELETE" });
-            if (!res.ok) throw new Error(`delete ${res.status}`);
+            // 404 は成功として扱う（別タブで先に消した／24時間で期限切れ）。
+            // 失敗と読んで throw していたので `loadStories()` に到達せず、
+            // **もう存在しないストーリーがバーに残り続けた**（開くと画像が
+            // 取れない）。消えているなら目的は達成している。
+            if (!res.ok && res.status !== 404) throw new Error(`delete ${res.status}`);
             showToast(locale === "en" ? "Story deleted" : "ストーリーを削除しました", "success");
             await loadStories();
             return true;

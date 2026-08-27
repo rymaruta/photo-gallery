@@ -150,3 +150,25 @@ describe("CommentSection: 削除の失敗", () => {
         expect(screen.getByText("消したい")).toBeInTheDocument();
     });
 });
+
+// 別のタブ（や写真オーナー）が先に消していると、サーバーは 404 を返す。
+// これを失敗と読んで巻き戻していたので、**消えたはずのコメントが一覧に
+// 戻り**、「削除できませんでした」と出て、何度押しても同じことが起きた。
+// 消えているなら目的は達成しているので、成功として扱う（CT-5）。
+describe("CommentSection: 別タブで先に消されていた（404）", () => {
+    it("消えたものは一覧に戻さず、失敗のトーストも出さない", async () => {
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({
+            items: [{ id: "c1", uid: "me", name: "自分", text: "消したい", t: "2026-08-23T00:00:00Z" }],
+            count: 1,
+        }) });
+        mockUserFetch.mockResolvedValue({ ok: false, status: 404, json: async () => ({ error: "コメントが見つかりません" }) });
+
+        render(<CommentSection photoId="p1" locale="ja" photoOwnerId="me" />);
+        expect(await screen.findByText("消したい")).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "コメントを削除" }));
+        await waitFor(() => expect(screen.queryByText("消したい")).toBeNull());
+        expect(mockShowToast).not.toHaveBeenCalledWith(
+            expect.stringContaining("削除できませんでした"), "error");
+    });
+});

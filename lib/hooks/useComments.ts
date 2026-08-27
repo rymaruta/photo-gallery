@@ -121,6 +121,14 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
             const res = await userFetch(`/photos/${encodeURIComponent(photoId)}/comments/${encodeURIComponent(commentId)}`, {
                 method: "DELETE",
             });
+            // **404 は成功として扱う。** 別のタブ（や写真オーナー）が先に
+            // 消していると、サーバーは「コメントが見つかりません」を返す。
+            // これを失敗と読んで巻き戻していたので、**消えたはずのコメントが
+            // 一覧に戻り**、「削除できませんでした」と出て、何度押しても
+            // 同じことが起きた（リロードするまで直らない）。
+            // サーバー自身も、再試行の途中で消えた場合は成功扱いにしている
+            // （api-user/src/comments.ts の gone）。入口だけ厳しかった。
+            if (res.status === 404) return true;
             if (!res.ok) throw new Error(String(res.status));
             return true;
         } catch (e) {

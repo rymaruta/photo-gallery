@@ -88,3 +88,43 @@ describe("StoriesBar - 再試行が空配列で成功", () => {
         await waitFor(() => expect(screen.queryByText(/読み込めませんでした/)).toBeNull());
     });
 });
+
+// 別タブで先に消した／24時間で期限切れになったストーリーを消すと 404。
+// 失敗と読んで throw していたので loadStories() に到達せず、**もう存在
+// しないストーリーがバーに残り続けた**（開くと画像が取れない）。CT-5。
+describe("StoriesBar - 削除したら 404 だった", () => {
+    it("成功として扱い、一覧を取り直す（消えたものがバーに残らない）", async () => {
+        authState.current = { isAuthenticated: true, userId: "me" };
+        const mine = {
+            id: "s1", src: "https://cdn/a.jpg", userId: "me", displayName: "自分",
+            createdAt: "2098-01-01T00:00:00Z", expiresAt: "2099-01-01T00:00:00Z",
+        };
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (init?.method === "DELETE") {
+                // 別タブが先に消していた
+                return Promise.resolve({ ok: false, status: 404, json: async () => ({ error: "ストーリーが見つかりません" }) });
+            }
+            if (url === "/stories") {
+                // 削除を投げたあとの取り直しでは、もう無い
+                const deleted = mockUserFetch.mock.calls.some(
+                    (c) => (c[1] as { method?: string } | undefined)?.method === "DELETE");
+                return Promise.resolve({ ok: true, json: async () => (deleted ? [] : [mine]) });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+
+        render(<StoriesBar />);
+        // 自分のストーリーを開く
+        fireEvent.click(await screen.findByRole("button", { name: "自分のストーリーを見る" }));
+        // 削除 → 確認
+        fireEvent.click(await screen.findByRole("button", { name: "ストーリーを削除" }));
+        fireEvent.click(await screen.findByRole("button", { name: "削除" }));
+
+        // 取り直しに到達している（throw していたら来ない）
+        await waitFor(() => {
+            const listCalls = mockUserFetch.mock.calls.filter(
+                (c) => c[0] === "/stories" && (c[1] as { method?: string } | undefined)?.method !== "DELETE");
+            expect(listCalls.length).toBeGreaterThan(1);
+        });
+    });
+});
