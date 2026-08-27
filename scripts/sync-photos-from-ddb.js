@@ -188,8 +188,15 @@ async function writeLastSyncedCount(ddb, count) {
         await ddb.send(new UpdateCommand({
             TableName: TABLE,
             Key: { id: SYNC_STATS_ID },
-            UpdateExpression: "SET #c = :c, at = :at",
-            ExpressionAttributeNames: { "#c": "count" },
+            // **属性名は両方とも逃がす。** `count` だけでなく `at` も
+            // DynamoDB の予約語で、裸で書くと毎回 ValidationException になる。
+            // この関数は失敗を warn で握るので、ビルドは緑のまま通り、
+            // 「syncstats#photos の行が一度も作られない」→ readLastSyncedCount が
+            // 毎回 null → 比較先が**コミット済みの photos.json（30件）に固定**
+            // されていた。つまり「半減したら止める」の基準が 15 件のままで、
+            // このファイルのコメントが直したと書いている状態そのものだった。
+            UpdateExpression: "SET #c = :c, #at = :at",
+            ExpressionAttributeNames: { "#c": "count", "#at": "at" },
             ExpressionAttributeValues: { ":c": count, ":at": new Date().toISOString() },
         }));
     } catch (err) {

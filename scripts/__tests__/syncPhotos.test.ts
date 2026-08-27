@@ -115,3 +115,30 @@ describe("比較先が新しくなると、半減の判定が実際に効く", (
         expect(checkWriteSafety(50, 30).ok).toBe(true);
     });
 });
+
+// 「半減したら止める」の比較先は syncstats#photos の控え。その控えを書く
+// UpdateItem が予約語 `at` を裸で使っていたため、**毎回 ValidationException で
+// 拒否され、行が一度も作られていなかった**。失敗は warn で握るのでビルドは
+// 緑のまま通り、比較先はコミット済み photos.json（30件）に固定されていた
+// ——このファイルのコメントが「直した」と書いている状態そのもの。
+describe("writeLastSyncedCount: 予約語を裸で使わない", () => {
+    it("count と at の両方を ExpressionAttributeNames で逃がす", async () => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { writeLastSyncedCount } = require("../sync-photos-from-ddb.js");
+        const sent: { input: Record<string, unknown> }[] = [];
+        const ddb = { send: async (cmd: { input: Record<string, unknown> }) => { sent.push(cmd); return {}; } };
+
+        await writeLastSyncedCount(ddb, 42);
+
+        const input = sent[0].input as {
+            UpdateExpression: string;
+            ExpressionAttributeNames: Record<string, string>;
+            ExpressionAttributeValues: Record<string, unknown>;
+        };
+        // 式に裸の属性名が残っていない（`#` で始まる名前と値だけ）
+        expect(input.UpdateExpression).toBe("SET #c = :c, #at = :at");
+        expect(input.ExpressionAttributeNames).toEqual({ "#c": "count", "#at": "at" });
+        expect(input.ExpressionAttributeValues[":c"]).toBe(42);
+        expect(typeof input.ExpressionAttributeValues[":at"]).toBe("string");
+    });
+});
