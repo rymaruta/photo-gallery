@@ -398,7 +398,22 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
             console.error("deleteAccount: read profile failed:", e);
             return jsonError(500, "プロフィールを読めませんでした。アカウントはまだ削除されていません。時間をおいてもう一度お試しください");
         }
-        if (handle) await releaseOwnUsername(handle, uid);
+        // **解放が落ちたら止める。** 200 を返すと呼び出し側は Cognito の
+        // ユーザーを削除してサインアウトするので、以後この sub の JWT を
+        // 取れる人は誰もいない——`DELETE /user/account` を呼び直せる主体が
+        // 消える。つまり 500 を返さないかぎり「やり直し」は起きず、
+        // 墓石に handle を残しても誰も読みに来ない（0773ee1 の穴。
+        // ownerId 条件も墓石の handle も、やり直しが起きる前提でだけ
+        // 意味を持っていた）。
+        //
+        // ここで恒常的に失敗しうるのは IAM だけで、それは直後の墓石 Put も
+        // 同じステートメントに依存する＝どのみち 500 になる。条件不成立は
+        // 成功扱いなので、残りは全部一時的な失敗。押し直せば続きから消える。
+        // 墓石より**前**で止めるので、やり直しは生きたプロフィール行から
+        // handle を読み直せる。
+        if (handle && !await releaseOwnUsername(handle, uid)) {
+            return jsonError(500, "ユーザー名の解放を完了できませんでした。アカウントはまだ削除されていません。時間をおいてもう一度お試しください");
+        }
         // **消すのではなく、退会済みの印（墓石）に置き換える。**
         //
         // ただ消すと、消したはずのアカウントが復活しえた。API Gateway の
@@ -432,6 +447,32 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                 ...(handle ? { username: handle } : {}),
             },
         }));
+
+        // 静的ページの掃除を頼む。DynamoDB と S3 を消しても、既に配ってある
+        // 写真ページ・プロフィールページのHTMLは残っている（本文も撮影地も
+        // 表示名入りの JSON-LD も焼き込まれている）。定期ビルドは止めてあるので、
+        // ここで頼まないと誰かが push するまで消えない。
+        //
+        // **ステップ4/5（フォローの掃除）より前に頼む。** 以前は最後に置いて
+        // いたが、間のループは最大3周×2000件で待ち時間も挟むと明記されていて、
+        // 実行時間を使い切って落ちうる。そこで落ちると、やり直しの回は
+        // 「何も消していない」ので下の条件に掛からず、**二度と頼まれない**
+        // （0773ee1 で入れた条件の穴。それ以前は毎回無条件に頼んでいたので
+        //  拾えていた）。フォロワー数は静的ページに焼かれていないので、
+        // ステップ4/5 の前後で作り直す中身は変わらない。
+        //
+        // 待つ。Lambda はハンドラが返った瞬間に実行環境を凍らせるので、
+        // 投げっぱなしにすると TLS ハンドシェイクの途中で止まり、依頼は届かない
+        // （しかも何も記録されないので、届いたように見える）。
+        // この関数は例外を飲んで真偽値を返すので、待っても失敗にはならない。
+        //
+        // **この実行で何も消していないなら頼まない。** 2回目の退会（1回目が
+        // Cognito 削除で落ちた等）では写真もプロフィールも既に消えていて、
+        // 作り直す中身が無い。無条件に投げていたので Actions の枠を空振りで
+        // 使っていた（定期ビルドを止めている今は効く）。
+        if (deletedItems > 0 || profileWasLive) {
+            await requestSiteRebuild(`account deleted: ${uid}`);
+        }
 
         // 4. 自分の「フォロー中」: follow# マーカーを消し、消せたときだけ
         //    相手の followers を戻す。
@@ -510,23 +551,6 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
             console.error(
                 `deleteAccount: follow cleanup incomplete for ${uid}; ` +
                 "keeping following# (needs a manual reconcile; no sweeper exists)");
-        }
-
-        // 静的ページの掃除を頼む。DynamoDB と S3 を消しても、既に配ってある
-        // 写真ページ・プロフィールページのHTMLは残っている（本文も撮影地も
-        // 表示名入りの JSON-LD も焼き込まれている）。定期ビルドは止めてあるので、
-        // ここで頼まないと誰かが push するまで消えない。
-        // 待つ。Lambda はハンドラが返った瞬間に実行環境を凍らせるので、
-        // 投げっぱなしにすると TLS ハンドシェイクの途中で止まり、依頼は届かない
-        // （しかも何も記録されないので、届いたように見える）。
-        // この関数は例外を飲んで真偽値を返すので、待っても失敗にはならない。
-        //
-        // **この実行で何も消していないなら頼まない。** 2回目の退会（1回目が
-        // Cognito 削除で落ちた等）では写真もプロフィールも既に消えていて、
-        // 作り直す中身が無い。無条件に投げていたので Actions の枠を空振りで
-        // 使っていた（定期ビルドを止めている今は効く）。
-        if (deletedItems > 0 || profileWasLive) {
-            await requestSiteRebuild(`account deleted: ${uid}`);
         }
 
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) };

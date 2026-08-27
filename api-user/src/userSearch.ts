@@ -64,7 +64,8 @@ function toHit(item: Record<string, unknown>): UserSearchHit | null {
     // @ハンドル完全一致の経路（下の GetItemCommand 2段）は scoreUser を
     // 通さず score 100 で確定するため、`username#<handle>` の予約行が
     // 消し漏れていると**「名前未設定さん」の幽霊カード**が出た
-    // （退会の予約解放は best-effort で、一度失敗すると解放しなおせない）。
+    // （退会の予約解放が落ちた場合。解放できなければ退会自体を 500 で
+    //  止めるので、残るのは「やり直すまでの間」だけ）。
     // 両方の入口が通るここで止める。
     if (isDeletedProfile(item)) return null;
     return {

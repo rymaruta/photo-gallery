@@ -682,6 +682,55 @@ describe("deleteAccount: 消し残しを作らない", () => {
         expect((del!.input.ExpressionAttributeValues as Record<string, unknown>)[":o"]).toBe("me");
     });
 
+    // 解放が落ちても 200 を返していたら、呼び出し側は Cognito のユーザーを
+    // 削除してサインアウトする——以後この sub の JWT を取れる人はいないので、
+    // **やり直せる主体が消える**。墓石に handle を残しても誰も読みに来ない。
+    // ownerId 条件も墓石の handle も、やり直しが起きる前提でだけ意味を持つ。
+    it("予約の解放が落ちたら 500。墓石も置かない（やり直せる状態で止める）", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input?: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand" && (cmd.input?.Key as { userId?: string })?.userId === "me") {
+                return Promise.resolve({ Item: { userId: "me", username: "ryuhei" } });
+            }
+            if (name === "DeleteCommand"
+                && (cmd.input?.Key as { userId?: string })?.userId === "username#ryuhei") {
+                return Promise.reject(Object.assign(new Error("throttled"),
+                    { name: "ProvisionedThroughputExceededException" }));
+            }
+            return Promise.resolve({});
+        });
+        const res = await invoke(deleteAccount, ev("me"));
+
+        expect(res.statusCode).toBe(500);
+        // 墓石を置かない＝やり直しは生きた行から handle を読み直せる
+        expect(mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string } })
+            .filter((c) => c.constructor.name === "PutCommand")).toHaveLength(0);
+        expect(mockRebuild).not.toHaveBeenCalled();
+    });
+
+    // 条件不成立（既に無い / 他人が後から取った）は目的が達成済み。
+    // ここを失敗扱いにすると、2回目の退会が永久に完了しなくなる。
+    it("予約が既に無ければ（条件不成立）そのまま完了する", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input?: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand" && (cmd.input?.Key as { userId?: string })?.userId === "me") {
+                return Promise.resolve({ Item: { userId: "me", username: "ryuhei" } });
+            }
+            if (name === "DeleteCommand"
+                && (cmd.input?.Key as { userId?: string })?.userId === "username#ryuhei") {
+                return Promise.reject(Object.assign(new Error("cond"),
+                    { name: "ConditionalCheckFailedException" }));
+            }
+            return Promise.resolve({});
+        });
+        const res = await invoke(deleteAccount, ev("me"));
+
+        expect(res.statusCode).toBe(200);
+    });
+
     // 解放が落ちたまま行を墓石で上書きすると、handle の手がかりが消えて
     // **その名前は誰にも取れないまま永久に残る**（A-5 と同じ型）。
     // 墓石に handle を残しておけば、退会をやり直したときに拾える。
@@ -773,6 +822,39 @@ describe("deleteAccount: 静的ページの掃除", () => {
 
         expect(res.statusCode).toBe(200);
         expect(mockRebuild).not.toHaveBeenCalled();
+    });
+
+    // **依頼はフォローの掃除より前に出す。** 間のループは最大3周×2000件で
+    // 待ち時間も挟むので、実行時間を使い切って落ちうる（このファイル冒頭の
+    // コメントがそれを前提に書かれている）。そこで落ちると、やり直しの回は
+    // 「何も消していない」ので条件に掛からず**二度と頼まれない**——
+    // 0773ee1 で条件を入れたときに作った穴。それ以前は毎回無条件に頼んで
+    // いたので拾えていた。順番そのものを固定する。
+    it("フォローの掃除を始める前に依頼を出す", async () => {
+        const order: string[] = [];
+        mockRebuild.mockImplementation(async () => { order.push("rebuild"); return true; });
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input?: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand") {
+                if ((cmd.input?.Key as { userId?: string })?.userId === "me") {
+                    return Promise.resolve({ Item: { userId: "me", displayName: "旅人" } });
+                }
+                const id = String((cmd.input?.Key as { id?: string })?.id ?? "");
+                if (id === "following#me") {
+                    order.push("following-read");
+                    return Promise.resolve({ Item: { list: ["userA"] } });
+                }
+            }
+            if (name === "TransactWriteCommand") order.push("unfollow");
+            return Promise.resolve({});
+        });
+        const res = await invoke(deleteAccount, ev("me"));
+
+        expect(res.statusCode).toBe(200);
+        expect(order[0]).toBe("rebuild");
+        // 掃除が実際に走っていること（走らない世界で順番を主張しない）
+        expect(order).toContain("unfollow");
     });
 
     it("写真を1枚でも消したなら頼む（プロフィールが既に墓石でも）", async () => {
