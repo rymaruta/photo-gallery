@@ -297,6 +297,11 @@ describe("deleteAccount", () => {
             const name = cmd.constructor.name;
             if (name === "QueryCommand") return Promise.resolve({ Items: [] });
             if (name === "GetCommand") {
+                // USERS_TABLE の自分の行。実在する人の退会なので必ずある
+                // （静的ページの作り直しを頼むかの判定がこれを見る）
+                if ((cmd.input.Key as { userId?: string }).userId === "me") {
+                    return Promise.resolve({ Item: { userId: "me" } });
+                }
                 const id = String((cmd.input.Key as { id?: string }).id ?? "");
                 if (id === "following#me") return Promise.resolve({ Item: { list } });
                 return Promise.resolve({ Item: undefined });
@@ -658,6 +663,59 @@ describe("deleteAccount: 消し残しを作らない", () => {
         await invoke(deleteAccount, ev("me"));
         expect(deletedDdbIds().some((id) => id.startsWith("username#"))).toBe(false);
     });
+
+    // 予約の解放は「自分のものだけ」。ここだけ無条件の DeleteItem だった
+    // （対の userProfile.ts の releaseUsername は ownerId 一致が条件で、
+    //  すぐ上のコメントがその条件を根拠に挙げていた）。墓石に handle を
+    // 残して退会をやり直せるようにした以上、条件が無いと**その handle を
+    // 後から取った別人の予約を消してしまう**。
+    it("予約の削除は ownerId が自分のときだけ", async () => {
+        setupWithPhoto({ id: "p1", userId: "me", src: "https://cdn.test/uploads/p1.jpg" }, { userId: "me", username: "ryuhei" });
+        await invoke(deleteAccount, ev("me"));
+
+        const del = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> })
+            .find((c) => c.constructor.name === "DeleteCommand"
+                && (c.input.Key as { userId?: string })?.userId === "username#ryuhei");
+        expect(del).toBeDefined();
+        expect(del!.input.ConditionExpression).toBe("ownerId = :o");
+        expect((del!.input.ExpressionAttributeValues as Record<string, unknown>)[":o"]).toBe("me");
+    });
+
+    // 解放が落ちたまま行を墓石で上書きすると、handle の手がかりが消えて
+    // **その名前は誰にも取れないまま永久に残る**（A-5 と同じ型）。
+    // 墓石に handle を残しておけば、退会をやり直したときに拾える。
+    it("墓石に handle を残す（やり直しで解放できるように）", async () => {
+        setupWithPhoto({ id: "p1", userId: "me", src: "https://cdn.test/uploads/p1.jpg" }, { userId: "me", username: "ryuhei" });
+        await invoke(deleteAccount, ev("me"));
+
+        const tomb = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> })
+            .filter((c) => c.constructor.name === "PutCommand")
+            .map((c) => c.input.Item as Record<string, unknown>)
+            .find((it) => it?.userId === "me");
+        expect(tomb!.username).toBe("ryuhei");
+    });
+
+    // プロフィールが読めないまま墓石で上書きすると、同じく handle が消える。
+    // 読めないなら止める（アカウントはまだ生きているので押し直せば続く）。
+    it("プロフィールを読めなかったら 500。墓石も置かない", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input?: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand" && (cmd.input?.Key as { userId?: string })?.userId === "me") {
+                return Promise.reject(new Error("throttled"));
+            }
+            return Promise.resolve({});
+        });
+        const res = await invoke(deleteAccount, ev("me"));
+
+        expect(res.statusCode).toBe(500);
+        expect(mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string } })
+            .filter((c) => c.constructor.name === "PutCommand")).toHaveLength(0);
+        expect(mockRebuild).not.toHaveBeenCalled();
+    });
 });
 
 // 退会しても静的ページ（/photo/<id>・/users/<id>）は S3 に残り続ける。
@@ -686,11 +744,54 @@ describe("deleteAccount: コメントの消し残し", () => {
 
 describe("deleteAccount: 静的ページの掃除", () => {
     it("成功したらサイトの再ビルドを頼む", async () => {
-        mockDdbSend.mockResolvedValue({});
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input?: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand"
+                && (cmd.input?.Key as { userId?: string })?.userId === "me") {
+                return Promise.resolve({ Item: { userId: "me", displayName: "旅人" } });
+            }
+            return Promise.resolve({});
+        });
         const res = await invoke(deleteAccount, ev("me"));
         expect(res.statusCode).toBe(200);
         expect(mockRebuild).toHaveBeenCalledTimes(1);
         expect(String(mockRebuild.mock.calls[0][0])).toContain("me");
+    });
+
+    // 2回目の退会（1回目が Cognito 削除で落ちた等）では、写真もプロフィールも
+    // 既に消えていて作り直す中身が無い。無条件に投げていたので Actions の枠を
+    // 空振りで使っていた（定期ビルドを止めている今は効く）。
+    it("この実行で何も消していなければ頼まない（2回目の退会）", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input?: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand"
+                && (cmd.input?.Key as { userId?: string })?.userId === "me") {
+                // 既に墓石が立っている
+                return Promise.resolve({ Item: { userId: "me", deletedAt: "2026-08-27T00:00:00.000Z" } });
+            }
+            return Promise.resolve({});   // 写真は0件
+        });
+        const res = await invoke(deleteAccount, ev("me"));
+
+        expect(res.statusCode).toBe(200);
+        expect(mockRebuild).not.toHaveBeenCalled();
+    });
+
+    it("写真を1枚でも消したなら頼む（プロフィールが既に墓石でも）", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input?: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [{ id: "p1", userId: "me" }] });
+            if (name === "GetCommand") {
+                if ((cmd.input?.Key as { userId?: string })?.userId === "me") {
+                    return Promise.resolve({ Item: { userId: "me", deletedAt: "2026-08-27T00:00:00.000Z" } });
+                }
+                const id = String((cmd.input?.Key as { id?: string })?.id ?? "");
+                if (id === "p1") return Promise.resolve({ Item: { id: "p1", userId: "me", src: "https://cdn.test/uploads/p1.jpg" } });
+            }
+            return Promise.resolve({});
+        });
+        const res = await invoke(deleteAccount, ev("me"));
+
+        expect(res.statusCode).toBe(200);
+        expect(mockRebuild).toHaveBeenCalledTimes(1);
     });
 });
 

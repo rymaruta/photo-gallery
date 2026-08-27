@@ -6,6 +6,7 @@ import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { mediaKeys } from "./mediaKeys";
 import { requireEnv } from "./env";
 import { requestSiteRebuild } from "./rebuild";
+import { isDeletedProfile } from "./types";
 
 // 退会（アカウント削除）。DELETE /user/account、認証必須、呼び出し元の sub のみ対象。
 // 不可逆な破壊操作のため「確実に引ける範囲を確実に消す」方針:
@@ -116,6 +117,34 @@ async function ddbDelete(table: string, key: Record<string, unknown>): Promise<b
         return true;
     } catch (e) {
         console.error(`deleteAccount: DDB delete failed for ${JSON.stringify(key)}:`, e);
+        return false;
+    }
+}
+
+/**
+ * 自分が押さえている `username#<handle>` の予約を解放する。
+ *
+ * `api-user/src/userProfile.ts` の `releaseUsername` と**対**。
+ * 条件（`ownerId = :o`）まで含めて同じにすること——ここだけ無条件の
+ * DeleteItem だった。墓石に handle を残すようにしたので、退会をやり直すと
+ * ここが2回走りうる。条件が無いと、**その handle を後から取った別人の
+ * 予約を消してしまう**。
+ *
+ * 戻り値は「解放できたか」ではなく「気にすべき失敗があったか」で見る。
+ * 条件不成立（既に無い / 他人のもの）は目的が達成済みなので成功扱い。
+ */
+async function releaseOwnUsername(handle: string, ownerId: string): Promise<boolean> {
+    try {
+        await ddb.send(new DeleteCommand({
+            TableName: USERS_TABLE,
+            Key: { userId: `username#${handle}` },
+            ConditionExpression: "ownerId = :o",
+            ExpressionAttributeValues: { ":o": ownerId },
+        }));
+        return true;
+    } catch (e) {
+        if ((e as { name?: string }).name === "ConditionalCheckFailedException") return true;
+        console.error(`deleteAccount: release username failed for ${handle}:`, e);
         return false;
     }
 }
@@ -262,6 +291,9 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // 1. 自分の写真・ストーリー（GSI で列挙）。GSI の射影に依存しないよう id を集めてから
         //    本体を GetItem し、S3 本体/サムネ + DDB item を削除する。
         let mediaFailures = 0;
+        // この実行で本当に消した行の数。静的ページの作り直しを頼むかの判定に使う
+        // （2回目の退会では0件になる——1回目で全部消えているため）。
+        let deletedItems = 0;
         let lastKey: Record<string, unknown> | undefined;
         do {
             const res = await ddb.send(new QueryCommand({
@@ -285,6 +317,10 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                 // 上書きして**失敗が 0 に戻り**、500 で止まるべき退会が
                 // 200 で通っていた（de7b871 レビューが実ハンドラで再現）。
                 let itemFailures = 0;
+                // 実際に消せた行の数。共有カウンタへは mediaFailures と同じく
+                // **最後に1回・同期的に**足す（await をまたぐと他の worker の
+                // 加算を古い値で上書きする——上のコメントの事故と同じ形）。
+                let itemDeleted = 0;
                 try {
                     const full = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
                     if (full.Item) item = full.Item as Record<string, unknown>;
@@ -312,8 +348,10 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                 }
                 if (itemFailures === 0) {
                     if (!await ddbDelete(PHOTOS_TABLE, { id })) itemFailures++;
+                    else itemDeleted++;
                 }
                 mediaFailures += itemFailures;
+                deletedItems += itemDeleted;
             });
             lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
         } while (lastKey);
@@ -341,16 +379,26 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         }
 
         // 3. プロフィール（USERS_TABLE）
-        //    ユーザー名の予約（username#<handle>）も一緒に消す。残すと本人が
-        //    再登録しても同じ名前を取り戻せない（releaseUsername は ownerId 一致が条件）。
-        //    handle はプロフィールにしか無いので、削除より先に読む。
+        //    ユーザー名の予約（username#<handle>）も一緒に消す。残すと
+        //    **その handle は誰にも取れないまま永久に残る**（A-5 と同じ型）。
+        //
+        //    **プロフィールを読めなかったら、ここで止める。** 以前は catch で
+        //    握って先へ進んでいたが、そうすると handle が分からないまま墓石で
+        //    行を上書きしてしまい、予約を解放する手がかりが消える——退会を
+        //    やり直しても拾えない。読めないなら 500（アカウントはまだ生きて
+        //    いるので、押し直せば続きから消える）。写真の消し残しで止めるのと
+        //    同じ考え方。
+        let handle = "";
+        let profileWasLive = false;
         try {
             const prof = await ddb.send(new GetCommand({ TableName: USERS_TABLE, Key: { userId: uid } }));
-            const handle = typeof prof.Item?.username === "string" ? prof.Item.username : "";
-            if (handle) await ddbDelete(USERS_TABLE, { userId: `username#${handle}` });
+            handle = typeof prof.Item?.username === "string" ? prof.Item.username : "";
+            profileWasLive = !!prof.Item && !isDeletedProfile(prof.Item);
         } catch (e) {
-            console.error("deleteAccount: release username failed:", e);
+            console.error("deleteAccount: read profile failed:", e);
+            return jsonError(500, "プロフィールを読めませんでした。アカウントはまだ削除されていません。時間をおいてもう一度お試しください");
         }
+        if (handle) await releaseOwnUsername(handle, uid);
         // **消すのではなく、退会済みの印（墓石）に置き換える。**
         //
         // ただ消すと、消したはずのアカウントが復活しえた。API Gateway の
@@ -375,6 +423,13 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                 userId: uid,
                 deletedAt: deletedAt.toISOString(),
                 ttl: Math.floor(deletedAt.getTime() / 1000) + 365 * 24 * 60 * 60,
+                // **handle は墓石に残す。** 予約の解放が落ちたときに、退会を
+                // やり直して拾えるようにするため（残さないと永久に解放できない）。
+                // 解放は ownerId 一致が条件なので、その handle を後から取った
+                // 別人の予約を消してしまうことはない。
+                // 検索に漏れないことは userSearch.ts の toHit が墓石を弾いて
+                // 担保する（そこにテストがある）。
+                ...(handle ? { username: handle } : {}),
             },
         }));
 
@@ -465,7 +520,14 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // 投げっぱなしにすると TLS ハンドシェイクの途中で止まり、依頼は届かない
         // （しかも何も記録されないので、届いたように見える）。
         // この関数は例外を飲んで真偽値を返すので、待っても失敗にはならない。
-        await requestSiteRebuild(`account deleted: ${uid}`);
+        //
+        // **この実行で何も消していないなら頼まない。** 2回目の退会（1回目が
+        // Cognito 削除で落ちた等）では写真もプロフィールも既に消えていて、
+        // 作り直す中身が無い。無条件に投げていたので Actions の枠を空振りで
+        // 使っていた（定期ビルドを止めている今は効く）。
+        if (deletedItems > 0 || profileWasLive) {
+            await requestSiteRebuild(`account deleted: ${uid}`);
+        }
 
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) };
     } catch (e) {
