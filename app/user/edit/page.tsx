@@ -69,6 +69,9 @@ function EditContent() {
     // 撮影日の時刻）を保存時に失わないために持っておく。
     const [original, setOriginal] = useState<Photo | null>(null);
     const [saving, setSaving] = useState(false);
+    // 削除は取り消せないので、確認を1枚挟む（ストーリー削除と同じ形）
+    const [confirmDelete, setConfirmDelete] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
@@ -138,6 +141,33 @@ function EditContent() {
         void load();
         return () => { aborted = true; };
     }, [photoId, isAuthenticated, isAdminUser, isGeneralUser, router, showToast, isJa]);
+
+    /**
+     * 写真を消す。**これまで一般ユーザーには消す手段が無かった**——
+     * できるのは非公開にすることだけで、S3 の実体（GPS 入りの原本を含む）は
+     * 残っていた。サーバー側は DELETE /photos/{id}（api-user）。
+     */
+    const handleDelete = useCallback(async () => {
+        if (!photoId) return;
+        setDeleting(true);
+        try {
+            const { userFetch, readApiError } = await import("../../../lib/utils/api");
+            const res = await userFetch(`/photos/${encodeURIComponent(photoId)}`, { method: "DELETE" });
+            if (!res.ok) {
+                // サーバーは理由を返す（「画像の削除を完了できませんでした」など）。
+                // 押し直せば続きから消えるので、そう読める文言のまま出す。
+                showToast(await readApiError(res, isJa ? "削除に失敗しました" : "Failed to delete"), "error");
+                return;
+            }
+            showToast(isJa ? "写真を削除しました" : "Photo deleted", "success");
+            router.push(ROUTES.DRAFTS);
+        } catch {
+            showToast(isJa ? "通信に失敗しました" : "Network error", "error");
+        } finally {
+            setDeleting(false);
+            setConfirmDelete(false);
+        }
+    }, [photoId, isJa, showToast, router]);
 
     const save = useCallback(async (published: boolean) => {
         if (!photoId) return;
@@ -297,9 +327,60 @@ function EditContent() {
                 </form>
             </div>
 
-            {/* 固定アクションバー: 下書き保存 / 公開する */}
+            {/* 削除確認。取り消せない操作なので、装飾を減らして文字で選ばせる
+                （app/components/stories/StoryViewer.tsx と同じ形） */}
+            {confirmDelete && (
+                <div
+                    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 px-3 pb-3 sm:pb-0"
+                    onClick={() => !deleting && setConfirmDelete(false)}
+                    role="dialog"
+                    aria-modal="true"
+                >
+                    <div className="w-full max-w-[340px] space-y-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl overflow-hidden">
+                            <p className="px-4 py-3.5 text-center text-[13px] text-white/55 leading-snug">
+                                {isJa
+                                    ? "この写真を削除します。画像・コメント・いいねも消え、この操作は取り消せません。"
+                                    : "This photo will be deleted along with its image, comments and likes. This can't be undone."}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => void handleDelete()}
+                                disabled={deleting}
+                                className="w-full py-3.5 border-t border-white/10 text-[#ff453a] text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                {deleting && <div className="w-3.5 h-3.5 border-2 border-[#ff453a]/40 border-t-[#ff453a] rounded-full animate-spin" />}
+                                {isJa ? "削除" : "Delete"}
+                            </button>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setConfirmDelete(false)}
+                            disabled={deleting}
+                            className="w-full py-3.5 rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl text-white text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition disabled:opacity-50"
+                            style={{ touchAction: "manipulation" }}
+                        >
+                            {isJa ? "キャンセル" : "Cancel"}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* 固定アクションバー: 削除 / 下書き保存 / 公開する */}
             <div className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/10 p-4 z-40">
-                <div className="max-w-2xl mx-auto flex items-center gap-2 justify-end">
+                <div className="max-w-2xl mx-auto flex items-center gap-2">
+                    {/* 削除は左端に離して置く。保存系と並べると押し間違える */}
+                    <button
+                        type="button"
+                        onClick={() => setConfirmDelete(true)}
+                        disabled={saving || deleting}
+                        className="px-4 py-3 text-[#ff453a] text-sm font-semibold rounded-full ring-1 ring-[#ff453a]/30 hover:bg-[#ff453a]/10 transition-colors disabled:opacity-40"
+                        style={{ touchAction: "manipulation", minHeight: "44px" }}
+                    >
+                        {isJa ? "削除" : "Delete"}
+                    </button>
+                    <div className="flex-1" />
                     <button
                         type="button"
                         onClick={() => void save(false)}

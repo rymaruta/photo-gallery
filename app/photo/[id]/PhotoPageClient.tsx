@@ -855,6 +855,20 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                             )
                         )}
 
+                        {/* オーナー: 編集画面（タイトル・説明・撮影地・タグ・削除）への導線。
+                            これまで /user/edit へのリンクは**下書き一覧にしか無く**、
+                            公開済みの写真は編集画面に辿り着けなかった（＝直す手段も
+                            消す手段も画面上に無い）。気づいた場所から入れるようにする。 */}
+                        {isOwnPhoto && (
+                            <Link
+                                href={ROUTES.EDIT(photoId)}
+                                className="inline-flex items-center gap-1.5 self-start px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                {locale === "en" ? "Edit or delete this photo" : "この写真を編集・削除"}
+                            </Link>
+                        )}
+
                         {/* オーナー: フル再生MV（YouTube リンク）の設定 */}
                         {isOwnPhoto && !songPickerOpen && (
                             <div className="flex items-center gap-2 max-w-md">
