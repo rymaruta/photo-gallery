@@ -11,7 +11,8 @@ const mockDdbSend = vi.hoisted(() => vi.fn());
 vi.mock("../dynamodb", () => ({ ddb: { send: mockDdbSend }, PHOTOS_TABLE: "photos-test" }));
 
 vi.stubEnv("USERS_TABLE", "users-test");
-const { pushNotification, lookupDisplayName, NOTIFS_MAX, notifsId } = await import("../notify");
+const { pushNotification, lookupDisplayName, NOTIFS_MAX, notifsId,
+    deletedUserIds, resetDeletedUsersCache } = await import("../notify");
 
 type Input = {
     UpdateExpression?: string;
@@ -139,5 +140,52 @@ describe("lookupDisplayName", () => {
 describe("notifsId", () => {
     it("uid から文書IDを作る", () => {
         expect(notifsId("u1")).toBe("notifs#u1");
+    });
+});
+
+
+// コメント一覧は**未認証で叩ける公開API**なので、投稿者ごとに引くと
+// 1リクエストが人数ぶんの読み取りに増幅する（200件に100人いれば100回）。
+// 墓石は小さな行しかないので、まとめて1回引いてコンテナ内で使い回す。
+describe("deletedUserIds（退会した人の集合）", () => {
+    const scans = () => mockDdbSend.mock.calls
+        .map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> })
+        .filter((c) => c.constructor.name === "ScanCommand");
+
+    beforeEach(() => { resetDeletedUsersCache(); });
+
+    it("墓石だけを引く（生きている行は読まない）", async () => {
+        mockDdbSend.mockResolvedValue({ Items: [{ userId: "gone1" }, { userId: "gone2" }] });
+        const ids = await deletedUserIds();
+
+        expect([...ids].sort()).toEqual(["gone1", "gone2"]);
+        expect(scans()[0].input.FilterExpression).toContain("attribute_exists(deletedAt)");
+        // 要るのは userId だけ（名前やハンドルまで読まない）
+        expect(scans()[0].input.ProjectionExpression).toBe("userId");
+    });
+
+    it("2回目はコンテナ内の控えを使う（公開APIを増幅させない）", async () => {
+        mockDdbSend.mockResolvedValue({ Items: [{ userId: "gone1" }] });
+        await deletedUserIds();
+        await deletedUserIds();
+        expect(scans()).toHaveLength(1);
+    });
+
+    it("最後まで辿る（1ページで打ち切らない）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Items: [{ userId: "a" }], LastEvaluatedKey: { userId: "a" } })
+            .mockResolvedValueOnce({ Items: [{ userId: "b" }] });
+        expect([...(await deletedUserIds())].sort()).toEqual(["a", "b"]);
+    });
+
+    // 一時的な失敗で、生きている人の名前まで一斉に「退会したユーザー」に
+    // 化ける方が悪い。投げずに空集合を返す（＝誰も伏せない）。
+    it("引けなかったら空集合（投げない・控えもしない）", async () => {
+        mockDdbSend.mockRejectedValue(new Error("throttled"));
+        await expect(deletedUserIds()).resolves.toEqual(new Set());
+
+        // 失敗はキャッシュしない——次の呼び出しでやり直す
+        mockDdbSend.mockReset().mockResolvedValue({ Items: [{ userId: "gone1" }] });
+        expect([...(await deletedUserIds())]).toEqual(["gone1"]);
     });
 });

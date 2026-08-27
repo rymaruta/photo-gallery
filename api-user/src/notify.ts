@@ -1,4 +1,4 @@
-import { GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { GetCommand, UpdateCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { requireEnv } from "./env";
 
@@ -31,6 +31,56 @@ const USERS_TABLE = requireEnv("USERS_TABLE");
 // 「そういう名前の人がいる」と誤解され、検索しても見つからず混乱するため、
 // 明らかに未設定と分かる表記にする。
 const DEFAULT_NAME = "名前未設定さん";
+
+/** 退会した人のコメントに出す表示。誰のものだったかは残さない */
+export const DELETED_USER_NAME = "退会したユーザー";
+
+/**
+ * 退会した人（墓石が立っている行）の userId の集合。
+ *
+ * **投稿者ごとに引かない。** コメント一覧は未認証で叩ける公開APIなので、
+ * 1リクエストが投稿者の人数ぶんの読み取りに増幅する（200件のコメントに
+ * 100人いれば100回）。墓石は `{userId, deletedAt, ttl, username}` の小さな行
+ * しかないので、**まとめて1回**引いてコンテナ内で使い回す。
+ * userSearch.ts が同じ形（Scan + 60秒のキャッシュ）で動いている。
+ *
+ * 引けなかったときは**空集合**を返す（伏せない側に倒す）。DynamoDB の
+ * 一時的な失敗で、生きている人の名前まで一斉に「退会したユーザー」に
+ * 化ける方が悪い。
+ */
+let deletedCache: { at: number; ids: Set<string> } | null = null;
+const DELETED_CACHE_TTL_MS = 60 * 1000;
+
+export function resetDeletedUsersCache(): void {
+    deletedCache = null;
+}
+
+export async function deletedUserIds(): Promise<Set<string>> {
+    const now = Date.now();
+    if (deletedCache && now - deletedCache.at < DELETED_CACHE_TTL_MS) return deletedCache.ids;
+    const ids = new Set<string>();
+    try {
+        let lastKey: Record<string, unknown> | undefined;
+        do {
+            const res = await ddb.send(new ScanCommand({
+                TableName: USERS_TABLE,
+                ProjectionExpression: "userId",
+                FilterExpression: "attribute_exists(deletedAt)",
+                ExclusiveStartKey: lastKey,
+            }));
+            for (const it of res.Items ?? []) {
+                const id = (it as { userId?: unknown }).userId;
+                if (typeof id === "string" && id) ids.add(id);
+            }
+            lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
+        } while (lastKey);
+    } catch (e) {
+        console.error("deletedUserIds error:", e);
+        return new Set();   // 伏せない側に倒す（キャッシュもしない）
+    }
+    deletedCache = { at: now, ids };
+    return ids;
+}
 
 /**
  * 設定されている表示名だけを引く（未設定・読めない場合は undefined）。

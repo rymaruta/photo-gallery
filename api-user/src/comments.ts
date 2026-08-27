@@ -3,7 +3,7 @@ import { GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { v4 as uuidv4 } from "uuid";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
-import { pushNotification, lookupDisplayName } from "./notify";
+import { pushNotification, lookupDisplayName, deletedUserIds, DELETED_USER_NAME } from "./notify";
 
 // 写真コメント。
 // ストレージ: "comments#<photoId>" の list ドキュメント（notifs と同型）に
@@ -68,10 +68,29 @@ export const getComments: APIGatewayProxyHandlerV2 = async (event) => {
 
         const all = await readComments(photoId);
         const items = all.slice(-COMMENTS_MAX).reverse(); // 末尾追記なので後ろが新しい
+
+        // **退会した人の名前は出さない。**
+        // このAPIは未認証で読めるのに、投稿者の生死を見ていなかったので、
+        // 退会したあとも本文と**表示名**が誰でも読めるまま残っていた。
+        // 退会でプロフィールは墓石になるのに、コメントだけ取り残される形。
+        // account.ts が「各写真に散在する自分のコメント」をスコープ外と
+        // 明記している（per-user インデックスが無く全 Scan が要る）ので、
+        // 掃除役は別枠。読むときに伏せるのが当座の手。
+        //
+        // uid は伏せない——`/users/<sub>` は公開ルートで photos.json にも
+        // 載るので、sub は秘密ではない（userProfile.ts のコメント参照）。
+        // 画面側は `deleted` を見てプロフィールへの導線を出さない。
+        // コメントが無ければ引きに行かない
+        const gone = items.length === 0 ? new Set<string>() : await deletedUserIds();
+        const safeItems = gone.size === 0
+            ? items
+            : items.map((c) => (gone.has(c.uid)
+                ? { ...c, name: DELETED_USER_NAME, deleted: true }
+                : c));
         return {
             statusCode: 200,
             headers: { ...JSON_HEADERS, "Cache-Control": "public, s-maxage=15" },
-            body: JSON.stringify({ items, count: all.length }),
+            body: JSON.stringify({ items: safeItems, count: all.length }),
         };
     } catch (e) {
         console.error("getComments error:", e);

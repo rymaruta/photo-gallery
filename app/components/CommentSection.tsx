@@ -131,14 +131,29 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                         const canDelete = isAuthenticated && (c.uid === userId || (photoOwnerId && photoOwnerId === userId));
                         return (
                             <li key={c.id} className="flex items-start gap-2.5">
-                                <Link href={ROUTES.USER_PROFILE(c.uid)} className="flex-shrink-0 mt-0.5">
-                                    <UserAvatar userId={c.uid} className="w-7 h-7" iconClassName="w-4 h-4" />
-                                </Link>
+                                {/* 退会した人のプロフィールはもう無い（墓石になり、
+                                    公開APIは空を返す）。リンクを出すと「開いても
+                                    何も無いページ」へ誘うので、名前とアイコンだけ出す。 */}
+                                {c.deleted ? (
+                                    <span className="flex-shrink-0 mt-0.5">
+                                        <UserAvatar userId="" className="w-7 h-7" iconClassName="w-4 h-4" />
+                                    </span>
+                                ) : (
+                                    <Link href={ROUTES.USER_PROFILE(c.uid)} className="flex-shrink-0 mt-0.5">
+                                        <UserAvatar userId={c.uid} className="w-7 h-7" iconClassName="w-4 h-4" />
+                                    </Link>
+                                )}
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
-                                        <Link href={ROUTES.USER_PROFILE(c.uid)} className="text-[13px] font-semibold text-white/85 hover:underline truncate">
-                                            {c.name}
-                                        </Link>
+                                        {c.deleted ? (
+                                            <span className="text-[13px] font-semibold text-white/40 truncate">
+                                                {c.name}
+                                            </span>
+                                        ) : (
+                                            <Link href={ROUTES.USER_PROFILE(c.uid)} className="text-[13px] font-semibold text-white/85 hover:underline truncate">
+                                                {c.name}
+                                            </Link>
+                                        )}
                                         <span className="text-[11px] text-white/35 flex-shrink-0">{timeAgo(c.t, locale)}</span>
                                         {canDelete && (
                                             <button

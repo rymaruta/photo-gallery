@@ -9,9 +9,12 @@ vi.mock("../dynamodb", () => ({
     PHOTOS_TABLE: "photos-test",
     USER_INDEX: "userId-createdAt-index",
 }));
+const mockDeletedIds = vi.hoisted(() => vi.fn(async () => new Set<string>()));
 vi.mock("../notify", () => ({
     pushNotification: mockPush,
     lookupDisplayName: mockLookup,
+    deletedUserIds: mockDeletedIds,
+    DELETED_USER_NAME: "退会したユーザー",
 }));
 
 const { getComments, postComment, deleteComment } = await import("../comments");
@@ -30,6 +33,7 @@ function ev(sub: string | undefined, params: Record<string, string> | undefined,
 
 beforeEach(() => {
     mockDdbSend.mockReset();
+    mockDeletedIds.mockReset().mockResolvedValue(new Set<string>());
     mockPush.mockReset().mockResolvedValue(undefined);
     mockLookup.mockReset().mockResolvedValue("旅人A");
 });
@@ -586,5 +590,63 @@ describe("コメント上限の免除: 古い写真の所有者", () => {
         worldWith({ uploadedBy: "someone-else" });
         const res = await invoke(postComment, ev("me", { id: "p1" }, { text: "11件目" }));
         expect(res.statusCode).toBe(429);
+    });
+});
+
+
+// **退会してもコメントが公開のまま残っていた。**
+// このAPIは未認証で読めるのに投稿者の生死を見ていなかったので、退会したあとも
+// 本文と表示名が誰でも読めた。退会でプロフィールは墓石になるのに、コメント
+// だけ取り残される形。掃除役（全 Scan）は別枠なので、読むときに伏せる。
+describe("getComments: 退会した人の名前は出さない", () => {
+    const publicPhoto = { Item: { src: "https://cdn/p1.jpg", published: true } };
+    const items = [
+        { id: "c1", uid: "gone", name: "やめた人", text: "こんにちは", t: "2026-01-01" },
+        { id: "c2", uid: "alive", name: "居る人", text: "やあ", t: "2026-01-02" },
+    ];
+    const world = () => {
+        mockDdbSend.mockResolvedValueOnce(publicPhoto);
+        mockDdbSend.mockResolvedValueOnce({ Item: { items } });
+    };
+
+    it("退会した人は名前を伏せて印を付ける", async () => {
+        mockDeletedIds.mockResolvedValue(new Set(["gone"]));
+        world();
+        const data = JSON.parse((await invoke(getComments, ev(undefined, { id: "p1" }))).body);
+
+        const c1 = data.items.find((c: { id: string }) => c.id === "c1");
+        expect(c1.name).toBe("退会したユーザー");
+        expect(c1.deleted).toBe(true);
+        // 本文は残る（消すのは掃除役の仕事）
+        expect(c1.text).toBe("こんにちは");
+        // uid は伏せない（/users/<sub> は公開ルートで、sub は秘密ではない）
+        expect(c1.uid).toBe("gone");
+    });
+
+    it("生きている人はそのまま", async () => {
+        mockDeletedIds.mockResolvedValue(new Set(["gone"]));
+        world();
+        const data = JSON.parse((await invoke(getComments, ev(undefined, { id: "p1" }))).body);
+
+        const c2 = data.items.find((c: { id: string }) => c.id === "c2");
+        expect(c2.name).toBe("居る人");
+        expect(c2.deleted).toBeUndefined();
+    });
+
+    // 一時的な失敗で、生きている人の名前まで一斉に伏せる方が悪い
+    it("退会者を引けなければ、誰も伏せない", async () => {
+        mockDeletedIds.mockResolvedValue(new Set<string>());
+        world();
+        const data = JSON.parse((await invoke(getComments, ev(undefined, { id: "p1" }))).body);
+
+        expect(data.items.every((c: { deleted?: boolean }) => c.deleted === undefined)).toBe(true);
+    });
+
+    // 公開APIなので、無駄な読み取りを増やさない
+    it("コメントが無ければ引きに行かない", async () => {
+        mockDdbSend.mockResolvedValueOnce(publicPhoto);
+        mockDdbSend.mockResolvedValueOnce({});
+        await invoke(getComments, ev(undefined, { id: "p1" }));
+        expect(mockDeletedIds).not.toHaveBeenCalled();
     });
 });

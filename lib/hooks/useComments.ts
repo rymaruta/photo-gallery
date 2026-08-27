@@ -10,6 +10,12 @@ export type CommentItem = {
     name: string;
     text: string;
     t: string;
+    /**
+     * 投稿者が退会しているか。サーバー（api-user/src/comments.ts）が
+     * 名前を「退会したユーザー」に伏せたときだけ立つ。
+     * 画面はこれを見て、もう無いプロフィールへの導線を出さない。
+     */
+    deleted?: boolean;
 };
 
 export function useComments(photoId: string, isAuthenticated: boolean, initialCount = 0) {

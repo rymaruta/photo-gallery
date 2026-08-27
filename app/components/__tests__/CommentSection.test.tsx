@@ -212,3 +212,28 @@ describe("CommentSection: 設定ミスの 404 は成功にしない", () => {
         expect(screen.getByText("消したい")).toBeInTheDocument();   // 巻き戻る
     });
 });
+
+
+// 退会した人のプロフィールはもう無い（墓石になり、公開APIは空を返す）。
+// リンクを出すと「開いても何も無いページ」へ誘うことになる。
+describe("退会した人のコメント", () => {
+    it("名前は出すが、プロフィールへのリンクは出さない", async () => {
+        mockUserPublicFetch.mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                items: [
+                    { id: "c1", uid: "gone", name: "退会したユーザー", text: "こんにちは", t: "2026-01-01T00:00:00Z", deleted: true },
+                    { id: "c2", uid: "alive", name: "居る人", text: "やあ", t: "2026-01-02T00:00:00Z" },
+                ],
+                count: 2,
+            }),
+        });
+        render(<CommentSection photoId="p1" photoOwnerId="owner" locale="ja" />);
+
+        expect(await screen.findByText("退会したユーザー")).toBeInTheDocument();
+        // 退会した人の名前はリンクになっていない
+        expect(screen.getByText("退会したユーザー").closest("a")).toBeNull();
+        // 生きている人は今までどおりリンク
+        expect(screen.getByText("居る人").closest("a")).not.toBeNull();
+    });
+});
