@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
-import { QueryCommand, GetCommand, DeleteCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
+import { QueryCommand, GetCommand, DeleteCommand, PutCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { S3Client, DeleteObjectCommand, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
@@ -351,7 +351,29 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         } catch (e) {
             console.error("deleteAccount: release username failed:", e);
         }
-        await ddbDelete(USERS_TABLE, { userId: uid });
+        // **消すのではなく、退会済みの印（墓石）に置き換える。**
+        //
+        // ただ消すと、消したはずのアカウントが復活しえた。API Gateway の
+        // JWT オーソライザは署名と exp しか見ないので、Cognito のユーザーを
+        // 消しても既に配ったトークンは期限まで通る。別の端末に残っていた
+        // タブが GET /user/profile を叩くと「行が無い人」に見え、
+        // userProfile.ts の createProfileIfMissing（PostConfirmation の
+        // 取りこぼしを救う仕組み）が行を作り直す。作られた行は実在判定を
+        // 通すので、**消えた ID がフォローできる**状態になり、誰も掃除しない。
+        //
+        // ttl は DynamoDB の TTL 用（epoch 秒）。**このテーブルの TTL は
+        // まだ有効化していない**ので、今のところ墓石は消えない。userId だけの
+        // 小さな行なので当面はそれでよい。掃除したくなったら
+        // `aws dynamodb update-time-to-live --table-name <users>         //   --time-to-live-specification "Enabled=true,AttributeName=ttl"`。
+        const deletedAt = new Date();
+        await ddb.send(new PutCommand({
+            TableName: USERS_TABLE,
+            Item: {
+                userId: uid,
+                deletedAt: deletedAt.toISOString(),
+                ttl: Math.floor(deletedAt.getTime() / 1000) + 365 * 24 * 60 * 60,
+            },
+        }));
 
         // 4. 自分の「フォロー中」: follow# マーカーを消し、消せたときだけ
         //    相手の followers を戻す。

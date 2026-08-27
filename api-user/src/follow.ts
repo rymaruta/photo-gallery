@@ -33,8 +33,12 @@ async function userExists(userId: string): Promise<boolean | "unknown"> {
         const res = await ddb.send(new GetCommand({
             TableName: USERS_TABLE,
             Key: { userId },
-            ProjectionExpression: "userId",
+            ProjectionExpression: "userId, deletedAt",
         }));
+        // 退会の墓石（deletedAt を持つ行）は「実在する」に数えない。
+        // 数えると、消えた ID をフォローできてしまう
+        // （userProfile.ts の isDeletedProfile と対）。
+        if (typeof res.Item?.deletedAt === "string") return false;
         if (res.Item) return true;
         // 行が無い＝存在しない、ではない。PostConfirmation トリガーが
         // 失敗した人・トリガー導入前に登録した人には最初から行が無く、

@@ -170,6 +170,24 @@ async function releaseUsername(username: string, ownerId: string): Promise<void>
     }
 }
 
+/**
+ * 退会済みの印（墓石）が立っているか。
+ *
+ * 退会でプロフィール行を消すだけにしていた頃、**消したはずのアカウントが
+ * 復活しえた**。API Gateway の JWT オーソライザは署名と exp しか見ないので、
+ * Cognito のユーザーを消しても既に配ったトークンは期限まで通る。別の端末に
+ * 残っていたタブが GET /user/profile を叩くと「行が無い人」に見え、
+ * createProfileIfMissing が行を作り直す。作られた行は
+ *  - follow.ts の実在判定を通すので、**消えた ID がフォローできる**
+ *  - notifs# のゴミが積まれる
+ *  - 誰も掃除しない
+ * PostConfirmation の取りこぼしを救う仕組みが、退会の取り消しになっていた。
+ * 「行が無い」と「消した」を区別できるようにする。
+ */
+export function isDeletedProfile(p: unknown): boolean {
+    return typeof (p as { deletedAt?: unknown } | null)?.deletedAt === "string";
+}
+
 async function getProfile(userId: string): Promise<UserProfile | null> {
     const res = await ddb.send(new GetItemCommand({
         TableName: USERS_TABLE,
@@ -211,6 +229,11 @@ export const getMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     }
     try {
         const profile = await getProfile(userId);
+        if (isDeletedProfile(profile)) {
+            // 退会済み。行を作り直さない（作ると退会が取り消される）。
+            // 410 Gone——「もう無い」であって、通信の失敗でも権限でもない。
+            return { statusCode: 410, headers: JSON_HEADERS, body: JSON.stringify({ error: "このアカウントは削除されています" }) };
+        }
         if (!profile) {
             // 行が無いまま放置しない。PostConfirmation トリガー
             // （api/src/cognitoTrigger.ts）は失敗しても登録を成功させるので、
@@ -538,6 +561,11 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     let usernameReserved: string | null = null;
     try {
         const prev = await getProfile(userId);
+        if (isDeletedProfile(prev)) {
+            // 読みだけでなく書きも塞ぐ。mergeProfile は prev が無ければ
+            // 新しい姿を組むので、ここを通すと保存で行が生き返る。
+            return { statusCode: 410, headers: JSON_HEADERS, body: JSON.stringify({ error: "このアカウントは削除されています" }) };
+        }
 
         // 上の (c): 全部が「許可ホストでない」だけで、件数が減っている。
         //
@@ -744,7 +772,12 @@ export const getPublicProfile: APIGatewayProxyHandlerV2 = async (event) => {
     }
     try {
         const profile = await getProfile(userId);
-        if (!profile) return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ userId }) };
+        // 墓石は「未設定の人」と同じ見え方にする。toPublicProfile に
+        // 通しても今は何も漏れないが、項目が増えたときに漏れうるので
+        // ここで止める。
+        if (!profile || isDeletedProfile(profile)) {
+            return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ userId }) };
+        }
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(toPublicProfile(profile)) };
     } catch (e) {
         console.error("getPublicProfile error:", e);

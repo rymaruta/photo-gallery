@@ -698,6 +698,27 @@ describe("フォローの実在判定: users 行が無い人", () => {
         expect(transactItems()).toHaveLength(0);
     });
 
+    // 退会の墓石は「実在する」に数えない。数えると、消えた ID を
+    // フォローできてしまう（api-user/src/userProfile.ts の
+    // isDeletedProfile と対。退会は行を消さずに deletedAt を立てる）。
+    it("退会済み（deletedAt がある行）は 404。写真の有無も見に行かない", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            const name = cmd.constructor.name;
+            if (name === "GetCommand") {
+                return Promise.resolve({ Item: { userId: OTHER, deletedAt: "2026-08-27T00:00:00.000Z" } });
+            }
+            // ここに来たら「墓石を見落として写真を探しに行った」ということ
+            if (name === "QueryCommand") return Promise.resolve({ Count: 1 });
+            return Promise.resolve({});
+        });
+        const res = await invoke(followUser, ev(ME, OTHER));
+        expect(res.statusCode).toBe(404);
+        expect(transactItems()).toHaveLength(0);
+        // 墓石を見た時点で決まる（写真は数えない）
+        expect(mockDdbSend.mock.calls.map((c) => c[0])
+            .filter((cmd) => cmd?.constructor?.name === "QueryCommand")).toHaveLength(0);
+    });
+
     it("行も写真も無ければ今までどおり 404（でたらめな UUID でゴミを作らせない）", async () => {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
             const name = cmd.constructor.name;

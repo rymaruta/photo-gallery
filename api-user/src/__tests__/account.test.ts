@@ -102,13 +102,28 @@ describe("deleteAccount", () => {
         expect(s3).toContain("profiles/me");
         expect(s3).toContain("profiles/me/cover");
 
-        // 写真 item・プロフィール・既知ドキュメントを削除
+        // 写真 item・既知ドキュメントを削除
         const ids = deletedDdbIds();
         expect(ids).toContain("p1");
-        expect(ids).toContain("me"); // USERS_TABLE の {userId: "me"}
         expect(ids).toContain("notifs#me");
         expect(ids).toContain("followstats#me");
         expect(ids).toContain("following#me");
+
+        // プロフィール行は**消すのではなく墓石に置き換える**。
+        // ただ消すと、期限まで有効な古いトークンを持った別端末が
+        // GET /user/profile を叩いたときに行が作り直され、退会が
+        // 取り消されてしまう（消えた ID がフォローできる状態になる）。
+        expect(ids).not.toContain("me");
+        const tomb = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> })
+            .filter((c) => c.constructor.name === "PutCommand")
+            .map((c) => c.input.Item as Record<string, unknown>)
+            .find((it) => it?.userId === "me");
+        expect(tomb).toBeDefined();
+        expect(typeof tomb!.deletedAt).toBe("string");
+        expect(typeof tomb!.ttl).toBe("number");
+        // 退会前の中身を持ち越さない
+        expect(tomb).not.toHaveProperty("displayName");
     });
 
     // 写真の削除失敗は Cognito を消す前に止める。200 で通すと、GPS 入りの
