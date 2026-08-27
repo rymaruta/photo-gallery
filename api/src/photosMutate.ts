@@ -116,9 +116,13 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // （ユーザーAPI側 api-user/src/photoUpdate.ts と同じ扱い）。
         //
         // 「キーが fields にあるか」で見ていた時期があるが、それは
-        // 「毎回」と同じだった——/admin/edit は保存のたびに全項目
-        // （exif を含む）を送るので、何も変えずに保存を押すだけで
-        // ビルドが走る（1本8分・月2,000分）。値そのものを突き合わせる。
+        // 「毎回」と同じだった——当時の /admin/edit は保存のたびに全項目
+        // （exif を含む）を送っていたので、何も変えずに保存を押すだけで
+        // ビルドが走った（1本8分・月2,000分）。値そのものを突き合わせる。
+        //
+        // **画面は今、変えた項目だけ送る**（9df0ec2）。それでも値で見るのは
+        // やめない——`published` は毎回同梱されるし、古いタブが読み込んだ
+        // ままの JS は今も全項目を送ってくる。
         const visibilityChanged = "published" in fields && fields.published !== (photo.published !== false);
         // 比べるのは**書いたあとの姿**。pickEditableFields が空を undefined に
         // 揃えてあり、updatePhotoFields はそれを REMOVE にする。

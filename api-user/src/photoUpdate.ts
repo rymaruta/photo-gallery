@@ -191,9 +191,14 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // 対象を静的ページに載る項目まで広げ、連打は coalesce で畳む。
         //
         // 「キーが body にあるか」で見ていた時期があるが、それは
-        // 「毎回」と同じだった——/user/edit は保存のたびに全項目を送るので、
-        // 何も変えずに保存を2回押すだけでビルドが2本走る（1本8分・月2,000分）。
-        // metaChanged は applyMeta の中で保存済みの値と突き合わせている。
+        // 「毎回」と同じだった——当時の /user/edit は保存のたびに全項目を
+        // 送っていたので、何も変えずに保存を2回押すだけでビルドが2本走った
+        // （1本8分・月2,000分）。metaChanged は applyMeta の中で保存済みの
+        // 値と突き合わせている。
+        //
+        // **画面は今、変えた項目だけ送る**（7232340）。それでも値で見るのは
+        // やめない——`published` は毎回同梱されるし、古いタブが読み込んだ
+        // ままの JS は今も全項目を送ってくる。
         const wasPublished = existing.Item.published !== false;
         const visibilityChanged = hasPublished && body.published !== wasPublished;
         if (visibilityChanged || metaChanged) {

@@ -145,7 +145,19 @@ export const searchUsers: APIGatewayProxyHandlerV2 = async (event) => {
         // 実質500人ほどで打ち切られ、それ以降に登録した人は表示名で検索しても
         // 出てこなかった。しかも @ハンドル完全一致だけは別経路で引けるため、
         // 「一部の人だけ検索できない」という分かりにくい壊れ方をしていた。
-        // 予約アイテムはサーバー側で弾いて、読み取り枠を食わせない。
+        // 最後まで辿るように直した（上限は SCAN_MAX_PAGES）。
+        //
+        // **FilterExpression は読み取り枠を節約しない。** DynamoDB は
+        // Limit 件を読んで**から**フィルタを適用するので、予約アイテムも
+        // 退会の墓石も1ページ分の枠を普通に食う（課金も同じ）。ここは
+        // 「実ユーザーが SCAN_MAX_PAGES × SCAN_PAGE_SIZE 件まで拾える」
+        // 保証ではなく、「テーブルの行が 5,000 まで」の保証。予約と墓石で
+        // 行数はユーザー数の2倍以上になりうる。
+        // 以前ここには「予約アイテムはサーバー側で弾いて、読み取り枠を
+        // 食わせない」と書いてあったが、DynamoDB の挙動と逆だった。
+        // フィルタが減らすのは**返ってくる件数**だけで、読む件数ではない。
+        // （同じ勘違いは ddb-photos.ts の hasAnyUserItem でも注意書きにしてある）
+        // 本気で効かせるなら GSI に移すこと——打ち切りは下で warn している。
         const now = Date.now();
         let all = userCache && now - userCache.at < USER_CACHE_TTL_MS ? userCache.users : null;
         if (!all) {
