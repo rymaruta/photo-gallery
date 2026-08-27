@@ -27,6 +27,8 @@ const COMMENTS_MAX = 200;   // 保持する上限（書き込み時に切り詰�
  * 200回のリクエストで他人のコメント欄を無に帰せるのは、
  * 会話の場としてもたない。1人あたりを絞れば、この経路は塞がる。
  */
+/** 追記が競合したときのやり直し回数（同時投稿はすぐ収まる） */
+const COMMENT_APPEND_RETRIES = 3;
 const COMMENTS_MAX_PER_USER = 10;
 const DELETE_RETRIES = 3;   // 削除の添字がずれたときの読み直し回数
 const TEXT_MAX = 500;
@@ -105,12 +107,6 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // 参加できなかった）。オーナーには「議論を流す」動機が無いし、
         // 消したければ写真ごと消せる。
         const isOwner = photo.userId === uid;
-        if (!isOwner) {
-            const existing = await readComments(photoId);
-            if (existing.filter((c) => c.uid === uid).length >= COMMENTS_MAX_PER_USER) {
-                return jsonError(429, `同じ写真へのコメントは${COMMENTS_MAX_PER_USER}件までです`);
-            }
-        }
 
         const comment: Comment = {
             id: uuidv4(),
@@ -124,15 +120,62 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // 追記だけだと際限なく伸び、DynamoDB のアイテム上限（400KB）に達した時点で
         // 以後そのフォトには誰もコメントできなくなる（縮む経路が無い）。
         // notify.ts と同じく、溢れたときだけ読み直して切り詰める。
-        const appended = await ddb.send(new UpdateCommand({
+        // **1人あたりの上限は、読みと書きを条件でつなぐ。**
+        //
+        // 以前は「読んで数える → 無条件に list_append」だったので、
+        // 同時に投げれば全部が「既存0件」を読んで全部通った。
+        // COMMENTS_MAX(200) のリングは自分のコメントだけで埋まる
+        // ——**他人の写真のコメント欄を1回のバーストで全消しできる**。
+        // COMMENTS_MAX_PER_USER を入れた理由（「200回のリクエストで他人の
+        // コメント欄を無に帰せるのはもたない」）が、並行実行で戻っていた。
+        //
+        // 仕掛けは下の切り詰めと同じ「読んだときと同じ長さのままなら書く」。
+        // 新しい機構は作らない。外れたら読み直してやり直す。
+        const appendArgs = (guard?: { len: number }) => ({
             TableName: PHOTOS_TABLE,
             Key: { id: commentsId(photoId) },
             UpdateExpression:
                 "SET #items = list_append(if_not_exists(#items, :empty), :new), photoId = :pid, updatedAt = :now",
+            // 上限の対象外（オーナー）は条件を付けない。付ける必要が無いうえ、
+            // 付けると同時投稿のたびにやり直しが要る。
+            ...(guard
+                ? {
+                    // 文書がまだ無い回もあるので、その形も通す
+                    // （userProfile.ts の rev ガードと同じ組み立て方）。
+                    ConditionExpression: guard.len === 0
+                        ? "attribute_not_exists(#items) OR size(#items) = :len"
+                        : "size(#items) = :len",
+                }
+                : {}),
             ExpressionAttributeNames: { "#items": "items" },
-            ExpressionAttributeValues: { ":new": [comment], ":empty": [], ":pid": photoId, ":now": comment.t },
-            ReturnValues: "UPDATED_NEW",
-        }));
+            ExpressionAttributeValues: {
+                ":new": [comment], ":empty": [], ":pid": photoId, ":now": comment.t,
+                ...(guard ? { ":len": guard.len } : {}),
+            },
+            ReturnValues: "UPDATED_NEW" as const,
+        });
+
+        let appended;
+        if (isOwner) {
+            appended = await ddb.send(new UpdateCommand(appendArgs()));
+        } else {
+            for (let attempt = 0; ; attempt++) {
+                const existing = await readComments(photoId);
+                if (existing.filter((c) => c.uid === uid).length >= COMMENTS_MAX_PER_USER) {
+                    return jsonError(429, `同じ写真へのコメントは${COMMENTS_MAX_PER_USER}件までです`);
+                }
+                try {
+                    appended = await ddb.send(new UpdateCommand(appendArgs({ len: existing.length })));
+                    break;
+                } catch (e) {
+                    if ((e as { name?: string }).name !== "ConditionalCheckFailedException") throw e;
+                    if (attempt >= COMMENT_APPEND_RETRIES) {
+                        // 諦めたことを黙って飲まない（200 を返すと画面には出るのに消える）
+                        return jsonError(409, "他の投稿と重なりました。もう一度お試しください");
+                    }
+                }
+            }
+        }
 
         // 上限を超えたら古い方を捨てて COMMENTS_MAX 件だけ残す（末尾が新しい）。
         //

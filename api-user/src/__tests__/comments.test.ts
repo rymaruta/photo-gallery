@@ -379,3 +379,85 @@ describe("deleteComment", () => {
         expect(res.statusCode).toBe(404);
     });
 });
+
+
+// **1人あたりの上限が並行リクエストで無効化されていた。**
+// 「読んで数える → 無条件に list_append」だったので、同時に投げれば全部が
+// 「既存0件」を読んで全部通る。COMMENTS_MAX(200) のリングは自分のコメント
+// だけで埋まり、**他人の写真のコメント欄を1回のバーストで全消しできる**
+// ——COMMENTS_MAX_PER_USER を入れた理由が並行実行で戻っていた。
+// 仕掛けは切り詰めと同じ「読んだときと同じ長さのままなら書く」。
+describe("コメント追記: 読みと書きを条件でつなぐ", () => {
+    it("追記は「読んだときと同じ長さ」を条件にする", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string })?.id ?? "");
+                if (id === "p1") return Promise.resolve({ Item: { id: "p1", src: "s", userId: "owner" } });
+                return Promise.resolve({ Item: { items: [{ id: "c1", uid: "someone", text: "x", t: "" }] } });
+            }
+            return Promise.resolve({ Attributes: { items: [] } });
+        });
+        const res = await invoke(postComment, ev("me", { id: "p1" }, { text: "こんにちは" }));
+        expect(res.statusCode).toBe(200);
+
+        const update = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> })
+            .find((c) => c.constructor.name === "UpdateCommand"
+                && String((c.input.Key as { id?: string })?.id ?? "").startsWith("comments#"));
+        expect(update!.input.ConditionExpression).toContain("size(#items) = :len");
+        expect((update!.input.ExpressionAttributeValues as Record<string, unknown>)[":len"]).toBe(1);
+    });
+
+    it("文書がまだ無い回も通す（attribute_not_exists を併記）", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string })?.id ?? "");
+                if (id === "p1") return Promise.resolve({ Item: { id: "p1", src: "s", userId: "owner" } });
+                return Promise.resolve({});   // コメント文書なし
+            }
+            return Promise.resolve({ Attributes: { items: [] } });
+        });
+        await invoke(postComment, ev("me", { id: "p1" }, { text: "はじめて" }));
+
+        const update = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> })
+            .find((c) => c.constructor.name === "UpdateCommand"
+                && String((c.input.Key as { id?: string })?.id ?? "").startsWith("comments#"));
+        expect(update!.input.ConditionExpression).toContain("attribute_not_exists(#items)");
+    });
+
+    // 諦めたことを黙って飲むと、200 が返って画面には出るのに、あとで消える
+    it("やり直しても競合し続けたら 409（200 を返さない）", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string })?.id ?? "");
+                if (id === "p1") return Promise.resolve({ Item: { id: "p1", src: "s", userId: "owner" } });
+                return Promise.resolve({ Item: { items: [] } });
+            }
+            if (cmd.constructor.name === "UpdateCommand"
+                && String((cmd.input.Key as { id?: string })?.id ?? "").startsWith("comments#")) {
+                return Promise.reject(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
+            }
+            return Promise.resolve({});
+        });
+        const res = await invoke(postComment, ev("me", { id: "p1" }, { text: "ぶつかる" }));
+        expect(res.statusCode).toBe(409);
+    });
+
+    // 上限の対象外なので条件も読み取りも要らない（既存の最適化を壊さない）
+    it("オーナーの追記には条件を付けない", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                return Promise.resolve({ Item: { id: "p1", src: "s", userId: "me" } });
+            }
+            return Promise.resolve({ Attributes: { items: [] } });
+        });
+        await invoke(postComment, ev("me", { id: "p1" }, { text: "ありがとう" }));
+
+        const update = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> })
+            .find((c) => c.constructor.name === "UpdateCommand"
+                && String((c.input.Key as { id?: string })?.id ?? "").startsWith("comments#"));
+        expect(update!.input.ConditionExpression).toBeUndefined();
+    });
+});
