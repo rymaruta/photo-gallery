@@ -3,6 +3,7 @@ import {
     slugify,
     collectEntries,
     photosInCollection,
+    isIndexableCollection,
     labelForSlug,
     collectionPath,
     collectionCopy,
@@ -220,5 +221,51 @@ describe("slugify: URL のパスに置けない文字", () => {
         expect(slugify("パリ, フランス")).toBe("パリ,-フランス");
         expect(slugify("Mount Fuji")).toBe("mount-fuji");
         expect(slugify("  夜景  ")).toBe("夜景");
+    });
+});
+
+// 生成側（photosInCollection / collectEntries）が完全一致、回遊リンク側
+// （related.ts の sameLocation）が部分一致で食い違っていた。
+// 症状: 写真ページの「「パリ」の他の写真」には3枚出るのに、そこから飛ぶ
+// `/location/パリ` は自分1枚しか無い。しかも実データ14件の撮影地は
+// **1つも MIN_INDEXABLE_COUNT(3) に届かず、14ページ全部が noindex・
+// サイトマップ0件**だった（SEO のために作ったランディングが検索に出ていない）。
+describe("撮影地の集約は related と同じ「緩い一致」で見る", () => {
+    const photos = [
+        { id: "p1", src: "s", location: "パリ" },
+        { id: "p2", src: "s", location: "パリ, フランス" },
+        { id: "p3", src: "s", location: "オペラ・ガルニエ（パリ）" },
+        { id: "p4", src: "s", location: "東京" },
+        { id: "p5", src: "s", location: "京都", published: false },   // 非公開は数えない
+    ] as unknown as Parameters<typeof collectEntries>[0];
+
+    it("入れ子の地名をまとめて拾う", () => {
+        const ids = photosInCollection(photos, "location", "パリ").map((p) => p.id);
+        expect(ids).toEqual(["p1", "p2", "p3"]);
+    });
+
+    it("件数も同じ数え方（見出しと実際の枚数がずれない）", () => {
+        const entries = collectEntries(photos, "location");
+        const paris = entries.find((e) => e.slug === "パリ");
+        expect(paris?.count).toBe(3);
+        // これで初めて検索エンジンに載せてよい枚数になる
+        expect(isIndexableCollection(paris!.count)).toBe(true);
+    });
+
+    it("関係ない地名は混ざらない", () => {
+        expect(photosInCollection(photos, "location", "東京").map((p) => p.id)).toEqual(["p4"]);
+    });
+
+    it("非公開は数にも一覧にも入らない", () => {
+        expect(photosInCollection(photos, "location", "京都")).toEqual([]);
+    });
+
+    // タグとカテゴリは離散的なラベルなので完全一致のまま
+    it("タグは部分一致にしない（「旅」で「旅行」を拾わない）", () => {
+        const tagged = [
+            { id: "t1", src: "s", tags: ["旅"] },
+            { id: "t2", src: "s", tags: ["旅行"] },
+        ] as unknown as Parameters<typeof collectEntries>[0];
+        expect(photosInCollection(tagged, "tag", "旅").map((p) => p.id)).toEqual(["t1"]);
     });
 });
