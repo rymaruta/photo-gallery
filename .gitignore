@@ -56,3 +56,10 @@ app/data/photos.json.bak-*
 next-env.d.ts
 api/.serverless/
 api-user/.serverless/
+
+# レビュー・変異テストの一時置き場（エージェントが作る）。
+# 98aeeaf で `git add -A` が api-user/src/__ztmp/ を巻き込んで本番の
+# パッケージに混ぜてしまった。中身は本物のソースのコピーなので、
+# vitest が拾って同じテストを二重に走らせ、件数まで狂わせる。
+__ztmp/
+*.bak

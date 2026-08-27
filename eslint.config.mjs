@@ -23,6 +23,9 @@ const eslintConfig = defineConfig([
     // Compiled Lambda bundles (esbuild output)
     "api-user/dist/**",
     "api-user/node_modules/**",
+    // レビューや変異テストの一時置き場。中身は本物のソースのコピーなので、
+    // 拾うと lint も vitest も二重になる（vitest.config.ts にも同じ除外あり）。
+    "**/__ztmp/**",
   ]),
 ]);
 
