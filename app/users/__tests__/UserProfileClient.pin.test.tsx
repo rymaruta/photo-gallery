@@ -20,11 +20,13 @@ vi.mock("../../../lib/auth/cognito", () => ({ getCurrentSession: mockGetCurrentS
 vi.mock("../../../lib/utils/api", async (importActual) => {
     const actual = await importActual<typeof import("../../../lib/utils/api")>();
     return {
+        // 実物を土台にする。列挙だけだと、実装が新しく使い始めた export を
+        // 読んだ瞬間に vitest が投げ、呼び出し側の catch に飲まれて
+        // **緑のまま間違ったことを測るテスト**になる。
+        ...actual,
         publicFetch: (...a: unknown[]) => mockPublicFetch(...a),
         userFetch: (...a: unknown[]) => mockUserFetch(...a),
         userPublicFetch: (...a: unknown[]) => mockUserPublicFetch(...a),
-        // 実物を使う（文言の分岐まで測るため）
-        readApiError: actual.readApiError,
     };
 });
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
@@ -183,6 +185,40 @@ describe("ピン留めの送り方", () => {
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("ピン留めは3枚までです", "error"));
         // 巻き戻しで終わらず、サーバーの一覧に揃う（p1・p2 が星）
         await waitFor(() => expect(screen.getAllByTitle("ピン留め解除")).toHaveLength(2));
+    });
+});
+
+// 別のタブでログアウトした・セッションが切れた人は、userFetch が
+// トークン不在で投げる。「保存に失敗しました」だと何をすればいいか
+// 分からないまま押し直すことになる。
+describe("トークンが無いとき", () => {
+    it("「ログインしてください」を出す（通信の失敗と混ぜない）", async () => {
+        const { AUTH_REQUIRED_MESSAGE } = await import("../../../lib/utils/api");
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ userId: ME, displayName: "旅人" }) });
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (init?.method === "PUT") return Promise.reject(new Error(AUTH_REQUIRED_MESSAGE));
+            return Promise.resolve({ ok: true, json: async () => [photo("p1"), photo("p2")] });
+        });
+        render(<UserProfileClient userId={ME} />);
+        await waitFor(() => expect(screen.getAllByTitle(/ピン留め/).length).toBeGreaterThan(0));
+        fireEvent.click(screen.getAllByTitle("先頭にピン留め")[0]);
+
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(AUTH_REQUIRED_MESSAGE, "error"));
+    });
+
+    it("通信そのものが落ちた場合は従来の文言のまま", async () => {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ userId: ME, displayName: "旅人" }) });
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (init?.method === "PUT") return Promise.reject(new TypeError("Failed to fetch"));
+            return Promise.resolve({ ok: true, json: async () => [photo("p1"), photo("p2")] });
+        });
+        render(<UserProfileClient userId={ME} />);
+        await waitFor(() => expect(screen.getAllByTitle(/ピン留め/).length).toBeGreaterThan(0));
+        fireEvent.click(screen.getAllByTitle("先頭にピン留め")[0]);
+
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("保存に失敗しました", "error"));
     });
 });
 

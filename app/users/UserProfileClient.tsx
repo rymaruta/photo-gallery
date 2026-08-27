@@ -20,7 +20,7 @@ import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../lib/utils/log";
 import { getCurrentSession } from "../../lib/auth/cognito";
 import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
-import { publicFetch, userFetch, userPublicFetch, readApiError } from "../../lib/utils/api";
+import { publicFetch, userFetch, userPublicFetch, readApiError, AUTH_REQUIRED_MESSAGE } from "../../lib/utils/api";
 import { EN_MONTHS } from "../../lib/utils/photoDate";
 import { ROUTES } from "../../lib/routes";
 import UserAvatar from "../components/UserAvatar";
@@ -473,9 +473,15 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             const saved = await res.json().catch(() => null) as { pinnedPhotoIds?: unknown } | null;
             if (saved && "pinnedPhotoIds" in patch) adoptPins(saved.pinnedPhotoIds);
             showToast(successMsg, "success");
-        } catch {
+        } catch (e) {
             setUserProfile(prev ?? null);
-            showToast(failMsg, "error");
+            // トークン不在（userFetch が投げる）は「保存に失敗しました」では
+            // 直らない。別のタブでログアウトした人・セッションが切れた人は、
+            // 何をすればいいか分からないまま押し直すことになる。
+            // PhotoPageClient の MV 保存と同じ見分け方。
+            showToast(e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE
+                ? AUTH_REQUIRED_MESSAGE
+                : failMsg, "error");
         }
     }, [userProfile, userId, locale, showToast]);
 
