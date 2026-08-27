@@ -30,6 +30,28 @@ export async function putPhoto(photo: Photo): Promise<void> {
  * 実装はそうなっておらず、実装の方が正しかった。
  * 次に読む人が「コメントどおりに直す」と穴が開くので、ここを直した。
  */
+/**
+ * その userId の写真（またはストーリー）が1件でもあるか。
+ *
+ * フォローの実在判定で使う。USERS_TABLE の行だけを見ていた頃は、
+ * PostConfirmation トリガーが失敗した人・トリガー導入前に登録した人が
+ * **誰からもフォローできなかった**（プロフィールページは 200 で普通に
+ * 開き、ボタンも出るので、押して初めて 404 になる）。
+ * 写真を上げている人は明らかに実在するので、その手がかりも見る。
+ * 1件見つければ十分なので Limit 1。
+ */
+export async function hasAnyPhoto(userId: string): Promise<boolean> {
+    const res = await ddb.send(new QueryCommand({
+        TableName: PHOTOS_TABLE,
+        IndexName: USER_INDEX,
+        KeyConditionExpression: "userId = :uid",
+        ExpressionAttributeValues: { ":uid": userId },
+        Limit: 1,
+        Select: "COUNT",
+    }));
+    return (res.Count ?? 0) > 0;
+}
+
 export async function countUserPhotos(userId: string): Promise<number> {
     let count = 0;
     let lastKey: Record<string, unknown> | undefined;

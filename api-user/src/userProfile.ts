@@ -179,6 +179,29 @@ async function getProfile(userId: string): Promise<UserProfile | null> {
     return unmarshall(res.Item) as UserProfile;
 }
 
+/**
+ * 自分のプロフィール行が無ければ作る（空でよい）。
+ *
+ * api/src/cognitoTrigger.ts の createProfileIfMissing と**対**。
+ * あちらは登録直後の1回だけで、失敗しても登録は成功させる設計なので、
+ * 行が無い人が残りうる。こちらは本人が自分のプロフィールを開くたびに
+ * 効くので、取りこぼしを後から拾える。
+ * 既にある行は絶対に上書きしない（attribute_not_exists）。
+ */
+async function createProfileIfMissing(userId: string): Promise<void> {
+    try {
+        await ddb.send(new PutItemCommand({
+            TableName: USERS_TABLE,
+            Item: marshall({ userId, createdAt: new Date().toISOString() }),
+            ConditionExpression: "attribute_not_exists(userId)",
+        }));
+    } catch (e) {
+        const name = (e as { name?: string }).name;
+        if (name === "ConditionalCheckFailedException") return;   // 競合＝既にある
+        console.error("createProfileIfMissing error:", e);
+    }
+}
+
 export const getMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
     // sub 欠落の "" で進むと userId="" のプロフィールを読み書きする
@@ -188,6 +211,15 @@ export const getMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     }
     try {
         const profile = await getProfile(userId);
+        if (!profile) {
+            // 行が無いまま放置しない。PostConfirmation トリガー
+            // （api/src/cognitoTrigger.ts）は失敗しても登録を成功させるので、
+            // 行が無い人が生まれる。その人は誰からもフォローできず
+            // （follow.ts の実在判定）、本人にも直す手段が無かった。
+            // 自分のプロフィールを開いた時点で作れば、そこから回復する。
+            // ベストエフォート——失敗しても取得自体は返す。
+            await createProfileIfMissing(userId);
+        }
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(profile ?? { userId }) };
     } catch (e) {
         console.error("getMyProfile error:", e);

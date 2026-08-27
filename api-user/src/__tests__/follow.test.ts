@@ -102,10 +102,14 @@ describe("followUser", () => {
     });
 
     it("実在しない相手は 404（何も書かない）", async () => {
-        mockDdbSend.mockResolvedValueOnce({}); // USERS_TABLE に行が無い
+        mockDdbSend
+            .mockResolvedValueOnce({})              // USERS_TABLE に行が無い
+            .mockResolvedValueOnce({ Count: 0 });   // 写真も無い（行が無い人の救済）
         const res = await invoke(followUser, ev(ME, OTHER));
         expect(res.statusCode).toBe(404);
-        expect(mockDdbSend).toHaveBeenCalledTimes(1); // 確認の1回だけ
+        // 確認の2回だけ（users 行 → 写真）。書き込みは1つも無い
+        expect(mockDdbSend).toHaveBeenCalledTimes(2);
+        expect(transactItems()).toHaveLength(0);
         expect(mockPush).not.toHaveBeenCalled();
     });
 
@@ -658,5 +662,41 @@ describe("フォロー一覧の同時更新", () => {
             .map((c) => (c[0] as { input?: { Item?: { id?: string } } }).input?.Item)
             .filter((i) => i?.id?.startsWith("following#"));
         expect(puts).toHaveLength(0);
+    });
+});
+
+
+// PostConfirmation トリガーが失敗した人・トリガー導入前に登録した人は
+// USERS_TABLE に行が無い。行だけを見ていた頃は**誰からもフォローできず**、
+// しかも公開プロフィールは 200 で開いてボタンも出るので、押して初めて
+// 404 になった（相手にも本人にも直す手段が無い）。写真があれば実在とみなす。
+describe("フォローの実在判定: users 行が無い人", () => {
+    it("写真が1枚でもあればフォローできる", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "GetCommand") return Promise.resolve({});               // users 行なし
+            if (name === "QueryCommand") return Promise.resolve({ Count: 1 });   // 写真あり
+            return Promise.resolve({});
+        });
+        const res = await invoke(followUser, ev(ME, OTHER));
+        expect(res.statusCode).toBe(200);
+        // 写真の有無は GSI に Limit 1 で聞く（全件数えない）
+        const q = mockDdbSend.mock.calls.map((c) => c[0])
+            .find((cmd) => cmd?.constructor?.name === "QueryCommand");
+        expect(q.input.Limit).toBe(1);
+        expect(q.input.Select).toBe("COUNT");
+    });
+
+    it("行も写真も無ければ今までどおり 404（でたらめな UUID でゴミを作らせない）", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            const name = cmd.constructor.name;
+            if (name === "GetCommand") return Promise.resolve({});
+            if (name === "QueryCommand") return Promise.resolve({ Count: 0 });
+            return Promise.resolve({});
+        });
+        const res = await invoke(followUser, ev(ME, OTHER));
+        expect(res.statusCode).toBe(404);
+        // 何も書いていない
+        expect(transactItems()).toHaveLength(0);
     });
 });

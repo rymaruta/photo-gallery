@@ -1,4 +1,5 @@
 import type { APIGatewayProxyHandlerV2, APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
+import { hasAnyPhoto } from "./ddb-photos";
 import { PutCommand, UpdateCommand, GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
@@ -34,7 +35,13 @@ async function userExists(userId: string): Promise<boolean | "unknown"> {
             Key: { userId },
             ProjectionExpression: "userId",
         }));
-        return !!res.Item;
+        if (res.Item) return true;
+        // 行が無い＝存在しない、ではない。PostConfirmation トリガーが
+        // 失敗した人・トリガー導入前に登録した人には最初から行が無く、
+        // **誰からもフォローできなかった**（プロフィールページは 200 で
+        // 開き、ボタンも出るので押して初めて 404 になり、相手にも本人にも
+        // 直す手段が無い）。写真を上げているなら明らかに実在する。
+        return await hasAnyPhoto(userId);
     } catch (e) {
         console.error("userExists error:", e);
         return "unknown";
