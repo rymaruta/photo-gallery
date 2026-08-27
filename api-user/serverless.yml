@@ -192,6 +192,19 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 自分の写真を1枚消す。これまで一般ユーザーには消す手段が無く、
+  # できるのは「非公開にする」（S3 の実体は残る）か「退会する」だけだった。
+  # IAM は既存のもので足りる（uploads/* の s3:DeleteObject と
+  # photosTable の dynamodb:DeleteItem は退会・ストーリー掃除で付与済み）。
+  deleteMyPhoto:
+    handler: src/photoUpdate.deleteMyPhoto
+    events:
+      - httpApi:
+          path: /photos/{id}
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
   getStories:
     handler: src/stories.getStories
     events:

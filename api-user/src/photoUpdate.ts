@@ -1,10 +1,13 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
-import { UpdateCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
+import { UpdateCommand, GetCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId } from "./http";
 import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeDate, sameStoredValue } from "./sanitize";
 import { requestSiteRebuild } from "./rebuild";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
+import { mediaKeys } from "./mediaKeys";
+import { requireEnv } from "./env";
+import { S3Client, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 
 type PhotoSong = { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string };
 
@@ -215,5 +218,105 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         }
         console.error("updatePhotoVisibility error:", e);
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "更新に失敗しました" }) };
+    }
+};
+
+
+const UPLOAD_BUCKET = requireEnv("UPLOAD_BUCKET");
+const s3 = new S3Client({});
+
+/**
+ * 自分の写真を1枚消す。
+ *
+ * **これまで一般ユーザーには消す手段が無かった。** 写真削除は管理API
+ * （api/src/photosMutate.ts の deletePhoto、admin 限定）にしか無く、
+ * api-user 側には deleteStory / deleteComment / deleteAccount はあるのに
+ * deletePhoto が無い。できるのは「非公開にする」だけで、S3 の実体は残る。
+ * つまり「撮影地に自宅の最寄り駅が写り込んでいた」と気づいた人の選択肢は
+ * 「隠す（原本は公開URLに残る）」か「退会する」の二択だった。
+ * 24時間で消えるストーリーは消せるのに、永久に残る写真が消せない。
+ *
+ * 順序と条件は account.ts の退会と同じにする（新しい機構は作らない）:
+ *  - S3 を先、DynamoDB の行を後。逆にすると途中で切れたときに
+ *    **GPS 入りの原本だけが公開URLに残る**（行はキーの唯一の手がかり）
+ *  - S3 が1つでも消せなかったら行を残して 500。押し直せば続きから消える
+ *  - comments# は行より先に消す（逆だと再実行で拾う手がかりが無くなる）
+ */
+export const deleteMyPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const id = event.pathParameters?.id;
+    if (!id) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "IDが必要です" }) };
+    }
+    // このテーブルには通知 notifs# / コメント comments# / フォロー関係も
+    // 同じキー空間に入っている。写真以外は触らせない（読み側・更新側と同じ）。
+    if (id.includes("#")) {
+        return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
+    }
+    const callerId = getUserId(event);
+    if (!callerId) {
+        return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証が必要です" }) };
+    }
+
+    try {
+        const existing = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
+        if (!existing.Item) {
+            return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
+        }
+        const item = existing.Item as Record<string, unknown>;
+        const ownerId = (item.userId ?? item.uploadedBy) as string | undefined;
+        // !ownerId まで見る（updatePhotoVisibility と同じ）。無いと
+        // 「持ち主が空の行 × sub の無いトークン」で "" === "" が成立する。
+        if (!ownerId || ownerId !== callerId) {
+            return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: "権限がありません" }) };
+        }
+        // ストーリーは deleteStory の担当。ここで消すと期限切れ掃除と
+        // 二重管理になる（updatePhotoVisibility と同じ扱い）。
+        if (item.story === true) {
+            return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
+        }
+
+        // 1. S3 の実体（本体・原本・派生すべて）。mediaKeys は退会と共通。
+        const keys = mediaKeys(item);
+        let s3Failures = 0;
+        if (keys.length > 0) {
+            try {
+                const res = await s3.send(new DeleteObjectsCommand({
+                    Bucket: UPLOAD_BUCKET,
+                    Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true },
+                }));
+                s3Failures += res.Errors?.length ?? 0;
+            } catch (e) {
+                console.error(`deleteMyPhoto: S3 delete failed for ${id}:`, e);
+                s3Failures += keys.length;
+            }
+        }
+        if (s3Failures > 0) {
+            // 行は S3 キーの唯一の手がかり。消し残したまま行を消すと、
+            // GPS 入りの原本が公開URLに孤児で残る（誰も辿れない）。
+            return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "画像の削除を完了できませんでした。時間をおいてもう一度お試しください" }) };
+        }
+
+        // 2. その写真に付いたコメント（行より先）
+        try {
+            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: `comments#${id}` } }));
+        } catch (e) {
+            console.error(`deleteMyPhoto: comments delete failed for ${id}:`, e);
+            return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "削除に失敗しました。時間をおいてもう一度お試しください" }) };
+        }
+
+        // 3. 写真の行
+        await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
+
+        // 4. 静的ページの掃除。実体を消しても、配ってある /photo/<id> の HTML は
+        //    残る（本文・撮影地・EXIF・表示名入りの JSON-LD まで焼き込み済み）。
+        //    非公開だった写真には静的ページが無いので頼まない（A-5d と同じ判定）。
+        if (item.published !== false) {
+            await requestSiteRebuild(`photo deleted: ${id}`, { coalesce: true });
+        }
+
+        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
+    } catch (e) {
+        console.error("deleteMyPhoto error:", e);
+        return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "削除に失敗しました" }) };
     }
 };
