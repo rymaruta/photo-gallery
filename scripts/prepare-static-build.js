@@ -42,15 +42,6 @@ function restore() {
 // npm run build を叩いた瞬間に app/api がディスクから消える。
 // 未コミットのルート実装はそこで失われる。
 // 本体が無いなら「残骸」ではなく「退避中」なので、戻す。
-if (fs.existsSync(backupDir)) {
-    if (!fs.existsSync(apiDir)) {
-        console.log("[build] 前回のビルドが中断していました。app/api を復元します...");
-        restore();
-    } else {
-        fs.rmSync(backupDir, { recursive: true, force: true });
-    }
-}
-
 // 中断されても退避したままにしない。
 /**
  * ビルド本体。
@@ -63,6 +54,19 @@ if (fs.existsSync(backupDir)) {
  * out/ が消える。実際に踏んだので囲った。
  */
 function main() {
+    // 前回の中断の後始末。**main() の中に置くこと。**
+    // ここがトップレベルにあった間は、`require` しただけで
+    // `_api_build_backup` を `app/api` へ動かす（本体があれば消す）——
+    // 「require しただけでは動かない」が半分しか成立していなかった。
+    if (fs.existsSync(backupDir)) {
+        if (!fs.existsSync(apiDir)) {
+            console.log("[build] 前回のビルドが中断していました。app/api を復元します...");
+            restore();
+        } else {
+            fs.rmSync(backupDir, { recursive: true, force: true });
+        }
+    }
+
     // finally は SIGINT/SIGTERM では走らないので、明示的に拾う。
     let restored = false;
     const restoreOnce = () => {

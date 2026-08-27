@@ -188,7 +188,10 @@ function EditContent() {
             showToast(isJa ? "通信に失敗しました" : "Network error", "error");
         } finally {
             setDeleting(false);
-            setConfirmDelete(false);
+            // **失敗しても閉じない。** サーバーは「押し直せば続きから消える」と
+            // 読める理由を返すのに、閉じてしまうとトーストが数秒で消えたあと
+            // 最初からやり直すことになる。閉じるのは成功したときだけ
+            // （成功時はこの行に来る前に遷移している）。
         }
     }, [photoId, isJa, showToast, router]);
 
@@ -230,11 +233,13 @@ function EditContent() {
             if (res.ok) {
                 showToast(
                     published
-                        ? (isJa ? "公開しました" : "Published")
-                        : (isJa ? "下書きを保存しました" : "Draft saved"),
+                        ? (isJa ? "保存しました" : "Saved")
+                        : (isJa ? "非公開にしました" : "Unpublished"),
                     "success",
                 );
-                router.push(ROUTES.DRAFTS);
+                // 公開したままの保存は写真ページへ戻す。下書き一覧へ落とすと、
+                // 直したものを確かめられない（そこには公開写真が出ない）。
+                router.push(published && photoId ? ROUTES.PHOTO(photoId) : ROUTES.DRAFTS);
             } else {
                 const err = await res.json().catch(() => ({})) as { error?: string };
                 showToast(err.error ?? (isJa ? "保存に失敗しました" : "Save failed"), "error");
@@ -279,6 +284,11 @@ function EditContent() {
     }
 
     const isDraft = photo.published === false;
+    // **公開済みの写真は下書き一覧に戻さない。** この画面は下書き一覧から
+    // しか来ない前提で作られていたが、写真ページからも来るようになった。
+    // 公開写真を編集したあと「（空かもしれない）下書き一覧」に落とされると、
+    // 直したものを確かめられない。
+    const backHref = isDraft ? ROUTES.DRAFTS : ROUTES.PHOTO(photo.id);
     const ex = photo.exif ?? {};
     // 撮影日時は生の保存値ではなく整形して出す（他の3か所と同じ）。
     // ここだけ抜けていて "2024-11-01T07:30:00" がそのまま並んでいた。
@@ -290,7 +300,7 @@ function EditContent() {
         <main className="min-h-screen bg-black text-white">
             <div className="max-w-2xl mx-auto px-4 py-8 pb-28">
                 <div className="flex items-center gap-4 mb-6">
-                    <Link href={ROUTES.DRAFTS} className="text-white/60 hover:text-white transition-colors">
+                    <Link href={backHref} className="text-white/60 hover:text-white transition-colors">
                         <ArrowLeftIcon className="w-5 h-5" />
                     </Link>
                     <h1 className="text-xl font-semibold">
@@ -389,7 +399,7 @@ function EditContent() {
                         <div className="rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl overflow-hidden">
                             <p className="px-4 py-3.5 text-center text-[13px] text-white/55 leading-snug">
                                 {isJa
-                                    ? "この写真を削除します。画像・コメント・いいねも消え、この操作は取り消せません。"
+                                    ? "この写真を削除します。画像とコメントも消え、この操作は取り消せません。"
                                     : "This photo will be deleted along with its image, comments and likes. This can't be undone."}
                             </p>
                             <button
@@ -430,6 +440,10 @@ function EditContent() {
                         {isJa ? "削除" : "Delete"}
                     </button>
                     <div className="flex-1" />
+                    {/* **公開済みの写真に「下書き保存」を出さない。**
+                        一番「保存」に見えるボタンが published:false を送るので、
+                        押すと**公開中の写真が黙って非公開になり検索から消える**
+                        （作り直しまで走る）。下書きのときだけ出す。 */}
                     <button
                         type="button"
                         onClick={() => void save(false)}
@@ -437,7 +451,7 @@ function EditContent() {
                         className="px-4 py-3 bg-white/10 hover:bg-white/20 text-white text-sm font-semibold rounded-full ring-1 ring-white/15 transition-colors disabled:opacity-40"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
-                        {isJa ? "下書き保存" : "Save draft"}
+                        {isDraft ? (isJa ? "下書き保存" : "Save draft") : (isJa ? "非公開にする" : "Unpublish")}
                     </button>
                     <button
                         type="button"
@@ -446,7 +460,9 @@ function EditContent() {
                         className="px-6 py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors disabled:opacity-40"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
-                        {saving ? (isJa ? "保存中…" : "Saving…") : (isJa ? "公開する" : "Publish")}
+                        {saving
+                            ? (isJa ? "保存中…" : "Saving…")
+                            : isDraft ? (isJa ? "公開する" : "Publish") : (isJa ? "保存する" : "Save")}
                     </button>
                 </div>
             </div>

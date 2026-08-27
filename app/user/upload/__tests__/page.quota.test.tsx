@@ -1,6 +1,7 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 // 100枚の上限が**押すまで見えなかった**。サーバーは 403 で断るが、
 // 数え上げ失敗の 503 と文言が違うだけで、利用者には「上限なのか障害なのか」
@@ -87,5 +88,38 @@ describe("アップロードの残り枚数", () => {
         await new Promise((r) => setTimeout(r, 20));
         expect(screen.queryByText(/アップロードできます/)).toBeNull();
         expect(screen.queryByText(/上限/)).toBeNull();
+    });
+});
+
+
+// 残り枚数はマウント時に1回取るだけで、アップロード成功後に更新されなかった。
+// 3枚上げても「あと5枚」のままで、押して初めて 403 に戻る——「上限に
+// ぶつかるまで見えない」を直したはずが、半分残っていた。
+describe("アップロードしたら残り枚数を減らす", () => {
+    it("成功した枚数だけ減る", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (url === "/user/photos" && !init?.method) {
+                return Promise.resolve({ ok: true, json: async () => photos(97) });
+            }
+            if (url === "/upload/presigned-url") {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({ presignedUrl: "https://s3/put", publicUrl: "https://cdn/uploads/me/a.jpg", key: "uploads/me/a.jpg" }),
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({ success: true }) });
+        });
+        vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200 })));
+
+        const { container } = render(<UploadPage />);
+        expect(await screen.findByText("あと3枚アップロードできます（100枚まで）")).toBeInTheDocument();
+
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, new File(["x"], "a.jpg", { type: "image/jpeg" }));
+        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        await waitFor(() => expect(publish).not.toBeDisabled());
+        await userEvent.click(publish);
+
+        expect(await screen.findByText("あと2枚アップロードできます（100枚まで）")).toBeInTheDocument();
     });
 });

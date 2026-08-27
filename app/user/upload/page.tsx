@@ -577,6 +577,10 @@ function UploadPageInner() {
                 }
                 updateItem(item.id, { status: "done", progress: 100 });
                 successCount++;
+                // 残り枚数はマウント時に1回取るだけだった。3枚上げても
+                // 「あと5枚」のままで、押して初めて 403 に戻ってしまう。
+                // 成功した分をその場で引く（取れていない＝null のときは触らない）。
+                setUsedSlots((n) => (n === null ? n : n + 1));
             } catch (err) {
                 const msg = err instanceof Error ? err.message : String(err);
                 log.error(`Upload failed for ${item.file.name}:`, err);

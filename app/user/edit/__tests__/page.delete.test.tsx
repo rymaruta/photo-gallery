@@ -90,6 +90,8 @@ describe("写真の削除", () => {
 
     // サーバーは「押し直せば続きから消える」と読める理由を返す
     // （画像が消せなかったときは行を残して 500）。潰さずそのまま出す。
+    // **ダイアログも開いたままにする**——閉じるとトーストが数秒で消えた
+    // あと、押し直すには最初からやり直しになる。
     it("サーバーが断った理由をそのまま出し、画面に留まる", async () => {
         mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
             if (!init?.method) return Promise.resolve({ ok: true, json: async () => [PHOTO] });
@@ -105,5 +107,17 @@ describe("写真の削除", () => {
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
             expect.stringContaining("画像の削除を完了できませんでした"), "error"));
         expect(mockPush).not.toHaveBeenCalled();
+        // 押し直せるように開いたまま
+        expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+
+    // いいねマーカーは like#<photoId>#<userId> の独立行で、削除では消していない
+    // （退会が v1 スコープ外と書いているのと同じ）。約束は実態に合わせる。
+    it("確認の文言が、実際に消すものだけを言う", async () => {
+        await openEditor();
+        await userEvent.click(screen.getByRole("button", { name: "削除" }));
+        const text = (await screen.findByRole("dialog")).textContent ?? "";
+        expect(text).toContain("画像とコメント");
+        expect(text).not.toContain("いいね");
     });
 });
