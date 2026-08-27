@@ -291,9 +291,20 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // 1. 自分の写真・ストーリー（GSI で列挙）。GSI の射影に依存しないよう id を集めてから
         //    本体を GetItem し、S3 本体/サムネ + DDB item を削除する。
         let mediaFailures = 0;
-        // この実行で本当に消した行の数。静的ページの作り直しを頼むかの判定に使う
-        // （2回目の退会では0件になる——1回目で全部消えているため）。
-        let deletedItems = 0;
+        // この実行で「静的ページを持つ写真」を消したか。作り直しを頼むかの
+        // 判定に使う（2回目の退会では false——1回目で全部消えているため）。
+        //
+        // **下書きとストーリーは数えない。** 静的ページの入力になる
+        // photos.json は `src && published !== false && story !== true` で
+        // 絞られる（scripts/sync-photos-from-ddb.js）ので、下書きしか無い人・
+        // ストーリーしか無い人には作り直す HTML が1枚も無い。全部数えて
+        // いたので、その人の退会で毎回8分のビルドが空振りしていた。
+        //
+        // **数ではなく真偽値。** 使い道は「1枚でもあるか」だけなので、
+        // 数えると 8並列の worker から `+=` する形になり、すぐ下の
+        // mediaFailures と同じ「await をまたいで古い値を書き戻す」事故の
+        // 芽を残す。真偽値の代入なら取りこぼしようがない。
+        let deletedPublicPhoto = false;
         let lastKey: Record<string, unknown> | undefined;
         do {
             const res = await ddb.send(new QueryCommand({
@@ -317,10 +328,7 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                 // 上書きして**失敗が 0 に戻り**、500 で止まるべき退会が
                 // 200 で通っていた（de7b871 レビューが実ハンドラで再現）。
                 let itemFailures = 0;
-                // 実際に消せた行の数。共有カウンタへは mediaFailures と同じく
-                // **最後に1回・同期的に**足す（await をまたぐと他の worker の
-                // 加算を古い値で上書きする——上のコメントの事故と同じ形）。
-                let itemDeleted = 0;
+
                 try {
                     const full = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
                     if (full.Item) item = full.Item as Record<string, unknown>;
@@ -348,10 +356,12 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                 }
                 if (itemFailures === 0) {
                     if (!await ddbDelete(PHOTOS_TABLE, { id })) itemFailures++;
-                    else itemDeleted++;
+                    // 静的ページの入力（photos.json）と同じ条件
+                    else if (item.src && item.published !== false && item.story !== true) {
+                        deletedPublicPhoto = true;
+                    }
                 }
                 mediaFailures += itemFailures;
-                deletedItems += itemDeleted;
             });
             lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
         } while (lastKey);
@@ -470,7 +480,13 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // Cognito 削除で落ちた等）では写真もプロフィールも既に消えていて、
         // 作り直す中身が無い。無条件に投げていたので Actions の枠を空振りで
         // 使っていた（定期ビルドを止めている今は効く）。
-        if (deletedItems > 0 || profileWasLive) {
+        //
+        // `profileWasLive` は残す。1回目が「写真は消したが墓石を書く前に
+        // 落ちた」ときの拾い直しがここにしか無いため（そのときやり直しの回は
+        // deletedPublicPhoto が false になる）。代償として、公開写真を一度も持たなかった
+        // 人の退会では作り直す中身が無いのに1回頼む——消しそこねて HTML が
+        // 残り続けるよりは、空振り1回の方がよい。
+        if (deletedPublicPhoto || profileWasLive) {
             await requestSiteRebuild(`account deleted: ${uid}`);
         }
 

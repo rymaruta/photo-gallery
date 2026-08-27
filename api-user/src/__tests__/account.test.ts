@@ -857,6 +857,35 @@ describe("deleteAccount: 静的ページの掃除", () => {
         expect(order).toContain("unfollow");
     });
 
+    // 静的ページの入力（photos.json）は
+    // `src && published !== false && story !== true` で絞られるので、
+    // 下書きしか無い人・ストーリーしか無い人には作り直す HTML が1枚も無い。
+    // 全部数えていたので、その人の退会で毎回8分のビルドが空振りしていた。
+    it.each([
+        ["下書きだけ", { id: "d1", userId: "me", src: "https://cdn.test/uploads/d1.jpg", published: false }],
+        ["ストーリーだけ", { id: "s1", userId: "me", src: "https://cdn.test/uploads/s1.jpg", story: true }],
+    ])("%s の人の退会では頼まない（静的ページが無い）", async (_name, item) => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input?: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [{ id: item.id, userId: "me" }] });
+            if (name === "GetCommand") {
+                if ((cmd.input?.Key as { userId?: string })?.userId === "me") {
+                    // プロフィールは既に墓石（＝profileWasLive では拾わせない）
+                    return Promise.resolve({ Item: { userId: "me", deletedAt: "2026-08-27T00:00:00.000Z" } });
+                }
+                if (String((cmd.input?.Key as { id?: string })?.id ?? "") === item.id) {
+                    return Promise.resolve({ Item: item });
+                }
+            }
+            return Promise.resolve({});
+        });
+        const res = await invoke(deleteAccount, ev("me"));
+
+        expect(res.statusCode).toBe(200);
+        expect(deletedDdbIds()).toContain(item.id);   // 消してはいる
+        expect(mockRebuild).not.toHaveBeenCalled();   // でも作り直す中身は無い
+    });
+
     it("写真を1枚でも消したなら頼む（プロフィールが既に墓石でも）", async () => {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input?: Record<string, unknown> }) => {
             const name = cmd.constructor.name;
