@@ -33,9 +33,15 @@ vi.mock("../../../components/CommentSection", () => ({ default: () => null }));
 vi.mock("../../../components/RelatedPhotos", () => ({ default: () => null }));
 vi.mock("../../../components/ProfileLink", () => ({ default: () => null }));
 vi.mock("../../../components/MusicCard", () => ({ default: () => null }));
+const mockLikeToggle = vi.hoisted(() => vi.fn(async () => true));
 vi.mock("../../../../lib/hooks/usePhotoLikes", () => ({
-    usePhotoLikes: () => ({ liked: false, count: 0, pending: false, toggle: vi.fn() }),
+    usePhotoLikes: () => ({ liked: false, count: 0, pending: false, toggle: mockLikeToggle }),
 }));
+vi.mock("../../../../lib/utils/music", () => ({
+    searchSongs: (...a: unknown[]) => mockSearchSongs(...a),
+    parseMusicEmbed: () => null,
+}));
+const mockSearchSongs = vi.hoisted(() => vi.fn());
 
 const PhotoPageClient = (await import("../PhotoPageClient")).default;
 
@@ -106,5 +112,30 @@ describe("MV設定の失敗理由が伝わる", () => {
         mockUserFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
         await saveMv("https://www.youtube.com/watch?v=abc123");
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("MVを設定しました 🎬", "success"));
+    });
+});
+
+// いいねの失敗表示と曲検索の失敗表示は「フックが成否を返す」ところまでしか
+// 測られておらず、画面側の配線を消しても全テストが通っていた（レビューが
+// 変異で実証）。押した人に届くところまで固定する。
+describe("いいね・曲検索の失敗が画面に出る", () => {
+    it("いいねが失敗したらトーストを出す（SW-b4 の配線）", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({}) });
+        mockLikeToggle.mockResolvedValue(false);
+        render(<PhotoPageClient photoId="p1" initialPhoto={photo} />);
+        const heart = await screen.findByRole("button", { name: /いいね|Like/ });
+        await userEvent.click(heart);
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
+            expect.stringContaining("いいねを保存できませんでした"), "error"));
+    });
+
+    it("曲検索が失敗したら理由を出す（SW-b6 の配線）", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({}) });
+        mockSearchSongs.mockRejectedValue(new Error("down"));
+        render(<PhotoPageClient photoId="p1" initialPhoto={photo} />);
+        await userEvent.click(await screen.findByRole("button", { name: /BGM/ }));
+        const box = await screen.findByPlaceholderText("曲名・アーティスト名");
+        await userEvent.type(box, "なにか{Enter}");
+        expect(await screen.findByText(/検索に失敗しました/)).toBeInTheDocument();
     });
 });

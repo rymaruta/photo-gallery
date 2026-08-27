@@ -92,6 +92,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     // 自分のストーリー表示中は閲覧者リストを取得
     useEffect(() => {
         setViewers(null);
+        setViewersError(false);   // 前のストーリーの失敗を持ち越さない
         setViewersOpen(false);
         if (!item || !isOwnStory) return;
         // 中断ガード。ストーリーは左右で次々に切り替わるので、前のストーリーの

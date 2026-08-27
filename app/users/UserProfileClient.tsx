@@ -253,11 +253,13 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     // BGM・ピン留め）が黙って出ないと「未設定の人」に見え、オーナーの
     // 一覧が黙って公開分だけになると、非公開が消えたと誤解して目の
     // アイコンを押し直し**本当に再公開してしまう**（下のコメント参照）。
-    const [loadError, setLoadError] = useState<"profile" | "ownPhotos" | null>(null);
+    const [loadError, setLoadError] = useState<"profile" | "ownPhotos" | "photos" | null>(null);
     const [reloadKey, setReloadKey] = useState(0);
 
     useEffect(() => {
         const controller = new AbortController();
+        // この回でプロフィールを取れたか（catch で「どこが落ちたか」を分ける）
+        let profileLoaded = false;
         const load = async () => {
             try {
                 // **ここだけ生の環境変数で URL を組み立てていた。**
@@ -274,6 +276,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 if (profileRes.ok) {
                     const prof = await profileRes.json() as UserProfile;
                     setUserProfile(prof);
+                    profileLoaded = true;
                 } else {
                     // 名前・自己紹介・BGM・ピン留めが黙って全部出ない状態を
                     // 「未設定」と見分けられるようにする
@@ -304,7 +307,14 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     // 黙って消えて見え、「消えた」と誤解した本人が目のアイコンを
                     // 押し直して**本当に再公開する**誘導になる（この画面の
                     // マージ事故コメントと同じ轍）。失敗は失敗と伝える
+                    // **一覧そのものを出さない。** 以前は公開一覧で代用して
+                    // いたが、非公開が消えたように見えて誤再公開を誘った。
+                    // かといって何もしないと、初期値のビルド時データ
+                    // （photos.json は全件 published:true）が「公開中の姿」で
+                    // 残り、目のアイコンから**本当に再公開できてしまう**
+                    // ——代用先を変えただけで同じ穴だった（レビュー指摘）。
                     log.warn("自分の写真一覧を取得できませんでした");
+                    setPhotos([]);
                     setLoadError("ownPhotos");
                     return;
                 }
@@ -330,7 +340,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             } catch (e) {
                 if ((e as { name?: string }).name !== "AbortError") {
                     log.error("user profile fetch error:", e);
-                    setLoadError("profile");
+                    // **どこで落ちたかを取り違えない。** catch は3つの取得
+                    // （プロフィール / 自分の一覧 / 公開一覧）で共有なので、
+                    // 一律 "profile" にすると「プロフィールは出ているのに
+                    // 読み込めませんでしたと出る」誤表示になる（レビュー指摘）。
+                    // プロフィールが取れているなら、写真側の失敗として扱う。
+                    setLoadError((prev) => prev ?? (profileLoaded ? "photos" : "profile"));
                 }
             }
         };
@@ -540,9 +555,13 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             ? (locale === "en"
                                 ? "Couldn't load your photo list. Drafts and private photos are not shown. "
                                 : "自分の写真一覧を読み込めませんでした。下書き・非公開は表示されていません。")
-                            : (locale === "en"
-                                ? "Couldn't load this profile. "
-                                : "プロフィールを読み込めませんでした。")}
+                            : loadError === "photos"
+                                ? (locale === "en"
+                                    ? "Couldn't load the latest photos. "
+                                    : "最新の写真を読み込めませんでした。")
+                                : (locale === "en"
+                                    ? "Couldn't load this profile. "
+                                    : "プロフィールを読み込めませんでした。")}
                         <button
                             onClick={() => setReloadKey((k) => k + 1)}
                             className="underline text-amber-100 hover:text-white ml-1"

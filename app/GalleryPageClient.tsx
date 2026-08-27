@@ -28,7 +28,13 @@ export default function GalleryPageClient() {
   const [followingError, setFollowingError] = React.useState(false);
   const [followingReloadKey, setFollowingReloadKey] = React.useState(0);
   React.useEffect(() => {
-    if (!isAuthenticated) { setFollowingIds(new Set()); return; }
+    if (!isAuthenticated) {
+      setFollowingIds(new Set());
+      // ログアウトすると切替タブ自体が消えるので、失敗表示を残すと
+      // 「もう一度読み込む」しか無い画面から抜けられなくなる（レビュー指摘）
+      setFollowingError(false);
+      return;
+    }
     let aborted = false;
     setFollowingError(false);
     fetchFollowingSet()
@@ -185,11 +191,13 @@ export default function GalleryPageClient() {
       />
 
       <>
-        <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
-          {locale === "en"
-            ? `${labels.gallery?.resultsCount ?? "Results"}: ${filteredPhotos.length}`
-            : `${labels.gallery?.resultsCount ?? "結果"}: ${filteredPhotos.length} 件`}
-        </div>
+        {!(followingError && filters.feed === "following") && (
+          <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
+            {locale === "en"
+              ? `${labels.gallery?.resultsCount ?? "Results"}: ${filteredPhotos.length}`
+              : `${labels.gallery?.resultsCount ?? "結果"}: ${filteredPhotos.length} 件`}
+          </div>
+        )}
 
         {followingError && filters.feed === "following" ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-white/60 text-center">

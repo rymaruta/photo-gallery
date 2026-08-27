@@ -799,7 +799,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                                 : (locale === "en" ? "Search" : "検索")}
                                         </button>
                                         <button
-                                            onClick={() => { setSongPickerOpen(false); setSongResults([]); setSongQuery(""); }}
+                                            onClick={() => { setSongPickerOpen(false); setSongResults([]); setSongQuery(""); setSongSearchError(false); }}
                                             className="px-2 rounded-lg text-white/50 hover:text-white/80 text-xs active:scale-95 transition"
                                         >
                                             {locale === "en" ? "Cancel" : "閉じる"}

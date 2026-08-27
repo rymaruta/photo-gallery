@@ -251,6 +251,7 @@ export default function StoriesBar() {
         setSongPickerOpen(false);
         setSongQuery("");
         setSongResults([]);
+        setSongSearchError(false);   // 開き直したときに前回の失敗を出さない
         setSongStart(0);
         setDurationSec(STORY_DEFAULT_DURATION_SEC);
     }, [stopPreview]);

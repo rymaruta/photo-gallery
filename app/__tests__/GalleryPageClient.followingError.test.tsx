@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 
 // フォロー中一覧の取得失敗が「誰もフォローしていない」フィードと同じ
 // 空表示に化けていた（SW-b1）。失敗は失敗と伝えて再試行を出す。

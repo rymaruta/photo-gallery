@@ -46,8 +46,14 @@ describe("プロフィールの取得失敗", () => {
         expect(await screen.findByText(/プロフィールを読み込めませんでした/)).toBeInTheDocument();
 
         mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ userId: ME, displayName: "旅人" }) });
+        const before = mockUserPublicFetch.mock.calls.length;
         fireEvent.click(screen.getByRole("button", { name: "再読み込み" }));
-        await waitFor(() => expect(screen.queryByText(/読み込めませんでした/)).toBeNull());
+        // **取り直したことまで見る。** setLoadError(null) は effect の同期部分で
+        // 走るので、「一瞬 null になる窓」を拾うだけだと失敗が続いていても通る
+        // （レビューが実測した空振り）
+        await waitFor(() => expect(mockUserPublicFetch.mock.calls.length).toBeGreaterThan(before));
+        expect(await screen.findByText("旅人")).toBeInTheDocument();
+        expect(screen.queryByText(/読み込めませんでした/)).toBeNull();
     });
 
     it("成功時は何も出さない", async () => {
