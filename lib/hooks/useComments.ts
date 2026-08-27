@@ -142,7 +142,7 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
             setCount(prevCount);
             return false;
         }
-    }, [photoId, items, count]);
+    }, [photoId, items, count, reload]);
 
     return { items, count, loading, loadError, reload, pending, add, remove };
 }

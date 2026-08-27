@@ -9,6 +9,7 @@ import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { userFetch } from "../../../lib/utils/api";
+import { changedFields } from "../../../lib/utils/changedFields";
 import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../../lib/utils/music";
 import { toUploadSafeFile, AVATAR_MAX_PX, COVER_MAX_PX } from "../../../lib/utils/image";
 import { log } from "../../../lib/utils/log";
@@ -64,6 +65,11 @@ const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
 
 // テーマカラーの見本。ここに無い色はパレット（input type="color"）から選べる
+// 貼付リンクの曲は、サーバーが3つ揃っている前提で突き合わせる
+// （songUrl が無ければ位置を無視し、終了位置は開始位置と比べて落とす）。
+// 送るならこの3つ一緒、送らないなら1つも送らない。
+const LINK_SONG_KEYS = ["songUrl", "songStart", "songEnd"] as const;
+
 const THEME_COLOR_PRESETS = ["#38bdf8", "#34d399", "#f472b6", "#a78bfa", "#fb7185", "#fbbf24", "#f97316", "#22d3ee"];
 
 export default function ProfileEditPage() {
@@ -397,17 +403,52 @@ export default function ProfileEditPage() {
         };
         setSaving(true);
         try {
+            // PUT は部分更新なので、このページで編集する項目だけ送る。
+            // 旅アルバム・ピン留め・ひとことは送らなければ触られない
+            // （以前は全置換で、送り忘れた項目が消えていた）。
+            //
+            // さらに **実際に変えた項目だけ**へ絞る。開いた時点の値を毎回
+            // 全部送っていたので、同じ画面を2タブで開いて片方で自己紹介を
+            // 直したあと、もう片方でテーマ色だけ変えて保存すると
+            // **自己紹介が元に戻った**（サーバーの rev は「同じ項目を送って
+            // きた側が勝つ」ので、これは rev では守れない）。
+            const nextFields: Record<string, unknown> = {
+                username: username.trim().toLowerCase().replace(/^@/, ""),
+                displayName, bio, instagram, website,
+                themeColor,
+                ...songPayload,
+            };
+            const originalFields: Record<string, unknown> = {
+                username: profile?.username ?? "",
+                displayName: profile?.displayName ?? "",
+                bio: profile?.bio ?? "",
+                instagram: profile?.instagram ?? "",
+                website: profile?.website ?? "",
+                themeColor: profile?.themeColor ?? "",
+                songUrl: profile?.songUrl ?? "",
+                songStart: profile?.songStart ?? null,
+                songEnd: profile?.songEnd ?? null,
+                songTitle: profile?.songTitle ?? "",
+                songArtist: profile?.songArtist ?? "",
+                songArtwork: profile?.songArtwork ?? "",
+                songPreviewUrl: profile?.songPreviewUrl ?? "",
+                songTrackUrl: profile?.songTrackUrl ?? "",
+                songs: profile?.songs ?? [],
+            };
+            const body = changedFields(nextFields, originalFields);
+            // 貼付リンクの3項目は**ひとかたまりで送る**。サーバーは
+            // 「songUrl を送った回だけ開始・終了位置を触る」規約（E-4）で、
+            // さらに終了位置は開始位置と突き合わせて成立しないものを落とす。
+            // 変わった1項目だけ送ると、サーバーが片方を undefined として
+            // 判定するので、突き合わせの結果が「全部送っていた頃」と変わる。
+            // 3つとも変わっていなければ1つも送らない（それがこの修正の目的）。
+            if (LINK_SONG_KEYS.some((k) => k in body)) {
+                for (const k of LINK_SONG_KEYS) body[k] = nextFields[k];
+            }
+
             const res = await userFetch("/user/profile", {
                 method: "PUT",
-                body: JSON.stringify({
-                    // PUT は部分更新なので、このページで編集する項目だけ送る。
-                    // 旅アルバム・ピン留め・ひとことは送らなければ触られない
-                    // （以前は全置換で、送り忘れた項目が消えていた）。
-                    username: username.trim().toLowerCase().replace(/^@/, ""),
-                    displayName, bio, instagram, website,
-                    themeColor,
-                    ...songPayload,
-                }),
+                body: JSON.stringify(body),
             });
             if (res.ok) {
                 showToast(locale === "en" ? "Profile saved." : "プロフィールを保存しました。", "success");
