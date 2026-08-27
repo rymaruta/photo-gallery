@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor, act } from "@testing-library/react";
 
 // フォロー状態が**まだ分かっていない**間を表す `resolved` が無かった頃は、
 // 初期値の false を「未フォロー」と同じ扱いにしていた。一覧を取り終える前に
@@ -164,5 +164,29 @@ describe("fetchFollowingSet: 失敗は投げる", () => {
         // 失敗はキャッシュされない＝次は取り直す
         mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: [TARGET] }) });
         expect([...(await mod.fetchFollowingSet())]).toEqual([TARGET]);
+    });
+});
+
+// resetFollowingCache が listeners.clear() で購読ごと消していた（FS-5）。
+// マウントされたままのコンポーネントは targetUserId が変わるまで再購読せず、
+// 以後フォロー数が永久に更新されない。今はログインが必ずページ遷移を
+// 伴うので実害は出ていないが、モーダルログインを入れた瞬間に踏む地雷。
+describe("resetFollowingCache: 購読を切らない", () => {
+    it("リセット後も、マウント中のコンポーネントに数の更新が届く", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: [] }) });
+        const mod = await import("../useFollow");
+        mod.resetFollowingCache();
+
+        const { result } = renderHook(() => mod.useFollow(TARGET, true));
+        await waitFor(() => expect(result.current.followers).toBe(3));
+
+        // ログアウト相当。数は 0 に戻る（購読が生きていれば再描画される）
+        act(() => { mod.resetFollowingCache(); });
+        await waitFor(() => expect(result.current.followers).toBe(0));
+
+        // 別のコンポーネントが同じ相手の数を取り直したら、こちらにも届く
+        mockPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ followers: 9, following: 2 }) });
+        renderHook(() => mod.useFollow(TARGET, true));
+        await waitFor(() => expect(result.current.followers).toBe(9));
     });
 });

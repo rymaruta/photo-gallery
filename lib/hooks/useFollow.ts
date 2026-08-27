@@ -64,7 +64,17 @@ export function resetFollowingCache() {
     followingCache = null;
     followingPromise = null;
     counts.clear();
-    listeners.clear();
+    // **購読は消さない。** 消すと、マウントされたままのコンポーネントは
+    // targetUserId が変わるまで再購読せず、以後フォロー数が永久に
+    // 更新されなくなる（購読の解除は useSyncExternalStore の cleanup が
+    // 面倒を見るので、こちらから消す必要はそもそも無い）。
+    // 今はログイン・ログアウトが必ずページ遷移を伴うので実害は出ていないが、
+    // モーダルログインを入れた瞬間に踏む地雷だった。
+    // 代わりに、いま購読している全員へ「値が変わった」と伝える
+    // （counts を空にしたので、読み直すと 0 になる）。
+    for (const [, fns] of listeners) {
+        for (const fn of fns) fn();
+    }
 }
 
 // ────────────────────────────────
