@@ -811,8 +811,15 @@ export const getPublicProfile: APIGatewayProxyHandlerV2 = async (event) => {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "userIdが必要です" }) };
     }
     // ユーザー名の予約アイテム（username#<handle>）は引かせない。
-    // 引けると @ハンドル から Cognito の内部ID（ownerId）が辿れてしまう。
-    // userSearch.ts も同じ理由で予約アイテムを除外している。
+    // 予約行の中身（ownerId・作成時刻）を公開APIから読ませないため。
+    // userSearch.ts も予約アイテムを結果から除外している。
+    //
+    // ※ 以前ここには「引けると @ハンドル から Cognito の内部ID が辿れて
+    //   しまう」と書いてあったが、**それは辿れる**——`GET /users/search?q=<handle>`
+    //   （未認証）が同じことをするし、`/users/<sub>` は公開の静的ページで、
+    //   `photos.json` にも `userId` が載る。sub は秘密ではない。
+    //   このコメントを信じて「ハンドルから sub は辿れない」を前提に何かを
+    //   設計すると誤る。
     if (userId.includes("#")) {
         return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "見つかりません" }) };
     }

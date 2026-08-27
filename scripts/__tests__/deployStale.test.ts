@@ -243,6 +243,23 @@ describe("assertNoForbiddenContent", () => {
         }
     });
 
+    // レビューが「`key === "app/data/photos.json"` の分岐は死んでいる（out/ に
+    // 出ないので絶対に真にならない）」と指摘したが、**誤りだった**。main() は
+    //   copyPhotosJsonIntoOut() → collectFiles(outDir) → assertNoForbiddenContent()
+    // の順に走るので、`out/app/data/photos.json` が出来たあとに列挙され、
+    // 相対パスはちょうど `app/data/photos.json` になる。
+    // 次に同じ指摘が来たとき読み直さずに済むよう固定しておく。
+    it("out/ にコピーされた app/data/photos.json も見る（死んだ分岐ではない）", () => {
+        const f = nodePath.join(process.cwd(), "out", "app", "data", "photos.json");
+        nodeFs.mkdirSync(nodePath.dirname(f), { recursive: true });
+        nodeFs.writeFileSync(f, '[{"srcOriginal":"https://cdn/uploads/originals/x.jpg"}]');
+        try {
+            expect(() => assertNoForbiddenContent(["app/data/photos.json"])).toThrow(/srcOriginal/);
+        } finally {
+            nodeFs.rmSync(f, { force: true });
+        }
+    });
+
     it("ハッシュ付きアセットは見ない（ビルドIDなどで誤検知しないため）", () => {
         const f = nodePath.join(process.cwd(), "out", "_next", "_guard_test3_.js");
         nodeFs.mkdirSync(nodePath.dirname(f), { recursive: true });

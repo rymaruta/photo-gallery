@@ -378,3 +378,33 @@ describe("消えた写真を作り直さない", () => {
         expect(JSON.parse(res.body).error).toContain("見つかりません");
     });
 });
+
+
+// 通知・コメント・フォロー・いいねの文書も同じキー空間にいる。
+// 読み側（getPhoto）・削除側（deleteMyPhoto）・管理API は全部 `#` を弾くのに、
+// **更新側だけ無かった**。
+//
+// 今は別の一枚で塞がっている——内部文書は所有者を `uid` という別名で持ち
+// `userId` を持たないので `!ownerId` で 403 になる。つまり「`uid` と
+// `userId` を使い分ける」という**暗黙の約束1本**で持っていた。
+// 次に誰かが内部文書に `userId` を書いた瞬間に開く。
+describe("updatePhotoVisibility: 写真以外は触らせない", () => {
+    it.each([
+        "notifs#me",
+        "comments#p1",
+        "following#me",
+        "followstats#me",
+    ])("%s は 404（DDB を触らない）", async (id) => {
+        const res = await invoke(event("u1", id, { published: true }));
+        expect(res.statusCode).toBe(404);
+        expect(mockDdbSend).not.toHaveBeenCalled();
+    });
+
+    // `userId` を持つ内部文書が現れても、入口で止まること
+    it("内部文書が userId を持っていても届かない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "notifs#u1", userId: "u1" } });
+        const res = await invoke(event("u1", "notifs#u1", { published: true }));
+        expect(res.statusCode).toBe(404);
+        expect(mockDdbSend).not.toHaveBeenCalled();
+    });
+});

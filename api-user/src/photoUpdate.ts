@@ -37,6 +37,17 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
     if (!id) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "IDが必要です" }) };
     }
+    // 写真以外は触らせない（読み側・削除側・管理API と同じ）。
+    //
+    // **今は別の一枚で塞がっている。** 通知・コメント・フォロー・いいねの
+    // 文書は所有者を `uid` という別名で持ち、`userId` を持たないので、
+    // 下の `ownerId = item.userId ?? item.uploadedBy` が undefined になって
+    // `!ownerId` で 403 になる。つまり「`uid` と `userId` を使い分ける」
+    // という**暗黙の約束1本**で持っている状態だった。次に誰かが内部文書に
+    // `userId` を書いた瞬間に開くので、他の入口と同じ守りをここにも置く。
+    if (id.includes("#")) {
+        return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
+    }
 
     let body: {
         published?: boolean; song?: unknown; songYoutubeUrl?: unknown;
