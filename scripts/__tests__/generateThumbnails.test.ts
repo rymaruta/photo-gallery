@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { keyFromSrc, thumbKeyFor, derivativeKey, shouldProcess, needsThumb, needsMeta, needsDerivatives, needsShotDate, buildMetaFields, hexFromChannel, isMissingObject, exitCodeFor } = require("../generate-thumbnails.js");
+const { keyFromSrc, thumbKeyFor, derivativeKey, shouldProcess, needsThumb, needsMeta, needsDerivatives, buildMetaFields, hexFromChannel, isMissingObject, exitCodeFor } = require("../generate-thumbnails.js");
 
 describe("keyFromSrc", () => {
     it("CloudFront URL から S3 キーを取り出す", () => {
@@ -178,22 +178,12 @@ describe("hexFromChannel", () => {
     });
 });
 
-describe("needsShotDate（撮影日の補完対象）", () => {
-    const src = "https://cdn.example.com/uploads/p1.jpg";
-    const orig = "https://cdn.example.com/uploads/originals/p1.jpeg";
-
-    it("date が無く、EXIF付き元画像(srcOriginal)がある写真は対象", () => {
-        expect(needsShotDate({ id: "p1", src, srcOriginal: orig })).toBe(true);
-    });
-
-    it("srcOriginal が無ければ対象外（圧縮済み画像にEXIFは残っていない）", () => {
-        expect(needsShotDate({ id: "p1", src })).toBe(false);
-    });
-
-    it("date が既にあれば対象外（冪等）", () => {
-        expect(needsShotDate({ id: "p1", src, srcOriginal: orig, date: "2024-10-12" })).toBe(false);
-    });
-});
+// 撮影日の補完はこのスクリプトから消えた。復元には EXIF 付きの元画像
+// （srcOriginal）が要るが、**今のどの保存経路も srcOriginal を書いていない**
+// ——アップロードは EXIF を落としてから上げるので原本が S3 に存在しない。
+// ここには「srcOriginal を持つ写真」を渡すテストが3本あったが、その入力は
+// 実データに存在せず、補完対象は永久に0件だった（＝一度も動いていない
+// 分岐を測っていた）。撮影日は今アップロード時にブラウザが送っている。
 
 // このジョブの終了コードは、本番デプロイが進むかどうかを決める。
 // deploy.yml はこのステップの後に build と S3 反映を置いていて、

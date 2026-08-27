@@ -94,12 +94,14 @@ function thumbKeyFor(key) {
 // サムネ以外に補完する表示メタデータのフィールド
 const META_FIELDS = ["dominantColor", "width", "height", "aspectRatio", "blurDataURL"];
 
-// 撮影日(date)は EXIF からしか復元できず、圧縮済みの通常画像には EXIF が残っていない。
-// そのため「srcOriginal（EXIF付きの元画像）を持つ写真」だけを補完対象にする。
-function needsShotDate(item) {
-    return isProcessableImage(item) && isBlank(item.date) && !!item.srcOriginal;
-}
-
+// 撮影日(date)の補完はここには**無い**。復元には EXIF 付きの元画像
+// （srcOriginal）が要るが、**今のどの保存経路も srcOriginal を書いていない**
+// ——アップロードは lib/utils/image.ts の toUploadSafeFile で EXIF を落として
+// から上げるので、原本は S3 に存在しない（GPS 入りの原本を残さないための設計）。
+// つまり補完対象は永久に0件で、その分岐は一度も動いていなかった。
+// 撮影日は今、**アップロード時にブラウザが EXIF から読んで date として送る**
+// （app/user/upload/page.tsx の dateTimeOriginal）。
+// 復活させるなら、原本を残す是非から決め直すこと。
 // レスポンシブ/AVIF 派生の URL フィールド
 const DERIVATIVE_FIELDS = ["thumbAvif", "thumbSm", "thumbSmAvif", "srcAvif"];
 
@@ -141,7 +143,7 @@ function needsDerivatives(item) {
 
 /** この写真に対して何らかの処理（サムネ / メタ / 派生）が必要か */
 function shouldProcess(item) {
-    return needsThumb(item) || needsMeta(item) || needsDerivatives(item) || needsShotDate(item);
+    return needsThumb(item) || needsMeta(item) || needsDerivatives(item);
 }
 
 /** 0-255 のチャンネル値を 2 桁 16 進に */
@@ -213,31 +215,11 @@ async function generateDerivatives({ sharp, s3, PutObjectCommand }, buf, key) {
     return fields;
 }
 
-/**
- * EXIF付きの元画像（srcOriginal）から撮影日を読む。
- * 通常の src は圧縮時に EXIF が除去されているため使えない。
- * 取得できない/日付が不正なら undefined。
- */
-async function readShotDate({ s3, GetObjectCommand, exifr }, srcOriginal) {
-    const key = keyFromSrc(srcOriginal);
-    if (!key) return undefined;
-    const obj = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
-    const buf = Buffer.from(await obj.Body.transformToByteArray());
-    const data = await exifr.parse(buf, { pick: ["DateTimeOriginal", "CreateDate"] });
-    const dt = data?.DateTimeOriginal ?? data?.CreateDate;
-    if (!(dt instanceof Date) || isNaN(dt.getTime())) return undefined;
-    const year = dt.getUTCFullYear();
-    // カメラの日付未設定（1970/1980）や未来日は捨てる
-    if (year < 1990 || dt.getTime() > Date.now() + 24 * 60 * 60 * 1000) return undefined;
-    return dt.toISOString();
-}
-
 async function main() {
     const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
     const { DynamoDBDocumentClient, ScanCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
     const { S3Client, GetObjectCommand, PutObjectCommand } = require("@aws-sdk/client-s3");
     const sharp = require("sharp");
-    const exifr = require("exifr");
 
     const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }), {
         marshallOptions: { removeUndefinedValues: true },
@@ -259,7 +241,7 @@ async function main() {
     console.log(`[thumbs] ${items.length} 件中、処理対象 ${targets.length} 件`);
     if (DRY_RUN) {
         for (const t of targets) {
-            const jobs = [needsThumb(t) && "thumb", needsMeta(t) && "meta", needsDerivatives(t) && "deriv", needsShotDate(t) && "date"].filter(Boolean).join("+");
+            const jobs = [needsThumb(t) && "thumb", needsMeta(t) && "meta", needsDerivatives(t) && "deriv"].filter(Boolean).join("+");
             console.log(`  - ${t.id}  ${keyFromSrc(t.src)}  [${jobs}]`);
         }
         console.log("[thumbs] DRY_RUN=1 のため生成せず終了");
@@ -272,7 +254,6 @@ async function main() {
         const doThumb = needsThumb(item);
         const doMeta = needsMeta(item);
         const doDerivatives = needsDerivatives(item);
-        const doShotDate = needsShotDate(item);
         try {
             // 1) 元画像を取得（サムネ・メタどちらにも必要）
             const obj = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
@@ -310,16 +291,6 @@ async function main() {
                 Object.assign(fields, await generateDerivatives({ sharp, s3, PutObjectCommand }, buf, key));
             }
 
-            if (doShotDate) {
-                // 撮影日: EXIF付きの元画像が残っている写真だけ復元できる
-                try {
-                    const shot = await readShotDate({ s3, GetObjectCommand, exifr }, item.srcOriginal);
-                    if (shot) fields.date = shot;
-                } catch (err) {
-                    console.warn(`    撮影日を読めませんでした (${item.id}): ${err.message ?? err}`);
-                }
-            }
-
             // 2) DynamoDB へ動的 SET（更新するフィールドだけ書く）
             //
             // updatedAt は sitemap の lastmod に使われる＝「中身が変わった日」。
@@ -327,14 +298,12 @@ async function main() {
             // 本文・撮影地・タイトルは触らない。それでも無条件に updatedAt を
             // 書いていたので、移行を1回流すだけで全写真が「今日更新」になり、
             // lastmod ごと信用されなくなっていた。
-            // 撮影日（date）を復元したときだけは中身の変更なので更新する。
-            const contentChanged = "date" in fields;
+            // このスクリプトが書くのは表示用の補完だけになったので、
+            // updatedAt は**一切触らない**（触ると sitemap の lastmod が
+            // 「今日更新」に化ける）。中身を変える経路——撮影日の復元——は
+            // 動かないまま残っていたので消した（上の needsShotDate のコメント）。
             const names = {}, values = {};
             const sets = [];
-            if (contentChanged) {
-                values[":u"] = new Date().toISOString();
-                sets.push("updatedAt = :u");
-            }
             for (const [k, v] of Object.entries(fields)) {
                 names[`#${k}`] = k;
                 values[`:${k}`] = v;
@@ -352,7 +321,7 @@ async function main() {
             }));
 
             ok++;
-            const jobs = [doThumb && "thumb", doMeta && "meta", doDerivatives && "deriv", doShotDate && "date"].filter(Boolean).join("+");
+            const jobs = [doThumb && "thumb", doMeta && "meta", doDerivatives && "deriv"].filter(Boolean).join("+");
             console.log(`  [${i + 1}/${targets.length}] ✅ ${item.id}  [${jobs}]${thumbInfo}`);
         } catch (err) {
             // 原本が S3 に無い行は、この道具では直しようがない。
@@ -415,7 +384,7 @@ function exitCodeFor({ failed }) {
 
 module.exports = {
     keyFromSrc, thumbKeyFor, derivativeKey, shouldProcess,
-    needsThumb, needsMeta, needsDerivatives, needsShotDate, buildMetaFields, hexFromChannel,
+    needsThumb, needsMeta, needsDerivatives, buildMetaFields, hexFromChannel,
     isMissingObject, exitCodeFor,
 };
 

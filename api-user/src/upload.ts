@@ -219,7 +219,14 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         ...(() => { const d = sanitizeDescription(description); return d ? { description: d } : {}; })(),
         ...(() => { const l = sanitizeText(location, 200); return l ? { location: l } : {}; })(),
         ...(() => { const c = sanitizeText(category, 100); return c ? { category: c } : {}; })(),
-        tags: sanitizeTags(tags) ?? [],
+        // **タグ無しは「属性を持たない」に揃える。** ここだけ `tags: []` を
+        // 必ず書いていたので、「タグ無し」の保存形が2通りあった。
+        // photoUpdate.ts は空配列を REMOVE に倒すので、そちらとずれる。
+        // 実害: この経路で上げた写真を /user/edit で初めて保存すると、
+        // sameStoredValue(undefined, []) が false になって「変わった」と
+        // 判定され、**中身を1文字も変えていないのに静的サイトの作り直しが
+        // 走る**（Actions の枠を1枚につき1回無駄に使う）。
+        ...(() => { const t = sanitizeTags(tags); return t && t.length > 0 ? { tags: t } : {}; })(),
         ...(() => { const safeExif = sanitizeExif(exif); return safeExif ? { exif: safeExif } : {}; })(),
         ...(safeCoords ? { coords: safeCoords } : {}),
         ...(safeDominantColor ? { dominantColor: safeDominantColor } : {}),

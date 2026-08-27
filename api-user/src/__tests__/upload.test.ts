@@ -102,6 +102,37 @@ describe("savePhoto: thumbUrl（一覧グリッド用サムネイル）", () => 
     });
 });
 
+// 「タグ無し」の保存形が2通りあった。ここは `tags: []` を必ず書き、
+// photoUpdate.ts は空配列を REMOVE に倒す。そのせいで、この経路で
+// 上げた写真を /user/edit で初めて保存すると sameStoredValue(undefined, [])
+// が false になり、**中身を1文字も変えていないのに静的サイトの作り直しが
+// 走った**（Actions の枠を1枚につき1回無駄に使う）。属性なしに揃える。
+describe("savePhoto: タグ無しの保存形", () => {
+    it("タグを送らなければ tags 属性を書かない", async () => {
+        const res = await invoke(event("u1", { ...BASE }));
+        expect(res.statusCode).toBe(200);
+        expect("tags" in savedPhoto()).toBe(false);
+    });
+
+    it("空配列を送っても tags 属性を書かない（photoUpdate の REMOVE と同じ形）", async () => {
+        const res = await invoke(event("u1", { ...BASE, tags: [] }));
+        expect(res.statusCode).toBe(200);
+        expect("tags" in savedPhoto()).toBe(false);
+    });
+
+    it("全部が空白のタグも「無し」に倒す", async () => {
+        const res = await invoke(event("u1", { ...BASE, tags: ["  ", ""] }));
+        expect(res.statusCode).toBe(200);
+        expect("tags" in savedPhoto()).toBe(false);
+    });
+
+    it("タグがあれば今までどおり保存する", async () => {
+        const res = await invoke(event("u1", { ...BASE, tags: ["山", "秋"] }));
+        expect(res.statusCode).toBe(200);
+        expect(savedPhoto().tags).toEqual(["山", "秋"]);
+    });
+});
+
 describe("savePhoto: 基本バリデーション", () => {
     it("key / publicUrl がなければ 400", async () => {
         const res = await invoke(event("u1", { thumbUrl: "https://x.example.com/t.webp" }));
