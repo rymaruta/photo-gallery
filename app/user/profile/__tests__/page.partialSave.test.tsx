@@ -41,9 +41,9 @@ const ok = (data: unknown) => ({ ok: true, json: async () => data });
 
 /** 保存された PUT の body */
 function savedBody(): Record<string, unknown> {
-    const put = mockUserFetch.mock.calls.find((c) => c[1]?.method === "PUT");
-    if (!put) throw new Error("PUT が投げられていない");
-    return JSON.parse(put[1].body as string) as Record<string, unknown>;
+    const puts = mockUserFetch.mock.calls.filter((c) => c[1]?.method === "PUT");
+    if (puts.length === 0) throw new Error("PUT が投げられていない");
+    return JSON.parse(puts[puts.length - 1][1].body as string) as Record<string, unknown>;
 }
 
 const STORED = {
@@ -66,8 +66,11 @@ async function openLoaded(stored: Record<string, unknown> = STORED) {
 
 const save = async () => {
     await userEvent.click(await screen.findByRole("button", { name: /保存/ }));
-    await waitFor(() => expect(mockUserFetch).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
 };
+/** PUT が1本も無いこと（GET だけ） */
+const noPut = () =>
+    expect(mockUserFetch.mock.calls.filter((c) => c[1]?.method === "PUT")).toHaveLength(0);
 
 beforeEach(() => {
     mockShowToast.mockReset();
@@ -75,10 +78,11 @@ beforeEach(() => {
 });
 
 describe("プロフィール編集: 変えた項目だけ送る", () => {
-    it("何も変えずに保存しても、項目を1つも送らない", async () => {
+    it("何も変えずに保存したら、そもそも投げない", async () => {
         await openLoaded();
         await save();
-        expect(savedBody()).toEqual({});
+        noPut();
+        expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining("保存しました"), "success");
     });
 
     it("自己紹介だけ直したら、送るのは bio だけ（表示名を巻き戻さない）", async () => {
@@ -102,7 +106,7 @@ describe("プロフィール編集: 変えた項目だけ送る", () => {
         await userEvent.clear(bio);
         await userEvent.type(bio, "こんにちは");
         await save();
-        expect(savedBody()).toEqual({});
+        noPut();
     });
 
     it("保存済みの項目を空にした回は、その項目を空で送る（消せる）", async () => {
@@ -110,6 +114,62 @@ describe("プロフィール編集: 変えた項目だけ送る", () => {
         await userEvent.clear(screen.getByDisplayValue("こんにちは"));
         await save();
         expect(savedBody()).toEqual({ bio: "" });
+    });
+});
+
+// 保存したあと、同じ画面で元の値に戻して保存し直せること。
+// 比較元を「開いた時点の値」のまま据え置くと、2回目は差分ゼロになって
+// 黙って無視される（@名では old→new の保存で old が解放済みなので、
+// 「戻したのに戻っていない」が保存済みの一意名にまで及ぶ）。
+describe("プロフィール編集: 保存のあと比較元を更新する", () => {
+    it("保存 → 元に戻して保存、で2回目もちゃんと送る", async () => {
+        mockUserFetch
+            .mockResolvedValueOnce(ok(STORED))
+            // サーバーは保存後のプロフィールを返す
+            .mockResolvedValueOnce(ok({ ...STORED, bio: "旅の記録" }))
+            .mockResolvedValueOnce(ok(STORED));
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("旅人");
+
+        const first = screen.getByDisplayValue("こんにちは");
+        await userEvent.clear(first);
+        await userEvent.type(first, "旅の記録");
+        await save();
+        expect(savedBody()).toEqual({ bio: "旅の記録" });
+
+        mockShowToast.mockReset();
+        const second = screen.getByDisplayValue("旅の記録");
+        await userEvent.clear(second);
+        await userEvent.type(second, "こんにちは");
+        await save();
+
+        const puts = mockUserFetch.mock.calls.filter((c) => c[1]?.method === "PUT");
+        expect(puts).toHaveLength(2);
+        expect(JSON.parse(puts[1][1].body as string)).toEqual({ bio: "こんにちは" });
+    });
+
+    it("応答が JSON で読めなくても、送った分は比較元に重ねる", async () => {
+        mockUserFetch
+            .mockResolvedValueOnce(ok(STORED))
+            .mockResolvedValueOnce({ ok: true, json: async () => { throw new Error("no json"); } })
+            .mockResolvedValueOnce(ok(STORED));
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("旅人");
+
+        const first = screen.getByDisplayValue("こんにちは");
+        await userEvent.clear(first);
+        await userEvent.type(first, "旅の記録");
+        await save();
+
+        mockShowToast.mockReset();
+        const second = screen.getByDisplayValue("旅の記録");
+        await userEvent.clear(second);
+        await userEvent.type(second, "こんにちは");
+        await save();
+
+        const puts = mockUserFetch.mock.calls.filter((c) => c[1]?.method === "PUT");
+        expect(puts).toHaveLength(2);
+        expect(JSON.parse(puts[1][1].body as string)).toEqual({ bio: "こんにちは" });
     });
 });
 
@@ -136,11 +196,38 @@ describe("プロフィール編集: 貼付リンクの曲は3つ一緒に送る"
     });
 
     it("曲を何も触らなければ、3つとも送らない", async () => {
-        await openLoaded(withSong);
+        await openLoaded({ ...withSong, bio: "こんにちは" });
+        // 自己紹介だけ直す。曲は指1本触れていない
+        const bio = screen.getByDisplayValue("こんにちは");
+        await userEvent.clear(bio);
+        await userEvent.type(bio, "旅の記録");
         await save();
+
         const body = savedBody();
+        expect(body).toEqual({ bio: "旅の記録" });
         expect(body).not.toHaveProperty("songUrl");
         expect(body).not.toHaveProperty("songStart");
         expect(body).not.toHaveProperty("songEnd");
+    });
+
+    // 旧データ: songs は無く、songPreviewUrl + songTitle だけ持っている。
+    // 復元は「1曲のプレイリスト」に組み直すので、比較元も同じ形にしないと
+    // **何も触っていないのに毎回 songs を送る**。PC の古いタブで自己紹介だけ
+    // 直したときに、スマホで増やしたプレイリストが1曲に潰れる。
+    it("songs を持たない旧データでも、触っていなければ songs を送らない", async () => {
+        await openLoaded({
+            ...STORED,
+            songTitle: "曲A",
+            songArtist: "歌手A",
+            songArtwork: "https://cdn/x/a.jpg",
+            songPreviewUrl: "https://audio/x/a.m4a",
+            songTrackUrl: "https://music/x/a",
+        });
+        const bio = screen.getByDisplayValue("こんにちは");
+        await userEvent.clear(bio);
+        await userEvent.type(bio, "旅の記録");
+        await save();
+
+        expect(savedBody()).toEqual({ bio: "旅の記録" });
     });
 });

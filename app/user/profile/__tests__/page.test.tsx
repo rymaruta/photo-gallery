@@ -86,6 +86,11 @@ describe("プロフィール編集: 読み込み失敗時に保存させない",
         render(<ProfilePage />);
 
         await waitFor(() => expect(screen.queryByText(/プロフィールを読み込めませんでした/)).toBeNull());
+        // 変えた項目だけ送るようになったので、何か変えてから押す
+        // （変更ゼロだと投げない。page.partialSave.test.tsx で固定している）
+        const bio = await screen.findByDisplayValue("こんにちは");
+        await userEvent.clear(bio);
+        await userEvent.type(bio, "旅の記録");
         await userEvent.click(await screen.findByRole("button", { name: /保存/ }));
 
         await waitFor(() => expect(mockUserFetch).toHaveBeenCalledTimes(2));

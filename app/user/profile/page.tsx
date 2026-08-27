@@ -433,7 +433,20 @@ export default function ProfileEditPage() {
                 songArtwork: profile?.songArtwork ?? "",
                 songPreviewUrl: profile?.songPreviewUrl ?? "",
                 songTrackUrl: profile?.songTrackUrl ?? "",
-                songs: profile?.songs ?? [],
+                // 復元（この上の useEffect）は songs が無いとき
+                // songPreviewUrl + songTitle から1曲を組む。比較元を
+                // 素の `?? []` にすると、**何も触っていない旧データの人が
+                // 毎回 songs を送る**——PC の古いタブで自己紹介だけ直すと、
+                // スマホで増やしたプレイリストが1曲に潰れる。復元と同じ形で組む。
+                songs: profile?.songs ?? (profile?.songPreviewUrl && profile?.songTitle
+                    ? [{
+                        title: profile.songTitle,
+                        artist: profile.songArtist ?? "",
+                        artwork: profile.songArtwork ?? "",
+                        previewUrl: profile.songPreviewUrl,
+                        trackUrl: profile.songTrackUrl ?? "",
+                    }]
+                    : []),
             };
             const body = changedFields(nextFields, originalFields);
             // 貼付リンクの3項目は**ひとかたまりで送る**。サーバーは
@@ -446,11 +459,30 @@ export default function ProfileEditPage() {
                 for (const k of LINK_SONG_KEYS) body[k] = nextFields[k];
             }
 
+            // 変更ゼロなら投げない。サーバーは changes が空でも rev と
+            // updatedAt を書き直すので、同時に走っている UserProfileClient の
+            // 保存を無駄に競合させる。比較元を保存後に更新するようにした分、
+            // この「何も変えずに保存」は普通に起きる。
+            if (Object.keys(body).length === 0) {
+                showToast(locale === "en" ? "Profile saved." : "プロフィールを保存しました。", "success");
+                return;
+            }
             const res = await userFetch("/user/profile", {
                 method: "PUT",
                 body: JSON.stringify(body),
             });
             if (res.ok) {
+                // **比較元を保存後の姿に更新する。** これが無いと、同じ画面で
+                // 保存 → やっぱり元に戻す → 保存、が黙って無視された
+                // （2回目は「開いた時点の値」と比べるので差分ゼロになる）。
+                // いちばん質が悪いのは @名で、old→new の保存で old は
+                // 解放済みなのに、old に戻す保存が送られず new のまま残る。
+                //
+                // サーバーは 200 でマージ後のプロフィールをそのまま返す。
+                // 読めなかったときは、送った分だけ手元で重ねる。
+                const saved = await res.json().catch(() => null) as UserProfile | null;
+                if (saved && typeof saved === "object") setProfile(saved);
+                else setProfile((p) => ({ ...(p ?? {}), ...body } as UserProfile));
                 showToast(locale === "en" ? "Profile saved." : "プロフィールを保存しました。", "success");
             } else {
                 // サーバーは理由を返している（「そのユーザー名は既に使われています」など）。
