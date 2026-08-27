@@ -271,8 +271,48 @@ function classifyStaleObjects(localKeys, remoteObjects, now, graceMs) {
     return { toDelete, kept };
 }
 
+/**
+ * 一度のデプロイで消してよい HTML の割合。
+ *
+ * **消す量に歯止めが無かった。** sync 側には「既存より半分以下になる
+ * 書き込みは事故とみなす」ガード（SHRINK_LIMIT）があるのに、deploy 側は
+ * out/ に無い HTML を**猶予期間なしで全部消す**だけだった。踏み方は2つ:
+ *
+ *  1. 手元で `npm run build` すると、DynamoDB に繋がらなくても sync は
+ *     0 を返す（IS_CI でないため）。古い photos.json のままビルドが通り、
+ *     そのまま web:deploy:prod を打つと、スナップショット以降に増えた
+ *     写真の `photo/<id>.html` が全部消える
+ *  2. next build が途中で失敗しても out/ は残る（→ prepare-static-build.js
+ *     で消すようにした）
+ *
+ * どちらも「out/ が本番より貧しい」形なので、**割合で止める**のが一番効く。
+ * 意図して大量に消すときは ALLOW_BULK_DELETE=1 を付ける。
+ */
+const BULK_DELETE_RATIO = 0.5;
+/** これ以下の件数なら割合を見ない（小さなサイトで普通の削除を止めない） */
+const BULK_DELETE_MIN = 5;
+
+/**
+ * 消しすぎていないか。止めるべきなら理由の文字列、問題なければ null。
+ * HTML だけを見る（アセットは 30日の猶予があり、消えても表示は壊れない）。
+ */
+function bulkDeleteGuard(toDelete, remoteObjects, { ratio = BULK_DELETE_RATIO, min = BULK_DELETE_MIN } = {}) {
+    const htmlToDelete = toDelete.filter(isHtmlOrTxt);
+    const remoteHtml = remoteObjects.filter((o) => isHtmlOrTxt(o.key)).length;
+    if (htmlToDelete.length < min || remoteHtml === 0) return null;
+    if (htmlToDelete.length <= remoteHtml * ratio) return null;
+    return `[deploy] 中止: 公開中の HTML ${remoteHtml} 件のうち ${htmlToDelete.length} 件を消そうとしています`
+        + `（上限 ${Math.round(ratio * 100)}%）。\n`
+        + `  out/ が本番より貧しい可能性があります。よくある原因:\n`
+        + `    - DynamoDB に繋がらないまま古い app/data/photos.json でビルドした\n`
+        + `    - next build が失敗して、前回の out/ が残っている\n`
+        + `  意図した削除なら ALLOW_BULK_DELETE=1 を付けて再実行してください。`;
+}
+
 async function deleteStaleKeys(localKeys, remoteObjects) {
     const { toDelete, kept } = classifyStaleObjects(localKeys, remoteObjects, Date.now(), ASSET_GRACE_MS);
+    const guard = process.env.ALLOW_BULK_DELETE === "1" ? null : bulkDeleteGuard(toDelete, remoteObjects);
+    if (guard) throw new Error(guard);
     if (kept > 0) console.log(`[deploy] Keeping ${kept} stale asset(s) within ${ASSET_GRACE_MS / 86400000}-day grace period.`);
     if (toDelete.length === 0) return [];
     // DeleteObjects accepts up to 1000 keys at a time
@@ -558,7 +598,8 @@ async function main() {
 // テストから判定ロジックを検証できるようにエクスポート
 module.exports = {
     assertNoForbiddenContent, assertRobotsMatchesTarget, invalidationTargets,
-    FORBIDDEN_IN_OUTPUT, classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys };
+    FORBIDDEN_IN_OUTPUT, classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys,
+    bulkDeleteGuard, BULK_DELETE_RATIO, BULK_DELETE_MIN };
 
 if (require.main === module) main().catch(err => {
     console.error("[deploy] ERROR:", err.message ?? err);

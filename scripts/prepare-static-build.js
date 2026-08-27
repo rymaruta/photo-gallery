@@ -52,57 +52,82 @@ if (fs.existsSync(backupDir)) {
 }
 
 // 中断されても退避したままにしない。
-// finally は SIGINT/SIGTERM では走らないので、明示的に拾う。
-let restored = false;
-const restoreOnce = () => {
-    if (restored) return;
-    restored = true;
-    try {
-        if (fs.existsSync(backupDir) && !fs.existsSync(apiDir)) restore();
-    } catch (e) {
-        console.error("[build] app/api の復元に失敗しました:", e);
+/**
+ * ビルド本体。
+ *
+ * **require しただけでは動かないこと。** ここは app/api を退避し、out/ を
+ * 消し、next build を回す——**副作用の塊**なのに、他の scripts/*.js が
+ * 全部持っている `require.main === module` のガードが、このファイルにだけ
+ * 無かった（deploy-static-site.js は C-9 で同じ理由の副作用を潰している）。
+ * テストやツールが読み込んだだけで本物のビルドが走り、app/api が移動し、
+ * out/ が消える。実際に踏んだので囲った。
+ */
+function main() {
+    // finally は SIGINT/SIGTERM では走らないので、明示的に拾う。
+    let restored = false;
+    const restoreOnce = () => {
+        if (restored) return;
+        restored = true;
+        try {
+            if (fs.existsSync(backupDir) && !fs.existsSync(apiDir)) restore();
+        } catch (e) {
+            console.error("[build] app/api の復元に失敗しました:", e);
+        }
+    };
+    for (const sig of ["SIGINT", "SIGTERM"]) {
+        process.on(sig, () => {
+            console.log(`\n[build] ${sig} を受け取りました。app/api を復元します...`);
+            restoreOnce();
+            process.exit(1);
+        });
     }
-};
-for (const sig of ["SIGINT", "SIGTERM"]) {
-    process.on(sig, () => {
-        console.log(`\n[build] ${sig} を受け取りました。app/api を復元します...`);
-        restoreOnce();
-        process.exit(1);
-    });
+
+    // DynamoDB から写真データを同期。
+    // ローカル（認証情報なし）では失敗してもビルドを続けるが、CI では止める。
+    // 古い photos.json のままビルドが通ると、デプロイが「その後に増えた写真の
+    // ページ」を S3 から削除してしまうため（HTML は猶予期間なしで消える）。
+    // 止めるかどうかの判断は sync 側の終了コードに委ねている。
+    const syncScript = path.join(__dirname, "sync-photos-from-ddb.js");
+    if (fs.existsSync(syncScript)) {
+        console.log("\n[build] DynamoDB から写真データを同期...");
+        try {
+            execSync(`node ${syncScript}`, { stdio: "inherit", cwd: root });
+        } catch {
+            console.error("[build] DynamoDB 同期に失敗しました。ビルドを中止します。");
+            process.exit(1);
+        }
+    }
+
+    // **前回の out/ を先に捨てる。**
+    // next build が途中で失敗しても out/ はそのまま残るので、失敗に気づかず
+    // `npm run web:deploy:prod` を打つと**前回の成果物がそのまま本番へ**行く
+    // （デプロイはビルドしないので、古い out/ を本物として扱う）。
+    // 消しておけば、失敗したビルドのあとのデプロイは「out/ が無い」で必ず止まる。
+    const outDir = path.join(root, "out");
+    if (fs.existsSync(outDir)) {
+        console.log("[build] 前回の out/ を削除...");
+        fs.rmSync(outDir, { recursive: true, force: true });
+    }
+
+    console.log("\n[build] app/api を一時退避...");
+    move(apiDir, backupDir);
+
+    let exitCode = 0;
+    try {
+        console.log("[build] next build を実行...\n");
+        execSync("npx next build", { stdio: "inherit", cwd: root });
+    } catch (err) {
+        exitCode = err.status ?? 1;
+    } finally {
+        console.log("\n[build] app/api を復元...");
+        try {
+            restore();
+        } catch (restoreErr) {
+            console.error("[build] app/api の復元に失敗しました:", restoreErr);
+        }
+    }
+
+    process.exit(exitCode);
 }
 
-// DynamoDB から写真データを同期。
-// ローカル（認証情報なし）では失敗してもビルドを続けるが、CI では止める。
-// 古い photos.json のままビルドが通ると、デプロイが「その後に増えた写真の
-// ページ」を S3 から削除してしまうため（HTML は猶予期間なしで消える）。
-// 止めるかどうかの判断は sync 側の終了コードに委ねている。
-const syncScript = path.join(__dirname, "sync-photos-from-ddb.js");
-if (fs.existsSync(syncScript)) {
-    console.log("\n[build] DynamoDB から写真データを同期...");
-    try {
-        execSync(`node ${syncScript}`, { stdio: "inherit", cwd: root });
-    } catch {
-        console.error("[build] DynamoDB 同期に失敗しました。ビルドを中止します。");
-        process.exit(1);
-    }
-}
-
-console.log("\n[build] app/api を一時退避...");
-move(apiDir, backupDir);
-
-let exitCode = 0;
-try {
-    console.log("[build] next build を実行...\n");
-    execSync("npx next build", { stdio: "inherit", cwd: root });
-} catch (err) {
-    exitCode = err.status ?? 1;
-} finally {
-    console.log("\n[build] app/api を復元...");
-    try {
-        restore();
-    } catch (restoreErr) {
-        console.error("[build] app/api の復元に失敗しました:", restoreErr);
-    }
-}
-
-process.exit(exitCode);
+if (require.main === module) main();

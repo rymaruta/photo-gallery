@@ -2,7 +2,11 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 // デプロイスクリプトの「古いオブジェクト削除」判定。
 // 外部ブラウザで CSS/JS が 404 になり画面が崩れる事故の再発防止ガード。
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { classifyStaleObjects, ASSET_GRACE_MS } = require("../deploy-static-site.js") as {
+const { classifyStaleObjects, ASSET_GRACE_MS, bulkDeleteGuard } = require("../deploy-static-site.js") as {
+    bulkDeleteGuard: (
+        toDelete: string[],
+        remoteObjects: Array<{ key: string; lastModified?: Date }>,
+    ) => string | null;
     classifyStaleObjects: (
         localKeys: string[],
         remoteObjects: Array<{ key: string; lastModified?: Date }>,
@@ -317,5 +321,58 @@ describe("削除したキーも無効化の対象に入れる", () => {
     it("消したぶんを混ぜても uploads/ を巻き込まない（安全側に倒す）", () => {
         expect(() => invalidationPathsFor(invalidationTargets([], [], ["uploads/a.html"])))
             .toThrow(/uploads/);
+    });
+});
+
+// 消す量に歯止めが無かった。sync 側には「既存より半分以下になる書き込みは
+// 事故とみなす」ガード（SHRINK_LIMIT）があるのに、deploy 側は out/ に無い
+// HTML を**猶予期間なしで全部消す**だけだった。踏み方は2つ:
+//  1. 手元の `npm run build` は DynamoDB に繋がらなくても sync が 0 を返す
+//     （IS_CI でないため）。古い photos.json のままビルドが通り、そのまま
+//     web:deploy:prod を打つと、以降に増えた photo/<id>.html が全部消える
+//  2. next build が失敗しても out/ は残る（prepare-static-build.js で削除
+//     するようにしたが、既に古い out/ を持っている端末は残る）
+describe("bulkDeleteGuard（消しすぎを止める）", () => {
+    const remote = (n: number, prefix = "photo/p") =>
+        Array.from({ length: n }, (_, i) => ({ key: `${prefix}${i}.html`, lastModified: new Date() }));
+
+    it("公開中の HTML の半分を超えて消そうとしたら止める", () => {
+        const remoteObjects = remote(120);
+        // out/ には30枚分しかない＝90枚を消しにいく
+        const toDelete = remoteObjects.slice(30).map((o) => o.key);
+        const msg = bulkDeleteGuard(toDelete, remoteObjects);
+
+        expect(msg).toBeTruthy();
+        expect(msg).toContain("120");
+        expect(msg).toContain("90");
+        // 原因の見当と逃げ道まで書く
+        expect(msg).toContain("photos.json");
+        expect(msg).toContain("ALLOW_BULK_DELETE=1");
+    });
+
+    it("半分以下なら通す（ふつうの削除を止めない）", () => {
+        const remoteObjects = remote(120);
+        const toDelete = remoteObjects.slice(0, 60).map((o) => o.key);
+        expect(bulkDeleteGuard(toDelete, remoteObjects)).toBeNull();
+    });
+
+    it("少数の削除は割合を見ない（小さなサイトを止めない）", () => {
+        const remoteObjects = remote(4);
+        const toDelete = remoteObjects.map((o) => o.key);   // 4件＝100%
+        expect(bulkDeleteGuard(toDelete, remoteObjects)).toBeNull();
+    });
+
+    // アセットは 30日の猶予があり、消えても表示は壊れない
+    it("数えるのは HTML/txt だけ（アセットの大量削除では止めない）", () => {
+        const remoteObjects = [
+            ...remote(10),
+            ...Array.from({ length: 500 }, (_, i) => ({ key: `_next/static/chunks/${i}.js`, lastModified: new Date(0) })),
+        ];
+        const toDelete = remoteObjects.filter((o) => o.key.startsWith("_next/")).map((o) => o.key);
+        expect(bulkDeleteGuard(toDelete, remoteObjects)).toBeNull();
+    });
+
+    it("初回デプロイ（本番が空）は止めない", () => {
+        expect(bulkDeleteGuard([], [])).toBeNull();
     });
 });
