@@ -15,6 +15,7 @@ import { readSharedPayload, clearSharedPayload } from "../../../lib/utils/shareS
 import { ROUTES } from "../../../lib/routes";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { loginWithNext } from "../../../lib/routes";
+import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
 
 // 1人あたりのアップロード上限。**api-user/src/upload.ts の
 // PHOTO_LIMIT_PER_USER と対**。片方だけ変えると、画面の残り枚数が嘘になる。
@@ -191,6 +192,13 @@ function UploadPageInner() {
      * 見せる方が悪い。
      */
     const [usedSlots, setUsedSlots] = useState<number | null>(null);
+    /**
+     * 自分がこれまでに使った撮影地・カテゴリ・タグ。
+     * **候補が出ないせいで、同じ場所が別々の名前に散っていた**
+     * （「パリ」「パリ, フランス」「オペラ・ガルニエ（パリ）」…）。
+     * datalist で「前に何と書いたか」を出す。選ばずに自由入力もできる。
+     */
+    const [ownValues, setOwnValues] = useState<OwnValues>({ locations: [], categories: [], tags: [] });
     useEffect(() => {
         if (loading || !isAuthenticated) return;
         let aborted = false;
@@ -200,7 +208,11 @@ function UploadPageInner() {
                 const res = await userFetch("/user/photos");
                 if (!res.ok) return;
                 const all = await res.json() as unknown[];
-                if (!aborted && Array.isArray(all)) setUsedSlots(all.length);
+                if (!aborted && Array.isArray(all)) {
+                    setUsedSlots(all.length);
+                    // 同じ取得から入力候補も作る（追加の往復はしない）
+                    setOwnValues(collectOwnValues(all as Parameters<typeof collectOwnValues>[0]));
+                }
             } catch { /* 出さないだけ。アップロード自体は止めない */ }
         })();
         return () => { aborted = true; };
@@ -704,12 +716,20 @@ function UploadPageInner() {
                     <p className="text-xs text-white/50 uppercase tracking-wide">
                         {locale === "en" ? "Common settings (applied to all)" : "共通設定（全写真に適用）"}
                     </p>
+                    {/* 前に使った値を候補に出す（選ばずに自由入力もできる） */}
+                    <datalist id="own-categories">
+                        {ownValues.categories.map((v) => <option key={v} value={v} />)}
+                    </datalist>
+                    <datalist id="own-locations">
+                        {ownValues.locations.map((v) => <option key={v} value={v} />)}
+                    </datalist>
                     <input
                         type="text"
                         value={category}
                         onChange={(e) => setCategory(e.target.value)}
                         placeholder={locale === "en" ? "Category (e.g. Landscape)" : "カテゴリ（例: 風景）"}
                         className={inputCls}
+                        list="own-categories"
                         style={{ fontSize: "16px" }}
                         disabled={uploading}
                     />
@@ -722,6 +742,24 @@ function UploadPageInner() {
                         style={{ fontSize: "16px" }}
                         disabled={uploading}
                     />
+                    {/* タグはカンマ区切りなので datalist が効かない（欄全体を
+                        置き換えてしまう）。押して足せるチップにする。 */}
+                    {ownValues.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                            {ownValues.tags.slice(0, 12).map((t) => (
+                                <button
+                                    key={t}
+                                    type="button"
+                                    onClick={() => setTags((cur) => appendTag(cur, t))}
+                                    disabled={uploading}
+                                    className="px-2 py-0.5 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors disabled:opacity-40"
+                                    style={{ touchAction: "manipulation" }}
+                                >
+                                    {t}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -794,6 +832,7 @@ function UploadPageInner() {
                                             onChange={(e) => updateItem(it.id, { location: e.target.value })}
                                             placeholder={locale === "en" ? "Location (optional)" : "場所（任意）"}
                                             className={inputCls}
+                                            list="own-locations"
                                             style={{ fontSize: "16px" }}
                                             disabled={uploading || it.status === "done"}
                                         />

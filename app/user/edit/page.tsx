@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, Suspense } from "react";
+import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../auth/context";
@@ -14,6 +14,7 @@ import { toDateInputValue, mergeDate } from "../../../lib/utils/dateInput";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { changedFields } from "../../../lib/utils/changedFields";
 import { loginWithNext } from "../../../lib/routes";
+import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
 
 const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
 const labelCls = "block text-sm text-white/60 mb-1";
@@ -62,6 +63,22 @@ function EditContent() {
 
     const photoId = searchParams.get("id");
 
+    /**
+     * 取得の effect が **`router` / `showToast` の同一性に依存しないようにする。**
+     *
+     * どちらもフックが返す値で、参照が変わりうる（Next の useRouter は
+     * 実際には安定だが、それに寄りかかっている状態だった）。deps に入れたまま
+     * effect の中で「毎回新しいオブジェクト」を state に入れると、
+     * **再描画 → deps が変わる → 再取得 → …** で回り続ける。
+     * 入力候補（collectOwnValues）を足したときに実際に踏んだ
+     * （既存の staleResponse テストは router を安定なオブジェクトに固定して
+     *  いて、それで避けていただけだった）。
+     */
+    const routerRef = useRef(router);
+    const showToastRef = useRef(showToast);
+    routerRef.current = router;
+    showToastRef.current = showToast;
+
     const [photo, setPhoto] = useState<Photo | null>(null);
     const [loadingPhoto, setLoadingPhoto] = useState(true);
     // 読み込みに失敗したか。トーストは数秒で消えるので、画面にも残す。
@@ -70,6 +87,8 @@ function EditContent() {
     // 撮影日の時刻）を保存時に失わないために持っておく。
     const [original, setOriginal] = useState<Photo | null>(null);
     const [saving, setSaving] = useState(false);
+    // 自分がこれまでに使った撮影地・カテゴリ・タグ（入力候補）
+    const [ownValues, setOwnValues] = useState<OwnValues>({ locations: [], categories: [], tags: [] });
     // 削除は取り消せないので、確認を1枚挟む（ストーリー削除と同じ形）
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -109,6 +128,9 @@ function EditContent() {
                 if (res.ok) {
                     const all = await res.json() as Photo[];
                     if (aborted) return;
+                    // 同じ取得から入力候補も作る（追加の往復はしない）。
+                    // 候補が無いせいで同じ場所が別々の名前に散っていた。
+                    setOwnValues(collectOwnValues(all));
                     const found = Array.isArray(all) ? all.find((p) => p.id === photoId) ?? null : null;
                     if (found) {
                         setPhoto(found);
@@ -122,18 +144,18 @@ function EditContent() {
                         setDate(toDateInputValue(found.date));
                         setTagsInput(Array.isArray(found.tags) ? found.tags.join(", ") : "");
                     } else {
-                        showToast(isJa ? "写真が見つかりません" : "Photo not found", "error");
-                        router.push(ROUTES.DRAFTS);
+                        showToastRef.current(isJa ? "写真が見つかりません" : "Photo not found", "error");
+                        routerRef.current.push(ROUTES.DRAFTS);
                     }
                 } else {
                     if (aborted) return;
-                    showToast(isJa ? "読み込みに失敗しました" : "Failed to load", "error");
+                    showToastRef.current(isJa ? "読み込みに失敗しました" : "Failed to load", "error");
                     setLoadFailed(true);
                 }
             } catch (e) {
                 if (aborted) return;
                 log.error("edit load error:", e);
-                showToast(isJa ? "読み込みに失敗しました" : "Failed to load", "error");
+                showToastRef.current(isJa ? "読み込みに失敗しました" : "Failed to load", "error");
                 setLoadFailed(true);
             } finally {
                 if (!aborted) setLoadingPhoto(false);
@@ -141,7 +163,7 @@ function EditContent() {
         };
         void load();
         return () => { aborted = true; };
-    }, [photoId, isAuthenticated, isAdminUser, isGeneralUser, router, showToast, isJa]);
+    }, [photoId, isAuthenticated, isAdminUser, isGeneralUser, isJa]);
 
     /**
      * 写真を消す。**これまで一般ユーザーには消す手段が無かった**——
@@ -307,12 +329,21 @@ function EditContent() {
                         <div>
                             <label className={labelCls}>{isJa ? "場所" : "Location"}</label>
                             <input type="text" value={location} onChange={(e) => setLocation(e.target.value)}
+                                list="own-locations"
                                 className={inputCls} style={{ fontSize: "16px" }} placeholder={isJa ? "任意" : "Optional"} />
+                            {/* 前に使った値を候補に出す（選ばずに自由入力もできる） */}
+                            <datalist id="own-locations">
+                                {ownValues.locations.map((v) => <option key={v} value={v} />)}
+                            </datalist>
                         </div>
                         <div>
                             <label className={labelCls}>{isJa ? "カテゴリ" : "Category"}</label>
                             <input type="text" value={category} onChange={(e) => setCategory(e.target.value)}
+                                list="own-categories"
                                 className={inputCls} style={{ fontSize: "16px" }} placeholder={isJa ? "例: 風景" : "e.g. Landscape"} />
+                            <datalist id="own-categories">
+                                {ownValues.categories.map((v) => <option key={v} value={v} />)}
+                            </datalist>
                         </div>
                         <div>
                             <label className={labelCls}>{isJa ? "撮影日" : "Date"}</label>
@@ -323,6 +354,23 @@ function EditContent() {
                             <label className={labelCls}>{isJa ? "タグ（カンマ区切り）" : "Tags (comma separated)"}</label>
                             <input type="text" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)}
                                 className={inputCls} style={{ fontSize: "16px" }} placeholder={isJa ? "自然, 山" : "nature, mountain"} />
+                            {/* タグはカンマ区切りなので datalist が効かない（欄全体を
+                                置き換えてしまう）。押して足せるチップにする。 */}
+                            {ownValues.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                    {ownValues.tags.slice(0, 12).map((t) => (
+                                        <button
+                                            key={t}
+                                            type="button"
+                                            onClick={() => setTagsInput((cur) => appendTag(cur, t))}
+                                            className="px-2 py-0.5 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors"
+                                            style={{ touchAction: "manipulation" }}
+                                        >
+                                            {t}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </form>
