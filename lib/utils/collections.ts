@@ -213,6 +213,20 @@ export function collectionPath(type: CollectionType, slug: string): string {
     return `/${TYPE_PATH[type]}/${encodeURIComponent(raw)}`;
 }
 
+/**
+ * そのページの**正規URL**（旧カテゴリなら統合後を指す）。
+ *
+ * canonical と JSON-LD（ImageGallery の url・パンくず）が別々にURLを
+ * 組んでいて、旧カテゴリで食い違っていた: `/category/風景` は
+ * canonical が `/category/landscape` を指すのに、構造化データは
+ * `/category/風景` を名乗る——「評価を統合後にまとめる」という目的に
+ * 対して、構造化データが逆を言っていた。組み立てを1か所にする。
+ */
+export function canonicalCollectionPath(type: CollectionType, slug: string): string {
+    const canonicalSlug = type === "category" ? canonicalCategorySlug(slug) : slug;
+    return collectionPath(type, canonicalSlug);
+}
+
 export type CollectionCopy = { title: string; description: string; heading: string; breadcrumb: string };
 
 /** ランディングページの見出し・メタ文言（日本語主体・ページ固有の導入文つき） */

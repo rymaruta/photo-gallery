@@ -6,6 +6,7 @@ import {
     isIndexableCollection,
     labelForSlug,
     collectionPath,
+    canonicalCollectionPath,
     collectionCopy,
     CATEGORY_ALIASES,
     relatedEntries,
@@ -267,5 +268,22 @@ describe("撮影地の集約は related と同じ「緩い一致」で見る", (
             { id: "t2", src: "s", tags: ["旅行"] },
         ] as unknown as Parameters<typeof collectEntries>[0];
         expect(photosInCollection(tagged, "tag", "旅").map((p) => p.id)).toEqual(["t1"]);
+    });
+});
+
+// canonical と JSON-LD（ImageGallery の url・パンくず）が別々にURLを組んで
+// いて、旧カテゴリで食い違っていた: /category/風景 は canonical が
+// /category/landscape を指すのに、構造化データは /category/風景 を名乗る。
+// 「評価を統合後にまとめる」という目的に対して逆を言っていた。
+describe("canonicalCollectionPath: 旧カテゴリは統合後を指す", () => {
+    it("旧スラッグでも統合後のパスを返す", () => {
+        expect(canonicalCollectionPath("category", "風景")).toBe(
+            canonicalCollectionPath("category", "landscape"));
+        expect(canonicalCollectionPath("category", "風景")).toContain("/category/landscape");
+    });
+
+    it("タグ・撮影地はそのまま（統合の対象ではない）", () => {
+        expect(canonicalCollectionPath("tag", "夜景")).toBe(collectionPath("tag", "夜景"));
+        expect(canonicalCollectionPath("location", "パリ")).toBe(collectionPath("location", "パリ"));
     });
 });

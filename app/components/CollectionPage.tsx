@@ -9,6 +9,7 @@ import {
     labelForSlug,
     collectionCopy,
     collectionPath,
+    canonicalCollectionPath,
     relatedEntries,
     type CollectionType,
 } from "@/lib/utils/collections";
@@ -23,7 +24,10 @@ export default async function CollectionPage({ type, slug }: { type: CollectionT
 
     const label = labelForSlug(photos, type, slug);
     const { heading, description, breadcrumb } = collectionCopy(type, label, matched.length);
-    const pageUrl = `${siteConfig.url}${collectionPath(type, slug)}`;
+    // canonical と同じURLを名乗る（旧カテゴリなら統合後）。
+    // 別々に組んでいた頃は、/category/風景 の canonical が
+    // /category/landscape なのに JSON-LD は /category/風景 を名乗っていた。
+    const pageUrl = `${siteConfig.url}${canonicalCollectionPath(type, slug)}`;
     // 同タイプの他ページへの相互リンク（孤立防止・回遊・SEO）
     const related = relatedEntries(photos, type, slug, 12).map((e) => ({
         label: e.label,
