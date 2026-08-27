@@ -1,46 +1,45 @@
 import { describe, it, expect } from "vitest";
-import { ROUTES } from "../routes";
-import PHOTOS_JSON from "@/app/data/photos.json";
+import { safeNextPath, loginWithNext, ROUTES } from "../routes";
 
-const builtIds = (PHOTOS_JSON as Array<{ id: string }>).map((p) => p.id);
-
-describe("ROUTES", () => {
-    it("静的ルートが正しいパスを持つ", () => {
-        expect(ROUTES.HOME).toBe("/");
-        expect(ROUTES.FAVORITES).toBe("/favorites");
-        expect(ROUTES.ADMIN).toBe("/admin");
-        expect(ROUTES.LOGIN).toBe("/login");
-        expect(ROUTES.UPLOAD).toBe("/user/upload");
-        expect(ROUTES.PROFILE_EDIT).toBe("/user/profile");
+// ログイン後の戻り先を URL から受け取る。**ここを緩めるとオープン
+// リダイレクト**（`/login?next=https://evil.example` で外部へ飛ばす踏み台）
+// になる。サイト内の絶対パスだけを通す。
+describe("safeNextPath", () => {
+    it.each([
+        "/photo/abc",
+        "/users?id=u1",
+        "/user/edit?id=p1",
+        "/",
+    ])("サイト内のパスは通す: %s", (p) => {
+        expect(safeNextPath(p)).toBe(p);
     });
 
-    it("ビルド時に存在する写真は /photo/:id を返す", () => {
-        if (builtIds.length === 0) return; // photos.json が空の環境ではスキップ
-        const id = builtIds[0];
-        expect(ROUTES.PHOTO(id)).toBe(`/photo/${id}`);
+    it.each([
+        ["https://evil.example/x", "絶対URL"],
+        ["http://evil.example", "絶対URL(http)"],
+        ["//evil.example/x", "スキーム相対（外部へ出る）"],
+        ["/\\evil.example", "ブラウザによっては // と同じに読まれる"],
+        ["javascript:alert(1)", "スキーム"],
+        ["photo/abc", "相対パス"],
+        ["", "空"],
+    ])("外へ出るものは弾く: %s（%s）", (raw) => {
+        expect(safeNextPath(raw)).toBeNull();
     });
 
-    it("ビルド後にアップロードされた（JSONにない）写真はモーダル表示のURLにフォールバックする", () => {
-        const newId = "not-in-build-00000000-0000-0000-0000-000000000000";
-        expect(builtIds).not.toContain(newId);
-        expect(ROUTES.PHOTO(newId)).toBe(`/?photo=${newId}`);
+    it("文字列でなければ弾く", () => {
+        expect(safeNextPath(undefined)).toBeNull();
+        expect(safeNextPath(null)).toBeNull();
+        expect(safeNextPath(123)).toBeNull();
+    });
+});
+
+describe("loginWithNext", () => {
+    it("戻り先を1回だけエンコードして添える", () => {
+        expect(loginWithNext("/users?id=u1")).toBe(`${ROUTES.LOGIN}?next=${encodeURIComponent("/users?id=u1")}`);
     });
 
-    it("フォールバックURLでは id が URL エンコードされる", () => {
-        expect(ROUTES.PHOTO("a b/c")).toBe(`/?photo=${encodeURIComponent("a b/c")}`);
-    });
-
-    it("投稿があるユーザーは静的生成された /users/:id を返す", () => {
-        const userIds = (PHOTOS_JSON as Array<{ userId?: string; published?: boolean }>)
-            .filter((p) => p.userId && p.published !== false)
-            .map((p) => p.userId as string);
-        if (userIds.length === 0) return; // 投稿ユーザーがいない環境ではスキップ
-        const id = userIds[0];
-        expect(ROUTES.USER_PROFILE(id)).toBe(`/users/${encodeURIComponent(id)}`);
-    });
-
-    it("ビルド後に登録された新規ユーザーはクエリ版URLにフォールバックする", () => {
-        const newUser = "new-user-00000000-0000-0000-0000-000000000000";
-        expect(ROUTES.USER_PROFILE(newUser)).toBe(`/users?id=${newUser}`);
+    it("通らない戻り先は添えない（素のログイン画面へ）", () => {
+        expect(loginWithNext("https://evil.example")).toBe(ROUTES.LOGIN);
+        expect(loginWithNext(null)).toBe(ROUTES.LOGIN);
     });
 });

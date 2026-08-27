@@ -15,6 +15,7 @@ import { toUploadSafeFile, AVATAR_MAX_PX, COVER_MAX_PX } from "../../../lib/util
 import { log } from "../../../lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
 import DeleteAccountModal from "../../components/DeleteAccountModal";
+import { loginWithNext } from "../../../lib/routes";
 
 type SongEntry = {
     title: string;
@@ -124,7 +125,7 @@ export default function ProfileEditPage() {
     const [loadFailed, setLoadFailed] = useState(false);
 
     useEffect(() => {
-        if (!loading && !isAuthenticated) router.replace("/login");
+        if (!loading && !isAuthenticated) router.replace(loginWithNext(window.location.pathname + window.location.search));
     }, [isAuthenticated, loading, router]);
 
     useEffect(() => {

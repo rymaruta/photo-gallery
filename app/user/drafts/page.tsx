@@ -11,6 +11,7 @@ import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
 import { formatStoredDateTime } from "@/lib/utils/photoDate";
+import { loginWithNext } from "../../../lib/routes";
 
 export default function DraftsPage() {
     const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
@@ -26,7 +27,7 @@ export default function DraftsPage() {
 
     useEffect(() => {
         if (!loading && (!isAuthenticated || (!isAdminUser && !isGeneralUser))) {
-            router.push(ROUTES.LOGIN);
+            router.push(loginWithNext(window.location.pathname + window.location.search));
         }
     }, [isAuthenticated, isAdminUser, isGeneralUser, loading, router]);
 

@@ -7,7 +7,7 @@ import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { forgotPassword, confirmForgotPassword } from "../../lib/auth/cognito";
 import { userFetch } from "../../lib/utils/api";
-import { ROUTES } from "../../lib/routes";
+import { ROUTES, safeNextPath } from "../../lib/routes";
 import { pendingNameKey } from "../../lib/utils/pendingName";
 import { LockClosedIcon, EnvelopeIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
@@ -17,6 +17,12 @@ function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const verified = searchParams?.get("verified") === "1";
+    // ログイン後の戻り先。**これが無かったので、写真を見ていて「フォローする
+    // にはログインしてください」→ ログイン → 必ず自分のプロフィールに着地し、
+    // さっき見ていた写真も相手も見失っていた。**
+    // 受け取るのはサイト内の絶対パスだけ（safeNextPath がオープン
+    // リダイレクトを塞ぐ）。無ければ従来どおり自分のプロフィールへ。
+    const nextPath = safeNextPath(searchParams?.get("next"));
     const { login, isAuthenticated, loading, userId } = useAuth();
     const { showToast } = useToast();
 
@@ -31,9 +37,9 @@ function LoginForm() {
 
     useEffect(() => {
         if (!loading && isAuthenticated) {
-            router.push(userId ? ROUTES.USER_PROFILE(userId) : "/");
+            router.push(nextPath ?? (userId ? ROUTES.USER_PROFILE(userId) : "/"));
         }
-    }, [isAuthenticated, loading, router, userId]);
+    }, [isAuthenticated, loading, router, userId, nextPath]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -72,7 +78,7 @@ function LoginForm() {
                 }
                 showToast("ログインしました", "success");
                 // インスタ風: ログイン後は自分のプロフィールページへ
-                router.push(result.userId ? ROUTES.USER_PROFILE(result.userId) : "/");
+                router.push(nextPath ?? (result.userId ? ROUTES.USER_PROFILE(result.userId) : "/"));
             } else if (result.needsVerification) {
                 setNeedsVerification(true);
                 setError(result.error || "メールアドレスの確認が完了していません");

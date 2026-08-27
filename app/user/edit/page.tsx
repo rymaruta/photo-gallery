@@ -13,6 +13,7 @@ import { ROUTES } from "../../../lib/routes";
 import { toDateInputValue, mergeDate } from "../../../lib/utils/dateInput";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { changedFields } from "../../../lib/utils/changedFields";
+import { loginWithNext } from "../../../lib/routes";
 
 const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
 const labelCls = "block text-sm text-white/60 mb-1";
@@ -83,7 +84,7 @@ function EditContent() {
     // 認証ゲート（一般ユーザー or 管理者）。upload ページと同じ方針。
     useEffect(() => {
         if (!loading && (!isAuthenticated || (!isAdminUser && !isGeneralUser))) {
-            router.push(ROUTES.LOGIN);
+            router.push(loginWithNext(window.location.pathname + window.location.search));
         }
     }, [isAuthenticated, isAdminUser, isGeneralUser, loading, router]);
 

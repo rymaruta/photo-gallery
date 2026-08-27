@@ -39,3 +39,26 @@ export const ROUTES = {
             ? `/users/${encodeURIComponent(id)}`
             : `/users?id=${encodeURIComponent(id)}`,
 } as const;
+
+/**
+ * ログイン後の戻り先として受け取ってよいパスか。
+ *
+ * **サイト内の絶対パスだけを通す。** ここを緩めるとオープンリダイレクト
+ * （`/login?next=https://evil.example` で外部へ飛ばす踏み台）になる。
+ *  - `/` 始まりでないもの（`https://…`・`javascript:` など）を弾く
+ *  - `//host` はスキーム相対で外部へ出るので弾く
+ *  - `/\` はブラウザによっては `//` と同じに解釈されるので弾く
+ * 通らなければ null を返し、呼び出し側が既定の行き先に落とす。
+ */
+export function safeNextPath(raw: unknown): string | null {
+    if (typeof raw !== "string" || !raw) return null;
+    if (!raw.startsWith("/")) return null;
+    if (raw.startsWith("//") || raw.startsWith("/\\")) return null;
+    return raw;
+}
+
+/** ログイン画面へ。戻り先を添える（省略時は既定＝自分のプロフィール） */
+export function loginWithNext(next?: string | null): string {
+    const safe = safeNextPath(next);
+    return safe ? `${ROUTES.LOGIN}?next=${encodeURIComponent(safe)}` : ROUTES.LOGIN;
+}

@@ -14,6 +14,11 @@ import { extractExifFromFile, extractCameraExif, reverseGeocode } from "../../..
 import { readSharedPayload, clearSharedPayload } from "../../../lib/utils/shareStore";
 import { ROUTES } from "../../../lib/routes";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
+import { loginWithNext } from "../../../lib/routes";
+
+// 1人あたりのアップロード上限。**api-user/src/upload.ts の
+// PHOTO_LIMIT_PER_USER と対**。片方だけ変えると、画面の残り枚数が嘘になる。
+const PHOTO_LIMIT_PER_USER = 100;
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
@@ -171,9 +176,39 @@ function UploadPageInner() {
     // 認証チェック
     useEffect(() => {
         if (!loading && (!isAuthenticated || (!isAdminUser && !isGeneralUser))) {
-            router.push("/login");
+            router.push(loginWithNext(window.location.pathname + window.location.search));
         }
     }, [isAuthenticated, isAdminUser, isGeneralUser, loading, router]);
+
+    /**
+     * 残りアップロード可能枚数。**上限に当たるまで見えなかった。**
+     * 100枚の上限（api-user/src/upload.ts の PHOTO_LIMIT_PER_USER）は
+     * 押して初めて 403 で伝わり、しかも数え上げ失敗の 503 と文言が違うだけで、
+     * 利用者には「上限なのか障害なのか」も分からなかった。
+     *
+     * 数え方はサーバーと同じ（/user/photos は listMyPhotos ＝ 下書きを含み
+     * ストーリーを除く）。取れなければ**何も出さない**——推測した数字を
+     * 見せる方が悪い。
+     */
+    const [usedSlots, setUsedSlots] = useState<number | null>(null);
+    useEffect(() => {
+        if (loading || !isAuthenticated) return;
+        let aborted = false;
+        void (async () => {
+            try {
+                const { userFetch } = await import("../../../lib/utils/api");
+                const res = await userFetch("/user/photos");
+                if (!res.ok) return;
+                const all = await res.json() as unknown[];
+                if (!aborted && Array.isArray(all)) setUsedSlots(all.length);
+            } catch { /* 出さないだけ。アップロード自体は止めない */ }
+        })();
+        return () => { aborted = true; };
+    }, [isAuthenticated, loading]);
+    // 管理者は上限の対象外（サーバーも isAdmin を見て免除している）
+    const remainingSlots = isAdminUser || usedSlots === null
+        ? null
+        : Math.max(0, PHOTO_LIMIT_PER_USER - usedSlots);
 
     // PWA Share Target で渡された写真の取り込み。
     // ログインリダイレクトで ?from=share が失われても、IndexedDB に残った
@@ -586,6 +621,20 @@ function UploadPageInner() {
 
             {/* iOS向け「ホーム画面に追加」ヒント（該当時のみ表示） */}
             <AddToHomeScreenHint />
+
+            {/* 残り枚数。**上限に当たるまで見えなかった**ので、選ぶ前に出す。
+                取れていなければ何も出さない（推測した数字は見せない）。 */}
+            {remainingSlots !== null && (
+                <p className={`text-xs mb-3 ${remainingSlots === 0 ? "text-amber-400/90" : "text-white/40"}`}>
+                    {remainingSlots === 0
+                        ? (locale === "en"
+                            ? `Upload limit reached (${PHOTO_LIMIT_PER_USER}). Delete a photo to make room.`
+                            : `アップロードの上限（${PHOTO_LIMIT_PER_USER}枚）に達しています。写真を削除すると空きができます。`)
+                        : (locale === "en"
+                            ? `${remainingSlots} of ${PHOTO_LIMIT_PER_USER} uploads left`
+                            : `あと${remainingSlots}枚アップロードできます（${PHOTO_LIMIT_PER_USER}枚まで）`)}
+                </p>
+            )}
 
             {/* ファイル選択 */}
             <label

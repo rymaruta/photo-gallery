@@ -11,6 +11,7 @@ import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { ROUTES } from "../../lib/routes";
 import UserAvatar from "./UserAvatar";
+import { loginWithNext } from "../../lib/routes";
 
 type Props = {
     photoId: string;
@@ -29,6 +30,11 @@ function timeAgo(iso: string, locale: "ja" | "en"): string {
 }
 
 export default function CommentSection({ photoId, photoOwnerId, locale, initialCount = 0 }: Props) {
+    // ログイン後にこの写真へ戻す（サイト内パスだけを通す safeNextPath 経由）。
+    // 戻り先が無いと、コメントしようとしていた写真を見失う。
+    const loginHref = typeof window === "undefined"
+        ? ROUTES.LOGIN
+        : loginWithNext(window.location.pathname + window.location.search);
     // authLoading = ログイン状態がまだ分からない期間。ここを見ないと、
     // ログイン済みの人にも一瞬「ログインするとコメントできます」が出て、
     // その間にリンクを押すとログインページ経由で別の場所へ飛ばされる。
@@ -94,7 +100,9 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                 <div className="mb-4 h-[68px]" aria-hidden={true} />
             ) : (
                 <p className="mb-4 text-xs text-white/40">
-                    <Link href={ROUTES.LOGIN} className="text-white/70 underline hover:text-white">
+                    {/* 戻り先を添える。無いとログイン後に自分のプロフィールへ
+                        飛ばされ、コメントしようとしていた写真を見失う */}
+                    <Link href={loginHref} className="text-white/70 underline hover:text-white">
                         {locale === "en" ? "Log in" : "ログイン"}
                     </Link>
                     {locale === "en" ? " to join the conversation." : " するとコメントできます。"}
