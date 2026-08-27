@@ -149,6 +149,48 @@ describe("updatePhotoVisibility: 下書きのメタデータ編集", () => {
         expect(u.ExpressionAttributeValues[":date"]).toBe("2026-01-20");
     });
 
+    // 画面は「変えた項目だけ」を送るようになった（7232340 / 9df0ec2）。
+    // 公開ボタンだけ押した回は body が `{ published }` になり、メタ項目は
+    // どれも指定されない＝**何も消してはいけない**。
+    // ここを固定しないと、applyMeta を「常に addressed」に直した瞬間に
+    // タイトル・説明・撮影地・タグが REMOVE で吹き飛ぶ（それでも
+    // 「公開できる」テストは全部通ってしまう）。
+    it("公開状態だけの保存では、何も REMOVE しない", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({
+                Item: {
+                    id: "p1", userId: "u1", published: false,
+                    title: "夕焼けの湖", description: "湖畔から", location: "山中湖",
+                    category: "風景", tags: ["夕焼け"], date: "2026-01-20",
+                },
+            })
+            .mockResolvedValueOnce({});
+        const res = await invoke(event("u1", "p1", { published: true }));
+        expect(res.statusCode).toBe(200);
+
+        const u = lastUpdate();
+        expect(u.UpdateExpression).not.toContain("REMOVE");
+        // 触るのは published と updatedAt だけ
+        expect(u.UpdateExpression).toContain("published");
+        // 属性は #名前 で参照される（updatedAt に "date" が含まれるので、
+        // 素の文字列で探すと "date" が誤ってヒットする）
+        for (const col of ["title", "description", "location", "category", "tags", "date"]) {
+            expect(u.UpdateExpression).not.toContain(`#${col}`);
+            expect(u.ExpressionAttributeNames ?? {}).not.toHaveProperty(`#${col}`);
+        }
+    });
+
+    // 逆向きの正常系: 指定された項目を空で送れば今までどおり消せる
+    // （「何も REMOVE しない」を REMOVE 自体の削除で通してしまわないため）
+    it("空で指定された項目は今までどおり REMOVE する", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", location: "山中湖" } })
+            .mockResolvedValueOnce({});
+        const res = await invoke(event("u1", "p1", { location: "" }));
+        expect(res.statusCode).toBe(200);
+        expect(lastUpdate().UpdateExpression).toContain("REMOVE #location");
+    });
+
     it("メタ編集と公開を同時に行える（下書き→公開）", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: false } })
