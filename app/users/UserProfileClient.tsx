@@ -403,6 +403,9 @@ export default function UserProfileClient({ userId }: { userId: string }) {
 
     // 旅アルバム: 撮影日の間隔で自動グルーピング
 
+    // ピン留めの保存に付ける通し番号（応答の追い越しを捨てる）
+    const pinSeqRef = useRef(0);
+
     // プロフィール項目の部分更新。変更する項目だけ送る。
     // `patch` は画面に即反映する見込みの値。`wire` を渡すとそちらを送る
     // （ピン留めのように「配列まるごと」ではなく増減で送りたい場合）。
@@ -421,6 +424,19 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         }
         const prev = userProfile;
         const failMsg = locale === "en" ? "Failed to save" : "保存に失敗しました";
+        // **応答の追い越しを捨てる。** ピン留めは連打できるので、先に投げた
+        // 要求の応答が後から届く。サーバーは「その要求が書いた時点の姿」を
+        // 返すので、そのまま取り込むと**後から届いた古い一覧で新しい一覧を
+        // 上書きする**（p1→p2 と押して p1 の応答が遅れると p2 の星が消える。
+        // サーバーには2枚あるのに画面は1枚）。最後に投げた分だけを採る。
+        const seq = ++pinSeqRef.current;
+        const adoptPins = (list: unknown) => {
+            if (seq !== pinSeqRef.current) return;
+            const pins = Array.isArray(list)
+                ? list.filter((x): x is string => typeof x === "string")
+                : [];
+            setUserProfile((p) => (p ? { ...p, pinnedPhotoIds: pins } : p));
+        };
         // 楽観的更新
         setUserProfile((p) => (p ? { ...p, ...patch } : ({ userId, ...patch } as UserProfile)));
         try {
@@ -439,6 +455,15 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 // throw で catch に流さないのは、通信そのものが落ちた場合の
                 // Error（"Failed to fetch" など英語の生文言）と混ざるため。
                 setUserProfile(prev ?? null);
+                // **断られた回こそ同期する。** 上限で断るとき、サーバーは
+                // 今の一覧を添えてくる。取り込まないと、手元が古いタブは
+                // 「星が1つも無いのに3枚までと言われる」まま何度でも同じ
+                // ことを繰り返す。本文は clone から読む（readApiError が
+                // 同じ res を読むので二度読みにしない）。
+                const detail = typeof res.clone === "function"
+                    ? await res.clone().json().catch(() => null) as { pinnedPhotoIds?: unknown } | null
+                    : null;
+                if (detail && Array.isArray(detail.pinnedPhotoIds)) adoptPins(detail.pinnedPhotoIds);
                 showToast(await readApiError(res, failMsg), "error");
                 return;
             }
@@ -446,12 +471,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             // ので、他の端末が先に足した分もここで手元に入る（見込みの値の
             // ままだと、次の操作がまたその1枚を知らないまま送られる）。
             const saved = await res.json().catch(() => null) as { pinnedPhotoIds?: unknown } | null;
-            if (saved && "pinnedPhotoIds" in patch) {
-                const pins = Array.isArray(saved.pinnedPhotoIds)
-                    ? saved.pinnedPhotoIds.filter((x): x is string => typeof x === "string")
-                    : [];
-                setUserProfile((p) => (p ? { ...p, pinnedPhotoIds: pins } : p));
-            }
+            if (saved && "pinnedPhotoIds" in patch) adoptPins(saved.pinnedPhotoIds);
             showToast(successMsg, "success");
         } catch {
             setUserProfile(prev ?? null);
@@ -475,10 +495,11 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     const pinnedPhotoIds = useMemo(() => userProfile?.pinnedPhotoIds ?? [], [userProfile?.pinnedPhotoIds]);
     const togglePin = useCallback(async (photoId: string, pin: boolean) => {
         const cur = userProfile?.pinnedPhotoIds ?? [];
-        if (pin && cur.length >= 3) {
-            showToast(locale === "en" ? "You can pin up to 3 photos" : "ピン留めは3枚までです", "info");
-            return;
-        }
+        // **上限の判定はサーバーに任せる。** ここで `cur.length >= 3` を
+        // 見ていたが、`cur` はページを開いたときの配列なので、別の端末で
+        // 解除したあとのタブは「手元3枚・サーバー2枚」になり、**要求すら
+        // 投げずに断る**——投げないので実態を知る機会が永久に来ない。
+        // サーバーは 409 に今の一覧を添えて返すので、押せば必ず収束する。
         const next = pin ? [...cur, photoId] : cur.filter((id) => id !== photoId);
         await saveProfilePatch(
             { pinnedPhotoIds: next },
@@ -492,7 +513,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             // 競合として検出されない）。
             { pinPhotoId: photoId, pin },
         );
-    }, [userProfile?.pinnedPhotoIds, saveProfilePatch, locale, showToast]);
+    }, [userProfile?.pinnedPhotoIds, saveProfilePatch, locale]);
 
     // 投稿タブの表示順: ピン留めが先頭
     const orderedPhotos = useMemo(() => {

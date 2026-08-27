@@ -410,8 +410,6 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なリクエスト" }) };
     }
     const pinOp = pinPhotoId ? { id: pinPhotoId, pin: body.pin === true } : undefined;
-    // 同じリクエストで両方来たら増減を優先する（配列は古いタブの持ち物）。
-    if (pinOp) pinnedPhotoIds = undefined;
     const PIN_MAX = 3;
     /** 保存済みの配列に増減を重ねる。上限超過は null（呼び出し側が 409） */
     const applyPinOp = (stored: unknown): string[] | null => {
@@ -529,8 +527,12 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     apply("tripSongs", tripSongs !== undefined, tripSongs);
     apply("themeColor", "themeColor" in body, themeColor);
     apply("statusText", "statusText" in body, statusText);
-    // 増減で来たときは prev を読んだあとに決める（下の書き込みループ内）。
-    apply("pinnedPhotoIds", !pinOp && "pinnedPhotoIds" in body, pinnedPhotoIds);
+    // 増減（pinOp）で来たときは、**下の書き込みループが必ず上書きする**。
+    // ここで `!pinOp &&` のガードを足したくなるが、効かないので置かない
+    // （置くと「守っているつもりの死にコード」になる。実際に一度書いて、
+    //  レビューで両方消しても全テストが通ることを実測された）。
+    // 同じリクエストで配列と増減が両方来たら増減が勝つのは、その帰結。
+    apply("pinnedPhotoIds", "pinnedPhotoIds" in body, pinnedPhotoIds);
 
     // この呼び出しで新しく押さえたユーザー名（失敗したら戻す）
     let usernameReserved: string | null = null;
@@ -577,16 +579,29 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         // follow.ts の updateFollowing と同じ rev 方式。新しい機構は作らない。
         // 競合したら**読み直して、この呼び出しの changes を最新の上に重ねる**
         // ので、触っている項目が違えば両方残る。
+        // 下のループが必ず1回は回って再代入する。pinOp の経路では
+        // ここでの姿は**ピンを含まない**ので、この値のまま返してはいけない
+        // （ループの前に早期 return を足すときは注意）。
         let profile = mergeProfile(prev, userId, changes);
         let base = prev;
         let saved = false;
         let pinLimitHit = false;
+        // 上限で断るときに返す「今の一覧」。これを返さないと、手元が
+        // サーバーとずれているタブは断られ続けるだけで直せない。
+        let pinLimitCurrent: string[] = [];
         for (let attempt = 0; attempt <= PROFILE_WRITE_RETRIES; attempt++) {
             // ピン留めの増減は、**いま読んだ配列**の上で決める。
             // 再試行のたびに base が新しくなるので、ここで組み直す。
             if (pinOp) {
-                const nextPins = applyPinOp((base as { pinnedPhotoIds?: unknown } | null)?.pinnedPhotoIds);
-                if (nextPins === null) { pinLimitHit = true; break; }
+                const storedPins = (base as { pinnedPhotoIds?: unknown } | null)?.pinnedPhotoIds;
+                const nextPins = applyPinOp(storedPins);
+                if (nextPins === null) {
+                    pinLimitHit = true;
+                    pinLimitCurrent = Array.isArray(storedPins)
+                        ? storedPins.filter((x): x is string => typeof x === "string")
+                        : [];
+                    break;
+                }
                 changes.pinnedPhotoIds = nextPins.length > 0 ? nextPins : undefined;
             }
             const rev = typeof (base as { rev?: unknown } | null)?.rev === "number"
@@ -615,7 +630,12 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
             // 黙って落とさない。落とすと「ピン留めしました」と出て元どおりになる。
             // 予約だけ残さないのは下の !saved と同じ理由。
             if (usernameReserved) { await releaseUsername(usernameReserved, userId); }
-            return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({ error: "ピン留めは3枚までです" }) };
+            // 現在の一覧を添える。手元が古いまま断られ続けるのを断ち切る。
+            return {
+                statusCode: 409,
+                headers: JSON_HEADERS,
+                body: JSON.stringify({ error: "ピン留めは3枚までです", pinnedPhotoIds: pinLimitCurrent }),
+            };
         }
         if (!saved) {
             // **諦めたことを黙って飲み込まない。** ここで 200 を返すと

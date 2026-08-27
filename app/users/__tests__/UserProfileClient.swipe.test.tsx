@@ -7,10 +7,18 @@ vi.mock("next/dynamic", () => ({ default: () => () => <div data-testid="dynamic-
 vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "en" }) }));
 vi.mock("../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
 vi.mock("../../../lib/auth/cognito", () => ({ getCurrentSession: vi.fn().mockResolvedValue(null) }));
-vi.mock("../../../lib/utils/api", () => ({
-    publicFetch: vi.fn().mockResolvedValue({ ok: false }),
-    userFetch: vi.fn().mockResolvedValue({ ok: false }),
-}));
+// 実物から足りない export を引き継ぐ（loadError 側と同じ理由）。
+// userPublicFetch すらモックしていなかったが、この画面の経路では
+// 一度も読まれないので通っていただけ。
+vi.mock("../../../lib/utils/api", async (importActual) => {
+    const actual = await importActual<typeof import("../../../lib/utils/api")>();
+    return {
+        ...actual,
+        publicFetch: vi.fn().mockResolvedValue({ ok: false }),
+        userFetch: vi.fn().mockResolvedValue({ ok: false }),
+        userPublicFetch: vi.fn().mockResolvedValue({ ok: false }),
+    };
+});
 
 import UserProfileClient from "../UserProfileClient";
 

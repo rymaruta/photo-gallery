@@ -17,11 +17,19 @@ vi.mock("next/dynamic", () => ({ default: () => () => <div data-testid="dynamic-
 vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
 vi.mock("../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
 vi.mock("../../../lib/auth/cognito", () => ({ getCurrentSession: mockGetCurrentSession }));
-vi.mock("../../../lib/utils/api", () => ({
-    publicFetch: (...a: unknown[]) => mockPublicFetch(...a),
-    userFetch: (...a: unknown[]) => mockUserFetch(...a),
-    userPublicFetch: (...a: unknown[]) => mockUserPublicFetch(...a),
-}));
+// 実物から足りない export を引き継ぐ。列挙だけのモックだと、実装が
+// 新しく使い始めた export（readApiError など）を読んだ瞬間に vitest が
+// 投げ、それが呼び出し側の catch に飲まれて**緑のまま間違ったことを
+// 測るテスト**になる（UserProfileClient.pin.test.tsx と同じ形に揃える）。
+vi.mock("../../../lib/utils/api", async (importActual) => {
+    const actual = await importActual<typeof import("../../../lib/utils/api")>();
+    return {
+        ...actual,
+        publicFetch: (...a: unknown[]) => mockPublicFetch(...a),
+        userFetch: (...a: unknown[]) => mockUserFetch(...a),
+        userPublicFetch: (...a: unknown[]) => mockUserPublicFetch(...a),
+    };
+});
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 import UserProfileClient from "../UserProfileClient";

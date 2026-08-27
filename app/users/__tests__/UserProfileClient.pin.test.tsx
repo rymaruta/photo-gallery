@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 
 // ピン留めは「配列まるごと」を PUT していた。この画面はプロフィールを
 // 開いたときに1回読むだけなので、PC のタブを開いたままスマホでピン留めすると、
@@ -51,7 +51,7 @@ async function openAsOwner(profile: Record<string, unknown>) {
     mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => profile });
     mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
         if (init?.method === "PUT") {
-            return Promise.resolve({ ok: true, json: async () => ({ ...profile, pinnedPhotoIds: ["p9", "p1"] }) });
+            return Promise.resolve(reply(true, 200, { ...profile, pinnedPhotoIds: ["p9", "p1"] }));
         }
         return Promise.resolve({ ok: true, json: async () => [photo("p1"), photo("p2")] });
     });
@@ -66,6 +66,16 @@ beforeEach(() => {
     mockGetCurrentSession.mockReset();
     mockShowToast.mockReset();
 });
+
+/** json() と clone() を持つ最小の応答 */
+const reply = (ok: boolean, status: number, data: unknown) => {
+    const r = {
+        ok, status,
+        json: async () => data,
+        clone: () => reply(ok, status, data),
+    };
+    return r;
+};
 
 describe("ピン留めの送り方", () => {
     it("配列ではなく「どの1枚をどうするか」を送る", async () => {
@@ -95,7 +105,7 @@ describe("ピン留めの送り方", () => {
         mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ userId: ME, displayName: "旅人" }) });
         mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
             if (init?.method === "PUT") {
-                return Promise.resolve({ ok: true, json: async () => ({ userId: ME, pinnedPhotoIds: ["p2", "p1"] }) });
+                return Promise.resolve(reply(true, 200, { userId: ME, pinnedPhotoIds: ["p2", "p1"] }));
             }
             return Promise.resolve({ ok: true, json: async () => [photo("p1"), photo("p2")] });
         });
@@ -116,7 +126,7 @@ describe("ピン留めの送り方", () => {
         mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ userId: ME, displayName: "旅人" }) });
         mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
             if (init?.method === "PUT") {
-                return Promise.resolve({ ok: false, status: 409, json: async () => ({ error: "ピン留めは3枚までです" }) });
+                return Promise.resolve(reply(false, 409, { error: "ピン留めは3枚までです" }));
             }
             return Promise.resolve({ ok: true, json: async () => [photo("p1"), photo("p2")] });
         });
@@ -127,5 +137,91 @@ describe("ピン留めの送り方", () => {
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("ピン留めは3枚までです", "error"));
         // 見込みで付けた星は戻す
         await waitFor(() => expect(screen.queryAllByTitle("ピン留め解除")).toHaveLength(0));
+    });
+
+    // 手元が「3枚」と思い込んでいると、以前は**要求すら投げずに**断っていた。
+    // 別の端末で解除したあとのタブは、投げないので実態を知る機会が来ない
+    // ——リロードするまで正当な操作が黙って塞がれる。
+    it("手元が3枚でも投げる（上限の判定はサーバー）", async () => {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        mockUserPublicFetch.mockResolvedValue({
+            ok: true,
+            json: async () => ({ userId: ME, displayName: "旅人", pinnedPhotoIds: ["x1", "x2", "x3"] }),
+        });
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (init?.method === "PUT") return Promise.resolve(reply(true, 200, { pinnedPhotoIds: ["x1", "p1"] }));
+            return Promise.resolve({ ok: true, json: async () => [photo("p1"), photo("p2")] });
+        });
+        render(<UserProfileClient userId={ME} />);
+        await waitFor(() => expect(screen.getAllByTitle(/ピン留め/).length).toBeGreaterThan(0));
+        fireEvent.click(screen.getAllByTitle("先頭にピン留め")[0]);
+
+        await waitFor(() => expect(putBodies()).toHaveLength(1));
+        expect(putBodies()[0]).toEqual({ pinPhotoId: "p1", pin: true });
+    });
+
+    // 断られた回こそ同期する。上限の 409 は今の一覧を添えてくるので、
+    // 取り込まないと「星が1つも無いのに3枚までと言われる」まま直らない。
+    it("409 に添えられた一覧を取り込む", async () => {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ userId: ME, displayName: "旅人" }) });
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (init?.method === "PUT") {
+                return Promise.resolve(reply(false, 409, {
+                    error: "ピン留めは3枚までです",
+                    pinnedPhotoIds: ["p1", "p2", "x3"],
+                }));
+            }
+            return Promise.resolve({ ok: true, json: async () => [photo("p1"), photo("p2")] });
+        });
+        render(<UserProfileClient userId={ME} />);
+        await waitFor(() => expect(screen.getAllByTitle(/ピン留め/).length).toBeGreaterThan(0));
+        expect(screen.queryAllByTitle("ピン留め解除")).toHaveLength(0);
+
+        fireEvent.click(screen.getAllByTitle("先頭にピン留め")[0]);
+
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("ピン留めは3枚までです", "error"));
+        // 巻き戻しで終わらず、サーバーの一覧に揃う（p1・p2 が星）
+        await waitFor(() => expect(screen.getAllByTitle("ピン留め解除")).toHaveLength(2));
+    });
+});
+
+// ピン留めは連打できる。サーバーは「その要求が書いた時点の姿」を返すので、
+// 追い越して届いた古い応答をそのまま取り込むと、**サーバーには2枚あるのに
+// 画面は1枚**になり、リロードするまで直らない。
+describe("応答の追い越し", () => {
+    it("後から届いた古い応答で、新しい一覧を上書きしない", async () => {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ userId: ME, displayName: "旅人" }) });
+
+        let resolveFirst: (() => void) | null = null;
+        let putCount = 0;
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (init?.method !== "PUT") {
+                return Promise.resolve({ ok: true, json: async () => [photo("p1"), photo("p2")] });
+            }
+            putCount += 1;
+            if (putCount === 1) {
+                // 1本目（p1）は保留。あとで手動に返す
+                return new Promise((res) => {
+                    resolveFirst = () => res(reply(true, 200, { pinnedPhotoIds: ["p1"] }));
+                });
+            }
+            return Promise.resolve(reply(true, 200, { pinnedPhotoIds: ["p1", "p2"] }));
+        });
+
+        render(<UserProfileClient userId={ME} />);
+        await waitFor(() => expect(screen.getAllByTitle(/ピン留め/).length).toBeGreaterThan(0));
+
+        fireEvent.click(screen.getAllByTitle("先頭にピン留め")[0]);   // p1（応答は保留）
+        await waitFor(() => expect(putCount).toBe(1));
+        fireEvent.click(screen.getAllByTitle("先頭にピン留め")[0]);   // p2（先に返る）
+        await waitFor(() => expect(screen.getAllByTitle("ピン留め解除")).toHaveLength(2));
+
+        // ここで1本目が遅れて届く。中身は ["p1"]（1枚）
+        await act(async () => { resolveFirst!(); await Promise.resolve(); });
+
+        // 2枚のまま。追い越された応答は捨てる
+        await waitFor(() => expect(screen.getAllByTitle("ピン留め解除")).toHaveLength(2));
     });
 });

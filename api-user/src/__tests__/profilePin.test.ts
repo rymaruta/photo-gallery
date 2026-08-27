@@ -105,6 +105,15 @@ describe("ピン留めは増減で受け取る", () => {
         expect(commands.filter((c) => c.type === "Put")).toHaveLength(0);
     });
 
+    // 断るだけだと、手元がサーバーとずれているタブは直せない。
+    // 「星が1つも無いのに3枚までと言われる」まま何度でも同じことになる。
+    it("上限で断るときは、今の一覧を添えて返す", async () => {
+        mockSend.mockResolvedValueOnce(stored({ pinnedPhotoIds: ["a", "b", "c"], rev: 4 }));
+        const res = await invoke({ pinPhotoId: "d", pin: true });
+
+        expect(JSON.parse(res.body).pinnedPhotoIds).toEqual(["a", "b", "c"]);
+    });
+
     it("競合して読み直したら、**読み直した方**の配列に重ねる", async () => {
         mockSend
             .mockResolvedValueOnce(stored({ pinnedPhotoIds: [], rev: 4 }))          // 1回目の getProfile
