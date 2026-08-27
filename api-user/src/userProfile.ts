@@ -4,6 +4,7 @@ import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { JSON_HEADERS, getUserId } from "./http";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl, SONG_URL_MAX } from "./mediaHosts";
 import { requireEnv } from "./env";
+import { isDeletedProfile } from "./types";
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const USERS_TABLE = requireEnv("USERS_TABLE");
@@ -168,24 +169,6 @@ async function releaseUsername(username: string, ownerId: string): Promise<void>
     } catch {
         // 他人のものだった/既に無い場合は何もしない
     }
-}
-
-/**
- * 退会済みの印（墓石）が立っているか。
- *
- * 退会でプロフィール行を消すだけにしていた頃、**消したはずのアカウントが
- * 復活しえた**。API Gateway の JWT オーソライザは署名と exp しか見ないので、
- * Cognito のユーザーを消しても既に配ったトークンは期限まで通る。別の端末に
- * 残っていたタブが GET /user/profile を叩くと「行が無い人」に見え、
- * createProfileIfMissing が行を作り直す。作られた行は
- *  - follow.ts の実在判定を通すので、**消えた ID がフォローできる**
- *  - notifs# のゴミが積まれる
- *  - 誰も掃除しない
- * PostConfirmation の取りこぼしを救う仕組みが、退会の取り消しになっていた。
- * 「行が無い」と「消した」を区別できるようにする。
- */
-export function isDeletedProfile(p: unknown): boolean {
-    return typeof (p as { deletedAt?: unknown } | null)?.deletedAt === "string";
 }
 
 async function getProfile(userId: string): Promise<UserProfile | null> {

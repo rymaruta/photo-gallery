@@ -213,3 +213,55 @@ describe("searchUsers: 読み取りの使い回し", () => {
         expect(second.users.map((u: { userId: string }) => u.userId)).toEqual(["u2"]);
     });
 });
+
+// 退会は行を消さずに墓石（deletedAt を持つ行）を置く。
+// 検索の2つの入口のうち、@ハンドル完全一致は scoreUser を通さず
+// score 100 で確定するので、`username#<handle>` の予約行が消し漏れていると
+// **「名前未設定さん」の幽霊カード**が出た（退会の予約解放は best-effort で、
+// 一度失敗すると墓石に username が無いため解放しなおせない）。
+describe("退会済み（墓石）は検索に出さない", () => {
+    const TOMB = { userId: "gone", deletedAt: "2026-08-27T00:00:00.000Z" };
+
+    it("@ハンドル完全一致でも出さない（予約行が消し漏れていても）", async () => {
+        mockSend.mockImplementation((cmd: { kind: string; input: { Key?: Record<string, { S?: string }> } }) => {
+            if (cmd.kind === "get") {
+                const key = cmd.input.Key?.userId?.S ?? "";
+                // 予約行だけが残っている状態
+                if (key === "username#tabibito") return Promise.resolve({ Item: marshall({ userId: key, ownerId: "gone" }) });
+                if (key === "gone") return Promise.resolve({ Item: marshall(TOMB) });
+            }
+            return Promise.resolve({ Items: [] });
+        });
+        const res = await invoke(searchUsers, ev("tabibito"));
+
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).users).toEqual([]);
+    });
+
+    it("Scan 経路でも出さない", async () => {
+        mockSend.mockImplementation((cmd: { kind: string }) => {
+            if (cmd.kind === "scan") {
+                return Promise.resolve({ Items: [marshall({ ...TOMB, username: "tabibito", displayName: "旅人" })] });
+            }
+            return Promise.resolve({});
+        });
+        const res = await invoke(searchUsers, ev("旅"));
+
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).users).toEqual([]);
+    });
+
+    // Scan 側は射影した属性しか返らない。deletedAt を落とすと墓石か
+    // どうか判定できず、名前を持つ墓石（＝予約解放に失敗した人）が
+    // 検索に出る。式そのものを見ておく。
+    it("Scan は deletedAt まで射影する", async () => {
+        mockSend.mockImplementation((cmd: { kind: string }) => {
+            if (cmd.kind === "scan") return Promise.resolve({ Items: [] });
+            return Promise.resolve({});
+        });
+        await invoke(searchUsers, ev("旅"));
+
+        const scan = mockSend.mock.calls.map((c) => c[0]).find((cmd) => cmd?.kind === "scan");
+        expect(scan.input.ProjectionExpression).toContain("deletedAt");
+    });
+});

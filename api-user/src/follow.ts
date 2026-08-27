@@ -5,6 +5,7 @@ import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { pushNotification, lookupDisplayName } from "./notify";
 import { requireEnv } from "./env";
+import { isDeletedProfile } from "./types";
 
 const USERS_TABLE = requireEnv("USERS_TABLE");
 
@@ -35,10 +36,11 @@ async function userExists(userId: string): Promise<boolean | "unknown"> {
             Key: { userId },
             ProjectionExpression: "userId, deletedAt",
         }));
-        // 退会の墓石（deletedAt を持つ行）は「実在する」に数えない。
-        // 数えると、消えた ID をフォローできてしまう
-        // （userProfile.ts の isDeletedProfile と対）。
-        if (typeof res.Item?.deletedAt === "string") return false;
+        // 退会の墓石は「実在する」に数えない。数えると、消えた ID を
+        // フォローできてしまう。判定は types.ts に1か所だけ置く
+        // （上の ProjectionExpression から deletedAt を外すと、この行は
+        //  常に false になって黙って死ぬ——そこもテストで固定してある）。
+        if (isDeletedProfile(res.Item)) return false;
         if (res.Item) return true;
         // 行が無い＝存在しない、ではない。PostConfirmation トリガーが
         // 失敗した人・トリガー導入前に登録した人には最初から行が無く、

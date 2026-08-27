@@ -25,7 +25,8 @@ vi.mock("@aws-sdk/client-dynamodb", () => {
     };
 });
 
-const { getMyProfile, updateMyProfile, getPublicProfile, isDeletedProfile } = await import("../userProfile");
+const { getMyProfile, updateMyProfile, getPublicProfile } = await import("../userProfile");
+const { isDeletedProfile } = await import("../types");
 
 type Result = { statusCode: number; body: string };
 const authed = (handler: unknown, body?: unknown): Promise<Result> =>

@@ -363,8 +363,11 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         //
         // ttl は DynamoDB の TTL 用（epoch 秒）。**このテーブルの TTL は
         // まだ有効化していない**ので、今のところ墓石は消えない。userId だけの
-        // 小さな行なので当面はそれでよい。掃除したくなったら
-        // `aws dynamodb update-time-to-live --table-name <users>         //   --time-to-live-specification "Enabled=true,AttributeName=ttl"`。
+        // 小さな行なので当面はそれでよい。掃除したくなったら、
+        // テーブルの TTL を1回だけ有効にする:
+        //   aws dynamodb update-time-to-live \
+        //     --table-name prod-photo-gallery-users \
+        //     --time-to-live-specification "Enabled=true,AttributeName=ttl"
         const deletedAt = new Date();
         await ddb.send(new PutCommand({
             TableName: USERS_TABLE,

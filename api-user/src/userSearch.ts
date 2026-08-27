@@ -8,9 +8,11 @@ import { DynamoDBClient, GetItemCommand, ScanCommand } from "@aws-sdk/client-dyn
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { JSON_HEADERS } from "./http";
 import { requireEnv } from "./env";
+import { isDeletedProfile } from "./types";
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const USERS_TABLE = requireEnv("USERS_TABLE");
+
 
 /** 検索結果1件。プロフィール全体ではなく、一覧に必要な項目だけ返す。 */
 export type UserSearchHit = {
@@ -56,6 +58,15 @@ function isReservationItem(userId: unknown): boolean {
 function toHit(item: Record<string, unknown>): UserSearchHit | null {
     const userId = item.userId;
     if (typeof userId !== "string" || !userId || isReservationItem(userId)) return null;
+    // 退会済み（墓石）は出さない。
+    //
+    // Scan 経路は scoreUser が 0 を返すので**たまたま**出なかったが、
+    // @ハンドル完全一致の経路（下の GetItemCommand 2段）は scoreUser を
+    // 通さず score 100 で確定するため、`username#<handle>` の予約行が
+    // 消し漏れていると**「名前未設定さん」の幽霊カード**が出た
+    // （退会の予約解放は best-effort で、一度失敗すると解放しなおせない）。
+    // 両方の入口が通るここで止める。
+    if (isDeletedProfile(item)) return null;
     return {
         userId,
         ...(typeof item.username === "string" ? { username: item.username } : {}),
@@ -144,7 +155,7 @@ export const searchUsers: APIGatewayProxyHandlerV2 = async (event) => {
                 const scan = await ddb.send(new ScanCommand({
                     TableName: USERS_TABLE,
                     Limit: SCAN_PAGE_SIZE,
-                    ProjectionExpression: "userId, username, displayName, bio, themeColor",
+                    ProjectionExpression: "userId, username, displayName, bio, themeColor, deletedAt",
                     FilterExpression: "NOT begins_with(userId, :reserved)",
                     ExpressionAttributeValues: marshall({ ":reserved": "username#" }),
                     ...(lastKey ? { ExclusiveStartKey: lastKey } : {}),

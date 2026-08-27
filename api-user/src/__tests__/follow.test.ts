@@ -719,6 +719,23 @@ describe("フォローの実在判定: users 行が無い人", () => {
             .filter((cmd) => cmd?.constructor?.name === "QueryCommand")).toHaveLength(0);
     });
 
+    // **射影に deletedAt が無いと、上の判定は本番で常に false になる。**
+    // DynamoDB は射影した属性しか返さないため。ところがテストのモックは
+    // 射影を無視して Item をそのまま返すので、`ProjectionExpression` を
+    // "userId" に戻しても墓石のテストは緑のまま通ってしまう（実測）。
+    // 「実装を消しても通るテスト」の再発形なので、式そのものを見る。
+    it("実在判定は deletedAt まで射影する（射影から漏れると判定が死ぬ）", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({ Item: { userId: OTHER } });
+            return Promise.resolve({});
+        });
+        await invoke(followUser, ev(ME, OTHER));
+
+        const get = mockDdbSend.mock.calls.map((c) => c[0])
+            .find((cmd) => cmd?.constructor?.name === "GetCommand");
+        expect(get.input.ProjectionExpression).toContain("deletedAt");
+    });
+
     it("行も写真も無ければ今までどおり 404（でたらめな UUID でゴミを作らせない）", async () => {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
             const name = cmd.constructor.name;
