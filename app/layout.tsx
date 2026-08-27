@@ -164,6 +164,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           キャッシュ全消し）には最大3秒かかり、その間に水和が終わることがある。
           無条件に再読込していたので、**遅い回線で入力中の内容が消えた**
           （アップロード画面のタイトル・キャプション）。間に合ったなら戻さない。
+          **オフラインでは発火させない。** 通信が無いのに水和しないのは異常では
+          ないうえ、ここで Cache Storage を全消しして SW を解除すると
+          **オフライン機能ごと消えて、そのままブラウザのエラー画面**になる
+          （オフラインなので再登録も控えの取り直しもできない）。
+          `navigator.onLine` は true が当てにならない一方、false は信用してよい。
           クールダウンの控えは **sessionStorage**（＝タブごと）。localStorage に
           置いていた頃は全タブで共有だったので、1つのタブが自己修復すると、
           同じく壊れている2つ目以降のタブは最大10分そのまま操作できなかった
@@ -173,7 +178,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var K="jp_hydrate_recover_at";function reheal(){try{if(document.documentElement.getAttribute("data-hydrated")==="1")return;var now=Date.now(),last=0;try{last=Number(sessionStorage.getItem(K)||0)}catch(e){}if(last&&now-last<600000)return;try{sessionStorage.setItem(K,String(now))}catch(e){}var done=false,go=function(){if(done)return;done=true;if(document.documentElement.getAttribute("data-hydrated")==="1")return;location.reload()};var ps=[];try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations){ps.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}).catch(function(){}))}}catch(e){}try{if(window.caches&&caches.keys){ps.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}).catch(function(){}))}}catch(e){}Promise.all(ps).then(go,go);setTimeout(go,3000)}catch(e){}}addEventListener("load",function(){setTimeout(reheal,12000)})}catch(e){}})();`,
+            __html: `(function(){try{var K="jp_hydrate_recover_at";function reheal(){try{if(document.documentElement.getAttribute("data-hydrated")==="1")return;if(navigator.onLine===false)return;var now=Date.now(),last=0;try{last=Number(sessionStorage.getItem(K)||0)}catch(e){}if(last&&now-last<600000)return;try{sessionStorage.setItem(K,String(now))}catch(e){}var done=false,go=function(){if(done)return;done=true;if(document.documentElement.getAttribute("data-hydrated")==="1")return;location.reload()};var ps=[];try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations){ps.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}).catch(function(){}))}}catch(e){}try{if(window.caches&&caches.keys){ps.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}).catch(function(){}))}}catch(e){}Promise.all(ps).then(go,go);setTimeout(go,3000)}catch(e){}}addEventListener("load",function(){setTimeout(reheal,12000)})}catch(e){}})();`,
           }}
         />
       </head>

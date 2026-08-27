@@ -22,6 +22,8 @@ let reloads = 0;
 
 beforeEach(() => {
     vi.useFakeTimers();
+    // 既定はオンライン（jsdom の navigator.onLine は true）
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
     reloads = 0;
     localStorage.clear();
     sessionStorage.clear();
@@ -124,6 +126,28 @@ describe("後片付けの最中に水和が終わったら", () => {
         release();
         await vi.advanceTimersByTimeAsync(3_100);
 
+        expect(reloads).toBe(1);
+    });
+});
+
+
+// **オフラインでは発火させない。** 通信が無いのに水和しないのは異常ではない
+// うえ、ここで Cache Storage を全消しして SW を解除すると**オフライン機能
+// ごと消えて、そのままブラウザのエラー画面**になる（オフラインなので
+// 再登録も控えの取り直しもできない）。Service Worker が受け皿を持つように
+// なって初めて意味を持つ歯止め。
+describe("オフラインのとき", () => {
+    it("再読込も後片付けもしない", async () => {
+        Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+        await runWatchdog();
+
+        expect(reloads).toBe(0);
+        // クールダウンの控えも書かない（オンラインに戻ったとき1回目として扱う）
+        expect(sessionStorage.getItem("jp_hydrate_recover_at")).toBeNull();
+    });
+
+    it("オンラインなら今までどおり発火する", async () => {
+        await runWatchdog();
         expect(reloads).toBe(1);
     });
 });
