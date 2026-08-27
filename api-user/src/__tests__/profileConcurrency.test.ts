@@ -222,3 +222,45 @@ describe("保存に失敗したらユーザー名の予約を戻す", () => {
         expect(usernameDeletes()).not.toContain("username#keepme");
     });
 });
+
+
+// PostConfirmation トリガーが失敗した人・トリガー導入前の人は USERS_TABLE に
+// 行が無く、**誰からもフォローできなかった**（follow.ts の実在判定）。
+// 本人が自分のプロフィールを開いた時点で行を作り、そこから回復させる。
+describe("getMyProfile: 行が無ければ作る（トリガー失敗からの自己回復）", () => {
+    const putsToUsers = () => commands.filter((c) => c.type === "Put").map((c) => c.input);
+
+    it("行が無ければ作る（空でよい）", async () => {
+        mockSend
+            .mockResolvedValueOnce({})    // getProfile: 行なし
+            .mockResolvedValueOnce({});   // createProfileIfMissing の Put
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const res = await (getMyProfile as any)({
+            requestContext: { authorizer: { jwt: { claims: { sub: "u1" } } } },
+        });
+        expect(res.statusCode).toBe(200);
+        const put = putsToUsers().at(-1)!;
+        expect(put.ConditionExpression).toBe("attribute_not_exists(userId)");
+        expect((put.Item as Record<string, { S?: string }>).userId.S).toBe("u1");
+    });
+
+    it("行があれば書かない（毎回の遷移で無駄な書き込みをしない）", async () => {
+        mockSend.mockResolvedValueOnce(profileItem({ displayName: "旅人" }));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (getMyProfile as any)({
+            requestContext: { authorizer: { jwt: { claims: { sub: "u1" } } } },
+        });
+        expect(putsToUsers()).toHaveLength(0);
+    });
+
+    it("作成が競合しても 200（既にある＝正常）", async () => {
+        mockSend
+            .mockResolvedValueOnce({})
+            .mockImplementationOnce(() => Promise.reject(condFail()));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const res = await (getMyProfile as any)({
+            requestContext: { authorizer: { jwt: { claims: { sub: "u1" } } } },
+        });
+        expect(res.statusCode).toBe(200);
+    });
+});

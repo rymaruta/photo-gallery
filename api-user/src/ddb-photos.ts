@@ -17,6 +17,37 @@ export async function putPhoto(photo: Photo): Promise<void> {
 }
 
 /**
+ * その userId の項目（写真・下書き・ストーリー）が1件でもあるか。
+ *
+ * フォローの実在判定で使う。USERS_TABLE の行だけを見ていた頃は、
+ * PostConfirmation トリガーが失敗した人・トリガー導入前に登録した人が
+ * **誰からもフォローできなかった**（プロフィールページは 200 で普通に
+ * 開き、ボタンも出るので、押して初めて 404 になる）。何か上げている人は
+ * 明らかに実在するので、その手がかりも見る。
+ *
+ * **絞り込みは意図的に付けていない。** 下のcountUserPhotos は
+ * ストーリーを外すが、こちらは「実在の証拠」を探しているだけなので
+ * ストーリーでも下書きでも構わない（ストーリーは24時間で消えるため、
+ * それだけの人は救済が揺れるが、救えるときに救う方を採る）。
+ *
+ * **FilterExpression を足すなら Limit を外してページングすること。**
+ * DynamoDB は Limit をフィルタ**適用前**に評価するので、絞り込みを
+ * 足したまま Limit 1 にすると「最新の1件がストーリーだった人は
+ * 写真があっても 0 件」になり、この修正が壊れる。
+ */
+export async function hasAnyUserItem(userId: string): Promise<boolean> {
+    const res = await ddb.send(new QueryCommand({
+        TableName: PHOTOS_TABLE,
+        IndexName: USER_INDEX,
+        KeyConditionExpression: "userId = :uid",
+        ExpressionAttributeValues: { ":uid": userId },
+        Limit: 1,
+        Select: "COUNT",
+    }));
+    return (res.Count ?? 0) > 0;
+}
+
+/**
  * 100枚制限の判定に使う「その人の写真の枚数」。
  *
  * 以前は Query 1回の Count をそのまま返していた。DynamoDB の Query は
@@ -30,28 +61,6 @@ export async function putPhoto(photo: Photo): Promise<void> {
  * 実装はそうなっておらず、実装の方が正しかった。
  * 次に読む人が「コメントどおりに直す」と穴が開くので、ここを直した。
  */
-/**
- * その userId の写真（またはストーリー）が1件でもあるか。
- *
- * フォローの実在判定で使う。USERS_TABLE の行だけを見ていた頃は、
- * PostConfirmation トリガーが失敗した人・トリガー導入前に登録した人が
- * **誰からもフォローできなかった**（プロフィールページは 200 で普通に
- * 開き、ボタンも出るので、押して初めて 404 になる）。
- * 写真を上げている人は明らかに実在するので、その手がかりも見る。
- * 1件見つければ十分なので Limit 1。
- */
-export async function hasAnyPhoto(userId: string): Promise<boolean> {
-    const res = await ddb.send(new QueryCommand({
-        TableName: PHOTOS_TABLE,
-        IndexName: USER_INDEX,
-        KeyConditionExpression: "userId = :uid",
-        ExpressionAttributeValues: { ":uid": userId },
-        Limit: 1,
-        Select: "COUNT",
-    }));
-    return (res.Count ?? 0) > 0;
-}
-
 export async function countUserPhotos(userId: string): Promise<number> {
     let count = 0;
     let lastKey: Record<string, unknown> | undefined;

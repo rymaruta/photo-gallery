@@ -687,6 +687,17 @@ describe("フォローの実在判定: users 行が無い人", () => {
         expect(q.input.Select).toBe("COUNT");
     });
 
+    it("写真の確認そのものが落ちたら 503（404 と混ぜない・何も書かない）", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({});
+            if (cmd.constructor.name === "QueryCommand") return Promise.reject(new Error("throttled"));
+            return Promise.resolve({});
+        });
+        const res = await invoke(followUser, ev(ME, OTHER));
+        expect(res.statusCode).toBe(503);
+        expect(transactItems()).toHaveLength(0);
+    });
+
     it("行も写真も無ければ今までどおり 404（でたらめな UUID でゴミを作らせない）", async () => {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
             const name = cmd.constructor.name;

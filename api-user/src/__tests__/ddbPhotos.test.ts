@@ -13,7 +13,7 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 
-const { putPhoto, countUserPhotos } = await import("../ddb-photos");
+const { putPhoto, countUserPhotos, hasAnyUserItem } = await import("../ddb-photos");
 
 beforeEach(() => mockSend.mockReset().mockResolvedValue({}));
 
@@ -70,5 +70,38 @@ describe("listMyMediaItems", () => {
         const query = mockSend.mock.calls.at(-1)![0];
         expect(query.input.FilterExpression).toBe("attribute_exists(src)");
         expect(query.input.FilterExpression).not.toContain("story");
+    });
+});
+
+// フォローの実在判定に使う。どこに何を聞いているかを関数の直下で固定する
+// （follow.test.ts のモックは QueryCommand なら何でも返すので、索引名や
+// キー条件を壊しても気づけなかった——レビューが変異で実測）。
+describe("hasAnyUserItem", () => {
+    const lastInput = () => (mockSend.mock.calls.at(-1)![0] as { input: Record<string, unknown> }).input;
+
+    it("GSI に userId で聞く（Limit 1・件数だけ）", async () => {
+        mockSend.mockResolvedValue({ Count: 1 });
+        expect(await hasAnyUserItem("u1")).toBe(true);
+        const input = lastInput();
+        expect(input.TableName).toBe("photos-test");
+        expect(input.IndexName).toBe("userId-createdAt-index");
+        expect(input.KeyConditionExpression).toBe("userId = :uid");
+        expect((input.ExpressionAttributeValues as Record<string, unknown>)[":uid"]).toBe("u1");
+        expect(input.Limit).toBe(1);
+        expect(input.Select).toBe("COUNT");
+    });
+
+    it("1件も無ければ false", async () => {
+        mockSend.mockResolvedValue({ Count: 0 });
+        expect(await hasAnyUserItem("u1")).toBe(false);
+    });
+
+    // **countUserPhotos との意図的な差。** あちらはストーリーを外すが、
+    // こちらは「実在の証拠」を探しているだけなので絞り込みを付けない。
+    // 付けるなら Limit を外すこと（Limit はフィルタ適用前に効く）。
+    it("絞り込みを付けない（ストーリーや下書きでも実在とみなす）", async () => {
+        mockSend.mockResolvedValue({ Count: 1 });
+        await hasAnyUserItem("u1");
+        expect(lastInput().FilterExpression).toBeUndefined();
     });
 });

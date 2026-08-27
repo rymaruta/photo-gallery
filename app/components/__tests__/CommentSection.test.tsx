@@ -22,6 +22,8 @@ vi.mock("../../../lib/utils/api", async () => {
         publicFetch: vi.fn(),
         authenticatedFetch: vi.fn(),
         readApiError: actual.readApiError,
+        // 本物を使う（サーバー由来の 404 だけを「もう無い」と読む判定そのもの）
+        isGoneResponse: actual.isGoneResponse,
     };
 });
 
@@ -156,19 +158,57 @@ describe("CommentSection: 削除の失敗", () => {
 // 戻り**、「削除できませんでした」と出て、何度押しても同じことが起きた。
 // 消えているなら目的は達成しているので、成功として扱う（CT-5）。
 describe("CommentSection: 別タブで先に消されていた（404）", () => {
-    it("消えたものは一覧に戻さず、失敗のトーストも出さない", async () => {
-        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({
-            items: [{ id: "c1", uid: "me", name: "自分", text: "消したい", t: "2026-08-23T00:00:00Z" }],
-            count: 1,
-        }) });
-        mockUserFetch.mockResolvedValue({ ok: false, status: 404, json: async () => ({ error: "コメントが見つかりません" }) });
+    it("消えたものは一覧に戻さず、取り直して収束する", async () => {
+        // 1回目の一覧は残っている → 削除は 404（別タブが先に消した）
+        // → 取り直すと本当に無い、という現実の順序を再現する
+        mockUserPublicFetch
+            .mockResolvedValueOnce({ ok: true, json: async () => ({
+                items: [{ id: "c1", uid: "me", name: "自分", text: "消したい", t: "2026-08-23T00:00:00Z" }],
+                count: 1,
+            }) })
+            .mockResolvedValue({ ok: true, json: async () => ({ items: [], count: 0 }) });
+        const gone = { error: "コメントが見つかりません" };
+        mockUserFetch.mockResolvedValue({
+            ok: false, status: 404,
+            clone: () => ({ json: async () => gone }),
+            json: async () => gone,
+        });
 
         render(<CommentSection photoId="p1" locale="ja" photoOwnerId="me" />);
         expect(await screen.findByText("消したい")).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole("button", { name: "コメントを削除" }));
         await waitFor(() => expect(screen.queryByText("消したい")).toBeNull());
+        // **落ち着いてから見る。** 楽観削除で一瞬消えた窓を waitFor が拾うので、
+        // ここで確かめないと巻き戻す実装でも通ってしまう（レビューが実測）
+        await new Promise((r) => setTimeout(r, 50));
+        expect(screen.queryByText("消したい")).toBeNull();
         expect(mockShowToast).not.toHaveBeenCalledWith(
             expect.stringContaining("削除できませんでした"), "error");
+    });
+});
+
+// ベースURLの設定ミスで API Gateway が返す 404（{"message":"Not Found"}）まで
+// 成功にすると、消せていないのに「削除しました」になる。うちの API は理由を
+// 必ず {error: "…"} で返すので、それだけを「もう無い」と読む。
+describe("CommentSection: 設定ミスの 404 は成功にしない", () => {
+    it("API Gateway 形式の 404 は失敗として扱う", async () => {
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({
+            items: [{ id: "c1", uid: "me", name: "自分", text: "消したい", t: "2026-08-23T00:00:00Z" }],
+            count: 1,
+        }) });
+        mockUserFetch.mockResolvedValue({
+            ok: false, status: 404,
+            clone: () => ({ json: async () => ({ message: "Not Found" }) }),
+            json: async () => ({ message: "Not Found" }),
+        });
+
+        render(<CommentSection photoId="p1" locale="ja" photoOwnerId="me" />);
+        expect(await screen.findByText("消したい")).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "コメントを削除" }));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
+            expect.stringContaining("削除できませんでした"), "error"));
+        expect(screen.getByText("消したい")).toBeInTheDocument();   // 巻き戻る
     });
 });

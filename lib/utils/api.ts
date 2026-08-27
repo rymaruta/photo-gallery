@@ -119,6 +119,26 @@ export const AUTH_REQUIRED_MESSAGE = "認証が必要です。ログインして
 /** 期限切れトークンで API Gateway が返す 401 定型に対する置き換え文言 */
 export const SESSION_EXPIRED_MESSAGE = "セッションの有効期限が切れています。ログインし直してください";
 
+/**
+ * 「消そうとしたものが既に無い」＝目的は達成、と読める 404 か。
+ *
+ * **サーバーが返した 404 だけ**を成功として扱う。ベースURLの設定ミスで
+ * API Gateway が返す 404（ルートが無い）まで飲むと、削除できていないのに
+ * 「削除しました」と出る——このファイルの getUserApiBaseUrl のコメントが
+ * 警告している踏み方そのもの。うちの API は理由を必ず日本語の
+ * `{ error: ... }` で返す（api-user/src/http.ts の jsonError）ので、
+ * それを目印にする。API Gateway は `{ message: "Not Found" }`。
+ */
+export async function isGoneResponse(res: Response): Promise<boolean> {
+    if (res.status !== 404) return false;
+    try {
+        const data = await res.clone().json() as { error?: unknown };
+        return typeof data.error === "string" && data.error.length > 0;
+    } catch {
+        return false;   // JSON でない＝うちの API の応答ではない
+    }
+}
+
 export async function readApiError(res: Response, fallback: string): Promise<string> {
     let msg = "";
     try {

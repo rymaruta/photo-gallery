@@ -11,11 +11,17 @@ vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: 
 
 // /stories 取得（ユーザーAPI）をモック
 const mockUserFetch = vi.hoisted(() => vi.fn());
-vi.mock("../../../../lib/utils/api", () => ({
-    userFetch: (...a: unknown[]) => mockUserFetch(...a),
-    authenticatedFetch: vi.fn(),
-    publicFetch: vi.fn(),
-}));
+vi.mock("../../../../lib/utils/api", async () => {
+    const actual = await vi.importActual<typeof import("../../../../lib/utils/api")>("../../../../lib/utils/api");
+    return {
+        userFetch: (...a: unknown[]) => mockUserFetch(...a),
+        authenticatedFetch: vi.fn(),
+        publicFetch: vi.fn(),
+        readApiError: actual.readApiError,
+        // 本物を使う（サーバー由来の 404 だけを「もう無い」と読む判定そのもの）
+        isGoneResponse: actual.isGoneResponse,
+    };
+});
 
 import StoriesBar from "../StoriesBar";
 
@@ -101,8 +107,13 @@ describe("StoriesBar - 削除したら 404 だった", () => {
         };
         mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
             if (init?.method === "DELETE") {
-                // 別タブが先に消していた
-                return Promise.resolve({ ok: false, status: 404, json: async () => ({ error: "ストーリーが見つかりません" }) });
+                // 別タブが先に消していた（サーバーが返す 404）
+                const gone = { error: "ストーリーが見つかりません" };
+                return Promise.resolve({
+                    ok: false, status: 404,
+                    clone: () => ({ json: async () => gone }),
+                    json: async () => gone,
+                });
             }
             if (url === "/stories") {
                 // 削除を投げたあとの取り直しでは、もう無い
@@ -126,5 +137,43 @@ describe("StoriesBar - 削除したら 404 だった", () => {
                 (c) => c[0] === "/stories" && (c[1] as { method?: string } | undefined)?.method !== "DELETE");
             expect(listCalls.length).toBeGreaterThan(1);
         });
+    });
+});
+
+// 「404 だけ」を緩めたことを測る。あらゆる失敗を成功扱いにする変異
+// （if (false) throw）でも通っていた（レビューが実測）。
+describe("StoriesBar - 削除が 500 で失敗した", () => {
+    it("従来どおり失敗として伝え、取り直しに進まない", async () => {
+        authState.current = { isAuthenticated: true, userId: "me" };
+        const mine = {
+            id: "s1", src: "https://cdn/a.jpg", userId: "me", displayName: "自分",
+            createdAt: "2098-01-01T00:00:00Z", expiresAt: "2099-01-01T00:00:00Z",
+        };
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (init?.method === "DELETE") {
+                return Promise.resolve({
+                    ok: false, status: 500,
+                    clone: () => ({ json: async () => ({}) }),
+                    json: async () => ({}),
+                });
+            }
+            if (url === "/stories") return Promise.resolve({ ok: true, json: async () => [mine] });
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+
+        render(<StoriesBar />);
+        fireEvent.click(await screen.findByRole("button", { name: "自分のストーリーを見る" }));
+        fireEvent.click(await screen.findByRole("button", { name: "ストーリーを削除" }));
+        fireEvent.click(await screen.findByRole("button", { name: "削除" }));
+
+        await waitFor(() => {
+            const deletes = mockUserFetch.mock.calls.filter(
+                (c) => (c[1] as { method?: string } | undefined)?.method === "DELETE");
+            expect(deletes).toHaveLength(1);
+        });
+        // 取り直していない（成功として扱っていない）
+        const listCalls = mockUserFetch.mock.calls.filter(
+            (c) => c[0] === "/stories" && (c[1] as { method?: string } | undefined)?.method !== "DELETE");
+        expect(listCalls).toHaveLength(1);
     });
 });

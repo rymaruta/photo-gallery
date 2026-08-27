@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { userPublicFetch, userFetch } from "../utils/api";
+import { userPublicFetch, userFetch, isGoneResponse } from "../utils/api";
 import { log } from "../utils/log";
 
 // 写真コメント。公開読み取り + 認証投稿/削除。楽観更新は最小限（投稿は成功後に反映）。
@@ -128,7 +128,12 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
             // 同じことが起きた（リロードするまで直らない）。
             // サーバー自身も、再試行の途中で消えた場合は成功扱いにしている
             // （api-user/src/comments.ts の gone）。入口だけ厳しかった。
-            if (res.status === 404) return true;
+            if (await isGoneResponse(res)) {
+                // 手元の一覧が古い合図でもある。取り直して収束させる
+                // （ストーリー側は loadStories() で同じことをしている）
+                reload();
+                return true;
+            }
             if (!res.ok) throw new Error(String(res.status));
             return true;
         } catch (e) {

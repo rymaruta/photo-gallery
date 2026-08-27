@@ -16,6 +16,8 @@ vi.mock("../../utils/api", async () => {
         publicFetch: vi.fn(),
         authenticatedFetch: vi.fn(),
         readApiError: actual.readApiError,
+        // 本物を使う（サーバー由来の 404 だけを「もう無い」と読む判定そのもの）
+        isGoneResponse: actual.isGoneResponse,
     };
 });
 

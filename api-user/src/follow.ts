@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandlerV2, APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
-import { hasAnyPhoto } from "./ddb-photos";
+import { hasAnyUserItem } from "./ddb-photos";
 import { PutCommand, UpdateCommand, GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
@@ -41,7 +41,7 @@ async function userExists(userId: string): Promise<boolean | "unknown"> {
         // **誰からもフォローできなかった**（プロフィールページは 200 で
         // 開き、ボタンも出るので押して初めて 404 になり、相手にも本人にも
         // 直す手段が無い）。写真を上げているなら明らかに実在する。
-        return await hasAnyPhoto(userId);
+        return await hasAnyUserItem(userId);
     } catch (e) {
         console.error("userExists error:", e);
         return "unknown";
