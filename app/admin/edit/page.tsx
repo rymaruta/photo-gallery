@@ -11,6 +11,7 @@ import type { Photo, LocalizedParagraphs } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
 import { toDateInputValue, mergeDate } from "../../../lib/utils/dateInput";
+import { changedFields } from "../../../lib/utils/changedFields";
 
 // text-base（16px）にする。iOS Safari は 16px 未満の入力欄にフォーカスすると
 // ページを拡大し、blur しても戻さない。他のページでは inline style で
@@ -192,23 +193,43 @@ function AdminEditContent() {
             const descJaParagraphs = descJa.split("\n").map((s) => s.trim()).filter(Boolean);
             const descEnParagraphs = descEn.split("\n").map((s) => s.trim()).filter(Boolean);
 
+            // **実際に変えた項目だけ送る**（/user/edit と同じ理由）。
+            // 開いた時点の値を毎回全部送っていたので、同じ写真を2タブで開いて
+            // 片方で直したあと、もう片方で保存すると先の編集が消えた。
+            // こちらは exif も丸ごと送っていたので、撮影日時や画像サイズまで
+            // 古い姿に巻き戻っていた。空文字は「クリアの意思」なので送る
+            // （undefined はキーごと落ちて「触らない」になる——下のコメント参照）。
+            const nextFields: Record<string, unknown> = {
+                title: { ja: titleJa, en: titleEn },
+                description: { ja: descJaParagraphs, en: descEnParagraphs },
+                // 空文字で送る。undefined だと JSON.stringify がキーごと落とし、
+                // サーバーの部分更新が「指定なし＝触らない」と解釈するため、
+                // 一度入れた場所やカテゴリを空にできなかった。
+                location,
+                category,
+                // 日付だけ編集させているので、元の値が持っていた時刻は戻す
+                // （落とすと同じ日に撮った写真の並びが崩れる）
+                date: mergeDate(photo?.date, date),
+                tags,
+                exif,
+            };
+            const prevTitle = photo?.title;
+            const originalFields: Record<string, unknown> = {
+                title: typeof prevTitle === "object" && prevTitle !== null
+                    ? prevTitle
+                    : { ja: typeof prevTitle === "string" ? prevTitle : "", en: "" },
+                description: photo?.description,
+                location: photo?.location ?? "",
+                category: photo?.category ?? "",
+                date: photo?.date ?? "",
+                tags: Array.isArray(photo?.tags) ? photo.tags : [],
+                exif: photo?.exif,
+            };
+            const body = { published, ...changedFields(nextFields, originalFields) };
+
             const res = await authenticatedFetch(`/photos/${photoId}`, {
                 method: "PUT",
-                body: JSON.stringify({
-                    title: { ja: titleJa, en: titleEn },
-                    description: { ja: descJaParagraphs, en: descEnParagraphs },
-                    // 空文字で送る。undefined だと JSON.stringify がキーごと落とし、
-                    // サーバーの部分更新が「指定なし＝触らない」と解釈するため、
-                    // 一度入れた場所やカテゴリを空にできなかった。
-                    location,
-                    category,
-                    // 日付だけ編集させているので、元の値が持っていた時刻は戻す
-                    // （落とすと同じ日に撮った写真の並びが崩れる）
-                    date: mergeDate(photo?.date, date),
-                    tags,
-                    published,
-                    exif,
-                }),
+                body: JSON.stringify(body),
             });
 
             if (res.ok) {

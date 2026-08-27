@@ -11,6 +11,7 @@ import type { Photo, LocalizedParagraphs } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
 import { toDateInputValue, mergeDate } from "../../../lib/utils/dateInput";
+import { changedFields } from "../../../lib/utils/changedFields";
 
 const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
 const labelCls = "block text-sm text-white/60 mb-1";
@@ -143,19 +144,34 @@ function EditContent() {
         try {
             const { userFetch } = await import("../../../lib/utils/api");
             const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
+            // **実際に変えた項目だけ送る。**
+            // 開いた時点の値を毎回全部送っていたので、同じ写真を2タブで開いて
+            // 片方で直したあと、もう片方で保存すると**先の編集が黙って消えた**
+            // （サーバーは部分更新だが、こちらが全項目を送れば同じこと）。
+            // published はボタンの選択そのものなので常に送る。
+            const nextFields: Record<string, unknown> = {
+                // 英語側が入っていれば残したまま日本語だけ差し替える
+                title: mergeLocalizedTitle(original?.title, title),
+                description: mergeLocalizedDescription(original?.description, description),
+                location,
+                category,
+                // 日付だけを編集させているので、元の時刻を保つ
+                date: mergeDate(original?.date, date),
+                tags,
+            };
+            const originalFields: Record<string, unknown> = {
+                title: original?.title,
+                description: original?.description,
+                location: original?.location ?? "",
+                category: original?.category ?? "",
+                date: original?.date ?? "",
+                tags: Array.isArray(original?.tags) ? original.tags : [],
+            };
+            const body = { published, ...changedFields(nextFields, originalFields) };
+
             const res = await userFetch(`/photos/${photoId}`, {
                 method: "PUT",
-                body: JSON.stringify({
-                    // 英語側が入っていれば残したまま日本語だけ差し替える
-                    title: mergeLocalizedTitle(original?.title, title),
-                    description: mergeLocalizedDescription(original?.description, description),
-                    location,
-                    category,
-                    // 日付だけを編集させているので、元の時刻を保つ
-                    date: mergeDate(original?.date, date),
-                    tags,
-                    published,
-                }),
+                body: JSON.stringify(body),
             });
             if (res.ok) {
                 showToast(

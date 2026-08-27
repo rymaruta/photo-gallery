@@ -100,17 +100,20 @@ describe("/admin/edit: 遅れて届いた別の写真の応答", () => {
         expect(screen.queryByDisplayValue("Aのタイトル")).toBeNull();
     });
 
-    it("読み込めていれば普通に保存できる（今までの動きを壊していない）", async () => {
+    it("読み込めていれば普通に保存できる（変えた項目が正しい写真へ届く）", async () => {
         render(<EditPage />);
-        await screen.findByDisplayValue("Aのタイトル");
+        const input = await screen.findByDisplayValue("Aのタイトル");
+        await userEvent.clear(input);
+        await userEvent.type(input, "直したタイトル");
 
         await userEvent.click(screen.getByRole("button", { name: /保存/ }));
 
         await waitFor(() => expect(putCalls()).toHaveLength(1));
         const [url, init] = putCalls()[0] as [string, { body: string }];
         expect(url).toBe("/photos/A");
-        expect(JSON.parse(init.body).title.ja).toBe("Aのタイトル");
-        expect(JSON.parse(init.body).location).toBe("Aの場所");
+        expect(JSON.parse(init.body).title.ja).toBe("直したタイトル");
+        // 触っていない項目は送らない（別タブの編集を消さないため）
+        expect(JSON.parse(init.body)).not.toHaveProperty("location");
     });
 });
 
@@ -138,12 +141,14 @@ describe("素の文字列タイトルを en に複製しない", () => {
         await waitFor(() => expect(putCalls()).toHaveLength(1));
 
         const body = JSON.parse((putCalls()[0][1] as { body: string }).body) as {
-            title: { ja: string; en: string };
-            description: { ja: string[]; en: string[] };
+            title?: { ja: string; en: string };
+            description?: { ja: string[]; en: string[] };
         };
-        expect(body.title.ja).toBe("夕焼けの湖");
-        expect(body.title.en).toBe("");                 // 日本語を複製しない
-        expect(body.description.ja).toEqual(["湖畔にて。"]);
-        expect(body.description.en).toEqual([]);
+        // 素の文字列 → {ja, en:""} は「値が変わっていない」と見なされ、
+        // そもそも送られない（＝ en に日本語が焼き込まれる余地が無い）。
+        // 送る場合でも en は空でなければならない。
+        expect(body.title?.en ?? "").toBe("");
+        expect(body.description?.en ?? []).toEqual([]);
+        expect(body.title?.ja ?? "夕焼けの湖").toBe("夕焼けの湖");
     });
 });

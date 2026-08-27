@@ -1,6 +1,7 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 // /admin/edit に入れた中断ガードが、同じ形の /user/edit には無かった。
 // 遅い回線で下書き A を開いて戻り B を開くと、A の応答が後から届いて
@@ -82,5 +83,72 @@ describe("/user/edit: 遅れて届いた別の写真の応答", () => {
         render(<EditPage />);
         expect(await screen.findByDisplayValue("Aのタイトル")).toBeTruthy();
         expect(screen.getByDisplayValue("Aの場所")).toBeTruthy();
+    });
+});
+
+// 開いた時点の全項目を毎回送っていたので、同じ写真を2タブで開いて
+// 片方で直したあと、もう片方で保存すると**先の編集が黙って消えた**
+// （サーバーは部分更新だが、こちらが全部送れば同じこと。写真の更新には
+// プロフィールのような rev が無い）。変えた項目だけを送る。
+describe("/user/edit: 変えた項目だけ送る（別タブの編集を消さない）", () => {
+    // 共有の ALL は date が "…T00:00:00.000Z"（旧仕様の捏造した0時）なので、
+    // 保存すると C-12 の移行で date が必ず差分になる。ここでは移行と
+    // 「触っていない項目を送らない」を分けて見たいので、本物の時刻を持つ
+    // 写真を使う。
+    const REAL = [{
+        id: "A", src: "https://cdn/A.jpg", title: "Aのタイトル", description: "Aの説明",
+        location: "Aの場所", category: "風景", date: "2024-10-12T08:30:00.000Z",
+        tags: ["Aタグ"], published: false,
+    }];
+    const useRealPhoto = () => {
+        mockUserFetch.mockReset().mockImplementation((_url: string, init?: { method?: string }) => {
+            if (init?.method === "PUT") return Promise.resolve({ ok: true, json: async () => ({ success: true }) });
+            return Promise.resolve({ ok: true, json: async () => REAL });
+        });
+    };
+    const putBody = () => {
+        const put = mockUserFetch.mock.calls.find(
+            (c) => (c[1] as { method?: string } | undefined)?.method === "PUT");
+        return JSON.parse((put![1] as { body: string }).body) as Record<string, unknown>;
+    };
+    const saveDraft = async () => {
+        await userEvent.click(screen.getByRole("button", { name: /下書き|保存/ }));
+        await waitFor(() => expect(mockUserFetch.mock.calls.some(
+            (c) => (c[1] as { method?: string } | undefined)?.method === "PUT")).toBe(true));
+    };
+
+    it("何も触らずに保存したら published しか送らない", async () => {
+        useRealPhoto();
+        render(<EditPage />);
+        await screen.findByDisplayValue("Aのタイトル");
+
+        await saveDraft();
+        expect(Object.keys(putBody()).sort()).toEqual(["published"]);
+    });
+
+    it("タイトルだけ直したら title と published だけ送る", async () => {
+        useRealPhoto();
+        render(<EditPage />);
+        const input = await screen.findByDisplayValue("Aのタイトル");
+        await userEvent.clear(input);
+        await userEvent.type(input, "新しいタイトル");
+
+        await saveDraft();
+        const body = putBody();
+        expect(Object.keys(body).sort()).toEqual(["published", "title"]);
+        expect(body.title).toBe("新しいタイトル");
+        // 触っていない項目は送らない＝サーバーは触らない
+        expect(body).not.toHaveProperty("location");
+        expect(body).not.toHaveProperty("tags");
+        expect(body).not.toHaveProperty("date");
+    });
+
+    it("旧仕様の0時ちょうどは、触っていなくても日付だけに直して送る（C-12 の移行）", async () => {
+        render(<EditPage />);   // 共有 ALL は date が "…T00:00:00.000Z"
+        await screen.findByDisplayValue("Aのタイトル");
+
+        await saveDraft();
+        const body = putBody();
+        expect(body.date).toBe("2024-10-12");
     });
 });
