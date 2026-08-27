@@ -176,3 +176,49 @@ describe("CATEGORY_ALIASES: 表記ゆれを1か所で吸収する", () => {
         expect(slugify("建物", "location")).toBe("建物");
     });
 });
+
+// タグ・撮影地・カテゴリは自由入力で、そのまま `/tag/<値>` のパス片になる。
+// 写真サイトでは `F/2.8`・`24/70mm`・`白/黒`・`東京 / 渋谷`・`#旅` はごく普通。
+// サーバー側のサニタイズ（sanitizeText / sanitizeTags）は trim と長さしか
+// 見ないので、これらはそのまま保存される。
+describe("slugify: URL のパスに置けない文字", () => {
+    // 静的書き出しはファイル名を `旅行%2F2024.html` とエンコードして保存するが、
+    // 参照側は1回だけエンコードするので `/tag/…%2F2024` になる。S3 は
+    // リクエストパスを1回デコードしてキーにするため `tag/旅行/2024.html` を
+    // 探して**永久に当たらない**。サイトマップにも canonical にもその 404 が載る。
+    it.each([
+        ["旅行/2024", "旅行-2024"],
+        ["s\\p18", "s-p18"],
+        ["a?b", "a-b"],
+        ["x#y", "x-y"],
+        ["100%", "100"],
+        ["東京 / 渋谷", "東京-渋谷"],
+        ["F/2.8", "f-2.8"],
+    ])("%s → %s", (input, expected) => {
+        expect(slugify(input)).toBe(expected);
+    });
+
+    // `.` `..` はパス片としては「今のディレクトリ／親」。Next の静的書き出しが
+    // `/location/..` を `/` に解決して「Requested and resolved page mismatch」で
+    // **ビルドごと落ちる**。誰か1人が保存した瞬間から新しい写真も削除の反映も
+    // 一切出せなくなる（site-rebuild も同じビルドを通る）。
+    it.each(["..", ".", "...", " .. "])("%s は捨てる（ビルドを落とさせない）", (input) => {
+        expect(slugify(input)).toBe("");
+    });
+
+    it("捨てた値は集約エントリにも出てこない", () => {
+        const photos = [
+            { id: "p1", src: "s", tags: ["..", "旅行/2024"] },
+            { id: "p2", src: "s", tags: ["旅行/2024"] },
+        ] as unknown as Parameters<typeof collectEntries>[0];
+        const slugs = collectEntries(photos, "tag").map((e) => e.slug);
+        expect(slugs).toEqual(["旅行-2024"]);
+    });
+
+    // 既存のURLを変えないこと（実データ73値でスラッグが変わらないのを確認済み）
+    it("ふつうの値はこれまでどおり", () => {
+        expect(slugify("パリ, フランス")).toBe("パリ,-フランス");
+        expect(slugify("Mount Fuji")).toBe("mount-fuji");
+        expect(slugify("  夜景  ")).toBe("夜景");
+    });
+});

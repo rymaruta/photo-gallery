@@ -25,7 +25,30 @@ export const CATEGORY_ALIASES: Record<string, string> = {
 
 /** 値を URL スラッグへ正規化（小文字化・trim・空白をハイフンに）。日本語はそのまま（URLでは percent-encoded）。 */
 export function slugify(value: string, type?: CollectionType): string {
-    const base = (value ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
+    const base = (value ?? "").toString().trim().toLowerCase()
+        .replace(/\s+/g, "-")
+        // **URL のパスに置けない文字を落とす。** タグ・撮影地・カテゴリは
+        // 自由入力で、そのまま `/tag/<値>` のパス片になる。写真サイトでは
+        // `F/2.8`・`24/70mm`・`白/黒`・`東京 / 渋谷`・`#旅` はごく普通の入力。
+        //
+        //  - `/` `\` … 静的書き出しはファイル名を `旅行%2F2024.html` と
+        //    パーセントエンコードして保存するが、参照側（collectionPath）は
+        //    1回だけエンコードするので `/tag/…%2F2024` になる。S3 は
+        //    リクエストパスを1回デコードしてキーにするため、
+        //    `tag/旅行/2024.html` を探して**永久に当たらない**。
+        //    サイトマップにも canonical にもその 404 が載る。
+        //  - `?` `#` … URL のクエリ・フラグメント区切り。同上。
+        //  - `%` … 二重エンコードの入口。decodeURIComponent が化ける。
+        .replace(/[/\\?#%]+/g, "-")
+        .replace(/-{2,}/g, "-")
+        .replace(/^-+|-+$/g, "");
+    // **`.` と `..` は捨てる。** パス片としては「今のディレクトリ／親」の
+    // 意味になり、Next の静的書き出しが `/location/..` を `/` に解決して
+    // 「Requested and resolved page mismatch」でビルドごと落ちる。
+    // 誰か1人が保存した瞬間から**新しい写真も削除の反映も一切出せなくなる**
+    // （消えたページを S3 から消す site-rebuild も同じビルドを通る）。
+    // 4-1 で直した「壊れた行1件で全デプロイが止まる」と同じ型。
+    if (/^\.+$/.test(base)) return "";
     if (type === "category") return CATEGORY_ALIASES[base] ?? base;
     return base;
 }
