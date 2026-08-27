@@ -121,6 +121,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         void checkAuth();
     }, [pathname, checkAuth]);
 
+    /**
+     * **別のタブでログアウト・退会したら、こちらのタブも合わせる。**
+     *
+     * 判定はパス変更のときだけだったので、同じページに留まっている限り
+     * このタブは「ログイン中の顔」のまま操作を受け付けていた。トークンは
+     * もう無いので、いいね・フォロー・コメントは全部失敗する——しかも
+     * 「ログインしてください」ではなく通信エラー扱いに見えるものがあり、
+     * 何度も押し直すことになる。退会したあとのタブなら、消えた自分の
+     * プロフィールを編集しようとし続ける。
+     *
+     * amazon-cognito-identity-js はトークンを localStorage の
+     * `CognitoIdentityServiceProvider.<clientId>.<user>.*` に置くので、
+     * 他タブの signOut は必ず storage イベントとして届く（同じタブの
+     * 書き込みでは発火しないので、自分のログアウトと二重にはならない）。
+     * lib/hooks/useFavorites.ts が同じ仕掛けでキーを追い直している。
+     *
+     * ※ 明示ログアウトを通らない失効（リフレッシュトークンの期限切れ）は
+     *   ここでは拾えない。書き込みが起きないため storage イベントが無い。
+     */
+    useEffect(() => {
+        const onStorage = (e: StorageEvent) => {
+            // key が null は clear()。関係あるキーの変更だけ拾う
+            if (e.key !== null && !e.key.startsWith("CognitoIdentityServiceProvider.")) return;
+            void checkAuth();
+        };
+        window.addEventListener("storage", onStorage);
+        return () => window.removeEventListener("storage", onStorage);
+    }, [checkAuth]);
+
     // ログイン
     const login = useCallback(async (username: string, password: string) => {
         setAuthState((prev) => ({ ...prev, loading: true }));
