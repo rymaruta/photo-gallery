@@ -110,6 +110,80 @@ async function releaseRebuildSlot(stamp: number): Promise<void> {
     }
 }
 
+/**
+ * 1か月に頼んでよいビルドの本数。
+ *
+ * **クールダウンでは費用は止まらない。** deploy.yml の concurrency は
+ * 同じグループの**待機中**の実行を常に1つに畳むので、依頼を何本投げても
+ * 走るのは「1本ずつ、8分かけて」——つまり本数の天井は依頼の間隔ではなく
+ * ビルドの長さで決まる。連打を10分に1回へ絞っても、上限に張り付いた状態は
+ * 変わらない。
+ *
+ * 効くのは**総量の予算**。Actions の枠は月2,000分で、1本8分なので約250本。
+ * API のデプロイなど他のワークフローの分を残して 200 にする。
+ * 枠を上げたときは Lambda の環境変数 `REBUILD_MONTHLY_MAX` で上書きする。
+ *
+ * 読めない値は既定に落とす。`??` だけだと、serverless.yml の
+ * `${param:... , ''}` と同じ書き方で空文字が入ったときに `Number("")` が
+ * **0** になり、予算が最初から尽きた状態（＝掃除が二度と走らない）になる。
+ *
+ * 予算は月ごとの別アイテム（`rebuild#budget#YYYY-MM`）で数える。
+ * 同じアイテムに持たせると「月が変わったら 0 に戻す」判定が要り、
+ * 条件付き加算1回では書けない。月が変われば新しいアイテムになるだけ。
+ */
+const REBUILD_MONTHLY_MAX = (() => {
+    const n = Number(process.env.REBUILD_MONTHLY_MAX);
+    return Number.isFinite(n) && n > 0 ? n : 200;
+})();
+const budgetId = (now: number) => `rebuild#budget#${new Date(now).toISOString().slice(0, 7)}`;
+
+/**
+ * 今月の予算を1本ぶん確保する。取れなければ false。
+ *
+ * **取れなかったときは掃除が落ちる。** それでも置くのは、枠を使い切ると
+ * **どのデプロイも打てなくなる**（＝掃除どころではなくなる）から。
+ * 落ちたことはエラーで残すので、枠を上げるか手で1回流せば追いつける。
+ */
+async function claimMonthlyBudget(now: number): Promise<boolean> {
+    try {
+        const { ddb, PHOTOS_TABLE, UpdateCommand } = await lockTable();
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: budgetId(now) },
+            UpdateExpression: "ADD #c :one",
+            ConditionExpression: "attribute_not_exists(#c) OR #c < :max",
+            ExpressionAttributeNames: { "#c": "count" },   // count は予約語
+            ExpressionAttributeValues: { ":one": 1, ":max": REBUILD_MONTHLY_MAX },
+        }));
+        return true;
+    } catch (e) {
+        if ((e as { name?: string }).name === "ConditionalCheckFailedException") return false;
+        // 判定できないときは通す（claimRebuildSlot と同じ考え方。
+        // 掃除が遅れる方が、掃除されないより困る）
+        console.error("claimMonthlyBudget error:", e);
+        return true;
+    }
+}
+
+/** 依頼そのものが失敗したら予算を戻す（印を戻すのと同じ理由） */
+async function releaseMonthlyBudget(now: number): Promise<void> {
+    try {
+        const { ddb, PHOTOS_TABLE, UpdateCommand } = await lockTable();
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: budgetId(now) },
+            UpdateExpression: "ADD #c :minus",
+            // 0 を下回らせない（戻し忘れより、戻しすぎの方が直しにくい）
+            ConditionExpression: "#c > :z",
+            ExpressionAttributeNames: { "#c": "count" },
+            ExpressionAttributeValues: { ":minus": -1, ":z": 0 },
+        }));
+    } catch (e) {
+        if ((e as { name?: string }).name === "ConditionalCheckFailedException") return;
+        console.error("releaseMonthlyBudget error:", e);
+    }
+}
+
 type RebuildOptions = {
     /**
      * true なら直近の依頼があるとき見送る。
@@ -147,6 +221,19 @@ export async function requestSiteRebuild(reason: string, options: RebuildOptions
         }
         stamp = claim.stamp;
     }
+    // **総量の予算は coalesce の有無に関わらず見る。**
+    // 削除経路は素通し（見送った分が後から実行されないため）だが、
+    // 「上げて消す」を繰り返せば依頼は無限に作れるので、費用の歯止めは
+    // ここにしか置けない。
+    const budgetAt = Date.now();
+    if (!await claimMonthlyBudget(budgetAt)) {
+        console.error(
+            `requestSiteRebuild: 今月の再ビルド上限（${REBUILD_MONTHLY_MAX}本）に達したため見送りました（${reason}）。` +
+            "静的ページの掃除が遅れます。Actions の枠を上げるか、Deploy Site を手で1回流してください。",
+        );
+        if (stamp !== null) await releaseRebuildSlot(stamp);
+        return false;
+    }
     try {
         const res = await fetch(`https://api.github.com/repos/${REBUILD_REPO}/dispatches`, {
             method: "POST",
@@ -161,6 +248,7 @@ export async function requestSiteRebuild(reason: string, options: RebuildOptions
         if (!res.ok) {
             console.error(`requestSiteRebuild: ${res.status} ${await res.text().catch(() => "")}`);
             if (stamp !== null) await releaseRebuildSlot(stamp);
+            await releaseMonthlyBudget(budgetAt);
             return false;
         }
         console.log(`requestSiteRebuild: 再ビルドを依頼しました（${reason}）`);
@@ -168,6 +256,7 @@ export async function requestSiteRebuild(reason: string, options: RebuildOptions
     } catch (e) {
         console.error("requestSiteRebuild error:", e);
         if (stamp !== null) await releaseRebuildSlot(stamp);
+        await releaseMonthlyBudget(budgetAt);
         return false;
     }
 }
