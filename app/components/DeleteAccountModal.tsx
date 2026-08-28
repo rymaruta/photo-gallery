@@ -8,6 +8,8 @@ import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 
 type Props = {
     isOpen: boolean;
+    /** 閉じたときにフォーカスを戻す先（退会ボタン） */
+    openerRef?: React.RefObject<HTMLButtonElement | null>;
     onClose: () => void;
     onConfirm: () => void;
     locale: Locale;
@@ -22,7 +24,7 @@ export default function DeleteAccountModal({ isOpen, ...rest }: Props) {
     return <DeleteAccountModalInner {...rest} />;
 }
 
-function DeleteAccountModalInner({ onClose, onConfirm, locale, deleting }: Omit<Props, "isOpen">) {
+function DeleteAccountModalInner({ onClose, onConfirm, locale, deleting, openerRef }: Omit<Props, "isOpen">) {
     const CONFIRM_WORD = locale === "en" ? "DELETE" : "退会";
     const [typed, setTyped] = useState("");
 
@@ -31,7 +33,12 @@ function DeleteAccountModalInner({ onClose, onConfirm, locale, deleting }: Omit<
     useEscapeKey(!deleting, onClose);
     // 裏側はプロフィール編集フォーム（保存ボタンがある）
     const dialogRef = useRef<HTMLDivElement | null>(null);
-    useFocusTrap(true, dialogRef);
+    // **戻り先は親から受け取る。** 既定（開いた瞬間の activeElement）だと、
+    // React は autoFocus をエフェクトより前に当てるので、控えられるのは
+    // **このモーダルの中の入力欄**。閉じるとその要素ごと消えてフォーカスが
+    // body に落ちる——docstring が「戻さないと body に落ちる」と書いている
+    // 状態が、戻しているつもりで起きていた。
+    useFocusTrap(true, dialogRef, openerRef);
 
     const canDelete = typed.trim() === CONFIRM_WORD && !deleting;
 

@@ -58,8 +58,8 @@ export function useFocusTrap(
                 // **押せるものが1つも無いときは容器そのものへ。**
                 // HeaderNav は認証の判定中（Cognito のセッション確認）だと
                 // 中身が空で、そこで開くとフォーカスが移らず「開いても
-                // 入れない」が残っていた。容器に入れておけば、その後の Tab は
-                // 下の閉じ込めが効く（activeElement が中に居るため）。
+                // 入れない」が残っていた。Tab も下で押さえる（そちらを
+                // 素通しにしていたので、これだけでは閉じ込められなかった）。
                 container.tabIndex = -1;
                 container.focus();
             }
@@ -73,7 +73,23 @@ export function useFocusTrap(
             // 中身が全部「見えていない」と判定されて閉じ込めが効かなくなる。
             // （jsdom はレイアウトしないので常に null で、テストでも気づける）
             const items = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE));
-            if (items.length === 0) return;
+            if (items.length === 0) {
+                // **押せるものが無くても外へ出さない。** ここを素通しにして
+                // いたので、上の「容器そのものへ入れる」分岐が
+                // **その対象にした場面でトラップになっていなかった**
+                // （コメントは「その後の Tab は下の閉じ込めが効く」と
+                // 書いていたが、`container.contains(container)` は true なので
+                // 引き戻しは発火せず、そのまま既定の Tab が通っていた）。
+                // 押せるものが無くなるのは2つ:
+                //   - HeaderNav を認証の判定中に開いたとき（中身が空）
+                //   - 削除中・退会処理中（中のボタンが全部 disabled）
+                // 後者は「削除中に Tab で裏の一覧へ抜ける」なので、
+                // このフックを入れた動機そのもの。
+                e.preventDefault();
+                container.tabIndex = -1;
+                container.focus();
+                return;
+            }
             const first = items[0];
             const last = items[items.length - 1];
             // **中に居ないときは先頭へ引き戻す。** ポータルで body の末尾に

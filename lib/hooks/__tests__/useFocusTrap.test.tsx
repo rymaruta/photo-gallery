@@ -111,6 +111,19 @@ describe("useFocusTrap: 押せるものが1つも無いとき", () => {
         expect(document.activeElement).toBe(dialog);
         expect(dialog.tabIndex).toBe(-1);
     });
+
+    // **ここが抜けていた。** `activeElement` と `tabIndex` しか見ていな
+    // かったので、「容器へ入れる」分岐が Tab を1つも押さえていないことを
+    // 通していた（`items.length === 0` で素通しに戻っていた）。
+    // 押せるものが無くなるのは、削除中・退会処理中も同じ。
+    it("押せるものが無くても Tab で外へ出さない", () => {
+        render(<Empty />);
+        const dialog = screen.getByRole("dialog");
+        const ev = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+        document.dispatchEvent(ev);
+        expect(ev.defaultPrevented, "既定の Tab がそのまま通っている").toBe(true);
+        expect(document.activeElement).toBe(dialog);
+    });
 });
 
 // メニューのように戻る先が1つに決まっているものは明示する。

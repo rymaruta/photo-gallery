@@ -83,6 +83,8 @@ export default function ProfileEditPage() {
 
     // 退会（アカウント削除）
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    // 退会モーダルを閉じたときの戻り先（モーダル内の autoFocus に奪われるため明示）
+    const deleteAccountBtnRef = useRef<HTMLButtonElement | null>(null);
     const [deletingAccount, setDeletingAccount] = useState(false);
 
     const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -1032,6 +1034,7 @@ export default function ProfileEditPage() {
                             </p>
                             <button
                                 type="button"
+                                ref={deleteAccountBtnRef}
                                 onClick={() => setShowDeleteModal(true)}
                                 className="w-full py-2.5 rounded-xl bg-transparent text-red-400 text-sm font-medium ring-1 ring-inset ring-red-500/30 hover:bg-red-500/10 active:scale-[0.98] transition"
                                 style={{ touchAction: "manipulation" }}
@@ -1044,6 +1047,7 @@ export default function ProfileEditPage() {
             </div>
 
             <DeleteAccountModal
+                openerRef={deleteAccountBtnRef}
                 isOpen={showDeleteModal}
                 onClose={() => setShowDeleteModal(false)}
                 onConfirm={() => void handleDeleteAccount()}

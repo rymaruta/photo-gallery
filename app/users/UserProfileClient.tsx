@@ -391,7 +391,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     // 共有メニューから開くので、押した瞬間に起動元がアンマウントされて
     // フォーカスが body に落ちる。中へ入れて、閉じたら戻す
     const qrRef = useRef<HTMLDivElement | null>(null);
-    useFocusTrap(qrOpen, qrRef);
+    // **戻り先を明示する。** 上のコメントのとおり、開く時点で起動元
+    // （メニュー項目）は既に消えていて `activeElement` は body。
+    // 渡さないと閉じたあと body に落ちたまま＝次の Tab がページ先頭から。
+    // 問題は書いてあったのに、渡すのを忘れていた。
+    const shareBtnRef = useRef<HTMLButtonElement | null>(null);
+    useFocusTrap(qrOpen, qrRef, shareBtnRef);
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
     const [mvOpen, setMvOpen] = useState(false);
 
@@ -672,6 +677,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         {/* 共有: 戻ると対になる単一のガラスボタン。タップでメニューを開く */}
                         <div className="relative">
                             <button
+                                ref={shareBtnRef}
                                 onClick={() => setShareOpen((v) => !v)}
                                 aria-haspopup="menu"
                                 aria-expanded={shareOpen}

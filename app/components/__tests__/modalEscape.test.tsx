@@ -109,3 +109,50 @@ describe("削除確認: Tab が外へ漏れない", () => {
         expect(screen.getByRole("dialog").contains(document.activeElement)).toBe(true);
     });
 });
+
+// 開いた瞬間にフォーカスが乗る先。DOM 順の先頭は赤い確定ボタンなので、
+// 指名しないと**開いた直後の Enter が削除になる**。
+// 変更前はフォーカスが起動元に残っていたので、確認シートの上で Enter を
+// 打っても何も起きなかった。
+describe("削除確認: 最初のフォーカスは確定ボタンではない", () => {
+    it("キャンセル側に入る", () => {
+        render(<DeleteConfirmModal photo={photo} isOpen onClose={vi.fn()} onConfirm={vi.fn()} locale="ja" deleting={false} />);
+        expect(document.activeElement).toBe(screen.getByRole("button", { name: "キャンセル" }));
+    });
+
+    it("確定ボタン（削除する）には入らない", () => {
+        render(<DeleteConfirmModal photo={photo} isOpen onClose={vi.fn()} onConfirm={vi.fn()} locale="ja" deleting={false} />);
+        expect(document.activeElement).not.toBe(screen.getByRole("button", { name: "削除する" }));
+    });
+});
+
+// React は autoFocus をエフェクトより前に当てるので、既定の戻り先
+// （開いた瞬間の activeElement）は**このモーダルの中の入力欄**になる。
+// 閉じるとその要素ごと消えてフォーカスが body に落ちる——「戻さないと
+// body に落ちる」が、戻しているつもりで起きていた。
+describe("退会確認: 閉じたら起動元へ戻る（autoFocus に奪われない）", () => {
+    function Harness({ open }: { open: boolean }) {
+        const opener = React.useRef<HTMLButtonElement | null>(null);
+        return (
+            <div>
+                <button ref={opener}>退会する</button>
+                {open && (
+                    <DeleteAccountModal isOpen openerRef={opener} onClose={vi.fn()} onConfirm={vi.fn()} locale="ja" deleting={false} />
+                )}
+            </div>
+        );
+    }
+
+    it("autoFocus の入力欄ではなく、退会ボタンへ戻す", () => {
+        const { rerender } = render(<Harness open={false} />);
+        const opener = screen.getByText("退会する");
+        opener.focus();
+
+        rerender(<Harness open />);
+        // 開いている間は確認語の入力欄（autoFocus）にいる
+        expect(document.activeElement).toBe(screen.getByPlaceholderText("退会"));
+
+        rerender(<Harness open={false} />);
+        expect(document.activeElement).toBe(opener);
+    });
+});

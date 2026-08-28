@@ -261,7 +261,9 @@ function EditContent() {
     useEscapeKey(confirmDelete && !deleting, () => setConfirmDelete(false));
     // **裏は「保存する」**。Tab で抜けると、見えないまま Enter で公開できる
     const confirmRef = useRef<HTMLDivElement | null>(null);
-    useFocusTrap(confirmDelete, confirmRef);
+    // 最初に当てるのはキャンセル（DOM 順の先頭は赤い「削除」）
+    const confirmCancelRef = useRef<HTMLButtonElement | null>(null);
+    useFocusTrap(confirmDelete, confirmRef, undefined, confirmCancelRef);
 
     // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
@@ -429,6 +431,7 @@ function EditContent() {
                             </button>
                         </div>
                         <button
+                            ref={confirmCancelRef}
                             type="button"
                             onClick={() => setConfirmDelete(false)}
                             disabled={deleting}

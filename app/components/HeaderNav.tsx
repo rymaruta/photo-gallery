@@ -61,7 +61,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     const toggleRef = useRef<HTMLButtonElement | null>(null);
     useFocusTrap(open, panelRef, toggleRef);
 
-    // Scroll lock when open    // Scroll lock when open
+    // Scroll lock when open
     useEffect(() => {
         const body = document.body;
         if (!body) return;

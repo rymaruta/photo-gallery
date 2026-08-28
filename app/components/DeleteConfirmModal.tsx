@@ -23,7 +23,11 @@ export default function DeleteConfirmModal({ photo, isOpen, onClose, onConfirm, 
     // Tab を中に閉じ込める。裏側は管理画面の一覧（各行に編集・削除がある）で、
     // 見えないまま Enter で押せてしまう
     const dialogRef = useRef<HTMLDivElement | null>(null);
-    useFocusTrap(isOpen, dialogRef);
+    // **最初に当てるのはキャンセル。** DOM 順の先頭は赤い「削除する」で、
+    // 開いた瞬間に確定操作へフォーカスが乗っていた。前は起動元に残って
+    // いたので、確認シートの上で Enter を打っても何も起きなかった。
+    const cancelRef = useRef<HTMLButtonElement | null>(null);
+    useFocusTrap(isOpen, dialogRef, undefined, cancelRef);
 
     if (!isOpen || !photo) return null;
 
@@ -72,6 +76,7 @@ export default function DeleteConfirmModal({ photo, isOpen, onClose, onConfirm, 
                         {deleting ? (locale === "en" ? "Deleting..." : "削除中...") : (locale === "en" ? "Delete" : "削除する")}
                     </button>
                     <button
+                        ref={cancelRef}
                         onClick={onClose}
                         disabled={deleting}
                         className="w-full py-3 rounded-2xl text-white/60 hover:bg-white/[0.06] hover:text-white/80 active:scale-[0.98] transition text-[15px] font-medium disabled:opacity-50"
