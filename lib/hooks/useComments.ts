@@ -30,6 +30,9 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
     // 再試行のたびに増やして effect を回し直す
     const [reloadKey, setReloadKey] = useState(0);
     const busyRef = useRef(false);
+    // 一覧をサーバーの真値で置き換えた回数。削除の巻き戻しは、
+    // **この間に取り直しが挟まっていたら行わない**（サーバーの方が正しい）。
+    const listSeqRef = useRef(0);
 
     useEffect(() => {
         let aborted = false;
@@ -41,6 +44,7 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
                 if (res.ok) {
                     const data = await res.json() as { items?: CommentItem[]; count?: number };
                     if (!aborted) {
+                        listSeqRef.current++;
                         setItems(Array.isArray(data.items) ? data.items : []);
                         if (typeof data.count === "number") setCount(data.count);
                     }
@@ -127,6 +131,7 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
         // 元の位置に差し戻すため、消す前の添字を控えておく。
         const removed = items.find((c) => c.id === commentId);
         const removedAt = items.findIndex((c) => c.id === commentId);
+        const listAt = listSeqRef.current;
         setItems((prev) => prev.filter((c) => c.id !== commentId));
         setCount((c) => Math.max(0, c - 1));
         try {
@@ -150,7 +155,12 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
             return true;
         } catch (e) {
             log.error("comment delete error:", e);
-            if (removed) {
+            // 巻き戻しの前に、一覧が取り直されていないか見る。
+            // 別の削除が 404（＝別タブが先に消した）で reload を起こしていると、
+            // 手元は既にサーバーの真値になっている。そこへ戻すと
+            // **1件しか無いのに「2件」**のような食い違いを作る（items にだけ
+            // ガードを置いて count に置かなかった頃、実際にそうなっていた）。
+            if (removed && listAt === listSeqRef.current) {
                 setItems((prev) => {
                     if (prev.some((c) => c.id === commentId)) return prev;   // 既に戻っている
                     const next = [...prev];

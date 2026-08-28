@@ -45,21 +45,30 @@ export default function NotificationsBell() {
     //
     // ただしポーリングは足しすぎない。主にするのは「開いたときの再取得」で、
     // 常駐ぶんは長めの間隔にとどめる（1人あたり60秒に1回）。
-    // 既読化した回数。**取得を投げてから返るまでの間に既読化したら、
-    // 返ってきた unread は既に古い。** ベルを開くと GET と PUT がほぼ同時に
-    // 出るが、サーバーは GET を先に受けるので `unread: 3` を返し、消えた
-    // バッジが数百ms後に「3」で復活していた（次のポーリングまで直らず、
-    // 裏に回したタブはポーリングを飛ばすので更に長い）。
+    // 世代を2つ持つ。混ぜると、片方を直したつもりでもう片方を壊す。
+    //
+    // `fetchSeqRef` … 取得の世代。**追い越された応答は丸ごと捨てる。**
+    //   これを付けずに未読数だけ捨てていたら、遅い GET が返ってきたときに
+    //   「新しい方で出ている未読を 0 にし、一覧まで古い方で上書きする」——
+    //   つまり**新着が最大60秒（裏タブはもっと長く）出ない**方に倒れていた。
+    //   古い数字が出るより、新着が出ない方が悪い。
+    //
+    // `readSeqRef` … 既読化の世代。取得を投げてから返るまでの間に既読化
+    //   したら、返ってきた unread は既に古い。ベルを開くと GET と PUT が
+    //   ほぼ同時に出るが、サーバーは GET を先に受けるので `unread: 3` を
+    //   返し、消えたバッジが数百ms後に復活していた。
+    const fetchSeqRef = useRef(0);
     const readSeqRef = useRef(0);
     const load = useCallback(async () => {
-        const seq = readSeqRef.current;
+        const mine = ++fetchSeqRef.current;
+        const readAt = readSeqRef.current;
         try {
             const res = await userFetch("/user/notifications");
             if (!res.ok) return;
             const data = await res.json() as { items?: Notif[]; unread?: number };
+            if (mine !== fetchSeqRef.current) return;   // 追い越された。丸ごと捨てる
             setItems(Array.isArray(data.items) ? data.items : []);
-            // 一覧は新しい方が良いので採るが、未読数は追い越されていたら捨てる
-            setUnread(seq === readSeqRef.current && typeof data.unread === "number" ? data.unread : 0);
+            setUnread(readAt === readSeqRef.current && typeof data.unread === "number" ? data.unread : 0);
             setNow(Date.now());
         } catch { /* 通知は取得できなくてもUIを壊さない */ }
     }, []);

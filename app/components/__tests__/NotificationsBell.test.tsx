@@ -102,6 +102,34 @@ describe("NotificationsBell", () => {
         expect(screen.queryByText("2")).toBeNull();
     });
 
+    // 未読数だけ捨てて一覧は採っていた頃、遅い GET が返ってくると
+    // 「新しい方で出ている未読を 0 にし、一覧まで古い方で上書きする」
+    // ——**新着が最大60秒（裏タブはもっと長く）出ない**方に倒れていた。
+    // 古い数字が出るより、新着が出ない方が悪い。
+    it("追い越された取得は、一覧も未読数も採らない", async () => {
+        let releaseSlow: (v: unknown) => void = () => {};
+        mockUserFetch.mockResolvedValueOnce(fetchOk({ items: ITEMS, unread: 0 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+
+        // 1本目（遅い）: 古い一覧と unread: 5
+        mockUserFetch.mockImplementationOnce(() => new Promise((res) => { releaseSlow = res; }));
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));   // 開く（unread 0 なので既読化は走らない）
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));   // 閉じる
+
+        // 2本目（速い）: 新着1件
+        const fresh = [{ ...ITEMS[0], photoId: "p9" }];
+        mockUserFetch.mockResolvedValueOnce(fetchOk({ items: fresh, unread: 1 }));
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+        await waitFor(() => expect(screen.getByText("1")).toBeInTheDocument());
+
+        // ここで1本目が返る
+        await act(async () => { releaseSlow(fetchOk({ items: ITEMS, unread: 5 })); });
+
+        expect(screen.getByText("1")).toBeInTheDocument();                 // 新着が消えない
+        expect(screen.getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/?photo=p9"]);
+    });
+
     it("通知が空でも壊れない（空メッセージ表示）", async () => {
         mockUserFetch.mockResolvedValue(fetchOk({ items: [], unread: 0 }));
         render(<NotificationsBell />);

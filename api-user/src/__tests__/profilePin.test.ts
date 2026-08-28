@@ -21,6 +21,8 @@ const commands = vi.hoisted(() => [] as { type: string; input: Record<string, un
 // 既存のテストは、この1本に**ユーザーテーブルぶんの応答を食われて**全部ずれる。
 // テーブル名で振り分けて、並びは今までどおりユーザーテーブルだけのものにする。
 const photoRows = vi.hoisted(() => new Map<string, Record<string, unknown> | null>());
+/** 写真テーブルの Get を落とす（fail-open の向きを確かめる用） */
+const throwOnPhotoGet = vi.hoisted(() => ({ current: false }));
 vi.mock("@aws-sdk/client-dynamodb", () => {
     const make = (type: string) => class {
         input: Record<string, unknown>;
@@ -29,7 +31,8 @@ vi.mock("@aws-sdk/client-dynamodb", () => {
     return {
         DynamoDBClient: class {
             send = (cmd: { input?: Record<string, unknown> }) => {
-                if (cmd?.input?.TableName === "test-photo-gallery-photos") {
+                if (cmd?.input?.TableName === process.env.PHOTOS_TABLE) {
+                    if (throwOnPhotoGet.current) return Promise.reject(new Error("ddb down"));
                     const key = (cmd.input.Key as { id?: { S?: string } } | undefined)?.id?.S ?? "";
                     // 既定は「在って自分のもの」。無い写真は setDeletedPhotos で指定する
                     const row = photoRows.has(key) ? photoRows.get(key) : { userId: "u1" };
@@ -202,13 +205,52 @@ describe("ピン留めは増減で受け取る", () => {
         expect(savedProfile().pinnedPhotoIds).toEqual(["a", "c", "d"]);
     });
 
+    // 添えるのは**掃除後**の一覧。掃除前を返すと、手元は死んだピンを
+    // 抱えたままになり、「星は3つ出ていないのに3枚までと言われる」が続く。
+    // 死んだピンが1枚も無い形で書くと、掃除前後が同じで区別が付かない。
     it("掃除しても埋まっていれば、掃除後の一覧を添えて 409", async () => {
-        mockSend.mockResolvedValueOnce(stored({ pinnedPhotoIds: ["a", "b", "c"], rev: 4 }));
+        // 4枚留まっている（この確認を入れる前の配列経路で増えた形）。
+        // うち1枚が死んでいるので、掃除しても3枚残って上限のまま
+        setDeletedPhotos("b");
+        mockSend.mockResolvedValueOnce(stored({ pinnedPhotoIds: ["a", "b", "c", "e"], rev: 4 }));
         const res = await invoke({ pinPhotoId: "d", pin: true });
 
         expect(res.statusCode).toBe(409);
-        expect(JSON.parse(res.body).pinnedPhotoIds).toEqual(["a", "b", "c"]);
+        expect(JSON.parse(res.body).pinnedPhotoIds).toEqual(["a", "c", "e"]);   // b は落ちている
         expect(commands.filter((c) => c.type === "Put")).toHaveLength(0);
+    });
+
+    // DynamoDB が一時的に読めないときに「あなたの写真は見つかりません」と
+    // 言うと、障害の間**全員のピン留めが死ぬ**。在る側に倒す。
+    it("写真を引けなければ、在る扱いで通す", async () => {
+        photoRows.set("p1", undefined as unknown as Record<string, unknown>);   // 下で例外にする
+        mockSend
+            .mockResolvedValueOnce(stored({ pinnedPhotoIds: [], rev: 4 }))
+            .mockResolvedValueOnce({});
+        throwOnPhotoGet.current = true;
+        try {
+            const res = await invoke({ pinPhotoId: "p1", pin: true });
+            expect(res.statusCode).toBe(200);
+            expect(savedProfile().pinnedPhotoIds).toEqual(["p1"]);
+        } finally {
+            throwOnPhotoGet.current = false;
+        }
+    });
+
+    // 予約行だけ残ると、その @名は**誰も取れないまま永久に残る**
+    // （このリポジトリで実際に起きた型）。409 と !saved では戻しているのに、
+    // 新しく足した 404 の経路だけ抜ける、が起きやすい。
+    it("写真が無くて 404 にするときも、取った @名の予約は返す", async () => {
+        setDeletedPhotos("gone");
+        mockSend
+            .mockResolvedValueOnce(stored({ pinnedPhotoIds: [], rev: 4 }))   // getProfile
+            .mockResolvedValueOnce({});                                       // reserveUsername
+        const res = await invoke({ username: "newname", pinPhotoId: "gone", pin: true });
+
+        expect(res.statusCode).toBe(404);
+        const released = commands.filter((c) => c.type === "Delete");
+        expect(released).toHaveLength(1);
+        expect((released[0].input.Key as { userId?: { S?: string } }).userId?.S).toBe("username#newname");
     });
 
     it("pin が真偽値でなければ 400（既定で外す方に倒さない）", async () => {

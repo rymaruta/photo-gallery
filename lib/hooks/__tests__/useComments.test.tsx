@@ -36,6 +36,43 @@ function mockList(items: ReturnType<typeof comment>[], count: number) {
 }
 
 describe("useComments: 削除の巻き戻し", () => {
+    // 別の削除が 404（＝別タブが先に消した）だと reload が走り、手元は
+    // サーバーの真値になる。そこへ巻き戻すと食い違いを作る。
+    // items にだけガードを置いて count に置かなかった頃、「1件しか無いのに
+    // 2件」になっていた。
+    it("取り直しが挟まったら巻き戻さない（件数も戻さない）", async () => {
+        mockList([comment("c1"), comment("c2")], 2);
+        const { result } = renderHook(() => useComments("p1", true, 2));
+        await waitFor(() => expect(result.current.items).toHaveLength(2));
+
+        // c1 は落ちる。c2 は 404（別タブが先に消した）→ reload
+        let failC1: (e: Error) => void = () => {};
+        mockUserFetch.mockImplementation((path: string) =>
+            String(path).endsWith("/c1")
+                ? new Promise((_, rej) => { failC1 = rej; })
+                // isGoneResponse は res.clone().json() を読む（本物を使っている）
+                : Promise.resolve({
+                    ok: false, status: 404,
+                    json: async () => ({ error: "コメントが見つかりません" }),
+                    clone: () => ({ json: async () => ({ error: "コメントが見つかりません" }) }),
+                }));
+        // 取り直しの結果はサーバーの真値（c1 だけ・1件）
+        mockList([comment("c1")], 1);
+
+        let p1: Promise<boolean>;
+        await act(async () => { p1 = result.current.remove("c1"); await Promise.resolve(); });
+        await act(async () => { await result.current.remove("c2"); });
+        // 取り直しが着地するまで待つ（件数だけ見ると、楽観削除の途中の 1 と
+        // 見分けが付かない）
+        await waitFor(() => expect(result.current.items.map((c) => c.id)).toEqual(["c1"]));
+
+        await act(async () => { failC1(new Error("boom")); await p1; });
+
+        expect(result.current.items.map((c) => c.id)).toEqual(["c1"]);
+        expect(result.current.count).toBe(1);   // 巻き戻して 2 にしない
+    });
+
+
     // 削除ボタンは disabled にならないので、通信が遅ければ2件を重ねられる。
     // 配列まるごとの控えに戻していた頃は、**先の1件が失敗**すると、
     // 後の1件（サーバーでは削除済み）が画面に戻り、件数も2つぶん戻った。
