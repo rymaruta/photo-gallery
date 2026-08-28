@@ -508,15 +508,28 @@ describe("requestSiteRebuild: 依頼の再試行", () => {
     // 残り時間を全部使われると、**データはもう消えているのに 500** が返り、
     // 押し直すと今度は 404 になる。しかも殺されると解放に到達しないので
     // 月の予算が1本ずつ減り続ける。
+    // **`instanceof AbortSignal` だけでは何も測れない。**
+    // 最初そう書いたら、`new AbortController().signal`（＝絶対に発火しない）
+    // に差し替えても、期限を60秒にしても40件すべて緑だった。
+    // signal が**自分で期限切れになること**を直に見る。
+    // フェイクタイマーの下では AbortSignal.timeout が発火しないので、
+    // この1本だけ実時計に戻す。
     it("1本ごとに期限を付ける（呼び出し元の残り時間を使い切らない）", async () => {
-        const fetchMock = vi.fn().mockResolvedValue({ ok: true });
-        globalThis.fetch = fetchMock as unknown as typeof fetch;
+        vi.useRealTimers();
+        let captured: AbortSignal | undefined;
+        globalThis.fetch = vi.fn().mockImplementation((_u: string, init: { signal?: AbortSignal }) => {
+            captured = init.signal;
+            return Promise.resolve({ ok: true });
+        }) as unknown as typeof fetch;
         const { requestSiteRebuild } = await load();
-        await runAll(requestSiteRebuild("x"));
+        await requestSiteRebuild("x");
 
-        const init = fetchMock.mock.calls[0][1] as { signal?: AbortSignal };
-        expect(init.signal).toBeInstanceOf(AbortSignal);
-    });
+        expect(captured).toBeInstanceOf(AbortSignal);
+        expect(captured!.aborted).toBe(false);
+        // 1本ごとの期限（1.5秒）を過ぎれば、誰も触らなくても自分で切れる
+        await new Promise((r) => setTimeout(r, 1700));
+        expect(captured!.aborted).toBe(true);
+    }, 5000);
 
     it("締切を過ぎたら、残りの投げ直しをやめる", async () => {
         // 1本目が遅く、締切（1.5秒）を食い潰す

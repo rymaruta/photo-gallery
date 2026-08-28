@@ -224,6 +224,13 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
                         // 諦めたことを黙って飲まない（200 を返すと画面には出るのに消える）
                         return jsonError(409, "他の投稿と重なりました。もう一度お試しください");
                     }
+                    // **少し待つ。ばらつきを入れる。**
+                    // 待ちが無いと、混んだ瞬間に負けた全員が同じミリ秒で
+                    // 撃ち直して衝突が持続する。オーナーもこの経路を通るように
+                    // なった（以前は無条件で必ず成功していた）ので、その分
+                    // ここが効く場面が増えている。postComment は6秒あるので、
+                    // 0/20/40/80ms 程度なら余裕がある。
+                    await new Promise((r) => setTimeout(r, 10 * 2 ** attempt + Math.random() * 10));
                 }
             }
         }

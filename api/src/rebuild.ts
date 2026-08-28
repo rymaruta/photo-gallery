@@ -232,8 +232,9 @@ const DISPATCH_RETRY_BASE_MS = 200;
  * **依頼に使ってよい時間の上限。**
  *
  * ここを呼ぶ削除系の Lambda は `serverless.yml` で timeout を指定しておらず、
- * 既定の6秒で走る（同じファイルの `deleteAccount` に「既定の6秒だと途中で
- * 打ち切られる」と書いてある）。ところが `fetch` には期限が無いので、
+ * 既定の6秒で走っていた（既定が6秒であることは、同じファイルで
+ * `timeout: 29` を明示している `deleteAccount` のコメントが書いている。
+ * あちらが6秒で走るという意味ではない）。ところが `fetch` には期限が無いので、
  * GitHub が応答を返さないと**削除そのものが6秒で殺される**。
  * データはもう消えているのに 500 が返り、押し直すと今度は
  * 404「写真が見つかりません」になる——「掃除が落ちる」より悪い。
@@ -241,11 +242,20 @@ const DISPATCH_RETRY_BASE_MS = 200;
  *
  * 再試行を足したこと自体でこの窓が3倍になったが、**期限が無いのは
  * 元からだった**（1本でも6秒使い切れた）。1本ごとの上限と全体の締切を
- * 両方置いて、遅くとも 1.5 秒で諦める。掃除が落ちるのは元の挙動と同じで、
- * 削除が失敗するよりはるかによい。
+ * 両方置く。掃除が落ちるのは元の挙動と同じで、削除が失敗するよりよい。
+ *
+ * 数字の根拠: 呼び出し元の余裕は6秒（下の `timeout: 15` で 15 秒に広げたが、
+ * それに寄りかからない）。**応答しない相手には2本しか投げられない**——
+ * 1本目に 1.5 秒、待ち 0.2 秒、2本目は残りの 1.3 秒で締切、という並びに
+ * なる。これは意図した形で、投げ直しが効くのは「速い 5xx がすぐ返る」場合
+ * （3本とも余裕で収まる）。相手が黙っているときに粘っても掃除は走らない。
+ *
+ * 最初は 800ms / 1.5秒にしたが、Lambda のコールドスタートで
+ * DNS + TCP + TLS + GitHub の処理を 800ms に収めるのは攻めすぎだった
+ * （そこで落ちると誰の目にも触れない。呼び出し元は戻り値を見ていない）。
  */
-const DISPATCH_ATTEMPT_TIMEOUT_MS = 800;
-const DISPATCH_TOTAL_BUDGET_MS = 1500;
+const DISPATCH_ATTEMPT_TIMEOUT_MS = 1500;
+const DISPATCH_TOTAL_BUDGET_MS = 3000;
 
 /** やり直して直る見込みがあるか（設定の誤りは何度投げても同じ） */
 function isRetryableStatus(status: number): boolean {
@@ -351,6 +361,9 @@ export async function requestSiteRebuild(reason: string, options: RebuildOptions
         `requestSiteRebuild: 再ビルドを頼めませんでした（${reason}）: ${lastError}。` +
         "静的ページが残ります。Actions から Deploy Site を手で1回流してください。",
     );
+    // **この2本は締切の外。** 締切が守るのは fetch のループだけで、
+    // ここまで来てから殺されれば印と予算は残る（窓は狭まったが閉じていない）。
+    // 閉じるには呼び出し元から残り時間を渡す形が要るので、別枠。
     if (stamp !== null) await releaseRebuildSlot(stamp);
     if (budget.counted) await releaseMonthlyBudget(budgetAt);
     return false;

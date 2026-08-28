@@ -450,6 +450,39 @@ describe("コメント追記: 読みと書きを条件でつなぐ", () => {
         expect(res.statusCode).toBe(409);
     });
 
+    // 待ちが無いと、混んだ瞬間に負けた全員が同じミリ秒で撃ち直して衝突が
+    // 持続する。オーナーもこの経路を通るようになった（以前は無条件で必ず
+    // 成功していた）ので、その分ここが効く場面が増えている。
+    it("やり直す前に少し待つ（全員が同じ瞬間に撃ち直さない）", async () => {
+        let appendCalls = 0;
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const id = String((cmd.input.Key as { id?: string })?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") {
+                if (id === "p1") return Promise.resolve({ Item: { id: "p1", src: "s", userId: "owner" } });
+                return Promise.resolve({ Item: { items: [] } });
+            }
+            if (cmd.constructor.name === "UpdateCommand" && id.startsWith("comments#")) {
+                appendCalls++;
+                if (appendCalls === 1) return Promise.reject(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
+                return Promise.resolve({ Attributes: { items: [] } });
+            }
+            return Promise.resolve({});
+        });
+
+        vi.useFakeTimers();
+        try {
+            const p = invoke(postComment, ev("me", { id: "p1" }, { text: "こんにちは" }));
+            await vi.advanceTimersByTimeAsync(0);
+            expect(appendCalls).toBe(1);          // 待っている間は撃ち直さない
+            await vi.advanceTimersByTimeAsync(100);
+            expect(appendCalls).toBe(2);
+            await vi.runAllTimersAsync();
+            expect((await p).statusCode).toBe(200);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     // **ここは方針を変えた。** 以前は「上限の対象外なので条件も読み取りも
     // 要らない」として、オーナーの追記に条件を付けないことを固定していた。
     // ところがこの条件は上限のためだけのものではなく、「前回の追記が通って
@@ -505,6 +538,14 @@ describe("コメント追記: 読みと書きを条件でつなぐ", () => {
         expect(res.statusCode).toBe(200);
         // 追記を試みたのは1回だけ。2回目は「もう入っている」で止まる
         expect(appendCalls).toBe(1);
+        // **オーナー経路でも条件式が付いていること**まで見る。
+        // ここを見ないと「オーナーだけ無条件に戻す」変異がこのテストを
+        // すり抜ける（モックが条件に関係なく CCF を返すため）。
+        const update = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> })
+            .find((c) => c.constructor.name === "UpdateCommand"
+                && String((c.input.Key as { id?: string })?.id ?? "").startsWith("comments#"));
+        expect(update!.input.ConditionExpression).toBe("attribute_not_exists(#items) OR size(#items) = :len");
     });
 });
 
