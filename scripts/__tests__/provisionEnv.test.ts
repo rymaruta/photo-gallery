@@ -136,3 +136,39 @@ describe("ENV_NAME の受け付け方", () => {
         }
     });
 });
+
+// ユーザープールの設定は、アプリ側の前提と**対**でしか意味を持たない。
+// 片方だけ変えると「作れるけれど使えない環境」ができる。
+describe("ユーザープールの設定（lib/auth/cognito.ts と対）", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let config: any;
+    beforeAll(() => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        ({ USER_POOL_CONFIG: config } = require("../provision-env.js"));
+    });
+
+    // signUp はユーザー名に **UUID** を渡し、メールは属性として別に渡す。
+    // `UsernameAttributes: ["email"]` は「ユーザー名そのものがメールアドレス」
+    // という設定なので、UUID を渡した時点で Cognito が弾く
+    // ——**そのプールでは新規登録ができない**。
+    it("メールはエイリアス（ユーザー名そのものにしない）", () => {
+        expect(config.AliasAttributes).toEqual(["email"]);
+        expect(config.UsernameAttributes).toBeUndefined();
+    });
+
+    // 画面は3か所で「記号を1文字以上」と案内している
+    // （signup の入力補助・login のプレースホルダ・InvalidPasswordException の文言）
+    it("パスワード方針が、画面の案内と食い違わない", () => {
+        expect(config.Policies.PasswordPolicy).toMatchObject({
+            MinimumLength: 8,
+            RequireUppercase: true,
+            RequireLowercase: true,
+            RequireNumbers: true,
+            RequireSymbols: true,
+        });
+    });
+
+    it("メールは自動検証（確認コードで登録を確定する流れ）", () => {
+        expect(config.AutoVerifiedAttributes).toEqual(["email"]);
+    });
+});

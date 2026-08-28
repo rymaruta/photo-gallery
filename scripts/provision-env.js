@@ -328,6 +328,39 @@ async function findUserPool(name) {
     return null;
 }
 
+/**
+ * ユーザープール本体の設定。**アプリの前提と対で保つこと。**
+ * 切り出してあるのは、テストから中身を確かめるため
+ * （インラインのままだと「作るときだけ効く設定」が誰にも見張られない）。
+ */
+const USER_POOL_CONFIG = {
+            // **AliasAttributes であって UsernameAttributes ではない。**
+            //
+            // `lib/auth/cognito.ts` の signUp は、ユーザー名に **UUID** を渡し、
+            // メールは属性として別に渡す（「このプールは AliasAttributes:email」
+            // というコメント付き）。`UsernameAttributes: ["email"]` のプールは
+            // 「ユーザー名そのものがメールアドレス」という設定なので、UUID を
+            // 渡した時点で Cognito が弾く——**そのプールでは新規登録ができない**。
+            //
+            // 本番には登録済みのユーザーがいて同じコードが動いている以上、
+            // 本番のプールは UsernameAttributes ではない。ここが実態と
+            // 食い違っていた（このスクリプトで作った staging は、
+            // 新規登録を押しても登録できないはず）。
+            //
+            // ※ **本番/staging の実物は未確認**（この作業環境から AWS を
+            //   叩けない）。確かめるなら:
+            //     aws cognito-idp describe-user-pool --user-pool-id <poolId>
+            //   の UsernameAttributes / AliasAttributes を見る。
+            AliasAttributes: ["email"],
+            AutoVerifiedAttributes: ["email"],
+            // 記号まで必須にするのは、画面が3か所でそう案内しているから
+            // （signup の入力補助・login のプレースホルダ・InvalidPasswordException
+            //  の文言）。false のままだと「記号を含めてください」と言いながら
+            // 実際は不要という食い違いになる。
+            Policies: { PasswordPolicy: { MinimumLength: 8, RequireUppercase: true, RequireLowercase: true, RequireNumbers: true, RequireSymbols: true } },
+            AccountRecoverySetting: { RecoveryMechanisms: [{ Name: "verified_email", Priority: 1 }] },
+};
+
 async function ensureUserPool() {
     step(`Cognito ${names.userPool}`);
     let poolId = await findUserPool(names.userPool);
@@ -338,10 +371,7 @@ async function ensureUserPool() {
         if (!APPLY) return { poolId: null, clientId: null };
         const res = await idp.send(new CreateUserPoolCommand({
             PoolName: names.userPool,
-            UsernameAttributes: ["email"],
-            AutoVerifiedAttributes: ["email"],
-            Policies: { PasswordPolicy: { MinimumLength: 8, RequireUppercase: true, RequireLowercase: true, RequireNumbers: true, RequireSymbols: false } },
-            AccountRecoverySetting: { RecoveryMechanisms: [{ Name: "verified_email", Priority: 1 }] },
+            ...USER_POOL_CONFIG,
         }));
         poolId = res.UserPool.Id;
         log(`作成しました: ${poolId}`);
@@ -432,4 +462,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { buildStagingConfig, stripLambdaAssociations };
+module.exports = { buildStagingConfig, stripLambdaAssociations, USER_POOL_CONFIG };

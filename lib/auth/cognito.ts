@@ -295,7 +295,20 @@ export async function confirmSignUp(username: string, code: string): Promise<{
         try {
             const userPool = getUserPool();
             const cognitoUser = new CognitoUser({ Username: username, Pool: userPool });
-            cognitoUser.confirmRegistration(code, true, (err) => {
+            // 第2引数は forceAliasCreation。**false にすること。**
+            //
+            // true は「そのメールが既に他の人に紐づいていても、強制的に
+            // こちらへ付け替える」という意味になる。踏み方:
+            //   攻撃者が被害者のメールで新規登録する
+            //   → 確認コードは**被害者の受信箱**に届く（攻撃者は読めない）
+            //   → 被害者が「正規のコードだ」と思って渡してしまうと、
+            //     true のせいでエラーにならず**メールが攻撃者のアカウントへ移り、
+            //     被害者は自分のメールでログインできなくなる**（旧アカウントの
+            //     写真も辿れなくなる）
+            // false なら AliasExistsException で止まる。true にしている必然性は
+            // 無い——「未確認のまま放置した自分の登録をやり直す」用途なら
+            // false でも通る（その場合エイリアスはまだ誰にも付いていない）。
+            cognitoUser.confirmRegistration(code, false, (err) => {
                 if (err) {
                     // 「すでに確認済み」は成功として扱う。
                     // PostConfirmation トリガーが失敗すると ConfirmSignUp も
@@ -309,6 +322,12 @@ export async function confirmSignUp(username: string, code: string): Promise<{
                     let msg = err.message || "確認に失敗しました";
                     if (err.name === "CodeMismatchException") msg = "確認コードが正しくありません";
                     if (err.name === "ExpiredCodeException") msg = "確認コードの有効期限が切れています。再送してください";
+                    // forceAliasCreation を false にしたので、そのメールが既に
+                    // 他のアカウントで使われていると、ここで止まる（＝正しい）。
+                    // 生の英語文言のままだと何が起きたのか分からないので置き換える。
+                    if (err.name === "AliasExistsException") {
+                        msg = "このメールアドレスはすでに別のアカウントで使われています";
+                    }
                     resolve({ success: false, error: msg });
                     return;
                 }

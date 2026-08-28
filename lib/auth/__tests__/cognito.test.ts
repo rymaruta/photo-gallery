@@ -171,6 +171,30 @@ describe("signUp", () => {
 // confirmSignUp
 // ────────────────────────────────
 describe("confirmSignUp", () => {
+    // 第2引数は forceAliasCreation。**true にすると、そのメールが既に
+    // 他の人に紐づいていても強制的に付け替える。**
+    //   攻撃者が被害者のメールで新規登録 → 確認コードは被害者の受信箱へ
+    //   → 被害者が「正規のコードだ」と思って渡すと、メールが攻撃者の
+    //     アカウントへ移り、被害者は自分のメールでログインできなくなる
+    it("エイリアスを強制的に付け替えない（forceAliasCreation は false）", async () => {
+        mockConfirmReg.mockImplementation(
+            (_code: string, _f: boolean, cb: (e: null) => void) => cb(null));
+        await confirmSignUp("uuid-1", "123456");
+
+        expect(mockConfirmReg).toHaveBeenCalledWith("123456", false, expect.any(Function));
+    });
+
+    it("既に他のアカウントで使われているメールは、理由が分かる文言で止まる", async () => {
+        mockConfirmReg.mockImplementation(
+            (_code: string, _f: boolean, cb: (e: { name: string; message: string }) => void) => {
+                cb({ name: "AliasExistsException", message: "An account with the email already exists." });
+            });
+        const res = await confirmSignUp("uuid-1", "123456");
+
+        expect(res.success).toBe(false);
+        expect(res.error).toContain("すでに別のアカウントで使われています");
+    });
+
     it("CodeMismatchException → 日本語メッセージ", async () => {
         mockConfirmReg.mockImplementation(
             (_code: string, _f: boolean, cb: (e: { name: string; message: string }) => void) => {
