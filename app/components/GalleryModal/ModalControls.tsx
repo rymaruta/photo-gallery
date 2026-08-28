@@ -28,12 +28,11 @@ type Props = {
     isFav: boolean;
     onToggleFavorite: () => void;
     firstFocusableRef: React.RefObject<HTMLButtonElement | null>;
-    lastFocusableRef: React.RefObject<HTMLButtonElement | null>;
 };
 
 export default function ModalControls({
     onPrev, onNext, onClose, isFav, onToggleFavorite,
-    firstFocusableRef, lastFocusableRef,
+    firstFocusableRef,
 }: Props) {
     const stopAndCall = (fn: () => void) => ({
         onClick: (e: React.MouseEvent) => { e.stopPropagation(); fn(); },
@@ -77,7 +76,6 @@ export default function ModalControls({
 
             {/* 閉じる */}
             <button
-                ref={lastFocusableRef}
                 {...stopAndCall(onClose)}
                 aria-label="Close"
                 className={`${BTN_BASE} top-2 sm:top-3 right-2 sm:right-3`}

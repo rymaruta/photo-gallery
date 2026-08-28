@@ -141,3 +141,28 @@ describe("useFocusTrap: 戻り先の指定", () => {
         expect(document.activeElement).toBe(screen.getByText("開くボタン"));
     });
 });
+
+// GalleryModal は「前へ」ボタンを指名している。今はそれが DOM 順の先頭でも
+// あるので、あちらのテストでは指名を無視する変異を捕まえられない
+// （実際に変異させて確かめた）。**指名が効くこと自体はここで固定する。**
+// これが無いと、将来ボタンの並びを変えたときに、初期フォーカスの位置が
+// 誰にも気づかれずに動く。
+describe("useFocusTrap: 最初に当てる要素の指定", () => {
+    function Named() {
+        const ref = useRef<HTMLDivElement | null>(null);
+        const initial = useRef<HTMLButtonElement | null>(null);
+        useFocusTrap(true, ref, undefined, initial);
+        return (
+            <div ref={ref}>
+                <button>先頭</button>
+                <button ref={initial}>指名された方</button>
+                <button>末尾</button>
+            </div>
+        );
+    }
+
+    it("DOM 順の先頭ではなく、指名した要素へ入れる", () => {
+        render(<Named />);
+        expect(document.activeElement).toBe(screen.getByText("指名された方"));
+    });
+});

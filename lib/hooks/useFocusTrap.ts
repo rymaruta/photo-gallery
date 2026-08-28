@@ -33,6 +33,13 @@ export function useFocusTrap(
      * メニューのように「戻る先が1つに決まっている」ものは渡すこと。
      */
     restoreRef?: RefObject<HTMLElement | null>,
+    /**
+     * 開いたときに最初にフォーカスする要素。渡さなければ DOM 順の先頭。
+     *
+     * GalleryModal は「前へ」ボタンを指名している（先頭は別の要素）。
+     * 指名を無視すると、開いた瞬間にフォーカスが当たる場所が変わる。
+     */
+    initialFocusRef?: RefObject<HTMLElement | null>,
 ): void {
     useEffect(() => {
         if (!active) return;
@@ -44,7 +51,7 @@ export function useFocusTrap(
 
         // 中に既にフォーカスがあるなら動かさない（autoFocus を尊重する）
         if (!container.contains(document.activeElement)) {
-            const first = container.querySelector<HTMLElement>(FOCUSABLE);
+            const first = initialFocusRef?.current ?? container.querySelector<HTMLElement>(FOCUSABLE);
             if (first) {
                 first.focus();
             } else {
@@ -90,5 +97,5 @@ export function useFocusTrap(
             document.removeEventListener("keydown", onKey);
             if (restoreTo && typeof restoreTo.focus === "function") restoreTo.focus();
         };
-    }, [active, containerRef, restoreRef]);
+    }, [active, containerRef, restoreRef, initialFocusRef]);
 }

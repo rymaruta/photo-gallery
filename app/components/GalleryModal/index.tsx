@@ -18,6 +18,7 @@ import ModalImage from "./ModalImage";
 import ModalControls from "./ModalControls";
 import ModalCaption from "./ModalCaption";
 import ModalKeyboardHelp from "./ModalKeyboardHelp";
+import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 
 type Props = {
     photos: Photo[];
@@ -41,9 +42,6 @@ export default function GalleryModal({
 
     const modalRef = useRef<HTMLDivElement | null>(null);
     const firstFocusableRef = useRef<HTMLButtonElement | null>(null);
-    const lastFocusableRef = useRef<HTMLButtonElement | null>(null);
-    const prevActiveElementRef = useRef<HTMLElement | null>(null);
-    const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [helpOpen, setHelpOpen] = useState(false);
     const helpOpenRef = useRef(false);
@@ -107,7 +105,19 @@ export default function GalleryModal({
         if (photos[prevIdx]?.src) preload(photos[prevIdx].src);
     }, [currentIndex, photos, p?.src, preload]);
 
-    // フォーカストラップ + キーボード操作 + body scroll lock
+    // フォーカストラップと初期フォーカス・復帰は useFocusTrap に寄せた。
+    // ここに同じものを自前で持っていて、他の4つのモーダルと**二重**だった。
+    // 移す前に今の挙動を写し取るテストを書いてある
+    // （app/components/__tests__/GalleryModalFocus.test.tsx）——
+    // 「前へ」ボタンを指名すること、閉じたら元へ戻すこと、Tab が外へ
+    // 出ないこと。それが通ることを確かめてから置き換えた。
+    //
+    // **100ms 待つのはやめた。** 待っていた理由はコードにもコメントにも
+    // 無く、レフはエフェクトの時点で既に張られている。待つ間だけ
+    // フォーカスが body に落ちている方が困る（その隙の Tab が裏へ抜ける）。
+    useFocusTrap(true, modalRef, undefined, firstFocusableRef);
+
+    // キーボード操作 + body scroll lock
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "ArrowRight") { e.preventDefault(); onNext(); return; }
@@ -120,36 +130,13 @@ export default function GalleryModal({
             }
             if (e.key === "?") { e.preventDefault(); setHelpOpen((v) => !v); return; }
             if (e.key === "h" || e.key === "H") { e.preventDefault(); void toggleLikeRef.current().then(notifyIfLikeFailedRef.current); return; }
-            if (e.key === "Tab") {
-                const focusable = modalRef.current?.querySelectorAll<HTMLElement>(
-                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-                );
-                if (!focusable || focusable.length === 0) return;
-                const first = focusable[0];
-                const last = focusable[focusable.length - 1];
-                if (e.shiftKey) {
-                    if (document.activeElement === first) { e.preventDefault(); last.focus(); }
-                } else {
-                    if (document.activeElement === last) { e.preventDefault(); first.focus(); }
-                }
-            }
         };
 
         lockBodyScroll();
-        prevActiveElementRef.current = (document.activeElement as HTMLElement) ?? null;
         window.addEventListener("keydown", onKey);
-        focusTimerRef.current = setTimeout(() => { firstFocusableRef.current?.focus(); }, 100);
-
         return () => {
-            if (focusTimerRef.current !== null) clearTimeout(focusTimerRef.current);
             window.removeEventListener("keydown", onKey);
             unlockBodyScroll();
-            try {
-                const el = prevActiveElementRef.current;
-                if (el && typeof el.focus === "function") el.focus();
-                else (document.activeElement as HTMLElement | null)?.blur?.();
-            } catch { /* noop */ }
-            prevActiveElementRef.current = null;
         };
     }, [onClose, onNext, onPrev]);
 
@@ -235,7 +222,6 @@ export default function GalleryModal({
                         isFav={liked}
                         onToggleFavorite={() => { hapticTap(); void toggleLike().then(notifyIfLikeFailed); }}
                         firstFocusableRef={firstFocusableRef}
-                        lastFocusableRef={lastFocusableRef}
                     />
                 </div>
 
