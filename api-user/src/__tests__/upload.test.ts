@@ -6,8 +6,10 @@ const mockGetSignedUrl = vi.hoisted(() => vi.fn());
 const mockPutObjectInput = vi.hoisted(() => vi.fn());
 
 const mockListMyMedia = vi.hoisted(() => vi.fn());
+const mockGetPhotoById = vi.hoisted(() => vi.fn());
 vi.mock("../ddb-photos", () => ({
     putPhoto: mockPutPhoto,
+    getPhotoById: mockGetPhotoById,
     countUserPhotos: mockCountUserPhotos,
     listMyMediaItems: mockListMyMedia,
 }));
@@ -66,6 +68,7 @@ beforeEach(() => {
     mockGetSignedUrl.mockReset().mockResolvedValue("https://s3.example/presigned");
     mockPutObjectInput.mockReset();
     mockLookupIfSet.mockReset().mockResolvedValue(undefined);
+    mockGetPhotoById.mockReset().mockResolvedValue(undefined);
 });
 
 describe("savePhoto: thumbUrl（一覧グリッド用サムネイル）", () => {
@@ -236,14 +239,31 @@ describe("savePhoto: exif（撮影情報）のサニタイズ", () => {
 // 他人のデータを壊せる経路を塞いだことの回帰ガード。
 // いずれも「ログインしていれば誰でも実行できた」ものなので、外れたら即座に気づけるようにする。
 describe("savePhoto: 他人のデータを壊せないこと", () => {
-    it("リクエストの photoId は無視し、必ずサーバーで採番する", async () => {
-        // 写真IDはURLで公開されている。受け取ってしまうと、他人の写真や
-        // 通知文書（notifs#...）を丸ごと上書きできてしまう。
+    // IDの出どころは**鍵**（presign が採番して埋めたもの）に変わったが、
+    // 本文の photoId は今も見ない。ここが外れると、他人の写真や通知文書
+    // （notifs#...）を狙って書ける（実際に書けるかは putPhoto の
+    // attribute_not_exists(id) 次第だが、そこに頼らせない）。
+    it("本文の photoId は見ない（IDは鍵から取る）", async () => {
         const victimId = "someone-elses-photo-id";
         const res = await invoke(event("u1", { ...BASE, photoId: victimId }));
         expect(res.statusCode).toBe(200);
         expect(savedPhoto().id).not.toBe(victimId);
         expect(savedPhoto().id).toMatch(/^[0-9a-f-]{36}$/);
+    });
+
+    // 鍵から取るようにしたので、鍵に他人のIDを埋めて狙う筋が生まれる。
+    // 鍵は uploadPrefix(userId) で始まることを先に確かめてあるので、
+    // 埋められるのは**自分の領域のID**だけ。それでも重なったら
+    // attribute_not_exists(id) が弾き、409 になる（上書きしない）。
+    it("鍵に他人の写真IDを埋めても上書きしない", async () => {
+        const victimId = "3f2a1b4c-5d6e-4f70-8a91-b2c3d4e5f607";
+        const key = `uploads/u1/${victimId}.webp`;
+        mockPutPhoto.mockRejectedValueOnce(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({ id: victimId, userId: "u2", src: "https://cdn.example.com/uploads/u2/x.webp" });
+        const res = await invoke(event("u1", { key, publicUrl: `https://cdn.example.com/${key}` }));
+
+        expect(res.statusCode).toBe(409);
+        expect(mockPutPhoto).toHaveBeenCalledTimes(1);   // 条件付きの1回だけ
     });
 
     it("配信ドメイン外の publicUrl は弾く", async () => {
@@ -534,5 +554,60 @@ describe("discardUpload", () => {
 
     it("壊れた JSON は 400", async () => {
         expect((await discard(ev(ME, "{"))).statusCode).toBe(400);
+    });
+});
+
+// 保存の再送が**同じ写真をもう1枚**作っていた。
+// 「公開」を押す → サーバーには届いたが応答が失われる（モバイル回線・
+// API Gateway の 29 秒）→ 画面は error になる → 押し直すと、S3 に上げた分は
+// 使い回すのに save だけもう一度飛び、新しいIDで2枚目の行ができる。
+// 100枚の枠を2つ食い、片方を消すと共有している S3 の実体が消えて
+// **もう片方が割れた画像になる**。
+describe("savePhoto: 保存の再送で写真が増えない", () => {
+    const UUID = "3f2a1b4c-5d6e-4f70-8a91-b2c3d4e5f607";
+    const KEY = `uploads/u1/${UUID}.webp`;
+    const body = { key: KEY, publicUrl: `https://cdn.example.com/${KEY}` };
+    const condFail = () => Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" });
+
+    it("IDは presign が鍵に埋めたものを使う（採番し直さない）", async () => {
+        await invoke(event("u1", body));
+        expect(savedPhoto().id).toBe(UUID);
+    });
+
+    it("同じ鍵で送り直したら、成功を返して2枚目を作らない", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: UUID, userId: "u1", src: `https://cdn.example.com/${KEY}`, title: { ja: "前回", en: "prev" },
+        });
+        const res = await invoke(event("u1", body));
+
+        expect(res.statusCode).toBe(200);
+        // 返すのは**保存済みの方**（クライアントはこれを一覧に出す）
+        expect(JSON.parse(res.body).photo.title.ja).toBe("前回");
+        expect(mockPutPhoto).toHaveBeenCalledTimes(1);
+    });
+
+    // 他人のIDを狙って書いた場合に「成功しました」と返さない（存在も教えない）
+    it("他人の写真とIDがぶつかったら 409（成功と言わない）", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({ id: UUID, userId: "u2", src: "https://cdn.example.com/uploads/u2/x.webp" });
+        const res = await invoke(event("u1", body));
+
+        expect(res.statusCode).toBe(409);
+        expect(JSON.parse(res.body).success).toBeUndefined();
+    });
+
+    // 同じIDでも中身が違う（別の画像を同じ鍵で登録しようとした）なら通さない
+    it("IDが同じでも src が違えば 409", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({ id: UUID, userId: "u1", src: "https://cdn.example.com/uploads/u1/other.webp" });
+        expect((await invoke(event("u1", body))).statusCode).toBe(409);
+    });
+
+    // 鍵の形が違えば採番に落ちる（古い鍵で保存そのものを落とさない）
+    it("UUID の形でない鍵はサーバーで採番する", async () => {
+        await invoke(event("u1", { key: "uploads/u1/legacy.webp", publicUrl: "https://cdn.example.com/uploads/u1/legacy.webp" }));
+        expect(savedPhoto().id).not.toBe("legacy");
+        expect(savedPhoto().id).toMatch(/^[0-9a-f-]{36}$/);
     });
 });

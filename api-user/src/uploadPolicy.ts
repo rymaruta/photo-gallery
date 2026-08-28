@@ -111,3 +111,21 @@ export function canonicalUploadUrl(raw: string, cloudfrontUrl: string): string {
     if (!key) return raw;
     return `${cloudfrontUrl.replace(/\/$/, "")}/${key.split("/").map(encodeURIComponent).join("/")}`;
 }
+
+/**
+ * アップロードの鍵から写真IDを取り出す（`uploads/<uid>/<uuid>.<ext>` の <uuid>）。
+ *
+ * presign は `photoId` を採番して鍵に埋めているのに、保存側が採番し直して
+ * いたので、**保存の再送が同じ写真をもう1枚**作っていた。鍵から取れば、
+ * 同じ鍵での再送は必ず同じIDになり、`attribute_not_exists(id)` で弾ける。
+ *
+ * 呼ぶ側は先に `key.startsWith(uploadPrefix(userId))` を確かめること。
+ * 形が違えば undefined を返す（呼び側は採番に落ちる）——古い鍵や、
+ * 拡張子の無い鍵で保存そのものを落とさないため。
+ */
+export function idFromUploadKey(key: string): string | undefined {
+    const base = key.slice(key.lastIndexOf("/") + 1).replace(/\.[^.]*$/, "");
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(base)
+        ? base.toLowerCase()
+        : undefined;
+}

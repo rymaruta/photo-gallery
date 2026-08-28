@@ -2,12 +2,12 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
-import { putPhoto, countUserPhotos, listMyMediaItems } from "./ddb-photos";
+import { putPhoto, getPhotoById, countUserPhotos, listMyMediaItems } from "./ddb-photos";
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
 import { lookupDisplayNameIfSet } from "./notify";
 import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags } from "./sanitize";
-import { extForType, uploadPrefix, canonicalUploadUrl, isOwnUploadUrl as isOwnUploadUrlFor } from "./uploadPolicy";
+import { extForType, uploadPrefix, canonicalUploadUrl, idFromUploadKey, isOwnUploadUrl as isOwnUploadUrlFor } from "./uploadPolicy";
 import { mediaKeys } from "./mediaKeys";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
@@ -205,10 +205,20 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     const safeDate = sanitizeDate(body.date);
 
     const photo: Photo = {
-        // ID は必ずサーバーで採番する。リクエストから受け取ると、他人の写真IDを
-        // 指定して丸ごと上書きできてしまう（通知やコメントの文書も同じテーブルにある）。
-        // 既存写真の更新は photoUpdate.ts が担当する。
-        id: uuidv4(),
+        // **IDは presign が採番したものを鍵から取り出す。** ここで毎回
+        // 採番し直していたので、保存の再送が**同じ写真をもう1枚**作っていた:
+        // 「公開」を押す → サーバーには届いたが応答が失われる（モバイル回線・
+        // API Gateway の 29 秒）→ 画面は error になる → 押し直すと、S3 に上げた
+        // 分は使い回すのに save だけもう一度飛び、新しいIDで2枚目の行ができる。
+        // 100枚の枠を2つ食い、片方を消すと共有している S3 の実体が消えて
+        // **もう片方が割れた画像になる**。comments.ts は同じ形の再送を
+        // 「前回の追記が通っていたら、もう足さない」で既に塞いでいる。
+        //
+        // リクエストの値をそのまま使うわけではない。鍵は既に
+        // `uploadPrefix(userId)` で始まることを確かめてあるので、取り出せる
+        // のは**自分の領域に presign したID**だけ。他人のIDを狙って書いても
+        // putPhoto の `attribute_not_exists(id)` で弾かれる（下の catch）。
+        id: idFromUploadKey(String(key)) ?? uuidv4(),
         // 検証したときに見ていた形で保存する（デコード済みのパスで組み直す）。
         // 生のまま保存すると、削除や派生生成で見る側と表記が食い違い、
         // 対象から漏れる余地が残る。
@@ -245,6 +255,17 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         await putPhoto(photo);
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo }) };
     } catch (e) {
+        if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
+            // 既にその ID がある。**前回の保存が通っていた再送なら成功を返す。**
+            // 中身まで見るのは、他人のIDを狙って書いた場合に「成功しました」と
+            // 返さないため（存在を教えることにもなる）。
+            const existing = await getPhotoById(photo.id);
+            if (existing && (existing.userId ?? existing.uploadedBy) === userId && existing.src === photo.src) {
+                console.log(`savePhoto: 同じ写真の再送を受け取りました（${photo.id}）`);
+                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: existing }) };
+            }
+            return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({ error: "この画像はすでに登録されています" }) };
+        }
         console.error("savePhoto error:", e);
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "保存に失敗しました" }) };
     }

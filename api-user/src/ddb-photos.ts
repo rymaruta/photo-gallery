@@ -1,4 +1,4 @@
-import { PutCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { PutCommand, QueryCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
 import type { Photo } from "./types";
 
@@ -35,6 +35,12 @@ export async function putPhoto(photo: Photo): Promise<void> {
  * 足したまま Limit 1 にすると「最新の1件がストーリーだった人は
  * 写真があっても 0 件」になり、この修正が壊れる。
  */
+/** 1件だけ引く（保存の再送かどうかを見分けるため） */
+export async function getPhotoById(id: string): Promise<Photo | undefined> {
+    const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
+    return res.Item as Photo | undefined;
+}
+
 export async function hasAnyUserItem(userId: string): Promise<boolean> {
     const res = await ddb.send(new QueryCommand({
         TableName: PHOTOS_TABLE,
