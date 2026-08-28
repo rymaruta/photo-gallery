@@ -228,6 +228,25 @@ async function releaseMonthlyBudget(now: number): Promise<void> {
 const DISPATCH_RETRIES = 2;
 const DISPATCH_RETRY_BASE_MS = 200;
 
+/**
+ * **依頼に使ってよい時間の上限。**
+ *
+ * ここを呼ぶ削除系の Lambda は `serverless.yml` で timeout を指定しておらず、
+ * 既定の6秒で走る（同じファイルの `deleteAccount` に「既定の6秒だと途中で
+ * 打ち切られる」と書いてある）。ところが `fetch` には期限が無いので、
+ * GitHub が応答を返さないと**削除そのものが6秒で殺される**。
+ * データはもう消えているのに 500 が返り、押し直すと今度は
+ * 404「写真が見つかりません」になる——「掃除が落ちる」より悪い。
+ * しかも殺されると下の解放に到達しないので、月の予算が1本ずつ減り続ける。
+ *
+ * 再試行を足したこと自体でこの窓が3倍になったが、**期限が無いのは
+ * 元からだった**（1本でも6秒使い切れた）。1本ごとの上限と全体の締切を
+ * 両方置いて、遅くとも 1.5 秒で諦める。掃除が落ちるのは元の挙動と同じで、
+ * 削除が失敗するよりはるかによい。
+ */
+const DISPATCH_ATTEMPT_TIMEOUT_MS = 800;
+const DISPATCH_TOTAL_BUDGET_MS = 1500;
+
 /** やり直して直る見込みがあるか（設定の誤りは何度投げても同じ） */
 function isRetryableStatus(status: number): boolean {
     return status >= 500 || status === 429 || status === 408;
@@ -285,8 +304,15 @@ export async function requestSiteRebuild(reason: string, options: RebuildOptions
         return false;
     }
     let lastError = "";
+    const deadline = Date.now() + DISPATCH_TOTAL_BUDGET_MS;
     for (let attempt = 0; attempt <= DISPATCH_RETRIES; attempt++) {
-        if (attempt > 0) await new Promise((r) => setTimeout(r, DISPATCH_RETRY_BASE_MS * 2 ** (attempt - 1)));
+        if (attempt > 0) {
+            // 待つのは「締切までの残り」を超えない範囲だけ
+            const wait = Math.min(DISPATCH_RETRY_BASE_MS * 2 ** (attempt - 1), deadline - Date.now());
+            if (wait <= 0) break;
+            await new Promise((r) => setTimeout(r, wait));
+        }
+        if (Date.now() >= deadline) break;
         try {
             const res = await fetch(`https://api.github.com/repos/${REBUILD_REPO}/dispatches`, {
                 method: "POST",
@@ -297,6 +323,9 @@ export async function requestSiteRebuild(reason: string, options: RebuildOptions
                     "User-Agent": "photo-gallery-api",
                 },
                 body: JSON.stringify({ event_type: "site-rebuild", client_payload: { reason } }),
+                // 1本ごとの上限。これが無いと、応答を返さない相手に
+                // 呼び出し元の残り時間を全部使われる
+                signal: AbortSignal.timeout(Math.min(DISPATCH_ATTEMPT_TIMEOUT_MS, Math.max(1, deadline - Date.now()))),
             });
             if (res.ok) {
                 console.log(`requestSiteRebuild: 再ビルドを依頼しました（${reason}）`);

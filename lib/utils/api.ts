@@ -140,17 +140,22 @@ export async function isGoneResponse(res: Response): Promise<boolean> {
 }
 
 export async function readApiError(res: Response, fallback: string): Promise<string> {
-    let msg = "";
+    let ours = "";
     try {
         const data = await res.json() as { error?: unknown; message?: unknown };
-        msg = typeof data.error === "string" ? data.error
-            : typeof data.message === "string" ? data.message
-                : "";
+        // **うちの API は必ず `{ error }` で返す**（api-user/src/http.ts の
+        // jsonError）。`message` しか無い応答は API Gateway 由来＝英語の定型で、
+        // これを見分ける目印に使える（isGoneResponse も同じ論法）。
+        ours = typeof data.error === "string" ? data.error : "";
     } catch { /* JSON でなければ既定文 */ }
     // API Gateway の JWT オーソライザは期限切れトークンに
     // {"message":"Unauthorized"} を返す。英語の定型を生で出さず、
     // 何が起きたか（再ログインで直る）が伝わる文言に置き換える。
     // 自前の API が返す日本語の error（「認証が必要です」等）はそのまま通す。
-    if (res.status === 401 && (!msg || msg === "Unauthorized")) return SESSION_EXPIRED_MESSAGE;
-    return msg || fallback;
+    if (res.status === 401 && !ours) return SESSION_EXPIRED_MESSAGE;
+    // **401 以外も同じ扱いにする。** `message` をどのステータスでも通していた
+    // ので、Lambda がタイムアウトすると「Internal Server Error」が、
+    // オーソライザが弾くと「Forbidden」がそのままトーストに出ていた
+    // （401 だけ置き換えても、他が素通しでは同じこと）。
+    return ours || fallback;
 }

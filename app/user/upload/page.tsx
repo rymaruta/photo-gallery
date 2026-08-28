@@ -189,9 +189,6 @@ function UploadPageInner() {
         };
     }, []);
 
-    // 認証チェック
-
-
     /**
      * 残りアップロード可能枚数。**上限に当たるまで見えなかった。**
      * 100枚の上限（api-user/src/upload.ts の PHOTO_LIMIT_PER_USER）は

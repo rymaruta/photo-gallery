@@ -490,6 +490,47 @@ describe("requestSiteRebuild: 依頼の再試行", () => {
         expect(exprs.filter((u) => u === "ADD #c :minus")).toHaveLength(1);
     });
 
+    // **成功したら何も戻さない。** 戻す2行を成功側に足す変異を当てても
+    // 37件が全部緑だった＝この差分が固定できていなかった。入ると月の予算が
+    // 数えられなくなり（費用の歯止めが消える）、クールダウンも効かなくなる。
+    it("成功したときは印も予算も戻さない", async () => {
+        globalThis.fetch = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
+        const { requestSiteRebuild } = await load();
+        expect(await runAll(requestSiteRebuild("x", { coalesce: true }))).toBe(true);
+
+        const exprs = mockDdbSend.mock.calls
+            .map((c) => (c[0] as { input?: { UpdateExpression?: string } }).input?.UpdateExpression);
+        expect(exprs.filter((u) => u === "REMOVE lastAt")).toHaveLength(0);
+        expect(exprs.filter((u) => u === "ADD #c :minus")).toHaveLength(0);
+    });
+
+    // 呼び出し元（削除系）は既定6秒の Lambda。応答を返さない相手に
+    // 残り時間を全部使われると、**データはもう消えているのに 500** が返り、
+    // 押し直すと今度は 404 になる。しかも殺されると解放に到達しないので
+    // 月の予算が1本ずつ減り続ける。
+    it("1本ごとに期限を付ける（呼び出し元の残り時間を使い切らない）", async () => {
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+        const { requestSiteRebuild } = await load();
+        await runAll(requestSiteRebuild("x"));
+
+        const init = fetchMock.mock.calls[0][1] as { signal?: AbortSignal };
+        expect(init.signal).toBeInstanceOf(AbortSignal);
+    });
+
+    it("締切を過ぎたら、残りの投げ直しをやめる", async () => {
+        // 1本目が遅く、締切（1.5秒）を食い潰す
+        const fetchMock = vi.fn().mockImplementation(async () => {
+            await new Promise((r) => setTimeout(r, 5000));
+            return { ok: false, status: 503, text: async () => "unavailable" };
+        });
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+        const { requestSiteRebuild } = await load();
+
+        expect(await runAll(requestSiteRebuild("x"))).toBe(false);
+        expect(fetchMock).toHaveBeenCalledTimes(1);   // 2本目は投げない
+    });
+
     // 成功したのに投げ直すと、畳み込みの外で2本走る（枠を余計に食う）
     it("成功したら投げ直さない", async () => {
         const fetchMock = vi.fn().mockResolvedValue({ ok: true });
