@@ -119,7 +119,11 @@
 - ユーザーも空。staging で使うには新規登録が必要。
 - CloudFront には**本番の API Gateway オリジンを引き継いでいない**
   （コピーすると staging の `/api/*` が本番APIに届くため）。
-- 環境を増やすときは `provision-env.yml` を `envName` 指定で実行する（冪等）。
+- 環境を増やすときは `provision-env.yml` を `envName` 指定で実行する。
+  **冪等なのは「作る」ところだけで、設定は収束しない**——既にあるリソースは
+  「既にあります」で素通りする。特に Cognito の `AliasAttributes` は
+  作成後に変更できないので、間違った設定で作ったプールは作り直すしかない
+  （Pool ID と Client ID が変わる）。
 
 ## デプロイ手順
 

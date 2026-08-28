@@ -332,6 +332,13 @@ async function findUserPool(name) {
  * ユーザープール本体の設定。**アプリの前提と対で保つこと。**
  * 切り出してあるのは、テストから中身を確かめるため
  * （インラインのままだと「作るときだけ効く設定」が誰にも見張られない）。
+ *
+ * **これは作成時にしか効かない。** ensureUserPool は既存のプールを見つけると
+ * 「既にあります」で素通りする。つまりこのスクリプトは作成が冪等なだけで、
+ * **設定は収束しない**。しかも `AliasAttributes` / `UsernameAttributes` は
+ * Cognito がプール作成後の変更を許さない属性なので、間違った設定で作られた
+ * プールは**作り直すしかない**（Pool ID と Client ID が変わるので、
+ * CLAUDE.md と .env.local の書き換えが要る）。
  */
 const USER_POOL_CONFIG = {
             // **AliasAttributes であって UsernameAttributes ではない。**

@@ -111,7 +111,7 @@ async function releaseRebuildSlot(stamp: number): Promise<void> {
 }
 
 /**
- * 1か月に頼んでよいビルドの本数。
+ * 1か月に頼んでよい**依頼**の本数。
  *
  * **クールダウンでは費用は止まらない。** deploy.yml の concurrency は
  * 同じグループの**待機中**の実行を常に1つに畳むので、依頼を何本投げても
@@ -121,7 +121,20 @@ async function releaseRebuildSlot(stamp: number): Promise<void> {
  *
  * 効くのは**総量の予算**。Actions の枠は月2,000分で、1本8分なので約250本。
  * API のデプロイなど他のワークフローの分を残して 200 にする。
- * 枠を上げたときは Lambda の環境変数 `REBUILD_MONTHLY_MAX` で上書きする。
+ *
+ * **数えているのは依頼であってビルドではない。** 畳み込みがある以上、
+ * 依頼200本が実行200本とは限らない（削除が一気に200件走れば、実行は
+ * 30本＝240分で済むこともある）。つまりこの予算は**安全側に外れる**——
+ * 枠が余っているのに見送る月がありうる。逆向き（枠を超えて通す）に
+ * 外れないことを優先している。実行本数で数えるなら、加算する場所は
+ * ここではなくビルド開始時（scripts/sync-photos-from-ddb.js は既に
+ * 同じテーブルへ書いている）だが、その形だと確保が原子的でなくなり、
+ * 同時に来た依頼が揃って通る。
+ *
+ * 枠を上げたときは `REBUILD_MONTHLY_MAX` を上げる。渡し方は
+ * serverless.yml の `rebuildMonthlyMax`（GitHub のリポジトリ変数
+ * `REBUILD_MONTHLY_MAX` から deploy-api.yml が渡す）。
+ * **Lambda コンソールで直接いじっても次のデプロイで消える。**
  *
  * 読めない値は既定に落とす。`??` だけだと、serverless.yml の
  * `${param:... , ''}` と同じ書き方で空文字が入ったときに `Number("")` が

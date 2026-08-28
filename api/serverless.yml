@@ -21,6 +21,11 @@ provider:
     # 設定しないと、消した写真のページが次に誰かが push するまで公開のまま残る。
     REBUILD_REPO: ${param:rebuildRepo, ''}
     REBUILD_DISPATCH_TOKEN: ${param:rebuildToken, ''}
+    # 1か月に頼んでよい再ビルドの本数（既定 200）。Actions の枠を上げたときに
+    # 合わせる。**Lambda コンソールで直接いじっても次のデプロイで消える**ので、
+    # ここか deploy-api.yml のリポジトリ変数から渡すこと。
+    # 空文字・数値でない値は既定に落ちる（api-user/src/rebuild.ts）。
+    REBUILD_MONTHLY_MAX: ${param:rebuildMonthlyMax, ''}
     UPLOAD_BUCKET: ${param:uploadBucket}
     CLOUDFRONT_URL: ${param:cloudfrontUrl}
 

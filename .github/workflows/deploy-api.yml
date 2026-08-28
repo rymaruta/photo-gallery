@@ -168,11 +168,13 @@ jobs:
           # 空のときは旗ごと渡さない（serverless.yml 側に既定値 '' がある）。
           REBUILD_REPO: ${{ needs.config.outputs.rebuildRepo }}
           REBUILD_TOKEN: ${{ secrets.REBUILD_DISPATCH_TOKEN }}
+          REBUILD_MONTHLY_MAX: ${{ vars.REBUILD_MONTHLY_MAX }}
         run: |
           set -euo pipefail
           extra=()
           if [ -n "$REBUILD_REPO" ]; then extra+=(--param "rebuildRepo=$REBUILD_REPO"); fi
           if [ -n "$REBUILD_TOKEN" ]; then extra+=(--param "rebuildToken=$REBUILD_TOKEN"); fi
+          if [ -n "${REBUILD_MONTHLY_MAX:-}" ]; then extra+=(--param "rebuildMonthlyMax=$REBUILD_MONTHLY_MAX"); fi
           echo "再ビルド依頼: repo=$([ -n "$REBUILD_REPO" ] && echo "$REBUILD_REPO" || echo '(なし)')" \
                "token=$([ -n "$REBUILD_TOKEN" ] && echo '設定あり' || echo '(なし)')"
           npx serverless@3 deploy --stage ${{ needs.config.outputs.envName }} \
@@ -221,12 +223,14 @@ jobs:
           # 空のときは旗ごと渡さない（serverless.yml 側に既定値 '' がある）。
           REBUILD_REPO: ${{ needs.config.outputs.rebuildRepo }}
           REBUILD_TOKEN: ${{ secrets.REBUILD_DISPATCH_TOKEN }}
+          REBUILD_MONTHLY_MAX: ${{ vars.REBUILD_MONTHLY_MAX }}
           MUSIC_SEARCH_RESERVED: ${{ needs.config.outputs.musicSearchReserved }}
         run: |
           set -euo pipefail
           extra=()
           if [ -n "$REBUILD_REPO" ]; then extra+=(--param "rebuildRepo=$REBUILD_REPO"); fi
           if [ -n "$REBUILD_TOKEN" ]; then extra+=(--param "rebuildToken=$REBUILD_TOKEN"); fi
+          if [ -n "${REBUILD_MONTHLY_MAX:-}" ]; then extra+=(--param "rebuildMonthlyMax=$REBUILD_MONTHLY_MAX"); fi
           if [ -n "$MUSIC_SEARCH_RESERVED" ]; then extra+=(--param "musicSearchReserved=$MUSIC_SEARCH_RESERVED"); fi
           echo "再ビルド依頼: repo=$([ -n "$REBUILD_REPO" ] && echo "$REBUILD_REPO" || echo '(なし)')" \
                "token=$([ -n "$REBUILD_TOKEN" ] && echo '設定あり' || echo '(なし)')" \
