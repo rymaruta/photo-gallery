@@ -196,7 +196,7 @@ function EditContent() {
         if (!photoId) return;
         setSaving(true);
         try {
-            const { userFetch } = await import("../../../lib/utils/api");
+            const { userFetch, readApiError } = await import("../../../lib/utils/api");
             const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
             // **実際に変えた項目だけ送る。**
             // 開いた時点の値を毎回全部送っていたので、同じ写真を2タブで開いて
@@ -238,12 +238,15 @@ function EditContent() {
                 // 直したものを確かめられない（そこには公開写真が出ない）。
                 router.push(published && photoId ? ROUTES.PHOTO(photoId) : ROUTES.DRAFTS);
             } else {
-                const err = await res.json().catch(() => ({})) as { error?: string };
-                showToast(err.error ?? (isJa ? "保存に失敗しました" : "Save failed"), "error");
+                // readApiError に寄せる。自前で本文を読むと、API Gateway の
+                // {"message":"Unauthorized"} を拾えず「保存に失敗しました」になる
+                showToast(await readApiError(res, isJa ? "保存に失敗しました" : "Save failed"), "error");
             }
         } catch (e) {
             log.error("edit save error:", e);
-            showToast(isJa ? "保存に失敗しました" : "Save failed", "error");
+            const { AUTH_REQUIRED_MESSAGE } = await import("../../../lib/utils/api");
+            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
+            showToast(authMissing ? AUTH_REQUIRED_MESSAGE : (isJa ? "保存に失敗しました" : "Save failed"), "error");
         } finally {
             setSaving(false);
         }

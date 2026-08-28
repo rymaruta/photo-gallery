@@ -12,6 +12,7 @@ import type { Photo } from "@/lib/data/photos";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import { log } from "../../lib/utils/log";
 import { ROUTES } from "../../lib/routes";
+import { readApiError } from "../../lib/utils/api";
 
 // 検索対象のテキスト（タイトル・場所・カテゴリ・タグ）を1本の文字列にする
 function photoSearchText(p: Photo): string {
@@ -145,15 +146,12 @@ export default function AdminPage() {
                     if (isMountedRef.current) void loadPhotos();
                 }, 500);
             } else {
-                const errorText = await response.text().catch(() => "Unknown error");
-                let errorMessage = "Unknown error";
-                
-                try {
-                    const errorJson = JSON.parse(errorText);
-                    errorMessage = errorJson.error || errorText;
-                } catch {
-                    errorMessage = errorText || `HTTP ${response.status}: ${response.statusText}`;
-                }
+                // readApiError に寄せる。自前で読んでいた頃は、API Gateway の
+                // 期限切れ応答 {"message":"Unauthorized"} に `error` が無いので
+                // **生の JSON がそのままトーストに出て**いた（クラッシュログの
+                // ように見える）。readApiError はこれを日本語に置き換える。
+                const errorMessage = await readApiError(response,
+                    locale === "en" ? "Failed to delete photo" : "削除に失敗しました");
 
                 log.error("削除APIエラー:", {
                     status: response.status,

@@ -50,10 +50,16 @@ export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale }:
     if (isOwner) return null;
 
     const onClick = async () => {
-        const r = await toggle();
-        if (r === "auth-required") showToast(locale === "en" ? "Log in to follow" : "フォローするにはログインしてください", "info");
-        else if (r === "followed") showToast(locale === "en" ? "Following" : "フォローしました", "success");
-        else if (r === "error") showToast(locale === "en" ? "Something went wrong" : "うまくいきませんでした", "error");
+        const { result, message } = await toggle();
+        if (result === "auth-required") {
+            showToast(message ?? (locale === "en" ? "Log in to follow" : "フォローするにはログインしてください"), "info");
+        } else if (result === "followed") {
+            showToast(locale === "en" ? "Following" : "フォローしました", "success");
+        } else if (result === "error") {
+            // サーバーの理由をそのまま出す（「自分はフォローできません」など）。
+            // 一語に潰していた頃は、直せるものも直せない案内になっていた
+            showToast(message ?? (locale === "en" ? "Something went wrong" : "うまくいきませんでした"), "error");
+        }
     };
 
     return (

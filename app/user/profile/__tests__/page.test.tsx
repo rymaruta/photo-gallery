@@ -22,9 +22,16 @@ vi.mock("../../../../lib/hooks/useToast", () => ({
     useToast: () => ({ showToast: mockShowToast }),
 }));
 
-vi.mock("../../../../lib/utils/api", () => ({
-    userFetch: (...args: unknown[]) => mockUserFetch(...args),
-}));
+// readApiError と AUTH_REQUIRED_MESSAGE は**本物を使う**。アップロードの
+// 失敗経路がサーバーの文言（「対応していない形式です…」）をそのまま出す
+// ようになったので、差し替えると何を出しているか確かめられない。
+vi.mock("../../../../lib/utils/api", async () => {
+    const actual = await vi.importActual<typeof import("../../../../lib/utils/api")>("../../../../lib/utils/api");
+    return {
+        ...actual,
+        userFetch: (...args: unknown[]) => mockUserFetch(...args),
+    };
+});
 
 vi.mock("../../../../lib/utils/image", () => ({
     toUploadSafeFile: async (f: File) => f,
@@ -117,8 +124,10 @@ describe("プロフィール写真: 失敗したらプレビューを残さな�
         await userEvent.upload(fileInputs[idx] as HTMLInputElement,
             new File(["x"], "pic.jpg", { type: "image/jpeg" }));
 
-        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
-            expect.stringContaining("失敗"), "error"));
+        // **サーバーの理由をそのまま出す。** 固定文に潰していた頃は、
+        // 「対応していない形式です（JPEG・PNG・…）」なのか一時障害なのか
+        // 分からず、同じ画像を選び直していた
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("だめでした", "error"));
         // data: URL のプレビューが残っていない
         await waitFor(() => {
             const imgs = Array.from(container.querySelectorAll("img"));

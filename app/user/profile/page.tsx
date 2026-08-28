@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
-import { userFetch } from "../../../lib/utils/api";
+import { userFetch, readApiError, AUTH_REQUIRED_MESSAGE } from "../../../lib/utils/api";
 import { changedFields } from "../../../lib/utils/changedFields";
 import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../../lib/utils/music";
 import { toUploadSafeFile, AVATAR_MAX_PX, COVER_MAX_PX } from "../../../lib/utils/image";
@@ -214,7 +214,10 @@ export default function ProfileEditPage() {
                 method: "POST",
                 body: JSON.stringify({ fileType: upload.type, type: "cover" }),
             });
-            if (!res.ok) { showToast("カバー写真のアップロードに失敗しました", "error"); return; }
+            // サーバーは理由を返し分けている（「対応していない形式です
+            // （JPEG・PNG・WebP・AVIF・HEIC・GIF）」など）。固定文に潰していたので、
+            // 形式が原因なのか一時障害なのか分からず、同じ画像を選び直していた
+            if (!res.ok) { showToast(await readApiError(res, "カバー写真のアップロードに失敗しました"), "error"); return; }
             const { presignedUrl } = await res.json() as { presignedUrl: string };
             const uploadRes = await fetch(presignedUrl, {
                 method: "PUT",
@@ -228,8 +231,9 @@ export default function ProfileEditPage() {
             setCoverError(false);
             saved = true;
             showToast("カバー写真を更新しました", "success");
-        } catch {
-            showToast("カバー写真のアップロードに失敗しました", "error");
+        } catch (e) {
+            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
+            showToast(authMissing ? AUTH_REQUIRED_MESSAGE : "カバー写真のアップロードに失敗しました", "error");
         } finally {
             setCoverUploading(false);
             if (!saved) { failed = true; setCoverPreview(null); }
@@ -269,7 +273,8 @@ export default function ProfileEditPage() {
                 method: "POST",
                 body: JSON.stringify({ fileType: upload.type }),
             });
-            if (!res.ok) { showToast("アバターのアップロードに失敗しました", "error"); return; }
+            // カバー写真と同じ理由（サーバーは形式の誤りと一時障害を返し分けている）
+            if (!res.ok) { showToast(await readApiError(res, "アバターのアップロードに失敗しました"), "error"); return; }
             const { presignedUrl } = await res.json() as { presignedUrl: string };
 
             // S3 に直接アップロード（表示サイズに合わせて縮小してから送る）
@@ -286,8 +291,9 @@ export default function ProfileEditPage() {
             setAvatarError(false);
             saved = true;
             showToast("プロフィール写真を更新しました", "success");
-        } catch {
-            showToast("アバターのアップロードに失敗しました", "error");
+        } catch (e) {
+            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
+            showToast(authMissing ? AUTH_REQUIRED_MESSAGE : "アバターのアップロードに失敗しました", "error");
         } finally {
             setAvatarUploading(false);
             if (!saved) { failed = true; setAvatarPreview(null); }
@@ -490,7 +496,6 @@ export default function ProfileEditPage() {
                 // 「保存に失敗しました。」だけだと、@名が重複しているのか通信が
                 // 切れたのか分からず、同じ操作を何度も繰り返すことになる。
                 // 保存は1件も書かれていない（サーバー側で先に弾いている）。
-                const { readApiError } = await import("../../../lib/utils/api");
                 showToast(await readApiError(res,
                     locale === "en" ? "Failed to save." : "保存に失敗しました。"), "error");
             }

@@ -15,6 +15,7 @@ import { readSharedPayload, clearSharedPayload } from "../../../lib/utils/shareS
 import { ROUTES } from "../../../lib/routes";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
+import { userFacingUploadError, UPLOAD_FAILED_MESSAGE } from "./errorText";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
 
@@ -515,7 +516,10 @@ function UploadPageInner() {
                         body: uploadFile,
                         headers: { "Content-Type": uploadFile.type, "Cache-Control": "max-age=31536000" },
                     });
-                    if (!uploadResponse.ok) throw new Error(`S3 ${uploadResponse.status}`);
+                    // **番号だけの文字列を投げない。** catch は e.message を
+                    // そのまま画面に出すので、利用者に「S3 403」が見えていた
+                    // （StoriesBar が同じ理由で先に直している）。
+                    if (!uploadResponse.ok) throw new Error(UPLOAD_FAILED_MESSAGE);
                 }
                 updateItem(item.id, { progress: 70 });
 
@@ -592,9 +596,11 @@ function UploadPageInner() {
                 // 成功した分をその場で引く（取れていない＝null のときは触らない）。
                 setUsedSlots((n) => (n === null ? n : n + 1));
             } catch (err) {
-                const msg = err instanceof Error ? err.message : String(err);
                 log.error(`Upload failed for ${item.file.name}:`, err);
-                updateItem(item.id, { status: "error", error: msg });
+                // オフラインの fetch は "Failed to fetch" を投げる。そのまま
+                // 出していたので、画面に英語の技術文字列が並んでいた。
+                // 見せてよいのは、こちらが日本語で組み立てたものだけ
+                updateItem(item.id, { status: "error", error: userFacingUploadError(err) });
             }
         }
 

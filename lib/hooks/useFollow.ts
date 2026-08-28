@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { userPublicFetch, userFetch } from "../utils/api";
+import { userPublicFetch, userFetch, readApiError, AUTH_REQUIRED_MESSAGE } from "../utils/api";
 import { log } from "../utils/log";
 
 // フォロー。フォロー中の userId 集合はセッション内キャッシュ（useGoTo の goSet と同型）。
@@ -90,6 +90,23 @@ type Counts = { followers: number; following: number };
 const counts = new Map<string, Counts>();
 const listeners = new Map<string, Set<() => void>>();
 const inflight = new Map<string, Promise<void>>();
+/**
+ * フォロー操作の結果。**理由まで返す。**
+ *
+ * 以前は `"error"` の一語だけだったので、サーバーが返し分けている
+ * 503「確認できませんでした。時間をおいて…」・404「ユーザーが見つかりません」・
+ * 400「自分はフォローできません」が全部「うまくいきませんでした」になっていた。
+ * 別タブでログアウトしたときの「認証が必要です」も同じ扱いで、押し直しても
+ * 直らないのに直りそうな文言が出ていた。
+ */
+export type FollowToggle = {
+    result: "followed" | "unfollowed" | "auth-required" | "error";
+    /** 出す文言（サーバー由来を優先）。auth-required では未設定のこともある */
+    message?: string;
+};
+
+const FOLLOW_FAILED = "フォローの操作に失敗しました。時間をおいてもう一度お試しください";
+
 const EMPTY: Counts = { followers: 0, following: 0 };
 
 function emit(userId: string) {
@@ -191,10 +208,10 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
         return () => { aborted = true; };
     }, [targetUserId, isAuthenticated, withCounts]);
 
-    const toggle = useCallback(async (): Promise<"followed" | "unfollowed" | "auth-required" | "error"> => {
-        if (!targetUserId) return "error";
-        if (!isAuthenticated) return "auth-required";
-        if (busyRef.current) return "error";
+    const toggle = useCallback(async (): Promise<FollowToggle> => {
+        if (!targetUserId) return { result: "error", message: FOLLOW_FAILED };
+        if (!isAuthenticated) return { result: "auth-required" };
+        if (busyRef.current) return { result: "error", message: FOLLOW_FAILED };
         busyRef.current = true;
         setPending(true);
 
@@ -208,7 +225,11 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
             const res = await userFetch(`/users/${encodeURIComponent(targetUserId)}/follow`, {
                 method: was ? "DELETE" : "POST",
             });
-            if (!res.ok) throw new Error(String(res.status));
+            // サーバーは断る理由を返し分けている（503「確認できませんでした。
+            // 時間をおいて…」/ 404「ユーザーが見つかりません」/ 400「自分は
+            // フォローできません」）。番号だけ投げると全部「うまくいきません
+            // でした」になり、直せるものも直せない案内になる。
+            if (!res.ok) throw new Error(await readApiError(res, FOLLOW_FAILED));
             const data = await res.json() as { followers?: number };
             if (typeof data.followers === "number") {
                 setCounts(targetUserId, { ...(counts.get(targetUserId) ?? before), followers: data.followers });
@@ -216,12 +237,16 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
             if (followingCache) {
                 if (was) followingCache.delete(targetUserId); else followingCache.add(targetUserId);
             }
-            return was ? "unfollowed" : "followed";
+            return { result: was ? "unfollowed" : "followed" };
         } catch (e) {
             log.error("follow toggle error:", e);
             setIsFollowing(was);
             setCounts(targetUserId, before);
-            return "error";
+            // トークンが取れない（別タブでログアウト・リフレッシュ失効）は
+            // 「うまくいきませんでした」では直らない。押し直させない
+            const msg = e instanceof Error ? e.message : "";
+            if (msg === AUTH_REQUIRED_MESSAGE) return { result: "auth-required", message: msg };
+            return { result: "error", message: msg || FOLLOW_FAILED };
         } finally {
             busyRef.current = false;
             setPending(false);

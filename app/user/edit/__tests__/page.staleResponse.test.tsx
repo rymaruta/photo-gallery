@@ -22,7 +22,16 @@ vi.mock("../../../auth/context", () => ({
 }));
 vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
 vi.mock("../../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: mockShowToast }) }));
-vi.mock("../../../../lib/utils/api", () => ({ userFetch: mockUserFetch }));
+// readApiError と AUTH_REQUIRED_MESSAGE は**本物を使う**。保存の失敗経路が
+// サーバーの文言をそのまま出すようになったので、差し替えると
+// 「文言が届くか」を確かめられないうえ、export が無いと実行時に落ちる。
+vi.mock("../../../../lib/utils/api", async () => {
+    const actual = await vi.importActual<typeof import("../../../../lib/utils/api")>("../../../../lib/utils/api");
+    return {
+        ...actual,
+        userFetch: mockUserFetch,
+    };
+});
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 const EditPage = (await import("../page")).default;

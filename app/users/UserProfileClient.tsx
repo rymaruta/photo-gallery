@@ -584,10 +584,16 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     "success"
                 );
             } else {
-                showToast(locale === "en" ? "Failed to update" : "更新に失敗しました", "error");
+                // 別タブで先に消していると 404「写真が見つかりません」が返る。
+                // 「更新に失敗しました」に潰していたので、**何度押しても直らない
+                // 操作を再試行し続ける**形だった
+                showToast(await readApiError(res, locale === "en" ? "Failed to update" : "更新に失敗しました"), "error");
             }
-        } catch {
-            showToast(locale === "en" ? "Failed to update" : "更新に失敗しました", "error");
+        } catch (e) {
+            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
+            showToast(authMissing
+                ? AUTH_REQUIRED_MESSAGE
+                : (locale === "en" ? "Failed to update" : "更新に失敗しました"), "error");
         }
     }, [locale, showToast]);
 

@@ -322,12 +322,18 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     };
     const savePhotoSong = async (song: SongEntry | null) => {
         try {
-            const { userFetch } = await import("../../../lib/utils/api");
+            const { userFetch, readApiError } = await import("../../../lib/utils/api");
             const res = await userFetch(`/photos/${encodeURIComponent(photoId)}`, {
                 method: "PUT",
                 body: JSON.stringify({ song }),
             });
-            if (!res.ok) throw new Error(String(res.status));
+            if (!res.ok) {
+                // 隣の savePhotoYoutube と同じ形にする。番号だけ投げて
+                // 「保存に失敗しました」に潰していたので、認証切れ（押し直しても
+                // 直らない）と一時障害の区別が付かなかった
+                showToast(await readApiError(res, locale === "en" ? "Could not save the BGM" : "BGMを保存できませんでした"), "error");
+                return;
+            }
             setPhotoSong(song);
             setSongPickerOpen(false);
             setSongResults([]);
@@ -338,8 +344,12 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     : (locale === "en" ? "Photo BGM removed" : "BGMを外しました"),
                 "success",
             );
-        } catch {
-            showToast(locale === "en" ? "Failed to save" : "保存に失敗しました", "error");
+        } catch (e) {
+            const { AUTH_REQUIRED_MESSAGE } = await import("../../../lib/utils/api");
+            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
+            showToast(authMissing
+                ? AUTH_REQUIRED_MESSAGE
+                : (locale === "en" ? "Network error. Please try again." : "通信に失敗しました。時間をおいてもう一度お試しください"), "error");
         }
     };
 
