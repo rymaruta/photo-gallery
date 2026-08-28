@@ -8,8 +8,15 @@ import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 
 type Props = {
     isOpen: boolean;
-    /** 閉じたときにフォーカスを戻す先（退会ボタン） */
-    openerRef?: React.RefObject<HTMLButtonElement | null>;
+    /**
+     * 閉じたときにフォーカスを戻す先（退会ボタン）。
+     *
+     * **省略可能にしない。** 既定（開いた瞬間の activeElement）だと、
+     * React が autoFocus をエフェクトより前に当てるせいで、控えられるのが
+     * このモーダル自身の入力欄になる——閉じるとフォーカスが body に落ちる。
+     * 省略できるままだと、次に足した呼び出し元が黙ってその状態に戻る。
+     */
+    openerRef: React.RefObject<HTMLButtonElement | null>;
     onClose: () => void;
     onConfirm: () => void;
     locale: Locale;

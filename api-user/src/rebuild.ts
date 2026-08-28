@@ -254,7 +254,7 @@ const DISPATCH_RETRY_BASE_MS = 200;
  * DNS + TCP + TLS + GitHub の処理を 800ms に収めるのは攻めすぎだった
  * （そこで落ちると誰の目にも触れない。呼び出し元は戻り値を見ていない）。
  */
-const DISPATCH_ATTEMPT_TIMEOUT_MS = 1500;
+export const DISPATCH_ATTEMPT_TIMEOUT_MS = 1500;
 const DISPATCH_TOTAL_BUDGET_MS = 3000;
 
 /** やり直して直る見込みがあるか（設定の誤りは何度投げても同じ） */

@@ -53,7 +53,12 @@ export function useFocusTrap(
         if (!container.contains(document.activeElement)) {
             const first = initialFocusRef?.current ?? container.querySelector<HTMLElement>(FOCUSABLE);
             if (first) {
-                first.focus();
+                // **`preventScroll` を付ける。** `focus()` は既定でその要素が
+                // 見えるまでページをスクロールする。GalleryModal は
+                // このフックの**あと**に `lockBodyScroll()` を流すので、
+                // ここで1pxでも動くと「開く前のスクロール位置」がずれた値で
+                // 控えられ、閉じたときに違う場所へ戻る。
+                first.focus({ preventScroll: true });
             } else {
                 // **押せるものが1つも無いときは容器そのものへ。**
                 // HeaderNav は認証の判定中（Cognito のセッション確認）だと
@@ -61,12 +66,15 @@ export function useFocusTrap(
                 // 入れない」が残っていた。Tab も下で押さえる（そちらを
                 // 素通しにしていたので、これだけでは閉じ込められなかった）。
                 container.tabIndex = -1;
-                container.focus();
+                container.focus({ preventScroll: true });
             }
         }
 
         const onKey = (e: KeyboardEvent) => {
             if (e.key !== "Tab") return;
+            // Ctrl+Tab / Cmd+Tab はブラウザやOSの操作。0件のときは境界に
+            // 関係なく全部の Tab を止めるので、そこだけ当たりが広くなる
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
             // **`offsetParent` で絞らない。** 「見えている要素だけ」に
             // したくなるが、`offsetParent` は `position: fixed` の要素でも
             // null になる——このモーダル群はまさに `fixed inset-0` なので、
@@ -87,7 +95,7 @@ export function useFocusTrap(
                 // このフックを入れた動機そのもの。
                 e.preventDefault();
                 container.tabIndex = -1;
-                container.focus();
+                container.focus({ preventScroll: true });
                 return;
             }
             const first = items[0];

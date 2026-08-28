@@ -51,20 +51,20 @@ describe("写真の削除確認: Escape で閉じる", () => {
 describe("退会確認: Escape で閉じる", () => {
     it("Escape で onClose が呼ばれる", () => {
         const onClose = vi.fn();
-        render(<DeleteAccountModal isOpen onClose={onClose} onConfirm={vi.fn()} locale="ja" deleting={false} />);
+        render(<DeleteAccountModal isOpen openerRef={{ current: null }} onClose={onClose} onConfirm={vi.fn()} locale="ja" deleting={false} />);
         esc();
         expect(onClose).toHaveBeenCalledTimes(1);
     });
 
     it("退会処理中は Escape で閉じない", () => {
         const onClose = vi.fn();
-        render(<DeleteAccountModal isOpen onClose={onClose} onConfirm={vi.fn()} locale="ja" deleting />);
+        render(<DeleteAccountModal isOpen openerRef={{ current: null }} onClose={onClose} onConfirm={vi.fn()} locale="ja" deleting />);
         esc();
         expect(onClose).not.toHaveBeenCalled();
     });
 
     it("ダイアログに名前がある", () => {
-        render(<DeleteAccountModal isOpen onClose={vi.fn()} onConfirm={vi.fn()} locale="ja" deleting={false} />);
+        render(<DeleteAccountModal isOpen openerRef={{ current: null }} onClose={vi.fn()} onConfirm={vi.fn()} locale="ja" deleting={false} />);
         expect(screen.getByRole("dialog")).toHaveAttribute("aria-label", "本当に退会しますか？");
     });
 });

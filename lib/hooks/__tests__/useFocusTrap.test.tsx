@@ -124,6 +124,26 @@ describe("useFocusTrap: 押せるものが1つも無いとき", () => {
         expect(ev.defaultPrevented, "既定の Tab がそのまま通っている").toBe(true);
         expect(document.activeElement).toBe(dialog);
     });
+
+    // **本当に効かせたいのはこちら。** 上のテストはマウント時点で既に
+    // `activeElement === dialog` なので、Tab のあとに同じことを見ても差が
+    // 出ない（容器へ入れ直す行を消しても緑のままだった）。
+    //
+    // 実際の場面は「押せる要素0 **かつ** フォーカスは外」——削除確認で
+    // 「削除する」を押すと、フォーカスを持っていたキャンセルが disabled に
+    // なってフォーカスが body に落ちる。そこから Tab を打つと裏の一覧へ
+    // 抜けていく。
+    it("外にフォーカスがある状態でも、押せるものが無ければ中へ引き戻す", () => {
+        render(<Empty />);
+        const dialog = screen.getByRole("dialog");
+        screen.getByText("外").focus();
+        expect(dialog.contains(document.activeElement)).toBe(false);
+
+        const ev = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+        document.dispatchEvent(ev);
+        expect(ev.defaultPrevented).toBe(true);
+        expect(document.activeElement).toBe(dialog);
+    });
 });
 
 // メニューのように戻る先が1つに決まっているものは明示する。

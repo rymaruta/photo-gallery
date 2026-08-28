@@ -63,12 +63,12 @@ function setup() {
 describe("GalleryModal: 今のフォーカスの挙動", () => {
     beforeEach(() => { onClose.mockReset(); onNext.mockReset(); onPrev.mockReset(); });
 
-    // 100ms のタイマーで「前へ」ボタンへ当てている
-    it("開いてしばらくすると「前へ」ボタンにフォーカスが入る", async () => {
+    // 移す前は 100ms のタイマーで当てていた。**待たずに当てる**ように
+    // 変えたので、テストも同期で見る——`waitFor` のままだと、遅延を
+    // 戻す変異が通ってしまう（実際に確かめた）。名前も直した。
+    it("開いた時点で「前へ」ボタンにフォーカスが入る", () => {
         setup();
-        await waitFor(() => {
-            expect(document.activeElement).toBe(screen.getByLabelText("Previous"));
-        }, { timeout: 1000 });
+        expect(document.activeElement).toBe(screen.getByLabelText("Previous"));
     });
 
     it("閉じたら開く前の要素へフォーカスを戻す", async () => {
