@@ -175,6 +175,37 @@ describe("deletedUserIds（退会した人の集合）", () => {
         expect(scans()).toHaveLength(1);
     });
 
+    // 未認証で叩ける経路から呼ばれる。青天井にすると、コールドなコンテナの
+    // たびにユーザーテーブル全体を直列で読み切る（FilterExpression は読んだ
+    // あとに効き、ProjectionExpression は消費する読み取りを減らさない）。
+    // 遅いだけの場合は fail-open では拾えず、Lambda のタイムアウトに当たって
+    // 「誰も伏せない」ではなく「コメントが読めない」になる。
+    it("1ページの件数に上限を置く", async () => {
+        mockDdbSend.mockResolvedValue({ Items: [] });
+        await deletedUserIds();
+        expect(scans()[0].input.Limit).toBe(500);
+    });
+
+    it("ページ数にも上限を置く（打ち切ったら warn を出す）", async () => {
+        // 12ページぶんだけ続きがあるテーブル。**無限に続く形にしない**——
+        // 上限を外す変異を入れたときにテストが固まって、落ちる代わりに
+        // タイムアウト待ちになる。
+        let page = 0;
+        mockDdbSend.mockImplementation(() => Promise.resolve({
+            Items: [{ userId: `u${page}` }],
+            ...(++page < 12 ? { LastEvaluatedKey: { userId: `u${page}` } } : {}),
+        }));
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        try {
+            await deletedUserIds();
+            expect(scans()).toHaveLength(10);
+            // 打ち切った先にいる退会者は伏せられない。黙って落とさない
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining("打ち切りました"));
+        } finally {
+            warn.mockRestore();
+        }
+    });
+
     it("最後まで辿る（1ページで打ち切らない）", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Items: [{ userId: "a" }], LastEvaluatedKey: { userId: "a" } })

@@ -47,9 +47,21 @@ export const DELETED_USER_NAME = "退会したユーザー";
  * 引けなかったときは**空集合**を返す（伏せない側に倒す）。DynamoDB の
  * 一時的な失敗で、生きている人の名前まで一斉に「退会したユーザー」に
  * 化ける方が悪い。
+ *
+ * ページ数の上限は要る。ここは**未認証で叩ける**経路から呼ばれるので、
+ * 青天井にするとコールドなコンテナのたびにユーザーテーブル全体を直列で
+ * 読み切る（`FilterExpression` は読んだ**あと**に効き、`ProjectionExpression`
+ * は消費する読み取りを減らさない）。しかも失敗の形が悪い——fail-open が
+ * 拾えるのは send の失敗だけで、**遅いだけ**の場合は Lambda のタイムアウトに
+ * 当たり、「誰も伏せない」ではなく「コメントが読めない」になる。
+ * userSearch.ts が同じ理由で同じ上限を持っている。
  */
 let deletedCache: { at: number; ids: Set<string> } | null = null;
 const DELETED_CACHE_TTL_MS = 60 * 1000;
+/** 1ページあたりの読み取り件数（userSearch.ts と揃える） */
+const DELETED_SCAN_PAGE_SIZE = 500;
+/** 走査するページ数の上限。打ち切ったぶんは伏せられないので warn を出す */
+const DELETED_SCAN_MAX_PAGES = 10;
 
 export function resetDeletedUsersCache(): void {
     deletedCache = null;
@@ -61,9 +73,11 @@ export async function deletedUserIds(): Promise<Set<string>> {
     const ids = new Set<string>();
     try {
         let lastKey: Record<string, unknown> | undefined;
+        let pages = 0;
         do {
             const res = await ddb.send(new ScanCommand({
                 TableName: USERS_TABLE,
+                Limit: DELETED_SCAN_PAGE_SIZE,
                 ProjectionExpression: "userId",
                 FilterExpression: "attribute_exists(deletedAt)",
                 ExclusiveStartKey: lastKey,
@@ -73,7 +87,12 @@ export async function deletedUserIds(): Promise<Set<string>> {
                 if (typeof id === "string" && id) ids.add(id);
             }
             lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
-        } while (lastKey);
+            pages++;
+        } while (lastKey && pages < DELETED_SCAN_MAX_PAGES);
+        if (lastKey) {
+            // 打ち切った先にいる退会者は伏せられない。GSI に移す時期
+            console.warn(`deletedUserIds: ${DELETED_SCAN_MAX_PAGES}ページで打ち切りました（GSI への移行時期）`);
+        }
     } catch (e) {
         console.error("deletedUserIds error:", e);
         return new Set();   // 伏せない側に倒す（キャッシュもしない）

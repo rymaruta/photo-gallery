@@ -325,8 +325,13 @@ export async function confirmSignUp(username: string, code: string): Promise<{
                     // forceAliasCreation を false にしたので、そのメールが既に
                     // 他のアカウントで使われていると、ここで止まる（＝正しい）。
                     // 生の英語文言のままだと何が起きたのか分からないので置き換える。
+                    // 進む先を必ず添える。ここに落ちる人の多くは「既に持って
+                    // いるのを忘れて登録し直した本人」で、コードは自分の受信箱に
+                    // 届いている。文言だけだと確認画面から出る道が無い
+                    // （signUp 側の同じ状況には案内が付いている）。
                     if (err.name === "AliasExistsException") {
-                        msg = "このメールアドレスはすでに別のアカウントで使われています";
+                        msg = "このメールアドレスはすでに別のアカウントで使われています。" +
+                            "そのアカウントでログインするか、パスワードをお忘れの場合は再設定してください。";
                     }
                     resolve({ success: false, error: msg });
                     return;

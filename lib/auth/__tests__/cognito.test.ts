@@ -193,6 +193,11 @@ describe("confirmSignUp", () => {
 
         expect(res.success).toBe(false);
         expect(res.error).toContain("すでに別のアカウントで使われています");
+        // **進む先まで書く。** ここに落ちる人の多くは「持っているのを忘れて
+        // 登録し直した本人」で、コードは自分の受信箱に届いている。
+        // 理由だけだと確認画面から出る道が無い（signUp 側には案内がある）。
+        expect(res.error).toContain("ログイン");
+        expect(res.error).toContain("再設定");
     });
 
     it("CodeMismatchException → 日本語メッセージ", async () => {
