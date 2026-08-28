@@ -159,6 +159,10 @@ describe("deletedUserIds（退会した人の集合）", () => {
         const ids = await deletedUserIds();
 
         expect([...ids].sort()).toEqual(["gone1", "gone2"]);
+        // **どのテーブルを見ているかまで固定する。** 墓石は USERS_TABLE にしか
+        // 無いので、PHOTOS_TABLE に向けても集合は常に空になるだけ——誰も伏せられず、
+        // fail-open なのでログにも出ない。式だけ見ていると、この変異が緑で通る。
+        expect(scans()[0].input.TableName).toBe("users-test");
         expect(scans()[0].input.FilterExpression).toContain("attribute_exists(deletedAt)");
         // 要るのは userId だけ（名前やハンドルまで読まない）
         expect(scans()[0].input.ProjectionExpression).toBe("userId");

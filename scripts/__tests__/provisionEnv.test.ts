@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 // 別環境を作るときに、本番の設定をどこまで持ち込まないか。
 //
@@ -170,5 +172,20 @@ describe("ユーザープールの設定（lib/auth/cognito.ts と対）", () =>
 
     it("メールは自動検証（確認コードで登録を確定する流れ）", () => {
         expect(config.AutoVerifiedAttributes).toEqual(["email"]);
+    });
+
+    // 上の3本は**定数の形しか見ていない**。定数を正しいまま置いて
+    // CreateUserPoolCommand の呼び出し側だけを元のバグ（UsernameAttributes /
+    // RequireSymbols: false）に戻すと、全部緑のまま通る——実際に変異させて
+    // 確かめた。切り出した意味が無くなるので、渡っていることも固定する。
+    it("その設定が実際に CreateUserPoolCommand へ渡っている", () => {
+        const src = readFileSync(join(__dirname, "..", "provision-env.js"), "utf8");
+        const call = /new CreateUserPoolCommand\(\{([\s\S]*?)\}\)\)/.exec(src);
+        expect(call).not.toBeNull();
+        expect(call![1]).toContain("...USER_POOL_CONFIG");
+        // 呼び出し側で上書きしていない（後勝ちで設定を潰さない）
+        expect(call![1]).not.toContain("UsernameAttributes");
+        expect(call![1]).not.toContain("AliasAttributes");
+        expect(call![1]).not.toContain("PasswordPolicy");
     });
 });

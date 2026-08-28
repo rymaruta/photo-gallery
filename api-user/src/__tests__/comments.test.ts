@@ -633,8 +633,11 @@ describe("getComments: 退会した人の名前は出さない", () => {
         expect(c2.deleted).toBeUndefined();
     });
 
-    // 一時的な失敗で、生きている人の名前まで一斉に伏せる方が悪い
-    it("退会者を引けなければ、誰も伏せない", async () => {
+    // ここが押さえているのは「集合が空なら誰も伏せない」まで。
+    // deletedUserIds は丸ごとモックなので、**引けなかったときの挙動は
+    // ここでは通らない**（本体の fail-open は notify.test.ts
+    // 「引けなかったら空集合（投げない・控えもしない）」が押さえている）。
+    it("墓石が1件も無ければ、誰も伏せない", async () => {
         mockDeletedIds.mockResolvedValue(new Set<string>());
         world();
         const data = JSON.parse((await invoke(getComments, ev(undefined, { id: "p1" }))).body);
