@@ -526,13 +526,17 @@ describe("requestSiteRebuild: 依頼の再試行", () => {
 
         expect(captured).toBeInstanceOf(AbortSignal);
         expect(captured!.aborted).toBe(false);
-        // 1本ごとの期限（1.5秒）を過ぎれば、誰も触らなくても自分で切れる
-        await new Promise((r) => setTimeout(r, 1700));
-        expect(captured!.aborted).toBe(true);
+        // **上下から挟む。** 「1700ms 待って切れていること」だけだと、
+        // 期限が 50ms でも 1ms でも緑になる——「800ms は攻めすぎだった」という
+        // この変更の中心が、短くする方向の回帰を1つも捕まえられない。
+        await new Promise((r) => setTimeout(r, 1200));
+        expect(captured!.aborted, "1.2秒では切れていない（短すぎる期限を弾く）").toBe(false);
+        await new Promise((r) => setTimeout(r, 500));
+        expect(captured!.aborted, "1.7秒では切れている（長すぎる期限を弾く）").toBe(true);
     }, 5000);
 
     it("締切を過ぎたら、残りの投げ直しをやめる", async () => {
-        // 1本目が遅く、締切（1.5秒）を食い潰す
+        // 1本目が遅く、締切（3秒）を食い潰す
         const fetchMock = vi.fn().mockImplementation(async () => {
             await new Promise((r) => setTimeout(r, 5000));
             return { ok: false, status: 503, text: async () => "unavailable" };

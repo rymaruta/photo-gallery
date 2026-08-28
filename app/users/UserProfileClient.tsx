@@ -378,6 +378,10 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     // プロフィールQRコード（対面共有用）
     const [qrOpen, setQrOpen] = useState(false);
 
+    // 共有メニューも同じ。閉じる手段が `fixed inset-0` の**マウス専用
+    // オーバーレイ**しか無く、QR だけ直して隣を直していなかった。
+    useEscapeKey(shareOpen, () => setShareOpen(false));
+
     // Escape で閉じる。共有メニューから開くので、押した瞬間にその
     // ボタン自体がアンマウントされ、フォーカスは body に落ちる。
     // 閉じる手段が「ページ最後尾の閉じるボタンまで Tab で辿る」しか

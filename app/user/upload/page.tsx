@@ -953,8 +953,14 @@ function UploadPageInner() {
                         )}
                     </div>
                     <div className="space-y-2">
-                        <label className="inline-block cursor-pointer">
-                            <span className="px-3.5 py-2 text-sm bg-white/10 hover:bg-white/20 focus-within:ring-2 focus-within:ring-white/60 active:scale-95 text-white rounded-lg transition inline-flex items-center"
+                        {/* focus-within は**input を包む側**に付ける。
+                            span は input の兄弟なので、そこに付けても永久に
+                            発火しない（:focus-within は自分自身か子孫にしか
+                            当たらない）。Tab で止まるようになったのに何も
+                            光らない＝フォーカスが行方不明、という新しい
+                            壊れ方を作っていた。 */}
+                        <label className="inline-block cursor-pointer rounded-lg focus-within:ring-2 focus-within:ring-white/60">
+                            <span className="px-3.5 py-2 text-sm bg-white/10 hover:bg-white/20 active:scale-95 text-white rounded-lg transition inline-flex items-center"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}>
                                 {locale === "en" ? "Choose photo" : "写真を選択"}
                             </span>

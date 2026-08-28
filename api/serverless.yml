@@ -111,6 +111,10 @@ functions:
             name: cognitoAuthorizer
 
   updatePhoto:
+    # ここも再ビルドを頼む（api/src/photosMutate.ts の updatePhoto）。
+    # 既定の6秒のままだと、GitHub が黙っているときに**編集は保存済みなのに
+    # 500 が返る**。しかも殺されると印と予算の解放に到達しない。
+    timeout: 15
     handler: src/photosMutate.updatePhoto
     events:
       - httpApi:

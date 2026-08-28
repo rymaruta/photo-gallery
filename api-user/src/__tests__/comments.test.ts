@@ -463,7 +463,7 @@ describe("コメント追記: 読みと書きを条件でつなぐ", () => {
             }
             if (cmd.constructor.name === "UpdateCommand" && id.startsWith("comments#")) {
                 appendCalls++;
-                if (appendCalls === 1) return Promise.reject(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
+                if (appendCalls <= 2) return Promise.reject(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
                 return Promise.resolve({ Attributes: { items: [] } });
             }
             return Promise.resolve({});
@@ -474,8 +474,16 @@ describe("コメント追記: 読みと書きを条件でつなぐ", () => {
             const p = invoke(postComment, ev("me", { id: "p1" }, { text: "こんにちは" }));
             await vi.advanceTimersByTimeAsync(0);
             expect(appendCalls).toBe(1);          // 待っている間は撃ち直さない
-            await vi.advanceTimersByTimeAsync(100);
+            // 1回目の待ちは 10〜20ms。25ms 進めれば必ず2本目が出ている
+            await vi.advanceTimersByTimeAsync(25);
             expect(appendCalls).toBe(2);
+            // **2回目はもっと待つ**（指数で伸びる。20〜30ms）。
+            // 3本目が出るのは最速でも t=30 なので、t=28 ではまだ出ていない。
+            // 固定の 1ms に変える変異は、ここまでで既に3本目が出てしまう
+            await vi.advanceTimersByTimeAsync(3);
+            expect(appendCalls, "2回目の待ちが1回目より長い").toBe(2);
+            await vi.advanceTimersByTimeAsync(30);
+            expect(appendCalls).toBe(3);
             await vi.runAllTimersAsync();
             expect((await p).statusCode).toBe(200);
         } finally {

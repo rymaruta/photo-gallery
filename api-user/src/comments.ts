@@ -228,8 +228,8 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
                     // 待ちが無いと、混んだ瞬間に負けた全員が同じミリ秒で
                     // 撃ち直して衝突が持続する。オーナーもこの経路を通るように
                     // なった（以前は無条件で必ず成功していた）ので、その分
-                    // ここが効く場面が増えている。postComment は6秒あるので、
-                    // 0/20/40/80ms 程度なら余裕がある。
+                    // ここが効く場面が増えている。待つのは 10〜20 / 20〜30 /
+                    // 40〜50ms で、最悪でも合計 100ms（postComment の6秒枠の 1.7%）。
                     await new Promise((r) => setTimeout(r, 10 * 2 ** attempt + Math.random() * 10));
                 }
             }

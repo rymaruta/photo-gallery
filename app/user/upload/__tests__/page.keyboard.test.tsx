@@ -75,9 +75,14 @@ describe("アップロード: キーボードで写真を選べる", () => {
         const inputs = fileInputs(container);
         expect(inputs.length).toBeGreaterThan(0);
         for (const el of inputs) {
-            // `hidden` は display:none。`sr-only` は見えないがフォーカスできる
-            expect(el.className.split(/\s+/)).not.toContain("hidden");
-            expect(el.className.split(/\s+/)).toContain("sr-only");
+            const classes = el.className.split(/\s+/);
+            // `hidden` は display:none、`invisible` は visibility:hidden。
+            // どちらもフォーカスできない＝元のバグと同じ結果になる。
+            // 綴りを1つだけ見ていたら `sr-only invisible` がすり抜けた
+            for (const bad of ["hidden", "invisible", "collapse"]) {
+                expect(classes, `${bad} が付いているとフォーカスできない`).not.toContain(bad);
+            }
+            expect(classes).toContain("sr-only");
         }
     });
 
@@ -98,11 +103,11 @@ describe("アップロード: キーボードで写真を選べる", () => {
         await screen.findByRole("checkbox");
 
         for (const el of fileInputs(container)) {
-            const label = (el.id ? container.querySelector(`label[for="${el.id}"]`) : null) ?? el.closest("label");
-            const holder = label?.className.includes("focus-within")
-                ? label
-                : label?.querySelector('[class*="focus-within"]');
-            expect(holder, `focus-within が無い: ${el.id || "(id なし)"}`).toBeTruthy();
+            // **祖先**に付いていること。`querySelector` で子孫を探していた頃は、
+            // input の**兄弟**に付いている（＝永久に発火しない）形を通していた。
+            // :focus-within は自分自身か子孫にしか当たらない。
+            const holder = el.closest('[class*="focus-within"]');
+            expect(holder, `focus-within が input の祖先に無い: ${el.id || "(id なし)"}`).not.toBeNull();
         }
     });
 });
