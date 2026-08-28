@@ -195,7 +195,7 @@ export default function SignupPage() {
 
                 {/* エラー */}
                 {error && (
-                    <div className="mb-6 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                    <div role="alert" className="mb-6 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
                         {error}
                     </div>
                 )}
@@ -204,8 +204,9 @@ export default function SignupPage() {
                 {step === "register" && (
                     <form onSubmit={handleRegister} className="space-y-4">
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">表示名</label>
+                            <label htmlFor="signup-display-name" className="block text-xs text-white/50 mb-1.5 tracking-wide">表示名</label>
                             <input
+                                id="signup-display-name"
                                 type="text"
                                 value={displayName}
                                 onChange={(e) => setDisplayName(e.target.value)}
@@ -217,8 +218,9 @@ export default function SignupPage() {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
+                            <label htmlFor="signup-email" className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
                             <input
+                                id="signup-email"
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
@@ -230,8 +232,9 @@ export default function SignupPage() {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード</label>
+                            <label htmlFor="signup-password" className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード</label>
                             <input
+                                id="signup-password"
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
@@ -244,8 +247,9 @@ export default function SignupPage() {
                             <p className="text-xs text-white/30 mt-1.5">英大文字・小文字・数字・記号（!@#$など）をそれぞれ1文字以上含めてください</p>
                         </div>
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード（確認）</label>
+                            <label htmlFor="signup-password-confirm" className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード（確認）</label>
                             <input
+                                id="signup-password-confirm"
                                 type="password"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -283,8 +287,9 @@ export default function SignupPage() {
                 {step === "verify" && (
                     <form onSubmit={handleVerify} className="space-y-4">
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">確認コード</label>
+                            <label htmlFor="signup-code" className="block text-xs text-white/50 mb-1.5 tracking-wide">確認コード</label>
                             <input
+                                id="signup-code"
                                 type="text"
                                 value={code}
                                 onChange={(e) => setCode(e.target.value)}

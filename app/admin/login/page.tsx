@@ -68,15 +68,16 @@ export default function AdminLoginPage() {
                 {step === "login" && (
                     <>
                         {error && (
-                            <div className="mb-6 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                            <div role="alert" className="mb-6 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
                                 {error}
                             </div>
                         )}
 
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <label className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
+                                <label htmlFor="admin-email" className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
                                 <input
+                                    id="admin-email"
                                     type="email"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
@@ -88,8 +89,9 @@ export default function AdminLoginPage() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード</label>
+                                <label htmlFor="admin-password" className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード</label>
                                 <input
+                                    id="admin-password"
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}

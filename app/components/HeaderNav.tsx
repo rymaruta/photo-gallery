@@ -46,6 +46,37 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
         return () => document.removeEventListener("keydown", onKey);
     }, []);
 
+    // **開いたらメニューの中へフォーカスを移す。**
+    //
+    // パネルは `createPortal(..., document.body)` で body の末尾に出るので、
+    // DOM 順は**ページの一番最後**。開いてから Tab を押すと、フォーカスは
+    // メニューではなくその下の本文（写真グリッドの全リンク）へ進み、
+    // トップページなら数十個のリンクとフッターを通り抜けないと
+    // 「マイページ」「ログアウト」に届かなかった（＝開いても入れない）。
+    //
+    // 閉じたら開いたボタンへ戻す。戻さないとフォーカスが body に落ち、
+    // 次の Tab がページ先頭からやり直しになる。
+    //
+    // トラップ（Tab で外へ出さない）はここでは入れていない。GalleryModal が
+    // 持っているものを切り出す形になるが、あちらは作りが込み入っていて
+    // 一緒に触ると壊しかねない。**入れない**問題はこれで解ける。
+    const toggleRef = useRef<HTMLButtonElement | null>(null);
+    useEffect(() => {
+        if (!open) return;
+        // 片付けの時点では ref が別の要素を指しているかもしれないので、
+        // 開いた瞬間のボタンを控えておく
+        const toggle = toggleRef.current;
+        const first = panelRef.current?.querySelector<HTMLElement>(
+            'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        );
+        // ポータルが描かれた後に移す（同じ描画の中では panelRef がまだ空）
+        const t = setTimeout(() => first?.focus(), 0);
+        return () => {
+            clearTimeout(t);
+            toggle?.focus();
+        };
+    }, [open]);
+
     // Scroll lock when open
     useEffect(() => {
         const body = document.body;
@@ -105,6 +136,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                 </button>
             )}
             <button
+                ref={toggleRef}
                 aria-expanded={open}
                 aria-controls="site-menu"
                 aria-label={open ? "Close menu" : "Open menu"}

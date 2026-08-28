@@ -352,7 +352,7 @@ function FilterBarInner({
                                     appliedQueryRef.current = "";
                                     debouncedApply("");
                                 }}
-                                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-white/10 transition-colors focus:outline-none"
+                                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                                 aria-label={locale === "en" ? "Clear search" : "検索をクリア"}
                                 style={{
                                     touchAction: "manipulation",
@@ -373,7 +373,7 @@ function FilterBarInner({
                             aria-haspopup="listbox"
                             aria-expanded={isSortOpen}
                             aria-controls="sort-menu"
-                            className="inline-flex items-center gap-1 text-[13px] text-white/60 hover:text-white/90 focus:outline-none bg-transparent transition-colors"
+                            className="inline-flex items-center gap-1 text-[13px] text-white/60 hover:text-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 bg-transparent transition-colors"
                             style={{
                                 padding: "8px 4px 8px 10px",
                                 minHeight: 36,
@@ -437,7 +437,7 @@ function FilterBarInner({
                             type="button"
                             onClick={clearTags}
                             disabled={isPending}
-                            className={`inline-flex items-center text-[13px] focus:outline-none transition-colors ${isPending ? "opacity-60 pointer-events-none text-white/50" : "text-white/50 hover:text-white/90"} bg-transparent border border-white/15 hover:border-white/40`}
+                            className={`inline-flex items-center text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 transition-colors ${isPending ? "opacity-60 pointer-events-none text-white/50" : "text-white/50 hover:text-white/90"} bg-transparent border border-white/15 hover:border-white/40`}
                             style={{
                                 ...STYLE.controlBtn,
                                 touchAction: "manipulation",

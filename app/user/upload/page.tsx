@@ -734,7 +734,7 @@ function UploadPageInner() {
                 </span>
             </label>
 
-            {fileError && <p className="text-sm text-red-400 mb-3">{fileError}</p>}
+            {fileError && <p role="alert" className="text-sm text-red-400 mb-3">{fileError}</p>}
 
             {/* 共通設定 */}
             {items.length > 0 && (
@@ -887,7 +887,7 @@ function UploadPageInner() {
                                     <p className="text-xs text-green-400 inline-flex items-center gap-1"><CheckCircleIcon className="w-4 h-4" />{locale === "en" ? "Uploaded" : "アップロード完了"}</p>
                                 )}
                                 {it.status === "error" && (
-                                    <p className="text-xs text-red-400 inline-flex items-center gap-1"><ExclamationTriangleIcon className="w-4 h-4" />{it.error ?? (locale === "en" ? "Failed" : "失敗")}</p>
+                                    <p role="alert" className="text-xs text-red-400 inline-flex items-center gap-1"><ExclamationTriangleIcon className="w-4 h-4" />{it.error ?? (locale === "en" ? "Failed" : "失敗")}</p>
                                 )}
                             </div>
                         )}

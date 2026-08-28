@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, within, waitFor } from "@testing-library/react";
 
 // ロールごとの認証状態を切り替えられるモック
 const authState = vi.hoisted(() => ({
@@ -217,5 +217,34 @@ describe("認証状態が分かるまで", () => {
         render(<HeaderNav />);
         fireEvent.click(screen.getByLabelText(/メニュー|Menu/i));
         expect(screen.getByRole("button", { name: /Logout|ログアウト/ })).toBeInTheDocument();
+    });
+});
+
+// パネルは createPortal(..., document.body) で body の末尾に出るので、
+// DOM 順は**ページの一番最後**。開いてから Tab を押すと、フォーカスは
+// メニューではなくその下の本文へ進み、トップページなら数十個のリンクと
+// フッターを通り抜けないと「マイページ」に届かなかった（＝開いても入れない）。
+describe("HeaderNav: 開いたらメニューの中へ入れる", () => {
+    it("開くとメニュー内の最初の項目にフォーカスが移る", async () => {
+        render(<HeaderNav />);
+        const toggle = screen.getByLabelText("Open menu");
+        fireEvent.click(toggle);
+
+        const panel = await screen.findByRole("dialog");
+        const first = panel.querySelector<HTMLElement>('a[href], button:not([disabled])');
+        expect(first).not.toBeNull();
+        await waitFor(() => expect(document.activeElement).toBe(first));
+    });
+
+    // 戻さないとフォーカスが body に落ち、次の Tab がページ先頭からになる
+    it("閉じたら開いたボタンへフォーカスが戻る", async () => {
+        render(<HeaderNav />);
+        const toggle = screen.getByLabelText("Open menu");
+        fireEvent.click(toggle);
+        await screen.findByRole("dialog");
+
+        // 開いているときはラベルが変わる
+        fireEvent.click(screen.getByLabelText("Close menu"));
+        await waitFor(() => expect(document.activeElement).toBe(toggle));
     });
 });

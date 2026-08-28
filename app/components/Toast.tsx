@@ -61,7 +61,7 @@ function ToastItem({ toast }: { toast: ToastType }) {
             <p className="flex-1 text-sm text-white/90 leading-snug">{toast.message}</p>
             <button
                 onClick={handleClose}
-                className="p-1.5 rounded-full hover:bg-white/10 active:scale-90 transition focus:outline-none flex-shrink-0"
+                className="p-1.5 rounded-full hover:bg-white/10 active:scale-90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 flex-shrink-0"
                 aria-label="Close"
             >
                 <XMarkIcon className="w-4 h-4 text-white/50 hover:text-white/90" />

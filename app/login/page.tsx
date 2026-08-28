@@ -163,7 +163,7 @@ function LoginForm() {
 
                 {/* エラー */}
                 {error && (
-                    <div className="mb-4 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                    <div role="alert" className="mb-4 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
                         {error}
                     </div>
                 )}
@@ -185,8 +185,9 @@ function LoginForm() {
                 {step === "login" && (
                     <form onSubmit={handleLogin} className="space-y-4">
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
+                            <label htmlFor="login-email" className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
                             <input
+                                id="login-email"
                                 type="email"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
@@ -198,8 +199,9 @@ function LoginForm() {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード</label>
+                            <label htmlFor="login-password" className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード</label>
                             <input
+                                id="login-password"
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
@@ -245,8 +247,9 @@ function LoginForm() {
                 {step === "forgot-send" && (
                     <form onSubmit={handleForgotSend} className="space-y-4">
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
+                            <label htmlFor="reset-email" className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
                             <input
+                                id="reset-email"
                                 type="email"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
@@ -280,8 +283,9 @@ function LoginForm() {
                 {step === "forgot-confirm" && (
                     <form onSubmit={handleForgotConfirm} className="space-y-4">
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">確認コード</label>
+                            <label htmlFor="reset-code" className="block text-xs text-white/50 mb-1.5 tracking-wide">確認コード</label>
                             <input
+                                id="reset-code"
                                 type="text"
                                 value={resetCode}
                                 onChange={(e) => setResetCode(e.target.value)}
@@ -292,8 +296,9 @@ function LoginForm() {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">新しいパスワード</label>
+                            <label htmlFor="reset-new-password" className="block text-xs text-white/50 mb-1.5 tracking-wide">新しいパスワード</label>
                             <input
+                                id="reset-new-password"
                                 type="password"
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
