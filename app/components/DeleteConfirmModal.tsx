@@ -3,6 +3,7 @@
 import React from "react";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import type { Photo, Locale } from "@/lib/data/photos";
+import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 
 type Props = {
     photo: Photo | null;
@@ -14,6 +15,11 @@ type Props = {
 };
 
 export default function DeleteConfirmModal({ photo, isOpen, onClose, onConfirm, locale, deleting }: Props) {
+    // **フックは早期 return より前に置く。** 開いている間だけ有効にしたいが、
+    // 条件を `if` で分けるとレンダーごとにフックの数が変わって React が壊れる。
+    // 削除中は閉じさせない（オーバーレイのクリックと同じ扱い）
+    useEscapeKey(isOpen && !deleting, onClose);
+
     if (!isOpen || !photo) return null;
 
     const title = typeof photo.title === "string"
@@ -21,7 +27,12 @@ export default function DeleteConfirmModal({ photo, isOpen, onClose, onConfirm, 
         : (photo.title?.[locale] ?? photo.title?.ja ?? photo.title?.en ?? "");
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label={locale === "en" ? "Delete this photo?" : "この写真を削除しますか？"}
+        >
             {/* オーバーレイ */}
             <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"

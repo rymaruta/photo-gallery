@@ -668,9 +668,16 @@ function UploadPageInner() {
             )}
 
             {/* ファイル選択 */}
+            {/* **入力は sr-only にする（hidden にしない）。**
+                `hidden` は display:none なので、その input は**フォーカスできない**
+                ——`<label>` 自体もタブ順に入らないので、キーボードだけの人は
+                写真を選ぶ手段が無く、このページで何もできなかった
+                （ドロップも貼り付けも `ref.click()` も無い）。
+                sr-only なら見た目はそのままで、Tab で届き Enter で開ける。
+                枠が光るように focus-within も付ける（どこにいるか分かるように）。 */}
             <label
                 htmlFor="files-input"
-                className="flex flex-col items-center justify-center w-full p-6 border-2 border-dashed border-white/20 rounded-lg cursor-pointer hover:border-white/40 transition-colors mb-4"
+                className="flex flex-col items-center justify-center w-full p-6 border-2 border-dashed border-white/20 rounded-lg cursor-pointer hover:border-white/40 focus-within:border-white/60 transition-colors mb-4"
                 style={{ touchAction: "manipulation", minHeight: "120px" }}
             >
                 <PhotoIcon className="w-10 h-10 text-white/40 mb-2" />
@@ -684,7 +691,7 @@ function UploadPageInner() {
                     id="files-input"
                     type="file"
                     multiple
-                    className="hidden"
+                    className="sr-only"
                     accept="image/*"
                     onChange={handleFileSelect}
                     disabled={uploading}
@@ -694,7 +701,7 @@ function UploadPageInner() {
             {/* カメラ直撮り（スマホで背面カメラを直接起動）。ギャラリー選択とは別入力にする */}
             <label
                 htmlFor="camera-input"
-                className="flex items-center justify-center gap-2 w-full rounded-lg bg-white/5 ring-1 ring-white/10 hover:bg-white/10 transition-colors mb-4 cursor-pointer text-sm text-white/80"
+                className="flex items-center justify-center gap-2 w-full rounded-lg bg-white/5 ring-1 ring-white/10 hover:bg-white/10 focus-within:ring-white/60 transition-colors mb-4 cursor-pointer text-sm text-white/80"
                 style={{ touchAction: "manipulation", minHeight: "44px" }}
             >
                 <CameraIcon className="w-5 h-5 text-white/60" />
@@ -704,7 +711,7 @@ function UploadPageInner() {
                     type="file"
                     accept="image/*"
                     capture="environment"
-                    className="hidden"
+                    className="sr-only"
                     onChange={handleFileSelect}
                     disabled={uploading}
                 />
@@ -947,14 +954,14 @@ function UploadPageInner() {
                     </div>
                     <div className="space-y-2">
                         <label className="inline-block cursor-pointer">
-                            <span className="px-3.5 py-2 text-sm bg-white/10 hover:bg-white/20 active:scale-95 text-white rounded-lg transition inline-flex items-center"
+                            <span className="px-3.5 py-2 text-sm bg-white/10 hover:bg-white/20 focus-within:ring-2 focus-within:ring-white/60 active:scale-95 text-white rounded-lg transition inline-flex items-center"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}>
                                 {locale === "en" ? "Choose photo" : "写真を選択"}
                             </span>
                             <input
                                 type="file"
                                 accept="image/*"
-                                className="hidden"
+                                className="sr-only"
                                 disabled={avatarUploading}
                                 onChange={(e) => {
                                     const f = e.target.files?.[0];

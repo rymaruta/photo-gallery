@@ -14,6 +14,7 @@ import { toDateInputValue, mergeDate } from "../../../lib/utils/dateInput";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { changedFields } from "../../../lib/utils/changedFields";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
+import { useEscapeKey } from "../../../lib/hooks/useEscapeKey";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
 
@@ -252,6 +253,12 @@ function EditContent() {
         }
     }, [photoId, original, title, description, location, category, date, tagsInput, isJa, router, showToast]);
 
+    // Escape でも閉じる。「StoryViewer と同じ形」と書いておきながら、
+    // あちらが持っている Escape の振り分けだけ移していなかった。
+    // 閉じられないと、フォーカスは押した「削除」ボタンに残ったままなので、
+    // Tab で進むと**オーバーレイの裏にある「保存する」**に届いてしまう。
+    useEscapeKey(confirmDelete && !deleting, () => setConfirmDelete(false));
+
     // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
     if (loading || loadingPhoto) {
@@ -396,6 +403,7 @@ function EditContent() {
                     onClick={() => !deleting && setConfirmDelete(false)}
                     role="dialog"
                     aria-modal="true"
+                    aria-label={isJa ? "この写真を削除しますか？" : "Delete this photo?"}
                 >
                     <div className="w-full max-w-[340px] space-y-2" onClick={(e) => e.stopPropagation()}>
                         <div className="rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl overflow-hidden">

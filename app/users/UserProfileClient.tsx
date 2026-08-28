@@ -21,6 +21,7 @@ import { log } from "../../lib/utils/log";
 import { getCurrentSession } from "../../lib/auth/cognito";
 import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
 import { publicFetch, userFetch, userPublicFetch, readApiError, AUTH_REQUIRED_MESSAGE } from "../../lib/utils/api";
+import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 import { EN_MONTHS } from "../../lib/utils/photoDate";
 import { ROUTES } from "../../lib/routes";
 import UserAvatar from "../components/UserAvatar";
@@ -376,6 +377,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     const [shareOpen, setShareOpen] = useState(false);
     // プロフィールQRコード（対面共有用）
     const [qrOpen, setQrOpen] = useState(false);
+
+    // Escape で閉じる。共有メニューから開くので、押した瞬間にその
+    // ボタン自体がアンマウントされ、フォーカスは body に落ちる。
+    // 閉じる手段が「ページ最後尾の閉じるボタンまで Tab で辿る」しか
+    // 無かった（aria-modal と言いながら背後が全部たどれる）。
+    useEscapeKey(qrOpen, () => setQrOpen(false));
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
     const [mvOpen, setMvOpen] = useState(false);
 

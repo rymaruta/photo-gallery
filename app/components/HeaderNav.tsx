@@ -131,6 +131,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                     id="site-menu"
                     role="dialog"
                     aria-modal="true"
+                    aria-label={locale === "en" ? "Menu" : "メニュー"}
                     ref={panelRef}
                     className="fixed left-0 right-0 bottom-0 top-[64px] md:top-[72px] z-50"
                 >

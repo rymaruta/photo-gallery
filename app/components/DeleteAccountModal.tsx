@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import type { Locale } from "@/lib/data/photos";
+import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 
 type Props = {
     isOpen: boolean;
@@ -24,10 +25,19 @@ function DeleteAccountModalInner({ onClose, onConfirm, locale, deleting }: Omit<
     const CONFIRM_WORD = locale === "en" ? "DELETE" : "退会";
     const [typed, setTyped] = useState("");
 
+    // 退会処理中は閉じさせない（オーバーレイのクリックと同じ扱い）。
+    // Inner は isOpen が真のときだけ描かれるので、ここは無条件でよい
+    useEscapeKey(!deleting, onClose);
+
     const canDelete = typed.trim() === CONFIRM_WORD && !deleting;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label={locale === "en" ? "Delete your account?" : "本当に退会しますか？"}
+        >
             {/* オーバーレイ */}
             <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
