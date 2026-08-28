@@ -137,14 +137,28 @@ const REBUILD_MONTHLY_MAX = (() => {
 })();
 const budgetId = (now: number) => `rebuild#budget#${new Date(now).toISOString().slice(0, 7)}`;
 
+type BudgetClaim =
+    /** 1加算できた。失敗したら戻すこと */
+    | { allowed: true; counted: true }
+    /** 通してよいが加算はできていない（判定不能）。戻すものが無い */
+    | { allowed: true; counted: false }
+    /** 今月の上限に達している */
+    | { allowed: false; counted: false };
+
 /**
- * 今月の予算を1本ぶん確保する。取れなければ false。
+ * 今月の予算を1本ぶん確保する。
  *
  * **取れなかったときは掃除が落ちる。** それでも置くのは、枠を使い切ると
  * **どのデプロイも打てなくなる**（＝掃除どころではなくなる）から。
  * 落ちたことはエラーで残すので、枠を上げるか手で1回流せば追いつける。
+ *
+ * 「通してよいか」と「加算できたか」は別に返す。claimRebuildSlot が同じ所を
+ * 一度間違えている——判定に失敗して素通しした（＝何も書いていない）呼び出しが、
+ * あとで解放を呼んで**他人の分まで巻き戻して**いた。ここで同じ形にすると、
+ * スロットル中に削除→依頼失敗を繰り返すたびに `count` が実際の使用量より
+ * 減っていき、上限を超えて依頼が通る（＝この予算が防ごうとしたもの）。
  */
-async function claimMonthlyBudget(now: number): Promise<boolean> {
+async function claimMonthlyBudget(now: number): Promise<BudgetClaim> {
     try {
         const { ddb, PHOTOS_TABLE, UpdateCommand } = await lockTable();
         await ddb.send(new UpdateCommand({
@@ -155,13 +169,15 @@ async function claimMonthlyBudget(now: number): Promise<boolean> {
             ExpressionAttributeNames: { "#c": "count" },   // count は予約語
             ExpressionAttributeValues: { ":one": 1, ":max": REBUILD_MONTHLY_MAX },
         }));
-        return true;
+        return { allowed: true, counted: true };
     } catch (e) {
-        if ((e as { name?: string }).name === "ConditionalCheckFailedException") return false;
+        if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
+            return { allowed: false, counted: false };
+        }
         // 判定できないときは通す（claimRebuildSlot と同じ考え方。
         // 掃除が遅れる方が、掃除されないより困る）
         console.error("claimMonthlyBudget error:", e);
-        return true;
+        return { allowed: true, counted: false };
     }
 }
 
@@ -226,7 +242,8 @@ export async function requestSiteRebuild(reason: string, options: RebuildOptions
     // 「上げて消す」を繰り返せば依頼は無限に作れるので、費用の歯止めは
     // ここにしか置けない。
     const budgetAt = Date.now();
-    if (!await claimMonthlyBudget(budgetAt)) {
+    const budget = await claimMonthlyBudget(budgetAt);
+    if (!budget.allowed) {
         console.error(
             `requestSiteRebuild: 今月の再ビルド上限（${REBUILD_MONTHLY_MAX}本）に達したため見送りました（${reason}）。` +
             "静的ページの掃除が遅れます。Actions の枠を上げるか、Deploy Site を手で1回流してください。",
@@ -248,7 +265,7 @@ export async function requestSiteRebuild(reason: string, options: RebuildOptions
         if (!res.ok) {
             console.error(`requestSiteRebuild: ${res.status} ${await res.text().catch(() => "")}`);
             if (stamp !== null) await releaseRebuildSlot(stamp);
-            await releaseMonthlyBudget(budgetAt);
+            if (budget.counted) await releaseMonthlyBudget(budgetAt);
             return false;
         }
         console.log(`requestSiteRebuild: 再ビルドを依頼しました（${reason}）`);
@@ -256,7 +273,7 @@ export async function requestSiteRebuild(reason: string, options: RebuildOptions
     } catch (e) {
         console.error("requestSiteRebuild error:", e);
         if (stamp !== null) await releaseRebuildSlot(stamp);
-        await releaseMonthlyBudget(budgetAt);
+        if (budget.counted) await releaseMonthlyBudget(budgetAt);
         return false;
     }
 }

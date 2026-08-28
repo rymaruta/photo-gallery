@@ -299,6 +299,64 @@ describe("requestSiteRebuild: 月の予算", () => {
         expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
+    // claimRebuildSlot が一度間違えた所と同じ形。判定に失敗して素通しした
+    // 呼び出しは**何も加算していない**ので、戻してはいけない。戻すと、
+    // スロットル中に「削除 → 依頼失敗」を繰り返すたびに count が実際の
+    // 使用量より減っていき、上限を超えて依頼が通る＝予算が無いのと同じになる。
+    it("予算を数えられなかった呼び出しは、失敗しても戻しに行かない", async () => {
+        globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => "bad" }) as unknown as typeof fetch;
+        const { requestSiteRebuild } = await loadWith({ REBUILD_REPO: "o/r", REBUILD_DISPATCH_TOKEN: "tok" });
+        mockDdbSend.mockImplementation((cmd: { input?: { Key?: { id?: string } } }) => {
+            const id = String(cmd?.input?.Key?.id ?? "");
+            // 加算だけスロットルされる（条件失敗ではない＝素通しする側）
+            if (id.startsWith("rebuild#budget#")) return Promise.reject(new Error("throttled"));
+            return Promise.resolve({});
+        });
+        expect(await requestSiteRebuild("photo deleted: p1")).toBe(false);
+        const back = mockDdbSend.mock.calls
+            .map((c) => (c[0] as { input?: { UpdateExpression?: string } }).input?.UpdateExpression)
+            .filter((u) => u === "ADD #c :minus");
+        expect(back).toHaveLength(0);
+    });
+
+    it("通信が落ちたときも、数えられていなければ戻さない", async () => {
+        globalThis.fetch = vi.fn().mockRejectedValue(new Error("network down")) as unknown as typeof fetch;
+        const { requestSiteRebuild } = await loadWith({ REBUILD_REPO: "o/r", REBUILD_DISPATCH_TOKEN: "tok" });
+        mockDdbSend.mockImplementation((cmd: { input?: { Key?: { id?: string } } }) => {
+            const id = String(cmd?.input?.Key?.id ?? "");
+            if (id.startsWith("rebuild#budget#")) return Promise.reject(new Error("throttled"));
+            return Promise.resolve({});
+        });
+        expect(await requestSiteRebuild("photo deleted: p1")).toBe(false);
+        const back = mockDdbSend.mock.calls
+            .map((c) => (c[0] as { input?: { UpdateExpression?: string } }).input?.UpdateExpression)
+            .filter((u) => u === "ADD #c :minus");
+        expect(back).toHaveLength(0);
+    });
+
+    // 確保と解放で別々に「今」を取ると、月末ぎりぎりの依頼が失敗したときに
+    // 翌月の（まだ無い）アイテムを減らしにいく。条件で弾かれて握り潰されるので
+    // 音もなく、前月が1本だけ過大計上のまま残る。
+    it("月をまたいで失敗しても、増やしたのと同じ月から戻す", async () => {
+        globalThis.fetch = vi.fn().mockImplementation(async () => {
+            vi.setSystemTime(new Date("2026-09-01T00:00:00.100Z"));   // 送っている間に月が変わる
+            return { ok: false, status: 401, text: async () => "bad" };
+        }) as unknown as typeof fetch;
+        const { requestSiteRebuild } = await loadWith({ REBUILD_REPO: "o/r", REBUILD_DISPATCH_TOKEN: "tok" });
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-08-31T23:59:59.900Z"));
+        try {
+            expect(await requestSiteRebuild("photo deleted: p1")).toBe(false);
+        } finally {
+            vi.useRealTimers();
+        }
+        const back = mockDdbSend.mock.calls
+            .map((c) => (c[0] as { input?: Record<string, unknown> }).input)
+            .filter((i) => i?.UpdateExpression === "ADD #c :minus");
+        expect(back).toHaveLength(1);
+        expect(back[0]?.Key).toEqual({ id: "rebuild#budget#2026-08" });
+    });
+
     it("クールダウンで見送ったときは予算を使わない", async () => {
         globalThis.fetch = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
         const { requestSiteRebuild } = await loadWith({ REBUILD_REPO: "o/r", REBUILD_DISPATCH_TOKEN: "tok" });
