@@ -7,6 +7,7 @@ import type { StoryGroup, StoryViewer as ViewerEntry } from "@/lib/stories";
 import { timeAgo } from "@/lib/stories";
 import { log } from "@/lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
+import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 
 const STORY_DEFAULT_DURATION_SEC = 5; // 画像の表示時間（投稿時に未指定だったとき）
 const STORY_MIN_DURATION_SEC = 3;
@@ -310,6 +311,20 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         return () => document.removeEventListener("keydown", onKey);
     }, [onClose, goNext, goPrev, confirmDelete, viewersOpen]);
 
+    // **Tab を中に閉じ込める。** `aria-modal="true"` を付けた8つのうち、
+    // ここと StoriesBar の投稿プレビューだけ管理が無かった。全画面
+    // （`fixed inset-0 z-[90]`）の裏にはギャラリーの写真リンクが全部あるので、
+    // Tab を押すと見えないところへフォーカスが出ていく。
+    //
+    // 最初に当てるのは**閉じるボタン**。DOM 順の先頭は音量やゴミ箱で、
+    // ゴミ箱は確認シートが挟まるとはいえ破壊的な操作なので先頭にしない。
+    //
+    // 戻り先は既定（開いた瞬間の要素＝押したリングのボタン）。リングは
+    // ビューアを開いても消えないので、そのままで戻る。
+    const rootRef = useRef<HTMLDivElement | null>(null);
+    const closeBtnRef = useRef<HTMLButtonElement | null>(null);
+    useFocusTrap(true, rootRef, undefined, closeBtnRef);
+
     // 表示中のストーリーが変わったら確認シートを閉じる。
     // 開いたときの対象と、押したときの対象がずれないようにする。
     useEffect(() => { setConfirmDelete(false); }, [item?.id]);
@@ -325,6 +340,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
 
     return (
         <div
+            ref={rootRef}
             className="fixed inset-0 z-[90] bg-black flex flex-col items-center justify-center select-none"
             role="dialog"
             aria-modal="true"
@@ -483,6 +499,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                     </button>
                 )}
                 <button
+                    ref={closeBtnRef}
                     onClick={onClose}
                     aria-label={locale === "en" ? "Close" : "閉じる"}
                     className="p-2.5 text-white/80 hover:text-white"

@@ -16,6 +16,7 @@ import {
     type Story, type StoryGroup,
 } from "../../../lib/stories";
 import StoryViewer from "./StoryViewer";
+import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import { useMusic } from "../../music/MusicContext";
 
 
@@ -286,6 +287,15 @@ export default function StoriesBar() {
         if (!url) return;
         return () => { try { URL.revokeObjectURL(url); } catch { /* ignore */ } };
     }, [draft?.previewUrl]);
+
+    // **Tab を中に閉じ込める。** `fixed inset-0 z-[95]` の全画面で、裏には
+    // ストーリーのリングとギャラリーの写真リンクが全部ある。
+    //
+    // 最初に当てるのは**キャンセル（✕）**。DOM 順の先頭もそれなので指名は
+    // していないが、キャプション入力を先頭にはしない——スマホでいきなり
+    // キーボードが出るのは、写真を見ながら書く今の作りと合わない。
+    const draftRef = useRef<HTMLDivElement | null>(null);
+    useFocusTrap(draft !== null, draftRef);
 
     // ファイル選択 → 検証 → 投稿プレビューを開く
     const handleFileSelect = useCallback(async (file: File) => {
@@ -584,7 +594,13 @@ export default function StoriesBar() {
 
             {/* 投稿プレビュー（キャプション入力つき） */}
             {draft && (
-                <div className="fixed inset-0 z-[95] bg-black flex flex-col" role="dialog" aria-modal="true">
+                <div
+                    ref={draftRef}
+                    className="fixed inset-0 z-[95] bg-black flex flex-col"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="story-draft-title"
+                >
                     {/* 写真は画面いっぱいの背面に固定。入力欄はその上に重ねるので、
                         キャプションや曲を入れている間もずっと写真を見ていられる。 */}
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -600,7 +616,7 @@ export default function StoriesBar() {
                     <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/90 via-black/60 to-transparent pointer-events-none" />
 
                     <div className="relative flex items-center justify-between p-3" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}>
-                        <h2 className="text-sm font-semibold text-white drop-shadow">
+                        <h2 id="story-draft-title" className="text-sm font-semibold text-white drop-shadow">
                             {locale === "en" ? "New story" : "新しいストーリー"}
                         </h2>
                         <button onClick={closeDraft} disabled={posting} className="p-2 text-white/80 hover:text-white drop-shadow" aria-label={locale === "en" ? "Cancel" : "キャンセル"}>
