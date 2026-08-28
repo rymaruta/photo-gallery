@@ -35,12 +35,6 @@ export async function putPhoto(photo: Photo): Promise<void> {
  * 足したまま Limit 1 にすると「最新の1件がストーリーだった人は
  * 写真があっても 0 件」になり、この修正が壊れる。
  */
-/** 1件だけ引く（保存の再送かどうかを見分けるため） */
-export async function getPhotoById(id: string): Promise<Photo | undefined> {
-    const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
-    return res.Item as Photo | undefined;
-}
-
 export async function hasAnyUserItem(userId: string): Promise<boolean> {
     const res = await ddb.send(new QueryCommand({
         TableName: PHOTOS_TABLE,
@@ -67,6 +61,54 @@ export async function hasAnyUserItem(userId: string): Promise<boolean> {
  * 実装はそうなっておらず、実装の方が正しかった。
  * 次に読む人が「コメントどおりに直す」と穴が開くので、ここを直した。
  */
+/**
+ * 保存の再送で、**この回の意図**を書き直す。
+ *
+ * 再送を見つけたら保存済みの行をそのまま返す作りにしたら、`published` を
+ * 取り違えた——「下書き保存」で応答が落ちたあと「公開」を押すと、200 が
+ * 返って画面は成功と出るのに**行は下書きのまま**。逆順のほうが重い:
+ * 「公開」で落ちたあと「下書き保存」を押すと、非公開にしたつもりで
+ * **写真は公開されたまま**。タイトルや場所を直してから押し直した場合も、
+ * その編集は黙って捨てられていた。重複は目に見えて消せたが、これは見えない。
+ *
+ * 条件で守るのは3つ:
+ *   - 自分の行であること（`userId` は古い行に無いことがあるので両方見る）
+ *   - 同じ画像を指していること（`src`）
+ *   - **まだ誰も触っていないこと**（`updatedAt`）。/user/edit で後から
+ *     直した内容を、開きっぱなしのアップロードタブが巻き戻さないため
+ */
+export async function overwriteOwnPhoto(photo: Photo, expectUpdatedAt: string): Promise<boolean> {
+    try {
+        await ddb.send(new PutCommand({
+            TableName: PHOTOS_TABLE,
+            Item: photo,
+            ConditionExpression:
+                "attribute_exists(id) AND src = :src AND updatedAt = :ua AND (userId = :u OR uploadedBy = :u)",
+            ExpressionAttributeValues: {
+                ":src": photo.src, ":ua": expectUpdatedAt, ":u": photo.userId,
+            },
+        }));
+        return true;
+    } catch (e) {
+        if ((e as { name?: string }).name === "ConditionalCheckFailedException") return false;
+        throw e;
+    }
+}
+
+/**
+ * 1件だけ引く（保存の再送かどうかを見分けるため）。
+ *
+ * このテーブルには写真以外（`notifs#…` / `comments#…` / `following#…`）も
+ * 同居しているので、読み側は `#` を弾く——api/src/photos.ts と
+ * photoUpdate.ts が同じことをしている。今の呼び出し元は UUID しか渡さないが、
+ * export した汎用関数がその規約から外れていると、次の利用者が穴を開ける。
+ */
+export async function getPhotoById(id: string): Promise<Photo | undefined> {
+    if (!id || id.includes("#")) return undefined;
+    const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
+    return res.Item as Photo | undefined;
+}
+
 export async function countUserPhotos(userId: string): Promise<number> {
     let count = 0;
     let lastKey: Record<string, unknown> | undefined;

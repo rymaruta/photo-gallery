@@ -315,6 +315,20 @@ describe("deletePhoto（ハンドラ）", () => {
         expect(mockRebuild).not.toHaveBeenCalled();
     });
 
+    // 途中で失敗すると 500 で止まるので、**消す順が結果を決める**。
+    // src を先に消すと「公開ページは割れた画像／GPS 入りの原本は生きたまま」
+    // ——一番避けたい形が部分失敗のときに出る。
+    it("GPS 入りの原本から先に消す（部分失敗を機微でない側に倒す）", async () => {
+        mockGetPhotoById.mockResolvedValue({
+            id: "p1", userId: "owner",
+            src: "https://cdn/uploads/p1.jpg",
+            srcOriginal: "https://cdn/uploads/p1_orig.jpg",
+            thumbSrc: "https://cdn/uploads/p1_thumb.webp",
+        });
+        await invokeDelete(del("p1"));
+        expect(s3Keys()[0]).toBe("uploads/p1_orig.jpg");
+    });
+
     it("S3 が全部消えたときだけ行を消す（今までどおり）", async () => {
         mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/uploads/p1.jpg" });
         expect((await invokeDelete(del("p1"))).statusCode).toBe(200);

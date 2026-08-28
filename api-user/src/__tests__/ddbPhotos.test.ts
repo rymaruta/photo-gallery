@@ -13,7 +13,7 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 
-const { putPhoto, countUserPhotos, hasAnyUserItem } = await import("../ddb-photos");
+const { putPhoto, getPhotoById, overwriteOwnPhoto, countUserPhotos, hasAnyUserItem } = await import("../ddb-photos");
 
 beforeEach(() => mockSend.mockReset().mockResolvedValue({}));
 
@@ -103,5 +103,57 @@ describe("hasAnyUserItem", () => {
         mockSend.mockResolvedValue({ Count: 1 });
         await hasAnyUserItem("u1");
         expect(lastInput().FilterExpression).toBeUndefined();
+    });
+});
+
+// 保存の再送を見分けるために足した2本。
+// このテーブルには通知（notifs#…）やコメント（comments#…）も同居しているので、
+// 読み側は `#` を弾く（api/src/photos.ts・photoUpdate.ts と同じ規約）。
+describe("getPhotoById", () => {
+    it("`#` を含むIDは引きに行かない（写真以外の文書に触らせない）", async () => {
+        expect(await getPhotoById("notifs#someone")).toBeUndefined();
+        expect(await getPhotoById("comments#p1")).toBeUndefined();
+        expect(mockSend).not.toHaveBeenCalled();
+    });
+
+    it("空のIDも引きに行かない", async () => {
+        expect(await getPhotoById("")).toBeUndefined();
+        expect(mockSend).not.toHaveBeenCalled();
+    });
+
+    it("普通のIDは引く", async () => {
+        mockSend.mockResolvedValueOnce({ Item: { id: "p1", src: "https://cdn/p1.jpg" } });
+        expect((await getPhotoById("p1"))?.id).toBe("p1");
+        expect((mockSend.mock.calls[0][0].input as { TableName?: string }).TableName).toBe("photos-test");
+    });
+});
+
+// 再送で「この回の意図」を書き直す。**自分の行を、誰も触っていないときだけ。**
+// 条件が緩むと、/user/edit で後から直した内容を、開きっぱなしの
+// アップロードタブが巻き戻す。
+describe("overwriteOwnPhoto", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const photo = { id: "p1", src: "https://cdn/p1.jpg", userId: "u1" } as any;
+
+    it("自分の行・同じ画像・触られていないこと、を全部条件にする", async () => {
+        expect(await overwriteOwnPhoto(photo, "2026-01-01T00:00:00.000Z")).toBe(true);
+        const input = mockSend.mock.calls[0][0].input as {
+            ConditionExpression?: string; ExpressionAttributeValues?: Record<string, unknown>;
+        };
+        expect(input.ConditionExpression).toBe(
+            "attribute_exists(id) AND src = :src AND updatedAt = :ua AND (userId = :u OR uploadedBy = :u)");
+        expect(input.ExpressionAttributeValues).toEqual({
+            ":src": "https://cdn/p1.jpg", ":ua": "2026-01-01T00:00:00.000Z", ":u": "u1",
+        });
+    });
+
+    it("条件で弾かれたら false（投げない）", async () => {
+        mockSend.mockRejectedValueOnce(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
+        expect(await overwriteOwnPhoto(photo, "x")).toBe(false);
+    });
+
+    it("それ以外の失敗は投げる（黙って成功にしない）", async () => {
+        mockSend.mockRejectedValueOnce(new Error("ddb down"));
+        await expect(overwriteOwnPhoto(photo, "x")).rejects.toThrow("ddb down");
     });
 });

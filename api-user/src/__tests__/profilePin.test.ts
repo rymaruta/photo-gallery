@@ -272,6 +272,31 @@ describe("ピン留めは増減で受け取る", () => {
         expect(deletes).toHaveLength(2);   // 諦めずにもう一度
     });
 
+    // ここに ThrottlingException が届いた時点で SDK は既定の再試行を
+    // 使い切っている（likes.ts に同じ話がある）。0ms で連打すると
+    // 混雑を悪化させる方にだけ効く。follow.ts / account.ts と同じく待つ
+    it("やり直す前に待つ（撃ち直しで混雑を悪化させない）", async () => {
+        vi.useFakeTimers();
+        try {
+            mockSend
+                .mockResolvedValueOnce(stored({ username: "old", rev: 4 }))
+                .mockResolvedValueOnce({})
+                .mockResolvedValueOnce({})
+                .mockRejectedValueOnce(new Error("throttled"))
+                .mockResolvedValueOnce({});
+            const p = invoke({ username: "newname" });
+            // 待っている間は2回目を撃たない
+            await vi.advanceTimersByTimeAsync(0);
+            const before = mockSend.mock.calls.length;
+            await vi.advanceTimersByTimeAsync(200);
+            expect(mockSend.mock.calls.length).toBeGreaterThan(before);
+            await vi.runAllTimersAsync();
+            expect((await p).statusCode).toBe(200);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     // 「他人のものだった / 既に無い」は解放するものが無いだけ。やり直さない
     it("条件で弾かれたら、それ以上やり直さない", async () => {
         mockSend

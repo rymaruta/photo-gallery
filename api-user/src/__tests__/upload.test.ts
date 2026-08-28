@@ -7,9 +7,11 @@ const mockPutObjectInput = vi.hoisted(() => vi.fn());
 
 const mockListMyMedia = vi.hoisted(() => vi.fn());
 const mockGetPhotoById = vi.hoisted(() => vi.fn());
+const mockOverwriteOwnPhoto = vi.hoisted(() => vi.fn());
 vi.mock("../ddb-photos", () => ({
     putPhoto: mockPutPhoto,
     getPhotoById: mockGetPhotoById,
+    overwriteOwnPhoto: mockOverwriteOwnPhoto,
     countUserPhotos: mockCountUserPhotos,
     listMyMediaItems: mockListMyMedia,
 }));
@@ -69,6 +71,7 @@ beforeEach(() => {
     mockPutObjectInput.mockReset();
     mockLookupIfSet.mockReset().mockResolvedValue(undefined);
     mockGetPhotoById.mockReset().mockResolvedValue(undefined);
+    mockOverwriteOwnPhoto.mockReset().mockResolvedValue(true);
 });
 
 describe("savePhoto: thumbUrl（一覧グリッド用サムネイル）", () => {
@@ -569,9 +572,31 @@ describe("savePhoto: 保存の再送で写真が増えない", () => {
     const body = { key: KEY, publicUrl: `https://cdn.example.com/${KEY}` };
     const condFail = () => Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" });
 
-    it("IDは presign が鍵に埋めたものを使う（採番し直さない）", async () => {
+    // **鍵から「導出」する（v5）。鍵に書いてある UUID をそのまま採らない。**
+    // 一度そう書いたが、鍵は presign したものか誰も確かめていないので、
+    // それだと `uploads/<自分のsub>/<好きなUUID>.webp` と送るだけで写真IDを
+    // 選び放題になる（削除済み写真のURLを取り直せる／任意IDの生死が分かる）。
+    it("同じ鍵からは必ず同じIDになる（再送を見分けられる）", async () => {
         await invoke(event("u1", body));
-        expect(savedPhoto().id).toBe(UUID);
+        const first = savedPhoto().id;
+        mockPutPhoto.mockClear();
+        await invoke(event("u1", body));
+        expect(savedPhoto().id).toBe(first);
+        expect(first).toMatch(/^[0-9a-f-]{36}$/);
+    });
+
+    it("鍵に書いた UUID がそのままIDにならない（狙ったIDを作れない）", async () => {
+        await invoke(event("u1", body));
+        expect(savedPhoto().id).not.toBe(UUID);
+    });
+
+    it("鍵が違えば違うID（別の写真が同じIDにならない）", async () => {
+        await invoke(event("u1", body));
+        const first = savedPhoto().id;
+        mockPutPhoto.mockClear();
+        const key2 = "uploads/u1/9a8b7c6d-5e4f-4a3b-9c8d-7e6f5a4b3c2d.webp";
+        await invoke(event("u1", { key: key2, publicUrl: `https://cdn.example.com/${key2}` }));
+        expect(savedPhoto().id).not.toBe(first);
     });
 
     it("同じ鍵で送り直したら、成功を返して2枚目を作らない", async () => {
@@ -604,10 +629,56 @@ describe("savePhoto: 保存の再送で写真が増えない", () => {
         expect((await invoke(event("u1", body))).statusCode).toBe(409);
     });
 
-    // 鍵の形が違えば採番に落ちる（古い鍵で保存そのものを落とさない）
-    it("UUID の形でない鍵はサーバーで採番する", async () => {
+    // 古い形の鍵でも保存そのものは落とさない（IDが決まればよい）
+    it("UUID の形でない鍵でも保存できる", async () => {
         await invoke(event("u1", { key: "uploads/u1/legacy.webp", publicUrl: "https://cdn.example.com/uploads/u1/legacy.webp" }));
         expect(savedPhoto().id).not.toBe("legacy");
         expect(savedPhoto().id).toMatch(/^[0-9a-f-]{36}$/);
+    });
+
+    // 接頭辞だけ見ていると `uploads/<自分>/../<他人>/x.webp` が通り、
+    // 「自分の領域の鍵」という前提が崩れる。discardUpload は最初から弾いている
+    it("`..` を含む鍵は弾く（discardUpload と揃える）", async () => {
+        const key = "uploads/u1/../u2/x.webp";
+        const res = await invoke(event("u1", { key, publicUrl: "https://cdn.example.com/uploads/u1/x.webp" }));
+        expect(res.statusCode).toBe(400);
+        expect(mockPutPhoto).not.toHaveBeenCalled();
+    });
+
+    // 再送を見つけて保存済みの行をそのまま返していたら、published を取り違えた。
+    // 「下書き保存」で応答が落ちたあと「公開」を押すと、200 が返って画面は
+    // 成功と出るのに**行は下書きのまま**。逆順のほうが重い——非公開に
+    // したつもりで**写真は公開されたまま**になる。
+    it("再送では、その回の published で書き直す", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`,
+            published: false, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        const res = await invoke(event("u1", { ...body, published: true }));
+
+        expect(res.statusCode).toBe(200);
+        const [written, expectAt] = mockOverwriteOwnPhoto.mock.calls[0] as [Photo, string];
+        expect(written.published).toBe(true);
+        expect(written.createdAt).toBe("2026-01-01T00:00:00.000Z");   // 作成時刻は保存済みのまま
+        expect(expectAt).toBe("2026-01-01T00:00:00.000Z");            // 触られていないことを条件にする
+        expect(JSON.parse(res.body).photo.published).toBe(true);
+    });
+
+    // /user/edit で後から直した内容を、開きっぱなしのアップロードタブが
+    // 巻き戻さない。書き直せなければ保存済みの方を返す（成功は成功）
+    it("誰かが触っていたら書き直さず、保存済みの方を返す", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`,
+            published: true, title: { ja: "あとで直した", en: "edited" },
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-02T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(false);
+        const res = await invoke(event("u1", { ...body, published: false }));
+
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).photo.title.ja).toBe("あとで直した");
     });
 });

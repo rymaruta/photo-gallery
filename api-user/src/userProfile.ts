@@ -174,6 +174,14 @@ const usernameKey = (u: string) => `username#${u}`;
  * follow.ts の FOLLOWING_WRITE_RETRIES と同じ考え方。
  */
 const PROFILE_WRITE_RETRIES = 3;
+/**
+ * 予約の解放をやり直すときの待ち（指数バックオフの起点）。
+ *
+ * PROFILE_WRITE_RETRIES を回数として使い回すが、意味は逆側——あちらは
+ * 「競合したら読み直して重ね直す」、こちらは「一時失敗を待って撃ち直す」。
+ * account.ts の掃除（150ms 起点）と揃える。
+ */
+const RELEASE_RETRY_BASE_MS = 150;
 
 async function reserveUsername(username: string, ownerId: string): Promise<boolean> {
     try {
@@ -213,6 +221,11 @@ async function reserveUsername(username: string, ownerId: string): Promise<boole
  * 呼ぶのはプロフィールを保存し終えたあとなので、ここで 500 にはしない
  * （保存は本当に成功している）。代わりに数回やり直し、それでも駄目なら
  * 残ったハンドルをログに残す。
+ *
+ * **待ってから撃ち直す。** ここに ThrottlingException が届いた時点で
+ * SDK は既定の再試行を使い切っている（likes.ts に同じ話が書いてある）ので、
+ * 0ms で連打すると混雑を悪化させる方にだけ効く。follow.ts と account.ts の
+ * 再試行も同じ理由で待っている。
  */
 async function releaseUsername(username: string, ownerId: string): Promise<void> {
     for (let attempt = 0; attempt <= PROFILE_WRITE_RETRIES; attempt++) {
@@ -229,7 +242,9 @@ async function releaseUsername(username: string, ownerId: string): Promise<void>
             if ((e as { name?: string }).name === "ConditionalCheckFailedException") return;
             if (attempt === PROFILE_WRITE_RETRIES) {
                 console.error(`releaseUsername: gave up for ${usernameKey(username)} (owner ${ownerId}):`, e);
+                return;
             }
+            await new Promise((r) => setTimeout(r, RELEASE_RETRY_BASE_MS * 2 ** attempt));
         }
     }
 }

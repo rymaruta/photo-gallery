@@ -2,7 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
-import { putPhoto, getPhotoById, countUserPhotos, listMyMediaItems } from "./ddb-photos";
+import { putPhoto, getPhotoById, overwriteOwnPhoto, countUserPhotos, listMyMediaItems } from "./ddb-photos";
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
 import { lookupDisplayNameIfSet } from "./notify";
@@ -169,7 +169,10 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     if (!isOwnUploadUrl(publicUrl, userId)) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正な画像URLです" }) };
     }
-    if (!String(key).startsWith(uploadPrefix(userId))) {
+    // `..` を弾くのは discardUpload と揃えるため（あちらは最初から弾いている）。
+    // 接頭辞だけ見ていると `uploads/<自分>/../<他人>/x.webp` が通り、
+    // 「自分の領域の鍵」という前提が崩れる。
+    if (!String(key).startsWith(uploadPrefix(userId)) || String(key).includes("..")) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なキーです" }) };
     }
 
@@ -205,20 +208,19 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     const safeDate = sanitizeDate(body.date);
 
     const photo: Photo = {
-        // **IDは presign が採番したものを鍵から取り出す。** ここで毎回
-        // 採番し直していたので、保存の再送が**同じ写真をもう1枚**作っていた:
-        // 「公開」を押す → サーバーには届いたが応答が失われる（モバイル回線・
-        // API Gateway の 29 秒）→ 画面は error になる → 押し直すと、S3 に上げた
-        // 分は使い回すのに save だけもう一度飛び、新しいIDで2枚目の行ができる。
+        // **IDは鍵から導出する（uuid v5）。** ここで毎回採番し直していたので、
+        // 保存の再送が**同じ写真をもう1枚**作っていた: 「公開」を押す →
+        // サーバーには届いたが応答が失われる（モバイル回線・API Gateway の
+        // 29 秒）→ 画面は error になる → 押し直すと、S3 に上げた分は使い回す
+        // のに save だけもう一度飛び、新しいIDで2枚目の行ができる。
         // 100枚の枠を2つ食い、片方を消すと共有している S3 の実体が消えて
         // **もう片方が割れた画像になる**。comments.ts は同じ形の再送を
         // 「前回の追記が通っていたら、もう足さない」で既に塞いでいる。
         //
-        // リクエストの値をそのまま使うわけではない。鍵は既に
-        // `uploadPrefix(userId)` で始まることを確かめてあるので、取り出せる
-        // のは**自分の領域に presign したID**だけ。他人のIDを狙って書いても
-        // putPhoto の `attribute_not_exists(id)` で弾かれる（下の catch）。
-        id: idFromUploadKey(String(key)) ?? uuidv4(),
+        // **鍵に書いてある UUID をそのまま採ってはいけない**（一度そう書いた）。
+        // 鍵は presign したものか誰も確かめていないので、それだと写真IDを
+        // 選び放題になる。理由は idFromUploadKey の docstring に書いた。
+        id: idFromUploadKey(String(key)),
         // 検証したときに見ていた形で保存する（デコード済みのパスで組み直す）。
         // 生のまま保存すると、削除や派生生成で見る側と表記が食い違い、
         // 対象から漏れる余地が残る。
@@ -257,14 +259,24 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     } catch (e) {
         if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
             // 既にその ID がある。**前回の保存が通っていた再送なら成功を返す。**
-            // 中身まで見るのは、他人のIDを狙って書いた場合に「成功しました」と
+            // 中身まで見るのは、他人のIDとぶつかった場合に「成功しました」と
             // 返さないため（存在を教えることにもなる）。
             const existing = await getPhotoById(photo.id);
-            if (existing && (existing.userId ?? existing.uploadedBy) === userId && existing.src === photo.src) {
-                console.log(`savePhoto: 同じ写真の再送を受け取りました（${photo.id}）`);
-                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: existing }) };
+            if (!existing || (existing.userId ?? existing.uploadedBy) !== userId || existing.src !== photo.src) {
+                return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({ error: "この画像はすでに登録されています" }) };
             }
-            return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({ error: "この画像はすでに登録されています" }) };
+            // **保存済みの行をそのまま返してはいけない。** 再送は「下書き保存で
+            // 落ちたあと公開を押す」ことがあり、その回の published とメタデータが
+            // 今回の意図になる。まだ誰も触っていないときだけ書き直す
+            // （/user/edit で後から直した内容を巻き戻さない）。
+            const stored = existing.updatedAt ?? existing.createdAt ?? "";
+            const rewritten = { ...photo, createdAt: existing.createdAt ?? photo.createdAt };
+            if (stored && await overwriteOwnPhoto(rewritten, stored)) {
+                console.log(`savePhoto: 同じ写真の再送を受け取り、今回の内容で書き直しました（${photo.id}）`);
+                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: rewritten }) };
+            }
+            console.log(`savePhoto: 同じ写真の再送を受け取りました（${photo.id}）`);
+            return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: existing }) };
         }
         console.error("savePhoto error:", e);
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "保存に失敗しました" }) };

@@ -4,6 +4,8 @@
 // これまで各ファイルに別々の緩い判定が書かれていて穴が空いていた。
 // ここが唯一の定義。
 
+import { v5 as uuidv5 } from "uuid";
+
 /**
  * 受け付ける画像の MIME タイプ。
  *
@@ -113,19 +115,29 @@ export function canonicalUploadUrl(raw: string, cloudfrontUrl: string): string {
 }
 
 /**
- * アップロードの鍵から写真IDを取り出す（`uploads/<uid>/<uuid>.<ext>` の <uuid>）。
+ * アップロードの鍵から写真IDを**導出**する（`uploads/<uid>/<name>` から）。
  *
- * presign は `photoId` を採番して鍵に埋めているのに、保存側が採番し直して
- * いたので、**保存の再送が同じ写真をもう1枚**作っていた。鍵から取れば、
- * 同じ鍵での再送は必ず同じIDになり、`attribute_not_exists(id)` で弾ける。
+ * なぜ導出か: 保存の再送で同じ写真が2枚できるのを止めるには、同じ鍵に
+ * 必ず同じIDが要る。ところが**鍵に書いてある UUID をそのまま採る作りは
+ * 危ない**——`key` の検証は `uploadPrefix(userId)` で始まることだけで、
+ * **presign した鍵かどうかは誰も確かめていない**（鍵は保存もされず、
+ * S3 に実体があるかも見ない）。つまり `uploads/<自分のsub>/<好きなUUID>.webp`
+ * と書くだけで、写真IDを選び放題になる:
  *
- * 呼ぶ側は先に `key.startsWith(uploadPrefix(userId))` を確かめること。
- * 形が違えば undefined を返す（呼び側は採番に落ちる）——古い鍵や、
- * 拡張子の無い鍵で保存そのものを落とさないため。
+ *   - 削除済み写真のIDを取り直せる。`/photo/<id>` は公開URLで、
+ *     サイトマップや検索結果に残っているので、その場所が別人の写真になる
+ *   - `like#<photoId>#<uid>` は写真を消しても残る（api/src/ddb-photos.ts に
+ *     明記）ので、復活させたIDには他人のマーカーが付いたまま
+ *   - 200（作れた）と 409（既にある）で、任意のIDの生死が分かる
+ *
+ * v5（名前空間つきハッシュ）にすると、同じ鍵は必ず同じIDになる一方、
+ * **狙ったIDを作る鍵は作れない**。AWS への問い合わせも増えない。
+ *
+ * 名前空間は固定値。変えると既存の鍵から出るIDが全部変わり、再送の
+ * 見分けが効かなくなる（＝重複が復活する）ので、動かさないこと。
  */
-export function idFromUploadKey(key: string): string | undefined {
-    const base = key.slice(key.lastIndexOf("/") + 1).replace(/\.[^.]*$/, "");
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(base)
-        ? base.toLowerCase()
-        : undefined;
+const UPLOAD_ID_NAMESPACE = "6f9c0b2e-3a1d-4c58-9e7b-2d4a8f1c5b30";
+
+export function idFromUploadKey(key: string): string {
+    return uuidv5(key, UPLOAD_ID_NAMESPACE);
 }

@@ -193,8 +193,12 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // api-user/src/mediaKeys.ts の MEDIA_FIELDS と**対**。派生を足すときは
         // 両方を直すこと（片方だけ直すと admin 削除だけ消し残す）。
         // "key" と生キー（"uploads/..."）も受けるのはあちらと同じ理由。
+        // **並びは「機微なものから」。** 途中で失敗すると 500 で止まるので、
+        // src を先に消すと「公開ページは割れた画像／GPS 入りの原本は生きたまま」
+        // ——一番避けたい形が部分失敗のときに出る。srcOriginal を先頭に置けば、
+        // 部分失敗しても「見た目は無事・機微なものは消えている」に倒れる。
         const mediaFields = [
-            "key", "src", "srcOriginal", "srcAvif", "src256",
+            "srcOriginal", "key", "src", "srcAvif", "src256",
             "thumbSrc", "thumbSm", "thumbAvif", "thumbSmAvif",
         ] as const;
         const keys = new Set<string>();
