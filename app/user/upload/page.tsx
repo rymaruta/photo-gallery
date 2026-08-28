@@ -14,7 +14,8 @@ import { extractExifFromFile, extractCameraExif, reverseGeocode } from "../../..
 import { readSharedPayload, clearSharedPayload } from "../../../lib/utils/shareStore";
 import { ROUTES } from "../../../lib/routes";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
-import { loginWithNext } from "../../../lib/routes";
+import { useMemberGate } from "../../../lib/hooks/useMemberGate";
+import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
 
 // 1人あたりのアップロード上限。**api-user/src/upload.ts の
@@ -110,7 +111,8 @@ function CropPreview({ src, hint }: { src: string; hint: string }) {
 }
 
 function UploadPageInner() {
-    const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
+    const { isAuthenticated, isAdminUser, loading } = useAuth();
+    const gate = useMemberGate();
     const router = useRouter();
     const searchParams = useSearchParams();
     const { locale } = useLocale();
@@ -187,11 +189,7 @@ function UploadPageInner() {
     }, []);
 
     // 認証チェック
-    useEffect(() => {
-        if (!loading && (!isAuthenticated || (!isAdminUser && !isGeneralUser))) {
-            router.push(loginWithNext(window.location.pathname + window.location.search));
-        }
-    }, [isAuthenticated, isAdminUser, isGeneralUser, loading, router]);
+
 
     /**
      * 残りアップロード可能枚数。**上限に当たるまで見えなかった。**
@@ -627,7 +625,9 @@ function UploadPageInner() {
         }
     }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem]);
 
-    if (loading || !isAuthenticated || (!isAdminUser && !isGeneralUser)) {
+    // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
+    if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
+    if (gate !== "ok") {
         return (
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-3xl mx-auto w-full flex items-center justify-center">
                 <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />

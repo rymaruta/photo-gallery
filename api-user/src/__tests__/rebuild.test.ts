@@ -403,3 +403,99 @@ describe("REBUILD_MONTHLY_MAX の読み取り", () => {
         expect(await maxOf("-5")).toBe(200);
     });
 });
+
+// ここだけ1発勝負だった。DynamoDB の競合は3回、トランザクションは3回＋
+// バックオフ、S3 の失敗は 500 で押し直させる——なのに「消したのに検索に
+// 残る」を止めている唯一の手段が、GitHub の 502 ひとつで落ちていた。
+// 呼び出し元は戻り値を見ず、定期ビルドも止めてあるので、落ちた1本は
+// 誰かが次に何かを消すまで永久に走らない。
+describe("requestSiteRebuild: 依頼の再試行", () => {
+    const load = () => loadWith({ REBUILD_REPO: "o/r", REBUILD_DISPATCH_TOKEN: "tok" });
+    /** 待ちを飛ばしながら最後まで走らせる */
+    const runAll = async <T,>(p: Promise<T>): Promise<T> => {
+        await vi.runAllTimersAsync();
+        return p;
+    };
+
+    beforeEach(() => { vi.useFakeTimers(); });
+    afterEach(() => { vi.useRealTimers(); });
+
+    it("502 は投げ直して、通れば成功", async () => {
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce({ ok: false, status: 502, text: async () => "bad gateway" })
+            .mockResolvedValueOnce({ ok: true });
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+        const { requestSiteRebuild } = await load();
+
+        expect(await runAll(requestSiteRebuild("photo deleted: p1"))).toBe(true);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("通信そのものの失敗も投げ直す", async () => {
+        const fetchMock = vi.fn()
+            .mockRejectedValueOnce(new Error("network down"))
+            .mockResolvedValueOnce({ ok: true });
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+        const { requestSiteRebuild } = await load();
+
+        expect(await runAll(requestSiteRebuild("photo deleted: p1"))).toBe(true);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("429 も投げ直す", async () => {
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce({ ok: false, status: 429, text: async () => "rate limited" })
+            .mockResolvedValueOnce({ ok: true });
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+        const { requestSiteRebuild } = await load();
+        expect(await runAll(requestSiteRebuild("x"))).toBe(true);
+    });
+
+    // **やり直して直るものだけやり直す。** トークン失効やリポジトリ名違いは
+    // 何度投げても同じで、削除の応答を待たせるだけになる
+    it("401 は投げ直さない（設定の誤りは待っても直らない）", async () => {
+        const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => "bad credentials" });
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+        const { requestSiteRebuild } = await load();
+
+        expect(await runAll(requestSiteRebuild("x"))).toBe(false);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("404 も投げ直さない", async () => {
+        const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 404, text: async () => "not found" });
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+        const { requestSiteRebuild } = await load();
+        expect(await runAll(requestSiteRebuild("x"))).toBe(false);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("回数には上限がある（削除の応答を待たせ続けない）", async () => {
+        const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 503, text: async () => "unavailable" });
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+        const { requestSiteRebuild } = await load();
+
+        expect(await runAll(requestSiteRebuild("x"))).toBe(false);
+        expect(fetchMock).toHaveBeenCalledTimes(3);   // 最初の1回 + やり直し2回
+    });
+
+    it("諦めたら印も予算も戻す", async () => {
+        globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 503, text: async () => "unavailable" }) as unknown as typeof fetch;
+        const { requestSiteRebuild } = await load();
+        await runAll(requestSiteRebuild("x", { coalesce: true }));
+
+        const exprs = mockDdbSend.mock.calls
+            .map((c) => (c[0] as { input?: { UpdateExpression?: string } }).input?.UpdateExpression);
+        expect(exprs.filter((u) => u === "REMOVE lastAt")).toHaveLength(1);
+        expect(exprs.filter((u) => u === "ADD #c :minus")).toHaveLength(1);
+    });
+
+    // 成功したのに投げ直すと、畳み込みの外で2本走る（枠を余計に食う）
+    it("成功したら投げ直さない", async () => {
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+        const { requestSiteRebuild } = await load();
+        expect(await runAll(requestSiteRebuild("x"))).toBe(true);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+});

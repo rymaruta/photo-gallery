@@ -213,6 +213,26 @@ async function releaseMonthlyBudget(now: number): Promise<void> {
     }
 }
 
+/**
+ * 依頼の再試行。**ここだけ1発勝負だった。**
+ *
+ * DynamoDB の競合は3回、トランザクションは3回＋バックオフ、S3 の失敗は
+ * 500 を返して押し直させる——なのに「消したのに検索に残る」を止めている
+ * 唯一の手段が、GitHub の 502 ひとつで落ちて `console.error` 1行だった。
+ * 呼び出し元は戻り値を見ないし、定期ビルドは止めてあるので、落ちた1本は
+ * **誰かが次に何かを消すまで永久に走らない**。
+ *
+ * 待ちを入れるのは follow.ts / account.ts と同じ理由（撃ち直しで混雑を
+ * 悪化させない）。ただし削除の応答を待たせているので、回数は控えめにする。
+ */
+const DISPATCH_RETRIES = 2;
+const DISPATCH_RETRY_BASE_MS = 200;
+
+/** やり直して直る見込みがあるか（設定の誤りは何度投げても同じ） */
+function isRetryableStatus(status: number): boolean {
+    return status >= 500 || status === 429 || status === 408;
+}
+
 type RebuildOptions = {
     /**
      * true なら直近の依頼があるとき見送る。
@@ -264,29 +284,45 @@ export async function requestSiteRebuild(reason: string, options: RebuildOptions
         if (stamp !== null) await releaseRebuildSlot(stamp);
         return false;
     }
-    try {
-        const res = await fetch(`https://api.github.com/repos/${REBUILD_REPO}/dispatches`, {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${REBUILD_TOKEN}`,
-                Accept: "application/vnd.github+json",
-                "Content-Type": "application/json",
-                "User-Agent": "photo-gallery-api",
-            },
-            body: JSON.stringify({ event_type: "site-rebuild", client_payload: { reason } }),
-        });
-        if (!res.ok) {
-            console.error(`requestSiteRebuild: ${res.status} ${await res.text().catch(() => "")}`);
-            if (stamp !== null) await releaseRebuildSlot(stamp);
-            if (budget.counted) await releaseMonthlyBudget(budgetAt);
-            return false;
+    let lastError = "";
+    for (let attempt = 0; attempt <= DISPATCH_RETRIES; attempt++) {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, DISPATCH_RETRY_BASE_MS * 2 ** (attempt - 1)));
+        try {
+            const res = await fetch(`https://api.github.com/repos/${REBUILD_REPO}/dispatches`, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${REBUILD_TOKEN}`,
+                    Accept: "application/vnd.github+json",
+                    "Content-Type": "application/json",
+                    "User-Agent": "photo-gallery-api",
+                },
+                body: JSON.stringify({ event_type: "site-rebuild", client_payload: { reason } }),
+            });
+            if (res.ok) {
+                console.log(`requestSiteRebuild: 再ビルドを依頼しました（${reason}）`);
+                return true;
+            }
+            lastError = `${res.status} ${await res.text().catch(() => "")}`;
+            // **やり直して直るものだけやり直す。** 401/403（トークン失効・権限）や
+            // 404（リポジトリ名違い）は何度投げても同じで、削除の応答を待たせるだけ。
+            if (!isRetryableStatus(res.status)) break;
+            console.warn(`requestSiteRebuild: ${lastError}（${attempt + 1}回目・やり直します）`);
+        } catch (e) {
+            // 通信そのものの失敗。GitHub 側の一時障害と区別が付かないのでやり直す
+            lastError = e instanceof Error ? e.message : String(e);
+            if (attempt === DISPATCH_RETRIES) break;
+            console.warn(`requestSiteRebuild: ${lastError}（${attempt + 1}回目・やり直します）`);
         }
-        console.log(`requestSiteRebuild: 再ビルドを依頼しました（${reason}）`);
-        return true;
-    } catch (e) {
-        console.error("requestSiteRebuild error:", e);
-        if (stamp !== null) await releaseRebuildSlot(stamp);
-        if (budget.counted) await releaseMonthlyBudget(budgetAt);
-        return false;
     }
+    // ここまで来たら諦める。**この1本が落ちると、掃除は誰かが次に何かを
+    // 消すまで走らない**（定期ビルドは止めてある）ので、消した写真のページが
+    // 検索に残り続ける。呼び出し元は削除自体を成功させる（データはもう消えて
+    // いるので 500 は嘘になる）ぶん、ここのログが唯一の手がかりになる。
+    console.error(
+        `requestSiteRebuild: 再ビルドを頼めませんでした（${reason}）: ${lastError}。` +
+        "静的ページが残ります。Actions から Deploy Site を手で1回流してください。",
+    );
+    if (stamp !== null) await releaseRebuildSlot(stamp);
+    if (budget.counted) await releaseMonthlyBudget(budgetAt);
+    return false;
 }

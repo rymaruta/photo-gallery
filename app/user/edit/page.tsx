@@ -13,7 +13,8 @@ import { ROUTES } from "../../../lib/routes";
 import { toDateInputValue, mergeDate } from "../../../lib/utils/dateInput";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { changedFields } from "../../../lib/utils/changedFields";
-import { loginWithNext } from "../../../lib/routes";
+import { useMemberGate } from "../../../lib/hooks/useMemberGate";
+import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
 
 const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
@@ -101,11 +102,7 @@ function EditContent() {
     const [tagsInput, setTagsInput] = useState("");
 
     // 認証ゲート（一般ユーザー or 管理者）。upload ページと同じ方針。
-    useEffect(() => {
-        if (!loading && (!isAuthenticated || (!isAdminUser && !isGeneralUser))) {
-            router.push(loginWithNext(window.location.pathname + window.location.search));
-        }
-    }, [isAuthenticated, isAdminUser, isGeneralUser, loading, router]);
+    const gate = useMemberGate();
 
     // 対象写真の取得: 公開 /photos/{id} は下書きを404にするため、認証済み /user/photos から探す
     useEffect(() => {
@@ -252,6 +249,8 @@ function EditContent() {
         }
     }, [photoId, original, title, description, location, category, date, tagsInput, isJa, router, showToast]);
 
+    // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
+    if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
     if (loading || loadingPhoto) {
         return (
             <div className="min-h-screen bg-black flex items-center justify-center">

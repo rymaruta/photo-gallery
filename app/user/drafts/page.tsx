@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
@@ -11,11 +10,11 @@ import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
 import { formatStoredDateTime } from "@/lib/utils/photoDate";
-import { loginWithNext } from "../../../lib/routes";
+import { useMemberGate } from "../../../lib/hooks/useMemberGate";
+import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 
 export default function DraftsPage() {
     const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
-    const router = useRouter();
     const { locale } = useLocale();
     const isJa = locale === "ja";
 
@@ -25,11 +24,7 @@ export default function DraftsPage() {
     // 保存した下書きが消えたように見える（実際はサーバーに残っている）。
     const [loadError, setLoadError] = useState(false);
 
-    useEffect(() => {
-        if (!loading && (!isAuthenticated || (!isAdminUser && !isGeneralUser))) {
-            router.push(loginWithNext(window.location.pathname + window.location.search));
-        }
-    }, [isAuthenticated, isAdminUser, isGeneralUser, loading, router]);
+    const gate = useMemberGate();
 
     const load = useCallback(async () => {
         setLoadingDrafts(true);
@@ -60,6 +55,8 @@ export default function DraftsPage() {
         if (isAuthenticated && (isAdminUser || isGeneralUser)) void load();
     }, [isAuthenticated, isAdminUser, isGeneralUser, load]);
 
+    // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
+    if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
     if (loading || (!isAuthenticated && loadingDrafts)) {
         return (
             <main className="min-h-screen bg-black flex items-center justify-center">
