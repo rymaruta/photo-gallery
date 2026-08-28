@@ -36,6 +36,37 @@ function mockList(items: ReturnType<typeof comment>[], count: number) {
 }
 
 describe("useComments: 削除の巻き戻し", () => {
+    // 削除ボタンは disabled にならないので、通信が遅ければ2件を重ねられる。
+    // 配列まるごとの控えに戻していた頃は、**先の1件が失敗**すると、
+    // 後の1件（サーバーでは削除済み）が画面に戻り、件数も2つぶん戻った。
+    // 再読み込みするまで直らない（失敗時に reload はしない）。
+    it("2件を重ねて消し、先の1件が失敗しても、後の1件は戻さない", async () => {
+        mockList([comment("c1"), comment("c2"), comment("c3")], 3);
+        const { result } = renderHook(() => useComments("p1", true, 3));
+        await waitFor(() => expect(result.current.items).toHaveLength(3));
+
+        // c1 の DELETE は落ちる。c2 は成功する
+        let failC1: (e: Error) => void = () => {};
+        mockUserFetch.mockImplementation((path: string) =>
+            String(path).endsWith("/c1")
+                ? new Promise((_, rej) => { failC1 = rej; })
+                : Promise.resolve({ ok: true, status: 204 }));
+
+        let p1: Promise<boolean>;
+        await act(async () => { p1 = result.current.remove("c1"); await Promise.resolve(); });
+        await act(async () => { await result.current.remove("c2"); });
+        expect(result.current.items.map((c) => c.id)).toEqual(["c3"]);
+        expect(result.current.count).toBe(1);
+
+        // ここで c1 が失敗する
+        await act(async () => { failC1(new Error("boom")); await p1; });
+
+        // 戻るのは c1 だけ（元の位置に）。c2 は消えたまま、件数も 2
+        expect(result.current.items.map((c) => c.id)).toEqual(["c1", "c3"]);
+        expect(result.current.count).toBe(2);
+    });
+
+
     it("失敗したら件数も元に戻す（表示件数にすり替えない）", async () => {
         // 表示は200件でも、本当は250件ある写真。
         // 巻き戻しに items.length を使っていた頃は、削除に失敗した瞬間に

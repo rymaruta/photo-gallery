@@ -14,18 +14,39 @@ import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 const mockSend = vi.hoisted(() => vi.fn());
 const commands = vi.hoisted(() => [] as { type: string; input: Record<string, unknown> }[]);
 
+// 写真テーブルへの Get だけ別扱いにする。
+//
+// ピン留めは「その写真が今も在って自分のものか」を確かめるようになったので、
+// 写真テーブルへの Get が1本増える。mockResolvedValueOnce の並びで書いている
+// 既存のテストは、この1本に**ユーザーテーブルぶんの応答を食われて**全部ずれる。
+// テーブル名で振り分けて、並びは今までどおりユーザーテーブルだけのものにする。
+const photoRows = vi.hoisted(() => new Map<string, Record<string, unknown> | null>());
 vi.mock("@aws-sdk/client-dynamodb", () => {
     const make = (type: string) => class {
         input: Record<string, unknown>;
         constructor(input: Record<string, unknown>) { this.input = input; commands.push({ type, input }); }
     };
     return {
-        DynamoDBClient: class { send = mockSend; },
+        DynamoDBClient: class {
+            send = (cmd: { input?: Record<string, unknown> }) => {
+                if (cmd?.input?.TableName === "test-photo-gallery-photos") {
+                    const key = (cmd.input.Key as { id?: { S?: string } } | undefined)?.id?.S ?? "";
+                    // 既定は「在って自分のもの」。無い写真は setDeletedPhotos で指定する
+                    const row = photoRows.has(key) ? photoRows.get(key) : { userId: "u1" };
+                    return Promise.resolve(row ? { Item: marshallFn(row) } : {});
+                }
+                return mockSend(cmd);
+            };
+        },
         GetItemCommand: make("Get"),
         PutItemCommand: make("Put"),
         DeleteItemCommand: make("Delete"),
     };
 });
+// vi.mock のファクトリは巻き上げられるので、marshall を直接は掴めない
+const marshallFn = (o: Record<string, unknown>) => marshall(o, { removeUndefinedValues: true });
+/** 指定したIDを「もう無い写真」にする */
+const setDeletedPhotos = (...ids: string[]) => { for (const id of ids) photoRows.set(id, null); };
 
 const { updateMyProfile, removePinnedPhoto } = await import("../userProfile");
 
@@ -50,6 +71,7 @@ function savedProfile(): Record<string, unknown> {
 
 beforeEach(() => {
     commands.length = 0;
+    photoRows.clear();
     mockSend.mockReset();
 });
 
@@ -124,6 +146,69 @@ describe("ピン留めは増減で受け取る", () => {
 
         expect(res.statusCode).toBe(200);
         expect(savedProfile().pinnedPhotoIds).toEqual(["p9", "p1"]);
+    });
+
+    // 消した写真をあとから留められると、上限は配列の長さだけで数えるので
+    // **枠を1つ永久に食い潰す**。画面は見つからないピンを黙って落とすため、
+    // 「3枚留めた → 1枚消した → もう1枚留めようとすると 409。でも画面には
+    // 2枚しか出ていない」で詰む（解除ボタンは表示された写真の中にしか無い）。
+    // 削除の側は removePinnedPhoto で塞いであるが、逆向き——開きっぱなしの
+    // 古いタブが、消えた写真をあとから留める——が空いていた。
+    it("もう無い写真は留められない（古いタブが枠を食い潰さない）", async () => {
+        setDeletedPhotos("gone");
+        mockSend.mockResolvedValueOnce(stored({ pinnedPhotoIds: [], rev: 4 }));
+        const res = await invoke({ pinPhotoId: "gone", pin: true });
+
+        expect(res.statusCode).toBe(404);
+        expect(commands.filter((c) => c.type === "Put")).toHaveLength(0);
+    });
+
+    it("他人の写真も留められない", async () => {
+        photoRows.set("theirs", { userId: "u2" });
+        mockSend.mockResolvedValueOnce(stored({ pinnedPhotoIds: [], rev: 4 }));
+        expect((await invoke({ pinPhotoId: "theirs", pin: true })).statusCode).toBe(404);
+    });
+
+    // uploadedBy しか無い古い行（userId を入れる前の写真）も自分のもの
+    it("古い行（uploadedBy だけ）も自分のものとして留められる", async () => {
+        photoRows.set("old", { uploadedBy: "u1" });
+        mockSend
+            .mockResolvedValueOnce(stored({ pinnedPhotoIds: [], rev: 4 }))
+            .mockResolvedValueOnce({});
+        expect((await invoke({ pinPhotoId: "old", pin: true })).statusCode).toBe(200);
+        expect(savedProfile().pinnedPhotoIds).toEqual(["old"]);
+    });
+
+    // **外す側は確かめない。** 消えた写真を外せなくすると、詰みが直せない。
+    it("もう無い写真でも外せる", async () => {
+        setDeletedPhotos("gone");
+        mockSend
+            .mockResolvedValueOnce(stored({ pinnedPhotoIds: ["gone", "p1"], rev: 4 }))
+            .mockResolvedValueOnce({});
+        expect((await invoke({ pinPhotoId: "gone", pin: false })).statusCode).toBe(200);
+        expect(savedProfile().pinnedPhotoIds).toEqual(["p1"]);
+    });
+
+    // この確認を入れる前に消した写真のぶんは、既に枠に残っている。
+    // 断る前に掃除しないと、その人はもう二度と3枚目を留められない。
+    it("上限に当たったら、死んだピンを掃除してから留める", async () => {
+        setDeletedPhotos("b");
+        mockSend
+            .mockResolvedValueOnce(stored({ pinnedPhotoIds: ["a", "b", "c"], rev: 4 }))
+            .mockResolvedValueOnce({});
+        const res = await invoke({ pinPhotoId: "d", pin: true });
+
+        expect(res.statusCode).toBe(200);
+        expect(savedProfile().pinnedPhotoIds).toEqual(["a", "c", "d"]);
+    });
+
+    it("掃除しても埋まっていれば、掃除後の一覧を添えて 409", async () => {
+        mockSend.mockResolvedValueOnce(stored({ pinnedPhotoIds: ["a", "b", "c"], rev: 4 }));
+        const res = await invoke({ pinPhotoId: "d", pin: true });
+
+        expect(res.statusCode).toBe(409);
+        expect(JSON.parse(res.body).pinnedPhotoIds).toEqual(["a", "b", "c"]);
+        expect(commands.filter((c) => c.type === "Put")).toHaveLength(0);
     });
 
     it("pin が真偽値でなければ 400（既定で外す方に倒さない）", async () => {

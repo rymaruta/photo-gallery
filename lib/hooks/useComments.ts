@@ -119,8 +119,14 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
         // 件数は「元の件数」を覚えて戻す。items.length で戻していた頃は、
         // 表示件数（上限200）と実際の件数がずれている写真で、削除に失敗した
         // 瞬間にヘッダーの件数が 200 に書き換わり、再読込まで直らなかった。
-        const prevItems = items;
-        const prevCount = count;
+        //
+        // **戻すのは「この1件」だけ。** 配列まるごとの控えに戻していた頃は、
+        // 2件続けて消して**先の1件が失敗**すると、後の1件（サーバーでは
+        // 削除済み）が画面に戻り、件数も2つぶん戻った——このボタンは
+        // disabled にならないので、通信が遅ければ普通に重ねられる。
+        // 元の位置に差し戻すため、消す前の添字を控えておく。
+        const removed = items.find((c) => c.id === commentId);
+        const removedAt = items.findIndex((c) => c.id === commentId);
         setItems((prev) => prev.filter((c) => c.id !== commentId));
         setCount((c) => Math.max(0, c - 1));
         try {
@@ -144,11 +150,18 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
             return true;
         } catch (e) {
             log.error("comment delete error:", e);
-            setItems(prevItems);
-            setCount(prevCount);
+            if (removed) {
+                setItems((prev) => {
+                    if (prev.some((c) => c.id === commentId)) return prev;   // 既に戻っている
+                    const next = [...prev];
+                    next.splice(Math.max(0, Math.min(removedAt, next.length)), 0, removed);
+                    return next;
+                });
+                setCount((c) => c + 1);
+            }
             return false;
         }
-    }, [photoId, items, count, reload]);
+    }, [photoId, items, reload]);
 
     return { items, count, loading, loadError, reload, pending, add, remove };
 }

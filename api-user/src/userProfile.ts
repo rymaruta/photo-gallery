@@ -8,6 +8,46 @@ import { isDeletedProfile } from "./types";
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const USERS_TABLE = requireEnv("USERS_TABLE");
+const PHOTOS_TABLE = requireEnv("PHOTOS_TABLE");
+
+/**
+ * その写真が今も在って、自分のものか。
+ *
+ * ピン留めの上限は配列の長さだけで数えるので、**消えた写真のIDが枠を
+ * 食い潰す**。画面は見つからないピンを黙って落とすため、
+ * 「3枚留めた → 1枚消した → もう1枚留めようとすると 409。でも画面には
+ * 2枚しか出ていない」で詰む（解除ボタンは表示された写真の中にしか無く、
+ * 増減方式なので配列を直接送る手も無い）。
+ *
+ * 削除の側は photoUpdate.ts の removePinnedPhoto で塞いであるが、
+ * **逆向き——開きっぱなしの古いタブが、消えた写真をあとから留める——が
+ * 空いていた**。スマホで消して PC のタブに戻る、で普通に踏める。
+ *
+ * 引けなかったときは true（在る扱い）。DynamoDB の一時的な失敗で
+ * 「あなたの写真は見つかりません」と言う方が悪い。
+ */
+async function isLivePhotoOf(photoId: string, ownerId: string): Promise<boolean> {
+    try {
+        const res = await ddb.send(new GetItemCommand({
+            TableName: PHOTOS_TABLE,
+            Key: marshall({ id: photoId }),
+            // userId は古い行に無いことがある（uploadedBy だけの時代の行）
+            ProjectionExpression: "id, userId, uploadedBy",
+        }));
+        if (!res.Item) return false;
+        const photo = unmarshall(res.Item) as { userId?: unknown; uploadedBy?: unknown };
+        return (photo.userId ?? photo.uploadedBy) === ownerId;
+    } catch (e) {
+        console.error("isLivePhotoOf error:", e);
+        return true;
+    }
+}
+
+/** 留まっているIDのうち、今も在って自分のものだけを残す（順序は保つ） */
+async function livePinnedIds(ids: string[], ownerId: string): Promise<string[]> {
+    const alive = await Promise.all(ids.map((id) => isLivePhotoOf(id, ownerId)));
+    return ids.filter((_, i) => alive[i]);
+}
 
 /**
  * https の URL として**形が整っている**か。ホストは見ない。
@@ -656,6 +696,17 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         // 下のループが必ず1回は回って再代入する。pinOp の経路では
         // ここでの姿は**ピンを含まない**ので、この値のまま返してはいけない
         // （ループの前に早期 return を足すときは注意）。
+        // 留める側は**入口で1回だけ**確かめる。ここを通さないと、開きっぱなしの
+        // 古いタブが「もう無い写真」を留めて枠を永久に食い潰す。
+        // 外す側は確かめない——消えた写真を外せなくなると、詰みが直せない。
+        if (pinOp?.pin && !await isLivePhotoOf(pinOp.id, userId)) {
+            if (usernameReserved) { await releaseUsername(usernameReserved, userId); }
+            return {
+                statusCode: 404,
+                headers: JSON_HEADERS,
+                body: JSON.stringify({ error: "その写真は見つかりません。すでに削除された可能性があります" }),
+            };
+        }
         let profile = mergeProfile(prev, userId, changes);
         let base = prev;
         let saved = false;
@@ -668,13 +719,22 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
             // 再試行のたびに base が新しくなるので、ここで組み直す。
             if (pinOp) {
                 const storedPins = (base as { pinnedPhotoIds?: unknown } | null)?.pinnedPhotoIds;
-                const nextPins = applyPinOp(storedPins);
+                let nextPins = applyPinOp(storedPins);
                 if (nextPins === null) {
-                    pinLimitHit = true;
-                    pinLimitCurrent = Array.isArray(storedPins)
+                    // 上限に当たった。**断る前に、死んだピンを掃除する。**
+                    // 既に枠を食い潰されている人はここでしか直せない
+                    // （この確認を入れる前に消した写真のぶんが残っている）。
+                    // 読むのは最大3件で、しかもこの稀な経路だけ。
+                    const cur = Array.isArray(storedPins)
                         ? storedPins.filter((x): x is string => typeof x === "string")
                         : [];
-                    break;
+                    const alive = await livePinnedIds(cur, userId);
+                    nextPins = alive.length < cur.length ? applyPinOp(alive) : null;
+                    if (nextPins === null) {
+                        pinLimitHit = true;
+                        pinLimitCurrent = alive;
+                        break;
+                    }
                 }
                 changes.pinnedPhotoIds = nextPins.length > 0 ? nextPins : undefined;
             }
