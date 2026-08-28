@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import type { Photo, Locale } from "@/lib/data/photos";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
+import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 
 type Props = {
     photo: Photo | null;
@@ -19,6 +20,10 @@ export default function DeleteConfirmModal({ photo, isOpen, onClose, onConfirm, 
     // 条件を `if` で分けるとレンダーごとにフックの数が変わって React が壊れる。
     // 削除中は閉じさせない（オーバーレイのクリックと同じ扱い）
     useEscapeKey(isOpen && !deleting, onClose);
+    // Tab を中に閉じ込める。裏側は管理画面の一覧（各行に編集・削除がある）で、
+    // 見えないまま Enter で押せてしまう
+    const dialogRef = useRef<HTMLDivElement | null>(null);
+    useFocusTrap(isOpen, dialogRef);
 
     if (!isOpen || !photo) return null;
 
@@ -28,6 +33,7 @@ export default function DeleteConfirmModal({ photo, isOpen, onClose, onConfirm, 
 
     return (
         <div
+            ref={dialogRef}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
             role="dialog"
             aria-modal="true"

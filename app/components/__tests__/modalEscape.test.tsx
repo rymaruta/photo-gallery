@@ -68,3 +68,44 @@ describe("退会確認: Escape で閉じる", () => {
         expect(screen.getByRole("dialog")).toHaveAttribute("aria-label", "本当に退会しますか？");
     });
 });
+
+// Escape は塞いだが、Tab で**外へ漏れる**のは別問題。
+// オーバーレイの裏のボタンにフォーカスが行き、見えないまま Enter で
+// 押せてしまう（管理画面の裏は一覧の編集・削除ボタン）。
+describe("削除確認: Tab が外へ漏れない", () => {
+    const tab = (shift = false) => fireEvent.keyDown(document, { key: "Tab", shiftKey: shift });
+
+    it("最後の要素から Tab すると中の先頭へ戻る", () => {
+        render(
+            <div>
+                <button>裏のボタン</button>
+                <DeleteConfirmModal photo={photo} isOpen onClose={vi.fn()} onConfirm={vi.fn()} locale="ja" deleting={false} />
+            </div>,
+        );
+        const dialog = screen.getByRole("dialog");
+        const inside = Array.from(dialog.querySelectorAll("button"));
+        expect(inside.length).toBeGreaterThan(1);
+
+        inside[inside.length - 1].focus();
+        tab();
+        expect(document.activeElement).toBe(inside[0]);
+        expect(dialog.contains(document.activeElement)).toBe(true);
+    });
+
+    it("裏のボタンにフォーカスを当てて Tab すると、中へ引き戻す", () => {
+        render(
+            <div>
+                <button>裏のボタン</button>
+                <DeleteConfirmModal photo={photo} isOpen onClose={vi.fn()} onConfirm={vi.fn()} locale="ja" deleting={false} />
+            </div>,
+        );
+        screen.getByText("裏のボタン").focus();
+        tab();
+        expect(screen.getByRole("dialog").contains(document.activeElement)).toBe(true);
+    });
+
+    it("開いたら中へフォーカスが入る（body に落ちたままにしない）", () => {
+        render(<DeleteConfirmModal photo={photo} isOpen onClose={vi.fn()} onConfirm={vi.fn()} locale="ja" deleting={false} />);
+        expect(screen.getByRole("dialog").contains(document.activeElement)).toBe(true);
+    });
+});

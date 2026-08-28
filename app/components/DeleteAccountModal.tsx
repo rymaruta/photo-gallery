@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import type { Locale } from "@/lib/data/photos";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
+import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 
 type Props = {
     isOpen: boolean;
@@ -28,11 +29,15 @@ function DeleteAccountModalInner({ onClose, onConfirm, locale, deleting }: Omit<
     // 退会処理中は閉じさせない（オーバーレイのクリックと同じ扱い）。
     // Inner は isOpen が真のときだけ描かれるので、ここは無条件でよい
     useEscapeKey(!deleting, onClose);
+    // 裏側はプロフィール編集フォーム（保存ボタンがある）
+    const dialogRef = useRef<HTMLDivElement | null>(null);
+    useFocusTrap(true, dialogRef);
 
     const canDelete = typed.trim() === CONFIRM_WORD && !deleting;
 
     return (
         <div
+            ref={dialogRef}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
             role="dialog"
             aria-modal="true"

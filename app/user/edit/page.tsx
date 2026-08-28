@@ -15,6 +15,7 @@ import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { changedFields } from "../../../lib/utils/changedFields";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
 import { useEscapeKey } from "../../../lib/hooks/useEscapeKey";
+import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
 
@@ -258,6 +259,9 @@ function EditContent() {
     // 閉じられないと、フォーカスは押した「削除」ボタンに残ったままなので、
     // Tab で進むと**オーバーレイの裏にある「保存する」**に届いてしまう。
     useEscapeKey(confirmDelete && !deleting, () => setConfirmDelete(false));
+    // **裏は「保存する」**。Tab で抜けると、見えないまま Enter で公開できる
+    const confirmRef = useRef<HTMLDivElement | null>(null);
+    useFocusTrap(confirmDelete, confirmRef);
 
     // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
@@ -399,6 +403,7 @@ function EditContent() {
                 （app/components/stories/StoryViewer.tsx と同じ形） */}
             {confirmDelete && (
                 <div
+                    ref={confirmRef}
                     className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 px-3 pb-3 sm:pb-0"
                     onClick={() => !deleting && setConfirmDelete(false)}
                     role="dialog"

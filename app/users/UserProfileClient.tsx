@@ -22,6 +22,7 @@ import { getCurrentSession } from "../../lib/auth/cognito";
 import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
 import { publicFetch, userFetch, userPublicFetch, readApiError, AUTH_REQUIRED_MESSAGE } from "../../lib/utils/api";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
+import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 import { EN_MONTHS } from "../../lib/utils/photoDate";
 import { ROUTES } from "../../lib/routes";
 import UserAvatar from "../components/UserAvatar";
@@ -387,6 +388,10 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     // 閉じる手段が「ページ最後尾の閉じるボタンまで Tab で辿る」しか
     // 無かった（aria-modal と言いながら背後が全部たどれる）。
     useEscapeKey(qrOpen, () => setQrOpen(false));
+    // 共有メニューから開くので、押した瞬間に起動元がアンマウントされて
+    // フォーカスが body に落ちる。中へ入れて、閉じたら戻す
+    const qrRef = useRef<HTMLDivElement | null>(null);
+    useFocusTrap(qrOpen, qrRef);
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
     const [mvOpen, setMvOpen] = useState(false);
 
@@ -1027,6 +1032,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             {/* プロフィールQRコード */}
             {qrOpen && (
                 <div
+                    ref={qrRef}
                     className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm px-6"
                     onClick={() => setQrOpen(false)}
                     role="dialog"
