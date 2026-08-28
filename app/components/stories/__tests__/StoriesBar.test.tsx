@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
 
 // 認証状態を切り替えられるモック
 const authState = vi.hoisted(() => ({ current: { isAuthenticated: false, userId: null as string | null } }));
@@ -29,6 +29,7 @@ beforeEach(() => {
     authState.current = { isAuthenticated: false, userId: null };
     mockUserFetch.mockReset();
     mockUserFetch.mockResolvedValue({ ok: true, json: async () => [] });
+    localStorage.clear();
 });
 
 describe("StoriesBar - ログイン限定", () => {
@@ -58,6 +59,46 @@ describe("StoriesBar - ログイン限定", () => {
         });
         render(<StoriesBar />);
         expect(await screen.findByText("旅人A")).toBeInTheDocument();
+    });
+});
+
+// 既読は localStorage に置いてあるが、読み直すのはログイン状態が変わったとき
+// だけだった。片方のタブで全部見ても、もう片方はリングが未読のまま残り、
+// リロードするまで直らない。
+describe("StoriesBar - 別タブで見たストーリー", () => {
+    const STORY = {
+        id: "s1", src: "https://cdn/a.jpg", userId: "u2", displayName: "旅人A",
+        createdAt: "2098-01-01T00:00:00Z", expiresAt: "2099-01-01T00:00:00Z",
+    };
+    /** 名前のクラスで未読/既読を見る（リングは inline style なので） */
+    const isUnseen = () => screen.getByText("旅人A").className.includes("text-white/90");
+
+    it("別タブが既読にしたら、こちらのリングも既読になる", async () => {
+        authState.current = { isAuthenticated: true, userId: "me" };
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => [STORY] });
+        render(<StoriesBar />);
+        await screen.findByText("旅人A");
+        expect(isUnseen()).toBe(true);
+
+        localStorage.setItem("jp_seen_stories", JSON.stringify({ s1: Date.now() }));
+        await act(async () => {
+            window.dispatchEvent(new StorageEvent("storage", { key: "jp_seen_stories" }));
+        });
+
+        await waitFor(() => expect(isUnseen()).toBe(false));
+    });
+
+    it("別のキーの変更では読み直さない", async () => {
+        authState.current = { isAuthenticated: true, userId: "me" };
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => [STORY] });
+        render(<StoriesBar />);
+        await screen.findByText("旅人A");
+
+        localStorage.setItem("jp_seen_stories", JSON.stringify({ s1: Date.now() }));
+        await act(async () => {
+            window.dispatchEvent(new StorageEvent("storage", { key: "jp_other" }));
+        });
+        expect(isUnseen()).toBe(true);
     });
 });
 

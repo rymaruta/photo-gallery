@@ -84,6 +84,8 @@ export function timeAgo(iso: string, locale: "ja" | "en", now: number = Date.now
 
 // 既読管理（localStorage）。期限切れ分は掃除する。
 const SEEN_KEY = "jp_seen_stories";
+/** 既読記録の置き場（別タブの変更を拾う側が参照する） */
+export const SEEN_STORAGE_KEY = SEEN_KEY;
 
 export function loadSeenStoryIds(): Set<string> {
     try {

@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 
 // 「写真のGPSから撮影地を自動入力」を切っているのに、iOS の共有シート経由
 // だけ効いていなかった件（2-4）。
@@ -87,6 +87,44 @@ describe("共有シート経由の取り込みと GPS 自動入力の設定", ()
     it("未設定なら既定でオン", async () => {
         render(<UploadPage />);
         await waitFor(() => expect(mockReverseGeocode).toHaveBeenCalled());
+    });
+
+    // 読むのがマウント時1回だけだと、「タブBで切ったのにタブAでは効かない」。
+    // タブAで写真を足すと逆ジオコーディングが走り、地名が入って公開される。
+    // トグルの見た目もオンのままなので、切ったつもりの人には気づけない。
+    //
+    // ここで見ているのはチェックボックスの状態だが、設定の反映は
+    // applyGpsAutofill が state と ref を**同時に**書くので、
+    // 取り込み処理が読む ref もこれで動いている。
+    it("別タブで切ったら、こちらの設定も切れる", async () => {
+        localStorage.setItem("jp_gps_autofill", "1");
+        render(<UploadPage />);
+        const box = await screen.findByRole("checkbox");
+        await waitFor(() => expect((box as HTMLInputElement).checked).toBe(true));
+
+        // 別タブが切った
+        localStorage.setItem("jp_gps_autofill", "0");
+        await act(async () => {
+            window.dispatchEvent(new StorageEvent("storage", { key: "jp_gps_autofill", newValue: "0" }));
+        });
+
+        await waitFor(() => expect((box as HTMLInputElement).checked).toBe(false));
+    });
+
+    // 関係ないキーの変更で設定を読み直しても害は無いが、
+    // 「storage を購読した」だけで満足しないよう、他のキーでも壊れないことを見る
+    it("別のキーの変更では読み直さない", async () => {
+        localStorage.setItem("jp_gps_autofill", "1");
+        render(<UploadPage />);
+        const box = await screen.findByRole("checkbox");
+        await waitFor(() => expect((box as HTMLInputElement).checked).toBe(true));
+
+        // 値は変えておくが、知らせるキーは別物。読み直したら false になる
+        localStorage.setItem("jp_gps_autofill", "0");
+        await act(async () => {
+            window.dispatchEvent(new StorageEvent("storage", { key: "jp_other", newValue: "1" }));
+        });
+        expect((box as HTMLInputElement).checked).toBe(true);
     });
 });
 

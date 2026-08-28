@@ -154,7 +154,19 @@ function UploadPageInner() {
         setGpsAutofill(next);
     }, []);
     useEffect(() => {
-        try { applyGpsAutofill(localStorage.getItem("jp_gps_autofill") !== "0"); } catch { /* ignore */ }
+        const read = () => {
+            try { applyGpsAutofill(localStorage.getItem("jp_gps_autofill") !== "0"); } catch { /* ignore */ }
+        };
+        read();
+        // **別タブで切ったら、こちらでも切る。** 読むのがマウント時1回だけだと、
+        // 「タブBで切ったのにタブAでは効かない」——タブAで写真を足すと
+        // 逆ジオコーディングが走り、地名が入って公開される。トグルの見た目も
+        // オンのままなので、切ったつもりの人には気づけない。
+        const onStorage = (e: StorageEvent) => {
+            if (e.key === null || e.key === "jp_gps_autofill") read();
+        };
+        window.addEventListener("storage", onStorage);
+        return () => window.removeEventListener("storage", onStorage);
     }, [applyGpsAutofill]);
     const toggleGpsAutofill = useCallback(() => {
         const next = !gpsAutofillRef.current;

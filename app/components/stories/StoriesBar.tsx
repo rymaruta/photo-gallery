@@ -12,7 +12,7 @@ import { searchSongs, type SongResult } from "../../../lib/utils/music";
 import { startFromPointer, clampStart } from "../../../lib/utils/songTrim";
 import { log } from "../../../lib/utils/log";
 import {
-    groupStories, hasUnseen, loadSeenStoryIds, markStorySeen,
+    groupStories, hasUnseen, loadSeenStoryIds, markStorySeen, SEEN_STORAGE_KEY,
     type Story, type StoryGroup,
 } from "../../../lib/stories";
 import StoryViewer from "./StoryViewer";
@@ -240,6 +240,17 @@ export default function StoriesBar() {
         setSeen(loadSeenStoryIds());
         void loadStories();
     }, [isAuthenticated, loadStories]);
+
+    // 別タブで見たストーリーは、こちらでも既読にする。
+    // 読み直すのがログイン状態の変化時だけだと、片方のタブで全部見たあとも
+    // もう片方はリングが未読のまま残り、リロードするまで直らない。
+    useEffect(() => {
+        const onStorage = (e: StorageEvent) => {
+            if (e.key === null || e.key === SEEN_STORAGE_KEY) setSeen(loadSeenStoryIds());
+        };
+        window.addEventListener("storage", onStorage);
+        return () => window.removeEventListener("storage", onStorage);
+    }, []);
 
     const handleSeen = useCallback((storyId: string) => {
         markStorySeen(storyId);

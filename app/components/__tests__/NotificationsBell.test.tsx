@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 
 const mockUserFetch = vi.hoisted(() => vi.fn());
 
@@ -74,6 +74,32 @@ describe("NotificationsBell", () => {
         await waitFor(() => {
             expect(mockUserFetch).toHaveBeenCalledWith("/user/notifications", { method: "PUT" });
         });
+    });
+
+    // 開くと GET と PUT がほぼ同時に出るが、サーバーは GET を先に受けるので
+    // まだ `unread: 2` を返す。返りをそのまま採っていたので、消えたバッジが
+    // 数百ms後に「2」で復活していた（次のポーリング＝60秒まで直らず、
+    // 裏に回したタブはポーリングを飛ばすので更に長い）。
+    it("開いたあとに届いた古い未読数で、バッジが復活しない", async () => {
+        // 開いたときの GET だけ、応答を手元で止めておく
+        let release: (v: unknown) => void = () => {};
+        mockUserFetch.mockResolvedValueOnce(fetchOk({ items: ITEMS, unread: 2 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(screen.getByText("2")).toBeInTheDocument());
+
+        mockUserFetch.mockImplementation((path: string, init?: { method?: string }) =>
+            init?.method === "PUT"
+                ? Promise.resolve(fetchOk({}))
+                : new Promise((res) => { release = res; }));
+
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+        expect(screen.queryByText("2")).toBeNull();
+
+        // ここで「既読化より前に投げた GET」が返ってくる
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalledWith("/user/notifications", { method: "PUT" }));
+        await act(async () => { release(fetchOk({ items: ITEMS, unread: 2 })); });
+
+        expect(screen.queryByText("2")).toBeNull();
     });
 
     it("通知が空でも壊れない（空メッセージ表示）", async () => {

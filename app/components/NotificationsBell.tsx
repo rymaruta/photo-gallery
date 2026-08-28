@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { BellIcon, ChatBubbleOvalLeftIcon, UserPlusIcon } from "@heroicons/react/24/outline";
@@ -45,13 +45,21 @@ export default function NotificationsBell() {
     //
     // ただしポーリングは足しすぎない。主にするのは「開いたときの再取得」で、
     // 常駐ぶんは長めの間隔にとどめる（1人あたり60秒に1回）。
+    // 既読化した回数。**取得を投げてから返るまでの間に既読化したら、
+    // 返ってきた unread は既に古い。** ベルを開くと GET と PUT がほぼ同時に
+    // 出るが、サーバーは GET を先に受けるので `unread: 3` を返し、消えた
+    // バッジが数百ms後に「3」で復活していた（次のポーリングまで直らず、
+    // 裏に回したタブはポーリングを飛ばすので更に長い）。
+    const readSeqRef = useRef(0);
     const load = useCallback(async () => {
+        const seq = readSeqRef.current;
         try {
             const res = await userFetch("/user/notifications");
             if (!res.ok) return;
             const data = await res.json() as { items?: Notif[]; unread?: number };
             setItems(Array.isArray(data.items) ? data.items : []);
-            setUnread(typeof data.unread === "number" ? data.unread : 0);
+            // 一覧は新しい方が良いので採るが、未読数は追い越されていたら捨てる
+            setUnread(seq === readSeqRef.current && typeof data.unread === "number" ? data.unread : 0);
             setNow(Date.now());
         } catch { /* 通知は取得できなくてもUIを壊さない */ }
     }, []);
@@ -76,6 +84,7 @@ export default function NotificationsBell() {
             // 届いた通知はここで初めて見える。
             void load();
             if (unread > 0) {
+                readSeqRef.current++;
                 setUnread(0);
                 void userFetch("/user/notifications", { method: "PUT" }).catch(() => { /* ignore */ });
             }
