@@ -177,7 +177,17 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: "削除権限がありません" }) };
         }
 
-        // S3 から画像ファイルを削除（失敗してもDynamoDBレコードは削除する）。
+        // S3 から画像ファイルを削除する。**消せなければ行も消さない。**
+        //
+        // ここは一度「失敗しても DynamoDB レコードは削除する」だった。
+        // 行は S3 キーの唯一の手がかりなので、消し残したまま行を消すと、
+        // GPS 入りの原本（srcOriginal）が公開URLに孤児で残り、
+        // **どの削除経路からも二度と辿れない**。同じ理由で UPLOAD_BUCKET を
+        // requireEnv にしたのに（設定ミスには倒したのに）、S3 の一時失敗には
+        // 倒していなかった。api-user の deleteMyPhoto と deleteAccount は
+        // 既に 500 で止めている——同じ写真でも、本人が消すと守られ、
+        // 管理者に頼むと守られない、という食い違いだった。
+        //
         // 本体だけでなく派生画像も消す。特に srcOriginal は EXIF を落とす前の原本で
         // GPS が入ったままなので、消し残すと削除後も公開URLで取得できてしまう。
         // api-user/src/mediaKeys.ts の MEDIA_FIELDS と**対**。派生を足すときは
@@ -213,12 +223,17 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
                 else console.warn(`deletePhoto: skip S3 delete for unexpected key ${key}`);
             } catch { /* URL でなければ無視 */ }
         }
+        let s3Failures = 0;
         for (const key of keys) {
             try {
                 await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));
             } catch (s3Err) {
-                console.error("S3 delete error (non-fatal):", s3Err);
+                console.error(`deletePhoto: S3 delete failed for ${key}:`, s3Err);
+                s3Failures++;
             }
+        }
+        if (s3Failures > 0) {
+            return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "画像の削除を完了できませんでした。時間をおいてもう一度お試しください" }) };
         }
 
         await deletePhotoById(id);

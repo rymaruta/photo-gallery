@@ -253,6 +253,38 @@ describe("ピン留めは増減で受け取る", () => {
         expect((released[0].input.Key as { userId?: { S?: string } }).userId?.S).toBe("username#newname");
     });
 
+    // 古い @名の解放は、全失敗を握りつぶしていた。スロットリング1回で
+    // `username#old` の行が残り、**そのあと誰も直せない**——プロフィール行の
+    // username は既に新しい方なので、次の保存でも退会の掃除でも対象に入らない。
+    // 対になる account.ts の releaseOwnUsername は最初からこの形。
+    it("古い @名の解放が一時的に落ちたら、やり直す", async () => {
+        mockSend
+            .mockResolvedValueOnce(stored({ username: "old", rev: 4 }))   // getProfile
+            .mockResolvedValueOnce({})                                    // reserveUsername(new)
+            .mockResolvedValueOnce({})                                    // プロフィールの Put
+            .mockRejectedValueOnce(new Error("throttled"))                // 解放1回目
+            .mockResolvedValueOnce({});                                   // 解放2回目
+        const res = await invoke({ username: "newname" });
+
+        expect(res.statusCode).toBe(200);
+        const deletes = commands.filter((c) => c.type === "Delete"
+            && (c.input.Key as { userId?: { S?: string } }).userId?.S === "username#old");
+        expect(deletes).toHaveLength(2);   // 諦めずにもう一度
+    });
+
+    // 「他人のものだった / 既に無い」は解放するものが無いだけ。やり直さない
+    it("条件で弾かれたら、それ以上やり直さない", async () => {
+        mockSend
+            .mockResolvedValueOnce(stored({ username: "old", rev: 4 }))
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({})
+            .mockRejectedValueOnce(condFail());
+        expect((await invoke({ username: "newname" })).statusCode).toBe(200);
+        const deletes = commands.filter((c) => c.type === "Delete"
+            && (c.input.Key as { userId?: { S?: string } }).userId?.S === "username#old");
+        expect(deletes).toHaveLength(1);
+    });
+
     it("pin が真偽値でなければ 400（既定で外す方に倒さない）", async () => {
         const res = await invoke({ pinPhotoId: "p1" });
         expect(res.statusCode).toBe(400);

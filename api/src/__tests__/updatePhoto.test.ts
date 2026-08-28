@@ -290,9 +290,33 @@ describe("deletePhoto（ハンドラ）", () => {
         expect(s3Keys()).toEqual(["uploads/p1.jpg"]);
     });
 
-    it("S3 の削除に失敗しても DynamoDB の行は消す", async () => {
+    // **ここは方針を変えた。** 以前は「S3 の削除に失敗しても DynamoDB の行は
+    // 消す」で、そのことを固定するテストがここにあった（理由は書かれていない）。
+    //
+    // 行は S3 キーの唯一の手がかりなので、消し残したまま行を消すと、GPS 入りの
+    // 原本（srcOriginal）が公開URLに孤児で残り、**どの削除経路からも二度と
+    // 辿れない**。api-user の deleteMyPhoto と deleteAccount は既に 500 で
+    // 止めていて、その理由もコードに書いてある。同じ写真でも、本人が消すと
+    // 守られ、管理者に頼むと守られない、という食い違いだった。
+    // このファイル自身も「消し残すと削除後も公開URLで取得できてしまう」と
+    // 書いている（:181 付近）。
+    //
+    // 代償は「S3 が不調な間、管理者が写真を下ろせない」こと。押し直せば済む
+    // 側に倒した——孤児の原本は押し直しでは消せない。
+    it("S3 の削除に失敗したら行を消さず、押し直せる形で止める", async () => {
         mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/uploads/p1.jpg" });
         mockS3Send.mockRejectedValueOnce(new Error("s3 down"));
+        const res = await invokeDelete(del("p1"));
+        expect(res.statusCode).toBe(500);
+        expect(JSON.parse(res.body).error).toContain("時間をおいてもう一度");
+        // **行は残す。** 消してしまうと、その原本は二度と辿れない
+        expect(mockDeletePhotoById).not.toHaveBeenCalled();
+        // 掃除も頼まない（消えていないので静的ページを作り直す意味が無い）
+        expect(mockRebuild).not.toHaveBeenCalled();
+    });
+
+    it("S3 が全部消えたときだけ行を消す（今までどおり）", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/uploads/p1.jpg" });
         expect((await invokeDelete(del("p1"))).statusCode).toBe(200);
         expect(mockDeletePhotoById).toHaveBeenCalledWith("p1");
     });

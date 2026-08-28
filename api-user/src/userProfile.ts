@@ -197,17 +197,40 @@ async function reserveUsername(username: string, ownerId: string): Promise<boole
     }
 }
 
-/** 古いユーザー名の予約を解放する（自分のものだけ） */
+/**
+ * 古いユーザー名の予約を解放する（自分のものだけ）。
+ *
+ * **一時的な失敗と「そもそも解放不要」を分けること。** 全部まとめて
+ * 握りつぶしていた頃は、スロットリング1回で `username#old` の行が残り、
+ * そのあと誰も直せなかった——プロフィール行の username は既に新しい方に
+ * なっているので、次の保存でも退会の掃除でも `@old` は対象に入らない。
+ * **その @名は誰も取れないまま永久に残る。**
+ *
+ * 対になる account.ts の releaseOwnUsername は最初からこの形（条件失敗は
+ * 成功扱い・それ以外は失敗）で、docstring に「条件まで含めて同じにすること」
+ * と書いてある。条件式は揃っていたが、失敗の扱いだけ揃っていなかった。
+ *
+ * 呼ぶのはプロフィールを保存し終えたあとなので、ここで 500 にはしない
+ * （保存は本当に成功している）。代わりに数回やり直し、それでも駄目なら
+ * 残ったハンドルをログに残す。
+ */
 async function releaseUsername(username: string, ownerId: string): Promise<void> {
-    try {
-        await ddb.send(new DeleteItemCommand({
-            TableName: USERS_TABLE,
-            Key: marshall({ userId: usernameKey(username) }),
-            ConditionExpression: "ownerId = :o",
-            ExpressionAttributeValues: marshall({ ":o": ownerId }),
-        }));
-    } catch {
-        // 他人のものだった/既に無い場合は何もしない
+    for (let attempt = 0; attempt <= PROFILE_WRITE_RETRIES; attempt++) {
+        try {
+            await ddb.send(new DeleteItemCommand({
+                TableName: USERS_TABLE,
+                Key: marshall({ userId: usernameKey(username) }),
+                ConditionExpression: "ownerId = :o",
+                ExpressionAttributeValues: marshall({ ":o": ownerId }),
+            }));
+            return;
+        } catch (e) {
+            // 他人のものだった / 既に無い → 解放するものが無い（正常）
+            if ((e as { name?: string }).name === "ConditionalCheckFailedException") return;
+            if (attempt === PROFILE_WRITE_RETRIES) {
+                console.error(`releaseUsername: gave up for ${usernameKey(username)} (owner ${ownerId}):`, e);
+            }
+        }
     }
 }
 
