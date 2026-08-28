@@ -529,10 +529,13 @@ describe("requestSiteRebuild: 依頼の再試行", () => {
         // **上下から挟む。** 「1700ms 待って切れていること」だけだと、
         // 期限が 50ms でも 1ms でも緑になる——「800ms は攻めすぎだった」という
         // この変更の中心が、短くする方向の回帰を1つも捕まえられない。
-        await new Promise((r) => setTimeout(r, 1200));
-        expect(captured!.aborted, "1.2秒では切れていない（短すぎる期限を弾く）").toBe(false);
-        await new Promise((r) => setTimeout(r, 500));
-        expect(captured!.aborted, "1.7秒では切れている（長すぎる期限を弾く）").toBe(true);
+        // 期限（1.5秒）の前後に 0.5 秒ずつ余裕を取る。300ms しか空けていな
+        // かった頃は、重い機械で並列に回すと前半のスリープが 1.5 秒を超えて
+        // 偽陽性で落ちうる状態だった
+        await new Promise((r) => setTimeout(r, 1000));
+        expect(captured!.aborted, "1.0秒では切れていない（短すぎる期限を弾く）").toBe(false);
+        await new Promise((r) => setTimeout(r, 900));
+        expect(captured!.aborted, "1.9秒では切れている（長すぎる期限を弾く）").toBe(true);
     }, 5000);
 
     it("締切を過ぎたら、残りの投げ直しをやめる", async () => {

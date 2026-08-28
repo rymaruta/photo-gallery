@@ -886,8 +886,12 @@ function UploadPageInner() {
                                 {it.status === "done" && (
                                     <p className="text-xs text-green-400 inline-flex items-center gap-1"><CheckCircleIcon className="w-4 h-4" />{locale === "en" ? "Uploaded" : "アップロード完了"}</p>
                                 )}
+                                {/* ここは role="alert" にしない。逐次ループなので、
+                                    50枚失敗すれば assertive な割り込みが50回起きる。
+                                    まとめは「N 件失敗しました」のトーストが出していて、
+                                    Toast は元から role="alert" を持っている。 */}
                                 {it.status === "error" && (
-                                    <p role="alert" className="text-xs text-red-400 inline-flex items-center gap-1"><ExclamationTriangleIcon className="w-4 h-4" />{it.error ?? (locale === "en" ? "Failed" : "失敗")}</p>
+                                    <p className="text-xs text-red-400 inline-flex items-center gap-1"><ExclamationTriangleIcon className="w-4 h-4" />{it.error ?? (locale === "en" ? "Failed" : "失敗")}</p>
                                 )}
                             </div>
                         )}

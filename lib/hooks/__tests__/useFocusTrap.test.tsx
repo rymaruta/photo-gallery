@@ -90,3 +90,54 @@ describe("useFocusTrap", () => {
         expect(document.activeElement).toBe(screen.getByPlaceholderText("確認"));
     });
 });
+
+// HeaderNav は認証の判定中（Cognito のセッション確認）だと中身が空になる。
+// そこで開くとフォーカスが移らず、「開いても入れない」が残っていた。
+describe("useFocusTrap: 押せるものが1つも無いとき", () => {
+    function Empty() {
+        const ref = useRef<HTMLDivElement | null>(null);
+        useFocusTrap(true, ref);
+        return (
+            <div>
+                <button>外</button>
+                <div ref={ref} role="dialog"><span aria-hidden>読み込み中</span></div>
+            </div>
+        );
+    }
+
+    it("容器そのものへフォーカスを入れる（外に置き去りにしない）", () => {
+        render(<Empty />);
+        const dialog = screen.getByRole("dialog");
+        expect(document.activeElement).toBe(dialog);
+        expect(dialog.tabIndex).toBe(-1);
+    });
+});
+
+// メニューのように戻る先が1つに決まっているものは明示する。
+// ブラウザの click はボタンにフォーカスも当てるが、それに寄りかかると
+// 環境差で崩れる（jsdom の click は当てない）。
+describe("useFocusTrap: 戻り先の指定", () => {
+    function WithRestore({ open }: { open: boolean }) {
+        const ref = useRef<HTMLDivElement | null>(null);
+        const restore = useRef<HTMLButtonElement | null>(null);
+        useFocusTrap(open, ref, restore);
+        return (
+            <div>
+                <button ref={restore}>開くボタン</button>
+                <button>別のボタン</button>
+                {open && <div ref={ref}><button>中1</button></div>}
+            </div>
+        );
+    }
+
+    it("閉じたら指定した要素へ戻す（開く前の位置ではなく）", () => {
+        const { rerender } = render(<WithRestore open={false} />);
+        // わざと「別のボタン」にフォーカスを置いてから開く
+        screen.getByText("別のボタン").focus();
+        rerender(<WithRestore open />);
+        expect(document.activeElement).toBe(screen.getByText("中1"));
+
+        rerender(<WithRestore open={false} />);
+        expect(document.activeElement).toBe(screen.getByText("開くボタン"));
+    });
+});

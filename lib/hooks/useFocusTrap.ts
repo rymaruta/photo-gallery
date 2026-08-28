@@ -21,18 +21,41 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), selec
  * 守っているテストが2本（いいねの POST/DELETE）しか無く、置き換えると
  * 壊しても気づけない。移すなら先に今の挙動を写し取るテストを書くこと。
  */
-export function useFocusTrap(active: boolean, containerRef: RefObject<HTMLElement | null>): void {
+export function useFocusTrap(
+    active: boolean,
+    containerRef: RefObject<HTMLElement | null>,
+    /**
+     * 閉じたときの戻り先。渡さなければ「開いた瞬間にフォーカスがあった要素」。
+     *
+     * 明示できるところは明示する。ブラウザはボタンをクリックすると
+     * フォーカスも当てるので既定でもたいてい合うが、**それに寄りかかると
+     * 環境差で崩れる**（jsdom の click はフォーカスを当てない）。
+     * メニューのように「戻る先が1つに決まっている」ものは渡すこと。
+     */
+    restoreRef?: RefObject<HTMLElement | null>,
+): void {
     useEffect(() => {
         if (!active) return;
         const container = containerRef.current;
         if (!container) return;
 
-        // 閉じたときに戻す先。開いた瞬間の位置を控える
-        const restoreTo = document.activeElement as HTMLElement | null;
+        // 閉じたときに戻す先。指定があればそちら、無ければ開いた瞬間の位置
+        const restoreTo = restoreRef?.current ?? (document.activeElement as HTMLElement | null);
 
         // 中に既にフォーカスがあるなら動かさない（autoFocus を尊重する）
         if (!container.contains(document.activeElement)) {
-            container.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+            const first = container.querySelector<HTMLElement>(FOCUSABLE);
+            if (first) {
+                first.focus();
+            } else {
+                // **押せるものが1つも無いときは容器そのものへ。**
+                // HeaderNav は認証の判定中（Cognito のセッション確認）だと
+                // 中身が空で、そこで開くとフォーカスが移らず「開いても
+                // 入れない」が残っていた。容器に入れておけば、その後の Tab は
+                // 下の閉じ込めが効く（activeElement が中に居るため）。
+                container.tabIndex = -1;
+                container.focus();
+            }
         }
 
         const onKey = (e: KeyboardEvent) => {
@@ -67,5 +90,5 @@ export function useFocusTrap(active: boolean, containerRef: RefObject<HTMLElemen
             document.removeEventListener("keydown", onKey);
             if (restoreTo && typeof restoreTo.focus === "function") restoreTo.focus();
         };
-    }, [active, containerRef]);
+    }, [active, containerRef, restoreRef]);
 }

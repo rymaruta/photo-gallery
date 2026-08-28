@@ -12,6 +12,7 @@ import { ROUTES } from "../../lib/routes";
 import UserAvatar from "./UserAvatar";
 import NotificationsBell from "./NotificationsBell";
 import { useFavorites } from "../../lib/hooks/useFavorites";
+import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 
 export default function HeaderNav({ className = "" }: { className?: string }) {
     const router = useRouter();
@@ -46,7 +47,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
         return () => document.removeEventListener("keydown", onKey);
     }, []);
 
-    // **開いたらメニューの中へフォーカスを移す。**
+    // **開いたらメニューの中へフォーカスを移し、Tab を閉じ込める。**
     //
     // パネルは `createPortal(..., document.body)` で body の末尾に出るので、
     // DOM 順は**ページの一番最後**。開いてから Tab を押すと、フォーカスは
@@ -54,30 +55,13 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     // トップページなら数十個のリンクとフッターを通り抜けないと
     // 「マイページ」「ログアウト」に届かなかった（＝開いても入れない）。
     //
-    // 閉じたら開いたボタンへ戻す。戻さないとフォーカスが body に落ち、
-    // 次の Tab がページ先頭からやり直しになる。
-    //
-    // トラップ（Tab で外へ出さない）はここでは入れていない。GalleryModal が
-    // 持っているものを切り出す形になるが、あちらは作りが込み入っていて
-    // 一緒に触ると壊しかねない。**入れない**問題はこれで解ける。
+    // 最初はここに手書きで14行置いたが、同じことをする `useFocusTrap` を
+    // 別で作ったので寄せた（そちらは Shift+Tab で裏へ抜ける穴も塞ぐ。
+    // `aria-modal="true"` なので、抜けた先は読み上げでは「存在しない」場所）。
     const toggleRef = useRef<HTMLButtonElement | null>(null);
-    useEffect(() => {
-        if (!open) return;
-        // 片付けの時点では ref が別の要素を指しているかもしれないので、
-        // 開いた瞬間のボタンを控えておく
-        const toggle = toggleRef.current;
-        const first = panelRef.current?.querySelector<HTMLElement>(
-            'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        );
-        // ポータルが描かれた後に移す（同じ描画の中では panelRef がまだ空）
-        const t = setTimeout(() => first?.focus(), 0);
-        return () => {
-            clearTimeout(t);
-            toggle?.focus();
-        };
-    }, [open]);
+    useFocusTrap(open, panelRef, toggleRef);
 
-    // Scroll lock when open
+    // Scroll lock when open    // Scroll lock when open
     useEffect(() => {
         const body = document.body;
         if (!body) return;
@@ -150,7 +134,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                     minWidth: "44px",
                     minHeight: "44px",
                 }}
-                className="inline-flex items-center justify-center w-11 h-11 rounded-md hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-white/20"
+                className="inline-flex items-center justify-center w-11 h-11 rounded-md hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
             >
                 {open ? <XMarkIcon className="h-6 w-6 text-white" /> : <Bars3Icon className="h-6 w-6 text-white" />}
             </button>
