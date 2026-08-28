@@ -168,8 +168,13 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             Key: { id: commentsId(photoId) },
             UpdateExpression:
                 "SET #items = list_append(if_not_exists(#items, :empty), :new), photoId = :pid, updatedAt = :now",
-            // 上限の対象外（オーナー）は条件を付けない。付ける必要が無いうえ、
-            // 付けると同時投稿のたびにやり直しが要る。
+            // 条件は**オーナーにも付ける**。一度は「上限の対象外だから要らない」と
+            // して外していたが、この条件は上限のためだけのものではない——
+            // 下の「前回の追記が通っていたら、もう足さない」を成立させるのが
+            // この条件で、外すとオーナーの分岐だけ再送で2件入った
+            // （同じファイルが説明している壊れ方が、そこだけ生きていた）。
+            // 同時投稿でやり直しが増えるのは事実だが、それは回数の話で、
+            // 上限を免除する話とは別。
             ...(guard
                 ? {
                     // 文書がまだ無い回もあるので、その形も通す
@@ -190,10 +195,7 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         let appended: Awaited<ReturnType<typeof ddb.send>> | undefined;
         // 追記後の姿。応答を取り逃した回は、読み直した一覧がそれにあたる。
         let storedItems: unknown;
-        if (isOwner) {
-            appended = await ddb.send(new UpdateCommand(appendArgs()));
-            storedItems = appended.Attributes?.items;
-        } else {
+        {
             for (let attempt = 0; ; attempt++) {
                 const existing = await readComments(photoId, attempt > 0);
                 // **前回の追記が通っていたら、もう足さない。**
@@ -207,7 +209,9 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
                     storedItems = existing;
                     break;
                 }
-                if (existing.filter((c) => c.uid === uid).length >= COMMENTS_MAX_PER_USER) {
+                // **免除するのは上限だけ。** オーナーは自分の写真に何件でも
+                // 返信できてよいが、それと「再送で2件入らないこと」は別の話
+                if (!isOwner && existing.filter((c) => c.uid === uid).length >= COMMENTS_MAX_PER_USER) {
                     return jsonError(429, `同じ写真へのコメントは${COMMENTS_MAX_PER_USER}件までです`);
                 }
                 try {

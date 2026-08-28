@@ -171,8 +171,10 @@ describe("postComment", () => {
             .mockResolvedValueOnce({ Attributes: { items: fiftyBy("owner") } })
             .mockResolvedValueOnce({});
         expect((await invoke(postComment, ev("owner", { id: "p1" }, { text: "ありがとう" }))).statusCode).toBe(200);
-        // 数えに行っていないこと自体を見る（数えたら 50 >= 10 で 429 になる）
-        expect(commentsGets()).toHaveLength(0);
+        // **読みには行く**（再送の見分けに要る）。見るのは「数えて弾いていない」こと。
+        // 以前はここで「読みに行かない」を固定していたが、その最適化のために
+        // オーナーだけ重複防止の外に出ていた（下の describe を見よ）。
+        expect(commentsGets()).toHaveLength(1);
     });
 
     it("同じ材料でも、オーナーでなければ 429（上限そのものは効いている）", async () => {
@@ -448,11 +450,18 @@ describe("コメント追記: 読みと書きを条件でつなぐ", () => {
         expect(res.statusCode).toBe(409);
     });
 
-    // 上限の対象外なので条件も読み取りも要らない（既存の最適化を壊さない）
-    it("オーナーの追記には条件を付けない", async () => {
+    // **ここは方針を変えた。** 以前は「上限の対象外なので条件も読み取りも
+    // 要らない」として、オーナーの追記に条件を付けないことを固定していた。
+    // ところがこの条件は上限のためだけのものではなく、「前回の追記が通って
+    // いたら、もう足さない」を成立させているのもこの条件で、外すと
+    // **オーナーの分岐だけ再送で2件入る**（同じファイルが説明している
+    // 壊れ方が、そこだけ生きていた）。免除するのは上限だけにする。
+    it("オーナーの追記にも条件を付ける（再送で2件入らない）", async () => {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
             if (cmd.constructor.name === "GetCommand") {
-                return Promise.resolve({ Item: { id: "p1", src: "s", userId: "me" } });
+                const id = String((cmd.input.Key as { id?: string })?.id ?? "");
+                if (id === "p1") return Promise.resolve({ Item: { id: "p1", src: "s", userId: "me" } });
+                return Promise.resolve({ Item: { items: [] } });
             }
             return Promise.resolve({ Attributes: { items: [] } });
         });
@@ -462,7 +471,40 @@ describe("コメント追記: 読みと書きを条件でつなぐ", () => {
             .map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> })
             .find((c) => c.constructor.name === "UpdateCommand"
                 && String((c.input.Key as { id?: string })?.id ?? "").startsWith("comments#"));
-        expect(update!.input.ConditionExpression).toBeUndefined();
+        expect(update!.input.ConditionExpression).toBe("attribute_not_exists(#items) OR size(#items) = :len");
+    });
+
+    // SDK は接続断や DynamoDB の 5xx で自前で再送する（既定 maxAttempts=3）。
+    // 追記がサーバー側では成功していたら、再送はこちらに
+    // ConditionalCheckFailedException として返る。気づかずにやり直すと
+    // **同じ id のコメントが2件**入り、deleteComment は findIndex で先頭1件
+    // しか消さないので消すのに2回要る。オーナーだけこの防止の外にいた。
+    it("オーナーでも、前回の追記が通っていたら足さない", async () => {
+        let appendCalls = 0;
+        // 実際に足そうとしたコメント（id はサーバーが採番するので受け取る）
+        let sent: { id: string } | undefined;
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const id = String((cmd.input.Key as { id?: string })?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") {
+                if (id === "p1") return Promise.resolve({ Item: { id: "p1", src: "s", userId: "me" } });
+                // 2回目の読み直しでは、前回の追記が既に入っている
+                return Promise.resolve({ Item: { items: sent ? [sent] : [] } });
+            }
+            if (cmd.constructor.name === "UpdateCommand" && id.startsWith("comments#")) {
+                appendCalls++;
+                const vals = cmd.input.ExpressionAttributeValues as { ":new"?: { id: string }[] };
+                sent = vals?.[":new"]?.[0];
+                // 応答が失われ、SDK の再送が条件に外れて返ってきた形
+                return Promise.reject(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
+            }
+            return Promise.resolve({});
+        });
+        const res = await invoke(postComment, ev("me", { id: "p1" }, { text: "ありがとう" }));
+
+        // 409 ではなく成功（実際に入っているので）
+        expect(res.statusCode).toBe(200);
+        // 追記を試みたのは1回だけ。2回目は「もう入っている」で止まる
+        expect(appendCalls).toBe(1);
     });
 });
 
