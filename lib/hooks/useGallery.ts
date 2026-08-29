@@ -172,6 +172,37 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
     // 見えている写真とアドレスバーが食い違い、再読込・ブックマーク・
     // アドレスバーのコピーのどれでも写真に戻れなかった。
     // 開いている写真も URL に残す。
+    /**
+     * **まだ開けていない `?photo=`。**
+     *
+     * 下の同期は「開いている写真」しか書かないので、マウント直後
+     * （まだ開いていない）に走ると URL から `?photo=` を落とす。すぐ
+     * 開ければ書き戻るが、**一覧がその場に無いと落ちたまま**になる:
+     *   - `?feed=following` はフォロー集合が届くまで一覧が空
+     *   - 新着写真は API の一覧が届くまで見つからない
+     * どちらも数百ms待てば開けるのに、その前に id を失うので二度と開けない。
+     * 開けるか「無い」と分かるまで、最初に載っていた id を持っておく。
+     */
+    const pendingPhotoRef = useRef<string | null>(
+        typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("photo"),
+    );
+    /**
+     * 「この id は無い」と分かったら捨てる。
+     *
+     * **URL からもその場で外す。** 覚えを消すだけだと、下の同期が次に走る
+     * （フィルターを触る・写真を開く）まで死んだ `?photo=` が残り、
+     * 再読込のたびに同じ「見つかりません」が出る。
+     */
+    const clearPendingPhoto = useCallback(() => {
+        pendingPhotoRef.current = null;
+        if (typeof window === "undefined") return;
+        const params = new URLSearchParams(window.location.search);
+        if (!params.has("photo")) return;
+        params.delete("photo");
+        const search = params.toString();
+        window.history.replaceState({}, "", search ? `?${search}` : window.location.pathname);
+    }, []);
+
     useEffect(() => {
         if (typeof window === "undefined") return;
         const params = new URLSearchParams();
@@ -180,7 +211,12 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
         if (filters.sort && filters.sort !== "new") params.set("sort", filters.sort);
         if (filters.selectedTags.length) params.set("tags", filters.selectedTags.join(","));
         if (filters.feed === "following") params.set("feed", "following");
-        if (openPhotoId) params.set("photo", openPhotoId);
+        if (openPhotoId) {
+            params.set("photo", openPhotoId);
+            pendingPhotoRef.current = null;   // 開けたのでもう待つ必要は無い
+        } else if (pendingPhotoRef.current) {
+            params.set("photo", pendingPhotoRef.current);
+        }
         const search = params.toString();
         window.history.replaceState({}, "", search ? `?${search}` : window.location.pathname);
     }, [filters, openPhotoId]);
@@ -225,6 +261,7 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
         openPhotoId,
         open,
         openById,
+        clearPendingPhoto,
         close,
         next,
         prev,

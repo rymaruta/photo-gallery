@@ -241,6 +241,52 @@ describe("useGallery", () => {
             expect(result.current.filters.feed).toBe("all");
         });
 
+        // **開けるまで `?photo=` を落とさない。**
+        // この同期は「開いている写真」しか書かないので、マウント直後に走ると
+        // URL から id が消える。すぐ開ければ書き戻るが、一覧がその場に無いと
+        // （`?feed=following` のフォロー集合待ち・新着写真の API 待ち）
+        // 落ちたままになり、数百ms後に開けるようになっても id が無い
+        it("まだ開けていない ?photo= は URL に残す", () => {
+            window.history.replaceState({}, "", "/?photo=missing-yet");
+            renderHook(() => useGallery([]));   // 一覧がまだ無い
+            expect(new URLSearchParams(window.location.search).get("photo")).toBe("missing-yet");
+        });
+
+        it("一覧が来て開けたら、そのまま載り続ける", () => {
+            window.history.replaceState({}, "", `/?photo=${mockPhotos[1].id}`);
+            const { result } = renderHook(() => useGallery(mockPhotos));
+            act(() => { result.current.openById(mockPhotos[1].id); });
+            expect(new URLSearchParams(window.location.search).get("photo")).toBe(mockPhotos[1].id);
+        });
+
+        it("無いと分かったら捨てる（死んだ ?photo= を残さない）", () => {
+            window.history.replaceState({}, "", "/?photo=deleted");
+            const { result } = renderHook(() => useGallery(mockPhotos));
+            expect(new URLSearchParams(window.location.search).get("photo")).toBe("deleted");
+            // **その場で外れる**（次に同期が走るまで待たない）。待つ形だと
+            // 再読込のたびに同じ「見つかりません」が出続ける
+            act(() => { result.current.clearPendingPhoto(); });
+            expect(new URLSearchParams(window.location.search).get("photo")).toBeNull();
+        });
+
+        it("捨てても、他のフィルターは URL に残す", () => {
+            window.history.replaceState({}, "", "/?category=landscape&photo=deleted");
+            const { result } = renderHook(() => useGallery(mockPhotos));
+            act(() => { result.current.clearPendingPhoto(); });
+            const params = new URLSearchParams(window.location.search);
+            expect(params.get("photo")).toBeNull();
+            expect(params.get("category"), "巻き添えで他のフィルターまで消している").toBe("landscape");
+        });
+
+        it("開いてから閉じれば、待ち id は復活しない", () => {
+            window.history.replaceState({}, "", `/?photo=${mockPhotos[0].id}`);
+            const { result } = renderHook(() => useGallery(mockPhotos));
+            act(() => { result.current.openById(mockPhotos[0].id); });
+            act(() => { result.current.close(); });
+            expect(new URLSearchParams(window.location.search).get("photo"),
+                "閉じたのに ?photo= が戻っている").toBeNull();
+        });
+
         it("フィルタと同時に載る（どちらも失わない）", () => {
             const { result } = renderHook(() => useGallery(mockPhotos));
             act(() => { result.current.setFilters({ category: "landscape" }); });

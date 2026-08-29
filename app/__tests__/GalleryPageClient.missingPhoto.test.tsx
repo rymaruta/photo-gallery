@@ -32,10 +32,14 @@ vi.mock("../components/stories/StoriesBar", () => ({ default: () => null }));
 vi.mock("../components/GalleryGrid", () => ({ default: () => null }));
 vi.mock("../components/GalleryModal", () => ({ default: () => null }));
 // `?photo=` は本来 SearchParamWatcher が親へ渡す。ここではその値を直接注ぐ。
+// **本物と同じく「値が変わったら知らせる」形にする**（`[value, onChange]`）。
+// deps を `[onChange]` だけにしていたとき、`onChange` が安定な参照なので
+// 再描画しても知らせが飛ばず、「戻る」を模せなかった。
 // 名前を大文字で始めるのは、中でフックを使う（React のコンポーネント）ため
 vi.mock("../components/SearchParamWatcher", () => ({
     default: function MockSearchParamWatcher({ onChange }: { onChange: (v: string | null) => void }) {
-        React.useEffect(() => { onChange(searchParams.current || null); }, [onChange]);
+        const value = searchParams.current || null;
+        React.useEffect(() => { onChange(value); }, [value, onChange]);
         return null;
     },
 }));
@@ -177,5 +181,52 @@ describe("一覧が遅れて届くとき", () => {
 
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
             expect.stringContaining("見つかりませんでした"), "error"));
+    });
+
+    // **死んだ ?photo= を URL に残さない。** 残すと、再読込のたびに
+    // 同じ「見つかりません」が出る
+    it("無いと伝えたら、URL からも外す", async () => {
+        window.history.replaceState({}, "", "/?photo=deleted-id");
+        photosState.loaded = true;
+        searchParams.current = "deleted-id";
+        render(<GalleryPageClient />);
+
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(
+            new URLSearchParams(window.location.search).get("photo"),
+            "無いと分かったのに URL に残っている",
+        ).toBeNull());
+    });
+});
+
+// **戻るを押しても、モーダルが閉じていなかった。**
+//
+// 通知から `/?photo=<id>` を開いたときだけ本物の履歴が積まれる（同じ
+// ルートなので `<Link>` が push する）。そこで戻ると URL は `/` に戻るのに、
+// `photoParam` が消えたときに**何もしていなかった**のでモーダルは開いたまま
+// ——画面とアドレスバーが食い違い、「戻るを押したのに何も起きなかった」
+// と見える。もう一度押すと、モーダルを開いたままページを離れる。
+describe("URL から ?photo= が消えたとき", () => {
+    it("開いているモーダルを閉じる", async () => {
+        searchParams.current = "p1";
+        const { rerender } = render(<GalleryPageClient />);
+        await waitFor(() => expect(new URLSearchParams(window.location.search).get("photo")).toBe("p1"));
+
+        // ブラウザの戻る＝ ?photo= が外れる
+        searchParams.current = "";
+        rerender(<GalleryPageClient />);
+
+        await waitFor(() => expect(
+            new URLSearchParams(window.location.search).get("photo"),
+            "戻ったのにモーダルが開いたまま",
+        ).toBeNull());
+    });
+
+    it("開いていなければ何も起きない", async () => {
+        searchParams.current = "";
+        render(<GalleryPageClient />);
+        await new Promise((r) => setTimeout(r, 20));
+        expect(mockShowToast).not.toHaveBeenCalled();
+        expect(new URLSearchParams(window.location.search).get("photo")).toBeNull();
     });
 });

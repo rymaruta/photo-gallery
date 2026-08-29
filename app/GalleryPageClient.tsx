@@ -53,6 +53,7 @@ export default function GalleryPageClient() {
     currentIndex,
     openPhotoId,
     openById,
+    clearPendingPhoto,
     close,
     next,
     prev,
@@ -77,7 +78,24 @@ export default function GalleryPageClient() {
     // ?photo= が外れたら「閉じた覚え」も捨てる。
     // 捨てないと、同じ写真へもう一度遷移しても永久に開かなくなる
     // （通知からその写真を2回開こうとすると2回目が無反応になっていた）。
-    if (!photoParam) { dismissedRef.current = null; notFoundRef.current = null; return; }
+    if (!photoParam) {
+      dismissedRef.current = null;
+      notFoundRef.current = null;
+      // **URL から ?photo= が消えたら閉じる。**
+      //
+      // 通知から `/?photo=<id>` を開いた場合だけは本物の履歴が積まれる
+      // （同じルートなので `<Link>` が push する）。そこで戻るを押すと
+      // URL は `/` に戻るのに、ここが**何もしていなかった**のでモーダルは
+      // 開いたまま——画面とアドレスバーが食い違い、利用者には
+      // 「戻るを押したのに何も起きなかった」と見える。もう一度押すと
+      // モーダルを開いたままページを離れる。
+      //
+      // **自分で消した場合と区別する必要は無い。** 上の同期は開けるまで
+      // `?photo=` を保つので（`pendingPhotoRef`）、ここに null が来るのは
+      // 「開いていない」か「外から消された」ときだけ。
+      close();
+      return;
+    }
     if (photoParam === dismissedRef.current) return;
     if (filteredPhotos.length === 0) return; // 絞り込みの結果が空
     if (openById(photoParam)) { dismissedRef.current = null; return; }
@@ -107,8 +125,9 @@ export default function GalleryPageClient() {
     // 1行が「開くのを止める」に化ける（実際そうなっていた）。
     if (notFoundRef.current === photoParam) return;
     notFoundRef.current = photoParam;
+    clearPendingPhoto();   // 無いと分かったので、死んだ ?photo= を URL に残さない
     showToast(locale === "en" ? "That photo is no longer available." : "その写真は見つかりませんでした。", "error");
-  }, [photoParam, filteredPhotos, openById, PHOTOS, photosLoaded, showToast, locale]);
+  }, [photoParam, filteredPhotos, openById, PHOTOS, photosLoaded, showToast, locale, close, clearPendingPhoto]);
 
   const handleClose = React.useCallback(() => {
     dismissedRef.current = openPhotoId ?? null;
