@@ -19,7 +19,18 @@ const FILES = [
     "lib/utils/text.ts",
 ];
 
-/** `export function truncate(...) { ... }` の本体を抜き出す */
+/**
+ * `export function truncate(...) { ... }` の**コードだけ**を抜き出す。
+ *
+ * コメントは落とす。落とさないと「片方にコメントを1行足しただけ」で
+ * CI が「3本が違う」で落ちる——実際、この3本を揃えるためだけに
+ * `lib/utils/text.ts` へコメントを1行足す羽目になった。
+ * 守りたいのは**振る舞いが同じこと**であって、注釈まで同じことではない。
+ */
+function stripComments(code: string): string {
+    return code.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+}
+
 function bodyOf(path: string): string {
     const src = readFileSync(join(root, path), "utf8");
     const i = src.indexOf("export function truncate(");
@@ -30,7 +41,7 @@ function bodyOf(path: string): string {
         if (src[j] === "{") depth++;
         else if (src[j] === "}") {
             depth--;
-            if (depth === 0) return src.slice(open, j + 1).replace(/\s+/g, " ").trim();
+            if (depth === 0) return stripComments(src.slice(open, j + 1)).replace(/\s+/g, " ").trim();
         }
     }
     throw new Error(`${path} の truncate が閉じていない`);
@@ -43,8 +54,15 @@ describe("truncate の複製3本は同じ中身", () => {
         expect(c, `${FILES[2]} が ${FILES[0]} と違う`).toBe(a);
     });
 
-    // 「同じ」だけだと、3本とも素の slice に戻しても通る
+    // 「同じ」だけだと、3本とも素の slice に戻しても通る。
+    // コメントは落としてあるので、注釈に `0xdbff` と書いてあるだけでは通らない
     it.each(FILES)("%s はサロゲートの判定を持っている", (f) => {
         expect(bodyOf(f)).toContain("0xdbff");
+    });
+
+    it("コメントの違いでは落ちない（振る舞いだけを見る）", () => {
+        const withComment = stripComments("{ // 注釈\n  return s; /* 別の注釈 */ }").replace(/\s+/g, " ").trim();
+        const without = stripComments("{ return s; }").replace(/\s+/g, " ").trim();
+        expect(withComment).toBe(without);
     });
 });

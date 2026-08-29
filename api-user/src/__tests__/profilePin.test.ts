@@ -412,11 +412,26 @@ describe("部分更新の契約: 送らなかった項目は触らない", () =>
         return savedProfile();
     };
 
-    it.each(["displayName", "bio", "statusText"])(
-        "%s を送らなければ、保存済みの値が残る", async (key) => {
-            const saved = await savedFor({ displayName: undefined, [key]: undefined });
-            expect(saved[key]).toBeTruthy();
-        });
+    // **`{ [key]: undefined }` を送っても意味が無い。** `JSON.stringify` が
+    // 落とすので、3ケースとも本文は同じ `{}` になり、「その項目だけ省く」を
+    // 検証していなかった（名前だけがそう言っていた）。実際に起きた事故は
+    // 「**他の項目を更新したときに、送っていない項目が消える**」なので、
+    // 別の項目を送りながら残ることを見る。
+    it.each([
+        ["bio", { displayName: "新しい名前" }],
+        ["statusText", { displayName: "新しい名前" }],
+        ["displayName", { bio: "新しい自己紹介" }],
+    ] as const)("%s を送らずに他を更新しても、保存済みの値が残る", async (key, body) => {
+        const saved = await savedFor(body);
+        expect(saved[key], `${key} が消えた`).toBeTruthy();
+    });
+
+    it("送った項目だけが置き換わる（他は元のまま）", async () => {
+        const saved = await savedFor({ bio: "新しい自己紹介" });
+        expect(saved.bio).toBe("新しい自己紹介");
+        expect(saved.displayName).toBe("旅人");
+        expect(saved.statusText).toBe("旅の途中");
+    });
 
     it("空文字を送ったら消える（消す手段は残す）", async () => {
         const saved = await savedFor({ displayName: "" });
