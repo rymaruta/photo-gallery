@@ -43,9 +43,9 @@ export const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled])
  * 併せて、開いたら中へフォーカスを移し、閉じたら元の要素へ戻す。
  * 戻さないとフォーカスが body に落ち、次の Tab がページ先頭からになる。
  *
- * **GalleryModal は移していない。** あちらは同じことを自前で持っているが、
- * 守っているテストが2本（いいねの POST/DELETE）しか無く、置き換えると
- * 壊しても気づけない。移すなら先に今の挙動を写し取るテストを書くこと。
+ * **GalleryModal も含めて8か所すべてがこのフックを使う**（`7b2a4df` で移した。
+ * 移す前に今の挙動を7本のテストに写し取り、それが旧実装で緑になることを
+ * 確かめてから置き換えてある）。自前のトラップはもう残っていない。
  */
 export function useFocusTrap(
     active: boolean,
@@ -69,14 +69,22 @@ export function useFocusTrap(
 ): void {
     useEffect(() => {
         if (!active) return;
-        // **容器がまだ無くても購読はする。** ここで `return` していたので、
-        // 容器が「有効になったのと同じコミット」で付かなかった場合
-        // （React が更新を分けたとき）に**トラップが二度と付かなかった**
-        // ——deps は `[active, ...]` なので、あとから容器が来ても再実行されない。
-        // フルスイートを並列で回すと、ストーリーの下書きでこれが再現した
-        // （`defaultPrevented` が false ＝ ハンドラが居ない）。単体では必ず
-        // 通るので、テストが「たまに落ちる」形になっていた。
-        // 容器は**ハンドラの中で読み直す**。
+        // **容器がまだ無くても購読はする**（ここで早期 return しない）。
+        // deps は `[active, ...]` なので、あとから容器が来ても再実行されない
+        // ——つまり早期 return すると、そのモーダルは開いている間ずっと
+        // トラップ無しで動く（Tab がオーバーレイの裏へ抜ける）。
+        //
+        // **ただし、今のこのリポジトリでこの分岐に入る呼び出しは無い。**
+        // 全8か所は `{open && <div ref={...}>}` の形で、`active` が true に
+        // なるコミットと容器が付くコミットが同じ。フックの中に一時的な
+        // 目印を仕込んで**フルスイート1,913件を通したが0回**だった。
+        // ここは「将来 `active` と容器が別コミットに割れたときに、
+        // 静かに無効化されない」ための保険であって、実在の不具合の修正ではない。
+        // （`02f2525` のコミットメッセージはこれを StoriesBar のフレークの
+        // 原因だと書いたが、**測って外れていた**。フレークの原因は別。）
+        //
+        // 容器は**ハンドラの中で読み直す**。保険としてはこちらが本体で、
+        // 容器が差し替わった場合にも正しい方を見る。
         const container = containerRef.current;
 
         // 閉じたときに戻す先。指定があればそちら、無ければ開いた瞬間の位置
@@ -156,6 +164,13 @@ export function useFocusTrap(
         document.addEventListener("keydown", onKey);
         return () => {
             document.removeEventListener("keydown", onKey);
+            // **トラップが実際に働いた時だけ戻す。** 容器が無いまま
+            // `active` が false に戻った場合、フォーカスは一度も動かして
+            // いないので、ここで戻すと**ユーザーが今いる場所から奪う**
+            // （早期 return を外したことで新しく作った失敗。上の保険が
+            // 逆向きに倒れる形）。容器があったなら、上の分岐のどちらかで
+            // 必ずフォーカスは中に入っている（既に中にあったか、移したか）。
+            if (!container) return;
             if (restoreTo && typeof restoreTo.focus === "function") restoreTo.focus();
         };
     }, [active, containerRef, restoreRef, initialFocusRef]);

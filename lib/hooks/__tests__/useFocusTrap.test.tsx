@@ -295,3 +295,63 @@ describe("容器があとから付いても閉じ込める", () => {
         expect(dialog.contains(document.activeElement)).toBe(true);
     });
 });
+
+// 早期 return を外したことで、**容器が一度も付かないまま閉じたとき**にも
+// クリーンアップが走るようになった。そこで無条件に戻すと、フォーカスを
+// 一度も動かしていないのに「ユーザーが今いる場所から奪う」——保険が
+// 逆向きに倒れる形。容器があった時だけ戻す。
+describe("容器が一度も付かなければ、閉じてもフォーカスを奪わない", () => {
+    function NeverMounts({ active }: { active: boolean }) {
+        const ref = useRef<HTMLDivElement | null>(null);
+        const opener = useRef<HTMLButtonElement | null>(null);
+        useFocusTrap(active, ref, opener);
+        return (
+            <div>
+                <button ref={opener}>開く</button>
+                <button>ほかの場所</button>
+            </div>
+        );
+    }
+
+    it("閉じても、そのとき触っていた要素にフォーカスが残る", () => {
+        const { rerender } = render(<NeverMounts active />);
+        const elsewhere = screen.getByText("ほかの場所");
+        elsewhere.focus();
+        expect(document.activeElement).toBe(elsewhere);
+
+        rerender(<NeverMounts active={false} />);
+        // 戻り先（開くボタン）へ飛ばされていないこと
+        expect(document.activeElement, "容器が無いのに戻り先へフォーカスを奪った").toBe(elsewhere);
+    });
+
+    it("容器があるときは、これまでどおり戻り先へ戻す", () => {
+        function WithContainer({ active }: { active: boolean }) {
+            const ref = useRef<HTMLDivElement | null>(null);
+            const opener = useRef<HTMLButtonElement | null>(null);
+            return (
+                <div>
+                    <button ref={opener}>開く</button>
+                    <Trap active={active} containerRef={ref} restoreRef={opener} />
+                </div>
+            );
+        }
+        function Trap({ active, containerRef, restoreRef }: {
+            active: boolean;
+            containerRef: React.RefObject<HTMLDivElement | null>;
+            restoreRef: React.RefObject<HTMLButtonElement | null>;
+        }) {
+            useFocusTrap(active, containerRef, restoreRef);
+            if (!active) return null;
+            return (
+                <div ref={containerRef} role="dialog">
+                    <button>中</button>
+                </div>
+            );
+        }
+
+        const { rerender } = render(<WithContainer active />);
+        expect(document.activeElement).toBe(screen.getByText("中"));
+        rerender(<WithContainer active={false} />);
+        expect(document.activeElement).toBe(screen.getByText("開く"));
+    });
+});
