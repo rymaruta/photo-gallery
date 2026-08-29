@@ -9,6 +9,35 @@
 
 import type { Photo } from "./types";
 
+/**
+ * 長さを切る。**サロゲートペアの途中では切らない。**
+ *
+ * `slice(0, max)` は UTF-16 のコードユニットで切るので、末尾が絵文字だと
+ * その半分（上位サロゲート）だけが残る。UTF-8 に落とした時点で **U+FFFD
+ * （`�`）** に確定するので、静的HTMLにもAPIの応答にも `あああ�` が出る。
+ * 一度保存すると、本人が末尾を消すまで直らない（保存し直しても同じ位置で
+ * 切られる）。
+ *
+ * さらに悪いことに、孤立サロゲートは `encodeURIComponent` が
+ * `URIError: URI malformed` で投げる。タグや撮影地でそれが起きると、
+ * 集約ページの `generateMetadata` が落ちて**静的ビルドが丸ごと止まる**
+ * （`lib/utils/collections.ts` の `slugify` が `..` について書いている事故と
+ * 同じ型）。
+ *
+ * **数えるのは今までどおりコードユニット。** 見た目の文字（書記素）で
+ * 数え直すと、画面の `maxLength`（HTML はコードユニットで数える仕様）と
+ * 食い違って「入力できるのに保存で切られる」が新しく生まれる。ここで直すのは
+ * 「壊れた半分を残さない」ことだけ。ZWJ の家族（👨‍👩‍👧）や肌色つきが
+ * 別の絵文字に化けるのは残る——文字としては壊れていないので、別の話として扱う。
+ */
+export function truncate(s: string, max: number): string {
+    if (s.length <= max) return s;
+    const cut = s.slice(0, max);
+    const last = cut.charCodeAt(cut.length - 1);
+    // 上位サロゲート（下位が続かないと壊れる）で終わっていたら1つ削る
+    return last >= 0xd800 && last <= 0xdbff ? cut.slice(0, -1) : cut;
+}
+
 // 撮影情報のサニタイズ: 既知のキーだけを通し、文字列は100文字に制限。
 // GPS など想定外のフィールドは保存しない
 export function sanitizeExif(exif: unknown): Photo["exif"] {
@@ -17,7 +46,7 @@ export function sanitizeExif(exif: unknown): Photo["exif"] {
     const out: Record<string, string | number> = {};
     for (const k of ["camera", "lens", "aperture", "exposure", "focalLength", "whiteBalance", "imageSize", "dateTimeOriginal"]) {
         const v = src[k];
-        if (typeof v === "string" && v.trim()) out[k] = v.trim().slice(0, 100);
+        if (typeof v === "string" && v.trim()) out[k] = truncate(v.trim(), 100);
     }
     if (typeof src.iso === "number" && Number.isFinite(src.iso) && src.iso > 0) out.iso = Math.round(src.iso);
     return Object.keys(out).length > 0 ? (out as Photo["exif"]) : undefined;
@@ -35,7 +64,7 @@ export function sanitizeCoords(coords: unknown): { lat: number; lng: number } | 
 
 // 単一テキスト。空/非文字列は undefined
 export function sanitizeText(v: unknown, max: number): string | undefined {
-    return typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined;
+    return typeof v === "string" && v.trim() ? truncate(v.trim(), max) : undefined;
 }
 
 /**
@@ -71,17 +100,17 @@ export function sanitizeTags(v: unknown): string[] | undefined {
     if (!Array.isArray(v)) return undefined;
     const cleaned = v
         .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
-        .map((x) => x.trim().slice(0, 50));
+        .map((x) => truncate(x.trim(), 50));
     return Array.from(new Set(cleaned)).slice(0, 30);
 }
 
 // タイトル: string か {ja,en}。空なら undefined
 export function sanitizeTitle(v: unknown): Photo["title"] | undefined {
-    if (typeof v === "string") return v.trim().slice(0, 200) || undefined;
+    if (typeof v === "string") return truncate(v.trim(), 200) || undefined;
     if (v && typeof v === "object" && !Array.isArray(v)) {
         const o = v as Record<string, unknown>;
-        const ja = typeof o.ja === "string" ? o.ja.trim().slice(0, 200) : "";
-        const en = typeof o.en === "string" ? o.en.trim().slice(0, 200) : "";
+        const ja = typeof o.ja === "string" ? truncate(o.ja.trim(), 200) : "";
+        const en = typeof o.en === "string" ? truncate(o.en.trim(), 200) : "";
         if (ja || en) return { ...(ja ? { ja } : {}), ...(en ? { en } : {}) };
     }
     return undefined;
@@ -89,14 +118,14 @@ export function sanitizeTitle(v: unknown): Photo["title"] | undefined {
 
 // 説明: string か {ja:[],en:[]}。空なら undefined
 export function sanitizeDescription(v: unknown): Photo["description"] | undefined {
-    if (typeof v === "string") return v.trim().slice(0, 2000) || undefined;
+    if (typeof v === "string") return truncate(v.trim(), 2000) || undefined;
     if (v && typeof v === "object" && !Array.isArray(v)) {
         const o = v as Record<string, unknown>;
         const arr = (x: unknown): string[] | undefined => {
             if (!Array.isArray(x)) return undefined;
             const lines = x
                 .filter((p): p is string => typeof p === "string")
-                .map((p) => p.trim().slice(0, 2000))
+                .map((p) => truncate(p.trim(), 2000))
                 .filter(Boolean)
                 .slice(0, 50);
             return lines.length ? lines : undefined;

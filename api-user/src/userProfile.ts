@@ -5,6 +5,7 @@ import { JSON_HEADERS, getUserId } from "./http";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl, SONG_URL_MAX } from "./mediaHosts";
 import { requireEnv } from "./env";
 import { isDeletedProfile } from "./types";
+import { truncate } from "./sanitize";
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const USERS_TABLE = requireEnv("USERS_TABLE");
@@ -424,8 +425,8 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なリクエスト" }) };
     }
 
-    const displayName = body.displayName?.trim().slice(0, 100) || undefined;
-    const bio = body.bio?.trim().slice(0, 300) || undefined;
+    const displayName = truncate(body.displayName?.trim() ?? "", 100) || undefined;
+    const bio = truncate(body.bio?.trim() ?? "", 300) || undefined;
     const instagram = body.instagram?.trim().slice(0, 100) || undefined;
     const website = body.website?.trim().slice(0, 200) || undefined;
 
@@ -460,8 +461,8 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     const songPreviewUrl = safeSongPreviewUrl(body.songPreviewUrl);
     const songArtwork = safeSongArtworkUrl(body.songArtwork);
     const songTrackUrl = safeSongTrackUrl(body.songTrackUrl);
-    const songTitle = body.songTitle?.trim().slice(0, 200) || undefined;
-    const songArtist = body.songArtist?.trim().slice(0, 200) || undefined;
+    const songTitle = truncate(body.songTitle?.trim() ?? "", 200) || undefined;
+    const songArtist = truncate(body.songArtist?.trim() ?? "", 200) || undefined;
 
     // マイBGMプレイリスト: 各曲 previewUrl(https) と title 必須・最大5曲
     let songs: SongEntry[] | undefined;
@@ -477,7 +478,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         for (const raw of body.songs.slice(0, 5)) {
             if (!raw || typeof raw !== "object") { songsMalformed = true; continue; }
             const o = raw as Record<string, unknown>;
-            const title = typeof o.title === "string" ? o.title.trim().slice(0, 200) : "";
+            const title = typeof o.title === "string" ? truncate(o.title.trim(), 200) : "";
             const previewUrl = safeSongPreviewUrl(o.previewUrl);
             // 「旧ルール時代のデータ」と言えるのは、**ホストだけが許可外**のとき。
             // それ以外（題名が無い・URLでない・https でない）は形が壊れている
@@ -489,7 +490,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
             // プレイリストが黙って全部消えた（症状は {songs:[null,null]} と同じ）。
             if (!title || !isWellFormedHttpsUrl(o.previewUrl)) { songsMalformed = true; continue; }
             if (!previewUrl) continue;
-            const artist = typeof o.artist === "string" ? o.artist.trim().slice(0, 200) : "";
+            const artist = typeof o.artist === "string" ? truncate(o.artist.trim(), 200) : "";
             const artwork = safeSongArtworkUrl(o.artwork);
             const trackUrl = safeSongTrackUrl(o.trackUrl);
             cleaned.push({
@@ -522,7 +523,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     const themeColor = typeof body.themeColor === "string" && /^#[0-9a-fA-F]{6}$/.test(body.themeColor.trim())
         ? body.themeColor.trim().toLowerCase()
         : undefined;
-    const statusText = body.statusText?.trim().slice(0, 60) || undefined;
+    const statusText = truncate(body.statusText?.trim() ?? "", 60) || undefined;
     let pinnedPhotoIds: string[] | undefined;
     if (Array.isArray(body.pinnedPhotoIds)) {
         const cleaned = body.pinnedPhotoIds
@@ -586,9 +587,9 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
             if (!/^trip-\d+$/.test(k) || !raw || typeof raw !== "object") continue;
             const o = raw as Record<string, unknown>;
             const previewUrl = safeSongPreviewUrl(o.previewUrl);
-            const title = typeof o.title === "string" ? o.title.trim().slice(0, 200) : "";
+            const title = typeof o.title === "string" ? truncate(o.title.trim(), 200) : "";
             if (!previewUrl || !title) continue;
-            const artist = typeof o.artist === "string" ? o.artist.trim().slice(0, 200) : "";
+            const artist = typeof o.artist === "string" ? truncate(o.artist.trim(), 200) : "";
             const artwork = safeSongArtworkUrl(o.artwork);
             const trackUrl = safeSongTrackUrl(o.trackUrl);
             out[k] = {

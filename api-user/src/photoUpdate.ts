@@ -2,7 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { UpdateCommand, GetCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId } from "./http";
-import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeDate, sameStoredValue } from "./sanitize";
+import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeDate, sameStoredValue, truncate } from "./sanitize";
 import { requestSiteRebuild } from "./rebuild";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { mediaKeys } from "./mediaKeys";
@@ -94,11 +94,11 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             // 仕込んで「開いた人全員の IP を集める」ことができた
             // （音源は先読みされ、アートワークは <img> で読み込まれる）。
             const previewUrl = safeSongPreviewUrl(o.previewUrl);
-            const title = typeof o.title === "string" ? o.title.trim().slice(0, 200) : "";
+            const title = typeof o.title === "string" ? truncate(o.title.trim(), 200) : "";
             if (!previewUrl || !title) {
                 return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正な曲データです" }) };
             }
-            const artist = typeof o.artist === "string" ? o.artist.trim().slice(0, 200) : "";
+            const artist = typeof o.artist === "string" ? truncate(o.artist.trim(), 200) : "";
             const artwork = safeSongArtworkUrl(o.artwork);
             const trackUrl = safeSongTrackUrl(o.trackUrl);
             song = {

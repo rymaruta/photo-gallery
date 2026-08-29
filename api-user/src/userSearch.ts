@@ -9,6 +9,7 @@ import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { JSON_HEADERS } from "./http";
 import { requireEnv } from "./env";
 import { isDeletedProfile } from "./types";
+import { truncate } from "./sanitize";
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const USERS_TABLE = requireEnv("USERS_TABLE");
@@ -72,7 +73,7 @@ function toHit(item: Record<string, unknown>): UserSearchHit | null {
         userId,
         ...(typeof item.username === "string" ? { username: item.username } : {}),
         ...(typeof item.displayName === "string" ? { displayName: item.displayName } : {}),
-        ...(typeof item.bio === "string" ? { bio: item.bio.slice(0, 100) } : {}),
+        ...(typeof item.bio === "string" ? { bio: truncate(item.bio, 100) } : {}),
         ...(typeof item.themeColor === "string" ? { themeColor: item.themeColor } : {}),
     };
 }

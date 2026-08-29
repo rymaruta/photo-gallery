@@ -10,6 +10,7 @@ import { isOwnUploadUrl } from "./upload";
 import { keyFromUploadUrl, canonicalUploadUrl } from "./uploadPolicy";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { requireEnv } from "./env";
+import { truncate } from "./sanitize";
 
 // **未設定なら起動時に止める。** `?? ""` / `!` にしていた頃は、環境変数が
 // 空でも S3 の削除を**黙って飛ばして** DynamoDB の行だけ消し、成功を返していた。
@@ -187,7 +188,7 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     const safeSrc = canonicalUploadUrl(publicUrl, process.env.CLOUDFRONT_URL ?? "");
 
     const mediaType = body.mediaType === "video" ? "video" : "image";
-    const caption = (body.caption ?? "").trim().slice(0, 200) || undefined;
+    const caption = truncate((body.caption ?? "").trim(), 200) || undefined;
 
     // 画像ストーリーの表示秒数。投稿者が選べる（既定5秒）。
     // 3秒未満は読み切れず、15秒を超えると見る側が飽きるため範囲を固定する。
@@ -206,9 +207,9 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // https だけを見ていた頃は、1回仕込むだけで利用者ほぼ全員の
         // IP・User-Agent・時刻を集められた（音源は先読みされる）。
         const previewUrl = safeSongPreviewUrl(o.previewUrl);
-        const title = typeof o.title === "string" ? o.title.trim().slice(0, 200) : "";
+        const title = typeof o.title === "string" ? truncate(o.title.trim(), 200) : "";
         if (previewUrl && title) {
-            const artist = typeof o.artist === "string" ? o.artist.trim().slice(0, 200) : "";
+            const artist = typeof o.artist === "string" ? truncate(o.artist.trim(), 200) : "";
             const artwork = safeSongArtworkUrl(o.artwork);
             const trackUrl = safeSongTrackUrl(o.trackUrl);
             // 「好きな部分」= 30秒プレビュー内の再生開始位置（0〜29秒）

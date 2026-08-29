@@ -8,6 +8,7 @@ import { loadAllPhotos } from "@/lib/server/photos";
 import { siteConfig } from "@/lib/utils/seo";
 import { getLocalized, getLocalizedParagraphs } from "@/lib/data/photos";
 import type { Photo } from "@/lib/data/photos";
+import { truncate } from "@/lib/utils/text";
 
 export const dynamic = "force-static";
 
@@ -35,7 +36,7 @@ function captionOf(p: Photo): string {
     const en = getLocalizedParagraphs(p.description, "en").join(" ");
     const text = [ja, en && en !== ja ? en : ""].filter(Boolean).join(" / ");
     const loc = p.location ? `（${p.location}）` : "";
-    return `${text}${loc}`.slice(0, 500);
+    return truncate(`${text}${loc}`, 500);
 }
 
 export async function GET() {

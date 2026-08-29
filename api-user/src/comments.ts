@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { pushNotification, lookupDisplayName, deletedUserIds, DELETED_USER_NAME } from "./notify";
+import { truncate } from "./sanitize";
 
 // 写真コメント。
 // ストレージ: "comments#<photoId>" の list ドキュメント（notifs と同型）に
@@ -110,7 +111,7 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     } catch {
         return jsonError(400, "不正なリクエスト");
     }
-    const text = typeof body.text === "string" ? body.text.trim().slice(0, TEXT_MAX) : "";
+    const text = typeof body.text === "string" ? truncate(body.text.trim(), TEXT_MAX) : "";
     if (!text) return jsonError(400, "コメントを入力してください");
 
     try {

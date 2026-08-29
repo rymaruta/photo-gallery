@@ -210,7 +210,19 @@ export function collectionPath(type: CollectionType, slug: string): string {
     } catch {
         // 不正な % シーケンスはそのまま扱う
     }
-    return `/${TYPE_PATH[type]}/${encodeURIComponent(raw)}`;
+    // **`encodeURIComponent` は孤立サロゲートで投げる**（`URIError`）。
+    // 切り詰めが絵文字を割った値が1つでも保存されていると、そのタグの
+    // `generateMetadata` が落ちて**静的ビルドが丸ごと止まる**——`slugify` が
+    // `..` について書いている事故と同じ型。入口（sanitize の truncate）は
+    // 塞いだが、**既に保存されている値には効かない**ので、ここでも受ける。
+    // 壊れた半分は捨てる（URLに載せられないので、載せない方が正しい）。
+    let encoded;
+    try {
+        encoded = encodeURIComponent(raw);
+    } catch {
+        encoded = encodeURIComponent(raw.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, ""));
+    }
+    return `/${TYPE_PATH[type]}/${encoded}`;
 }
 
 /**
