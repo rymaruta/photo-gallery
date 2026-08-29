@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { withDenyStatement, readerPrincipals, hasAnonymousRead, STATEMENT_SID, PREFIX } = require("../restrict-originals.js");
+const { withDenyStatement, readerPrincipals, hasAnonymousRead, planPolicyChange, grantsGetObject, coversOriginals, STATEMENT_SID, PREFIX } = require("../restrict-originals.js");
 
 type Statement = {
     Sid?: string;
@@ -172,5 +172,82 @@ describe("匿名公開が残っているときは、適用せずに止める", (
             }],
         };
         expect(readerPrincipals(mixed)).toEqual({ AWS: ["arn:aws:iam::1:role/r"] });
+    });
+});
+
+// **`s3:Get*` を見落としていた。** 完全一致だけを見ていたので、IAM でごく
+// 普通のワイルドカード表記が素通りし、匿名公開があっても「完了」と出ていた
+// ——このファイルが「一番まずい形」と呼んでいるもの（元のバグが Action の
+// ワイルドカード経由でそのまま残っていた）。
+describe("読み取りを許す Action の判定", () => {
+    it.each(["s3:GetObject", "s3:Get*", "s3:GetObject*", "s3:*", "*"])(
+        "%s は読み取りを許すと見る", (a) => {
+            expect(grantsGetObject(a)).toBe(true);
+        });
+
+    it.each(["s3:PutObject", "s3:Put*", "s3:DeleteObject", "s3:List*"])(
+        "%s は読み取りではない", (a) => {
+            expect(grantsGetObject(a)).toBe(false);
+        });
+
+    it("配列でもどれか1つ当たれば読み取り", () => {
+        expect(grantsGetObject(["s3:PutObject", "s3:Get*"])).toBe(true);
+        expect(grantsGetObject(["s3:PutObject", "s3:DeleteObject"])).toBe(false);
+    });
+});
+
+// **Resource を見ないと、関係ない公開でスクリプトが止まる。** サムネイルだけ
+// 匿名公開しているバケットで中断すると、原本は配信から外れないまま放置される
+// （直す気で走らせたのに、何も変わらず終わる）。
+describe("originals に掛かる文だけを見る", () => {
+    it("originals を含む Resource は対象", () => {
+        expect(coversOriginals("arn:aws:s3:::b/uploads/originals/*", "b")).toBe(true);
+        expect(coversOriginals("arn:aws:s3:::b/*", "b")).toBe(true);
+        expect(coversOriginals("arn:aws:s3:::b/uploads/*", "b")).toBe(true);
+    });
+
+    it("別の prefix だけなら対象外", () => {
+        expect(coversOriginals("arn:aws:s3:::b/uploads/thumbs/*", "b")).toBe(false);
+        expect(coversOriginals("arn:aws:s3:::b/profiles/*", "b")).toBe(false);
+    });
+
+    it("別のバケットは対象外", () => {
+        expect(coversOriginals("arn:aws:s3:::other/*", "b")).toBe(false);
+    });
+});
+
+// **中断の配線が1本も守られていなかった。** `main()` の中に書いていた頃は、
+// `if (hasAnonymousRead(...))` を `if (false)` に変えても17件すべて緑
+// ——このスクリプトの目的そのものが無テストだった。判断を切り出して固定する。
+describe("planPolicyChange: 何をするかの判断", () => {
+    const stmt = (over: Record<string, unknown>) => ({
+        Version: "2012-10-17",
+        Statement: [{ Effect: "Allow", Action: "s3:GetObject", Resource: "arn:aws:s3:::b/*", ...over }],
+    });
+
+    it("匿名公開があれば止める（適用しない）", () => {
+        const plan = planPolicyChange(stmt({ Principal: "*" }), "b");
+        expect(plan.abort).toBe(true);
+        expect(plan.next).toBeUndefined();
+        // 何をすればよいかを書く（Block Public Access を有効にする）
+        expect(plan.reason).toContain("Block Public Access");
+    });
+
+    it("s3:Get* の匿名公開でも止める", () => {
+        expect(planPolicyChange(stmt({ Principal: "*", Action: "s3:Get*" }), "b").abort).toBe(true);
+    });
+
+    it("別の prefix だけの匿名公開では止めない（原本を放置しない）", () => {
+        const plan = planPolicyChange(
+            stmt({ Principal: "*", Resource: "arn:aws:s3:::b/uploads/thumbs/*" }), "b");
+        expect(plan.abort).toBe(false);
+        expect(plan.next.Statement.find((x: { Sid?: string }) => x.Sid === STATEMENT_SID)).toBeTruthy();
+    });
+
+    it("CloudFront だけの許可なら、いつもどおり Deny を作る", () => {
+        const plan = planPolicyChange(stmt({ Principal: { Service: "cloudfront.amazonaws.com" } }), "b");
+        expect(plan.abort).toBe(false);
+        const deny = plan.next.Statement.find((x: { Sid?: string }) => x.Sid === STATEMENT_SID);
+        expect(deny.Principal).toEqual({ Service: ["cloudfront.amazonaws.com"] });
     });
 });

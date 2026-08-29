@@ -51,6 +51,46 @@ const DEFAULT_PRINCIPAL = { Service: "cloudfront.amazonaws.com" };
 const asArray = (v) => (v === undefined ? [] : Array.isArray(v) ? v : [v]);
 
 /**
+ * その Action が GetObject を許すか。
+ *
+ * **末尾 `*` のワイルドカードも見る。** 完全一致だけを見ていた頃は
+ * `s3:Get*` や `s3:GetObject*`（IAM でごく普通の書き方）を素通りさせ、
+ * 匿名公開があっても「完了」と出していた——このファイルが「一番まずい形」と
+ * 呼んでいるもの。`readerPrincipals` と `hasAnonymousRead` で**同じ述語を
+ * 使う**こと（片方だけ広げると、また食い違う）。
+ */
+function grantsGetObject(action) {
+    const actions = asArray(action).map(String);
+    return actions.some((a) => {
+        if (a === "*" || a === "s3:*" || a === "s3:GetObject") return true;
+        // "s3:Get*" → "s3:Get" が "s3:GetObject" の頭と一致するか
+        if (a.endsWith("*")) return "s3:GetObject".startsWith(a.slice(0, -1));
+        return false;
+    });
+}
+
+/**
+ * その文が originals の prefix に掛かるか。
+ *
+ * **Resource を見ないと、関係ない公開でスクリプトが止まる。** サムネイルだけ
+ * 匿名公開しているバケットで中断すると、原本は配信から外れないまま放置される
+ * （直す気で走らせたのに、何も変わらず終わる）。
+ */
+function coversOriginals(resource, bucket) {
+    const list = asArray(resource).map(String);
+    if (list.length === 0) return true;   // Resource が無い形は広いものとして扱う
+    return list.some((r) => {
+        const m = /^arn:aws:s3:::([^/]+)(\/.*)?$/.exec(r);
+        if (!m) return false;
+        if (bucket && m[1] !== bucket && m[1] !== "*") return false;
+        const path = (m[2] ?? "/*").slice(1);          // 先頭の / を落とす
+        if (path === "*" || path === "") return true;
+        if (path.endsWith("*")) return PREFIX.startsWith(path.slice(0, -1)) || path.slice(0, -1).startsWith(PREFIX);
+        return path.startsWith(PREFIX);
+    });
+}
+
+/**
  * 「配信を許している相手」を今のポリシーから読み取る。
  *
  * 決め打ちにしない理由: CloudFront から S3 を読ませる方式は2通りある。
@@ -66,9 +106,7 @@ function readerPrincipals(policy) {
     for (const s of policy?.Statement ?? []) {
         if (s?.Sid === STATEMENT_SID) continue;
         if (s?.Effect !== "Allow") continue;
-        const actions = asArray(s.Action).map(String);
-        const grantsRead = actions.some((a) => a === "*" || a === "s3:*" || a === "s3:GetObject");
-        if (!grantsRead) continue;
+        if (!grantsGetObject(s.Action)) continue;
         // **匿名（`Principal: "*"` / `{AWS: "*"}`）はここでは拾わない。**
         //
         // 一度「拾って Deny に載せる」ようにしたが、**誤りだった**。
@@ -131,16 +169,41 @@ function withDenyStatement(policy, bucket) {
  * 塞げない状態だ」と気づくためだけに使い、呼び出し側は**適用せずに止める**。
  * 匿名公開そのものを消す（Block Public Access を有効にする）のが筋。
  */
-function hasAnonymousRead(policy) {
+function hasAnonymousRead(policy, bucket) {
     for (const s of policy?.Statement ?? []) {
         if (s?.Sid === STATEMENT_SID) continue;
         if (s?.Effect !== "Allow") continue;
-        const actions = asArray(s.Action).map(String);
-        if (!actions.some((a) => a === "*" || a === "s3:*" || a === "s3:GetObject")) continue;
+        if (!grantsGetObject(s.Action)) continue;
+        // **originals に掛からない公開では止めない。** サムネイルだけ公開して
+        // いるバケットで中断すると、原本は配信から外れないまま放置される。
+        if (!coversOriginals(s.Resource, bucket)) continue;
         if (s.Principal === "*") return true;
         if (asArray(s.Principal?.AWS).some((v) => String(v) === "*")) return true;
     }
     return false;
+}
+
+/**
+ * 何をするかを決める（適用する / 止める）。
+ *
+ * **`main()` から切り出してある。** 中に書いていた頃は、
+ * `if (hasAnonymousRead(...))` を `if (false)` に変えても17件すべて緑だった
+ * ——**このスクリプトの目的そのもの（適用せずに落とす）が1本も守られて
+ * いなかった**。`main` は export できないので、判断だけ外に出す。
+ */
+function planPolicyChange(policy, bucket) {
+    if (hasAnonymousRead(policy, bucket)) {
+        return {
+            abort: true,
+            reason:
+                `このバケットは匿名（Principal: "*"）に ${PREFIX} の読み取りを許しています。\n` +
+                "その状態では、ここで入れる Deny は原本を塞げません" +
+                "（塞ごうとすると自分のアカウントごと締め出します）。\n" +
+                "先に匿名公開そのものを消してください" +
+                "（S3 の Block Public Access を有効にするか、その Allow 文を削る）。",
+        };
+    }
+    return { abort: false, next: withDenyStatement(policy, bucket) };
 }
 
 /** ドライランでも実行でも同じ判定を使う（差分の説明用） */
@@ -197,27 +260,15 @@ async function main() {
         console.log("[originals] バケットポリシーは未設定です。");
     }
 
-    // **匿名公開が残っているなら、この Deny では塞げない。止める。**
-    //
-    // Deny の Principal は「実際に許されている相手」を写す作りなので、
-    // 匿名（`"*"`）を写すと**このアカウントの IAM ユーザーも root も**
-    // 締め出す（明示的 Deny はあらゆる Allow を上書きする）。かといって
-    // 写さなければ、匿名 GET は素通りのまま「塞ぎました」と出る——
-    // このファイルの冒頭が「一番まずい形」と呼んでいるそれ。
-    // どちらも駄目なので、**適用せずに理由を出して落とす**。
-    if (hasAnonymousRead(current)) {
-        console.error(
-            "[originals] このバケットは匿名（Principal: \"*\"）に読み取りを許しています。\n" +
-            "[originals] その状態では、ここで入れる Deny は原本を塞げません" +
-            "（塞ごうとすると自分のアカウントごと締め出します）。\n" +
-            "[originals] 先に匿名公開そのものを消してください" +
-            "（S3 の Block Public Access を有効にするか、その Allow 文を削る）。",
-        );
+    // 匿名公開が残っているなら、この Deny では塞げない（理由は planPolicyChange）
+    const plan = planPolicyChange(current, BUCKET);
+    if (plan.abort) {
+        console.error(`[originals] ${plan.reason}`);
         process.exitCode = 1;
         return;
     }
 
-    const nextPolicy = withDenyStatement(current, BUCKET);
+    const nextPolicy = plan.next;
     console.log(`[originals] ${describeChange(current)}`);
     console.log(JSON.stringify(nextPolicy.Statement.find((s) => s.Sid === STATEMENT_SID), null, 2));
 
@@ -245,7 +296,7 @@ async function main() {
     console.log("\n[originals] 完了。配信が 403 になったことをブラウザで確かめてください。");
 }
 
-module.exports = { withDenyStatement, readerPrincipals, hasAnonymousRead, describeChange, PREFIX, STATEMENT_SID };
+module.exports = { withDenyStatement, readerPrincipals, hasAnonymousRead, planPolicyChange, grantsGetObject, coversOriginals, describeChange, PREFIX, STATEMENT_SID };
 
 if (require.main === module) {
     main().catch((e) => {
