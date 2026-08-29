@@ -392,3 +392,39 @@ describe("removePinnedPhoto", () => {
         expect(await removePinnedPhoto("u1", "p1")).toBe(false);
     });
 });
+
+// `truncate` に寄せたとき `body.x?.trim() ?? ""` の形にした。
+// `|| undefined` が付いているので挙動は変わっていないが、**それを守る
+// テストが1本も無かった**——3つとも `|| undefined` を外しても646件緑だった。
+//
+// この契約は重い: `undefined` は「その項目を触らない」、`""` は
+// **空文字として保存される**（＝表示名が消える）。次に誰かが `?? ""` を
+// 整理したときに止まるようにする。
+describe("部分更新の契約: 送らなかった項目は触らない", () => {
+    /** 書き込まれたプロフィールから、その項目がどうなったかを見る */
+    const savedFor = async (body: Record<string, unknown>) => {
+        mockSend.mockReset();
+        mockSend
+            .mockResolvedValueOnce(stored({ displayName: "旅人", bio: "こんにちは", statusText: "旅の途中" }))
+            .mockResolvedValueOnce({});
+        const res = await invoke(body);
+        expect(res.statusCode).toBe(200);
+        return savedProfile();
+    };
+
+    it.each(["displayName", "bio", "statusText"])(
+        "%s を送らなければ、保存済みの値が残る", async (key) => {
+            const saved = await savedFor({ displayName: undefined, [key]: undefined });
+            expect(saved[key]).toBeTruthy();
+        });
+
+    it("空文字を送ったら消える（消す手段は残す）", async () => {
+        const saved = await savedFor({ displayName: "" });
+        expect(saved.displayName).toBeUndefined();
+    });
+
+    it("値を送ったら置き換わる", async () => {
+        const saved = await savedFor({ displayName: "新しい名前" });
+        expect(saved.displayName).toBe("新しい名前");
+    });
+});

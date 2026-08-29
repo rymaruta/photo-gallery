@@ -13,6 +13,7 @@ export function truncate(s: string, max: number): string {
     if (s.length <= max) return s;
     const cut = s.slice(0, max);
     const last = cut.charCodeAt(cut.length - 1);
+    // 上位サロゲート（下位が続かないと壊れる）で終わっていたら1つ削る
     return last >= 0xd800 && last <= 0xdbff ? cut.slice(0, -1) : cut;
 }
 
