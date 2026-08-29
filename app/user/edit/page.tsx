@@ -156,7 +156,11 @@ function EditContent() {
                         setTagsInput(Array.isArray(found.tags) ? found.tags.join(", ") : "");
                     } else {
                         showToastRef.current(isJa ? "写真が見つかりません" : "Photo not found", "error");
-                        routerRef.current.push(ROUTES.DRAFTS);
+                        // **replace。** もう無い写真の編集画面を履歴に残すと、
+                        // 戻るたびにここへ着地して赤いトーストを出し、また
+                        // 下書き一覧へ送り返す——**前の画面に二度と戻れない**。
+                        // 直後の削除（下の handleDelete）で必ずこの形になる
+                        routerRef.current.replace(ROUTES.DRAFTS);
                     }
                 } else {
                     if (aborted) return;
@@ -194,7 +198,9 @@ function EditContent() {
                 return;
             }
             showToast(isJa ? "写真を削除しました" : "Photo deleted", "success");
-            router.push(ROUTES.DRAFTS);
+            // 消した写真の編集画面は履歴に残さない（戻ると上の
+            // 「写真が見つかりません」に落ちる）
+            router.replace(ROUTES.DRAFTS);
         } catch {
             showToast(isJa ? "通信に失敗しました" : "Network error", "error");
         } finally {

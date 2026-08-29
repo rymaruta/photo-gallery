@@ -35,9 +35,12 @@ function LoginForm() {
     const [submitting, setSubmitting] = useState(false);
     const [needsVerification, setNeedsVerification] = useState(false);
 
+    // **replace で出る。** push にすると、ログイン済みで /login に着地する
+    // たびに履歴が伸び、戻るが「/login → next → /login」の往復から
+    // 抜けられなくなる（useMemberGate 側と合わせて1つの罠になっていた）。
     useEffect(() => {
         if (!loading && isAuthenticated) {
-            router.push(nextPath ?? (userId ? ROUTES.USER_PROFILE(userId) : "/"));
+            router.replace(nextPath ?? (userId ? ROUTES.USER_PROFILE(userId) : "/"));
         }
     }, [isAuthenticated, loading, router, userId, nextPath]);
 
@@ -78,7 +81,9 @@ function LoginForm() {
                 }
                 showToast("ログインしました", "success");
                 // インスタ風: ログイン後は自分のプロフィールページへ
-                router.push(nextPath ?? (result.userId ? ROUTES.USER_PROFILE(result.userId) : "/"));
+                // ログインが済んだ画面に戻れても意味が無い（上のエフェクトが
+                // すぐ送り返す）ので replace
+                router.replace(nextPath ?? (result.userId ? ROUTES.USER_PROFILE(result.userId) : "/"));
             } else if (result.needsVerification) {
                 setNeedsVerification(true);
                 setError(result.error || "メールアドレスの確認が完了していません");

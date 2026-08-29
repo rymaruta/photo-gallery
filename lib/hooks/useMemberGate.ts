@@ -42,7 +42,14 @@ export function useMemberGate(): MemberGate {
     useEffect(() => {
         // 送るのは未ログインのときだけ。ここに no-group を含めると往復に戻る
         if (state === "anonymous") {
-            router.push(loginWithNext(window.location.pathname + window.location.search));
+            // **push ではなく replace。** push にすると、見られなかった
+            // ページが履歴に残る:
+            //   [/] [/user/upload] [/login?next=/user/upload]
+            // ログイン後に /user/upload へ進み、そこで戻ると /login に着地する。
+            // /login はログイン済みだと next へ送り返すので、**戻るを何度
+            // 押しても2画面を往復するだけで前の画面に戻れない**。
+            // 通せなかったページは履歴に残す意味が無い。
+            router.replace(loginWithNext(window.location.pathname + window.location.search));
         }
     }, [state, router]);
 

@@ -53,7 +53,7 @@ export default function SignupPage() {
 
     // ログイン済みならトップへ
     useEffect(() => {
-        if (!loading && isAuthenticated) router.push("/");
+        if (!loading && isAuthenticated) router.replace("/");   // 済んだ画面は履歴に残さない
     }, [isAuthenticated, loading, router]);
 
     // URLパラメータ or localStorage から verify ステップを復元

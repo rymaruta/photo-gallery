@@ -21,6 +21,7 @@ Object.defineProperty(window, "localStorage", { value: localStorageMock });
 // モック定義
 // ──────────────────────────────────────────────────────────────
 const mockPush = vi.fn();
+const mockReplace = vi.fn();
 const mockLogin = vi.fn();
 const mockShowToast = vi.fn();
 const mockUserFetch = vi.fn();
@@ -30,7 +31,7 @@ const mockConfirmForgotPassword = vi.fn();
 let mockSearchParams = new URLSearchParams();
 
 vi.mock("next/navigation", () => ({
-    useRouter: () => ({ push: mockPush, replace: vi.fn() }),
+    useRouter: () => ({ push: mockPush, replace: mockReplace }),
     useSearchParams: () => mockSearchParams,
 }));
 
@@ -65,6 +66,7 @@ import LoginPage from "../page";
 beforeEach(() => {
     localStorageMock.clear();
     mockPush.mockReset();
+    mockReplace.mockReset();
     mockLogin.mockReset();
     mockShowToast.mockReset();
     mockUserFetch.mockReset();
@@ -104,7 +106,7 @@ describe("LoginPage - 基本フロー", () => {
         await user.click(screen.getByRole("button", { name: "ログイン" }));
 
         await waitFor(() => {
-            expect(mockPush).toHaveBeenCalledWith("/users?id=my-sub-123");
+            expect(mockReplace).toHaveBeenCalledWith("/users?id=my-sub-123");
         });
         expect(mockShowToast).toHaveBeenCalledWith("ログインしました", "success");
     });
@@ -122,7 +124,7 @@ describe("LoginPage - 基本フロー", () => {
             expect(mockLogin).toHaveBeenCalledWith("user@example.com", "Password1!");
         });
         await waitFor(() => {
-            expect(mockPush).toHaveBeenCalledWith("/");
+            expect(mockReplace).toHaveBeenCalledWith("/");
         });
         expect(mockShowToast).toHaveBeenCalledWith("ログインしました", "success");
     });
@@ -138,6 +140,7 @@ describe("LoginPage - 基本フロー", () => {
 
         expect(await screen.findByText(/メールアドレスまたはパスワード/)).toBeInTheDocument();
         expect(mockPush).not.toHaveBeenCalled();
+        expect(mockReplace, "遷移しないはずが replace で飛んでいる").not.toHaveBeenCalled();
     });
 
     it("needsVerification → 確認コード入力リンクへの誘導を表示", async () => {
@@ -191,7 +194,7 @@ describe("LoginPage - 表示名持ち越しによるプロフィール作成", (
         await waitFor(() => {
             expect(localStorageMock.getItem("jp_pending_name_u@example.com")).toBeNull();
         });
-        expect(mockPush).toHaveBeenCalledWith("/");
+        expect(mockReplace).toHaveBeenCalledWith("/");
     });
 
     it("既にプロフィールに displayName がある場合は PUT せず、pending キーだけ削除する", async () => {
@@ -208,7 +211,7 @@ describe("LoginPage - 表示名持ち越しによるプロフィール作成", (
         await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
         await user.click(screen.getByRole("button", { name: "ログイン" }));
 
-        await waitFor(() => { expect(mockPush).toHaveBeenCalledWith("/"); });
+        await waitFor(() => { expect(mockReplace).toHaveBeenCalledWith("/"); });
         // PUT は呼ばれていない（既存プロフィールを上書きしない）
         const putCalls = mockUserFetch.mock.calls.filter(
             (c: unknown[]) => (c[1] as RequestInit | undefined)?.method === "PUT",
@@ -232,7 +235,7 @@ describe("LoginPage - 表示名持ち越しによるプロフィール作成", (
         await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
         await user.click(screen.getByRole("button", { name: "ログイン" }));
 
-        await waitFor(() => { expect(mockPush).toHaveBeenCalledWith("/"); });
+        await waitFor(() => { expect(mockReplace).toHaveBeenCalledWith("/"); });
         const putCalls = mockUserFetch.mock.calls.filter(
             (c: unknown[]) => (c[1] as RequestInit | undefined)?.method === "PUT",
         );
@@ -250,7 +253,7 @@ describe("LoginPage - 表示名持ち越しによるプロフィール作成", (
         await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
         await user.click(screen.getByRole("button", { name: "ログイン" }));
 
-        await waitFor(() => { expect(mockPush).toHaveBeenCalledWith("/"); });
+        await waitFor(() => { expect(mockReplace).toHaveBeenCalledWith("/"); });
         expect(mockUserFetch).not.toHaveBeenCalled();
     });
 
@@ -265,7 +268,7 @@ describe("LoginPage - 表示名持ち越しによるプロフィール作成", (
         await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
         await user.click(screen.getByRole("button", { name: "ログイン" }));
 
-        await waitFor(() => { expect(mockPush).toHaveBeenCalledWith("/"); });
+        await waitFor(() => { expect(mockReplace).toHaveBeenCalledWith("/"); });
         // 失敗時は localStorage に残ったまま（次回ログインで再試行できる）
         expect(localStorageMock.getItem("jp_pending_name_u@example.com")).toBe("失敗太郎");
     });
@@ -281,7 +284,7 @@ describe("LoginPage - 表示名持ち越しによるプロフィール作成", (
         await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
         await user.click(screen.getByRole("button", { name: "ログイン" }));
 
-        await waitFor(() => { expect(mockPush).toHaveBeenCalledWith("/"); });
+        await waitFor(() => { expect(mockReplace).toHaveBeenCalledWith("/"); });
         // 例外時も localStorage に残す（再ログインで再試行）
         expect(localStorageMock.getItem("jp_pending_name_u@example.com")).toBe("例外太郎");
     });

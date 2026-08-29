@@ -46,12 +46,15 @@ export default function AdminPage() {
     }, []);
 
     // 認証チェック
+    // 通せなかった／もう用の無い画面は履歴に残さない（replace）。
+    // push にすると、送り先から戻ったときにこの画面へ着地し、ここが
+    // また送り返すので**戻るで抜けられなくなる**。
     useEffect(() => {
         if (!loading) {
             if (!isAuthenticated) {
-                router.push("/admin/login");
+                router.replace("/admin/login");
             } else if (!isAdminUser) {
-                router.push("/");
+                router.replace("/");
             }
         }
     }, [isAuthenticated, isAdminUser, loading, router]);

@@ -65,12 +65,15 @@ function AdminEditContent() {
     const [exifFocalLength, setExifFocalLength] = useState("");
     const [exifWhiteBalance, setExifWhiteBalance] = useState("");
 
+    // 通せなかった／もう用の無い画面は履歴に残さない（replace）。
+    // push にすると、送り先から戻ったときにこの画面へ着地し、ここが
+    // また送り返すので**戻るで抜けられなくなる**。
     useEffect(() => {
         if (!loading) {
             if (!isAuthenticated) {
-                router.push("/admin/login");
+                router.replace("/admin/login");
             } else if (!isAdminUser) {
-                router.push("/");
+                router.replace("/");
             }
         }
     }, [isAuthenticated, isAdminUser, loading, router]);
@@ -145,7 +148,9 @@ function AdminEditContent() {
                 } else {
                     if (aborted) return;
                     showToast(locale === "en" ? "Photo not found" : "写真が見つかりません", "error");
-                    router.push(ROUTES.ADMIN);
+                    // **replace。** 見つからない写真の編集画面を履歴に残すと、
+                    // 戻るたびに同じトーストを出してまた送り返す
+                    router.replace(ROUTES.ADMIN);
                 }
             } catch (e) {
                 if (aborted) return;
@@ -154,7 +159,7 @@ function AdminEditContent() {
                 // res.ok === false の分岐と同じく管理画面へ戻す。
                 log.error("fetchPhoto error:", e);
                 showToast(locale === "en" ? "Failed to load photo" : "写真の読み込みに失敗しました", "error");
-                router.push(ROUTES.ADMIN);
+                router.replace(ROUTES.ADMIN);
             } finally {
                 if (!aborted) setLoadingPhoto(false);
             }

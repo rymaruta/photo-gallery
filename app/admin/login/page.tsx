@@ -19,12 +19,15 @@ export default function AdminLoginPage() {
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
 
+    // 通せなかった／もう用の無い画面は履歴に残さない（replace）。
+    // push にすると、送り先から戻ったときにこの画面へ着地し、ここが
+    // また送り返すので**戻るで抜けられなくなる**。
     useEffect(() => {
         if (!loading && isAuthenticated && isAdminUser) {
-            router.push("/admin");
+            router.replace("/admin");
         }
         if (!loading && isAuthenticated && isGeneralUser) {
-            router.push("/");
+            router.replace("/");
         }
     }, [isAuthenticated, isAdminUser, isGeneralUser, loading, router]);
 

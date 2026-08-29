@@ -10,9 +10,10 @@ import userEvent from "@testing-library/user-event";
 const mockUserFetch = vi.hoisted(() => vi.fn());
 const mockShowToast = vi.hoisted(() => vi.fn());
 const mockPush = vi.hoisted(() => vi.fn());
+const mockReplace = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
-    useRouter: () => ({ push: mockPush, replace: vi.fn() }),
+    useRouter: () => ({ push: mockPush, replace: mockReplace }),
     useSearchParams: () => new URLSearchParams("id=p1"),
 }));
 vi.mock("../../../auth/context", () => ({
@@ -45,6 +46,7 @@ beforeEach(() => {
     });
     mockShowToast.mockReset();
     mockPush.mockReset();
+    mockReplace.mockReset();
 });
 
 /** 確認ダイアログの中の「削除」（アクションバーのものと区別する） */
@@ -75,7 +77,10 @@ describe("写真の削除", () => {
 
         await waitFor(() => expect(deleteCalls()).toHaveLength(1));
         expect(deleteCalls()[0][0]).toBe("/photos/p1");
-        await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/user/drafts"));
+        // **replace で戻る。** push だと、戻ったときに消した写真の編集画面が
+        // 再マウントされ「写真が見つかりません」を出してまた送り返す
+        await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/user/drafts"));
+        expect(mockPush, "push だと、消した写真の編集画面が履歴に残る").not.toHaveBeenCalled();
         expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining("削除しました"), "success");
     });
 
@@ -107,6 +112,7 @@ describe("写真の削除", () => {
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
             expect.stringContaining("画像の削除を完了できませんでした"), "error"));
         expect(mockPush).not.toHaveBeenCalled();
+        expect(mockReplace, "失敗したのに遷移している").not.toHaveBeenCalled();
         // 押し直せるように開いたまま
         expect(screen.getByRole("dialog")).toBeInTheDocument();
     });
