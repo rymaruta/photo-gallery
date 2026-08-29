@@ -31,7 +31,10 @@ describe("withDenyStatement", () => {
         const s = find(withDenyStatement(null, BUCKET));
         expect(s.Resource).toBe(`arn:aws:s3:::${BUCKET}/${PREFIX}*`);
         expect(s.Resource).not.toBe(`arn:aws:s3:::${BUCKET}/uploads/*`);
-        expect(s.Action).toBe("s3:GetObject");
+        // **バージョン付きの読み取りも塞ぐ。** バケットのバージョニングが
+        // 有効なら `s3:GetObjectVersion` でも原本の中身が取れるので、
+        // `s3:GetObject` だけの Deny では素通りする
+        expect(s.Action).toEqual(["s3:GetObject", "s3:GetObjectVersion"]);
     });
 
     it("止めるのは配信経由の読み取りだけ", () => {
@@ -149,9 +152,13 @@ describe("匿名公開が残っているときは、適用せずに止める", (
     it("CloudFront だけの許可は匿名ではない", () => {
         const cf = {
             Version: "2012-10-17",
-            Statement: [{ Sid: "Cf", Effect: "Allow", Principal: { Service: "cloudfront.amazonaws.com" }, Action: "s3:GetObject", Resource: "x" }],
+            // **Resource は originals に掛かる形にする。** `"x"` だと
+            // `coversOriginals` が先に false を返して Principal の判定まで
+            // 届かず、`if (s.Principal === "*") return true` を
+            // `if (true) return true` に変えても緑になる（死んだテストだった）
+            Statement: [{ Sid: "Cf", Effect: "Allow", Principal: { Service: "cloudfront.amazonaws.com" }, Action: "s3:GetObject", Resource: "arn:aws:s3:::b/uploads/originals/*" }],
         };
-        expect(hasAnonymousRead(cf)).toBe(false);
+        expect(hasAnonymousRead(cf, "b")).toBe(false);
     });
 
     // **ここが要点。** どちらの形でも、Deny に `*` を載せてはいけない
@@ -167,11 +174,11 @@ describe("匿名公開が残っているときは、適用せずに止める", (
         const mixed = {
             Version: "2012-10-17",
             Statement: [{
-                Sid: "Mixed", Effect: "Allow", Action: "s3:GetObject", Resource: "x",
+                Sid: "Mixed", Effect: "Allow", Action: "s3:GetObject", Resource: "arn:aws:s3:::b/uploads/originals/*",
                 Principal: { AWS: ["*", "arn:aws:iam::1:role/r"] },
             }],
         };
-        expect(readerPrincipals(mixed)).toEqual({ AWS: ["arn:aws:iam::1:role/r"] });
+        expect(readerPrincipals(mixed, "b")).toEqual({ AWS: ["arn:aws:iam::1:role/r"] });
     });
 });
 
@@ -182,17 +189,17 @@ describe("匿名公開が残っているときは、適用せずに止める", (
 describe("読み取りを許す Action の判定", () => {
     it.each(["s3:GetObject", "s3:Get*", "s3:GetObject*", "s3:*", "*"])(
         "%s は読み取りを許すと見る", (a) => {
-            expect(grantsGetObject(a)).toBe(true);
+            expect(grantsGetObject({ Action: a })).toBe(true);
         });
 
     it.each(["s3:PutObject", "s3:Put*", "s3:DeleteObject", "s3:List*"])(
         "%s は読み取りではない", (a) => {
-            expect(grantsGetObject(a)).toBe(false);
+            expect(grantsGetObject({ Action: a })).toBe(false);
         });
 
     it("配列でもどれか1つ当たれば読み取り", () => {
-        expect(grantsGetObject(["s3:PutObject", "s3:Get*"])).toBe(true);
-        expect(grantsGetObject(["s3:PutObject", "s3:DeleteObject"])).toBe(false);
+        expect(grantsGetObject({ Action: ["s3:PutObject", "s3:Get*"] })).toBe(true);
+        expect(grantsGetObject({ Action: ["s3:PutObject", "s3:DeleteObject"] })).toBe(false);
     });
 });
 
@@ -201,18 +208,18 @@ describe("読み取りを許す Action の判定", () => {
 // （直す気で走らせたのに、何も変わらず終わる）。
 describe("originals に掛かる文だけを見る", () => {
     it("originals を含む Resource は対象", () => {
-        expect(coversOriginals("arn:aws:s3:::b/uploads/originals/*", "b")).toBe(true);
-        expect(coversOriginals("arn:aws:s3:::b/*", "b")).toBe(true);
-        expect(coversOriginals("arn:aws:s3:::b/uploads/*", "b")).toBe(true);
+        expect(coversOriginals({ Resource: "arn:aws:s3:::b/uploads/originals/*" }, "b")).toBe(true);
+        expect(coversOriginals({ Resource: "arn:aws:s3:::b/*" }, "b")).toBe(true);
+        expect(coversOriginals({ Resource: "arn:aws:s3:::b/uploads/*" }, "b")).toBe(true);
     });
 
     it("別の prefix だけなら対象外", () => {
-        expect(coversOriginals("arn:aws:s3:::b/uploads/thumbs/*", "b")).toBe(false);
-        expect(coversOriginals("arn:aws:s3:::b/profiles/*", "b")).toBe(false);
+        expect(coversOriginals({ Resource: "arn:aws:s3:::b/uploads/thumbs/*" }, "b")).toBe(false);
+        expect(coversOriginals({ Resource: "arn:aws:s3:::b/profiles/*" }, "b")).toBe(false);
     });
 
     it("別のバケットは対象外", () => {
-        expect(coversOriginals("arn:aws:s3:::other/*", "b")).toBe(false);
+        expect(coversOriginals({ Resource: "arn:aws:s3:::other/*" }, "b")).toBe(false);
     });
 });
 
@@ -249,5 +256,128 @@ describe("planPolicyChange: 何をするかの判断", () => {
         expect(plan.abort).toBe(false);
         const deny = plan.next.Statement.find((x: { Sid?: string }) => x.Sid === STATEMENT_SID);
         expect(deny.Principal).toEqual({ Service: ["cloudfront.amazonaws.com"] });
+    });
+});
+
+// **見落とすと素通り（原本が匿名で取れるのに「完了」と出る）、
+// 見過ぎると過剰中断（原本が公開されたまま何もせず終わる）。**
+// どちらも「塞げていない」で終わるので、迷ったら素通りしない側に倒す
+// ——という判断そのものを、ここで固定する。
+describe("判断が付かない形は「掛かる」に倒す（素通りさせない）", () => {
+    const anon = (over: Record<string, unknown>) => ({
+        Version: "2012-10-17",
+        Statement: [{ Effect: "Allow", Principal: "*", Action: "s3:GetObject", Resource: `arn:aws:s3:::${BUCKET}/*`, ...over }],
+    });
+
+    it("NotAction は読み取りを許すと見る（補集合は読み切れない）", () => {
+        // {Allow, NotAction:[DeleteObject]} は「DeleteObject 以外の全部」＝ GetObject を含む。
+        // Action が無い形を `[].some(...)` で false にしていた頃は、丸ごと見落としていた
+        const p = anon({ Action: undefined, NotAction: ["s3:DeleteObject"] });
+        expect(hasAnonymousRead(p, BUCKET)).toBe(true);
+        expect(planPolicyChange(p, BUCKET).abort).toBe(true);
+    });
+
+    it("NotResource も同じ（掛からないと言い切れない）", () => {
+        expect(hasAnonymousRead(anon({ Resource: undefined, NotResource: [`arn:aws:s3:::${BUCKET}/uploads/thumbs/*`] }), BUCKET)).toBe(true);
+    });
+
+    it("NotPrincipal + Allow は「挙げた相手以外の全員」＝匿名を含む", () => {
+        expect(hasAnonymousRead(anon({ Principal: undefined, NotPrincipal: { AWS: "arn:aws:iam::1:role/r" } }), BUCKET)).toBe(true);
+    });
+
+    it("Action は大文字小文字を区別しない（IAM の仕様）", () => {
+        expect(grantsGetObject({ Action: "s3:get*" })).toBe(true);
+        expect(grantsGetObject({ Action: "S3:GETOBJECT" })).toBe(true);
+    });
+
+    it("? は1文字のワイルドカード", () => {
+        // `*` だけ実装して `?` を落としても、prefix の照合は
+        // 確定部分だけで決まるので気づけない。ここで直接踏む
+        expect(grantsGetObject({ Action: "s3:GetObjec?" })).toBe(true);
+        expect(grantsGetObject({ Action: "s3:GetObjec??" })).toBe(false);
+        expect(coversOriginals({ Resource: `arn:aws:s3:::${BUCKET.slice(0, -1)}?/${PREFIX}*` }, BUCKET)).toBe(true);
+    });
+
+    it("バージョン付きの読み取りも読み取り", () => {
+        // バージョニングが有効なら、これで原本の中身が取れる
+        expect(grantsGetObject({ Action: "s3:GetObjectVersion" })).toBe(true);
+        expect(grantsGetObject({ Action: "s3:GetObjectAcl" })).toBe(false);
+    });
+
+    it("読めない形の Resource も「掛かる」に倒す", () => {
+        expect(coversOriginals({ Resource: "x" }, BUCKET)).toBe(true);
+    });
+
+    it("パーティションが違っても見る（aws-cn / aws-us-gov）", () => {
+        expect(coversOriginals({ Resource: `arn:aws-cn:s3:::${BUCKET}/${PREFIX}*` }, BUCKET)).toBe(true);
+    });
+
+    it("バケット名のワイルドカードも照合する", () => {
+        expect(coversOriginals({ Resource: `arn:aws:s3:::${BUCKET.slice(0, 4)}*/${PREFIX}*` }, BUCKET)).toBe(true);
+        expect(coversOriginals({ Resource: `arn:aws:s3:::${BUCKET}*/${PREFIX}*` }, "staging-x")).toBe(false);
+        // `*` 単体のバケットも当たる
+        expect(coversOriginals({ Resource: `arn:aws:s3:::*/${PREFIX}*` }, BUCKET)).toBe(true);
+    });
+
+    it("キーの途中のワイルドカードも見る", () => {
+        expect(coversOriginals({ Resource: `arn:aws:s3:::${BUCKET}/*/originals/*` }, BUCKET)).toBe(true);
+        expect(coversOriginals({ Resource: `arn:aws:s3:::${BUCKET}/uploads/*/2024/*` }, BUCKET)).toBe(true);
+        expect(coversOriginals({ Resource: `arn:aws:s3:::${BUCKET}/uploads/?riginals/*` }, BUCKET)).toBe(true);
+    });
+
+    it("PREFIX より深い prefix の公開も見る", () => {
+        // `path.slice(0,-1).startsWith(PREFIX)` の側。前半の
+        // `PREFIX.startsWith(head)` だけでは通らない入力
+        expect(coversOriginals({ Resource: `arn:aws:s3:::${BUCKET}/${PREFIX}2024/*` }, BUCKET)).toBe(true);
+    });
+
+    it("Condition が付いていても止める（条件は評価しない）", () => {
+        // VPCe / SourceIp で絞ってあれば「誰でも取れる」ではないが、
+        // その判断には条件キーの評価が要る。素通りさせるより止める方に倒す
+        const p = anon({ Condition: { StringEquals: { "aws:SourceVpce": "vpce-1" } } });
+        expect(hasAnonymousRead(p, BUCKET)).toBe(true);
+    });
+});
+
+// **確実に掛からないと言える形では止めない。** 止めると「直しに行ったのに
+// 原本は公開されたまま、何も変わらずに終わる」。
+describe("確実に掛からない形では止めない", () => {
+    it("バケット自身の ARN（/ が無い）はオブジェクトに当たらない", () => {
+        expect(coversOriginals({ Resource: `arn:aws:s3:::${BUCKET}` }, BUCKET)).toBe(false);
+        const p = { Version: "2012-10-17", Statement: [{ Effect: "Allow", Principal: "*", Action: "s3:*", Resource: `arn:aws:s3:::${BUCKET}` }] };
+        expect(planPolicyChange(p, BUCKET).abort).toBe(false);
+    });
+
+    it("Resource を持たない文（＝ Resource も NotResource も無い）は掛かる扱い", () => {
+        expect(coversOriginals({}, BUCKET)).toBe(true);
+    });
+});
+
+// **originals に掛からない相手を Deny に載せない。** リソースベースの明示的
+// Deny は IAM 側の Allow も上書きするので、サムネイルしか許されていない
+// ロールを載せると、そのロールの原本アクセス（撮影日のバックフィル・
+// 退会時の削除）まで黙って止まる——冒頭の「IAM ユーザー経由の運用は
+// 塞がない」に正面から反する。
+describe("Deny に載せる相手も originals で絞る", () => {
+    it("サムネイルだけのロールは載せない", () => {
+        const p = {
+            Version: "2012-10-17",
+            Statement: [{
+                Effect: "Allow", Principal: { AWS: "arn:aws:iam::1:role/ThumbsOnly" },
+                Action: "s3:GetObject", Resource: `arn:aws:s3:::${BUCKET}/uploads/thumbs/*`,
+            }],
+        };
+        expect(JSON.stringify(readerPrincipals(p, BUCKET))).not.toContain("ThumbsOnly");
+    });
+
+    it("originals を読んでいる相手は載せる", () => {
+        const p = {
+            Version: "2012-10-17",
+            Statement: [{
+                Effect: "Allow", Principal: { AWS: "arn:aws:iam::1:role/Reader" },
+                Action: "s3:GetObject", Resource: `arn:aws:s3:::${BUCKET}/${PREFIX}*`,
+            }],
+        };
+        expect(readerPrincipals(p, BUCKET)).toEqual({ AWS: ["arn:aws:iam::1:role/Reader"] });
     });
 });

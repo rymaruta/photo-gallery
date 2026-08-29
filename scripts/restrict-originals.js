@@ -51,41 +51,81 @@ const DEFAULT_PRINCIPAL = { Service: "cloudfront.amazonaws.com" };
 const asArray = (v) => (v === undefined ? [] : Array.isArray(v) ? v : [v]);
 
 /**
- * その Action が GetObject を許すか。
- *
- * **末尾 `*` のワイルドカードも見る。** 完全一致だけを見ていた頃は
- * `s3:Get*` や `s3:GetObject*`（IAM でごく普通の書き方）を素通りさせ、
- * 匿名公開があっても「完了」と出していた——このファイルが「一番まずい形」と
- * 呼んでいるもの。`readerPrincipals` と `hasAnonymousRead` で**同じ述語を
- * 使う**こと（片方だけ広げると、また食い違う）。
+ * IAM のワイルドカード（`*` = 0文字以上・`?` = 1文字）で照合する。
+ * IAM の Action は**大文字小文字を区別しない**ので、そちらに合わせる。
  */
-function grantsGetObject(action) {
-    const actions = asArray(action).map(String);
-    return actions.some((a) => {
-        if (a === "*" || a === "s3:*" || a === "s3:GetObject") return true;
-        // "s3:Get*" → "s3:Get" が "s3:GetObject" の頭と一致するか
-        if (a.endsWith("*")) return "s3:GetObject".startsWith(a.slice(0, -1));
-        return false;
-    });
+function iamMatch(pattern, value) {
+    const rx = new RegExp(
+        "^" + String(pattern).replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".") + "$",
+        "i",
+    );
+    return rx.test(value);
+}
+
+/** ワイルドカードより手前の、確定している部分 */
+const literalHead = (pattern) => {
+    const i = String(pattern).search(/[*?]/);
+    return i === -1 ? String(pattern) : String(pattern).slice(0, i);
+};
+
+/**
+ * 中身を読める Action。`s3:GetObject` だけでは足りない
+ * ——バージョニングが有効なら `s3:GetObjectVersion` でも原本が読める。
+ */
+const READ_ACTIONS = ["s3:GetObject", "s3:GetObjectVersion"];
+
+/**
+ * その文が GetObject 相当を許すか。**判断が付かないものは「許す」に倒す。**
+ *
+ * ここでの false negative は「匿名公開があるのに素通りして、塞げていないのに
+ * 完了と出す」——このファイルの冒頭が「一番まずい形」と呼んでいるもの。
+ * false positive は「関係ない文で中断する」だけで、原本の露出は増えない。
+ * だから迷ったら true。
+ *
+ * **`NotAction` を持つ文は必ず true**（`{Effect:Allow, NotAction:[DeleteObject]}`
+ * は「DeleteObject 以外の全部を許す」＝ GetObject を含む）。以前は
+ * `Action` が無いと `[].some(...)` で false になり、**丸ごと見落としていた**。
+ */
+function grantsGetObject(statement) {
+    const actions = asArray(statement?.Action).map(String);
+    // **`Action` が無い形は必ず true。** `NotAction` を使う文（補集合。
+    // 読み切れない）と、どちらも無い壊れた文の両方をここで拾う。
+    // `NotAction` を別行で見る書き方もしたが、**二重の守りになって
+    // 片方を壊しても全件緑**だった（この campaign で何度も出ている型）ので
+    // 1本にまとめてある。
+    if (actions.length === 0) return true;
+    return actions.some((a) => READ_ACTIONS.some((r) => iamMatch(a, r)));
 }
 
 /**
- * その文が originals の prefix に掛かるか。
+ * その文が originals の prefix に掛かるか。**こちらも迷ったら true。**
  *
- * **Resource を見ないと、関係ない公開でスクリプトが止まる。** サムネイルだけ
- * 匿名公開しているバケットで中断すると、原本は配信から外れないまま放置される
- * （直す気で走らせたのに、何も変わらず終わる）。
+ * ただし「確実に掛からない」と言える形は false にする。関係ない公開
+ * （サムネイルだけ・バケットレベルだけ）で中断すると、**原本は配信から
+ * 外れないまま、何も変わらずに終わる**——直しに行ったのに何もしない。
  */
-function coversOriginals(resource, bucket) {
-    const list = asArray(resource).map(String);
-    if (list.length === 0) return true;   // Resource が無い形は広いものとして扱う
+function coversOriginals(statement, bucket) {
+    if (statement?.NotResource !== undefined) return true; // 補集合は読み切れない
+    const list = asArray(statement?.Resource).map(String);
+    if (list.length === 0) return true;
     return list.some((r) => {
-        const m = /^arn:aws:s3:::([^/]+)(\/.*)?$/.exec(r);
-        if (!m) return false;
-        if (bucket && m[1] !== bucket && m[1] !== "*") return false;
-        const path = (m[2] ?? "/*").slice(1);          // 先頭の / を落とす
-        if (path === "*" || path === "") return true;
-        if (path.endsWith("*")) return PREFIX.startsWith(path.slice(0, -1)) || path.slice(0, -1).startsWith(PREFIX);
+        // パーティションは aws / aws-cn / aws-us-gov がある
+        const m = /^arn:[^:]*:s3:::([^/]+)(\/.*)?$/.exec(r);
+        if (!m) return true;                               // 読めない形は掛かるものとして扱う
+        // バケット名側もワイルドカードを取りうる（`prod-*` など）
+        if (bucket && !iamMatch(m[1], bucket)) return false;
+        // **`/` が無い ARN はバケット自身**。オブジェクト操作には一切
+        // 当たらないので、ここで止めても原本は塞がらない
+        if (m[2] === undefined) return false;
+        const path = m[2].slice(1);                        // 先頭の / を落とす
+        if (/[*?]/.test(path)) {
+            // 確定部分が PREFIX と交わらなければ、この文は originals に届かない
+            // （`uploads/thumbs/*` → `uploads/thumbs/` と `uploads/originals/`）。
+            // どちらかがもう片方の頭なら、交わりうるので true に倒す
+            // （`*\/originals/*` は確定部分が空 ＝ 常に true）
+            const head = literalHead(path);
+            return PREFIX.startsWith(head) || head.startsWith(PREFIX);
+        }
         return path.startsWith(PREFIX);
     });
 }
@@ -100,13 +140,21 @@ function coversOriginals(resource, bucket) {
  * しかも「入れたのに塞がっていない」という一番まずい形になる。
  * 実際に GetObject を許している文の Principal をそのまま拒否対象にする。
  */
-function readerPrincipals(policy) {
+function readerPrincipals(policy, bucket) {
     const aws = new Set();
     const services = new Set();
     for (const s of policy?.Statement ?? []) {
         if (s?.Sid === STATEMENT_SID) continue;
         if (s?.Effect !== "Allow") continue;
-        if (!grantsGetObject(s.Action)) continue;
+        if (!grantsGetObject(s)) continue;
+        // **originals に掛からない文の相手は Deny に載せない。**
+        // サムネイルしか許されていないロールを originals の**明示的 Deny**に
+        // 載せると、そのロールが IAM 側の権限で原本を読んでいた場合
+        // （撮影日のバックフィル・退会時の削除）に黙って止まる——冒頭の
+        // 「IAM ユーザー経由の運用は塞がない」に正面から反する。
+        // `coversOriginals` は迷ったら true なので、外れるのは
+        // 「確実に掛からない」と言える文だけ。
+        if (!coversOriginals(s, bucket)) continue;
         // **匿名（`Principal: "*"` / `{AWS: "*"}`）はここでは拾わない。**
         //
         // 一度「拾って Deny に載せる」ようにしたが、**誤りだった**。
@@ -148,8 +196,8 @@ function withDenyStatement(policy, bucket) {
         Effect: "Deny",
         // 配信経由の読み取りだけを止める。IAM ユーザーでの運用
         // （撮影日のバックフィル・退会時の削除）は動き続ける必要がある。
-        Principal: readerPrincipals(policy),
-        Action: "s3:GetObject",
+        Principal: readerPrincipals(policy, bucket),
+        Action: READ_ACTIONS,
         Resource: `arn:aws:s3:::${bucket}/${PREFIX}*`,
     });
     return next;
@@ -173,12 +221,21 @@ function hasAnonymousRead(policy, bucket) {
     for (const s of policy?.Statement ?? []) {
         if (s?.Sid === STATEMENT_SID) continue;
         if (s?.Effect !== "Allow") continue;
-        if (!grantsGetObject(s.Action)) continue;
+        if (!grantsGetObject(s)) continue;
         // **originals に掛からない公開では止めない。** サムネイルだけ公開して
         // いるバケットで中断すると、原本は配信から外れないまま放置される。
-        if (!coversOriginals(s.Resource, bucket)) continue;
+        //
+        // **`Condition` は見ない＝条件付きの匿名許可でも止める。** VPC
+        // エンドポイントや SourceIp で絞ってあれば「誰でも取れる」状態では
+        // ないが、その判断をここでするには条件キーの評価が要る。
+        // 見落として素通りさせる方が高くつくので、止める側に倒す。
+        if (!coversOriginals(s, bucket)) continue;
         if (s.Principal === "*") return true;
         if (asArray(s.Principal?.AWS).some((v) => String(v) === "*")) return true;
+        // `Effect: Allow` + `NotPrincipal` は「そこに挙げた相手以外の全員」。
+        // 匿名も含むので、匿名公開と同じ扱いで止める（`readerPrincipals` は
+        // 「誰を Deny に載せるか」を読み取れないので、適用しても塞げない）
+        if (s.NotPrincipal !== undefined) return true;
     }
     return false;
 }
@@ -296,7 +353,7 @@ async function main() {
     console.log("\n[originals] 完了。配信が 403 になったことをブラウザで確かめてください。");
 }
 
-module.exports = { withDenyStatement, readerPrincipals, hasAnonymousRead, planPolicyChange, grantsGetObject, coversOriginals, describeChange, PREFIX, STATEMENT_SID };
+module.exports = { withDenyStatement, readerPrincipals, hasAnonymousRead, planPolicyChange, grantsGetObject, coversOriginals, iamMatch, describeChange, PREFIX, STATEMENT_SID, READ_ACTIONS };
 
 if (require.main === module) {
     main().catch((e) => {
