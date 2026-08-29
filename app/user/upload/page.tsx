@@ -409,17 +409,13 @@ function UploadPageInner() {
      * 消せなくても画面は進める（次に同じ写真を選べば上書きされるし、
      * ここで止めると「消せないから閉じられない」になる）。
      */
-    const discardUploaded = useCallback(async (uploaded: Item["uploaded"]) => {
-        if (!uploaded) return;
+    /**
+     * 指定したキーの実体を消す（best effort）。
+     * 「上げたが使わないもの」の後始末はここに集約する。
+     */
+    const discardKeys = useCallback(async (keys: string[]) => {
+        if (keys.length === 0) return;
         const { userFetch } = await import("../../../lib/utils/api");
-        const keys = [uploaded.key];
-        // サムネは別キー。本体だけ消すと 512px WebP が孤児として残る。
-        if (uploaded.thumbUrl) {
-            try {
-                const path = new URL(uploaded.thumbUrl).pathname.replace(/^\//, "");
-                if (path.startsWith("uploads/")) keys.push(decodeURIComponent(path));
-            } catch { /* URL でなければ諦める */ }
-        }
         for (const key of keys) {
             try {
                 await userFetch("/upload/discard", { method: "DELETE", body: JSON.stringify({ key }) });
@@ -428,6 +424,19 @@ function UploadPageInner() {
             }
         }
     }, []);
+
+    const discardUploaded = useCallback(async (uploaded: Item["uploaded"]) => {
+        if (!uploaded) return;
+        const keys = [uploaded.key];
+        // サムネは別キー。本体だけ消すと 512px WebP が孤児として残る。
+        if (uploaded.thumbUrl) {
+            try {
+                const path = new URL(uploaded.thumbUrl).pathname.replace(/^\//, "");
+                if (path.startsWith("uploads/")) keys.push(decodeURIComponent(path));
+            } catch { /* URL でなければ諦める */ }
+        }
+        await discardKeys(keys);
+    }, [discardKeys]);
 
     // 副作用（`/upload/discard` の DELETE）を setItems の updater の中で
     // 呼んでいる。React の規約としては純粋関数であるべきだが、**ここは
@@ -470,6 +479,11 @@ function UploadPageInner() {
         let successCount = 0;
         for (const item of pending) {
             updateItem(item.id, { status: "uploading", progress: 0, error: undefined });
+            // **成否を確認できていないキー。** 失敗したらここに残るので
+            // catch で消す（残すと誰にも辿れない実体になる）。
+            // catch から見える必要があるので try の外に置く
+            let reservedKey: string | undefined;
+            let reservedThumbKey: string | undefined;
             try {
                 // メタデータを除去できたものだけ上げる（消せない形式は上げない）
                 let uploadFile: File;
@@ -516,6 +530,14 @@ function UploadPageInner() {
                     const presigned = await presignedResponse.json();
                     key = presigned.key as string;
                     publicUrl = presigned.publicUrl as string;
+                    // **PUT の前に控える。** ここで控えていなかったので、
+                    // `fetch` が **reject** したとき（本文は上がりきったが
+                    // 応答が返らない——モバイル回線でよくある）にキーが
+                    // どこにも残らず、再試行は presign を取り直して
+                    // **別のキー**へ上げ直していた。前の実体は
+                    // DynamoDB に行が無いので、写真削除・退会・discard の
+                    // どの経路からも辿れない。再試行のたびに1つずつ増える。
+                    reservedKey = key;
                     updateItem(item.id, { progress: 40 });
 
                     const uploadResponse = await fetch(presigned.presignedUrl, {
@@ -527,6 +549,8 @@ function UploadPageInner() {
                     // そのまま画面に出すので、利用者に「S3 403」が見えていた
                     // （StoriesBar が同じ理由で先に直している）。
                     if (!uploadResponse.ok) throw new Error(UPLOAD_FAILED_MESSAGE);
+                    // 上がったことが確認できた。以後この実体は使う
+                    reservedKey = undefined;
                 }
                 updateItem(item.id, { progress: 70 });
 
@@ -542,17 +566,32 @@ function UploadPageInner() {
                             body: JSON.stringify({ fileName: thumb.name, fileType: thumb.type, fileSize: thumb.size }),
                         });
                         if (thumbPresign.ok) {
-                            const t = await thumbPresign.json() as { presignedUrl: string; publicUrl: string };
+                            const t = await thumbPresign.json() as { presignedUrl: string; publicUrl: string; key?: string };
+                            // 本体と同じ理由で PUT の前に控える。ここは
+                            // 失敗しても「サムネ無しで続行」なので、控えて
+                            // いないと **本体が保存できても** その 512px WebP は
+                            // 永久に誰も消せない（写真を消しても、退会しても残る）
+                            if (t.key) reservedThumbKey = t.key;
                             const thumbPut = await fetch(t.presignedUrl, {
                                 method: "PUT",
                                 body: thumb,
                                 headers: { "Content-Type": thumb.type, "Cache-Control": "max-age=31536000" },
                             });
-                            if (thumbPut.ok) thumbUrl = t.publicUrl;
+                            if (thumbPut.ok) {
+                                thumbUrl = t.publicUrl;
+                                reservedThumbKey = undefined;   // 使うので消さない
+                            }
                         }
                     }
                 } catch (e) {
                     if (!(e instanceof SkipThumb)) log.error("thumbnail upload failed (continuing without thumb):", e);
+                    // **ここで消す。** サムネの失敗は握って本体の保存へ進むので、
+                    // 下の catch には来ない。控えたまま進むと、本体が保存
+                    // できても そのサムネだけが誰にも辿れず残る
+                    if (reservedThumbKey) {
+                        void discardKeys([reservedThumbKey]);
+                        reservedThumbKey = undefined;
+                    }
                 }
                 // ここまでで S3 には上がっている。保存に失敗しても捨てないよう控える
                 updateItem(item.id, { uploaded: { key, publicUrl, ...(thumbUrl ? { thumbUrl } : {}) }, progress: 85 });
@@ -604,6 +643,12 @@ function UploadPageInner() {
                 setUsedSlots((n) => (n === null ? n : n + 1));
             } catch (err) {
                 log.error(`Upload failed for ${item.file.name}:`, err);
+                // **上げたかもしれない実体を捨てる。** `fetch` が reject した
+                // 場合、本文は上がりきっているかもしれない。上がっていれば
+                // ここで消え、上がっていなければ 404 で空振りするだけ。
+                // 消し損ねても画面は進める（`discardKeys` が握る）
+                const stale = [reservedKey, reservedThumbKey].filter((k): k is string => !!k);
+                if (stale.length) void discardKeys(stale);
                 // オフラインの fetch は "Failed to fetch" を投げる。そのまま
                 // 出していたので、画面に英語の技術文字列が並んでいた。
                 // 見せてよいのは、こちらが日本語で組み立てたものだけ
@@ -636,7 +681,7 @@ function UploadPageInner() {
                 "error",
             );
         }
-    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem]);
+    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys]);
 
     // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;

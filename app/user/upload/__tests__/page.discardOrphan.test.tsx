@@ -51,6 +51,7 @@ vi.mock("../../../../lib/utils/api", () => ({
 }));
 
 const UploadPage = (await import("../page")).default;
+const imageUtils = await import("../../../../lib/utils/image");
 
 const KEY = "uploads/me/abc.jpg";
 const PUBLIC_URL = `https://cdn.example.com/${KEY}`;
@@ -142,5 +143,120 @@ describe("保存に失敗した項目を捨てるとき", () => {
         await userEvent.click(await screen.findByRole("button", { name: "削除" }));
         await new Promise((r) => setTimeout(r, 20));
         expect(discardCalls()).toHaveLength(0);
+    });
+});
+
+// **応答が失われた PUT。** モバイル回線で、本文は上がりきったのに応答が
+// 返らないことがある。`fetch` が reject するので、キーを控える前に落ちて
+// いた——再試行は presign を取り直して**別のキー**へ上げ直すので、前の
+// 実体は DynamoDB に行が無く、写真削除・退会・discard のどの経路からも
+// 辿れない。**再試行のたびに1つずつ増える。**
+describe("S3 への PUT が応答を返さなかったとき", () => {
+    /** 本体の PUT だけ reject させる */
+    const putRejects = () => vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
+
+    it("上げたかもしれない実体を消しに行く", async () => {
+        putRejects();
+        render(<UploadPage />);
+        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        await waitFor(() => expect(publish).not.toBeDisabled());
+        await userEvent.click(publish);
+
+        await waitFor(() => expect(discardCalls()).toHaveLength(1));
+        const [, init] = discardCalls()[0] as [string, { method: string; body: string }];
+        expect(init.method).toBe("DELETE");
+        expect(JSON.parse(init.body), "控える前に落ちて、キーが残っていない").toEqual({ key: KEY });
+    });
+
+    it("保存まで通った実体は消さない（使っているものを消さない）", async () => {
+        // 既定のモックは保存も含めて成功する
+        mockUserFetch.mockImplementation((url: string) => {
+            if (url === "/upload/presigned-url") {
+                return Promise.resolve({ ok: true, json: async () => ({ presignedUrl: "https://s3.example/put", publicUrl: PUBLIC_URL, key: KEY }) });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        render(<UploadPage />);
+        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        await waitFor(() => expect(publish).not.toBeDisabled());
+        await userEvent.click(publish);
+
+        await waitFor(() => expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/save")).toBe(true));
+        await new Promise((r) => setTimeout(r, 20));
+        expect(discardCalls(), "使っている実体を消した").toHaveLength(0);
+    });
+
+    // 保存で落ちた場合は、PUT は通っている＝実体は「使うつもりのもの」。
+    // ここで消してしまうと、再試行が**実体の無いキー**で保存してしまう
+    it("保存で落ちただけなら消さない（再試行で使い回す）", async () => {
+        await uploadAndFail();
+        expect(discardCalls(), "PUT は通っているのに消している").toHaveLength(0);
+    });
+});
+
+// サムネは別キー。**失敗しても本体の保存は続く**ので、上の catch には
+// 来ない。控えたまま進むと、本体が保存できても**その 512px WebP だけが
+// 誰にも辿れず残る**（写真を消しても、退会しても消えない）。
+describe("サムネの PUT だけ失敗したとき", () => {
+    const THUMB_KEY = "uploads/me/abc_thumb.webp";
+
+    beforeEach(() => {
+        vi.mocked(imageUtils.createThumbnail).mockResolvedValue(
+            new File(["t"], "abc_thumb.webp", { type: "image/webp" }) as never,
+        );
+        // presign は本体 → サムネの順で呼ばれる。別のキーを返す
+        let n = 0;
+        mockUserFetch.mockImplementation((url: string) => {
+            if (url === "/upload/presigned-url") {
+                n += 1;
+                return n === 1
+                    ? Promise.resolve({ ok: true, json: async () => ({ presignedUrl: "https://s3.example/put-main", publicUrl: PUBLIC_URL, key: KEY }) })
+                    : Promise.resolve({ ok: true, json: async () => ({ presignedUrl: "https://s3.example/put-thumb", publicUrl: `https://cdn.example.com/${THUMB_KEY}`, key: THUMB_KEY }) });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        // 本体の PUT は通し、サムネの PUT だけ落とす
+        vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+            if (String(url).includes("put-thumb")) throw new TypeError("Failed to fetch");
+            return { ok: true, status: 200 };
+        }));
+    });
+
+    // **逆向きも見る。** サムネが上がったのに控えを外し忘れると、保存で
+    // 落ちたときの後始末が**使えるサムネまで消す**。再試行は
+    // `uploaded.thumbUrl` をそのまま使うので、実体の無い URL を保存して
+    // 一覧に割れた画像が並ぶ（本人にも直せない）
+    it("サムネが上がっていれば、保存で落ちても消さない", async () => {
+        vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200 })));
+        const orig = mockUserFetch.getMockImplementation()!;
+        mockUserFetch.mockImplementation((url: string, init?: unknown) => {
+            if (url === "/upload/save") {
+                return Promise.resolve({ ok: false, status: 500, json: async () => ({ error: "保存できませんでした" }) });
+            }
+            return orig(url, init);
+        });
+
+        render(<UploadPage />);
+        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        await waitFor(() => expect(publish).not.toBeDisabled());
+        await userEvent.click(publish);
+
+        await waitFor(() => expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/save")).toBe(true));
+        await new Promise((r) => setTimeout(r, 20));
+        expect(discardCalls(), "再試行で使うサムネを消した").toHaveLength(0);
+    });
+
+    it("サムネのキーを消しに行き、本体の保存は続ける", async () => {
+        render(<UploadPage />);
+        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        await waitFor(() => expect(publish).not.toBeDisabled());
+        await userEvent.click(publish);
+
+        // 本体は保存まで進む
+        await waitFor(() => expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/save")).toBe(true));
+        // サムネだけ消す
+        await waitFor(() => expect(discardCalls()).toHaveLength(1));
+        expect(JSON.parse((discardCalls()[0] as [string, { body: string }])[1].body),
+            "サムネのキーが控えられていない").toEqual({ key: THUMB_KEY });
     });
 });
