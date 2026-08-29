@@ -69,14 +69,21 @@ export function useFocusTrap(
 ): void {
     useEffect(() => {
         if (!active) return;
+        // **容器がまだ無くても購読はする。** ここで `return` していたので、
+        // 容器が「有効になったのと同じコミット」で付かなかった場合
+        // （React が更新を分けたとき）に**トラップが二度と付かなかった**
+        // ——deps は `[active, ...]` なので、あとから容器が来ても再実行されない。
+        // フルスイートを並列で回すと、ストーリーの下書きでこれが再現した
+        // （`defaultPrevented` が false ＝ ハンドラが居ない）。単体では必ず
+        // 通るので、テストが「たまに落ちる」形になっていた。
+        // 容器は**ハンドラの中で読み直す**。
         const container = containerRef.current;
-        if (!container) return;
 
         // 閉じたときに戻す先。指定があればそちら、無ければ開いた瞬間の位置
         const restoreTo = restoreRef?.current ?? (document.activeElement as HTMLElement | null);
 
         // 中に既にフォーカスがあるなら動かさない（autoFocus を尊重する）
-        if (!container.contains(document.activeElement)) {
+        if (container && !container.contains(document.activeElement)) {
             const first = initialFocusRef?.current ?? container.querySelector<HTMLElement>(FOCUSABLE);
             if (first) {
                 // **`preventScroll` を付ける。** `focus()` は既定でその要素が
@@ -97,6 +104,10 @@ export function useFocusTrap(
         }
 
         const onKey = (e: KeyboardEvent) => {
+            // 毎回読み直す。エフェクトの時点では空でも、押されるときには
+            // 付いている（差し替わっていても正しい方を見る）
+            const el = containerRef.current;
+            if (!el) return;
             if (e.key !== "Tab") return;
             // Ctrl+Tab / Cmd+Tab はブラウザやOSの操作。0件のときは境界に
             // 関係なく全部の Tab を止めるので、そこだけ当たりが広くなる
@@ -106,13 +117,13 @@ export function useFocusTrap(
             // null になる——このモーダル群はまさに `fixed inset-0` なので、
             // 中身が全部「見えていない」と判定されて閉じ込めが効かなくなる。
             // （jsdom はレイアウトしないので常に null で、テストでも気づける）
-            const items = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE));
+            const items = Array.from(el.querySelectorAll<HTMLElement>(FOCUSABLE));
             if (items.length === 0) {
                 // **押せるものが無くても外へ出さない。** ここを素通しにして
                 // いたので、上の「容器そのものへ入れる」分岐が
                 // **その対象にした場面でトラップになっていなかった**
                 // （コメントは「その後の Tab は下の閉じ込めが効く」と
-                // 書いていたが、`container.contains(container)` は true なので
+                // 書いていたが、`el.contains(el)` は true なので
                 // 引き戻しは発火せず、そのまま既定の Tab が通っていた）。
                 // 押せるものが無くなるのは2つ:
                 //   - HeaderNav を認証の判定中に開いたとき（中身が空）
@@ -120,15 +131,15 @@ export function useFocusTrap(
                 // 後者は「削除中に Tab で裏の一覧へ抜ける」なので、
                 // このフックを入れた動機そのもの。
                 e.preventDefault();
-                container.tabIndex = -1;
-                container.focus({ preventScroll: true });
+                el.tabIndex = -1;
+                el.focus({ preventScroll: true });
                 return;
             }
             const first = items[0];
             const last = items[items.length - 1];
             // **中に居ないときは先頭へ引き戻す。** ポータルで body の末尾に
             // 出るモーダルは、外から Tab で入ってくることがある
-            if (!container.contains(document.activeElement)) {
+            if (!el.contains(document.activeElement)) {
                 e.preventDefault();
                 first.focus();
                 return;

@@ -256,3 +256,42 @@ describe("メディア要素も巡回に入る（セレクタを通さずに数�
         expect(matched).toContain(dialog.querySelector("button"));
     });
 });
+
+// **容器が「有効になったのと同じコミット」で付かない**ことがある
+// （React が更新を分けたとき）。エフェクトの時点で ref が空だと
+// 早期 return していたので、あとから容器が来てもトラップが二度と付かなかった
+// ——deps は `[active, ...]` なので再実行されない。
+// フルスイートを並列で回すと、ストーリーの下書きでこれが再現していた。
+describe("容器があとから付いても閉じ込める", () => {
+    function LateContainer({ mounted }: { mounted: boolean }) {
+        const ref = useRef<HTMLDivElement | null>(null);
+        // active は最初から true。容器だけ1コミット遅れて付く
+        useFocusTrap(true, ref);
+        return (
+            <div>
+                <button>外</button>
+                {mounted && (
+                    <div ref={ref} role="dialog">
+                        <button>中1</button>
+                        <button>中2</button>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    it("あとから付いた容器でも Tab を止める", () => {
+        // 1回目: active=true・容器なし（エフェクトはここで走る）
+        const { rerender } = render(<LateContainer mounted={false} />);
+        // 2回目: 容器が付く。deps は [active,...] なのでエフェクトは再実行されない
+        rerender(<LateContainer mounted />);
+
+        const dialog = screen.getByRole("dialog");
+        screen.getByText("中2").focus();
+
+        const ev = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+        document.dispatchEvent(ev);
+        expect(ev.defaultPrevented, "ハンドラが付いていない").toBe(true);
+        expect(dialog.contains(document.activeElement)).toBe(true);
+    });
+});

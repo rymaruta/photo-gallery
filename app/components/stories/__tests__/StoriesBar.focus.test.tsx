@@ -85,9 +85,14 @@ function stubVideoMetadata(seconds = 5) {
         const el = real(tag, opts);
         if (tag === "video") {
             Object.defineProperty(el, "duration", { value: seconds, configurable: true });
+            // **同期で発火させる。** `setTimeout` にしていた頃は、
+            // フルスイートを並列で回すと `findByRole` の既定の待ち（1秒）を
+            // 超えて**たまに落ちる**テストになっていた（単体では必ず通るので
+            // 気づきにくい）。`getVideoDuration` は `onloadedmetadata` を
+            // 代入してから `src` を入れるので、ここで直接呼んでよい。
             Object.defineProperty(el, "src", {
                 configurable: true,
-                set() { setTimeout(() => (el as HTMLVideoElement).onloadedmetadata?.(new Event("loadedmetadata")), 0); },
+                set() { (el as HTMLVideoElement).onloadedmetadata?.(new Event("loadedmetadata")); },
                 get() { return "blob:x"; },
             });
         }
