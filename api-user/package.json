@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "deploy:prod": "serverless deploy --stage prod"
+    "deploy:prod": "npx serverless@3 deploy --stage prod"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1040.0",

@@ -129,6 +129,18 @@ jobs:
           cache: "npm"
       - name: Install dependencies
         run: npm ci
+      # **api / api-user の依存も入れる。** ルートだけだと、Node の解決が
+      # ルートまで遡って**出荷されるのと違う版**でテストが走る
+      # （実測: uuid はルート 13.0.0、api-user のロック 11.1.1 でメジャー違い）。
+      # 「テストを通してからデプロイする」という守りが成立しなくなる。
+      # `npm ci` が2回増えるぶん Actions の枠を使うが、API のデプロイは
+      # push のたびなので許容範囲と判断した。
+      - name: Install API dependencies
+        run: npm ci
+        working-directory: api
+      - name: Install user API dependencies
+        run: npm ci
+        working-directory: api-user
       - name: Run backend tests
         run: npx vitest run api api-user
 
