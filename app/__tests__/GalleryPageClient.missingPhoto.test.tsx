@@ -45,7 +45,11 @@ const PHOTOS = [
     { id: "p1", src: "https://cdn/a.jpg", title: "あ", category: "travel", tags: [], date: "2026-01-01", createdAt: "2026-01-01" },
     { id: "p2", src: "https://cdn/b.jpg", title: "い", category: "food", tags: [], date: "2026-01-02", createdAt: "2026-01-02" },
 ];
-vi.mock("../../lib/hooks/usePhotos", () => ({ usePhotos: () => ({ photos: PHOTOS }) }));
+/** API の一覧が届く前かどうか。届く前は静的JSON（＝ここでは PHOTOS）だけ */
+const photosState = vi.hoisted(() => ({ extra: [] as Array<Record<string, unknown>>, loaded: true }));
+vi.mock("../../lib/hooks/usePhotos", () => ({
+    usePhotos: () => ({ photos: [...PHOTOS, ...photosState.extra], loaded: photosState.loaded }),
+}));
 
 const GalleryPageClient = (await import("../GalleryPageClient")).default;
 
@@ -53,6 +57,8 @@ beforeEach(() => {
     mockShowToast.mockReset();
     searchParams.current = "";
     auth.current = { isAuthenticated: false, userId: null, loading: false };
+    photosState.extra = [];
+    photosState.loaded = true;
     window.history.replaceState({}, "", "/");
 });
 
@@ -74,7 +80,9 @@ describe("開けない ?photo= を踏んだとき", () => {
         render(<GalleryPageClient />);
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledTimes(1));
 
-        // フィード切替＝絞り込んだ一覧が作り直される（効果が再実行される）
+        // 効果を再実行させる。**フィード切替そのものが効いているのではない**
+        // （切り替えると一覧が空になり、手前の早期 return に当たる）。
+        // 効いているのはフォロー集合が届いて絞り込みが作り直される方
         fireEvent.click(screen.getByRole("button", { name: "フォロー中" }));
         await new Promise((r) => setTimeout(r, 20));
         expect(mockShowToast, "同じ写真について2回言っている").toHaveBeenCalledTimes(1);
@@ -98,5 +106,76 @@ describe("開けない ?photo= を踏んだとき", () => {
         await new Promise((r) => setTimeout(r, 20));
         expect(mockShowToast).not.toHaveBeenCalled();
         expect(screen.queryByText("Gallery")).toBeTruthy();
+    });
+});
+
+// **ここは自分が入れた回帰。**
+//
+// `usePhotos` の初期値は `app/data/photos.json`（ビルド時のスナップショット）
+// なので、API が返る前から一覧は**非空**。「一覧の到着待ち」を
+// `filteredPhotos.length === 0` で見ていたが、それでは**待てていない**。
+//
+// ビルド後にアップロードされた写真の共有リンクは、静的JSONに無いので
+//   1. 赤いトースト「その写真は見つかりませんでした。」（**嘘**）
+//   2. 「2回言わない」ために `dismissedRef` を書く
+//   3. 数百ms後に API の一覧が届いても、その ref が
+//      「一度閉じた写真は開き直さない」ゲートに引っかかり**永久に開かない**
+// このモーダルは新着写真の**唯一の閲覧手段**なので、経路ごと塞いでいた。
+describe("一覧が遅れて届くとき", () => {
+    const LATE = { id: "late-1", src: "https://cdn/c.jpg", title: "新着", category: "travel", tags: [], date: "2026-02-01", createdAt: "2026-02-01" };
+
+    it("届く前に「見つかりません」と言わない", async () => {
+        photosState.loaded = false;          // API はまだ返っていない
+        searchParams.current = "late-1";
+        render(<GalleryPageClient />);
+
+        await new Promise((r) => setTimeout(r, 30));
+        expect(mockShowToast, "届く前に見つからないと言っている").not.toHaveBeenCalled();
+    });
+
+    it("あとから届いたら開ける（唯一の閲覧手段を塞がない）", async () => {
+        photosState.loaded = false;
+        searchParams.current = "late-1";
+        const { rerender } = render(<GalleryPageClient />);
+        await new Promise((r) => setTimeout(r, 20));
+
+        // API の一覧が届く
+        photosState.extra = [LATE];
+        photosState.loaded = true;
+        rerender(<GalleryPageClient />);
+
+        await waitFor(() => expect(
+            new URLSearchParams(window.location.search).get("photo"),
+            "届いたのに開いていない",
+        ).toBe("late-1"));
+        expect(mockShowToast).not.toHaveBeenCalled();
+    });
+
+    // **「見つかりません」と言ったことが、開くのを止める理由になってはいけない。**
+    // 記録を `dismissedRef`（＝一度閉じた写真を開き直さないゲート）に書くと、
+    // トーストを止めるつもりの1行が「開くのを止める」に化ける。別の ref に
+    // 分けてあるので、あとからその写真が一覧に現れれば普通に開く
+    it("一度「見つかりません」と言った写真でも、現れたら開く", async () => {
+        photosState.loaded = true;
+        searchParams.current = "late-1";
+        const { rerender } = render(<GalleryPageClient />);
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledTimes(1));
+
+        photosState.extra = [LATE];
+        rerender(<GalleryPageClient />);
+
+        await waitFor(() => expect(
+            new URLSearchParams(window.location.search).get("photo"),
+            "言ったことが開くのを止めている",
+        ).toBe("late-1"));
+    });
+
+    it("届いたうえで本当に無ければ、そのとき伝える", async () => {
+        photosState.loaded = true;
+        searchParams.current = "deleted-id";
+        render(<GalleryPageClient />);
+
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
+            expect.stringContaining("見つかりませんでした"), "error"));
     });
 });

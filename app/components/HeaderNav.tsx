@@ -45,9 +45,20 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     // 「実際に画面が変わったとき」だけ。`useGallery` の `?photo=` は
     // クエリなのでここには効かない。
     const pathname = usePathname();
-    const [openedAt, setOpenedAt] = useState<string | null>(null);
-    const open = openedAt !== null && openedAt === pathname;
-    const setOpen = (next: boolean) => setOpenedAt(next ? pathname : null);
+    const [open, setOpen] = useState(false);
+    const [seenPath, setSeenPath] = useState(pathname);
+    if (seenPath !== pathname) {
+        // **描画のときに1回だけ閉じる**（React が公式に「props が変わったら
+        // state を調整する」形として挙げているやり方）。エフェクトの中で
+        // setState すると連鎖描画になるので、そちらは使わない。
+        //
+        // **`open = (開いたパス === 今のパス)` にしてはいけない。** それは
+        // 「画面が変わったら閉じる」ではなく「**そのパスに居る間ずっと
+        // 開いている**」という意味で、閉じる操作を経ずに離れると、戻って
+        // きた瞬間に**触っていないのに開き直す**（一度そう書いて回帰にした）。
+        setSeenPath(pathname);
+        if (open) setOpen(false);
+    }
     const panelRef = useRef<HTMLDivElement | null>(null);
 
     const handleNavigation = (href: string) => {
@@ -59,9 +70,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     // Close on Escape key
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
-            // `setOpenedAt` を直に呼ぶ。`setOpen` は毎回作り直される
-            // ただの関数なので、依存に入れると購読が張り直しになる
-            if (e.key === "Escape") setOpenedAt(null);
+            if (e.key === "Escape") setOpen(false);
         };
         document.addEventListener("keydown", onKey);
         return () => document.removeEventListener("keydown", onKey);

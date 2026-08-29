@@ -272,6 +272,28 @@ describe("画面が変わったらメニューを閉じる", () => {
         expect(document.body.style.overflow, "スクロールロックが残っている").toBe("");
     });
 
+    // **ここは自分が入れた回帰。** `open = openedAt === pathname` は
+    // 「画面が変わったら閉じる」ではなく「**そのパスに居る間ずっと開いている**」
+    // という意味になる。閉じる操作を経ずに離れると `openedAt` が残り、
+    // 戻ってきた瞬間に**触っていないのに開き直す**（スクロールロックも
+    // かかり、フォーカスもメニューへ攫われる）。
+    it("離れて戻ってきても、開き直さない", () => {
+        setRole("general");
+        pathname.current = "/";
+        const { rerender } = render(<HeaderNav />);
+        fireEvent.click(screen.getByLabelText("Open menu"));
+        expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+        pathname.current = "/photo/x";      // 戻る
+        rerender(<HeaderNav />);
+        expect(screen.queryByRole("dialog")).toBeNull();
+
+        pathname.current = "/";             // 進む（または同じ画面へ戻る）
+        rerender(<HeaderNav />);
+        expect(screen.queryByRole("dialog"), "触っていないのにメニューが開いた").toBeNull();
+        expect(document.body.style.overflow, "スクロールロックが復活した").toBe("");
+    });
+
     it("メニューを開いただけでは閉じない（パスは変わらない）", () => {
         setRole("general");
         pathname.current = "/";

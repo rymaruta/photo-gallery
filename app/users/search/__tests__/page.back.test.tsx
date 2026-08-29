@@ -54,6 +54,17 @@ describe("ユーザー検索の戻るボタン", () => {
         expect(mockPush).toHaveBeenCalledWith("/");
     });
 
+    // **境界そのものを挟む。** length=3 だけだと `<= 1` を `<= 2` に
+    // 緩めても緑のまま（直した値を上下から挟んでいない形）
+    it("サイト内で1回でも進んでいれば戻る（境界）", () => {
+        withHistoryLength(2, () => {
+            render(<SearchPage />);
+            fireEvent.click(screen.getByLabelText("戻る"));
+        });
+        expect(mockBack, "1回遷移してきたのにトップへ飛ばしている").toHaveBeenCalledTimes(1);
+        expect(mockPush).not.toHaveBeenCalled();
+    });
+
     it("サイト内から来ていれば、これまでどおり戻る", () => {
         withHistoryLength(3, () => {
             render(<SearchPage />);

@@ -20,7 +20,7 @@ const POPULAR_TAG_LIMIT = 10;
 export default function GalleryPageClient() {
   const { locale, labels } = useLocale();
   const { showToast } = useToast();
-  const { photos } = usePhotos();
+  const { photos, loaded: photosLoaded } = usePhotos();
   const { isAuthenticated } = useAuth();
 
   // フォロー中フィード用: フォローしている userId 集合（認証時のみ取得）
@@ -70,13 +70,16 @@ export default function GalleryPageClient() {
   const [photoParam, setPhotoParam] = React.useState<string | null>(null);
   // 一度開いて閉じた写真を、同じ ?photo= のまま開き直さないための記録
   const dismissedRef = React.useRef<string | null>(null);
+  // 「見つかりません」を同じ写真について2回言わないための記録。
+  // 上の dismissedRef とは**別物**（あちらは開くのを止めるゲート）
+  const notFoundRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     // ?photo= が外れたら「閉じた覚え」も捨てる。
     // 捨てないと、同じ写真へもう一度遷移しても永久に開かなくなる
     // （通知からその写真を2回開こうとすると2回目が無反応になっていた）。
-    if (!photoParam) { dismissedRef.current = null; return; }
+    if (!photoParam) { dismissedRef.current = null; notFoundRef.current = null; return; }
     if (photoParam === dismissedRef.current) return;
-    if (filteredPhotos.length === 0) return; // 一覧の到着待ち
+    if (filteredPhotos.length === 0) return; // 絞り込みの結果が空
     if (openById(photoParam)) { dismissedRef.current = null; return; }
 
     // **開けなかったことを伝える。**
@@ -91,9 +94,21 @@ export default function GalleryPageClient() {
     // 外れているだけの写真まで「見つかりません」と言ってしまう。
     // 元の一覧に居るなら黙っておく（絞り込みを勝手に外す方が驚く）。
     if (PHOTOS.some((p) => p.id === photoParam)) return;
-    dismissedRef.current = photoParam;   // 同じ URL で何度も出さない
+
+    // **API の一覧が届くまでは言わない。** `PHOTOS` の初期値はビルド時の
+    // スナップショットなので、そこに無いことは「存在しない」を意味しない
+    // ——ビルド後にアップロードされた写真は必ずここに来る。届く前に
+    // 言ってしまうと、嘘をつくうえに下の記録が残って**あとから届いても
+    // 開かなくなる**（このモーダルは新着写真の唯一の閲覧手段）。
+    if (!photosLoaded) return;
+
+    // **記録は専用の ref に置く。** `dismissedRef` は「一度閉じた写真を
+    // 開き直さない」ゲートで、そこへ書くと「トーストを止める」つもりの
+    // 1行が「開くのを止める」に化ける（実際そうなっていた）。
+    if (notFoundRef.current === photoParam) return;
+    notFoundRef.current = photoParam;
     showToast(locale === "en" ? "That photo is no longer available." : "その写真は見つかりませんでした。", "error");
-  }, [photoParam, filteredPhotos, openById, PHOTOS, showToast, locale]);
+  }, [photoParam, filteredPhotos, openById, PHOTOS, photosLoaded, showToast, locale]);
 
   const handleClose = React.useCallback(() => {
     dismissedRef.current = openPhotoId ?? null;
