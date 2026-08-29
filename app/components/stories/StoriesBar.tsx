@@ -423,6 +423,19 @@ export default function StoriesBar() {
             }
             const { presignedUrl, publicUrl, key } = await presignedRes.json() as { presignedUrl: string; publicUrl: string; key?: string };
 
+            // **PUT の前に控える。** ここが PUT のあとだったので、`fetch` が
+            // **reject** したとき（本文は上がりきったが応答が返らない）に
+            // catch の `discardUploaded()` が空振りしていた。押し直すと
+            // presign を取り直して別のキーへ上げ直すので、**再投稿のたびに
+            // 動画1本ぶんの孤児が増える**（写真より実害が大きい）。
+            //
+            // ストーリーは写真と違い「上げたが保存していない実体」を
+            // **使い回さない**（下書きにキーを覚えず、失敗したら presign から
+            // やり直す）ので、控えを2つに分ける必要は無い。
+            // 保存が通った時点で undefined に戻す——通ったあとの失敗
+            // （一覧の再読込など）で、**使われている実体**を消さないため。
+            uploadedKey = key;
+
             const s3Res = await fetch(presignedUrl, {
                 method: "PUT",
                 body: uploadFile,
@@ -432,10 +445,6 @@ export default function StoriesBar() {
                 log.error("story S3 upload failed:", s3Res.status);
                 throw new Error(locale === "en" ? "Could not upload the file." : "ファイルをアップロードできませんでした。");
             }
-            // ここから先で失敗したら、上げた実体を消す（catch がまとめて見る）。
-            // 保存が通った時点で undefined に戻す——通ったあとの失敗
-            // （一覧の再読込など）で、**使われている実体**を消さないため。
-            uploadedKey = key;
 
             // 表示名を取得（ベストエフォート）
             let displayName: string | undefined;

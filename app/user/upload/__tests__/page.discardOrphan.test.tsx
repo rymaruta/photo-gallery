@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -168,7 +168,11 @@ describe("S3 への PUT が応答を返さなかったとき", () => {
         expect(JSON.parse(init.body), "控える前に落ちて、キーが残っていない").toEqual({ key: KEY });
     });
 
-    it("保存まで通った実体は消さない（使っているものを消さない）", async () => {
+    // **このテストが見ているのは「成功したら DELETE を1本も投げない」**。
+    // 「使っているものを消さない」を見ているのは次の
+    // 「保存で落ちただけなら消さない」の方（あちらは catch を踏む）。
+    // 名前と中身がずれていたので合わせた
+    it("最後まで通ったときは DELETE を1本も投げない", async () => {
         // 既定のモックは保存も含めて成功する
         mockUserFetch.mockImplementation((url: string) => {
             if (url === "/upload/presigned-url") {
@@ -199,6 +203,11 @@ describe("S3 への PUT が応答を返さなかったとき", () => {
 // 誰にも辿れず残る**（写真を消しても、退会しても消えない）。
 describe("サムネの PUT だけ失敗したとき", () => {
     const THUMB_KEY = "uploads/me/abc_thumb.webp";
+
+    // **戻す。** グローバルの beforeEach は mockUserFetch しか reset せず、
+    // vitest 側にも restoreMocks が無い。この describe の後ろにテストを足した
+    // 人が「サムネが勝手に作られる」で嵌まる
+    afterEach(() => { vi.mocked(imageUtils.createThumbnail).mockResolvedValue(null as never); });
 
     beforeEach(() => {
         vi.mocked(imageUtils.createThumbnail).mockResolvedValue(
@@ -244,6 +253,25 @@ describe("サムネの PUT だけ失敗したとき", () => {
         await waitFor(() => expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/save")).toBe(true));
         await new Promise((r) => setTimeout(r, 20));
         expect(discardCalls(), "再試行で使うサムネを消した").toHaveLength(0);
+    });
+
+    // **`!ok` は投げない。** 本体の PUT は `!ok` で throw して外側の catch が
+    // 消すが、サムネは「無しで続行」なので投げず、`else` が無かったせいで
+    // 403（署名切れ）や 5xx で上がった実体が誰にも辿れず残っていた
+    it("S3 が断った（!ok）ときも、サムネのキーを消しに行く", async () => {
+        vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+            if (String(url).includes("put-thumb")) return { ok: false, status: 403 };
+            return { ok: true, status: 200 };
+        }));
+
+        render(<UploadPage />);
+        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        await waitFor(() => expect(publish).not.toBeDisabled());
+        await userEvent.click(publish);
+
+        await waitFor(() => expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/save")).toBe(true));
+        await waitFor(() => expect(discardCalls(), "!ok で上がった実体が残っている").toHaveLength(1));
+        expect(JSON.parse((discardCalls()[0] as [string, { body: string }])[1].body)).toEqual({ key: THUMB_KEY });
     });
 
     it("サムネのキーを消しに行き、本体の保存は続ける", async () => {

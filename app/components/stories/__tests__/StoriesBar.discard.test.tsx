@@ -152,3 +152,40 @@ describe("保存が例外で終わったとき", () => {
         expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), "error");
     });
 });
+
+// **応答の返らない PUT。** 電波の悪いところで投稿すると、本文は上がりきった
+// のに応答が返らず `fetch` が reject する。キーを PUT のあとで控えていたので
+// catch の後始末が空振りし、押し直すと presign を取り直して別のキーへ
+// 上げ直していた——**再投稿のたびに孤児が1つ増える**。動画なので実害が大きい。
+describe("S3 への PUT が失敗したとき", () => {
+    it("応答が返らなくても、上げたかもしれない実体を消す", async () => {
+        vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
+
+        await postStory();
+
+        await waitFor(() => expect(discardCalls()).toHaveLength(1));
+        const [, init] = discardCalls()[0] as [string, { method: string; body: string }];
+        expect(init.method).toBe("DELETE");
+        expect(JSON.parse(init.body), "控える前に落ちて、キーが残っていない").toEqual({ key: KEY });
+    });
+
+    it("S3 が断った（!ok）ときも消す", async () => {
+        vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 403 })));
+
+        await postStory();
+
+        await waitFor(() => expect(discardCalls()).toHaveLength(1));
+        expect(JSON.parse((discardCalls()[0] as [string, { body: string }])[1].body)).toEqual({ key: KEY });
+    });
+
+    // 前倒ししても「降ろす位置」は変えていない。ここを落とすと、保存が
+    // 通ったあとの失敗で**公開中のストーリーの実体**を消してしまう
+    it("投稿が通れば消さない（使っている実体を消さない）", async () => {
+        await postStory();
+        await waitFor(() => expect(
+            mockUserFetch.mock.calls.some((c) => c[0] === "/stories" && (c[1] as { method?: string } | undefined)?.method === "POST"),
+        ).toBe(true));
+        await new Promise((r) => setTimeout(r, 20));
+        expect(discardCalls()).toHaveLength(0);
+    });
+});

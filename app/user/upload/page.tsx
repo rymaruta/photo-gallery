@@ -398,6 +398,30 @@ function UploadPageInner() {
     }, []);
 
     /**
+     * 指定したキーの実体を消す（best effort）。
+     * 「上げたが使わないもの」の後始末はここに集約する。
+     *
+     * 消せなくても画面は進める（次に同じ写真を選べば上書きされるし、
+     * ここで止めると「消せないから閉じられない」になる）。
+     * ただし**消せなかったことは記録する**——`userFetch` は非 2xx でも
+     * 投げないので、`catch` に入るのは通信断だけ。403（自分の領域外）や
+     * 503（使用中か確認できなかった＝安全側に倒して消さない）は
+     * 何も出さずに素通りし、孤児が残ったことに誰も気づけなかった。
+     */
+    const discardKeys = useCallback(async (keys: string[]) => {
+        if (keys.length === 0) return;
+        const { userFetch } = await import("../../../lib/utils/api");
+        for (const key of keys) {
+            try {
+                const res = await userFetch("/upload/discard", { method: "DELETE", body: JSON.stringify({ key }) });
+                if (!res.ok) log.warn("discard rejected (leaving orphan):", res.status, key);
+            } catch (e) {
+                log.warn("discard upload failed (leaving orphan):", e);
+            }
+        }
+    }, []);
+
+    /**
      * S3 に上がったが保存に至らなかったキーを片付ける。
      *
      * 投稿は「S3 に上げる → DynamoDB に書く」の2段。保存に失敗した項目を
@@ -405,26 +429,7 @@ function UploadPageInner() {
      * 項目からキーを引くので、項目の無いオブジェクトには誰も手が届かない
      * ——退会しても、写真を消しても残り続ける（原本は GPS 入りのまま
      * 公開URLで取れる）。
-     *
-     * 消せなくても画面は進める（次に同じ写真を選べば上書きされるし、
-     * ここで止めると「消せないから閉じられない」になる）。
      */
-    /**
-     * 指定したキーの実体を消す（best effort）。
-     * 「上げたが使わないもの」の後始末はここに集約する。
-     */
-    const discardKeys = useCallback(async (keys: string[]) => {
-        if (keys.length === 0) return;
-        const { userFetch } = await import("../../../lib/utils/api");
-        for (const key of keys) {
-            try {
-                await userFetch("/upload/discard", { method: "DELETE", body: JSON.stringify({ key }) });
-            } catch (e) {
-                log.warn("discard upload failed (leaving orphan):", e);
-            }
-        }
-    }, []);
-
     const discardUploaded = useCallback(async (uploaded: Item["uploaded"]) => {
         if (!uploaded) return;
         const keys = [uploaded.key];
@@ -580,6 +585,15 @@ function UploadPageInner() {
                             if (thumbPut.ok) {
                                 thumbUrl = t.publicUrl;
                                 reservedThumbKey = undefined;   // 使うので消さない
+                            } else if (reservedThumbKey) {
+                                // **`!ok` もここで消す。** 本体の PUT は `!ok` で
+                                // throw して外側の catch が消すが、サムネは
+                                // 「無しで続行」なので投げない——`else` が無かった
+                                // ので、403（署名切れ）や 5xx で上がった実体が
+                                // 誰にも辿れず残っていた。控える意味が半分しか
+                                // 無かった（コメントは全部塞いだように書いていた）
+                                void discardKeys([reservedThumbKey]);
+                                reservedThumbKey = undefined;
                             }
                         }
                     }
@@ -645,8 +659,9 @@ function UploadPageInner() {
                 log.error(`Upload failed for ${item.file.name}:`, err);
                 // **上げたかもしれない実体を捨てる。** `fetch` が reject した
                 // 場合、本文は上がりきっているかもしれない。上がっていれば
-                // ここで消え、上がっていなければ 404 で空振りするだけ。
-                // 消し損ねても画面は進める（`discardKeys` が握る）
+                // ここで消える。上がっていなくても S3 の DeleteObject は
+                // 成功するので、サーバーは 200 を返す（**404 にはならない**）
+                // ——空振りしても害は無い。消し損ねても画面は進める。
                 const stale = [reservedKey, reservedThumbKey].filter((k): k is string => !!k);
                 if (stale.length) void discardKeys(stale);
                 // オフラインの fetch は "Failed to fetch" を投げる。そのまま
