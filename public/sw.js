@@ -137,6 +137,17 @@ function navKey(request) {
 const MAX_PAGE_ENTRIES = 60;
 
 /**
+ * ハッシュ名の資産の上限。
+ *
+ * **この数字は測って決めたものではない**（この環境にビルド成果物が無い）。
+ * 「際限なく増やさない」ための歯止めであって、チューニングされた値ではない。
+ * 見直すときは `out/_next/static` のファイル数を数えること
+ * ——1回のデプロイ分がここに収まらないと、**同じ版の資産どうしで
+ * 追い出し合って**キャッシュがほとんど効かなくなる。
+ */
+const MAX_ASSET_ENTRIES = 150;
+
+/**
  * 控えを受け皿として出してよい期限。
  *
  * Cache API は Cache-Control を見ない。デプロイ側は「HTML は no-store
@@ -162,12 +173,42 @@ function isFreshEnough(res) {
     return Date.now() - at < PAGE_MAX_AGE_MS;
 }
 
-/** 上限を超えたぶんを古い順に捨てる */
-async function trimPages(cache) {
+/**
+ * 上限を超えたぶんを古い順に捨てる。**種類ごとに分けて数える。**
+ *
+ * 以前は `cache.keys()` の全件を `MAX_PAGE_ENTRIES` と比べていた。
+ * この控えには**ページ・ハッシュ名の資産・受け皿（offline.html と
+ * manifest）が同居している**ので、ページを60件見るより先に上限へ達し、
+ * 古い順＝**受け皿と資産から消えていた**:
+ *   - `_next/static/**` が消える ＝ オフラインで開いても JS の揃わない
+ *     HTML になる。「一度見たページが開く」という目的そのものが崩れる
+ *     （中身は静的書き出しなので出るが、操作は効かない）
+ *   - `manifest.webmanifest` は**二度と入り直さない**（precache は
+ *     install でしか走らず、install は sw.js のバイトが変わるまで
+ *     再実行されない）。`offline.html` は下で入れ直しているので戻る
+ * コメントは「ページの控えの上限」と書いてあり、実装はそうなっていなかった。
+ */
+function isPrecacheEntry(url) {
+    return PRECACHE_URLS.indexOf(url.pathname) !== -1;
+}
+
+async function trimCache(cache) {
     try {
         const keys = await cache.keys();
-        const extra = keys.length - MAX_PAGE_ENTRIES;
-        for (let i = 0; i < extra; i++) await cache.delete(keys[i]);
+        const pages = [];
+        const assets = [];
+        for (const k of keys) {
+            const url = new URL(k.url);   // cache.keys() は Request を返す
+            // 受け皿は追い出さない。ここが無いと、上の説明のとおり
+            // manifest が二度と戻らない
+            if (isPrecacheEntry(url)) continue;
+            if (isImmutableAsset(url)) assets.push(k);
+            else pages.push(k);
+        }
+        for (const [list, max] of [[pages, MAX_PAGE_ENTRIES], [assets, MAX_ASSET_ENTRIES]]) {
+            const extra = list.length - max;
+            for (let i = 0; i < extra; i++) await cache.delete(list[i]);
+        }
     } catch (e) {
         // 捨てられなくても致命的ではない
     }
@@ -186,7 +227,7 @@ async function handleNavigate(request) {
             const stamped = withStamp(res.clone());
             caches.open(CACHE_NAME).then(async (c) => {
                 await c.put(navKey(request), stamped);
-                await trimPages(c);
+                await trimCache(c);
                 // precache を取り逃していたら、ここで埋める。install は
                 // sw.js のバイトが変わるまで再実行されないので、
                 // 一度失敗すると受け皿がゼロのままになる。
@@ -211,7 +252,12 @@ async function handleImmutable(request) {
     const res = await fetch(request);
     if (isStorable(res)) {
         const copy = res.clone();
-        caches.open(CACHE_NAME).then((c) => c.put(request, copy)).catch(() => undefined);
+        caches.open(CACHE_NAME).then(async (c) => {
+            await c.put(request, copy);
+            // **ここでも上限を見る。** ページを開かずに資産だけ増える経路
+            // （プリフェッチ）があるので、ナビゲーション側だけでは効かない
+            await trimCache(c);
+        }).catch(() => undefined);
     }
     return res;
 }

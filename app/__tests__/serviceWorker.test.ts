@@ -17,7 +17,7 @@ type FakeCache = {
     match: (req: Request | string, opts?: { ignoreSearch?: boolean }) => Promise<Response | undefined>;
     put: (req: Request | string, res: Response) => Promise<void>;
     add: (url: string) => Promise<void>;
-    keys: () => Promise<string[]>;
+    keys: () => Promise<Request[]>;
     delete: (req: Request | string) => Promise<boolean>;
 };
 
@@ -57,7 +57,10 @@ function makeCache(): FakeCache {
             const res = await fetchForAdd(keyOf(url));
             store.set(keyOf(url), res);
         },
-        async keys() { return [...store.keys()]; },
+        // **本物は Request を返す**（文字列ではない）。ここを文字列にして
+        // いたので、追い出しの実装が `k.url` を読むようになっても
+        // テストからは気づけなかった
+        async keys() { return [...store.keys()].map((k) => new Request(k)); },
         async delete(req) { return store.delete(keyOf(req)); },
     };
 }
@@ -217,7 +220,7 @@ describe("ページの取得", () => {
         }
         await new Promise((r) => setTimeout(r, 10));
 
-        const pages = (await cache.keys()).filter((k) => k.includes("/photo/p1"));
+        const pages = (await cache.keys()).map((k) => k.url).filter((u) => u.includes("/photo/p1"));
         expect(pages).toEqual(["https://journey-photo.com/photo/p1"]);
     });
 
@@ -291,21 +294,87 @@ describe("ハッシュ名の資産", () => {
 
 
 describe("控えの上限", () => {
-    it("増えすぎたら古い順に捨てる（端末の容量を食いつぶさない）", async () => {
-        const cache = await installed();
-        fetchMock.mockResolvedValue(new Response("ページ", { status: 200 }));
-        for (let i = 0; i < 65; i++) {
+    /** 種類ごとに数える（この控えはページ・資産・受け皿が同居している） */
+    const countKinds = async (cache: FakeCache) => {
+        const urls = (await cache.keys()).map((k) => new URL(k.url).pathname);
+        return {
+            pages: urls.filter((u) => !u.startsWith("/_next/static/") && u !== "/offline.html" && u !== "/manifest.webmanifest"),
+            assets: urls.filter((u) => u.startsWith("/_next/static/")),
+            precache: urls.filter((u) => u === "/offline.html" || u === "/manifest.webmanifest"),
+        };
+    };
+
+    const openPages = async (n: number, from = 0) => {
+        for (let i = from; i < from + n; i++) {
             const e = makeEvent(navRequest(`https://journey-photo.com/photo/p${i}`));
             handlers.fetch(e);
             await e.response;
             await new Promise((r) => setTimeout(r, 0));
         }
+    };
 
-        const keys = await cache.keys();
-        expect(keys.length).toBeLessThanOrEqual(60);
+    const getAssets = async (n: number, from = 0) => {
+        for (let i = from; i < from + n; i++) {
+            const e = makeEvent(new Request(`https://journey-photo.com/_next/static/chunks/c${i}.js`));
+            handlers.fetch(e);
+            await e.response;
+            await new Promise((r) => setTimeout(r, 0));
+        }
+    };
+
+    it("増えすぎたら古い順に捨てる（端末の容量を食いつぶさない）", async () => {
+        const cache = await installed();
+        fetchMock.mockResolvedValue(new Response("ページ", { status: 200 }));
+        await openPages(65);
+
+        const { pages } = await countKinds(cache);
+        expect(pages.length).toBeLessThanOrEqual(60);
         // 捨てるのは古い方から
-        expect(keys.some((k) => k.endsWith("/photo/p64"))).toBe(true);
-        expect(keys.some((k) => k.endsWith("/photo/p0"))).toBe(false);
+        const urls = (await cache.keys()).map((k) => k.url);
+        expect(urls.some((u) => u.endsWith("/photo/p64"))).toBe(true);
+        expect(urls.some((u) => u.endsWith("/photo/p0"))).toBe(false);
+    });
+
+    // **ここが壊れていた。** 全件を1つの上限で数えていたので、ページを60件
+    // 見るより先に上限へ達し、古い順＝受け皿と資産から消えていた。
+    // 資産が消えると、オフラインで開いても JS の揃わない HTML になる
+    // ——「一度見たページが開く」という目的そのものが崩れる。
+    it("ページを増やしても、資産と受け皿は巻き添えで消えない", async () => {
+        const cache = await installed();
+        fetchMock.mockResolvedValue(new Response("chunk", { status: 200 }));
+        await getAssets(10);
+        fetchMock.mockResolvedValue(new Response("ページ", { status: 200 }));
+        await openPages(65);
+
+        const { pages, assets, precache } = await countKinds(cache);
+        expect(pages.length).toBeLessThanOrEqual(60);
+        expect(assets.length, "資産がページの追い出しに巻き込まれた").toBe(10);
+        // manifest は precache でしか入らない＝一度消えると二度と戻らない
+        expect(precache, "受け皿が消えた").toContain("/manifest.webmanifest");
+        expect(precache).toContain("/offline.html");
+    });
+
+    it("資産にも上限がある（ページとは別枠で数える）", async () => {
+        const cache = await installed();
+        fetchMock.mockResolvedValue(new Response("chunk", { status: 200 }));
+        await getAssets(155);
+
+        const { assets } = await countKinds(cache);
+        expect(assets.length).toBeLessThanOrEqual(150);
+        const urls = (await cache.keys()).map((k) => k.url);
+        expect(urls.some((u) => u.endsWith("/chunks/c154.js"))).toBe(true);
+        expect(urls.some((u) => u.endsWith("/chunks/c0.js"))).toBe(false);
+    });
+
+    it("資産を増やしても、ページは巻き添えで消えない", async () => {
+        const cache = await installed();
+        fetchMock.mockResolvedValue(new Response("ページ", { status: 200 }));
+        await openPages(5);
+        fetchMock.mockResolvedValue(new Response("chunk", { status: 200 }));
+        await getAssets(155);
+
+        const { pages } = await countKinds(cache);
+        expect(pages.length, "ページが資産の追い出しに巻き込まれた").toBe(5);
     });
 });
 
