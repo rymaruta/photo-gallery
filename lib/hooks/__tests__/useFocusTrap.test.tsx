@@ -2,7 +2,7 @@ import React, { useRef } from "react";
 import { describe, it, expect } from "vitest";
 import { render, fireEvent, screen } from "@testing-library/react";
 
-import { useFocusTrap } from "../useFocusTrap";
+import { useFocusTrap, FOCUSABLE } from "../useFocusTrap";
 
 // `aria-modal="true"` と言いながら Tab で外へ出られるモーダルが5つあった。
 // オーバーレイの裏のボタンにフォーカスが行き、見えないまま Enter で
@@ -197,5 +197,62 @@ describe("useFocusTrap: 最初に当てる要素の指定", () => {
     it("DOM 順の先頭ではなく、指名した要素へ入れる", () => {
         render(<Named />);
         expect(document.activeElement).toBe(screen.getByText("指名された方"));
+    });
+});
+
+// **セレクタを import して使うテストだけだと、セレクタが痩せても落ちない。**
+// テスト側の `items` も同じだけ痩せて、境界（先頭・末尾）が揃って動くだけ
+// だから。実際 `audio[controls], iframe, ` を落としても28件すべて緑だった。
+// ここは `FOCUSABLE` を通さず、**期待する要素をテスト側で数える**。
+describe("メディア要素も巡回に入る（セレクタを通さずに数える）", () => {
+    function Media() {
+        const ref = useRef<HTMLDivElement | null>(null);
+        useFocusTrap(true, ref);
+        return (
+            <div ref={ref} role="dialog">
+                <button>ボタン</button>
+                <video data-testid="v" controls />
+                <audio data-testid="a" controls />
+                <iframe data-testid="f" title="埋め込み" />
+            </div>
+        );
+    }
+
+    it("button / video[controls] / audio[controls] / iframe の4つが対象になる", () => {
+        const { container } = render(<Media />);
+        const dialog = container.querySelector('[role="dialog"]')!;
+        // 期待する集合をテスト側で列挙する（実装のセレクタは参照しない）
+        const expected = [
+            dialog.querySelector("button"),
+            dialog.querySelector("video"),
+            dialog.querySelector("audio"),
+            dialog.querySelector("iframe"),
+        ];
+        const matched = Array.from(dialog.querySelectorAll(FOCUSABLE));
+        for (const el of expected) {
+            expect(matched, `${el?.tagName} が巡回から外れている`).toContain(el);
+        }
+    });
+
+    // `controls` の無いメディアは操作するものが無いので巡回に入れない
+    // （StoryViewer の背景動画がこれ。入れると空のタブストップが増える）
+    it("controls の無い video / audio は入れない", () => {
+        function NoControls() {
+            const ref = useRef<HTMLDivElement | null>(null);
+            useFocusTrap(true, ref);
+            return (
+                <div ref={ref} role="dialog">
+                    <button>ボタン</button>
+                    <video data-testid="v" />
+                    <audio data-testid="a" />
+                </div>
+            );
+        }
+        const { container } = render(<NoControls />);
+        const dialog = container.querySelector('[role="dialog"]')!;
+        const matched = Array.from(dialog.querySelectorAll(FOCUSABLE));
+        expect(matched).not.toContain(dialog.querySelector("video"));
+        expect(matched).not.toContain(dialog.querySelector("audio"));
+        expect(matched).toContain(dialog.querySelector("button"));
     });
 });

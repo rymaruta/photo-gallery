@@ -12,8 +12,22 @@ import { useEffect, type RefObject } from "react";
  *     確かめる唯一の手段が、キーボードから消える
  *   - 後ろ向き: 動画にフォーカスがある状態の Shift+Tab は、`first` でも
  *     `last` でもないのでどの分岐にも当たらず、**そのまま外へ抜ける**
- * `audio[controls]` と `iframe` も同じ理由で入れる（今は使っていないが、
- * 足したときに同じ穴が開く）。
+ * `audio[controls]` も同じ理由で入れる（今は `controls` 付きの audio は
+ * 無いが、足したときに同じ穴が開く）。`controls` の無いメディアは入れない
+ * ——操作するものが無いので、空のタブストップが増えるだけ。
+ *
+ * **注意1: メディア要素を容器の末尾に置かないこと。** ブラウザは
+ * `<video controls>` の再生・シーク・音量を shadow DOM の別々のタブストップに
+ * するが、`document.activeElement` はどれも `<video>` 本体を返す。末尾に
+ * 置くと、その中を進む Tab が「末尾からの折り返し」と誤判定されて
+ * `preventDefault` され、**コントロールがキーボードから消える**——今回
+ * 直した穴が向きを変えて再発する。先頭にある今の配置なら前向きは素通り。
+ *
+ * **注意2: `iframe` を入れても、クロスオリジンの埋め込みは閉じ込められない。**
+ * このフックは親文書の keydown を見ているだけで、埋め込みの中に入った Tab は
+ * 親に届かない。このサイトの埋め込み（Spotify・YouTube・Apple Music）は
+ * 全部クロスオリジンなので、**埋め込みが入る容器ではトラップは保証できない**。
+ * セレクタに `iframe` があることを「置いても大丈夫」と読まないこと。
  */
 export const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), video[controls], audio[controls], iframe, [tabindex]:not([tabindex="-1"])';
 

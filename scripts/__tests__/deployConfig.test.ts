@@ -35,15 +35,51 @@ describe("serverless の版が、設定と手順で食い違わない", () => {
 // ルートだけ `npm ci` すると、Node の解決がルートまで遡って
 // **出荷されるのと違う版**でテストが走る（uuid はルート 13 / api-user 11）。
 // 「テストを通してからデプロイする」という守りが成立しなくなる。
+//
+// **文字列の一致で見ない。** 最初そう書いたら、`npm ci` を `npm ls` に
+// 変えても緑（＝塞いだ穴がまた開いても気づかない）で、`working-directory: api`
+// を `./api`（YAML としても Actions としても同値）に変えると落ちる、という
+// 逆向きになっていた。YAML として読んで、ステップの組で見る。
 describe("API のテストは、出荷される依存で走る", () => {
     const wf = read(".github/workflows/deploy-api.yml");
+    const testJob = wf.slice(wf.indexOf("\n  test:"), wf.indexOf("\n  deploy-admin-api:"));
 
-    it("test ジョブが api / api-user でも npm ci する", () => {
-        const testJob = wf.slice(wf.indexOf("  test:"), wf.indexOf("  deploy-admin-api:"));
-        expect(testJob).toContain("working-directory: api\n");
-        expect(testJob).toContain("working-directory: api-user\n");
-        // 実際にテストを走らせる行があること（順序の前提）
-        expect(testJob.indexOf("working-directory: api-user"))
-            .toBeLessThan(testJob.indexOf("npx vitest run api api-user"));
+    /**
+     * ステップ単位に割る。**YAML パーサは使わない**——`js-yaml` は
+     * どの package.json にも書かれていない（vitest/eslint の推移依存に
+     * 寄りかかることになる）。ここで要るのは「1つのステップの中に
+     * `npm ci` と `working-directory` が揃っているか」だけなので、
+     * `      - ` の区切りで割れば足りる。
+     */
+    const steps = testJob.split(/\n {6}- /).slice(1);
+    const dirOf = (step: string) => {
+        const m = /working-directory:\s*(\S+)/.exec(step);
+        return (m?.[1] ?? "").replace(/^\.\//, "").replace(/\/$/, "");
+    };
+    const installs = steps.filter((st) => /\brun:\s*npm ci\b/.test(st));
+
+    it.each(["api", "api-user"])("%s でも npm ci する", (dir) => {
+        expect(installs.map(dirOf)).toContain(dir);
+    });
+
+    it("ルートでも npm ci する（アプリ側のテストが動かなくなる）", () => {
+        expect(installs.map(dirOf)).toContain("");
+    });
+
+    it("テストを走らせるのは、依存を入れ終わったあと", () => {
+        const runIdx = steps.findIndex((st) => /vitest run api api-user/.test(st));
+        expect(runIdx).toBeGreaterThan(-1);
+        for (const st of installs) {
+            expect(steps.indexOf(st), `${dirOf(st) || "(root)"} の npm ci が後ろにある`)
+                .toBeLessThan(runIdx);
+        }
+    });
+
+    // 3つのロックをキャッシュのキーに入れないと、増やした2本は毎回
+    // ダウンロードし直しになる（枠が逼迫しているので効く）
+    it("3つのロックがキャッシュのキーに入っている", () => {
+        for (const lock of ["package-lock.json", "api/package-lock.json", "api-user/package-lock.json"]) {
+            expect(testJob).toContain(lock);
+        }
     });
 });

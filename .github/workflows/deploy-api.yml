@@ -127,14 +127,23 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
+          # 3つのロックを全部キーにする。ルートだけだと、下で足した
+          # api / api-user の依存が毎回ダウンロードし直しになる
+          cache-dependency-path: |
+            package-lock.json
+            api/package-lock.json
+            api-user/package-lock.json
       - name: Install dependencies
         run: npm ci
       # **api / api-user の依存も入れる。** ルートだけだと、Node の解決が
       # ルートまで遡って**出荷されるのと違う版**でテストが走る
       # （実測: uuid はルート 13.0.0、api-user のロック 11.1.1 でメジャー違い）。
       # 「テストを通してからデプロイする」という守りが成立しなくなる。
-      # `npm ci` が2回増えるぶん Actions の枠を使うが、API のデプロイは
-      # push のたびなので許容範囲と判断した。
+      # `npm ci` が2回増えるぶん Actions の枠を使う。**枠は逼迫していて、
+      # だからこそ上の push トリガーを止めてある**ので「push のたびだから
+      # 許容」という理屈は成り立たない（最初そう書いたが逆だった）。
+      # 実行が手動のときだけなことと、下でロックをキャッシュのキーに
+      # 入れてあることで釣り合うと判断した。
       - name: Install API dependencies
         run: npm ci
         working-directory: api

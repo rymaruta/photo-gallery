@@ -97,7 +97,7 @@ function stubVideoMetadata(seconds = 5) {
 }
 
 /** ファイルを選んで下書きを開く（本番相当: hidden な input に change だけ飛ぶ） */
-async function selectFile(container: HTMLElement, file: File) {
+function selectFile(container: HTMLElement, file: File) {
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     Object.defineProperty(input, "files", { value: [file], configurable: true });
     fireEvent.change(input);
@@ -128,7 +128,7 @@ describe("ストーリーの投稿プレビュー: Tab が外へ漏れない", (
     it("開いたらキャンセル（✕）にフォーカスが入る", async () => {
         const { container } = render(<StoriesBar />);
         await screen.findByText("あなた");
-        await selectFile(container, new File(["x"], "story.jpg", { type: "image/jpeg" }));
+        selectFile(container, new File(["x"], "story.jpg", { type: "image/jpeg" }));
 
         const dialog = await screen.findByRole("dialog");
         expect(dialog.contains(document.activeElement)).toBe(true);
@@ -138,15 +138,12 @@ describe("ストーリーの投稿プレビュー: Tab が外へ漏れない", (
     // 動画の下書きでは `<video controls>` が容器の DOM 順の先頭に来る。
     // `video[controls]` を巡回に入れたので、指名しないと初期フォーカスが
     // そちらへ移る（＝画像と動画で挙動が変わる）。
-    // 動画の下書きでは `<video controls>` が容器の DOM 順の先頭に来る。
-    // `video[controls]` を巡回に入れたので、指名しないと初期フォーカスが
-    // そちらへ移る（＝画像と動画で挙動が変わる）。
     it("動画の下書きでも、最初のフォーカスはキャンセル", async () => {
         const restore = stubVideoMetadata();
         try {
             const { container } = render(<StoriesBar />);
             await screen.findByText("あなた");
-            await selectFile(container, new File(["x"], "story.mp4", { type: "video/mp4" }));
+            selectFile(container, new File(["x"], "story.mp4", { type: "video/mp4" }));
 
             const dialog = await screen.findByRole("dialog");
             expect(dialog.querySelector("video")).not.toBeNull();
@@ -164,7 +161,7 @@ describe("ストーリーの投稿プレビュー: Tab が外へ漏れない", (
         try {
             const { container } = render(<StoriesBar />);
             await screen.findByText("あなた");
-            await selectFile(container, new File(["x"], "story.mp4", { type: "video/mp4" }));
+            selectFile(container, new File(["x"], "story.mp4", { type: "video/mp4" }));
 
             const dialog = await screen.findByRole("dialog");
             const items = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE));
