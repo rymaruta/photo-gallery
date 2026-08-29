@@ -27,6 +27,7 @@ vi.mock("../components/SearchParamWatcher", () => ({ default: () => null }));
 vi.mock("../../lib/hooks/usePhotos", () => ({ usePhotos: () => ({ photos: [] }) }));
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
+import ToastProvider from "../components/ToastProvider";
 const GalleryPageClient = (await import("../GalleryPageClient")).default;
 
 beforeEach(async () => {
@@ -41,7 +42,7 @@ describe("フォロー中フィードの取得失敗", () => {
             .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) })   // 1回目失敗
             .mockResolvedValue({ ok: true, json: async () => ({ userIds: [] }) });        // 再試行は成功
 
-        render(<GalleryPageClient />);
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
         fireEvent.click(await screen.findByRole("button", { name: "フォロー中" }));
 
         expect(await screen.findByText(/フォロー中の一覧を読み込めませんでした/)).toBeInTheDocument();

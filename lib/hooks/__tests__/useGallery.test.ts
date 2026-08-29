@@ -212,6 +212,35 @@ describe("useGallery", () => {
                 .toBe(result.current.filteredPhotos[1].id);
         });
 
+        // **feed だけ URL に載っていなかった。** 他のフィルターは全部載るのに
+        // ここだけ落ちていたので、「フォロー中」で写真を開いて戻ると
+        // 「すべて」に戻っていた（同じ画面の中でここだけ挙動が違う）。
+        it("フォロー中も URL に載る", () => {
+            const { result } = renderHook(() => useGallery(mockPhotos));
+            act(() => { result.current.setFilters({ feed: "following" }); });
+            expect(new URLSearchParams(window.location.search).get("feed")).toBe("following");
+        });
+
+        it("すべてに戻せば URL からも消える", () => {
+            const { result } = renderHook(() => useGallery(mockPhotos));
+            act(() => { result.current.setFilters({ feed: "following" }); });
+            act(() => { result.current.setFilters({ feed: "all" }); });
+            expect(new URLSearchParams(window.location.search).get("feed")).toBeNull();
+        });
+
+        it("URL の feed を読んで復元する", () => {
+            window.history.replaceState({}, "", "/?feed=following");
+            const { result } = renderHook(() => useGallery(mockPhotos));
+            expect(result.current.filters.feed).toBe("following");
+        });
+
+        // 知らない文字列を入れられても既定のまま（総当たりで確かめている）
+        it("知らない値は無視する", () => {
+            window.history.replaceState({}, "", "/?feed=whatever");
+            const { result } = renderHook(() => useGallery(mockPhotos));
+            expect(result.current.filters.feed).toBe("all");
+        });
+
         it("フィルタと同時に載る（どちらも失わない）", () => {
             const { result } = renderHook(() => useGallery(mockPhotos));
             act(() => { result.current.setFilters({ category: "landscape" }); });

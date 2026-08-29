@@ -11,6 +11,7 @@ import SearchParamWatcher from "./components/SearchParamWatcher";
 import { capitalize } from "../lib/utils/string";
 import { usePhotos } from "../lib/hooks/usePhotos";
 import { useAuth } from "./auth/context";
+import { useToast } from "../lib/hooks/useToast";
 import { fetchFollowingSet } from "../lib/hooks/useFollow";
 
 // フィルタバーに出すタグ数の上限（枚数の多い順）。残りは検索で辿る
@@ -18,6 +19,7 @@ const POPULAR_TAG_LIMIT = 10;
 
 export default function GalleryPageClient() {
   const { locale, labels } = useLocale();
+  const { showToast } = useToast();
   const { photos } = usePhotos();
   const { isAuthenticated } = useAuth();
 
@@ -75,8 +77,23 @@ export default function GalleryPageClient() {
     if (!photoParam) { dismissedRef.current = null; return; }
     if (photoParam === dismissedRef.current) return;
     if (filteredPhotos.length === 0) return; // 一覧の到着待ち
-    if (openById(photoParam)) dismissedRef.current = null;
-  }, [photoParam, filteredPhotos, openById]);
+    if (openById(photoParam)) { dismissedRef.current = null; return; }
+
+    // **開けなかったことを伝える。**
+    //
+    // 消された写真の共有リンクを踏むと、404 → `/?photo=<id>` に振り替わり、
+    // ここで `openById` が false を返す。今までは**何もしなかった**ので、
+    // `?photo=` だけが静かに外れて普通のギャラリーが出る——踏んだ人には
+    // 「リンクが壊れている」ではなく「トップに飛ばされた」と見える。
+    //
+    // **一覧に無い＝存在しない、ではない**ので、そこは分けて見る。
+    // `openById` が探すのは**絞り込んだあと**の一覧なので、フィルターで
+    // 外れているだけの写真まで「見つかりません」と言ってしまう。
+    // 元の一覧に居るなら黙っておく（絞り込みを勝手に外す方が驚く）。
+    if (PHOTOS.some((p) => p.id === photoParam)) return;
+    dismissedRef.current = photoParam;   // 同じ URL で何度も出さない
+    showToast(locale === "en" ? "That photo is no longer available." : "その写真は見つかりませんでした。", "error");
+  }, [photoParam, filteredPhotos, openById, PHOTOS, showToast, locale]);
 
   const handleClose = React.useCallback(() => {
     dismissedRef.current = openPhotoId ?? null;

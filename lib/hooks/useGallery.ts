@@ -51,6 +51,11 @@ function readFiltersFromUrl(): Partial<GalleryFilters> {
     if (sort === "new" || sort === "old" || sort === "popular") out.sort = sort;
     const tags = params.get("tags");
     if (tags) out.selectedTags = tags.split(",").filter(Boolean);
+    // **feed もここで読む。** 他のフィルターは URL に載るのに feed だけ
+    // 載っていなかったので、「フォロー中」で写真を開いて戻ると
+    // 「すべて」に戻っていた（ここだけ挙動が違う）。
+    // 値は総当たりで確かめる——知らない文字列を入れられても既定のまま
+    if (params.get("feed") === "following") out.feed = "following";
     return out;
 }
 
@@ -174,6 +179,7 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
         if (filters.query) params.set("q", filters.query);
         if (filters.sort && filters.sort !== "new") params.set("sort", filters.sort);
         if (filters.selectedTags.length) params.set("tags", filters.selectedTags.join(","));
+        if (filters.feed === "following") params.set("feed", "following");
         if (openPhotoId) params.set("photo", openPhotoId);
         const search = params.toString();
         window.history.replaceState({}, "", search ? `?${search}` : window.location.pathname);

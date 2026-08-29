@@ -23,8 +23,10 @@ vi.mock("../../i18n/context", () => ({
 }));
 
 const mockPush = vi.hoisted(() => vi.fn());
+const pathname = vi.hoisted(() => ({ current: "/" }));
 vi.mock("next/navigation", () => ({
     useRouter: () => ({ push: mockPush }),
+    usePathname: () => pathname.current,
 }));
 
 import HeaderNav from "../HeaderNav";
@@ -246,5 +248,36 @@ describe("HeaderNav: 開いたらメニューの中へ入れる", () => {
         // 開いているときはラベルが変わる
         fireEvent.click(screen.getByLabelText("Close menu"));
         await waitFor(() => expect(document.activeElement).toBe(toggle));
+    });
+});
+
+// ヘッダーはルートレイアウトにあるのでクライアント遷移では再マウント
+// されない。`open` を戻すのはリンク・Escape・× の3つだけで、**戻る・進む**
+// では背後のページだけが変わり、オーバーレイと `body` のスクロールロックが
+// 残っていた（スマホの「戻る＝閉じる」と逆に、遷移だけが起きる）。
+describe("画面が変わったらメニューを閉じる", () => {
+    it("戻る・進むでパスが変われば閉じる（body のロックも戻る）", () => {
+        setRole("general");
+        pathname.current = "/";
+        const { rerender } = render(<HeaderNav />);
+        fireEvent.click(screen.getByLabelText("Open menu"));
+        expect(screen.getByRole("dialog")).toBeInTheDocument();
+        expect(document.body.style.overflow).toBe("hidden");
+
+        // ブラウザの戻る＝パスだけが変わる（再マウントはされない）
+        pathname.current = "/users";
+        rerender(<HeaderNav />);
+
+        expect(screen.queryByRole("dialog"), "遷移してもメニューが開いたまま").toBeNull();
+        expect(document.body.style.overflow, "スクロールロックが残っている").toBe("");
+    });
+
+    it("メニューを開いただけでは閉じない（パスは変わらない）", () => {
+        setRole("general");
+        pathname.current = "/";
+        const { rerender } = render(<HeaderNav />);
+        fireEvent.click(screen.getByLabelText("Open menu"));
+        rerender(<HeaderNav />);   // 同じパスでの再描画
+        expect(screen.getByRole("dialog")).toBeInTheDocument();
     });
 });

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { XMarkIcon, Bars3Icon } from "@heroicons/react/24/solid";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../auth/context";
@@ -30,7 +30,24 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     const subtleInset = "inset 0 1px 0 rgba(255,255,255,0.02)";
     const subtleShadow = "0 1px 8px rgba(0,0,0,0.65)";
 
-    const [open, setOpen] = useState(false);
+    // **「開いた画面」ごと覚える。**
+    //
+    // このヘッダーはルートレイアウトにあるのでクライアント遷移では
+    // 再マウントされず、閉じるのは「メニューのリンクを押す」「Escape」
+    // 「× を押す」の3つだけだった。**ブラウザの戻る・進む**では背後の
+    // ページだけが変わり、オーバーレイは出したまま、`body` の
+    // スクロールロックも残る（× か Escape でしか抜けられない）。
+    // スマホの「戻る＝閉じる」という期待とは逆に、遷移だけが起きていた。
+    //
+    // エフェクトで閉じるのではなく、**描画のときに見比べる**
+    // （エフェクトの中で setState すると連鎖描画になる）。
+    // パスはメニューを開いても変わらないので、閉じるのは
+    // 「実際に画面が変わったとき」だけ。`useGallery` の `?photo=` は
+    // クエリなのでここには効かない。
+    const pathname = usePathname();
+    const [openedAt, setOpenedAt] = useState<string | null>(null);
+    const open = openedAt !== null && openedAt === pathname;
+    const setOpen = (next: boolean) => setOpenedAt(next ? pathname : null);
     const panelRef = useRef<HTMLDivElement | null>(null);
 
     const handleNavigation = (href: string) => {
@@ -38,10 +55,13 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
         router.push(href);
     };
 
+
     // Close on Escape key
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === "Escape") setOpen(false);
+            // `setOpenedAt` を直に呼ぶ。`setOpen` は毎回作り直される
+            // ただの関数なので、依存に入れると購読が張り直しになる
+            if (e.key === "Escape") setOpenedAt(null);
         };
         document.addEventListener("keydown", onKey);
         return () => document.removeEventListener("keydown", onKey);
@@ -124,7 +144,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                 aria-expanded={open}
                 aria-controls="site-menu"
                 aria-label={open ? "Close menu" : "Open menu"}
-                onClick={() => setOpen((v) => !v)}
+                onClick={() => setOpen(!open)}
                 style={{
                     backgroundColor: bg,
                     border: `2px solid ${outerBorder}`,
