@@ -230,3 +230,82 @@ describe("URL から ?photo= が消えたとき", () => {
         expect(new URLSearchParams(window.location.search).get("photo")).toBeNull();
     });
 });
+
+// **`?photo=` は「マウント時に URL に載っている」とは限らない。**
+//
+// 主経路は通知の `<Link href="/?photo=<id>">` で、これは**同じルートへの
+// 遷移**なのでこの画面は再マウントされない（すぐ上のコメントが同じ理由で
+// 先に書いている）。マウント時にだけ待ち id の種を入れる作りだと、この
+// 経路では種が入らず、そのあと絞り込みを触った瞬間に同期が `?photo=` を
+// 落として id が失われる。
+describe("遷移で ?photo= が届いたとき（再マウントされない）", () => {
+    it("開けないまま絞り込みを触っても、id を落とさない", async () => {
+        auth.current = { isAuthenticated: true, userId: "me", loading: false };
+        // マウント時の URL に photo は無い（通知からの遷移で**あとから**届く）。
+        // category=food なので p1（travel）は絞り込みから外れて開けない
+        window.history.replaceState({}, "", "/?category=food");
+        photosState.loaded = true;
+        const { rerender } = render(<GalleryPageClient />);
+        await new Promise((r) => setTimeout(r, 20));
+
+        searchParams.current = "p1";
+        rerender(<GalleryPageClient />);
+        await new Promise((r) => setTimeout(r, 20));
+
+        // 別の絞り込みを触る＝同期が走る。p1 は**まだ開けない**ので、
+        // ここで URL に残っているのは「預けた」からに他ならない
+        fireEvent.click(screen.getByRole("button", { name: "フォロー中" }));
+
+        await waitFor(() => expect(
+            new URLSearchParams(window.location.search).get("photo"),
+            "開けないまま絞り込みを触った拍子に id を落としている",
+        ).toBe("p1"));
+        // 開いてはいない（開けたから残った、ではないことを押さえる）
+        expect(mockShowToast).not.toHaveBeenCalled();
+    });
+
+    // 一覧そのものが空のときも同じ（フォロー中でフォロー0人、など）
+    it("一覧が空でも id を落とさない", async () => {
+        auth.current = { isAuthenticated: true, userId: "me", loading: false };
+        window.history.replaceState({}, "", "/?feed=following");   // フォロー0人＝空
+        photosState.loaded = true;
+        const { rerender } = render(<GalleryPageClient />);
+        await new Promise((r) => setTimeout(r, 20));
+
+        searchParams.current = "p1";
+        rerender(<GalleryPageClient />);
+        await new Promise((r) => setTimeout(r, 20));
+
+        // **空のまま**同期を走らせる（同じタブを押しても `filters` は
+        // 作り直されるので効果は再実行される）。「すべて」に戻すと開けて
+        // しまい、預けを通らずに URL へ載るので、そこは押さない
+        fireEvent.click(screen.getByRole("button", { name: "フォロー中" }));
+
+        await waitFor(() => expect(
+            new URLSearchParams(window.location.search).get("photo"),
+            "一覧が空のうちに id を落としている",
+        ).toBe("p1"));
+        expect(screen.queryByRole("button", { name: "すべて" })).toBeTruthy();   // まだ空のまま
+    });
+
+    // API の一覧がまだ届いていないときも同じ
+    it("一覧が届く前でも id を落とさない", async () => {
+        auth.current = { isAuthenticated: true, userId: "me", loading: false };
+        window.history.replaceState({}, "", "/?category=food");
+        photosState.loaded = false;        // API はまだ返っていない
+        const { rerender } = render(<GalleryPageClient />);
+        await new Promise((r) => setTimeout(r, 20));
+
+        searchParams.current = "unknown-yet";
+        rerender(<GalleryPageClient />);
+        await new Promise((r) => setTimeout(r, 20));
+
+        fireEvent.click(screen.getByRole("button", { name: "フォロー中" }));
+
+        await waitFor(() => expect(
+            new URLSearchParams(window.location.search).get("photo"),
+            "届く前に id を落としている",
+        ).toBe("unknown-yet"));
+        expect(mockShowToast).not.toHaveBeenCalled();
+    });
+});

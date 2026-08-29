@@ -180,21 +180,31 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
      * 開ければ書き戻るが、**一覧がその場に無いと落ちたまま**になる:
      *   - `?feed=following` はフォロー集合が届くまで一覧が空
      *   - 新着写真は API の一覧が届くまで見つからない
-     * どちらも数百ms待てば開けるのに、その前に id を失うので二度と開けない。
+     * どちらも待てば開けることが多いのに、その前に id を失うと二度と開けない
+     * （**待ちに上限は無い**。API が落ちていればセッション中ずっと残る）。
      * 開けるか「無い」と分かるまで、最初に載っていた id を持っておく。
      */
     const pendingPhotoRef = useRef<string | null>(
         typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("photo"),
     );
     /**
-     * 「この id は無い」と分かったら捨てる。
+     * 待ち id を立てる／捨てる。
      *
-     * **URL からもその場で外す。** 覚えを消すだけだと、下の同期が次に走る
-     * （フィルターを触る・写真を開く）まで死んだ `?photo=` が残り、
+     * **立てる方も要る。** マウント時に URL から種を入れるだけでは足りない
+     * ——`?photo=` が来る主経路（通知の `<Link>`）は**同じルートへの遷移**で、
+     * 画面は再マウントされない。種は null のままなので、そのあと絞り込みを
+     * 触った瞬間に同期が `?photo=` を落とし、id が失われる。
+     * （この「再マウントされない」は GalleryPageClient のコメントが
+     * 同じ理由で先に書いていたのに、隣で同じ間違いをしていた。）
+     *
+     * 捨てるときは **URL からもその場で外す**。覚えを消すだけだと、下の同期が
+     * 次に走る（フィルターを触る・写真を開く）まで死んだ `?photo=` が残り、
      * 再読込のたびに同じ「見つかりません」が出る。
      */
-    const clearPendingPhoto = useCallback(() => {
-        pendingPhotoRef.current = null;
+    const setPendingPhoto = useCallback((id: string | null) => {
+        pendingPhotoRef.current = id;
+        // 立てるときは URL を触らない（そこから来た値なので既に載っている）
+        if (id !== null) return;
         if (typeof window === "undefined") return;
         const params = new URLSearchParams(window.location.search);
         if (!params.has("photo")) return;
@@ -261,7 +271,7 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
         openPhotoId,
         open,
         openById,
-        clearPendingPhoto,
+        setPendingPhoto,
         close,
         next,
         prev,

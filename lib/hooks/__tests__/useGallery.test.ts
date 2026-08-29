@@ -265,14 +265,14 @@ describe("useGallery", () => {
             expect(new URLSearchParams(window.location.search).get("photo")).toBe("deleted");
             // **その場で外れる**（次に同期が走るまで待たない）。待つ形だと
             // 再読込のたびに同じ「見つかりません」が出続ける
-            act(() => { result.current.clearPendingPhoto(); });
+            act(() => { result.current.setPendingPhoto(null); });
             expect(new URLSearchParams(window.location.search).get("photo")).toBeNull();
         });
 
         it("捨てても、他のフィルターは URL に残す", () => {
             window.history.replaceState({}, "", "/?category=landscape&photo=deleted");
             const { result } = renderHook(() => useGallery(mockPhotos));
-            act(() => { result.current.clearPendingPhoto(); });
+            act(() => { result.current.setPendingPhoto(null); });
             const params = new URLSearchParams(window.location.search);
             expect(params.get("photo")).toBeNull();
             expect(params.get("category"), "巻き添えで他のフィルターまで消している").toBe("landscape");

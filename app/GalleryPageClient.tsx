@@ -53,7 +53,7 @@ export default function GalleryPageClient() {
     currentIndex,
     openPhotoId,
     openById,
-    clearPendingPhoto,
+    setPendingPhoto,
     close,
     next,
     prev,
@@ -90,14 +90,20 @@ export default function GalleryPageClient() {
       // 「戻るを押したのに何も起きなかった」と見える。もう一度押すと
       // モーダルを開いたままページを離れる。
       //
-      // **自分で消した場合と区別する必要は無い。** 上の同期は開けるまで
-      // `?photo=` を保つので（`pendingPhotoRef`）、ここに null が来るのは
+      // **自分で消した場合と区別しなくてよいのは、下で待ち id を立てて
+      // いるから。** 開けなかった `?photo=` は必ず `setPendingPhoto` に
+      // 預けるので、同期がそれを落とすことは無い。ここに null が来るのは
       // 「開いていない」か「外から消された」ときだけ。
       close();
       return;
     }
     if (photoParam === dismissedRef.current) return;
-    if (filteredPhotos.length === 0) return; // 絞り込みの結果が空
+
+    // **預けるのは「開けなかった」と決まってから。**
+    // 試す前に預けると、開いたあとで同じ効果がもう一度走ったときに
+    // （`photoParam` はまだ古い値のまま）**閉じた直後に預け直して**しまい、
+    // 同期が `?photo=` を書き戻す＝閉じてもURLに残る。
+    if (filteredPhotos.length === 0) { setPendingPhoto(photoParam); return; } // 絞り込みの結果が空
     if (openById(photoParam)) { dismissedRef.current = null; return; }
 
     // **開けなかったことを伝える。**
@@ -111,23 +117,24 @@ export default function GalleryPageClient() {
     // `openById` が探すのは**絞り込んだあと**の一覧なので、フィルターで
     // 外れているだけの写真まで「見つかりません」と言ってしまう。
     // 元の一覧に居るなら黙っておく（絞り込みを勝手に外す方が驚く）。
-    if (PHOTOS.some((p) => p.id === photoParam)) return;
+    // 元の一覧には居る＝絞り込みで外れているだけ。絞り込みを緩めれば開ける
+    if (PHOTOS.some((p) => p.id === photoParam)) { setPendingPhoto(photoParam); return; }
 
     // **API の一覧が届くまでは言わない。** `PHOTOS` の初期値はビルド時の
     // スナップショットなので、そこに無いことは「存在しない」を意味しない
     // ——ビルド後にアップロードされた写真は必ずここに来る。届く前に
     // 言ってしまうと、嘘をつくうえに下の記録が残って**あとから届いても
     // 開かなくなる**（このモーダルは新着写真の唯一の閲覧手段）。
-    if (!photosLoaded) return;
+    if (!photosLoaded) { setPendingPhoto(photoParam); return; }
 
     // **記録は専用の ref に置く。** `dismissedRef` は「一度閉じた写真を
     // 開き直さない」ゲートで、そこへ書くと「トーストを止める」つもりの
     // 1行が「開くのを止める」に化ける（実際そうなっていた）。
     if (notFoundRef.current === photoParam) return;
     notFoundRef.current = photoParam;
-    clearPendingPhoto();   // 無いと分かったので、死んだ ?photo= を URL に残さない
+    setPendingPhoto(null);   // 無いと分かったので、死んだ ?photo= を URL に残さない
     showToast(locale === "en" ? "That photo is no longer available." : "その写真は見つかりませんでした。", "error");
-  }, [photoParam, filteredPhotos, openById, PHOTOS, photosLoaded, showToast, locale, close, clearPendingPhoto]);
+  }, [photoParam, filteredPhotos, openById, PHOTOS, photosLoaded, showToast, locale, close, setPendingPhoto]);
 
   const handleClose = React.useCallback(() => {
     dismissedRef.current = openPhotoId ?? null;
