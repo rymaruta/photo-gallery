@@ -1,5 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { FOCUSABLE } from "../../../../lib/hooks/useFocusTrap";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 // `aria-modal="true"` を付けたモーダルは8つあり、そのうちこの2つだけ
@@ -62,7 +63,7 @@ describe("StoryViewer: Tab が外へ漏れない", () => {
         setup();
         const dialog = screen.getByRole("dialog");
         const items = Array.from(dialog.querySelectorAll<HTMLElement>(
-            'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'));
+            FOCUSABLE));
         expect(items.length).toBeGreaterThan(1);
 
         items[items.length - 1].focus();

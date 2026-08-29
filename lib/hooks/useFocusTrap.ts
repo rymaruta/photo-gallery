@@ -2,8 +2,20 @@
 
 import { useEffect, type RefObject } from "react";
 
-/** Tab で辿れる要素（GalleryModal が使っている並びと同じ） */
-const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+/**
+ * Tab で辿れる要素。
+ *
+ * **`video[controls]` を落とすと、閉じ込めが穴になる。** ストーリーの投稿
+ * プレビューは `<video controls>` を容器の先頭に置いている。ここから漏れると
+ *   - 前向き: 最後の要素から先頭へ折り返すので、**動画に一周しても届かない**
+ *     （トラップを付ける前は、文書を一周すれば届いていた）。投稿前に動画を
+ *     確かめる唯一の手段が、キーボードから消える
+ *   - 後ろ向き: 動画にフォーカスがある状態の Shift+Tab は、`first` でも
+ *     `last` でもないのでどの分岐にも当たらず、**そのまま外へ抜ける**
+ * `audio[controls]` と `iframe` も同じ理由で入れる（今は使っていないが、
+ * 足したときに同じ穴が開く）。
+ */
+export const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), video[controls], audio[controls], iframe, [tabindex]:not([tabindex="-1"])';
 
 /**
  * 開いている間、Tab をその中に閉じ込める。

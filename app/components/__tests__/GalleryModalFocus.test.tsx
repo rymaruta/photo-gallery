@@ -1,5 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { FOCUSABLE } from "../../../lib/hooks/useFocusTrap";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 // **今の挙動を写し取るテスト。**
@@ -114,7 +115,7 @@ describe("GalleryModal: 今のフォーカスの挙動", () => {
         setup();
         const modal = document.querySelector('[role="dialog"]') as HTMLElement;
         const items = Array.from(modal.querySelectorAll<HTMLElement>(
-            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'));
+            FOCUSABLE));
         expect(items.length).toBeGreaterThan(1);
 
         items[items.length - 1].focus();
@@ -129,7 +130,7 @@ describe("GalleryModal: 今のフォーカスの挙動", () => {
         setup();
         const modal = document.querySelector('[role="dialog"]') as HTMLElement;
         const items = Array.from(modal.querySelectorAll<HTMLElement>(
-            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'));
+            FOCUSABLE));
         items[0].focus();
         fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
         expect(document.activeElement).toBe(items[items.length - 1]);

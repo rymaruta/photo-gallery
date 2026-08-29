@@ -291,11 +291,15 @@ export default function StoriesBar() {
     // **Tab を中に閉じ込める。** `fixed inset-0 z-[95]` の全画面で、裏には
     // ストーリーのリングとギャラリーの写真リンクが全部ある。
     //
-    // 最初に当てるのは**キャンセル（✕）**。DOM 順の先頭もそれなので指名は
-    // していないが、キャプション入力を先頭にはしない——スマホでいきなり
-    // キーボードが出るのは、写真を見ながら書く今の作りと合わない。
+    // 最初に当てるのは**キャンセル（✕）**。**指名する。**
+    // DOM 順の先頭は背面のメディアで、動画の下書きでは `<video controls>` が
+    // そこに来る（`video[controls]` を FOCUSABLE に入れたので巡回に乗る）。
+    // 指名しないと、動画を選んだときだけ初期フォーカスが動画に移る。
+    // キャプション入力を先頭にはしない——スマホでいきなりキーボードが
+    // 出るのは、写真を見ながら書く今の作りと合わない。
     const draftRef = useRef<HTMLDivElement | null>(null);
-    useFocusTrap(draft !== null, draftRef);
+    const draftCancelRef = useRef<HTMLButtonElement | null>(null);
+    useFocusTrap(draft !== null, draftRef, undefined, draftCancelRef);
 
     // ファイル選択 → 検証 → 投稿プレビューを開く
     const handleFileSelect = useCallback(async (file: File) => {
@@ -619,7 +623,7 @@ export default function StoriesBar() {
                         <h2 id="story-draft-title" className="text-sm font-semibold text-white drop-shadow">
                             {locale === "en" ? "New story" : "新しいストーリー"}
                         </h2>
-                        <button onClick={closeDraft} disabled={posting} className="p-2 text-white/80 hover:text-white drop-shadow" aria-label={locale === "en" ? "Cancel" : "キャンセル"}>
+                        <button ref={draftCancelRef} onClick={closeDraft} disabled={posting} className="p-2 text-white/80 hover:text-white drop-shadow" aria-label={locale === "en" ? "Cancel" : "キャンセル"}>
                             <XMarkIcon className="w-6 h-6" />
                         </button>
                     </div>
