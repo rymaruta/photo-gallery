@@ -15,6 +15,10 @@ vi.mock("../dynamodb", () => ({
 vi.mock("@aws-sdk/client-s3", () => ({
     S3Client: class { send = mockS3Send; },
     DeleteObjectCommand: class { input: unknown; constructor(input: unknown) { this.input = input; } },
+    // まとめ消し（`s3Delete.ts`）。**これが無いと本番の失敗を再現しない**
+    // ——モックに無い export を読むと vitest が投げるので、削除が全部
+    // 「S3 が落ちた」扱いになる
+    DeleteObjectsCommand: class { input: unknown; constructor(input: unknown) { this.input = input; } },
 }));
 
 // 環境変数はモジュール読込時に評価されるため、stub してから動的 import する
@@ -54,6 +58,21 @@ function storyPuts(): Record<string, unknown>[] {
 // ────────────────────────────────
 // GET /stories
 // ────────────────────────────────
+/**
+ * S3 に消しに行ったキーを平らに並べる。
+ *
+ * **1件ずつの `DeleteObject` から、まとめての `DeleteObjects` に変えた。**
+ * 1行あたり最大8キーを直列に消していたので、「消せなければ行を残す」に
+ * したあと、消せない行が溜まると Lambda の実行時間を食い切る
+ * （`queryStories` は昇順なので、その行は毎回先頭に来る）。
+ * ここで見たいのは**どのキーを消したか**であって、リクエストの数ではない。
+ */
+const deletedKeys = (): string[] =>
+    mockS3Send.mock.calls.flatMap((c) => {
+        const input = (c[0] as { input: { Delete?: { Objects?: Array<{ Key: string }> }; Key?: string } }).input;
+        return input.Delete?.Objects?.map((o) => o.Key) ?? (input.Key ? [input.Key] : []);
+    });
+
 describe("getStories", () => {
     it("未ログイン（sub 欠落）は 401 でストーリーを返さない", async () => {
         const res = await invoke(getStories, authedEvent(undefined));
@@ -359,8 +378,7 @@ describe("deleteStory", () => {
         mockS3Send.mockResolvedValueOnce({});
         const res = await invoke(deleteStory, authedEvent("u1", { pathParameters: { id: "story-1" } }));
         expect(res.statusCode).toBe(200);
-        const s3Input = (mockS3Send.mock.calls[0][0] as { input: { Key: string } }).input;
-        expect(s3Input.Key).toBe("uploads/a.jpg");
+        expect(deletedKeys()).toEqual(["uploads/a.jpg"]);
     });
 
     // **ここは向きを変えた。** 以前は「S3 削除に失敗しても DDB レコードは
@@ -419,7 +437,7 @@ describe("deleteStory", () => {
         const res = await invoke(deleteStory, authedEvent("u1", { pathParameters: { id: "story-1" } }));
         expect(res.statusCode).toBe(200);
 
-        const deleted = mockS3Send.mock.calls.map((c) => (c[0] as { input: { Key: string } }).input.Key);
+        const deleted = deletedKeys();
         expect(deleted).toEqual(expect.arrayContaining([
             "uploads/a.jpg", "uploads/a_orig.jpg", "uploads/a_lg.avif",
             "uploads/a_thumb.webp", "uploads/a_thumb.avif",
@@ -564,8 +582,9 @@ describe("cleanupExpiredStories", () => {
 
         const result = await cleanupExpiredStories();
         expect(result.deleted).toBe(1);
-        const s3Input = (mockS3Send.mock.calls[0][0] as { input: { Bucket: string; Key: string } }).input;
-        expect(s3Input).toEqual({ Bucket: "bucket-test", Key: "uploads/a.jpg" });
+        const input = (mockS3Send.mock.calls[0][0] as { input: { Bucket: string } }).input;
+        expect(input.Bucket).toBe("bucket-test");
+        expect(deletedKeys()).toEqual(["uploads/a.jpg"]);
     });
 
     it("key が無い場合は src の URL パスから導出する", async () => {
@@ -575,8 +594,7 @@ describe("cleanupExpiredStories", () => {
         mockS3Send.mockResolvedValueOnce({});
 
         await cleanupExpiredStories();
-        const s3Input = (mockS3Send.mock.calls[0][0] as { input: { Key: string } }).input;
-        expect(s3Input.Key).toBe("uploads/b.mp4");
+        expect(deletedKeys()).toEqual(["uploads/b.mp4"]);
     });
 
     // 上と同じ向きの変更。期限切れのストーリーは利用者から見えないので、
@@ -601,8 +619,9 @@ describe("cleanupExpiredStories", () => {
                 { id: "good", key: "uploads/good.jpg" },
             ] })
             .mockResolvedValueOnce({});
+        // まとめ消しは投げずに `Errors` を返す形でも失敗を伝える
         mockS3Send
-            .mockRejectedValueOnce(new Error("s3 down"))
+            .mockResolvedValueOnce({ Errors: [{ Key: "uploads/bad.jpg" }] })
             .mockResolvedValueOnce({});
 
         const result = await cleanupExpiredStories();

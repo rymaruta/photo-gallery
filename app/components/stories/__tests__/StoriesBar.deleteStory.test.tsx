@@ -88,6 +88,32 @@ describe("ストーリー削除が断られたとき", () => {
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("削除に失敗しました", "error"));
     });
 
+    // **ここが今回入れた漏れ。** `userFetch` は `fetch` をそのまま返すので、
+    // 機内モードでは `TypeError: Failed to fetch` が飛ぶ。`e.message` を
+    // そのまま出す形にしていたので、**英語の技術文字列が画面に並んで**いた
+    // （アップロード画面が同じ事故で境界を作ってあるのに、使っていなかった）
+    it("通信が落ちたときに、英語の技術文字列を出さない", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (url === "/stories" && !init?.method) {
+                return Promise.resolve({ ok: true, json: async () => [STORY] });
+            }
+            if (url.startsWith("/stories/") && init?.method === "DELETE") {
+                return Promise.reject(new TypeError("Failed to fetch"));
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+
+        const { container } = render(<StoriesBar />);
+        await screen.findByText("あなた");
+        await userEvent.click(container.querySelector("button") as HTMLButtonElement);
+        await userEvent.click(await screen.findByLabelText("ストーリーを削除"));
+        await userEvent.click(await screen.findByRole("button", { name: "削除" }));
+
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("削除に失敗しました", "error"));
+        const shown = String(mockShowToast.mock.calls[0][0]);
+        expect(shown, "英語の技術文字列がそのまま出ている").not.toContain("Failed to fetch");
+    });
+
     it("消えていれば成功として扱う（404）", async () => {
         await openAndDelete({ ok: false, status: 404, json: async () => ({}) });
 

@@ -1,9 +1,10 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { QueryCommand, GetCommand, DeleteCommand, PutCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
-import { S3Client, DeleteObjectCommand, DeleteObjectsCommand } from "@aws-sdk/client-s3";
+import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { mediaKeys } from "./mediaKeys";
+import { s3DeleteMany } from "./s3Delete";
 import { requireEnv } from "./env";
 import { requestSiteRebuild } from "./rebuild";
 import { isDeletedProfile } from "./types";
@@ -72,31 +73,7 @@ async function s3Delete(key: string): Promise<boolean> {
     }
 }
 
-/**
- * 複数キーをまとめて削除する（1リクエスト最大1000件）。
- * 1件ずつ直列に消していた頃は、写真が数十枚あるだけで Lambda の実行時間を
- * 使い切っていた。途中で切られると呼び出し側が「失敗」と表示するのに
- * データは半分消えている、という一番まずい状態になる。
- */
-/** @returns 消せなかったキーの数（0 = 全部消えた） */
-async function s3DeleteMany(keys: string[]): Promise<number> {
-    if (keys.length === 0) return 0;
-    let failedCount = 0;
-    for (let i = 0; i < keys.length; i += 1000) {
-        const chunk = keys.slice(i, i + 1000);
-        try {
-            const res = await s3.send(new DeleteObjectsCommand({
-                Bucket: UPLOAD_BUCKET,
-                Delete: { Objects: chunk.map((Key) => ({ Key })), Quiet: true },
-            }));
-            failedCount += res.Errors?.length ?? 0;
-        } catch (e) {
-            console.error(`deleteAccount: S3 batch delete failed (${chunk.length} keys):`, e);
-            failedCount += chunk.length;
-        }
-    }
-    return failedCount;
-}
+
 
 /** items を最大 limit 本の並列で処理する（Lambda の実行時間を使い切らないため） */
 async function mapWithConcurrency<T>(items: T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {
@@ -338,7 +315,7 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                     // srcOriginal（GPS入り原本）を消し漏らしうるので失敗に数える
                     itemFailures++;
                 }
-                itemFailures += await s3DeleteMany(mediaKeys(item));
+                itemFailures += await s3DeleteMany(mediaKeys(item), "deleteAccount");
                 // その写真に付いたコメントも消す。写真だけ消していたので、
                 // 退会後も「本文・投稿者名・投稿者のsub」が誰でも読めるまま
                 // 残っていた（一覧APIは公開で、写真の存在確認もしない）。

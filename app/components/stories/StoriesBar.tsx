@@ -534,12 +534,13 @@ export default function StoriesBar() {
             return true;
         } catch (e) {
             log.error("story delete error:", e);
-            showToast(
-                e instanceof Error && e.message
-                    ? e.message
-                    : (locale === "en" ? "Failed to delete" : "削除に失敗しました"),
-                "error",
-            );
+            // **`e.message` をそのまま出さない。** `userFetch` は `fetch` を
+            // そのまま返すので、機内モードや DNS 失敗では
+            // `TypeError: Failed to fetch`（Safari は "Load failed"）が
+            // 飛んでくる。素で出すと英語の技術文字列が画面に並ぶ
+            // ——アップロード画面が同じ事故で作った境界を使う
+            const { userFacingError } = await import("../../../lib/utils/errorText");
+            showToast(userFacingError(e, locale === "en" ? "Failed to delete" : "削除に失敗しました"), "error");
             return false;
         }
     }, [locale, showToast, loadStories]);

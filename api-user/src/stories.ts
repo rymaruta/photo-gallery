@@ -1,6 +1,5 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { ScanCommand, QueryCommand, PutCommand, GetCommand, UpdateCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
-import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
 import { ddb, PHOTOS_TABLE, USER_INDEX, STORY_INDEX, STORY_FEED_KEY } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError, isAdmin } from "./http";
@@ -8,22 +7,15 @@ import { lookupDisplayName } from "./notify";
 import { mediaKeys, deriveUploadKey } from "./mediaKeys";
 import { isOwnUploadUrl } from "./upload";
 import { keyFromUploadUrl, canonicalUploadUrl } from "./uploadPolicy";
+import { s3DeleteMany } from "./s3Delete";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
-import { requireEnv } from "./env";
 import { truncate } from "./sanitize";
 
-// **未設定なら起動時に止める。** `?? ""` / `!` にしていた頃は、環境変数が
-// 空でも S3 の削除を**黙って飛ばして** DynamoDB の行だけ消し、成功を返していた。
-// GPS 入りの原本（srcOriginal）を含む実体が公開URLに残り、項目が消えている
-// ので**どの削除経路からも二度と辿れない**。
-// 取り返しのつかない削除なので「分からないなら止める」に倒す
-// （profile.ts と同じ扱い。CLAUDE.md の方針）。
-const UPLOAD_BUCKET = requireEnv("UPLOAD_BUCKET");
+// バケット名の検証と S3 の削除は `s3Delete.ts` に寄せた（未設定なら
+// そちらの読み込みで止まる）。
 const STORY_TTL_MS = 24 * 60 * 60 * 1000; // 24時間
 const STORY_DAILY_LIMIT = 20; // 1ユーザーが24時間に投稿できるストーリー数
 const STORY_DEFAULT_DURATION_SEC = 5; // 画像ストーリーの既定表示秒数（この値なら保存しない）
-
-const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 
 // ストーリーレコードから S3 オブジェクトキーを導出する
 // （key フィールド優先、無ければ src の URL パスから）
@@ -412,15 +404,7 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         //
         // 押し直せば続きから消える（消せたキーは S3 に無いので、再実行の
         // DeleteObject は成功する）。24時間で期限切れになれば掃除が拾う。
-        let s3Failures = 0;
-        for (const key of storyMediaKeys(item)) {
-            try {
-                await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));
-            } catch (e) {
-                s3Failures += 1;
-                console.error(`deleteStory: S3 delete failed for ${key}:`, e);
-            }
-        }
+        const s3Failures = await s3DeleteMany(storyMediaKeys(item), "deleteStory");
         if (s3Failures > 0) {
             return jsonError(500, "画像の削除を完了できませんでした。時間をおいてもう一度お試しください");
         }
@@ -446,15 +430,13 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
         // 期限切れのストーリーは利用者からは見えないので、行が残っても
         // 害は無い。翌日の実行が同じキーをもう一度消しに行く。
         // 逆に行だけ消すと、GPS 入りの動画が誰にも辿れないまま残る。
-        let s3Failures = 0;
-        for (const key of storyMediaKeys(item)) {
-            try {
-                await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));
-            } catch (e) {
-                s3Failures += 1;
-                console.error(`cleanup: S3 delete failed for ${key}:`, e);
-            }
-        }
+        // **1行1リクエストにまとめる。** 1行あたり最大8キーを直列に消して
+        // いたので、「消せなければ行を残す」に変えたあと、消せない行が
+        // 溜まると実行時間を食い切る——`queryStories` は `expiresAt` の
+        // 昇順なので、その行は**毎回先頭に来る**。後ろにいる新しい
+        // 期限切れストーリーに永久に到達しなくなる（そちらの GPS 入り
+        // 動画が公開URLに残り続ける）。
+        const s3Failures = await s3DeleteMany(storyMediaKeys(item), `cleanup(${id})`);
         if (s3Failures > 0) {
             console.error(`cleanup: keeping ${id} (S3 delete failed; will retry next run)`);
             continue;
