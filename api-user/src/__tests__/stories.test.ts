@@ -363,13 +363,36 @@ describe("deleteStory", () => {
         expect(s3Input.Key).toBe("uploads/a.jpg");
     });
 
-    it("S3 削除に失敗しても DDB レコードは削除する", async () => {
+    // **ここは向きを変えた。** 以前は「S3 削除に失敗しても DDB レコードは
+    // 削除する」を固定していたが、それだと行（＝S3 キーの唯一の手がかり）が
+    // 消えて、**GPS 入りの動画がどの削除経路からも辿れない**孤児になる。
+    // 写真の3経路（`deleteMyPhoto`・`deleteAccount`・管理の `deletePhoto`）は
+    // 全部「消せなければ行を残す」で、理由もそこに書いてある。
+    // ストーリーだけ逆だった。
+    it("S3 削除に失敗したら、行を残して 500 を返す（孤児を作らない）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "u1", key: "uploads/a.jpg" } });
+        mockS3Send.mockRejectedValueOnce(new Error("s3 down"));
+        const res = await invoke(deleteStory, authedEvent("u1", { pathParameters: { id: "story-1" } }));
+        expect(res.statusCode).toBe(500);
+        // 押し直せば続きから消える、と読める文言を返す
+        expect(JSON.parse(res.body).error).toContain("もう一度");
+        // **行を消していない**（ここが要点。消すと二度と辿れない）
+        const deletes = mockDdbSend.mock.calls.filter(
+            (c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand");
+        expect(deletes, "S3 が消せていないのに行を消した").toHaveLength(0);
+    });
+
+    it("S3 が消せていれば、これまでどおり行も消す（正常系）", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "u1", key: "uploads/a.jpg" } })
             .mockResolvedValueOnce({});
-        mockS3Send.mockRejectedValueOnce(new Error("s3 down"));
+        mockS3Send.mockResolvedValueOnce({});
         const res = await invoke(deleteStory, authedEvent("u1", { pathParameters: { id: "story-1" } }));
         expect(res.statusCode).toBe(200);
+        const deletes = mockDdbSend.mock.calls.filter(
+            (c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand");
+        expect(deletes).toHaveLength(1);
     });
 
     // 以前はサムネ生成スクリプトがストーリーも対象にしていたため、
@@ -556,14 +579,38 @@ describe("cleanupExpiredStories", () => {
         expect(s3Input.Key).toBe("uploads/b.mp4");
     });
 
-    it("S3 削除に失敗しても DDB レコードは削除する", async () => {
+    // 上と同じ向きの変更。期限切れのストーリーは利用者から見えないので、
+    // 行が残っても害は無く、翌日の実行が同じキーをもう一度消しに行く。
+    // 逆に行だけ消すと、GPS 入りの動画が誰にも辿れないまま残る。
+    it("S3 削除に失敗したら行を残す（翌日やり直せる）", async () => {
         mockDdbSend
-            .mockResolvedValueOnce({ Items: [{ id: "story-3", key: "uploads/c.jpg" }] })
-            .mockResolvedValueOnce({});
+            .mockResolvedValueOnce({ Items: [{ id: "story-3", key: "uploads/c.jpg" }] });
         mockS3Send.mockRejectedValueOnce(new Error("s3 down"));
 
         const result = await cleanupExpiredStories();
+        expect(result.deleted).toBe(0);
+        const deletes = mockDdbSend.mock.calls.filter(
+            (c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand");
+        expect(deletes, "S3 が消せていないのに行を消した").toHaveLength(0);
+    });
+
+    it("1件失敗しても、消せた分は消す（全部止めない）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Items: [
+                { id: "bad", key: "uploads/bad.jpg" },
+                { id: "good", key: "uploads/good.jpg" },
+            ] })
+            .mockResolvedValueOnce({});
+        mockS3Send
+            .mockRejectedValueOnce(new Error("s3 down"))
+            .mockResolvedValueOnce({});
+
+        const result = await cleanupExpiredStories();
         expect(result.deleted).toBe(1);
+        const deletes = mockDdbSend.mock.calls.filter(
+            (c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand");
+        expect(deletes).toHaveLength(1);
+        expect((deletes[0][0] as { input: { Key: { id: string } } }).input.Key.id).toBe("good");
     });
 
     it("期限切れが無ければ何もしない", async () => {

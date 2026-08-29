@@ -399,12 +399,30 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
 
         // 原本だけでなく派生画像も消す。過去にサムネ生成がストーリーも対象に
         // していた時期があり、その分が max-age=31536000 で残っている。
+        //
+        // **消せなければ行も消さない。**
+        //
+        // ここは「S3失敗でもレコードは消す」だった。行は S3 キーの唯一の
+        // 手がかりなので、消し残したまま行を消すと**どの削除経路からも
+        // 二度と辿れない**孤児になる。しかもストーリーの実体は動画で、
+        // 位置情報は**丸めていない**（写真は約1kmに丸めて公開する前提）。
+        // 写真の3経路（`photoUpdate.deleteMyPhoto`・`account.deleteAccount`・
+        // `api/photosMutate.deletePhoto`）は全部「消せなければ行を残す」に
+        // 揃っていて、理由もそこに書いてある。**ストーリーだけ逆だった。**
+        //
+        // 押し直せば続きから消える（消せたキーは S3 に無いので、再実行の
+        // DeleteObject は成功する）。24時間で期限切れになれば掃除が拾う。
+        let s3Failures = 0;
         for (const key of storyMediaKeys(item)) {
             try {
                 await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));
             } catch (e) {
-                console.error(`deleteStory: S3 delete failed for ${key}:`, e); // S3失敗でもレコードは消す
+                s3Failures += 1;
+                console.error(`deleteStory: S3 delete failed for ${key}:`, e);
             }
+        }
+        if (s3Failures > 0) {
+            return jsonError(500, "画像の削除を完了できませんでした。時間をおいてもう一度お試しください");
         }
         await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyId } }));
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
@@ -424,12 +442,22 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
         const id = String(item.id ?? "");
         if (!id) continue;
 
+        // **消せなければ行を残す**（上の deleteStory と同じ理由）。
+        // 期限切れのストーリーは利用者からは見えないので、行が残っても
+        // 害は無い。翌日の実行が同じキーをもう一度消しに行く。
+        // 逆に行だけ消すと、GPS 入りの動画が誰にも辿れないまま残る。
+        let s3Failures = 0;
         for (const key of storyMediaKeys(item)) {
             try {
                 await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));
             } catch (e) {
+                s3Failures += 1;
                 console.error(`cleanup: S3 delete failed for ${key}:`, e);
             }
+        }
+        if (s3Failures > 0) {
+            console.error(`cleanup: keeping ${id} (S3 delete failed; will retry next run)`);
+            continue;
         }
 
         try {

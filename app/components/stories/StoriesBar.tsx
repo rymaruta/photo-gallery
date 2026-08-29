@@ -515,19 +515,31 @@ export default function StoriesBar() {
     // 自分のストーリーを削除
     const handleDeleteStory = useCallback(async (storyId: string) => {
         try {
-            const { userFetch, isGoneResponse } = await import("../../../lib/utils/api");
+            const { userFetch, isGoneResponse, readApiError } = await import("../../../lib/utils/api");
             const res = await userFetch(`/stories/${encodeURIComponent(storyId)}`, { method: "DELETE" });
             // 404 は成功として扱う（別タブで先に消した／24時間で期限切れ）。
             // 失敗と読んで throw していたので `loadStories()` に到達せず、
             // **もう存在しないストーリーがバーに残り続けた**（開くと画像が
             // 取れない）。消えているなら目的は達成している。
-            if (!res.ok && !await isGoneResponse(res)) throw new Error(`delete ${res.status}`);
+            if (!res.ok && !await isGoneResponse(res)) {
+                // **サーバーの理由をそのまま出す。** 画像を消せなかったときは
+                // 行を残して 500 を返す（＝押し直せば続きから消える）ので、
+                // 「削除に失敗しました」だけだと、もう一度押せばよいことが
+                // 伝わらない
+                throw new Error(await readApiError(res,
+                    locale === "en" ? "Failed to delete" : "削除に失敗しました"));
+            }
             showToast(locale === "en" ? "Story deleted" : "ストーリーを削除しました", "success");
             await loadStories();
             return true;
         } catch (e) {
             log.error("story delete error:", e);
-            showToast(locale === "en" ? "Failed to delete" : "削除に失敗しました", "error");
+            showToast(
+                e instanceof Error && e.message
+                    ? e.message
+                    : (locale === "en" ? "Failed to delete" : "削除に失敗しました"),
+                "error",
+            );
             return false;
         }
     }, [locale, showToast, loadStories]);
