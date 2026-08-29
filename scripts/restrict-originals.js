@@ -69,6 +69,17 @@ function readerPrincipals(policy) {
         const actions = asArray(s.Action).map(String);
         const grantsRead = actions.some((a) => a === "*" || a === "s3:*" || a === "s3:GetObject");
         if (!grantsRead) continue;
+        // **Principal は文字列でも書ける。** `"Principal": "*"`（匿名公開）は
+        // `s.Principal.AWS` が undefined なので、オブジェクト形式しか見て
+        // いなかった頃は**その文を無いものとして飛ばして**いた。
+        // 結果、匿名 read を許している バケットでは Deny が
+        // CloudFront 宛てだけになり、**GPS 入りの原本が S3 直 URL の匿名 GET で
+        // 取れたまま**、しかもスクリプトは成功で終わる——このファイルの
+        // 冒頭が「一番まずい形」と書いているそれ。
+        if (typeof s.Principal === "string") {
+            aws.add(s.Principal);
+            continue;
+        }
         for (const v of asArray(s.Principal?.AWS)) aws.add(String(v));
         for (const v of asArray(s.Principal?.Service)) services.add(String(v));
     }

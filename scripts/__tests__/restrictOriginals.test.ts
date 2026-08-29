@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { withDenyStatement, STATEMENT_SID, PREFIX } = require("../restrict-originals.js");
+const { withDenyStatement, readerPrincipals, STATEMENT_SID, PREFIX } = require("../restrict-originals.js");
 
 type Statement = {
     Sid?: string;
@@ -111,5 +111,43 @@ describe("withDenyStatement", () => {
         const existing: Policy = { Version: "2012-10-17", Statement: [{ Sid: "Keep" }] };
         withDenyStatement(existing, BUCKET);
         expect(existing.Statement).toHaveLength(1);
+    });
+});
+
+// **`Principal` は文字列でも書ける。** `"Principal": "*"`（匿名公開）は
+// `s.Principal.AWS` が undefined なので、オブジェクト形式しか見ていなかった
+// 頃は**その文を無いものとして飛ばして**いた。結果、Deny が CloudFront 宛て
+// だけになり、**GPS 入りの原本が S3 直 URL の匿名 GET で取れたまま**、
+// しかもスクリプトは成功で終わる——このファイルが「一番まずい形」と
+// 呼んでいるそれ。
+describe("Principal が文字列で書かれていても拾う", () => {
+    const anon = {
+        Version: "2012-10-17",
+        Statement: [{
+            Sid: "PublicRead", Effect: "Allow", Principal: "*",
+            Action: "s3:GetObject", Resource: "arn:aws:s3:::b/*",
+        }],
+    };
+
+    it("匿名公開（Principal: \"*\"）を拒否対象に含める", () => {
+        expect(readerPrincipals(anon)).toEqual({ AWS: ["*"] });
+    });
+
+    it("Deny 文にもその Principal が載る", () => {
+        const next = withDenyStatement(anon, "b");
+        const deny = next.Statement.find((s: { Sid?: string }) => s.Sid === STATEMENT_SID);
+        expect(deny.Principal).toEqual({ AWS: ["*"] });
+        expect(deny.Resource).toBe(`arn:aws:s3:::b/${PREFIX}*`);
+    });
+
+    it("文字列とオブジェクトが混ざっていても両方拾う", () => {
+        const mixed = {
+            Version: "2012-10-17",
+            Statement: [
+                { Sid: "PublicRead", Effect: "Allow", Principal: "*", Action: "s3:GetObject", Resource: "x" },
+                { Sid: "Cf", Effect: "Allow", Principal: { Service: "cloudfront.amazonaws.com" }, Action: "s3:GetObject", Resource: "x" },
+            ],
+        };
+        expect(readerPrincipals(mixed)).toEqual({ AWS: ["*"], Service: ["cloudfront.amazonaws.com"] });
     });
 });

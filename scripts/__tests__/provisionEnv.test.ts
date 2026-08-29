@@ -189,3 +189,53 @@ describe("ユーザープールの設定（lib/auth/cognito.ts と対）", () =>
         expect(call![1]).not.toContain("PasswordPolicy");
     });
 });
+
+// `PutBucketPolicy` はポリシーごと差し替えるので、1文だけ書くと他が消える。
+// 消えて困るのが `restrict-originals.js` の Deny——「GPS 入りの原本を配信から
+// 外す」ためのもので、これが消えると**塞いだはずの原本がまた配れる**。
+// しかも provision-env は「既にあります」で素通りする作りなので、
+// 流し直した人は上書きしたことに気づかない。
+describe("CloudFront の読み取り許可は、他の文を消さない", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let withCloudFrontRead: any;
+    beforeAll(() => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        ({ withCloudFrontRead } = require("../provision-env.js"));
+    });
+
+    const DENY = {
+        Sid: "DenyCloudFrontReadOfOriginals",
+        Effect: "Deny",
+        Principal: { Service: "cloudfront.amazonaws.com" },
+        Action: "s3:GetObject",
+        Resource: "arn:aws:s3:::b/uploads/originals/*",
+    };
+
+    it("originals の Deny を残す", () => {
+        const next = withCloudFrontRead({ Version: "2012-10-17", Statement: [DENY] }, "b", "arn:cf:1");
+        const sids = next.Statement.map((x: { Sid: string }) => x.Sid);
+        expect(sids).toContain("DenyCloudFrontReadOfOriginals");
+        expect(sids).toContain("AllowCloudFrontServicePrincipalReadOnly");
+    });
+
+    it("同じ Sid の古い文は入れ替える（重複させない）", () => {
+        const old = {
+            Sid: "AllowCloudFrontServicePrincipalReadOnly",
+            Effect: "Allow", Principal: { Service: "cloudfront.amazonaws.com" },
+            Action: "s3:GetObject", Resource: "arn:aws:s3:::b/*",
+            Condition: { StringEquals: { "AWS:SourceArn": "arn:cf:OLD" } },
+        };
+        const next = withCloudFrontRead({ Version: "2012-10-17", Statement: [DENY, old] }, "b", "arn:cf:NEW");
+        const allows = next.Statement.filter((x: { Sid: string }) => x.Sid === "AllowCloudFrontServicePrincipalReadOnly");
+        expect(allows).toHaveLength(1);
+        expect(allows[0].Condition.StringEquals["AWS:SourceArn"]).toBe("arn:cf:NEW");
+        expect(next.Statement.map((x: { Sid: string }) => x.Sid)).toContain("DenyCloudFrontReadOfOriginals");
+    });
+
+    it("ポリシーがまだ無いバケットでも作れる", () => {
+        const next = withCloudFrontRead(null, "b", "arn:cf:1");
+        expect(next.Version).toBe("2012-10-17");
+        expect(next.Statement).toHaveLength(1);
+        expect(next.Statement[0].Sid).toBe("AllowCloudFrontServicePrincipalReadOnly");
+    });
+});

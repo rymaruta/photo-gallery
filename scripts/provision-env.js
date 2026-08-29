@@ -26,7 +26,7 @@ const {
 } = require("@aws-sdk/client-dynamodb");
 const {
     S3Client, CreateBucketCommand, HeadBucketCommand,
-    PutPublicAccessBlockCommand, PutBucketPolicyCommand, PutBucketCorsCommand,
+    PutPublicAccessBlockCommand, PutBucketPolicyCommand, GetBucketPolicyCommand, PutBucketCorsCommand,
 } = require("@aws-sdk/client-s3");
 const {
     CloudFrontClient, GetDistributionConfigCommand, CreateDistributionCommand,
@@ -201,22 +201,51 @@ async function ensureUploadCors() {
 }
 
 /** CloudFront（OAC）からだけ読めるようにバケットポリシーを張る */
-async function allowCloudFrontRead(bucket, distributionArn) {
-    log(`  ${bucket}: CloudFront からの読み取りを許可`);
-    if (!APPLY) return;
-    await s3.send(new PutBucketPolicyCommand({
-        Bucket: bucket,
-        Policy: JSON.stringify({
-            Version: "2012-10-17",
-            Statement: [{
-                Sid: "AllowCloudFrontServicePrincipalReadOnly",
+const CF_READ_SID = "AllowCloudFrontServicePrincipalReadOnly";
+
+/**
+ * 既にあるポリシーに、CloudFront 読み取りの1文を**重ねる**。
+ *
+ * **全体を置き換えてはいけない。** `PutBucketPolicy` はポリシーごと差し替え
+ * なので、1文だけ書くと他の文が消える。実際に消えて困るのが
+ * `restrict-originals.js` の `DenyCloudFrontReadOfOriginals`——
+ * 「GPS 入りの原本を配信から外す」ための Deny で、これが消えると
+ * **塞いだはずの原本がまた配れる**。しかも誰も気づかない。
+ *
+ * `restrict-originals.js` の `withDenyStatement` と同じ考え方
+ * （同じ Sid の文だけ入れ替えて、他はそのまま）。
+ */
+function withCloudFrontRead(policy, bucket, distributionArn) {
+    return {
+        Version: policy?.Version ?? "2012-10-17",
+        Statement: [
+            ...(policy?.Statement ?? []).filter((s) => s?.Sid !== CF_READ_SID),
+            {
+                Sid: CF_READ_SID,
                 Effect: "Allow",
                 Principal: { Service: "cloudfront.amazonaws.com" },
                 Action: "s3:GetObject",
                 Resource: `arn:aws:s3:::${bucket}/*`,
                 Condition: { StringEquals: { "AWS:SourceArn": distributionArn } },
-            }],
-        }),
+            },
+        ],
+    };
+}
+
+async function allowCloudFrontRead(bucket, distributionArn) {
+    log(`  ${bucket}: CloudFront からの読み取りを許可`);
+    if (!APPLY) return;
+    let current = null;
+    try {
+        const res = await s3.send(new GetBucketPolicyCommand({ Bucket: bucket }));
+        current = JSON.parse(res.Policy);
+    } catch (e) {
+        // ポリシーがまだ無いのは正常（新しいバケット）
+        if (e?.name !== "NoSuchBucketPolicy") throw e;
+    }
+    await s3.send(new PutBucketPolicyCommand({
+        Bucket: bucket,
+        Policy: JSON.stringify(withCloudFrontRead(current, bucket, distributionArn)),
     }));
 }
 
@@ -469,4 +498,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { buildStagingConfig, stripLambdaAssociations, USER_POOL_CONFIG };
+module.exports = { buildStagingConfig, stripLambdaAssociations, withCloudFrontRead, USER_POOL_CONFIG };
