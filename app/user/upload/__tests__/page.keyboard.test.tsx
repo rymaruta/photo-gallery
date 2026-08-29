@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 
 // キーボードだけで写真を選べなかった件。
 //
@@ -109,5 +109,38 @@ describe("アップロード: キーボードで写真を選べる", () => {
             const holder = el.closest('[class*="focus-within"]');
             expect(holder, `focus-within が input の祖先に無い: ${el.id || "(id なし)"}`).not.toBeNull();
         }
+    });
+});
+
+// サーバーは超えた分を黙って切る。上限を入力にも入れる。
+// 説明とタグに入れない理由は /user/edit と同じ（段落ごと／タグ1つあたり）。
+describe("アップロード: サーバーの上限を入力にも入れる", () => {
+    // 共通設定の欄は、写真を1枚選ぶまで描かれない
+    async function withOnePhoto() {
+        const utils = render(<UploadPage />);
+        const input = utils.container.querySelector('input[type="file"]') as HTMLInputElement;
+        Object.defineProperty(input, "files", {
+            value: [new File(["x"], "a.jpg", { type: "image/jpeg" })], configurable: true,
+        });
+        fireEvent.change(input);
+        return utils;
+    }
+
+    it("カテゴリは maxLength=100", async () => {
+        await withOnePhoto();
+        const el = await screen.findByPlaceholderText(/カテゴリ/);
+        expect(el.getAttribute("maxlength")).toBe("100");
+    });
+
+    it("タイトルは maxLength=200", async () => {
+        await withOnePhoto();
+        const el = await screen.findByPlaceholderText(/タイトル/);
+        expect(el.getAttribute("maxlength")).toBe("200");
+    });
+
+    it("タグには maxLength を入れない（上限はタグ1つあたりなので）", async () => {
+        await withOnePhoto();
+        const el = await screen.findByPlaceholderText(/タグ/);
+        expect(el.getAttribute("maxlength")).toBeNull();
     });
 });

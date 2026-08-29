@@ -111,6 +111,16 @@ function CropPreview({ src, hint }: { src: string; hint: string }) {
     );
 }
 
+// **サーバーの上限と同じ数字。** 入れないと、超えた分は保存時に黙って
+// 切られる（保存は成功したように見えて、あとで開くと末尾が無い）。
+// 説明とタグに入れていない理由は /user/edit と同じ——説明はサーバーが
+// **段落ごと**に切り、タグはカンマ区切りの1入力で上限が**タグ1つあたり**
+// なので、欄全体に上限を入れると「サーバーは受け付けるのに入力できない」に
+// なる。
+const TITLE_MAX = 200;
+const LOCATION_MAX = 200;
+const CATEGORY_MAX = 100;
+
 function UploadPageInner() {
     const { isAuthenticated, isAdminUser, loading } = useAuth();
     const gate = useMemberGate();
@@ -753,6 +763,7 @@ function UploadPageInner() {
                         type="text"
                         value={category}
                         onChange={(e) => setCategory(e.target.value)}
+                        maxLength={CATEGORY_MAX}
                         placeholder={locale === "en" ? "Category (e.g. Landscape)" : "カテゴリ（例: 風景）"}
                         className={inputCls}
                         list="own-categories"
@@ -817,6 +828,7 @@ function UploadPageInner() {
                                     type="text"
                                     value={it.title}
                                     onChange={(e) => updateItem(it.id, { title: e.target.value })}
+                                    maxLength={TITLE_MAX}
                                     placeholder={locale === "en" ? "Title (optional)" : "タイトル（任意）"}
                                     className={inputCls}
                                     style={{ fontSize: "16px" }}
@@ -856,6 +868,7 @@ function UploadPageInner() {
                                             type="text"
                                             value={it.location}
                                             onChange={(e) => updateItem(it.id, { location: e.target.value })}
+                                            maxLength={LOCATION_MAX}
                                             placeholder={locale === "en" ? "Location (optional)" : "場所（任意）"}
                                             className={inputCls}
                                             list="own-locations"

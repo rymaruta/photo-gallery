@@ -56,6 +56,18 @@ export function mergeLocalizedDescription(original: Photo["description"], ja: st
     return { ...(lines.length ? { ja: lines } : {}), en };
 }
 
+// **サーバーの上限と同じ数字を入れる。** 入れないと、超えた分は
+// `sanitizeText` / `sanitizeTitle` が黙って切る——保存は成功したように見えて、
+// あとで開くと末尾が無い。上限を告げる文言も出していなかった。
+//
+// 説明とタグには入れていない。説明はサーバー側が**段落ごと**に 2000 で
+// 切る（最大50段落）ので、textarea 全体に 2000 を入れると
+// 「サーバーは受け付けるのに入力できない」が新しく生まれる。タグは
+// カンマ区切りの1入力で、上限は**タグ1つあたり** 50 なので同じ理由。
+const TITLE_MAX = 200;
+const LOCATION_MAX = 200;
+const CATEGORY_MAX = 100;
+
 function EditContent() {
     const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
     const router = useRouter();
@@ -339,6 +351,7 @@ function EditContent() {
                     <div>
                         <label className={labelCls}>{isJa ? "タイトル" : "Title"}</label>
                         <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+                            maxLength={TITLE_MAX}
                             className={inputCls} style={{ fontSize: "16px" }}
                             placeholder={isJa ? "任意" : "Optional"} />
                     </div>
@@ -354,6 +367,7 @@ function EditContent() {
                         <div>
                             <label className={labelCls}>{isJa ? "場所" : "Location"}</label>
                             <input type="text" value={location} onChange={(e) => setLocation(e.target.value)}
+                                maxLength={LOCATION_MAX}
                                 list="own-locations"
                                 className={inputCls} style={{ fontSize: "16px" }} placeholder={isJa ? "任意" : "Optional"} />
                             {/* 前に使った値を候補に出す（選ばずに自由入力もできる） */}
@@ -364,6 +378,7 @@ function EditContent() {
                         <div>
                             <label className={labelCls}>{isJa ? "カテゴリ" : "Category"}</label>
                             <input type="text" value={category} onChange={(e) => setCategory(e.target.value)}
+                                maxLength={CATEGORY_MAX}
                                 list="own-categories"
                                 className={inputCls} style={{ fontSize: "16px" }} placeholder={isJa ? "例: 風景" : "e.g. Landscape"} />
                             <datalist id="own-categories">
