@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { withDenyStatement, readerPrincipals, STATEMENT_SID, PREFIX } = require("../restrict-originals.js");
+const { withDenyStatement, readerPrincipals, hasAnonymousRead, STATEMENT_SID, PREFIX } = require("../restrict-originals.js");
 
 type Statement = {
     Sid?: string;
@@ -120,34 +120,57 @@ describe("withDenyStatement", () => {
 // だけになり、**GPS 入りの原本が S3 直 URL の匿名 GET で取れたまま**、
 // しかもスクリプトは成功で終わる——このファイルが「一番まずい形」と
 // 呼んでいるそれ。
-describe("Principal が文字列で書かれていても拾う", () => {
-    const anon = {
+//
+// **ただし「拾って Deny に載せる」は誤りだった**（一度そう直して、レビューで
+// 気づいた）。リソースベースポリシーの明示的 Deny はあらゆる Allow を
+// 上書きするので、`{AWS: ["*"]}` を載せると**このアカウントの IAM ユーザーも
+// root も**その prefix を読めなくなる——上の「止めるのは配信経由の読み取り
+// だけ」が守っている契約に正面から反する。戻すには手でポリシーを編集するしかない。
+//
+// なので「見つけたら止める」にした。塞ぐには匿名公開そのものを消す必要がある。
+describe("匿名公開が残っているときは、適用せずに止める", () => {
+    const anonString = {
         Version: "2012-10-17",
-        Statement: [{
-            Sid: "PublicRead", Effect: "Allow", Principal: "*",
-            Action: "s3:GetObject", Resource: "arn:aws:s3:::b/*",
-        }],
+        Statement: [{ Sid: "PublicRead", Effect: "Allow", Principal: "*", Action: "s3:GetObject", Resource: "arn:aws:s3:::b/*" }],
+    };
+    const anonObject = {
+        Version: "2012-10-17",
+        Statement: [{ Sid: "PublicRead", Effect: "Allow", Principal: { AWS: "*" }, Action: "s3:GetObject", Resource: "arn:aws:s3:::b/*" }],
     };
 
-    it("匿名公開（Principal: \"*\"）を拒否対象に含める", () => {
-        expect(readerPrincipals(anon)).toEqual({ AWS: ["*"] });
+    it("文字列形式の匿名を見つける", () => {
+        expect(hasAnonymousRead(anonString)).toBe(true);
     });
 
-    it("Deny 文にもその Principal が載る", () => {
-        const next = withDenyStatement(anon, "b");
-        const deny = next.Statement.find((s: { Sid?: string }) => s.Sid === STATEMENT_SID);
-        expect(deny.Principal).toEqual({ AWS: ["*"] });
-        expect(deny.Resource).toBe(`arn:aws:s3:::b/${PREFIX}*`);
+    it("オブジェクト形式の匿名も見つける", () => {
+        expect(hasAnonymousRead(anonObject)).toBe(true);
     });
 
-    it("文字列とオブジェクトが混ざっていても両方拾う", () => {
+    it("CloudFront だけの許可は匿名ではない", () => {
+        const cf = {
+            Version: "2012-10-17",
+            Statement: [{ Sid: "Cf", Effect: "Allow", Principal: { Service: "cloudfront.amazonaws.com" }, Action: "s3:GetObject", Resource: "x" }],
+        };
+        expect(hasAnonymousRead(cf)).toBe(false);
+    });
+
+    // **ここが要点。** どちらの形でも、Deny に `*` を載せてはいけない
+    it.each([["文字列", anonString], ["オブジェクト", anonObject]])(
+        "%s形式の匿名でも、Deny に * を載せない（自分のアカウントを締め出さない）",
+        (_name, policy) => {
+            const deny = withDenyStatement(policy, "b").Statement
+                .find((s: { Sid?: string }) => s.Sid === STATEMENT_SID);
+            expect(JSON.stringify(deny.Principal)).not.toContain('"*"');
+        });
+
+    it("正当な ARN と * が混ざっていたら、ARN だけ写す", () => {
         const mixed = {
             Version: "2012-10-17",
-            Statement: [
-                { Sid: "PublicRead", Effect: "Allow", Principal: "*", Action: "s3:GetObject", Resource: "x" },
-                { Sid: "Cf", Effect: "Allow", Principal: { Service: "cloudfront.amazonaws.com" }, Action: "s3:GetObject", Resource: "x" },
-            ],
+            Statement: [{
+                Sid: "Mixed", Effect: "Allow", Action: "s3:GetObject", Resource: "x",
+                Principal: { AWS: ["*", "arn:aws:iam::1:role/r"] },
+            }],
         };
-        expect(readerPrincipals(mixed)).toEqual({ AWS: ["*"], Service: ["cloudfront.amazonaws.com"] });
+        expect(readerPrincipals(mixed)).toEqual({ AWS: ["arn:aws:iam::1:role/r"] });
     });
 });

@@ -69,18 +69,24 @@ function readerPrincipals(policy) {
         const actions = asArray(s.Action).map(String);
         const grantsRead = actions.some((a) => a === "*" || a === "s3:*" || a === "s3:GetObject");
         if (!grantsRead) continue;
-        // **Principal は文字列でも書ける。** `"Principal": "*"`（匿名公開）は
-        // `s.Principal.AWS` が undefined なので、オブジェクト形式しか見て
-        // いなかった頃は**その文を無いものとして飛ばして**いた。
-        // 結果、匿名 read を許している バケットでは Deny が
-        // CloudFront 宛てだけになり、**GPS 入りの原本が S3 直 URL の匿名 GET で
-        // 取れたまま**、しかもスクリプトは成功で終わる——このファイルの
-        // 冒頭が「一番まずい形」と書いているそれ。
-        if (typeof s.Principal === "string") {
-            aws.add(s.Principal);
-            continue;
+        // **匿名（`Principal: "*"` / `{AWS: "*"}`）はここでは拾わない。**
+        //
+        // 一度「拾って Deny に載せる」ようにしたが、**誤りだった**。
+        // リソースベースポリシーの明示的 Deny は、あらゆる Allow を上書きする。
+        // `Deny` に `{AWS: ["*"]}` を書くと、匿名だけでなく**このアカウントの
+        // IAM ユーザーも root も**その prefix を読めなくなる——すぐ下の
+        // 「止めるのは配信経由の読み取りだけ」が守っている契約
+        // （「"*" にすると原本から撮影日を復元する手段まで失う」）に正面から
+        // 反する。戻すにはバケットポリシーを手で編集するしかない。
+        //
+        // 匿名の許可がある場合は、この Deny では正しく塞げない。
+        // 呼び出し側が `hasAnonymousRead` で見つけて**止める**（下）。
+        // `*` は絶対に写さない（オブジェクト形式 `{AWS: "*"}` でも同じ）。
+        // 写した瞬間に自分のアカウントごと締め出す Deny ができる。
+        // 匿名の許可がある場合は hasAnonymousRead が呼び出し側で止める。
+        for (const v of asArray(s.Principal?.AWS)) {
+            if (String(v) !== "*") aws.add(String(v));
         }
-        for (const v of asArray(s.Principal?.AWS)) aws.add(String(v));
         for (const v of asArray(s.Principal?.Service)) services.add(String(v));
     }
     if (aws.size === 0 && services.size === 0) return DEFAULT_PRINCIPAL;
@@ -109,6 +115,32 @@ function withDenyStatement(policy, bucket) {
         Resource: `arn:aws:s3:::${bucket}/${PREFIX}*`,
     });
     return next;
+}
+
+/**
+ * 匿名に読み取りを許している文があるか。
+ *
+ * `Principal` は文字列でも書ける（`"Principal": "*"`）ので、
+ * オブジェクト形式だけ見ていると**無いものとして飛ばす**。飛ばすと
+ * Deny が CloudFront 宛てだけになり、**GPS 入りの原本が S3 直 URL の
+ * 匿名 GET で取れたまま**、しかもスクリプトは成功で終わる——
+ * このファイルの冒頭が「一番まずい形」と書いているそれ。
+ *
+ * ただし**見つけても Deny には載せない**（載せると自分のアカウントごと
+ * 締め出す。上の readerPrincipals を見よ）。ここは「この Deny では
+ * 塞げない状態だ」と気づくためだけに使い、呼び出し側は**適用せずに止める**。
+ * 匿名公開そのものを消す（Block Public Access を有効にする）のが筋。
+ */
+function hasAnonymousRead(policy) {
+    for (const s of policy?.Statement ?? []) {
+        if (s?.Sid === STATEMENT_SID) continue;
+        if (s?.Effect !== "Allow") continue;
+        const actions = asArray(s.Action).map(String);
+        if (!actions.some((a) => a === "*" || a === "s3:*" || a === "s3:GetObject")) continue;
+        if (s.Principal === "*") return true;
+        if (asArray(s.Principal?.AWS).some((v) => String(v) === "*")) return true;
+    }
+    return false;
 }
 
 /** ドライランでも実行でも同じ判定を使う（差分の説明用） */
@@ -165,6 +197,26 @@ async function main() {
         console.log("[originals] バケットポリシーは未設定です。");
     }
 
+    // **匿名公開が残っているなら、この Deny では塞げない。止める。**
+    //
+    // Deny の Principal は「実際に許されている相手」を写す作りなので、
+    // 匿名（`"*"`）を写すと**このアカウントの IAM ユーザーも root も**
+    // 締め出す（明示的 Deny はあらゆる Allow を上書きする）。かといって
+    // 写さなければ、匿名 GET は素通りのまま「塞ぎました」と出る——
+    // このファイルの冒頭が「一番まずい形」と呼んでいるそれ。
+    // どちらも駄目なので、**適用せずに理由を出して落とす**。
+    if (hasAnonymousRead(current)) {
+        console.error(
+            "[originals] このバケットは匿名（Principal: \"*\"）に読み取りを許しています。\n" +
+            "[originals] その状態では、ここで入れる Deny は原本を塞げません" +
+            "（塞ごうとすると自分のアカウントごと締め出します）。\n" +
+            "[originals] 先に匿名公開そのものを消してください" +
+            "（S3 の Block Public Access を有効にするか、その Allow 文を削る）。",
+        );
+        process.exitCode = 1;
+        return;
+    }
+
     const nextPolicy = withDenyStatement(current, BUCKET);
     console.log(`[originals] ${describeChange(current)}`);
     console.log(JSON.stringify(nextPolicy.Statement.find((s) => s.Sid === STATEMENT_SID), null, 2));
@@ -193,7 +245,7 @@ async function main() {
     console.log("\n[originals] 完了。配信が 403 になったことをブラウザで確かめてください。");
 }
 
-module.exports = { withDenyStatement, readerPrincipals, describeChange, PREFIX, STATEMENT_SID };
+module.exports = { withDenyStatement, readerPrincipals, hasAnonymousRead, describeChange, PREFIX, STATEMENT_SID };
 
 if (require.main === module) {
     main().catch((e) => {
