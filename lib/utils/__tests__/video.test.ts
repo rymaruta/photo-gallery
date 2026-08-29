@@ -127,6 +127,80 @@ describe("消せないものは上げない", () => {
     });
 });
 
+// **ここは自分が入れた素通り経路。** 「消せたことを確かめてから返す」と
+// 書きながら、条件次第で**原本と1バイト違わないものを返して**いた。
+// どれも例外にならず、確認も走らないので、静かに公開される。
+describe("素通りさせない（1周目の修正に空いていた穴）", () => {
+    const geoUdta = box("udta", box(String.fromCharCode(0xa9) + "xyz", enc("+35.6586+139.7454/")));
+
+    it("箱として端まで読み切れないファイルは断る", async () => {
+        // `mdat` の宣言サイズが実体より大きい（末尾が切れている）。
+        // 「読めた分だけ返す」にしていたので `ftyp` で走査が終わり、
+        // そのうしろの moov には一度も触らないまま原本が返っていた
+        const src = [
+            ...box("ftyp", enc("isom")),
+            0, 0, 0xff, 0xff, ...enc("mdat"), 1, 2, 3, 4,
+            ...box("moov", geoUdta),
+        ];
+        await expect(toUploadSafeVideo(fileOf(src))).rejects.toBeInstanceOf(UnstrippableFileError);
+    });
+
+    // 上の「端まで読み切れない」と `moov` の確認は**別の場面に効く**。
+    // ここは moov を読んだ**あと**に解釈できない尾がある場合で、
+    // moov の確認だけでは通ってしまう（尾はそのままコピーされる）
+    it("moov を読んだあとに解釈できない尾があれば断る", async () => {
+        const xmp = enc("<x:xmpmeta><exif:GPSLatitude>35,39.5N</exif:GPSLatitude></x:xmpmeta>");
+        const src = [
+            ...box("ftyp", enc("isom")),
+            ...box("moov", box("mvhd", [0, 0, 0, 0])),
+            0, 0, 0xff, 0xff, ...enc("uuid"), ...xmp,   // 宣言サイズが実体より大きい
+        ];
+        await expect(toUploadSafeVideo(fileOf(src))).rejects.toBeInstanceOf(UnstrippableFileError);
+    });
+
+    it("最上位に moov が無いファイルは断る", async () => {
+        const src = [...box("ftyp", enc("isom")), ...box("mdat", [...XYZ, ...enc("+35.6+139.7/")])];
+        await expect(toUploadSafeVideo(fileOf(src))).rejects.toBeInstanceOf(UnstrippableFileError);
+    });
+
+    // XMP は**最上位の** `uuid` に入る。`©xyz` しか見ていなかったので
+    // `exif:GPSLatitude` がそのまま通っていた
+    it("最上位 uuid の XMP に座標があれば断る", async () => {
+        const xmp = enc("<x:xmpmeta><exif:GPSLatitude>35,39.5N</exif:GPSLatitude></x:xmpmeta>");
+        const src = [
+            ...box("ftyp", enc("isom")),
+            ...box("uuid", [...new Array(16).fill(1), ...xmp]),
+            ...box("moov", box("mvhd", [0, 0, 0, 0])),
+        ];
+        await expect(toUploadSafeVideo(fileOf(src))).rejects.toBeInstanceOf(UnstrippableFileError);
+    });
+
+    it("フラグメント MP4（moof/traf/udta）からも落とす", async () => {
+        const src = [
+            ...box("ftyp", enc("isom")),
+            ...box("moov", box("mvhd", [0, 0, 0, 0])),
+            ...box("moof", box("traf", geoUdta)),
+        ];
+        const out = await toUploadSafeVideo(fileOf(src));
+        const bytes = new Uint8Array(await out.arrayBuffer());
+        expect(out.size).toBe(src.length);
+        expect(hasLocationMarker(bytes), "traf/udta の位置情報が残っている").toBe(false);
+    });
+
+    // 確認を moov 全体でやると、`stco` のバイナリに ©xyz が偶然並んだだけで
+    // 弾いてしまう（300KB で約1/14,000）。位置情報の無い動画が理由も
+    // 分からず上げられなくなる——mdat を見ない理由と同じ
+    it("moov の中の偶然の並びでは弾かない", async () => {
+        const stbl = box("stbl", box("stco", [...XYZ, ...XYZ]));
+        const src = [
+            ...box("ftyp", enc("isom")),
+            ...box("moov", box("trak", box("mdia", box("minf", stbl)))),
+        ];
+        const out = await toUploadSafeVideo(fileOf(src));
+        expect(out.size).toBe(src.length);
+    });
+});
+
 describe("壊れた箱で暴走しない", () => {
     it("長さ0の箱で無限ループしない", () => {
         // size=0 は「最後まで」。中に入っても進めないので、そこで止まる

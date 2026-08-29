@@ -360,7 +360,11 @@ describe("控えの上限", () => {
         await getAssets(155);
 
         const { assets } = await countKinds(cache);
-        expect(assets.length).toBeLessThanOrEqual(150);
+        // **上からだけでなく、値そのものを挟む。**
+        // `toBeLessThanOrEqual(150)` だけだと、上限を 20 に下げても緑になる
+        // ——20 は「1ページ開くだけで自分のチャンクを追い出す」水準で、
+        // オフラインの目的が崩れる。直したい方向の回帰を捕まえない形だった
+        expect(assets.length, "資産の上限が変わった（下げると同じ版どうしで追い出し合う）").toBe(150);
         const urls = (await cache.keys()).map((k) => k.url);
         expect(urls.some((u) => u.endsWith("/chunks/c154.js"))).toBe(true);
         expect(urls.some((u) => u.endsWith("/chunks/c0.js"))).toBe(false);

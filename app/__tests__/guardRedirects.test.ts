@@ -19,29 +19,44 @@ import { join } from "node:path";
 // ここは**行を数えるのではなく、その1行がどちらの呼び方かを見る**。
 // 綴りだけ見て通す形にしない（この campaign で何度も出ている型）。
 describe("行き止まりからの遷移は replace で書く", () => {
-    /** ファイル → その中で「送り返し」に当たる遷移が含む文字列 */
-    const SITES: Array<[string, string[]]> = [
-        ["lib/hooks/useMemberGate.ts", ["loginWithNext("]],
-        ["app/login/page.tsx", ["nextPath ?? (userId ?", "nextPath ?? (result.userId ?"]],
-        ["app/signup/page.tsx", ['isAuthenticated) router']],
-        ["app/admin/login/page.tsx", ['"/admin")', '"/")']],
-        ["app/admin/page.tsx", ['"/admin/login")', '"/")']],
-        ["app/admin/edit/page.tsx", ['"/admin/login")', '"/")']],
-        // `(ROUTES.DRAFTS)` と括弧まで見る。保存後の遷移
-        // （`push(published ? ROUTES.PHOTO(id) : ROUTES.DRAFTS)`）は
-        // **前に進む遷移なので push のまま**で、そちらを巻き込まないため
-        ["app/user/edit/page.tsx", ["(ROUTES.DRAFTS)"]],
+    const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8").split("\n");
+    const callsOn = (lines: string[], needle: string, kind: "push" | "replace") =>
+        lines.filter((l) => l.includes(needle) && new RegExp(`router(Ref\\.current)?\\.${kind}\\(`).test(l));
+
+    /**
+     * ファイル → その中の遷移を、**呼び方ごとの本数**で数える。
+     *
+     * 前は「その needle を含む行が push でないこと」だけを見ていたが、
+     * needle に当たらない行は**そもそも数えられない**——`admin/edit` の
+     * `replace(ROUTES.ADMIN)` 2か所がどの needle にも当たらず、
+     * push に戻しても全件緑だった（レビューが実測）。
+     * 本数で見れば、1本でも呼び方が変われば必ず落ちる。
+     */
+    const SITES: Array<[string, string, number, number]> = [
+        // ファイル, needle, replace の本数, push の本数
+        ["lib/hooks/useMemberGate.ts", "loginWithNext(", 1, 0],
+        ["app/login/page.tsx", "nextPath ?? (", 2, 0],
+        ["app/signup/page.tsx", "isAuthenticated) router", 1, 0],
+        ["app/admin/login/page.tsx", '"/admin")', 1, 0],
+        ["app/admin/login/page.tsx", '"/")', 1, 0],
+        ["app/admin/page.tsx", '"/admin/login")', 1, 0],
+        ["app/admin/page.tsx", '"/")', 1, 0],
+        ["app/admin/edit/page.tsx", '"/admin/login")', 1, 0],
+        ["app/admin/edit/page.tsx", '"/")', 1, 0],
+        // **ここが抜けていた。** 「写真が見つかりません」「読み込みに失敗
+        // しました」からの送り返し2本と、保存後の前進遷移1本が同じ
+        // `ROUTES.ADMIN` なので、本数で分ける
+        ["app/admin/edit/page.tsx", "ROUTES.ADMIN)", 2, 1],
+        // 「写真が見つかりません」と削除後の2本が replace、保存後の1本が push
+        ["app/user/edit/page.tsx", "ROUTES.DRAFTS)", 2, 1],
     ];
 
-    it.each(SITES)("%s の送り返しは push を使っていない", (file, needles) => {
-        const src = readFileSync(join(process.cwd(), file), "utf8");
-        for (const needle of needles) {
-            const lines = src.split("\n").filter((l) => l.includes(needle) && /router(Ref\.current)?\.(push|replace)\(/.test(l));
-            expect(lines.length, `${file}: 「${needle}」を含む遷移が見つからない（テストが実装からずれている）`).toBeGreaterThan(0);
-            for (const line of lines) {
-                expect(line, `${file}: ${line.trim()} — push だと戻るで往復して抜けられない`).not.toMatch(/router(Ref\.current)?\.push\(/);
-            }
-        }
+    it.each(SITES)("%s の「%s」は replace %d 本 / push %d 本", (file, needle, replaces, pushes) => {
+        const lines = read(file);
+        expect(callsOn(lines, needle, "replace").length,
+            `${file}: 「${needle}」の replace の本数が変わった（push に戻していないか）`).toBe(replaces);
+        expect(callsOn(lines, needle, "push").length,
+            `${file}: 「${needle}」の push の本数が変わった`).toBe(pushes);
     });
 
     // 逆向き（消しすぎ）も見る。前に進む遷移まで replace にすると、

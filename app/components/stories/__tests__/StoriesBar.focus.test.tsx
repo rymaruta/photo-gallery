@@ -122,6 +122,27 @@ async function openDraft() {
     return screen.findByRole("dialog");
 }
 
+/**
+ * **中身も MP4 にする。** 動画は選んだ時点で `toUploadSafeVideo` を通る
+ * （位置情報を落とす関門）ので、`new File(["x"], …)` のような中身では
+ * 「解釈できない＝上げない」で弾かれ、下書きが開かない。
+ * 最小の ISO-BMFF（ftyp + moov/mvhd + mdat）を渡す。
+ */
+function mp4Bytes(): number[] {
+    const enc = (t: string) => Array.from(t, (c) => c.charCodeAt(0));
+    const box = (type: string, payload: number[] = []) => {
+        const size = 8 + payload.length;
+        return [(size >>> 24) & 0xff, (size >>> 16) & 0xff, (size >>> 8) & 0xff, size & 0xff, ...enc(type), ...payload];
+    };
+    return [
+        ...box("ftyp", enc("isom")),
+        ...box("moov", box("mvhd", new Array(8).fill(0))),
+        ...box("mdat", new Array(16).fill(0x11)),
+    ];
+}
+
+const videoFile = () => new File([Uint8Array.from(mp4Bytes())], "story.mp4", { type: "video/mp4" });
+
 describe("ストーリーの投稿プレビュー: Tab が外へ漏れない", () => {
     // **前に「開いた瞬間の位置は主張できない」と書いたが、誤りだった。**
     // 「押せる要素は0で、容器に tabIndex=-1 が付く」と書いていたが、実際に
@@ -148,7 +169,7 @@ describe("ストーリーの投稿プレビュー: Tab が外へ漏れない", (
         try {
             const { container } = render(<StoriesBar />);
             await screen.findByText("あなた");
-            selectFile(container, new File(["x"], "story.mp4", { type: "video/mp4" }));
+            selectFile(container, videoFile());
 
             const dialog = await screen.findByRole("dialog");
             expect(dialog.querySelector("video")).not.toBeNull();
@@ -166,7 +187,7 @@ describe("ストーリーの投稿プレビュー: Tab が外へ漏れない", (
         try {
             const { container } = render(<StoriesBar />);
             await screen.findByText("あなた");
-            selectFile(container, new File(["x"], "story.mp4", { type: "video/mp4" }));
+            selectFile(container, videoFile());
 
             const dialog = await screen.findByRole("dialog");
             const items = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE));

@@ -82,15 +82,28 @@ beforeEach(() => {
     }
 });
 
-/** 動画を選んで下書きを開き、投稿ボタンまで進める */
-async function postVideo() {
+/**
+ * 動画を選ぶ。`expectDraft` が true なら投稿まで進める。
+ *
+ * **待ち方を場合ごとに分ける。** 両方を1つの `findByRole().catch()` で
+ * 書くと、断られる場合は既定の待ち（1秒）を必ず使い切り、通る場合は
+ * 「1秒以内にボタンが出るか」という**時間依存の判定**になる
+ * （フルスイートを並列で回すと、負荷次第でたまに落ちる形）。
+ * 通る場合は余裕をもって待ち、断られる場合はトーストを待ってから
+ * 「ボタンが無いこと」を見る。
+ */
+async function selectVideo(expectDraft: boolean) {
     const restore = stubVideoMetadata();
     try {
         const { container } = render(<StoriesBar />);
         await screen.findByText("あなた");
         const input = container.querySelector('input[type="file"]') as HTMLInputElement;
         await userEvent.upload(input, new File(["original"], "story.mp4", { type: "video/mp4" }));
-        const post = await screen.findByRole("button", { name: /ストーリーに投稿/ });
+        if (!expectDraft) {
+            await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
+            return;
+        }
+        const post = await screen.findByRole("button", { name: /ストーリーに投稿/ }, { timeout: 5000 });
         await userEvent.click(post);
     } finally {
         restore.mockRestore();
@@ -102,7 +115,7 @@ describe("動画も位置情報を落としてから上げる", () => {
         const cleaned = new File(["cleaned"], "story.mp4", { type: "video/mp4" });
         mockSafeVideo.mockResolvedValue(cleaned);
 
-        await postVideo();
+        await selectVideo(true);
 
         await waitFor(() => expect(mockSafeVideo).toHaveBeenCalledTimes(1));
         // 渡されたのは選んだ原本
@@ -112,13 +125,17 @@ describe("動画も位置情報を落としてから上げる", () => {
         expect(putBodies()[0], "原本がそのまま上がっている").toBe(cleaned);
     });
 
-    it("落とせない動画は上げない（presign も PUT もしない）", async () => {
+    // **断るのは選んだ時点。** 投稿時に断ると、プレビュー・キャプション・
+    // 曲選びまで進めてから「上げられません」になり、下書きが全部無駄になる
+    it("落とせない動画は下書きにも進まない（presign も PUT もしない）", async () => {
         mockSafeVideo.mockRejectedValue(new UnstrippableFileError("video/webm"));
 
-        await postVideo();
+        await selectVideo(false);
 
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
             expect.stringContaining("位置情報を取り除けません"), "error"));
+        expect(screen.queryByRole("button", { name: /ストーリーに投稿/ }),
+            "落とせないのに下書きまで進めている").toBeNull();
         expect(putBodies(), "落とせないのに上げている").toHaveLength(0);
         expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/presigned-url"),
             "落とせないのに presign を取っている").toBe(false);
@@ -127,9 +144,16 @@ describe("動画も位置情報を落としてから上げる", () => {
     it("準備が想定外に落ちたときも上げない", async () => {
         mockSafeVideo.mockRejectedValue(new Error("boom"));
 
-        await postVideo();
+        await selectVideo(false);
 
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("動画の準備に失敗しました", "error"));
         expect(putBodies()).toHaveLength(0);
+    });
+
+    it("関門は1回だけ通す（同じ処理を二度走らせない）", async () => {
+        mockSafeVideo.mockResolvedValue(new File(["cleaned"], "story.mp4", { type: "video/mp4" }));
+        await selectVideo(true);
+        await waitFor(() => expect(putBodies()).toHaveLength(1));
+        expect(mockSafeVideo).toHaveBeenCalledTimes(1);
     });
 });

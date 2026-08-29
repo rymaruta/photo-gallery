@@ -313,6 +313,7 @@ export default function StoriesBar() {
             showToast(locale === "en" ? "File too large (max 50MB)" : "ファイルが大きすぎます（最大50MB）", "error");
             return;
         }
+        let prepared = file;
         if (isVideo) {
             try {
                 const duration = await getVideoDuration(file);
@@ -324,8 +325,34 @@ export default function StoriesBar() {
                 showToast(locale === "en" ? "Could not read the video" : "動画を読み込めませんでした", "error");
                 return;
             }
+            // **位置情報はここで落とす。** 動画だけ関門を通していなかったので、
+            // 丸めていない緯度経度が付いたまま公開URLに乗っていた
+            // （iPhone の .mov、Android の .mp4 のどちらも入る）。
+            //
+            // **投稿時ではなく選択時にやる。** 投稿時だと、落とせない動画
+            // （WebM など）でもプレビュー・キャプション・曲選びまで進めてから
+            // 断ることになり、作った下書きが全部無駄になる。
+            // ここ1か所だけに置く——投稿時にも同じ関門を重ねると、
+            // 片方を壊してもテストが緑のままになる。
+            try {
+                const { toUploadSafeVideo } = await import("../../../lib/utils/video");
+                prepared = await toUploadSafeVideo(file);
+            } catch (e) {
+                if (e instanceof UnstrippableFileError) {
+                    showToast(
+                        locale === "en"
+                            ? "This video's location data can't be removed. Please try a different file (MP4 or MOV)."
+                            : "この動画は位置情報を取り除けません。別のファイル（MP4 か MOV）をお試しください。",
+                        "error",
+                    );
+                } else {
+                    log.error("story video prepare failed:", e);
+                    showToast(locale === "en" ? "Failed to prepare the video" : "動画の準備に失敗しました", "error");
+                }
+                return;
+            }
         }
-        setDraft({ file, previewUrl: URL.createObjectURL(file), mediaType: isVideo ? "video" : "image" });
+        setDraft({ file: prepared, previewUrl: URL.createObjectURL(prepared), mediaType: isVideo ? "video" : "image" });
         setCaption("");
     }, [locale, showToast]);
 
@@ -348,33 +375,7 @@ export default function StoriesBar() {
         };
         try {
             let uploadFile = draft.file;
-            if (draft.mediaType === "video") {
-                // **動画にも同じ関門を通す。** ここに `else` が無かったので、
-                // 動画だけメタデータを一切落とさずに原本のまま上がっていた
-                // ——写真は「EXIF を落とし、座標は約1kmに丸めて公開する」
-                // 前提なのに、動画だけ**丸めていない緯度経度**が公開URLに乗る
-                // （iPhone の .mov、Android の .mp4 のどちらも入る）。
-                try {
-                    const { toUploadSafeVideo } = await import("../../../lib/utils/video");
-                    uploadFile = await toUploadSafeVideo(draft.file);
-                } catch (e) {
-                    if (e instanceof UnstrippableFileError) {
-                        showToast(
-                            locale === "en"
-                                ? "This video's location data can't be removed. Please try a different file (MP4 or MOV)."
-                                : "この動画は位置情報を取り除けません。別のファイル（MP4 か MOV）をお試しください。",
-                            "error",
-                        );
-                    } else {
-                        log.error("story video prepare failed:", e);
-                        showToast(
-                            locale === "en" ? "Failed to prepare the video" : "動画の準備に失敗しました",
-                            "error",
-                        );
-                    }
-                    return; // setPosting(false) は下の finally が担当する
-                }
-            } else if (draft.mediaType === "image") {
+            if (draft.mediaType === "image") {
                 // 写真アップロードと同じ「消せたものだけ上げる」経路を使う。
                 // 以前は compressImage → 失敗したら stripJpegExif という順だったが、
                 // compressImage は GIF・getContext が null・エンコード失敗のときに

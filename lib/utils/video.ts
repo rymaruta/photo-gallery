@@ -46,11 +46,18 @@ import { UnstrippableFileError } from "./image";
 /** 位置情報が入っている箱。中身ごと `free` にする */
 const METADATA_BOXES = new Set(["udta", "meta"]);
 
-/** 中に入って探す箱（この中に udta / meta がぶら下がる） */
-const CONTAINER_BOXES = new Set(["moov", "trak"]);
+/** 中に入って探す箱（この中に udta / meta がぶら下がる）。
+ *  `moof`/`traf` を落とすと、フラグメント MP4 の `traf/udta` が素通りする */
+const CONTAINER_BOXES = new Set(["moov", "trak", "moof", "traf"]);
 
-/** 走査と書き換えの対象にする、最上位の箱 */
-const TOP_LEVEL_TARGETS = new Set(["moov", "meta", "udta"]);
+/**
+ * 走査と書き換えの対象にする、最上位の箱。
+ *
+ * `uuid` を入れているのは**確認のため**（書き換えはしない）。XMP は
+ * 最上位の `uuid` に入るので、ここを外すとそのまま公開される
+ * ——実際に外れていて、`exif:GPSLatitude` が素通りしていた。
+ */
+const TOP_LEVEL_TARGETS = new Set(["moov", "meta", "udta", "moof", "uuid"]);
 
 /**
  * 残っていたら「消せていない」と判断する目印。
@@ -62,6 +69,10 @@ const LOCATION_MARKERS: readonly number[][] = [
     [0xa9, 0x78, 0x79, 0x7a],                                   // ©xyz
     Array.from("com.apple.quicktime.location", (c) => c.charCodeAt(0)),
     Array.from("location.ISO6709", (c) => c.charCodeAt(0)),
+    // XMP（`uuid` の箱に入る）。**`©xyz` だけ見ていたので素通りしていた**
+    Array.from("exif:GPSLatitude", (c) => c.charCodeAt(0)),
+    Array.from("exif:GPSLongitude", (c) => c.charCodeAt(0)),
+    Array.from("GPSCoordinates", (c) => c.charCodeAt(0)),
 ];
 
 const FREE = [0x66, 0x72, 0x65, 0x65]; // "free"
@@ -117,7 +128,14 @@ export function readBox(view: DataView, offset: number, end: number, base = 0): 
  * その範囲の箱を歩いて、メタデータの箱を `free` + 0 埋めにする。
  * `bytes` の先頭がファイル上の `base` に当たる。
  */
-export function neutralizeRange(bytes: Uint8Array, base: number, start: number, end: number): void {
+export function neutralizeRange(
+    bytes: Uint8Array,
+    base: number,
+    start: number,
+    end: number,
+    /** 見つけた `uuid` の範囲（この中だけ目印を探す。下の理由を見よ） */
+    uuidRanges: Array<[number, number]> = [],
+): Array<[number, number]> {
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     let offset = start;
     while (offset < end) {
@@ -128,10 +146,13 @@ export function neutralizeRange(bytes: Uint8Array, base: number, start: number, 
             for (let i = 0; i < 4; i++) bytes[local + 4 + i] = FREE[i];
             bytes.fill(0, local + box.headerSize, box.boxEnd - base);
         } else if (CONTAINER_BOXES.has(box.type)) {
-            neutralizeRange(bytes, base, box.start + box.headerSize, box.boxEnd);
+            neutralizeRange(bytes, base, box.start + box.headerSize, box.boxEnd, uuidRanges);
+        } else if (box.type === "uuid") {
+            uuidRanges.push([local, box.boxEnd - base]);
         }
         offset = box.boxEnd;   // readBox の不変条件により必ず前へ進む
     }
+    return uuidRanges;
 }
 
 /** 目印が残っていないか。1つでもあれば「消せていない」 */
@@ -145,14 +166,23 @@ export function hasLocationMarker(bytes: Uint8Array): boolean {
     return false;
 }
 
-/** 最上位の箱を並べる。ヘッダだけを読むので、大きなファイルでも中身は読まない */
+/**
+ * 最上位の箱を並べる。ヘッダだけを読むので、大きなファイルでも中身は読まない。
+ *
+ * **途中で読めなくなったら null を返す**（読めた分を返さない）。
+ * 以前は「読めた分だけ返す」にしていたので、`mdat` の宣言サイズが実体と
+ * 食い違うファイルでは `ftyp` だけを読んだところで走査が終わり、
+ * **`moov` に一度も触れないまま原本と1バイト違わないものを返していた**
+ * ——`ftyp` があるので例外にもならず、確認も走らない。このファイルが
+ * 直そうとした「消せていないのに上げる」がそのまま残っていた。
+ */
 async function topLevelBoxes(file: File): Promise<Box[] | null> {
     const out: Box[] = [];
     let offset = 0;
     while (offset < file.size) {
         const head = new DataView(await file.slice(offset, offset + MAX_HEADER).arrayBuffer());
         const box = readBox(head, offset, file.size, offset);
-        if (!box) return out.length ? out : null;
+        if (!box) return null;   // 端まで読み切れない＝解釈できていない
         out.push(box);
         offset = box.boxEnd;   // readBox の不変条件により必ず前へ進む
     }
@@ -168,25 +198,52 @@ async function topLevelBoxes(file: File): Promise<Box[] | null> {
  */
 export async function toUploadSafeVideo(file: File): Promise<File> {
     const boxes = await topLevelBoxes(file);
-    // `ftyp` も `moov` も見当たらない＝ISO-BMFF ではない（WebM など）
-    if (!boxes || !boxes.some((b) => b.type === "ftyp" || b.type === "moov")) {
-        throw new UnstrippableFileError(file.type);
-    }
+    // 端まで箱として読み切れない＝ISO-BMFF として解釈できていない（WebM など）
+    if (!boxes) throw new UnstrippableFileError(file.type);
 
     const parts: BlobPart[] = [];
     let cursor = 0;
+    let sawMoov = false;
     for (const box of boxes) {
+        if (box.type === "moov") sawMoov = true;
         if (!TOP_LEVEL_TARGETS.has(box.type)) continue;
         if (box.start > cursor) parts.push(file.slice(cursor, box.start));
         const region = new Uint8Array(await file.slice(box.start, box.boxEnd).arrayBuffer());
-        neutralizeRange(region, box.start, box.start, box.boxEnd);
-        // **書き換えたあとに確かめる。** 走査が途中で止まっていたり、
-        // 知らない箱（`uuid` の XMP など）に入っていれば、ここで見つかる
-        if (hasLocationMarker(region)) throw new UnstrippableFileError(file.type);
+        const uuidRanges = box.type === "uuid"
+            ? [[0, region.length] as [number, number]]   // 最上位の uuid はそれ自体が対象
+            : neutralizeRange(region, box.start, box.start, box.boxEnd);
+
+        // **確認は `uuid` の中だけにする。**
+        //
+        // 書き換えた箱（`udta`/`meta`）は 0 で埋めてあるので、残るとしたら
+        // 知らない箱＝実質 `uuid`（XMP はここに入る）。一方、`moov` 全体を
+        // 見ると `stco`/`stsz` のバイナリに `©xyz` の4バイトが**偶然並ぶ**
+        // （300KB で約1/14,000）。そのとき利用者には「位置情報を取り除け
+        // ません」としか出ず、位置情報の無い動画が理由も分からず弾かれる。
+        // `mdat` を見ない理由（コミット 97d57eb）と同じ理屈が `moov` にも
+        // 当たる、というだけのこと。
+        for (const [from, to] of uuidRanges) {
+            if (hasLocationMarker(region.subarray(from, to))) throw new UnstrippableFileError(file.type);
+        }
         parts.push(region);
         cursor = box.boxEnd;
     }
-    if (cursor < file.size) parts.push(file.slice(cursor));
 
+    // **`moov` に触れないまま返さない。** ここが無いと、最上位に `moov` の
+    // 無いファイル（や読み違えたファイル）で原本がそのまま通る
+    if (!sawMoov) throw new UnstrippableFileError(file.type);
+
+    if (cursor < file.size) parts.push(file.slice(cursor));
     return new File(parts, file.name, { type: file.type, lastModified: file.lastModified });
 }
+
+/**
+ * **直していない穴（記録）**: 時系列メタデータのトラック。
+ *
+ * GoPro などは GPS を「トラック」として持ち、値は `mdat` に入る。ここで
+ * 消しているのは容器のメタデータ（`udta`/`meta`/XMP）だけなので、その形の
+ * 座標は残る。消すにはトラックごと外すことになり、`stco` の作り直しが要る
+ * ——「GPS を消す代わりに動画を壊す」に一番近づく変更なので、実機の動画で
+ * 確かめられるまで手を付けない。iPhone / Android の通常の撮影は容器側に
+ * 入るので、そちらはここで落ちる。
+ */
