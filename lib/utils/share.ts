@@ -1,7 +1,10 @@
 // lib/utils/share.ts
 // 共有機能用のユーティリティ
 
+import { stripLoneSurrogates } from "./text";
+
 /** 共有の結果。呼び出し側はこれを見て出すメッセージを決める。 */
+
 export type ShareResult =
     | "shared"     // 共有シートで共有できた
     | "copied"     // 共有シートが使えずクリップボードにコピーした
@@ -70,7 +73,11 @@ export async function copyToClipboard(text: string): Promise<boolean> {
  */
 export function shareToTwitter(url: string, text?: string): void {
     if (typeof window === "undefined") return;
-    const tweetText = text ? `${text} ${url}` : url;
+    // **表示名は `encodeURIComponent` に生で渡さない。** 切り詰めが絵文字を
+    // 割った表示名（修正前に保存されたもの）が混ざっていると `URIError` で
+    // 投げ、ハンドラの中なので**ボタンが無反応になる**。入口は塞いだが、
+    // 既に保存されている値には効かない。
+    const tweetText = stripLoneSurrogates(text ? `${text} ${url}` : url);
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
     window.open(twitterUrl, "_blank", "width=550,height=420");
 }
@@ -84,6 +91,6 @@ export function shareToTwitter(url: string, text?: string): void {
  */
 export function shareToLine(url: string, text?: string): void {
     if (typeof window === "undefined") return;
-    const lineUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text || "")}`;
+    const lineUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(url)}&text=${encodeURIComponent(stripLoneSurrogates(text || ""))}`;
     window.open(lineUrl, "_blank", "width=550,height=420");
 }

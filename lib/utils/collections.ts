@@ -4,6 +4,7 @@
 
 import type { Photo } from "../data/photos";
 import { sameLocation } from "./related";
+import { stripLoneSurrogates } from "./text";
 
 export type CollectionType = "tag" | "location" | "category";
 
@@ -41,6 +42,14 @@ export function slugify(value: string, type?: CollectionType): string {
         //  - `?` `#` … URL のクエリ・フラグメント区切り。同上。
         //  - `%` … 二重エンコードの入口。decodeURIComponent が化ける。
         .replace(/[/\\?#%]+/g, "-")
+        // **孤立サロゲートも落とす。** 切り詰めが絵文字を割った値が保存されて
+        // いると、`encodeURIComponent` がここで `URIError` を投げる。
+        // 一度 collectionPath 側だけで掃除したが**それは誤りだった**——
+        // ルート（generateStaticParams）は slugify の値をそのまま使うので、
+        // **ページの実体が置かれる URL と、リンク・canonical・サイトマップの
+        // URL が食い違う**（どこからもリンクの無いページと、0件の404 ができる）。
+        // `/` や `%` を落としているのと同じ場所・同じ理由で落とす。
+        .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDFFF]/g, (m) => (m.length === 2 ? m : ""))
         .replace(/-{2,}/g, "-")
         .replace(/^-+|-+$/g, "");
     // **`.` と `..` は捨てる。** パス片としては「今のディレクトリ／親」の
@@ -210,17 +219,15 @@ export function collectionPath(type: CollectionType, slug: string): string {
     } catch {
         // 不正な % シーケンスはそのまま扱う
     }
-    // **`encodeURIComponent` は孤立サロゲートで投げる**（`URIError`）。
-    // 切り詰めが絵文字を割った値が1つでも保存されていると、そのタグの
-    // `generateMetadata` が落ちて**静的ビルドが丸ごと止まる**——`slugify` が
-    // `..` について書いている事故と同じ型。入口（sanitize の truncate）は
-    // 塞いだが、**既に保存されている値には効かない**ので、ここでも受ける。
-    // 壊れた半分は捨てる（URLに載せられないので、載せない方が正しい）。
+    // **保険。** 掃除の本体は `slugify` にある（ルートとリンクが同じ値に
+    // なるのはそちらのおかげ）。ここは slugify を通っていない値が渡ったとき
+    // のためだけに残す——`encodeURIComponent` は孤立サロゲートで `URIError`
+    // を投げ、静的ビルドではそれがビルドごと止める。
     let encoded;
     try {
         encoded = encodeURIComponent(raw);
     } catch {
-        encoded = encodeURIComponent(raw.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, ""));
+        encoded = encodeURIComponent(stripLoneSurrogates(raw));
     }
     return `/${TYPE_PATH[type]}/${encoded}`;
 }
