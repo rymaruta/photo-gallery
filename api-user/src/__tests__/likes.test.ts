@@ -33,15 +33,15 @@ describe("getLikeCount", () => {
     });
 
     it("写真の likes を返す（未設定・負値は 0）", async () => {
-        mockDdbSend.mockResolvedValueOnce({ Item: { likes: 5 } });
+        mockDdbSend.mockResolvedValueOnce({ Item: { src: "https://cdn/x.jpg", likes: 5 } });
         expect(JSON.parse((await invoke(getLikeCount, ev(undefined, "p1"))).body)).toEqual({ likes: 5 });
 
-        mockDdbSend.mockResolvedValueOnce({ Item: {} });
+        mockDdbSend.mockResolvedValueOnce({ Item: { src: "https://cdn/x.jpg" } });
         expect(JSON.parse((await invoke(getLikeCount, ev(undefined, "p2"))).body)).toEqual({ likes: 0 });
 
         // 「負値は 0」と名乗っておきながら、負値を一度も渡していなかった。
         // 過去の引きすぎで負になったデータが表示に出ないことを確かめる。
-        mockDdbSend.mockResolvedValueOnce({ Item: { likes: -2 } });
+        mockDdbSend.mockResolvedValueOnce({ Item: { src: "https://cdn/x.jpg", likes: -2 } });
         expect(JSON.parse((await invoke(getLikeCount, ev(undefined, "p3"))).body)).toEqual({ likes: 0 });
     });
 });
@@ -122,7 +122,7 @@ describe("likePhoto", () => {
     it("いいね済み（マーカー重複）は冪等に現在数を返す（カウンタ増やさない）", async () => {
         mockDdbSend
             .mockRejectedValueOnce(condFail()) // Put marker → 既存
-            .mockResolvedValueOnce({ Item: { likes: 7 } }); // readLikeCount
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/x.jpg", likes: 7 } }); // readLikeCount
         const res = await invoke(likePhoto, ev("u1", "p1"));
         expect(res.statusCode).toBe(200);
         expect(JSON.parse(res.body)).toEqual({ liked: true, likes: 7 });
@@ -227,7 +227,7 @@ describe("unlikePhoto", () => {
     it("未いいね（マーカーなし）は冪等に現在数を返す", async () => {
         mockDdbSend
             .mockRejectedValueOnce(condFail()) // Delete marker → 無い
-            .mockResolvedValueOnce({ Item: { likes: 4 } });
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/x.jpg", likes: 4 } });
         const res = await invoke(unlikePhoto, ev("u1", "p1"));
         expect(res.statusCode).toBe(200);
         expect(JSON.parse(res.body)).toEqual({ liked: false, likes: 4 });
@@ -237,7 +237,7 @@ describe("unlikePhoto", () => {
         mockDdbSend
             .mockResolvedValueOnce({}) // Delete marker
             .mockRejectedValueOnce(condFail()) // Update likes>0 失敗
-            .mockResolvedValueOnce({ Item: { likes: 0 } });
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/x.jpg", likes: 0 } });
         const res = await invoke(unlikePhoto, ev("u1", "p1"));
         expect(res.statusCode).toBe(200);
         expect(JSON.parse(res.body)).toEqual({ liked: false, likes: 0 });
@@ -266,5 +266,54 @@ describe("unlikePhoto", () => {
             .map((c) => c[0] as { constructor: { name: string } })
             .filter((c) => c.constructor.name === "PutCommand");
         expect(puts).toHaveLength(0);
+    });
+});
+
+// **非公開に戻した写真のいいね数が、未認証で読めた。**
+//
+// このルートは公開（`serverless.yml`）で、読み取りは `likes` しか見て
+// いなかった。存在と人気度が漏れるうえ、「不適切な反応が付いたので
+// 非公開にする」が効かない。書き込み側（`likePhoto`）は最初から
+// `src` あり・`published !== false`・`story` 無しを条件にしていて、
+// `getComments` も同じ理由で同じ判定を入れてある。**読み取りだけ
+// 素通しだった。**
+describe("公開されていない写真のいいね数は返さない", () => {
+    const cases: Array<[string, Record<string, unknown>]> = [
+        ["非公開に戻した写真", { src: "https://cdn/x.jpg", published: false, likes: 9 }],
+        ["ストーリー", { src: "https://cdn/x.mp4", story: true, likes: 3 }],
+        ["写真ではない行（マーカー等）", { likes: 12 }],
+    ];
+
+    it.each(cases)("%s は 404", async (_name, item) => {
+        mockDdbSend.mockResolvedValueOnce({ Item: item });
+        const res = await invoke(getLikeCount, ev(undefined, "p1"));
+        expect(res.statusCode).toBe(404);
+        // 数字を漏らさない
+        expect(res.body).not.toContain("9");
+        expect(res.body).not.toContain("12");
+    });
+
+    it("行そのものが無ければ 404", async () => {
+        mockDdbSend.mockResolvedValueOnce({});
+        expect((await invoke(getLikeCount, ev(undefined, "p1"))).statusCode).toBe(404);
+    });
+
+    // `published` が無い古い行は公開扱い（一覧・書き込み側と同じ）
+    it("published が無い古い行は返す", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { src: "https://cdn/x.jpg", likes: 2 } });
+        const res = await invoke(getLikeCount, ev(undefined, "p1"));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body)).toEqual({ likes: 2 });
+    });
+
+    // 冪等の経路（マーカーが既にある／無い）は条件式を通らないので、
+    // 非公開に戻された写真でもここに来られる
+    it("いいね済みの冪等経路でも、非公開なら数字を返さない", async () => {
+        mockDdbSend
+            .mockRejectedValueOnce(condFail())
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/x.jpg", published: false, likes: 7 } });
+        const res = await invoke(likePhoto, ev("u1", "p1"));
+        expect(res.statusCode).toBe(404);
+        expect(res.body).not.toContain("7");
     });
 });

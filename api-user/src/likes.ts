@@ -48,13 +48,30 @@ function definitelyNotApplied(e: unknown): boolean {
     ].includes(name);
 }
 
-async function readLikeCount(photoId: string): Promise<number> {
+/**
+ * いいね数を読む。**公開されている写真でなければ null。**
+ *
+ * `likes` だけを見ていたので、**非公開に戻した写真のいいね数が
+ * 未認証で読めた**（このルートは公開）。存在と人気度が漏れるうえ、
+ * 「不適切な反応が付いたので非公開にする」が効かない。
+ *
+ * 書き込み側（`likePhoto`）は最初から
+ * `attribute_exists(src) AND (attribute_not_exists(published) OR published = true)
+ *  AND attribute_not_exists(story)` を条件にしていて、
+ * `getComments` も同じ理由で同じ判定を入れてある。**読み取りだけ
+ * 素通しだった**ので、そこへ揃える。
+ *
+ * `published` が無い古い行は公開扱い（一覧・書き込み側と同じ）。
+ */
+async function readLikeCount(photoId: string): Promise<number | null> {
     const res = await ddb.send(new GetCommand({
         TableName: PHOTOS_TABLE,
         Key: { id: photoId },
-        ProjectionExpression: "likes",
+        ProjectionExpression: "likes, src, published, story",
     }));
-    const n = res.Item?.likes;
+    const item = res.Item as { likes?: unknown; src?: unknown; published?: unknown; story?: unknown } | undefined;
+    if (!item?.src || item.published === false || item.story === true) return null;
+    const n = item.likes;
     return typeof n === "number" && n > 0 ? n : 0;
 }
 
@@ -63,10 +80,14 @@ export const getLikeCount: APIGatewayProxyHandlerV2 = async (event) => {
     const photoId = event.pathParameters?.id;
     if (!photoId) return jsonError(400, "IDが必要です");
     try {
+        const likes = await readLikeCount(photoId);
+        // **存在も人気度も返さない。** `getComments` と同じ文言・同じ番号に
+        // 揃える（「非公開だから断った」と「そもそも無い」を区別させない）
+        if (likes === null) return jsonError(404, "写真が見つかりません");
         return {
             statusCode: 200,
             headers: { ...JSON_HEADERS, "Cache-Control": "public, s-maxage=30" },
-            body: JSON.stringify({ likes: await readLikeCount(photoId) }),
+            body: JSON.stringify({ likes }),
         };
     } catch (e) {
         console.error("getLikeCount error:", e);
@@ -123,8 +144,12 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             }));
         } catch (e) {
             if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
-                // 既にいいね済み。現在数を返す（冪等）
-                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: true, likes: await readLikeCount(photoId) }) };
+                // 既にいいね済み。現在数を返す（冪等）。
+                // **公開されていなければ数字を返さない**——ここは条件式を
+                // 通らない経路なので、非公開に戻された写真でも来られる
+                const cur = await readLikeCount(photoId);
+                if (cur === null) return jsonError(404, "写真が見つかりません");
+                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: true, likes: cur }) };
             }
             throw e;
         }
@@ -211,7 +236,9 @@ export const unlikePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             }));
         } catch (e) {
             if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
-                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: false, likes: await readLikeCount(photoId) }) };
+                const cur = await readLikeCount(photoId);
+                if (cur === null) return jsonError(404, "写真が見つかりません");
+                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: false, likes: cur }) };
             }
             throw e;
         }
@@ -232,7 +259,8 @@ export const unlikePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             // likes が既に0 or 写真なし → 現在数（0）を返す。
             // この場合は「減らすものが無かった」だけなので、マーカーは戻さない。
             if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
-                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: false, likes: await readLikeCount(photoId) }) };
+                const cur = await readLikeCount(photoId);
+                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: false, likes: cur ?? 0 }) };
             }
             // 減っていないと言い切れる失敗（スロットリング等）ならマーカーを戻す。
             // 戻さないと「マーカーは消えたのにカウンタは減っていない」状態が

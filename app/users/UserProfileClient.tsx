@@ -329,14 +329,27 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 if (photosRes.ok) {
                     const data = await photosRes.json() as unknown;
                     if (Array.isArray(data)) {
-                        const fresh = data as Photo[];
-                        if (fresh.length > 0) {
-                            setPhotos(fresh);
-                        } else {
-                            // 空配列で静的ビルド時のデータを潰さない。潰すと、
-                            // 見えていた写真が「まだ写真がありません」に化ける。
-                            log.warn("写真APIが空を返したため静的データを維持します");
-                        }
+                        // **空配列もそのまま採る。**
+                        //
+                        // 以前は「空で静的データを潰さない」ようにしていたが、
+                        // `GET /photos?userId=` は**公開ぶんだけ**を返すので、
+                        // その人が全部非公開にした／全部消したときの**正解が
+                        // 空**。捨てると、隠したはずの写真がビルド時の
+                        // スナップショットのまま訪問者に出続ける
+                        // （画像・タイトル・`/photo/<id>` へのリンクごと）。
+                        //
+                        // 「空だと写真が消えて見える」を心配していたが、
+                        // **静的側と API 側は同じ集合**なので取り違えない:
+                        // 静的の絞り込みは `p.userId === userId` で、
+                        // API は `userId` の GSI を引く。`userId` を持たない
+                        // 古い行はどちらからも外れる（静的JSONを作る
+                        // `sync-photos-from-ddb.js` は `uploadedBy` を
+                        // `userId` に写さない）。
+                        //
+                        // 取得に失敗したときは `photosRes.ok` が false なので
+                        // ここに来ない＝静的のまま。潰すのは「聞けて、
+                        // 答えが空だった」ときだけ。
+                        setPhotos(data as Photo[]);
                     }
                 }
             } catch (e) {
