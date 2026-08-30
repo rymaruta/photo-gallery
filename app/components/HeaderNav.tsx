@@ -61,6 +61,23 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     }
     const panelRef = useRef<HTMLDivElement | null>(null);
 
+    // **クエリだけ変わる移動でも閉じる。**
+    //
+    // 上の調整は `usePathname` が変わったときにしか効かない。`/users?id=A`
+    // → `?id=B`（プロフィールの行き来）や `/user/edit?id=` はパスが同じ
+    // なので、戻る・進むでメニューも `body` のスクロールロックも残ったまま、
+    // 背後だけが別の人に変わる（スマホの「戻る＝閉じる」と逆）。
+    //
+    // `useSearchParams` は使わない——ルートレイアウトに置くと静的書き出し
+    // 全体に響く。ここで要るのは「履歴を動いた」ことだけなので `popstate` で足りる。
+    // 開いている間だけ聞く（閉じているときに開く方へ倒す経路を作らない）。
+    useEffect(() => {
+        if (!open) return;
+        const close = () => setOpen(false);
+        window.addEventListener("popstate", close);
+        return () => window.removeEventListener("popstate", close);
+    }, [open]);
+
     const handleNavigation = (href: string) => {
         setOpen(false);
         router.push(href);

@@ -294,6 +294,36 @@ describe("画面が変わったらメニューを閉じる", () => {
         expect(document.body.style.overflow, "スクロールロックが復活した").toBe("");
     });
 
+    // **クエリだけ変わる移動もある。** `/users?id=A` → `?id=B`（プロフィールの
+    // 行き来）や `/user/edit?id=` は `usePathname` が変わらないので、上の
+    // 調整は効かない——メニューも `body` のロックも残ったまま、背後だけが
+    // 新しいプロフィールに変わる。`useSearchParams` はルートレイアウトで
+    // 使うと静的書き出し全体に響くので、履歴の移動そのものを聞く。
+    it("クエリだけ変わる戻る・進むでも閉じる", () => {
+        setRole("general");
+        pathname.current = "/users";
+        render(<HeaderNav />);
+        fireEvent.click(screen.getByLabelText("Open menu"));
+        expect(screen.getByRole("dialog")).toBeInTheDocument();
+        expect(document.body.style.overflow).toBe("hidden");
+
+        // 戻る（/users?id=B → /users?id=A）。パスは同じ
+        fireEvent.popState(window, { state: null });
+
+        expect(screen.queryByRole("dialog"), "クエリだけの移動でメニューが残っている").toBeNull();
+        expect(document.body.style.overflow, "スクロールロックが残っている").toBe("");
+    });
+
+    // 閉じているときの戻る・進むは何もしない（開くほうへ倒さない）
+    it("閉じているときの戻る・進むでは何も起きない", () => {
+        setRole("general");
+        pathname.current = "/users";
+        render(<HeaderNav />);
+        fireEvent.popState(window, { state: null });
+        expect(screen.queryByRole("dialog")).toBeNull();
+        expect(document.body.style.overflow).toBe("");
+    });
+
     it("メニューを開いただけでは閉じない（パスは変わらない）", () => {
         setRole("general");
         pathname.current = "/";
