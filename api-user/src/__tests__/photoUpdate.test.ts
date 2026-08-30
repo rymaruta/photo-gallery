@@ -418,12 +418,19 @@ describe("updatePhotoVisibility: 写真以外は触らせない", () => {
 describe("非公開にするときの再ビルド依頼", () => {
     const stored2 = { id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true };
 
-    it("隠すときは畳まない（削除と同じ扱い）", async () => {
+    // **一度ここを素通しにして、逆向きに倒した。**
+    // クールダウンは `coalesce` を指定したときしか効かないのに、月次予算は
+    // 指定の有無に関わらず1加算される。つまりクールダウンは
+    // 「予算を減らす速度の唯一の歯止め」でもあった——素通しにすると
+    // トグル200回で月の予算を使い切れ、その月いっぱい**削除・退会の掃除が
+    // 全部落ちる**。「隠すのが遅れる」を直して「消したのに残る」を月単位で
+    // 作る取り引きだった。畳んだうえで、届かなかったことを下の印で残す。
+    it("隠すときも畳む（予算を減らす速度の歯止めを外さない）", async () => {
         mockDdbSend.mockResolvedValueOnce({ Item: stored2 }).mockResolvedValueOnce({});
         mockRebuild.mockResolvedValue(true);
         await invoke(event("owner", "p1", { published: false }));
         expect(mockRebuild).toHaveBeenCalledTimes(1);
-        expect(mockRebuild.mock.calls[0][1], "隠す依頼が畳まれている").not.toEqual({ coalesce: true });
+        expect(mockRebuild.mock.calls[0][1]).toEqual({ coalesce: true });
     });
 
     it("公開する側は今までどおり畳む（遅れて出るのは privacy の失敗ではない）", async () => {
@@ -475,5 +482,76 @@ describe("非公開にするときの再ビルド依頼", () => {
             .filter((cmd) => (cmd as { constructor: { name: string } })?.constructor?.name === "UpdateCommand");
         expect(updates.some((u) => String((u as { input: { UpdateExpression: string } }).input.UpdateExpression)
             .includes("staticStale"))).toBe(false);
+    });
+});
+
+// **印を下ろすのは、実際に依頼を出して届いたときだけ。**
+//
+// `dispatched` の初期値を `true` にして「依頼したかどうか」を見ていなかった
+// ので、**何も変えずに『保存』を押しただけ**で（依頼は1本も出ていないのに）
+// 印が下りていた。画面は `published` を毎回同梱するので、値が同じなら
+// `visibilityChanged` も `metaChanged` も false になる——そのあと削除しても
+// 掃除を頼まず、塞いだはずの穴が**印を消す側から**戻ってくる。
+describe("何も変わっていない保存では、印を触らない", () => {
+    const hidden = { id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: false, staticStale: true };
+
+    it("依頼を出していないなら、印は下ろさない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: hidden }).mockResolvedValueOnce({});
+        mockRebuild.mockClear();
+        // 非公開のまま、値も変えずに保存（画面は published を毎回送る）
+        await invoke(event("owner", "p1", { published: false }));
+
+        expect(mockRebuild, "何も変わっていないのに依頼を出している").not.toHaveBeenCalled();
+        const updates = mockDdbSend.mock.calls.map((c) => c[0])
+            .filter((cmd) => (cmd as { constructor: { name: string } })?.constructor?.name === "UpdateCommand");
+        expect(updates.some((u) => String((u as { input: { UpdateExpression: string } }).input.UpdateExpression)
+            .includes("REMOVE staticStale")), "依頼していないのに印を下ろした").toBe(false);
+    });
+
+    it("BGM だけ変えた保存でも下ろさない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: hidden }).mockResolvedValueOnce({});
+        mockRebuild.mockClear();
+        await invoke(event("owner", "p1", { song: null }));
+
+        const updates = mockDdbSend.mock.calls.map((c) => c[0])
+            .filter((cmd) => (cmd as { constructor: { name: string } })?.constructor?.name === "UpdateCommand");
+        expect(updates.some((u) => String((u as { input: { UpdateExpression: string } }).input.UpdateExpression)
+            .includes("REMOVE staticStale"))).toBe(false);
+    });
+});
+
+// Get → Update の2段なので、その間に写真が消えると `staticStale` だけを
+// 持つ**幽霊行**ができる（一覧・GSI・詳細のどれからも辿れず、本人にも
+// 消せない）。本体の更新は同じ理由で条件を付けてある。印の2本も同じ。
+describe("印の書き込みも幽霊行を作らない", () => {
+    it("staticStale の Update には attribute_exists(id) が付く", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true } })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);   // 届かない → 印を立てる
+        await invoke(event("owner", "p1", { published: false }));
+
+        const marks = mockDdbSend.mock.calls.map((c) => c[0])
+            .filter((cmd) => (cmd as { constructor: { name: string } })?.constructor?.name === "UpdateCommand")
+            .filter((u) => String((u as { input: { UpdateExpression: string } }).input.UpdateExpression).includes("staticStale"));
+        expect(marks).toHaveLength(1);
+        expect((marks[0] as { input: { ConditionExpression?: string } }).input.ConditionExpression,
+            "幽霊行を作りうる書き込みに条件が無い").toBe("attribute_exists(id)");
+    });
+
+    it("印を下ろす Update にも付く", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true, staticStale: true } })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(true);
+        await invoke(event("owner", "p1", { published: false }));
+
+        const marks = mockDdbSend.mock.calls.map((c) => c[0])
+            .filter((cmd) => (cmd as { constructor: { name: string } })?.constructor?.name === "UpdateCommand")
+            .filter((u) => String((u as { input: { UpdateExpression: string } }).input.UpdateExpression).includes("REMOVE staticStale"));
+        expect(marks).toHaveLength(1);
+        expect((marks[0] as { input: { ConditionExpression?: string } }).input.ConditionExpression).toBe("attribute_exists(id)");
     });
 });

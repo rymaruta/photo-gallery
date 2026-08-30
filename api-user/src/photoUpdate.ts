@@ -216,31 +216,61 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // ままの JS は今も全項目を送ってくる。
         const wasPublished = existing.Item.published !== false;
         const visibilityChanged = hasPublished && body.published !== wasPublished;
-        // **隠すときは畳まない。**
+        // **隠す操作は畳んでよい。ただし「届かなかった」ことは残す。**
         //
-        // `rebuild.ts` の方針は「何度でも押せる操作は coalesce」で、公開状態も
-        // 本文の編集と同じ扱いにしていた。ところが**畳まれた依頼は後から
-        // 実行されない**（定期ビルドも止めてある）ので、非公開にしたのに
-        // `/photo/<id>` の静的HTML が本文・撮影地・EXIF・表示名入りの
-        // JSON-LD ごと**出たまま**になる。本文の編集なら「古い文が残る」で
-        // 済むが、隠す操作でそれは**隠せていない**ということ。削除と同じ扱いにする。
+        // 一度ここを素通し（coalesce 無し）にしたが、**逆向きに倒していた**。
+        // クールダウン（`claimRebuildSlot`）は `coalesce` を指定したときしか
+        // 効かないのに、月次予算（`claimMonthlyBudget`）は**指定の有無に
+        // 関わらず1加算される**。つまりクールダウンは畳み込みだけでなく
+        // 「予算を減らす速度の唯一の歯止め」でもあった。素通しにすると
+        // 公開⇄非公開のトグル200回で月の予算を使い切れる（連打を止める
+        // 仕掛けは画面にもAPIにも無い）。使い切ると、その月いっぱい
+        // **写真削除・退会・管理者削除の掃除が全部落ちる**——「隠すのが
+        // 遅れる」を直して「消したのに残る」を月単位で作る取り引きだった。
         //
-        // 公開する側（false → true）は畳んだままでよい。遅れて出るのは
-        // privacy の失敗ではないし、連打で予算を食うのを抑えたい。
+        // 畳まれた場合は「直近10分に誰かが依頼した」＝**ビルドがもう走って
+        // いる**ということなので、たいていはその1本が拾う。拾えない窓
+        // （そのビルドがテーブルを読んだ後〜ロックを下ろす前）は残るが、
+        // そこは下の印で削除時に取り返す。
+        const requested = visibilityChanged || metaChanged;
+        const dispatched = requested
+            ? await requestSiteRebuild(`photo updated: ${id}`, { coalesce: true })
+            : false;
+
+        // **届かなかったことを行に残す。** 畳まれた・予算切れ・設定漏れ・
+        // dispatch の失敗、どれでも false が返る。削除側は「非公開だった
+        // 写真には静的ページが無い」と決め打ちして掃除を省くので、その前提が
+        // 崩れたことを伝えないと、**非公開 →（依頼が届かない）→ 削除**で
+        // 静的ページが誰にも消されないまま残る。
         const hiding = visibilityChanged && body.published === false;
-        let dispatched = true;
-        if (visibilityChanged || metaChanged) {
-            dispatched = await requestSiteRebuild(`photo updated: ${id}`, hiding ? {} : { coalesce: true });
+        if (hiding && !dispatched) {
+            try {
+                await ddb.send(new UpdateCommand({
+                    TableName: PHOTOS_TABLE,
+                    Key: { id },
+                    UpdateExpression: "SET staticStale = :t",
+                    ExpressionAttributeValues: { ":t": true },
+                    // Get → Update の間に写真が消えると、`staticStale` だけを
+                    // 持つ幽霊行ができる（上の本体更新と同じ理由）
+                    ConditionExpression: "attribute_exists(id)",
+                }));
+            } catch (e) {
+                // 印が書けなくても非公開そのものは成立している。
+                // ここで 500 にすると「隠せていないのに隠せたと思う」より
+                // 「隠したのに失敗と出る」方を選ぶことになり、押し直しで
+                // 二重に頼むだけなので、記録に留める
+                console.error(`updatePhotoVisibility: staticStale の記録に失敗 (${id}):`, e);
+            }
         }
 
-        // **頼めなかったことを行に残す。** 予算切れ・設定漏れ・dispatch の
-        // 失敗でも false が返る。削除側は「非公開だった写真には静的ページが
-        // 無い」と決め打ちして掃除を省くので、その前提が崩れたことを
-        // 伝えておかないと、**非公開 →（依頼が届かない）→ 削除**で
-        // 静的ページが誰にも消されないまま残る。
-        // 頼めたら印を下ろす。残したままだと、再公開 → もう一度隠す（成功）
-        // のあとも「掃除が届いていない」ことになり、削除のたびに要らない
-        // ビルドを1本起こす
+        // **印を下ろすのは、実際に依頼を出して届いたときだけ。**
+        //
+        // 一度 `dispatched` の初期値を `true` にしていて、**何も変えずに
+        // 「保存」を押しただけ**で（依頼は1本も出ていないのに）印が下りた
+        // ——そのあと削除しても掃除を頼まず、塞いだはずの穴が印を消す側から
+        // 戻ってきていた。いまは `requested` でないとき `dispatched` が
+        // false なので、条件はこれ1つでよい（`requested &&` を足すと
+        // **到達しない守り**になり、片方を壊しても緑になる）。
         if (dispatched && existing.Item.staticStale === true) {
             try {
                 await ddb.send(new UpdateCommand({
@@ -251,24 +281,6 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
                 }));
             } catch (e) {
                 console.error(`updatePhotoVisibility: staticStale の解除に失敗 (${id}):`, e);
-            }
-        }
-
-        if (hiding && !dispatched) {
-            try {
-                await ddb.send(new UpdateCommand({
-                    TableName: PHOTOS_TABLE,
-                    Key: { id },
-                    UpdateExpression: "SET staticStale = :t",
-                    ExpressionAttributeValues: { ":t": true },
-                    ConditionExpression: "attribute_exists(id)",
-                }));
-            } catch (e) {
-                // 印が書けなくても非公開そのものは成立している。
-                // ここで 500 にすると「隠せていないのに隠せたと思う」より
-                // 「隠したのに失敗と出る」方を選ぶことになり、押し直しで
-                // 二重に頼むだけなので、記録に留める
-                console.error(`updatePhotoVisibility: staticStale の記録に失敗 (${id}):`, e);
             }
         }
 

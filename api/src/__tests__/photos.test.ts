@@ -12,7 +12,7 @@ vi.mock("../ddb-photos", () => ({
 }));
 
 vi.stubEnv("PHOTOS_TABLE", "photos-test");
-const { getPhotos, getPhoto, resetPhotosCache } = await import("../photos");
+const { getPhotos, getPhoto, resetPhotosCache, stripPrivate, PRIVATE_FIELDS } = await import("../photos");
 
 type Result = { statusCode: number; body: string; headers?: Record<string, string> };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -166,5 +166,38 @@ describe("getPhoto: ストーリーを詳細でも弾く", () => {
     it("普通の写真は今までどおり返る", async () => {
         mockGetPhotoById.mockResolvedValue({ id: "p1", src: "https://cdn/p1.jpg", published: true });
         expect((await invokeOne({ pathParameters: { id: "p1" } })).statusCode).toBe(200);
+    });
+});
+
+
+// **公開する応答から内部の項目を落とす。**
+//
+// `GET /photos` / `GET /photos/{id}` は**認可なし**で DynamoDB の項目を
+// ほぼそのまま返す。ふるい（`PRIVATE_FIELDS`）が唯一の砦なのに、
+// **1本もテストが無かった**——`srcOriginal`（GPS 入り原本の URL）を
+// 名簿から外しても全件緑だった。
+//
+// `staticStale`（静的ページの掃除が届いていないという内部の印）も落とす。
+// 付くのは非公開の写真だけだが、非公開化が届かず印が立ち、そのあとの
+// 再公開が畳まれると `published: true` のまま印が残り、この口から読める。
+describe("公開応答から落とす項目", () => {
+    it.each(["srcOriginal", "key", "staticStale"])("%s は返さない", (field) => {
+        const out = stripPrivate({
+            id: "p1", src: "https://cdn/x.jpg", title: "あ",
+            srcOriginal: "https://cdn/x_orig.jpg", key: "uploads/u/x.jpg", staticStale: true,
+        }) as Record<string, unknown>;
+        expect(out[field], `${field} が公開応答に載っている`).toBeUndefined();
+        expect(PRIVATE_FIELDS as readonly string[]).toContain(field);
+    });
+
+    it("表に出す項目は落とさない", () => {
+        const out = stripPrivate({ id: "p1", src: "https://cdn/x.jpg", title: "あ" });
+        expect(out).toEqual({ id: "p1", src: "https://cdn/x.jpg", title: "あ" });
+    });
+
+    it("元の項目を書き換えない（コピーを返す）", () => {
+        const item = { id: "p1", srcOriginal: "https://cdn/x_orig.jpg" };
+        stripPrivate(item);
+        expect(item.srcOriginal, "呼び出し元の項目を壊している").toBe("https://cdn/x_orig.jpg");
     });
 });

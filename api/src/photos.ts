@@ -46,9 +46,13 @@ const JSON_HEADERS = {
  * 読んで原本を消しているので、データ層で落とすと
  * 「GPS入りの原本が削除されなくなる」——直しに来たものより悪くなる。
  */
-const PRIVATE_FIELDS = ["srcOriginal", "key"] as const;
+// `staticStale`（静的ページの掃除が届いていないという内部の印）も落とす。
+// 付くのは非公開の写真だけだが、**再公開の順序次第で公開中の行に残る**
+// ——非公開化が届かず印が立ち、そのあとの再公開が畳まれると
+// `published: true` のまま印が残り、この口から読める。
+export const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale"] as const;
 
-function stripPrivate<T extends Record<string, unknown>>(photo: T): T {
+export function stripPrivate<T extends Record<string, unknown>>(photo: T): T {
     const out = { ...photo };
     for (const f of PRIVATE_FIELDS) delete out[f];
     return out;

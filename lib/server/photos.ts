@@ -15,7 +15,11 @@ import type { Photo } from "@/lib/data/photos";
  * 古い photos.json が残っていても漏れないように、読み出し側でも落とす。
  * srcOriginal は EXIF を落とす前の原本（GPS 入り）のURL。
  */
-const PRIVATE_FIELDS = ["srcOriginal", "key"] as const;
+// `staticStale`（静的ページの掃除が届いていないという内部の印）も落とす。
+// 付くのは非公開の写真だけだが、**再公開の順序次第で公開中の行に残る**
+// ——非公開化が届かず印が立ち、そのあとの再公開が畳まれると
+// `published: true` のまま印が残り、この口から読める。
+const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale"] as const;
 
 export function stripPrivateFields(photos: Photo[]): Photo[] {
     return photos.map((p) => {

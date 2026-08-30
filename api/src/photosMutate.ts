@@ -128,8 +128,24 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // 揃えてあり、updatePhotoFields はそれを REMOVE にする。
         const metaChanged = ["title", "description", "location", "category", "date", "tags", "exif"]
             .some((k) => k in fields && !sameStoredValue(fields[k], (photo as Record<string, unknown>)[k]));
-        if (visibilityChanged || metaChanged) {
-            await requestSiteRebuild(`photo updated: ${id}`, { coalesce: true });
+        // **届かなかったら行に印を残す**（api-user 側と同じ）。畳まれた・
+        // 予算切れ・dispatch 失敗のどれでも false が返る。印が無いと、
+        // 非公開 →（依頼が届かない）→ 削除 で `/photo/<id>` の静的HTML が
+        // 誰にも消されないまま残る（削除側は「非公開だった写真には静的
+        // ページが無い」と決め打ちして掃除を省く経路がある）。
+        // **presign が3か所あったのと同じで、ここだけ抜けていた。**
+        const dispatched = (visibilityChanged || metaChanged)
+            ? await requestSiteRebuild(`photo updated: ${id}`, { coalesce: true })
+            : false;
+        const hiding = visibilityChanged && fields.published === false;
+        if (hiding && !dispatched) {
+            try {
+                // `updatePhotoFields` を通す（`attribute_exists(id)` 付き。
+                // Get → Update の間に写真が消えたときに幽霊行を作らない）
+                await updatePhotoFields(id, { staticStale: true });
+            } catch (e) {
+                console.error(`updatePhoto: staticStale の記録に失敗 (${id}):`, e);
+            }
         }
 
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: updated }) };
