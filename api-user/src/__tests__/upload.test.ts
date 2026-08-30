@@ -325,9 +325,17 @@ describe("savePhoto: 他人のデータを壊せないこと", () => {
 // 後者（uploads/<userId>/）が **他人のファイルを自分の写真として
 // 登録・削除できない**ことの土台そのもの。
 describe("presignedUrl", () => {
+    /**
+     * presign を頼む。**`fileSize` は既定で入れる。**
+     * 必須にしたので（省くと `ContentLength` の署名ごと飛ぶ）、キーや
+     * 拡張子を見たいだけのテストが毎回書かなくて済むようにしておく。
+     * サイズそのものを見るテストは明示で上書きする。
+     */
     const ask = (sub: string, body: unknown) => invokePresign({
         requestContext: { authorizer: { jwt: { claims: { sub } } } },
-        body: typeof body === "string" ? body : JSON.stringify(body),
+        body: typeof body === "string"
+            ? body
+            : JSON.stringify({ fileSize: 1000, ...(body as Record<string, unknown>) }),
     });
 
     it("sub が取れなければ 401", async () => {
@@ -723,5 +731,61 @@ describe("presign が Content-Type を縛る", () => {
         expect(signed, "正規化していない文字列を焼き付けている").toBe("image/jpeg");
         // **署名したものと応答が同じ**であることが要点（片方だけ直しても意味が無い）
         expect(JSON.parse(res.body).contentType, "署名した種別を返していない").toBe(signed);
+    });
+});
+
+// **50MB の制限は画面の中にしか無かった。**
+//
+// `fileSize` は任意項目のクライアント申告で、省けば判定ごと飛び、嘘を
+// 書けばそのまま通る。presigned URL 自体も本文の長さを縛らないので、
+// 直接叩けば単発 PUT の上限（5GB）まで入る。しかも掃除する経路が無いので
+// （台帳 ORPHAN-2）、公開バケットに残り続ける。
+//
+// `ContentLength` を渡すと署名対象に入る（本物の SDK で実測。
+// `presignSigning.test.ts`）。**申告した長さちょうど**でしか PUT できなく
+// なるので、嘘をついてもその嘘に縛られる＝上限が実際に効く。
+describe("presign がサイズを縛る", () => {
+    const ask = (body: unknown) => invokePresign({
+        requestContext: { authorizer: { jwt: { claims: { sub: "u1" } } } },
+        body: JSON.stringify(body),
+    });
+
+    it("申告した長さを署名に焼き付ける", async () => {
+        mockGetSignedUrl.mockResolvedValue("https://s3.example/put");
+        await ask({ fileName: "a.jpg", fileType: "image/jpeg", fileSize: 12345 });
+
+        const input = mockPutObjectInput.mock.calls.at(-1)?.[0] as { ContentLength?: number };
+        expect(input.ContentLength, "長さを焼き付けていない").toBe(12345);
+        const opts = mockGetSignedUrl.mock.calls.at(-1)?.[2] as { signableHeaders?: Set<string> };
+        expect([...(opts?.signableHeaders ?? [])], "content-length が署名対象に入っていない")
+            .toContain("content-length");
+    });
+
+    // **省けるままだと、判定も署名も両方飛ぶ**（＝好きなだけ入れられる）
+    it.each([
+        ["省略", { fileName: "a.jpg", fileType: "image/jpeg" }],
+        ["文字列", { fileName: "a.jpg", fileType: "image/jpeg", fileSize: "1000" }],
+        ["0", { fileName: "a.jpg", fileType: "image/jpeg", fileSize: 0 }],
+        ["負", { fileName: "a.jpg", fileType: "image/jpeg", fileSize: -1 }],
+        ["NaN 相当", { fileName: "a.jpg", fileType: "image/jpeg", fileSize: null }],
+    ])("fileSize が %s なら断る（presign を発行しない）", async (_name, body) => {
+        mockGetSignedUrl.mockClear();
+        const res = await ask(body);
+        expect(res.statusCode).toBe(400);
+        expect(mockGetSignedUrl, "断ったのに presign を発行している").not.toHaveBeenCalled();
+    });
+
+    it("上限を超えたら断る", async () => {
+        mockGetSignedUrl.mockClear();
+        const res = await ask({ fileName: "a.jpg", fileType: "image/jpeg", fileSize: 50 * 1024 * 1024 + 1 });
+        expect(res.statusCode).toBe(400);
+        expect(JSON.parse(res.body).error).toContain("50MB");
+        expect(mockGetSignedUrl).not.toHaveBeenCalled();
+    });
+
+    it("上限ちょうどは通す（境界）", async () => {
+        mockGetSignedUrl.mockResolvedValue("https://s3.example/put");
+        const res = await ask({ fileName: "a.jpg", fileType: "image/jpeg", fileSize: 50 * 1024 * 1024 });
+        expect(res.statusCode).toBe(200);
     });
 });

@@ -288,3 +288,61 @@ describe("サムネの PUT だけ失敗したとき", () => {
             "サムネのキーが控えられていない").toEqual({ key: THUMB_KEY });
     });
 });
+
+// **申告した長さと、実際に送る本文は一致していなければならない。**
+//
+// presign が `ContentLength` を署名するようになったので、1バイトでも
+// 違えば S3 が 403 を返す（＝アップロードが全部落ちる）。今の3経路は
+// どれも「`file.size` を申告してその `file` をそのまま PUT する」形なので
+// ずれようがないが、**間に加工を挟んだ瞬間に壊れる**——加工前の長さを
+// 申告して加工後を送る、という書き方が自然に見えてしまうため。
+// ここで契約として固定しておく。
+describe("presign に申告した長さと、PUT する本文の長さ", () => {
+    /** presign 要求に載った fileSize（呼ばれた順） */
+    const declared = () => mockUserFetch.mock.calls
+        .filter((c) => c[0] === "/upload/presigned-url")
+        .map((c) => JSON.parse((c[1] as { body: string }).body).fileSize as number);
+
+    /** 実際に PUT した本文の長さ（呼ばれた順） */
+    const sent = () => (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls
+        .filter((c) => (c[1] as { method?: string } | undefined)?.method === "PUT")
+        .map((c) => ((c[1] as { body: Blob }).body).size);
+
+    afterEach(() => {
+        vi.mocked(imageUtils.toUploadSafeFile).mockImplementation(async (f: File) => f);
+        vi.mocked(imageUtils.createThumbnail).mockResolvedValue(null as never);
+    });
+
+    it("本体もサムネも一致する", async () => {
+        // **加工で長さが変わる場面を作る。** 素通しのモックのままだと
+        // 「加工前の長さを申告して加工後を送る」を区別できない
+        // ——まさにこの変更で壊れる書き方なので、ここで踏ませる
+        vi.mocked(imageUtils.toUploadSafeFile).mockResolvedValue(
+            new File(["stripped-body-is-a-different-length"], "shared.jpg", { type: "image/jpeg" }) as never,
+        );
+        vi.mocked(imageUtils.createThumbnail).mockResolvedValue(
+            new File(["thumb-body-longer"], "abc_thumb.webp", { type: "image/webp" }) as never,
+        );
+        let n = 0;
+        mockUserFetch.mockImplementation((url: string) => {
+            if (url === "/upload/presigned-url") {
+                n += 1;
+                return Promise.resolve({ ok: true, json: async () => ({
+                    presignedUrl: `https://s3.example/put-${n}`,
+                    publicUrl: PUBLIC_URL, key: KEY, contentType: "image/jpeg",
+                }) });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200 })));
+
+        render(<UploadPage />);
+        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        await waitFor(() => expect(publish).not.toBeDisabled());
+        await userEvent.click(publish);
+
+        await waitFor(() => expect(sent().length).toBeGreaterThanOrEqual(2));
+        expect(declared(), "申告と本文の長さが食い違っている（S3 が 403 を返す）")
+            .toEqual(sent().slice(0, declared().length));
+    });
+});

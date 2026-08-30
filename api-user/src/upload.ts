@@ -11,6 +11,26 @@ import { extForType, uploadPrefix, canonicalUploadUrl, idFromUploadKey, isOwnUpl
 import { mediaKeys } from "./mediaKeys";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
+/**
+ * アップロードを許す最大バイト数。
+ *
+ * **クライアント申告のままでは何の歯止めにもならなかった。** `fileSize` は
+ * 任意項目で、省けば判定ごと飛び、嘘を書けばそのまま通る。しかも
+ * presigned URL 自体が本文の長さを縛らないので、**50MB の制限は画面の
+ * 中にしか無い**（直接叩けば単発 PUT の上限 5GB まで入る）。
+ *
+ * `ContentLength` を渡すと署名対象に入る（`presignSigning.test.ts` で
+ * 本物の SDK に聞いて実測。`X-Amz-SignedHeaders` に `content-length` が出る）。
+ * こうすると**申告した長さちょうど**でしか PUT できない——嘘をつけば
+ * その嘘の長さに縛られるので、上限が実際に効く。
+ *
+ * 引き換えに、**クライアントは申告と1バイトも違わない本文を送る必要がある**。
+ * 今の3経路（写真本体・サムネ・ストーリー）はどれも「`file.size` を申告して
+ * その `file` をそのまま PUT する」形なのでずれようがない。新しい経路を
+ * 足すときは、加工してから申告すること（加工前の長さを申告すると 403）。
+ */
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
 const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? "";
 
@@ -85,7 +105,12 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     if (!fileName || !fileType) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイル名とファイルタイプが必要です" }) };
     }
-    if (fileSize && fileSize > 50 * 1024 * 1024) {
+    // **必須にする。** 任意のままだと、省くだけで下の上限判定も
+    // `ContentLength` の署名も両方飛ぶ（＝好きなだけ入れられる）。
+    if (typeof fileSize !== "number" || !Number.isFinite(fileSize) || fileSize <= 0) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイルサイズが必要です" }) };
+    }
+    if (fileSize > MAX_UPLOAD_BYTES) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイルサイズが大きすぎます（最大50MB）" }) };
     }
     // 画像に加えて動画も許可（ストーリー用。mp4 / webm / QuickTime）。
@@ -113,6 +138,8 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
             // （**署名対象に戻すのは下の `signableHeaders`**。これが無いと
             // 焼き付けたつもりで何も縛れていない）
             ContentType: safeContentType,
+            // 申告した長さで縛る（下の `signableHeaders` で署名対象に入る）
+            ContentLength: fileSize,
             CacheControl: "max-age=31536000",
         }),
         {
@@ -140,7 +167,11 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
             // ただし戻すと縛りになる——クライアントが同じ値を送らないと 403 に
             // なる。こちらは「クライアントに付けさせたい」だけで、値を強制する
             // 必要は無いので渡さない。
-            signableHeaders: new Set(["content-type"]),
+            // `content-length` は既定でも署名対象に入るが、**明示しておく**
+            // ——`content-type` を戻すために `signableHeaders` を渡した瞬間に
+            // 「ここに書いたものが署名される」と読まれるので、両方書く方が
+            // 誤解が無い（実際の既定は presignSigning.test.ts が測っている）
+            signableHeaders: new Set(["content-type", "content-length"]),
         },
     );
 

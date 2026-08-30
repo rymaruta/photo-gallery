@@ -79,7 +79,12 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     if (!fileName || !fileType) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイル名とファイルタイプが必要です" }) };
     }
-    if (fileSize && fileSize > 50 * 1024 * 1024) {
+    // **必須にする**（api-user 側と同じ。任意のままだと省くだけで
+    // 上限判定も `ContentLength` の署名も両方飛ぶ）
+    if (typeof fileSize !== "number" || !Number.isFinite(fileSize) || fileSize <= 0) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイルサイズが必要です" }) };
+    }
+    if (fileSize > 50 * 1024 * 1024) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイルサイズが大きすぎます（最大50MB）" }) };
     }
     // 許可リストで判定する。"image/" で始まるかどうかだけだと image/svg+xml が通り、
@@ -102,6 +107,8 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
             Bucket: UPLOAD_BUCKET,
             Key: key,
             ContentType: safeContentType,
+            // 申告した長さで縛る（署名対象に入れる。理由は api-user 側に）
+            ContentLength: fileSize,
             CacheControl: "max-age=31536000",
         }),
         {
@@ -116,7 +123,7 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
             // （`app/user/upload/page.tsx` は管理者でもユーザーAPIを使う）。
             // それでも塞ぐ——「呼ばれていないから安全」は、次に誰かが
             // 呼んだ瞬間に崩れる前提。
-            signableHeaders: new Set(["content-type"]),
+            signableHeaders: new Set(["content-type", "content-length"]),
         },
     );
 

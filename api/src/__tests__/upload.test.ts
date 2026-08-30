@@ -34,9 +34,16 @@ type Result = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const invoke = (h: unknown, e: unknown): Promise<Result> => (h as any)(e);
 
+/**
+ * `fileSize` は既定で入れる。**必須にした**ので（省くと `ContentLength` の
+ * 署名ごと飛ぶ）、形式やキーを見たいだけのテストが毎回書かなくて済むように。
+ * サイズそのものを見るテストは明示で上書きする。
+ */
 const ev = (body: unknown, groups = "admin") => ({
     requestContext: { authorizer: { jwt: { claims: { sub: "admin-sub", "cognito:groups": groups } } } },
-    body: typeof body === "string" ? body : JSON.stringify(body),
+    body: typeof body === "string"
+        ? body
+        : JSON.stringify({ fileSize: 1000, ...(body as Record<string, unknown>) }),
 });
 
 beforeEach(() => {
@@ -270,5 +277,24 @@ describe("管理APIの presign も Content-Type を縛る", () => {
         const opts = mockGetSignedUrl.mock.calls.at(-1)?.[2] as { signableHeaders?: Set<string> };
         expect(opts?.signableHeaders, "signableHeaders が渡っていない（既定では外される）").toBeDefined();
         expect([...(opts.signableHeaders ?? [])]).toContain("content-type");
+    });
+});
+
+describe("管理APIの presign もサイズを縛る", () => {
+    it("申告した長さを署名に焼き付ける", async () => {
+        mockGetSignedUrl.mockResolvedValue("https://s3.example/put");
+        await invoke(presignedUrl, ev({ fileName: "a.jpg", fileType: "image/jpeg", fileSize: 4321 }));
+
+        const input = mockPutObjectInput.mock.calls.at(-1)?.[0] as { ContentLength?: number };
+        expect(input.ContentLength).toBe(4321);
+        const opts = mockGetSignedUrl.mock.calls.at(-1)?.[2] as { signableHeaders?: Set<string> };
+        expect([...(opts?.signableHeaders ?? [])]).toContain("content-length");
+    });
+
+    it("fileSize を省いたら断る（presign を発行しない）", async () => {
+        mockGetSignedUrl.mockClear();
+        const res = await invoke(presignedUrl, ev(JSON.stringify({ fileName: "a.jpg", fileType: "image/jpeg" })));
+        expect(res.statusCode).toBe(400);
+        expect(mockGetSignedUrl).not.toHaveBeenCalled();
     });
 });
