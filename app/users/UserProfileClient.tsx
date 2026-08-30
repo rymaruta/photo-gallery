@@ -306,22 +306,36 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     // です」が出続け、しかも解除ボタンは星の付いた写真にしか
                     // 無いので画面から直せない。落とすのは訪問者に見せるときだけ。
                     //
-                    // 落ちたときは公開ぶんのまま（星が少なく出る）。ここで
-                    // 一覧を空にすると、上の写真一覧と同じ「消えたように
-                    // 見えて押し直す」を作る。
-                    const [mineRes, myProfileRes] = await Promise.all([
-                        userFetch("/user/photos", { signal: controller.signal }),
-                        userFetch("/user/profile", { signal: controller.signal }).catch(() => null),
-                    ]);
-                    if (myProfileRes?.ok) {
-                        const mineProfile = await myProfileRes.json().catch(() => null) as { pinnedPhotoIds?: unknown } | null;
-                        // キーが無い＝1枚も留めていない。公開ぶんも空なので触らない
-                        // （公開ぶんは必ず保存ぶんの部分集合）。
-                        if (Array.isArray(mineProfile?.pinnedPhotoIds)) {
+                    // **一覧をこれに待たせない。** `Promise.all` で束ねると、
+                    // ピンのためだけの取得が写真一覧の描画を人質に取る
+                    // ——その間ビルド時 JSON（全件 published:true）のままなので、
+                    // 非公開バッジが出ず、本人が目のアイコンを押して**本当に
+                    // 再公開する**窓が開く。星は後から当てれば足りる。
+                    //
+                    // **保存が挟まったら捨てる。** この取得が運ぶのは「投げた
+                    // 時点の姿」なので、待っている間に星を押されると、押した
+                    // あとの一覧を押す前の一覧で上書きしてしまう（「ピン留め
+                    // しました」と出て星が消える）。PUT の応答と同じ
+                    // `pinSeqRef` で見分ける——書き手を増やすなら、既にある
+                    // 追い越しの仕組みに乗せる。
+                    const pinSeq = pinSeqRef.current;
+                    void userFetch("/user/profile", { signal: controller.signal })
+                        .then((res) => (res.ok ? res.json().catch(() => null) : null))
+                        .then((mineProfile: { pinnedPhotoIds?: unknown } | null) => {
+                            if (controller.signal.aborted || pinSeq !== pinSeqRef.current) return;
+                            // キーが無い＝1枚も留めていない。公開ぶんも空なので触らない
+                            // （公開ぶんは必ず保存ぶんの部分集合）。
+                            if (!Array.isArray(mineProfile?.pinnedPhotoIds)) return;
                             const ownPins = mineProfile.pinnedPhotoIds.filter((x): x is string => typeof x === "string");
+                            // 公開プロフィールが読めていないときは触らない（星だけ
+                            // 復元しても、この画面は保存そのものを断る）
                             setUserProfile((p) => (p ? { ...p, pinnedPhotoIds: ownPins } : p));
-                        }
-                    }
+                        })
+                        // 落ちたときは公開ぶんのまま（星が少なく出る）。ここで
+                        // 一覧を空にすると、下の写真一覧と同じ「消えたように
+                        // 見えて押し直す」を作る
+                        .catch(() => {});
+                    const mineRes = await userFetch("/user/photos", { signal: controller.signal });
                     if (mineRes.ok) {
                         const mine = await mineRes.json() as unknown;
                         if (Array.isArray(mine)) {

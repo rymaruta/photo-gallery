@@ -187,10 +187,17 @@ describe("退会した人からの通知", () => {
         expect(hrefs()).toEqual(["/?photo=p1"]);
     });
 
-    // 生きている人の導線まで消さない（逆向きの失敗）
-    it("退会していない人のリンクはそのまま", async () => {
+    // 生きている人の導線まで消さない（逆向きの失敗）。
+    // `deleted: false` と**キーそのものが無い**古い応答の両方を見る
+    // ——サーバーは伏せる項目にしか立てないので、通常の通知にはキーが無い。
+    it.each([
+        ["deleted: false", { deleted: false }],
+        ["キーが無い（通常の通知）", {}],
+    ])("退会していない人のリンクはそのまま（%s）", async (_label, extra) => {
+        const base = { ...GONE[0] } as Record<string, unknown>;
+        delete base.deleted;   // 古い応答＝キーそのものが無い
         mockUserFetch.mockResolvedValue(fetchOk({
-            items: [{ ...GONE[0], byId: "live-sub", byName: "旅子", deleted: false }],
+            items: [{ ...base, ...extra, byId: "live-sub", byName: "旅子" }],
             unread: 0,
         }));
         render(<NotificationsBell />);

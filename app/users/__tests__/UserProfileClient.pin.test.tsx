@@ -243,24 +243,91 @@ describe("オーナーが見るピン留め", () => {
         expect(screen.getAllByTitle("ピン留め解除"), "読めなかっただけでピンを消している").toHaveLength(1);
     });
 
-    // 写真一覧の取得は、プロフィールの取得を待って直列にしない
-    it("自分の写真一覧は、ピンの取得と並べて投げる", async () => {
+    // **一覧をピンに待たせない。** `Promise.all` で束ねていたので、星の
+    // ためだけの取得が写真一覧の描画を人質に取っていた——その間はビルド時
+    // JSON（全件 published:true）のままで、非公開バッジが出ない。この画面が
+    // 何度も警告している「消えたと誤解して目のアイコンを押し、本当に
+    // 再公開する」窓がそのぶん開く。
+    it("プロフィールが返らなくても、自分の写真一覧は反映される", async () => {
         mockGetCurrentSession.mockResolvedValue(session(ME));
         mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ userId: ME }) });
-        let profileResolved = false;
         mockUserFetch.mockImplementation((url: string) => {
-            if (url === "/user/profile") {
-                return new Promise((res) => setTimeout(() => {
-                    profileResolved = true;
-                    res({ ok: true, json: async () => ({ userId: ME }) });
-                }, 30));
-            }
-            expect(profileResolved, "プロフィールを待ってから写真を取りに行っている").toBe(false);
-            return Promise.resolve({ ok: true, json: async () => [photo("p1")] });
+            // 返らない（落ちるのではなく、ぶら下がる）
+            if (url === "/user/profile") return new Promise(() => {});
+            return Promise.resolve({
+                ok: true,
+                json: async () => [photo("p1"), { ...photo("p2"), published: false }],
+            });
         });
 
         render(<UserProfileClient userId={ME} />);
+
+        // 非公開バッジ＝認証済みの一覧が反映された証拠
+        await waitFor(() => expect(
+            screen.getAllByText("非公開").length,
+            "ピンの取得を待って、一覧がビルド時のままになっている",
+        ).toBeGreaterThan(0));
+        // 2本とも投げている（片方を消す変異も捕まえる）
+        expect(mockUserFetch.mock.calls.map((c) => c[0]).sort())
+            .toEqual(["/user/photos", "/user/profile"]);
+    });
+
+    // 遅れて届くこの取得が運ぶのは「投げた時点の姿」。待っている間に星を
+    // 押されると、押したあとの一覧を押す前の一覧で上書きしてしまう
+    // （「先頭にピン留めしました ⭐」と出たそばから星が消える）。
+    // PUT の応答に付けてある追い越しの仕組み（pinSeqRef）に乗せる。
+    it("待っている間に留めたピンを、遅れて届いた取得で巻き戻さない", async () => {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        mockUserPublicFetch.mockResolvedValue({
+            ok: true, json: async () => ({ userId: ME, pinnedPhotoIds: ["p1"] }),
+        });
+        let resolveProfile: ((v: unknown) => void) | null = null;
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (init?.method === "PUT") {
+                return Promise.resolve(reply(true, 200, { pinnedPhotoIds: ["p1", "p2"] }));
+            }
+            if (url === "/user/profile") {
+                return new Promise((res) => { resolveProfile = res; });
+            }
+            return Promise.resolve({ ok: true, json: async () => [photo("p1"), photo("p2")] });
+        });
+
+        render(<UserProfileClient userId={ME} />);
+        await waitFor(() => expect(screen.getAllByTitle("ピン留め解除")).toHaveLength(1));
+
+        fireEvent.click(screen.getAllByTitle("先頭にピン留め")[0]);
+        await waitFor(() => expect(screen.getAllByTitle("ピン留め解除")).toHaveLength(2));
+
+        // ここで読み込み時の取得が「押す前の一覧」を持って着地する
+        await act(async () => {
+            resolveProfile!({ ok: true, json: async () => ({ userId: ME, pinnedPhotoIds: ["p1"] }) });
+            await Promise.resolve();
+        });
+
+        await waitFor(() => expect(
+            screen.getAllByTitle("ピン留め解除"),
+            "留めたばかりのピンが巻き戻っている",
+        ).toHaveLength(2));
+    });
+
+    // 1枚も留めていない人の行には pinnedPhotoIds が無い。キーが無ければ
+    // 触らない（触ると、公開APIが返したピンを消してしまう）
+    it("自分の行にピンのキーが無ければ、公開ぶんを消さない", async () => {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        mockUserPublicFetch.mockResolvedValue({
+            ok: true, json: async () => ({ userId: ME, pinnedPhotoIds: ["p1"] }),
+        });
+        mockUserFetch.mockImplementation((url: string) => {
+            if (url === "/user/profile") return Promise.resolve({ ok: true, json: async () => ({ userId: ME }) });
+            return Promise.resolve({ ok: true, json: async () => [photo("p1"), photo("p2")] });
+        });
+
+        render(<UserProfileClient userId={ME} />);
+
         await waitFor(() => expect(screen.getAllByTitle(/ピン留め/).length).toBeGreaterThan(0));
+        // 少し待っても消えない（取得は済んでいる）
+        await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+        expect(screen.getAllByTitle("ピン留め解除"), "キーが無いのにピンを消している").toHaveLength(1);
     });
 });
 

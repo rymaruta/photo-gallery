@@ -201,7 +201,7 @@ export default function NotificationsBell() {
                                             {/* 左のアイコンは相手のプロフィールへ。
                                                 名前だけだと、名前未設定の人は既定名で表示されて
                                                 誰なのか辿れず、フォローしに行けないため */}
-                                            {n.deleted ? (
+                                            {n.deleted === true ? (
                                                 // 退会した人。名前は既にサーバーが伏せてある
                                                 <span className="flex-shrink-0">
                                                     <UserAvatar userId="" className="w-10 h-10" iconClassName="w-5 h-5" />
