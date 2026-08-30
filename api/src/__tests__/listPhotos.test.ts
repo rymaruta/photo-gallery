@@ -6,7 +6,11 @@ vi.mock("../dynamodb", () => ({ ddb: { send: mockDdbSend } }));
 vi.stubEnv("PHOTOS_TABLE", "photos-test");
 const { listPhotos, listPhotosByUser } = await import("../ddb-photos");
 
-beforeEach(() => mockDdbSend.mockReset().mockResolvedValue({ Items: [] }));
+// **中括弧で囲う。** 式のままだと**モック自身を返す**——vitest は
+// フックの戻り値が関数だと後片付けとして扱うので、各テストのあとに
+// そのモックが**引数なしで呼ばれる**。実装が `mockResolvedValue` の
+// うちは無害だが、引数を見るモックに変えた瞬間に落ちる。
+beforeEach(() => { mockDdbSend.mockReset().mockResolvedValue({ Items: [] }); });
 
 const inputOf = (i = 0) => (mockDdbSend.mock.calls[i][0] as { input: Record<string, string> }).input;
 

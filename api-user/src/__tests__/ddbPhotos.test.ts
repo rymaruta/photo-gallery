@@ -15,7 +15,11 @@ vi.mock("../dynamodb", () => ({
 
 const { putPhoto, getPhotoById, overwriteOwnPhoto, countUserPhotos, hasAnyUserItem } = await import("../ddb-photos");
 
-beforeEach(() => mockSend.mockReset().mockResolvedValue({}));
+// **中括弧で囲う。** 式のままだと**モック自身を返す**——vitest は
+// フックの戻り値が関数だと後片付けとして扱うので、各テストのあとに
+// そのモックが**引数なしで呼ばれる**。実装が `mockResolvedValue` の
+// うちは無害だが、引数を見るモックに変えた瞬間に落ちる。
+beforeEach(() => { mockSend.mockReset().mockResolvedValue({}); });
 
 describe("putPhoto: 既存の行を置き換えない", () => {
     it("attribute_not_exists(id) を必ず付ける", async () => {

@@ -33,7 +33,11 @@ const notif = (t = "2026-08-20T00:00:00Z") => ({
 });
 const list = (n: number) => Array.from({ length: n }, (_, i) => notif(`2026-08-20T00:00:${String(i).padStart(2, "0")}Z`));
 
-beforeEach(() => mockDdbSend.mockReset().mockResolvedValue({}));
+// **中括弧で囲う。** 式のままだと**モック自身を返す**——vitest は
+// フックの戻り値が関数だと後片付けとして扱うので、各テストのあとに
+// そのモックが**引数なしで呼ばれる**。実装が `mockResolvedValue` の
+// うちは無害だが、引数を見るモックに変えた瞬間に落ちる。
+beforeEach(() => { mockDdbSend.mockReset().mockResolvedValue({}); });
 
 describe("pushNotification: 追記", () => {
     it("上限を超えていなければ追記の1回だけ", async () => {

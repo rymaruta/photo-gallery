@@ -2,7 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { UpdateCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
-import { notifsId, NOTIFS_MAX } from "./notify";
+import { notifsId, NOTIFS_MAX, deletedUserIds, DELETED_USER_NAME } from "./notify";
 
 // 通知の取得と既読化。
 // 通知本体は "notifs#<uid>" 文書に { items: Notif[], unread: number } として持つ。
@@ -28,7 +28,25 @@ export const getNotifications: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
         // 未読数と中身が食い違ったままにはしない。
         const stored = typeof res.Item?.unread === "number" ? res.Item.unread : 0;
         const unread = Math.max(0, Math.min(stored, items.length));
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ items, unread }) };
+
+        // **退会した人の名前は出さない。**
+        //
+        // 通知には作られた時点の表示名（`byName`）と ID（`byId`）が焼き込まれ、
+        // 退会が消すのは**自分宛て**の `notifs#<uid>` だけ。つまり
+        // 「A が B の写真にいいね → A が退会」で、**B のベルには A の表示名が
+        // 残り、プロフィールへのリンクも生きたまま**になる。
+        // コメント側（`getComments`）は同じ理由で同じ判定を入れてあるので、
+        // そこへ揃える。画面は `deleted` を見て導線を出さない。
+        const gone = items.length === 0 ? new Set<string>() : await deletedUserIds();
+        const safeItems = gone.size === 0
+            ? items
+            : items.map((n) => {
+                const by = (n as { byId?: unknown }).byId;
+                return typeof by === "string" && gone.has(by)
+                    ? { ...(n as Record<string, unknown>), byName: DELETED_USER_NAME, deleted: true }
+                    : n;
+            });
+        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ items: safeItems, unread }) };
     } catch (e) {
         console.error("getNotifications error:", e);
         return jsonError(500, "取得に失敗しました");

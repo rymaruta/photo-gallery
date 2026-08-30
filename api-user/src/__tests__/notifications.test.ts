@@ -11,6 +11,7 @@ vi.mock("../dynamodb", () => ({ ddb: { send: mockDdbSend }, PHOTOS_TABLE: "photo
 
 vi.stubEnv("USERS_TABLE", "users-test");
 const { getNotifications, readNotifications } = await import("../notifications");
+const { resetDeletedUsersCache } = await import("../notify");
 const { NOTIFS_MAX } = await import("../notify");
 
 type Result = { statusCode: number; body: string };
@@ -30,7 +31,12 @@ const list = (n: number) => Array.from({ length: n }, (_, i) => notif(i));
 
 const inputs = () => mockDdbSend.mock.calls.map((c) => c[0].input as Record<string, unknown>);
 
-beforeEach(() => mockDdbSend.mockReset().mockResolvedValue({}));
+// **中括弧で囲う。** `() => mockDdbSend.mockReset().mockResolvedValue({})` は
+// **モック自身を返す**——vitest はフックの戻り値が関数だと後片付けとして
+// 扱うので、各テストのあとに `mockDdbSend()` が**引数なしで呼ばれて**いた。
+// 実装が `mockResolvedValue` のうちは無害だったが、引数を見るモックに
+// 変えた瞬間に落ちる（実際そうなった）。
+beforeEach(() => { mockDdbSend.mockReset().mockResolvedValue({}); });
 
 describe("getNotifications", () => {
     it("保存されている通知と未読数を返す", async () => {
@@ -112,5 +118,62 @@ describe("readNotifications", () => {
         mockDdbSend.mockImplementationOnce(() => Promise.reject(new Error("ddb down")));
         expect((await invoke(readNotifications, ev())).statusCode).toBe(500);
         logged.mockRestore();
+    });
+});
+
+// **退会した人の名前が、他人のベルに残っていた。**
+//
+// 通知には作られた時点の表示名（`byName`）と ID（`byId`）が焼き込まれる。
+// 退会が消すのは**自分宛て**の `notifs#<uid>` だけなので、
+// 「A が B の写真にいいね → A が退会」で B のベルには A の表示名が残り、
+// `/users/<A の sub>` へのリンクも生きたままだった。
+// コメント側（`getComments`）は同じ理由で同じ判定を入れてある。
+describe("退会した人の名前は出さない", () => {
+    const GONE = "22222222-2222-4222-8222-222222222222";
+    const ALIVE = "33333333-3333-4333-8333-333333333333";
+
+    /**
+     * notifs の Get → 退会者の Scan、の順に返す。
+     * **退会者の一覧は60秒キャッシュされる**ので毎回落とす
+     * （落とさないと、前のテストが入れた空集合を読んで伏せられない）
+     */
+    const world = (items: unknown[], deleted: string[]) => {
+        resetDeletedUsersCache();
+        mockDdbSend.mockReset().mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (cmd.constructor.name === "ScanCommand") {
+                return Promise.resolve({ Items: deleted.map((userId) => ({ userId })) });
+            }
+            return Promise.resolve({ Item: { id: "notifs#x", items, unread: items.length } });
+        });
+    };
+
+    it("退会者の表示名を伏せ、印を付ける", async () => {
+        world([{ ...notif(0), byId: GONE, byName: "消えた人" }], [GONE]);
+        const res = await invoke(getNotifications, ev());
+        const body = JSON.parse(res.body) as { items: Array<Record<string, unknown>> };
+        expect(body.items[0].byName, "退会した人の表示名が残っている").not.toBe("消えた人");
+        expect(body.items[0].deleted).toBe(true);
+    });
+
+    it("在籍している人はそのまま", async () => {
+        world([{ ...notif(0), byId: ALIVE, byName: "旅人" }], [GONE]);
+        const body = JSON.parse((await invoke(getNotifications, ev())).body) as { items: Array<Record<string, unknown>> };
+        expect(body.items[0].byName).toBe("旅人");
+        expect(body.items[0].deleted).toBeUndefined();
+    });
+
+    it("通知が無ければ退会者を引きに行かない（無駄な走査をしない）", async () => {
+        world([], []);
+        await invoke(getNotifications, ev());
+        const scans = mockDdbSend.mock.calls.map((c) => c[0])
+            .filter((cmd) => (cmd as { constructor: { name: string } })?.constructor?.name === "ScanCommand");
+        expect(scans, "通知が無いのに退会者を走査している").toHaveLength(0);
+    });
+
+    it("未読数は変わらない（伏せても件数は同じ）", async () => {
+        world([{ ...notif(0), byId: GONE, byName: "消えた人" }, { ...notif(1), byId: ALIVE }], [GONE]);
+        const body = JSON.parse((await invoke(getNotifications, ev())).body) as { items: unknown[]; unread: number };
+        expect(body.items).toHaveLength(2);
+        expect(body.unread).toBe(2);
     });
 });

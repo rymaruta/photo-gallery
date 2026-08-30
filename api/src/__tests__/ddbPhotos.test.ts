@@ -13,7 +13,11 @@ const { updatePhotoFields, putPhoto, getPhotoById } = await import("../ddb-photo
 type Input = { UpdateExpression: string; ConditionExpression?: string; ExpressionAttributeValues?: Record<string, unknown> };
 const lastInput = (): Input => (mockSend.mock.calls[0][0] as { input: Input }).input;
 
-beforeEach(() => mockSend.mockReset().mockResolvedValue({ Attributes: { id: "p1" } }));
+// **中括弧で囲う。** 式のままだと**モック自身を返す**——vitest は
+// フックの戻り値が関数だと後片付けとして扱うので、各テストのあとに
+// そのモックが**引数なしで呼ばれる**。実装が `mockResolvedValue` の
+// うちは無害だが、引数を見るモックに変えた瞬間に落ちる。
+beforeEach(() => { mockSend.mockReset().mockResolvedValue({ Attributes: { id: "p1" } }); });
 
 // 「その項目を空にする」指定（undefined）は SET に混ぜられない。
 //

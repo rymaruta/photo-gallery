@@ -19,7 +19,11 @@ function deletedIds(): string[] {
         .filter((v): v is string => typeof v === "string");
 }
 
-beforeEach(() => mockDdbSend.mockReset().mockResolvedValue({}));
+// **中括弧で囲う。** 式のままだと**モック自身を返す**——vitest は
+// フックの戻り値が関数だと後片付けとして扱うので、各テストのあとに
+// そのモックが**引数なしで呼ばれる**。実装が `mockResolvedValue` の
+// うちは無害だが、引数を見るモックに変えた瞬間に落ちる。
+beforeEach(() => { mockDdbSend.mockReset().mockResolvedValue({}); });
 
 // 写真を消してもコメントは別文書（comments#<写真ID>）に残っていた。
 // 一覧APIは公開で写真の存在確認もしないので、

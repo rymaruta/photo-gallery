@@ -44,6 +44,45 @@ async function isLivePhotoOf(photoId: string, ownerId: string): Promise<boolean>
     }
 }
 
+/**
+ * 公開プロフィールに出してよいピンだけを残す（順序は保つ）。
+ *
+ * **消さずに、読むときに落とす。** ピンは本人の選択なので、非公開に
+ * しただけで外すと再公開のたびに留め直しになる。一方 `getPublicProfile` は
+ * 未認証で読めるので、**今は見えない写真の ID を誰にでも返していた**
+ * ——管理者削除と非公開化は `removePinnedPhoto` を呼ばないため
+ * （本人の削除だけが呼ぶ）、消えた写真・隠した写真の ID が残る。
+ *
+ * `isLivePhotoOf` は「在るか・自分のものか」しか見ない（ピンを**足す**
+ * ときの判定で、本人が自分の下書きを留めるのは許してよい）。ここは
+ * 公開面なので `published` と `story` まで見る。
+ */
+async function publicPinnedIds(ids: string[], ownerId: string): Promise<string[]> {
+    const ok = await Promise.all(ids.map(async (id) => {
+        try {
+            const res = await ddb.send(new GetItemCommand({
+                TableName: PHOTOS_TABLE,
+                Key: marshall({ id }),
+                // userId は古い行に無いことがある（uploadedBy だけの時代の行）
+                ProjectionExpression: "id, userId, uploadedBy, published, story, src",
+            }));
+            if (!res.Item) return false;
+            const p = unmarshall(res.Item) as {
+                userId?: unknown; uploadedBy?: unknown; published?: unknown; story?: unknown; src?: unknown;
+            };
+            if ((p.userId ?? p.uploadedBy) !== ownerId) return false;
+            // 一覧・いいね・コメントと同じ判定（published が無い古い行は公開扱い）
+            return Boolean(p.src) && p.published !== false && p.story !== true;
+        } catch (e) {
+            // **引けなかったら出さない。** ピンが1つ消えるだけで済む方を選ぶ
+            // （出す側に倒すと、隠したはずの ID が漏れる）
+            console.error("publicPinnedIds error:", e);
+            return false;
+        }
+    }));
+    return ids.filter((_, i) => ok[i]);
+}
+
 /** 留まっているIDのうち、今も在って自分のものだけを残す（順序は保つ） */
 async function livePinnedIds(ids: string[], ownerId: string): Promise<string[]> {
     const alive = await Promise.all(ids.map((id) => isLivePhotoOf(id, ownerId)));
@@ -930,7 +969,16 @@ export const getPublicProfile: APIGatewayProxyHandlerV2 = async (event) => {
         if (!profile || isDeletedProfile(profile)) {
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ userId }) };
         }
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(toPublicProfile(profile)) };
+        const pub = toPublicProfile(profile);
+        // 今は見えない写真の ID を返さない（上の publicPinnedIds を見よ）
+        const pins = Array.isArray(pub.pinnedPhotoIds)
+            ? pub.pinnedPhotoIds.filter((x): x is string => typeof x === "string")
+            : [];
+        if (pins.length > 0) {
+            const visible = await publicPinnedIds(pins, userId);
+            pub.pinnedPhotoIds = visible.length > 0 ? visible : undefined;
+        }
+        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(pub) };
     } catch (e) {
         console.error("getPublicProfile error:", e);
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "取得に失敗しました" }) };
