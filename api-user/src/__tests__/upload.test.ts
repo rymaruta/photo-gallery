@@ -682,3 +682,41 @@ describe("savePhoto: 保存の再送で写真が増えない", () => {
         expect(JSON.parse(res.body).photo.title.ja).toBe("あとで直した");
     });
 });
+
+// **許可リストだけでは塞げていなかった。**
+//
+// `@aws-sdk/s3-request-presigner` は presign の前に
+// `unsignableHeaders.add("content-type")` を無条件で実行する
+// （`dist-cjs/index.js` の `prepareRequest`）。つまり既定では Content-Type が
+// **署名対象から外れる**——`image/jpeg` で presign を取り（拡張子は `.jpg` に
+// 固定される）、`text/html` で PUT できる。CloudFront はサイトと同一オリジンで
+// その HTML を返すので、localStorage の Cognito トークンが読める。
+// `uploadPolicy.ts` が SVG を弾く理由として書いている攻撃そのもの。
+//
+// `@smithy/signature-v4` の `getCanonicalHeaders` は `signableHeaders` に
+// 入っていれば unsignable を上書きするので、明示して署名対象に戻す。
+describe("presign が Content-Type を縛る", () => {
+    it("署名対象に content-type を明示する", async () => {
+        mockGetSignedUrl.mockResolvedValue("https://s3.example/put");
+        await invokePresign({
+            requestContext: { authorizer: { jwt: { claims: { sub: "u1" } } } },
+            body: JSON.stringify({ fileName: "a.jpg", fileType: "image/jpeg", fileSize: 1000 }),
+        });
+
+        const opts = mockGetSignedUrl.mock.calls.at(-1)?.[2] as { signableHeaders?: Set<string> };
+        expect(opts?.signableHeaders, "signableHeaders が渡っていない（既定では外される）").toBeDefined();
+        expect([...(opts.signableHeaders ?? [])], "content-type が署名対象に入っていない")
+            .toContain("content-type");
+    });
+
+    it("焼き付ける種別は正規化したもの（クライアントの文字列そのままではない）", async () => {
+        mockGetSignedUrl.mockResolvedValue("https://s3.example/put");
+        await invokePresign({
+            requestContext: { authorizer: { jwt: { claims: { sub: "u1" } } } },
+            body: JSON.stringify({ fileName: "a.jpg", fileType: "IMAGE/JPEG; charset=utf-8", fileSize: 1000 }),
+        });
+
+        const input = mockPutObjectInput.mock.calls.at(-1)?.[0] as { ContentType: string };
+        expect(input.ContentType).toBe("image/jpeg");
+    });
+});

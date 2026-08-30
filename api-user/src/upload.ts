@@ -97,6 +97,8 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "対応していない形式です（JPEG・PNG・WebP・AVIF・HEIC・GIF、動画は MP4・WebM・MOV）" }) };
     }
 
+    const safeContentType = fileType.split(";")[0].trim().toLowerCase();
+
     const photoId = uuidv4();
     // 投稿者ごとの領域に置く。URL だけで持ち主が分かるようにして、
     // 他人のファイルを自分の写真として登録・削除できないようにする。
@@ -108,10 +110,36 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
             Bucket: UPLOAD_BUCKET,
             Key: key,
             // クライアントが送ってきた文字列ではなく、許可済みの種別だけを焼き付ける
-            ContentType: fileType.split(";")[0].trim().toLowerCase(),
+            // （**署名対象に戻すのは下の `signableHeaders`**。これが無いと
+            // 焼き付けたつもりで何も縛れていない）
+            ContentType: safeContentType,
             CacheControl: "max-age=31536000",
         }),
-        { expiresIn: 900 }
+        {
+            expiresIn: 900,
+            // **`signableHeaders` を渡さないと Content-Type は縛れない。**
+            //
+            // `@aws-sdk/s3-request-presigner` は presign の前に
+            // `unsignableHeaders.add("content-type")` を無条件で実行する
+            // （`dist-cjs/index.js` の `prepareRequest`）。つまり既定では
+            // **署名対象から外れる**——ここで種別を焼き付けたつもりでも、
+            // クライアントは同じ URL に好きな `Content-Type` で PUT できる。
+            //
+            // これは `uploadPolicy.ts` が SVG を弾く理由として書いている
+            // 攻撃がそのまま通るということ: `image/jpeg` で presign を取り
+            // （拡張子は `.jpg` に固定される）、`text/html` で PUT すると、
+            // CloudFront はサイトと同一オリジンでその HTML を返す
+            // ——localStorage の Cognito トークンが読める。
+            //
+            // `@smithy/signature-v4` の `getCanonicalHeaders` は
+            // `signableHeaders` に入っていれば unsignable を**上書きする**
+            // ので、明示して署名対象に戻す。
+            //
+            // なお `cache-control` は `ALWAYS_UNSIGNABLE_HEADERS` にあり、
+            // こちらは `signableHeaders` でも戻せない（下の profile.ts の
+            // 注記と同じ）。
+            signableHeaders: new Set(["content-type"]),
+        },
     );
 
     const publicUrl = CLOUDFRONT_URL
@@ -121,7 +149,10 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     return {
         statusCode: 200,
         headers: JSON_HEADERS,
-        body: JSON.stringify({ presignedUrl: presigned, key, publicUrl, photoId }),
+        // **署名した種別をそのまま返す。** `content-type` を署名対象に戻したので、
+        // クライアントは**同じ文字列**で PUT しないと 403 になる。自分で
+        // `file.type` を組み立てさせると、大文字やパラメータ付きの差で落ちる
+        body: JSON.stringify({ presignedUrl: presigned, key, publicUrl, photoId, contentType: safeContentType }),
     };
 };
 

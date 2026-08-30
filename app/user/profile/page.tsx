@@ -220,14 +220,14 @@ export default function ProfileEditPage() {
             // （JPEG・PNG・WebP・AVIF・HEIC・GIF）」など）。固定文に潰していたので、
             // 形式が原因なのか一時障害なのか分からず、同じ画像を選び直していた
             if (!res.ok) { showToast(await readApiError(res, "カバー写真のアップロードに失敗しました"), "error"); return; }
-            const { presignedUrl } = await res.json() as { presignedUrl: string };
+            const { presignedUrl, contentType } = await res.json() as { presignedUrl: string; contentType?: string };
             const uploadRes = await fetch(presignedUrl, {
                 method: "PUT",
                 body: upload,
                 // Cache-Control は署名対象外ヘッダなので presigned URL 側では指定できない。
                 // クライアントが送らないと S3 に何も付かず、CDN の既定TTLで配信されて
                 // アイコンを変えても他人には古いものが出続ける（固定キーのため）。
-                headers: { "Content-Type": upload.type, "Cache-Control": "no-store" },
+                headers: { "Content-Type": contentType ?? upload.type, "Cache-Control": "no-store" },
             });
             if (!uploadRes.ok) { showToast("カバー写真のアップロードに失敗しました", "error"); return; }
             setCoverError(false);
@@ -277,7 +277,7 @@ export default function ProfileEditPage() {
             });
             // カバー写真と同じ理由（サーバーは形式の誤りと一時障害を返し分けている）
             if (!res.ok) { showToast(await readApiError(res, "アバターのアップロードに失敗しました"), "error"); return; }
-            const { presignedUrl } = await res.json() as { presignedUrl: string };
+            const { presignedUrl, contentType } = await res.json() as { presignedUrl: string; contentType?: string };
 
             // S3 に直接アップロード（表示サイズに合わせて縮小してから送る）
             const uploadRes = await fetch(presignedUrl, {
@@ -286,7 +286,7 @@ export default function ProfileEditPage() {
                 // Cache-Control は署名対象外ヘッダなので presigned URL 側では指定できない。
                 // クライアントが送らないと S3 に何も付かず、CDN の既定TTLで配信されて
                 // アイコンを変えても他人には古いものが出続ける（固定キーのため）。
-                headers: { "Content-Type": upload.type, "Cache-Control": "no-store" },
+                headers: { "Content-Type": contentType ?? upload.type, "Cache-Control": "no-store" },
             });
             if (!uploadRes.ok) { showToast("アバターのアップロードに失敗しました", "error"); return; }
 

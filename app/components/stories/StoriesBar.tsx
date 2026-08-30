@@ -421,7 +421,7 @@ export default function StoriesBar() {
                 throw new Error(await readApiError(presignedRes,
                     locale === "en" ? "Could not prepare the upload." : "アップロードの準備に失敗しました。"));
             }
-            const { presignedUrl, publicUrl, key } = await presignedRes.json() as { presignedUrl: string; publicUrl: string; key?: string };
+            const { presignedUrl, publicUrl, key, contentType } = await presignedRes.json() as { presignedUrl: string; publicUrl: string; key?: string; contentType?: string };
 
             // **PUT の前に控える。** ここが PUT のあとだったので、`fetch` が
             // **reject** したとき（本文は上がりきったが応答が返らない）に
@@ -439,7 +439,9 @@ export default function StoriesBar() {
             const s3Res = await fetch(presignedUrl, {
                 method: "PUT",
                 body: uploadFile,
-                headers: { "Content-Type": uploadFile.type },
+                // サーバーが署名した種別で送る（`content-type` は署名対象。
+                // 違う文字列だと S3 が 403 にする）
+                headers: { "Content-Type": contentType ?? uploadFile.type },
             });
             if (!s3Res.ok) {
                 log.error("story S3 upload failed:", s3Res.status);

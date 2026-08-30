@@ -535,6 +535,10 @@ function UploadPageInner() {
                     const presigned = await presignedResponse.json();
                     key = presigned.key as string;
                     publicUrl = presigned.publicUrl as string;
+                    // **サーバーが署名した種別で送る。** `content-type` は
+                    // 署名対象なので、違う文字列だと S3 が 403 にする。
+                    // 返ってこない古い API 相手でも動くよう、無ければ従来どおり
+                    const putType = (presigned.contentType as string | undefined) ?? uploadFile.type;
                     // **PUT の前に控える。** ここで控えていなかったので、
                     // `fetch` が **reject** したとき（本文は上がりきったが
                     // 応答が返らない——モバイル回線でよくある）にキーが
@@ -548,7 +552,7 @@ function UploadPageInner() {
                     const uploadResponse = await fetch(presigned.presignedUrl, {
                         method: "PUT",
                         body: uploadFile,
-                        headers: { "Content-Type": uploadFile.type, "Cache-Control": "max-age=31536000" },
+                        headers: { "Content-Type": putType, "Cache-Control": "max-age=31536000" },
                     });
                     // **番号だけの文字列を投げない。** catch は e.message を
                     // そのまま画面に出すので、利用者に「S3 403」が見えていた
@@ -571,7 +575,7 @@ function UploadPageInner() {
                             body: JSON.stringify({ fileName: thumb.name, fileType: thumb.type, fileSize: thumb.size }),
                         });
                         if (thumbPresign.ok) {
-                            const t = await thumbPresign.json() as { presignedUrl: string; publicUrl: string; key?: string };
+                            const t = await thumbPresign.json() as { presignedUrl: string; publicUrl: string; key?: string; contentType?: string };
                             // 本体と同じ理由で PUT の前に控える。ここは
                             // 失敗しても「サムネ無しで続行」なので、控えて
                             // いないと **本体が保存できても** その 512px WebP は
@@ -580,7 +584,7 @@ function UploadPageInner() {
                             const thumbPut = await fetch(t.presignedUrl, {
                                 method: "PUT",
                                 body: thumb,
-                                headers: { "Content-Type": thumb.type, "Cache-Control": "max-age=31536000" },
+                                headers: { "Content-Type": t.contentType ?? thumb.type, "Cache-Control": "max-age=31536000" },
                             });
                             if (thumbPut.ok) {
                                 thumbUrl = t.publicUrl;
@@ -1074,14 +1078,14 @@ function UploadPageInner() {
                                             body: JSON.stringify({ fileType: compressed.type }),
                                         });
                                         if (!res.ok) throw new Error("Presigned URL fail");
-                                        const { presignedUrl } = await res.json() as { presignedUrl: string };
+                                        const { presignedUrl, contentType } = await res.json() as { presignedUrl: string; contentType?: string };
                                         const upload = await fetch(presignedUrl, {
                                             method: "PUT",
                                             body: compressed,
                                             // Cache-Control は署名対象外ヘッダなので presigned URL 側では
                                             // 指定できない。クライアントが送らないと S3 に何も付かず、
                                             // CDN の既定TTLで配信されてアイコンを変えても反映されない。
-                                            headers: { "Content-Type": compressed.type, "Cache-Control": "no-store" },
+                                            headers: { "Content-Type": contentType ?? compressed.type, "Cache-Control": "no-store" },
                                         });
                                         if (!upload.ok) throw new Error("S3 upload fail");
                                         setAvatarFile(null);

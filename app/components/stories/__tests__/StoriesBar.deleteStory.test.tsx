@@ -33,9 +33,16 @@ vi.mock("../../../../lib/utils/api", () => ({
 
 import StoriesBar from "../StoriesBar";
 
+// **期限は現在時刻からの相対で作る。**
+// 固定の日付を書いていたので、時計がその日を追い越した瞬間に
+// `groupStories` の `Date.parse(expiresAt) > now` で落ちるようになり、
+// 「あなた」の枠がファイル選択のままで先へ進めなくなった
+// ——書いた日は通り、翌日から落ちる**時限式のテスト**だった。
 const STORY = {
     id: "s1", userId: "me", src: "https://cdn.example.com/uploads/me/a.jpg",
-    mediaType: "image", createdAt: "2026-08-29T00:00:00Z", expiresAt: "2026-08-30T00:00:00Z",
+    mediaType: "image",
+    createdAt: new Date(Date.now() - 60_000).toISOString(),
+    expiresAt: new Date(Date.now() + 60 * 60_000).toISOString(),
 };
 
 beforeEach(() => {
@@ -47,6 +54,23 @@ beforeEach(() => {
         Object.defineProperty(URL, "revokeObjectURL", { value: () => undefined, writable: true });
     }
 });
+
+/**
+ * 自分のストーリーを開いて削除まで進める。
+ *
+ * **一覧が届くのを待ってから押す。** 「あなた」の枠は、ストーリーが
+ * 無ければファイル選択を開くボタンで、届いて初めて「見る」に変わる
+ * （`aria-label` がそこで切り替わる）。テキストだけ待って押していたので、
+ * 一覧の到着が間に合わないと**ファイル選択が開くだけ**で先へ進めず、
+ * `findByLabelText` が既定の1秒を使い切って落ちていた
+ * ——ラベルで待てば、押せる状態になったことまで確かめられる。
+ */
+async function openOwnStoryAndDelete() {
+    await userEvent.click(await screen.findByLabelText("自分のストーリーを見る"));
+    await userEvent.click(await screen.findByLabelText("ストーリーを削除"));
+    // 確認ダイアログの「削除」を押す
+    await userEvent.click(await screen.findByRole("button", { name: "削除" }));
+}
 
 /** 自分のストーリーを開いて削除ボタンまで進める */
 async function openAndDelete(deleteResponse: Record<string, unknown>) {
@@ -60,15 +84,8 @@ async function openAndDelete(deleteResponse: Record<string, unknown>) {
         return Promise.resolve({ ok: true, json: async () => ({}) });
     });
 
-    const { container } = render(<StoriesBar />);
-    await screen.findByText("あなた");
-    // 「あなた」の枠を押す（ストーリーがあるときは見る、無いときは選ぶ）。
-    // テキストではなくボタン自体を押す
-    const ownButton = container.querySelector("button") as HTMLButtonElement;
-    await userEvent.click(ownButton);
-    await userEvent.click(await screen.findByLabelText("ストーリーを削除"));
-    // 確認ダイアログの「削除」を押す
-    await userEvent.click(await screen.findByRole("button", { name: "削除" }));
+    render(<StoriesBar />);
+    await openOwnStoryAndDelete();
 }
 
 describe("ストーリー削除が断られたとき", () => {
@@ -103,11 +120,8 @@ describe("ストーリー削除が断られたとき", () => {
             return Promise.resolve({ ok: true, json: async () => ({}) });
         });
 
-        const { container } = render(<StoriesBar />);
-        await screen.findByText("あなた");
-        await userEvent.click(container.querySelector("button") as HTMLButtonElement);
-        await userEvent.click(await screen.findByLabelText("ストーリーを削除"));
-        await userEvent.click(await screen.findByRole("button", { name: "削除" }));
+        render(<StoriesBar />);
+        await openOwnStoryAndDelete();
 
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("削除に失敗しました", "error"));
         const shown = String(mockShowToast.mock.calls[0][0]);

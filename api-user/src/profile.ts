@@ -53,6 +53,7 @@ export const profileAvatarPresignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorize
                 Bucket: UPLOAD_BUCKET,
                 Key: key,
                 // クライアントの文字列そのままではなく、許可済みの種別を焼き付ける
+                // （**署名対象に戻すのは下の `signableHeaders`**）
                 ContentType: safeContentType,
                 // 注意: cache-control は SigV4 の ALWAYS_UNSIGNABLE_HEADERS に入っており、
                 // presigned URL では効かない（S3 にはクライアントが送った値だけが載る）。
@@ -61,7 +62,14 @@ export const profileAvatarPresignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorize
                 // ハッシュの付かない固定キーなので、キャッシュさせると変更が反映されない。
                 CacheControl: "no-store",
             }),
-            { expiresIn: 900 }
+            {
+                expiresIn: 900,
+                // **Content-Type を署名対象に戻す**（presigner が既定で外す）。
+                // 詳しい理由は upload.ts の同じ指定にある——外れたままだと、
+                // 許可済みの種別で presign を取って `text/html` で PUT でき、
+                // サイトと同一オリジンで任意のスクリプトが動く。
+                signableHeaders: new Set(["content-type"]),
+            },
         );
     } catch (e) {
         console.error("profileAvatarPresignedUrl: getSignedUrl failed:", e);
@@ -75,6 +83,7 @@ export const profileAvatarPresignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorize
     return {
         statusCode: 200,
         headers: JSON_HEADERS,
-        body: JSON.stringify({ presignedUrl: presigned, publicUrl }),
+        // 署名した種別をそのまま返す（理由は upload.ts の同じ箇所）
+        body: JSON.stringify({ presignedUrl: presigned, publicUrl, contentType: safeContentType }),
     };
 };

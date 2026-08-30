@@ -125,3 +125,20 @@ describe("profileAvatarPresignedUrl: 署名に失敗したとき", () => {
         logged.mockRestore();
     });
 });
+
+// アバター側も同じ。presigner は既定で `content-type` を署名対象から外すので、
+// 「許可済みの種別を焼き付ける」と書いてあっても何も縛れていなかった。
+// `image/jpeg` で presign を取り `text/html` で PUT すると、サイトと同一
+// オリジンで任意のスクリプトが動く（localStorage の Cognito トークンが読める）。
+describe("アバターの presign が Content-Type を縛る", () => {
+    it("署名対象に content-type を明示する", async () => {
+        await invoke({
+            requestContext: { authorizer: { jwt: { claims: { sub: "u1" } } } },
+            body: JSON.stringify({ fileType: "image/jpeg" }),
+        });
+
+        const opts = mockGetSignedUrl.mock.calls.at(-1)?.[2] as { signableHeaders?: Set<string> };
+        expect(opts?.signableHeaders, "signableHeaders が渡っていない（既定では外される）").toBeDefined();
+        expect([...(opts.signableHeaders ?? [])]).toContain("content-type");
+    });
+});
