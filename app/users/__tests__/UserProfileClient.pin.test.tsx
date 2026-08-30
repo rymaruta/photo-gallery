@@ -310,6 +310,52 @@ describe("オーナーが見るピン留め", () => {
         ).toHaveLength(2));
     });
 
+    // **捨てたら取り直す。** 追い越しの番号は保存の**入口**で進むので、
+    // その保存が失敗して巻き戻ると、待っていた本人の行の取得は捨てられた
+    // まま二度と当たらない——公開ぶん（非公開の ID を落とした部分集合）で
+    // 固定され、まさに直したかった「星が無くて外せない」に戻る。
+    it("保存に失敗しても、本人のピンを取り直す", async () => {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        // 公開プロフィールは p2（非公開）を落とす
+        mockUserPublicFetch.mockResolvedValue({
+            ok: true, json: async () => ({ userId: ME, pinnedPhotoIds: ["p1"] }),
+        });
+        let resolveFirstProfile: ((v: unknown) => void) | null = null;
+        let profileCalls = 0;
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (init?.method === "PUT") return Promise.resolve(reply(false, 500, {}));   // 保存が落ちる
+            if (url === "/user/profile") {
+                profileCalls += 1;
+                // 1本目は保留（星を押すまで返さない）。2本目＝取り直し
+                if (profileCalls === 1) return new Promise((res) => { resolveFirstProfile = res; });
+                return Promise.resolve({ ok: true, json: async () => ({ userId: ME, pinnedPhotoIds: ["p1", "p2"] }) });
+            }
+            return Promise.resolve({
+                ok: true,
+                json: async () => [photo("p1"), { ...photo("p2"), published: false }],
+            });
+        });
+
+        render(<UserProfileClient userId={ME} />);
+        await waitFor(() => expect(screen.getAllByTitle("ピン留め解除")).toHaveLength(1));
+
+        // 待っている間に別の写真を留めようとして、失敗する
+        fireEvent.click(screen.getAllByTitle("先頭にピン留め")[0]);
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("保存に失敗しました", "error"));
+
+        // 1本目が遅れて着地しても、番号が進んでいるので捨てられる
+        await act(async () => {
+            resolveFirstProfile!({ ok: true, json: async () => ({ userId: ME, pinnedPhotoIds: ["p1", "p2"] }) });
+            await Promise.resolve();
+        });
+
+        // 取り直しで、非公開の p2 のぶんも星が付く
+        await waitFor(() => expect(
+            screen.getAllByTitle("ピン留め解除"),
+            "捨てたまま取り直していない（非公開のピンが外せない）",
+        ).toHaveLength(2));
+    });
+
     // 1枚も留めていない人の行には pinnedPhotoIds が無い。キーが無ければ
     // 触らない（触ると、公開APIが返したピンを消してしまう）
     it("自分の行にピンのキーが無ければ、公開ぶんを消さない", async () => {

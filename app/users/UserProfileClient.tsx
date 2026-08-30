@@ -258,6 +258,52 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     const [loadError, setLoadError] = useState<"profile" | "ownPhotos" | "photos" | null>(null);
     const [reloadKey, setReloadKey] = useState(0);
 
+    // ピン留めの保存に付ける通し番号（応答の追い越しを捨てる）。
+    // **ピン専用のつもりで使っている。** 進めるのは `saveProfilePatch` の
+    // 入口なので、この関数がピン以外の保存にも使われ始めたら
+    // （旅の名前・カバー・BGM の枠がこのファイルに残っている）、
+    // 「名前を1文字直したらピンの後追いが捨てられる」が生まれる。
+    // そのときは番号を分けること。
+    const pinSeqRef = useRef(0);
+
+    /**
+     * 本人の行（`GET /user/profile`）からピンを採る。オーナーのときだけ呼ぶ。
+     *
+     * 公開プロフィール（`getPublicProfile`）は「今は見えない写真」の ID を
+     * 落として返す。本人がそれをそのまま使うと、非公開にした写真の星が
+     * 消えるのに**サーバーの枠は埋まったまま**——4枚目を留めようとすると
+     * 409「ピン留めは3枚までです」が出続け、解除ボタンは星の付いた写真に
+     * しか無いので画面から直せない。落とすのは訪問者に見せるときだけ。
+     *
+     * **保存が挟まったら捨てる。** ここが運ぶのは「投げた時点の姿」なので、
+     * 待っている間に星を押されると、押したあとの一覧を押す前の一覧で
+     * 上書きしてしまう。PUT の応答と同じ `pinSeqRef` で見分ける。
+     *
+     * **捨てたら取り直す。** 番号は保存の入口で進むので、その保存が
+     * 失敗して巻き戻ると「捨てたまま二度と当たらない」——公開ぶんの
+     * ピンで固定され、まさに直したかった状態に戻る。だから
+     * `saveProfilePatch` の失敗経路からここを呼び直す。
+     *
+     * 引けなかったときは公開ぶんのまま（星が少なく出る）。ここで一覧を
+     * 空にすると、写真一覧と同じ「消えたように見えて押し直す」を作る。
+     */
+    const loadOwnPins = useCallback((signal?: AbortSignal) => {
+        const pinSeq = pinSeqRef.current;
+        void userFetch("/user/profile", signal ? { signal } : undefined)
+            .then((res) => (res.ok ? res.json().catch(() => null) : null))
+            .then((mineProfile: { pinnedPhotoIds?: unknown } | null) => {
+                if (signal?.aborted || pinSeq !== pinSeqRef.current) return;
+                // キーが無い＝1枚も留めていない。公開ぶんも空なので触らない
+                // （公開ぶんは必ず保存ぶんの部分集合）。
+                if (!Array.isArray(mineProfile?.pinnedPhotoIds)) return;
+                const ownPins = mineProfile.pinnedPhotoIds.filter((x): x is string => typeof x === "string");
+                // 公開プロフィールが読めていないときは触らない（その状態では
+                // この画面は保存そのものを断るので、星だけ戻しても押せない）
+                setUserProfile((p) => (p ? { ...p, pinnedPhotoIds: ownPins } : p));
+            })
+            .catch(() => {});
+    }, []);
+
     useEffect(() => {
         const controller = new AbortController();
         // この回でプロフィールを取れたか（catch で「どこが落ちたか」を分ける）
@@ -297,44 +343,13 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 // 復活していた。非公開バッジも出ないので本人には見分けが付かず、
                 // もう一度目のアイコンを押すと今度は本当に再公開してしまう。
                 if (isCurrentUserOwner) {
-                    // **自分のピンは自分の行から採る。**
-                    //
-                    // 公開プロフィール（`getPublicProfile`）は「今は見えない
-                    // 写真」の ID を落として返す。本人がそれをそのまま使うと、
-                    // 非公開にした写真の星が消えるのに**サーバーの枠は埋まった
-                    // まま**——4枚目を留めようとすると 409「ピン留めは3枚まで
-                    // です」が出続け、しかも解除ボタンは星の付いた写真にしか
-                    // 無いので画面から直せない。落とすのは訪問者に見せるときだけ。
-                    //
+                    // **自分のピンは自分の行から採る**（詳しくは loadOwnPins）。
                     // **一覧をこれに待たせない。** `Promise.all` で束ねると、
-                    // ピンのためだけの取得が写真一覧の描画を人質に取る
+                    // 星のためだけの取得が写真一覧の描画を人質に取る
                     // ——その間ビルド時 JSON（全件 published:true）のままなので、
                     // 非公開バッジが出ず、本人が目のアイコンを押して**本当に
                     // 再公開する**窓が開く。星は後から当てれば足りる。
-                    //
-                    // **保存が挟まったら捨てる。** この取得が運ぶのは「投げた
-                    // 時点の姿」なので、待っている間に星を押されると、押した
-                    // あとの一覧を押す前の一覧で上書きしてしまう（「ピン留め
-                    // しました」と出て星が消える）。PUT の応答と同じ
-                    // `pinSeqRef` で見分ける——書き手を増やすなら、既にある
-                    // 追い越しの仕組みに乗せる。
-                    const pinSeq = pinSeqRef.current;
-                    void userFetch("/user/profile", { signal: controller.signal })
-                        .then((res) => (res.ok ? res.json().catch(() => null) : null))
-                        .then((mineProfile: { pinnedPhotoIds?: unknown } | null) => {
-                            if (controller.signal.aborted || pinSeq !== pinSeqRef.current) return;
-                            // キーが無い＝1枚も留めていない。公開ぶんも空なので触らない
-                            // （公開ぶんは必ず保存ぶんの部分集合）。
-                            if (!Array.isArray(mineProfile?.pinnedPhotoIds)) return;
-                            const ownPins = mineProfile.pinnedPhotoIds.filter((x): x is string => typeof x === "string");
-                            // 公開プロフィールが読めていないときは触らない（星だけ
-                            // 復元しても、この画面は保存そのものを断る）
-                            setUserProfile((p) => (p ? { ...p, pinnedPhotoIds: ownPins } : p));
-                        })
-                        // 落ちたときは公開ぶんのまま（星が少なく出る）。ここで
-                        // 一覧を空にすると、下の写真一覧と同じ「消えたように
-                        // 見えて押し直す」を作る
-                        .catch(() => {});
+                    loadOwnPins(controller.signal);
                     const mineRes = await userFetch("/user/photos", { signal: controller.signal });
                     if (mineRes.ok) {
                         const mine = await mineRes.json() as unknown;
@@ -405,7 +420,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         setLoadError(null);
         void load();
         return () => controller.abort();
-    }, [userId, reloadKey]);
+    }, [userId, reloadKey, loadOwnPins]);
 
     const displayName = useMemo(() => {
         if (userProfile?.displayName) return userProfile.displayName;
@@ -475,9 +490,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
 
     // 旅アルバム: 撮影日の間隔で自動グルーピング
 
-    // ピン留めの保存に付ける通し番号（応答の追い越しを捨てる）
-    const pinSeqRef = useRef(0);
-
     // プロフィール項目の部分更新。変更する項目だけ送る。
     // `patch` は画面に即反映する見込みの値。`wire` を渡すとそちらを送る
     // （ピン留めのように「配列まるごと」ではなく増減で送りたい場合）。
@@ -536,6 +548,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     ? await res.clone().json().catch(() => null) as { pinnedPhotoIds?: unknown } | null
                     : null;
                 if (detail && Array.isArray(detail.pinnedPhotoIds)) adoptPins(detail.pinnedPhotoIds);
+                // **番号を進めたまま失敗しない。** 読み込み時の後追い
+                // （loadOwnPins）は、この保存が入口で進めた番号のせいで
+                // 捨てられている。ここで取り直さないと、公開ぶんのピンで
+                // 固定されたまま——非公開にした写真の星が無く、外せない。
+                // 一覧が添えられていた回（上の adoptPins）は済んでいる。
+                else if ("pinnedPhotoIds" in patch) loadOwnPins();
                 showToast(await readApiError(res, failMsg), "error");
                 return;
             }
@@ -547,6 +565,9 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             showToast(successMsg, "success");
         } catch (e) {
             setUserProfile(prev ?? null);
+            // 上と同じ（捨てられた後追いを取り直す）。ここも失敗すれば
+            // 公開ぶんのまま——星が少なく出るだけで、何も壊さない
+            if ("pinnedPhotoIds" in patch) loadOwnPins();
             // トークン不在（userFetch が投げる）は「保存に失敗しました」では
             // 直らない。別のタブでログアウトした人・セッションが切れた人は、
             // 何をすればいいか分からないまま押し直すことになる。
@@ -555,7 +576,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 ? AUTH_REQUIRED_MESSAGE
                 : failMsg, "error");
         }
-    }, [userProfile, userId, locale, showToast]);
+    }, [userProfile, userId, locale, showToast, loadOwnPins]);
 
     // 旅のカスタム名（オーナーが編集可能・プロフィールに保存され全員に見える）
 

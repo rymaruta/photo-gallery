@@ -157,7 +157,12 @@ export default function NotificationsBell() {
                                     // **退会した人のフォロー通知は、開く先が墓石になる。**
                                     // フォローの通知は写真を持たないので、代わりの行き先も
                                     // 無い——リンクを外して文面だけ残す（コメント欄と同じ扱い）。
-                                    const goesNowhere = n.deleted === true && n.type === "follow";
+                                    // **判定は1か所で作る。** 片方だけ厳密にすると、
+                                    // `deleted: "1"` のような応答でアイコンだけ伏せて
+                                    // 本文はリンクのまま、という食い違いになる。
+                                    // 迷ったら伏せる側（コメント欄も truthy 判定）。
+                                    const isDeleted = !!n.deleted;
+                                    const goesNowhere = isDeleted && n.type === "follow";
                                     const body = (
                                         <>
                                             <div className="min-w-0 flex-1">
@@ -201,7 +206,7 @@ export default function NotificationsBell() {
                                             {/* 左のアイコンは相手のプロフィールへ。
                                                 名前だけだと、名前未設定の人は既定名で表示されて
                                                 誰なのか辿れず、フォローしに行けないため */}
-                                            {n.deleted === true ? (
+                                            {isDeleted ? (
                                                 // 退会した人。名前は既にサーバーが伏せてある
                                                 <span className="flex-shrink-0">
                                                     <UserAvatar userId="" className="w-10 h-10" iconClassName="w-5 h-5" />

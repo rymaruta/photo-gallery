@@ -165,7 +165,24 @@ describe("退会した人からの通知", () => {
 
     const hrefs = () => screen.queryAllByRole("link").map((a) => a.getAttribute("href"));
 
-    it("プロフィールへのリンクを出さない（アイコンも本文も）", async () => {
+    // 真偽値そのものでない値（サーバーは今 boolean しか書かないが、
+    // 経路が増えたときに片側だけ効く形にしない）でも伏せる側に倒す
+    it.each([
+        ["true", true],
+        ["真値の文字列", "1"],
+    ])("プロフィールへのリンクを出さない（deleted が %s）", async (_label, flag) => {
+        mockUserFetch.mockResolvedValue(fetchOk({
+            items: GONE.map((n) => ({ ...n, deleted: flag })), unread: 0,
+        }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+        expect(hrefs().filter((h) => h?.includes("gone-sub")),
+            "墓石になったプロフィールへ誘っている").toEqual([]);
+    });
+
+    it("名前は出すが、導線だけ出さない", async () => {
         mockUserFetch.mockResolvedValue(fetchOk({ items: GONE, unread: 0 }));
         render(<NotificationsBell />);
         await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
