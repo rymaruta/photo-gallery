@@ -263,7 +263,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     // 入口なので、この関数がピン以外の保存にも使われ始めたら
     // （旅の名前・カバー・BGM の枠がこのファイルに残っている）、
     // 「名前を1文字直したらピンの後追いが捨てられる」が生まれる。
-    // そのときは番号を分けること。
+    // そのときは番号を分けること——**巻き戻し（失敗時の `setUserProfile(prev)`）も
+    // この番号に乗せた**ので、分けないまま他の項目を保存すると
+    // 「星が古い」で済まず、**保存できていない値が画面に残る**方に化ける。
+    // 先回りして分岐を足さないのは、呼び出し側が1つしか無い今は
+    // 「守っているつもりの死にコード」にしかならないため（このファイルは
+    // 同じ理由で一度そういう分岐を消している）。
     const pinSeqRef = useRef(0);
 
     /**
@@ -287,16 +292,30 @@ export default function UserProfileClient({ userId }: { userId: string }) {
      * 引けなかったときは公開ぶんのまま（星が少なく出る）。ここで一覧を
      * 空にすると、写真一覧と同じ「消えたように見えて押し直す」を作る。
      */
-    const loadOwnPins = useCallback((signal?: AbortSignal) => {
+    const loadOwnPins = useCallback((signal?: AbortSignal, authoritative = false) => {
         const pinSeq = pinSeqRef.current;
         void userFetch("/user/profile", signal ? { signal } : undefined)
             .then((res) => (res.ok ? res.json().catch(() => null) : null))
-            .then((mineProfile: { pinnedPhotoIds?: unknown } | null) => {
+            .then((mineProfile: { userId?: unknown; pinnedPhotoIds?: unknown } | null) => {
                 if (signal?.aborted || pinSeq !== pinSeqRef.current) return;
-                // キーが無い＝1枚も留めていない。公開ぶんも空なので触らない
-                // （公開ぶんは必ず保存ぶんの部分集合）。
-                if (!Array.isArray(mineProfile?.pinnedPhotoIds)) return;
-                const ownPins = mineProfile.pinnedPhotoIds.filter((x): x is string => typeof x === "string");
+                const raw = mineProfile?.pinnedPhotoIds;
+                if (!Array.isArray(raw)) {
+                    // **キーが無い＝サーバーは0枚**（保存側は空になると
+                    // 項目ごと落とす）。ここの扱いは呼び出し元で変わる:
+                    //
+                    // - 読み込み時（`authoritative` でない）は触らない。
+                    //   公開ぶんは必ず保存ぶんの部分集合なので消しても得が無く、
+                    //   応答の形が想定外だったときに星を全部消す方が痛い。
+                    // - 失敗の後始末では**下ろす**。画面には見込みで付けた星が
+                    //   乗っていて、追い越された保存はもう巻き戻さないので、
+                    //   ここで下ろさないと**誰も下ろさない**（サーバーには
+                    //   無い星が残り、リロードするまで直らない）。
+                    //
+                    // ただし「読めた」ことは確かめる——`getMyProfile` は必ず
+                    // `userId` を返すので、それが無い 200 は profile ではない。
+                    if (!authoritative || typeof mineProfile?.userId !== "string") return;
+                }
+                const ownPins = (Array.isArray(raw) ? raw : []).filter((x): x is string => typeof x === "string");
                 // 公開プロフィールが読めていないときは触らない（その状態では
                 // この画面は保存そのものを断るので、星だけ戻しても押せない）
                 setUserProfile((p) => (p ? { ...p, pinnedPhotoIds: ownPins } : p));
@@ -562,7 +581,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 // 捨てられている。ここで取り直さないと、公開ぶんのピンで
                 // 固定されたまま——非公開にした写真の星が無く、外せない。
                 // 一覧が添えられていた回（上の adoptPins）は済んでいる。
-                else if (isLatest() && "pinnedPhotoIds" in patch) loadOwnPins();
+                else if (isLatest() && "pinnedPhotoIds" in patch) loadOwnPins(undefined, true);
                 showToast(await readApiError(res, failMsg), "error");
                 return;
             }
@@ -577,7 +596,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 setUserProfile(prev ?? null);
                 // 上と同じ（捨てられた後追いを取り直す）。ここも失敗すれば
                 // 公開ぶんのまま——星が少なく出るだけで、何も壊さない
-                if ("pinnedPhotoIds" in patch) loadOwnPins();
+                if ("pinnedPhotoIds" in patch) loadOwnPins(undefined, true);
             }
             // トークン不在（userFetch が投げる）は「保存に失敗しました」では
             // 直らない。別のタブでログアウトした人・セッションが切れた人は、

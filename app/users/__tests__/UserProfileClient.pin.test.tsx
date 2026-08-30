@@ -356,6 +356,162 @@ describe("オーナーが見るピン留め", () => {
         ).toHaveLength(2));
     });
 
+    /**
+     * **2本続けて失敗すると、サーバーに無い星が残っていた。**
+     *
+     * 巻き戻しは最後の1本しかしない（追い越された分は何もしない）ので、
+     * 後始末の担い手は取り直しだけ。ところが取り直しは「キーが無ければ
+     * 触らない」——保存側は0枚になると項目ごと落とすので、**0枚の人だけ
+     * 誰も後始末しない**。画面には見込みの星が残り、訪問者には見えない。
+     */
+    it("2本とも失敗したら、見込みで付けた星は残さない", async () => {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        // サーバーは0枚（項目ごと無い）
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ userId: ME }) });
+        let failFirst: (() => void) | null = null;
+        let putCount = 0;
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (init?.method === "PUT") {
+                putCount += 1;
+                if (putCount === 1) return new Promise((res) => { failFirst = () => res(reply(false, 500, {})); });
+                return Promise.resolve(reply(false, 500, {}));
+            }
+            if (url === "/user/profile") return Promise.resolve({ ok: true, json: async () => ({ userId: ME }) });
+            return Promise.resolve({ ok: true, json: async () => [photo("p1"), photo("p2")] });
+        });
+
+        render(<UserProfileClient userId={ME} />);
+        await waitFor(() => expect(screen.getAllByTitle(/ピン留め/).length).toBeGreaterThan(0));
+
+        fireEvent.click(screen.getAllByTitle("先頭にピン留め")[0]);   // p1（保留）
+        await waitFor(() => expect(putCount).toBe(1));
+        fireEvent.click(screen.getAllByTitle("先頭にピン留め")[0]);   // p2（即失敗）
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("保存に失敗しました", "error"));
+
+        await act(async () => { failFirst!(); await new Promise((r) => setTimeout(r, 20)); });
+
+        await waitFor(() => expect(
+            screen.queryAllByTitle("ピン留め解除"),
+            "サーバーに無い星が残っている",
+        ).toHaveLength(0));
+    });
+
+    // 逆向き: 壊れた 200（profile の形をしていない）で星を消さない
+    it("profile の形をしていない応答では、星を触らない", async () => {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        mockUserPublicFetch.mockResolvedValue({
+            ok: true, json: async () => ({ userId: ME, pinnedPhotoIds: ["p1"] }),
+        });
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (init?.method === "PUT") return Promise.resolve(reply(false, 500, {}));
+            // userId が無い＝プロフィールではない（プロキシのエラーページ等）
+            if (url === "/user/profile") return Promise.resolve({ ok: true, json: async () => ({ message: "ng" }) });
+            return Promise.resolve({ ok: true, json: async () => [photo("p1"), photo("p2")] });
+        });
+
+        render(<UserProfileClient userId={ME} />);
+        await waitFor(() => expect(screen.getAllByTitle("ピン留め解除")).toHaveLength(1));
+
+        fireEvent.click(screen.getAllByTitle("先頭にピン留め")[0]);   // p2 を留めようとして失敗
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("保存に失敗しました", "error"));
+        await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+
+        // 元から留まっていた p1 は残る（巻き戻しぶんだけ戻る）
+        expect(screen.getAllByTitle("ピン留め解除"), "壊れた応答で星を消している").toHaveLength(1);
+    });
+
+    /**
+     * 追い越された保存の失敗から取り直すと、**成功した保存を消す**。
+     *
+     * 取り直しが持ってくるのは「その GET を投げた時点の写し」なので、
+     * あとから成功した保存より古い。捕捉する番号は呼び出し時点＝最新なので
+     * 捨てられもしない。`isLatest()` が塞いでいるのはこの筋
+     * （22f1ff0 で入れたが、テストが無かった）。
+     *
+     * `mode` で 4xx/5xx と通信断（catch）の両方を見る——同じ形のガードが
+     * 2か所にあり、片方だけ外しても気づけない状態だった。
+     */
+    it.each([
+        ["4xx/5xx で断られた", "reject-500"],
+        ["通信そのものが落ちた", "throw"],
+    ])("追い越された保存の失敗が、成功した保存の星を消さない（%s）", async (_label, mode) => {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        // サーバーの保存ぶんは p1。公開ぶんも同じ
+        mockUserPublicFetch.mockResolvedValue({
+            ok: true, json: async () => ({ userId: ME, pinnedPhotoIds: ["p1"] }),
+        });
+        let failFirst: (() => void) | null = null;
+        let putCount = 0;
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (init?.method === "PUT") {
+                putCount += 1;
+                // 1本目（p2）は保留。あとで落とす
+                if (putCount === 1) {
+                    return new Promise((res, rej) => {
+                        failFirst = () => (mode === "throw" ? rej(new TypeError("Failed to fetch")) : res(reply(false, 500, {})));
+                    });
+                }
+                return Promise.resolve(reply(true, 200, { pinnedPhotoIds: ["p1", "p3"] }));
+            }
+            if (url === "/user/profile") {
+                // 取り直しが走ったら、p3 を書く**前**の写しを返す
+                return Promise.resolve({ ok: true, json: async () => ({ userId: ME, pinnedPhotoIds: ["p1"] }) });
+            }
+            return Promise.resolve({ ok: true, json: async () => [photo("p1"), photo("p2"), photo("p3")] });
+        });
+
+        render(<UserProfileClient userId={ME} />);
+        await waitFor(() => expect(screen.getAllByTitle("ピン留め解除")).toHaveLength(1));
+
+        fireEvent.click(screen.getAllByTitle("先頭にピン留め")[0]);   // p2（保留）
+        await waitFor(() => expect(putCount).toBe(1));
+        fireEvent.click(screen.getAllByTitle("先頭にピン留め")[0]);   // p3（成功）
+        await waitFor(() => expect(screen.getAllByTitle("ピン留め解除")).toHaveLength(2));
+
+        await act(async () => { failFirst!(); await new Promise((r) => setTimeout(r, 20)); });
+
+        expect(screen.getAllByTitle("ピン留め解除"),
+            "追い越された失敗の後始末が、成功した星を消している").toHaveLength(2);
+    });
+
+    // 通信断（catch）側にも取り直しがある（80fe2fa）。4xx/5xx 側だけを
+    // 見ていると、こちらを消しても気づけない
+    it("通信が落ちた保存のあとも、本人のピンを取り直す", async () => {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        mockUserPublicFetch.mockResolvedValue({
+            ok: true, json: async () => ({ userId: ME, pinnedPhotoIds: ["p1"] }),
+        });
+        let resolveFirstProfile: ((v: unknown) => void) | null = null;
+        let profileCalls = 0;
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (init?.method === "PUT") return Promise.reject(new TypeError("Failed to fetch"));
+            if (url === "/user/profile") {
+                profileCalls += 1;
+                if (profileCalls === 1) return new Promise((res) => { resolveFirstProfile = res; });
+                return Promise.resolve({ ok: true, json: async () => ({ userId: ME, pinnedPhotoIds: ["p1", "p2"] }) });
+            }
+            return Promise.resolve({
+                ok: true,
+                json: async () => [photo("p1"), { ...photo("p2"), published: false }],
+            });
+        });
+
+        render(<UserProfileClient userId={ME} />);
+        await waitFor(() => expect(screen.getAllByTitle("ピン留め解除")).toHaveLength(1));
+
+        fireEvent.click(screen.getAllByTitle("先頭にピン留め")[0]);
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("保存に失敗しました", "error"));
+        await act(async () => {
+            resolveFirstProfile!({ ok: true, json: async () => ({ userId: ME, pinnedPhotoIds: ["p1", "p2"] }) });
+            await Promise.resolve();
+        });
+
+        await waitFor(() => expect(
+            screen.getAllByTitle("ピン留め解除"),
+            "通信断のあと取り直していない（非公開のピンが外せない）",
+        ).toHaveLength(2));
+    });
+
     // 1枚も留めていない人の行には pinnedPhotoIds が無い。キーが無ければ
     // 触らない（触ると、公開APIが返したピンを消してしまう）
     it("自分の行にピンのキーが無ければ、公開ぶんを消さない", async () => {
