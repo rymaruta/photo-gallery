@@ -232,6 +232,49 @@ describe("useGallery", () => {
         });
     });
 
+    // **スラッグにすると空になる値**（`-` `#` `/` `%` `...`）。
+    // `slugify` はこれらを URL のパス片に置けないので空文字にする。
+    // 空のまま比べると `includes("")` が常に真＝**全件一致**、タグ側は
+    // 別々のタグ同士が一致する。スラッグに寄せたときに作った穴。
+    describe("スラッグが空になる値", () => {
+        const odd2: Photo[] = [
+            { id: "dash", src: "d.jpg", title: { ja: "ダッシュ", en: "Dash" }, category: "street", tags: ["-"], date: "2024-05-01" },
+            { id: "hash", src: "h.jpg", title: { ja: "シャープ", en: "Hash" }, category: "street", tags: ["###"], date: "2024-05-02" },
+            { id: "plain", src: "p.jpg", title: { ja: "ふつう", en: "Plain" }, category: "street", tags: ["night"], date: "2024-05-03" },
+        ];
+
+        it("検索語が空スラッグでも、全件一致にならない", () => {
+            window.history.replaceState({}, "", "/?q=-");
+            const { result } = renderHook(() => useGallery(odd2));
+            expect(result.current.filteredPhotos.map((p) => p.id),
+                "絞り込みが効かず全件出ている").toEqual([]);
+        });
+
+        it("生の文字が本文にあれば、今までどおり当たる", () => {
+            const withDash: Photo[] = [
+                { id: "t", src: "t.jpg", title: { ja: "F/2.8 の話", en: "About F/2.8" }, category: "street", tags: [], date: "2024-05-04" },
+                ...odd2,
+            ];
+            window.history.replaceState({}, "", "/?q=F%2F2.8");
+            const { result } = renderHook(() => useGallery(withDash));
+            expect(result.current.filteredPhotos.map((p) => p.id)).toEqual(["t"]);
+        });
+
+        it("空スラッグのタグ同士が一致しない", () => {
+            window.history.replaceState({}, "", "/?tags=-");
+            const { result } = renderHook(() => useGallery(odd2));
+            expect(result.current.filteredPhotos.map((p) => p.id),
+                "別のタグの写真まで出ている").toEqual(["dash"]);
+        });
+
+        it("カテゴリが空スラッグならフィルタ無しに倒す", () => {
+            window.history.replaceState({}, "", "/?category=-");
+            const { result } = renderHook(() => useGallery(odd2));
+            expect(result.current.filters.category, "空のまま絞り込んでいる").toBe("all");
+            expect(result.current.filteredPhotos).toHaveLength(3);
+        });
+    });
+
     describe("ソート", () => {
         it("古い順（old）でソートできる", () => {
             const { result } = renderHook(() => useGallery(mockPhotos));

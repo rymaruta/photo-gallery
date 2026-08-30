@@ -2,23 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Photo, LocalizedText, LocalizedParagraphs } from "../data/photos";
 import { getLocalized, getLocalizedParagraphs } from "../data/photos";
 import type { GalleryFilters } from "../types/gallery";
-import { getLabels } from "../../app/i18n/labels";
 import { slugify } from "../utils/collections";
-
-// 表示名 → 正規キーの逆引きマップ（例: "風景" → "landscape"）。
-// 日本語名でカテゴリ登録された写真と英語キーの写真が
-// 同じカテゴリとして扱われるようにする（フィルタチップの重複表示も防ぐ）。
-const DISPLAY_TO_KEY: Record<string, string> = (() => {
-    const map: Record<string, string> = {};
-    for (const loc of ["ja", "en"] as const) {
-        const names = getLabels(loc).category.names ?? {};
-        for (const [key, display] of Object.entries(names)) {
-            if (key === "all") continue;
-            map[display.trim().toLowerCase()] = key;
-        }
-    }
-    return map;
-})();
 
 /**
  * タグ比較用の正規化。
@@ -32,16 +16,32 @@ const DISPLAY_TO_KEY: Record<string, string> = (() => {
  * 「条件に一致する写真がありません」**になる。`#旅` や `白/黒` のような
  * 値は自由入力で普通に入る（`slugify` のコメントが挙げているとおり）。
  */
-const tagSlug = (s?: string) => slugify((s ?? "").toString(), "tag");
+const tagSlug = (s?: string) => {
+    const raw = (s ?? "").toString().trim().toLowerCase();
+    // **空に落ちたら生の値で比べる。** `-` や `###` や `...` は slugify が
+    // 空文字を返す（URL のパス片として置けないため）。空のまま比べると、
+    // **別々のタグ同士が一致する**——`#` だけのタグで絞ると `-` だけの
+    // タグの写真まで出る。集合は小さいが、理由の見えない混ざり方になる。
+    return slugify(raw, "tag") || raw;
+};
 
+/**
+ * カテゴリの正規化。別名（風景→landscape）の解決も `slugify` 側にある。
+ *
+ * 以前ここには表示名→キーの逆引き表（`DISPLAY_TO_KEY`）もあったが、
+ * `slugify(_, "category")` が先に `CATEGORY_ALIASES` を当てるので、
+ * 表の中身は**全部「既に正規キーになった値の恒等写像」**になっていた
+ * （ja の表示名7つは全部 `CATEGORY_ALIASES` にあり、en は小文字化すると
+ * キーそのもの）。効いているように見えて誰も確かめられない残骸なので
+ * 落とした。**表示名を増やすときは `CATEGORY_ALIASES` に足すこと。**
+ */
 const normalizeKey = (s?: string) => {
-    // 別名（風景→landscape）の解決も slugify 側に入っている
     const base = slugify((s ?? "").toString(), "category");
     // 別名表は lib/utils/collections.ts を正とする。i18n のラベルから作る表だけを
     // 見ていた頃は、そこに無い表記ゆれ（「建物」）が抜けていた——トップの絞り込みでは
     // 「建築」と「建物」が別のチップとして並ぶのに、/category/architecture は
     // 同じページにまとまる。同じ写真の集合が、見る場所で違って見えていた。
-    return DISPLAY_TO_KEY[base] ?? base;
+    return base;
 };
 
 // safe ISO date parse helper — returns ISO string or empty
@@ -59,7 +59,15 @@ function readFiltersFromUrl(): Partial<GalleryFilters> {
     // **URL の値も同じ正規化を通す。** 写真側は normalizeKey を通した姿で
     // 持っているので、生のまま比べると `/category/白-黒` の救済（404 →
     // `?category=白-黒`）が0件になる。表示名（「風景」）で来ても解決する。
-    if (cat) out.category = normalizeKey(cat);
+    //
+    // 正規化で空になる値（`?category=-`）は**フィルタ無しに倒す**。
+    // `""` を入れると `!== "all"` なので絞り込みは効いたまま、
+    // 「カテゴリ未設定の写真だけ」という理由の見えない部分集合になり、
+    // しかも書き戻しでは落ちるので URL からもチップからも消える。
+    if (cat) {
+        const key = normalizeKey(cat);
+        if (key) out.category = key;
+    }
     const q = params.get("q");
     if (q) out.query = q;
     const sort = params.get("sort");
@@ -156,9 +164,13 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
                 // 両側に同じ正規化（空白→ハイフン）をかけて比べる。
                 // 両側に同じ規則をかける。空白だけを潰していた頃は、
                 // `/` や `#` を含む撮影地（「東京 / 渋谷」）が必ず0件だった
+                // **空に落ちる検索語はスラッグ比較に使わない。**
+                // `-` `#` `/` `%` `...` は slugify が空を返し、
+                // `includes("")` は常に真——**全件が一致して絞り込みが
+                // 効かなくなる**（`slugify` に寄せたときに作った穴）。
                 const qSlug = slugify(q);
-                const haySlug = slugify(haystack);
-                return haystack.includes(q) || haySlug.includes(qSlug);
+                if (haystack.includes(q)) return true;
+                return qSlug ? slugify(haystack).includes(qSlug) : false;
             });
         }
 
