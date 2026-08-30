@@ -192,8 +192,21 @@ function UploadPageInner() {
     const itemsRef = useRef<Item[]>([]);
     itemsRef.current = items;
 
+    /**
+     * この画面を離れたか。**取り込みのループを止めるため**に要る。
+     *
+     * GPS→地名は Nominatim の 1req/s に合わせて1件ずつ 1.1 秒空けて回す。
+     * 画面を離れても誰も止めないので、30枚なら**離れたあと約35秒**、
+     * 見てもいない画面のために問い合わせ続けていた（書き込み先の `setItems`
+     * はもう無いので、戻ってきても撮影地は空のまま＝全部無駄）。
+     * 相手は 1req/s で運用されている公共のサービスなので、無駄な連投は
+     * こちらの都合だけの話ではない。
+     */
+    const leftPageRef = useRef(false);
+
     useEffect(() => {
         return () => {
+            leftPageRef.current = true;
             if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
             itemsRef.current.forEach((it) => { try { URL.revokeObjectURL(it.preview); } catch { /* ignore */ } });
         };
@@ -372,6 +385,7 @@ function UploadPageInner() {
         // 初期値（true）に張り付く。
         if (gpsAutofillRef.current) {
             for (const r of exifResults) {
+                if (leftPageRef.current) break;   // 画面を離れた。続きは投げない
                 if (r.meta.latitude !== undefined && r.meta.longitude !== undefined) {
                     const place = await reverseGeocode(r.meta.latitude, r.meta.longitude, locale);
                     if (place) {

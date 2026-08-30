@@ -168,6 +168,57 @@ describe("動画も位置情報を落としてから上げる", () => {
 // **これから誰かが presign と PUT の間に加工を挟んだとき**——
 // そこで初めて2つのファイルが並び、片方の長さを申告してもう片方を
 // 送る形が自然に見えてしまう。
+// **下ごしらえの数秒のあいだ、リングは押せる。**
+//
+// 動画はメタデータ読み＋箱の走査で数秒かかるが、その間 UI は何も変わらず
+// `disabled` は `posting` だけ。押すとストーリービューアが開き、そこへ
+// 下書きが `z-[95]` でかぶさる——裏のビューアは生きたままなので BGM は
+// 鳴り続け、自動送りも進み、閲覧記録まで送られる。キャプション欄で
+// ← → を押すと**裏のストーリーが動く**（keydown は document に付いている）。
+describe("下ごしらえ中にストーリーを開いてしまったとき", () => {
+    it("下書きが開くときは、ビューアを閉じる（2つ重ねない）", async () => {
+        mockUserFetch.mockImplementation((url: string) => {
+            if (url === "/stories") {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => [{
+                        id: "s1", userId: "someone", displayName: "旅子",
+                        src: "https://cdn.example.com/uploads/s1.jpg", mediaType: "image",
+                        createdAt: new Date().toISOString(),
+                        expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+                    }],
+                });
+            }
+            return api()(url);
+        });
+        // 下ごしらえを保留にして、その間にリングを押す
+        let finishPrepare: ((f: File) => void) | null = null;
+        mockSafeVideo.mockImplementation(() => new Promise((res) => { finishPrepare = res; }));
+
+        const restore = stubVideoMetadata();
+        try {
+            const { container } = render(<StoriesBar />);
+            await screen.findByText("あなた");
+            const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+            await userEvent.upload(input, new File(["original"], "story.mp4", { type: "video/mp4" }));
+            await waitFor(() => expect(mockSafeVideo).toHaveBeenCalled());
+
+            // まだ下書きは出ていない。ここでリングを押す
+            await userEvent.click(await screen.findByRole("button", { name: /旅子/ }));
+            await screen.findByRole("dialog", { name: "ストーリー" });
+
+            finishPrepare!(new File(["cleaned"], "story.mp4", { type: "video/mp4" }));
+
+            await screen.findByRole("button", { name: /ストーリーに投稿/ });
+            expect(screen.queryAllByRole("dialog"), "ビューアと下書きが重なっている").toHaveLength(1);
+            expect(screen.queryByRole("dialog", { name: "ストーリー" }),
+                "裏でストーリーが動き続けている").toBeNull();
+        } finally {
+            restore.mockRestore();
+        }
+    });
+});
+
 describe("presign に申告した長さと、PUT する本文の長さ", () => {
     it("加工後のファイルで揃っている", async () => {
         // 加工で長さが変わる状況にする（素通しだと食い違いを作れない）

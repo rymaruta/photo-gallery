@@ -134,13 +134,23 @@ export default function GalleryModal({
             if (e.key === "h" || e.key === "H") { e.preventDefault(); void toggleLikeRef.current().then(notifyIfLikeFailedRef.current); return; }
         };
 
-        lockBodyScroll();
         window.addEventListener("keydown", onKey);
-        return () => {
-            window.removeEventListener("keydown", onKey);
-            unlockBodyScroll();
-        };
+        return () => window.removeEventListener("keydown", onKey);
     }, [onClose, onNext, onPrev]);
+
+    // **ロックの寿命は「開いている間」で、コールバックの同一性とは無関係。**
+    //
+    // 上のエフェクトに同居させていたので、`onClose` の参照が変わるたびに
+    // 全解除→取り直しが走っていた（`GalleryPageClient` の `handleClose` は
+    // `openPhotoId` に依存するので、**写真を送るたびに変わる**）。
+    // 解除は `position: fixed` を外して `window.scrollTo` を撃つところまで
+    // やるので、送るたびにスクロール位置を控え直すことになる——高さが
+    // 変わっていれば `scrollTo` はクランプされ、控えが少しずつずれて
+    // 「閉じたら違う場所に戻る」に化ける。開いている間は触らない。
+    useEffect(() => {
+        lockBodyScroll();
+        return () => unlockBodyScroll();
+    }, []);
 
     // --- Now safe to do the null guard ---
     if (!p) return null;

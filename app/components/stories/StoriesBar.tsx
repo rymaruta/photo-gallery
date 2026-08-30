@@ -375,6 +375,20 @@ export default function StoriesBar() {
                 return;
             }
         }
+        // **下書きを開くときは、ビューアを必ず閉じる。**
+        //
+        // 動画は下ごしらえ（メタデータ読み＋箱の走査）に数秒かかる一方、
+        // その間リングは押せる（`disabled` は `posting` だけ）。押されると
+        // ビューアが開き、そこへ下書きが `z-[95]` でかぶさる——裏のビューアは
+        // 生きたままなので、BGM は鳴り続け、自動送りも進み、閲覧記録まで
+        // 送られる。キャプション欄で ← → を押すと**裏のストーリーが動く**
+        // （`StoryViewer` の keydown は `document` に付いている）。
+        // フォーカストラップも2つ同時に効く。
+        //
+        // リング側を止める（`preparing` を作って `disabled` に足す）案も
+        // あるが、それは「押しても何も起きない数秒」を新しく作る。
+        // 開くときに片方を閉じる方が、見えている物と操作の対応が保てる。
+        setViewerGroup(null);
         setDraft({ file: prepared, previewUrl: URL.createObjectURL(prepared), mediaType: isVideo ? "video" : "image" });
         setCaption("");
     }, [locale, showToast]);
