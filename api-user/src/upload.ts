@@ -135,9 +135,11 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
             // `signableHeaders` に入っていれば unsignable を**上書きする**
             // ので、明示して署名対象に戻す。
             //
-            // なお `cache-control` は `ALWAYS_UNSIGNABLE_HEADERS` にあり、
-            // こちらは `signableHeaders` でも戻せない（下の profile.ts の
-            // 注記と同じ）。
+            // なお `cache-control` も既定では署名されないが、**渡せば戻る**
+            // （`ALWAYS_UNSIGNABLE_HEADERS` にも上書きは効く。測って確かめた）。
+            // ただし戻すと縛りになる——クライアントが同じ値を送らないと 403 に
+            // なる。こちらは「クライアントに付けさせたい」だけで、値を強制する
+            // 必要は無いので渡さない。
             signableHeaders: new Set(["content-type"]),
         },
     );
