@@ -164,6 +164,74 @@ describe("useGallery", () => {
         });
     });
 
+    // **集約ページの404救済が0件に落ちていた。**
+    //
+    // 写真ページのタグリンクは `slugify` した形を指す。まだ `/tag/<スラッグ>`
+    // が生成されていない新着写真では 404 → `/?tags=<スラッグ>` に振り替わる。
+    // ところがここの比較は「trim + 小文字 + 空白→ハイフン」だけで、
+    // `slugify` が潰す `/ \ ? # %` を残していた（コメントには「同じ規則」と
+    // 書いてあった）。`#旅` や `白/黒` は自由入力で普通に入る。
+    describe("集約ページからの振り替え（スラッグ）", () => {
+        const odd: Photo[] = [
+            { id: "h", src: "h.jpg", title: { ja: "ハッシュ", en: "Hash" }, category: "白/黒", tags: ["#旅"], date: "2024-05-01" },
+            { id: "n", src: "n.jpg", title: { ja: "ふつう", en: "Plain" }, category: "street", tags: ["night"], date: "2024-05-02" },
+        ];
+
+        it("`#` を含むタグでも、スラッグで絞り込める", () => {
+            window.history.replaceState({}, "", "/?tags=%E6%97%85");   // ?tags=旅
+            const { result } = renderHook(() => useGallery(odd));
+            expect(result.current.filteredPhotos.map((p) => p.id),
+                "一覧に写真があるのに0件になっている").toEqual(["h"]);
+        });
+
+        it("`/` を含むカテゴリでも、スラッグで絞り込める", () => {
+            window.history.replaceState({}, "", "/?category=%E7%99%BD-%E9%BB%92");   // ?category=白-黒
+            const { result } = renderHook(() => useGallery(odd));
+            expect(result.current.filteredPhotos.map((p) => p.id)).toEqual(["h"]);
+        });
+
+        it("`/` を含む撮影地でも、スラッグ形の検索が当たる", () => {
+            const withLoc: Photo[] = [
+                { id: "L", src: "l.jpg", title: { ja: "渋谷", en: "S" }, category: "street", tags: [], date: "2024-05-01", location: "東京 / 渋谷" },
+                ...odd,
+            ];
+            window.history.replaceState({}, "", "/?q=%E6%9D%B1%E4%BA%AC-%E6%B8%8B%E8%B0%B7");   // ?q=東京-渋谷
+            const { result } = renderHook(() => useGallery(withLoc));
+            expect(result.current.filteredPhotos.map((p) => p.id)).toEqual(["L"]);
+        });
+
+        // **URL 側の値も正規化する。** 表示名や大文字のまま来る経路がある
+        // （古いリンク・手で書いた URL）。写真側は正規キーに畳んであるので、
+        // 生のまま比べると0件になる。
+        it("表示名で来たカテゴリも、正規キーの写真に当たる", () => {
+            const en: Photo[] = [
+                { id: "a", src: "a.jpg", title: { ja: "建築", en: "Arch" }, category: "architecture", tags: [], date: "2024-05-01" },
+                ...odd,
+            ];
+            window.history.replaceState({}, "", "/?category=%E5%BB%BA%E7%AF%89");   // ?category=建築
+            const { result } = renderHook(() => useGallery(en));
+            expect(result.current.filteredPhotos.map((p) => p.id),
+                "表示名のカテゴリが0件になっている").toEqual(["a"]);
+        });
+
+        // 表示名で来ても解決する（今までの動きを壊していない）
+        it("表示名のカテゴリも今までどおり解決する", () => {
+            const ja: Photo[] = [
+                { id: "j", src: "j.jpg", title: { ja: "風景", en: "L" }, category: "風景", tags: [], date: "2024-05-01" },
+                ...odd,
+            ];
+            window.history.replaceState({}, "", "/?category=landscape");
+            const { result } = renderHook(() => useGallery(ja));
+            expect(result.current.filteredPhotos.map((p) => p.id)).toEqual(["j"]);
+        });
+
+        it("同じタグが2つ来ても1つに畳む（チップの key が衝突する）", () => {
+            window.history.replaceState({}, "", "/?tags=night,night");
+            const { result } = renderHook(() => useGallery(odd));
+            expect(result.current.filters.selectedTags).toEqual(["night"]);
+        });
+    });
+
     describe("ソート", () => {
         it("古い順（old）でソートできる", () => {
             const { result } = renderHook(() => useGallery(mockPhotos));

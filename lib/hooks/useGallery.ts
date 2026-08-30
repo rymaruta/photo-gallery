@@ -3,7 +3,7 @@ import type { Photo, LocalizedText, LocalizedParagraphs } from "../data/photos";
 import { getLocalized, getLocalizedParagraphs } from "../data/photos";
 import type { GalleryFilters } from "../types/gallery";
 import { getLabels } from "../../app/i18n/labels";
-import { CATEGORY_ALIASES } from "../utils/collections";
+import { slugify } from "../utils/collections";
 
 // 表示名 → 正規キーの逆引きマップ（例: "風景" → "landscape"）。
 // 日本語名でカテゴリ登録された写真と英語キーの写真が
@@ -20,16 +20,28 @@ const DISPLAY_TO_KEY: Record<string, string> = (() => {
     return map;
 })();
 
-/** タグ比較用の正規化。lib/utils/collections.ts の slugify と同じ規則 */
-const tagSlug = (s?: string) => (s ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
+/**
+ * タグ比較用の正規化。
+ *
+ * **`slugify` を借りる。同じ規則を二度書かない。** 以前はここに
+ * 「trim + 小文字化 + 空白→ハイフン」だけを書いて「slugify と同じ規則」と
+ * コメントしていたが、**同じではなかった**——あちらは `/ \ ? # %` を
+ * ハイフンに潰し、連続ハイフンをまとめ、前後のハイフンを落とす。
+ * 集約ページ（`/tag/<スラッグ>`）が404のとき `?tags=<スラッグ>` に
+ * 振り替える救済があるので、規則がずれていると**一覧に写真があるのに
+ * 「条件に一致する写真がありません」**になる。`#旅` や `白/黒` のような
+ * 値は自由入力で普通に入る（`slugify` のコメントが挙げているとおり）。
+ */
+const tagSlug = (s?: string) => slugify((s ?? "").toString(), "tag");
 
 const normalizeKey = (s?: string) => {
-    const base = (s ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
+    // 別名（風景→landscape）の解決も slugify 側に入っている
+    const base = slugify((s ?? "").toString(), "category");
     // 別名表は lib/utils/collections.ts を正とする。i18n のラベルから作る表だけを
     // 見ていた頃は、そこに無い表記ゆれ（「建物」）が抜けていた——トップの絞り込みでは
     // 「建築」と「建物」が別のチップとして並ぶのに、/category/architecture は
     // 同じページにまとまる。同じ写真の集合が、見る場所で違って見えていた。
-    return DISPLAY_TO_KEY[base] ?? CATEGORY_ALIASES[base] ?? base;
+    return DISPLAY_TO_KEY[base] ?? base;
 };
 
 // safe ISO date parse helper — returns ISO string or empty
@@ -44,13 +56,17 @@ function readFiltersFromUrl(): Partial<GalleryFilters> {
     const params = new URLSearchParams(window.location.search);
     const out: Partial<GalleryFilters> = {};
     const cat = params.get("category");
-    if (cat) out.category = cat;
+    // **URL の値も同じ正規化を通す。** 写真側は normalizeKey を通した姿で
+    // 持っているので、生のまま比べると `/category/白-黒` の救済（404 →
+    // `?category=白-黒`）が0件になる。表示名（「風景」）で来ても解決する。
+    if (cat) out.category = normalizeKey(cat);
     const q = params.get("q");
     if (q) out.query = q;
     const sort = params.get("sort");
     if (sort === "new" || sort === "old" || sort === "popular") out.sort = sort;
     const tags = params.get("tags");
-    if (tags) out.selectedTags = tags.split(",").filter(Boolean);
+    // 同じタグが2つ来ると、チップの key が衝突して描画が崩れる
+    if (tags) out.selectedTags = Array.from(new Set(tags.split(",").filter(Boolean)));
     // **feed もここで読む。** 他のフィルターは URL に載るのに feed だけ
     // 載っていなかったので、「フォロー中」で写真を開いて戻ると
     // 「すべて」に戻っていた（ここだけ挙動が違う）。
@@ -138,8 +154,10 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
                 // で、**多語の撮影地が必ず「該当なし」に落ちていた**。
                 // タグ側は tagSlug を両側にかけて解決済み（上の分岐）。ここも
                 // 両側に同じ正規化（空白→ハイフン）をかけて比べる。
-                const qSlug = q.replace(/\s+/g, "-");
-                const haySlug = haystack.replace(/\s+/g, "-");
+                // 両側に同じ規則をかける。空白だけを潰していた頃は、
+                // `/` や `#` を含む撮影地（「東京 / 渋谷」）が必ず0件だった
+                const qSlug = slugify(q);
+                const haySlug = slugify(haystack);
                 return haystack.includes(q) || haySlug.includes(qSlug);
             });
         }
