@@ -20,6 +20,13 @@ type Notif = {
     byName: string;
     /** 通知を起こした本人。プロフィールへ飛ぶために使う */
     byId?: string;
+    /**
+     * その人が退会している（サーバーが `byName` を伏せたときに立つ）。
+     * 退会するとプロフィールは墓石になり、公開APIは空を返すので、
+     * リンクを出すと「開いても何も無いページ」へ誘うことになる。
+     * コメント欄（CommentSection）と同じ扱いにする。
+     */
+    deleted?: boolean;
     atLocation?: string;
     targetUserId?: string;
     t: string;
@@ -146,31 +153,13 @@ export default function NotificationsBell() {
                             </p>
                         ) : (
                             <ul className="max-h-96 overflow-y-auto no-scrollbar divide-y divide-white/5">
-                                {items.map((n, i) => (
-                                    <li key={`${n.photoId || n.targetUserId}-${n.t}-${i}`} className="flex items-start gap-3 px-4 py-3 hover:bg-white/5 transition-colors">
-                                        {/* 左のアイコンは相手のプロフィールへ。
-                                            名前だけだと、名前未設定の人は既定名で表示されて
-                                            誰なのか辿れず、フォローしに行けないため */}
-                                        {(n.byId || n.targetUserId) ? (
-                                            <Link
-                                                href={ROUTES.USER_PROFILE(String(n.byId || n.targetUserId))}
-                                                onClick={() => setOpen(false)}
-                                                aria-label={locale === "en" ? `Open ${n.byName}'s profile` : `${n.byName} さんのプロフィール`}
-                                                className="flex-shrink-0 rounded-full active:scale-95 transition"
-                                                style={{ touchAction: "manipulation" }}
-                                            >
-                                                <UserAvatar userId={String(n.byId || n.targetUserId)} className="w-10 h-10" iconClassName="w-5 h-5" />
-                                            </Link>
-                                        ) : (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={n.photoSrc} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
-                                        )}
-                                        <Link
-                                            href={n.type === "follow" && n.targetUserId ? ROUTES.USER_PROFILE(n.targetUserId) : ROUTES.PHOTO(n.photoId)}
-                                            onClick={() => setOpen(false)}
-                                            className="flex items-start gap-3 min-w-0 flex-1 active:opacity-80 transition"
-                                            style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
-                                        >
+                                {items.map((n, i) => {
+                                    // **退会した人のフォロー通知は、開く先が墓石になる。**
+                                    // フォローの通知は写真を持たないので、代わりの行き先も
+                                    // 無い——リンクを外して文面だけ残す（コメント欄と同じ扱い）。
+                                    const goesNowhere = n.deleted === true && n.type === "follow";
+                                    const body = (
+                                        <>
                                             <div className="min-w-0 flex-1">
                                                 <p className="text-[13px] text-white/85 leading-snug">
                                                     {n.type === "follow" ? (
@@ -205,9 +194,47 @@ export default function NotificationsBell() {
                                                 // eslint-disable-next-line @next/next/no-img-element
                                                 <img src={n.photoSrc} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
                                             )}
-                                        </Link>
-                                    </li>
-                                ))}
+                                        </>
+                                    );
+                                    return (
+                                        <li key={`${n.photoId || n.targetUserId}-${n.t}-${i}`} className="flex items-start gap-3 px-4 py-3 hover:bg-white/5 transition-colors">
+                                            {/* 左のアイコンは相手のプロフィールへ。
+                                                名前だけだと、名前未設定の人は既定名で表示されて
+                                                誰なのか辿れず、フォローしに行けないため */}
+                                            {n.deleted ? (
+                                                // 退会した人。名前は既にサーバーが伏せてある
+                                                <span className="flex-shrink-0">
+                                                    <UserAvatar userId="" className="w-10 h-10" iconClassName="w-5 h-5" />
+                                                </span>
+                                            ) : (n.byId || n.targetUserId) ? (
+                                                <Link
+                                                    href={ROUTES.USER_PROFILE(String(n.byId || n.targetUserId))}
+                                                    onClick={() => setOpen(false)}
+                                                    aria-label={locale === "en" ? `Open ${n.byName}'s profile` : `${n.byName} さんのプロフィール`}
+                                                    className="flex-shrink-0 rounded-full active:scale-95 transition"
+                                                    style={{ touchAction: "manipulation" }}
+                                                >
+                                                    <UserAvatar userId={String(n.byId || n.targetUserId)} className="w-10 h-10" iconClassName="w-5 h-5" />
+                                                </Link>
+                                            ) : (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img src={n.photoSrc} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
+                                            )}
+                                            {goesNowhere ? (
+                                                <div className="flex items-start gap-3 min-w-0 flex-1">{body}</div>
+                                            ) : (
+                                                <Link
+                                                    href={n.type === "follow" && n.targetUserId ? ROUTES.USER_PROFILE(n.targetUserId) : ROUTES.PHOTO(n.photoId)}
+                                                    onClick={() => setOpen(false)}
+                                                    className="flex items-start gap-3 min-w-0 flex-1 active:opacity-80 transition"
+                                                    style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                                                >
+                                                    {body}
+                                                </Link>
+                                            )}
+                                        </li>
+                                    );
+                                })}
                             </ul>
                         )}
                     </div>

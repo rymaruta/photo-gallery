@@ -20,13 +20,13 @@ vi.mock("@aws-sdk/client-dynamodb", async (importActual) => {
     const actual = await importActual<typeof import("@aws-sdk/client-dynamodb")>();
     return { ...actual, DynamoDBClient: class { send = mockDdbSend; } };
 });
-vi.mock("../dynamodb", () => ({
-    ddb: { send: mockDdbSend },
-    PHOTOS_TABLE: "photos-test",
-    USER_INDEX: "userId-createdAt-index",
-}));
-
+// **テーブル名は環境変数から採られる**（`userProfile.ts` は `requireEnv`）。
+// ここを `vi.mock("../dynamodb")` の PHOTOS_TABLE で決めているつもりでいたら、
+// あのファイルは `./dynamodb` を import すらしていなかった——実際の名前は
+// vitest.setup.ts の `test-photo-gallery-photos` で、下の「写真テーブルを
+// 引いた回数」を数える絞り込みが**1件も当たらない**（何も検証していない）。
 vi.stubEnv("USERS_TABLE", "users-test");
+vi.stubEnv("PHOTOS_TABLE", "photos-test");
 const { getPublicProfile } = await import("../userProfile");
 
 const OWNER = "11111111-1111-4111-8111-111111111111";
@@ -70,6 +70,11 @@ function world(pins: string[], photos: Record<string, Record<string, unknown>>) 
 const pinsOf = (res: Result): string[] | undefined =>
     (JSON.parse(res.body) as { pinnedPhotoIds?: string[] }).pinnedPhotoIds;
 
+/** 写真テーブルを引いた回数（プロフィールの Get は数えない） */
+const photoGets = (): unknown[] => mockDdbSend.mock.calls
+    .map((c) => c[0] as { input?: { TableName?: string } })
+    .filter((cmd) => cmd?.input?.TableName === "photos-test");
+
 beforeEach(() => { mockDdbSend.mockReset(); });
 
 describe("公開プロフィールのピン留め", () => {
@@ -81,6 +86,9 @@ describe("公開プロフィールのピン留め", () => {
             p2: { id: "p2", userId: OWNER, src: "https://cdn/p2.jpg" },
         });
         expect(pinsOf(await invoke(OWNER))).toEqual(["p1", "p2"]);
+        // **ピン1枚につき1回まで。** 公開プロフィールは未認証で叩けるので、
+        // 1リクエストあたりの読み取りが増えると、そのまま増幅する
+        expect(photoGets(), "ピンの枚数より多く引いている").toHaveLength(2);
     });
 
     it("非公開に戻した写真の ID は返さない", async () => {
@@ -144,8 +152,6 @@ describe("公開プロフィールのピン留め", () => {
     it("ピンが無ければ写真を引きに行かない（無駄な読み取りをしない）", async () => {
         world([], {});
         await invoke(OWNER);
-        const gets = mockDdbSend.mock.calls.map((c) => c[0])
-            .filter((cmd) => (cmd as { input: { TableName?: string } })?.input?.TableName === "photos-test");
-        expect(gets, "ピンが無いのに写真を引いている").toHaveLength(0);
+        expect(photoGets(), "ピンが無いのに写真を引いている").toHaveLength(0);
     });
 });

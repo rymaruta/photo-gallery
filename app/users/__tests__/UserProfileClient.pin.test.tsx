@@ -188,6 +188,82 @@ describe("ピン留めの送り方", () => {
     });
 });
 
+// **本人には、本人が留めたぶんを全部見せる。**
+//
+// 公開プロフィール（getPublicProfile）は「今は見えない写真」の ID を
+// 落として返すようになった（他人に隠した写真の ID を渡さないため）。
+// ところがこの画面はオーナーも同じ公開APIを読んでいたので、非公開に
+// した写真の星が消える一方、サーバーの枠（上限3）は埋まったまま——
+// 4枚目を留めようとすると 409「ピン留めは3枚までです」が出続け、
+// 解除ボタンは星の付いた写真にしか無いので画面から直せない。
+describe("オーナーが見るピン留め", () => {
+    it("非公開にした写真のピンも星が付く（公開ぶんで上書きしない）", async () => {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        // 公開プロフィールは p2（非公開）を落として返す
+        mockUserPublicFetch.mockResolvedValue({
+            ok: true,
+            json: async () => ({ userId: ME, displayName: "旅人", pinnedPhotoIds: ["p1"] }),
+        });
+        mockUserFetch.mockImplementation((url: string) => {
+            if (url === "/user/profile") {
+                // 保存されている本当のピン（非公開の p2 を含む）
+                return Promise.resolve({ ok: true, json: async () => ({ userId: ME, pinnedPhotoIds: ["p1", "p2"] }) });
+            }
+            return Promise.resolve({
+                ok: true,
+                json: async () => [photo("p1"), { ...photo("p2"), published: false }],
+            });
+        });
+
+        render(<UserProfileClient userId={ME} />);
+
+        await waitFor(() => expect(
+            screen.getAllByTitle("ピン留め解除"),
+            "非公開にしたピンの星が消えている（外す手段が無くなる）",
+        ).toHaveLength(2));
+    });
+
+    // 1枚も留めていない人の行には pinnedPhotoIds が無い。公開ぶんは必ず
+    // 保存ぶんの部分集合なので、キーが無ければ触らないのが正しい
+    // （触ると、公開APIが返したピンを消してしまう）。
+    it("自分の行が読めなくても、公開ぶんのピンは残す", async () => {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        mockUserPublicFetch.mockResolvedValue({
+            ok: true,
+            json: async () => ({ userId: ME, displayName: "旅人", pinnedPhotoIds: ["p1"] }),
+        });
+        mockUserFetch.mockImplementation((url: string) => {
+            if (url === "/user/profile") return Promise.resolve({ ok: false, status: 500, json: async () => ({}) });
+            return Promise.resolve({ ok: true, json: async () => [photo("p1"), photo("p2")] });
+        });
+
+        render(<UserProfileClient userId={ME} />);
+
+        await waitFor(() => expect(screen.getAllByTitle(/ピン留め/).length).toBeGreaterThan(0));
+        expect(screen.getAllByTitle("ピン留め解除"), "読めなかっただけでピンを消している").toHaveLength(1);
+    });
+
+    // 写真一覧の取得は、プロフィールの取得を待って直列にしない
+    it("自分の写真一覧は、ピンの取得と並べて投げる", async () => {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ userId: ME }) });
+        let profileResolved = false;
+        mockUserFetch.mockImplementation((url: string) => {
+            if (url === "/user/profile") {
+                return new Promise((res) => setTimeout(() => {
+                    profileResolved = true;
+                    res({ ok: true, json: async () => ({ userId: ME }) });
+                }, 30));
+            }
+            expect(profileResolved, "プロフィールを待ってから写真を取りに行っている").toBe(false);
+            return Promise.resolve({ ok: true, json: async () => [photo("p1")] });
+        });
+
+        render(<UserProfileClient userId={ME} />);
+        await waitFor(() => expect(screen.getAllByTitle(/ピン留め/).length).toBeGreaterThan(0));
+    });
+});
+
 // 別のタブでログアウトした・セッションが切れた人は、userFetch が
 // トークン不在で投げる。「保存に失敗しました」だと何をすればいいか
 // 分からないまま押し直すことになる。

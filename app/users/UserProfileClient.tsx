@@ -297,7 +297,31 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 // 復活していた。非公開バッジも出ないので本人には見分けが付かず、
                 // もう一度目のアイコンを押すと今度は本当に再公開してしまう。
                 if (isCurrentUserOwner) {
-                    const mineRes = await userFetch("/user/photos", { signal: controller.signal });
+                    // **自分のピンは自分の行から採る。**
+                    //
+                    // 公開プロフィール（`getPublicProfile`）は「今は見えない
+                    // 写真」の ID を落として返す。本人がそれをそのまま使うと、
+                    // 非公開にした写真の星が消えるのに**サーバーの枠は埋まった
+                    // まま**——4枚目を留めようとすると 409「ピン留めは3枚まで
+                    // です」が出続け、しかも解除ボタンは星の付いた写真にしか
+                    // 無いので画面から直せない。落とすのは訪問者に見せるときだけ。
+                    //
+                    // 落ちたときは公開ぶんのまま（星が少なく出る）。ここで
+                    // 一覧を空にすると、上の写真一覧と同じ「消えたように
+                    // 見えて押し直す」を作る。
+                    const [mineRes, myProfileRes] = await Promise.all([
+                        userFetch("/user/photos", { signal: controller.signal }),
+                        userFetch("/user/profile", { signal: controller.signal }).catch(() => null),
+                    ]);
+                    if (myProfileRes?.ok) {
+                        const mineProfile = await myProfileRes.json().catch(() => null) as { pinnedPhotoIds?: unknown } | null;
+                        // キーが無い＝1枚も留めていない。公開ぶんも空なので触らない
+                        // （公開ぶんは必ず保存ぶんの部分集合）。
+                        if (Array.isArray(mineProfile?.pinnedPhotoIds)) {
+                            const ownPins = mineProfile.pinnedPhotoIds.filter((x): x is string => typeof x === "string");
+                            setUserProfile((p) => (p ? { ...p, pinnedPhotoIds: ownPins } : p));
+                        }
+                    }
                     if (mineRes.ok) {
                         const mine = await mineRes.json() as unknown;
                         if (Array.isArray(mine)) {

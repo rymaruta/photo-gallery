@@ -142,6 +142,65 @@ describe("NotificationsBell", () => {
 // このベルはヘッダーに常駐する。取得が `[]` deps の1回きりだった頃は、
 // **リロードするまで新着が出なかった**——いいねもコメントもフォローも
 // ここに届くのに、開いても前に読み込んだ内容のままだった。
+// **退会した人の名前と導線が残っていた。**
+//
+// 通知には作られた時点の表示名と ID が焼き込まれ、退会が消すのは
+// 自分宛ての通知だけ。サーバー（notifications.ts）は退会した人の
+// `byName` を伏せて `deleted: true` を立てるようになったが、画面は
+// それを読まず、**墓石になったプロフィールへのリンクを出し続けていた**
+// ——開いても何も無いページに誘うことになる。コメント欄
+// （CommentSection）は先に同じ扱いにしてある。
+describe("退会した人からの通知", () => {
+    const GONE = [
+        {
+            type: "like", photoId: "p1", photoSrc: "https://c/p1.webp",
+            byId: "gone-sub", byName: "退会したユーザー", deleted: true, t: "2026-07-10T00:00:00Z",
+        },
+        {
+            type: "follow", photoId: "", photoSrc: "",
+            byId: "gone-sub", targetUserId: "gone-sub",
+            byName: "退会したユーザー", deleted: true, t: "2026-07-09T00:00:00Z",
+        },
+    ];
+
+    const hrefs = () => screen.queryAllByRole("link").map((a) => a.getAttribute("href"));
+
+    it("プロフィールへのリンクを出さない（アイコンも本文も）", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({ items: GONE, unread: 0 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+        // 名前（サーバーが伏せた文言）は出る。導線だけ出さない
+        expect(screen.getAllByText("退会したユーザー").length).toBeGreaterThan(0);
+        expect(hrefs().filter((h) => h?.includes("gone-sub")),
+            "墓石になったプロフィールへ誘っている").toEqual([]);
+    });
+
+    it("写真への導線は残す（写真は消えていない）", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({ items: GONE, unread: 0 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+        // いいねの通知はその写真へ飛べる。フォローの通知は飛び先が無い
+        expect(hrefs()).toEqual(["/?photo=p1"]);
+    });
+
+    // 生きている人の導線まで消さない（逆向きの失敗）
+    it("退会していない人のリンクはそのまま", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({
+            items: [{ ...GONE[0], byId: "live-sub", byName: "旅子", deleted: false }],
+            unread: 0,
+        }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+        expect(hrefs()).toEqual(["/users?id=live-sub", "/?photo=p1"]);
+    });
+});
+
 describe("新着の取り込み", () => {
     it("開いたときに取り直す（閉じている間に届いたぶんが見える）", async () => {
         mockUserFetch.mockResolvedValue(fetchOk({ items: [], unread: 0 }));
