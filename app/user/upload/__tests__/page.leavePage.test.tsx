@@ -65,6 +65,25 @@ beforeEach(() => {
     }
 });
 
+// **StrictMode を通す。** 「setup → cleanup → setup」で cleanup が先に
+// 走るので、離脱の印を立てるだけで下ろさないと**立ちっぱなし**になる。
+// ref はインスタンスに残るため、以後の取り込みは初回から break し、
+// 開発中は撮影地の自動入力が丸ごと死ぬ。
+describe("効果が付け直されたとき（StrictMode）", () => {
+    it("離脱の印が立ちっぱなしにならない（地名は引ける）", async () => {
+        render(
+            <React.StrictMode>
+                <UploadPage />
+            </React.StrictMode>,
+        );
+
+        await waitFor(() => expect(
+            mockReverseGeocode,
+            "付け直しの cleanup で止まったまま、二度と引かない",
+        ).toHaveBeenCalled(), { timeout: 3000 });
+    }, 10000);
+});
+
 describe("取り込みの途中で画面を離れたとき", () => {
     it("地名の引き直しを続けない", async () => {
         const { unmount } = render(<UploadPage />);

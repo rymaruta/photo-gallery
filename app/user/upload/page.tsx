@@ -205,6 +205,13 @@ function UploadPageInner() {
     const leftPageRef = useRef(false);
 
     useEffect(() => {
+        // **入るたびに下ろす。** 立てるだけだと、効果が付け直される場面
+        // （StrictMode の「setup → cleanup → setup」、Fast Refresh）で
+        // **立ちっぱなし**になる。ref はインスタンスに残るので、以後の
+        // 取り込みは初回からループ先頭で break——`npm run dev` では
+        // 撮影地の自動入力が丸ごと死ぬ（本番ビルドでは二重実行は
+        // 起きないが、開発で機能が死ぬと次の回帰が見えなくなる）。
+        leftPageRef.current = false;
         return () => {
             leftPageRef.current = true;
             if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
