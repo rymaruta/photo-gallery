@@ -29,19 +29,33 @@ export default function GalleryPageClient() {
   // 混ぜると、フォロー中フィードが空表示に化けて気づけない
   const [followingError, setFollowingError] = React.useState(false);
   const [followingReloadKey, setFollowingReloadKey] = React.useState(0);
+  /**
+   * フォロー中の集合が**確定したか**。
+   *
+   * 初期値は空の Set なので、取得が終わる前のフィードは必ず0件になる
+   * ——そのまま「フォローした人の写真がここに集まります。」を出すと、
+   * 何人もフォローしている人にも、回線が遅い間ずっと「誰もフォローして
+   * いない人」の画面を見せることになる。**「まだ来ていない」は、来たことを
+   * 知る仕掛けがある場合だけ書ける**（`usePhotos` に `loaded` を足したのと
+   * 同じ理由。`FollowButton` も `resolved` で同じことをしている）。
+   */
+  const [followingLoaded, setFollowingLoaded] = React.useState(false);
   React.useEffect(() => {
     if (!isAuthenticated) {
       setFollowingIds(new Set());
       // ログアウトすると切替タブ自体が消えるので、失敗表示を残すと
       // 「もう一度読み込む」しか無い画面から抜けられなくなる（レビュー指摘）
       setFollowingError(false);
+      setFollowingLoaded(true);   // 取得しない＝これで確定
       return;
     }
     let aborted = false;
     setFollowingError(false);
+    setFollowingLoaded(false);
     fetchFollowingSet()
       .then((set) => { if (!aborted) setFollowingIds(new Set(set)); })
-      .catch(() => { if (!aborted) setFollowingError(true); });
+      .catch(() => { if (!aborted) setFollowingError(true); })
+      .finally(() => { if (!aborted) setFollowingLoaded(true); });
     return () => { aborted = true; };
   }, [isAuthenticated, followingReloadKey]);
 
@@ -272,7 +286,16 @@ export default function GalleryPageClient() {
               {locale === "en" ? "Retry" : "もう一度読み込む"}
             </button>
           </div>
-        ) : filteredPhotos.length === 0 && filters.feed === "following" ? (
+        ) : filters.feed === "following" && !followingLoaded ? (
+          // まだ分からない。空表示にしない（この画面に読み込み中の表示は
+          // 無いので、出さずに待つ——出せば「0人です」と嘘をつくことになる）
+          null
+        ) : filteredPhotos.length === 0 && filters.feed === "following"
+          && filters.category === "all" && filters.selectedTags.length === 0 && !filters.query.trim() ? (
+          // **0件の理由が「フォローが0人」のときだけ、この文言にする。**
+          // 検索語やカテゴリで0件になった回にも出していたので、抜けるには
+          // 「みんなの写真を見る」→まだ0件→「フィルターをリセット」と
+          // 2手かかっていた（下の分岐はリセットで feed ごと戻せる）。
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-white/60 text-center">
             <p className="text-sm">
               {locale === "en"
