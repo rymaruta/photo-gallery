@@ -225,6 +225,20 @@ describe("deleteMyPhoto", () => {
     });
 
     // 下書きには静的ページが無いので作り直す中身が無い（A-5d と同じ判定）
+    // **「非公開だった写真には静的ページが無い」は、非公開化の依頼が
+    // 実際に届いた場合だけ成り立つ。** 届かなかったときは
+    // `updatePhotoVisibility` が `staticStale` を立てるので、そこは頼む
+    // ——立てないと、非公開 →（依頼が畳まれる／予算切れ）→ 削除 で、
+    // 本文・撮影地・EXIF・表示名入り JSON-LD の静的HTMLが誰にも消されない。
+    it("非公開でも、掃除が届いていなければ頼む", async () => {
+        world({ ...PHOTO, published: false, staticStale: true });
+        await invoke(ME, "p1");
+        expect(mockRebuild, "静的ページが残るのに掃除を頼んでいない").toHaveBeenCalledTimes(1);
+        // 削除の依頼は畳まない（他の削除経路と同じ）
+        const opts = mockRebuild.mock.calls[0][1] as { coalesce?: boolean } | undefined;
+        expect(opts?.coalesce).not.toBe(true);
+    });
+
     it("下書きなら頼まない", async () => {
         world({ ...PHOTO, published: false });
         await invoke(ME, "p1");

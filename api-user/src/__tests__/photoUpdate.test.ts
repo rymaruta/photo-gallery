@@ -408,3 +408,72 @@ describe("updatePhotoVisibility: 写真以外は触らせない", () => {
         expect(mockDdbSend).not.toHaveBeenCalled();
     });
 });
+
+// **隠す操作は、畳んではいけない。**
+//
+// 畳まれた依頼は後から実行されない（定期ビルドも止めてある）ので、
+// 非公開にしたのに `/photo/<id>` の静的HTML が本文・撮影地・EXIF・
+// 表示名入りの JSON-LD ごと出たままになる。本文の編集なら「古い文が残る」で
+// 済むが、隠す操作でそれは**隠せていない**ということ。
+describe("非公開にするときの再ビルド依頼", () => {
+    const stored2 = { id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true };
+
+    it("隠すときは畳まない（削除と同じ扱い）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: stored2 }).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(true);
+        await invoke(event("owner", "p1", { published: false }));
+        expect(mockRebuild).toHaveBeenCalledTimes(1);
+        expect(mockRebuild.mock.calls[0][1], "隠す依頼が畳まれている").not.toEqual({ coalesce: true });
+    });
+
+    it("公開する側は今までどおり畳む（遅れて出るのは privacy の失敗ではない）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { ...stored2, published: false } })
+            .mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(true);
+        await invoke(event("owner", "p1", { published: true }));
+        expect(mockRebuild.mock.calls[0][1]).toEqual({ coalesce: true });
+    });
+
+    // **頼めなかったことを行に残す。** 削除側は「非公開だった写真には
+    // 静的ページが無い」と決め打ちして掃除を省くので、その前提が崩れたことを
+    // 伝えないと、非公開 →（依頼が届かない）→ 削除 で誰にも消されない
+    it("頼めなかったら staticStale を立てる", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: stored2 }).mockResolvedValueOnce({}).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);   // 予算切れ・設定漏れ・dispatch 失敗
+        const res = await invoke(event("owner", "p1", { published: false }));
+        expect(res.statusCode).toBe(200);   // 非公開そのものは成立している
+
+        const updates = mockDdbSend.mock.calls.map((c) => c[0])
+            .filter((cmd) => (cmd as { constructor: { name: string } })?.constructor?.name === "UpdateCommand");
+        expect(updates.some((u) => String((u as { input: { UpdateExpression: string } }).input.UpdateExpression)
+            .includes("staticStale")), "頼めなかったのに印を残していない").toBe(true);
+    });
+
+    // 残したままだと、再公開 → もう一度隠す（成功）のあとも
+    // 「掃除が届いていない」ことになり、削除のたびに要らないビルドが1本
+    it("頼めたら、立っていた印を下ろす", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { ...stored2, staticStale: true } })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(true);
+        await invoke(event("owner", "p1", { published: false }));
+
+        const updates = mockDdbSend.mock.calls.map((c) => c[0])
+            .filter((cmd) => (cmd as { constructor: { name: string } })?.constructor?.name === "UpdateCommand");
+        expect(updates.some((u) => String((u as { input: { UpdateExpression: string } }).input.UpdateExpression)
+            .includes("REMOVE staticStale")), "印が立ったまま残る").toBe(true);
+    });
+
+    it("頼めたときは印を立てない（余計な書き込みをしない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: stored2 }).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(true);
+        await invoke(event("owner", "p1", { published: false }));
+
+        const updates = mockDdbSend.mock.calls.map((c) => c[0])
+            .filter((cmd) => (cmd as { constructor: { name: string } })?.constructor?.name === "UpdateCommand");
+        expect(updates.some((u) => String((u as { input: { UpdateExpression: string } }).input.UpdateExpression)
+            .includes("staticStale"))).toBe(false);
+    });
+});

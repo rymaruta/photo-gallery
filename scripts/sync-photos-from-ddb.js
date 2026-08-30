@@ -96,7 +96,10 @@ function checkWriteSafety(nextCount, prevCount, { allowEmpty = ALLOW_EMPTY } = {
  *   直接読むので、photos.json から落としても支障は無い。
  * - key … S3 のオブジェクトキー。バケット構造を公開する理由が無い。
  */
-const PRIVATE_FIELDS = ["srcOriginal", "key"];
+// `staticStale` は「静的ページの掃除が届いていない」という内部の印。
+// 付くのは非公開の写真だけなので普段は載らないが、再公開の順序次第で
+// 残りうる。公開する JSON に内部の事情を出さない
+const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale"];
 
 function stripPrivateFields(item) {
     const out = { ...item };
@@ -270,4 +273,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { checkWriteSafety, existingCount, readLastSyncedCount, writeLastSyncedCount, SYNC_STATS_ID };
+module.exports = { checkWriteSafety, existingCount, readLastSyncedCount, writeLastSyncedCount, SYNC_STATS_ID, stripPrivateFields, PRIVATE_FIELDS };

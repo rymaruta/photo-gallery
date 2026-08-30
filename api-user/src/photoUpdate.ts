@@ -216,8 +216,60 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // ままの JS は今も全項目を送ってくる。
         const wasPublished = existing.Item.published !== false;
         const visibilityChanged = hasPublished && body.published !== wasPublished;
+        // **隠すときは畳まない。**
+        //
+        // `rebuild.ts` の方針は「何度でも押せる操作は coalesce」で、公開状態も
+        // 本文の編集と同じ扱いにしていた。ところが**畳まれた依頼は後から
+        // 実行されない**（定期ビルドも止めてある）ので、非公開にしたのに
+        // `/photo/<id>` の静的HTML が本文・撮影地・EXIF・表示名入りの
+        // JSON-LD ごと**出たまま**になる。本文の編集なら「古い文が残る」で
+        // 済むが、隠す操作でそれは**隠せていない**ということ。削除と同じ扱いにする。
+        //
+        // 公開する側（false → true）は畳んだままでよい。遅れて出るのは
+        // privacy の失敗ではないし、連打で予算を食うのを抑えたい。
+        const hiding = visibilityChanged && body.published === false;
+        let dispatched = true;
         if (visibilityChanged || metaChanged) {
-            await requestSiteRebuild(`photo updated: ${id}`, { coalesce: true });
+            dispatched = await requestSiteRebuild(`photo updated: ${id}`, hiding ? {} : { coalesce: true });
+        }
+
+        // **頼めなかったことを行に残す。** 予算切れ・設定漏れ・dispatch の
+        // 失敗でも false が返る。削除側は「非公開だった写真には静的ページが
+        // 無い」と決め打ちして掃除を省くので、その前提が崩れたことを
+        // 伝えておかないと、**非公開 →（依頼が届かない）→ 削除**で
+        // 静的ページが誰にも消されないまま残る。
+        // 頼めたら印を下ろす。残したままだと、再公開 → もう一度隠す（成功）
+        // のあとも「掃除が届いていない」ことになり、削除のたびに要らない
+        // ビルドを1本起こす
+        if (dispatched && existing.Item.staticStale === true) {
+            try {
+                await ddb.send(new UpdateCommand({
+                    TableName: PHOTOS_TABLE,
+                    Key: { id },
+                    UpdateExpression: "REMOVE staticStale",
+                    ConditionExpression: "attribute_exists(id)",
+                }));
+            } catch (e) {
+                console.error(`updatePhotoVisibility: staticStale の解除に失敗 (${id}):`, e);
+            }
+        }
+
+        if (hiding && !dispatched) {
+            try {
+                await ddb.send(new UpdateCommand({
+                    TableName: PHOTOS_TABLE,
+                    Key: { id },
+                    UpdateExpression: "SET staticStale = :t",
+                    ExpressionAttributeValues: { ":t": true },
+                    ConditionExpression: "attribute_exists(id)",
+                }));
+            } catch (e) {
+                // 印が書けなくても非公開そのものは成立している。
+                // ここで 500 にすると「隠せていないのに隠せたと思う」より
+                // 「隠したのに失敗と出る」方を選ぶことになり、押し直しで
+                // 二重に頼むだけなので、記録に留める
+                console.error(`updatePhotoVisibility: staticStale の記録に失敗 (${id}):`, e);
+            }
         }
 
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
@@ -333,7 +385,9 @@ export const deleteMyPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // 5. 静的ページの掃除。実体を消しても、配ってある /photo/<id> の HTML は
         //    残る（本文・撮影地・EXIF・表示名入りの JSON-LD まで焼き込み済み）。
         //    非公開だった写真には静的ページが無いので頼まない（A-5d と同じ判定）。
-        if (item.published !== false) {
+        //    **ただしその前提は「非公開化の依頼が実際に届いた場合」だけ成り立つ。**
+        //    届かなかったときは `staticStale` が立っているので、そこは頼む。
+        if (item.published !== false || item.staticStale === true) {
             // **coalesce を付けてはいけない。** rebuild.ts が明記している
             // とおり「削除・退会は実データを1件消さないと起こせない → 素通し」。
             // 付けると、同じ画面の『保存』が直前にロックを取っているだけで

@@ -142,3 +142,35 @@ describe("writeLastSyncedCount: 予約語を裸で使わない", () => {
         expect(typeof input.ExpressionAttributeValues[":at"]).toBe("string");
     });
 });
+
+// **公開する JSON に内部の事情を出さない。**
+//
+// `photos.json` はビルドでそのまま配信される。GPS 入り原本の URL
+// （`srcOriginal`）と S3 の生キー（`key`）を落とすためのふるいが元からあるが、
+// **名簿に足し忘れても誰も落ちなかった**（変異させても全件緑）。
+// `staticStale`（静的ページの掃除が届いていないという内部の印）を
+// 足したので、ここで固定する。
+describe("公開JSONから落とす項目", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { stripPrivateFields, PRIVATE_FIELDS } = require("../sync-photos-from-ddb.js");
+
+    it.each(["srcOriginal", "key", "staticStale"])("%s は出さない", (field) => {
+        const out = stripPrivateFields({
+            id: "p1", src: "https://cdn/x.jpg", title: "あ",
+            srcOriginal: "https://cdn/x_orig.jpg", key: "uploads/u/x.jpg", staticStale: true,
+        });
+        expect(out[field], `${field} が公開JSONに載っている`).toBeUndefined();
+        expect(PRIVATE_FIELDS).toContain(field);
+    });
+
+    it("表に出す項目は落とさない", () => {
+        const out = stripPrivateFields({ id: "p1", src: "https://cdn/x.jpg", title: "あ", tags: ["海"] });
+        expect(out).toEqual({ id: "p1", src: "https://cdn/x.jpg", title: "あ", tags: ["海"] });
+    });
+
+    it("元の項目を書き換えない（コピーを返す）", () => {
+        const item = { id: "p1", srcOriginal: "https://cdn/x_orig.jpg" };
+        stripPrivateFields(item);
+        expect(item.srcOriginal, "呼び出し元の項目を壊している").toBe("https://cdn/x_orig.jpg");
+    });
+});
