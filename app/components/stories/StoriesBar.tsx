@@ -37,20 +37,38 @@ const MAX_FILE_BYTES = 50 * 1024 * 1024;
 const RING_UNSEEN = "linear-gradient(45deg, #FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5)";
 const RING_SEEN = "#3a3a3d";
 
+/**
+ * 動画のメタデータが返らないときの打ち切り。
+ *
+ * `loadedmetadata` も `error` も鳴らないまま終わる場合がある（メモリが
+ * 足りない iOS Safari など。画像側の `loadImageFromFile` に同じ理由で
+ * 同じ守りが入っている）。**動画側だけ抜けていた**ので、そうなると
+ * 選んだのに下書きも出ずエラーも出ず、blob URL（最大50MB）が解放
+ * されないまま溜まる。失敗として扱えば、呼び出し側の catch が
+ * 「動画を読み込めませんでした」を出すところまで進む。
+ */
+const VIDEO_METADATA_TIMEOUT_MS = 15000;
+
 // 動画の再生時間を取得（メタデータのみ読み込み）
 function getVideoDuration(file: File): Promise<number> {
     return new Promise((resolve, reject) => {
         const url = URL.createObjectURL(file);
         const video = document.createElement("video");
         video.preload = "metadata";
-        video.onloadedmetadata = () => {
+        let settled = false;
+        const finish = (fn: () => void) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
             URL.revokeObjectURL(url);
-            resolve(video.duration);
+            fn();
         };
-        video.onerror = () => {
-            URL.revokeObjectURL(url);
-            reject(new Error("動画を読み込めません"));
-        };
+        const timer = setTimeout(
+            () => finish(() => reject(new Error("動画の読み込みがタイムアウトしました"))),
+            VIDEO_METADATA_TIMEOUT_MS,
+        );
+        video.onloadedmetadata = () => finish(() => resolve(video.duration));
+        video.onerror = () => finish(() => reject(new Error("動画を読み込めません")));
         video.src = url;
     });
 }
@@ -191,6 +209,11 @@ export default function StoriesBar() {
     const searchDraftSongs = async () => {
         const q = songQuery.trim();
         if (!q) return;
+        // **試聴を止めてから引き直す。** 結果が差し替わると、鳴っている曲の
+        // 停止ボタンごと画面から消える——下書きは z-[95] でミニプレイヤーも
+        // 覆うので、下書きを閉じるまで止められない。プロフィール側の
+        // `handleSongSearch` は最初からこの形（対の乖離だった）。
+        stopPreview();
         const gen = ++songSearchGen.current;
         setSongSearching(true);
         setSongSearchError(false);

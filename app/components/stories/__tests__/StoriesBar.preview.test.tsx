@@ -76,4 +76,51 @@ describe("ストーリー作成の曲試聴", () => {
 
         expect(mockStop).toHaveBeenCalled();
     });
+
+    // **検索し直すと、鳴っている曲の停止ボタンごと消える。**
+    // 結果リストが差し替わるので、さっき押した曲の行が無くなる——
+    // 音は鳴ったまま、画面には止める手段が無い（下書きは z-[95] で
+    // ミニプレイヤーも覆うので、下書きを閉じるまで止まらない）。
+    // プロフィール側の handleSongSearch は最初から検索の頭で止めている。
+    it("検索し直したら試聴を止める", async () => {
+        const paused = vi.fn();
+        Object.defineProperty(HTMLMediaElement.prototype, "pause", {
+            configurable: true, writable: true, value: paused,
+        });
+
+        await openSongPicker();
+        await userEvent.type(screen.getByPlaceholderText("曲名・アーティスト名"), "あ{Enter}");
+        await screen.findByText("ある曲");
+        await userEvent.click(await screen.findByRole("button", { name: /試聴|停止/ }));
+        paused.mockClear();
+
+        // 別の語で引き直す（結果が入れ替わる）
+        mockSearchSongs.mockResolvedValue([song("べつの曲")]);
+        await userEvent.type(screen.getByPlaceholderText("曲名・アーティスト名"), "い{Enter}");
+        await screen.findByText("べつの曲");
+
+        expect(paused, "結果が入れ替わったのに鳴り続けている").toHaveBeenCalled();
+        expect(screen.queryByRole("button", { name: "停止" }),
+            "止める手段が無いのに再生中の表示が残っている").toBeNull();
+    });
+
+    // 検索が失敗したときも同じ（結果は空になり、行ごと消える）
+    it("検索が失敗したときも試聴を止める", async () => {
+        const paused = vi.fn();
+        Object.defineProperty(HTMLMediaElement.prototype, "pause", {
+            configurable: true, writable: true, value: paused,
+        });
+
+        await openSongPicker();
+        await userEvent.type(screen.getByPlaceholderText("曲名・アーティスト名"), "あ{Enter}");
+        await screen.findByText("ある曲");
+        await userEvent.click(await screen.findByRole("button", { name: /試聴|停止/ }));
+        paused.mockClear();
+
+        mockSearchSongs.mockRejectedValue(new Error("network"));
+        await userEvent.type(screen.getByPlaceholderText("曲名・アーティスト名"), "い{Enter}");
+        await screen.findByText(/検索に失敗/);
+
+        expect(paused, "検索が落ちたのに鳴り続けている").toHaveBeenCalled();
+    });
 });
