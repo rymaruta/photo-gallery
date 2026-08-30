@@ -415,6 +415,43 @@ describe("トークンが無いとき", () => {
 // 追い越して届いた古い応答をそのまま取り込むと、**サーバーには2枚あるのに
 // 画面は1枚**になり、リロードするまで直らない。
 describe("応答の追い越し", () => {
+    // 失敗の後始末（巻き戻し・取り直し）も追い越しを見る。どちらも
+    // 「この保存を投げる前の姿」に戻す操作なので、追い越された分がやると
+    // **あとから押した星を消す**。
+    it("追い越された保存が失敗しても、あとから押した星を消さない", async () => {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ userId: ME }) });
+
+        let failFirst: (() => void) | null = null;
+        let putCount = 0;
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (init?.method !== "PUT") {
+                if (url === "/user/profile") return Promise.resolve({ ok: true, json: async () => ({ userId: ME }) });
+                return Promise.resolve({ ok: true, json: async () => [photo("p1"), photo("p2")] });
+            }
+            putCount += 1;
+            // 1本目（p1）は保留したうえで、あとから 500 で落とす
+            if (putCount === 1) return new Promise((res) => { failFirst = () => res(reply(false, 500, {})); });
+            return Promise.resolve(reply(true, 200, { pinnedPhotoIds: ["p2"] }));
+        });
+
+        render(<UserProfileClient userId={ME} />);
+        await waitFor(() => expect(screen.getAllByTitle(/ピン留め/).length).toBeGreaterThan(0));
+
+        fireEvent.click(screen.getAllByTitle("先頭にピン留め")[0]);   // p1（保留）
+        await waitFor(() => expect(putCount).toBe(1));
+        fireEvent.click(screen.getAllByTitle("先頭にピン留め")[0]);   // p2（成功して着地）
+        await waitFor(() => expect(screen.getAllByTitle("ピン留め解除")).toHaveLength(1));
+
+        await act(async () => { failFirst!(); await Promise.resolve(); });
+
+        // p2 の星は残る（p1 の失敗は自分の分だけ諦める）
+        await waitFor(() => expect(
+            screen.getAllByTitle("ピン留め解除"),
+            "追い越された失敗が、あとから押した星を消している",
+        ).toHaveLength(1));
+    });
+
     it("後から届いた古い応答で、新しい一覧を上書きしない", async () => {
         mockGetCurrentSession.mockResolvedValue(session(ME));
         mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ userId: ME, displayName: "旅人" }) });

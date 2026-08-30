@@ -514,6 +514,15 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         // 上書きする**（p1→p2 と押して p1 の応答が遅れると p2 の星が消える。
         // サーバーには2枚あるのに画面は1枚）。最後に投げた分だけを採る。
         const seq = ++pinSeqRef.current;
+        /**
+         * この保存が**まだ最後の1本か**。
+         *
+         * 追い越された保存は、巻き戻しも取り直しもしてはいけない
+         * ——どちらも「この保存を投げる前の姿」に戻す操作で、あとから
+         * 押した分（画面に出ている星）を消すことになる。後始末は、
+         * 最後に投げた分が自分の応答でやる。
+         */
+        const isLatest = () => seq === pinSeqRef.current;
         const adoptPins = (list: unknown) => {
             if (seq !== pinSeqRef.current) return;
             const pins = Array.isArray(list)
@@ -538,7 +547,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 //
                 // throw で catch に流さないのは、通信そのものが落ちた場合の
                 // Error（"Failed to fetch" など英語の生文言）と混ざるため。
-                setUserProfile(prev ?? null);
+                if (isLatest()) setUserProfile(prev ?? null);
                 // **断られた回こそ同期する。** 上限で断るとき、サーバーは
                 // 今の一覧を添えてくる。取り込まないと、手元が古いタブは
                 // 「星が1つも無いのに3枚までと言われる」まま何度でも同じ
@@ -553,7 +562,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 // 捨てられている。ここで取り直さないと、公開ぶんのピンで
                 // 固定されたまま——非公開にした写真の星が無く、外せない。
                 // 一覧が添えられていた回（上の adoptPins）は済んでいる。
-                else if ("pinnedPhotoIds" in patch) loadOwnPins();
+                else if (isLatest() && "pinnedPhotoIds" in patch) loadOwnPins();
                 showToast(await readApiError(res, failMsg), "error");
                 return;
             }
@@ -564,10 +573,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             if (saved && "pinnedPhotoIds" in patch) adoptPins(saved.pinnedPhotoIds);
             showToast(successMsg, "success");
         } catch (e) {
-            setUserProfile(prev ?? null);
-            // 上と同じ（捨てられた後追いを取り直す）。ここも失敗すれば
-            // 公開ぶんのまま——星が少なく出るだけで、何も壊さない
-            if ("pinnedPhotoIds" in patch) loadOwnPins();
+            if (isLatest()) {
+                setUserProfile(prev ?? null);
+                // 上と同じ（捨てられた後追いを取り直す）。ここも失敗すれば
+                // 公開ぶんのまま——星が少なく出るだけで、何も壊さない
+                if ("pinnedPhotoIds" in patch) loadOwnPins();
+            }
             // トークン不在（userFetch が投げる）は「保存に失敗しました」では
             // 直らない。別のタブでログアウトした人・セッションが切れた人は、
             // 何をすればいいか分からないまま押し直すことになる。
