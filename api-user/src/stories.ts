@@ -294,6 +294,19 @@ export const viewStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         if (item.userId === viewerId) {
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, self: true }) };
         }
+        // **期限切れは「もう無い」。**
+        //
+        // 行が残っているのは掃除が日次だからで、一覧（`getStories`）は
+        // とっくに返していない。ここに来るのは**期限をまたいで開きっぱなしの
+        // タブ**か、直接叩いた場合。記録すると、消えたはずのストーリーに
+        // 閲覧者が増え続ける——本人には「24時間で消えた」ものの閲覧者が
+        // あとから増えて見え、掃除が来るまで（最大およそ24時間）続く。
+        // 判定は `queryStories` と同じ ISO 文字列の比較。`expiresAt` を
+        // 持たない古い行は有効扱い（無い理由で締め出さない）。
+        const expiresAt = typeof item.expiresAt === "string" ? item.expiresAt : "";
+        if (expiresAt && expiresAt <= new Date().toISOString()) {
+            return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "ストーリーが見つかりません" }) };
+        }
 
         // 表示名はサーバーで引く。クライアント申告を保存すると、改造したクライアントから
         // 任意の名前で閲覧履歴に載れてしまう（notify.ts も同じ理由で申告を信用していない）。

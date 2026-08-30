@@ -467,6 +467,46 @@ describe("viewStory", () => {
         expect(res.statusCode).toBe(404);
     });
 
+    // **期限切れは「もう無い」。** 行が残っているのは掃除が日次だからで、
+    // 一覧はとっくに返していない。記録すると、消えたはずのストーリーに
+    // 閲覧者があとから増える（本人にはそれが見える）。
+    it("期限切れのストーリーは記録しない（404）", async () => {
+        const past = new Date(Date.now() - 60_000).toISOString();
+        mockDdbSend.mockResolvedValueOnce({
+            Item: { id: "story-1", story: true, userId: "owner", expiresAt: past },
+        });
+        const res = await invoke(viewStory, authedEvent("viewer-1", { pathParameters: { id: "story-1" }, body: "{}" }));
+
+        expect(res.statusCode).toBe(404);
+        expect(mockDdbSend, "期限切れなのに書き込んでいる").toHaveBeenCalledTimes(1);   // Get だけ
+    });
+
+    it("期限内なら今までどおり記録する", async () => {
+        const future = new Date(Date.now() + 60_000).toISOString();
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner", expiresAt: future } })
+            .mockResolvedValueOnce({ Item: { displayName: "旅子" } })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({});
+        const res = await invoke(viewStory, authedEvent("viewer-1", { pathParameters: { id: "story-1" }, body: "{}" }));
+
+        expect(res.statusCode).toBe(200);
+        expect(mockDdbSend.mock.calls
+            .filter((c) => (c[0] as { constructor: { name: string } })?.constructor?.name === "UpdateCommand"))
+            .toHaveLength(2);
+    });
+
+    // `expiresAt` を持たない古い行を、無い理由で締め出さない
+    it("expiresAt が無い行は有効として扱う", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } })
+            .mockResolvedValueOnce({ Item: { displayName: "旅子" } })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({});
+        const res = await invoke(viewStory, authedEvent("viewer-1", { pathParameters: { id: "story-1" }, body: "{}" }));
+        expect(res.statusCode).toBe(200);
+    });
+
     it("本人の閲覧は記録しない", async () => {
         mockDdbSend.mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "u1" } });
         const res = await invoke(viewStory, authedEvent("u1", { pathParameters: { id: "story-1" }, body: "{}" }));
