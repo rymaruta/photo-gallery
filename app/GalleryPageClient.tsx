@@ -21,7 +21,7 @@ export default function GalleryPageClient() {
   const { locale, labels } = useLocale();
   const { showToast } = useToast();
   const { photos, loaded: photosLoaded } = usePhotos();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
 
   // フォロー中フィード用: フォローしている userId 集合（認証時のみ取得）
   const [followingIds, setFollowingIds] = React.useState<Set<string>>(new Set());
@@ -41,6 +41,17 @@ export default function GalleryPageClient() {
    */
   const [followingLoaded, setFollowingLoaded] = React.useState(false);
   React.useEffect(() => {
+    // **「まだ分からない」を未ログインと混ぜない。** セッションの復元は
+    // 非同期で、その間 `isAuthenticated` は false（`app/auth/context.tsx`
+    // の初期値は `loading: true`）。ここで確定させてしまうと、
+    // `/?feed=following` を再読込・ブックマーク・戻るで開いた人に、
+    // 消したはずの「0人」の画面をまた見せることになる——`feed` は URL に
+    // 載るので、これは主経路。
+    //
+    // **判定の出所はここ1つにする。** 表示側でも `authLoading` を見ると、
+    // 同じことを2か所で決めることになり、片方を壊しても気づけない
+    // （実際、両方に置いたらこの行を消しても全テストが通った）。
+    if (authLoading) return;
     if (!isAuthenticated) {
       setFollowingIds(new Set());
       // ログアウトすると切替タブ自体が消えるので、失敗表示を残すと
@@ -57,7 +68,7 @@ export default function GalleryPageClient() {
       .catch(() => { if (!aborted) setFollowingError(true); })
       .finally(() => { if (!aborted) setFollowingLoaded(true); });
     return () => { aborted = true; };
-  }, [isAuthenticated, followingReloadKey]);
+  }, [authLoading, isAuthenticated, followingReloadKey]);
 
   const {
     PHOTOS,
@@ -263,7 +274,10 @@ export default function GalleryPageClient() {
       />
 
       <>
-        {!(followingError && filters.feed === "following") && (
+        {/* 件数も「まだ分からない」ときは出さない。本文を伏せながら
+            「結果: 0 件」と言い続けるのは、伏せた意味が無い */}
+        {!(followingError && filters.feed === "following")
+          && !(filters.feed === "following" && !followingLoaded) && (
           <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
             {locale === "en"
               ? `${labels.gallery?.resultsCount ?? "Results"}: ${filteredPhotos.length}`

@@ -15,9 +15,10 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 const mockUserFetch = vi.hoisted(() => vi.fn());
 
-vi.mock("../auth/context", () => ({
-    useAuth: () => ({ isAuthenticated: true, userId: "me", loading: false }),
+const authState = vi.hoisted(() => ({
+    current: { isAuthenticated: true, userId: "me" as string | null, loading: false },
 }));
+vi.mock("../auth/context", () => ({ useAuth: () => authState.current }));
 vi.mock("../i18n/context", () => ({
     useLocale: () => ({ locale: "ja", labels: { category: { all: "すべて", names: {} }, site: { title: "Gallery" } } }),
 }));
@@ -52,6 +53,7 @@ const GalleryPageClient = (await import("../GalleryPageClient")).default;
 const EMPTY = /フォローした人の写真がここに集まります/;
 
 beforeEach(async () => {
+    authState.current = { isAuthenticated: true, userId: "me", loading: false };
     window.history.replaceState({}, "", "/");
     mockUserFetch.mockReset();
     const { resetFollowingCache } = await import("../../lib/hooks/useFollow");
@@ -70,6 +72,54 @@ describe("フォロー中フィードの空表示", () => {
 
         settle!({ ok: true, json: async () => ({ userIds: ["u1"] }) });
         // 届いたら写真が出る（＝空表示にはならない）
+        await waitFor(() => expect(screen.queryByText(EMPTY)).toBeNull());
+    });
+
+    // **「まだ分からない」を未ログインと混ぜない。** セッションの復元は
+    // 非同期で、その間 `isAuthenticated` は false。上流で確定させてしまうと、
+    // `/?feed=following` を再読込・戻るで開いた人に「0人」の画面が出る。
+    it("認証の判定中は「0人」の画面を出さない", async () => {
+        authState.current = { isAuthenticated: false, userId: null, loading: true };
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: ["u1"] }) });
+        window.history.replaceState({}, "", "/?feed=following");
+
+        const { rerender } = render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        expect(screen.queryByText(EMPTY), "認証の判定中に「0人」を出している").toBeNull();
+        expect(screen.queryByText(/結果: 0 件/), "本文を伏せながら0件と言っている").toBeNull();
+
+        // 判定が終わってログイン済みと分かる
+        authState.current = { isAuthenticated: true, userId: "me", loading: false };
+        rerender(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        await waitFor(() => expect(screen.queryByText(EMPTY)).toBeNull());
+    });
+
+    // 未ログインは「取得しない」＝確定。ここで確定させ忘れると、本文は
+    // null のまま・タブも出ないので、**抜け出せない真っ白**になる
+    it("未ログインで ?feed=following を開いたら、案内を出す", async () => {
+        authState.current = { isAuthenticated: false, userId: null, loading: false };
+        window.history.replaceState({}, "", "/?feed=following");
+
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+
+        expect(await screen.findByText(EMPTY)).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "みんなの写真を見る" })).toBeInTheDocument();
+    });
+
+    // 「もう一度読み込む」の再取得中も、確定するまでは出さない
+    it("再取得の途中で「0人」が復活しない", async () => {
+        mockUserFetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) });
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        fireEvent.click(await screen.findByRole("button", { name: "フォロー中" }));
+        await screen.findByText(/フォロー中の一覧を読み込めませんでした/);
+
+        let settle: ((v: unknown) => void) | null = null;
+        mockUserFetch.mockImplementation(() => new Promise((res) => { settle = res; }));
+        fireEvent.click(screen.getByRole("button", { name: "もう一度読み込む" }));
+
+        await waitFor(() => expect(settle).not.toBeNull());
+        expect(screen.queryByText(EMPTY), "再取得の途中で「0人」に戻っている").toBeNull();
+
+        settle!({ ok: true, json: async () => ({ userIds: ["u1"] }) });
         await waitFor(() => expect(screen.queryByText(EMPTY)).toBeNull());
     });
 
