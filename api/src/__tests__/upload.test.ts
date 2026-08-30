@@ -253,3 +253,22 @@ describe("savePhoto", () => {
         expect((await invoke(savePhoto, ev(ok))).statusCode).toBe(500);
     });
 });
+
+// **presign は3か所ある**（ここ・api-user の写真・api-user のアイコン）。
+// presigner は既定で `content-type` を署名対象から外すので、渡さないと
+// 「許可済みの種別を焼き付けた」つもりで何も縛れていない——`image/jpeg` で
+// presign を取って `text/html` で PUT でき、CloudFront はサイトと同一
+// オリジンでそれを返す（`uploadPolicy.ts` が SVG を弾く理由そのもの）。
+// **1か所でも抜けると、そこ経由で同じ攻撃が通る。**
+// この口は管理者限定で今はクライアントから呼ばれていないが、
+// 「呼ばれていないから安全」は次に誰かが呼んだ瞬間に崩れる。
+describe("管理APIの presign も Content-Type を縛る", () => {
+    it("署名対象に content-type を明示する", async () => {
+        mockGetSignedUrl.mockResolvedValue("https://s3.example/put");
+        await invoke(presignedUrl, ev({ fileName: "a.jpg", fileType: "image/jpeg" }));
+
+        const opts = mockGetSignedUrl.mock.calls.at(-1)?.[2] as { signableHeaders?: Set<string> };
+        expect(opts?.signableHeaders, "signableHeaders が渡っていない（既定では外される）").toBeDefined();
+        expect([...(opts.signableHeaders ?? [])]).toContain("content-type");
+    });
+});

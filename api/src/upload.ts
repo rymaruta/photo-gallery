@@ -94,15 +94,30 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     const photoId = uuidv4();
     const key = `uploads/${photoId}.${ext}`;
 
+    const safeContentType = fileType.split(";")[0].trim().toLowerCase();
+
     const presigned = await getSignedUrl(
         s3,
         new PutObjectCommand({
             Bucket: UPLOAD_BUCKET,
             Key: key,
-            ContentType: fileType.split(";")[0].trim().toLowerCase(),
+            ContentType: safeContentType,
             CacheControl: "max-age=31536000",
         }),
-        { expiresIn: 900 }
+        {
+            expiresIn: 900,
+            // **ここも署名対象に戻す。** presigner は既定で `content-type` を
+            // 外すので、渡さないと「許可済みの種別を焼き付けた」つもりで
+            // 何も縛れていない——`image/jpeg` で presign を取って `text/html`
+            // で PUT でき、CloudFront はサイトと同一オリジンでそれを返す。
+            // 理由の全文は `api-user/src/upload.ts` の同じ指定にある。
+            //
+            // **この口は管理者限定で、今はクライアントから呼ばれていない**
+            // （`app/user/upload/page.tsx` は管理者でもユーザーAPIを使う）。
+            // それでも塞ぐ——「呼ばれていないから安全」は、次に誰かが
+            // 呼んだ瞬間に崩れる前提。
+            signableHeaders: new Set(["content-type"]),
+        },
     );
 
     const publicUrl = CLOUDFRONT_URL

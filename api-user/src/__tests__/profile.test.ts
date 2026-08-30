@@ -141,4 +141,12 @@ describe("アバターの presign が Content-Type を縛る", () => {
         expect(opts?.signableHeaders, "signableHeaders が渡っていない（既定では外される）").toBeDefined();
         expect([...(opts.signableHeaders ?? [])]).toContain("content-type");
     });
+
+    it("署名した種別をそのまま応答に載せる（クライアントはこれを送る）", async () => {
+        const res = await invoke({
+            requestContext: { authorizer: { jwt: { claims: { sub: "u1" } } } },
+            body: JSON.stringify({ fileType: "IMAGE/PNG; charset=utf-8" }),
+        });
+        expect(JSON.parse(res.body).contentType, "署名した種別を返していない").toBe("image/png");
+    });
 });

@@ -709,14 +709,19 @@ describe("presign が Content-Type を縛る", () => {
             .toContain("content-type");
     });
 
-    it("焼き付ける種別は正規化したもの（クライアントの文字列そのままではない）", async () => {
+    // **署名した種別を応答で返すところまでが対**。返さないと、クライアントは
+    // 自分で `file.type` を組み立てることになり、大文字やパラメータ付きの差で
+    // **全アップロードが 403** になる。ここを消しても全件緑だったので足した
+    it("署名した種別をそのまま応答に載せる（クライアントはこれを送る）", async () => {
         mockGetSignedUrl.mockResolvedValue("https://s3.example/put");
-        await invokePresign({
+        const res = await invokePresign({
             requestContext: { authorizer: { jwt: { claims: { sub: "u1" } } } },
             body: JSON.stringify({ fileName: "a.jpg", fileType: "IMAGE/JPEG; charset=utf-8", fileSize: 1000 }),
         });
 
-        const input = mockPutObjectInput.mock.calls.at(-1)?.[0] as { ContentType: string };
-        expect(input.ContentType).toBe("image/jpeg");
+        const signed = (mockPutObjectInput.mock.calls.at(-1)?.[0] as { ContentType: string }).ContentType;
+        expect(signed, "正規化していない文字列を焼き付けている").toBe("image/jpeg");
+        // **署名したものと応答が同じ**であることが要点（片方だけ直しても意味が無い）
+        expect(JSON.parse(res.body).contentType, "署名した種別を返していない").toBe(signed);
     });
 });

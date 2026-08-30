@@ -13,15 +13,20 @@ import { v5 as uuidv5 } from "uuid";
  * SVG は <script> を書ける「実行可能な文書」で、presigned PUT が
  * Content-Type をそのままオブジェクトに焼き付け、CloudFront は
  * 同じディストリビューション（＝サイトと同一オリジン）で返す。
- *
- * **この許可リストだけでは塞げていなかった。** presigner は既定で
- * `content-type` を署名対象から外すので、`image/jpeg` で presign を取って
- * `text/html` で PUT できた（拡張子は `.jpg` のまま、中身は HTML）。
- * 署名対象に戻す指定を `upload.ts` / `profile.ts` に入れてある。
- * **どちらか片方だけでは塞がらない**ので、両方を保つこと。
  * つまり誰でもサイト上で任意のスクリプトを実行でき、
  * localStorage の Cognito トークンを盗める（amazon-cognito-identity-js は
  * そこに保存する）。拡張子ではなく許可リストで塞ぐ。
+ *
+ * **ただし、この許可リストだけでは塞げていなかった。** presigner は既定で
+ * `content-type` を署名対象から外すので、`image/jpeg` で presign を取って
+ * `text/html` で PUT できた（拡張子は `.jpg` のまま、中身は HTML）。
+ * 署名対象に戻す指定が要る。**presign は3か所ある**ので、全部に入れること:
+ *   - `api-user/src/upload.ts`（写真・ストーリー）
+ *   - `api-user/src/profile.ts`（アイコン・カバー）
+ *   - `api/src/upload.ts`（管理API。今はクライアントから呼ばれていない）
+ * 1か所でも抜けると、そこ経由で同じ攻撃が通る。
+ * 実際に何が署名されるかは `api-user/src/__tests__/presignSigning.test.ts`
+ * が本物の SDK で測っている。
  */
 export const ALLOWED_IMAGE_TYPES: ReadonlyMap<string, string> = new Map([
     ["image/jpeg", "jpg"],
