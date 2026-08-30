@@ -218,7 +218,7 @@ describe("unlikePhoto", () => {
     it("いいね解除: マーカー削除 + カウンタ-1", async () => {
         mockDdbSend
             .mockResolvedValueOnce({}) // Delete marker
-            .mockResolvedValueOnce({ Attributes: { likes: 2 } }); // Update -1
+            .mockResolvedValueOnce({ Attributes: { src: "https://cdn/x.jpg", likes: 2 } }); // Update -1（ALL_NEW）
         const res = await invoke(unlikePhoto, ev("u1", "p1"));
         expect(res.statusCode).toBe(200);
         expect(JSON.parse(res.body)).toEqual({ liked: false, likes: 2 });
@@ -315,5 +315,52 @@ describe("公開されていない写真のいいね数は返さない", () => {
         const res = await invoke(likePhoto, ev("u1", "p1"));
         expect(res.statusCode).toBe(404);
         expect(res.body).not.toContain("7");
+    });
+});
+
+// **射影から漏れると判定が死ぬ。**
+//
+// `readLikeCount` は `ProjectionExpression` で読んだ `src` を見て公開判定
+// する。DynamoDB は射影した属性しか返さないので、`src` が式から落ちた瞬間
+// `!item.src` が常に真になり、**全写真で 404**（ギャラリーは写真ごとに
+// この口を叩く）。しかもフロントは `if (!res.ok) return;` で握るので、
+// 画面には**ビルド時の古い数字が出たまま**——気づきにくい壊れ方。
+//
+// テストのモックは射影を無視して `Item` をそのまま返すため、式を
+// `"likes"` に戻しても28件すべて緑のままだった（実測）。
+// `follow.test.ts` が同じ形を「実装を消しても通るテストの再発形」として
+// 押さえているので、こちらも**式そのものを見る**。
+describe("いいね数の読み取りは、判定に使う属性まで射影する", () => {
+    it.each(["src", "published", "story", "likes"])("%s が射影に入っている", async (attr) => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { src: "https://cdn/x.jpg", likes: 1 } });
+        await invoke(getLikeCount, ev(undefined, "p1"));
+
+        const get = mockDdbSend.mock.calls.map((c) => c[0])
+            .find((cmd) => (cmd as { constructor: { name: string } })?.constructor?.name === "GetCommand");
+        expect((get as { input: { ProjectionExpression: string } }).input.ProjectionExpression).toContain(attr);
+    });
+});
+
+// 減算そのものは条件に公開判定を足さない——足すと、非公開になった写真の
+// いいねを**本人が永久に取り消せなくなる**。減らしはするが数字は返さない。
+describe("非公開に戻された写真のいいね解除", () => {
+    it("減らすが、数字は返さない（404）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({})   // Delete marker
+            .mockResolvedValueOnce({ Attributes: { src: "https://cdn/x.jpg", published: false, likes: 4 } });
+        const res = await invoke(unlikePhoto, ev("u1", "p1"));
+        expect(res.statusCode).toBe(404);
+        expect(res.body).not.toContain("4");
+        // 減算そのものは走っている（取り消せなくならない）
+        expect(mockDdbSend).toHaveBeenCalledTimes(2);
+    });
+
+    it("減らすものが無かった経路でも数字を返さない", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({})            // Delete marker
+            .mockRejectedValueOnce(condFail())    // likes > 0 で落ちる
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/x.jpg", published: false, likes: 0 } });
+        const res = await invoke(unlikePhoto, ev("u1", "p1"));
+        expect(res.statusCode).toBe(404);
     });
 });

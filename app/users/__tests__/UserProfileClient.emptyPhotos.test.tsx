@@ -71,7 +71,10 @@ describe("全部非公開にしたプロフィール", () => {
     });
 
     it("取得に失敗したときは消さない（見えていたものを消して驚かせない）", async () => {
-        mockPublicFetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
+        // **本文は配列にする。** `{}` にしていたので `Array.isArray` で
+        // 止まってしまい、`photosRes.ok` の分岐を一度も踏んでいなかった
+        // （`if (photosRes.ok)` を `if (true)` に変えても緑のままだった）
+        mockPublicFetch.mockResolvedValue({ ok: false, status: 500, json: async () => [] });
 
         render(<UserProfileClient userId={OWNER} />);
 

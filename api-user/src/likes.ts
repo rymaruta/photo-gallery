@@ -251,16 +251,29 @@ export const unlikePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
                 UpdateExpression: "SET likes = likes - :one",
                 ConditionExpression: "attribute_exists(id) AND likes > :z",
                 ExpressionAttributeValues: { ":z": 0, ":one": 1 },
-                ReturnValues: "UPDATED_NEW",
+                // **`ALL_NEW` にして公開状態も一緒に受け取る。**
+                // 減算そのものは条件に公開判定を足さない——足すと、非公開に
+                // なった写真のいいねを**本人が永久に取り消せなくなる**。
+                // 減らしはするが、**数字は返さない**のが正しい形。
+                // 追加の読み取りを増やさずに済むので `ALL_NEW`。
+                ReturnValues: "ALL_NEW",
             }));
-            const likes = (res.Attributes?.likes as number | undefined) ?? 0;
+            const after = res.Attributes as { likes?: unknown; src?: unknown; published?: unknown; story?: unknown } | undefined;
+            // ここだけ素通しだったので、DELETE の応答が経路で 404 / 200 / 200(実数)
+            // の3通りに割れていた。すぐ上の冪等経路と揃える
+            if (!after?.src || after.published === false || after.story === true) {
+                return jsonError(404, "写真が見つかりません");
+            }
+            const likes = (after.likes as number | undefined) ?? 0;
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: false, likes }) };
         } catch (e) {
             // likes が既に0 or 写真なし → 現在数（0）を返す。
             // この場合は「減らすものが無かった」だけなので、マーカーは戻さない。
             if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
                 const cur = await readLikeCount(photoId);
-                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: false, likes: cur ?? 0 }) };
+                // 非公開・写真でない → 数字を返さない（上の経路と揃える）
+                if (cur === null) return jsonError(404, "写真が見つかりません");
+                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: false, likes: cur }) };
             }
             // 減っていないと言い切れる失敗（スロットリング等）ならマーカーを戻す。
             // 戻さないと「マーカーは消えたのにカウンタは減っていない」状態が
