@@ -11,6 +11,9 @@ import {
 } from "./sanitize";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
+/** アップロードを許す最大バイト数（api-user 側と同じ。片方だけ直さない） */
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
 const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? "";
 const JSON_HEADERS = { "Content-Type": "application/json" };
@@ -81,10 +84,13 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     }
     // **必須にする**（api-user 側と同じ。任意のままだと省くだけで
     // 上限判定も `ContentLength` の署名も両方飛ぶ）
-    if (typeof fileSize !== "number" || !Number.isFinite(fileSize) || fileSize <= 0) {
+    // **整数であることまで見る。** `1234.5` を通すと `ContentLength` が
+    // `"1234.5"` で署名され、ブラウザは整数しか送れないので**絶対に使えない
+    // presign** ができる（叩いた本人しか困らないが、避けられる足元の穴）。
+    if (typeof fileSize !== "number" || !Number.isInteger(fileSize) || fileSize <= 0) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイルサイズが必要です" }) };
     }
-    if (fileSize > 50 * 1024 * 1024) {
+    if (fileSize > MAX_UPLOAD_BYTES) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイルサイズが大きすぎます（最大50MB）" }) };
     }
     // 許可リストで判定する。"image/" で始まるかどうかだけだと image/svg+xml が通り、

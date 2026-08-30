@@ -768,6 +768,9 @@ describe("presign がサイズを縛る", () => {
         ["0", { fileName: "a.jpg", fileType: "image/jpeg", fileSize: 0 }],
         ["負", { fileName: "a.jpg", fileType: "image/jpeg", fileSize: -1 }],
         ["NaN 相当", { fileName: "a.jpg", fileType: "image/jpeg", fileSize: null }],
+        // 小数を通すと `ContentLength: "1234.5"` で署名され、ブラウザは
+        // 整数しか送れないので**絶対に使えない presign** ができる
+        ["小数", { fileName: "a.jpg", fileType: "image/jpeg", fileSize: 1234.5 }],
     ])("fileSize が %s なら断る（presign を発行しない）", async (_name, body) => {
         mockGetSignedUrl.mockClear();
         const res = await ask(body);

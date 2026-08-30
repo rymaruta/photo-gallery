@@ -157,3 +157,32 @@ describe("動画も位置情報を落としてから上げる", () => {
         expect(mockSafeVideo).toHaveBeenCalledTimes(1);
     });
 });
+
+// **申告した長さと、実際に送る本文は一致していなければならない。**
+//
+// presign が `ContentLength` を署名するようになったので、1バイトでも
+// 違えば S3 が 403 を返す。
+//
+// ストーリーは**選んだ時点で加工する**ので、投稿時にはもう加工後の
+// ファイルしか無く、今の形では食い違いようがない。守りたいのは
+// **これから誰かが presign と PUT の間に加工を挟んだとき**——
+// そこで初めて2つのファイルが並び、片方の長さを申告してもう片方を
+// 送る形が自然に見えてしまう。
+describe("presign に申告した長さと、PUT する本文の長さ", () => {
+    it("加工後のファイルで揃っている", async () => {
+        // 加工で長さが変わる状況にする（素通しだと食い違いを作れない）
+        const cleaned = new File(["cleaned-body-is-a-different-length"], "story.mp4", { type: "video/mp4" });
+        mockSafeVideo.mockResolvedValue(cleaned);
+
+        await selectVideo(true);
+
+        await waitFor(() => expect(putBodies()).toHaveLength(1));
+        const declared = mockUserFetch.mock.calls
+            .filter((c) => c[0] === "/upload/presigned-url")
+            .map((c) => JSON.parse((c[1] as { body: string }).body).fileSize as number);
+        expect(declared, "presign を1回取っていない").toHaveLength(1);
+        expect(declared[0], "申告と本文の長さが食い違っている（S3 が 403 を返す）")
+            .toBe((putBodies()[0] as File).size);
+        expect(declared[0], "関門を通したファイルの長さを申告していない").toBe(cleaned.size);
+    });
+});

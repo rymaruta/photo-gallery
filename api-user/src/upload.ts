@@ -107,7 +107,10 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     }
     // **必須にする。** 任意のままだと、省くだけで下の上限判定も
     // `ContentLength` の署名も両方飛ぶ（＝好きなだけ入れられる）。
-    if (typeof fileSize !== "number" || !Number.isFinite(fileSize) || fileSize <= 0) {
+    // **整数であることまで見る。** `1234.5` を通すと `ContentLength` が
+    // `"1234.5"` で署名され、ブラウザは整数しか送れないので**絶対に使えない
+    // presign** ができる（叩いた本人しか困らないが、避けられる足元の穴）。
+    if (typeof fileSize !== "number" || !Number.isInteger(fileSize) || fileSize <= 0) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイルサイズが必要です" }) };
     }
     if (fileSize > MAX_UPLOAD_BYTES) {

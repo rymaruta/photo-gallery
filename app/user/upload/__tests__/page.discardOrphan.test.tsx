@@ -75,6 +75,10 @@ function apiThatFailsSave() {
 const discardCalls = () => mockUserFetch.mock.calls.filter((c) => c[0] === "/upload/discard");
 
 beforeEach(() => {
+    // **画像まわりのモックは毎回ここで戻す。** describe ごとの afterEach に
+    // 置いていると、後ろに describe を足した人が順序に依存して嵌まる
+    vi.mocked(imageUtils.toUploadSafeFile).mockImplementation(async (f: File) => f);
+    vi.mocked(imageUtils.createThumbnail).mockResolvedValue(null as never);
     mockUserFetch.mockReset().mockImplementation(apiThatFailsSave());
     mockReadSharedPayload.mockReset().mockResolvedValue({
         files: [new File(["x"], "shared.jpg", { type: "image/jpeg" })], title: "", text: "", t: Date.now(),
@@ -342,7 +346,10 @@ describe("presign に申告した長さと、PUT する本文の長さ", () => {
         await userEvent.click(publish);
 
         await waitFor(() => expect(sent().length).toBeGreaterThanOrEqual(2));
+        // **件数も見る。** `declared()` が空だと `[] === []` で無条件に緑になる
+        // ——presign のパスを変えた瞬間に、何も検証しないテストになる
+        expect(declared(), "presign を2回（本体・サムネ）取っていない").toHaveLength(2);
         expect(declared(), "申告と本文の長さが食い違っている（S3 が 403 を返す）")
-            .toEqual(sent().slice(0, declared().length));
+            .toEqual(sent().slice(0, 2));
     });
 });
