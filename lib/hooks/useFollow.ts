@@ -140,19 +140,60 @@ function subscribe(userId: string, fn: () => void): () => void {
  * 結果は共有ストアに書くだけでコンポーネントの状態には触らないので、
  * 中断しなくても不整合は起きない。
  */
+/**
+ * 取り込みのやり直し。**一度落ちたら二度と出ない、を避ける。**
+ *
+ * 数は「取れるまで出さない」ようにしたので（`countsKnown`）、落ちたまま
+ * だとピルが**永久に出ない**——このフックの effect は
+ * `[targetUserId, isAuthenticated, withCounts]` でしか回らないので、
+ * 再取得の契機が無い。失敗表示と再試行ボタンを持つ他の画面
+ * （`followingError` / `followingReloadKey`）と違い、ここには導線が無い。
+ * 画面を増やさずに直せるところ——待ってから撃ち直す——だけやる。
+ * `releaseUsername`（api-user）と同じ、指数バックオフの起点。
+ */
+const COUNTS_RETRIES = 2;
+const COUNTS_RETRY_BASE_MS = 400;
+
+/**
+ * 取り込みの世代。**押したあとに、押す前の数で上書きしない。**
+ *
+ * `loadCounts` が飛んでいる間にフォロー/解除すると、遅れて着地した
+ * 「押す前の数」が楽観更新とサーバー確定値を巻き戻す（いいね側で
+ * `touchedRef` を入れて潰したのと同じ形）。世代が進んでいたら書かない。
+ */
+const countsGen = new Map<string, number>();
+
+function bumpCountsGen(userId: string): void {
+    countsGen.set(userId, (countsGen.get(userId) ?? 0) + 1);
+    // 走っている取り込みは**もう古い**ので、次の呼び出しが待たされない
+    // ように札を外す（走っている方の書き込みは世代で弾かれる）
+    inflight.delete(userId);
+}
+
 function loadCounts(userId: string): Promise<void> {
     const running = inflight.get(userId);
     if (running) return running;
+    const gen = countsGen.get(userId) ?? 0;
     const p = (async () => {
         try {
-            const res = await userPublicFetch(`/users/${encodeURIComponent(userId)}/follow`);
-            if (!res.ok) return;
-            const data = await res.json() as { followers?: number; following?: number };
-            setCounts(userId, {
-                followers: typeof data.followers === "number" ? data.followers : 0,
-                following: typeof data.following === "number" ? data.following : 0,
-            });
-        } catch { /* 取れなければ 0 のまま */ } finally {
+            for (let attempt = 0; attempt <= COUNTS_RETRIES; attempt++) {
+                try {
+                    const res = await userPublicFetch(`/users/${encodeURIComponent(userId)}/follow`);
+                    if (!res.ok) throw new Error(`status ${res.status}`);
+                    const data = await res.json() as { followers?: number; following?: number };
+                    // 押されたあとなら書かない（上の countsGen を見よ）
+                    if ((countsGen.get(userId) ?? 0) !== gen) return;
+                    setCounts(userId, {
+                        followers: typeof data.followers === "number" ? data.followers : 0,
+                        following: typeof data.following === "number" ? data.following : 0,
+                    });
+                    return;
+                } catch {
+                    if (attempt === COUNTS_RETRIES) return;   // 取れなければ出さない（0 とは言わない）
+                    await new Promise((r) => setTimeout(r, COUNTS_RETRY_BASE_MS * 2 ** attempt));
+                }
+            }
+        } finally {
             inflight.delete(userId);
         }
     })();
@@ -231,6 +272,8 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
         const before = counts.get(targetUserId);
         setIsFollowing(!was);
         // 楽観的更新。共有ストア経由なので数字のピルもその場で動く
+        // 押した＝取り込み中の「押す前の数」はもう古い
+        bumpCountsGen(targetUserId);
         if (before) {
             setCounts(targetUserId, { ...before, followers: Math.max(0, before.followers + (was ? -1 : 1)) });
         }
@@ -250,6 +293,13 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
             const cur = counts.get(targetUserId) ?? before;
             if (typeof data.followers === "number" && cur) {
                 setCounts(targetUserId, { ...cur, followers: data.followers });
+            } else if (withCounts) {
+                // **数を知らないまま押したときは、押したあとに取り直す。**
+                // サーバーが返すのは `followers` だけで `following` は
+                // 分からないので、片方だけ書くと知らない方が 0 で残る。
+                // 取り込み中に押した場合もここに来る（走っていた取り込みは
+                // 世代で弾かれるので、取り直さないと永久に出ない）。
+                void loadCounts(targetUserId);
             }
             if (followingCache) {
                 if (was) followingCache.delete(targetUserId); else followingCache.add(targetUserId);
@@ -268,7 +318,7 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
             busyRef.current = false;
             setPending(false);
         }
-    }, [targetUserId, isFollowing, isAuthenticated]);
+    }, [targetUserId, isFollowing, isAuthenticated, withCounts]);
 
     // `countsKnown` が false の間は followers/following を描かないこと
     // （0 と言い切らない）。

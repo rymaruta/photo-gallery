@@ -211,6 +211,82 @@ describe("フォロー数が分かっていない間", () => {
         expect(result.current.countsKnown, "取れていないのに数を言い切っている").toBe(false);
     });
 
+    // **一度落ちたら二度と出ない、を避ける。** 数は「取れるまで出さない」
+    // ようにしたので、落ちたままだとピルが永久に出ない——このフックの
+    // effect は再取得の契機を持たない（失敗表示と再試行ボタンがある他の
+    // 画面と違い、ここには導線が無い）。待ってから撃ち直す。
+    it("一度落ちても、やり直して取れたら出す", async () => {
+        vi.useFakeTimers();
+        try {
+            const useFollow = await load();
+            mockPublicFetch
+                .mockRejectedValueOnce(new Error("network"))
+                .mockResolvedValue({ ok: true, json: async () => ({ followers: 7, following: 2 }) });
+
+            const { result } = renderHook(() => useFollow(TARGET, false));
+            await vi.advanceTimersByTimeAsync(1000);
+
+            expect(result.current.countsKnown, "やり直していない").toBe(true);
+            expect(result.current.followers).toBe(7);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("やり直しても駄目なら、数は出さない（0 と言わない）", async () => {
+        vi.useFakeTimers();
+        try {
+            const useFollow = await load();
+            mockPublicFetch.mockRejectedValue(new Error("network"));
+
+            const { result } = renderHook(() => useFollow(TARGET, false));
+            await vi.advanceTimersByTimeAsync(5000);
+
+            expect(result.current.countsKnown).toBe(false);
+            // 撃ち直しは上限まで（初回 + COUNTS_RETRIES=2）
+            expect(mockPublicFetch.mock.calls.length, "際限なく撃ち直している").toBe(3);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    // **押したあとに、押す前の数で上書きしない。** いいね側で `touchedRef` を
+    // 入れて潰したのと同じ形（`b685b5e`）が、こちらに残っていた。
+    // 走っていた取り込みは世代で弾き、代わりに押したあとの数を取り直す
+    // （サーバーが返すのは `followers` だけで `following` は分からないため）。
+    it("取り込み中に押したら、古い数で巻き戻さず取り直す", async () => {
+        const useFollow = await load();
+        const settlers: Array<(v: unknown) => void> = [];
+        mockPublicFetch.mockImplementation(() => new Promise((res) => { settlers.push(res); }));
+        mockUserFetch.mockImplementation((url: string) =>
+            Promise.resolve(url === "/user/following"
+                ? { ok: true, json: async () => ({ userIds: [] }) }
+                : { ok: true, json: async () => ({ followers: 4 }) }));
+
+        const { result } = renderHook(() => useFollow(TARGET, true));
+        await waitFor(() => expect(result.current.resolved).toBe(true));
+        await waitFor(() => expect(settlers.length).toBe(1));   // 1本目の取り込みが飛んでいる
+
+        await act(async () => { await result.current.toggle(); });
+        // 押したので取り直しが飛ぶ
+        await waitFor(() => expect(settlers.length).toBe(2));
+
+        // 1本目（押す前の数）がいま着地する → 弾かれる
+        await act(async () => {
+            settlers[0]({ ok: true, json: async () => ({ followers: 3, following: 1 }) });
+            await Promise.resolve();
+        });
+        expect(result.current.countsKnown, "押す前の数を採っている").toBe(false);
+
+        // 取り直しの答え（押したあとの数）が着地する
+        await act(async () => {
+            settlers[1]({ ok: true, json: async () => ({ followers: 4, following: 1 }) });
+            await Promise.resolve();
+        });
+        expect(result.current.followers).toBe(4);
+        expect(result.current.following).toBe(1);
+    });
+
     it("取得できたら数を出す（正常系）", async () => {
         const useFollow = await load();
         const { result } = renderHook(() => useFollow(TARGET, false));
