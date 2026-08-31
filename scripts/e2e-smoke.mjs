@@ -113,7 +113,7 @@ async function waitForHydration(page, timeoutMs = 20000) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
         const ready = await page.evaluate(() => {
-            const btn = document.querySelector('[aria-label="Open menu"]');
+            const btn = document.querySelector('[data-e2e="menu-toggle"]');
             if (!btn) return false;
             return Object.keys(btn).some((k) => k.startsWith("__reactProps"));
         }).catch(() => false);
@@ -126,7 +126,7 @@ async function waitForHydration(page, timeoutMs = 20000) {
 async function expectMenuWorks(page, label) {
     // ハンバーガーの中心を実際に覆っている要素を検査（不可視オーバーレイ検知）
     const cover = await page.evaluate(() => {
-        const btn = document.querySelector('[aria-label="Open menu"], [aria-label="Close menu"]');
+        const btn = document.querySelector('[data-e2e="menu-toggle"]');
         if (!btn) return "no-button";
         const r = btn.getBoundingClientRect();
         const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
@@ -140,13 +140,13 @@ async function expectMenuWorks(page, label) {
     let lastErr = "";
     const deadline = Date.now() + 20000;
     while (!opened && Date.now() < deadline) {
-        lastErr = await tapOrClick(page, '[aria-label="Open menu"]', { timeout: 3000 }).then(() => "").catch((e) => e.message.replace(/\n/g, " | "));
+        lastErr = await tapOrClick(page, '[data-e2e="menu-toggle"]', { timeout: 3000 }).then(() => "").catch((e) => e.message.replace(/\n/g, " | "));
         opened = await page.waitForSelector('#site-menu[role="dialog"]', { timeout: 1500 }).then(() => true).catch(() => false);
         if (!opened) await page.waitForTimeout(500);
     }
     check(`${label}: タップでメニューが開く`, opened, lastErr);
     if (opened) {
-        await tapOrClick(page, '[aria-label="Close menu"]').catch(() => {});
+        await tapOrClick(page, '[data-e2e="menu-toggle"]').catch(() => {});
         const closed = await page.waitForSelector('#site-menu', { state: "detached", timeout: 5000 }).then(() => true).catch(() => false);
         check(`${label}: メニューが閉じる`, closed);
     }

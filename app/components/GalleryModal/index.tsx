@@ -166,7 +166,7 @@ export default function GalleryModal({
     const currentUrl = typeof window !== "undefined"
         ? `${window.location.origin}${ROUTES.PHOTO(p.id)}`
         : `${siteConfig.url}${ROUTES.PHOTO(p.id)}`;
-    const shareText = titleText || "Photo";
+    const shareText = titleText || "写真";
 
     const handleShare = async () => {
         const result = await shareUrl(currentUrl, shareText, paragraphs.join(" "));

@@ -1169,7 +1169,9 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     >
                         {qrDataUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={qrDataUrl} alt="このプロフィールのQRコード" className="w-full rounded-xl" />
+                            <img src={qrDataUrl} // ダイアログ名（プロフィールQRコード）と直下の説明で足りるので、
+                                // 画像そのものは飾り扱いにする（同じことを二度読ませない）
+                                alt="" className="w-full rounded-xl" />
                         ) : (
                             <div className="aspect-square flex items-center justify-center">
                                 <div className="w-8 h-8 border-2 border-black/20 border-t-black/60 rounded-full animate-spin" />

@@ -512,7 +512,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     const currentUrl = typeof window !== "undefined" 
         ? `${window.location.origin}/photo/${photo.id}` 
         : `${siteConfig.url}/photo/${photo.id}`;
-    const shareText = titleText || "Photo";
+    const shareText = titleText || "写真";
 
     const handleShare = async (e?: React.MouseEvent) => {
         if (e) e.stopPropagation();

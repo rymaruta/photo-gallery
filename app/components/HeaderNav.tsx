@@ -170,6 +170,12 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                 aria-expanded={open}
                 aria-controls="site-menu"
                 aria-label={open ? "メニューを閉じる" : "メニューを開く"}
+                // **E2E はこの目印で引く。** 表示ラベルで引いていたので、
+                // 文言を日本語に直した回に `scripts/e2e-smoke.mjs` が
+                // 追随できず、**本番デプロイだけが落ちる**形になっていた
+                // （スモークは prod のステップにしか無いので staging は緑）。
+                // 目印と文言を分けておけば、次に文言を直す人が壊せない。
+                data-e2e="menu-toggle"
                 onClick={() => setOpen(!open)}
                 style={{
                     backgroundColor: bg,
@@ -209,7 +215,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                         className="absolute top-2 right-4 md:right-8 w-[52%] max-w-[220px] rounded-2xl ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in"
                         style={{ backgroundColor: "#16181c", zIndex: 10 }}
                     >
-                        <nav aria-label="メニュー">
+                        <nav aria-label="メインメニュー">
                             <ul className="flex flex-col m-0 p-0 divide-y divide-white/5" style={{ listStyle: "none" }}>
                                 {/* いいねした写真: 未ログインの初回訪問者には出さない（空ページになるため）。
                                     ログイン中、または実際にお気に入りがある人にだけ表示する。 */}
