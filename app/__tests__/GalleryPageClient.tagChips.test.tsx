@@ -26,6 +26,12 @@ vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: 
 const PHOTOS = [
     { id: "p1", src: "https://cdn/a.jpg", title: "あ", category: "travel", tags: ["Mount Fuji"], date: "2026-01-01", createdAt: "2026-01-01" },
     { id: "p2", src: "https://cdn/b.jpg", title: "い", category: "travel", tags: ["night"], date: "2026-01-02", createdAt: "2026-01-02" },
+    // 表記ゆれ: 同じタグを違う書き方で持つ写真（`fuji` が2枚、`Fuji` が1枚）。
+    // **少ない方（`Fuji`）を先に置く**——「最初に見つけた表記」を代表に
+    // する実装でも通ってしまうため（実際その変異で緑になった）
+    { id: "p3", src: "https://cdn/c.jpg", title: "う", category: "travel", tags: ["Fuji"], date: "2026-01-03", createdAt: "2026-01-03" },
+    { id: "p4", src: "https://cdn/d.jpg", title: "え", category: "travel", tags: ["fuji"], date: "2026-01-04", createdAt: "2026-01-04" },
+    { id: "p5", src: "https://cdn/e.jpg", title: "お", category: "travel", tags: ["fuji"], date: "2026-01-05", createdAt: "2026-01-05" },
 ];
 vi.mock("../../lib/hooks/usePhotos", () => ({ usePhotos: () => ({ photos: PHOTOS, loaded: true }) }));
 
@@ -43,8 +49,11 @@ describe("タグのチップ", () => {
 
         await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
         const labels = screen.getAllByRole("switch").map((el) => el.getAttribute("aria-label") ?? "");
-        const fuji = labels.filter((l) => l.toLowerCase().includes("fuji") || l.includes("mount-fuji"));
-        expect(fuji, `同じタグのチップが2つ出ている: ${JSON.stringify(labels)}`).toHaveLength(1);
+        // `Mount Fuji`（写真が持つ生のタグ）と `mount-fuji`（URL のスラッグ）を
+        // 数える。**単に "fuji" を含む**で数えると、別タグの `fuji` まで
+        // 巻き込む（同じファイルの表記ゆれの試験で実際に混ざった）
+        const same = labels.filter((l) => l.startsWith("Mount Fuji") || l.startsWith("mount-fuji"));
+        expect(same, `同じタグのチップが2つ出ている: ${JSON.stringify(labels)}`).toHaveLength(1);
     });
 
     it("そのチップは選択済みとして出る（押せば外せる）", async () => {
@@ -61,5 +70,38 @@ describe("タグのチップ", () => {
         for (const chip of screen.getAllByRole("switch")) {
             expect(chip).toHaveAttribute("aria-checked", "false");
         }
+    });
+});
+
+// **表記ゆれが、件数の割れた2つのチップになっていた。**
+//
+// 絞り込みは `tagKey` で正規化して当てるので、`Fuji` と `fuji` の
+// どちらを押しても出る写真は同じ。なのに数字だけが割れて、同じものが
+// 2つ並んで見える（`dca777a` で選択判定を正規化したので、いまは
+// **両方が同時に光る**）。
+describe("表記ゆれのタグ", () => {
+    const chips = () => screen.getAllByRole("switch").map((el) => el.getAttribute("aria-label") ?? "");
+
+    it("同じタグは1つのチップに畳む", async () => {
+        render(<GalleryPageClient />);
+        await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
+
+        const fuji = chips().filter((l) => l.toLowerCase().startsWith("fuji"));
+        expect(fuji, `表記ゆれで2つ出ている: ${JSON.stringify(chips())}`).toHaveLength(1);
+    });
+
+    it("件数は合算し、代表はいちばん多い表記", async () => {
+        render(<GalleryPageClient />);
+        await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
+
+        // fuji が2枚・Fuji が1枚 → 代表は "fuji"、件数は 3
+        expect(chips()).toContain("fuji (3)");
+    });
+
+    it("別のタグまで畳まない（正常系）", async () => {
+        render(<GalleryPageClient />);
+        await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
+        expect(chips().some((l) => l.startsWith("night")), "無関係のタグが消えている").toBe(true);
+        expect(chips().some((l) => l.startsWith("Mount Fuji")), "別のタグまで畳んでいる").toBe(true);
     });
 });

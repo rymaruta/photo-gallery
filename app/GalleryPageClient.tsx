@@ -200,12 +200,33 @@ export default function GalleryPageClient() {
     return [...Array.from(set)];
   }, [PHOTOS]);
 
-  // タグの写真枚数。フィルタバーの並び順と件数バッジに使う
+  // タグの写真枚数。フィルタバーの並び順と件数バッジに使う。
+  //
+  // **表記ゆれは1つに畳む。** 生のタグで数えていた頃は、`Fuji` と `fuji`、
+  // `旅` と `#旅` が**件数の割れた2つのチップ**として並んでいた。絞り込みは
+  // `tagKey` で正規化して当てるので、どちらを押しても出る写真は同じ
+  // ——数字だけが「3枚」「1枚」に割れて、同じものが2つ見える。
+  // `dca777a` で選択判定も正規化したので、いまは**両方が同時に光る**。
+  //
+  // 代表として出すのは**いちばん多く使われている表記**（同数なら先に
+  // 見つけた方）。生のタグを表示に使う方針は変えない——スラッグ（`旅`）を
+  // 出すと、投稿者が付けた `#旅` と字面が変わってしまう。
   const tagCounts = React.useMemo(() => {
-    const map: Record<string, number> = {};
+    const groups = new Map<string, { label: string; total: number; byLabel: Map<string, number> }>();
     for (const p of PHOTOS) {
-      for (const t of p.tags ?? []) map[t] = (map[t] ?? 0) + 1;
+      for (const t of p.tags ?? []) {
+        const key = tagKey(t);
+        if (!key) continue;
+        const g = groups.get(key) ?? { label: t, total: 0, byLabel: new Map<string, number>() };
+        g.total += 1;
+        const n = (g.byLabel.get(t) ?? 0) + 1;
+        g.byLabel.set(t, n);
+        if (n > (g.byLabel.get(g.label) ?? 0)) g.label = t;
+        groups.set(key, g);
+      }
     }
+    const map: Record<string, number> = {};
+    for (const g of groups.values()) map[g.label] = g.total;
     return map;
   }, [PHOTOS]);
 
