@@ -64,6 +64,12 @@ export function resetFollowingCache() {
     followingCache = null;
     followingPromise = null;
     counts.clear();
+    // 世代と「走っている取り込み」の札も捨てる。**残すと、リセット前に
+    // 飛ばした取り込みが「まだ走っている」ことになり、次の購読者が
+    // その古い結果に相乗りする**（世代照合で弾かれるので、数は出ない）。
+    // Map が伸び続けるのも防ぐ。
+    countsGen.clear();
+    inflight.clear();
     // **購読は消さない。** 消すと、マウントされたままのコンポーネントは
     // targetUserId が変わるまで再購読せず、以後フォロー数が永久に
     // 更新されなくなる（購読の解除は useSyncExternalStore の cleanup が
@@ -163,17 +169,30 @@ const COUNTS_RETRY_BASE_MS = 400;
  */
 const countsGen = new Map<string, number>();
 
-function bumpCountsGen(userId: string): void {
+/**
+ * 取り込みを古くする。**潰したかどうかを返す**——潰したなら、誰かが
+ * 取り直さないと数が永久に出ない。
+ *
+ * `withCounts` で判断してはいけない。**本番で `toggle()` を呼ぶのは
+ * `FollowAction`（`withCounts=false`）だけ**で、数のピルを描くのは
+ * 同じ画面の別の呼び出し（`FollowButton`＝`withCounts=true`）だから、
+ * 「押した側が数を取らない」＝「誰も取り直さない」になる。
+ * ユーザー検索の一覧は最初から取り込んでいないので、ここは false を返し、
+ * 余計な GET も増えない。
+ */
+function bumpCountsGen(userId: string): boolean {
     countsGen.set(userId, (countsGen.get(userId) ?? 0) + 1);
     // 走っている取り込みは**もう古い**ので、次の呼び出しが待たされない
     // ように札を外す（走っている方の書き込みは世代で弾かれる）
-    inflight.delete(userId);
+    return inflight.delete(userId);
 }
 
 function loadCounts(userId: string): Promise<void> {
     const running = inflight.get(userId);
     if (running) return running;
     const gen = countsGen.get(userId) ?? 0;
+    // 自分の札かどうかを `finally` で見るため、先に入れ物を用意する
+    const self: { p?: Promise<void> } = {};
     const p = (async () => {
         try {
             for (let attempt = 0; attempt <= COUNTS_RETRIES; attempt++) {
@@ -189,14 +208,21 @@ function loadCounts(userId: string): Promise<void> {
                     });
                     return;
                 } catch {
+                    // 押されて古くなったら、撃ち直す意味も無い
+                    if ((countsGen.get(userId) ?? 0) !== gen) return;
                     if (attempt === COUNTS_RETRIES) return;   // 取れなければ出さない（0 とは言わない）
                     await new Promise((r) => setTimeout(r, COUNTS_RETRY_BASE_MS * 2 ** attempt));
                 }
             }
         } finally {
-            inflight.delete(userId);
+            // **自分の札だけ外す。** `bumpCountsGen` が外から札を消して
+            // 取り直しが始まっているので、無条件に消すと**新しい方の札**を
+            // 消してしまい、次の購読者が3本目を投げる。
+            // すぐ上の `fetchFollowingSet` が同じ理由で同じ形をしている。
+            if (inflight.get(userId) === self.p) inflight.delete(userId);
         }
     })();
+    self.p = p;
     inflight.set(userId, p);
     return p;
 }
@@ -272,8 +298,9 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
         const before = counts.get(targetUserId);
         setIsFollowing(!was);
         // 楽観的更新。共有ストア経由なので数字のピルもその場で動く
-        // 押した＝取り込み中の「押す前の数」はもう古い
-        bumpCountsGen(targetUserId);
+        // 押した＝取り込み中の「押す前の数」はもう古い。
+        // 潰したなら、このあと必ず取り直す（下の2か所）
+        const killedLoad = bumpCountsGen(targetUserId);
         if (before) {
             setCounts(targetUserId, { ...before, followers: Math.max(0, before.followers + (was ? -1 : 1)) });
         }
@@ -293,7 +320,7 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
             const cur = counts.get(targetUserId) ?? before;
             if (typeof data.followers === "number" && cur) {
                 setCounts(targetUserId, { ...cur, followers: data.followers });
-            } else if (withCounts) {
+            } else if (killedLoad || withCounts) {
                 // **数を知らないまま押したときは、押したあとに取り直す。**
                 // サーバーが返すのは `followers` だけで `following` は
                 // 分からないので、片方だけ書くと知らない方が 0 で残る。
@@ -309,6 +336,10 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
             log.error("follow toggle error:", e);
             setIsFollowing(was);
             if (before) setCounts(targetUserId, before);
+            // **失敗しても、潰した取り込みは取り直す。** 巻き戻しで戻せるのは
+            // 「知っていた数」だけ。知らないまま潰していたら、ここで
+            // 取り直さないと永久に出ない（`c035f02` で番人を下ろしたのと同じ話）。
+            else if (killedLoad) void loadCounts(targetUserId);
             // トークンが取れない（別タブでログアウト・リフレッシュ失効）は
             // 「うまくいきませんでした」では直らない。押し直させない
             const msg = e instanceof Error ? e.message : "";

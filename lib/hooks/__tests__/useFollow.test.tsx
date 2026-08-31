@@ -287,6 +287,117 @@ describe("フォロー数が分かっていない間", () => {
         expect(result.current.following).toBe(1);
     });
 
+    // **本番の形で確かめる。** `toggle()` を呼ぶのは `FollowAction`
+    // （`withCounts=false`）だけで、数のピルを描くのは同じ画面の
+    // `FollowButton`（`withCounts=true`）。「押した側が数を取らない」ので、
+    // 押した側だけを見ていると**誰も取り直さない**穴に気づけない
+    // （実際、この形のテストが無かったので素通りした）。
+    describe("本番の組み合わせ（押す側は数を取らない）", () => {
+        function renderPair() {
+            const pill = renderHook(() => useFollowRef.current!(TARGET, true));      // FollowButton 相当
+            const action = renderHook(() => useFollowRef.current!(TARGET, true, false)); // FollowAction 相当
+            return { pill, action };
+        }
+        const useFollowRef: { current: Awaited<ReturnType<typeof load>> | null } = { current: null };
+
+        beforeEach(async () => { useFollowRef.current = await load(); });
+
+        it("取り込み中に押しても、ピルは出る", async () => {
+            const settlers: Array<(v: unknown) => void> = [];
+            mockPublicFetch.mockImplementation(() => new Promise((res) => { settlers.push(res); }));
+            mockUserFetch.mockImplementation((url: string) =>
+                Promise.resolve(url === "/user/following"
+                    ? { ok: true, json: async () => ({ userIds: [] }) }
+                    : { ok: true, json: async () => ({ followers: 4 }) }));
+
+            const { pill, action } = renderPair();
+            await waitFor(() => expect(action.result.current.resolved).toBe(true));
+            await waitFor(() => expect(settlers.length).toBe(1));
+
+            await act(async () => { await action.result.current.toggle(); });
+            // 押した側は数を取らない。潰した取り込みを誰かが取り直す必要がある
+            await waitFor(() => expect(settlers.length).toBe(2));
+            await act(async () => {
+                settlers[1]({ ok: true, json: async () => ({ followers: 4, following: 1 }) });
+                await Promise.resolve();
+            });
+
+            expect(pill.result.current.countsKnown, "押したらピルが永久に出なくなっている").toBe(true);
+            expect(pill.result.current.followers).toBe(4);
+        });
+
+        it("押して失敗したときも、ピルは出る", async () => {
+            const settlers: Array<(v: unknown) => void> = [];
+            mockPublicFetch.mockImplementation(() => new Promise((res) => { settlers.push(res); }));
+            mockUserFetch.mockImplementation((url: string) =>
+                Promise.resolve(url === "/user/following"
+                    ? { ok: true, json: async () => ({ userIds: [] }) }
+                    : { ok: false, status: 503, json: async () => ({ error: "だめ" }) }));
+
+            const { pill, action } = renderPair();
+            await waitFor(() => expect(action.result.current.resolved).toBe(true));
+            await waitFor(() => expect(settlers.length).toBe(1));
+
+            await act(async () => { await action.result.current.toggle(); });
+            await waitFor(() => expect(settlers.length).toBe(2));
+            await act(async () => {
+                settlers[1]({ ok: true, json: async () => ({ followers: 3, following: 1 }) });
+                await Promise.resolve();
+            });
+
+            expect(pill.result.current.countsKnown, "失敗のあとピルが出なくなっている").toBe(true);
+            expect(pill.result.current.followers).toBe(3);
+        });
+
+        // **古い取り込みの後片付けが、新しい札を消していた。**
+        // 走っている取り込みは `finally` で無条件に札を外していたので、
+        // 押した拍子に始まった取り直しの札まで消える——そのあと同じ相手を
+        // 見る購読者が現れると、まだ走っているのに**3本目**が飛ぶ。
+        // すぐ上の `fetchFollowingSet` は同じ理由で自分の札だけ外している。
+        it("古い取り込みの完了が、取り直しの札を消さない", async () => {
+            const settlers: Array<(v: unknown) => void> = [];
+            mockPublicFetch.mockImplementation(() => new Promise((res) => { settlers.push(res); }));
+            mockUserFetch.mockImplementation((url: string) =>
+                Promise.resolve(url === "/user/following"
+                    ? { ok: true, json: async () => ({ userIds: [] }) }
+                    : { ok: true, json: async () => ({ followers: 4 }) }));
+
+            const { action } = renderPair();
+            await waitFor(() => expect(action.result.current.resolved).toBe(true));
+            await waitFor(() => expect(settlers.length).toBe(1));   // p1
+
+            await act(async () => { await action.result.current.toggle(); });
+            await waitFor(() => expect(settlers.length).toBe(2));   // p2（取り直し）
+
+            // p1 だけが遅れて着地する（p2 はまだ走っている）
+            await act(async () => {
+                settlers[0]({ ok: true, json: async () => ({ followers: 3, following: 1 }) });
+                await Promise.resolve();
+            });
+
+            // ここで同じ相手を見る購読者が増える（別のタブ・別の部品）
+            renderHook(() => useFollowRef.current!(TARGET, true));
+            await act(async () => { await Promise.resolve(); });
+
+            expect(settlers.length, "走っている取り込みがあるのに投げ直している").toBe(2);
+        });
+
+        // 取り込んでいない画面（ユーザー検索の一覧）では、押しても取りに行かない
+        it("取り込んでいなければ、押しても取りに行かない", async () => {
+            mockPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ followers: 1, following: 1 }) });
+            mockUserFetch.mockImplementation((url: string) =>
+                Promise.resolve(url === "/user/following"
+                    ? { ok: true, json: async () => ({ userIds: [] }) }
+                    : { ok: true, json: async () => ({ followers: 2 }) }));
+
+            const action = renderHook(() => useFollowRef.current!(TARGET, true, false));
+            await waitFor(() => expect(action.result.current.resolved).toBe(true));
+            await act(async () => { await action.result.current.toggle(); });
+
+            expect(mockPublicFetch, "数を描かない画面から GET を増やしている").not.toHaveBeenCalled();
+        });
+    });
+
     it("取得できたら数を出す（正常系）", async () => {
         const useFollow = await load();
         const { result } = renderHook(() => useFollow(TARGET, false));
