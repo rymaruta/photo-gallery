@@ -148,7 +148,20 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 // **公開されていなければ数字を返さない**——ここは条件式を
                 // 通らない経路なので、非公開に戻された写真でも来られる
                 const cur = await readLikeCount(photoId);
-                if (cur === null) return jsonError(404, "写真が見つかりません");
+                if (cur === null) {
+                    // **「もう見えない」ことと「あなたのいいねは残っている」ことを
+                    // 分けて伝える。** ここに来るのはマーカーが**既にある**
+                    // 経路なので、数字は出せなくても状態は分かる。
+                    // 伝えないと、クライアントは「付かなかった」と読んで
+                    // 画面を未いいねに戻す——サーバーにはマーカーがあるので、
+                    // 押し直しても同じ 404 で**永久に外せなくなる**
+                    // （解除の DELETE は通るのに、画面がその導線を出さない）。
+                    return {
+                        statusCode: 404,
+                        headers: JSON_HEADERS,
+                        body: JSON.stringify({ error: "写真が見つかりません", liked: true }),
+                    };
+                }
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: true, likes: cur }) };
             }
             throw e;

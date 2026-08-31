@@ -316,6 +316,39 @@ describe("公開されていない写真のいいね数は返さない", () => {
         expect(res.statusCode).toBe(404);
         expect(res.body).not.toContain("7");
     });
+
+    // **数字は出せなくても、状態は伝える。**
+    //
+    // ここに来るのはマーカーが**既にある**経路（`ConditionalCheckFailed`）。
+    // `liked` を伝えないと、クライアントは「付かなかった」と読んで画面を
+    // 未いいねに戻す——サーバーにはマーカーが残っているので、押し直しても
+    // 同じ 404 で**永久に外せない**（解除の DELETE は通るのに、画面が
+    // その導線を出さない）。
+    it("いいね済みの冪等経路の 404 には liked を添える", async () => {
+        mockDdbSend
+            .mockRejectedValueOnce(condFail())
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/x.jpg", published: false, likes: 7 } });
+        const res = await invoke(likePhoto, ev("u1", "p1"));
+
+        const body = JSON.parse(res.body) as { error?: string; liked?: boolean; likes?: number };
+        expect(body.liked, "マーカーが残っているのに、状態を伝えていない").toBe(true);
+        expect(body.error, "理由が日本語で入っていない（isGoneResponse が見る）").toBeTruthy();
+        expect(body.likes, "数字を出している").toBeUndefined();
+    });
+
+    // マーカーが無い側（新規いいね → カウンタ更新が条件で弾かれる）は、
+    // マーカーごと戻すので `liked` を添えない
+    it("新規いいねが弾かれた 404 には liked を添えない", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({})                 // マーカー作成は成功
+            .mockRejectedValueOnce(condFail())         // カウンタ更新が条件で失敗
+            .mockResolvedValueOnce({});                // マーカーの巻き戻し
+        const res = await invoke(likePhoto, ev("u1", "p1"));
+
+        expect(res.statusCode).toBe(404);
+        expect((JSON.parse(res.body) as { liked?: boolean }).liked,
+            "何も残っていないのに「いいね済み」と伝えている").toBeUndefined();
+    });
 });
 
 // **射影から漏れると判定が死ぬ。**

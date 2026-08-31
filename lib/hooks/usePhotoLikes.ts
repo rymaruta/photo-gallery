@@ -156,6 +156,22 @@ export function usePhotoLikes(
             if (res.ok) {
                 const data = await res.json() as { likes?: number };
                 if (typeof data.likes === "number" && stillSamePhoto()) setCount(data.likes); // サーバーの真値で確定
+            } else if (!wasLiked && await isGoneResponse(res)
+                && (await res.clone().json().catch(() => null) as { liked?: unknown } | null)?.liked === true) {
+                // **「もう見えない」けれど「あなたのいいねは残っている」。**
+                // マーカーが既にある写真が非公開に戻された場合、サーバーは
+                // 数字を出さずに 404 を返すが、`liked: true` を添えてくる。
+                // これを「付かなかった」と読んで未いいねに戻すと、押し直しても
+                // 同じ 404 で**永久に外せない**（解除は通るのに導線が出ない）。
+                // 数字は増えていない（マーカーは前からある）ので件数だけ戻す。
+                if (didToggleFavorite || !isFavorite(photoId)) {
+                    if (!isFavorite(photoId)) toggleFavorite(photoId);
+                }
+                if (stillSamePhoto()) {
+                    setServerLiked(true);
+                    setCount((c) => Math.max(0, c - 1));
+                    touchedRef.current = false;
+                }
             } else if (wasLiked && await isGoneResponse(res)) {
                 // **解除は「もう見えない写真」でも通っている。**
                 //

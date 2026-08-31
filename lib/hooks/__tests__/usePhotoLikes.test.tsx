@@ -358,6 +358,33 @@ describe("もう見えない写真のいいね", () => {
         expect(result.current.count).toBe(10);
     });
 
+    // **「もう見えない」けれど「あなたのいいねは残っている」。**
+    // マーカーが既にある写真が非公開に戻された場合、サーバーは数字を出さずに
+    // 404 を返すが `liked: true` を添える。これを「付かなかった」と読んで
+    // 未いいねに戻すと、押し直しても同じ 404 で**永久に外せない**
+    // （解除の DELETE は通るのに、画面がその導線を出さない）。
+    it("マーカーが残っている 404 では、いいね済みとして見せる", async () => {
+        const goneButLiked = {
+            ok: false, status: 404,
+            json: async () => ({ error: "写真が見つかりません", liked: true }),
+            clone() { return this; },
+        };
+        mockPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ likes: 11 }) });
+        mockUserFetch.mockImplementation((url: string) =>
+            Promise.resolve(url.startsWith("/user/likes/")
+                ? { ok: true, json: async () => ({ liked: false }) }   // 着地前に押す想定
+                : goneButLiked));
+
+        const { result } = renderHook(() => usePhotoLikes("p1", 11, true));
+        await waitFor(() => expect(result.current.count).toBe(11));
+
+        await act(async () => { await result.current.toggle(); });
+
+        expect(result.current.liked, "サーバーには残っているのに未いいねに戻している").toBe(true);
+        // マーカーは前からあるので、数字は増えていない
+        expect(result.current.count).toBe(11);
+    });
+
     // 付ける側は逆。非公開ならマーカーごと戻されて何も起きていないので、
     // 巻き戻すのが正しい
     it("付ける側は今までどおり巻き戻して失敗を伝える", async () => {
