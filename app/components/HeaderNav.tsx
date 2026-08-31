@@ -169,7 +169,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                 ref={toggleRef}
                 aria-expanded={open}
                 aria-controls="site-menu"
-                aria-label={open ? "Close menu" : "Open menu"}
+                aria-label={open ? "メニューを閉じる" : "メニューを開く"}
                 onClick={() => setOpen(!open)}
                 style={{
                     backgroundColor: bg,
@@ -209,7 +209,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                         className="absolute top-2 right-4 md:right-8 w-[52%] max-w-[220px] rounded-2xl ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in"
                         style={{ backgroundColor: "#16181c", zIndex: 10 }}
                     >
-                        <nav aria-label="Mobile menu">
+                        <nav aria-label="メニュー">
                             <ul className="flex flex-col m-0 p-0 divide-y divide-white/5" style={{ listStyle: "none" }}>
                                 {/* いいねした写真: 未ログインの初回訪問者には出さない（空ページになるため）。
                                     ログイン中、または実際にお気に入りがある人にだけ表示する。 */}

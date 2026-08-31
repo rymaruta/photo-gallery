@@ -9,9 +9,10 @@ export const siteConfig = {
     ogImage: "/images/og-image.jpg",
     twitterHandle: "@JourneyPhoto",
     author: "Journey Photo",
+    // `en` は落とした。参照していたのは `og:locale:alternate` だけで、
+    // 英語版の URL は存在しない（言語切替は `6d72bfb` で削除済み）
     locale: {
         ja: "ja_JP",
-        en: "en_US",
     },
     // 環境名（prod / staging）。ビルド時に注入する。robots.txt の出し分けに使う。
     //

@@ -4,6 +4,11 @@ import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/react/24/solid";
 import { HeartIcon } from "@heroicons/react/24/solid";
 import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
 
+// **操作ラベルは日本語。** ここだけ英語のままだったので、支援技術が
+// 「Previous ボタン」「Next ボタン」と読み上げ、同じ画面の共有ボタン
+// （日本語化済み）と混ざっていた。言語の切り替えは `6d72bfb` で
+// 削除済みで、このアプリは日本語だけを出す。
+
 const BTN_BASE =
     "absolute rounded-full bg-black/30 ring-1 ring-white/10 hover:bg-black/50 active:scale-95 " +
     "focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 shadow-lg transition z-20";
@@ -44,7 +49,7 @@ export default function ModalControls({
             <button
                 ref={firstFocusableRef}
                 {...stopAndCall(onPrev)}
-                aria-label="Previous"
+                aria-label="前の写真"
                 className={`${BTN_BASE} left-2 sm:left-3 top-1/2 transform -translate-y-1/2`}
                 style={BTN_STYLE}
             >
@@ -54,7 +59,7 @@ export default function ModalControls({
             {/* 次へ */}
             <button
                 {...stopAndCall(onNext)}
-                aria-label="Next"
+                aria-label="次の写真"
                 className={`${BTN_BASE} right-2 sm:right-3 top-1/2 transform -translate-y-1/2`}
                 style={BTN_STYLE}
             >
@@ -64,7 +69,7 @@ export default function ModalControls({
             {/* お気に入り（閉じるボタンは right-2 + 幅44px ≈ 52px を占有するため、重ならないよう 64px 以上離す） */}
             <button
                 {...stopAndCall(onToggleFavorite)}
-                aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
+                aria-label={isFav ? "お気に入りから外す" : "お気に入りに追加"}
                 className={`${BTN_BASE} top-2 sm:top-3 right-[64px] sm:right-[72px]`}
                 style={BTN_STYLE}
             >
@@ -77,7 +82,7 @@ export default function ModalControls({
             {/* 閉じる */}
             <button
                 {...stopAndCall(onClose)}
-                aria-label="Close"
+                aria-label="閉じる"
                 className={`${BTN_BASE} top-2 sm:top-3 right-2 sm:right-3`}
                 style={BTN_STYLE}
             >

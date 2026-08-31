@@ -69,7 +69,7 @@ describe("GalleryModal: 今のフォーカスの挙動", () => {
     // 戻す変異が通ってしまう（実際に確かめた）。名前も直した。
     it("開いた時点で「前へ」ボタンにフォーカスが入る", () => {
         setup();
-        expect(document.activeElement).toBe(screen.getByLabelText("Previous"));
+        expect(document.activeElement).toBe(screen.getByLabelText("前の写真"));
     });
 
     it("閉じたら開く前の要素へフォーカスを戻す", async () => {
@@ -79,7 +79,7 @@ describe("GalleryModal: 今のフォーカスの挙動", () => {
         back.focus();
 
         const { unmount } = setup();
-        await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Previous")));
+        await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("前の写真")));
         unmount();
         expect(document.activeElement).toBe(back);
         back.remove();

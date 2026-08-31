@@ -979,7 +979,7 @@ export default function ProfileEditPage() {
                                                                 <iframe
                                                                     key={songPreview.embedUrl}
                                                                     src={songPreview.embedUrl}
-                                                                    title="theme song preview"
+                                                                    title="テーマソングの試聴"
                                                                     className="absolute inset-0 w-full h-full"
                                                                     allow="encrypted-media; picture-in-picture; web-share"
                                                                     referrerPolicy="strict-origin-when-cross-origin"
@@ -990,7 +990,7 @@ export default function ProfileEditPage() {
                                                             <iframe
                                                                 key={songPreview.embedUrl}
                                                                 src={songPreview.embedUrl}
-                                                                title="theme song preview"
+                                                                title="テーマソングの試聴"
                                                                 className="w-full"
                                                                 style={{ height: songPreview.height ?? 152 }}
                                                                 allow="encrypted-media; autoplay; clipboard-write"

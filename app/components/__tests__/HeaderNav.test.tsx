@@ -43,7 +43,7 @@ function setRole(role: "anonymous" | "general" | "admin") {
 }
 
 async function openMenu() {
-    fireEvent.click(screen.getByLabelText("Open menu"));
+    fireEvent.click(screen.getByLabelText("メニューを開く"));
 }
 
 function menuItems(): string[] {
@@ -135,24 +135,24 @@ describe("HeaderNav - メニュー開閉の回帰ガード", () => {
     it("ハンバーガーで開いて、もう一度押すと閉じる（トグルが効く）", () => {
         render(<HeaderNav />);
         // 初期は閉じている
-        expect(screen.getByLabelText("Open menu")).toHaveAttribute("aria-expanded", "false");
+        expect(screen.getByLabelText("メニューを開く")).toHaveAttribute("aria-expanded", "false");
         expect(screen.queryByRole("dialog")).toBeNull();
 
         // 開く
-        fireEvent.click(screen.getByLabelText("Open menu"));
+        fireEvent.click(screen.getByLabelText("メニューを開く"));
         expect(screen.getByRole("dialog")).toBeInTheDocument();
-        const closeBtn = screen.getByLabelText("Close menu");
+        const closeBtn = screen.getByLabelText("メニューを閉じる");
         expect(closeBtn).toHaveAttribute("aria-expanded", "true");
 
         // 同じボタンで閉じる
         fireEvent.click(closeBtn);
         expect(screen.queryByRole("dialog")).toBeNull();
-        expect(screen.getByLabelText("Open menu")).toHaveAttribute("aria-expanded", "false");
+        expect(screen.getByLabelText("メニューを開く")).toHaveAttribute("aria-expanded", "false");
     });
 
     it("背景（バックドロップ）タップで閉じる", () => {
         render(<HeaderNav />);
-        fireEvent.click(screen.getByLabelText("Open menu"));
+        fireEvent.click(screen.getByLabelText("メニューを開く"));
         const dialog = screen.getByRole("dialog");
         // 最初の子要素がバックドロップ
         fireEvent.click(dialog.firstElementChild as Element);
@@ -161,7 +161,7 @@ describe("HeaderNav - メニュー開閉の回帰ガード", () => {
 
     it("Escape キーで閉じる", () => {
         render(<HeaderNav />);
-        fireEvent.click(screen.getByLabelText("Open menu"));
+        fireEvent.click(screen.getByLabelText("メニューを開く"));
         expect(screen.getByRole("dialog")).toBeInTheDocument();
         fireEvent.keyDown(document, { key: "Escape" });
         expect(screen.queryByRole("dialog")).toBeNull();
@@ -169,7 +169,7 @@ describe("HeaderNav - メニュー開閉の回帰ガード", () => {
 
     it("メニュー項目を押すと遷移し、メニューが閉じる", () => {
         render(<HeaderNav />);
-        fireEvent.click(screen.getByLabelText("Open menu"));
+        fireEvent.click(screen.getByLabelText("メニューを開く"));
         const dialog = screen.getByRole("dialog");
         fireEvent.click(within(dialog).getByText("My Page"));
         expect(mockPush).toHaveBeenCalledTimes(1);
@@ -178,18 +178,18 @@ describe("HeaderNav - メニュー開閉の回帰ガード", () => {
 
     it("開くと body のスクロールがロックされ、閉じると解除される", () => {
         render(<HeaderNav />);
-        fireEvent.click(screen.getByLabelText("Open menu"));
+        fireEvent.click(screen.getByLabelText("メニューを開く"));
         expect(document.body.style.overflow).toBe("hidden");
-        fireEvent.click(screen.getByLabelText("Close menu"));
+        fireEvent.click(screen.getByLabelText("メニューを閉じる"));
         expect(document.body.style.overflow).toBe("");
     });
 
     it("ハンバーガーボタンは常に表示され、ラベルが状態に追従する", () => {
         render(<HeaderNav />);
-        const btn = screen.getByLabelText("Open menu");
+        const btn = screen.getByLabelText("メニューを開く");
         expect(btn).toBeInTheDocument();
         fireEvent.click(btn);
-        expect(screen.getByLabelText("Close menu")).toBeInTheDocument();
+        expect(screen.getByLabelText("メニューを閉じる")).toBeInTheDocument();
     });
 });
 
@@ -229,7 +229,7 @@ describe("認証状態が分かるまで", () => {
 describe("HeaderNav: 開いたらメニューの中へ入れる", () => {
     it("開くとメニュー内の最初の項目にフォーカスが移る", async () => {
         render(<HeaderNav />);
-        const toggle = screen.getByLabelText("Open menu");
+        const toggle = screen.getByLabelText("メニューを開く");
         fireEvent.click(toggle);
 
         const panel = await screen.findByRole("dialog");
@@ -241,12 +241,12 @@ describe("HeaderNav: 開いたらメニューの中へ入れる", () => {
     // 戻さないとフォーカスが body に落ち、次の Tab がページ先頭からになる
     it("閉じたら開いたボタンへフォーカスが戻る", async () => {
         render(<HeaderNav />);
-        const toggle = screen.getByLabelText("Open menu");
+        const toggle = screen.getByLabelText("メニューを開く");
         fireEvent.click(toggle);
         await screen.findByRole("dialog");
 
         // 開いているときはラベルが変わる
-        fireEvent.click(screen.getByLabelText("Close menu"));
+        fireEvent.click(screen.getByLabelText("メニューを閉じる"));
         await waitFor(() => expect(document.activeElement).toBe(toggle));
     });
 });
@@ -260,7 +260,7 @@ describe("画面が変わったらメニューを閉じる", () => {
         setRole("general");
         pathname.current = "/";
         const { rerender } = render(<HeaderNav />);
-        fireEvent.click(screen.getByLabelText("Open menu"));
+        fireEvent.click(screen.getByLabelText("メニューを開く"));
         expect(screen.getByRole("dialog")).toBeInTheDocument();
         expect(document.body.style.overflow).toBe("hidden");
 
@@ -281,7 +281,7 @@ describe("画面が変わったらメニューを閉じる", () => {
         setRole("general");
         pathname.current = "/";
         const { rerender } = render(<HeaderNav />);
-        fireEvent.click(screen.getByLabelText("Open menu"));
+        fireEvent.click(screen.getByLabelText("メニューを開く"));
         expect(screen.getByRole("dialog")).toBeInTheDocument();
 
         pathname.current = "/photo/x";      // 戻る
@@ -303,7 +303,7 @@ describe("画面が変わったらメニューを閉じる", () => {
         setRole("general");
         pathname.current = "/users";
         render(<HeaderNav />);
-        fireEvent.click(screen.getByLabelText("Open menu"));
+        fireEvent.click(screen.getByLabelText("メニューを開く"));
         expect(screen.getByRole("dialog")).toBeInTheDocument();
         expect(document.body.style.overflow).toBe("hidden");
 
@@ -328,7 +328,7 @@ describe("画面が変わったらメニューを閉じる", () => {
         setRole("general");
         pathname.current = "/";
         const { rerender } = render(<HeaderNav />);
-        fireEvent.click(screen.getByLabelText("Open menu"));
+        fireEvent.click(screen.getByLabelText("メニューを開く"));
         rerender(<HeaderNav />);   // 同じパスでの再描画
         expect(screen.getByRole("dialog")).toBeInTheDocument();
     });

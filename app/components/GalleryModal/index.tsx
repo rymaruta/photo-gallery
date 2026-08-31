@@ -196,7 +196,7 @@ export default function GalleryModal({
             ref={modalRef}
             role="dialog"
             aria-modal="true"
-            aria-label={titleText || "Photo"}
+            aria-label={titleText || "写真"}
             onClick={handleOverlayClick}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md"
         >

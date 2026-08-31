@@ -1,5 +1,7 @@
 {
   "name": "Journey Photo",
+  "lang": "ja",
+  "dir": "ltr",
   "short_name": "Journey Photo",
   "description": "旅の写真を共有するギャラリー",
   "start_url": "/",
@@ -9,9 +11,24 @@
   "theme_color": "#000000",
   "orientation": "portrait",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
   "shortcuts": [
     {
@@ -29,7 +46,12 @@
       "title": "title",
       "text": "text",
       "files": [
-        { "name": "photos", "accept": ["image/*"] }
+        {
+          "name": "photos",
+          "accept": [
+            "image/*"
+          ]
+        }
       ]
     }
   }

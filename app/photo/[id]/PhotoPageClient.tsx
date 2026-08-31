@@ -775,7 +775,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                     <div className="relative w-full" style={{ aspectRatio: "16 / 9" }}>
                                         <iframe
                                             src={mvEmbed.embedUrl}
-                                            title="photo mv"
+                                            title="この写真のMV"
                                             className="absolute inset-0 w-full h-full"
                                             allow="encrypted-media; picture-in-picture; web-share"
                                             referrerPolicy="strict-origin-when-cross-origin"

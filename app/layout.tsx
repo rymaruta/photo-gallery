@@ -59,8 +59,12 @@ export const metadata: Metadata = {
   creator: "Journey Photo",
   openGraph: {
     type: "website",
+    // `alternateLocale`（og:locale:alternate = en_US）は落とした。
+    // **英語版の URL は存在しない**（静的書き出しで HTML は1種類、
+    // 言語の切り替えは `6d72bfb` で削除済み）。写真ページは同じ理由で
+    // hreflang を消してあるのに、ここだけ別の形で「英語版がある」と
+    // 申告し続けていた。
     locale: siteConfig.locale.ja,
-    alternateLocale: siteConfig.locale.en,
     url: siteConfig.url,
     siteName: siteConfig.name,
     title: siteConfig.name,

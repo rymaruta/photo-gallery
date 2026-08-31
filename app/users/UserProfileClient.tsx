@@ -993,7 +993,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                     <div className="relative w-full" style={{ aspectRatio: "16 / 9" }}>
                                         <iframe
                                             src={songEmbed.embedUrl}
-                                            title="my bgm"
+                                            title="マイBGM"
                                             className="absolute inset-0 w-full h-full"
                                             allow="encrypted-media; picture-in-picture; web-share"
                                             referrerPolicy="strict-origin-when-cross-origin"
@@ -1004,7 +1004,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             ) : (
                                 <iframe
                                     src={songEmbed.embedUrl}
-                                    title="my bgm"
+                                    title="マイBGM"
                                     className="w-full"
                                     style={{ height: songEmbed.height ?? 152 }}
                                     allow="encrypted-media; autoplay; clipboard-write"
@@ -1169,7 +1169,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     >
                         {qrDataUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={qrDataUrl} alt="QR" className="w-full rounded-xl" />
+                            <img src={qrDataUrl} alt="このプロフィールのQRコード" className="w-full rounded-xl" />
                         ) : (
                             <div className="aspect-square flex items-center justify-center">
                                 <div className="w-8 h-8 border-2 border-black/20 border-t-black/60 rounded-full animate-spin" />
