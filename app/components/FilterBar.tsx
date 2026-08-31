@@ -13,6 +13,7 @@ import debounce from "lodash.debounce";
 import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { getLabels } from "../i18n/labels";
 import type { FilterValues } from "../../lib/types/gallery";
+import { tagKey } from "../../lib/utils/collections";
 
 type TagInfo = { label: string; desc?: string };
 
@@ -76,12 +77,15 @@ function FilterBarInner({
     useEffect(() => () => debouncedApply.cancel(), [debouncedApply]);
 
     // toggle tag (stable)
+    // **同じタグは同じ物差しで見る。** 完全一致で切り替えていた頃は、
+    // `?tags=<スラッグ>` で来た選択（`mount-fuji`）を生のチップ
+    // （`Mount Fuji`）から外せず、押すたびに**2つ目が足される**だけだった。
     const toggleTag = useCallback(
         (t: string) => {
-            const set = new Set(values.selectedTags);
-            if (set.has(t)) set.delete(t);
-            else set.add(t);
-            onChange({ selectedTags: Array.from(set) });
+            const key = tagKey(t);
+            const rest = values.selectedTags.filter((s) => tagKey(s) !== key);
+            // 消えていれば「選択されていた」＝解除。同じ長さなら追加
+            onChange({ selectedTags: rest.length === values.selectedTags.length ? [...rest, t] : rest });
         },
         [values.selectedTags, onChange]
     );
@@ -276,7 +280,7 @@ function FilterBarInner({
     const renderTagChips = useMemo(
         () =>
             tags.map((t) => {
-                const active = values.selectedTags.includes(t);
+                const active = values.selectedTags.some((s) => tagKey(s) === tagKey(t));
                 const info = tagDisplayMap[t];
                 const display = info?.label ?? t;
                 const count = counts[t] ?? 0;

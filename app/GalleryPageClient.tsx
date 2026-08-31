@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { tagKey } from "@/lib/utils/collections";
 import FilterBar from "./components/FilterBar";
 import StoriesBar from "./components/stories/StoriesBar";
 import { useLocale } from "./i18n/context";
@@ -214,8 +215,14 @@ export default function GalleryPageClient() {
     const popular = Object.keys(tagCounts)
       .sort((a, b) => (tagCounts[b] - tagCounts[a]) || a.localeCompare(b))
       .slice(0, POPULAR_TAG_LIMIT);
-    // 選択中のタグは上位に無くても必ず出す（消えると解除できなくなるため）
-    const extra = filters.selectedTags.filter((t) => !popular.includes(t));
+    // 選択中のタグは上位に無くても必ず出す（消えると解除できなくなるため）。
+    //
+    // **突き合わせはスラッグで。** 完全一致で見ていた頃は、`?tags=<スラッグ>`
+    // で来たとき（集約ページの404救済）に**同じタグのチップが2つ**並んで
+    // いた——生のタグ（未選択・件数つき）と、スラッグ（選択済み・件数0）。
+    // 大文字違い（`Fuji` と `fuji`）でも同じことが起きる。
+    const popularKeys = new Set(popular.map(tagKey));
+    const extra = filters.selectedTags.filter((t) => !popularKeys.has(tagKey(t)));
     return [...popular, ...extra];
   }, [tagCounts, filters.selectedTags]);
 

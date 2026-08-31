@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Photo, LocalizedText, LocalizedParagraphs } from "../data/photos";
 import { getLocalized, getLocalizedParagraphs } from "../data/photos";
 import type { GalleryFilters } from "../types/gallery";
-import { slugify } from "../utils/collections";
+import { slugify, tagKey } from "../utils/collections";
 import { compareNewest, compareOldest } from "../utils/photoOrder";
 
 /**
@@ -17,14 +17,9 @@ import { compareNewest, compareOldest } from "../utils/photoOrder";
  * 「条件に一致する写真がありません」**になる。`#旅` や `白/黒` のような
  * 値は自由入力で普通に入る（`slugify` のコメントが挙げているとおり）。
  */
-const tagSlug = (s?: string) => {
-    const raw = (s ?? "").toString().trim().toLowerCase();
-    // **空に落ちたら生の値で比べる。** `-` や `###` や `...` は slugify が
-    // 空文字を返す（URL のパス片として置けないため）。空のまま比べると、
-    // **別々のタグ同士が一致する**——`#` だけのタグで絞ると `-` だけの
-    // タグの写真まで出る。集合は小さいが、理由の見えない混ざり方になる。
-    return slugify(raw, "tag") || raw;
-};
+// タグの比較キーは lib/utils/collections.ts に1本化した
+// （フィルタバーのチップも同じ物差しで突き合わせる）
+const tagSlug = tagKey;
 
 /**
  * カテゴリの正規化。別名（風景→landscape）の解決も `slugify` 側にある。

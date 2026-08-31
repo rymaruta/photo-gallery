@@ -47,6 +47,31 @@ describe("FilterBar", () => {
         expect(onChange).toHaveBeenCalledWith({ selectedTags: [] });
     });
 
+    // **同じタグが2つに割れていた。** 集約ページの404救済は
+    // `?tags=<スラッグ>` に振り替えるので、選択が `mount-fuji`、チップが
+    // `Mount Fuji` という食い違いが普通に起きる。完全一致で見ていた頃は、
+    // 生のチップが未選択のまま並び、押しても外れずに**2つ目が足される**
+    // だけだった。
+    it("スラッグ形で選ばれていても、生のタグのチップが選択済みになる", () => {
+        setup({ tags: ["Mount Fuji", "night"], values: { ...baseValues, selectedTags: ["mount-fuji"] } });
+        expect(screen.getByRole("switch", { name: /Mount Fuji/ }),
+            "同じタグなのに選択済みになっていない").toHaveAttribute("aria-checked", "true");
+    });
+
+    it("スラッグ形の選択を、生のタグのチップから解除できる", () => {
+        const { onChange } = setup({
+            tags: ["Mount Fuji", "night"],
+            values: { ...baseValues, selectedTags: ["mount-fuji"] },
+        });
+        fireEvent.click(screen.getByRole("switch", { name: /Mount Fuji/ }));
+        expect(onChange, "押しても外れず、2つ目が足されている").toHaveBeenCalledWith({ selectedTags: [] });
+    });
+
+    it("大文字違いも同じタグとして扱う", () => {
+        setup({ tags: ["Fuji"], values: { ...baseValues, selectedTags: ["fuji"] } });
+        expect(screen.getByRole("switch", { name: /Fuji/ })).toHaveAttribute("aria-checked", "true");
+    });
+
     it("渡されたタグはすべて1行に並ぶ（展開ボタンは廃止）", () => {
         setup(); // 8 タグ
         expect(screen.getByRole("switch", { name: /swan/ })).toBeInTheDocument();

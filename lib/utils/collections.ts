@@ -69,6 +69,23 @@ export function slugify(value: string, type?: CollectionType): string {
  * 写真1〜2枚＋定型文だけのページを大量に作ると「中身の薄いサイト」と
  * 判断されて全体の評価が下がる。人がサイト内から辿る分には見られる。
  */
+/**
+ * タグの同一性を見るキー。
+ *
+ * 表示は生のタグ（`Mount Fuji`・`#旅`）のままで、**比べるときだけ**
+ * スラッグに寄せる。集約ページの404救済は `?tags=<スラッグ>` に振り替える
+ * ので、生のタグとスラッグが同じ画面に並ぶ場面がある——そのとき完全一致で
+ * 比べると、**同じタグのチップが2つ**出て、片方は件数0・もう片方は
+ * 押しても選択が外れない、という形になる。
+ *
+ * `slugify` が空を返す値（`-` `###` `...`）は生の小文字に落とす。空のまま
+ * 比べると別々のタグ同士が一致してしまうため（`3a0e3ce` で塞いだ穴）。
+ */
+export function tagKey(value: string | undefined): string {
+    const raw = (value ?? "").toString().trim().toLowerCase();
+    return slugify(raw, "tag") || raw;
+}
+
 export const MIN_INDEXABLE_COUNT = 3;
 
 /** そのページを検索エンジンに載せてよいか */
