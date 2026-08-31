@@ -208,20 +208,33 @@ export default function GalleryPageClient() {
   // ——数字だけが「3枚」「1枚」に割れて、同じものが2つ見える。
   // `dca777a` で選択判定も正規化したので、いまは**両方が同時に光る**。
   //
-  // 代表として出すのは**いちばん多く使われている表記**（同数なら先に
-  // 見つけた方）。生のタグを表示に使う方針は変えない——スラッグ（`旅`）を
+  // 代表として出すのは**いちばん多く使われている表記**（同数なら文字列の
+  // 小さい方——配列の順で字面が入れ替わらないように）。生のタグを表示に使う方針は変えない——スラッグ（`旅`）を
   // 出すと、投稿者が付けた `#旅` と字面が変わってしまう。
   const tagCounts = React.useMemo(() => {
     const groups = new Map<string, { label: string; total: number; byLabel: Map<string, number> }>();
     for (const p of PHOTOS) {
+      // **1枚の写真は1回しか数えない。** 保存側の重複排除は完全一致でしか
+      // 効かない（`api-user/src/sanitize.ts` の `new Set(cleaned)`）ので、
+      // 「旅, #旅」と打った写真は両方の表記を持つ。畳んで足し込むと
+      // **1枚を2枚と数える**——チップは「2」なのに押すと「結果: 1 件」。
+      // 集約ページの数え上げ（`collectEntries`）は最初からこの形。
+      const seen = new Set<string>();
       for (const t of p.tags ?? []) {
         const key = tagKey(t);
-        if (!key) continue;
+        // 空になるのは空白だけのタグのときで、それは `useGallery` が
+        // ここへ渡す前に落としている（保険）
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
         const g = groups.get(key) ?? { label: t, total: 0, byLabel: new Map<string, number>() };
         g.total += 1;
         const n = (g.byLabel.get(t) ?? 0) + 1;
         g.byLabel.set(t, n);
-        if (n > (g.byLabel.get(g.label) ?? 0)) g.label = t;
+        // **同数の決着を配列の順に任せない。** 「先に見つけた方」だと、
+        // 写真が1枚増えるだけでチップの字面が入れ替わる（各1枚ずつは
+        // ごく普通の形）。同数なら文字列の小さい方に固定する。
+        const cur = g.byLabel.get(g.label) ?? 0;
+        if (n > cur || (n === cur && t < g.label)) g.label = t;
         groups.set(key, g);
       }
     }

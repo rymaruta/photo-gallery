@@ -1,6 +1,7 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { tagKey } from "../../lib/utils/collections";
 
 // **同じタグのチップが2つ並んでいた。**
 //
@@ -32,6 +33,14 @@ const PHOTOS = [
     { id: "p3", src: "https://cdn/c.jpg", title: "う", category: "travel", tags: ["Fuji"], date: "2026-01-03", createdAt: "2026-01-03" },
     { id: "p4", src: "https://cdn/d.jpg", title: "え", category: "travel", tags: ["fuji"], date: "2026-01-04", createdAt: "2026-01-04" },
     { id: "p5", src: "https://cdn/e.jpg", title: "お", category: "travel", tags: ["fuji"], date: "2026-01-05", createdAt: "2026-01-05" },
+    // 1枚が同じタグを2つの表記で持つ（入力欄は重複を落とさず、保存側の
+    // 重複排除も完全一致でしか効かないので、普通に保存される）
+    { id: "p6", src: "https://cdn/f.jpg", title: "か", category: "travel", tags: ["旅", "#旅"], date: "2026-01-06", createdAt: "2026-01-06" },
+    // 各1枚ずつの表記ゆれ（同数の決着を見るため）。
+    // **文字列の大きい方（`paris`）を先に置く**——「先に見つけた方」を
+    // 代表にする実装でも通ってしまうため（実際その変異で緑になった）
+    { id: "p7", src: "https://cdn/g.jpg", title: "き", category: "travel", tags: ["paris"], date: "2026-01-07", createdAt: "2026-01-07" },
+    { id: "p8", src: "https://cdn/h.jpg", title: "く", category: "travel", tags: ["Paris"], date: "2026-01-08", createdAt: "2026-01-08" },
 ];
 vi.mock("../../lib/hooks/usePhotos", () => ({ usePhotos: () => ({ photos: PHOTOS, loaded: true }) }));
 
@@ -49,10 +58,10 @@ describe("タグのチップ", () => {
 
         await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
         const labels = screen.getAllByRole("switch").map((el) => el.getAttribute("aria-label") ?? "");
-        // `Mount Fuji`（写真が持つ生のタグ）と `mount-fuji`（URL のスラッグ）を
-        // 数える。**単に "fuji" を含む**で数えると、別タグの `fuji` まで
-        // 巻き込む（同じファイルの表記ゆれの試験で実際に混ざった）
-        const same = labels.filter((l) => l.startsWith("Mount Fuji") || l.startsWith("mount-fuji"));
+        // **数え方も実装と同じ物差しで。** 「"fuji" を含む」で数えると
+        // 別タグの `fuji` まで巻き込み、前方一致だと字面の偶然に頼る。
+        // チップのラベルから件数バッジを外して `tagKey` で比べる
+        const same = labels.filter((l) => tagKey(l.replace(/ \(\d+\)$/, "")) === "mount-fuji");
         expect(same, `同じタグのチップが2つ出ている: ${JSON.stringify(labels)}`).toHaveLength(1);
     });
 
@@ -103,5 +112,35 @@ describe("表記ゆれのタグ", () => {
         await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
         expect(chips().some((l) => l.startsWith("night")), "無関係のタグが消えている").toBe(true);
         expect(chips().some((l) => l.startsWith("Mount Fuji")), "別のタグまで畳んでいる").toBe(true);
+    });
+});
+
+// **バッジの数字が嘘をついていた（`e731478` の回帰）。**
+//
+// 1枚の写真が `["旅", "#旅"]` のように同じタグを2つの表記で持つと、
+// 畳んで足し込む実装では**1枚を2枚と数える**。チップは「2」なのに、
+// 押すと「結果: 1 件」。集約ページの数え上げ（`collectEntries`）は
+// 最初から写真ごとに1回だけ数えている。
+describe("同じ写真が同じタグを2つの表記で持つとき", () => {
+    const chips = () => screen.getAllByRole("switch").map((el) => el.getAttribute("aria-label") ?? "");
+
+    it("1枚として数える（バッジと結果が食い違わない）", async () => {
+        render(<GalleryPageClient />);
+        await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
+
+        const tabi = chips().filter((l) => l.startsWith("旅") || l.startsWith("#旅"));
+        expect(tabi, `旅のチップ: ${JSON.stringify(tabi)}`).toHaveLength(1);
+        // 件数バッジは2件以上のときだけ出る（1件なら数字なし）
+        expect(tabi[0], "1枚を2枚と数えている").not.toMatch(/\(\d+\)/);
+    });
+
+    // 同数のときの代表が、写真の並び順で入れ替わらないこと。
+    // 「先に見つけた方」だと、写真が1枚増えるだけで字面が変わる
+    it("同数なら文字列の小さい方を代表にする", async () => {
+        render(<GalleryPageClient />);
+        await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
+
+        const paris = chips().filter((l) => l.toLowerCase().startsWith("paris"));
+        expect(paris, "同数の代表が定まっていない").toEqual(["Paris (2)"]);
     });
 });
