@@ -159,18 +159,30 @@ export function usePhotoLikes(
             } else if (!wasLiked && await isGoneResponse(res)
                 && (await res.clone().json().catch(() => null) as { liked?: unknown } | null)?.liked === true) {
                 // **「もう見えない」けれど「あなたのいいねは残っている」。**
-                // マーカーが既にある写真が非公開に戻された場合、サーバーは
-                // 数字を出さずに 404 を返すが、`liked: true` を添えてくる。
-                // これを「付かなかった」と読んで未いいねに戻すと、押し直しても
-                // 同じ 404 で**永久に外せない**（解除は通るのに導線が出ない）。
-                // 数字は増えていない（マーカーは前からある）ので件数だけ戻す。
-                if (didToggleFavorite || !isFavorite(photoId)) {
-                    if (!isFavorite(photoId)) toggleFavorite(photoId);
-                }
+                //
+                // マーカーが既にある写真が非公開に戻された／削除された場合、
+                // サーバーは数字を出さずに 404 を返すが `liked: true` を
+                // 添えてくる（`likePhoto` の冪等経路。マーカーは写真とは別の
+                // item なので、写真が消えても残る）。これを「付かなかった」と
+                // 読んで未いいねに戻すと、**そのモーダルを開いている間、
+                // 解除の導線が出ない**——解除の DELETE 自体は通るのに、
+                // 未いいね表示では押しようがない。開き直せば
+                // `/user/likes/` が `true` を返して回復するので、
+                // 「永久に」ではない（最初そう書いたのは言い過ぎだった）。
+                //
+                // **お気に入りはここで触らない。** 上の楽観トグルが既に
+                // 「いいね済み」の姿に揃えている。`isFavorite` はこの関数が
+                // 閉じ込めている**押す前の値**なので、ここで見て触ると
+                // 同じ id を2回トグルする＝追加して即削除になる
+                // （押したのに `/favorites` から消える）。
+                //
+                // 番人（`touchedRef`）も下ろさない。巻き戻しの経路と違って、
+                // ここは「押す前の姿」に戻していない（いいね済みを出したまま）。
+                // 下ろすと、遅れて着地する取得がその表示を上書きできてしまう。
                 if (stillSamePhoto()) {
                     setServerLiked(true);
+                    // 数字は増えていない（マーカーは前からある）ので楽観の +1 を戻す
                     setCount((c) => Math.max(0, c - 1));
-                    touchedRef.current = false;
                 }
             } else if (wasLiked && await isGoneResponse(res)) {
                 // **解除は「もう見えない写真」でも通っている。**

@@ -370,10 +370,14 @@ describe("もう見えない写真のいいね", () => {
             clone() { return this; },
         };
         mockPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ likes: 11 }) });
+        // **本番の形にする。** マーカーが残っているなら `getMyLike` は
+        // `true` を返す（`api-user/src/likes.ts`）。`false` を返すモックは
+        // 本番に存在しない組み合わせで、着地順しだいで結果が変わる
+        let settleMyLike: ((v: unknown) => void) | null = null;
         mockUserFetch.mockImplementation((url: string) =>
-            Promise.resolve(url.startsWith("/user/likes/")
-                ? { ok: true, json: async () => ({ liked: false }) }   // 着地前に押す想定
-                : goneButLiked));
+            url.startsWith("/user/likes/")
+                ? new Promise((res) => { settleMyLike = res; })   // 押したあとに着地させる
+                : Promise.resolve(goneButLiked));
 
         const { result } = renderHook(() => usePhotoLikes("p1", 11, true));
         await waitFor(() => expect(result.current.count).toBe(11));
@@ -382,6 +386,19 @@ describe("もう見えない写真のいいね", () => {
 
         expect(result.current.liked, "サーバーには残っているのに未いいねに戻している").toBe(true);
         // マーカーは前からあるので、数字は増えていない
+        expect(result.current.count).toBe(11);
+        // **端末のお気に入りにも入っている。** ここで `toggleFavorite` を
+        // もう一度呼ぶと、追加して即削除になる（押したのに /favorites から
+        // 消える。ハートの表示もカードと割れる）
+        expect(JSON.parse(store["photo-gallery-favorites"] ?? "[]"),
+            "お気に入りが二重トグルで消えている").toContain("p1");
+
+        // 遅れて `/user/likes/` が着地しても、確定した表示を壊さない
+        await act(async () => {
+            settleMyLike!({ ok: true, json: async () => ({ liked: true }) });
+            await Promise.resolve();
+        });
+        expect(result.current.liked).toBe(true);
         expect(result.current.count).toBe(11);
     });
 
