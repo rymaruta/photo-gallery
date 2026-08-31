@@ -21,9 +21,26 @@ describe("photoTimeKey", () => {
     it("撮影日（date）を優先し、無ければ投稿日（createdAt）", () => {
         expect(photoTimeKey(photo("a", { date: "2024-01-01", createdAt: "2026-01-01T00:00:00.000Z" })))
             .toBe("2024-01-01");
-        expect(photoTimeKey(photo("b", { createdAt: "2026-01-01T00:00:00.000Z" })))
-            .toBe("2026-01-01T00:00:00.000Z");
         expect(photoTimeKey(photo("c"))).toBe("");
+    });
+
+    // **保存されている date は1種類ではない。** `sanitizeDate` は日付だけと
+    // ゾーン無し T 形式をそのまま保つが、それ以外は `toISOString()` で
+    // `...Z` にする。旧実装が付けた `T00:00:00.000Z` も残っている。
+    // 指定子を落として「書かれている数字」に揃える——表示側
+    // （splitStoredDate）が指定子を無視して成分を出すので、並びと表示が一致する。
+    it("末尾のゾーン指定子は落とす（書かれている数字で比べる）", () => {
+        expect(photoTimeKey(photo("z", { date: "2024-11-01T00:00:00.000Z" }))).toBe("2024-11-01T00:00:00.000");
+        expect(photoTimeKey(photo("o", { date: "2024-11-01T09:00:00+09:00" }))).toBe("2024-11-01T09:00:00");
+        expect(photoTimeKey(photo("c", { createdAt: "2026-01-01T00:00:00.000Z" }))).toBe("2026-01-01T00:00:00.000");
+    });
+
+    it("`Z` 付きと壁時計が混ざっても、表示と同じ順に並ぶ", () => {
+        // 表示（splitStoredDate）はどちらも「11月1日 00:00」「11月1日 07:30」
+        const zForm = photo("zForm", { date: "2024-11-01T00:00:00.000Z" });
+        const wall = photo("wall", { date: "2024-11-01T07:30:00" });
+        expect(ids(sortByNewest([zForm, wall])), "表示と並びが食い違っている")
+            .toEqual(["wall", "zForm"]);
     });
 });
 
@@ -42,9 +59,29 @@ describe("並びの規則", () => {
     // 面ごとに違う（集約ページは createdAt 降順、ホームは絞り込み後の順）。
     // 同じ日付の2枚は、それだけで面ごとに前後が入れ替わる。
     it("キーが同じなら、入力の順に関係なく同じ並びになる", () => {
-        const a = photo("aaa", { date: "2026-04-29" });
-        const b = photo("bbb", { date: "2026-04-29" });
+        const a = photo("aaa", { date: "2026-04-29", createdAt: "2026-04-29T07:30:00.000Z" });
+        const b = photo("bbb", { date: "2026-04-29", createdAt: "2026-04-29T13:25:00.000Z" });
         expect(ids(sortByNewest([a, b]))).toEqual(ids(sortByNewest([b, a])));
+        expect(ids([...[a, b]].sort(compareOldest))).toEqual(ids([...[b, a]].sort(compareOldest)));
+    });
+
+    // **id だけで決めない。** UUID の大小は利用者から見て意味が無く、
+    // 実データ30枚で唯一同キーになる組は、それだと投稿順の逆に並んでいた
+    // （変更前のホームは安定ソートで投稿順を保っていた）。
+    it("同じ撮影日なら、投稿が新しい方を先に出す", () => {
+        const older = photo("zzz-posted-first", { date: "2026-04-29", createdAt: "2026-04-29T07:30:30.240Z" });
+        const newer = photo("aaa-posted-later", { date: "2026-04-29", createdAt: "2026-04-29T13:25:07.841Z" });
+        expect(ids(sortByNewest([older, newer])), "id の大小で並べている")
+            .toEqual(["aaa-posted-later", "zzz-posted-first"]);
+        // 古い順は鏡合わせ
+        expect(ids([older, newer].sort(compareOldest))).toEqual(["zzz-posted-first", "aaa-posted-later"]);
+    });
+
+    it("撮影日も投稿日も同じなら id で決める（必ず決着する）", () => {
+        const a = photo("aaa", { date: "2026-04-29", createdAt: "2026-04-29T07:30:00.000Z" });
+        const b = photo("bbb", { date: "2026-04-29", createdAt: "2026-04-29T07:30:00.000Z" });
+        expect(ids(sortByNewest([b, a]))).toEqual(["aaa", "bbb"]);
+        expect(ids([b, a].sort(compareOldest))).toEqual(["aaa", "bbb"]);
     });
 
     it("元の配列を書き換えない", () => {

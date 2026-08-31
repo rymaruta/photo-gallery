@@ -89,3 +89,36 @@ describe("年表の見出しと並び", () => {
         expect(await screen.findByText("2024年10月")).toBeInTheDocument();
     });
 });
+
+// **同じ画面の中で、年表と「旅した距離」が別の物差しを使っていた。**
+//
+// 年表は書かれている成分で切るのに、距離の積算は `Date.parse` のままだった。
+// ゾーン無しの `T` 形式（EXIF 由来）はローカル時刻として読まれるので、
+// JST では前日側へずれる——**つなぐ順が変わり、出る距離も変わる**。
+// 見えている数字が閲覧者のタイムゾーンで変わるのは、旅の記録として困る。
+describe("旅した距離（つなぐ順）", () => {
+    const geoPhotos = [
+        { id: "tokyo", userId: OWNER, src: "https://cdn/t.jpg", title: "東京", category: "travel", tags: [],
+            date: "2024-11-01", createdAt: "2026-01-01T00:00:00.000Z", published: true, coords: { lat: 35.68, lng: 139.77 } },
+        { id: "osaka", userId: OWNER, src: "https://cdn/o.jpg", title: "大阪", category: "travel", tags: [],
+            date: "2024-11-01T07:30:00", createdAt: "2026-01-01T00:00:00.000Z", published: true, coords: { lat: 34.69, lng: 135.50 } },
+        { id: "sapporo", userId: OWNER, src: "https://cdn/s.jpg", title: "札幌", category: "travel", tags: [],
+            date: "2024-11-02", createdAt: "2026-01-01T00:00:00.000Z", published: true, coords: { lat: 43.06, lng: 141.35 } },
+    ];
+
+    async function distanceFor(tz: string): Promise<string> {
+        process.env.TZ = tz;
+        mockPublicFetch.mockResolvedValue({ ok: true, json: async () => geoPhotos });
+        const { unmount } = render(<UserProfileClient userId={OWNER} />);
+        const km = await screen.findByTitle("旅した総移動距離");
+        const value = km.textContent ?? "";
+        unmount();
+        return value;
+    }
+
+    it("閲覧者のタイムゾーンで距離が変わらない", async () => {
+        const jst = await distanceFor("Asia/Tokyo");
+        const utc = await distanceFor("UTC");
+        expect(jst, "つなぐ順が変わって距離が変わっている").toBe(utc);
+    });
+});

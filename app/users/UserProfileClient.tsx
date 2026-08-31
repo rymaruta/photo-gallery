@@ -24,7 +24,7 @@ import { publicFetch, userFetch, userPublicFetch, readApiError, AUTH_REQUIRED_ME
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 import { EN_MONTHS, splitStoredDate } from "../../lib/utils/photoDate";
-import { compareNewest } from "../../lib/utils/photoOrder";
+import { compareNewest, compareOldest } from "../../lib/utils/photoOrder";
 import { ROUTES } from "../../lib/routes";
 import UserAvatar from "../components/UserAvatar";
 import PHOTOS_JSON from "../data/photos.json";
@@ -669,28 +669,27 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         return [...pinned, ...rest];
     }, [visiblePhotos, pinnedPhotoIds]);
 
-    // 足あとサマリー: 訪れた場所数（ユニークな location）と旅の期間（撮影日の最古〜最新）
+    // 足あとサマリー: 旅した総移動距離（位置情報つきの写真を撮影日順につなぐ）
+    //
+    // **並べ方は年表と同じ規則にする。** `Date.parse` で並べていた頃は、
+    // ゾーン無しの `T` 形式（EXIF 由来の撮影日）がローカル時刻として読まれ、
+    // **同じ画面の年表と逆の順**になりえた（年表は書かれている成分で切る）。
+    // 積算する順が変われば距離も変わるので、見えている数字が閲覧者の
+    // タイムゾーンで変わることになる。
+    //
+    // 以前ここで数えていた「訪れた場所数」と「期間（最古〜最新）」は、
+    // **どこにも出していなかった**ので落とした（画面に出るのは
+    // `distanceKm` と `geoCount` だけ）。`Date.parse` の呼び出しも一緒に消える。
     const footprint = useMemo(() => {
-        const places = new Set<string>();
-        for (const p of visiblePhotos) {
-            const loc = (p.location ?? "").trim().toLowerCase();
-            if (loc) places.add(loc);
-        }
-        const times = visiblePhotos
-            .map(p => Date.parse(String(p.date || p.createdAt || "")))
-            .filter(t => !isNaN(t))
-            .sort((a, b) => a - b);
-
-        // 旅した総移動距離: 位置情報つき写真を撮影日順につなぎ、大円距離を積算
         const geo = visiblePhotos
             .filter(p => p.coords && typeof p.coords.lat === "number" && typeof p.coords.lng === "number")
-            .map(p => ({ c: p.coords as { lat: number; lng: number }, t: Date.parse(String(p.date || p.createdAt || "")) }))
-            .filter(x => !isNaN(x.t))
-            .sort((a, b) => a.t - b.t);
+            .slice()
+            .sort(compareOldest)
+            .map(p => p.coords as { lat: number; lng: number });
         let distanceKm = 0;
-        for (let i = 1; i < geo.length; i++) distanceKm += haversineKm(geo[i - 1].c, geo[i].c);
+        for (let i = 1; i < geo.length; i++) distanceKm += haversineKm(geo[i - 1], geo[i]);
 
-        return { places: places.size, first: times[0], last: times[times.length - 1], distanceKm, geoCount: geo.length };
+        return { distanceKm, geoCount: geo.length };
     }, [visiblePhotos]);
 
 

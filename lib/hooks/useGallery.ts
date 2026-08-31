@@ -3,7 +3,7 @@ import type { Photo, LocalizedText, LocalizedParagraphs } from "../data/photos";
 import { getLocalized, getLocalizedParagraphs } from "../data/photos";
 import type { GalleryFilters } from "../types/gallery";
 import { slugify } from "../utils/collections";
-import { compareNewest, compareOldest, photoTimeKey } from "../utils/photoOrder";
+import { compareNewest, compareOldest } from "../utils/photoOrder";
 
 /**
  * タグ比較用の正規化。
@@ -84,14 +84,14 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
             raw.map((p) => {
                 const category = normalizeKey(p.category);
                 const tags = (p.tags ?? []).map((t) => (t ?? "").toString().trim()).filter(Boolean);
+                // 並びの比較キーは lib/utils/photoOrder.ts に1本化した
+                // （ここで `new Date()` を通していた頃は、ゾーン無しの
+                // `T` 形式がローカル時刻・日付だけが UTC と解釈され、
+                // **並びが閲覧者のタイムゾーンで変わって**いた）。
+                // キーは比較のたびに写真から作るので、ここには持たせない。
                 const date = p.date || p.createdAt || "";
-                // 並びの比較キーは lib/utils/photoOrder.ts に1本化した。
-                // ここで `new Date()` を通していた頃は、ゾーン無しの
-                // `T` 形式（EXIF 由来）がローカル時刻、日付だけが UTC と
-                // 解釈され、**並びが閲覧者のタイムゾーンで変わって**いた。
-                const _timeKey = photoTimeKey(p);
 
-                return { ...p, category, tags, date, _timeKey };
+                return { ...p, category, tags, date };
             }),
         [raw]
     );

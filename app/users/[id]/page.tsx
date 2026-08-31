@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { sortByNewest } from "@/lib/utils/photoOrder";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
@@ -29,9 +30,14 @@ type UserSummary = {
 
 async function loadUserSummary(userId: string): Promise<UserSummary | null> {
     const photos = await loadPhotos();
-    const userPhotos = photos
-        .filter((p) => p.userId === userId && p.published !== false)
-        .sort((a, b) => String(b.createdAt ?? b.date ?? "").localeCompare(String(a.createdAt ?? a.date ?? "")));
+    // 並べ方はサイト全体と同じ規則（`lib/utils/photoOrder.ts`）。
+    // ここだけ `createdAt ?? date` と**優先順位が逆**で、しかも `??` なので
+    // `date: ""` を「値がある」と見なしていた（`||` に揃える話は
+    // `lib/utils/related.ts` のテストに記録がある）。代表画像が
+    // 他の画面の「先頭の写真」と食い違う。
+    const userPhotos = sortByNewest(
+        photos.filter((p) => p.userId === userId && p.published !== false),
+    );
     if (userPhotos.length === 0) return null;
     return {
         displayName: userPhotos.find((p) => p.displayName)?.displayName ?? "ユーザー",

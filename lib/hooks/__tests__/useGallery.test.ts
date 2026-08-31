@@ -297,6 +297,31 @@ describe("useGallery", () => {
         });
     });
 
+    // **並びが閲覧者のタイムゾーンで変わっていた。** ここで `new Date()` を
+    // 通していた頃、ゾーン無しの `2024-11-01T07:30:00`（EXIF 由来の撮影日）は
+    // ローカル時刻、日付だけの `2024-11-01` は UTC と解釈され、JST と UTC で
+    // 並びが逆になった。静的HTMLはビルド時（UTC）の順で焼かれるので、
+    // JST の閲覧者ではハイドレーションの前後で並びが変わることになる。
+    describe("タイムゾーンで並びが変わらない", () => {
+        const tzPhotos: Photo[] = [
+            { id: "dayOnly", src: "d.jpg", title: { ja: "日付だけ", en: "d" }, category: "street", tags: [], date: "2024-11-01" },
+            { id: "wall", src: "w.jpg", title: { ja: "時刻つき", en: "w" }, category: "street", tags: [], date: "2024-11-01T07:30:00" },
+        ];
+
+        it.each(["Asia/Tokyo", "UTC", "America/New_York"])("%s でも同じ順", (tz) => {
+            const before = process.env.TZ;
+            process.env.TZ = tz;
+            try {
+                const { result } = renderHook(() => useGallery(tzPhotos));
+                // 同じ日の 07:30 は 00:00 より新しい（どのゾーンでも）
+                expect(result.current.filteredPhotos.map((p) => p.id),
+                    "閲覧者のタイムゾーンで並びが変わっている").toEqual(["wall", "dayOnly"]);
+            } finally {
+                if (before === undefined) delete process.env.TZ; else process.env.TZ = before;
+            }
+        });
+    });
+
     describe("URL 同期（?photo=）", () => {
         // 共有リンク /?photo=<id> で開いても、フィルタ同期の replaceState が
         // ?photo= を消していた。見えている写真とアドレスバーが食い違い、
