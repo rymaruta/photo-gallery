@@ -140,10 +140,35 @@ export default function GalleryPageClient() {
     //
     // **一覧に無い＝存在しない、ではない**ので、そこは分けて見る。
     // `openById` が探すのは**絞り込んだあと**の一覧なので、フィルターで
-    // 外れているだけの写真まで「見つかりません」と言ってしまう。
-    // 元の一覧に居るなら黙っておく（絞り込みを勝手に外す方が驚く）。
-    // 元の一覧には居る＝絞り込みで外れているだけ。絞り込みを緩めれば開ける
-    if (PHOTOS.some((p) => p.id === photoParam)) { setPendingPhoto(photoParam); return; }
+    // 外れているだけの写真まで「見つかりません」と言ってはいけない。
+    //
+    // **ただし黙って何もしないのもやめる。** 以前はここで「絞り込みを
+    // 勝手に外す方が驚く」として黙っていたが、実際に起きていたのは
+    // **通知をタップしても本当に何も起きない**（モーダルも出ず、理由も
+    // 出ず、押し直しても同じ）だった。`?photo=<id>` は写真を名指しして
+    // いる——通知・共有リンク・戻るでしか来ない——ので、その1枚を開く
+    // 方に倒す。ビルド後の新着写真はこのモーダルが唯一の閲覧手段で、
+    // 「フォロー中」を見ている人には自分宛ての通知がほぼ全部この経路
+    // （自分の写真はフォロー中フィードに出ない）。
+    //
+    // 外すのは**絞り込みだけ**（並び順は触らない）。外したことはトースト
+    // で伝える——画面の見え方が変わる理由が見えないと、次に困る。
+    if (PHOTOS.some((p) => p.id === photoParam)) {
+      setPendingPhoto(photoParam);
+      // **今まさに絞り込んでいるときだけ外す。** ここを ref の「一度きり」で
+      // 守ると、外しても開けなかった場合に**同じ値を setFilters し続ける**
+      // 形（毎回新しいオブジェクト＝毎回再描画）を作りかねない。今の状態を
+      // 見て決めれば、外し終わったあとは自然に何もしない。
+      const narrowed = filters.category !== "all" || filters.selectedTags.length > 0
+        || filters.query.trim() !== "" || filters.feed !== "all";
+      if (narrowed) {
+        setFilters({ category: "all", selectedTags: [], query: "", feed: "all" });
+        showToast(locale === "en"
+          ? "Cleared the filters to open this photo."
+          : "絞り込みを解除して、この写真を開きました。", "info");
+      }
+      return;
+    }
 
     // **API の一覧が届くまでは言わない。** `PHOTOS` の初期値はビルド時の
     // スナップショットなので、そこに無いことは「存在しない」を意味しない
@@ -159,7 +184,7 @@ export default function GalleryPageClient() {
     notFoundRef.current = photoParam;
     setPendingPhoto(null);   // 無いと分かったので、死んだ ?photo= を URL に残さない
     showToast(locale === "en" ? "That photo is no longer available." : "その写真は見つかりませんでした。", "error");
-  }, [photoParam, filteredPhotos, openById, PHOTOS, photosLoaded, showToast, locale, close, setPendingPhoto]);
+  }, [photoParam, filteredPhotos, openById, PHOTOS, photosLoaded, showToast, locale, close, setPendingPhoto, setFilters, filters]);
 
   const handleClose = React.useCallback(() => {
     dismissedRef.current = openPhotoId ?? null;

@@ -94,13 +94,19 @@ describe("開けない ?photo= を踏んだとき", () => {
 
     // **絞り込みで外れているだけなら黙る。** ここで「見つかりません」と
     // 出すと、実際には在る写真について嘘をつくことになる
-    it("フィルターで外れているだけなら何も言わない", async () => {
+    // **守っている性質は「在る写真について嘘をつかない」。**
+    // 以前はここで何も言わずに黙っていたが、黙る＝通知をタップしても
+    // 何も起きない、だった（下の describe を見よ）。今は絞り込みを外して
+    // 開く。**「見つかりません」と言わない**ことは変わらない。
+    it("フィルターで外れているだけなら「見つかりません」と言わない", async () => {
         window.history.replaceState({}, "", "/?category=travel");
         searchParams.current = "p2";   // category=food なので絞り込みから外れる
         render(<GalleryPageClient />);
 
         await new Promise((r) => setTimeout(r, 20));
-        expect(mockShowToast, "在る写真について「見つかりません」と言っている").not.toHaveBeenCalled();
+        expect(mockShowToast.mock.calls.map((c) => String(c[0])),
+            "在る写真について「見つかりません」と言っている")
+            .not.toContain("その写真は見つかりませんでした。");
     });
 
     it("開ける写真では何も言わない（正常系）", async () => {
@@ -242,24 +248,26 @@ describe("遷移で ?photo= が届いたとき（再マウントされない）"
     it("開けないまま絞り込みを触っても、id を落とさない", async () => {
         auth.current = { isAuthenticated: true, userId: "me", loading: false };
         // マウント時の URL に photo は無い（通知からの遷移で**あとから**届く）。
-        // category=food なので p1（travel）は絞り込みから外れて開けない
+        // **まだ一覧に届いていない写真**にする——絞り込みで外れているだけの
+        // 写真は、いまは絞り込みを外して開くので「開けないまま」にならない
+        // （この試験が守りたいのは「開けない間、預けた id を落とさない」）。
         window.history.replaceState({}, "", "/?category=food");
-        photosState.loaded = true;
+        photosState.loaded = false;
         const { rerender } = render(<GalleryPageClient />);
         await new Promise((r) => setTimeout(r, 20));
 
-        searchParams.current = "p1";
+        searchParams.current = "not-yet-arrived";
         rerender(<GalleryPageClient />);
         await new Promise((r) => setTimeout(r, 20));
 
-        // 別の絞り込みを触る＝同期が走る。p1 は**まだ開けない**ので、
+        // 別の絞り込みを触る＝同期が走る。この写真は**まだ開けない**ので、
         // ここで URL に残っているのは「預けた」からに他ならない
         fireEvent.click(screen.getByRole("button", { name: "フォロー中" }));
 
         await waitFor(() => expect(
             new URLSearchParams(window.location.search).get("photo"),
             "開けないまま絞り込みを触った拍子に id を落としている",
-        ).toBe("p1"));
+        ).toBe("not-yet-arrived"));
         // 開いてはいない（開けたから残った、ではないことを押さえる）
         expect(mockShowToast).not.toHaveBeenCalled();
     });
@@ -306,6 +314,52 @@ describe("遷移で ?photo= が届いたとき（再マウントされない）"
             new URLSearchParams(window.location.search).get("photo"),
             "届く前に id を落としている",
         ).toBe("unknown-yet"));
+        expect(mockShowToast).not.toHaveBeenCalled();
+    });
+});
+
+// **絞り込み中に通知をタップしても、本当に何も起きなかった。**
+//
+// `?photo=<id>` で写真を名指ししているのに、絞り込みから外れていると
+// モーダルも出ず、理由も出ず、押し直しても同じ（`?photo=` だけが URL に
+// 残る）。ビルド後の新着写真はこのモーダルが唯一の閲覧手段で、
+// 「フォロー中」を見ている人には**自分宛ての通知がほぼ全部この経路**
+// （自分の写真はフォロー中フィードに出ない）。
+// 名指しされた1枚を開く方に倒し、外したことはトーストで伝える。
+describe("絞り込みで外れている写真を名指しされたとき", () => {
+    it("絞り込みを外して開き、外したことを伝える", async () => {
+        window.history.replaceState({}, "", "/?category=travel");
+        searchParams.current = "p2";   // p2 は category=food
+        render(<GalleryPageClient />);
+
+        await waitFor(() => expect(
+            new URLSearchParams(window.location.search).get("category"),
+            "絞り込みが残ったまま（＝写真は開けない）",
+        ).toBeNull());
+        expect(mockShowToast).toHaveBeenCalledWith(
+            expect.stringContaining("絞り込みを解除"), "info");
+        // 名指しされた写真は URL に残る（開いた状態）
+        expect(new URLSearchParams(window.location.search).get("photo")).toBe("p2");
+    });
+
+    it("同じ写真で何度も言わない", async () => {
+        window.history.replaceState({}, "", "/?category=travel");
+        searchParams.current = "p2";
+        const { rerender } = render(<GalleryPageClient />);
+        await new Promise((r) => setTimeout(r, 20));
+        rerender(<GalleryPageClient />);
+        await new Promise((r) => setTimeout(r, 20));
+
+        const cleared = mockShowToast.mock.calls.filter((c) => String(c[0]).includes("絞り込みを解除"));
+        expect(cleared, "同じ写真でトーストを繰り返している").toHaveLength(1);
+    });
+
+    // 絞り込みが無いときは触らない（余計なトーストを出さない）
+    it("絞り込みが無ければ何も言わない", async () => {
+        searchParams.current = "p1";
+        render(<GalleryPageClient />);
+
+        await new Promise((r) => setTimeout(r, 20));
         expect(mockShowToast).not.toHaveBeenCalled();
     });
 });
