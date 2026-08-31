@@ -283,6 +283,46 @@ describe("遅れて届いた初回の件数", () => {
         expect(result.current.liked).toBe(true);
     });
 
+    // **未ログインで押しただけでも番人が立っていた。**
+    // 未ログインはサーバーに何も送らないのに、マウント時の件数取得
+    // （唯一の是正経路。cron ビルドが止まっている間、`photos.json` の
+    // 数字は古くなる）が永久に殺され、古い数字が出たまま固定されていた。
+    it("未ログインで押しても、届いた最新の件数は反映する", async () => {
+        let settleInitial: ((v: unknown) => void) | null = null;
+        mockPublicFetch.mockImplementation(() => new Promise((res) => { settleInitial = res; }));
+
+        const { result } = renderHook(() => usePhotoLikes("p1", 42, false));
+        await act(async () => { await result.current.toggle(); });
+
+        await act(async () => {
+            settleInitial!({ ok: true, json: async () => ({ likes: 57 }) });
+            await Promise.resolve();
+        });
+
+        expect(result.current.count, "未ログインなのに件数の更新を止めている").toBe(57);
+    });
+
+    // 巻き戻した＝「押す前」の姿に戻ったので、遅れて届く真値は弾かない
+    it("保存に失敗して巻き戻したあとも、届いた件数は反映する", async () => {
+        let settleInitial: ((v: unknown) => void) | null = null;
+        mockPublicFetch.mockImplementation(() => new Promise((res) => { settleInitial = res; }));
+        mockUserFetch.mockImplementation((url: string) =>
+            Promise.resolve(url.startsWith("/user/likes/")
+                ? { ok: true, json: async () => ({ liked: false }) }
+                : { ok: false, status: 500, json: async () => ({}) }));
+
+        const { result } = renderHook(() => usePhotoLikes("p1", 42, true));
+        await act(async () => { await result.current.toggle(); });
+        expect(result.current.count).toBe(42);   // 巻き戻し済み
+
+        await act(async () => {
+            settleInitial!({ ok: true, json: async () => ({ likes: 57 }) });
+            await Promise.resolve();
+        });
+
+        expect(result.current.count, "巻き戻したあとも真値を弾いている").toBe(57);
+    });
+
     it("押していなければ、届いた数字をそのまま出す（正常系）", async () => {
         mockPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ likes: 42 }) });
         const { result } = renderHook(() => usePhotoLikes("p1", 10, true));

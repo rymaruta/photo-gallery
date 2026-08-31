@@ -41,6 +41,12 @@ const PHOTOS = [
     // 代表にする実装でも通ってしまうため（実際その変異で緑になった）
     { id: "p7", src: "https://cdn/g.jpg", title: "き", category: "travel", tags: ["paris"], date: "2026-01-07", createdAt: "2026-01-07" },
     { id: "p8", src: "https://cdn/h.jpg", title: "く", category: "travel", tags: ["Paris"], date: "2026-01-08", createdAt: "2026-01-08" },
+    // **全体では多いが、travel では少ないタグ**（並びの根拠を確かめるため）。
+    // 全体: zebra 4 > fuji 3 ／ travel だけ: fuji 2 > zebra 1 で前後が逆になる
+    { id: "p9", src: "https://cdn/i.jpg", title: "け", category: "food", tags: ["zebra"], date: "2026-01-09", createdAt: "2026-01-09" },
+    { id: "p10", src: "https://cdn/j.jpg", title: "こ", category: "food", tags: ["zebra"], date: "2026-01-10", createdAt: "2026-01-10" },
+    { id: "p11", src: "https://cdn/k.jpg", title: "さ", category: "food", tags: ["zebra"], date: "2026-01-11", createdAt: "2026-01-11" },
+    { id: "p12", src: "https://cdn/l.jpg", title: "し", category: "travel", tags: ["zebra"], date: "2026-01-12", createdAt: "2026-01-12" },
 ];
 vi.mock("../../lib/hooks/usePhotos", () => ({ usePhotos: () => ({ photos: PHOTOS, loaded: true }) }));
 
@@ -157,7 +163,7 @@ describe("絞り込み中のタグの件数", () => {
         // fuji は travel 2枚（p4/p5）＋ food 1枚。food で絞れば 1枚
         window.history.replaceState({}, "", "/?category=food");
         render(<GalleryPageClient />);
-        await waitFor(() => expect(screen.getByText(/結果: 1 件/)).toBeInTheDocument());
+        await waitFor(() => expect(screen.getByText(/結果: 4 件/)).toBeInTheDocument());
 
         const fuji = chips().filter((l) => l.toLowerCase().startsWith("fuji"));
         expect(fuji, "全体の枚数を出している（押すと結果と食い違う）").toEqual(["fuji"]);
@@ -166,7 +172,7 @@ describe("絞り込み中のタグの件数", () => {
     it("結果に1枚も無いタグはチップに出さない", async () => {
         window.history.replaceState({}, "", "/?category=food");
         render(<GalleryPageClient />);
-        await waitFor(() => expect(screen.getByText(/結果: 1 件/)).toBeInTheDocument());
+        await waitFor(() => expect(screen.getByText(/結果: 4 件/)).toBeInTheDocument());
 
         expect(chips().some((l) => l.startsWith("night")),
             "押しても0件のチップが並んでいる").toBe(false);
@@ -176,5 +182,57 @@ describe("絞り込み中のタグの件数", () => {
         render(<GalleryPageClient />);
         await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
         expect(chips()).toContain("fuji (3)");
+    });
+});
+
+// **絞り込むとチップの字面と並びが動いていた。**
+//
+// 代表表記（いちばん多い表記）を絞り込み後の集合で決めていたので、
+// 検索1文字ごとに `fuji` ⇄ `Fuji` が入れ替わり、並び順も動いた
+// ——押そうとした位置がずれる。`e731478` で「写真が1枚増えるだけで
+// 入れ替わる」を潰したのと同じ性質なので、母集団は全体に固定する。
+describe("絞り込んでもチップの字面と並びは動かない", () => {
+    const chipsOf = () => screen.getAllByRole("switch")
+        .map((el) => (el.getAttribute("aria-label") ?? "").replace(/ \(\d+\)$/, ""));
+
+    /** 1画面ぶん描いてチップを読み、**必ず片付けてから**返す
+     *  （片付けないと次の render のチップと混ざって数が合わなくなる） */
+    async function chipsFor(url: string): Promise<string[]> {
+        window.history.replaceState({}, "", url);
+        const { unmount } = render(<GalleryPageClient />);
+        await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
+        const labels = chipsOf();
+        unmount();
+        return labels;
+    }
+
+    it("代表表記が絞り込みで入れ替わらない", async () => {
+        const before = await chipsFor("/");
+        const after = await chipsFor("/?category=travel");
+
+        for (const label of after) {
+            expect(before, `絞り込みで字面が変わった: ${label}`).toContain(label);
+        }
+    });
+
+    it("並びも全体の枚数で決める（顔ぶれが減っても前後は変わらない）", async () => {
+        const before = await chipsFor("/");
+        const after = await chipsFor("/?category=travel");
+
+        const kept = before.filter((t) => after.includes(t));
+        expect(after, "絞り込みで並びが入れ替わっている").toEqual(kept);
+    });
+});
+
+// 選択中のタグは、上位に無くても・結果が0件でも必ず出す
+// （消えると解除できなくなる）
+describe("選択中のタグの救済", () => {
+    it("結果が0件でも、選択したタグのチップは残る", async () => {
+        window.history.replaceState({}, "", "/?tags=night&q=zzzznomatch");
+        render(<GalleryPageClient />);
+
+        await waitFor(() => expect(screen.getByText(/条件に一致する写真がありません/)).toBeInTheDocument());
+        const labels = screen.getAllByRole("switch").map((el) => el.getAttribute("aria-label") ?? "");
+        expect(labels, "解除するチップまで消えている").toContain("night");
     });
 });

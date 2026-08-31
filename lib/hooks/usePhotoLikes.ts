@@ -108,7 +108,6 @@ export function usePhotoLikes(
         // 「未ログイン」扱いになってサーバーへ届かない。
         if (authLoading) return true;
         let failed = false;
-        touchedRef.current = true;
         busyRef.current = true;
         setPending(true);
 
@@ -133,6 +132,14 @@ export function usePhotoLikes(
             setPending(false);
             return true;   // 未ログインはローカル保存だけ＝失敗ではない
         }
+        // **番人はサーバーに書きに行くと決まってから立てる。**
+        //
+        // 入口で立てていたので、**未ログインで押しただけ**でも立っていた
+        // ——未ログインはサーバーに何も送らないのに、マウント時の件数取得
+        // （唯一の是正経路）が永久に殺され、ビルド時の古い数字が出たまま
+        // 固定される。番人が下りるのは写真を切り替えたときだけで、
+        // 写真ページでは切り替わらない。
+        touchedRef.current = true;
         setCount((c) => Math.max(0, c + (wasLiked ? -1 : 1)));
 
         // 応答が返る頃には別の写真に送られているかもしれない。
@@ -161,8 +168,15 @@ export function usePhotoLikes(
                 // に戻り、押し直しても同じ 404 で永久に直らない。
                 // コメントの削除は既に `isGoneResponse` で同じ扱いにしている。
                 //
-                // 付ける側（POST）は逆——非公開ならマーカーごと戻されて
-                // 何も起きていないので、巻き戻すのが正しい。
+                // 付ける側（POST）はここに入れない。**ただし「何も起きて
+                // いない」とは限らない**——サーバーがマーカーを戻すのは
+                // カウンタ更新に失敗した分岐だけで、「既にマーカーがある
+                // ＋非公開」の 404 では**マーカーは残る**（`likePhoto` の
+                // 冪等経路）。その場合こちらは巻き戻すので、サーバー＝
+                // いいね済み／画面＝未いいね で固定される。踏むには
+                // 「別端末でいいね → 非公開化 → `/user/likes/` が着地する
+                // 前に押す」が要る。直すならサーバーが 404 に `liked: true`
+                // を載せる必要があるので、ここでは**直していない**。
                 if (stillSamePhoto()) setServerLiked(false);
             } else {
                 // 失敗 → 楽観更新を巻き戻す
@@ -170,6 +184,9 @@ export function usePhotoLikes(
                 if (stillSamePhoto()) {
                     setServerLiked(wasLiked);
                     setCount((c) => Math.max(0, c + (wasLiked ? 1 : -1)));
+                    // 巻き戻した＝「押す前」の姿に戻ったので、番人も下ろす。
+                    // 立てたままだと、遅れて届くサーバーの真値まで弾く
+                    touchedRef.current = false;
                 }
                 failed = true;
             }
@@ -179,6 +196,7 @@ export function usePhotoLikes(
             if (stillSamePhoto()) {
                 setServerLiked(wasLiked);
                 setCount((c) => Math.max(0, c + (wasLiked ? 1 : -1)));
+                touchedRef.current = false;   // 上と同じ
             }
             failed = true;
         } finally {

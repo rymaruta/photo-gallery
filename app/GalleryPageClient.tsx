@@ -200,33 +200,16 @@ export default function GalleryPageClient() {
     return [...Array.from(set)];
   }, [PHOTOS]);
 
-  // タグの写真枚数。フィルタバーの並び順と件数バッジに使う。
+  // タグの**字面と並び**は全写真で決める（絞り込みでは動かさない）。
   //
-  // **いま出ている結果の中で数える。** 全写真で数えていた頃は、カテゴリや
-  // 検索語、「フォロー中」で絞っている最中でも**全体の枚数**を出していた
-  // ——チップが「fuji 5」なのに押すと「結果: 2 件」、押しても0件になる
-  // タグが「5」と書かれたまま上位に居座る（上位10件の選抜も同じ数字で
-  // 決めていた）。バッジは「押したらこうなる」を出すのが素直なので、
-  // `filteredPhotos`（＝カテゴリ・検索語・フィード・選択済みタグを全部
-  // 通した結果）の上で数える。
-  //
-  // **表記ゆれは1つに畳む。** 生のタグで数えていた頃は、`Fuji` と `fuji`、
-  // `旅` と `#旅` が**件数の割れた2つのチップ**として並んでいた。絞り込みは
-  // `tagKey` で正規化して当てるので、どちらを押しても出る写真は同じ
-  // ——数字だけが「3枚」「1枚」に割れて、同じものが2つ見える。
-  // `dca777a` で選択判定も正規化したので、いまは**両方が同時に光る**。
-  //
-  // 代表として出すのは**いちばん多く使われている表記**（同数なら文字列の
-  // 小さい方——配列の順で字面が入れ替わらないように）。生のタグを表示に使う方針は変えない——スラッグ（`旅`）を
-  // 出すと、投稿者が付けた `#旅` と字面が変わってしまう。
-  const tagCounts = React.useMemo(() => {
+  // 代表表記は「いちばん多く使われている表記、同数なら文字列の小さい方」。
+  // これを絞り込み後の集合で決めると、**検索1文字ごとにチップの字面が
+  // 入れ替わる**（`Fuji` ⇄ `fuji`）。`e731478` で「写真が1枚増えるだけで
+  // 入れ替わる」を潰したのと同じ性質なので、母集団は全体に固定する。
+  const tagLabels = React.useMemo(() => {
     const groups = new Map<string, { label: string; total: number; byLabel: Map<string, number> }>();
-    for (const p of filteredPhotos) {
-      // **1枚の写真は1回しか数えない。** 保存側の重複排除は完全一致でしか
-      // 効かない（`api-user/src/sanitize.ts` の `new Set(cleaned)`）ので、
-      // 「旅, #旅」と打った写真は両方の表記を持つ。畳んで足し込むと
-      // **1枚を2枚と数える**——チップは「2」なのに押すと「結果: 1 件」。
-      // 集約ページの数え上げ（`collectEntries`）は最初からこの形。
+    for (const p of PHOTOS) {
+      // 1枚の写真は1回しか数えない（`["旅","#旅"]` を2枚と数えない）
       const seen = new Set<string>();
       for (const t of p.tags ?? []) {
         const key = tagKey(t);
@@ -238,27 +221,51 @@ export default function GalleryPageClient() {
         g.total += 1;
         const n = (g.byLabel.get(t) ?? 0) + 1;
         g.byLabel.set(t, n);
-        // **同数の決着を配列の順に任せない。** 「先に見つけた方」だと、
-        // 写真が1枚増えるだけでチップの字面が入れ替わる（各1枚ずつは
-        // ごく普通の形）。同数なら文字列の小さい方に固定する。
         const cur = g.byLabel.get(g.label) ?? 0;
         if (n > cur || (n === cur && t < g.label)) g.label = t;
         groups.set(key, g);
       }
     }
+    return groups;
+  }, [PHOTOS]);
+
+  // 件数バッジは**いま出ている結果の中**で数える。
+  //
+  // 全写真で数えていた頃は、カテゴリや検索語、「フォロー中」で絞っている
+  // 最中でも全体の枚数を出していた——チップが「fuji 3」なのに押すと
+  // 「結果: 1 件」。バッジは「そのタグを足したらこうなる」を出すのが素直。
+  // 結果に無いタグはそもそも載らない（押しても0件のチップを並べない）。
+  const tagCounts = React.useMemo(() => {
     const map: Record<string, number> = {};
-    for (const g of groups.values()) map[g.label] = g.total;
+    for (const p of filteredPhotos) {
+      const seen = new Set<string>();
+      for (const t of p.tags ?? []) {
+        const key = tagKey(t);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        // 字面は全体で決めた代表を使う（絞り込みで変えない）
+        const label = tagLabels.get(key)?.label ?? t;
+        map[label] = (map[label] ?? 0) + 1;
+      }
+    }
     return map;
-  }, [filteredPhotos]);
+  }, [filteredPhotos, tagLabels]);
 
   // 表示するのは「よく使うタグ」だけ。1枚しかないタグまで全部並べても選べないので、
   // 枚数の多い順に上位だけ出し、残りは検索で辿ってもらう。
   const tags = React.useMemo(() => {
     // 結果に無いタグは `tagCounts` に載らない（結果の中だけを数えるので、
     // 載っているものは必ず1枚以上）。押しても0件のチップは並ばない。
-    // 数え方を変えたぶん、絞り込むとチップの顔ぶれも動く
+    //
+    // **並び順は全体の枚数で決める。** 絞り込み後の数で並べ替えると、
+    // 検索1文字ごとにチップが入れ替わって**押そうとした位置がずれる**。
+    // 顔ぶれは結果に応じて減るが、残ったものの前後関係は変わらない。
+    const totalOf = (label: string) => {
+      const g = tagLabels.get(tagKey(label));
+      return g ? g.total : (tagCounts[label] ?? 0);
+    };
     const popular = Object.keys(tagCounts)
-      .sort((a, b) => (tagCounts[b] - tagCounts[a]) || a.localeCompare(b))
+      .sort((a, b) => (totalOf(b) - totalOf(a)) || a.localeCompare(b))
       .slice(0, POPULAR_TAG_LIMIT);
     // 選択中のタグは上位に無くても必ず出す（消えると解除できなくなるため）。
     //
@@ -269,7 +276,7 @@ export default function GalleryPageClient() {
     const popularKeys = new Set(popular.map(tagKey));
     const extra = filters.selectedTags.filter((t) => !popularKeys.has(tagKey(t)));
     return [...popular, ...extra];
-  }, [tagCounts, filters.selectedTags]);
+  }, [tagCounts, tagLabels, filters.selectedTags]);
 
   const categoryDisplayMap = React.useMemo(() => {
     const map: Record<string, string> = {};

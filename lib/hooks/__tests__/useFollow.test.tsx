@@ -8,7 +8,11 @@ import { renderHook, waitFor, act } from "@testing-library/react";
 
 const mockUserFetch = vi.hoisted(() => vi.fn());
 const mockPublicFetch = vi.hoisted(() => vi.fn());
-vi.mock("../../utils/api", () => ({
+// **実物を土台にする。** 列挙だけだと、実装が新しく使い始めた export
+// （`readApiError` など）が undefined になり、呼んだ瞬間に投げたものを
+// catch が飲む——緑のまま間違ったことを測るテストになる。
+vi.mock("../../utils/api", async (importActual) => ({
+    ...(await importActual<typeof import("../../utils/api")>()),
     userFetch: (...a: unknown[]) => mockUserFetch(...a),
     userPublicFetch: (...a: unknown[]) => mockPublicFetch(...a),
     publicFetch: (...a: unknown[]) => mockPublicFetch(...a),
@@ -232,6 +236,46 @@ describe("フォロー数が分かっていない間", () => {
         await act(async () => { await result.current.toggle(); });
 
         expect(result.current.countsKnown, "知らない数を書き込んでいる").toBe(false);
+    });
+
+    // **プロフィールの実経路**（数を持つ `FollowButton` と、数を取らない
+    // `FollowAction` が同じ相手で並ぶ）。押すのは後者だが、数のピルは
+    // 前者が描く——共有ストア経由でその場で動くことを固定する。
+    // ここが「知っている側の楽観更新」で、変異させても落ちるテストが
+    // 無かった（レビュー指摘）。
+    it("数を持つ側のピルが、その場で +1 する", async () => {
+        const useFollow = await load();
+        mockUserFetch.mockImplementation((url: string) =>
+            Promise.resolve(url === "/user/following"
+                ? { ok: true, json: async () => ({ userIds: [] }) }
+                : new Promise(() => { })));   // 応答は返さない（楽観更新だけを見る）
+
+        const pill = renderHook(() => useFollow(TARGET, true));            // 数を描く側
+        const action = renderHook(() => useFollow(TARGET, true, false));   // 押す側
+        await waitFor(() => expect(pill.result.current.countsKnown).toBe(true));
+        expect(pill.result.current.followers).toBe(3);
+
+        void action.result.current.toggle();
+
+        await waitFor(() => expect(
+            pill.result.current.followers,
+            "押した側と数を描く側で共有ストアが繋がっていない",
+        ).toBe(4));
+    });
+
+    it("失敗したら数も元に戻す", async () => {
+        const useFollow = await load();
+        mockUserFetch.mockImplementation((url: string) =>
+            Promise.resolve(url === "/user/following"
+                ? { ok: true, json: async () => ({ userIds: [] }) }
+                : { ok: false, status: 500, json: async () => ({ error: "だめ" }) }));
+
+        const { result } = renderHook(() => useFollow(TARGET, true));
+        await waitFor(() => expect(result.current.countsKnown).toBe(true));
+        await act(async () => { await result.current.toggle(); });
+
+        expect(result.current.followers, "失敗したのに増えたまま").toBe(3);
+        expect(result.current.isFollowing).toBe(false);
     });
 
     it("数を取る呼び出しでは、今までどおり楽観更新＋確定値", async () => {

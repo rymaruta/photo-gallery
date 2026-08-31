@@ -10,7 +10,10 @@ import { render, screen, waitFor } from "@testing-library/react";
 // この画面には読み込み中の表示が無いので、分かるまで出さずに待つ。
 
 const mockUserPublicFetch = vi.hoisted(() => vi.fn());
-vi.mock("../../../lib/utils/api", () => ({
+// 実物を土台にする（列挙だけだと、実装が新しく使う export が undefined に
+// なって投げ、catch が飲む＝緑のまま何も測らないテストになる）
+vi.mock("../../../lib/utils/api", async (importActual) => ({
+    ...(await importActual<typeof import("../../../lib/utils/api")>()),
     userFetch: vi.fn(async () => ({ ok: true, json: async () => ({ userIds: [] }) })),
     userPublicFetch: (...a: unknown[]) => mockUserPublicFetch(...a),
     publicFetch: vi.fn(),
