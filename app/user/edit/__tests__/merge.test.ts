@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { getLocalized } from "@/lib/data/photos";
 import { mergeLocalizedTitle, mergeLocalizedDescription } from "../page";
 import { toDateInputValue, mergeDate } from "../../../../lib/utils/dateInput";
 
@@ -48,6 +49,28 @@ describe("mergeLocalizedTitle", () => {
         expect(mergeLocalizedTitle({ ja: "旧" }, "新")).toBe("新");
         expect(mergeLocalizedTitle("旧", "新")).toBe("新");
         expect(mergeLocalizedTitle(undefined, "新")).toBe("新");
+    });
+
+    // **空にしたら英語ごと消す。** 残していた頃は `{en:"Morning Sea"}` が
+    // 保存され、日本語UIの表示は `getLocalized` のフォールバックで
+    // **英語が出た**（消したつもりの説明が英訳のまま出続ける）。
+    // 英語を編集・削除する画面はどこにも無いので、直す手段も無かった。
+    it("日本語を空にしたら、英語ごと消える", () => {
+        expect(mergeLocalizedTitle({ ja: "海の朝", en: "Morning Sea" }, ""),
+            "英語が残って、消したはずの文字が英語で出る").toBe("");
+        expect(mergeLocalizedTitle("海の朝", "")).toBe("");
+    });
+
+    it("説明も同じ（空行だけにしても消える）", () => {
+        expect(mergeLocalizedDescription({ ja: ["旧1"], en: ["Old1", "Old2"] }, ""),
+            "英語の段落が残っている").toBe("");
+        expect(mergeLocalizedDescription({ ja: ["旧1"], en: ["Old1"] }, "\n  \n")).toBe("");
+    });
+
+    // 消した値がフォールバックで別言語に化けないこと（この修正の目的）
+    it("消したあとは、日本語UIでも何も出ない", () => {
+        const cleared = mergeLocalizedTitle({ ja: "海の朝", en: "Morning Sea" }, "");
+        expect(getLocalized(cleared as string, "ja")).toBe("");
     });
 });
 

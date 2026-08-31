@@ -39,21 +39,36 @@ function descToText(d: Photo["description"]): string {
     return Array.isArray(arr) ? arr.join("\n") : "";
 }
 
-/** 日本語だけ差し替え、英語側は元のまま残す */
+/**
+ * 日本語だけ差し替え、英語側は元のまま残す。
+ *
+ * **ただし日本語を空にしたら、英語ごと消す。** 残していた頃は
+ * `{ en: "Morning Sea" }` が保存され、表示は `getLocalized` の
+ * フォールバックで**英語が出た**（`lib/data/photos.ts`。日本語が無ければ
+ * 英語に落ちる）。消したつもりの説明が英訳のまま出続けるので、
+ * 個人情報を消す目的だと実害になる。しかも**英語を編集・削除する画面は
+ * どこにも無い**（この画面も /admin/edit も日本語欄しか描かない）ので、
+ * 利用者には直す手段が無かった。
+ *
+ * 言語切替の UI は `6d72bfb` で削除済みで、英語が出るのは JSON-LD・
+ * `sr-only` の併記・画像サイトマップだけ——「消した」の方を優先する。
+ */
 export function mergeLocalizedTitle(original: Photo["title"], ja: string): Photo["title"] {
+    if (!ja) return "";   // 空にした＝消したい（サーバーは空を REMOVE に倒す）
     const en = original && typeof original === "object" ? (original as Record<string, string>).en : undefined;
     if (!en) return ja;
-    return { ...(ja ? { ja } : {}), en };
+    return { ja, en };
 }
 
-/** 説明も同様に、英語側の段落を残す */
+/** 説明も同様。日本語を空にしたら英語ごと消す */
 export function mergeLocalizedDescription(original: Photo["description"], ja: string): Photo["description"] {
     const lines = ja.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) return "";
     const en = original && typeof original === "object" && !Array.isArray(original)
         ? (original as LocalizedParagraphs).en
         : undefined;
     if (!en || en.length === 0) return ja;
-    return { ...(lines.length ? { ja: lines } : {}), en };
+    return { ja: lines, en };
 }
 
 // **サーバーの上限と同じ数字を入れる。** 入れないと、超えた分は

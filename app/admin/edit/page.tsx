@@ -205,8 +205,13 @@ function AdminEditContent() {
             // 古い姿に巻き戻っていた。空文字は「クリアの意思」なので送る
             // （undefined はキーごと落ちて「触らない」になる——下のコメント参照）。
             const nextFields: Record<string, unknown> = {
-                title: { ja: titleJa, en: titleEn },
-                description: { ja: descJaParagraphs, en: descEnParagraphs },
+                // **日本語を空にしたら、英語ごと消す。** `{ja:"", en:"..."}` を
+                // 送ると、サーバーは英語だけを残し、表示は `getLocalized` の
+                // フォールバックで**英語が出る**——この画面には英語の入力欄が
+                // 無いので、消したつもりの文字列を戻す手段が無くなる
+                // （/user/edit の `mergeLocalizedTitle` と同じ判断）。
+                title: titleJa ? { ja: titleJa, en: titleEn } : "",
+                description: descJaParagraphs.length ? { ja: descJaParagraphs, en: descEnParagraphs } : "",
                 // 空文字で送る。undefined だと JSON.stringify がキーごと落とし、
                 // サーバーの部分更新が「指定なし＝触らない」と解釈するため、
                 // 一度入れた場所やカテゴリを空にできなかった。
