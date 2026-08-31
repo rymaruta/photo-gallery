@@ -116,6 +116,24 @@ describe("旅した距離（つなぐ順）", () => {
         return value;
     }
 
+    // 日時を読めない写真は、つなぐ順が決まらないので数えない
+    // （旧実装の `!isNaN(Date.parse(...))` に当たる歯止め）
+    it("日時が空の写真は距離に数えない", async () => {
+        process.env.TZ = "Asia/Tokyo";
+        const withUndated = [
+            ...geoPhotos,
+            { id: "undated", userId: OWNER, src: "https://cdn/u.jpg", title: "日時なし", category: "travel", tags: [],
+                date: "", createdAt: "", published: true, coords: { lat: -33.87, lng: 151.21 } },   // シドニー
+        ];
+        mockPublicFetch.mockResolvedValue({ ok: true, json: async () => withUndated });
+        render(<UserProfileClient userId={OWNER} />);
+        const km = (await screen.findByTitle("旅した総移動距離")).textContent ?? "";
+
+        // シドニーを含めると1万km 単位で増える。含まれていないこと
+        expect(Number(km.replace(/[^0-9]/g, "")), "つなぐ順が決まらない写真を数えている")
+            .toBeLessThan(5000);
+    });
+
     it("閲覧者のタイムゾーンで距離が変わらない", async () => {
         const jst = await distanceFor("Asia/Tokyo");
         const utc = await distanceFor("UTC");

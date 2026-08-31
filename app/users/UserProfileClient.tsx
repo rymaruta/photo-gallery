@@ -24,7 +24,7 @@ import { publicFetch, userFetch, userPublicFetch, readApiError, AUTH_REQUIRED_ME
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 import { EN_MONTHS, splitStoredDate } from "../../lib/utils/photoDate";
-import { compareNewest, compareOldest } from "../../lib/utils/photoOrder";
+import { compareNewest, compareOldest, photoTimeKey } from "../../lib/utils/photoOrder";
 import { ROUTES } from "../../lib/routes";
 import UserAvatar from "../components/UserAvatar";
 import PHOTOS_JSON from "../data/photos.json";
@@ -682,8 +682,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     // `distanceKm` と `geoCount` だけ）。`Date.parse` の呼び出しも一緒に消える。
     const footprint = useMemo(() => {
         const geo = visiblePhotos
-            .filter(p => p.coords && typeof p.coords.lat === "number" && typeof p.coords.lng === "number")
-            .slice()
+            // **日時を読めない写真は入れない。** 旧実装の `!isNaN(Date.parse(...))`
+            // に当たる歯止め。無いとキーが空の写真が先頭に入り、そこから
+            // 最初の地点までの1脚ぶん距離が増える（つなぐ順が決まらない
+            // 写真を、いちばん古い場所として数えることになる）
+            .filter(p => p.coords && typeof p.coords.lat === "number" && typeof p.coords.lng === "number"
+                && photoTimeKey(p) !== "")
             .sort(compareOldest)
             .map(p => p.coords as { lat: number; lng: number });
         let distanceKm = 0;
@@ -692,8 +696,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         return { distanceKm, geoCount: geo.length };
     }, [visiblePhotos]);
 
-
-    // 訪れた場所（地名）を新しい順・重複なしで。抽象的な「N箇所」ではなく実際の地名を見せる。
 
     // テーマソング: 保存された URL を埋め込みプレイヤーに変換（好きな部分の開始・終了つき）
     const songEmbed = useMemo(

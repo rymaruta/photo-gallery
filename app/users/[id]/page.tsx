@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { sortByNewest } from "@/lib/utils/photoOrder";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
@@ -30,14 +29,20 @@ type UserSummary = {
 
 async function loadUserSummary(userId: string): Promise<UserSummary | null> {
     const photos = await loadPhotos();
-    // 並べ方はサイト全体と同じ規則（`lib/utils/photoOrder.ts`）。
-    // ここだけ `createdAt ?? date` と**優先順位が逆**で、しかも `??` なので
-    // `date: ""` を「値がある」と見なしていた（`||` に揃える話は
-    // `lib/utils/related.ts` のテストに記録がある）。代表画像が
-    // 他の画面の「先頭の写真」と食い違う。
-    const userPhotos = sortByNewest(
-        photos.filter((p) => p.userId === userId && p.published !== false),
-    );
+    // **ここは「投稿が新しい順」で正しい。**
+    //
+    // 一度サイト全体の規則（撮影日 → 投稿日）に寄せたが、それは誤りだった
+    // ——この並びが決めるのは OGP の代表画像で、対応するのはプロフィールの
+    // 「投稿」タブ（`/user/photos` が返す投稿順）。撮影日順にすると、
+    // EXIF の撮影日を持つ写真（＝古い日付）が全部下に沈み、**代表画像だけが
+    // 画面の先頭と食い違う**。
+    //
+    // 直すべきだったのは `??` の方だけ。`date: ""` を「値がある」と見なして
+    // いたので、空文字の行が `localeCompare` で最下段に落ちていた
+    // （`lib/utils/related.ts` のテストに同じ話がある）。`||` に揃える。
+    const userPhotos = photos
+        .filter((p) => p.userId === userId && p.published !== false)
+        .sort((a, b) => String(b.createdAt || b.date || "").localeCompare(String(a.createdAt || a.date || "")));
     if (userPhotos.length === 0) return null;
     return {
         displayName: userPhotos.find((p) => p.displayName)?.displayName ?? "ユーザー",
