@@ -32,7 +32,7 @@ const PHOTOS = [
     // する実装でも通ってしまうため（実際その変異で緑になった）
     { id: "p3", src: "https://cdn/c.jpg", title: "う", category: "travel", tags: ["Fuji"], date: "2026-01-03", createdAt: "2026-01-03" },
     { id: "p4", src: "https://cdn/d.jpg", title: "え", category: "travel", tags: ["fuji"], date: "2026-01-04", createdAt: "2026-01-04" },
-    { id: "p5", src: "https://cdn/e.jpg", title: "お", category: "travel", tags: ["fuji"], date: "2026-01-05", createdAt: "2026-01-05" },
+    { id: "p5", src: "https://cdn/e.jpg", title: "お", category: "food", tags: ["fuji"], date: "2026-01-05", createdAt: "2026-01-05" },
     // 1枚が同じタグを2つの表記で持つ（入力欄は重複を落とさず、保存側の
     // 重複排除も完全一致でしか効かないので、普通に保存される）
     { id: "p6", src: "https://cdn/f.jpg", title: "か", category: "travel", tags: ["旅", "#旅"], date: "2026-01-06", createdAt: "2026-01-06" },
@@ -142,5 +142,39 @@ describe("同じ写真が同じタグを2つの表記で持つとき", () => {
 
         const paris = chips().filter((l) => l.toLowerCase().startsWith("paris"));
         expect(paris, "同数の代表が定まっていない").toEqual(["Paris (2)"]);
+    });
+});
+
+// **バッジが「押したらこうなる」を出していなかった。**
+//
+// 全写真で数えていたので、カテゴリや検索語、「フォロー中」で絞っている
+// 最中でも全体の枚数が出ていた——チップが「fuji 3」なのに押すと
+// 「結果: 1 件」。押しても0件になるタグが上位に居座ることもあった。
+describe("絞り込み中のタグの件数", () => {
+    const chips = () => screen.getAllByRole("switch").map((el) => el.getAttribute("aria-label") ?? "");
+
+    it("いま出ている結果の中で数える", async () => {
+        // fuji は travel 2枚（p4/p5）＋ food 1枚。food で絞れば 1枚
+        window.history.replaceState({}, "", "/?category=food");
+        render(<GalleryPageClient />);
+        await waitFor(() => expect(screen.getByText(/結果: 1 件/)).toBeInTheDocument());
+
+        const fuji = chips().filter((l) => l.toLowerCase().startsWith("fuji"));
+        expect(fuji, "全体の枚数を出している（押すと結果と食い違う）").toEqual(["fuji"]);
+    });
+
+    it("結果に1枚も無いタグはチップに出さない", async () => {
+        window.history.replaceState({}, "", "/?category=food");
+        render(<GalleryPageClient />);
+        await waitFor(() => expect(screen.getByText(/結果: 1 件/)).toBeInTheDocument());
+
+        expect(chips().some((l) => l.startsWith("night")),
+            "押しても0件のチップが並んでいる").toBe(false);
+    });
+
+    it("絞っていなければ今までどおり全部の枚数（正常系）", async () => {
+        render(<GalleryPageClient />);
+        await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
+        expect(chips()).toContain("fuji (3)");
     });
 });

@@ -202,6 +202,14 @@ export default function GalleryPageClient() {
 
   // タグの写真枚数。フィルタバーの並び順と件数バッジに使う。
   //
+  // **いま出ている結果の中で数える。** 全写真で数えていた頃は、カテゴリや
+  // 検索語、「フォロー中」で絞っている最中でも**全体の枚数**を出していた
+  // ——チップが「fuji 5」なのに押すと「結果: 2 件」、押しても0件になる
+  // タグが「5」と書かれたまま上位に居座る（上位10件の選抜も同じ数字で
+  // 決めていた）。バッジは「押したらこうなる」を出すのが素直なので、
+  // `filteredPhotos`（＝カテゴリ・検索語・フィード・選択済みタグを全部
+  // 通した結果）の上で数える。
+  //
   // **表記ゆれは1つに畳む。** 生のタグで数えていた頃は、`Fuji` と `fuji`、
   // `旅` と `#旅` が**件数の割れた2つのチップ**として並んでいた。絞り込みは
   // `tagKey` で正規化して当てるので、どちらを押しても出る写真は同じ
@@ -213,7 +221,7 @@ export default function GalleryPageClient() {
   // 出すと、投稿者が付けた `#旅` と字面が変わってしまう。
   const tagCounts = React.useMemo(() => {
     const groups = new Map<string, { label: string; total: number; byLabel: Map<string, number> }>();
-    for (const p of PHOTOS) {
+    for (const p of filteredPhotos) {
       // **1枚の写真は1回しか数えない。** 保存側の重複排除は完全一致でしか
       // 効かない（`api-user/src/sanitize.ts` の `new Set(cleaned)`）ので、
       // 「旅, #旅」と打った写真は両方の表記を持つ。畳んで足し込むと
@@ -241,11 +249,14 @@ export default function GalleryPageClient() {
     const map: Record<string, number> = {};
     for (const g of groups.values()) map[g.label] = g.total;
     return map;
-  }, [PHOTOS]);
+  }, [filteredPhotos]);
 
   // 表示するのは「よく使うタグ」だけ。1枚しかないタグまで全部並べても選べないので、
   // 枚数の多い順に上位だけ出し、残りは検索で辿ってもらう。
   const tags = React.useMemo(() => {
+    // 結果に無いタグは `tagCounts` に載らない（結果の中だけを数えるので、
+    // 載っているものは必ず1枚以上）。押しても0件のチップは並ばない。
+    // 数え方を変えたぶん、絞り込むとチップの顔ぶれも動く
     const popular = Object.keys(tagCounts)
       .sort((a, b) => (tagCounts[b] - tagCounts[a]) || a.localeCompare(b))
       .slice(0, POPULAR_TAG_LIMIT);
