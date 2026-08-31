@@ -180,12 +180,19 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
     const [resolved, setResolved] = useState(false);
     const busyRef = useRef(false);
 
-    // 数は共有ストアから読む（同じ相手を見ている他のコンポーネントと同期する）
-    const { followers, following } = useSyncExternalStore(
+    // 数は共有ストアから読む（同じ相手を見ている他のコンポーネントと同期する）。
+    //
+    // **「まだ分からない」と「0人」を混ぜない。** `?? EMPTY` で 0/0 を
+    // 返していたので、取得が落ちた人のプロフィールは「フォロワー 0 /
+    // フォロー中 0」と**言い切って**いた（失敗の印も再試行の導線も無い）。
+    // 未取得は `undefined` のまま返し、描くかどうかは呼び出し側が決める
+    // ——`usePhotos.loaded`・`followingLoaded`・この下の `resolved` と同じ形。
+    const known = useSyncExternalStore(
         useCallback((fn) => (targetUserId ? subscribe(targetUserId, fn) : () => {}), [targetUserId]),
-        useCallback(() => (targetUserId ? counts.get(targetUserId) ?? EMPTY : EMPTY), [targetUserId]),
-        useCallback(() => EMPTY, []),
+        useCallback(() => (targetUserId ? counts.get(targetUserId) : undefined), [targetUserId]),
+        useCallback(() => undefined, []),
     );
+    const { followers, following } = known ?? EMPTY;
 
     useEffect(() => {
         if (!targetUserId) return;
@@ -216,10 +223,17 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
         setPending(true);
 
         const was = isFollowing;
-        const before = counts.get(targetUserId) ?? EMPTY;
+        // **知らない数を書かない。** `?? EMPTY` で 0/0 を土台にすると、
+        // 数を描かない画面（ユーザー検索の `FollowAction`＝`withCounts=false`）
+        // からフォローしただけで、共有ストアに `following: 0` が焼き付く
+        // ——その足でプロフィールを開くと「フォロワー 501 / フォロー中 0」
+        // と出る（実際は87人）。未取得なら触らないでおく。
+        const before = counts.get(targetUserId);
         setIsFollowing(!was);
         // 楽観的更新。共有ストア経由なので数字のピルもその場で動く
-        setCounts(targetUserId, { ...before, followers: Math.max(0, before.followers + (was ? -1 : 1)) });
+        if (before) {
+            setCounts(targetUserId, { ...before, followers: Math.max(0, before.followers + (was ? -1 : 1)) });
+        }
 
         try {
             const res = await userFetch(`/users/${encodeURIComponent(targetUserId)}/follow`, {
@@ -231,8 +245,11 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
             // でした」になり、直せるものも直せない案内になる。
             if (!res.ok) throw new Error(await readApiError(res, FOLLOW_FAILED));
             const data = await res.json() as { followers?: number };
-            if (typeof data.followers === "number") {
-                setCounts(targetUserId, { ...(counts.get(targetUserId) ?? before), followers: data.followers });
+            // ここも同じ——`following` を知らないまま `followers` だけ書くと、
+            // 知らない方が 0 として残る
+            const cur = counts.get(targetUserId) ?? before;
+            if (typeof data.followers === "number" && cur) {
+                setCounts(targetUserId, { ...cur, followers: data.followers });
             }
             if (followingCache) {
                 if (was) followingCache.delete(targetUserId); else followingCache.add(targetUserId);
@@ -241,7 +258,7 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
         } catch (e) {
             log.error("follow toggle error:", e);
             setIsFollowing(was);
-            setCounts(targetUserId, before);
+            if (before) setCounts(targetUserId, before);
             // トークンが取れない（別タブでログアウト・リフレッシュ失効）は
             // 「うまくいきませんでした」では直らない。押し直させない
             const msg = e instanceof Error ? e.message : "";
@@ -253,5 +270,7 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
         }
     }, [targetUserId, isFollowing, isAuthenticated]);
 
-    return { isFollowing, followers, following, pending, resolved, toggle };
+    // `countsKnown` が false の間は followers/following を描かないこと
+    // （0 と言い切らない）。
+    return { isFollowing, followers, following, countsKnown: known !== undefined, pending, resolved, toggle };
 }

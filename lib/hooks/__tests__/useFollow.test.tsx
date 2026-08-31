@@ -190,3 +190,62 @@ describe("resetFollowingCache: 購読を切らない", () => {
         await waitFor(() => expect(result.current.followers).toBe(9));
     });
 });
+
+// **「まだ分からない」と「0人」を混ぜていた。**
+//
+// 数は共有ストアから `?? EMPTY`（0/0）で読んでいたので、取得が落ちた人の
+// プロフィールは「フォロワー 0 / フォロー中 0」と言い切っていた——失敗の
+// 印も再試行の導線も無く、本当に0人の人と区別が付かない。
+describe("フォロー数が分かっていない間", () => {
+    it("取得に失敗したら「0人」と言わない（countsKnown=false）", async () => {
+        mockPublicFetch.mockRejectedValue(new Error("network"));
+        const useFollow = await load();
+
+        const { result } = renderHook(() => useFollow(TARGET, false));
+        await waitFor(() => expect(result.current.resolved).toBe(true));
+
+        expect(result.current.countsKnown, "取れていないのに数を言い切っている").toBe(false);
+    });
+
+    it("取得できたら数を出す（正常系）", async () => {
+        const useFollow = await load();
+        const { result } = renderHook(() => useFollow(TARGET, false));
+
+        await waitFor(() => expect(result.current.countsKnown).toBe(true));
+        expect(result.current.followers).toBe(3);
+        expect(result.current.following).toBe(1);
+    });
+
+    // **数を描かない画面（ユーザー検索）からフォローしたとき、知らない数を
+    // 共有ストアに焼き付けない。** 焼き付けると、その足でプロフィールを
+    // 開いたときに「フォロワー 501 / フォロー中 0」（実際は87人）と出る。
+    it("数を取らない呼び出しのフォローは、共有ストアを汚さない", async () => {
+        const useFollow = await load();
+        mockUserFetch.mockImplementation((url: string) =>
+            Promise.resolve(url === "/user/following"
+                ? { ok: true, json: async () => ({ userIds: [] }) }
+                : { ok: true, json: async () => ({ followers: 501 }) }));
+
+        // withCounts=false（FollowAction 相当）
+        const { result } = renderHook(() => useFollow(TARGET, true, false));
+        await waitFor(() => expect(result.current.resolved).toBe(true));
+        await act(async () => { await result.current.toggle(); });
+
+        expect(result.current.countsKnown, "知らない数を書き込んでいる").toBe(false);
+    });
+
+    it("数を取る呼び出しでは、今までどおり楽観更新＋確定値", async () => {
+        const useFollow = await load();
+        mockUserFetch.mockImplementation((url: string) =>
+            Promise.resolve(url === "/user/following"
+                ? { ok: true, json: async () => ({ userIds: [] }) }
+                : { ok: true, json: async () => ({ followers: 4 }) }));
+
+        const { result } = renderHook(() => useFollow(TARGET, true));
+        await waitFor(() => expect(result.current.countsKnown).toBe(true));
+        await act(async () => { await result.current.toggle(); });
+
+        expect(result.current.followers).toBe(4);
+        expect(result.current.following, "知っている方まで壊していない").toBe(1);
+    });
+});

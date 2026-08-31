@@ -16,14 +16,19 @@ type Props = {
 };
 
 export default function FollowButton({ targetUserId, isAuthenticated, locale }: Omit<Props, "isOwner"> & { isOwner?: boolean }) {
-    const { followers, following } = useFollow(targetUserId, isAuthenticated);
+    const { followers, following, countsKnown } = useFollow(targetUserId, isAuthenticated);
 
 
     // 統計ピル（投稿・いいね）と同じ行に並べられるよう、ラッパーを持たない
     // フラグメントで返す。並びと余白は親のフレックス行が決める。
     return (
         <>
-            {/* カウントピル（全員に表示）。フォロー中 → フォロワー の順 */}
+            {/* カウントピル（全員に表示）。フォロー中 → フォロワー の順。
+                **まだ分からない間は出さない**——`?? EMPTY` の 0/0 をそのまま
+                描いていた頃は、取得が落ちた人が「フォロワー 0」と言い切られて
+                いた（本当に0人の人と区別が付かない）。この画面には読み込み中の
+                表示が無いので、出さずに待つ。 */}
+            {countsKnown && (<>
             <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
                 <span className="text-sm font-bold tabular-nums leading-none">{following.toLocaleString()}</span>
                 <span className="text-[11px] text-white/60">{locale === "en" ? "following" : "フォロー中"}</span>
@@ -32,6 +37,7 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale }: 
                 <span className="text-sm font-bold tabular-nums leading-none">{followers.toLocaleString()}</span>
                 <span className="text-[11px] text-white/60">{locale === "en" ? "followers" : "フォロワー"}</span>
             </div>
+            </>)}
 
         </>
     );
