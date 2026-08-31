@@ -190,6 +190,14 @@ describe("ストーリーの投稿プレビュー: Tab が外へ漏れない", (
             selectFile(container, videoFile());
 
             const dialog = await screen.findByRole("dialog");
+            // **下書きが出そろうまで待つ。** `findByRole("dialog")` が返るのは
+            // 容器が現れた時点で、閉じ込め（`useFocusTrap`）が `document` に
+            // キー購読を付けるのはそのあと。待たずに Tab を投げると、
+            // **まだ誰も聞いていないので `preventDefault` されない**
+            // ——実測で10回中3回落ちていた（待ちを入れて 0/10）。
+            // 実機では「ダイアログが出た同じティックに Tab を押す」ことは
+            // できないので、これは試験側の競合。
+            await screen.findByRole("button", { name: /ストーリーに投稿/ });
             const items = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE));
             // 巡回の先頭が動画であること＝閉じ込めの対象に入っている
             expect(items[0]?.tagName).toBe("VIDEO");
