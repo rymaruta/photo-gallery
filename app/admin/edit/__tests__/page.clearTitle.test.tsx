@@ -63,6 +63,44 @@ describe("/admin/edit: 日本語を空にしたとき", () => {
         expect(putBody()?.title, "英語だけ残って、消したはずの文字が英語で出る").toBe("");
     });
 
+    it("説明も同じ（空にしたら英語ごと消える）", async () => {
+        render(<EditPage />);
+        const desc = await screen.findByDisplayValue("旧い説明");
+
+        await userEvent.clear(desc);
+        await userEvent.click(screen.getByRole("button", { name: /保存|更新/ }));
+
+        await waitFor(() => expect(putBody()).not.toBeNull());
+        expect(putBody()?.description, "英語の段落が残っている").toBe("");
+    });
+
+    // **「この編集で空にした」と「もともと空」を分ける。**
+    // 日本語が無く英語だけの写真（旧実装で日本語を消した分）は、この画面では
+    // 最初から空欄に見える。状態だけで「空なら消す」に倒すと、**タイトルに
+    // 触らず場所だけ直した保存で英語が消える**——しかも英語欄が無いので
+    // 戻せず、触っていない項目で再ビルド（1回8分）まで走る。
+    it("もともと空の写真は、触らなければ送らない", async () => {
+        mockAuthFetch.mockImplementation((_url: string, init?: { method?: string }) =>
+            Promise.resolve(init?.method === "PUT"
+                ? { ok: true, json: async () => ({ success: true }) }
+                : {
+                    ok: true,
+                    json: async () => [{ ...PHOTO, title: { en: "Morning Sea" }, description: { en: ["Old line"] } }],
+                }));
+
+        render(<EditPage />);
+        const location = await screen.findByDisplayValue("北海道");
+        await userEvent.clear(location);
+        await userEvent.type(location, "青森");
+        await userEvent.click(screen.getByRole("button", { name: /保存|更新/ }));
+
+        await waitFor(() => expect(putBody()).not.toBeNull());
+        const body = putBody()!;
+        expect("title" in body, "触っていないタイトルを送っている（英語が消える）").toBe(false);
+        expect("description" in body, "触っていない説明を送っている").toBe(false);
+        expect(body.location).toBe("青森");
+    });
+
     it("日本語が入っていれば、英語は今までどおり残す", async () => {
         render(<EditPage />);
         const title = await screen.findByDisplayValue("海の朝");

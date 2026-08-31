@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../auth/context";
@@ -45,6 +45,8 @@ function AdminEditContent() {
     const [saving, setSaving] = useState(false);
 
     // Basic
+    // 読み込んだ時点の日本語（「この編集で空にした」の判定に使う）
+    const loadedRef = useRef<{ titleJa: string; descJa: string }>({ titleJa: "", descJa: "" });
     const [titleJa, setTitleJa] = useState("");
     const [titleEn, setTitleEn] = useState("");
     // Description
@@ -125,8 +127,17 @@ function AdminEditContent() {
                     setTitleJa(titleJaVal);
                     setTitleEn(titleEnVal);
 
-                    setDescJa(parseParagraphs(data.description, "ja"));
+                    const descJaVal = parseParagraphs(data.description, "ja");
+                    setDescJa(descJaVal);
                     setDescEn(parseParagraphs(data.description, "en"));
+
+                    // **「この編集で空にした」と「もともと空」を分ける。**
+                    // 日本語が無く英語だけの写真（旧実装で日本語を消した分）は
+                    // この画面で最初から空欄に見える。状態だけを見て「空なら
+                    // 消す」に倒すと、**タイトルに触らず場所だけ直した保存で
+                    // 英語が消える**（しかも英語欄が無いので戻せない。
+                    // 触っていない項目で `metaChanged` が立ち、8分の再ビルドも走る）。
+                    loadedRef.current = { titleJa: titleJaVal, descJa: descJaVal };
 
                     setLocation(data.location ?? "");
                     setCategory(data.category ?? "");
@@ -210,8 +221,14 @@ function AdminEditContent() {
                 // フォールバックで**英語が出る**——この画面には英語の入力欄が
                 // 無いので、消したつもりの文字列を戻す手段が無くなる
                 // （/user/edit の `mergeLocalizedTitle` と同じ判断）。
-                title: titleJa ? { ja: titleJa, en: titleEn } : "",
-                description: descJaParagraphs.length ? { ja: descJaParagraphs, en: descEnParagraphs } : "",
+                // 空にした（＝もとは入っていた）ときだけクリア。もともと
+                // 空なら `undefined`＝キーごと落として「触らない」にする
+                title: titleJa
+                    ? { ja: titleJa, en: titleEn }
+                    : (loadedRef.current.titleJa ? "" : undefined),
+                description: descJaParagraphs.length
+                    ? { ja: descJaParagraphs, en: descEnParagraphs }
+                    : (loadedRef.current.descJa ? "" : undefined),
                 // 空文字で送る。undefined だと JSON.stringify がキーごと落とし、
                 // サーバーの部分更新が「指定なし＝触らない」と解釈するため、
                 // 一度入れた場所やカテゴリを空にできなかった。
@@ -315,7 +332,9 @@ function AdminEditContent() {
                 <form onSubmit={(e) => void handleSave(e)} className="space-y-5">
 
                     {/* タイトル。英語欄は廃止（サイト表示は日本語のみ）。
-                        既存の英語テキストは JSON-LD 等で使うため、保存時にそのまま引き継ぐ。 */}
+                        既存の英語テキストは保存時に引き継ぐが、**日本語を
+                        空にしたら英語ごと消す**（残すと表示が英語に化けるうえ、
+                        この画面から戻せない）。もともと空の写真は触らない。 */}
                     <div>
                         <label className={labelCls}>{isJa ? "タイトル" : "Title"}</label>
                         <input type="text" value={titleJa} onChange={(e) => setTitleJa(e.target.value)} className={inputCls} />
