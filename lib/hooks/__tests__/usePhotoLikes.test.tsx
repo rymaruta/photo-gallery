@@ -18,7 +18,11 @@ Object.defineProperty(globalThis, "localStorage", {
 // publicFetch は管理APIを向いており、いいね/コメント/フォローの経路は存在しない。
 const mockPublicFetch = vi.hoisted(() => vi.fn());
 const mockUserFetch = vi.hoisted(() => vi.fn());
-vi.mock("../../utils/api", () => ({
+// **実物を土台にする。** 列挙だけだと、実装が新しく使い始めた export
+// （`isGoneResponse`）が undefined になり、呼んだ瞬間に投げる——それを
+// hook の catch が飲むので、**緑のまま間違ったことを測るテスト**になる。
+vi.mock("../../utils/api", async (importActual) => ({
+    ...(await importActual<typeof import("../../utils/api")>()),
     publicFetch: (...a: unknown[]) => mockPublicFetch(...a),
     userPublicFetch: (...a: unknown[]) => mockPublicFetch(...a),
     userFetch: (...a: unknown[]) => mockUserFetch(...a),
@@ -248,5 +252,89 @@ describe("usePhotoLikes: toggle は成否を返す", () => {
         let ok: boolean | undefined;
         await act(async () => { ok = await result.current.toggle(); });
         expect(ok).toBe(true);
+    });
+});
+
+// **押したあとに、押す前の数字が遅れて届いて巻き戻していた。**
+//
+// マウント時の件数取得は「押す前の数」を運ぶ。同じ番人（`touchedRef`）を
+// `serverLiked` にだけ入れて、数字に入れ忘れていたので、回線が遅いと
+// **ハートは付いたまま数字だけ元に戻る**（サーバーの真値は増えている）。
+describe("遅れて届いた初回の件数", () => {
+    it("押したあとの確定値を巻き戻さない", async () => {
+        let settleInitial: ((v: unknown) => void) | null = null;
+        mockPublicFetch.mockImplementation(() => new Promise((res) => { settleInitial = res; }));
+        mockUserFetch.mockImplementation((url: string) =>
+            Promise.resolve(url.startsWith("/user/likes/")
+                ? { ok: true, json: async () => ({ liked: false }) }
+                : { ok: true, json: async () => ({ likes: 43 }) }));
+
+        const { result } = renderHook(() => usePhotoLikes("p1", 42, true));
+        await act(async () => { await result.current.toggle(); });
+        expect(result.current.count).toBe(43);
+
+        // 押す前に投げた取得が、いま着地する
+        await act(async () => {
+            settleInitial!({ ok: true, json: async () => ({ likes: 42 }) });
+            await Promise.resolve();
+        });
+
+        expect(result.current.count, "押す前の数字で巻き戻している").toBe(43);
+        expect(result.current.liked).toBe(true);
+    });
+
+    it("押していなければ、届いた数字をそのまま出す（正常系）", async () => {
+        mockPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ likes: 42 }) });
+        const { result } = renderHook(() => usePhotoLikes("p1", 10, true));
+        await waitFor(() => expect(result.current.count).toBe(42));
+    });
+});
+
+// **非公開になった写真のいいねは、解除だけ通る。**
+//
+// サーバー（`api-user/src/likes.ts` の DELETE）はマーカーを消してカウンタも
+// 減らしたうえで、非公開・削除済みなら数字を返さずに 404 を返す（減算に
+// 公開判定を足すと「本人が永久に取り消せない」ため意図してそうしてある）。
+// クライアントが一律「失敗」と読んで巻き戻すと、**サーバーは解除済みなのに
+// 画面はいいね済み**のまま、押し直しても同じ 404 で永久に直らない。
+describe("もう見えない写真のいいね", () => {
+    const gone = { ok: false, status: 404, json: async () => ({ error: "写真が見つかりません" }), clone() { return this; } };
+
+    it("解除は成功として扱う（巻き戻さない）", async () => {
+        mockPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ likes: 11 }) });
+        mockUserFetch.mockImplementation((url: string) =>
+            Promise.resolve(url.startsWith("/user/likes/")
+                ? { ok: true, json: async () => ({ liked: true }) }
+                : gone));
+
+        const { result } = renderHook(() => usePhotoLikes("p1", 11, true));
+        await waitFor(() => expect(result.current.liked).toBe(true));
+
+        let ok = false;
+        await act(async () => { ok = await result.current.toggle(); });
+
+        expect(ok, "解除できているのに失敗として伝えている").toBe(true);
+        expect(result.current.liked, "サーバーは解除済みなのに、いいね済みへ戻している").toBe(false);
+        expect(result.current.count).toBe(10);
+    });
+
+    // 付ける側は逆。非公開ならマーカーごと戻されて何も起きていないので、
+    // 巻き戻すのが正しい
+    it("付ける側は今までどおり巻き戻して失敗を伝える", async () => {
+        mockPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ likes: 11 }) });
+        mockUserFetch.mockImplementation((url: string) =>
+            Promise.resolve(url.startsWith("/user/likes/")
+                ? { ok: true, json: async () => ({ liked: false }) }
+                : gone));
+
+        const { result } = renderHook(() => usePhotoLikes("p1", 11, true));
+        await waitFor(() => expect(result.current.count).toBe(11));
+
+        let ok = true;
+        await act(async () => { ok = await result.current.toggle(); });
+
+        expect(ok).toBe(false);
+        expect(result.current.liked).toBe(false);
+        expect(result.current.count).toBe(11);
     });
 });

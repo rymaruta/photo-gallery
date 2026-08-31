@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFavorites } from "./useFavorites";
-import { userPublicFetch, userFetch } from "../utils/api";
+import { userPublicFetch, userFetch, isGoneResponse } from "../utils/api";
 import { log } from "../utils/log";
 
 // 写真の「いいね」。ハート1つで2つの役割を担う:
@@ -52,7 +52,14 @@ export function usePhotoLikes(
                 const res = await userPublicFetch(`/photos/${encodeURIComponent(photoId)}/like`, { signal: controller.signal });
                 if (!res.ok) return;
                 const data = await res.json() as { likes?: number };
-                if (!aborted && typeof data.likes === "number") setCount(data.likes);
+                // **押したあとなら書かない。** この取得はマウント時に投げた
+                // もので、運ぶのは「押す前の数」。遅れて着地すると、
+                // POST/DELETE がサーバーの真値で確定させた数を**古い値で
+                // 巻き戻す**（ハートは付いたまま数字だけ42に戻る、の形）。
+                // 同じ番人を `serverLiked` にだけ入れて、数字に入れ忘れていた
+                // ——このファイルの冒頭コメントが警告しているのは、まさに
+                // この上書き。
+                if (!aborted && !touchedRef.current && typeof data.likes === "number") setCount(data.likes);
             } catch { /* 初期値のまま */ }
         })();
         return () => { aborted = true; controller.abort(); };
@@ -142,6 +149,21 @@ export function usePhotoLikes(
             if (res.ok) {
                 const data = await res.json() as { likes?: number };
                 if (typeof data.likes === "number" && stillSamePhoto()) setCount(data.likes); // サーバーの真値で確定
+            } else if (wasLiked && await isGoneResponse(res)) {
+                // **解除は「もう見えない写真」でも通っている。**
+                //
+                // サーバーはマーカーを消してカウンタも減らしたうえで、
+                // 非公開・削除済みなら数字を返さずに 404 を返す
+                // （`api-user/src/likes.ts` の DELETE。減算に公開判定を
+                // 足すと「非公開になった写真のいいねを本人が永久に取り消せ
+                // ない」ため、意図してそうしてある）。
+                // ここで巻き戻すと、**サーバーは解除済みなのに画面はいいね済み**
+                // に戻り、押し直しても同じ 404 で永久に直らない。
+                // コメントの削除は既に `isGoneResponse` で同じ扱いにしている。
+                //
+                // 付ける側（POST）は逆——非公開ならマーカーごと戻されて
+                // 何も起きていないので、巻き戻すのが正しい。
+                if (stillSamePhoto()) setServerLiked(false);
             } else {
                 // 失敗 → 楽観更新を巻き戻す
                 if (didToggleFavorite) toggleFavorite(photoId);
