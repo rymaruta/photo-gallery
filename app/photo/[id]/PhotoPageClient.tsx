@@ -23,7 +23,7 @@ import { slugify, collectionPath } from "../../../lib/utils/collections";
 import ProfileLink from "../../components/ProfileLink";
 import RelatedPhotos from "../../components/RelatedPhotos";
 import CommentSection from "../../components/CommentSection";
-import { sameAuthorPhotos, sameLocationPhotos, adjacentPhotos } from "../../../lib/utils/related";
+import { relatedSections, adjacentPhotos } from "../../../lib/utils/related";
 import { ROUTES } from "../../../lib/routes";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useLocale } from "../../i18n/context";
@@ -423,8 +423,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
         if (!photo) return { author: [] as Photo[], location: [] as Photo[], prev: null as Photo | null, next: null as Photo | null };
         if (allPhotos.length <= 1 && initialRelated) return initialRelated;
         return {
-            author: sameAuthorPhotos(photo, allPhotos, 8),
-            location: sameLocationPhotos(photo, allPhotos, 8),
+            ...relatedSections(photo, allPhotos, 8),
             ...adjacentPhotos(photo, allPhotos),
         };
     }, [photo, allPhotos, initialRelated]);

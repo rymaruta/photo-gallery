@@ -43,13 +43,22 @@ export function sameAuthorPhotos(current: Photo, all: Photo[], limit = 8): Photo
  * **同一投稿者は除かない**（下の実装コメント参照。以前この JSDoc が
  * 「同一投稿者の写真は除く」と逆のことを書いていた）。
  */
-export function sameLocationPhotos(current: Photo, all: Photo[], limit = 8): Photo[] {
+export function sameLocationPhotos(
+    current: Photo,
+    all: Photo[],
+    limit = 8,
+    exclude?: ReadonlySet<string>,
+): Photo[] {
     const loc = current.location;
     if (!loc || normalizeLocation(loc).length < 2) return [];
     return all
         .filter(
             (p) =>
                 p.id !== current.id &&
+                // **除外は上限で切る前にかける。** あとから間引くと、
+                // 同じ場所の写真が9枚あっても「8枚取って重複を落として3枚」
+                // のように、出せるはずの写真が出なくなる
+                !exclude?.has(p.id) &&
                 isPublic(p) &&
                 // **同一投稿者を除かない。** 投稿者が実質1人なので、この条件が
                 // あると常に偽になり、out/photo/*.html 30枚すべてで
@@ -77,4 +86,29 @@ export function adjacentPhotos(
         prev: idx > 0 ? ordered[idx - 1] : null,
         next: idx < ordered.length - 1 ? ordered[idx + 1] : null,
     };
+}
+
+/**
+ * 写真ページの回遊セクション（同じ投稿者 / 同じ場所）。
+ *
+ * **場所側は、投稿者側に出したものを除く。** この2つは同じ画面に上下で
+ * 並ぶのに、互いを知らずに選んでいたので、**同じサムネイルが2度出て**
+ * いた——実データ30枚での実測では、場所セクションが出る6ページのうち
+ * **3ページで重複**、その3ページは中身が**全部**上の再掲だった
+ * （投稿者が実質1人なので、同じ場所の写真はほぼ最新8枚に含まれる）。
+ *
+ * 呼び出し側2つ（静的生成の `page.tsx` とクライアントの `PhotoPageClient`）
+ * が同じ組を作るので、ここに1本化する——片方だけ直すと、静的HTMLと
+ * ハイドレーション後で中身が変わる。
+ *
+ * 除いた結果が0件ならセクションごと出ない（`RelatedPhotos` は0件で null）。
+ */
+export function relatedSections(
+    current: Photo,
+    all: Photo[],
+    limit = 8,
+): { author: Photo[]; location: Photo[] } {
+    const author = sameAuthorPhotos(current, all, limit);
+    const shown = new Set(author.map((p) => p.id));
+    return { author, location: sameLocationPhotos(current, all, limit, shown) };
 }

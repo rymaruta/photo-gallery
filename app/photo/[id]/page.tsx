@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { siteConfig } from "@/lib/utils/seo";
 import { getLocalized, getLocalizedParagraphs } from "@/lib/data/photos";
 import { loadAllPhotos } from "@/lib/server/photos";
-import { sameAuthorPhotos, sameLocationPhotos, adjacentPhotos } from "@/lib/utils/related";
+import { relatedSections, adjacentPhotos } from "@/lib/utils/related";
 import { withPlaceholderParam } from "../../../lib/server/staticParams";
 
 // 写真データを読み込む関数
@@ -109,8 +109,7 @@ export default async function PhotoPage({ params }: PageProps) {
     // クライアント取得を待たずにクローラーが内部リンクを辿れるようにする（SEO）。
     const initialRelated = photo
         ? {
-            author: sameAuthorPhotos(photo, photos, 8),
-            location: sameLocationPhotos(photo, photos, 8),
+            ...relatedSections(photo, photos, 8),
             ...adjacentPhotos(photo, photos),
         }
         : undefined;
