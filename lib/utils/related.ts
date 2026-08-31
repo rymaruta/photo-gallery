@@ -1,4 +1,5 @@
 import type { Photo } from "../data/photos";
+import { compareNewest } from "./photoOrder";
 
 // 写真ページの回遊導線に使う「関連写真」の選定ロジック。
 // ビルド時の photos.json（+ APIの最新一覧）だけで計算でき、API追加は不要。
@@ -16,17 +17,9 @@ export function sameLocation(a?: string, b?: string): boolean {
     return na === nb || na.includes(nb) || nb.includes(na);
 }
 
-/** createdAt/date の新しい順で安定ソートするための比較キー */
-function timeKey(p: Photo): string {
-    // ホームの既定ソート（lib/hooks/useGallery.ts）と同じ優先順位にする。
-    // 逆にすると、一覧で隣にあった写真と「次の写真」が食い違う
-    // （撮影日と投稿日は普通ズレるため）。
-    return (p.date || p.createdAt || "");
-}
-
-function sortByNewest(a: Photo, b: Photo): number {
-    return timeKey(b).localeCompare(timeKey(a));
-}
+// 並べ替えは lib/utils/photoOrder.ts に1本化した（ホーム・集約ページと
+// 同じ規則にする。逆にすると、一覧で隣にあった写真と「次の写真」が
+// 食い違う——撮影日と投稿日は普通ズレるため）。
 
 /** 公開写真だけに絞る（published===false を除外） */
 function isPublic(p: Photo): boolean {
@@ -41,7 +34,7 @@ export function sameAuthorPhotos(current: Photo, all: Photo[], limit = 8): Photo
     if (!owner) return [];
     return all
         .filter((p) => p.id !== current.id && isPublic(p) && p.userId === owner)
-        .sort(sortByNewest)
+        .sort(compareNewest)
         .slice(0, limit);
 }
 
@@ -64,7 +57,7 @@ export function sameLocationPhotos(current: Photo, all: Photo[], limit = 8): Pho
                 // SEO のために作った内部リンク面が丸ごと死んでいた。
                 sameLocation(p.location, loc),
         )
-        .sort(sortByNewest)
+        .sort(compareNewest)
         .slice(0, limit);
 }
 
@@ -77,7 +70,7 @@ export function adjacentPhotos(
     current: Photo,
     all: Photo[],
 ): { prev: Photo | null; next: Photo | null } {
-    const ordered = all.filter(isPublic).sort(sortByNewest);
+    const ordered = all.filter(isPublic).sort(compareNewest);
     const idx = ordered.findIndex((p) => p.id === current.id);
     if (idx === -1) return { prev: null, next: null };
     return {

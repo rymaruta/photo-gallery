@@ -91,6 +91,39 @@ describe("photosInCollection", () => {
     it("該当なしは空配列", () => {
         expect(photosInCollection(photos, "tag", "存在しない")).toEqual([]);
     });
+
+    // **ホームと同じ順で返す。** 以前はここで並べ替えておらず、入力配列の順
+    // （`photos.json` ＝ `createdAt` 降順）がそのまま出ていた。ホームは
+    // `date || createdAt` で並べるので、**同じ絞り込みでも `/tag/風景` と
+    // `/?tags=風景` で順が違う**（実データ30枚のうち28枚が別の位置に来る）。
+    // どちらも「新しい順」を名乗るので、利用者には理由が見えない。
+    describe("並び順", () => {
+        // 入力は createdAt 降順（photos.json の作り）。撮影日はその逆順に置く
+        const mixed: Photo[] = [
+            P({ id: "posted-last", tags: ["風景"], date: "2020-01-01", createdAt: "2026-03-03T00:00:00.000Z" }),
+            P({ id: "posted-mid", tags: ["風景"], createdAt: "2026-02-02T00:00:00.000Z" }),
+            P({ id: "posted-first", tags: ["風景"], date: "2026-12-31", createdAt: "2026-01-01T00:00:00.000Z" }),
+        ];
+
+        it("撮影日の新しい順で返す（投稿順のままにしない）", () => {
+            expect(photosInCollection(mixed, "tag", "風景").map((p) => p.id),
+                "入力配列の順（投稿順）がそのまま出ている")
+                .toEqual(["posted-first", "posted-mid", "posted-last"]);
+        });
+
+        it("撮影地の集約ページも同じ規則", () => {
+            const withLoc = mixed.map((p) => ({ ...p, location: "山中湖" }));
+            expect(photosInCollection(withLoc, "location", "山中湖").map((p) => p.id))
+                .toEqual(["posted-first", "posted-mid", "posted-last"]);
+        });
+
+        // 呼び出し側が渡す配列の作り方が変わっても、出る順は変わらない
+        it("入力配列の順に左右されない", () => {
+            const shuffled = [mixed[1], mixed[2], mixed[0]];
+            expect(photosInCollection(shuffled, "tag", "風景").map((p) => p.id))
+                .toEqual(["posted-first", "posted-mid", "posted-last"]);
+        });
+    });
 });
 
 describe("labelForSlug", () => {

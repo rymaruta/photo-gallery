@@ -23,7 +23,8 @@ import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/sh
 import { publicFetch, userFetch, userPublicFetch, readApiError, AUTH_REQUIRED_MESSAGE } from "../../lib/utils/api";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
-import { EN_MONTHS } from "../../lib/utils/photoDate";
+import { EN_MONTHS, splitStoredDate } from "../../lib/utils/photoDate";
+import { compareNewest } from "../../lib/utils/photoOrder";
 import { ROUTES } from "../../lib/routes";
 import UserAvatar from "../components/UserAvatar";
 import PHOTOS_JSON from "../data/photos.json";
@@ -71,19 +72,33 @@ const TAB_ORDER: TabKey[] = ["posts", "timeline"];
 type TimelineGroup = { key: string; year: string; label: string; photos: Photo[] };
 function buildTimeline(photos: Photo[], locale: "ja" | "en"): TimelineGroup[] {
     const withDate = photos
-        .map((p) => ({ p, t: Date.parse(String(p.date || p.createdAt || "")) }))
-        .filter((x) => !isNaN(x.t))
-        .sort((a, b) => b.t - a.t);
+        .map((p) => ({ p, raw: String(p.date || p.createdAt || "") }))
+        .filter((x) => splitStoredDate(x.raw) !== null || (!!x.raw && !isNaN(Date.parse(x.raw))))
+        // 並びは共通の比較関数（ホーム・集約ページ・写真ページの前後と同じ）。
+        // `Date.parse` の数値で並べていた頃は、EXIF 由来のゾーン無し
+        // `T` 形式がローカル時刻として読まれ、**並びが閲覧者のゾーンで
+        // 変わって**いた（lib/utils/photoOrder.ts に実測を書いた）。
+        .sort((a, b) => compareNewest(a.p, b.p));
     const map = new Map<string, TimelineGroup>();
-    for (const { p, t } of withDate) {
-        const d = new Date(t);
-        // 年月は UTC で切る。撮影日は "2024-01-01" のような日付だけの形で
-        // 保存されており、Date.parse はこれを UTC 0時として読む。
-        // そこにローカル時刻の getFullYear/getMonth を当てると、
-        // UTC より西の閲覧者（例: ニューヨーク）には1日の写真が
-        // 前月・前年の見出しに入って見える。
-        const y = d.getUTCFullYear();
-        const m = d.getUTCMonth() + 1;
+    for (const { p, raw } of withDate) {
+        // **書かれている成分をそのまま使う。** 撮影日は「その土地で撮った
+        // 時刻」で、閲覧者のゾーンに変換する値ではない（写真ページの表示
+        // ——`formatStoredDateTime`——も同じ立場）。`Date.parse` を通すと、
+        // ゾーン無しの `2024-11-01T07:30:00` は**ローカル時刻**として読まれ、
+        // JST では前日 22:30 UTC になる——**写真ページが「11月1日」と出す
+        // 写真が、年表では「10月」の見出しに入る**。
+        const parts = splitStoredDate(raw);
+        let y: number, m: number;
+        if (parts) {
+            y = parts.y;
+            m = parts.m;
+        } else {
+            // 想定外の形（`YYYY-MM-DD` で始まらない）は今までどおり。
+            // ここで落とすと、年表からその写真が黙って消える
+            const d = new Date(Date.parse(raw));
+            y = d.getUTCFullYear();
+            m = d.getUTCMonth() + 1;
+        }
         const key = `${y}-${m}`;
         if (!map.has(key)) {
             map.set(key, {

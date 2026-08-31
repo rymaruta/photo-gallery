@@ -3,6 +3,7 @@ import type { Photo, LocalizedText, LocalizedParagraphs } from "../data/photos";
 import { getLocalized, getLocalizedParagraphs } from "../data/photos";
 import type { GalleryFilters } from "../types/gallery";
 import { slugify } from "../utils/collections";
+import { compareNewest, compareOldest, photoTimeKey } from "../utils/photoOrder";
 
 /**
  * タグ比較用の正規化。
@@ -42,13 +43,6 @@ const normalizeKey = (s?: string) => {
     // 「建築」と「建物」が別のチップとして並ぶのに、/category/architecture は
     // 同じページにまとまる。同じ写真の集合が、見る場所で違って見えていた。
     return base;
-};
-
-// safe ISO date parse helper — returns ISO string or empty
-const toISO = (s?: string) => {
-    if (!s) return "";
-    const d = new Date(s);
-    return isNaN(d.getTime()) ? "" : d.toISOString();
 };
 
 function readFiltersFromUrl(): Partial<GalleryFilters> {
@@ -91,9 +85,13 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
                 const category = normalizeKey(p.category);
                 const tags = (p.tags ?? []).map((t) => (t ?? "").toString().trim()).filter(Boolean);
                 const date = p.date || p.createdAt || "";
-                const _dateISO = toISO(date);
+                // 並びの比較キーは lib/utils/photoOrder.ts に1本化した。
+                // ここで `new Date()` を通していた頃は、ゾーン無しの
+                // `T` 形式（EXIF 由来）がローカル時刻、日付だけが UTC と
+                // 解釈され、**並びが閲覧者のタイムゾーンで変わって**いた。
+                const _timeKey = photoTimeKey(p);
 
-                return { ...p, category, tags, date, _dateISO };
+                return { ...p, category, tags, date, _timeKey };
             }),
         [raw]
     );
@@ -174,11 +172,11 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
             });
         }
 
-        // 事前計算済みの _dateISO を使ってソート（パースなし）
+        // 並べ替えは共通の比較関数（集約ページ・写真ページの前後と同じ規則）
         if (filters.sort === "new") {
-            arr.sort((a, b) => b._dateISO.localeCompare(a._dateISO));
+            arr.sort(compareNewest);
         } else if (filters.sort === "old") {
-            arr.sort((a, b) => a._dateISO.localeCompare(b._dateISO));
+            arr.sort(compareOldest);
         } else if (filters.sort === "popular") {
             arr.sort((a, b) => (b.likes ?? 0) - (a.likes ?? 0));
         }

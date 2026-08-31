@@ -3,6 +3,7 @@
 // fs や JSX を持たないため、サーバー・クライアント・テストのどこからでも読める。
 
 import type { Photo } from "../data/photos";
+import { sortByNewest } from "./photoOrder";
 import { sameLocation } from "./related";
 import { stripLoneSurrogates } from "./text";
 
@@ -178,14 +179,26 @@ export function collectEntries(photos: Photo[], type: CollectionType): Collectio
  * 代償として `/location/パリ` と `/location/パリ,-フランス` は写真が重なるが、
  * 同じ写真を別の地名から辿れること自体は狙いどおり。
  */
+/**
+ * その集約ページに載る写真。**新しい順に並べて返す。**
+ *
+ * 以前は並べ替えていなかったので、入力配列の順（＝`photos.json` の
+ * `createdAt` 降順）がそのまま出ていた。ホームは `date || createdAt` で
+ * 並べるので、**同じ絞り込みでも `/tag/風景` と `/?tags=風景` で順が違う**
+ * ——実データ30枚のうち28枚が別の位置に来る。どちらも「新しい順」を
+ * 名乗るので、利用者には「さっき上にあった写真が下にある」としか見えない。
+ *
+ * 並べ方を入力配列に任せないこと自体も要る: 呼び出し側（静的生成・
+ * サイトマップ・関連ページ）が渡す配列の作り方が変わると、黙って順が変わる。
+ */
 export function photosInCollection(photos: Photo[], type: CollectionType, slug: string): Photo[] {
     const target = normalizeParam(slug, type);
     if (!target) return [];
     if (type === "location") {
         const label = labelForSlug(photos, "location", slug);
-        return photos.filter((p) => isPublished(p) && sameLocation(p.location, label));
+        return sortByNewest(photos.filter((p) => isPublished(p) && sameLocation(p.location, label)));
     }
-    return photos.filter((p) => isPublished(p) && valuesFor(p, type).some((v) => slugify(v, type) === target));
+    return sortByNewest(photos.filter((p) => isPublished(p) && valuesFor(p, type).some((v) => slugify(v, type) === target)));
 }
 
 /** slug に対応する代表表示ラベル（最初に一致した生の値）。無ければデコードした slug。 */
