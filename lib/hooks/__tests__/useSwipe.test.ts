@@ -120,3 +120,106 @@ describe("useSwipe", () => {
         });
     });
 });
+
+// **斜めのスワイプが「閉じる」に化けていた。**
+//
+// 距離を2次元（√(dx²+dy²)）で見て、方向を `absX > absY` だけで決めて
+// いたので、自然な弧を描く横スワイプ（少し下に流れる）が縦と判定された。
+// ギャラリーモーダルでは縦下＝`onClose` なので、**次の写真へ送ったつもりが
+// モーダルごと閉じて、見ていた場所を失う**。
+describe("斜めのスワイプ", () => {
+    function swipe(dx: number, dy: number, opts: Parameters<typeof useSwipe>[0] = {}) {
+        const calls: string[] = [];
+        const { result } = renderHook(() => useSwipe({
+            onSwipeLeft: () => calls.push("left"),
+            onSwipeRight: () => calls.push("right"),
+            onSwipeUp: () => calls.push("up"),
+            onSwipeDown: () => calls.push("down"),
+            ...opts,
+        }));
+        act(() => {
+            result.current.handlers.onMouseDown({ clientX: 200, clientY: 200 } as React.MouseEvent);
+            result.current.handlers.onMouseMove({ clientX: 200 + dx, clientY: 200 + dy } as React.MouseEvent);
+            result.current.handlers.onMouseUp({} as React.MouseEvent);
+        });
+        return calls;
+    }
+
+    it("横が優位でなければ、どちらにも倒さない（閉じない）", () => {
+        // 実測で `down`（＝閉じる）になっていた組み合わせ
+        expect(swipe(-45, 48), "斜めのスワイプで閉じている").toEqual([]);
+        expect(swipe(-36, 37)).toEqual([]);
+        expect(swipe(-50, 50)).toEqual([]);
+    });
+
+    // **比率で見る（`absX > absY` だけでは足りない）。**
+    // dx=-60 / dy=50 は「横の方が大きい」が、指はほぼ斜め45°に近い。
+    // ここで送ってしまうと、閉じるつもりの下スワイプが横に化ける側の
+    // 誤爆も同じだけ起きる。`lib/utils/swipe.ts` と同じ 1.4 倍を使う
+    it("横がわずかに大きいだけでは送らない（比率で見る）", () => {
+        expect(swipe(-60, 50), "比率を見ずに横と判定している").toEqual([]);
+        expect(swipe(-75, 50), "十分に横なのに送っていない").toEqual(["left"]);
+    });
+
+    it("横が明確なら今までどおり送る", () => {
+        expect(swipe(-60, 20)).toEqual(["left"]);
+        expect(swipe(80, 10)).toEqual(["right"]);
+    });
+
+    // 縦は誤爆の代償が大きい（モーダルでは「閉じる」）ので、横より深くする
+    it("縦は横の2倍動かさないと成立しない", () => {
+        expect(swipe(10, 60), "浅い下スワイプで閉じている").toEqual([]);
+        expect(swipe(10, 120)).toEqual(["down"]);
+        expect(swipe(10, -120)).toEqual(["up"]);
+    });
+
+    it("しきい値は呼び出し側で変えられる", () => {
+        expect(swipe(10, 60, { verticalThreshold: 50 })).toEqual(["down"]);
+    });
+});
+
+// **2本目の指が触れたら追跡をやめる。** ピンチで拡大しようとしたときの
+// 1本目の動きが、そのままスワイプとして扱われていた。
+describe("マルチタッチ", () => {
+    function touchSwipe(points: { x: number; y: number }[], secondFinger: boolean) {
+        const calls: string[] = [];
+        const { result } = renderHook(() => useSwipe({
+            onSwipeLeft: () => calls.push("left"),
+            onSwipeDown: () => calls.push("down"),
+        }));
+        const touch = (x: number, y: number, count: number) => ({
+            touches: Array.from({ length: count }, () => ({ clientX: x, clientY: y })),
+            preventDefault: () => { },
+        } as unknown as React.TouchEvent);
+        act(() => {
+            result.current.handlers.onTouchStart(touch(points[0].x, points[0].y, 1));
+            result.current.handlers.onTouchMove(touch(points[1].x, points[1].y, secondFinger ? 2 : 1));
+            result.current.handlers.onTouchEnd(touch(points[1].x, points[1].y, 0));
+        });
+        return calls;
+    }
+
+    it("2本指なら送らない（ピンチを誤判定しない）", () => {
+        expect(touchSwipe([{ x: 200, y: 200 }, { x: 120, y: 210 }], true),
+            "ピンチが横スワイプに化けている").toEqual([]);
+    });
+
+    it("1本指なら今までどおり送る", () => {
+        expect(touchSwipe([{ x: 200, y: 200 }, { x: 120, y: 210 }], false)).toEqual(["left"]);
+    });
+
+    it("取り消されたら状態を残さない", () => {
+        const calls: string[] = [];
+        const { result } = renderHook(() => useSwipe({ onSwipeLeft: () => calls.push("left") }));
+        const ev = (x: number, y: number) => ({
+            touches: [{ clientX: x, clientY: y }], preventDefault: () => { },
+        } as unknown as React.TouchEvent);
+        act(() => {
+            result.current.handlers.onTouchStart(ev(200, 200));
+            result.current.handlers.onTouchMove(ev(120, 205));
+            result.current.handlers.onTouchCancel(ev(120, 205));
+            result.current.handlers.onTouchEnd(ev(120, 205));
+        });
+        expect(calls, "取り消されたのに送っている").toEqual([]);
+    });
+});

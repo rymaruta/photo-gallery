@@ -508,6 +508,14 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     const onTabPointerDown = useCallback((e: React.PointerEvent) => {
         swipeStartRef.current = { x: e.clientX, y: e.clientY };
     }, []);
+    // **スワイプの直後に来る click を1回だけ食う。**
+    //
+    // 写真のセルは全面が `<Link>` なので、グリッドの上で横スワイプすると
+    // **タブが切り替わると同時に写真ページへ飛ぶ**（1セル約126px に対して
+    // 判定は45pxなので、セル1つの中で成立する）。`click` は指を離せば必ず
+    // 発火する——`StoryViewer` が同じ現象を観測して `wasTap()` で塞いだのと
+    // 同じ話で、こちらには歯止めが無かった。
+    const swallowClickRef = useRef(false);
     const onTabPointerUp = useCallback((e: React.PointerEvent) => {
         const s = swipeStartRef.current;
         swipeStartRef.current = null;
@@ -515,8 +523,16 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         const dir = swipeDirection(e.clientX - s.x, e.clientY - s.y);
         if (dir !== 0) {
             hapticTap(8);
+            swallowClickRef.current = true;
             setTab((cur) => stepInList(TAB_ORDER, cur, dir));
         }
+    }, []);
+    /** スワイプで切り替えた直後の click を止める（捕捉フェーズで拾う） */
+    const onTabClickCapture = useCallback((e: React.MouseEvent) => {
+        if (!swallowClickRef.current) return;
+        swallowClickRef.current = false;
+        e.preventDefault();
+        e.stopPropagation();
     }, []);
 
 
@@ -1084,7 +1100,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     data-testid="tab-swipe-area"
                     onPointerDown={onTabPointerDown}
                     onPointerUp={onTabPointerUp}
-                    onPointerCancel={() => { swipeStartRef.current = null; }}
+                    onClickCapture={onTabClickCapture}
+                    onPointerCancel={() => { swipeStartRef.current = null; swallowClickRef.current = false; }}
                     style={{ touchAction: "pan-y" }}
                 >
                 {/* 投稿タブ */}
