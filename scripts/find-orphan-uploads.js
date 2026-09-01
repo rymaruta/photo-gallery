@@ -54,9 +54,35 @@ function deriveUploadKey(v) {
     return "";
 }
 
-/** 参照されているキーを全部集める（1ページでも失敗したら投げる） */
+/**
+ * キーから写真の識別子（UUID）を取り出す。
+ *
+ * `uploads/<uuid>.jpg` / `uploads/<uuid>_thumb.webp` /
+ * `uploads/originals/<uuid>.jpeg` のどれも同じ写真のもの。
+ */
+function uuidOf(key) {
+    const base = String(key).split("/").pop() ?? "";
+    const m = base.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+    return m ? m[0].toLowerCase() : "";
+}
+
+/**
+ * 参照されているキーと、**生きている写真の識別子**を集める
+ * （1ページでも失敗したら投げる）。
+ *
+ * **キーの一致だけでは足りない。** 実測（本番・2026-09-01）で、
+ * `uploads/originals/<uuid>` の原本が34件中20件以上「孤児」と出た。
+ * ところがその UUID の写真ページは実在する——**行が原本を指していない
+ * だけで、写真は生きている**（`srcOriginal` を持たない古い行がある）。
+ * キーだけで判定すると、**生きている写真の原本を消す**。
+ * 原本は表示に使わないので画面は壊れず、消したことにも気づけない。
+ *
+ * そこで「同じ UUID の実体が1つでも参照されているか」も見る。
+ * 消えた写真の実体は UUID ごと参照されなくなるので、本当の孤児だけが残る。
+ */
 async function referencedKeys(ddb, table) {
     const keys = new Set();
+    const liveUuids = new Set();
     let lastKey;
     let items = 0;
     do {
@@ -64,14 +90,19 @@ async function referencedKeys(ddb, table) {
         for (const raw of res.Items ?? []) {
             const item = unmarshall(raw);
             items++;
+            const id = uuidOf(String(item.id ?? ""));
+            if (id) liveUuids.add(id);
             for (const f of MEDIA_FIELDS) {
                 const k = deriveUploadKey(item[f]);
-                if (k) keys.add(k);
+                if (!k) continue;
+                keys.add(k);
+                const u = uuidOf(k);
+                if (u) liveUuids.add(u);
             }
         }
         lastKey = res.LastEvaluatedKey;
     } while (lastKey);
-    return { keys, items };
+    return { keys, liveUuids, items };
 }
 
 async function listUploads(s3, bucket) {
@@ -91,8 +122,8 @@ async function main() {
     const s3 = new S3Client({ region: REGION });
     const ddb = new DynamoDBClient({ region: REGION });
 
-    const { keys, items } = await referencedKeys(ddb, table);
-    console.log(`[orphan] 参照キー ${keys.size} 件（${items} 行から）`);
+    const { keys, liveUuids, items } = await referencedKeys(ddb, table);
+    console.log(`[orphan] 参照キー ${keys.size} 件 / 生きている写真 ${liveUuids.size} 件（${items} 行から）`);
 
     const objects = await listUploads(s3, bucket);
     console.log(`[orphan] S3 の uploads/ 配下 ${objects.length} 件`);
@@ -100,8 +131,13 @@ async function main() {
     const cutoff = Date.now() - MIN_AGE_DAYS * 24 * 60 * 60 * 1000;
     const orphans = [];
     let recent = 0;
+    let liveButUnreferenced = 0;
     for (const o of objects) {
         if (keys.has(o.key)) continue;
+        // **同じ写真の実体が生きているなら触らない。** 行が原本を指して
+        // いないだけ（古い行は `srcOriginal` を持たない）で、写真は生きている
+        const u = uuidOf(o.key);
+        if (u && liveUuids.has(u)) { liveButUnreferenced++; continue; }
         // **新しいものは触らない。** 「保存に失敗した」と「まだ保存していない」は
         // S3 からは区別できない。アップロード中の実体を消すと、保存の直前で
         // 画像が消える（利用者には理由が分からない）
@@ -111,6 +147,7 @@ async function main() {
     const mb = (n) => (n / 1024 / 1024).toFixed(1);
     console.log(`[orphan] 孤児 ${orphans.length} 件 / ${mb(orphans.reduce((a, o) => a + o.size, 0))} MB`);
     console.log(`[orphan] ${MIN_AGE_DAYS}日以内なので触らないもの: ${recent} 件`);
+    console.log(`[orphan] 行から参照されていないが、写真は生きているので触らないもの: ${liveButUnreferenced} 件`);
     for (const o of orphans.slice(0, 20)) {
         console.log(`  ${o.key}  ${mb(o.size)}MB  ${o.at ? o.at.toISOString().slice(0, 10) : "-"}`);
     }
@@ -137,4 +174,4 @@ if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
 }
 
-module.exports = { deriveUploadKey, MEDIA_FIELDS };
+module.exports = { deriveUploadKey, MEDIA_FIELDS, uuidOf };
