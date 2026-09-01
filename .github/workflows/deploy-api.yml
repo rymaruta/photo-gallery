@@ -3,22 +3,23 @@ name: Deploy API Lambdas
 # main → 本番、develop → staging。api/ または api-user/ の変更時に自動デプロイ。
 # GitHub UIの "Actions" タブから "Run workflow" で手動実行も可能
 # （そのとき選んだブランチで環境が決まる）。
-# **push での自動デプロイは止めてある。**
-# 2026-08-21 に Actions の枠が 2,000/2,000（100%）に達したため
-# （1回のデプロイでテスト＋Lambda 2本 ≈ 3〜4分）。
-# 枠が戻る（毎月1日）までは、Actions タブからの手動実行か、
-# 手元からの `npx serverless@3 deploy`（CLAUDE.md のデプロイ手順）で反映する。
+# **push での自動デプロイを戻した（2026-09-01）。**
+# 2026-08-21 に Actions の枠が 2,000/2,000（100%）に達したため止めていたが、
+# 枠は UTC の月替わりでリセットされた（9/1 00:06 UTC に解除を確認）。
 #
-# 枠が戻ったら push: のコメントを外して元に戻す。
+# 止めていた間に実害が出ている: api-user の修正を push しても**どこにも
+# 反映されない**まま「デプロイ済み」と思い込む状態になっていた（実際に
+# 今日それを踏んだ）。1回のデプロイは3〜4分で、API を触る push は
+# 月に数回なので、枠に対しては小さい。
 on:
-  # push:
-  #   branches:
-  #     - main
-  #     - develop
-  #   paths:
-  #     - "api/**"
-  #     - "api-user/**"
-  #     - ".github/workflows/deploy-api.yml"
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - "api/**"
+      - "api-user/**"
+      - ".github/workflows/deploy-api.yml"
   workflow_dispatch:
     inputs:
       target:
