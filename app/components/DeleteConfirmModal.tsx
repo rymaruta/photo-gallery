@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import type { Photo, Locale } from "@/lib/data/photos";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
@@ -28,6 +29,14 @@ export default function DeleteConfirmModal({ photo, isOpen, onClose, onConfirm, 
     // いたので、確認シートの上で Enter を打っても何も起きなかった。
     const cancelRef = useRef<HTMLButtonElement | null>(null);
     useFocusTrap(isOpen, dialogRef, undefined, cancelRef);
+    // **背景を止める。** `fixed inset-0` の確認シートなのにロックが無く、
+    // 上で指を動かすと裏の一覧がスクロールしていた（閉じると別の場所に
+    // いる）。数を数える共通実装なので、他のロックと入れ子でも壊れない
+    useEffect(() => {
+        if (!isOpen) return;
+        lockBodyScroll();
+        return () => unlockBodyScroll();
+    }, [isOpen]);
 
     if (!isOpen || !photo) return null;
 

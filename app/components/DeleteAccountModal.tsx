@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import type { Locale } from "@/lib/data/photos";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
@@ -46,6 +47,12 @@ function DeleteAccountModalInner({ onClose, onConfirm, locale, deleting, openerR
     // body に落ちる——docstring が「戻さないと body に落ちる」と書いている
     // 状態が、戻しているつもりで起きていた。
     useFocusTrap(true, dialogRef, openerRef);
+    // 背景を止める（`DeleteConfirmModal` と同じ理由）。Inner は開いている
+    // ときだけ描かれるので、マウントと同時に掛けてよい
+    useEffect(() => {
+        lockBodyScroll();
+        return () => unlockBodyScroll();
+    }, []);
 
     const canDelete = typed.trim() === CONFIRM_WORD && !deleting;
 

@@ -156,3 +156,35 @@ describe("退会確認: 閉じたら起動元へ戻る（autoFocus に奪われ�
         expect(document.activeElement).toBe(opener);
     });
 });
+
+// **確認シートに背景ロックが無かった。** `fixed inset-0` の上で指を動かすと
+// 裏の一覧・編集フォームがスクロールし、閉じたときに別の場所にいる。
+// 数を数える共通実装（`lib/utils/scrollLock.ts`）に寄せた3つと同じ扱いにする。
+describe("確認シートの背景ロック", () => {
+    it("削除確認: 開いている間は背景を止め、閉じたら戻す", () => {
+        const { rerender } = render(
+            <DeleteConfirmModal photo={photo} isOpen onClose={vi.fn()} onConfirm={vi.fn()} locale="ja" deleting={false} />,
+        );
+        expect(document.body.style.position, "背景が止まっていない").toBe("fixed");
+
+        rerender(
+            <DeleteConfirmModal photo={photo} isOpen={false} onClose={vi.fn()} onConfirm={vi.fn()} locale="ja" deleting={false} />,
+        );
+        expect(document.body.style.position).toBe("");
+    });
+
+    it("退会確認: 同じ", () => {
+        // 戻り先は必須（省略すると autoFocus に奪われるため）。ここでは
+        // フォーカスの行方は見ないので、空の ref で足りる
+        const opener = { current: null };
+        const { rerender } = render(
+            <DeleteAccountModal isOpen openerRef={opener} onClose={vi.fn()} onConfirm={vi.fn()} locale="ja" deleting={false} />,
+        );
+        expect(document.body.style.position).toBe("fixed");
+
+        rerender(
+            <DeleteAccountModal isOpen={false} openerRef={opener} onClose={vi.fn()} onConfirm={vi.fn()} locale="ja" deleting={false} />,
+        );
+        expect(document.body.style.position).toBe("");
+    });
+});
