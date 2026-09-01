@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useBottomBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../auth/context";
@@ -105,6 +106,9 @@ const LOCATION_MAX = 200;
 const CATEGORY_MAX = 100;
 
 function EditContent() {
+    // 画面下の固定バーの実測値を CSS 変数に出す（MiniPlayer が読む）
+    const bottomBarRef = useRef<HTMLDivElement | null>(null);
+    useBottomBarHeight(bottomBarRef);
     const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -474,11 +478,13 @@ function EditContent() {
 
             {/* 削除確認。取り消せない操作なので、装飾を減らして文字で選ばせる
                 （app/components/stories/StoryViewer.tsx と同じ形） */}
+            {/* safe-area は**クラスで**足す（`pb-[calc(env(...)+0.75rem)]`）。
+                インライン style にするとどの utility より強く、`sm:pb-0` が
+                効かなくなって 640px 以上で中央寄せのカードが 6px ずれる */}
             {confirmDelete && (
                 <div
                     ref={confirmRef}
-                    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 px-3 pb-3 sm:pb-0"
-                    style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}
+                    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] sm:pb-0"
                     onClick={() => !deleting && setConfirmDelete(false)}
                     role="dialog"
                     aria-modal="true"
@@ -520,7 +526,7 @@ function EditContent() {
             {/* `env(safe-area-inset-bottom)`: ホームインジケーター帯に
                 ボタンが入らないようにする（`globals.css` の body 側の
                 padding は `position: fixed` には効かない） */}
-            <div className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/10 p-4 z-40"
+            <div ref={bottomBarRef} className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/10 p-4 z-40"
                 style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}>
                 <div className="max-w-2xl mx-auto flex items-center gap-2">
                     {/* 削除は左端に離して置く。保存系と並べると押し間違える */}

@@ -64,6 +64,18 @@ describe("モーダルが定数を参照している", () => {
         expect(code, "vh のままだとツールバーの分だけ切られる").toContain('height: "60dvh"');
     });
 
+    // **枠（95dvh）を基準にも縛る。** `100dvh - 60dvh - 40px` だけだと、
+    // 画像の 60dvh と合わせて `100dvh - 40px` になり、枠を超えた分が
+    // `overflow-hidden` で切られる。実測（説明40段落）:
+    //   修正前 1280x900 で 5px / 1920x1400 で 30px / 2560x2000 で 60px 切られ、
+    //          高さ1520px付近から共有ボタンの行に掛かる
+    //   修正後 どの高さでも切られ量 0
+    it("キャプションの上限は枠（35dvh）にも縛られる", () => {
+        const code = codeOf("app/components/GalleryModal/ModalCaption.tsx");
+        expect(code, "大きい画面で枠からはみ出して切られる").toContain("35dvh");
+        expect(code).toMatch(/maxHeight:\s*"min\(/);
+    });
+
     it("CSS の式と定数が一致している", () => {
         expect(CAPTION_MIN_HEIGHT).toBe("min(200px, 30dvh)");
     });

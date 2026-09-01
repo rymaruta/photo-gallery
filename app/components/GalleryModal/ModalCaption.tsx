@@ -43,7 +43,14 @@ export default function ModalCaption({
         <div
             className="flex-shrink-0 overflow-y-auto bg-black text-white/90 px-4 sm:px-6 py-3 sm:py-4"
             style={{
-                maxHeight: "calc(100dvh - 60dvh - 40px)",
+                // **枠（`95dvh`）を基準にも縛る。** `100dvh - 60dvh - 40px`
+                // だけだと、画像の `60dvh` と合わせて `100dvh - 40px` になり、
+                // **枠の 95dvh を超えた分が `overflow-hidden` で切られる**
+                // ——高さ 800px を超える画面から始まり、1520px 付近で共有
+                // ボタンの行に掛かる（TAP-7 と同じ症状が、今度は大きい画面で）。
+                // 画像が 60dvh なので、キャプションに使えるのは残りの 35dvh。
+                // 小さい画面では今までどおり `40dvh - 40px` の方が先に効く。
+                maxHeight: "min(calc(100dvh - 60dvh - 40px), 35dvh)",
                 // **下限を画面の高さに連動させる（TAP-7）。** 200px 固定だと、
                 // 画像の下限（300px）と合わせて 500px になり、横向きのスマホの
                 // 外枠（95vh = 356px @ 667x375）に入らない。両方 `flex-shrink-0`

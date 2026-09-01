@@ -91,6 +91,20 @@ describe("画面下に固定したものは safe-area を空ける", () => {
             .toMatch(/style=\{\{[^}]*safe-area-inset-bottom/);
     });
 
+    // **safe-area はクラスで足す。** インライン style はどの utility より
+    // 強いので、`sm:pb-0` のようなレスポンシブ指定を殺す（実測: 幅640px
+    // 以上で中央寄せのカードが 6px ずれていた）
+    it("削除確認シートは sm:pb-0 を殺さない", () => {
+        const code = codeOf("app/user/edit/page.tsx");
+        const line = code.split("\n").find((l) => l.includes("items-end sm:items-center"));
+        expect(line, "確認シートの行が見つからない").toBeDefined();
+        expect(line, "safe-area をクラスで足していない").toContain("safe-area-inset-bottom");
+        expect(line, "sm:pb-0 が消えている").toContain("sm:pb-0");
+        const next = code.split("\n")[code.split("\n").indexOf(line!) + 1] ?? "";
+        expect(next, "インライン style で上書きしている（sm:pb-0 が効かない）")
+            .not.toContain("paddingBottom");
+    });
+
     // 画面下に固定するものを新しく足したときに気づけるように、
     // 数そのものを固定する（増えたら「safe-area を見たか」を確かめる）
     it("固定バーは2本（増えたら safe-area を確かめる）", () => {
