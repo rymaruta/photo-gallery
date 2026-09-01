@@ -55,6 +55,7 @@ jobs:
       usersTable: ${{ steps.pick.outputs.usersTable }}
       uploadBucket: ${{ steps.pick.outputs.uploadBucket }}
       cloudfrontUrl: ${{ steps.pick.outputs.cloudfrontUrl }}
+      cloudfrontDistributionId: ${{ steps.pick.outputs.cloudfrontDistributionId }}
       cognitoUserPoolId: ${{ steps.pick.outputs.cognitoUserPoolId }}
       cognitoClientId: ${{ steps.pick.outputs.cognitoClientId }}
       cognitoPoolName: ${{ steps.pick.outputs.cognitoPoolName }}
@@ -74,6 +75,8 @@ jobs:
               usersTable=prod-photo-gallery-users
               uploadBucket=prod-journey-photo-upload
               cloudfrontUrl=https://d1s3dwwzgxf5ni.cloudfront.net
+              # 削除した実体をエッジからも消すための無効化先（LEFT-4）
+              cloudfrontDistributionId=EYRLTGCPOS9E4
               cognitoUserPoolId=ap-northeast-1_ZbuhDQsWz
               cognitoClientId=21cs4cd8dkttmg3snloj72u8mu
               cognitoPoolName=prod-journey-photo-client-spa
@@ -89,6 +92,7 @@ jobs:
               uploadBucket=staging-journey-photo-upload
               # 公開識別子なので直書き（本番の値も同じ扱い）
               cloudfrontUrl=https://d15fn3rcaiymu9.cloudfront.net
+              cloudfrontDistributionId=EF2TFEBBP24DL
               cognitoUserPoolId=ap-northeast-1_DSQ16c6vO
               cognitoClientId=1qjl9c8gmqidigps55jhv4foi
               cognitoPoolName=staging-journey-photo-client-spa
@@ -104,7 +108,7 @@ jobs:
               ;;
           esac
           # rebuildRepo は staging で意図的に空にするため、この必須チェックには入れない
-          for k in photosTable usersTable uploadBucket cloudfrontUrl cognitoUserPoolId cognitoClientId cognitoPoolName; do
+          for k in photosTable usersTable uploadBucket cloudfrontUrl cloudfrontDistributionId cognitoUserPoolId cognitoClientId cognitoPoolName; do
             v="${!k}"
             if [ -z "$v" ]; then
               echo "::error::$envName の $k が未設定です。リポジトリの Variables を確認してください。"
@@ -204,6 +208,7 @@ jobs:
             --param "usersTable=${{ needs.config.outputs.usersTable }}" \
             --param "uploadBucket=${{ needs.config.outputs.uploadBucket }}" \
             --param "cloudfrontUrl=${{ needs.config.outputs.cloudfrontUrl }}" \
+            --param "cloudfrontDistributionId=${{ needs.config.outputs.cloudfrontDistributionId }}" \
             --param "cognitoUserPoolId=${{ needs.config.outputs.cognitoUserPoolId }}" \
             --param "cognitoClientId=${{ needs.config.outputs.cognitoClientId }}" \
             --param "cognitoPoolName=${{ needs.config.outputs.cognitoPoolName }}" \
@@ -262,6 +267,7 @@ jobs:
             --param "usersTable=${{ needs.config.outputs.usersTable }}" \
             --param "uploadBucket=${{ needs.config.outputs.uploadBucket }}" \
             --param "cloudfrontUrl=${{ needs.config.outputs.cloudfrontUrl }}" \
+            --param "cloudfrontDistributionId=${{ needs.config.outputs.cloudfrontDistributionId }}" \
             --param "cognitoUserPoolId=${{ needs.config.outputs.cognitoUserPoolId }}" \
             --param "cognitoClientId=${{ needs.config.outputs.cognitoClientId }}" \
             ${extra[@]+"${extra[@]}"}

@@ -17,6 +17,9 @@ vi.mock("@aws-sdk/client-s3", () => ({
     DeleteObjectsCommand: class { input: unknown; constructor(input: unknown) { this.input = input; } },
 }));
 
+const mockInvalidate = vi.hoisted(() => vi.fn());
+vi.mock("../cdnInvalidate", () => ({ invalidateUploads: mockInvalidate }));
+
 vi.stubEnv("UPLOAD_BUCKET", "bucket-test");
 const { s3DeleteMany } = await import("../s3Delete");
 
@@ -25,7 +28,7 @@ const sentChunks = (): string[][] =>
     mockS3Send.mock.calls.map((c) =>
         (c[0] as { input: { Delete: { Objects: Array<{ Key: string }> } } }).input.Delete.Objects.map((o) => o.Key));
 
-beforeEach(() => { mockS3Send.mockReset().mockResolvedValue({}); });
+beforeEach(() => { mockS3Send.mockReset().mockResolvedValue({}); mockInvalidate.mockReset().mockResolvedValue(true); });
 
 describe("s3DeleteMany", () => {
     // 空のときの保証はループそのもの（早期 return は置いていない）
@@ -71,5 +74,30 @@ describe("s3DeleteMany", () => {
         // **1本目が落ちても2本目は投げる**（塊ごとに独立して数える）
         expect(sentChunks()).toHaveLength(2);
         expect(sentChunks()[1]).toEqual(["uploads/k1000.jpg", "uploads/k1001.jpg"]);
+    });
+});
+
+// **消した実体はエッジからも消す（LEFT-4）。**
+// アップロードは max-age=31536000（1年）で配っているので、S3 から消すだけ
+// では URL を知っていれば取れ続ける（GPS 入りの原本も同じ）。
+describe("エッジの掃除へ渡すもの", () => {
+    it("消せたキーを渡す", async () => {
+        await s3DeleteMany(["uploads/a.jpg", "uploads/b.jpg"]);
+        expect(mockInvalidate).toHaveBeenCalledTimes(1);
+        expect(mockInvalidate.mock.calls[0][0]).toEqual(["uploads/a.jpg", "uploads/b.jpg"]);
+    });
+
+    // **消えていないものまで無効化しない。** キャッシュを捨てて取り直させる
+    // だけで、消えていない実体は消えない（課金対象のパスも無駄に増える）
+    it("消せなかったキーは渡さない", async () => {
+        mockS3Send.mockResolvedValue({ Errors: [{ Key: "uploads/b.jpg" }] });
+        await s3DeleteMany(["uploads/a.jpg", "uploads/b.jpg"]);
+        expect(mockInvalidate.mock.calls[0][0]).toEqual(["uploads/a.jpg"]);
+    });
+
+    it("S3 の呼び出しごと失敗したら、何も渡さない", async () => {
+        mockS3Send.mockRejectedValue(new Error("boom"));
+        await s3DeleteMany(["uploads/a.jpg"]);
+        expect(mockInvalidate.mock.calls[0][0]).toEqual([]);
     });
 });

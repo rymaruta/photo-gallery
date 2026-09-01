@@ -16,6 +16,10 @@ provider:
     # 読み書き先が本番のままだった。
     UPLOAD_BUCKET: ${param:uploadBucket}
     CLOUDFRONT_URL: ${param:cloudfrontUrl}
+    # 削除した実体をエッジからも消すための無効化先（LEFT-4）。
+    # **未設定でも削除は成功する**（エッジの掃除だけ飛ばして警告を1行出す）
+    # ——設定漏れで削除そのものを止めたくない。
+    CLOUDFRONT_DISTRIBUTION_ID: ${param:cloudfrontDistributionId, ''}
     PHOTOS_TABLE: ${param:photosTable}
     USERS_TABLE: ${param:usersTable}
     # 退会・写真削除・非公開のあとに静的サイトの再ビルドを頼むための設定。
@@ -66,6 +70,15 @@ provider:
           Resource:
             - arn:aws:s3:::${param:uploadBucket}/uploads/*
             - arn:aws:s3:::${param:uploadBucket}/profiles/*
+        # 削除・退会・期限切れストーリーで消した実体を、エッジからも消す。
+        # アップロードは max-age=31536000（1年）で配っているので、S3 から
+        # 消すだけでは**URL を知っていれば取れ続ける**（GPS 入りの原本も同じ）。
+        # 対象はこのアカウントの配信のみ。作成しかできない（読み書きは無い）。
+        - Effect: Allow
+          Action:
+            - cloudfront:CreateInvalidation
+          Resource:
+            - arn:aws:cloudfront::${aws:accountId}:distribution/*
         - Effect: Allow
           Action:
             - dynamodb:GetItem

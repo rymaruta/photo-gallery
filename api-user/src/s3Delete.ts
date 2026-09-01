@@ -1,5 +1,6 @@
 import { S3Client, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 import { requireEnv } from "./env";
+import { invalidateUploads } from "./cdnInvalidate";
 
 // **未設定なら起動時に止める。** `?? ""` / `!` にしていた頃は、環境変数が
 // 空でも S3 の削除を**黙って飛ばして** DynamoDB の行だけ消し、成功を返して
@@ -29,6 +30,8 @@ export async function s3DeleteMany(keys: string[], logPrefix = "s3DeleteMany"): 
     // 空のときの早期 return は置かない。下のループが 0 件では回らないので
     // **到達しない守り**になり、片方を壊しても全件緑になる
     let failedCount = 0;
+    // 消せたキーだけをエッジからも消す（LEFT-4）。まとめて1回に畳む
+    const deleted: string[] = [];
     for (let i = 0; i < keys.length; i += 1000) {
         const chunk = keys.slice(i, i + 1000);
         try {
@@ -37,10 +40,17 @@ export async function s3DeleteMany(keys: string[], logPrefix = "s3DeleteMany"): 
                 Delete: { Objects: chunk.map((Key) => ({ Key })), Quiet: true },
             }));
             failedCount += res.Errors?.length ?? 0;
+            // **消せたものだけ**をエッジの掃除に回す。エラーになったキーまで
+            // 無効化すると、消えていない実体のキャッシュを捨てて取り直させる
+            // ことになる（課金対象のパスも無駄に増える）
+            const failed = new Set((res.Errors ?? []).map((e) => e.Key));
+            for (const key of chunk) if (!failed.has(key)) deleted.push(key);
         } catch (e) {
             console.error(`${logPrefix}: S3 batch delete failed (${chunk.length} keys):`, e);
             failedCount += chunk.length;
         }
     }
+    // エッジからも消す（LEFT-4）。失敗しても削除は成功として扱う
+    await invalidateUploads(deleted, logPrefix);
     return failedCount;
 }
