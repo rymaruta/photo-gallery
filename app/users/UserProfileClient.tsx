@@ -291,6 +291,15 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     // 一覧が黙って公開分だけになると、非公開が消えたと誤解して目の
     // アイコンを押し直し**本当に再公開してしまう**（下のコメント参照）。
     const [loadError, setLoadError] = useState<"profile" | "ownPhotos" | "photos" | null>(null);
+    // **「まだ来ていない」と「0枚」を分ける。**
+    //
+    // `photos` の初期値はビルド時 JSON の絞り込みなので、ビルド後に登録した人・
+    // 新しい環境（photos.json が空）では必ず `[]` から始まる。`postCount === 0`
+    // だけで空表示に落とすと、**写真があるのに「まだ写真がありません。」が
+    // 一瞬出る**（本人には「最初の写真を投稿」の誘導まで出て消える）。
+    // 同じリポジトリの `usePhotos` の `loaded`・`followingLoaded`・
+    // `countsKnown` はどれもこの区別を持っていて、この画面だけ抜けていた。
+    const [photosResolved, setPhotosResolved] = useState(false);
     const [reloadKey, setReloadKey] = useState(0);
 
     // ピン留めの保存に付ける通し番号（応答の追い越しを捨てる）。
@@ -409,6 +418,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         const mine = await mineRes.json() as unknown;
                         if (Array.isArray(mine)) {
                             setPhotos(mine as Photo[]);
+                            setPhotosResolved(true);
                             return; // 公開一覧は見ない（下書き・非公開まで含む正）
                         }
                     }
@@ -425,6 +435,9 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     log.warn("自分の写真一覧を取得できませんでした");
                     setPhotos([]);
                     setLoadError("ownPhotos");
+                    // 失敗も「分かった」に数える。分からないままにすると、
+                    // 上の警告バーだけが出てタブの中身が永久に無言になる
+                    setPhotosResolved(true);
                     return;
                 }
 
@@ -458,6 +471,18 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         // 答えが空だった」ときだけ。
                         setPhotos(data as Photo[]);
                     }
+                    setPhotosResolved(true);
+                } else {
+                    // **`else` が無かった。** 上のコメントは「失敗したときは
+                    // ここに来ない＝静的のまま」と書いているが、ビルド時の
+                    // スナップショットを持たない人（ビルド後に登録した人・
+                    // 新しい環境）にとって「静的のまま」は**空**。500 や 403 が
+                    // 返っても警告バーも再読込も出ず、「まだ写真がありません。」
+                    // のままになる。`loadError` は3つの文言を用意してあるのに、
+                    // `photos` を立てる経路が catch（＝回線断）にしか無かった。
+                    log.warn("公開の写真一覧を取得できませんでした", { status: photosRes.status });
+                    setLoadError((prev) => prev ?? "photos");
+                    setPhotosResolved(true);
                 }
             } catch (e) {
                 if ((e as { name?: string }).name !== "AbortError") {
@@ -468,10 +493,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     // 読み込めませんでしたと出る」誤表示になる（レビュー指摘）。
                     // プロフィールが取れているなら、写真側の失敗として扱う。
                     setLoadError((prev) => prev ?? (profileLoaded ? "photos" : "profile"));
+                    setPhotosResolved(true);
                 }
             }
         };
         setLoadError(null);
+        setPhotosResolved(false);
         void load();
         return () => controller.abort();
     }, [userId, reloadKey, loadOwnPins]);
@@ -1148,7 +1175,10 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 >
                 {/* 投稿タブ */}
                 {tab === "posts" && (
-                    postCount === 0 ? (
+                    // 分かるまでは何も出さない。**待っている間に「無い」と
+                    // 言わない**（言ってしまうと、写真がある人のページでも
+                    // 空の案内が一瞬出る）
+                    postCount === 0 ? (photosResolved ? (
                         <div className="flex flex-col items-center justify-center py-24 text-white/40 gap-3">
                             <div className="w-16 h-16 rounded-full border-2 border-white/15 flex items-center justify-center">
                                 <PhotoStackIcon className="w-7 h-7" />
@@ -1160,7 +1190,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                 </Link>
                             )}
                         </div>
-                    ) : (
+                    ) : null) : (
                         <div className="grid grid-cols-3 gap-1 pb-8">
                             {orderedPhotos.map(photo => (
                                 <PhotoCard

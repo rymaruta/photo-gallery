@@ -58,9 +58,30 @@ describe("usePhotos の loaded", () => {
         expect(result.current.loaded).toBe(false);
     });
 
-    // 空配列は「静的のまま維持」なので、届いたことにしない
-    it("空配列が返ってきたら false のまま", async () => {
+    // **ここは以前「false のまま」を正解として固定していた。それが誤り。**
+    //
+    // 空配列は失敗ではない——**聞けて、答えが「公開写真は0件」だった**。
+    // false のままにすると、公開写真が1枚も無い環境（新しい環境・全部
+    // 非公開にした・全部消した）で `loaded` が永久に立たず、
+    // `GalleryPageClient` の門
+    //   `if (!photosLoaded) { setPendingPhoto(photoParam); return; }`
+    // を越えられない。共有リンク `/?photo=<id>` を踏んでも**モーダルも
+    // 出ず、無いとも言われず、`?photo=` が URL に残ったまま**になる。
+    // 押し直しても同じ（`notFoundRef` にも到達しない）。
+    //
+    // **もう一方の性質は残す。** 「空で静的データを潰さない」は変えていない
+    // ——変えるのは「届いたことを記録するか」だけ。
+    it("空配列でも届いたことにする（が、静的データは潰さない）", async () => {
         mockPublicFetch.mockResolvedValue({ ok: true, json: async () => [] });
+        const { result } = renderHook(() => usePhotos());
+        await new Promise((r) => setTimeout(r, 20));
+        expect(result.current.loaded, "答えが返っているのに「まだ」と言っている").toBe(true);
+        expect(result.current.photos, "空で静的データを潰している").toHaveLength(1);
+    });
+
+    // 配列ですらない応答（HTML のエラーページなど）は「答え」ではない
+    it("配列でなければ届いたことにしない", async () => {
+        mockPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ error: "boom" }) });
         const { result } = renderHook(() => usePhotos());
         await new Promise((r) => setTimeout(r, 20));
         expect(result.current.loaded).toBe(false);
