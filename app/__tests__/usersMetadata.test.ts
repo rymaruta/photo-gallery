@@ -43,6 +43,14 @@ describe("/users/<id>（プロフィール）のメタデータ", () => {
         const meta = await generateMetadata({ params: Promise.resolve({ id: OWNER }) });
         expect(meta.robots, "sitemap に載せているのに noindex で出している")
             .toMatchObject({ index: true });
+        // **`robots` はキー単位ではなくオブジェクトごと差し替わる。**
+        // `{ index: true, follow: true }` とだけ書くと、ルートが持っている
+        // `googleBot: { "max-image-preview": "large" … }` が消える
+        // ——実ビルドで、`index, follow` なのに `googlebot` の meta が
+        // 無いのはこのページだけだった。写真を検索に出すサイトで画像
+        // プレビューの拡大許可を落とすのは痛い
+        expect(meta.robots, "ルートの googleBot 指定を落としている")
+            .toHaveProperty("googleBot.max-image-preview", "large");
     });
 
     // **サイト名は親のレイアウトが渡す `template` が付ける。**

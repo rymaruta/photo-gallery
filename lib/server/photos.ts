@@ -9,6 +9,7 @@ import path from "path";
 import RAW_PHOTOS from "@/lib/data/photos";
 import type { Photo } from "@/lib/data/photos";
 import { sortByNewest } from "@/lib/utils/photoOrder";
+import { siteConfig } from "@/lib/utils/seo";
 
 /**
  * 公開してはいけない項目（scripts/sync-photos-from-ddb.js の PRIVATE_FIELDS と対）。
@@ -76,5 +77,6 @@ export async function resolveOgImage(siteUrl: string, source?: () => Promise<Pho
     } catch {
         // 読めなければアイコンに落とす（メタ情報のために本体を落とさない）
     }
-    return `${siteUrl}/icon-512.png`;
+    // 落とし先は `siteConfig.ogImage`（同じパスを散らさない）
+    return `${siteUrl}${siteConfig.ogImage}`;
 }

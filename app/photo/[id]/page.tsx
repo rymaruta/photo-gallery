@@ -2,6 +2,7 @@ import type { Photo } from "@/lib/data/photos";
 import PhotoPageClient from "./PhotoPageClient";
 import type { Metadata } from "next";
 import { splitStoredDate } from "@/lib/utils/photoDate";
+import { ja } from "../../i18n/labels";
 import { siteConfig } from "@/lib/utils/seo";
 import { getLocalized, getLocalizedParagraphs } from "@/lib/data/photos";
 import { loadAllPhotos } from "@/lib/server/photos";
@@ -38,11 +39,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
         };
     }
     
-    // **日本語のサイトに "Untitled" を出さない。** タイトルは空にできる
+    // **日本語のサイトに "Untitled" を出さない。** 言い回しは既存に揃える
+    // （`/admin`・`/user/drafts`・下書きの既定タイトルはどれも「無題」）。
+    // タイトルは空にできる
     // （`sanitizeTitle` が空なら属性ごと REMOVE する）ので、公開のまま
     // 名前の無い写真が実在しうる。`a287ee3` で潰した「日本語UIに残る英語」
     // と同じ型だった
-    const title = getLocalized(photo.title, "ja") || getLocalized(photo.title, "en") || "無題の写真";
+    const title = getLocalized(photo.title, "ja") || getLocalized(photo.title, "en") || "無題";
     const descriptionParagraphs = getLocalizedParagraphs(photo.description, "ja");
     const ownDescription = descriptionParagraphs.length > 0
         ? descriptionParagraphs.join(" ")
@@ -50,13 +53,29 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     // **説明が無いときに、サイトのキャッチコピーを名乗らない。**
     // 説明を空にした写真が全部**同じ meta description** を持つことになり、
     // しかも「この写真の説明はサイトの宣伝文です」と申告する形になる。
-    // 分かっている事実（撮影地・カテゴリ・撮影日）だけで組み立て、
-    // それも無ければサイトの説明に落とす
-    const facts = [photo.location, photo.category, splitStoredDate(String(photo.date ?? ""))?.y ? `${splitStoredDate(String(photo.date ?? ""))!.y}年` : ""]
-        .map((v) => (v ?? "").toString().trim())
-        .filter(Boolean);
+    // 分かっている事実だけで組み立て、それも無ければサイトの説明に落とす。
+    //
+    // **要素ごとに助詞を分ける。** 最初は「・」で連ねて「〜で撮影した写真。」
+    // と書いたが、(a) カテゴリを「で撮影した」の目的語にしてしまう
+    // （`風景で撮影した写真`）、(b) 日付だけのときに「2024年で撮影した」と
+    // 非文法的になる、(c) **カテゴリの生スラッグがそのまま出る**
+    // （`東京・landscape・2024年で…`。実データ30枚中19枚が英語スラッグで、
+    // 画面は `app/i18n/labels.ts` の日本語ラベルを出している）——`a287ee3`
+    // で潰した「日本語UIに残る英語」を作っていた。
+    const year = splitStoredDate(String(photo.date ?? ""))?.y;
+    const categoryRaw = (photo.category ?? "").toString().trim().toLowerCase();
+    const categoryLabel = (ja.category.names as Record<string, string>)[categoryRaw]
+        || (photo.category ?? "").toString().trim();
+    const place = (photo.location ?? "").toString().trim();
+    const when = year ? `${year}年に` : "";
+    const where = place ? `${place}で` : "";
+    const what = categoryLabel ? `${categoryLabel}の写真。` : "写真。";
+    // 場所も日付も無ければ「撮影した」を付けない（`撮影した風景の写真。`
+    // は日本語として落ち着かない）
     const description = ownDescription
-        || (facts.length > 0 ? `${facts.join("・")}で撮影した写真。` : siteConfig.description);
+        || (place || year ? `${where}${when}撮影した${what}` : "")
+        || (categoryLabel ? `${categoryLabel}の写真。` : "")
+        || siteConfig.description;
     
     const imageUrl = photo.src.startsWith("http") 
         ? photo.src 

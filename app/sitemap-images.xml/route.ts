@@ -28,8 +28,14 @@ export const dynamic = "force-static";
  */
 function esc(s: string): string {
     return s
-        // 制御文字は落とす（タブ・改行・復帰は XML で合法なので残す）
-        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "")
+        // XML 1.0 が許さない文字は落とす。1文字混ざるだけで**この XML が
+        // 丸ごと** parse error になる（その1件ではなく全件が読めなくなる）。
+        // 規定は `#x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | …` で、
+        // **C0 制御文字だけでは足りない**——`U+FFFE` / `U+FFFF` も入って
+        // いない（実測: expat が両方で parse error）。逆に C1（U+0085 など）と
+        // 非文字（U+FDD0）は XML 1.0 では合法なので落とさない。
+        // タブ・改行・復帰は残す（説明の改行を消すとキャプションが潰れる）。
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, "")
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")

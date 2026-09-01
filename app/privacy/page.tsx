@@ -18,7 +18,9 @@ export const metadata: Metadata = {
         locale: siteConfig.locale.ja,
         url: `${siteConfig.url}/privacy`,
         siteName: siteConfig.name,
-        title: `プライバシーポリシー | ${siteConfig.name}`,
+        // `og:site_name` が別に出るので、ここでもサイト名を足すと
+        // カードに2回出る（`<title>` だけ直して og を見落としていた）
+        title: "プライバシーポリシー",
         description: "個人情報・アクセス解析・Cookie の取り扱いについて。",
     },
 };

@@ -79,7 +79,10 @@ describe("本番の robots.txt が、上げる直前の判定に引っかから�
 // 無事＝**画面のどこにも症状が出ない**。入口（`sanitizeTitle` ほか）にも
 // 除去は無いので、API を直接叩けば確実に入る。
 describe("画像サイトマップ: 制御文字で壊れない", () => {
-    const CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/;
+    // **範囲の代表を全部入れる。** 前は U+000B と U+0008 しか通して
+    // いなかったので、除去範囲を `[\u0008\u000B]` に狭めても全部緑だった
+    // （実測）。XML 1.0 が許さないのは C0 の大半に加えて U+FFFE / U+FFFF。
+    const FORBIDDEN = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/;
 
     async function xmlFor(photos: unknown[]): Promise<string> {
         vi.resetModules();
@@ -94,12 +97,14 @@ describe("画像サイトマップ: 制御文字で壊れない", () => {
     it("制御文字の入ったタイトル・説明でも XML が壊れない", async () => {
         const xml = await xmlFor([{
             id: "p1", src: "https://cdn/p1.jpg", published: true,
-            title: { ja: "制御文字\u000B入り" },
-            description: { ja: ["垂直タブ\u000Bとバックスペース\u0008"] },
+            // 範囲の端と中身をひととおり: NUL・BS・垂直タブ・改ページ・
+            // シフトイン・ユニット区切り、そして U+FFFE / U+FFFF
+            title: { ja: "制御文字\u0000\u0008\u000B入り\uFFFE" },
+            description: { ja: ["改ページ\u000Cとシフト\u000Eと区切り\u001Fと\uFFFF"] },
             location: "東京",
         }]);
 
-        expect(CONTROL.test(xml), "制御文字がそのまま XML に出ている（全体が parse error になる）").toBe(false);
+        expect(FORBIDDEN.test(xml), "XML 1.0 が許さない文字がそのまま出ている（全体が parse error になる）").toBe(false);
         expect(xml).toContain("<image:title>制御文字入り</image:title>");
         expect(xml).toContain("<urlset");
     });

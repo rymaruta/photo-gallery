@@ -17,7 +17,7 @@ import { AuthProvider } from "./auth/context";
 import { MusicProvider } from "./music/MusicContext";
 import MiniPlayer from "./components/MiniPlayer";
 import { LocaleProvider } from "./i18n/context";
-import { siteConfig, generateWebSiteStructuredData } from "../lib/utils/seo";
+import { siteConfig, generateWebSiteStructuredData, INDEXABLE_ROBOTS } from "../lib/utils/seo";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "700", "900"], display: "swap" });
 
@@ -92,17 +92,10 @@ export async function generateMetadata(): Promise<Metadata> {
     alternates: {
       canonical: siteConfig.url,
     },
-    robots: {
-      index: true,
-      follow: true,
-      googleBot: {
-        index: true,
-        follow: true,
-        "max-video-preview": -1,
-        "max-image-preview": "large",
-        "max-snippet": -1,
-      },
-    },
+    // 中身は `lib/utils/seo.ts` の `INDEXABLE_ROBOTS`。子が
+    // `robots` を書くとオブジェクトごと差し替わるので、同じものを
+    // 2か所に書かない（`/users/<id>` がそれで googlebot の指定を落とした）
+    robots: INDEXABLE_ROBOTS,
     verification: {
       // Search Console / Bing の確認トークン（siteConfig 経由・未設定なら出力しない）
       ...(siteConfig.gscVerification ? { google: siteConfig.gscVerification } : {}),

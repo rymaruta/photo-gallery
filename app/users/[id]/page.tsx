@@ -3,7 +3,7 @@ import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import type { Photo } from "@/lib/data/photos";
-import { siteConfig } from "@/lib/utils/seo";
+import { siteConfig, INDEXABLE_ROBOTS } from "@/lib/utils/seo";
 import UserProfileClient from "../UserProfileClient";
 import { withPlaceholderParam } from "../../../lib/server/staticParams";
 
@@ -105,7 +105,11 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
         // Search Console では「送信された URL が noindex です」になる。
         // 表示名・投稿数入りの title/description/OGP も Person の JSON-LD も
         // 全部そのために作っているのに、一つも使われていなかった。
-        robots: { index: true, follow: true },
+        // **`robots` はオブジェクトごと差し替わる。** `{ index: true,
+        // follow: true }` とだけ書くと、ルートが持っている
+        // `googleBot: { "max-image-preview": "large" … }` が消える
+        // （実測で、この1ページだけ `googlebot` の meta を失っていた）
+        robots: INDEXABLE_ROBOTS,
         description,
         alternates: { canonical: url },
         openGraph: {

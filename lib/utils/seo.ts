@@ -6,12 +6,15 @@ export const siteConfig = {
     description: "旅の記憶を写真で残す。国内外の旅行写真・風景写真・スナップ写真を集めたフォトギャラリー。旅先の景色や日常のひとこまを届けます。",
     descriptionEn: "A travel photography gallery capturing journeys, landscapes, and everyday moments.",
     url: process.env.NEXT_PUBLIC_SITE_URL || "https://journey-photo.com",
-    // **既定の OGP 画像は持たない。** 以前ここに `/images/og-image.jpg` と
-    // 書いてあったが、そのファイルは**リポジトリにもビルド成果物にも
-    // 存在しない**（git の全履歴にも一度も現れない）。16ページがこの URL を
-    // OGP 画像として出しており、トップを SNS に貼っても画像が出なかった。
-    // いまは `resolveOgImage`（`lib/server/photos.ts`）がビルド時に
-    // 一番新しい公開写真を返す。
+    // **写真が1枚も無いときの落とし先。** 以前ここに
+    // `/images/og-image.jpg` と書いてあったが、そのファイルは
+    // **リポジトリにもビルド成果物にも存在しない**（git の全履歴にも
+    // 一度も現れない）。16ページがこの URL を OGP 画像として出しており、
+    // トップを SNS に貼っても画像が出なかった。
+    // 通常は `resolveOgImage`（`lib/server/photos.ts`）がビルド時に
+    // 一番新しい公開写真を返す。**この値を直接読むページはもう無い**が、
+    // 落とし先と `Organization.logo` がここから引くので残す
+    // ——同じパスを3か所に散らさないため。
     ogImage: "/icon-512.png",
     twitterHandle: "@JourneyPhoto",
     author: "Journey Photo",
@@ -131,7 +134,7 @@ export function generatePhotoStructuredData(photo: {
         contentUrl: imageUrl,
         // 名前が無い写真は実在する（`sanitizeTitle` は空なら属性ごと消す）。
         // `""` を出すと、同じページのパンくずが出す名前と食い違う
-        name: title || "無題の写真",
+        name: title || "無題",
         ...(altTitle && altTitle !== title ? { alternateName: altTitle } : {}),
         // **説明が無いときにサイトのキャッチコピーを名乗らない。**
         // 「この写真の説明はサイトの宣伝文です」と機械可読で配ることになり、
@@ -227,10 +230,11 @@ export function generateOrganizationStructuredData() {
         description: siteConfig.description,
         // **実在するファイルを指す。** ここも `/images/og-image.jpg`
         // （リポジトリにもビルド成果物にも無い）を指していた。ロゴは
-        // 「一番新しい写真」では意味が通らないので、PWA のアイコンにする
+        // 「一番新しい写真」では意味が通らないのでアイコンを使う
+        // （パスは `siteConfig.ogImage` の1か所から引く）
         logo: {
             "@type": "ImageObject",
-            url: `${siteConfig.url}/icon-512.png`,
+            url: `${siteConfig.url}${siteConfig.ogImage}`,
             width: 512,
             height: 512,
         },
@@ -306,6 +310,28 @@ export function appPageMetadata(path: string, title: string) {
  * しかも /user というページは存在しない——存在しないURLを正規URLとして
  * 申告する形になる（撮影地ページの二重エンコードで踏んだのと同じ形）。
  */
+/**
+ * 「検索結果に出す」ページの robots。
+ *
+ * **`robots` はキー単位ではなくオブジェクトごと差し替わる。**
+ * `app/layout.tsx` が `googleBot: { "max-image-preview": "large" … }` を
+ * 持っているのに、子が `robots: { index: true, follow: true }` とだけ書くと
+ * **その拡張が消える**——実測で、`index, follow` なのに `googlebot` の
+ * meta が無いのは `/users/<id>` だけだった。写真を検索に出すサイトで
+ * 画像プレビューの拡大許可を落とすのは痛い。継ぐのではなく**ここから引く**。
+ */
+export const INDEXABLE_ROBOTS = {
+    index: true,
+    follow: true,
+    googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+    },
+} as const;
+
 export function noindexMetadata(title: string) {
     return {
         title,
