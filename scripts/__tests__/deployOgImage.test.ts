@@ -16,7 +16,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 const { verifyOgImage } = require("../deploy-static-site.js") as {
     verifyOgImage: (opts?: {
         html?: string;
-        fetchImpl?: (url: string, init?: { method?: string }) => Promise<{ status: number; headers: { get: (k: string) => string | null } }>;
+        fetchImpl?: (url: string, init?: { method?: string; signal?: unknown }) => Promise<{ status: number; headers: { get: (k: string) => string | null } }>;
     }) => Promise<string>;
 };
 
@@ -70,6 +70,37 @@ describe("デプロイ後の og:image チェック", () => {
         expect(out).toBe("ok");
     });
 
+    // **相対 URL は「取れない」に倒す。** `fetch` は相対を投げるので、
+    // 何もしないと「通信に失敗しました」になる——**このチェックが存在する
+    // 理由そのもの**（`/images/og-image.jpg` を16ページが指したまま
+    // 放置されていた）が、一番わかりにくいログで出てしまう。
+    it("相対 URL は broken（error ではない）", async () => {
+        const warn = vi.spyOn(console, "warn");
+        let called = false;
+        const out = await verifyOgImage({
+            html: html("/images/og-image.jpg"),
+            fetchImpl: async () => { called = true; return res(200, "image/jpeg"); },
+        });
+        expect(out, "通信の失敗として報告している").toBe("broken");
+        expect(called, "相対 URL のまま fetch している").toBe(false);
+        expect(warn.mock.calls.flat().join(" ")).toContain("絶対URL");
+    });
+
+    // **必ず打ち切る。** タイムアウトが無いと、応答を返さないホストで
+    // Node の既定 300 秒待つ（実測 300.9 秒）。デプロイの最後なので
+    // ジョブがそのぶん伸びる＝Actions の枠を食う
+    it("打ち切りの合図を渡している", async () => {
+        let sawSignal = false;
+        await verifyOgImage({
+            html: html("https://cdn/x.jpg"),
+            fetchImpl: async (_u, init) => {
+                sawSignal = !!(init as { signal?: unknown })?.signal;
+                return res(200, "image/jpeg");
+            },
+        });
+        expect(sawSignal, "タイムアウトを渡していない（応答が無いと5分待つ）").toBe(true);
+    });
+
     it("og:image が無ければ missing（黙らない）", async () => {
         const out = await verifyOgImage({ html: "<html><head></head></html>", fetchImpl: async () => res(200, "image/jpeg") });
         expect(out).toBe("missing");
@@ -82,5 +113,19 @@ describe("デプロイ後の og:image チェック", () => {
             fetchImpl: async () => { throw new Error("network down"); },
         });
         expect(out).toBe("error");
+    });
+});
+
+// **配線が無ければ、判定がどれだけ正しくても一度も走らない。**
+// レビューで実証: `main()` の `await verifyOgImage();` を消しても
+// scripts のテスト208件すべて緑だった。
+describe("デプロイ本体から呼ばれている", () => {
+    it("main() が verifyOgImage を呼ぶ", async () => {
+        const { readFileSync } = await import("node:fs");
+        const { join } = await import("node:path");
+        const src = readFileSync(join(process.cwd(), "scripts/deploy-static-site.js"), "utf8")
+            .replace(/\/\*[\s\S]*?\*\//g, " ")
+            .split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
+        expect(src, "配線が外れている（チェックが一度も走らない）").toContain("await verifyOgImage()");
     });
 });

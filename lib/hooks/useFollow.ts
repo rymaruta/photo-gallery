@@ -212,6 +212,13 @@ function loadCounts(userId: string): Promise<void> {
                     if ((countsGen.get(userId) ?? 0) !== gen) return;
                     if (attempt === COUNTS_RETRIES) return;   // 取れなければ出さない（0 とは言わない）
                     await new Promise((r) => setTimeout(r, COUNTS_RETRY_BASE_MS * 2 ** attempt));
+                    // **誰も見ていなければ、そこでやめる。**
+                    // この関数はモジュール側にあるので、画面を離れても
+                    // 撃ち直しが最大2本飛び続けていた（結果は誰も読まない）。
+                    // テストでも、終わったあとに GET が飛んで**次のテストの
+                    // 「呼ばれていないこと」を壊していた**（実測: 何もしない
+                    // 1.5秒の間に2回）。購読が0なら降りる
+                    if ((listeners.get(userId)?.size ?? 0) === 0) return;
                 }
             }
         } finally {

@@ -43,7 +43,7 @@ export default function ModalCaption({
         <div
             className="flex-shrink-0 overflow-y-auto bg-black text-white/90 px-4 sm:px-6 py-3 sm:py-4"
             style={{
-                maxHeight: "calc(100vh - 60vh - 40px)",
+                maxHeight: "calc(100dvh - 60dvh - 40px)",
                 // **下限を画面の高さに連動させる（TAP-7）。** 200px 固定だと、
                 // 画像の下限（300px）と合わせて 500px になり、横向きのスマホの
                 // 外枠（95vh = 356px @ 667x375）に入らない。両方 `flex-shrink-0`
@@ -54,7 +54,10 @@ export default function ModalCaption({
                 WebkitOverflowScrolling: "touch",
             }}
         >
-            <div className="text-base sm:text-lg font-medium mb-1">{titleText}</div>
+            {/* `break-words`: 写真ページと同じデータ。長い URL があると
+                この箱の中が横に流れ、共有ボタンの行も一緒に流れる
+                （`overflow-y: auto` は `overflow-x` も auto にする） */}
+            <div className="text-base sm:text-lg font-medium mb-1 break-words">{titleText}</div>
 
             <div className="text-xs sm:text-sm text-white/60 mb-2">
                 {categoryDisplayMap[photo.category ?? ""] ?? (photo.category ?? "")}
@@ -78,7 +81,7 @@ export default function ModalCaption({
             )}
 
             {paragraphs.length > 0 && (
-                <div className="mt-2 text-xs sm:text-sm text-white/70" role="note">
+                <div className="mt-2 text-xs sm:text-sm text-white/70 break-words" role="note">
                     {paragraphs.map((line, i) => (
                         <p key={i} className={i === 0 ? "" : "mt-2"}>{line}</p>
                     ))}

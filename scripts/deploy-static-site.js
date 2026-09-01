@@ -401,11 +401,28 @@ async function verifyOgImage(opts = {}) {
         return "missing";
     }
     const url = m[1];
+    // **相対 URL は「取れない」に倒す。** `fetch` は相対を投げるので、
+    // 下の catch が「通信に失敗しました」と言う——**このチェックが存在する
+    // 理由そのもの（`/images/og-image.jpg` を指したまま放置されていた）が、
+    // 一番わかりにくいログで出る**。最後の砦として先に弾く
+    try {
+        new URL(url);
+    } catch {
+        console.warn(`[deploy] advisory: og:image が絶対URLではありません — ${url}`);
+        console.warn("[deploy] advisory: OGP 画像は絶対URLでないと SNS から取得できません。");
+        return "broken";
+    }
     try {
         // HEAD が塞がれている配信もあるので、405/501 のときだけ GET で見直す
-        let res = await doFetch(url, { method: "HEAD", redirect: "follow" });
+        // **必ず打ち切る。** タイムアウトが無いと、応答を返さないホスト
+        // （CI ランナーが WAF に握られる場面＝この関数が想定している状況
+        // そのもの）で **Node の既定 300 秒**待つ。実測で 300.9 秒。
+        // デプロイの最後なので成功しているのにジョブが5分伸びる——Actions の
+        // 枠は逼迫している（2026-08 に 1,804/2,000 分）ので実費になる。
+        const withTimeout = () => ({ redirect: "follow", signal: AbortSignal.timeout(5000) });
+        let res = await doFetch(url, { method: "HEAD", ...withTimeout() });
         if (res.status === 405 || res.status === 501) {
-            res = await doFetch(url, { redirect: "follow" });
+            res = await doFetch(url, withTimeout());
         }
         const ct = (res.headers.get("content-type") || "").toLowerCase();
         if (res.status === 200 && ct.startsWith("image/")) {

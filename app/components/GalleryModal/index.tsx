@@ -11,7 +11,6 @@ import { copyToClipboard, shareUrl } from "../../../lib/utils/share";
 import { siteConfig } from "../../../lib/utils/seo";
 import { ROUTES } from "../../../lib/routes";
 import { log } from "../../../lib/utils/log";
-import { IMAGE_MIN_HEIGHT } from "@/lib/utils/modalLayout";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
 import { hapticTap } from "../../../lib/utils/haptics";
 import { HeartIcon } from "@heroicons/react/24/solid";
@@ -213,23 +212,30 @@ export default function GalleryModal({
             onClick={handleOverlayClick}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md"
         >
+            {/* **`dvh` で測る。** 枠は `h-full`（実際の表示領域）なのに中身は
+                `vh`（ツールバーを含む高さ）で、iOS Safari や Instagram の内蔵
+                ブラウザでは 50〜90px ずれる。ずれた分は `overflow-hidden` で
+                切られる——**TAP-7 と同じ「キャプションの下部に指が届かない」が
+                縦向きでも出る**（表示領域を90px縮めた実測で画面外22px）。
+                `app/globals.css` が body に `100dvh` を入れているのは同じ理由。 */}
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="relative w-full h-full sm:h-auto sm:max-h-[95vh] flex flex-col sm:mx-4 sm:rounded-2xl overflow-hidden bg-black sm:ring-1 sm:ring-white/10"
+                className="relative w-full h-full sm:h-auto sm:max-h-[95dvh] flex flex-col sm:mx-4 sm:rounded-2xl overflow-hidden bg-black sm:ring-1 sm:ring-white/10"
                 style={{ maxWidth: "980px" }}
             >
                 {/* 画像エリア。
-                    **下限を画面の高さに連動させる（TAP-7）。** 画像 300px と
-                    キャプション 200px の**固定の下限が合計 500px** で、横向きの
-                    スマホでは外枠（`95vh`＝356px @ 667x375）に入らなかった。
-                    どちらも `flex-shrink-0` なので縮まず、キャプションの箱ごと
-                    画面からはみ出す——中を最後までスクロールしても共有ボタンの
-                    行に**指が届かない**（実測: 667x375 で画面外118px、
-                    568x320 で169px、844x390 で104px）。縦向きでは
-                    `min(300px, 45vh)` = 300px なので**見た目は変わらない**。 */}
+                    **下限を持たせない（TAP-7）。** 以前は `minHeight: 300px` が
+                    あり、キャプションの 200px と合わせて 500px。横向きのスマホでは
+                    外枠（`95vh` ＝ 356px @ 667x375）に入らず、どちらも
+                    `flex-shrink-0` なので縮まないため、キャプションの箱ごと画面から
+                    はみ出していた——中を最後までスクロールしても共有ボタンの行に
+                    **指が届かない**（実測: 667x375 で画面外118px、568x320 で169px）。
+                    高さは `60vh` が決めるので、下限はそもそも要らない
+                    （`min(300px, 45vh)` も試したが 45vh < 60vh で**一度も拘束
+                    しない**＝効いていない定数だった）。 */}
                 <div
                     className="relative w-full flex-shrink-0 bg-black sm:bg-transparent"
-                    style={{ height: "60vh", minHeight: IMAGE_MIN_HEIGHT, fontSize: 0, lineHeight: 0, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}
+                    style={{ height: "60dvh", fontSize: 0, lineHeight: 0, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}
                 >
                     <div className="relative w-full h-full" {...swipeHandlers} onClick={handleImageTap}>
                         <ModalImage key={p.id} src={p.src} srcAvif={p.srcAvif} alt={altText} focalPoint={p.focalPoint} />

@@ -512,6 +512,34 @@ describe("フォロー数が分かっていない間", () => {
         });
     });
 
+    // **画面を離れたら撃ち直しをやめる。** `loadCounts` はモジュール側の
+    // 関数なので、アンマウントでは止まらず、結果を誰も読まないまま最大2本の
+    // GET が飛んでいた。テストでは、終わったあとの発火が**次のテストの
+    // 「呼ばれていないこと」を壊していた**（レビューの実測: 何もしない
+    // 1.5秒の間に2回）。購読が0になったら降りる。
+    it("誰も見ていなければ撃ち直さない", async () => {
+        vi.useFakeTimers();
+        try {
+            const useFollow = await load();
+            mockPublicFetch.mockRejectedValue(new Error("network"));
+
+            const { unmount } = renderHook(() => useFollow(TARGET, false));
+            await vi.advanceTimersByTimeAsync(10);       // 1本目が失敗する
+            const afterFirst = mockPublicFetch.mock.calls.length;
+            expect(afterFirst).toBe(1);
+
+            unmount();                                   // 画面を離れる
+            await vi.advanceTimersByTimeAsync(5000);     // バックオフの時間を全部進める
+
+            expect(mockPublicFetch.mock.calls.length, "離れたあとも撃ち直している")
+                .toBe(afterFirst);
+        } finally {
+            vi.clearAllTimers();
+            vi.useRealTimers();
+            cleanup();
+        }
+    });
+
     it("取得できたら数を出す（正常系）", async () => {
         const useFollow = await load();
         const { result } = renderHook(() => useFollow(TARGET, false));

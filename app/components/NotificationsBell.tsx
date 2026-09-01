@@ -166,7 +166,10 @@ export default function NotificationsBell() {
                                     const body = (
                                         <>
                                             <div className="min-w-0 flex-1">
-                                                <p className="text-[13px] text-white/85 leading-snug">
+                                                {/* `break-words`: 表示名は100文字まで通るので、
+                                                    空白の無い名前だとパネルの外に出て**丸ごと読めなくなる**
+                                                    （実測: 名前の右端896px に対しパネル右端320px） */}
+                                                <p className="text-[13px] text-white/85 leading-snug break-words">
                                                     {n.type === "follow" ? (
                                                         <>
                                                             <UserPlusIcon className="w-3.5 h-3.5 text-sky-400 inline -mt-0.5 mr-1" />

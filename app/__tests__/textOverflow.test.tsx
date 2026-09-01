@@ -1,6 +1,4 @@
-import React from "react";
 import { describe, it, expect } from "vitest";
-import { render } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -29,6 +27,33 @@ describe("長い文字列で横に流れない", () => {
         expect(line, "break-words が無い（長い URL でページごと横に流れる）").toContain("break-words");
     });
 
+    // レビューで見つかった取りこぼし。**同じデータを描く場所が3つ残っていた**
+    //   - モーダルのキャプション（写真ページと同じタイトル・説明）
+    //   - `ProfileLink` の表示名（サーバーは100文字まで通す。実測で
+    //     幅375pxのとき要素幅871px・`scrollWidth` 879 ＝ページごと流れる）
+    //   - 通知の本文（パネルは `overflow-hidden` なので流れない代わりに
+    //     名前が丸ごと読めなくなる。実測で名前の右端896px・パネル右端320px）
+    it.each([
+        ["app/components/GalleryModal/ModalCaption.tsx", "{titleText}</div>"],
+        ["app/components/GalleryModal/ModalCaption.tsx", 'role="note"'],
+        ["app/components/ProfileLink.tsx", "{displayName}"],
+    ])("%s の %s", (rel, needle) => {
+        const src = read(rel);
+        const idx = src.indexOf(needle);
+        expect(idx, `${needle} が見つからない`).toBeGreaterThan(-1);
+        // その要素（直前の開始タグ）に break-words があること
+        const openTag = src.lastIndexOf("<", idx);
+        const chunk = src.slice(openTag, idx + needle.length);
+        expect(chunk, "break-words が無い（長い URL・長い表示名で横に流れる）").toContain("break-words");
+    });
+
+    it("通知の本文", () => {
+        const src = read("app/components/NotificationsBell.tsx");
+        const line = src.split("\n").find((l) => l.includes('className="text-[13px] text-white/85 leading-snug'));
+        expect(line, "通知の本文を描く行が見つからない").toBeDefined();
+        expect(line, "break-words が無い（長い表示名がパネルの外へ出て読めない）").toContain("break-words");
+    });
+
     it("写真ページのタイトルと説明", () => {
         const src = read("app/photo/[id]/PhotoPageClient.tsx");
         const title = src.split("\n").find((l) => l.includes("{titleText}</h1>"));
@@ -37,13 +62,6 @@ describe("長い文字列で横に流れない", () => {
         expect(desc, "説明に break-words が無い").toContain("break-words");
     });
 
-    // 正常系: 付けた側が実際に描画される（クラス名を消しても落ちない形にしない）
-    it("付けたクラスが要素に載る", () => {
-        const { container } = render(
-            <p className="text-sm whitespace-pre-wrap break-words">https://example.com/very/long/path</p>,
-        );
-        expect(container.querySelector("p")?.className).toContain("break-words");
-    });
 });
 
 // **画面下に固定したバーが safe-area を見ていなかった。**
@@ -55,13 +73,31 @@ describe("長い文字列で横に流れない", () => {
 // 外に出る）。実測で、高さ44pxのボタンの下に14pxしか空いていなかった。
 // `StoryViewer` / `StoriesBar` / `MiniPlayer` は既にこの形を持っている。
 describe("画面下に固定したものは safe-area を空ける", () => {
+    // **コメントを数えない。** 最初の版はファイル全文に `toContain` を
+    // 掛けていたので、**この修正の説明コメントが同じ文字列を含んでいる**
+    // せいで、`style` の行を消しても緑だった（レビューが実証）。
+    // 実装の行だけを見る。
+    const codeOf = (rel: string) =>
+        read(rel).replace(/\/\*[\s\S]*?\*\//g, " ")
+            .split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
+
     it.each([
         ["app/user/upload/page.tsx", "アップロードバー"],
         ["app/user/edit/page.tsx", "保存・削除バー"],
-        ["app/components/Toast.tsx", "トースト"],
     ])("%s（%s）", (rel) => {
-        const src = read(rel);
-        expect(src, "env(safe-area-inset-bottom) が無い（ホームインジケーターに被る）")
-            .toContain("safe-area-inset-bottom");
+        const code = codeOf(rel);
+        // `style={{ ... safe-area-inset-bottom ... }}` の形で入っていること
+        expect(code, "env(safe-area-inset-bottom) を実装で使っていない（ホームインジケーターに被る）")
+            .toMatch(/style=\{\{[^}]*safe-area-inset-bottom/);
+    });
+
+    // 画面下に固定するものを新しく足したときに気づけるように、
+    // 数そのものを固定する（増えたら「safe-area を見たか」を確かめる）
+    it("固定バーは2本（増えたら safe-area を確かめる）", () => {
+        const bars = ["app/user/upload/page.tsx", "app/user/edit/page.tsx"]
+            .map(codeOf)
+            .map((c) => (c.match(/fixed bottom-0/g) ?? []).length)
+            .reduce((a, b) => a + b, 0);
+        expect(bars).toBe(2);
     });
 });
