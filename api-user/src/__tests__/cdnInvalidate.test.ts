@@ -62,4 +62,23 @@ describe("エッジからも消す", () => {
         expect(await invalidate([])).toBe(true);
         expect(send).not.toHaveBeenCalled();
     });
+    // **ランタイムに `@aws-sdk/client-cloudfront` が無かった場合。**
+    //
+    // serverless の esbuild は `@aws-sdk/*` をバンドルから外すので、
+    // この import が解決できるかは Lambda ランタイムが何を積んでいるか次第。
+    // 以前はトップレベルの import だったので、無ければ**モジュール読み込みの
+    // 時点で落ち**、この関数を import しているだけの deleteMyPhoto /
+    // deleteAccount / cleanupStories が丸ごと失敗する形になっていた
+    // （「失敗しても削除は成功として扱う」を、読み込みの段で破っていた）。
+    it("モジュールが読めなくても投げない・呼び出し側は先へ進める", async () => {
+        vi.resetModules();
+        vi.doMock("@aws-sdk/client-cloudfront", () => {
+            throw new Error("Cannot find module '@aws-sdk/client-cloudfront'");
+        });
+        vi.stubEnv("CLOUDFRONT_DISTRIBUTION_ID", "E123");
+        const { invalidateUploads } = await import("../cdnInvalidate");
+        // 投げないこと自体が要件。戻り値は「掃除できなかった」
+        await expect(invalidateUploads(["uploads/a.jpg"])).resolves.toBe(false);
+        vi.doUnmock("@aws-sdk/client-cloudfront");
+    });
 });

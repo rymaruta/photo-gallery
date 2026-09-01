@@ -1,5 +1,3 @@
-import { CloudFrontClient, CreateInvalidationCommand } from "@aws-sdk/client-cloudfront";
-
 /**
  * 消した実体を **CloudFront のエッジからも消す**（LEFT-4）。
  *
@@ -17,9 +15,22 @@ import { CloudFrontClient, CreateInvalidationCommand } from "@aws-sdk/client-clo
  * 配信IDが未設定なら**何もしない**（警告だけ）。requireEnv にしないのは、
  * 設定漏れで削除そのものを止めたくないため——この関数の目的は
  * 「消えるのを早める」ことであって、削除の前提条件ではない。
+ *
+ * **`@aws-sdk/client-cloudfront` は関数の中で読む。**
+ * serverless の esbuild は `@aws-sdk/*` をバンドルから外す設定なので、
+ * この import が解決できるかは**Lambda ランタイムが何を積んでいるか**
+ * 次第になる。トップレベルの import にすると、無かったときに
+ * モジュール読み込みの時点で落ち、**この関数を import しているだけの
+ * 削除・退会・ストーリー掃除まで丸ごと失敗する**——「失敗しても削除は
+ * 成功として扱う」と上に書いた約束を、読み込みの段で破っていた。
+ * 中に入れておけば、無ければ警告1行で済む（`s3DeleteMany` は
+ * この戻り値を握って先へ進む）。
  */
 const DIST_ID = process.env.CLOUDFRONT_DISTRIBUTION_ID ?? "";
-const cf = new CloudFrontClient({});
+
+// 読めたクライアントは使い回す（他の口と同じ扱い）。読めなかったことは
+// 覚えない——一時的な失敗で永久に諦めるより、次の削除でもう一度試す方がよい
+let cached: { send: (cmd: unknown) => Promise<unknown> } | null = null;
 
 export async function invalidateUploads(keys: readonly string[], logPrefix = "invalidateUploads"): Promise<boolean> {
     if (keys.length === 0) return true;
@@ -31,10 +42,19 @@ export async function invalidateUploads(keys: readonly string[], logPrefix = "in
     // 重複は畳む——同じパスを2回数えると、無効化の**課金対象パス**が増える
     const paths = [...new Set(keys.map((k) => `/${String(k).replace(/^\/+/, "")}`))];
     try {
-        await cf.send(new CreateInvalidationCommand({
+        const { CloudFrontClient, CreateInvalidationCommand } = await import("@aws-sdk/client-cloudfront");
+        cached ??= new CloudFrontClient({}) as unknown as typeof cached;
+        await cached!.send(new CreateInvalidationCommand({
             DistributionId: DIST_ID,
             InvalidationBatch: {
-                // 同じ削除を再送しても無効化が二重に走らないよう、内容から作る
+                // **毎回ちがう値**。以前ここには「内容から作るので再送しても
+                // 二重に走らない」と書いてあったが、`Date.now()` は内容と
+                // 何の関係も無い——コメントだけがそう言っていた。
+                // 内容から作る形にはしない: CloudFront は同じ
+                // CallerReference に**同じ**バッチが来たら過去の無効化を
+                // そのまま返すので、いつか同じキーを消し直したときに
+                // 「完了済み」を返されて**エッジが掃除されない**方に倒れる。
+                // 二重に走る側の損は、無効化1本ぶんの課金だけ。
                 CallerReference: `del-${Date.now()}-${paths.length}`,
                 Paths: { Quantity: paths.length, Items: paths },
             },
