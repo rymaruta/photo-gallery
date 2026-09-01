@@ -261,6 +261,31 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
     );
     const { followers, following } = known ?? EMPTY;
 
+    // **落ちたままの数を、画面を増やさずに取り直す。**
+    //
+    // 撃ち直しは2回までなので、そこも落ちるとピルは**永久に出ない**
+    // ——この下の effect は `[targetUserId, isAuthenticated, withCounts]`
+    // でしか回らず、契機が無いため。失敗表示と再試行ボタンを足すのが
+    // `followingError` と同じ形だが、**それはデザインの追加**になる。
+    // 「戻ってきた／回線が戻った」を契機にすれば、画面は今のままで
+    // 「一度落ちたら二度と出ない」だけを消せる。
+    //
+    // 走らせるのは**数が未取得のときだけ**なので、取れている人の画面で
+    // タブを切り替えても問い合わせは増えない。
+    useEffect(() => {
+        if (!targetUserId || !withCounts || known !== undefined) return;
+        const retry = () => {
+            if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+            void loadCounts(targetUserId);
+        };
+        window.addEventListener("online", retry);
+        document.addEventListener("visibilitychange", retry);
+        return () => {
+            window.removeEventListener("online", retry);
+            document.removeEventListener("visibilitychange", retry);
+        };
+    }, [targetUserId, withCounts, known]);
+
     useEffect(() => {
         if (!targetUserId) return;
         let aborted = false;

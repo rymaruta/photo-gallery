@@ -33,6 +33,34 @@ const COMMENTS_MAX_PER_USER = 10;
 const COMMENT_APPEND_RETRIES = 3;
 const DELETE_RETRIES = 3;   // 削除の添字がずれたときの読み直し回数
 const TEXT_MAX = 500;
+/**
+ * `comments#<photoId>` の item に許すバイト数。
+ *
+ * **件数だけでは DynamoDB の 400KB を守れない。** 上限は
+ * `COMMENTS_MAX`(200) × `TEXT_MAX`(500) × 表示名(100) で、日本語は
+ * 1文字3バイトなので 200 × (1500 + 300 + id/uid/日時 ≈ 150) ≈ 390KB
+ * ——**余裕が数%しかない**。しかも切り詰めは追記の**あと**に走るので、
+ * 超えた瞬間の `UpdateCommand` が `ValidationException` で落ち、
+ * **その写真には以後1件もコメントできなくなる**（誰かが消すまで、
+ * 毎回500が返る）。件数の上限は「古いものから落ちる」と言っているのに、
+ * 実際には「新しいものが入らない」に化ける。
+ *
+ * そこで**追記の前に**バイト数で見て、入らなければ古い方から落とす。
+ * 350KB は 400KB に対して 50KB の余白（id・photoId・updatedAt と、
+ * DynamoDB が属性名ぶんに使う分）。
+ */
+const ITEM_BUDGET_BYTES = 350 * 1024;
+
+/**
+ * `next` を足しても収まるように、**古い方から**落とす件数を返す。
+ * 落とす必要が無ければ 0。
+ */
+export function overBudgetCount(existing: readonly Comment[], next: Comment): number {
+    const size = (arr: readonly Comment[]) => Buffer.byteLength(JSON.stringify(arr), "utf8");
+    let drop = 0;
+    while (drop < existing.length && size([...existing.slice(drop), next]) > ITEM_BUDGET_BYTES) drop++;
+    return drop;
+}
 
 const commentsId = (photoId: string) => `comments#${photoId}`;
 
@@ -214,6 +242,31 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
                 // 返信できてよいが、それと「再送で2件入らないこと」は別の話
                 if (!isOwner && existing.filter((c) => c.uid === uid).length >= COMMENTS_MAX_PER_USER) {
                     return jsonError(429, `同じ写真へのコメントは${COMMENTS_MAX_PER_USER}件までです`);
+                }
+                // **入るかどうかを、足す前に見る。** 超えた状態で
+                // `list_append` を投げると `ValidationException` になり、
+                // その写真は以後コメントを1件も受け付けなくなる（下の
+                // 切り詰めは追記のあとにしか走らない）。落とすのは古い方
+                // ——件数の上限と同じ向き。
+                const drop = overBudgetCount(existing, comment);
+                if (drop > 0) {
+                    if (attempt >= COMMENT_APPEND_RETRIES) {
+                        return jsonError(409, "他の投稿と重なりました。もう一度お試しください");
+                    }
+                    try {
+                        await ddb.send(new UpdateCommand({
+                            TableName: PHOTOS_TABLE,
+                            Key: { id: commentsId(photoId) },
+                            UpdateExpression: "SET #items = :kept",
+                            ConditionExpression: "size(#items) = :len",
+                            ExpressionAttributeNames: { "#items": "items" },
+                            ExpressionAttributeValues: { ":kept": existing.slice(drop), ":len": existing.length },
+                        }));
+                    } catch (e) {
+                        if ((e as { name?: string }).name !== "ConditionalCheckFailedException") throw e;
+                        // 競合した。読み直してからやり直す
+                    }
+                    continue;   // 読み直して、空いた状態で追記する
                 }
                 try {
                     appended = await ddb.send(new UpdateCommand(appendArgs({ len: existing.length })));

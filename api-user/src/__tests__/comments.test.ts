@@ -17,7 +17,8 @@ vi.mock("../notify", () => ({
     DELETED_USER_NAME: "退会したユーザー",
 }));
 
-const { getComments, postComment, deleteComment } = await import("../comments");
+const { getComments, postComment, deleteComment, overBudgetCount } = await import("../comments");
+type Comment = { id: string; uid: string; name: string; text: string; t: string };
 
 type Result = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -651,6 +652,79 @@ describe("コメント追記: ぶつかったらやり直す", () => {
 // photoUpdate.ts の2か所と deleteComment は持っていて、「userId が無い写真は
 // uploadedBy で判定する」専用テストまである。無いと、`uploadedBy` しか持たない
 // 古い写真の**本人が11件目で 429** になる——免除を入れた理由そのもの。
+// **件数の上限だけでは DynamoDB の 400KB を守れない。**
+//
+// `COMMENTS_MAX`(200) × `TEXT_MAX`(500) × 日本語1文字3バイトで約390KB
+// ——余裕が数%しかない。しかも切り詰めは追記の**あと**に走るので、
+// 超えた瞬間の `UpdateCommand` が `ValidationException` で落ち、その写真は
+// **以後1件もコメントを受け付けなくなる**（誰かが消すまで毎回500）。
+// 「古いものから落ちる」と言っている上限が「新しいものが入らない」に化ける。
+describe("コメント追記: バイト数でも溢れさせない", () => {
+    /** 1件あたり約 1.8KB（日本語500文字＝1500バイト＋名前など） */
+    const fat = (i: number): Comment => ({
+        id: `c${i}`, uid: `u${i}`, name: "あ".repeat(100), text: "あ".repeat(500), t: "2026-01-01T00:00:00.000Z",
+    });
+
+    it("溢れるなら、追記の前に古い方を落とす", async () => {
+        // 200件 ≈ 370KB。このまま足すと 400KB を超える
+        const existing = Array.from({ length: 200 }, (_, i) => fat(i));
+        const writes: Record<string, unknown>[] = [];
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string })?.id ?? "");
+                if (id === "p1") return Promise.resolve({ Item: { id: "p1", src: "s", userId: "owner" } });
+                return Promise.resolve({ Item: { items: existing } });
+            }
+            writes.push(cmd.input);
+            return Promise.resolve({ Attributes: { items: existing } });
+        });
+
+        await invoke(postComment, ev("me", { id: "p1" }, { text: "新しい" }));
+
+        const pretrim = writes.find((w) => String(w.UpdateExpression ?? "").includes("SET #items = :kept"));
+        expect(pretrim, "溢れるのに、落とさずそのまま追記している").toBeDefined();
+        const kept = (pretrim!.ExpressionAttributeValues as Record<string, Comment[]>)[":kept"];
+        expect(kept.length, "落としていない").toBeLessThan(existing.length);
+        // 落とすのは**古い方**（末尾が新しい）
+        expect(kept[kept.length - 1].id).toBe("c199");
+        expect(Buffer.byteLength(JSON.stringify(kept), "utf8")).toBeLessThan(350 * 1024);
+    });
+
+    it("収まっているなら、余計な書き込みをしない（正常系）", async () => {
+        const existing = [fat(1), fat(2)];
+        const writes: Record<string, unknown>[] = [];
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string })?.id ?? "");
+                if (id === "p1") return Promise.resolve({ Item: { id: "p1", src: "s", userId: "owner" } });
+                return Promise.resolve({ Item: { items: existing } });
+            }
+            writes.push(cmd.input);
+            return Promise.resolve({ Attributes: { items: existing } });
+        });
+
+        const res = await invoke(postComment, ev("me", { id: "p1" }, { text: "ふつうの一言" }));
+
+        expect(res.statusCode).toBe(200);
+        expect(writes.some((w) => String(w.UpdateExpression ?? "").includes("SET #items = :kept")),
+            "収まっているのに切り詰めている").toBe(false);
+    });
+
+    it("落とす件数の計算: 収まるなら 0、溢れるなら足りるだけ", () => {
+        const small = [fat(1), fat(2)];
+        expect(overBudgetCount(small, fat(3))).toBe(0);
+
+        const many = Array.from({ length: 250 }, (_, i) => fat(i));
+        const drop = overBudgetCount(many, fat(999));
+        expect(drop, "溢れているのに 0 を返している").toBeGreaterThan(0);
+        const kept = [...many.slice(drop), fat(999)];
+        expect(Buffer.byteLength(JSON.stringify(kept), "utf8")).toBeLessThanOrEqual(350 * 1024);
+        // 落としすぎない（1件戻すと超える）
+        const oneLess = [...many.slice(drop - 1), fat(999)];
+        expect(Buffer.byteLength(JSON.stringify(oneLess), "utf8")).toBeGreaterThan(350 * 1024);
+    });
+});
+
 describe("コメント上限の免除: 古い写真の所有者", () => {
     /** 自分が10件書き終えている状態の世界 */
     function worldWith(photoAttrs: Record<string, unknown>) {

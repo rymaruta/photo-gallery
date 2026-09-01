@@ -233,6 +233,73 @@ describe("フォロー数が分かっていない間", () => {
         }
     });
 
+    // **撃ち直しを使い切ったあとの契機。** 2回まで撃ち直しても駄目だと
+    // ピルは永久に出ない（この effect は targetUserId などでしか回らない）。
+    // 失敗表示と再試行ボタンを足すのはデザインの追加になるので、
+    // 「戻ってきた／回線が戻った」を契機にする。
+    it("使い切ったあとでも、タブに戻れば取り直す", async () => {
+        vi.useFakeTimers();
+        try {
+            const useFollow = await load();
+            mockPublicFetch.mockRejectedValue(new Error("network"));
+
+            const { result } = renderHook(() => useFollow(TARGET, false));
+            await vi.advanceTimersByTimeAsync(5000);
+            expect(result.current.countsKnown).toBe(false);
+            const spent = mockPublicFetch.mock.calls.length;
+
+            // 別のタブへ行って戻ってくる（今度はサーバーが答える）
+            mockPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ followers: 5, following: 4 }) });
+            await act(async () => {
+                document.dispatchEvent(new Event("visibilitychange"));
+                await vi.advanceTimersByTimeAsync(50);
+            });
+
+            expect(mockPublicFetch.mock.calls.length, "戻ってきても取り直していない").toBeGreaterThan(spent);
+            await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+            expect(result.current.countsKnown, "取り直したのに数が出ていない").toBe(true);
+            expect(result.current.followers).toBe(5);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("回線が戻ったときも取り直す", async () => {
+        vi.useFakeTimers();
+        try {
+            const useFollow = await load();
+            mockPublicFetch.mockRejectedValue(new Error("network"));
+
+            const { result } = renderHook(() => useFollow(TARGET, false));
+            await vi.advanceTimersByTimeAsync(5000);
+            const spent = mockPublicFetch.mock.calls.length;
+
+            mockPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ followers: 1, following: 1 }) });
+            await act(async () => {
+                window.dispatchEvent(new Event("online"));
+                await vi.advanceTimersByTimeAsync(50);
+            });
+
+            expect(mockPublicFetch.mock.calls.length).toBeGreaterThan(spent);
+            await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+            expect(result.current.countsKnown).toBe(true);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    // 取れている人の画面では、タブを切り替えても問い合わせを増やさない
+    it("数が取れていれば、戻ってきても取り直さない", async () => {
+        const useFollow = await load();
+        const { result } = renderHook(() => useFollow(TARGET, false));
+        await waitFor(() => expect(result.current.countsKnown).toBe(true));
+        const spent = mockPublicFetch.mock.calls.length;
+
+        await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+
+        expect(mockPublicFetch.mock.calls.length, "取れているのに撃ち直している").toBe(spent);
+    });
+
     it("やり直しても駄目なら、数は出さない（0 と言わない）", async () => {
         vi.useFakeTimers();
         try {
