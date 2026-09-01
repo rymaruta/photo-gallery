@@ -409,7 +409,10 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     // BreadcrumbList構造化データを生成
     const breadcrumbData = useMemo(() => {
         if (!photo) return null;
-        const title = getLocalized(photo.title, locale) || getLocalized(photo.title, "ja") || getLocalized(photo.title, "en") || "Untitled";
+        // パンくずの名前。**同じページの `ImageObject` は `name: ""` を出す**
+        // ので、ここだけ "Untitled" にすると**同じ写真について2つの
+        // 構造化データが違うことを言う**。日本語のサイトなので文言も揃える
+        const title = getLocalized(photo.title, locale) || getLocalized(photo.title, "ja") || getLocalized(photo.title, "en") || "無題の写真";
         return generateBreadcrumbStructuredData([
             { name: locale === "en" ? "Home" : "ホーム", url: siteConfig.url },
             { name: title, url: `${siteConfig.url}/photo/${photo.id}` },

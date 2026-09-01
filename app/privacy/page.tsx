@@ -7,7 +7,10 @@ import { siteConfig } from "@/lib/utils/seo";
 const LAST_UPDATED = "2026年8月19日";
 
 export const metadata: Metadata = {
-    title: `プライバシーポリシー | ${siteConfig.name}`,
+    // サイト名は `app/layout.tsx` の `template` が付ける。ここでも足すと
+    // `プライバシーポリシー | Journey Photo | 旅フォトギャラリー | Journey Photo 旅フォトギャラリー`
+    // になり、53文字中44文字が定型文になる（写真ページで同じものを直した）
+    title: "プライバシーポリシー",
     description: "Journey Photo における個人情報・アクセス解析・Cookie の取り扱いについて説明します。",
     alternates: { canonical: `${siteConfig.url}/privacy` },
     openGraph: {

@@ -84,11 +84,28 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     const description = `${summary.displayName}さんが Journey Photo で旅の写真を${summary.photoCount}枚公開中。旅先の風景やスナップをお楽しみください。`;
     const url = `${siteConfig.url}/users/${id}`;
     const images = summary.latestPhotoSrc
-        ? [{ url: summary.latestPhotoSrc, width: 1200, height: 800, alt: title }]
+        // **寸法は出さない。** 代表画像はその人の最新投稿で縦横比はまちまち、
+        // しかも `photos.json` の30枚は1枚も `width`/`height` を持っていない
+        // （実測 0/30）。写真ページは同じ理由で寸法をやめてある
+        // （`app/photo/[id]/page.tsx` のコメント）——ここだけ 3:2 の
+        // 決め打ちが残っていた
+        ? [{ url: summary.latestPhotoSrc, alt: title }]
         : undefined;
 
     return {
+        // サイト名は親から降りる `template` が付ける（`app/users/layout.tsx`
+        // が `title` を素の文字列で置いていた間は降りてこず、この
+        // `<title>` だけサイト名が落ちていた）
         title,
+        // **検索結果に出す。** 親のレイアウトが `/users?id=` を隠すために
+        // `robots: { index: false }` を置いており、**子がこのキーを書かない
+        // かぎりそのまま降りる**（Next のメタデータ結合）。その結果、
+        // sitemap.xml に載せている静的なプロフィールページ全部が
+        // `noindex` で出ていた——「見に来い」と呼んで「載せるな」と言う形で、
+        // Search Console では「送信された URL が noindex です」になる。
+        // 表示名・投稿数入りの title/description/OGP も Person の JSON-LD も
+        // 全部そのために作っているのに、一つも使われていなかった。
+        robots: { index: true, follow: true },
         description,
         alternates: { canonical: url },
         openGraph: {

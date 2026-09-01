@@ -12,8 +12,24 @@ import { truncate } from "@/lib/utils/text";
 
 export const dynamic = "force-static";
 
+/**
+ * XML に入れてよい形にする。
+ *
+ * **記号を実体参照にするだけでは足りない。** XML 1.0 は C0 制御文字
+ * （タブ・改行・復帰を除く U+0000-001F）を**文字参照でも書けない**ので、
+ * 1文字混ざると `sitemap-images.xml` が**丸ごと** parse error になる
+ * （その1件だけでなく30枚ぶんの `<image:loc>` が全部読めなくなる）。
+ * HTML と JSON-LD は `JSON.stringify` が `\u000b` に逃がすので無事——
+ * つまり**画面のどこにも症状が出ない**。
+ *
+ * 入口（`api-user/src/sanitize.ts`）にも除去は無く、API を直接叩けば確実に
+ * 入る。Word や表計算からの貼り付けはセル内改行が U+000B になるので、
+ * 説明文の貼り付けでも入りうる。
+ */
 function esc(s: string): string {
     return s
+        // 制御文字は落とす（タブ・改行・復帰は XML で合法なので残す）
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "")
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")

@@ -123,9 +123,15 @@ export function generatePhotoStructuredData(photo: {
         "@type": "ImageObject",
         "@id": `${siteConfig.url}/photo/${photo.id}`,
         contentUrl: imageUrl,
-        name: title,
+        // 名前が無い写真は実在する（`sanitizeTitle` は空なら属性ごと消す）。
+        // `""` を出すと、同じページのパンくずが出す名前と食い違う
+        name: title || "無題の写真",
         ...(altTitle && altTitle !== title ? { alternateName: altTitle } : {}),
-        description: description || siteConfig.description,
+        // **説明が無いときにサイトのキャッチコピーを名乗らない。**
+        // 「この写真の説明はサイトの宣伝文です」と機械可読で配ることになり、
+        // 説明を空にした写真が全部同じ description を持つ。分からないなら
+        // 黙る（撮影日で採ったのと同じ判断）
+        ...(description ? { description } : {}),
         ...(description ? { caption: description } : {}),
         url: `${siteConfig.url}/photo/${photo.id}`,
         representativeOfPage: true,
