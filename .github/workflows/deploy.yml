@@ -155,6 +155,18 @@ jobs:
     container:
       image: mcr.microsoft.com/playwright:v1.61.1-noble
 
+    # **コンテナの中では `run:` の既定シェルが `sh`（dash）になる。**
+    # ランナー直上なら bash なので、同じ書き方でも通ってしまう——
+    # `set -euo pipefail` は dash に無い `pipefail` を含むので
+    # `set: Illegal option -o pipefail` で**1行目から落ちる**。
+    # 2026-08-19 にこのジョブをコンテナへ移し、8/21 に `set -euo pipefail` を
+    # 足した結果、**それ以降サイトのデプロイは staging も本番も
+    # S3 へ出す手前で失敗し続けていた**（ビルドは通るので、ログを最後まで
+    # 見ないと成功に見える）。ここで shell を明示して、書き方の前提を戻す。
+    defaults:
+      run:
+        shell: bash
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
