@@ -31,15 +31,22 @@ const DEBOUNCE_MS = 120;
  * 検索語に一致するユーザーを引く。写真の検索と同じ入力欄から呼ぶ想定。
  * 入力のたびに叩かないよう 300ms 待ってから1回だけ問い合わせる。
  */
-export function useUserSearch(query: string): { users: UserHit[]; loading: boolean } {
+export function useUserSearch(query: string): { users: UserHit[]; loading: boolean; failed: boolean } {
     const [users, setUsers] = useState<UserHit[]>([]);
     const [loading, setLoading] = useState(false);
+    // **「見つからなかった」と「聞けなかった」を分ける。**
+    // 失敗も `setUsers([])` にしていたので、API が落ちているだけなのに
+    // 「その人は登録していない」と読める文言が出ていた。知り合いを探しに
+    // 来た新規ユーザーが最初に踏む画面。
+    const [failed, setFailed] = useState(false);
 
     useEffect(() => {
         const q = query.trim().replace(/^@+/, "");
         if (!isSearchableQuery(q)) {
             setUsers([]);
             setLoading(false);
+            // 検索語を消したら失敗の印も下ろす（前の失敗を引きずらない）
+            setFailed(false);
             return;
         }
 
@@ -53,12 +60,16 @@ export function useUserSearch(query: string): { users: UserHit[]; loading: boole
                     const res = await userPublicFetch(`/users/search?q=${encodeURIComponent(q)}`, { signal: controller.signal });
                     if (!res.ok) throw new Error(String(res.status));
                     const data = await res.json() as { users?: UserHit[] };
-                    if (!aborted) setUsers(Array.isArray(data.users) ? data.users : []);
+                    if (!aborted) {
+                        setUsers(Array.isArray(data.users) ? data.users : []);
+                        setFailed(false);
+                    }
                 } catch (e) {
                     // 中断は正常系。それ以外は結果を空にして黙って諦める（写真の検索は動き続ける）
                     if (!aborted && (e as Error).name !== "AbortError") {
                         log.warn("user search error:", e);
                         setUsers([]);
+                        setFailed(true);
                     }
                 } finally {
                     if (!aborted) setLoading(false);
@@ -73,5 +84,5 @@ export function useUserSearch(query: string): { users: UserHit[]; loading: boole
         };
     }, [query]);
 
-    return { users, loading };
+    return { users, loading, failed };
 }

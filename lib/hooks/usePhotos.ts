@@ -41,8 +41,21 @@ export function usePhotos() {
                     // APIが空配列を返した場合はBASE_PHOTOSを維持する
                     if (Array.isArray(data) && data.length > 0) {
                         setPhotos(data);
-                        setLoaded(true);
                     }
+                    // **`loaded` は「届いたか」だけを言う。中身の有無ではない。**
+                    //
+                    // 以前は `data.length > 0` の中で立てていたので、公開写真が
+                    // 0件の環境（新しい環境・全部非公開にした・全部消した）では
+                    // **永久に false のまま**だった。`GalleryPageClient` は
+                    // 「届くまでは『見つかりません』と言わない」ために
+                    // `photosLoaded` を門にしているので、共有リンク
+                    // （`/?photo=<id>`）を踏んでも**モーダルも出ず、無いとも
+                    // 言われず、`?photo=` が URL に残ったまま**になる。
+                    // 押し直しても同じ。新着写真の唯一の閲覧手段がこの経路。
+                    //
+                    // 表示する中身は変えない（空で `BASE_PHOTOS` を潰さない）。
+                    // 変えるのは「聞けて、答えが返った」を記録するかどうかだけ。
+                    if (Array.isArray(data)) setLoaded(true);
                 } else {
                     log.warn("写真の取得に失敗しました", { status: response.status });
                 }

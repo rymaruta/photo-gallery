@@ -586,7 +586,11 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
                             <h3 className="text-sm font-semibold text-white">
                                 {locale === "en" ? "Viewers" : "閲覧者"}
-                                <span className="ml-2 text-white/50 font-normal">{viewers?.length ?? 0}</span>
+                                {/* **取得中を 0 と言わない。** 同じ画面のボタン側は
+                                    `viewers === null` を "..." と出しているのに、
+                                    この見出しだけ `?? 0` で潰していて、開いた瞬間
+                                    「閲覧者 0」が出てから数字が入っていた */}
+                                <span className="ml-2 text-white/50 font-normal">{viewers === null ? "…" : viewers.length}</span>
                             </h3>
                             <button onClick={() => setViewersOpen(false)} className="p-1 text-white/60 hover:text-white" aria-label={locale === "en" ? "Close" : "閉じる"}>
                                 <XMarkIcon className="w-5 h-5" />

@@ -35,13 +35,23 @@ type Notif = {
 /** 常駐ぶんの再取得の間隔。短くしすぎると人数×頻度でAPI が増える */
 const POLL_MS = 60_000;
 
-// 通知ベル: 「いいねされた」「行きたいリストに入った」
-// 「あなたの写真が◯◯さんを旅立たせた」が届く場所。
+// 通知ベル: **いいね・コメント・フォロー**が届く場所。
 // 認証済みヘッダーにのみ表示。開くと既読になり、通知タップで写真へ飛べる。
+//
+// **「行きたいリスト」と「旅立ちの報告」はもう無い。** 上の型のコメントに
+// そう書いてあるのに、ここと空表示の本文だけが古いまま残っていて、
+// **存在しない機能を2つ案内していた**（逆に、実在するコメントとフォローには
+// 触れていなかった）。登録直後の人が最初に読む文なので、実態に合わせる。
 export default function NotificationsBell() {
     const { locale } = useLocale();
     const [open, setOpen] = useState(false);
     const [items, setItems] = useState<Notif[]>([]);
+    // **「まだ」「0件」「取れなかった」を分ける。**
+    // 以前は `items.length === 0` だけを見ていたので、取得に失敗しても
+    // 「まだ通知はありません」相当の案内が出て、届いている通知が無いように
+    // 見えた。開いた直後の一瞬も同じ見え方になる。
+    // 再試行は要らない——このベルは POLL_MS ごとに勝手に取り直す。
+    const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
     const [unread, setUnread] = useState(0);
     const [now, setNow] = useState(0);
 
@@ -71,13 +81,17 @@ export default function NotificationsBell() {
         const readAt = readSeqRef.current;
         try {
             const res = await userFetch("/user/notifications");
-            if (!res.ok) return;
+            if (!res.ok) { if (mine === fetchSeqRef.current) setStatus("error"); return; }
             const data = await res.json() as { items?: Notif[]; unread?: number };
             if (mine !== fetchSeqRef.current) return;   // 追い越された。丸ごと捨てる
             setItems(Array.isArray(data.items) ? data.items : []);
             setUnread(readAt === readSeqRef.current && typeof data.unread === "number" ? data.unread : 0);
             setNow(Date.now());
-        } catch { /* 通知は取得できなくてもUIを壊さない */ }
+            setStatus("ready");
+        } catch {
+            // 通知は取得できなくてもUIを壊さない。ただし**黙らない**
+            if (mine === fetchSeqRef.current) setStatus("error");
+        }
     }, []);
 
     useEffect(() => {
@@ -147,9 +161,15 @@ export default function NotificationsBell() {
                         </div>
                         {items.length === 0 ? (
                             <p className="px-4 py-8 text-center text-xs text-white/40">
-                                {locale === "en"
-                                    ? "Likes, travel-list adds, and journeys your photos inspire will show up here."
-                                    : "いいね・行きたいリスト追加・旅立ちの報告がここに届きます。"}
+                                {status === "error"
+                                    ? (locale === "en"
+                                        ? "Couldn't load notifications. Retrying shortly."
+                                        : "通知を読み込めませんでした。しばらくすると取り直します。")
+                                    : status === "loading"
+                                        ? (locale === "en" ? "Loading…" : "読み込み中…")
+                                        : (locale === "en"
+                                            ? "Likes, comments, and new followers will show up here."
+                                            : "いいね・コメント・フォローがここに届きます。")}
                             </p>
                         ) : (
                             <ul className="max-h-96 overflow-y-auto no-scrollbar divide-y divide-white/5">
