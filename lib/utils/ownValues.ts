@@ -1,4 +1,5 @@
 import type { Photo } from "../data/photos";
+import { tagKey } from "./collections";
 
 /**
  * 自分がこれまでに使った撮影地・カテゴリ・タグを、よく使う順に集める。
@@ -22,10 +23,48 @@ function byFrequency(counts: Map<string, number>): string[] {
         .map(([v]) => v);
 }
 
+/**
+ * タグの候補だけは、**同じタグを1つのチップに畳む**。
+ *
+ * 比べ方は画面の絞り込みと同じ `tagKey`（大小・`#`・記号を無視した
+ * スラッグ）。完全一致で数えていたので、実測で `["fuji", "#旅", "Fuji",
+ * "旅"]` ——**同じタグのチップが2つ**並び、押すと両方が写真に付いた。
+ * ギャラリー側は `dca777a` / `e731478` で畳んだので、ここだけ残っていた。
+ *
+ * 代表の表記は `e731478` と同じ規則: **いちばん多く使った生表記**、
+ * 同数なら文字順（毎回同じ並びにするため）。
+ * 数えるのは**写真1枚につき1回**——`["旅", "#旅"]` を持つ1枚で「2回使った」
+ * ことにはならない（`e541b23` で件数側に入れたのと同じ守り）。
+ */
+function collectTags(photos: readonly Photo[], limit: number): string[] {
+    const groups = new Map<string, { total: number; raws: Map<string, number> }>();
+    for (const p of photos) {
+        const seen = new Set<string>();
+        for (const raw of p.tags ?? []) {
+            if (typeof raw !== "string") continue;
+            const v = raw.trim();
+            if (!v) continue;
+            const key = tagKey(v);
+            if (seen.has(key)) continue;
+            seen.add(key);
+            const g = groups.get(key) ?? { total: 0, raws: new Map<string, number>() };
+            g.total += 1;
+            g.raws.set(v, (g.raws.get(v) ?? 0) + 1);
+            groups.set(key, g);
+        }
+    }
+    const label = (g: { raws: Map<string, number> }) =>
+        [...g.raws.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
+    return [...groups.values()]
+        .map((g) => ({ total: g.total, name: label(g) }))
+        .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name))
+        .map((g) => g.name)
+        .slice(0, limit);
+}
+
 export function collectOwnValues(photos: readonly Photo[] | null | undefined, limit = 30): OwnValues {
     const loc = new Map<string, number>();
     const cat = new Map<string, number>();
-    const tag = new Map<string, number>();
     const bump = (m: Map<string, number>, raw: unknown) => {
         if (typeof raw !== "string") return;
         const v = raw.trim();
@@ -37,12 +76,11 @@ export function collectOwnValues(photos: readonly Photo[] | null | undefined, li
         // 思い出したい（公開状態は候補の有無と関係ない）。
         bump(loc, p.location);
         bump(cat, p.category);
-        for (const t of p.tags ?? []) bump(tag, t);
     }
     return {
         locations: byFrequency(loc).slice(0, limit),
         categories: byFrequency(cat).slice(0, limit),
-        tags: byFrequency(tag).slice(0, limit),
+        tags: collectTags(photos ?? [], limit),
     };
 }
 
@@ -57,6 +95,11 @@ export function appendTag(current: string, tag: string): string {
     const add = tag.trim();
     if (!add) return current;
     const parts = current.split(",").map((t) => t.trim()).filter(Boolean);
-    if (parts.includes(add)) return current;
+    // **同じタグかどうかは `tagKey` で見る。** 完全一致だと、`fuji` と
+    // 書いてある欄に候補の `Fuji` を押すと `"fuji, Fuji"` になり、
+    // 1枚の写真に同じタグが2つ付く（絞り込みは畳むが、写真のタグ欄には
+    // 2つ並ぶ）。実測で `#旅` と `旅` も同じ形だった
+    const key = tagKey(add);
+    if (parts.some((t) => tagKey(t) === key)) return current;
     return [...parts, add].join(", ");
 }

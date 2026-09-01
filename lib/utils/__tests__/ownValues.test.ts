@@ -83,3 +83,67 @@ describe("appendTag（カンマ区切りに1つ足す）", () => {
         expect(appendTag("自然", "  ")).toBe("自然");
     });
 });
+
+// **同じタグのチップが2つ並んでいた。** 実測（修正前）:
+//   collectOwnValues([{tags:["Fuji"]},{tags:["fuji"]},{tags:["fuji"]},
+//                     {tags:["#旅"]},{tags:["旅"]}]).tags
+//     → ["fuji", "#旅", "Fuji", "旅"]
+//   appendTag("fuji", "Fuji") → "fuji, Fuji"
+// 絞り込み側は `dca777a` / `e731478` で `tagKey` に畳んだので、
+// 入力の助け（候補チップと押して足すチップ）だけが完全一致のまま残っていた。
+describe("タグは同じもの同士を畳む（比べ方は絞り込みと同じ tagKey）", () => {
+    it("大小違い・# つきは1つのチップにまとまる", () => {
+        const v = collectOwnValues([
+            P({ tags: ["Fuji"] }), P({ tags: ["fuji"] }), P({ tags: ["fuji"] }),
+            P({ tags: ["#旅"] }), P({ tags: ["旅"] }),
+        ]);
+        expect(v.tags, "同じタグのチップが2つ出ている").toHaveLength(2);
+    });
+
+    it("代表はいちばん多く使った生表記", () => {
+        const v = collectOwnValues([
+            P({ tags: ["Fuji"] }), P({ tags: ["Fuji"] }), P({ tags: ["fuji"] }),
+        ]);
+        expect(v.tags).toEqual(["Fuji"]);
+    });
+
+    it("同数なら文字順で固定（配列の順で入れ替わらない）", () => {
+        const a = collectOwnValues([P({ tags: ["Fuji"] }), P({ tags: ["fuji"] })]).tags;
+        const b = collectOwnValues([P({ tags: ["fuji"] }), P({ tags: ["Fuji"] })]).tags;
+        expect(a).toEqual(b);
+    });
+
+    it("1枚が同じタグを2通りで持っていても、2回使ったことにしない", () => {
+        const v = collectOwnValues([
+            P({ tags: ["旅", "#旅"] }),
+            P({ tags: ["山"] }), P({ tags: ["山"] }),
+        ]);
+        // 「旅」を2回数えると先頭に来てしまう
+        expect(v.tags[0]).toBe("山");
+    });
+
+    it("別のタグはちゃんと並ぶ（畳みすぎない）", () => {
+        const v = collectOwnValues([P({ tags: ["富士山", "夜景"] })]);
+        expect(v.tags.sort()).toEqual(["夜景", "富士山"].sort());
+    });
+});
+
+describe("appendTag は同じタグを二重に足さない", () => {
+    it("大小違いの候補を押しても増えない", () => {
+        expect(appendTag("fuji", "Fuji")).toBe("fuji");
+    });
+
+    it("# の有無だけの違いも同じタグ扱い", () => {
+        expect(appendTag("旅", "#旅")).toBe("旅");
+    });
+
+    it("複数入っている欄でも、既にある方を見る", () => {
+        expect(appendTag("夜景, Fuji", "fuji")).toBe("夜景, Fuji");
+    });
+
+    // 正常系: 別のタグは足す（畳みすぎて足せなくならないこと）
+    it("別のタグは足す", () => {
+        expect(appendTag("夜景", "富士山")).toBe("夜景, 富士山");
+        expect(appendTag("", "山")).toBe("山");
+    });
+});

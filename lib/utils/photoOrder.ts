@@ -115,6 +115,33 @@ export function compareOldest(a: Photo, b: Photo): number {
     return diff !== 0 ? diff : tieBreak(a, b, false);
 }
 
+/**
+ * 管理画面（`/admin`）の並び。**キーの優先順位だけが違う**
+ * ——撮影日 → **更新日** → 投稿日。
+ *
+ * 管理の一覧で探すのは「さっき直したやつ」なので、更新日を見る方が要る。
+ * 一方で**比べ方（ゾーン指定子を落とす・文字列のまま比べる）は同じ**に
+ * しておく。管理画面だけ `Date.parse` のまま残っていて、
+ *
+ * - `date: ""` が `??` を素通りして**投稿日にも更新日にも落ちない**
+ *   （`??` が拾わないのは `null`/`undefined` だけ。実測: 空文字だと
+ *   キーが 0 になり、更新日を持っていても最下段へ落ちていた）
+ * - ゾーン無しの `T` 形式（EXIF 由来）が混ざると**閲覧者のタイムゾーンで
+ *   順が入れ替わる**（実測: `2024-11-01T07:30:00` と `2024-11-01` が
+ *   `TZ=Asia/Tokyo` と `TZ=UTC` で逆になる）
+ *
+ * の2つを持っていた。同じ写真がサイト側と管理側で違う順に見える入口。
+ *
+ * 同キーは id 昇順で必ず決める（`tieBreak` と同じ理由——安定ソートが
+ * 保つのは「入力の順」で、入力の順は取得のたびに変わりうる）。
+ */
+export function compareAdmin(a: Photo, b: Photo, newest: boolean): number {
+    const key = (p: Photo) => stripZone((p.date || p.updatedAt || p.createdAt || "").toString());
+    const diff = newest ? cmp(key(b), key(a)) : cmp(key(a), key(b));
+    if (diff !== 0) return diff;
+    return cmp(String(a.id ?? ""), String(b.id ?? ""));
+}
+
 /** 新しい順に並べた**新しい配列**を返す（引数は変えない）。 */
 export function sortByNewest<T extends Photo>(photos: readonly T[]): T[] {
     return [...photos].sort(compareNewest);

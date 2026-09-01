@@ -9,6 +9,7 @@ import { useLocale } from "../i18n/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { PencilIcon, TrashIcon, PlusIcon } from "@heroicons/react/24/outline";
 import type { Photo } from "@/lib/data/photos";
+import { compareAdmin } from "@/lib/utils/photoOrder";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import { log } from "../../lib/utils/log";
 import { ROUTES } from "../../lib/routes";
@@ -79,20 +80,14 @@ export default function AdminPage() {
             });
             if (response.ok) {
                 const data = await response.json();
-                // 最近更新した順にソート（updatedAt > createdAt > その他）
-                const sortedPhotos = [...data].sort((a, b) => {
-                    const aDate = a.updatedAt || a.createdAt;
-                    const bDate = b.updatedAt || b.createdAt;
-                    
-                    // 日付がない場合は最後に配置
-                    if (!aDate && !bDate) return 0;
-                    if (!aDate) return 1;
-                    if (!bDate) return -1;
-                    
-                    // 新しい順（降順）
-                    return new Date(bDate).getTime() - new Date(aDate).getTime();
-                });
-                setPhotos(sortedPhotos);
+                // **ここでは並べ替えない。** 画面に出るのは `visiblePhotos`
+                // で、そちらが毎回 `compareAdmin` で並べ直す（`photos` は
+                // 総数の表示にしか使わない）。取得時に別の規則で並べても
+                // 一度も画面に届かないうえ、規則が2つあるように読める。
+                // 配列に展開するのは残す——配列でない応答をここで投げて
+                // 「読み込めませんでした」に落とすため（描画中に投げると
+                // 画面ごと落ちる）
+                setPhotos([...data]);
                 if (isMountedRef.current) setLoadError(false);
             } else {
                 log.error("写真の取得に失敗しました", {
@@ -202,8 +197,10 @@ export default function AdminPage() {
             if (!q) return true;
             return photoSearchText(p).includes(q);
         });
-        const time = (p: Photo) => Date.parse(p.date ?? p.updatedAt ?? p.createdAt ?? "") || 0;
-        return [...filtered].sort((a, b) => sort === "new" ? time(b) - time(a) : time(a) - time(b));
+        // 並べ方は `lib/utils/photoOrder.ts` に置く（サイト側と同じ比べ方に
+        // 揃える。ここだけ `Date.parse` のままだと、空文字の `date` を
+        // 拾えず、ゾーン無しの日時で並びが閲覧者のTZに左右される）
+        return [...filtered].sort((a, b) => compareAdmin(a, b, sort === "new"));
     }, [photos, query, status, sort]);
 
     // ローディング中または認証されていない場合

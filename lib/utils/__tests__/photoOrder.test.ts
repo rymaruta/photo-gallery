@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { photoTimeKey, compareNewest, compareOldest, sortByNewest } from "../photoOrder";
+import { photoTimeKey, compareNewest, compareOldest, sortByNewest, compareAdmin } from "../photoOrder";
 import type { Photo } from "../../data/photos";
 
 // **同じ集合が、見る場所で違う順に出ていた。**
@@ -130,5 +130,63 @@ describe("並びの規則", () => {
         // 同じ日の 07:30 は、その日の 00:00 より新しい（どのタイムゾーンでも）
         expect(order, "閲覧者のタイムゾーンで並びが変わっている")
             .toEqual([["noon", "dayOnly"], ["noon", "dayOnly"], ["noon", "dayOnly"]]);
+    });
+});
+
+// **管理画面（`/admin`）だけ `Date.parse` のまま残っていた。**
+// キーの優先順位（撮影日 → 更新日 → 投稿日）は管理の都合なのでそのまま、
+// 比べ方だけをサイト側に揃えた。
+describe("compareAdmin（管理画面の並び）", () => {
+    const sortNew = (list: Photo[]) => ids([...list].sort((a, b) => compareAdmin(a, b, true)));
+    const sortOld = (list: Photo[]) => ids([...list].sort((a, b) => compareAdmin(a, b, false)));
+
+    // `p.date ?? p.updatedAt` は**空文字を拾わない**（`??` が見るのは
+    // null/undefined だけ）。撮影日を空にした写真は、更新日を持っていても
+    // キーが 0 になって最下段に落ちていた。
+    it("date が空文字なら更新日に落ちる", () => {
+        const cleared = photo("cleared", { date: "", updatedAt: "2026-05-01", createdAt: "2020-01-01" });
+        const old = photo("old", { date: "2021-01-01" });
+        expect(sortNew([old, cleared]), "空文字の date で最下段に落ちている").toEqual(["cleared", "old"]);
+    });
+
+    it("撮影日が無ければ更新日、それも無ければ投稿日", () => {
+        const byDate = photo("byDate", { date: "2026-01-01", updatedAt: "2020-01-01" });
+        const byUpdated = photo("byUpdated", { updatedAt: "2025-01-01", createdAt: "2019-01-01" });
+        const byCreated = photo("byCreated", { createdAt: "2024-01-01" });
+        expect(sortNew([byCreated, byUpdated, byDate])).toEqual(["byDate", "byUpdated", "byCreated"]);
+    });
+
+    it("日付をひとつも持たない写真は最後（新しい順）", () => {
+        const none = photo("none");
+        const dated = photo("dated", { createdAt: "2020-01-01" });
+        expect(sortNew([none, dated])).toEqual(["dated", "none"]);
+    });
+
+    // サイト側と同じ理由（`Date.parse` はゾーン無しの `T` 形式をローカル、
+    // 日付だけを UTC と解釈する）。実測で TZ=Asia/Tokyo と TZ=UTC で
+    // 逆になっていた組をそのまま置く。
+    it("閲覧者のタイムゾーンで並びが変わらない", () => {
+        const noon = photo("noon", { date: "2024-11-01T07:30:00" });
+        const dayOnly = photo("dayOnly", { date: "2024-11-01" });
+        const order: string[][] = [];
+        for (const tz of ["Asia/Tokyo", "UTC", "America/New_York"]) {
+            process.env.TZ = tz;
+            order.push(sortNew([dayOnly, noon]));
+        }
+        expect(order, "閲覧者のタイムゾーンで並びが変わっている")
+            .toEqual([["noon", "dayOnly"], ["noon", "dayOnly"], ["noon", "dayOnly"]]);
+    });
+
+    it("同じキーなら id 昇順で決まる（どちら向きでも）", () => {
+        const a = photo("a", { date: "2024-01-01" });
+        const b = photo("b", { date: "2024-01-01" });
+        expect(sortNew([b, a])).toEqual(["a", "b"]);
+        expect(sortOld([b, a])).toEqual(["a", "b"]);
+    });
+
+    it("古い順は新しい順の逆", () => {
+        const list = [photo("y", { date: "2026-01-01" }), photo("x", { date: "2024-01-01" })];
+        expect(sortOld(list)).toEqual(["x", "y"]);
+        expect(sortNew(list)).toEqual(["y", "x"]);
     });
 });
