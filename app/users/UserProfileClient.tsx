@@ -196,9 +196,11 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                     className={`absolute top-1.5 left-1.5 p-1.5 rounded-full transition-colors z-10 ${
                         pinned
                             ? "bg-amber-400/90 text-black"
-                            : "bg-black/0 text-white/0 hover:bg-black/60 hover:text-white/80"
+                            : OWNER_CHIP_IDLE
                     }`}
                     title={pinned ? (locale === "en" ? "Unpin" : "ピン留め解除") : (locale === "en" ? "Pin to top" : "先頭にピン留め")}
+                    // `title` はタッチでは読めない（ツールチップが出ない）
+                    aria-label={pinned ? (locale === "en" ? "Unpin" : "ピン留め解除") : (locale === "en" ? "Pin to top" : "先頭にピン留め")}
                 >
                     {pinned ? <StarIcon className="w-4 h-4" /> : <StarIconOutline className="w-4 h-4" />}
                 </button>
@@ -215,9 +217,10 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                     className={`absolute top-1.5 right-1.5 p-1.5 rounded-full transition-colors z-10 ${
                         isHidden
                             ? "bg-black/80 text-white/80 hover:bg-black"
-                            : "bg-black/0 text-white/0 hover:bg-black/60 hover:text-white/80"
+                            : OWNER_CHIP_IDLE
                     }`}
                     title={isHidden ? (locale === "en" ? "Show" : "公開する") : (locale === "en" ? "Hide" : "非公開にする")}
+                    aria-label={isHidden ? (locale === "en" ? "Show" : "公開する") : (locale === "en" ? "Hide" : "非公開にする")}
                 >
                     <EyeSlashIcon className="w-4 h-4" />
                 </button>
@@ -230,8 +233,11 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                     className={`absolute bottom-1.5 right-1.5 p-1.5 rounded-full transition-colors z-10 ${
                         coverSelected
                             ? "bg-sky-400/90 text-black"
-                            : "bg-black/0 text-white/0 hover:bg-black/60 hover:text-white/80"
+                            : OWNER_CHIP_IDLE
                     }`}
+                    aria-label={coverSelected
+                        ? (locale === "en" ? "Cover (tap to reset)" : "カバー中（タップで自動に戻す）")
+                        : (locale === "en" ? "Use as cover" : "この写真をカバーにする")}
                     title={coverSelected
                         ? (locale === "en" ? "Cover (tap to reset)" : "カバー中（タップで自動に戻す）")
                         : (locale === "en" ? "Use as cover" : "この写真をカバーにする")}
@@ -249,6 +255,20 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
         </div>
     );
 }
+
+/**
+ * オーナー専用の小さなボタン（ピン留め・非公開・カバー）の未選択時の見た目。
+ *
+ * **`hover:` だけだとタッチ端末では永久に透明。** Tailwind の `hover:` は
+ * `@media (hover: hover)` 付きで出力されるので、スマホではタップしても
+ * 現れない——**見えないボタンが写真の上（`z-10`）に乗っている**状態で、
+ * セルの隅を触ると気づかないまま非公開になる／ピンが外れる。
+ * ポインタで指せる端末では今までどおり hover で出し、そうでない端末
+ * （＝タッチ）では最初から薄く見せる。
+ */
+const OWNER_CHIP_IDLE =
+    "bg-black/0 text-white/0 hover:bg-black/60 hover:text-white/80"
+    + " [@media(hover:none)]:bg-black/45 [@media(hover:none)]:text-white/70";
 
 // 旅アルバムのカード。カバー写真 + タイトル + 期間/枚数/距離。タップで写真を展開。
 // オーナーは展開時に旅の名前を編集できる（カスタム名はプロフィールに保存され全員に見える）。

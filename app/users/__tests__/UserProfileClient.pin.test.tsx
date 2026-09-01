@@ -196,6 +196,33 @@ describe("ピン留めの送り方", () => {
 // した写真の星が消える一方、サーバーの枠（上限3）は埋まったまま——
 // 4枚目を留めようとすると 409「ピン留めは3枚までです」が出続け、
 // 解除ボタンは星の付いた写真にしか無いので画面から直せない。
+// **hover でしか見えないボタンが、写真の上に乗っていた。**
+//
+// Tailwind の `hover:` は `@media (hover: hover)` 付きで出力されるので、
+// タッチ端末では**タップしても現れない**。`z-10` で写真のリンクより上に
+// あるため、セルの隅を触ると気づかないまま非公開になる／ピンが外れる。
+// ポインタで指せる端末は今までどおり hover、そうでない端末では薄く見せる。
+describe("オーナー専用ボタンの見え方", () => {
+    it("タッチ端末では最初から見える（hover 頼みにしない）", async () => {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ userId: ME }) });
+        mockUserFetch.mockImplementation((url: string) =>
+            url === "/user/profile"
+                ? Promise.resolve({ ok: true, json: async () => ({ userId: ME }) })
+                : Promise.resolve({ ok: true, json: async () => [photo("p1")] }));
+
+        render(<UserProfileClient userId={ME} />);
+        const pin = (await screen.findAllByTitle("先頭にピン留め"))[0];
+
+        // hover が無い端末向けの見た目を持っている（クラス名で固定する。
+        // jsdom は @media (hover) を解決しないので、ここだけは名前で見る）
+        expect(pin.className, "hover でしか見えないまま（タッチでは透明）")
+            .toMatch(/\[@media\(hover:none\)\]:bg-black/);
+        // `title` はタッチでは読めないので、読み上げ用の名前も要る
+        expect(pin.getAttribute("aria-label"), "読み上げ用の名前が無い").toBe("先頭にピン留め");
+    });
+});
+
 describe("オーナーが見るピン留め", () => {
     it("非公開にした写真のピンも星が付く（公開ぶんで上書きしない）", async () => {
         mockGetCurrentSession.mockResolvedValue(session(ME));
