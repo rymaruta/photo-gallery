@@ -32,11 +32,15 @@ export default function DeleteConfirmModal({ photo, isOpen, onClose, onConfirm, 
     // **背景を止める。** `fixed inset-0` の確認シートなのにロックが無く、
     // 上で指を動かすと裏の一覧がスクロールしていた（閉じると別の場所に
     // いる）。数を数える共通実装なので、他のロックと入れ子でも壊れない
+    // 描かれる条件（`isOpen && photo`）と揃える。`isOpen` だけ見ていると、
+    // 写真が無いときに「何も出ないのに背景だけ止まる」になる
+    // （今の呼び出し元は2つを同じハンドラで動かすので起きないが、
+    // 条件が食い違ったまま次の呼び出し元が足されると静かに踏む）
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen || !photo) return;
         lockBodyScroll();
         return () => unlockBodyScroll();
-    }, [isOpen]);
+    }, [isOpen, photo]);
 
     if (!isOpen || !photo) return null;
 

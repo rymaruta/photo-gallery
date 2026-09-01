@@ -335,10 +335,19 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     // 「それでは iOS Safari や内蔵ブラウザで止まらない」と書いている方式
     // そのものだった。位置の控え・復元も無かったので、閉じたときに別の
     // 場所にいることがある。
+    // **早期 return より前に置くが、掛けるのは中身がある間だけ。**
+    // 無条件で掛けていたので、`groups` が入れ替わって表示対象が消えた
+    // ときに「何も描かないのに `position: fixed` のまま」になる
+    // ——`overflow: hidden` だけだった頃は「スクロールできない」で
+    // 済んでいたが、共通実装に寄せて位置を控えるようになったぶん、
+    // ページ先頭へ飛んだまま固まる方に悪化していた（スマホには
+    // Escape が無い）
+    const showing = !!group && !!item;
     useEffect(() => {
+        if (!showing) return;
         lockBodyScroll();
         return () => unlockBodyScroll();
-    }, []);
+    }, [showing]);
 
     if (!group || !item) return null;
 

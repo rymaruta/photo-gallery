@@ -97,3 +97,34 @@ describe("写真グリッドの上での横スワイプ", () => {
             "2回目のタップまで潰している").toBe(true);
     });
 });
+
+// **札が立ちっぱなしになる経路。** 札を下ろすのは click と pointercancel
+// だけだったので、click が来なければ次のタップまで残る。左スワイプでは
+// タブが切り替わって押していた写真のセルが DOM から消えるため、
+// ブラウザは click を投げない（＝「1回目のタップが効かない」）。
+describe("タブが実際に切り替わったあと（左スワイプ）", () => {
+    it("次のタップは飲まれない", async () => {
+        render(<UserProfileClient userId={OWNER} />);
+        await waitFor(() => expect(screen.getAllByAltText(/p\d/).length).toBeGreaterThan(0));
+
+        const area = screen.getByTestId("tab-swipe-area");
+        // 左へ払う＝投稿タブ → 年表タブ。グリッドごと消えるので click は来ない
+        fireEvent.pointerDown(area, { clientX: 200, clientY: 300 });
+        fireEvent.pointerUp(area, { clientX: 130, clientY: 306 });
+        // 年表タブに入ったことを、年表側にしか出ない月ラベルで確かめる
+        //（写真そのものは年表にも並ぶので alt では見分けられない）
+        await screen.findByText(/2026年1月/);
+
+        // 右へ払って投稿タブに戻す（こちらも click は来ない）
+        fireEvent.pointerDown(area, { clientX: 130, clientY: 300 });
+        fireEvent.pointerUp(area, { clientX: 200, clientY: 306 });
+        await waitFor(() => expect(screen.queryByText(/2026年1月/)).toBeNull());
+
+        // ここでの普通のタップ（写真を開く）は通らないといけない
+        const link = screen.getAllByAltText(/p\d/)[0].closest("a") as HTMLAnchorElement;
+        fireEvent.pointerDown(link, { clientX: 100, clientY: 300 });
+        fireEvent.pointerUp(link, { clientX: 101, clientY: 301 });
+        expect(fireEvent.click(link, { bubbles: true, cancelable: true }),
+            "スワイプの札が残っていて、次のタップが丸ごと飲まれている").toBe(true);
+    });
+});

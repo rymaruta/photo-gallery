@@ -179,4 +179,27 @@ describe("背景スクロールのロック", () => {
         expect(document.body.style.position).toBe("");
         expect(document.body.style.overflow).toBe("");
     });
+
+    // **描くものが無くなったらロックも外す。** 無条件に掛けていたので、
+    // `groups` が入れ替わって表示対象が消えると「何も描かないのに
+    // `position: fixed` のまま」になる。`overflow: hidden` だけだった
+    // 頃は「スクロールできない」で済んでいたが、位置を控えるように
+    // なったぶん**ページ先頭へ飛んだまま固まる**方に悪化していた。
+    it("表示対象が消えたらロックも外れる（白いまま固まらない）", () => {
+        const props = {
+            groups: makeGroups(),
+            initialGroupIndex: 0,
+            locale: "ja" as const,
+            ownUserId: "owner",
+            isAuthenticated: true,
+            onSeen: vi.fn(),
+            onDelete: vi.fn().mockResolvedValue(true),
+            onClose: vi.fn(),
+        };
+        const { rerender } = render(<StoryViewer {...props} />);
+        expect(document.body.style.position).toBe("fixed");
+
+        rerender(<StoryViewer {...props} groups={[]} />);
+        expect(document.body.style.position, "何も描いていないのに背景が止まったまま").toBe("");
+    });
 });

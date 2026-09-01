@@ -18,7 +18,16 @@ type SwipeOptions = {
      */
     verticalThreshold?: number;
     velocityThreshold?: number; // スワイプと判定する最小速度
-    /** 横と判定するための比率（`lib/utils/swipe.ts` と同じ既定値） */
+    /**
+     * **縦**と判定するための比率。
+     *
+     * 横には掛けない。`lib/utils/swipe.ts` は同じ 1.4 を横に掛けているが、
+     * あちらの2択は「横スワイプ／ブラウザの縦スクロールに任せる」なので、
+     * 迷ったら 0 を返して困らない。**このフックは4方向とも自前の
+     * ジェスチャ**なので、同じ形を横に持ってくると帯がまるごと
+     * 「何も起きない穴」になる（実測: 前のコミットで 14,336 サンプル中
+     * 1,972 の横スワイプが無反応になっていた）。
+     */
     ratio?: number;
 };
 
@@ -75,7 +84,12 @@ export function useSwipe(options: SwipeOptions = {}) {
         if (distance / Math.max(dt, 1) < velocityThreshold) return null;
         const absX = Math.abs(dx);
         const absY = Math.abs(dy);
-        if (absX >= threshold && absX > absY * ratio) return dx > 0 ? "right" : "left";
+        // **横に比率は掛けない。** 掛けると 35°〜45° の帯が丸ごと
+        // 無反応になる（実測 1,972/14,336）。斜めが「閉じる」に化ける
+        // 事故を止めているのは**縦側の閾値と比率**で、横の比率ではない
+        // ——外しても、旧実装で `down` になっていた 2,596 サンプルは
+        // 1つも復活しない（実測）。
+        if (absX >= threshold && absX > absY) return dx > 0 ? "right" : "left";
         if (absY >= verticalThreshold && absY > absX * ratio) return dy > 0 ? "down" : "up";
         // どちらでもない（斜め・小さすぎる）ときは何もしない。
         // 迷ったら動かさない——誤爆の方が高くつく
@@ -97,7 +111,13 @@ export function useSwipe(options: SwipeOptions = {}) {
         else if (dir === "down") { setSwipeDirection("down"); onSwipeDown?.(); }
         else if (dir === "up") { setSwipeDirection("up"); onSwipeUp?.(); }
 
+        // **座標も捨てる。** 残しておくと、次に `onTouchEnd` が来たときに
+        // 古い動きで `preventDefault` だけが掛かる（発火は
+        // `isDraggingRef` で止まるので、「送られないのに click が
+        // 潰される」——このフックが直したはずの症状そのもの）
         isDraggingRef.current = false;
+        touchStartRef.current = null;
+        touchMoveRef.current = null;
     }, [onSwipeLeft, onSwipeRight, onSwipeUp, onSwipeDown, decide]);
 
     const handlers: SwipeHandlers = {
@@ -142,7 +162,9 @@ export function useSwipe(options: SwipeOptions = {}) {
             // 「送られないのに click だけ潰される」が起きていた
             const s0 = touchStartRef.current;
             const m0 = touchMoveRef.current;
-            if (s0 && m0) {
+            // 追跡していない指（マルチタッチで降りた・既に終わった）は
+            // 何も潰さない
+            if (isDraggingRef.current && s0 && m0) {
                 const dir = decide(m0.x - s0.x, m0.y - s0.y, m0.time - s0.time);
                 if (dir === "left" || dir === "right") e.preventDefault();
             }

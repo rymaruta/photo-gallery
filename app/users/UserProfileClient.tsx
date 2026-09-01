@@ -525,8 +525,16 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     // Pointer Events で PC(マウス)・スマホ(タッチ)・ペンを一本化。
     // touch-action: pan-y を併用し、縦スクロールは残しつつ横ジェスチャを JS が拾う。
     const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+    const swallowClickRef = useRef(false);
     const onTabPointerDown = useCallback((e: React.PointerEvent) => {
         swipeStartRef.current = { x: e.clientX, y: e.clientY };
+        // **新しい指が触れたら、前回の「食う札」は捨てる。**
+        // 札を下ろす経路が click と pointercancel しか無かったので、
+        // click が来なかった場合に立ちっぱなしになる——左スワイプで
+        // タブが切り替わると、押していた写真のセルが DOM から消えて
+        // click が飛ばない（＝札が残り、次の正当なタップが1回丸ごと
+        // 飲まれる。「1回目が効かない、2回目で開く」）
+        swallowClickRef.current = false;
     }, []);
     // **スワイプの直後に来る click を1回だけ食う。**
     //
@@ -535,7 +543,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     // 判定は45pxなので、セル1つの中で成立する）。`click` は指を離せば必ず
     // 発火する——`StoryViewer` が同じ現象を観測して `wasTap()` で塞いだのと
     // 同じ話で、こちらには歯止めが無かった。
-    const swallowClickRef = useRef(false);
     const onTabPointerUp = useCallback((e: React.PointerEvent) => {
         const s = swipeStartRef.current;
         swipeStartRef.current = null;

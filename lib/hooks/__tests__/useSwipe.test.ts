@@ -152,13 +152,17 @@ describe("斜めのスワイプ", () => {
         expect(swipe(-50, 50)).toEqual([]);
     });
 
-    // **比率で見る（`absX > absY` だけでは足りない）。**
-    // dx=-60 / dy=50 は「横の方が大きい」が、指はほぼ斜め45°に近い。
-    // ここで送ってしまうと、閉じるつもりの下スワイプが横に化ける側の
-    // 誤爆も同じだけ起きる。`lib/utils/swipe.ts` と同じ 1.4 倍を使う
-    it("横がわずかに大きいだけでは送らない（比率で見る）", () => {
-        expect(swipe(-60, 50), "比率を見ずに横と判定している").toEqual([]);
-        expect(swipe(-75, 50), "十分に横なのに送っていない").toEqual(["left"]);
+    // **訂正（測った）。** 前のコミットはここで横にも 1.4 倍の比率を
+    // 掛け、`swipe(-60, 50) → []` を「正解」としてテストに固定した。
+    // それは**旧実装が正しく送っていた入力**で、総当たり（±300px を
+    // 5px 刻み、14,336 サンプル）で測ると **1,972 の横スワイプが
+    // 無反応**になっていた。斜めが「閉じる」に化ける事故を止めている
+    // のは縦側（閾値2倍＋比率）で、横の比率は関係ない——外しても
+    // 旧実装で `down` だった 2,596 サンプルは1つも復活しない。
+    it("横がわずかに大きいだけでも、横が優位なら送る", () => {
+        expect(swipe(-60, 50), "横が優位なのに無反応（35〜45°の穴）").toEqual(["left"]);
+        expect(swipe(-120, 90), "大きく横に払っても無反応").toEqual(["left"]);
+        expect(swipe(-75, 50)).toEqual(["left"]);
     });
 
     it("横が明確なら今までどおり送る", () => {
@@ -265,9 +269,40 @@ describe("preventDefault の条件", () => {
         expect(r.prevented).toBe(true);
     });
 
+    // 送らない斜め＝**縦の方が大きいが縦の閾値には届かない**もの
+    // （旧実装で「閉じる」に化けていた実測の組）。`-60/50` は横が優位
+    // なので送る側——ここに置くと、送るはずの入力を「潰さないのが正解」
+    // として固定してしまう
     it("斜め（送らない）なら潰さない", () => {
-        const r = touchEnd(-60, 50, 150);
+        const r = touchEnd(-45, 48, 150);
         expect(r.fired).toBe(false);
         expect(r.prevented).toBe(false);
+    });
+});
+
+// **`handleEnd` のあとに座標を残さない。** 残すと、次に来た `touchend` が
+// 古い動きで `preventDefault` だけ掛ける（発火は `isDraggingRef` が
+// 止めるので、「送られないのに click が潰される」——このフックが直した
+// はずの症状に戻る）。
+describe("終わった指の座標を持ち越さない", () => {
+    it("2回目の touchend では preventDefault しない", () => {
+        const { result } = renderHook(() => useSwipe({ onSwipeLeft: () => { } }));
+        let prevented = 0;
+        const touch = (x: number, count: number) => ({
+            touches: Array.from({ length: count }, () => ({ clientX: x, clientY: 200 })),
+            preventDefault: () => { prevented++; },
+        } as unknown as React.TouchEvent);
+
+        act(() => {
+            result.current.handlers.onTouchStart(touch(300, 1));
+            result.current.handlers.onTouchMove(touch(200, 1));
+            result.current.handlers.onTouchEnd(touch(200, 0));
+        });
+        expect(prevented, "横スワイプなので1回目は潰してよい").toBe(1);
+
+        act(() => {
+            result.current.handlers.onTouchEnd(touch(200, 0));
+        });
+        expect(prevented, "追跡していない指の click まで潰している").toBe(1);
     });
 });
