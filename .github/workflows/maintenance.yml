@@ -1,6 +1,13 @@
 name: Maintenance
 
 # 手動実行の保守作業。既定はドライランで、apply を true にしたときだけ変更する。
+# **`GITHUB_TOKEN` に何も渡さない（IAM-3）。**
+# どのワークフローも `actions/checkout` 以外でトークンを使っていないのに、
+# 既定の権限（リポジトリ設定次第では contents: write まで）が渡っていた。
+# checkout に要るのは読み取りだけ。**渡していない権限は漏らせない**。
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:
@@ -13,6 +20,10 @@ on:
           - enable-cdn-logs   # CloudFront のアクセスログを有効化
           - who-liked         # 自分の写真にいいねした人を特定
           - image-perf        # 写真表示の速さに効く材料が揃っているか測る
+          - story-index       # ストーリー一覧用の GSI を足す（全件 Scan をやめる）
+          - normalize-image-urls  # 保存済みの画像URLのホスト名を配信URLに揃える
+          - diagnose          # 本番の設定を読むだけ（索引の射影・日付の形・Cognito・CDN の TTL）
+          - orphan-uploads    # どの行からも参照されていないアップロード実体を探す
         required: true
       apply:
         description: "true で実際に適用（false は内容の確認のみ）"
@@ -31,7 +42,17 @@ env:
   USERS_TABLE: prod-photo-gallery-users
   UPLOAD_BUCKET: prod-journey-photo-upload
   CLOUDFRONT_URL: https://d1s3dwwzgxf5ni.cloudfront.net
+  SITE_URL: https://journey-photo.com
   LOG_BUCKET: prod-journey-photo-cdn-logs
+
+# 変更系の作業を二重に走らせない。
+# shrink-profiles --apply を同時に2本動かすと、同じ
+# profiles/<uid> のキーを奪い合って、どちらの縮小結果が残るか決まらない。
+# 他の変更系ワークフロー（generate-thumbnails / restrict-originals）には
+# 既に入っている。
+concurrency:
+  group: maintenance
+  cancel-in-progress: false
 
 jobs:
   run:
@@ -70,6 +91,20 @@ jobs:
         env:
           CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
 
+      # 保存済みの画像URLのホスト名を揃える。
+      # サムネ生成が CloudFront の既定ドメインを土台にしていた時期があり、
+      # 同じサイトの画像が2つのホスト名で保存された（実測30件中11件）。
+      # サイトマップが両方を <image:loc> に載せるので、画像のインデックスが
+      # 2ホストに割れる。以後の書き込みは直したので、これは後片付け。
+      # 既定はドライラン。値を見てから apply を判断できる。
+      - name: 画像URLのホスト名を配信URLに揃える
+        if: inputs.task == 'normalize-image-urls'
+        run: node scripts/normalize-image-urls.js ${{ inputs.apply && '--apply' || '' }}
+        env:
+          # 揃える先。CLOUDFRONT_URL ではなく、実際に配信しているURL
+          PUBLIC_BASE_URL: https://journey-photo.com
+          OLD_HOSTS: d1s3dwwzgxf5ni.cloudfront.net
+
       # 読み取り専用。apply の指定は不要
       - name: 指定ユーザーの写真にいいねした人を特定
         if: inputs.task == 'who-liked'
@@ -78,8 +113,37 @@ jobs:
           # 未指定だとスクリプト側が中止する（全ユーザー分がログに出るのを防ぐため）
           OWNER_USER_ID: ${{ inputs.owner_user_id }}
 
+      # ストーリー一覧が毎回テーブル全体を Scan していた問題の移行。
+      # 同居するいいね/フォローのマーカーは退会しても消えないので増える一方で、
+      # いずれ実行時間に収まらなくなり「全員のストーリー欄が同時に壊れる」。
+      # 索引が ACTIVE になるまではコード側が Scan にフォールバックする。
+      - name: ストーリー一覧用の索引を足す
+        if: inputs.task == 'story-index'
+        run: node scripts/add-story-index.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 15
+
       # 読み取り専用。apply の指定は不要
       - name: 写真表示の速さを測る
         if: inputs.task == 'image-perf'
         run: node scripts/diagnose-image-perf.js
         timeout-minutes: 10
+
+      # **読み取りだけ。** 作業環境からは AWS を叩けない（資格情報が
+      # プレースホルダ）ので、台帳に「要 AWS」で溜まっていた確認を
+      # 資格情報のある CI から1回で済ませる。Describe / Scan(COUNT) / Get のみ。
+      # **既定はドライラン。** `--apply` のときだけ消す。
+      # 新しいもの（既定7日以内）は触らない——「保存に失敗した」と
+      # 「まだ保存していない」は S3 からは区別できないので、時間で分ける。
+      - name: 参照されていないアップロード実体を探す
+        if: inputs.task == 'orphan-uploads'
+        run: node scripts/find-orphan-uploads.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 15
+
+      - name: 本番の設定を読む（診断）
+        if: inputs.task == 'diagnose'
+        run: node scripts/diagnose-aws.js
+        timeout-minutes: 10
+        env:
+          COGNITO_USER_POOL_ID: ap-northeast-1_ZbuhDQsWz
+          COGNITO_CLIENT_ID: 21cs4cd8dkttmg3snloj72u8mu
+          CLOUDFRONT_DISTRIBUTION_ID: EYRLTGCPOS9E4

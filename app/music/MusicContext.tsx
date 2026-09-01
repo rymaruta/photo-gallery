@@ -127,21 +127,31 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
     const toggleShuffle = useCallback(() => setSt((p) => ({ ...p, shuffle: !p.shuffle })), []);
     const toggleRepeatOne = useCallback(() => setSt((p) => ({ ...p, repeatOne: !p.repeatOne })), []);
 
-    // src（曲）が切り替わったら再生を試みる
+    // 曲が切り替わったら再生を試みる。
+    //
+    // **「同じ曲か」は previewUrl だけでは決まらない。** 別の写真が同じ曲を
+    // 持っていることがあり、その写真で再生を押すと queueKey は変わるのに
+    // previewUrl は同じ。src しか見ていなかった頃は、ここが「変わっていない」
+    // と判断して再生を始めず、状態だけ playing:true になっていた
+    // ——**「再生中」の見た目のまま音が出ない**。
+    // どの列から鳴らしているか（queueKey）も一緒に見る。
     const lastSrcRef = useRef<string | null>(null);
+    const lastKeyRef = useRef<string | null>(null);
     React.useEffect(() => {
         const a = audioRef.current;
         const src = current?.previewUrl ?? null;
-        if (!a || !src) { lastSrcRef.current = src; return; }
-        if (lastSrcRef.current !== src) {
+        if (!a || !src) { lastSrcRef.current = src; lastKeyRef.current = st.queueKey; return; }
+        if (lastSrcRef.current !== src || lastKeyRef.current !== st.queueKey) {
             lastSrcRef.current = src;
-            if (st.playing) {
+            lastKeyRef.current = st.queueKey;
+            // 既に同じ音が鳴っているなら触らない（頭出しに戻してしまう）
+            if (st.playing && a.paused) {
                 void a.play().catch(() => setSt((p) => ({ ...p, playing: false })));
             }
         }
         // st.playing は play/toggle 側で audio を直接操作するためここでは追わない
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [current?.previewUrl]);
+    }, [current?.previewUrl, st.queueKey]);
 
     const api: MusicApi = { ...st, current, play, toggle, next, prev, stop, toggleShuffle, toggleRepeatOne, getAudio };
 

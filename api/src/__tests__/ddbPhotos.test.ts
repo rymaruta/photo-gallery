@@ -1,0 +1,91 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+const mockSend = vi.hoisted(() => vi.fn());
+// テーブル名は ddb-photos.ts が requireEnv("PHOTOS_TABLE") で env から読む
+// （vitest.setup.ts の test-photo-gallery-photos が効く）。モックに
+// PHOTOS_TABLE を置いても差し替わらないので、誤読を防ぐため置かない。
+vi.mock("../dynamodb", () => ({
+    ddb: { send: mockSend },
+}));
+
+const { updatePhotoFields, putPhoto, getPhotoById } = await import("../ddb-photos");
+
+type Input = { UpdateExpression: string; ConditionExpression?: string; ExpressionAttributeValues?: Record<string, unknown> };
+const lastInput = (): Input => (mockSend.mock.calls[0][0] as { input: Input }).input;
+
+// **中括弧で囲う。** 式のままだと**モック自身を返す**——vitest は
+// フックの戻り値が関数だと後片付けとして扱うので、各テストのあとに
+// そのモックが**引数なしで呼ばれる**。実装が `mockResolvedValue` の
+// うちは無害だが、引数を見るモックに変えた瞬間に落ちる。
+beforeEach(() => { mockSend.mockReset().mockResolvedValue({ Attributes: { id: "p1" } }); });
+
+// 「その項目を空にする」指定（undefined）は SET に混ぜられない。
+//
+// DocumentClient は removeUndefinedValues: true なので、
+// ExpressionAttributeValues から :location ごと落ちる。式に
+// `SET #location = :location` が残ると DynamoDB は ValidationException を
+// 返し、ハンドラは 500 になる——つまり /admin/edit で撮影地や説明を
+// 空にして保存すると必ず「更新に失敗しました」になっていた。
+// ユーザーAPI側（api-user/src/photoUpdate.ts）は REMOVE を組み立てている。
+describe("updatePhotoFields: 空にする指定", () => {
+    it("undefined は REMOVE にする（値の欄に残さない）", async () => {
+        await updatePhotoFields("p1", { location: undefined, title: { ja: "海" }, updatedAt: "t" });
+        const input = lastInput();
+        expect(input.UpdateExpression).toContain("REMOVE #location");
+        expect(input.UpdateExpression).toContain("#title = :title");
+        expect(input.ExpressionAttributeValues).not.toHaveProperty(":location");
+        expect(input.ExpressionAttributeValues).toHaveProperty(":title");
+    });
+
+    it("全部が空指定でも壊れない（SET だけの空の式を作らない）", async () => {
+        await updatePhotoFields("p1", { location: undefined, category: undefined });
+        expect(lastInput().UpdateExpression).toBe("REMOVE #location, #category");
+    });
+
+    // 条件が無いと UpdateItem は行を**作る**。写真ID以外（notifs#… /
+    // comments#… など同じテーブルの内部文書）を指定して行を生やせる。
+    it("存在しない ID で行を作らない条件を必ず付ける", async () => {
+        await updatePhotoFields("p1", { location: "北海道" });
+        expect(lastInput().ConditionExpression).toBe("attribute_exists(id)");
+    });
+
+    it("値だけなら従来どおり SET のみ", async () => {
+        await updatePhotoFields("p1", { location: "北海道", updatedAt: "t" });
+        const input = lastInput();
+        expect(input.UpdateExpression).toBe("SET #location = :location, #updatedAt = :updatedAt");
+        expect(input.ExpressionAttributeValues).toEqual({ ":location": "北海道", ":updatedAt": "t" });
+    });
+});
+
+// 新規作成専用。条件が無いと、同じIDの既存レコードを丸ごと置き換える。
+// このテーブルには通知（notifs#…）やコメント（comments#…）も同居しているので、
+// ID を指定できるだけで他人の通知を全部消せてしまう（元に戻せない）。
+describe("putPhoto: 既存の行を置き換えない", () => {
+    it("attribute_not_exists(id) を必ず付ける", async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await putPhoto({ id: "p1", src: "https://cdn/p1.jpg" } as any);
+        const input = mockSend.mock.calls[0][0].input as { ConditionExpression?: string; Item?: unknown };
+        expect(input.ConditionExpression).toBe("attribute_not_exists(id)");
+        expect(input.Item).toEqual({ id: "p1", src: "https://cdn/p1.jpg" });
+    });
+});
+
+// 削除経路（photosMutate.deletePhoto）は getPhotoById の戻り値から
+// srcOriginal（GPS入り原本）のキーを読んで S3 の実体を消す。
+// データ層がここを「公開向けに」落とすと、**原本が二度と消せなくなる**。
+// 公開APIで落とすのはハンドラ側（photos.ts）だけ——データ層側から固定する。
+describe("getPhotoById: srcOriginal を落とさない", () => {
+    it("保存されている項目をそのまま返す", async () => {
+        const item = {
+            id: "p1", src: "https://cdn/p1.jpg",
+            srcOriginal: "https://cdn/uploads/originals/p1.jpg", key: "uploads/u1/p1.jpg",
+        };
+        // **コピーを渡す。** 同一参照を渡すと、getPhotoById が res.Item を
+        // その場で書き換えて返す改変（delete srcOriginal 等）で p と item が
+        // 同じオブジェクトになり、toEqual が自明に通る（レビューの変異注入で
+        // 実証された空振り）。コピーなら in-place 削除も脱落も両方捕まる。
+        mockSend.mockResolvedValueOnce({ Item: { ...item } });
+        const p = await getPhotoById("p1");
+        expect(p).toEqual(item);
+    });
+});

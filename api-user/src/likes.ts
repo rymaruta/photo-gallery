@@ -15,13 +15,63 @@ function markerId(photoId: string, userId: string): string {
     return `like#${photoId}#${userId}`;
 }
 
-async function readLikeCount(photoId: string): Promise<number> {
+/**
+ * 「この失敗は、書き込みが**適用されていない**と言い切れるか」。
+ *
+ * マーカーとカウンタは別々の書き込みなので、片方が落ちたらもう片方を
+ * 戻さないと食い違う。ところが「どんな失敗でも戻す」にすると、
+ * タイムアウトや応答の取りこぼし——**適用されたかどうか分からない**失敗
+ * ——でも戻してしまう。いいねの場合、実際には +1 されているのに
+ * マーカーだけ消えるので、本人が取り消しても `attribute_exists(id)` に
+ * 引っかかって減らせない。つまり**誰にも直せない +1** が残る。
+ *
+ * だから戻すのは「適用されていないと言い切れる」失敗だけにする。
+ * 分からない失敗ではマーカーを残す。それで必ず直るわけではないが、
+ * 消すと「誰にも減らせない +1」で確実に詰むので、まだ動かせる方を選ぶ。
+ */
+function definitelyNotApplied(e: unknown): boolean {
+    const name = (e as { name?: string }).name ?? "";
+    return [
+        "ConditionalCheckFailedException",
+        "ValidationException",
+        "ResourceNotFoundException",
+        "AccessDeniedException",
+        "SerializationException",
+        // 資格情報切れ。Lambda の実行中にも起こりうる（確実に未適用）
+        "ExpiredTokenException",
+        "UnrecognizedClientException",
+        "InvalidSignatureException",
+        // スロットリングは SDK が再試行を使い切ってから投げる＝未適用
+        "ProvisionedThroughputExceededException",
+        "ThrottlingException",
+        "RequestLimitExceeded",
+    ].includes(name);
+}
+
+/**
+ * いいね数を読む。**公開されている写真でなければ null。**
+ *
+ * `likes` だけを見ていたので、**非公開に戻した写真のいいね数が
+ * 未認証で読めた**（このルートは公開）。存在と人気度が漏れるうえ、
+ * 「不適切な反応が付いたので非公開にする」が効かない。
+ *
+ * 書き込み側（`likePhoto`）は最初から
+ * `attribute_exists(src) AND (attribute_not_exists(published) OR published = true)
+ *  AND attribute_not_exists(story)` を条件にしていて、
+ * `getComments` も同じ理由で同じ判定を入れてある。**読み取りだけ
+ * 素通しだった**ので、そこへ揃える。
+ *
+ * `published` が無い古い行は公開扱い（一覧・書き込み側と同じ）。
+ */
+async function readLikeCount(photoId: string): Promise<number | null> {
     const res = await ddb.send(new GetCommand({
         TableName: PHOTOS_TABLE,
         Key: { id: photoId },
-        ProjectionExpression: "likes",
+        ProjectionExpression: "likes, src, published, story",
     }));
-    const n = res.Item?.likes;
+    const item = res.Item as { likes?: unknown; src?: unknown; published?: unknown; story?: unknown } | undefined;
+    if (!item?.src || item.published === false || item.story === true) return null;
+    const n = item.likes;
     return typeof n === "number" && n > 0 ? n : 0;
 }
 
@@ -30,13 +80,50 @@ export const getLikeCount: APIGatewayProxyHandlerV2 = async (event) => {
     const photoId = event.pathParameters?.id;
     if (!photoId) return jsonError(400, "IDが必要です");
     try {
+        const likes = await readLikeCount(photoId);
+        // **存在も人気度も返さない。** `getComments` と同じ文言・同じ番号に
+        // 揃える（「非公開だから断った」と「そもそも無い」を区別させない）
+        if (likes === null) return jsonError(404, "写真が見つかりません");
         return {
             statusCode: 200,
             headers: { ...JSON_HEADERS, "Cache-Control": "public, s-maxage=30" },
-            body: JSON.stringify({ likes: await readLikeCount(photoId) }),
+            body: JSON.stringify({ likes }),
         };
     } catch (e) {
         console.error("getLikeCount error:", e);
+        return jsonError(500, "取得に失敗しました");
+    }
+};
+
+// GET /user/likes/{id} — 自分がこの写真にいいねしているか（認証必要）
+//
+// 公開の getLikeCount に混ぜてはいけない。あちらは共有キャッシュに
+// 載せている（public, s-maxage=30）ので、利用者ごとに違う liked を
+// 入れると他人の状態が配られる。別のエンドポイントに分ける。
+//
+// なぜ必要か: これまでフロントは「いいね済みか」を端末のお気に入り
+// （localStorage）だけで判断していた。未ログインで押した状態のまま
+// ログインすると、次の一押しが DELETE になって取り消し扱いになり、
+// 投稿者にいいねも通知も届かない。別の端末では逆に、いいね済みの写真が
+// 未いいねに見える。サーバーの真値を返す口を用意する。
+export const getMyLike: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const userId = getUserId(event);
+    const photoId = event.pathParameters?.id;
+    if (!userId || !photoId) return jsonError(400, "不正なリクエスト");
+    try {
+        const res = await ddb.send(new GetCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: markerId(photoId, userId) },
+            ProjectionExpression: "id",
+        }));
+        return {
+            statusCode: 200,
+            // 利用者ごとの答えなので共有キャッシュには載せない
+            headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
+            body: JSON.stringify({ liked: !!res.Item }),
+        };
+    } catch (e) {
+        console.error("getMyLike error:", e);
         return jsonError(500, "取得に失敗しました");
     }
 };
@@ -57,8 +144,25 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             }));
         } catch (e) {
             if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
-                // 既にいいね済み。現在数を返す（冪等）
-                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: true, likes: await readLikeCount(photoId) }) };
+                // 既にいいね済み。現在数を返す（冪等）。
+                // **公開されていなければ数字を返さない**——ここは条件式を
+                // 通らない経路なので、非公開に戻された写真でも来られる
+                const cur = await readLikeCount(photoId);
+                if (cur === null) {
+                    // **「もう見えない」ことと「あなたのいいねは残っている」ことを
+                    // 分けて伝える。** ここに来るのはマーカーが**既にある**
+                    // 経路なので、数字は出せなくても状態は分かる。
+                    // 伝えないと、クライアントは「付かなかった」と読んで
+                    // 画面を未いいねに戻す——サーバーにはマーカーがあるので、
+                    // 押し直しても同じ 404 で**永久に外せなくなる**
+                    // （解除の DELETE は通るのに、画面がその導線を出さない）。
+                    return {
+                        statusCode: 404,
+                        headers: JSON_HEADERS,
+                        body: JSON.stringify({ error: "写真が見つかりません", liked: true }),
+                    };
+                }
+                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: true, likes: cur }) };
             }
             throw e;
         }
@@ -75,8 +179,11 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 TableName: PHOTOS_TABLE,
                 Key: { id: photoId },
                 UpdateExpression: "SET likes = if_not_exists(likes, :z) + :one",
+                // attribute_exists(src) が「写真であること」の判定。これが無いと
+                // notifs#<相手のsub> や comments#<写真ID> といった内部の文書にも
+                // likes 属性を書き込めてしまった（同じテーブルに同居しているため）。
                 ConditionExpression:
-                    "attribute_exists(id) AND (attribute_not_exists(published) OR published = :pub) AND attribute_not_exists(story)",
+                    "attribute_exists(id) AND attribute_exists(src) AND (attribute_not_exists(published) OR published = :pub) AND attribute_not_exists(story)",
                 ExpressionAttributeValues: { ":z": 0, ":one": 1, ":pub": true },
                 ReturnValues: "ALL_NEW",
             }));
@@ -100,9 +207,22 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
 
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: true, likes }) };
         } catch (e) {
-            // 存在しない / 非公開（下書き・ストーリー）→ マーカーを巻き戻して 404
+            // カウンタを増やせなかったら、先に書いたマーカーを戻す。
+            //
+            // ただし戻すのは「増えていないと言い切れる」失敗のときだけ。
+            // どんな失敗でも戻していた頃は、タイムアウト（実際には +1 済み
+            // かもしれない）でもマーカーを消していたので、本人が取り消しても
+            // マーカーが無く `attribute_exists(id)` で弾かれ、
+            // **誰にも減らせない +1** が公開の数字に残った。
+            // 分からない失敗ではマーカーを残す。直せるとは限らないが、
+            // 消すと「誰にも減らせない +1」で確実に詰むので、まだ動かせる方を選ぶ。
+            if (definitelyNotApplied(e)) {
+                await ddb.send(new DeleteCommand({
+                    TableName: PHOTOS_TABLE, Key: { id: markerId(photoId, userId) },
+                })).catch(() => { /* 戻せなくてもこれ以上できることは無い */ });
+            }
+            // 存在しない / 非公開（下書き・ストーリー）
             if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
-                await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: markerId(photoId, userId) } })).catch(() => { /* ignore */ });
                 return jsonError(404, "写真が見つかりません");
             }
             throw e;
@@ -129,7 +249,9 @@ export const unlikePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             }));
         } catch (e) {
             if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
-                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: false, likes: await readLikeCount(photoId) }) };
+                const cur = await readLikeCount(photoId);
+                if (cur === null) return jsonError(404, "写真が見つかりません");
+                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: false, likes: cur }) };
             }
             throw e;
         }
@@ -142,14 +264,43 @@ export const unlikePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
                 UpdateExpression: "SET likes = likes - :one",
                 ConditionExpression: "attribute_exists(id) AND likes > :z",
                 ExpressionAttributeValues: { ":z": 0, ":one": 1 },
-                ReturnValues: "UPDATED_NEW",
+                // **`ALL_NEW` にして公開状態も一緒に受け取る。**
+                // 減算そのものは条件に公開判定を足さない——足すと、非公開に
+                // なった写真のいいねを**本人が永久に取り消せなくなる**。
+                // 減らしはするが、**数字は返さない**のが正しい形。
+                // 追加の読み取りを増やさずに済むので `ALL_NEW`。
+                ReturnValues: "ALL_NEW",
             }));
-            const likes = (res.Attributes?.likes as number | undefined) ?? 0;
+            const after = res.Attributes as { likes?: unknown; src?: unknown; published?: unknown; story?: unknown } | undefined;
+            // ここだけ素通しだったので、DELETE の応答が経路で 404 / 200 / 200(実数)
+            // の3通りに割れていた。すぐ上の冪等経路と揃える
+            if (!after?.src || after.published === false || after.story === true) {
+                return jsonError(404, "写真が見つかりません");
+            }
+            const likes = (after.likes as number | undefined) ?? 0;
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: false, likes }) };
         } catch (e) {
-            // likes が既に0 or 写真なし → 現在数（0）を返す
+            // likes が既に0 or 写真なし → 現在数（0）を返す。
+            // この場合は「減らすものが無かった」だけなので、マーカーは戻さない。
             if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
-                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: false, likes: await readLikeCount(photoId) }) };
+                const cur = await readLikeCount(photoId);
+                // 非公開・写真でない → 数字を返さない（上の経路と揃える）
+                if (cur === null) return jsonError(404, "写真が見つかりません");
+                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: false, likes: cur }) };
+            }
+            // 減っていないと言い切れる失敗（スロットリング等）ならマーカーを戻す。
+            // 戻さないと「マーカーは消えたのにカウンタは減っていない」状態が
+            // 残り、公開の数字が実際より大きいままになる。
+            //
+            // 適用されたか分からない失敗（タイムアウト・応答の取りこぼし）では
+            // 戻さない。戻すと画面は「いいね済み」に見えるので、本人が
+            // もう一度取り消して**二重に減る**——実際より小さい数字は
+            // いいねし直しても直らない（マーカーが既にあると +1 されない）。
+            if (definitelyNotApplied(e)) {
+                await ddb.send(new PutCommand({
+                    TableName: PHOTOS_TABLE,
+                    Item: { id: markerId(photoId, userId), like: true, photoId, uid: userId, createdAt: new Date().toISOString() },
+                })).catch(() => { /* 戻せなくてもこれ以上できることは無い */ });
             }
             throw e;
         }

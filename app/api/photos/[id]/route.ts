@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFile, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
-import { getConfig } from "../../../../lib/aws/secrets";
+import { getConfig, isAuthorizedApiKey } from "../../../../lib/aws/secrets";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import BASE_PHOTOS from "@/lib/data/photos";
 import { log } from "@/lib/utils/log";
@@ -88,7 +88,7 @@ export async function PUT(
 
         // 認証チェック
         const apiKey = request.headers.get("x-api-key");
-        if (apiKey !== config.uploadApiKey) {
+        if (!isAuthorizedApiKey(apiKey, config.uploadApiKey)) {
             return NextResponse.json(
                 { error: "認証に失敗しました" },
                 { status: 401 }
@@ -164,7 +164,7 @@ export async function DELETE(
 
         // 認証チェック
         const apiKey = request.headers.get("x-api-key");
-        if (apiKey !== config.uploadApiKey) {
+        if (!isAuthorizedApiKey(apiKey, config.uploadApiKey)) {
             return NextResponse.json(
                 { error: "認証に失敗しました" },
                 { status: 401 }

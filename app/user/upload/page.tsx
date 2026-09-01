@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useRef, Suspense } from "react";
+import { useBottomBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PhotoIcon, XMarkIcon, UserCircleIcon, MapPinIcon, CalendarIcon, ChevronDownIcon, CheckCircleIcon, ExclamationTriangleIcon, CameraIcon } from "@heroicons/react/24/outline";
 import { useToast } from "../../../lib/hooks/useToast";
@@ -13,6 +14,15 @@ import { createThumbnail, toUploadSafeFile, UnstrippableFileError, extractDomina
 import { extractExifFromFile, extractCameraExif, reverseGeocode } from "../../../lib/utils/exif";
 import { readSharedPayload, clearSharedPayload } from "../../../lib/utils/shareStore";
 import { ROUTES } from "../../../lib/routes";
+import { formatStoredDateTime } from "../../../lib/utils/photoDate";
+import { useMemberGate } from "../../../lib/hooks/useMemberGate";
+import { userFacingUploadError, UPLOAD_FAILED_MESSAGE } from "./errorText";
+import MemberOnlyNotice from "../../components/MemberOnlyNotice";
+import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
+
+// 1人あたりのアップロード上限。**api-user/src/upload.ts の
+// PHOTO_LIMIT_PER_USER と対**。片方だけ変えると、画面の残り枚数が嘘になる。
+const PHOTO_LIMIT_PER_USER = 100;
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
@@ -32,7 +42,15 @@ type Item = {
     status: Status;
     progress: number;
     error?: string;
+    // S3 へ上げ終わったが保存に失敗したときの置き場所。
+    // 捨てて presign を取り直すと、再試行のたびに参照されない
+    // オブジェクトが増える（どの削除経路も DynamoDB の項目からキーを
+    // 引くので、項目の無いオブジェクトには永久に手が届かない）。
+    uploaded?: { key: string; publicUrl: string; thumbUrl?: string };
 };
+
+/** 前回のサムネを使い回すときにアップロード処理を飛ばすための合図 */
+class SkipThumb extends Error {}
 
 function makeId() {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -94,8 +112,22 @@ function CropPreview({ src, hint }: { src: string; hint: string }) {
     );
 }
 
+// **サーバーの上限と同じ数字。** 入れないと、超えた分は保存時に黙って
+// 切られる（保存は成功したように見えて、あとで開くと末尾が無い）。
+// 説明とタグに入れていない理由は /user/edit と同じ——説明はサーバーが
+// **段落ごと**に切り、タグはカンマ区切りの1入力で上限が**タグ1つあたり**
+// なので、欄全体に上限を入れると「サーバーは受け付けるのに入力できない」に
+// なる。
+const TITLE_MAX = 200;
+const LOCATION_MAX = 200;
+const CATEGORY_MAX = 100;
+
 function UploadPageInner() {
-    const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
+    // 画面下の固定バーの実測値を CSS 変数に出す（MiniPlayer が読む）
+    const bottomBarRef = useRef<HTMLDivElement | null>(null);
+    useBottomBarHeight(bottomBarRef);
+    const { isAuthenticated, isAdminUser, loading } = useAuth();
+    const gate = useMemberGate();
     const router = useRouter();
     const searchParams = useSearchParams();
     const { locale } = useLocale();
@@ -111,41 +143,126 @@ function UploadPageInner() {
     // これらは写真を選んだ後に非同期で入るので、すぐ「公開」を押すと
     // 撮影日・撮影地・座標が入る前の状態で保存されていた
     // （日付が無いと投稿日が使われ、年表の並びが狂う）。
-    const [metaLoading, setMetaLoading] = useState(false);
+    // 走っている EXIF/位置情報の解析の本数。真偽値だと、1回目の解析中に
+    // 2回目の追加をしたとき、短い方の finally が先に false を書いてしまい、
+    // まだ場所を引けていない写真のまま「公開」が押せた。
+    const [metaJobs, setMetaJobs] = useState(0);
+    const metaLoading = metaJobs > 0;
     const [fileError, setFileError] = useState<string | null>(null);
     const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // GPS からの撮影地自動入力（プライバシー配慮でオフにできる。設定は保持）
+    //
+    // **現在値は ref からも読めるようにしておく。** 取り込み処理（addFiles）が
+    // state を直接見ていた頃、iOS の共有シート経由だけ設定が効かなかった:
+    // 共有の effect は deps を絞ってあるので、**マウント時の addFiles を
+    // 掴んだまま**呼ぶ。localStorage からの復元は effect なのでその後に走り、
+    // 掴まれた addFiles の中では gpsAutofill が恒久的に true のままになる。
+    // 漏れるのは逆ジオコーディングで得た地名だけだが、それは公開される。
+    //
+    // state を同期的に初期化する手もあるが、静的書き出し（SSR）では
+    // localStorage が無く、サーバーとクライアントで初期値が食い違って
+    // チェックボックスがハイドレーション不一致になる。ref なら描画に
+    // 関わらないので、その副作用が無い。
     const [gpsAutofill, setGpsAutofill] = useState(true);
+    const gpsAutofillRef = useRef(true);
+    const applyGpsAutofill = useCallback((next: boolean) => {
+        gpsAutofillRef.current = next;
+        setGpsAutofill(next);
+    }, []);
     useEffect(() => {
-        try { setGpsAutofill(localStorage.getItem("jp_gps_autofill") !== "0"); } catch { /* ignore */ }
-    }, []);
+        const read = () => {
+            try { applyGpsAutofill(localStorage.getItem("jp_gps_autofill") !== "0"); } catch { /* ignore */ }
+        };
+        read();
+        // **別タブで切ったら、こちらでも切る。** 読むのがマウント時1回だけだと、
+        // 「タブBで切ったのにタブAでは効かない」——タブAで写真を足すと
+        // 逆ジオコーディングが走り、地名が入って公開される。トグルの見た目も
+        // オンのままなので、切ったつもりの人には気づけない。
+        const onStorage = (e: StorageEvent) => {
+            if (e.key === null || e.key === "jp_gps_autofill") read();
+        };
+        window.addEventListener("storage", onStorage);
+        return () => window.removeEventListener("storage", onStorage);
+    }, [applyGpsAutofill]);
     const toggleGpsAutofill = useCallback(() => {
-        setGpsAutofill((v) => {
-            const next = !v;
-            try { localStorage.setItem("jp_gps_autofill", next ? "1" : "0"); } catch { /* ignore */ }
-            return next;
-        });
-    }, []);
+        const next = !gpsAutofillRef.current;
+        try { localStorage.setItem("jp_gps_autofill", next ? "1" : "0"); } catch { /* ignore */ }
+        applyGpsAutofill(next);
+    }, [applyGpsAutofill]);
 
     // アンマウント時の Object URL 解放用に最新の items を ref で保持
     // （useEffect([]) のクロージャは初期の空配列しか見えないため）
     const itemsRef = useRef<Item[]>([]);
     itemsRef.current = items;
 
+    /**
+     * この画面を離れたか。**取り込みのループを止めるため**に要る。
+     *
+     * GPS→地名は Nominatim の 1req/s に合わせて1件ずつ 1.1 秒空けて回す。
+     * 画面を離れても誰も止めないので、30枚なら**離れたあと約35秒**、
+     * 見てもいない画面のために問い合わせ続けていた（書き込み先の `setItems`
+     * はもう無いので、戻ってきても撮影地は空のまま＝全部無駄）。
+     * 相手は 1req/s で運用されている公共のサービスなので、無駄な連投は
+     * こちらの都合だけの話ではない。
+     */
+    const leftPageRef = useRef(false);
+
     useEffect(() => {
+        // **入るたびに下ろす。** 立てるだけだと、効果が付け直される場面
+        // （StrictMode の「setup → cleanup → setup」、Fast Refresh）で
+        // **立ちっぱなし**になる。ref はインスタンスに残るので、以後の
+        // 取り込みは初回からループ先頭で break——`npm run dev` では
+        // 撮影地の自動入力が丸ごと死ぬ（本番ビルドでは二重実行は
+        // 起きないが、開発で機能が死ぬと次の回帰が見えなくなる）。
+        leftPageRef.current = false;
         return () => {
+            leftPageRef.current = true;
             if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
             itemsRef.current.forEach((it) => { try { URL.revokeObjectURL(it.preview); } catch { /* ignore */ } });
         };
     }, []);
 
-    // 認証チェック
+    /**
+     * 残りアップロード可能枚数。**上限に当たるまで見えなかった。**
+     * 100枚の上限（api-user/src/upload.ts の PHOTO_LIMIT_PER_USER）は
+     * 押して初めて 403 で伝わり、しかも数え上げ失敗の 503 と文言が違うだけで、
+     * 利用者には「上限なのか障害なのか」も分からなかった。
+     *
+     * 数え方はサーバーと同じ（/user/photos は listMyPhotos ＝ 下書きを含み
+     * ストーリーを除く）。取れなければ**何も出さない**——推測した数字を
+     * 見せる方が悪い。
+     */
+    const [usedSlots, setUsedSlots] = useState<number | null>(null);
+    /**
+     * 自分がこれまでに使った撮影地・カテゴリ・タグ。
+     * **候補が出ないせいで、同じ場所が別々の名前に散っていた**
+     * （「パリ」「パリ, フランス」「オペラ・ガルニエ（パリ）」…）。
+     * datalist で「前に何と書いたか」を出す。選ばずに自由入力もできる。
+     */
+    const [ownValues, setOwnValues] = useState<OwnValues>({ locations: [], categories: [], tags: [] });
     useEffect(() => {
-        if (!loading && (!isAuthenticated || (!isAdminUser && !isGeneralUser))) {
-            router.push("/login");
-        }
-    }, [isAuthenticated, isAdminUser, isGeneralUser, loading, router]);
+        if (loading || !isAuthenticated) return;
+        let aborted = false;
+        void (async () => {
+            try {
+                const { userFetch } = await import("../../../lib/utils/api");
+                const res = await userFetch("/user/photos");
+                if (!res.ok) return;
+                const all = await res.json() as unknown[];
+                if (!aborted && Array.isArray(all)) {
+                    setUsedSlots(all.length);
+                    // 同じ取得から入力候補も作る（追加の往復はしない）
+                    setOwnValues(collectOwnValues(all as Parameters<typeof collectOwnValues>[0]));
+                }
+            } catch { /* 出さないだけ。アップロード自体は止めない */ }
+        })();
+        return () => { aborted = true; };
+    }, [isAuthenticated, loading]);
+    // 管理者は上限の対象外（サーバーも isAdmin を見て免除している）
+    const remainingSlots = isAdminUser || usedSlots === null
+        ? null
+        : Math.max(0, PHOTO_LIMIT_PER_USER - usedSlots);
 
     // PWA Share Target で渡された写真の取り込み。
     // ログインリダイレクトで ?from=share が失われても、IndexedDB に残った
@@ -156,7 +273,13 @@ function UploadPageInner() {
         shareImportedRef.current = true;
         void (async () => {
             const payload = await readSharedPayload();
-            if (!payload || payload.files.length === 0) return;
+            if (!payload) return;
+            // 空のペイロード（共有シートがファイル無しで来た）も捨てる。
+            // 残すと IndexedDB に居座り続ける（他の分岐は必ず消している）。
+            if (payload.files.length === 0) {
+                await clearSharedPayload();
+                return;
+            }
             const isFresh = Date.now() - payload.t < 60 * 60 * 1000;
             if (!fromShare && !isFresh) {
                 await clearSharedPayload();
@@ -187,13 +310,45 @@ function UploadPageInner() {
         setFileError(null);
 
         const accepted: File[] = [];
+        // 弾いたファイルは黙って捨てない。
+        // 以前は画像以外を無言で continue していたので、HEIC が読めない端末や
+        // 動画を選んだときに「何も起きない」ように見えた（原因が分からない）。
+        // 理由ごとに分けて集める。**別々に setFileError していた頃は、
+        // あとから出した非画像の警告が「50MBを超える」を上書きしていた**
+        // ——落ちた枚数が伝わらず、利用者は「なぜか1枚少ない」まま公開する。
+        const notImage: string[] = [];
+        const tooLarge: string[] = [];
         for (const f of files) {
-            if (!f.type.startsWith("image/")) continue;
+            if (!f.type.startsWith("image/")) {
+                notImage.push(f.name);
+                continue;
+            }
             if (f.size > 50 * 1024 * 1024) {
-                setFileError(locale === "en" ? `Skipped ${f.name} (over 50MB)` : `${f.name} は50MBを超えるためスキップしました`);
+                tooLarge.push(f.name);
                 continue;
             }
             accepted.push(f);
+        }
+        // 1件ずつ出すと連打になるのでまとめて1つ。理由が2つあれば両方並べる。
+        const names = (list: string[]) =>
+            list.slice(0, 3).join(locale === "en" ? ", " : "、")
+            + (list.length > 3 ? (locale === "en" ? ` and ${list.length - 3} more` : ` ほか${list.length - 3}件`) : "");
+        const reasons: string[] = [];
+        if (tooLarge.length > 0) {
+            reasons.push(locale === "en"
+                ? `over 50MB: ${names(tooLarge)}`
+                : `50MBを超える: ${names(tooLarge)}`);
+        }
+        if (notImage.length > 0) {
+            reasons.push(locale === "en"
+                ? `not an image: ${names(notImage)}`
+                : `画像ではない: ${names(notImage)}`);
+        }
+        if (reasons.length > 0) {
+            const skipped = tooLarge.length + notImage.length;
+            setFileError(locale === "en"
+                ? `Skipped ${skipped} file(s) — ${reasons.join(" / ")}`
+                : `${skipped}件をスキップしました（${reasons.join(" / ")}）`);
         }
         if (accepted.length === 0) return;
 
@@ -215,7 +370,11 @@ function UploadPageInner() {
         setItems((prev) => [...prev, ...newItems]);
 
         // EXIF を順次抽出（並列）。GPS リバースジオコードはレート制限のため直列。
-        setMetaLoading(true);
+        //
+        // 真偽値ではなく本数で持つ。1回目の解析中に2回目の追加をすると、
+        // 短い方の finally が先に false を書いて「公開」が押せるようになり、
+        // まだ場所を引けていない写真が location 無しで保存されていた。
+        setMetaJobs((n) => n + 1);
         try {
         const exifResults = await Promise.all(
             newItems.map(async (it) => ({ id: it.id, meta: await extractExifFromFile(it.file) }))
@@ -231,9 +390,13 @@ function UploadPageInner() {
             };
         }));
 
-        // GPS → 場所名（Nominatim 1秒/req のため直列）。トグルOFF時はスキップ
-        if (gpsAutofill) {
+        // GPS → 場所名（Nominatim 1秒/req のため直列）。トグルOFF時はスキップ。
+        // state ではなく ref を読む——共有シート経由の呼び出しは
+        // マウント時の addFiles を掴んでいるので、state だと復元前の
+        // 初期値（true）に張り付く。
+        if (gpsAutofillRef.current) {
             for (const r of exifResults) {
+                if (leftPageRef.current) break;   // 画面を離れた。続きは投げない
                 if (r.meta.latitude !== undefined && r.meta.longitude !== undefined) {
                     const place = await reverseGeocode(r.meta.latitude, r.meta.longitude, locale);
                     if (place) {
@@ -244,9 +407,9 @@ function UploadPageInner() {
             }
         }
         } finally {
-            setMetaLoading(false);
+            setMetaJobs((n) => Math.max(0, n - 1));
         }
-    }, [locale, gpsAutofill]);
+    }, [locale]);
 
     const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files ?? []);
@@ -259,13 +422,72 @@ function UploadPageInner() {
         setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
     }, []);
 
+    /**
+     * 指定したキーの実体を消す（best effort）。
+     * 「上げたが使わないもの」の後始末はここに集約する。
+     *
+     * 消せなくても画面は進める（次に同じ写真を選べば上書きされるし、
+     * ここで止めると「消せないから閉じられない」になる）。
+     * ただし**消せなかったことは記録する**——`userFetch` は非 2xx でも
+     * 投げないので、`catch` に入るのは通信断だけ。403（自分の領域外）や
+     * 503（使用中か確認できなかった＝安全側に倒して消さない）は
+     * 何も出さずに素通りし、孤児が残ったことに誰も気づけなかった。
+     */
+    const discardKeys = useCallback(async (keys: string[]) => {
+        if (keys.length === 0) return;
+        const { userFetch } = await import("../../../lib/utils/api");
+        for (const key of keys) {
+            try {
+                const res = await userFetch("/upload/discard", { method: "DELETE", body: JSON.stringify({ key }) });
+                if (!res.ok) log.warn("discard rejected (leaving orphan):", res.status, key);
+            } catch (e) {
+                log.warn("discard upload failed (leaving orphan):", e);
+            }
+        }
+    }, []);
+
+    /**
+     * S3 に上がったが保存に至らなかったキーを片付ける。
+     *
+     * 投稿は「S3 に上げる → DynamoDB に書く」の2段。保存に失敗した項目を
+     * そのまま捨てると**実体だけが S3 に残る**。どの削除経路も DynamoDB の
+     * 項目からキーを引くので、項目の無いオブジェクトには誰も手が届かない
+     * ——退会しても、写真を消しても残り続ける（原本は GPS 入りのまま
+     * 公開URLで取れる）。
+     */
+    const discardUploaded = useCallback(async (uploaded: Item["uploaded"]) => {
+        if (!uploaded) return;
+        const keys = [uploaded.key];
+        // サムネは別キー。本体だけ消すと 512px WebP が孤児として残る。
+        if (uploaded.thumbUrl) {
+            try {
+                const path = new URL(uploaded.thumbUrl).pathname.replace(/^\//, "");
+                if (path.startsWith("uploads/")) keys.push(decodeURIComponent(path));
+            } catch { /* URL でなければ諦める */ }
+        }
+        await discardKeys(keys);
+    }, [discardKeys]);
+
+    // 副作用（`/upload/discard` の DELETE）を setItems の updater の中で
+    // 呼んでいる。React の規約としては純粋関数であるべきだが、**ここは
+    // 意図的にこのまま**にしている:
+    //  - React 19 + StrictMode で二重呼び出しを実際に試したが、DELETE は
+    //    1回しか飛ばなかった（＝この React では観測できない）
+    //  - updater の中なら `prev` が「まだ消していない一覧」なので、
+    //    連打しても2回目は項目が見つからず DELETE を投げない。外に出して
+    //    ref から引くと、同じ tick の2回目が**古い一覧を見て二重に投げる**
+    //    ——直すつもりの症状を自分で作ることになる
     const removeItem = useCallback((id: string) => {
         setItems((prev) => {
             const it = prev.find((x) => x.id === id);
-            if (it) { try { URL.revokeObjectURL(it.preview); } catch { /* ignore */ } }
+            if (it) {
+                try { URL.revokeObjectURL(it.preview); } catch { /* ignore */ }
+                // 保存まで通った項目のキーは写真が使っているので触らない
+                if (it.status !== "done") void discardUploaded(it.uploaded);
+            }
             return prev.filter((x) => x.id !== id);
         });
-    }, []);
+    }, [discardUploaded]);
 
     const handleUploadAll = useCallback(async (published: boolean) => {
         const pending = items.filter((it) => it.status === "pending" || it.status === "error");
@@ -275,14 +497,23 @@ function UploadPageInner() {
         }
 
         setUploading(true);
-        const { authenticatedFetch, userFetch } = await import("../../../lib/utils/api");
-        const apiFetch = isAdminUser ? authenticatedFetch : userFetch;
+        // 管理者でもユーザーAPIを使う。管理APIの savePhoto は published を見ずに
+        // 常に true で保存するため、「下書き保存」を押しても即公開になっていた
+        // （しかも撮影日・サムネURL・代表色・ぼかしも受け取らないので全部捨てられる）。
+        // ユーザーAPI側は isAdmin を見て100枚制限だけ免除している。
+        const { userFetch, readApiError } = await import("../../../lib/utils/api");
+        const apiFetch = userFetch;
 
         const tagList = tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
 
         let successCount = 0;
         for (const item of pending) {
             updateItem(item.id, { status: "uploading", progress: 0, error: undefined });
+            // **成否を確認できていないキー。** 失敗したらここに残るので
+            // catch で消す（残すと誰にも辿れない実体になる）。
+            // catch から見える必要があるので try の外に置く
+            let reservedKey: string | undefined;
+            let reservedThumbKey: string | undefined;
             try {
                 // メタデータを除去できたものだけ上げる（消せない形式は上げない）
                 let uploadFile: File;
@@ -300,34 +531,68 @@ function UploadPageInner() {
                 }
                 updateItem(item.id, { progress: 20 });
 
-                const presignedResponse = await apiFetch("/upload/presigned-url", {
-                    method: "POST",
-                    body: JSON.stringify({
-                        fileName: uploadFile.name,
-                        fileType: uploadFile.type,
-                        fileSize: uploadFile.size,
-                    }),
-                });
-                if (!presignedResponse.ok) {
-                    const t = await presignedResponse.text();
-                    throw new Error(`Presigned URL ${presignedResponse.status}: ${t.slice(0, 80)}`);
-                }
-                const { presignedUrl, key, publicUrl, photoId } = await presignedResponse.json();
-                updateItem(item.id, { progress: 40 });
+                // 前回この写真の S3 アップロードまでは成功していたら、それを使い回す。
+                //
+                // 以前は失敗のたびに presign を取り直していたので、再試行するたびに
+                // 参照されないオブジェクトが2つ（本体＋サムネ）増えていた。
+                // どの削除経路（写真削除・退会・ストーリー掃除）も DynamoDB の
+                // 項目からキーを引くので、項目の無いオブジェクトには永久に手が届かない。
+                let key = item.uploaded?.key;
+                let publicUrl = item.uploaded?.publicUrl;
+                let thumbUrl = item.uploaded?.thumbUrl;
 
-                const uploadResponse = await fetch(presignedUrl, {
-                    method: "PUT",
-                    body: uploadFile,
-                    headers: { "Content-Type": uploadFile.type, "Cache-Control": "max-age=31536000" },
-                });
-                if (!uploadResponse.ok) throw new Error(`S3 ${uploadResponse.status}`);
+                if (!key || !publicUrl) {
+                    const presignedResponse = await apiFetch("/upload/presigned-url", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            fileName: uploadFile.name,
+                            fileType: uploadFile.type,
+                            fileSize: uploadFile.size,
+                        }),
+                    });
+                    if (!presignedResponse.ok) {
+                        // サーバーは日本語の理由を返す（例: アップロード上限に達しています）。
+                        // 生のJSONを80文字で切って出していたので、肝心の一文が
+                        // 途中で切れたクラッシュログのように見えていた。
+                        throw new Error(await readApiError(presignedResponse,
+                            locale === "en" ? "Could not start the upload." : "アップロードを開始できませんでした。"));
+                    }
+                    const presigned = await presignedResponse.json();
+                    key = presigned.key as string;
+                    publicUrl = presigned.publicUrl as string;
+                    // **サーバーが署名した種別で送る。** `content-type` は
+                    // 署名対象なので、違う文字列だと S3 が 403 にする。
+                    // 返ってこない古い API 相手でも動くよう、無ければ従来どおり
+                    const putType = (presigned.contentType as string | undefined) ?? uploadFile.type;
+                    // **PUT の前に控える。** ここで控えていなかったので、
+                    // `fetch` が **reject** したとき（本文は上がりきったが
+                    // 応答が返らない——モバイル回線でよくある）にキーが
+                    // どこにも残らず、再試行は presign を取り直して
+                    // **別のキー**へ上げ直していた。前の実体は
+                    // DynamoDB に行が無いので、写真削除・退会・discard の
+                    // どの経路からも辿れない。再試行のたびに1つずつ増える。
+                    reservedKey = key;
+                    updateItem(item.id, { progress: 40 });
+
+                    const uploadResponse = await fetch(presigned.presignedUrl, {
+                        method: "PUT",
+                        body: uploadFile,
+                        headers: { "Content-Type": putType, "Cache-Control": "max-age=31536000" },
+                    });
+                    // **番号だけの文字列を投げない。** catch は e.message を
+                    // そのまま画面に出すので、利用者に「S3 403」が見えていた
+                    // （StoriesBar が同じ理由で先に直している）。
+                    if (!uploadResponse.ok) throw new Error(UPLOAD_FAILED_MESSAGE);
+                    // 上がったことが確認できた。以後この実体は使う
+                    reservedKey = undefined;
+                }
                 updateItem(item.id, { progress: 70 });
 
                 // 一覧グリッド用の 512px WebP サムネイルを併せてアップロードする。
                 // グリッドがフル画像（〜1920px）を落とすのが読み込みの遅さの主因。
                 // サムネ生成/アップロードに失敗しても本体の投稿は成立させる。
-                let thumbUrl: string | undefined;
                 try {
+                    if (thumbUrl) throw new SkipThumb(); // 前回上げた分を使う
                     const thumb = await createThumbnail(item.file);
                     if (thumb) {
                         const thumbPresign = await apiFetch("/upload/presigned-url", {
@@ -335,19 +600,44 @@ function UploadPageInner() {
                             body: JSON.stringify({ fileName: thumb.name, fileType: thumb.type, fileSize: thumb.size }),
                         });
                         if (thumbPresign.ok) {
-                            const t = await thumbPresign.json() as { presignedUrl: string; publicUrl: string };
+                            const t = await thumbPresign.json() as { presignedUrl: string; publicUrl: string; key?: string; contentType?: string };
+                            // 本体と同じ理由で PUT の前に控える。ここは
+                            // 失敗しても「サムネ無しで続行」なので、控えて
+                            // いないと **本体が保存できても** その 512px WebP は
+                            // 永久に誰も消せない（写真を消しても、退会しても残る）
+                            if (t.key) reservedThumbKey = t.key;
                             const thumbPut = await fetch(t.presignedUrl, {
                                 method: "PUT",
                                 body: thumb,
-                                headers: { "Content-Type": thumb.type, "Cache-Control": "max-age=31536000" },
+                                headers: { "Content-Type": t.contentType ?? thumb.type, "Cache-Control": "max-age=31536000" },
                             });
-                            if (thumbPut.ok) thumbUrl = t.publicUrl;
+                            if (thumbPut.ok) {
+                                thumbUrl = t.publicUrl;
+                                reservedThumbKey = undefined;   // 使うので消さない
+                            } else if (reservedThumbKey) {
+                                // **`!ok` もここで消す。** 本体の PUT は `!ok` で
+                                // throw して外側の catch が消すが、サムネは
+                                // 「無しで続行」なので投げない——`else` が無かった
+                                // ので、403（署名切れ）や 5xx で上がった実体が
+                                // 誰にも辿れず残っていた。控える意味が半分しか
+                                // 無かった（コメントは全部塞いだように書いていた）
+                                void discardKeys([reservedThumbKey]);
+                                reservedThumbKey = undefined;
+                            }
                         }
                     }
                 } catch (e) {
-                    log.error("thumbnail upload failed (continuing without thumb):", e);
+                    if (!(e instanceof SkipThumb)) log.error("thumbnail upload failed (continuing without thumb):", e);
+                    // **ここで消す。** サムネの失敗は握って本体の保存へ進むので、
+                    // 下の catch には来ない。控えたまま進むと、本体が保存
+                    // できても そのサムネだけが誰にも辿れず残る
+                    if (reservedThumbKey) {
+                        void discardKeys([reservedThumbKey]);
+                        reservedThumbKey = undefined;
+                    }
                 }
-                updateItem(item.id, { progress: 85 });
+                // ここまでで S3 には上がっている。保存に失敗しても捨てないよう控える
+                updateItem(item.id, { uploaded: { key, publicUrl, ...(thumbUrl ? { thumbUrl } : {}) }, progress: 85 });
 
                 // 撮影地座標: GPS自動入力がONのときのみ、約1km精度に丸めて保存
                 const coords = gpsAutofill && item.latitude !== undefined && item.longitude !== undefined
@@ -367,7 +657,7 @@ function UploadPageInner() {
                 const saveResponse = await apiFetch("/upload/save", {
                     method: "POST",
                     body: JSON.stringify({
-                        key, publicUrl, photoId,
+                        key, publicUrl,
                         published,
                         // 撮影日: EXIF から読み取った日時。年表を「撮った順」で並べるために必須。
                         // 送らないと createdAt（アップロード日）にフォールバックしてしまう。
@@ -385,27 +675,28 @@ function UploadPageInner() {
                     }),
                 });
                 if (!saveResponse.ok) {
-                    const t = await saveResponse.text();
-                    throw new Error(`Save ${saveResponse.status}: ${t.slice(0, 80)}`);
+                    throw new Error(await readApiError(saveResponse,
+                        locale === "en" ? "Could not save the photo." : "写真を保存できませんでした。"));
                 }
-                // 行きたいリストの場所に到達していたら祝う
-                try {
-                    const saved = await saveResponse.json() as { inspired?: number };
-                    if (typeof saved.inspired === "number" && saved.inspired > 0) {
-                        showToast(
-                            locale === "en"
-                                ? "You made it to a place on your travel list! 🎉"
-                                : "行きたかった場所に到達！撮影者に伝わりました 🎉",
-                            "success",
-                        );
-                    }
-                } catch { /* レスポンス解析失敗は無視 */ }
                 updateItem(item.id, { status: "done", progress: 100 });
                 successCount++;
+                // 残り枚数はマウント時に1回取るだけだった。3枚上げても
+                // 「あと5枚」のままで、押して初めて 403 に戻ってしまう。
+                // 成功した分をその場で引く（取れていない＝null のときは触らない）。
+                setUsedSlots((n) => (n === null ? n : n + 1));
             } catch (err) {
-                const msg = err instanceof Error ? err.message : String(err);
                 log.error(`Upload failed for ${item.file.name}:`, err);
-                updateItem(item.id, { status: "error", error: msg });
+                // **上げたかもしれない実体を捨てる。** `fetch` が reject した
+                // 場合、本文は上がりきっているかもしれない。上がっていれば
+                // ここで消える。上がっていなくても S3 の DeleteObject は
+                // 成功するので、サーバーは 200 を返す（**404 にはならない**）
+                // ——空振りしても害は無い。消し損ねても画面は進める。
+                const stale = [reservedKey, reservedThumbKey].filter((k): k is string => !!k);
+                if (stale.length) void discardKeys(stale);
+                // オフラインの fetch は "Failed to fetch" を投げる。そのまま
+                // 出していたので、画面に英語の技術文字列が並んでいた。
+                // 見せてよいのは、こちらが日本語で組み立てたものだけ
+                updateItem(item.id, { status: "error", error: userFacingUploadError(err) });
             }
         }
 
@@ -434,9 +725,11 @@ function UploadPageInner() {
                 "error",
             );
         }
-    }, [items, category, tags, gpsAutofill, isAdminUser, locale, router, showToast, updateItem]);
+    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys]);
 
-    if (loading || !isAuthenticated || (!isAdminUser && !isGeneralUser)) {
+    // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
+    if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
+    if (gate !== "ok") {
         return (
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-3xl mx-auto w-full flex items-center justify-center">
                 <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
@@ -459,10 +752,31 @@ function UploadPageInner() {
             {/* iOS向け「ホーム画面に追加」ヒント（該当時のみ表示） */}
             <AddToHomeScreenHint />
 
+            {/* 残り枚数。**上限に当たるまで見えなかった**ので、選ぶ前に出す。
+                取れていなければ何も出さない（推測した数字は見せない）。 */}
+            {remainingSlots !== null && (
+                <p className={`text-xs mb-3 ${remainingSlots === 0 ? "text-amber-400/90" : "text-white/40"}`}>
+                    {remainingSlots === 0
+                        ? (locale === "en"
+                            ? `Upload limit reached (${PHOTO_LIMIT_PER_USER}). Delete a photo to make room.`
+                            : `アップロードの上限（${PHOTO_LIMIT_PER_USER}枚）に達しています。写真を削除すると空きができます。`)
+                        : (locale === "en"
+                            ? `${remainingSlots} of ${PHOTO_LIMIT_PER_USER} uploads left`
+                            : `あと${remainingSlots}枚アップロードできます（${PHOTO_LIMIT_PER_USER}枚まで）`)}
+                </p>
+            )}
+
             {/* ファイル選択 */}
+            {/* **入力は sr-only にする（hidden にしない）。**
+                `hidden` は display:none なので、その input は**フォーカスできない**
+                ——`<label>` 自体もタブ順に入らないので、キーボードだけの人は
+                写真を選ぶ手段が無く、このページで何もできなかった
+                （ドロップも貼り付けも `ref.click()` も無い）。
+                sr-only なら見た目はそのままで、Tab で届き Enter で開ける。
+                枠が光るように focus-within も付ける（どこにいるか分かるように）。 */}
             <label
                 htmlFor="files-input"
-                className="flex flex-col items-center justify-center w-full p-6 border-2 border-dashed border-white/20 rounded-lg cursor-pointer hover:border-white/40 transition-colors mb-4"
+                className="flex flex-col items-center justify-center w-full p-6 border-2 border-dashed border-white/20 rounded-lg cursor-pointer hover:border-white/40 focus-within:border-white/60 transition-colors mb-4"
                 style={{ touchAction: "manipulation", minHeight: "120px" }}
             >
                 <PhotoIcon className="w-10 h-10 text-white/40 mb-2" />
@@ -476,7 +790,7 @@ function UploadPageInner() {
                     id="files-input"
                     type="file"
                     multiple
-                    className="hidden"
+                    className="sr-only"
                     accept="image/*"
                     onChange={handleFileSelect}
                     disabled={uploading}
@@ -486,7 +800,7 @@ function UploadPageInner() {
             {/* カメラ直撮り（スマホで背面カメラを直接起動）。ギャラリー選択とは別入力にする */}
             <label
                 htmlFor="camera-input"
-                className="flex items-center justify-center gap-2 w-full rounded-lg bg-white/5 ring-1 ring-white/10 hover:bg-white/10 transition-colors mb-4 cursor-pointer text-sm text-white/80"
+                className="flex items-center justify-center gap-2 w-full rounded-lg bg-white/5 ring-1 ring-white/10 hover:bg-white/10 focus-within:ring-white/60 transition-colors mb-4 cursor-pointer text-sm text-white/80"
                 style={{ touchAction: "manipulation", minHeight: "44px" }}
             >
                 <CameraIcon className="w-5 h-5 text-white/60" />
@@ -496,7 +810,7 @@ function UploadPageInner() {
                     type="file"
                     accept="image/*"
                     capture="environment"
-                    className="hidden"
+                    className="sr-only"
                     onChange={handleFileSelect}
                     disabled={uploading}
                 />
@@ -519,7 +833,7 @@ function UploadPageInner() {
                 </span>
             </label>
 
-            {fileError && <p className="text-sm text-red-400 mb-3">{fileError}</p>}
+            {fileError && <p role="alert" className="text-sm text-red-400 mb-3">{fileError}</p>}
 
             {/* 共通設定 */}
             {items.length > 0 && (
@@ -527,12 +841,21 @@ function UploadPageInner() {
                     <p className="text-xs text-white/50 uppercase tracking-wide">
                         {locale === "en" ? "Common settings (applied to all)" : "共通設定（全写真に適用）"}
                     </p>
+                    {/* 前に使った値を候補に出す（選ばずに自由入力もできる） */}
+                    <datalist id="own-categories">
+                        {ownValues.categories.map((v) => <option key={v} value={v} />)}
+                    </datalist>
+                    <datalist id="own-locations">
+                        {ownValues.locations.map((v) => <option key={v} value={v} />)}
+                    </datalist>
                     <input
                         type="text"
                         value={category}
                         onChange={(e) => setCategory(e.target.value)}
+                        maxLength={CATEGORY_MAX}
                         placeholder={locale === "en" ? "Category (e.g. Landscape)" : "カテゴリ（例: 風景）"}
                         className={inputCls}
+                        list="own-categories"
                         style={{ fontSize: "16px" }}
                         disabled={uploading}
                     />
@@ -545,6 +868,24 @@ function UploadPageInner() {
                         style={{ fontSize: "16px" }}
                         disabled={uploading}
                     />
+                    {/* タグはカンマ区切りなので datalist が効かない（欄全体を
+                        置き換えてしまう）。押して足せるチップにする。 */}
+                    {ownValues.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                            {ownValues.tags.slice(0, 12).map((t) => (
+                                <button
+                                    key={t}
+                                    type="button"
+                                    onClick={() => setTags((cur) => appendTag(cur, t))}
+                                    disabled={uploading}
+                                    className="px-2 py-0.5 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors disabled:opacity-40"
+                                    style={{ touchAction: "manipulation" }}
+                                >
+                                    {t}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -576,6 +917,7 @@ function UploadPageInner() {
                                     type="text"
                                     value={it.title}
                                     onChange={(e) => updateItem(it.id, { title: e.target.value })}
+                                    maxLength={TITLE_MAX}
                                     placeholder={locale === "en" ? "Title (optional)" : "タイトル（任意）"}
                                     className={inputCls}
                                     style={{ fontSize: "16px" }}
@@ -586,7 +928,10 @@ function UploadPageInner() {
                                     {it.dateTimeOriginal && (
                                         <span className="inline-flex items-center gap-0.5">
                                             <CalendarIcon className="w-3 h-3" />
-                                            {new Date(it.dateTimeOriginal).toLocaleDateString(locale === "en" ? "en-US" : "ja-JP")}
+                                            {/* 保存されている通りに出す。toLocaleDateString だと
+                                                UTC より西の端末で**保存される日付より1日前**が
+                                                確認画面に出て、写真ページの表示とも食い違う。 */}
+                                            {formatStoredDateTime(it.dateTimeOriginal, locale === "en" ? "en" : "ja")}
                                         </span>
                                     )}
                                     {it.location && (
@@ -612,8 +957,10 @@ function UploadPageInner() {
                                             type="text"
                                             value={it.location}
                                             onChange={(e) => updateItem(it.id, { location: e.target.value })}
+                                            maxLength={LOCATION_MAX}
                                             placeholder={locale === "en" ? "Location (optional)" : "場所（任意）"}
                                             className={inputCls}
+                                            list="own-locations"
                                             style={{ fontSize: "16px" }}
                                             disabled={uploading || it.status === "done"}
                                         />
@@ -641,6 +988,10 @@ function UploadPageInner() {
                                 {it.status === "done" && (
                                     <p className="text-xs text-green-400 inline-flex items-center gap-1"><CheckCircleIcon className="w-4 h-4" />{locale === "en" ? "Uploaded" : "アップロード完了"}</p>
                                 )}
+                                {/* ここは role="alert" にしない。逐次ループなので、
+                                    50枚失敗すれば assertive な割り込みが50回起きる。
+                                    まとめは「N 件失敗しました」のトーストが出していて、
+                                    Toast は元から role="alert" を持っている。 */}
                                 {it.status === "error" && (
                                     <p className="text-xs text-red-400 inline-flex items-center gap-1"><ExclamationTriangleIcon className="w-4 h-4" />{it.error ?? (locale === "en" ? "Failed" : "失敗")}</p>
                                 )}
@@ -650,9 +1001,16 @@ function UploadPageInner() {
                 ))}
             </div>
 
-            {/* アップロードバー（固定） */}
+            {/* アップロードバー（固定）。
+                **`env(safe-area-inset-bottom)` を足す。** `viewportFit: "cover"` なので、
+                ホームインジケーターのある端末では下 34px がインジケーター帯に入る。
+                `globals.css` の `body { padding-bottom: env(...) }` は
+                **`position: fixed` には効かない**（fixed は body の padding box の外）。
+                実測で、高さ44pxのボタンの下に14pxしか空いていなかった。
+                `StoryViewer` / `StoriesBar` / `MiniPlayer` は既にこの形。 */}
             {items.length > 0 && (
-                <div className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/10 p-4 z-40">
+                <div ref={bottomBarRef} className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/10 p-4 z-40"
+                    style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}>
                     <div className="max-w-3xl mx-auto flex items-center justify-between gap-2">
                         <p className="hidden sm:block text-sm text-white/70 flex-shrink-0">
                             {doneCount > 0 ? `${doneCount}/${items.length} ` : ""}
@@ -708,7 +1066,13 @@ function UploadPageInner() {
                         )}
                     </div>
                     <div className="space-y-2">
-                        <label className="inline-block cursor-pointer">
+                        {/* focus-within は**input を包む側**に付ける。
+                            span は input の兄弟なので、そこに付けても永久に
+                            発火しない（:focus-within は自分自身か子孫にしか
+                            当たらない）。Tab で止まるようになったのに何も
+                            光らない＝フォーカスが行方不明、という新しい
+                            壊れ方を作っていた。 */}
+                        <label className="inline-block cursor-pointer rounded-lg focus-within:ring-2 focus-within:ring-white/60">
                             <span className="px-3.5 py-2 text-sm bg-white/10 hover:bg-white/20 active:scale-95 text-white rounded-lg transition inline-flex items-center"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}>
                                 {locale === "en" ? "Choose photo" : "写真を選択"}
@@ -716,7 +1080,7 @@ function UploadPageInner() {
                             <input
                                 type="file"
                                 accept="image/*"
-                                className="hidden"
+                                className="sr-only"
                                 disabled={avatarUploading}
                                 onChange={(e) => {
                                     const f = e.target.files?.[0];
@@ -737,21 +1101,23 @@ function UploadPageInner() {
                                     try {
                                         // 消せない形式は上げない（アイコンも公開URLで配信される）
                                         const compressed = await toUploadSafeFile(avatarFile, AVATAR_MAX_PX, 0.9);
-                                        const { userFetch, authenticatedFetch } = await import("../../../lib/utils/api");
-                                        const apiFetch = isAdminUser ? authenticatedFetch : userFetch;
-                                        const res = await apiFetch("/profile/avatar/presigned-url", {
+                                        // アイコンのアップロードは管理APIに経路が無い
+                                        // （/profile/avatar/presigned-url はユーザーAPIだけ）。
+                                        // 管理者だと 404 になって「Presigned URL fail」で終わっていた。
+                                        const { userFetch } = await import("../../../lib/utils/api");
+                                        const res = await userFetch("/profile/avatar/presigned-url", {
                                             method: "POST",
                                             body: JSON.stringify({ fileType: compressed.type }),
                                         });
                                         if (!res.ok) throw new Error("Presigned URL fail");
-                                        const { presignedUrl } = await res.json() as { presignedUrl: string };
+                                        const { presignedUrl, contentType } = await res.json() as { presignedUrl: string; contentType?: string };
                                         const upload = await fetch(presignedUrl, {
                                             method: "PUT",
                                             body: compressed,
                                             // Cache-Control は署名対象外ヘッダなので presigned URL 側では
                                             // 指定できない。クライアントが送らないと S3 に何も付かず、
                                             // CDN の既定TTLで配信されてアイコンを変えても反映されない。
-                                            headers: { "Content-Type": compressed.type, "Cache-Control": "no-store" },
+                                            headers: { "Content-Type": contentType ?? compressed.type, "Cache-Control": "no-store" },
                                         });
                                         if (!upload.ok) throw new Error("S3 upload fail");
                                         setAvatarFile(null);

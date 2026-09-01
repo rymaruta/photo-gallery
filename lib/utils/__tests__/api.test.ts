@@ -42,3 +42,76 @@ describe("publicFetch / userPublicFetch の宛先", () => {
         expect(calls[0]).not.toContain("comusers");
     });
 });
+
+// 認証切れの表示。API Gateway の JWT オーソライザは期限切れトークンに
+// {"message":"Unauthorized"} を返し、以前はその英語が生でトーストに出ていた。
+// 自前の API が返す日本語の error はそのまま通す。
+describe("readApiError: 401 の英語定型を置き換える", () => {
+    const res = (status: number, body: unknown) => ({
+        status,
+        json: async () => body,
+    }) as unknown as Response;
+    const nonJson = (status: number) => ({
+        status,
+        json: async () => { throw new Error("not json"); },
+    }) as unknown as Response;
+
+    it('401 の {"message":"Unauthorized"} は再ログインの文言になる', async () => {
+        const { readApiError, SESSION_EXPIRED_MESSAGE } = await import("../api");
+        expect(await readApiError(res(401, { message: "Unauthorized" }), "fallback"))
+            .toBe(SESSION_EXPIRED_MESSAGE);
+    });
+
+    it("401 でも自前の日本語 error はそのまま通す", async () => {
+        const { readApiError } = await import("../api");
+        expect(await readApiError(res(401, { error: "認証が必要です" }), "fallback"))
+            .toBe("認証が必要です");
+    });
+
+    it("401 で本文が JSON でなくても再ログインの文言になる", async () => {
+        const { readApiError, SESSION_EXPIRED_MESSAGE } = await import("../api");
+        expect(await readApiError(nonJson(401), "fallback")).toBe(SESSION_EXPIRED_MESSAGE);
+    });
+
+    it("401 以外は今までどおり（error 優先・無ければ既定文）", async () => {
+        const { readApiError } = await import("../api");
+        expect(await readApiError(res(400, { error: "不正なYouTube URLです" }), "fb"))
+            .toBe("不正なYouTube URLです");
+        expect(await readApiError(res(500, {}), "保存できませんでした"))
+            .toBe("保存できませんでした");
+        expect(await readApiError(nonJson(503), "fb")).toBe("fb");
+    });
+});
+
+// API Gateway は自前の応答と違って `{ "message": ... }` で返す。
+// `message` をどのステータスでも通していたので、Lambda がタイムアウトすると
+// 「Internal Server Error」が、オーソライザが弾くと「Forbidden」が
+// そのままトーストに出ていた（401 だけ置き換えても、他が素通しでは同じこと）。
+// 7057ce3 が readApiError を6経路に広げたので、範囲も広がっていた。
+describe("readApiError: 401 以外でも API Gateway の英語定型を出さない", () => {
+    const res = (status: number, body: unknown) => ({
+        status,
+        json: async () => body,
+    }) as unknown as Response;
+
+    it.each([
+        [500, "Internal Server Error"],
+        [403, "Forbidden"],
+        [429, "Too Many Requests"],
+        [502, "Bad Gateway"],
+    ])("%i の {message} は既定文に落とす", async (status, message) => {
+        const { readApiError } = await import("../api");
+        expect(await readApiError(res(status, { message }), "保存に失敗しました"))
+            .toBe("保存に失敗しました");
+    });
+
+    // うちの API は必ず `{ error }` で返す（api-user/src/http.ts の jsonError）。
+    // そちらは日本語なのでそのまま出す
+    it("自前の {error} は 401 以外でもそのまま通す", async () => {
+        const { readApiError } = await import("../api");
+        expect(await readApiError(res(429, { error: "同じ写真へのコメントは10件までです" }), "既定"))
+            .toBe("同じ写真へのコメントは10件までです");
+        expect(await readApiError(res(404, { error: "写真が見つかりません" }), "既定"))
+            .toBe("写真が見つかりません");
+    });
+});

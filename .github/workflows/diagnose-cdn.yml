@@ -2,6 +2,13 @@ name: Diagnose CDN
 
 # 手動実行のみ。読み取り専用の診断で、AWS の設定は一切変更しない。
 # 「初回アクセスで CSS が当たらない」の原因を実データで確かめるために使う。
+# **`GITHUB_TOKEN` に何も渡さない（IAM-3）。**
+# どのワークフローも `actions/checkout` 以外でトークンを使っていないのに、
+# 既定の権限（リポジトリ設定次第では contents: write まで）が渡っていた。
+# checkout に要るのは読み取りだけ。**渡していない権限は漏らせない**。
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
 
@@ -13,6 +20,7 @@ env:
   USERS_TABLE: prod-photo-gallery-users
   UPLOAD_BUCKET: prod-journey-photo-upload
   CLOUDFRONT_URL: https://d1s3dwwzgxf5ni.cloudfront.net
+  SITE_URL: https://journey-photo.com
 
 jobs:
   diagnose:

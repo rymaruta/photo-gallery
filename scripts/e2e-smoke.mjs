@@ -113,7 +113,7 @@ async function waitForHydration(page, timeoutMs = 20000) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
         const ready = await page.evaluate(() => {
-            const btn = document.querySelector('[aria-label="Open menu"]');
+            const btn = document.querySelector('[data-e2e="menu-toggle"]');
             if (!btn) return false;
             return Object.keys(btn).some((k) => k.startsWith("__reactProps"));
         }).catch(() => false);
@@ -126,7 +126,7 @@ async function waitForHydration(page, timeoutMs = 20000) {
 async function expectMenuWorks(page, label) {
     // ハンバーガーの中心を実際に覆っている要素を検査（不可視オーバーレイ検知）
     const cover = await page.evaluate(() => {
-        const btn = document.querySelector('[aria-label="Open menu"], [aria-label="Close menu"]');
+        const btn = document.querySelector('[data-e2e="menu-toggle"]');
         if (!btn) return "no-button";
         const r = btn.getBoundingClientRect();
         const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
@@ -140,13 +140,13 @@ async function expectMenuWorks(page, label) {
     let lastErr = "";
     const deadline = Date.now() + 20000;
     while (!opened && Date.now() < deadline) {
-        lastErr = await tapOrClick(page, '[aria-label="Open menu"]', { timeout: 3000 }).then(() => "").catch((e) => e.message.replace(/\n/g, " | "));
+        lastErr = await tapOrClick(page, '[data-e2e="menu-toggle"]', { timeout: 3000 }).then(() => "").catch((e) => e.message.replace(/\n/g, " | "));
         opened = await page.waitForSelector('#site-menu[role="dialog"]', { timeout: 1500 }).then(() => true).catch(() => false);
         if (!opened) await page.waitForTimeout(500);
     }
     check(`${label}: タップでメニューが開く`, opened, lastErr);
     if (opened) {
-        await tapOrClick(page, '[aria-label="Close menu"]').catch(() => {});
+        await tapOrClick(page, '[data-e2e="menu-toggle"]').catch(() => {});
         const closed = await page.waitForSelector('#site-menu', { state: "detached", timeout: 5000 }).then(() => true).catch(() => false);
         check(`${label}: メニューが閉じる`, closed);
     }
@@ -172,13 +172,8 @@ async function runChecks(browser, eng) {
     if (!hydrated) reportDiagnostics(`${eng}/home`, bag); // 無反応の主因診断
     await expectMenuWorks(page, `[${eng}] 初期表示`);
 
-    // 言語切替が反応する
-    const langButton = page.locator("button", { hasText: "English" }).first();
-    if (await langButton.isVisible().catch(() => false)) {
-        await langButton.tap().catch(() => {});
-        const switched = await page.locator("button", { hasText: "日本語" }).first().isVisible().catch(() => false);
-        check(`[${eng}] 言語切替が反応する`, switched);
-    }
+    // 言語切替のチェックは置かない。切替UI（LocaleToggle）は R-1 で削除済みで、
+    // 「見えたら押す」形の旧チェックは一度も走らない死んだ分岐になっていた。
 
     // 一覧タップで個別ページへ直接遷移する
     const firstPhoto = page.locator("a[data-photo-id]").first();
@@ -199,19 +194,46 @@ async function runChecks(browser, eng) {
         const modal = await page.waitForSelector('[role="dialog"][aria-modal="true"]', { timeout: 10000 }).then(() => true).catch(() => false);
         check(`[${eng}] ?photo= フォールバックでモーダルが開く`, modal);
         if (modal) {
+            // 開いている間は URL に残っていること。消えていると、再読込・
+            // ブックマーク・アドレスバーのコピーのどれでも写真に戻れない。
+            await page.waitForTimeout(500);
+            check(`[${eng}] モーダル表示中は URL に ?photo= が残る`,
+                page.url().includes(`photo=${encodeURIComponent(pid ?? "")}`));
+
             let closed = false;
             for (let k = 0; k < 5 && !closed; k++) {
                 await page.keyboard.press("Escape");
                 closed = await page.waitForSelector('[role="dialog"][aria-modal="true"]', { state: "detached", timeout: 2000 }).then(() => true).catch(() => false);
             }
             check(`[${eng}] 写真モーダルが閉じる`, closed);
+            if (closed) {
+                await page.waitForTimeout(400);
+                check(`[${eng}] 閉じると URL から ?photo= が消える`, !page.url().includes("photo="));
+
+                // 同じ写真をもう一度開けること。
+                // 「閉じた覚え」を解除し忘れると、2回目が無反応になる
+                // （静的ページの無い新着写真にとっては唯一の閲覧手段）。
+                await page.goto(`http://localhost:${PORT}/?photo=${encodeURIComponent(pid ?? "")}`, { waitUntil: "domcontentloaded" });
+                await waitForHydration(page);
+                const reopened = await page.waitForSelector('[role="dialog"][aria-modal="true"]', { timeout: 10000 }).then(() => true).catch(() => false);
+                check(`[${eng}] 同じ写真をもう一度開ける`, reopened);
+                if (reopened) {
+                    for (let k = 0; k < 5; k++) {
+                        await page.keyboard.press("Escape");
+                        if (await page.waitForSelector('[role="dialog"][aria-modal="true"]', { state: "detached", timeout: 1500 }).then(() => true).catch(() => false)) break;
+                    }
+                }
+            }
         }
         await expectMenuWorks(page, `[${eng}] モーダル閉止後`);
     }
 
     // プロフィールページ: タブが切り替わる
     const profiles = fs.existsSync(path.join(OUT, "users"))
-        ? fs.readdirSync(path.join(OUT, "users")).filter((f) => f.endsWith(".html"))
+        // "_none.html" はユーザー0人のビルドを通すための空枠
+        // （lib/server/staticParams.ts の EMPTY_PARAM_PLACEHOLDER）。
+        // 実在ページとして開くとタブ検査が空振りするので除く。
+        ? fs.readdirSync(path.join(OUT, "users")).filter((f) => f.endsWith(".html") && f !== "_none.html")
         : [];
     if (profiles.length > 0) {
         console.log(`\n[${eng}][2] プロフィール`);
@@ -291,12 +313,17 @@ async function main() {
         process.exit(1);
     }
     const server = await serveOut();
-    let ran = 0;
+    // 「起動できたエンジン」と「頼まれたのに起動できなかったエンジン」を分けて持つ。
+    // 以前は最後に ENGINES をそのまま並べて「全パス」と出していたので、
+    // CI で WebKit が起動できなくても「chromium, webkit で全パス」と表示され、
+    // Safari 側の確認が抜けたまま緑になっていた。
+    const ranEngines = [];
+    const skipped = [];
     try {
         for (const eng of ENGINES) {
             const browser = await launchEngine(eng);
-            if (!browser) continue;
-            ran++;
+            if (!browser) { skipped.push(eng); continue; }
+            ranEngines.push(eng);
             console.log(`\n===== エンジン: ${eng} =====`);
             try {
                 await runChecks(browser, eng);
@@ -308,15 +335,27 @@ async function main() {
         server.close();
     }
 
-    if (ran === 0) {
+    if (ranEngines.length === 0) {
         console.error("\n💥 実行できたエンジンがありません（ブラウザ未インストール）");
         process.exit(1);
+    }
+    if (skipped.length > 0) {
+        // SMOKE_ENGINES を明示している＝CI で意図して指定している。
+        // そこで起動できないのは環境の不備なので、黙って通さない。
+        // 指定が無い（＝ローカルの既定）ときだけ、未インストールを許す。
+        const explicit = !!process.env.SMOKE_ENGINES;
+        const msg = `起動できなかったエンジン: ${skipped.join(", ")}`;
+        if (explicit) {
+            console.error(`\n💥 ${msg} — SMOKE_ENGINES で指定されているため失敗にします`);
+            process.exit(1);
+        }
+        console.warn(`\n⚠️ ${msg}（未指定のためスキップ）`);
     }
     if (failures.length > 0) {
         console.error(`\n💥 スモークテスト失敗: ${failures.length}件 — デプロイを中止します`);
         process.exit(1);
     }
-    console.log(`\n🎉 ブラウザ・スモークテスト全パス（エンジン: ${ENGINES.join(", ")}）`);
+    console.log(`\n🎉 ブラウザ・スモークテスト全パス（エンジン: ${ranEngines.join(", ")}）`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

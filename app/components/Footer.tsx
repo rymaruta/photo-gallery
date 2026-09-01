@@ -49,7 +49,12 @@ export default function Footer() {
                     </nav>
 
                     <p className="text-[11px] text-white/30">
-                        © {new Date().getFullYear()} Journey Photo
+                        {/* 年は出さない。ここは "use client" だが静的書き出しなので、
+                            ビルド時の年が HTML に焼かれ、年が明けるとブラウザ側の
+                            再描画とで食い違う（ハイドレーション不一致）。
+                            再ビルドするまで古い年を出し続ける問題もある。
+                            著作権表記に年は必須ではないので、持たない方を選ぶ。 */}
+                        © Journey Photo
                     </p>
                 </div>
             </div>

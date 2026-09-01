@@ -31,8 +31,13 @@ export default function ProfileLink({ userId, displayName, size = "md", onClick 
             <div className="rounded-full ring-1 ring-white/20 group-hover:ring-white/50 transition-all flex-shrink-0">
                 <UserAvatar userId={userId} className={dim} iconClassName="w-4 h-4" />
             </div>
-            {/* 名前 */}
-            <span className="text-xs sm:text-sm text-white/60 group-hover:text-white/90 transition-colors">
+            {/* 名前。
+                **`min-w-0` と `break-words` を落とさない。** 表示名はサーバーが
+                100文字まで通すので（`api-user/src/userProfile.ts` の `truncate`）、
+                空白の無い長い名前を入れられると、この `inline-flex` の中で
+                折り返せず**ページごと横に流れる**（実測: 幅375pxで要素幅871px、
+                `scrollWidth` 879）。写真ページとモーダルの両方が使う */}
+            <span className="min-w-0 break-words text-xs sm:text-sm text-white/60 group-hover:text-white/90 transition-colors">
                 {displayName}
             </span>
         </Link>

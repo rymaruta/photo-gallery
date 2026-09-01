@@ -16,14 +16,19 @@ type Props = {
 };
 
 export default function FollowButton({ targetUserId, isAuthenticated, locale }: Omit<Props, "isOwner"> & { isOwner?: boolean }) {
-    const { followers, following } = useFollow(targetUserId, isAuthenticated);
+    const { followers, following, countsKnown } = useFollow(targetUserId, isAuthenticated);
 
 
     // 統計ピル（投稿・いいね）と同じ行に並べられるよう、ラッパーを持たない
     // フラグメントで返す。並びと余白は親のフレックス行が決める。
     return (
         <>
-            {/* カウントピル（全員に表示）。フォロー中 → フォロワー の順 */}
+            {/* カウントピル（全員に表示）。フォロー中 → フォロワー の順。
+                **まだ分からない間は出さない**——`?? EMPTY` の 0/0 をそのまま
+                描いていた頃は、取得が落ちた人が「フォロワー 0」と言い切られて
+                いた（本当に0人の人と区別が付かない）。この画面には読み込み中の
+                表示が無いので、出さずに待つ。 */}
+            {countsKnown && (<>
             <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
                 <span className="text-sm font-bold tabular-nums leading-none">{following.toLocaleString()}</span>
                 <span className="text-[11px] text-white/60">{locale === "en" ? "following" : "フォロー中"}</span>
@@ -32,6 +37,7 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale }: 
                 <span className="text-sm font-bold tabular-nums leading-none">{followers.toLocaleString()}</span>
                 <span className="text-[11px] text-white/60">{locale === "en" ? "followers" : "フォロワー"}</span>
             </div>
+            </>)}
 
         </>
     );
@@ -42,22 +48,33 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale }: 
  * プロフィールのアクション行（編集/写真を追加 と同じ場所）に置けるようにする。
  */
 export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale }: Props) {
-    const { isFollowing, pending, toggle } = useFollow(targetUserId, isAuthenticated);
+    // 数は描かないので取りに行かない（検索結果 N 件で N 本飛んでいた）。
+    // 数のピルはプロフィールの FollowButton が別に取る。
+    const { isFollowing, pending, resolved, toggle } = useFollow(targetUserId, isAuthenticated, false);
     const { showToast } = useToast();
 
     if (isOwner) return null;
 
     const onClick = async () => {
-        const r = await toggle();
-        if (r === "auth-required") showToast(locale === "en" ? "Log in to follow" : "フォローするにはログインしてください", "info");
-        else if (r === "followed") showToast(locale === "en" ? "Following" : "フォローしました", "success");
-        else if (r === "error") showToast(locale === "en" ? "Something went wrong" : "うまくいきませんでした", "error");
+        const { result, message } = await toggle();
+        if (result === "auth-required") {
+            showToast(message ?? (locale === "en" ? "Log in to follow" : "フォローするにはログインしてください"), "info");
+        } else if (result === "followed") {
+            showToast(locale === "en" ? "Following" : "フォローしました", "success");
+        } else if (result === "error") {
+            // サーバーの理由をそのまま出す（「自分はフォローできません」など）。
+            // 一語に潰していた頃は、直せるものも直せない案内になっていた
+            showToast(message ?? (locale === "en" ? "Something went wrong" : "うまくいきませんでした"), "error");
+        }
     };
 
     return (
         <button
             onClick={() => void onClick()}
-            disabled={pending}
+            // 判定が終わるまで押させない。初期値の false を「未フォロー」と
+            // 同じ扱いにしていた頃は、一覧を取り終える前にボタンが「フォロー」と
+            // 出て、押しても既にフォロー済みで画面が変わらなかった。
+            disabled={pending || !resolved}
             aria-pressed={isFollowing}
             className={`flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 ${
                 isFollowing

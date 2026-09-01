@@ -61,8 +61,8 @@ function ToastItem({ toast }: { toast: ToastType }) {
             <p className="flex-1 text-sm text-white/90 leading-snug">{toast.message}</p>
             <button
                 onClick={handleClose}
-                className="p-1.5 rounded-full hover:bg-white/10 active:scale-90 transition focus:outline-none flex-shrink-0"
-                aria-label="Close"
+                className="p-1.5 rounded-full hover:bg-white/10 active:scale-90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 flex-shrink-0"
+                aria-label="通知を閉じる"
             >
                 <XMarkIcon className="w-4 h-4 text-white/50 hover:text-white/90" />
             </button>
@@ -77,7 +77,8 @@ export default function ToastContainer() {
 
     return (
         <div
-            className="fixed bottom-4 inset-x-0 z-[100] flex flex-col items-center gap-2 px-4 pointer-events-none"
+            className="fixed inset-x-0 z-[100] flex flex-col items-center gap-2 px-4 pointer-events-none"
+            style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
             aria-live="assertive"
         >
             {toasts.map((toast) => (

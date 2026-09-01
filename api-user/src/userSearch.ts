@@ -8,9 +8,12 @@ import { DynamoDBClient, GetItemCommand, ScanCommand } from "@aws-sdk/client-dyn
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { JSON_HEADERS } from "./http";
 import { requireEnv } from "./env";
+import { isDeletedProfile } from "./types";
+import { truncate } from "./sanitize";
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const USERS_TABLE = requireEnv("USERS_TABLE");
+
 
 /** 検索結果1件。プロフィール全体ではなく、一覧に必要な項目だけ返す。 */
 export type UserSearchHit = {
@@ -28,6 +31,26 @@ const SCAN_PAGE_SIZE = 500;
 // テーブル全体のスキャンを何度でも起こせてしまうため、上限は要る。
 const SCAN_MAX_PAGES = 10;
 
+/**
+ * 読み込んだ利用者一覧の使い回し（同じ Lambda インスタンス内だけ）。
+ *
+ * この口は未ログインでも叩ける。1リクエストごとに最大5,000件を読むので、
+ * 2文字の検索語を総当たりするだけ（676通り）で、その回数だけ
+ * テーブル全体の読み取りが起きた。レスポンスに付けている
+ * `public, max-age=60` は、API の手前に共有キャッシュが無いので効かない。
+ *
+ * 検索語ごとではなく「一覧そのもの」を短時間持つ。人数は多くないので
+ * 丸ごと持てるし、こうすれば検索語を変えられても読み直しは起きない。
+ * 反映は最大60秒遅れる（プロフィール更新の反映と同じ約束）。
+ */
+const USER_CACHE_TTL_MS = 60 * 1000;
+let userCache: { at: number; users: UserSearchHit[] } | null = null;
+
+/** テストから状態を消せるようにしておく */
+export function resetUserCache(): void {
+    userCache = null;
+}
+
 /** ユーザー名の予約アイテム（userId="username#xxx"）は検索結果に出さない */
 function isReservationItem(userId: unknown): boolean {
     return typeof userId === "string" && userId.startsWith("username#");
@@ -36,11 +59,21 @@ function isReservationItem(userId: unknown): boolean {
 function toHit(item: Record<string, unknown>): UserSearchHit | null {
     const userId = item.userId;
     if (typeof userId !== "string" || !userId || isReservationItem(userId)) return null;
+    // 退会済み（墓石）は出さない。
+    //
+    // Scan 経路は scoreUser が 0 を返すので**たまたま**出なかったが、
+    // @ハンドル完全一致の経路（下の GetItemCommand 2段）は scoreUser を
+    // 通さず score 100 で確定するため、`username#<handle>` の予約行が
+    // 消し漏れていると**「名前未設定さん」の幽霊カード**が出た
+    // （退会の予約解放が落ちた場合。解放できなければ退会自体を 500 で
+    //  止めるので、残るのは「やり直すまでの間」だけ）。
+    // 両方の入口が通るここで止める。
+    if (isDeletedProfile(item)) return null;
     return {
         userId,
         ...(typeof item.username === "string" ? { username: item.username } : {}),
         ...(typeof item.displayName === "string" ? { displayName: item.displayName } : {}),
-        ...(typeof item.bio === "string" ? { bio: item.bio.slice(0, 100) } : {}),
+        ...(typeof item.bio === "string" ? { bio: truncate(item.bio, 100) } : {}),
         ...(typeof item.themeColor === "string" ? { themeColor: item.themeColor } : {}),
     };
 }
@@ -113,29 +146,51 @@ export const searchUsers: APIGatewayProxyHandlerV2 = async (event) => {
         // 実質500人ほどで打ち切られ、それ以降に登録した人は表示名で検索しても
         // 出てこなかった。しかも @ハンドル完全一致だけは別経路で引けるため、
         // 「一部の人だけ検索できない」という分かりにくい壊れ方をしていた。
-        // 予約アイテムはサーバー側で弾いて、読み取り枠を食わせない。
-        let lastKey: Record<string, unknown> | undefined;
-        let pages = 0;
-        do {
-            const scan = await ddb.send(new ScanCommand({
-                TableName: USERS_TABLE,
-                Limit: SCAN_PAGE_SIZE,
-                ProjectionExpression: "userId, username, displayName, bio, themeColor",
-                FilterExpression: "NOT begins_with(userId, :reserved)",
-                ExpressionAttributeValues: marshall({ ":reserved": "username#" }),
-                ...(lastKey ? { ExclusiveStartKey: lastKey } : {}),
-            }));
-            for (const raw of scan.Items ?? []) {
-                const hit = toHit(unmarshall(raw));
-                if (!hit || hits.has(hit.userId)) continue;
-                const score = scoreUser(hit, q);
-                if (score > 0) hits.set(hit.userId, { hit, score });
+        // 最後まで辿るように直した（上限は SCAN_MAX_PAGES）。
+        //
+        // **FilterExpression は読み取り枠を節約しない。** DynamoDB は
+        // Limit 件を読んで**から**フィルタを適用するので、予約アイテムも
+        // 退会の墓石も1ページ分の枠を普通に食う（課金も同じ）。ここは
+        // 「実ユーザーが SCAN_MAX_PAGES × SCAN_PAGE_SIZE 件まで拾える」
+        // 保証ではなく、「テーブルの行が 5,000 まで」の保証。予約と墓石で
+        // 行数はユーザー数の2倍以上になりうる。
+        // 以前ここには「予約アイテムはサーバー側で弾いて、読み取り枠を
+        // 食わせない」と書いてあったが、DynamoDB の挙動と逆だった。
+        // フィルタが減らすのは**返ってくる件数**だけで、読む件数ではない。
+        // （同じ勘違いは ddb-photos.ts の hasAnyUserItem でも注意書きにしてある）
+        // 本気で効かせるなら GSI に移すこと——打ち切りは下で warn している。
+        const now = Date.now();
+        let all = userCache && now - userCache.at < USER_CACHE_TTL_MS ? userCache.users : null;
+        if (!all) {
+            all = [];
+            let lastKey: Record<string, unknown> | undefined;
+            let pages = 0;
+            do {
+                const scan = await ddb.send(new ScanCommand({
+                    TableName: USERS_TABLE,
+                    Limit: SCAN_PAGE_SIZE,
+                    ProjectionExpression: "userId, username, displayName, bio, themeColor, deletedAt",
+                    FilterExpression: "NOT begins_with(userId, :reserved)",
+                    ExpressionAttributeValues: marshall({ ":reserved": "username#" }),
+                    ...(lastKey ? { ExclusiveStartKey: lastKey } : {}),
+                }));
+                for (const raw of scan.Items ?? []) {
+                    const hit = toHit(unmarshall(raw));
+                    if (hit) all.push(hit);
+                }
+                lastKey = scan.LastEvaluatedKey as Record<string, unknown> | undefined;
+                pages++;
+            } while (lastKey && pages < SCAN_MAX_PAGES);
+            if (lastKey) {
+                console.warn(`searchUsers: ${SCAN_MAX_PAGES}ページで打ち切りました（GSI への移行時期）`);
             }
-            lastKey = scan.LastEvaluatedKey as Record<string, unknown> | undefined;
-            pages++;
-        } while (lastKey && pages < SCAN_MAX_PAGES);
-        if (lastKey) {
-            console.warn(`searchUsers: ${SCAN_MAX_PAGES}ページで打ち切りました（GSI への移行時期）`);
+            userCache = { at: now, users: all };
+        }
+
+        for (const hit of all) {
+            if (hits.has(hit.userId)) continue;
+            const score = scoreUser(hit, q);
+            if (score > 0) hits.set(hit.userId, { hit, score });
         }
 
         const users = Array.from(hits.values())

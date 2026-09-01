@@ -88,7 +88,9 @@ export type Photo = {
 export function getLocalized(v: string | LocalizedText | undefined, locale: Locale): string {
     if (!v) return "";
     if (typeof v === "string") return v;
-    return (v[locale] ?? v.ja ?? v.en ?? "") as string;
+    // 空文字でも次の言語に落とす。?? は null/undefined でしか落ちないので、
+    // { en: "", ja: "..." } のようなデータで英語ページが空になっていた。
+    return (v[locale] || v.ja || v.en || "") as string;
 }
 
 /**
@@ -97,8 +99,12 @@ export function getLocalized(v: string | LocalizedText | undefined, locale: Loca
 export function getLocalizedParagraphs(v: string | LocalizedParagraphs | undefined, locale: Locale): string[] {
     if (!v) return [];
     if (typeof v === "string") return [v];
-    const arr = v[locale] ?? v.ja ?? v.en;
-    return Array.isArray(arr) ? arr : [];
+    // 空配列でも次の言語に落とす。?? だと止まるため、
+    // { en: [], ja: ["..."] } のような写真の英語ページ・英語キャプションが
+    // 空になっていた（実データに2件ある）。
+    const pick = (x?: string[]) => (Array.isArray(x) && x.length > 0 ? x : undefined);
+    const arr = pick(v[locale]) ?? pick(v.ja) ?? pick(v.en);
+    return arr ?? [];
 }
 
 /**

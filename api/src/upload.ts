@@ -5,20 +5,66 @@ import { v4 as uuidv4 } from "uuid";
 import { putPhoto } from "./ddb-photos";
 import { requireAdmin, getCallerUserId } from "./auth";
 import type { Photo } from "./types";
+import {
+    sanitizeCoords as sanitizeCoordsFn, sanitizeExif, sanitizeTags,
+    sanitizeTitle, sanitizeDescription, sanitizeText,
+} from "./sanitize";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
+/** アップロードを許す最大バイト数（api-user 側と同じ。片方だけ直さない） */
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
 const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? "";
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
-// 撮影地座標の検証と丸め。プライバシーのため約1km精度（小数第2位）に丸めて保存する
-export function sanitizeCoords(coords: unknown): { lat: number; lng: number } | null {
-    if (!coords || typeof coords !== "object") return null;
-    const { lat, lng } = coords as { lat?: unknown; lng?: unknown };
-    if (typeof lat !== "number" || typeof lng !== "number") return null;
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
-    return { lat: Math.round(lat * 100) / 100, lng: Math.round(lng * 100) / 100 };
+/**
+ * 受け付ける画像の MIME タイプ → 拡張子。
+ * api-user/src/uploadPolicy.ts の同名の表と揃えること（別パッケージなので共有できない）。
+ * SVG を外すのが目的。SVG は <script> を書ける実行可能な文書で、
+ * 配信は写真と同じ CloudFront ディストリビューション（＝サイトと同一オリジン）。
+ */
+const ALLOWED_IMAGE_TYPES = new Map([
+    ["image/jpeg", "jpg"], ["image/png", "png"], ["image/webp", "webp"],
+    ["image/avif", "avif"], ["image/gif", "gif"], ["image/heic", "heic"], ["image/heif", "heif"],
+]);
+
+// 定義は sanitize.ts に置いてある（1パッケージ1定義）。
+// 既存の import 元を壊さないよう、ここから再エクスポートする。
+export { sanitizeCoords } from "./sanitize";
+
+/**
+ * 自分たちのアップロード領域を指すURLかどうか。
+ *
+ * 保存された src は削除時にそのまま S3 のキーになるので、ここが最後の砦。
+ * 管理者専用の口だが、無検証だと外部URLや profiles/ を src にできてしまう
+ * （削除で他人のアイコンが消える）。
+ * 判定は api-user/src/uploadPolicy.ts の isOwnUploadUrl と同じ形。
+ * あちらは投稿者ごとの接頭辞まで見るが、管理APIのキーは
+ * uploads/<uuid> のままなので、ここは uploads/ 配下かどうかまで。
+ */
+export function isOwnUploadUrl(raw: unknown): boolean {
+    if (typeof raw !== "string" || !raw) return false;
+    let u: URL;
+    try {
+        u = new URL(raw);
+    } catch {
+        return false;
+    }
+    if (u.protocol !== "https:") return false;
+    try {
+        if (u.host !== new URL(CLOUDFRONT_URL).host) return false;
+    } catch {
+        return false; // 配信ドメインが未設定なら検証できない＝通さない
+    }
+    let pathname: string;
+    try {
+        pathname = decodeURIComponent(u.pathname);
+    } catch {
+        return false;
+    }
+    if (pathname.includes("..")) return false;
+    return pathname.startsWith("/uploads/") && pathname.length > "/uploads/".length;
 }
 
 export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
@@ -36,21 +82,55 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     if (!fileName || !fileType) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイル名とファイルタイプが必要です" }) };
     }
-    if (fileSize && fileSize > 50 * 1024 * 1024) {
+    // **必須にする**（api-user 側と同じ。任意のままだと省くだけで
+    // 上限判定も `ContentLength` の署名も両方飛ぶ）
+    // **整数であることまで見る。** `1234.5` を通すと `ContentLength` が
+    // `"1234.5"` で署名され、ブラウザは整数しか送れないので**絶対に使えない
+    // presign** ができる（叩いた本人しか困らないが、避けられる足元の穴）。
+    if (typeof fileSize !== "number" || !Number.isInteger(fileSize) || fileSize <= 0) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイルサイズが必要です" }) };
+    }
+    if (fileSize > MAX_UPLOAD_BYTES) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイルサイズが大きすぎます（最大50MB）" }) };
     }
-    if (!fileType.startsWith("image/")) {
-        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "画像ファイルを選択してください" }) };
+    // 許可リストで判定する。"image/" で始まるかどうかだけだと image/svg+xml が通り、
+    // presigned PUT がその Content-Type をオブジェクトに焼き付けるので、
+    // サイトと同じ CloudFront から「実行できる文書」が返る。
+    // 拡張子もファイル名ではなく種別から決める（api-user/src/uploadPolicy.ts と対）。
+    const ext = ALLOWED_IMAGE_TYPES.get(fileType.split(";")[0].trim().toLowerCase());
+    if (!ext) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "対応していない形式です（JPEG・PNG・WebP・AVIF・HEIC・GIF）" }) };
     }
 
     const photoId = uuidv4();
-    const ext = fileName.split(".").pop()?.toLowerCase() ?? "jpg";
     const key = `uploads/${photoId}.${ext}`;
+
+    const safeContentType = fileType.split(";")[0].trim().toLowerCase();
 
     const presigned = await getSignedUrl(
         s3,
-        new PutObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key, ContentType: fileType, CacheControl: "max-age=31536000" }),
-        { expiresIn: 900 }
+        new PutObjectCommand({
+            Bucket: UPLOAD_BUCKET,
+            Key: key,
+            ContentType: safeContentType,
+            // 申告した長さで縛る（署名対象に入れる。理由は api-user 側に）
+            ContentLength: fileSize,
+            CacheControl: "max-age=31536000",
+        }),
+        {
+            expiresIn: 900,
+            // **ここも署名対象に戻す。** presigner は既定で `content-type` を
+            // 外すので、渡さないと「許可済みの種別を焼き付けた」つもりで
+            // 何も縛れていない——`image/jpeg` で presign を取って `text/html`
+            // で PUT でき、CloudFront はサイトと同一オリジンでそれを返す。
+            // 理由の全文は `api-user/src/upload.ts` の同じ指定にある。
+            //
+            // **この口は管理者限定で、今はクライアントから呼ばれていない**
+            // （`app/user/upload/page.tsx` は管理者でもユーザーAPIを使う）。
+            // それでも塞ぐ——「呼ばれていないから安全」は、次に誰かが
+            // 呼んだ瞬間に崩れる前提。
+            signableHeaders: new Set(["content-type", "content-length"]),
+        },
     );
 
     const publicUrl = CLOUDFRONT_URL
@@ -68,11 +148,18 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     const authError = requireAdmin(event);
     if (authError) return authError;
     const uploaderId = getCallerUserId(event);
+    // sub の無いトークンで進むと userId が空の写真ができる（持ち主のいない
+    // 行は本人画面から消せない）。api-user 側の全ハンドラと同じ扱いで止める
+    if (!uploaderId) {
+        return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証が必要です" }) };
+    }
 
+    // photoId は受け取らない。ID をリクエストで指定できると、既存の写真や
+    // 通知・コメントの文書を同じIDで丸ごと置き換えられる（api-user 側は
+    // 同じ理由で既にサーバー採番にしてある）。
     let body: {
         key?: string;
         publicUrl?: string;
-        photoId?: string;
         title?: Photo["title"];
         description?: Photo["description"];
         location?: string;
@@ -87,23 +174,64 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なリクエスト" }) };
     }
 
-    const { key, publicUrl, photoId, title, description, location, category, tags, exif, coords } = body;
+    const { key, publicUrl, title, description, location, category, tags, exif, coords } = body;
     if (!key || !publicUrl) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "ファイル情報が必要です" }) };
     }
+    // 保存する src は削除時にそのまま S3 のキーになる。
+    // ここが無検証だと、外部URLや profiles/<他人のID> を src にできた。
+    if (!isOwnUploadUrl(publicUrl)) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正な画像URLです" }) };
+    }
+    if (!String(key).startsWith("uploads/")) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なキーです" }) };
+    }
 
-    const safeCoords = sanitizeCoords(coords);
+    // 保存する値も整える。ここも素通しだったので、GPS 入りの exif や
+    // 数千件のタグがそのまま公開データに入った（ユーザーAPI側は通している）。
+    const safeCoords = sanitizeCoordsFn(coords);
+    const safeTitle = sanitizeTitle(title);
+    const safeDescription = sanitizeDescription(description);
+    const safeLocation = sanitizeText(location, 200);
+    const safeCategory = sanitizeText(category, 100);
+    const safeTags = sanitizeTags(tags);
+    const safeExif = sanitizeExif(exif);
+
+    // 保存は**検証したときに見ていた形**で行う（api-user/src/uploadPolicy.ts の
+    // canonicalUploadUrl と対）。生のまま保存すると、%6C 等で綴った URL が
+    // 「検証は通るが、消す側・見る側と表記が食い違う」形で残る。
+    let canonicalSrc = publicUrl;
+    try {
+        const u = new URL(publicUrl);
+        // body の key と紛れないよう別名（あちらは検証にだけ使う）
+        const canonicalKey = decodeURIComponent(u.pathname).replace(/^\//, "");
+        canonicalSrc = `${CLOUDFRONT_URL.replace(/\/$/, "")}/${canonicalKey.split("/").map(encodeURIComponent).join("/")}`;
+    } catch { /* isOwnUploadUrl を通っているので実際には来ない */ }
+
     const photo: Photo = {
-        id: photoId ?? uuidv4(),
-        src: publicUrl,
-        title: title ?? { ja: "無題", en: "Untitled" },
-        ...(description ? { description } : {}),
-        ...(location ? { location } : {}),
-        ...(category ? { category } : {}),
-        tags: Array.isArray(tags) ? tags : [],
-        ...(exif && Object.keys(exif).length > 0 ? { exif } : {}),
+        id: uuidv4(),
+        src: canonicalSrc,
+        title: safeTitle ?? { ja: "無題", en: "Untitled" },
+        ...(safeDescription ? { description: safeDescription } : {}),
+        ...(safeLocation ? { location: safeLocation } : {}),
+        ...(safeCategory ? { category: safeCategory } : {}),
+        tags: safeTags ?? [],
+        ...(safeExif ? { exif: safeExif } : {}),
         ...(safeCoords ? { coords: safeCoords } : {}),
-        displayName: "丸田 竜平",
+        // 表示名は付けない。
+        //
+        // 以前はここに個人名が直書きされていて、**誰が上げても同じ名前**が
+        // 付いた（そのまま静的HTMLと JSON-LD の author に載る）。
+        // 管理者が2人になったら他人の名前で公開される。
+        //
+        // ユーザーAPI側は lookupDisplayNameIfSet でプロフィールから引くが、
+        // こちらは同じことができない——この関数の IAM は usersTable に
+        // PutItem しか許していない（serverless.yml:52-57。わざと絞ってある）。
+        // 権限を広げてまで付ける価値は無い: この口はクライアントから
+        // 呼ばれていない（app/user/upload/page.tsx:308「管理者でも
+        // ユーザーAPIを使う」）ので、表示に影響しない。
+        // 付けないと写真ページの投稿者導線が出ないが、それは
+        // 名前を設定していない利用者と同じ扱いで、既存の写真には影響しない。
         userId: uploaderId,
         uploadedBy: uploaderId,
         published: true,

@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
 import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
 import UserAvatar from "../UserAvatar";
 import type { StoryGroup, StoryViewer as ViewerEntry } from "@/lib/stories";
 import { timeAgo } from "@/lib/stories";
 import { log } from "@/lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
+import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 
 const STORY_DEFAULT_DURATION_SEC = 5; // 画像の表示時間（投稿時に未指定だったとき）
 const STORY_MIN_DURATION_SEC = 3;
@@ -41,7 +43,12 @@ type Props = {
 export default function StoryViewer({ groups, initialGroupIndex, locale, ownUserId, isAuthenticated, onSeen, onDelete, onClose }: Props) {
     const [g, setG] = useState(initialGroupIndex);
     const [i, setI] = useState(0);
-    const [progress, setProgress] = useState(0); // 0-100
+    // 動画の進捗は **DOM に直接書く**（下の rAF ループ）。
+    // state 経由にしていた頃は timeupdate（仕様上ブラウザ任せ・実測 250ms
+    // 間隔）でしか動かず、120ms の transition で補間しても線が
+    // 「進んでは止まり」を繰り返して見えた。しかも更新のたびにビューア全体が
+    // 再描画されていた。
+    const progressBarRef = useRef<HTMLDivElement | null>(null);
     const [paused, setPaused] = useState(false);
     const [muted, setMuted] = useState(true);
 
@@ -53,6 +60,8 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const { stop: stopGlobalMusic } = useMusic();
     useEffect(() => { stopGlobalMusic(); }, [stopGlobalMusic]);
     const [viewers, setViewers] = useState<ViewerEntry[] | null>(null);
+    // 取得の失敗を「閲覧者0人」と混ぜない（SW-b8）
+    const [viewersError, setViewersError] = useState(false);
     const [viewersOpen, setViewersOpen] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -90,20 +99,37 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     // 自分のストーリー表示中は閲覧者リストを取得
     useEffect(() => {
         setViewers(null);
+        setViewersError(false);   // 前のストーリーの失敗を持ち越さない
         setViewersOpen(false);
         if (!item || !isOwnStory) return;
+        // 中断ガード。ストーリーは左右で次々に切り替わるので、前のストーリーの
+        // 応答が後から届く。無かった頃は**別のストーリーの閲覧者数と名前**が
+        // 出ていた（「誰が見たか」は見せ方として敏感な情報なので、
+        // 取り違えたまま出すのは特に良くない）。
+        // 同じファイルの閲覧報告の effect には既にこの形が入っている。
+        let aborted = false;
         void (async () => {
             try {
                 const { userFetch } = await import("../../../lib/utils/api");
                 const res = await userFetch(`/stories/${encodeURIComponent(item.id)}/viewers`);
+                if (aborted) return;
                 if (res.ok) {
                     const data = await res.json() as { viewers?: ViewerEntry[] };
+                    if (aborted) return;
                     setViewers(Array.isArray(data.viewers) ? data.viewers : []);
+                    setViewersError(false);
+                } else {
+                    // 失敗を「まだ閲覧者はいません」と混ぜない（SW-b8）
+                    setViewersError(true);
                 }
             } catch (e) {
-                log.warn("story viewers fetch error:", e);
+                if (!aborted) {
+                    log.warn("story viewers fetch error:", e);
+                    setViewersError(true);
+                }
             }
         })();
+        return () => { aborted = true; };
     }, [item, isOwnStory]);
 
     // 再生し直し用のカウンタ。進捗アニメーション/動画/BGM を最初から流し直す
@@ -114,8 +140,36 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const startedAtRef = useRef(Date.now());
     useEffect(() => { startedAtRef.current = Date.now(); }, [item, replay]);
 
+    /** 進捗バーを 0 に戻す（DOM 直書きなので state のリセットは無い） */
+    const resetProgressBar = useCallback(() => {
+        const bar = progressBarRef.current;
+        if (bar) bar.style.transform = "scaleX(0)";
+    }, []);
+
+    // 動画の進捗を毎フレーム書く。
+    //
+    // currentTime を毎フレーム読んで transform を直接書けば、画面の
+    // リフレッシュレートで滑らかに動く。React の state を経由しないので、
+    // ビューア全体の再描画も起きない。
+    // 一時停止（長押し）中は currentTime が進まないので、バーも自然に止まる。
+    useEffect(() => {
+        if (!isVideo) return;
+        let raf = 0;
+        const tick = () => {
+            const v = videoRef.current;
+            const bar = progressBarRef.current;
+            if (v && bar && Number.isFinite(v.duration) && v.duration > 0) {
+                const ratio = Math.min(1, Math.max(0, v.currentTime / v.duration));
+                bar.style.transform = `scaleX(${ratio})`;
+            }
+            raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+    }, [isVideo, item?.id, replay]);
+
     const goNext = useCallback(() => {
-        setProgress(0);
+        resetProgressBar();
         setReplay(0);
         if (group && i < group.items.length - 1) {
             setI(i + 1);
@@ -125,15 +179,15 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         } else {
             onClose();
         }
-    }, [group, groups.length, g, i, onClose]);
+    }, [group, groups.length, g, i, onClose, resetProgressBar]);
 
     // 今のストーリーを最初から再生し直す
     const restart = useCallback(() => {
-        setProgress(0);
+        resetProgressBar();
         setReplay((n) => n + 1);
         const v = videoRef.current;
         if (v) { try { v.currentTime = 0; } catch { /* ignore */ } }
-    }, []);
+    }, [resetProgressBar]);
 
     // インスタと同じ: 左タップは「今のストーリーを最初から」。
     // 始まった直後（0.8秒以内）にもう一度押したときだけ1つ前へ戻る。
@@ -142,7 +196,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             restart();
             return;
         }
-        setProgress(0);
+        resetProgressBar();
         setReplay(0);
         if (i > 0) {
             setI(i - 1);
@@ -153,7 +207,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         } else {
             restart();
         }
-    }, [groups, g, i, restart]);
+    }, [groups, g, i, restart, resetProgressBar]);
 
     // 「タップ」か「長押し・スワイプ」かの判定。
     // click は指を離せば必ず発火するため、これが無いと長押しで一時停止したあと
@@ -236,28 +290,70 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         }
     }, [group, groups, g, i]);
 
-    // Escで閉じる / 矢印キーで移動
+    // Escで閉じる / 矢印キーで移動。
+    //
+    // シートが開いているときは矢印で送らない。以前は送れてしまい、
+    // 「削除しますか」を出したまま → を押すと、背後のストーリーだけが
+    // 次に進んで、そのまま「削除」を押すと**別のストーリーが消えた**
+    // （しかも成功トーストが出る。元に戻せない）。
+    // Esc も同じで、シートを閉じずにビューア全体を閉じていた
+    // （他の確認ダイアログと逆の挙動）。
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
+            if (confirmDelete || viewersOpen) {
+                if (e.key === "Escape") { setConfirmDelete(false); setViewersOpen(false); }
+                return;
+            }
             if (e.key === "Escape") onClose();
             else if (e.key === "ArrowRight") goNext();
             else if (e.key === "ArrowLeft") goPrev();
         };
         document.addEventListener("keydown", onKey);
         return () => document.removeEventListener("keydown", onKey);
-    }, [onClose, goNext, goPrev]);
+    }, [onClose, goNext, goPrev, confirmDelete, viewersOpen]);
 
-    // 背景スクロールロック
+    // **Tab を中に閉じ込める。** `aria-modal="true"` を付けた8つのうち、
+    // ここと StoriesBar の投稿プレビューだけ管理が無かった。全画面
+    // （`fixed inset-0 z-[90]`）の裏にはギャラリーの写真リンクが全部あるので、
+    // Tab を押すと見えないところへフォーカスが出ていく。
+    //
+    // 最初に当てるのは**閉じるボタン**。DOM 順の先頭は音量やゴミ箱で、
+    // ゴミ箱は確認シートが挟まるとはいえ破壊的な操作なので先頭にしない。
+    //
+    // 戻り先は既定（開いた瞬間の要素＝押したリングのボタン）。リングは
+    // ビューアを開いても消えないので、そのままで戻る。
+    const rootRef = useRef<HTMLDivElement | null>(null);
+    const closeBtnRef = useRef<HTMLButtonElement | null>(null);
+    useFocusTrap(true, rootRef, undefined, closeBtnRef);
+
+    // 表示中のストーリーが変わったら確認シートを閉じる。
+    // 開いたときの対象と、押したときの対象がずれないようにする。
+    useEffect(() => { setConfirmDelete(false); }, [item?.id]);
+
+    // 背景スクロールロック。**共通の実装に寄せた**（`lib/utils/scrollLock.ts`）。
+    // ここは `overflow: hidden` だけの自前実装で、あちらのコメントが
+    // 「それでは iOS Safari や内蔵ブラウザで止まらない」と書いている方式
+    // そのものだった。位置の控え・復元も無かったので、閉じたときに別の
+    // 場所にいることがある。
+    // **早期 return より前に置くが、掛けるのは中身がある間だけ。**
+    // 無条件で掛けていたので、`groups` が入れ替わって表示対象が消えた
+    // ときに「何も描かないのに `position: fixed` のまま」になる
+    // ——`overflow: hidden` だけだった頃は「スクロールできない」で
+    // 済んでいたが、共通実装に寄せて位置を控えるようになったぶん、
+    // ページ先頭へ飛んだまま固まる方に悪化していた（スマホには
+    // Escape が無い）
+    const showing = !!group && !!item;
     useEffect(() => {
-        const prev = document.body.style.overflow;
-        document.body.style.overflow = "hidden";
-        return () => { document.body.style.overflow = prev; };
-    }, []);
+        if (!showing) return;
+        lockBodyScroll();
+        return () => unlockBodyScroll();
+    }, [showing]);
 
     if (!group || !item) return null;
 
     return (
         <div
+            ref={rootRef}
             className="fixed inset-0 z-[90] bg-black flex flex-col items-center justify-center select-none"
             role="dialog"
             aria-modal="true"
@@ -289,10 +385,6 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         // 曲が付いている動画は動画側を常に消す。両方を muted に
                         // 連動させると、ミュート解除で動画の音とBGMが同時に鳴る。
                         muted={muted || !!item.song}
-                        onTimeUpdate={(e) => {
-                            const v = e.currentTarget;
-                            if (v.duration > 0) setProgress((v.currentTime / v.duration) * 100);
-                        }}
                         onEnded={goNext}
                         onError={goNext}
                     />
@@ -337,10 +429,11 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                             <div key={s.id} className="flex-1 h-[2.5px] rounded-full bg-white/30 overflow-hidden">
                                 {active ? (
                                     isVideo ? (
-                                        // 動画: 進捗値を scaleX で反映しつつ、更新間を transition で補間
+                                        // 動画: rAF が毎フレーム scaleX を書く（補間は要らない）
                                         <div
+                                            ref={progressBarRef}
                                             className="h-full w-full bg-white rounded-full origin-left"
-                                            style={{ transform: `scaleX(${progress / 100})`, transition: "transform 120ms linear" }}
+                                            style={{ transform: "scaleX(0)" }}
                                         />
                                     ) : (
                                         // 画像: CSS アニメーションが 0→100% を滑らかに駆動
@@ -419,6 +512,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                     </button>
                 )}
                 <button
+                    ref={closeBtnRef}
                     onClick={onClose}
                     aria-label={locale === "en" ? "Close" : "閉じる"}
                     className="p-2.5 text-white/80 hover:text-white"
@@ -501,7 +595,13 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         <div className="overflow-y-auto p-2">
                             {(viewers ?? []).length === 0 ? (
                                 <p className="text-xs text-white/40 text-center py-8">
-                                    {locale === "en" ? "No viewers yet." : "まだ閲覧者はいません（ログインユーザーの閲覧のみ記録されます）"}
+                                    {viewersError
+                                        ? (locale === "en"
+                                            ? "Couldn't load viewers."
+                                            : "閲覧者を読み込めませんでした")
+                                        : (locale === "en"
+                                            ? "No viewers yet."
+                                            : "まだ閲覧者はいません（ログインユーザーの閲覧のみ記録されます）")}
                                 </p>
                             ) : (
                                 (viewers ?? []).map((v) => (

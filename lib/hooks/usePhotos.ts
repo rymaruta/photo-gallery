@@ -12,6 +12,20 @@ export function usePhotos() {
     // BASE_PHOTOSを初期値とすることで、APIが遅延・失敗しても即時コンテンツ表示を保証する
     const [photos, setPhotos] = useState<Photo[]>(BASE_PHOTOS);
     const loading = false;
+    /**
+     * **API の一覧で置き換わったか。**
+     *
+     * 初期値は `app/data/photos.json`（ビルド時のスナップショット）なので、
+     * 「配列が空でない」は「一覧が届いた」の代わりにならない。それで代用して
+     * いたせいで、ビルド後にアップロードされた写真の共有リンクに対して
+     * 「その写真は見つかりませんでした」と**嘘をつき**、しかもその判定を
+     * 覚えてしまって**あとから届いても開かなく**なっていた。
+     *
+     * **失敗したときは true にしない。** 取れなかっただけで「無い」とは
+     * 言えないので、判断できないままにしておく（黙る側に倒す）。
+     * 定期ビルドは止まっているので、静的JSONは日単位で古い。
+     */
+    const [loaded, setLoaded] = useState(false);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -27,6 +41,7 @@ export function usePhotos() {
                     // APIが空配列を返した場合はBASE_PHOTOSを維持する
                     if (Array.isArray(data) && data.length > 0) {
                         setPhotos(data);
+                        setLoaded(true);
                     }
                 } else {
                     log.warn("写真の取得に失敗しました", { status: response.status });
@@ -42,5 +57,5 @@ export function usePhotos() {
         return () => controller.abort();
     }, []);
 
-    return { photos, loading };
+    return { photos, loading, loaded };
 }

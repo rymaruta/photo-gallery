@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Photo } from "../../data/photos";
-import { sameLocation, sameAuthorPhotos, sameLocationPhotos, adjacentPhotos } from "../related";
+import { sameLocation, sameAuthorPhotos, sameLocationPhotos, adjacentPhotos, relatedSections } from "../related";
 
 function p(over: Partial<Photo> & { id: string }): Photo {
     return { src: `https://cdn/${over.id}.jpg`, ...over } as Photo;
@@ -59,9 +59,21 @@ describe("sameLocationPhotos", () => {
         p({ id: "other-loc", userId: "u3", location: "沖縄", createdAt: "2026-02-20" }),
     ];
 
-    it("同じ場所の写真を返すが、同一投稿者は除外（投稿者列と重複させない）", () => {
+    // 以前は同一投稿者を除いていた。投稿者が実質1人のこのサイトでは
+    // 条件が常に偽になり、out/photo/*.html 30枚すべてで「同じ場所の写真」が
+    // **1件も出ていなかった**（実測 0/30）。SEO のために作った内部リンク面が
+    // 丸ごと死んでいたので、除外をやめた。
+    it("同じ場所の写真を返す（同一投稿者も含める）", () => {
         const res = sameLocationPhotos(cur, all);
-        expect(res.map((x) => x.id)).toEqual(["same-loc"]);
+        expect(res.map((x) => x.id)).toEqual(["same-author-same-loc", "same-loc"]);
+    });
+
+    it("自分自身は含めない", () => {
+        expect(sameLocationPhotos(cur, all).map((x) => x.id)).not.toContain("c");
+    });
+
+    it("違う場所は含めない", () => {
+        expect(sameLocationPhotos(cur, all).map((x) => x.id)).not.toContain("other-loc");
     });
 
     it("location が無ければ空", () => {
@@ -97,5 +109,65 @@ describe("adjacentPhotos", () => {
     it("一覧に無ければ両方 null", () => {
         const res = adjacentPhotos(p({ id: "ghost" }), all);
         expect(res).toEqual({ prev: null, next: null });
+    });
+});
+
+// `date ?? createdAt` は `date: ""` を「値がある」と見なす。空文字は
+// Date.parse で NaN になるので、その写真は年表から消え、並びの最下段に落ちる。
+// `||` なら空文字も「無い」として createdAt に落ちる。
+// lib/utils/seo.ts だけが最初から `||` で正しかったので、そちらに揃えた。
+describe("並び替えの日付: 空文字を「無い」として扱う", () => {
+    it("date が空文字なら createdAt を使う", () => {
+        const withEmpty = p({ id: "e", userId: "u1", date: "", createdAt: "2026-03-01" });
+        const older = p({ id: "o", userId: "u1", createdAt: "2026-01-01" });
+        const res = sameAuthorPhotos(p({ id: "cur", userId: "u1", createdAt: "2026-04-01" }), [withEmpty, older]);
+        // 空文字の写真が最下段に落ちず、createdAt どおり新しい方に来る
+        expect(res.map((x) => x.id)).toEqual(["e", "o"]);
+    });
+});
+
+// **同じサムネイルが上下に2度出ていた。**
+//
+// 「同じ投稿者の写真」と「同じ場所の写真」は同じ画面に並ぶのに、互いを
+// 知らずに選んでいた。投稿者が実質1人のこのサイトでは、同じ場所の写真は
+// ほぼ最新8枚に含まれる——実データ30枚での実測で、場所セクションが出る
+// 6ページのうち3ページが重複、その3ページは**中身が全部上の再掲**だった。
+describe("relatedSections（回遊セクションの組）", () => {
+    const cur = p({ id: "cur", userId: "u1", location: "北海道", createdAt: "2026-05-01" });
+    const all = [
+        cur,
+        p({ id: "a", userId: "u1", location: "北海道", createdAt: "2026-04-01" }),
+        p({ id: "b", userId: "u1", location: "北海道", createdAt: "2026-03-01" }),
+        p({ id: "c", userId: "u2", location: "北海道", createdAt: "2026-02-01" }),
+    ];
+
+    it("場所セクションに、投稿者セクションと同じ写真を出さない", () => {
+        const { author, location } = relatedSections(cur, all);
+        expect(author.map((x) => x.id)).toEqual(["a", "b"]);
+        expect(location.map((x) => x.id), "上と同じ写真をもう一度出している").toEqual(["c"]);
+    });
+
+    it("全部が再掲になるならセクションは空（＝出さない）", () => {
+        const onlyMine = all.filter((x) => x.userId === "u1");
+        expect(relatedSections(cur, onlyMine).location).toEqual([]);
+    });
+
+    // **除外は上限で切る前にかける。** あとから間引くと、出せるはずの
+    // 写真が出なくなる（8枚取って重複を落として1枚、のような形）
+    it("重複を除いたぶん、次の写真で埋める", () => {
+        const many = [cur];
+        for (let i = 0; i < 8; i++) {
+            many.push(p({ id: `mine${i}`, userId: "u1", location: "北海道", createdAt: `2026-04-0${i + 1}` }));
+        }
+        for (let i = 0; i < 3; i++) {
+            many.push(p({ id: `other${i}`, userId: "u2", location: "北海道", createdAt: `2026-01-0${i + 1}` }));
+        }
+        const { location } = relatedSections(cur, many, 8);
+        expect(location.map((x) => x.id), "重複を落としただけで、後ろの写真を拾っていない")
+            .toEqual(["other2", "other1", "other0"]);
+    });
+
+    it("前後の写真（adjacentPhotos）は今までどおり別建て", () => {
+        expect(adjacentPhotos(cur, all).next?.id).toBe("a");
     });
 });

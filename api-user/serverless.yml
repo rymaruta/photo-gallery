@@ -16,8 +16,18 @@ provider:
     # 読み書き先が本番のままだった。
     UPLOAD_BUCKET: ${param:uploadBucket}
     CLOUDFRONT_URL: ${param:cloudfrontUrl}
+    # 削除した実体をエッジからも消すための無効化先（LEFT-4）。
+    # **未設定でも削除は成功する**（エッジの掃除だけ飛ばして警告を1行出す）
+    # ——設定漏れで削除そのものを止めたくない。
+    CLOUDFRONT_DISTRIBUTION_ID: ${param:cloudfrontDistributionId, ''}
     PHOTOS_TABLE: ${param:photosTable}
     USERS_TABLE: ${param:usersTable}
+    # 再ビルド依頼の設定（REBUILD_*）はここには置かない。**GitHub の書き込み
+    # トークンなので、provider に置くと全関数の環境変数に入る**（IAM-2）。
+    # 実際に頼むのは api-user で3つ・api で2つだけなので、その関数にだけ配る。
+    # 環境変数は `lambda:GetFunctionConfiguration`（読み取り権）で誰でも読めて、
+    # そこからリポジトリへの書き込み → デプロイ鍵、と輪が閉じる。
+    # 未認証で呼べる口にまで配る理由は無い。
 
   httpApi:
     cors: true
@@ -56,6 +66,15 @@ provider:
           Resource:
             - arn:aws:s3:::${param:uploadBucket}/uploads/*
             - arn:aws:s3:::${param:uploadBucket}/profiles/*
+        # 削除・退会・期限切れストーリーで消した実体を、エッジからも消す。
+        # アップロードは max-age=31536000（1年）で配っているので、S3 から
+        # 消すだけでは**URL を知っていれば取れ続ける**（GPS 入りの原本も同じ）。
+        # 対象はこのアカウントの配信のみ。作成しかできない（読み書きは無い）。
+        - Effect: Allow
+          Action:
+            - cloudfront:CreateInvalidation
+          Resource:
+            - arn:aws:cloudfront::${aws:accountId}:distribution/*
         - Effect: Allow
           Action:
             - dynamodb:GetItem
@@ -92,6 +111,18 @@ functions:
       - httpApi:
           path: /upload/save
           method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  # S3 には上がったが保存に至らなかった自分のアップロードを消す。
+  # 無いと、保存に失敗した画像の実体が誰にも辿れないまま残り続ける
+  # （どの削除経路も DynamoDB の項目からキーを引くため）。
+  discardUpload:
+    handler: src/upload.discardUpload
+    events:
+      - httpApi:
+          path: /upload/discard
+          method: DELETE
           authorizer:
             name: cognitoAuthorizer
 
@@ -133,6 +164,8 @@ functions:
 
   getPublicProfile:
     handler: src/userProfile.getPublicProfile
+    # 未認証で呼べる口。既定の共有ロール（削除権つき）ではなく読み取り専用へ
+    role: PublicReadRole
     events:
       - httpApi:
           path: /profile/{userId}
@@ -140,24 +173,73 @@ functions:
 
   searchUsers:
     handler: src/userSearch.searchUsers
+    # 未認証で呼べる口。既定の共有ロール（削除権つき）ではなく読み取り専用へ
+    role: PublicReadRole
     events:
       - httpApi:
           path: /users/search
           method: GET
 
+  # 曲検索。呼び出しは曲を選ぶ画面（プロフィール編集・ストーリー投稿）だけで、
+  # どちらもログインが要る。未認証で開けておくと、外向き通信を1本ずつ抱えた
+  # Lambda を好きなだけ起こせて、同時実行枠（アカウント全体で共有）を
+  # 埋められる——退会処理など無関係な処理まで詰まる。
   musicSearch:
     handler: src/musicSearch.musicSearch
+    # 外向きの通信を待つので、詰まらせない上限を明示しておく。
+    #
+    # ただし予約はアカウント全体の枠から取る。本番と staging の両方で
+    # 予約すると「未予約の枠が最低値(10)を下回る」で**デプロイごと落ちる**
+    # （実際に staging の作成後、ここで UPDATE_FAILED になった）。
+    # 渡されたときだけ予約する（渡さなければプロパティごと出力されない）。
+    # staging は検索避けの低トラフィックなので予約しない。
+    reservedConcurrency: ${param:musicSearchReserved, null}
     events:
       - httpApi:
           path: /music/search
           method: GET
+          authorizer:
+            name: cognitoAuthorizer
 
   updatePhotoVisibility:
+    # 実体を消したあとに静的サイトの再ビルドを頼む（外部への HTTP）。
+    # 既定の6秒だと、GitHub が遅いだけで**データはもう消えているのに
+    # 500 が返る**（押し直すと今度は 404）。Lambda は実際に使った時間
+    # だけ課金されるので、広げても普段の費用は変わらない。
+    timeout: 15
     handler: src/photoUpdate.updatePhotoVisibility
+    environment:
+      # 再ビルド依頼はこの関数から出す（provider には置かない。IAM-2）
+      REBUILD_REPO: ${param:rebuildRepo, ''}
+      REBUILD_DISPATCH_TOKEN: ${param:rebuildToken, ''}
+      REBUILD_MONTHLY_MAX: ${param:rebuildMonthlyMax, ''}
     events:
       - httpApi:
           path: /photos/{id}
           method: PUT
+          authorizer:
+            name: cognitoAuthorizer
+
+  # 自分の写真を1枚消す。これまで一般ユーザーには消す手段が無く、
+  # できるのは「非公開にする」（S3 の実体は残る）か「退会する」だけだった。
+  # IAM は既存のもので足りる（uploads/* の s3:DeleteObject と
+  # photosTable の dynamodb:DeleteItem は退会・ストーリー掃除で付与済み）。
+  deleteMyPhoto:
+    # 実体を消したあとに静的サイトの再ビルドを頼む（外部への HTTP）。
+    # 既定の6秒だと、GitHub が遅いだけで**データはもう消えているのに
+    # 500 が返る**（押し直すと今度は 404）。Lambda は実際に使った時間
+    # だけ課金されるので、広げても普段の費用は変わらない。
+    timeout: 15
+    handler: src/photoUpdate.deleteMyPhoto
+    environment:
+      # 再ビルド依頼はこの関数から出す（provider には置かない。IAM-2）
+      REBUILD_REPO: ${param:rebuildRepo, ''}
+      REBUILD_DISPATCH_TOKEN: ${param:rebuildToken, ''}
+      REBUILD_MONTHLY_MAX: ${param:rebuildMonthlyMax, ''}
+    events:
+      - httpApi:
+          path: /photos/{id}
+          method: DELETE
           authorizer:
             name: cognitoAuthorizer
 
@@ -190,10 +272,23 @@ functions:
 
   getLikeCount:
     handler: src/likes.getLikeCount
+    # 未認証で呼べる口。既定の共有ロール（削除権つき）ではなく読み取り専用へ
+    role: PublicReadRole
     events:
       - httpApi:
           path: /photos/{id}/like
           method: GET
+
+  # 自分がいいね済みかどうか。公開の getLikeCount とは別口にする
+  # （あちらは共有キャッシュに載せているので、利用者ごとの値を混ぜられない）。
+  getMyLike:
+    handler: src/likes.getMyLike
+    events:
+      - httpApi:
+          path: /user/likes/{id}
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
 
   likePhoto:
     handler: src/likes.likePhoto
@@ -215,6 +310,8 @@ functions:
 
   getComments:
     handler: src/comments.getComments
+    # 未認証で呼べる口。既定の共有ロール（削除権つき）ではなく読み取り専用へ
+    role: PublicReadRole
     events:
       - httpApi:
           path: /photos/{id}/comments
@@ -258,6 +355,8 @@ functions:
 
   getFollowStats:
     handler: src/follow.getFollowStats
+    # 未認証で呼べる口。既定の共有ロール（削除権つき）ではなく読み取り専用へ
+    role: PublicReadRole
     events:
       - httpApi:
           path: /users/{uid}/follow
@@ -310,6 +409,16 @@ functions:
 
   deleteAccount:
     handler: src/account.deleteAccount
+    environment:
+      # 再ビルド依頼はこの関数から出す（provider には置かない。IAM-2）
+      REBUILD_REPO: ${param:rebuildRepo, ''}
+      REBUILD_DISPATCH_TOKEN: ${param:rebuildToken, ''}
+      REBUILD_MONTHLY_MAX: ${param:rebuildMonthlyMax, ''}
+    # 既定の6秒だと、写真の多い人の退会が途中で打ち切られる。
+    # 呼び出し側は HTTP のステータスを見て Cognito 側の削除に進むかを決めるので、
+    # 途中で切れると「削除に失敗しました」と出たまま写真だけ半分消えた状態になる。
+    # API Gateway (HTTP API) の上限が29秒なので、そこに合わせる。
+    timeout: 29
     events:
       - httpApi:
           path: /user/account
@@ -319,6 +428,86 @@ functions:
 
   cleanupStories:
     handler: src/stories.cleanupExpiredStories
+    # S3 の削除は直列。6秒では完走できない（黙って途中で切れ、期限切れが
+    # 消え残る）。索引ができて対象だけを引けるようになった今も、
+    # 溜まっている回のために長めのまま残す。
+    timeout: 300
     events:
-      # 毎日 04:00 JST (19:00 UTC) に期限切れストーリーを物理削除
-      - schedule: cron(0 19 * * ? *)
+      # **1時間ごと（旧: 毎日 04:00 JST）。**
+      #
+      # ストーリーは「24時間で消える」と言っているのに、掃除が1日1回
+      # だったので**実体は最大およそ48時間ぶん公開URLで取れた**
+      # ——期限が切れた直後に掃除が走ったばかりだと、次の掃除まで24時間。
+      # 約束と実体の寿命が最大2倍ずれる（LEFT-5）。
+      #
+      # 日次にしていたのは、`queryStories` が索引の無いテーブルで
+      # **全表 Scan にフォールバック**していたから（写真・コメント・
+      # いいね/フォローのマーカーが同居していて、行は増える一方）。
+      # 2026-09-01 に `storyFeed-expiresAt-index` を本番へ作ったので、
+      # 期限切れのぶんだけを直接引ける。1時間ごとでも読む量は小さい。
+      - schedule: cron(5 * * * ? *)
+
+# ---------------------------------------------------------------------------
+# 未認証で呼べる5つの口だけ、専用の最小ロールに分ける（IAM-1）
+#
+# 既定では **サービス内の全関数が1つのロールを共有する**ので、認証を
+# 一度も通らない `getPublicProfile` / `searchUsers` / `getLikeCount` /
+# `getComments` / `getFollowStats` が、写真テーブルの `DeleteItem` と
+# `uploads/*`・`profiles/*` の `s3:DeleteObject`、CloudFront の
+# `CreateInvalidation` まで持っていた。ハンドラのコードは使わないが、
+# **これらの関数のどれか1つで任意コード実行に至る欠陥が出た瞬間、
+# 認証の壁を一度も越えずに他人の写真の実体を消せる**。
+#
+# ここに書くのは「5つのハンドラが実際に叩いている API だけ」:
+#
+#   getPublicProfile  photos: GetItem / users: GetItem
+#   searchUsers                 users: GetItem, Scan
+#   getLikeCount      photos: GetItem
+#   getComments       photos: GetItem / users: Scan（deletedUserIds）
+#   getFollowStats    photos: GetItem
+#
+# Query は1つも使っていない（全部 主キーの GetItem）。索引も引かないので
+# index/* は付けない。**足すときは呼び出し側を数えてから**——ここを
+# 「ついでに」広げると、分けた意味がそのぶん減る。
+#
+# プラグイン（serverless-iam-roles-per-function）は使わない。この環境から
+# postinstall が取得できず入らなかったのと、依存を1つ増やすより
+# CloudFormation を1つ書く方が読む人に見えるため。
+resources:
+  Resources:
+    PublicReadRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:service}-${sls:stage}-${aws:region}-publicRead
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: publicRead
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                # ログ。これが無いと失敗の理由がどこにも残らない
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${sls:stage}*:*
+                - Effect: Allow
+                  Action:
+                    - dynamodb:GetItem
+                  Resource:
+                    - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}
+                - Effect: Allow
+                  Action:
+                    - dynamodb:GetItem
+                    # 表示名の部分一致（searchUsers）と退会者の伏せ字（getComments）。
+                    # どちらも GSI が無いので全表 Scan になっている
+                    - dynamodb:Scan
+                  Resource:
+                    - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable}

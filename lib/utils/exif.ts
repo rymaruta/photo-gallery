@@ -1,7 +1,7 @@
 import exifr from "exifr";
 
 export type ExtractedMeta = {
-    dateTimeOriginal?: string;  // ISO 8601
+    dateTimeOriginal?: string;  // 撮影地の壁時計 "YYYY-MM-DDTHH:mm:ss"（ゾーン無し）
     latitude?: number;
     longitude?: number;
     cameraMake?: string;
@@ -21,7 +21,7 @@ export type CameraExif = {
     focalLength?: string;    // "70mm"
     whiteBalance?: string;
     imageSize?: string;      // "6000x4000"
-    dateTimeOriginal?: string; // ISO 8601
+    dateTimeOriginal?: string; // 撮影地の壁時計 "YYYY-MM-DDTHH:mm:ss"（ゾーン無し）
 };
 
 /** Make と Model を重複なく結合（"SONY" + "SONY ILCE-7M3" → "SONY ILCE-7M3"） */
@@ -89,8 +89,35 @@ function mapCameraExif(data: Record<string, unknown> | undefined): CameraExif {
         out.imageSize = `${data.ExifImageWidth}x${data.ExifImageHeight}`;
     }
     const dt = data.DateTimeOriginal ?? data.CreateDate;
-    if (dt instanceof Date && !isNaN(dt.getTime())) out.dateTimeOriginal = dt.toISOString();
+    if (dt instanceof Date && !isNaN(dt.getTime())) out.dateTimeOriginal = exifWallClock(dt);
     return out;
+}
+
+/**
+ * EXIF の撮影日時を、**書いてあるとおりの壁時計**として文字列にする。
+ *
+ * `toISOString()` を使ってはいけない。exifr は EXIF の
+ * `"2024:11:01 07:30:00"` を `new Date(year, month-1, day)` +
+ * `setHours(...)` で組む——つまり**実行しているブラウザのローカル時刻**の
+ * Date になる（node_modules/exifr/src/dicts/tiff-revivers.mjs の reviveDate）。
+ * そこに toISOString を当てると、アップロードした端末のゾーンぶん平行移動する。
+ * 日本（UTC+9）から上げると 07:30 の写真が `2024-10-31T22:30:00.000Z` として
+ * 保存され、表示は「保存されている通り」に出す規約（lib/utils/photoDate.ts）
+ * なので **前日の 22:30** と出ていた。年表の月の区切り・並び順・JSON-LD の
+ * dateCreated まで同じ値で決まる。同じ写真でも上げた端末のゾーン次第で
+ * 保存値が変わる（＝再現しない）のも同じ原因。
+ *
+ * EXIF の日時にはゾーンが無い。「その土地の壁時計」なので、変換せずに
+ * 数字をそのまま持ち回るのが正しい。ローカル成分を読めば、どのゾーンの
+ * 端末でも EXIF に書かれた数字がそのまま返る。
+ *
+ * 返す形は Z を付けない `YYYY-MM-DDTHH:mm:ss`。サーバーの sanitizeDate が
+ * この形をそのまま保存する（日付だけの入力を保つのと同じ扱い）。
+ */
+function exifWallClock(dt: Date): string {
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`
+        + `T${p(dt.getHours())}:${p(dt.getMinutes())}:${p(dt.getSeconds())}`;
 }
 
 /** exifr の生データ → 日付/GPS/カメラの ExtractedMeta */
@@ -98,7 +125,7 @@ function mapMeta(data: Record<string, unknown> | undefined): ExtractedMeta {
     if (!data) return {};
     const meta: ExtractedMeta = {};
     const dt = data.DateTimeOriginal ?? data.CreateDate;
-    if (dt instanceof Date && !isNaN(dt.getTime())) meta.dateTimeOriginal = dt.toISOString();
+    if (dt instanceof Date && !isNaN(dt.getTime())) meta.dateTimeOriginal = exifWallClock(dt);
     if (typeof data.latitude === "number" && typeof data.longitude === "number") {
         meta.latitude = data.latitude;
         meta.longitude = data.longitude;

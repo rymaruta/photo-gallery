@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
@@ -10,24 +9,30 @@ import type { Photo } from "@/lib/data/photos";
 import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
+import { formatStoredDateTime } from "@/lib/utils/photoDate";
+import { useMemberGate } from "../../../lib/hooks/useMemberGate";
+import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 
 export default function DraftsPage() {
     const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
-    const router = useRouter();
     const { locale } = useLocale();
     const isJa = locale === "ja";
 
     const [drafts, setDrafts] = useState<Photo[]>([]);
     const [loadingDrafts, setLoadingDrafts] = useState(true);
+    // 取得に失敗したかどうか。失敗を「下書き0件」と同じ見た目にすると、
+    // 保存した下書きが消えたように見える（実際はサーバーに残っている）。
+    const [loadError, setLoadError] = useState(false);
 
-    useEffect(() => {
-        if (!loading && (!isAuthenticated || (!isAdminUser && !isGeneralUser))) {
-            router.push(ROUTES.LOGIN);
-        }
-    }, [isAuthenticated, isAdminUser, isGeneralUser, loading, router]);
+    const gate = useMemberGate();
 
     const load = useCallback(async () => {
         setLoadingDrafts(true);
+        // 取れなかったことを画面にも残す。
+        // 以前は失敗してもログを出すだけで drafts が [] のままだったので、
+        // 「下書きはありません」＋アップロードの誘導が出た。
+        // 保存した下書きが消えたように見えるが、実際はサーバーに残っている。
+        setLoadError(false);
         try {
             const { userFetch } = await import("../../../lib/utils/api");
             const res = await userFetch("/user/photos");
@@ -36,9 +41,11 @@ export default function DraftsPage() {
                 setDrafts(Array.isArray(all) ? all.filter((p) => p.published === false) : []);
             } else {
                 log.error("drafts fetch failed", { status: res.status });
+                setLoadError(true);
             }
         } catch (e) {
             log.error("drafts load error:", e);
+            setLoadError(true);
         } finally {
             setLoadingDrafts(false);
         }
@@ -48,6 +55,8 @@ export default function DraftsPage() {
         if (isAuthenticated && (isAdminUser || isGeneralUser)) void load();
     }, [isAuthenticated, isAdminUser, isGeneralUser, load]);
 
+    // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
+    if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
     if (loading || (!isAuthenticated && loadingDrafts)) {
         return (
             <main className="min-h-screen bg-black flex items-center justify-center">
@@ -88,6 +97,21 @@ export default function DraftsPage() {
                     <div className="py-16 flex justify-center">
                         <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                     </div>
+                ) : loadError ? (
+                    <div className="py-16 text-center text-white/50">
+                        <p className="text-sm mb-1">{isJa ? "下書きを読み込めませんでした" : "Could not load your drafts"}</p>
+                        <p className="text-xs mb-4 text-white/40">
+                            {isJa ? "消えたわけではありません。通信を確かめてもう一度お試しください。"
+                                : "Nothing was lost. Check your connection and try again."}
+                        </p>
+                        <button
+                            onClick={() => void load()}
+                            className="inline-block px-4 py-2.5 text-sm bg-white text-black font-semibold rounded-full hover:bg-white/90 transition-colors"
+                            style={{ touchAction: "manipulation", minHeight: "44px" }}
+                        >
+                            {isJa ? "再試行" : "Retry"}
+                        </button>
+                    </div>
                 ) : drafts.length === 0 ? (
                     <div className="py-16 text-center text-white/50">
                         <PhotoIcon className="w-12 h-12 mx-auto mb-3 text-white/20" />
@@ -104,7 +128,14 @@ export default function DraftsPage() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                         {drafts.map((p) => {
                             const title = getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : "");
-                            const dateText = p.exif?.dateTimeOriginal || p.date || "";
+                            // 写真ページ（PhotoPageClient の shotAt）と同じ整形。
+                            // 以前は生の値（"2024-10-12T08:30:15+09:00" 等）を
+                            // そのまま出していた。整形できない値は出さない。
+                            // exif 側が整形できない文字列でも、有効な date が
+                            // あればそちらを出す（|| で先に選ぶと丸ごと消える）。
+                            const lc = isJa ? "ja" as const : "en" as const;
+                            const dateText = formatStoredDateTime(p.exif?.dateTimeOriginal, lc)
+                                ?? formatStoredDateTime(p.date, lc) ?? "";
                             return (
                                 <Link
                                     key={p.id}

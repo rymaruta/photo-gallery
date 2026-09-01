@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useAuth } from "../auth/context";
 import { useLocale } from "../i18n/context";
 import { userFetch } from "../../lib/utils/api";
@@ -15,25 +16,47 @@ import { ROUTES } from "../../lib/routes";
  * 本人には気づきようがないので、こちらから伝える。
  */
 export default function ProfileSetupBanner() {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, userId } = useAuth();
     const { locale } = useLocale();
-    const [needsName, setNeedsName] = useState(false);
+    const pathname = usePathname();
+    // **誰についての判定かを state に含める。** 真偽値（hasNameRef +
+    // needsName）で持っていた頃はレイアウト常駐のままアカウントをまたぎ、
+    // 名前ありAのあとに名前なしBがログインすると B のバナーが恒久に出ず、
+    // 逆順では A の判定で B に誤表示していた（B-2 で自分が入れた回帰）。
+    // userId が合致するときだけ表示に使うので、切替時のリセットは要らない。
+    const [nameState, setNameState] = useState<{ userId: string; needsName: boolean } | null>(null);
+    // 「設定済み」と確認できた userId（遷移ごとの API を増やさないため）
+    const verifiedUserRef = useRef<string | null>(null);
     const isJa = locale !== "en";
 
+    // **遷移のたびに確かめ直す（未設定と分かっている間だけ）。**
+    // 取得が `[isAuthenticated]` の1回きりだった頃は、このバナーが
+    // レイアウトに常駐していて再マウントされないため、
+    // 「決める」→ プロフィールで名前を保存 → 戻ってくる、と操作しても
+    // **バナーが「名前を決めましょう」のまま残った**（ハードリロードまで消えない）。
+    // 名前を持つ人は最初の1回で verifiedUserRef が立ち、以後は何も撃たない。
     useEffect(() => {
-        if (!isAuthenticated) return;
+        // ログアウト中は何もしない（表示は下の render ガードが消す。
+        // 残った nameState も userId 不一致で使われない）
+        if (!isAuthenticated || !userId) return;
+        if (verifiedUserRef.current === userId) return;
         let aborted = false;
         void (async () => {
             try {
                 const res = await userFetch("/user/profile");
                 if (!res.ok) return;
                 const data = await res.json() as { displayName?: string };
-                if (!aborted) setNeedsName(!data.displayName?.trim());
+                const hasName = !!data.displayName?.trim();
+                if (!aborted) {
+                    if (hasName) verifiedUserRef.current = userId;
+                    setNameState({ userId, needsName: !hasName });
+                }
             } catch { /* 取得できないときは何も出さない */ }
         })();
         return () => { aborted = true; };
-    }, [isAuthenticated]);
+    }, [isAuthenticated, userId, pathname]);
 
+    const needsName = !!userId && nameState?.userId === userId && nameState.needsName;
     if (!isAuthenticated || !needsName) return null;
 
     return (

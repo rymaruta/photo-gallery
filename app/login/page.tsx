@@ -7,7 +7,8 @@ import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { forgotPassword, confirmForgotPassword } from "../../lib/auth/cognito";
 import { userFetch } from "../../lib/utils/api";
-import { ROUTES } from "../../lib/routes";
+import { ROUTES, safeNextPath } from "../../lib/routes";
+import { pendingNameKey } from "../../lib/utils/pendingName";
 import { LockClosedIcon, EnvelopeIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 type Step = "login" | "forgot-send" | "forgot-confirm" | "forgot-done";
@@ -16,6 +17,12 @@ function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const verified = searchParams?.get("verified") === "1";
+    // ログイン後の戻り先。**これが無かったので、写真を見ていて「フォローする
+    // にはログインしてください」→ ログイン → 必ず自分のプロフィールに着地し、
+    // さっき見ていた写真も相手も見失っていた。**
+    // 受け取るのはサイト内の絶対パスだけ（safeNextPath がオープン
+    // リダイレクトを塞ぐ）。無ければ従来どおり自分のプロフィールへ。
+    const nextPath = safeNextPath(searchParams?.get("next"));
     const { login, isAuthenticated, loading, userId } = useAuth();
     const { showToast } = useToast();
 
@@ -28,11 +35,14 @@ function LoginForm() {
     const [submitting, setSubmitting] = useState(false);
     const [needsVerification, setNeedsVerification] = useState(false);
 
+    // **replace で出る。** push にすると、ログイン済みで /login に着地する
+    // たびに履歴が伸び、戻るが「/login → next → /login」の往復から
+    // 抜けられなくなる（useMemberGate 側と合わせて1つの罠になっていた）。
     useEffect(() => {
         if (!loading && isAuthenticated) {
-            router.push(userId ? ROUTES.USER_PROFILE(userId) : "/");
+            router.replace(nextPath ?? (userId ? ROUTES.USER_PROFILE(userId) : "/"));
         }
-    }, [isAuthenticated, loading, router, userId]);
+    }, [isAuthenticated, loading, router, userId, nextPath]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -43,22 +53,26 @@ function LoginForm() {
             const result = await login(username, password);
             if (result.success) {
                 // 新規登録時に保存した表示名があれば、プロフィールを作成
+                // 登録したときと同じメールアドレスの分だけを使う。
+                // グローバルな1キーだった頃は、別人が登録途中で残した名前を
+                // 拾ってしまい、こちらのプロフィールに勝手に付いていた。
+                const pendingKey = pendingNameKey(username);
                 let pendingDisplayName: string | null = null;
-                try { pendingDisplayName = localStorage.getItem("jp_pending_displayName"); } catch { /* ignore */ }
+                try { pendingDisplayName = localStorage.getItem(pendingKey); } catch { /* ignore */ }
                 if (pendingDisplayName) {
                     try {
                         // PUT /user/profile は全置換なので、既にプロフィールがある場合は上書きしない
                         const check = await userFetch("/user/profile");
                         const existing = check.ok ? await check.json() as { displayName?: string } : null;
                         if (existing?.displayName) {
-                            try { localStorage.removeItem("jp_pending_displayName"); } catch { /* ignore */ }
+                            try { localStorage.removeItem(pendingKey); } catch { /* ignore */ }
                         } else {
                             const res = await userFetch("/user/profile", {
                                 method: "PUT",
                                 body: JSON.stringify({ displayName: pendingDisplayName }),
                             });
                             if (res.ok) {
-                                try { localStorage.removeItem("jp_pending_displayName"); } catch { /* ignore */ }
+                                try { localStorage.removeItem(pendingKey); } catch { /* ignore */ }
                             }
                         }
                     } catch {
@@ -67,7 +81,9 @@ function LoginForm() {
                 }
                 showToast("ログインしました", "success");
                 // インスタ風: ログイン後は自分のプロフィールページへ
-                router.push(result.userId ? ROUTES.USER_PROFILE(result.userId) : "/");
+                // ログインが済んだ画面に戻れても意味が無い（上のエフェクトが
+                // すぐ送り返す）ので replace
+                router.replace(nextPath ?? (result.userId ? ROUTES.USER_PROFILE(result.userId) : "/"));
             } else if (result.needsVerification) {
                 setNeedsVerification(true);
                 setError(result.error || "メールアドレスの確認が完了していません");
@@ -152,7 +168,7 @@ function LoginForm() {
 
                 {/* エラー */}
                 {error && (
-                    <div className="mb-4 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                    <div role="alert" className="mb-4 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
                         {error}
                     </div>
                 )}
@@ -174,8 +190,9 @@ function LoginForm() {
                 {step === "login" && (
                     <form onSubmit={handleLogin} className="space-y-4">
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
+                            <label htmlFor="login-email" className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
                             <input
+                                id="login-email"
                                 type="email"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
@@ -187,8 +204,9 @@ function LoginForm() {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード</label>
+                            <label htmlFor="login-password" className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード</label>
                             <input
+                                id="login-password"
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
@@ -234,8 +252,9 @@ function LoginForm() {
                 {step === "forgot-send" && (
                     <form onSubmit={handleForgotSend} className="space-y-4">
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
+                            <label htmlFor="reset-email" className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
                             <input
+                                id="reset-email"
                                 type="email"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
@@ -269,8 +288,9 @@ function LoginForm() {
                 {step === "forgot-confirm" && (
                     <form onSubmit={handleForgotConfirm} className="space-y-4">
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">確認コード</label>
+                            <label htmlFor="reset-code" className="block text-xs text-white/50 mb-1.5 tracking-wide">確認コード</label>
                             <input
+                                id="reset-code"
                                 type="text"
                                 value={resetCode}
                                 onChange={(e) => setResetCode(e.target.value)}
@@ -281,8 +301,9 @@ function LoginForm() {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">新しいパスワード</label>
+                            <label htmlFor="reset-new-password" className="block text-xs text-white/50 mb-1.5 tracking-wide">新しいパスワード</label>
                             <input
+                                id="reset-new-password"
                                 type="password"
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}

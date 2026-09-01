@@ -19,12 +19,15 @@ export default function AdminLoginPage() {
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
 
+    // 通せなかった／もう用の無い画面は履歴に残さない（replace）。
+    // push にすると、送り先から戻ったときにこの画面へ着地し、ここが
+    // また送り返すので**戻るで抜けられなくなる**。
     useEffect(() => {
         if (!loading && isAuthenticated && isAdminUser) {
-            router.push("/admin");
+            router.replace("/admin");
         }
         if (!loading && isAuthenticated && isGeneralUser) {
-            router.push("/");
+            router.replace("/");
         }
     }, [isAuthenticated, isAdminUser, isGeneralUser, loading, router]);
 
@@ -68,15 +71,16 @@ export default function AdminLoginPage() {
                 {step === "login" && (
                     <>
                         {error && (
-                            <div className="mb-6 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                            <div role="alert" className="mb-6 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
                                 {error}
                             </div>
                         )}
 
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <label className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
+                                <label htmlFor="admin-email" className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
                                 <input
+                                    id="admin-email"
                                     type="email"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
@@ -84,12 +88,13 @@ export default function AdminLoginPage() {
                                     autoComplete="email"
                                     placeholder="admin@example.com"
                                     disabled={submitting}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
+                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-base placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード</label>
+                                <label htmlFor="admin-password" className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード</label>
                                 <input
+                                    id="admin-password"
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
@@ -97,7 +102,7 @@ export default function AdminLoginPage() {
                                     autoComplete="current-password"
                                     placeholder="••••••••"
                                     disabled={submitting}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
+                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-base placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
                                 />
                             </div>
 

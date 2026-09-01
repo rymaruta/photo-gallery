@@ -26,7 +26,7 @@ const {
 } = require("@aws-sdk/client-dynamodb");
 const {
     S3Client, CreateBucketCommand, HeadBucketCommand,
-    PutPublicAccessBlockCommand, PutBucketPolicyCommand, PutBucketCorsCommand,
+    PutPublicAccessBlockCommand, PutBucketPolicyCommand, GetBucketPolicyCommand, PutBucketCorsCommand,
 } = require("@aws-sdk/client-s3");
 const {
     CloudFrontClient, GetDistributionConfigCommand, CreateDistributionCommand,
@@ -43,8 +43,17 @@ const ENV = requireEnv("ENV_NAME", "作る環境名（例: ENV_NAME=staging）")
 const SOURCE_DIST = requireEnv("SOURCE_DISTRIBUTION_ID", "CloudFront 設定のコピー元（本番のディストリビューションID）");
 const APPLY = process.argv.includes("--apply");
 
-if (ENV === "prod") {
+// 大文字小文字を無視して弾く。`ENV_NAME=Prod` はこのガードを素通りし、
+// `Prod-photo-gallery-photos` のテーブルだけ作って S3 で失敗していた
+// （バケット名は小文字しか使えない）。中途半端に作られた資源が残る。
+if (ENV.toLowerCase() === "prod") {
     console.error("ENV_NAME=prod は指定できません。既存の本番を壊しかねません。");
+    process.exit(1);
+}
+// AWS の名前規則（S3 バケット）に合わせて、作る前に形を確かめる。
+// 途中で失敗すると、作れたものだけが残って後片付けが要る。
+if (!/^[a-z][a-z0-9-]*$/.test(ENV)) {
+    console.error(`ENV_NAME=${ENV} は使えません。英小文字で始まり、英小文字・数字・ハイフンだけにしてください。`);
     process.exit(1);
 }
 
@@ -90,16 +99,32 @@ async function ensurePhotosTable() {
             { AttributeName: "id", AttributeType: "S" },
             { AttributeName: "userId", AttributeType: "S" },
             { AttributeName: "createdAt", AttributeType: "S" },
+            { AttributeName: "storyFeed", AttributeType: "S" },
+            { AttributeName: "expiresAt", AttributeType: "S" },
         ],
         KeySchema: [{ AttributeName: "id", KeyType: "HASH" }],
-        GlobalSecondaryIndexes: [{
-            IndexName: "userId-createdAt-index",
-            KeySchema: [
-                { AttributeName: "userId", KeyType: "HASH" },
-                { AttributeName: "createdAt", KeyType: "RANGE" },
-            ],
-            Projection: { ProjectionType: "ALL" },
-        }],
+        GlobalSecondaryIndexes: [
+            {
+                IndexName: "userId-createdAt-index",
+                KeySchema: [
+                    { AttributeName: "userId", KeyType: "HASH" },
+                    { AttributeName: "createdAt", KeyType: "RANGE" },
+                ],
+                Projection: { ProjectionType: "ALL" },
+            },
+            {
+                // ストーリー一覧用。storyFeed は story 項目にだけ入る定数なので、
+                // この索引には写真もマーカーも載らない。
+                // 以前は「今生きているストーリー」をテーブル全体の Scan で
+                // 引いており、同居するマーカーが増えるほど重くなっていた。
+                IndexName: "storyFeed-expiresAt-index",
+                KeySchema: [
+                    { AttributeName: "storyFeed", KeyType: "HASH" },
+                    { AttributeName: "expiresAt", KeyType: "RANGE" },
+                ],
+                Projection: { ProjectionType: "ALL" },
+            },
+        ],
     }));
     log("作成しました。");
 }
@@ -176,26 +201,65 @@ async function ensureUploadCors() {
 }
 
 /** CloudFront（OAC）からだけ読めるようにバケットポリシーを張る */
-async function allowCloudFrontRead(bucket, distributionArn) {
-    log(`  ${bucket}: CloudFront からの読み取りを許可`);
-    if (!APPLY) return;
-    await s3.send(new PutBucketPolicyCommand({
-        Bucket: bucket,
-        Policy: JSON.stringify({
-            Version: "2012-10-17",
-            Statement: [{
-                Sid: "AllowCloudFrontServicePrincipalReadOnly",
+const CF_READ_SID = "AllowCloudFrontServicePrincipalReadOnly";
+
+/**
+ * 既にあるポリシーに、CloudFront 読み取りの1文を**重ねる**。
+ *
+ * **全体を置き換えてはいけない。** `PutBucketPolicy` はポリシーごと差し替え
+ * なので、1文だけ書くと他の文が消える。実際に消えて困るのが
+ * `restrict-originals.js` の `DenyCloudFrontReadOfOriginals`——
+ * 「GPS 入りの原本を配信から外す」ための Deny で、これが消えると
+ * **塞いだはずの原本がまた配れる**。しかも誰も気づかない。
+ *
+ * `restrict-originals.js` の `withDenyStatement` と同じ考え方
+ * （同じ Sid の文だけ入れ替えて、他はそのまま）。
+ */
+function withCloudFrontRead(policy, bucket, distributionArn) {
+    return {
+        Version: policy?.Version ?? "2012-10-17",
+        Statement: [
+            ...(policy?.Statement ?? []).filter((s) => s?.Sid !== CF_READ_SID),
+            {
+                Sid: CF_READ_SID,
                 Effect: "Allow",
                 Principal: { Service: "cloudfront.amazonaws.com" },
                 Action: "s3:GetObject",
                 Resource: `arn:aws:s3:::${bucket}/*`,
                 Condition: { StringEquals: { "AWS:SourceArn": distributionArn } },
-            }],
-        }),
+            },
+        ],
+    };
+}
+
+async function allowCloudFrontRead(bucket, distributionArn) {
+    log(`  ${bucket}: CloudFront からの読み取りを許可`);
+    if (!APPLY) return;
+    let current = null;
+    try {
+        const res = await s3.send(new GetBucketPolicyCommand({ Bucket: bucket }));
+        current = JSON.parse(res.Policy);
+    } catch (e) {
+        // ポリシーがまだ無いのは正常（新しいバケット）
+        if (e?.name !== "NoSuchBucketPolicy") throw e;
+    }
+    await s3.send(new PutBucketPolicyCommand({
+        Bucket: bucket,
+        Policy: JSON.stringify(withCloudFrontRead(current, bucket, distributionArn)),
     }));
 }
 
 // ────────────────────────────── CloudFront
+
+/**
+ * キャッシュ動作から Lambda@Edge / CloudFront Functions の紐付けを外す。
+ * どちらも「別環境の関数を実行してしまう」という同じ壊れ方をする。
+ */
+function stripLambdaAssociations(behavior) {
+    if (!behavior) return;
+    behavior.LambdaFunctionAssociations = { Quantity: 0, Items: [] };
+    behavior.FunctionAssociations = { Quantity: 0, Items: [] };
+}
 
 /**
  * 本番の設定をひな型に、staging 用のディストリビューションを作る。
@@ -241,6 +305,16 @@ function buildStagingConfig(source) {
     const keptBehaviors = (cfg.CacheBehaviors?.Items ?? []).filter((b) => !dropped.has(b.TargetOriginId));
     cfg.CacheBehaviors = { Quantity: keptBehaviors.length, Items: keptBehaviors };
 
+    // **本番の Lambda@Edge を引き継がない。**
+    // 本番の既定ビヘイビアには OGP 書き換え用の Lambda@Edge が付いている
+    // （scripts/fix-cdn-static-behavior.js の説明を参照）。コピーしたままだと
+    // staging の全リクエストが**本番の関数**を実行し、本番のログと課金に乗る。
+    // さらに Lambda@Edge は参照している配信が1つでもあるとバージョンを消せないので、
+    // 本番側の掃除が数時間〜数日ブロックされる。
+    // execute-api オリジンを落としているのと同じ理由・同じ扱い。
+    stripLambdaAssociations(cfg.DefaultCacheBehavior);
+    for (const b of cfg.CacheBehaviors.Items) stripLambdaAssociations(b);
+
     if (dropped.size > 0) {
         cfg._droppedOrigins = [...dropped]; // ログ用（送信前に消す）
     }
@@ -283,6 +357,46 @@ async function findUserPool(name) {
     return null;
 }
 
+/**
+ * ユーザープール本体の設定。**アプリの前提と対で保つこと。**
+ * 切り出してあるのは、テストから中身を確かめるため
+ * （インラインのままだと「作るときだけ効く設定」が誰にも見張られない）。
+ *
+ * **これは作成時にしか効かない。** ensureUserPool は既存のプールを見つけると
+ * 「既にあります」で素通りする。つまりこのスクリプトは作成が冪等なだけで、
+ * **設定は収束しない**。しかも `AliasAttributes` / `UsernameAttributes` は
+ * Cognito がプール作成後の変更を許さない属性なので、間違った設定で作られた
+ * プールは**作り直すしかない**（Pool ID と Client ID が変わるので、
+ * CLAUDE.md と .env.local の書き換えが要る）。
+ */
+const USER_POOL_CONFIG = {
+            // **AliasAttributes であって UsernameAttributes ではない。**
+            //
+            // `lib/auth/cognito.ts` の signUp は、ユーザー名に **UUID** を渡し、
+            // メールは属性として別に渡す（「このプールは AliasAttributes:email」
+            // というコメント付き）。`UsernameAttributes: ["email"]` のプールは
+            // 「ユーザー名そのものがメールアドレス」という設定なので、UUID を
+            // 渡した時点で Cognito が弾く——**そのプールでは新規登録ができない**。
+            //
+            // 本番には登録済みのユーザーがいて同じコードが動いている以上、
+            // 本番のプールは UsernameAttributes ではない。ここが実態と
+            // 食い違っていた（このスクリプトで作った staging は、
+            // 新規登録を押しても登録できないはず）。
+            //
+            // ※ **本番/staging の実物は未確認**（この作業環境から AWS を
+            //   叩けない）。確かめるなら:
+            //     aws cognito-idp describe-user-pool --user-pool-id <poolId>
+            //   の UsernameAttributes / AliasAttributes を見る。
+            AliasAttributes: ["email"],
+            AutoVerifiedAttributes: ["email"],
+            // 記号まで必須にするのは、画面が3か所でそう案内しているから
+            // （signup の入力補助・login のプレースホルダ・InvalidPasswordException
+            //  の文言）。false のままだと「記号を含めてください」と言いながら
+            // 実際は不要という食い違いになる。
+            Policies: { PasswordPolicy: { MinimumLength: 8, RequireUppercase: true, RequireLowercase: true, RequireNumbers: true, RequireSymbols: true } },
+            AccountRecoverySetting: { RecoveryMechanisms: [{ Name: "verified_email", Priority: 1 }] },
+};
+
 async function ensureUserPool() {
     step(`Cognito ${names.userPool}`);
     let poolId = await findUserPool(names.userPool);
@@ -293,10 +407,7 @@ async function ensureUserPool() {
         if (!APPLY) return { poolId: null, clientId: null };
         const res = await idp.send(new CreateUserPoolCommand({
             PoolName: names.userPool,
-            UsernameAttributes: ["email"],
-            AutoVerifiedAttributes: ["email"],
-            Policies: { PasswordPolicy: { MinimumLength: 8, RequireUppercase: true, RequireLowercase: true, RequireNumbers: true, RequireSymbols: false } },
-            AccountRecoverySetting: { RecoveryMechanisms: [{ Name: "verified_email", Priority: 1 }] },
+            ...USER_POOL_CONFIG,
         }));
         poolId = res.UserPool.Id;
         log(`作成しました: ${poolId}`);
@@ -327,6 +438,19 @@ async function ensureUserPool() {
                 ClientName: names.userPool,
                 GenerateSecret: false, // 静的サイトなのでシークレットは持てない
                 ExplicitAuthFlows: ["ALLOW_USER_SRP_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"],
+                // **アカウントの有無を教えない（A-5）。** 既定（LEGACY）だと
+                // 存在しないメールアドレスには `UserNotFoundException` が返り、
+                // ログイン画面が**登録済みかどうかを確かめる道具**になる
+                // （総当たりでメールアドレスの一覧が作れる）。
+                // `ENABLED` にすると Cognito 側で `NotAuthorizedException` に
+                // 揃う。画面側でも同じ文面に寄せてあるが（`lib/auth/cognito.ts`）、
+                // **入口で塞ぐのが本筋**。
+                // ※ 既にあるクライアントには効かない（この分岐は新規作成のみ）。
+                //   本番に当てるには
+                //   `aws cognito-idp update-user-pool-client --user-pool-id <id>
+                //    --client-id <id> --prevent-user-existence-errors ENABLED`
+                //   が要る（この環境からは AWS を叩けないので未実施）。
+                PreventUserExistenceErrors: "ENABLED",
             }));
             clientId = res.UserPoolClient.ClientId;
             log(`  アプリクライアントを作成しました: ${clientId}`);
@@ -339,7 +463,7 @@ async function ensureUserPool() {
 
 // ────────────────────────────── main
 
-(async () => {
+async function main() {
     log(`環境: ${ENV}`);
     log(APPLY ? "モード: 適用（AWS にリソースを作ります）" : "モード: ドライラン（何も作りません）");
     const who = await sts.send(new GetCallerIdentityCommand({}));
@@ -372,11 +496,19 @@ async function ensureUserPool() {
     log("");
     log("  STAGING_API_BASE_URL / STAGING_USER_API_BASE_URL は、");
     log("  develop ブランチに push して API をデプロイすると出力される URL を登録してください。");
-})().catch((e) => {
-    console.error("\nエラー:", e.name, e.message);
-    if (String(e.name).includes("AccessDenied") || String(e.name).includes("NotAuthorized")) {
-        console.error("デプロイ用 IAM に、テーブル・バケット・ディストリビューション・");
-        console.error("ユーザープールの作成権限が必要です。");
-    }
-    process.exit(1);
-});
+}
+
+// テストから判定ロジックだけを読めるようにする。
+// require しただけで本番のリソースを触りにいかないよう、実行はここで区切る。
+if (require.main === module) {
+    main().catch((e) => {
+        console.error("\nエラー:", e.name, e.message);
+        if (String(e.name).includes("AccessDenied") || String(e.name).includes("NotAuthorized")) {
+            console.error("デプロイ用 IAM に、テーブル・バケット・ディストリビューション・");
+            console.error("ユーザープールの作成権限が必要です。");
+        }
+        process.exit(1);
+    });
+}
+
+module.exports = { buildStagingConfig, stripLambdaAssociations, withCloudFrontRead, USER_POOL_CONFIG };

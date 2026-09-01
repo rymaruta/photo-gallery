@@ -1,6 +1,7 @@
 // app/layout.tsx
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
+import { resolveOgImage } from "@/lib/server/photos";
 import Link from "next/link";
 import { Inter } from "next/font/google";
 import HeaderNav from "./components/HeaderNav";
@@ -16,7 +17,7 @@ import { AuthProvider } from "./auth/context";
 import { MusicProvider } from "./music/MusicContext";
 import MiniPlayer from "./components/MiniPlayer";
 import { LocaleProvider } from "./i18n/context";
-import { siteConfig, generateWebSiteStructuredData } from "../lib/utils/seo";
+import { siteConfig, generateWebSiteStructuredData, INDEXABLE_ROBOTS } from "../lib/utils/seo";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "700", "900"], display: "swap" });
 
@@ -28,83 +29,80 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteConfig.url),
-  manifest: "/manifest.webmanifest",
-  // iOS Safari「ホーム画面に追加」で全画面スタンドアロン起動（アプリ体験）にする
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Journey Photo",
-  },
-  icons: {
-    apple: "/icon-192.png",
-  },
-  // 旧 iOS 互換のため従来名も明示（Next は標準名 mobile-web-app-capable を出力するため）
-  other: {
-    "apple-mobile-web-app-capable": "yes",
-  },
-  title: {
-    default: siteConfig.name,
-    template: `%s | Journey Photo 旅フォトギャラリー`,
-  },
-  description: siteConfig.description,
-  keywords: [
-    "旅行写真", "旅フォト", "旅の写真", "旅行記", "旅行ギャラリー",
-    "風景写真", "スナップ写真", "海外旅行", "国内旅行",
-    "旅行", "旅", "ジャーニー", "フォト", "写真", "ギャラリー",
-    "travel", "journey", "photo", "photography", "travel photography",
-  ],
-  authors: [{ name: "Journey Photo" }],
-  creator: "Journey Photo",
-  openGraph: {
-    type: "website",
-    locale: siteConfig.locale.ja,
-    alternateLocale: siteConfig.locale.en,
-    url: siteConfig.url,
-    siteName: siteConfig.name,
-    title: siteConfig.name,
-    description: siteConfig.description,
-    images: [
-      {
-        url: siteConfig.ogImage.startsWith("http") 
-          ? siteConfig.ogImage 
-          : `${siteConfig.url}${siteConfig.ogImage}`,
-        width: 1200,
-        height: 630,
-        alt: siteConfig.name,
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: siteConfig.name,
-    description: siteConfig.description,
-    images: [siteConfig.ogImage.startsWith("http") 
-      ? siteConfig.ogImage 
-      : `${siteConfig.url}${siteConfig.ogImage}`],
-    creator: siteConfig.twitterHandle,
-  },
-  alternates: {
-    canonical: siteConfig.url,
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
+// **OGP 画像はビルド時に決める（静的な `metadata` から関数に変えた理由）。**
+// 既定の `/images/og-image.jpg` は**存在しないファイル**で、トップページを
+// SNS・LINE に貼っても画像が出ない状態だった（16ページがこの URL を出して
+// いた）。新しく画像を作るのはデザインの判断なので、サイトが既に持って
+// いるもの——一番新しい公開写真——を使う。詳しくは `resolveOgImage`。
+export async function generateMetadata(): Promise<Metadata> {
+  const ogImage = await resolveOgImage(siteConfig.url);
+  return {
+    metadataBase: new URL(siteConfig.url),
+    manifest: "/manifest.webmanifest",
+    // iOS Safari「ホーム画面に追加」で全画面スタンドアロン起動（アプリ体験）にする
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "black-translucent",
+      title: "Journey Photo",
     },
-  },
-  verification: {
-    // Search Console / Bing の確認トークン（siteConfig 経由・未設定なら出力しない）
-    ...(siteConfig.gscVerification ? { google: siteConfig.gscVerification } : {}),
-    ...(siteConfig.bingVerification ? { other: { "msvalidate.01": siteConfig.bingVerification } } : {}),
-  },
-};
+    icons: {
+      apple: "/icon-192.png",
+    },
+    // 旧 iOS 互換のため従来名も明示（Next は標準名 mobile-web-app-capable を出力するため）
+    other: {
+      "apple-mobile-web-app-capable": "yes",
+    },
+    title: {
+      default: siteConfig.name,
+      template: `%s | Journey Photo 旅フォトギャラリー`,
+    },
+    description: siteConfig.description,
+    keywords: [
+      "旅行写真", "旅フォト", "旅の写真", "旅行記", "旅行ギャラリー",
+      "風景写真", "スナップ写真", "海外旅行", "国内旅行",
+      "旅行", "旅", "ジャーニー", "フォト", "写真", "ギャラリー",
+      "travel", "journey", "photo", "photography", "travel photography",
+    ],
+    authors: [{ name: "Journey Photo" }],
+    creator: "Journey Photo",
+    openGraph: {
+      type: "website",
+      // `alternateLocale`（og:locale:alternate = en_US）は落とした。
+      // **英語版の URL は存在しない**（静的書き出しで HTML は1種類、
+      // 言語の切り替えは `6d72bfb` で削除済み）。写真ページは同じ理由で
+      // hreflang を消してあるのに、ここだけ別の形で「英語版がある」と
+      // 申告し続けていた。
+      locale: siteConfig.locale.ja,
+      url: siteConfig.url,
+      siteName: siteConfig.name,
+      title: siteConfig.name,
+      description: siteConfig.description,
+      // **寸法は申告しない。** 実在しない固定画像を指していた頃の
+      // 1200x630 が残っていたが、いま出すのは実際の写真で縦横比はまちまち
+      // （`photos.json` は width/height を持たない）
+      images: [{ url: ogImage, alt: siteConfig.name }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: siteConfig.name,
+      description: siteConfig.description,
+      images: [ogImage],
+      creator: siteConfig.twitterHandle,
+    },
+    alternates: {
+      canonical: siteConfig.url,
+    },
+    // 中身は `lib/utils/seo.ts` の `INDEXABLE_ROBOTS`。子が
+    // `robots` を書くとオブジェクトごと差し替わるので、同じものを
+    // 2か所に書かない（`/users/<id>` がそれで googlebot の指定を落とした）
+    robots: INDEXABLE_ROBOTS,
+    verification: {
+      // Search Console / Bing の確認トークン（siteConfig 経由・未設定なら出力しない）
+      ...(siteConfig.gscVerification ? { google: siteConfig.gscVerification } : {}),
+      ...(siteConfig.bingVerification ? { other: { "msvalidate.01": siteConfig.bingVerification } } : {}),
+    },
+  };
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const webSiteStructuredData = generateWebSiteStructuredData();
@@ -119,9 +117,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           本体CSS（globals.css）が同じ値を指定するので、正常時の見た目は変わらない。
         */}
         <style dangerouslySetInnerHTML={{ __html: "html,body{background:#000;color:#fff;margin:0}" }} />
-        {/* 画像配信元(CloudFront)へ事前接続し、最初の画像の DNS+TLS 待ちを削減（LCP改善） */}
-        <link rel="preconnect" href="https://d1s3dwwzgxf5ni.cloudfront.net" crossOrigin="" />
-        <link rel="dns-prefetch" href="https://d1s3dwwzgxf5ni.cloudfront.net" />
+        {/* 画像配信元(CloudFront)へ事前接続し、最初の画像の DNS+TLS 待ちを削減（LCP改善）。
+            **本番ドメインを直書きしない。** 直書きだった頃は staging の全ページが
+            開くたびに本番CDNへ無駄な接続を張り、実際の配信元（staging のCDN）には
+            preconnect が効かない——狙った LCP 改善が staging で再現しなかった。
+            未設定なら出さない（本番へフォールバックしない。CLAUDE.md の方針）。 */}
+        {process.env.NEXT_PUBLIC_CLOUDFRONT_URL ? (
+          <>
+            <link rel="preconnect" href={process.env.NEXT_PUBLIC_CLOUDFRONT_URL} crossOrigin="" />
+            <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_CLOUDFRONT_URL} />
+          </>
+        ) : null}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteStructuredData).replace(/</g, "\\u003c").replace(/>/g, "\\u003e") }}
@@ -152,11 +158,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           配信し続けると起こり、通常のリロードでは直らない（同じキャッシュを再配信するため）。
           そこで: 読み込み後 12 秒たっても data-hydrated が付かなければ（React が動いていない）、
           SW を解除しキャッシュを全消しして 1 回だけ再読込する。10 分クールダウンでループを防ぐ。
+          **再読込の直前にもう一度 data-hydrated を見る。** 後片付け（SW 解除・
+          キャッシュ全消し）には最大3秒かかり、その間に水和が終わることがある。
+          無条件に再読込していたので、**遅い回線で入力中の内容が消えた**
+          （アップロード画面のタイトル・キャプション）。間に合ったなら戻さない。
+          **オフラインでは発火させない。** 通信が無いのに水和しないのは異常では
+          ないうえ、ここで Cache Storage を全消しして SW を解除すると
+          **オフライン機能ごと消えて、そのままブラウザのエラー画面**になる
+          （オフラインなので再登録も控えの取り直しもできない）。
+          `navigator.onLine` は true が当てにならない一方、false は信用してよい。
+          クールダウンの控えは **sessionStorage**（＝タブごと）。localStorage に
+          置いていた頃は全タブで共有だったので、1つのタブが自己修復すると、
+          同じく壊れている2つ目以降のタブは最大10分そのまま操作できなかった
+          （すぐ上の資産チェックは最初から sessionStorage で、そちらが正しい）。
+          再読込をまたいでも消えないので、ループ防止の役目は変わらない。
           正常時は水和と同時にフラグが立つため発火しない。React に依存せず <head> で動く。
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var K="jp_hydrate_recover_at";function reheal(){try{if(document.documentElement.getAttribute("data-hydrated")==="1")return;var now=Date.now(),last=0;try{last=Number(localStorage.getItem(K)||0)}catch(e){}if(last&&now-last<600000)return;try{localStorage.setItem(K,String(now))}catch(e){}var done=false,go=function(){if(done)return;done=true;location.reload()};var ps=[];try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations){ps.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}).catch(function(){}))}}catch(e){}try{if(window.caches&&caches.keys){ps.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}).catch(function(){}))}}catch(e){}Promise.all(ps).then(go,go);setTimeout(go,3000)}catch(e){}}addEventListener("load",function(){setTimeout(reheal,12000)})}catch(e){}})();`,
+            __html: `(function(){try{var K="jp_hydrate_recover_at";function reheal(){try{if(document.documentElement.getAttribute("data-hydrated")==="1")return;if(navigator.onLine===false)return;var now=Date.now(),last=0;try{last=Number(sessionStorage.getItem(K)||0)}catch(e){}if(last&&now-last<600000)return;try{sessionStorage.setItem(K,String(now))}catch(e){}var done=false,go=function(){if(done)return;done=true;if(document.documentElement.getAttribute("data-hydrated")==="1")return;location.reload()};var ps=[];try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations){ps.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}).catch(function(){}))}}catch(e){}try{if(window.caches&&caches.keys){ps.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}).catch(function(){}))}}catch(e){}Promise.all(ps).then(go,go);setTimeout(go,3000)}catch(e){}}addEventListener("load",function(){setTimeout(reheal,12000)})}catch(e){}})();`,
           }}
         />
       </head>
@@ -164,8 +184,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Analytics />
         <DisableSave />
         <AssetRecovery />
-        <ErrorBoundary>
+        {/* ErrorBoundary の外に置く。
+            data-hydrated="1" を立てているのはこの中の effect で、
+            <head> の見張りはそれを「JSが動いた」の合図にしている。
+            境界の中に入れていると、どこかのレンダーが投げた瞬間に
+            この effect ごと捨てられ、フラグが立たない。
+            利用者は「予期しないエラー」カードを読んでいるだけなのに、
+            12秒後に見張りが Service Worker を解除し Cache Storage を消して
+            強制リロードする（入力中のものは失われる）。 */}
         <ServiceWorkerRegister />
+        <ErrorBoundary>
         <ToastProvider>
           <LocaleProvider>
             <AuthProvider>

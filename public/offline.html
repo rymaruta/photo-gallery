@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>オフラインです | Journey Photo</title>
+<!--
+  Service Worker がオフライン時に出す受け皿。
+
+  **JavaScript を1行も使わない。** 以前は `/` の HTML を受け皿にしていたが、
+  Next のページは必ず /_next/static のチャンクを要求する。それらは実際に
+  一度取得したときしかキャッシュに入らないので、「検索から /photo/xxx に来て
+  ホーム画面に追加したが、トップページは一度も開いていない」端末では
+  **JS の揃わない HTML** が出る。すると React が動かず data-hydrated が付かず、
+  app/layout.tsx の水和ウォッチドッグが12秒後に **Cache Storage を全消しして
+  SW を解除** し、オフラインのまま再読込 → ブラウザのエラー画面。
+  オフライン機能ごと消える自壊コースだった。
+
+  この受け皿は素の HTML なので、水和もチャンクも要らない。
+-->
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #000; color: #fff; text-align: center; padding: 24px;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  }
+  h1 { font-size: 1.125rem; font-weight: 600; margin: 0 0 12px; }
+  p { font-size: 0.875rem; line-height: 1.7; color: rgba(255,255,255,.6); margin: 0 0 20px; }
+  a {
+    display: inline-block; padding: 12px 24px; min-height: 44px; box-sizing: border-box;
+    border-radius: 9999px; background: #fff; color: #000; font-size: 0.875rem;
+    font-weight: 600; text-decoration: none;
+  }
+</style>
+</head>
+<body>
+  <main>
+    <h1>オフラインです</h1>
+    <p>
+      通信が届いていません。<br>
+      一度開いたページは、そのまま開けることがあります。
+    </p>
+    <a href="/">トップページを開く</a>
+  </main>
+</body>
+</html>

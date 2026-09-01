@@ -1,11 +1,23 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import type { Locale } from "@/lib/data/photos";
+import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
+import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 
 type Props = {
     isOpen: boolean;
+    /**
+     * 閉じたときにフォーカスを戻す先（退会ボタン）。
+     *
+     * **省略可能にしない。** 既定（開いた瞬間の activeElement）だと、
+     * React が autoFocus をエフェクトより前に当てるせいで、控えられるのが
+     * このモーダル自身の入力欄になる——閉じるとフォーカスが body に落ちる。
+     * 省略できるままだと、次に足した呼び出し元が黙ってその状態に戻る。
+     */
+    openerRef: React.RefObject<HTMLButtonElement | null>;
     onClose: () => void;
     onConfirm: () => void;
     locale: Locale;
@@ -20,14 +32,38 @@ export default function DeleteAccountModal({ isOpen, ...rest }: Props) {
     return <DeleteAccountModalInner {...rest} />;
 }
 
-function DeleteAccountModalInner({ onClose, onConfirm, locale, deleting }: Omit<Props, "isOpen">) {
+function DeleteAccountModalInner({ onClose, onConfirm, locale, deleting, openerRef }: Omit<Props, "isOpen">) {
     const CONFIRM_WORD = locale === "en" ? "DELETE" : "退会";
     const [typed, setTyped] = useState("");
+
+    // 退会処理中は閉じさせない（オーバーレイのクリックと同じ扱い）。
+    // Inner は isOpen が真のときだけ描かれるので、ここは無条件でよい
+    useEscapeKey(!deleting, onClose);
+    // 裏側はプロフィール編集フォーム（保存ボタンがある）
+    const dialogRef = useRef<HTMLDivElement | null>(null);
+    // **戻り先は親から受け取る。** 既定（開いた瞬間の activeElement）だと、
+    // React は autoFocus をエフェクトより前に当てるので、控えられるのは
+    // **このモーダルの中の入力欄**。閉じるとその要素ごと消えてフォーカスが
+    // body に落ちる——docstring が「戻さないと body に落ちる」と書いている
+    // 状態が、戻しているつもりで起きていた。
+    useFocusTrap(true, dialogRef, openerRef);
+    // 背景を止める（`DeleteConfirmModal` と同じ理由）。Inner は開いている
+    // ときだけ描かれるので、マウントと同時に掛けてよい
+    useEffect(() => {
+        lockBodyScroll();
+        return () => unlockBodyScroll();
+    }, []);
 
     const canDelete = typed.trim() === CONFIRM_WORD && !deleting;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div
+            ref={dialogRef}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label={locale === "en" ? "Delete your account?" : "本当に退会しますか？"}
+        >
             {/* オーバーレイ */}
             <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"

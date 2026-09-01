@@ -3,9 +3,12 @@ import {
     slugify,
     collectEntries,
     photosInCollection,
+    isIndexableCollection,
     labelForSlug,
     collectionPath,
+    canonicalCollectionPath,
     collectionCopy,
+    CATEGORY_ALIASES,
     relatedEntries,
 } from "../collections";
 import type { Photo } from "../../data/photos";
@@ -88,6 +91,39 @@ describe("photosInCollection", () => {
     it("該当なしは空配列", () => {
         expect(photosInCollection(photos, "tag", "存在しない")).toEqual([]);
     });
+
+    // **ホームと同じ順で返す。** 以前はここで並べ替えておらず、入力配列の順
+    // （`photos.json` ＝ `createdAt` 降順）がそのまま出ていた。ホームは
+    // `date || createdAt` で並べるので、**同じ絞り込みでも `/tag/風景` と
+    // `/?tags=風景` で順が違う**（実データ30枚のうち28枚が別の位置に来る）。
+    // どちらも「新しい順」を名乗るので、利用者には理由が見えない。
+    describe("並び順", () => {
+        // 入力は createdAt 降順（photos.json の作り）。撮影日はその逆順に置く
+        const mixed: Photo[] = [
+            P({ id: "posted-last", tags: ["風景"], date: "2020-01-01", createdAt: "2026-03-03T00:00:00.000Z" }),
+            P({ id: "posted-mid", tags: ["風景"], createdAt: "2026-02-02T00:00:00.000Z" }),
+            P({ id: "posted-first", tags: ["風景"], date: "2026-12-31", createdAt: "2026-01-01T00:00:00.000Z" }),
+        ];
+
+        it("撮影日の新しい順で返す（投稿順のままにしない）", () => {
+            expect(photosInCollection(mixed, "tag", "風景").map((p) => p.id),
+                "入力配列の順（投稿順）がそのまま出ている")
+                .toEqual(["posted-first", "posted-mid", "posted-last"]);
+        });
+
+        it("撮影地の集約ページも同じ規則", () => {
+            const withLoc = mixed.map((p) => ({ ...p, location: "山中湖" }));
+            expect(photosInCollection(withLoc, "location", "山中湖").map((p) => p.id))
+                .toEqual(["posted-first", "posted-mid", "posted-last"]);
+        });
+
+        // 呼び出し側が渡す配列の作り方が変わっても、出る順は変わらない
+        it("入力配列の順に左右されない", () => {
+            const shuffled = [mixed[1], mixed[2], mixed[0]];
+            expect(photosInCollection(shuffled, "tag", "風景").map((p) => p.id))
+                .toEqual(["posted-first", "posted-mid", "posted-last"]);
+        });
+    });
 });
 
 describe("labelForSlug", () => {
@@ -135,5 +171,152 @@ describe("collectionCopy", () => {
         const l = collectionCopy("location", "山中湖", 2);
         expect(l.heading).toBe("山中湖の写真");
         expect(l.description).toContain("山中湖");
+    });
+});
+
+// `<title>` にサイト名が2回入っていた。実際の出力:
+//   「バルセロナの写真（1枚） | 旅フォトギャラリー | Journey Photo 旅フォトギャラリー」
+// app/layout.tsx の `template` が付けるので、ここでは付けない。
+// 検索結果で切られる位置に定型文が45〜60字並んでいた。
+describe("collectionCopy: タイトルにサイト名を足さない", () => {
+    it("サイト名は layout の template に任せる", () => {
+        const { title } = collectionCopy("location", "バルセロナ", 1);
+        expect(title).toBe("バルセロナの写真（1枚）");
+        expect(title).not.toContain("旅フォトギャラリー");
+        expect(title).not.toContain("Journey Photo");
+    });
+
+    it("枚数が無ければ枚数を出さない", () => {
+        expect(collectionCopy("tag", "海", 0).title).toBe("海の写真");
+    });
+});
+
+// カテゴリの別名表が2か所にあり、片方（i18n のラベルから作る表）に
+// 「建物」が無かった。トップの絞り込みでは「建築」と「建物」が別のチップ
+// として並ぶのに、/category/architecture は同じページにまとまる——
+// 同じ写真の集合が、見る場所で違って見えていた。表は collections.ts を正とする。
+describe("CATEGORY_ALIASES: 表記ゆれを1か所で吸収する", () => {
+    it("「建物」も「建築」も同じキーに寄る", () => {
+        expect(slugify("建物", "category")).toBe("architecture");
+        expect(slugify("建築", "category")).toBe("architecture");
+    });
+
+    it("別名表は外から使える（useGallery が同じ表を見るため）", () => {
+        expect(CATEGORY_ALIASES["建物"]).toBe("architecture");
+        expect(CATEGORY_ALIASES["風景"]).toBe("landscape");
+    });
+
+    it("カテゴリ以外の種別には別名を当てない", () => {
+        expect(slugify("建物", "tag")).toBe("建物");
+        expect(slugify("建物", "location")).toBe("建物");
+    });
+});
+
+// タグ・撮影地・カテゴリは自由入力で、そのまま `/tag/<値>` のパス片になる。
+// 写真サイトでは `F/2.8`・`24/70mm`・`白/黒`・`東京 / 渋谷`・`#旅` はごく普通。
+// サーバー側のサニタイズ（sanitizeText / sanitizeTags）は trim と長さしか
+// 見ないので、これらはそのまま保存される。
+describe("slugify: URL のパスに置けない文字", () => {
+    // 静的書き出しはファイル名を `旅行%2F2024.html` とエンコードして保存するが、
+    // 参照側は1回だけエンコードするので `/tag/…%2F2024` になる。S3 は
+    // リクエストパスを1回デコードしてキーにするため `tag/旅行/2024.html` を
+    // 探して**永久に当たらない**。サイトマップにも canonical にもその 404 が載る。
+    it.each([
+        ["旅行/2024", "旅行-2024"],
+        ["s\\p18", "s-p18"],
+        ["a?b", "a-b"],
+        ["x#y", "x-y"],
+        ["100%", "100"],
+        ["東京 / 渋谷", "東京-渋谷"],
+        ["F/2.8", "f-2.8"],
+    ])("%s → %s", (input, expected) => {
+        expect(slugify(input)).toBe(expected);
+    });
+
+    // `.` `..` はパス片としては「今のディレクトリ／親」。Next の静的書き出しが
+    // `/location/..` を `/` に解決して「Requested and resolved page mismatch」で
+    // **ビルドごと落ちる**。誰か1人が保存した瞬間から新しい写真も削除の反映も
+    // 一切出せなくなる（site-rebuild も同じビルドを通る）。
+    it.each(["..", ".", "...", " .. "])("%s は捨てる（ビルドを落とさせない）", (input) => {
+        expect(slugify(input)).toBe("");
+    });
+
+    it("捨てた値は集約エントリにも出てこない", () => {
+        const photos = [
+            { id: "p1", src: "s", tags: ["..", "旅行/2024"] },
+            { id: "p2", src: "s", tags: ["旅行/2024"] },
+        ] as unknown as Parameters<typeof collectEntries>[0];
+        const slugs = collectEntries(photos, "tag").map((e) => e.slug);
+        expect(slugs).toEqual(["旅行-2024"]);
+    });
+
+    // 既存のURLを変えないこと（実データ73値でスラッグが変わらないのを確認済み）
+    it("ふつうの値はこれまでどおり", () => {
+        expect(slugify("パリ, フランス")).toBe("パリ,-フランス");
+        expect(slugify("Mount Fuji")).toBe("mount-fuji");
+        expect(slugify("  夜景  ")).toBe("夜景");
+    });
+});
+
+// 生成側（photosInCollection / collectEntries）が完全一致、回遊リンク側
+// （related.ts の sameLocation）が部分一致で食い違っていた。
+// 症状: 写真ページの「「パリ」の他の写真」には3枚出るのに、そこから飛ぶ
+// `/location/パリ` は自分1枚しか無い。しかも実データ14件の撮影地は
+// **1つも MIN_INDEXABLE_COUNT(3) に届かず、14ページ全部が noindex・
+// サイトマップ0件**だった（SEO のために作ったランディングが検索に出ていない）。
+describe("撮影地の集約は related と同じ「緩い一致」で見る", () => {
+    const photos = [
+        { id: "p1", src: "s", location: "パリ" },
+        { id: "p2", src: "s", location: "パリ, フランス" },
+        { id: "p3", src: "s", location: "オペラ・ガルニエ（パリ）" },
+        { id: "p4", src: "s", location: "東京" },
+        { id: "p5", src: "s", location: "京都", published: false },   // 非公開は数えない
+    ] as unknown as Parameters<typeof collectEntries>[0];
+
+    it("入れ子の地名をまとめて拾う", () => {
+        const ids = photosInCollection(photos, "location", "パリ").map((p) => p.id);
+        expect(ids).toEqual(["p1", "p2", "p3"]);
+    });
+
+    it("件数も同じ数え方（見出しと実際の枚数がずれない）", () => {
+        const entries = collectEntries(photos, "location");
+        const paris = entries.find((e) => e.slug === "パリ");
+        expect(paris?.count).toBe(3);
+        // これで初めて検索エンジンに載せてよい枚数になる
+        expect(isIndexableCollection(paris!.count)).toBe(true);
+    });
+
+    it("関係ない地名は混ざらない", () => {
+        expect(photosInCollection(photos, "location", "東京").map((p) => p.id)).toEqual(["p4"]);
+    });
+
+    it("非公開は数にも一覧にも入らない", () => {
+        expect(photosInCollection(photos, "location", "京都")).toEqual([]);
+    });
+
+    // タグとカテゴリは離散的なラベルなので完全一致のまま
+    it("タグは部分一致にしない（「旅」で「旅行」を拾わない）", () => {
+        const tagged = [
+            { id: "t1", src: "s", tags: ["旅"] },
+            { id: "t2", src: "s", tags: ["旅行"] },
+        ] as unknown as Parameters<typeof collectEntries>[0];
+        expect(photosInCollection(tagged, "tag", "旅").map((p) => p.id)).toEqual(["t1"]);
+    });
+});
+
+// canonical と JSON-LD（ImageGallery の url・パンくず）が別々にURLを組んで
+// いて、旧カテゴリで食い違っていた: /category/風景 は canonical が
+// /category/landscape を指すのに、構造化データは /category/風景 を名乗る。
+// 「評価を統合後にまとめる」という目的に対して逆を言っていた。
+describe("canonicalCollectionPath: 旧カテゴリは統合後を指す", () => {
+    it("旧スラッグでも統合後のパスを返す", () => {
+        expect(canonicalCollectionPath("category", "風景")).toBe(
+            canonicalCollectionPath("category", "landscape"));
+        expect(canonicalCollectionPath("category", "風景")).toContain("/category/landscape");
+    });
+
+    it("タグ・撮影地はそのまま（統合の対象ではない）", () => {
+        expect(canonicalCollectionPath("tag", "夜景")).toBe(collectionPath("tag", "夜景"));
+        expect(canonicalCollectionPath("location", "パリ")).toBe(collectionPath("location", "パリ"));
     });
 });

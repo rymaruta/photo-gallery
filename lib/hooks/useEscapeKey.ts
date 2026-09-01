@@ -1,0 +1,31 @@
+"use client";
+
+import { useEffect } from "react";
+
+/**
+ * 開いている間だけ Escape を拾う。
+ *
+ * モーダルが5つあって、Escape で閉じられるのは
+ * `GalleryModal` / `StoryViewer` / `HeaderNav` / `FilterBar` だけだった。
+ * 残り（写真の削除確認・管理画面の削除確認・退会確認・QRコード）は
+ * **閉じる手段がマウス前提**で、キーボードだけの人は閉じるボタンまで
+ * Tab で辿るしかない。しかもフォーカスは押した要素に残ったままなので、
+ * オーバーレイの裏にあるボタンを先に通過する（`/user/edit` では
+ * その先が「保存する」で、Enter でそのまま実行できてしまう）。
+ *
+ * `capture` は使わない。入れ子（ビューアの中の確認シート）は
+ * **内側だけが有効になるように呼び出し側で `active` を切る**——
+ * StoryViewer が既にその形で、外側は `confirmDelete` の間は自分の
+ * Escape 処理を止めている。ここで capture を使うと、その順序を
+ * 呼び出し側から見えない所でひっくり返すことになる。
+ */
+export function useEscapeKey(active: boolean, onEscape: () => void): void {
+    useEffect(() => {
+        if (!active) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onEscape();
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [active, onEscape]);
+}

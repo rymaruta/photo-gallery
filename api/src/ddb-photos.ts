@@ -24,7 +24,14 @@ export async function listPhotos(): Promise<Photo[]> {
             // このテーブルには写真のほかに like#/go# マーカーや golist#/notifs# 文書が
             // 同居しており、それらには published が無いため published 条件だけでは素通りする。
             // 写真は必ず src を持つので attribute_exists(src) で写真だけに絞る。
-            FilterExpression: "(attribute_not_exists(published) OR published = :pub) AND attribute_exists(src)",
+            //
+            // ストーリーも除く。ストーリーは src と userId を持ち published:false で
+            // 保存されるので、何かの拍子に published:true になると
+            // （実際に PUT /photos/{id} から書けた）そのまま公開一覧に出て、
+            // photos.json に載り、静的ページとサイトマップの項目までできた。
+            // 24時間後の掃除は実体しか消さないので、壊れたページが残る。
+            // ハンドラ側でも弾いているが、ここでも保証する。
+            FilterExpression: "(attribute_not_exists(published) OR published = :pub) AND attribute_exists(src) AND attribute_not_exists(story)",
             ExpressionAttributeValues: { ":pub": true },
         }));
         items.push(...((res.Items ?? []) as Photo[]));
@@ -63,42 +70,74 @@ export async function getPhotoById(id: string): Promise<Photo | null> {
 }
 
 export async function putPhoto(photo: Photo): Promise<void> {
-    await ddb.send(new PutCommand({ TableName: TABLE, Item: photo }));
+    // 新規作成専用。条件を付けないと、同じIDの既存レコードを丸ごと置き換える。
+    // このテーブルには通知（notifs#...）やコメント（comments#...）も同居しているので、
+    // ID を指定できるだけで他人の通知を全部消せてしまう（元に戻せない）。
+    // 更新は updatePhotoFields を使うこと。
+    await ddb.send(new PutCommand({
+        TableName: TABLE,
+        Item: photo,
+        ConditionExpression: "attribute_not_exists(id)",
+    }));
 }
 
 export async function updatePhotoFields(id: string, updates: Record<string, unknown>): Promise<Photo | null> {
-    const setExprs = Object.keys(updates).map((k) => `#${k} = :${k}`).join(", ");
+    // undefined は「その項目を空にする」指定。SET に混ぜてはいけない。
+    //
+    // DocumentClient は removeUndefinedValues: true なので、
+    // ExpressionAttributeValues から :location ごと落ちる。式には
+    // `SET #location = :location` が残るため DynamoDB は ValidationException を
+    // 返し、ハンドラは 500 になる——つまり /admin/edit で撮影地や説明を
+    // 空にして保存すると、必ず「更新に失敗しました」になっていた。
+    // ユーザーAPI側（api-user/src/photoUpdate.ts）は REMOVE を組み立てている。
+    const sets: string[] = [];
+    const removes: string[] = [];
     const names: Record<string, string> = {};
     const values: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(updates)) {
         names[`#${k}`] = k;
-        values[`:${k}`] = v;
+        if (v === undefined || v === null) {
+            removes.push(`#${k}`);
+        } else {
+            sets.push(`#${k} = :${k}`);
+            values[`:${k}`] = v;
+        }
     }
+    if (sets.length === 0 && removes.length === 0) return getPhotoById(id);
+    let expr = sets.length ? `SET ${sets.join(", ")}` : "";
+    if (removes.length) expr += `${expr ? " " : ""}REMOVE ${removes.join(", ")}`;
     const res = await ddb.send(new UpdateCommand({
         TableName: TABLE,
         Key: { id },
-        UpdateExpression: `SET ${setExprs}`,
+        UpdateExpression: expr,
         ExpressionAttributeNames: names,
-        ExpressionAttributeValues: values,
+        ...(Object.keys(values).length ? { ExpressionAttributeValues: values } : {}),
         ConditionExpression: "attribute_exists(id)",
         ReturnValues: "ALL_NEW",
     }));
     return (res.Attributes as Photo | undefined) ?? null;
 }
 
+/**
+ * 写真そのものと、その写真にぶら下がる文書を消す。
+ *
+ * 以前は写真の item だけを消していた。コメントは写真ごとに
+ * `comments#<photoId>` という別文書に溜まっており、そちらが残るので、
+ * **写真を消してもコメント本文・投稿者名・投稿者IDが誰でも読めるまま**
+ * だった（一覧APIは公開で、写真の存在確認もしていない）。
+ * 「不適切なコメントが付いたので写真を消してほしい」に応えられていない。
+ *
+ * いいねマーカー（like#<photoId>#<uid>）は per-photo に引く手段が無く、
+ * 全件 Scan が要るので今回は対象外。中身を持たないので実害は軽い。
+ */
 export async function deletePhotoById(id: string): Promise<void> {
     await ddb.send(new DeleteCommand({ TableName: TABLE, Key: { id } }));
-}
-
-export async function countUserPhotos(userId: string): Promise<number> {
-    const res = await ddb.send(new QueryCommand({
-        TableName: TABLE,
-        IndexName: USER_INDEX,
-        KeyConditionExpression: "userId = :uid",
-        ExpressionAttributeValues: { ":uid": userId },
-        Select: "COUNT",
-    }));
-    return res.Count ?? 0;
+    try {
+        await ddb.send(new DeleteCommand({ TableName: TABLE, Key: { id: `comments#${id}` } }));
+    } catch (e) {
+        // 写真本体は消えているので、ここで失敗しても全体は失敗にしない
+        console.error(`deletePhotoById: comments#${id} の削除に失敗:`, e);
+    }
 }
 
 export async function listPhotosByUser(userId: string): Promise<Photo[]> {
@@ -109,7 +148,8 @@ export async function listPhotosByUser(userId: string): Promise<Photo[]> {
             TableName: TABLE,
             IndexName: USER_INDEX,
             KeyConditionExpression: "userId = :uid",
-            FilterExpression: "(attribute_not_exists(published) OR published = :pub) AND attribute_exists(src)",
+            // listPhotos と同じ条件。ストーリーもここから出さない
+            FilterExpression: "(attribute_not_exists(published) OR published = :pub) AND attribute_exists(src) AND attribute_not_exists(story)",
             ExpressionAttributeValues: { ":uid": userId, ":pub": true },
             ExclusiveStartKey: lastKey,
         }));

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
-import { getConfig } from "../../../../lib/aws/secrets";
+import { getConfig, isAuthorizedApiKey } from "../../../../lib/aws/secrets";
 
 // 静的エクスポートではAPI Routesは生成されない（本番環境ではAPI Gateway + Lambdaを使用）
 
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
 
         // 認証チェック
         const apiKey = request.headers.get("x-api-key");
-        if (apiKey !== config.uploadApiKey) {
+        if (!isAuthorizedApiKey(apiKey, config.uploadApiKey)) {
             return NextResponse.json(
                 { error: "認証に失敗しました" },
                 { status: 401 }

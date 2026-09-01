@@ -3,12 +3,37 @@
 // 退会（account.ts）とストーリー削除（stories.ts）で同じ列挙が要る。
 // 片方だけ直すと、もう片方に消し残しが出る。定義は1か所にする。
 
-/** URL もしくは生キーから uploads/ 配下の S3 オブジェクトキーを導出する（それ以外は空文字） */
+/**
+ * URL もしくは生キーから uploads/ 配下の S3 オブジェクトキーを導出する（それ以外は空文字）。
+ *
+ * パスは**デコードしてから**判定する。保存時の検証（uploadPolicy.isOwnUploadUrl）は
+ * デコードして見ているのに、ここが生のままだったため、両者の判断が食い違っていた:
+ *   https://cdn/up%6Coads/<uid>/x.jpg
+ *     → 検証側: デコードすると /uploads/... なので「自分の領域」＝保存OK
+ *     → 削除側: "up%6Coads/..." は uploads/ で始まらない＝削除対象から外れる
+ * CloudFront と S3 は %6C をデコードして解決するので画像は普通に表示される。
+ * つまり「写真を消しても、退会しても、実体だけ公開URLに残り続ける」状態を
+ * 自分で作れた。消えたと表示され、成功も返るのに残る——一番まずい壊れ方。
+ */
 export function deriveUploadKey(v: unknown): string {
     if (typeof v !== "string" || !v) return "";
-    if (v.startsWith("uploads/")) return v;
+    const decodeOnce = (s: string) => { try { return decodeURIComponent(s); } catch { return s; } };
+    if (v.startsWith("uploads/")) {
+        // docstring の「`..` を含むキーは扱わない」は URL 経路にしか
+        // 入っておらず、生キーだけ素通りだった（テストまで逆の挙動を
+        // 固定していた）。今の保存経路では `..` 入りのキーは作れないが、
+        // 判定を経路で分けない。
+        // ※結果は経路で違いうる: URL 経路は new URL がドットセグメントを
+        //   **畳んでから**判定する（%2E%2E → 解決済みパスで通る）が、
+        //   生キーには畳む主体がいないので **拒否**になる。どちらも安全側。
+        const key = decodeOnce(v);
+        return key.includes("..") ? "" : key;
+    }
     try {
-        const path = new URL(v).pathname.replace(/^\//, "");
+        const path = decodeOnce(new URL(v).pathname).replace(/^\//, "");
+        // ".." を含むキーは扱わない（S3 のキーとしては正当だが、
+        // 意図せず別の場所を指す形になっていないかを確かめる術が無い）
+        if (path.includes("..")) return "";
         if (path.startsWith("uploads/")) return path;
     } catch { /* URL でなければ無視 */ }
     return "";

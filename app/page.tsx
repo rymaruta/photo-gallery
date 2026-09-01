@@ -1,38 +1,35 @@
 import type { Metadata } from "next";
 import { siteConfig, generateStructuredData, generateOrganizationStructuredData } from "../lib/utils/seo";
-import { loadAllPhotos } from "../lib/server/photos";
+import { loadAllPhotos, resolveOgImage } from "../lib/server/photos";
 import GalleryPageClient from "./GalleryPageClient";
 
-export const metadata: Metadata = {
-    title: siteConfig.name,
-    description: siteConfig.description,
-    keywords: [
-        "旅行写真", "旅フォト", "旅の写真", "旅行記", "フォトギャラリー",
-        "風景写真", "スナップ写真", "海外旅行", "国内旅行",
-        "travel photography", "photo gallery", "journey", "landscape",
-    ],
-    alternates: {
-        canonical: siteConfig.url,
-    },
-    openGraph: {
-        type: "website",
-        locale: "ja_JP",
-        url: siteConfig.url,
-        siteName: siteConfig.name,
+// OGP 画像はビルド時に決める（ルートと同じ理由——既定の
+// `/images/og-image.jpg` は存在しないファイルだった）。
+export async function generateMetadata(): Promise<Metadata> {
+    const ogImage = await resolveOgImage(siteConfig.url);
+    return {
         title: siteConfig.name,
         description: siteConfig.description,
-        images: [
-            {
-                url: siteConfig.ogImage.startsWith("http")
-                    ? siteConfig.ogImage
-                    : `${siteConfig.url}${siteConfig.ogImage}`,
-                width: 1200,
-                height: 630,
-                alt: siteConfig.name,
-            },
+        keywords: [
+            "旅行写真", "旅フォト", "旅の写真", "旅行記", "フォトギャラリー",
+            "風景写真", "スナップ写真", "海外旅行", "国内旅行",
+            "travel photography", "photo gallery", "journey", "landscape",
         ],
-    },
-};
+        alternates: {
+            canonical: siteConfig.url,
+        },
+        openGraph: {
+            type: "website",
+            locale: "ja_JP",
+            url: siteConfig.url,
+            siteName: siteConfig.name,
+            title: siteConfig.name,
+            description: siteConfig.description,
+            // 寸法は申告しない（実際の写真で縦横比はまちまち）
+            images: [{ url: ogImage, alt: siteConfig.name }],
+        },
+    };
+}
 
 export default async function Page() {
     // 実データはビルド時に生成される app/data/photos.json 側にある。

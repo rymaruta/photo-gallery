@@ -26,7 +26,7 @@
  */
 
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
-const { DynamoDBDocumentClient, ScanCommand } = require("@aws-sdk/lib-dynamodb");
+const { DynamoDBDocumentClient, ScanCommand, UpdateCommand, GetCommand } = require("@aws-sdk/lib-dynamodb");
 const fs = require("fs");
 const path = require("path");
 const { requireEnv } = require("./lib/env");
@@ -83,6 +83,51 @@ function checkWriteSafety(nextCount, prevCount, { allowEmpty = ALLOW_EMPTY } = {
     return { ok: true, reason: "" };
 }
 
+/**
+ * 公開してはいけない項目。
+ *
+ * photos.json はビルドの入力であり、そのまま
+ *   - クライアントのJSバンドル（lib/routes.ts が丸ごと import している）
+ *   - 各ページの静的HTML
+ * に展開される。つまりここに残った値は全員に配られる。
+ *
+ * - srcOriginal … EXIF を落とす**前**の原本のURL。GPS が入ったまま。
+ *   撮影日のバックフィル（scripts/generate-thumbnails.js）は DynamoDB を
+ *   直接読むので、photos.json から落としても支障は無い。
+ * - key … S3 のオブジェクトキー。バケット構造を公開する理由が無い。
+ */
+// `staticStale` は「静的ページの掃除が届いていない」という内部の印。
+// 付くのは非公開の写真だけなので普段は載らないが、再公開の順序次第で
+// 残りうる。公開する JSON に内部の事情を出さない
+// 公開JSONに載せない項目。
+//
+// `commentCount` は**秘密ではなく、古くなる数**。定期ビルドを止めている今、
+// ビルド時の値が静的HTMLに焼かれ、以後どれだけ増えてもそのまま出続ける。
+// 読み手（モーダルのキャプション・写真ページのコメント欄）はどちらも
+// 「0 なら描かない」形なので、載せなければ **APIが答えるまで数字を
+// 出さない**（＝間違った数を出さない）になる。
+//
+// **`likes` は落とさない（訂正）。** 同じ理由で一度落としたが、読み手を
+// 数え違えていた。`likes` には「0 なら描かない」で済まない使い手が2つある:
+//
+//   1. `lib/hooks/useGallery.ts` の「人気順」——`(b.likes ?? 0) - (a.likes ?? 0)`。
+//      無ければ全部 0 同士で**黙って並べ替えが効かなくなる**。しかも
+//      `/photos` が落ちた回は `usePhotos` が差し替えないので**永久に**。
+//      利用者からは「人気順を選んだのに新着順のような並び」としか見えない。
+//   2. `app/users/UserProfileClient.tsx` の「いいね」ピル——ガード無しで
+//      `totalLikes` を描く。プロフィールは静的生成されるので、
+//      **全員のHTMLが「いいね 0」と言い切る**（クローラが見るのはこれ）。
+//      古い数から「確実に嘘の 0」への入れ替えになる。
+//
+// 落とすなら、この2つを「未取得」と「0」で分けてからにすること。
+const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "commentCount"];
+
+function stripPrivateFields(item) {
+    const out = { ...item };
+    for (const f of PRIVATE_FIELDS) delete out[f];
+    return out;
+}
+
 async function scan() {
     const client = new DynamoDBClient({ region: REGION });
     const ddb = DynamoDBDocumentClient.from(client, {
@@ -107,8 +152,95 @@ async function scan() {
     // テーブルには like#/go# マーカーや golist#/notifs# 文書が同居しているため、
     // src を持つ item（=写真）だけを photos.json に出す（プライバシー保護）。
     return items
-        .filter(item => item.src && item.published !== false)
+        .filter(item => item.src && item.published !== false && item.story !== true)
+        .map(stripPrivateFields)
         .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+}
+
+/**
+ * 再ビルドの「直近に依頼済み」印を下ろす。
+ *
+ * Lambda 側（api-user/src/rebuild.ts）は、編集による依頼を10分間畳んでいる。
+ * 畳まれた依頼は後から実行されないので、そのまま放っておくと
+ * 「12:00:00 に誰かが編集してビルドが始まり、12:00:20 に別の人が
+ * 説明に書いた電話番号を消して保存」した分が、次に誰かが編集するまで
+ * 静的HTMLに残り続ける（定期ビルドは止めてある）。
+ *
+ * このビルドはたった今テーブルを読んだので、ここまでの編集は反映される。
+ * 印を下ろしておけば、これ以降の編集はすぐ次のビルドを起こせる
+ * ——畳まれる窓が「10分」から「読み終わるまで」に縮む。
+ *
+ * 権限が無い環境（デプロイ用ロールが読み取りのみ）では警告1行で通す。
+ * 失敗してもビルドは正しい。畳まれる窓が今までどおり10分に戻るだけ。
+ */
+
+/**
+ * 直近に同期できた写真の件数を控える文書のID。
+ *
+ * 単一テーブルの他の管理用文書（rebuild#lock）と同じ扱い。
+ * `src` を持たないので photos.json には出ない（下の絞り込みで落ちる）。
+ */
+const SYNC_STATS_ID = "syncstats#photos";
+
+/**
+ * 「急に減った」の比較先。
+ *
+ * 以前は git にコミットされている app/data/photos.json の件数と比べていた。
+ * CI はこのファイルを毎回作り直すがコミットはしないので、**比較先は
+ * 最後に手でコミットした30件のまま固定**だった。本番が120枚に育ったあと
+ * 50件しか取れなくても `50 >= 30 * 0.5` で通ってしまう。
+ * 「半分にはできない」と読めて、実際は「15件を下回れない」でしかなかった。
+ *
+ * 前回うまくいった件数をテーブルに控えて、それと比べる。
+ * 読めなければ null を返し、呼び出し側が従来どおりファイルの件数に落とす
+ * （初回や権限が無い環境で、守りが強くなりすぎて止まらないように）。
+ */
+async function readLastSyncedCount(ddb) {
+    try {
+        const res = await ddb.send(new GetCommand({ TableName: TABLE, Key: { id: SYNC_STATS_ID } }));
+        const n = res.Item?.count;
+        return typeof n === "number" && Number.isFinite(n) && n >= 0 ? n : null;
+    } catch (err) {
+        console.warn(`[sync] 前回の件数を読めませんでした（ファイルの件数と比べます）: ${err.message ?? err}`);
+        return null;
+    }
+}
+
+/** 書き込みが通ったあとに控えを更新する。失敗しても本体は成功扱い */
+async function writeLastSyncedCount(ddb, count) {
+    try {
+        await ddb.send(new UpdateCommand({
+            TableName: TABLE,
+            Key: { id: SYNC_STATS_ID },
+            // **属性名は両方とも逃がす。** `count` だけでなく `at` も
+            // DynamoDB の予約語で、裸で書くと毎回 ValidationException になる。
+            // この関数は失敗を warn で握るので、ビルドは緑のまま通り、
+            // 「syncstats#photos の行が一度も作られない」→ readLastSyncedCount が
+            // 毎回 null → 比較先が**コミット済みの photos.json（30件）に固定**
+            // されていた。つまり「半減したら止める」の基準が 15 件のままで、
+            // このファイルのコメントが直したと書いている状態そのものだった。
+            UpdateExpression: "SET #c = :c, #at = :at",
+            ExpressionAttributeNames: { "#c": "count", "#at": "at" },
+            ExpressionAttributeValues: { ":c": count, ":at": new Date().toISOString() },
+        }));
+    } catch (err) {
+        console.warn(`[sync] 件数の控えを更新できませんでした（続行）: ${err.message ?? err}`);
+    }
+}
+
+async function clearRebuildLock() {
+    try {
+        const client = new DynamoDBClient({ region: REGION });
+        const ddb = DynamoDBDocumentClient.from(client);
+        await ddb.send(new UpdateCommand({
+            TableName: TABLE,
+            Key: { id: "rebuild#lock" },
+            UpdateExpression: "REMOVE lastAt",
+        }));
+        console.log("[sync] 再ビルドの畳み込み印を下ろしました（rebuild#lock）");
+    } catch (err) {
+        console.warn(`[sync] rebuild#lock を下ろせませんでした（続行）: ${err.message ?? err}`);
+    }
 }
 
 async function main() {
@@ -134,7 +266,12 @@ async function main() {
         return;
     }
 
-    const prev = existingCount(OUTPUT);
+    // 比較先は「前回うまくいった件数」。読めなければファイルの件数に落とす。
+    const client = new DynamoDBClient({ region: REGION });
+    const ddb = DynamoDBDocumentClient.from(client);
+    const lastSynced = await readLastSyncedCount(ddb);
+    const prev = lastSynced ?? existingCount(OUTPUT);
+    console.log(`[sync] 比較先: ${lastSynced !== null ? `前回の同期 ${lastSynced}件` : `ファイルの ${prev}件`}`);
     const safety = checkWriteSafety(photos.length, prev);
     if (!safety.ok) {
         console.error(`\n[sync] 書き込みを中止しました: ${safety.reason}`);
@@ -145,6 +282,9 @@ async function main() {
 
     fs.writeFileSync(OUTPUT, JSON.stringify(photos, null, 2) + "\n", "utf-8");
     console.log(`[sync] ${OUTPUT} に書き込みました`);
+
+    await writeLastSyncedCount(ddb, photos.length);
+    await clearRebuildLock();
 }
 
 if (require.main === module) {
@@ -154,4 +294,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { checkWriteSafety, existingCount };
+module.exports = { checkWriteSafety, existingCount, readLastSyncedCount, writeLastSyncedCount, SYNC_STATS_ID, stripPrivateFields, PRIVATE_FIELDS };

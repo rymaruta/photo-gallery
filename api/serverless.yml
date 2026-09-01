@@ -16,6 +16,12 @@ provider:
   environment:
     PHOTOS_TABLE: ${param:photosTable}
     USERS_TABLE: ${param:usersTable}
+    # 再ビルド依頼の設定（REBUILD_*）はここには置かない。**GitHub の書き込み
+    # トークンなので、provider に置くと全関数の環境変数に入る**（IAM-2）。
+    # 実際に頼むのは api-user で3つ・api で2つだけなので、その関数にだけ配る。
+    # 環境変数は `lambda:GetFunctionConfiguration`（読み取り権）で誰でも読めて、
+    # そこからリポジトリへの書き込み → デプロイ鍵、と輪が閉じる。
+    # 未認証で呼べる口にまで配る理由は無い。
     UPLOAD_BUCKET: ${param:uploadBucket}
     CLOUDFRONT_URL: ${param:cloudfrontUrl}
 
@@ -50,12 +56,15 @@ provider:
             - dynamodb:PutItem
           Resource:
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable}
-        # アップロード画像の管理（Presigned URL 発行・削除）
+        # アップロード画像の管理（Presigned URL 発行・削除）。
+        # uploads/ 配下に限る。バケット全体を許すと profiles/*（他人のアイコン）
+        # まで届き、ハンドラ側の uploads/ チェック1か所が唯一の防波堤になる。
+        # api-user 側は最初からこの粒度で切ってある。
         - Effect: Allow
           Action:
             - s3:PutObject
             - s3:DeleteObject
-          Resource: arn:aws:s3:::${param:uploadBucket}/*
+          Resource: arn:aws:s3:::${param:uploadBucket}/uploads/*
         # PostConfirmation トリガー: 確認済みユーザーを user グループへ追加
         - Effect: Allow
           Action:
@@ -75,6 +84,8 @@ custom:
 functions:
   getPhotos:
     handler: src/photos.getPhotos
+    # 未認証で呼べる口。既定の共有ロール（削除・Cognito つき）ではなく読み取り専用へ
+    role: PublicReadRole
     events:
       - httpApi:
           path: /photos
@@ -82,6 +93,8 @@ functions:
 
   getPhoto:
     handler: src/photos.getPhoto
+    # 未認証で呼べる口。既定の共有ロール（削除・Cognito つき）ではなく読み取り専用へ
+    role: PublicReadRole
     events:
       - httpApi:
           path: /photos/{id}
@@ -98,7 +111,16 @@ functions:
             name: cognitoAuthorizer
 
   updatePhoto:
+    # ここも再ビルドを頼む（api/src/photosMutate.ts の updatePhoto）。
+    # 既定の6秒のままだと、GitHub が黙っているときに**編集は保存済みなのに
+    # 500 が返る**。しかも殺されると印と予算の解放に到達しない。
+    timeout: 15
     handler: src/photosMutate.updatePhoto
+    environment:
+      # 再ビルド依頼はこの関数から出す（provider には置かない。IAM-2）
+      REBUILD_REPO: ${param:rebuildRepo, ''}
+      REBUILD_DISPATCH_TOKEN: ${param:rebuildToken, ''}
+      REBUILD_MONTHLY_MAX: ${param:rebuildMonthlyMax, ''}
     events:
       - httpApi:
           path: /photos/{id}
@@ -107,7 +129,17 @@ functions:
             name: cognitoAuthorizer
 
   deletePhoto:
+    # 実体を消したあとに静的サイトの再ビルドを頼む（外部への HTTP）。
+    # 既定の6秒だと、GitHub が遅いだけで**データはもう消えているのに
+    # 500 が返る**（押し直すと今度は 404）。Lambda は実際に使った時間
+    # だけ課金されるので、広げても普段の費用は変わらない。
+    timeout: 15
     handler: src/photosMutate.deletePhoto
+    environment:
+      # 再ビルド依頼はこの関数から出す（provider には置かない。IAM-2）
+      REBUILD_REPO: ${param:rebuildRepo, ''}
+      REBUILD_DISPATCH_TOKEN: ${param:rebuildToken, ''}
+      REBUILD_MONTHLY_MAX: ${param:rebuildMonthlyMax, ''}
     events:
       - httpApi:
           path: /photos/{id}
@@ -142,3 +174,54 @@ functions:
           pool: ${param:cognitoPoolName}
           trigger: PostConfirmation
           existing: true
+
+# ---------------------------------------------------------------------------
+# 未認証で呼べる2つの口だけ、専用の最小ロールに分ける（IAM-1。api-user 側と対）
+#
+# 既定では **サービス内の全関数が1つのロールを共有する**ので、認可を一度も
+# 通らない `getPhotos` / `getPhoto` が、写真テーブルの `PutItem`/`DeleteItem`、
+# `uploads/*` の `s3:PutObject`/`DeleteObject`、そして
+# `cognito-idp:AdminAddUserToGroup` まで持っていた。最後のものは
+# PostConfirmation トリガー専用で、**IAM は GroupName を制限できない**
+# （ハンドラ側が `user` 固定にしているのが唯一の歯止め）。
+#
+# この2つが実際に叩くのは読み取りだけ:
+#   getPhotos  listPhotos（Scan）/ listPhotosByUser（索引の Query）
+#   getPhoto   getPhotoById（GetItem）
+#
+# 書き込みは1つも無い。users テーブル・S3・Cognito にも触らない。
+resources:
+  Resources:
+    PublicReadRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:service}-${sls:stage}-${aws:region}-publicRead
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: publicRead
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                # ログ。これが無いと失敗の理由がどこにも残らない
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${sls:stage}*:*
+                - Effect: Allow
+                  Action:
+                    - dynamodb:GetItem
+                    - dynamodb:Query
+                    # 公開一覧は全表 Scan（写真以外も同居しているので
+                    # 絞り込みは読んだあとに効く）。GSI に移すまではこのまま
+                    - dynamodb:Scan
+                  Resource:
+                    - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}
+                    - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}/index/*

@@ -18,7 +18,8 @@ const { requireEnv } = require("./lib/env");
 const REGION = "ap-northeast-1";
 const PHOTOS_TABLE = requireEnv("PHOTOS_TABLE");
 const USERS_TABLE = requireEnv("USERS_TABLE");
-const SITE_URL = (process.env.SITE_URL || "https://journey-photo.com").replace(/\/$/, "");
+// 本番URLへのフォールバックは置かない（CLAUDE.md）。ワークフローが環境ごとの値を渡す
+const SITE_URL = requireEnv("SITE_URL").replace(/\/$/, "");
 // 対象ユーザーの userId。必須。
 const OWNER_ID = (process.env.OWNER_USER_ID || "").trim();
 

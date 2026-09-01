@@ -84,6 +84,8 @@ export function timeAgo(iso: string, locale: "ja" | "en", now: number = Date.now
 
 // 既読管理（localStorage）。期限切れ分は掃除する。
 const SEEN_KEY = "jp_seen_stories";
+/** 既読記録の置き場（別タブの変更を拾う側が参照する） */
+export const SEEN_STORAGE_KEY = SEEN_KEY;
 
 export function loadSeenStoryIds(): Set<string> {
     try {
@@ -114,6 +116,17 @@ export function markStorySeen(id: string): void {
     } catch {
         /* ignore */
     }
+}
+
+/**
+ * 既読記録を全部消す。ログアウト・退会で呼ぶ（キーがユーザーで
+ * 分かれていないため、次にログインした別の人に前の人の既読リングが
+ * 付いて見え、未読の見逃しを生む）。
+ */
+export function clearSeenStories(): void {
+    try {
+        localStorage.removeItem(SEEN_KEY);
+    } catch { /* ignore */ }
 }
 
 export function hasUnseen(group: StoryGroup, seen: Set<string>): boolean {

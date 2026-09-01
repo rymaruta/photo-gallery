@@ -4,13 +4,26 @@ name: Generate Thumbnails (migration)
 # thumbSrc を持たない写真の S3 元画像から 512px WebP を生成して保存し、
 # DynamoDB に thumbSrc を書き込む。冪等なので何度実行しても安全。
 # 実行後はサイトの再ビルド（Deploy to Production）で photos.json に反映される。
+# **`GITHUB_TOKEN` に何も渡さない（IAM-3）。**
+# どのワークフローも `actions/checkout` 以外でトークンを使っていないのに、
+# 既定の権限（リポジトリ設定次第では contents: write まで）が渡っていた。
+# checkout に要るのは読み取りだけ。**渡していない権限は漏らせない**。
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "1 で対象一覧の確認のみ（生成しない）"
-        required: false
-        default: "0"
+        # 自由入力だと `=== "1"` の比較を外れた値（"true" など）が
+        # **本番に書く側**に落ちる。選ぶだけにして取り違えを無くす。
+        description: "対象一覧の確認のみにするか"
+        type: choice
+        options:
+          - "1"   # 確認のみ（既定）
+          - "0"   # 実際に生成して DynamoDB に書く
+        required: true
+        default: "1"
 
 # 画像処理が重なると S3 への書き込みが競合するため同時実行しない。
 concurrency:
@@ -25,6 +38,12 @@ env:
   USERS_TABLE: prod-photo-gallery-users
   UPLOAD_BUCKET: prod-journey-photo-upload
   CLOUDFRONT_URL: https://d1s3dwwzgxf5ni.cloudfront.net
+  # 保存する画像URLの土台は**配信に使うURL**。これを渡さないと CloudFront の
+  # 既定ドメインが DynamoDB に恒久保存され、同じ画像が2つのホスト名で配信されて
+  # サイトマップのインデックスが割れる（実測30件中11件がそうなっていた）。
+  # deploy.yml は渡している。手動の保守経路だけ抜けていると、後片付け
+  # （maintenance の normalize-image-urls）をしてもここを流すたびにまた割れる。
+  PUBLIC_BASE_URL: https://journey-photo.com
 
 jobs:
   generate:

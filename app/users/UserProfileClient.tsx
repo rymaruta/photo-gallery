@@ -20,7 +20,11 @@ import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../lib/utils/log";
 import { getCurrentSession } from "../../lib/auth/cognito";
 import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
-import { publicFetch, userFetch } from "../../lib/utils/api";
+import { publicFetch, userFetch, userPublicFetch, readApiError, AUTH_REQUIRED_MESSAGE } from "../../lib/utils/api";
+import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
+import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
+import { EN_MONTHS, splitStoredDate } from "../../lib/utils/photoDate";
+import { compareNewest, compareOldest, photoTimeKey } from "../../lib/utils/photoOrder";
 import { ROUTES } from "../../lib/routes";
 import UserAvatar from "../components/UserAvatar";
 import PHOTOS_JSON from "../data/photos.json";
@@ -68,22 +72,43 @@ const TAB_ORDER: TabKey[] = ["posts", "timeline"];
 type TimelineGroup = { key: string; year: string; label: string; photos: Photo[] };
 function buildTimeline(photos: Photo[], locale: "ja" | "en"): TimelineGroup[] {
     const withDate = photos
-        .map((p) => ({ p, t: Date.parse(String(p.date ?? p.createdAt ?? "")) }))
-        .filter((x) => !isNaN(x.t))
-        .sort((a, b) => b.t - a.t);
+        .map((p) => ({ p, raw: String(p.date || p.createdAt || "") }))
+        .filter((x) => splitStoredDate(x.raw) !== null || (!!x.raw && !isNaN(Date.parse(x.raw))))
+        // 並びは共通の比較関数（ホーム・集約ページ・写真ページの前後と同じ）。
+        // `Date.parse` の数値で並べていた頃は、EXIF 由来のゾーン無し
+        // `T` 形式がローカル時刻として読まれ、**並びが閲覧者のゾーンで
+        // 変わって**いた（lib/utils/photoOrder.ts に実測を書いた）。
+        .sort((a, b) => compareNewest(a.p, b.p));
     const map = new Map<string, TimelineGroup>();
-    for (const { p, t } of withDate) {
-        const d = new Date(t);
-        const y = d.getFullYear();
-        const m = d.getMonth() + 1;
+    for (const { p, raw } of withDate) {
+        // **書かれている成分をそのまま使う。** 撮影日は「その土地で撮った
+        // 時刻」で、閲覧者のゾーンに変換する値ではない（写真ページの表示
+        // ——`formatStoredDateTime`——も同じ立場）。`Date.parse` を通すと、
+        // ゾーン無しの `2024-11-01T07:30:00` は**ローカル時刻**として読まれ、
+        // JST では前日 22:30 UTC になる——**写真ページが「11月1日」と出す
+        // 写真が、年表では「10月」の見出しに入る**。
+        const parts = splitStoredDate(raw);
+        let y: number, m: number;
+        if (parts) {
+            y = parts.y;
+            m = parts.m;
+        } else {
+            // 想定外の形（`YYYY-MM-DD` で始まらない）は今までどおり。
+            // ここで落とすと、年表からその写真が黙って消える
+            const d = new Date(Date.parse(raw));
+            y = d.getUTCFullYear();
+            m = d.getUTCMonth() + 1;
+        }
         const key = `${y}-${m}`;
         if (!map.has(key)) {
             map.set(key, {
                 key,
                 year: String(y),
-                label: locale === "en"
-                    ? d.toLocaleDateString("en-US", { year: "numeric", month: "long" })
-                    : `${y}年${m}月`,
+                // 見出しも UTC で組む。グループ分けは UTC なのに英語ラベルだけ
+                // toLocaleDateString（ローカル時刻）だったので、UTC より西の
+                // 閲覧者には **キーが 2024-1 なのに見出しが "December 2023"**
+                // という食い違いが出ていた。
+                label: locale === "en" ? `${EN_MONTHS[m - 1]} ${y}` : `${y}年${m}月`,
                 photos: [],
             });
         }
@@ -171,9 +196,11 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                     className={`absolute top-1.5 left-1.5 p-1.5 rounded-full transition-colors z-10 ${
                         pinned
                             ? "bg-amber-400/90 text-black"
-                            : "bg-black/0 text-white/0 hover:bg-black/60 hover:text-white/80"
+                            : OWNER_CHIP_IDLE
                     }`}
                     title={pinned ? (locale === "en" ? "Unpin" : "ピン留め解除") : (locale === "en" ? "Pin to top" : "先頭にピン留め")}
+                    // `title` はタッチでは読めない（ツールチップが出ない）
+                    aria-label={pinned ? (locale === "en" ? "Unpin" : "ピン留め解除") : (locale === "en" ? "Pin to top" : "先頭にピン留め")}
                 >
                     {pinned ? <StarIcon className="w-4 h-4" /> : <StarIconOutline className="w-4 h-4" />}
                 </button>
@@ -190,9 +217,10 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                     className={`absolute top-1.5 right-1.5 p-1.5 rounded-full transition-colors z-10 ${
                         isHidden
                             ? "bg-black/80 text-white/80 hover:bg-black"
-                            : "bg-black/0 text-white/0 hover:bg-black/60 hover:text-white/80"
+                            : OWNER_CHIP_IDLE
                     }`}
                     title={isHidden ? (locale === "en" ? "Show" : "公開する") : (locale === "en" ? "Hide" : "非公開にする")}
+                    aria-label={isHidden ? (locale === "en" ? "Show" : "公開する") : (locale === "en" ? "Hide" : "非公開にする")}
                 >
                     <EyeSlashIcon className="w-4 h-4" />
                 </button>
@@ -205,8 +233,11 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                     className={`absolute bottom-1.5 right-1.5 p-1.5 rounded-full transition-colors z-10 ${
                         coverSelected
                             ? "bg-sky-400/90 text-black"
-                            : "bg-black/0 text-white/0 hover:bg-black/60 hover:text-white/80"
+                            : OWNER_CHIP_IDLE
                     }`}
+                    aria-label={coverSelected
+                        ? (locale === "en" ? "Cover (tap to reset)" : "カバー中（タップで自動に戻す）")
+                        : (locale === "en" ? "Use as cover" : "この写真をカバーにする")}
                     title={coverSelected
                         ? (locale === "en" ? "Cover (tap to reset)" : "カバー中（タップで自動に戻す）")
                         : (locale === "en" ? "Use as cover" : "この写真をカバーにする")}
@@ -225,6 +256,20 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
     );
 }
 
+/**
+ * オーナー専用の小さなボタン（ピン留め・非公開・カバー）の未選択時の見た目。
+ *
+ * **`hover:` だけだとタッチ端末では永久に透明。** Tailwind の `hover:` は
+ * `@media (hover: hover)` 付きで出力されるので、スマホではタップしても
+ * 現れない——**見えないボタンが写真の上（`z-10`）に乗っている**状態で、
+ * セルの隅を触ると気づかないまま非公開になる／ピンが外れる。
+ * ポインタで指せる端末では今までどおり hover で出し、そうでない端末
+ * （＝タッチ）では最初から薄く見せる。
+ */
+const OWNER_CHIP_IDLE =
+    "bg-black/0 text-white/0 hover:bg-black/60 hover:text-white/80"
+    + " [@media(hover:none)]:bg-black/45 [@media(hover:none)]:text-white/70";
+
 // 旅アルバムのカード。カバー写真 + タイトル + 期間/枚数/距離。タップで写真を展開。
 // オーナーは展開時に旅の名前を編集できる（カスタム名はプロフィールに保存され全員に見える）。
 // /users/<id>（静的生成・OGP付き）と /users?id=<id>（新規ユーザー向けフォールバック）の
@@ -241,28 +286,149 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [isOwner, setIsOwner] = useState(false);
     const [viewerAuthed, setViewerAuthed] = useState(false);
+    // 取得の失敗を無言にしない（SW-b9）。プロフィール（名前・自己紹介・
+    // BGM・ピン留め）が黙って出ないと「未設定の人」に見え、オーナーの
+    // 一覧が黙って公開分だけになると、非公開が消えたと誤解して目の
+    // アイコンを押し直し**本当に再公開してしまう**（下のコメント参照）。
+    const [loadError, setLoadError] = useState<"profile" | "ownPhotos" | "photos" | null>(null);
+    const [reloadKey, setReloadKey] = useState(0);
+
+    // ピン留めの保存に付ける通し番号（応答の追い越しを捨てる）。
+    // **ピン専用のつもりで使っている。** 進めるのは `saveProfilePatch` の
+    // 入口なので、この関数がピン以外の保存にも使われ始めたら
+    // （旅の名前・カバー・BGM の枠がこのファイルに残っている）、
+    // 「名前を1文字直したらピンの後追いが捨てられる」が生まれる。
+    // そのときは番号を分けること——**巻き戻し（失敗時の `setUserProfile(prev)`）も
+    // この番号に乗せた**ので、分けないまま他の項目を保存すると
+    // 「星が古い」で済まず、**保存できていない値が画面に残る**方に化ける。
+    // 先回りして分岐を足さないのは、呼び出し側が1つしか無い今は
+    // 「守っているつもりの死にコード」にしかならないため（このファイルは
+    // 同じ理由で一度そういう分岐を消している）。
+    const pinSeqRef = useRef(0);
+
+    /**
+     * 本人の行（`GET /user/profile`）からピンを採る。オーナーのときだけ呼ぶ。
+     *
+     * 公開プロフィール（`getPublicProfile`）は「今は見えない写真」の ID を
+     * 落として返す。本人がそれをそのまま使うと、非公開にした写真の星が
+     * 消えるのに**サーバーの枠は埋まったまま**——4枚目を留めようとすると
+     * 409「ピン留めは3枚までです」が出続け、解除ボタンは星の付いた写真に
+     * しか無いので画面から直せない。落とすのは訪問者に見せるときだけ。
+     *
+     * **保存が挟まったら捨てる。** ここが運ぶのは「投げた時点の姿」なので、
+     * 待っている間に星を押されると、押したあとの一覧を押す前の一覧で
+     * 上書きしてしまう。PUT の応答と同じ `pinSeqRef` で見分ける。
+     *
+     * **捨てたら取り直す。** 番号は保存の入口で進むので、その保存が
+     * 失敗して巻き戻ると「捨てたまま二度と当たらない」——公開ぶんの
+     * ピンで固定され、まさに直したかった状態に戻る。だから
+     * `saveProfilePatch` の失敗経路からここを呼び直す。
+     *
+     * 引けなかったときは公開ぶんのまま（星が少なく出る）。ここで一覧を
+     * 空にすると、写真一覧と同じ「消えたように見えて押し直す」を作る。
+     */
+    const loadOwnPins = useCallback((signal?: AbortSignal, authoritative = false) => {
+        const pinSeq = pinSeqRef.current;
+        void userFetch("/user/profile", signal ? { signal } : undefined)
+            .then((res) => (res.ok ? res.json().catch(() => null) : null))
+            .then((mineProfile: { userId?: unknown; pinnedPhotoIds?: unknown } | null) => {
+                if (signal?.aborted || pinSeq !== pinSeqRef.current) return;
+                const raw = mineProfile?.pinnedPhotoIds;
+                if (!Array.isArray(raw)) {
+                    // **キーが無い＝サーバーは0枚**（保存側は空になると
+                    // 項目ごと落とす）。ここの扱いは呼び出し元で変わる:
+                    //
+                    // - 読み込み時（`authoritative` でない）は触らない。
+                    //   公開ぶんは必ず保存ぶんの部分集合なので消しても得が無く、
+                    //   応答の形が想定外だったときに星を全部消す方が痛い。
+                    // - 失敗の後始末では**下ろす**。画面には見込みで付けた星が
+                    //   乗っていて、追い越された保存はもう巻き戻さないので、
+                    //   ここで下ろさないと**誰も下ろさない**（サーバーには
+                    //   無い星が残り、リロードするまで直らない）。
+                    //
+                    // ただし「読めた」ことは確かめる——`getMyProfile` は必ず
+                    // `userId` を返すので、それが無い 200 は profile ではない。
+                    if (!authoritative || typeof mineProfile?.userId !== "string") return;
+                }
+                const ownPins = (Array.isArray(raw) ? raw : []).filter((x): x is string => typeof x === "string");
+                // 公開プロフィールが読めていないときは触らない（その状態では
+                // この画面は保存そのものを断るので、星だけ戻しても押せない）
+                setUserProfile((p) => (p ? { ...p, pinnedPhotoIds: ownPins } : p));
+            })
+            .catch(() => {});
+    }, []);
 
     useEffect(() => {
         const controller = new AbortController();
+        // この回でプロフィールを取れたか（catch で「どこが落ちたか」を分ける）
+        let profileLoaded = false;
         const load = async () => {
             try {
-                const userApiBase = process.env.NEXT_PUBLIC_USER_API_BASE_URL ?? "";
+                // **ここだけ生の環境変数で URL を組み立てていた。**
+                // lib/utils/api.ts の getUserApiBaseUrl は、まさにこの問題
+                // （NEXT_PUBLIC_USE_LOCAL_API=true でも .env.local に残った
+                // 本番のユーザーAPIを叩く）を直すために作られている。
+                // 未設定なら `/profile/<id>` になり、静的サイトでは 404 →
+                // 下の `if (profileRes.ok)` が握り潰して、名前・自己紹介・
+                // BGM・ピン留めが**黙って全部出ない**。
                 const [profileRes, sessionResult] = await Promise.all([
-                    fetch(`${userApiBase}/profile/${encodeURIComponent(userId)}`, { signal: controller.signal }),
+                    userPublicFetch(`/profile/${encodeURIComponent(userId)}`, { signal: controller.signal }),
                     getCurrentSession(),
                 ]);
                 if (profileRes.ok) {
                     const prof = await profileRes.json() as UserProfile;
                     setUserProfile(prof);
+                    profileLoaded = true;
+                } else {
+                    // 名前・自己紹介・BGM・ピン留めが黙って全部出ない状態を
+                    // 「未設定」と見分けられるようにする
+                    setLoadError("profile");
                 }
                 if (sessionResult) setViewerAuthed(true);
                 const isCurrentUserOwner = !!sessionResult &&
                     (sessionResult.getIdToken().payload["sub"] as string | undefined) === userId;
                 if (isCurrentUserOwner) setIsOwner(true);
 
-                // API から最新の写真を取得。オーナーも取得することで、アップロードや
-                // 場所の修正がビルドを待たずに足あと・地名へ即反映される。
-                // オーナーは API に無いビルド時JSONの写真（非公開など）を残してマージする。
+                // 自分のプロフィールは認証済みの一覧を「正」にする。
+                //
+                // 以前は公開一覧（published = true だけ）に、ビルド時JSONの
+                // 残りをマージしていた。photos.json の写真は全部 published: true
+                // なので、非公開にした写真も削除した写真も「公開中」の姿で
+                // 復活していた。非公開バッジも出ないので本人には見分けが付かず、
+                // もう一度目のアイコンを押すと今度は本当に再公開してしまう。
+                if (isCurrentUserOwner) {
+                    // **自分のピンは自分の行から採る**（詳しくは loadOwnPins）。
+                    // **一覧をこれに待たせない。** `Promise.all` で束ねると、
+                    // 星のためだけの取得が写真一覧の描画を人質に取る
+                    // ——その間ビルド時 JSON（全件 published:true）のままなので、
+                    // 非公開バッジが出ず、本人が目のアイコンを押して**本当に
+                    // 再公開する**窓が開く。星は後から当てれば足りる。
+                    loadOwnPins(controller.signal);
+                    const mineRes = await userFetch("/user/photos", { signal: controller.signal });
+                    if (mineRes.ok) {
+                        const mine = await mineRes.json() as unknown;
+                        if (Array.isArray(mine)) {
+                            setPhotos(mine as Photo[]);
+                            return; // 公開一覧は見ない（下書き・非公開まで含む正）
+                        }
+                    }
+                    // **公開一覧で代用しない。** 代用すると非公開・下書きが
+                    // 黙って消えて見え、「消えた」と誤解した本人が目のアイコンを
+                    // 押し直して**本当に再公開する**誘導になる（この画面の
+                    // マージ事故コメントと同じ轍）。失敗は失敗と伝える
+                    // **一覧そのものを出さない。** 以前は公開一覧で代用して
+                    // いたが、非公開が消えたように見えて誤再公開を誘った。
+                    // かといって何もしないと、初期値のビルド時データ
+                    // （photos.json は全件 published:true）が「公開中の姿」で
+                    // 残り、目のアイコンから**本当に再公開できてしまう**
+                    // ——代用先を変えただけで同じ穴だった（レビュー指摘）。
+                    log.warn("自分の写真一覧を取得できませんでした");
+                    setPhotos([]);
+                    setLoadError("ownPhotos");
+                    return;
+                }
+
+                // API から最新の写真を取得。ビルドを待たずに足あと・地名へ反映される。
                 const photosRes = await publicFetch(`/photos?userId=${encodeURIComponent(userId)}`, {
                     signal: controller.signal,
                     cache: "no-store",
@@ -270,30 +436,45 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 if (photosRes.ok) {
                     const data = await photosRes.json() as unknown;
                     if (Array.isArray(data)) {
-                        const fresh = data as Photo[];
-                        if (isCurrentUserOwner) {
-                            setPhotos((prev) => {
-                                const ids = new Set(fresh.map((p) => p.id));
-                                return [...fresh, ...prev.filter((p) => !ids.has(p.id))];
-                            });
-                        } else if (fresh.length > 0) {
-                            setPhotos(fresh);
-                        } else {
-                            // 空配列で静的ビルド時のデータを潰さない。潰すと、
-                            // 見えていた写真が「まだ写真がありません」に化ける。
-                            log.warn("写真APIが空を返したため静的データを維持します");
-                        }
+                        // **空配列もそのまま採る。**
+                        //
+                        // 以前は「空で静的データを潰さない」ようにしていたが、
+                        // `GET /photos?userId=` は**公開ぶんだけ**を返すので、
+                        // その人が全部非公開にした／全部消したときの**正解が
+                        // 空**。捨てると、隠したはずの写真がビルド時の
+                        // スナップショットのまま訪問者に出続ける
+                        // （画像・タイトル・`/photo/<id>` へのリンクごと）。
+                        //
+                        // 「空だと写真が消えて見える」を心配していたが、
+                        // **静的側と API 側は同じ集合**なので取り違えない:
+                        // 静的の絞り込みは `p.userId === userId` で、
+                        // API は `userId` の GSI を引く。`userId` を持たない
+                        // 古い行はどちらからも外れる（静的JSONを作る
+                        // `sync-photos-from-ddb.js` は `uploadedBy` を
+                        // `userId` に写さない）。
+                        //
+                        // 取得に失敗したときは `photosRes.ok` が false なので
+                        // ここに来ない＝静的のまま。潰すのは「聞けて、
+                        // 答えが空だった」ときだけ。
+                        setPhotos(data as Photo[]);
                     }
                 }
             } catch (e) {
                 if ((e as { name?: string }).name !== "AbortError") {
                     log.error("user profile fetch error:", e);
+                    // **どこで落ちたかを取り違えない。** catch は3つの取得
+                    // （プロフィール / 自分の一覧 / 公開一覧）で共有なので、
+                    // 一律 "profile" にすると「プロフィールは出ているのに
+                    // 読み込めませんでしたと出る」誤表示になる（レビュー指摘）。
+                    // プロフィールが取れているなら、写真側の失敗として扱う。
+                    setLoadError((prev) => prev ?? (profileLoaded ? "photos" : "profile"));
                 }
             }
         };
+        setLoadError(null);
         void load();
         return () => controller.abort();
-    }, [userId]);
+    }, [userId, reloadKey, loadOwnPins]);
 
     const displayName = useMemo(() => {
         if (userProfile?.displayName) return userProfile.displayName;
@@ -308,6 +489,11 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     // 表示対象の写真（オーナーは非公開含む）
     const visiblePhotos = isOwner ? photos : publishedPhotos;
     const postCount = visiblePhotos.length;
+    // **本人と訪問者で「投稿 N」が違う。** 本人は下書き・非公開を含むので、
+    // 同じページの OGP（公開ぶんで数える）とも食い違う。数を揃えると
+    // 「下書きが数に入らない＝増えていない」に見えるので、**本人にだけ
+    // 内訳を添えて**食い違いの理由が分かるようにする。
+    const hiddenCount = isOwner ? postCount - publishedPhotos.length : 0;
     const totalLikes = useMemo(
         () => visiblePhotos.reduce((sum, p) => sum + (typeof p.likes === "number" && p.likes > 0 ? p.likes : 0), 0),
         [visiblePhotos]
@@ -317,6 +503,25 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     const [shareOpen, setShareOpen] = useState(false);
     // プロフィールQRコード（対面共有用）
     const [qrOpen, setQrOpen] = useState(false);
+
+    // 共有メニューも同じ。閉じる手段が `fixed inset-0` の**マウス専用
+    // オーバーレイ**しか無く、QR だけ直して隣を直していなかった。
+    useEscapeKey(shareOpen, () => setShareOpen(false));
+
+    // Escape で閉じる。共有メニューから開くので、押した瞬間にその
+    // ボタン自体がアンマウントされ、フォーカスは body に落ちる。
+    // 閉じる手段が「ページ最後尾の閉じるボタンまで Tab で辿る」しか
+    // 無かった（aria-modal と言いながら背後が全部たどれる）。
+    useEscapeKey(qrOpen, () => setQrOpen(false));
+    // 共有メニューから開くので、押した瞬間に起動元がアンマウントされて
+    // フォーカスが body に落ちる。中へ入れて、閉じたら戻す
+    const qrRef = useRef<HTMLDivElement | null>(null);
+    // **戻り先を明示する。** 上のコメントのとおり、開く時点で起動元
+    // （メニュー項目）は既に消えていて `activeElement` は body。
+    // 渡さないと閉じたあと body に落ちたまま＝次の Tab がページ先頭から。
+    // 問題は書いてあったのに、渡すのを忘れていた。
+    const shareBtnRef = useRef<HTMLButtonElement | null>(null);
+    useFocusTrap(qrOpen, qrRef, shareBtnRef);
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
     const [mvOpen, setMvOpen] = useState(false);
 
@@ -325,9 +530,24 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     // Pointer Events で PC(マウス)・スマホ(タッチ)・ペンを一本化。
     // touch-action: pan-y を併用し、縦スクロールは残しつつ横ジェスチャを JS が拾う。
     const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+    const swallowClickRef = useRef(false);
     const onTabPointerDown = useCallback((e: React.PointerEvent) => {
         swipeStartRef.current = { x: e.clientX, y: e.clientY };
+        // **新しい指が触れたら、前回の「食う札」は捨てる。**
+        // 札を下ろす経路が click と pointercancel しか無かったので、
+        // click が来なかった場合に立ちっぱなしになる——左スワイプで
+        // タブが切り替わると、押していた写真のセルが DOM から消えて
+        // click が飛ばない（＝札が残り、次の正当なタップが1回丸ごと
+        // 飲まれる。「1回目が効かない、2回目で開く」）
+        swallowClickRef.current = false;
     }, []);
+    // **スワイプの直後に来る click を1回だけ食う。**
+    //
+    // 写真のセルは全面が `<Link>` なので、グリッドの上で横スワイプすると
+    // **タブが切り替わると同時に写真ページへ飛ぶ**（1セル約126px に対して
+    // 判定は45pxなので、セル1つの中で成立する）。`click` は指を離せば必ず
+    // 発火する——`StoryViewer` が同じ現象を観測して `wasTap()` で塞いだのと
+    // 同じ話で、こちらには歯止めが無かった。
     const onTabPointerUp = useCallback((e: React.PointerEvent) => {
         const s = swipeStartRef.current;
         swipeStartRef.current = null;
@@ -335,8 +555,16 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         const dir = swipeDirection(e.clientX - s.x, e.clientY - s.y);
         if (dir !== 0) {
             hapticTap(8);
+            swallowClickRef.current = true;
             setTab((cur) => stepInList(TAB_ORDER, cur, dir));
         }
+    }, []);
+    /** スワイプで切り替えた直後の click を止める（捕捉フェーズで拾う） */
+    const onTabClickCapture = useCallback((e: React.MouseEvent) => {
+        if (!swallowClickRef.current) return;
+        swallowClickRef.current = false;
+        e.preventDefault();
+        e.stopPropagation();
     }, []);
 
 
@@ -345,7 +573,13 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     // 旅アルバム: 撮影日の間隔で自動グルーピング
 
     // プロフィール項目の部分更新。変更する項目だけ送る。
-    const saveProfilePatch = useCallback(async (patch: Partial<UserProfile>, successMsg: string) => {
+    // `patch` は画面に即反映する見込みの値。`wire` を渡すとそちらを送る
+    // （ピン留めのように「配列まるごと」ではなく増減で送りたい場合）。
+    const saveProfilePatch = useCallback(async (
+        patch: Partial<UserProfile>,
+        successMsg: string,
+        wire?: Record<string, unknown>,
+    ) => {
         // 読み込めていない状態では、楽観的更新の巻き戻し先が無く、
         // 画面と保存内容が食い違ったままになるため保存しない。
         if (!userProfile) {
@@ -355,6 +589,29 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             return;
         }
         const prev = userProfile;
+        const failMsg = locale === "en" ? "Failed to save" : "保存に失敗しました";
+        // **応答の追い越しを捨てる。** ピン留めは連打できるので、先に投げた
+        // 要求の応答が後から届く。サーバーは「その要求が書いた時点の姿」を
+        // 返すので、そのまま取り込むと**後から届いた古い一覧で新しい一覧を
+        // 上書きする**（p1→p2 と押して p1 の応答が遅れると p2 の星が消える。
+        // サーバーには2枚あるのに画面は1枚）。最後に投げた分だけを採る。
+        const seq = ++pinSeqRef.current;
+        /**
+         * この保存が**まだ最後の1本か**。
+         *
+         * 追い越された保存は、巻き戻しも取り直しもしてはいけない
+         * ——どちらも「この保存を投げる前の姿」に戻す操作で、あとから
+         * 押した分（画面に出ている星）を消すことになる。後始末は、
+         * 最後に投げた分が自分の応答でやる。
+         */
+        const isLatest = () => seq === pinSeqRef.current;
+        const adoptPins = (list: unknown) => {
+            if (seq !== pinSeqRef.current) return;
+            const pins = Array.isArray(list)
+                ? list.filter((x): x is string => typeof x === "string")
+                : [];
+            setUserProfile((p) => (p ? { ...p, pinnedPhotoIds: pins } : p));
+        };
         // 楽観的更新
         setUserProfile((p) => (p ? { ...p, ...patch } : ({ userId, ...patch } as UserProfile)));
         try {
@@ -363,15 +620,56 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             // 公開プロフィールAPIが返さなくなった項目が消える事故を起こした。
             const res = await userFetch("/user/profile", {
                 method: "PUT",
-                body: JSON.stringify(patch),
+                body: JSON.stringify(wire ?? patch),
             });
-            if (!res.ok) throw new Error(String(res.status));
+            if (!res.ok) {
+                // サーバーの理由をそのまま出す。以前は全部「保存に失敗しました」
+                // だったので、上限（409「ピン留めは3枚までです」）を踏んでも
+                // 障害と区別が付かず、同じ操作を繰り返すことになっていた。
+                //
+                // throw で catch に流さないのは、通信そのものが落ちた場合の
+                // Error（"Failed to fetch" など英語の生文言）と混ざるため。
+                if (isLatest()) setUserProfile(prev ?? null);
+                // **断られた回こそ同期する。** 上限で断るとき、サーバーは
+                // 今の一覧を添えてくる。取り込まないと、手元が古いタブは
+                // 「星が1つも無いのに3枚までと言われる」まま何度でも同じ
+                // ことを繰り返す。本文は clone から読む（readApiError が
+                // 同じ res を読むので二度読みにしない）。
+                const detail = typeof res.clone === "function"
+                    ? await res.clone().json().catch(() => null) as { pinnedPhotoIds?: unknown } | null
+                    : null;
+                if (detail && Array.isArray(detail.pinnedPhotoIds)) adoptPins(detail.pinnedPhotoIds);
+                // **番号を進めたまま失敗しない。** 読み込み時の後追い
+                // （loadOwnPins）は、この保存が入口で進めた番号のせいで
+                // 捨てられている。ここで取り直さないと、公開ぶんのピンで
+                // 固定されたまま——非公開にした写真の星が無く、外せない。
+                // 一覧が添えられていた回（上の adoptPins）は済んでいる。
+                else if (isLatest() && "pinnedPhotoIds" in patch) loadOwnPins(undefined, true);
+                showToast(await readApiError(res, failMsg), "error");
+                return;
+            }
+            // サーバーが返す保存後の姿でピン留めを揃える。増減で送っている
+            // ので、他の端末が先に足した分もここで手元に入る（見込みの値の
+            // ままだと、次の操作がまたその1枚を知らないまま送られる）。
+            const saved = await res.json().catch(() => null) as { pinnedPhotoIds?: unknown } | null;
+            if (saved && "pinnedPhotoIds" in patch) adoptPins(saved.pinnedPhotoIds);
             showToast(successMsg, "success");
-        } catch {
-            setUserProfile(prev ?? null);
-            showToast(locale === "en" ? "Failed to save" : "保存に失敗しました", "error");
+        } catch (e) {
+            if (isLatest()) {
+                setUserProfile(prev ?? null);
+                // 上と同じ（捨てられた後追いを取り直す）。ここも失敗すれば
+                // 公開ぶんのまま——星が少なく出るだけで、何も壊さない
+                if ("pinnedPhotoIds" in patch) loadOwnPins(undefined, true);
+            }
+            // トークン不在（userFetch が投げる）は「保存に失敗しました」では
+            // 直らない。別のタブでログアウトした人・セッションが切れた人は、
+            // 何をすればいいか分からないまま押し直すことになる。
+            // PhotoPageClient の MV 保存と同じ見分け方。
+            showToast(e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE
+                ? AUTH_REQUIRED_MESSAGE
+                : failMsg, "error");
         }
-    }, [userProfile, userId, locale, showToast]);
+    }, [userProfile, userId, locale, showToast, loadOwnPins]);
 
     // 旅のカスタム名（オーナーが編集可能・プロフィールに保存され全員に見える）
 
@@ -389,18 +687,25 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     const pinnedPhotoIds = useMemo(() => userProfile?.pinnedPhotoIds ?? [], [userProfile?.pinnedPhotoIds]);
     const togglePin = useCallback(async (photoId: string, pin: boolean) => {
         const cur = userProfile?.pinnedPhotoIds ?? [];
-        if (pin && cur.length >= 3) {
-            showToast(locale === "en" ? "You can pin up to 3 photos" : "ピン留めは3枚までです", "info");
-            return;
-        }
+        // **上限の判定はサーバーに任せる。** ここで `cur.length >= 3` を
+        // 見ていたが、`cur` はページを開いたときの配列なので、別の端末で
+        // 解除したあとのタブは「手元3枚・サーバー2枚」になり、**要求すら
+        // 投げずに断る**——投げないので実態を知る機会が永久に来ない。
+        // サーバーは 409 に今の一覧を添えて返すので、押せば必ず収束する。
         const next = pin ? [...cur, photoId] : cur.filter((id) => id !== photoId);
         await saveProfilePatch(
             { pinnedPhotoIds: next },
             pin
                 ? (locale === "en" ? "Pinned to top ⭐" : "先頭にピン留めしました ⭐")
                 : (locale === "en" ? "Unpinned" : "ピン留めを解除しました"),
+            // **配列ではなく増減を送る。** この画面はプロフィールを開いた
+            // ときに1回読むだけなので、PC のタブを開いたままスマホで
+            // ピン留めすると、次に PC でピン留めしたときスマホの分が
+            // 消えていた（サーバーは新しい rev を普通に書けるため、
+            // 競合として検出されない）。
+            { pinPhotoId: photoId, pin },
         );
-    }, [userProfile?.pinnedPhotoIds, saveProfilePatch, locale, showToast]);
+    }, [userProfile?.pinnedPhotoIds, saveProfilePatch, locale]);
 
     // 投稿タブの表示順: ピン留めが先頭
     const orderedPhotos = useMemo(() => {
@@ -412,32 +717,33 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         return [...pinned, ...rest];
     }, [visiblePhotos, pinnedPhotoIds]);
 
-    // 足あとサマリー: 訪れた場所数（ユニークな location）と旅の期間（撮影日の最古〜最新）
+    // 足あとサマリー: 旅した総移動距離（位置情報つきの写真を撮影日順につなぐ）
+    //
+    // **並べ方は年表と同じ規則にする。** `Date.parse` で並べていた頃は、
+    // ゾーン無しの `T` 形式（EXIF 由来の撮影日）がローカル時刻として読まれ、
+    // **同じ画面の年表と逆の順**になりえた（年表は書かれている成分で切る）。
+    // 積算する順が変われば距離も変わるので、見えている数字が閲覧者の
+    // タイムゾーンで変わることになる。
+    //
+    // 以前ここで数えていた「訪れた場所数」と「期間（最古〜最新）」は、
+    // **どこにも出していなかった**ので落とした（画面に出るのは
+    // `distanceKm` と `geoCount` だけ）。`Date.parse` の呼び出しも一緒に消える。
     const footprint = useMemo(() => {
-        const places = new Set<string>();
-        for (const p of visiblePhotos) {
-            const loc = (p.location ?? "").trim().toLowerCase();
-            if (loc) places.add(loc);
-        }
-        const times = visiblePhotos
-            .map(p => Date.parse(String(p.date ?? p.createdAt ?? "")))
-            .filter(t => !isNaN(t))
-            .sort((a, b) => a - b);
-
-        // 旅した総移動距離: 位置情報つき写真を撮影日順につなぎ、大円距離を積算
         const geo = visiblePhotos
-            .filter(p => p.coords && typeof p.coords.lat === "number" && typeof p.coords.lng === "number")
-            .map(p => ({ c: p.coords as { lat: number; lng: number }, t: Date.parse(String(p.date ?? p.createdAt ?? "")) }))
-            .filter(x => !isNaN(x.t))
-            .sort((a, b) => a.t - b.t);
+            // **日時を読めない写真は入れない。** 旧実装の `!isNaN(Date.parse(...))`
+            // に当たる歯止め。無いとキーが空の写真が先頭に入り、そこから
+            // 最初の地点までの1脚ぶん距離が増える（つなぐ順が決まらない
+            // 写真を、いちばん古い場所として数えることになる）
+            .filter(p => p.coords && typeof p.coords.lat === "number" && typeof p.coords.lng === "number"
+                && photoTimeKey(p) !== "")
+            .sort(compareOldest)
+            .map(p => p.coords as { lat: number; lng: number });
         let distanceKm = 0;
-        for (let i = 1; i < geo.length; i++) distanceKm += haversineKm(geo[i - 1].c, geo[i].c);
+        for (let i = 1; i < geo.length; i++) distanceKm += haversineKm(geo[i - 1], geo[i]);
 
-        return { places: places.size, first: times[0], last: times[times.length - 1], distanceKm, geoCount: geo.length };
+        return { distanceKm, geoCount: geo.length };
     }, [visiblePhotos]);
 
-
-    // 訪れた場所（地名）を新しい順・重複なしで。抽象的な「N箇所」ではなく実際の地名を見せる。
 
     // テーマソング: 保存された URL を埋め込みプレイヤーに変換（好きな部分の開始・終了つき）
     const songEmbed = useMemo(
@@ -465,24 +771,60 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     "success"
                 );
             } else {
-                showToast(locale === "en" ? "Failed to update" : "更新に失敗しました", "error");
+                // 別タブで先に消していると 404「写真が見つかりません」が返る。
+                // 「更新に失敗しました」に潰していたので、**何度押しても直らない
+                // 操作を再試行し続ける**形だった
+                showToast(await readApiError(res, locale === "en" ? "Failed to update" : "更新に失敗しました"), "error");
             }
-        } catch {
-            showToast(locale === "en" ? "Failed to update" : "更新に失敗しました", "error");
+        } catch (e) {
+            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
+            showToast(authMissing
+                ? AUTH_REQUIRED_MESSAGE
+                : (locale === "en" ? "Failed to update" : "更新に失敗しました"), "error");
         }
     }, [locale, showToast]);
 
     const handleShareProfile = useCallback(async () => {
-        try {
-            await copyToClipboard(shareUrl);
-            showToast(locale === "en" ? "Link copied!" : "リンクをコピーしました", "success");
-        } catch {
-            showToast(locale === "en" ? "Failed to copy" : "コピーに失敗しました", "error");
-        }
+        // copyToClipboard は投げずに真偽値を返す（他の画面は移行済みで、
+        // ここだけ try/catch が残っていた）。catch は死んでいたので、
+        // クリップボードに書けない環境でも「コピーしました」と出ていた。
+        const copied = await copyToClipboard(shareUrl);
+        showToast(
+            copied
+                ? (locale === "en" ? "Link copied!" : "リンクをコピーしました")
+                : (locale === "en" ? "Failed to copy" : "コピーに失敗しました"),
+            copied ? "success" : "error",
+        );
     }, [locale, showToast, shareUrl]);
 
     return (
         <main className="min-h-screen text-white bg-black">
+            {loadError && (
+                // 取得の失敗を無言にしない。プロフィールが「未設定の人」に、
+                // オーナーの一覧が「非公開が消えた」ように見える（SW-b9）
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 pt-3">
+                    <p className="text-xs text-amber-200/90 bg-amber-500/10 ring-1 ring-amber-400/20 rounded-lg px-3 py-2">
+                        {loadError === "ownPhotos"
+                            ? (locale === "en"
+                                ? "Couldn't load your photo list. Drafts and private photos are not shown. "
+                                : "自分の写真一覧を読み込めませんでした。下書き・非公開は表示されていません。")
+                            : loadError === "photos"
+                                ? (locale === "en"
+                                    ? "Couldn't load the latest photos. "
+                                    : "最新の写真を読み込めませんでした。")
+                                : (locale === "en"
+                                    ? "Couldn't load this profile. "
+                                    : "プロフィールを読み込めませんでした。")}
+                        <button
+                            onClick={() => setReloadKey((k) => k + 1)}
+                            className="underline text-amber-100 hover:text-white ml-1"
+                            style={{ touchAction: "manipulation" }}
+                        >
+                            {locale === "en" ? "Retry" : "再読み込み"}
+                        </button>
+                    </p>
+                </div>
+            )}
             {/* ヒーロー: カバー写真を背景に、戻る/アバター/名前/統計/アクションを重ねる */}
             <div className="relative">
                 <CoverBackground userId={userId} />
@@ -501,6 +843,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         {/* 共有: 戻ると対になる単一のガラスボタン。タップでメニューを開く */}
                         <div className="relative">
                             <button
+                                ref={shareBtnRef}
                                 onClick={() => setShareOpen((v) => !v)}
                                 aria-haspopup="menu"
                                 aria-expanded={shareOpen}
@@ -606,9 +949,14 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             )}
                         </div>
 
-                        {/* 自己紹介: 名前のすぐ下（従来ステータスがあった位置）に置く */}
+                        {/* 自己紹介: 名前のすぐ下（従来ステータスがあった位置）に置く。
+                            **`break-words` を落とさない**——URL は `/` で折り返さないので
+                            1語として扱われ、**ページ全体が横に流れる**（実測: 幅375pxで
+                            55文字、320pxで50文字の URL から `scrollWidth` が超える。
+                            自己紹介は300文字まで入る）。ストーリーのキャプションと
+                            コメント本文には最初から付いていた */}
                         {userProfile?.bio && (
-                            <p className="text-sm text-white/85 whitespace-pre-wrap mb-4 leading-relaxed">{userProfile.bio}</p>
+                            <p className="text-sm text-white/85 whitespace-pre-wrap break-words mb-4 leading-relaxed">{userProfile.bio}</p>
                         )}
 
                     {/* 統計（投稿 / いいね / フォロー中 / フォロワー）— 1行にまとめる */}
@@ -616,6 +964,11 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         <div className="inline-flex items-baseline gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
                             <span className="text-sm font-bold tabular-nums leading-none">{postCount}</span>
                             <span className="text-[11px] text-white/60">{locale === "en" ? "posts" : "投稿"}</span>
+                            {hiddenCount > 0 && (
+                                <span className="text-[11px] text-white/40">
+                                    {locale === "en" ? `(${hiddenCount} private)` : `（うち非公開 ${hiddenCount}）`}
+                                </span>
+                            )}
                         </div>
                         <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
                             <HeartIcon className="w-3 h-3 text-rose-400" />
@@ -698,7 +1051,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                     <div className="relative w-full" style={{ aspectRatio: "16 / 9" }}>
                                         <iframe
                                             src={songEmbed.embedUrl}
-                                            title="my bgm"
+                                            title="マイBGM"
                                             className="absolute inset-0 w-full h-full"
                                             allow="encrypted-media; picture-in-picture; web-share"
                                             referrerPolicy="strict-origin-when-cross-origin"
@@ -709,7 +1062,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             ) : (
                                 <iframe
                                     src={songEmbed.embedUrl}
-                                    title="my bgm"
+                                    title="マイBGM"
                                     className="w-full"
                                     style={{ height: songEmbed.height ?? 152 }}
                                     allow="encrypted-media; autoplay; clipboard-write"
@@ -789,7 +1142,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     data-testid="tab-swipe-area"
                     onPointerDown={onTabPointerDown}
                     onPointerUp={onTabPointerUp}
-                    onPointerCancel={() => { swipeStartRef.current = null; }}
+                    onClickCapture={onTabClickCapture}
+                    onPointerCancel={() => { swipeStartRef.current = null; swallowClickRef.current = false; }}
                     style={{ touchAction: "pan-y" }}
                 >
                 {/* 投稿タブ */}
@@ -861,6 +1215,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             {/* プロフィールQRコード */}
             {qrOpen && (
                 <div
+                    ref={qrRef}
                     className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm px-6"
                     onClick={() => setQrOpen(false)}
                     role="dialog"
@@ -873,7 +1228,9 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     >
                         {qrDataUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={qrDataUrl} alt="QR" className="w-full rounded-xl" />
+                            <img src={qrDataUrl} // ダイアログ名（プロフィールQRコード）と直下の説明で足りるので、
+                                // 画像そのものは飾り扱いにする（同じことを二度読ませない）
+                                alt="" className="w-full rounded-xl" />
                         ) : (
                             <div className="aspect-square flex items-center justify-center">
                                 <div className="w-8 h-8 border-2 border-black/20 border-t-black/60 rounded-full animate-spin" />

@@ -3,7 +3,7 @@ import { readFile, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
-import { getConfig } from "../../../../lib/aws/secrets";
+import { getConfig, isAuthorizedApiKey } from "../../../../lib/aws/secrets";
 import exifr from "exifr";
 import type { Photo } from "@/lib/data/photos";
 import { log } from "../../../../lib/utils/log";
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
         // 認証チェック
         const apiKey = request.headers.get("x-api-key");
-        if (apiKey !== config.uploadApiKey) {
+        if (!isAuthorizedApiKey(apiKey, config.uploadApiKey)) {
             return NextResponse.json(
                 { error: "認証に失敗しました" },
                 { status: 401 }

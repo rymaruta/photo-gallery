@@ -23,12 +23,13 @@ import { slugify, collectionPath } from "../../../lib/utils/collections";
 import ProfileLink from "../../components/ProfileLink";
 import RelatedPhotos from "../../components/RelatedPhotos";
 import CommentSection from "../../components/CommentSection";
-import { sameAuthorPhotos, sameLocationPhotos, adjacentPhotos } from "../../../lib/utils/related";
+import { relatedSections, adjacentPhotos } from "../../../lib/utils/related";
 import { ROUTES } from "../../../lib/routes";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
 import { isImageReady } from "../../../lib/utils/imageReady";
+import { formatStoredDateTime } from "@/lib/utils/photoDate";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -197,6 +198,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     const [extractedExif, setExtractedExif] = useState<ExtractedExif | null>(null);
     const [allPhotos, setAllPhotos] = useState<Photo[]>(initialPhoto ? [initialPhoto] : []);
     const [loading, setLoading] = useState(!initialPhoto);
+    // API の取得に失敗したか。静的データに無い新着写真の URL では、失敗を
+    // 黙ると「写真が見つかりません」＝消されたように読める表示に化ける。
+    // 見つからない × 失敗、のときだけ再試行を出す（下の 404 分岐）。
+    const [fetchFailed, setFetchFailed] = useState(false);
+    const [reloadKey, setReloadKey] = useState(0);
 
     // APIから写真を読み込む（編集済みのデータで静的ビルド時データを上書き）
     useEffect(() => {
@@ -212,15 +218,22 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     // 同じガードがある）。
                     if (Array.isArray(data) && data.length > 0) {
                         setAllPhotos(data);
+                        setFetchFailed(false);
                     } else {
                         log.warn("写真APIが空を返したため静的データを維持します");
+                        // 隣のガードが「空応答は怪しい」と扱っているのに、
+                        // ここだけ「正」と扱うと、静的未収録の新着写真URL ×
+                        // 怪しい空200 で「存在しません」と断定してしまう
+                        setFetchFailed(true);
                     }
                 } else {
                     log.error("写真の取得に失敗しました", { status: response.status });
+                    setFetchFailed(true);
                 }
             } catch (error) {
                 if ((error as { name?: string }).name !== "AbortError") {
                     log.error("写真取得エラー:", error);
+                    setFetchFailed(true);
                 }
             } finally {
                 setLoading(false);
@@ -229,7 +242,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
 
         loadPhotos();
         return () => controller.abort();
-    }, []);
+    }, [reloadKey]);
 
     // 全写真から該当する写真を検索
     const photo = useMemo(() => {
@@ -257,20 +270,33 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     const savePhotoYoutube = async (url: string | null) => {
         setYtSaving(true);
         try {
-            const { userFetch } = await import("../../../lib/utils/api");
+            const { userFetch, readApiError } = await import("../../../lib/utils/api");
             const res = await userFetch(`/photos/${encodeURIComponent(photoId)}`, {
                 method: "PUT",
                 body: JSON.stringify({ songYoutubeUrl: url ?? "" }),
             });
-            if (!res.ok) throw new Error(String(res.status));
+            if (!res.ok) {
+                // 失敗の理由はサーバーの文言をそのまま出す（400 なら
+                // 「不正なYouTube URLです」が返る）。以前は通信断・認証切れ・
+                // 500 まで一律「YouTubeリンクが正しくありません」に潰していて、
+                // 正しいリンクを何度も貼り直させる形だった。
+                showToast(await readApiError(res, locale === "en" ? "Could not save the MV" : "MVを保存できませんでした"), "error");
+                return;
+            }
             setPhotoYtUrl(url);
             setYtInput("");
             showToast(
                 url ? (locale === "en" ? "MV added 🎬" : "MVを設定しました 🎬") : (locale === "en" ? "MV removed" : "MVを外しました"),
                 "success",
             );
-        } catch {
-            showToast(locale === "en" ? "Invalid YouTube link" : "YouTubeリンクが正しくありません", "error");
+        } catch (e) {
+            // fetch 自体の失敗。トークン不在（userFetch が投げる）は
+            // 「時間をおいて」では直らないので、そのまま伝える
+            const { AUTH_REQUIRED_MESSAGE } = await import("../../../lib/utils/api");
+            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
+            showToast(authMissing
+                ? AUTH_REQUIRED_MESSAGE
+                : (locale === "en" ? "Network error. Please try again." : "通信に失敗しました。時間をおいてもう一度お試しください"), "error");
         } finally {
             setYtSaving(false);
         }
@@ -279,20 +305,35 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     const [songQuery, setSongQuery] = useState("");
     const [songResults, setSongResults] = useState<SongResult[]>([]);
     const [songSearching, setSongSearching] = useState(false);
+    // 検索の失敗が「0件」と同じ（結果欄は length>0 でしか描かれない）ので、
+    // 押しても無反応に見えた。プロフィール編集には既に同じ表示がある（SW-b6）
+    const [songSearchError, setSongSearchError] = useState(false);
     const searchPhotoSongs = async () => {
         const q = songQuery.trim();
         if (!q) return;
         setSongSearching(true);
-        try { setSongResults(await searchSongs(q)); } catch { setSongResults([]); } finally { setSongSearching(false); }
+        setSongSearchError(false);
+        try {
+            setSongResults(await searchSongs(q));
+        } catch {
+            setSongResults([]);
+            setSongSearchError(true);
+        } finally { setSongSearching(false); }
     };
     const savePhotoSong = async (song: SongEntry | null) => {
         try {
-            const { userFetch } = await import("../../../lib/utils/api");
+            const { userFetch, readApiError } = await import("../../../lib/utils/api");
             const res = await userFetch(`/photos/${encodeURIComponent(photoId)}`, {
                 method: "PUT",
                 body: JSON.stringify({ song }),
             });
-            if (!res.ok) throw new Error(String(res.status));
+            if (!res.ok) {
+                // 隣の savePhotoYoutube と同じ形にする。番号だけ投げて
+                // 「保存に失敗しました」に潰していたので、認証切れ（押し直しても
+                // 直らない）と一時障害の区別が付かなかった
+                showToast(await readApiError(res, locale === "en" ? "Could not save the BGM" : "BGMを保存できませんでした"), "error");
+                return;
+            }
             setPhotoSong(song);
             setSongPickerOpen(false);
             setSongResults([]);
@@ -303,8 +344,12 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     : (locale === "en" ? "Photo BGM removed" : "BGMを外しました"),
                 "success",
             );
-        } catch {
-            showToast(locale === "en" ? "Failed to save" : "保存に失敗しました", "error");
+        } catch (e) {
+            const { AUTH_REQUIRED_MESSAGE } = await import("../../../lib/utils/api");
+            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
+            showToast(authMissing
+                ? AUTH_REQUIRED_MESSAGE
+                : (locale === "en" ? "Network error. Please try again." : "通信に失敗しました。時間をおいてもう一度お試しください"), "error");
         }
     };
 
@@ -347,7 +392,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                 ? extracted.WhiteBalance === 0 ? "Auto" : "Manual"
                 : fallback.whiteBalance || undefined,
             imageSize: imageSize,
-            dateTimeOriginal: extracted.DateTimeOriginal || fallback.dateTimeOriginal || photo?.date || photo?.createdAt || undefined,
+            // **createdAt にフォールバックしない。** 撮影日を持つのは30枚中8枚で、
+            // 残りは「撮影日時」の欄にアップロード時刻が分単位で出ていた
+            // （しかも日付だけの値には無い 00:00 まで作っていた）。
+            // 分からないなら、その行を出さない。
+            dateTimeOriginal: extracted.DateTimeOriginal || fallback.dateTimeOriginal || photo?.date || undefined,
         };
     }, [extractedExif, photo]);
 
@@ -360,7 +409,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     // BreadcrumbList構造化データを生成
     const breadcrumbData = useMemo(() => {
         if (!photo) return null;
-        const title = getLocalized(photo.title, locale) || getLocalized(photo.title, "ja") || getLocalized(photo.title, "en") || "Untitled";
+        // パンくずの名前。**同じページの `ImageObject` は `name: ""` を出す**
+        // ので、ここだけ "Untitled" にすると**同じ写真について2つの
+        // 構造化データが違うことを言う**。日本語のサイトなので文言も揃える
+        const title = getLocalized(photo.title, locale) || getLocalized(photo.title, "ja") || getLocalized(photo.title, "en")
+            || (locale === "en" ? "Untitled" : "無題");
         return generateBreadcrumbStructuredData([
             { name: locale === "en" ? "Home" : "ホーム", url: siteConfig.url },
             { name: title, url: `${siteConfig.url}/photo/${photo.id}` },
@@ -374,8 +427,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
         if (!photo) return { author: [] as Photo[], location: [] as Photo[], prev: null as Photo | null, next: null as Photo | null };
         if (allPhotos.length <= 1 && initialRelated) return initialRelated;
         return {
-            author: sameAuthorPhotos(photo, allPhotos, 8),
-            location: sameLocationPhotos(photo, allPhotos, 8),
+            ...relatedSections(photo, allPhotos, 8),
             ...adjacentPhotos(photo, allPhotos),
         };
     }, [photo, allPhotos, initialRelated]);
@@ -391,7 +443,32 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
         );
     }
 
-    // 写真が見つからない場合は404
+    // 写真が見つからない場合は404。ただし **API の取得に失敗している間は
+    // 「存在しません」と断定しない**——静的データに無い新着写真だと、
+    // 一時的な失敗が「消された」ように読める（実在するのに）。
+    if (!photo && fetchFailed) {
+        return (
+            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+                    <h1 className="text-3xl font-bold mb-4">
+                        {locale === "en" ? "Couldn't load the photo" : "写真を読み込めませんでした"}
+                    </h1>
+                    <p className="text-white/60 mb-6">
+                        {locale === "en"
+                            ? "A temporary network problem may be the cause."
+                            : "一時的な通信の問題かもしれません。"}
+                    </p>
+                    <button
+                        onClick={() => { setLoading(true); setReloadKey((k) => k + 1); }}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 active:scale-95 transition"
+                        style={{ touchAction: "manipulation", minHeight: "44px" }}
+                    >
+                        {locale === "en" ? "Retry" : "もう一度読み込む"}
+                    </button>
+                </div>
+            </main>
+        );
+    }
     if (!photo) {
         return (
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
@@ -439,23 +516,27 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     const currentUrl = typeof window !== "undefined" 
         ? `${window.location.origin}/photo/${photo.id}` 
         : `${siteConfig.url}/photo/${photo.id}`;
-    const shareText = titleText || "Photo";
+    const shareText = titleText || "写真";
 
     const handleShare = async (e?: React.MouseEvent) => {
         if (e) e.stopPropagation();
-        const usedClipboard = await shareUrl(currentUrl, shareText, paragraphs.join(" "));
-        if (usedClipboard) showToast(locale === "en" ? "Link copied to clipboard!" : "リンクをクリップボードにコピーしました", "success");
+        const result = await shareUrl(currentUrl, shareText, paragraphs.join(" "));
+        // cancelled（利用者が閉じた）と shared は何も出さない
+        if (result === "copied") {
+            showToast(locale === "en" ? "Link copied to clipboard!" : "リンクをクリップボードにコピーしました", "success");
+        } else if (result === "failed") {
+            showToast(locale === "en" ? "Could not share" : "共有できませんでした", "error");
+        }
     };
 
     const handleCopyLink = async (e?: React.MouseEvent) => {
         if (e) {
             e.stopPropagation();
         }
-        try {
-            await copyToClipboard(currentUrl);
+        if (await copyToClipboard(currentUrl)) {
             showToast(locale === "en" ? "Link copied!" : "リンクをコピーしました");
-        } catch {
-            showToast(locale === "en" ? "Failed to copy link" : "リンクのコピーに失敗しました");
+        } else {
+            showToast(locale === "en" ? "Failed to copy link" : "リンクのコピーに失敗しました", "error");
         }
     };
 
@@ -518,7 +599,9 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
             <div className="space-y-4 lg:col-span-2">
                 {/* タイトルとカテゴリ */}
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold mb-2.5">{titleText}</h1>
+                    {/* `break-words`: 長い URL・連続文字でページごと横に流れるのを防ぐ
+                        （自己紹介・説明と同じ。実測で幅375pxの55文字から超える） */}
+                    <h1 className="text-2xl sm:text-3xl font-bold mb-2.5 break-words">{titleText}</h1>
                     {categoryDisplayName && photo.category && (
                         // カテゴリの集約ページへ（内部リンク＝SEO・回遊）
                         <Link
@@ -533,7 +616,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
 
                 {/* 説明 */}
                 {paragraphs.length > 0 && (
-                    <div className="text-sm sm:text-base text-white/80 leading-relaxed">
+                    <div className="text-sm sm:text-base text-white/80 leading-relaxed break-words">
                         {paragraphs.map((line, i) => (
                             <p key={i} className={i === 0 ? "" : "mt-3"}>
                                 {line}
@@ -636,15 +719,14 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     add(locale === "en" ? "Focal Length" : "焦点距離", mergedExif.focalLength);
                     add(locale === "en" ? "White Balance" : "ホワイトバランス", mergedExif.whiteBalance);
                     add(locale === "en" ? "Image Size" : "画像サイズ", mergedExif.imageSize);
-                    if (mergedExif.dateTimeOriginal) {
-                        const d = new Date(mergedExif.dateTimeOriginal);
-                        if (!isNaN(d.getTime())) {
-                            add(
-                                locale === "en" ? "Date Taken" : "撮影日時",
-                                d.toLocaleString(locale === "ja" ? "ja-JP" : "en-US", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }),
-                                true,
-                            );
-                        }
+                    // 撮影日時は**保存されている通り**に出す。toLocaleString を
+                    // 描画中に呼んでいた頃は、ビルド(UTC)と閲覧者のゾーンで
+                    // 文字列が食い違ってハイドレーション不一致になり、しかも
+                    // 日付だけの値（"2024-10-12"）が UTC 0時として読まれるため
+                    // ニューヨークからは前日と表示されていた。
+                    const shotAt = formatStoredDateTime(mergedExif.dateTimeOriginal, locale === "en" ? "en" : "ja");
+                    if (shotAt) {
+                        add(locale === "en" ? "Date Taken" : "撮影日時", shotAt, true);
                     }
                     if (specs.length === 0) return null;
                     return (
@@ -699,7 +781,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                     <div className="relative w-full" style={{ aspectRatio: "16 / 9" }}>
                                         <iframe
                                             src={mvEmbed.embedUrl}
-                                            title="photo mv"
+                                            title="この写真のMV"
                                             className="absolute inset-0 w-full h-full"
                                             allow="encrypted-media; picture-in-picture; web-share"
                                             referrerPolicy="strict-origin-when-cross-origin"
@@ -732,12 +814,17 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                                 : (locale === "en" ? "Search" : "検索")}
                                         </button>
                                         <button
-                                            onClick={() => { setSongPickerOpen(false); setSongResults([]); setSongQuery(""); }}
+                                            onClick={() => { setSongPickerOpen(false); setSongResults([]); setSongQuery(""); setSongSearchError(false); }}
                                             className="px-2 rounded-lg text-white/50 hover:text-white/80 text-xs active:scale-95 transition"
                                         >
                                             {locale === "en" ? "Cancel" : "閉じる"}
                                         </button>
                                     </div>
+                                    {songSearchError && (
+                                        <p className="text-xs text-amber-400/80">
+                                            {locale === "en" ? "Search failed. Try again." : "検索に失敗しました。もう一度お試しください。"}
+                                        </p>
+                                    )}
                                     {songResults.length > 0 && (
                                         <ul className="rounded-lg ring-1 ring-white/10 divide-y divide-white/5 overflow-hidden max-h-56 overflow-y-auto no-scrollbar">
                                             {songResults.map((r) => (
@@ -783,6 +870,20 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                             )
                         )}
 
+                        {/* オーナー: 編集画面（タイトル・説明・撮影地・タグ・削除）への導線。
+                            これまで /user/edit へのリンクは**下書き一覧にしか無く**、
+                            公開済みの写真は編集画面に辿り着けなかった（＝直す手段も
+                            消す手段も画面上に無い）。気づいた場所から入れるようにする。 */}
+                        {isOwnPhoto && (
+                            <Link
+                                href={ROUTES.EDIT(photoId)}
+                                className="inline-flex items-center gap-1.5 self-start px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                {locale === "en" ? "Edit or delete this photo" : "この写真を編集・削除"}
+                            </Link>
+                        )}
+
                         {/* オーナー: フル再生MV（YouTube リンク）の設定 */}
                         {isOwnPhoto && !songPickerOpen && (
                             <div className="flex items-center gap-2 max-w-md">
@@ -826,7 +927,17 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     <div className="flex flex-wrap gap-2">
                         {/* いいねボタン（数を表示） */}
                         <button
-                            onClick={() => { hapticTap(); void toggleLike(); }}
+                            onClick={() => {
+                                hapticTap();
+                                // 失敗すると楽観更新がロールバックしてハートが
+                                // 黙って戻る。フォローは文言を出すのに、いいねだけ
+                                // 無言だった（SW-b4）
+                                void toggleLike().then((ok) => {
+                                    if (!ok) showToast(locale === "en"
+                                        ? "Couldn't save your like. Please try again."
+                                        : "いいねを保存できませんでした。もう一度お試しください", "error");
+                                });
+                            }}
                             disabled={likePending}
                             aria-pressed={isFav}
                             aria-label={isFav

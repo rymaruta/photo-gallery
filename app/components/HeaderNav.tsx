@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { XMarkIcon, Bars3Icon } from "@heroicons/react/24/solid";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../auth/context";
@@ -12,6 +13,7 @@ import { ROUTES } from "../../lib/routes";
 import UserAvatar from "./UserAvatar";
 import NotificationsBell from "./NotificationsBell";
 import { useFavorites } from "../../lib/hooks/useFavorites";
+import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 
 export default function HeaderNav({ className = "" }: { className?: string }) {
     const router = useRouter();
@@ -29,13 +31,59 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     const subtleInset = "inset 0 1px 0 rgba(255,255,255,0.02)";
     const subtleShadow = "0 1px 8px rgba(0,0,0,0.65)";
 
+    // **「開いた画面」ごと覚える。**
+    //
+    // このヘッダーはルートレイアウトにあるのでクライアント遷移では
+    // 再マウントされず、閉じるのは「メニューのリンクを押す」「Escape」
+    // 「× を押す」の3つだけだった。**ブラウザの戻る・進む**では背後の
+    // ページだけが変わり、オーバーレイは出したまま、`body` の
+    // スクロールロックも残る（× か Escape でしか抜けられない）。
+    // スマホの「戻る＝閉じる」という期待とは逆に、遷移だけが起きていた。
+    //
+    // エフェクトで閉じるのではなく、**描画のときに見比べる**
+    // （エフェクトの中で setState すると連鎖描画になる）。
+    // パスはメニューを開いても変わらないので、閉じるのは
+    // 「実際に画面が変わったとき」だけ。`useGallery` の `?photo=` は
+    // クエリなのでここには効かない。
+    const pathname = usePathname();
     const [open, setOpen] = useState(false);
+    const [seenPath, setSeenPath] = useState(pathname);
+    if (seenPath !== pathname) {
+        // **描画のときに1回だけ閉じる**（React が公式に「props が変わったら
+        // state を調整する」形として挙げているやり方）。エフェクトの中で
+        // setState すると連鎖描画になるので、そちらは使わない。
+        //
+        // **`open = (開いたパス === 今のパス)` にしてはいけない。** それは
+        // 「画面が変わったら閉じる」ではなく「**そのパスに居る間ずっと
+        // 開いている**」という意味で、閉じる操作を経ずに離れると、戻って
+        // きた瞬間に**触っていないのに開き直す**（一度そう書いて回帰にした）。
+        setSeenPath(pathname);
+        if (open) setOpen(false);
+    }
     const panelRef = useRef<HTMLDivElement | null>(null);
+
+    // **クエリだけ変わる移動でも閉じる。**
+    //
+    // 上の調整は `usePathname` が変わったときにしか効かない。`/users?id=A`
+    // → `?id=B`（プロフィールの行き来）や `/user/edit?id=` はパスが同じ
+    // なので、戻る・進むでメニューも `body` のスクロールロックも残ったまま、
+    // 背後だけが別の人に変わる（スマホの「戻る＝閉じる」と逆）。
+    //
+    // `useSearchParams` は使わない——ルートレイアウトに置くと静的書き出し
+    // 全体に響く。ここで要るのは「履歴を動いた」ことだけなので `popstate` で足りる。
+    // 開いている間だけ聞く（閉じているときに開く方へ倒す経路を作らない）。
+    useEffect(() => {
+        if (!open) return;
+        const close = () => setOpen(false);
+        window.addEventListener("popstate", close);
+        return () => window.removeEventListener("popstate", close);
+    }, [open]);
 
     const handleNavigation = (href: string) => {
         setOpen(false);
         router.push(href);
     };
+
 
     // Close on Escape key
     useEffect(() => {
@@ -46,22 +94,28 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
         return () => document.removeEventListener("keydown", onKey);
     }, []);
 
-    // Scroll lock when open
+    // **開いたらメニューの中へフォーカスを移し、Tab を閉じ込める。**
+    //
+    // パネルは `createPortal(..., document.body)` で body の末尾に出るので、
+    // DOM 順は**ページの一番最後**。開いてから Tab を押すと、フォーカスは
+    // メニューではなくその下の本文（写真グリッドの全リンク）へ進み、
+    // トップページなら数十個のリンクとフッターを通り抜けないと
+    // 「マイページ」「ログアウト」に届かなかった（＝開いても入れない）。
+    //
+    // 最初はここに手書きで14行置いたが、同じことをする `useFocusTrap` を
+    // 別で作ったので寄せた（そちらは Shift+Tab で裏へ抜ける穴も塞ぐ。
+    // `aria-modal="true"` なので、抜けた先は読み上げでは「存在しない」場所）。
+    const toggleRef = useRef<HTMLButtonElement | null>(null);
+    useFocusTrap(open, panelRef, toggleRef);
+
+    // 背景スクロールロック。**共通の実装に寄せた**（`lib/utils/scrollLock.ts`）。
+    // ここは `overflow` + `paddingRight` だけの自前実装で、解除は無条件に
+    // `""` を書いていた——数を数えているモーダル側と同時に開くと、
+    // こちらを閉じただけで向こうのロックまで外れる。
     useEffect(() => {
-        const body = document.body;
-        if (!body) return;
-        if (open) {
-            const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
-            if (scrollBarWidth > 0) body.style.paddingRight = `${scrollBarWidth}px`;
-            body.style.overflow = "hidden";
-        } else {
-            body.style.overflow = "";
-            body.style.paddingRight = "";
-        }
-        return () => {
-            body.style.overflow = "";
-            body.style.paddingRight = "";
-        };
+        if (!open) return;
+        lockBodyScroll();
+        return () => unlockBodyScroll();
     }, [open]);
 
     const linkBase = "block px-4 py-3.5 whitespace-nowrap text-base transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/10";
@@ -105,10 +159,17 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                 </button>
             )}
             <button
+                ref={toggleRef}
                 aria-expanded={open}
                 aria-controls="site-menu"
-                aria-label={open ? "Close menu" : "Open menu"}
-                onClick={() => setOpen((v) => !v)}
+                aria-label={open ? "メニューを閉じる" : "メニューを開く"}
+                // **E2E はこの目印で引く。** 表示ラベルで引いていたので、
+                // 文言を日本語に直した回に `scripts/e2e-smoke.mjs` が
+                // 追随できず、**本番デプロイだけが落ちる**形になっていた
+                // （スモークは prod のステップにしか無いので staging は緑）。
+                // 目印と文言を分けておけば、次に文言を直す人が壊せない。
+                data-e2e="menu-toggle"
+                onClick={() => setOpen(!open)}
                 style={{
                     backgroundColor: bg,
                     border: `2px solid ${outerBorder}`,
@@ -118,7 +179,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                     minWidth: "44px",
                     minHeight: "44px",
                 }}
-                className="inline-flex items-center justify-center w-11 h-11 rounded-md hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-white/20"
+                className="inline-flex items-center justify-center w-11 h-11 rounded-md hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
             >
                 {open ? <XMarkIcon className="h-6 w-6 text-white" /> : <Bars3Icon className="h-6 w-6 text-white" />}
             </button>
@@ -131,6 +192,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                     id="site-menu"
                     role="dialog"
                     aria-modal="true"
+                    aria-label={locale === "en" ? "Menu" : "メニュー"}
                     ref={panelRef}
                     className="fixed left-0 right-0 bottom-0 top-[64px] md:top-[72px] z-50"
                 >
@@ -146,7 +208,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                         className="absolute top-2 right-4 md:right-8 w-[52%] max-w-[220px] rounded-2xl ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in"
                         style={{ backgroundColor: "#16181c", zIndex: 10 }}
                     >
-                        <nav aria-label="Mobile menu">
+                        <nav aria-label="メインメニュー">
                             <ul className="flex flex-col m-0 p-0 divide-y divide-white/5" style={{ listStyle: "none" }}>
                                 {/* いいねした写真: 未ログインの初回訪問者には出さない（空ページになるため）。
                                     ログイン中、または実際にお気に入りがある人にだけ表示する。 */}
@@ -178,7 +240,17 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                         </button>
                                     </li>
                                 )}
-                                {isAuthenticated ? (
+                                {/* **判定中は出し分けない。** `loading` を受け取っているのに
+                                    使っておらず、Cognito のセッション確認が終わる前は
+                                    isAuthenticated が false なので、ログイン済みの人にも
+                                    一瞬「ログイン / 新規登録」が並んでいた。押すと
+                                    ログイン済みのままログイン画面に飛ぶ。
+                                    分かるまでは、この行だけ何も出さない。 */}
+                                {loading ? (
+                                    <li aria-hidden style={{ margin: 0, padding: 0 }}>
+                                        <span className={`${linkBase} block opacity-0`} style={{ minHeight: "44px" }}>&nbsp;</span>
+                                    </li>
+                                ) : isAuthenticated ? (
                                     <li style={{ margin: 0, padding: 0 }}>
                                         <button onClick={() => { setOpen(false); logout(); }} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                             {navLabels.logout || "Logout"}

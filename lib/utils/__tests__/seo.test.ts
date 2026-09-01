@@ -150,3 +150,44 @@ describe("generateWebSiteStructuredData", () => {
         expect(data.url).toBe(siteConfig.url);
     });
 });
+
+// タグ・撮影地・カテゴリのページも同じ関数を使っている。引数を渡していなかった
+// ため、**約35個のURLが「自分はトップページだ」と申告していた**
+// （name も description も url も siteConfig 直書き）。
+describe("generateStructuredData: コレクションページ", () => {
+    const photos = [{ id: "1", src: "/img/1.jpg" }];
+
+    it("渡された名前・説明・URLを名乗る", () => {
+        const data = generateStructuredData(photos, {
+            name: "バルセロナの写真",
+            description: "バルセロナで撮影した旅の写真",
+            url: "https://journey-photo.com/location/barcelona",
+        }) as Record<string, unknown>;
+        expect(data.name).toBe("バルセロナの写真");
+        expect(data.description).toBe("バルセロナで撮影した旅の写真");
+        expect(data.url).toBe("https://journey-photo.com/location/barcelona");
+    });
+
+    it("渡さなければ従来どおりトップページとして名乗る（トップの動きを壊さない）", () => {
+        const data = generateStructuredData(photos) as Record<string, unknown>;
+        expect(data.url).toBe("https://journey-photo.com");
+    });
+});
+
+// 撮影日を持つのは30枚中8枚。残りは「撮った日」としてアップロード日を
+// 申告していた（本文側と同じ嘘を機械可読でも配っていた）。
+describe("写真の構造化データ: 撮影日", () => {
+    const base = { id: "p1", src: "https://cdn/p1.jpg", createdAt: "2026-04-12T14:24:05.104Z" };
+
+    it("撮影日があれば dateCreated に入れる", () => {
+        const d = generatePhotoStructuredData({ ...base, date: "2024-10-12" }) as Record<string, unknown>;
+        expect(d.dateCreated).toBe("2024-10-12");
+    });
+
+    it("撮影日が無ければ dateCreated を出さない（登録日で代用しない）", () => {
+        const d = generatePhotoStructuredData(base) as Record<string, unknown>;
+        expect(d).not.toHaveProperty("dateCreated");
+        // 公開日は登録日時のままでよい
+        expect(d.datePublished).toBe(base.createdAt);
+    });
+});

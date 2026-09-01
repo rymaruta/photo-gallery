@@ -26,6 +26,9 @@ function toAbsolute(src: string): string {
     return src.startsWith("http") ? src : `${siteConfig.url}${src}`;
 }
 
+/** プライバシーポリシーの本文を最後に変えた日。本文を直したらここも直す */
+const PRIVACY_LAST_MODIFIED = "2026-04-01";
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const baseUrl = siteConfig.url;
     const now = new Date().toISOString();
@@ -76,16 +79,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             })
         );
 
+    // lastmod は「中身が変わった日」。ビルド時刻を入れると、写真を1枚も
+    // 足していないビルドでもトップと /privacy が「今日更新」と申告する。
+    // 毎回それをやると lastmod ごと信用されなくなり、本当に増えた写真の
+    // 発見が遅れる（sitemap を出している目的そのものを損なう）。
+    // トップは一番新しい写真の日付、/privacy は本文を変えた日を使う。
+    const newestPhoto = photos
+        .map((p) => p.updatedAt ?? p.createdAt ?? "")
+        .filter(Boolean)
+        .sort()
+        .pop();
     return [
         {
             url: baseUrl,
-            lastModified: now,
+            lastModified: newestPhoto ?? now,
             changeFrequency: "daily",
             priority: 1.0,
         },
         {
             url: `${baseUrl}/privacy`,
-            lastModified: now,
+            lastModified: PRIVACY_LAST_MODIFIED,
             changeFrequency: "yearly",
             priority: 0.2,
         },

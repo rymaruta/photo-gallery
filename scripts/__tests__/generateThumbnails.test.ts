@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { keyFromSrc, thumbKeyFor, derivativeKey, shouldProcess, needsThumb, needsMeta, needsDerivatives, needsShotDate, buildMetaFields, hexFromChannel } = require("../generate-thumbnails.js");
+const { keyFromSrc, thumbKeyFor, derivativeKey, shouldProcess, needsThumb, needsMeta, needsDerivatives, buildMetaFields, hexFromChannel, isMissingObject, exitCodeFor } = require("../generate-thumbnails.js");
 
 describe("keyFromSrc", () => {
     it("CloudFront URL から S3 キーを取り出す", () => {
@@ -178,19 +178,97 @@ describe("hexFromChannel", () => {
     });
 });
 
-describe("needsShotDate（撮影日の補完対象）", () => {
-    const src = "https://cdn.example.com/uploads/p1.jpg";
-    const orig = "https://cdn.example.com/uploads/originals/p1.jpeg";
+// 撮影日の補完はこのスクリプトから消えた。復元には EXIF 付きの元画像
+// （srcOriginal）が要るが、**今のどの保存経路も srcOriginal を書いていない**
+// ——アップロードは EXIF を落としてから上げるので原本が S3 に存在しない。
+// ここには「srcOriginal を持つ写真」を渡すテストが3本あったが、その入力は
+// 実データに存在せず、補完対象は永久に0件だった（＝一度も動いていない
+// 分岐を測っていた）。撮影日は今アップロード時にブラウザが送っている。
 
-    it("date が無く、EXIF付き元画像(srcOriginal)がある写真は対象", () => {
-        expect(needsShotDate({ id: "p1", src, srcOriginal: orig })).toBe(true);
+// このジョブの終了コードは、本番デプロイが進むかどうかを決める。
+// deploy.yml はこのステップの後に build と S3 反映を置いていて、
+// 削除のたびに走る site-rebuild（消えたページを S3 から消す唯一の経路）も
+// 同じ道を通る。ここを塞ぐと「消したはずの内容が公開されたまま、
+// 直すデプロイも打てない」になる。
+describe("exitCodeFor: 人が見に行くべきかの合図", () => {
+    const run = (o: Partial<Record<"targets" | "ok" | "skipped" | "missing" | "failed", number>>) =>
+        exitCodeFor({ targets: 0, ok: 0, skipped: 0, missing: 0, failed: 0, ...o });
+
+    it("原本が消えた行しか残っていなければ 0", () => {
+        // 退会処理は S3 を先に消して DynamoDB を後で消すので、途中で切れると
+        // 「実体は無いが行は残る」が残る。一度うまく回ったあとの定常状態は
+        // 「その行だけが対象」——ここを 1 にすると毎回赤くなる。
+        expect(run({ targets: 3, missing: 3 })).toBe(0);
     });
 
-    it("srcOriginal が無ければ対象外（圧縮済み画像にEXIFは残っていない）", () => {
-        expect(needsShotDate({ id: "p1", src })).toBe(false);
+    it("スキップだけなら 0（撮影日が EXIF に無い写真）", () => {
+        expect(run({ targets: 4, skipped: 4 })).toBe(0);
     });
 
-    it("date が既にあれば対象外（冪等）", () => {
-        expect(needsShotDate({ id: "p1", src, srcOriginal: orig, date: "2024-10-12" })).toBe(false);
+    it("対象が無ければ 0", () => {
+        expect(run({ targets: 0 })).toBe(0);
+    });
+
+    it("全部成功なら 0", () => {
+        expect(run({ targets: 3, ok: 3 })).toBe(0);
+    });
+
+    it("直しようのある失敗が1件でもあれば 1（人が見る）", () => {
+        expect(run({ targets: 4, ok: 3, failed: 1 })).toBe(1);
+        expect(run({ targets: 3, failed: 3 })).toBe(1);
+    });
+});
+
+describe("isMissingObject: 原本が無いエラーの見分け", () => {
+    it("NoSuchKey", () => {
+        expect(isMissingObject(Object.assign(new Error("x"), { name: "NoSuchKey" }))).toBe(true);
+    });
+    it("NotFound", () => {
+        expect(isMissingObject(Object.assign(new Error("x"), { name: "NotFound" }))).toBe(true);
+    });
+    it("HTTP 404", () => {
+        expect(isMissingObject({ $metadata: { httpStatusCode: 404 } })).toBe(true);
+    });
+    it("スロットリングは別（直しようがある＝失敗として数える）", () => {
+        expect(isMissingObject(Object.assign(new Error("x"), { name: "ThrottlingException" }))).toBe(false);
+    });
+    it("資格情報切れも別", () => {
+        expect(isMissingObject(Object.assign(new Error("x"), { name: "ExpiredTokenException" }))).toBe(false);
+    });
+    it("null / undefined でも壊れない", () => {
+        expect(isMissingObject(undefined)).toBe(false);
+        expect(isMissingObject(null)).toBe(false);
+    });
+});
+
+// 保存する画像URLに CloudFront の既定ドメインを焼き込んでいた。
+// 実測で30件中11件が d1s3dwwzgxf5ni.cloudfront.net、19件が journey-photo.com。
+// 同じ画像が2つのホスト名で配信され、サイトマップが両方を <image:loc> に
+// 載せるのでインデックスが2ホストに割れる。訪問者にも DNS+TLS が1往復増える。
+describe("保存する画像URLの土台", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { keyFromSrc } = require("../generate-thumbnails.js");
+
+    it("読み取りはホスト名に依存しない（既存データとの互換）", () => {
+        // だから土台を差し替えても、保存済みのURLは今までどおり辿れる
+        expect(keyFromSrc("https://d1s3dwwzgxf5ni.cloudfront.net/uploads/u1/a.jpg"))
+            .toBe("uploads/u1/a.jpg");
+        expect(keyFromSrc("https://journey-photo.com/uploads/u1/a.jpg"))
+            .toBe("uploads/u1/a.jpg");
+    });
+
+    it("パーセントエンコードされていても同じキーになる", () => {
+        expect(keyFromSrc("https://journey-photo.com/up%6Coads/u1/a.jpg"))
+            .toBe("uploads/u1/a.jpg");
+    });
+
+    it("スクリプトは PUBLIC_BASE_URL を優先する（ワークフローが siteUrl を渡す）", () => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const nodeFs = require("fs");
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const nodePath = require("path");
+        const src = nodeFs.readFileSync(
+            nodePath.join(__dirname, "..", "generate-thumbnails.js"), "utf8");
+        expect(src).toContain("process.env.PUBLIC_BASE_URL || requireEnv(\"CLOUDFRONT_URL\")");
     });
 });

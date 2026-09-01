@@ -5,17 +5,17 @@
 import type { Metadata } from "next";
 import { loadAllPhotos } from "./photos";
 import {
-    canonicalCategorySlug,
+    canonicalCollectionPath,
     collectEntries,
     isIndexableCollection,
     legacyCategorySlugs,
     photosInCollection,
     labelForSlug,
     collectionCopy,
-    collectionPath,
     type CollectionType,
 } from "../utils/collections";
 import { siteConfig } from "../utils/seo";
+import { withPlaceholderParam } from "./staticParams";
 
 /** 静的エクスポート用: そのタイプの全 slug を列挙（列挙外のパスは 404） */
 export async function collectionStaticParams(type: CollectionType, paramKey: string) {
@@ -25,7 +25,8 @@ export async function collectionStaticParams(type: CollectionType, paramKey: str
     // `/category/風景` などもページとして残す（静的エクスポートではリダイレクトが
     // 張れず、消すとハード404になるため）。中身は統合後と同じで、canonical で寄せる。
     if (type === "category") slugs.push(...legacyCategorySlugs(photos));
-    return slugs.map((slug) => ({ [paramKey]: slug }));
+    // 写真が0件でも1件は返す（空だと output: export がビルドを落とす）
+    return withPlaceholderParam(slugs.map((slug) => ({ [paramKey]: slug })), paramKey);
 }
 
 /** ランディングページのメタデータ（title/description/canonical/OG/Twitter） */
@@ -36,8 +37,9 @@ export async function collectionMetadata(type: CollectionType, slug: string): Pr
     const { title, description } = collectionCopy(type, label, matched.length);
     // canonical は統合後のURLに向ける。旧スラッグ（/category/風景）でも
     // 評価が統合後（/category/landscape）にまとまるようにする。
-    const canonicalSlug = type === "category" ? canonicalCategorySlug(slug) : slug;
-    const url = `${siteConfig.url}${collectionPath(type, canonicalSlug)}`;
+    // 組み立ては canonicalCollectionPath に一本化した（JSON-LD 側と
+    // 別々に組んでいて食い違わせた）。
+    const url = `${siteConfig.url}${canonicalCollectionPath(type, slug)}`;
 
     const first = matched[0];
     const rawImage = first?.thumbSrc || first?.src;

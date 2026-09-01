@@ -1,0 +1,112 @@
+import type { Photo } from "../data/photos";
+import { tagKey } from "./collections";
+
+/**
+ * 自分がこれまでに使った撮影地・カテゴリ・タグを、よく使う順に集める。
+ *
+ * **入力の助けが無いせいで、同じ場所が別々の名前に散っていた。**
+ * 実データには「パリ」「パリ, フランス」「オペラ・ガルニエ（パリ）」
+ * 「フランス ヴェルサイユ」が並んでいて、集約ページ（/location/…）も
+ * 関連写真の導線も別々の入れ物に分かれる。SEO-1 で集約側は緩い一致に
+ * 寄せたが、それは症状への対処で、**元は「前に何と書いたか」を思い出す
+ * 手段が無いこと**にある。
+ *
+ * 候補は「自分の過去の値」だけ。他人の値は混ぜない
+ * （公開プロフィールから他人の撮影地の一覧が読めるのと同じことになる）。
+ */
+export type OwnValues = { locations: string[]; categories: string[]; tags: string[] };
+
+/** 件数の多い順 → 同数なら文字順（毎回同じ並びにする） */
+function byFrequency(counts: Map<string, number>): string[] {
+    return [...counts.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([v]) => v);
+}
+
+/**
+ * タグの候補だけは、**同じタグを1つのチップに畳む**。
+ *
+ * 比べ方は画面の絞り込みと同じ `tagKey`（大小・`#`・記号を無視した
+ * スラッグ）。完全一致で数えていたので、実測で `["fuji", "#旅", "Fuji",
+ * "旅"]` ——**同じタグのチップが2つ**並び、押すと両方が写真に付いた。
+ * ギャラリー側は `dca777a` / `e731478` で畳んだので、ここだけ残っていた。
+ *
+ * 代表の表記は `e731478` と同じ規則: **いちばん多く使った生表記**、
+ * 同数なら文字順（毎回同じ並びにするため）。
+ * 数えるのは**写真1枚につき1回**——`["旅", "#旅"]` を持つ1枚で「2回使った」
+ * ことにはならない（`e541b23` で件数側に入れたのと同じ守り）。
+ */
+function collectTags(photos: readonly Photo[], limit: number): string[] {
+    const groups = new Map<string, { total: number; raws: Map<string, number> }>();
+    for (const p of photos) {
+        const seen = new Set<string>();
+        for (const raw of p.tags ?? []) {
+            if (typeof raw !== "string") continue;
+            const v = raw.trim();
+            if (!v) continue;
+            const key = tagKey(v);
+            const g = groups.get(key) ?? { total: 0, raws: new Map<string, number>() };
+            // **表記の票は、畳む前に必ず数える。** `seen` の後ろに置くと、
+            // 1枚の中で2通り書いた片方（先に見た方）の票だけが入り、
+            // **同じ写真集合でもタグ配列の並び順で代表表記が変わる**
+            // （実測: `["Fuji","fuji"]` と `["fuji","Fuji"]` で結果が
+            // `Fuji` / `fuji` に割れた）
+            g.raws.set(v, (g.raws.get(v) ?? 0) + 1);
+            // 使った回数（＝並び順）は写真1枚につき1回だけ
+            if (!seen.has(key)) {
+                seen.add(key);
+                g.total += 1;
+            }
+            groups.set(key, g);
+        }
+    }
+    const label = (g: { raws: Map<string, number> }) =>
+        [...g.raws.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
+    return [...groups.values()]
+        .map((g) => ({ total: g.total, name: label(g) }))
+        .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name))
+        .map((g) => g.name)
+        .slice(0, limit);
+}
+
+export function collectOwnValues(photos: readonly Photo[] | null | undefined, limit = 30): OwnValues {
+    const loc = new Map<string, number>();
+    const cat = new Map<string, number>();
+    const bump = (m: Map<string, number>, raw: unknown) => {
+        if (typeof raw !== "string") return;
+        const v = raw.trim();
+        if (!v) return;
+        m.set(v, (m.get(v) ?? 0) + 1);
+    };
+    for (const p of photos ?? []) {
+        // 下書きも数える。まだ公開していない写真でも「前に何と書いたか」は
+        // 思い出したい（公開状態は候補の有無と関係ない）。
+        bump(loc, p.location);
+        bump(cat, p.category);
+    }
+    return {
+        locations: byFrequency(loc).slice(0, limit),
+        categories: byFrequency(cat).slice(0, limit),
+        tags: collectTags(photos ?? [], limit),
+    };
+}
+
+/**
+ * カンマ区切りのタグ欄に1つ足す（既にあれば何もしない）。
+ *
+ * タグ欄は datalist が使えない——datalist は**欄全体**を選んだ値で
+ * 置き換えるので、「自然, 山」と書いている途中に候補を選ぶと
+ * 既に入れた分が消える。押して足すチップ側の実装をここに置く。
+ */
+export function appendTag(current: string, tag: string): string {
+    const add = tag.trim();
+    if (!add) return current;
+    const parts = current.split(",").map((t) => t.trim()).filter(Boolean);
+    // **同じタグかどうかは `tagKey` で見る。** 完全一致だと、`fuji` と
+    // 書いてある欄に候補の `Fuji` を押すと `"fuji, Fuji"` になり、
+    // 1枚の写真に同じタグが2つ付く（絞り込みは畳むが、写真のタグ欄には
+    // 2つ並ぶ）。実測で `#旅` と `旅` も同じ形だった
+    const key = tagKey(add);
+    if (parts.some((t) => tagKey(t) === key)) return current;
+    return [...parts, add].join(", ");
+}

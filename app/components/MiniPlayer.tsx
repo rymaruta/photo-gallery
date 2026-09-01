@@ -9,17 +9,20 @@
 // タッチ端末ではスクロールと競合するため従来どおり画面下に固定する。
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
 import { PlayIcon, PauseIcon, ForwardIcon, BackwardIcon } from "@heroicons/react/24/solid";
 import { XMarkIcon, MusicalNoteIcon, ArrowsRightLeftIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 import { useMusic } from "../music/MusicContext";
 import SmoothProgress from "./SmoothProgress";
 import { clampMiniPlayerPos } from "../../lib/utils/miniPlayerPos";
 
-// 画面下に固定の操作バーを持つページ。ミニプレイヤーをその上へ逃がす。
-const PAGES_WITH_BOTTOM_BAR = ["/user/upload", "/user/edit"];
-// バーの高さの目安（p-4 + ボタン44px + 枠線）
-const BOTTOM_BAR_HEIGHT_PX = 80;
+// 画面下に固定の操作バーがあるページでは、その上へ逃がす。
+// **高さは決め打ちしない。** 以前は「`p-4` + ボタン44px + 枠線 ≒ 80px」と
+// 見積もっていたが、幅320px ではラベルが折り返してバーが 95px になり
+// **3px 重なっていた**（同じ z-40 でミニプレイヤーが後に描かれるので、
+// 「公開」を押したつもりでプレイヤーのボタンが反応する）。
+// いまはバー自身が実測値を `--bottom-bar-h` に出す
+// （`lib/hooks/useBottomBarHeight.ts`）。ページ名の一覧も要らなくなった
+// ——一覧に足し忘れると静かに重なる、という二重管理が1つ減る。
 
 const STORAGE_KEY = "jp_miniplayer_pos";
 
@@ -44,7 +47,6 @@ export default function MiniPlayer() {
     const boxRef = useRef<HTMLDivElement | null>(null);
     const [draggable, setDraggable] = useState(false);
     const [pos, setPos] = useState<Pos | null>(null);
-    const pathname = usePathname();
     // ドラッグ中の状態: ポインタと要素左上のオフセット + 要素サイズ
     const dragRef = useRef<{ dx: number; dy: number; w: number; h: number } | null>(null);
 
@@ -75,9 +77,12 @@ export default function MiniPlayer() {
         } catch { /* ignore */ }
     }, [draggable]);
 
-    // 画面リサイズ時に画面外へ出ないよう補正
+    // 画面リサイズ時に画面外へ出ないよう補正。
+    // deps を [pos] にしていた頃は、ドラッグ中の setPos のたびに
+    // リスナが外れて張り直されていた（毎フレーム）。clamp は寸法を
+    // その場で読み、位置は関数型更新で触るので、購読は1回でよい。
+    // pos が無い間（下部固定モード）は clamp が何もしない。
     useEffect(() => {
-        if (!pos) return;
         const clamp = () => {
             const el = boxRef.current;
             if (!el) return;
@@ -87,7 +92,7 @@ export default function MiniPlayer() {
         };
         window.addEventListener("resize", clamp);
         return () => window.removeEventListener("resize", clamp);
-    }, [pos]);
+    }, []);
 
     const onPointerDown = useCallback((e: React.PointerEvent) => {
         if (!draggable) return;
@@ -126,10 +131,9 @@ export default function MiniPlayer() {
     // 画面下に固定バーがあるページでは、その上に逃がす。
     // 同じ z-40 でミニプレイヤーが後に描画されるため、重なると「公開」ボタンを
     // 押したつもりでプレイヤーのボタンが反応していた（iPhone で顕著）。
-    const bottomBarOffsetPx = PAGES_WITH_BOTTOM_BAR.includes(pathname ?? "") ? BOTTOM_BAR_HEIGHT_PX : 0;
     const outerStyle: React.CSSProperties = positioned
         ? { left: pos!.x, top: pos!.y, width: "min(28rem, calc(100vw - 24px))" }
-        : { bottom: `calc(env(safe-area-inset-bottom, 0px) + ${12 + bottomBarOffsetPx}px)` };
+        : { bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px + var(--bottom-bar-h, 0px))" };
 
     return (
         <div ref={boxRef} className={outerClass} style={outerStyle}>

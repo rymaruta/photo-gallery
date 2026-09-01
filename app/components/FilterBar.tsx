@@ -13,6 +13,7 @@ import debounce from "lodash.debounce";
 import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { getLabels } from "../i18n/labels";
 import type { FilterValues } from "../../lib/types/gallery";
+import { tagKey } from "../../lib/utils/collections";
 
 type TagInfo = { label: string; desc?: string };
 
@@ -44,7 +45,7 @@ function FilterBarInner({
 
     const actionLabels = labels.actions;
 
-    const clearLabel = actionLabels?.clearTags ?? "Clear";
+    const clearLabel = actionLabels.clearTags;
 
     // 入力欄の値は自分で持ち、確定した値だけ 300ms 後に親へ渡す。
     const [localQuery, setLocalQuery] = useState(() => values.query || "");
@@ -76,12 +77,15 @@ function FilterBarInner({
     useEffect(() => () => debouncedApply.cancel(), [debouncedApply]);
 
     // toggle tag (stable)
+    // **同じタグは同じ物差しで見る。** 完全一致で切り替えていた頃は、
+    // `?tags=<スラッグ>` で来た選択（`mount-fuji`）を生のチップ
+    // （`Mount Fuji`）から外せず、押すたびに**2つ目が足される**だけだった。
     const toggleTag = useCallback(
         (t: string) => {
-            const set = new Set(values.selectedTags);
-            if (set.has(t)) set.delete(t);
-            else set.add(t);
-            onChange({ selectedTags: Array.from(set) });
+            const key = tagKey(t);
+            const rest = values.selectedTags.filter((s) => tagKey(s) !== key);
+            // 消えていれば「選択されていた」＝解除。同じ長さなら追加
+            onChange({ selectedTags: rest.length === values.selectedTags.length ? [...rest, t] : rest });
         },
         [values.selectedTags, onChange]
     );
@@ -122,7 +126,7 @@ function FilterBarInner({
     const sortMenuRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
-        const onDocClick = (e: MouseEvent) => {
+        const onDocClick = (e: PointerEvent) => {
             if (!isSortOpen) return;
             const tgt = e.target as Node | null;
             if (!tgt) return;
@@ -130,15 +134,29 @@ function FilterBarInner({
             setSortOpen(false);
         };
         const onKey = (e: KeyboardEvent) => {
+            // 並び替えメニューが開いているときだけ反応する。
+            // 以前は常に document で拾って並び替えボタンに焦点を移していたので、
+            //   - 一覧の下の方で写真モーダルを Esc で閉じると、位置が戻った直後に
+            //     ページ先頭のボタンへ焦点が飛んでスクロールが巻き戻る
+            //   - 検索欄で Esc（type="search" の消去）を押すと焦点を奪われ、
+            //     続きが打てなくなる
+            // が起きていた。
+            if (!isSortOpen) return;
             if (e.key === "Escape") {
                 setSortOpen(false);
                 setTimeout(() => sortButtonRef.current?.focus(), 0);
             }
         };
-        document.addEventListener("mousedown", onDocClick);
+        // **`pointerdown` で聞く。** `mousedown` だけだと、iOS は
+        // 「押せない要素」に互換マウスイベントを合成しないことがあるので、
+        // グリッドの余白をタップしても閉じない（このリポジトリは
+        // `app/globals.css` に「button/a に cursor:pointer が無いと
+        // タップが効かない」という同種の記録を既に持っている）。
+        // スマホには Esc も無いので、閉じ損なうと開きっぱなしになる。
+        document.addEventListener("pointerdown", onDocClick);
         document.addEventListener("keydown", onKey);
         return () => {
-            document.removeEventListener("mousedown", onDocClick);
+            document.removeEventListener("pointerdown", onDocClick);
             document.removeEventListener("keydown", onKey);
         };
     }, [isSortOpen]);
@@ -268,7 +286,7 @@ function FilterBarInner({
     const renderTagChips = useMemo(
         () =>
             tags.map((t) => {
-                const active = values.selectedTags.includes(t);
+                const active = values.selectedTags.some((s) => tagKey(s) === tagKey(t));
                 const info = tagDisplayMap[t];
                 const display = info?.label ?? t;
                 const count = counts[t] ?? 0;
@@ -344,7 +362,7 @@ function FilterBarInner({
                                     appliedQueryRef.current = "";
                                     debouncedApply("");
                                 }}
-                                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-white/10 transition-colors focus:outline-none"
+                                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                                 aria-label={locale === "en" ? "Clear search" : "検索をクリア"}
                                 style={{
                                     touchAction: "manipulation",
@@ -365,7 +383,7 @@ function FilterBarInner({
                             aria-haspopup="listbox"
                             aria-expanded={isSortOpen}
                             aria-controls="sort-menu"
-                            className="inline-flex items-center gap-1 text-[13px] text-white/60 hover:text-white/90 focus:outline-none bg-transparent transition-colors"
+                            className="inline-flex items-center gap-1 text-[13px] text-white/60 hover:text-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 bg-transparent transition-colors"
                             style={{
                                 padding: "8px 4px 8px 10px",
                                 minHeight: 36,
@@ -429,7 +447,7 @@ function FilterBarInner({
                             type="button"
                             onClick={clearTags}
                             disabled={isPending}
-                            className={`inline-flex items-center text-[13px] focus:outline-none transition-colors ${isPending ? "opacity-60 pointer-events-none text-white/50" : "text-white/50 hover:text-white/90"} bg-transparent border border-white/15 hover:border-white/40`}
+                            className={`inline-flex items-center text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 transition-colors ${isPending ? "opacity-60 pointer-events-none text-white/50" : "text-white/50 hover:text-white/90"} bg-transparent border border-white/15 hover:border-white/40`}
                             style={{
                                 ...STYLE.controlBtn,
                                 touchAction: "manipulation",

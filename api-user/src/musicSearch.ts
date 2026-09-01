@@ -41,8 +41,17 @@ export function mapItunesResults(json: unknown): SongResult[] {
     return out;
 }
 
+/**
+ * 検索語の上限。
+ * 制限が無かったので、長い文字列をいくらでも投げられた。1リクエストごとに
+ * iTunes への外向き通信を1本開いたまま待つので、同時に大量に叩かれると
+ * Lambda の同時実行枠（アカウント全体で共有）を占有し、退会処理など
+ * 無関係な処理まで詰まる。ユーザー検索と同じ50文字に揃える。
+ */
+const QUERY_MAX = 50;
+
 export const musicSearch: APIGatewayProxyHandlerV2 = async (event) => {
-    const q = (event.queryStringParameters?.q ?? "").trim();
+    const q = (event.queryStringParameters?.q ?? "").trim().slice(0, QUERY_MAX);
     if (!q) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "検索語が必要です" }) };
     }

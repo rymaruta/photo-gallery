@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../auth/context";
@@ -10,14 +10,23 @@ import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import type { Photo, LocalizedParagraphs } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
+import { toDateInputValue, mergeDate } from "../../../lib/utils/dateInput";
+import { changedFields } from "../../../lib/utils/changedFields";
 
-const inputCls = "w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-white/50";
+// text-base（16px）にする。iOS Safari は 16px 未満の入力欄にフォーカスすると
+// ページを拡大し、blur しても戻さない。他のページでは inline style で
+// 16px を当てて回避しているが、ここは共通クラスなのでクラス側で揃える。
+const inputCls = "w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-base focus:outline-none focus:border-white/50";
 const labelCls = "block text-sm text-white/60 mb-1";
 const sectionCls = "border-t border-white/10 pt-5";
 
 function parseParagraphs(desc: Photo["description"], lang: "ja" | "en"): string {
     if (!desc) return "";
-    if (typeof desc === "string") return desc;
+    // 素の文字列は「日本語のみ・英語版なし」。以前は lang を見ずに両方へ
+    // 返していて、保存時に {ja, en} の**両方へ同じ日本語**が入り、
+    // JSON-LD や英語併記に日本語が焼き込まれた（/user/edit の
+    // mergeLocalizedDescription は英語版なしを守っている——対の乖離）。
+    if (typeof desc === "string") return lang === "ja" ? desc : "";
     const arr = (desc as LocalizedParagraphs)[lang];
     return Array.isArray(arr) ? arr.join("\n") : "";
 }
@@ -36,6 +45,8 @@ function AdminEditContent() {
     const [saving, setSaving] = useState(false);
 
     // Basic
+    // 読み込んだ時点の日本語（「この編集で空にした」の判定に使う）
+    const loadedRef = useRef<{ titleJa: string; descJa: string }>({ titleJa: "", descJa: "" });
     const [titleJa, setTitleJa] = useState("");
     const [titleEn, setTitleEn] = useState("");
     // Description
@@ -56,18 +67,36 @@ function AdminEditContent() {
     const [exifFocalLength, setExifFocalLength] = useState("");
     const [exifWhiteBalance, setExifWhiteBalance] = useState("");
 
+    // 通せなかった／もう用の無い画面は履歴に残さない（replace）。
+    // push にすると、送り先から戻ったときにこの画面へ着地し、ここが
+    // また送り返すので**戻るで抜けられなくなる**。
     useEffect(() => {
         if (!loading) {
             if (!isAuthenticated) {
-                router.push("/admin/login");
+                router.replace("/admin/login");
             } else if (!isAdminUser) {
-                router.push("/");
+                router.replace("/");
             }
         }
     }, [isAuthenticated, isAdminUser, loading, router]);
 
+    // 取得は非同期なので、遅い回線で A を開いて戻り B を開くと、
+    // A の応答が後から届く。中断ガードが無かった頃はフォームが A の内容で
+    // 埋まり、URL と photoId は B のままだったので、保存すると
+    // **B の写真に A のタイトル・説明・タグ・撮影日・公開状態が書き込まれた**。
+    //
+    // 「保存時に photoId とフォームの出どころを突き合わせる」二重の守りも
+    // 書いてみたが、**UI から到達できない**ので入れていない——写真を
+    // 切り替えると取得の開始と同時にスピナーへ変わり、保存ボタンが消える。
+    // 到達しない守りはテストも書けず、次に読む人を迷わせるだけになる。
     useEffect(() => {
-        if (!photoId || !isAuthenticated || !isAdminUser) return;
+        // ?id が無いまま開かれたら待っても何も来ない。
+        // 以前はここで return するだけだったので、スピナーが永久に回り、
+        // 戻る導線も出なかった（ブックマークからクエリが落ちた場合など）。
+        if (!photoId) { setLoadingPhoto(false); return; }
+        if (!isAuthenticated || !isAdminUser) return;
+
+        let aborted = false;
 
         const fetchPhoto = async () => {
             setLoadingPhoto(true);
@@ -81,24 +110,41 @@ function AdminEditContent() {
                     const all = await res.json() as Photo[];
                     const data = Array.isArray(all) ? all.find((p) => p.id === photoId) : undefined;
                     if (!data) throw new Error("not found");
+                    // 別の写真に切り替わったあとの応答は捨てる
+                    if (aborted) return;
                     setPhoto(data);
 
                     const t = data.title;
                     const titleJaVal = typeof t === "object" && t !== null
                         ? (t as Record<string, string>).ja ?? ""
                         : typeof t === "string" ? t : "";
+                    // 素の文字列は英語版なし（en 欄には入れない）。ここに同じ
+                    // 文字列を入れると保存で en に日本語が焼き込まれる。
+                    // 保存時の en:"" はサーバー（sanitizeTitle）が落とす
                     const titleEnVal = typeof t === "object" && t !== null
                         ? (t as Record<string, string>).en ?? ""
-                        : typeof t === "string" ? t : "";
+                        : "";
                     setTitleJa(titleJaVal);
                     setTitleEn(titleEnVal);
 
-                    setDescJa(parseParagraphs(data.description, "ja"));
+                    const descJaVal = parseParagraphs(data.description, "ja");
+                    setDescJa(descJaVal);
                     setDescEn(parseParagraphs(data.description, "en"));
+
+                    // **「この編集で空にした」と「もともと空」を分ける。**
+                    // 日本語が無く英語だけの写真（旧実装で日本語を消した分）は
+                    // この画面で最初から空欄に見える。状態だけを見て「空なら
+                    // 消す」に倒すと、**タイトルに触らず場所だけ直した保存で
+                    // 英語が消える**（しかも英語欄が無いので戻せない。
+                    // 触っていない項目で `metaChanged` が立ち、8分の再ビルドも走る）。
+                    loadedRef.current = { titleJa: titleJaVal, descJa: descJaVal };
 
                     setLocation(data.location ?? "");
                     setCategory(data.category ?? "");
-                    setDate(data.date ?? "");
+                    // 保存値は ISO 文字列。そのまま <input type="date"> に入れると
+                    // 黙って空欄になり、「撮影日が無い」と誤解した人が選び直して
+                    // 時刻を落としてしまう。
+                    setDate(toDateInputValue(data.date));
                     setTagsInput(Array.isArray(data.tags) ? data.tags.join(", ") : "");
                     setPublished(data.published !== false);
 
@@ -111,18 +157,27 @@ function AdminEditContent() {
                     setExifFocalLength(ex.focalLength ?? "");
                     setExifWhiteBalance(ex.whiteBalance ?? "");
                 } else {
+                    if (aborted) return;
                     showToast(locale === "en" ? "Photo not found" : "写真が見つかりません", "error");
-                    router.push(ROUTES.ADMIN);
+                    // **replace。** 見つからない写真の編集画面を履歴に残すと、
+                    // 戻るたびに同じトーストを出してまた送り返す
+                    router.replace(ROUTES.ADMIN);
                 }
             } catch (e) {
+                if (aborted) return;
+                // ここに来ると photo が null のままで、下の `if (!photo) return null`
+                // が真っ白な画面を返していた（ヘッダーも戻るリンクも無い）。
+                // res.ok === false の分岐と同じく管理画面へ戻す。
                 log.error("fetchPhoto error:", e);
                 showToast(locale === "en" ? "Failed to load photo" : "写真の読み込みに失敗しました", "error");
+                router.replace(ROUTES.ADMIN);
             } finally {
-                setLoadingPhoto(false);
+                if (!aborted) setLoadingPhoto(false);
             }
         };
 
         void fetchPhoto();
+        return () => { aborted = true; };
     }, [photoId, isAuthenticated, isAdminUser, showToast, router, locale]);
 
     const handleSave = async (e: React.FormEvent) => {
@@ -154,21 +209,57 @@ function AdminEditContent() {
             const descJaParagraphs = descJa.split("\n").map((s) => s.trim()).filter(Boolean);
             const descEnParagraphs = descEn.split("\n").map((s) => s.trim()).filter(Boolean);
 
+            // **実際に変えた項目だけ送る**（/user/edit と同じ理由）。
+            // 開いた時点の値を毎回全部送っていたので、同じ写真を2タブで開いて
+            // 片方で直したあと、もう片方で保存すると先の編集が消えた。
+            // こちらは exif も丸ごと送っていたので、撮影日時や画像サイズまで
+            // 古い姿に巻き戻っていた。空文字は「クリアの意思」なので送る
+            // （undefined はキーごと落ちて「触らない」になる——下のコメント参照）。
+            const nextFields: Record<string, unknown> = {
+                // **日本語を空にしたら、英語ごと消す。** `{ja:"", en:"..."}` を
+                // 送ると、サーバーは英語だけを残し、表示は `getLocalized` の
+                // フォールバックで**英語が出る**——この画面には英語の入力欄が
+                // 無いので、消したつもりの文字列を戻す手段が無くなる
+                // （/user/edit の `mergeLocalizedTitle` と同じ判断）。
+                // 空にした（＝もとは入っていた）ときだけクリア。もともと
+                // 空なら `undefined`＝キーごと落として「触らない」にする
+                title: titleJa
+                    ? { ja: titleJa, en: titleEn }
+                    : (loadedRef.current.titleJa ? "" : undefined),
+                description: descJaParagraphs.length
+                    ? { ja: descJaParagraphs, en: descEnParagraphs }
+                    : (loadedRef.current.descJa ? "" : undefined),
+                // 空文字で送る。undefined だと JSON.stringify がキーごと落とし、
+                // サーバーの部分更新が「指定なし＝触らない」と解釈するため、
+                // 一度入れた場所やカテゴリを空にできなかった。
+                location,
+                category,
+                // 日付だけ編集させているので、元の値が持っていた時刻は戻す
+                // （落とすと同じ日に撮った写真の並びが崩れる）
+                date: mergeDate(photo?.date, date),
+                tags,
+                exif,
+            };
+            // 比較先は「保存されている姿」。素の文字列も {ja,en} の形に
+            // 揃えてから比べる（sameFieldValue は空の en を無視するので、
+            // {ja:"湖"} と {ja:"湖", en:""} は同じと判定される）。
+            const prevTitle = photo?.title;
+            const originalFields: Record<string, unknown> = {
+                title: typeof prevTitle === "object" && prevTitle !== null
+                    ? prevTitle
+                    : { ja: typeof prevTitle === "string" ? prevTitle : "", en: "" },
+                description: photo?.description,
+                location: photo?.location ?? "",
+                category: photo?.category ?? "",
+                date: photo?.date ?? "",
+                tags: Array.isArray(photo?.tags) ? photo.tags : [],
+                exif: photo?.exif,
+            };
+            const body = { published, ...changedFields(nextFields, originalFields) };
+
             const res = await authenticatedFetch(`/photos/${photoId}`, {
                 method: "PUT",
-                body: JSON.stringify({
-                    title: { ja: titleJa, en: titleEn },
-                    description: { ja: descJaParagraphs, en: descEnParagraphs },
-                    // 空文字で送る。undefined だと JSON.stringify がキーごと落とし、
-                    // サーバーの部分更新が「指定なし＝触らない」と解釈するため、
-                    // 一度入れた場所やカテゴリを空にできなかった。
-                    location,
-                    category,
-                    date,
-                    tags,
-                    published,
-                    exif,
-                }),
+                body: JSON.stringify(body),
             });
 
             if (res.ok) {
@@ -194,7 +285,26 @@ function AdminEditContent() {
         );
     }
 
-    if (!photo) return null;
+    // 指定が無い / 見つからない場合は、真っ白ではなく戻る導線を出す
+    // （見つからない・失敗の経路は上で /admin に戻している）。
+    if (!photo) {
+        return (
+            <div className="min-h-screen bg-black text-white flex items-center justify-center px-6">
+                <div className="text-center">
+                    <p className="text-sm text-white/70 mb-4">
+                        {locale === "en" ? "No photo was specified." : "編集する写真が指定されていません。"}
+                    </p>
+                    <Link
+                        href={ROUTES.ADMIN}
+                        className="inline-block px-4 py-2.5 text-sm bg-white text-black font-semibold rounded-full hover:bg-white/90 transition-colors"
+                        style={{ touchAction: "manipulation", minHeight: "44px" }}
+                    >
+                        {locale === "en" ? "Back to admin" : "管理画面へ"}
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     const isJa = locale === "ja";
 
@@ -222,7 +332,9 @@ function AdminEditContent() {
                 <form onSubmit={(e) => void handleSave(e)} className="space-y-5">
 
                     {/* タイトル。英語欄は廃止（サイト表示は日本語のみ）。
-                        既存の英語テキストは JSON-LD 等で使うため、保存時にそのまま引き継ぐ。 */}
+                        既存の英語テキストは保存時に引き継ぐが、**日本語を
+                        空にしたら英語ごと消す**（残すと表示が英語に化けるうえ、
+                        この画面から戻せない）。もともと空の写真は触らない。 */}
                     <div>
                         <label className={labelCls}>{isJa ? "タイトル" : "Title"}</label>
                         <input type="text" value={titleJa} onChange={(e) => setTitleJa(e.target.value)} className={inputCls} />

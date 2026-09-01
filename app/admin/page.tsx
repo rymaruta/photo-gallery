@@ -9,15 +9,11 @@ import { useLocale } from "../i18n/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { PencilIcon, TrashIcon, PlusIcon } from "@heroicons/react/24/outline";
 import type { Photo } from "@/lib/data/photos";
+import { selectVisiblePhotos } from "./visiblePhotos";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import { log } from "../../lib/utils/log";
 import { ROUTES } from "../../lib/routes";
-
-// 検索対象のテキスト（タイトル・場所・カテゴリ・タグ）を1本の文字列にする
-function photoSearchText(p: Photo): string {
-    const title = typeof p.title === "string" ? p.title : [p.title?.ja, p.title?.en].filter(Boolean).join(" ");
-    return [title, p.location, p.category, ...(p.tags ?? [])].filter(Boolean).join(" ").toLowerCase();
-}
+import { readApiError } from "../../lib/utils/api";
 
 export default function AdminPage() {
     const { isAuthenticated, isAdminUser, loading } = useAuth();
@@ -26,6 +22,10 @@ export default function AdminPage() {
     const { showToast } = useToast();
     const [photos, setPhotos] = useState<Photo[]>([]);
     const [loadingPhotos, setLoadingPhotos] = useState(true);
+    // 取得失敗を「写真がありません。」と混ぜない。混ぜていた頃は、トークン
+    // 失効でも 500 でも空の一覧と同じ見た目になり、理由も再試行の導線も
+    // 無かった（下書き画面 app/user/drafts が先に同じ形で直っている）。
+    const [loadError, setLoadError] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [photoToDelete, setPhotoToDelete] = useState<Photo | null>(null);
@@ -41,12 +41,15 @@ export default function AdminPage() {
     }, []);
 
     // 認証チェック
+    // 通せなかった／もう用の無い画面は履歴に残さない（replace）。
+    // push にすると、送り先から戻ったときにこの画面へ着地し、ここが
+    // また送り返すので**戻るで抜けられなくなる**。
     useEffect(() => {
         if (!loading) {
             if (!isAuthenticated) {
-                router.push("/admin/login");
+                router.replace("/admin/login");
             } else if (!isAdminUser) {
-                router.push("/");
+                router.replace("/");
             }
         }
     }, [isAuthenticated, isAdminUser, loading, router]);
@@ -71,29 +74,25 @@ export default function AdminPage() {
             });
             if (response.ok) {
                 const data = await response.json();
-                // 最近更新した順にソート（updatedAt > createdAt > その他）
-                const sortedPhotos = [...data].sort((a, b) => {
-                    const aDate = a.updatedAt || a.createdAt;
-                    const bDate = b.updatedAt || b.createdAt;
-                    
-                    // 日付がない場合は最後に配置
-                    if (!aDate && !bDate) return 0;
-                    if (!aDate) return 1;
-                    if (!bDate) return -1;
-                    
-                    // 新しい順（降順）
-                    return new Date(bDate).getTime() - new Date(aDate).getTime();
-                });
-                setPhotos(sortedPhotos);
+                // **ここでは並べ替えない。** 画面に出るのは `visiblePhotos`
+                // で、そちらが毎回 `compareAdmin` で並べ直す（`photos` は
+                // 総数の表示にしか使わない）。取得時に別の規則で並べても
+                // 一度も画面に届かないうえ、規則が2つあるように読める。
+                // 配列に展開するのは残す——配列でない応答をここで投げて
+                // 「読み込めませんでした」に落とすため（描画中に投げると
+                // 画面ごと落ちる）
+                setPhotos([...data]);
+                if (isMountedRef.current) setLoadError(false);
             } else {
-                // 取得失敗のトーストは出さない（静かに失敗させる）
                 log.error("写真の取得に失敗しました", {
                     status: response.status,
                     statusText: response.statusText,
                 });
+                if (isMountedRef.current) setLoadError(true);
             }
         } catch (error) {
             log.error("写真取得エラー:", error);
+            if (isMountedRef.current) setLoadError(true);
         } finally {
             if (isMountedRef.current) setLoadingPhotos(false);
         }
@@ -139,15 +138,12 @@ export default function AdminPage() {
                     if (isMountedRef.current) void loadPhotos();
                 }, 500);
             } else {
-                const errorText = await response.text().catch(() => "Unknown error");
-                let errorMessage = "Unknown error";
-                
-                try {
-                    const errorJson = JSON.parse(errorText);
-                    errorMessage = errorJson.error || errorText;
-                } catch {
-                    errorMessage = errorText || `HTTP ${response.status}: ${response.statusText}`;
-                }
+                // readApiError に寄せる。自前で読んでいた頃は、API Gateway の
+                // 期限切れ応答 {"message":"Unauthorized"} に `error` が無いので
+                // **生の JSON がそのままトーストに出て**いた（クラッシュログの
+                // ように見える）。readApiError はこれを日本語に置き換える。
+                const errorMessage = await readApiError(response,
+                    locale === "en" ? "Failed to delete photo" : "削除に失敗しました");
 
                 log.error("削除APIエラー:", {
                     status: response.status,
@@ -187,17 +183,12 @@ export default function AdminPage() {
     };
 
     // 検索・絞り込み・並び替え（写真が増えても古い1枚に手が届くように）
-    const visiblePhotos = useMemo(() => {
-        const q = query.trim().toLowerCase();
-        const filtered = photos.filter((p) => {
-            if (status === "published" && p.published === false) return false;
-            if (status === "draft" && p.published !== false) return false;
-            if (!q) return true;
-            return photoSearchText(p).includes(q);
-        });
-        const time = (p: Photo) => Date.parse(p.date ?? p.updatedAt ?? p.createdAt ?? "") || 0;
-        return [...filtered].sort((a, b) => sort === "new" ? time(b) - time(a) : time(a) - time(b));
-    }, [photos, query, status, sort]);
+    // 中身は `./visiblePhotos.ts`（この画面は単体で描けないので、絞り込みと
+    // 並びの向きはそちらで確かめる）
+    const visiblePhotos = useMemo(
+        () => selectVisiblePhotos(photos, { query, status, sort }),
+        [photos, query, status, sort],
+    );
 
     // ローディング中または認証されていない場合
     if (loading || !isAuthenticated || !isAdminUser) {
@@ -295,6 +286,24 @@ export default function AdminPage() {
             {loadingPhotos ? (
                 <div className="flex items-center justify-center py-12">
                     <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                </div>
+            ) : loadError ? (
+                <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
+                    <p className="text-white/70 text-sm">
+                        {locale === "en" ? "Could not load photos." : "写真の一覧を読み込めませんでした"}
+                    </p>
+                    <p className="text-white/40 text-xs">
+                        {locale === "en"
+                            ? "Nothing was lost. Check your connection or sign in again."
+                            : "消えたわけではありません。通信かログイン状態を確かめてください。"}
+                    </p>
+                    <button
+                        onClick={() => void loadPhotos()}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 mt-1 bg-white text-black rounded-full text-sm font-semibold hover:bg-white/90 active:scale-[0.98] transition"
+                        style={{ touchAction: "manipulation", minHeight: "44px" }}
+                    >
+                        {locale === "en" ? "Retry" : "再試行"}
+                    </button>
                 </div>
             ) : photos.length === 0 ? (
                 <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">

@@ -7,15 +7,17 @@ import UserAvatar from "../UserAvatar";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
-import { compressImage, stripJpegExif } from "../../../lib/utils/image";
+import { toUploadSafeFile, UnstrippableFileError } from "../../../lib/utils/image";
 import { searchSongs, type SongResult } from "../../../lib/utils/music";
 import { startFromPointer, clampStart } from "../../../lib/utils/songTrim";
 import { log } from "../../../lib/utils/log";
 import {
-    groupStories, hasUnseen, loadSeenStoryIds, markStorySeen,
+    groupStories, hasUnseen, loadSeenStoryIds, markStorySeen, SEEN_STORAGE_KEY,
     type Story, type StoryGroup,
 } from "../../../lib/stories";
 import StoryViewer from "./StoryViewer";
+import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
+import { useMusic } from "../../music/MusicContext";
 
 
 // 画像ストーリーの表示秒数。投稿者が選べる（既定5秒）
@@ -35,20 +37,38 @@ const MAX_FILE_BYTES = 50 * 1024 * 1024;
 const RING_UNSEEN = "linear-gradient(45deg, #FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5)";
 const RING_SEEN = "#3a3a3d";
 
+/**
+ * 動画のメタデータが返らないときの打ち切り。
+ *
+ * `loadedmetadata` も `error` も鳴らないまま終わる場合がある（メモリが
+ * 足りない iOS Safari など。画像側の `loadImageFromFile` に同じ理由で
+ * 同じ守りが入っている）。**動画側だけ抜けていた**ので、そうなると
+ * 選んだのに下書きも出ずエラーも出ず、blob URL（最大50MB）が解放
+ * されないまま溜まる。失敗として扱えば、呼び出し側の catch が
+ * 「動画を読み込めませんでした」を出すところまで進む。
+ */
+const VIDEO_METADATA_TIMEOUT_MS = 15000;
+
 // 動画の再生時間を取得（メタデータのみ読み込み）
 function getVideoDuration(file: File): Promise<number> {
     return new Promise((resolve, reject) => {
         const url = URL.createObjectURL(file);
         const video = document.createElement("video");
         video.preload = "metadata";
-        video.onloadedmetadata = () => {
+        let settled = false;
+        const finish = (fn: () => void) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
             URL.revokeObjectURL(url);
-            resolve(video.duration);
+            fn();
         };
-        video.onerror = () => {
-            URL.revokeObjectURL(url);
-            reject(new Error("動画を読み込めません"));
-        };
+        const timer = setTimeout(
+            () => finish(() => reject(new Error("動画の読み込みがタイムアウトしました"))),
+            VIDEO_METADATA_TIMEOUT_MS,
+        );
+        video.onloadedmetadata = () => finish(() => resolve(video.duration));
+        video.onerror = () => finish(() => reject(new Error("動画を読み込めません")));
         video.src = url;
     });
 }
@@ -63,8 +83,11 @@ export default function StoriesBar() {
     const { isAuthenticated, userId } = useAuth();
     const { locale } = useLocale();
     const { showToast } = useToast();
+    const { stop: stopGlobalMusic } = useMusic();
 
     const [groups, setGroups] = useState<StoryGroup[]>([]);
+    // 取得の失敗を「誰も投稿していない」と混ぜない（コメント一覧と同じ型）
+    const [loadError, setLoadError] = useState(false);
     const [seen, setSeen] = useState<Set<string>>(new Set());
     const [viewerGroup, setViewerGroup] = useState<number | null>(null);
     const [posting, setPosting] = useState(false);
@@ -76,6 +99,7 @@ export default function StoriesBar() {
     const [songQuery, setSongQuery] = useState("");
     const [songResults, setSongResults] = useState<SongResult[]>([]);
     const [songSearching, setSongSearching] = useState(false);
+    const [songSearchError, setSongSearchError] = useState(false);
     // 曲の「好きな部分」= 30秒プレビュー内の開始位置（秒）
     const [songStart, setSongStart] = useState(0);
     // 画像ストーリーの表示秒数（投稿者が選ぶ）
@@ -100,6 +124,13 @@ export default function StoriesBar() {
      * （インスタと同じで、ストーリーに実際に乗る範囲がそのまま聴ける）。
      */
     const playPreview = useCallback((song: SongResult, startSec = 0, loopSec?: number) => {
+        // BGM が鳴っていたら止める。止めないとミニプレイヤーの曲と試聴が
+        // 同時に鳴り、しかもミニプレイヤーは再生中のまま見える。
+        // この下書きモーダルは z-[95] でミニプレイヤー（z-40）を覆うので、
+        // 止める手段が画面上に無い（リロードするまで2曲鳴り続ける）。
+        // 同じ場面の app/user/profile/page.tsx の togglePreview と、
+        // StoryViewer の冒頭には既に同じ一行が入っている。ここだけ抜けていた。
+        stopGlobalMusic();
         let a = previewAudioRef.current;
         if (!a) {
             a = new Audio();
@@ -133,7 +164,7 @@ export default function StoriesBar() {
         void a.play()
             .then(() => setPreviewingId(song.id))
             .catch(() => setPreviewingId(null)); // 自動再生ブロック等
-    }, []);
+    }, [stopGlobalMusic]);
 
     // 画面を離れるときに音を止める
     useEffect(() => () => { previewAudioRef.current?.pause(); }, []);
@@ -170,16 +201,33 @@ export default function StoriesBar() {
         }
     }, [songStart, songWindowSec, draftSong, previewingId]);
 
+    // 検索の世代。**打ち消したはずの結果が出る**のを止める。
+    // 順序の保証が無かった頃は、遅い1回目の応答が速い2回目より後に届くと
+    // 前の語の結果で上書きされていた（lib/hooks/useUserSearch.ts に
+    // 正しい形がある。同じ仕掛けを使う）。
+    const songSearchGen = useRef(0);
     const searchDraftSongs = async () => {
         const q = songQuery.trim();
         if (!q) return;
+        // **試聴を止めてから引き直す。** 結果が差し替わると、鳴っている曲の
+        // 停止ボタンごと画面から消える——下書きは z-[95] でミニプレイヤーも
+        // 覆うので、下書きを閉じるまで止められない。プロフィール側の
+        // `handleSongSearch` は最初からこの形（対の乖離だった）。
+        stopPreview();
+        const gen = ++songSearchGen.current;
         setSongSearching(true);
+        setSongSearchError(false);
         try {
-            setSongResults(await searchSongs(q));
+            const found = await searchSongs(q);
+            if (gen !== songSearchGen.current) return;   // もっと新しい検索が走っている
+            setSongResults(found);
         } catch {
-            setSongResults([]);
+            if (gen === songSearchGen.current) {
+                setSongResults([]);
+                setSongSearchError(true);   // 0件と同じ無反応にしない（SW-b6）
+            }
         } finally {
-            setSongSearching(false);
+            if (gen === songSearchGen.current) setSongSearching(false);
         }
     };
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -189,13 +237,20 @@ export default function StoriesBar() {
             // ストーリーはログインユーザー限定。認証トークン付きで取得する。
             const { userFetch } = await import("../../../lib/utils/api");
             const res = await userFetch("/stories");
-            if (!res.ok) return;
+            if (!res.ok) {
+                setLoadError(true);
+                return;
+            }
             const data = await res.json() as Story[];
             if (Array.isArray(data)) {
+                // 空配列でも成功は成功（全ストーリーが期限切れの朝など）。
+                // ここで下ろさないと、成功なのにエラー行が復活する
                 setGroups(groupStories(data, userId));
+                setLoadError(false);
             }
         } catch (e) {
             log.warn("stories fetch error:", e);
+            setLoadError(true);
         }
     }, [userId]);
 
@@ -203,11 +258,23 @@ export default function StoriesBar() {
         // 未ログインではストーリーを取得も表示もしない
         if (!isAuthenticated) {
             setGroups([]);
+            setLoadError(false);   // 前のセッションの失敗表示を持ち越さない
             return;
         }
         setSeen(loadSeenStoryIds());
         void loadStories();
     }, [isAuthenticated, loadStories]);
+
+    // 別タブで見たストーリーは、こちらでも既読にする。
+    // 読み直すのがログイン状態の変化時だけだと、片方のタブで全部見たあとも
+    // もう片方はリングが未読のまま残り、リロードするまで直らない。
+    useEffect(() => {
+        const onStorage = (e: StorageEvent) => {
+            if (e.key === null || e.key === SEEN_STORAGE_KEY) setSeen(loadSeenStoryIds());
+        };
+        window.addEventListener("storage", onStorage);
+        return () => window.removeEventListener("storage", onStorage);
+    }, []);
 
     const handleSeen = useCallback((storyId: string) => {
         markStorySeen(storyId);
@@ -220,7 +287,7 @@ export default function StoriesBar() {
     }, []);
 
     const closeDraft = useCallback(() => {
-        if (draft) { try { URL.revokeObjectURL(draft.previewUrl); } catch { /* ignore */ } }
+        // 解放は上の effect が担う（✕ を押さずに離れた場合も拾うため）
         stopPreview();
         setDraft(null);
         setCaption("");
@@ -228,9 +295,34 @@ export default function StoriesBar() {
         setSongPickerOpen(false);
         setSongQuery("");
         setSongResults([]);
+        setSongSearchError(false);   // 開き直したときに前回の失敗を出さない
         setSongStart(0);
         setDurationSec(STORY_DEFAULT_DURATION_SEC);
-    }, [draft, stopPreview]);
+    }, [stopPreview]);
+
+    // 下書きのプレビューURLを必ず解放する。
+    // 解放は closeDraft の中だけにあったので、✕ を押さずに離れたとき
+    // （ブラウザの戻る・写真をタップして別ページへ）に、選んだファイルが
+    // まるごとメモリに残り続けていた。動画は数十MBあるので、
+    // 何度か繰り返すと iOS Safari はタブごと落とす。
+    useEffect(() => {
+        const url = draft?.previewUrl;
+        if (!url) return;
+        return () => { try { URL.revokeObjectURL(url); } catch { /* ignore */ } };
+    }, [draft?.previewUrl]);
+
+    // **Tab を中に閉じ込める。** `fixed inset-0 z-[95]` の全画面で、裏には
+    // ストーリーのリングとギャラリーの写真リンクが全部ある。
+    //
+    // 最初に当てるのは**キャンセル（✕）**。**指名する。**
+    // DOM 順の先頭は背面のメディアで、動画の下書きでは `<video controls>` が
+    // そこに来る（`video[controls]` を FOCUSABLE に入れたので巡回に乗る）。
+    // 指名しないと、動画を選んだときだけ初期フォーカスが動画に移る。
+    // キャプション入力を先頭にはしない——スマホでいきなりキーボードが
+    // 出るのは、写真を見ながら書く今の作りと合わない。
+    const draftRef = useRef<HTMLDivElement | null>(null);
+    const draftCancelRef = useRef<HTMLButtonElement | null>(null);
+    useFocusTrap(draft !== null, draftRef, undefined, draftCancelRef);
 
     // ファイル選択 → 検証 → 投稿プレビューを開く
     const handleFileSelect = useCallback(async (file: File) => {
@@ -244,6 +336,7 @@ export default function StoriesBar() {
             showToast(locale === "en" ? "File too large (max 50MB)" : "ファイルが大きすぎます（最大50MB）", "error");
             return;
         }
+        let prepared = file;
         if (isVideo) {
             try {
                 const duration = await getVideoDuration(file);
@@ -255,8 +348,48 @@ export default function StoriesBar() {
                 showToast(locale === "en" ? "Could not read the video" : "動画を読み込めませんでした", "error");
                 return;
             }
+            // **位置情報はここで落とす。** 動画だけ関門を通していなかったので、
+            // 丸めていない緯度経度が付いたまま公開URLに乗っていた
+            // （iPhone の .mov、Android の .mp4 のどちらも入る）。
+            //
+            // **投稿時ではなく選択時にやる。** 投稿時だと、落とせない動画
+            // （WebM など）でもプレビュー・キャプション・曲選びまで進めてから
+            // 断ることになり、作った下書きが全部無駄になる。
+            // ここ1か所だけに置く——投稿時にも同じ関門を重ねると、
+            // 片方を壊してもテストが緑のままになる。
+            try {
+                const { toUploadSafeVideo } = await import("../../../lib/utils/video");
+                prepared = await toUploadSafeVideo(file);
+            } catch (e) {
+                if (e instanceof UnstrippableFileError) {
+                    showToast(
+                        locale === "en"
+                            ? "This video's location data can't be removed. Please try a different file (MP4 or MOV)."
+                            : "この動画は位置情報を取り除けません。別のファイル（MP4 か MOV）をお試しください。",
+                        "error",
+                    );
+                } else {
+                    log.error("story video prepare failed:", e);
+                    showToast(locale === "en" ? "Failed to prepare the video" : "動画の準備に失敗しました", "error");
+                }
+                return;
+            }
         }
-        setDraft({ file, previewUrl: URL.createObjectURL(file), mediaType: isVideo ? "video" : "image" });
+        // **下書きを開くときは、ビューアを必ず閉じる。**
+        //
+        // 動画は下ごしらえ（メタデータ読み＋箱の走査）に数秒かかる一方、
+        // その間リングは押せる（`disabled` は `posting` だけ）。押されると
+        // ビューアが開き、そこへ下書きが `z-[95]` でかぶさる——裏のビューアは
+        // 生きたままなので、BGM は鳴り続け、自動送りも進み、閲覧記録まで
+        // 送られる。キャプション欄で ← → を押すと**裏のストーリーが動く**
+        // （`StoryViewer` の keydown は `document` に付いている）。
+        // フォーカストラップも2つ同時に効く。
+        //
+        // リング側を止める（`preparing` を作って `disabled` に足す）案も
+        // あるが、それは「押しても何も起きない数秒」を新しく作る。
+        // 開くときに片方を閉じる方が、見えている物と操作の対応が保てる。
+        setViewerGroup(null);
+        setDraft({ file: prepared, previewUrl: URL.createObjectURL(prepared), mediaType: isVideo ? "video" : "image" });
         setCaption("");
     }, [locale, showToast]);
 
@@ -265,11 +398,45 @@ export default function StoriesBar() {
         if (!draft) return;
         setPosting(true);
         stopPreview();
+        // S3 に上げ終わって、まだ保存に至っていない実体のキー
+        let uploadedKey: string | undefined;
+        const discardUploaded = async () => {
+            if (!uploadedKey) return;
+            try {
+                const { userFetch } = await import("../../../lib/utils/api");
+                await userFetch("/upload/discard", {
+                    method: "DELETE", body: JSON.stringify({ key: uploadedKey }),
+                });
+            } catch { /* 消せなくても投稿の失敗は伝える */ }
+            uploadedKey = undefined;
+        };
         try {
             let uploadFile = draft.file;
             if (draft.mediaType === "image") {
-                try { uploadFile = await compressImage(draft.file, 1440, 0.85); }
-                catch { uploadFile = await stripJpegExif(draft.file); }
+                // 写真アップロードと同じ「消せたものだけ上げる」経路を使う。
+                // 以前は compressImage → 失敗したら stripJpegExif という順だったが、
+                // compressImage は GIF・getContext が null・エンコード失敗のときに
+                // 投げずに元ファイルをそのまま返すので catch に入らず、
+                // GPS 入りの原本がそのまま公開されていた。
+                try {
+                    uploadFile = await toUploadSafeFile(draft.file, 1440, 0.85);
+                } catch (e) {
+                    if (e instanceof UnstrippableFileError) {
+                        showToast(
+                            locale === "en"
+                                ? "This format can't be uploaded safely. Please save it as JPEG or PNG and try again."
+                                : "この形式は安全にアップロードできません。JPEG か PNG で保存し直してください。",
+                            "error",
+                        );
+                    } else {
+                        log.error("story image prepare failed:", e);
+                        showToast(
+                            locale === "en" ? "Failed to prepare the image" : "画像の準備に失敗しました",
+                            "error",
+                        );
+                    }
+                    return; // setPosting(false) は下の finally が担当する
+                }
             }
 
             // ストーリーは常にユーザーAPI経由（動画対応・管理者トークンでも有効）
@@ -283,15 +450,40 @@ export default function StoriesBar() {
                     fileSize: uploadFile.size,
                 }),
             });
-            if (!presignedRes.ok) throw new Error(`presigned ${presignedRes.status}`);
-            const { presignedUrl, publicUrl, key } = await presignedRes.json() as { presignedUrl: string; publicUrl: string; key?: string };
+            if (!presignedRes.ok) {
+                // ステータス番号だけを投げると、下の catch が「投稿に失敗しました」に
+                // まとめてしまう。サーバーは断る理由を文章で返している
+                // （枚数を確認できなかった 503、上限の 403 など）ので、それを出す。
+                const { readApiError } = await import("../../../lib/utils/api");
+                throw new Error(await readApiError(presignedRes,
+                    locale === "en" ? "Could not prepare the upload." : "アップロードの準備に失敗しました。"));
+            }
+            const { presignedUrl, publicUrl, key, contentType } = await presignedRes.json() as { presignedUrl: string; publicUrl: string; key?: string; contentType?: string };
+
+            // **PUT の前に控える。** ここが PUT のあとだったので、`fetch` が
+            // **reject** したとき（本文は上がりきったが応答が返らない）に
+            // catch の `discardUploaded()` が空振りしていた。押し直すと
+            // presign を取り直して別のキーへ上げ直すので、**再投稿のたびに
+            // 動画1本ぶんの孤児が増える**（写真より実害が大きい）。
+            //
+            // ストーリーは写真と違い「上げたが保存していない実体」を
+            // **使い回さない**（下書きにキーを覚えず、失敗したら presign から
+            // やり直す）ので、控えを2つに分ける必要は無い。
+            // 保存が通った時点で undefined に戻す——通ったあとの失敗
+            // （一覧の再読込など）で、**使われている実体**を消さないため。
+            uploadedKey = key;
 
             const s3Res = await fetch(presignedUrl, {
                 method: "PUT",
                 body: uploadFile,
-                headers: { "Content-Type": uploadFile.type },
+                // サーバーが署名した種別で送る（`content-type` は署名対象。
+                // 違う文字列だと S3 が 403 にする）
+                headers: { "Content-Type": contentType ?? uploadFile.type },
             });
-            if (!s3Res.ok) throw new Error(`S3 ${s3Res.status}`);
+            if (!s3Res.ok) {
+                log.error("story S3 upload failed:", s3Res.status);
+                throw new Error(locale === "en" ? "Could not upload the file." : "ファイルをアップロードできませんでした。");
+            }
 
             // 表示名を取得（ベストエフォート）
             let displayName: string | undefined;
@@ -316,21 +508,44 @@ export default function StoriesBar() {
                 }),
             });
             if (!saveRes.ok) {
+                // 保存に至らなかったので、先に上げた実体を消す。
+                // 残すと、どの削除経路も DynamoDB の項目からキーを引くため
+                // 誰にも辿れないオブジェクトになる（公開URLでは取れる）。
+                await discardUploaded();
                 // 投稿上限（429）はユーザーにそのまま伝える
                 if (saveRes.status === 429) {
                     const err = await saveRes.json().catch(() => ({})) as { error?: string };
                     showToast(err.error ?? (locale === "en" ? "Daily story limit reached" : "投稿上限に達しています"), "error");
                     return;
                 }
-                throw new Error(`save ${saveRes.status}`);
+                // `save ${status}` のような番号だけの文字列を投げない。
+                // catch は e.message をそのまま出すので、利用者に「save 500」が
+                // 見えていた。サーバーの理由を読めればそれを出す。
+                const { readApiError } = await import("../../../lib/utils/api");
+                throw new Error(await readApiError(saveRes,
+                    locale === "en" ? "Failed to post story" : "ストーリーの投稿に失敗しました"));
             }
+            // 保存済み。印を消して、ここから先の失敗では実体を消さない。
+            // ※ 現状、保存成功後に投げる await は無い（loadStories は内部で
+            //   握り潰す）ので、これは**将来ここに処理を足したとき**のための
+            //   防御。観測できないため変異テストでは固定していない。
+            uploadedKey = undefined;
 
             showToast(locale === "en" ? "Story posted!" : "ストーリーを投稿しました", "success");
             closeDraft();
             await loadStories();
         } catch (e) {
+            // **例外で終わった回も実体を消す。** !ok の分岐だけで消していた頃は、
+            // オフライン・DNS 失敗などで userFetch 自体が投げると打ち消しを
+            // 通らず、S3 に上げただけの孤児が残った（再投稿のたびに増える）。
+            await discardUploaded();
             log.error("story upload error:", e);
-            showToast(locale === "en" ? "Failed to post story" : "ストーリーの投稿に失敗しました", "error");
+            // サーバーが断る理由を文章で返している場合はそれを出す。
+            // 固定文言で塗り潰していた頃は、枚数を確認できなかった 503 も
+            // 上限の 403 も、全部「投稿に失敗しました」になっていて、
+            // 利用者は何をすれば通るのか分からなかった。
+            const fallback = locale === "en" ? "Failed to post story" : "ストーリーの投稿に失敗しました";
+            showToast(e instanceof Error && e.message ? e.message : fallback, "error");
         } finally {
             setPosting(false);
         }
@@ -339,15 +554,32 @@ export default function StoriesBar() {
     // 自分のストーリーを削除
     const handleDeleteStory = useCallback(async (storyId: string) => {
         try {
-            const { userFetch } = await import("../../../lib/utils/api");
+            const { userFetch, isGoneResponse, readApiError } = await import("../../../lib/utils/api");
             const res = await userFetch(`/stories/${encodeURIComponent(storyId)}`, { method: "DELETE" });
-            if (!res.ok) throw new Error(`delete ${res.status}`);
+            // 404 は成功として扱う（別タブで先に消した／24時間で期限切れ）。
+            // 失敗と読んで throw していたので `loadStories()` に到達せず、
+            // **もう存在しないストーリーがバーに残り続けた**（開くと画像が
+            // 取れない）。消えているなら目的は達成している。
+            if (!res.ok && !await isGoneResponse(res)) {
+                // **サーバーの理由をそのまま出す。** 画像を消せなかったときは
+                // 行を残して 500 を返す（＝押し直せば続きから消える）ので、
+                // 「削除に失敗しました」だけだと、もう一度押せばよいことが
+                // 伝わらない
+                throw new Error(await readApiError(res,
+                    locale === "en" ? "Failed to delete" : "削除に失敗しました"));
+            }
             showToast(locale === "en" ? "Story deleted" : "ストーリーを削除しました", "success");
             await loadStories();
             return true;
         } catch (e) {
             log.error("story delete error:", e);
-            showToast(locale === "en" ? "Failed to delete" : "削除に失敗しました", "error");
+            // **`e.message` をそのまま出さない。** `userFetch` は `fetch` を
+            // そのまま返すので、機内モードや DNS 失敗では
+            // `TypeError: Failed to fetch`（Safari は "Load failed"）が
+            // 飛んでくる。素で出すと英語の技術文字列が画面に並ぶ
+            // ——アップロード画面が同じ事故で作った境界を使う
+            const { userFacingError } = await import("../../../lib/utils/errorText");
+            showToast(userFacingError(e, locale === "en" ? "Failed to delete" : "削除に失敗しました"), "error");
             return false;
         }
     }, [locale, showToast, loadStories]);
@@ -361,6 +593,18 @@ export default function StoriesBar() {
 
     return (
         <div className="mb-5">
+            {loadError && groups.length === 0 && (
+                // 失敗をバー空表示と混ぜない。他の人のストーリーが
+                // 「誰も投稿していない」ように見えたまま気づけない。
+                // ※古い一覧が見えている間（groups あり）の失敗は**意図して**
+                //   無言にする——バーは装飾的で、古い表示が出ていれば実害が薄い
+                <p className="text-[11px] text-white/45 px-1 pb-1">
+                    {locale === "en" ? "Couldn't load stories. " : "ストーリーを読み込めませんでした。"}
+                    <button onClick={() => void loadStories()} className="underline text-white/70 hover:text-white">
+                        {locale === "en" ? "Retry" : "再試行"}
+                    </button>
+                </p>
+            )}
             <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-1 px-1 py-1">
                 {/* 自分の枠は常に1つだけ。すでに投稿があればリング＝自分のストーリー、
                     右下の「+」で追加投稿。まだ無ければ「+」だけを出す。 */}
@@ -442,7 +686,13 @@ export default function StoriesBar() {
 
             {/* 投稿プレビュー（キャプション入力つき） */}
             {draft && (
-                <div className="fixed inset-0 z-[95] bg-black flex flex-col" role="dialog" aria-modal="true">
+                <div
+                    ref={draftRef}
+                    className="fixed inset-0 z-[95] bg-black flex flex-col"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="story-draft-title"
+                >
                     {/* 写真は画面いっぱいの背面に固定。入力欄はその上に重ねるので、
                         キャプションや曲を入れている間もずっと写真を見ていられる。 */}
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -458,10 +708,10 @@ export default function StoriesBar() {
                     <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/90 via-black/60 to-transparent pointer-events-none" />
 
                     <div className="relative flex items-center justify-between p-3" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}>
-                        <h2 className="text-sm font-semibold text-white drop-shadow">
+                        <h2 id="story-draft-title" className="text-sm font-semibold text-white drop-shadow">
                             {locale === "en" ? "New story" : "新しいストーリー"}
                         </h2>
-                        <button onClick={closeDraft} disabled={posting} className="p-2 text-white/80 hover:text-white drop-shadow" aria-label={locale === "en" ? "Cancel" : "キャンセル"}>
+                        <button ref={draftCancelRef} onClick={closeDraft} disabled={posting} className="p-2 text-white/80 hover:text-white drop-shadow" aria-label={locale === "en" ? "Cancel" : "キャンセル"}>
                             <XMarkIcon className="w-6 h-6" />
                         </button>
                     </div>
@@ -613,6 +863,11 @@ export default function StoriesBar() {
                                         {locale === "en" ? "Cancel" : "閉じる"}
                                     </button>
                                 </div>
+                                {songSearchError && (
+                                    <p className="text-xs text-amber-400/80">
+                                        {locale === "en" ? "Search failed. Try again." : "検索に失敗しました。もう一度お試しください。"}
+                                    </p>
+                                )}
                                 {songResults.length > 0 && (
                                     <ul className="rounded-xl bg-black/40 divide-y divide-white/5 overflow-hidden max-h-44 overflow-y-auto no-scrollbar">
                                         {songResults.map((r) => (

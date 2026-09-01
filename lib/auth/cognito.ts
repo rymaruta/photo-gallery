@@ -79,10 +79,19 @@ export async function signIn(username: string, password: string): Promise<{
                     // エラーメッセージを日本語化
                     let errorMessage = err.message || "ログインに失敗しました";
                     
-                    if (err.code === "NotAuthorizedException") {
+                    // **「そのメールアドレスは登録されている」を教えない。**
+                    // `UserNotFoundException` に「ユーザーが見つかりません」と
+                    // 答えると、ログイン画面が**アカウントの有無を確かめる道具**
+                    // になる（総当たりでメールアドレスの一覧が作れる）。
+                    // 正解不正解のどちらでも同じ文面にする——利用者にとっての
+                    // 情報量はほぼ変わらない（打ち直すことに変わりはない）。
+                    //
+                    // 本来はプール側の `PreventUserExistenceErrors` で塞ぐ設定
+                    // だが、**本番プールの現状はこの環境から確認できない**
+                    // （AWS の資格情報が無い）。設定がどうであれ、画面が
+                    // 教えないようにしておく。
+                    if (err.code === "NotAuthorizedException" || err.code === "UserNotFoundException") {
                         errorMessage = "メールアドレスまたはパスワードが正しくありません";
-                    } else if (err.code === "UserNotFoundException") {
-                        errorMessage = "ユーザーが見つかりません";
                     } else if (err.code === "UserNotConfirmedException") {
                         resolve({ success: false, error: "メールアドレスの確認が完了していません", needsVerification: true });
                         return;
@@ -213,7 +222,12 @@ export async function forgotPassword(username: string): Promise<{ success: boole
                 onSuccess: () => resolve({ success: true }),
                 onFailure: (err: { message?: string; code?: string }) => {
                     let msg = err.message || "エラーが発生しました";
-                    if (err.code === "UserNotFoundException") msg = "メールアドレスが見つかりません";
+                    // ここも同じ理由で「登録の有無」を教えない。
+                    // 送信したかどうかは、届いたかどうかで分かる
+                    if (err.code === "UserNotFoundException") {
+                        resolve({ success: true });
+                        return;
+                    }
                     if (err.code === "LimitExceededException") msg = "しばらく時間をおいてから再試行してください";
                     resolve({ success: false, error: msg });
                 },
@@ -295,12 +309,44 @@ export async function confirmSignUp(username: string, code: string): Promise<{
         try {
             const userPool = getUserPool();
             const cognitoUser = new CognitoUser({ Username: username, Pool: userPool });
-            cognitoUser.confirmRegistration(code, true, (err) => {
+            // 第2引数は forceAliasCreation。**false にすること。**
+            //
+            // true は「そのメールが既に他の人に紐づいていても、強制的に
+            // こちらへ付け替える」という意味になる。踏み方:
+            //   攻撃者が被害者のメールで新規登録する
+            //   → 確認コードは**被害者の受信箱**に届く（攻撃者は読めない）
+            //   → 被害者が「正規のコードだ」と思って渡してしまうと、
+            //     true のせいでエラーにならず**メールが攻撃者のアカウントへ移り、
+            //     被害者は自分のメールでログインできなくなる**（旧アカウントの
+            //     写真も辿れなくなる）
+            // false なら AliasExistsException で止まる。true にしている必然性は
+            // 無い——「未確認のまま放置した自分の登録をやり直す」用途なら
+            // false でも通る（その場合エイリアスはまだ誰にも付いていない）。
+            cognitoUser.confirmRegistration(code, false, (err) => {
                 if (err) {
+                    // 「すでに確認済み」は成功として扱う。
+                    // PostConfirmation トリガーが失敗すると ConfirmSignUp も
+                    // 失敗するが、Cognito 側では既に確認が済んでいる。
+                    // ここで失敗を返すと、コードを入れ直しても永久に
+                    // 確認画面から出られなくなる（登録完了に進めない）。
+                    if (err.name === "NotAuthorizedException") {
+                        resolve({ success: true });
+                        return;
+                    }
                     let msg = err.message || "確認に失敗しました";
                     if (err.name === "CodeMismatchException") msg = "確認コードが正しくありません";
                     if (err.name === "ExpiredCodeException") msg = "確認コードの有効期限が切れています。再送してください";
-                    if (err.name === "NotAuthorizedException") msg = "すでに確認済みです";
+                    // forceAliasCreation を false にしたので、そのメールが既に
+                    // 他のアカウントで使われていると、ここで止まる（＝正しい）。
+                    // 生の英語文言のままだと何が起きたのか分からないので置き換える。
+                    // 進む先を必ず添える。ここに落ちる人の多くは「既に持って
+                    // いるのを忘れて登録し直した本人」で、コードは自分の受信箱に
+                    // 届いている。文言だけだと確認画面から出る道が無い
+                    // （signUp 側の同じ状況には案内が付いている）。
+                    if (err.name === "AliasExistsException") {
+                        msg = "このメールアドレスはすでに別のアカウントで使われています。" +
+                            "そのアカウントでログインするか、パスワードをお忘れの場合は再設定してください。";
+                    }
                     resolve({ success: false, error: msg });
                     return;
                 }

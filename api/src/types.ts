@@ -1,6 +1,18 @@
 export type Photo = {
     id: string;
     src: string;
+    // 派生画像と表示名。実データにはあるのに admin 側の型だけ古く、
+    // 型を頼りに書くと漏れる下地だった（api-user/src/types.ts と対。
+    // 派生を足すときは両方の型と mediaKeys.ts の MEDIA_FIELDS も見る）
+    srcOriginal?: string;  // EXIF除去前の原本（GPS入り。削除時に必ず消す）
+    srcAvif?: string;
+    src256?: string;
+    thumbSrc?: string;
+    thumbSm?: string;
+    thumbAvif?: string;
+    thumbSmAvif?: string;
+    blurDataURL?: string;
+    displayName?: string;
     title?: string | Record<string, string>;
     description?: string | Record<string, string[]>;
     category?: string;
@@ -21,6 +33,7 @@ export type Photo = {
         focalLength?: string;
         whiteBalance?: string;
         imageSize?: string;
+        dateTimeOriginal?: string;
     };
     [key: string]: unknown;
 };

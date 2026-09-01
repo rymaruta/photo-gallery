@@ -3,6 +3,21 @@ name: Deploy API Lambdas
 # main → 本番、develop → staging。api/ または api-user/ の変更時に自動デプロイ。
 # GitHub UIの "Actions" タブから "Run workflow" で手動実行も可能
 # （そのとき選んだブランチで環境が決まる）。
+# **push での自動デプロイを戻した（2026-09-01）。**
+# 2026-08-21 に Actions の枠が 2,000/2,000（100%）に達したため止めていたが、
+# 枠は UTC の月替わりでリセットされた（9/1 00:06 UTC に解除を確認）。
+#
+# 止めていた間に実害が出ている: api-user の修正を push しても**どこにも
+# 反映されない**まま「デプロイ済み」と思い込む状態になっていた（実際に
+# 今日それを踏んだ）。1回のデプロイは3〜4分で、API を触る push は
+# 月に数回なので、枠に対しては小さい。
+# **`GITHUB_TOKEN` に何も渡さない（IAM-3）。**
+# どのワークフローも `actions/checkout` 以外でトークンを使っていないのに、
+# 既定の権限（リポジトリ設定次第では contents: write まで）が渡っていた。
+# checkout に要るのは読み取りだけ。**渡していない権限は漏らせない**。
+permissions:
+  contents: read
+
 on:
   push:
     branches:
@@ -35,8 +50,7 @@ concurrency:
 
 jobs:
   # ブランチから環境を決める。
-  # 本番の値はここに直書き（公開情報で、変わらない）。
-  # staging の値はリポジトリの Variables から取る（プロビジョニング後に登録する）。
+  # 値はここに直書きする。どれも公開識別子（シークレットではない）。
   # 1つでも空なら止める——空のまま進むと serverless のパラメータが空文字になり、
   # 何が起きるか読めないため。
   config:
@@ -48,9 +62,15 @@ jobs:
       usersTable: ${{ steps.pick.outputs.usersTable }}
       uploadBucket: ${{ steps.pick.outputs.uploadBucket }}
       cloudfrontUrl: ${{ steps.pick.outputs.cloudfrontUrl }}
+      cloudfrontDistributionId: ${{ steps.pick.outputs.cloudfrontDistributionId }}
       cognitoUserPoolId: ${{ steps.pick.outputs.cognitoUserPoolId }}
       cognitoClientId: ${{ steps.pick.outputs.cognitoClientId }}
       cognitoPoolName: ${{ steps.pick.outputs.cognitoPoolName }}
+      # 退会・削除・非公開のあとに静的サイトの再ビルドを頼む先。
+      # トークン（REBUILD_DISPATCH_TOKEN）が未設定なら「頼まない」だけで、
+      # 削除そのものは成功する。本番だけ設定する（staging は検索避けなので不要）。
+      rebuildRepo: ${{ steps.pick.outputs.rebuildRepo }}
+      musicSearchReserved: ${{ steps.pick.outputs.musicSearchReserved }}
     steps:
       - id: pick
         run: |
@@ -62,26 +82,40 @@ jobs:
               usersTable=prod-photo-gallery-users
               uploadBucket=prod-journey-photo-upload
               cloudfrontUrl=https://d1s3dwwzgxf5ni.cloudfront.net
+              # 削除した実体をエッジからも消すための無効化先（LEFT-4）
+              cloudfrontDistributionId=EYRLTGCPOS9E4
               cognitoUserPoolId=ap-northeast-1_ZbuhDQsWz
               cognitoClientId=21cs4cd8dkttmg3snloj72u8mu
               cognitoPoolName=prod-journey-photo-client-spa
+              # 削除・非公開のあとに再ビルドを頼む先
+              rebuildRepo=${{ github.repository }}
+              # 曲検索の同時実行予約。アカウント全体の枠から取るので本番だけ
+              musicSearchReserved=10
               ;;
             develop)
               envName=staging
               photosTable=staging-photo-gallery-photos
               usersTable=staging-photo-gallery-users
               uploadBucket=staging-journey-photo-upload
-              cloudfrontUrl='${{ vars.STAGING_CLOUDFRONT_URL }}'
-              cognitoUserPoolId='${{ vars.STAGING_COGNITO_USER_POOL_ID }}'
-              cognitoClientId='${{ vars.STAGING_COGNITO_CLIENT_ID }}'
+              # 公開識別子なので直書き（本番の値も同じ扱い）
+              cloudfrontUrl=https://d15fn3rcaiymu9.cloudfront.net
+              cloudfrontDistributionId=EF2TFEBBP24DL
+              cognitoUserPoolId=ap-northeast-1_DSQ16c6vO
+              cognitoClientId=1qjl9c8gmqidigps55jhv4foi
               cognitoPoolName=staging-journey-photo-client-spa
+              # staging は検索避け（robots で全拒否）なので再ビルドは頼まない
+              rebuildRepo=""
+              # 予約は本番に譲る。両方で取ると未予約の枠が最低値を下回り、
+              # デプロイそのものが落ちる（UnreservedConcurrentExecution < 10）
+              musicSearchReserved=""
               ;;
             *)
               echo "::error::${{ github.ref_name }} は環境に紐づいていません（main=本番 / develop=staging）"
               exit 1
               ;;
           esac
-          for k in photosTable usersTable uploadBucket cloudfrontUrl cognitoUserPoolId cognitoClientId cognitoPoolName; do
+          # rebuildRepo は staging で意図的に空にするため、この必須チェックには入れない
+          for k in photosTable usersTable uploadBucket cloudfrontUrl cloudfrontDistributionId cognitoUserPoolId cognitoClientId cognitoPoolName; do
             v="${!k}"
             if [ -z "$v" ]; then
               echo "::error::$envName の $k が未設定です。リポジトリの Variables を確認してください。"
@@ -89,6 +123,8 @@ jobs:
             fi
             echo "$k=$v" >> "$GITHUB_OUTPUT"
           done
+          echo "rebuildRepo=$rebuildRepo" >> "$GITHUB_OUTPUT"
+          echo "musicSearchReserved=$musicSearchReserved" >> "$GITHUB_OUTPUT"
           echo "envName=$envName" >> "$GITHUB_OUTPUT"
           echo "デプロイ先: $envName"
 
@@ -103,8 +139,29 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
+          # 3つのロックを全部キーにする。ルートだけだと、下で足した
+          # api / api-user の依存が毎回ダウンロードし直しになる
+          cache-dependency-path: |
+            package-lock.json
+            api/package-lock.json
+            api-user/package-lock.json
       - name: Install dependencies
         run: npm ci
+      # **api / api-user の依存も入れる。** ルートだけだと、Node の解決が
+      # ルートまで遡って**出荷されるのと違う版**でテストが走る
+      # （実測: uuid はルート 13.0.0、api-user のロック 11.1.1 でメジャー違い）。
+      # 「テストを通してからデプロイする」という守りが成立しなくなる。
+      # `npm ci` が2回増えるぶん Actions の枠を使う。**枠は逼迫していて、
+      # だからこそ上の push トリガーを止めてある**ので「push のたびだから
+      # 許容」という理屈は成り立たない（最初そう書いたが逆だった）。
+      # 実行が手動のときだけなことと、下でロックをキャッシュのキーに
+      # 入れてあることで釣り合うと判断した。
+      - name: Install API dependencies
+        run: npm ci
+        working-directory: api
+      - name: Install user API dependencies
+        run: npm ci
+        working-directory: api-user
       - name: Run backend tests
         run: npx vitest run api api-user
 
@@ -136,15 +193,33 @@ jobs:
 
       - name: Serverless deploy
         working-directory: api
+        env:
+          # 秘密はコマンドラインに載せない（ps で見える）。
+          # 空のまま渡すのも駄目——serverless v3 は --param "k=" を
+          # 「不正な形式」として弾き、**全変数の解決に失敗して**デプロイが
+          # 落ちる。staging は rebuildRepo を意図的に空にしているので、
+          # 空のときは旗ごと渡さない（serverless.yml 側に既定値 '' がある）。
+          REBUILD_REPO: ${{ needs.config.outputs.rebuildRepo }}
+          REBUILD_TOKEN: ${{ secrets.REBUILD_DISPATCH_TOKEN }}
+          REBUILD_MONTHLY_MAX: ${{ vars.REBUILD_MONTHLY_MAX }}
         run: |
+          set -euo pipefail
+          extra=()
+          if [ -n "$REBUILD_REPO" ]; then extra+=(--param "rebuildRepo=$REBUILD_REPO"); fi
+          if [ -n "$REBUILD_TOKEN" ]; then extra+=(--param "rebuildToken=$REBUILD_TOKEN"); fi
+          if [ -n "${REBUILD_MONTHLY_MAX:-}" ]; then extra+=(--param "rebuildMonthlyMax=$REBUILD_MONTHLY_MAX"); fi
+          echo "再ビルド依頼: repo=$([ -n "$REBUILD_REPO" ] && echo "$REBUILD_REPO" || echo '(なし)')" \
+               "token=$([ -n "$REBUILD_TOKEN" ] && echo '設定あり' || echo '(なし)')"
           npx serverless@3 deploy --stage ${{ needs.config.outputs.envName }} \
             --param "photosTable=${{ needs.config.outputs.photosTable }}" \
             --param "usersTable=${{ needs.config.outputs.usersTable }}" \
             --param "uploadBucket=${{ needs.config.outputs.uploadBucket }}" \
             --param "cloudfrontUrl=${{ needs.config.outputs.cloudfrontUrl }}" \
+            --param "cloudfrontDistributionId=${{ needs.config.outputs.cloudfrontDistributionId }}" \
             --param "cognitoUserPoolId=${{ needs.config.outputs.cognitoUserPoolId }}" \
             --param "cognitoClientId=${{ needs.config.outputs.cognitoClientId }}" \
-            --param "cognitoPoolName=${{ needs.config.outputs.cognitoPoolName }}"
+            --param "cognitoPoolName=${{ needs.config.outputs.cognitoPoolName }}" \
+            ${extra[@]+"${extra[@]}"}
 
   deploy-user-api:
     name: Deploy user API (api-user/)
@@ -174,11 +249,32 @@ jobs:
 
       - name: Serverless deploy
         working-directory: api-user
+        env:
+          # 秘密はコマンドラインに載せない（ps で見える）。
+          # 空のまま渡すのも駄目——serverless v3 は --param "k=" を
+          # 「不正な形式」として弾き、**全変数の解決に失敗して**デプロイが
+          # 落ちる。staging は rebuildRepo を意図的に空にしているので、
+          # 空のときは旗ごと渡さない（serverless.yml 側に既定値 '' がある）。
+          REBUILD_REPO: ${{ needs.config.outputs.rebuildRepo }}
+          REBUILD_TOKEN: ${{ secrets.REBUILD_DISPATCH_TOKEN }}
+          REBUILD_MONTHLY_MAX: ${{ vars.REBUILD_MONTHLY_MAX }}
+          MUSIC_SEARCH_RESERVED: ${{ needs.config.outputs.musicSearchReserved }}
         run: |
+          set -euo pipefail
+          extra=()
+          if [ -n "$REBUILD_REPO" ]; then extra+=(--param "rebuildRepo=$REBUILD_REPO"); fi
+          if [ -n "$REBUILD_TOKEN" ]; then extra+=(--param "rebuildToken=$REBUILD_TOKEN"); fi
+          if [ -n "${REBUILD_MONTHLY_MAX:-}" ]; then extra+=(--param "rebuildMonthlyMax=$REBUILD_MONTHLY_MAX"); fi
+          if [ -n "$MUSIC_SEARCH_RESERVED" ]; then extra+=(--param "musicSearchReserved=$MUSIC_SEARCH_RESERVED"); fi
+          echo "再ビルド依頼: repo=$([ -n "$REBUILD_REPO" ] && echo "$REBUILD_REPO" || echo '(なし)')" \
+               "token=$([ -n "$REBUILD_TOKEN" ] && echo '設定あり' || echo '(なし)')" \
+               "曲検索の予約=$([ -n "$MUSIC_SEARCH_RESERVED" ] && echo "$MUSIC_SEARCH_RESERVED" || echo '(なし)')"
           npx serverless@3 deploy --stage ${{ needs.config.outputs.envName }} \
             --param "photosTable=${{ needs.config.outputs.photosTable }}" \
             --param "usersTable=${{ needs.config.outputs.usersTable }}" \
             --param "uploadBucket=${{ needs.config.outputs.uploadBucket }}" \
             --param "cloudfrontUrl=${{ needs.config.outputs.cloudfrontUrl }}" \
+            --param "cloudfrontDistributionId=${{ needs.config.outputs.cloudfrontDistributionId }}" \
             --param "cognitoUserPoolId=${{ needs.config.outputs.cognitoUserPoolId }}" \
-            --param "cognitoClientId=${{ needs.config.outputs.cognitoClientId }}"
+            --param "cognitoClientId=${{ needs.config.outputs.cognitoClientId }}" \
+            ${extra[@]+"${extra[@]}"}

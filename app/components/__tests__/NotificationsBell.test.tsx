@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 
 const mockUserFetch = vi.hoisted(() => vi.fn());
 
@@ -15,8 +15,10 @@ import NotificationsBell from "../NotificationsBell";
 
 const ITEMS = [
     { type: "like", photoId: "p1", photoSrc: "https://c/p1_thumb.webp", byName: "旅子", t: "2026-07-10T00:00:00Z" },
-    { type: "go", photoId: "p2", photoSrc: "https://c/p2_thumb.webp", byName: "山田", atLocation: "京都", t: "2026-07-09T00:00:00Z" },
-    { type: "inspired", photoId: "p3", photoSrc: "https://c/p3.jpg", byName: "旅人", atLocation: "北海道", t: "2026-07-08T00:00:00Z" },
+    { type: "comment", photoId: "p2", photoSrc: "https://c/p2_thumb.webp", byName: "山田", t: "2026-07-09T00:00:00Z" },
+    // 実際には作られない種類。将来わけの分からない通知が
+    // 「旅立たせました！」として出ないことを固定する。
+    { type: "go", photoId: "p3", photoSrc: "https://c/p3.jpg", byName: "旅人", atLocation: "北海道", t: "2026-07-08T00:00:00Z" },
 ];
 
 function fetchOk(body: unknown) {
@@ -28,15 +30,27 @@ beforeEach(() => {
 });
 
 describe("NotificationsBell", () => {
-    it("3種類の通知（いいね・行きたい・旅立ち）を表示できる", async () => {
+    it("いいね・コメントの通知を表示できる", async () => {
         mockUserFetch.mockResolvedValue(fetchOk({ items: ITEMS, unread: 0 }));
         render(<NotificationsBell />);
         await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
 
         fireEvent.click(screen.getByRole("button", { name: "通知" }));
         expect(screen.getByText(/さんがあなたの写真にいいねしました/)).toBeInTheDocument();
-        expect(screen.getByText(/さんがあなたの写真を行きたいリストに追加しました/)).toBeInTheDocument();
-        expect(screen.getByText(/さんを「北海道」へ旅立たせました/)).toBeInTheDocument();
+        expect(screen.getByText(/さんがあなたの写真にコメントしました/)).toBeInTheDocument();
+    });
+
+    it("知らない種類の通知に勝手な文言を付けない", async () => {
+        // 以前は最後の else が「旅立たせました！」の分岐だったので、
+        // 想定外の type が全部その文言で表示される作りだった
+        // （その通知を作る側はどこにも無い＝出るとしたら全部が誤表示）。
+        mockUserFetch.mockResolvedValue(fetchOk({ items: ITEMS, unread: 0 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+        expect(screen.queryByText(/旅立たせました/)).toBeNull();
+        expect(screen.queryByText(/行きたいリストに追加/)).toBeNull();
     });
 
     it("通知タップで写真ページへのリンクになっている", async () => {
@@ -62,11 +76,195 @@ describe("NotificationsBell", () => {
         });
     });
 
+    // 開くと GET と PUT がほぼ同時に出るが、サーバーは GET を先に受けるので
+    // まだ `unread: 2` を返す。返りをそのまま採っていたので、消えたバッジが
+    // 数百ms後に「2」で復活していた（次のポーリング＝60秒まで直らず、
+    // 裏に回したタブはポーリングを飛ばすので更に長い）。
+    it("開いたあとに届いた古い未読数で、バッジが復活しない", async () => {
+        // 開いたときの GET だけ、応答を手元で止めておく
+        let release: (v: unknown) => void = () => {};
+        mockUserFetch.mockResolvedValueOnce(fetchOk({ items: ITEMS, unread: 2 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(screen.getByText("2")).toBeInTheDocument());
+
+        mockUserFetch.mockImplementation((path: string, init?: { method?: string }) =>
+            init?.method === "PUT"
+                ? Promise.resolve(fetchOk({}))
+                : new Promise((res) => { release = res; }));
+
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+        expect(screen.queryByText("2")).toBeNull();
+
+        // ここで「既読化より前に投げた GET」が返ってくる
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalledWith("/user/notifications", { method: "PUT" }));
+        await act(async () => { release(fetchOk({ items: ITEMS, unread: 2 })); });
+
+        expect(screen.queryByText("2")).toBeNull();
+    });
+
+    // 未読数だけ捨てて一覧は採っていた頃、遅い GET が返ってくると
+    // 「新しい方で出ている未読を 0 にし、一覧まで古い方で上書きする」
+    // ——**新着が最大60秒（裏タブはもっと長く）出ない**方に倒れていた。
+    // 古い数字が出るより、新着が出ない方が悪い。
+    it("追い越された取得は、一覧も未読数も採らない", async () => {
+        let releaseSlow: (v: unknown) => void = () => {};
+        mockUserFetch.mockResolvedValueOnce(fetchOk({ items: ITEMS, unread: 0 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+
+        // 1本目（遅い）: 古い一覧と unread: 5
+        mockUserFetch.mockImplementationOnce(() => new Promise((res) => { releaseSlow = res; }));
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));   // 開く（unread 0 なので既読化は走らない）
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));   // 閉じる
+
+        // 2本目（速い）: 新着1件
+        const fresh = [{ ...ITEMS[0], photoId: "p9" }];
+        mockUserFetch.mockResolvedValueOnce(fetchOk({ items: fresh, unread: 1 }));
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+        await waitFor(() => expect(screen.getByText("1")).toBeInTheDocument());
+
+        // ここで1本目が返る
+        await act(async () => { releaseSlow(fetchOk({ items: ITEMS, unread: 5 })); });
+
+        expect(screen.getByText("1")).toBeInTheDocument();                 // 新着が消えない
+        expect(screen.getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/?photo=p9"]);
+    });
+
     it("通知が空でも壊れない（空メッセージ表示）", async () => {
         mockUserFetch.mockResolvedValue(fetchOk({ items: [], unread: 0 }));
         render(<NotificationsBell />);
         await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
         fireEvent.click(screen.getByRole("button", { name: "通知" }));
         expect(screen.getByText(/いいね・行きたいリスト追加・旅立ちの報告がここに届きます/)).toBeInTheDocument();
+    });
+});
+
+// このベルはヘッダーに常駐する。取得が `[]` deps の1回きりだった頃は、
+// **リロードするまで新着が出なかった**——いいねもコメントもフォローも
+// ここに届くのに、開いても前に読み込んだ内容のままだった。
+// **退会した人の名前と導線が残っていた。**
+//
+// 通知には作られた時点の表示名と ID が焼き込まれ、退会が消すのは
+// 自分宛ての通知だけ。サーバー（notifications.ts）は退会した人の
+// `byName` を伏せて `deleted: true` を立てるようになったが、画面は
+// それを読まず、**墓石になったプロフィールへのリンクを出し続けていた**
+// ——開いても何も無いページに誘うことになる。コメント欄
+// （CommentSection）は先に同じ扱いにしてある。
+describe("退会した人からの通知", () => {
+    const GONE = [
+        {
+            type: "like", photoId: "p1", photoSrc: "https://c/p1.webp",
+            byId: "gone-sub", byName: "退会したユーザー", deleted: true, t: "2026-07-10T00:00:00Z",
+        },
+        {
+            type: "follow", photoId: "", photoSrc: "",
+            byId: "gone-sub", targetUserId: "gone-sub",
+            byName: "退会したユーザー", deleted: true, t: "2026-07-09T00:00:00Z",
+        },
+    ];
+
+    const hrefs = () => screen.queryAllByRole("link").map((a) => a.getAttribute("href"));
+
+    // 真偽値そのものでない値（サーバーは今 boolean しか書かないが、
+    // 経路が増えたときに片側だけ効く形にしない）でも伏せる側に倒す
+    it.each([
+        ["true", true],
+        ["真値の文字列", "1"],
+    ])("プロフィールへのリンクを出さない（deleted が %s）", async (_label, flag) => {
+        mockUserFetch.mockResolvedValue(fetchOk({
+            items: GONE.map((n) => ({ ...n, deleted: flag })), unread: 0,
+        }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+        expect(hrefs().filter((h) => h?.includes("gone-sub")),
+            "墓石になったプロフィールへ誘っている").toEqual([]);
+    });
+
+    it("名前は出すが、導線だけ出さない", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({ items: GONE, unread: 0 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+        // 名前（サーバーが伏せた文言）は出る。導線だけ出さない
+        expect(screen.getAllByText("退会したユーザー").length).toBeGreaterThan(0);
+        expect(hrefs().filter((h) => h?.includes("gone-sub")),
+            "墓石になったプロフィールへ誘っている").toEqual([]);
+    });
+
+    it("写真への導線は残す（写真は消えていない）", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({ items: GONE, unread: 0 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+        // いいねの通知はその写真へ飛べる。フォローの通知は飛び先が無い
+        expect(hrefs()).toEqual(["/?photo=p1"]);
+    });
+
+    // 生きている人の導線まで消さない（逆向きの失敗）。
+    // `deleted: false` と**キーそのものが無い**古い応答の両方を見る
+    // ——サーバーは伏せる項目にしか立てないので、通常の通知にはキーが無い。
+    it.each([
+        ["deleted: false", { deleted: false }],
+        ["キーが無い（通常の通知）", {}],
+    ])("退会していない人のリンクはそのまま（%s）", async (_label, extra) => {
+        const base = { ...GONE[0] } as Record<string, unknown>;
+        delete base.deleted;   // 古い応答＝キーそのものが無い
+        mockUserFetch.mockResolvedValue(fetchOk({
+            items: [{ ...base, ...extra, byId: "live-sub", byName: "旅子" }],
+            unread: 0,
+        }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+        expect(hrefs()).toEqual(["/users?id=live-sub", "/?photo=p1"]);
+    });
+});
+
+describe("新着の取り込み", () => {
+    it("開いたときに取り直す（閉じている間に届いたぶんが見える）", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({ items: [], unread: 0 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalledWith("/user/notifications"));
+
+        // 閉じている間に1件届いた
+        mockUserFetch.mockResolvedValue(fetchOk({ items: [ITEMS[0]], unread: 1 }));
+        fireEvent.click(screen.getByRole("button"));
+
+        expect(await screen.findByText(/旅子/)).toBeInTheDocument();
+    });
+
+    it("一定間隔でも取り直す（開かなくてもバッジが更新される）", async () => {
+        vi.useFakeTimers();
+        try {
+            mockUserFetch.mockResolvedValue(fetchOk({ items: [], unread: 0 }));
+            render(<NotificationsBell />);
+            const first = mockUserFetch.mock.calls.length;
+
+            await vi.advanceTimersByTimeAsync(61_000);
+            expect(mockUserFetch.mock.calls.length).toBeGreaterThan(first);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("見えていないタブでは取りにいかない", async () => {
+        vi.useFakeTimers();
+        const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+        try {
+            mockUserFetch.mockResolvedValue(fetchOk({ items: [], unread: 0 }));
+            render(<NotificationsBell />);
+            const first = mockUserFetch.mock.calls.length;
+
+            await vi.advanceTimersByTimeAsync(61_000);
+            expect(mockUserFetch.mock.calls.length).toBe(first);
+        } finally {
+            hidden.mockRestore();
+            vi.useRealTimers();
+        }
     });
 });

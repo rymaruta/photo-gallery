@@ -123,7 +123,9 @@ describe("SignupPage - 登録ステップ", () => {
         expect(JSON.parse(saved!).username).toBe("uuid-1234-5678");
     });
 
-    it("displayName を入力していたら jp_pending_displayName に保存する", async () => {
+    // メールアドレスで区切って控える。共有端末で、登録を途中でやめた人の
+    // 表示名が次にログインした別人に付くのを防ぐ。
+    it("displayName を入力していたらメールアドレス付きのキーに控える", async () => {
         mockSignUp.mockResolvedValue({ success: true, username: "uuid-xyz" });
         const user = userEvent.setup();
         render(<SignupPage />);
@@ -135,11 +137,13 @@ describe("SignupPage - 登録ステップ", () => {
         await user.click(screen.getByRole("button", { name: /確認コードを送信/ }));
 
         await waitFor(() => {
-            expect(localStorageMock.getItem("jp_pending_displayName")).toBe("テスト太郎");
+            expect(localStorageMock.getItem("jp_pending_name_newuser@example.com")).toBe("テスト太郎");
+            // 端末で共有される裸のキーには書かない
+            expect(localStorageMock.getItem("jp_pending_displayName")).toBeNull();
         });
     });
 
-    it("displayName が空欄なら jp_pending_displayName は保存されない", async () => {
+    it("displayName が空欄なら控えない", async () => {
         mockSignUp.mockResolvedValue({ success: true, username: "uuid-xyz" });
         const user = userEvent.setup();
         render(<SignupPage />);
@@ -152,7 +156,7 @@ describe("SignupPage - 登録ステップ", () => {
         await waitFor(() => {
             expect(screen.getByRole("heading", { name: "メールを確認" })).toBeInTheDocument();
         });
-        expect(localStorageMock.getItem("jp_pending_displayName")).toBeNull();
+        expect(localStorageMock.getItem("jp_pending_name_newuser@example.com")).toBeNull();
     });
 
     it("登録失敗（不明エラー） → エラーメッセージを表示する", async () => {

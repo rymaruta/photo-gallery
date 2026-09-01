@@ -1,0 +1,153 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+// ハイドレーション・ウォッチドッグ（app/layout.tsx の <head> 内インラインJS）。
+// 12秒たっても data-hydrated が付かなければ SW とキャッシュを捨てて1回だけ
+// 再読込する。ループ防止のクールダウンの控えを **localStorage** に置いていた。
+// localStorage は全タブ共有なので、1つのタブが自己修復すると、同じく
+// 壊れている2つ目以降のタブは最大10分そのまま操作できなかった。
+// すぐ上の資産チェック（jp_asset_reload_at）は最初から sessionStorage で、
+// そちらが正しい形。タブごとの控え（sessionStorage）に揃える。
+
+/** layout.tsx から、ウォッチドッグのインラインJSを取り出す */
+function watchdogSource(): string {
+    const src = readFileSync(resolve(process.cwd(), "app/layout.tsx"), "utf8");
+    const m = src.match(/__html: `(\(function\(\)\{try\{var K="jp_hydrate_recover_at";[\s\S]*?)`,/);
+    if (!m) throw new Error("ウォッチドッグのスクリプトが見つからない");
+    return m[1];
+}
+
+let reloads = 0;
+
+beforeEach(() => {
+    vi.useFakeTimers();
+    // 既定はオンライン（jsdom の navigator.onLine は true）
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+    reloads = 0;
+    localStorage.clear();
+    sessionStorage.clear();
+    document.documentElement.removeAttribute("data-hydrated");
+    Object.defineProperty(window, "location", {
+        configurable: true,
+        value: { ...window.location, reload: () => { reloads++; } },
+    });
+});
+afterEach(() => {
+    vi.useRealTimers();
+});
+
+/** スクリプトを走らせ、load → 12秒 → 修復の後始末まで進める */
+async function runWatchdog() {
+    new Function(watchdogSource())();
+    window.dispatchEvent(new Event("load"));
+    await vi.advanceTimersByTimeAsync(12_000);
+    await vi.advanceTimersByTimeAsync(3_100);   // Promise.all の保険 setTimeout
+}
+
+describe("ハイドレーション・ウォッチドッグのクールダウン", () => {
+    it("控えはタブごと（sessionStorage）に書く。全タブ共有の localStorage は使わない", async () => {
+        await runWatchdog();
+
+        expect(reloads).toBe(1);
+        expect(sessionStorage.getItem("jp_hydrate_recover_at")).not.toBeNull();
+        // ここが localStorage だと、別のタブが同じ10分間だけ救済されない
+        expect(localStorage.getItem("jp_hydrate_recover_at")).toBeNull();
+    });
+
+    it("同じタブでは10分間もう一度走らない（ループ防止は効いたまま）", async () => {
+        sessionStorage.setItem("jp_hydrate_recover_at", String(Date.now()));
+        await runWatchdog();
+        expect(reloads).toBe(0);
+    });
+
+    it("別のタブが自己修復済みでも、こちらのタブは救済される", async () => {
+        // 「別のタブ」の控えは localStorage には残らないので、
+        // 仮にそこに値があってもこちらは止まらない
+        localStorage.setItem("jp_hydrate_recover_at", String(Date.now()));
+        await runWatchdog();
+        expect(reloads).toBe(1);
+    });
+
+    it("水和できていれば発火しない", async () => {
+        document.documentElement.setAttribute("data-hydrated", "1");
+        await runWatchdog();
+        expect(reloads).toBe(0);
+        expect(sessionStorage.getItem("jp_hydrate_recover_at")).toBeNull();
+    });
+});
+
+
+// 後片付け（SW 解除・キャッシュ全消し）には最大3秒かかる。その間に水和が
+// 終わっても無条件に再読込していたので、**遅い回線で入力中の内容が消えた**
+// （アップロード画面のタイトル・キャプション）。間に合ったなら戻さない。
+describe("後片付けの最中に水和が終わったら", () => {
+    /**
+     * 後片付け（SW 解除・キャッシュ全消し）を**保留にできる**世界を作る。
+     * jsdom には serviceWorker も caches も無く、素だと Promise.all が
+     * 即座に解決して go() が12秒の直後に走る——**実ブラウザの順序
+     * （片付けに数秒かかる）を再現できない**ので、変更の有無で結果が
+     * 変わらなかった（最初これで書いて空振りした）。
+     */
+    function pendingCleanup() {
+        let release!: () => void;
+        const gate = new Promise<void>((r) => { release = r; });
+        Object.defineProperty(navigator, "serviceWorker", {
+            configurable: true,
+            value: { getRegistrations: () => gate.then(() => []) },
+        });
+        Object.defineProperty(window, "caches", {
+            configurable: true,
+            value: { keys: () => gate.then(() => []), delete: async () => true },
+        });
+        return release;
+    }
+
+    it("再読込しない（入力中の内容を捨てない）", async () => {
+        const release = pendingCleanup();
+        new Function(watchdogSource())();
+        window.dispatchEvent(new Event("load"));
+        await vi.advanceTimersByTimeAsync(12_000);
+        expect(reloads).toBe(0);   // まだ片付けの最中
+
+        // ここで React が追いついた → 片付けが終わっても戻さない
+        document.documentElement.setAttribute("data-hydrated", "1");
+        release();
+        await vi.advanceTimersByTimeAsync(3_100);
+
+        expect(reloads).toBe(0);
+    });
+
+    it("追いつかなければ今までどおり再読込する", async () => {
+        const release = pendingCleanup();
+        new Function(watchdogSource())();
+        window.dispatchEvent(new Event("load"));
+        await vi.advanceTimersByTimeAsync(12_000);
+        release();
+        await vi.advanceTimersByTimeAsync(3_100);
+
+        expect(reloads).toBe(1);
+    });
+});
+
+
+// **オフラインでは発火させない。** 通信が無いのに水和しないのは異常ではない
+// うえ、ここで Cache Storage を全消しして SW を解除すると**オフライン機能
+// ごと消えて、そのままブラウザのエラー画面**になる（オフラインなので
+// 再登録も控えの取り直しもできない）。Service Worker が受け皿を持つように
+// なって初めて意味を持つ歯止め。
+describe("オフラインのとき", () => {
+    it("再読込も後片付けもしない", async () => {
+        Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+        await runWatchdog();
+
+        expect(reloads).toBe(0);
+        // クールダウンの控えも書かない（オンラインに戻ったとき1回目として扱う）
+        expect(sessionStorage.getItem("jp_hydrate_recover_at")).toBeNull();
+    });
+
+    it("オンラインなら今までどおり発火する", async () => {
+        await runWatchdog();
+        expect(reloads).toBe(1);
+    });
+});

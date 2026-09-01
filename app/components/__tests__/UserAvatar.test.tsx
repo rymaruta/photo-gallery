@@ -20,6 +20,15 @@ describe("UserAvatar", () => {
         expect(img.src).toContain(`/profiles/${encodeURIComponent("a b/c")}`);
     });
 
+    // 空を弾かないと `/profiles/` を取りに行く。退会した人のコメント
+    // （CommentSection が userId="" で呼ぶ）1件につき 403 が1本飛び、
+    // アイコンに落ちるまでちらつく。
+    it("userId が空なら画像を取りに行かない（アイコンだけ出す）", () => {
+        const { container } = render(<UserAvatar userId="" />);
+        expect(container.querySelector("img")).toBeNull();
+        expect(container.querySelector("svg")).not.toBeNull();
+    });
+
     it("cacheBust 指定でクエリが付く", () => {
         const { container } = render(<UserAvatar userId="u1" cacheBust={123} />);
         expect(container.querySelector("img")!.src).toContain("?v=123");

@@ -18,7 +18,8 @@ const { requireEnv } = require("./lib/env");
 
 const REGION = "ap-northeast-1";
 const DIST_ID = requireEnv("CLOUDFRONT_DISTRIBUTION_ID");
-const SITE_URL = (process.env.SITE_URL || "https://journey-photo.com").replace(/\/$/, "");
+// 本番URLへのフォールバックは置かない（CLAUDE.md）。ワークフローが環境ごとの値を渡す
+const SITE_URL = requireEnv("SITE_URL").replace(/\/$/, "");
 const LOG_FILES_TO_READ = 40; // 直近のログファイル数（多すぎると実行時間が延びる）
 
 const cf = new CloudFrontClient({ region: REGION });

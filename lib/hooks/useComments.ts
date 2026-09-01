@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { userPublicFetch, userFetch } from "../utils/api";
+import { userPublicFetch, userFetch, isGoneResponse } from "../utils/api";
 import { log } from "../utils/log";
 
 // 写真コメント。公開読み取り + 認証投稿/削除。楽観更新は最小限（投稿は成功後に反映）。
@@ -10,6 +10,12 @@ export type CommentItem = {
     name: string;
     text: string;
     t: string;
+    /**
+     * 投稿者が退会しているか。サーバー（api-user/src/comments.ts）が
+     * 名前を「退会したユーザー」に伏せたときだけ立つ。
+     * 画面はこれを見て、もう無いプロフィールへの導線を出さない。
+     */
+    deleted?: boolean;
 };
 
 export function useComments(photoId: string, isAuthenticated: boolean, initialCount = 0) {
@@ -17,33 +23,69 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
     const [count, setCount] = useState(initialCount);
     const [loading, setLoading] = useState(true);
     const [pending, setPending] = useState(false);
+    // 取得の失敗を「0件」と混ぜない。混ぜると、付いているコメントが
+    // 「まだコメントがありません」に化けて消えたように見える
+    // （admin 一覧・下書き一覧で直したのと同じ型）。再試行で立て直す。
+    const [loadError, setLoadError] = useState(false);
+    // 再試行のたびに増やして effect を回し直す
+    const [reloadKey, setReloadKey] = useState(0);
     const busyRef = useRef(false);
+    // 一覧をサーバーの真値で置き換えた回数。削除の巻き戻しは、
+    // **この間に取り直しが挟まっていたら行わない**（サーバーの方が正しい）。
+    const listSeqRef = useRef(0);
 
     useEffect(() => {
         let aborted = false;
         const controller = new AbortController();
+        setLoadError(false);
         void (async () => {
             try {
                 const res = await userPublicFetch(`/photos/${encodeURIComponent(photoId)}/comments`, { signal: controller.signal });
                 if (res.ok) {
                     const data = await res.json() as { items?: CommentItem[]; count?: number };
                     if (!aborted) {
+                        listSeqRef.current++;
                         setItems(Array.isArray(data.items) ? data.items : []);
                         if (typeof data.count === "number") setCount(data.count);
                     }
+                } else if (!aborted) {
+                    setLoadError(true);
                 }
-            } catch { /* 表示は空のまま */ } finally {
+            } catch {
+                if (!aborted) setLoadError(true);
+            } finally {
                 if (!aborted) setLoading(false);
             }
         })();
         return () => { aborted = true; controller.abort(); };
-    }, [photoId]);
+    }, [photoId, reloadKey]);
 
-    const add = useCallback(async (text: string): Promise<"ok" | "auth-required" | "empty" | "error"> => {
+    const reload = useCallback(() => {
+        setLoading(true);
+        setReloadKey((k) => k + 1);
+    }, []);
+
+    /**
+ * 投稿の結果。`error` のときは `message` に理由が入る。
+ *
+ * サーバーは断る理由を日本語で返している（「同じ写真へのコメントは
+ * 10件までです」など）が、本文を捨てて「投稿に失敗しました」とだけ
+ * 出していたので、利用者は障害だと思って何度も送り直していた
+ * （そのたびに写真と200件のコメント文書を読み直す）。
+ *
+ * 理由を state で渡してはいけない。呼び出し側は
+ * `const r = await add(text)` の直後に読むので、その関数が作られた
+ * 描画時点の値——つまり**1回前の理由**——を見てしまう。
+ * 初回の 429 では null のまま「投稿に失敗しました」が出て、
+ * 2回目にようやく1回目の文言が出る、という形で踏んでいた。
+ * だから理由は戻り値だけで渡す。
+ */
+    type AddResult = { status: "ok" | "auth-required" | "empty" | "error"; message?: string };
+    const add = useCallback(async (text: string): Promise<AddResult> => {
         const trimmed = text.trim().slice(0, 500);
-        if (!trimmed) return "empty";
-        if (!isAuthenticated) return "auth-required";
-        if (busyRef.current) return "error";
+        if (!trimmed) return { status: "empty" };
+        if (!isAuthenticated) return { status: "auth-required" };
+        if (busyRef.current) return { status: "error" };
         busyRef.current = true;
         setPending(true);
         try {
@@ -51,16 +93,25 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
                 method: "POST",
                 body: JSON.stringify({ text: trimmed }),
             });
-            if (!res.ok) throw new Error(String(res.status));
+            if (!res.ok) {
+                const { readApiError } = await import("../utils/api");
+                return { status: "error", message: await readApiError(res, "投稿に失敗しました") };
+            }
             const data = await res.json() as { comment?: CommentItem };
             if (data.comment) {
                 setItems((prev) => [data.comment as CommentItem, ...prev]);
                 setCount((c) => c + 1);
+                // 一覧の取得失敗の表示が残っていると、投稿は成功したのに
+                // 自分のコメントが画面に出ない（件数だけ増えて不審）。
+                // 投稿できた＝疎通は生きているので、表示を一覧に戻す
+                setLoadError(false);
             }
-            return "ok";
+            return { status: "ok" };
         } catch (e) {
             log.error("comment add error:", e);
-            return "error";
+            // 通信そのものが落ちた場合も、前回の理由を残さない
+            // （無関係な失敗に「10件までです」が出ていた）
+            return { status: "error", message: "通信に失敗しました" };
         } finally {
             busyRef.current = false;
             setPending(false);
@@ -68,23 +119,59 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
     }, [photoId, isAuthenticated]);
 
     const remove = useCallback(async (commentId: string): Promise<boolean> => {
-        // 楽観削除 + 失敗時ロールバック
-        const prevItems = items;
+        // 楽観削除 + 失敗時ロールバック。
+        // 件数は「元の件数」を覚えて戻す。items.length で戻していた頃は、
+        // 表示件数（上限200）と実際の件数がずれている写真で、削除に失敗した
+        // 瞬間にヘッダーの件数が 200 に書き換わり、再読込まで直らなかった。
+        //
+        // **戻すのは「この1件」だけ。** 配列まるごとの控えに戻していた頃は、
+        // 2件続けて消して**先の1件が失敗**すると、後の1件（サーバーでは
+        // 削除済み）が画面に戻り、件数も2つぶん戻った——このボタンは
+        // disabled にならないので、通信が遅ければ普通に重ねられる。
+        // 元の位置に差し戻すため、消す前の添字を控えておく。
+        const removed = items.find((c) => c.id === commentId);
+        const removedAt = items.findIndex((c) => c.id === commentId);
+        const listAt = listSeqRef.current;
         setItems((prev) => prev.filter((c) => c.id !== commentId));
         setCount((c) => Math.max(0, c - 1));
         try {
             const res = await userFetch(`/photos/${encodeURIComponent(photoId)}/comments/${encodeURIComponent(commentId)}`, {
                 method: "DELETE",
             });
+            // **404 は成功として扱う。** 別のタブ（や写真オーナー）が先に
+            // 消していると、サーバーは「コメントが見つかりません」を返す。
+            // これを失敗と読んで巻き戻していたので、**消えたはずのコメントが
+            // 一覧に戻り**、「削除できませんでした」と出て、何度押しても
+            // 同じことが起きた（リロードするまで直らない）。
+            // サーバー自身も、再試行の途中で消えた場合は成功扱いにしている
+            // （api-user/src/comments.ts の gone）。入口だけ厳しかった。
+            if (await isGoneResponse(res)) {
+                // 手元の一覧が古い合図でもある。取り直して収束させる
+                // （ストーリー側は loadStories() で同じことをしている）
+                reload();
+                return true;
+            }
             if (!res.ok) throw new Error(String(res.status));
             return true;
         } catch (e) {
             log.error("comment delete error:", e);
-            setItems(prevItems);
-            setCount(prevItems.length);
+            // 巻き戻しの前に、一覧が取り直されていないか見る。
+            // 別の削除が 404（＝別タブが先に消した）で reload を起こしていると、
+            // 手元は既にサーバーの真値になっている。そこへ戻すと
+            // **1件しか無いのに「2件」**のような食い違いを作る（items にだけ
+            // ガードを置いて count に置かなかった頃、実際にそうなっていた）。
+            if (removed && listAt === listSeqRef.current) {
+                setItems((prev) => {
+                    if (prev.some((c) => c.id === commentId)) return prev;   // 既に戻っている
+                    const next = [...prev];
+                    next.splice(Math.max(0, Math.min(removedAt, next.length)), 0, removed);
+                    return next;
+                });
+                setCount((c) => c + 1);
+            }
             return false;
         }
-    }, [photoId, items]);
+    }, [photoId, items, reload]);
 
-    return { items, count, loading, pending, add, remove };
+    return { items, count, loading, loadError, reload, pending, add, remove };
 }

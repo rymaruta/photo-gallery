@@ -6,15 +6,35 @@ export const siteConfig = {
     description: "旅の記憶を写真で残す。国内外の旅行写真・風景写真・スナップ写真を集めたフォトギャラリー。旅先の景色や日常のひとこまを届けます。",
     descriptionEn: "A travel photography gallery capturing journeys, landscapes, and everyday moments.",
     url: process.env.NEXT_PUBLIC_SITE_URL || "https://journey-photo.com",
-    ogImage: "/images/og-image.jpg",
+    // **写真が1枚も無いときの落とし先。** 以前ここに
+    // `/images/og-image.jpg` と書いてあったが、そのファイルは
+    // **リポジトリにもビルド成果物にも存在しない**（git の全履歴にも
+    // 一度も現れない）。16ページがこの URL を OGP 画像として出しており、
+    // トップを SNS に貼っても画像が出なかった。
+    // 通常は `resolveOgImage`（`lib/server/photos.ts`）がビルド時に
+    // 一番新しい公開写真を返す。**この値を直接読むページはもう無い**が、
+    // 落とし先と `Organization.logo` がここから引くので残す
+    // ——同じパスを3か所に散らさないため。
+    ogImage: "/icon-512.png",
     twitterHandle: "@JourneyPhoto",
     author: "Journey Photo",
+    // `en` は落とした。参照していたのは `og:locale:alternate` だけで、
+    // 英語版の URL は存在しない（言語切替は `6d72bfb` で削除済み）
     locale: {
         ja: "ja_JP",
-        en: "en_US",
     },
     // 環境名（prod / staging）。ビルド時に注入する。robots.txt の出し分けに使う。
-    envName: process.env.NEXT_PUBLIC_ENV_NAME || "prod",
+    //
+    // **既定を "prod" にしない。** ここが最後まで残っていた「本番への
+    // フォールバック」で、よりによってクロール許可の切り替えだった。
+    // 注入し忘れたビルドは「許可する側の robots.txt」を出すので、
+    // staging の内容が本番と同じURLの重複コンテンツとして拾われる。
+    // 未設定なら prod ではない扱い＝全面拒否に倒す。
+    //
+    // 逆側（本番なのに拒否を出してしまう取り違え）は、
+    // scripts/deploy-static-site.js の assertRobotsMatchesTarget が
+    // アップロード直前に止める。
+    envName: process.env.NEXT_PUBLIC_ENV_NAME || "",
     // 計測（すべて公開情報・ページソースに出る値）。未設定なら何も出さない。
     // 既定値は置かない。以前は本番の GA4 ID が既定だったため、
     // staging のアクセスが本番の解析に混ざる状態だった。
@@ -31,13 +51,20 @@ export const siteConfig = {
 /**
  * 構造化データ（JSON-LD）を生成 - ギャラリーページ用
  */
-export function generateStructuredData(photos: Array<{ id: string; title?: string | { ja?: string; en?: string }; src: string }>) {
+export function generateStructuredData(
+    photos: Array<{ id: string; title?: string | { ja?: string; en?: string }; src: string }>,
+    // タグ・撮影地・カテゴリのページも同じ関数を使う。渡さないと
+    // **約35個のURLが「自分はトップページだ」と申告する**（name も
+    // description も url も siteConfig 直書きだった）。
+    // 正しい値は CollectionPage.tsx が既に組み立てている。
+    page?: { name?: string; description?: string; url?: string },
+) {
     return {
         "@context": "https://schema.org",
         "@type": "ImageGallery",
-        name: siteConfig.name,
-        description: siteConfig.description,
-        url: siteConfig.url,
+        name: page?.name || siteConfig.name,
+        description: page?.description || siteConfig.description,
+        url: page?.url || siteConfig.url,
         image: photos
             .filter((photo) => photo.id && photo.src)
             .map((photo) => {
@@ -73,6 +100,8 @@ export function generatePhotoStructuredData(photo: {
     copyrightYear?: string;
     location?: string;
     coords?: { lat: number; lng: number };
+    /** 撮影日（EXIF 由来）。dateCreated はこちらを使う */
+    date?: string;
     createdAt?: string;
     updatedAt?: string;
     width?: number;
@@ -103,9 +132,15 @@ export function generatePhotoStructuredData(photo: {
         "@type": "ImageObject",
         "@id": `${siteConfig.url}/photo/${photo.id}`,
         contentUrl: imageUrl,
-        name: title,
+        // 名前が無い写真は実在する（`sanitizeTitle` は空なら属性ごと消す）。
+        // `""` を出すと、同じページのパンくずが出す名前と食い違う
+        name: title || "無題",
         ...(altTitle && altTitle !== title ? { alternateName: altTitle } : {}),
-        description: description || siteConfig.description,
+        // **説明が無いときにサイトのキャッチコピーを名乗らない。**
+        // 「この写真の説明はサイトの宣伝文です」と機械可読で配ることになり、
+        // 説明を空にした写真が全部同じ description を持つ。分からないなら
+        // 黙る（撮影日で採ったのと同じ判断）
+        ...(description ? { description } : {}),
         ...(description ? { caption: description } : {}),
         url: `${siteConfig.url}/photo/${photo.id}`,
         representativeOfPage: true,
@@ -133,10 +168,13 @@ export function generatePhotoStructuredData(photo: {
         : (photo.copyrightOwner ? `© ${photo.copyrightYear ?? ""} ${photo.copyrightOwner}`.replace(/\s+/g, " ").trim() : "");
     if (copyright) structuredData.copyrightNotice = copyright;
 
-    if (photo.photographer) {
+    // 作者。photographer だけを見ていたため、実データ（30件中0件）では
+    // 一度も出力されていなかった。creditText 側は displayName に落ちているので、
+    // 同じ値を使う（「クレジットはあるのに作者は空」という状態をやめる）。
+    if (credit) {
         structuredData.creator = {
             "@type": "Person",
-            name: photo.photographer,
+            name: credit,
         };
     }
     
@@ -162,10 +200,16 @@ export function generatePhotoStructuredData(photo: {
         structuredData.height = photo.height;
     }
     
-    if (photo.createdAt) {
-        structuredData.dateCreated = photo.createdAt;
-        structuredData.datePublished = photo.createdAt;
-    }
+    // dateCreated は「撮った日」。createdAt（登録日時）を入れていたため、
+    // ページ本文が 2024-10-12 と表示している写真の構造化データが
+    // 2026-04-12 を申告していた（実データで約1年半のずれ）。
+    // datePublished（公開日）は登録日時のままでよい。
+    // **createdAt にフォールバックしない。** 撮影日を持つのは30枚中8枚で、
+    // 残りは「撮った日」としてアップロード日を申告していた。
+    // 本文側（PhotoPageClient）も同じ理由で行ごと出さないようにしてある。
+    // 分からないなら黙る方が、嘘を機械可読で配るより良い。
+    if (photo.date) structuredData.dateCreated = photo.date;
+    if (photo.createdAt) structuredData.datePublished = photo.createdAt;
 
     if (photo.updatedAt) {
         structuredData.dateModified = photo.updatedAt;
@@ -184,9 +228,15 @@ export function generateOrganizationStructuredData() {
         name: siteConfig.name,
         url: siteConfig.url,
         description: siteConfig.description,
+        // **実在するファイルを指す。** ここも `/images/og-image.jpg`
+        // （リポジトリにもビルド成果物にも無い）を指していた。ロゴは
+        // 「一番新しい写真」では意味が通らないのでアイコンを使う
+        // （パスは `siteConfig.ogImage` の1か所から引く）
         logo: {
             "@type": "ImageObject",
             url: `${siteConfig.url}${siteConfig.ogImage}`,
+            width: 512,
+            height: 512,
         },
         sameAs: [
             // SNSアカウントがあれば追加
@@ -229,5 +279,71 @@ export function generateWebSiteStructuredData() {
             },
             "query-input": "required name=search_term_string",
         },
+    };
+}
+
+/**
+ * ログイン後に使う画面（お気に入り・アップロード・管理など）のメタデータ。
+ *
+ * これらは "use client" のページで metadata を持てないため、ルートの
+ * メタデータをそのまま継承していた。結果として **canonical がトップページを
+ * 指し**、検索エンジンには「/favorites はトップと同じページ」と申告していた。
+ * 中身も（ログインしないと何も出ないので）検索結果に出す価値が無い。
+ *
+ * 各セグメントの layout.tsx から使う。
+ */
+export function appPageMetadata(path: string, title: string) {
+    return {
+        title,
+        alternates: { canonical: `${siteConfig.url}${path}` },
+        // 検索結果に出さない。リンクは辿ってよい（サイト内の回遊は残す）
+        robots: { index: false, follow: true },
+    };
+}
+
+
+/**
+ * 配下に複数ページを持つセグメント用。canonical は持たせない。
+ *
+ * レイアウトのメタデータは子のページにも継承される。canonical を書くと
+ * /user/upload も /user/drafts も「/user が正規URL」と名乗ることになり、
+ * しかも /user というページは存在しない——存在しないURLを正規URLとして
+ * 申告する形になる（撮影地ページの二重エンコードで踏んだのと同じ形）。
+ */
+/**
+ * 「検索結果に出す」ページの robots。
+ *
+ * **`robots` はキー単位ではなくオブジェクトごと差し替わる。**
+ * `app/layout.tsx` が `googleBot: { "max-image-preview": "large" … }` を
+ * 持っているのに、子が `robots: { index: true, follow: true }` とだけ書くと
+ * **その拡張が消える**——実測で、`index, follow` なのに `googlebot` の
+ * meta が無いのは `/users/<id>` だけだった。写真を検索に出すサイトで
+ * 画像プレビューの拡大許可を落とすのは痛い。継ぐのではなく**ここから引く**。
+ */
+export const INDEXABLE_ROBOTS = {
+    index: true,
+    follow: true,
+    googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+    },
+} as const;
+
+export function noindexMetadata(title: string) {
+    return {
+        title,
+        // canonical は出さない。
+        //
+        // 書くと子のページにも継承され、/user/upload も /user/drafts も
+        // 「/user が正規URL」と名乗る（しかも /user というページは無い）。
+        // かといって省くと、ルートの canonical をそのまま継承して
+        // 「これはトップページです」と申告する——どちらも嘘になる。
+        // null を渡すと <link rel="canonical"> 自体が出なくなる。
+        // 検索結果に出さないページなので、これでよい。
+        alternates: { canonical: null },
+        robots: { index: false, follow: true },
     };
 }

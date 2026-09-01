@@ -8,12 +8,14 @@ import Link from "next/link";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
-import { userFetch } from "../../../lib/utils/api";
+import { userFetch, readApiError, AUTH_REQUIRED_MESSAGE } from "../../../lib/utils/api";
+import { changedFields } from "../../../lib/utils/changedFields";
 import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../../lib/utils/music";
 import { toUploadSafeFile, AVATAR_MAX_PX, COVER_MAX_PX } from "../../../lib/utils/image";
 import { log } from "../../../lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
 import DeleteAccountModal from "../../components/DeleteAccountModal";
+import { loginWithNext } from "../../../lib/routes";
 
 type SongEntry = {
     title: string;
@@ -64,6 +66,11 @@ const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
 
 // テーマカラーの見本。ここに無い色はパレット（input type="color"）から選べる
+// 貼付リンクの曲は、サーバーが3つ揃っている前提で突き合わせる
+// （songUrl が無ければ位置を無視し、終了位置は開始位置と比べて落とす）。
+// 送るならこの3つ一緒、送らないなら1つも送らない。
+const LINK_SONG_KEYS = ["songUrl", "songStart", "songEnd"] as const;
+
 const THEME_COLOR_PRESETS = ["#38bdf8", "#34d399", "#f472b6", "#a78bfa", "#fb7185", "#fbbf24", "#f97316", "#22d3ee"];
 
 export default function ProfileEditPage() {
@@ -76,6 +83,8 @@ export default function ProfileEditPage() {
 
     // 退会（アカウント削除）
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    // 退会モーダルを閉じたときの戻り先（モーダル内の autoFocus に奪われるため明示）
+    const deleteAccountBtnRef = useRef<HTMLButtonElement | null>(null);
     const [deletingAccount, setDeletingAccount] = useState(false);
 
     const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -118,7 +127,7 @@ export default function ProfileEditPage() {
     const [loadFailed, setLoadFailed] = useState(false);
 
     useEffect(() => {
-        if (!loading && !isAuthenticated) router.replace("/login");
+        if (!loading && !isAuthenticated) router.replace(loginWithNext(window.location.pathname + window.location.search));
     }, [isAuthenticated, loading, router]);
 
     useEffect(() => {
@@ -174,9 +183,21 @@ export default function ProfileEditPage() {
 
     const handleCoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
+        // 同じファイルを選び直しても change が発火するように値を空にしておく。
+        // アップロードに失敗したあと同じ写真でやり直せなかった。
+        e.target.value = "";
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (ev) => setCoverPreview(ev.target?.result as string);
+        // 失敗したらプレビューを消す。残したままだと**保存された気になる**
+        // ——画面には新しい写真が出ているのに、S3 にもプロフィールにも
+        // 入っていない。次に開くと元に戻っていて、何が起きたのか分からない。
+        //
+        // FileReader は非同期なので、**先に失敗する順序がある**
+        // （presign が 503 で即返るなど）。あとから onload が発火して
+        // 消したはずのプレビューを描き直さないよう、両方の順序を見る。
+        let saved = false;
+        let failed = false;
+        reader.onload = (ev) => { if (!failed) setCoverPreview(ev.target?.result as string); };
         reader.readAsDataURL(file);
         setCoverUploading(true);
         try {
@@ -195,33 +216,45 @@ export default function ProfileEditPage() {
                 method: "POST",
                 body: JSON.stringify({ fileType: upload.type, type: "cover" }),
             });
-            if (!res.ok) { showToast("カバー写真のアップロードに失敗しました", "error"); return; }
-            const { presignedUrl } = await res.json() as { presignedUrl: string };
+            // サーバーは理由を返し分けている（「対応していない形式です
+            // （JPEG・PNG・WebP・AVIF・HEIC・GIF）」など）。固定文に潰していたので、
+            // 形式が原因なのか一時障害なのか分からず、同じ画像を選び直していた
+            if (!res.ok) { showToast(await readApiError(res, "カバー写真のアップロードに失敗しました"), "error"); return; }
+            const { presignedUrl, contentType } = await res.json() as { presignedUrl: string; contentType?: string };
             const uploadRes = await fetch(presignedUrl, {
                 method: "PUT",
                 body: upload,
                 // Cache-Control は署名対象外ヘッダなので presigned URL 側では指定できない。
                 // クライアントが送らないと S3 に何も付かず、CDN の既定TTLで配信されて
                 // アイコンを変えても他人には古いものが出続ける（固定キーのため）。
-                headers: { "Content-Type": upload.type, "Cache-Control": "no-store" },
+                headers: { "Content-Type": contentType ?? upload.type, "Cache-Control": "no-store" },
             });
             if (!uploadRes.ok) { showToast("カバー写真のアップロードに失敗しました", "error"); return; }
             setCoverError(false);
+            saved = true;
             showToast("カバー写真を更新しました", "success");
-        } catch {
-            showToast("カバー写真のアップロードに失敗しました", "error");
+        } catch (e) {
+            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
+            showToast(authMissing ? AUTH_REQUIRED_MESSAGE : "カバー写真のアップロードに失敗しました", "error");
         } finally {
             setCoverUploading(false);
+            if (!saved) { failed = true; setCoverPreview(null); }
         }
     };
 
     const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
+        // 同じファイルを選び直せるように値を空にする（失敗後のやり直し用）
+        e.target.value = "";
         if (!file) return;
 
         // プレビュー表示
         const reader = new FileReader();
-        reader.onload = (ev) => setAvatarPreview(ev.target?.result as string);
+        // カバーと同じ。失敗したらプレビューを消す（保存された気にさせない）。
+        // FileReader が後から発火して描き直さないよう、両方の順序を見る。
+        let saved = false;
+        let failed = false;
+        reader.onload = (ev) => { if (!failed) setAvatarPreview(ev.target?.result as string); };
         reader.readAsDataURL(file);
 
         setAvatarUploading(true);
@@ -242,8 +275,9 @@ export default function ProfileEditPage() {
                 method: "POST",
                 body: JSON.stringify({ fileType: upload.type }),
             });
-            if (!res.ok) { showToast("アバターのアップロードに失敗しました", "error"); return; }
-            const { presignedUrl } = await res.json() as { presignedUrl: string };
+            // カバー写真と同じ理由（サーバーは形式の誤りと一時障害を返し分けている）
+            if (!res.ok) { showToast(await readApiError(res, "アバターのアップロードに失敗しました"), "error"); return; }
+            const { presignedUrl, contentType } = await res.json() as { presignedUrl: string; contentType?: string };
 
             // S3 に直接アップロード（表示サイズに合わせて縮小してから送る）
             const uploadRes = await fetch(presignedUrl, {
@@ -252,16 +286,19 @@ export default function ProfileEditPage() {
                 // Cache-Control は署名対象外ヘッダなので presigned URL 側では指定できない。
                 // クライアントが送らないと S3 に何も付かず、CDN の既定TTLで配信されて
                 // アイコンを変えても他人には古いものが出続ける（固定キーのため）。
-                headers: { "Content-Type": upload.type, "Cache-Control": "no-store" },
+                headers: { "Content-Type": contentType ?? upload.type, "Cache-Control": "no-store" },
             });
             if (!uploadRes.ok) { showToast("アバターのアップロードに失敗しました", "error"); return; }
 
             setAvatarError(false);
+            saved = true;
             showToast("プロフィール写真を更新しました", "success");
-        } catch {
-            showToast("アバターのアップロードに失敗しました", "error");
+        } catch (e) {
+            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
+            showToast(authMissing ? AUTH_REQUIRED_MESSAGE : "アバターのアップロードに失敗しました", "error");
         } finally {
             setAvatarUploading(false);
+            if (!saved) { failed = true; setAvatarPreview(null); }
         }
     };
 
@@ -375,22 +412,94 @@ export default function ProfileEditPage() {
         };
         setSaving(true);
         try {
+            // PUT は部分更新なので、このページで編集する項目だけ送る。
+            // 旅アルバム・ピン留め・ひとことは送らなければ触られない
+            // （以前は全置換で、送り忘れた項目が消えていた）。
+            //
+            // さらに **実際に変えた項目だけ**へ絞る。開いた時点の値を毎回
+            // 全部送っていたので、同じ画面を2タブで開いて片方で自己紹介を
+            // 直したあと、もう片方でテーマ色だけ変えて保存すると
+            // **自己紹介が元に戻った**（サーバーの rev は「同じ項目を送って
+            // きた側が勝つ」ので、これは rev では守れない）。
+            const nextFields: Record<string, unknown> = {
+                username: username.trim().toLowerCase().replace(/^@/, ""),
+                displayName, bio, instagram, website,
+                themeColor,
+                ...songPayload,
+            };
+            const originalFields: Record<string, unknown> = {
+                username: profile?.username ?? "",
+                displayName: profile?.displayName ?? "",
+                bio: profile?.bio ?? "",
+                instagram: profile?.instagram ?? "",
+                website: profile?.website ?? "",
+                themeColor: profile?.themeColor ?? "",
+                songUrl: profile?.songUrl ?? "",
+                songStart: profile?.songStart ?? null,
+                songEnd: profile?.songEnd ?? null,
+                songTitle: profile?.songTitle ?? "",
+                songArtist: profile?.songArtist ?? "",
+                songArtwork: profile?.songArtwork ?? "",
+                songPreviewUrl: profile?.songPreviewUrl ?? "",
+                songTrackUrl: profile?.songTrackUrl ?? "",
+                // 復元（この上の useEffect）は songs が無いとき
+                // songPreviewUrl + songTitle から1曲を組む。比較元を
+                // 素の `?? []` にすると、**何も触っていない旧データの人が
+                // 毎回 songs を送る**——PC の古いタブで自己紹介だけ直すと、
+                // スマホで増やしたプレイリストが1曲に潰れる。復元と同じ形で組む。
+                songs: profile?.songs ?? (profile?.songPreviewUrl && profile?.songTitle
+                    ? [{
+                        title: profile.songTitle,
+                        artist: profile.songArtist ?? "",
+                        artwork: profile.songArtwork ?? "",
+                        previewUrl: profile.songPreviewUrl,
+                        trackUrl: profile.songTrackUrl ?? "",
+                    }]
+                    : []),
+            };
+            const body = changedFields(nextFields, originalFields);
+            // 貼付リンクの3項目は**ひとかたまりで送る**。サーバーは
+            // 「songUrl を送った回だけ開始・終了位置を触る」規約（E-4）で、
+            // さらに終了位置は開始位置と突き合わせて成立しないものを落とす。
+            // 変わった1項目だけ送ると、サーバーが片方を undefined として
+            // 判定するので、突き合わせの結果が「全部送っていた頃」と変わる。
+            // 3つとも変わっていなければ1つも送らない（それがこの修正の目的）。
+            if (LINK_SONG_KEYS.some((k) => k in body)) {
+                for (const k of LINK_SONG_KEYS) body[k] = nextFields[k];
+            }
+
+            // 変更ゼロなら投げない。サーバーは changes が空でも rev と
+            // updatedAt を書き直すので、同時に走っている UserProfileClient の
+            // 保存を無駄に競合させる。比較元を保存後に更新するようにした分、
+            // この「何も変えずに保存」は普通に起きる。
+            if (Object.keys(body).length === 0) {
+                showToast(locale === "en" ? "Profile saved." : "プロフィールを保存しました。", "success");
+                return;
+            }
             const res = await userFetch("/user/profile", {
                 method: "PUT",
-                body: JSON.stringify({
-                    // PUT は部分更新なので、このページで編集する項目だけ送る。
-                    // 旅アルバム・ピン留め・ひとことは送らなければ触られない
-                    // （以前は全置換で、送り忘れた項目が消えていた）。
-                    username: username.trim().toLowerCase().replace(/^@/, ""),
-                    displayName, bio, instagram, website,
-                    themeColor,
-                    ...songPayload,
-                }),
+                body: JSON.stringify(body),
             });
             if (res.ok) {
+                // **比較元を保存後の姿に更新する。** これが無いと、同じ画面で
+                // 保存 → やっぱり元に戻す → 保存、が黙って無視された
+                // （2回目は「開いた時点の値」と比べるので差分ゼロになる）。
+                // いちばん質が悪いのは @名で、old→new の保存で old は
+                // 解放済みなのに、old に戻す保存が送られず new のまま残る。
+                //
+                // サーバーは 200 でマージ後のプロフィールをそのまま返す。
+                // 読めなかったときは、送った分だけ手元で重ねる。
+                const saved = await res.json().catch(() => null) as UserProfile | null;
+                if (saved && typeof saved === "object") setProfile(saved);
+                else setProfile((p) => ({ ...(p ?? {}), ...body } as UserProfile));
                 showToast(locale === "en" ? "Profile saved." : "プロフィールを保存しました。", "success");
             } else {
-                showToast(locale === "en" ? "Failed to save." : "保存に失敗しました。", "error");
+                // サーバーは理由を返している（「そのユーザー名は既に使われています」など）。
+                // 「保存に失敗しました。」だけだと、@名が重複しているのか通信が
+                // 切れたのか分からず、同じ操作を何度も繰り返すことになる。
+                // 保存は1件も書かれていない（サーバー側で先に弾いている）。
+                showToast(await readApiError(res,
+                    locale === "en" ? "Failed to save." : "保存に失敗しました。"), "error");
             }
         } catch {
             showToast(locale === "en" ? "Failed to save." : "保存に失敗しました。", "error");
@@ -870,7 +979,7 @@ export default function ProfileEditPage() {
                                                                 <iframe
                                                                     key={songPreview.embedUrl}
                                                                     src={songPreview.embedUrl}
-                                                                    title="theme song preview"
+                                                                    title="テーマソングの試聴"
                                                                     className="absolute inset-0 w-full h-full"
                                                                     allow="encrypted-media; picture-in-picture; web-share"
                                                                     referrerPolicy="strict-origin-when-cross-origin"
@@ -881,7 +990,7 @@ export default function ProfileEditPage() {
                                                             <iframe
                                                                 key={songPreview.embedUrl}
                                                                 src={songPreview.embedUrl}
-                                                                title="theme song preview"
+                                                                title="テーマソングの試聴"
                                                                 className="w-full"
                                                                 style={{ height: songPreview.height ?? 152 }}
                                                                 allow="encrypted-media; autoplay; clipboard-write"
@@ -925,6 +1034,7 @@ export default function ProfileEditPage() {
                             </p>
                             <button
                                 type="button"
+                                ref={deleteAccountBtnRef}
                                 onClick={() => setShowDeleteModal(true)}
                                 className="w-full py-2.5 rounded-xl bg-transparent text-red-400 text-sm font-medium ring-1 ring-inset ring-red-500/30 hover:bg-red-500/10 active:scale-[0.98] transition"
                                 style={{ touchAction: "manipulation" }}
@@ -937,6 +1047,7 @@ export default function ProfileEditPage() {
             </div>
 
             <DeleteAccountModal
+                openerRef={deleteAccountBtnRef}
                 isOpen={showDeleteModal}
                 onClose={() => setShowDeleteModal(false)}
                 onConfirm={() => void handleDeleteAccount()}

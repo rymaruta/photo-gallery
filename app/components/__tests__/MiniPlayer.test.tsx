@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, cleanup, waitFor } from "@testing-library/react";
 
 // 回帰ガード: デスクトップでミニプレイヤーをヘッダー(メニューバー)の上に置こうとしても、
@@ -39,9 +39,30 @@ beforeEach(() => {
     Object.defineProperty(window, "innerHeight", { writable: true, configurable: true, value: 768 });
 });
 
+// jsdom は offsetWidth/offsetHeight が常に 0。以前はそのまま w=0 で
+// クランプ結果を見ていて、「left ≤ 1024」の検証は**箱が丸ごと画面外**
+// （left=1024 に幅448の箱＝右端1472）でも通っていた。実寸を与えて測る。
+const BOX_W = 448;
+const BOX_H = 60;
+const origOffsetW = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetWidth");
+const origOffsetH = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+function stubBoxSize() {
+    Object.defineProperty(HTMLElement.prototype, "offsetWidth", { configurable: true, get: () => BOX_W });
+    Object.defineProperty(HTMLElement.prototype, "offsetHeight", { configurable: true, get: () => BOX_H });
+}
+afterEach(() => {
+    // jsdom では descriptor が実在する（configurable な getter）ことを
+    // 確認済みだが、無い環境でもスタブを残さないよう delete まで書く
+    if (origOffsetW) Object.defineProperty(HTMLElement.prototype, "offsetWidth", origOffsetW);
+    else delete (HTMLElement.prototype as { offsetWidth?: unknown }).offsetWidth;
+    if (origOffsetH) Object.defineProperty(HTMLElement.prototype, "offsetHeight", origOffsetH);
+    else delete (HTMLElement.prototype as { offsetHeight?: unknown }).offsetHeight;
+});
+
 describe("MiniPlayer 配置クランプ（メニューバーを塞がない）", () => {
     it("デスクトップ: 保存位置が右上(ヘッダー上)でも、y はヘッダー帯の下へ押し下げられる", async () => {
         setDesktop(true);
+        stubBoxSize();
         // ヘッダー上（y=0）かつ画面外まで右（x=99999）を保存 → 修正前はここに居座り header を覆う
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: 99999, y: 0 }));
 
@@ -59,9 +80,43 @@ describe("MiniPlayer 配置クランプ（メニューバーを塞がない）",
         const left = parseFloat(root.style.left);
         // ヘッダー帯(<header>不在なので既定 72+8=80)より下 = メニューボタンを塞がない
         expect(top).toBeGreaterThanOrEqual(80);
-        // 画面内に収まる
+        // **右端まで**画面内に収まる（left だけ見ると幅0の検証になる）
         expect(left).toBeGreaterThanOrEqual(0);
-        expect(left).toBeLessThanOrEqual(1024);
+        expect(left + BOX_W).toBeLessThanOrEqual(1024);
+    });
+
+    // deps を [pos] にしていた頃は、位置が変わるたび（ドラッグ中は毎フレーム）
+    // リスナが外れて張り直されていた。購読は1回のまま、リサイズで
+    // クランプが効き続けることを見る。
+    it("リサイズの購読は1回だけで、リサイズのたびに画面内へ収め直す", async () => {
+        setDesktop(true);
+        stubBoxSize();
+        // x=200 は 200+448=648 > 600 なので、1回目のリサイズでも必ず
+        // クランプが動く（x=100 だと 548 ≤ 600 で1回目の断言が無条件に通る）
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: 200, y: 200 }));
+        const addSpy = vi.spyOn(window, "addEventListener");
+
+        const { container } = render(<MiniPlayer />);
+        await waitFor(() => expect((container.firstChild as HTMLElement).style.top).not.toBe(""));
+
+        // 画面を狭くしてリサイズ → 位置が収め直される（購読が生きている）
+        Object.defineProperty(window, "innerWidth", { writable: true, configurable: true, value: 600 });
+        window.dispatchEvent(new Event("resize"));
+        await waitFor(() => {
+            const left = parseFloat((container.firstChild as HTMLElement).style.left);
+            expect(left + BOX_W).toBeLessThanOrEqual(600);
+        });
+        Object.defineProperty(window, "innerWidth", { writable: true, configurable: true, value: 500 });
+        window.dispatchEvent(new Event("resize"));
+        await waitFor(() => {
+            const left = parseFloat((container.firstChild as HTMLElement).style.left);
+            expect(left + BOX_W).toBeLessThanOrEqual(500);
+        });
+
+        // 位置が2回変わっても resize の購読は最初の1回だけ
+        const resizeAdds = addSpy.mock.calls.filter((c) => c[0] === "resize").length;
+        expect(resizeAdds).toBe(1);
+        addSpy.mockRestore();
     });
 
     it("モバイル(タッチ): ドラッグ無効。既定の下部固定のまま top を持たない", () => {

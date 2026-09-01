@@ -51,12 +51,26 @@ export const postConfirmation = async (event: PostConfirmationEvent): Promise<Po
         return event;
     }
 
+    // グループ追加もプロフィール作成も、失敗してもトリガーは成功させる。
+    //
+    // ここで投げると ConfirmSignUp ごと失敗するが、**Cognito は既に
+    // ユーザーを CONFIRMED にしている**。ユーザーには「確認に失敗しました」と
+    // 出て、コードを入れ直しても今度は「すでに確認済みです」で先へ進めない。
+    // ログイン自体はできるのにグループもプロフィールも無いので、
+    // アップロード・下書き・編集の全部が永久に開けない
+    // （/user/upload → /login → プロフィールへ、と往復するだけ）。
+    // 復旧手段がアプリのどこにも無い。落とすなら「トリガーが一部失敗した」
+    // 方が軽い——グループは後から入れ直せる。
     const client = new CognitoIdentityProviderClient({ region: event.region });
-    await client.send(new AdminAddUserToGroupCommand({
-        UserPoolId: event.userPoolId,
-        Username: event.userName,
-        GroupName: USER_GROUP,
-    }));
+    try {
+        await client.send(new AdminAddUserToGroupCommand({
+            UserPoolId: event.userPoolId,
+            Username: event.userName,
+            GroupName: USER_GROUP,
+        }));
+    } catch (e) {
+        console.error("postConfirmation: AdminAddUserToGroup failed:", e);
+    }
 
     // userId は Cognito の sub（アプリ全体で userId として使っている値）
     const sub = event.request?.userAttributes?.sub;

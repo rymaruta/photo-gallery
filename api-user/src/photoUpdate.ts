@@ -1,8 +1,14 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
-import { UpdateCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
+import { UpdateCommand, GetCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId } from "./http";
-import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeDate } from "./sanitize";
+import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeDate, sameStoredValue, truncate } from "./sanitize";
+import { requestSiteRebuild } from "./rebuild";
+import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
+import { mediaKeys } from "./mediaKeys";
+import { requireEnv } from "./env";
+import { removePinnedPhoto } from "./userProfile";
+import { S3Client, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 
 type PhotoSong = { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string };
 
@@ -30,6 +36,17 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
     const id = event.pathParameters?.id;
     if (!id) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "IDが必要です" }) };
+    }
+    // 写真以外は触らせない（読み側・削除側・管理API と同じ）。
+    //
+    // **今は別の一枚で塞がっている。** 通知・コメント・フォロー・いいねの
+    // 文書は所有者を `uid` という別名で持ち、`userId` を持たないので、
+    // 下の `ownerId = item.userId ?? item.uploadedBy` が undefined になって
+    // `!ownerId` で 403 になる。つまり「`uid` と `userId` を使い分ける」
+    // という**暗黙の約束1本**で持っている状態だった。次に誰かが内部文書に
+    // `userId` を書いた瞬間に開くので、他の入口と同じ守りをここにも置く。
+    if (id.includes("#")) {
+        return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
     }
 
     let body: {
@@ -73,18 +90,17 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             removeSong = true;
         } else if (body.song && typeof body.song === "object" && !Array.isArray(body.song)) {
             const o = body.song as Record<string, unknown>;
-            const httpsOnly = (v: unknown, max: number): string | undefined => {
-                const t = typeof v === "string" ? v.trim().slice(0, max) : "";
-                return t && /^https:\/\//.test(t) ? t : undefined;
-            };
-            const previewUrl = httpsOnly(o.previewUrl, 500);
-            const title = typeof o.title === "string" ? o.title.trim().slice(0, 200) : "";
+            // ホストまで確かめる。https だけを見ていた頃は、任意のURLを
+            // 仕込んで「開いた人全員の IP を集める」ことができた
+            // （音源は先読みされ、アートワークは <img> で読み込まれる）。
+            const previewUrl = safeSongPreviewUrl(o.previewUrl);
+            const title = typeof o.title === "string" ? truncate(o.title.trim(), 200) : "";
             if (!previewUrl || !title) {
                 return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正な曲データです" }) };
             }
-            const artist = typeof o.artist === "string" ? o.artist.trim().slice(0, 200) : "";
-            const artwork = httpsOnly(o.artwork, 500);
-            const trackUrl = httpsOnly(o.trackUrl, 500);
+            const artist = typeof o.artist === "string" ? truncate(o.artist.trim(), 200) : "";
+            const artwork = safeSongArtworkUrl(o.artwork);
+            const trackUrl = safeSongTrackUrl(o.trackUrl);
             song = {
                 title,
                 previewUrl,
@@ -108,6 +124,12 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         if (!ownerId || ownerId !== callerId) {
             return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: "権限がありません" }) };
         }
+        // ストーリーはこのAPIの対象外。published:true を書き込むと
+        // 永久の写真ページになり、24時間後の期限切れ掃除が実体だけ消して
+        // 壊れたページが残る。いいね・コメントと同じ扱いにする。
+        if (existing.Item.story === true) {
+            return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
+        }
 
         const sets: string[] = ["updatedAt = :t"];
         const values: Record<string, unknown> = { ":t": new Date().toISOString() };
@@ -121,10 +143,21 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
 
         // 下書き編集: キーが来ていれば、有効値は SET、空なら REMOVE（クリア）。
         // 予約語（location 等）を避けるため属性名は #プレースホルダで指定する。
+        //
+        // あわせて「本当に値が変わったか」も数える。静的ページの作り直しを
+        // 頼むかの判定に使う（下の requestSiteRebuild）。
+        let metaChanged = false;
         const applyMeta = (col: string, present: boolean, value: unknown) => {
             if (!present) return;
+            const willRemove = value === undefined || value === null || (Array.isArray(value) && value.length === 0);
+            // 「変わったか」は**書いたあとの姿**で見る。空配列をそのまま比べていた頃は、
+            // タグ属性を持たない写真（タグ未入力の下書きは全部これ）に対して
+            // /user/edit が必ず送る tags: [] が毎回「変わった」になり、
+            // 実際には REMOVE が何もしないので次の保存でも同じ判定になった
+            // ——何も書き換えずに保存するだけでビルドが走り続ける。
+            if (!sameStoredValue(willRemove ? undefined : value, existing.Item?.[col])) metaChanged = true;
             names[`#${col}`] = col;
-            if (value === undefined || value === null || (Array.isArray(value) && value.length === 0)) {
+            if (willRemove) {
                 removes.push(`#${col}`);
             } else {
                 sets.push(`#${col} = :${col}`);
@@ -149,10 +182,238 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             UpdateExpression: expr,
             ExpressionAttributeValues: values,
             ...(Object.keys(names).length ? { ExpressionAttributeNames: names } : {}),
+            // **DynamoDB の UpdateItem は、キーが無ければ行を作る。**
+            // ここは「Get で所有権を確かめる → Update」の2段なので、その間に
+            // 写真が消えると（別タブで削除・退会の掃除と競合）、
+            // `{ id, updatedAt, published, title... }` という **src も userId も
+            // 持たない行**ができる。一覧（attribute_exists(src)）・GSI（userId 無し）・
+            // 詳細（!photo.src で404）のどれからも辿れず、本人には消す手段がない。
+            // 対の api/src/ddb-photos.ts:115 は同じ理由で同じ条件を付けている。
+            // stories.ts の viewStory も同型の穴をこれで塞いだ。
+            ConditionExpression: "attribute_exists(id)",
         }));
+        // 静的ページに焼かれる内容が変わったら、作り直しを頼む。
+        //
+        // 一度「published が実際に変わったときだけ」に絞ったが、これは狭すぎた。
+        // この口は下書き編集（タイトル・説明・撮影地・タグ・日付）も通り、
+        // /user/edit は保存のたびに published を必ず同梱する。つまり
+        // 「説明に書いてしまった自宅の最寄り駅を消して保存」しても
+        // published は変わらないので依頼されず、**消したはずの文言が
+        // /photo/<id> の静的HTMLと JSON-LD に残り続ける**。
+        //
+        // かといって「指定されたら毎回」に戻すと、同じ値を送り続けるだけで
+        // Actions の枠を使い切れる。だから条件は「実際に変わったか」で見つつ、
+        // 対象を静的ページに載る項目まで広げ、連打は coalesce で畳む。
+        //
+        // 「キーが body にあるか」で見ていた時期があるが、それは
+        // 「毎回」と同じだった——当時の /user/edit は保存のたびに全項目を
+        // 送っていたので、何も変えずに保存を2回押すだけでビルドが2本走った
+        // （1本8分・月2,000分）。metaChanged は applyMeta の中で保存済みの
+        // 値と突き合わせている。
+        //
+        // **画面は今、変えた項目だけ送る**（7232340）。それでも値で見るのは
+        // やめない——`published` は毎回同梱されるし、古いタブが読み込んだ
+        // ままの JS は今も全項目を送ってくる。
+        const wasPublished = existing.Item.published !== false;
+        const visibilityChanged = hasPublished && body.published !== wasPublished;
+        // **隠す操作は畳んでよい。ただし「届かなかった」ことは残す。**
+        //
+        // 一度ここを素通し（coalesce 無し）にしたが、**逆向きに倒していた**。
+        // クールダウン（`claimRebuildSlot`）は `coalesce` を指定したときしか
+        // 効かないのに、月次予算（`claimMonthlyBudget`）は**指定の有無に
+        // 関わらず1加算される**。つまりクールダウンは畳み込みだけでなく
+        // 「予算を減らす速度の唯一の歯止め」でもあった。素通しにすると
+        // 公開⇄非公開のトグル200回で月の予算を使い切れる（連打を止める
+        // 仕掛けは画面にもAPIにも無い）。使い切ると、その月いっぱい
+        // **写真削除・退会・管理者削除の掃除が全部落ちる**——「隠すのが
+        // 遅れる」を直して「消したのに残る」を月単位で作る取り引きだった。
+        //
+        // 畳まれた場合は「直近10分に誰かが依頼した」＝**ビルドがもう走って
+        // いる**ということなので、たいていはその1本が拾う。拾えない窓
+        // （そのビルドがテーブルを読んだ後〜ロックを下ろす前）は残るが、
+        // そこは下の印で削除時に取り返す。
+        const requested = visibilityChanged || metaChanged;
+        const dispatched = requested
+            ? await requestSiteRebuild(`photo updated: ${id}`, { coalesce: true })
+            : false;
+
+        // **届かなかったことを行に残す。** 畳まれた・予算切れ・設定漏れ・
+        // dispatch の失敗、どれでも false が返る。削除側は「非公開だった
+        // 写真には静的ページが無い」と決め打ちして掃除を省くので、その前提が
+        // 崩れたことを伝えないと、**非公開 →（依頼が届かない）→ 削除**で
+        // 静的ページが誰にも消されないまま残る。
+        const hiding = visibilityChanged && body.published === false;
+        if (hiding && !dispatched) {
+            try {
+                await ddb.send(new UpdateCommand({
+                    TableName: PHOTOS_TABLE,
+                    Key: { id },
+                    UpdateExpression: "SET staticStale = :t",
+                    ExpressionAttributeValues: { ":t": true },
+                    // Get → Update の間に写真が消えると、`staticStale` だけを
+                    // 持つ幽霊行ができる（上の本体更新と同じ理由）
+                    ConditionExpression: "attribute_exists(id)",
+                }));
+            } catch (e) {
+                // 印が書けなくても非公開そのものは成立している。
+                // ここで 500 にすると「隠せていないのに隠せたと思う」より
+                // 「隠したのに失敗と出る」方を選ぶことになり、押し直しで
+                // 二重に頼むだけなので、記録に留める
+                console.error(`updatePhotoVisibility: staticStale の記録に失敗 (${id}):`, e);
+            }
+        }
+
+        // **印を下ろすのは、実際に依頼を出して届いたときだけ。**
+        //
+        // 一度 `dispatched` の初期値を `true` にしていて、**何も変えずに
+        // 「保存」を押しただけ**で（依頼は1本も出ていないのに）印が下りた
+        // ——そのあと削除しても掃除を頼まず、塞いだはずの穴が印を消す側から
+        // 戻ってきていた。いまは `requested` でないとき `dispatched` が
+        // false なので、条件はこれ1つでよい（`requested &&` を足すと
+        // **到達しない守り**になり、片方を壊しても緑になる）。
+        if (dispatched && existing.Item.staticStale === true) {
+            try {
+                await ddb.send(new UpdateCommand({
+                    TableName: PHOTOS_TABLE,
+                    Key: { id },
+                    UpdateExpression: "REMOVE staticStale",
+                    ConditionExpression: "attribute_exists(id)",
+                }));
+            } catch (e) {
+                console.error(`updatePhotoVisibility: staticStale の解除に失敗 (${id}):`, e);
+            }
+        }
+
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
     } catch (e) {
+        // 条件が外れた＝Get と Update の間に写真が消えた。作り直さずに
+        // 「見つかりません」と返す（stories.ts の viewStory と同じ扱い）。
+        // 500 のままだと、利用者は「失敗したので再試行」と読んで押し直す。
+        if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
+            return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
+        }
         console.error("updatePhotoVisibility error:", e);
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "更新に失敗しました" }) };
+    }
+};
+
+
+const UPLOAD_BUCKET = requireEnv("UPLOAD_BUCKET");
+const s3 = new S3Client({});
+
+/**
+ * 自分の写真を1枚消す。
+ *
+ * **これまで一般ユーザーには消す手段が無かった。** 写真削除は管理API
+ * （api/src/photosMutate.ts の deletePhoto、admin 限定）にしか無く、
+ * api-user 側には deleteStory / deleteComment / deleteAccount はあるのに
+ * deletePhoto が無い。できるのは「非公開にする」だけで、S3 の実体は残る。
+ * つまり「撮影地に自宅の最寄り駅が写り込んでいた」と気づいた人の選択肢は
+ * 「隠す（原本は公開URLに残る）」か「退会する」の二択だった。
+ * 24時間で消えるストーリーは消せるのに、永久に残る写真が消せない。
+ *
+ * 順序と条件は account.ts の退会と同じにする（新しい機構は作らない）:
+ *  - S3 を先、DynamoDB の行を後。逆にすると途中で切れたときに
+ *    **GPS 入りの原本だけが公開URLに残る**（行はキーの唯一の手がかり）
+ *  - S3 が1つでも消せなかったら行を残して 500。押し直せば続きから消える
+ *  - comments# は行より先に消す（逆だと再実行で拾う手がかりが無くなる）
+ */
+export const deleteMyPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const id = event.pathParameters?.id;
+    if (!id) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "IDが必要です" }) };
+    }
+    // このテーブルには通知 notifs# / コメント comments# / フォロー関係も
+    // 同じキー空間に入っている。写真以外は触らせない（読み側・更新側と同じ）。
+    if (id.includes("#")) {
+        return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
+    }
+    const callerId = getUserId(event);
+    if (!callerId) {
+        return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証が必要です" }) };
+    }
+
+    try {
+        const existing = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
+        if (!existing.Item) {
+            return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
+        }
+        const item = existing.Item as Record<string, unknown>;
+        const ownerId = (item.userId ?? item.uploadedBy) as string | undefined;
+        // !ownerId まで見る（updatePhotoVisibility と同じ）。無いと
+        // 「持ち主が空の行 × sub の無いトークン」で "" === "" が成立する。
+        if (!ownerId || ownerId !== callerId) {
+            return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: "権限がありません" }) };
+        }
+        // ストーリーは deleteStory の担当。ここで消すと期限切れ掃除と
+        // 二重管理になる（updatePhotoVisibility と同じ扱い）。
+        if (item.story === true) {
+            return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
+        }
+
+        // 1. S3 の実体（本体・原本・派生すべて）。mediaKeys は退会と共通。
+        const keys = mediaKeys(item);
+        let s3Failures = 0;
+        if (keys.length > 0) {
+            try {
+                const res = await s3.send(new DeleteObjectsCommand({
+                    Bucket: UPLOAD_BUCKET,
+                    Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true },
+                }));
+                s3Failures += res.Errors?.length ?? 0;
+            } catch (e) {
+                console.error(`deleteMyPhoto: S3 delete failed for ${id}:`, e);
+                s3Failures += keys.length;
+            }
+        }
+        if (s3Failures > 0) {
+            // 行は S3 キーの唯一の手がかり。消し残したまま行を消すと、
+            // GPS 入りの原本が公開URLに孤児で残る（誰も辿れない）。
+            return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "画像の削除を完了できませんでした。時間をおいてもう一度お試しください" }) };
+        }
+
+        // 2. 自分のピン留めから外す（**行を消す前に**）。
+        //    applyPinOp は上限(3)を配列長だけで数え、写真の実在を見ない。
+        //    一方で画面は見つからないピンを黙って落とすので、消した写真が
+        //    **枠を1つ永久に食い潰す**（「3枚留めた → 1枚消した → もう1枚
+        //    留めようとすると 409。でも画面には2枚しか出ていない」で詰む。
+        //    解除ボタンは表示された写真にしか無く、増減方式なので外せない）。
+        //    行を消したあとでは、どのピンが宙に浮いたか分からなくなる。
+        if (!await removePinnedPhoto(callerId, id)) {
+            return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "削除に失敗しました。時間をおいてもう一度お試しください" }) };
+        }
+
+        // 3. その写真に付いたコメント（行より先）
+        try {
+            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: `comments#${id}` } }));
+        } catch (e) {
+            console.error(`deleteMyPhoto: comments delete failed for ${id}:`, e);
+            return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "削除に失敗しました。時間をおいてもう一度お試しください" }) };
+        }
+
+        // 4. 写真の行
+        await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
+
+        // 5. 静的ページの掃除。実体を消しても、配ってある /photo/<id> の HTML は
+        //    残る（本文・撮影地・EXIF・表示名入りの JSON-LD まで焼き込み済み）。
+        //    非公開だった写真には静的ページが無いので頼まない（A-5d と同じ判定）。
+        //    **ただしその前提は「非公開化の依頼が実際に届いた場合」だけ成り立つ。**
+        //    届かなかったときは `staticStale` が立っているので、そこは頼む。
+        if (item.published !== false || item.staticStale === true) {
+            // **coalesce を付けてはいけない。** rebuild.ts が明記している
+            // とおり「削除・退会は実データを1件消さないと起こせない → 素通し」。
+            // 付けると、同じ画面の『保存』が直前にロックを取っているだけで
+            // 掃除の依頼が**見送られ、後から実行されない**——消したのに
+            // /photo/<id> の静的HTML（本文・撮影地・EXIF・表示名入り JSON-LD）が
+            // 残り、cron を止めている今は誰かが次に依頼するまで消えない。
+            // 3枚まとめて消したときに1枚目しか飛ばない、という形でも踏む。
+            // 対の api/src/photosMutate.ts も account.ts も coalesce 無し。
+            await requestSiteRebuild(`photo deleted: ${id}`);
+        }
+
+        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
+    } catch (e) {
+        console.error("deleteMyPhoto error:", e);
+        return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "削除に失敗しました" }) };
     }
 };

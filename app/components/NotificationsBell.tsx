@@ -1,26 +1,39 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { BellIcon, ChatBubbleOvalLeftIcon, UserPlusIcon } from "@heroicons/react/24/outline";
-import { PaperAirplaneIcon, HeartIcon, MapPinIcon } from "@heroicons/react/24/solid";
+import { HeartIcon } from "@heroicons/react/24/solid";
 import { userFetch } from "../../lib/utils/api";
 import { useLocale } from "../i18n/context";
 import { ROUTES } from "../../lib/routes";
 import UserAvatar from "./UserAvatar";
 
 type Notif = {
-    type: "inspired" | "like" | "go" | "comment" | "follow";
+    // 実際に作られるのは like / comment / follow の3種類。
+    // inspired / go は「行きたいリスト」機能のもので、通知を作る側が
+    // どこにも無い（マーカーを書く経路も、UIのボタンも存在しない）。
+    type: "like" | "comment" | "follow";
     photoId: string;
     photoSrc: string;
     byName: string;
     /** 通知を起こした本人。プロフィールへ飛ぶために使う */
     byId?: string;
+    /**
+     * その人が退会している（サーバーが `byName` を伏せたときに立つ）。
+     * 退会するとプロフィールは墓石になり、公開APIは空を返すので、
+     * リンクを出すと「開いても何も無いページ」へ誘うことになる。
+     * コメント欄（CommentSection）と同じ扱いにする。
+     */
+    deleted?: boolean;
     atLocation?: string;
     targetUserId?: string;
     t: string;
 };
+
+/** 常駐ぶんの再取得の間隔。短くしすぎると人数×頻度でAPI が増える */
+const POLL_MS = 60_000;
 
 // 通知ベル: 「いいねされた」「行きたいリストに入った」
 // 「あなたの写真が◯◯さんを旅立たせた」が届く場所。
@@ -32,25 +45,65 @@ export default function NotificationsBell() {
     const [unread, setUnread] = useState(0);
     const [now, setNow] = useState(0);
 
-    useEffect(() => {
-        void (async () => {
-            try {
-                const res = await userFetch("/user/notifications");
-                if (!res.ok) return;
-                const data = await res.json() as { items?: Notif[]; unread?: number };
-                setItems(Array.isArray(data.items) ? data.items : []);
-                setUnread(typeof data.unread === "number" ? data.unread : 0);
-                setNow(Date.now());
-            } catch { /* 通知は取得できなくてもUIを壊さない */ }
-        })();
+    // 取得は1回きりではいけない。このベルはヘッダーに常駐するので、
+    // `[]` deps だけだと**リロードするまで新着が出ない**——いいねも
+    // コメントもフォローもここに届くのに、開いても前に読み込んだ内容の
+    // ままだった。
+    //
+    // ただしポーリングは足しすぎない。主にするのは「開いたときの再取得」で、
+    // 常駐ぶんは長めの間隔にとどめる（1人あたり60秒に1回）。
+    // 世代を2つ持つ。混ぜると、片方を直したつもりでもう片方を壊す。
+    //
+    // `fetchSeqRef` … 取得の世代。**追い越された応答は丸ごと捨てる。**
+    //   これを付けずに未読数だけ捨てていたら、遅い GET が返ってきたときに
+    //   「新しい方で出ている未読を 0 にし、一覧まで古い方で上書きする」——
+    //   つまり**新着が最大60秒（裏タブはもっと長く）出ない**方に倒れていた。
+    //   古い数字が出るより、新着が出ない方が悪い。
+    //
+    // `readSeqRef` … 既読化の世代。取得を投げてから返るまでの間に既読化
+    //   したら、返ってきた unread は既に古い。ベルを開くと GET と PUT が
+    //   ほぼ同時に出るが、サーバーは GET を先に受けるので `unread: 3` を
+    //   返し、消えたバッジが数百ms後に復活していた。
+    const fetchSeqRef = useRef(0);
+    const readSeqRef = useRef(0);
+    const load = useCallback(async () => {
+        const mine = ++fetchSeqRef.current;
+        const readAt = readSeqRef.current;
+        try {
+            const res = await userFetch("/user/notifications");
+            if (!res.ok) return;
+            const data = await res.json() as { items?: Notif[]; unread?: number };
+            if (mine !== fetchSeqRef.current) return;   // 追い越された。丸ごと捨てる
+            setItems(Array.isArray(data.items) ? data.items : []);
+            setUnread(readAt === readSeqRef.current && typeof data.unread === "number" ? data.unread : 0);
+            setNow(Date.now());
+        } catch { /* 通知は取得できなくてもUIを壊さない */ }
     }, []);
+
+    useEffect(() => {
+        // 初回と、以後は一定間隔で。async の中で await してから state を触る
+        // （effect の本体で直接 setState しない）。
+        void (async () => { await load(); })();
+        const timer = setInterval(() => {
+            // 見えていないタブでは叩かない（背面のタブが延々と取りにいくのを避ける）
+            if (typeof document !== "undefined" && document.hidden) return;
+            void load();
+        }, POLL_MS);
+        return () => clearInterval(timer);
+    }, [load]);
 
     const toggleOpen = () => {
         const next = !open;
         setOpen(next);
-        if (next && unread > 0) {
-            setUnread(0);
-            void userFetch("/user/notifications", { method: "PUT" }).catch(() => { /* ignore */ });
+        if (next) {
+            // 開いた時点の中身を出す。バッジが 0 でも、閉じている間に
+            // 届いた通知はここで初めて見える。
+            void load();
+            if (unread > 0) {
+                readSeqRef.current++;
+                setUnread(0);
+                void userFetch("/user/notifications", { method: "PUT" }).catch(() => { /* ignore */ });
+            }
         }
     };
 
@@ -100,33 +153,23 @@ export default function NotificationsBell() {
                             </p>
                         ) : (
                             <ul className="max-h-96 overflow-y-auto no-scrollbar divide-y divide-white/5">
-                                {items.map((n, i) => (
-                                    <li key={`${n.photoId || n.targetUserId}-${n.t}-${i}`} className="flex items-start gap-3 px-4 py-3 hover:bg-white/5 transition-colors">
-                                        {/* 左のアイコンは相手のプロフィールへ。
-                                            名前だけだと、名前未設定の人は既定名で表示されて
-                                            誰なのか辿れず、フォローしに行けないため */}
-                                        {(n.byId || n.targetUserId) ? (
-                                            <Link
-                                                href={ROUTES.USER_PROFILE(String(n.byId || n.targetUserId))}
-                                                onClick={() => setOpen(false)}
-                                                aria-label={locale === "en" ? `Open ${n.byName}'s profile` : `${n.byName} さんのプロフィール`}
-                                                className="flex-shrink-0 rounded-full active:scale-95 transition"
-                                                style={{ touchAction: "manipulation" }}
-                                            >
-                                                <UserAvatar userId={String(n.byId || n.targetUserId)} className="w-10 h-10" iconClassName="w-5 h-5" />
-                                            </Link>
-                                        ) : (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={n.photoSrc} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
-                                        )}
-                                        <Link
-                                            href={n.type === "follow" && n.targetUserId ? ROUTES.USER_PROFILE(n.targetUserId) : ROUTES.PHOTO(n.photoId)}
-                                            onClick={() => setOpen(false)}
-                                            className="flex items-start gap-3 min-w-0 flex-1 active:opacity-80 transition"
-                                            style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
-                                        >
+                                {items.map((n, i) => {
+                                    // **退会した人のフォロー通知は、開く先が墓石になる。**
+                                    // フォローの通知は写真を持たないので、代わりの行き先も
+                                    // 無い——リンクを外して文面だけ残す（コメント欄と同じ扱い）。
+                                    // **判定は1か所で作る。** 片方だけ厳密にすると、
+                                    // `deleted: "1"` のような応答でアイコンだけ伏せて
+                                    // 本文はリンクのまま、という食い違いになる。
+                                    // 迷ったら伏せる側（コメント欄も truthy 判定）。
+                                    const isDeleted = !!n.deleted;
+                                    const goesNowhere = isDeleted && n.type === "follow";
+                                    const body = (
+                                        <>
                                             <div className="min-w-0 flex-1">
-                                                <p className="text-[13px] text-white/85 leading-snug">
+                                                {/* `break-words`: 表示名は100文字まで通るので、
+                                                    空白の無い名前だとパネルの外に出て**丸ごと読めなくなる**
+                                                    （実測: 名前の右端896px に対しパネル右端320px） */}
+                                                <p className="text-[13px] text-white/85 leading-snug break-words">
                                                     {n.type === "follow" ? (
                                                         <>
                                                             <UserPlusIcon className="w-3.5 h-3.5 text-sky-400 inline -mt-0.5 mr-1" />
@@ -141,13 +184,6 @@ export default function NotificationsBell() {
                                                                 ? <><span className="font-semibold">{n.byName}</span> liked your photo</>
                                                                 : <><span className="font-semibold">{n.byName}</span> さんがあなたの写真にいいねしました</>}
                                                         </>
-                                                    ) : n.type === "go" ? (
-                                                        <>
-                                                            <MapPinIcon className="w-3.5 h-3.5 text-emerald-400 inline -mt-0.5 mr-1" />
-                                                            {locale === "en"
-                                                                ? <><span className="font-semibold">{n.byName}</span> added your photo to their travel list!</>
-                                                                : <><span className="font-semibold">{n.byName}</span> さんがあなたの写真を行きたいリストに追加しました！</>}
-                                                        </>
                                                     ) : n.type === "comment" ? (
                                                         <>
                                                             <ChatBubbleOvalLeftIcon className="w-3.5 h-3.5 text-fuchsia-400 inline -mt-0.5 mr-1" />
@@ -155,14 +191,9 @@ export default function NotificationsBell() {
                                                                 ? <><span className="font-semibold">{n.byName}</span> commented on your photo</>
                                                                 : <><span className="font-semibold">{n.byName}</span> さんがあなたの写真にコメントしました</>}
                                                         </>
-                                                    ) : (
-                                                        <>
-                                                            <PaperAirplaneIcon className="w-3.5 h-3.5 -rotate-45 text-sky-400 inline -mt-0.5 mr-1" />
-                                                            {locale === "en"
-                                                                ? <>Your photo moved <span className="font-semibold">{n.byName}</span> to travel{n.atLocation ? ` to ${n.atLocation}` : ""}!</>
-                                                                : <>あなたの写真が <span className="font-semibold">{n.byName}</span> さんを{n.atLocation ? `「${n.atLocation}」へ` : ""}旅立たせました！</>}
-                                                        </>
-                                                    )}
+                                                    ) : null /* 知らない種類は何も出さない。
+                                                        以前はここが「旅立たせました！」の分岐で、
+                                                        将来わけの分からない通知が全部その文言で出る作りだった */}
                                                 </p>
                                                 <p className="text-[11px] text-white/35 mt-0.5">{fmtTime(n.t)}</p>
                                             </div>
@@ -171,9 +202,47 @@ export default function NotificationsBell() {
                                                 // eslint-disable-next-line @next/next/no-img-element
                                                 <img src={n.photoSrc} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
                                             )}
-                                        </Link>
-                                    </li>
-                                ))}
+                                        </>
+                                    );
+                                    return (
+                                        <li key={`${n.photoId || n.targetUserId}-${n.t}-${i}`} className="flex items-start gap-3 px-4 py-3 hover:bg-white/5 transition-colors">
+                                            {/* 左のアイコンは相手のプロフィールへ。
+                                                名前だけだと、名前未設定の人は既定名で表示されて
+                                                誰なのか辿れず、フォローしに行けないため */}
+                                            {isDeleted ? (
+                                                // 退会した人。名前は既にサーバーが伏せてある
+                                                <span className="flex-shrink-0">
+                                                    <UserAvatar userId="" className="w-10 h-10" iconClassName="w-5 h-5" />
+                                                </span>
+                                            ) : (n.byId || n.targetUserId) ? (
+                                                <Link
+                                                    href={ROUTES.USER_PROFILE(String(n.byId || n.targetUserId))}
+                                                    onClick={() => setOpen(false)}
+                                                    aria-label={locale === "en" ? `Open ${n.byName}'s profile` : `${n.byName} さんのプロフィール`}
+                                                    className="flex-shrink-0 rounded-full active:scale-95 transition"
+                                                    style={{ touchAction: "manipulation" }}
+                                                >
+                                                    <UserAvatar userId={String(n.byId || n.targetUserId)} className="w-10 h-10" iconClassName="w-5 h-5" />
+                                                </Link>
+                                            ) : (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img src={n.photoSrc} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
+                                            )}
+                                            {goesNowhere ? (
+                                                <div className="flex items-start gap-3 min-w-0 flex-1">{body}</div>
+                                            ) : (
+                                                <Link
+                                                    href={n.type === "follow" && n.targetUserId ? ROUTES.USER_PROFILE(n.targetUserId) : ROUTES.PHOTO(n.photoId)}
+                                                    onClick={() => setOpen(false)}
+                                                    className="flex items-start gap-3 min-w-0 flex-1 active:opacity-80 transition"
+                                                    style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                                                >
+                                                    {body}
+                                                </Link>
+                                            )}
+                                        </li>
+                                    );
+                                })}
                             </ul>
                         )}
                     </div>

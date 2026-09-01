@@ -1,7 +1,30 @@
+/**
+ * 退会済みの印（墓石）が立っているか。
+ *
+ * 退会でプロフィール行を消すだけにしていた頃、**消したはずのアカウントが
+ * 復活しえた**。API Gateway の JWT オーソライザは署名と exp しか見ないので、
+ * Cognito のユーザーを消しても既に配ったトークンは期限まで通る。別の端末に
+ * 残っていたタブが GET /user/profile を叩くと「行が無い人」に見え、
+ * createProfileIfMissing が行を作り直す。
+ *
+ * **この規則を写経しないこと。** userProfile.ts・follow.ts・userSearch.ts の
+ * 3か所が同じ判定を要る。sanitize.ts の「対で保つ」2コピーで、片方だけ直して
+ * 食い違わせた前科があるので、こちらは1か所に置いて import する。
+ *
+ * **DynamoDB から引くときは射影に deletedAt を入れること。** 射影に無ければ
+ * 属性は返らず、この判定は**常に false になって死ぬ**（テストのモックは射影を
+ * 無視して Item をそのまま返すので、緑のまま穴が開く）。
+ */
+export function isDeletedProfile(p: unknown): boolean {
+    return typeof (p as { deletedAt?: unknown } | null)?.deletedAt === "string";
+}
+
 export type Photo = {
     id: string;
     src: string;
     thumbSrc?: string; // 一覧グリッド用の軽量サムネイル（512px WebP）。ない写真は src を使う
+    srcOriginal?: string; // EXIF除去前の原本（GPS入り。削除時に必ず消す）
+    src256?: string;
     title?: string | Record<string, string>;
     description?: string | Record<string, string[]>;
     category?: string;

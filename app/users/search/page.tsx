@@ -40,13 +40,25 @@ export default function UserSearchPage() {
         if (!composingRef.current) setQuery(v);
     }, []);
 
-    const showEmpty = isSearchableQuery(input.trim().replace(/^@+/, "")) && !loading && users.length === 0;
+    // 「見つかりませんでした」は、実際に検索した語（query）を基準に出す。
+    // input を見ていた頃は、日本語入力の変換中（composing）は query が
+    // 空のまま＝検索が走っていないのに、1文字目から
+    // 「見つかりませんでした」が出続けていた。
+    const showEmpty = isSearchableQuery(query.trim().replace(/^@+/, "")) && !loading && users.length === 0;
 
     return (
         <main className="min-h-screen bg-black text-white max-w-2xl mx-auto w-full px-4 pb-16">
             <div className="flex items-center gap-2 py-3">
                 <button
-                    onClick={() => router.back()}
+                    onClick={() => {
+                        // **戻る先が無ければトップへ。** 共有リンクや
+                        // ブックマークでこの画面を直接開いた場合、`back()` は
+                        // **サイトの外**（前に見ていた別のサイト）へ出てしまう。
+                        // `history.length === 1` は「このタブで最初の1画面」。
+                        // クライアント遷移で来ていれば 2 以上になる。
+                        if (typeof window !== "undefined" && window.history.length <= 1) router.push(ROUTES.HOME);
+                        else router.back();
+                    }}
                     aria-label={isJa ? "戻る" : "Back"}
                     className="p-2 -ml-2 text-white/70 hover:text-white"
                     style={{ touchAction: "manipulation" }}

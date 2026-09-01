@@ -1,6 +1,13 @@
 name: Deploy Site
 
 # main → 本番、develop → staging。
+# **`GITHUB_TOKEN` に何も渡さない（IAM-3）。**
+# どのワークフローも `actions/checkout` 以外でトークンを使っていないのに、
+# 既定の権限（リポジトリ設定次第では contents: write まで）が渡っていた。
+# checkout に要るのは読み取りだけ。**渡していない権限は漏らせない**。
+permissions:
+  contents: read
+
 on:
   # フロントの反映は本番だけ自動。staging は手動実行（workflow_dispatch で
   # develop を選ぶ）。1回8分かかるので、push のたびには回さない。
@@ -8,22 +15,39 @@ on:
     branches:
       - main
   workflow_dispatch:
-  # 定期ビルドは一時停止中。
+  # 退会・写真削除・非公開のあとに API から呼ばれる。
+  # 静的エクスポートなので、実体を消しても配ってある HTML は残り続ける。
+  # 定期ビルドを止めている今、ここが唯一の掃除経路。
+  # 連続削除は下の concurrency でまとめられる（枠を食い潰さない）。
+  repository_dispatch:
+    types: [site-rebuild]
+  # 定期ビルド（2026-09-01 に再開。ただし**毎日ではなく週1**）。
   #
-  # 2026-08-20 時点で GitHub Actions の枠を 1,804/2,000 分（90%）消費しており、
-  # 1回8分のこのワークフローを毎日回すと12日間で約96分。残枠の半分を
-  # 「中身の変わらないビルド」に使うことになる。
-  # 目的は新しい写真の個別ページとサイトマップの生成で、写真の追加は月に数枚。
-  # 必要なときは Actions から手動実行する（workflow_dispatch）。
-  # 枠がリセットされたら戻すか判断する。
-  # schedule:
-  #   - cron: "0 18 * * *"
+  # 止めた理由: 2026-08-20 時点で枠を 1,804/2,000 分（90%）消費しており、
+  # 1回8分を毎日回すと月およそ240分＝枠の12%を「中身の変わらないビルド」に
+  # 使うことになる。枠は9/1にリセットされたが、**毎日に戻す理由も無い**
+  # ——目的は新しい写真の個別ページとサイトマップの生成で、写真の追加は
+  # 月に数枚。削除・非公開のあとは API が repository_dispatch で叩くので、
+  # 「消したものが残る」側は定期ビルドに頼っていない。
+  #
+  # 週1（日曜 03:00 JST = 18:00 UTC 土曜）なら月およそ32分＝枠の1.6%。
+  # 写真を足した直後に出したいときは、今までどおり手動実行する。
+  schedule:
+    - cron: "0 18 * * 6"
 
 # 同じ環境へのデプロイを同時に走らせない。実行中のものはキャンセルせず待たせる
 # （S3 アップロードの途中で中断すると、新旧が混ざった中途半端な状態になるため）。
 # 待機中の古い実行は新しい実行に置き換わる。
 concurrency:
   group: deploy-site-${{ github.ref_name }}
+  # 実行中のものはキャンセルしない。
+  #
+  # 一度 repository_dispatch のときだけ true にしたが、これは誤りだった。
+  # cancel-in-progress は「新しく積まれた実行が、実行中のものを殺す」設定で、
+  # repository_dispatch は既定ブランチ＝main のグループに入る。つまり
+  # 「人が push したデプロイの途中で誰かが写真を1枚消すと、そのデプロイが死ぬ」。
+  # 連続削除をまとめたいだけなら何もしなくてよい——GitHub は同じグループで
+  # **待機中**の実行を常に1つに畳むので、8分のビルドが何本も走ることはない。
   cancel-in-progress: false
 
 jobs:
@@ -66,20 +90,25 @@ jobs:
               cognitoClientId=21cs4cd8dkttmg3snloj72u8mu
               cloudfrontUrl=https://d1s3dwwzgxf5ni.cloudfront.net
               distributionId='${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}'
-              gaId='${{ vars.PROD_GA_ID }}'
+              # GA4 の測定ID。公開情報（ページソースに出る）なのでここに直書きする。
+              # 一度 vars 参照にしたが、その変数が未作成で本番の解析タグが消えた。
+              gaId=G-7TFN1YPBE3
               ;;
             develop)
               envName=staging
               siteBucket=staging-journey-photo.com
               photosTable=staging-photo-gallery-photos
               uploadBucket=staging-journey-photo-upload
-              siteUrl='${{ vars.STAGING_CLOUDFRONT_URL }}'
-              apiBaseUrl='${{ vars.STAGING_API_BASE_URL }}'
-              userApiBaseUrl='${{ vars.STAGING_USER_API_BASE_URL }}'
-              cognitoUserPoolId='${{ vars.STAGING_COGNITO_USER_POOL_ID }}'
-              cognitoClientId='${{ vars.STAGING_COGNITO_CLIENT_ID }}'
-              cloudfrontUrl='${{ vars.STAGING_CLOUDFRONT_URL }}'
-              distributionId='${{ vars.STAGING_DISTRIBUTION_ID }}'
+              # staging の値も本番と同じくここに直書きする。
+              # どれも公開識別子（Cognito の2つはビルド後のJSに埋め込まれて
+              # ブラウザに配られる）で、秘密ではない。
+              siteUrl=https://d15fn3rcaiymu9.cloudfront.net
+              apiBaseUrl=https://rfq22dzchf.execute-api.ap-northeast-1.amazonaws.com
+              userApiBaseUrl=https://y9f8ajacc2.execute-api.ap-northeast-1.amazonaws.com
+              cognitoUserPoolId=ap-northeast-1_DSQ16c6vO
+              cognitoClientId=1qjl9c8gmqidigps55jhv4foi
+              cloudfrontUrl=https://d15fn3rcaiymu9.cloudfront.net
+              distributionId=EF2TFEBBP24DL
               allowEmptyPhotos=1
               ;;
             *)
@@ -87,13 +116,22 @@ jobs:
               exit 1
               ;;
           esac
-          for k in siteBucket photosTable uploadBucket siteUrl apiBaseUrl userApiBaseUrl \
+          # envName も必須。抜けるとビルドが「環境不明」になり、
+          # robots.txt が全面拒否になる（そのまま本番に上げると検索から消える）。
+          for k in envName siteBucket photosTable uploadBucket siteUrl apiBaseUrl userApiBaseUrl \
                    cognitoUserPoolId cognitoClientId cloudfrontUrl; do
             v="${!k}"
             if [ -z "$v" ]; then
-              echo "::error::$envName の $k が未設定です。Secrets / Variables を確認してください。"
+              echo "::error::$envName の $k が未設定です。"
               exit 1
             fi
+            # 埋め忘れたプレースホルダで動き出さないようにする
+            case "$v" in
+              *PLACEHOLDER*)
+                echo "::error::$envName の $k がプレースホルダのままです（$v）。実際の値に置き換えてください。"
+                exit 1
+                ;;
+            esac
             echo "$k=$v" >> "$GITHUB_OUTPUT"
           done
           # distributionId は「有無だけ」確認して値は出力しない。
@@ -123,6 +161,18 @@ jobs:
     # ⚠️ package.json の playwright を上げたら、このタグも同じ版に上げること。
     container:
       image: mcr.microsoft.com/playwright:v1.61.1-noble
+
+    # **コンテナの中では `run:` の既定シェルが `sh`（dash）になる。**
+    # ランナー直上なら bash なので、同じ書き方でも通ってしまう——
+    # `set -euo pipefail` は dash に無い `pipefail` を含むので
+    # `set: Illegal option -o pipefail` で**1行目から落ちる**。
+    # 2026-08-19 にこのジョブをコンテナへ移し、8/21 に `set -euo pipefail` を
+    # 足した結果、**それ以降サイトのデプロイは staging も本番も
+    # S3 へ出す手前で失敗し続けていた**（ビルドは通るので、ログを最後まで
+    # 見ないと成功に見える）。ここで shell を明示して、書き方の前提を戻す。
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Checkout
@@ -155,6 +205,14 @@ jobs:
       # サムネ生成が失敗した写真も、次のデプロイ/定期再ビルドで自動修復される。
       # ビルド前に実行することで photos.json に thumbSrc が反映される。
       - name: Generate missing thumbnails
+        # ここで落ちてもデプロイは止めない。
+        #
+        # このステップは「表示用の補完」で、成否はサイトの正しさに関わらない。
+        # 一方この後ろには build と S3 反映があり、しかも削除のたびに走る
+        # site-rebuild（cron を止めた今、消えたページを S3 から消す唯一の経路）も
+        # 同じ道を通る。ここで止めると「消したはずの内容が公開されたまま、
+        # 直すデプロイも打てない」になる。実際その条件を一度入れかけた。
+        continue-on-error: true
         run: node scripts/generate-thumbnails.js
         env:
           # このスクリプトは DynamoDB と S3 に「書く」。環境を渡し忘れると
@@ -162,6 +220,10 @@ jobs:
           PHOTOS_TABLE: ${{ needs.config.outputs.photosTable }}
           UPLOAD_BUCKET: ${{ needs.config.outputs.uploadBucket }}
           CLOUDFRONT_URL: ${{ needs.config.outputs.cloudfrontUrl }}
+          # 保存する画像URLは**配信に使うURL**にする。CloudFront の既定
+          # ドメインを焼き込むと、同じ画像が2つのホスト名で配信され、
+          # サイトマップが両方を載せてインデックスが割れる。
+          PUBLIC_BASE_URL: ${{ needs.config.outputs.siteUrl }}
 
       - name: Build
         run: npm run build
@@ -207,10 +269,36 @@ jobs:
         timeout-minutes: 10
 
       - name: Deploy to S3
-        run: node scripts/deploy-static-site.js --bucket "${{ needs.config.outputs.siteBucket }}"
         timeout-minutes: 20
         env:
           # config の output 経由にしない。シークレット由来の値はマスクされて
           # 空で届き、無効化が黙ってスキップされる（実際に踏んだ）。
-          CLOUDFRONT_DISTRIBUTION_ID: ${{ needs.config.outputs.envName == 'prod' && secrets.CLOUDFRONT_DISTRIBUTION_ID || vars.STAGING_DISTRIBUTION_ID }}
+          #
+          # `A && B || C` は使わない。本番のシークレットが空だと
+          # **ステージングの配信ID**に落ち、バケットは本番を触るのに無効化は
+          # ステージングへ、という一番気づきにくい壊れ方をする。
+          # restrict-originals.yml が同じ罠を明文化している。
+          # 環境ごとに別の変数で渡し、選んでから空を弾く。
+          ENV_NAME: ${{ needs.config.outputs.envName }}
+          PROD_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+          STAGING_DISTRIBUTION_ID: EF2TFEBBP24DL
+          SITE_BUCKET: ${{ needs.config.outputs.siteBucket }}
           SITE_URL: ${{ needs.config.outputs.siteUrl }}
+          # 削除起点の掃除（退会・写真削除の repository_dispatch）では、
+          # 消す量のガードを外す。**掃除が落ちる方が悪い**からで、
+          # 1人が全部の写真を持っている今は退会1回で 88% が消える。
+          # push / 手動実行では外さない（out/ が本番より貧しいときに止める）。
+          ALLOW_BULK_DELETE: ${{ github.event_name == 'repository_dispatch' && '1' || '0' }}
+        run: |
+          set -euo pipefail
+          if [ "$ENV_NAME" = "prod" ]; then
+            distributionId="$PROD_DISTRIBUTION_ID"
+          else
+            distributionId="$STAGING_DISTRIBUTION_ID"
+          fi
+          if [ -z "$distributionId" ]; then
+            echo "::error::$ENV_NAME の配信IDが空です。別環境のIDに落とさず、ここで止めます。"
+            exit 1
+          fi
+          CLOUDFRONT_DISTRIBUTION_ID="$distributionId" \
+            node scripts/deploy-static-site.js --bucket "$SITE_BUCKET"

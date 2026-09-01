@@ -28,7 +28,7 @@ export default function CollectionPageClient({ photos, heading, description, bre
 
     return (
         <main className="mx-auto max-w-6xl px-4 py-8">
-            <nav aria-label="breadcrumb" className="mb-3 text-sm text-white/60">
+            <nav aria-label="パンくずリスト" className="mb-3 text-sm text-white/60">
                 <Link href="/" className="hover:text-white/90">ホーム</Link>
                 <span className="mx-2" aria-hidden>/</span>
                 <span className="text-white/80">{breadcrumb}</span>

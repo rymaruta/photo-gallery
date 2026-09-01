@@ -1,38 +1,71 @@
-// JPEG から EXIF（APP1）/ IPTC（APP13）セグメントをバイトレベルで除去する。
-// canvas 圧縮が失敗して元ファイルをアップロードするフォールバック時に、
-// GPS 位置情報などのメタデータが公開されるのを防ぐ。
-export async function stripJpegExif(file: File): Promise<File> {
-    if (file.type !== "image/jpeg") return file;
+/**
+ * JPEG から EXIF（APP1）/ IPTC（APP13）セグメントをバイトレベルで除去する。
+ * canvas 圧縮が失敗して元ファイルをアップロードするフォールバック時に、
+ * GPS 位置情報などのメタデータが公開されるのを防ぐ。
+ *
+ * `stripped` は「本当に落としたか」。呼び出し側はこれを見ること。
+ * 「新しい File が返ってきた＝消せた」と見なしてはいけない——
+ * 走査が途中で止まると、中身が同じ新しい File が返る（下記 fill byte の件）。
+ */
+export async function stripJpegExifDetailed(file: File): Promise<{ file: File; stripped: boolean }> {
+    if (file.type !== "image/jpeg") return { file, stripped: false };
     try {
         const buf = new Uint8Array(await file.arrayBuffer());
         // SOI マーカー確認
-        if (buf.length < 4 || buf[0] !== 0xFF || buf[1] !== 0xD8) return file;
+        if (buf.length < 4 || buf[0] !== 0xFF || buf[1] !== 0xD8) return { file, stripped: false };
 
         const parts: Uint8Array[] = [buf.slice(0, 2)];
         let i = 2;
         while (i + 4 <= buf.length) {
             if (buf[i] !== 0xFF) break; // 壊れた構造 — 以降はそのまま保持
-            const marker = buf[i + 1];
+            // マーカーの直前には fill byte（0xFF）を何個でも置ける（JPEG 仕様 B.1.1.2）。
+            // 読み飛ばさずに buf[i+1] をマーカーだと決めつけていたため、
+            // "FF FF E1" のような並びでは 0xFF をマーカー、続く2バイトを
+            // 長さとして読み、巨大な長さになって走査が終了していた。
+            // その結果 APP1（Exif/GPS）を含む残り全部がそのまま積まれ、
+            // **中身が同じ新しい File** が返る。呼び出し側は同一性判定で
+            // 「消せた」と誤認し、GPS 入りのまま公開されていた。
+            let m = i + 1;
+            while (m < buf.length && buf[m] === 0xFF) m++;
+            if (m >= buf.length) break;
+            const marker = buf[m];
+            const segStart = m + 1;
             if (marker === 0xDA) { // SOS: 以降は画像データなので全部保持
                 parts.push(buf.slice(i));
                 i = buf.length;
                 break;
             }
-            const len = (buf[i + 2] << 8) | buf[i + 3];
+            if (segStart + 1 >= buf.length) break;
+            const len = (buf[segStart] << 8) | buf[segStart + 1];
             if (len < 2) break;
-            const segEnd = i + 2 + len;
+            const segEnd = segStart + len;
+            if (segEnd > buf.length) break; // 長さが壊れている — 以降はそのまま保持
             // APP1 (Exif/XMP) と APP13 (IPTC) を除去、それ以外は保持
             if (marker !== 0xE1 && marker !== 0xED) {
                 parts.push(buf.slice(i, segEnd));
             }
             i = segEnd;
         }
-        if (i < buf.length) parts.push(buf.slice(i));
+        if (i < buf.length) {
+            // 走査を最後まで終えられなかった。残りに APP1 が埋まっている
+            // 可能性があるので「消せた」とは言わない——**既に1つ落としていても**。
+            // XMP を別の APP1 に置く機材（DJI など）では、1つ目を落とせても
+            // 2つ目に GPS が残る。「途中で読めなくなった＝確認できていない」。
+            return { file, stripped: false };
+        }
 
-        return new File([new Blob(parts as BlobPart[], { type: "image/jpeg" })], file.name, { type: "image/jpeg" });
+        const out = new File([new Blob(parts as BlobPart[], { type: "image/jpeg" })], file.name, { type: "image/jpeg" });
+        // メタデータが元から無かった場合も「安全な状態」として扱う。
+        // 走査は SOS まで到達しているので、APP1 は存在しない。
+        return { file: out, stripped: true };
     } catch {
-        return file;
+        return { file, stripped: false };
     }
+}
+
+/** 後方互換の薄いラッパー。新しいコードは stripJpegExifDetailed を使うこと */
+export async function stripJpegExif(file: File): Promise<File> {
+    return (await stripJpegExifDetailed(file)).file;
 }
 
 /** 長辺が maxPx に収まる縮小後サイズを返す（拡大はしない） */
@@ -150,8 +183,10 @@ export class UnstrippableFileError extends Error {
  * その結果、PC の Chrome から HEIC を選ぶとデコードできずに圧縮が失敗し、
  * GPS 入りの原本がそのまま公開URLで配信されていた。
  *
- * 「消せたことを確認できたものだけ上げる」に変える。判定は identity で行う
- * （compressImage も stripJpegExif も、素通し時は同じ File を返す）。
+ * 「消せたことを確認できたものだけ上げる」に変える。
+ * 再エンコードは identity で判定できる（素通し時は同じ File が返る）が、
+ * バイト除去の方は identity では判定できない——走査が途中で止まっても
+ * 「中身が同じ新しい File」が返るため。除去側が申告するフラグを見る。
  */
 export async function toUploadSafeFile(file: File, maxPx = 1920, quality = 0.85): Promise<File> {
     let compressed: File | null = null;
@@ -165,8 +200,8 @@ export async function toUploadSafeFile(file: File, maxPx = 1920, quality = 0.85)
 
     // 素通し・失敗時の保険。JPEG ならバイト列から除去できる。
     if (file.type === "image/jpeg") {
-        const stripped = await stripJpegExif(file);
-        if (stripped !== file) return stripped;
+        const { file: out, stripped: ok } = await stripJpegExifDetailed(file);
+        if (ok) return out;
     }
 
     // ここに来たら消せていない。上げない。
@@ -246,25 +281,20 @@ export function averagePixelsToHex(data: Uint8ClampedArray): string | null {
 /** 画像ファイルから代表色を抽出する。失敗したら null（アップロードは止めない） */
 export async function extractDominantColor(file: File): Promise<string | null> {
     try {
-        const url = URL.createObjectURL(file);
-        try {
-            const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-                const el = new Image();
-                el.onload = () => resolve(el);
-                el.onerror = () => reject(new Error("image load failed"));
-                el.src = url;
-            });
-            const size = 16; // 16x16 に縮小して平均を取れば十分
-            const canvas = document.createElement("canvas");
-            canvas.width = size;
-            canvas.height = size;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) return null;
-            ctx.drawImage(img, 0, 0, size, size);
-            return averagePixelsToHex(ctx.getImageData(0, 0, size, size).data);
-        } finally {
-            URL.revokeObjectURL(url);
-        }
+        // 自前で new Image() を待たない。onload も onerror も鳴らないまま
+        // 終わる端末があり（巨大な画像でメモリが足りない iOS Safari など）、
+        // そうなるとアップロードが85%のまま永久に止まる——S3 には既に
+        // 本体が上がっているので、レコードの無い孤児だけが残る。
+        // 打ち切り付きの loadImageFromFile を使う（objectURL も必ず解放される）。
+        const img = await loadImageFromFile(file);
+        const size = 16; // 16x16 に縮小して平均を取れば十分
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return null;
+        ctx.drawImage(img, 0, 0, size, size);
+        return averagePixelsToHex(ctx.getImageData(0, 0, size, size).data);
     } catch {
         return null;
     }

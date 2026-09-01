@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { signUp, confirmSignUp, resendConfirmationCode } from "../../lib/auth/cognito";
+import { pendingNameKey, pendingVerifyKey } from "../../lib/utils/pendingName";
 import { EnvelopeIcon, LockClosedIcon, CheckCircleIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 type Step = "register" | "verify" | "done";
@@ -15,22 +16,22 @@ const inputCls = "w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg 
 const PENDING_TTL = 24 * 60 * 60 * 1000;
 
 function savePending(em: string, username: string) {
-    try { localStorage.setItem(`jp_verify_${em}`, JSON.stringify({ username, t: Date.now() })); } catch { /* ignore */ }
+    try { localStorage.setItem(pendingVerifyKey(em), JSON.stringify({ username, t: Date.now() })); } catch { /* ignore */ }
 }
 function loadPending(em: string): string | null {
     try {
-        const raw = localStorage.getItem(`jp_verify_${em}`);
+        const raw = localStorage.getItem(pendingVerifyKey(em));
         if (!raw) return null;
         const parsed: unknown = JSON.parse(raw);
         if (!parsed || typeof parsed !== "object") return null;
         const { username, t } = parsed as Record<string, unknown>;
         if (typeof username !== "string" || typeof t !== "number") return null;
-        if (Date.now() - t > PENDING_TTL) { localStorage.removeItem(`jp_verify_${em}`); return null; }
+        if (Date.now() - t > PENDING_TTL) { localStorage.removeItem(pendingVerifyKey(em)); return null; }
         return username;
     } catch { return null; }
 }
 function clearPending(em: string) {
-    try { localStorage.removeItem(`jp_verify_${em}`); } catch { /* ignore */ }
+    try { localStorage.removeItem(pendingVerifyKey(em)); } catch { /* ignore */ }
 }
 
 export default function SignupPage() {
@@ -52,7 +53,7 @@ export default function SignupPage() {
 
     // ログイン済みならトップへ
     useEffect(() => {
-        if (!loading && isAuthenticated) router.push("/");
+        if (!loading && isAuthenticated) router.replace("/");   // 済んだ画面は履歴に残さない
     }, [isAuthenticated, loading, router]);
 
     // URLパラメータ or localStorage から verify ステップを復元
@@ -96,7 +97,14 @@ export default function SignupPage() {
             if (result.success && result.username) {
                 savePending(email, result.username);
                 if (displayName.trim()) {
-                    try { localStorage.setItem("jp_pending_displayName", displayName.trim()); } catch { /* ignore */ }
+                    // メールアドレスで区切る。
+                    // 以前はグローバルな1キーだったので、登録を途中でやめた人の
+                    // 表示名がそのまま残り、**次にその端末でログインした別人**の
+                    // プロフィールに付いていた（共有のiPadなどで起きる）。
+                    // 本人にはどこから来た名前なのか分からない。
+                    try {
+                        localStorage.setItem(pendingNameKey(email), displayName.trim());
+                    } catch { /* ignore */ }
                 }
                 setCognitoUsername(result.username);
                 setStep("verify");
@@ -187,7 +195,7 @@ export default function SignupPage() {
 
                 {/* エラー */}
                 {error && (
-                    <div className="mb-6 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                    <div role="alert" className="mb-6 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
                         {error}
                     </div>
                 )}
@@ -196,8 +204,9 @@ export default function SignupPage() {
                 {step === "register" && (
                     <form onSubmit={handleRegister} className="space-y-4">
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">表示名</label>
+                            <label htmlFor="signup-display-name" className="block text-xs text-white/50 mb-1.5 tracking-wide">表示名</label>
                             <input
+                                id="signup-display-name"
                                 type="text"
                                 value={displayName}
                                 onChange={(e) => setDisplayName(e.target.value)}
@@ -209,8 +218,9 @@ export default function SignupPage() {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
+                            <label htmlFor="signup-email" className="block text-xs text-white/50 mb-1.5 tracking-wide">メールアドレス</label>
                             <input
+                                id="signup-email"
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
@@ -222,8 +232,9 @@ export default function SignupPage() {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード</label>
+                            <label htmlFor="signup-password" className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード</label>
                             <input
+                                id="signup-password"
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
@@ -236,8 +247,9 @@ export default function SignupPage() {
                             <p className="text-xs text-white/30 mt-1.5">英大文字・小文字・数字・記号（!@#$など）をそれぞれ1文字以上含めてください</p>
                         </div>
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード（確認）</label>
+                            <label htmlFor="signup-password-confirm" className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード（確認）</label>
                             <input
+                                id="signup-password-confirm"
                                 type="password"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -275,8 +287,9 @@ export default function SignupPage() {
                 {step === "verify" && (
                     <form onSubmit={handleVerify} className="space-y-4">
                         <div>
-                            <label className="block text-xs text-white/50 mb-1.5 tracking-wide">確認コード</label>
+                            <label htmlFor="signup-code" className="block text-xs text-white/50 mb-1.5 tracking-wide">確認コード</label>
                             <input
+                                id="signup-code"
                                 type="text"
                                 value={code}
                                 onChange={(e) => setCode(e.target.value)}

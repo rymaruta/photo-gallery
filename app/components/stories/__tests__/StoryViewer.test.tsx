@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import type { StoryGroup } from "@/lib/stories";
 
 // api の動的 import は閲覧記録・閲覧者取得で使われるが、テストでは失敗しても
@@ -165,5 +165,41 @@ describe("StoryViewer - 滑らかなプログレス", () => {
         setup({ groups });
         // 動画では story-progress-fill を使わない
         expect(document.querySelector(".story-progress-fill")).toBeNull();
+    });
+});
+
+// ストーリーも共通のロックに寄せた（`overflow` だけの自前実装だった）。
+// 位置の控えが無かったので、閉じたときに別の場所にいることがあった。
+describe("背景スクロールのロック", () => {
+    it("開いている間は position:fixed、閉じたら戻す", () => {
+        setup();
+        expect(document.body.style.position, "overflow だけのロックに戻っている").toBe("fixed");
+
+        cleanup();
+        expect(document.body.style.position).toBe("");
+        expect(document.body.style.overflow).toBe("");
+    });
+
+    // **描くものが無くなったらロックも外す。** 無条件に掛けていたので、
+    // `groups` が入れ替わって表示対象が消えると「何も描かないのに
+    // `position: fixed` のまま」になる。`overflow: hidden` だけだった
+    // 頃は「スクロールできない」で済んでいたが、位置を控えるように
+    // なったぶん**ページ先頭へ飛んだまま固まる**方に悪化していた。
+    it("表示対象が消えたらロックも外れる（白いまま固まらない）", () => {
+        const props = {
+            groups: makeGroups(),
+            initialGroupIndex: 0,
+            locale: "ja" as const,
+            ownUserId: "owner",
+            isAuthenticated: true,
+            onSeen: vi.fn(),
+            onDelete: vi.fn().mockResolvedValue(true),
+            onClose: vi.fn(),
+        };
+        const { rerender } = render(<StoryViewer {...props} />);
+        expect(document.body.style.position).toBe("fixed");
+
+        rerender(<StoryViewer {...props} groups={[]} />);
+        expect(document.body.style.position, "何も描いていないのに背景が止まったまま").toBe("");
     });
 });
