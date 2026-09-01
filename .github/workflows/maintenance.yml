@@ -16,6 +16,7 @@ on:
           - story-index       # ストーリー一覧用の GSI を足す（全件 Scan をやめる）
           - normalize-image-urls  # 保存済みの画像URLのホスト名を配信URLに揃える
           - diagnose          # 本番の設定を読むだけ（索引の射影・日付の形・Cognito・CDN の TTL）
+          - orphan-uploads    # どの行からも参照されていないアップロード実体を探す
         required: true
       apply:
         description: "true で実際に適用（false は内容の確認のみ）"
@@ -123,6 +124,14 @@ jobs:
       # **読み取りだけ。** 作業環境からは AWS を叩けない（資格情報が
       # プレースホルダ）ので、台帳に「要 AWS」で溜まっていた確認を
       # 資格情報のある CI から1回で済ませる。Describe / Scan(COUNT) / Get のみ。
+      # **既定はドライラン。** `--apply` のときだけ消す。
+      # 新しいもの（既定7日以内）は触らない——「保存に失敗した」と
+      # 「まだ保存していない」は S3 からは区別できないので、時間で分ける。
+      - name: 参照されていないアップロード実体を探す
+        if: inputs.task == 'orphan-uploads'
+        run: node scripts/find-orphan-uploads.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 15
+
       - name: 本番の設定を読む（診断）
         if: inputs.task == 'diagnose'
         run: node scripts/diagnose-aws.js
