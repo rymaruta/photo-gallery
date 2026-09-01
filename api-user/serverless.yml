@@ -200,6 +200,12 @@ functions:
     # 総枠を測って（`diagnose` の GetAccountSettings）余裕が出たら戻すこと。
     # **この関数はログインが要る**ので、無予約でも誰でも叩けるわけではない。
     reservedConcurrency: ${param:musicSearchReserved, null}
+    # **明示しておく。** 値は今までと同じ6秒（serverless の既定で、生成された
+    # CloudFormation の `Timeout: 6` で確認した）。書いていないと、外向き通信の
+    # 打ち切り（`musicSearch.ts` の FETCH_TIMEOUT_MS）が何と比べて短いのかが
+    # コードから読めない。ここを縮めるときは向こうも一緒に見ること
+    # （`musicSearch.test.ts` が両者の関係を固定している）。
+    timeout: 6
     events:
       - httpApi:
           path: /music/search
