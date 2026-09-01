@@ -188,11 +188,17 @@ functions:
     handler: src/musicSearch.musicSearch
     # 外向きの通信を待つので、詰まらせない上限を明示しておく。
     #
-    # ただし予約はアカウント全体の枠から取る。本番と staging の両方で
-    # 予約すると「未予約の枠が最低値(10)を下回る」で**デプロイごと落ちる**
-    # （実際に staging の作成後、ここで UPDATE_FAILED になった）。
+    # ただし予約はアカウント全体の枠から取る。**いまはどの環境でも予約
+    # していない**——2026-09-01、staging が予約していない状態で本番だけが
+    # 10 を取ろうとして
+    # 「UnreservedConcurrentExecution がアカウントの最低値(10)を下回る」
+    # で UPDATE_FAILED になり、**api-user のデプロイ全体が巻き戻った**
+    # （同じ回に載せていた IAM の修正まで届かなくなった）。
+    # 以前は「本番と staging の両方で取ったからだ」と読んで staging 側だけ
+    # 外していたが、それでは足りなかった。
     # 渡されたときだけ予約する（渡さなければプロパティごと出力されない）。
-    # staging は検索避けの低トラフィックなので予約しない。
+    # 総枠を測って（`diagnose` の GetAccountSettings）余裕が出たら戻すこと。
+    # **この関数はログインが要る**ので、無予約でも誰でも叩けるわけではない。
     reservedConcurrency: ${param:musicSearchReserved, null}
     events:
       - httpApi:
