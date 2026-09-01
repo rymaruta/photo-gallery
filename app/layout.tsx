@@ -1,6 +1,7 @@
 // app/layout.tsx
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
+import { resolveOgImage } from "@/lib/server/photos";
 import Link from "next/link";
 import { Inter } from "next/font/google";
 import HeaderNav from "./components/HeaderNav";
@@ -28,87 +29,87 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteConfig.url),
-  manifest: "/manifest.webmanifest",
-  // iOS Safari「ホーム画面に追加」で全画面スタンドアロン起動（アプリ体験）にする
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Journey Photo",
-  },
-  icons: {
-    apple: "/icon-192.png",
-  },
-  // 旧 iOS 互換のため従来名も明示（Next は標準名 mobile-web-app-capable を出力するため）
-  other: {
-    "apple-mobile-web-app-capable": "yes",
-  },
-  title: {
-    default: siteConfig.name,
-    template: `%s | Journey Photo 旅フォトギャラリー`,
-  },
-  description: siteConfig.description,
-  keywords: [
-    "旅行写真", "旅フォト", "旅の写真", "旅行記", "旅行ギャラリー",
-    "風景写真", "スナップ写真", "海外旅行", "国内旅行",
-    "旅行", "旅", "ジャーニー", "フォト", "写真", "ギャラリー",
-    "travel", "journey", "photo", "photography", "travel photography",
-  ],
-  authors: [{ name: "Journey Photo" }],
-  creator: "Journey Photo",
-  openGraph: {
-    type: "website",
-    // `alternateLocale`（og:locale:alternate = en_US）は落とした。
-    // **英語版の URL は存在しない**（静的書き出しで HTML は1種類、
-    // 言語の切り替えは `6d72bfb` で削除済み）。写真ページは同じ理由で
-    // hreflang を消してあるのに、ここだけ別の形で「英語版がある」と
-    // 申告し続けていた。
-    locale: siteConfig.locale.ja,
-    url: siteConfig.url,
-    siteName: siteConfig.name,
-    title: siteConfig.name,
+// **OGP 画像はビルド時に決める（静的な `metadata` から関数に変えた理由）。**
+// 既定の `/images/og-image.jpg` は**存在しないファイル**で、トップページを
+// SNS・LINE に貼っても画像が出ない状態だった（16ページがこの URL を出して
+// いた）。新しく画像を作るのはデザインの判断なので、サイトが既に持って
+// いるもの——一番新しい公開写真——を使う。詳しくは `resolveOgImage`。
+export async function generateMetadata(): Promise<Metadata> {
+  const ogImage = await resolveOgImage(siteConfig.url);
+  return {
+    metadataBase: new URL(siteConfig.url),
+    manifest: "/manifest.webmanifest",
+    // iOS Safari「ホーム画面に追加」で全画面スタンドアロン起動（アプリ体験）にする
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "black-translucent",
+      title: "Journey Photo",
+    },
+    icons: {
+      apple: "/icon-192.png",
+    },
+    // 旧 iOS 互換のため従来名も明示（Next は標準名 mobile-web-app-capable を出力するため）
+    other: {
+      "apple-mobile-web-app-capable": "yes",
+    },
+    title: {
+      default: siteConfig.name,
+      template: `%s | Journey Photo 旅フォトギャラリー`,
+    },
     description: siteConfig.description,
-    images: [
-      {
-        url: siteConfig.ogImage.startsWith("http") 
-          ? siteConfig.ogImage 
-          : `${siteConfig.url}${siteConfig.ogImage}`,
-        width: 1200,
-        height: 630,
-        alt: siteConfig.name,
-      },
+    keywords: [
+      "旅行写真", "旅フォト", "旅の写真", "旅行記", "旅行ギャラリー",
+      "風景写真", "スナップ写真", "海外旅行", "国内旅行",
+      "旅行", "旅", "ジャーニー", "フォト", "写真", "ギャラリー",
+      "travel", "journey", "photo", "photography", "travel photography",
     ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: siteConfig.name,
-    description: siteConfig.description,
-    images: [siteConfig.ogImage.startsWith("http") 
-      ? siteConfig.ogImage 
-      : `${siteConfig.url}${siteConfig.ogImage}`],
-    creator: siteConfig.twitterHandle,
-  },
-  alternates: {
-    canonical: siteConfig.url,
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+    authors: [{ name: "Journey Photo" }],
+    creator: "Journey Photo",
+    openGraph: {
+      type: "website",
+      // `alternateLocale`（og:locale:alternate = en_US）は落とした。
+      // **英語版の URL は存在しない**（静的書き出しで HTML は1種類、
+      // 言語の切り替えは `6d72bfb` で削除済み）。写真ページは同じ理由で
+      // hreflang を消してあるのに、ここだけ別の形で「英語版がある」と
+      // 申告し続けていた。
+      locale: siteConfig.locale.ja,
+      url: siteConfig.url,
+      siteName: siteConfig.name,
+      title: siteConfig.name,
+      description: siteConfig.description,
+      // **寸法は申告しない。** 実在しない固定画像を指していた頃の
+      // 1200x630 が残っていたが、いま出すのは実際の写真で縦横比はまちまち
+      // （`photos.json` は width/height を持たない）
+      images: [{ url: ogImage, alt: siteConfig.name }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: siteConfig.name,
+      description: siteConfig.description,
+      images: [ogImage],
+      creator: siteConfig.twitterHandle,
+    },
+    alternates: {
+      canonical: siteConfig.url,
+    },
+    robots: {
       index: true,
       follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
     },
-  },
-  verification: {
-    // Search Console / Bing の確認トークン（siteConfig 経由・未設定なら出力しない）
-    ...(siteConfig.gscVerification ? { google: siteConfig.gscVerification } : {}),
-    ...(siteConfig.bingVerification ? { other: { "msvalidate.01": siteConfig.bingVerification } } : {}),
-  },
-};
+    verification: {
+      // Search Console / Bing の確認トークン（siteConfig 経由・未設定なら出力しない）
+      ...(siteConfig.gscVerification ? { google: siteConfig.gscVerification } : {}),
+      ...(siteConfig.bingVerification ? { other: { "msvalidate.01": siteConfig.bingVerification } } : {}),
+    },
+  };
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const webSiteStructuredData = generateWebSiteStructuredData();

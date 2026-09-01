@@ -6,7 +6,13 @@ export const siteConfig = {
     description: "旅の記憶を写真で残す。国内外の旅行写真・風景写真・スナップ写真を集めたフォトギャラリー。旅先の景色や日常のひとこまを届けます。",
     descriptionEn: "A travel photography gallery capturing journeys, landscapes, and everyday moments.",
     url: process.env.NEXT_PUBLIC_SITE_URL || "https://journey-photo.com",
-    ogImage: "/images/og-image.jpg",
+    // **既定の OGP 画像は持たない。** 以前ここに `/images/og-image.jpg` と
+    // 書いてあったが、そのファイルは**リポジトリにもビルド成果物にも
+    // 存在しない**（git の全履歴にも一度も現れない）。16ページがこの URL を
+    // OGP 画像として出しており、トップを SNS に貼っても画像が出なかった。
+    // いまは `resolveOgImage`（`lib/server/photos.ts`）がビルド時に
+    // 一番新しい公開写真を返す。
+    ogImage: "/icon-512.png",
     twitterHandle: "@JourneyPhoto",
     author: "Journey Photo",
     // `en` は落とした。参照していたのは `og:locale:alternate` だけで、
@@ -219,9 +225,14 @@ export function generateOrganizationStructuredData() {
         name: siteConfig.name,
         url: siteConfig.url,
         description: siteConfig.description,
+        // **実在するファイルを指す。** ここも `/images/og-image.jpg`
+        // （リポジトリにもビルド成果物にも無い）を指していた。ロゴは
+        // 「一番新しい写真」では意味が通らないので、PWA のアイコンにする
         logo: {
             "@type": "ImageObject",
-            url: `${siteConfig.url}${siteConfig.ogImage}`,
+            url: `${siteConfig.url}/icon-512.png`,
+            width: 512,
+            height: 512,
         },
         sameAs: [
             // SNSアカウントがあれば追加
