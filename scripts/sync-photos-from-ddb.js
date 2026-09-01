@@ -99,7 +99,14 @@ function checkWriteSafety(nextCount, prevCount, { allowEmpty = ALLOW_EMPTY } = {
 // `staticStale` は「静的ページの掃除が届いていない」という内部の印。
 // 付くのは非公開の写真だけなので普段は載らないが、再公開の順序次第で
 // 残りうる。公開する JSON に内部の事情を出さない
-const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale"];
+// 公開JSONに載せない項目。
+//
+// `likes` / `commentCount` は**秘密ではなく、古くなる数**。定期ビルドを
+// 止めている今、ビルド時の値が静的HTMLに焼かれ、以後どれだけ増えても
+// そのまま出続ける。読み手（モーダルのキャプション・写真ページ・
+// プロフィールの合計）はどれも「0 なら描かない」形なので、載せなければ
+// **APIが答えるまで数字を出さない**（＝間違った数を出さない）になる。
+const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "likes", "commentCount"];
 
 function stripPrivateFields(item) {
     const out = { ...item };

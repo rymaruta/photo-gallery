@@ -163,6 +163,18 @@ describe("公開JSONから落とす項目", () => {
         expect(PRIVATE_FIELDS).toContain(field);
     });
 
+    // **秘密ではなく、古くなる数。** 定期ビルドを止めている今、ビルド時の
+    // いいね・コメント数が静的HTMLに焼かれ、以後どれだけ増えてもそのまま
+    // 出続ける。読み手は全部「0 なら描かない」形なので、載せなければ
+    // 「APIが答えるまで出さない」になる（間違った数を出すよりよい）。
+    it.each(["likes", "commentCount"])("%s は出さない（古い数字を焼かない）", (field) => {
+        const out = stripPrivateFields({
+            id: "p1", src: "https://cdn/x.jpg", title: "あ", likes: 12, commentCount: 3,
+        });
+        expect(out[field], `${field} がビルド時の値のまま公開JSONに載っている`).toBeUndefined();
+        expect(PRIVATE_FIELDS).toContain(field);
+    });
+
     it("表に出す項目は落とさない", () => {
         const out = stripPrivateFields({ id: "p1", src: "https://cdn/x.jpg", title: "あ", tags: ["海"] });
         expect(out).toEqual({ id: "p1", src: "https://cdn/x.jpg", title: "あ", tags: ["海"] });

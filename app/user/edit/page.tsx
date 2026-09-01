@@ -31,6 +31,22 @@ function titleToText(t: Photo["title"]): string {
     const o = t as Record<string, string>;
     return o.ja || o.en || "";
 }
+/**
+ * その項目が「英語しか無い」状態か。
+ *
+ * `titleToText` は `ja || en` なので、日本語が無い写真を開くと**英語が
+ * 日本語欄に入る**。そのまま保存すると、英語がそのまま日本語タイトルとして
+ * 定着する（本人は「元からこう入っていた」と思っている）。欄を空にすると
+ * 中身が画面から見えなくなり、英語を消す手段はどこにも無いので、
+ * **見せたうえで注記する**。
+ */
+function isEnglishOnly(v: Photo["title"] | Photo["description"]): boolean {
+    if (!v || typeof v === "string") return false;
+    const o = v as Record<string, unknown>;
+    const has = (x: unknown) => (Array.isArray(x) ? x.length > 0 : typeof x === "string" && x.trim().length > 0);
+    return !has(o.ja) && has(o.en);
+}
+
 function descToText(d: Photo["description"]): string {
     if (!d) return "";
     if (typeof d === "string") return d;
@@ -371,6 +387,13 @@ function EditContent() {
                 <form onSubmit={(e) => { e.preventDefault(); void save(true); }} className="space-y-5">
                     <div>
                         <label className={labelCls}>{isJa ? "タイトル" : "Title"}</label>
+                        {isEnglishOnly(photo?.title) && (
+                            <p className="text-[11px] text-amber-300/80 mb-1">
+                                {isJa
+                                    ? "この写真は英語のタイトルしか持っていません。この欄の文字はそのまま日本語タイトルとして保存されます。"
+                                    : "This photo only has an English title. What you see here will be saved as the Japanese title."}
+                            </p>
+                        )}
                         <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
                             maxLength={TITLE_MAX}
                             className={inputCls} style={{ fontSize: "16px" }}
@@ -379,6 +402,13 @@ function EditContent() {
 
                     <div>
                         <label className={labelCls}>{isJa ? "説明" : "Description"}</label>
+                        {isEnglishOnly(photo?.description) && (
+                            <p className="text-[11px] text-amber-300/80 mb-1">
+                                {isJa
+                                    ? "この写真は英語の説明しか持っていません。この欄の文字はそのまま日本語の説明として保存されます。"
+                                    : "This photo only has an English description. What you see here will be saved as the Japanese description."}
+                            </p>
+                        )}
                         <textarea value={description} onChange={(e) => setDescription(e.target.value)}
                             rows={5} className={inputCls + " resize-y"} style={{ fontSize: "16px" }}
                             placeholder={isJa ? "任意（改行で段落）" : "Optional (newline = paragraph)"} />

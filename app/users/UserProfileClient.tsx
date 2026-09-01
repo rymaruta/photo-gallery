@@ -489,6 +489,11 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     // 表示対象の写真（オーナーは非公開含む）
     const visiblePhotos = isOwner ? photos : publishedPhotos;
     const postCount = visiblePhotos.length;
+    // **本人と訪問者で「投稿 N」が違う。** 本人は下書き・非公開を含むので、
+    // 同じページの OGP（公開ぶんで数える）とも食い違う。数を揃えると
+    // 「下書きが数に入らない＝増えていない」に見えるので、**本人にだけ
+    // 内訳を添えて**食い違いの理由が分かるようにする。
+    const hiddenCount = isOwner ? postCount - publishedPhotos.length : 0;
     const totalLikes = useMemo(
         () => visiblePhotos.reduce((sum, p) => sum + (typeof p.likes === "number" && p.likes > 0 ? p.likes : 0), 0),
         [visiblePhotos]
@@ -954,6 +959,11 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         <div className="inline-flex items-baseline gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
                             <span className="text-sm font-bold tabular-nums leading-none">{postCount}</span>
                             <span className="text-[11px] text-white/60">{locale === "en" ? "posts" : "投稿"}</span>
+                            {hiddenCount > 0 && (
+                                <span className="text-[11px] text-white/40">
+                                    {locale === "en" ? `(${hiddenCount} private)` : `（うち非公開 ${hiddenCount}）`}
+                                </span>
+                            )}
                         </div>
                         <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
                             <HeartIcon className="w-3 h-3 text-rose-400" />
