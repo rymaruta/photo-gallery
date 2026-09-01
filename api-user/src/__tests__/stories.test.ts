@@ -735,3 +735,27 @@ describe("getStories: 生きているストーリーだけを引く", () => {
         expect(q.input.KeyConditionExpression).toBe("storyFeed = :k AND expiresAt > :now");
     });
 });
+
+// **約束と実体の寿命がずれていた（LEFT-5）。**
+//
+// ストーリーは「24時間で消える」と言っているのに、掃除が1日1回だったので
+// **実体は最大およそ48時間ぶん公開URLで取れた**——期限が切れた直後に掃除が
+// 走ったばかりだと、次の掃除まで24時間ある。
+//
+// 日次にしていたのは `queryStories` が索引の無いテーブルで**全表 Scan** に
+// 落ちていたから。2026-09-01 に本番へ `storyFeed-expiresAt-index` を作った
+// ので、期限切れのぶんだけを直接引ける＝1時間ごとに回せる。
+// スケジュールは serverless.yml にしか無いので、ここで固定する。
+describe("期限切れストーリーの掃除は1時間ごと", () => {
+    it("serverless.yml のスケジュールが毎時になっている", async () => {
+        const { readFileSync } = await import("node:fs");
+        const { join } = await import("node:path");
+        const yml = readFileSync(join(process.cwd(), "api-user/serverless.yml"), "utf8");
+        const code = yml.split("\n").filter((l) => !l.trim().startsWith("#")).join("\n");
+        const m = code.match(/schedule:\s*(cron\([^)]*\)|rate\([^)]*\))/);
+        expect(m, "cleanupStories のスケジュールが見つからない").not.toBeNull();
+        expect(m![1], "日次のままだと、消えたはずのストーリーが最大48時間取れる")
+            .not.toMatch(/cron\(\d+\s+\d+\s/);   // 「分 時」が固定＝1日1回
+        expect(m![1]).toMatch(/cron\(\d+\s+\*/);  // 時が * ＝毎時
+    });
+});
