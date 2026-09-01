@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor, act } from "@testing-library/react";
+import { renderHook, waitFor, act, cleanup } from "@testing-library/react";
 
 // フォロー状態が**まだ分かっていない**間を表す `resolved` が無かった頃は、
 // 初期値の false を「未フォロー」と同じ扱いにしていた。一覧を取り終える前に
@@ -201,14 +201,29 @@ describe("resetFollowingCache: 購読を切らない", () => {
 // プロフィールは「フォロワー 0 / フォロー中 0」と言い切っていた——失敗の
 // 印も再試行の導線も無く、本当に0人の人と区別が付かない。
 describe("フォロー数が分かっていない間", () => {
+    // **フェイクタイマーで回して、最後に片付ける。**
+    // 実タイマーのままだと、失敗した取り込みの撃ち直し（400ms → 800ms の
+    // バックオフ）が**このテストが終わったあとに発火**する。`loadCounts` は
+    // モジュール側の関数なので、コンポーネントを片付けても止まらない
+    // ——あとのテストの「呼ばれていないこと」を壊す。**フルスイートでだけ
+    // 落ちるフレークの正体がこれだった**（単体では次のテストまでに落ち着く
+    // ので出ない。実測: フル3回で1回、単体10回で0回）。
     it("取得に失敗したら「0人」と言わない（countsKnown=false）", async () => {
-        mockPublicFetch.mockRejectedValue(new Error("network"));
-        const useFollow = await load();
+        vi.useFakeTimers();
+        try {
+            mockPublicFetch.mockRejectedValue(new Error("network"));
+            const useFollow = await load();
 
-        const { result } = renderHook(() => useFollow(TARGET, false));
-        await waitFor(() => expect(result.current.resolved).toBe(true));
+            const { result } = renderHook(() => useFollow(TARGET, false));
+            await vi.advanceTimersByTimeAsync(5000);   // 撃ち直しを使い切らせる
 
-        expect(result.current.countsKnown, "取れていないのに数を言い切っている").toBe(false);
+            expect(result.current.resolved).toBe(true);
+            expect(result.current.countsKnown, "取れていないのに数を言い切っている").toBe(false);
+        } finally {
+            vi.clearAllTimers();
+            vi.useRealTimers();
+            cleanup();
+        }
     });
 
     // **一度落ちたら二度と出ない、を避ける。** 数は「取れるまで出さない」
@@ -229,7 +244,15 @@ describe("フォロー数が分かっていない間", () => {
             expect(result.current.countsKnown, "やり直していない").toBe(true);
             expect(result.current.followers).toBe(7);
         } finally {
+            // **残ったタイマーと購読も片付ける。** これを外すと、失敗経路の
+            // 撃ち直し（指数バックオフの sleep）が**フェイクタイマーを
+            // 戻したあとに実タイマーで動き出し**、あとのテストの
+            // 「呼ばれていないこと」を壊す。フルスイートでだけ落ちる
+            // フレークの正体がこれだった（単体では次のテストまでに
+            // 落ち着くので出ない）
+            vi.clearAllTimers();
             vi.useRealTimers();
+            cleanup();
         }
     });
 
@@ -260,7 +283,15 @@ describe("フォロー数が分かっていない間", () => {
             expect(result.current.countsKnown, "取り直したのに数が出ていない").toBe(true);
             expect(result.current.followers).toBe(5);
         } finally {
+            // **残ったタイマーと購読も片付ける。** これを外すと、失敗経路の
+            // 撃ち直し（指数バックオフの sleep）が**フェイクタイマーを
+            // 戻したあとに実タイマーで動き出し**、あとのテストの
+            // 「呼ばれていないこと」を壊す。フルスイートでだけ落ちる
+            // フレークの正体がこれだった（単体では次のテストまでに
+            // 落ち着くので出ない）
+            vi.clearAllTimers();
             vi.useRealTimers();
+            cleanup();
         }
     });
 
@@ -284,7 +315,15 @@ describe("フォロー数が分かっていない間", () => {
             await act(async () => { await vi.advanceTimersByTimeAsync(50); });
             expect(result.current.countsKnown).toBe(true);
         } finally {
+            // **残ったタイマーと購読も片付ける。** これを外すと、失敗経路の
+            // 撃ち直し（指数バックオフの sleep）が**フェイクタイマーを
+            // 戻したあとに実タイマーで動き出し**、あとのテストの
+            // 「呼ばれていないこと」を壊す。フルスイートでだけ落ちる
+            // フレークの正体がこれだった（単体では次のテストまでに
+            // 落ち着くので出ない）
+            vi.clearAllTimers();
             vi.useRealTimers();
+            cleanup();
         }
     });
 
@@ -313,7 +352,15 @@ describe("フォロー数が分かっていない間", () => {
             // 撃ち直しは上限まで（初回 + COUNTS_RETRIES=2）
             expect(mockPublicFetch.mock.calls.length, "際限なく撃ち直している").toBe(3);
         } finally {
+            // **残ったタイマーと購読も片付ける。** これを外すと、失敗経路の
+            // 撃ち直し（指数バックオフの sleep）が**フェイクタイマーを
+            // 戻したあとに実タイマーで動き出し**、あとのテストの
+            // 「呼ばれていないこと」を壊す。フルスイートでだけ落ちる
+            // フレークの正体がこれだった（単体では次のテストまでに
+            // 落ち着くので出ない）
+            vi.clearAllTimers();
             vi.useRealTimers();
+            cleanup();
         }
     });
 

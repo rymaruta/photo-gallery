@@ -478,6 +478,7 @@ function EditContent() {
                 <div
                     ref={confirmRef}
                     className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 px-3 pb-3 sm:pb-0"
+                    style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}
                     onClick={() => !deleting && setConfirmDelete(false)}
                     role="dialog"
                     aria-modal="true"
@@ -516,7 +517,11 @@ function EditContent() {
             )}
 
             {/* 固定アクションバー: 削除 / 下書き保存 / 公開する */}
-            <div className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/10 p-4 z-40">
+            {/* `env(safe-area-inset-bottom)`: ホームインジケーター帯に
+                ボタンが入らないようにする（`globals.css` の body 側の
+                padding は `position: fixed` には効かない） */}
+            <div className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/10 p-4 z-40"
+                style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}>
                 <div className="max-w-2xl mx-auto flex items-center gap-2">
                     {/* 削除は左端に離して置く。保存系と並べると押し間違える */}
                     <button

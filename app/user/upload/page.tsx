@@ -997,9 +997,16 @@ function UploadPageInner() {
                 ))}
             </div>
 
-            {/* アップロードバー（固定） */}
+            {/* アップロードバー（固定）。
+                **`env(safe-area-inset-bottom)` を足す。** `viewportFit: "cover"` なので、
+                ホームインジケーターのある端末では下 34px がインジケーター帯に入る。
+                `globals.css` の `body { padding-bottom: env(...) }` は
+                **`position: fixed` には効かない**（fixed は body の padding box の外）。
+                実測で、高さ44pxのボタンの下に14pxしか空いていなかった。
+                `StoryViewer` / `StoriesBar` / `MiniPlayer` は既にこの形。 */}
             {items.length > 0 && (
-                <div className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/10 p-4 z-40">
+                <div className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/10 p-4 z-40"
+                    style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}>
                     <div className="max-w-3xl mx-auto flex items-center justify-between gap-2">
                         <p className="hidden sm:block text-sm text-white/70 flex-shrink-0">
                             {doneCount > 0 ? `${doneCount}/${items.length} ` : ""}

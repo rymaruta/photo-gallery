@@ -599,7 +599,9 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
             <div className="space-y-4 lg:col-span-2">
                 {/* タイトルとカテゴリ */}
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold mb-2.5">{titleText}</h1>
+                    {/* `break-words`: 長い URL・連続文字でページごと横に流れるのを防ぐ
+                        （自己紹介・説明と同じ。実測で幅375pxの55文字から超える） */}
+                    <h1 className="text-2xl sm:text-3xl font-bold mb-2.5 break-words">{titleText}</h1>
                     {categoryDisplayName && photo.category && (
                         // カテゴリの集約ページへ（内部リンク＝SEO・回遊）
                         <Link
@@ -614,7 +616,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
 
                 {/* 説明 */}
                 {paragraphs.length > 0 && (
-                    <div className="text-sm sm:text-base text-white/80 leading-relaxed">
+                    <div className="text-sm sm:text-base text-white/80 leading-relaxed break-words">
                         {paragraphs.map((line, i) => (
                             <p key={i} className={i === 0 ? "" : "mt-3"}>
                                 {line}

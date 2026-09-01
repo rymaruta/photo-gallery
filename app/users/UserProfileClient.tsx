@@ -949,9 +949,14 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             )}
                         </div>
 
-                        {/* 自己紹介: 名前のすぐ下（従来ステータスがあった位置）に置く */}
+                        {/* 自己紹介: 名前のすぐ下（従来ステータスがあった位置）に置く。
+                            **`break-words` を落とさない**——URL は `/` で折り返さないので
+                            1語として扱われ、**ページ全体が横に流れる**（実測: 幅375pxで
+                            55文字、320pxで50文字の URL から `scrollWidth` が超える。
+                            自己紹介は300文字まで入る）。ストーリーのキャプションと
+                            コメント本文には最初から付いていた */}
                         {userProfile?.bio && (
-                            <p className="text-sm text-white/85 whitespace-pre-wrap mb-4 leading-relaxed">{userProfile.bio}</p>
+                            <p className="text-sm text-white/85 whitespace-pre-wrap break-words mb-4 leading-relaxed">{userProfile.bio}</p>
                         )}
 
                     {/* 統計（投稿 / いいね / フォロー中 / フォロワー）— 1行にまとめる */}
