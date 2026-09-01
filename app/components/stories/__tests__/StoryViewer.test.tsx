@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import type { StoryGroup } from "@/lib/stories";
 
 // api の動的 import は閲覧記録・閲覧者取得で使われるが、テストでは失敗しても
@@ -165,5 +165,18 @@ describe("StoryViewer - 滑らかなプログレス", () => {
         setup({ groups });
         // 動画では story-progress-fill を使わない
         expect(document.querySelector(".story-progress-fill")).toBeNull();
+    });
+});
+
+// ストーリーも共通のロックに寄せた（`overflow` だけの自前実装だった）。
+// 位置の控えが無かったので、閉じたときに別の場所にいることがあった。
+describe("背景スクロールのロック", () => {
+    it("開いている間は position:fixed、閉じたら戻す", () => {
+        setup();
+        expect(document.body.style.position, "overflow だけのロックに戻っている").toBe("fixed");
+
+        cleanup();
+        expect(document.body.style.position).toBe("");
+        expect(document.body.style.overflow).toBe("");
     });
 });

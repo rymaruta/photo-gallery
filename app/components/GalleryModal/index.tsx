@@ -11,7 +11,7 @@ import { copyToClipboard, shareUrl } from "../../../lib/utils/share";
 import { siteConfig } from "../../../lib/utils/seo";
 import { ROUTES } from "../../../lib/routes";
 import { log } from "../../../lib/utils/log";
-import { lockBodyScroll, unlockBodyScroll } from "./scrollLock";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
 import { hapticTap } from "../../../lib/utils/haptics";
 import { HeartIcon } from "@heroicons/react/24/solid";
 import ModalImage from "./ModalImage";

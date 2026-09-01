@@ -176,6 +176,20 @@ describe("HeaderNav - メニュー開閉の回帰ガード", () => {
         expect(screen.queryByRole("dialog")).toBeNull();
     });
 
+    // **ロックは共通実装（`lib/utils/scrollLock.ts`）に寄せた。**
+    // 自前の `overflow` だけでは iOS Safari や内蔵ブラウザで背景が動く、と
+    // 共通実装のコメントが書いている。位置の復元と入れ子の数え上げも要る。
+    it("ロックは position:fixed まで掛ける（overflow だけにしない）", () => {
+        setRole("general");
+        render(<HeaderNav />);
+        fireEvent.click(screen.getByLabelText("メニューを開く"));
+
+        expect(document.body.style.position, "overflow だけのロックに戻っている").toBe("fixed");
+
+        fireEvent.click(screen.getByLabelText("メニューを閉じる"));
+        expect(document.body.style.position).toBe("");
+    });
+
     it("開くと body のスクロールがロックされ、閉じると解除される", () => {
         render(<HeaderNav />);
         fireEvent.click(screen.getByLabelText("メニューを開く"));

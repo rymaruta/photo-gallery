@@ -1,3 +1,12 @@
+// 背景スクロールのロック（開いている数を数える）。
+//
+// **1つに寄せた。** もとは `app/components/GalleryModal/` にあり、
+// `StoryViewer` と `HeaderNav` はそれぞれ `body.style.overflow = "hidden"`
+// だけの自前実装を持っていた——**この実装のコメント自身が「overflow だけ
+// では Instagram/Facebook の内蔵ブラウザや iOS Safari で背景スクロールが
+// 止まらない」と書いている**方式で、しかも解除は無条件に `""` を書くので、
+// 数えているこちらと同時に動くと整合しない（同じものを二度作らない）。
+//
 let _openModalCount = 0;
 let _prevBodyOverflow: string | null = null;
 let _prevBodyPaddingRight: string | null = null;

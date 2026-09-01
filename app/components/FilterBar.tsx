@@ -126,7 +126,7 @@ function FilterBarInner({
     const sortMenuRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
-        const onDocClick = (e: MouseEvent) => {
+        const onDocClick = (e: PointerEvent) => {
             if (!isSortOpen) return;
             const tgt = e.target as Node | null;
             if (!tgt) return;
@@ -147,10 +147,16 @@ function FilterBarInner({
                 setTimeout(() => sortButtonRef.current?.focus(), 0);
             }
         };
-        document.addEventListener("mousedown", onDocClick);
+        // **`pointerdown` で聞く。** `mousedown` だけだと、iOS は
+        // 「押せない要素」に互換マウスイベントを合成しないことがあるので、
+        // グリッドの余白をタップしても閉じない（このリポジトリは
+        // `app/globals.css` に「button/a に cursor:pointer が無いと
+        // タップが効かない」という同種の記録を既に持っている）。
+        // スマホには Esc も無いので、閉じ損なうと開きっぱなしになる。
+        document.addEventListener("pointerdown", onDocClick);
         document.addEventListener("keydown", onKey);
         return () => {
-            document.removeEventListener("mousedown", onDocClick);
+            document.removeEventListener("pointerdown", onDocClick);
             document.removeEventListener("keydown", onKey);
         };
     }, [isSortOpen]);

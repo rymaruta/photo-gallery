@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
 import { createPortal } from "react-dom";
 import { useRouter, usePathname } from "next/navigation";
 import { XMarkIcon, Bars3Icon } from "@heroicons/react/24/solid";
@@ -107,22 +108,14 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     const toggleRef = useRef<HTMLButtonElement | null>(null);
     useFocusTrap(open, panelRef, toggleRef);
 
-    // Scroll lock when open
+    // 背景スクロールロック。**共通の実装に寄せた**（`lib/utils/scrollLock.ts`）。
+    // ここは `overflow` + `paddingRight` だけの自前実装で、解除は無条件に
+    // `""` を書いていた——数を数えているモーダル側と同時に開くと、
+    // こちらを閉じただけで向こうのロックまで外れる。
     useEffect(() => {
-        const body = document.body;
-        if (!body) return;
-        if (open) {
-            const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
-            if (scrollBarWidth > 0) body.style.paddingRight = `${scrollBarWidth}px`;
-            body.style.overflow = "hidden";
-        } else {
-            body.style.overflow = "";
-            body.style.paddingRight = "";
-        }
-        return () => {
-            body.style.overflow = "";
-            body.style.paddingRight = "";
-        };
+        if (!open) return;
+        lockBodyScroll();
+        return () => unlockBodyScroll();
     }, [open]);
 
     const linkBase = "block px-4 py-3.5 whitespace-nowrap text-base transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/10";

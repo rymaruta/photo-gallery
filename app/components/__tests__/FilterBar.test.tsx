@@ -120,3 +120,31 @@ describe("FilterBar", () => {
         expect(onChange).toHaveBeenCalledWith({ sort: "old" });
     });
 });
+
+// **外側タップで閉じるのが `mousedown` だけだった。**
+//
+// iOS は「押せない要素」に互換マウスイベントを合成しないことがあるので、
+// グリッドの余白をタップしても閉じない（このリポジトリは `globals.css` に
+// 「button/a に cursor:pointer が無いとタップが効かない」という同種の記録を
+// 既に持っている）。スマホには Esc も無いので、閉じ損なうと開きっぱなし。
+describe("並び替えメニューを閉じる", () => {
+    it("外側の pointerdown で閉じる", () => {
+        setup();
+        fireEvent.click(screen.getByRole("button", { name: /並び替え|新しい順/ }));
+        expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+        fireEvent.pointerDown(document.body);
+
+        expect(screen.queryByRole("listbox"), "外側をタップしても閉じない").toBeNull();
+    });
+
+    it("メニューの中の pointerdown では閉じない", () => {
+        setup();
+        fireEvent.click(screen.getByRole("button", { name: /並び替え|新しい順/ }));
+        const menu = screen.getByRole("listbox");
+
+        fireEvent.pointerDown(menu);
+
+        expect(screen.getByRole("listbox"), "中を触っただけで閉じている").toBeInTheDocument();
+    });
+});

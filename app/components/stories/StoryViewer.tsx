@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
 import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
 import UserAvatar from "../UserAvatar";
 import type { StoryGroup, StoryViewer as ViewerEntry } from "@/lib/stories";
@@ -329,11 +330,14 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     // 開いたときの対象と、押したときの対象がずれないようにする。
     useEffect(() => { setConfirmDelete(false); }, [item?.id]);
 
-    // 背景スクロールロック
+    // 背景スクロールロック。**共通の実装に寄せた**（`lib/utils/scrollLock.ts`）。
+    // ここは `overflow: hidden` だけの自前実装で、あちらのコメントが
+    // 「それでは iOS Safari や内蔵ブラウザで止まらない」と書いている方式
+    // そのものだった。位置の控え・復元も無かったので、閉じたときに別の
+    // 場所にいることがある。
     useEffect(() => {
-        const prev = document.body.style.overflow;
-        document.body.style.overflow = "hidden";
-        return () => { document.body.style.overflow = prev; };
+        lockBodyScroll();
+        return () => unlockBodyScroll();
     }, []);
 
     if (!group || !item) return null;
