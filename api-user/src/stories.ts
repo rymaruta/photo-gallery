@@ -8,6 +8,7 @@ import { mediaKeys, deriveUploadKey } from "./mediaKeys";
 import { isOwnUploadUrl } from "./upload";
 import { keyFromUploadUrl, canonicalUploadUrl } from "./uploadPolicy";
 import { s3DeleteMany } from "./s3Delete";
+import { invalidateUploads } from "./cdnInvalidate";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { truncate } from "./sanitize";
 
@@ -434,6 +435,12 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
 export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
     const expired = await queryStories("expired");
     let deleted = 0;
+    // **エッジの掃除は最後に1回**（退会と同じ理由）。1行ごとに無効化を作ると
+    // 期限切れの件数ぶんできて、CloudFront の「同時に進行できる本数」の上限
+    // （既定15）に当たる。断られても `invalidateUploads` は警告だけ出すので、
+    // **消えたように見えたまま GPS 入りの動画がエッジに残る**（LEFT-4 の再発）。
+    // 1時間ごとに走るので、溜まった回ほど本数が増える＝当たりやすい。
+    const edgeKeys: string[] = [];
 
     for (const item of expired) {
         const id = String(item.id ?? "");
@@ -449,7 +456,7 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
         // 昇順なので、その行は**毎回先頭に来る**。後ろにいる新しい
         // 期限切れストーリーに永久に到達しなくなる（そちらの GPS 入り
         // 動画が公開URLに残り続ける）。
-        const s3Failures = await s3DeleteMany(storyMediaKeys(item), `cleanup(${id})`);
+        const s3Failures = await s3DeleteMany(storyMediaKeys(item), `cleanup(${id})`, edgeKeys);
         if (s3Failures > 0) {
             console.error(`cleanup: keeping ${id} (S3 delete failed; will retry next run)`);
             continue;
@@ -462,6 +469,9 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
             console.error(`cleanup: DDB delete failed for ${id}:`, e);
         }
     }
+
+    // 消せたぶんをまとめてエッジからも消す（失敗しても掃除の成否は変えない）
+    await invalidateUploads(edgeKeys, "cleanupExpiredStories");
 
     console.log(`cleanupExpiredStories: deleted ${deleted} of ${expired.length} expired stories`);
     return { deleted };

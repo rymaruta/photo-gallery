@@ -5,6 +5,7 @@ import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { mediaKeys } from "./mediaKeys";
 import { s3DeleteMany } from "./s3Delete";
+import { invalidateUploads } from "./cdnInvalidate";
 import { requireEnv } from "./env";
 import { requestSiteRebuild } from "./rebuild";
 import { isDeletedProfile } from "./types";
@@ -282,6 +283,15 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // mediaFailures と同じ「await をまたいで古い値を書き戻す」事故の
         // 芽を残す。真偽値の代入なら取りこぼしようがない。
         let deletedPublicPhoto = false;
+        // **エッジの掃除は最後に1回。** 写真1枚ごとに `s3DeleteMany` を
+        // 呼ぶので、そのたびに無効化を作ると写真の枚数ぶんできる
+        // （実測: 12枚で12本）。CloudFront は同時に進行できる無効化の本数に
+        // 上限があり（既定15）、超えたぶんは断られる——`invalidateUploads` は
+        // 投げずに警告だけ出すので、**削除は成功したように見えたまま
+        // エッジの掃除だけが静かに落ちる**。max-age は1年なので、消したはずの
+        // 実体（GPS 入りの原本を含む）が取れ続ける＝LEFT-4 の再発。
+        // 8並列から push するが、Array.push は同期なので取りこぼしは無い。
+        const edgeKeys: string[] = [];
         let lastKey: Record<string, unknown> | undefined;
         do {
             const res = await ddb.send(new QueryCommand({
@@ -315,7 +325,7 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                     // srcOriginal（GPS入り原本）を消し漏らしうるので失敗に数える
                     itemFailures++;
                 }
-                itemFailures += await s3DeleteMany(mediaKeys(item), "deleteAccount");
+                itemFailures += await s3DeleteMany(mediaKeys(item), "deleteAccount", edgeKeys);
                 // その写真に付いたコメントも消す。写真だけ消していたので、
                 // 退会後も「本文・投稿者名・投稿者のsub」が誰でも読めるまま
                 // 残っていた（一覧APIは公開で、写真の存在確認もしない）。
@@ -348,6 +358,14 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         //    （キーが決定的なので再実行で必ずやり直せる）
         if (!await s3Delete(`profiles/${uid}`)) mediaFailures++;
         if (!await s3Delete(`profiles/${uid}/cover`)) mediaFailures++;
+
+        // ここまでで消せた実体を、まとめてエッジからも消す。
+        //
+        // **`mediaFailures > 0` で止まる前に呼ぶ。** 止まっても「既に消えた
+        // 実体」はもう戻らないので、やり直しの回まで最大1年エッジに残す
+        // 理由が無い（やり直しの回はその写真を一覧で見つけられない）。
+        // 失敗しても削除の成否には影響しない（警告1行で先へ進む）。
+        await invalidateUploads(edgeKeys, "deleteAccount");
 
         // 写真の削除に失敗が残っていたら、**Cognito を消す前に**止める。
         //
