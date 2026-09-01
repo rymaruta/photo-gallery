@@ -77,4 +77,12 @@ describe("フロントの反映は、同じコミットの API デプロイの�
         expect(head).toMatch(/^ {2}actions:\s*read\s*$/m);
         expect(head).not.toMatch(/write/);
     });
+    // **このゲート自身の不具合でサイトが出せなくなる**のを防ぐ。
+    // `set -euo pipefail` の下では jq が失敗しただけでジョブが failure になり、
+    // `deploy-frontend` が needs で止まる。読めなければ「分からない」に倒す。
+    it("jq が失敗してもジョブを落とさない", () => {
+        const jqLines = [...code.matchAll(/^\s*(status|concl)=\$\(.*$/gm)].map((m) => m[0]);
+        expect(jqLines.length).toBe(2);
+        for (const l of jqLines) expect(l, `${l.trim()} が失敗を吸っていない`).toMatch(/\|\|\s*echo/);
+    });
 });

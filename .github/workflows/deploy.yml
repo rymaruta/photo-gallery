@@ -215,8 +215,12 @@ jobs:
               echo "  (${i}/60) Actions API を読めなかった。次で読み直す"
               sleep 15; continue
             fi
-            status=$(echo "$body" | jq -r '.workflow_runs[0].status // "none"')
-            concl=$(echo "$body" | jq -r '.workflow_runs[0].conclusion // "none"')
+            # **`|| echo` を付ける。** `set -euo pipefail` の下では、jq が
+            # 無い・出力が JSON でない、だけでこのジョブが failure になり、
+            # `deploy-frontend` が needs で止まる——**このゲート自身の不具合で
+            # サイトが出せなくなる**。読めなければ「分からない」に倒す。
+            status=$(echo "$body" | jq -r '.workflow_runs[0].status // "none"' 2>/dev/null || echo unknown)
+            concl=$(echo "$body" | jq -r '.workflow_runs[0].conclusion // "none"' 2>/dev/null || echo unknown)
             case "$status:$concl" in
               none:*)
                 echo "  (${i}/60) まだ実行が現れない";;
