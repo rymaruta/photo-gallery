@@ -369,6 +369,59 @@ async function runPool(items, worker, concurrency = 12) {
 const SITE_URL = (process.env.SITE_URL || "").replace(/\/$/, "");
 
 /**
+ * トップページの OGP 画像が実際に取れるかを見る（アドバイザリ）。
+ *
+ * **ここは一度「存在しないファイル」で長く壊れていた**——
+ * `/images/og-image.jpg` はリポジトリにもビルド成果物にも無いのに、
+ * 16ページが OGP 画像として出しており、トップを SNS に貼っても画像が
+ * 出なかった。誰も見ていない場所だったので気づけなかった。
+ *
+ * 今は「一番新しい公開写真」をビルド時に焼き込む形なので、**利用者が
+ * その写真を削除すると次のサイトビルドまで壊れたまま**になる（削除は
+ * S3 の実体も消す。定期ビルドは止めてある）。デプロイのたびに1本
+ * HEAD を投げておけば、少なくとも次のデプロイで気づける。
+ *
+ * 配信チェックと同じ扱いで**デプロイは止めない**（CI ランナーの IP が
+ * WAF に弾かれることがあり、それでデプロイを失敗させたくない）。
+ */
+async function verifyOgImage(opts = {}) {
+    // `html` / `fetchImpl` はテストからの差し替え口（本番の呼び出しは
+    // 引数なし＝ディスクと実 fetch）
+    const doFetch = opts.fetchImpl || fetch;
+    let html = opts.html;
+    if (html === undefined) {
+        if (!SITE_URL) return "skipped";   // 配信チェックと同じ理由（未設定なら飛ばす）
+        const indexHtml = path.join(outDir, "index.html");
+        if (!fs.existsSync(indexHtml)) return "skipped";
+        html = fs.readFileSync(indexHtml, "utf8");
+    }
+    const m = html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i);
+    if (!m) {
+        console.warn("[deploy] advisory: トップページに og:image がありません（SNS に貼っても画像が出ません）。");
+        return "missing";
+    }
+    const url = m[1];
+    try {
+        // HEAD が塞がれている配信もあるので、405/501 のときだけ GET で見直す
+        let res = await doFetch(url, { method: "HEAD", redirect: "follow" });
+        if (res.status === 405 || res.status === 501) {
+            res = await doFetch(url, { redirect: "follow" });
+        }
+        const ct = (res.headers.get("content-type") || "").toLowerCase();
+        if (res.status === 200 && ct.startsWith("image/")) {
+            console.log(`[deploy] (advisory) og:image OK — ${url}`);
+            return "ok";
+        }
+        console.warn(`[deploy] advisory: og:image が取れません（status=${res.status} ct=${ct || "-"}） — ${url}`);
+        console.warn("[deploy] advisory: 元の写真が削除された可能性があります。サイトを再ビルドすると新しい写真に入れ替わります。");
+        return "broken";
+    } catch (e) {
+        console.warn(`[deploy] advisory: og:image の確認に失敗しました（${e.message.split("\n")[0]}） — ${url}`);
+        return "error";
+    }
+}
+
+/**
  * デプロイ後の配信チェック（アドバイザリ＝参考ログのみ・デプロイは止めない）。
  *
  * 配信ドメイン経由で JS/CSS チャンクを取得し、200 かつスクリプト/スタイルの
@@ -609,12 +662,16 @@ async function main() {
     //         一時的に 403 されうるため、ここではログするだけでデプロイは止めない
     //         （5xx が見えたときのみ一度だけ再インバリデーション）。
     await verifyAssets(assets, cfDistId);
+    // トップの OGP 画像は「一番新しい公開写真」なので、その写真が消えると
+    // 次のビルドまで壊れたままになる（削除は S3 の実体も消す）
+    await verifyOgImage();
 
     console.log("\n[deploy] Done.\n");
 }
 
 // テストから判定ロジックを検証できるようにエクスポート
 module.exports = {
+    verifyOgImage,
     assertNoForbiddenContent, assertRobotsMatchesTarget, invalidationTargets,
     FORBIDDEN_IN_OUTPUT, classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys,
     bulkDeleteGuard, BULK_DELETE_RATIO, BULK_DELETE_MIN, deleteStaleKeys };
