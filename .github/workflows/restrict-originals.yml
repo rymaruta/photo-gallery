@@ -12,6 +12,13 @@ name: Restrict Originals
 # 手元から流さずここで流すのは、AWS 認証情報がリポジトリのシークレットに
 # あるため。パラメータの渡し忘れも起きにくい。
 
+# **`GITHUB_TOKEN` に何も渡さない（IAM-3）。**
+# どのワークフローも `actions/checkout` 以外でトークンを使っていないのに、
+# 既定の権限（リポジトリ設定次第では contents: write まで）が渡っていた。
+# checkout に要るのは読み取りだけ。**渡していない権限は漏らせない**。
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:

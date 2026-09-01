@@ -11,6 +11,13 @@ name: Deploy API Lambdas
 # 反映されない**まま「デプロイ済み」と思い込む状態になっていた（実際に
 # 今日それを踏んだ）。1回のデプロイは3〜4分で、API を触る push は
 # 月に数回なので、枠に対しては小さい。
+# **`GITHUB_TOKEN` に何も渡さない（IAM-3）。**
+# どのワークフローも `actions/checkout` 以外でトークンを使っていないのに、
+# 既定の権限（リポジトリ設定次第では contents: write まで）が渡っていた。
+# checkout に要るのは読み取りだけ。**渡していない権限は漏らせない**。
+permissions:
+  contents: read
+
 on:
   push:
     branches:

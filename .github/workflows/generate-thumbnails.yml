@@ -4,6 +4,13 @@ name: Generate Thumbnails (migration)
 # thumbSrc を持たない写真の S3 元画像から 512px WebP を生成して保存し、
 # DynamoDB に thumbSrc を書き込む。冪等なので何度実行しても安全。
 # 実行後はサイトの再ビルド（Deploy to Production）で photos.json に反映される。
+# **`GITHUB_TOKEN` に何も渡さない（IAM-3）。**
+# どのワークフローも `actions/checkout` 以外でトークンを使っていないのに、
+# 既定の権限（リポジトリ設定次第では contents: write まで）が渡っていた。
+# checkout に要るのは読み取りだけ。**渡していない権限は漏らせない**。
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:

@@ -42,3 +42,21 @@ describe("コンテナで動くジョブは shell を明示する", () => {
         }
     });
 });
+
+// **`GITHUB_TOKEN` に何も渡さない（IAM-3）。**
+// どのワークフローもトークンを使っていない（`actions/checkout` だけ）のに、
+// `permissions:` が1つも無く、既定の権限がそのまま渡っていた。リポジトリの
+// 設定次第では `contents: write` まで乗る。渡していない権限は漏らせない。
+describe("ワークフローは権限を明示する", () => {
+    const files = readdirSync(join(process.cwd(), DIR)).filter((f) => f.endsWith(".yml"));
+
+    it.each(files)("%s に permissions がある", (file) => {
+        const doc = JSON.parse(execFileSync("python3", [
+            "-c",
+            "import sys,yaml,json;print(json.dumps(yaml.safe_load(open(sys.argv[1]))))",
+            join(process.cwd(), DIR, file),
+        ], { encoding: "utf8" })) as { permissions?: Record<string, string> };
+        expect(doc.permissions, `${file}: permissions が無い（既定の権限がそのまま渡る）`).toBeDefined();
+        expect(doc.permissions).toEqual({ contents: "read" });
+    });
+});
