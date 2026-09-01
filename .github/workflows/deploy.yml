@@ -7,6 +7,9 @@ name: Deploy Site
 # checkout に要るのは読み取りだけ。**渡していない権限は漏らせない**。
 permissions:
   contents: read
+  # 同じコミットの `Deploy API Lambdas` の結果を読むためだけ（下の api-gate）。
+  # 書き込みは足さない——読めれば十分で、渡していない権限は漏らせない。
+  actions: read
 
 on:
   # フロントの反映は本番だけ自動。staging は手動実行（workflow_dispatch で
@@ -146,9 +149,105 @@ jobs:
           echo "envName=$envName" >> "$GITHUB_OUTPUT"
           echo "デプロイ先: $envName"
 
+  # API のデプロイが失敗しているのに、フロントだけ本番へ出すのを止める。
+  #
+  # **2026-09-01 に実際に踏んだ。** `main` へのマージで
+  # `Deploy API Lambdas` と `Deploy Site` は**別ワークフローとして並走する**。
+  # api-user が UPDATE_FAILED で巻き戻ったのに、こちらは何も知らずに
+  # 新しいフロントを本番へ出した。結果、新しい画面が古いAPIを叩く形になり、
+  # **写真の削除が 404** になった（`DELETE /photos/{id}` が旧版に無い）。
+  # PR に「API を先、フロントを後」と書いていたが、**片方が落ちたときに
+  # 止まる仕掛けが無ければ、それは約束ではない**。
+  #
+  # **止めるのは「失敗を実際に見たとき」だけ。**
+  # 見つからない・判断できない・時間切れは**通す**（警告だけ）。
+  # ここで詰まらせると、API と無関係な変更まで出せなくなる——
+  # 「守りを足したら、逆向きの失敗を新しく作った」を繰り返さないため。
+  api-gate:
+    name: API デプロイの結果を待つ
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # push 以外（手動・定期・repository_dispatch）は対象外。
+    # それらは「そのコミットの API デプロイ」という相手がいない。
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: この push が API を触ったか見る
+        id: touched
+        env:
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          # 触っていなければ `Deploy API Lambdas` はそもそも起動しない
+          # （あちらは api/** と api-user/** の paths フィルタ付き）。
+          # その場合に「実行が無い」を待つと、必ず時間切れになる。
+          changed=""
+          if git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            changed=$(git diff --name-only "$BEFORE" "$SHA" -- api api-user || true)
+          else
+            # 履歴が辿れない（force push・初回など）。分からないので「触った」に倒す
+            # ——待って通す方が、見ずに出すより安い
+            changed="(不明)"
+          fi
+          if [ -n "$changed" ]; then
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+            echo "API を触っている:"; echo "$changed"
+          else
+            echo "touched=false" >> "$GITHUB_OUTPUT"
+            echo "この push は api/ も api-user/ も触っていない。待たずに進む"
+          fi
+
+      - name: 同じコミットの API デプロイが success になるまで待つ
+        if: steps.touched.outputs.touched == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          api="repos/$REPO/actions/workflows/deploy-api.yml/runs?head_sha=$SHA&per_page=5"
+          for i in $(seq 1 60); do
+            body=$(gh api "$api" 2>/dev/null || echo '')
+            if [ -z "$body" ]; then
+              echo "  (${i}/60) Actions API を読めなかった。次で読み直す"
+              sleep 15; continue
+            fi
+            # **`|| echo` を付ける。** `set -euo pipefail` の下では、jq が
+            # 無い・出力が JSON でない、だけでこのジョブが failure になり、
+            # `deploy-frontend` が needs で止まる——**このゲート自身の不具合で
+            # サイトが出せなくなる**。読めなければ「分からない」に倒す。
+            status=$(echo "$body" | jq -r '.workflow_runs[0].status // "none"' 2>/dev/null || echo unknown)
+            concl=$(echo "$body" | jq -r '.workflow_runs[0].conclusion // "none"' 2>/dev/null || echo unknown)
+            case "$status:$concl" in
+              none:*)
+                echo "  (${i}/60) まだ実行が現れない";;
+              completed:success)
+                echo "API のデプロイは success。フロントへ進む"; exit 0;;
+              completed:skipped|completed:neutral)
+                echo "::warning::API のデプロイが $concl。止める理由にはしないので進む"; exit 0;;
+              completed:*)
+                echo "::error::同じコミットの API デプロイが **$concl** です。"
+                echo "::error::API が古いままフロントだけ出すと、新しい画面が古い API を叩きます"
+                echo "::error::（2026-09-01 はこれで写真の削除が 404 になりました）。"
+                echo "::error::API を直してから、この Deploy Site を再実行してください。"
+                exit 1;;
+              *)
+                echo "  (${i}/60) API のデプロイは $status";;
+            esac
+            sleep 15
+          done
+          # 15分待っても終わらない。**止めない**——見えないことは失敗ではない
+          echo "::warning::15分待っても API のデプロイが終わりませんでした。結果を見ずに進みます"
+
   deploy-frontend:
     name: Deploy Frontend (S3 + CloudFront)
-    needs: config
+    # api-gate は push 以外では skipped になるので `always()` で受ける。
+    # **skipped と failure を混ぜない**——failure のときだけ止める。
+    needs: [config, api-gate]
+    if: always() && needs.config.result == 'success' && needs.api-gate.result != 'failure'
     runs-on: ubuntu-latest
     # ハングしても必ず終わらせる（GitHub の既定は6時間。実際の所要は約15分）。
     # 2026-08-19 にブラウザインストールで4時間以上ハングした実績があるため必須。

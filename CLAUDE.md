@@ -197,6 +197,41 @@ feature/xxx  →(PR)→  develop  →(自動)→ staging で確認
 - **staging のフロント反映は手動実行**（1回8分と重いため）。
   `develop` への push で自動なのは API だけ。
 
+## 本番で分かっている未設定・制約（2026-09-01 に AWS から読んで確認）
+
+### ⚠️ `REBUILD_DISPATCH_TOKEN` が設定されていない（**owner の作業が要る**）
+
+診断（`maintenance` の `diagnose`）で、再ビルドを頼む5つの関数すべてに
+トークンが入っていないことを確認した:
+
+    updatePhoto / deletePhoto（api）
+    updatePhotoVisibility / deleteMyPhoto / deleteAccount（api-user）
+
+デプロイのログも `再ビルド依頼: repo=rymaruta/photo-gallery token=(なし)` と
+出ている。**リポジトリの Secrets に `REBUILD_DISPATCH_TOKEN` が無い**。
+
+**何が起きるか**: 写真を削除・非公開にすると、DynamoDB の行と S3 の実体は
+消えるが、**静的HTMLのページが残る**。次のビルドまで公開されたまま
+——定期ビルドは週1（日曜 03:00 JST）なので、**最大7日**。
+`api-user/src/rebuild.ts` は警告を1行出して先へ進むので、削除そのものは
+成功して見える（＝静かに残る）。
+
+**直し方（owner）**: `repo` スコープ（または `contents: write` の fine-grained）
+を持つ PAT を作り、リポジトリの Secrets に `REBUILD_DISPATCH_TOKEN` として
+登録する。次の API デプロイで5関数に入る。設定できたか確認するには
+`maintenance` の `diagnose` をもう一度流す（`!!` が消える）。
+
+### Lambda の同時実行が **アカウント全体で 10**
+
+    総枠: 10 / 未予約: 10
+
+AWS が未予約に最低 10 残せと言うので、**どの関数も1つも予約できない**
+（`musicSearch` の `reservedConcurrency` を本番に出して UPDATE_FAILED になり、
+api-user のデプロイが丸ごと巻き戻った——2026-09-01）。
+同時に走れる Lambda が全部で10本という上限でもあるので、人が増えたら
+**AWS のサポートに引き上げを頼む**のが先。上げたら `musicSearch` の予約
+（`deploy-api.yml` の `musicSearchReserved`）を戻してよい。
+
 ## 注意事項
 
 - **本番値のフォールバックは置かない**。テーブル名・バケット名・Cognito・
