@@ -12,6 +12,7 @@
 const { DynamoDBClient, DescribeTableCommand, ScanCommand } = require("@aws-sdk/client-dynamodb");
 const { CognitoIdentityProviderClient, DescribeUserPoolCommand, DescribeUserPoolClientCommand } = require("@aws-sdk/client-cognito-identity-provider");
 const { CloudFrontClient, GetDistributionConfigCommand } = require("@aws-sdk/client-cloudfront");
+const { LambdaClient, ListFunctionsCommand } = require("@aws-sdk/client-lambda");
 const { requireEnv } = require("./lib/env");
 
 const REGION = process.env.AWS_REGION || "ap-northeast-1";
@@ -23,6 +24,7 @@ let PHOTOS_TABLE = "";
 const ddb = new DynamoDBClient({ region: REGION });
 const idp = new CognitoIdentityProviderClient({ region: REGION });
 const cf = new CloudFrontClient({ region: REGION });
+const lambda = new LambdaClient({ region: REGION });
 
 const line = (s) => console.log(s);
 const head = (s) => console.log(`\n=== ${s} ===`);
@@ -99,10 +101,62 @@ async function cdnTtl() {
     }
 }
 
+/**
+ * Lambda のロールと環境変数（IAM-1 / IAM-2 の当たり確認）。
+ *
+ * 直したのは設定ファイルなので、**実際に当たっているかは AWS を見ないと
+ * 分からない**。ここで見るのは2つ:
+ *   - 未認証で呼べる7つの関数が `*-publicRead` ロールで動いているか
+ *   - GitHub の書き込みトークンが、頼む5つ以外の関数から消えているか
+ *
+ * 値は出さない。**設定名と「有る/無い」だけ**——診断のログは Actions に
+ * 残るので、トークンの中身をそこへ書き写したら直した意味が無くなる。
+ */
+const PUBLIC_FNS = [
+    "getPublicProfile", "searchUsers", "getLikeCount", "getComments", "getFollowStats",
+    "getPhotos", "getPhoto",
+];
+const REBUILD_FNS = ["updatePhotoVisibility", "deleteMyPhoto", "deleteAccount", "updatePhoto", "deletePhoto"];
+
+async function lambdaRoles() {
+    head("Lambda のロールと環境変数（IAM-1 / IAM-2 が当たっているか）");
+    const stage = process.env.STAGE || "prod";
+    const fns = [];
+    let marker;
+    do {
+        const res = await lambda.send(new ListFunctionsCommand({ Marker: marker, MaxItems: 50 }));
+        fns.push(...(res.Functions ?? []));
+        marker = res.NextMarker;
+    } while (marker);
+
+    const mine = fns.filter((f) => (f.FunctionName ?? "").startsWith(`photo-gallery-api-${stage}-`)
+        || (f.FunctionName ?? "").startsWith(`photo-gallery-user-api-${stage}-`));
+    if (mine.length === 0) { line(`  photo-gallery(-user)-api-${stage}-* が1つも見つかりません`); return; }
+
+    let publicOk = 0, leaked = 0;
+    for (const f of mine.sort((a, b) => a.FunctionName.localeCompare(b.FunctionName))) {
+        const short = f.FunctionName.replace(/^photo-gallery(-user)?-api-[^-]+-/, "");
+        const role = (f.Role ?? "").split("/").pop() ?? "";
+        const hasToken = Boolean(f.Environment?.Variables?.REBUILD_DISPATCH_TOKEN);
+        const wantPublic = PUBLIC_FNS.includes(short);
+        const wantToken = REBUILD_FNS.includes(short);
+        const isPublicRole = /publicRead$/.test(role);
+        const flags = [];
+        if (wantPublic && !isPublicRole) flags.push("!! 共有ロールのまま");
+        if (!wantPublic && isPublicRole) flags.push("!! 読み取り専用ロールが付いている");
+        if (hasToken && !wantToken) flags.push("!! 再ビルドのトークンが残っている");
+        if (!hasToken && wantToken) flags.push("!! 再ビルドのトークンが無い（削除しても静的ページが残る）");
+        if (wantPublic && isPublicRole) publicOk++;
+        if (hasToken && !wantToken) leaked++;
+        line(`  ${short.padEnd(26)} role=${role}${hasToken ? " REBUILD_DISPATCH_TOKEN=あり" : ""}${flags.length ? "  " + flags.join(" / ") : ""}`);
+    }
+    line(`  → 読み取り専用ロールの関数 ${publicOk}/${PUBLIC_FNS.length} ・ トークンが余計に付いた関数 ${leaked}`);
+}
+
 async function main() {
     PHOTOS_TABLE = requireEnv("PHOTOS_TABLE");
     line(`対象テーブル: ${PHOTOS_TABLE} / region: ${REGION}`);
-    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["cdnTtl", cdnTtl]]) {
+    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["cdnTtl", cdnTtl], ["lambdaRoles", lambdaRoles]]) {
         try {
             await fn();
         } catch (e) {

@@ -16,16 +16,12 @@ provider:
   environment:
     PHOTOS_TABLE: ${param:photosTable}
     USERS_TABLE: ${param:usersTable}
-    # 退会・写真削除・非公開のあとに静的サイトの再ビルドを頼むための設定。
-    # 未設定なら「頼まない」だけで、削除そのものは成功する（警告を1行出す）。
-    # 設定しないと、消した写真のページが次に誰かが push するまで公開のまま残る。
-    REBUILD_REPO: ${param:rebuildRepo, ''}
-    REBUILD_DISPATCH_TOKEN: ${param:rebuildToken, ''}
-    # 1か月に頼んでよい再ビルドの本数（既定 200）。Actions の枠を上げたときに
-    # 合わせる。**Lambda コンソールで直接いじっても次のデプロイで消える**ので、
-    # ここか deploy-api.yml のリポジトリ変数から渡すこと。
-    # 空文字・数値でない値は既定に落ちる（api-user/src/rebuild.ts）。
-    REBUILD_MONTHLY_MAX: ${param:rebuildMonthlyMax, ''}
+    # 再ビルド依頼の設定（REBUILD_*）はここには置かない。**GitHub の書き込み
+    # トークンなので、provider に置くと全関数の環境変数に入る**（IAM-2）。
+    # 実際に頼むのは api-user で3つ・api で2つだけなので、その関数にだけ配る。
+    # 環境変数は `lambda:GetFunctionConfiguration`（読み取り権）で誰でも読めて、
+    # そこからリポジトリへの書き込み → デプロイ鍵、と輪が閉じる。
+    # 未認証で呼べる口にまで配る理由は無い。
     UPLOAD_BUCKET: ${param:uploadBucket}
     CLOUDFRONT_URL: ${param:cloudfrontUrl}
 
@@ -120,6 +116,11 @@ functions:
     # 500 が返る**。しかも殺されると印と予算の解放に到達しない。
     timeout: 15
     handler: src/photosMutate.updatePhoto
+    environment:
+      # 再ビルド依頼はこの関数から出す（provider には置かない。IAM-2）
+      REBUILD_REPO: ${param:rebuildRepo, ''}
+      REBUILD_DISPATCH_TOKEN: ${param:rebuildToken, ''}
+      REBUILD_MONTHLY_MAX: ${param:rebuildMonthlyMax, ''}
     events:
       - httpApi:
           path: /photos/{id}
@@ -134,6 +135,11 @@ functions:
     # だけ課金されるので、広げても普段の費用は変わらない。
     timeout: 15
     handler: src/photosMutate.deletePhoto
+    environment:
+      # 再ビルド依頼はこの関数から出す（provider には置かない。IAM-2）
+      REBUILD_REPO: ${param:rebuildRepo, ''}
+      REBUILD_DISPATCH_TOKEN: ${param:rebuildToken, ''}
+      REBUILD_MONTHLY_MAX: ${param:rebuildMonthlyMax, ''}
     events:
       - httpApi:
           path: /photos/{id}
