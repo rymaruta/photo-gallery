@@ -62,6 +62,26 @@ export function useSwipe(options: SwipeOptions = {}) {
         touchMoveRef.current = { x, y, time: Date.now() };
     }, []);
 
+    /**
+     * この指の動きをどう扱うか。**発火も `preventDefault` もこの1つで決める。**
+     *
+     * 別々に書いていたので食い違っていた——`preventDefault` は「距離だけ」
+     * （`dx > dy && dx > threshold`）、発火は「距離かつ速度」。その結果、
+     * ゆっくり 60px 横へ引くと**送られないのに click だけ潰され**、
+     * 何も起きない無反応な操作になっていた。
+     */
+    const decide = useCallback((dx: number, dy: number, dt: number): "left" | "right" | "up" | "down" | null => {
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance / Math.max(dt, 1) < velocityThreshold) return null;
+        const absX = Math.abs(dx);
+        const absY = Math.abs(dy);
+        if (absX >= threshold && absX > absY * ratio) return dx > 0 ? "right" : "left";
+        if (absY >= verticalThreshold && absY > absX * ratio) return dy > 0 ? "down" : "up";
+        // どちらでもない（斜め・小さすぎる）ときは何もしない。
+        // 迷ったら動かさない——誤爆の方が高くつく
+        return null;
+    }, [threshold, verticalThreshold, velocityThreshold, ratio]);
+
     const handleEnd = useCallback(() => {
         if (!isDraggingRef.current || !touchStartRef.current) {
             isDraggingRef.current = false;
@@ -70,58 +90,15 @@ export function useSwipe(options: SwipeOptions = {}) {
 
         const start = touchStartRef.current;
         const end = touchMoveRef.current || start;
+        const dir = decide(end.x - start.x, end.y - start.y, end.time - start.time);
 
-        const deltaX = end.x - start.x;
-        const deltaY = end.y - start.y;
-        const deltaTime = end.time - start.time;
-        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-        const velocity = distance / Math.max(deltaTime, 1);
-
-        // 速度が閾値未満の場合は無視
-        if (velocity < velocityThreshold) {
-            isDraggingRef.current = false;
-            return;
-        }
-
-        // **軸ごとに見る。**
-        //
-        // 距離を2次元（√(dx²+dy²)）で見て、方向を `absX > absY` だけで
-        // 決めていたので、**斜めのスワイプが縦に倒れて「閉じる」に化けて**
-        // いた。実測（threshold=50 の場合）:
-        //   dx=-45 dy=48 → down（閉じる）  … 次の写真へ送ったつもり
-        //   dx=-36 dy=37 → down（閉じる）  … 45°方向の実効しきい値は 35px
-        // 自然な弧を描くスワイプは普通に斜めになるので、日常的に踏む。
-        //
-        // 同じリポジトリの `lib/utils/swipe.ts` は比率ガード
-        // （`absX <= absY * ratio` なら横と見なさない）を持っていて、
-        // コメントにも「縦優位のときに 0 を返すことで、縦スクロールを
-        // 誤ってタブ切替と判定しない」と書いてある。**正しい形は既に
-        // あったのに、こちらだけ持っていなかった。**
-        const absX = Math.abs(deltaX);
-        const absY = Math.abs(deltaY);
-
-        if (absX >= threshold && absX > absY * ratio) {
-            if (deltaX > 0) {
-                setSwipeDirection("right");
-                onSwipeRight?.();
-            } else {
-                setSwipeDirection("left");
-                onSwipeLeft?.();
-            }
-        } else if (absY >= verticalThreshold && absY > absX * ratio) {
-            if (deltaY > 0) {
-                setSwipeDirection("down");
-                onSwipeDown?.();
-            } else {
-                setSwipeDirection("up");
-                onSwipeUp?.();
-            }
-        }
-        // どちらでもない（斜め・小さすぎる）ときは何もしない。
-        // 迷ったら動かさない——誤爆の方が高くつく
+        if (dir === "right") { setSwipeDirection("right"); onSwipeRight?.(); }
+        else if (dir === "left") { setSwipeDirection("left"); onSwipeLeft?.(); }
+        else if (dir === "down") { setSwipeDirection("down"); onSwipeDown?.(); }
+        else if (dir === "up") { setSwipeDirection("up"); onSwipeUp?.(); }
 
         isDraggingRef.current = false;
-    }, [onSwipeLeft, onSwipeRight, onSwipeUp, onSwipeDown, threshold, verticalThreshold, velocityThreshold, ratio]);
+    }, [onSwipeLeft, onSwipeRight, onSwipeUp, onSwipeDown, decide]);
 
     const handlers: SwipeHandlers = {
         // **2本目の指が触れたら追跡をやめる。**
@@ -159,14 +136,15 @@ export function useSwipe(options: SwipeOptions = {}) {
             touchMoveRef.current = null;
         },
         onTouchEnd: (e) => {
-            // 水平スワイプが確定した場合のみ preventDefault
-            // （縦スクロールや他のデフォルト動作を不必要にブロックしない）
-            if (touchStartRef.current && touchMoveRef.current) {
-                const dx = Math.abs(touchMoveRef.current.x - touchStartRef.current.x);
-                const dy = Math.abs(touchMoveRef.current.y - touchStartRef.current.y);
-                if (dx > dy && dx > threshold) {
-                    e.preventDefault();
-                }
+            // 横スワイプとして扱うときだけ preventDefault（縦スクロールや
+            // 他の既定動作を不必要にブロックしない）。**発火と同じ述語**で
+            // 判断する——別々に書いていたので、ゆっくり引いたときに
+            // 「送られないのに click だけ潰される」が起きていた
+            const s0 = touchStartRef.current;
+            const m0 = touchMoveRef.current;
+            if (s0 && m0) {
+                const dir = decide(m0.x - s0.x, m0.y - s0.y, m0.time - s0.time);
+                if (dir === "left" || dir === "right") e.preventDefault();
             }
             handleEnd();
         },

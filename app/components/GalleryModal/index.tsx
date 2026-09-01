@@ -79,20 +79,32 @@ export default function GalleryModal({
 
     // ダブルタップいいね（Instagram風）。連続タップ350ms以内で発火し、
     // ハートが弾ける。いいね済みでも解除はしない（演出のみ）。
-    const lastTapRef = useRef(0);
+    const lastTapRef = useRef<{ t: number; x: number; y: number }>({ t: 0, x: 0, y: 0 });
     const [heartBurstKey, setHeartBurstKey] = useState(0);
-    const handleImageTap = () => {
+    /** 2回目のタップが「同じ場所」と言える距離（px） */
+    const DOUBLE_TAP_SLOP = 40;
+    const handleImageTap = (e: React.MouseEvent) => {
         const now = Date.now();
-        if (now - lastTapRef.current < 350) {
-            lastTapRef.current = 0;
+        const prev = lastTapRef.current;
+        // **場所も見る。** 時間だけで判定していたので、画面の端と端を
+        // 350ms 以内に叩いてもいいねになった。スワイプで送ってから
+        // タップした場合も、指の位置が離れていれば別の操作として扱う。
+        const near = Math.hypot(e.clientX - prev.x, e.clientY - prev.y) <= DOUBLE_TAP_SLOP;
+        if (now - prev.t < 350 && near) {
+            lastTapRef.current = { t: 0, x: 0, y: 0 };
             // いいね済みなら解除しない（ダブルタップは演出のみ）
             if (!likedRef.current) void toggleLike().then(notifyIfLikeFailed);
             hapticTap();
             setHeartBurstKey(now);
         } else {
-            lastTapRef.current = now;
+            lastTapRef.current = { t: now, x: e.clientX, y: e.clientY };
         }
     };
+
+    // **写真が変わったらタップの記録も捨てる。** 残していると、
+    // 1タップ → 素早く次の写真へ → タップ、が「次の写真へのいいね」に
+    // なりうる（同じフックのまま次の写真へ進む作りのため）
+    useEffect(() => { lastTapRef.current = { t: 0, x: 0, y: 0 }; }, [p?.id]);
 
     // 前後の画像をプリロード
     useEffect(() => {

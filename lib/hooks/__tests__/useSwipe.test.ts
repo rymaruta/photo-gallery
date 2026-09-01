@@ -223,3 +223,51 @@ describe("マルチタッチ", () => {
         expect(calls, "取り消されたのに送っている").toEqual([]);
     });
 });
+
+// **発火の判定と `preventDefault` の判定が食い違っていた。**
+// 別々に書いていたので、ゆっくり横へ引くと「送られないのに click だけ
+// 潰される」＝何も起きない無反応な操作になっていた。
+describe("preventDefault の条件", () => {
+    function touchEnd(dx: number, dy: number, dt: number) {
+        let prevented = false;
+        const calls: string[] = [];
+        const { result } = renderHook(() => useSwipe({ onSwipeLeft: () => calls.push("left") }));
+        const ev = (x: number, y: number) => ({
+            touches: [{ clientX: x, clientY: y }],
+            preventDefault: () => { prevented = true; },
+        } as unknown as React.TouchEvent);
+        const realNow = Date.now;
+        let t = 1_000_000;
+        Date.now = () => t;
+        try {
+            act(() => {
+                result.current.handlers.onTouchStart(ev(200, 200));
+                t += dt;
+                result.current.handlers.onTouchMove(ev(200 + dx, 200 + dy));
+                result.current.handlers.onTouchEnd(ev(200 + dx, 200 + dy));
+            });
+        } finally {
+            Date.now = realNow;
+        }
+        return { prevented, fired: calls.length > 0 };
+    }
+
+    it("ゆっくり引いたときは、送らないなら click も潰さない", () => {
+        // 60px を 600ms（速度 0.1 < 0.3）→ 送られない
+        const r = touchEnd(-60, 5, 600);
+        expect(r.fired).toBe(false);
+        expect(r.prevented, "送らないのに click だけ潰している（無反応に見える）").toBe(false);
+    });
+
+    it("送るときは潰す（横スクロール等に食われない）", () => {
+        const r = touchEnd(-80, 10, 150);
+        expect(r.fired).toBe(true);
+        expect(r.prevented).toBe(true);
+    });
+
+    it("斜め（送らない）なら潰さない", () => {
+        const r = touchEnd(-60, 50, 150);
+        expect(r.fired).toBe(false);
+        expect(r.prevented).toBe(false);
+    });
+});
