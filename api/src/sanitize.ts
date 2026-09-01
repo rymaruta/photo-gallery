@@ -10,31 +10,29 @@
 import type { Photo } from "./types";
 
 /**
- * 長さを切る。**サロゲートペアの途中では切らない。**
- *
- * `slice(0, max)` は UTF-16 のコードユニットで切るので、末尾が絵文字だと
- * その半分（上位サロゲート）だけが残る。UTF-8 に落とした時点で **U+FFFD
- * （`�`）** に確定するので、静的HTMLにもAPIの応答にも `あああ�` が出る。
- * 一度保存すると、本人が末尾を消すまで直らない（保存し直しても同じ位置で
- * 切られる）。
- *
- * さらに悪いことに、孤立サロゲートは `encodeURIComponent` が
- * `URIError: URI malformed` で投げる。タグや撮影地でそれが起きると、
- * 集約ページの `generateMetadata` が落ちて**静的ビルドが丸ごと止まる**
- * （`lib/utils/collections.ts` の `slugify` が `..` について書いている事故と
- * 同じ型）。
- *
- * **数えるのは今までどおりコードユニット。** 見た目の文字（書記素）で
- * 数え直すと、画面の `maxLength`（HTML はコードユニットで数える仕様）と
- * 食い違って「入力できるのに保存で切られる」が新しく生まれる。ここで直すのは
- * 「壊れた半分を残さない」ことだけ。ZWJ の家族（👨‍👩‍👧）や肌色つきが
- * 別の絵文字に化けるのは残る——文字としては壊れていないので、別の話として扱う。
+ * 長さで切る。書記素（見た目の1文字）の途中では切らない。
+ * 予算はコードユニット数（画面の `maxLength` と同じ数え方）。
+ * 3ファイルに同じものを置いてある（`scripts/__tests__/truncateCopies.test.ts`）。
  */
 export function truncate(s: string, max: number): string {
     if (s.length <= max) return s;
-    const cut = s.slice(0, max);
+    let cut = s.slice(0, max);
+    const seg = typeof Intl !== "undefined" && typeof Intl.Segmenter === "function"
+        ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
+        : null;
+    if (seg) {
+        let end = 0;
+        for (const g of seg.segment(s)) {
+            const next = g.index + g.segment.length;
+            if (next > max) break;
+            end = next;
+        }
+        // 先頭の1つが予算より大きいと end が 0 になる（長い ZWJ 連結など）。
+        // そこで空にすると**本文が丸ごと消える**——化けるより悪いので、
+        // そのときだけ今までどおりコードユニットで切る
+        if (end > 0) cut = s.slice(0, end);
+    }
     const last = cut.charCodeAt(cut.length - 1);
-    // 上位サロゲート（下位が続かないと壊れる）で終わっていたら1つ削る
     return last >= 0xd800 && last <= 0xdbff ? cut.slice(0, -1) : cut;
 }
 

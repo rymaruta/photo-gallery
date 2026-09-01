@@ -1,19 +1,27 @@
 /**
- * 長さを切る。**サロゲートペアの途中では切らない。**
- *
- * `slice(0, max)` は UTF-16 のコードユニットで切るので、末尾が絵文字だと
- * その半分だけが残り、UTF-8 に落ちた時点で **U+FFFD（`�`）** になる。
- * 保存側は `api-user/src/sanitize.ts` の同名関数が同じことをしている
- * （2つのパッケージはビルドを共有しないので、小さく複製する方針）。
- *
- * 数えるのはコードユニットのまま。書記素で数え直すと、画面の `maxLength`
- * （HTML はコードユニットで数える仕様）と食い違う。
+ * 長さで切る。書記素（見た目の1文字）の途中では切らない。
+ * 予算はコードユニット数（画面の `maxLength` と同じ数え方）。
+ * 3ファイルに同じものを置いてある（`scripts/__tests__/truncateCopies.test.ts`）。
  */
 export function truncate(s: string, max: number): string {
     if (s.length <= max) return s;
-    const cut = s.slice(0, max);
+    let cut = s.slice(0, max);
+    const seg = typeof Intl !== "undefined" && typeof Intl.Segmenter === "function"
+        ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
+        : null;
+    if (seg) {
+        let end = 0;
+        for (const g of seg.segment(s)) {
+            const next = g.index + g.segment.length;
+            if (next > max) break;
+            end = next;
+        }
+        // 先頭の1つが予算より大きいと end が 0 になる（長い ZWJ 連結など）。
+        // そこで空にすると**本文が丸ごと消える**——化けるより悪いので、
+        // そのときだけ今までどおりコードユニットで切る
+        if (end > 0) cut = s.slice(0, end);
+    }
     const last = cut.charCodeAt(cut.length - 1);
-    // 上位サロゲート（下位が続かないと壊れる）で終わっていたら1つ削る
     return last >= 0xd800 && last <= 0xdbff ? cut.slice(0, -1) : cut;
 }
 
