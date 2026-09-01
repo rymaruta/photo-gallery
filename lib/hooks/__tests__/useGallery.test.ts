@@ -469,6 +469,53 @@ describe("useGallery", () => {
                 .toBe(result.current.filteredPhotos[0].id);
         });
 
+        // **共有リンクから送ったときに積んでいた（レビューが実ブラウザで再現）。**
+        // 「いまの URL にその id が載っているか」だけで決めていたので、
+        // 送った瞬間に条件が揃って push され、閉じると `back()` が1枚目の
+        // エントリへ戻して**モーダルが開き直る**（1回目の「閉じる」が効かない）。
+        it("共有リンクから開いて送っても、履歴は増えない", () => {
+            window.history.replaceState({}, "", `/?photo=${mockPhotos[0].id}`);
+            const before = window.history.length;
+            const { result } = renderHook(() => useGallery(mockPhotos));
+            act(() => { result.current.openById(mockPhotos[0].id); });
+            act(() => { result.current.next(); });
+            expect(window.history.length, "送った先で履歴を積んでいる（閉じると開き直す）")
+                .toBe(before);
+        });
+
+        it("共有リンクから開いて送ったあと、閉じるときに戻さない", () => {
+            const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+            try {
+                window.history.replaceState({}, "", `/?photo=${mockPhotos[0].id}`);
+                const { result } = renderHook(() => useGallery(mockPhotos));
+                act(() => { result.current.openById(mockPhotos[0].id); });
+                act(() => { result.current.next(); });
+                act(() => { result.current.close(); });
+                expect(back, "戻してしまい、前の写真で開き直す").not.toHaveBeenCalled();
+                expect(new URLSearchParams(window.location.search).get("photo")).toBeNull();
+            } finally {
+                back.mockRestore();
+            }
+        });
+
+        // **Next の内部状態を潰さない。** `replaceState({}, ...)` で消すと、
+        // そのエントリに戻ったとき Next の popstate ハンドラが
+        // `if (!event.state.__NA) window.location.reload()` に落ち、
+        // **ページごと再読み込みされて一覧のスクロール位置が消える**
+        // （レビューが実ブラウザで確認: scrollY 1049 → 0）。
+        it("履歴を書いても Next の内部状態を消さない", () => {
+            window.history.replaceState({ __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: ["x"] }, "", "/");
+            const { result } = renderHook(() => useGallery(mockPhotos));
+            act(() => { result.current.open(0); });
+            const opened = window.history.state as Record<string, unknown>;
+            expect(opened.__NA, "開いたときに Next の状態を消している（戻ると再読み込みされる）").toBe(true);
+            expect(opened.__PRIVATE_NEXTJS_INTERNALS_TREE).toEqual(["x"]);
+
+            act(() => { result.current.setFilters({ category: "landscape" }); });
+            expect((window.history.state as Record<string, unknown>).__NA,
+                "フィルタの同期で Next の状態を消している").toBe(true);
+        });
+
         // 送るたびに積むと、閉じるのに送った回数ぶん戻るを押すことになる
         it("前後に送っても履歴は増えない", () => {
             const { result } = renderHook(() => useGallery(mockPhotos));

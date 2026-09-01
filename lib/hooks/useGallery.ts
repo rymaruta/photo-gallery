@@ -72,6 +72,25 @@ function readFiltersFromUrl(): Partial<GalleryFilters> {
     return out;
 }
 
+/**
+ * 履歴の state を書くときに、**Next の内部キーを持ち越す**。
+ *
+ * `replaceState({}, ...)` で潰していたので、そのエントリに戻ると Next の
+ * popstate ハンドラが `if (!event.state.__NA) window.location.reload()`
+ * （`app-router.js`）に落ちる——**ページが丸ごと再読み込みされ、一覧の
+ * スクロール位置が消える**。モーダルを閉じるたびにそれが起きていた
+ * （`e6aa8c7` で `back()` を呼ぶようにして初めて表に出た。潰し自体は
+ * それ以前からあった）。Next 自身も `copyNextJsInternalHistoryState` で
+ * 同じことをしている。
+ */
+function withNextHistoryState(extra: Record<string, unknown>): Record<string, unknown> {
+    const cur = (typeof window !== "undefined" ? window.history.state : null) as Record<string, unknown> | null;
+    const out: Record<string, unknown> = { ...extra };
+    if (cur?.__NA) out.__NA = cur.__NA;
+    if (cur?.__PRIVATE_NEXTJS_INTERNALS_TREE) out.__PRIVATE_NEXTJS_INTERNALS_TREE = cur.__PRIVATE_NEXTJS_INTERNALS_TREE;
+    return out;
+}
+
 export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
     // ISO日付を正規化ステップで一度だけ計算（ソート時の繰り返しパースを回避）
     const PHOTOS = useMemo(
@@ -233,7 +252,7 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
         if (!params.has("photo")) return;
         params.delete("photo");
         const search = params.toString();
-        window.history.replaceState({}, "", search ? `?${search}` : window.location.pathname);
+        window.history.replaceState(withNextHistoryState({}), "", search ? `?${search}` : window.location.pathname);
     }, []);
 
     /**
@@ -248,7 +267,7 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
      * 積むのは**開いた1回だけ**。前後に送るたびに積むと、閉じるのに
      * 送った回数ぶん戻るを押すことになる。
      */
-    const pushedHistoryRef = useRef(false);
+    const modalEntryRef = useRef<"ours" | "url" | null>(null);
 
     useEffect(() => {
         if (typeof window === "undefined") return;
@@ -267,38 +286,45 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
         const search = params.toString();
         const url = search ? `?${search}` : window.location.pathname;
 
-        // **URL に既にその写真が載っているなら積まない。**
-        // 共有リンク（`/?photo=<id>`）や通知から来た場合、その履歴の1件が
-        // 既に「モーダルが開いている状態」を指している。ここで積むと、
-        // 閉じたときに戻る先が**`?photo=` の付いた URL**になり、
-        // 画面には何も開いていないのにアドレスバーだけが写真を指す
-        // ——`8a01e13` が直した食い違いに逆戻りする。
-        const alreadyInUrl = new URLSearchParams(window.location.search).get("photo") === openPhotoId;
-
-        // 開いた瞬間だけ1件積む（戻るで閉じられるようにする）
-        if (openPhotoId && !alreadyInUrl && !pushedHistoryRef.current) {
-            pushedHistoryRef.current = true;
-            window.history.pushState({ photoModal: openPhotoId }, "", url);
+        if (openPhotoId) {
+            // **「モーダルの履歴エントリ」は開いている間ずっと1つ。**
+            // 誰のものかまで覚える——`"ours"`（自分で積んだ）と
+            // `"url"`（共有リンク・通知で来た＝そのエントリが既に
+            // 開いている状態を指す）で、閉じ方が変わる。
+            //
+            // 前の版は「**いま**の URL にその id が載っているか」だけで
+            // 決めていたので、共有リンクで開いて**次へ送った瞬間に条件が
+            // 揃って積んで**しまい、閉じると `back()` が1枚目のエントリへ
+            // 戻して**モーダルが開き直っていた**（1回目の「閉じる」が
+            // 効かない）。実ブラウザで再現済み。
+            if (modalEntryRef.current === null) {
+                const alreadyInUrl = new URLSearchParams(window.location.search).get("photo") === openPhotoId;
+                if (alreadyInUrl) {
+                    // 共有リンク・通知。ここで積むと、閉じたときの戻り先が
+                    // `?photo=` 付きになり、画面と アドレスバーが食い違う
+                    modalEntryRef.current = "url";
+                } else {
+                    modalEntryRef.current = "ours";
+                    window.history.pushState(withNextHistoryState({ photoModal: openPhotoId }), "", url);
+                    return;
+                }
+            }
+            // 送るたびには積まない（積むと閉じるのに送った回数ぶん戻ることになる）
+            window.history.replaceState(withNextHistoryState({ photoModal: openPhotoId }), "", url);
             return;
         }
-        // 閉じたとき、自分が積んだ1件がまだ載っているなら**戻して消す**。
-        // ここで `replaceState` にすると、履歴には「?photo= の無い同じ
-        // ページ」が2件並び、閉じたあとの戻るが**空振り**になる
-        // （押しても何も起きない）。戻るで閉じた場合は popstate が既に
-        // 1件戻しているので、state を見て二重に戻らないようにする。
-        if (!openPhotoId && pushedHistoryRef.current) {
-            pushedHistoryRef.current = false;
-            const state = window.history.state as { photoModal?: string } | null;
-            if (state?.photoModal) {
-                window.history.back();
-                return;
-            }
+
+        // 閉じた。自分が積んだ1件がまだ現在地なら**戻して消す**。
+        // `replaceState` で消すと「?photo= の無い同じページ」が2件並び、
+        // 閉じたあとの戻るが**空振り**になる。戻る操作で閉じた場合は
+        // popstate が既に1件戻しているので、印を見て二重に戻さない。
+        const entry = modalEntryRef.current;
+        modalEntryRef.current = null;
+        if (entry === "ours" && (window.history.state as { photoModal?: string } | null)?.photoModal) {
+            window.history.back();
+            return;
         }
-        window.history.replaceState(
-            openPhotoId ? { photoModal: openPhotoId } : {},
-            "",
-            url,
-        );
+        window.history.replaceState(withNextHistoryState({}), "", url);
     }, [filters, openPhotoId]);
 
     // 依存配列なし → 参照が変わらない安定したコールバック
