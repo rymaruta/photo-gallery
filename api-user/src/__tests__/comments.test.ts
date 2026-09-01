@@ -665,29 +665,67 @@ describe("コメント追記: バイト数でも溢れさせない", () => {
         id: `c${i}`, uid: `u${i}`, name: "あ".repeat(100), text: "あ".repeat(500), t: "2026-01-01T00:00:00.000Z",
     });
 
-    it("溢れるなら、追記の前に古い方を落とす", async () => {
+    it("溢れるなら、落とすのと足すのを1回の書き込みでやる", async () => {
         // 200件 ≈ 370KB。このまま足すと 400KB を超える
         const existing = Array.from({ length: 200 }, (_, i) => fat(i));
+        let items = existing;
         const writes: Record<string, unknown>[] = [];
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
             if (cmd.constructor.name === "GetCommand") {
                 const id = String((cmd.input.Key as { id?: string })?.id ?? "");
                 if (id === "p1") return Promise.resolve({ Item: { id: "p1", src: "s", userId: "owner" } });
-                return Promise.resolve({ Item: { items: existing } });
+                return Promise.resolve({ Item: { items } });
             }
             writes.push(cmd.input);
-            return Promise.resolve({ Attributes: { items: existing } });
+            // 書けたら実際に反映する（**モックが書き込みを無視していると、
+            // 409 で終わっているのにテストが緑になる**——実際そうなっていた）
+            const kept = (cmd.input.ExpressionAttributeValues as Record<string, Comment[]>)?.[":kept"];
+            if (kept) items = kept;
+            return Promise.resolve({ Attributes: { items } });
+        });
+
+        const res = await invoke(postComment, ev("me", { id: "p1" }, { text: "新しい" }));
+
+        expect(res.statusCode, "落としただけで、コメントが入っていない").toBe(200);
+
+        const write = writes.find((w) => String(w.UpdateExpression ?? "").includes("SET #items = :kept"));
+        expect(write, "溢れるのに、落とさずそのまま追記している").toBeDefined();
+        const kept = (write!.ExpressionAttributeValues as Record<string, Comment[]>)[":kept"];
+        expect(kept.length, "落としていない").toBeLessThan(existing.length + 1);
+        // **同じ書き込みで足りている**（落とすだけの書き込みを残さない）
+        expect(kept[kept.length - 1].text, "落とすのと足すのが別々の書き込みになっている").toBe("新しい");
+        expect(kept[kept.length - 2].id).toBe("c199");   // 落とすのは古い方
+        expect(Buffer.byteLength(JSON.stringify(kept), "utf8")).toBeLessThan(350 * 1024);
+    });
+
+    // **落とした分を「+1」で表せない。** 落とすと `COMMENTS_MAX`(200) に
+    // 届かなくなるので、件数側の「実数に合わせる」経路も走らない
+    // ——モーダルは「コメント 500件」、写真ページは「190」と、同じ写真に
+    // 2つの数字が出る（この関数が一度潰した壊れ方）。
+    it("落としたら、写真の commentCount は実数に合わせる", async () => {
+        const existing = Array.from({ length: 200 }, (_, i) => fat(i));
+        let items = existing;
+        const writes: { key: string; input: Record<string, unknown> }[] = [];
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string })?.id ?? "");
+                if (id === "p1") return Promise.resolve({ Item: { id: "p1", src: "s", userId: "owner" } });
+                return Promise.resolve({ Item: { items } });
+            }
+            writes.push({ key: String((cmd.input.Key as { id?: string })?.id ?? ""), input: cmd.input });
+            const kept = (cmd.input.ExpressionAttributeValues as Record<string, Comment[]>)?.[":kept"];
+            if (kept) items = kept;
+            return Promise.resolve({ Attributes: { items } });
         });
 
         await invoke(postComment, ev("me", { id: "p1" }, { text: "新しい" }));
 
-        const pretrim = writes.find((w) => String(w.UpdateExpression ?? "").includes("SET #items = :kept"));
-        expect(pretrim, "溢れるのに、落とさずそのまま追記している").toBeDefined();
-        const kept = (pretrim!.ExpressionAttributeValues as Record<string, Comment[]>)[":kept"];
-        expect(kept.length, "落としていない").toBeLessThan(existing.length);
-        // 落とすのは**古い方**（末尾が新しい）
-        expect(kept[kept.length - 1].id).toBe("c199");
-        expect(Buffer.byteLength(JSON.stringify(kept), "utf8")).toBeLessThan(350 * 1024);
+        const countWrite = writes.find((w) => w.key === "p1" && String(w.input.UpdateExpression ?? "").includes("commentCount"));
+        expect(countWrite, "件数を更新していない").toBeDefined();
+        expect(String(countWrite!.input.UpdateExpression), "落とした分がカウントに残り続ける（+1 のまま）")
+            .not.toContain("if_not_exists");
+        const n = (countWrite!.input.ExpressionAttributeValues as Record<string, number>)[":n"];
+        expect(n, "実数と違う").toBe(items.length);
     });
 
     it("収まっているなら、余計な書き込みをしない（正常系）", async () => {

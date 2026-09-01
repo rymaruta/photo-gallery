@@ -59,6 +59,17 @@ describe("/user/edit: 英語しか無い項目には注記を出す", () => {
         expect(screen.queryByText(/しか持っていません/), "日本語があるのに注記が出ている").toBeNull();
     });
 
+    // 欄には空白が入る（`titleToText` は `o.ja || o.en` で空白を採用する）。
+    // ここで「英語しか持っていません」と出すのは事実と違う
+    it("空白だけの日本語でも、英語しか無いとは言わない", async () => {
+        const { container } = load({ ...base, title: { ja: "   ", en: "Sunset" }, description: "" });
+        // `findByDisplayValue` は空白を正規化してしまうので、値は直接見る
+        await screen.findByText("タイトル");
+        const input = container.querySelector('input[type="text"]') as HTMLInputElement;
+        expect(input.value, "英語の方を入れている").toBe("   ");
+        expect(screen.queryByText(/しか持っていません/), "欄の中身と注記が食い違っている").toBeNull();
+    });
+
     it("文字列そのままのタイトルでも出さない", async () => {
         load({ ...base, title: "夕焼け", description: "" });
         expect(await screen.findByDisplayValue("夕焼け")).toBeInTheDocument();

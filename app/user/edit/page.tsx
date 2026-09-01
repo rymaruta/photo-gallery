@@ -43,7 +43,12 @@ function titleToText(t: Photo["title"]): string {
 function isEnglishOnly(v: Photo["title"] | Photo["description"]): boolean {
     if (!v || typeof v === "string") return false;
     const o = v as Record<string, unknown>;
-    const has = (x: unknown) => (Array.isArray(x) ? x.length > 0 : typeof x === "string" && x.trim().length > 0);
+    // **`titleToText` / `descToText` と同じ数え方にする。** あちらは
+    // `o.ja || o.en` で、空白だけの `ja` は truthy なので**日本語として
+    // 採用される**。ここだけ `trim()` して見ていたので、欄には空白が
+    // 入っているのに「英語しか持っていません」という**事実と違う注記**が
+    // 出ていた。
+    const has = (x: unknown) => (Array.isArray(x) ? x.length > 0 : typeof x === "string" && x.length > 0);
     return !has(o.ja) && has(o.en);
 }
 

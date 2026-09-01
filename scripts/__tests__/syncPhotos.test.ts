@@ -164,15 +164,30 @@ describe("公開JSONから落とす項目", () => {
     });
 
     // **秘密ではなく、古くなる数。** 定期ビルドを止めている今、ビルド時の
-    // いいね・コメント数が静的HTMLに焼かれ、以後どれだけ増えてもそのまま
-    // 出続ける。読み手は全部「0 なら描かない」形なので、載せなければ
-    // 「APIが答えるまで出さない」になる（間違った数を出すよりよい）。
-    it.each(["likes", "commentCount"])("%s は出さない（古い数字を焼かない）", (field) => {
+    // コメント数が静的HTMLに焼かれ、以後どれだけ増えてもそのまま出続ける。
+    // 読み手（モーダルのキャプション・写真ページのコメント欄）はどちらも
+    // 「0 なら描かない」形なので、載せなければ「APIが答えるまで出さない」
+    // になる（間違った数を出すよりよい）。
+    it("commentCount は出さない（古い数字を焼かない）", () => {
         const out = stripPrivateFields({
             id: "p1", src: "https://cdn/x.jpg", title: "あ", likes: 12, commentCount: 3,
         });
-        expect(out[field], `${field} がビルド時の値のまま公開JSONに載っている`).toBeUndefined();
-        expect(PRIVATE_FIELDS).toContain(field);
+        expect(out.commentCount, "ビルド時の値のまま公開JSONに載っている").toBeUndefined();
+        expect(PRIVATE_FIELDS).toContain("commentCount");
+    });
+
+    // **`likes` は落とさない。** 同じ理由で一度落としたが、読み手を数え
+    // 違えていた——「人気順」（`useGallery`）は `likes` が無いと全部 0 同士に
+    // なって**黙って効かなくなり**、`/photos` が落ちた回は永久に戻らない。
+    // プロフィールの「いいね」ピルはガード無しなので、静的生成されるHTMLが
+    // **全員「いいね 0」と言い切る**。落とすならこの2つを「未取得」と
+    // 「0」で分けてから。
+    it("likes は落とさない（人気順と、ガードの無いピルが読む）", () => {
+        const out = stripPrivateFields({
+            id: "p1", src: "https://cdn/x.jpg", title: "あ", likes: 12, commentCount: 3,
+        });
+        expect(out.likes, "人気順が黙って効かなくなる／HTMLが「いいね 0」と言い切る").toBe(12);
+        expect(PRIVATE_FIELDS).not.toContain("likes");
     });
 
     it("表に出す項目は落とさない", () => {

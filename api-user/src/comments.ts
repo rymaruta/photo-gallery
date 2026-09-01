@@ -224,6 +224,9 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         let appended: Awaited<ReturnType<typeof ddb.send>> | undefined;
         // 追記後の姿。応答を取り逃した回は、読み直した一覧がそれにあたる。
         let storedItems: unknown;
+        // バイト超過で落としたときの**実数**。落とした分は「+1」では
+        // 表せない（下の commentCount を見よ）
+        let exactCount: number | undefined;
         {
             for (let attempt = 0; ; attempt++) {
                 const existing = await readComments(photoId, attempt > 0);
@@ -248,25 +251,43 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
                 // その写真は以後コメントを1件も受け付けなくなる（下の
                 // 切り詰めは追記のあとにしか走らない）。落とすのは古い方
                 // ——件数の上限と同じ向き。
+                //
+                // **落とすのと足すのは1回の書き込みでやる。** 別々にすると、
+                // 切り詰めだけ成功して追記が競合し続けたときに
+                // 「他人のコメントを数件消して、自分のは入らないまま 409」
+                // になる（この下の件数の切り詰めが「書けたときだけ印を立てる」
+                // 形になっているのと同じ理由）。
                 const drop = overBudgetCount(existing, comment);
                 if (drop > 0) {
-                    if (attempt >= COMMENT_APPEND_RETRIES) {
-                        return jsonError(409, "他の投稿と重なりました。もう一度お試しください");
-                    }
+                    const kept = [...existing.slice(drop), comment];
                     try {
                         await ddb.send(new UpdateCommand({
                             TableName: PHOTOS_TABLE,
                             Key: { id: commentsId(photoId) },
-                            UpdateExpression: "SET #items = :kept",
+                            UpdateExpression: "SET #items = :kept, photoId = :pid, updatedAt = :now",
                             ConditionExpression: "size(#items) = :len",
                             ExpressionAttributeNames: { "#items": "items" },
-                            ExpressionAttributeValues: { ":kept": existing.slice(drop), ":len": existing.length },
+                            ExpressionAttributeValues: {
+                                ":kept": kept, ":len": existing.length, ":pid": photoId, ":now": comment.t,
+                            },
                         }));
+                        storedItems = kept;
+                        // 捨てたぶんを件数に反映する。**「+1」で済ませると、
+                        // バイト超過で落とした分がカウントに残り続ける**
+                        // ——しかも落とした結果 `COMMENTS_MAX` に届かなく
+                        // なるので、下の「実数に合わせる」経路も走らない。
+                        // 同じ写真に2つの数字が出る、この関数が一度潰した
+                        // 壊れ方に戻る。
+                        exactCount = kept.length;
+                        break;
                     } catch (e) {
                         if ((e as { name?: string }).name !== "ConditionalCheckFailedException") throw e;
-                        // 競合した。読み直してからやり直す
+                        if (attempt >= COMMENT_APPEND_RETRIES) {
+                            return jsonError(409, "他の投稿と重なりました。もう一度お試しください");
+                        }
+                        await new Promise((r) => setTimeout(r, 10 * 2 ** attempt + Math.random() * 10));
+                        continue;
                     }
-                    continue;   // 読み直して、空いた状態で追記する
                 }
                 try {
                     appended = await ddb.send(new UpdateCommand(appendArgs({ len: existing.length })));
@@ -331,6 +352,13 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
                 ? {
                     UpdateExpression: "SET commentCount = :max",
                     ExpressionAttributeValues: { ":max": COMMENTS_MAX },
+                }
+                : exactCount !== undefined
+                ? {
+                    // バイト超過で落とした回。落とした分を残すと、
+                    // モーダルと写真ページで**同じ写真に2つの数字**が出る
+                    UpdateExpression: "SET commentCount = :n",
+                    ExpressionAttributeValues: { ":n": exactCount },
                 }
                 : {
                     UpdateExpression: "SET commentCount = if_not_exists(commentCount, :z) + :one",

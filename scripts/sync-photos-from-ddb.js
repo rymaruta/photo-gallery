@@ -101,12 +101,26 @@ function checkWriteSafety(nextCount, prevCount, { allowEmpty = ALLOW_EMPTY } = {
 // 残りうる。公開する JSON に内部の事情を出さない
 // 公開JSONに載せない項目。
 //
-// `likes` / `commentCount` は**秘密ではなく、古くなる数**。定期ビルドを
-// 止めている今、ビルド時の値が静的HTMLに焼かれ、以後どれだけ増えても
-// そのまま出続ける。読み手（モーダルのキャプション・写真ページ・
-// プロフィールの合計）はどれも「0 なら描かない」形なので、載せなければ
-// **APIが答えるまで数字を出さない**（＝間違った数を出さない）になる。
-const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "likes", "commentCount"];
+// `commentCount` は**秘密ではなく、古くなる数**。定期ビルドを止めている今、
+// ビルド時の値が静的HTMLに焼かれ、以後どれだけ増えてもそのまま出続ける。
+// 読み手（モーダルのキャプション・写真ページのコメント欄）はどちらも
+// 「0 なら描かない」形なので、載せなければ **APIが答えるまで数字を
+// 出さない**（＝間違った数を出さない）になる。
+//
+// **`likes` は落とさない（訂正）。** 同じ理由で一度落としたが、読み手を
+// 数え違えていた。`likes` には「0 なら描かない」で済まない使い手が2つある:
+//
+//   1. `lib/hooks/useGallery.ts` の「人気順」——`(b.likes ?? 0) - (a.likes ?? 0)`。
+//      無ければ全部 0 同士で**黙って並べ替えが効かなくなる**。しかも
+//      `/photos` が落ちた回は `usePhotos` が差し替えないので**永久に**。
+//      利用者からは「人気順を選んだのに新着順のような並び」としか見えない。
+//   2. `app/users/UserProfileClient.tsx` の「いいね」ピル——ガード無しで
+//      `totalLikes` を描く。プロフィールは静的生成されるので、
+//      **全員のHTMLが「いいね 0」と言い切る**（クローラが見るのはこれ）。
+//      古い数から「確実に嘘の 0」への入れ替えになる。
+//
+// 落とすなら、この2つを「未取得」と「0」で分けてからにすること。
+const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "commentCount"];
 
 function stripPrivateFields(item) {
     const out = { ...item };
