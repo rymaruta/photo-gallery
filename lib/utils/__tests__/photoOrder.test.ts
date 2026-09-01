@@ -177,7 +177,20 @@ describe("compareAdmin（管理画面の並び）", () => {
             .toEqual([["noon", "dayOnly"], ["noon", "dayOnly"], ["noon", "dayOnly"]]);
     });
 
-    it("同じキーなら id 昇順で決まる（どちら向きでも）", () => {
+    // **同キーを id で決めない。** 最初の版はそうしていて、実データの
+    // 唯一の同キー組（`date: "2026-04-29"` の2枚）が
+    //   compareAdmin  木を覆う苔(07:30) → 白鳥と湖(13:25)
+    //   compareNewest 白鳥と湖(13:25) → 木を覆う苔(07:30)
+    // と**サイト側と逆**になっていた。旧実装（取得時 updatedAt 降順 +
+    // 安定ソート）とも逆で、この関数の存在理由とも逆。
+    it("同じ日付なら、最後に手を入れた方が先（id では決めない）", () => {
+        const early = photo("aaa", { date: "2026-04-29", updatedAt: "2026-04-29T07:30:00Z" });
+        const late = photo("zzz", { date: "2026-04-29", updatedAt: "2026-04-29T13:25:00Z" });
+        expect(sortNew([early, late]), "id の大小で決めている").toEqual(["zzz", "aaa"]);
+        expect(sortOld([late, early]), "古い順でも向きが鏡になっていない").toEqual(["aaa", "zzz"]);
+    });
+
+    it("更新日も同じなら id で決める（最後の砦・両方向とも昇順）", () => {
         const a = photo("a", { date: "2024-01-01" });
         const b = photo("b", { date: "2024-01-01" });
         expect(sortNew([b, a])).toEqual(["a", "b"]);

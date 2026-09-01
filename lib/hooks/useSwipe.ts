@@ -98,7 +98,12 @@ export function useSwipe(options: SwipeOptions = {}) {
 
     const handleEnd = useCallback(() => {
         if (!isDraggingRef.current || !touchStartRef.current) {
+            // ここでも座標を捨てる。**不変条件を片方の枝だけにしない**
+            // ——「追跡していない ⇒ 座標も無い」を全経路で成り立たせて
+            // おけば、`onTouchEnd` 側は座標の有無を見るだけで足りる
             isDraggingRef.current = false;
+            touchStartRef.current = null;
+            touchMoveRef.current = null;
             return;
         }
 
@@ -160,11 +165,14 @@ export function useSwipe(options: SwipeOptions = {}) {
             // 他の既定動作を不必要にブロックしない）。**発火と同じ述語**で
             // 判断する——別々に書いていたので、ゆっくり引いたときに
             // 「送られないのに click だけ潰される」が起きていた
+            // 座標が残っているのは追跡中の指だけ（降りる経路——
+            // マルチタッチ・`touchcancel`・`handleEnd` の両枝——は
+            // すべて座標も捨てる）。**守りを二重にしない**: 二重だと
+            // 片方を壊してもテストが緑のままになる（この campaign で
+            // 何度も出た型）
             const s0 = touchStartRef.current;
             const m0 = touchMoveRef.current;
-            // 追跡していない指（マルチタッチで降りた・既に終わった）は
-            // 何も潰さない
-            if (isDraggingRef.current && s0 && m0) {
+            if (s0 && m0) {
                 const dir = decide(m0.x - s0.x, m0.y - s0.y, m0.time - s0.time);
                 if (dir === "left" || dir === "right") e.preventDefault();
             }

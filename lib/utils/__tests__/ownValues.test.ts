@@ -107,6 +107,17 @@ describe("タグは同じもの同士を畳む（比べ方は絞り込みと同�
         expect(v.tags).toEqual(["Fuji"]);
     });
 
+    // **1枚の中で2通り書いた場合の票を落としていた。** 重複除去より
+    // 後ろで数えていたので、先に見た方だけが票を持ち、同じ写真集合でも
+    // タグ配列の並び順で代表表記が変わっていた（実測で `Fuji` / `fuji`
+    // に割れた）。回数の数え方（1枚1回）はそのまま。
+    it("1枚が2通りで書いていても、代表は写真集合だけで決まる", () => {
+        const a = collectOwnValues([P({ tags: ["Fuji", "fuji"] }), P({ tags: ["Fuji"] })]).tags;
+        const b = collectOwnValues([P({ tags: ["fuji", "Fuji"] }), P({ tags: ["Fuji"] })]).tags;
+        expect(a, "タグ配列の並び順で代表表記が変わっている").toEqual(b);
+        expect(a).toEqual(["Fuji"]);
+    });
+
     it("同数なら文字順で固定（配列の順で入れ替わらない）", () => {
         const a = collectOwnValues([P({ tags: ["Fuji"] }), P({ tags: ["fuji"] })]).tags;
         const b = collectOwnValues([P({ tags: ["fuji"] }), P({ tags: ["Fuji"] })]).tags;

@@ -45,11 +45,18 @@ function collectTags(photos: readonly Photo[], limit: number): string[] {
             const v = raw.trim();
             if (!v) continue;
             const key = tagKey(v);
-            if (seen.has(key)) continue;
-            seen.add(key);
             const g = groups.get(key) ?? { total: 0, raws: new Map<string, number>() };
-            g.total += 1;
+            // **表記の票は、畳む前に必ず数える。** `seen` の後ろに置くと、
+            // 1枚の中で2通り書いた片方（先に見た方）の票だけが入り、
+            // **同じ写真集合でもタグ配列の並び順で代表表記が変わる**
+            // （実測: `["Fuji","fuji"]` と `["fuji","Fuji"]` で結果が
+            // `Fuji` / `fuji` に割れた）
             g.raws.set(v, (g.raws.get(v) ?? 0) + 1);
+            // 使った回数（＝並び順）は写真1枚につき1回だけ
+            if (!seen.has(key)) {
+                seen.add(key);
+                g.total += 1;
+            }
             groups.set(key, g);
         }
     }

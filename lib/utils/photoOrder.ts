@@ -132,14 +132,33 @@ export function compareOldest(a: Photo, b: Photo): number {
  *
  * の2つを持っていた。同じ写真がサイト側と管理側で違う順に見える入口。
  *
- * 同キーは id 昇順で必ず決める（`tieBreak` と同じ理由——安定ソートが
- * 保つのは「入力の順」で、入力の順は取得のたびに変わりうる）。
+ * **同キーを id で決めない。** すぐ上の `tieBreak` が「id だけで決めると
+ * 意味の無い順（UUID の大小）に固定される」と書いているのに、最初の版は
+ * まさにそれを踏んでいた。実データで測ると、同じ `date: "2026-04-29"` の
+ * 2枚が
+ *
+ *     compareAdmin（id 昇順）  木を覆う苔(07:30) → 白鳥と湖(13:25)
+ *     サイト側 compareNewest   白鳥と湖(13:25) → 木を覆う苔(07:30)
+ *
+ * と**逆**になっていた。「同じ写真がサイトと管理で違う順に見える入口を
+ * 塞ぐ」ためのコミットで、新しい入口を開けていたことになる。しかも
+ * 旧実装（取得時 updatedAt 降順 + 安定ソート）とも逆で、この関数の
+ * 存在理由（さっき直したやつを上に）とも逆だった。
+ *
+ * 決着は**最後に手を入れた順** → id。日付だけの `date` は珍しくないので、
+ * 同じ日に撮った複数枚は全部この経路を通る。
  */
+function adminTieBreak(a: Photo, b: Photo, newest: boolean): number {
+    const touched = (p: Photo) => stripZone(String(p.updatedAt ?? p.createdAt ?? ""));
+    const byTouched = newest ? cmp(touched(b), touched(a)) : cmp(touched(a), touched(b));
+    if (byTouched !== 0) return byTouched;
+    return cmp(String(a.id ?? ""), String(b.id ?? ""));
+}
+
 export function compareAdmin(a: Photo, b: Photo, newest: boolean): number {
     const key = (p: Photo) => stripZone((p.date || p.updatedAt || p.createdAt || "").toString());
     const diff = newest ? cmp(key(b), key(a)) : cmp(key(a), key(b));
-    if (diff !== 0) return diff;
-    return cmp(String(a.id ?? ""), String(b.id ?? ""));
+    return diff !== 0 ? diff : adminTieBreak(a, b, newest);
 }
 
 /** 新しい順に並べた**新しい配列**を返す（引数は変えない）。 */

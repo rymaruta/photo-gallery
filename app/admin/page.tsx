@@ -9,17 +9,11 @@ import { useLocale } from "../i18n/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { PencilIcon, TrashIcon, PlusIcon } from "@heroicons/react/24/outline";
 import type { Photo } from "@/lib/data/photos";
-import { compareAdmin } from "@/lib/utils/photoOrder";
+import { selectVisiblePhotos } from "./visiblePhotos";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import { log } from "../../lib/utils/log";
 import { ROUTES } from "../../lib/routes";
 import { readApiError } from "../../lib/utils/api";
-
-// 検索対象のテキスト（タイトル・場所・カテゴリ・タグ）を1本の文字列にする
-function photoSearchText(p: Photo): string {
-    const title = typeof p.title === "string" ? p.title : [p.title?.ja, p.title?.en].filter(Boolean).join(" ");
-    return [title, p.location, p.category, ...(p.tags ?? [])].filter(Boolean).join(" ").toLowerCase();
-}
 
 export default function AdminPage() {
     const { isAuthenticated, isAdminUser, loading } = useAuth();
@@ -189,19 +183,12 @@ export default function AdminPage() {
     };
 
     // 検索・絞り込み・並び替え（写真が増えても古い1枚に手が届くように）
-    const visiblePhotos = useMemo(() => {
-        const q = query.trim().toLowerCase();
-        const filtered = photos.filter((p) => {
-            if (status === "published" && p.published === false) return false;
-            if (status === "draft" && p.published !== false) return false;
-            if (!q) return true;
-            return photoSearchText(p).includes(q);
-        });
-        // 並べ方は `lib/utils/photoOrder.ts` に置く（サイト側と同じ比べ方に
-        // 揃える。ここだけ `Date.parse` のままだと、空文字の `date` を
-        // 拾えず、ゾーン無しの日時で並びが閲覧者のTZに左右される）
-        return [...filtered].sort((a, b) => compareAdmin(a, b, sort === "new"));
-    }, [photos, query, status, sort]);
+    // 中身は `./visiblePhotos.ts`（この画面は単体で描けないので、絞り込みと
+    // 並びの向きはそちらで確かめる）
+    const visiblePhotos = useMemo(
+        () => selectVisiblePhotos(photos, { query, status, sort }),
+        [photos, query, status, sort],
+    );
 
     // ローディング中または認証されていない場合
     if (loading || !isAuthenticated || !isAdminUser) {
