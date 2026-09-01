@@ -30,7 +30,7 @@ export default function UserSearchPage() {
     const [query, setQuery] = useState("");
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const { users, loading } = useUserSearch(query);
+    const { users, loading, failed } = useUserSearch(query);
 
     // 開いたらすぐ入力できる
     useEffect(() => { inputRef.current?.focus(); }, []);
@@ -44,7 +44,12 @@ export default function UserSearchPage() {
     // input を見ていた頃は、日本語入力の変換中（composing）は query が
     // 空のまま＝検索が走っていないのに、1文字目から
     // 「見つかりませんでした」が出続けていた。
-    const showEmpty = isSearchableQuery(query.trim().replace(/^@+/, "")) && !loading && users.length === 0;
+    // **失敗と 0件を分ける。** `loading` とは分けてあったが、エラーは
+    // 0件と同じ扱いで「見つかりませんでした」が出ていた——API が落ちて
+    // いるだけなのに「その人は登録していない」と読める。
+    const searched = isSearchableQuery(query.trim().replace(/^@+/, "")) && !loading;
+    const showEmpty = searched && !failed && users.length === 0;
+    const showFailed = searched && failed && users.length === 0;
 
     return (
         <main className="min-h-screen bg-black text-white max-w-2xl mx-auto w-full px-4 pb-16">
@@ -105,6 +110,12 @@ export default function UserSearchPage() {
             {showEmpty && (
                 <p className="text-sm text-white/40 text-center py-10">
                     {isJa ? "見つかりませんでした" : "No one found"}
+                </p>
+            )}
+
+            {showFailed && (
+                <p className="text-sm text-amber-200/80 text-center py-10">
+                    {isJa ? "検索できませんでした。少し待ってからもう一度お試しください。" : "Couldn't search right now. Please try again in a moment."}
                 </p>
             )}
 

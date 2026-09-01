@@ -408,6 +408,17 @@ export default function GalleryPageClient() {
               {locale === "en" ? "Explore all photos" : "みんなの写真を見る"}
             </button>
           </div>
+        ) : filteredPhotos.length === 0 && PHOTOS.length === 0 ? (
+          // **絞り込んでいないのに「該当」と言わない。**
+          // この分岐が無かったので、写真が1枚も無い環境（新しい環境・
+          // 公開が全部消えた）は下の `GalleryGrid` の既定文言
+          // 「該当する写真がありません。」に落ちていた。絞り込んでいない
+          // 人に「該当」と言うと、条件を外そうとして探し回ることになる。
+          <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
+            <p className="text-sm">
+              {locale === "en" ? "No photos yet." : "まだ写真がありません。"}
+            </p>
+          </div>
         ) : filteredPhotos.length === 0 && PHOTOS.length > 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
             <p className="text-sm">

@@ -116,3 +116,61 @@ describe("閲覧者一覧: 取得の失敗", () => {
         expect(screen.queryByText(/まだ閲覧者はいません/)).toBeNull();
     });
 });
+
+
+// **見出しだけ、取得中を「0」と出していた。**
+//
+// 同じ画面のボタン側は `viewers === null` を "..." と正しく出しているのに、
+// 見出しは `{viewers?.length ?? 0}` で null を 0 に潰していた。自分の
+// はじめてのストーリーで開くと「閲覧者 0」が出てから数字が入る
+// ——「誰にも見られていない」と読んで閉じる人が出る。
+describe("閲覧者一覧: 見出しの数字", () => {
+    /** 「閲覧者」の見出しに添えられた文字（数字 or …） */
+    const headingCount = () =>
+        (screen.getByRole("heading", { name: /閲覧者/ }).textContent ?? "").replace("閲覧者", "").trim();
+
+    const open = () => {
+        render(
+            <StoryViewer
+                groups={groups()}
+                initialGroupIndex={0}
+                locale="ja"
+                isAuthenticated
+                ownUserId="me"
+                onSeen={() => { /* noop */ }}
+                onClose={() => { /* noop */ }}
+            />,
+        );
+        fireEvent.click(screen.getByRole("button", { name: /閲覧/ }));
+    };
+
+    it("取得中は数字を出さない（0 と言わない）", () => {
+        const d = deferred<unknown>();
+        mockUserFetch.mockImplementation((path: string) =>
+            String(path).includes("/viewers") ? d.promise : Promise.resolve({ ok: true, json: async () => ({}) }));
+
+        open();
+        expect(headingCount(), "取得中なのに「0」と言っている").not.toBe("0");
+    });
+
+    it("届いたらその数を出す", async () => {
+        mockUserFetch.mockImplementation((path: string) =>
+            Promise.resolve(String(path).includes("/viewers")
+                ? viewersOf(["旅子", "山田"])
+                : { ok: true, json: async () => ({}) }));
+
+        open();
+        await waitFor(() => expect(headingCount()).toBe("2"));
+    });
+
+    // 正常系: 本当に0人なら 0 を出す（取得中と取り違えない）
+    it("本当に0人なら 0 を出す", async () => {
+        mockUserFetch.mockImplementation((path: string) =>
+            Promise.resolve(String(path).includes("/viewers")
+                ? viewersOf([])
+                : { ok: true, json: async () => ({}) }));
+
+        open();
+        await waitFor(() => expect(headingCount()).toBe("0"));
+    });
+});

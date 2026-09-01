@@ -135,7 +135,70 @@ describe("NotificationsBell", () => {
         render(<NotificationsBell />);
         await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
         fireEvent.click(screen.getByRole("button", { name: "通知" }));
-        expect(screen.getByText(/いいね・行きたいリスト追加・旅立ちの報告がここに届きます/)).toBeInTheDocument();
+        expect(screen.getByText(/いいね・コメント・フォローがここに届きます/)).toBeInTheDocument();
+    });
+});
+
+// **空表示の文言が、存在しない機能を2つ案内していた。**
+//
+// 通知を作る側は `likes.ts` / `comments.ts` / `follow.ts` の3つだけで
+// （`notify.ts` の型も `like | comment | follow`）、「行きたいリスト」も
+// 「旅立ちの報告」も作る経路がコードに無い。型のコメントにはそう書いて
+// あるのに、コンポーネント冒頭のコメントと空表示の本文だけが古いまま
+// 残っていた。**登録直後の人が最初に読む文**なので実害が大きい。
+describe("通知が0件のときの案内", () => {
+    const open = async (body: unknown) => {
+        mockUserFetch.mockResolvedValue(fetchOk(body));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+    };
+
+    it("存在しない機能の名前を出さない", async () => {
+        await open({ items: [], unread: 0 });
+        const text = screen.getByText(/ここに届きます/).textContent ?? "";
+        expect(text, "作る側の無い『行きたいリスト』を案内している").not.toMatch(/行きたい/);
+        expect(text, "作る側の無い『旅立ち』を案内している").not.toMatch(/旅立/);
+    });
+
+    it("実際に届く3種類を案内する", async () => {
+        await open({ items: [], unread: 0 });
+        const text = screen.getByText(/ここに届きます/).textContent ?? "";
+        for (const kind of ["いいね", "コメント", "フォロー"]) {
+            expect(text, `${kind} の通知は実在するのに案内していない`).toMatch(kind);
+        }
+    });
+});
+
+// **取得に失敗しても「0件」と同じ画面だった。**
+// 届いている通知が無いように見える（`if (!res.ok) return;` と
+// 握りつぶしの catch）。`useComments`・下書き一覧・StoriesBar は
+// どれもこの区別を持っていて、ベルだけ取り残されていた。
+describe("通知の取得に失敗したとき", () => {
+    it("「0件」の案内を出さない", async () => {
+        mockUserFetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+
+        expect(screen.queryByText(/ここに届きます/), "失敗を「0件」と言っている").toBeNull();
+        expect(screen.getByText(/読み込めませんでした/)).toBeInTheDocument();
+    });
+
+    it("通信が落ちたときも同じ", async () => {
+        mockUserFetch.mockRejectedValue(new TypeError("Failed to fetch"));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+        expect(screen.queryByText(/ここに届きます/)).toBeNull();
+    });
+
+    // 開いた直後（まだ返ってきていない）も「0件」ではない
+    it("まだ返ってきていないうちは「0件」と言わない", async () => {
+        mockUserFetch.mockReturnValue(new Promise(() => { }));
+        render(<NotificationsBell />);
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+        expect(screen.queryByText(/ここに届きます/), "届く前に「0件」と言っている").toBeNull();
     });
 });
 
