@@ -15,6 +15,7 @@ on:
           - image-perf        # 写真表示の速さに効く材料が揃っているか測る
           - story-index       # ストーリー一覧用の GSI を足す（全件 Scan をやめる）
           - normalize-image-urls  # 保存済みの画像URLのホスト名を配信URLに揃える
+          - diagnose          # 本番の設定を読むだけ（索引の射影・日付の形・Cognito・CDN の TTL）
         required: true
       apply:
         description: "true で実際に適用（false は内容の確認のみ）"
@@ -118,3 +119,15 @@ jobs:
         if: inputs.task == 'image-perf'
         run: node scripts/diagnose-image-perf.js
         timeout-minutes: 10
+
+      # **読み取りだけ。** 作業環境からは AWS を叩けない（資格情報が
+      # プレースホルダ）ので、台帳に「要 AWS」で溜まっていた確認を
+      # 資格情報のある CI から1回で済ませる。Describe / Scan(COUNT) / Get のみ。
+      - name: 本番の設定を読む（診断）
+        if: inputs.task == 'diagnose'
+        run: node scripts/diagnose-aws.js
+        timeout-minutes: 10
+        env:
+          COGNITO_USER_POOL_ID: ap-northeast-1_ZbuhDQsWz
+          COGNITO_CLIENT_ID: 21cs4cd8dkttmg3snloj72u8mu
+          CLOUDFRONT_DISTRIBUTION_ID: EYRLTGCPOS9E4
