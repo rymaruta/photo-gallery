@@ -236,6 +236,20 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
         window.history.replaceState({}, "", search ? `?${search}` : window.location.pathname);
     }, []);
 
+    /**
+     * モーダルのために自分で履歴を1件積んだか（HIST-1）。
+     *
+     * **開くときに履歴を積んでいなかった。** URL の同期は全部
+     * `replaceState` なので、グリッドから開いた写真（静的ページがまだ無い
+     * 新着写真は、遷移せずその場でモーダルが開く）は**戻るで閉じずに
+     * ページごと戻る**——スマホの主要導線でこれをやると、一覧のスクロール
+     * 位置も絞り込みもまとめて失う。
+     *
+     * 積むのは**開いた1回だけ**。前後に送るたびに積むと、閉じるのに
+     * 送った回数ぶん戻るを押すことになる。
+     */
+    const pushedHistoryRef = useRef(false);
+
     useEffect(() => {
         if (typeof window === "undefined") return;
         const params = new URLSearchParams();
@@ -251,7 +265,40 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
             params.set("photo", pendingPhotoRef.current);
         }
         const search = params.toString();
-        window.history.replaceState({}, "", search ? `?${search}` : window.location.pathname);
+        const url = search ? `?${search}` : window.location.pathname;
+
+        // **URL に既にその写真が載っているなら積まない。**
+        // 共有リンク（`/?photo=<id>`）や通知から来た場合、その履歴の1件が
+        // 既に「モーダルが開いている状態」を指している。ここで積むと、
+        // 閉じたときに戻る先が**`?photo=` の付いた URL**になり、
+        // 画面には何も開いていないのにアドレスバーだけが写真を指す
+        // ——`8a01e13` が直した食い違いに逆戻りする。
+        const alreadyInUrl = new URLSearchParams(window.location.search).get("photo") === openPhotoId;
+
+        // 開いた瞬間だけ1件積む（戻るで閉じられるようにする）
+        if (openPhotoId && !alreadyInUrl && !pushedHistoryRef.current) {
+            pushedHistoryRef.current = true;
+            window.history.pushState({ photoModal: openPhotoId }, "", url);
+            return;
+        }
+        // 閉じたとき、自分が積んだ1件がまだ載っているなら**戻して消す**。
+        // ここで `replaceState` にすると、履歴には「?photo= の無い同じ
+        // ページ」が2件並び、閉じたあとの戻るが**空振り**になる
+        // （押しても何も起きない）。戻るで閉じた場合は popstate が既に
+        // 1件戻しているので、state を見て二重に戻らないようにする。
+        if (!openPhotoId && pushedHistoryRef.current) {
+            pushedHistoryRef.current = false;
+            const state = window.history.state as { photoModal?: string } | null;
+            if (state?.photoModal) {
+                window.history.back();
+                return;
+            }
+        }
+        window.history.replaceState(
+            openPhotoId ? { photoModal: openPhotoId } : {},
+            "",
+            url,
+        );
     }, [filters, openPhotoId]);
 
     // 依存配列なし → 参照が変わらない安定したコールバック

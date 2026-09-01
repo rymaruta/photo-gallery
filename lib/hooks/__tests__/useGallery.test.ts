@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import useGallery from "../useGallery";
 import type { Photo } from "../../data/photos";
@@ -333,11 +333,42 @@ describe("useGallery", () => {
                 .toBe(result.current.filteredPhotos[0].id);
         });
 
-        it("閉じると ?photo= が消える", () => {
-            const { result } = renderHook(() => useGallery(mockPhotos));
-            act(() => { result.current.open(0); });
-            act(() => { result.current.close(); });
-            expect(new URLSearchParams(window.location.search).get("photo")).toBeNull();
+        // **閉じ方が変わった（HIST-1）。** 開くときに履歴を1件積むように
+        // したので、閉じるときは `history.back()` でその1件を戻して消す。
+        // ブラウザの戻りは非同期なので、URL の確認は1ティック待つ。
+        // `replaceState` で消すと、履歴に「?photo= の無い同じページ」が
+        // 2件並び、閉じたあとの戻るが**空振り**になる。
+        it("閉じると、積んだ1件を戻して ?photo= を消す", async () => {
+            const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+            try {
+                const { result } = renderHook(() => useGallery(mockPhotos));
+                act(() => { result.current.open(0); });
+                act(() => { result.current.close(); });
+                // 実ブラウザではこの `back()` が URL を戻す。jsdom の履歴は
+                // ファイル内のテストで共有されるので、URL ではなく**契約**を見る
+                expect(back, "積んだ履歴を戻していない（戻るが空振りする）").toHaveBeenCalledTimes(1);
+            } finally {
+                back.mockRestore();
+            }
+        });
+
+        // 共有リンク（`/?photo=<id>`）で来たときは、その1件が既に
+        // 「開いている状態」なので積まない。積むと閉じたときの戻り先が
+        // `?photo=` 付きになり、画面と アドレスバーが食い違う
+        it("URL から開いたときは積まない（閉じたら消すだけ）", async () => {
+            const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+            try {
+                window.history.replaceState({}, "", `/?photo=${mockPhotos[0].id}`);
+                const { result } = renderHook(() => useGallery(mockPhotos));
+                act(() => { result.current.openById(mockPhotos[0].id); });
+                expect(back).not.toHaveBeenCalled();
+
+                act(() => { result.current.close(); });
+                expect(back, "積んでいないのに戻している（ページを離れる）").not.toHaveBeenCalled();
+                expect(new URLSearchParams(window.location.search).get("photo")).toBeNull();
+            } finally {
+                back.mockRestore();
+            }
         });
 
         it("前後に送ると ?photo= も追従する", () => {
@@ -421,6 +452,50 @@ describe("useGallery", () => {
             act(() => { result.current.close(); });
             expect(new URLSearchParams(window.location.search).get("photo"),
                 "閉じたのに ?photo= が戻っている").toBeNull();
+        });
+
+        // **戻るで閉じられるようにする（HIST-1）。**
+        // URL の同期は全部 `replaceState` だったので、その場で開いたモーダル
+        // （静的ページがまだ無い新着写真はグリッドのタップで直接開く）は
+        // **戻るで閉じずにページごと戻っていた**——一覧のスクロール位置も
+        // 絞り込みもまとめて失う。スマホの主要導線。
+        it("開くと履歴が1件増える", () => {
+            const before = window.history.length;
+            const { result } = renderHook(() => useGallery(mockPhotos));
+            act(() => { result.current.open(0); });
+            expect(window.history.length, "履歴を積んでいない（戻るでページを離れる）")
+                .toBe(before + 1);
+            expect((window.history.state as { photoModal?: string } | null)?.photoModal)
+                .toBe(result.current.filteredPhotos[0].id);
+        });
+
+        // 送るたびに積むと、閉じるのに送った回数ぶん戻るを押すことになる
+        it("前後に送っても履歴は増えない", () => {
+            const { result } = renderHook(() => useGallery(mockPhotos));
+            act(() => { result.current.open(0); });
+            const afterOpen = window.history.length;
+            act(() => { result.current.next(); });
+            act(() => { result.current.next(); });
+            expect(window.history.length, "送るたびに履歴を積んでいる").toBe(afterOpen);
+        });
+
+        // 閉じたあとに「?photo= の無い同じページ」が2件並ぶと、戻るが空振りする。
+        // **`history.length` は戻っても減らない**（ブラウザも同じ）ので、
+        // 「積んだ印が現在地から外れたか」で見る。
+        // 戻る操作で閉じた場合は popstate が既に1件戻しているので、
+        // ここで もう一度 `back()` を呼ぶと**2件戻ってページを離れる**
+        it("戻る操作で閉じたときは二重に戻さない", () => {
+            const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+            try {
+                const { result } = renderHook(() => useGallery(mockPhotos));
+                act(() => { result.current.open(0); });
+                // 戻るで閉じた状態を作る（積んだ印の無い履歴に載っている）
+                window.history.replaceState({}, "", "/");
+                act(() => { result.current.close(); });
+                expect(back, "二重に戻している（ページを離れる）").not.toHaveBeenCalled();
+            } finally {
+                back.mockRestore();
+            }
         });
 
         it("フィルタと同時に載る（どちらも失わない）", () => {
