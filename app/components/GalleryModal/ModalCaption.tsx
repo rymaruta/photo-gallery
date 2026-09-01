@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { CAPTION_MIN_HEIGHT } from "@/lib/utils/modalLayout";
 import Link from "next/link";
 import { ShareIcon, LinkIcon, MusicalNoteIcon, ChatBubbleOvalLeftIcon } from "@heroicons/react/24/outline";
 import { PlayIcon } from "@heroicons/react/24/solid";
@@ -43,7 +44,13 @@ export default function ModalCaption({
             className="flex-shrink-0 overflow-y-auto bg-black text-white/90 px-4 sm:px-6 py-3 sm:py-4"
             style={{
                 maxHeight: "calc(100vh - 60vh - 40px)",
-                minHeight: "200px",
+                // **下限を画面の高さに連動させる（TAP-7）。** 200px 固定だと、
+                // 画像の下限（300px）と合わせて 500px になり、横向きのスマホの
+                // 外枠（95vh = 356px @ 667x375）に入らない。両方 `flex-shrink-0`
+                // なので縮まず、この箱ごと画面からはみ出して**共有ボタンの行に
+                // 指が届かなくなる**。縦向きでは `min(200px, 30vh)` = 200px な
+                // ので見た目は変わらない
+                minHeight: CAPTION_MIN_HEIGHT,
                 WebkitOverflowScrolling: "touch",
             }}
         >
