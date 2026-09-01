@@ -438,6 +438,19 @@ async function ensureUserPool() {
                 ClientName: names.userPool,
                 GenerateSecret: false, // 静的サイトなのでシークレットは持てない
                 ExplicitAuthFlows: ["ALLOW_USER_SRP_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"],
+                // **アカウントの有無を教えない（A-5）。** 既定（LEGACY）だと
+                // 存在しないメールアドレスには `UserNotFoundException` が返り、
+                // ログイン画面が**登録済みかどうかを確かめる道具**になる
+                // （総当たりでメールアドレスの一覧が作れる）。
+                // `ENABLED` にすると Cognito 側で `NotAuthorizedException` に
+                // 揃う。画面側でも同じ文面に寄せてあるが（`lib/auth/cognito.ts`）、
+                // **入口で塞ぐのが本筋**。
+                // ※ 既にあるクライアントには効かない（この分岐は新規作成のみ）。
+                //   本番に当てるには
+                //   `aws cognito-idp update-user-pool-client --user-pool-id <id>
+                //    --client-id <id> --prevent-user-existence-errors ENABLED`
+                //   が要る（この環境からは AWS を叩けないので未実施）。
+                PreventUserExistenceErrors: "ENABLED",
             }));
             clientId = res.UserPoolClient.ClientId;
             log(`  アプリクライアントを作成しました: ${clientId}`);

@@ -1,4 +1,4 @@
-import { PutCommand, QueryCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
+import { PutCommand, QueryCommand, GetCommand, BatchGetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
 import type { Photo } from "./types";
 
@@ -163,6 +163,24 @@ export async function listMyPhotos(userId: string): Promise<Photo[]> {
  * 再生できない動画が最大24時間出続ける。消してよいかを決める場面では、
  * 実体を参照しうるものを全部見る。
  */
+/**
+ * 自分の生きているメディア項目を、**本体から読み直して**返す。
+ *
+ * **GSI の射影をそのまま信じてはいけない。** ここは
+ * 「このアップロード済みファイルは、まだ写真やストーリーに使われているか」の
+ * 判定に使う（`discardUpload`）。索引が `ALL` でなければ `key` や
+ * `srcOriginal` などの属性が落ちるので、**使われているのに「使われていない」**
+ * と判定して S3 の実体を消す——生きている写真のサムネや原本が消え、
+ * 全員の画面に壊れた画像が出る。しかも `attribute_exists(src)` の絞り込み
+ * 自体が索引側で評価されるので、射影が足りないと**結果が丸ごと空**になり、
+ * どのファイルも「未使用」に見える。
+ *
+ * 本番テーブルの射影がどうなっているかは**この環境から確認できない**
+ * （AWS の資格情報が無い）。**確認しなくても正しく動く形**にするために、
+ * 索引からは id だけを採り、中身は `BatchGetItem` で本体から読み直す。
+ * 他の経路（`getPhotoById` など）が最初からそうしているのと同じ扱い。
+ * 呼ばれるのは「アップロードを取り消す」ときだけなので、回数は多くない。
+ */
 export async function listMyMediaItems(userId: string): Promise<Photo[]> {
     const items: Photo[] = [];
     let lastKey: Record<string, unknown> | undefined;
@@ -178,5 +196,23 @@ export async function listMyMediaItems(userId: string): Promise<Photo[]> {
         items.push(...((res.Items ?? []) as Photo[]));
         lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
     } while (lastKey);
-    return items;
+
+    // **本体から読み直す。** 索引が返した中身は射影次第で欠けている。
+    const ids = items.map((p) => (p as { id?: unknown }).id).filter((v): v is string => typeof v === "string");
+    if (ids.length === 0) return [];
+    const full: Photo[] = [];
+    for (let i = 0; i < ids.length; i += 100) {   // BatchGetItem は1回100件まで
+        const chunk = ids.slice(i, i + 100);
+        let keys = chunk.map((id) => ({ id }));
+        // 未処理分は返ってくるので、無くなるまで拾い直す
+        while (keys.length > 0) {
+            const res = await ddb.send(new BatchGetCommand({
+                RequestItems: { [PHOTOS_TABLE]: { Keys: keys } },
+            }));
+            full.push(...((res.Responses?.[PHOTOS_TABLE] ?? []) as Photo[]));
+            const un = res.UnprocessedKeys?.[PHOTOS_TABLE]?.Keys;
+            keys = (un ?? []) as { id: string }[];
+        }
+    }
+    return full;
 }

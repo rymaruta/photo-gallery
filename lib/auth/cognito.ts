@@ -79,10 +79,19 @@ export async function signIn(username: string, password: string): Promise<{
                     // エラーメッセージを日本語化
                     let errorMessage = err.message || "ログインに失敗しました";
                     
-                    if (err.code === "NotAuthorizedException") {
+                    // **「そのメールアドレスは登録されている」を教えない。**
+                    // `UserNotFoundException` に「ユーザーが見つかりません」と
+                    // 答えると、ログイン画面が**アカウントの有無を確かめる道具**
+                    // になる（総当たりでメールアドレスの一覧が作れる）。
+                    // 正解不正解のどちらでも同じ文面にする——利用者にとっての
+                    // 情報量はほぼ変わらない（打ち直すことに変わりはない）。
+                    //
+                    // 本来はプール側の `PreventUserExistenceErrors` で塞ぐ設定
+                    // だが、**本番プールの現状はこの環境から確認できない**
+                    // （AWS の資格情報が無い）。設定がどうであれ、画面が
+                    // 教えないようにしておく。
+                    if (err.code === "NotAuthorizedException" || err.code === "UserNotFoundException") {
                         errorMessage = "メールアドレスまたはパスワードが正しくありません";
-                    } else if (err.code === "UserNotFoundException") {
-                        errorMessage = "ユーザーが見つかりません";
                     } else if (err.code === "UserNotConfirmedException") {
                         resolve({ success: false, error: "メールアドレスの確認が完了していません", needsVerification: true });
                         return;
@@ -213,7 +222,12 @@ export async function forgotPassword(username: string): Promise<{ success: boole
                 onSuccess: () => resolve({ success: true }),
                 onFailure: (err: { message?: string; code?: string }) => {
                     let msg = err.message || "エラーが発生しました";
-                    if (err.code === "UserNotFoundException") msg = "メールアドレスが見つかりません";
+                    // ここも同じ理由で「登録の有無」を教えない。
+                    // 送信したかどうかは、届いたかどうかで分かる
+                    if (err.code === "UserNotFoundException") {
+                        resolve({ success: true });
+                        return;
+                    }
                     if (err.code === "LimitExceededException") msg = "しばらく時間をおいてから再試行してください";
                     resolve({ success: false, error: msg });
                 },

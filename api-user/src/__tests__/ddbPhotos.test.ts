@@ -71,9 +71,56 @@ describe("listMyMediaItems", () => {
         const { listMyMediaItems } = await import("../ddb-photos");
         await listMyMediaItems("me");
 
-        const query = mockSend.mock.calls.at(-1)![0];
+        const query = mockSend.mock.calls.at(0)![0];
         expect(query.input.FilterExpression).toBe("attribute_exists(src)");
         expect(query.input.FilterExpression).not.toContain("story");
+    });
+
+    // **GSI の射影を信じない。** 使い道は「このアップロード済みファイルは
+    // まだ使われているか」の判定（`discardUpload`）で、索引が `ALL` でなければ
+    // `key` や `srcOriginal` が落ちる——**使われているのに「未使用」**と
+    // 判定して S3 の実体を消し、生きている写真のサムネや原本が消える。
+    // 本番テーブルの射影はこの環境から確認できない（AWS の資格情報が無い）
+    // ので、**確認しなくても正しく動く形**にした: 索引からは id だけ採り、
+    // 中身は本体から読み直す。
+    it("索引の中身を使わず、本体から読み直す", async () => {
+        mockSend
+            .mockResolvedValueOnce({ Items: [{ id: "p1" }, { id: "p2" }], LastEvaluatedKey: undefined })
+            .mockResolvedValueOnce({ Responses: { "photos-test": [
+                { id: "p1", src: "s1", key: "uploads/me/a.jpg" },
+                { id: "p2", src: "s2", key: "uploads/me/b.jpg" },
+            ] } });
+        const { listMyMediaItems } = await import("../ddb-photos");
+        const out = await listMyMediaItems("me");
+
+        const batch = mockSend.mock.calls.at(-1)![0];
+        expect(batch.constructor.name, "本体から読み直していない").toBe("BatchGetCommand");
+        expect((batch.input as { RequestItems: Record<string, { Keys: unknown[] }> })
+            .RequestItems["photos-test"].Keys).toEqual([{ id: "p1" }, { id: "p2" }]);
+        // 索引が返した薄い項目ではなく、読み直した中身が返る
+        expect(out.map((p) => (p as unknown as { key?: string }).key))
+            .toEqual(["uploads/me/a.jpg", "uploads/me/b.jpg"]);
+    });
+
+    it("未処理分は拾い直す（BatchGetItem は取りこぼす）", async () => {
+        mockSend
+            .mockResolvedValueOnce({ Items: [{ id: "p1" }, { id: "p2" }], LastEvaluatedKey: undefined })
+            .mockResolvedValueOnce({
+                Responses: { "photos-test": [{ id: "p1", src: "s1" }] },
+                UnprocessedKeys: { "photos-test": { Keys: [{ id: "p2" }] } },
+            })
+            .mockResolvedValueOnce({ Responses: { "photos-test": [{ id: "p2", src: "s2" }] } });
+        const { listMyMediaItems } = await import("../ddb-photos");
+        const out = await listMyMediaItems("me");
+        expect(out.map((p) => p.id), "取りこぼした分を捨てている（使用中の判定が漏れる）")
+            .toEqual(["p1", "p2"]);
+    });
+
+    it("1件も無ければ読み直しに行かない", async () => {
+        mockSend.mockResolvedValueOnce({ Items: [], LastEvaluatedKey: undefined });
+        const { listMyMediaItems } = await import("../ddb-photos");
+        expect(await listMyMediaItems("me")).toEqual([]);
+        expect(mockSend).toHaveBeenCalledTimes(1);
     });
 });
 
