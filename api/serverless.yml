@@ -88,6 +88,8 @@ custom:
 functions:
   getPhotos:
     handler: src/photos.getPhotos
+    # 未認証で呼べる口。既定の共有ロール（削除・Cognito つき）ではなく読み取り専用へ
+    role: PublicReadRole
     events:
       - httpApi:
           path: /photos
@@ -95,6 +97,8 @@ functions:
 
   getPhoto:
     handler: src/photos.getPhoto
+    # 未認証で呼べる口。既定の共有ロール（削除・Cognito つき）ではなく読み取り専用へ
+    role: PublicReadRole
     events:
       - httpApi:
           path: /photos/{id}
@@ -164,3 +168,54 @@ functions:
           pool: ${param:cognitoPoolName}
           trigger: PostConfirmation
           existing: true
+
+# ---------------------------------------------------------------------------
+# 未認証で呼べる2つの口だけ、専用の最小ロールに分ける（IAM-1。api-user 側と対）
+#
+# 既定では **サービス内の全関数が1つのロールを共有する**ので、認可を一度も
+# 通らない `getPhotos` / `getPhoto` が、写真テーブルの `PutItem`/`DeleteItem`、
+# `uploads/*` の `s3:PutObject`/`DeleteObject`、そして
+# `cognito-idp:AdminAddUserToGroup` まで持っていた。最後のものは
+# PostConfirmation トリガー専用で、**IAM は GroupName を制限できない**
+# （ハンドラ側が `user` 固定にしているのが唯一の歯止め）。
+#
+# この2つが実際に叩くのは読み取りだけ:
+#   getPhotos  listPhotos（Scan）/ listPhotosByUser（索引の Query）
+#   getPhoto   getPhotoById（GetItem）
+#
+# 書き込みは1つも無い。users テーブル・S3・Cognito にも触らない。
+resources:
+  Resources:
+    PublicReadRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:service}-${sls:stage}-${aws:region}-publicRead
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: publicRead
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                # ログ。これが無いと失敗の理由がどこにも残らない
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${sls:stage}*:*
+                - Effect: Allow
+                  Action:
+                    - dynamodb:GetItem
+                    - dynamodb:Query
+                    # 公開一覧は全表 Scan（写真以外も同居しているので
+                    # 絞り込みは読んだあとに効く）。GSI に移すまではこのまま
+                    - dynamodb:Scan
+                  Resource:
+                    - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}
+                    - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}/index/*
