@@ -12,7 +12,7 @@
 const { DynamoDBClient, DescribeTableCommand, ScanCommand } = require("@aws-sdk/client-dynamodb");
 const { CognitoIdentityProviderClient, DescribeUserPoolCommand, DescribeUserPoolClientCommand } = require("@aws-sdk/client-cognito-identity-provider");
 const { CloudFrontClient, GetDistributionConfigCommand } = require("@aws-sdk/client-cloudfront");
-const { LambdaClient, ListFunctionsCommand } = require("@aws-sdk/client-lambda");
+const { LambdaClient, ListFunctionsCommand, GetAccountSettingsCommand } = require("@aws-sdk/client-lambda");
 const { requireEnv } = require("./lib/env");
 
 const REGION = process.env.AWS_REGION || "ap-northeast-1";
@@ -153,10 +153,34 @@ async function lambdaRoles() {
     line(`  → 読み取り専用ロールの関数 ${publicOk}/${PUBLIC_FNS.length} ・ トークンが余計に付いた関数 ${leaked}`);
 }
 
+/**
+ * 同時実行の総枠（`musicSearch` の予約を戻せるか）。
+ *
+ * 2026-09-01、本番の api-user が `reservedConcurrency: 10` で
+ * 「UnreservedConcurrentExecution がアカウントの最低値(10)を下回る」と
+ * 断られ、**デプロイ全体が巻き戻った**（同じ回の IAM 修正まで届かなくなった）。
+ * 予約を 0 に倒して復旧したが、**総枠がいくつかは測っていない**。ここで出す。
+ *
+ * 予約できる上限 = 総枠 - 10（AWS が未予約に残せと言う最低値）。
+ */
+async function concurrency() {
+    head("Lambda の同時実行枠（musicSearch の予約を戻せるか）");
+    const res = await lambda.send(new GetAccountSettingsCommand({}));
+    const limit = res.AccountLimit?.ConcurrentExecutions;
+    const unreserved = res.AccountLimit?.UnreservedConcurrentExecutions;
+    line(`  総枠: ${limit ?? "?"} / 未予約: ${unreserved ?? "?"}`);
+    if (typeof limit === "number") {
+        const room = limit - 10;
+        line(room > 0
+            ? `  → 予約できるのは合計 ${room} まで（総枠 ${limit} − 未予約の最低値 10）`
+            : `  → **1つも予約できない**（総枠 ${limit} が最低値 10 を上回っていない）。枠の引き上げが要る`);
+    }
+}
+
 async function main() {
     PHOTOS_TABLE = requireEnv("PHOTOS_TABLE");
     line(`対象テーブル: ${PHOTOS_TABLE} / region: ${REGION}`);
-    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["cdnTtl", cdnTtl], ["lambdaRoles", lambdaRoles]]) {
+    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["cdnTtl", cdnTtl], ["lambdaRoles", lambdaRoles], ["concurrency", concurrency]]) {
         try {
             await fn();
         } catch (e) {

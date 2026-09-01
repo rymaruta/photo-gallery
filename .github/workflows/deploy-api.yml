@@ -89,8 +89,22 @@ jobs:
               cognitoPoolName=prod-journey-photo-client-spa
               # 削除・非公開のあとに再ビルドを頼む先
               rebuildRepo=${{ github.repository }}
-              # 曲検索の同時実行予約。アカウント全体の枠から取るので本番だけ
-              musicSearchReserved=10
+              # **予約しない。** 以前ここは 10 だったが、本番へ初めて流した
+              # 2026-09-01 に Lambda がこう断った:
+              #   「Specified ReservedConcurrentExecutions for function
+              #    decreases account's UnreservedConcurrentExecution below
+              #    its minimum value of [10]」
+              # このとき staging は既に予約していない（下を見よ）ので、
+              # **本番ひとつで 10 を取るだけで落ちる**。staging を作ったときに
+              # 「両方で取ったから」と読んで staging 側を外したが、それでは
+              # 足りなかった——という測定結果。
+              # **総枠が実際いくつかは未測定**（`diagnose` の
+              # `lambda:GetAccountSettings` で出る）。10 が通らないことだけが
+              # 分かっているので、いまは 0 に倒す。
+              # CloudFormation は UPDATE_FAILED で巻き戻すので、**この1行が
+              # api-user のデプロイ全体を落とす**（IAM の修正も届かなくなった）。
+              # 総枠を上げたら、実測値をもとに戻すこと（`diagnose` が出す）。
+              musicSearchReserved=""
               ;;
             develop)
               envName=staging
