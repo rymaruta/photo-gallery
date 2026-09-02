@@ -2,12 +2,16 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-// **索引名を3か所に書いている。**
+// **索引名を、本番に効く場所だけで3か所に書いている。**
 //
 // `api-user/src/dynamodb.ts` が正。`api/src/ddb-photos.ts` は別サービスなので
 // import できず、`scripts/provision-env.js` は実際に索引を張る側（CommonJS）。
 // やむを得ず複製しているので、ずれを止める（この台帳の型2「複製した規則は
 // 静かにずれる」）。
+//
+// **テストのモックにも同じ文字列が10ファイル以上ある**が、ここでは見ない。
+// あちらは古いままでも本番の挙動は変わらない（緑になるだけ）ので、
+// 突き合わせても「テストがテストを縛る」だけになる。
 //
 // **ずれると症状が出ない。** 存在しない索引を Query すると
 // `ValidationException` になるが、投稿一覧のような読み取りは try/catch や

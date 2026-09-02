@@ -237,7 +237,10 @@ async function freshDisplayNames(ddb, photos) {
         return photos;
     }
     const ids = [...new Set(photos.map((p) => p.userId).filter((v) => typeof v === "string" && v))];
-    if (ids.length === 0) return photos;
+    if (ids.length === 0) {
+        console.log("[sync] 表示名の突き合わせ: 投稿者 0人（引きに行きません）");
+        return photos;
+    }
 
     const names = new Map();
     try {
@@ -274,7 +277,10 @@ async function freshDisplayNames(ddb, photos) {
         else delete copy.displayName;
         return copy;
     });
-    if (changed > 0) console.log(`[sync] 表示名を更新: ${changed}件（投稿者 ${ids.length}人）`);
+    // **更新0件でも必ず出す。** 「0件だった」と「間違ったテーブルを引いて
+    // 誰も見つからなかった」は同じ 0 になる。人数を一緒に出せば、
+    // ログを見るだけで区別できる（別環境のテーブルを引くと 見つかった 0人）。
+    console.log(`[sync] 表示名の突き合わせ: 投稿者 ${ids.length}人 / 見つかった ${names.size}人 / 更新 ${changed}件`);
     return out;
 }
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -35,6 +35,14 @@ const photo = (id: string, userId: string, displayName?: string) =>
     ({ id, userId, src: `https://cdn/${id}.jpg`, ...(displayName ? { displayName } : {}) });
 
 beforeEach(() => { mockSend.mockReset(); });
+// **stub をワーカーに残さない。** `process.env` はワーカー共有なので、
+// `CI` を張りっぱなしにすると同じワーカーで後に走るファイルがそれを見る
+// （台帳に「env の stub が漏れて順序依存になる」の記録がある）。
+afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.stubEnv("PHOTOS_TABLE", "photos-test");
+    vi.stubEnv("USERS_TABLE", "users-test");
+});
 
 describe("ビルド時に、写真の表示名を users テーブルの今の値へ揃える", () => {
     it("改名後の名前に置き換える", async () => {
@@ -125,6 +133,31 @@ describe("ビルド時に、写真の表示名を users テーブルの今の値
         }
     });
 
+    // **本番のログで確かめられる形にする。** 前の版は `changed > 0` の
+    // ときだけ出していたので、「誰も改名していない平常時」と「別環境の
+    // テーブルを引いていて誰も見つからない」が**どちらも無言**だった
+    // ＝コミットに書いた「ログを目視する」手順が成り立っていなかった。
+    it("更新0件でも、人数つきの1行を必ず出す", async () => {
+        const log = vi.spyOn(console, "log").mockImplementation(() => { });
+        try {
+            mockSend.mockResolvedValue({ Item: { displayName: "同じ名前" } });
+            await freshDisplayNames(ddb, [photo("p1", "u1", "同じ名前")]);
+            const lines = log.mock.calls.map((c) => String(c[0]));
+            expect(lines.join("\n"), "無言だと『0件』と『引けていない』を区別できない")
+                .toMatch(/投稿者 1人 \/ 見つかった 1人 \/ 更新 0件/);
+        } finally { log.mockRestore(); }
+    });
+
+    it("別環境のテーブルを引くと『見つかった 0人』として出る", async () => {
+        const log = vi.spyOn(console, "log").mockImplementation(() => { });
+        try {
+            mockSend.mockResolvedValue({});   // 行が無い＝取り違えたテーブル
+            await freshDisplayNames(ddb, [photo("p1", "u1", "旧い名前")]);
+            expect(log.mock.calls.map((c) => String(c[0])).join("\n"))
+                .toMatch(/見つかった 0人/);
+        } finally { log.mockRestore(); }
+    });
+
     it("投稿者が居ない（写真0件）でも壊れない", async () => {
         expect(await freshDisplayNames(ddb, [])).toEqual([]);
         expect(mockSend).not.toHaveBeenCalled();
@@ -169,11 +202,27 @@ describe("Deploy Site が users テーブル名をビルドへ渡す", () => {
         expect(outputs, "config の outputs に usersTable が無い").toMatch(/usersTable:\s*\$\{\{\s*steps\.pick\.outputs\.usersTable\s*\}\}/);
     });
 
+    // **ファイル全体を `toContain` で見てはいけない。** 一度そう書いて、
+    // prod と staging の値を**入れ替える変異が全緑**だった（実測）。
+    // 取り違えると例外も出ない——staging のテーブルは実在するので
+    // GetItem は成功し、行が無いだけで `changed = 0`。**静かに旧名のまま**。
+    // ブランチごとの `case` を切り出してから見る。
+    const caseBlock = (branch: string) => {
+        const at = wf.indexOf(`\n            ${branch})\n`);
+        expect(at, `${branch} の分岐が読めない`).toBeGreaterThan(-1);
+        const end = wf.indexOf("\n              ;;", at);
+        expect(end, `${branch} の分岐の終わりが読めない`).toBeGreaterThan(at);
+        return wf.slice(at, end);
+    };
+
     it.each([
-        ["main", "prod-photo-gallery-users"],
-        ["develop", "staging-photo-gallery-users"],
-    ])("%s の環境で %s を選ぶ", (_branch, table) => {
-        expect(wf, `${table} を選んでいない`).toContain(`usersTable=${table}`);
+        ["main", "prod-photo-gallery-users", "staging-photo-gallery-users"],
+        ["develop", "staging-photo-gallery-users", "prod-photo-gallery-users"],
+    ])("%s の環境で %s を選ぶ", (branch, table, other) => {
+        const block = caseBlock(branch);
+        expect(block, `${branch} が ${table} を選んでいない`).toContain(`usersTable=${table}`);
+        expect(block, `${branch} が ${other} を選んでいる（別環境のテーブルを引く）`)
+            .not.toContain(`usersTable=${other}`);
     });
 
     // 空のまま進むと、下の Build には空文字が渡る。config で止める側にも要る
@@ -184,10 +233,14 @@ describe("Deploy Site が users テーブル名をビルドへ渡す", () => {
             .toContain("usersTable");
     });
 
+    // ステップの区切りで割る（`deployConfig.test.ts` と同じ形）。
+    // 先頭一致で切り出すと、前に `Build ...` で始まる別のステップが
+    // できただけで拾う場所がずれる（実際に改名の変異で誤検知した）。
     it("Build ステップの env に USERS_TABLE がある", () => {
-        const build = wf.slice(wf.indexOf("      - name: Build"));
-        const step = build.slice(0, build.indexOf("\n      - name:", 1));
-        expect(step, "Build に USERS_TABLE を渡していない（表示名の更新が丸ごと飛ぶ）")
+        const steps = wf.split(/\n {6}- /).slice(1);
+        const build = steps.filter((st) => /^name: Build\s*$/m.test(st));
+        expect(build, "Build ステップが1つに定まらない").toHaveLength(1);
+        expect(build[0], "Build に USERS_TABLE を渡していない（表示名の更新が丸ごと飛ぶ）")
             .toMatch(/USERS_TABLE:\s*\$\{\{\s*needs\.config\.outputs\.usersTable\s*\}\}/);
     });
 });

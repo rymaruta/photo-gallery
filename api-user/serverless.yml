@@ -155,9 +155,6 @@ functions:
 
   updateMyProfile:
     handler: src/userProfile.updateMyProfile
-    # timeout は既定（6秒）のまま。**明示していた行は消した**——書いていた
-    # 理由（保存のあとに走る写しの書き直しの予算と対）ごと撤去したため。
-    # 表示名の反映はビルド時（`scripts/sync-photos-from-ddb.js`）に移っている。
     events:
       - httpApi:
           path: /user/profile
