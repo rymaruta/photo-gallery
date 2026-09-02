@@ -1,5 +1,6 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer, APIGatewayProxyHandlerV2 } from "aws-lambda";
-import { DynamoDBClient, GetItemCommand, PutItemCommand, DeleteItemCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, GetItemCommand, PutItemCommand, DeleteItemCommand, QueryCommand, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
+import type { AttributeValue } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { JSON_HEADERS, getUserId } from "./http";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl, SONG_URL_MAX } from "./mediaHosts";
@@ -863,6 +864,14 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         if (hasUsernameKey && prev?.username && prev.username !== username) {
             await releaseUsername(prev.username, userId);
         }
+
+        // **改名を、自分の写真の行にも反映する。**
+        // 変わっていないときは何もしない（毎回の保存で全件書き直さない）。
+        // 待つ——Lambda はハンドラが返った瞬間に凍るので、投げっぱなしだと
+        // 書き込みが途中で止まる（rebuild.ts が同じ理由で待っている）。
+        if ("displayName" in changes && (prev?.displayName ?? undefined) !== (displayName ?? undefined)) {
+            await backfillPhotoDisplayName(userId, displayName);
+        }
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(profile) };
     } catch (e) {
         // **予約だけ残さない。**
@@ -885,6 +894,91 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
 // テーブルの中身をそのまま返すと、将来追加された内部用の項目まで公開されてしまう。
 //
 // 注意: ここから項目を外すと、その項目は「消える」。
+/**
+ * 改名を、自分の写真の行にも反映する。
+ *
+ * **投稿時に焼き込んだ表示名を、後から書き換える経路がどこにも無かった。**
+ * `upload.ts` が `lookupDisplayNameIfSet` の結果を写真の行に焼くが、
+ * 改名はこの users テーブルの1行しか触らない。grep しても
+ * `photoUpdate.ts` / `photosMutate.ts` / `sync-photos-from-ddb.js` の
+ * どれも `displayName` を扱わない——**定期ビルドでも直らない**
+ * （同期スクリプトは写真テーブルを Scan するだけで users を見ない）。
+ *
+ * 古い名前が出る先は**他人に見えるものばかり**:
+ *   `lib/utils/seo.ts`        JSON-LD の creditText / creator.name
+ *   `app/users/[id]/page.tsx` <title> / description / OGP / Person
+ *   写真ページ・モーダルの投稿者リンク
+ *
+ * しかも**同じプロフィールページの中で食い違う**——見出しは API の
+ * プロフィールを優先するので新しい名前、`<title>` と OGP は写真の行なので
+ * 古い名前。本人から見て「変えたのに変わっていない」が一目で分かる形。
+ *
+ * **保存そのものは絶対に失敗させない。** ここで投げると「改名しました」が
+ * 出ずに元どおりになる。写しがずれるのは今までどおりで、悪化はしない。
+ * 途中まで書けた場合も、次の改名でまた全件を書き直すので収束する。
+ *
+ * 対象は自分の写真だけ（GSI をユーザーで引く）。上限100枚なので件数は有界。
+ */
+// **`./dynamodb` から import しない。** あちらは DocumentClient を生成する
+// ので、読み込むだけで env と実クライアントが要る（このファイルは生の
+// `DynamoDBClient` を使っていて、あちらに依存していない）。
+// 名前がずれると「自分の写真が1件も引けない＝黙って何もしない」に倒れるので、
+// `scripts/__tests__/` の索引名テストで両方を突き合わせる。
+const USER_INDEX = "userId-createdAt-index";
+const NAME_BACKFILL_CONCURRENCY = 8;
+const NAME_BACKFILL_MAX_PAGES = 10;
+
+async function backfillPhotoDisplayName(userId: string, name: string | undefined): Promise<void> {
+    try {
+        const ids: string[] = [];
+        let lastKey: Record<string, unknown> | undefined;
+        let pages = 0;
+        do {
+            const res = await ddb.send(new QueryCommand({
+                TableName: PHOTOS_TABLE,
+                IndexName: USER_INDEX,
+                KeyConditionExpression: "userId = :u",
+                ExpressionAttributeValues: marshall({ ":u": userId }),
+                ProjectionExpression: "id",
+                ExclusiveStartKey: lastKey as Record<string, AttributeValue> | undefined,
+            }));
+            for (const raw of res.Items ?? []) {
+                const id = (unmarshall(raw) as { id?: unknown }).id;
+                if (typeof id === "string" && id) ids.push(id);
+            }
+            lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
+            pages++;
+        } while (lastKey && pages < NAME_BACKFILL_MAX_PAGES);
+
+        let failed = 0;
+        for (let i = 0; i < ids.length; i += NAME_BACKFILL_CONCURRENCY) {
+            await Promise.all(ids.slice(i, i + NAME_BACKFILL_CONCURRENCY).map(async (id) => {
+                try {
+                    // 名前を消したときは属性ごと外す（空文字を焼くと
+                    // 「名前を持っている人」として扱われ、既定名に落ちない）
+                    await ddb.send(new UpdateItemCommand({
+                        TableName: PHOTOS_TABLE,
+                        Key: marshall({ id }),
+                        UpdateExpression: name ? "SET displayName = :n" : "REMOVE displayName",
+                        ...(name ? { ExpressionAttributeValues: marshall({ ":n": name }) } : {}),
+                        // 消えた写真を蘇らせない
+                        ConditionExpression: "attribute_exists(id)",
+                    }));
+                } catch (e) {
+                    if ((e as { name?: string }).name !== "ConditionalCheckFailedException") failed++;
+                }
+            }));
+        }
+        if (failed > 0) {
+            console.error(`backfillPhotoDisplayName: ${ids.length} 件中 ${failed} 件が失敗（${userId}）。` +
+                "その写真は古い表示名のまま残ります（次の改名で書き直されます）");
+        }
+    } catch (e) {
+        // **改名そのものは成功させる。** 写しのズレは今までどおりで悪化しない
+        console.error("backfillPhotoDisplayName error:", e);
+    }
+}
+
 // PUT /user/profile は全置換で、UserProfileClient はこの戻り値を編集元として
 // そのまま送り返すため、返さなかった項目は保存時に body から欠け、
 // DynamoDB から削除される。プロフィール画面に出るものは必ずここに含めること。
