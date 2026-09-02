@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 
 // VERIFY-1 の確認は**本物の S3 に書く**。間違えて本番へ向けると、
@@ -77,28 +77,26 @@ describe("verify-upload は staging にしか向かない", () => {
 // 中身の検査（正規表現）はいくらでも緑にできるが、「変換が通るか」だけは
 // 動かさないと分からない。staging でないバケットを渡せば、AWS に触る前に
 // 中止するので、テストから安全に起動できる。
+// **`spawnSync` を使う。** `execFileSync` は**成功時に stdout しか返さない**
+// ので、「資格情報を取りに行っていない」を stderr で確かめる判定が
+// 成功時に一度も効いていなかった（＝何も見ていなかった）。
+function run(args: string[], bucket: string) {
+    const r = spawnSync("npx", ["tsx", "scripts/verify-upload.ts", ...args], {
+        cwd: ROOT,
+        env: { ...process.env, UPLOAD_BUCKET: bucket },
+        encoding: "utf8",
+    });
+    return { out: `${r.stdout ?? ""}${r.stderr ?? ""}`, code: r.status ?? -1 };
+}
+
 describe("verify-upload は実行できる（変換が通る）", () => {
     it("staging でないバケットなら、AWS に触らず中止する", () => {
-        let out = "";
-        let code = 0;
-        try {
-            out = execFileSync("npx", ["tsx", "scripts/verify-upload.ts"], {
-                cwd: ROOT,
-                // **実在しない名前を渡す。** 本番のバケット名を渡していたが、
-                // このテストが存在する理由は「staging ガードが消える変異を
-                // 捕まえること」。ガードが消えた瞬間、`...process.env` ごと
-                // 渡している AWS の資格情報で**このテスト自身が本番へ書く**
-                // （しかも意図的に失敗する PUT を投げる）。安全網の失敗が
-                // 本番への書き込みに化ける形だった。
-                env: { ...process.env, UPLOAD_BUCKET: "no-such-bucket-for-tests" },
-                encoding: "utf8",
-                stdio: ["ignore", "pipe", "pipe"],
-            });
-        } catch (e) {
-            const err = e as { status?: number; stdout?: string; stderr?: string };
-            code = err.status ?? -1;
-            out = `${err.stdout ?? ""}${err.stderr ?? ""}`;
-        }
+        // **実在しない名前を渡す。** 本番のバケット名を渡していたが、
+        // このテストが存在する理由は「staging ガードが消える変異を捕まえる
+        // こと」。ガードが消えた瞬間、`...process.env` ごと渡している AWS の
+        // 資格情報で**このテスト自身が本番へ書く**（しかも意図的に失敗する
+        // PUT を投げる）。安全網の失敗が本番への書き込みに化ける形だった。
+        const { out, code } = run(["--apply"], "no-such-bucket-for-tests");
         // 変換に失敗していると、この文言ではなく esbuild のエラーが出る
         expect(out, `想定外の出力:\n${out}`).toMatch(/staging- で始まりません/);
         expect(code, "中止したのに 0 で終わっている").toBe(1);
@@ -110,28 +108,14 @@ describe("verify-upload は実行できる（変換が通る）", () => {
 // この確認は本物の S3 に書く（しかも意図的に失敗する PUT を投げる）ので、
 // 例外にしてよい理由が無い。他のタスクは全部 `--apply` を取っている。
 describe("verify-upload は --apply が無ければ書かない", () => {
-    const runScript = (args: string[], bucket: string) => {
-        try {
-            return {
-                out: execFileSync("npx", ["tsx", "scripts/verify-upload.ts", ...args], {
-                    cwd: ROOT,
-                    env: { ...process.env, UPLOAD_BUCKET: bucket },
-                    encoding: "utf8",
-                    stdio: ["ignore", "pipe", "pipe"],
-                }),
-                code: 0,
-            };
-        } catch (e) {
-            const err = e as { status?: number; stdout?: string; stderr?: string };
-            return { out: `${err.stdout ?? ""}${err.stderr ?? ""}`, code: err.status ?? -1 };
-        }
-    };
-
     // **実際に走らせる。** 「`--apply` を見る行がある」だけを正規表現で見ても、
     // 見たうえで無視していたら緑になる
     it("引数が無ければ、AWS に触らずドライランで終わる", () => {
-        // staging の名前を渡す＝ガードは通る。ここで止まるのは apply の側だけ
-        const { out, code } = runScript([], "staging-journey-photo-upload");
+        // **実在しない名前にする。** `staging-` で始まるのでガードは通り、
+        // 止まるのは apply の側だけ——という点は同じだが、**apply の守りが
+        // 壊れた瞬間に本物の staging へ書く**のを避ける。40行上で同じ理由で
+        // 直したのに、こちらだけ実在するバケット名を渡していた。
+        const { out, code } = run([], "staging-no-such-bucket-for-tests");
         expect(out, `想定外の出力:\n${out}`).toMatch(/ドライラン/);
         expect(code, "ドライランなのに失敗している").toBe(0);
         // 資格情報を取りに行っていない＝S3 に触っていない

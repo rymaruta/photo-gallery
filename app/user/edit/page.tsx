@@ -82,7 +82,6 @@ export function mergeLocalizedTitle(original: Photo["title"], ja: string): Photo
     return { ja, en };
 }
 
-/** 説明も同様。日本語を空にしたら英語ごと消す */
 /**
  * サーバーが黙って切る分があれば、その文言を返す（無ければ null）。
  *
@@ -112,10 +111,21 @@ export function describeOverLimit(
             return say(`説明は${DESC_PARAGRAPHS_MAX}段落までです（${ja.length}段落）`,
                 `Up to ${DESC_PARAGRAPHS_MAX} paragraphs (${ja.length})`);
         }
+        // **段落ごとの文字数も切られる。** 件数だけ見ていたので、英語説明を
+        // 持つ写真で長い段落を1つ書くと**警告なしで黙って切られた**
+        // ——同じ文章でも、英語を持たない写真（文字列経路）なら
+        // 「2000字までです」と出る。**写真によって言ったり言わなかったり**
+        // していた。「効く上限を見ていなかった」の残り半分。
+        const longest = ja.reduce((n, p) => Math.max(n, p.trim().length), 0);
+        if (longest > DESC_STRING_MAX) {
+            return say(`説明は1段落${DESC_STRING_MAX}字までです（${longest}字）`,
+                `Up to ${DESC_STRING_MAX} characters per paragraph (${longest})`);
+        }
     }
     return null;
 }
 
+/** 説明も同様。日本語を空にしたら英語ごと消す */
 export function mergeLocalizedDescription(original: Photo["description"], ja: string): Photo["description"] {
     const lines = ja.split("\n").map((l) => l.trim()).filter(Boolean);
     if (lines.length === 0) return "";
@@ -130,10 +140,14 @@ export function mergeLocalizedDescription(original: Photo["description"], ja: st
 // `sanitizeText` / `sanitizeTitle` が黙って切る——保存は成功したように見えて、
 // あとで開くと末尾が無い。上限を告げる文言も出していなかった。
 //
-// 説明とタグには入れていない。説明はサーバー側が**段落ごと**に 2000 で
-// 切る（最大50段落）ので、textarea 全体に 2000 を入れると
-// 「サーバーは受け付けるのに入力できない」が新しく生まれる。タグは
-// カンマ区切りの1入力で、上限は**タグ1つあたり** 50 なので同じ理由。
+// 説明とタグには入れていない。タグはカンマ区切りの1入力で、上限は
+// **タグ1つあたり** 50 なので、欄全体に入れると
+// 「サーバーは受け付けるのに入力できない」が生まれる。
+//
+// 説明は**送る形で上限が変わる**ので、`maxLength` を1つ選べない
+// （文字列＝全体2000字 / `{ja,en}`＝段落ごと2000字・50段落まで）。
+// 英語説明を持つ写真では 2000 を入れると短すぎる。
+// **ここは `describeOverLimit` が保存の前に告げる側で受けている。**
 // **黙って切られる上限のうち、画面に出す先が無いもの。**
 //
 // すぐ上のコメントは「説明とタグに `maxLength` を入れない」理由を書いて

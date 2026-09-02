@@ -51,6 +51,25 @@ describe("{ja,en} で送るとき（段落数を見る）", () => {
     it("ちょうど50段落なら言わない", () => {
         expect(describeOverLimit(undefined, { ja: P(50), en: ["x"] }, true)).toBeNull();
     });
+
+    // **段落ごとにも2000字で切られる**（`sanitize.ts` の
+    // `.map((p) => truncate(p.trim(), 2000))`）。件数だけ見ていたので、
+    // 英語説明を持つ写真で長い段落を1つ書くと**警告なしで黙って切られた**
+    // ——同じ文章でも、英語を持たない写真なら「2000字までです」と出る。
+    // **写真によって言ったり言わなかったり**していた。
+    it("1段落が2000字を超えたら言う", () => {
+        const msg = describeOverLimit(undefined, { ja: ["短い", "あ".repeat(2001)], en: ["x"] }, true);
+        expect(msg, "段落の長さを見ていない").toMatch(/1段落2000字/);
+    });
+
+    it("ちょうど2000字の段落なら言わない", () => {
+        expect(describeOverLimit(undefined, { ja: ["あ".repeat(2000)], en: ["x"] }, true)).toBeNull();
+    });
+
+    it("英語のときは英語で言う（段落の長さ）", () => {
+        expect(describeOverLimit(undefined, { ja: ["a".repeat(2001)], en: ["x"] }, false))
+            .toMatch(/Up to 2000 characters per paragraph/);
+    });
 });
 
 // **送る形は `mergeLocalizedDescription` が決める。** 判定がそれと
