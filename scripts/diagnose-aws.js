@@ -177,10 +177,69 @@ async function concurrency() {
     }
 }
 
+/**
+ * 登録している人の数と、直近の登録。
+ *
+ * **名前もメールも出さない。** 診断のログは Actions に残り、閲覧できる人が
+ * 利用者本人とは限らない。`who-liked` が「全員分の表示名がログに並ぶ」
+ * 事故を起こした前例があるので、ここは**件数と日付だけ**にする
+ * （`diagnose-user-search.js` も同じ方針で書かれている）。
+ *
+ * `userId` は Cognito の sub で、`/users/<sub>` として公開ページのURLに
+ * なっている（このリポジトリの他のコメントが「sub は秘密ではない」と
+ * 書いているとおり）。それでも並べる理由が無いので出さない。
+ */
+async function users() {
+    head("登録している人");
+    const usersTable = process.env.USERS_TABLE;
+    if (!usersTable) { line("  USERS_TABLE が未設定のため飛ばします"); return; }
+
+    const rows = [];
+    let lastKey;
+    let pages = 0;
+    do {
+        const res = await ddb.send(new ScanCommand({
+            TableName: usersTable,
+            // 予約行（username#...）と墓石を見分けるのに要るものだけ
+            ProjectionExpression: "userId, createdAt, deletedAt, displayName, username",
+            ExclusiveStartKey: lastKey,
+        }));
+        for (const it of res.Items ?? []) {
+            rows.push({
+                userId: it.userId?.S ?? "",
+                createdAt: it.createdAt?.S ?? "",
+                deleted: Boolean(it.deletedAt?.S),
+                hasName: Boolean(it.displayName?.S),
+                hasHandle: Boolean(it.username?.S),
+            });
+        }
+        lastKey = res.LastEvaluatedKey;
+        pages++;
+    } while (lastKey && pages < 20);
+    if (lastKey) line("  ⚠️ 20ページで打ち切りました（実際はもっと居ます）");
+
+    // `username#<handle>` は @名の予約行で、人ではない
+    const profiles = rows.filter((r) => !r.userId.startsWith("username#"));
+    const live = profiles.filter((r) => !r.deleted);
+    line(`  プロフィールの行: ${profiles.length}（うち退会の墓石 ${profiles.length - live.length}）`);
+    line(`  @名の予約行: ${rows.length - profiles.length}`);
+    line(`  表示名を設定済み: ${live.filter((r) => r.hasName).length} / ${live.length}`);
+    line(`  @名を設定済み: ${live.filter((r) => r.hasHandle).length} / ${live.length}`);
+
+    // 登録の新しい順に日付だけ（`createdAt` は PostConfirmation が入れる。
+    // それ以前に登録した人は持っていないので「不明」に落ちる）
+    const dated = live.filter((r) => r.createdAt).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    line(`  登録日時を持つ行: ${dated.length}（残り ${live.length - dated.length} 件は不明＝トリガー導入より前）`);
+    if (dated.length > 0) {
+        line("  直近の登録（日付のみ）:");
+        for (const r of dated.slice(0, 10)) line(`    ${r.createdAt}`);
+    }
+}
+
 async function main() {
     PHOTOS_TABLE = requireEnv("PHOTOS_TABLE");
     line(`対象テーブル: ${PHOTOS_TABLE} / region: ${REGION}`);
-    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["cdnTtl", cdnTtl], ["lambdaRoles", lambdaRoles], ["concurrency", concurrency]]) {
+    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["cdnTtl", cdnTtl], ["lambdaRoles", lambdaRoles], ["concurrency", concurrency], ["users", users]]) {
         try {
             await fn();
         } catch (e) {
