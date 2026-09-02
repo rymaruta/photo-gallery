@@ -1,6 +1,5 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer, APIGatewayProxyHandlerV2 } from "aws-lambda";
-import { DynamoDBClient, GetItemCommand, PutItemCommand, DeleteItemCommand, QueryCommand, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
-import type { AttributeValue } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, GetItemCommand, PutItemCommand, DeleteItemCommand } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { JSON_HEADERS, getUserId } from "./http";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl, SONG_URL_MAX } from "./mediaHosts";
@@ -865,19 +864,23 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
             await releaseUsername(prev.username, userId);
         }
 
-        // **改名を、自分の写真の行にも反映する。**
+        // **写真の行に焼かれた表示名は、ここでは直さない。**
         //
-        // 表示名を**触った保存**で走らせる（値が変わったときだけ、ではない）。
-        // 既に正しい行は書かないので、そろっていれば Query 1回・書き込み0。
-        // 代わりに「同じ名前でもう一度保存する」が、前回取りこぼした行を
-        // 書き直す**やり直しの手段**になる。
+        // 一度ここから直そうとして、レビュー2周で回帰を8件出した:
+        // Lambda のタイムアウト（6秒）は try/catch で捕まえられないので
+        // 「保存できているのに失敗と出る」／ページングのカーソル／
+        // ストーリーまで書き換える／「同じ名前で保存し直せばやり直せる」は
+        // **画面が差分ゼロで API を呼ばないので不可能**、など。
         //
-        // 待つ——Lambda はハンドラが返った瞬間に凍るので、投げっぱなしだと
-        // 書き込みが途中で止まる（rebuild.ts が同じ理由で待っている）。
-        // 時間の予算はこの関数の中で見る（上のコメント参照）。
-        if ("displayName" in changes) {
-            await backfillPhotoDisplayName(userId, displayName);
-        }
+        // 直す場所を**ビルド時**に移した（`scripts/sync-photos-from-ddb.js`）。
+        // あちらは users テーブルと突き合わせて `photos.json` を書くので、
+        // <title>・OGP・JSON-LD・パンくずといった**他人に見える静的な面**は
+        // 次のビルドで揃う。書き込み経路が増えず、6秒の制限もページングも
+        // カーソルも無い。
+        //
+        // 残るのは実行時 API（`GET /photos`）が返す写しで、モーダルと写真
+        // ページの投稿者リンクに出る。プロフィール画面の見出しは API の
+        // プロフィールを優先するので既に新しい名前。
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(profile) };
     } catch (e) {
         // **予約だけ残さない。**
@@ -900,127 +903,6 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
 // テーブルの中身をそのまま返すと、将来追加された内部用の項目まで公開されてしまう。
 //
 // 注意: ここから項目を外すと、その項目は「消える」。
-/**
- * 改名を、自分の写真の行にも反映する。
- *
- * **投稿時に焼き込んだ表示名を、後から書き換える経路がどこにも無かった。**
- * `upload.ts` が `lookupDisplayNameIfSet` の結果を写真の行に焼くが、
- * 改名はこの users テーブルの1行しか触らない。grep しても
- * `photoUpdate.ts` / `photosMutate.ts` / `sync-photos-from-ddb.js` の
- * どれも `displayName` を扱わない——**定期ビルドでも直らない**
- * （同期スクリプトは写真テーブルを Scan するだけで users を見ない）。
- *
- * 古い名前が出る先は**他人に見えるものばかり**:
- *   `lib/utils/seo.ts`        JSON-LD の creditText / creator.name
- *   `app/users/[id]/page.tsx` <title> / description / OGP / Person
- *   写真ページ・モーダルの投稿者リンク
- *
- * しかも**同じプロフィールページの中で食い違う**——見出しは API の
- * プロフィールを優先するので新しい名前、`<title>` と OGP は写真の行なので
- * 古い名前。本人から見て「変えたのに変わっていない」が一目で分かる形。
- *
- * **保存そのものは絶対に失敗させない。**
- *
- * 例外は握るが、それだけでは足りない——**Lambda のタイムアウトは関数内の
- * try/catch では捕まえられない**。この関数の制限は6秒（`serverless.yml` に
- * 明示した）で、写しの書き直しが食い切ると「プロフィールは保存できているのに
- * 利用者には失敗と出る」になる。だから**時間の予算を持って、使い切ったら
- * 途中でやめる**（`rebuild.ts` が GitHub を叩くときと同じ形）。
- *
- * **件数は「100枚だから有界」ではない。** 一度そう書いたが2点で崩れる:
- *   - `photoLimitError` は **admin を100枚制限から外している**
- *   - この GSI は `userId` を持つ項目を全部返す（写真・下書き・**ストーリー**）。
- *     100枚を数える側は `attribute_exists(src) AND attribute_not_exists(story)`
- *     で絞っているので、GSI の件数はそれより多い
- * 有界にしているのは**ページ数の上限と時間の予算**であって、写真の枚数ではない。
- *
- * **ストーリーは書き換えない。** 数える側と同じ条件で絞る。名前を消したときに
- * ストーリーの `displayName` まで REMOVE すると、作成時は必ず入る既定名
- * （名前未設定さん）と、消したあとの既定名（`lib/stories.ts` の「ユーザー」）が
- * 食い違う。
- *
- * **既に正しい行は書かない。** これで「同じ名前で保存し直す」が、
- * 前回取りこぼした行だけを書き直す**やり直しの手段**になる（前は変わった
- * ときしか走らず、同じ名前で保存しても一度も書き直されなかった——
- * 「次の改名で収束する」と書いていたが、利用者が実際に取る行動では
- * 成立していなかった）。全部そろっていれば Query 1回で書き込みは0。
- */
-// **`./dynamodb` から import しない。** あちらは DocumentClient を生成する
-// ので、読み込むだけで env と実クライアントが要る（このファイルは生の
-// `DynamoDBClient` を使っていて、あちらに依存していない）。
-// 名前がずれると「自分の写真が1件も引けない＝黙って何もしない」に倒れるので、
-// `scripts/__tests__/` の索引名テストで両方を突き合わせる。
-const USER_INDEX = "userId-createdAt-index";
-const NAME_BACKFILL_CONCURRENCY = 8;
-const NAME_BACKFILL_MAX_PAGES = 10;
-const NAME_BACKFILL_PAGE_SIZE = 100;
-/** 6秒の制限に対する予算。残りは保存本体と応答に使う */
-const NAME_BACKFILL_BUDGET_MS = 2500;
-
-async function backfillPhotoDisplayName(userId: string, name: string | undefined): Promise<void> {
-    const deadline = Date.now() + NAME_BACKFILL_BUDGET_MS;
-    try {
-        const stale: string[] = [];
-        let lastKey: Record<string, unknown> | undefined;
-        let pages = 0;
-        do {
-            const res = await ddb.send(new QueryCommand({
-                TableName: PHOTOS_TABLE,
-                IndexName: USER_INDEX,
-                KeyConditionExpression: "userId = :u",
-                // 数える側（countUserPhotos / listMyPhotos）と同じ条件。
-                // ストーリーと、実体を持たない行は触らない
-                FilterExpression: "attribute_exists(src) AND attribute_not_exists(story)",
-                ExpressionAttributeValues: marshall({ ":u": userId }),
-                ProjectionExpression: "id, displayName",
-                Limit: NAME_BACKFILL_PAGE_SIZE,
-                ExclusiveStartKey: lastKey as Record<string, AttributeValue> | undefined,
-            }));
-            for (const raw of res.Items ?? []) {
-                const row = unmarshall(raw) as { id?: unknown; displayName?: unknown };
-                if (typeof row.id !== "string" || !row.id) continue;
-                const current = typeof row.displayName === "string" ? row.displayName : undefined;
-                if (current === name) continue;   // 既に正しい行は書かない
-                stale.push(row.id);
-            }
-            lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
-            pages++;
-        } while (lastKey && pages < NAME_BACKFILL_MAX_PAGES && Date.now() < deadline);
-
-        let failed = 0;
-        let stopped = false;
-        for (let i = 0; i < stale.length; i += NAME_BACKFILL_CONCURRENCY) {
-            if (Date.now() >= deadline) { stopped = true; break; }
-            await Promise.all(stale.slice(i, i + NAME_BACKFILL_CONCURRENCY).map(async (id) => {
-                try {
-                    // 名前を消したときは属性ごと外す（空文字を焼くと
-                    // 「名前を持っている人」として扱われ、既定名に落ちない）
-                    await ddb.send(new UpdateItemCommand({
-                        TableName: PHOTOS_TABLE,
-                        Key: marshall({ id }),
-                        UpdateExpression: name ? "SET displayName = :n" : "REMOVE displayName",
-                        ...(name ? { ExpressionAttributeValues: marshall({ ":n": name }) } : {}),
-                        // 消えた写真を蘇らせない
-                        ConditionExpression: "attribute_exists(id)",
-                    }));
-                } catch (e) {
-                    if ((e as { name?: string }).name !== "ConditionalCheckFailedException") failed++;
-                }
-            }));
-        }
-        if (failed > 0 || stopped) {
-            console.error(`backfillPhotoDisplayName: ${stale.length} 件中 ` +
-                `${failed} 件が失敗${stopped ? "・時間切れで打ち切り" : ""}（${userId}）。` +
-                "その写真は古い表示名のまま残ります（同じ名前で保存し直すと、残りだけ書き直します）");
-        }
-    } catch (e) {
-        // **改名そのものは成功させる。** 写しのズレは今までどおりで悪化しない
-        console.error("backfillPhotoDisplayName error:", e);
-    }
-}
-
-
-
 // PUT /user/profile は全置換で、UserProfileClient はこの戻り値を編集元として
 // そのまま送り返すため、返さなかった項目は保存時に body から欠け、
 // DynamoDB から削除される。プロフィール画面に出るものは必ずここに含めること。

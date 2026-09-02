@@ -229,15 +229,18 @@ async function users() {
     // 登録の新しい順に日付だけ（`createdAt` は PostConfirmation が入れる。
     // それ以前に登録した人は持っていないので「不明」に落ちる）
     const dated = live.filter((r) => r.createdAt).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    // **「トリガー導入より前」と言い切らない。** `createdAt` を入れるのは
-    // PostConfirmation トリガーだが、`cognitoTrigger.ts` は行の作成失敗を
-    // 握りつぶす（登録自体は成功させる設計）。その人の行は後で
-    // `updateMyProfile` が作り、そこには `createdAt` が入らない。
-    // つまり日時が無い行は「古い人」だけでなく「**トリガーが静かに落ちた人**」
-    // でもある——CLAUDE.md が警告している「別環境のプールのトリガーを奪って
-    // 新規登録が壊れる」の症状そのもの。断定するとその信号を読み飛ばす。
+    // **「トリガー導入より前」と言い切らない。**
+    //
+    // 一度ここに「トリガーが落ちた人も日時を持たない」と書いたが、**誤り**
+    // だった——救済する `createProfileIfMissing`（`userProfile.ts`）は
+    // `createdAt` を入れる。トリガーが落ちた人は「日時が無い」ではなく
+    // **登録より遅い日時を持つ**（本人が最初に自分のプロフィールを開いた時刻）。
+    //
+    // 日時が無いのは、`0bf83d0` でトリガーを入れる前に登録した人。
+    // それでも断定しないのは、**この診断から確かめる手段が無い**ため
+    // （Cognito の作成日時と突き合わせれば分かるが、ここでは読んでいない）。
     line(`  登録日時を持つ行: ${dated.length}（残り ${live.length - dated.length} 件は日時なし`
-        + " ＝トリガー導入より前か、**トリガーが落ちた**かのどちらか）");
+        + " ＝トリガー導入より前に登録した人。Cognito の作成日時とは突き合わせていない）");
     if (dated.length > 0) {
         line("  直近の登録（日付のみ）:");
         for (const r of dated.slice(0, 10)) line(`    ${r.createdAt}`);

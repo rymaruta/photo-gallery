@@ -195,6 +195,77 @@ const SYNC_STATS_ID = "syncstats#photos";
  * 読めなければ null を返し、呼び出し側が従来どおりファイルの件数に落とす
  * （初回や権限が無い環境で、守りが強くなりすぎて止まらないように）。
  */
+/**
+ * 写真の行に焼かれた表示名を、users テーブルの**いまの値**で置き換える。
+ *
+ * `upload.ts` は投稿時に表示名を写真の行へ焼き込むが、改名は users テーブルの
+ * 1行しか触らない。写真の行を書き換える経路はどこにも無く、**このスクリプトも
+ * users を見ていなかった**ので、何度ビルドしても旧名が焼き直されていた。
+ *
+ * 古い名前が出るのは他人に見えるものばかり:
+ *   `lib/utils/seo.ts`        JSON-LD の creditText / creator.name
+ *   `app/users/[id]/page.tsx` <title> / description / OGP / Person
+ *
+ * **なぜ Lambda 側で直さないか。** 一度 `updateMyProfile` から写真の行を
+ * 書き直す形にして、レビュー2周で回帰を8件出した——Lambda のタイムアウト
+ * （6秒）は try/catch で捕まえられないので「保存できているのに失敗と出る」／
+ * ページングのカーソル／ストーリーまで書き換える／「同じ名前で保存し直せば
+ * やり直せる」は画面が差分ゼロで API を呼ばないので不可能、など。
+ * **ここには書き込み経路が無く、6秒の制限もカーソルも無い。** 冪等で、
+ * 失敗しても写真の同期そのものは続く。
+ *
+ * DynamoDB の行そのものは古いままなので、実行時 API（`GET /photos`）が返す
+ * 写しは直らない。出るのはモーダルと写真ページの投稿者リンクで、
+ * プロフィール画面の見出しは API のプロフィールを優先するので新しい名前。
+ */
+async function freshDisplayNames(ddb, photos) {
+    const usersTable = process.env.USERS_TABLE;
+    if (!usersTable) {
+        console.warn("[sync] USERS_TABLE が未設定のため、表示名の更新は飛ばします");
+        return photos;
+    }
+    const ids = [...new Set(photos.map((p) => p.userId).filter((v) => typeof v === "string" && v))];
+    if (ids.length === 0) return photos;
+
+    const names = new Map();
+    try {
+        // 人数ぶんの GetItem。写真30枚でも投稿者は数人なので件数は小さい
+        for (const userId of ids) {
+            const res = await ddb.send(new GetCommand({
+                TableName: usersTable,
+                Key: { userId },
+                ProjectionExpression: "displayName, deletedAt",
+            }));
+            const item = res.Item;
+            // 退会した人の名前は入れ直さない（写真側の値もそのまま残す。
+            // 消す判断はここではなく、退会処理と読み出し側が持っている）
+            if (!item || item.deletedAt) continue;
+            const name = typeof item.displayName === "string" ? item.displayName.trim() : "";
+            names.set(userId, name || undefined);
+        }
+    } catch (err) {
+        // **写真の同期は止めない。** 名前が古いままなのは今までどおりで、
+        // ここで落とすとビルドごと止まる（消した写真のページが残る方が悪い）
+        console.warn("[sync] 表示名の突き合わせに失敗:", err.message ?? err);
+        return photos;
+    }
+
+    let changed = 0;
+    const out = photos.map((p) => {
+        if (!names.has(p.userId)) return p;
+        const next = names.get(p.userId);
+        const cur = typeof p.displayName === "string" ? p.displayName : undefined;
+        if (cur === next) return p;
+        changed++;
+        const copy = { ...p };
+        if (next) copy.displayName = next;
+        else delete copy.displayName;
+        return copy;
+    });
+    if (changed > 0) console.log(`[sync] 表示名を更新: ${changed}件（投稿者 ${ids.length}人）`);
+    return out;
+}
+
 async function readLastSyncedCount(ddb) {
     try {
         const res = await ddb.send(new GetCommand({ TableName: TABLE, Key: { id: SYNC_STATS_ID } }));
@@ -269,6 +340,7 @@ async function main() {
     // 比較先は「前回うまくいった件数」。読めなければファイルの件数に落とす。
     const client = new DynamoDBClient({ region: REGION });
     const ddb = DynamoDBDocumentClient.from(client);
+    photos = await freshDisplayNames(ddb, photos);
     const lastSynced = await readLastSyncedCount(ddb);
     const prev = lastSynced ?? existingCount(OUTPUT);
     console.log(`[sync] 比較先: ${lastSynced !== null ? `前回の同期 ${lastSynced}件` : `ファイルの ${prev}件`}`);
@@ -294,4 +366,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { checkWriteSafety, existingCount, readLastSyncedCount, writeLastSyncedCount, SYNC_STATS_ID, stripPrivateFields, PRIVATE_FIELDS };
+module.exports = { checkWriteSafety, existingCount, readLastSyncedCount, writeLastSyncedCount, SYNC_STATS_ID, stripPrivateFields, PRIVATE_FIELDS, freshDisplayNames };
