@@ -63,6 +63,7 @@ jobs:
       envName: ${{ steps.pick.outputs.envName }}
       siteBucket: ${{ steps.pick.outputs.siteBucket }}
       photosTable: ${{ steps.pick.outputs.photosTable }}
+      usersTable: ${{ steps.pick.outputs.usersTable }}
       uploadBucket: ${{ steps.pick.outputs.uploadBucket }}
       siteUrl: ${{ steps.pick.outputs.siteUrl }}
       apiBaseUrl: ${{ steps.pick.outputs.apiBaseUrl }}
@@ -85,6 +86,7 @@ jobs:
               envName=prod
               siteBucket=prod-journey-photo.com
               photosTable=prod-photo-gallery-photos
+              usersTable=prod-photo-gallery-users
               uploadBucket=prod-journey-photo-upload
               siteUrl=https://journey-photo.com
               apiBaseUrl=https://ionr4ik01e.execute-api.ap-northeast-1.amazonaws.com
@@ -101,6 +103,7 @@ jobs:
               envName=staging
               siteBucket=staging-journey-photo.com
               photosTable=staging-photo-gallery-photos
+              usersTable=staging-photo-gallery-users
               uploadBucket=staging-journey-photo-upload
               # staging の値も本番と同じくここに直書きする。
               # どれも公開識別子（Cognito の2つはビルド後のJSに埋め込まれて
@@ -121,7 +124,7 @@ jobs:
           esac
           # envName も必須。抜けるとビルドが「環境不明」になり、
           # robots.txt が全面拒否になる（そのまま本番に上げると検索から消える）。
-          for k in envName siteBucket photosTable uploadBucket siteUrl apiBaseUrl userApiBaseUrl \
+          for k in envName siteBucket photosTable usersTable uploadBucket siteUrl apiBaseUrl userApiBaseUrl \
                    cognitoUserPoolId cognitoClientId cloudfrontUrl; do
             v="${!k}"
             if [ -z "$v" ]; then
@@ -344,6 +347,10 @@ jobs:
           NEXT_PUBLIC_ENV_NAME: ${{ needs.config.outputs.envName }}
           # ビルド中の photos.json 同期先
           PHOTOS_TABLE: ${{ needs.config.outputs.photosTable }}
+          # 写真に焼かれた表示名を、users テーブルの今の値へ揃えるために引く。
+          # **渡し忘れると症状が出ない**——スクリプトは警告1行で素通りし、
+          # ビルドは緑のまま旧名が焼き直される（実際にこの形で1周落とした）。
+          USERS_TABLE: ${{ needs.config.outputs.usersTable }}
           # 新しい環境は写真が0件。リポジトリにコミットされている photos.json は
           # 本番の写真なので、拒否すると staging が本番の写真を並べてしまう。
           ALLOW_EMPTY_PHOTOS: ${{ needs.config.outputs.allowEmptyPhotos }}

@@ -155,12 +155,9 @@ functions:
 
   updateMyProfile:
     handler: src/userProfile.updateMyProfile
-    # **明示しておく。** 値は既定と同じ6秒だが、保存のあとに写しの書き直し
-    # （`backfillPhotoDisplayName`）が走るので、**書いていないと何と比べて
-    # 予算を切ったのかがコードから読めない**。Lambda のタイムアウトは関数内の
-    # try/catch では捕まえられないので、食い切ると「保存できているのに
-    # 失敗と出る」になる。向こうの予算（NAME_BACKFILL_BUDGET_MS）と対。
-    timeout: 6
+    # timeout は既定（6秒）のまま。**明示していた行は消した**——書いていた
+    # 理由（保存のあとに走る写しの書き直しの予算と対）ごと撤去したため。
+    # 表示名の反映はビルド時（`scripts/sync-photos-from-ddb.js`）に移っている。
     events:
       - httpApi:
           path: /user/profile

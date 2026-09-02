@@ -12,6 +12,7 @@
  * 環境変数:
  *   AWS_REGION          (default: ap-northeast-1)
  *   PHOTOS_TABLE        (必須)
+ *   USERS_TABLE         (CI では必須。表示名の突き合わせに使う)
  *   DRY_RUN=1           ファイルを書かずに件数だけ確認
  *   CI                  取得に失敗したらビルドを止める（Actions では自動で入る）
  *
@@ -221,6 +222,17 @@ const SYNC_STATS_ID = "syncstats#photos";
 async function freshDisplayNames(ddb, photos) {
     const usersTable = process.env.USERS_TABLE;
     if (!usersTable) {
+        // **CI では止める。** 渡し忘れても「警告1行 → 緑 → 旧名を焼き直す」で
+        // 症状が出ないので、気づく手段が無い（実際にこの形で1周落とした）。
+        // PHOTOS_TABLE を requireEnv で止めているのと同じ扱いにする。
+        // ローカル（認証情報なしでビルドを回す）だけ警告で先へ進む。
+        // CI かどうかは**呼ぶたびに読む**（module 読み込み時の IS_CI ではなく）。
+        // 定数にすると、CI 上でテストを回したときに未設定の場面が
+        // process.exit を踏んでワーカーごと落ちる。
+        if (process.env.CI) {
+            console.error("[sync] USERS_TABLE が未設定です。ワークフローの env を確認してください。");
+            process.exit(1);
+        }
         console.warn("[sync] USERS_TABLE が未設定のため、表示名の更新は飛ばします");
         return photos;
     }
