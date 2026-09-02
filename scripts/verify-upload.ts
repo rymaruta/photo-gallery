@@ -22,6 +22,12 @@
  * 別途 Chromium で実測済み。ここはサーバー側と S3 の側を見る。
  *
  * **staging 専用。** バケット名が `staging-` で始まらなければ何もしない。
+ *
+ * **`--apply` が要る。** このワークフローは「既定はドライラン、apply を
+ * true にしたときだけ変更する」と冒頭に書いてあり、他のタスクは全部
+ * それに従っている。この確認は**本物の S3 に書く**（しかも 2 と 3 は
+ * 意図的に失敗する PUT を投げる）ので、例外にしてよい理由が無い。
+ * 既定では「何をするか」を出して終わる。
  */
 import { S3Client, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 
@@ -97,10 +103,21 @@ async function run(label: string, fileName: string, fileType: string, bytes: Uin
 // **top-level await にしない。** このリポジトリの `tsx` は CJS で組む
 // （root の package.json に `"type": "module"` が無い）ので、
 // top-level await は esbuild が拒否する——**実際にそれで1回落とした**。
+const APPLY = process.argv.includes("--apply");
+
 async function main() {
     if (!BUCKET.startsWith("staging-")) {
         console.error(`verify-upload: UPLOAD_BUCKET が staging- で始まりません（${BUCKET || "(未設定)"}）。中止します。`);
         process.exit(1);
+    }
+    if (!APPLY) {
+        console.log(`verify-upload: ドライラン（bucket=${BUCKET}）。--apply で実行します。`);
+        console.log("  実行すると、この確認をします:");
+        console.log("    1. ハンドラが出した presign に、ブラウザと同じ形で PUT → 通るはず");
+        console.log("    2. 長さが1バイト違う PUT → 断られるはず");
+        console.log("    3. 種別が違う PUT → 断られるはず");
+        console.log("  写真（JPEG 2KB）と動画（MP4 1.5MB）で各3回。一時オブジェクトは最後に消します。");
+        return;
     }
     ({ presignedUrl } = await import(HANDLER) as { presignedUrl: Handler });
 

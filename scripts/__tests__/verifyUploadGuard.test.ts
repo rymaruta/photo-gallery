@@ -105,3 +105,41 @@ describe("verify-upload は実行できる（変換が通る）", () => {
         expect(out).not.toMatch(/Transform failed|not supported/);
     }, 60_000);
 });
+
+// **このワークフローの約束は「既定はドライラン」**（`maintenance.yml` の冒頭）。
+// この確認は本物の S3 に書く（しかも意図的に失敗する PUT を投げる）ので、
+// 例外にしてよい理由が無い。他のタスクは全部 `--apply` を取っている。
+describe("verify-upload は --apply が無ければ書かない", () => {
+    const runScript = (args: string[], bucket: string) => {
+        try {
+            return {
+                out: execFileSync("npx", ["tsx", "scripts/verify-upload.ts", ...args], {
+                    cwd: ROOT,
+                    env: { ...process.env, UPLOAD_BUCKET: bucket },
+                    encoding: "utf8",
+                    stdio: ["ignore", "pipe", "pipe"],
+                }),
+                code: 0,
+            };
+        } catch (e) {
+            const err = e as { status?: number; stdout?: string; stderr?: string };
+            return { out: `${err.stdout ?? ""}${err.stderr ?? ""}`, code: err.status ?? -1 };
+        }
+    };
+
+    // **実際に走らせる。** 「`--apply` を見る行がある」だけを正規表現で見ても、
+    // 見たうえで無視していたら緑になる
+    it("引数が無ければ、AWS に触らずドライランで終わる", () => {
+        // staging の名前を渡す＝ガードは通る。ここで止まるのは apply の側だけ
+        const { out, code } = runScript([], "staging-journey-photo-upload");
+        expect(out, `想定外の出力:\n${out}`).toMatch(/ドライラン/);
+        expect(code, "ドライランなのに失敗している").toBe(0);
+        // 資格情報を取りに行っていない＝S3 に触っていない
+        expect(out).not.toMatch(/Could not load credentials|CredentialsProviderError/);
+        expect(out).not.toMatch(/申告どおりの PUT/);
+    }, 60_000);
+
+    it("ワークフローが --apply を渡している", () => {
+        expect(step()).toMatch(/verify-upload\.ts \$\{\{ inputs\.apply && '--apply' \|\| '' \}\}/);
+    });
+});

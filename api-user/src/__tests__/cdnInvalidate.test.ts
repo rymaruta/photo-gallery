@@ -136,4 +136,44 @@ describe("エッジからも消す", () => {
         await invalidate(Array.from({ length: 3000 }, (_, i) => `uploads/u1/p${i}.jpg`));
         expect(send).toHaveBeenCalledTimes(1);
     });
+    // **1本落ちても残りは投げる。** `await` を並べただけだと、最初に断られた
+    // チャンクで残り全部が捨てられる。分割した意味は「全部を届ける」ことなので、
+    // 途中で降りると**分割していない頃より悪い**（前半だけ消えて後半が残る、
+    // という追いにくい状態になる）。
+    it("途中のチャンクが落ちても、残りは投げる", async () => {
+        const invalidate = await load("E123");
+        send.mockReset()
+            .mockResolvedValueOnce({})                        // 1本目: 成功
+            .mockRejectedValueOnce(new Error("Throttling"))   // 2本目: 失敗
+            .mockResolvedValueOnce({});                       // 3本目: 成功
+        const keys = Array.from({ length: 7001 }, (_, i) => `uploads/u1/p${i}.jpg`);
+
+        // 全部は届かなかったので false（呼び出し側は削除を成功として扱う）
+        expect(await invalidate(keys)).toBe(false);
+        expect(send, "落ちた時点で降りている").toHaveBeenCalledTimes(3);
+
+        // 3本目のパスがちゃんと投げられている（＝後半を捨てていない）
+        const last = (send.mock.calls[2][0] as {
+            input: { InvalidationBatch: { Paths: { Items: string[] } } };
+        }).input.InvalidationBatch.Paths.Items;
+        expect(last).toContain("/uploads/u1/p7000.jpg");
+    });
+
+    it("全部通れば true", async () => {
+        const invalidate = await load("E123");
+        send.mockReset().mockResolvedValue({});
+        expect(await invalidate(Array.from({ length: 6000 }, (_, i) => `uploads/u1/p${i}.jpg`))).toBe(true);
+        expect(send).toHaveBeenCalledTimes(2);
+    });
+
+    // 何本中何本落ちたかをログに残す（部分的に無効化された状態を後から追う手がかり）
+    it("失敗の本数をログに残す", async () => {
+        const err = vi.spyOn(console, "error").mockImplementation(() => { });
+        const invalidate = await load("E123");
+        send.mockReset()
+            .mockRejectedValueOnce(new Error("Throttling"))
+            .mockResolvedValueOnce({});
+        await invalidate(Array.from({ length: 4000 }, (_, i) => `uploads/u1/p${i}.jpg`));
+        expect(err.mock.calls.map((c) => String(c[0])).join("\n")).toMatch(/2 本中 1 本が失敗/);
+    });
 });

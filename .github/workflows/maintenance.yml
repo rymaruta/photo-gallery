@@ -24,7 +24,7 @@ on:
           - normalize-image-urls  # 保存済みの画像URLのホスト名を配信URLに揃える
           - diagnose          # 本番の設定を読むだけ（索引の射影・日付の形・Cognito・CDN の TTL）
           - orphan-uploads    # どの行からも参照されていないアップロード実体を探す
-          - verify-upload     # **staging** で presign が本当に使えるか確かめる（VERIFY-1）
+          - verify-upload     # **staging** で presign が本当に使えるか確かめる（apply が要る）
         required: true
       apply:
         description: "true で実際に適用（false は内容の確認のみ）"
@@ -145,7 +145,7 @@ jobs:
       # 上書きを忘れると本番のバケットに書きに行くので、二重に止める。
       - name: presign が本当に使えるか確かめる（staging）
         if: inputs.task == 'verify-upload'
-        run: npx tsx scripts/verify-upload.ts
+        run: npx tsx scripts/verify-upload.ts ${{ inputs.apply && '--apply' || '' }}
         timeout-minutes: 5
         env:
           UPLOAD_BUCKET: staging-journey-photo-upload
