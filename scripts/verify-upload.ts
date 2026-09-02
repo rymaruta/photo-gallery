@@ -26,10 +26,7 @@
 import { S3Client, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 
 const BUCKET = process.env.UPLOAD_BUCKET ?? "";
-if (!BUCKET.startsWith("staging-")) {
-    console.error(`verify-upload: UPLOAD_BUCKET が staging- で始まりません（${BUCKET || "(未設定)"}）。中止します。`);
-    process.exit(1);
-}
+const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 
 // **パスを変数にする。** リテラルで書くと、ルートの tsconfig が
 // `api-user/` を型検査に引き込む（あちらは意図的に除外されていて、
@@ -37,10 +34,8 @@ if (!BUCKET.startsWith("staging-")) {
 // このスクリプト1本のために赤くなるのは割に合わない。
 // 実行は tsx なので、変数でも普通に読める。
 const HANDLER = "../api-user/src/upload";
-const { presignedUrl } = await import(HANDLER) as {
-    presignedUrl: (e: unknown, c: unknown, cb: unknown) => Promise<{ statusCode: number; body: string }>;
-};
-const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
+type Handler = (e: unknown, c: unknown, cb: unknown) => Promise<{ statusCode: number; body: string }>;
+let presignedUrl: Handler;
 
 /** 本物のハンドラを、認証済みの呼び出しに見せかけて叩く */
 async function presign(fileName: string, fileType: string, fileSize: number) {
@@ -99,25 +94,38 @@ async function run(label: string, fileName: string, fileType: string, bytes: Uin
     check(typeRes.status !== 200, "別の種別だと断られる", `status=${typeRes.status}`);
 }
 
-// 中身は問わない（S3 は形式を見ない）。長さと種別だけが要点
-const jpeg = new Uint8Array(2048).fill(0x41);
-const mp4 = new Uint8Array(1_500_000).fill(0x42);   // ストーリーの動画に近い大きさ
-
-try {
-    console.log(`verify-upload: bucket=${BUCKET}`);
-    await run("写真", "verify.jpg", "image/jpeg", jpeg);
-    await run("ストーリーの動画", "verify.mp4", "video/mp4", mp4);
-} finally {
-    // **必ず片付ける。** 残すと孤児として orphan-uploads に拾われる
-    for (const Key of cleanup) {
-        try { await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key })); }
-        catch (e) { console.error(`  片付けに失敗: ${Key}:`, e); }
+// **top-level await にしない。** このリポジトリの `tsx` は CJS で組む
+// （root の package.json に `"type": "module"` が無い）ので、
+// top-level await は esbuild が拒否する——**実際にそれで1回落とした**。
+async function main() {
+    if (!BUCKET.startsWith("staging-")) {
+        console.error(`verify-upload: UPLOAD_BUCKET が staging- で始まりません（${BUCKET || "(未設定)"}）。中止します。`);
+        process.exit(1);
     }
-    console.log(`\n片付け: ${cleanup.length} 件の一時オブジェクトを削除`);
+    ({ presignedUrl } = await import(HANDLER) as { presignedUrl: Handler });
+
+    // 中身は問わない（S3 は形式を見ない）。長さと種別だけが要点
+    const jpeg = new Uint8Array(2048).fill(0x41);
+    const mp4 = new Uint8Array(1_500_000).fill(0x42);   // ストーリーの動画に近い大きさ
+
+    try {
+        console.log(`verify-upload: bucket=${BUCKET}`);
+        await run("写真", "verify.jpg", "image/jpeg", jpeg);
+        await run("ストーリーの動画", "verify.mp4", "video/mp4", mp4);
+    } finally {
+        // **必ず片付ける。** 残すと孤児として orphan-uploads に拾われる
+        for (const Key of cleanup) {
+            try { await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key })); }
+            catch (e) { console.error(`  片付けに失敗: ${Key}:`, e); }
+        }
+        console.log(`\n片付け: ${cleanup.length} 件の一時オブジェクトを削除`);
+    }
+
+    if (failures > 0) {
+        console.error(`\n**${failures} 件が想定と違います。** アップロードが壊れている可能性があります。`);
+        process.exit(1);
+    }
+    console.log("\nすべて想定どおり。presign の署名は効いており、申告どおりの PUT は通ります。");
 }
 
-if (failures > 0) {
-    console.error(`\n**${failures} 件が想定と違います。** アップロードが壊れている可能性があります。`);
-    process.exit(1);
-}
-console.log("\nすべて想定どおり。presign の署名は効いており、申告どおりの PUT は通ります。");
+void main().catch((e) => { console.error(e); process.exit(1); });

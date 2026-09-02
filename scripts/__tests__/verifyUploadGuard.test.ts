@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 
 // VERIFY-1 の確認は**本物の S3 に書く**。間違えて本番へ向けると、
@@ -64,4 +65,37 @@ describe("verify-upload は staging にしか向かない", () => {
         expect(script).toMatch(/DeleteObjectCommand/);
         expect(script).toMatch(/finally\s*\{/);
     });
+});
+
+// **実際に走らせる。**
+//
+// 最初に書いた版は top-level `await` を使っていて、`tsx` が CJS で組む
+// このリポジトリでは esbuild が拒否する——**一度も実行しないままコミットし、
+// staging で流して初めて落ちた**（台帳の型0c: 書いた守りが動く入力を1つ
+// 通すまで、書いたと言わない）。
+//
+// 中身の検査（正規表現）はいくらでも緑にできるが、「変換が通るか」だけは
+// 動かさないと分からない。staging でないバケットを渡せば、AWS に触る前に
+// 中止するので、テストから安全に起動できる。
+describe("verify-upload は実行できる（変換が通る）", () => {
+    it("staging でないバケットなら、AWS に触らず中止する", () => {
+        let out = "";
+        let code = 0;
+        try {
+            out = execFileSync("npx", ["tsx", "scripts/verify-upload.ts"], {
+                cwd: ROOT,
+                env: { ...process.env, UPLOAD_BUCKET: "prod-journey-photo-upload" },
+                encoding: "utf8",
+                stdio: ["ignore", "pipe", "pipe"],
+            });
+        } catch (e) {
+            const err = e as { status?: number; stdout?: string; stderr?: string };
+            code = err.status ?? -1;
+            out = `${err.stdout ?? ""}${err.stderr ?? ""}`;
+        }
+        // 変換に失敗していると、この文言ではなく esbuild のエラーが出る
+        expect(out, `想定外の出力:\n${out}`).toMatch(/staging- で始まりません/);
+        expect(code, "中止したのに 0 で終わっている").toBe(1);
+        expect(out).not.toMatch(/Transform failed|not supported/);
+    }, 60_000);
 });
