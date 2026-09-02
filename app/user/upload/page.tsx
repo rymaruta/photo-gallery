@@ -118,20 +118,19 @@ function CropPreview({ src, hint }: { src: string; hint: string }) {
 // **段落ごと**に切り、タグはカンマ区切りの1入力で上限が**タグ1つあたり**
 // なので、欄全体に上限を入れると「サーバーは受け付けるのに入力できない」に
 // なる。
-// **件数の上限は、文字数と違って画面に出す先が無い。**
+// **黙って切られる上限のうち、画面に出す先が無いもの。**
 //
-// すぐ上のコメントは「説明とタグに `maxLength` を入れない」理由を書いて
-// いるが、それは**1件あたりの文字数**（タグ50字・段落2000字）の話。
-// サーバーには**件数**の上限（タグ30個・段落50）も別にあり、そちらは
-// 画面側に対応物も警告も無かった——31個目のタグと51段落目は 200 が返った
-// まま消える。**このコメントが避けたかった「保存は成功したように見えて、
-// あとで開くと無い」そのもの。**
+// **この画面は説明を必ず文字列で送る**（`description: item.description`）。
+// `sanitizeDescription` は文字列を**全体2000字で切るだけ**で、段落数は
+// 一切見ない——50段落の上限は `{ja:[],en:[]}` の形にしか効かない。
+// 一度ここを取り違えて「50段落まで」と警告を出したが、この画面では
+// **必ず誤報**だった（しかも本物の上限は野放しのままだった）。
 //
-// 入力を塞ぐと「サーバーは受け付けるのに入力できない」が生まれるので、
-// 塞がずに**保存の前に告げる**。値は `api-user/src/sanitize.ts` と対で、
+// 入力は塞がない（塞ぐと「サーバーは受け付けるのに入力できない」に倒れる）。
+// 値は `api-user/src/sanitize.ts` と対で、
 // `scripts/__tests__/limitParity.test.ts` がずれを止める。
 const TAGS_MAX = 30;
-const DESC_PARAGRAPHS_MAX = 50;
+const DESC_STRING_MAX = 2000;
 const TITLE_MAX = 200;
 const LOCATION_MAX = 200;
 const CATEGORY_MAX = 100;
@@ -520,18 +519,18 @@ function UploadPageInner() {
 
         const tagList = tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
         // 編集画面と同じ理由（`app/user/edit/page.tsx` を見よ）。
-        // 件数の上限は画面に対応物が無く、超えた分は 200 のまま消える
+        // 上限は画面に対応物が無く、超えた分は 200 のまま消える
         if (tagList && tagList.length > TAGS_MAX) {
             showToast(locale === "en"
                 ? `Up to ${TAGS_MAX} tags (${tagList.length}). The rest won't be saved`
                 : `タグは${TAGS_MAX}個までです（${tagList.length}個）。超えた分は保存されません`, "error");
         }
-        const tooManyParagraphs = pending.find(
-            (it) => it.description.split("\n").map((l) => l.trim()).filter(Boolean).length > DESC_PARAGRAPHS_MAX);
-        if (tooManyParagraphs) {
+        // **文字数で見る**（この画面は説明を文字列で送るので、段落数は効かない）
+        const longDesc = pending.find((it) => it.description.trim().length > DESC_STRING_MAX);
+        if (longDesc) {
             showToast(locale === "en"
-                ? `Up to ${DESC_PARAGRAPHS_MAX} paragraphs. The rest won't be saved`
-                : `説明は${DESC_PARAGRAPHS_MAX}段落までです。超えた分は保存されません`, "error");
+                ? `Up to ${DESC_STRING_MAX} characters in the description. The rest won't be saved`
+                : `説明は${DESC_STRING_MAX}字までです。超えた分は保存されません`, "error");
         }
 
         let successCount = 0;

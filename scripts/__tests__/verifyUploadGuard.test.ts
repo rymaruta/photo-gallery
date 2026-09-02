@@ -84,7 +84,13 @@ describe("verify-upload は実行できる（変換が通る）", () => {
         try {
             out = execFileSync("npx", ["tsx", "scripts/verify-upload.ts"], {
                 cwd: ROOT,
-                env: { ...process.env, UPLOAD_BUCKET: "prod-journey-photo-upload" },
+                // **実在しない名前を渡す。** 本番のバケット名を渡していたが、
+                // このテストが存在する理由は「staging ガードが消える変異を
+                // 捕まえること」。ガードが消えた瞬間、`...process.env` ごと
+                // 渡している AWS の資格情報で**このテスト自身が本番へ書く**
+                // （しかも意図的に失敗する PUT を投げる）。安全網の失敗が
+                // 本番への書き込みに化ける形だった。
+                env: { ...process.env, UPLOAD_BUCKET: "no-such-bucket-for-tests" },
                 encoding: "utf8",
                 stdio: ["ignore", "pipe", "pipe"],
             });

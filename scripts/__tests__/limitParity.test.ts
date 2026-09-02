@@ -29,6 +29,11 @@ const SERVER = {
     tags: serverLimit(/Array\.from\(new Set\(cleaned\)\)\.slice\(0,\s*(\d+)\)/, "タグの件数"),
     // 説明の段落: `.slice(0, 50);`（`.filter(Boolean)` の直後）
     paragraphs: serverLimit(/\.filter\(Boolean\)\s*\n\s*\.slice\(0,\s*(\d+)\)/, "説明の段落数"),
+    // **文字列で送ったときの上限。** `sanitizeDescription` の
+    // `if (typeof v === "string") return truncate(v.trim(), 2000)`。
+    // **段落数は一切見ない**——ここを取り違えて、両画面に「50段落まで」と
+    // いう**ほぼ常に誤報**の警告を出したことがある（本物の上限は野放しだった）
+    descString: serverLimit(/sanitizeDescription[\s\S]{0,200}?typeof v === "string"\)\s*return truncate\(v\.trim\(\),\s*(\d+)\)/, "説明の文字数"),
 };
 
 const PAGES = ["app/user/edit/page.tsx", "app/user/upload/page.tsx"];
@@ -37,6 +42,7 @@ describe("件数の上限が、画面とサーバーで一致している", () =
     it("sanitize.ts から数字を読めている（正規表現が空振りしていない）", () => {
         expect(SERVER.tags).toBe(30);
         expect(SERVER.paragraphs).toBe(50);
+        expect(SERVER.descString).toBe(2000);
     });
 
     it.each(PAGES)("%s のタグ上限がサーバーと同じ", (page) => {
@@ -45,17 +51,29 @@ describe("件数の上限が、画面とサーバーで一致している", () =
         expect(Number(m![1]), "画面とサーバーで違う").toBe(SERVER.tags);
     });
 
-    it.each(PAGES)("%s の段落上限がサーバーと同じ", (page) => {
-        const m = /const DESC_PARAGRAPHS_MAX = (\d+);/.exec(read(page));
-        expect(m, "DESC_PARAGRAPHS_MAX が無い").not.toBeNull();
-        expect(Number(m![1]), "画面とサーバーで違う").toBe(SERVER.paragraphs);
+    it.each(PAGES)("%s の説明の文字数上限がサーバーと同じ", (page) => {
+        const m = /const DESC_STRING_MAX = (\d+);/.exec(read(page));
+        expect(m, "DESC_STRING_MAX が無い").not.toBeNull();
+        expect(Number(m![1]), "画面とサーバーで違う").toBe(SERVER.descString);
+    });
+
+    // 段落の上限は `{ja:[],en:[]}` で送る画面にだけ意味がある。
+    // **必ず文字列で送る画面には置かない**——置くと、また誤報の元になる
+    it("段落の上限を持つのは編集画面だけ", () => {
+        const edit = /const DESC_PARAGRAPHS_MAX = (\d+);/.exec(read("app/user/edit/page.tsx"));
+        expect(edit, "編集画面に DESC_PARAGRAPHS_MAX が無い").not.toBeNull();
+        expect(Number(edit![1])).toBe(SERVER.paragraphs);
+
+        expect(read("app/user/upload/page.tsx"),
+            "必ず文字列で送る画面に段落の上限を置いている（誤報になる）")
+            .not.toMatch(/DESC_PARAGRAPHS_MAX/);
     });
 
     // 定数を置いただけで使っていなければ意味が無い
     it.each(PAGES)("%s が実際に上限を見て告げている", (page) => {
         const src = read(page);
         expect(src, "TAGS_MAX を見ていない").toMatch(/>\s*TAGS_MAX/);
-        expect(src, "DESC_PARAGRAPHS_MAX を見ていない").toMatch(/>\s*DESC_PARAGRAPHS_MAX/);
+        expect(src, "DESC_STRING_MAX を見ていない").toMatch(/>\s*DESC_STRING_MAX/);
         expect(src, "告げていない").toMatch(/超えた分は保存されません/);
     });
 });

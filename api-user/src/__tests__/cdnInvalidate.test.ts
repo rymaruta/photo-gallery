@@ -20,7 +20,15 @@ const cloudfrontMock = vi.hoisted(() => () => ({
 vi.mock("@aws-sdk/client-cloudfront", cloudfrontMock);
 
 beforeEach(() => { send.mockReset().mockResolvedValue({}); vi.resetModules(); });
-afterEach(() => { vi.unstubAllEnvs(); });
+afterEach(() => {
+    vi.unstubAllEnvs();
+    // **復元は afterEach で。** 下の「モジュールが読めない」テストは
+    // `doMock` で投げる工場に差し替える。復元をテスト本体の最後に置くと、
+    // **その手前の `expect` が落ちた回に復元が走らず**、後続が
+    // 「モジュールが無い」で落ちる——1件の失敗が4件になり、うち3件は
+    // 原因と無関係な理由で落ちる（実測して確認した）。
+    vi.doMock("@aws-sdk/client-cloudfront", cloudfrontMock);
+});
 
 async function load(distId?: string) {
     if (distId === undefined) vi.stubEnv("CLOUDFRONT_DISTRIBUTION_ID", "");
@@ -84,8 +92,6 @@ describe("エッジからも消す", () => {
         const { invalidateUploads } = await import("../cdnInvalidate");
         // 投げないこと自体が要件。戻り値は「掃除できなかった」
         await expect(invalidateUploads(["uploads/a.jpg"])).resolves.toBe(false);
-        // **戻す。** 外したままだと以降のテストが本物の SDK を掴む
-        vi.doMock("@aws-sdk/client-cloudfront", cloudfrontMock);
     });
     // **同じ上限を片方だけ守っていた。** `scripts/deploy-static-site.js` は
     // `MAX_PATHS_PER_REQUEST = 3000` で分割しているのに、こちらは全部を1回に
