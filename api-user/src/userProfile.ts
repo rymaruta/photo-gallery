@@ -866,10 +866,16 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         }
 
         // **改名を、自分の写真の行にも反映する。**
-        // 変わっていないときは何もしない（毎回の保存で全件書き直さない）。
+        //
+        // 表示名を**触った保存**で走らせる（値が変わったときだけ、ではない）。
+        // 既に正しい行は書かないので、そろっていれば Query 1回・書き込み0。
+        // 代わりに「同じ名前でもう一度保存する」が、前回取りこぼした行を
+        // 書き直す**やり直しの手段**になる。
+        //
         // 待つ——Lambda はハンドラが返った瞬間に凍るので、投げっぱなしだと
         // 書き込みが途中で止まる（rebuild.ts が同じ理由で待っている）。
-        if ("displayName" in changes && (prev?.displayName ?? undefined) !== (displayName ?? undefined)) {
+        // 時間の予算はこの関数の中で見る（上のコメント参照）。
+        if ("displayName" in changes) {
             await backfillPhotoDisplayName(userId, displayName);
         }
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(profile) };
@@ -913,11 +919,31 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
  * プロフィールを優先するので新しい名前、`<title>` と OGP は写真の行なので
  * 古い名前。本人から見て「変えたのに変わっていない」が一目で分かる形。
  *
- * **保存そのものは絶対に失敗させない。** ここで投げると「改名しました」が
- * 出ずに元どおりになる。写しがずれるのは今までどおりで、悪化はしない。
- * 途中まで書けた場合も、次の改名でまた全件を書き直すので収束する。
+ * **保存そのものは絶対に失敗させない。**
  *
- * 対象は自分の写真だけ（GSI をユーザーで引く）。上限100枚なので件数は有界。
+ * 例外は握るが、それだけでは足りない——**Lambda のタイムアウトは関数内の
+ * try/catch では捕まえられない**。この関数の制限は6秒（`serverless.yml` に
+ * 明示した）で、写しの書き直しが食い切ると「プロフィールは保存できているのに
+ * 利用者には失敗と出る」になる。だから**時間の予算を持って、使い切ったら
+ * 途中でやめる**（`rebuild.ts` が GitHub を叩くときと同じ形）。
+ *
+ * **件数は「100枚だから有界」ではない。** 一度そう書いたが2点で崩れる:
+ *   - `photoLimitError` は **admin を100枚制限から外している**
+ *   - この GSI は `userId` を持つ項目を全部返す（写真・下書き・**ストーリー**）。
+ *     100枚を数える側は `attribute_exists(src) AND attribute_not_exists(story)`
+ *     で絞っているので、GSI の件数はそれより多い
+ * 有界にしているのは**ページ数の上限と時間の予算**であって、写真の枚数ではない。
+ *
+ * **ストーリーは書き換えない。** 数える側と同じ条件で絞る。名前を消したときに
+ * ストーリーの `displayName` まで REMOVE すると、作成時は必ず入る既定名
+ * （名前未設定さん）と、消したあとの既定名（`lib/stories.ts` の「ユーザー」）が
+ * 食い違う。
+ *
+ * **既に正しい行は書かない。** これで「同じ名前で保存し直す」が、
+ * 前回取りこぼした行だけを書き直す**やり直しの手段**になる（前は変わった
+ * ときしか走らず、同じ名前で保存しても一度も書き直されなかった——
+ * 「次の改名で収束する」と書いていたが、利用者が実際に取る行動では
+ * 成立していなかった）。全部そろっていれば Query 1回で書き込みは0。
  */
 // **`./dynamodb` から import しない。** あちらは DocumentClient を生成する
 // ので、読み込むだけで env と実クライアントが要る（このファイルは生の
@@ -927,10 +953,14 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
 const USER_INDEX = "userId-createdAt-index";
 const NAME_BACKFILL_CONCURRENCY = 8;
 const NAME_BACKFILL_MAX_PAGES = 10;
+const NAME_BACKFILL_PAGE_SIZE = 100;
+/** 6秒の制限に対する予算。残りは保存本体と応答に使う */
+const NAME_BACKFILL_BUDGET_MS = 2500;
 
 async function backfillPhotoDisplayName(userId: string, name: string | undefined): Promise<void> {
+    const deadline = Date.now() + NAME_BACKFILL_BUDGET_MS;
     try {
-        const ids: string[] = [];
+        const stale: string[] = [];
         let lastKey: Record<string, unknown> | undefined;
         let pages = 0;
         do {
@@ -938,21 +968,30 @@ async function backfillPhotoDisplayName(userId: string, name: string | undefined
                 TableName: PHOTOS_TABLE,
                 IndexName: USER_INDEX,
                 KeyConditionExpression: "userId = :u",
+                // 数える側（countUserPhotos / listMyPhotos）と同じ条件。
+                // ストーリーと、実体を持たない行は触らない
+                FilterExpression: "attribute_exists(src) AND attribute_not_exists(story)",
                 ExpressionAttributeValues: marshall({ ":u": userId }),
-                ProjectionExpression: "id",
+                ProjectionExpression: "id, displayName",
+                Limit: NAME_BACKFILL_PAGE_SIZE,
                 ExclusiveStartKey: lastKey as Record<string, AttributeValue> | undefined,
             }));
             for (const raw of res.Items ?? []) {
-                const id = (unmarshall(raw) as { id?: unknown }).id;
-                if (typeof id === "string" && id) ids.push(id);
+                const row = unmarshall(raw) as { id?: unknown; displayName?: unknown };
+                if (typeof row.id !== "string" || !row.id) continue;
+                const current = typeof row.displayName === "string" ? row.displayName : undefined;
+                if (current === name) continue;   // 既に正しい行は書かない
+                stale.push(row.id);
             }
             lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
             pages++;
-        } while (lastKey && pages < NAME_BACKFILL_MAX_PAGES);
+        } while (lastKey && pages < NAME_BACKFILL_MAX_PAGES && Date.now() < deadline);
 
         let failed = 0;
-        for (let i = 0; i < ids.length; i += NAME_BACKFILL_CONCURRENCY) {
-            await Promise.all(ids.slice(i, i + NAME_BACKFILL_CONCURRENCY).map(async (id) => {
+        let stopped = false;
+        for (let i = 0; i < stale.length; i += NAME_BACKFILL_CONCURRENCY) {
+            if (Date.now() >= deadline) { stopped = true; break; }
+            await Promise.all(stale.slice(i, i + NAME_BACKFILL_CONCURRENCY).map(async (id) => {
                 try {
                     // 名前を消したときは属性ごと外す（空文字を焼くと
                     // 「名前を持っている人」として扱われ、既定名に落ちない）
@@ -969,15 +1008,18 @@ async function backfillPhotoDisplayName(userId: string, name: string | undefined
                 }
             }));
         }
-        if (failed > 0) {
-            console.error(`backfillPhotoDisplayName: ${ids.length} 件中 ${failed} 件が失敗（${userId}）。` +
-                "その写真は古い表示名のまま残ります（次の改名で書き直されます）");
+        if (failed > 0 || stopped) {
+            console.error(`backfillPhotoDisplayName: ${stale.length} 件中 ` +
+                `${failed} 件が失敗${stopped ? "・時間切れで打ち切り" : ""}（${userId}）。` +
+                "その写真は古い表示名のまま残ります（同じ名前で保存し直すと、残りだけ書き直します）");
         }
     } catch (e) {
         // **改名そのものは成功させる。** 写しのズレは今までどおりで悪化しない
         console.error("backfillPhotoDisplayName error:", e);
     }
 }
+
+
 
 // PUT /user/profile は全置換で、UserProfileClient はこの戻り値を編集元として
 // そのまま送り返すため、返さなかった項目は保存時に body から欠け、
