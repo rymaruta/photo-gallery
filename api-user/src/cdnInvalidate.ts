@@ -28,6 +28,20 @@
  */
 const DIST_ID = process.env.CLOUDFRONT_DISTRIBUTION_ID ?? "";
 
+/**
+ * 1回の `CreateInvalidation` に入れられるパスの上限（CloudFront の制限）。
+ *
+ * **同じ上限を、片方だけ守っていた。** `scripts/deploy-static-site.js` は
+ * `MAX_PATHS_PER_REQUEST = 3000` で分割しているのに、こちらは全部を1回に
+ * 入れていた。超えると CloudFront が断るが、この関数は投げずに警告だけ出す
+ * 設計なので、**消えたように見えたままエッジの掃除だけが静かに落ちる**
+ * ——`951fac8` で「1行ごとに1本」をやめてまとめたぶん、1本が大きくなった。
+ *
+ * 届くのは期限切れストーリーの掃除（1時間ごと・溜まった回ほど件数が増える）。
+ * 退会は写真100枚 × メディア9種 = 最大900なので届かない。
+ */
+const MAX_PATHS_PER_REQUEST = 3000;
+
 // 読めたクライアントは使い回す（他の口と同じ扱い）。読めなかったことは
 // 覚えない——一時的な失敗で永久に諦めるより、次の削除でもう一度試す方がよい
 let cached: { send: (cmd: unknown) => Promise<unknown> } | null = null;
@@ -44,21 +58,24 @@ export async function invalidateUploads(keys: readonly string[], logPrefix = "in
     try {
         const { CloudFrontClient, CreateInvalidationCommand } = await import("@aws-sdk/client-cloudfront");
         cached ??= new CloudFrontClient({}) as unknown as typeof cached;
-        await cached!.send(new CreateInvalidationCommand({
-            DistributionId: DIST_ID,
-            InvalidationBatch: {
-                // **毎回ちがう値**。以前ここには「内容から作るので再送しても
-                // 二重に走らない」と書いてあったが、`Date.now()` は内容と
-                // 何の関係も無い——コメントだけがそう言っていた。
-                // 内容から作る形にはしない: CloudFront は同じ
-                // CallerReference に**同じ**バッチが来たら過去の無効化を
-                // そのまま返すので、いつか同じキーを消し直したときに
-                // 「完了済み」を返されて**エッジが掃除されない**方に倒れる。
-                // 二重に走る側の損は、無効化1本ぶんの課金だけ。
-                CallerReference: `del-${Date.now()}-${paths.length}`,
-                Paths: { Quantity: paths.length, Items: paths },
-            },
-        }));
+        for (let i = 0; i < paths.length; i += MAX_PATHS_PER_REQUEST) {
+            const chunk = paths.slice(i, i + MAX_PATHS_PER_REQUEST);
+            await cached!.send(new CreateInvalidationCommand({
+                DistributionId: DIST_ID,
+                InvalidationBatch: {
+                    // **毎回ちがう値**。以前ここには「内容から作るので再送しても
+                    // 二重に走らない」と書いてあったが、`Date.now()` は内容と
+                    // 何の関係も無い——コメントだけがそう言っていた。
+                    // 内容から作る形にはしない: CloudFront は同じ
+                    // CallerReference に**同じ**バッチが来たら過去の無効化を
+                    // そのまま返すので、いつか同じキーを消し直したときに
+                    // 「完了済み」を返されて**エッジが掃除されない**方に倒れる。
+                    // 二重に走る側の損は、無効化1本ぶんの課金だけ。
+                    CallerReference: `del-${Date.now()}-${i}-${chunk.length}`,
+                    Paths: { Quantity: chunk.length, Items: chunk },
+                },
+            }));
+        }
         return true;
     } catch (e) {
         console.error(`${logPrefix}: エッジの掃除に失敗しました（実体は削除済み）:`, e);

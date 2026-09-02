@@ -101,6 +101,20 @@ export function mergeLocalizedDescription(original: Photo["description"], ja: st
 // 切る（最大50段落）ので、textarea 全体に 2000 を入れると
 // 「サーバーは受け付けるのに入力できない」が新しく生まれる。タグは
 // カンマ区切りの1入力で、上限は**タグ1つあたり** 50 なので同じ理由。
+// **件数の上限は、文字数と違って画面に出す先が無い。**
+//
+// すぐ上のコメントは「説明とタグに `maxLength` を入れない」理由を書いて
+// いるが、それは**1件あたりの文字数**（タグ50字・段落2000字）の話。
+// サーバーには**件数**の上限（タグ30個・段落50）も別にあり、そちらは
+// 画面側に対応物も警告も無かった——31個目のタグと51段落目は 200 が返った
+// まま消える。**このコメントが避けたかった「保存は成功したように見えて、
+// あとで開くと無い」そのもの。**
+//
+// 入力を塞ぐと「サーバーは受け付けるのに入力できない」が生まれるので、
+// 塞がずに**保存の前に告げる**。値は `api-user/src/sanitize.ts` と対で、
+// `scripts/__tests__/limitParity.test.ts` がずれを止める。
+const TAGS_MAX = 30;
+const DESC_PARAGRAPHS_MAX = 50;
 const TITLE_MAX = 200;
 const LOCATION_MAX = 200;
 const CATEGORY_MAX = 100;
@@ -258,6 +272,17 @@ function EditContent() {
         try {
             const { userFetch, readApiError } = await import("../../../lib/utils/api");
             const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
+            // **黙って切られる前に告げる。** サーバー（`sanitize.ts`）は
+            // タグ30個・段落50までで、超えた分は 200 を返しながら消える。
+            // 保存は止めない——止めると「サーバーは受け付けるのに保存できない」
+            // に倒れる。伝えたうえで、残す分は今までどおりサーバーが決める。
+            const paragraphs = description.split("\n").map((l) => l.trim()).filter(Boolean).length;
+            if (tags.length > TAGS_MAX || paragraphs > DESC_PARAGRAPHS_MAX) {
+                const over = tags.length > TAGS_MAX
+                    ? (isJa ? `タグは${TAGS_MAX}個までです（${tags.length}個）` : `Up to ${TAGS_MAX} tags (${tags.length})`)
+                    : (isJa ? `説明は${DESC_PARAGRAPHS_MAX}段落までです（${paragraphs}段落）` : `Up to ${DESC_PARAGRAPHS_MAX} paragraphs (${paragraphs})`);
+                showToast(isJa ? `${over}。超えた分は保存されません` : `${over}. The rest won't be saved`, "error");
+            }
             // **実際に変えた項目だけ送る。**
             // 開いた時点の値を毎回全部送っていたので、同じ写真を2タブで開いて
             // 片方で直したあと、もう片方で保存すると**先の編集が黙って消えた**

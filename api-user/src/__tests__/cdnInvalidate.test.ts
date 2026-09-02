@@ -9,10 +9,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // （既定1日・最大1年）。GPS 入りの原本も同じ扱い。
 
 const send = vi.hoisted(() => vi.fn());
-vi.mock("@aws-sdk/client-cloudfront", () => ({
+// **工場を名前で持つ。** 下の「モジュールが読めない」テストが
+// `vi.doUnmock` するので、そのままだと**以降のテストが本物の SDK を掴む**
+// （実際に踏んだ——後から足したテストが「資格情報が無い」で落ちた）。
+// 外したら同じ工場で戻す。
+const cloudfrontMock = vi.hoisted(() => () => ({
     CloudFrontClient: class { send = send; },
     CreateInvalidationCommand: class { constructor(public input: unknown) { } },
 }));
+vi.mock("@aws-sdk/client-cloudfront", cloudfrontMock);
 
 beforeEach(() => { send.mockReset().mockResolvedValue({}); vi.resetModules(); });
 afterEach(() => { vi.unstubAllEnvs(); });
@@ -79,6 +84,50 @@ describe("エッジからも消す", () => {
         const { invalidateUploads } = await import("../cdnInvalidate");
         // 投げないこと自体が要件。戻り値は「掃除できなかった」
         await expect(invalidateUploads(["uploads/a.jpg"])).resolves.toBe(false);
-        vi.doUnmock("@aws-sdk/client-cloudfront");
+        // **戻す。** 外したままだと以降のテストが本物の SDK を掴む
+        vi.doMock("@aws-sdk/client-cloudfront", cloudfrontMock);
+    });
+    // **同じ上限を片方だけ守っていた。** `scripts/deploy-static-site.js` は
+    // `MAX_PATHS_PER_REQUEST = 3000` で分割しているのに、こちらは全部を1回に
+    // 入れていた。CloudFront は1リクエスト3,000パスまでで、超えると断る
+    // ——この関数は投げずに警告だけ出すので、**消えたように見えたまま
+    // エッジの掃除だけが静かに落ちる**。
+    //
+    // 届くのは期限切れストーリーの掃除（1時間ごと・溜まった回ほど件数が増える。
+    // しかも「1行ごとに1本」をやめて1本にまとめたぶん、1本が大きくなった）。
+    it("3,000 を超えたら分けて送る", async () => {
+        const invalidate = await load("E123");
+        const keys = Array.from({ length: 7001 }, (_, i) => `uploads/u1/p${i}.jpg`);
+        expect(await invalidate(keys)).toBe(true);
+
+        expect(send, "1回に押し込んでいる").toHaveBeenCalledTimes(3);
+        const batches = send.mock.calls.map((c) =>
+            (c[0] as { input: { InvalidationBatch: { Paths: { Items: string[]; Quantity: number } } } })
+                .input.InvalidationBatch.Paths);
+        expect(batches.map((b) => b.Items.length)).toEqual([3000, 3000, 1001]);
+        // Quantity は Items と必ず一致（ずれると CloudFront が断る）
+        for (const b of batches) expect(b.Quantity).toBe(b.Items.length);
+        // 取りこぼしも重複も無い
+        const all = batches.flatMap((b) => b.Items);
+        expect(new Set(all).size).toBe(7001);
+        expect(all).toContain("/uploads/u1/p7000.jpg");
+    });
+
+    // 分割の境目でも CallerReference がぶつからない
+    // （同じ値で違うバッチを送ると CloudFront が InvalidationBatchAlreadyExists で断る）
+    it("分けたリクエストの CallerReference が重ならない", async () => {
+        const invalidate = await load("E123");
+        await invalidate(Array.from({ length: 6000 }, (_, i) => `uploads/u1/p${i}.jpg`));
+        const refs = send.mock.calls.map((c) =>
+            (c[0] as { input: { InvalidationBatch: { CallerReference: string } } })
+                .input.InvalidationBatch.CallerReference);
+        expect(refs).toHaveLength(2);
+        expect(new Set(refs).size, "同じ CallerReference で違うバッチを送っている").toBe(2);
+    });
+
+    it("ちょうど 3,000 なら1回のまま", async () => {
+        const invalidate = await load("E123");
+        await invalidate(Array.from({ length: 3000 }, (_, i) => `uploads/u1/p${i}.jpg`));
+        expect(send).toHaveBeenCalledTimes(1);
     });
 });
