@@ -238,12 +238,15 @@ describe("退会した人のコメント", () => {
     });
 });
 
-// **変換中の Ctrl/Cmd+Enter で、未確定の読みのまま公開コメントが投稿されていた。**
+// **Ctrl/Cmd+Enter に IME のガードは付けない**（一度付けて、外した）。
 //
-// 変換確定の Enter はページには普通の Enter として届く（Chromium で実測）。
-// 「きょう」を変換している最中に Ctrl+Enter を押すと、`POST` の本文が
-// `{"text":"きょう"}` になる——**公開されるコメントなので取り返しがつかない**
-// （消す手段はあるが、他人の通知には残る）。
+// 変換確定に使われるのは Enter 単体で、修飾キー付きは IME が消費しない。
+// それでも `isComposing` は「そのとき変換が生きているか」だけを見るので、
+// 変換の要らない語（「ありがとう」）を打ち終えた直後も true のまま
+// ——ガードを付けると**送信が黙って死ぬ**（Chromium で実測: 変換中の
+// Ctrl+Enter は `ctrl=true isComposing=true` で届く）。
+// `onChange` は変換中も発火するので `text` は画面と一致しており、
+// 押した時点で見えている文字を送るのが正しい。
 describe("CommentSection: 変換中の送信", () => {
     async function typeAndKey(text: string, key: Record<string, unknown>) {
         render(<CommentSection photoId="p1" locale="ja" />);
@@ -253,24 +256,27 @@ describe("CommentSection: 変換中の送信", () => {
         fireEvent.keyDown(box, { key: "Enter", ctrlKey: true, ...key });
     }
 
-    it("変換中の Ctrl+Enter では投稿しない", async () => {
+    // **変換中でも送る。** 画面に出ている文字がそのまま飛ぶ
+    it("変換中の Ctrl+Enter でも、見えている文字を送る", async () => {
         mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ id: "c1" }) });
-        await typeAndKey("きょう", { keyCode: 13, isComposing: true });
-        expect(mockUserFetch, "未確定の読みのまま投稿している").not.toHaveBeenCalled();
+        await typeAndKey("ありがとう", { keyCode: 13, isComposing: true });
+        await waitFor(() => expect(mockUserFetch, "送信が黙って死んでいる").toHaveBeenCalled());
+        const body = JSON.parse((mockUserFetch.mock.calls[0][1] as { body: string }).body);
+        expect(body.text).toBe("ありがとう");
     });
 
-    it("keyCode 229 でも投稿しない", async () => {
-        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ id: "c1" }) });
-        await typeAndKey("きょう", { keyCode: 229 });
-        expect(mockUserFetch).not.toHaveBeenCalled();
-    });
-
-    // **正常系。確定後の Ctrl+Enter は今までどおり投稿する**
-    it("確定後の Ctrl+Enter は投稿する", async () => {
+    it("確定後の Ctrl+Enter も今までどおり投稿する", async () => {
         mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ id: "c1" }) });
         await typeAndKey("今日", { keyCode: 13, isComposing: false });
         await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
         const body = JSON.parse((mockUserFetch.mock.calls[0][1] as { body: string }).body);
         expect(body.text).toBe("今日");
+    });
+
+    // 修飾キーの無い Enter は今までどおり改行（送信しない）
+    it("Enter だけでは送信しない", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ id: "c1" }) });
+        await typeAndKey("今日", { keyCode: 13, isComposing: false, ctrlKey: false });
+        expect(mockUserFetch).not.toHaveBeenCalled();
     });
 });

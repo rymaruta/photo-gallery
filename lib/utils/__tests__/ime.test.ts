@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { isImeKey } from "../ime";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 // **変換確定の Enter は、ページには普通の Enter として届く。**
 // Chromium（CDP の `Input.imeSetComposition`）で実測した形:
@@ -15,17 +17,32 @@ describe("isImeKey", () => {
     // `isComposing` を持たない環境向けの保険（変換中のキーを 229 で送る実装）
     it("keyCode 229 も true", () => {
         expect(isImeKey({ isComposing: false, keyCode: 229 })).toBe(true);
-        expect(isImeKey({ keyCode: 229 })).toBe(true);
     });
 
     // **正常系。確定後の Enter を止めてはいけない**
     // （「誤爆を止める代わりに正当な操作を殺す」を作らない）
     it.each([
         ["確定後の Enter", { isComposing: false, keyCode: 13 }],
-        ["英語入力の Enter", { keyCode: 13 }],
         ["Escape", { isComposing: false, keyCode: 27 }],
-        ["何も持たない", {}],
+        ["Ctrl+Enter（IME は消費しないキー）", { isComposing: false, keyCode: 13 }],
     ])("%s は false", (_name, e) => {
         expect(isImeKey(e)).toBe(false);
+    });
+});
+
+// **引数はネイティブのイベントに限る。**
+// `e.nativeEvent` の付け忘れが、いちばん起きやすい書き間違い。
+// 型を `{ isComposing: boolean; keyCode: number }`（どちらも必須）にすると、
+// React の合成イベント（`isComposing` を持たない）は `tsc` が止める
+// ——実測: `isImeKey(e)` に変えると
+//   error TS2345: Property 'isComposing' is missing in type
+//     'KeyboardEvent<HTMLTextAreaElement>'
+// が出る。以前は両方 optional だったので**構造的に適合して素通り**し、
+// その状態のガードは `keyCode 229` しか見ない＝実質無効だった。
+describe("型がネイティブのイベントを要求する", () => {
+    it("isComposing と keyCode の両方を必須にしている", () => {
+        const src = readFileSync(join(__dirname, "..", "ime.ts"), "utf8");
+        expect(src, "optional に戻すと e.nativeEvent の付け忘れを tsc が止められない")
+            .toMatch(/isComposing:\s*boolean;\s*keyCode:\s*number/);
     });
 });

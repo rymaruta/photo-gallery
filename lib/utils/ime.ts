@@ -25,6 +25,6 @@
  * 「変換中は流さない・確定したら流す」という**打鍵ごとの制御**が要るので
  * 形が違う。この関数は「このキーで実行してよいか」を見るためのもの。
  */
-export function isImeKey(e: { isComposing?: boolean; keyCode?: number }): boolean {
-    return Boolean(e.isComposing) || e.keyCode === 229;
+export function isImeKey(e: { isComposing: boolean; keyCode: number }): boolean {
+    return e.isComposing || e.keyCode === 229;
 }
