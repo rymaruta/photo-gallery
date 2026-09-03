@@ -284,3 +284,27 @@ describe("走査が降りられなかった範囲も確認する", () => {
         expect(out.size).toBe(iphoneLike().length);
     });
 });
+
+// **入れ子の `uuid`（XMP の入る場所）の座標系。**
+//
+// 最上位の `uuid` は `[0, region.length]` を渡す別経路なので、そちらの
+// テストでは `moov` の中の `uuid` を守れない。実測で、記録する範囲を
+// 絶対座標に変える変異（`[box.start, box.boxEnd]`）が**全緑で生き残った**
+// ——別の場所を検査していても気づけない状態だった。
+describe("moov の中の uuid（XMP）", () => {
+    const XMP = (body: string) => box("uuid", [...new Array(16).fill(0xbe), ...enc(body)]);
+    const head = [...box("ftyp", enc("mp42")), ...MDAT];
+
+    it("XMP に座標があれば断る", async () => {
+        const bytes = [...head, ...box("moov", [...box("mvhd", new Array(24).fill(3)),
+            ...XMP('<x><exif:GPSLatitude>35,39.5N</exif:GPSLatitude></x>')])];
+        await expect(toUploadSafeVideo(fileOf(bytes))).rejects.toBeInstanceOf(UnstrippableFileError);
+    });
+
+    it("XMP に座標が無ければ通す（長さも変えない）", async () => {
+        const bytes = [...head, ...box("moov", [...box("mvhd", new Array(24).fill(3)),
+            ...XMP('<x><dc:title>holiday</dc:title></x>')])];
+        const out = await toUploadSafeVideo(fileOf(bytes));
+        expect(out.size).toBe(bytes.length);
+    });
+});
