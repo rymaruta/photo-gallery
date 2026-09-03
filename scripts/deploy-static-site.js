@@ -554,6 +554,43 @@ const FORBIDDEN_IN_OUTPUT = [
     "followstats#",
 ];
 
+/**
+ * **「どこかに出てくる」では見ない。JSON の中の位置まで見る。**
+ *
+ * 素の `includes` だと、**利用者が書いた文章がそのまま引っかかる**。
+ * タイトルや説明はページに焼かれるので、「コメント欄 comments# の使い方」
+ * と書いた写真が1枚あるだけで、S3 へ上げる直前にここが例外を投げ、
+ * **デプロイが丸ごと中止**される（実ビルドで確認: `index.txt`・
+ * 各集約ページの HTML と RSC の `.txt` に出て、5ファイル以上で当たった）。
+ * 新しい写真も、削除・非公開の反映も出せなくなる。
+ *
+ * 一方、本物の漏れは必ず JSON の**キー**か**文字列の先頭**として出る。
+ * 実ビルドで確かめた出方は2通り（生の JSON と、RSC の中の escape 済み）:
+ *
+ *     "published":true          … photos.json / 埋め込み JSON
+ *     \"published\":true         … RSC の .txt / HTML の中
+ *
+ * なので、
+ *   - `srcOriginal` … キーの位置（引用符で囲まれ、直後が `:`）
+ *   - `notifs#` ほか … 文字列の先頭（直前が引用符）
+ * だけを見る。利用者の文章の途中に現れた場合は引用符が前に来ない。
+ *
+ * **`uploads/originals` はそのまま部分一致で見る。** これは原本の URL の
+ * 一部で、GPS の入った実体そのものを指す——形が変わって漏れても拾いたい
+ * ので、ここだけは広く取る（利用者が散文でこの並びを書くことは無い）。
+ */
+const KEY_SHAPED = new Set(["srcOriginal"]);
+const BROAD = new Set(["uploads/originals"]);
+
+function forbiddenPattern(needle) {
+    if (BROAD.has(needle)) return null;                     // 部分一致のまま
+    const esc = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const quote = '(?:\\\\)?"';                                 // `"` か `\"`
+    return KEY_SHAPED.has(needle)
+        ? new RegExp(`${quote}${esc}${quote}\\s*:`)              // キーの位置
+        : new RegExp(`${quote}${esc}`);                        // 文字列の先頭
+}
+
 function assertNoForbiddenContent(files) {
     const hits = [];
     for (const file of files) {
@@ -561,7 +598,9 @@ function assertNoForbiddenContent(files) {
         if (!(isHtmlOrTxt(key) || key === "app/data/photos.json")) continue;
         const text = fs.readFileSync(path.join(outDir, file), "utf8");
         for (const needle of FORBIDDEN_IN_OUTPUT) {
-            if (text.includes(needle)) hits.push(`${key}: ${needle}`);
+            const re = forbiddenPattern(needle);
+            const found = re ? re.test(text) : text.includes(needle);
+            if (found) hits.push(`${key}: ${needle}`);
         }
     }
     if (hits.length > 0) {
@@ -697,7 +736,7 @@ async function main() {
 module.exports = {
     verifyOgImage,
     assertNoForbiddenContent, assertRobotsMatchesTarget, invalidationTargets,
-    FORBIDDEN_IN_OUTPUT, classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys,
+    FORBIDDEN_IN_OUTPUT, forbiddenPattern, classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys,
     bulkDeleteGuard, BULK_DELETE_RATIO, BULK_DELETE_MIN, deleteStaleKeys };
 
 if (require.main === module) main().catch(err => {
