@@ -331,9 +331,19 @@ function UploadPageInner() {
         // ——落ちた枚数が伝わらず、利用者は「なぜか1枚少ない」まま公開する。
         const notImage: string[] = [];
         const tooLarge: string[] = [];
+        // **GIF はここで断る。** 受け口は `accept="image/*"` なので選べるが、
+        // `toUploadSafeFile` は GIF を必ず `UnstrippableFileError` にする
+        // （アニメーションを保つため再エンコードせず、バイト除去は JPEG だけ）。
+        // これまでは**プレビューを見てタイトルまで書いたあと、公開を押して
+        // 初めて必ず失敗**していた。断るなら選んだ時点で断る。
+        const cannotStrip: string[] = [];
         for (const f of files) {
             if (!f.type.startsWith("image/")) {
                 notImage.push(f.name);
+                continue;
+            }
+            if (f.type === "image/gif") {
+                cannotStrip.push(f.name);
                 continue;
             }
             if (f.size > 50 * 1024 * 1024) {
@@ -356,6 +366,11 @@ function UploadPageInner() {
             reasons.push(locale === "en"
                 ? `not an image: ${names(notImage)}`
                 : `画像ではない: ${names(notImage)}`);
+        }
+        if (cannotStrip.length > 0) {
+            reasons.push(locale === "en"
+                ? `GIF can't have its location data removed: ${names(cannotStrip)}`
+                : `GIF は位置情報を取り除けない: ${names(cannotStrip)}`);
         }
         if (reasons.length > 0) {
             const skipped = tooLarge.length + notImage.length;

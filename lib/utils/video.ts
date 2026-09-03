@@ -128,6 +128,19 @@ export function readBox(view: DataView, offset: number, end: number, base = 0): 
  * その範囲の箱を歩いて、メタデータの箱を `free` + 0 埋めにする。
  * `bytes` の先頭がファイル上の `base` に当たる。
  */
+/**
+ * 入れ子の深さの上限。
+ *
+ * 実測: `moov/trak/trak/...` を5000段入れた **39KB** のファイルで
+ * `RangeError: Maximum call stack size exceeded`。これは
+ * `UnstrippableFileError` ではないので、画面には「動画の準備に失敗しました」
+ * としか出ない——**位置情報を消せなかったのか、別の理由なのかが伝わらない**。
+ * 断る結果は同じでも、理由は正しく出す。
+ *
+ * 実在の MP4 は `moov/trak/mdia/minf/stbl/stsd/...` で10段に届かない。
+ */
+const MAX_BOX_DEPTH = 32;
+
 export function neutralizeRange(
     bytes: Uint8Array,
     base: number,
@@ -135,7 +148,14 @@ export function neutralizeRange(
     end: number,
     /** 目印を探す範囲（`uuid` と、**箱として読めなかった残り**。下の理由を見よ） */
     checkRanges: Array<[number, number]> = [],
+    depth = 0,
 ): Array<[number, number]> {
+    // 深すぎる＝解釈できていない。読めなかった範囲と同じ扱いにする
+    // （中身を確認せずに通さない）
+    if (depth > MAX_BOX_DEPTH) {
+        checkRanges.push([start - base, end - base]);
+        return checkRanges;
+    }
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     let offset = start;
     while (offset < end) {
@@ -174,7 +194,7 @@ export function neutralizeRange(
             for (let i = 0; i < 4; i++) bytes[local + 4 + i] = FREE[i];
             bytes.fill(0, local + box.headerSize, box.boxEnd - base);
         } else if (CONTAINER_BOXES.has(box.type)) {
-            neutralizeRange(bytes, base, box.start + box.headerSize, box.boxEnd, checkRanges);
+            neutralizeRange(bytes, base, box.start + box.headerSize, box.boxEnd, checkRanges, depth + 1);
         } else if (box.type === "uuid") {
             checkRanges.push([local, box.boxEnd - base]);
         }

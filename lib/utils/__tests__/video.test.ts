@@ -308,3 +308,38 @@ describe("moov の中の uuid（XMP）", () => {
         expect(out.size).toBe(bytes.length);
     });
 });
+
+// **深い入れ子で `RangeError` になっていた。**
+//
+// 実測: `moov/trak/trak/...` を5000段入れた **39KB** のファイルで
+// `RangeError: Maximum call stack size exceeded`。これは
+// `UnstrippableFileError` ではないので、画面には「動画の準備に失敗しました」
+// としか出ない——位置情報を消せなかったのか別の理由なのかが伝わらない
+// （`StoriesBar` は2つの文言を出し分けている）。
+describe("入れ子が深すぎる動画", () => {
+    const deep = (levels: number, inner: number[]) => {
+        let cur = inner;
+        for (let i = 0; i < levels; i++) cur = box("trak", cur);
+        return [...box("ftyp", enc("mp42")), ...MDAT, ...box("moov", cur)];
+    };
+
+    it("降りきれない先に位置情報があれば、正しい理由で断る", async () => {
+        const bytes = deep(200, box("udta", box(String.fromCharCode(0xa9) + "xyz", enc("+35.6+139.7/"))));
+        await expect(toUploadSafeVideo(fileOf(bytes)), "RangeError のまま投げている")
+            .rejects.toBeInstanceOf(UnstrippableFileError);
+    });
+
+    // **深いだけでは断らない。** 深さそのものは危険ではないので、
+    // 位置情報が無ければ通す（「誤爆を止める代わりに正当な操作を殺す」を作らない）
+    it("深くても位置情報が無ければ通す", async () => {
+        const bytes = deep(200, box("udta", box("name", enc("holiday"))));
+        const out = await toUploadSafeVideo(fileOf(bytes));
+        expect(out.size, "長さが変わっている").toBe(bytes.length);
+    });
+
+    // 実在の MP4 は moov/trak/mdia/minf/stbl/stsd で10段に届かない
+    it("普通の深さは今までどおり書き換える", async () => {
+        const out = await toUploadSafeVideo(fileOf(iphoneLike()));
+        expect(out.size).toBe(iphoneLike().length);
+    });
+});
