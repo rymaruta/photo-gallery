@@ -75,6 +75,11 @@ const LINK_SONG_KEYS = ["songUrl", "songStart", "songEnd"] as const;
 
 const THEME_COLOR_PRESETS = ["#38bdf8", "#34d399", "#f472b6", "#a78bfa", "#fb7185", "#fbbf24", "#f97316", "#22d3ee"];
 
+/** @名に使える形へ寄せる（英小文字・数字・`_` のみ）。入力欄の説明と対 */
+function cleanUsername(v: string): string {
+    return v.toLowerCase().replace(/[^a-z0-9_]/g, "");
+}
+
 export default function ProfileEditPage() {
     const { isAuthenticated, loading, deleteAccount } = useAuth();
     const { locale } = useLocale();
@@ -95,6 +100,8 @@ export default function ProfileEditPage() {
     const [avatarUploading, setAvatarUploading] = useState(false);
 
     const [username, setUsername] = useState("");
+    // 変換中かどうか（IME-8。下の入力欄のコメントを見よ）
+    const usernameComposing = useRef(false);
     const [displayName, setDisplayName] = useState("");
     const [bio, setBio] = useState("");
     const [themeColor, setThemeColor] = useState("");
@@ -354,19 +361,26 @@ export default function ProfileEditPage() {
             return next;
         });
 
+    // **世代で追い越しを捨てる**（`StoriesBar` と同じ形。対の乖離だった）
+    const songSearchGen = useRef(0);
     const handleSongSearch = async () => {
         const q = songQuery.trim();
         if (!q) return;
         stopPreview();
+        const gen = ++songSearchGen.current;
         setSearching(true);
         setSearchError(false);
         try {
-            setSongResults(await searchSongs(q));
+            const found = await searchSongs(q);
+            if (gen !== songSearchGen.current) return;   // もっと新しい検索が走っている
+            setSongResults(found);
         } catch {
-            setSearchError(true);
-            setSongResults([]);
+            if (gen === songSearchGen.current) {
+                setSearchError(true);
+                setSongResults([]);
+            }
         } finally {
-            setSearching(false);
+            if (gen === songSearchGen.current) setSearching(false);
         }
     };
 
@@ -663,7 +677,20 @@ export default function ProfileEditPage() {
                             <input
                                 type="text"
                                 value={username}
-                                onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                                // **変換中は書き換えない。** 毎打鍵で値を作り直すと
+                                // IME の変換が壊れ、かな入力のままだと**打っても
+                                // 画面に何も出ない**（実ブラウザで `compositionstart`
+                                // が1回であるべきところ4回になることを確認）。
+                                // 利用者からは「入力できない欄」に見える。
+                                // 変換中はそのまま見せ、確定した時点でふるいに掛ける
+                                // （使える文字は下の説明に書いてある）。
+                                onCompositionStart={() => { usernameComposing.current = true; }}
+                                onCompositionEnd={e => {
+                                    usernameComposing.current = false;
+                                    setUsername(cleanUsername(e.currentTarget.value));
+                                }}
+                                onChange={e => setUsername(
+                                    usernameComposing.current ? e.target.value : cleanUsername(e.target.value))}
                                 maxLength={20}
                                 placeholder="travel_photo"
                                 className={inputClass}

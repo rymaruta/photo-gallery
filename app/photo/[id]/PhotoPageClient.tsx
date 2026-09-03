@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 import { HeartIcon } from "@heroicons/react/24/solid";
@@ -309,17 +309,29 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     // 検索の失敗が「0件」と同じ（結果欄は length>0 でしか描かれない）ので、
     // 押しても無反応に見えた。プロフィール編集には既に同じ表示がある（SW-b6）
     const [songSearchError, setSongSearchError] = useState(false);
+    // **世代で追い越しを捨てる**（`StoriesBar` と同じ形。対の乖離だった）。
+    // 遅れて返った古い結果が新しい結果を上書きすると、画面には
+    // **打っていない語の検索結果**が出る。IME で必ず2回走っていたぶん
+    // 踏みやすかった（それは直したが、押し直しや遅い回線では今も起きる）。
+    const songSearchGen = useRef(0);
     const searchPhotoSongs = async () => {
         const q = songQuery.trim();
         if (!q) return;
+        const gen = ++songSearchGen.current;
         setSongSearching(true);
         setSongSearchError(false);
         try {
-            setSongResults(await searchSongs(q));
+            const found = await searchSongs(q);
+            if (gen !== songSearchGen.current) return;   // もっと新しい検索が走っている
+            setSongResults(found);
         } catch {
-            setSongResults([]);
-            setSongSearchError(true);
-        } finally { setSongSearching(false); }
+            if (gen === songSearchGen.current) {
+                setSongResults([]);
+                setSongSearchError(true);
+            }
+        } finally {
+            if (gen === songSearchGen.current) setSongSearching(false);
+        }
     };
     const savePhotoSong = async (song: SongEntry | null) => {
         try {
