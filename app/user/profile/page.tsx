@@ -12,6 +12,7 @@ import { userFetch, readApiError, AUTH_REQUIRED_MESSAGE } from "../../../lib/uti
 import { changedFields } from "../../../lib/utils/changedFields";
 import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../../lib/utils/music";
 import { toUploadSafeFile, AVATAR_MAX_PX, COVER_MAX_PX } from "../../../lib/utils/image";
+import { unstrippableMessage } from "../../../lib/utils/uploadRejection";
 import { log } from "../../../lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
 import DeleteAccountModal from "../../components/DeleteAccountModal";
@@ -208,7 +209,7 @@ export default function ProfileEditPage() {
                 upload = await toUploadSafeFile(file, COVER_MAX_PX, 0.85);
             } catch (e) {
                 log.error("cover: could not strip metadata:", e);
-                showToast("この形式は安全にアップロードできません。JPEG か PNG で保存し直してください。", "error");
+                showToast(unstrippableMessage(e, "ja"), "error");
                 return;
             }
 
@@ -266,7 +267,7 @@ export default function ProfileEditPage() {
                 upload = await toUploadSafeFile(file, AVATAR_MAX_PX, 0.85);
             } catch (e) {
                 log.error("avatar: could not strip metadata:", e);
-                showToast("この形式は安全にアップロードできません。JPEG か PNG で保存し直してください。", "error");
+                showToast(unstrippableMessage(e, "ja"), "error");
                 return;
             }
 

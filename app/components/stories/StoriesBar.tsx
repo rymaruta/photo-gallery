@@ -8,6 +8,7 @@ import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { toUploadSafeFile, UnstrippableFileError } from "../../../lib/utils/image";
+import { unstrippableMessage } from "../../../lib/utils/uploadRejection";
 import { searchSongs, type SongResult } from "../../../lib/utils/music";
 import { startFromPointer, clampStart } from "../../../lib/utils/songTrim";
 import { log } from "../../../lib/utils/log";
@@ -336,6 +337,20 @@ export default function StoriesBar() {
             showToast(locale === "en" ? "File too large (max 50MB)" : "ファイルが大きすぎます（最大50MB）", "error");
             return;
         }
+        // **GIF はここで断る。** `toUploadSafeFile` は GIF を必ず
+        // `UnstrippableFileError` にする（アニメーションを保つため再エンコード
+        // せず、保険のバイト除去は JPEG だけ）。投稿時まで待つと、
+        // **キャプションと曲まで選んでから必ず断られる**——すぐ下の動画の
+        // 関門に「投稿時ではなく選択時にやる」と書いてあるのと同じ理由。
+        if (file.type === "image/gif") {
+            showToast(
+                locale === "en"
+                    ? "GIFs can't have their location data removed. Please choose a JPEG or PNG."
+                    : "GIF は位置情報を取り除けません。JPEG か PNG を選んでください。",
+                "error",
+            );
+            return;
+        }
         let prepared = file;
         if (isVideo) {
             try {
@@ -422,12 +437,7 @@ export default function StoriesBar() {
                     uploadFile = await toUploadSafeFile(draft.file, 1440, 0.85);
                 } catch (e) {
                     if (e instanceof UnstrippableFileError) {
-                        showToast(
-                            locale === "en"
-                                ? "This format can't be uploaded safely. Please save it as JPEG or PNG and try again."
-                                : "この形式は安全にアップロードできません。JPEG か PNG で保存し直してください。",
-                            "error",
-                        );
+                        showToast(unstrippableMessage(e, locale), "error");
                     } else {
                         log.error("story image prepare failed:", e);
                         showToast(

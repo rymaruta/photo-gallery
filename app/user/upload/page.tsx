@@ -17,6 +17,7 @@ import { ROUTES } from "../../../lib/routes";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
 import { userFacingUploadError, UPLOAD_FAILED_MESSAGE } from "./errorText";
+import { unstrippableMessage } from "../../../lib/utils/uploadRejection";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
 
@@ -570,19 +571,7 @@ function UploadPageInner() {
                     // PNG で保存し直してください」だったが、読めない／大きすぎる
                     // 場合は**形式が正しい JPEG** なので、言われたとおりに
                     // 保存し直しても同じ結果になる（袋小路だった）。
-                    const reason = e instanceof UnstrippableFileError ? e.reason : "format";
-                    const message = reason === "undecodable"
-                        ? (locale === "en"
-                            ? "This image couldn't be opened. It may be corrupted or too large — please export it again at a smaller size."
-                            : "この画像を開けませんでした。壊れているか大きすぎます。小さいサイズで書き出し直してください。")
-                        : reason === "too-many-pixels"
-                            ? (locale === "en"
-                                ? "This image has too many pixels to process. Please export it at a smaller size."
-                                : "この画像は画素数が多すぎて扱えません。小さいサイズで書き出し直してください。")
-                            : (locale === "en"
-                                ? "This format can't be uploaded safely. Please save it as JPEG or PNG and try again."
-                                : "この形式は安全にアップロードできません。JPEG か PNG で保存し直してください。");
-                    updateItem(item.id, { status: "error", error: message });
+                    updateItem(item.id, { status: "error", error: unstrippableMessage(e, locale) });
                     continue;
                 }
                 updateItem(item.id, { progress: 20 });
@@ -1183,9 +1172,7 @@ function UploadPageInner() {
                                         log.error("avatar upload error:", e);
                                         showToast(
                                             e instanceof UnstrippableFileError
-                                                ? (locale === "en"
-                                                    ? "This format can't be uploaded safely. Please save it as JPEG or PNG."
-                                                    : "この形式は安全にアップロードできません。JPEG か PNG で保存し直してください。")
+                                                ? unstrippableMessage(e, locale)
                                                 : (locale === "en" ? "Upload failed" : "アップロードに失敗しました"),
                                             "error",
                                         );
