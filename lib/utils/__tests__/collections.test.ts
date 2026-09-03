@@ -52,8 +52,12 @@ describe("slugify がファイル名として安全であること", () => {
         expect(bytes(slugify(value)), "ENAMETOOLONG でビルドが落ちる").toBeLessThanOrEqual(HARD_LIMIT);
     });
 
+    // **1文字ずらす。** 上限 200 は4の倍数なので、4バイト文字だけを並べると
+    // バイト境界が必ず文字境界に一致する——**どんな切り方をしても孤立
+    // サロゲートが出ない**（実測: コードユニットで数える壊れた実装に
+    // 差し替えても全緑だった）。先頭に3バイト文字を1つ置いて境界をずらす。
     it("切っても文字の途中で割らない（孤立サロゲートを作らない）", () => {
-        const out = slugify("🗻".repeat(120));
+        const out = slugify("あ" + "🗻".repeat(120));
         // 孤立サロゲート＝ペアになっていない D800-DFFF。`encodeURIComponent` が投げる
         const lone = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
         expect(lone.test(out), "孤立サロゲートが残っている").toBe(false);
@@ -67,6 +71,12 @@ describe("slugify がファイル名として安全であること", () => {
         expect(slugify(value)).not.toMatch(/-$/);
     });
 
+    // 切る前は「全部ドット」ではないので `^\.+$` の守りを通過し、
+    // 切ったあとに全部ドットになる（`.` と `..` を捨てる守りの裏）
+    it("切った結果が全部ドットになるなら捨てる", () => {
+        expect(slugify(".".repeat(250) + "x")).toBe("");
+    });
+
     it("上限に届かない値は1文字も変えない", () => {
         expect(slugify("山中湖")).toBe("山中湖");
         expect(slugify("東京 / 渋谷")).toBe("東京-渋谷");
@@ -77,6 +87,24 @@ describe("slugify がファイル名として安全であること", () => {
         expect(slugify("Kyoto\u0000X"), "NUL でビルドが落ちる").toBe("kyoto-x");
         expect(slugify("a\u0001b\u007Fc")).toBe("a-b-c");
         expect(slugify("\u0000")).toBe("");
+    });
+});
+
+// **別名表を素の `[]` で引いていた。** `slugify("constructor", "category")` は
+// 戻り値の型が `string` なのに **関数**（`Object`）を返し、`"__proto__"` は
+// `Object.prototype` を返す。カテゴリは自由入力（サーバーの
+// `sanitizeText(category, 100)` は `constructor` を素通しする）。
+describe("カテゴリの別名表を、継承したプロパティで引かない", () => {
+    it.each(["constructor", "__proto__", "toString", "valueOf", "hasOwnProperty"])(
+        "%s は別名ではなくその文字列として扱う", (name) => {
+            const out = slugify(name, "category");
+            expect(typeof out, "文字列以外が返っている").toBe("string");
+            expect(out, "別名表ではなく Object のプロパティを引いている")
+                .toBe(name.toLowerCase());   // slugify は小文字に寄せる
+        });
+
+    it("本物の別名は今までどおり当たる", () => {
+        expect(slugify("建物", "category")).toBe("architecture");
     });
 });
 

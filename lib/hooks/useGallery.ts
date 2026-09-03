@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Photo, LocalizedText, LocalizedParagraphs } from "../data/photos";
 import { getLocalized, getLocalizedParagraphs } from "../data/photos";
 import type { GalleryFilters } from "../types/gallery";
-import { slugify, tagKey } from "../utils/collections";
+import { slugify, normalizeForSearch, tagKey } from "../utils/collections";
 import { compareNewest, compareOldest } from "../utils/photoOrder";
 
 /**
@@ -180,9 +180,14 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
                 // `-` `#` `/` `%` `...` は slugify が空を返し、
                 // `includes("")` は常に真——**全件が一致して絞り込みが
                 // 効かなくなる**（`slugify` に寄せたときに作った穴）。
-                const qSlug = slugify(q);
+                // **`slugify` は使わない。** あちらはファイル名の上限に
+                // 合わせて 200 バイトで切るので、タイトル＋説明＋撮影地を
+                // つないだこの `haystack` に掛けると後ろが落ちる——実データ
+                // 30件のうち16件が 200 バイト超で、**8件は撮影地がその外側**
+                // （＝この救済が必ず0件になる）。比べるだけなので切らない。
+                const qSlug = normalizeForSearch(q);
                 if (haystack.includes(q)) return true;
-                return qSlug ? slugify(haystack).includes(qSlug) : false;
+                return qSlug ? normalizeForSearch(haystack).includes(qSlug) : false;
             });
         }
 

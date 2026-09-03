@@ -71,8 +71,38 @@ function clampSlugBytes(s: string): string {
     return out.replace(/-+$/, "");
 }
 
-/** 値を URL スラッグへ正規化（小文字化・trim・空白をハイフンに）。日本語はそのまま（URLでは percent-encoded）。 */
+/**
+ * 値を URL スラッグへ正規化する（小文字化・trim・空白をハイフンに）。
+ * 日本語はそのまま（URLでは percent-encoded）。**長さで切る**（下の理由）。
+ */
 export function slugify(value: string, type?: CollectionType): string {
+    const base = normalizeSlugChars(value);
+    if (/^\.+$/.test(base)) return "";
+    if (type === "category" && Object.hasOwn(CATEGORY_ALIASES, base)) return CATEGORY_ALIASES[base];
+    const cut = clampSlugBytes(base);
+    // **切った結果が `.` だけになることもある。** 上の判定は切る前の値を
+    // 見ているので、`"...(250個)x"` は全ドットではない → 通過 → 切ると
+    // 全部ドットになる。同じ守りを切ったあとにもう一度当てる。
+    return /^\.+$/.test(cut) ? "" : cut;
+}
+
+/**
+ * **比較のための正規化。長さで切らない。**
+ *
+ * `slugify` をそのまま比較に使ってはいけない——あちらはファイル名の上限に
+ * 合わせて 200 バイトで切るので、**タイトル＋説明＋撮影地をつないだ長い
+ * 文字列**に掛けると後ろが落ちる。実データ30件のうち16件は連結が 200 バイトを
+ * 超え、**8件は撮影地がその外側**にある（`/location/<スラッグ>` を
+ * `/?q=<スラッグ>` に振り替える404救済が、その8件で必ず0件になっていた）。
+ *
+ * 切ってよいのは「URL とファイル名になる値」だけ。比べるだけの経路はこちら。
+ */
+export function normalizeForSearch(value: string): string {
+    return normalizeSlugChars(value);
+}
+
+/** `slugify` と `normalizeForSearch` が共有する、文字の正規化だけの部分 */
+function normalizeSlugChars(value: string): string {
     const base = (value ?? "").toString().trim().toLowerCase()
         .replace(/\s+/g, "-")
         // **URL のパスに置けない文字を落とす。** タグ・撮影地・カテゴリは
@@ -104,15 +134,13 @@ export function slugify(value: string, type?: CollectionType): string {
         .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDFFF]/g, (m) => (m.length === 2 ? m : ""))
         .replace(/-{2,}/g, "-")
         .replace(/^-+|-+$/g, "");
-    // **`.` と `..` は捨てる。** パス片としては「今のディレクトリ／親」の
-    // 意味になり、Next の静的書き出しが `/location/..` を `/` に解決して
-    // 「Requested and resolved page mismatch」でビルドごと落ちる。
-    // 誰か1人が保存した瞬間から**新しい写真も削除の反映も一切出せなくなる**
-    // （消えたページを S3 から消す site-rebuild も同じビルドを通る）。
-    // 4-1 で直した「壊れた行1件で全デプロイが止まる」と同じ型。
-    if (/^\.+$/.test(base)) return "";
-    if (type === "category") return CATEGORY_ALIASES[base] ?? clampSlugBytes(base);
-    return clampSlugBytes(base);
+    // **`.` と `..` は捨てる**（判定は呼び出し側の `slugify` が持つ）。
+    // パス片としては「今のディレクトリ／親」の意味になり、Next の静的
+    // 書き出しが `/location/..` を `/` に解決して「Requested and resolved
+    // page mismatch」でビルドごと落ちる。誰か1人が保存した瞬間から
+    // **新しい写真も削除の反映も一切出せなくなる**（消えたページを S3 から
+    // 消す site-rebuild も同じビルドを通る）。
+    return base;
 }
 
 /**
