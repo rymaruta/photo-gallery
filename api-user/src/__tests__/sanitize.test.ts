@@ -26,6 +26,37 @@ describe("sanitize 基本ヘルパ", () => {
         expect(sanitizeText("", 10)).toBeUndefined();
         expect(sanitizeText("x".repeat(20), 5)).toBe("xxxxx");
     });
+
+    // **制御文字は入口で落とす。** 撮影地とカテゴリは URL とファイル名に
+    // なる。`slugify` 側でも落としているが、あちらが守るのはパスだけで、
+    // 保存された値そのものは `<title>`・JSON-LD・本文に出る。
+    // NUL 入りの撮影地で `next build` が `ERR_INVALID_ARG_VALUE` で落ちた
+    // のが `84b0c59`（あちらはスラッグ側の対処）。ここは入口側。
+    describe("sanitizeText が制御文字を落とす", () => {
+        it.each([
+            ["NUL", "Kyoto\u0000X", "KyotoX"],
+            ["C0（改行・タブを含む。1行の項目なので残さない）", "a\u0001b\tc\nd", "abcd"],
+            ["DEL と C1", "a\u007Fb\u009Fc", "abc"],
+            ["制御文字だけなら空として扱う", "\u0000\u0001", undefined],
+        ])("%s", (_name, input, expected) => {
+            expect(sanitizeText(input, 200)).toBe(expected);
+        });
+
+        it("落としたあとに trim する（前後が空白だけになる場合）", () => {
+            expect(sanitizeText(" \u0000 京都 \u0001 ", 200)).toBe("京都");
+        });
+
+        // 正常系: ふつうの値は1文字も変えない
+        it.each(["山中湖", "東京 / 渋谷", "Lake District", "#旅"])("%s はそのまま", (v) => {
+            expect(sanitizeText(v, 200)).toBe(v);
+        });
+
+        // **上限は制御文字を落としたあとで数える。** 先に数えると、
+        // 見えない文字が本文を押し出す
+        it("上限は落としたあとの長さで見る", () => {
+            expect(sanitizeText("\u0000\u0000abcde", 5)).toBe("abcde");
+        });
+    });
     it("sanitizeTags は文字列のみ・重複排除・上限", () => {
         expect(sanitizeTags(["a", "a", 1, "  ", "b"])).toEqual(["a", "b"]);
         expect(sanitizeTags("nope")).toBeUndefined();

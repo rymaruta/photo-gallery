@@ -31,10 +31,10 @@ function stripComments(code: string): string {
     return code.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
 }
 
-function bodyOf(path: string): string {
+function bodyOf(path: string, fn = "truncate"): string {
     const src = readFileSync(join(root, path), "utf8");
-    const i = src.indexOf("export function truncate(");
-    expect(i, `${path} に truncate が無い`).toBeGreaterThan(-1);
+    const i = src.indexOf(`export function ${fn}(`);
+    expect(i, `${path} に ${fn} が無い`).toBeGreaterThan(-1);
     const open = src.indexOf("{", i);
     let depth = 0;
     for (let j = open; j < src.length; j++) {
@@ -44,12 +44,14 @@ function bodyOf(path: string): string {
             if (depth === 0) return stripComments(src.slice(open, j + 1)).replace(/\s+/g, " ").trim();
         }
     }
-    throw new Error(`${path} の truncate が閉じていない`);
+    throw new Error(`${path} の ${fn} が閉じていない`);
 }
 
 describe("truncate の複製3本は同じ中身", () => {
     it("3本の本体が一致する（片方だけ直さない）", () => {
-        const [a, b, c] = FILES.map(bodyOf);
+        // **`map(bodyOf)` と書かない。** `map` は第2引数に添字を渡すので、
+        // 既定引数の `fn` に `0` が入る（実際にそれで落とした）
+        const [a, b, c] = FILES.map((f) => bodyOf(f));
         expect(b, `${FILES[1]} が ${FILES[0]} と違う`).toBe(a);
         expect(c, `${FILES[2]} が ${FILES[0]} と違う`).toBe(a);
     });
@@ -64,5 +66,24 @@ describe("truncate の複製3本は同じ中身", () => {
         const withComment = stripComments("{ // 注釈\n  return s; /* 別の注釈 */ }").replace(/\s+/g, " ").trim();
         const without = stripComments("{ return s; }").replace(/\s+/g, " ").trim();
         expect(withComment).toBe(without);
+    });
+});
+
+// `sanitizeText` も2つのパッケージに同じものを置いてある。
+// **片方だけ直すと、管理APIとユーザーAPIで保存される値が変わる**
+// ——同じ写真を `/admin/edit` から直したときだけ制御文字が残る、
+// といった形になり、症状が出る場所と原因が離れる。
+const SANITIZE_FILES = ["api-user/src/sanitize.ts", "api/src/sanitize.ts"];
+
+describe("sanitizeText の複製2本は同じ中身", () => {
+    it("2本の本体が一致する", () => {
+        const [a, b] = SANITIZE_FILES.map((f) => bodyOf(f, "sanitizeText"));
+        expect(b, `${SANITIZE_FILES[1]} が ${SANITIZE_FILES[0]} と違う`).toBe(a);
+    });
+
+    // 「同じ」だけだと、2本とも制御文字を落とさない形に戻しても通る
+    it.each(SANITIZE_FILES)("%s は制御文字を落としている", (f) => {
+        expect(bodyOf(f, "sanitizeText"), "制御文字の除去が消えている")
+            .toMatch(/u0000-\\u001F/);
     });
 });

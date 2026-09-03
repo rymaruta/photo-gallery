@@ -70,7 +70,15 @@ export function sanitizeCoords(coords: unknown): { lat: number; lng: number } | 
 
 // 単一テキスト。空/非文字列は undefined
 export function sanitizeText(v: unknown, max: number): string | undefined {
-    return typeof v === "string" && v.trim() ? truncate(v.trim(), max) : undefined;
+    if (typeof v !== "string") return undefined;
+    // **制御文字は入口で落とす。** 撮影地とカテゴリは URL とファイル名になる
+    // （`slugify` 側でも落としているが、あちらが守るのはパスだけ）。
+    // 保存された値そのものは `<title>`・JSON-LD・ページ本文に出るので、
+    // ここで落としておかないと見えない文字が焼き込まれ続ける。
+    // どちらも1行の項目なので、改行・タブを残す理由も無い
+    // （説明は `sanitizeDescription` が別に扱う——あちらは段落を持つ）。
+    const cleaned = v.replace(/[\u0000-\u001F\u007F-\u009F]/g, "").trim();
+    return cleaned ? truncate(cleaned, max) : undefined;
 }
 
 /**
