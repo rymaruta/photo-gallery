@@ -12,6 +12,7 @@ import { useToast } from "../../lib/hooks/useToast";
 import { ROUTES } from "../../lib/routes";
 import UserAvatar from "./UserAvatar";
 import { loginWithNext } from "../../lib/routes";
+import { isImeKey } from "../../lib/utils/ime";
 
 type Props = {
     photoId: string;
@@ -76,7 +77,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                     <textarea
                         value={text}
                         onChange={(e) => setText(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void submit(); } }}
+                        onKeyDown={(e) => { if (e.key === "Enter" && !isImeKey(e.nativeEvent) && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void submit(); } }}
                         placeholder={locale === "en" ? "Add a comment…" : "コメントを追加…"}
                         rows={2}
                         maxLength={500}

@@ -9,6 +9,7 @@ import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { toUploadSafeFile, UnstrippableFileError } from "../../../lib/utils/image";
 import { unstrippableMessage, gifRejectedMessage } from "../../../lib/utils/uploadRejection";
+import { isImeKey } from "../../../lib/utils/ime";
 import { searchSongs, type SongResult } from "../../../lib/utils/music";
 import { startFromPointer, clampStart } from "../../../lib/utils/songTrim";
 import { log } from "../../../lib/utils/log";
@@ -854,7 +855,7 @@ export default function StoriesBar() {
                                         type="text"
                                         value={songQuery}
                                         onChange={(e) => setSongQuery(e.target.value)}
-                                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void searchDraftSongs(); } }}
+                                        onKeyDown={(e) => { if (e.key === "Enter" && !isImeKey(e.nativeEvent)) { e.preventDefault(); void searchDraftSongs(); } }}
                                         placeholder={locale === "en" ? "Song or artist" : "曲名・アーティスト名"}
                                         autoFocus
                                         className="flex-1 min-w-0 px-3 py-2 bg-white/10 rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-white/15"

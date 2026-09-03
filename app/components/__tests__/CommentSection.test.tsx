@@ -237,3 +237,40 @@ describe("退会した人のコメント", () => {
         expect(screen.getByText("居る人").closest("a")).not.toBeNull();
     });
 });
+
+// **変換中の Ctrl/Cmd+Enter で、未確定の読みのまま公開コメントが投稿されていた。**
+//
+// 変換確定の Enter はページには普通の Enter として届く（Chromium で実測）。
+// 「きょう」を変換している最中に Ctrl+Enter を押すと、`POST` の本文が
+// `{"text":"きょう"}` になる——**公開されるコメントなので取り返しがつかない**
+// （消す手段はあるが、他人の通知には残る）。
+describe("CommentSection: 変換中の送信", () => {
+    async function typeAndKey(text: string, key: Record<string, unknown>) {
+        render(<CommentSection photoId="p1" locale="ja" />);
+        await waitFor(() => expect(mockUserPublicFetch).toHaveBeenCalled());
+        const box = screen.getByPlaceholderText("コメントを追加…");
+        fireEvent.change(box, { target: { value: text } });
+        fireEvent.keyDown(box, { key: "Enter", ctrlKey: true, ...key });
+    }
+
+    it("変換中の Ctrl+Enter では投稿しない", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ id: "c1" }) });
+        await typeAndKey("きょう", { keyCode: 13, isComposing: true });
+        expect(mockUserFetch, "未確定の読みのまま投稿している").not.toHaveBeenCalled();
+    });
+
+    it("keyCode 229 でも投稿しない", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ id: "c1" }) });
+        await typeAndKey("きょう", { keyCode: 229 });
+        expect(mockUserFetch).not.toHaveBeenCalled();
+    });
+
+    // **正常系。確定後の Ctrl+Enter は今までどおり投稿する**
+    it("確定後の Ctrl+Enter は投稿する", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ id: "c1" }) });
+        await typeAndKey("今日", { keyCode: 13, isComposing: false });
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        const body = JSON.parse((mockUserFetch.mock.calls[0][1] as { body: string }).body);
+        expect(body.text).toBe("今日");
+    });
+});

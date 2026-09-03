@@ -30,6 +30,7 @@ import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
 import { isImageReady } from "../../../lib/utils/imageReady";
 import { formatStoredDateTime } from "@/lib/utils/photoDate";
+import { isImeKey } from "../../../lib/utils/ime";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -799,7 +800,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                             type="text"
                                             value={songQuery}
                                             onChange={(e) => setSongQuery(e.target.value)}
-                                            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void searchPhotoSongs(); } }}
+                                            onKeyDown={(e) => { if (e.key === "Enter" && !isImeKey(e.nativeEvent)) { e.preventDefault(); void searchPhotoSongs(); } }}
                                             placeholder={locale === "en" ? "Song or artist" : "曲名・アーティスト名"}
                                             autoFocus
                                             className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
@@ -891,7 +892,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                     type="url"
                                     value={ytInput}
                                     onChange={(e) => setYtInput(e.target.value)}
-                                    onKeyDown={(e) => { if (e.key === "Enter" && ytInput.trim()) { e.preventDefault(); void savePhotoYoutube(ytInput.trim()); } }}
+                                    onKeyDown={(e) => { if (e.key === "Enter" && !isImeKey(e.nativeEvent) && ytInput.trim()) { e.preventDefault(); void savePhotoYoutube(ytInput.trim()); } }}
                                     placeholder={photoYtUrl
                                         ? (locale === "en" ? "Change YouTube MV link" : "YouTube MV リンクを変更")
                                         : (locale === "en" ? "Paste a YouTube link for full playback" : "YouTubeリンクを貼るとフル再生MVに")}

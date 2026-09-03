@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { isImeKey } from "../utils/ime";
 
 /**
  * 開いている間だけ Escape を拾う。
@@ -23,7 +24,11 @@ export function useEscapeKey(active: boolean, onEscape: () => void): void {
     useEffect(() => {
         if (!active) return;
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === "Escape") onEscape();
+            // **変換中の Escape は「変換の取り消し」**。閉じてはいけない。
+            // 退会の確認モーダルは `退会` と打たせる＝**IME 必須**なので、
+            // 「たいかい」の変換をやめようとしただけでモーダルごと閉じ、
+            // 打ち直しになっていた（Chromium で再現：`onClose` が呼ばれた）。
+            if (e.key === "Escape" && !isImeKey(e)) onEscape();
         };
         document.addEventListener("keydown", onKey);
         return () => document.removeEventListener("keydown", onKey);

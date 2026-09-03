@@ -13,6 +13,7 @@ import { changedFields } from "../../../lib/utils/changedFields";
 import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../../lib/utils/music";
 import { toUploadSafeFile, AVATAR_MAX_PX, COVER_MAX_PX } from "../../../lib/utils/image";
 import { unstrippableMessage } from "../../../lib/utils/uploadRejection";
+import { isImeKey } from "../../../lib/utils/ime";
 import { log } from "../../../lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
 import DeleteAccountModal from "../../components/DeleteAccountModal";
@@ -839,7 +840,7 @@ export default function ProfileEditPage() {
                                             type="text"
                                             value={songQuery}
                                             onChange={e => setSongQuery(e.target.value)}
-                                            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void handleSongSearch(); } }}
+                                            onKeyDown={e => { if (e.key === "Enter" && !isImeKey(e.nativeEvent)) { e.preventDefault(); void handleSongSearch(); } }}
                                             placeholder={locale === "en" ? "Song or artist" : "曲名・アーティスト名"}
                                             className={`${inputClass} pl-9`}
                                         />
