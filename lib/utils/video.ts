@@ -133,26 +133,45 @@ export function neutralizeRange(
     base: number,
     start: number,
     end: number,
-    /** 見つけた `uuid` の範囲（この中だけ目印を探す。下の理由を見よ） */
-    uuidRanges: Array<[number, number]> = [],
+    /** 目印を探す範囲（`uuid` と、**箱として読めなかった残り**。下の理由を見よ） */
+    checkRanges: Array<[number, number]> = [],
 ): Array<[number, number]> {
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     let offset = start;
     while (offset < end) {
         const box = readBox(view, offset, end, base);
-        if (!box) break;
+        if (!box) {
+            // **読めずに降りた残りは「触っていない」。**
+            //
+            // ここは以前ただの `break` で、走査をやめた先は書き換えも確認も
+            // されずに通っていた。実測（この形の3通りとも原本と1バイト違わない
+            // まま「安全」として返っていた）:
+            //
+            //   moov の先頭に長さの壊れた箱 → 後ろの udta/©xyz に到達しない
+            //   moov/udta の宣言サイズが moov をはみ出す → 同上
+            //
+            // 最上位で同じことが起きる場合は `topLevelBoxes` が null を返して
+            // 断る（`97d57eb` のレビューで塞いだ）のに、**入れ子の中だけ
+            // 素通りしていた**。読めなかった残りは目印を探す対象に入れ、
+            // 見つかれば上げない。
+            //
+            // 誤検知の心配は小さい——正しい MP4 なら `moov` の子は端まで
+            // 箱として読める（読めない時点でそのファイルは壊れている）。
+            checkRanges.push([offset - base, end - base]);
+            break;
+        }
         const local = box.start - base;
         if (METADATA_BOXES.has(box.type)) {
             for (let i = 0; i < 4; i++) bytes[local + 4 + i] = FREE[i];
             bytes.fill(0, local + box.headerSize, box.boxEnd - base);
         } else if (CONTAINER_BOXES.has(box.type)) {
-            neutralizeRange(bytes, base, box.start + box.headerSize, box.boxEnd, uuidRanges);
+            neutralizeRange(bytes, base, box.start + box.headerSize, box.boxEnd, checkRanges);
         } else if (box.type === "uuid") {
-            uuidRanges.push([local, box.boxEnd - base]);
+            checkRanges.push([local, box.boxEnd - base]);
         }
         offset = box.boxEnd;   // readBox の不変条件により必ず前へ進む
     }
-    return uuidRanges;
+    return checkRanges;
 }
 
 /** 目印が残っていないか。1つでもあれば「消せていない」 */
@@ -209,20 +228,21 @@ export async function toUploadSafeVideo(file: File): Promise<File> {
         if (!TOP_LEVEL_TARGETS.has(box.type)) continue;
         if (box.start > cursor) parts.push(file.slice(cursor, box.start));
         const region = new Uint8Array(await file.slice(box.start, box.boxEnd).arrayBuffer());
-        const uuidRanges = box.type === "uuid"
+        const checkRanges = box.type === "uuid"
             ? [[0, region.length] as [number, number]]   // 最上位の uuid はそれ自体が対象
             : neutralizeRange(region, box.start, box.start, box.boxEnd);
 
-        // **確認は `uuid` の中だけにする。**
+        // **確認するのは `uuid` と、箱として読めなかった残りだけ。**
         //
         // 書き換えた箱（`udta`/`meta`）は 0 で埋めてあるので、残るとしたら
-        // 知らない箱＝実質 `uuid`（XMP はここに入る）。一方、`moov` 全体を
+        // 知らない箱＝実質 `uuid`（XMP はここに入る）か、走査が降りられ
+        // なかった範囲。一方、`moov` 全体を
         // 見ると `stco`/`stsz` のバイナリに `©xyz` の4バイトが**偶然並ぶ**
         // （300KB で約1/14,000）。そのとき利用者には「位置情報を取り除け
         // ません」としか出ず、位置情報の無い動画が理由も分からず弾かれる。
         // `mdat` を見ない理由（コミット 97d57eb）と同じ理屈が `moov` にも
         // 当たる、というだけのこと。
-        for (const [from, to] of uuidRanges) {
+        for (const [from, to] of checkRanges) {
             if (hasLocationMarker(region.subarray(from, to))) throw new UnstrippableFileError(file.type);
         }
         parts.push(region);

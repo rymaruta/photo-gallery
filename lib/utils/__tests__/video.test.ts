@@ -236,3 +236,51 @@ describe("壊れた箱で暴走しない", () => {
         expect(readBox(view, 0, 8)).toBeNull();
     });
 });
+
+// **入れ子の中で走査が降りられなかった範囲を、確認もせずに通していた。**
+//
+// 最上位で同じことが起きる場合は `topLevelBoxes` が null を返して断る
+// （`8d63172` で塞いだ4経路の1つ）のに、`moov` の**中**で長さが壊れた箱に
+// 当たると、`neutralizeRange` はただ `break` していた。実測した3通りは
+// どれも「位置情報が残ったまま、原本と1バイト違わないものを安全として返す」:
+//
+//   moov の先頭に長さがヘッダより短い箱 → 後ろの udta/©xyz に到達しない
+//   moov/udta の宣言サイズが moov をはみ出す → 同上
+//
+// 壊れた動画（転送が途中で切れた・書き込み中に落ちた）で現実に起こる形。
+describe("走査が降りられなかった範囲も確認する", () => {
+    /** 宣言サイズを自分で決められる箱（壊れた長さを作るため） */
+    function brokenBox(type: string, declared: number, payload: number[] = []): number[] {
+        return [(declared >>> 24) & 0xff, (declared >>> 16) & 0xff, (declared >>> 8) & 0xff, declared & 0xff,
+            ...enc(type), ...payload];
+    }
+    const head = [...box("ftyp", enc("mp42")), ...MDAT];
+
+    it("moov の先頭に壊れた箱があると、その先の位置情報に届かない → 断る", async () => {
+        const bytes = [...head, ...box("moov", [...brokenBox("junk", 4), ...GEO_UDTA])];
+        await expect(toUploadSafeVideo(fileOf(bytes)))
+            .rejects.toBeInstanceOf(UnstrippableFileError);
+    });
+
+    it("udta の宣言サイズが moov をはみ出すときも断る", async () => {
+        const bytes = [...head, ...box("moov", brokenBox("udta", 9999,
+            box(String.fromCharCode(0xa9) + "xyz", enc("+35.6586+139.7454/"))))];
+        await expect(toUploadSafeVideo(fileOf(bytes)))
+            .rejects.toBeInstanceOf(UnstrippableFileError);
+    });
+
+    // **壊れていても、位置情報が無ければ通す。** 「読めない＝全部断る」に
+    // 倒すと、位置情報の無い動画が理由も分からず上げられなくなる
+    // （この campaign で8回出ている「誤爆を止める代わりに正当な操作を殺す」）。
+    it("読めない箱があっても、位置情報が無ければ通す", async () => {
+        const bytes = [...head, ...box("moov", [...brokenBox("junk", 4), ...box("udta", box("name", enc("holiday")))])];
+        const out = await toUploadSafeVideo(fileOf(bytes));
+        expect(out.size, "長さが変わっている（stco の絶対位置がずれる）").toBe(bytes.length);
+    });
+
+    // 正常系: 壊れていない動画は今までどおり通る
+    it("正常な動画は今までどおり通る", async () => {
+        const out = await toUploadSafeVideo(fileOf(iphoneLike()));
+        expect(out.size).toBe(iphoneLike().length);
+    });
+});
