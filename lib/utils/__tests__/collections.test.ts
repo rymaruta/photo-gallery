@@ -22,6 +22,64 @@ const photos: Photo[] = [
     P({ id: "d", tags: ["苔"], location: "", category: "自然", published: false }), // 非公開は除外
 ];
 
+// **スラッグはファイル名になる。** ここが長すぎる／制御文字を含むと、
+// `next build` の静的書き出しが落ちて**サイト全体が出せなくなる**
+// （新しい写真も、削除・非公開の反映も。site-rebuild も同じビルドを通る）。
+// 実測: 撮影地に日本語83文字を入れて `npm run build` →
+//   ENAMETOOLONG: mkdir '.next/server/app/location/東×83.segments'
+//   Export encountered an error ... exiting the build
+// 82文字なら通る（両側から挟んで確認）。撮影地の上限は 200 **文字**なので
+// 日本語では届いてしまう。カテゴリ（100文字）も同じ。
+describe("slugify がファイル名として安全であること", () => {
+    // UTF-8 のバイト数（テスト側でも Buffer に頼らない）
+    const bytes = (s: string) => {
+        let n = 0;
+        for (const ch of s) {
+            const c = ch.codePointAt(0)!;
+            n += c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
+        }
+        return n;
+    };
+    // `.segments` の9バイトを引いた実際の限界。ここを超えたらビルドが落ちる
+    const HARD_LIMIT = 255 - ".segments".length;
+
+    it.each([
+        ["撮影地の上限いっぱいの日本語", "東".repeat(200)],
+        ["カテゴリの上限いっぱいの日本語", "京".repeat(100)],
+        ["絵文字だけ", "🗻".repeat(120)],
+        ["ASCII の上限いっぱい", "a".repeat(200)],
+    ])("%s でもファイル名の限界を超えない", (_name, value) => {
+        expect(bytes(slugify(value)), "ENAMETOOLONG でビルドが落ちる").toBeLessThanOrEqual(HARD_LIMIT);
+    });
+
+    it("切っても文字の途中で割らない（孤立サロゲートを作らない）", () => {
+        const out = slugify("🗻".repeat(120));
+        // 孤立サロゲート＝ペアになっていない D800-DFFF。`encodeURIComponent` が投げる
+        const lone = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+        expect(lone.test(out), "孤立サロゲートが残っている").toBe(false);
+        expect(() => encodeURIComponent(out)).not.toThrow();
+        expect(out.length, "空になっている（切りすぎ）").toBeGreaterThan(0);
+    });
+
+    it("切った尻尾に区切りを残さない", () => {
+        // 200バイト目がちょうど区切りになる並び
+        const value = "あ".repeat(66) + " " + "い".repeat(66);
+        expect(slugify(value)).not.toMatch(/-$/);
+    });
+
+    it("上限に届かない値は1文字も変えない", () => {
+        expect(slugify("山中湖")).toBe("山中湖");
+        expect(slugify("東京 / 渋谷")).toBe("東京-渋谷");
+    });
+
+    // NUL は `mkdir` が `ERR_INVALID_ARG_VALUE` で投げる（実測でビルドが落ちた）
+    it("制御文字を残さない", () => {
+        expect(slugify("Kyoto\u0000X"), "NUL でビルドが落ちる").toBe("kyoto-x");
+        expect(slugify("a\u0001b\u007Fc")).toBe("a-b-c");
+        expect(slugify("\u0000")).toBe("");
+    });
+});
+
 describe("slugify", () => {
     it("小文字化・trim・空白をハイフンに", () => {
         expect(slugify("  Lake District ")).toBe("lake-district");

@@ -26,6 +26,51 @@ export const CATEGORY_ALIASES: Record<string, string> = {
     "デザイン": "design",
 };
 
+/**
+ * スラッグの長さ（バイト）の上限。
+ *
+ * **スラッグはファイル名になる。** 静的書き出しは `/location/<slug>` に対して
+ * `out/location/<slug>.html` と `.next/server/app/location/<slug>.segments` を
+ * 掘る。Linux のファイル名上限は **255 バイト**で、`.segments` の9バイトを
+ * 引くと 246 バイトしか使えない。撮影地の上限は 200 **文字**なので、
+ * 日本語（1文字3バイト）なら **83文字で超える**。
+ *
+ * 超えると `ENAMETOOLONG` で `next build` が落ちる——**誰か1人が保存した
+ * 瞬間から、新しい写真も削除の反映も一切出せなくなる**（消えたページを
+ * S3 から消す site-rebuild も同じビルドを通る）。下の `.` / `..` と同じ型で、
+ * 実際に 83文字で落ち 82文字で通ることを確かめた。
+ *
+ * 余裕をみて 200 バイトで切る。切った結果が別の撮影地とぶつかることは
+ * ありうるが、**ページが1つに混ざる**のと**サイト全体が出せない**のとでは
+ * 後者の方がはるかに悪い。表示に使う値（`location` そのもの）は切らない。
+ */
+const MAX_SLUG_BYTES = 200;
+
+/** UTF-8 のバイト数（`Buffer` も `TextEncoder` も使わない。この関数は画面からも読む） */
+function utf8Len(codePoint: number): number {
+    if (codePoint < 0x80) return 1;
+    if (codePoint < 0x800) return 2;
+    if (codePoint < 0x10000) return 3;
+    return 4;
+}
+
+/** バイト数で切る。**文字の途中では切らない**（孤立サロゲートを作らない） */
+function clampSlugBytes(s: string): string {
+    let bytes = 0;
+    for (const ch of s) bytes += utf8Len(ch.codePointAt(0)!);
+    if (bytes <= MAX_SLUG_BYTES) return s;
+    let out = "";
+    bytes = 0;
+    for (const ch of s) {
+        const b = utf8Len(ch.codePointAt(0)!);
+        if (bytes + b > MAX_SLUG_BYTES) break;
+        out += ch;
+        bytes += b;
+    }
+    // 切った先が区切りだと `旅行-` のような尻尾が残る
+    return out.replace(/-+$/, "");
+}
+
 /** 値を URL スラッグへ正規化（小文字化・trim・空白をハイフンに）。日本語はそのまま（URLでは percent-encoded）。 */
 export function slugify(value: string, type?: CollectionType): string {
     const base = (value ?? "").toString().trim().toLowerCase()
@@ -43,6 +88,12 @@ export function slugify(value: string, type?: CollectionType): string {
         //  - `?` `#` … URL のクエリ・フラグメント区切り。同上。
         //  - `%` … 二重エンコードの入口。decodeURIComponent が化ける。
         .replace(/[/\\?#%]+/g, "-")
+        // **制御文字も落とす。** `\u0000` が混じると、静的書き出しの
+        // `mkdir` が `ERR_INVALID_ARG_VALUE: must be a string without null
+        // bytes` で落ちる（`/` と同じく「パスに置けない文字」）。他の C0 も
+        // URL とファイル名の両方で扱いが定まらない。`\s` に当たるのは
+        // タブ・改行だけなので、上の空白の正規化では落ちきらない。
+        .replace(/[\u0000-\u001F\u007F-\u009F]+/g, "-")
         // **孤立サロゲートも落とす。** 切り詰めが絵文字を割った値が保存されて
         // いると、`encodeURIComponent` がここで `URIError` を投げる。
         // 一度 collectionPath 側だけで掃除したが**それは誤りだった**——
@@ -60,8 +111,8 @@ export function slugify(value: string, type?: CollectionType): string {
     // （消えたページを S3 から消す site-rebuild も同じビルドを通る）。
     // 4-1 で直した「壊れた行1件で全デプロイが止まる」と同じ型。
     if (/^\.+$/.test(base)) return "";
-    if (type === "category") return CATEGORY_ALIASES[base] ?? base;
-    return base;
+    if (type === "category") return CATEGORY_ALIASES[base] ?? clampSlugBytes(base);
+    return clampSlugBytes(base);
 }
 
 /**
