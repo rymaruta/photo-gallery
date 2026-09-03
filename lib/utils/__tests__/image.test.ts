@@ -219,6 +219,23 @@ describe("toUploadSafeFile", () => {
     });
     afterEach(() => { vi.useRealTimers(); });
 
+    /**
+     * **デコードは成功する**状態にする（寸法つき）。
+     * 既定の stub は onerror なので「デコードできない」側。
+     * canvas は jsdom に無いので、この状態＝「読めるが作り直せない」＝
+     * バイト除去の保険が効くべき場面になる。
+     */
+    const decodesTo = (w: number, h: number) => {
+        Object.defineProperty(window.Image.prototype, "src", {
+            configurable: true,
+            set(this: HTMLImageElement) {
+                Object.defineProperty(this, "naturalWidth", { configurable: true, value: w });
+                Object.defineProperty(this, "naturalHeight", { configurable: true, value: h });
+                queueMicrotask(() => this.onload?.(new Event("load")));
+            },
+        });
+    };
+
     it("HEIC は上げない（Chrome ではデコードできず素通しになる形式）", async () => {
         const heic = new File([bytes()], "IMG_0001.HEIC", { type: "image/heic" });
         await expect(toUploadSafeFile(heic)).rejects.toBeInstanceOf(UnstrippableFileError);
@@ -229,13 +246,46 @@ describe("toUploadSafeFile", () => {
         await expect(toUploadSafeFile(gif)).rejects.toBeInstanceOf(UnstrippableFileError);
     });
 
+    // **30000x30000 の JPEG（実体 5MB 程度）がそのまま上がっていた。**
+    //
+    // Chromium は宣言 30000x30000 の JPEG をデコードしない（実測: `<img>` が
+    // onerror）→ 圧縮が失敗 → バイト除去だけ成功 → **原本が公開URLへ**。
+    // サムネ・代表色・ぼかしは全部 null なので `Thumb` は原本を配り、
+    // 閲覧者は毎回 5MB を落として**壊れた画像**を見る。サーバー側の `sharp` も
+    // `limitInputPixels` で毎回拒否するので、サムネ生成は以後ずっと赤いまま。
+    it("デコードできない JPEG は上げない（原本がそのまま出ていた）", async () => {
+        // 既定の stub は onerror ＝ デコードできない
+        const jpeg = new File([buildJpeg({ withExif: true }) as BlobPart], "huge.jpg", { type: "image/jpeg" });
+        await expect(toUploadSafeFile(jpeg), "原本がそのまま通っている")
+            .rejects.toBeInstanceOf(UnstrippableFileError);
+    });
+
+    // サーバーの `sharp` の既定（limitInputPixels）と対。超えるとサムネ生成が
+    // 毎回失敗し、そのステップが以後ずっと赤くなる
+    it("画素数が多すぎる JPEG も上げない", async () => {
+        decodesTo(30000, 30000);   // 9億画素
+        const jpeg = new File([buildJpeg({ withExif: true }) as BlobPart], "huge.jpg", { type: "image/jpeg" });
+        await expect(toUploadSafeFile(jpeg)).rejects.toBeInstanceOf(UnstrippableFileError);
+    });
+
+    // 正常系: 実在のカメラの最大級（1億画素）は通す
+    it("1億画素（実在するカメラの最大級）は通す", async () => {
+        decodesTo(11648, 8736);   // GFX100 相当 ≒ 102MP
+        const jpeg = new File([buildJpeg({ withExif: true }) as BlobPart], "big.jpg", { type: "image/jpeg" });
+        const out = await toUploadSafeFile(jpeg);
+        expect(out).not.toBe(jpeg);
+    });
+
     it("MIME 不明のファイルも上げない", async () => {
         const unknown = new File([bytes()], "a.bin", { type: "" });
         await expect(toUploadSafeFile(unknown)).rejects.toBeInstanceOf(UnstrippableFileError);
     });
 
     it("JPEG は圧縮に失敗してもバイト列から EXIF を除去して通す", async () => {
-        // jsdom には canvas が無いので compressImage は必ず失敗する＝保険の経路を通る
+        // jsdom には canvas が無いので compressImage は必ず失敗する＝保険の経路を通る。
+        // **デコードは成功する状態にする**——この保険は「読めるが作り直せない」
+        // ときのためのもので、読めない画像に使うと原本がそのまま上がる（下のテスト）
+        decodesTo(4000, 3000);
         const jpeg = new File([buildJpeg({ withExif: true }) as BlobPart], "p.jpg", { type: "image/jpeg" });
         const out = await toUploadSafeFile(jpeg);
         expect(out).not.toBe(jpeg); // 別ファイルになっている＝除去された

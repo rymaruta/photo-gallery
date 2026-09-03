@@ -164,6 +164,27 @@ export async function compressImage(file: File, maxPx = 1920, quality = 0.85): P
     return new File([encoded.blob], `${baseName}.${encoded.ext}`, { type: encoded.type });
 }
 
+/**
+ * 受け付ける画素数の上限。
+ *
+ * **サーバー側の `sharp` の既定（`limitInputPixels`）と対**。
+ * `scripts/generate-thumbnails.js` は S3 の原本を `sharp()` に食わせるので、
+ * これを超える画像はサムネ生成が毎回失敗し、そのステップが以後ずっと赤くなる。
+ * 実在のカメラは最大でも約1億画素（GFX100 が 102MP）なので、ここに当たるのは
+ * 合成した画像だけ。
+ */
+const MAX_UPLOAD_PIXELS = 268_402_689;   // sharp の既定（0x3FFF^2）
+
+/** 表示できるか（できれば寸法も）。デコードできなければ null */
+async function imagePixelSize(file: File): Promise<{ w: number; h: number } | null> {
+    try {
+        const img = await loadImageFromFile(file);
+        return { w: img.naturalWidth || img.width, h: img.naturalHeight || img.height };
+    } catch {
+        return null;
+    }
+}
+
 /** メタデータを除去できないファイルを上げようとしたときのエラー */
 export class UnstrippableFileError extends Error {
     constructor(public readonly fileType: string) {
@@ -199,7 +220,26 @@ export async function toUploadSafeFile(file: File, maxPx = 1920, quality = 0.85)
     if (compressed && compressed !== file) return compressed;
 
     // 素通し・失敗時の保険。JPEG ならバイト列から除去できる。
+    //
+    // **ただし「表示できる」ことを確かめてから使う。**
+    //
+    // この保険は「デコードはできるが canvas で作り直せない」ときのためのもの。
+    // ところが**デコードそのものに失敗した場合も**ここへ落ちていたので、
+    // 30000x30000 の JPEG（実体は 5MB 程度）がそのまま上がっていた:
+    //
+    //   Chromium は宣言 30000x30000 の JPEG を **decode しない**（実測。
+    //   `<img>` が onerror）→ 圧縮が失敗 → ここでバイト除去だけ成功 →
+    //   **原本が公開URLへ**。サムネ・代表色・ぼかしは全部 null なので
+    //   `Thumb` は原本を配り、閲覧者は毎回 5MB を落として**壊れた画像**を見る。
+    //   サーバー側の `sharp` も `limitInputPixels` で毎回拒否するので、
+    //   `generate-thumbnails` は以後ずっと赤いまま。
+    //
+    // ブラウザがデコードできない画像は、**閲覧者の画面でも表示できない**。
+    // 上げても意味が無いので断る（利用者には「保存し直してください」と出る）。
     if (file.type === "image/jpeg") {
+        const size = await imagePixelSize(file);
+        if (!size) throw new UnstrippableFileError(file.type);
+        if (size.w * size.h > MAX_UPLOAD_PIXELS) throw new UnstrippableFileError(file.type);
         const { file: out, stripped: ok } = await stripJpegExifDetailed(file);
         if (ok) return out;
     }
