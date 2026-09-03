@@ -10,9 +10,10 @@ import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { userFetch, readApiError, AUTH_REQUIRED_MESSAGE } from "../../../lib/utils/api";
 import { changedFields } from "../../../lib/utils/changedFields";
-import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../../lib/utils/music";
+import { parseMusicEmbed, musicServiceLabel, type SongResult } from "../../../lib/utils/music";
 import { toUploadSafeFile, AVATAR_MAX_PX, COVER_MAX_PX } from "../../../lib/utils/image";
 import { unstrippableMessage } from "../../../lib/utils/uploadRejection";
+import { useSongSearch } from "../../../lib/hooks/useSongSearch";
 import { isImeKey } from "../../../lib/utils/ime";
 import { log } from "../../../lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
@@ -112,9 +113,11 @@ export default function ProfileEditPage() {
     // マイBGMプレイリスト: アプリ内検索で選んだ曲（最大5曲・順に再生）
     const [selectedSongs, setSelectedSongs] = useState<SongResult[]>([]);
     const [songQuery, setSongQuery] = useState("");
-    const [songResults, setSongResults] = useState<SongResult[]>([]);
-    const [searching, setSearching] = useState(false);
-    const [searchError, setSearchError] = useState(false);
+    // 検索そのものは共有のフック（3画面で同じものを書いていた）
+    const {
+        results: songResults, searching, error: searchError,
+        search: runSongSearch,
+    } = useSongSearch();
     // 検索結果の試聴（同時に1曲だけ）
     const [previewId, setPreviewId] = useState<string | null>(null);
     const previewAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -361,27 +364,11 @@ export default function ProfileEditPage() {
             return next;
         });
 
-    // **世代で追い越しを捨てる**（`StoriesBar` と同じ形。対の乖離だった）
-    const songSearchGen = useRef(0);
     const handleSongSearch = async () => {
-        const q = songQuery.trim();
-        if (!q) return;
+        // **試聴を止めてから検索する**（結果が入れ替わっても前の曲が鳴り続ける）。
+        // 追い越しを捨てる仕掛けは `useSongSearch` が持っている。
         stopPreview();
-        const gen = ++songSearchGen.current;
-        setSearching(true);
-        setSearchError(false);
-        try {
-            const found = await searchSongs(q);
-            if (gen !== songSearchGen.current) return;   // もっと新しい検索が走っている
-            setSongResults(found);
-        } catch {
-            if (gen === songSearchGen.current) {
-                setSearchError(true);
-                setSongResults([]);
-            }
-        } finally {
-            if (gen === songSearchGen.current) setSearching(false);
-        }
+        await runSongSearch(songQuery);
     };
 
     const handleSave = async () => {

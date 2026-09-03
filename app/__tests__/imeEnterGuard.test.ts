@@ -37,11 +37,26 @@ function walk(dir: string): string[] {
     });
 }
 
-/** コメントを剥がしたコード（両方の判定で同じものを見る） */
+/**
+ * コメントを剥がしたコード（両方の判定で同じものを見る）。
+ *
+ * **`accept="image/[アスタリスク]"` をブロックコメントの開始と読んでは
+ * いけない。** 素朴にブロックコメントを消すと、`app/user/profile/page.tsx`
+ * の `accept` の値が開始タグになり、次の JSX コメントの終わりまでの
+ * **93行（4,327文字）が走査から消える**——その中には @名と表示名の
+ * 入力欄があった（レビューが実測）。開始の直前が行頭・空白・`{` の
+ * ときだけコメントとして扱う。
+ *
+ * （この説明に本物の記号を書くと、この JSDoc 自身がそこで閉じる。
+ * 実際に一度そうなって構文エラーになった。）
+ *
+ * 行コメントは行末のものも剥がす（`code; // isImeKey` と書けば通る、を塞ぐ）。
+ * `https://` を巻き込まないよう、直前が `:` でないものだけ。
+ */
 const codeOf = (rel: string) =>
     readFileSync(join(ROOT, rel), "utf8")
-        .replace(/^\s*\/\/.*$/gm, "")
-        .replace(/\/\*[\s\S]*?\*\//g, "");
+        .replace(/(^|[\s{])\/\*[\s\S]*?\*\//g, "$1")
+        .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 
 /** Enter を見ている回数（ハンドラが外に出ていても数えられる） */
 const enterChecks = (code: string) => (code.match(/key\s*===\s*"Enter"/g) ?? []).length;
@@ -91,5 +106,22 @@ describe("Enter を見る入力欄は、変換中を必ず見る", () => {
         expect(files, "除外したファイルが対象から消えている（この行はもう要らない）").toContain(f);
         expect(enterChecks(codeOf(f)),
             "除外した数より Enter の判定が少ない（除外が古い）").toBeGreaterThanOrEqual(skip);
+    });
+});
+
+// **この走査そのものが目を潰していた。**
+// `accept="image/*"` をコメントの開始と読み、プロフィールの93行
+// （@名と表示名の入力欄を含む）が見えていなかった。
+describe("走査がコードを読み落としていない", () => {
+    it("accept=\"image/*\" のあとも見えている", () => {
+        const code = codeOf("app/user/profile/page.tsx");
+        expect(code, "accept=\"image/*\" 以降が丸ごと消えている")
+            .toContain("onCompositionStart");
+        expect(code).toContain("placeholder=\"travel_photo\"");
+    });
+
+    it("本物のコメントは剥がす", () => {
+        const code = codeOf("app/user/profile/page.tsx");
+        expect(code).not.toContain("変換中は書き換えない");
     });
 });

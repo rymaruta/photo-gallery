@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 import { HeartIcon } from "@heroicons/react/24/solid";
@@ -10,7 +10,7 @@ import type { Photo } from "@/lib/data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
 import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
 import { hapticTap } from "../../../lib/utils/haptics";
-import { searchSongs, parseMusicEmbed, type SongResult } from "../../../lib/utils/music";
+import { parseMusicEmbed } from "../../../lib/utils/music";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { type SongEntry } from "../../music/MusicContext";
 import MusicCard from "../../components/MusicCard";
@@ -31,6 +31,7 @@ import { log } from "../../../lib/utils/log";
 import { isImageReady } from "../../../lib/utils/imageReady";
 import { formatStoredDateTime } from "@/lib/utils/photoDate";
 import { isImeKey } from "../../../lib/utils/ime";
+import { useSongSearch } from "../../../lib/hooks/useSongSearch";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -304,35 +305,14 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     };
     const [songPickerOpen, setSongPickerOpen] = useState(false);
     const [songQuery, setSongQuery] = useState("");
-    const [songResults, setSongResults] = useState<SongResult[]>([]);
-    const [songSearching, setSongSearching] = useState(false);
+    // 検索そのものは共有のフック（3画面で同じものを書いていた）
+    const {
+        results: songResults, searching: songSearching, error: songSearchError,
+        search: runSongSearch, clear: clearSongSearch,
+    } = useSongSearch();
     // 検索の失敗が「0件」と同じ（結果欄は length>0 でしか描かれない）ので、
     // 押しても無反応に見えた。プロフィール編集には既に同じ表示がある（SW-b6）
-    const [songSearchError, setSongSearchError] = useState(false);
-    // **世代で追い越しを捨てる**（`StoriesBar` と同じ形。対の乖離だった）。
-    // 遅れて返った古い結果が新しい結果を上書きすると、画面には
-    // **打っていない語の検索結果**が出る。IME で必ず2回走っていたぶん
-    // 踏みやすかった（それは直したが、押し直しや遅い回線では今も起きる）。
-    const songSearchGen = useRef(0);
-    const searchPhotoSongs = async () => {
-        const q = songQuery.trim();
-        if (!q) return;
-        const gen = ++songSearchGen.current;
-        setSongSearching(true);
-        setSongSearchError(false);
-        try {
-            const found = await searchSongs(q);
-            if (gen !== songSearchGen.current) return;   // もっと新しい検索が走っている
-            setSongResults(found);
-        } catch {
-            if (gen === songSearchGen.current) {
-                setSongResults([]);
-                setSongSearchError(true);
-            }
-        } finally {
-            if (gen === songSearchGen.current) setSongSearching(false);
-        }
-    };
+    const searchPhotoSongs = async () => { await runSongSearch(songQuery); };
     const savePhotoSong = async (song: SongEntry | null) => {
         try {
             const { userFetch, readApiError } = await import("../../../lib/utils/api");
@@ -349,7 +329,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
             }
             setPhotoSong(song);
             setSongPickerOpen(false);
-            setSongResults([]);
+            clearSongSearch();
             setSongQuery("");
             showToast(
                 song
@@ -827,7 +807,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                                 : (locale === "en" ? "Search" : "検索")}
                                         </button>
                                         <button
-                                            onClick={() => { setSongPickerOpen(false); setSongResults([]); setSongQuery(""); setSongSearchError(false); }}
+                                            onClick={() => { setSongPickerOpen(false); clearSongSearch(); setSongQuery(""); }}
                                             className="px-2 rounded-lg text-white/50 hover:text-white/80 text-xs active:scale-95 transition"
                                         >
                                             {locale === "en" ? "Cancel" : "閉じる"}
