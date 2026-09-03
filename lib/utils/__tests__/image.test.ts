@@ -260,12 +260,37 @@ describe("toUploadSafeFile", () => {
             .rejects.toBeInstanceOf(UnstrippableFileError);
     });
 
+    // **理由を持たせる。** 画面は全部「この形式は…JPEG か PNG で保存し直して
+    // ください」に潰していたが、読めない／大きすぎる場合は**形式が正しい
+    // JPEG** なので、言われたとおりにしても同じ結果になる（袋小路）
+    it.each([
+        ["形式（HEIC）", () => new File([bytes()], "a.HEIC", { type: "image/heic" }), "format"],
+        ["デコードできない", () => new File([buildJpeg({ withExif: true }) as BlobPart], "a.jpg", { type: "image/jpeg" }), "undecodable"],
+    ])("断る理由を持つ（%s）", async (_name, make, reason) => {
+        await expect(toUploadSafeFile(make())).rejects.toMatchObject({ reason });
+    });
+
     // サーバーの `sharp` の既定（limitInputPixels）と対。超えるとサムネ生成が
-    // 毎回失敗し、そのステップが以後ずっと赤くなる
-    it("画素数が多すぎる JPEG も上げない", async () => {
+    // 毎回失敗し、そのステップが以後ずっと赤くなる。
+    //
+    // **この分岐に来るのは「デコードは成功するが canvas で作り直せない」場合
+    // だけ。** Chromium で本物の JPEG を通して測ったところ、decode の限界は
+    // 約5.36億画素（2^31 ÷ 4バイト）で、268MP〜536MP は decode に成功して
+    // 圧縮も通る（上がるのは 1920px の webp なので原本は S3 に行かない）。
+    // つまりここは「資源が足りない端末でだけ効く保険」で、
+    // **実ブラウザで 900MP が decode 成功する状態は存在しない**。
+    // それでも固定するのは、保険の側から原本が出ていく道を塞ぐため。
+    it("画素数が多すぎるなら、保険の経路でも原本を上げない", async () => {
         decodesTo(30000, 30000);   // 9億画素
         const jpeg = new File([buildJpeg({ withExif: true }) as BlobPart], "huge.jpg", { type: "image/jpeg" });
-        await expect(toUploadSafeFile(jpeg)).rejects.toBeInstanceOf(UnstrippableFileError);
+        await expect(toUploadSafeFile(jpeg)).rejects.toMatchObject({ reason: "too-many-pixels" });
+    });
+
+    // 上限は sharp と同じ「超えたら拒否」。ちょうどは通す
+    it("上限ちょうどは通す（超えたら拒否）", async () => {
+        decodesTo(16383, 16383);   // 268,402,689 = sharp の既定ちょうど
+        const jpeg = new File([buildJpeg({ withExif: true }) as BlobPart], "edge.jpg", { type: "image/jpeg" });
+        await expect(toUploadSafeFile(jpeg)).resolves.toBeInstanceOf(File);
     });
 
     // 正常系: 実在のカメラの最大級（1億画素）は通す
@@ -274,6 +299,27 @@ describe("toUploadSafeFile", () => {
         const jpeg = new File([buildJpeg({ withExif: true }) as BlobPart], "big.jpg", { type: "image/jpeg" });
         const out = await toUploadSafeFile(jpeg);
         expect(out).not.toBe(jpeg);
+    });
+
+    // **読み込みを2回していた。** 圧縮で1回・保険の前にもう1回 読み直して
+    // いたので、読み込みが鳴らない端末（`IMAGE_LOAD_TIMEOUT_MS` のコメントが
+    // 挙げている iOS Safari の OOM）で**待ち時間が15秒から30秒に倍増**した
+    // ——実測 15,004ms → 30,004ms。断ること自体は意図どおりだが、
+    // 利用者は30秒スピナーを見てから断られる。
+    it("画像の読み込みは1回だけ（タイムアウトが2回分効かない）", async () => {
+        let loads = 0;
+        Object.defineProperty(window.Image.prototype, "src", {
+            configurable: true,
+            set(this: HTMLImageElement) {
+                loads++;
+                Object.defineProperty(this, "naturalWidth", { configurable: true, value: 4000 });
+                Object.defineProperty(this, "naturalHeight", { configurable: true, value: 3000 });
+                queueMicrotask(() => this.onload?.(new Event("load")));
+            },
+        });
+        const jpeg = new File([buildJpeg({ withExif: true }) as BlobPart], "p.jpg", { type: "image/jpeg" });
+        await toUploadSafeFile(jpeg);
+        expect(loads, "読み直している（待ち時間が2倍になる）").toBe(1);
     });
 
     it("MIME 不明のファイルも上げない", async () => {
