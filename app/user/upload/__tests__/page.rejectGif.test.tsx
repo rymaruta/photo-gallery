@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // **GIF は選べるのに、公開を押して初めて必ず失敗していた。**
@@ -23,7 +23,8 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("../../../auth/context", () => ({ useAuth: () => authState.current }));
 vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
-vi.mock("../../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
+const mockShowToast = vi.hoisted(() => vi.fn());
+vi.mock("../../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: mockShowToast }) }));
 vi.mock("../../../components/AddToHomeScreenHint", () => ({ default: () => null }));
 vi.mock("../../../../lib/auth/cognito", () => ({ getCurrentSession: vi.fn(async () => null) }));
 vi.mock("../../../../lib/utils/shareStore", () => ({
@@ -94,6 +95,22 @@ describe("GIF は選んだ時点で断る", () => {
         await screen.findByText(/GIF は位置情報を取り除けない/);
         expect(screen.queryByRole("button", { name: /枚を公開/ }),
             "選んだことになっている").toBeNull();
+    });
+
+    // **同じ画面のアバターだけ、保存を押すまで分からなかった。**
+    // アバターの `<input>` は `startsWith("image/")` しか見ずにプレビューを
+    // 出し、`toUploadSafeFile` を呼ぶのは「保存」を押したあとだった
+    // （写真グリッド側の関門はこの入力を通らない）。
+    it("アバターの入力でも、選んだ時点で断る", async () => {
+        const { container } = render(<UploadPage />);
+        const inputs = Array.from(container.querySelectorAll('input[type="file"]')) as HTMLInputElement[];
+        expect(inputs.length, "ファイル入力が見つからない").toBeGreaterThan(1);
+        // 2つ目がアバター用（1つ目は写真グリッド）
+        await userEvent.upload(inputs[inputs.length - 1], new File(["x"], "cat.gif", { type: "image/gif" }));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
+            expect.stringContaining("GIF は位置情報を取り除けません"), "error"));
+        expect(screen.queryByRole("button", { name: /保存/ }),
+            "保存を押すまで分からない").toBeNull();
     });
 
     // 正常系: JPEG は今までどおり通る

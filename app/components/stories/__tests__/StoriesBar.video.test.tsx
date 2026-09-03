@@ -257,12 +257,17 @@ describe("GIF は選んだ時点で断る", () => {
             "投稿を押すまで分からない").toBeNull();
     });
 
-    // 正常系: JPEG は今までどおり下書きまで進む
-    it("JPEG は今までどおり下書きへ進む", async () => {
+    // **正常系は1形式では足りない。** 関門を `image/png` などへ広げる変異が
+    // JPEG だけのテストでは素通りする（PNG のストーリーを丸ごと殺しても緑）
+    it.each([
+        ["image/jpeg", "a.jpg"],
+        ["image/png", "a.png"],
+        ["image/webp", "a.webp"],
+    ])("%s は今までどおり下書きへ進む", async (type, name) => {
         const { container } = render(<StoriesBar />);
         await screen.findByText("あなた");
         const input = container.querySelector('input[type="file"]') as HTMLInputElement;
-        await userEvent.upload(input, new File(["jpg"], "a.jpg", { type: "image/jpeg" }));
+        await userEvent.upload(input, new File(["img"], name, { type }));
 
         expect(await screen.findByRole("button", { name: /ストーリーに投稿/ }, { timeout: 5000 }))
             .toBeInTheDocument();

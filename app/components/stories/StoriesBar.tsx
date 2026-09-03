@@ -8,7 +8,7 @@ import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { toUploadSafeFile, UnstrippableFileError } from "../../../lib/utils/image";
-import { unstrippableMessage } from "../../../lib/utils/uploadRejection";
+import { unstrippableMessage, gifRejectedMessage } from "../../../lib/utils/uploadRejection";
 import { searchSongs, type SongResult } from "../../../lib/utils/music";
 import { startFromPointer, clampStart } from "../../../lib/utils/songTrim";
 import { log } from "../../../lib/utils/log";
@@ -333,22 +333,20 @@ export default function StoriesBar() {
             showToast(locale === "en" ? "Choose a photo or video (mp4)" : "写真または動画（mp4）を選んでください", "error");
             return;
         }
-        if (file.size > MAX_FILE_BYTES) {
-            showToast(locale === "en" ? "File too large (max 50MB)" : "ファイルが大きすぎます（最大50MB）", "error");
-            return;
-        }
         // **GIF はここで断る。** `toUploadSafeFile` は GIF を必ず
         // `UnstrippableFileError` にする（アニメーションを保つため再エンコード
         // せず、保険のバイト除去は JPEG だけ）。投稿時まで待つと、
         // **キャプションと曲まで選んでから必ず断られる**——すぐ下の動画の
         // 関門に「投稿時ではなく選択時にやる」と書いてあるのと同じ理由。
+        //
+        // **サイズ判定より前に置く。** 写真グリッド側が先に GIF を見るので、
+        // 順が違うと 60MB の GIF で画面ごとに違う理由が出る。
         if (file.type === "image/gif") {
-            showToast(
-                locale === "en"
-                    ? "GIFs can't have their location data removed. Please choose a JPEG or PNG."
-                    : "GIF は位置情報を取り除けません。JPEG か PNG を選んでください。",
-                "error",
-            );
+            showToast(gifRejectedMessage(locale), "error");
+            return;
+        }
+        if (file.size > MAX_FILE_BYTES) {
+            showToast(locale === "en" ? "File too large (max 50MB)" : "ファイルが大きすぎます（最大50MB）", "error");
             return;
         }
         let prepared = file;

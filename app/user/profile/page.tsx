@@ -209,7 +209,7 @@ export default function ProfileEditPage() {
                 upload = await toUploadSafeFile(file, COVER_MAX_PX, 0.85);
             } catch (e) {
                 log.error("cover: could not strip metadata:", e);
-                showToast(unstrippableMessage(e, "ja"), "error");
+                showToast(unstrippableMessage(e, locale), "error");
                 return;
             }
 
@@ -267,7 +267,7 @@ export default function ProfileEditPage() {
                 upload = await toUploadSafeFile(file, AVATAR_MAX_PX, 0.85);
             } catch (e) {
                 log.error("avatar: could not strip metadata:", e);
-                showToast(unstrippableMessage(e, "ja"), "error");
+                showToast(unstrippableMessage(e, locale), "error");
                 return;
             }
 

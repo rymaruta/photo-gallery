@@ -17,7 +17,7 @@ import { ROUTES } from "../../../lib/routes";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
 import { userFacingUploadError, UPLOAD_FAILED_MESSAGE } from "./errorText";
-import { unstrippableMessage } from "../../../lib/utils/uploadRejection";
+import { unstrippableMessage, gifRejectedMessage, gifRejectedLabel } from "../../../lib/utils/uploadRejection";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
 
@@ -369,9 +369,7 @@ function UploadPageInner() {
                 : `画像ではない: ${names(notImage)}`);
         }
         if (cannotStrip.length > 0) {
-            reasons.push(locale === "en"
-                ? `GIF can't have its location data removed: ${names(cannotStrip)}`
-                : `GIF は位置情報を取り除けない: ${names(cannotStrip)}`);
+            reasons.push(`${gifRejectedLabel(locale)}: ${names(cannotStrip)}`);
         }
         if (reasons.length > 0) {
             // **理由を足したら、ここも足す。** 数え漏らすと
@@ -1130,6 +1128,14 @@ function UploadPageInner() {
                                 onChange={(e) => {
                                     const f = e.target.files?.[0];
                                     if (!f || !f.type.startsWith("image/")) return;
+                                    // **写真グリッドと同じく、選んだ時点で断る。**
+                                    // ここだけ残っていたので、プレビューを見て
+                                    // 「保存」を押してから必ず失敗していた。
+                                    if (f.type === "image/gif") {
+                                        showToast(gifRejectedMessage(locale), "error");
+                                        e.target.value = "";
+                                        return;
+                                    }
                                     setAvatarFile(f);
                                     const reader = new FileReader();
                                     reader.onloadend = () => setAvatarPreview(reader.result as string);
