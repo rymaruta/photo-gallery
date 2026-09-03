@@ -572,8 +572,9 @@ const FORBIDDEN_IN_OUTPUT = [
  *
  * なので、
  *   - `srcOriginal` … キーの位置（引用符で囲まれ、直後が `:`）
- *   - `notifs#` ほか … 文字列の先頭（直前が引用符）
- * だけを見る。利用者の文章の途中に現れた場合は引用符が前に来ない。
+ *   - `notifs#` ほか … **ID そのもの**（引用符 → 接頭辞 → ID → 引用符）
+ * だけを見る。利用者の文章は、途中に出ても（引用符が前に来ない）、
+ * 先頭に出ても（ID の形で閉じない）当たらない。
  *
  * **`uploads/originals` はそのまま部分一致で見る。** これは原本の URL の
  * 一部で、GPS の入った実体そのものを指す——形が変わって漏れても拾いたい
@@ -582,13 +583,33 @@ const FORBIDDEN_IN_OUTPUT = [
 const KEY_SHAPED = new Set(["srcOriginal"]);
 const BROAD = new Set(["uploads/originals"]);
 
+/**
+ * 引用符の出方。実ビルドで確かめた3通り:
+ *
+ *     "srcOriginal":            … photos.json / 埋め込み JSON
+ *     \"srcOriginal\":           … RSC の .txt と HTML の中
+ *     &quot;srcOriginal&quot;:   … HTML のテキストノード・属性（React が逃がす）
+ *
+ * 3つ目を落としていた（レビューで実ビルドの出力から見つかった）。
+ * 網を狭めた側は、狭めた分がそのまま見逃しになる。
+ */
+const QUOTE = '(?:(?:\\\\)?"|&quot;)';
+
+/**
+ * 内部文書のIDの本体。`comments#<写真ID>` のように**必ず ID が続いて閉じる**。
+ *
+ * 直前の引用符だけを見ていたときは、**キャプションが禁止語で始まると
+ * 止まっていた**（`"location":"notifs# の話"` は値の先頭なので引用符が来る）。
+ * ID の形（英数字とハイフン）と閉じ引用符まで見れば、日本語の文章とは分かれる。
+ */
+const ID_BODY = '[A-Za-z0-9_-]{1,80}';
+
 function forbiddenPattern(needle) {
     if (BROAD.has(needle)) return null;                     // 部分一致のまま
     const esc = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const quote = '(?:\\\\)?"';                                 // `"` か `\"`
     return KEY_SHAPED.has(needle)
-        ? new RegExp(`${quote}${esc}${quote}\\s*:`)              // キーの位置
-        : new RegExp(`${quote}${esc}`);                        // 文字列の先頭
+        ? new RegExp(`${QUOTE}${esc}${QUOTE}\\s*:`)              // キーの位置
+        : new RegExp(`${QUOTE}${esc}${ID_BODY}${QUOTE}`);      // ID そのもの
 }
 
 function assertNoForbiddenContent(files) {

@@ -71,6 +71,24 @@ describe("GIF は選んだ時点で断る", () => {
         expect(screen.getByText(/cat\.gif/)).toBeInTheDocument();
     });
 
+    // **理由を足したら、スキップ件数にも足す。** 一度落として
+    // 「0件をスキップしました（GIF は…: cat.gif）」になっていた
+    it("スキップ件数に数える", async () => {
+        await pick(new File(["x"], "cat.gif", { type: "image/gif" }));
+        expect(await screen.findByText(/1件をスキップしました/),
+            "0件と出ている（落ちた枚数が伝わらない）").toBeInTheDocument();
+    });
+
+    it("他の理由と混ざっても合計が合う", async () => {
+        const { container } = render(<UploadPage />);
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, [
+            new File(["x"], "cat.gif", { type: "image/gif" }),
+            new File([new Uint8Array(51 * 1024 * 1024)], "big.jpg", { type: "image/jpeg" }),
+        ]);
+        expect(await screen.findByText(/2件をスキップしました/)).toBeInTheDocument();
+    });
+
     it("下書きも作らない", async () => {
         await pick(new File(["x"], "cat.gif", { type: "image/gif" }));
         await screen.findByText(/GIF は位置情報を取り除けない/);

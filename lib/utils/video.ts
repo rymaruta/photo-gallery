@@ -129,7 +129,7 @@ export function readBox(view: DataView, offset: number, end: number, base = 0): 
  * `bytes` の先頭がファイル上の `base` に当たる。
  */
 /**
- * 入れ子の深さの上限。
+ * 入れ子の深さの上限。**超えたら断る。**
  *
  * 実測: `moov/trak/trak/...` を5000段入れた **39KB** のファイルで
  * `RangeError: Maximum call stack size exceeded`。これは
@@ -137,7 +137,15 @@ export function readBox(view: DataView, offset: number, end: number, base = 0): 
  * としか出ない——**位置情報を消せなかったのか、別の理由なのかが伝わらない**。
  * 断る結果は同じでも、理由は正しく出す。
  *
- * 実在の MP4 は `moov/trak/mdia/minf/stbl/stsd/...` で10段に届かない。
+ * **「目印を探すだけにして通す」にしてはいけない**（一度そう書いた）。
+ * 降りられなかった先の `udta`/`meta` は **0 埋めされない**ので、目印の一覧に
+ * 無い形（3GPP の `udta/loci` など）で座標が入っていると**そのまま残って
+ * 合格する**。読めなかった範囲（元から書き換え対象外）とは違い、ここは
+ * **降りれば潰せたものを潰していない**——通してよい理由が無い。
+ *
+ * 実在の MP4 でこの深さには届かない。`CONTAINER_BOXES` は
+ * `moov`/`trak`/`moof`/`traf` の4種だけで `mdia`/`minf`/`stbl` には降りない
+ * ので、実効の深さは最大2段（`moov/trak/udta` など）。
  */
 const MAX_BOX_DEPTH = 32;
 
@@ -150,12 +158,8 @@ export function neutralizeRange(
     checkRanges: Array<[number, number]> = [],
     depth = 0,
 ): Array<[number, number]> {
-    // 深すぎる＝解釈できていない。読めなかった範囲と同じ扱いにする
-    // （中身を確認せずに通さない）
-    if (depth > MAX_BOX_DEPTH) {
-        checkRanges.push([start - base, end - base]);
-        return checkRanges;
-    }
+    // 深すぎる＝この先は潰せていない。上げない
+    if (depth > MAX_BOX_DEPTH) throw new UnstrippableFileError("video");
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     let offset = start;
     while (offset < end) {

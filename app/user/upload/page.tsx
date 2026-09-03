@@ -373,7 +373,10 @@ function UploadPageInner() {
                 : `GIF は位置情報を取り除けない: ${names(cannotStrip)}`);
         }
         if (reasons.length > 0) {
-            const skipped = tooLarge.length + notImage.length;
+            // **理由を足したら、ここも足す。** 数え漏らすと
+            // 「0件をスキップしました（GIF は…: cat.gif）」になる
+            // ——すぐ上のコメントが書いている「落ちた枚数が伝わらない」に戻る
+            const skipped = tooLarge.length + notImage.length + cannotStrip.length;
             setFileError(locale === "en"
                 ? `Skipped ${skipped} file(s) — ${reasons.join(" / ")}`
                 : `${skipped}件をスキップしました（${reasons.join(" / ")}）`);

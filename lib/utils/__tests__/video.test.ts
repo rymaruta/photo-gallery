@@ -329,15 +329,31 @@ describe("入れ子が深すぎる動画", () => {
             .rejects.toBeInstanceOf(UnstrippableFileError);
     });
 
-    // **深いだけでは断らない。** 深さそのものは危険ではないので、
-    // 位置情報が無ければ通す（「誤爆を止める代わりに正当な操作を殺す」を作らない）
-    it("深くても位置情報が無ければ通す", async () => {
-        const bytes = deep(200, box("udta", box("name", enc("holiday"))));
-        const out = await toUploadSafeVideo(fileOf(bytes));
-        expect(out.size, "長さが変わっている").toBe(bytes.length);
+    // **一度「目印を探すだけにして通す」と書いたが、それは誤りだった。**
+    //
+    // 降りられなかった先の `udta`/`meta` は **0 埋めされない**ので、
+    // 目印の一覧に無い形（3GPP の `udta/loci` など）で座標が入っていると
+    // **そのまま残って合格する**。読めなかった範囲（元から書き換え対象外）
+    // とは違い、ここは**降りれば潰せたものを潰していない**。
+    it("目印の一覧に無い形でも、深すぎたら通さない", async () => {
+        // `loci` は LOCATION_MARKERS に無い（3GPP の位置の箱）
+        const bytes = deep(200, box("udta", box("loci", enc("Tokyo+35.6+139.7"))));
+        await expect(toUploadSafeVideo(fileOf(bytes)),
+            "潰していないのに通している").rejects.toBeInstanceOf(UnstrippableFileError);
     });
 
-    // 実在の MP4 は moov/trak/mdia/minf/stbl/stsd で10段に届かない
+    // 浅ければ、同じ `loci` は 0 埋めされて消える（通してよい）
+    it("浅ければ、目印に無い形でも潰して通す", async () => {
+        const bytes = deep(1, box("udta", box("loci", enc("Tokyo+35.6+139.7"))));
+        const out = await toUploadSafeVideo(fileOf(bytes));
+        expect(out.size, "長さが変わっている").toBe(bytes.length);
+        const got = new Uint8Array(await out.arrayBuffer());
+        expect(new TextDecoder().decode(got).includes("Tokyo"),
+            "潰せていない").toBe(false);
+    });
+
+    // 実在の MP4 はこの深さに届かない（CONTAINER_BOXES は moov/trak/moof/traf の
+    // 4種だけで mdia/minf/stbl には降りないので、実効の深さは最大2段）
     it("普通の深さは今までどおり書き換える", async () => {
         const out = await toUploadSafeVideo(fileOf(iphoneLike()));
         expect(out.size).toBe(iphoneLike().length);

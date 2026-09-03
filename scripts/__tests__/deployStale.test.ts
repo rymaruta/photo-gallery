@@ -271,12 +271,53 @@ describe("assertNoForbiddenContent", () => {
         ["タイトルに comments# と書く", '<html><h1>コメント欄 comments# の使い方</h1></html>'],
         ["JSON の値の途中にある", '<html>{"title":"コメント欄 comments# の使い方"}</html>'],
         ["escape 済みの値の途中", '<html>1:{\\"title\\":\\"原本 srcOriginal の話\\"}</html>'],
+        // **値の「先頭」も通す。** 直前の引用符だけを見ていた頃は、
+        // キャプションが禁止語で始まると止まっていた——JSON の値の先頭には
+        // 必ず引用符が来るので、「途中」しか直っていなかった（実ビルドで確認）
+        ["撮影地が notifs# で始まる", '<html>{"location":"notifs# の話"}</html>'],
+        ["escape 済みで先頭", '<html>1:{\\"location\\":\\"notifs# の話\\"}</html>'],
+        ["引用符ごと文章に書く", '<html><p>彼は \\"comments# の話\\" と書いた</p></html>'],
+        ["srcOriginal で始まる説明", '<html>{"description":"srcOriginal を残すか迷った話。"}</html>'],
     ])("利用者が書いた文章では止めない（%s）", (_name, body) => {
         const f = nodePath.join(process.cwd(), "out", "_guard_test3_.html");
         nodeFs.writeFileSync(f, body);
         try {
             expect(() => assertNoForbiddenContent(["_guard_test3_.html"]),
                 "1人の写真のキャプションでデプロイが止まる").not.toThrow();
+        } finally {
+            nodeFs.rmSync(f, { force: true });
+        }
+    });
+
+    // **HTML のテキストノードでは React が `"` を `&quot;` に逃がす。**
+    // 実ビルドの出力に実在する形（`{&quot;srcOriginal&quot;:&quot;...&quot;}`）で、
+    // 生の `"` と `\\"` しか見ない実装は**この形を取り逃がす**。
+    it.each([
+        ["キーの形", '<html>{&quot;srcOriginal&quot;:&quot;https://cdn/x.jpg&quot;}</html>', /srcOriginal/],
+        ["IDの形", '<html>{&quot;id&quot;:&quot;comments#a1b2-c3&quot;}</html>', /comments#/],
+    ])("HTML エンティティに逃がされていても止める（%s）", (_name, body, re) => {
+        const f = nodePath.join(process.cwd(), "out", "_guard_test5_.html");
+        nodeFs.writeFileSync(f, body);
+        try {
+            expect(() => assertNoForbiddenContent(["_guard_test5_.html"])).toThrow(re);
+        } finally {
+            nodeFs.rmSync(f, { force: true });
+        }
+    });
+
+    // **`srcOriginal` は「キーの位置」でしか見ない**、がこの検査の中心の判断。
+    // 一度これを固定するテストが1本も無く、キー判定を外す変異が全緑だった。
+    // 整形済み JSON（`"srcOriginal" : `）も実装は通すが、無検証だった。
+    it.each([
+        ["ふつうのキー", '<html>{"srcOriginal":"https://cdn/x.jpg"}</html>', true],
+        ["整形済み（コロンの前に空白）", '<html>{ "srcOriginal" : "https://cdn/x.jpg" }</html>', true],
+        ["値として出るだけ", '<html>{"note":"srcOriginal"}</html>', false],
+    ])("srcOriginal はキーの位置でだけ止める（%s）", (_name, body, shouldThrow) => {
+        const f = nodePath.join(process.cwd(), "out", "_guard_test6_.html");
+        nodeFs.writeFileSync(f, body);
+        try {
+            if (shouldThrow) expect(() => assertNoForbiddenContent(["_guard_test6_.html"])).toThrow(/srcOriginal/);
+            else expect(() => assertNoForbiddenContent(["_guard_test6_.html"])).not.toThrow();
         } finally {
             nodeFs.rmSync(f, { force: true });
         }
