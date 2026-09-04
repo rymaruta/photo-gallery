@@ -8,7 +8,10 @@ import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { toUploadSafeFile, UnstrippableFileError } from "../../../lib/utils/image";
-import { searchSongs, type SongResult } from "../../../lib/utils/music";
+import { unstrippableMessage, gifRejectedMessage } from "../../../lib/utils/uploadRejection";
+import { isImeKey } from "../../../lib/utils/ime";
+import { useSongSearch } from "../../../lib/hooks/useSongSearch";
+import { type SongResult } from "../../../lib/utils/music";
 import { startFromPointer, clampStart } from "../../../lib/utils/songTrim";
 import { log } from "../../../lib/utils/log";
 import {
@@ -97,9 +100,11 @@ export default function StoriesBar() {
     const [draftSong, setDraftSong] = useState<SongResult | null>(null);
     const [songPickerOpen, setSongPickerOpen] = useState(false);
     const [songQuery, setSongQuery] = useState("");
-    const [songResults, setSongResults] = useState<SongResult[]>([]);
-    const [songSearching, setSongSearching] = useState(false);
-    const [songSearchError, setSongSearchError] = useState(false);
+    // 検索そのものは共有のフック（3画面で同じものを書いていた）
+    const {
+        results: songResults, searching: songSearching, error: songSearchError,
+        search: runSongSearch, clear: clearSongSearch,
+    } = useSongSearch();
     // 曲の「好きな部分」= 30秒プレビュー内の開始位置（秒）
     const [songStart, setSongStart] = useState(0);
     // 画像ストーリーの表示秒数（投稿者が選ぶ）
@@ -201,34 +206,17 @@ export default function StoriesBar() {
         }
     }, [songStart, songWindowSec, draftSong, previewingId]);
 
-    // 検索の世代。**打ち消したはずの結果が出る**のを止める。
-    // 順序の保証が無かった頃は、遅い1回目の応答が速い2回目より後に届くと
-    // 前の語の結果で上書きされていた（lib/hooks/useUserSearch.ts に
-    // 正しい形がある。同じ仕掛けを使う）。
-    const songSearchGen = useRef(0);
+    // **試聴を止めてから検索する。** 止めないと、結果が入れ替わっても
+    // 前の曲が鳴り続ける（停止ボタンごと画面から消える）。
+    // 追い越しを捨てる仕掛けは `useSongSearch` が持っている。
     const searchDraftSongs = async () => {
-        const q = songQuery.trim();
-        if (!q) return;
-        // **試聴を止めてから引き直す。** 結果が差し替わると、鳴っている曲の
-        // 停止ボタンごと画面から消える——下書きは z-[95] でミニプレイヤーも
-        // 覆うので、下書きを閉じるまで止められない。プロフィール側の
-        // `handleSongSearch` は最初からこの形（対の乖離だった）。
+        // **空の語では何もしない（試聴も止めない）。** 検索ボタンは空だと
+        // 押せないが、入力欄の Enter は素通りする——試聴中に語を消して
+        // Enter を押すと、以前は無反応だったのが再生が止まっていた
+        // （フックに空判定を移したときに、`stopPreview()` が前に出た）。
+        if (!songQuery.trim()) return;
         stopPreview();
-        const gen = ++songSearchGen.current;
-        setSongSearching(true);
-        setSongSearchError(false);
-        try {
-            const found = await searchSongs(q);
-            if (gen !== songSearchGen.current) return;   // もっと新しい検索が走っている
-            setSongResults(found);
-        } catch {
-            if (gen === songSearchGen.current) {
-                setSongResults([]);
-                setSongSearchError(true);   // 0件と同じ無反応にしない（SW-b6）
-            }
-        } finally {
-            if (gen === songSearchGen.current) setSongSearching(false);
-        }
+        await runSongSearch(songQuery);
     };
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -294,11 +282,10 @@ export default function StoriesBar() {
         setDraftSong(null);
         setSongPickerOpen(false);
         setSongQuery("");
-        setSongResults([]);
-        setSongSearchError(false);   // 開き直したときに前回の失敗を出さない
+        clearSongSearch();   // 開き直したときに前回の結果と失敗を出さない
         setSongStart(0);
         setDurationSec(STORY_DEFAULT_DURATION_SEC);
-    }, [stopPreview]);
+    }, [stopPreview, clearSongSearch]);
 
     // 下書きのプレビューURLを必ず解放する。
     // 解放は closeDraft の中だけにあったので、✕ を押さずに離れたとき
@@ -330,6 +317,18 @@ export default function StoriesBar() {
         const isVideo = ALLOWED_VIDEO_TYPES.has(file.type);
         if (!isImage && !isVideo) {
             showToast(locale === "en" ? "Choose a photo or video (mp4)" : "写真または動画（mp4）を選んでください", "error");
+            return;
+        }
+        // **GIF はここで断る。** `toUploadSafeFile` は GIF を必ず
+        // `UnstrippableFileError` にする（アニメーションを保つため再エンコード
+        // せず、保険のバイト除去は JPEG だけ）。投稿時まで待つと、
+        // **キャプションと曲まで選んでから必ず断られる**——すぐ下の動画の
+        // 関門に「投稿時ではなく選択時にやる」と書いてあるのと同じ理由。
+        //
+        // **サイズ判定より前に置く。** 写真グリッド側が先に GIF を見るので、
+        // 順が違うと 60MB の GIF で画面ごとに違う理由が出る。
+        if (file.type === "image/gif") {
+            showToast(gifRejectedMessage(locale), "error");
             return;
         }
         if (file.size > MAX_FILE_BYTES) {
@@ -422,12 +421,7 @@ export default function StoriesBar() {
                     uploadFile = await toUploadSafeFile(draft.file, 1440, 0.85);
                 } catch (e) {
                     if (e instanceof UnstrippableFileError) {
-                        showToast(
-                            locale === "en"
-                                ? "This format can't be uploaded safely. Please save it as JPEG or PNG and try again."
-                                : "この形式は安全にアップロードできません。JPEG か PNG で保存し直してください。",
-                            "error",
-                        );
+                        showToast(unstrippableMessage(e, locale), "error");
                     } else {
                         log.error("story image prepare failed:", e);
                         showToast(
@@ -846,7 +840,7 @@ export default function StoriesBar() {
                                         type="text"
                                         value={songQuery}
                                         onChange={(e) => setSongQuery(e.target.value)}
-                                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void searchDraftSongs(); } }}
+                                        onKeyDown={(e) => { if (e.key === "Enter" && !isImeKey(e.nativeEvent)) { e.preventDefault(); void searchDraftSongs(); } }}
                                         placeholder={locale === "en" ? "Song or artist" : "曲名・アーティスト名"}
                                         autoFocus
                                         className="flex-1 min-w-0 px-3 py-2 bg-white/10 rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-white/15"
@@ -858,7 +852,7 @@ export default function StoriesBar() {
                                             ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" />
                                             : (locale === "en" ? "Search" : "検索")}
                                     </button>
-                                    <button onClick={() => { stopPreview(); setSongPickerOpen(false); setSongResults([]); setSongQuery(""); }}
+                                    <button onClick={() => { stopPreview(); setSongPickerOpen(false); clearSongSearch(); setSongQuery(""); }}
                                         className="px-2 text-xs text-white/50 hover:text-white/80 active:scale-95 transition">
                                         {locale === "en" ? "Cancel" : "閉じる"}
                                     </button>
@@ -889,7 +883,7 @@ export default function StoriesBar() {
                                                     </span>
                                                 </button>
                                                 <button
-                                                    onClick={() => { stopPreview(); setDraftSong(r); setSongStart(0); setSongPickerOpen(false); setSongResults([]); setSongQuery(""); }}
+                                                    onClick={() => { stopPreview(); setDraftSong(r); setSongStart(0); setSongPickerOpen(false); clearSongSearch(); setSongQuery(""); }}
                                                     className="flex-1 min-w-0 flex items-center gap-2.5 py-2 hover:bg-white/10 active:bg-white/15 transition text-left"
                                                 >
                                                     <div className="min-w-0 flex-1">

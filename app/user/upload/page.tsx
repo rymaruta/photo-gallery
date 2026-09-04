@@ -17,6 +17,7 @@ import { ROUTES } from "../../../lib/routes";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
 import { userFacingUploadError, UPLOAD_FAILED_MESSAGE } from "./errorText";
+import { unstrippableMessage, gifRejectedMessage, gifRejectedLabel } from "../../../lib/utils/uploadRejection";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
 
@@ -118,6 +119,19 @@ function CropPreview({ src, hint }: { src: string; hint: string }) {
 // **段落ごと**に切り、タグはカンマ区切りの1入力で上限が**タグ1つあたり**
 // なので、欄全体に上限を入れると「サーバーは受け付けるのに入力できない」に
 // なる。
+// **黙って切られる上限のうち、画面に出す先が無いもの。**
+//
+// **この画面は説明を必ず文字列で送る**（`description: item.description`）。
+// `sanitizeDescription` は文字列を**全体2000字で切るだけ**で、段落数は
+// 一切見ない——50段落の上限は `{ja:[],en:[]}` の形にしか効かない。
+// 一度ここを取り違えて「50段落まで」と警告を出したが、この画面では
+// **必ず誤報**だった（しかも本物の上限は野放しのままだった）。
+//
+// 入力は塞がない（塞ぐと「サーバーは受け付けるのに入力できない」に倒れる）。
+// 値は `api-user/src/sanitize.ts` と対で、
+// `scripts/__tests__/limitParity.test.ts` がずれを止める。
+const TAGS_MAX = 30;
+const DESC_STRING_MAX = 2000;
 const TITLE_MAX = 200;
 const LOCATION_MAX = 200;
 const CATEGORY_MAX = 100;
@@ -318,9 +332,19 @@ function UploadPageInner() {
         // ——落ちた枚数が伝わらず、利用者は「なぜか1枚少ない」まま公開する。
         const notImage: string[] = [];
         const tooLarge: string[] = [];
+        // **GIF はここで断る。** 受け口は `accept="image/*"` なので選べるが、
+        // `toUploadSafeFile` は GIF を必ず `UnstrippableFileError` にする
+        // （アニメーションを保つため再エンコードせず、バイト除去は JPEG だけ）。
+        // これまでは**プレビューを見てタイトルまで書いたあと、公開を押して
+        // 初めて必ず失敗**していた。断るなら選んだ時点で断る。
+        const cannotStrip: string[] = [];
         for (const f of files) {
             if (!f.type.startsWith("image/")) {
                 notImage.push(f.name);
+                continue;
+            }
+            if (f.type === "image/gif") {
+                cannotStrip.push(f.name);
                 continue;
             }
             if (f.size > 50 * 1024 * 1024) {
@@ -344,8 +368,14 @@ function UploadPageInner() {
                 ? `not an image: ${names(notImage)}`
                 : `画像ではない: ${names(notImage)}`);
         }
+        if (cannotStrip.length > 0) {
+            reasons.push(`${gifRejectedLabel(locale)}: ${names(cannotStrip)}`);
+        }
         if (reasons.length > 0) {
-            const skipped = tooLarge.length + notImage.length;
+            // **理由を足したら、ここも足す。** 数え漏らすと
+            // 「0件をスキップしました（GIF は…: cat.gif）」になる
+            // ——すぐ上のコメントが書いている「落ちた枚数が伝わらない」に戻る
+            const skipped = tooLarge.length + notImage.length + cannotStrip.length;
             setFileError(locale === "en"
                 ? `Skipped ${skipped} file(s) — ${reasons.join(" / ")}`
                 : `${skipped}件をスキップしました（${reasons.join(" / ")}）`);
@@ -505,6 +535,20 @@ function UploadPageInner() {
         const apiFetch = userFetch;
 
         const tagList = tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
+        // 編集画面と同じ理由（`app/user/edit/page.tsx` を見よ）。
+        // 上限は画面に対応物が無く、超えた分は 200 のまま消える
+        if (tagList && tagList.length > TAGS_MAX) {
+            showToast(locale === "en"
+                ? `Up to ${TAGS_MAX} tags (${tagList.length}). The rest won't be saved`
+                : `タグは${TAGS_MAX}個までです（${tagList.length}個）。超えた分は保存されません`, "error");
+        }
+        // **文字数で見る**（この画面は説明を文字列で送るので、段落数は効かない）
+        const longDesc = pending.find((it) => it.description.trim().length > DESC_STRING_MAX);
+        if (longDesc) {
+            showToast(locale === "en"
+                ? `Up to ${DESC_STRING_MAX} characters in the description. The rest won't be saved`
+                : `説明は${DESC_STRING_MAX}字までです。超えた分は保存されません`, "error");
+        }
 
         let successCount = 0;
         for (const item of pending) {
@@ -521,12 +565,11 @@ function UploadPageInner() {
                     uploadFile = await toUploadSafeFile(item.file);
                 } catch (e) {
                     log.error("could not strip metadata, skipping upload:", e);
-                    updateItem(item.id, {
-                        status: "error",
-                        error: locale === "en"
-                            ? "This format can't be uploaded safely. Please save it as JPEG or PNG and try again."
-                            : "この形式は安全にアップロードできません。JPEG か PNG で保存し直してください。",
-                    });
+                    // **理由ごとに書き分ける。** 以前は全部「この形式は…JPEG か
+                    // PNG で保存し直してください」だったが、読めない／大きすぎる
+                    // 場合は**形式が正しい JPEG** なので、言われたとおりに
+                    // 保存し直しても同じ結果になる（袋小路だった）。
+                    updateItem(item.id, { status: "error", error: unstrippableMessage(e, locale) });
                     continue;
                 }
                 updateItem(item.id, { progress: 20 });
@@ -1085,6 +1128,14 @@ function UploadPageInner() {
                                 onChange={(e) => {
                                     const f = e.target.files?.[0];
                                     if (!f || !f.type.startsWith("image/")) return;
+                                    // **写真グリッドと同じく、選んだ時点で断る。**
+                                    // ここだけ残っていたので、プレビューを見て
+                                    // 「保存」を押してから必ず失敗していた。
+                                    if (f.type === "image/gif") {
+                                        showToast(gifRejectedMessage(locale), "error");
+                                        e.target.value = "";
+                                        return;
+                                    }
                                     setAvatarFile(f);
                                     const reader = new FileReader();
                                     reader.onloadend = () => setAvatarPreview(reader.result as string);
@@ -1127,9 +1178,7 @@ function UploadPageInner() {
                                         log.error("avatar upload error:", e);
                                         showToast(
                                             e instanceof UnstrippableFileError
-                                                ? (locale === "en"
-                                                    ? "This format can't be uploaded safely. Please save it as JPEG or PNG."
-                                                    : "この形式は安全にアップロードできません。JPEG か PNG で保存し直してください。")
+                                                ? unstrippableMessage(e, locale)
                                                 : (locale === "en" ? "Upload failed" : "アップロードに失敗しました"),
                                             "error",
                                         );

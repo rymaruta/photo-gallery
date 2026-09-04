@@ -44,7 +44,9 @@ export function sanitizeExif(exif: unknown): Photo["exif"] {
     const out: Record<string, string | number> = {};
     for (const k of ["camera", "lens", "aperture", "exposure", "focalLength", "whiteBalance", "imageSize", "dateTimeOriginal"]) {
         const v = src[k];
-        if (typeof v === "string" && v.trim()) out[k] = truncate(v.trim(), 100);
+        // EXIF の ASCII 項目は NUL 詰めで来ることがある（カメラの書き方次第）
+        const cleaned = typeof v === "string" ? stripControlChars(v).trim() : "";
+        if (cleaned) out[k] = truncate(cleaned, 100);
     }
     if (typeof src.iso === "number" && Number.isFinite(src.iso) && src.iso > 0) out.iso = Math.round(src.iso);
     return Object.keys(out).length > 0 ? (out as Photo["exif"]) : undefined;
@@ -60,9 +62,33 @@ export function sanitizeCoords(coords: unknown): { lat: number; lng: number } | 
     return { lat: Math.round(lat * 100) / 100, lng: Math.round(lng * 100) / 100 };
 }
 
+/**
+ * 制御文字を落とす（C0 / DEL / C1）。
+ *
+ * **1行の項目にだけ当てる。** 撮影地・カテゴリ・タイトル・タグ・EXIF は
+ * どれも画面が `<input type="text">` で受ける1行の値なので、改行・タブを
+ * 残す理由が無い。URL とファイル名になり（`/tag/<スラッグ>` など）、
+ * `<title>`・JSON-LD・本文にもそのまま出る。
+ *
+ * **説明（`sanitizeDescription`）には当てない。** あちらは段落を持ち、
+ * string 形式は 2000 字の中に改行を含みうる（実データにも4件ある）ので、
+ * 同じ規則を当てると**段落が1行に潰れる**。
+ *
+ * `slugify`（`lib/utils/collections.ts`）も制御文字を見るが、あちらは
+ * **落とすのではなく `-` に置換**する。パスを壊さないための処理で、
+ * ここと目的が違う（だから同じ元の値でも、入口を通った値と、
+ * 通る前に保存された古い値とではスラッグが変わる）。
+ */
+function stripControlChars(s: string): string {
+    return s.replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
+}
+
 // 単一テキスト。空/非文字列は undefined
 export function sanitizeText(v: unknown, max: number): string | undefined {
-    return typeof v === "string" && v.trim() ? truncate(v.trim(), max) : undefined;
+    if (typeof v !== "string") return undefined;
+    // 上限は**落としたあと**の長さで見る（先に切ると見えない文字が本文を押し出す）
+    const cleaned = stripControlChars(v).trim();
+    return cleaned ? truncate(cleaned, max) : undefined;
 }
 
 /**
@@ -98,17 +124,18 @@ export function sanitizeTags(v: unknown): string[] | undefined {
     if (!Array.isArray(v)) return undefined;
     const cleaned = v
         .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
-        .map((x) => truncate(x.trim(), 50));
+        .map((x) => truncate(stripControlChars(x).trim(), 50))
+        .filter(Boolean);
     return Array.from(new Set(cleaned)).slice(0, 30);
 }
 
 // タイトル: string か {ja,en}。空なら undefined
 export function sanitizeTitle(v: unknown): Photo["title"] | undefined {
-    if (typeof v === "string") return truncate(v.trim(), 200) || undefined;
+    if (typeof v === "string") return truncate(stripControlChars(v).trim(), 200) || undefined;
     if (v && typeof v === "object" && !Array.isArray(v)) {
         const o = v as Record<string, unknown>;
-        const ja = typeof o.ja === "string" ? truncate(o.ja.trim(), 200) : "";
-        const en = typeof o.en === "string" ? truncate(o.en.trim(), 200) : "";
+        const ja = typeof o.ja === "string" ? truncate(stripControlChars(o.ja).trim(), 200) : "";
+        const en = typeof o.en === "string" ? truncate(stripControlChars(o.en).trim(), 200) : "";
         if (ja || en) return { ...(ja ? { ja } : {}), ...(en ? { en } : {}) };
     }
     return undefined;

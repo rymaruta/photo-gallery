@@ -300,7 +300,14 @@ function classifyStaleObjects(localKeys, remoteObjects, now, graceMs) {
  * デプロイでは、削除はほぼ 0 のはずなので 0.25 でも十分に緩い。
  */
 const BULK_DELETE_RATIO = 0.25;
-/** これ以下の件数なら割合を見ない（小さなサイトで普通の削除を止めない） */
+/**
+ * **この件数未満なら**割合を見ない（小さなサイトで普通の削除を止めない）。
+ *
+ * 以前このコメントは「これ以下の件数なら」と書いていたが、実装は
+ * `htmlToDelete.length < min` なので**ちょうど5件のときは割合判定に入る**。
+ * 実装の方を正とする——この関数は「消しすぎ」を止める安全装置なので、
+ * 迷ったら見に行く側に倒すのが筋（緩める変更は、止めたかった事故を通す）。
+ */
 const BULK_DELETE_MIN = 5;
 
 /**
@@ -547,6 +554,64 @@ const FORBIDDEN_IN_OUTPUT = [
     "followstats#",
 ];
 
+/**
+ * **「どこかに出てくる」では見ない。JSON の中の位置まで見る。**
+ *
+ * 素の `includes` だと、**利用者が書いた文章がそのまま引っかかる**。
+ * タイトルや説明はページに焼かれるので、「コメント欄 comments# の使い方」
+ * と書いた写真が1枚あるだけで、S3 へ上げる直前にここが例外を投げ、
+ * **デプロイが丸ごと中止**される（実ビルドで確認: `index.txt`・
+ * 各集約ページの HTML と RSC の `.txt` に出て、5ファイル以上で当たった）。
+ * 新しい写真も、削除・非公開の反映も出せなくなる。
+ *
+ * 一方、本物の漏れは必ず JSON の**キー**か**文字列の先頭**として出る。
+ * 実ビルドで確かめた出方は2通り（生の JSON と、RSC の中の escape 済み）:
+ *
+ *     "published":true          … photos.json / 埋め込み JSON
+ *     \"published\":true         … RSC の .txt / HTML の中
+ *
+ * なので、
+ *   - `srcOriginal` … キーの位置（引用符で囲まれ、直後が `:`）
+ *   - `notifs#` ほか … **ID そのもの**（引用符 → 接頭辞 → ID → 引用符）
+ * だけを見る。利用者の文章は、途中に出ても（引用符が前に来ない）、
+ * 先頭に出ても（ID の形で閉じない）当たらない。
+ *
+ * **`uploads/originals` はそのまま部分一致で見る。** これは原本の URL の
+ * 一部で、GPS の入った実体そのものを指す——形が変わって漏れても拾いたい
+ * ので、ここだけは広く取る（利用者が散文でこの並びを書くことは無い）。
+ */
+const KEY_SHAPED = new Set(["srcOriginal"]);
+const BROAD = new Set(["uploads/originals"]);
+
+/**
+ * 引用符の出方。実ビルドで確かめた3通り:
+ *
+ *     "srcOriginal":            … photos.json / 埋め込み JSON
+ *     \"srcOriginal\":           … RSC の .txt と HTML の中
+ *     &quot;srcOriginal&quot;:   … HTML のテキストノード・属性（React が逃がす）
+ *
+ * 3つ目を落としていた（レビューで実ビルドの出力から見つかった）。
+ * 網を狭めた側は、狭めた分がそのまま見逃しになる。
+ */
+const QUOTE = '(?:(?:\\\\)?"|&quot;)';
+
+/**
+ * 内部文書のIDの本体。`comments#<写真ID>` のように**必ず ID が続いて閉じる**。
+ *
+ * 直前の引用符だけを見ていたときは、**キャプションが禁止語で始まると
+ * 止まっていた**（`"location":"notifs# の話"` は値の先頭なので引用符が来る）。
+ * ID の形（英数字とハイフン）と閉じ引用符まで見れば、日本語の文章とは分かれる。
+ */
+const ID_BODY = '[A-Za-z0-9_-]{1,80}';
+
+function forbiddenPattern(needle) {
+    if (BROAD.has(needle)) return null;                     // 部分一致のまま
+    const esc = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return KEY_SHAPED.has(needle)
+        ? new RegExp(`${QUOTE}${esc}${QUOTE}\\s*:`)              // キーの位置
+        : new RegExp(`${QUOTE}${esc}${ID_BODY}${QUOTE}`);      // ID そのもの
+}
+
 function assertNoForbiddenContent(files) {
     const hits = [];
     for (const file of files) {
@@ -554,7 +619,9 @@ function assertNoForbiddenContent(files) {
         if (!(isHtmlOrTxt(key) || key === "app/data/photos.json")) continue;
         const text = fs.readFileSync(path.join(outDir, file), "utf8");
         for (const needle of FORBIDDEN_IN_OUTPUT) {
-            if (text.includes(needle)) hits.push(`${key}: ${needle}`);
+            const re = forbiddenPattern(needle);
+            const found = re ? re.test(text) : text.includes(needle);
+            if (found) hits.push(`${key}: ${needle}`);
         }
     }
     if (hits.length > 0) {
@@ -690,7 +757,7 @@ async function main() {
 module.exports = {
     verifyOgImage,
     assertNoForbiddenContent, assertRobotsMatchesTarget, invalidationTargets,
-    FORBIDDEN_IN_OUTPUT, classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys,
+    FORBIDDEN_IN_OUTPUT, forbiddenPattern, classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys,
     bulkDeleteGuard, BULK_DELETE_RATIO, BULK_DELETE_MIN, deleteStaleKeys };
 
 if (require.main === module) main().catch(err => {

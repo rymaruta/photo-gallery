@@ -236,3 +236,126 @@ describe("壊れた箱で暴走しない", () => {
         expect(readBox(view, 0, 8)).toBeNull();
     });
 });
+
+// **入れ子の中で走査が降りられなかった範囲を、確認もせずに通していた。**
+//
+// 最上位で同じことが起きる場合は `topLevelBoxes` が null を返して断る
+// （`8d63172` で塞いだ4経路の1つ）のに、`moov` の**中**で長さが壊れた箱に
+// 当たると、`neutralizeRange` はただ `break` していた。実測した3通りは
+// どれも「位置情報が残ったまま、原本と1バイト違わないものを安全として返す」:
+//
+//   moov の先頭に長さがヘッダより短い箱 → 後ろの udta/©xyz に到達しない
+//   moov/udta の宣言サイズが moov をはみ出す → 同上
+//
+// 壊れた動画（転送が途中で切れた・書き込み中に落ちた）で現実に起こる形。
+describe("走査が降りられなかった範囲も確認する", () => {
+    /** 宣言サイズを自分で決められる箱（壊れた長さを作るため） */
+    function brokenBox(type: string, declared: number, payload: number[] = []): number[] {
+        return [(declared >>> 24) & 0xff, (declared >>> 16) & 0xff, (declared >>> 8) & 0xff, declared & 0xff,
+            ...enc(type), ...payload];
+    }
+    const head = [...box("ftyp", enc("mp42")), ...MDAT];
+
+    it("moov の先頭に壊れた箱があると、その先の位置情報に届かない → 断る", async () => {
+        const bytes = [...head, ...box("moov", [...brokenBox("junk", 4), ...GEO_UDTA])];
+        await expect(toUploadSafeVideo(fileOf(bytes)))
+            .rejects.toBeInstanceOf(UnstrippableFileError);
+    });
+
+    it("udta の宣言サイズが moov をはみ出すときも断る", async () => {
+        const bytes = [...head, ...box("moov", brokenBox("udta", 9999,
+            box(String.fromCharCode(0xa9) + "xyz", enc("+35.6586+139.7454/"))))];
+        await expect(toUploadSafeVideo(fileOf(bytes)))
+            .rejects.toBeInstanceOf(UnstrippableFileError);
+    });
+
+    // **壊れていても、位置情報が無ければ通す。** 「読めない＝全部断る」に
+    // 倒すと、位置情報の無い動画が理由も分からず上げられなくなる
+    // （この campaign で8回出ている「誤爆を止める代わりに正当な操作を殺す」）。
+    it("読めない箱があっても、位置情報が無ければ通す", async () => {
+        const bytes = [...head, ...box("moov", [...brokenBox("junk", 4), ...box("udta", box("name", enc("holiday")))])];
+        const out = await toUploadSafeVideo(fileOf(bytes));
+        expect(out.size, "長さが変わっている（stco の絶対位置がずれる）").toBe(bytes.length);
+    });
+
+    // 正常系: 壊れていない動画は今までどおり通る
+    it("正常な動画は今までどおり通る", async () => {
+        const out = await toUploadSafeVideo(fileOf(iphoneLike()));
+        expect(out.size).toBe(iphoneLike().length);
+    });
+});
+
+// **入れ子の `uuid`（XMP の入る場所）の座標系。**
+//
+// 最上位の `uuid` は `[0, region.length]` を渡す別経路なので、そちらの
+// テストでは `moov` の中の `uuid` を守れない。実測で、記録する範囲を
+// 絶対座標に変える変異（`[box.start, box.boxEnd]`）が**全緑で生き残った**
+// ——別の場所を検査していても気づけない状態だった。
+describe("moov の中の uuid（XMP）", () => {
+    const XMP = (body: string) => box("uuid", [...new Array(16).fill(0xbe), ...enc(body)]);
+    const head = [...box("ftyp", enc("mp42")), ...MDAT];
+
+    it("XMP に座標があれば断る", async () => {
+        const bytes = [...head, ...box("moov", [...box("mvhd", new Array(24).fill(3)),
+            ...XMP('<x><exif:GPSLatitude>35,39.5N</exif:GPSLatitude></x>')])];
+        await expect(toUploadSafeVideo(fileOf(bytes))).rejects.toBeInstanceOf(UnstrippableFileError);
+    });
+
+    it("XMP に座標が無ければ通す（長さも変えない）", async () => {
+        const bytes = [...head, ...box("moov", [...box("mvhd", new Array(24).fill(3)),
+            ...XMP('<x><dc:title>holiday</dc:title></x>')])];
+        const out = await toUploadSafeVideo(fileOf(bytes));
+        expect(out.size).toBe(bytes.length);
+    });
+});
+
+// **深い入れ子で `RangeError` になっていた。**
+//
+// 実測: `moov/trak/trak/...` を5000段入れた **39KB** のファイルで
+// `RangeError: Maximum call stack size exceeded`。これは
+// `UnstrippableFileError` ではないので、画面には「動画の準備に失敗しました」
+// としか出ない——位置情報を消せなかったのか別の理由なのかが伝わらない
+// （`StoriesBar` は2つの文言を出し分けている）。
+describe("入れ子が深すぎる動画", () => {
+    const deep = (levels: number, inner: number[]) => {
+        let cur = inner;
+        for (let i = 0; i < levels; i++) cur = box("trak", cur);
+        return [...box("ftyp", enc("mp42")), ...MDAT, ...box("moov", cur)];
+    };
+
+    it("降りきれない先に位置情報があれば、正しい理由で断る", async () => {
+        const bytes = deep(200, box("udta", box(String.fromCharCode(0xa9) + "xyz", enc("+35.6+139.7/"))));
+        await expect(toUploadSafeVideo(fileOf(bytes)), "RangeError のまま投げている")
+            .rejects.toBeInstanceOf(UnstrippableFileError);
+    });
+
+    // **一度「目印を探すだけにして通す」と書いたが、それは誤りだった。**
+    //
+    // 降りられなかった先の `udta`/`meta` は **0 埋めされない**ので、
+    // 目印の一覧に無い形（3GPP の `udta/loci` など）で座標が入っていると
+    // **そのまま残って合格する**。読めなかった範囲（元から書き換え対象外）
+    // とは違い、ここは**降りれば潰せたものを潰していない**。
+    it("目印の一覧に無い形でも、深すぎたら通さない", async () => {
+        // `loci` は LOCATION_MARKERS に無い（3GPP の位置の箱）
+        const bytes = deep(200, box("udta", box("loci", enc("Tokyo+35.6+139.7"))));
+        await expect(toUploadSafeVideo(fileOf(bytes)),
+            "潰していないのに通している").rejects.toBeInstanceOf(UnstrippableFileError);
+    });
+
+    // 浅ければ、同じ `loci` は 0 埋めされて消える（通してよい）
+    it("浅ければ、目印に無い形でも潰して通す", async () => {
+        const bytes = deep(1, box("udta", box("loci", enc("Tokyo+35.6+139.7"))));
+        const out = await toUploadSafeVideo(fileOf(bytes));
+        expect(out.size, "長さが変わっている").toBe(bytes.length);
+        const got = new Uint8Array(await out.arrayBuffer());
+        expect(new TextDecoder().decode(got).includes("Tokyo"),
+            "潰せていない").toBe(false);
+    });
+
+    // 実在の MP4 はこの深さに届かない（CONTAINER_BOXES は moov/trak/moof/traf の
+    // 4種だけで mdia/minf/stbl には降りないので、実効の深さは最大2段）
+    it("普通の深さは今までどおり書き換える", async () => {
+        const out = await toUploadSafeVideo(fileOf(iphoneLike()));
+        expect(out.size).toBe(iphoneLike().length);
+    });
+});

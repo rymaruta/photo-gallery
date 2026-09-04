@@ -10,7 +10,7 @@ import type { Photo } from "@/lib/data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
 import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
 import { hapticTap } from "../../../lib/utils/haptics";
-import { searchSongs, parseMusicEmbed, type SongResult } from "../../../lib/utils/music";
+import { parseMusicEmbed } from "../../../lib/utils/music";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { type SongEntry } from "../../music/MusicContext";
 import MusicCard from "../../components/MusicCard";
@@ -30,6 +30,8 @@ import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
 import { isImageReady } from "../../../lib/utils/imageReady";
 import { formatStoredDateTime } from "@/lib/utils/photoDate";
+import { isImeKey } from "../../../lib/utils/ime";
+import { useSongSearch } from "../../../lib/hooks/useSongSearch";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -303,23 +305,14 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     };
     const [songPickerOpen, setSongPickerOpen] = useState(false);
     const [songQuery, setSongQuery] = useState("");
-    const [songResults, setSongResults] = useState<SongResult[]>([]);
-    const [songSearching, setSongSearching] = useState(false);
+    // 検索そのものは共有のフック（3画面で同じものを書いていた）
+    const {
+        results: songResults, searching: songSearching, error: songSearchError,
+        search: runSongSearch, clear: clearSongSearch,
+    } = useSongSearch();
     // 検索の失敗が「0件」と同じ（結果欄は length>0 でしか描かれない）ので、
     // 押しても無反応に見えた。プロフィール編集には既に同じ表示がある（SW-b6）
-    const [songSearchError, setSongSearchError] = useState(false);
-    const searchPhotoSongs = async () => {
-        const q = songQuery.trim();
-        if (!q) return;
-        setSongSearching(true);
-        setSongSearchError(false);
-        try {
-            setSongResults(await searchSongs(q));
-        } catch {
-            setSongResults([]);
-            setSongSearchError(true);
-        } finally { setSongSearching(false); }
-    };
+    const searchPhotoSongs = async () => { await runSongSearch(songQuery); };
     const savePhotoSong = async (song: SongEntry | null) => {
         try {
             const { userFetch, readApiError } = await import("../../../lib/utils/api");
@@ -336,7 +329,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
             }
             setPhotoSong(song);
             setSongPickerOpen(false);
-            setSongResults([]);
+            clearSongSearch();
             setSongQuery("");
             showToast(
                 song
@@ -799,7 +792,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                             type="text"
                                             value={songQuery}
                                             onChange={(e) => setSongQuery(e.target.value)}
-                                            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void searchPhotoSongs(); } }}
+                                            onKeyDown={(e) => { if (e.key === "Enter" && !isImeKey(e.nativeEvent)) { e.preventDefault(); void searchPhotoSongs(); } }}
                                             placeholder={locale === "en" ? "Song or artist" : "曲名・アーティスト名"}
                                             autoFocus
                                             className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
@@ -814,7 +807,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                                 : (locale === "en" ? "Search" : "検索")}
                                         </button>
                                         <button
-                                            onClick={() => { setSongPickerOpen(false); setSongResults([]); setSongQuery(""); setSongSearchError(false); }}
+                                            onClick={() => { setSongPickerOpen(false); clearSongSearch(); setSongQuery(""); }}
                                             className="px-2 rounded-lg text-white/50 hover:text-white/80 text-xs active:scale-95 transition"
                                         >
                                             {locale === "en" ? "Cancel" : "閉じる"}
@@ -891,7 +884,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                     type="url"
                                     value={ytInput}
                                     onChange={(e) => setYtInput(e.target.value)}
-                                    onKeyDown={(e) => { if (e.key === "Enter" && ytInput.trim()) { e.preventDefault(); void savePhotoYoutube(ytInput.trim()); } }}
+                                    onKeyDown={(e) => { if (e.key === "Enter" && !isImeKey(e.nativeEvent) && ytInput.trim()) { e.preventDefault(); void savePhotoYoutube(ytInput.trim()); } }}
                                     placeholder={photoYtUrl
                                         ? (locale === "en" ? "Change YouTube MV link" : "YouTube MV リンクを変更")
                                         : (locale === "en" ? "Paste a YouTube link for full playback" : "YouTubeリンクを貼るとフル再生MVに")}

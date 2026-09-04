@@ -151,6 +151,31 @@ describe("useGallery", () => {
             expect(result.current.filteredPhotos.map((p) => p.id)).toEqual(["loc2"]);
         });
 
+        // **上のテストは、フィクスチャが小さいせいで穴があった。**
+        //
+        // `84b0c59` で `slugify` に 200 バイトの上限を入れた（スラッグは
+        // ファイル名になり、超えるとビルドごと落ちるため）。ところがここは
+        // **タイトル＋説明＋撮影地をつないだ長い文字列**に同じ関数を掛けて
+        // いたので、後ろにある撮影地が丸ごと落ちて救済が0件になった。
+        // 実データ30件のうち16件が 200 バイト超で、**8件は撮影地がその外側**
+        // （「フランス」は 455 バイト目、「オペラ・ガルニエ（パリ）」は
+        // 283 バイト目）。**説明の無いフィクスチャでは一度も踏まない。**
+        it("説明が長くても、スラッグ形のクエリで撮影地に一致する", () => {
+            // 実データにある写真と同じくらいの説明（ja/en 各3段落）
+            const long = "この場所を訪れたのは秋の終わりでした。".repeat(6)
+                + "The light was soft and the streets were quiet all afternoon. ".repeat(6);
+            const photos = [
+                { ...mockPhotos[0], id: "loc1", description: long, location: "フランス ヴェルサイユ" },
+                { ...mockPhotos[1], id: "loc2", description: long, location: "東京" },
+            ];
+            const { result } = renderHook(() => useGallery(photos));
+            act(() => {
+                result.current.setFilters({ query: "フランス-ヴェルサイユ" });
+            });
+            expect(result.current.filteredPhotos.map((p) => p.id),
+                "説明に押し出されて撮影地が比較対象から落ちている").toEqual(["loc1"]);
+        });
+
         it("生の撮影地でも従来どおり検索できる（壊していない）", () => {
             const photos = [
                 { ...mockPhotos[0], id: "loc1", location: "フランス ヴェルサイユ" },

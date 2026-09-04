@@ -237,3 +237,46 @@ describe("退会した人のコメント", () => {
         expect(screen.getByText("居る人").closest("a")).not.toBeNull();
     });
 });
+
+// **Ctrl/Cmd+Enter に IME のガードは付けない**（一度付けて、外した）。
+//
+// 変換確定に使われるのは Enter 単体で、修飾キー付きは IME が消費しない。
+// それでも `isComposing` は「そのとき変換が生きているか」だけを見るので、
+// 変換の要らない語（「ありがとう」）を打ち終えた直後も true のまま
+// ——ガードを付けると**送信が黙って死ぬ**（Chromium で実測: 変換中の
+// Ctrl+Enter は `ctrl=true isComposing=true` で届く）。
+// `onChange` は変換中も発火するので `text` は画面と一致しており、
+// 押した時点で見えている文字を送るのが正しい。
+describe("CommentSection: 変換中の送信", () => {
+    async function typeAndKey(text: string, key: Record<string, unknown>) {
+        render(<CommentSection photoId="p1" locale="ja" />);
+        await waitFor(() => expect(mockUserPublicFetch).toHaveBeenCalled());
+        const box = screen.getByPlaceholderText("コメントを追加…");
+        fireEvent.change(box, { target: { value: text } });
+        fireEvent.keyDown(box, { key: "Enter", ctrlKey: true, ...key });
+    }
+
+    // **変換中でも送る。** 画面に出ている文字がそのまま飛ぶ
+    it("変換中の Ctrl+Enter でも、見えている文字を送る", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ id: "c1" }) });
+        await typeAndKey("ありがとう", { keyCode: 13, isComposing: true });
+        await waitFor(() => expect(mockUserFetch, "送信が黙って死んでいる").toHaveBeenCalled());
+        const body = JSON.parse((mockUserFetch.mock.calls[0][1] as { body: string }).body);
+        expect(body.text).toBe("ありがとう");
+    });
+
+    it("確定後の Ctrl+Enter も今までどおり投稿する", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ id: "c1" }) });
+        await typeAndKey("今日", { keyCode: 13, isComposing: false });
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        const body = JSON.parse((mockUserFetch.mock.calls[0][1] as { body: string }).body);
+        expect(body.text).toBe("今日");
+    });
+
+    // 修飾キーの無い Enter は今までどおり改行（送信しない）
+    it("Enter だけでは送信しない", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ id: "c1" }) });
+        await typeAndKey("今日", { keyCode: 13, isComposing: false, ctrlKey: false });
+        expect(mockUserFetch).not.toHaveBeenCalled();
+    });
+});

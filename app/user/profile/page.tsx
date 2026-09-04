@@ -10,8 +10,11 @@ import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { userFetch, readApiError, AUTH_REQUIRED_MESSAGE } from "../../../lib/utils/api";
 import { changedFields } from "../../../lib/utils/changedFields";
-import { parseMusicEmbed, musicServiceLabel, searchSongs, type SongResult } from "../../../lib/utils/music";
+import { parseMusicEmbed, musicServiceLabel, type SongResult } from "../../../lib/utils/music";
 import { toUploadSafeFile, AVATAR_MAX_PX, COVER_MAX_PX } from "../../../lib/utils/image";
+import { unstrippableMessage } from "../../../lib/utils/uploadRejection";
+import { useSongSearch } from "../../../lib/hooks/useSongSearch";
+import { isImeKey } from "../../../lib/utils/ime";
 import { log } from "../../../lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
 import DeleteAccountModal from "../../components/DeleteAccountModal";
@@ -73,6 +76,11 @@ const LINK_SONG_KEYS = ["songUrl", "songStart", "songEnd"] as const;
 
 const THEME_COLOR_PRESETS = ["#38bdf8", "#34d399", "#f472b6", "#a78bfa", "#fb7185", "#fbbf24", "#f97316", "#22d3ee"];
 
+/** @名に使える形へ寄せる（英小文字・数字・`_` のみ）。入力欄の説明と対 */
+function cleanUsername(v: string): string {
+    return v.toLowerCase().replace(/[^a-z0-9_]/g, "");
+}
+
 export default function ProfileEditPage() {
     const { isAuthenticated, loading, deleteAccount } = useAuth();
     const { locale } = useLocale();
@@ -93,6 +101,8 @@ export default function ProfileEditPage() {
     const [avatarUploading, setAvatarUploading] = useState(false);
 
     const [username, setUsername] = useState("");
+    // 変換中かどうか（IME-8。下の入力欄のコメントを見よ）
+    const usernameComposing = useRef(false);
     const [displayName, setDisplayName] = useState("");
     const [bio, setBio] = useState("");
     const [themeColor, setThemeColor] = useState("");
@@ -103,9 +113,11 @@ export default function ProfileEditPage() {
     // マイBGMプレイリスト: アプリ内検索で選んだ曲（最大5曲・順に再生）
     const [selectedSongs, setSelectedSongs] = useState<SongResult[]>([]);
     const [songQuery, setSongQuery] = useState("");
-    const [songResults, setSongResults] = useState<SongResult[]>([]);
-    const [searching, setSearching] = useState(false);
-    const [searchError, setSearchError] = useState(false);
+    // 検索そのものは共有のフック（3画面で同じものを書いていた）
+    const {
+        results: songResults, searching, error: searchError,
+        search: runSongSearch,
+    } = useSongSearch();
     // 検索結果の試聴（同時に1曲だけ）
     const [previewId, setPreviewId] = useState<string | null>(null);
     const previewAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -208,7 +220,7 @@ export default function ProfileEditPage() {
                 upload = await toUploadSafeFile(file, COVER_MAX_PX, 0.85);
             } catch (e) {
                 log.error("cover: could not strip metadata:", e);
-                showToast("この形式は安全にアップロードできません。JPEG か PNG で保存し直してください。", "error");
+                showToast(unstrippableMessage(e, locale), "error");
                 return;
             }
 
@@ -266,7 +278,7 @@ export default function ProfileEditPage() {
                 upload = await toUploadSafeFile(file, AVATAR_MAX_PX, 0.85);
             } catch (e) {
                 log.error("avatar: could not strip metadata:", e);
-                showToast("この形式は安全にアップロードできません。JPEG か PNG で保存し直してください。", "error");
+                showToast(unstrippableMessage(e, locale), "error");
                 return;
             }
 
@@ -353,19 +365,14 @@ export default function ProfileEditPage() {
         });
 
     const handleSongSearch = async () => {
-        const q = songQuery.trim();
-        if (!q) return;
+        // **空の語では何もしない（試聴も止めない）。** 入力欄の Enter は
+        // 空でも素通りするので、ここで見ないと「語を消して Enter」で
+        // 再生が止まる（StoriesBar と同じ）。
+        if (!songQuery.trim()) return;
+        // **試聴を止めてから検索する**（結果が入れ替わっても前の曲が鳴り続ける）。
+        // 追い越しを捨てる仕掛けは `useSongSearch` が持っている。
         stopPreview();
-        setSearching(true);
-        setSearchError(false);
-        try {
-            setSongResults(await searchSongs(q));
-        } catch {
-            setSearchError(true);
-            setSongResults([]);
-        } finally {
-            setSearching(false);
-        }
+        await runSongSearch(songQuery);
     };
 
     const handleSave = async () => {
@@ -661,7 +668,20 @@ export default function ProfileEditPage() {
                             <input
                                 type="text"
                                 value={username}
-                                onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                                // **変換中は書き換えない。** 毎打鍵で値を作り直すと
+                                // IME の変換が壊れ、かな入力のままだと**打っても
+                                // 画面に何も出ない**（実ブラウザで `compositionstart`
+                                // が1回であるべきところ4回になることを確認）。
+                                // 利用者からは「入力できない欄」に見える。
+                                // 変換中はそのまま見せ、確定した時点でふるいに掛ける
+                                // （使える文字は下の説明に書いてある）。
+                                onCompositionStart={() => { usernameComposing.current = true; }}
+                                onCompositionEnd={e => {
+                                    usernameComposing.current = false;
+                                    setUsername(cleanUsername(e.currentTarget.value));
+                                }}
+                                onChange={e => setUsername(
+                                    usernameComposing.current ? e.target.value : cleanUsername(e.target.value))}
                                 maxLength={20}
                                 placeholder="travel_photo"
                                 className={inputClass}
@@ -838,7 +858,7 @@ export default function ProfileEditPage() {
                                             type="text"
                                             value={songQuery}
                                             onChange={e => setSongQuery(e.target.value)}
-                                            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void handleSongSearch(); } }}
+                                            onKeyDown={e => { if (e.key === "Enter" && !isImeKey(e.nativeEvent)) { e.preventDefault(); void handleSongSearch(); } }}
                                             placeholder={locale === "en" ? "Song or artist" : "曲名・アーティスト名"}
                                             className={`${inputClass} pl-9`}
                                         />

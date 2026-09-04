@@ -73,6 +73,15 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
             {/* 入力欄 */}
             {isAuthenticated ? (
                 <div className="flex items-start gap-2 mb-4">
+                    {/* **Ctrl/Cmd+Enter に IME のガードは付けない。**
+                        変換確定に使われるのは Enter 単体で、修飾キー付きは
+                        IME が消費しない。それでも `isComposing` は
+                        「そのとき変換が生きているか」だけを見るので、
+                        変換の要らない語（「ありがとう」）を打ち終えた直後は
+                        true のまま——ガードを付けると**送信が黙って死ぬ**。
+                        `onChange` は変換中も発火するので `text` は画面と
+                        一致しており、押した時点で見えている文字を送るのが正しい。
+                        （一度ガードを付けて、レビューで実測されて外した） */}
                     <textarea
                         value={text}
                         onChange={(e) => setText(e.target.value)}

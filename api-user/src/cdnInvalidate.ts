@@ -28,6 +28,20 @@
  */
 const DIST_ID = process.env.CLOUDFRONT_DISTRIBUTION_ID ?? "";
 
+/**
+ * 1回の `CreateInvalidation` に入れられるパスの上限（CloudFront の制限）。
+ *
+ * **同じ上限を、片方だけ守っていた。** `scripts/deploy-static-site.js` は
+ * `MAX_PATHS_PER_REQUEST = 3000` で分割しているのに、こちらは全部を1回に
+ * 入れていた。超えると CloudFront が断るが、この関数は投げずに警告だけ出す
+ * 設計なので、**消えたように見えたままエッジの掃除だけが静かに落ちる**
+ * ——`951fac8` で「1行ごとに1本」をやめてまとめたぶん、1本が大きくなった。
+ *
+ * 届くのは期限切れストーリーの掃除（1時間ごと・溜まった回ほど件数が増える）。
+ * 退会は写真100枚 × メディア9種 = 最大900なので届かない。
+ */
+const MAX_PATHS_PER_REQUEST = 3000;
+
 // 読めたクライアントは使い回す（他の口と同じ扱い）。読めなかったことは
 // 覚えない——一時的な失敗で永久に諦めるより、次の削除でもう一度試す方がよい
 let cached: { send: (cmd: unknown) => Promise<unknown> } | null = null;
@@ -41,27 +55,49 @@ export async function invalidateUploads(keys: readonly string[], logPrefix = "in
     // 先頭の `/` を1つだけ付けた形にする（`uploads/x.jpg` → `/uploads/x.jpg`）。
     // 重複は畳む——同じパスを2回数えると、無効化の**課金対象パス**が増える
     const paths = [...new Set(keys.map((k) => `/${String(k).replace(/^\/+/, "")}`))];
+    let sent = 0;
+    let failed = 0;
     try {
         const { CloudFrontClient, CreateInvalidationCommand } = await import("@aws-sdk/client-cloudfront");
         cached ??= new CloudFrontClient({}) as unknown as typeof cached;
-        await cached!.send(new CreateInvalidationCommand({
-            DistributionId: DIST_ID,
-            InvalidationBatch: {
-                // **毎回ちがう値**。以前ここには「内容から作るので再送しても
-                // 二重に走らない」と書いてあったが、`Date.now()` は内容と
-                // 何の関係も無い——コメントだけがそう言っていた。
-                // 内容から作る形にはしない: CloudFront は同じ
-                // CallerReference に**同じ**バッチが来たら過去の無効化を
-                // そのまま返すので、いつか同じキーを消し直したときに
-                // 「完了済み」を返されて**エッジが掃除されない**方に倒れる。
-                // 二重に走る側の損は、無効化1本ぶんの課金だけ。
-                CallerReference: `del-${Date.now()}-${paths.length}`,
-                Paths: { Quantity: paths.length, Items: paths },
-            },
-        }));
-        return true;
+        for (let i = 0; i < paths.length; i += MAX_PATHS_PER_REQUEST) {
+            const chunk = paths.slice(i, i + MAX_PATHS_PER_REQUEST);
+            // **1本落ちても残りは投げる。** `await` を並べただけだと、
+            // 最初に断られたチャンクで**残り全部が捨てられる**——しかも
+            // ログは1行だけなので、何本通ったのかも後から追えない。
+            // 分割した意味は「全部を届ける」ことなので、途中で降りない。
+            try {
+                await cached!.send(new CreateInvalidationCommand({
+                    DistributionId: DIST_ID,
+                    InvalidationBatch: {
+                        // **毎回ちがう値**。以前ここには「内容から作るので再送しても
+                        // 二重に走らない」と書いてあったが、`Date.now()` は内容と
+                        // 何の関係も無い——コメントだけがそう言っていた。
+                        // 内容から作る形にはしない: CloudFront は同じ
+                        // CallerReference に**同じ**バッチが来たら過去の無効化を
+                        // そのまま返すので、いつか同じキーを消し直したときに
+                        // 「完了済み」を返されて**エッジが掃除されない**方に倒れる。
+                        // 二重に走る側の損は、無効化1本ぶんの課金だけ。
+                        CallerReference: `del-${Date.now()}-${i}-${chunk.length}`,
+                        Paths: { Quantity: chunk.length, Items: chunk },
+                    },
+                }));
+                sent++;
+            } catch (e) {
+                failed++;
+                console.error(`${logPrefix}: エッジの掃除に失敗（${chunk.length}パス・${i} 件目から）:`, e);
+            }
+        }
     } catch (e) {
+        // モジュールが読めない等、チャンク以前の失敗
         console.error(`${logPrefix}: エッジの掃除に失敗しました（実体は削除済み）:`, e);
         return false;
     }
+    if (failed > 0) {
+        // **何本通ったかを残す。** 部分的に無効化された状態を後から追えないと、
+        // 「どのパスが残っているか」を調べる手がかりがゼロになる
+        console.error(`${logPrefix}: ${sent + failed} 本中 ${failed} 本が失敗（実体は削除済み）`);
+        return false;
+    }
+    return true;
 }

@@ -223,9 +223,18 @@ describe("assertNoForbiddenContent", () => {
         expect(() => assertNoForbiddenContent(files)).not.toThrow();
     });
 
-    it("GPS入りの原本URLが混ざっていたら止める", () => {
+    // **RSC の中では引用符が escape される。** 実ビルドで確かめた出方は
+    //   "published":true          … photos.json / 埋め込み JSON
+    //   \"published\":true         … RSC の .txt と HTML の中
+    // キーの形は閉じ引用符のうしろに `\` が入るので、`"srcOriginal":` だけを
+    // 見る実装は**escape 済みの漏れを取り逃がす**（この2本目が無いと、
+    // escape を見ない実装に戻しても全緑だった）。
+    it.each([
+        ["生の JSON", '<html>{"srcOriginal":"https://cdn/x.jpeg"}</html>'],
+        ["RSC の中（escape 済み）", '<html>1:{\\"srcOriginal\\":\\"https://cdn/x.jpeg\\"}</html>'],
+    ])("GPS入りの原本URLが混ざっていたら止める（%s）", (_name, body) => {
         const outIndex = nodePath.join(process.cwd(), "out", "_guard_test_.html");
-        nodeFs.writeFileSync(outIndex, '<html>{"srcOriginal":"https://cdn/uploads/originals/x.jpeg"}</html>');
+        nodeFs.writeFileSync(outIndex, body);
         try {
             expect(() => assertNoForbiddenContent(["_guard_test_.html"])).toThrow(/srcOriginal/);
         } finally {
@@ -233,11 +242,94 @@ describe("assertNoForbiddenContent", () => {
         }
     });
 
-    it("内部文書のIDが混ざっていたら止める", () => {
+    // **もとは `<html>notifs#abc</html>` を書いていた**（引用符なし）。
+    // 素の `includes` で見ていたので通っていたが、その形は本物の漏れの
+    // 出方ではない——内部文書のIDは必ず JSON の文字列として出る。
+    // 引用符なしで拾う実装は、代わりに**利用者の書いた文章で誤爆する**
+    // （下のテスト）。実際の出方2通りで確かめる。
+    it.each([
+        ["生の JSON", '<html>{"id":"notifs#abc"}</html>'],
+        ["RSC の中（escape 済み）", '<html>1:{\\"id\\":\\"notifs#abc\\"}</html>'],
+    ])("内部文書のIDが混ざっていたら止める（%s）", (_name, body) => {
         const f = nodePath.join(process.cwd(), "out", "_guard_test2_.html");
-        nodeFs.writeFileSync(f, '<html>notifs#abc</html>');
+        nodeFs.writeFileSync(f, body);
         try {
             expect(() => assertNoForbiddenContent(["_guard_test2_.html"])).toThrow(/notifs#/);
+        } finally {
+            nodeFs.rmSync(f, { force: true });
+        }
+    });
+
+    // **利用者の書いた文章でデプロイが止まっていた。**
+    //
+    // タイトルと説明はページに焼かれるので、「コメント欄 comments# の
+    // 使い方」と書いた写真が1枚あるだけで、S3 へ上げる直前にここが投げて
+    // **デプロイが丸ごと中止**される。新しい写真も、削除・非公開の反映も
+    // 出せなくなる（実ビルドで確認: 1,247ファイル中5ファイル以上で当たった）。
+    it.each([
+        ["説明に srcOriginal と書く", '<html><p>原本 srcOriginal を残すか迷った話。</p></html>'],
+        ["タイトルに comments# と書く", '<html><h1>コメント欄 comments# の使い方</h1></html>'],
+        ["JSON の値の途中にある", '<html>{"title":"コメント欄 comments# の使い方"}</html>'],
+        ["escape 済みの値の途中", '<html>1:{\\"title\\":\\"原本 srcOriginal の話\\"}</html>'],
+        // **値の「先頭」も通す。** 直前の引用符だけを見ていた頃は、
+        // キャプションが禁止語で始まると止まっていた——JSON の値の先頭には
+        // 必ず引用符が来るので、「途中」しか直っていなかった（実ビルドで確認）
+        ["撮影地が notifs# で始まる", '<html>{"location":"notifs# の話"}</html>'],
+        ["escape 済みで先頭", '<html>1:{\\"location\\":\\"notifs# の話\\"}</html>'],
+        ["引用符ごと文章に書く", '<html><p>彼は \\"comments# の話\\" と書いた</p></html>'],
+        ["srcOriginal で始まる説明", '<html>{"description":"srcOriginal を残すか迷った話。"}</html>'],
+    ])("利用者が書いた文章では止めない（%s）", (_name, body) => {
+        const f = nodePath.join(process.cwd(), "out", "_guard_test3_.html");
+        nodeFs.writeFileSync(f, body);
+        try {
+            expect(() => assertNoForbiddenContent(["_guard_test3_.html"]),
+                "1人の写真のキャプションでデプロイが止まる").not.toThrow();
+        } finally {
+            nodeFs.rmSync(f, { force: true });
+        }
+    });
+
+    // **HTML のテキストノードでは React が `"` を `&quot;` に逃がす。**
+    // 実ビルドの出力に実在する形（`{&quot;srcOriginal&quot;:&quot;...&quot;}`）で、
+    // 生の `"` と `\\"` しか見ない実装は**この形を取り逃がす**。
+    it.each([
+        ["キーの形", '<html>{&quot;srcOriginal&quot;:&quot;https://cdn/x.jpg&quot;}</html>', /srcOriginal/],
+        ["IDの形", '<html>{&quot;id&quot;:&quot;comments#a1b2-c3&quot;}</html>', /comments#/],
+    ])("HTML エンティティに逃がされていても止める（%s）", (_name, body, re) => {
+        const f = nodePath.join(process.cwd(), "out", "_guard_test5_.html");
+        nodeFs.writeFileSync(f, body);
+        try {
+            expect(() => assertNoForbiddenContent(["_guard_test5_.html"])).toThrow(re);
+        } finally {
+            nodeFs.rmSync(f, { force: true });
+        }
+    });
+
+    // **`srcOriginal` は「キーの位置」でしか見ない**、がこの検査の中心の判断。
+    // 一度これを固定するテストが1本も無く、キー判定を外す変異が全緑だった。
+    // 整形済み JSON（`"srcOriginal" : `）も実装は通すが、無検証だった。
+    it.each([
+        ["ふつうのキー", '<html>{"srcOriginal":"https://cdn/x.jpg"}</html>', true],
+        ["整形済み（コロンの前に空白）", '<html>{ "srcOriginal" : "https://cdn/x.jpg" }</html>', true],
+        ["値として出るだけ", '<html>{"note":"srcOriginal"}</html>', false],
+    ])("srcOriginal はキーの位置でだけ止める（%s）", (_name, body, shouldThrow) => {
+        const f = nodePath.join(process.cwd(), "out", "_guard_test6_.html");
+        nodeFs.writeFileSync(f, body);
+        try {
+            if (shouldThrow) expect(() => assertNoForbiddenContent(["_guard_test6_.html"])).toThrow(/srcOriginal/);
+            else expect(() => assertNoForbiddenContent(["_guard_test6_.html"])).not.toThrow();
+        } finally {
+            nodeFs.rmSync(f, { force: true });
+        }
+    });
+
+    // **原本の URL だけは広く見る。** GPS の入った実体そのものを指すので、
+    // 形が変わって漏れても拾いたい（利用者が散文でこの並びを書くことは無い）
+    it("原本のURLは、引用符が無くても止める", () => {
+        const f = nodePath.join(process.cwd(), "out", "_guard_test4_.html");
+        nodeFs.writeFileSync(f, '<html><img src=https://cdn/uploads/originals/x.jpg></html>');
+        try {
+            expect(() => assertNoForbiddenContent(["_guard_test4_.html"])).toThrow(/uploads\/originals/);
         } finally {
             nodeFs.rmSync(f, { force: true });
         }

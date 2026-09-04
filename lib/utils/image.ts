@@ -148,8 +148,20 @@ export const COVER_MAX_PX = 1280;
 export async function compressImage(file: File, maxPx = 1920, quality = 0.85): Promise<File> {
     // GIFはアニメーションを保持するため圧縮しない
     if (file.type === "image/gif") return file;
+    return compressLoadedImage(await loadImageFromFile(file), file, maxPx, quality);
+}
 
-    const img = await loadImageFromFile(file);
+/**
+ * **読み込みは呼び出し側で1回だけ行う。**
+ *
+ * `toUploadSafeFile` は圧縮とバイト除去の両方で寸法が要るが、それぞれで
+ * 読み直すと `IMAGE_LOAD_TIMEOUT_MS`（15秒）が**2回分**効く——読み込みが
+ * 鳴らない端末（コメントが挙げている iOS Safari の OOM）で、
+ * **利用者は30秒スピナーを見てから断られる**。実測でも 15,004ms → 30,004ms
+ * になっていた。この保険が効く場面は「資源が足りない端末」なので、
+ * デコードを2回要求するのは筋が悪い。
+ */
+async function compressLoadedImage(img: HTMLImageElement, file: File, maxPx: number, quality: number): Promise<File> {
     const { width, height } = scaleDimensions(img.width, img.height, maxPx);
     const canvas = document.createElement("canvas");
     canvas.width = width;
@@ -164,9 +176,39 @@ export async function compressImage(file: File, maxPx = 1920, quality = 0.85): P
     return new File([encoded.blob], `${baseName}.${encoded.ext}`, { type: encoded.type });
 }
 
-/** メタデータを除去できないファイルを上げようとしたときのエラー */
+/**
+ * 受け付ける画素数の上限。
+ *
+ * **サーバー側の `sharp` の既定（`limitInputPixels`）と対**。
+ * `scripts/generate-thumbnails.js` は S3 の原本を `sharp()` に食わせるので、
+ * これを超える原本が上がるとサムネ生成が毎回失敗する。
+ *
+ * **ただしこの行に来るのは「デコードは成功するが canvas で作り直せない」
+ * 場合だけ。** Chromium で本物の JPEG を通して測ると、decode の限界は
+ * 約5.36億画素（2^31 ÷ 4バイト）で、268MP〜536MP は圧縮に成功する
+ * ——その場合は 1920px の webp になるので、原本が S3 に行くことはない。
+ * つまりここは保険の側から原本が出ていく道を塞ぐためのもの。
+ *
+ * パノラマ合成やフィルムスキャンは 300MP 級になりうるが、その原本を通しても
+ * `generate-thumbnails` が拒否して結局サムネの無い写真になる。
+ */
+const MAX_UPLOAD_PIXELS = 268_402_689;   // sharp の既定（0x3FFF^2）
+
+/**
+ * 上げられないファイルを上げようとしたときのエラー。
+ *
+ * **理由を持たせる。** 呼び出し側は全部「この形式は安全にアップロード
+ * できません。JPEG か PNG で保存し直してください」に潰していたが、
+ * デコードできない／画素が多すぎる場合は**形式は正しい JPEG**なので、
+ * 言われたとおり保存し直しても同じ結果になる（袋小路）。
+ */
+export type UnstrippableReason = "format" | "undecodable" | "too-many-pixels";
+
 export class UnstrippableFileError extends Error {
-    constructor(public readonly fileType: string) {
+    constructor(
+        public readonly fileType: string,
+        public readonly reason: UnstrippableReason = "format",
+    ) {
         super(`メタデータを除去できない形式です: ${fileType || "(不明)"}`);
         this.name = "UnstrippableFileError";
     }
@@ -189,9 +231,16 @@ export class UnstrippableFileError extends Error {
  * 「中身が同じ新しい File」が返るため。除去側が申告するフラグを見る。
  */
 export async function toUploadSafeFile(file: File, maxPx = 1920, quality = 0.85): Promise<File> {
+    // **読み込みは1回だけ。** 圧縮とバイト除去の両方で寸法が要るが、
+    // それぞれで読み直すとタイムアウトが2回分効く（上の説明を見よ）。
+    let img: HTMLImageElement | null = null;
     let compressed: File | null = null;
     try {
-        compressed = await compressImage(file, maxPx, quality);
+        // GIF はアニメーションを保つため圧縮しない（＝同じ File が返る）
+        if (file.type !== "image/gif") {
+            img = await loadImageFromFile(file);
+            compressed = await compressLoadedImage(img, file, maxPx, quality);
+        }
     } catch {
         compressed = null; // 下の除去経路に落とす
     }
@@ -199,7 +248,26 @@ export async function toUploadSafeFile(file: File, maxPx = 1920, quality = 0.85)
     if (compressed && compressed !== file) return compressed;
 
     // 素通し・失敗時の保険。JPEG ならバイト列から除去できる。
+    //
+    // **ただし「表示できる」ことを確かめてから使う。**
+    //
+    // この保険は「デコードはできるが canvas で作り直せない」ときのためのもの。
+    // ところが**デコードそのものに失敗した場合も**ここへ落ちていたので、
+    // 30000x30000 の JPEG（実体は 5MB 程度）がそのまま上がっていた:
+    //
+    //   Chromium は宣言 30000x30000 の JPEG を **decode しない**（実測。
+    //   `<img>` が onerror）→ 圧縮が失敗 → ここでバイト除去だけ成功 →
+    //   **原本が公開URLへ**。サムネ・代表色・ぼかしは全部 null なので
+    //   `Thumb` は原本を配り、閲覧者は毎回 5MB を落として**壊れた画像**を見る。
+    //   サーバー側の `sharp` も `limitInputPixels` で毎回拒否するので、
+    //   `generate-thumbnails` は以後ずっと赤いまま。
+    //
+    // ブラウザがデコードできない画像は、**閲覧者の画面でも表示できない**。
+    // 上げても意味が無いので断る（利用者には「保存し直してください」と出る）。
     if (file.type === "image/jpeg") {
+        if (!img) throw new UnstrippableFileError(file.type, "undecodable");
+        const pixels = (img.naturalWidth || img.width) * (img.naturalHeight || img.height);
+        if (pixels > MAX_UPLOAD_PIXELS) throw new UnstrippableFileError(file.type, "too-many-pixels");
         const { file: out, stripped: ok } = await stripJpegExifDetailed(file);
         if (ok) return out;
     }

@@ -82,6 +82,49 @@ export function mergeLocalizedTitle(original: Photo["title"], ja: string): Photo
     return { ja, en };
 }
 
+/**
+ * サーバーが黙って切る分があれば、その文言を返す（無ければ null）。
+ *
+ * **送る形に効く上限だけを見る。** 文字列は全体2000字（段落数は見ない）、
+ * 配列は50段落。`api-user/src/sanitize.ts` の `sanitizeDescription` と対。
+ */
+export function describeOverLimit(
+    tags: string[] | undefined,
+    description: Photo["description"] | undefined,
+    isJa: boolean,
+): string | null {
+    const say = (ja: string, en: string) =>
+        isJa ? `${ja}。超えた分は保存されません` : `${en}. The rest won't be saved`;
+
+    if (tags && tags.length > TAGS_MAX) {
+        return say(`タグは${TAGS_MAX}個までです（${tags.length}個）`,
+            `Up to ${TAGS_MAX} tags (${tags.length})`);
+    }
+    if (typeof description === "string") {
+        if (description.trim().length > DESC_STRING_MAX) {
+            return say(`説明は${DESC_STRING_MAX}字までです（${description.trim().length}字）`,
+                `Up to ${DESC_STRING_MAX} characters (${description.trim().length})`);
+        }
+    } else if (description && typeof description === "object" && !Array.isArray(description)) {
+        const ja = Array.isArray(description.ja) ? description.ja : [];
+        if (ja.length > DESC_PARAGRAPHS_MAX) {
+            return say(`説明は${DESC_PARAGRAPHS_MAX}段落までです（${ja.length}段落）`,
+                `Up to ${DESC_PARAGRAPHS_MAX} paragraphs (${ja.length})`);
+        }
+        // **段落ごとの文字数も切られる。** 件数だけ見ていたので、英語説明を
+        // 持つ写真で長い段落を1つ書くと**警告なしで黙って切られた**
+        // ——同じ文章でも、英語を持たない写真（文字列経路）なら
+        // 「2000字までです」と出る。**写真によって言ったり言わなかったり**
+        // していた。「効く上限を見ていなかった」の残り半分。
+        const longest = ja.reduce((n, p) => Math.max(n, p.trim().length), 0);
+        if (longest > DESC_STRING_MAX) {
+            return say(`説明は1段落${DESC_STRING_MAX}字までです（${longest}字）`,
+                `Up to ${DESC_STRING_MAX} characters per paragraph (${longest})`);
+        }
+    }
+    return null;
+}
+
 /** 説明も同様。日本語を空にしたら英語ごと消す */
 export function mergeLocalizedDescription(original: Photo["description"], ja: string): Photo["description"] {
     const lines = ja.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -97,10 +140,38 @@ export function mergeLocalizedDescription(original: Photo["description"], ja: st
 // `sanitizeText` / `sanitizeTitle` が黙って切る——保存は成功したように見えて、
 // あとで開くと末尾が無い。上限を告げる文言も出していなかった。
 //
-// 説明とタグには入れていない。説明はサーバー側が**段落ごと**に 2000 で
-// 切る（最大50段落）ので、textarea 全体に 2000 を入れると
-// 「サーバーは受け付けるのに入力できない」が新しく生まれる。タグは
-// カンマ区切りの1入力で、上限は**タグ1つあたり** 50 なので同じ理由。
+// 説明とタグには入れていない。タグはカンマ区切りの1入力で、上限は
+// **タグ1つあたり** 50 なので、欄全体に入れると
+// 「サーバーは受け付けるのに入力できない」が生まれる。
+//
+// 説明は**送る形で上限が変わる**ので、`maxLength` を1つ選べない
+// （文字列＝全体2000字 / `{ja,en}`＝段落ごと2000字・50段落まで）。
+// 英語説明を持つ写真では 2000 を入れると短すぎる。
+// **ここは `describeOverLimit` が保存の前に告げる側で受けている。**
+// **黙って切られる上限のうち、画面に出す先が無いもの。**
+//
+// すぐ上のコメントは「説明とタグに `maxLength` を入れない」理由を書いて
+// いるが、それは**1件あたりの文字数**（タグ50字）の話。件数と全体量の
+// 上限は別にあり、そちらは画面側に対応物も警告も無かった。
+//
+// **説明の上限は、送る形で変わる**（`sanitizeDescription`）:
+//   文字列で送る       → **全体で 2000字**（段落数は一切見ない）
+//   {ja:[],en:[]} で送る → 段落ごと2000字 かつ **50段落まで**
+// `mergeLocalizedDescription` は、元の写真に英語説明が無ければ**文字列を
+// そのまま返す**。日本語だけの写真（このサイトの大半）は文字列経路。
+//
+// **一度ここを取り違えた。** 文字列経路にも50段落が効くと思い込んで
+// 「50段落まで」と警告を出したが、文字列では段落数を見ていないので
+// **ほぼ常に誤報**で、しかも本物の上限（全体2000字）は野放しのままだった
+// ——直したかった形をそのまま残して、嘘の警告を足していた。
+//
+// 入力は塞がない（塞ぐと「サーバーは受け付けるのに入力できない」に倒れる）。
+// **送る形を見てから、その形に効く上限だけ**を告げる。値は
+// `api-user/src/sanitize.ts` と対で、`scripts/__tests__/limitParity.test.ts`
+// がずれを止める。
+const TAGS_MAX = 30;
+const DESC_PARAGRAPHS_MAX = 50;
+const DESC_STRING_MAX = 2000;
 const TITLE_MAX = 200;
 const LOCATION_MAX = 200;
 const CATEGORY_MAX = 100;
@@ -258,6 +329,7 @@ function EditContent() {
         try {
             const { userFetch, readApiError } = await import("../../../lib/utils/api");
             const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
+            const nextDescription = mergeLocalizedDescription(original?.description, description);
             // **実際に変えた項目だけ送る。**
             // 開いた時点の値を毎回全部送っていたので、同じ写真を2タブで開いて
             // 片方で直したあと、もう片方で保存すると**先の編集が黙って消えた**
@@ -266,7 +338,7 @@ function EditContent() {
             const nextFields: Record<string, unknown> = {
                 // 英語側が入っていれば残したまま日本語だけ差し替える
                 title: mergeLocalizedTitle(original?.title, title),
-                description: mergeLocalizedDescription(original?.description, description),
+                description: nextDescription,
                 location,
                 category,
                 // 日付だけを編集させているので、元の時刻を保つ
@@ -281,7 +353,23 @@ function EditContent() {
                 date: original?.date ?? "",
                 tags: Array.isArray(original?.tags) ? original.tags : [],
             };
-            const body = { published, ...changedFields(nextFields, originalFields) };
+            const changed = changedFields(nextFields, originalFields);
+            const body = { published, ...changed };
+
+            // **黙って切られる前に告げる。**
+            //
+            // **送る項目についてだけ言う。** `changedFields` は変えた項目しか
+            // 送らないので、説明を触っていない保存で「超えた分は保存されません」
+            // と出すのは嘘になる（タイトルだけ直しても毎回出ていた）。
+            //
+            // 見る上限は**送る形で変わる**（上の定数のコメントを見よ）。
+            // 保存は止めない——伝えたうえで、残す分はサーバーが決める。
+            const over = describeOverLimit(
+                "tags" in changed ? tags : undefined,
+                "description" in changed ? nextDescription : undefined,
+                isJa,
+            );
+            if (over) showToast(over, "error");
 
             const res = await userFetch(`/photos/${photoId}`, {
                 method: "PUT",

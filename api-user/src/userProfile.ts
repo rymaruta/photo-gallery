@@ -863,6 +863,24 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         if (hasUsernameKey && prev?.username && prev.username !== username) {
             await releaseUsername(prev.username, userId);
         }
+
+        // **写真の行に焼かれた表示名は、ここでは直さない。**
+        //
+        // 一度ここから直そうとして、レビュー2周で回帰を8件出した:
+        // Lambda のタイムアウト（6秒）は try/catch で捕まえられないので
+        // 「保存できているのに失敗と出る」／ページングのカーソル／
+        // ストーリーまで書き換える／「同じ名前で保存し直せばやり直せる」は
+        // **画面が差分ゼロで API を呼ばないので不可能**、など。
+        //
+        // 直す場所を**ビルド時**に移した（`scripts/sync-photos-from-ddb.js`）。
+        // あちらは users テーブルと突き合わせて `photos.json` を書くので、
+        // <title>・OGP・JSON-LD・パンくずといった**他人に見える静的な面**は
+        // 次のビルドで揃う。書き込み経路が増えず、6秒の制限もページングも
+        // カーソルも無い。
+        //
+        // 残るのは実行時 API（`GET /photos`）が返す写しで、モーダルと写真
+        // ページの投稿者リンクに出る。プロフィール画面の見出しは API の
+        // プロフィールを優先するので既に新しい名前。
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(profile) };
     } catch (e) {
         // **予約だけ残さない。**

@@ -139,3 +139,25 @@ describe("いいね・曲検索の失敗が画面に出る", () => {
         expect(await screen.findByText(/検索に失敗しました/)).toBeInTheDocument();
     });
 });
+
+// **閉じたら結果を捨てる。** フックの単体テストでは守れない
+// ——フックは正しく、呼ばない画面が問題になる。実際、閉じるボタンから
+// `clearSongSearch()` を消してもフルスイートが全緑だった。
+describe("曲検索: 閉じたら結果を捨てる", () => {
+    it("ピッカーを閉じて開き直すと、前回の結果が残っていない", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({}) });
+        mockSearchSongs.mockResolvedValue([
+            { id: "s1", title: "まえのけっか", artist: "誰か", artwork: "", previewUrl: "", trackUrl: "" },
+        ]);
+        render(<PhotoPageClient photoId="p1" initialPhoto={photo} />);
+        await userEvent.click(await screen.findByRole("button", { name: /BGM/ }));
+        const box = await screen.findByPlaceholderText("曲名・アーティスト名");
+        await userEvent.type(box, "たび{Enter}");
+        expect(await screen.findByText("まえのけっか")).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole("button", { name: "閉じる" }));
+        await userEvent.click(await screen.findByRole("button", { name: /BGM/ }));
+
+        expect(screen.queryByText("まえのけっか"), "前回の結果が残っている").toBeNull();
+    });
+});

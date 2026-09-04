@@ -22,6 +22,92 @@ const photos: Photo[] = [
     P({ id: "d", tags: ["苔"], location: "", category: "自然", published: false }), // 非公開は除外
 ];
 
+// **スラッグはファイル名になる。** ここが長すぎる／制御文字を含むと、
+// `next build` の静的書き出しが落ちて**サイト全体が出せなくなる**
+// （新しい写真も、削除・非公開の反映も。site-rebuild も同じビルドを通る）。
+// 実測: 撮影地に日本語83文字を入れて `npm run build` →
+//   ENAMETOOLONG: mkdir '.next/server/app/location/東×83.segments'
+//   Export encountered an error ... exiting the build
+// 82文字なら通る（両側から挟んで確認）。撮影地の上限は 200 **文字**なので
+// 日本語では届いてしまう。カテゴリ（100文字）も同じ。
+describe("slugify がファイル名として安全であること", () => {
+    // UTF-8 のバイト数（テスト側でも Buffer に頼らない）
+    const bytes = (s: string) => {
+        let n = 0;
+        for (const ch of s) {
+            const c = ch.codePointAt(0)!;
+            n += c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
+        }
+        return n;
+    };
+    // `.segments` の9バイトを引いた実際の限界。ここを超えたらビルドが落ちる
+    const HARD_LIMIT = 255 - ".segments".length;
+
+    it.each([
+        ["撮影地の上限いっぱいの日本語", "東".repeat(200)],
+        ["カテゴリの上限いっぱいの日本語", "京".repeat(100)],
+        ["絵文字だけ", "🗻".repeat(120)],
+        ["ASCII の上限いっぱい", "a".repeat(200)],
+    ])("%s でもファイル名の限界を超えない", (_name, value) => {
+        expect(bytes(slugify(value)), "ENAMETOOLONG でビルドが落ちる").toBeLessThanOrEqual(HARD_LIMIT);
+    });
+
+    // **1文字ずらす。** 上限 200 は4の倍数なので、4バイト文字だけを並べると
+    // バイト境界が必ず文字境界に一致する——**どんな切り方をしても孤立
+    // サロゲートが出ない**（実測: コードユニットで数える壊れた実装に
+    // 差し替えても全緑だった）。先頭に3バイト文字を1つ置いて境界をずらす。
+    it("切っても文字の途中で割らない（孤立サロゲートを作らない）", () => {
+        const out = slugify("あ" + "🗻".repeat(120));
+        // 孤立サロゲート＝ペアになっていない D800-DFFF。`encodeURIComponent` が投げる
+        const lone = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+        expect(lone.test(out), "孤立サロゲートが残っている").toBe(false);
+        expect(() => encodeURIComponent(out)).not.toThrow();
+        expect(out.length, "空になっている（切りすぎ）").toBeGreaterThan(0);
+    });
+
+    it("切った尻尾に区切りを残さない", () => {
+        // 200バイト目がちょうど区切りになる並び
+        const value = "あ".repeat(66) + " " + "い".repeat(66);
+        expect(slugify(value)).not.toMatch(/-$/);
+    });
+
+    // 切る前は「全部ドット」ではないので `^\.+$` の守りを通過し、
+    // 切ったあとに全部ドットになる（`.` と `..` を捨てる守りの裏）
+    it("切った結果が全部ドットになるなら捨てる", () => {
+        expect(slugify(".".repeat(250) + "x")).toBe("");
+    });
+
+    it("上限に届かない値は1文字も変えない", () => {
+        expect(slugify("山中湖")).toBe("山中湖");
+        expect(slugify("東京 / 渋谷")).toBe("東京-渋谷");
+    });
+
+    // NUL は `mkdir` が `ERR_INVALID_ARG_VALUE` で投げる（実測でビルドが落ちた）
+    it("制御文字を残さない", () => {
+        expect(slugify("Kyoto\u0000X"), "NUL でビルドが落ちる").toBe("kyoto-x");
+        expect(slugify("a\u0001b\u007Fc")).toBe("a-b-c");
+        expect(slugify("\u0000")).toBe("");
+    });
+});
+
+// **別名表を素の `[]` で引いていた。** `slugify("constructor", "category")` は
+// 戻り値の型が `string` なのに **関数**（`Object`）を返し、`"__proto__"` は
+// `Object.prototype` を返す。カテゴリは自由入力（サーバーの
+// `sanitizeText(category, 100)` は `constructor` を素通しする）。
+describe("カテゴリの別名表を、継承したプロパティで引かない", () => {
+    it.each(["constructor", "__proto__", "toString", "valueOf", "hasOwnProperty"])(
+        "%s は別名ではなくその文字列として扱う", (name) => {
+            const out = slugify(name, "category");
+            expect(typeof out, "文字列以外が返っている").toBe("string");
+            expect(out, "別名表ではなく Object のプロパティを引いている")
+                .toBe(name.toLowerCase());   // slugify は小文字に寄せる
+        });
+
+    it("本物の別名は今までどおり当たる", () => {
+        expect(slugify("建物", "category")).toBe("architecture");
+    });
+});
+
 describe("slugify", () => {
     it("小文字化・trim・空白をハイフンに", () => {
         expect(slugify("  Lake District ")).toBe("lake-district");

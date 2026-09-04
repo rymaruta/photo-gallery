@@ -24,6 +24,7 @@ on:
           - normalize-image-urls  # 保存済みの画像URLのホスト名を配信URLに揃える
           - diagnose          # 本番の設定を読むだけ（索引の射影・日付の形・Cognito・CDN の TTL）
           - orphan-uploads    # どの行からも参照されていないアップロード実体を探す
+          - verify-upload     # **staging** で presign が本当に使えるか確かめる（apply が要る）
         required: true
       apply:
         description: "true で実際に適用（false は内容の確認のみ）"
@@ -138,6 +139,22 @@ jobs:
         if: inputs.task == 'orphan-uploads'
         run: node scripts/find-orphan-uploads.js ${{ inputs.apply && '--apply' || '' }}
         timeout-minutes: 15
+
+      # **staging に対してだけ**走る（スクリプト側もバケット名で拒否する）。
+      # 本番の値がジョブ全体の env に入っているので、ここで上書きする。
+      # 上書きを忘れると本番のバケットに書きに行くので、二重に止める。
+      - name: presign が本当に使えるか確かめる（staging）
+        if: inputs.task == 'verify-upload'
+        run: npx tsx scripts/verify-upload.ts ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 5
+        env:
+          UPLOAD_BUCKET: staging-journey-photo-upload
+          PHOTOS_TABLE: staging-photo-gallery-photos
+          USERS_TABLE: staging-photo-gallery-users
+          CLOUDFRONT_URL: https://d15fn3rcaiymu9.cloudfront.net
+          # 実在しない利用者として叩く（枚数の上限判定が 0 件になる）。
+          # 固定値にするのは、残骸が出たときに誰のものか分かるようにするため
+          VERIFY_USER_ID: verify-upload-00000000-0000-4000-8000-000000000000
 
       - name: 本番の設定を読む（診断）
         if: inputs.task == 'diagnose'

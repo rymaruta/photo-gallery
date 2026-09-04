@@ -237,3 +237,39 @@ describe("presign に申告した長さと、PUT する本文の長さ", () => {
         expect(declared[0], "関門を通したファイルの長さを申告していない").toBe(cleaned.size);
     });
 });
+
+// **GIF は選べるのに、投稿を押して初めて必ず失敗していた。**
+//
+// `toUploadSafeFile` は GIF を必ず `UnstrippableFileError` にする
+// （アニメーションを保つため再エンコードせず、保険のバイト除去は JPEG だけ）。
+// 上の動画の関門には「投稿時ではなく選択時にやる」と書いてあるのに、
+// 画像だけ投稿時のままで、**キャプションと曲まで選んでから断られていた**。
+describe("GIF は選んだ時点で断る", () => {
+    it("下書きにも進まない", async () => {
+        const { container } = render(<StoriesBar />);
+        await screen.findByText("あなた");
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, new File(["gif"], "cat.gif", { type: "image/gif" }));
+
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
+            expect.stringContaining("GIF は位置情報を取り除けません"), "error"));
+        expect(screen.queryByRole("button", { name: /ストーリーに投稿/ }),
+            "投稿を押すまで分からない").toBeNull();
+    });
+
+    // **正常系は1形式では足りない。** 関門を `image/png` などへ広げる変異が
+    // JPEG だけのテストでは素通りする（PNG のストーリーを丸ごと殺しても緑）
+    it.each([
+        ["image/jpeg", "a.jpg"],
+        ["image/png", "a.png"],
+        ["image/webp", "a.webp"],
+    ])("%s は今までどおり下書きへ進む", async (type, name) => {
+        const { container } = render(<StoriesBar />);
+        await screen.findByText("あなた");
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, new File(["img"], name, { type }));
+
+        expect(await screen.findByRole("button", { name: /ストーリーに投稿/ }, { timeout: 5000 }))
+            .toBeInTheDocument();
+    });
+});
