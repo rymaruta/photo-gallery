@@ -39,8 +39,17 @@ describe("usableRows", () => {
         const warn = vi.spyOn(log, "warn").mockImplementation(() => { });
         usableRows([{ id: "a" }, null], "GET /photos");
         expect(warn).toHaveBeenCalledWith(expect.stringContaining("GET /photos"), { dropped: 1, total: 2 });
-        const logged = JSON.stringify(warn.mock.calls);
-        expect(logged, "利用者の中身をログに出している").not.toContain("id");
+        // **「利用者の中身が出ていない」の検査になっていなかった**——ログに
+        // 出るのはラベルと件数だけなので `"id"` を探しても意味が無く、
+        // 逆に `useComments` のラベル（`GET /photos/{id}/comments`）で
+        // 同じ検査を書くと**実装が正しいのに落ちる**。
+        // 渡した行の中身が出ていないことを、実際の値で見る
+        vi.spyOn(log, "warn").mockRestore();
+        const warn2 = vi.spyOn(log, "warn").mockImplementation(() => { });
+        usableRows([{ secret: "利用者の本文" }, null], "GET /photos");
+        const logged = JSON.stringify(warn2.mock.calls);
+        expect(logged, "行の中身をログに出している").not.toContain("利用者の本文");
+        expect(logged, "件数を出していない").toContain("dropped");
     });
 
     it("落とすものが無ければ記録しない", () => {

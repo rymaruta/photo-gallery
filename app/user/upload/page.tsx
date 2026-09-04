@@ -18,6 +18,8 @@ import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
 import { userFacingUploadError, UPLOAD_FAILED_MESSAGE } from "./errorText";
 import { unstrippableMessage, gifRejectedMessage, gifRejectedLabel } from "../../../lib/utils/uploadRejection";
+import { usablePhotoRows } from "../../../lib/utils/apiRows";
+import type { Photo } from "../../../lib/data/photos";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
 
@@ -263,11 +265,13 @@ function UploadPageInner() {
                 const { userFetch } = await import("../../../lib/utils/api");
                 const res = await userFetch("/user/photos");
                 if (!res.ok) return;
-                const all = await res.json() as unknown[];
-                if (!aborted && Array.isArray(all)) {
+                // 読めない行は落とす（`collectOwnValues` は `for...of` で回すので、
+                // 1件の `null` で残り枚数の表示ごと消えていた）
+                const all = usablePhotoRows<Photo>(await res.json(), "GET /user/photos");
+                if (!aborted && all) {
                     setUsedSlots(all.length);
                     // 同じ取得から入力候補も作る（追加の往復はしない）
-                    setOwnValues(collectOwnValues(all as Parameters<typeof collectOwnValues>[0]));
+                    setOwnValues(collectOwnValues(all));
                 }
             } catch { /* 出さないだけ。アップロード自体は止めない */ }
         })();

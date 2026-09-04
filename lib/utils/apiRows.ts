@@ -43,8 +43,9 @@ export function usablePhotoRows<T extends { id?: unknown; tags?: unknown }>(data
     }
     // **`tags` が配列でない行は、写真ごと捨てずに `tags` だけ捨てる。**
     //
-    // 描画側は `(p.tags ?? []).map(...)`（`useGallery`）や
-    // `p.tags.map(...)` と、**配列であることを構造として当てにしている**。
+    // 描画側は `(p.tags ?? []).map(...)`（`useGallery`）と、**配列である
+    // ことを構造として当てにしている**（`?? []` は `null` は拾うが、
+    // 文字列やオブジェクトはそのまま `.map` へ行く）。
     // 文字列が入っていると `.map is not a function` でページ全体が落ちる
     // （テストで実際に再現した）。ただし写真そのものは表示できるので、
     // 巻き添えにするのは行き過ぎ——おかしいのはタグの欄だけ。

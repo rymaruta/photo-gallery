@@ -1,5 +1,6 @@
 "use client";
 
+import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useBottomBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -251,15 +252,25 @@ function EditContent() {
                     const all = await res.json() as Photo[];
                     if (aborted) return;
                     // **配列だと確かめてから使う。** `collectOwnValues` は
-                    // `for...of` で回すので、`{}` が返ると投げる——下の
-                    // `Array.isArray` ガードの手前にあったため、
-                    // 「写真が見つかりません」ではなく「読み込みに失敗しました」
-                    // に落ちていた
-                    const rows = Array.isArray(all) ? all : null;
+                    // `for...of` で回すので、`{}` が返ると投げる（ガードの
+                    // 手前で呼んでいた）。読めない行も落とす——1件の巻き添えで
+                    // 編集画面が開かなくなるのを防ぐ。
+                    const rows = usablePhotoRows<Photo>(all, "GET /user/photos");
+                    if (!rows) {
+                        // **「配列でない」から「写真が無い」は言えない。**
+                        // 一度ここを `found = null` に流して、下の
+                        // 「写真が見つかりません」＋下書き一覧への `replace`
+                        // に落としてしまった——取得の失敗なのに**存在しない**と
+                        // 言い切り、しかも画面から追い出す（`replace` なので
+                        // 戻れない）。取得の失敗は失敗として出す。
+                        showToastRef.current(isJa ? "読み込みに失敗しました" : "Failed to load", "error");
+                        setLoadFailed(true);
+                        return;
+                    }
                     // 同じ取得から入力候補も作る（追加の往復はしない）。
                     // 候補が無いせいで同じ場所が別々の名前に散っていた。
-                    if (rows) setOwnValues(collectOwnValues(rows));
-                    const found = rows ? rows.find((p) => p.id === photoId) ?? null : null;
+                    setOwnValues(collectOwnValues(rows));
+                    const found = rows.find((p) => p.id === photoId) ?? null;
                     if (found) {
                         setPhoto(found);
                         setOriginal(found);

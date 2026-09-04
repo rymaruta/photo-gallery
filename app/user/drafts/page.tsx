@@ -1,5 +1,6 @@
 "use client";
 
+import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "../../auth/context";
@@ -37,8 +38,9 @@ export default function DraftsPage() {
             const { userFetch } = await import("../../../lib/utils/api");
             const res = await userFetch("/user/photos");
             if (res.ok) {
-                const all = await res.json() as Photo[];
-                setDrafts(Array.isArray(all) ? all.filter((p) => p.published === false) : []);
+                // 読めない行は落とす（1件の巻き添えで下書きが全部消えないように）
+                const all = usablePhotoRows<Photo>(await res.json(), "GET /user/photos");
+                setDrafts(all ? all.filter((p) => p.published === false) : []);
             } else {
                 log.error("drafts fetch failed", { status: res.status });
                 setLoadError(true);

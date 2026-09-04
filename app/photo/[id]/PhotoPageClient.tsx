@@ -32,6 +32,7 @@ import { isImageReady } from "../../../lib/utils/imageReady";
 import { formatStoredDateTime } from "@/lib/utils/photoDate";
 import { isImeKey } from "../../../lib/utils/ime";
 import { useSongSearch } from "../../../lib/hooks/useSongSearch";
+import { usablePhotoRows } from "../../../lib/utils/apiRows";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -214,11 +215,16 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                 const { publicFetch } = await import("../../../lib/utils/api");
                 const response = await publicFetch("/photos", { signal: controller.signal });
                 if (response.ok) {
-                    const data = await response.json();
+                    // **読めない行は落としてから入れる。** ここは
+                    // `relatedSections` / `adjacentPhotos` / `find(p => p.id)` に
+                    // そのまま渡るので、1件の `null` でページ全体が
+                    // `ErrorBoundary` のカードになる（`usePhotos` と同じ
+                    // エンドポイント・同じ壊れ方）
+                    const data = usablePhotoRows<Photo>(await response.json(), "GET /photos") ?? [];
                     // 空配列で静的ビルド時のデータを潰さない。潰すと、いま表示できて
                     // いる写真が「写真が見つかりません」に化ける（usePhotos.ts にも
                     // 同じガードがある）。
-                    if (Array.isArray(data) && data.length > 0) {
+                    if (data.length > 0) {
                         setAllPhotos(data);
                         setFetchFailed(false);
                     } else {
