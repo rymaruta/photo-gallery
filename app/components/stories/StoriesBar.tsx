@@ -210,6 +210,11 @@ export default function StoriesBar() {
     // 前の曲が鳴り続ける（停止ボタンごと画面から消える）。
     // 追い越しを捨てる仕掛けは `useSongSearch` が持っている。
     const searchDraftSongs = async () => {
+        // **空の語では何もしない（試聴も止めない）。** 検索ボタンは空だと
+        // 押せないが、入力欄の Enter は素通りする——試聴中に語を消して
+        // Enter を押すと、以前は無反応だったのが再生が止まっていた
+        // （フックに空判定を移したときに、`stopPreview()` が前に出た）。
+        if (!songQuery.trim()) return;
         stopPreview();
         await runSongSearch(songQuery);
     };

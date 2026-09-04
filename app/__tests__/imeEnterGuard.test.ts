@@ -51,12 +51,18 @@ function walk(dir: string): string[] {
  * 実際に一度そうなって構文エラーになった。）
  *
  * 行コメントは行末のものも剥がす（`code; // isImeKey` と書けば通る、を塞ぐ）。
- * `https://` を巻き込まないよう、直前が `:` でないものだけ。
+ * ただし `https://` と、正規表現リテラルの中のエスケープ（`\\/\\/`）は
+ * 巻き込まない——直前が `:` でも `\\` でもないものだけを剥がす。
+ * （`\\` を除かないと `.replace(/^https?:\\/\\//, "")` の行が丸ごと消える。
+ * 実在3か所で確認した。）
  */
-const codeOf = (rel: string) =>
-    readFileSync(join(ROOT, rel), "utf8")
+export function stripComments(src: string): string {
+    return src
         .replace(/(^|[\s{])\/\*[\s\S]*?\*\//g, "$1")
-        .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+        .replace(/(^|[^:\\])\/\/[^\n]*/g, "$1");
+}
+
+const codeOf = (rel: string) => stripComments(readFileSync(join(ROOT, rel), "utf8"));
 
 /** Enter を見ている回数（ハンドラが外に出ていても数えられる） */
 const enterChecks = (code: string) => (code.match(/key\s*===\s*"Enter"/g) ?? []).length;
@@ -123,5 +129,35 @@ describe("走査がコードを読み落としていない", () => {
     it("本物のコメントは剥がす", () => {
         const code = codeOf("app/user/profile/page.tsx");
         expect(code).not.toContain("変換中は書き換えない");
+    });
+
+});
+
+// **剥がし方そのものを、作った入力で確かめる。**
+// ファイルを読んで「この語が無い」を見る形にすると、たまたまその語が
+// 無いだけで緑になる（実際、一度そう書いて空振りさせた）。
+describe("stripComments", () => {
+    it.each([
+        ["行頭のコメント", "// 消える\nkeep1;", "keep1;"],
+        // 剥がさないと「実装を消してコメントだけ残す」書き換えが素通りする
+        // （前の周で実際に素通りした形）
+        ["行末のコメント", "keep2;   // isImeKey(e)", "keep2;"],
+        ["ブロックコメント", "{/* 消える */}\nkeep3;", "keep3;"],
+    ])("%s は剥がす", (_name, src, kept) => {
+        const out = stripComments(src);
+        expect(out).toContain(kept);
+        expect(out).not.toContain("消える");
+        expect(out, "行末コメントが残っている（綴りだけで通る）").not.toContain("isImeKey(e)");
+    });
+
+    it.each([
+        ["URL", 'const u = "https://example.com/x";', "example.com"],
+        // `[^:]` だけだと `.replace(/^https?:\/\//, "")` の行が丸ごと消える（実在3か所）
+        // **閉じ区切りと合わさって `//` になる**（`\\/` + `/`）。`[^:]` だけだと
+        // ここから行末まで消える——実在3か所（実測）
+        ["正規表現リテラルの閉じ区切り", 'if (/^https?:\\/\\//.test(u)) keepRe();', "keepRe"],
+        ["accept の値", '<input accept="image/*" />\n{/* 別のコメント */}\nkeepAccept;', "keepAccept"],
+    ])("%s は壊さない", (_name, src, kept) => {
+        expect(stripComments(src)).toContain(kept);
     });
 });

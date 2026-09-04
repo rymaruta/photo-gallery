@@ -365,6 +365,10 @@ export default function ProfileEditPage() {
         });
 
     const handleSongSearch = async () => {
+        // **空の語では何もしない（試聴も止めない）。** 入力欄の Enter は
+        // 空でも素通りするので、ここで見ないと「語を消して Enter」で
+        // 再生が止まる（StoriesBar と同じ）。
+        if (!songQuery.trim()) return;
         // **試聴を止めてから検索する**（結果が入れ替わっても前の曲が鳴り続ける）。
         // 追い越しを捨てる仕掛けは `useSongSearch` が持っている。
         stopPreview();
