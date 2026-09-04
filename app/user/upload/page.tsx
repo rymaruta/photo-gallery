@@ -271,16 +271,17 @@ function UploadPageInner() {
                 // 一度「残り枚数ごと消える」と書いたが誤りだった）
                 const raw = await res.json();
                 const all = usablePhotoRows<Photo>(raw, "GET /user/photos");
-                if (!aborted && all) {
+                // `Array.isArray(raw)` を門に入れる。`as unknown[]` の cast だと
+                // 「配列である」を**主張しているだけ**で、`usableRows` の形が
+                // 変わったときに `.length` が undefined になり
+                // 「あと NaN 枚」になる（壊れるなら出ない方へ倒す）
+                if (!aborted && all && Array.isArray(raw)) {
                     // **枠はサーバーの数え方に合わせる。** `countUserPhotos` は
                     // `Select: "COUNT"` で、`id` の無い行も**上限に数える**。
                     // ふるいを通したあとの件数で表示すると、「あと3枚」と出て
                     // いるのに 403 になる（同じ上限を片方だけ守る、の型）。
                     // 表示から落とすのと、枠を数えるのは別。
-                    // `all` が非 null なら `raw` は必ず配列（`usableRows` は
-                    // 非配列に `null` を返す）。三項にすると「非配列でも
-                    // 救える」と読めるので置かない
-                    setUsedSlots((raw as unknown[]).length);
+                    setUsedSlots(raw.length);
                     // 同じ取得から入力候補も作る（追加の往復はしない）
                     setOwnValues(collectOwnValues(all));
                 }

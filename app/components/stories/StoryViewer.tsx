@@ -122,7 +122,10 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         // **配列でない応答を「まだ閲覧者はいません」にしない**
                         // （下の else と同じ SW-b8）。`?? []` にしていたので
                         // 0人と同じ見た目になっていた。`viewers` は `null` の
-                        // まま——「取得中（…）」との区別は `viewersError` が持つ
+                        // まま。**「取得中（…）」との区別は `viewersError` に持たせた**
+                        // ——一度「`viewersError` が持つ」と書いたが、その時点では
+                        // 数字を出す2か所が `viewersError` を読んでおらず、
+                        // 失敗しても "…" のままだった（コメントだけが嘘をついていた）
                         setViewersError(true);
                         return;
                     }
@@ -566,7 +569,14 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                             style={{ touchAction: "manipulation" }}
                         >
                             <EyeIcon className="w-4 h-4" />
-                            {viewers === null
+                            {/* **失敗を「取得中」と分ける。** `viewers === null` だけを
+                                見ていたので、読み込めなかったときも "..." のまま
+                                永久に止まっていた（再取得は無い）。シートの本文は
+                                「読み込めませんでした」と出るのに、同じ画面の
+                                ここだけ「取得中」に見える */}
+                            {viewersError
+                                ? "—"
+                                : viewers === null
                                 ? "..."
                                 : locale === "en"
                                     ? `${viewers.length} viewer${viewers.length === 1 ? "" : "s"}`
@@ -600,7 +610,8 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                     `viewers === null` を "..." と出しているのに、
                                     この見出しだけ `?? 0` で潰していて、開いた瞬間
                                     「閲覧者 0」が出てから数字が入っていた */}
-                                <span className="ml-2 text-white/50 font-normal">{viewers === null ? "…" : viewers.length}</span>
+                                {/* 失敗は「取得中（…）」と分ける（上のボタンと同じ） */}
+                                <span className="ml-2 text-white/50 font-normal">{viewersError ? "—" : viewers === null ? "…" : viewers.length}</span>
                             </h3>
                             <button onClick={() => setViewersOpen(false)} className="p-1 text-white/60 hover:text-white" aria-label={locale === "en" ? "Close" : "閉じる"}>
                                 <XMarkIcon className="w-5 h-5" />

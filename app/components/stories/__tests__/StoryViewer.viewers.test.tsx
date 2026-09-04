@@ -146,6 +146,36 @@ describe("閲覧者一覧: 取得の失敗", () => {
         expect(screen.queryByText(/まだ閲覧者はいません/)).toBeNull();
     });
 
+    // **見出しとボタンも「取得中」のままにしない。**
+    // シートの本文は「読み込めませんでした」なのに、同じ画面の数字は
+    // `viewers === null ? "…"` で**永久に取得中**に見えていた（再取得は無い）。
+    // コメントには「区別は `viewersError` が持つ」と書いていたが、
+    // 数字を出す2か所は `viewersError` を読んでいなかった。
+    it("失敗したら、見出しの数字も「取得中」のままにしない", async () => {
+        mockUserFetch.mockImplementation((url: string) => {
+            if (url.includes("/viewers")) return Promise.resolve({ ok: true, json: async () => ({ viewers: { a: 1 } }) });
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+
+        render(
+            <StoryViewer
+                groups={groups()}
+                initialGroupIndex={0}
+                locale="ja"
+                isAuthenticated
+                ownUserId="me"
+                onSeen={() => { /* noop */ }}
+                onClose={() => { /* noop */ }}
+            />,
+        );
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+        await screen.findByText(/閲覧者を読み込めませんでした/);
+
+        const heading = screen.getByRole("heading", { name: /閲覧者/ });
+        expect((heading.textContent ?? "").replace("閲覧者", "").trim(),
+            "失敗しているのに『取得中』のまま").not.toBe("…");
+    });
+
     // 正常系: 本当に0人なら「まだ閲覧者はいません」（逆向きの混同を作らない）
     it("本当に0人なら『まだ閲覧者はいません』", async () => {
         mockUserFetch.mockImplementation((url: string) => {

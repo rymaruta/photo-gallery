@@ -185,6 +185,35 @@ describe("通知の取得に失敗したとき", () => {
         expect(screen.getByText(/読み込めませんでした/)).toBeInTheDocument();
     });
 
+    // **200 だが本文の形がおかしい場合も同じ。** 行のふるいを足したとき
+    // `?? []` にしたので「まだ通知はありません」の案内が出ていた
+    // ——このファイルの `status` のコメントが禁じているとおりの状態
+    it.each([
+        ["items が配列でない", { items: { a: 1 } }],
+        ["items が無い", { unread: 3 }],
+    ])("%s でも「0件」の案内を出さない", async (_name, body) => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => body });
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+
+        expect(screen.queryByText(/ここに届きます/), "失敗を「0件」と言っている").toBeNull();
+        expect(await screen.findByText(/読み込めませんでした/)).toBeInTheDocument();
+    });
+
+    // 読めない行が混じっても、残りは出す（失敗にはしない）
+    it("読めない行は落として、残りは出す", async () => {
+        mockUserFetch.mockResolvedValue({
+            ok: true,
+            json: async () => ({ items: [{ id: "n1", type: "like", byName: "たびこ", createdAt: "2026-09-01T00:00:00Z" }, null] }),
+        });
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+        expect(await screen.findByText(/たびこ/)).toBeInTheDocument();
+        expect(screen.queryByText(/読み込めませんでした/)).toBeNull();
+    });
+
     it("通信が落ちたときも同じ", async () => {
         mockUserFetch.mockRejectedValue(new TypeError("Failed to fetch"));
         render(<NotificationsBell />);
