@@ -117,7 +117,16 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 if (res.ok) {
                     const data = await res.json() as { viewers?: ViewerEntry[] };
                     if (aborted) return;
-                    setViewers(usableRows<ViewerEntry>(data.viewers, "GET /stories/{id}/viewers") ?? []);
+                    const rows = usableRows<ViewerEntry>(data.viewers, "GET /stories/{id}/viewers");
+                    if (!rows) {
+                        // **配列でない応答を「まだ閲覧者はいません」にしない**
+                        // （下の else と同じ SW-b8）。`?? []` にしていたので
+                        // 0人と同じ見た目になっていた。`viewers` は `null` の
+                        // まま——「取得中（…）」との区別は `viewersError` が持つ
+                        setViewersError(true);
+                        return;
+                    }
+                    setViewers(rows);
                     setViewersError(false);
                 } else {
                     // 失敗を「まだ閲覧者はいません」と混ぜない（SW-b8）

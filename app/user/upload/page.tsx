@@ -265,8 +265,10 @@ function UploadPageInner() {
                 const { userFetch } = await import("../../../lib/utils/api");
                 const res = await userFetch("/user/photos");
                 if (!res.ok) return;
-                // 読めない行は落とす（`collectOwnValues` は `for...of` で回すので、
-                // 1件の `null` で残り枚数の表示ごと消えていた）
+                // 読めない行は落とす。`collectOwnValues` は `for...of` で回すので
+                // 1件の `null` で投げ、`catch {}` が握って**入力候補が出なく
+                // なる**（残り枚数は `setUsedSlots` が先にあるので出る。
+                // 一度「残り枚数ごと消える」と書いたが誤りだった）
                 const raw = await res.json();
                 const all = usablePhotoRows<Photo>(raw, "GET /user/photos");
                 if (!aborted && all) {
@@ -275,7 +277,10 @@ function UploadPageInner() {
                     // ふるいを通したあとの件数で表示すると、「あと3枚」と出て
                     // いるのに 403 になる（同じ上限を片方だけ守る、の型）。
                     // 表示から落とすのと、枠を数えるのは別。
-                    setUsedSlots(Array.isArray(raw) ? raw.length : all.length);
+                    // `all` が非 null なら `raw` は必ず配列（`usableRows` は
+                    // 非配列に `null` を返す）。三項にすると「非配列でも
+                    // 救える」と読めるので置かない
+                    setUsedSlots((raw as unknown[]).length);
                     // 同じ取得から入力候補も作る（追加の往復はしない）
                     setOwnValues(collectOwnValues(all));
                 }

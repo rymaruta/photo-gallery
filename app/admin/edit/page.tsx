@@ -108,8 +108,11 @@ function AdminEditContent() {
                 const { authenticatedFetch } = await import("../../../lib/utils/api");
                 const res = await authenticatedFetch("/admin/photos", { cache: "no-store" });
                 if (res.ok) {
-                    // 読めない行は落とす（1件の `null` で `find` が投げ、
-                    // 編集画面が「not found」に化けていた）
+                    // 読めない行は落とす。1件の `null` で `find` が投げると
+                    // 下の catch が拾い、**目的の写真は無事なのに**
+                    // 「写真の読み込みに失敗しました」＋管理一覧への `replace`
+                    // になる（`not found` の文字列は画面に出ない。一度そう
+                    // 書いたが誤りだった）
                     const all = usablePhotoRows<Photo>(await res.json(), "GET /admin/photos");
                     const data = all?.find((p) => p.id === photoId);
                     if (!data) throw new Error("not found");

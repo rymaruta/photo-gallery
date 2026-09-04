@@ -115,6 +115,60 @@ describe("閲覧者一覧: 取得の失敗", () => {
         expect(await screen.findByText(/閲覧者を読み込めませんでした/)).toBeInTheDocument();
         expect(screen.queryByText(/まだ閲覧者はいません/)).toBeNull();
     });
+
+    // **200 だが本文の形がおかしい場合も同じ。** 行のふるいを足したとき
+    // `?? []` にしたので「まだ閲覧者はいません」と同じ見た目になっていた
+    // ——すぐ上の else のコメント（SW-b8）が言っているのと同じ混同を、
+    // 自分で足した行の上で作っていた
+    it.each([
+        ["viewers が配列でない", { viewers: { a: 1 } }],
+        ["viewers が無い", { count: 0 }],
+    ])("%s でも「0人」と混ぜない", async (_name, body) => {
+        mockUserFetch.mockImplementation((url: string) => {
+            if (url.includes("/viewers")) return Promise.resolve({ ok: true, json: async () => body });
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+
+        render(
+            <StoryViewer
+                groups={groups()}
+                initialGroupIndex={0}
+                locale="ja"
+                isAuthenticated
+                ownUserId="me"
+                onSeen={() => { /* noop */ }}
+                onClose={() => { /* noop */ }}
+            />,
+        );
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+
+        expect(await screen.findByText(/閲覧者を読み込めませんでした/)).toBeInTheDocument();
+        expect(screen.queryByText(/まだ閲覧者はいません/)).toBeNull();
+    });
+
+    // 正常系: 本当に0人なら「まだ閲覧者はいません」（逆向きの混同を作らない）
+    it("本当に0人なら『まだ閲覧者はいません』", async () => {
+        mockUserFetch.mockImplementation((url: string) => {
+            if (url.includes("/viewers")) return Promise.resolve({ ok: true, json: async () => ({ viewers: [] }) });
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+
+        render(
+            <StoryViewer
+                groups={groups()}
+                initialGroupIndex={0}
+                locale="ja"
+                isAuthenticated
+                ownUserId="me"
+                onSeen={() => { /* noop */ }}
+                onClose={() => { /* noop */ }}
+            />,
+        );
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+
+        expect(await screen.findByText(/まだ閲覧者はいません/)).toBeInTheDocument();
+        expect(screen.queryByText(/読み込めませんでした/)).toBeNull();
+    });
 });
 
 
