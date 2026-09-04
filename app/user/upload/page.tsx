@@ -280,8 +280,12 @@ function UploadPageInner() {
                 // `Array.isArray(raw)` はここだけの門。`usablePhotoRows` が
                 // 配列以外に null を返さなくなったときに `.length` が
                 // undefined になり「あと NaN 枚」と出るのを止める
-                // （壊れるなら出ない方へ倒す）。**入力候補まで巻き添えに
-                // しない**——候補が消えても数字は嘘をつかない
+                // （壊れるなら出ない方へ倒す）。
+                // **守れるのは数字だけ**——そのとき `collectOwnValues` は
+                // `for...of` で投げ、下の `catch {}` が握るので候補は
+                // どのみち出ない（反復できる非配列を返すようになった場合
+                // だけ、候補も生き残る）。それでも門をこちらに寄せるのは、
+                // 「あと NaN 枚」を出さない責任がこの行にしか無いから
                 if (Array.isArray(raw)) setUsedSlots(raw.length);
                 // 同じ取得から入力候補も作る（追加の往復はしない）
                 setOwnValues(collectOwnValues(all));

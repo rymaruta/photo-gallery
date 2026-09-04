@@ -146,6 +146,49 @@ describe("NotificationsBell", () => {
 // 「旅立ちの報告」も作る経路がコードに無い。型のコメントにはそう書いて
 // あるのに、コンポーネント冒頭のコメントと空表示の本文だけが古いまま
 // 残っていた。**登録直後の人が最初に読む文**なので実害が大きい。
+// **時刻を読むテストが1本も無かった。** フィクスチャの時刻キーが
+// `createdAt`（実装が読むのは `t`）でも、`{fmtTime(n.t)}` を丸ごと消しても、
+// 24件が全緑だった。日付は「いつのいいねか」を伝える唯一の手がかり。
+describe("通知の時刻", () => {
+    // **`t` は1回だけ作る。** `li` の key が `n.t` を含むので、`json()` が
+    // 呼ばれるたびに違う値を返すと行ごと作り直される
+    const DAY = 24 * 60 * 60 * 1000;
+    const AT = (daysAgo: number) => new Date(Date.now() - daysAgo * DAY - 60_000).toISOString();
+    const TODAY = AT(0), YESTERDAY = AT(1), THREE = AT(3);
+
+    it("今日・昨日・N日前で出し分ける", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({
+            items: [
+                { type: "like", photoId: "p1", photoSrc: "https://c/p1.webp", byName: "今日の人", t: TODAY },
+                { type: "like", photoId: "p2", photoSrc: "https://c/p2.webp", byName: "昨日の人", t: YESTERDAY },
+                { type: "like", photoId: "p3", photoSrc: "https://c/p3.webp", byName: "3日前の人", t: THREE },
+            ],
+            unread: 0,
+        }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+
+        expect(await screen.findByText("今日")).toBeInTheDocument();
+        expect(screen.getByText("昨日")).toBeInTheDocument();
+        expect(screen.getByText("3日前")).toBeInTheDocument();
+    });
+
+    // 読めない時刻で「NaN日前」を出さない（空にする）
+    it("読めない時刻は何も出さない", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({
+            items: [{ type: "like", photoId: "p1", photoSrc: "https://c/p1.webp", byName: "旅子", t: "こわれた日付" }],
+            unread: 0,
+        }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+
+        expect(await screen.findByText(/旅子/)).toBeInTheDocument();
+        expect(screen.queryByText(/NaN|Invalid/)).toBeNull();
+    });
+});
+
 describe("通知が0件のときの案内", () => {
     const open = async (body: unknown) => {
         mockUserFetch.mockResolvedValue(fetchOk(body));

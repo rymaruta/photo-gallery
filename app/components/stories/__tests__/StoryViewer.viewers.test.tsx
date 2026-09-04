@@ -208,6 +208,51 @@ describe("閲覧者一覧: 取得の失敗", () => {
         // ボタンは0人でも数字を出す（失敗と混ぜない・逆向き）
         expect(screen.getByLabelText("閲覧者を見る").textContent ?? "").toContain("閲覧 0人");
     });
+
+    // **失敗を次のストーリーへ持ち越さない。**
+    // 切り替えのリセット（`setViewersError(false)`）を消しても、この周まで
+    // 12ファイル79件が全緑だった。「失敗したら数字を出さない」に倒したぶん、
+    // 持ち越すと**次のストーリーがずっと空のまま**になる（前は `—` が出て
+    // いたので目に見えていた）——直した側の穴を新しく静かにしない
+    it("1枚目が失敗しても、2枚目は「取得中（...）」に戻る", async () => {
+        const slow2 = deferred<unknown>();
+        mockUserFetch.mockImplementation((url: string) => {
+            const u = String(url);
+            if (u.includes("/viewers")) {
+                return u.includes("s1")
+                    ? Promise.resolve({ ok: false, status: 500, json: async () => ({}) })
+                    : slow2.promise;
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+
+        render(
+            <StoryViewer
+                groups={groups()}
+                initialGroupIndex={0}
+                locale="ja"
+                isAuthenticated
+                ownUserId="me"
+                onSeen={() => { /* noop */ }}
+                onClose={() => { /* noop */ }}
+            />,
+        );
+        // 1枚目: 失敗したので数字も「取得中」も出ない
+        await waitFor(() => expect(screen.getByLabelText("閲覧者を見る").textContent ?? "").toBe(""));
+
+        fireEvent.keyDown(document, { key: "ArrowRight" });
+        await waitFor(() => expect(
+            mockUserFetch.mock.calls.some((c) => String(c[0]).includes("s2") && String(c[0]).includes("/viewers")),
+        ).toBe(true));
+
+        // 2枚目はまだ返ってきていない＝「取得中」
+        expect(screen.getByLabelText("閲覧者を見る").textContent ?? "",
+            "前のストーリーの失敗を持ち越している").toContain("...");
+
+        // 返ってきたら人数に変わる（持ち越していないことを最後まで見る）
+        slow2.resolve(viewersOf(["2枚目を見た人"]));
+        await waitFor(() => expect(screen.getByLabelText("閲覧者を見る").textContent ?? "").toContain("閲覧 1人"));
+    });
 });
 
 
