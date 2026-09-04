@@ -33,7 +33,10 @@ function walk(dir: string): string[] {
     return readdirSync(dir).flatMap((name) => {
         const p = join(dir, name);
         if (name === "node_modules" || name === "__tests__" || name.startsWith(".")) return [];
-        return statSync(p).isDirectory() ? walk(p) : p.endsWith(".tsx") ? [p] : [];
+        // **`.ts` も読む。** 共通処理をフック（`lib/hooks/*.ts`）へ移している
+        // 最中なので、キー処理まで移した瞬間に `.tsx` 側の Enter が 0 になり、
+        // 走査は緑のまま空振りする
+        return statSync(p).isDirectory() ? walk(p) : /\.tsx?$/.test(p) ? [p] : [];
     });
 }
 
@@ -53,8 +56,9 @@ function walk(dir: string): string[] {
  * 行コメントは行末のものも剥がす（`code; // isImeKey` と書けば通る、を塞ぐ）。
  * ただし `https://` と、正規表現リテラルの中のエスケープ（`\\/\\/`）は
  * 巻き込まない——直前が `:` でも `\\` でもないものだけを剥がす。
- * （`\\` を除かないと `.replace(/^https?:\\/\\//, "")` の行が丸ごと消える。
- * 実在3か所で確認した。）
+ * （`\\` を除かないと `/^https?:\\/\\//.test(x)` のような行で、
+ * **`//` から行末までが消える**（行全体ではない）。走査対象の `.tsx` に
+ * 3か所、リポジトリ全体では6か所ある——`.ts` 側は今この走査の対象外。）
  */
 export function stripComments(src: string): string {
     return src
@@ -156,7 +160,10 @@ describe("stripComments", () => {
         // **閉じ区切りと合わさって `//` になる**（`\\/` + `/`）。`[^:]` だけだと
         // ここから行末まで消える——実在3か所（実測）
         ["正規表現リテラルの閉じ区切り", 'if (/^https?:\\/\\//.test(u)) keepRe();', "keepRe"],
-        ["accept の値", '<input accept="image/*" />\n{/* 別のコメント */}\nkeepAccept;', "keepAccept"],
+        // **目印は「飲み込まれる範囲の中」に置く。** 素朴な実装は
+        // `accept="image/` から次の JSX コメントの終わりまでを消すので、
+        // その外に置いた語は消えず**変異が素通りする**（一度そう書いた）
+        ["accept の値", '<input accept="image/*" />\nkeepAccept;\n{/* 別のコメント */}', "keepAccept"],
     ])("%s は壊さない", (_name, src, kept) => {
         expect(stripComments(src)).toContain(kept);
     });

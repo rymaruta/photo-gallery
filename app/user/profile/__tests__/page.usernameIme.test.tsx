@@ -1,6 +1,7 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 // **ユーザー名の欄が、IME の変換を毎打鍵で壊していた。**
 //
@@ -121,5 +122,40 @@ describe("曲検索の追い越し", () => {
         await new Promise((r) => setTimeout(r, 20));
         expect(screen.queryByText("きょうの歌"), "打っていない語の結果が出ている").toBeNull();
         expect(screen.getByText("今日の歌")).toBeInTheDocument();
+    });
+});
+
+// **空の語では試聴を止めない。** 検索ボタンは空だと押せないが、入力欄の
+// Enter は素通りする。空判定が `stopPreview()` より後ろにあると、
+// 試聴中に語を消して Enter を押しただけで再生が止まる。
+//
+// StoriesBar には同じテストがあるが、**プロフィールは無防備だった**
+// （空判定を消してもフルスイートが全緑）。BGM の検索欄はここでは
+// 開閉が無く常時出ているので、こちらの方が踏みやすい。
+describe("曲検索: 空の語", () => {
+    it("空欄の Enter では試聴を止めない", async () => {
+        // jsdom は再生を実装していないので、解決するだけの play を置く
+        const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(async () => { });
+        const pause = vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => { });
+        try {
+            mockSearchSongs.mockResolvedValue([
+                { id: "s1", title: "なにか", artist: "誰か", artwork: "", previewUrl: "https://p/x.m4a", trackUrl: "" },
+            ]);
+            render(<ProfilePage />);
+            await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+            const box = await screen.findByPlaceholderText("曲名・アーティスト名");
+            fireEvent.change(box, { target: { value: "たび" } });
+            fireEvent.keyDown(box, { key: "Enter", keyCode: 13, isComposing: false });
+            await waitFor(() => expect(screen.getByText("なにか")).toBeInTheDocument());
+
+            await userEvent.click(screen.getByRole("button", { name: /なにかを試聴/ }));
+            await screen.findByRole("button", { name: /なにかを停止/ });
+
+            fireEvent.change(box, { target: { value: "" } });
+            fireEvent.keyDown(box, { key: "Enter", keyCode: 13, isComposing: false });
+
+            expect(screen.queryByRole("button", { name: /なにかを停止/ }), "試聴が止まっている")
+                .toBeInTheDocument();
+        } finally { play.mockRestore(); pause.mockRestore(); }
     });
 });
