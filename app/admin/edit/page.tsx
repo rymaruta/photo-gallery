@@ -1,5 +1,6 @@
 "use client";
 
+import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -107,8 +108,10 @@ function AdminEditContent() {
                 const { authenticatedFetch } = await import("../../../lib/utils/api");
                 const res = await authenticatedFetch("/admin/photos", { cache: "no-store" });
                 if (res.ok) {
-                    const all = await res.json() as Photo[];
-                    const data = Array.isArray(all) ? all.find((p) => p.id === photoId) : undefined;
+                    // 読めない行は落とす（1件の `null` で `find` が投げ、
+                    // 編集画面が「not found」に化けていた）
+                    const all = usablePhotoRows<Photo>(await res.json(), "GET /admin/photos");
+                    const data = all?.find((p) => p.id === photoId);
                     if (!data) throw new Error("not found");
                     // 別の写真に切り替わったあとの応答は捨てる
                     if (aborted) return;

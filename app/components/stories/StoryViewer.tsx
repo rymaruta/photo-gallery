@@ -1,5 +1,6 @@
 "use client";
 
+import { usableRows } from "../../../lib/utils/apiRows";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
 import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
@@ -116,7 +117,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 if (res.ok) {
                     const data = await res.json() as { viewers?: ViewerEntry[] };
                     if (aborted) return;
-                    setViewers(Array.isArray(data.viewers) ? data.viewers : []);
+                    setViewers(usableRows<ViewerEntry>(data.viewers, "GET /stories/{id}/viewers") ?? []);
                     setViewersError(false);
                 } else {
                     // 失敗を「まだ閲覧者はいません」と混ぜない（SW-b8）

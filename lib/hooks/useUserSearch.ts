@@ -1,5 +1,6 @@
 "use client";
 
+import { usableRows } from "../utils/apiRows";
 import { useEffect, useState } from "react";
 import { userPublicFetch } from "../utils/api";
 import { log } from "../utils/log";
@@ -61,7 +62,7 @@ export function useUserSearch(query: string): { users: UserHit[]; loading: boole
                     if (!res.ok) throw new Error(String(res.status));
                     const data = await res.json() as { users?: UserHit[] };
                     if (!aborted) {
-                        setUsers(Array.isArray(data.users) ? data.users : []);
+                        setUsers(usableRows<UserHit>(data.users, "GET /users/search") ?? []);
                         setFailed(false);
                     }
                 } catch (e) {

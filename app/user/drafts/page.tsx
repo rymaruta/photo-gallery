@@ -40,7 +40,17 @@ export default function DraftsPage() {
             if (res.ok) {
                 // 読めない行は落とす（1件の巻き添えで下書きが全部消えないように）
                 const all = usablePhotoRows<Photo>(await res.json(), "GET /user/photos");
-                setDrafts(all ? all.filter((p) => p.published === false) : []);
+                if (!all) {
+                    // **配列でない応答を「0件」に混ぜない。** このファイルの
+                    // 上のコメントが「失敗を『下書き0件』と同じ見た目にすると、
+                    // 保存した下書きが消えたように見える」と書いているとおり。
+                    // 同じ周に `user/edit` で同じ判断をしながら、ここを
+                    // 見落としていた
+                    log.error("drafts response is not an array");
+                    setLoadError(true);
+                    return;
+                }
+                setDrafts(all.filter((p) => p.published === false));
             } else {
                 log.error("drafts fetch failed", { status: res.status });
                 setLoadError(true);

@@ -123,3 +123,29 @@ describe("アップロードしたら残り枚数を減らす", () => {
         expect(await screen.findByText("あと2枚アップロードできます（100枚まで）")).toBeInTheDocument();
     });
 });
+
+// **枠はサーバーの数え方に合わせる。**
+//
+// 応答から読めない行を落とすようにしたとき、`usedSlots` もふるいの
+// あとの件数にしてしまった。ところがサーバーの `countUserPhotos` は
+// `Select: "COUNT"` で、`id` の無い行も**上限に数える**——「あと3枚」と
+// 出ているのに 403 になる（同じ上限を片方だけ守る、の型）。
+describe("読めない行があっても、枠の数え方はサーバーと同じ", () => {
+    it("落とした行も枠に数える", async () => {
+        mockUserFetch.mockResolvedValue({
+            ok: true,
+            json: async () => [...photos(97), null, { src: "id なし" }],
+        });
+        render(<UploadPage />);
+        // サーバーは99件と数えるので、残りは1枚
+        expect(await screen.findByText("あと1枚アップロードできます（100枚まで）"),
+            "ふるいのあとの件数で数えている（サーバーは 403 を返す）").toBeInTheDocument();
+    });
+
+    // 正常系: 全部読める応答は今までどおり
+    it("全部読める応答は今までどおり", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => photos(12) });
+        render(<UploadPage />);
+        expect(await screen.findByText("あと88枚アップロードできます（100枚まで）")).toBeInTheDocument();
+    });
+});

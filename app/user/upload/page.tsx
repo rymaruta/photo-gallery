@@ -267,9 +267,15 @@ function UploadPageInner() {
                 if (!res.ok) return;
                 // 読めない行は落とす（`collectOwnValues` は `for...of` で回すので、
                 // 1件の `null` で残り枚数の表示ごと消えていた）
-                const all = usablePhotoRows<Photo>(await res.json(), "GET /user/photos");
+                const raw = await res.json();
+                const all = usablePhotoRows<Photo>(raw, "GET /user/photos");
                 if (!aborted && all) {
-                    setUsedSlots(all.length);
+                    // **枠はサーバーの数え方に合わせる。** `countUserPhotos` は
+                    // `Select: "COUNT"` で、`id` の無い行も**上限に数える**。
+                    // ふるいを通したあとの件数で表示すると、「あと3枚」と出て
+                    // いるのに 403 になる（同じ上限を片方だけ守る、の型）。
+                    // 表示から落とすのと、枠を数えるのは別。
+                    setUsedSlots(Array.isArray(raw) ? raw.length : all.length);
                     // 同じ取得から入力候補も作る（追加の往復はしない）
                     setOwnValues(collectOwnValues(all));
                 }

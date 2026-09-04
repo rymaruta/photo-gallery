@@ -86,7 +86,7 @@ export default function NotificationsBell() {
             const data = await res.json() as { items?: Notif[]; unread?: number };
             if (mine !== fetchSeqRef.current) return;   // 追い越された。丸ごと捨てる
             // **読めない行は落としてから入れる。** ここはレイアウトに常駐
-            // しているので、描画中に落ちると**どのページを開いても**
+            // しているので、**開いたあとは**描画中に落ちるとどのページでも
             // `ErrorBoundary` のカードになる（60秒ごとに取り直すので
             // 「再試行」も効かない）
             setItems(usableRows<Notif>(data.items, "GET /user/notifications") ?? []);
