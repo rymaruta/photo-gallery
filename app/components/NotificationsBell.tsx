@@ -1,5 +1,6 @@
 "use client";
 
+import { usableRows } from "../../lib/utils/apiRows";
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -84,7 +85,11 @@ export default function NotificationsBell() {
             if (!res.ok) { if (mine === fetchSeqRef.current) setStatus("error"); return; }
             const data = await res.json() as { items?: Notif[]; unread?: number };
             if (mine !== fetchSeqRef.current) return;   // 追い越された。丸ごと捨てる
-            setItems(Array.isArray(data.items) ? data.items : []);
+            // **読めない行は落としてから入れる。** ここはレイアウトに常駐
+            // しているので、描画中に落ちると**どのページを開いても**
+            // `ErrorBoundary` のカードになる（60秒ごとに取り直すので
+            // 「再試行」も効かない）
+            setItems(usableRows<Notif>(data.items, "GET /user/notifications") ?? []);
             setUnread(readAt === readSeqRef.current && typeof data.unread === "number" ? data.unread : 0);
             setNow(Date.now());
             setStatus("ready");

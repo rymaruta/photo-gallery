@@ -250,10 +250,16 @@ function EditContent() {
                 if (res.ok) {
                     const all = await res.json() as Photo[];
                     if (aborted) return;
+                    // **配列だと確かめてから使う。** `collectOwnValues` は
+                    // `for...of` で回すので、`{}` が返ると投げる——下の
+                    // `Array.isArray` ガードの手前にあったため、
+                    // 「写真が見つかりません」ではなく「読み込みに失敗しました」
+                    // に落ちていた
+                    const rows = Array.isArray(all) ? all : null;
                     // 同じ取得から入力候補も作る（追加の往復はしない）。
                     // 候補が無いせいで同じ場所が別々の名前に散っていた。
-                    setOwnValues(collectOwnValues(all));
-                    const found = Array.isArray(all) ? all.find((p) => p.id === photoId) ?? null : null;
+                    if (rows) setOwnValues(collectOwnValues(rows));
+                    const found = rows ? rows.find((p) => p.id === photoId) ?? null : null;
                     if (found) {
                         setPhoto(found);
                         setOriginal(found);

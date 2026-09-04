@@ -1,3 +1,4 @@
+import { usableRows } from "../utils/apiRows";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { userPublicFetch, userFetch, isGoneResponse } from "../utils/api";
 import { log } from "../utils/log";
@@ -45,7 +46,7 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
                     const data = await res.json() as { items?: CommentItem[]; count?: number };
                     if (!aborted) {
                         listSeqRef.current++;
-                        setItems(Array.isArray(data.items) ? data.items : []);
+                        setItems(usableRows<CommentItem>(data.items, "GET /photos/{id}/comments") ?? []);
                         if (typeof data.count === "number") setCount(data.count);
                     }
                 } else if (!aborted) {
