@@ -1,6 +1,7 @@
 "use client";
 
 import { usablePhotoRows } from "../../lib/utils/apiRows";
+import { sanitizeProfile } from "../../lib/utils/profileShape";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Thumb from "../components/Thumb";
 import Link from "next/link";
@@ -385,8 +386,10 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     userPublicFetch(`/profile/${encodeURIComponent(userId)}`, { signal: controller.signal }),
                     getCurrentSession(),
                 ]);
-                if (profileRes.ok) {
-                    const prof = await profileRes.json() as UserProfile;
+                const prof = profileRes.ok
+                    ? sanitizeProfile<UserProfile>(await profileRes.json(), `GET /profile/<id>`)
+                    : null;
+                if (prof) {
                     setUserProfile(prof);
                     profileLoaded = true;
                 } else {

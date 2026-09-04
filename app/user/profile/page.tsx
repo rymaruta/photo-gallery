@@ -10,6 +10,7 @@ import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { userFetch, readApiError, AUTH_REQUIRED_MESSAGE } from "../../../lib/utils/api";
 import { changedFields } from "../../../lib/utils/changedFields";
+import { sanitizeProfile } from "../../../lib/utils/profileShape";
 import { parseMusicEmbed, musicServiceLabel, type SongResult } from "../../../lib/utils/music";
 import { toUploadSafeFile, AVATAR_MAX_PX, COVER_MAX_PX } from "../../../lib/utils/image";
 import { unstrippableMessage } from "../../../lib/utils/uploadRejection";
@@ -148,7 +149,17 @@ export default function ProfileEditPage() {
             try {
                 const res = await userFetch("/user/profile");
                 if (res.ok) {
-                    const data = await res.json() as UserProfile;
+                    // **形を確かめてから入れる。** `as UserProfile` は実行時に
+                    // 何も確かめないので、オブジェクトが入力欄に入って
+                    // `[object Object]` になり、保存で焼き付いていた。
+                    // 本文が `null` の 200 も、以前は `data.displayName` の
+                    // 例外を catch が拾って「読み込めませんでした」に
+                    // なっていた——同じ結果を、例外に頼らずに出す
+                    const data = sanitizeProfile<UserProfile>(await res.json(), "GET /user/profile");
+                    if (!data) {
+                        setLoadFailed(true);
+                        return;
+                    }
                     setProfile(data);
                     setDisplayName(data.displayName ?? "");
                     setBio(data.bio ?? "");
