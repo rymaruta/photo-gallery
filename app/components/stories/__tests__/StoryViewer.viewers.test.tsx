@@ -173,7 +173,14 @@ describe("閲覧者一覧: 取得の失敗", () => {
 
         const heading = screen.getByRole("heading", { name: /閲覧者/ });
         expect((heading.textContent ?? "").replace("閲覧者", "").trim(),
-            "失敗しているのに『取得中』のまま").not.toBe("…");
+            "失敗しているのに『取得中』のまま").toBe("");
+
+        // **ボタン側も見る。** 見出しだけを読んでいたので、ボタンの
+        // `viewersError` を消す変異が全12ファイル79件 全緑で素通りしていた
+        // （このリポジトリのどのテストもボタンの文字を読んでいなかった）
+        const button = screen.getByLabelText("閲覧者を見る");
+        expect(button.textContent ?? "", "ボタンが『取得中』のまま").not.toContain("...");
+        expect(button.textContent ?? "", "失敗しているのに人数を出している").not.toMatch(/\d/);
     });
 
     // 正常系: 本当に0人なら「まだ閲覧者はいません」（逆向きの混同を作らない）
@@ -198,6 +205,8 @@ describe("閲覧者一覧: 取得の失敗", () => {
 
         expect(await screen.findByText(/まだ閲覧者はいません/)).toBeInTheDocument();
         expect(screen.queryByText(/読み込めませんでした/)).toBeNull();
+        // ボタンは0人でも数字を出す（失敗と混ぜない・逆向き）
+        expect(screen.getByLabelText("閲覧者を見る").textContent ?? "").toContain("閲覧 0人");
     });
 });
 

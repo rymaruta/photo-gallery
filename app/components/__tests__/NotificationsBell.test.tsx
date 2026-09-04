@@ -205,7 +205,11 @@ describe("通知の取得に失敗したとき", () => {
     it("読めない行は落として、残りは出す", async () => {
         mockUserFetch.mockResolvedValue({
             ok: true,
-            json: async () => ({ items: [{ id: "n1", type: "like", byName: "たびこ", createdAt: "2026-09-01T00:00:00Z" }, null] }),
+            // 時刻は `t`（`createdAt` ではない）。このファイルの他の
+            // フィクスチャと同じ形にする——キーが `n.t` を含むので、
+            // 呼ぶたびに変わる値（`Date.now()`）を入れると再取得のたびに
+            // 行ごと作り直され、掴んだ要素が文書から外れる
+            json: async () => ({ items: [{ type: "like", photoId: "p9", photoSrc: "https://c/p9_thumb.webp", byName: "たびこ", t: "2026-09-01T00:00:00Z" }, null] }),
         });
         render(<NotificationsBell />);
         await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
