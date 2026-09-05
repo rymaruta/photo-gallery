@@ -138,6 +138,25 @@ describe("sessionStorage が使えないとき", () => {
         expect(reloads, "読めないのに走っている（次の読み込みでも同じ）").toBe(0);
     });
 
+    // **読めるが書けない端末も止める**（iOS Safari のプライベートモードの
+    // 古典的な形）。読みの守りが先に効くので、書き込み側の `return` は
+    // このファイルのどのテストでも通っていなかった——**戻しても全部緑**
+    // だった（レビューが変異で実測）。控えが残らない以上、次の読み込みでも
+    // やはり走る
+    it("読めるが書けない端末でも再読込しない", async () => {
+        const store: Record<string, string> = {};
+        const readOnly = {
+            getItem: (k: string) => store[k] ?? null,
+            setItem() { throw new DOMException("full", "QuotaExceededError"); },
+            removeItem() { }, clear() { }, key() { return null; }, length: 0,
+        };
+        original = Object.getOwnPropertyDescriptor(window, "sessionStorage");
+        Object.defineProperty(window, "sessionStorage", { configurable: true, get: () => readOnly });
+
+        for (let i = 0; i < 3; i++) await runWatchdog();
+        expect(reloads, "書けないのに毎回走っている").toBe(0);
+    });
+
     // 正常な端末では今までどおり1回だけ走る（諦める側に倒しすぎない）
     it("使える端末では今までどおり1回だけ走る", async () => {
         for (let i = 0; i < 5; i++) await runWatchdog();

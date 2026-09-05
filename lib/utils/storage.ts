@@ -25,7 +25,8 @@ export function storageSet<T>(key: string, value: T): boolean {
         localStorage.setItem(key, JSON.stringify(value));
         return true;
     } catch {
-        // Quota exceeded or private-browsing restriction — silently ignore.
+        // 容量超過・プライベートモードなど。**投げずに false を返す**
+        // ——呼び出し側が「書けたか」を見て次を決められるように
         return false;
     }
 }
