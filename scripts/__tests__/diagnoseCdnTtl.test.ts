@@ -9,11 +9,12 @@ import { join } from "node:path";
 // 4つがこの形だった）。ポリシーを引いて秒で出す。
 
 const require_ = createRequire(import.meta.url);
-const { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE } = require_("../diagnose-aws.js") as {
+const { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources } = require_("../diagnose-aws.js") as {
     describeBehavior: (b: Record<string, unknown>, p: Map<string, unknown>) => string;
     humanSeconds: (s: unknown) => string;
     residencyNote: () => string[];
     UPLOAD_MAX_AGE: number;
+    countInvalidationSources: (refs: string[]) => { total: number; fromLambda: number; latestLambda: string | null };
 };
 
 const OPTIMIZED = new Map([["p1", {
@@ -114,5 +115,35 @@ describe("残存期間の解釈（LEFT-4）", () => {
         const m = src.match(/CacheControl:\s*"max-age=(\d+)"/);
         expect(m, `${rel} に max-age の指定が無い（経路が変わった？）`).not.toBeNull();
         expect(Number(m![1]), "診断が言う秒数とアップロード側がずれている").toBe(UPLOAD_MAX_AGE);
+    });
+});
+
+// **`exclude: ['@aws-sdk/*']` なので SDK はバンドルされない。**
+// `@aws-sdk/client-cloudfront` が Lambda ランタイムに無ければ、
+// `invalidateUploads` は警告1行で静かに落ちる（＝削除しても掃除されない）。
+// 中からは分からないので、無効化の履歴を外から見て見分ける。
+describe("無効化を誰が作ったか（LEFT-4 の効き確認）", () => {
+    it("Lambda 由来（del-…）だけを数える", () => {
+        const out = countInvalidationSources([
+            "del-1757000000000-0-3",   // Lambda（削除・退会・ストーリー掃除）
+            "1757000000000-0",          // デプロイ（deploy-static-site.js）
+            "reheal-1757000000000",     // デプロイの 5xx 再無効化
+            "restrict-originals-1757",  // 保守スクリプト
+            "shrink-profiles-1757",     // 保守スクリプト
+        ]);
+        expect(out).toEqual({ total: 5, fromLambda: 1, latestLambda: "del-1757000000000-0-3" });
+    });
+
+    // **「まだ誰も消していない」と「動いていない」を混ぜない。**
+    // 0件は証拠にならない（この診断の出力もそう書く）
+    it("Lambda 由来が無ければ 0 と null（推測で埋めない）", () => {
+        expect(countInvalidationSources(["1757000000000-0"]))
+            .toEqual({ total: 1, fromLambda: 0, latestLambda: null });
+        expect(countInvalidationSources([])).toEqual({ total: 0, fromLambda: 0, latestLambda: null });
+    });
+
+    // 頭が `del-` の判定であること（`del` を含むだけの別物を拾わない）
+    it("頭が del- のものだけ（含むだけでは数えない）", () => {
+        expect(countInvalidationSources(["shrink-del-1", "xdel-2"]).fromLambda).toBe(0);
     });
 });

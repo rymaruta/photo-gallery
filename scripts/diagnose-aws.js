@@ -11,7 +11,7 @@
  */
 const { DynamoDBClient, DescribeTableCommand, ScanCommand } = require("@aws-sdk/client-dynamodb");
 const { CognitoIdentityProviderClient, DescribeUserPoolCommand, DescribeUserPoolClientCommand } = require("@aws-sdk/client-cognito-identity-provider");
-const { CloudFrontClient, GetDistributionConfigCommand, GetCachePolicyCommand } = require("@aws-sdk/client-cloudfront");
+const { CloudFrontClient, GetDistributionConfigCommand, GetCachePolicyCommand, ListInvalidationsCommand, GetInvalidationCommand } = require("@aws-sdk/client-cloudfront");
 const { LambdaClient, ListFunctionsCommand, GetAccountSettingsCommand } = require("@aws-sdk/client-lambda");
 const { requireEnv } = require("./lib/env");
 
@@ -182,6 +182,53 @@ function residencyNote() {
 }
 
 /**
+ * 無効化を**誰が作ったか**を数える（純関数）。
+ *
+ * **これが LEFT-4 の「本当に効いているか」の唯一の証拠。**
+ * `serverless.yml` は `exclude: ['@aws-sdk/*']` なので SDK はバンドルされず
+ * **Lambda ランタイム任せ**で、`@aws-sdk/client-cloudfront` が無ければ
+ * `invalidateUploads` は警告1行で静かに落ちる（＝削除しても掃除されない）。
+ * 中からは分からないので、**外から履歴を見る**。
+ *
+ * 見分け方は `CallerReference` の頭:
+ *   `del-…`  … Lambda（削除・退会・ストーリー掃除）。**これがあれば動いている**
+ *   それ以外 … デプロイ（`deploy-static-site.js` は `${Date.now()}-${i}` や
+ *              `reheal-…`）、`restrict-originals-…`、`shrink-profiles-…`
+ */
+function countInvalidationSources(refs) {
+    const fromLambda = refs.filter((r) => String(r).startsWith("del-"));
+    return { total: refs.length, fromLambda: fromLambda.length, latestLambda: fromLambda[0] ?? null };
+}
+
+/** 直近の無効化を読んで、Lambda 由来があるかを見る（LEFT-4 の効き確認） */
+async function invalidationHistory() {
+    head("CloudFront の無効化履歴（LEFT-4: 削除時の掃除が本当に効いているか）");
+    const distId = process.env.CLOUDFRONT_DISTRIBUTION_ID;
+    if (!distId) { line("  CLOUDFRONT_DISTRIBUTION_ID が未設定のため飛ばします"); return; }
+    const list = await cf.send(new ListInvalidationsCommand({ DistributionId: distId, MaxItems: 20 }));
+    const items = list.InvalidationList?.Items ?? [];
+    if (items.length === 0) { line("  無効化の履歴がありません"); return; }
+    // `ListInvalidations` は CallerReference を返さないので1件ずつ引く（読み取り）
+    const refs = [];
+    for (const it of items) {
+        try {
+            const got = await cf.send(new GetInvalidationCommand({ DistributionId: distId, Id: it.Id }));
+            refs.push(got.Invalidation?.InvalidationBatch?.CallerReference ?? "(不明)");
+        } catch (e) {
+            console.error(`  [invalidation ${it.Id}] 失敗: ${e.name}: ${e.message}`);
+        }
+    }
+    const { total, fromLambda, latestLambda } = countInvalidationSources(refs);
+    line(`  直近 ${total} 件のうち Lambda 由来（del-…）: ${fromLambda} 件`);
+    if (fromLambda > 0) {
+        line(`  → **削除時のエッジ掃除は本番で動いている**（最新: ${latestLambda}）`);
+    } else {
+        line("  → Lambda 由来は0件。**動いていないのか、まだ誰も消していないのかは これだけでは分からない**");
+        line("    （写真・ストーリーを1つ消してから、もう一度この診断を流すと分かる）");
+    }
+}
+
+/**
  * Lambda のロールと環境変数（IAM-1 / IAM-2 の当たり確認）。
  *
  * 直したのは設定ファイルなので、**実際に当たっているかは AWS を見ないと
@@ -330,7 +377,7 @@ async function users() {
 async function main() {
     PHOTOS_TABLE = requireEnv("PHOTOS_TABLE");
     line(`対象テーブル: ${PHOTOS_TABLE} / region: ${REGION}`);
-    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["cdnTtl", cdnTtl], ["lambdaRoles", lambdaRoles], ["concurrency", concurrency], ["users", users]]) {
+    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["cdnTtl", cdnTtl], ["invalidationHistory", invalidationHistory], ["lambdaRoles", lambdaRoles], ["concurrency", concurrency], ["users", users]]) {
         try {
             await fn();
         } catch (e) {
@@ -342,7 +389,7 @@ async function main() {
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
 
-module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE };
+module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
