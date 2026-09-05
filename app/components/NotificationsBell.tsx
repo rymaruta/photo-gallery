@@ -258,9 +258,18 @@ export default function NotificationsBell() {
                                                 >
                                                     <UserAvatar userId={String(n.byId || n.targetUserId)} className="w-10 h-10" iconClassName="w-5 h-5" />
                                                 </Link>
-                                            ) : (
+                                            ) : n.photoSrc ? (
                                                 // eslint-disable-next-line @next/next/no-img-element
                                                 <img src={n.photoSrc} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
+                                            ) : (
+                                                // **空の `src` を出さない。** 右端のサムネ（下）には
+                                                // `n.photoSrc &&` のガードがあるのに、ここだけ無かった。
+                                                // `<img src="">` は Chromium ではページを取り直さないが
+                                                // （実測）、灰色の四角が黙って残る。人型のアイコンに
+                                                // 落として「誰かからの通知」と分かる形にする
+                                                <span className="flex-shrink-0">
+                                                    <UserAvatar userId="" className="w-10 h-10" iconClassName="w-5 h-5" />
+                                                </span>
                                             )}
                                             {goesNowhere ? (
                                                 <div className="flex items-start gap-3 min-w-0 flex-1">{body}</div>

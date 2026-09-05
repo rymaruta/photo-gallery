@@ -3,7 +3,7 @@
 import { usableRows } from "../../../lib/utils/apiRows";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
-import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon, PhotoIcon } from "@heroicons/react/24/outline";
 import UserAvatar from "../UserAvatar";
 import type { StoryGroup, StoryViewer as ViewerEntry } from "@/lib/stories";
 import { timeAgo } from "@/lib/stories";
@@ -148,11 +148,22 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
 
     // 再生し直し用のカウンタ。進捗アニメーション/動画/BGM を最初から流し直す
     const [replay, setReplay] = useState(0);
+    // 写真そのものが取れなかったストーリー（削除・期限切れの掃除の直後、
+    // `uploads/` の 403 など）。**理由を出す**——`alt=""` の `<img>` は
+    // 失敗すると 0x0 に潰れるので、以前は真っ黒のまま表示秒数
+    // （最大15秒）待たされていた。動画側は `onError={goNext}` で飛ばすが、
+    // 画像は飛ばさない: 1枚しか無いストーリーだと開いた瞬間に閉じ、
+    // リングを押しても何も起きないように見える
+    const [mediaError, setMediaError] = useState(false);
     // BGM の頭出し判定用（「再生し直しで値が変わったか」を見る）
     const lastReplayRef = useRef(0);
     // 「今のストーリーが始まってからの経過」。左タップの挙動を切り替えるのに使う
     const startedAtRef = useRef(Date.now());
     useEffect(() => { startedAtRef.current = Date.now(); }, [item, replay]);
+    // **入るたびに下ろす。** 「止める印」を足したら「入るたびに下ろす」も
+    // 一緒に書く（台帳の型0の派生）——下ろさないと、1枚失敗しただけで
+    // 以降のストーリーが全部「読み込めません」になる
+    useEffect(() => { setMediaError(false); }, [item, replay]);
 
     /** 進捗バーを 0 に戻す（DOM 直書きなので state のリセットは無い） */
     const resetProgressBar = useCallback(() => {
@@ -402,6 +413,12 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         onEnded={goNext}
                         onError={goNext}
                     />
+                ) : mediaError ? (
+                    // 文言は写真ページ・モーダルと同じ（新しい言い回しを増やさない）
+                    <div className="flex flex-col items-center justify-center text-white/60 gap-2 px-6 text-center">
+                        <PhotoIcon className="w-10 h-10" />
+                        <p className="text-sm">{locale === "en" ? "Couldn't load image" : "画像を読み込めません"}</p>
+                    </div>
                 ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -410,6 +427,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         alt=""
                         className="block max-w-full max-h-full object-contain rounded-lg story-media-in"
                         draggable={false}
+                        onError={() => setMediaError(true)}
                     />
                 )}
             </div>

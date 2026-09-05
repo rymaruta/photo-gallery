@@ -289,6 +289,42 @@ describe("通知の取得に失敗したとき", () => {
 // それを読まず、**墓石になったプロフィールへのリンクを出し続けていた**
 // ——開いても何も無いページに誘うことになる。コメント欄
 // （CommentSection）は先に同じ扱いにしてある。
+// **空の `src` の `<img>` を出していた。**
+// 右端のサムネには `n.photoSrc &&` のガードがあるのに、左のアイコンの
+// 分岐（`byId` も `targetUserId` も無い古い通知）には無かった。
+// Chromium ではページを取り直さないが（実測）、灰色の四角が黙って残る。
+describe("写真も送り主も分からない通知", () => {
+    it("空の src を持つ img を出さない", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({
+            items: [{ type: "like", photoId: "p1", photoSrc: "", byName: "旅子", t: "2026-07-10T00:00:00Z" }],
+            unread: 0,
+        }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+
+        expect(await screen.findByText(/旅子/)).toBeInTheDocument();
+        const empty = Array.from(document.body.querySelectorAll("img"))
+            .filter((el) => !el.getAttribute("src"));
+        expect(empty, "src の空な img を出している").toHaveLength(0);
+    });
+
+    // 正常系: 写真があるときは今までどおりその写真を出す
+    it("写真があるときは出す", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({
+            items: [{ type: "like", photoId: "p1", photoSrc: "https://c/p1_thumb.webp", byName: "旅子", t: "2026-07-10T00:00:00Z" }],
+            unread: 0,
+        }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+
+        await screen.findByText(/旅子/);
+        expect(Array.from(document.body.querySelectorAll("img"))
+            .some((el) => el.getAttribute("src") === "https://c/p1_thumb.webp")).toBe(true);
+    });
+});
+
 describe("退会した人からの通知", () => {
     const GONE = [
         {
