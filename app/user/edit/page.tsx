@@ -212,6 +212,14 @@ function EditContent() {
     const [loadFailed, setLoadFailed] = useState(false);
     // 写真そのものが取れなかった（削除済み・403）。枠ごと消さないための印
     const [imageError, setImageError] = useState(false);
+    // **入るたびに下ろす。** 「止める印」を足したら「入るたびに下ろす」も
+    // 一緒に書く（台帳の型0の派生。`StoryViewer` の `mediaError` が手本）。
+    // この画面はクエリ（`?id=`）だけが変わる遷移でも作り直されないので、
+    // 下ろさないと**次に開いた正常な写真が「読み込めません」に固定**される。
+    // 一時的な失敗（電波の瞬断・機内モード）から回線が戻っても同じ。
+    // 見るのは実際に出す src——保存で写真が差し替わる経路にも効く
+    const shownSrc = photo?.thumbSrc || photo?.src;
+    useEffect(() => { setImageError(false); }, [shownSrc]);
     // 読み込んだ元データ。編集欄に出していない項目（英語のタイトル・説明、
     // 撮影日の時刻）を保存時に失わないために持っておく。
     const [original, setOriginal] = useState<Photo | null>(null);
@@ -491,10 +499,12 @@ function EditContent() {
                 {photo.src && (
                     // **取れなかったときに枠ごと消えないようにする。**
                     // `w-full max-h-64 object-contain` は高さを予約しないので、
-                    // 画像が 403/404 になると **358x0 に潰れる**（Chromium 実測:
-                    // 成功 358x256 → 失敗 358x0）。編集画面から「どの写真を
-                    // 触っているか」の手がかりが消える。文言は写真ページ・
-                    // モーダル・ストーリーと同じ
+                    // 画像が 403/404 になると**高さが 0 に潰れる**（Chromium 実測・
+                    // 390x844: 成功 358x256 → 失敗 358x0。`alt=""` の失敗画像は
+                    // 何も表さないので、幅が残るかは周りの指定で変わる——
+                    // 高さが 0 になる方は `w-full` の有無に関わらず同じだった）。
+                    // 編集画面から「どの写真を触っているか」の手がかりが消える。
+                    // 文言は写真ページ・モーダル・ストーリーと同じ
                     imageError ? (
                         <div className="w-full h-40 flex flex-col items-center justify-center gap-2 rounded-lg mb-3 bg-white/5 text-white/50">
                             <PhotoIcon className="w-8 h-8" />

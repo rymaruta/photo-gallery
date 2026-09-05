@@ -45,6 +45,10 @@ function AdminEditContent() {
     const [loadingPhoto, setLoadingPhoto] = useState(true);
     // 写真そのものが取れなかった（削除済み・403）。枠ごと消さないための印
     const [imageError, setImageError] = useState(false);
+    // **入るたびに下ろす**（`app/user/edit` と同じ理由。台帳の型0の派生）。
+    // クエリ（`?id=`）だけが変わる遷移では作り直されないので、下ろさないと
+    // 次に開いた正常な写真が「読み込めません」に固定される
+    useEffect(() => { setImageError(false); }, [photo?.src]);
     const [saving, setSaving] = useState(false);
 
     // Basic
@@ -331,10 +335,12 @@ function AdminEditContent() {
                 {photo.src && (
                     // **取れなかったときに枠ごと消えないようにする。**
                     // `w-full max-h-64 object-contain` は高さを予約しないので、
-                    // 画像が 403/404 になると **358x0 に潰れる**（Chromium 実測:
-                    // 成功 358x256 → 失敗 358x0）。編集画面から「どの写真を
-                    // 触っているか」の手がかりが消える。文言は写真ページ・
-                    // モーダル・ストーリーと同じ
+                    // 画像が 403/404 になると**高さが 0 に潰れる**（Chromium 実測・
+                    // 390x844: 成功 358x256 → 失敗 358x0。`alt=""` の失敗画像は
+                    // 何も表さないので、幅が残るかは周りの指定で変わる——
+                    // 高さが 0 になる方は `w-full` の有無に関わらず同じだった）。
+                    // 編集画面から「どの写真を触っているか」の手がかりが消える。
+                    // 文言は写真ページ・モーダル・ストーリーと同じ
                     imageError ? (
                         <div className="w-full h-40 flex flex-col items-center justify-center gap-2 rounded-lg mb-6 bg-white/5 text-white/50">
                             <PhotoIcon className="w-8 h-8" />
