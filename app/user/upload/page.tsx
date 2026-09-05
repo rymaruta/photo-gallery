@@ -12,7 +12,7 @@ import { log } from "../../../lib/utils/log";
 import { getCurrentSession } from "../../../lib/auth/cognito";
 import { createThumbnail, toUploadSafeFile, UnstrippableFileError, extractDominantColor, createBlurPlaceholder, AVATAR_MAX_PX } from "../../../lib/utils/image";
 import { extractExifFromFile, extractCameraExif, reverseGeocode } from "../../../lib/utils/exif";
-import { readSharedPayload, clearSharedPayload } from "../../../lib/utils/shareStore";
+import { readSharedResult, clearSharedPayload } from "../../../lib/utils/shareStore";
 import { ROUTES } from "../../../lib/routes";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
@@ -227,9 +227,19 @@ function UploadPageInner() {
     }, [applyGpsAutofill]);
     const toggleGpsAutofill = useCallback(() => {
         const next = !gpsAutofillRef.current;
-        try { localStorage.setItem("jp_gps_autofill", next ? "1" : "0"); } catch { /* ignore */ }
+        let saved = true;
+        try { localStorage.setItem("jp_gps_autofill", next ? "1" : "0"); } catch { saved = false; }
+        // **この画面では効かせる**（切ったのに埋まる方が悪い）。ただし
+        // 保存できていないことは言う——黙っていると、次に開いたときは
+        // 既定のオンに戻り、**切ったつもりの人の写真から撮影地が入って
+        // 公開される**（容量が足りない端末・プライベートモードで起きる）
         applyGpsAutofill(next);
-    }, [applyGpsAutofill]);
+        if (!saved && !next) {
+            showToast(locale === "en"
+                ? "Turned off for now, but this device can't remember it — check it again next time."
+                : "今回はオフにしました。ただしこの端末に記憶できないので、次に開いたときは入り直します。", "error");
+        }
+    }, [applyGpsAutofill, showToast, locale]);
 
     // アンマウント時の Object URL 解放用に最新の items を ref で保持
     // （useEffect([]) のクロージャは初期の空配列しか見えないため）
@@ -330,7 +340,22 @@ function UploadPageInner() {
         if (loading || !isAuthenticated || shareImportedRef.current) return;
         shareImportedRef.current = true;
         void (async () => {
-            const payload = await readSharedPayload();
+            const res = await readSharedResult();
+            // **受け皿を開けなかったときは黙らない。** 共有シートから送ると
+            // Service Worker がここへ飛ばすので、利用者は「送ったのに写真が
+            // 入っていない」画面を見る。IndexedDB が使えない端末
+            // （プライベートモード・ストレージ拒否）では毎回これになる。
+            // **`?from=share` で来たときだけ**言う——取り込んだ後に
+            // リロードすると受け皿は空なので、それを失敗と呼ばない
+            if (!res.ok) {
+                if (fromShare) {
+                    showToast(locale === "en"
+                        ? "Couldn't read the shared photos on this device. Please pick them from the button below."
+                        : "共有された写真をこの端末から読み取れませんでした。下のボタンから選んでください。", "error");
+                }
+                return;
+            }
+            const payload = res.payload;
             if (!payload) return;
             // 空のペイロード（共有シートがファイル無しで来た）も捨てる。
             // 残すと IndexedDB に居座り続ける（他の分岐は必ず消している）。

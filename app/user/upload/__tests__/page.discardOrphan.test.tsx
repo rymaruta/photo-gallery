@@ -25,6 +25,8 @@ vi.mock("../../../components/AddToHomeScreenHint", () => ({ default: () => null 
 vi.mock("../../../../lib/auth/cognito", () => ({ getCurrentSession: vi.fn(async () => null) }));
 vi.mock("../../../../lib/utils/shareStore", () => ({
     readSharedPayload: mockReadSharedPayload,
+    // 「読めた／読めなかった」を分ける口。既存のモックから組み立てる
+    readSharedResult: async () => ({ ok: true, payload: await mockReadSharedPayload() }),
     clearSharedPayload: vi.fn(async () => undefined),
 }));
 vi.mock("../../../../lib/utils/exif", () => ({
