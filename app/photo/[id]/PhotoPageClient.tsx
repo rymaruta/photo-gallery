@@ -32,6 +32,7 @@ import { isImageReady } from "../../../lib/utils/imageReady";
 import { formatStoredDateTime } from "@/lib/utils/photoDate";
 import { isImeKey } from "../../../lib/utils/ime";
 import { useSongSearch } from "../../../lib/hooks/useSongSearch";
+import { usablePhotoRows } from "../../../lib/utils/apiRows";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -66,6 +67,8 @@ function PhotoImage({
     focalPoint,
     blurDataURL,
     srcAvif,
+    width,
+    height,
     extractExif = false,
     onExifLoaded
 }: {
@@ -74,6 +77,9 @@ function PhotoImage({
     focalPoint?: { x: number; y: number };
     blurDataURL?: string;
     srcAvif?: string;
+    // 実寸（`generate-thumbnails.js` が書く）。**無ければ何も名乗らない**
+    width?: number;
+    height?: number;
     // データ側 exif が無い写真だけ true。画像から EXIF をクライアント抽出する
     extractExif?: boolean;
     onExifLoaded?: (exif: ExtractedExif | null) => void;
@@ -161,8 +167,31 @@ function PhotoImage({
                     <img
                         src={src}
                         alt={alt}
-                        width={1200}
-                        height={800}
+                        // **実寸が分かるときだけ名乗る。** 以前は全写真が
+                        // `1200x800`（3:2）を名乗っていたので、縦位置の写真は
+                        // 読み込み後に高さが伸びて下の情報がガタつく。
+                        //
+                        // Chromium 実測（390x844・画像を500ms遅延・この関数の
+                        // 入れ子を素の CSS で再現して layout-shift を読む）:
+                        //
+                        //                    旧1200x800  属性なし  実寸
+                        //   縦 1000x1500        0.188     0.073   0.000
+                        //   横 3000x2000        0.000     0.000   0.000
+                        //   正方 1000x1000      0.036     0.000   0.000
+                        //   超縦長 1000x2500    0.315     0.108   0.000
+                        //
+                        // **数値は測り方（画面幅・遅延・入れ物の再現度）で動く**
+                        // ——外側の `min-height:400px` を落とすと符号ごと変わる。
+                        // 動かないのは並び順の方で、どの形でも
+                        // 「属性なし ≤ 旧」「実寸は 0」。
+                        //
+                        // 同じ「1200x800 の嘘」は OGP 側では既に直してある
+                        // （`usersMetadata.test.ts`「実寸を知らないのに
+                        // 1200x800 を名乗っている」）のに、`<img>` に残っていた。
+                        // 実寸を持つ写真はまだ少ない（`generate-thumbnails.js`
+                        // が書く。コミット済みの `photos.json` 30枚では0件）ので、
+                        // **無いときは属性ごと出さない**
+                        {...(width && height ? { width, height } : {})}
                         draggable={false}
                         onContextMenu={(e) => e.preventDefault()}
                         fetchPriority="high"
@@ -214,11 +243,16 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                 const { publicFetch } = await import("../../../lib/utils/api");
                 const response = await publicFetch("/photos", { signal: controller.signal });
                 if (response.ok) {
-                    const data = await response.json();
+                    // **読めない行は落としてから入れる。** ここは
+                    // `relatedSections` / `adjacentPhotos` / `find(p => p.id)` に
+                    // そのまま渡るので、1件の `null` でページ全体が
+                    // `ErrorBoundary` のカードになる（`usePhotos` と同じ
+                    // エンドポイント・同じ壊れ方）
+                    const data = usablePhotoRows<Photo>(await response.json(), "GET /photos") ?? [];
                     // 空配列で静的ビルド時のデータを潰さない。潰すと、いま表示できて
                     // いる写真が「写真が見つかりません」に化ける（usePhotos.ts にも
                     // 同じガードがある）。
-                    if (Array.isArray(data) && data.length > 0) {
+                    if (data.length > 0) {
                         setAllPhotos(data);
                         setFetchFailed(false);
                     } else {
@@ -582,6 +616,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     focalPoint={photo.focalPoint}
                     blurDataURL={photo.blurDataURL}
                     srcAvif={photo.srcAvif}
+                    width={photo.width}
+                    height={photo.height}
                     extractExif={!hasStoredExif(photo.exif)}
                     onExifLoaded={setExtractedExif}
                 />

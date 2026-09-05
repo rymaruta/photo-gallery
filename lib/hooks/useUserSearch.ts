@@ -1,5 +1,6 @@
 "use client";
 
+import { usableRows } from "../utils/apiRows";
 import { useEffect, useState } from "react";
 import { userPublicFetch } from "../utils/api";
 import { log } from "../utils/log";
@@ -61,7 +62,18 @@ export function useUserSearch(query: string): { users: UserHit[]; loading: boole
                     if (!res.ok) throw new Error(String(res.status));
                     const data = await res.json() as { users?: UserHit[] };
                     if (!aborted) {
-                        setUsers(Array.isArray(data.users) ? data.users : []);
+                        const rows = usableRows<UserHit>(data.users, "GET /users/search");
+                        if (!rows) {
+                            // **配列でない応答を「見つかりませんでした」に
+                            // しない。** 上のコメントが「『見つからなかった』と
+                            // 『聞けなかった』を分ける」と書いているとおり。
+                            // `?? []` にしていたので、`failed` が立たないまま
+                            // 「その人は登録していない」と読める文言が出ていた
+                            setUsers([]);
+                            setFailed(true);
+                            return;
+                        }
+                        setUsers(rows);
                         setFailed(false);
                     }
                 } catch (e) {

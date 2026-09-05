@@ -1,6 +1,7 @@
 // lib/hooks/usePhotos.ts
 // 写真一覧をAPIから取得する共通フック（AbortController対応）
 
+import { usablePhotoRows } from "../utils/apiRows";
 import { useState, useEffect } from "react";
 import type { Photo } from "../data/photos";
 import BASE_PHOTOS_JSON from "@/app/data/photos.json";
@@ -37,9 +38,13 @@ export function usePhotos() {
                     signal: controller.signal,
                 });
                 if (response.ok) {
-                    const data = await response.json() as Photo[];
+                    // **読めない行は落としてから入れる。** 以前は
+                    // `Array.isArray` までしか見ておらず、100件中1件が
+                    // `null` なだけで描画中に落ち、ページ全体が
+                    // `ErrorBoundary` のカードになった（実測で確認）
+                    const data = usablePhotoRows<Photo>(await response.json(), "GET /photos");
                     // APIが空配列を返した場合はBASE_PHOTOSを維持する
-                    if (Array.isArray(data) && data.length > 0) {
+                    if (data && data.length > 0) {
                         setPhotos(data);
                     }
                     // **`loaded` は「届いたか」だけを言う。中身の有無ではない。**
@@ -55,7 +60,7 @@ export function usePhotos() {
                     //
                     // 表示する中身は変えない（空で `BASE_PHOTOS` を潰さない）。
                     // 変えるのは「聞けて、答えが返った」を記録するかどうかだけ。
-                    if (Array.isArray(data)) setLoaded(true);
+                    if (data) setLoaded(true);
                 } else {
                     log.warn("写真の取得に失敗しました", { status: response.status });
                 }

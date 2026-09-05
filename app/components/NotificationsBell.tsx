@@ -1,5 +1,6 @@
 "use client";
 
+import { usableRows } from "../../lib/utils/apiRows";
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -84,7 +85,20 @@ export default function NotificationsBell() {
             if (!res.ok) { if (mine === fetchSeqRef.current) setStatus("error"); return; }
             const data = await res.json() as { items?: Notif[]; unread?: number };
             if (mine !== fetchSeqRef.current) return;   // 追い越された。丸ごと捨てる
-            setItems(Array.isArray(data.items) ? data.items : []);
+            // **読めない行は落としてから入れる。** ここはレイアウトに常駐
+            // しているので、**開いたあとは**描画中に落ちるとどのページでも
+            // `ErrorBoundary` のカードになる（60秒ごとに取り直すので
+            // 「再試行」も効かない）
+            const rows = usableRows<Notif>(data.items, "GET /user/notifications");
+            if (!rows) {
+                // **配列でない応答を「まだ通知はありません」にしない。**
+                // 上の `status` のコメントが「『まだ』『0件』『取れなかった』を
+                // 分ける」と書いているとおり。`?? []` にしていたので、
+                // 届いている通知が無いように見えていた
+                setStatus("error");
+                return;
+            }
+            setItems(rows);
             setUnread(readAt === readSeqRef.current && typeof data.unread === "number" ? data.unread : 0);
             setNow(Date.now());
             setStatus("ready");
@@ -244,9 +258,18 @@ export default function NotificationsBell() {
                                                 >
                                                     <UserAvatar userId={String(n.byId || n.targetUserId)} className="w-10 h-10" iconClassName="w-5 h-5" />
                                                 </Link>
-                                            ) : (
+                                            ) : n.photoSrc ? (
                                                 // eslint-disable-next-line @next/next/no-img-element
                                                 <img src={n.photoSrc} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
+                                            ) : (
+                                                // **空の `src` を出さない。** 右端のサムネ（下）には
+                                                // `n.photoSrc &&` のガードがあるのに、ここだけ無かった。
+                                                // `<img src="">` は Chromium ではページを取り直さないが
+                                                // （実測）、灰色の四角が黙って残る。人型のアイコンに
+                                                // 落として「誰かからの通知」と分かる形にする
+                                                <span className="flex-shrink-0">
+                                                    <UserAvatar userId="" className="w-10 h-10" iconClassName="w-5 h-5" />
+                                                </span>
                                             )}
                                             {goesNowhere ? (
                                                 <div className="flex items-start gap-3 min-w-0 flex-1">{body}</div>

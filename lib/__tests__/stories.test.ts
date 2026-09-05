@@ -94,3 +94,44 @@ describe("hasUnseen", () => {
         expect(hasUnseen(group, new Set(["s1", "s2"]))).toBe(false);
     });
 });
+
+// **1件に `createdAt` が無いだけで、全員ぶんのストーリーが消えていた。**
+//
+// `valid` の判定が `src` / `userId` / `expiresAt` しか見ておらず、
+// そのあとの `items.sort((a,b) => a.createdAt.localeCompare(...))` が
+// 無防備だった——`TypeError` になり、`StoriesBar` の catch が拾って
+// バーが「読み込めませんでした」だけになる。
+// **サーバー側の同じ並べ替え**（`api-user/src/stories.ts`）は
+// `String(a.createdAt ?? "")` で守っており、クライアントだけ素のままだった。
+describe("createdAt が読めない行", () => {
+    const ok = (id: string, userId: string, createdAt: string) => ({
+        id, userId, src: `https://cdn/${id}.jpg`, createdAt,
+        expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+    });
+
+    it.each([
+        ["欠落", undefined],
+        ["数値", 1234567890],
+        ["null", null],
+    ])("%s でも、他のストーリーは残る", (_name, bad) => {
+        const broken = { ...ok("s2", "u1", "x"), createdAt: bad } as unknown as Parameters<typeof groupStories>[0][number];
+        const groups = groupStories([ok("s1", "u1", "2026-09-01T00:00:00Z"), broken], null);
+        expect(groups, "全員ぶんが消えている").toHaveLength(1);
+        expect(groups[0].items.map((i) => i.id)).toEqual(["s1"]);
+    });
+
+    it("投稿者が2人いても、壊れた側だけ落ちる", () => {
+        const broken = { ...ok("s9", "u2", "x"), createdAt: undefined } as unknown as Parameters<typeof groupStories>[0][number];
+        const groups = groupStories([ok("s1", "u1", "2026-09-01T00:00:00Z"), broken], null);
+        expect(groups.map((g) => g.userId)).toEqual(["u1"]);
+    });
+
+    // 正常系: 全部読めるなら1件も落とさない
+    it("読める行はそのまま並ぶ", () => {
+        const groups = groupStories([
+            ok("s1", "u1", "2026-09-01T00:00:00Z"),
+            ok("s2", "u1", "2026-09-02T00:00:00Z"),
+        ], null);
+        expect(groups[0].items.map((i) => i.id)).toEqual(["s1", "s2"]);
+    });
+});

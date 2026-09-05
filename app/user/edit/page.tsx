@@ -1,5 +1,6 @@
 "use client";
 
+import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useBottomBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -7,7 +8,7 @@ import Link from "next/link";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
-import { ArrowLeftIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, PhotoIcon } from "@heroicons/react/24/outline";
 import type { Photo, LocalizedParagraphs } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
@@ -209,6 +210,16 @@ function EditContent() {
     const [loadingPhoto, setLoadingPhoto] = useState(true);
     // 読み込みに失敗したか。トーストは数秒で消えるので、画面にも残す。
     const [loadFailed, setLoadFailed] = useState(false);
+    // 写真そのものが取れなかった（削除済み・403）。枠ごと消さないための印
+    const [imageError, setImageError] = useState(false);
+    // **入るたびに下ろす。** 「止める印」を足したら「入るたびに下ろす」も
+    // 一緒に書く（台帳の型0の派生。`StoryViewer` の `mediaError` が手本）。
+    // この画面はクエリ（`?id=`）だけが変わる遷移でも作り直されないので、
+    // 下ろさないと**次に開いた正常な写真が「読み込めません」に固定**される。
+    // 一時的な失敗（電波の瞬断・機内モード）から回線が戻っても同じ。
+    // 見るのは実際に出す src——保存で写真が差し替わる経路にも効く
+    const shownSrc = photo?.thumbSrc || photo?.src;
+    useEffect(() => { setImageError(false); }, [shownSrc]);
     // 読み込んだ元データ。編集欄に出していない項目（英語のタイトル・説明、
     // 撮影日の時刻）を保存時に失わないために持っておく。
     const [original, setOriginal] = useState<Photo | null>(null);
@@ -250,10 +261,26 @@ function EditContent() {
                 if (res.ok) {
                     const all = await res.json() as Photo[];
                     if (aborted) return;
+                    // **配列だと確かめてから使う。** `collectOwnValues` は
+                    // `for...of` で回すので、`{}` が返ると投げる（ガードの
+                    // 手前で呼んでいた）。読めない行も落とす——1件の巻き添えで
+                    // 編集画面が開かなくなるのを防ぐ。
+                    const rows = usablePhotoRows<Photo>(all, "GET /user/photos");
+                    if (!rows) {
+                        // **「配列でない」から「写真が無い」は言えない。**
+                        // 一度ここを `found = null` に流して、下の
+                        // 「写真が見つかりません」＋下書き一覧への `replace`
+                        // に落としてしまった——取得の失敗なのに**存在しない**と
+                        // 言い切り、しかも画面から追い出す（`replace` なので
+                        // 戻れない）。取得の失敗は失敗として出す。
+                        showToastRef.current(isJa ? "読み込みに失敗しました" : "Failed to load", "error");
+                        setLoadFailed(true);
+                        return;
+                    }
                     // 同じ取得から入力候補も作る（追加の往復はしない）。
                     // 候補が無いせいで同じ場所が別々の名前に散っていた。
-                    setOwnValues(collectOwnValues(all));
-                    const found = Array.isArray(all) ? all.find((p) => p.id === photoId) ?? null : null;
+                    setOwnValues(collectOwnValues(rows));
+                    const found = rows.find((p) => p.id === photoId) ?? null;
                     if (found) {
                         setPhoto(found);
                         setOriginal(found);
@@ -470,12 +497,28 @@ function EditContent() {
                 </div>
 
                 {photo.src && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                        src={photo.thumbSrc || photo.src}
-                        alt=""
-                        className="w-full max-h-64 object-contain rounded-lg mb-3 bg-white/5"
-                    />
+                    // **取れなかったときに枠ごと消えないようにする。**
+                    // `w-full max-h-64 object-contain` は高さを予約しないので、
+                    // 画像が 403/404 になると**高さが 0 に潰れる**（Chromium 実測・
+                    // 390x844: 成功 358x256 → 失敗 358x0。`alt=""` の失敗画像は
+                    // 何も表さないので、幅が残るかは周りの指定で変わる——
+                    // 高さが 0 になる方は `w-full` の有無に関わらず同じだった）。
+                    // 編集画面から「どの写真を触っているか」の手がかりが消える。
+                    // 文言は写真ページ・モーダル・ストーリーと同じ
+                    imageError ? (
+                        <div className="w-full h-40 flex flex-col items-center justify-center gap-2 rounded-lg mb-3 bg-white/5 text-white/50">
+                            <PhotoIcon className="w-8 h-8" />
+                            <p className="text-xs">{isJa ? "画像を読み込めません" : "Couldn't load image"}</p>
+                        </div>
+                    ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                            src={photo.thumbSrc || photo.src}
+                            alt=""
+                            className="w-full max-h-64 object-contain rounded-lg mb-3 bg-white/5"
+                            onError={() => setImageError(true)}
+                        />
+                    )
                 )}
                 {exifSummary && (
                     <p className="text-xs text-white/40 mb-6">{isJa ? "撮影情報（自動）: " : "EXIF (auto): "}{exifSummary}</p>

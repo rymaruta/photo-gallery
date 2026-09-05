@@ -1,3 +1,4 @@
+import { usableRows } from "../utils/apiRows";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { userPublicFetch, userFetch, isGoneResponse } from "../utils/api";
 import { log } from "../utils/log";
@@ -44,8 +45,17 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
                 if (res.ok) {
                     const data = await res.json() as { items?: CommentItem[]; count?: number };
                     if (!aborted) {
+                        const rows = usableRows<CommentItem>(data.items, "GET /photos/{id}/comments");
+                        if (!rows) {
+                            // **配列でない応答を「まだコメントがありません」に
+                            // しない。** `count` はサーバー値がそのまま入るので、
+                            // 見出し「コメント 3」＋本文「まだコメントがありません」
+                            // という矛盾した画面になっていた
+                            setLoadError(true);
+                            return;
+                        }
                         listSeqRef.current++;
-                        setItems(Array.isArray(data.items) ? data.items : []);
+                        setItems(rows);
                         if (typeof data.count === "number") setCount(data.count);
                     }
                 } else if (!aborted) {

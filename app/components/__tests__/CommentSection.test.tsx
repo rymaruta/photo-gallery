@@ -280,3 +280,29 @@ describe("CommentSection: 変換中の送信", () => {
         expect(mockUserFetch).not.toHaveBeenCalled();
     });
 });
+
+// **200 だが本文の形がおかしいとき、矛盾した画面になっていた。**
+//
+// 行のふるいを足したとき `?? []` にしたので、`items` が配列でなくても
+// `count` はサーバー値がそのまま入る——見出し「コメント 3」＋本文
+// 「まだコメントがありません。最初のひとことを。」が同時に出る。
+// `loadError` の分岐は既にあるのに通っていなかった。
+describe("CommentSection: 応答の形がおかしいとき", () => {
+    it.each([
+        ["items が配列でない", { items: { a: 1 }, count: 3 }],
+        ["items が無い", { count: 3 }],
+    ])("%s なら『まだコメントがありません』と混ぜない", async (_name, body) => {
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => body });
+        render(<CommentSection photoId="p1" locale="ja" />);
+        expect(await screen.findByText(/読み込めませんでした|失敗/),
+            "0件と同じ見た目になっている").toBeInTheDocument();
+        expect(screen.queryByText(/まだコメントがありません/)).toBeNull();
+    });
+
+    // 正常系: 本当に0件なら今までどおり
+    it("本当に0件なら『まだコメントがありません』", async () => {
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ items: [], count: 0 }) });
+        render(<CommentSection photoId="p1" locale="ja" />);
+        expect(await screen.findByText(/まだコメントがありません/)).toBeInTheDocument();
+    });
+});

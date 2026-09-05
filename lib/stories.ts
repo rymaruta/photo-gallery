@@ -36,6 +36,13 @@ export function groupStories(stories: Story[], ownUserId?: string | null, now: n
     const valid = stories.filter((s) =>
         s && typeof s.src === "string" && s.src &&
         typeof s.userId === "string" && s.userId &&
+        // **`createdAt` もここで見る。** 下の並べ替えが
+        // `a.createdAt.localeCompare(...)` を無防備に呼ぶので、1件でも
+        // 欠けていると**全員ぶんのストーリーが消える**（バーが
+        // 「読み込めませんでした」だけになる）。サーバー側の同じ並べ替え
+        // （`api-user/src/stories.ts`）は `String(a.createdAt ?? "")` で
+        // 守っており、クライアントだけ素のままだった（対の乖離）
+        typeof s.createdAt === "string" && s.createdAt &&
         typeof s.expiresAt === "string" && Date.parse(s.expiresAt) > now,
     );
 

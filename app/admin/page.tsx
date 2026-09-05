@@ -1,5 +1,6 @@
 "use client";
 
+import { usablePhotoRows } from "../../lib/utils/apiRows";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -78,10 +79,17 @@ export default function AdminPage() {
                 // で、そちらが毎回 `compareAdmin` で並べ直す（`photos` は
                 // 総数の表示にしか使わない）。取得時に別の規則で並べても
                 // 一度も画面に届かないうえ、規則が2つあるように読める。
-                // 配列に展開するのは残す——配列でない応答をここで投げて
-                // 「読み込めませんでした」に落とすため（描画中に投げると
-                // 画面ごと落ちる）
-                setPhotos([...data]);
+                // **読めない行は落としてから入れる。** 配列に展開するのは
+                // 「配列でない応答をここで投げて『読み込めませんでした』に
+                // 落とす」ためだったが、**中身が壊れている行は素通り**して
+                // いた——`selectVisiblePhotos` の `p.published` /
+                // `photoSearchText(p)` は描画中に読むので、1件の `null` で
+                // 管理画面ごと `ErrorBoundary` のカードになる。
+                // 配列でなければ `usablePhotoRows` が `null` を返すので、
+                // これまでどおり「読み込めませんでした」に落ちる。
+                const rows = usablePhotoRows<Photo>(data, "GET /admin/photos");
+                if (!rows) throw new Error("photos response is not an array");
+                setPhotos(rows);
                 if (isMountedRef.current) setLoadError(false);
             } else {
                 log.error("写真の取得に失敗しました", {

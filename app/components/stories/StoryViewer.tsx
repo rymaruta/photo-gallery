@@ -1,8 +1,9 @@
 "use client";
 
+import { usableRows } from "../../../lib/utils/apiRows";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
-import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon, PhotoIcon } from "@heroicons/react/24/outline";
 import UserAvatar from "../UserAvatar";
 import type { StoryGroup, StoryViewer as ViewerEntry } from "@/lib/stories";
 import { timeAgo } from "@/lib/stories";
@@ -116,7 +117,20 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 if (res.ok) {
                     const data = await res.json() as { viewers?: ViewerEntry[] };
                     if (aborted) return;
-                    setViewers(Array.isArray(data.viewers) ? data.viewers : []);
+                    const rows = usableRows<ViewerEntry>(data.viewers, "GET /stories/{id}/viewers");
+                    if (!rows) {
+                        // **配列でない応答を「まだ閲覧者はいません」にしない**
+                        // （下の else と同じ SW-b8）。`?? []` にしていたので
+                        // 0人と同じ見た目になっていた。`viewers` は `null` の
+                        // まま。**「取得中（…）」との区別は `viewersError` に持たせた**
+                        // （数字を出す2か所が読む。記号には差し替えない——下を見よ）
+                        // ——一度「`viewersError` が持つ」と書いたが、その時点では
+                        // 数字を出す2か所が `viewersError` を読んでおらず、
+                        // 失敗しても "…" のままだった（コメントだけが嘘をついていた）
+                        setViewersError(true);
+                        return;
+                    }
+                    setViewers(rows);
                     setViewersError(false);
                 } else {
                     // 失敗を「まだ閲覧者はいません」と混ぜない（SW-b8）
@@ -134,11 +148,32 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
 
     // 再生し直し用のカウンタ。進捗アニメーション/動画/BGM を最初から流し直す
     const [replay, setReplay] = useState(0);
+    // 写真そのものが取れなかったストーリー（削除・期限切れの掃除の直後、
+    // `uploads/` の 403 など）。**理由を出す**——`alt=""` の `<img>` は
+    // 失敗すると 0x0 に潰れるので、以前は真っ黒のまま表示秒数
+    // （最大15秒）待たされていた。
+    //
+    // **動画と扱いが違うのは、時間切れが来るかどうかが違うから。**
+    // 動画の進捗バーは `v.duration` が有限のときだけ書く（上の rAF）ので、
+    // 読み込めなかった動画は NaN のままバーが1ミリも進まず `onEnded` も
+    // 来ない——`onError={goNext}` を外すと**永久に固まる**。画像の進捗は
+    // 画像と無関係な CSS アニメーション（`onAnimationEnd={goNext}`）なので、
+    // 理由を出して待たせても必ず次へ進む。だから画像は飛ばさない
+    // （飛ばすと、1枚しか無い人のリングが「押しても無反応」に見える）。
+    const [mediaError, setMediaError] = useState(false);
     // BGM の頭出し判定用（「再生し直しで値が変わったか」を見る）
     const lastReplayRef = useRef(0);
     // 「今のストーリーが始まってからの経過」。左タップの挙動を切り替えるのに使う
     const startedAtRef = useRef(Date.now());
     useEffect(() => { startedAtRef.current = Date.now(); }, [item, replay]);
+    // **入るたびに下ろす。** 「止める印」を足したら「入るたびに下ろす」も
+    // 一緒に書く（台帳の型0の派生）——下ろさないと、1枚失敗しただけで
+    // 以降のストーリーが全部「読み込めません」になる。
+    // `replay` も見るのは、左タップ（`restart`）で同じ1枚を読み直せるように。
+    // deps は `item?.id`——同じファイルの確認シートのリセット（`[item?.id]`）と
+    // 揃える。`groups` を作り直す実装が入ったとき、オブジェクト同一性で
+    // 見ていると失敗表示が毎回リトライで点滅する
+    useEffect(() => { setMediaError(false); }, [item?.id, replay]);
 
     /** 進捗バーを 0 に戻す（DOM 直書きなので state のリセットは無い） */
     const resetProgressBar = useCallback(() => {
@@ -388,6 +423,14 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         onEnded={goNext}
                         onError={goNext}
                     />
+                ) : mediaError ? (
+                    // 日本語の文言は写真ページ・モーダルと揃える（言い回しを増やさない）。
+                    // **英語はここにしか無い**——あちらの2つは日本語ベタ書きで
+                    // locale 分岐を持たない（揃えるなら別コミットで向こうを直す）
+                    <div className="flex flex-col items-center justify-center text-white/60 gap-2 px-6 text-center">
+                        <PhotoIcon className="w-10 h-10" />
+                        <p className="text-sm">{locale === "en" ? "Couldn't load image" : "画像を読み込めません"}</p>
+                    </div>
                 ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -396,6 +439,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         alt=""
                         className="block max-w-full max-h-full object-contain rounded-lg story-media-in"
                         draggable={false}
+                        onError={() => setMediaError(true)}
                     />
                 )}
             </div>
@@ -556,7 +600,17 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                             style={{ touchAction: "manipulation" }}
                         >
                             <EyeIcon className="w-4 h-4" />
-                            {viewers === null
+                            {/* **失敗したら数字を出さない。** `viewers === null` だけを
+                                見ていたので、読み込めなかったときも "..." のまま
+                                永久に止まっていた（再取得は無い）。シートの本文は
+                                「読み込めませんでした」と出るのに、同じ画面の
+                                ここだけ「取得中」に見える。
+                                **記号（`—` など）に差し替えない**——このリポジトリの
+                                前例は `FollowButton` の「まだ分からない間は出さない」で、
+                                新しい記号を勝手に足さない。押せばシートが理由を出す */}
+                            {viewersError
+                                ? null
+                                : viewers === null
                                 ? "..."
                                 : locale === "en"
                                     ? `${viewers.length} viewer${viewers.length === 1 ? "" : "s"}`
@@ -590,7 +644,11 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                     `viewers === null` を "..." と出しているのに、
                                     この見出しだけ `?? 0` で潰していて、開いた瞬間
                                     「閲覧者 0」が出てから数字が入っていた */}
-                                <span className="ml-2 text-white/50 font-normal">{viewers === null ? "…" : viewers.length}</span>
+                                {/* 失敗したら数字を出さない（上のボタンと同じ）。
+                                    本文が「読み込めませんでした」と説明する */}
+                                {!viewersError && (
+                                    <span className="ml-2 text-white/50 font-normal">{viewers === null ? "…" : viewers.length}</span>
+                                )}
                             </h3>
                             <button onClick={() => setViewersOpen(false)} className="p-1 text-white/60 hover:text-white" aria-label={locale === "en" ? "Close" : "閉じる"}>
                                 <XMarkIcon className="w-5 h-5" />

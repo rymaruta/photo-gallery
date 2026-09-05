@@ -1,5 +1,6 @@
 "use client";
 
+import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "../../auth/context";
@@ -37,8 +38,19 @@ export default function DraftsPage() {
             const { userFetch } = await import("../../../lib/utils/api");
             const res = await userFetch("/user/photos");
             if (res.ok) {
-                const all = await res.json() as Photo[];
-                setDrafts(Array.isArray(all) ? all.filter((p) => p.published === false) : []);
+                // 読めない行は落とす（1件の巻き添えで下書きが全部消えないように）
+                const all = usablePhotoRows<Photo>(await res.json(), "GET /user/photos");
+                if (!all) {
+                    // **配列でない応答を「0件」に混ぜない。** このファイルの
+                    // 上のコメントが「失敗を『下書き0件』と同じ見た目にすると、
+                    // 保存した下書きが消えたように見える」と書いているとおり。
+                    // 同じ周に `user/edit` で同じ判断をしながら、ここを
+                    // 見落としていた
+                    log.error("drafts response is not an array");
+                    setLoadError(true);
+                    return;
+                }
+                setDrafts(all.filter((p) => p.published === false));
             } else {
                 log.error("drafts fetch failed", { status: res.status });
                 setLoadError(true);

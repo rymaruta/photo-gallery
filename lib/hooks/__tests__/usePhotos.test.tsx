@@ -88,3 +88,38 @@ describe("usePhotos の loaded", () => {
         expect(result.current.photos).toHaveLength(1);
     });
 });
+
+// **100件中1件が壊れているだけで、ページ全体が落ちていた。**
+//
+// `Array.isArray(data)` までしか見ずに状態へ入れていたので、`null` が
+// 1件混じると描画中に `TypeError`（`useGallery` の `p.category` ほか）になり、
+// `ErrorBoundary` のカードがヘッダーごと画面を覆う。
+// 読めない行だけ落として、残りは出す。
+describe("読めない行が混じった応答", () => {
+    it("壊れた行を落として、残りは出す", async () => {
+        mockPublicFetch.mockResolvedValue({
+            ok: true,
+            json: async () => [API_PHOTOS[0], null, "文字列", { src: "id なし" }],
+        });
+        const { result } = renderHook(() => usePhotos());
+        await waitFor(() => expect(result.current.loaded).toBe(true));
+        expect(result.current.photos.map((p) => p.id), "壊れた行が状態に入っている")
+            .toEqual(["api-1"]);
+    });
+
+    it("全部読めないなら静的のスナップショットを残す", async () => {
+        mockPublicFetch.mockResolvedValue({ ok: true, json: async () => [null, null] });
+        const { result } = renderHook(() => usePhotos());
+        await waitFor(() => expect(result.current.loaded).toBe(true));
+        expect(result.current.photos.map((p) => p.id), "静的のぶんまで消えている")
+            .toEqual(["base-1"]);
+    });
+
+    // **配列ですらないときは「届いた」と言わない**（取れなかったのと同じ）
+    it("配列でなければ loaded を立てない", async () => {
+        mockPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ items: [] }) });
+        const { result } = renderHook(() => usePhotos());
+        await new Promise((r) => setTimeout(r, 20));
+        expect(result.current.loaded).toBe(false);
+    });
+});

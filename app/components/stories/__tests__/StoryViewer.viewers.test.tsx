@@ -115,6 +115,144 @@ describe("閲覧者一覧: 取得の失敗", () => {
         expect(await screen.findByText(/閲覧者を読み込めませんでした/)).toBeInTheDocument();
         expect(screen.queryByText(/まだ閲覧者はいません/)).toBeNull();
     });
+
+    // **200 だが本文の形がおかしい場合も同じ。** 行のふるいを足したとき
+    // `?? []` にしたので「まだ閲覧者はいません」と同じ見た目になっていた
+    // ——すぐ上の else のコメント（SW-b8）が言っているのと同じ混同を、
+    // 自分で足した行の上で作っていた
+    it.each([
+        ["viewers が配列でない", { viewers: { a: 1 } }],
+        ["viewers が無い", { count: 0 }],
+    ])("%s でも「0人」と混ぜない", async (_name, body) => {
+        mockUserFetch.mockImplementation((url: string) => {
+            if (url.includes("/viewers")) return Promise.resolve({ ok: true, json: async () => body });
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+
+        render(
+            <StoryViewer
+                groups={groups()}
+                initialGroupIndex={0}
+                locale="ja"
+                isAuthenticated
+                ownUserId="me"
+                onSeen={() => { /* noop */ }}
+                onClose={() => { /* noop */ }}
+            />,
+        );
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+
+        expect(await screen.findByText(/閲覧者を読み込めませんでした/)).toBeInTheDocument();
+        expect(screen.queryByText(/まだ閲覧者はいません/)).toBeNull();
+    });
+
+    // **見出しとボタンも「取得中」のままにしない。**
+    // シートの本文は「読み込めませんでした」なのに、同じ画面の数字は
+    // `viewers === null ? "…"` で**永久に取得中**に見えていた（再取得は無い）。
+    // コメントには「区別は `viewersError` が持つ」と書いていたが、
+    // 数字を出す2か所は `viewersError` を読んでいなかった。
+    it("失敗したら、見出しの数字も「取得中」のままにしない", async () => {
+        mockUserFetch.mockImplementation((url: string) => {
+            if (url.includes("/viewers")) return Promise.resolve({ ok: true, json: async () => ({ viewers: { a: 1 } }) });
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+
+        render(
+            <StoryViewer
+                groups={groups()}
+                initialGroupIndex={0}
+                locale="ja"
+                isAuthenticated
+                ownUserId="me"
+                onSeen={() => { /* noop */ }}
+                onClose={() => { /* noop */ }}
+            />,
+        );
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+        await screen.findByText(/閲覧者を読み込めませんでした/);
+
+        const heading = screen.getByRole("heading", { name: /閲覧者/ });
+        expect((heading.textContent ?? "").replace("閲覧者", "").trim(),
+            "失敗しているのに『取得中』のまま").toBe("");
+
+        // **ボタン側も見る。** 見出しだけを読んでいたので、ボタンの
+        // `viewersError` を消す変異が全12ファイル79件 全緑で素通りしていた
+        // （このリポジトリのどのテストもボタンの文字を読んでいなかった）
+        const button = screen.getByLabelText("閲覧者を見る");
+        expect(button.textContent ?? "", "ボタンが『取得中』のまま").not.toContain("...");
+        expect(button.textContent ?? "", "失敗しているのに人数を出している").not.toMatch(/\d/);
+    });
+
+    // 正常系: 本当に0人なら「まだ閲覧者はいません」（逆向きの混同を作らない）
+    it("本当に0人なら『まだ閲覧者はいません』", async () => {
+        mockUserFetch.mockImplementation((url: string) => {
+            if (url.includes("/viewers")) return Promise.resolve({ ok: true, json: async () => ({ viewers: [] }) });
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+
+        render(
+            <StoryViewer
+                groups={groups()}
+                initialGroupIndex={0}
+                locale="ja"
+                isAuthenticated
+                ownUserId="me"
+                onSeen={() => { /* noop */ }}
+                onClose={() => { /* noop */ }}
+            />,
+        );
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+
+        expect(await screen.findByText(/まだ閲覧者はいません/)).toBeInTheDocument();
+        expect(screen.queryByText(/読み込めませんでした/)).toBeNull();
+        // ボタンは0人でも数字を出す（失敗と混ぜない・逆向き）
+        expect(screen.getByLabelText("閲覧者を見る").textContent ?? "").toContain("閲覧 0人");
+    });
+
+    // **失敗を次のストーリーへ持ち越さない。**
+    // 切り替えのリセット（`setViewersError(false)`）を消しても、この周まで
+    // 12ファイル79件が全緑だった。「失敗したら数字を出さない」に倒したぶん、
+    // 持ち越すと**次のストーリーがずっと空のまま**になる（前は `—` が出て
+    // いたので目に見えていた）——直した側の穴を新しく静かにしない
+    it("1枚目が失敗しても、2枚目は「取得中（...）」に戻る", async () => {
+        const slow2 = deferred<unknown>();
+        mockUserFetch.mockImplementation((url: string) => {
+            const u = String(url);
+            if (u.includes("/viewers")) {
+                return u.includes("s1")
+                    ? Promise.resolve({ ok: false, status: 500, json: async () => ({}) })
+                    : slow2.promise;
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+
+        render(
+            <StoryViewer
+                groups={groups()}
+                initialGroupIndex={0}
+                locale="ja"
+                isAuthenticated
+                ownUserId="me"
+                onSeen={() => { /* noop */ }}
+                onClose={() => { /* noop */ }}
+            />,
+        );
+        // 1枚目: 失敗したので数字も「取得中」も出ない
+        await waitFor(() => expect(screen.getByLabelText("閲覧者を見る").textContent ?? "").toBe(""));
+
+        fireEvent.keyDown(document, { key: "ArrowRight" });
+        await waitFor(() => expect(
+            mockUserFetch.mock.calls.some((c) => String(c[0]).includes("s2") && String(c[0]).includes("/viewers")),
+        ).toBe(true));
+
+        // 2枚目はまだ返ってきていない＝「取得中」
+        expect(screen.getByLabelText("閲覧者を見る").textContent ?? "",
+            "前のストーリーの失敗を持ち越している").toContain("...");
+
+        // 返ってきたら人数に変わる（持ち越していないことを最後まで見る）
+        slow2.resolve(viewersOf(["2枚目を見た人"]));
+        await waitFor(() => expect(screen.getByLabelText("閲覧者を見る").textContent ?? "").toContain("閲覧 1人"));
+    });
 });
 
 

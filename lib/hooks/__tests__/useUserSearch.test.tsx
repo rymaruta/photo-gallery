@@ -77,3 +77,53 @@ describe("ユーザー検索: 失敗と0件を分ける", () => {
         expect(result.current.failed).toBe(false);
     });
 });
+
+// **「聞けなかった」を「見つからなかった」に混ぜない**（このフックの冒頭の
+// コメントが書いているとおり）。行のふるいを足したとき `?? []` にしたので、
+// `users` が配列でない応答で `failed` が立たず、画面が
+// 「見つかりませんでした」を出していた——`showEmpty = searched && !failed &&
+// users.length === 0`（`app/users/search/page.tsx`）。
+describe("応答の形がおかしいとき", () => {
+    // **`本文が null` はここに入れない。** `data.users` が TypeError になり
+    // **catch 経由**で failed が立つので、新しい分岐を1行も通らない
+    // （それでも failed は立つので、下の「別経路」として1本だけ残す）
+    it.each([
+        ["users が配列でない", { users: { a: 1 } }],
+        ["users が無い", { count: 0 }],
+    ])("%s なら failed を立てる", async (_name, body) => {
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => body });
+        const { result } = renderHook(({ q }) => useUserSearch(q), { initialProps: { q: "たびこ" } });
+        await waitFor(() => expect(result.current.failed,
+            "「見つかりませんでした」と同じ見た目になる").toBe(true));
+        expect(result.current.users).toEqual([]);
+        // **`loading` も下ろす。** 画面は `searched = ... && !loading` を門に
+        // するので、ここが残ると失敗表示ごと出ない
+        expect(result.current.loading, "読み込み中のまま固まっている").toBe(false);
+    });
+
+    it("本文が null（catch 経由）でも failed を立てる", async () => {
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => null });
+        const { result } = renderHook(({ q }) => useUserSearch(q), { initialProps: { q: "たびこ" } });
+        await waitFor(() => expect(result.current.failed).toBe(true));
+        expect(result.current.loading).toBe(false);
+    });
+
+    // 読めない行は落として、残りは出す（失敗にはしない）
+    it("読めない行が混じっても、残りは出す", async () => {
+        mockUserPublicFetch.mockResolvedValue({
+            ok: true, json: async () => ({ users: [HIT, null, "文字列"] }),
+        });
+        const { result } = renderHook(({ q }) => useUserSearch(q), { initialProps: { q: "たびこ" } });
+        await waitFor(() => expect(result.current.users).toHaveLength(1));
+        expect(result.current.failed).toBe(false);
+    });
+
+    // 正常系: 本当に0件なら failed は立てない（逆向きの混同を作らない）
+    it("本当に0件なら failed を立てない", async () => {
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ users: [] }) });
+        const { result } = renderHook(({ q }) => useUserSearch(q), { initialProps: { q: "たびこ" } });
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        expect(result.current.users).toEqual([]);
+        expect(result.current.failed, "0件を失敗にしている").toBe(false);
+    });
+});

@@ -1,12 +1,13 @@
 "use client";
 
+import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
-import { ArrowLeftIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, PhotoIcon } from "@heroicons/react/24/outline";
 import type { Photo, LocalizedParagraphs } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
@@ -42,6 +43,12 @@ function AdminEditContent() {
 
     const [photo, setPhoto] = useState<Photo | null>(null);
     const [loadingPhoto, setLoadingPhoto] = useState(true);
+    // 写真そのものが取れなかった（削除済み・403）。枠ごと消さないための印
+    const [imageError, setImageError] = useState(false);
+    // **入るたびに下ろす**（`app/user/edit` と同じ理由。台帳の型0の派生）。
+    // クエリ（`?id=`）だけが変わる遷移では作り直されないので、下ろさないと
+    // 次に開いた正常な写真が「読み込めません」に固定される
+    useEffect(() => { setImageError(false); }, [photo?.src]);
     const [saving, setSaving] = useState(false);
 
     // Basic
@@ -107,8 +114,13 @@ function AdminEditContent() {
                 const { authenticatedFetch } = await import("../../../lib/utils/api");
                 const res = await authenticatedFetch("/admin/photos", { cache: "no-store" });
                 if (res.ok) {
-                    const all = await res.json() as Photo[];
-                    const data = Array.isArray(all) ? all.find((p) => p.id === photoId) : undefined;
+                    // 読めない行は落とす。1件の `null` で `find` が投げると
+                    // 下の catch が拾い、**目的の写真は無事なのに**
+                    // 「写真の読み込みに失敗しました」＋管理一覧への `replace`
+                    // になる（`not found` の文字列は画面に出ない。一度そう
+                    // 書いたが誤りだった）
+                    const all = usablePhotoRows<Photo>(await res.json(), "GET /admin/photos");
+                    const data = all?.find((p) => p.id === photoId);
                     if (!data) throw new Error("not found");
                     // 別の写真に切り替わったあとの応答は捨てる
                     if (aborted) return;
@@ -321,12 +333,28 @@ function AdminEditContent() {
                 </div>
 
                 {photo.src && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                        src={photo.src}
-                        alt=""
-                        className="w-full max-h-64 object-contain rounded-lg mb-6 bg-white/5"
-                    />
+                    // **取れなかったときに枠ごと消えないようにする。**
+                    // `w-full max-h-64 object-contain` は高さを予約しないので、
+                    // 画像が 403/404 になると**高さが 0 に潰れる**（Chromium 実測・
+                    // 390x844: 成功 358x256 → 失敗 358x0。`alt=""` の失敗画像は
+                    // 何も表さないので、幅が残るかは周りの指定で変わる——
+                    // 高さが 0 になる方は `w-full` の有無に関わらず同じだった）。
+                    // 編集画面から「どの写真を触っているか」の手がかりが消える。
+                    // 文言は写真ページ・モーダル・ストーリーと同じ
+                    imageError ? (
+                        <div className="w-full h-40 flex flex-col items-center justify-center gap-2 rounded-lg mb-6 bg-white/5 text-white/50">
+                            <PhotoIcon className="w-8 h-8" />
+                            <p className="text-xs">{isJa ? "画像を読み込めません" : "Couldn't load image"}</p>
+                        </div>
+                    ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                            src={photo.src}
+                            alt=""
+                            className="w-full max-h-64 object-contain rounded-lg mb-6 bg-white/5"
+                            onError={() => setImageError(true)}
+                        />
+                    )
                 )}
 
                 <form onSubmit={(e) => void handleSave(e)} className="space-y-5">

@@ -18,6 +18,8 @@ import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
 import { userFacingUploadError, UPLOAD_FAILED_MESSAGE } from "./errorText";
 import { unstrippableMessage, gifRejectedMessage, gifRejectedLabel } from "../../../lib/utils/uploadRejection";
+import { usablePhotoRows } from "../../../lib/utils/apiRows";
+import type { Photo, Locale } from "../../../lib/data/photos";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
 
@@ -60,9 +62,23 @@ function makeId() {
 // アップロード写真のプレビュー。写真全体を表示しつつ、ギャラリー一覧で
 // 表示される「中央の正方形」を白枠で示し、枠外を暗くして
 // "どこまで反映されるか" を明示する。
-function CropPreview({ src, hint }: { src: string; hint: string }) {
+function CropPreview({ src, hint, locale }: { src: string; hint: string; locale: Locale }) {
     const imgRef = useRef<HTMLImageElement>(null);
     const [box, setBox] = useState<{ side: number; left: number; top: number } | null>(null);
+    // **このブラウザで開けなかった写真**（PC の Chrome で選んだ HEIC など。
+    // `addFiles` が断るのは「画像でない」「GIF」「50MB超」だけなので、
+    // 種別が画像で開けないファイルはここまで来る）。
+    // `block w-auto max-h-56` は高さを予約しないので、`onError` を持たない
+    // 頃は**プレビューが高さ 0 に潰れ**（Chromium 実測 390x224 → 390x0）、
+    // 切り抜きの白枠も出ないまま「公開」を押して初めて断られていた。
+    // 文言は `unstrippableMessage` の「開けなかった」と同じものを使う
+    // ——公開を押したときに出るのと同じ文にする（画面ごとに書き分けない）
+    // 下ろす側は書かない——`src` は項目ごとに1回だけ作られ（`addFiles` の
+    // `URL.createObjectURL`）、同じ instance で差し替わらない。念のため
+    // 呼び出し側で `key={it.preview}` にしてあるので、変わったら作り直される。
+    // 「入るたびに下ろす」の effect を足すと**踏まれない分岐**になり、
+    // このリポジトリが避けている死にコードになる
+    const [failed, setFailed] = useState(false);
 
     const measure = useCallback(() => {
         const el = imgRef.current;
@@ -78,6 +94,15 @@ function CropPreview({ src, hint }: { src: string; hint: string }) {
         return () => window.removeEventListener("resize", measure);
     }, [measure]);
 
+    if (failed) {
+        return (
+            <div className="relative bg-black flex flex-col items-center justify-center gap-2 h-40 px-6 text-center text-white/60">
+                <PhotoIcon className="w-8 h-8" />
+                <p className="text-xs">{unstrippableMessage(new UnstrippableFileError("", "undecodable"), locale)}</p>
+            </div>
+        );
+    }
+
     return (
         <div className="relative bg-black flex justify-center">
             <div className="relative inline-block overflow-hidden">
@@ -87,6 +112,7 @@ function CropPreview({ src, hint }: { src: string; hint: string }) {
                     src={src}
                     alt=""
                     onLoad={measure}
+                    onError={() => setFailed(true)}
                     className="block w-auto max-h-56 max-w-full"
                     draggable={false}
                 />
@@ -263,12 +289,30 @@ function UploadPageInner() {
                 const { userFetch } = await import("../../../lib/utils/api");
                 const res = await userFetch("/user/photos");
                 if (!res.ok) return;
-                const all = await res.json() as unknown[];
-                if (!aborted && Array.isArray(all)) {
-                    setUsedSlots(all.length);
-                    // 同じ取得から入力候補も作る（追加の往復はしない）
-                    setOwnValues(collectOwnValues(all as Parameters<typeof collectOwnValues>[0]));
-                }
+                // 読めない行は落とす。`collectOwnValues` は `for...of` で回すので
+                // 1件の `null` で投げ、`catch {}` が握って**入力候補が出なく
+                // なる**（残り枚数は `setUsedSlots` が先にあるので出る。
+                // 一度「残り枚数ごと消える」と書いたが誤りだった）
+                const raw = await res.json();
+                const all = usablePhotoRows<Photo>(raw, "GET /user/photos");
+                if (aborted || !all) return;
+                // **枠はサーバーの数え方に合わせる。** `countUserPhotos` は
+                // `Select: "COUNT"` で、`id` の無い行も**上限に数える**。
+                // ふるいを通したあとの件数で表示すると、「あと3枚」と出て
+                // いるのに 403 になる（同じ上限を片方だけ守る、の型）。
+                // 表示から落とすのと、枠を数えるのは別。
+                // `Array.isArray(raw)` はここだけの門。`usablePhotoRows` が
+                // 配列以外に null を返さなくなったときに `.length` が
+                // undefined になり「あと NaN 枚」と出るのを止める
+                // （壊れるなら出ない方へ倒す）。
+                // **守れるのは数字だけ**——そのとき `collectOwnValues` は
+                // `for...of` で投げ、下の `catch {}` が握るので候補は
+                // どのみち出ない（反復できる非配列を返すようになった場合
+                // だけ、候補も生き残る）。それでも門をこちらに寄せるのは、
+                // 「あと NaN 枚」を出さない責任がこの行にしか無いから
+                if (Array.isArray(raw)) setUsedSlots(raw.length);
+                // 同じ取得から入力候補も作る（追加の往復はしない）
+                setOwnValues(collectOwnValues(all));
             } catch { /* 出さないだけ。アップロード自体は止めない */ }
         })();
         return () => { aborted = true; };
@@ -939,8 +983,10 @@ function UploadPageInner() {
                         {/* トリミングプレビュー（一覧表示範囲を白枠で明示） */}
                         <div className="relative">
                             <CropPreview
+                                key={it.preview}
                                 src={it.preview}
                                 hint={locale === "en" ? "White frame = shown in the grid" : "白い枠が一覧に表示されます"}
+                                locale={locale}
                             />
                             <button
                                 type="button"

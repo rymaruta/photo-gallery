@@ -1,5 +1,7 @@
 "use client";
 
+import { usablePhotoRows } from "../../lib/utils/apiRows";
+import { sanitizeProfile } from "../../lib/utils/profileShape";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Thumb from "../components/Thumb";
 import Link from "next/link";
@@ -384,8 +386,10 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     userPublicFetch(`/profile/${encodeURIComponent(userId)}`, { signal: controller.signal }),
                     getCurrentSession(),
                 ]);
-                if (profileRes.ok) {
-                    const prof = await profileRes.json() as UserProfile;
+                const prof = profileRes.ok
+                    ? sanitizeProfile<UserProfile>(await profileRes.json(), `GET /profile/<id>`)
+                    : null;
+                if (prof) {
                     setUserProfile(prof);
                     profileLoaded = true;
                 } else {
@@ -415,9 +419,11 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     loadOwnPins(controller.signal);
                     const mineRes = await userFetch("/user/photos", { signal: controller.signal });
                     if (mineRes.ok) {
-                        const mine = await mineRes.json() as unknown;
-                        if (Array.isArray(mine)) {
-                            setPhotos(mine as Photo[]);
+                        // **読めない行は落としてから入れる**（1件の巻き添えで
+                        // ページ全体が `ErrorBoundary` のカードにならないように）
+                        const mine = usablePhotoRows<Photo>(await mineRes.json(), "GET /user/photos");
+                        if (mine) {
+                            setPhotos(mine);
                             setPhotosResolved(true);
                             return; // 公開一覧は見ない（下書き・非公開まで含む正）
                         }
@@ -447,8 +453,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     cache: "no-store",
                 });
                 if (photosRes.ok) {
-                    const data = await photosRes.json() as unknown;
-                    if (Array.isArray(data)) {
+                    const data = usablePhotoRows<Photo>(await photosRes.json(), "GET /photos?userId=");
+                    if (data) {
                         // **空配列もそのまま採る。**
                         //
                         // 以前は「空で静的データを潰さない」ようにしていたが、
@@ -469,7 +475,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         // 取得に失敗したときは `photosRes.ok` が false なので
                         // ここに来ない＝静的のまま。潰すのは「聞けて、
                         // 答えが空だった」ときだけ。
-                        setPhotos(data as Photo[]);
+                        setPhotos(data);
                     }
                     setPhotosResolved(true);
                 } else {
