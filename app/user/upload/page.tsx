@@ -19,7 +19,7 @@ import { useMemberGate } from "../../../lib/hooks/useMemberGate";
 import { userFacingUploadError, UPLOAD_FAILED_MESSAGE } from "./errorText";
 import { unstrippableMessage, gifRejectedMessage, gifRejectedLabel } from "../../../lib/utils/uploadRejection";
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
-import type { Photo } from "../../../lib/data/photos";
+import type { Photo, Locale } from "../../../lib/data/photos";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
 
@@ -62,9 +62,23 @@ function makeId() {
 // アップロード写真のプレビュー。写真全体を表示しつつ、ギャラリー一覧で
 // 表示される「中央の正方形」を白枠で示し、枠外を暗くして
 // "どこまで反映されるか" を明示する。
-function CropPreview({ src, hint }: { src: string; hint: string }) {
+function CropPreview({ src, hint, locale }: { src: string; hint: string; locale: Locale }) {
     const imgRef = useRef<HTMLImageElement>(null);
     const [box, setBox] = useState<{ side: number; left: number; top: number } | null>(null);
+    // **このブラウザで開けなかった写真**（PC の Chrome で選んだ HEIC など。
+    // `addFiles` が断るのは「画像でない」「GIF」「50MB超」だけなので、
+    // 種別が画像で開けないファイルはここまで来る）。
+    // `block w-auto max-h-56` は高さを予約しないので、`onError` を持たない
+    // 頃は**プレビューが高さ 0 に潰れ**（Chromium 実測 390x224 → 390x0）、
+    // 切り抜きの白枠も出ないまま「公開」を押して初めて断られていた。
+    // 文言は `unstrippableMessage` の「開けなかった」と同じものを使う
+    // ——公開を押したときに出るのと同じ文にする（画面ごとに書き分けない）
+    // 下ろす側は書かない——`src` は項目ごとに1回だけ作られ（`addFiles` の
+    // `URL.createObjectURL`）、同じ instance で差し替わらない。念のため
+    // 呼び出し側で `key={it.preview}` にしてあるので、変わったら作り直される。
+    // 「入るたびに下ろす」の effect を足すと**踏まれない分岐**になり、
+    // このリポジトリが避けている死にコードになる
+    const [failed, setFailed] = useState(false);
 
     const measure = useCallback(() => {
         const el = imgRef.current;
@@ -80,6 +94,15 @@ function CropPreview({ src, hint }: { src: string; hint: string }) {
         return () => window.removeEventListener("resize", measure);
     }, [measure]);
 
+    if (failed) {
+        return (
+            <div className="relative bg-black flex flex-col items-center justify-center gap-2 h-40 px-6 text-center text-white/60">
+                <PhotoIcon className="w-8 h-8" />
+                <p className="text-xs">{unstrippableMessage(new UnstrippableFileError("", "undecodable"), locale)}</p>
+            </div>
+        );
+    }
+
     return (
         <div className="relative bg-black flex justify-center">
             <div className="relative inline-block overflow-hidden">
@@ -89,6 +112,7 @@ function CropPreview({ src, hint }: { src: string; hint: string }) {
                     src={src}
                     alt=""
                     onLoad={measure}
+                    onError={() => setFailed(true)}
                     className="block w-auto max-h-56 max-w-full"
                     draggable={false}
                 />
@@ -959,8 +983,10 @@ function UploadPageInner() {
                         {/* トリミングプレビュー（一覧表示範囲を白枠で明示） */}
                         <div className="relative">
                             <CropPreview
+                                key={it.preview}
                                 src={it.preview}
                                 hint={locale === "en" ? "White frame = shown in the grid" : "白い枠が一覧に表示されます"}
+                                locale={locale}
                             />
                             <button
                                 type="button"

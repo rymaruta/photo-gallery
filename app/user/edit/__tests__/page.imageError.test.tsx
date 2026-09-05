@@ -47,16 +47,30 @@ beforeEach(() => {
 const photoImg = () =>
     Array.from(document.body.querySelectorAll("img")).find((el) => el.getAttribute("src")?.includes("gone.jpg"));
 
+/**
+ * 写真の読み込み失敗を起こす。
+ *
+ * **取得の effect は複数回走りうる**（`?id=` の再取得・再描画）ので、
+ * 先に掴んだ `img` が差し替わっていると `fireEvent.error` がどこにも届かず、
+ * フルスイートの負荷でだけ落ちる（実際に踏んだ）。**そのつど引き直して**
+ * 文言が出るまで撃つ。
+ */
+async function failPhoto() {
+    await waitFor(() => {
+        const img = photoImg();
+        if (img) fireEvent.error(img);
+        expect(screen.queryByText("画像を読み込めません"), "失敗表示が出ていない").not.toBeNull();
+    });
+}
+
 describe("編集画面の写真が取れないとき", () => {
     it("枠ごと消さずに理由を出す", async () => {
         render(<EditPage />);
         await screen.findByDisplayValue("湖");
 
-        const img = photoImg();
-        expect(img, "編集中の写真が出ていない").toBeDefined();
-        fireEvent.error(img!);
+        expect(photoImg(), "編集中の写真が出ていない").toBeDefined();
+        await failPhoto();
 
-        expect(screen.getByText("画像を読み込めません")).toBeInTheDocument();
         // 潰れた img を残さない（高さ0の帯が残ると、何も無いのと同じ）
         expect(photoImg(), "取れなかった img をそのまま残している").toBeUndefined();
         // 編集そのものは続けられる
@@ -68,7 +82,7 @@ describe("編集画面の写真が取れないとき", () => {
     it("置き換えの枠は高さを予約している", async () => {
         render(<EditPage />);
         await screen.findByDisplayValue("湖");
-        fireEvent.error(photoImg()!);
+        await failPhoto();
 
         const box = screen.getByText("画像を読み込めません").closest("div");
         expect(box?.className, "高さを予約していない（また潰れる）").toMatch(/\bh-40\b/);
@@ -80,8 +94,7 @@ describe("編集画面の写真が取れないとき", () => {
     it("別の写真に切り替えたら失敗表示は消える", async () => {
         const { rerender } = render(<EditPage />);
         await screen.findByDisplayValue("湖");
-        fireEvent.error(photoImg()!);
-        expect(screen.getByText("画像を読み込めません")).toBeInTheDocument();
+        await failPhoto();
 
         q.id = "p2";
         rerender(<EditPage />);
