@@ -188,8 +188,15 @@ function PhotoImage({
                         // 同じ「1200x800 の嘘」は OGP 側では既に直してある
                         // （`usersMetadata.test.ts`「実寸を知らないのに
                         // 1200x800 を名乗っている」）のに、`<img>` に残っていた。
-                        // 実寸を持つ写真はまだ少ない（`generate-thumbnails.js`
-                        // が書く。コミット済みの `photos.json` 30枚では0件）ので、
+                        // **本番の写真は全部 実寸を持っている**（2026-09-05 に
+                        // `maintenance` の `image-perf` で実測: 公開32枚すべてに
+                        // 幅・高さ・サムネ・AVIF・ぼかし・下地色が揃っている）。
+                        // ＝この画面の CLS は実測で 0 になる枝に入る。
+                        // 一度「実寸を持つ写真はまだ少ない（`photos.json` 30枚で
+                        // 0件）」と書いたが、**あれはコミット済みの古い断面**で、
+                        // 本番の DynamoDB とは別物だった。それでも門を残すのは、
+                        // `generate-thumbnails.js` が失敗した写真・入れ直した写真は
+                        // 一時的に持たないため（`deploy.yml` は `continue-on-error`）。
                         // **無いときは属性ごと出さない**
                         {...(width && height ? { width, height } : {})}
                         draggable={false}
