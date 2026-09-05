@@ -69,6 +69,51 @@ describe("ストーリーの写真が取れなかったとき", () => {
         expect(mainImage("b.jpg").length).toBeGreaterThan(0);
     });
 
+    // **左タップ（今の1枚を最初から）で読み直せる。**
+    // リセットの deps から `replay` を落としても3件が緑のままだった
+    // ＝「同じ1枚をタップで読み直す」経路が無検証だった（レビュー指摘）
+    it("左タップで読み直すと、失敗表示が消えて画像に戻る", () => {
+        setup();
+        fireEvent.error(mainImage("a.jpg").at(-1)!);
+        expect(screen.getByText("画像を読み込めません")).toBeInTheDocument();
+
+        // 「始まってから 0.8 秒以内の左タップ」は前へ戻るので、時間を進めて
+        // から押す（`restart` の側に入れる）
+        const now = Date.now();
+        const spy = vi.spyOn(Date, "now").mockReturnValue(now + 5000);
+        try {
+            fireEvent.keyDown(document, { key: "ArrowLeft" });
+        } finally {
+            spy.mockRestore();
+        }
+
+        expect(screen.queryByText("画像を読み込めません"),
+            "左タップで読み直せない（同じ1枚に張り付いたまま）").toBeNull();
+        expect(mainImage("a.jpg").length).toBeGreaterThan(0);
+    });
+
+    // **動画は飛ばす側で正しい。** 読み込めなかった動画は `duration` が NaN で
+    // 進捗バーが1ミリも進まず `onEnded` も来ないので、`onError={goNext}` が
+    // 唯一の出口。この行を外すと永久に固まる（テストが無かった）
+    it("動画が読み込めないときは次へ送る（固まらせない）", () => {
+        const props = setup({
+            groups: [{
+                userId: "owner",
+                displayName: "丸田",
+                items: [
+                    { id: "v1", src: "https://cdn/x/a.mp4", mediaType: "video", userId: "owner", createdAt: "2026-07-04T10:00:00Z", expiresAt: "2099-07-05T10:00:00Z" },
+                    { id: "s2", src: "https://cdn/x/b.jpg", userId: "owner", createdAt: "2026-07-04T11:00:00Z", expiresAt: "2099-07-05T11:00:00Z" },
+                ],
+            }],
+        });
+        const video = document.body.querySelector("video");
+        expect(video).not.toBeNull();
+        fireEvent.error(video!);
+
+        expect(mainImage("b.jpg").length, "動画の失敗で止まったまま").toBeGreaterThan(0);
+        expect(props.onClose).not.toHaveBeenCalled();
+    });
+
     // 正常系: 出せる写真はこれまでどおり
     it("読み込める写真では何も出さない", () => {
         setup();

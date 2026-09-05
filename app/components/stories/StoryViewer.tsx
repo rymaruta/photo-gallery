@@ -151,9 +151,15 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     // 写真そのものが取れなかったストーリー（削除・期限切れの掃除の直後、
     // `uploads/` の 403 など）。**理由を出す**——`alt=""` の `<img>` は
     // 失敗すると 0x0 に潰れるので、以前は真っ黒のまま表示秒数
-    // （最大15秒）待たされていた。動画側は `onError={goNext}` で飛ばすが、
-    // 画像は飛ばさない: 1枚しか無いストーリーだと開いた瞬間に閉じ、
-    // リングを押しても何も起きないように見える
+    // （最大15秒）待たされていた。
+    //
+    // **動画と扱いが違うのは、時間切れが来るかどうかが違うから。**
+    // 動画の進捗バーは `v.duration` が有限のときだけ書く（上の rAF）ので、
+    // 読み込めなかった動画は NaN のままバーが1ミリも進まず `onEnded` も
+    // 来ない——`onError={goNext}` を外すと**永久に固まる**。画像の進捗は
+    // 画像と無関係な CSS アニメーション（`onAnimationEnd={goNext}`）なので、
+    // 理由を出して待たせても必ず次へ進む。だから画像は飛ばさない
+    // （飛ばすと、1枚しか無い人のリングが「押しても無反応」に見える）。
     const [mediaError, setMediaError] = useState(false);
     // BGM の頭出し判定用（「再生し直しで値が変わったか」を見る）
     const lastReplayRef = useRef(0);
@@ -162,8 +168,12 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     useEffect(() => { startedAtRef.current = Date.now(); }, [item, replay]);
     // **入るたびに下ろす。** 「止める印」を足したら「入るたびに下ろす」も
     // 一緒に書く（台帳の型0の派生）——下ろさないと、1枚失敗しただけで
-    // 以降のストーリーが全部「読み込めません」になる
-    useEffect(() => { setMediaError(false); }, [item, replay]);
+    // 以降のストーリーが全部「読み込めません」になる。
+    // `replay` も見るのは、左タップ（`restart`）で同じ1枚を読み直せるように。
+    // deps は `item?.id`——同じファイルの確認シートのリセット（`[item?.id]`）と
+    // 揃える。`groups` を作り直す実装が入ったとき、オブジェクト同一性で
+    // 見ていると失敗表示が毎回リトライで点滅する
+    useEffect(() => { setMediaError(false); }, [item?.id, replay]);
 
     /** 進捗バーを 0 に戻す（DOM 直書きなので state のリセットは無い） */
     const resetProgressBar = useCallback(() => {
@@ -414,7 +424,9 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         onError={goNext}
                     />
                 ) : mediaError ? (
-                    // 文言は写真ページ・モーダルと同じ（新しい言い回しを増やさない）
+                    // 日本語の文言は写真ページ・モーダルと揃える（言い回しを増やさない）。
+                    // **英語はここにしか無い**——あちらの2つは日本語ベタ書きで
+                    // locale 分岐を持たない（揃えるなら別コミットで向こうを直す）
                     <div className="flex flex-col items-center justify-center text-white/60 gap-2 px-6 text-center">
                         <PhotoIcon className="w-10 h-10" />
                         <p className="text-sm">{locale === "en" ? "Couldn't load image" : "画像を読み込めません"}</p>

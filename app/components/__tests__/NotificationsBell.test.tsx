@@ -307,6 +307,30 @@ describe("写真も送り主も分からない通知", () => {
         const empty = Array.from(document.body.querySelectorAll("img"))
             .filter((el) => !el.getAttribute("src"));
         expect(empty, "src の空な img を出している").toHaveLength(0);
+        // **代わりに人型アイコンを出す。** ここを見ないと、左のアイコンごと
+        // 消す実装（フォールバック `null`）でも緑のままだった（レビュー指摘）。
+        // `svg` があることだけを見るのも駄目——本文にハートのアイコンが
+        // 入っているので、アイコンごと消しても当たってしまう（実測）。
+        // `UserAvatar` が出す丸い枠（`rounded-full`）で見分ける
+        const row = screen.getByText(/旅子/).closest("li");
+        expect(row?.querySelector("div.rounded-full svg"), "左のアイコンごと消えている").not.toBeNull();
+    });
+
+    // **右端のサムネ側のガードも無検証だった**（`n.photoSrc &&` を外しても
+    // 全件緑）。今回それを「既にガードがある側」として手本にしたので、
+    // 手本の方も固定しておく
+    it("送り主が分かる通知でも、写真が無ければ img を出さない", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({
+            items: [{ type: "like", photoId: "p1", photoSrc: "", byId: "u9", byName: "旅子", t: "2026-07-10T00:00:00Z" }],
+            unread: 0,
+        }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+
+        await screen.findByText(/旅子/);
+        expect(Array.from(document.body.querySelectorAll("img")).filter((el) => !el.getAttribute("src")),
+            "src の空な img を出している").toHaveLength(0);
     });
 
     // 正常系: 写真があるときは今までどおりその写真を出す
