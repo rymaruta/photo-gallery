@@ -53,7 +53,11 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
             const L = await import("leaflet");
             if (cancelled || !containerRef.current) return;
 
-            const map = L.map(el, { zoomControl: true, attributionControl: true, worldCopyJump: true });
+            // ズームは**左下**。左上だと、少しスクロールした帯で固定ヘッダーの
+            // 下に入り、半透明のヘッダー越しに「＋」が見えているのに押せない
+            // （押すとヘッダーのロゴが反応してトップへ飛ぶ）——実測で確認
+            const map = L.map(el, { zoomControl: false, attributionControl: true, worldCopyJump: true });
+            L.control.zoom({ position: "bottomleft" }).addTo(map);
             mapRef.current = map;
             L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
                 maxZoom: MAX_ZOOM,
@@ -66,12 +70,17 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
             /** 1枚ぶんのポップアップ（サムネ・タイトルへのリンク・地名）。
              *  **HTML 文字列を組まない。** タイトルは利用者の入力なので、
              *  文字列で innerHTML に入れると注入できる。DOM を作って渡す */
-            const cardFor = (photo: MapPhoto): HTMLElement => {
+            const cardFor = (photo: MapPhoto, onImageLoad?: () => void): HTMLElement => {
                 const a = document.createElement("a");
                 a.href = ROUTES.PHOTO(photo.id);
                 a.textContent = titleOf(photo, locale);
                 a.className = "block text-sm font-semibold";
                 const box = document.createElement("div");
+                // **クラスを付ける。** Tailwind の preflight（`img { max-width: 100% }`）が
+                // あると、Leaflet が幅を決めるときサムネの幅寄与が 0 になり、
+                // ポップアップが最小幅まで潰れる（実測: 160px 指定のサムネが 96px で
+                // 描かれ、ポップアップの中身も 96px）。globals.css で打ち消す
+                box.className = "photo-map-card";
                 if (photo.thumbSrc || photo.src) {
                     const img = document.createElement("img");
                     img.src = photo.thumbSrc || photo.src;
@@ -86,6 +95,11 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                     img.height = thumbHeight(photo);
                     img.loading = "lazy";
                     img.className = "rounded-md mb-1 block";
+                    // **入ったら測り直す。** 上の高さは見積もりなので、実物が縦長だと
+                    // 見積もりより伸びる。Leaflet は開いた瞬間にしか測らないので、
+                    // 伸びたぶんは枠の外へ出たままになる（実測: 見積もり 107px に対し
+                    // 3:4 の写真は 128px で描かれ、3枚で 63px 超過しうる）
+                    if (onImageLoad) img.addEventListener("load", onImageLoad, { once: true });
                     box.appendChild(img);
                 }
                 box.appendChild(a);
@@ -98,6 +112,11 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                 return box;
             };
 
+            /** ポップアップの高さの上限。**地図より高くしない**——低い画面
+             *  （`min-h-[320px]` が効く高さ）で下へはみ出し、最後のカードに
+             *  届かなくなる（実測: 390x400 で 33px はみ出し） */
+            const popupMaxH = () => Math.max(140, Math.round(el.clientHeight * 0.7));
+
             const draw = () => {
                 layer.clearLayers();
                 const points: Point[] = photosRef.current.map((p) => ({ id: p.id, lat: p.coords.lat, lng: p.coords.lng, photo: p }));
@@ -107,7 +126,7 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                         const marker = L.circleMarker([c.lat, c.lng], {
                             radius: PIN_PX, color: "#ffffff", weight: 2, fillColor: "#0ea5e9", fillOpacity: 0.9,
                         });
-                        marker.bindPopup(cardFor(photo), { maxWidth: 200 });
+                        marker.bindPopup(cardFor(photo, () => marker.getPopup()?.update()), { maxWidth: 200, maxHeight: popupMaxH() });
                         marker.addTo(layer);
                     } else {
                         const icon = L.divIcon({
@@ -134,8 +153,9 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                         } else {
                             const list = document.createElement("div");
                             list.className = "photo-map-list";
-                            for (const it of c.items) list.appendChild(cardFor(it.photo));
-                            marker.bindPopup(list, { maxWidth: 200, maxHeight: 320 });
+                            const remeasure = () => marker.getPopup()?.update();
+                            for (const it of c.items) list.appendChild(cardFor(it.photo, remeasure));
+                            marker.bindPopup(list, { maxWidth: 200, maxHeight: popupMaxH() });
                         }
                         marker.addTo(layer);
                     }

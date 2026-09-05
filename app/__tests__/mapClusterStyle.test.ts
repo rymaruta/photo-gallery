@@ -24,13 +24,25 @@ describe("撮影地マップの見た目（第三者CSSとの詳細度）", () =
         expect(body).toContain("justify-content: center");
     });
 
-    // 地図の下地も同じ型だった。`bg-white/5`（クラス1つ）は Leaflet の
-    // `.leaflet-container { background: #ddd }` と同じ強さで、ビルド後は
-    // leaflet.css が後に読まれるため**一度も効いていなかった**
+    // 地図の下地も第三者CSSに負けていた。`bg-white/5` は `@layer utilities` の
+    // 中にあるので、レイヤーの外にある Leaflet の
+    // `.leaflet-container { background: #ddd }` に**詳細度に関係なく**負ける
     // （実測 rgb(221,221,221)＝真っ黒な画面に明るい灰色の板）。
+    // こちらの規則はレイヤーの外なので詳細度で決まるが、クラス1つでは
+    // 後から読まれる leaflet.css に負けるため2クラスで書く。
     it("地図の下地も、順序で負けない書き方になっている", () => {
         expect(css).toContain(".photo-map-shell.leaflet-container");
         const rule = css.slice(css.indexOf(".photo-map-shell.leaflet-container"));
         expect(rule.slice(rule.indexOf("{"), rule.indexOf("}"))).toContain("background");
+    });
+
+    // ポップアップのサムネ。Tailwind の preflight（`@layer base` の
+    // `img { max-width: 100% }`）を打ち消さないと、Leaflet の幅の計算で
+    // サムネの幅寄与が 0 になり、ポップアップが最小幅まで潰れる
+    // （実測: 160px 指定のサムネが 96px で描かれた）
+    it("ポップアップのサムネが preflight に潰されない", () => {
+        expect(css).toContain(".photo-map-card img");
+        const rule = css.slice(css.indexOf(".photo-map-card img"));
+        expect(rule.slice(rule.indexOf("{"), rule.indexOf("}"))).toContain("max-width: none");
     });
 });

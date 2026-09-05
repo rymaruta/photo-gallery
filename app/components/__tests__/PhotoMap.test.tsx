@@ -15,10 +15,12 @@ import type { Photo } from "@/lib/data/photos";
 type FakeMarker = {
     kind: string; latlng: unknown; opts: Record<string, unknown>;
     popup: HTMLElement | null; popupOpts: Record<string, unknown> | null;
+    update: ReturnType<typeof vi.fn>;
     on: (ev: string, fn: () => void) => void; addTo: () => FakeMarker;
     bindPopup: (el: HTMLElement, o: Record<string, unknown>) => FakeMarker;
+    getPopup: () => { update: ReturnType<typeof vi.fn> };
 };
-const state = vi.hoisted(() => ({ markers: [] as FakeMarker[], zoom: 4 }));
+const state = vi.hoisted(() => ({ markers: [] as FakeMarker[], zoom: 4, zoomControl: null as unknown }));
 
 vi.mock("leaflet", () => {
     const handlers: Record<string, Array<() => void>> = {};
@@ -30,10 +32,12 @@ vi.mock("leaflet", () => {
     };
     const group = { addTo: () => group, clearLayers: () => { state.markers.length = 0; } };
     const make = (kind: string) => (latlng: unknown, opts: Record<string, unknown> = {}) => {
+        const update = vi.fn();
         const m: FakeMarker = {
-            kind, latlng, opts, popup: null, popupOpts: null,
+            kind, latlng, opts, popup: null, popupOpts: null, update,
             on: () => {}, addTo: () => m,
             bindPopup: (el, o) => { m.popup = el; m.popupOpts = o; return m; },
+            getPopup: () => ({ update }),
         };
         state.markers.push(m);
         return m;
@@ -45,6 +49,7 @@ vi.mock("leaflet", () => {
         circleMarker: make("circle"),
         marker: make("marker"),
         divIcon: (o: unknown) => o,
+        control: { zoom: (o: unknown) => { state.zoomControl = o; return { addTo: () => ({}) }; } },
     };
 });
 
@@ -62,7 +67,7 @@ const draw = async (photos: MapPhoto[]) => {
     await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
 };
 
-beforeEach(() => { state.markers.length = 0; state.zoom = 4; });
+beforeEach(() => { state.markers.length = 0; state.zoom = 4; state.zoomControl = null; });
 
 describe("地図の枠", () => {
     it("スタッキングコンテキストを作る（Leaflet の z-index をページに出さない）", async () => {
@@ -109,9 +114,36 @@ describe("ポップアップ", () => {
         const cluster = state.markers.find((m) => m.kind === "marker")!;
         expect(cluster, "同じ座標なのに束になっていない").toBeTruthy();
         const links = [...cluster.popup!.querySelectorAll("a")];
-        expect(links.map((a) => a.getAttribute("href"))).toHaveLength(3);
+        // **href まで見る。** 長さだけだと、3枚とも同じ写真を指していても通る
+        expect(links.map((a) => a.getAttribute("href"))).toEqual(["/?photo=a", "/?photo=b", "/?photo=c"]);
         // はみ出したぶんはスクロールで届く（高さの上限を渡している）
-        expect(cluster.popupOpts?.maxHeight).toBe(320);
+        expect(typeof cluster.popupOpts?.maxHeight).toBe("number");
+    });
+
+    // **単独のピンにも上限が要る。** 縦長の写真1枚でも、低い画面
+    // （`min-h-[320px]` が効く高さ）では地図の下へはみ出す
+    it("単独のピンのポップアップにも高さの上限を渡す", async () => {
+        await draw([photo("a")]);
+        expect(typeof state.markers[0].popupOpts?.maxHeight).toBe("number");
+    });
+
+    it("画像が入ったら測り直す（見積もりより伸びたぶんを枠の外に残さない）", async () => {
+        await draw([photo("a")]);
+        const marker = state.markers[0];
+        const img = marker.popup!.querySelector("img")!;
+        expect(marker.update).not.toHaveBeenCalled();
+        img.dispatchEvent(new Event("load"));
+        // 実測: 見積もり 107px に対し 3:4 の写真は 213px で描かれる。
+        // Leaflet は開いた瞬間にしか測らないので、伸びたぶんは枠の外に残る
+        expect(marker.update, "画像が入っても測り直していない").toHaveBeenCalled();
+    });
+
+    it("サムネが preflight に潰されないよう、カードに目印を付ける", async () => {
+        await draw([photo("a")]);
+        // globals.css の `.photo-map-card img { max-width: none }` が当たる先。
+        // 無いと Leaflet の幅の計算でサムネの幅寄与が0になり、160px 指定が
+        // 96px で描かれた（実測）
+        expect(state.markers[0].popup!.className).toContain("photo-map-card");
     });
 
     it("タイトルは文字として入れる（利用者の入力を HTML として解釈しない）", async () => {
@@ -124,5 +156,15 @@ describe("ポップアップ", () => {
     it("地名から引いた座標は「おおよそ」と断る", async () => {
         await draw([photo("a", { geoApprox: true })]);
         expect(state.markers[0].popup!.textContent).toContain("山中湖（おおよそ）");
+    });
+});
+
+describe("ズームの位置", () => {
+    // 左上に置くと、少しスクロールした帯で固定ヘッダーの下に入り、
+    // 半透明のヘッダー越しに「＋」が見えているのに押せない
+    // （押すとヘッダーのロゴが反応してトップへ飛ぶ）——実測で確認
+    it("左下に置く（固定ヘッダーの下に入らない）", async () => {
+        await draw([photo("a")]);
+        expect(state.zoomControl).toMatchObject({ position: "bottomleft" });
     });
 });
