@@ -52,7 +52,7 @@ describe("pickCoords", () => {
         expect(pickCoords(null)).toBeNull();
         expect(pickCoords([{ lat: "abc", lon: "2" }])).toBeNull();
         expect(pickCoords([{ lat: "91", lon: "2" }])).toBeNull();
-        // 配列に null が混じっても投げない（旧実装は Number(null)=0 で 0,0 を返していた）
+        // 配列に null が混じっても投げない（旧実装は `r.importance` の参照で TypeError を投げていた）
         expect(pickCoords([null, { lat: "1", lon: "2" }])).toEqual({ lat: 1, lng: 2, label: "" });
         expect(pickCoords([null])).toBeNull();
         // 読めない行が importance 最大でも、それは飛ばして読める行を採る
@@ -130,7 +130,10 @@ describe("looksRelated（別の場所に当たっていないか）", () => {
     });
     it("語が1つでも入っていれば通す（補足の括弧・空白区切り・中黒）", () => {
         expect(looksRelated("オペラ・ガルニエ（パリ）", "ガルニエ宮, Place de l'Opéra, 9区, パリ, フランス")).toBe(true);
-        expect(looksRelated("フランス ヴェルサイユ", "ヴェルサイユ, Versailles, Yvelines, フランス")).toBe(true);
+        expect(looksRelated("フランス ヴェルサイユ", "ヴェルサイユ, イヴリーヌ, イル＝ド＝フランス地域圏, フランス")).toBe(true);
+        expect(looksRelated("パリ/フランス", "パリ, イル＝ド＝フランス地域圏, フランス")).toBe(true);
+        // 英数字は大小を同一視（表示名が英語で返るとき）
+        expect(looksRelated("paris", "Paris, Île-de-France, France")).toBe(true);
         expect(looksRelated("茨城県 ひたちなか市 国営ひたち海浜公園", "国営ひたち海浜公園, 4, ひたちなか市, 茨城県, 日本")).toBe(true);
     });
     it("同名の別の場所は見分けられない（福岡→福岡町も通る。GEOCODE_SKIP で外す）", () => {
@@ -153,8 +156,14 @@ describe("looksRelated（別の場所に当たっていないか）", () => {
 });
 
 describe("skipSet（GEOCODE_SKIP）", () => {
-    it("カンマ区切りを地名の鍵に寄せる（空白の表記ゆれも同じ鍵）", () => {
-        expect([...skipSet("福岡, 土谷棚田 ,,")]).toEqual(["福岡", "土谷棚田"]);
+    it("セミコロン区切りを地名の鍵に寄せる（空白の表記ゆれも同じ鍵）", () => {
+        expect([...skipSet("福岡; 土谷棚田 ;;")]).toEqual(["福岡", "土谷棚田"]);
+        expect(skipSet("").size).toBe(0);
         expect(skipSet(undefined).size).toBe(0);
+    });
+    // 本番の地名に「パリ, フランス」がある。カンマで割ると**それは残り、
+    // 無関係な「パリ」「フランス」が飛ぶ**（レビュー指摘）
+    it("地名の中のカンマで割らない", () => {
+        expect([...skipSet("パリ, フランス")]).toEqual(["パリ, フランス"]);
     });
 });

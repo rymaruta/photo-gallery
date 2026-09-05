@@ -23,7 +23,7 @@
  * 環境変数:
  *   PHOTOS_TABLE   (必須)
  *   GEOCODE_UA     (任意) Nominatim に名乗る User-Agent。既定はサイト名
- *   GEOCODE_SKIP   (任意) 飛ばす地名（カンマ区切り）。ドライランで当て違いと分かったもの
+ *   GEOCODE_SKIP   (任意) 飛ばす地名（セミコロン区切り）。ドライランで当て違いと分かったもの
  *   AWS_REGION     (default: ap-northeast-1)
  */
 
@@ -101,24 +101,36 @@ function planTargets(items) {
  * 「土谷棚田」（長崎県）が名古屋市の図書館に当たった——Nominatim は何かを
  * 返そうとするので、知らない地名でも別の場所が返る。表示名に地名の語が
  * 1つも入っていなければ「引けなかった」扱いにする。
- * 語は空白・中黒・括弧・読点で切り、1文字の語は見ない（「（パリ）」の
- * ように補足だけが一致する形は許す＝正しい結果を弾く側には倒さない）。
- * 語が1つも取れない地名は判定しない（通す）。
+ * 語は空白・中黒・括弧・読点・スラッシュで切り、1文字の語は見ない（「（パリ）」の
+ * ように補足だけが一致する形は許す）。英数字は大小を同一視する。
+ * 語が1つも取れない地名・表示名が無いときは判定しない（通す）。
+ *
+ * **限界**: 表記の種類が違うと正しい結果も弾く——「Paris」に対して日本語の
+ * 表示名「パリ, …」が返る／「ベルサイユ」と「ヴェルサイユ」／空白を含まない
+ * 複合語（「鎌倉大仏」→「高徳院」）。倒れる先は「書かない」で、ログに
+ * 表示名が出るので人が見て判断できる。今の本番の地名（日本語・単純な形）は
+ * 全部通ることをドライランで確認した。
  */
 function looksRelated(name, label) {
     if (typeof label !== "string" || !label) return true;
-    const tokens = String(name).split(/[\s　・,、()（）]+/).filter((t) => t.length >= 2);
+    const fold = (v) => v.toLowerCase();
+    const tokens = String(name).split(/[\s　・,、()（）/／【】「」]+/).filter((t) => t.length >= 2).map(fold);
     if (tokens.length === 0) return true;
-    return tokens.some((t) => label.includes(t));
+    const hay = fold(label);
+    return tokens.some((t) => hay.includes(t));
 }
 
 /**
- * 飛ばす地名（`GEOCODE_SKIP`、カンマ区切り）。同名の別の場所に当たるものは
- * 機械では見分けられない（「福岡」→ 富山県の福岡町。表示名にも「福岡」が入る）。
- * ドライランで目で見て外す。撮影地名を「福岡市」のように直せば次の実行で拾える。
+ * 飛ばす地名（`GEOCODE_SKIP`、**セミコロン区切り**）。同名の別の場所に当たる
+ * ものは機械では見分けられない（「福岡」→ 富山県の福岡町。表示名にも「福岡」が
+ * 入る）。ドライランで目で見て外す。撮影地名を「福岡市」のように直せば次の
+ * 実行で拾える。
+ * カンマで区切らないのは、地名そのものにカンマが入るため（本番に
+ * 「パリ, フランス」がある。カンマで割ると**それは残り、無関係な「パリ」と
+ * 「フランス」が飛ぶ**——レビュー指摘）。
  */
-function skipSet(raw = process.env.GEOCODE_SKIP) {
-    return new Set(String(raw ?? "").split(",").map((v) => normalizeLocationName(v)).filter(Boolean));
+function skipSet(raw) {
+    return new Set(String(raw ?? "").split(";").map((v) => normalizeLocationName(v)).filter(Boolean));
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -164,12 +176,16 @@ async function main() {
         lastKey = res.LastEvaluatedKey;
     } while (lastKey);
 
-    const skip = skipSet();
+    const skip = skipSet(process.env.GEOCODE_SKIP);
     const all = planTargets(items);
     const targets = all.filter((t) => !skip.has(t.name));
     const names = [...new Set(targets.map((t) => t.name))];
     console.log(`[geocode] ${items.length}件中 ${all.length}件が「地名あり・座標なし」（地名 ${new Set(all.map((t) => t.name)).size}種）`);
-    if (skip.size) console.log(`[geocode] 飛ばす地名（GEOCODE_SKIP）: ${[...skip].join(" / ")} → 対象 ${targets.length}件・${names.length}種`);
+    if (skip.size) {
+        console.log(`[geocode] 飛ばす地名（GEOCODE_SKIP・; 区切り）: ${[...skip].join(" / ")} → 対象 ${targets.length}件・${names.length}種`);
+        // 1件にも当たらない指定は綴りの違い。黙って進むと「飛ばしたつもり」で書く
+        for (const k of skip) if (!all.some((t) => t.name === k)) console.warn(`  [geocode] GEOCODE_SKIP「${k}」に一致する地名は無い（綴りを確認）`);
+    }
     if (targets.length === 0) return;
 
     const coordsByName = await geocodeAll(names);

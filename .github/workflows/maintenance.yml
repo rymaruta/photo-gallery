@@ -37,7 +37,7 @@ on:
         type: string
         default: ""
       geocode_skip:
-        description: "geocode-locations で飛ばす地名（カンマ区切り。ドライランで当て違いと分かったもの）"
+        description: "geocode-locations で飛ばす地名（セミコロン ; 区切り。地名にカンマが入るため。ドライランで当て違いと分かったもの）"
         type: string
         default: ""
 
