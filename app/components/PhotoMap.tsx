@@ -18,6 +18,8 @@ type Point = GeoPoint & { photo: MapPhoto };
 
 /** ピンの半径（px）。束の升はこの直径より少し大きく取る */
 const PIN_PX = 9;
+/** ポップアップのサムネの幅（px） */
+const THUMB_W = 160;
 const CELL_PX = 56;
 /** タイルの最大ズーム（OSM の標準タイルは 19 まであるが 18 で十分） */
 const MAX_ZOOM = 18;
@@ -74,7 +76,14 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                     const img = document.createElement("img");
                     img.src = photo.thumbSrc || photo.src;
                     img.alt = "";
-                    img.width = 160;
+                    img.width = THUMB_W;
+                    // **高さも入れる。** Leaflet は開いた瞬間に中身の高さを測って、
+                    // `maxHeight` を超えていればスクロールできるようにする。画像が
+                    // まだ読めていないと高さ0で測られ、「収まっている」と誤判定した
+                    // あとから画像が入ってポップアップだけが伸びる——実測（390x844）:
+                    // 3枚で高さ465px・地図の上へ 183px はみ出し、3枚のうち1枚は
+                    // 表示も操作もできなかった（束は寄っても割れないのでここが唯一の導線）
+                    img.height = thumbHeight(photo);
                     img.loading = "lazy";
                     img.className = "rounded-md mb-1 block";
                     box.appendChild(img);
@@ -164,10 +173,31 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
             ref={containerRef}
             role="region"
             aria-label={locale === "en" ? "Map of shooting locations" : "撮影地マップ"}
-            className="w-full h-[70vh] min-h-[320px] rounded-2xl overflow-hidden ring-1 ring-white/10 bg-white/5"
+            // **`isolate`（isolation: isolate）を外さない。** Leaflet はペインに
+            // z-index 400〜1000 を振る。ここでスタッキングコンテキストを作らないと
+            // その値がページ全体の土俵に出て、`z-50` のヘッダーとメニューを追い越す
+            // ——実測（Chromium・390x844・300px スクロール）: ヘッダー帯の画素が
+            // 地図のタイル色になり、ロゴもハンバーガーも見えないまま押せる状態だった。
+            // 下地の色は globals.css（`.photo-map-shell`）。ここに `bg-white/5` と
+            // 書いても Leaflet の `.leaflet-container { background: #ddd }` と
+            // 同じ強さで、読み込み順で負けて効かない（実測 rgb(221,221,221)）
+            className="photo-map-shell isolate w-full h-[70vh] min-h-[320px] rounded-2xl overflow-hidden ring-1 ring-white/10"
             data-testid="photo-map"
         />
     );
+}
+
+/**
+ * ポップアップのサムネの高さ。実寸が分かっていればその比、無ければ 3:2。
+ * **開く前に高さが決まっていること**が要る（`img.height` の説明を参照）。
+ * 読み込み後は実際の比で描かれる（`height: auto`）ので、外れても歪まない。
+ */
+function thumbHeight(photo: Photo): number {
+    const w = Number(photo.width), h = Number(photo.height);
+    if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
+        return Math.min(240, Math.max(40, Math.round((THUMB_W * h) / w)));
+    }
+    return Math.round((THUMB_W * 2) / 3);
 }
 
 function titleOf(photo: Photo, locale: "ja" | "en"): string {

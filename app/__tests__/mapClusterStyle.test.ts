@@ -8,7 +8,7 @@ import path from "path";
 // 読み込み順で負ける。ビルドの順序は Next のバンドルが決めるので、
 // **順序に頼らない形（クラス2つ）**で書く必要がある。
 // 実ブラウザでしか出ない壊れ方なので、ここでは書き方を固定する。
-describe("撮影地マップの束の見た目", () => {
+describe("撮影地マップの見た目（第三者CSSとの詳細度）", () => {
     const css = readFileSync(path.join(process.cwd(), "app", "globals.css"), "utf-8");
 
     it("Leaflet の display:block に順序で負けない書き方になっている", () => {
@@ -22,5 +22,15 @@ describe("撮影地マップの束の見た目", () => {
         expect(body).toContain("display: flex");
         expect(body).toContain("align-items: center");
         expect(body).toContain("justify-content: center");
+    });
+
+    // 地図の下地も同じ型だった。`bg-white/5`（クラス1つ）は Leaflet の
+    // `.leaflet-container { background: #ddd }` と同じ強さで、ビルド後は
+    // leaflet.css が後に読まれるため**一度も効いていなかった**
+    // （実測 rgb(221,221,221)＝真っ黒な画面に明るい灰色の板）。
+    it("地図の下地も、順序で負けない書き方になっている", () => {
+        expect(css).toContain(".photo-map-shell.leaflet-container");
+        const rule = css.slice(css.indexOf(".photo-map-shell.leaflet-container"));
+        expect(rule.slice(rule.indexOf("{"), rule.indexOf("}"))).toContain("background");
     });
 });

@@ -129,6 +129,16 @@ body {
 }
 
 /* 撮影地マップ（/map）の束（複数枚が重なった升）。数字だけを丸で出す */
+/* 地図の下地。タイルが来ていない間（読み込み中・機内モード）に見える色。
+   **2クラスで書く。** Leaflet の `.leaflet-container { background: #ddd }` と
+   クラス1つ同士では読み込み順で負ける——実測でビルド後は leaflet.css が後に
+   読まれ、`bg-white/5` は一度も効いていなかった（rgb(221,221,221) が出ていた）。
+   真っ黒な画面に明るい灰色の板が出るので、サイトの地色に合わせる */
+.photo-map-shell.leaflet-container,
+.photo-map-shell {
+  background: rgb(255 255 255 / 0.05);
+}
+
 /* 束（同じ升にまとまった写真の枚数）。
    **2クラスで書く。** Leaflet の `.leaflet-marker-icon { display: block }` と
    同じ強さ（クラス1つ）なので、読み込み順で負けると `display: flex` が効かず、
