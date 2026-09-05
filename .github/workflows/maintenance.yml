@@ -169,6 +169,8 @@ jobs:
           PHOTOS_TABLE: staging-photo-gallery-photos
           CLOUDFRONT_DISTRIBUTION_ID: EF2TFEBBP24DL
           CLEANUP_FUNCTION: photo-gallery-user-api-staging-cleanupStories
+          # 管理API側（別サービス＝別の IAM・別の環境変数）も同じやり方で確かめる
+          ADMIN_DELETE_FUNCTION: photo-gallery-api-staging-deletePhoto
 
       - name: 本番の設定を読む（診断）
         if: inputs.task == 'diagnose'

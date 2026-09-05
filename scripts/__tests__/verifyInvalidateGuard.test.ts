@@ -29,6 +29,9 @@ describe("verify-invalidate は staging にしか向かない", () => {
         // staging の配信ID（本番は EYRLTGCPOS9E4）
         expect(s).toMatch(/CLOUDFRONT_DISTRIBUTION_ID:\s*EF2TFEBBP24DL/);
         expect(s).toMatch(/CLEANUP_FUNCTION:\s*photo-gallery-user-api-staging-cleanupStories/);
+        // **api-user が動いても api の証拠にはならない**（別サービス＝別の
+        // IAM・別の環境変数）。管理API側の関数も向けていることを固定する
+        expect(s).toMatch(/ADMIN_DELETE_FUNCTION:\s*photo-gallery-api-staging-deletePhoto/);
     });
 
     it("ステップに本番の値が1つも書かれていない", () => {
@@ -53,6 +56,10 @@ describe("verify-invalidate は staging にしか向かない", () => {
     // あるので必ず成功する）。Lambda を invoke していることを固定する
     it("Lambda を invoke している（ランナーで代用していない）", () => {
         expect(script).toMatch(/InvokeCommand/);
+        // 2経路とも invoke する（片方だけだと、もう片方の IAM・環境変数は未確認のまま）
+        expect(script).toMatch(/CLEANUP_FUNCTION/);
+        expect(script).toMatch(/ADMIN_DELETE_FUNCTION/);
+        expect(script, "管理者クレームを付けずに叩いている").toMatch(/cognito:groups/);
         expect(script, "ランナー側で invalidateUploads を直接呼んでいる").not.toMatch(/from ["'].*cdnInvalidate["']/);
     });
 });

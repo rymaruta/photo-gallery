@@ -10,11 +10,15 @@
  *
  * だから **staging の Lambda を実際に走らせる**:
  *
- *   1. `uploads/` にダミーを1つ置く（1バイト）
- *   2. 期限切れのストーリー行を1つ書く（`storyFeed` の GSI に載る形）
- *   3. staging の `cleanupStories` を **Invoke**（1時間ごとの定期実行と同じ経路）
- *   4. staging の CloudFront に `del-…` の無効化ができたかを見る
- *   5. 後始末（行と実体が残っていたら消す）
+ * **2つの経路を別々に確かめる**（コードは親和テストでバイト一致を強制して
+ * いるが、**配られている環境変数と IAM はサービスごとに別**なので、
+ * 片方が動いても もう片方の証拠にはならない）:
+ *
+ *   A. api-user: 期限切れのストーリー行を書いて `cleanupStories` を Invoke
+ *   B. api（管理API）: 写真の行を書いて `deletePhoto` を Invoke（管理者クレーム付き）
+ *
+ * どちらも「ダミーを置く → 行を書く → Invoke → `del-…` の無効化を確認 →
+ * 後始末」。**staging 専用**・**`--apply` が要る**。
  *
  * **staging 専用**（バケット名が `staging-` で始まらなければ何もしない）。
  * **`--apply` が要る**（本物の S3・DynamoDB に書くため。`verify-upload` と同じ）。
@@ -63,6 +67,53 @@ async function cleanup() {
     try { await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: KEY })); } catch { /* 同上 */ }
 }
 
+/** 管理APIの削除（api パッケージ側）を、同じやり方で確かめる */
+async function verifyAdminDelete(): Promise<boolean> {
+    const fn = process.env.ADMIN_DELETE_FUNCTION ?? "";
+    if (!fn) { console.log("[verify:admin] ADMIN_DELETE_FUNCTION が未設定のため飛ばします"); return true; }
+    const stamp = Date.now();
+    const id = `verify-invalidate-photo-${stamp}`;
+    const key = `uploads/verify-invalidate/${stamp}-admin.bin`;
+    const started = Date.now();
+    try {
+        await s3.send(new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: "x", CacheControl: "max-age=31536000" }));
+        await ddb.send(new PutCommand({
+            TableName: TABLE,
+            Item: {
+                id, userId: "verify-invalidate", published: false,
+                // 管理APIはURLの pathname からキーを採る（`uploads/` の中だけ消す）
+                src: `https://d15fn3rcaiymu9.cloudfront.net/${key}`,
+                createdAt: new Date(started).toISOString(), updatedAt: new Date(started).toISOString(),
+            },
+        }));
+        console.log(`[verify:admin] 置いた: ${key} / 行: ${id}`);
+
+        // **管理者として叩く。** `isAdmin` は cognito:groups を見る
+        const event = {
+            pathParameters: { id },
+            requestContext: { authorizer: { jwt: { claims: { sub: "verify-invalidate", "cognito:groups": "[admin]" } } } },
+        };
+        const res = await lambda.send(new InvokeCommand({ FunctionName: fn, Payload: Buffer.from(JSON.stringify(event)) }));
+        console.log(`[verify:admin] invoke: status=${res.StatusCode} funcError=${res.FunctionError ?? "(なし)"}`);
+        if (res.Payload) console.log(`[verify:admin] 応答: ${Buffer.from(res.Payload).toString().slice(0, 300)}`);
+
+        const left = await ddb.send(new GetCommand({ TableName: TABLE, Key: { id } }));
+        console.log(`[verify:admin] 行は${left.Item ? "残っている（削除が失敗）" : "消えた（削除が走った）"}`);
+
+        const refs = await lambdaInvalidationsSince(DIST, started);
+        if (refs.length > 0) {
+            console.log(`[verify:admin] **管理APIでもエッジの掃除が動いている**（${refs.join(", ")}）`);
+            return true;
+        }
+        console.log("[verify:admin] del-… の無効化が見つからない（api 側の IAM か環境変数か、ランタイムの SDK を疑う）");
+        return false;
+    } finally {
+        try { await ddb.send(new DeleteCommand({ TableName: TABLE, Key: { id } })); } catch { /* 残っていなければよい */ }
+        try { await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key })); } catch { /* 同上 */ }
+        console.log("[verify:admin] 後始末しました");
+    }
+}
+
 async function main() {
     // **staging 以外では何もしない。** 本番のテーブルにダミーの行を書く事故を、
     // 「気をつける」ではなく仕組みで止める（verify-upload と同じ形）
@@ -81,6 +132,7 @@ async function main() {
         console.log(`  3. Lambda ${FN} を invoke（定期実行と同じ経路）`);
         console.log(`  4. CloudFront ${DIST} に del-… の無効化ができたか見る`);
         console.log("  5. 後始末（行と実体を消す）");
+        console.log(`  6. 同じことを管理API（${process.env.ADMIN_DELETE_FUNCTION || "(未設定)"}）でも`);
         return;
     }
 
@@ -123,7 +175,10 @@ async function main() {
         await cleanup();
         console.log("[verify] 後始末しました");
     }
-    if (!ok) process.exit(1);
+    // **api-user が動いても api の証拠にはならない**（別サービス＝別の IAM・
+    // 別の環境変数）。管理API側も同じやり方で確かめる
+    const adminOk = await verifyAdminDelete();
+    if (!ok || !adminOk) process.exit(1);
 }
 
 if (process.argv[1] && process.argv[1].endsWith("verify-invalidate.ts")) {
