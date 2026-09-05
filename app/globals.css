@@ -127,3 +127,24 @@ body {
   h2 { font-size: 1.125rem; }
   h3 { font-size: 1rem; }
 }
+
+/* 撮影地マップ（/map）の束（複数枚が重なった升）。数字だけを丸で出す */
+.photo-map-cluster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9999px;
+  background: rgba(14, 165, 233, 0.92);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+/* 同じ升の写真をまとめて出すポップアップ（1枚ずつ縦に並ぶ） */
+.photo-map-list > div + div {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}

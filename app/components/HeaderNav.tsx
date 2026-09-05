@@ -210,6 +210,12 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                     >
                         <nav aria-label="メインメニュー">
                             <ul className="flex flex-col m-0 p-0 divide-y divide-white/5" style={{ listStyle: "none" }}>
+                                {/* 撮影地マップ: 公開の入口なので誰にでも出す */}
+                                <li style={{ margin: 0, padding: 0 }}>
+                                    <button onClick={() => handleNavigation(ROUTES.MAP)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
+                                        {navLabels.map || "Map"}
+                                    </button>
+                                </li>
                                 {/* いいねした写真: 未ログインの初回訪問者には出さない（空ページになるため）。
                                     ログイン中、または実際にお気に入りがある人にだけ表示する。 */}
                                 {(isAuthenticated || favorites.length > 0) && (

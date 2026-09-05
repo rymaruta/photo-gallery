@@ -347,3 +347,17 @@ describe("画面が変わったらメニューを閉じる", () => {
         expect(screen.getByRole("dialog")).toBeInTheDocument();
     });
 });
+
+// 撮影地マップ（/map）は**公開の入口**なので、ログイン状態に関係なく出す。
+// 他の項目はロールで出し分けているので、条件の書き間違いで
+// 「ログインした人にだけ地図が出る」形になっても他のテストは通る。
+describe("HeaderNav - 撮影地マップ", () => {
+    it.each(["anonymous", "general", "admin"] as const)("%s にも出て、/map へ移動する", async (role) => {
+        setRole(role);
+        render(<HeaderNav />);
+        await openMenu();
+        expect(menuItems()).toContain("Map");
+        fireEvent.click(screen.getByRole("button", { name: "Map" }));
+        expect(mockPush).toHaveBeenCalledWith("/map");
+    });
+});
