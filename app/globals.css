@@ -168,9 +168,21 @@ body {
   max-width: none;
 }
 
-/* 同じ升の写真をまとめて出すポップアップ（1枚ずつ縦に並ぶ） */
-.photo-map-list > div + div {
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+/* 同じ升（約1kmに丸めた同じ座標）の写真をまとめて出すポップアップ。
+   **横に並べて指で送る。** 縦に積むと枚数ぶん背が伸びて地図の外へ出ていき、
+   後ろの写真に届かなくなる（実測: 5枚で 771px・地図の上へ 475px）。
+   横なら高さは1枚ぶんで固定。次の写真が少し覗くので「送れる」と分かる */
+.photo-map-list {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  /* 端まで送ったときに地図やページを巻き込まない */
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.photo-map-list > .photo-map-card {
+  /* 1枚の幅は PhotoMap.tsx の THUMB_W と揃える */
+  flex: 0 0 160px;
+  scroll-snap-align: start;
 }

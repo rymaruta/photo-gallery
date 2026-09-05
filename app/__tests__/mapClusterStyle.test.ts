@@ -45,4 +45,16 @@ describe("撮影地マップの見た目（第三者CSSとの詳細度）", () =
         const rule = css.slice(css.indexOf(".photo-map-card img"));
         expect(rule.slice(rule.indexOf("{"), rule.indexOf("}"))).toContain("max-width: none");
     });
+
+    // 同じ升の写真は横に送る（縦積みは枚数ぶん伸びて地図の外へ出た）
+    it("束のポップアップが横並びで、送れるようになっている", () => {
+        const rule = css.slice(css.indexOf(".photo-map-list {"));
+        const body = rule.slice(rule.indexOf("{"), rule.indexOf("}"));
+        expect(body).toContain("display: flex");
+        expect(body).toContain("overflow-x: auto");
+        // 1枚ずつ止まる（半端な位置で止めない）
+        expect(body).toContain("scroll-snap-type: x mandatory");
+        // 端で地図やページを巻き込まない
+        expect(body).toContain("overscroll-behavior-x: contain");
+    });
 });

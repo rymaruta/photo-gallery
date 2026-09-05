@@ -105,7 +105,9 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                 box.appendChild(a);
                 if (photo.location) {
                     const loc = document.createElement("div");
-                    loc.textContent = photo.location + (photo.geoApprox ? (locale === "en" ? " (approx.)" : "（おおよそ）") : "");
+                    // 「（おおよそ）」は付けない。ピン1つずつに断りを入れると
+                    // うるさいので、断りは地図の下に1行だけ出す（app/map/page.tsx）
+                    loc.textContent = photo.location;
                     loc.className = "text-xs text-gray-600";
                     box.appendChild(loc);
                 }
@@ -151,8 +153,13 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                                 map.fitBounds([[inner.south, inner.west], [inner.north, inner.east]], { padding: [48, 48], maxZoom: MAX_ZOOM });
                             });
                         } else {
+                            // **横に並べて指で送る。** 縦に積むと枚数ぶん背が伸びて
+                            // 地図の外へ出ていく（実測: 5枚で 771px）。横なら高さは
+                            // 1枚ぶんのまま。次の写真が少しだけ覗くので送れると分かる
                             const list = document.createElement("div");
                             list.className = "photo-map-list";
+                            list.setAttribute("role", "group");
+                            list.setAttribute("aria-label", locale === "en" ? `${c.items.length} photos here` : `この場所の写真 ${c.items.length}枚`);
                             const remeasure = () => marker.getPopup()?.update();
                             for (const it of c.items) list.appendChild(cardFor(it.photo, remeasure));
                             marker.bindPopup(list, { maxWidth: 200, maxHeight: popupMaxH() });

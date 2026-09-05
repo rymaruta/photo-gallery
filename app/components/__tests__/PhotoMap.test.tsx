@@ -122,6 +122,18 @@ describe("ポップアップ", () => {
 
     // **単独のピンにも上限が要る。** 縦長の写真1枚でも、低い画面
     // （`min-h-[320px]` が効く高さ）では地図の下へはみ出す
+    // 同じ升の写真は横に送る。縦に積むと枚数ぶん背が伸びて地図の外へ出た
+    // （実測 5枚で 771px）。並べ方は globals.css の `.photo-map-list`
+    it("束のポップアップは横に送れる並び（役割と枚数を伝える）", async () => {
+        await draw([photo("a"), photo("b"), photo("c")]);
+        const list = state.markers.find((m) => m.kind === "marker")!.popup!;
+        expect(list.className).toContain("photo-map-list");
+        expect(list.getAttribute("role")).toBe("group");
+        expect(list.getAttribute("aria-label")).toBe("この場所の写真 3枚");
+        // カードは横並びの子（1枚ずつが送る単位）
+        expect(list.querySelectorAll(":scope > .photo-map-card")).toHaveLength(3);
+    });
+
     it("単独のピンのポップアップにも高さの上限を渡す", async () => {
         await draw([photo("a")]);
         expect(typeof state.markers[0].popupOpts?.maxHeight).toBe("number");
@@ -153,9 +165,13 @@ describe("ポップアップ", () => {
         expect(link.querySelector("b"), "利用者の入力が要素になっている").toBeNull();
     });
 
-    it("地名から引いた座標は「おおよそ」と断る", async () => {
+    // ピン1つずつに「（おおよそ）」と断るとうるさいので、断りは地図の下に
+    // 1行だけ出す（`app/map/page.tsx`。そちらのテストで固定している）
+    it("ピンの中では地名だけ出す（1枚ずつ断りを付けない）", async () => {
         await draw([photo("a", { geoApprox: true })]);
-        expect(state.markers[0].popup!.textContent).toContain("山中湖（おおよそ）");
+        const text = state.markers[0].popup!.textContent!;
+        expect(text).toContain("山中湖");
+        expect(text, "ピンごとに断りを付けている").not.toContain("おおよそ");
     });
 });
 
