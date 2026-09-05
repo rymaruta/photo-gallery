@@ -74,6 +74,10 @@ async function dataShapes() {
     await count("位置情報（coords）を持つ写真", {
         FilterExpression: "attribute_exists(src) AND attribute_exists(coords)",
     });
+    await count("撮影地名（location）を持つ写真（地名→座標の補填の材料）", {
+        FilterExpression: "attribute_exists(src) AND attribute_exists(#loc) AND attribute_not_exists(coords)",
+        ExpressionAttributeNames: { "#loc": "location" },
+    });
     await count("うち公開中（published が false でない）", {
         FilterExpression: "attribute_exists(src) AND attribute_exists(coords) AND (attribute_not_exists(published) OR published <> :f)",
         ExpressionAttributeValues: { ":f": { BOOL: false } },

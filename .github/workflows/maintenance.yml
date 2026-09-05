@@ -22,6 +22,7 @@ on:
           - image-perf        # 写真表示の速さに効く材料が揃っているか測る
           - story-index       # ストーリー一覧用の GSI を足す（全件 Scan をやめる）
           - normalize-image-urls  # 保存済みの画像URLのホスト名を配信URLに揃える
+          - geocode-locations # 地名はあるが座標が無い写真に、おおよその座標を補う（地図ページの材料）
           - diagnose          # 本番の設定を読むだけ（索引の射影・日付の形・Cognito・CDN の TTL）
           - orphan-uploads    # どの行からも参照されていないアップロード実体を探す
           - verify-upload     # **staging** で presign が本当に使えるか確かめる（apply が要る）
@@ -176,6 +177,12 @@ jobs:
           CLEANUP_FUNCTION: photo-gallery-user-api-staging-cleanupStories
           # 管理API側（別サービス＝別の IAM・別の環境変数）も同じやり方で確かめる
           ADMIN_DELETE_FUNCTION: photo-gallery-api-staging-deletePhoto
+
+      - name: 地名から おおよその座標を補う
+        if: inputs.task == 'geocode-locations'
+        # Nominatim は 1リクエスト/秒。地名が数十種でも数十秒で終わる
+        run: node scripts/geocode-locations.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 10
 
       - name: 本番の設定を読む（診断）
         if: inputs.task == 'diagnose'
