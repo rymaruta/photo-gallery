@@ -25,6 +25,7 @@ on:
           - diagnose          # 本番の設定を読むだけ（索引の射影・日付の形・Cognito・CDN の TTL）
           - orphan-uploads    # どの行からも参照されていないアップロード実体を探す
           - verify-upload     # **staging** で presign が本当に使えるか確かめる（apply が要る）
+          - verify-invalidate # **staging** で削除時のエッジ掃除が Lambda の中で動くか確かめる（apply が要る）
         required: true
       apply:
         description: "true で実際に適用（false は内容の確認のみ）"
@@ -155,6 +156,19 @@ jobs:
           # 実在しない利用者として叩く（枚数の上限判定が 0 件になる）。
           # 固定値にするのは、残骸が出たときに誰のものか分かるようにするため
           VERIFY_USER_ID: verify-upload-00000000-0000-4000-8000-000000000000
+
+      - name: エッジの掃除が Lambda の中で動くか確かめる（staging）
+        if: inputs.task == 'verify-invalidate'
+        run: npx tsx scripts/verify-invalidate.ts ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 5
+        env:
+          # **staging を明示する。** 上の env は本番向けなので、上書きしないと
+          # 本番のテーブルにダミーの行を書きに行く（スクリプト側も staging-
+          # で始まらなければ止めるが、守りは2枚にしておく）
+          UPLOAD_BUCKET: staging-journey-photo-upload
+          PHOTOS_TABLE: staging-photo-gallery-photos
+          CLOUDFRONT_DISTRIBUTION_ID: EF2TFEBBP24DL
+          CLEANUP_FUNCTION: photo-gallery-user-api-staging-cleanupStories
 
       - name: 本番の設定を読む（診断）
         if: inputs.task == 'diagnose'
