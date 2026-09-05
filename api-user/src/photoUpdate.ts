@@ -182,13 +182,19 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // 利用者にはそれを直す手段が無い。地名が変わったら座標ごと捨てる
         // （次の補填で引き直す）。正確な座標を書く口を通ったなら、
         // 「おおよそ」の印だけ下ろす
-        if (existing.Item?.geoApprox === true && (locationChanged || newCoords)) {
+        // 座標に触った（消した場合も含む）なら印は残さない——座標が無いのに
+        // `geoApprox: true` だけが孤立する形を作らない（レビュー指摘）
+        if (existing.Item?.geoApprox === true && (locationChanged || "coords" in body)) {
             names["#geoApprox"] = "geoApprox";
             removes.push("#geoApprox");
             if (!("coords" in body)) {
                 names["#coords"] = "coords";
                 removes.push("#coords");
             }
+            // 静的ページ（JSON-LD の geo・「地図で見る」）が変わるので作り直しを頼む。
+            // 丸めた座標が同値で `applyMeta` が「変わっていない」と見た場合でも、
+            // 印が下りるぶんは変わっている
+            metaChanged = true;
         }
 
         let expr = `SET ${sets.join(", ")}`;

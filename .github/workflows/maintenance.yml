@@ -36,6 +36,10 @@ on:
         description: "who-liked のときの対象ユーザーID（必須）"
         type: string
         default: ""
+      geocode_skip:
+        description: "geocode-locations で飛ばす地名（カンマ区切り。ドライランで当て違いと分かったもの）"
+        type: string
+        default: ""
 
 # これらは本番専用の保守ワークフロー。スクリプト側の「既定で本番」を撤去したので、
 # ここで環境を明示する（渡し忘れたらスクリプトが止まる）。
@@ -183,6 +187,8 @@ jobs:
         # Nominatim は 1リクエスト/秒。地名が数十種でも数十秒で終わる
         run: node scripts/geocode-locations.js ${{ inputs.apply && '--apply' || '' }}
         timeout-minutes: 10
+        env:
+          GEOCODE_SKIP: ${{ inputs.geocode_skip }}
 
       - name: 本番の設定を読む（診断）
         if: inputs.task == 'diagnose'

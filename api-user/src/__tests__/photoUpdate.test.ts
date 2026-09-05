@@ -608,6 +608,22 @@ describe("updatePhotoVisibility: おおよその座標（geoApprox）の扱い",
         expect(u.ExpressionAttributeValues[":coords"]).toEqual({ lat: 48.86, lng: 2.29 });
     });
 
+    it("座標を消す指定（不正な座標）でも、印だけ孤立させない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: approxRow }).mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { coords: "abc" }));
+        const u = lastUpdate();
+        expect(u.UpdateExpression).toMatch(/REMOVE .*#coords/);
+        expect(u.UpdateExpression).toMatch(/REMOVE .*#geoApprox/);
+        expect(u.UpdateExpression.match(/#coords/g)?.length, "同じ属性を2回書いている").toBe(1);
+    });
+
+    it("印を下ろしただけでも静的ページの作り直しを頼む（丸めたら同値の座標）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: approxRow }).mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { coords: { lat: 48.8612, lng: 2.3501 } }));
+        expect(lastUpdate().UpdateExpression).toMatch(/REMOVE .*#geoApprox/);
+        expect(mockRebuild, "JSON-LD の geo と「地図で見る」が変わるのに頼んでいない").toHaveBeenCalled();
+    });
+
     // **逆向きを固定する。** GPS 由来の正確な座標は、地名を書き換えても消さない
     // （写真そのものが持っていた情報で、地名の誤記を直すだけのことは多い）
     it("GPS 由来の座標（geoApprox なし）は、地名を直しても消さない", async () => {

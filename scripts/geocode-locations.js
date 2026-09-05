@@ -23,6 +23,7 @@
  * 環境変数:
  *   PHOTOS_TABLE   (必須)
  *   GEOCODE_UA     (任意) Nominatim に名乗る User-Agent。既定はサイト名
+ *   GEOCODE_SKIP   (任意) 飛ばす地名（カンマ区切り）。ドライランで当て違いと分かったもの
  *   AWS_REGION     (default: ap-northeast-1)
  */
 
@@ -62,8 +63,9 @@ function pickCoords(json) {
     if (!Array.isArray(json) || json.length === 0) return null;
     let best = null;
     for (const r of json) {
-        const lat = Number(r && r.lat);
-        const lng = Number(r && r.lon);
+        if (!r || typeof r !== "object") continue;
+        const lat = Number(r.lat);
+        const lng = Number(r.lon);
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
         if (Math.abs(lat) > 90 || Math.abs(lng) > 180) continue;
         const importance = Number(r.importance);
@@ -94,6 +96,31 @@ function planTargets(items) {
     return out;
 }
 
+/**
+ * 引けた結果が**その地名の話か**を見る。2回目の本番ドライランで
+ * 「土谷棚田」（長崎県）が名古屋市の図書館に当たった——Nominatim は何かを
+ * 返そうとするので、知らない地名でも別の場所が返る。表示名に地名の語が
+ * 1つも入っていなければ「引けなかった」扱いにする。
+ * 語は空白・中黒・括弧・読点で切り、1文字の語は見ない（「（パリ）」の
+ * ように補足だけが一致する形は許す＝正しい結果を弾く側には倒さない）。
+ * 語が1つも取れない地名は判定しない（通す）。
+ */
+function looksRelated(name, label) {
+    if (typeof label !== "string" || !label) return true;
+    const tokens = String(name).split(/[\s　・,、()（）]+/).filter((t) => t.length >= 2);
+    if (tokens.length === 0) return true;
+    return tokens.some((t) => label.includes(t));
+}
+
+/**
+ * 飛ばす地名（`GEOCODE_SKIP`、カンマ区切り）。同名の別の場所に当たるものは
+ * 機械では見分けられない（「福岡」→ 富山県の福岡町。表示名にも「福岡」が入る）。
+ * ドライランで目で見て外す。撮影地名を「福岡市」のように直せば次の実行で拾える。
+ */
+function skipSet(raw = process.env.GEOCODE_SKIP) {
+    return new Set(String(raw ?? "").split(",").map((v) => normalizeLocationName(v)).filter(Boolean));
+}
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** 地名 → 座標。同じ地名は1回しか引かない */
@@ -108,7 +135,13 @@ async function geocodeAll(names, fetchImpl = fetch) {
         try {
             const res = await fetchImpl(url, { headers: { "User-Agent": UA, "Accept": "application/json" } });
             if (!res.ok) { console.warn(`  [geocode] ${name}: HTTP ${res.status}`); result.set(name, null); continue; }
-            result.set(name, pickCoords(await res.json()));
+            const picked = pickCoords(await res.json());
+            if (picked && !looksRelated(name, picked.label)) {
+                console.warn(`  [geocode] ${name}: 別の場所に当たった（${picked.label}）`);
+                result.set(name, null);
+                continue;
+            }
+            result.set(name, picked);
         } catch (e) {
             console.warn(`  [geocode] ${name}: ${e && e.message}`);
             result.set(name, null);
@@ -131,9 +164,12 @@ async function main() {
         lastKey = res.LastEvaluatedKey;
     } while (lastKey);
 
-    const targets = planTargets(items);
+    const skip = skipSet();
+    const all = planTargets(items);
+    const targets = all.filter((t) => !skip.has(t.name));
     const names = [...new Set(targets.map((t) => t.name))];
-    console.log(`[geocode] ${items.length}件中 ${targets.length}件が「地名あり・座標なし」（地名 ${names.length}種）`);
+    console.log(`[geocode] ${items.length}件中 ${all.length}件が「地名あり・座標なし」（地名 ${new Set(all.map((t) => t.name)).size}種）`);
+    if (skip.size) console.log(`[geocode] 飛ばす地名（GEOCODE_SKIP）: ${[...skip].join(" / ")} → 対象 ${targets.length}件・${names.length}種`);
     if (targets.length === 0) return;
 
     const coordsByName = await geocodeAll(names);
@@ -175,7 +211,7 @@ async function main() {
     if (failed > 0) process.exit(1);
 }
 
-module.exports = { normalizeLocationName, pickCoords, planTargets, geocodeAll, INTERVAL_MS };
+module.exports = { normalizeLocationName, pickCoords, planTargets, geocodeAll, looksRelated, skipSet, INTERVAL_MS };
 
 if (require.main === module) {
     main().catch((e) => {

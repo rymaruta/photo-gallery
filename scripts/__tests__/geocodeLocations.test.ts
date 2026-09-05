@@ -6,11 +6,11 @@ import { describe, it, expect, beforeAll, vi } from "vitest";
 // （`attribute_not_exists(coords)`）と、対象の選び方の両方で守る。
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let normalizeLocationName: any, pickCoords: any, planTargets: any, geocodeAll: any, INTERVAL_MS: number;
+let normalizeLocationName: any, pickCoords: any, planTargets: any, geocodeAll: any, looksRelated: any, skipSet: any, INTERVAL_MS: number;
 beforeAll(() => {
     process.env.PHOTOS_TABLE = "photos-test";
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    ({ normalizeLocationName, pickCoords, planTargets, geocodeAll, INTERVAL_MS } = require("../geocode-locations.js"));
+    ({ normalizeLocationName, pickCoords, planTargets, geocodeAll, looksRelated, skipSet, INTERVAL_MS } = require("../geocode-locations.js"));
 });
 
 describe("normalizeLocationName", () => {
@@ -52,6 +52,9 @@ describe("pickCoords", () => {
         expect(pickCoords(null)).toBeNull();
         expect(pickCoords([{ lat: "abc", lon: "2" }])).toBeNull();
         expect(pickCoords([{ lat: "91", lon: "2" }])).toBeNull();
+        // 配列に null が混じっても投げない（旧実装は Number(null)=0 で 0,0 を返していた）
+        expect(pickCoords([null, { lat: "1", lon: "2" }])).toEqual({ lat: 1, lng: 2, label: "" });
+        expect(pickCoords([null])).toBeNull();
         // 読めない行が importance 最大でも、それは飛ばして読める行を採る
         expect(pickCoords([{ lat: "91", lon: "2", importance: 0.9 }, { lat: "1", lon: "2", importance: 0.1 }]))
             .toEqual({ lat: 1, lng: 2, label: "" });
@@ -115,5 +118,43 @@ describe("geocodeAll", () => {
         expect(out.get("a")).toBeNull();
         expect(out.get("b")).toBeNull();
         expect(out.get("c")).toEqual({ lat: 1, lng: 2, label: "" });
+    });
+});
+
+// 2回目の本番ドライランで「土谷棚田」（長崎県松浦市）が名古屋市瑞穂図書館に
+// 当たった。Nominatim は知らない地名でも何かを返す。表示名に地名の語が
+// 1つも無ければ「引けなかった」にする
+describe("looksRelated（別の場所に当たっていないか）", () => {
+    it("表示名に地名の語が無ければ弾く", () => {
+        expect(looksRelated("土谷棚田", "名古屋市瑞穂図書館, 29番地, 豊岡通三丁目, 瑞穂区, 名古屋市, 愛知県, 日本")).toBe(false);
+    });
+    it("語が1つでも入っていれば通す（補足の括弧・空白区切り・中黒）", () => {
+        expect(looksRelated("オペラ・ガルニエ（パリ）", "ガルニエ宮, Place de l'Opéra, 9区, パリ, フランス")).toBe(true);
+        expect(looksRelated("フランス ヴェルサイユ", "ヴェルサイユ, Versailles, Yvelines, フランス")).toBe(true);
+        expect(looksRelated("茨城県 ひたちなか市 国営ひたち海浜公園", "国営ひたち海浜公園, 4, ひたちなか市, 茨城県, 日本")).toBe(true);
+    });
+    it("同名の別の場所は見分けられない（福岡→福岡町も通る。GEOCODE_SKIP で外す）", () => {
+        expect(looksRelated("福岡", "福岡, 福岡停車場線, 福岡町福岡, 高岡市, 富山県, 日本")).toBe(true);
+    });
+    it("1文字の語だけ・表示名が無い場合は判定しない（正しい結果を弾く側に倒さない）", () => {
+        expect(looksRelated("東 京", "Tokyo")).toBe(true);
+        expect(looksRelated("土谷棚田", "")).toBe(true);
+    });
+
+    it("geocodeAll は別の場所に当たった結果を null にする（書き込み対象から外れる）", async () => {
+        vi.useFakeTimers();
+        const fetchImpl = vi.fn(async () => ({ ok: true, json: async () => [{ lat: "35.12", lon: "136.94", display_name: "名古屋市瑞穂図書館, 名古屋市, 愛知県" }] }));
+        const p = geocodeAll(["土谷棚田"], fetchImpl);
+        await vi.advanceTimersByTimeAsync(0);
+        const out = await p;
+        vi.useRealTimers();
+        expect(out.get("土谷棚田")).toBeNull();
+    });
+});
+
+describe("skipSet（GEOCODE_SKIP）", () => {
+    it("カンマ区切りを地名の鍵に寄せる（空白の表記ゆれも同じ鍵）", () => {
+        expect([...skipSet("福岡, 土谷棚田 ,,")]).toEqual(["福岡", "土谷棚田"]);
+        expect(skipSet(undefined).size).toBe(0);
     });
 });
