@@ -11,7 +11,7 @@
  */
 const { DynamoDBClient, DescribeTableCommand, ScanCommand } = require("@aws-sdk/client-dynamodb");
 const { CognitoIdentityProviderClient, DescribeUserPoolCommand, DescribeUserPoolClientCommand } = require("@aws-sdk/client-cognito-identity-provider");
-const { CloudFrontClient, GetDistributionConfigCommand } = require("@aws-sdk/client-cloudfront");
+const { CloudFrontClient, GetDistributionConfigCommand, GetCachePolicyCommand } = require("@aws-sdk/client-cloudfront");
 const { LambdaClient, ListFunctionsCommand, GetAccountSettingsCommand } = require("@aws-sdk/client-lambda");
 const { requireEnv } = require("./lib/env");
 
@@ -84,6 +84,40 @@ async function cognito() {
     }
 }
 
+/** 秒を人が読める長さに（TTL は 31536000 のような桁で出てくる） */
+function humanSeconds(sec) {
+    if (typeof sec !== "number" || !Number.isFinite(sec)) return "?";
+    if (sec >= 86400) return `${sec}秒（約${Math.round(sec / 86400)}日）`;
+    if (sec >= 3600) return `${sec}秒（約${Math.round(sec / 3600)}時間）`;
+    return `${sec}秒`;
+}
+
+/**
+ * behavior 1つを1行にする（**純関数**。AWS を叩かないのでテストできる）。
+ *
+ * 以前は `cachePolicyId=658327ea-…（TTL はポリシー側）` としか出せず、
+ * **LEFT-4「削除がエッジに何日残るか」に答えられていなかった**
+ * ——ID を見ても秒数は分からない。ポリシーを引いて秒で出す。
+ *
+ * @param b        CacheBehavior（`DefaultCacheBehavior` は PathPattern を持たない）
+ * @param policies Map<policyId, { name, MinTTL, DefaultTTL, MaxTTL }>
+ */
+function describeBehavior(b, policies) {
+    const path = b.PathPattern ?? "(default)";
+    // 旧式（ポリシーではなく behavior に直接 TTL を書く形）はそのまま出す
+    if (typeof b.DefaultTTL === "number") {
+        return `  ${path}: 旧式 defaultTTL=${humanSeconds(b.DefaultTTL)} maxTTL=${humanSeconds(b.MaxTTL)} minTTL=${humanSeconds(b.MinTTL)}`;
+    }
+    const id = b.CachePolicyId;
+    const p = id ? policies.get(id) : undefined;
+    if (!p) {
+        // **読めなかったことを「TTL はポリシー側」で誤魔化さない。**
+        // 権限が無い・ID が無いのどちらかで、どちらも「分かっていない」
+        return `  ${path}: cachePolicyId=${id ?? "-"}（ポリシーを読めなかった＝TTL 不明）`;
+    }
+    return `  ${path}: ${p.name} defaultTTL=${humanSeconds(p.DefaultTTL)} maxTTL=${humanSeconds(p.MaxTTL)} minTTL=${humanSeconds(p.MinTTL)}`;
+}
+
 /** 削除がエッジに残る期間（LEFT-4） */
 async function cdnTtl() {
     head("CloudFront の TTL（LEFT-4: 削除がエッジに残る期間）");
@@ -92,13 +126,33 @@ async function cdnTtl() {
     const res = await cf.send(new GetDistributionConfigCommand({ Id: distId }));
     const cfg = res.DistributionConfig ?? {};
     const behaviors = [cfg.DefaultCacheBehavior, ...(cfg.CacheBehaviors?.Items ?? [])].filter(Boolean);
-    for (const b of behaviors) {
-        const path = b.PathPattern ?? "(default)";
-        const ttl = b.DefaultTTL !== undefined
-            ? `defaultTTL=${b.DefaultTTL} maxTTL=${b.MaxTTL} minTTL=${b.MinTTL}`
-            : `cachePolicyId=${b.CachePolicyId ?? "-"}（TTL はポリシー側）`;
-        line(`  ${path}: ${ttl}`);
+
+    // **同じポリシーを複数の behavior が使う**（本番は5つ中4つが同じ）。
+    // ID ごとに1回だけ引く
+    const policies = new Map();
+    for (const id of new Set(behaviors.map((b) => b.CachePolicyId).filter(Boolean))) {
+        try {
+            const r = await cf.send(new GetCachePolicyCommand({ Id: id }));
+            const cp = r.CachePolicy?.CachePolicyConfig ?? {};
+            policies.set(id, {
+                name: cp.Name ?? "(名前なし)",
+                MinTTL: cp.MinTTL, DefaultTTL: cp.DefaultTTL, MaxTTL: cp.MaxTTL,
+            });
+        } catch (e) {
+            // 1つ読めなくても残りは出す（`describeBehavior` が「不明」と書く）
+            console.error(`  [cachePolicy ${id}] 失敗: ${e.name}: ${e.message}`);
+        }
     }
+
+    for (const b of behaviors) line(describeBehavior(b, policies));
+
+    // **秒数だけでは答えにならない。** CloudFront は原本の `Cache-Control` を
+    // maxTTL まで尊重するので、実効は「原本の max-age と maxTTL の小さい方」。
+    // アップロードした実体は `max-age=31536000`（`api-user/src/upload.ts` と
+    // `api/src/upload.ts`）なので、**消しても無効化しない限りその上限まで残る**
+    line("  ※ 実体は max-age=31536000 で置かれる（両 upload.ts）。実効TTL は");
+    line("    その値と上の maxTTL の小さい方。削除経路に CreateInvalidation は");
+    line("    無いので、残る期間はこの値がそのまま効く（LEFT-4）");
 }
 
 /**
@@ -261,6 +315,8 @@ async function main() {
     }
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
+
+module.exports = { describeBehavior, humanSeconds };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
