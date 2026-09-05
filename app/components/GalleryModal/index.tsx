@@ -173,7 +173,7 @@ export default function GalleryModal({
     const mapText = locale === "ja" ? mapLabel.ja : mapLabel.en;
     const paragraphs = getLocalizedParagraphs(p.description, locale);
     const preferred = getPreferredMapLink(p);
-    const mapHref = preferred?.href ?? (p.coords ? makeGoogleSearch(p.coords.lat, p.coords.lng) : undefined);
+    const mapHref = preferred?.href ?? (p.coords && !p.geoApprox ? makeGoogleSearch(p.coords.lat, p.coords.lng) : undefined);
 
     const currentUrl = typeof window !== "undefined"
         ? `${window.location.origin}${ROUTES.PHOTO(p.id)}`
