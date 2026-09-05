@@ -43,5 +43,13 @@ describe("エッジ掃除の複製2本は同じ中身", () => {
         expect(code.length, "コメントを落としすぎて空になっている").toBeGreaterThan(500);
         expect(code).toContain("CreateInvalidationCommand");
         expect(code).toContain("MAX_PATHS_PER_REQUEST = 3000");
+        // **ブロックコメントの除去を貪欲にすると**、最初の `/*` から最後の
+        // `*/` までが消えて **`DIST_ID` の代入行ごと落ちる**——片方だけ変えても
+        // 気づけない（レビューが変異で実証）。
+        // **`CLOUDFRONT_DISTRIBUTION_ID` を見るだけでは足りない**——関数の中の
+        // 警告文にも同じ語があるので、貪欲にしても残って素通りする（実測）。
+        // コメントに挟まれた**代入そのもの**を見る
+        expect(code, "コメントの落としすぎで、コメントに挟まれた行が消えている")
+            .toContain("DIST_ID = process.env.CLOUDFRONT_DISTRIBUTION_ID");
     });
 });

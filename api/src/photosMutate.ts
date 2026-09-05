@@ -260,8 +260,9 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // **エッジからも消す（LEFT-4）。** S3 から消しただけでは、
         // `/uploads/*` の maxTTL（本番実測 31536000秒＝365日）と実体の
         // `max-age=31536000` のぶん、**URL を知っていれば取れ続ける**
-        // ——GPS 入りの原本（`srcOriginal`）も同じ。api-user 側の削除・退会・
-        // ストーリー掃除は前から通っていて、**ここだけ抜けていた**。
+        // ——GPS 入りの原本（`srcOriginal`）も同じ。退会・ストーリー掃除は
+        // 前から通っていて（`deleteMyPhoto` は直前の `8b23757d` で塞いだ）、
+        // **ここだけ抜けていた**。
         // 失敗しても削除は成功として扱う（`invalidateUploads` は投げない）。
         await invalidateUploads(deleted, `deletePhoto(${id})`);
         if (s3Failures > 0) {

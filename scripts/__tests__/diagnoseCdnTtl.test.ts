@@ -92,10 +92,14 @@ describe("残存期間の解釈（LEFT-4）", () => {
     it("エッジの掃除がある経路と無い経路を、名指しで書く", () => {
         const text = residencyNote().join("\n");
         expect(text, "誤った断定に戻っている").not.toContain("削除経路に CreateInvalidation は");
-        for (const path of ["退会", "ストーリー削除", "期限切れ掃除", "自分の写真削除"]) {
+        for (const path of ["退会", "ストーリー削除", "期限切れ掃除", "自分の写真削除", "管理APIの削除"]) {
             expect(text, `掃除がある経路 ${path} を落としている`).toContain(path);
         }
-        expect(text, "掃除が無い経路（管理API）を名指ししていない").toContain("管理APIの deletePhoto");
+        // **直した側を「無い側」に置き去りにしない。** 実際に一度やった
+        // ——`0a30de3d` で管理APIに掃除を足したのに、この行は
+        // 「管理APIの deletePhoto…には無いので」と言い続けていた
+        expect(text, "掃除を足した経路を、まだ無い側に書いている").not.toContain("には無いので");
+        expect(text, "残る経路（discardUpload）を名指ししていない").toContain("discardUpload");
         expect(text).toContain(`max-age=${UPLOAD_MAX_AGE}`);
     });
 

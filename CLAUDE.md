@@ -154,10 +154,16 @@ cd api && npx serverless@3 deploy --stage prod \
   --param="usersTable=prod-photo-gallery-users" \
   --param="uploadBucket=prod-journey-photo-upload" \
   --param="cloudfrontUrl=https://d1s3dwwzgxf5ni.cloudfront.net" \
+  --param="cloudfrontDistributionId=EYRLTGCPOS9E4" \
   --param="cognitoUserPoolId=ap-northeast-1_ZbuhDQsWz" \
   --param="cognitoClientId=21cs4cd8dkttmg3snloj72u8mu" \
   --param="cognitoPoolName=prod-journey-photo-client-spa"
 ```
+
+> ⚠️ `cloudfrontDistributionId` を渡し忘れても**デプロイは成功する**
+> （`serverless.yml` の既定が `''`）。落ちるのは削除時のエッジの掃除だけで、
+> 消した写真が最大1年 公開URLに残る（LEFT-4）。GitHub Actions は前から
+> 渡しているので、手で流すときだけの落とし穴。
 
 > ⚠️ `cognitoPoolName` は `existing: true` の PostConfirmation トリガーが
 > **書き換えにいくプール名**。間違えると別環境のプールのトリガーを奪い、

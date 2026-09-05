@@ -113,7 +113,10 @@ describe("deleteMyPhoto", () => {
         mockS3Send.mockResolvedValue({ Errors: [{ Key: "uploads/me/p1.jpg" }] });
         await invoke(ME, "p1");
 
+        // **`?? []` だけだと空振りする**（呼ばれなければ通る）ので、
+        // 消せたぶんが回っていることも見る（レビュー指摘）
         const keys = (mockInvalidate.mock.calls[0]?.[0] ?? []) as string[];
+        expect(keys, "消せたぶんは掃除する").toContain("uploads/me/p1_orig.jpg");
         expect(keys).not.toContain("uploads/me/p1.jpg");
     });
 

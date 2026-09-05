@@ -2,9 +2,12 @@
  * **`api-user/src/cdnInvalidate.ts` の写し。**
  *
  * 管理APIは別サービス（別の Lambda・別の esbuild）なので import できない。
- * **複製した規則は静かにずれる**ので、振る舞いは
- * `api/src/__tests__/cdnInvalidateParity.test.ts` が両方を読み込んで
- * 同じ入力を流し、送る中身が一致することで縛る。片方だけ直したらそこが落ちる。
+ * **複製した規則は静かにずれる**ので、`scripts/__tests__/cdnInvalidateParity.test.ts`
+ * が**2本のコードの一致**（コメントを落とした文字列）で縛る。片方だけ直すと落ちる。
+ * 振る舞いで突き合わせる形は採れなかった——両方を1つのテストから import して
+ * `@aws-sdk/client-cloudfront` を `vi.mock` すると、`api/node_modules` の有無で
+ * 片方しかモックに当たらない。写しが実際に動くことは
+ * `api/src/__tests__/cdnInvalidate.test.ts`（同じ場所からモックする）で見る。
  *
  * ここに来た経緯: 管理APIの `deletePhoto` は S3 からは消すのに
  * **エッジの掃除を呼んでいなかった**。`/uploads/*` は maxTTL 31536000秒
