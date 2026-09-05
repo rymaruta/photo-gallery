@@ -34,12 +34,22 @@ export function setFavoritesUser(userId: string | null): void {
     if (activeUserId === userId) return;
     activeUserId = userId;
     if (userId !== null && storageGet<string>(MIGRATED_KEY) === undefined) {
-        storageSet(MIGRATED_KEY, "1");
         const shared = storageGet<string[]>(SHARED_KEY);
         if (shared && shared.length > 0 && storageGet<string[]>(keyFor(userId)) === undefined) {
-            storageSet(keyFor(userId), shared);
+            // **コピーできたことを確かめてから消す。** 失敗を握って次の行へ
+            // 進んでいたので、容量が足りない端末では**コピー（大きい）だけが
+            // 落ちて、空にする側（小さい）は通り**、未ログインで貯めた
+            // ハートがどこにも残らないまま消えていた（実 Chromium でも再現）。
+            if (!storageSet(keyFor(userId), shared)) {
+                // **印も立てない**——空きが戻れば次のログインでやり直せる。
+                // ここで立てると「引き継ぎ済み」になり、共有キーのハートは
+                // 二度と自分のキーへ移らない
+                invalidate();
+                return;
+            }
             storageSet(SHARED_KEY, []);
         }
+        storageSet(MIGRATED_KEY, "1");
     }
     invalidate();
 }

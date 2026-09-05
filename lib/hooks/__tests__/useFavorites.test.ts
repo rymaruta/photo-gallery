@@ -119,6 +119,70 @@ describe("setFavoritesUser: アカウントごとにハートを分ける", () =
     });
 });
 
+// **容量が足りない端末で、引き継ぎがハートを消していた。**
+//
+// `storageSet` は失敗を握って次の行へ進む。引き継ぎは
+// 「① 印を書く → ② ユーザーのキーへコピー → ③ 共有キーを空にする」の順で、
+// **② は大きい書き込み・③ は小さい書き込み**（`[]`）。満杯の端末では
+// ② だけが落ちて ③ は通るので、**未ログインで貯めたハートがどこにも
+// 残らないまま消える**。利用者には何も出ない。
+//
+// 実 Chromium でも同じ順序で再現している（5MB を端まで詰めた状態で
+// ②が QuotaExceededError・③が成功）。
+describe("setFavoritesUser: 容量が足りないとき", () => {
+    /** 一定の長さを超える値だけ弾く localStorage（満杯の端末に相当） */
+    function limitTo(maxValueLength: number) {
+        const orig = localStorageMock.setItem;
+        localStorageMock.setItem = (key: string, value: string) => {
+            if (value.length > maxValueLength) throw new DOMException("full", "QuotaExceededError");
+            orig(key, value);
+        };
+        return () => { localStorageMock.setItem = orig; };
+    }
+
+    // **`activeUserId` はモジュールに残る**（`resetFavoritesCache` は消さない）。
+    // 前のテストと同じ id を渡すと `setFavoritesUser` は入口で return するので、
+    // 毎回いったん null に戻す（これを忘れて正常系が空振りした）
+    beforeEach(() => { setFavoritesUser(null); });
+
+    it("コピーに失敗したら、共有キーを空にしない（ハートを消さない）", () => {
+        localStorageMock.setItem("photo-gallery-favorites", JSON.stringify(["a", "b", "c"]));
+        resetFavoritesCache();
+        // `["a","b","c"]` は13文字・`[]` と `"1"` は3文字以下
+        const restore = limitTo(5);
+        try {
+            setFavoritesUser("user-a");
+        } finally {
+            restore();
+        }
+
+        expect(localStorageMock.getItem("photo-gallery-favorites"),
+            "コピーできていないのに共有キーを空にした（ハートが消えた）").toBe(JSON.stringify(["a", "b", "c"]));
+    });
+
+    it("空きが戻れば、次のログインで引き継げる（諦めたままにしない）", () => {
+        localStorageMock.setItem("photo-gallery-favorites", JSON.stringify(["a", "b", "c"]));
+        resetFavoritesCache();
+        const restore = limitTo(5);
+        try { setFavoritesUser("user-a"); } finally { restore(); }
+
+        // 別のタブ/次回の起動で、空きが戻った状態からもう一度
+        setFavoritesUser(null);
+        setFavoritesUser("user-a");
+        expect(localStorageMock.getItem("photo-gallery-favorites:user-a")).toBe(JSON.stringify(["a", "b", "c"]));
+        expect(localStorageMock.getItem("photo-gallery-favorites")).toBe(JSON.stringify([]));
+    });
+
+    // 正常系: 書ける端末では今までどおり（引き継いで共有キーを空に）
+    it("書ける端末では今までどおり引き継ぐ", () => {
+        localStorageMock.setItem("photo-gallery-favorites", JSON.stringify(["a"]));
+        resetFavoritesCache();
+        setFavoritesUser("user-a");
+        expect(localStorageMock.getItem("photo-gallery-favorites:user-a")).toBe(JSON.stringify(["a"]));
+        expect(localStorageMock.getItem("photo-gallery-favorites")).toBe(JSON.stringify([]));
+    });
+});
+
 // 引き継ぎは端末で1回だけ。「user キーが無ければ初回」という判定だった頃は、
 // 一度もハートしない人が毎回共有キーを吸い、別の人が未ログインで付けた
 // ハートが次に初回ログインしたアカウントへ誤帰属していた（AS 系レビューの指摘）。
