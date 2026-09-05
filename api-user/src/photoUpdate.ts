@@ -6,9 +6,8 @@ import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitiz
 import { requestSiteRebuild } from "./rebuild";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { mediaKeys } from "./mediaKeys";
-import { requireEnv } from "./env";
+import { s3DeleteMany } from "./s3Delete";
 import { removePinnedPhoto } from "./userProfile";
-import { S3Client, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 
 type PhotoSong = { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string };
 
@@ -298,8 +297,9 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
 };
 
 
-const UPLOAD_BUCKET = requireEnv("UPLOAD_BUCKET");
-const s3 = new S3Client({});
+// **`UPLOAD_BUCKET` の確認と S3 クライアントは `s3Delete.ts` が持つ。**
+// ここで持っていた頃の削除は自前で、エッジの掃除が抜けていた。
+// 未設定なら止める守りは向こうの `requireEnv` が効く（import で走る）。
 
 /**
  * 自分の写真を1枚消す。
@@ -352,20 +352,17 @@ export const deleteMyPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         }
 
         // 1. S3 の実体（本体・原本・派生すべて）。mediaKeys は退会と共通。
+        //
+        // **`s3DeleteMany` を通す。** ここは同じことを自前で書いていたので、
+        // **エッジの掃除（`invalidateUploads`）だけが抜けていた**
+        // ——退会とストーリーの削除は通っているのに、写真1枚の削除だけが
+        // 素通り。`/uploads/*` は maxTTL 31536000秒（365日）で、実体は
+        // `max-age=31536000` で置かれるので（本番実測 2026-09-05）、
+        // **消したはずの写真が最大1年 公開URLで取れる**。`mediaKeys` は
+        // `srcOriginal`（GPS 入りの原本）も含むので、消えていないのは
+        // 見た目の1枚だけではない。
         const keys = mediaKeys(item);
-        let s3Failures = 0;
-        if (keys.length > 0) {
-            try {
-                const res = await s3.send(new DeleteObjectsCommand({
-                    Bucket: UPLOAD_BUCKET,
-                    Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true },
-                }));
-                s3Failures += res.Errors?.length ?? 0;
-            } catch (e) {
-                console.error(`deleteMyPhoto: S3 delete failed for ${id}:`, e);
-                s3Failures += keys.length;
-            }
-        }
+        const s3Failures = await s3DeleteMany(keys, `deleteMyPhoto(${id})`);
         if (s3Failures > 0) {
             // 行は S3 キーの唯一の手がかり。消し残したまま行を消すと、
             // GPS 入りの原本が公開URLに孤児で残る（誰も辿れない）。

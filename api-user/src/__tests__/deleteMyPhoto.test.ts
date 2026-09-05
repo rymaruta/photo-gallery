@@ -11,6 +11,7 @@ const mockDdbSend = vi.hoisted(() => vi.fn());
 const mockS3Send = vi.hoisted(() => vi.fn());
 const mockRebuild = vi.hoisted(() => vi.fn());
 const mockRemovePin = vi.hoisted(() => vi.fn());
+const mockInvalidate = vi.hoisted(() => vi.fn());
 
 vi.mock("../dynamodb", () => ({
     ddb: { send: mockDdbSend },
@@ -21,6 +22,8 @@ vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRebuild }));
 // userProfile は自前の DynamoDB クライアントを持つ（../dynamodb ではない）。
 // ここでは「ピン留めから外す」を呼ぶことだけを測り、中身は専用のテストで見る。
 vi.mock("../userProfile", () => ({ removePinnedPhoto: mockRemovePin }));
+// エッジの掃除（`s3Delete` が呼ぶ）。実物は CloudFront を叩く
+vi.mock("../cdnInvalidate", () => ({ invalidateUploads: mockInvalidate }));
 vi.mock("@aws-sdk/client-s3", () => ({
     S3Client: class { send = mockS3Send; },
     DeleteObjectsCommand: class { input: unknown; readonly kind = "s3delete"; constructor(i: unknown) { this.input = i; } },
@@ -70,6 +73,7 @@ beforeEach(() => {
     mockS3Send.mockReset().mockResolvedValue({});
     mockRebuild.mockReset().mockResolvedValue(true);
     mockRemovePin.mockReset().mockResolvedValue(true);
+    mockInvalidate.mockReset().mockResolvedValue(true);
 });
 
 describe("deleteMyPhoto", () => {
@@ -84,6 +88,36 @@ describe("deleteMyPhoto", () => {
         ]));
         expect(deletedIds()).toContain("comments#p1");
         expect(deletedIds()).toContain("p1");
+    });
+
+    // **エッジからも消す。** ここは自前で `DeleteObjectsCommand` を呼んでいて、
+    // 退会・ストーリー削除が通っている `s3DeleteMany`（＝`invalidateUploads`
+    // 込み）を通っていなかった。本番実測（2026-09-05）で `/uploads/*` は
+    // maxTTL 31536000秒（365日）・実体は `max-age=31536000` なので、
+    // **消したはずの写真が最大1年 公開URLで取れる**（GPS 入りの原本も）
+    it("消した実体をエッジからも消す（原本を含む）", async () => {
+        world();
+        await invoke(ME, "p1");
+
+        expect(mockInvalidate, "エッジの掃除を呼んでいない").toHaveBeenCalled();
+        const keys = mockInvalidate.mock.calls[0][0] as string[];
+        expect(keys).toEqual(expect.arrayContaining([
+            "uploads/me/p1.jpg", "uploads/me/p1_orig.jpg", "uploads/me/p1_thumb.webp",
+        ]));
+    });
+
+    // 逆向き: 消せなかったキーはエッジに回さない（消えていない実体の
+    // キャッシュを捨てて取り直させることになり、課金だけ増える）
+    it("消せなかったキーはエッジに回さない", async () => {
+        world();
+        mockS3Send.mockResolvedValue({ Errors: [{ Key: "uploads/me/p1.jpg" }] });
+        await invoke(ME, "p1");
+
+        // **`?? []` だけだと空振りする**（呼ばれなければ通る）ので、
+        // 消せたぶんが回っていることも見る（レビュー指摘）
+        const keys = (mockInvalidate.mock.calls[0]?.[0] ?? []) as string[];
+        expect(keys, "消せたぶんは掃除する").toContain("uploads/me/p1_orig.jpg");
+        expect(keys).not.toContain("uploads/me/p1.jpg");
     });
 
     it("S3 を先、行を後（途中で切れても原本が孤児にならない）", async () => {
