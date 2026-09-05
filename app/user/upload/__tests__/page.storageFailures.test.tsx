@@ -6,8 +6,8 @@ import userEvent from "@testing-library/user-event";
 // **ストレージが使えない端末で、黙って終わっていた2件。**
 //
 // (1) 共有シートから送ると Service Worker が `?from=share` へ飛ばすが、
-//     受け皿（IndexedDB）を開けない端末では `readSharedPayload` が null を
-//     返すだけで、画面は「写真が入っていないアップロード画面」になる。
+//     受け皿（IndexedDB）を開けない端末では、画面は「写真が入っていない
+//     アップロード画面」になるだけだった。
 //     利用者には何も出ない——プライベートモードでは毎回これ。
 // (2) 「写真のGPSから撮影地を自動入力」を切っても、`localStorage` に
 //     書けない端末では**次に開いたときは既定のオンに戻る**。切ったつもりの
@@ -29,7 +29,6 @@ vi.mock("../../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast:
 vi.mock("../../../components/AddToHomeScreenHint", () => ({ default: () => null }));
 vi.mock("../../../../lib/auth/cognito", () => ({ getCurrentSession: vi.fn(async () => null) }));
 vi.mock("../../../../lib/utils/shareStore", () => ({
-    readSharedPayload: vi.fn(async () => null),
     readSharedResult: vi.fn(async () => shareResult.current),
     clearSharedPayload: vi.fn(async () => undefined),
 }));
@@ -72,14 +71,29 @@ describe("共有の受け皿を開けない端末", () => {
         expect(kind).toBe("error");
     });
 
-    // **取り込んだ後のリロードを失敗と呼ばない。** `?from=share` は URL に
-    // 残るので、受け皿が空なだけの再表示で謝ると誤報になる
-    it("受け皿が空なだけなら何も言わない", async () => {
+    // **共有の直後に受け皿が空なら、それは SW の保存が落ちている。**
+    // `?from=share` を使い終わりに URL から落とすので、「取り込み済みの
+    // 再表示」と区別できるようになった（落とす前は区別できず、黙るしか
+    // なかった＝SW の失敗を拾えていなかった。レビュー指摘）
+    it("共有の直後に受け皿が空なら、それも伝える（SW の保存が落ちている）", async () => {
         shareResult.current = { ok: true, payload: null };
         render(<UploadPage />);
 
-        await new Promise((r) => setTimeout(r, 30));
-        expect(mockShowToast).not.toHaveBeenCalled();
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
+        expect(String(mockShowToast.mock.calls[0][0])).toMatch(/読み取れませんでした/);
+    });
+
+    // **使い終わったら `from` を落とす。** 残すと戻る・進む・リロードの
+    // たびに同じ話をする（レビューが3回出ることを実測）
+    it("処理したら URL から from=share を落とす", async () => {
+        window.history.replaceState({ __next: "keep" }, "", "/user/upload?from=share");
+        shareResult.current = { ok: false };
+        render(<UploadPage />);
+
+        await waitFor(() => expect(window.location.search).not.toContain("from=share"));
+        // **Next の内部状態を潰さない**——`replaceState({})` で戻るが
+        // `location.reload()` に落ちた事故がある（`aadd283`）
+        expect((window.history.state as { __next?: string })?.__next).toBe("keep");
     });
 
     // 共有経由でなければ、開けなくても黙っている（通常の表示で謝らない）
@@ -94,6 +108,10 @@ describe("共有の受け皿を開けない端末", () => {
 });
 
 describe("GPS 自動入力の設定が保存できない端末", () => {
+    // **共有の話と混ぜない。** 既定の `?from=share` のままだと、共有の
+    // トーストが先に出て `calls[0]` がそちらになる（実際に踏んだ）
+    beforeEach(() => { searchParams.current = ""; });
+
     /** 書き込みだけが投げる localStorage（満杯・プライベートモード相当） */
     function blockWrites() {
         const orig = Storage.prototype.setItem;
@@ -113,7 +131,7 @@ describe("GPS 自動入力の設定が保存できない端末", () => {
 
         await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
         expect(String(mockShowToast.mock.calls[0][0]), "保存できていないことを伝えていない")
-            .toMatch(/記憶できない/);
+            .toMatch(/設定を保存できない/);
         // **この画面では効かせる**（切ったのに埋まる方が悪い）
         expect((toggle as HTMLInputElement).checked).toBe(false);
     });

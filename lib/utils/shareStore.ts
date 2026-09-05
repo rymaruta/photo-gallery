@@ -51,11 +51,6 @@ export async function readSharedResult(): Promise<ShareReadResult> {
     }
 }
 
-/** 中身だけが要るとき用（読めなければ null。従来の呼び出し口） */
-export async function readSharedPayload(): Promise<SharedPayload | null> {
-    const res = await readSharedResult();
-    return res.ok ? res.payload : null;
-}
 
 export async function clearSharedPayload(): Promise<void> {
     if (typeof indexedDB === "undefined") return;

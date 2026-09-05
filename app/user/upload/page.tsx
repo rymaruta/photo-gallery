@@ -230,14 +230,19 @@ function UploadPageInner() {
         let saved = true;
         try { localStorage.setItem("jp_gps_autofill", next ? "1" : "0"); } catch { saved = false; }
         // **この画面では効かせる**（切ったのに埋まる方が悪い）。ただし
-        // 保存できていないことは言う——黙っていると、次に開いたときは
-        // 既定のオンに戻り、**切ったつもりの人の写真から撮影地が入って
-        // 公開される**（容量が足りない端末・プライベートモードで起きる）
+        // 切る向きのときは、保存できていないことを言う——黙っていると、
+        // 次に開いたときに戻ってしまい、**切ったつもりの人の写真から
+        // 撮影地が入って公開される**（容量不足・プライベートモードで起きる）。
+        //
+        // **入れ直す向きは黙る。** 理由は「既定がオンだから」ではない
+        // ——保存済みが `"0"` なら次回もオフのままで、既定は関係ない
+        // （レビューの指摘で気づいた）。黙るのは**戻らなかったときに
+        // 倒れる先が安全側**（地名が入らない）だから。
         applyGpsAutofill(next);
         if (!saved && !next) {
             showToast(locale === "en"
-                ? "Turned off for now, but this device can't remember it — check it again next time."
-                : "今回はオフにしました。ただしこの端末に記憶できないので、次に開いたときは入り直します。", "error");
+                ? "Turned off here, but this device can't save the setting — check it again next time."
+                : "この画面ではオフにしました。ただし設定を保存できないので、次に開いたときの状態は保証できません。", "error");
         }
     }, [applyGpsAutofill, showToast, locale]);
 
@@ -333,21 +338,33 @@ function UploadPageInner() {
         : Math.max(0, PHOTO_LIMIT_PER_USER - usedSlots);
 
     // PWA Share Target で渡された写真の取り込み。
-    // ログインリダイレクトで ?from=share が失われても、IndexedDB に残った
-    // 新しいペイロード（1時間以内）は次回のページ表示時に取り込む。
+    // ログインのリダイレクトでは `?from=share` は保たれる（`safeNextPath` が
+    // search ごと運ぶ）。それでも 1時間以内のペイロードを次回の表示で拾うのは、
+    // **クエリを落としたあと**に開き直した場合の受け皿として。
     const shareImportedRef = useRef(false);
     useEffect(() => {
         if (loading || !isAuthenticated || shareImportedRef.current) return;
         shareImportedRef.current = true;
         void (async () => {
             const res = await readSharedResult();
-            // **受け皿を開けなかったときは黙らない。** 共有シートから送ると
-            // Service Worker がここへ飛ばすので、利用者は「送ったのに写真が
-            // 入っていない」画面を見る。IndexedDB が使えない端末
-            // （プライベートモード・ストレージ拒否）では毎回これになる。
-            // **`?from=share` で来たときだけ**言う——取り込んだ後に
-            // リロードすると受け皿は空なので、それを失敗と呼ばない
-            if (!res.ok) {
+            // **`from=share` は使い終わったら URL から落とす。**
+            // 残っていると (a) 戻る・進む・リロードのたびに同じ話をする
+            // (b)「受け皿が空」を失敗と呼べない——共有の直後に空なら、
+            // それは **Service Worker が保存に失敗した**ということなのに、
+            // 「取り込み済みの再表示」と区別が付かなかった（レビュー指摘）。
+            // **`history.state` は必ず引き継ぐ**——`replaceState({})` で
+            // Next の内部キーを潰し、戻るが `location.reload()` に落ちた
+            // 事故がある（`aadd283`）。
+            if (fromShare && typeof window !== "undefined") {
+                const url = new URL(window.location.href);
+                url.searchParams.delete("from");
+                window.history.replaceState(window.history.state, "", url.toString());
+            }
+            // **黙って空の画面にしない。** 共有シートから送ると SW がここへ
+            // 飛ばすので、利用者は「送ったのに写真が入っていない」画面を見る。
+            // 受け皿を開けない端末（プライベートモード・ストレージ拒否）も、
+            // SW が保存に失敗した場合も、見た目は同じ
+            if (!res.ok || (fromShare && !res.payload)) {
                 if (fromShare) {
                     showToast(locale === "en"
                         ? "Couldn't read the shared photos on this device. Please pick them from the button below."

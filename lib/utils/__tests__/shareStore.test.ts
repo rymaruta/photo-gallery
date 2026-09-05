@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { readSharedResult, readSharedPayload } from "../shareStore";
+import { readSharedResult } from "../shareStore";
 
 // **「何も無い」と「読めなかった」を分ける。**
 // どちらも null にしていたので、共有シートから送ったのに IndexedDB が
@@ -20,6 +20,19 @@ function failingIndexedDb() {
 /** 開けるが「current」が入っていない IndexedDB */
 function emptyIndexedDb() {
     const store = { get: () => { const r: Record<string, unknown> = { result: undefined }; setTimeout(() => (r.onsuccess as (() => void) | undefined)?.(), 0); return r; } };
+    const db = { transaction: () => ({ objectStore: () => store }) };
+    return {
+        open: () => {
+            const req: Record<string, unknown> = { result: db };
+            setTimeout(() => (req.onsuccess as (() => void) | undefined)?.(), 0);
+            return req;
+        },
+    };
+}
+
+/** 「current」に中身が入っている IndexedDB */
+function withRecord(record: unknown) {
+    const store = { get: () => { const r: Record<string, unknown> = { result: record }; setTimeout(() => (r.onsuccess as (() => void) | undefined)?.(), 0); return r; } };
     const db = { transaction: () => ({ objectStore: () => store }) };
     return {
         open: () => {
@@ -51,12 +64,13 @@ describe("共有の受け皿を読む", () => {
         expect(await readSharedResult()).toEqual({ ok: true, payload: null });
     });
 
-    // 従来の口は「中身だけ」を返す（読めない場合も null）——呼び出し側が
-    // 理由を要らないときのため
-    it("readSharedPayload はどちらでも null", async () => {
-        setIdb(failingIndexedDb());
-        expect(await readSharedPayload()).toBeNull();
-        setIdb(emptyIndexedDb());
-        expect(await readSharedPayload()).toBeNull();
+    // **中身をそのまま返すことを縛る。** ここが無いと `payload` を捨てる
+    // 変異（`payload: null` を返す）が**フルスイート2,925件を素通り**した
+    // ——画面側は `shareStore` をモックするので実装に触れず、単体テストは
+    // 「開けない」「空」しか見ていなかった（レビューが実測）
+    it("受け皿に入っていれば、その中身をそのまま返す", async () => {
+        const record = { id: "current", files: [], title: "旅の写真", text: "本文", t: 12345 };
+        setIdb(withRecord(record));
+        expect(await readSharedResult()).toEqual({ ok: true, payload: record });
     });
 });
