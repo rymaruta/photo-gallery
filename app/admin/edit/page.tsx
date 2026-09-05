@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
-import { ArrowLeftIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, PhotoIcon } from "@heroicons/react/24/outline";
 import type { Photo, LocalizedParagraphs } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
@@ -43,6 +43,8 @@ function AdminEditContent() {
 
     const [photo, setPhoto] = useState<Photo | null>(null);
     const [loadingPhoto, setLoadingPhoto] = useState(true);
+    // 写真そのものが取れなかった（削除済み・403）。枠ごと消さないための印
+    const [imageError, setImageError] = useState(false);
     const [saving, setSaving] = useState(false);
 
     // Basic
@@ -327,12 +329,26 @@ function AdminEditContent() {
                 </div>
 
                 {photo.src && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                        src={photo.src}
-                        alt=""
-                        className="w-full max-h-64 object-contain rounded-lg mb-6 bg-white/5"
-                    />
+                    // **取れなかったときに枠ごと消えないようにする。**
+                    // `w-full max-h-64 object-contain` は高さを予約しないので、
+                    // 画像が 403/404 になると **358x0 に潰れる**（Chromium 実測:
+                    // 成功 358x256 → 失敗 358x0）。編集画面から「どの写真を
+                    // 触っているか」の手がかりが消える。文言は写真ページ・
+                    // モーダル・ストーリーと同じ
+                    imageError ? (
+                        <div className="w-full h-40 flex flex-col items-center justify-center gap-2 rounded-lg mb-6 bg-white/5 text-white/50">
+                            <PhotoIcon className="w-8 h-8" />
+                            <p className="text-xs">{isJa ? "画像を読み込めません" : "Couldn't load image"}</p>
+                        </div>
+                    ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                            src={photo.src}
+                            alt=""
+                            className="w-full max-h-64 object-contain rounded-lg mb-6 bg-white/5"
+                            onError={() => setImageError(true)}
+                        />
+                    )
                 )}
 
                 <form onSubmit={(e) => void handleSave(e)} className="space-y-5">

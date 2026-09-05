@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 
 // **全写真が `1200x800`（3:2）を名乗っていた。**
 // 実寸を持たない写真でも `width={1200} height={800}` が固定で付いていたので、
@@ -61,6 +61,17 @@ describe("写真ページの画像サイズ", () => {
         const img = mainImage();
         expect(img.getAttribute("width"), "実寸を知らないのに 1200x800 を名乗っている").toBeNull();
         expect(img.getAttribute("height")).toBeNull();
+    });
+
+    // **「画像を読み込めません」の分岐にもテストが無かった**（レビュー指摘）。
+    // 実装は前からあるが、消しても誰も気づかない状態だった
+    it("画像が取れないときは理由を出す", async () => {
+        render(<PhotoPageClient photoId="p1" initialPhoto={base} />);
+        const img = mainImage();
+        fireEvent.error(img);
+
+        expect(screen.getByText("画像を読み込めません")).toBeInTheDocument();
+        expect(screen.queryByAltText(/写真/), "失敗した img を残している").toBeNull();
     });
 
     it("片方だけしか無い写真も名乗らない（片側だけの属性は比率にならない）", async () => {

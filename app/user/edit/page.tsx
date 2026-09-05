@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
-import { ArrowLeftIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, PhotoIcon } from "@heroicons/react/24/outline";
 import type { Photo, LocalizedParagraphs } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
@@ -210,6 +210,8 @@ function EditContent() {
     const [loadingPhoto, setLoadingPhoto] = useState(true);
     // 読み込みに失敗したか。トーストは数秒で消えるので、画面にも残す。
     const [loadFailed, setLoadFailed] = useState(false);
+    // 写真そのものが取れなかった（削除済み・403）。枠ごと消さないための印
+    const [imageError, setImageError] = useState(false);
     // 読み込んだ元データ。編集欄に出していない項目（英語のタイトル・説明、
     // 撮影日の時刻）を保存時に失わないために持っておく。
     const [original, setOriginal] = useState<Photo | null>(null);
@@ -487,12 +489,26 @@ function EditContent() {
                 </div>
 
                 {photo.src && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                        src={photo.thumbSrc || photo.src}
-                        alt=""
-                        className="w-full max-h-64 object-contain rounded-lg mb-3 bg-white/5"
-                    />
+                    // **取れなかったときに枠ごと消えないようにする。**
+                    // `w-full max-h-64 object-contain` は高さを予約しないので、
+                    // 画像が 403/404 になると **358x0 に潰れる**（Chromium 実測:
+                    // 成功 358x256 → 失敗 358x0）。編集画面から「どの写真を
+                    // 触っているか」の手がかりが消える。文言は写真ページ・
+                    // モーダル・ストーリーと同じ
+                    imageError ? (
+                        <div className="w-full h-40 flex flex-col items-center justify-center gap-2 rounded-lg mb-3 bg-white/5 text-white/50">
+                            <PhotoIcon className="w-8 h-8" />
+                            <p className="text-xs">{isJa ? "画像を読み込めません" : "Couldn't load image"}</p>
+                        </div>
+                    ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                            src={photo.thumbSrc || photo.src}
+                            alt=""
+                            className="w-full max-h-64 object-contain rounded-lg mb-3 bg-white/5"
+                            onError={() => setImageError(true)}
+                        />
+                    )
                 )}
                 {exifSummary && (
                     <p className="text-xs text-white/40 mb-6">{isJa ? "撮影情報（自動）: " : "EXIF (auto): "}{exifSummary}</p>
