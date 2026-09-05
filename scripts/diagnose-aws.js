@@ -21,6 +21,13 @@ const REGION = process.env.AWS_REGION || "ap-northeast-1";
 // （`prepare-static-build.js` が同じ理由で `main()` の中に寄せてある）。
 let PHOTOS_TABLE = "";
 
+/**
+ * アップロードした実体に付ける `Cache-Control` の秒数。
+ * **`api-user/src/upload.ts` と `api/src/upload.ts` の二重管理**なので、
+ * ずれたら `diagnoseCdnTtl.test.ts` が落ちる（両方のソースを読んで突き合わせる）。
+ */
+const UPLOAD_MAX_AGE = 31536000;
+
 const ddb = new DynamoDBClient({ region: REGION });
 const idp = new CognitoIdentityProviderClient({ region: REGION });
 const cf = new CloudFrontClient({ region: REGION });
@@ -146,13 +153,31 @@ async function cdnTtl() {
 
     for (const b of behaviors) line(describeBehavior(b, policies));
 
-    // **秒数だけでは答えにならない。** CloudFront は原本の `Cache-Control` を
-    // maxTTL まで尊重するので、実効は「原本の max-age と maxTTL の小さい方」。
-    // アップロードした実体は `max-age=31536000`（`api-user/src/upload.ts` と
-    // `api/src/upload.ts`）なので、**消しても無効化しない限りその上限まで残る**
-    line("  ※ 実体は max-age=31536000 で置かれる（両 upload.ts）。実効TTL は");
-    line("    その値と上の maxTTL の小さい方。削除経路に CreateInvalidation は");
-    line("    無いので、残る期間はこの値がそのまま効く（LEFT-4）");
+    for (const l of residencyNote()) line(l);
+}
+
+/**
+ * TTL の秒数を「削除したものが何日残るか」に翻訳する行（**純関数**）。
+ *
+ * **秒数だけでは答えにならない。** CloudFront は原本の `Cache-Control` を
+ * maxTTL まで尊重するので、実効は「原本の max-age と maxTTL の小さい方」。
+ * そして**残るかどうかは経路によって違う**——エッジの掃除
+ * （`invalidateUploads`）を通る削除と、通らない削除がある。
+ *
+ * **一度ここに「削除経路に CreateInvalidation は無い」と書いて出した。
+ * 誤りだった**（退会・ストーリー削除・期限切れ掃除には前からある）。
+ * 経路を1つずつ数えて書き直したのがこの一覧。断定を印字する行なので、
+ * 変えたときは `diagnoseCdnTtl.test.ts` の完全一致テストも一緒に動く。
+ */
+function residencyNote() {
+    return [
+        `  ※ 実体は max-age=${UPLOAD_MAX_AGE} で置かれる（両 upload.ts）。`,
+        "    実効TTL は その値と /uploads/* の maxTTL の小さい方。",
+        "    エッジの掃除があるのは 退会・ストーリー削除・期限切れ掃除・自分の写真削除。",
+        "    管理APIの deletePhoto（api/src/photosMutate.ts）には無いので、",
+        "    そこで消したものだけ この値がそのまま残存期間になる（LEFT-4）。",
+        "    discardUpload（保存前の破棄）にも無いが、公開前なのでエッジに載っているとは限らない（未確認）。",
+    ];
 }
 
 /**
@@ -316,7 +341,7 @@ async function main() {
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
 
-module.exports = { describeBehavior, humanSeconds };
+module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
