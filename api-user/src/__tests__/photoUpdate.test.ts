@@ -555,3 +555,68 @@ describe("印の書き込みも幽霊行を作らない", () => {
         expect((marks[0] as { input: { ConditionExpression?: string } }).input.ConditionExpression).toBe("attribute_exists(id)");
     });
 });
+
+// **地名から補った座標（geoApprox）は地名に付随する。**
+// `scripts/geocode-locations.js` が「パリ」から引いた街の中心は、撮影地を
+// 「ロンドン」に直した瞬間に嘘になる（/map で「ロンドン（おおよそ）」の
+// ピンがパリに立つ）。編集画面は座標を送らないので、残すと利用者には直す
+// 手段が無い。逆に **GPS 由来の正確な座標は地名を直しても消さない**。
+describe("updatePhotoVisibility: おおよその座標（geoApprox）の扱い", () => {
+    const approxRow = { id: "p1", userId: "u1", location: "パリ", coords: { lat: 48.86, lng: 2.35 }, geoApprox: true };
+
+    it("地名を直したら、地名から補った座標を印ごと捨てる", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: approxRow }).mockResolvedValueOnce({});
+        const res = await invoke(event("u1", "p1", { location: "ロンドン" }));
+        expect(res.statusCode).toBe(200);
+        const u = lastUpdate();
+        expect(u.UpdateExpression).toMatch(/REMOVE .*#coords/);
+        expect(u.UpdateExpression).toMatch(/REMOVE .*#geoApprox/);
+        expect(u.ExpressionAttributeNames?.["#coords"]).toBe("coords");
+        expect(u.ExpressionAttributeNames?.["#geoApprox"]).toBe("geoApprox");
+    });
+
+    it("地名を消しても同じ（座標の根拠が無くなる）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: approxRow }).mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { location: "" }));
+        expect(lastUpdate().UpdateExpression).toMatch(/REMOVE .*#coords/);
+    });
+
+    it("同じ地名を送り直しただけなら触らない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: approxRow }).mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { location: "パリ", title: "新しい題" }));
+        const u = lastUpdate();
+        expect(u.UpdateExpression).not.toContain("#coords");
+        expect(u.UpdateExpression).not.toContain("#geoApprox");
+    });
+
+    it("地名に触らない編集（タイトルだけ）では触らない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: approxRow }).mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { title: "新しい題" }));
+        const u = lastUpdate();
+        expect(u.UpdateExpression).not.toContain("#coords");
+        expect(u.UpdateExpression).not.toContain("#geoApprox");
+    });
+
+    it("正確な座標を書くなら、座標は SET して「おおよそ」の印だけ下ろす", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: approxRow }).mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { coords: { lat: 48.8584, lng: 2.2945 } }));
+        const u = lastUpdate();
+        expect(u.UpdateExpression).toMatch(/SET .*#coords = :coords/);
+        expect(u.UpdateExpression).toMatch(/REMOVE .*#geoApprox/);
+        // 同じ属性を SET と REMOVE の両方に書くと DynamoDB が ValidationException
+        expect(u.UpdateExpression.match(/#coords/g)?.length).toBe(1);
+        expect(u.ExpressionAttributeValues[":coords"]).toEqual({ lat: 48.86, lng: 2.29 });
+    });
+
+    // **逆向きを固定する。** GPS 由来の正確な座標は、地名を書き換えても消さない
+    // （写真そのものが持っていた情報で、地名の誤記を直すだけのことは多い）
+    it("GPS 由来の座標（geoApprox なし）は、地名を直しても消さない", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", location: "パリ", coords: { lat: 48.86, lng: 2.35 } } })
+            .mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { location: "ロンドン" }));
+        const u = lastUpdate();
+        expect(u.UpdateExpression).not.toContain("#coords");
+        expect(u.UpdateExpression).not.toContain("#geoApprox");
+    });
+});

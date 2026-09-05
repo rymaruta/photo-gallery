@@ -146,15 +146,16 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // あわせて「本当に値が変わったか」も数える。静的ページの作り直しを
         // 頼むかの判定に使う（下の requestSiteRebuild）。
         let metaChanged = false;
-        const applyMeta = (col: string, present: boolean, value: unknown) => {
-            if (!present) return;
+        const applyMeta = (col: string, present: boolean, value: unknown): boolean => {
+            if (!present) return false;
             const willRemove = value === undefined || value === null || (Array.isArray(value) && value.length === 0);
             // 「変わったか」は**書いたあとの姿**で見る。空配列をそのまま比べていた頃は、
             // タグ属性を持たない写真（タグ未入力の下書きは全部これ）に対して
             // /user/edit が必ず送る tags: [] が毎回「変わった」になり、
             // 実際には REMOVE が何もしないので次の保存でも同じ判定になった
             // ——何も書き換えずに保存するだけでビルドが走り続ける。
-            if (!sameStoredValue(willRemove ? undefined : value, existing.Item?.[col])) metaChanged = true;
+            const changed = !sameStoredValue(willRemove ? undefined : value, existing.Item?.[col]);
+            if (changed) metaChanged = true;
             names[`#${col}`] = col;
             if (willRemove) {
                 removes.push(`#${col}`);
@@ -162,16 +163,33 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
                 sets.push(`#${col} = :${col}`);
                 values[`:${col}`] = value;
             }
+            return changed;
         };
         applyMeta("title", "title" in body, sanitizeTitle(body.title));
         applyMeta("description", "description" in body, sanitizeDescription(body.description));
-        applyMeta("location", "location" in body, sanitizeText(body.location, 200));
+        const locationChanged = applyMeta("location", "location" in body, sanitizeText(body.location, 200));
         applyMeta("category", "category" in body, sanitizeText(body.category, 100));
         applyMeta("tags", "tags" in body, sanitizeTags(body.tags));
         // 撮影日は upload.ts と同じ検証を通す。sanitizeText だと40文字までの
         // 任意の文字列が入り、年表の並び順が壊れる
         applyMeta("date", "date" in body, sanitizeDate(body.date));
-        applyMeta("coords", "coords" in body, sanitizeCoords(body.coords) ?? undefined);
+        const newCoords = sanitizeCoords(body.coords) ?? undefined;
+        applyMeta("coords", "coords" in body, newCoords);
+        // **地名から補った座標（geoApprox）は地名に付随する。**
+        // `scripts/geocode-locations.js` が「パリ」から引いた街の中心は、
+        // 撮影地を「ロンドン」に直した瞬間に嘘になる（地図で「ロンドン
+        // （おおよそ）」のピンがパリに立つ）。編集画面は座標を送らないので、
+        // 利用者にはそれを直す手段が無い。地名が変わったら座標ごと捨てる
+        // （次の補填で引き直す）。正確な座標を書く口を通ったなら、
+        // 「おおよそ」の印だけ下ろす
+        if (existing.Item?.geoApprox === true && (locationChanged || newCoords)) {
+            names["#geoApprox"] = "geoApprox";
+            removes.push("#geoApprox");
+            if (!("coords" in body)) {
+                names["#coords"] = "coords";
+                removes.push("#coords");
+            }
+        }
 
         let expr = `SET ${sets.join(", ")}`;
         if (removes.length) expr += ` REMOVE ${removes.join(", ")}`;

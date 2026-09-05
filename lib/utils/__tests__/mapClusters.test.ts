@@ -40,8 +40,12 @@ describe("clusterPoints", () => {
     });
 
     it("入力の順に依存しない（描画順が安定する）", () => {
-        const a = clusterPoints([tokyo, paris, shibuya], 4).map((c) => c.items.map((i) => i.id).sort().join());
-        const b = clusterPoints([shibuya, paris, tokyo], 4).map((c) => c.items.map((i) => i.id).sort().join());
+        // **升の登場順が入れ替わる並びにする。** `[tokyo, paris, shibuya]` と
+        // `[shibuya, paris, tokyo]` では、東京と渋谷が同じ升なので Map の
+        // 挿入順がどちらも「東京の升 → パリの升」になり、並べ替えを消しても
+        // 通ってしまう（レビュー指摘）。パリを先頭に置いた並びと比べる
+        const a = clusterPoints([paris, tokyo, shibuya], 4).map((c) => c.items.map((i) => i.id).sort().join());
+        const b = clusterPoints([tokyo, shibuya, paris], 4).map((c) => c.items.map((i) => i.id).sort().join());
         expect(a).toEqual(b);
     });
 

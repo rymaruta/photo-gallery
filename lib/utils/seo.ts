@@ -100,6 +100,8 @@ export function generatePhotoStructuredData(photo: {
     copyrightYear?: string;
     location?: string;
     coords?: { lat: number; lng: number };
+    /** 座標が地名から引いたおおよその値（街の中心）なら true。GeoCoordinates には出さない */
+    geoApprox?: boolean;
     /** 撮影日（EXIF 由来）。dateCreated はこちらを使う */
     date?: string;
     createdAt?: string;
@@ -184,7 +186,10 @@ export function generatePhotoStructuredData(photo: {
             name: photo.location,
         };
         
-        if (photo.coords) {
+        // **おおよその座標は「撮影地点」として出さない。** 画面では
+        // 「地図で見る」を消したのに、構造化データにだけ街の中心を
+        // GeoCoordinates として書くと、検索エンジンにはそこで撮ったと伝わる
+        if (photo.coords && !photo.geoApprox) {
             contentLocation.geo = {
                 "@type": "GeoCoordinates",
                 latitude: photo.coords.lat,

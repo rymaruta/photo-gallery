@@ -434,3 +434,33 @@ describe("持ち主が空の写真 × sub の無いトークンは通さない",
         expect(mockS3Send).not.toHaveBeenCalled();
     });
 });
+
+// ユーザーAPI側（api-user/src/photoUpdate.ts）と同じ扱い。地名から補った
+// 座標（geoApprox）は地名に付随するので、地名を直したら座標ごと捨てる。
+// 管理画面は座標を送らないので、残すと嘘のピンを直す手段が無い
+describe("updatePhoto: おおよその座標（geoApprox）の扱い", () => {
+    const approx = { id: "p1", userId: "owner", src: "https://cdn/p1.jpg", location: "パリ", coords: { lat: 48.86, lng: 2.35 }, geoApprox: true };
+    const sent = () => mockUpdatePhotoFields.mock.calls[0][1] as Record<string, unknown>;
+
+    it("地名を直したら座標と印を REMOVE（undefined）にする", async () => {
+        mockGetPhotoById.mockResolvedValue(approx);
+        const res = await invoke(ev("p1", { location: "ロンドン" }));
+        expect(res.statusCode).toBe(200);
+        expect(sent()).toHaveProperty("coords", undefined);
+        expect(sent()).toHaveProperty("geoApprox", undefined);
+        expect("coords" in sent(), "キー自体が無いと REMOVE が組まれない").toBe(true);
+    });
+
+    it("同じ地名・地名に触らない編集では触らない", async () => {
+        mockGetPhotoById.mockResolvedValue(approx);
+        await invoke(ev("p1", { location: "パリ", title: "題" }));
+        expect("coords" in sent()).toBe(false);
+        expect("geoApprox" in sent()).toBe(false);
+    });
+
+    it("GPS 由来の座標（geoApprox なし）は地名を直しても消さない", async () => {
+        mockGetPhotoById.mockResolvedValue({ ...approx, geoApprox: undefined });
+        await invoke(ev("p1", { location: "ロンドン" }));
+        expect("coords" in sent()).toBe(false);
+    });
+});

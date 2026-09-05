@@ -24,6 +24,7 @@ export type Photo = {
     createdAt?: string;
     updatedAt?: string;
     coords?: { lat: number; lng: number }; // 撮影地（約1km精度に丸め済み）
+    geoApprox?: boolean; // coords が地名から引いたおおよその値（scripts/geocode-locations.js）なら true
     exif?: {
         camera?: string;
         lens?: string;
