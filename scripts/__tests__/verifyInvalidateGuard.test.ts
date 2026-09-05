@@ -7,7 +7,13 @@ import { join } from "node:path";
 // `maintenance.yml` のジョブ env は**本番の値**なので、ステップで上書きし忘れると
 // 本番のテーブルにダミーのストーリー行が入る。`verify-upload` と同じく二重に止める:
 //   1. ワークフローのステップが staging の値で上書きしている
-//   2. スクリプト自身が、バケット名・テーブル名が `staging-` で始まらなければ中止する
+//   2. スクリプト自身が、**バケット名・テーブル名・invoke 先の関数名**が
+//      staging のものでなければ中止する
+//
+// **2 は最初、バケットとテーブルしか見ていなかった。** 「バケットとテーブルは
+// staging・関数名は本番」の組み合わせが素通りし、`--apply` を付ければ
+// **本番の cleanupStories を叩けた**（レビュー指摘・再現済み）。
+// 本番と staging は同じアカウント・同じ資格情報で、区別は名前だけ。
 
 const ROOT = join(__dirname, "..", "..");
 const wf = readFileSync(join(ROOT, ".github", "workflows", "maintenance.yml"), "utf8");
@@ -48,12 +54,53 @@ describe("verify-invalidate は staging にしか向かない", () => {
     });
 
     // 書いたものを残すと、staging に期限切れの行とダミーが溜まる
-    it("後始末が finally にある", () => {
-        expect(script).toMatch(/finally\s*\{[\s\S]*cleanup\(\)/);
+    // **`finally { … cleanup() }` の緩い一致では足りない**——ファイル内の
+    // どこかの finally とどこかの cleanup に当たるだけで、前半の finally を
+    // 消しても後半のそれで満たされる（レビューが変異で実証）
+    it("2つのフェーズが、それぞれ finally で後始末している", () => {
+        const finallies = script.match(/finally\s*\{\s*await cleanup\(/g) ?? [];
+        expect(finallies.length, "どちらかのフェーズが後始末していない").toBe(2);
+    });
+
+    // 後始末に失敗したことを黙らせない（残った行は次回の偽陽性の種になる）
+    it("後始末の失敗を報告する", () => {
+        expect(script).toMatch(/後始末に失敗しました/);
     });
 
     // **ランナーで同じ関数を呼んでも意味が無い**（あちらには node_modules が
     // あるので必ず成功する）。Lambda を invoke していることを固定する
+    // **時刻の窓だけで数えない。** `CallerReference` は `del-<ms>-…` で
+    // どの実行が作ったか分からないので、窓に入った他の削除
+    // （毎時の掃除・別の利用者）を自分の成果にする（レビューが実証）
+    it("自分が置いたパスを含む無効化だけを数える", () => {
+        expect(script, "時刻だけで数えている").toMatch(/Paths\?\.Items \?\? \[\]\)\.includes\(wantPath\)/);
+        expect(script).toMatch(/lambdaInvalidationsFor\(DIST, started, `\/\$\{KEY\}`\)/);
+        expect(script).toMatch(/lambdaInvalidationsFor\(DIST, started, `\/\$\{key\}`\)/);
+    });
+
+    // 行が消えたことも判定に入れる（表示するだけだと「削除は失敗・無効化は
+    // 誰か別の実行のもの」でも成功と出る）
+    it("行が消えたことも成功の条件にしている", () => {
+        expect((script.match(/!left\.Item && refs\.length > 0/g) ?? []).length).toBe(2);
+    });
+
+    // 未設定を「成功」にしない（緑のまま片肺になる）
+    it("ADMIN_DELETE_FUNCTION が無ければ失敗にする", () => {
+        expect(script).toMatch(/ADMIN_DELETE_FUNCTION が未設定です[\s\S]{0,40}return false/);
+    });
+
+    // **どちらのフェーズが どちらの関数を叩くか**まで見る。
+    // 管理API側の `FunctionName: fn` を `FN`（掃除の関数）に取り違える変異が
+    // 素通りしていた——api 側を一度も叩かずに「管理APIでも動いている」と出る
+    it("管理APIのフェーズは ADMIN_DELETE_FUNCTION を叩く", () => {
+        const i = script.indexOf("async function verifyAdminDelete(");
+        expect(i, "verifyAdminDelete が無い").toBeGreaterThan(-1);
+        const body = script.slice(i, script.indexOf("\nasync function main(", i));
+        expect(body, "掃除の関数（CLEANUP_FUNCTION）を叩いている").toContain("FunctionName: fn");
+        expect(body).not.toContain("FunctionName: FN");
+        expect(body).toContain('process.env.ADMIN_DELETE_FUNCTION');
+    });
+
     it("Lambda を invoke している（ランナーで代用していない）", () => {
         expect(script).toMatch(/InvokeCommand/);
         // 2経路とも invoke する（片方だけだと、もう片方の IAM・環境変数は未確認のまま）
@@ -77,20 +124,33 @@ function run(env: Record<string, string>) {
     return { out: `${r.stdout ?? ""}${r.stderr ?? ""}`, code: r.status ?? -1 };
 }
 
+const STAGING = {
+    UPLOAD_BUCKET: "staging-journey-photo-upload",
+    PHOTOS_TABLE: "staging-photo-gallery-photos",
+    CLOUDFRONT_DISTRIBUTION_ID: "EF2TFEBBP24DL",
+    CLEANUP_FUNCTION: "photo-gallery-user-api-staging-cleanupStories",
+    ADMIN_DELETE_FUNCTION: "photo-gallery-api-staging-deletePhoto",
+};
+
 describe("verify-invalidate を実際に起動する", () => {
-    it("本番のバケットを渡すと、AWS に触る前に中止する", () => {
-        const { out, code } = run({ UPLOAD_BUCKET: "prod-journey-photo-upload", PHOTOS_TABLE: "prod-photo-gallery-photos" });
+    // **片方だけ本番**の組み合わせを1つずつ踏む。前は prod×prod しか
+    // 渡しておらず、`PHOTOS_TABLE` の判定を落としても素通りした（実測）
+    it.each([
+        ["バケットだけ本番", { UPLOAD_BUCKET: "prod-journey-photo-upload" }, /staging 以外では実行しません/],
+        ["テーブルだけ本番", { PHOTOS_TABLE: "prod-photo-gallery-photos" }, /staging 以外では実行しません/],
+        ["両方本番", { UPLOAD_BUCKET: "prod-journey-photo-upload", PHOTOS_TABLE: "prod-photo-gallery-photos" }, /staging 以外では実行しません/],
+        // **invoke 先が本番**——ここが素通りしていた。`--apply` を付ければ
+        // 本番の cleanupStories を叩く（本番の期限切れを実際に消す）
+        ["掃除の関数だけ本番", { CLEANUP_FUNCTION: "photo-gallery-user-api-prod-cleanupStories" }, /staging 以外の関数は叩きません/],
+        ["管理APIの関数だけ本番", { ADMIN_DELETE_FUNCTION: "photo-gallery-api-prod-deletePhoto" }, /staging 以外の関数は叩きません/],
+    ])("%s なら、AWS に触る前に中止する", (_name, override, expected) => {
+        const { out, code } = run({ ...STAGING, ...override });
         expect(code, "止まっていない").toBe(1);
-        expect(out).toMatch(/staging 以外では実行しません/);
+        expect(out).toMatch(expected);
     });
 
     it("staging でも --apply が無ければ何も書かない（やることを出すだけ）", () => {
-        const { out, code } = run({
-            UPLOAD_BUCKET: "staging-journey-photo-upload",
-            PHOTOS_TABLE: "staging-photo-gallery-photos",
-            CLOUDFRONT_DISTRIBUTION_ID: "EF2TFEBBP24DL",
-            CLEANUP_FUNCTION: "photo-gallery-user-api-staging-cleanupStories",
-        });
+        const { out, code } = run(STAGING);
         expect(code).toBe(0);
         expect(out).toMatch(/ドライラン/);
         expect(out, "資格情報を取りに行っている").not.toMatch(/CredentialsProviderError|InvalidClientTokenId/);

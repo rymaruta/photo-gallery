@@ -49,28 +49,61 @@ const STAMP = Date.now();
 const ID = `story-verify-invalidate-${STAMP}`;
 const KEY = `uploads/verify-invalidate/${STAMP}.bin`;
 
-/** `del-…`（Lambda 由来）の無効化を、指定時刻より後に作られたものだけ数える */
-export async function lambdaInvalidationsSince(distId: string, sinceMs: number): Promise<string[]> {
-    const list = await cf.send(new ListInvalidationsCommand({ DistributionId: distId, MaxItems: 20 }));
+/** `ListInvalidations` / `GetInvalidation` だけを使う（テストから差し替える） */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type CfReader = { send: (cmd: any) => Promise<any> };
+
+/**
+ * **自分が置いたパスを含む** Lambda 由来（`del-…`）の無効化を探す。
+ *
+ * **時刻の窓だけで数えてはいけない。** `CallerReference` は
+ * `del-${Date.now()}-…` で、どの実行が作ったかの手がかりが無い。窓に入った
+ * 他の `del-…`——staging の毎時 `cleanupStories`、別の利用者の削除、
+ * 前回の残骸が後から掃除されたぶん——を**自分の成果として数える**。
+ * レビューが偽の SDK で実証: Lambda が何もしていない（行が残っている）のに
+ * 両方の経路が「動いている」と出た。
+ *
+ * `GetInvalidation` の応答には `Paths.Items` が入っているので、
+ * **追加の API 呼び出しゼロ**で突き合わせられる。時刻は絞り込みだけに使う。
+ */
+export async function lambdaInvalidationsFor(
+    distId: string, sinceMs: number, wantPath: string, client: CfReader = cf,
+): Promise<string[]> {
+    const list = await client.send(new ListInvalidationsCommand({ DistributionId: distId, MaxItems: 20 })) as
+        { InvalidationList?: { Items?: { Id?: string; CreateTime?: Date }[] } };
     const found: string[] = [];
     for (const it of list.InvalidationList?.Items ?? []) {
         if (it.CreateTime && it.CreateTime.getTime() < sinceMs) continue;
-        const got = await cf.send(new GetInvalidationCommand({ DistributionId: distId, Id: it.Id! }));
-        const ref = got.Invalidation?.InvalidationBatch?.CallerReference ?? "";
-        if (ref.startsWith("del-")) found.push(ref);
+        const got = await client.send(new GetInvalidationCommand({ DistributionId: distId, Id: it.Id! })) as
+            { Invalidation?: { InvalidationBatch?: { CallerReference?: string; Paths?: { Items?: string[] } } } };
+        const batch = got.Invalidation?.InvalidationBatch;
+        const ref = batch?.CallerReference ?? "";
+        if (!ref.startsWith("del-")) continue;
+        // **パスまで見る。** ここを外すと「誰かの削除」を自分の成果にする
+        if ((batch?.Paths?.Items ?? []).includes(wantPath)) found.push(ref);
     }
     return found;
 }
 
-async function cleanup() {
-    try { await ddb.send(new DeleteCommand({ TableName: TABLE, Key: { id: ID } })); } catch { /* 残っていなければよい */ }
-    try { await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: KEY })); } catch { /* 同上 */ }
+/**
+ * 後始末。**失敗を黙らせない**——消せていないのに「後始末しました」と
+ * 出していた。staging に期限切れの行が残ると、次の毎時 `cleanupStories` が
+ * それを掃除して `del-…` を作る＝**次回の実行の偽陽性の種**になる。
+ */
+async function cleanup(id: string, key: string) {
+    const left: string[] = [];
+    try { await ddb.send(new DeleteCommand({ TableName: TABLE, Key: { id } })); } catch (e) { left.push(`行 ${id}: ${(e as Error).message}`); }
+    try { await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key })); } catch (e) { left.push(`実体 ${key}: ${(e as Error).message}`); }
+    if (left.length > 0) console.error(`[verify] **後始末に失敗しました**（次回の偽陽性の種になります）: ${left.join(" / ")}`);
+    else console.log(`[verify] 後始末しました（${id}）`);
 }
 
 /** 管理APIの削除（api パッケージ側）を、同じやり方で確かめる */
 async function verifyAdminDelete(): Promise<boolean> {
     const fn = process.env.ADMIN_DELETE_FUNCTION ?? "";
-    if (!fn) { console.log("[verify:admin] ADMIN_DELETE_FUNCTION が未設定のため飛ばします"); return true; }
+    // **未設定を「成功」にしない。** 飛ばして true を返していたので、
+    // 環境変数が落ちた実行は**緑のまま片肺**になっていた（レビュー指摘）
+    if (!fn) { console.error("[verify:admin] ADMIN_DELETE_FUNCTION が未設定です（api 側は未検証）"); return false; }
     const stamp = Date.now();
     const id = `verify-invalidate-photo-${stamp}`;
     const key = `uploads/verify-invalidate/${stamp}-admin.bin`;
@@ -100,17 +133,18 @@ async function verifyAdminDelete(): Promise<boolean> {
         const left = await ddb.send(new GetCommand({ TableName: TABLE, Key: { id } }));
         console.log(`[verify:admin] 行は${left.Item ? "残っている（削除が失敗）" : "消えた（削除が走った）"}`);
 
-        const refs = await lambdaInvalidationsSince(DIST, started);
-        if (refs.length > 0) {
+        // **行が消えたことも判定に入れる。** 表示するだけだったので、
+        // 「削除は失敗・無効化は誰か別の実行のもの」でも成功と出ていた
+        const refs = await lambdaInvalidationsFor(DIST, started, `/${key}`);
+        if (!left.Item && refs.length > 0) {
             console.log(`[verify:admin] **管理APIでもエッジの掃除が動いている**（${refs.join(", ")}）`);
             return true;
         }
-        console.log("[verify:admin] del-… の無効化が見つからない（api 側の IAM か環境変数か、ランタイムの SDK を疑う）");
+        console.log(`[verify:admin] 確認できず（行=${left.Item ? "残った" : "消えた"} / このパスの無効化=${refs.length}件）`);
+        console.log("  → api 側の IAM・環境変数・ランタイムの SDK、または S3 の削除で止まっている");
         return false;
     } finally {
-        try { await ddb.send(new DeleteCommand({ TableName: TABLE, Key: { id } })); } catch { /* 残っていなければよい */ }
-        try { await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key })); } catch { /* 同上 */ }
-        console.log("[verify:admin] 後始末しました");
+        await cleanup(id, key);
     }
 }
 
@@ -123,6 +157,16 @@ async function main() {
     }
     if (!DIST || !FN) {
         console.error("CLOUDFRONT_DISTRIBUTION_ID と CLEANUP_FUNCTION が要ります");
+        process.exit(1);
+    }
+    // **invoke 先も staging に縛る。** バケットとテーブルしか見ていなかったので、
+    // 「バケットとテーブルは staging・関数名は本番」の組み合わせが素通りし、
+    // `--apply` で**本番の cleanupStories を叩けた**（レビュー指摘。再現済み）。
+    // 本番と staging は同じアカウント・同じ資格情報で、区別は名前だけ。
+    const targets = [FN, process.env.ADMIN_DELETE_FUNCTION ?? ""].filter(Boolean);
+    const notStaging = targets.filter((f) => !f.includes("-staging-"));
+    if (notStaging.length > 0) {
+        console.error(`staging 以外の関数は叩きません: ${notStaging.join(", ")}`);
         process.exit(1);
     }
     if (!APPLY) {
@@ -162,18 +206,19 @@ async function main() {
         const left = await ddb.send(new GetCommand({ TableName: TABLE, Key: { id: ID } }));
         console.log(`[verify] 行は${left.Item ? "残っている（掃除が失敗）" : "消えた（掃除が走った）"}`);
 
-        const refs = await lambdaInvalidationsSince(DIST, started);
-        if (refs.length > 0) {
+        const refs = await lambdaInvalidationsFor(DIST, started, `/${KEY}`);
+        // **両方が揃って初めて成功**（行が消えた ＝ 掃除が走った、
+        // かつ このパスの無効化がある ＝ 作ったのはこの実行）
+        if (!left.Item && refs.length > 0) {
             console.log(`[verify] **エッジの掃除は Lambda の中で動いている**（${refs.join(", ")}）`);
             ok = true;
         } else {
-            console.log("[verify] del-… の無効化が見つからない。");
+            console.log(`[verify] 確認できず（行=${left.Item ? "残った" : "消えた"} / このパスの無効化=${refs.length}件）`);
             console.log("  → ランタイムに @aws-sdk/client-cloudfront が無いか、IAM が足りないか、");
-            console.log("    行が消えていないなら S3 の削除で止まっている。Lambda のログを見ること");
+            console.log("    行が残っているなら S3 の削除で止まっている。Lambda のログを見ること");
         }
     } finally {
-        await cleanup();
-        console.log("[verify] 後始末しました");
+        await cleanup(ID, KEY);
     }
     // **api-user が動いても api の証拠にはならない**（別サービス＝別の IAM・
     // 別の環境変数）。管理API側も同じやり方で確かめる

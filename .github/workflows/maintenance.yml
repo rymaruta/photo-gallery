@@ -160,7 +160,12 @@ jobs:
       - name: エッジの掃除が Lambda の中で動くか確かめる（staging）
         if: inputs.task == 'verify-invalidate'
         run: npx tsx scripts/verify-invalidate.ts ${{ inputs.apply && '--apply' || '' }}
-        timeout-minutes: 5
+        # **10分にする。** `cleanupStories` の Lambda タイムアウトは 300秒＝
+        # ちょうど5分で、Invoke は同期。前半だけで枠を使い切ると GitHub が
+        # プロセスを殺すので `finally` が走らず、staging にダミーが残る
+        # ——その残骸は期限切れストーリーなので、次の毎時実行が掃除して
+        # `del-…` を作る＝**次回の偽陽性の種**になる（レビュー指摘）
+        timeout-minutes: 10
         env:
           # **staging を明示する。** 上の env は本番向けなので、上書きしないと
           # 本番のテーブルにダミーの行を書きに行く（スクリプト側も staging-
