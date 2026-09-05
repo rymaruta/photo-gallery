@@ -129,6 +129,12 @@ body {
 }
 
 /* 撮影地マップ（/map）の束（複数枚が重なった升）。数字だけを丸で出す */
+/* 束（同じ升にまとまった写真の枚数）。
+   **2クラスで書く。** Leaflet の `.leaflet-marker-icon { display: block }` と
+   同じ強さ（クラス1つ）なので、読み込み順で負けると `display: flex` が効かず、
+   数字が円の左上に寄って欠ける（Chromium で実測: 数字の箱が円の左端 x=178・
+   上から2px の位置に出た）。素のクラスも残しておく */
+.photo-map-cluster.leaflet-marker-icon,
 .photo-map-cluster {
   display: flex;
   align-items: center;
