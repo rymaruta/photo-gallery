@@ -24,6 +24,12 @@ provider:
     # 未認証で呼べる口にまで配る理由は無い。
     UPLOAD_BUCKET: ${param:uploadBucket}
     CLOUDFRONT_URL: ${param:cloudfrontUrl}
+    # 管理者削除でエッジの掃除に使う（LEFT-4）。**秘密ではない**ので
+    # provider に置く（配信IDは CLAUDE.md にも書いてある。IAM-2 が
+    # 関数ごとに配れと言っているのは GitHub の書き込みトークンの話）。
+    # api-user 側と同じ形。未設定なら `invalidateUploads` が警告1行で
+    # 飛ばす——設定漏れで削除そのものを止めない
+    CLOUDFRONT_DISTRIBUTION_ID: ${param:cloudfrontDistributionId, ''}
 
   httpApi:
     cors: true
@@ -65,6 +71,17 @@ provider:
             - s3:PutObject
             - s3:DeleteObject
           Resource: arn:aws:s3:::${param:uploadBucket}/uploads/*
+        # 管理者削除で消した実体を、エッジからも消す（LEFT-4）。
+        # アップロードは max-age=31536000（1年）で配っていて、`/uploads/*` の
+        # maxTTL も 31536000（本番実測 2026-09-05）。S3 から消すだけでは
+        # **URL を知っていれば最大1年 取れ続ける**（GPS 入りの原本も同じ）。
+        # api-user 側は前から持っていて、こちらだけ無かった。
+        # 対象はこのアカウントの配信のみ。作成しかできない（読み書きは無い）。
+        - Effect: Allow
+          Action:
+            - cloudfront:CreateInvalidation
+          Resource:
+            - arn:aws:cloudfront::${aws:accountId}:distribution/*
         # PostConfirmation トリガー: 確認済みユーザーを user グループへ追加
         - Effect: Allow
           Action:

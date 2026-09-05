@@ -3,6 +3,7 @@ import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getPhotoById, updatePhotoFields, deletePhotoById } from "./ddb-photos";
 import { isAdmin, getCallerUserId } from "./auth";
 import { requestSiteRebuild } from "./rebuild";
+import { invalidateUploads } from "./cdnInvalidate";
 import { requireEnv } from "./env";
 import {
     sanitizeExif, sanitizeText, sanitizeDate, sanitizeTags,
@@ -244,14 +245,25 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             } catch { /* URL でなければ無視 */ }
         }
         let s3Failures = 0;
+        // **消せたキーだけをエッジの掃除に回す。** 消えていない実体の
+        // キャッシュを捨てても取り直されるだけで、無効化は**パス単位で課金**される
+        const deleted: string[] = [];
         for (const key of keys) {
             try {
                 await s3.send(new DeleteObjectCommand({ Bucket: UPLOAD_BUCKET, Key: key }));
+                deleted.push(key);
             } catch (s3Err) {
                 console.error(`deletePhoto: S3 delete failed for ${key}:`, s3Err);
                 s3Failures++;
             }
         }
+        // **エッジからも消す（LEFT-4）。** S3 から消しただけでは、
+        // `/uploads/*` の maxTTL（本番実測 31536000秒＝365日）と実体の
+        // `max-age=31536000` のぶん、**URL を知っていれば取れ続ける**
+        // ——GPS 入りの原本（`srcOriginal`）も同じ。api-user 側の削除・退会・
+        // ストーリー掃除は前から通っていて、**ここだけ抜けていた**。
+        // 失敗しても削除は成功として扱う（`invalidateUploads` は投げない）。
+        await invalidateUploads(deleted, `deletePhoto(${id})`);
         if (s3Failures > 0) {
             return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "画像の削除を完了できませんでした。時間をおいてもう一度お試しください" }) };
         }
