@@ -205,7 +205,9 @@ async function invalidationHistory() {
     head("CloudFront の無効化履歴（LEFT-4: 削除時の掃除が本当に効いているか）");
     const distId = process.env.CLOUDFRONT_DISTRIBUTION_ID;
     if (!distId) { line("  CLOUDFRONT_DISTRIBUTION_ID が未設定のため飛ばします"); return; }
-    const list = await cf.send(new ListInvalidationsCommand({ DistributionId: distId, MaxItems: 20 }));
+    // **できるだけ遡る**（CloudFront の上限は100）。デプロイのたびに1本
+    // 作られるので、20件だと数日しか見えない——`del-…` を探すには足りない
+    const list = await cf.send(new ListInvalidationsCommand({ DistributionId: distId, MaxItems: 100 }));
     const items = list.InvalidationList?.Items ?? [];
     if (items.length === 0) { line("  無効化の履歴がありません"); return; }
     // `ListInvalidations` は CallerReference を返さないので1件ずつ引く（読み取り）
