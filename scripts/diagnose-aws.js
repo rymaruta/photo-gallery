@@ -70,6 +70,14 @@ async function dataShapes() {
     await count("createdAt を持たない写真（GSI から落ちる）", {
         FilterExpression: "attribute_exists(src) AND attribute_not_exists(createdAt)",
     });
+    // 地図ページ（/map）の材料。位置情報を持つ公開写真が無ければ地図は空
+    await count("位置情報（coords）を持つ写真", {
+        FilterExpression: "attribute_exists(src) AND attribute_exists(coords)",
+    });
+    await count("うち公開中（published が false でない）", {
+        FilterExpression: "attribute_exists(src) AND attribute_exists(coords) AND (attribute_not_exists(published) OR published <> :f)",
+        ExpressionAttributeValues: { ":f": { BOOL: false } },
+    });
 }
 
 /** アカウント列挙の設定（A-5） */
