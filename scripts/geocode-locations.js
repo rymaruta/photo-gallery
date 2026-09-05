@@ -49,16 +49,31 @@ function normalizeLocationName(raw) {
 /**
  * Nominatim の応答から座標を1つ選ぶ。**約1km に丸める**（アップロード側の
  * `sanitizeCoords` と同じ精度。地図の粒度も揃う）。
+ *
+ * **先頭ではなく `importance` が最大のものを採る。** 最初の本番ドライランで
+ * 「福岡」が富山県の福岡町（36.71, 136.93）、「土谷棚田」が名古屋近郊に
+ * 当たった。Nominatim の並びは文字の一致を優先するので、有名な同名の街
+ * より小さな町が先頭に来ることがある。`importance` は知名度の指標なので、
+ * 5件の中で最大を採れば福岡市（33.59, 130.40）側へ倒れる。
  * 読めないものは null（呼び出し側は「引けなかった」として飛ばす）。
+ * `label` は確認用の表示名（ドライランで人が目で確かめる材料）。
  */
 function pickCoords(json) {
     if (!Array.isArray(json) || json.length === 0) return null;
-    const first = json[0];
-    const lat = Number(first && first.lat);
-    const lng = Number(first && first.lon);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
-    return { lat: Math.round(lat * 100) / 100, lng: Math.round(lng * 100) / 100 };
+    let best = null;
+    for (const r of json) {
+        const lat = Number(r && r.lat);
+        const lng = Number(r && r.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+        if (Math.abs(lat) > 90 || Math.abs(lng) > 180) continue;
+        const importance = Number(r.importance);
+        const score = Number.isFinite(importance) ? importance : -1;
+        if (!best || score > best.score) {
+            best = { score, lat: Math.round(lat * 100) / 100, lng: Math.round(lng * 100) / 100, label: typeof r.display_name === "string" ? r.display_name : "" };
+        }
+    }
+    if (!best) return null;
+    return { lat: best.lat, lng: best.lng, label: best.label };
 }
 
 /**
@@ -88,7 +103,8 @@ async function geocodeAll(names, fetchImpl = fetch) {
     for (const name of names) {
         if (!first) await sleep(INTERVAL_MS);
         first = false;
-        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=ja&q=${encodeURIComponent(name)}`;
+        // 5件取って知名度で選ぶ（`pickCoords` を参照）
+        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=ja&q=${encodeURIComponent(name)}`;
         try {
             const res = await fetchImpl(url, { headers: { "User-Agent": UA, "Accept": "application/json" } });
             if (!res.ok) { console.warn(`  [geocode] ${name}: HTTP ${res.status}`); result.set(name, null); continue; }
@@ -127,7 +143,9 @@ async function main() {
         const count = targets.filter((t) => t.name === name).length;
         if (!c) { unresolved++; console.log(`  ✗ ${name}（${count}枚）: 引けなかった`); continue; }
         resolved++;
-        console.log(`  ✓ ${name}（${count}枚）→ ${c.lat}, ${c.lng}`);
+        // 表示名を添える。地名の当て違い（同名の小さな町など）は数字では
+        // 分からないので、ドライランで人が読む
+        console.log(`  ✓ ${name}（${count}枚）→ ${c.lat}, ${c.lng}  ${c.label}`);
     }
 
     if (APPLY) {
@@ -141,7 +159,7 @@ async function main() {
                     // 行が消えていたら作らない・**正確な座標があれば触らない**
                     ConditionExpression: "attribute_exists(id) AND attribute_not_exists(coords)",
                     UpdateExpression: "SET coords = :c, geoApprox = :t",
-                    ExpressionAttributeValues: { ":c": c, ":t": true },
+                    ExpressionAttributeValues: { ":c": { lat: c.lat, lng: c.lng }, ":t": true },   // label は保存しない
                 }));
             } catch (e) {
                 failed++;

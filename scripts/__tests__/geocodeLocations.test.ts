@@ -28,14 +28,33 @@ describe("normalizeLocationName", () => {
 });
 
 describe("pickCoords", () => {
-    it("先頭の結果を約1kmに丸める（アップロード側の sanitizeCoords と同じ精度）", () => {
-        expect(pickCoords([{ lat: "48.8588897", lon: "2.3200410" }])).toEqual({ lat: 48.86, lng: 2.32 });
+    it("約1kmに丸める（アップロード側の sanitizeCoords と同じ精度）", () => {
+        expect(pickCoords([{ lat: "48.8588897", lon: "2.3200410", display_name: "パリ" }]))
+            .toEqual({ lat: 48.86, lng: 2.32, label: "パリ" });
+    });
+    // 本番の最初のドライランで「福岡」が富山県の福岡町に当たった（先頭を
+    // 採っていた）。Nominatim は文字の一致を優先するので、有名な同名の街より
+    // 小さい町が先頭に来ることがある。知名度（importance）で選ぶ
+    it("先頭ではなく importance が最大の結果を採る（福岡町ではなく福岡市）", () => {
+        const json = [
+            { lat: "36.71", lon: "136.93", importance: 0.31, display_name: "福岡町, 高岡市, 富山県" },
+            { lat: "33.59", lon: "130.40", importance: 0.72, display_name: "福岡市, 福岡県" },
+            { lat: "33.60", lon: "130.42", importance: 0.55, display_name: "福岡県" },
+        ];
+        expect(pickCoords(json)).toEqual({ lat: 33.59, lng: 130.4, label: "福岡市, 福岡県" });
+    });
+    it("importance が無い結果は最後に回す（読める座標があれば必ず何かは返す）", () => {
+        expect(pickCoords([{ lat: "1", lon: "2" }, { lat: "3", lon: "4", importance: 0.1 }]))
+            .toEqual({ lat: 3, lng: 4, label: "" });
     });
     it("空・読めない・範囲外は null", () => {
         expect(pickCoords([])).toBeNull();
         expect(pickCoords(null)).toBeNull();
         expect(pickCoords([{ lat: "abc", lon: "2" }])).toBeNull();
         expect(pickCoords([{ lat: "91", lon: "2" }])).toBeNull();
+        // 読めない行が importance 最大でも、それは飛ばして読める行を採る
+        expect(pickCoords([{ lat: "91", lon: "2", importance: 0.9 }, { lat: "1", lon: "2", importance: 0.1 }]))
+            .toEqual({ lat: 1, lng: 2, label: "" });
     });
 });
 
@@ -78,8 +97,9 @@ describe("geocodeAll", () => {
 
         expect(calls).toHaveLength(2);
         expect(calls[0].url).toContain("q=%E6%9D%B1%E4%BA%AC");
+        expect(calls[0].url, "知名度で選ぶには複数件が要る").toContain("limit=5");
         expect(calls[0].ua, "Nominatim の規約: 識別できる UA が要る").toMatch(/journey-photo/);
-        expect(out.get("東京")).toEqual({ lat: 35.68, lng: 139.77 });
+        expect(out.get("東京")).toEqual({ lat: 35.68, lng: 139.77, label: "" });
     });
 
     it("HTTP エラーや例外は null にして先へ進む（1つで全部を止めない）", async () => {
@@ -94,6 +114,6 @@ describe("geocodeAll", () => {
         vi.useRealTimers();
         expect(out.get("a")).toBeNull();
         expect(out.get("b")).toBeNull();
-        expect(out.get("c")).toEqual({ lat: 1, lng: 2 });
+        expect(out.get("c")).toEqual({ lat: 1, lng: 2, label: "" });
     });
 });
