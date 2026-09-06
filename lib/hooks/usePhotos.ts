@@ -36,6 +36,29 @@ export function usePhotos() {
      */
     const [failed, setFailed] = useState(false);
 
+    /**
+     * **取り直しの契機。** 一度失敗すると `failed` が立ちっぱなしで、
+     * この画面には再試行が無かった（`?photo=` を開こうとした人は「読み
+     * 込めませんでした」を見たあと、タブを開き直すまで写真モーダルが死ぬ）。
+     * 画面に部品を増やさずに済む形——**戻ってきたとき・回線が戻ったとき**に
+     * 取り直す——を採る（`useFollow` の撃ち直しと同じ手）。
+     */
+    const [reloadKey, setReloadKey] = useState(0);
+    useEffect(() => {
+        if (!failed) return;
+        const retry = () => {
+            if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+            setFailed(false);
+            setReloadKey((k) => k + 1);
+        };
+        window.addEventListener("online", retry);
+        document.addEventListener("visibilitychange", retry);
+        return () => {
+            window.removeEventListener("online", retry);
+            document.removeEventListener("visibilitychange", retry);
+        };
+    }, [failed]);
+
     useEffect(() => {
         const controller = new AbortController();
 
@@ -89,7 +112,7 @@ export function usePhotos() {
 
         void load();
         return () => controller.abort();
-    }, []);
+    }, [reloadKey]);
 
     return { photos, loading, loaded, failed };
 }

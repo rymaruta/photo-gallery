@@ -5,8 +5,14 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 // ストーリーの投稿が返らず全画面の下書きから出られない／フォローが
 // 「フォロー中」の見た目のまま固まる／通知の取得が60秒ごとに積み上がる。
 
+// セッションの返り方をテストごとに差し替える。**`vi.doMock` は使わない**
+// ——台帳に「原因不明のフレークを出した」と記録がある手なので、
+// 登録は1回にして中身だけ差し替える
+const session = vi.hoisted(() => ({
+    current: null as null | Promise<unknown>,
+}));
 vi.mock("../../auth/cognito", () => ({
-    getCurrentSession: async () => ({ getIdToken: () => ({ getJwtToken: () => "jwt" }) }),
+    getCurrentSession: () => session.current ?? Promise.resolve({ getIdToken: () => ({ getJwtToken: () => "jwt" }) }),
 }));
 
 const fetchMock = vi.fn();
@@ -16,6 +22,7 @@ beforeEach(() => {
     prevFetch = globalThis.fetch;
     globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
     fetchMock.mockReset();
+    session.current = null;
     vi.useFakeTimers();
 });
 afterEach(() => {
@@ -134,5 +141,28 @@ describe("API の打ち切り", () => {
         expect(await seen).toBe("TimeoutError");
         // 素の `fetch` に知らない項目を渡さない
         expect((fetchMock.mock.calls[0][1] as Record<string, unknown>).timeoutMs).toBeUndefined();
+    });
+});
+
+// **`fetch` に打ち切りを入れただけでは足りなかった。** 認証付きの経路は
+// `await getCurrentSession()` の後に `fetch` を呼ぶ。`getSession` は
+// 期限切れトークンで Cognito へ通信し、そのコールバックには時間切れが無い
+// ——返らなければ `fetch` に到達すらしない（レビュー指摘）。
+describe("トークン取得の打ち切り", () => {
+    it("セッションが返らなければ、fetch へ行く前に諦める", async () => {
+        session.current = new Promise(() => {});   // 返らない
+        const { userFetch } = await import("../api");
+        const seen = userFetch("/user/notifications").catch((e: Error) => e.name);
+        await vi.advanceTimersByTimeAsync(20_001);
+        expect(await seen).toBe("TimeoutError");
+        expect(fetchMock, "セッションが返っていないのに投げている").not.toHaveBeenCalled();
+    });
+
+    it("セッションが普通に返れば、今までどおり投げる", async () => {
+        fetchMock.mockResolvedValue(new Response("{}", { status: 200 }));
+        const { userFetch } = await import("../api");
+        const res = await userFetch("/user/notifications");
+        expect(res.status).toBe(200);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 });

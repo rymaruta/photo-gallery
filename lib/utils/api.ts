@@ -62,6 +62,33 @@ export type ApiRequestInit = RequestInit & { timeoutMs?: number };
  * 「自分で畳んだ」経路（`usePhotos` など `AbortError` を無視する実装がある）と
  * 区別できず、**時間切れが黙って捨てられる**。
  */
+/**
+ * トークンの取得（`getCurrentSession`）にも打ち切りを掛ける。
+ *
+ * **`fetch` に打ち切りを入れただけでは足りなかった。** `userFetch` /
+ * `authenticatedFetch` は `await getCurrentSession()` の**後**に `fetch` を
+ * 呼ぶ。`amazon-cognito-identity-js` の `getSession` は期限切れトークンで
+ * Cognito へ通信し、そのコールバックには時間切れが無い（ライブラリ側にも
+ * こちら側にも）。返らなければ `fetch` に到達すらしないので、
+ * 「返らない回線で固まる」がこの入口に残っていた（レビュー指摘）。
+ */
+async function sessionWithTimeout(ms: number) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        return await Promise.race([
+            getCurrentSession(),
+            new Promise<never>((_res, rej) => {
+                timer = setTimeout(
+                    () => rej(new DOMException(`応答がありません（${Math.round(ms / 1000)}秒）`, "TimeoutError")),
+                    ms,
+                );
+            }),
+        ]);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 function withTimeout(options?: ApiRequestInit): { init: RequestInit; done: () => void } {
     const ms = options?.timeoutMs ?? REQUEST_TIMEOUT_MS;
     const controller = new AbortController();
@@ -123,8 +150,8 @@ export async function authenticatedFetch(path: string, options?: ApiRequestInit)
     const base = getBaseUrl();
     const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
 
-    // Cognito セッションから JWT トークンを取得
-    const session = await getCurrentSession();
+    // Cognito セッションから JWT トークンを取得（ここにも打ち切りが要る）
+    const session = await sessionWithTimeout(options?.timeoutMs ?? REQUEST_TIMEOUT_MS);
     const token = session?.getIdToken()?.getJwtToken();
 
     if (!token) {
@@ -148,7 +175,7 @@ export async function userFetch(path: string, options?: ApiRequestInit): Promise
     const base = getUserApiBaseUrl();
     const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
 
-    const session = await getCurrentSession();
+    const session = await sessionWithTimeout(options?.timeoutMs ?? REQUEST_TIMEOUT_MS);
     const token = session?.getIdToken()?.getJwtToken();
 
     if (!token) {

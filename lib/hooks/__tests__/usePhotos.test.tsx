@@ -169,4 +169,43 @@ describe("usePhotos の failed", () => {
         await waitFor(() => expect(result.current.failed).toBe(true));
         expect(result.current.loaded, "配列でないのに届いたことにしている").toBe(false);
     });
+
+    // **取り直しの契機。** 一度失敗すると `failed` が立ちっぱなしで、
+    // この画面には再試行が無かった（`?photo=` を開こうとした人は、タブを
+    // 開き直すまで写真モーダルが死ぬ）。画面に部品を増やさない形で、
+    // 戻ってきたとき・回線が戻ったときに取り直す（`useFollow` と同じ手）
+    it("戻ってきたら取り直す（失敗したときだけ）", async () => {
+        mockPublicFetch.mockResolvedValueOnce(new Response("boom", { status: 503 }));
+        const { result } = renderHook(() => usePhotos());
+        await waitFor(() => expect(result.current.failed).toBe(true));
+
+        mockPublicFetch.mockResolvedValue(new Response(JSON.stringify(API_PHOTOS), { status: 200 }));
+        document.dispatchEvent(new Event("visibilitychange"));
+        await waitFor(() => expect(result.current.loaded).toBe(true));
+        expect(result.current.failed).toBe(false);
+        expect(result.current.photos.map((p) => p.id)).toEqual(["api-1"]);
+    });
+
+    it("回線が戻ったときも取り直す", async () => {
+        mockPublicFetch.mockResolvedValueOnce(new Response("boom", { status: 503 }));
+        const { result } = renderHook(() => usePhotos());
+        await waitFor(() => expect(result.current.failed).toBe(true));
+
+        mockPublicFetch.mockResolvedValue(new Response(JSON.stringify(API_PHOTOS), { status: 200 }));
+        window.dispatchEvent(new Event("online"));
+        await waitFor(() => expect(result.current.loaded).toBe(true));
+    });
+
+    // **成功したあとは取り直さない。** 戻ってくるたびに投げると、
+    // 常駐しているこの画面が延々と取りにいく
+    it("届いているときは、戻ってきても取り直さない", async () => {
+        mockPublicFetch.mockResolvedValue(new Response(JSON.stringify(API_PHOTOS), { status: 200 }));
+        const { result } = renderHook(() => usePhotos());
+        await waitFor(() => expect(result.current.loaded).toBe(true));
+        const calls = mockPublicFetch.mock.calls.length;
+        document.dispatchEvent(new Event("visibilitychange"));
+        window.dispatchEvent(new Event("online"));
+        await new Promise((r) => setTimeout(r, 30));
+        expect(mockPublicFetch.mock.calls.length, "成功しているのに取り直している").toBe(calls);
+    });
 });
