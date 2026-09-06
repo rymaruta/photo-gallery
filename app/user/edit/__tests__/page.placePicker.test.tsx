@@ -99,8 +99,52 @@ describe("地図に出す位置を選ぶ", () => {
         expect(showToast.mock.calls.at(-1)![0]).toMatch(/市区町村を足すと/);
     });
 
+    // **機械の当て推量を本人が確定する**——この機能が一番効く場面。
+    // 値が同じでも「触った」なら送る。送らないとサーバーは「おおよそ」の印を
+    // 落とす分岐に入らず、画面は「保存しました」と出すのに何も変わらない
+    it("機械が当てたのと同じ位置を選び直しても、保存に載る", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (url.startsWith("/geocode/search")) return Promise.resolve({ ok: true, json: async () => ({ results: CANDIDATES }) });
+            if (!init?.method) return Promise.resolve({ ok: true, json: async () => [{ ...PHOTO, coords: { lat: 33.59, lng: 130.4 }, geoApprox: true }] });
+            return Promise.resolve({ ok: true, json: async () => ({ success: true }) });
+        });
+        const user = userEvent.setup();
+        render(<EditPage />);
+        await screen.findByDisplayValue("海");
+        // 読み込み時は「おおよそ」と断っている
+        expect(screen.getByTestId("coords-state")).toHaveTextContent("おおよそ");
+
+        await user.click(screen.getByRole("button", { name: "この場所名で候補を出す" }));
+        await user.click(await screen.findByRole("button", { name: "福岡市, 福岡県, 日本" }));
+        // 選んだ時点で「おおよそ」は消える（保存でサーバーが印を落とす）
+        expect(screen.getByTestId("coords-state")).not.toHaveTextContent("おおよそ");
+
+        await user.click(screen.getByRole("button", { name: "保存する" }));
+        await waitFor(() => expect(savedBody()).toBeTruthy());
+        expect(savedBody().coords, "同じ値だからと送らないと、印が落ちない").toEqual({ lat: 33.59, lng: 130.4 });
+    });
+
+    // 地名を書き換えたら候補は捨てる（別の地名の候補を押せてしまう）
+    it("地名を書き換えると、前の候補は消える", async () => {
+        const user = userEvent.setup();
+        render(<EditPage />);
+        await screen.findByDisplayValue("海");
+        await user.click(screen.getByRole("button", { name: "この場所名で候補を出す" }));
+        await screen.findByRole("button", { name: "福岡市, 福岡県, 日本" });
+
+        const loc = screen.getByDisplayValue("福岡");
+        await user.type(loc, "市");
+        expect(screen.queryByRole("button", { name: "福岡市, 福岡県, 日本" }), "別の地名の候補が押せる").toBeNull();
+    });
+
     // 逆向き: 位置を触らない保存では coords を送らない（別タブの編集を消さない）
     it("位置を触らなければ、保存に coords は載らない", async () => {
+        // **座標を持つ写真で見る。** 座標が無い写真（null vs null）だと、
+        // オブジェクトの比較が壊れていても緑になる
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (!init?.method) return Promise.resolve({ ok: true, json: async () => [{ ...PHOTO, coords: { lat: 35.68, lng: 139.76 } }] });
+            return Promise.resolve({ ok: true, json: async () => ({ success: true }) });
+        });
         const user = userEvent.setup();
         render(<EditPage />);
         const title = await screen.findByDisplayValue("海");

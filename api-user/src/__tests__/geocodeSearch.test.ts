@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { geocodeSearch, mapNominatimResults, FETCH_TIMEOUT_MS } from "../geocodeSearch";
 
 // 撮影地の位置さがし（Nominatim の代理）。
@@ -65,8 +67,30 @@ describe("geocodeSearch", () => {
     it("長すぎる地名は切ってから投げる", async () => {
         fetchMock.mockResolvedValue(ok([]));
         await invoke("あ".repeat(300));
-        const url = decodeURIComponent(fetchMock.mock.calls[0][0] as string);
-        expect(url.split("q=")[1].length).toBe(100);
+        // **生の URL で見る。** `decodeURIComponent` してから数えると、
+        // `encodeURIComponent` を外しても同じ結果になって素通りする
+        const url = fetchMock.mock.calls[0][0] as string;
+        expect(url.split("q=")[1]).toBe(encodeURIComponent("あ".repeat(100)));
+    });
+
+    // **値だけをエンコードする。** 生のまま繋ぐと、地名に `&limit=50` と
+    // 書くだけで相手に別のパラメータを渡せる
+    it("地名は値としてエンコードして渡す（パラメータを割り込ませない）", async () => {
+        fetchMock.mockResolvedValue(ok([]));
+        await invoke("福岡&limit=50#x");
+        const url = fetchMock.mock.calls[0][0] as string;
+        expect(url).toContain("q=%E7%A6%8F%E5%B2%A1%26limit%3D50%23x");
+        expect(url.split("limit=").length, "limit が2つ入っている").toBe(2);
+    });
+
+    // 100文字目がサロゲートペアの途中だと `encodeURIComponent` が投げる。
+    // URL の組み立てが try の外にあると、JSON のエラー本文もログも通らずに落ちる
+    it("100文字目が絵文字でも、素の例外で落ちない", async () => {
+        fetchMock.mockResolvedValue(ok([]));
+        const q = "あ".repeat(99) + "🌸" + "い".repeat(50);
+        const res = await invoke(q);
+        expect([200, 500]).toContain(res.statusCode);
+        expect(() => JSON.parse(res.body), "本文が JSON でない").not.toThrow();
     });
 
     it("相手が 5xx なら 502（理由を伝える）", async () => {
@@ -82,9 +106,19 @@ describe("geocodeSearch", () => {
         expect(res.statusCode).toBe(500);
     });
 
-    // この関数の Lambda タイムアウトは6秒（serverless.yml）。
-    // 外向きはそれより短くないと、返らない相手のせいで枠を握り続ける
-    it("外向きの打ち切りは Lambda のタイムアウトより短い", () => {
-        expect(FETCH_TIMEOUT_MS).toBeLessThan(6000);
+    // **秒数は `serverless.yml` から読む**（`musicSearch.test.ts` と同じ手）。
+    // 両方に書いた数字は必ずずれるので、実物を見て突き合わせる。
+    // ベタ書きの 6000 と比べていた頃は、yml を `timeout: 3` に縮めても緑だった
+    it("打ち切りは Lambda のタイムアウトより十分手前", () => {
+        const yml = readFileSync(join(__dirname, "..", "..", "serverless.yml"), "utf8");
+        const block = /^ {2}geocodeSearch:$([\s\S]*?)(?=^ {2}\w+:$)/m.exec(yml);
+        expect(block, "geocodeSearch のブロックが見つからない").not.toBeNull();
+        const t = /^ {4}timeout:\s*(\d+)\s*$/m.exec(block![1].replace(/^\s*#.*$/gm, ""));
+        expect(t, "geocodeSearch に timeout が明示されていない").not.toBeNull();
+
+        const lambdaMs = Number(t![1]) * 1000;
+        expect(FETCH_TIMEOUT_MS).toBeLessThan(lambdaMs);
+        // JSON の読み取りと整形のぶんを残す
+        expect(lambdaMs - FETCH_TIMEOUT_MS, "残り時間が短すぎる").toBeGreaterThanOrEqual(2000);
     });
 });

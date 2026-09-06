@@ -17,17 +17,27 @@ export type PlaceResult = {
     lng: number;
 };
 
-/** 検索語の上限。曲検索・ユーザー検索と揃える */
+/**
+ * 検索語の上限。曲検索・ユーザー検索は50だが、こちらは**撮影地名を
+ * そのまま渡す**ので、画面の入力上限（`LOCATION_MAX = 200`）に近い値が要る。
+ * 200 をそのまま許すと外向きの URL が長くなるだけなので 100 で切る。
+ */
 const QUERY_MAX = 100;
 
 /**
- * 外向き通信の打ち切り。**この関数のタイムアウトは6秒**（serverless の既定）。
- * 残り3秒を JSON の読み取りと整形に残す（`musicSearch.ts` と同じ考え方）。
+ * 外向き通信の打ち切り。**この関数のタイムアウトは6秒**（`serverless.yml` に
+ * 明示。既定に頼らない——`musicSearch` が「書いていないと、外向きの打ち切りが
+ * 何と比べて短いのかコードから読めない」として明示した経緯に倣う）。
+ * 残り3秒を JSON の読み取りと整形に残す。
  */
 export const FETCH_TIMEOUT_MS = 3000;
 
-/** Nominatim の利用規約: 識別できる User-Agent を名乗る */
-const UA = process.env.GEOCODE_UA || "journey-photo.com (photo gallery; place picker)";
+/**
+ * Nominatim の利用規約: **識別できて、問題があれば連絡が取れる** User-Agent。
+ * サイトの URL を入れる（そこから連絡先に辿れる）。`serverless.yml` から
+ * `GEOCODE_UA` を渡せば上書きできる。
+ */
+const UA = process.env.GEOCODE_UA || "journey-photo.com place picker (+https://journey-photo.com/privacy)";
 
 /**
  * 座標は**約1km（小数2桁）に丸める**。アップロードの `sanitizeCoords` と
@@ -55,8 +65,11 @@ export const geocodeSearch: APIGatewayProxyHandlerV2 = async (event) => {
     if (!q) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "地名を入力してください" }) };
     }
-    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=ja&q=${encodeURIComponent(q)}`;
     try {
+        // **URL の組み立ても try の中に置く。** `slice` はサロゲートペアを
+        // 割るので、100文字目が絵文字だと `encodeURIComponent` が URIError を
+        // 投げる。外に置くと JSON のエラー本文もログも通らず素の例外で落ちる
+        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=ja&q=${encodeURIComponent(q)}`;
         const res = await fetch(url, {
             headers: { "User-Agent": UA, Accept: "application/json" },
             signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),

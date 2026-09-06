@@ -221,6 +221,9 @@ functions:
     # 外向きの通信を待つので上限を明示する（`musicSearch` と同じ 6 秒。
     # 縮めるときは `geocodeSearch.ts` の FETCH_TIMEOUT_MS も一緒に見ること）
     timeout: 6
+    environment:
+      # Nominatim に名乗る文字列。規約は「識別できて連絡が取れること」を求める
+      GEOCODE_UA: "journey-photo.com place picker (+https://journey-photo.com/privacy)"
     events:
       - httpApi:
           path: /geocode/search

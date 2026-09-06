@@ -243,6 +243,16 @@ function EditContent() {
      * 精度は約1km に丸めたまま（サーバー側で丸める）。
      */
     const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+    /**
+     * **本人がこの画面で位置を触ったか。**
+     *
+     * 触ったなら、値が保存済みと同じでも送る。機械が当てた座標
+     * （`geoApprox: true`）と**同じ候補を本人が選んだとき**、値が等しいので
+     * 差分が出ず、サーバーは「おおよそ」の印を落とす分岐に入らない
+     * ——「機械の当て推量を本人が確定する」という、この機能が一番効く場面が
+     * 丸ごと無効になっていた（レビューが実測）。
+     */
+    const [coordsTouched, setCoordsTouched] = useState(false);
     const [placeResults, setPlaceResults] = useState<{ label: string; lat: number; lng: number }[] | null>(null);
     const [placeSearching, setPlaceSearching] = useState(false);
     const [category, setCategory] = useState("");
@@ -396,6 +406,11 @@ function EditContent() {
                 coords: original?.coords ?? null,
             };
             const changed = changedFields(nextFields, originalFields);
+            // **触ったなら、値が同じでも送る。** 差分だけに任せると、機械が
+            // 当てた座標と同じ候補を本人が選んだときに何も送られず、
+            // サーバーは「おおよそ」の印を落とす分岐に入らない
+            // （画面は「保存しました」と出すのに、地図の扱いは変わらない）
+            if (coordsTouched) changed.coords = coords;
             const body = { published, ...changed };
 
             // **黙って切られる前に告げる。**
@@ -440,7 +455,7 @@ function EditContent() {
         } finally {
             setSaving(false);
         }
-    }, [photoId, original, title, description, location, category, date, tagsInput, coords, isJa, router, showToast]);
+    }, [photoId, original, title, description, location, category, date, tagsInput, coords, coordsTouched, isJa, router, showToast]);
 
     /**
      * 地名から位置の候補を出す。**押したときだけ1回投げる**——Nominatim は
@@ -606,7 +621,10 @@ function EditContent() {
                     <div className="grid grid-cols-2 gap-4 [&>div]:min-w-0">
                         <div>
                             <label className={labelCls}>{isJa ? "場所" : "Location"}</label>
-                            <input type="text" value={location} onChange={(e) => setLocation(e.target.value)}
+                            <input type="text" value={location}
+                                // **地名を変えたら候補を捨てる。** 残すと「福岡」で出した
+                                // 候補を、撮影地を「京都」に直したあとに押せてしまう
+                                onChange={(e) => { setLocation(e.target.value); setPlaceResults(null); }}
                                 maxLength={LOCATION_MAX}
                                 list="own-locations"
                                 className={inputCls} style={{ fontSize: "16px" }} placeholder={isJa ? "任意" : "Optional"} />
@@ -664,8 +682,9 @@ function EditContent() {
                             <p className="text-xs text-white/70" data-testid="coords-state">
                                 {coords
                                     ? (isJa
-                                        ? `設定済み（${coords.lat}, ${coords.lng}）${photo?.geoApprox ? "・地名から引いたおおよその位置" : ""}`
-                                        : `Set (${coords.lat}, ${coords.lng})${photo?.geoApprox ? " · approximate, from the place name" : ""}`)
+                                        // 本人が触ったあとは「おおよそ」ではない（保存でサーバーが印を落とす）
+                                        ? `設定済み（${coords.lat}, ${coords.lng}）${photo?.geoApprox && !coordsTouched ? "・地名から引いたおおよその位置" : ""}`
+                                        : `Set (${coords.lat}, ${coords.lng})${photo?.geoApprox && !coordsTouched ? " · approximate, from the place name" : ""}`)
                                     : (isJa ? "未設定（地図には出ません）" : "Not set (not shown on the map)")}
                             </p>
                             <div className="flex flex-wrap gap-2">
@@ -683,7 +702,7 @@ function EditContent() {
                                 {coords && (
                                     <button
                                         type="button"
-                                        onClick={() => { setCoords(null); setPlaceResults(null); }}
+                                        onClick={() => { setCoords(null); setCoordsTouched(true); setPlaceResults(null); }}
                                         className="px-3 py-2 rounded-full bg-white/5 hover:bg-white/10 text-sm text-white/70"
                                         style={{ touchAction: "manipulation" }}
                                     >
@@ -699,6 +718,7 @@ function EditContent() {
                                                 type="button"
                                                 onClick={() => {
                                                     setCoords({ lat: r.lat, lng: r.lng });
+                                                    setCoordsTouched(true);
                                                     setPlaceResults(null);
                                                     showToast(isJa ? "位置を選びました（保存すると反映されます）" : "Location chosen (save to apply)", "success");
                                                 }}
