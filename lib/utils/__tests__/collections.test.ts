@@ -242,8 +242,13 @@ describe("カテゴリの表示名", () => {
         expect(collectEntries(only("動物"), "category")[0].label).toBe("動物");
     });
 
-    it("タグ・撮影地には当てない", () => {
-        expect(labelForSlug(photos, "tag", "lake")).toBe("Lake");
+    it("タグ・撮影地には当てない（別名と同じ綴りでも生の値）", () => {
+        // `lake` のように表に無い語で見ると、タグにまで当てる変異が素通りする。
+        // 表にある綴り（street）のタグで見る
+        const tagged = [{ id: "t1", src: "https://cdn/t1.jpg", userId: "u", tags: ["Street"], location: "Street", published: true } as Photo];
+        expect(labelForSlug(tagged, "tag", "street")).toBe("Street");
+        expect(labelForSlug(tagged, "location", "street")).toBe("Street");
+        expect(collectEntries(tagged, "tag")[0].label).toBe("Street");
     });
 
     it("写真ページの表示名（labels.category.names）と食い違わない", async () => {
