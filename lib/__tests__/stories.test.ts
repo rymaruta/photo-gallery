@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { groupStories, timeAgo, hasUnseen, type Story } from "../stories";
 
 const NOW = Date.parse("2026-07-04T12:00:00Z");
@@ -20,19 +20,36 @@ describe("groupStories", () => {
             story({ id: "s2", createdAt: "2026-07-04T11:00:00Z" }),
             story({ id: "s1", createdAt: "2026-07-04T10:00:00Z" }),
             story({ id: "s3", userId: "user-b", displayName: "B子" }),
-        ], null, NOW);
+        ], null);
         expect(groups).toHaveLength(2);
         const a = groups.find(g => g.userId === "user-a")!;
         expect(a.items.map(i => i.id)).toEqual(["s1", "s2"]);
     });
 
-    it("期限切れのストーリーは除外される", () => {
+    // **期限は端末の時計で判定しない。** サーバーが `expiresAt > :now` で
+    // 絞ってから返すので、ここで重ねて見ると「端末の時計が進んでいる人だけ
+    // ストーリーが消える」になる（実測: +1.5h で2件、+12h で1件、+23.5h で0件。
+    // 取得は成功しているのでエラーも出ず、投稿した直後の自分のぶんも消える）
+    it("端末の時計が1日進んでいても、サーバーが返したものは出す", () => {
+        const ahead = Date.parse("2026-07-05T12:00:00Z");   // 24時間 進んだ端末
+        const spy = vi.spyOn(Date, "now").mockReturnValue(ahead);
+        try {
+            const groups = groupStories([
+                story({ id: "s1", expiresAt: "2026-07-05T10:00:00Z" }),
+                story({ id: "s2", userId: "user-b", expiresAt: "2026-07-05T11:00:00Z" }),
+            ], null);
+            expect(groups.flatMap((g) => g.items.map((i) => i.id)), "端末の時計で消している").toEqual(["s1", "s2"]);
+        } finally { spy.mockRestore(); }
+    });
+
+    it("読めない expiresAt は壊れたレコードとして除外する（形は見る）", () => {
         const groups = groupStories([
-            story({ id: "expired", expiresAt: "2026-07-04T11:59:00Z" }),
-            story({ id: "alive", expiresAt: "2026-07-04T12:01:00Z" }),
-        ], null, NOW);
+            story({ id: "ok" }),
+            story({ id: "broken", expiresAt: "きのう" }),
+            story({ id: "missing", expiresAt: undefined as unknown as string }),
+        ], null);
         expect(groups).toHaveLength(1);
-        expect(groups[0].items.map(i => i.id)).toEqual(["alive"]);
+        expect(groups[0].items.map(i => i.id)).toEqual(["ok"]);
     });
 
     it("src や userId のない壊れたレコードは除外される", () => {
@@ -40,7 +57,7 @@ describe("groupStories", () => {
             story({ id: "ok" }),
             story({ id: "no-src", src: "" }),
             { id: "junk" } as Story,
-        ], null, NOW);
+        ], null);
         expect(groups).toHaveLength(1);
         expect(groups[0].items.map(i => i.id)).toEqual(["ok"]);
     });
@@ -49,7 +66,7 @@ describe("groupStories", () => {
         const groups = groupStories([
             story({ id: "other", userId: "user-b", createdAt: "2026-07-04T11:30:00Z" }),
             story({ id: "mine", userId: "user-me", createdAt: "2026-07-04T09:00:00Z" }),
-        ], "user-me", NOW);
+        ], "user-me");
         expect(groups[0].userId).toBe("user-me");
     });
 
@@ -57,7 +74,7 @@ describe("groupStories", () => {
         const groups = groupStories([
             story({ id: "old", userId: "user-old", createdAt: "2026-07-04T08:00:00Z" }),
             story({ id: "new", userId: "user-new", createdAt: "2026-07-04T11:00:00Z" }),
-        ], null, NOW);
+        ], null);
         expect(groups.map(g => g.userId)).toEqual(["user-new", "user-old"]);
     });
 
@@ -65,7 +82,7 @@ describe("groupStories", () => {
         const groups = groupStories([
             story({ id: "s1", displayName: undefined }),
             story({ id: "s2", displayName: "旅人", createdAt: "2026-07-04T11:00:00Z" }),
-        ], null, NOW);
+        ], null);
         expect(groups[0].displayName).toBe("旅人");
     });
 });
@@ -89,7 +106,7 @@ describe("timeAgo", () => {
 
 describe("hasUnseen", () => {
     it("未読があれば true、全部既読なら false", () => {
-        const group = groupStories([story({ id: "s1" }), story({ id: "s2", createdAt: "2026-07-04T11:00:00Z" })], null, NOW)[0];
+        const group = groupStories([story({ id: "s1" }), story({ id: "s2", createdAt: "2026-07-04T11:00:00Z" })], null)[0];
         expect(hasUnseen(group, new Set(["s1"]))).toBe(true);
         expect(hasUnseen(group, new Set(["s1", "s2"]))).toBe(false);
     });

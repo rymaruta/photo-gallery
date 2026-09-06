@@ -29,10 +29,19 @@ export type StoryGroup = {
 };
 
 // API のレスポンスからユーザーごとのストーリーグループを作る。
-// - 期限切れ・不正なレコードは除外
+// - 形が壊れたレコードは除外
 // - 各グループ内は投稿順（古い→新しい）
 // - グループの並び: 自分が先頭、それ以外は最新投稿が新しい順
-export function groupStories(stories: Story[], ownUserId?: string | null, now: number = Date.now()): StoryGroup[] {
+//
+// **期限は端末の時計で判定しない。** サーバーが自分の時計で
+// `expiresAt > :now` を絞ってから返す（`api-user/src/stories.ts` の
+// GSI・Scan の両経路）。ここで重ねて判定すると、**端末の時計が進んでいる人
+// だけストーリーが消える**——実測: サーバーが生きていると返した3件が、
+// 端末 +1.5h で2件、+12h で1件、+23.5h で0件になった。しかも
+// `StoriesBar` は取得に成功しているので**エラーも出ず**、「誰も投稿して
+// いない」と同じ絵になる（自分で投稿した直後にも起きる）。
+// 時計は端末ごとにずれるが、サーバーの時計は1つ。**サーバーを信じる。**
+export function groupStories(stories: Story[], ownUserId?: string | null): StoryGroup[] {
     const valid = stories.filter((s) =>
         s && typeof s.src === "string" && s.src &&
         typeof s.userId === "string" && s.userId &&
@@ -43,7 +52,9 @@ export function groupStories(stories: Story[], ownUserId?: string | null, now: n
         // （`api-user/src/stories.ts`）は `String(a.createdAt ?? "")` で
         // 守っており、クライアントだけ素のままだった（対の乖離）
         typeof s.createdAt === "string" && s.createdAt &&
-        typeof s.expiresAt === "string" && Date.parse(s.expiresAt) > now,
+        // 形だけ見る（読めない `expiresAt` は壊れたレコード）。
+        // 大小の比較はしない——上の但し書きを参照
+        typeof s.expiresAt === "string" && Number.isFinite(Date.parse(s.expiresAt)),
     );
 
     const byUser = new Map<string, Story[]>();

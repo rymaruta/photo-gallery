@@ -174,7 +174,13 @@ function withStamp(res) {
 function isFreshEnough(res) {
     const at = Number(res && res.headers && res.headers.get(STAMP_HEADER));
     if (!at) return false;
-    return Date.now() - at < PAGE_MAX_AGE_MS;
+    const age = Date.now() - at;
+    // **負の経過時間は「新しい」ではない。** 端末の時計を巻き戻すと
+    // `Date.now() - at` が負になり、この控えが永久に新しいままになる
+    // （実測: 1日戻すと実時間25時間後でも、30日戻すと10日後でも出た）。
+    // 上のコメントが心配している「消した写真のページが端末に残り続ける」が
+    // 巻き戻した日数ぶん延びる。分からないときは控えを使わない側へ倒す
+    return age >= 0 && age < PAGE_MAX_AGE_MS;
 }
 
 /**

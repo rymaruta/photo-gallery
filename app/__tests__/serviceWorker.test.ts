@@ -208,6 +208,24 @@ describe("ページの取得", () => {
         expect(await (await e.response!).text()).toBe("precached");
     });
 
+    // **端末の時計を巻き戻すと、控えが永久に「新しい」になっていた。**
+    // `Date.now() - at < 24時間` は、`at` が未来だと差が負になって必ず真。
+    // 実測: 1日戻せば実時間25時間後でも、30日戻せば10日後でも出た。
+    // 上の「消したはずのページを出さない」が、巻き戻した日数ぶん効かなくなる
+    it("控えの時刻が未来（時計を巻き戻した）なら出さない", async () => {
+        const cache = await installed();
+        const future = new Response("巻き戻した端末のページ", {
+            status: 200,
+            headers: { "x-sw-cached-at": String(Date.now() + 24 * 60 * 60 * 1000) },
+        });
+        await cache.put("https://journey-photo.com/photo/p1", future);
+        fetchMock.mockRejectedValue(new TypeError("offline"));
+
+        const e = makeEvent(navRequest("https://journey-photo.com/photo/p1"));
+        handlers.fetch(e);
+        expect(await (await e.response!).text()).toBe("precached");
+    });
+
     // `?utm_source=` `?fbclid=` が付いた検索・SNS 流入は、同じページなのに
     // 別エントリになって際限なく増える。静的書き出しでは同じ HTML なので分けない。
     it("クエリ違いは同じ控えにまとめる", async () => {
