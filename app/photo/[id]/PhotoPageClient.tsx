@@ -118,6 +118,8 @@ function PhotoImage({
     // ref は `useCallback` で固定（`Thumb` と同じ理由）
     const attach = useCallback((img: HTMLImageElement | null) => {
         if (!img) return;
+        // React より先に失敗が終わっていた画像（`Thumb` と同じ）
+        if (img.complete && img.naturalWidth === 0) { setImageError(true); setPhase("loaded"); return; }
         if (isImageReady(img)) setPhase("loaded");
         else if (!fromHtml) setPhase("pending");
     }, [fromHtml]);

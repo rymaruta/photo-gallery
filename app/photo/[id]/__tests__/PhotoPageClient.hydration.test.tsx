@@ -63,7 +63,7 @@ describe("写真ページ: ハイドレーション前は隠さない", () => {
         expect(html, "届いている写真を黒い回転で覆う").not.toContain("animate-spin");
     });
 
-    it("React が付いた時点でまだ届いていなければ隠して回転を出し、届いたら出す", () => {
+    it("クライアント遷移で新しく作った本体は、届くまで隠して回転を出し、届いたら出す", () => {
         setReady(false);
         try {
             const { container } = render(<PhotoPageClient photoId="p1" initialPhoto={base} />);
@@ -76,7 +76,7 @@ describe("写真ページ: ハイドレーション前は隠さない", () => {
         } finally { restore(); }
     });
 
-    it("既に届いていれば（キャッシュ済みの再訪）隠さない", () => {
+    it("新しく作った時点で既に届いていれば隠さない", () => {
         setReady(true);
         try {
             const { container } = render(<PhotoPageClient photoId="p1" initialPhoto={base} />);
@@ -98,6 +98,46 @@ describe("写真ページ: ハイドレーション前は隠さない", () => {
 // 静的HTML由来の本体は、届いていなくても隠さない（`Thumb` と同じ理由。
 // 本物のハイドレーションで確かめる）
 describe("写真ページ: ハイドレーション由来の本体はブラウザに任せる", () => {
+    const hydrate = async () => {
+        const { hydrateRoot } = await import("react-dom/client");
+        const { act } = await import("react");
+        const host = document.createElement("div");
+        const el = <PhotoPageClient photoId="p1" initialPhoto={base} />;
+        host.innerHTML = renderToString(el);
+        document.body.appendChild(host);
+        const errors: unknown[] = [];
+        let root: ReturnType<typeof hydrateRoot> | null = null;
+        await act(async () => { root = hydrateRoot(host, el, { onRecoverableError: (e) => errors.push(e) }); });
+        return { host, errors, cleanup: async () => { await act(async () => { root?.unmount(); }); host.remove(); } };
+    };
+
+    it("React が付く前に届いていれば（キャッシュ済みの再訪）、読み込み済みとして扱う", async () => {
+        setReady(true);
+        try {
+            const { host, errors, cleanup } = await hydrate();
+            try {
+                expect(errors).toEqual([]);
+                const img = host.querySelector('img[alt="写真"]')!;
+                expect(img.className).toContain("opacity-100");
+                // 読み込み済みになっていなければ EXIF の画面抽出が二度と走らない
+                expect(host.querySelector(".animate-spin")).toBeNull();
+            } finally { await cleanup(); }
+        } finally { restore(); }
+    });
+
+    it("React が付く前に失敗し終えていれば、失敗を出す（破損表示を残さない）", async () => {
+        setReady(true);
+        Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", { configurable: true, get: () => 0 });
+        try {
+            const { host, errors, cleanup } = await hydrate();
+            try {
+                expect(errors).toEqual([]);
+                expect(host.textContent).toContain("画像を読み込めません");
+                expect(host.querySelector('img[alt="写真"]')).toBeNull();
+            } finally { await cleanup(); }
+        } finally { restore(); }
+    });
+
     it("React が付いてもまだ届いていない本体を隠さず、回転も出さない", async () => {
         const { hydrateRoot } = await import("react-dom/client");
         const { act } = await import("react");

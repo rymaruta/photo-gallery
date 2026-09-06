@@ -86,7 +86,7 @@ describe("Thumb: ハイドレーション前は隠さない", () => {
         expect(html).toContain('src="data:image/webp;base64,AAAA"');
     });
 
-    it("React が付いた時点でまだ届いていなければ隠し、届いたらフェードで出す", () => {
+    it("クライアント遷移で新しく作った画像は、届くまで隠して届いたらフェードで出す", () => {
         setReady(false);
         try {
             const { container } = render(<div style={{ position: "relative" }}><Thumb photo={base} alt="t" /></div>);
@@ -100,7 +100,7 @@ describe("Thumb: ハイドレーション前は隠さない", () => {
         } finally { restore(); }
     });
 
-    it("React が付いた時点で既に届いていれば、隠さずぼかしも外す（キャッシュ済みの再訪）", () => {
+    it("新しく作った時点で既に届いていれば、隠さずぼかしも外す", () => {
         setReady(true);
         try {
             const { container } = render(<div style={{ position: "relative" }}><Thumb photo={base} alt="t" /></div>);
@@ -143,5 +143,44 @@ describe("Thumb: ハイドレーション由来の画像はブラウザに任せ
             expect(img.className).toContain("opacity-100");
             expect(host.querySelector('img[src^="data:"]')).toBeNull();
         } finally { await cleanup(); }
+    });
+
+    const stub = (complete: boolean, naturalWidth: number) => {
+        const saved = {
+            complete: Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "complete")!,
+            naturalWidth: Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "naturalWidth")!,
+        };
+        Object.defineProperty(HTMLImageElement.prototype, "complete", { configurable: true, get: () => complete });
+        Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", { configurable: true, get: () => naturalWidth });
+        return () => {
+            Object.defineProperty(HTMLImageElement.prototype, "complete", saved.complete);
+            Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", saved.naturalWidth);
+        };
+    };
+
+    it("React が付く前に届いていれば（キャッシュ済みの再訪）、ぼかしを外す", async () => {
+        // `load` は React が付く前に発火し終えていて拾えない。ref で見る
+        const restore = stub(true, 512);
+        try {
+            const { host, errors, cleanup } = await hydrate(base);
+            try {
+                expect(errors).toEqual([]);
+                expect(host.querySelector("picture > img")!.className).toContain("opacity-100");
+                expect(host.querySelector('img[src^="data:"]'), "届いているのにぼかしが下に敷かれたまま").toBeNull();
+            } finally { await cleanup(); }
+        } finally { restore(); }
+    });
+
+    it("React が付く前に失敗し終えていれば、失敗の絵に切り替える（破損表示を出さない）", async () => {
+        // 静的HTMLに残った削除済み写真の 404 が JS より先に届く形
+        const restore = stub(true, 0);
+        try {
+            const { host, errors, cleanup } = await hydrate(base);
+            try {
+                expect(errors).toEqual([]);
+                expect(host.querySelector("picture > img"), "壊れた画像をそのまま出している").toBeNull();
+                expect(host.querySelector("svg")).not.toBeNull();
+            } finally { await cleanup(); }
+        } finally { restore(); }
     });
 });

@@ -63,7 +63,12 @@ export default function Thumb({ photo, alt, sizes, priority = false, objectPosit
     // 届いたあとに `pending` へ戻った——実ブラウザでは戻らないが、無駄な往復）
     const attach = useCallback((img: HTMLImageElement | null) => {
         if (!img) return;
-        // ref は commit の中で呼ばれ、ここでの setState は描画前に反映される
+        // ref は commit の中で呼ばれ、ここでの setState は描画前に反映される。
+        // **React より先に失敗が終わっていた画像**（静的HTMLに残った削除済み写真の
+        // 404 など）は `complete` なのに実体が無い。`error` は既に発火済みで
+        // React には来ないので、ここで失敗の絵に切り替える（放っておくと、
+        // 隠さない設計にしたぶんブラウザの破損表示が上に出る）
+        if (img.complete && img.naturalWidth === 0) { setError(true); return; }
         if (isImageReady(img)) setPhase("loaded");
         else if (!fromHtml) setPhase("pending");
     }, [fromHtml]);

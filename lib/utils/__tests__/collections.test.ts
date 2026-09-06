@@ -264,6 +264,11 @@ describe("カテゴリの表示名", () => {
             compared++;
         }
         expect(compared).toBeGreaterThanOrEqual(4);
+        // 逆方向: 別名表にある slug は表示名の表にも要る（別名表にだけ足すと
+        // 写真ページが英語スラッグのまま）
+        for (const slug of new Set(Object.values(CATEGORY_ALIASES))) {
+            expect(names[slug], `labels.category.names に ${slug} が無い`).toBeTruthy();
+        }
     });
 });
 
