@@ -995,9 +995,16 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     {/* 統計（投稿 / いいね / フォロー中 / フォロワー）— 1行にまとめる */}
                     <div className="flex flex-wrap items-center gap-2 mb-4">
                         <div className="inline-flex items-baseline gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
-                            <span className="text-sm font-bold tabular-nums leading-none">{postCount}</span>
+                            {/* **届く前に「0投稿」と言い切らない。** 同じ画面の
+                                写真グリッド（`photosResolved`）とフォロー数
+                                （`countsKnown`）は既に守られているのに、この
+                                ピルだけ素通しだった——実測: 応答を保持すると
+                                5秒・20秒・45秒のいずれでも「0投稿 0いいね」。
+                                ビルド後に登録した人（定期ビルドは週1なので
+                                最大7日）のプロフィールが該当する */}
+                            <span className="text-sm font-bold tabular-nums leading-none">{photosResolved ? postCount : "…"}</span>
                             <span className="text-[11px] text-white/60">{locale === "en" ? "posts" : "投稿"}</span>
-                            {hiddenCount > 0 && (
+                            {photosResolved && hiddenCount > 0 && (
                                 <span className="text-[11px] text-white/40">
                                     {locale === "en" ? `(${hiddenCount} private)` : `（うち非公開 ${hiddenCount}）`}
                                 </span>
@@ -1005,7 +1012,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         </div>
                         <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
                             <HeartIcon className="w-3 h-3 text-rose-400" />
-                            <span className="text-sm font-bold tabular-nums leading-none">{totalLikes.toLocaleString()}</span>
+                            <span className="text-sm font-bold tabular-nums leading-none">{photosResolved ? totalLikes.toLocaleString() : "…"}</span>
                             <span className="text-[11px] text-white/60">{locale === "en" ? "likes" : "いいね"}</span>
                         </div>
                         {/* 3つ目は自明な指標のみ: 旅した距離（GPSがある時だけ）。無ければ出さない */}

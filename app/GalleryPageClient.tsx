@@ -21,7 +21,7 @@ const POPULAR_TAG_LIMIT = 10;
 export default function GalleryPageClient() {
   const { locale, labels } = useLocale();
   const { showToast } = useToast();
-  const { photos, loaded: photosLoaded } = usePhotos();
+  const { photos, loaded: photosLoaded, failed: photosFailed } = usePhotos();
   const { isAuthenticated, loading: authLoading } = useAuth();
 
   // フォロー中フィード用: フォローしている userId 集合（認証時のみ取得）
@@ -129,6 +129,19 @@ export default function GalleryPageClient() {
     // 試す前に預けると、開いたあとで同じ効果がもう一度走ったときに
     // （`photoParam` はまだ古い値のまま）**閉じた直後に預け直して**しまい、
     // 同期が `?photo=` を書き戻す＝閉じてもURLに残る。
+    // **取りに行って駄目だったなら、待たせない。** 以下の分岐はどれも
+    // 「まだ届いていない」前提で預け直すので、失敗したまま黙ると
+    // **押した写真だけが永久に開かず、理由も出ない**（通知・共有リンクからの
+    // 唯一の導線）。実測: 応答を保持すると 3秒・10秒・30秒のいずれでも
+    // モーダルもトーストも出ず、`?photo=` が URL に残ったままだった
+    if (!photosLoaded && photosFailed && notFoundRef.current !== photoParam) {
+      notFoundRef.current = photoParam;
+      setPendingPhoto(null);
+      showToast(locale === "en"
+        ? "Could not load photos. Check your connection and try again."
+        : "写真を読み込めませんでした。通信を確かめて、もう一度お試しください。", "error");
+      return;
+    }
     if (filteredPhotos.length === 0) { setPendingPhoto(photoParam); return; } // 絞り込みの結果が空
     if (openById(photoParam)) { dismissedRef.current = null; return; }
 
@@ -185,7 +198,7 @@ export default function GalleryPageClient() {
     notFoundRef.current = photoParam;
     setPendingPhoto(null);   // 無いと分かったので、死んだ ?photo= を URL に残さない
     showToast(locale === "en" ? "That photo is no longer available." : "その写真は見つかりませんでした。", "error");
-  }, [photoParam, filteredPhotos, openById, PHOTOS, photosLoaded, showToast, locale, close, setPendingPhoto, setFilters, filters]);
+  }, [photoParam, filteredPhotos, openById, PHOTOS, photosLoaded, photosFailed, showToast, locale, close, setPendingPhoto, setFilters, filters]);
 
   const handleClose = React.useCallback(() => {
     dismissedRef.current = openPhotoId ?? null;
@@ -385,9 +398,12 @@ export default function GalleryPageClient() {
             </button>
           </div>
         ) : filters.feed === "following" && !followingLoaded ? (
-          // まだ分からない。空表示にしない（この画面に読み込み中の表示は
-          // 無いので、出さずに待つ——出せば「0人です」と嘘をつくことになる）
-          null
+          // まだ分からない。**「0人です」とは言わない**が、真っ白でも困る
+          // ——実測: 応答が返らない回線では 5秒・20秒・45秒のいずれでも
+          // フィルタバーの直後がフッターで、読み込み中とも失敗とも分からない
+          <div className="py-16 text-center text-sm text-white/50" role="status" aria-live="polite">
+            {locale === "en" ? "Loading…" : "読み込み中…"}
+          </div>
         ) : filteredPhotos.length === 0 && filters.feed === "following"
           && filters.category === "all" && filters.selectedTags.length === 0 && !filters.query.trim() ? (
           // **0件の理由が「フォローが0人」のときだけ、この文言にする。**

@@ -27,6 +27,14 @@ export function usePhotos() {
      * 定期ビルドは止まっているので、静的JSONは日単位で古い。
      */
     const [loaded, setLoaded] = useState(false);
+    /**
+     * **取りに行って駄目だったか。** `loaded` は「届いたか」しか言わないので、
+     * 失敗した場合は「まだ来ていない」と見分けが付かず、待っている側
+     * （共有リンク・通知から開いた `?photo=`）が**永久に黙って待つ**。
+     * 実測: 応答を保持すると、3秒・10秒・30秒のいずれでもモーダルも
+     * トーストも出ず、`?photo=` が URL に残ったままだった
+     */
+    const [failed, setFailed] = useState(false);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -63,10 +71,14 @@ export function usePhotos() {
                     if (data) setLoaded(true);
                 } else {
                     log.warn("写真の取得に失敗しました", { status: response.status });
+                    setFailed(true);
                 }
             } catch (error) {
+                // 自分で畳んだ中断（画面を離れた）は失敗ではない。
+                // 時間切れ（`TimeoutError`）は失敗として伝える
                 if ((error as { name?: string }).name !== "AbortError") {
                     log.error("写真取得エラー:", error);
+                    setFailed(true);
                 }
             }
         };
@@ -75,5 +87,5 @@ export function usePhotos() {
         return () => controller.abort();
     }, []);
 
-    return { photos, loading, loaded };
+    return { photos, loading, loaded, failed };
 }

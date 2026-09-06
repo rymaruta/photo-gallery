@@ -123,3 +123,40 @@ describe("読めない行が混じった応答", () => {
         expect(result.current.loaded).toBe(false);
     });
 });
+
+// **`failed`（取りに行って駄目だった）を `loaded` と分けて持つ。**
+// `loaded` は「届いたか」しか言わないので、失敗と「まだ来ていない」を
+// 区別できない。待っている側（共有リンク・通知から開いた `?photo=`）は
+// 「届く前に無いと言わない」ために `loaded` を門にしているので、
+// **失敗すると永久に黙って待つ**（実測: 応答を保持すると 3秒・10秒・30秒の
+// いずれでもモーダルもトーストも出ず、`?photo=` が URL に残ったまま）。
+describe("usePhotos の failed", () => {
+    it("届いたら failed は立たない", async () => {
+        mockPublicFetch.mockResolvedValue(new Response(JSON.stringify(API_PHOTOS), { status: 200 }));
+        const { result } = renderHook(() => usePhotos());
+        await waitFor(() => expect(result.current.loaded).toBe(true));
+        expect(result.current.failed).toBe(false);
+    });
+
+    it("サーバーが 5xx を返したら failed", async () => {
+        mockPublicFetch.mockResolvedValue(new Response("boom", { status: 503 }));
+        const { result } = renderHook(() => usePhotos());
+        await waitFor(() => expect(result.current.failed).toBe(true));
+        expect(result.current.loaded, "失敗を「届いた」にしない").toBe(false);
+    });
+
+    it("時間切れ（TimeoutError）も failed", async () => {
+        mockPublicFetch.mockRejectedValue(new DOMException("応答がありません", "TimeoutError"));
+        const { result } = renderHook(() => usePhotos());
+        await waitFor(() => expect(result.current.failed).toBe(true));
+    });
+
+    // **画面を離れたときの中断は失敗ではない。** 一緒にすると、別ページへ
+    // 移っただけで「読み込めませんでした」と言い出す
+    it("自分で畳んだ中断（AbortError）は failed にしない", async () => {
+        mockPublicFetch.mockRejectedValue(new DOMException("やめた", "AbortError"));
+        const { result } = renderHook(() => usePhotos());
+        await new Promise((r) => setTimeout(r, 30));
+        expect(result.current.failed).toBe(false);
+    });
+});
