@@ -123,3 +123,106 @@ describe("読めない行が混じった応答", () => {
         expect(result.current.loaded).toBe(false);
     });
 });
+
+// **`failed`（取りに行って駄目だった）を `loaded` と分けて持つ。**
+// `loaded` は「届いたか」しか言わないので、失敗と「まだ来ていない」を
+// 区別できない。待っている側（共有リンク・通知から開いた `?photo=`）は
+// 「届く前に無いと言わない」ために `loaded` を門にしているので、
+// **失敗すると永久に黙って待つ**（実測: 応答を保持すると 3秒・10秒・30秒の
+// いずれでもモーダルもトーストも出ず、`?photo=` が URL に残ったまま）。
+describe("usePhotos の failed", () => {
+    it("届いたら failed は立たない", async () => {
+        mockPublicFetch.mockResolvedValue(new Response(JSON.stringify(API_PHOTOS), { status: 200 }));
+        const { result } = renderHook(() => usePhotos());
+        await waitFor(() => expect(result.current.loaded).toBe(true));
+        expect(result.current.failed).toBe(false);
+    });
+
+    it("サーバーが 5xx を返したら failed", async () => {
+        mockPublicFetch.mockResolvedValue(new Response("boom", { status: 503 }));
+        const { result } = renderHook(() => usePhotos());
+        await waitFor(() => expect(result.current.failed).toBe(true));
+        expect(result.current.loaded, "失敗を「届いた」にしない").toBe(false);
+    });
+
+    it("時間切れ（TimeoutError）も failed", async () => {
+        mockPublicFetch.mockRejectedValue(new DOMException("応答がありません", "TimeoutError"));
+        const { result } = renderHook(() => usePhotos());
+        await waitFor(() => expect(result.current.failed).toBe(true));
+    });
+
+    // **画面を離れたときの中断は失敗ではない。** 一緒にすると、別ページへ
+    // 移っただけで「読み込めませんでした」と言い出す
+    it("自分で畳んだ中断（AbortError）は failed にしない", async () => {
+        mockPublicFetch.mockRejectedValue(new DOMException("やめた", "AbortError"));
+        const { result } = renderHook(() => usePhotos());
+        await new Promise((r) => setTimeout(r, 30));
+        expect(result.current.failed).toBe(false);
+    });
+
+    // **200 なのに配列でない**（壊れた応答・別のAPIに当たっている）。
+    // ここに出口が無いと `loaded` も `failed` も立たず、待っている側
+    // （`?photo=` の待ち id）が永久に黙って待つ
+    it("200 でも配列でなければ failed（黙って待たせない）", async () => {
+        mockPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ items: [] }) });
+        const { result } = renderHook(() => usePhotos());
+        await waitFor(() => expect(result.current.failed).toBe(true));
+        expect(result.current.loaded, "配列でないのに届いたことにしている").toBe(false);
+    });
+
+    // **取り直しの契機。** 一度失敗すると `failed` が立ちっぱなしで、
+    // この画面には再試行が無かった（`?photo=` を開こうとした人は、タブを
+    // 開き直すまで写真モーダルが死ぬ）。画面に部品を増やさない形で、
+    // 戻ってきたとき・回線が戻ったときに取り直す（`useFollow` と同じ手）
+    it("戻ってきたら取り直す（失敗したときだけ）", async () => {
+        mockPublicFetch.mockResolvedValueOnce(new Response("boom", { status: 503 }));
+        const { result } = renderHook(() => usePhotos());
+        await waitFor(() => expect(result.current.failed).toBe(true));
+
+        mockPublicFetch.mockResolvedValue(new Response(JSON.stringify(API_PHOTOS), { status: 200 }));
+        document.dispatchEvent(new Event("visibilitychange"));
+        await waitFor(() => expect(result.current.loaded).toBe(true));
+        expect(result.current.failed).toBe(false);
+        expect(result.current.photos.map((p) => p.id)).toEqual(["api-1"]);
+    });
+
+    it("回線が戻ったときも取り直す", async () => {
+        mockPublicFetch.mockResolvedValueOnce(new Response("boom", { status: 503 }));
+        const { result } = renderHook(() => usePhotos());
+        await waitFor(() => expect(result.current.failed).toBe(true));
+
+        mockPublicFetch.mockResolvedValue(new Response(JSON.stringify(API_PHOTOS), { status: 200 }));
+        window.dispatchEvent(new Event("online"));
+        await waitFor(() => expect(result.current.loaded).toBe(true));
+    });
+
+    // **成功したあとは取り直さない。** 戻ってくるたびに投げると、
+    // 常駐しているこの画面が延々と取りにいく
+    it("届いているときは、戻ってきても取り直さない", async () => {
+        mockPublicFetch.mockResolvedValue(new Response(JSON.stringify(API_PHOTOS), { status: 200 }));
+        const { result } = renderHook(() => usePhotos());
+        await waitFor(() => expect(result.current.loaded).toBe(true));
+        const calls = mockPublicFetch.mock.calls.length;
+        document.dispatchEvent(new Event("visibilitychange"));
+        window.dispatchEvent(new Event("online"));
+        await new Promise((r) => setTimeout(r, 30));
+        expect(mockPublicFetch.mock.calls.length, "成功しているのに取り直している").toBe(calls);
+    });
+
+    // `online` は回線が不安定なときに何度も発火する。人の操作に律速される
+    // `visibilitychange` と違うので、間隔を空けないと連発で取りに行く
+    it("立て続けの online では取り直さない（間隔を空ける）", async () => {
+        mockPublicFetch.mockResolvedValue(new Response("boom", { status: 503 }));
+        const { result } = renderHook(() => usePhotos());
+        await waitFor(() => expect(result.current.failed).toBe(true));
+        const first = mockPublicFetch.mock.calls.length;
+
+        window.dispatchEvent(new Event("online"));
+        await waitFor(() => expect(mockPublicFetch.mock.calls.length).toBe(first + 1));
+        await waitFor(() => expect(result.current.failed).toBe(true));
+        window.dispatchEvent(new Event("online"));
+        window.dispatchEvent(new Event("online"));
+        await new Promise((r) => setTimeout(r, 40));
+        expect(mockPublicFetch.mock.calls.length, "間隔を空けずに投げている").toBe(first + 1);
+    });
+});

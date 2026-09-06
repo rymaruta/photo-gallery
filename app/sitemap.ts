@@ -102,6 +102,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             changeFrequency: "yearly",
             priority: 0.2,
         },
+        {
+            // 撮影地マップ。中身は写真に連動するので lastmod もトップと同じ
+            url: `${baseUrl}/map`,
+            lastModified: newestPhoto ?? now,
+            changeFrequency: "weekly",
+            priority: 0.5,
+        },
         ...photoUrls,
         ...userUrls,
         ...collectionUrls,

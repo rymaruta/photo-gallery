@@ -46,8 +46,24 @@ export function unlockBodyScroll() {
         document.body.style.right = "";
         document.body.style.paddingRight = _prevBodyPaddingRight ?? "";
 
-        // position:fixed 解除後にスクロール位置を復元
+        // position:fixed 解除後にスクロール位置を復元。
+        //
+        // **アニメーションさせない。** `globals.css` の
+        // `html { scroll-behavior: smooth }` を拾うと、復元が滑走になる
+        // ——実測（実ブラウザ・390x780・1440px スクロールしてメニューを開閉）:
+        // 閉じた直後 y=2 → 73 → … と約0.7秒かけて戻る。写真を1枚見て閉じる
+        // たびに、見ていた場所まで景色が流れる（位置そのものは最後には戻る）。
+        //
+        // `scrollTo({ behavior: "instant" })` ではなく**インラインの
+        // `scroll-behavior` を一時的に上書きする**。知らない `behavior` の値を
+        // 渡された実装は、例外を投げずに**スクロールごと黙って無視する**
+        // （Chromium で実測: `behavior:"nope"` は y が動かない）。座標は
+        // 素の `scrollTo(x, y)` で渡し、止めるのは CSS 側で行う
+        const html = document.documentElement;
+        const prevBehavior = html.style.scrollBehavior;
+        html.style.scrollBehavior = "auto";
         window.scrollTo(0, _prevScrollY);
+        html.style.scrollBehavior = prevBehavior;
 
         _prevBodyOverflow = null;
         _prevBodyPaddingRight = null;

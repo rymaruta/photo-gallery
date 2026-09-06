@@ -21,7 +21,7 @@ const POPULAR_TAG_LIMIT = 10;
 export default function GalleryPageClient() {
   const { locale, labels } = useLocale();
   const { showToast } = useToast();
-  const { photos, loaded: photosLoaded } = usePhotos();
+  const { photos, loaded: photosLoaded, failed: photosFailed } = usePhotos();
   const { isAuthenticated, loading: authLoading } = useAuth();
 
   // フォロー中フィード用: フォローしている userId 集合（認証時のみ取得）
@@ -129,7 +129,40 @@ export default function GalleryPageClient() {
     // 試す前に預けると、開いたあとで同じ効果がもう一度走ったときに
     // （`photoParam` はまだ古い値のまま）**閉じた直後に預け直して**しまい、
     // 同期が `?photo=` を書き戻す＝閉じてもURLに残る。
-    if (filteredPhotos.length === 0) { setPendingPhoto(photoParam); return; } // 絞り込みの結果が空
+    /**
+     * **取りに行って駄目で、しかも開けないときだけ伝える。**
+     *
+     * 一覧が取れなくても、手元のスナップショット（`app/data/photos.json`）に
+     * ある写真は開ける——本番の30枚、つまり共有リンクの大多数がそれ。
+     * 判定を `openById` より前に置いたら、**開いている写真の上に
+     * 「読み込めませんでした」を出し、`?photo=` を URL から消して**いた
+     * （レビューが実測。しかも `notFoundRef` に書くので、そのセッションの
+     * 以後の `?photo=` 遷移が全部拒否される）。開けるかどうかを先に見る。
+     */
+    const tellCouldNotLoad = () => {
+      if (notFoundRef.current === photoParam) return;
+      notFoundRef.current = photoParam;
+      // **待ち id は捨てない。** `setPendingPhoto(null)` は `?photo=` を URL から
+      // 削る（`useGallery`）。通信の失敗は一時的で、`usePhotos` は戻ってきた
+      // ときに取り直すので、id を捨てると**取り直しが成功しても開き直せない**
+      // うえ、アドレスバーからも復元できない（「見つからない」と同じ扱いに
+      // しすぎていた）。伝えるのは1回だけ、id は預けたままにする
+      setPendingPhoto(photoParam);
+      showToast(locale === "en"
+        ? "Could not load photos. Check your connection and try again."
+        : "写真を読み込めませんでした。通信を確かめて、もう一度お試しください。", "error");
+    };
+
+    if (filteredPhotos.length === 0) {
+      // 絞り込みの結果が空。ここに来ると下の救済（絞り込みを外して開く）まで
+      // 届かないので、取れていないなら理由を出す。
+      // **ただし手元のスナップショットにある写真は別**——`?feed=following` は
+      // フォロー集合が届くまで空になるので、写真APIが落ちている場面では
+      // ここに来る。開ける写真まで断ってしまう（レビューが実測）
+      if (!photosLoaded && photosFailed && !PHOTOS.some((p) => p.id === photoParam)) { tellCouldNotLoad(); return; }
+      setPendingPhoto(photoParam);
+      return;
+    }
     if (openById(photoParam)) { dismissedRef.current = null; return; }
 
     // **開けなかったことを伝える。**
@@ -176,7 +209,13 @@ export default function GalleryPageClient() {
     // ——ビルド後にアップロードされた写真は必ずここに来る。届く前に
     // 言ってしまうと、嘘をつくうえに下の記録が残って**あとから届いても
     // 開かなくなる**（このモーダルは新着写真の唯一の閲覧手段）。
-    if (!photosLoaded) { setPendingPhoto(photoParam); return; }
+    if (!photosLoaded) {
+      // ここまで来た＝手元の一覧では開けなかった。取りに行って駄目だったなら、
+      // 「まだ届いていない」ではないので待たせない
+      if (photosFailed) { tellCouldNotLoad(); return; }
+      setPendingPhoto(photoParam);
+      return;
+    }
 
     // **記録は専用の ref に置く。** `dismissedRef` は「一度閉じた写真を
     // 開き直さない」ゲートで、そこへ書くと「トーストを止める」つもりの
@@ -185,7 +224,7 @@ export default function GalleryPageClient() {
     notFoundRef.current = photoParam;
     setPendingPhoto(null);   // 無いと分かったので、死んだ ?photo= を URL に残さない
     showToast(locale === "en" ? "That photo is no longer available." : "その写真は見つかりませんでした。", "error");
-  }, [photoParam, filteredPhotos, openById, PHOTOS, photosLoaded, showToast, locale, close, setPendingPhoto, setFilters, filters]);
+  }, [photoParam, filteredPhotos, openById, PHOTOS, photosLoaded, photosFailed, showToast, locale, close, setPendingPhoto, setFilters, filters]);
 
   const handleClose = React.useCallback(() => {
     dismissedRef.current = openPhotoId ?? null;
@@ -385,9 +424,12 @@ export default function GalleryPageClient() {
             </button>
           </div>
         ) : filters.feed === "following" && !followingLoaded ? (
-          // まだ分からない。空表示にしない（この画面に読み込み中の表示は
-          // 無いので、出さずに待つ——出せば「0人です」と嘘をつくことになる）
-          null
+          // まだ分からない。**「0人です」とは言わない**が、真っ白でも困る
+          // ——実測: 応答が返らない回線では 5秒・20秒・45秒のいずれでも
+          // フィルタバーの直後がフッターで、読み込み中とも失敗とも分からない
+          <div className="py-16 text-center text-sm text-white/50" role="status" aria-live="polite">
+            {locale === "en" ? "Loading…" : "読み込み中…"}
+          </div>
         ) : filteredPhotos.length === 0 && filters.feed === "following"
           && filters.category === "all" && filters.selectedTags.length === 0 && !filters.query.trim() ? (
           // **0件の理由が「フォローが0人」のときだけ、この文言にする。**

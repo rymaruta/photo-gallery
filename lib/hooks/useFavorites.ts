@@ -22,6 +22,15 @@ const currentKey = () => keyFor(activeUserId);
 // 最初にログインした人の物とみなす。以後の共有キーは純粋に匿名用。
 const MIGRATED_KEY = `${SHARED_KEY}:migrated`;
 
+// 引き継ぎの途中で容量に負けた相手。**やり直しを「同じ人」だけに縛る**。
+//
+// 失敗しても印を立てない形にしたら、**やり直しの窓が開いたまま**になり、
+// その間に別の人が未ログインでハートを付け、次に初回ログインした別の
+// アカウントが**その人のハートごと吸い込む**ようになっていた（レビュー指摘・
+// 再現済み）——上の (b) で直したはずの誤帰属を、容量不足の端末に限って
+// 復活させていた。数バイトなので、大きいコピーが落ちる端末でも書ける見込み。
+const PENDING_KEY = `${SHARED_KEY}:migrating`;
+
 /**
  * いまのアカウントを教える。auth/context が checkAuth / ログイン成功 /
  * ログアウト / 退会で呼ぶ。ログイン中のハートはユーザーごとのキーに入る。
@@ -34,12 +43,36 @@ export function setFavoritesUser(userId: string | null): void {
     if (activeUserId === userId) return;
     activeUserId = userId;
     if (userId !== null && storageGet<string>(MIGRATED_KEY) === undefined) {
-        storageSet(MIGRATED_KEY, "1");
+        // **別の人が引き継ぎ途中なら、ここで打ち切る。** 判定は
+        // コピーの前——空きが戻ってからログインした別アカウントは
+        // コピーに成功してしまうので、失敗経路だけで見ていては遅い
+        // （最初この形にして、自分のテストで落ちた）
+        const pending = storageGet<string>(PENDING_KEY);
+        if (pending !== undefined && pending !== userId) {
+            storageRemove(PENDING_KEY);
+            storageSet(MIGRATED_KEY, "1");
+            invalidate();
+            return;
+        }
         const shared = storageGet<string[]>(SHARED_KEY);
         if (shared && shared.length > 0 && storageGet<string[]>(keyFor(userId)) === undefined) {
-            storageSet(keyFor(userId), shared);
+            // **コピーできたことを確かめてから消す。** 失敗を握って次の行へ
+            // 進んでいたので、容量が足りない端末では**コピー（大きい）だけが
+            // 落ちて、空にする側（小さい）は通り**、未ログインで貯めた
+            // ハートがどこにも残らないまま消えていた（実 Chromium でも再現）。
+            if (!storageSet(keyFor(userId), shared)) {
+                // **やり直せるのは同じ人だけ。** 印を立てないと窓が開くので、
+                // 誰が引き継ぎ途中なのかを控える。別のアカウントが先に来たら
+                // そこで打ち切る（他人のハートを吸わせない）——共有キーは
+                // 匿名のまま残る方に倒す
+                storageSet(PENDING_KEY, userId);
+                invalidate();
+                return;
+            }
             storageSet(SHARED_KEY, []);
         }
+        storageRemove(PENDING_KEY);
+        storageSet(MIGRATED_KEY, "1");
     }
     invalidate();
 }

@@ -29,30 +29,174 @@ function getUserApiBaseUrl(): string {
 }
 
 /**
+ * API の打ち切り（ミリ秒）。
+ *
+ * **打ち切りが1つも無かった。** 応答が返らない回線（電波が弱い・トンネル・
+ * 相手が詰まっている）では、`fetch` は失敗もせずに待ち続ける。実測で
+ * 出ていた症状: ストーリーの投稿が返らず**全画面の下書きから出られない**
+ * （投稿ボタンもキャンセルも `disabled`）／フォローが「フォロー中」の見た目の
+ * まま固まる／通知の取得が60秒ごとに積み上がる（4本が同時に開いたまま）。
+ *
+ * API Gateway 自身は29秒で切るので、それより手前で諦める。
+ * **S3 への PUT はこの経路を通らない**（presign した URL へ素の `fetch`）ので、
+ * 大きな写真のアップロードが途中で切られることはない。
+ */
+export const REQUEST_TIMEOUT_MS = 20_000;
+
+/**
+ * 打ち切りを個別に伸ばせるようにする。**退会だけは20秒では足りない**
+ * ——サーバー側は既定6秒から29秒に広げてあり（`api-user/serverless.yml`）、
+ * 残り6秒になるまで使い切る設計（`account.ts` の `CLEANUP_RESERVE_MS`）＝
+ * 最長23秒かかる。クライアントが20秒で降りると、サーバーは走り続けて
+ * 写真・S3・プロフィールを消すのに `cognitoDeleteAccount` に**進まない**
+ * ——「写真だけ消えてログインできるアカウントが残る」という、
+ * `app/auth/context.tsx` が名指しで避けている状態そのものになる。
+ */
+export type ApiRequestInit = RequestInit & { timeoutMs?: number };
+
+/**
+ * 時間切れの中断を足した `RequestInit` を作る。呼び出し側が渡した
+ * `signal`（画面を離れたときの後片付け・追い越しの破棄）も生かす。
+ *
+ * 中断の理由は `TimeoutError` にする——`AbortError` にすると、
+ * 「自分で畳んだ」経路（`usePhotos` など `AbortError` を無視する実装がある）と
+ * 区別できず、**時間切れが黙って捨てられる**。
+ */
+/**
+ * トークンの取得（`getCurrentSession`）にも打ち切りを掛ける。
+ *
+ * **`fetch` に打ち切りを入れただけでは足りなかった。** `userFetch` /
+ * `authenticatedFetch` は `await getCurrentSession()` の**後**に `fetch` を
+ * 呼ぶ。`amazon-cognito-identity-js` の `getSession` は期限切れトークンで
+ * Cognito へ通信し、そのコールバックには時間切れが無い（ライブラリ側にも
+ * こちら側にも）。返らなければ `fetch` に到達すらしないので、
+ * 「返らない回線で固まる」がこの入口に残っていた（レビュー指摘）。
+ */
+/**
+ * トークン取得の待ち。**要求ごとの打ち切りとは別に、短く固定する**
+ * ——`sessionWithTimeout` → `fetchWithTimeout` は直列なので、同じ値を使うと
+ * 最悪で倍かかる（退会の35秒なら70秒。「20秒で諦める」と言えなくなる）。
+ * トークンの更新に10秒以上かかる回線では、どのみち本体も通らない。
+ */
+const SESSION_TIMEOUT_MS = 10_000;
+
+async function sessionWithTimeout(ms: number) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        return await Promise.race([
+            getCurrentSession(),
+            new Promise<never>((_res, rej) => {
+                timer = setTimeout(
+                    () => rej(new DOMException(`応答がありません（${Math.round(ms / 1000)}秒）`, "TimeoutError")),
+                    ms,
+                );
+            }),
+        ]);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+function withTimeout(options?: ApiRequestInit): { init: RequestInit; done: () => void } {
+    const ms = options?.timeoutMs ?? REQUEST_TIMEOUT_MS;
+    const controller = new AbortController();
+    const timer = setTimeout(
+        () => controller.abort(new DOMException(`応答がありません（${Math.round(ms / 1000)}秒）`, "TimeoutError")),
+        ms,
+    );
+    const caller = options?.signal;
+    const relay = () => controller.abort(caller?.reason);
+    if (caller) {
+        if (caller.aborted) controller.abort(caller.reason);
+        else caller.addEventListener("abort", relay, { once: true });
+    }
+    const rest = { ...options };
+    delete rest.timeoutMs;   // 素の `fetch` に知らない項目を渡さない
+    return {
+        init: { ...rest, signal: controller.signal },
+        done: () => {
+            clearTimeout(timer);
+            caller?.removeEventListener("abort", relay);
+        },
+    };
+}
+
+/**
+ * 本文の読み取りにも時間切れを掛ける。
+ *
+ * **`abort` では駄目だった。** `fetch` が返るのはヘッダが来た時点で、
+ * そこから先（`res.json()`）を守るために「タイマーを残して後から
+ * `abort` する」形にしたが、Chromium で測ると **本文の途中で中断すると
+ * 理由が捨てられて `AbortError` になる**（実測: `TimeoutError` を渡しても
+ * `AbortError: The user aborted a request.`）。`AbortError` は
+ * 「自分で畳んだ」中断として各所が握り潰すので、時間切れが黙って消える。
+ * さらに **本文を読む前に中断すると、その応答は二度と読めない**（実測）
+ * ——`Promise.all([userPublicFetch(...), getCurrentSession()])` のように
+ * 応答を受け取ってから他を待つ経路で、届いていた本文が読めなくなっていた。
+ *
+ * なので中断ではなく**読み取り側を競走させる**。理由はこちらが作るので
+ * 必ず `TimeoutError` になり、応答そのものは壊さない。
+ */
+function guardBody(res: Response, ms: number): Response {
+    const race = <T,>(run: () => Promise<T>): Promise<T> => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        return Promise.race([
+            run(),
+            new Promise<never>((_r, rej) => {
+                timer = setTimeout(
+                    () => rej(new DOMException(`応答がありません（${Math.round(ms / 1000)}秒）`, "TimeoutError")),
+                    ms,
+                );
+            }),
+        ]).finally(() => clearTimeout(timer));
+    };
+    const json = res.json.bind(res);
+    const text = res.text.bind(res);
+    Object.defineProperty(res, "json", { configurable: true, value: () => race(json) });
+    Object.defineProperty(res, "text", { configurable: true, value: () => race(text) });
+    return res;
+}
+
+/**
+ * 打ち切り付きで投げる。ヘッダまでは中断で、本文は読み取り側の競走で守る。
+ * **ヘッダが来たらタイマーは必ず片付ける**——残すと、応答を受け取ってから
+ * 他の待ち事を挟む経路（`Promise.all`）で本文が読めなくなる（実測）。
+ */
+async function fetchWithTimeout(url: string, options?: ApiRequestInit): Promise<Response> {
+    const { init, done } = withTimeout(options);
+    try {
+        const res = await fetch(url, init);
+        return guardBody(res, options?.timeoutMs ?? REQUEST_TIMEOUT_MS);
+    } finally {
+        done();
+    }
+}
+
+/**
  * 認証不要のリクエスト（写真一覧取得など）
  */
-export async function publicFetch(path: string, options?: RequestInit): Promise<Response> {
+export async function publicFetch(path: string, options?: ApiRequestInit): Promise<Response> {
     const base = getBaseUrl();
     const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
-    return fetch(url, options);
+    return fetchWithTimeout(url, options);
 }
 
 /**
  * Cognito JWT トークン付きのリクエスト（アップロード・削除など管理者操作）
  */
-export async function authenticatedFetch(path: string, options?: RequestInit): Promise<Response> {
+export async function authenticatedFetch(path: string, options?: ApiRequestInit): Promise<Response> {
     const base = getBaseUrl();
     const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
 
-    // Cognito セッションから JWT トークンを取得
-    const session = await getCurrentSession();
+    // Cognito セッションから JWT トークンを取得（ここにも打ち切りが要る）
+    const session = await sessionWithTimeout(SESSION_TIMEOUT_MS);
     const token = session?.getIdToken()?.getJwtToken();
 
     if (!token) {
         throw new Error(AUTH_REQUIRED_MESSAGE);
     }
 
-    return fetch(url, {
+    return fetchWithTimeout(url, {
         ...options,
         headers: {
             "Content-Type": "application/json",
@@ -65,18 +209,18 @@ export async function authenticatedFetch(path: string, options?: RequestInit): P
 /**
  * 一般ユーザーAPI向け認証付きリクエスト（アップロードのみ）
  */
-export async function userFetch(path: string, options?: RequestInit): Promise<Response> {
+export async function userFetch(path: string, options?: ApiRequestInit): Promise<Response> {
     const base = getUserApiBaseUrl();
     const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
 
-    const session = await getCurrentSession();
+    const session = await sessionWithTimeout(SESSION_TIMEOUT_MS);
     const token = session?.getIdToken()?.getJwtToken();
 
     if (!token) {
         throw new Error(AUTH_REQUIRED_MESSAGE);
     }
 
-    return fetch(url, {
+    return fetchWithTimeout(url, {
         ...options,
         headers: {
             "Content-Type": "application/json",
@@ -92,10 +236,10 @@ export async function userFetch(path: string, options?: RequestInit): Promise<Re
  * publicFetch は管理APIを向いているため、ユーザーAPI にしか無いエンドポイントは
  * こちらを使う（間違えると 404 になり、その失敗は握り潰されて表示が空になる）。
  */
-export async function userPublicFetch(path: string, options?: RequestInit): Promise<Response> {
+export async function userPublicFetch(path: string, options?: ApiRequestInit): Promise<Response> {
     const base = getUserApiBaseUrl();
     const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
-    return fetch(url, options);
+    return fetchWithTimeout(url, options);
 }
 
 /**

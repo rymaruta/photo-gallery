@@ -81,6 +81,89 @@ describe("ハイドレーション・ウォッチドッグのクールダウン"
 // 後片付け（SW 解除・キャッシュ全消し）には最大3秒かかる。その間に水和が
 // 終わっても無条件に再読込していたので、**遅い回線で入力中の内容が消えた**
 // （アップロード画面のタイトル・キャプション）。間に合ったなら戻さない。
+// **sessionStorage が使えない端末で、毎回の読み込みで再読込が走っていた。**
+//
+// クールダウンの読み書きは `catch(e){}` で握るだけなので、投げる環境では
+// `last` が 0 のまま・控えも残らない ＝ **10分の歯止めが一度も効かない**。
+// しかも再読込の前に Service Worker を解除して Cache Storage を全消しするので、
+// 水和できない状態が続く限り、読み込むたびにオフラインの控えごと捨てられる。
+// すぐ上の資産チェック（`jp_asset_reload_at`）は同じ状況で `catch(x){return}`
+// して諦めており、**同じファイルの隣り合った2つで倒し方が逆**だった。
+describe("sessionStorage が使えないとき", () => {
+    // **差し替えを閉じ込める。** `window.sessionStorage` を投げる形にしたまま
+    // 抜けると、外側の beforeEach の `sessionStorage.clear()` が投げて
+    // **このファイルの残り全部が落ちる**（実際に一度そうなった）
+    let original: PropertyDescriptor | undefined;
+    afterEach(() => {
+        if (original) Object.defineProperty(window, "sessionStorage", original);
+        original = undefined;
+    });
+
+    /** 読み書きが必ず投げる sessionStorage にする（プライベートモード相当） */
+    function blockSessionStorage() {
+        original = Object.getOwnPropertyDescriptor(window, "sessionStorage");
+        const throwing = {
+            getItem() { throw new DOMException("blocked", "SecurityError"); },
+            setItem() { throw new DOMException("blocked", "SecurityError"); },
+            removeItem() { throw new DOMException("blocked", "SecurityError"); },
+            clear() { throw new DOMException("blocked", "SecurityError"); },
+            key() { return null; },
+            length: 0,
+        };
+        Object.defineProperty(window, "sessionStorage", { configurable: true, get: () => throwing });
+    }
+
+    it("記録できないなら再読込しない（読み込みのたびのループにしない）", async () => {
+        blockSessionStorage();
+        // 5回ぶん読み込む（同じタブで水和が失敗し続けている状態）
+        for (let i = 0; i < 5; i++) await runWatchdog();
+
+        expect(reloads, "読み込みのたびに再読込している（SWとキャッシュも毎回消える）").toBe(0);
+    });
+
+    // **読みだけが投げる場合も止める。** 書き込みは通るので控えは残るが、
+    // 次の読み込みで読めなければ `last` は 0 のまま＝クールダウンは効かず、
+    // やはり毎回走る。書き込み側の `return` だけでは塞げない（変異で確認:
+    // 読みの守りを外すとこのテストだけが落ちる）
+    it("読めないだけでも再読込しない", async () => {
+        const throwingRead = {
+            getItem() { throw new DOMException("blocked", "SecurityError"); },
+            setItem() { /* 書けはする */ },
+            removeItem() { }, clear() { }, key() { return null; }, length: 0,
+        };
+        original = Object.getOwnPropertyDescriptor(window, "sessionStorage");
+        Object.defineProperty(window, "sessionStorage", { configurable: true, get: () => throwingRead });
+
+        for (let i = 0; i < 3; i++) await runWatchdog();
+        expect(reloads, "読めないのに走っている（次の読み込みでも同じ）").toBe(0);
+    });
+
+    // **読めるが書けない端末も止める**（iOS Safari のプライベートモードの
+    // 古典的な形）。読みの守りが先に効くので、書き込み側の `return` は
+    // このファイルのどのテストでも通っていなかった——**戻しても全部緑**
+    // だった（レビューが変異で実測）。控えが残らない以上、次の読み込みでも
+    // やはり走る
+    it("読めるが書けない端末でも再読込しない", async () => {
+        const store: Record<string, string> = {};
+        const readOnly = {
+            getItem: (k: string) => store[k] ?? null,
+            setItem() { throw new DOMException("full", "QuotaExceededError"); },
+            removeItem() { }, clear() { }, key() { return null; }, length: 0,
+        };
+        original = Object.getOwnPropertyDescriptor(window, "sessionStorage");
+        Object.defineProperty(window, "sessionStorage", { configurable: true, get: () => readOnly });
+
+        for (let i = 0; i < 3; i++) await runWatchdog();
+        expect(reloads, "書けないのに毎回走っている").toBe(0);
+    });
+
+    // 正常な端末では今までどおり1回だけ走る（諦める側に倒しすぎない）
+    it("使える端末では今までどおり1回だけ走る", async () => {
+        for (let i = 0; i < 5; i++) await runWatchdog();
+        expect(reloads).toBe(1);
+    });
+});
+
 describe("後片付けの最中に水和が終わったら", () => {
     /**
      * 後片付け（SW 解除・キャッシュ全消し）を**保留にできる**世界を作る。

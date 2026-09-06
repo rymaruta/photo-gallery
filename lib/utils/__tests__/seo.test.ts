@@ -67,6 +67,21 @@ describe("generatePhotoStructuredData", () => {
         expect(loc.geo.latitude).toBe(35.68);
     });
 
+    // 地名から引いたおおよその座標（街の中心）は「撮影地点」として出さない。
+    // 画面では「地図で見る」を消したのに、構造化データにだけ座標を書くと
+    // 検索エンジンにはそこで撮ったと伝わる（レビュー指摘）
+    it("おおよその座標（geoApprox）では geo を出さず、地名だけ残す", () => {
+        const data = generatePhotoStructuredData({
+            ...base,
+            location: "東京",
+            coords: { lat: 35.68, lng: 139.69 },
+            geoApprox: true,
+        });
+        const loc = data.contentLocation as { "@type": string; name: string; geo?: unknown };
+        expect(loc.name).toBe("東京");
+        expect(loc.geo, "街の中心を撮影地点として出している").toBeUndefined();
+    });
+
     it("title が LocalizedText の場合 locale に応じたテキストを使う", () => {
         const data = generatePhotoStructuredData(
             { ...base, title: { ja: "日本語タイトル", en: "English Title" } },

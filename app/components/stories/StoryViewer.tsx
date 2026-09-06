@@ -4,6 +4,7 @@ import { usableRows } from "../../../lib/utils/apiRows";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
 import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon, PhotoIcon } from "@heroicons/react/24/outline";
+import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import UserAvatar from "../UserAvatar";
 import type { StoryGroup, StoryViewer as ViewerEntry } from "@/lib/stories";
 import { timeAgo } from "@/lib/stories";
@@ -50,7 +51,6 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     // 「進んでは止まり」を繰り返して見えた。しかも更新のたびにビューア全体が
     // 再描画されていた。
     const progressBarRef = useRef<HTMLDivElement | null>(null);
-    const [paused, setPaused] = useState(false);
     const [muted, setMuted] = useState(true);
 
     // ストーリーBGM: 表示中のストーリーに曲が付いていれば再生する。
@@ -251,9 +251,20 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const LONG_PRESS_MS = 350;
     const MOVE_TOLERANCE_PX = 12;
 
+    /** 長押しで止めたのか、ボタン（またはスペース）で止めたのか。
+     *  指を離したときに**ボタンで止めたぶんまで再開しない**ように分ける */
+    const pressPausedRef = useRef(false);
+
     const onZonePointerDown = useCallback((e: React.PointerEvent) => {
         pressRef.current = { t: Date.now(), x: e.clientX, y: e.clientY };
-        setPaused(true);
+        setPaused((prev) => { pressPausedRef.current = !prev; return true; });
+    }, []);
+
+    /** 指を離した。長押しで止めたときだけ再開する */
+    const onZonePointerUp = useCallback(() => {
+        if (!pressPausedRef.current) return;
+        pressPausedRef.current = false;
+        setPaused(false);
     }, []);
 
     /** 直前の操作が短いタップだったか（長押し・指の移動があれば false） */
@@ -267,6 +278,18 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     }, []);
 
     // ダイアログ表示中は自動送りを止める
+    /**
+     * **「動きを減らす」設定なら、最初から止めて出す。**
+     * 自動送りは「勝手に進む動き」そのもので、読む速さも人によって違う。
+     * ただし **`animation: none` にはしない**——画像の送りはこの CSS
+     * アニメーションの `onAnimationEnd` が駆動しているので、消すと
+     * **二度と進まなくなる**。止めるのは再生状態だけにして、進む手段
+     * （タップ・→・停止ボタン）は残す。
+     * 設定を切り替えても地図と同じく開き直すまでは追随しない（初期値のみ）。
+     */
+    const [paused, setPaused] = useState(() =>
+        typeof window !== "undefined" && typeof window.matchMedia === "function"
+        && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     const frozen = paused || viewersOpen || confirmDelete;
 
     // 画像の進捗は CSS アニメーション（60fps・再描画なし）が駆動し、
@@ -342,6 +365,9 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             if (e.key === "Escape") onClose();
             else if (e.key === "ArrowRight") goNext();
             else if (e.key === "ArrowLeft") goPrev();
+            // **キーボードだけで止められるようにする。** 長押しは押している間
+            // だけで、指を離すと進む＝読む時間を自分で決められない
+            else if (e.key === " " || e.key === "Spacebar") { e.preventDefault(); setPaused((v) => !v); }
         };
         document.addEventListener("keydown", onKey);
         return () => document.removeEventListener("keydown", onKey);
@@ -545,6 +571,20 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         {muted ? <SpeakerXMarkIcon className="w-5 h-5" /> : <SpeakerWaveIcon className="w-5 h-5" />}
                     </button>
                 )}
+                {/* **止める手段を画面に置く。** これまで自動送りを止められるのは
+                    「押しっぱなし」だけで、キーボードだけの人には手段が無かった。
+                    読む速さは人によって違うので、設定（動きを減らす）とは関係なく要る */}
+                <button
+                    onClick={() => setPaused((v) => !v)}
+                    aria-label={paused
+                        ? (locale === "en" ? "Resume" : "再生")
+                        : (locale === "en" ? "Pause" : "一時停止")}
+                    aria-pressed={paused}
+                    className="p-2.5 text-white/80 hover:text-white"
+                    style={{ touchAction: "manipulation" }}
+                >
+                    {paused ? <PlayIcon className="w-5 h-5" /> : <PauseIcon className="w-5 h-5" />}
+                </button>
                 {isOwnStory && onDelete && (
                     <button
                         onClick={() => setConfirmDelete(true)}
@@ -574,16 +614,16 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 style={{ top: 80, bottom: 88, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 onClick={(e) => { if (wasTap(e)) goPrev(); }}
                 onPointerDown={onZonePointerDown}
-                onPointerUp={() => setPaused(false)}
-                onPointerLeave={() => setPaused(false)}
+                onPointerUp={onZonePointerUp}
+                onPointerLeave={onZonePointerUp}
             />
             <div
                 className="absolute right-0 w-2/3 z-10"
                 style={{ top: 80, bottom: 88, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 onClick={(e) => { if (wasTap(e)) goNext(); }}
                 onPointerDown={onZonePointerDown}
-                onPointerUp={() => setPaused(false)}
-                onPointerLeave={() => setPaused(false)}
+                onPointerUp={onZonePointerUp}
+                onPointerLeave={onZonePointerUp}
             />
 
             {/* 画面下: 閲覧者数（自分のみ）とキャプションを同じ段に並べる */}

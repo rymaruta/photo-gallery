@@ -2,12 +2,15 @@
 // 写真一覧をAPIから取得する共通フック（AbortController対応）
 
 import { usablePhotoRows } from "../utils/apiRows";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Photo } from "../data/photos";
 import BASE_PHOTOS_JSON from "@/app/data/photos.json";
 import { log } from "../utils/log";
 
 const BASE_PHOTOS = BASE_PHOTOS_JSON as Photo[];
+
+/** 取り直しの間隔（ms）。`online` のフラップで連発しないように */
+const RETRY_COOLDOWN_MS = 10_000;
 
 export function usePhotos() {
     // BASE_PHOTOSを初期値とすることで、APIが遅延・失敗しても即時コンテンツ表示を保証する
@@ -27,6 +30,46 @@ export function usePhotos() {
      * 定期ビルドは止まっているので、静的JSONは日単位で古い。
      */
     const [loaded, setLoaded] = useState(false);
+    /**
+     * **取りに行って駄目だったか。** `loaded` は「届いたか」しか言わないので、
+     * 失敗した場合は「まだ来ていない」と見分けが付かず、待っている側
+     * （共有リンク・通知から開いた `?photo=`）が**永久に黙って待つ**。
+     * 実測: 応答を保持すると、3秒・10秒・30秒のいずれでもモーダルも
+     * トーストも出ず、`?photo=` が URL に残ったままだった
+     */
+    const [failed, setFailed] = useState(false);
+
+    /**
+     * **取り直しの契機。** 一度失敗すると `failed` が立ちっぱなしで、
+     * この画面には再試行が無かった（`?photo=` を開こうとした人は「読み
+     * 込めませんでした」を見たあと、タブを開き直すまで写真モーダルが死ぬ）。
+     * 画面に部品を増やさずに済む形——**戻ってきたとき・回線が戻ったとき**に
+     * 取り直す——を採る（`useFollow` の撃ち直しと同じ手）。
+     */
+    const [reloadKey, setReloadKey] = useState(0);
+    const lastRetryRef = useRef(0);
+    useEffect(() => {
+        if (!failed) return;
+        const retry = () => {
+            if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+            // **立て続けに投げない。** `online` は回線が不安定なときに何度も
+            // 発火する（フラップ）。人の操作に律速される `visibilitychange` と
+            // 違って、そのぶんだけ取りに行ってしまう。
+            // **控えは ref に置く**——この効果は `failed` が立つたびに作り
+            // 直されるので、中に持つと毎回 0 に戻って効かない（実測）
+            const now = Date.now();
+            if (now - lastRetryRef.current < RETRY_COOLDOWN_MS) return;
+            lastRetryRef.current = now;
+            setFailed(false);
+            setReloadKey((k) => k + 1);
+        };
+        window.addEventListener("online", retry);
+        document.addEventListener("visibilitychange", retry);
+        return () => {
+            window.removeEventListener("online", retry);
+            document.removeEventListener("visibilitychange", retry);
+        };
+    }, [failed]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -61,19 +104,27 @@ export function usePhotos() {
                     // 表示する中身は変えない（空で `BASE_PHOTOS` を潰さない）。
                     // 変えるのは「聞けて、答えが返った」を記録するかどうかだけ。
                     if (data) setLoaded(true);
+                    // **200 なのに配列でない**（壊れた応答）。ここに出口が
+                    // 無いと `loaded` も `failed` も立たず、待っている側が
+                    // 永久に黙って待つ
+                    else setFailed(true);
                 } else {
                     log.warn("写真の取得に失敗しました", { status: response.status });
+                    setFailed(true);
                 }
             } catch (error) {
+                // 自分で畳んだ中断（画面を離れた）は失敗ではない。
+                // 時間切れ（`TimeoutError`）は失敗として伝える
                 if ((error as { name?: string }).name !== "AbortError") {
                     log.error("写真取得エラー:", error);
+                    setFailed(true);
                 }
             }
         };
 
         void load();
         return () => controller.abort();
-    }, []);
+    }, [reloadKey]);
 
-    return { photos, loading, loaded };
+    return { photos, loading, loaded, failed };
 }

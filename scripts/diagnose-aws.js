@@ -11,7 +11,7 @@
  */
 const { DynamoDBClient, DescribeTableCommand, ScanCommand } = require("@aws-sdk/client-dynamodb");
 const { CognitoIdentityProviderClient, DescribeUserPoolCommand, DescribeUserPoolClientCommand } = require("@aws-sdk/client-cognito-identity-provider");
-const { CloudFrontClient, GetDistributionConfigCommand, GetCachePolicyCommand } = require("@aws-sdk/client-cloudfront");
+const { CloudFrontClient, GetDistributionConfigCommand, GetCachePolicyCommand, ListInvalidationsCommand, GetInvalidationCommand } = require("@aws-sdk/client-cloudfront");
 const { LambdaClient, ListFunctionsCommand, GetAccountSettingsCommand } = require("@aws-sdk/client-lambda");
 const { requireEnv } = require("./lib/env");
 
@@ -69,6 +69,18 @@ async function dataShapes() {
     });
     await count("createdAt を持たない写真（GSI から落ちる）", {
         FilterExpression: "attribute_exists(src) AND attribute_not_exists(createdAt)",
+    });
+    // 地図ページ（/map）の材料。位置情報を持つ公開写真が無ければ地図は空
+    await count("位置情報（coords）を持つ写真", {
+        FilterExpression: "attribute_exists(src) AND attribute_exists(coords)",
+    });
+    await count("撮影地名（location）を持つ写真（地名→座標の補填の材料）", {
+        FilterExpression: "attribute_exists(src) AND attribute_exists(#loc) AND attribute_not_exists(coords)",
+        ExpressionAttributeNames: { "#loc": "location" },
+    });
+    await count("うち公開中（published が false でない）", {
+        FilterExpression: "attribute_exists(src) AND attribute_exists(coords) AND (attribute_not_exists(published) OR published <> :f)",
+        ExpressionAttributeValues: { ":f": { BOOL: false } },
     });
 }
 
@@ -179,6 +191,55 @@ function residencyNote() {
         "    残るのは discardUpload（保存前の破棄）だけ——公開前なのでエッジに",
         "    載っているとは限らない（未確認）。載っていれば この値がそのまま残存期間になる（LEFT-4）。",
     ];
+}
+
+/**
+ * 無効化を**誰が作ったか**を数える（純関数）。
+ *
+ * **これが LEFT-4 の「本当に効いているか」の唯一の証拠。**
+ * `serverless.yml` は `exclude: ['@aws-sdk/*']` なので SDK はバンドルされず
+ * **Lambda ランタイム任せ**で、`@aws-sdk/client-cloudfront` が無ければ
+ * `invalidateUploads` は警告1行で静かに落ちる（＝削除しても掃除されない）。
+ * 中からは分からないので、**外から履歴を見る**。
+ *
+ * 見分け方は `CallerReference` の頭:
+ *   `del-…`  … Lambda（削除・退会・ストーリー掃除）。**これがあれば動いている**
+ *   それ以外 … デプロイ（`deploy-static-site.js` は `${Date.now()}-${i}` や
+ *              `reheal-…`）、`restrict-originals-…`、`shrink-profiles-…`
+ */
+function countInvalidationSources(refs) {
+    const fromLambda = refs.filter((r) => String(r).startsWith("del-"));
+    return { total: refs.length, fromLambda: fromLambda.length, latestLambda: fromLambda[0] ?? null };
+}
+
+/** 直近の無効化を読んで、Lambda 由来があるかを見る（LEFT-4 の効き確認） */
+async function invalidationHistory() {
+    head("CloudFront の無効化履歴（LEFT-4: 削除時の掃除が本当に効いているか）");
+    const distId = process.env.CLOUDFRONT_DISTRIBUTION_ID;
+    if (!distId) { line("  CLOUDFRONT_DISTRIBUTION_ID が未設定のため飛ばします"); return; }
+    // **できるだけ遡る**（CloudFront の上限は100）。デプロイのたびに1本
+    // 作られるので、20件だと数日しか見えない——`del-…` を探すには足りない
+    const list = await cf.send(new ListInvalidationsCommand({ DistributionId: distId, MaxItems: 100 }));
+    const items = list.InvalidationList?.Items ?? [];
+    if (items.length === 0) { line("  無効化の履歴がありません"); return; }
+    // `ListInvalidations` は CallerReference を返さないので1件ずつ引く（読み取り）
+    const refs = [];
+    for (const it of items) {
+        try {
+            const got = await cf.send(new GetInvalidationCommand({ DistributionId: distId, Id: it.Id }));
+            refs.push(got.Invalidation?.InvalidationBatch?.CallerReference ?? "(不明)");
+        } catch (e) {
+            console.error(`  [invalidation ${it.Id}] 失敗: ${e.name}: ${e.message}`);
+        }
+    }
+    const { total, fromLambda, latestLambda } = countInvalidationSources(refs);
+    line(`  直近 ${total} 件のうち Lambda 由来（del-…）: ${fromLambda} 件`);
+    if (fromLambda > 0) {
+        line(`  → **削除時のエッジ掃除は本番で動いている**（最新: ${latestLambda}）`);
+    } else {
+        line("  → Lambda 由来は0件。**動いていないのか、まだ誰も消していないのかは これだけでは分からない**");
+        line("    （写真・ストーリーを1つ消してから、もう一度この診断を流すと分かる）");
+    }
 }
 
 /**
@@ -330,7 +391,7 @@ async function users() {
 async function main() {
     PHOTOS_TABLE = requireEnv("PHOTOS_TABLE");
     line(`対象テーブル: ${PHOTOS_TABLE} / region: ${REGION}`);
-    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["cdnTtl", cdnTtl], ["lambdaRoles", lambdaRoles], ["concurrency", concurrency], ["users", users]]) {
+    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["cdnTtl", cdnTtl], ["invalidationHistory", invalidationHistory], ["lambdaRoles", lambdaRoles], ["concurrency", concurrency], ["users", users]]) {
         try {
             await fn();
         } catch (e) {
@@ -342,7 +403,7 @@ async function main() {
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
 
-module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE };
+module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });

@@ -94,6 +94,8 @@ export default function StoriesBar() {
     const [seen, setSeen] = useState<Set<string>>(new Set());
     const [viewerGroup, setViewerGroup] = useState<number | null>(null);
     const [posting, setPosting] = useState(false);
+    /** 投稿中の要求。キャンセルを押したら中断する */
+    const postAbortRef = useRef<AbortController | null>(null);
     const [draft, setDraft] = useState<Draft | null>(null);
     const [caption, setCaption] = useState("");
     // ストーリーBGM（任意・1曲）
@@ -397,6 +399,13 @@ export default function StoriesBar() {
         if (!draft) return;
         setPosting(true);
         stopPreview();
+        // **投稿中でもやめられるようにする。** 以前は投稿ボタンもキャンセルも
+        // `disabled={posting}` で、応答が返らない回線では全画面の下書きから
+        // **リロード以外に出る手段が無かった**（実測: 10秒・30秒・60秒とも同じ）。
+        // 中断したら、上げ終わっている実体は下の catch が打ち消す
+        const controller = new AbortController();
+        postAbortRef.current = controller;
+        const { signal } = controller;
         // S3 に上げ終わって、まだ保存に至っていない実体のキー
         let uploadedKey: string | undefined;
         const discardUploaded = async () => {
@@ -438,6 +447,7 @@ export default function StoriesBar() {
 
             const presignedRes = await userFetch("/upload/presigned-url", {
                 method: "POST",
+                signal,
                 body: JSON.stringify({
                     fileName: uploadFile.name,
                     fileType: uploadFile.type,
@@ -469,6 +479,7 @@ export default function StoriesBar() {
 
             const s3Res = await fetch(presignedUrl, {
                 method: "PUT",
+                signal,
                 body: uploadFile,
                 // サーバーが署名した種別で送る（`content-type` は署名対象。
                 // 違う文字列だと S3 が 403 にする）
@@ -491,6 +502,7 @@ export default function StoriesBar() {
 
             const saveRes = await userFetch("/stories", {
                 method: "POST",
+                signal,
                 body: JSON.stringify({
                     publicUrl,
                     ...(key ? { key } : {}),
@@ -533,6 +545,13 @@ export default function StoriesBar() {
             // オフライン・DNS 失敗などで userFetch 自体が投げると打ち消しを
             // 通らず、S3 に上げただけの孤児が残った（再投稿のたびに増える）。
             await discardUploaded();
+            // **やめたのは失敗ではない。** 中断は利用者の操作なので、
+            // 「投稿に失敗しました」ではなく、やめたことだけ伝えて畳む
+            if ((e as { name?: string }).name === "AbortError") {
+                closeDraft();
+                showToast(locale === "en" ? "Cancelled" : "投稿をやめました", "info");
+                return;
+            }
             log.error("story upload error:", e);
             // サーバーが断る理由を文章で返している場合はそれを出す。
             // 固定文言で塗り潰していた頃は、枚数を確認できなかった 503 も
@@ -541,6 +560,7 @@ export default function StoriesBar() {
             const fallback = locale === "en" ? "Failed to post story" : "ストーリーの投稿に失敗しました";
             showToast(e instanceof Error && e.message ? e.message : fallback, "error");
         } finally {
+            postAbortRef.current = null;
             setPosting(false);
         }
     }, [draft, caption, draftSong, songStart, durationSec, locale, showToast, loadStories, closeDraft, stopPreview]);
@@ -705,7 +725,18 @@ export default function StoriesBar() {
                         <h2 id="story-draft-title" className="text-sm font-semibold text-white drop-shadow">
                             {locale === "en" ? "New story" : "新しいストーリー"}
                         </h2>
-                        <button ref={draftCancelRef} onClick={closeDraft} disabled={posting} className="p-2 text-white/80 hover:text-white drop-shadow" aria-label={locale === "en" ? "Cancel" : "キャンセル"}>
+                        <button
+                            ref={draftCancelRef}
+                            // **投稿中も押せる。** 押したら要求を中断して畳む
+                            onClick={() => {
+                                if (posting) { postAbortRef.current?.abort(new DOMException("cancelled", "AbortError")); return; }
+                                closeDraft();
+                            }}
+                            className="p-2 text-white/80 hover:text-white drop-shadow"
+                            aria-label={posting
+                                ? (locale === "en" ? "Stop posting" : "投稿をやめる")
+                                : (locale === "en" ? "Cancel" : "キャンセル")}
+                        >
                             <XMarkIcon className="w-6 h-6" />
                         </button>
                     </div>

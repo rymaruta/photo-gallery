@@ -108,7 +108,14 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         }
 
         const fields = pickEditableFields(body);
-        const updates = { ...fields, updatedAt: new Date().toISOString() };
+        const updates: Record<string, unknown> = { ...fields, updatedAt: new Date().toISOString() };
+        // 地名から補った座標（geoApprox）は地名に付随する。地名を直したら
+        // 座標ごと捨てる（ユーザーAPI側 api-user/src/photoUpdate.ts と同じ扱い。
+        // 管理画面は座標を送らないので、残すと嘘のピンを直す手段が無い）
+        if (photo.geoApprox === true && "location" in fields && !sameStoredValue(fields.location, photo.location)) {
+            updates.coords = undefined;
+            updates.geoApprox = undefined;
+        }
         const updated = await updatePhotoFields(id, updates);
 
         // 静的ページに焼かれる内容が変わったら作り直しを頼む。

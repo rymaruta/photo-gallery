@@ -22,9 +22,11 @@ on:
           - image-perf        # 写真表示の速さに効く材料が揃っているか測る
           - story-index       # ストーリー一覧用の GSI を足す（全件 Scan をやめる）
           - normalize-image-urls  # 保存済みの画像URLのホスト名を配信URLに揃える
+          - geocode-locations # 地名はあるが座標が無い写真に、おおよその座標を補う（地図ページの材料）
           - diagnose          # 本番の設定を読むだけ（索引の射影・日付の形・Cognito・CDN の TTL）
           - orphan-uploads    # どの行からも参照されていないアップロード実体を探す
           - verify-upload     # **staging** で presign が本当に使えるか確かめる（apply が要る）
+          - verify-invalidate # **staging** で削除時のエッジ掃除が Lambda の中で動くか確かめる（apply が要る）
         required: true
       apply:
         description: "true で実際に適用（false は内容の確認のみ）"
@@ -32,6 +34,10 @@ on:
         default: false
       owner_user_id:
         description: "who-liked のときの対象ユーザーID（必須）"
+        type: string
+        default: ""
+      geocode_skip:
+        description: "geocode-locations で飛ばす地名（セミコロン ; 区切り。地名にカンマが入るため。ドライランで当て違いと分かったもの）"
         type: string
         default: ""
 
@@ -155,6 +161,34 @@ jobs:
           # 実在しない利用者として叩く（枚数の上限判定が 0 件になる）。
           # 固定値にするのは、残骸が出たときに誰のものか分かるようにするため
           VERIFY_USER_ID: verify-upload-00000000-0000-4000-8000-000000000000
+
+      - name: エッジの掃除が Lambda の中で動くか確かめる（staging）
+        if: inputs.task == 'verify-invalidate'
+        run: npx tsx scripts/verify-invalidate.ts ${{ inputs.apply && '--apply' || '' }}
+        # **10分にする。** `cleanupStories` の Lambda タイムアウトは 300秒＝
+        # ちょうど5分で、Invoke は同期。前半だけで枠を使い切ると GitHub が
+        # プロセスを殺すので `finally` が走らず、staging にダミーが残る
+        # ——その残骸は期限切れストーリーなので、次の毎時実行が掃除して
+        # `del-…` を作る＝**次回の偽陽性の種**になる（レビュー指摘）
+        timeout-minutes: 10
+        env:
+          # **staging を明示する。** 上の env は本番向けなので、上書きしないと
+          # 本番のテーブルにダミーの行を書きに行く（スクリプト側も staging-
+          # で始まらなければ止めるが、守りは2枚にしておく）
+          UPLOAD_BUCKET: staging-journey-photo-upload
+          PHOTOS_TABLE: staging-photo-gallery-photos
+          CLOUDFRONT_DISTRIBUTION_ID: EF2TFEBBP24DL
+          CLEANUP_FUNCTION: photo-gallery-user-api-staging-cleanupStories
+          # 管理API側（別サービス＝別の IAM・別の環境変数）も同じやり方で確かめる
+          ADMIN_DELETE_FUNCTION: photo-gallery-api-staging-deletePhoto
+
+      - name: 地名から おおよその座標を補う
+        if: inputs.task == 'geocode-locations'
+        # Nominatim は 1リクエスト/秒。地名が数十種でも数十秒で終わる
+        run: node scripts/geocode-locations.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 10
+        env:
+          GEOCODE_SKIP: ${{ inputs.geocode_skip }}
 
       - name: 本番の設定を読む（診断）
         if: inputs.task == 'diagnose'

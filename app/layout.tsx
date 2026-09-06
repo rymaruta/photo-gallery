@@ -172,11 +172,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           同じく壊れている2つ目以降のタブは最大10分そのまま操作できなかった
           （すぐ上の資産チェックは最初から sessionStorage で、そちらが正しい）。
           再読込をまたいでも消えないので、ループ防止の役目は変わらない。
+          **控えを取れないなら諦める。** 読み書きが投げる端末（プライベート
+          モード・サイトデータ拒否）では `last` が 0 のまま・控えも残らず、
+          10分の歯止めが**一度も効かなかった**——水和できない状態が続く限り、
+          読み込むたびに SW を解除し Cache Storage を全消しして再読込していた
+          （テストで再現）。自己修復を1回も試さない方が、毎回巻き添えにするより軽い。
+          すぐ上の資産チェックも同じ状況で `catch(x){return}` している。
           正常時は水和と同時にフラグが立つため発火しない。React に依存せず <head> で動く。
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var K="jp_hydrate_recover_at";function reheal(){try{if(document.documentElement.getAttribute("data-hydrated")==="1")return;if(navigator.onLine===false)return;var now=Date.now(),last=0;try{last=Number(sessionStorage.getItem(K)||0)}catch(e){}if(last&&now-last<600000)return;try{sessionStorage.setItem(K,String(now))}catch(e){}var done=false,go=function(){if(done)return;done=true;if(document.documentElement.getAttribute("data-hydrated")==="1")return;location.reload()};var ps=[];try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations){ps.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}).catch(function(){}))}}catch(e){}try{if(window.caches&&caches.keys){ps.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}).catch(function(){}))}}catch(e){}Promise.all(ps).then(go,go);setTimeout(go,3000)}catch(e){}}addEventListener("load",function(){setTimeout(reheal,12000)})}catch(e){}})();`,
+            __html: `(function(){try{var K="jp_hydrate_recover_at";function reheal(){try{if(document.documentElement.getAttribute("data-hydrated")==="1")return;if(navigator.onLine===false)return;var now=Date.now(),last=0,ok=false;try{last=Number(sessionStorage.getItem(K)||0);ok=true}catch(e){}if(!ok)return;if(last&&now-last<600000)return;try{sessionStorage.setItem(K,String(now))}catch(e){return}var done=false,go=function(){if(done)return;done=true;if(document.documentElement.getAttribute("data-hydrated")==="1")return;location.reload()};var ps=[];try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations){ps.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}).catch(function(){}))}}catch(e){}try{if(window.caches&&caches.keys){ps.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}).catch(function(){}))}}catch(e){}Promise.all(ps).then(go,go);setTimeout(go,3000)}catch(e){}}addEventListener("load",function(){setTimeout(reheal,12000)})}catch(e){}})();`,
           }}
         />
       </head>

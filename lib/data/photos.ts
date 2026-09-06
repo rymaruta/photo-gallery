@@ -124,7 +124,10 @@ export const makeOSM = (lat: number, lng: number, zoom = 15) =>
 export function generateMapLinksFromCoords(p: Photo): Photo["mapLinks"] | undefined {
     const base = p.mapLinks ? { ...p.mapLinks } : {};
 
-    if (!p.coords) {
+    // **地名から引いたおおよその座標（`geoApprox`）からはリンクを作らない。**
+    // 街の中心へ飛ぶピンは「ここで撮った」と読まれる。明示の `mapLinks` は
+    // 人が付けたものなのでそのまま通す
+    if (!p.coords || p.geoApprox) {
         return Object.keys(base).length > 0 ? base : undefined;
     }
 

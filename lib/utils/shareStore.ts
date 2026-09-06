@@ -23,20 +23,34 @@ function openDb(): Promise<IDBDatabase> {
     });
 }
 
-export async function readSharedPayload(): Promise<SharedPayload | null> {
-    if (typeof indexedDB === "undefined") return null;
+/**
+ * 受け皿を読めたか。**「何も無い」と「読めなかった」を分ける。**
+ *
+ * どちらも `null` にしていたので、共有シートから送ったのに
+ * IndexedDB が使えない端末（プライベートモード・ストレージ拒否）では
+ * **アップロード画面が開いて、写真が無いだけ**——利用者には何も言わずに
+ * 終わっていた。呼び出し側が理由を出せるように分ける。
+ */
+export type ShareReadResult =
+    | { ok: true; payload: SharedPayload | null }   // 読めた（中身が無いことはある）
+    | { ok: false };                                // 受け皿を開けなかった
+
+export async function readSharedResult(): Promise<ShareReadResult> {
+    if (typeof indexedDB === "undefined") return { ok: false };
     try {
         const db = await openDb();
-        return await new Promise((resolve, reject) => {
+        const payload = await new Promise<SharedPayload | null>((resolve, reject) => {
             const tx = db.transaction(SHARE_STORE, "readonly");
             const req = tx.objectStore(SHARE_STORE).get("current");
             req.onsuccess = () => resolve((req.result as SharedPayload | undefined) ?? null);
             req.onerror = () => reject(req.error);
         });
+        return { ok: true, payload };
     } catch {
-        return null;
+        return { ok: false };
     }
 }
+
 
 export async function clearSharedPayload(): Promise<void> {
     if (typeof indexedDB === "undefined") return;

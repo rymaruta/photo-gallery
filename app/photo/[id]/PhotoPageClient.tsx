@@ -543,7 +543,10 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     const paragraphs = getLocalizedParagraphs(photo.description, locale);
 
     const preferred = getPreferredMapLink(photo);
-    const fallbackHref = photo.coords ? makeGoogleSearch(photo.coords.lat, photo.coords.lng) : undefined;
+    // **地名から引いたおおよその座標（`geoApprox`）では地図のピンを出さない。**
+    // 街の中心に立つピンは「ここで撮った」と読まれる。地名（テキスト）は
+    // そのまま出るので、場所が分からなくなるわけではない
+    const fallbackHref = photo.coords && !photo.geoApprox ? makeGoogleSearch(photo.coords.lat, photo.coords.lng) : undefined;
     const href = preferred?.href ?? fallbackHref;
 
     // 共有機能

@@ -3,6 +3,7 @@ import {
     getLocalized,
     getLocalizedParagraphs,
     generateMapLinksFromCoords,
+    getPreferredMapLink,
     makeGoogleSearch,
     makeOSM,
     BASE_PHOTOS,
@@ -68,6 +69,35 @@ describe("generateMapLinksFromCoords", () => {
         const result = generateMapLinksFromCoords(photo);
         expect(result?.google).toBe("https://custom-link.example.com");
         expect(result?.osm).toContain("openstreetmap");
+    });
+
+    // **地名から引いたおおよその座標（`geoApprox`）からはリンクを作らない。**
+    // 撮影地マップの材料として、地名しか無い写真に街の中心の座標を補う
+    // （`scripts/geocode-locations.js`）。その座標で「地図で見る」を出すと、
+    // 街の中心に立つピンが「ここで撮った」と読まれる。
+    // 写真ページとモーダルは `getPreferredMapLink` 経由でここに来るので、
+    // 呼び出し側の分岐ではなくここで止める（片方だけ直すと対が割れる）
+    it("おおよその座標（geoApprox）からはリンクを作らない", () => {
+        const photo: Photo = { ...basePhoto, coords: { lat: 48.86, lng: 2.35 }, geoApprox: true };
+        expect(generateMapLinksFromCoords(photo)).toBeUndefined();
+        expect(getPreferredMapLink(photo)).toBeUndefined();
+    });
+
+    it("おおよその座標でも、人が付けた mapLinks はそのまま通す", () => {
+        const photo: Photo = {
+            ...basePhoto,
+            coords: { lat: 48.86, lng: 2.35 },
+            geoApprox: true,
+            mapLinks: { osm: "https://www.openstreetmap.org/#map=15/48.86/2.35" },
+        };
+        expect(generateMapLinksFromCoords(photo)).toEqual({ osm: "https://www.openstreetmap.org/#map=15/48.86/2.35" });
+        // 座標から google を**補完しない**
+        expect(getPreferredMapLink(photo)).toEqual({ href: "https://www.openstreetmap.org/#map=15/48.86/2.35", provider: "osm" });
+    });
+
+    it("正確な座標（geoApprox なし）は従来どおりリンクを作る", () => {
+        const photo: Photo = { ...basePhoto, coords: { lat: 35.68, lng: 139.77 } };
+        expect(getPreferredMapLink(photo)?.provider).toBe("google");
     });
 });
 

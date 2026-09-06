@@ -12,7 +12,7 @@ import { log } from "../../../lib/utils/log";
 import { getCurrentSession } from "../../../lib/auth/cognito";
 import { createThumbnail, toUploadSafeFile, UnstrippableFileError, extractDominantColor, createBlurPlaceholder, AVATAR_MAX_PX } from "../../../lib/utils/image";
 import { extractExifFromFile, extractCameraExif, reverseGeocode } from "../../../lib/utils/exif";
-import { readSharedPayload, clearSharedPayload } from "../../../lib/utils/shareStore";
+import { readSharedResult, clearSharedPayload } from "../../../lib/utils/shareStore";
 import { ROUTES } from "../../../lib/routes";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
@@ -227,9 +227,24 @@ function UploadPageInner() {
     }, [applyGpsAutofill]);
     const toggleGpsAutofill = useCallback(() => {
         const next = !gpsAutofillRef.current;
-        try { localStorage.setItem("jp_gps_autofill", next ? "1" : "0"); } catch { /* ignore */ }
+        let saved = true;
+        try { localStorage.setItem("jp_gps_autofill", next ? "1" : "0"); } catch { saved = false; }
+        // **この画面では効かせる**（切ったのに埋まる方が悪い）。ただし
+        // 切る向きのときは、保存できていないことを言う——黙っていると、
+        // 次に開いたときに戻ってしまい、**切ったつもりの人の写真から
+        // 撮影地が入って公開される**（容量不足・プライベートモードで起きる）。
+        //
+        // **入れ直す向きは黙る。** 理由は「既定がオンだから」ではない
+        // ——保存済みが `"0"` なら次回もオフのままで、既定は関係ない
+        // （レビューの指摘で気づいた）。黙るのは**戻らなかったときに
+        // 倒れる先が安全側**（地名が入らない）だから。
         applyGpsAutofill(next);
-    }, [applyGpsAutofill]);
+        if (!saved && !next) {
+            showToast(locale === "en"
+                ? "Turned off here, but this device can't save the setting — check it again next time."
+                : "この画面ではオフにしました。ただし設定を保存できないので、次に開いたときの状態は保証できません。", "error");
+        }
+    }, [applyGpsAutofill, showToast, locale]);
 
     // アンマウント時の Object URL 解放用に最新の items を ref で保持
     // （useEffect([]) のクロージャは初期の空配列しか見えないため）
@@ -323,14 +338,41 @@ function UploadPageInner() {
         : Math.max(0, PHOTO_LIMIT_PER_USER - usedSlots);
 
     // PWA Share Target で渡された写真の取り込み。
-    // ログインリダイレクトで ?from=share が失われても、IndexedDB に残った
-    // 新しいペイロード（1時間以内）は次回のページ表示時に取り込む。
+    // ログインのリダイレクトでは `?from=share` は保たれる（`safeNextPath` が
+    // search ごと運ぶ）。それでも 1時間以内のペイロードを次回の表示で拾うのは、
+    // **クエリを落としたあと**に開き直した場合の受け皿として。
     const shareImportedRef = useRef(false);
     useEffect(() => {
         if (loading || !isAuthenticated || shareImportedRef.current) return;
         shareImportedRef.current = true;
         void (async () => {
-            const payload = await readSharedPayload();
+            const res = await readSharedResult();
+            // **`from=share` は使い終わったら URL から落とす。**
+            // 残っていると (a) 戻る・進む・リロードのたびに同じ話をする
+            // (b)「受け皿が空」を失敗と呼べない——共有の直後に空なら、
+            // それは **Service Worker が保存に失敗した**ということなのに、
+            // 「取り込み済みの再表示」と区別が付かなかった（レビュー指摘）。
+            // **`history.state` は必ず引き継ぐ**——`replaceState({})` で
+            // Next の内部キーを潰し、戻るが `location.reload()` に落ちた
+            // 事故がある（`aadd283`）。
+            if (fromShare && typeof window !== "undefined") {
+                const url = new URL(window.location.href);
+                url.searchParams.delete("from");
+                window.history.replaceState(window.history.state, "", url.toString());
+            }
+            // **黙って空の画面にしない。** 共有シートから送ると SW がここへ
+            // 飛ばすので、利用者は「送ったのに写真が入っていない」画面を見る。
+            // 受け皿を開けない端末（プライベートモード・ストレージ拒否）も、
+            // SW が保存に失敗した場合も、見た目は同じ
+            if (!res.ok || (fromShare && !res.payload)) {
+                if (fromShare) {
+                    showToast(locale === "en"
+                        ? "Couldn't read the shared photos on this device. Please pick them from the button below."
+                        : "共有された写真をこの端末から読み取れませんでした。下のボタンから選んでください。", "error");
+                }
+                return;
+            }
+            const payload = res.payload;
             if (!payload) return;
             // 空のペイロード（共有シートがファイル無しで来た）も捨てる。
             // 残すと IndexedDB に居座り続ける（他の分岐は必ず消している）。
@@ -338,7 +380,11 @@ function UploadPageInner() {
                 await clearSharedPayload();
                 return;
             }
-            const isFresh = Date.now() - payload.t < 60 * 60 * 1000;
+            // **負の経過時間は「新しい」にしない**（`public/sw.js` の
+            // `isFreshEnough` と同じ判断）。刻んだのも読むのも同じ端末の時計
+            // なので、巻き戻すと差が負になって何日前の控えでも通ってしまう
+            const age = Date.now() - payload.t;
+            const isFresh = age >= 0 && age < 60 * 60 * 1000;
             if (!fromShare && !isFresh) {
                 await clearSharedPayload();
                 return;
