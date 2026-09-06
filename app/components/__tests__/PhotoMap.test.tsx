@@ -16,17 +16,19 @@ type FakeMarker = {
     kind: string; latlng: unknown; opts: Record<string, unknown>;
     popup: HTMLElement | null; popupOpts: Record<string, unknown> | null;
     update: ReturnType<typeof vi.fn>;
+    clickHandler?: () => void;
     on: (ev: string, fn: () => void) => void; addTo: () => FakeMarker;
     bindPopup: (el: HTMLElement, o: Record<string, unknown>) => FakeMarker;
     getPopup: () => { update: ReturnType<typeof vi.fn> };
 };
-const state = vi.hoisted(() => ({ markers: [] as FakeMarker[], zoom: 4, zoomControl: null as unknown }));
+const state = vi.hoisted(() => ({ markers: [] as FakeMarker[], zoom: 4, zoomControl: null as unknown, mapOpts: null as Record<string, unknown> | null, fitOpts: null as Record<string, unknown> | null }));
 
 vi.mock("leaflet", () => {
     const handlers: Record<string, Array<() => void>> = {};
     const map = {
         getZoom: () => state.zoom,
-        fitBounds: vi.fn(), setView: vi.fn(), remove: vi.fn(),
+        fitBounds: vi.fn((_b: unknown, o: Record<string, unknown>) => { state.fitOpts = o; }),
+        setView: vi.fn(), remove: vi.fn(),
         on: (ev: string, fn: () => void) => { (handlers[ev] ||= []).push(fn); },
         fire: (ev: string) => (handlers[ev] ?? []).forEach((f) => f()),
     };
@@ -35,7 +37,8 @@ vi.mock("leaflet", () => {
         const update = vi.fn();
         const m: FakeMarker = {
             kind, latlng, opts, popup: null, popupOpts: null, update,
-            on: () => {}, addTo: () => m,
+            on: (ev: string, fn: () => void) => { if (ev === "click") m.clickHandler = fn; },
+            addTo: () => m,
             bindPopup: (el, o) => { m.popup = el; m.popupOpts = o; return m; },
             getPopup: () => ({ update }),
         };
@@ -43,7 +46,7 @@ vi.mock("leaflet", () => {
         return m;
     };
     return {
-        map: () => map,
+        map: (_el: unknown, opts: Record<string, unknown>) => { state.mapOpts = opts; return map; },
         tileLayer: () => ({ addTo: () => ({}) }),
         layerGroup: () => group,
         circleMarker: make("circle"),
@@ -67,7 +70,18 @@ const draw = async (photos: MapPhoto[]) => {
     await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
 };
 
-beforeEach(() => { state.markers.length = 0; state.zoom = 4; state.zoomControl = null; });
+/** 「動きを減らす」設定を模す（jsdom には matchMedia が無い） */
+function setReducedMotion(reduce: boolean) {
+    Object.defineProperty(window, "matchMedia", {
+        configurable: true, writable: true,
+        value: (q: string) => ({ matches: reduce && q.includes("reduced-motion"), media: q, addEventListener: () => {}, removeEventListener: () => {} }),
+    });
+}
+
+beforeEach(() => {
+    state.markers.length = 0; state.zoom = 4; state.zoomControl = null; state.mapOpts = null; state.fitOpts = null;
+    setReducedMotion(false);
+});
 
 describe("地図の枠", () => {
     it("スタッキングコンテキストを作る（Leaflet の z-index をページに出さない）", async () => {
@@ -232,5 +246,30 @@ describe("ズームの位置", () => {
     it("左下に置く（固定ヘッダーの下に入らない）", async () => {
         await draw([photo("a")]);
         expect(state.zoomControl).toMatchObject({ position: "bottomleft" });
+    });
+});
+
+// Leaflet は既定でズームも移動も慣性も動かし、自分では
+// `prefers-reduced-motion` を見ない（1.9.4 のソースに参照0件）。
+// 実測: ズーム 321ms・ホイール 344ms・指を離してから 464ms 滑る
+describe("動きを減らす設定", () => {
+    it("既定では今までどおり動かす", async () => {
+        await draw([photo("a")]);
+        expect(state.mapOpts).toMatchObject({ zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: true, inertia: true });
+    });
+
+    it("設定が入っていたら、ズーム・淡色・慣性を止める", async () => {
+        setReducedMotion(true);
+        await draw([photo("a")]);
+        expect(state.mapOpts).toMatchObject({ zoomAnimation: false, fadeAnimation: false, markerZoomAnimation: false, inertia: false });
+    });
+
+    // 束を押したときの寄せも同じ（`fitBounds` だけ止めても、ズームボタン・
+    // ホイール・慣性が残る＝上の4つと両方が要る）
+    it("束を押したときの寄せも止める", async () => {
+        setReducedMotion(true);
+        await draw([photo("a"), photo("b", { coords: { lat: 35.6, lng: 139.9 } })]);
+        state.markers.find((m) => m.kind === "marker")?.clickHandler?.();
+        expect(state.fitOpts).toMatchObject({ animate: false });
     });
 });

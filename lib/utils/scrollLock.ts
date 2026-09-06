@@ -46,8 +46,15 @@ export function unlockBodyScroll() {
         document.body.style.right = "";
         document.body.style.paddingRight = _prevBodyPaddingRight ?? "";
 
-        // position:fixed 解除後にスクロール位置を復元
-        window.scrollTo(0, _prevScrollY);
+        // position:fixed 解除後にスクロール位置を復元。
+        // **`behavior: "instant"` を外さない。** `globals.css` の
+        // `html { scroll-behavior: smooth }` を拾ってしまい、復元が
+        // アニメーションになる。実測（390x780・ホームで 1155px スクロールして
+        // メニューを開閉）: 2 → 33 → 164 → 350 と滑りながら、**元の 1155 まで
+        // 戻らず 357 で止まった**（`position: fixed` を外した直後は文書の高さが
+        // まだ縮んでいて、滑っている最中に上限で頭打ちになる）。
+        // 写真を1枚見て閉じるたびに、見ていた場所を見失う
+        window.scrollTo({ top: _prevScrollY, left: 0, behavior: "instant" });
 
         _prevBodyOverflow = null;
         _prevBodyPaddingRight = null;

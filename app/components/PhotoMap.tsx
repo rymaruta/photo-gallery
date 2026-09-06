@@ -53,10 +53,21 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
             const L = await import("leaflet");
             if (cancelled || !containerRef.current) return;
 
+            // **「動きを減らす」設定を尊重する。** Leaflet は既定でズームも移動も
+            // 慣性も動かす（実測: ズーム 321ms・ホイール 344ms・指を離してから
+            // 464ms 滑る）。Leaflet 自身は `prefers-reduced-motion` を見ない
+            // （1.9.4 のソースに参照 0 件）ので、こちらで渡す。
+            // `fitBounds` だけ止めても、ズームボタン・ホイール・慣性が残る
+            const reduceMotion = typeof window.matchMedia === "function"
+                && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
             // ズームは**左下**。左上だと、少しスクロールした帯で固定ヘッダーの
             // 下に入り、半透明のヘッダー越しに「＋」が見えているのに押せない
             // （押すとヘッダーのロゴが反応してトップへ飛ぶ）——実測で確認
-            const map = L.map(el, { zoomControl: false, attributionControl: true, worldCopyJump: true });
+            const map = L.map(el, {
+                zoomControl: false, attributionControl: true, worldCopyJump: true,
+                zoomAnimation: !reduceMotion, fadeAnimation: !reduceMotion,
+                markerZoomAnimation: !reduceMotion, inertia: !reduceMotion,
+            });
             L.control.zoom({ position: "bottomleft" }).addTo(map);
             mapRef.current = map;
             L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -168,7 +179,7 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                         const splittable = !!inner && (inner.north !== inner.south || inner.east !== inner.west) && map.getZoom() < MAX_ZOOM;
                         if (splittable) {
                             marker.on("click", () => {
-                                map.fitBounds([[inner.south, inner.west], [inner.north, inner.east]], { padding: [48, 48], maxZoom: MAX_ZOOM });
+                                map.fitBounds([[inner.south, inner.west], [inner.north, inner.east]], { padding: [48, 48], maxZoom: MAX_ZOOM, animate: !reduceMotion });
                             });
                         } else {
                             // **横に並べて指で送る。** 縦に積むと枚数ぶん背が伸びて
