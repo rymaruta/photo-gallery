@@ -239,8 +239,11 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
             }
             draw();
             map.on("zoomend", draw);
-            // 動かすたびに控える（`setView`/`fitBounds` の直後にも `moveend` が来るので、
-            // 最初の場所も控えに入る）。URL は触らない（mapView.ts の冒頭を参照）
+            // 動かすたびに控える。URL は触らない（mapView.ts の冒頭を参照）。
+            // **最初の場所は控えに入らない**——上の `setView`/`fitBounds` は
+            // `moveend` を同期で出し終えている（Leaflet 1.9.4 を実行して確認:
+            // 後付けの listener には 0 回）。それで困らない: 動かしていなければ
+            // 控えの有無に関わらずハッシュ／全体表示に戻るので着地は同じ
             map.on("moveend", () => {
                 const c = map.getCenter();
                 saveView({ lat: c.lat, lng: c.lng, zoom: map.getZoom() }, window.location.hash);

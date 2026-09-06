@@ -40,7 +40,9 @@ export default function MapPage() {
                 // **まだ届いていないなら「まだ」と言わない。** 手元の断面に座標が
                 // 無いだけで、API の一覧には有ることがある（実測: 4秒の回線で
                 // 「0枚・まだありません」が出たあと 18枚に変わった）
-                <div className="rounded-2xl ring-1 ring-white/10 bg-white/5 px-6 py-16 text-center text-white/60 text-sm" aria-busy="true">
+                // `aria-busy` は「更新中だから待て」の合図。失敗の告知には付けない
+                // （付いたままだと支援技術が読み上げを抑える）
+                <div className="rounded-2xl ring-1 ring-white/10 bg-white/5 px-6 py-16 text-center text-white/60 text-sm" aria-busy={!failed}>
                     {failed
                         ? (en ? "Couldn't load photos. Check your connection and try again." : "写真を読み込めませんでした。通信を確かめて、もう一度お試しください。")
                         : (en ? "Loading…" : "読み込み中…")}
@@ -57,7 +59,7 @@ export default function MapPage() {
                             : "GPS 付きの写真をアップロードするか、編集画面の「地図に出す位置」で場所を選ぶと、約1km の粒度でここに載ります。"}
                     </p>
                     <Link href={ROUTES.HOME} className="inline-block mt-6 text-sky-300 hover:text-sky-200 underline underline-offset-4">
-                        {en ? "Back to gallery" : "ギャラリーへ戻る"}
+                        {en ? "Back to gallery" : "ギャラリーに戻る"}
                     </Link>
                 </div>
             ) : (

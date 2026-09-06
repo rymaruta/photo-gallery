@@ -40,7 +40,9 @@ vi.mock("leaflet", () => {
             state.setViewArgs.push({ center, zoom }); state.center = center; state.zoom = zoom;
             (handlers.moveend ?? []).forEach((f) => f());   // 本物も setView の直後に moveend を出す
         }),
-        remove: vi.fn(),
+        // アンマウントで listener を捨てる（溜めるとテストをまたいで前の
+        // コンポーネントの moveend が走る）
+        remove: vi.fn(() => { for (const k of Object.keys(handlers)) delete handlers[k]; }),
         on: (ev: string, fn: () => void) => { (handlers[ev] ||= []).push(fn); },
         fire: (ev: string) => (handlers[ev] ?? []).forEach((f) => f()),
     };

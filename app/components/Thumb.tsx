@@ -27,12 +27,21 @@ type Props = {
  * 親の相対配置ボックスに absolute で敷き詰める前提。blur-up・フェード・エラー処理を内包。
  */
 export default function Thumb({ photo, alt, sizes, priority = false, objectPosition, className = "" }: Props) {
-    const [loaded, setLoaded] = useState(false);
-
-    // キャッシュ済みで load を取り逃したときに表示へ切り替える（imageReady.ts 参照）
-    const revealIfAlreadyLoaded = useCallback((img: HTMLImageElement | null) => {
-        if (isImageReady(img)) setLoaded(true);
+    // **ハイドレーションまでは隠さない。** 以前は `loaded=false` から始めて
+    // `opacity-0` を静的HTMLに焼いていたので、JS が届いて React が付くまで
+    // 画像が透明のままだった（Chromium 実測・Fast 3G + CPU 4倍: 画像は
+    // 1.6秒で届いているのに見えるのは 5.9秒。その間はぼかしだけ）。
+    // 読み込み中の `<img>` は何も描かない（下のぼかしが透ける。実測）ので、
+    // 「まだ分からない」間は見せておいて損が無い。React が付いた時点
+    // （ref）で「もう届いている／まだ」を見て、まだなら隠してフェードで出す
+    const [phase, setPhase] = useState<"unknown" | "pending" | "loaded">("unknown");
+    const attach = useCallback((img: HTMLImageElement | null) => {
+        if (!img) return;
+        // ref は commit の中で呼ばれ、ここでの setState は描画前に反映される
+        // ——「見える → 隠す」の一瞬は出ない
+        setPhase(isImageReady(img) ? "loaded" : "pending");
     }, []);
+    const loaded = phase === "loaded";
     const [error, setError] = useState(false);
 
     const fallback = photo.thumbSrc || photo.src;
@@ -67,7 +76,7 @@ export default function Thumb({ photo, alt, sizes, priority = false, objectPosit
                 {avifSet && <source type="image/avif" srcSet={avifSet} sizes={sizes} />}
                 {webpSet && <source type="image/webp" srcSet={webpSet} sizes={sizes} />}
                 <img
-                    ref={revealIfAlreadyLoaded}
+                    ref={attach}
                     src={fallback}
                     alt={alt}
                     draggable={false}
@@ -75,9 +84,9 @@ export default function Thumb({ photo, alt, sizes, priority = false, objectPosit
                     loading={priority ? "eager" : "lazy"}
                     fetchPriority={priority ? "high" : "auto"}
                     decoding="async"
-                    onLoad={() => setLoaded(true)}
+                    onLoad={() => setPhase("loaded")}
                     onError={() => setError(true)}
-                    className={`absolute inset-0 w-full h-full object-cover select-none transition-opacity duration-500 ${loaded ? "opacity-100" : "opacity-0"} ${className}`}
+                    className={`absolute inset-0 w-full h-full object-cover select-none transition-opacity duration-500 ${phase === "pending" ? "opacity-0" : "opacity-100"} ${className}`}
                     style={{ WebkitTouchCallout: "none", ...(objectPosition ? { objectPosition } : {}) }}
                 />
             </picture>

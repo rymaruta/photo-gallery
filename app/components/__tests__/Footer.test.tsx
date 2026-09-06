@@ -11,10 +11,12 @@ describe("フッターの導線", () => {
     it("撮影地マップへのリンクを出す（メニューの中にしか無かった）", () => {
         render(<Footer />);
         const links = screen.getAllByRole("link").map((a) => [a.textContent, a.getAttribute("href")]);
-        expect(links).toContainEqual(["撮影地マップ", ROUTES.MAP]);
-        // 既存の並びを壊さない
-        expect(links).toContainEqual(["作品", ROUTES.HOME]);
-        expect(links).toContainEqual(["いいねした写真", ROUTES.FAVORITES]);
-        expect(links).toContainEqual(["プライバシーポリシー", ROUTES.PRIVACY]);
+        // 並びごと見る（`toContainEqual` の羅列だと順序の入れ替えが素通りする）
+        expect(links).toEqual([
+            ["作品", ROUTES.HOME],
+            ["撮影地マップ", ROUTES.MAP],
+            ["いいねした写真", ROUTES.FAVORITES],
+            ["プライバシーポリシー", ROUTES.PRIVACY],
+        ]);
     });
 });

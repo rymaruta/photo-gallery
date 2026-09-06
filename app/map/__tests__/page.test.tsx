@@ -48,7 +48,7 @@ describe("/map", () => {
         expect(screen.getByText("位置情報のある写真はまだありません。")).toBeInTheDocument();
         expect(screen.queryByTestId("photo-map"), "0枚なのに地図を描いている").toBeNull();
         // 行き止まりにしない
-        expect(screen.getByRole("link", { name: "ギャラリーへ戻る" })).toHaveAttribute("href", "/");
+        expect(screen.getByRole("link", { name: "ギャラリーに戻る" })).toHaveAttribute("href", "/");
     });
 
     // 手元の断面に座標が無いだけで、API の一覧には有ることがある（実測: 4秒の
@@ -57,6 +57,7 @@ describe("/map", () => {
         photosState.loaded = false;
         render(<MapPage />);
         expect(screen.getByText("読み込み中…")).toBeInTheDocument();
+        expect(screen.getByText("読み込み中…").getAttribute("aria-busy")).toBe("true");
         expect(screen.queryByText("位置情報のある写真はまだありません。")).toBeNull();
         expect(screen.queryByTestId("photo-map")).toBeNull();
         // 見出しの枚数も「0枚」と言わない（実測: 4秒間「0枚」→「18枚」）
@@ -76,8 +77,10 @@ describe("/map", () => {
         photosState.loaded = false;
         photosState.failed = true;
         render(<MapPage />);
-        expect(screen.getByText(/写真を読み込めませんでした/)).toBeInTheDocument();
+        const msg = screen.getByText(/写真を読み込めませんでした/);
         expect(screen.queryByText("読み込み中…")).toBeNull();
+        // 失敗の告知に「更新中」の印を付けない（支援技術が読み上げを抑える）
+        expect(msg.getAttribute("aria-busy")).toBe("false");
         expect(screen.queryByText("位置情報のある写真はまだありません。")).toBeNull();
     });
 

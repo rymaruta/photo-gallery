@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 import { HeartIcon } from "@heroicons/react/24/solid";
@@ -86,7 +86,16 @@ function PhotoImage({
     onExifLoaded?: (exif: ExtractedExif | null) => void;
 }) {
     const [imageError, setImageError] = useState(false);
-    const [imageLoading, setImageLoading] = useState(true);
+    // **ハイドレーションまでは隠さない**（`Thumb` と同じ理由。この画面は検索の
+    // 着地点なので、JS を待ってから写真を出すのは LCP をそのぶん遅らせる）。
+    // "unknown" = React がまだ付いていない（静的HTMLのまま）。ref で決める
+    const [phase, setPhase] = useState<"unknown" | "pending" | "loaded">("unknown");
+    const imageLoading = phase !== "loaded";
+    // ref は**固定の関数**にする。描画のたびに作り直すと React が毎回呼び直し、
+    // 届いたあとの再描画で `pending` に戻してしまう（テストで踏んだ）
+    const attach = useCallback((img: HTMLImageElement | null) => {
+        if (img) setPhase(isImageReady(img) ? "loaded" : "pending");
+    }, []);
 
     // データ側 exif が欠けている写真のみ、画像読み込み後に EXIF をクライアント抽出する。
     // exifr は重いので初期バンドルに含めず、必要時だけ動的 import する。
@@ -143,8 +152,14 @@ function PhotoImage({
         );
     }
 
+    // **枠の高さの予約は、実寸が分からないときだけ。** 実寸があれば `<img>` の
+    // 幅・高さ属性で比率ぶんの高さが先に確保される（CLS 0）。そこへ
+    // `min-height: 400px` を重ねると、幅の狭い画面では写真より箱が高くなり
+    // 上下が黒帯になる（Chromium 実測・390px: 3:2 の写真が 362x241、箱 400px
+    // → 上下 79px ずつ黒。768px では 0）。検索から着地する画面の一番上がこれだった
+    const reserve = width && height ? undefined : "400px";
     return (
-        <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ minHeight: "400px", position: "relative" }}>
+        <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ minHeight: reserve, position: "relative" }}>
             {/* blur-up: ぼかしプレビューを背景に即表示。本画像がロードされるとフェードで重なる */}
             {blurDataURL && imageLoading && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -156,12 +171,14 @@ function PhotoImage({
                     style={{ filter: "blur(24px)", transform: "scale(1.1)" }}
                 />
             )}
-            {imageLoading && !blurDataURL && (
+            {/* 回転は「まだ」と分かってから。分からないうちに黒で覆うと、
+                届いている写真まで隠す */}
+            {phase === "pending" && !blurDataURL && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
                     <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                 </div>
             )}
-            <div className="relative w-full" style={{ minHeight: "400px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div className="relative w-full" style={{ minHeight: reserve, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {/* AVIF があれば優先（詳細=LCP を軽く）、無ければ従来 src(WebP) にフォールバック */}
                 <picture className="w-full flex items-center justify-center">
                     {srcAvif && <source type="image/avif" srcSet={srcAvif} />}
@@ -204,18 +221,19 @@ function PhotoImage({
                         onContextMenu={(e) => e.preventDefault()}
                         fetchPriority="high"
                         decoding="async"
-                        className={`w-full h-auto object-contain max-h-[80vh] select-none transition-opacity duration-500 ${imageLoading ? "opacity-0" : "opacity-100"}`}
+                        className={`w-full h-auto object-contain max-h-[80vh] select-none transition-opacity duration-500 ${phase === "pending" ? "opacity-0" : "opacity-100"}`}
                         style={{
                             WebkitTouchCallout: "none",
                             ...(focalPoint ? { objectPosition: `${focalPoint.x * 100}% ${focalPoint.y * 100}%` } : {}),
                         }}
                         onError={() => {
                             setImageError(true);
-                            setImageLoading(false);
+                            setPhase("loaded");
                         }}
-                        onLoad={() => setImageLoading(false)}
-                        // キャッシュ済みで load を取り逃した場合の保険（imageReady.ts 参照）
-                        ref={(img) => { if (isImageReady(img)) setImageLoading(false); }}
+                        onLoad={() => setPhase("loaded")}
+                        // React が付いた時点で「もう届いている／まだ」を決める
+                        // （キャッシュ済みで load を取り逃す件も含む。imageReady.ts 参照）
+                        ref={attach}
                     />
                 </picture>
             </div>

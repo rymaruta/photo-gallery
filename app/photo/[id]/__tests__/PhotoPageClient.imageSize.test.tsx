@@ -48,6 +48,22 @@ const mainImage = () => screen.getByAltText(/写真/) as HTMLImageElement;
 
 beforeEach(() => mockPublicFetch.mockReset().mockResolvedValue({ ok: true, json: async () => [] }));
 
+// 実寸があれば `<img>` の属性で比率ぶんの高さが先に確保されるので、
+// `min-height: 400px` は要らない。重ねると幅の狭い画面で写真より箱が高くなり
+// 上下が黒帯になる（Chromium 実測・390px: 3:2 の写真 362x241 に対し箱 400px
+// → 上下 79px ずつ黒）
+describe("写真ページの枠の予約", () => {
+    const boxes = () => Array.from(document.querySelectorAll<HTMLElement>("div")).filter((d) => d.style.minHeight === "400px");
+    it("実寸を持つ写真は 400px の予約を重ねない（黒帯を作らない）", () => {
+        render(<PhotoPageClient photoId="p1" initialPhoto={{ ...base, width: 3000, height: 2000 }} />);
+        expect(boxes(), "実寸があるのに 400px の箱が残っている").toHaveLength(0);
+    });
+    it("実寸を知らない写真は、届くまでの高さを予約する（ガタつきを抑える）", () => {
+        render(<PhotoPageClient photoId="p1" initialPhoto={base} />);
+        expect(boxes().length).toBeGreaterThan(0);
+    });
+});
+
 describe("写真ページの画像サイズ", () => {
     it("実寸を持つ写真は、その実寸を出す（縦位置でも枠がずれない）", async () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={{ ...base, width: 1000, height: 1500 }} />);
