@@ -13,6 +13,9 @@ export default function Footer() {
 
     const links = [
         { href: ROUTES.HOME, label: navLabels.works || (locale === "en" ? "Works" : "作品") },
+        // 撮影地マップはメニューの中にしか無かった。フッターは全ページに
+        // 出るので、写真ページから来た人にも見つかる
+        { href: ROUTES.MAP, label: navLabels.map || (locale === "en" ? "Map" : "撮影地マップ") },
         { href: ROUTES.FAVORITES, label: navLabels.favorites || (locale === "en" ? "Liked Photos" : "いいねした写真") },
         { href: ROUTES.PRIVACY, label: locale === "en" ? "Privacy" : "プライバシーポリシー" },
     ];

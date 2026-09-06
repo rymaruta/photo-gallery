@@ -16,7 +16,7 @@ import PhotoMap, { photosWithCoords } from "../components/PhotoMap";
  */
 export default function MapPage() {
     const { locale } = useLocale();
-    const { photos } = usePhotos();
+    const { photos, loaded, failed } = usePhotos();
     const en = locale === "en";
 
     const geo = useMemo(() => photosWithCoords(photos.filter((p) => p.published !== false)), [photos]);
@@ -26,23 +26,35 @@ export default function MapPage() {
         <main className="max-w-6xl mx-auto px-4 py-6 pb-28">
             <div className="flex items-baseline justify-between gap-3 mb-4">
                 <h1 className="text-xl font-semibold">{en ? "Map" : "撮影地マップ"}</h1>
-                <p className="text-sm text-white/50 tabular-nums">
-                    {en
-                        ? `${geo.length} photo${geo.length === 1 ? "" : "s"} with location`
-                        : `位置情報のある写真 ${geo.length}枚`}
-                </p>
+                {/* 届くまで枚数は出さない——「0枚」は「まだ分からない」と別 */}
+                {(loaded || geo.length > 0) && (
+                    <p className="text-sm text-white/50 tabular-nums">
+                        {en
+                            ? `${geo.length} photo${geo.length === 1 ? "" : "s"} with location`
+                            : `位置情報のある写真 ${geo.length}枚`}
+                    </p>
+                )}
             </div>
 
-            {geo.length === 0 ? (
+            {geo.length === 0 && !loaded ? (
+                // **まだ届いていないなら「まだ」と言わない。** 手元の断面に座標が
+                // 無いだけで、API の一覧には有ることがある（実測: 4秒の回線で
+                // 「0枚・まだありません」が出たあと 18枚に変わった）
+                <div className="rounded-2xl ring-1 ring-white/10 bg-white/5 px-6 py-16 text-center text-white/60 text-sm" aria-busy="true">
+                    {failed
+                        ? (en ? "Couldn't load photos. Check your connection and try again." : "写真を読み込めませんでした。通信を確かめて、もう一度お試しください。")
+                        : (en ? "Loading…" : "読み込み中…")}
+                </div>
+            ) : geo.length === 0 ? (
                 // **0枚は「まだ」と言う。** 位置情報は GPS 付きの写真を上げたとき、
-                // または撮影地名から補ったときに付く。無い状態を「地図が壊れた」と
-                // 読ませない
+                // または撮影地名から補ったとき・編集画面で選んだときに付く。
+                // 無い状態を「地図が壊れた」と読ませない
                 <div className="rounded-2xl ring-1 ring-white/10 bg-white/5 px-6 py-16 text-center text-white/60 text-sm">
                     <p>{en ? "No photos with location yet." : "位置情報のある写真はまだありません。"}</p>
                     <p className="mt-2 text-white/40">
                         {en
-                            ? "Photos uploaded with GPS data appear here (rounded to about 1 km)."
-                            : "GPS 付きの写真をアップロードすると、約1km の粒度でここに載ります。"}
+                            ? "Photos uploaded with GPS data, or given a place from the edit screen, appear here (rounded to about 1 km)."
+                            : "GPS 付きの写真をアップロードするか、編集画面の「地図に出す位置」で場所を選ぶと、約1km の粒度でここに載ります。"}
                     </p>
                     <Link href={ROUTES.HOME} className="inline-block mt-6 text-sky-300 hover:text-sky-200 underline underline-offset-4">
                         {en ? "Back to gallery" : "ギャラリーへ戻る"}

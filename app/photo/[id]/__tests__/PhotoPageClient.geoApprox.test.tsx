@@ -62,3 +62,24 @@ describe("場所チップの地図リンク", () => {
         expect(screen.getByText("パリ")).toBeInTheDocument();
     });
 });
+
+// 撮影地マップ（/map）のその位置へ。外部の Google マップとは別の内部リンク
+describe("撮影地マップへの導線", () => {
+    it("座標があれば、その位置に寄せた /map へのリンクを出す", async () => {
+        render(<PhotoPageClient photoId="p1" initialPhoto={photo({})} />);
+        await screen.findByText("テスト写真");
+        expect(screen.getByRole("link", { name: "撮影地マップで見る" })).toHaveAttribute("href", "/map#12/48.86/2.35");
+    });
+
+    it("おおよその座標（geoApprox）でも出す——地図の側は断りを付けてピンを立てている", async () => {
+        render(<PhotoPageClient photoId="p1" initialPhoto={photo({ geoApprox: true })} />);
+        await screen.findByText("テスト写真");
+        expect(screen.getByRole("link", { name: "撮影地マップで見る" })).toHaveAttribute("href", "/map#12/48.86/2.35");
+    });
+
+    it("座標が無ければ出さない（地図にピンが無い）", async () => {
+        render(<PhotoPageClient photoId="p1" initialPhoto={photo({ coords: undefined })} />);
+        await screen.findByText("テスト写真");
+        expect(screen.queryByRole("link", { name: "撮影地マップで見る" })).toBeNull();
+    });
+});

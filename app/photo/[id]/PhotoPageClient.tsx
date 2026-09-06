@@ -25,6 +25,7 @@ import RelatedPhotos from "../../components/RelatedPhotos";
 import CommentSection from "../../components/CommentSection";
 import { relatedSections, adjacentPhotos } from "../../../lib/utils/related";
 import { ROUTES } from "../../../lib/routes";
+import { formatMapHash, PHOTO_LINK_ZOOM } from "../../../lib/utils/mapView";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
@@ -548,6 +549,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     // そのまま出るので、場所が分からなくなるわけではない
     const fallbackHref = photo.coords && !photo.geoApprox ? makeGoogleSearch(photo.coords.lat, photo.coords.lng) : undefined;
     const href = preferred?.href ?? fallbackHref;
+    // 撮影地マップ（/map）へ、この写真の位置に寄せて飛ぶためのハッシュ。
+    // 座標が無ければ出さない（マップにもピンが無い）
+    const mapHash = photo.coords && Number.isFinite(photo.coords.lat) && Number.isFinite(photo.coords.lng)
+        ? formatMapHash({ lat: photo.coords.lat, lng: photo.coords.lng, zoom: PHOTO_LINK_ZOOM })
+        : "";
 
     // 共有機能
     const currentUrl = typeof window !== "undefined" 
@@ -695,6 +701,19 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                 <MapPinIcon className="w-4 h-4 text-sky-400 flex-shrink-0" />
                                 <span className="truncate">{locationText}</span>
                             </span>
+                        )}
+                        {/* 撮影地マップのその位置へ（内部リンク）。おおよその座標
+                            （geoApprox）でも出す——地図の側は「おおよそ」の断りを
+                            出したうえでピンを立てているので、そこへ飛ぶのは嘘にならない。
+                            上の Google マップの chip とは別で、あちらは正確な座標のときだけ */}
+                        {mapHash && (
+                            <Link
+                                href={`${ROUTES.MAP}${mapHash}`}
+                                className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-sm text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                {locale === "en" ? "See on the map" : "撮影地マップで見る"}
+                            </Link>
                         )}
                         {/* 同じ場所の集約ページへ（内部リンク） */}
                         <Link
