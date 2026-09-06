@@ -33,7 +33,15 @@ const view = () => render(
     <StoryViewer groups={groups} initialGroupIndex={0} locale="ja" ownUserId="me" isAuthenticated onSeen={vi.fn()} onClose={vi.fn()} />,
 );
 
-beforeEach(() => { document.body.innerHTML = ""; });
+/** 「動きを減らす」設定を模す（jsdom には matchMedia が無い） */
+function setReducedMotion(reduce: boolean) {
+    Object.defineProperty(window, "matchMedia", {
+        configurable: true, writable: true,
+        value: (q: string) => ({ matches: reduce && q.includes("reduced-motion"), media: q, addEventListener: () => {}, removeEventListener: () => {} }),
+    });
+}
+
+beforeEach(() => { document.body.innerHTML = ""; setReducedMotion(false); });
 
 describe("ストーリーの自動送りを止める", () => {
     it("既定では進む", () => {
@@ -77,6 +85,24 @@ describe("ストーリーの自動送りを止める", () => {
         fireEvent.pointerDown(zone, { clientX: 10, clientY: 10 });
         expect(playState()).toBe("paused");
         fireEvent.pointerUp(zone);
+        expect(playState()).toBe("running");
+    });
+
+    // **「動きを減らす」設定なら、最初から止めて出す。**
+    // 自動送りは「勝手に進む動き」そのもの。ただし進む手段は残す
+    // （`animation: none` にすると `onAnimationEnd` が来ず二度と進まない）
+    it("動きを減らす設定なら、開いた時点で止まっている", () => {
+        setReducedMotion(true);
+        view();
+        expect(playState()).toBe("paused");
+        // 進めなくなってはいけない: 押せば再開する
+        fireEvent.click(screen.getByLabelText("再生"));
+        expect(playState()).toBe("running");
+    });
+
+    it("設定が無ければ、今までどおり進む", () => {
+        setReducedMotion(false);
+        view();
         expect(playState()).toBe("running");
     });
 });

@@ -51,7 +51,6 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     // 「進んでは止まり」を繰り返して見えた。しかも更新のたびにビューア全体が
     // 再描画されていた。
     const progressBarRef = useRef<HTMLDivElement | null>(null);
-    const [paused, setPaused] = useState(false);
     const [muted, setMuted] = useState(true);
 
     // ストーリーBGM: 表示中のストーリーに曲が付いていれば再生する。
@@ -279,6 +278,18 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     }, []);
 
     // ダイアログ表示中は自動送りを止める
+    /**
+     * **「動きを減らす」設定なら、最初から止めて出す。**
+     * 自動送りは「勝手に進む動き」そのもので、読む速さも人によって違う。
+     * ただし **`animation: none` にはしない**——画像の送りはこの CSS
+     * アニメーションの `onAnimationEnd` が駆動しているので、消すと
+     * **二度と進まなくなる**。止めるのは再生状態だけにして、進む手段
+     * （タップ・→・停止ボタン）は残す。
+     * 設定を切り替えても地図と同じく開き直すまでは追随しない（初期値のみ）。
+     */
+    const [paused, setPaused] = useState(() =>
+        typeof window !== "undefined" && typeof window.matchMedia === "function"
+        && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     const frozen = paused || viewersOpen || confirmDelete;
 
     // 画像の進捗は CSS アニメーション（60fps・再描画なし）が駆動し、
