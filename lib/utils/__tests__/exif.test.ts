@@ -123,48 +123,38 @@ describe("extractCameraExif", () => {
     });
 });
 
+// **サーバー越しに引く。** 以前はここから直接 Nominatim に座標を送っていた
+// （撮影した場所の座標が利用者の IP と一緒に相手へ渡る）。丸め・zoom・
+// 地名の組み立てはサーバー側（`api-user/src/geocodeSearch.ts`）に移した。
 describe("reverseGeocode", () => {
-    function stubFetch(response: unknown, ok = true) {
-        const fetchMock = vi.fn().mockResolvedValue({
-            ok,
-            json: async () => response,
-        });
-        vi.stubGlobal("fetch", fetchMock);
-        return fetchMock;
-    }
+    const userFetch = vi.hoisted(() => vi.fn());
+    vi.mock("../api", () => ({ userFetch: (...a: unknown[]) => userFetch(...a) }));
+    beforeEach(() => { userFetch.mockReset(); });
 
-    it("座標を約1km精度に丸め、市区町村レベル(zoom=10)で問い合わせる", async () => {
-        const fetchMock = stubFetch({ address: { city: "京都市", state: "京都府", country: "日本" } });
-        await reverseGeocode(35.011636, 135.768029, "ja");
-        const url = String(fetchMock.mock.calls[0][0]);
-        expect(url).toContain("lat=35.01");
-        expect(url).toContain("lon=135.77");
-        expect(url).toContain("zoom=10");
-        expect(url).toContain("accept-language=ja");
-        // 丸め前の生の座標がURLに含まれないこと（プライバシー）
-        expect(url).not.toContain("35.011636");
-        expect(url).not.toContain("135.768029");
+    it("自分のサーバーの代理を叩き、Nominatim を直接は呼ばない", async () => {
+        const direct = vi.fn();
+        vi.stubGlobal("fetch", direct);
+        userFetch.mockResolvedValue({ ok: true, json: async () => ({ place: "京都市, 京都府, 日本" }) });
+        expect(await reverseGeocode(35.011636, 135.768029, "ja")).toBe("京都市, 京都府, 日本");
+        expect(direct, "ブラウザから直接 Nominatim に座標を送っている").not.toHaveBeenCalled();
+        const [path, init] = userFetch.mock.calls[0] as [string, { timeoutMs?: number }];
+        expect(path).toMatch(/^\/geocode\/reverse\?/);
+        expect(path).toContain("locale=ja");
+        // **5秒で諦める。** 返らないと公開ボタンが永久に押せなかった
+        expect(init.timeoutMs).toBe(5000);
     });
 
-    it("市区町村・都道府県・国を結合して返す", async () => {
-        stubFetch({ address: { city: "京都市", state: "京都府", country: "日本" } });
-        expect(await reverseGeocode(35.01, 135.77, "ja")).toBe("京都市, 京都府, 日本");
+    it("地名が無ければ null（空文字や数値は地名にしない）", async () => {
+        userFetch.mockResolvedValue({ ok: true, json: async () => ({ place: null }) });
+        expect(await reverseGeocode(0, 0, "en")).toBeNull();
+        userFetch.mockResolvedValue({ ok: true, json: async () => ({ place: "" }) });
+        expect(await reverseGeocode(0, 0, "en")).toBeNull();
     });
 
-    it("city が無ければ town / village などにフォールバックする", async () => {
-        stubFetch({ address: { village: "白川村", state: "岐阜県", country: "日本" } });
-        expect(await reverseGeocode(36.27, 136.9, "ja")).toBe("白川村, 岐阜県, 日本");
-    });
-
-    it("address が空なら display_name を返す", async () => {
-        stubFetch({ display_name: "Somewhere, Earth" });
-        expect(await reverseGeocode(0, 0, "en")).toBe("Somewhere, Earth");
-    });
-
-    it("HTTPエラー・例外は null", async () => {
-        stubFetch({}, false);
+    it("HTTPエラー・時間切れ・例外は null（写真は上げられる）", async () => {
+        userFetch.mockResolvedValue({ ok: false, status: 502 });
         expect(await reverseGeocode(35, 135, "ja")).toBeNull();
-        vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network")));
+        userFetch.mockRejectedValue(new DOMException("応答がありません", "TimeoutError"));
         expect(await reverseGeocode(35, 135, "ja")).toBeNull();
     });
 });

@@ -517,6 +517,9 @@ function UploadPageInner() {
         if (gpsAutofillRef.current) {
             for (const r of exifResults) {
                 if (leftPageRef.current) break;   // 画面を離れた。続きは投げない
+                // **毎回トグルを見る。** 入るときに1回見るだけだと、待っている
+                // 途中で切っても止まらず、公開ボタンが解放されない（実測）
+                if (!gpsAutofillRef.current) break;
                 if (r.meta.latitude !== undefined && r.meta.longitude !== undefined) {
                     const place = await reverseGeocode(r.meta.latitude, r.meta.longitude, locale);
                     if (place) {
@@ -1152,10 +1155,13 @@ function UploadPageInner() {
                             {locale === "en" ? `${pendingCount} ready` : `${pendingCount} 枚待ち`}
                         </p>
                         <div className="flex items-center gap-2 flex-1 sm:flex-none justify-end">
-                            {/* 下書き保存: 必須項目なしで非公開保存。あとで編集して公開できる */}
+                            {/* 下書き保存: 必須項目なしで非公開保存。あとで編集して公開できる。
+                                **地名の引き当てを待たない**——下書きは公開ではないので、
+                                場所は後から編集画面で足せる。公開だけが待つ
+                                （場所の無いまま公開される事故を過去に踏んでいるため） */}
                             <button
                                 onClick={() => handleUploadAll(false)}
-                                disabled={uploading || metaLoading || pendingCount === 0}
+                                disabled={uploading || pendingCount === 0}
                                 className="px-4 py-3 bg-white/10 hover:bg-white/20 text-white text-sm font-semibold rounded-full ring-1 ring-white/15 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >

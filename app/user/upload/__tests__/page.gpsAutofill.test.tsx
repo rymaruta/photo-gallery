@@ -155,3 +155,38 @@ describe("受け付けなかったファイルの伝え方", () => {
         await waitFor(() => expect(mockExtractExif).toHaveBeenCalled());
     });
 });
+
+// **地名の引き当てを待たせすぎない。**
+// 実測: GPS 付きを5枚選ぶと両方のボタンが 5.7 秒押せず、逆引きが返らないと
+// 永久に押せなかった（トグルを切っても解放されない）。
+describe("地名を引いている間", () => {
+    it("下書き保存は押せる（公開だけが待つ）", async () => {
+        localStorage.setItem("jp_gps_autofill", "1");
+        mockReverseGeocode.mockImplementation(() => new Promise(() => {}));   // 返らない
+        render(<UploadPage />);
+        await waitFor(() => expect(mockReverseGeocode).toHaveBeenCalled());
+
+        const draft = screen.getByRole("button", { name: "下書き保存" });
+        const publish = screen.getByRole("button", { name: /読み取り中/ });
+        expect(draft, "地名を待たされて下書きも押せない").toBeEnabled();
+        expect(publish, "場所が無いまま公開できてしまう").toBeDisabled();
+    });
+
+    it("途中でトグルを切ったら、残りの写真は引かない", async () => {
+        localStorage.setItem("jp_gps_autofill", "1");
+        // 3枚とも GPS あり
+        mockReadSharedPayload.mockResolvedValue({
+            files: [sharedFile(), sharedFile(), sharedFile()], title: "", text: "", t: Date.now(),
+        });
+        let calls = 0;
+        mockReverseGeocode.mockImplementation(async () => { calls++; return "札幌市, 北海道, 日本"; });
+        render(<UploadPage />);
+        await waitFor(() => expect(calls).toBe(1));
+
+        // 1枚目を引いたあとの待ち（1.1秒）の間に切る
+        const box = await screen.findByRole("checkbox");
+        await act(async () => { (box as HTMLElement).click(); });
+        await new Promise((r) => setTimeout(r, 1400));
+        expect(calls, "切ったのに残りの写真を引いている").toBe(1);
+    });
+});

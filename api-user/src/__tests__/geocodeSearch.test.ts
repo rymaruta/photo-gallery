@@ -6,7 +6,7 @@ import { join } from "node:path";
 const mockDdbSend = vi.hoisted(() => vi.fn());
 vi.mock("../dynamodb", () => ({ ddb: { send: mockDdbSend }, PHOTOS_TABLE: "photos-test" }));
 
-import { geocodeSearch, mapNominatimResults, FETCH_TIMEOUT_MS, CACHE_TTL_MS } from "../geocodeSearch";
+import { geocodeSearch, geocodeReverse, mapNominatimResults, placeNameFromReverse, FETCH_TIMEOUT_MS, CACHE_TTL_MS } from "../geocodeSearch";
 
 // 撮影地の位置さがし（Nominatim の代理）。
 // **画面から直接叩かない**——利用者の IP を相手に渡さず、規約が求める
@@ -181,5 +181,63 @@ describe("結果の控え（Nominatim の規約: キャッシュせよ）", () =
         const res = await invoke("福岡");
         expect(res.statusCode).toBe(200);
         expect(JSON.parse(res.body).results).toHaveLength(1);
+    });
+});
+
+// 座標 → 地名（アップロード時の自動入力）。これまで**ブラウザから直接**
+// Nominatim に撮影地の座標を送っていた。地名さがしと同じ理由でサーバー越しに
+describe("geocodeReverse", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rev = (qs?: Record<string, string>): Promise<Result> => (geocodeReverse as any)({ queryStringParameters: qs });
+
+    it("市区町村・県・国の順で地名を組む（番地は入れない）", () => {
+        expect(placeNameFromReverse({ address: { city: "京都市", state: "京都府", country: "日本", road: "烏丸通" } })).toBe("京都市, 京都府, 日本");
+        expect(placeNameFromReverse({ address: { village: "山中湖村", state: "山梨県", country: "日本" } })).toBe("山中湖村, 山梨県, 日本");
+        expect(placeNameFromReverse({ display_name: "どこか" })).toBe("どこか");
+        expect(placeNameFromReverse({})).toBeNull();
+        expect(placeNameFromReverse(null)).toBeNull();
+    });
+
+    it("座標が読めなければ 400（外に投げない）", async () => {
+        expect((await rev({ lat: "abc", lng: "1" })).statusCode).toBe(400);
+        expect((await rev({ lat: "91", lng: "1" })).statusCode).toBe(400);
+        expect((await rev()).statusCode).toBe(400);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("約1kmに丸めてから引き、市区町村レベル（zoom=10）で聞く", async () => {
+        fetchMock.mockResolvedValue(ok({ address: { city: "京都市", state: "京都府", country: "日本" } }));
+        const res = await rev({ lat: "35.011636", lng: "135.768029", locale: "ja" });
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).place).toBe("京都市, 京都府, 日本");
+        const url = fetchMock.mock.calls[0][0] as string;
+        expect(url).toContain("lat=35.01&lon=135.77");   // 小数2桁
+        expect(url).toContain("zoom=10");
+        expect(url).not.toContain("35.011636");           // 生の座標を送らない
+        const init = fetchMock.mock.calls[0][1] as { headers: Record<string, string>; signal: unknown };
+        expect(init.headers["User-Agent"]).toMatch(/journey-photo/);
+        expect(init.signal, "外向き通信に打ち切りが無い").toBeTruthy();
+    });
+
+    it("同じ座標は控えから返し、相手に投げない", async () => {
+        mockDdbSend.mockImplementation(async (cmd: { constructor: { name: string } }) =>
+            cmd.constructor.name === "GetCommand"
+                ? { Item: { id: "geocache#rev:ja:35.01,135.77", place: "京都市, 京都府, 日本", cachedAt: Date.now() - 1000 } }
+                : {});
+        const res = await rev({ lat: "35.014", lng: "135.766" });
+        expect(JSON.parse(res.body).place).toBe("京都市, 京都府, 日本");
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("「地名が無い」も控える（無い座標を毎回引き直さない）", async () => {
+        fetchMock.mockResolvedValue(ok({}));
+        await rev({ lat: "0", lng: "0" });
+        const put = mockDdbSend.mock.calls.map((c) => c[0]).find((cmd) => cmd?.constructor?.name === "PutCommand") as { input: { Item: Record<string, unknown> } };
+        expect(put.input.Item).toMatchObject({ id: "geocache#rev:ja:0,0", place: null });
+    });
+
+    it("相手が返らなければ 500 で畳む", async () => {
+        fetchMock.mockRejectedValue(Object.assign(new Error("timeout"), { name: "TimeoutError" }));
+        expect((await rev({ lat: "35", lng: "135" })).statusCode).toBe(500);
     });
 });

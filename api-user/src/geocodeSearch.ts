@@ -148,3 +148,71 @@ export const geocodeSearch: APIGatewayProxyHandlerV2 = async (event) => {
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "位置を探せませんでした" }) };
     }
 };
+
+/**
+ * 座標 → 地名（アップロード時の自動入力）。
+ *
+ * これまで**利用者のブラウザから直接 Nominatim に座標を送っていた**
+ * （`lib/utils/exif.ts` の旧 `reverseGeocode`）。上の位置さがしをサーバー越しに
+ * した理由（IP を渡さない・名乗る・回数を抑える）はこちらにもそのまま当てはまる
+ * ——しかも送っているのは**撮影した場所の座標**で、地名の文字より重い。
+ * 座標は約1km（小数2桁）に丸めてから引き、市区町村レベル（zoom=10）で聞く。
+ * 結果は座標ごとに30日控える。
+ */
+export function placeNameFromReverse(json: unknown): string | null {
+    if (!json || typeof json !== "object") return null;
+    const data = json as { address?: Record<string, string>; display_name?: string };
+    const a = data.address ?? {};
+    const parts = [
+        a.city ?? a.town ?? a.village ?? a.suburb ?? a.county,
+        a.state ?? a.region,
+        a.country,
+    ].filter(Boolean);
+    if (parts.length > 0) return parts.join(", ");
+    return typeof data.display_name === "string" && data.display_name ? data.display_name : null;
+}
+
+export const geocodeReverse: APIGatewayProxyHandlerV2 = async (event) => {
+    const lat = Number(event.queryStringParameters?.lat);
+    const lng = Number(event.queryStringParameters?.lng);
+    const locale = event.queryStringParameters?.locale === "en" ? "en" : "ja";
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "座標が不正です" }) };
+    }
+    const rlat = Math.round(lat * 100) / 100;
+    const rlng = Math.round(lng * 100) / 100;
+    const key = `rev:${locale}:${rlat},${rlng}`;
+    // 控え（地名の検索と同じ表・同じ期限）
+    try {
+        const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: cacheKey(key) } }));
+        const item = res.Item as { place?: unknown; cachedAt?: unknown } | undefined;
+        const at = Number(item?.cachedAt);
+        if (item && (typeof item.place === "string" || item.place === null) && Number.isFinite(at) && Date.now() - at <= CACHE_TTL_MS && Date.now() >= at) {
+            return { statusCode: 200, headers: { ...JSON_HEADERS, "Cache-Control": "public, max-age=600" }, body: JSON.stringify({ place: item.place }) };
+        }
+    } catch (e) {
+        console.warn("geocodeReverse cache read failed:", e);
+    }
+    try {
+        await waitForSlot();
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${rlat}&lon=${rlng}&zoom=10&accept-language=${locale}`;
+        const res = await fetch(url, {
+            headers: { "User-Agent": UA, Accept: "application/json" },
+            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        });
+        if (!res.ok) {
+            return { statusCode: 502, headers: JSON_HEADERS, body: JSON.stringify({ error: "地名を引けませんでした" }) };
+        }
+        const place = placeNameFromReverse(await res.json());
+        try {
+            await ddb.send(new PutCommand({ TableName: PHOTOS_TABLE, Item: { id: cacheKey(key), place, cachedAt: Date.now() } }));
+        } catch (e) {
+            console.warn("geocodeReverse cache write failed:", e);
+        }
+        return { statusCode: 200, headers: { ...JSON_HEADERS, "Cache-Control": "public, max-age=600" }, body: JSON.stringify({ place }) };
+    } catch (e) {
+        const timedOut = e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError");
+        console.error(timedOut ? `geocodeReverse timeout (${FETCH_TIMEOUT_MS}ms):` : "geocodeReverse error:", e);
+        return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "地名を引けませんでした" }) };
+    }
+};

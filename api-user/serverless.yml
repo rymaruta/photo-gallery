@@ -235,6 +235,21 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 座標 → 地名（アップロード時の自動入力）。これまでブラウザから直接
+  # Nominatim に**撮影地の座標**を送っていた。地名さがしと同じ理由でサーバー越しに
+  geocodeReverse:
+    handler: src/geocodeSearch.geocodeReverse
+    role: GeocodeRole
+    timeout: 6
+    environment:
+      GEOCODE_UA: "journey-photo.com place picker (+https://journey-photo.com/privacy)"
+    events:
+      - httpApi:
+          path: /geocode/reverse
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
   updatePhotoVisibility:
     # 実体を消したあとに静的サイトの再ビルドを頼む（外部への HTTP）。
     # 既定の6秒だと、GitHub が遅いだけで**データはもう消えているのに
