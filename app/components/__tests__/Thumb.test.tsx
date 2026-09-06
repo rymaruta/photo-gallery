@@ -66,10 +66,16 @@ describe("Thumb: ハイドレーション前は隠さない", () => {
         Object.defineProperty(HTMLImageElement.prototype, "complete", { configurable: true, get: () => ready });
         Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", { configurable: true, get: () => (ready ? 512 : 0) });
     };
+    // jsdom は `complete`/`naturalWidth` をプロトタイプ自身のアクセサとして
+    // 持つので、`delete` すると**定義ごと消えて** `img.complete` が undefined に
+    // なる。控えて戻す
+    const saved = {
+        complete: Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "complete")!,
+        naturalWidth: Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "naturalWidth")!,
+    };
     const restore = () => {
-        // jsdom の元の定義に戻す（プロトタイプの上書きを消す）
-        delete (HTMLImageElement.prototype as unknown as Record<string, unknown>).complete;
-        delete (HTMLImageElement.prototype as unknown as Record<string, unknown>).naturalWidth;
+        Object.defineProperty(HTMLImageElement.prototype, "complete", saved.complete);
+        Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", saved.naturalWidth);
     };
 
     it("静的HTML（サーバー描画）では画像を透明にしない。ぼかしは敷く", () => {
@@ -103,5 +109,39 @@ describe("Thumb: ハイドレーション前は隠さない", () => {
             expect(img.className).not.toContain("opacity-0");
             expect(container.querySelector('img[src^="data:"]')).toBeNull();
         } finally { restore(); }
+    });
+});
+
+// **静的HTML由来の <img> は、届いていなくても隠さない。** Chromium は JPEG/WebP を
+// 届いた行まで逐次描くので、途中まで見えている写真を React が付いた瞬間に
+// `opacity-0` にすると「見えた → 消える → 出る」になる。ここは本物のハイドレーション
+// （`renderToString` → `hydrateRoot`）で確かめる
+describe("Thumb: ハイドレーション由来の画像はブラウザに任せる", () => {
+    const base = { src: "https://cdn/x.jpg", thumbSrc: "https://cdn/x_thumb.webp", blurDataURL: "data:image/webp;base64,AAAA" };
+    const hydrate = async (photo: typeof base) => {
+        const { hydrateRoot } = await import("react-dom/client");
+        const { act } = await import("react");
+        const host = document.createElement("div");
+        host.innerHTML = renderToString(<div style={{ position: "relative" }}><Thumb photo={photo} alt="t" /></div>);
+        document.body.appendChild(host);
+        const errors: unknown[] = [];
+        let root: ReturnType<typeof hydrateRoot> | null = null;
+        await act(async () => {
+            root = hydrateRoot(host, <div style={{ position: "relative" }}><Thumb photo={photo} alt="t" /></div>, { onRecoverableError: (e) => errors.push(e) });
+        });
+        return { host, errors, act, cleanup: async () => { await act(async () => { root?.unmount(); }); host.remove(); } };
+    };
+
+    it("React が付いてもまだ届いていない画像を隠さず、届いたらぼかしだけ外す", async () => {
+        const { host, errors, act, cleanup } = await hydrate(base);
+        try {
+            expect(errors, "ハイドレーションの不一致").toEqual([]);
+            const img = host.querySelector("picture > img")!;
+            expect(img.className, "静的HTML由来の画像を隠している").not.toContain("opacity-0");
+            expect(host.querySelector('img[src^="data:"]'), "届く前にぼかしを外している").not.toBeNull();
+            await act(async () => { fireEvent.load(img); });
+            expect(img.className).toContain("opacity-100");
+            expect(host.querySelector('img[src^="data:"]')).toBeNull();
+        } finally { await cleanup(); }
     });
 });

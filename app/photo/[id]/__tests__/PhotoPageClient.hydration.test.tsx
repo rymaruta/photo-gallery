@@ -40,9 +40,16 @@ const setReady = (ready: boolean) => {
     Object.defineProperty(HTMLImageElement.prototype, "complete", { configurable: true, get: () => ready });
     Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", { configurable: true, get: () => (ready ? 1000 : 0) });
 };
+// jsdom は `complete`/`naturalWidth` をプロトタイプ自身のアクセサとして
+// 持つので、`delete` すると**定義ごと消えて** `img.complete` が undefined に
+// なる。控えて戻す
+const saved = {
+    complete: Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "complete")!,
+    naturalWidth: Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "naturalWidth")!,
+};
 const restore = () => {
-    delete (HTMLImageElement.prototype as unknown as Record<string, unknown>).complete;
-    delete (HTMLImageElement.prototype as unknown as Record<string, unknown>).naturalWidth;
+    Object.defineProperty(HTMLImageElement.prototype, "complete", saved.complete);
+    Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", saved.naturalWidth);
 };
 
 beforeEach(() => mockPublicFetch.mockReset().mockResolvedValue({ ok: true, json: async () => [] }));
@@ -85,5 +92,32 @@ describe("写真ページ: ハイドレーション前は隠さない", () => {
             fireEvent.error(mainImage());
             expect(screen.getByText("画像を読み込めません")).toBeInTheDocument();
         } finally { restore(); }
+    });
+});
+
+// 静的HTML由来の本体は、届いていなくても隠さない（`Thumb` と同じ理由。
+// 本物のハイドレーションで確かめる）
+describe("写真ページ: ハイドレーション由来の本体はブラウザに任せる", () => {
+    it("React が付いてもまだ届いていない本体を隠さず、回転も出さない", async () => {
+        const { hydrateRoot } = await import("react-dom/client");
+        const { act } = await import("react");
+        const host = document.createElement("div");
+        const el = <PhotoPageClient photoId="p1" initialPhoto={base} />;
+        host.innerHTML = renderToString(el);
+        document.body.appendChild(host);
+        const errors: unknown[] = [];
+        let root: ReturnType<typeof hydrateRoot> | null = null;
+        try {
+            await act(async () => { root = hydrateRoot(host, el, { onRecoverableError: (e) => errors.push(e) }); });
+            expect(errors, "ハイドレーションの不一致").toEqual([]);
+            const img = host.querySelector('img[alt="写真"]')!;
+            expect(img.className).not.toContain("opacity-0");
+            expect(host.querySelector(".animate-spin")).toBeNull();
+            await act(async () => { fireEvent.load(img); });
+            expect(img.className).toContain("opacity-100");
+        } finally {
+            await act(async () => { root?.unmount(); });
+            host.remove();
+        }
     });
 });

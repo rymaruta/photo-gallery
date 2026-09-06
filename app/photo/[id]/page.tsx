@@ -106,8 +106,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
                 {
                     url: imageUrl,
                     // **実寸を持たないなら寸法を出さない。** 1200x630 を決め打ちして
-                    // いたが、width/height を持つ写真は0枚（30枚中）なので
-                    // **全ページが嘘の寸法を申告していた**。SNS 側はそれを信じて
+                    // いた（コミット済みの古い断面では width/height を持つ写真が
+                    // 0枚で、**全ページが嘘の寸法を申告していた**。本番の公開写真は
+                    // 2026-09-05 の実測で全部持っている）。SNS 側はそれを信じて
                     // 領域を確保するので、共有カードで写真が切れる・伸びる。
                     // 分からないなら黙る方がよい（省略すれば取得側が実寸を見る）。
                     ...(photo.width && photo.height ? { width: photo.width, height: photo.height } : {}),

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 import { HeartIcon } from "@heroicons/react/24/solid";
@@ -61,6 +61,26 @@ function hasStoredExif(exif?: Photo["exif"]): boolean {
     return !!exif && Object.values(exif).some((v) => v !== undefined && v !== null && v !== "");
 }
 
+
+/**
+ * この描画が「ハイドレーション」（静的HTMLに React を付けている）かどうか。
+ * サーバー側の値（false）はハイドレーションの最初の描画でだけ使われ、
+ * クライアント遷移で新しく作られた部品は最初から true。
+ * **ハイドレーション由来の `<img>` は隠さない**——Chromium は JPEG/WebP を
+ * 届いた行まで逐次描くので、途中まで見えている写真を React が付いた瞬間に
+ * `opacity-0` にすると「見えた → 消える → 出る」になる。ブラウザに任せ、
+ * 届いたら（onLoad）ぼかしを外すだけ。フェードで出すのは、クライアント遷移で
+ * 新しく作った `<img>`（作った瞬間に隠すので何も描かれていない）だけ
+ */
+const subscribeNoop = () => () => {};
+function useHydratedFromHtml(): boolean {
+    const clientRender = useSyncExternalStore(subscribeNoop, () => true, () => false);
+    // 最初の描画の値だけを覚える（あとで true に変わっても、この部品が
+    // 静的HTML由来であることは変わらない）。初期化関数は最初の描画でしか走らない
+    const [fromHtml] = useState(() => !clientRender);
+    return fromHtml;
+}
+
 // 画像コンポーネント（エラーハンドリング付き、EXIF読み取り機能付き）
 function PhotoImage({
     src,
@@ -88,14 +108,18 @@ function PhotoImage({
     const [imageError, setImageError] = useState(false);
     // **ハイドレーションまでは隠さない**（`Thumb` と同じ理由。この画面は検索の
     // 着地点なので、JS を待ってから写真を出すのは LCP をそのぶん遅らせる）。
-    // "unknown" = React がまだ付いていない（静的HTMLのまま）。ref で決める
+    // "unknown" = React がまだ付いていない（静的HTMLのまま）。ref で決める。
+    // 静的HTML由来の `<img>` は届いていなくても隠さない（途中まで描かれて
+    // いるかもしれない。`useHydratedFromHtml` を参照）
     const [phase, setPhase] = useState<"unknown" | "pending" | "loaded">("unknown");
     const imageLoading = phase !== "loaded";
-    // ref は**固定の関数**にする。描画のたびに作り直すと React が毎回呼び直し、
-    // 届いたあとの再描画で `pending` に戻してしまう（テストで踏んだ）
+    const fromHtml = useHydratedFromHtml();
+    // ref は `useCallback` で固定（`Thumb` と同じ理由）
     const attach = useCallback((img: HTMLImageElement | null) => {
-        if (img) setPhase(isImageReady(img) ? "loaded" : "pending");
-    }, []);
+        if (!img) return;
+        if (isImageReady(img)) setPhase("loaded");
+        else if (!fromHtml) setPhase("pending");
+    }, [fromHtml]);
 
     // データ側 exif が欠けている写真のみ、画像読み込み後に EXIF をクライアント抽出する。
     // exifr は重いので初期バンドルに含めず、必要時だけ動的 import する。

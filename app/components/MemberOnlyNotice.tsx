@@ -27,7 +27,7 @@ export default function MemberOnlyNotice({ locale = "ja" }: { locale?: string })
                         : "登録の最後の処理が完了しなかったときに起きます。ログインし直しても直りません。お手数ですが、ご連絡いただければこちらで設定します。"}
                 </p>
                 <Link href={ROUTES.HOME} className="inline-block text-sm text-white/80 underline hover:text-white">
-                    {en ? "Back to gallery" : "ギャラリーへ戻る"}
+                    {en ? "Back to gallery" : "ギャラリーに戻る"}
                 </Link>
             </div>
         </main>
