@@ -51,7 +51,9 @@ export default function MapPage() {
             ) : (
                 <>
                     <PhotoMap photos={geo} locale={locale} />
-                    <p className="mt-3 text-xs text-white/40">
+                    {/* 位置の出どころの断り。**小さい字なので色は薄くしない**
+                        （white/40 は黒地で約3.7:1 ＝ 小さい文字の基準 4.5:1 に届かない） */}
+                    <p className="mt-3 text-xs text-white/60">
                         {en
                             ? "Pins are rounded to about 1 km. "
                             : "ピンの位置は約1km の粒度に丸めています。"}

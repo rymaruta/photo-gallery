@@ -128,7 +128,10 @@ describe("ポップアップ", () => {
         await draw([photo("a"), photo("b"), photo("c")]);
         const list = state.markers.find((m) => m.kind === "marker")!.popup!;
         expect(list.className).toContain("photo-map-list");
-        expect(list.getAttribute("role")).toBe("group");
+        // 読み上げに「リスト・N項目」と伝える（`group` だと何枚目かが読まれない）
+        expect(list.getAttribute("role")).toBe("list");
+        expect([...list.querySelectorAll(":scope > .photo-map-card")].map((c) => c.getAttribute("role")))
+            .toEqual(["listitem", "listitem", "listitem"]);
         expect(list.getAttribute("aria-label")).toBe("この場所の写真 3枚");
         // カードは横並びの子（1枚ずつが送る単位）
         expect(list.querySelectorAll(":scope > .photo-map-card")).toHaveLength(3);
@@ -148,6 +151,53 @@ describe("ポップアップ", () => {
         // 実測: 見積もり 107px に対し 3:4 の写真は 213px で描かれる。
         // Leaflet は開いた瞬間にしか測らないので、伸びたぶんは枠の外に残る
         expect(marker.update, "画像が入っても測り直していない").toHaveBeenCalled();
+    });
+
+    // **測り直しで送った位置を失わない。** Leaflet の `update()` は中身の DOM を
+    // 外して付け直すので `scrollLeft` が 0 に戻る。サムネは lazy なので
+    // 「送る → 画像が届く → 測り直し → 先頭へ戻る」になり、送る操作そのものが
+    // 送れなくする（実測: 10枚の束で5回送って5回とも先頭へ戻された）
+    it("測り直しても、送った位置を戻す", async () => {
+        await draw([photo("a"), photo("b"), photo("c")]);
+        const marker = state.markers.find((m) => m.kind === "marker")!;
+        const list = marker.popup!;
+        // jsdom はレイアウトを持たないので scrollLeft は常に 0。読み書きを覗く
+        let scroll = 334;
+        const writes: number[] = [];
+        Object.defineProperty(list, "scrollLeft", {
+            configurable: true,
+            get: () => scroll,
+            set: (v: number) => { writes.push(v); scroll = v; },
+        });
+        list.querySelectorAll("img")[1].dispatchEvent(new Event("load"));
+        expect(marker.update).toHaveBeenCalled();
+        expect(writes, "測り直しのあとに位置を戻していない").toEqual([334]);
+    });
+
+    it("測り直しても、当たっていた焦点を戻す", async () => {
+        await draw([photo("a"), photo("b")]);
+        const marker = state.markers.find((m) => m.kind === "marker")!;
+        const list = marker.popup!;
+        document.body.appendChild(list);   // フォーカスは文書の中でしか当たらない
+        const link = list.querySelectorAll("a")[1] as HTMLAnchorElement;
+        link.focus();
+        expect(document.activeElement).toBe(link);
+        const spy = vi.spyOn(link, "focus");
+        list.querySelectorAll("img")[0].dispatchEvent(new Event("load"));
+        expect(spy, "測り直しのあとにフォーカスを戻していない").toHaveBeenCalled();
+        list.remove();
+    });
+
+    // Tab で来たカードは端まで送る。一部でも見えているとブラウザは送らないので、
+    // 偶数枚目は 34px しか見えないままフォーカスだけが当たる（実測）
+    it("Tab でカードに来たら、そのカードを端まで送る", async () => {
+        await draw([photo("a"), photo("b"), photo("c")]);
+        const list = state.markers.find((m) => m.kind === "marker")!.popup!;
+        const card = list.querySelectorAll(".photo-map-card")[1] as HTMLElement;
+        const spy = vi.fn();
+        card.scrollIntoView = spy;   // jsdom には実装が無い
+        list.querySelectorAll("a")[1].dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+        expect(spy).toHaveBeenCalledWith({ inline: "start", block: "nearest" });
     });
 
     it("サムネが preflight に潰されないよう、カードに目印を付ける", async () => {

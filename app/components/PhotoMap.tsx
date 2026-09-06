@@ -114,6 +114,23 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                 return box;
             };
 
+            /**
+             * ポップアップを測り直す。**位置と焦点は自分で戻す**——Leaflet の
+             * `update()` は中身の DOM を一度外して付け直すので（`_updateContent`）、
+             * 横送りの位置は 0 に戻り、フォーカスは body へ落ちる。
+             * サムネは lazy なので「送る → 画像が届く → 測り直し → 先頭へ戻る」に
+             * なり、**送る操作そのものが送れなくする**（実測: 10枚の束で
+             * 5回送って5回とも先頭へ戻された。3枚目より先へ進めない）
+             */
+            const refreshPopup = (marker: { getPopup: () => { update: () => void } | null | undefined }, root: HTMLElement) => {
+                const left = root.scrollLeft;
+                const active = document.activeElement;
+                const keepFocus = active instanceof HTMLElement && root.contains(active);
+                marker.getPopup()?.update();
+                root.scrollLeft = left;
+                if (keepFocus) (active as HTMLElement).focus({ preventScroll: true });
+            };
+
             /** ポップアップの高さの上限。**地図より高くしない**——低い画面
              *  （`min-h-[320px]` が効く高さ）で下へはみ出し、最後のカードに
              *  届かなくなる（実測: 390x400 で 33px はみ出し） */
@@ -128,7 +145,8 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                         const marker = L.circleMarker([c.lat, c.lng], {
                             radius: PIN_PX, color: "#ffffff", weight: 2, fillColor: "#0ea5e9", fillOpacity: 0.9,
                         });
-                        marker.bindPopup(cardFor(photo, () => marker.getPopup()?.update()), { maxWidth: 200, maxHeight: popupMaxH() });
+                        const card = cardFor(photo, () => refreshPopup(marker, card));
+                        marker.bindPopup(card, { maxWidth: 200, maxHeight: popupMaxH() });
                         marker.addTo(layer);
                     } else {
                         const icon = L.divIcon({
@@ -158,10 +176,23 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                             // 1枚ぶんのまま。次の写真が少しだけ覗くので送れると分かる
                             const list = document.createElement("div");
                             list.className = "photo-map-list";
-                            list.setAttribute("role", "group");
+                            // 読み上げには「リスト・N項目」と伝える（`group` だと
+                            // 何枚目を見ているかが読まれない）
+                            list.setAttribute("role", "list");
                             list.setAttribute("aria-label", locale === "en" ? `${c.items.length} photos here` : `この場所の写真 ${c.items.length}枚`);
-                            const remeasure = () => marker.getPopup()?.update();
-                            for (const it of c.items) list.appendChild(cardFor(it.photo, remeasure));
+                            // **Tab で来たカードは端まで送る。** 一部でも見えていると
+                            // ブラウザは送らないので、偶数枚目は 34px しか見えないまま
+                            // フォーカスだけが当たる（実測）
+                            list.addEventListener("focusin", (ev) => {
+                                const card = (ev.target as HTMLElement | null)?.closest?.(".photo-map-card");
+                                if (card && typeof card.scrollIntoView === "function") card.scrollIntoView({ inline: "start", block: "nearest" });
+                            });
+                            const remeasure = () => refreshPopup(marker, list);
+                            for (const it of c.items) {
+                                const card = cardFor(it.photo, remeasure);
+                                card.setAttribute("role", "listitem");
+                                list.appendChild(card);
+                            }
                             marker.bindPopup(list, { maxWidth: 200, maxHeight: popupMaxH() });
                         }
                         marker.addTo(layer);

@@ -184,5 +184,12 @@ body {
 .photo-map-list > .photo-map-card {
   /* 1枚の幅は PhotoMap.tsx の THUMB_W と揃える */
   flex: 0 0 160px;
+  /* フレックス項目の既定 `min-width: auto` だと、折り返せない長い語を含む
+     題名でカードが広がる（実測: 60文字の英語1語で 531px＝枠の2.6倍。
+     1枚を見るのに3画面ぶん送ることになる）。題名は利用者の入力 */
+  min-width: 0;
   scroll-snap-align: start;
+}
+.photo-map-card a {
+  overflow-wrap: anywhere;
 }

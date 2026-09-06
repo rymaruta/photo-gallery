@@ -57,4 +57,15 @@ describe("撮影地マップの見た目（第三者CSSとの詳細度）", () =
         // 端で地図やページを巻き込まない
         expect(body).toContain("overscroll-behavior-x: contain");
     });
+
+    // 題名は利用者の入力。折り返せない長い語でカードが広がると、1枚を見るのに
+    // 何画面ぶんも送ることになる（実測: 60文字の英語1語で 531px＝枠の2.6倍）
+    it("長い題名でカードが広がらない", () => {
+        const rule = css.slice(css.indexOf(".photo-map-list > .photo-map-card"));
+        expect(rule.slice(rule.indexOf("{"), rule.indexOf("}")), "フレックス項目の既定 min-width: auto で広がる")
+            .toContain("min-width: 0");
+        expect(css).toContain(".photo-map-card a");
+        const wrap = css.slice(css.indexOf(".photo-map-card a"));
+        expect(wrap.slice(wrap.indexOf("{"), wrap.indexOf("}"))).toContain("overflow-wrap: anywhere");
+    });
 });
