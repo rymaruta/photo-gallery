@@ -178,8 +178,14 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                         const inner = boundsOf(c.items);
                         const splittable = !!inner && (inner.north !== inner.south || inner.east !== inner.west) && map.getZoom() < MAX_ZOOM;
                         if (splittable) {
+                            // **`animate: true` は渡さない。** Leaflet の
+                            // `options.animate !== true && !this.getSize().contains(offset)`
+                            // （`leaflet-src.js:4787`）は「1画面より遠い行き先は
+                            // 動かさない」という安全弁で、`true` を渡すと**外れる**。
+                            // 設定を入れていない人にまで「画面端の束を押すと約1秒
+                            // かけて滑る」が起きる（実測）。止めたいときだけ false
                             marker.on("click", () => {
-                                map.fitBounds([[inner.south, inner.west], [inner.north, inner.east]], { padding: [48, 48], maxZoom: MAX_ZOOM, animate: !reduceMotion });
+                                map.fitBounds([[inner.south, inner.west], [inner.north, inner.east]], { padding: [48, 48], maxZoom: MAX_ZOOM, animate: reduceMotion ? false : undefined });
                             });
                         } else {
                             // **横に並べて指で送る。** 縦に積むと枚数ぶん背が伸びて

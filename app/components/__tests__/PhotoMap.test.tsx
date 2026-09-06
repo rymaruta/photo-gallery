@@ -272,4 +272,14 @@ describe("動きを減らす設定", () => {
         state.markers.find((m) => m.kind === "marker")?.clickHandler?.();
         expect(state.fitOpts).toMatchObject({ animate: false });
     });
+
+    // **設定が無いときに `animate: true` を渡してはいけない。** Leaflet の
+    // `options.animate !== true && !getSize().contains(offset)`（leaflet-src.js:4787）は
+    // 「1画面より遠い行き先は動かさない」安全弁で、`true` はそれを外す。
+    // 設定を入れていない人にまで「画面端の束を押すと約1秒かけて滑る」が起きる
+    it("設定が無いときは寄せ方を Leaflet に任せる（true を渡さない）", async () => {
+        await draw([photo("a"), photo("b", { coords: { lat: 35.6, lng: 139.9 } })]);
+        state.markers.find((m) => m.kind === "marker")?.clickHandler?.();
+        expect(state.fitOpts?.animate, "true を渡すと Leaflet の安全弁が外れる").toBeUndefined();
+    });
 });

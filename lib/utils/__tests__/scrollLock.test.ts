@@ -16,7 +16,7 @@ beforeEach(() => {
     // jsdom は scrollTo を実装していないので差し替える
     Object.defineProperty(window, "scrollTo", { value: scrollTo, writable: true, configurable: true });
     Object.defineProperty(window, "scrollY", { value: 1440, writable: true, configurable: true });
-    scrollTo.mockClear();
+    scrollTo.mockReset();
     document.body.removeAttribute("style");
 });
 afterEach(() => {
@@ -32,14 +32,25 @@ describe("背景スクロールのロック", () => {
         unlockBodyScroll();
     });
 
-    it("閉じたら、アニメーションさせずにその場で戻す", () => {
+    // **ここで固定できるのは「呼び方」まで**（jsdom はスクロールを実装して
+    // いないので、滑らないことそのものは実ブラウザでしか測れない。
+    // 実測は `lib/utils/scrollLock.ts` の但し書きを参照）
+    it("閉じたら、smooth を止めたうえでその場に戻す", () => {
+        document.documentElement.style.scrollBehavior = "";
+        let behaviorAtCall: string | null = null;
+        scrollTo.mockImplementation(() => { behaviorAtCall = document.documentElement.style.scrollBehavior; });
+
         lockBodyScroll();
         unlockBodyScroll();
+
         expect(document.body.style.position).toBe("");
         expect(scrollTo).toHaveBeenCalledTimes(1);
-        // **`behavior: "instant"` が要る。** `window.scrollTo(0, y)` だと
-        // CSS の `scroll-behavior: smooth` を拾ってアニメーションする
-        expect(scrollTo.mock.calls[0][0]).toMatchObject({ top: 1440, behavior: "instant" });
+        expect(scrollTo.mock.calls[0]).toEqual([0, 1440]);
+        // 戻すあいだだけ `scroll-behavior` を殺す。知らない `behavior` の値を
+        // 渡された実装は**スクロールごと黙って無視する**ので、値の列挙に頼らない
+        expect(behaviorAtCall, "smooth を止めずに戻している").toBe("auto");
+        // 終わったら元に戻す（ページの他の滑らかなスクロールを殺さない）
+        expect(document.documentElement.style.scrollBehavior).toBe("");
     });
 
     // 入れ子（モーダルの上にメニュー）で、内側を閉じただけで背景が戻らない

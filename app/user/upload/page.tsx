@@ -380,7 +380,11 @@ function UploadPageInner() {
                 await clearSharedPayload();
                 return;
             }
-            const isFresh = Date.now() - payload.t < 60 * 60 * 1000;
+            // **負の経過時間は「新しい」にしない**（`public/sw.js` の
+            // `isFreshEnough` と同じ判断）。刻んだのも読むのも同じ端末の時計
+            // なので、巻き戻すと差が負になって何日前の控えでも通ってしまう
+            const age = Date.now() - payload.t;
+            const isFresh = age >= 0 && age < 60 * 60 * 1000;
             if (!fromShare && !isFresh) {
                 await clearSharedPayload();
                 return;
