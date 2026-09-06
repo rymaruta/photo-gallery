@@ -23,15 +23,13 @@
  * 環境変数:
  *   PHOTOS_TABLE   (必須)
  *   GEOCODE_UA     (任意) Nominatim に名乗る User-Agent。既定はサイト名
- *   GEOCODE_SKIP   (任意) 飛ばす地名（セミコロン区切り）。その場かぎりの指定で、
- *                  **恒久的な直しは `scripts/geocode-aliases.json`**（履歴が残る）
+ *   GEOCODE_SKIP   (任意) 飛ばす地名（セミコロン区切り）。当て違いと分かったものを
+ *                  この回だけ外す。**恒久的な直しは撮影者が編集画面から選ぶ**
  *   AWS_REGION     (default: ap-northeast-1)
  */
 
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, ScanCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
-const fs = require("fs");
-const path = require("path");
 const { requireEnv } = require("./lib/env");
 
 const REGION = process.env.AWS_REGION ?? "ap-northeast-1";
@@ -48,33 +46,6 @@ const UA = process.env.GEOCODE_UA || "journey-photo.com (photo gallery; maintena
 function normalizeLocationName(raw) {
     if (typeof raw !== "string") return "";
     return raw.replace(/[\s　]+/g, " ").trim();
-}
-
-/**
- * 撮影地名 → 引くときの検索語（`scripts/geocode-aliases.json`）。
- *
- * **地名は利用者の自由入力**なので、そのままでは引けない・別の場所に当たる
- * ものが必ず出る（実測: 「福岡」→ 富山県の福岡町、「土谷棚田」→ 名古屋市の
- * 図書館）。同名の別の場所は機械では見分けられないので、**人が一度直したら
- * それが残る**場所を用意する。撮影地名そのものは変えない——画面に出る文字は
- * 本人が書いたままにして、**地図を引くときだけ**別の語を使う。
- * 空文字は「引かない」（`GEOCODE_SKIP` と同じだが、こちらは履歴が残る）。
- */
-function loadAliases(file = path.join(__dirname, "geocode-aliases.json")) {
-    try {
-        const raw = JSON.parse(fs.readFileSync(file, "utf-8"));
-        const out = new Map();
-        for (const [k, v] of Object.entries(raw)) {
-            if (k.startsWith("_")) continue;   // `_readme` のような覚え書き
-            if (typeof v !== "string") continue;
-            out.set(normalizeLocationName(k), normalizeLocationName(v));
-        }
-        return out;
-    } catch (e) {
-        // 表が壊れていても地図の補填自体は続ける（別名が効かないだけ）
-        console.warn(`[geocode] 別名表を読めませんでした: ${e && e.message}`);
-        return new Map();
-    }
 }
 
 /**
@@ -179,32 +150,26 @@ function skipSet(raw) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** 地名 → 座標。同じ地名は1回しか引かない */
-async function geocodeAll(names, fetchImpl = fetch, aliases = new Map()) {
+async function geocodeAll(names, fetchImpl = fetch) {
     const result = new Map();
     let first = true;
     for (const name of names) {
-        // 別名表にあればそれで引く（空文字は「引かない」）
-        const alias = aliases.get(name);
-        if (alias === "") { console.log(`  [geocode] ${name}: 別名表で「引かない」指定`); result.set(name, null); continue; }
-        const query = alias || name;
         if (!first) await sleep(INTERVAL_MS);
         first = false;
         // 5件取って知名度で選ぶ（`pickCoords` を参照）
-        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=ja&q=${encodeURIComponent(query)}`;
+        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=ja&q=${encodeURIComponent(name)}`;
         try {
             const res = await fetchImpl(url, { headers: { "User-Agent": UA, "Accept": "application/json" } });
             if (!res.ok) { console.warn(`  [geocode] ${name}: HTTP ${res.status}`); result.set(name, null); continue; }
             const picked = pickCoords(await res.json());
-            // 一致の確認は**引いた語**で見る（別名は人が決めたものなので、
-            // 撮影地名と字面が違って当然）
-            if (picked && !looksRelated(query, picked.label)) {
+            if (picked && !looksRelated(name, picked.label)) {
                 console.warn(`  [geocode] ${name}: 別の場所に当たった（${picked.label}）`);
                 result.set(name, null);
                 continue;
             }
             result.set(name, picked);
         } catch (e) {
-            console.warn(`  [geocode] ${name}${alias ? `（→ ${alias}）` : ""}: ${e && e.message}`);
+            console.warn(`  [geocode] ${name}: ${e && e.message}`);
             result.set(name, null);
         }
     }
@@ -237,13 +202,7 @@ async function main() {
     }
     if (targets.length === 0) return;
 
-    const aliases = loadAliases();
-    if (aliases.size) console.log(`[geocode] 別名表: ${aliases.size}件（scripts/geocode-aliases.json）`);
-    // 表にあるのに今のデータには無い地名は、綴り違いか、もう直したもの
-    for (const k of aliases.keys()) {
-        if (!all.some((t) => t.name === k)) console.warn(`  [geocode] 別名表の「${k}」に一致する撮影地名は無い（綴りを確認）`);
-    }
-    const coordsByName = await geocodeAll(names, fetch, aliases);
+    const coordsByName = await geocodeAll(names);
     let resolved = 0, unresolved = 0, failed = 0;
     for (const name of names) {
         const c = coordsByName.get(name);
@@ -280,10 +239,12 @@ async function main() {
     // そのまま直せるように、足す先と書き方を示す
     const stuck = names.filter((n) => !coordsByName.get(n));
     if (stuck.length) {
-        console.log("\n[geocode] 引けなかった地名は scripts/geocode-aliases.json に「引くときの検索語」を足すと入ります:");
-        for (const n of stuck) console.log(`    ${JSON.stringify(n)}: ${JSON.stringify(n + "（もっと詳しい地名に。例: 県名 市名 施設名）")}`);
-        console.log("    ※ 撮影地名そのものは変わりません（地図を引くときだけ使う語です）");
-        console.log("    ※ 地図に出したくないものは空文字 \"\" にします");
+        // **ここで機械が粘らない。** 同名の別の場所はどちらが正しいか
+        // 撮影者しか知らない（「福岡」が福岡市か富山県の福岡町か）。
+        // 写真の編集画面に「この場所名で候補を出す」があるので、そちらへ回す
+        console.log("\n[geocode] 引けなかった地名（撮影者が編集画面から選べます）:");
+        for (const n of stuck) console.log(`    ${n}`);
+        console.log("    /user/edit を開く →「地図に出す位置」→「この場所名で候補を出す」→ 選ぶ");
     }
     if (resolved > 0 && APPLY) {
         console.log("[geocode] 反映するにはサイトを再ビルドしてください（Deploy Site）。");
@@ -291,7 +252,7 @@ async function main() {
     if (failed > 0) process.exit(1);
 }
 
-module.exports = { normalizeLocationName, pickCoords, planTargets, geocodeAll, looksRelated, skipSet, loadAliases, INTERVAL_MS };
+module.exports = { normalizeLocationName, pickCoords, planTargets, geocodeAll, looksRelated, skipSet, INTERVAL_MS };
 
 if (require.main === module) {
     main().catch((e) => {

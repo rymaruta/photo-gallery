@@ -213,6 +213,21 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 撮影地の位置さがし（Nominatim の代理）。**画面から直接叩かない**——
+  # 利用者の IP を相手に渡さず、規約が求める User-Agent をこちらで名乗る。
+  # 打鍵ごとではなく「探す」を押したときだけ1回投げる（規約）。
+  geocodeSearch:
+    handler: src/geocodeSearch.geocodeSearch
+    # 外向きの通信を待つので上限を明示する（`musicSearch` と同じ 6 秒。
+    # 縮めるときは `geocodeSearch.ts` の FETCH_TIMEOUT_MS も一緒に見ること）
+    timeout: 6
+    events:
+      - httpApi:
+          path: /geocode/search
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
   updatePhotoVisibility:
     # 実体を消したあとに静的サイトの再ビルドを頼む（外部への HTTP）。
     # 既定の6秒だと、GitHub が遅いだけで**データはもう消えているのに

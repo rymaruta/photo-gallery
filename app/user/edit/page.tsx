@@ -233,6 +233,18 @@ function EditContent() {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [location, setLocation] = useState("");
+    /**
+     * **地図に出す位置。撮影者本人が選ぶ。**
+     *
+     * 地名は自由入力なので、機械では「福岡」が福岡市か富山県の福岡町か
+     * 決められない（実測でどちらも起きた）。当てに行くのをやめて、
+     * **地名で候補を出して本人に選んでもらう**。選んだものは「おおよそ」では
+     * なく本人の指定なので、写真ページの「地図で見る」もそのまま出る。
+     * 精度は約1km に丸めたまま（サーバー側で丸める）。
+     */
+    const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+    const [placeResults, setPlaceResults] = useState<{ label: string; lat: number; lng: number }[] | null>(null);
+    const [placeSearching, setPlaceSearching] = useState(false);
     const [category, setCategory] = useState("");
     const [date, setDate] = useState("");
     const [tagsInput, setTagsInput] = useState("");
@@ -287,6 +299,7 @@ function EditContent() {
                         setTitle(titleToText(found.title));
                         setDescription(descToText(found.description));
                         setLocation(found.location ?? "");
+                        setCoords(found.coords ?? null);
                         setCategory(found.category ?? "");
                         // <input type="date"> は YYYY-MM-DD しか受け付けない。
                         // 保存値は ISO 文字列なので、そのまま入れると空欄になる。
@@ -371,6 +384,7 @@ function EditContent() {
                 // 日付だけを編集させているので、元の時刻を保つ
                 date: mergeDate(original?.date, date),
                 tags,
+                coords,
             };
             const originalFields: Record<string, unknown> = {
                 title: original?.title,
@@ -379,6 +393,7 @@ function EditContent() {
                 category: original?.category ?? "",
                 date: original?.date ?? "",
                 tags: Array.isArray(original?.tags) ? original.tags : [],
+                coords: original?.coords ?? null,
             };
             const changed = changedFields(nextFields, originalFields);
             const body = { published, ...changed };
@@ -425,7 +440,41 @@ function EditContent() {
         } finally {
             setSaving(false);
         }
-    }, [photoId, original, title, description, location, category, date, tagsInput, isJa, router, showToast]);
+    }, [photoId, original, title, description, location, category, date, tagsInput, coords, isJa, router, showToast]);
+
+    /**
+     * 地名から位置の候補を出す。**押したときだけ1回投げる**——Nominatim は
+     * 打鍵ごとの検索を規約で禁じている。サーバー越しに叩くのは、利用者の IP を
+     * 相手に渡さず、規約が求める User-Agent をこちらで名乗るため
+     * （`api-user/src/geocodeSearch.ts`）。
+     */
+    const searchPlaces = useCallback(async () => {
+        const q = location.trim();
+        if (!q || placeSearching) return;
+        setPlaceSearching(true);
+        setPlaceResults(null);
+        try {
+            const { userFetch, readApiError } = await import("../../../lib/utils/api");
+            const { usableRows } = await import("../../../lib/utils/apiRows");
+            const res = await userFetch(`/geocode/search?q=${encodeURIComponent(q)}`);
+            if (!res.ok) {
+                showToast(await readApiError(res, isJa ? "位置を探せませんでした" : "Could not find the place"), "error");
+                return;
+            }
+            const data = await res.json() as { results?: { label: string; lat: number; lng: number }[] };
+            const rows = usableRows<{ label: string; lat: number; lng: number }>(data.results, "GET /geocode/search") ?? [];
+            setPlaceResults(rows);
+            if (rows.length === 0) {
+                showToast(isJa
+                    ? "その地名では見つかりませんでした。市区町村を足すと見つかることがあります。"
+                    : "No place found. Adding the city or prefecture often helps.", "info");
+            }
+        } catch (e) {
+            showToast(e instanceof Error && e.message ? e.message : (isJa ? "位置を探せませんでした" : "Could not find the place"), "error");
+        } finally {
+            setPlaceSearching(false);
+        }
+    }, [location, placeSearching, isJa, showToast]);
 
     // Escape でも閉じる。「StoryViewer と同じ形」と書いておきながら、
     // あちらが持っている Escape の振り分けだけ移していなかった。
@@ -602,6 +651,71 @@ function EditContent() {
                                     ))}
                                 </div>
                             )}
+                        </div>
+                    </div>
+
+                    {/* 撮影地の位置（地図に出す場所）。**本人が選ぶ。**
+                        地名は自由入力なので、機械では「福岡」が福岡市か富山県の
+                        福岡町か決められない（実測でどちらも起きた）。候補を出して
+                        選んでもらう */}
+                    <div>
+                        <label className={labelCls}>{isJa ? "地図に出す位置" : "Location on the map"}</label>
+                        <div className="rounded-xl ring-1 ring-white/10 bg-white/5 p-3 space-y-2">
+                            <p className="text-xs text-white/70" data-testid="coords-state">
+                                {coords
+                                    ? (isJa
+                                        ? `設定済み（${coords.lat}, ${coords.lng}）${photo?.geoApprox ? "・地名から引いたおおよその位置" : ""}`
+                                        : `Set (${coords.lat}, ${coords.lng})${photo?.geoApprox ? " · approximate, from the place name" : ""}`)
+                                    : (isJa ? "未設定（地図には出ません）" : "Not set (not shown on the map)")}
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => void searchPlaces()}
+                                    disabled={!location.trim() || placeSearching}
+                                    className="px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-40 text-sm"
+                                    style={{ touchAction: "manipulation" }}
+                                >
+                                    {placeSearching
+                                        ? (isJa ? "探しています…" : "Searching…")
+                                        : (isJa ? "この場所名で候補を出す" : "Find from the location name")}
+                                </button>
+                                {coords && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setCoords(null); setPlaceResults(null); }}
+                                        className="px-3 py-2 rounded-full bg-white/5 hover:bg-white/10 text-sm text-white/70"
+                                        style={{ touchAction: "manipulation" }}
+                                    >
+                                        {isJa ? "地図に出さない" : "Remove from the map"}
+                                    </button>
+                                )}
+                            </div>
+                            {placeResults && placeResults.length > 0 && (
+                                <ul className="space-y-1" aria-label={isJa ? "位置の候補" : "Place candidates"}>
+                                    {placeResults.map((r) => (
+                                        <li key={`${r.lat},${r.lng},${r.label}`}>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setCoords({ lat: r.lat, lng: r.lng });
+                                                    setPlaceResults(null);
+                                                    showToast(isJa ? "位置を選びました（保存すると反映されます）" : "Location chosen (save to apply)", "success");
+                                                }}
+                                                className="w-full text-left px-3 py-2 rounded-lg bg-white/5 hover:bg-white/15 text-sm break-words"
+                                                style={{ touchAction: "manipulation" }}
+                                            >
+                                                {r.label}
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                            <p className="text-[11px] text-white/50">
+                                {isJa
+                                    ? "位置は約1km の粒度に丸めて保存します。撮った場所そのものではなく、街のあたりが分かる程度です。"
+                                    : "Saved rounded to about 1 km — the neighbourhood, not the exact spot."}
+                            </p>
                         </div>
                     </div>
                 </form>

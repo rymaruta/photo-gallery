@@ -1,7 +1,4 @@
 import { describe, it, expect, beforeAll, vi } from "vitest";
-import { writeFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 
 // 地名→おおよその座標の補填（地図ページの材料）。
 // 本番の写真32枚に座標が1枚も無く（`diagnose` 実測）、地名は半分強に付いている。
@@ -9,11 +6,11 @@ import { tmpdir } from "node:os";
 // （`attribute_not_exists(coords)`）と、対象の選び方の両方で守る。
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let normalizeLocationName: any, pickCoords: any, planTargets: any, geocodeAll: any, looksRelated: any, skipSet: any, loadAliases: any, INTERVAL_MS: number;
+let normalizeLocationName: any, pickCoords: any, planTargets: any, geocodeAll: any, looksRelated: any, skipSet: any, INTERVAL_MS: number;
 beforeAll(() => {
     process.env.PHOTOS_TABLE = "photos-test";
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    ({ normalizeLocationName, pickCoords, planTargets, geocodeAll, looksRelated, skipSet, loadAliases, INTERVAL_MS } = require("../geocode-locations.js"));
+    ({ normalizeLocationName, pickCoords, planTargets, geocodeAll, looksRelated, skipSet, INTERVAL_MS } = require("../geocode-locations.js"));
 });
 
 describe("normalizeLocationName", () => {
@@ -170,59 +167,6 @@ describe("skipSet（GEOCODE_SKIP）", () => {
         expect([...skipSet("パリ, フランス")]).toEqual(["パリ, フランス"]);
     });
 
-});
-
-// **地名は利用者の自由入力**なので、そのままでは引けない・別の場所に当たる
-// ものが必ず出る（実測: 「福岡」→ 富山県の福岡町、「土谷棚田」→ 名古屋市の
-// 図書館）。同名の別の場所は機械では見分けられないので、人が一度直したら
-// それが残る場所を用意する
-describe("別名表（scripts/geocode-aliases.json）", () => {
-    it("実際の表を読める", () => {
-        const aliases = loadAliases();
-        expect(aliases.get("福岡")).toBe("福岡市");
-        expect(aliases.has("_readme"), "覚え書きを別名として読んでいる").toBe(false);
-    });
-
-    // 覚え書きは配列とは限らない（`_note: "…"` と書く人がいる）。
-    // 文字列だと `typeof v !== "string"` の門を通ってしまうので、
-    // **キーの `_` で外す**——ここを消すと `_note` が地名として引かれる
-    it("文字列の覚え書き（_note）も別名として読まない", () => {
-        const file = join(tmpdir(), `aliases-${Date.now()}.json`);
-        writeFileSync(file, JSON.stringify({ _note: "この表は…", 福岡: "福岡市" }));
-        try {
-            const aliases = loadAliases(file);
-            expect([...aliases.keys()], "覚え書きを地名として読んでいる").toEqual(["福岡"]);
-        } finally { rmSync(file, { force: true }); }
-    });
-
-    it("壊れていても補填自体は止めない（別名が効かないだけ）", () => {
-        expect(loadAliases("/存在しない/表.json").size).toBe(0);
-    });
-
-    it("別名があればそれで引き、無ければ撮影地名で引く", async () => {
-        vi.useFakeTimers();
-        const urls: string[] = [];
-        const fetchImpl = vi.fn(async (url: string) => {
-            urls.push(decodeURIComponent(url));
-            return { ok: true, json: async () => [{ lat: "33.59", lon: "130.40", importance: 0.7, display_name: "福岡市, 福岡県" }] };
-        });
-        const p = geocodeAll(["福岡", "山中湖"], fetchImpl, new Map([["福岡", "福岡市"]]));
-        await vi.advanceTimersByTimeAsync(INTERVAL_MS * 2);
-        const out = await p;
-        vi.useRealTimers();
-
-        expect(urls[0]).toContain("q=福岡市");
-        expect(urls[1]).toContain("q=山中湖");
-        // 一致の確認は**引いた語**で見る（別名は人が決めたので字面が違って当然）
-        expect(out.get("福岡")).toEqual({ lat: 33.59, lng: 130.4, label: "福岡市, 福岡県" });
-    });
-
-    it("空文字の別名は「引かない」（外部に投げない）", async () => {
-        const fetchImpl = vi.fn();
-        const out = await geocodeAll(["秘密の場所"], fetchImpl, new Map([["秘密の場所", ""]]));
-        expect(fetchImpl, "引かない指定なのに投げている").not.toHaveBeenCalled();
-        expect(out.get("秘密の場所")).toBeNull();
-    });
 });
 
 // Nominatim は道路・番地も返す。「福岡」で富山県の県道が返ったのがそれで、
