@@ -44,6 +44,17 @@ function getUserApiBaseUrl(): string {
 export const REQUEST_TIMEOUT_MS = 20_000;
 
 /**
+ * 打ち切りを個別に伸ばせるようにする。**退会だけは20秒では足りない**
+ * ——サーバー側は既定6秒から29秒に広げてあり（`api-user/serverless.yml`）、
+ * 残り6秒になるまで使い切る設計（`account.ts` の `CLEANUP_RESERVE_MS`）＝
+ * 最長23秒かかる。クライアントが20秒で降りると、サーバーは走り続けて
+ * 写真・S3・プロフィールを消すのに `cognitoDeleteAccount` に**進まない**
+ * ——「写真だけ消えてログインできるアカウントが残る」という、
+ * `app/auth/context.tsx` が名指しで避けている状態そのものになる。
+ */
+export type ApiRequestInit = RequestInit & { timeoutMs?: number };
+
+/**
  * 時間切れの中断を足した `RequestInit` を作る。呼び出し側が渡した
  * `signal`（画面を離れたときの後片付け・追い越しの破棄）も生かす。
  *
@@ -51,34 +62,55 @@ export const REQUEST_TIMEOUT_MS = 20_000;
  * 「自分で畳んだ」経路（`usePhotos` など `AbortError` を無視する実装がある）と
  * 区別できず、**時間切れが黙って捨てられる**。
  */
-function withTimeout(options?: RequestInit): { init: RequestInit; done: () => void } {
+function withTimeout(options?: ApiRequestInit): { init: RequestInit; done: () => void } {
+    const ms = options?.timeoutMs ?? REQUEST_TIMEOUT_MS;
     const controller = new AbortController();
     const timer = setTimeout(
-        () => controller.abort(new DOMException(`応答がありません（${Math.round(REQUEST_TIMEOUT_MS / 1000)}秒）`, "TimeoutError")),
-        REQUEST_TIMEOUT_MS,
+        () => controller.abort(new DOMException(`応答がありません（${Math.round(ms / 1000)}秒）`, "TimeoutError")),
+        ms,
     );
     const caller = options?.signal;
+    const relay = () => controller.abort(caller?.reason);
     if (caller) {
         if (caller.aborted) controller.abort(caller.reason);
-        else caller.addEventListener("abort", () => controller.abort(caller.reason), { once: true });
+        else caller.addEventListener("abort", relay, { once: true });
     }
-    return { init: { ...options, signal: controller.signal }, done: () => clearTimeout(timer) };
+    const rest = { ...options };
+    delete rest.timeoutMs;   // 素の `fetch` に知らない項目を渡さない
+    return {
+        init: { ...rest, signal: controller.signal },
+        done: () => {
+            clearTimeout(timer);
+            caller?.removeEventListener("abort", relay);
+        },
+    };
 }
 
-/** 打ち切り付きで投げる。成功しても失敗しても後始末する */
-async function fetchWithTimeout(url: string, options?: RequestInit): Promise<Response> {
+/**
+ * 打ち切り付きで投げる。
+ *
+ * **本文を読み終わるまで見張る。** `fetch` が返るのは**ヘッダが来た時点**で、
+ * そこでタイマーを片付けると `await res.json()` が無防備になる——ヘッダだけ
+ * 来て本文が止まる回線（電波が弱いときの典型）では従来どおり永久に待つ
+ * （レビューが実測: 27秒経ってもトーストが出ない）。
+ * 失敗したときだけその場で片付け、成功したら**タイマーは時間切れまで残す**。
+ * 本文を読み終わったあとの中断は何も起こさない（済んだ `fetch` への
+ * `abort` は無害）ので、これで「本文が止まったら諦める」が効く。
+ */
+async function fetchWithTimeout(url: string, options?: ApiRequestInit): Promise<Response> {
     const { init, done } = withTimeout(options);
     try {
         return await fetch(url, init);
-    } finally {
+    } catch (e) {
         done();
+        throw e;
     }
 }
 
 /**
  * 認証不要のリクエスト（写真一覧取得など）
  */
-export async function publicFetch(path: string, options?: RequestInit): Promise<Response> {
+export async function publicFetch(path: string, options?: ApiRequestInit): Promise<Response> {
     const base = getBaseUrl();
     const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
     return fetchWithTimeout(url, options);
@@ -87,7 +119,7 @@ export async function publicFetch(path: string, options?: RequestInit): Promise<
 /**
  * Cognito JWT トークン付きのリクエスト（アップロード・削除など管理者操作）
  */
-export async function authenticatedFetch(path: string, options?: RequestInit): Promise<Response> {
+export async function authenticatedFetch(path: string, options?: ApiRequestInit): Promise<Response> {
     const base = getBaseUrl();
     const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
 
@@ -112,7 +144,7 @@ export async function authenticatedFetch(path: string, options?: RequestInit): P
 /**
  * 一般ユーザーAPI向け認証付きリクエスト（アップロードのみ）
  */
-export async function userFetch(path: string, options?: RequestInit): Promise<Response> {
+export async function userFetch(path: string, options?: ApiRequestInit): Promise<Response> {
     const base = getUserApiBaseUrl();
     const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
 
@@ -139,7 +171,7 @@ export async function userFetch(path: string, options?: RequestInit): Promise<Re
  * publicFetch は管理APIを向いているため、ユーザーAPI にしか無いエンドポイントは
  * こちらを使う（間違えると 404 になり、その失敗は握り潰されて表示が空になる）。
  */
-export async function userPublicFetch(path: string, options?: RequestInit): Promise<Response> {
+export async function userPublicFetch(path: string, options?: ApiRequestInit): Promise<Response> {
     const base = getUserApiBaseUrl();
     const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
     return fetchWithTimeout(url, options);

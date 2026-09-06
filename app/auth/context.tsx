@@ -242,7 +242,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 };
             }
 
-            const res = await userFetch("/user/account", { method: "DELETE" });
+            // **打ち切りを伸ばす。** サーバーは残り6秒になるまで使い切る設計で
+            // 最長23秒かかる（`api-user/serverless.yml` の timeout: 29 と
+            // `account.ts` の CLEANUP_RESERVE_MS）。既定の20秒で降りると、
+            // サーバーは走り続けて写真を消すのにこちらは Cognito の削除へ
+            // 進まない＝上のコメントが名指しで避けている「写真だけ消えて
+            // アカウントが残る」になる
+            const res = await userFetch("/user/account", { method: "DELETE", timeoutMs: 35_000 });
             if (!res.ok) {
                 // サーバーの文言を捨てない。写真の削除に失敗した 500 は
                 // 「アカウントはまだ削除されていません…」と状況まで言って

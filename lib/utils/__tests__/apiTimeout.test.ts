@@ -62,11 +62,11 @@ describe("API の打ち切り", () => {
         fetchMock.mockResolvedValue(new Response("[]", { status: 200 }));
         const res = await publicFetch("/photos");
         expect(res.status).toBe(200);
-        // **タイマーを残さない。** 返ったあとも20秒ぶんの予約が積み上がると、
-        // 通知の60秒ごとの取得のような常駐経路でタイマーが溜まる
-        expect(vi.getTimerCount(), "打ち切りのタイマーが残っている").toBe(0);
+        // **タイマーは時間切れまで残る**（本文が止まる回線を見張るため）。
+        // 済んだ `fetch` への中断は何も起こさないので、これで害は無い
         await vi.advanceTimersByTimeAsync(60_000);
         expect(res.status).toBe(200);
+        expect(await res.text()).toBe("[]");
     });
 
     // 画面を離れたときの後片付け・追い越しの破棄は今までどおり効く
@@ -88,5 +88,51 @@ describe("API の打ち切り", () => {
         const seen = publicFetch("/photos", { signal: controller.signal }).catch((e: Error) => e.name);
         await vi.advanceTimersByTimeAsync(1);
         expect(await seen).toBe("AbortError");
+    });
+
+    // **ヘッダだけ来て本文が止まる**回線（電波が弱いときの典型）。
+    // `fetch` はヘッダの時点で返るので、そこでタイマーを片付けると
+    // `res.json()` が無防備になる——レビューの実測で 27秒経ってもトーストが
+    // 出なかった
+    it("本文が止まったら、本文の読み取りが時間切れになる", async () => {
+        const { publicFetch } = await import("../api");
+        let cancelled: unknown = null;
+        fetchMock.mockImplementation(async () => {
+            const signal = fetchMock.mock.calls.at(-1)?.[1]?.signal as AbortSignal | undefined;
+            // 本文は流れ始めるが終わらない
+            const body = new ReadableStream({
+                start(controller) {
+                    controller.enqueue(new TextEncoder().encode("[")); 
+                    signal?.addEventListener("abort", () => {
+                        cancelled = signal.reason;
+                        controller.error(signal.reason);
+                    }, { once: true });
+                },
+            });
+            return new Response(body, { status: 200 });
+        });
+
+        const res = await publicFetch("/photos");
+        const read = res.text().catch((e: Error) => e.name);
+        await vi.advanceTimersByTimeAsync(20_001);
+        expect(await read, "本文が止まっても諦めていない").toBe("TimeoutError");
+        expect((cancelled as Error).name).toBe("TimeoutError");
+    });
+
+    // 退会だけはサーバーが最長23秒使うので、既定の20秒では足りない
+    it("呼び出しごとに打ち切りを伸ばせる", async () => {
+        const { userFetch } = await import("../api");
+        fetchMock.mockImplementation(neverResolves);
+        // **決着したかどうかで見る。**「まだ呼ばれている」だけでは、
+        // 既定の20秒で諦める実装と区別が付かない（変異が生き残った）
+        let settled: string | null = null;
+        const seen = userFetch("/user/account", { method: "DELETE", timeoutMs: 35_000 })
+            .catch((e: Error) => { settled = e.name; return e.name; });
+        await vi.advanceTimersByTimeAsync(20_001);
+        expect(settled, "既定の20秒で諦めている（伸ばした値を見ていない）").toBeNull();
+        await vi.advanceTimersByTimeAsync(15_000);
+        expect(await seen).toBe("TimeoutError");
+        // 素の `fetch` に知らない項目を渡さない
+        expect((fetchMock.mock.calls[0][1] as Record<string, unknown>).timeoutMs).toBeUndefined();
     });
 });

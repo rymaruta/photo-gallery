@@ -69,6 +69,10 @@ export function usePhotos() {
                     // 表示する中身は変えない（空で `BASE_PHOTOS` を潰さない）。
                     // 変えるのは「聞けて、答えが返った」を記録するかどうかだけ。
                     if (data) setLoaded(true);
+                    // **200 なのに配列でない**（壊れた応答）。ここに出口が
+                    // 無いと `loaded` も `failed` も立たず、待っている側が
+                    // 永久に黙って待つ
+                    else setFailed(true);
                 } else {
                     log.warn("写真の取得に失敗しました", { status: response.status });
                     setFailed(true);

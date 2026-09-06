@@ -159,4 +159,14 @@ describe("usePhotos の failed", () => {
         await new Promise((r) => setTimeout(r, 30));
         expect(result.current.failed).toBe(false);
     });
+
+    // **200 なのに配列でない**（壊れた応答・別のAPIに当たっている）。
+    // ここに出口が無いと `loaded` も `failed` も立たず、待っている側
+    // （`?photo=` の待ち id）が永久に黙って待つ
+    it("200 でも配列でなければ failed（黙って待たせない）", async () => {
+        mockPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ items: [] }) });
+        const { result } = renderHook(() => usePhotos());
+        await waitFor(() => expect(result.current.failed).toBe(true));
+        expect(result.current.loaded, "配列でないのに届いたことにしている").toBe(false);
+    });
 });
