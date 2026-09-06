@@ -98,11 +98,11 @@ describe("写真ページ: ハイドレーション前は隠さない", () => {
 // 静的HTML由来の本体は、届いていなくても隠さない（`Thumb` と同じ理由。
 // 本物のハイドレーションで確かめる）
 describe("写真ページ: ハイドレーション由来の本体はブラウザに任せる", () => {
-    const hydrate = async () => {
+    const hydrate = async (photo: typeof base & { blurDataURL?: string } = base) => {
         const { hydrateRoot } = await import("react-dom/client");
         const { act } = await import("react");
         const host = document.createElement("div");
-        const el = <PhotoPageClient photoId="p1" initialPhoto={base} />;
+        const el = <PhotoPageClient photoId="p1" initialPhoto={photo} />;
         host.innerHTML = renderToString(el);
         document.body.appendChild(host);
         const errors: unknown[] = [];
@@ -114,12 +114,16 @@ describe("写真ページ: ハイドレーション由来の本体はブラウ�
     it("React が付く前に届いていれば（キャッシュ済みの再訪）、読み込み済みとして扱う", async () => {
         setReady(true);
         try {
-            const { host, errors, cleanup } = await hydrate();
+            // ぼかし付きで見る——ぼかし無しだと「まだ分からない」と「読み込み済み」の
+            // 見た目が同じで、静的HTML由来を放置する変異が素通りした
+            const { host, errors, cleanup } = await hydrate({ ...base, blurDataURL: "data:image/webp;base64,AAAA" });
             try {
                 expect(errors).toEqual([]);
                 const img = host.querySelector('img[alt="写真"]')!;
                 expect(img.className).toContain("opacity-100");
-                // 読み込み済みになっていなければ EXIF の画面抽出が二度と走らない
+                // 読み込み済みになっていなければ、ぼかしが下に敷かれたままで
+                // EXIF の画面抽出も二度と走らない
+                expect(host.querySelector('img[src^="data:"]'), "届いているのにぼかしが残っている").toBeNull();
                 expect(host.querySelector(".animate-spin")).toBeNull();
             } finally { await cleanup(); }
         } finally { restore(); }
