@@ -218,6 +218,10 @@ functions:
   # 打鍵ごとではなく「探す」を押したときだけ1回投げる（規約）。
   geocodeSearch:
     handler: src/geocodeSearch.geocodeSearch
+    # AWS の権限は控えの読み書きだけで足りる。共有ロール（写真の削除・S3・
+    # CloudFront まで持つ）には載せない——利用者入力を外向き URL に載せる口を
+    # 最小の権限で動かす
+    role: GeocodeRole
     # 外向きの通信を待つので上限を明示する（`musicSearch` と同じ 6 秒。
     # 縮めるときは `geocodeSearch.ts` の FETCH_TIMEOUT_MS も一緒に見ること）
     timeout: 6
@@ -505,6 +509,36 @@ functions:
 # CloudFormation を1つ書く方が読む人に見えるため。
 resources:
   Resources:
+    # 地名さがし（Nominatim の代理）専用。ログと、結果の控えの読み書きだけ
+    GeocodeRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:service}-${sls:stage}-${aws:region}-geocode
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: geocode
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${sls:stage}*:*
+                - Effect: Allow
+                  Action:
+                    - dynamodb:GetItem
+                    - dynamodb:PutItem
+                  Resource:
+                    - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}
+
     PublicReadRole:
       Type: AWS::IAM::Role
       Properties:

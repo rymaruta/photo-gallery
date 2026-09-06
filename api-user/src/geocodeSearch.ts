@@ -1,5 +1,7 @@
 import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
+import { GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { JSON_HEADERS } from "./http";
+import { ddb, PHOTOS_TABLE } from "./dynamodb";
 
 // 撮影地の位置さがし。OpenStreetMap の Nominatim（無料・キー不要）を
 // **サーバー側で**叩いて、候補だけ返す。
@@ -60,12 +62,67 @@ export function mapNominatimResults(json: unknown): PlaceResult[] {
     return out;
 }
 
+/**
+ * 結果の控え。**Nominatim の規約は「結果はこちらでキャッシュせよ」と求める**。
+ * `Cache-Control` はブラウザ個別にしか効かない（画面は API Gateway を直に
+ * 叩く）ので、別の利用者が同じ地名を引けばまた相手に飛んでいた。
+ * 写真テーブルに `geocache#<地名>` で置く（`src` を持たないので、一覧・
+ * ビルド・掃除のどれにも写真として現れない——`like#`/`notifs#` と同じ扱い）。
+ * テーブルに TTL は無いので、古さは読むときに見る。
+ */
+export const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const cacheKey = (q: string) => `geocache#${q.replace(/[\s　]+/g, " ").trim()}`;
+
+async function readCache(q: string): Promise<PlaceResult[] | null> {
+    try {
+        const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: cacheKey(q) } }));
+        const item = res.Item as { results?: unknown; cachedAt?: unknown } | undefined;
+        if (!item || !Array.isArray(item.results)) return null;
+        const at = Number(item.cachedAt);
+        if (!Number.isFinite(at) || Date.now() - at > CACHE_TTL_MS || Date.now() < at) return null;
+        return mapNominatimResults(item.results.map((r) => ({ lat: (r as PlaceResult).lat, lon: (r as PlaceResult).lng, display_name: (r as PlaceResult).label })));
+    } catch (e) {
+        // 控えが読めなくても探すことはできる。黙らない（ロールの権限漏れに気づくため）
+        console.warn("geocodeSearch cache read failed:", e);
+        return null;
+    }
+}
+
+async function writeCache(q: string, results: PlaceResult[]): Promise<void> {
+    try {
+        await ddb.send(new PutCommand({
+            TableName: PHOTOS_TABLE,
+            Item: { id: cacheKey(q), results, cachedAt: Date.now() },
+        }));
+    } catch (e) {
+        console.warn("geocodeSearch cache write failed:", e);
+    }
+}
+
+/**
+ * 相手に投げる間隔。規約の「1リクエスト/秒を超えない」を、少なくとも
+ * **同じ Lambda インスタンスの中では**守る（並列に起きたインスタンス同士は
+ * 揃えられない——そこは上の控えで当たり回数そのものを減らす）。
+ */
+const MIN_INTERVAL_MS = 1000;
+let lastRequestAt = 0;
+async function waitForSlot(): Promise<void> {
+    const wait = lastRequestAt + MIN_INTERVAL_MS - Date.now();
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    lastRequestAt = Date.now();
+}
+
 export const geocodeSearch: APIGatewayProxyHandlerV2 = async (event) => {
     const q = (event.queryStringParameters?.q ?? "").trim().slice(0, QUERY_MAX);
     if (!q) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "地名を入力してください" }) };
     }
+    const cached = await readCache(q);
+    if (cached) {
+        return { statusCode: 200, headers: { ...JSON_HEADERS, "Cache-Control": "public, max-age=600" }, body: JSON.stringify({ results: cached }) };
+    }
     try {
+        await waitForSlot();
         // **URL の組み立ても try の中に置く。** `slice` はサロゲートペアを
         // 割るので、100文字目が絵文字だと `encodeURIComponent` が URIError を
         // 投げる。外に置くと JSON のエラー本文もログも通らず素の例外で落ちる
@@ -78,6 +135,7 @@ export const geocodeSearch: APIGatewayProxyHandlerV2 = async (event) => {
             return { statusCode: 502, headers: JSON_HEADERS, body: JSON.stringify({ error: "位置を探せませんでした" }) };
         }
         const results = mapNominatimResults(await res.json());
+        await writeCache(q, results);
         return {
             statusCode: 200,
             // 同じ地名の連打を抑える（相手の負荷も減る）

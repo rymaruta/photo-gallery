@@ -74,16 +74,54 @@ describe("PublicReadRole の中身に書き込みが混ざっていない", () =
         "dynamodb:Scan",
     ]);
 
-    it.each(services)("$name", ({ file }) => {
-        const yml = readFileSync(join(ROOT, file), "utf8");
+    /** `resources:` の中から、名前を指定したロールのブロックだけを切り出す。
+     *  **resources 全体を見ない**——ロールが2つ以上あると、別のロールの動詞を
+     *  このロールのものとして数えてしまう（`GeocodeRole` を足したとき実際に
+     *  そうなった） */
+    const roleBlock = (yml: string, name: string): string => {
         const res = yml.split(/\nresources:\n/)[1];
         expect(res, "resources: が無い").toBeDefined();
-        const actions = [...res.replace(/^\s*#.*$/gm, "").matchAll(/^\s*-\s+([a-z0-9-]+:[A-Za-z]+)\s*$/gm)].map((m) => m[1]);
+        const m = new RegExp(`^ {4}${name}:$([\\s\\S]*?)(?=^ {4}\\w+:$|(?![\\s\\S]))`, "m").exec(res);
+        expect(m, `${name} のブロックが見つからない`).not.toBeNull();
+        return m![1];
+    };
+    const actionsOf = (block: string): string[] =>
+        [...block.replace(/^\s*#.*$/gm, "").matchAll(/^\s*-\s+([a-z0-9-]+:[A-Za-z]+)\s*$/gm)].map((m) => m[1]);
+
+    it.each(services)("$name", ({ file }) => {
+        const yml = readFileSync(join(ROOT, file), "utf8");
+        const block = roleBlock(yml, "PublicReadRole");
+        const actions = actionsOf(block);
         expect(actions.length).toBeGreaterThan(0);
         for (const a of actions) {
             expect(ALLOWED.has(a), `PublicReadRole に ${a} が入っている`).toBe(true);
         }
         // ロールを引き受けられるのは Lambda だけ
-        expect(res).toContain("Service: lambda.amazonaws.com");
+        expect(block).toContain("Service: lambda.amazonaws.com");
+    });
+});
+
+// 地名さがし（Nominatim の代理）専用ロール。利用者入力を外向き URL に載せる
+// 口なので、**共有ロール（写真の削除・S3・CloudFront）には載せない**。
+// 要るのはログと、結果の控えの読み書きだけ
+describe("GeocodeRole は控えの読み書きしか持たない", () => {
+    const ALLOWED = new Set(["logs:CreateLogStream", "logs:PutLogEvents", "dynamodb:GetItem", "dynamodb:PutItem"]);
+    it("api-user", () => {
+        const yml = readFileSync(join(ROOT, "api-user/serverless.yml"), "utf8");
+        const res = yml.split(/\nresources:\n/)[1]!;
+        const m = /^ {4}GeocodeRole:$([\s\S]*?)(?=^ {4}\w+:$)/m.exec(res);
+        expect(m, "GeocodeRole が無い").not.toBeNull();
+        const actions = [...m![1].replace(/^\s*#.*$/gm, "").matchAll(/^\s*-\s+([a-z0-9-]+:[A-Za-z]+)\s*$/gm)].map((x) => x[1]);
+        expect(actions.length).toBeGreaterThan(0);
+        for (const a of actions) expect(ALLOWED.has(a), `GeocodeRole に ${a} が入っている`).toBe(true);
+        // 触れるのは写真テーブルだけ（users テーブル・S3・CloudFront は無い）
+        expect(m![1]).not.toMatch(/usersTable|s3:|cloudfront:/);
+    });
+
+    it("geocodeSearch にこのロールが付いている", () => {
+        const yml = readFileSync(join(ROOT, "api-user/serverless.yml"), "utf8");
+        const fn = /^ {2}geocodeSearch:$([\s\S]*?)(?=^ {2}\w+:$)/m.exec(yml);
+        expect(fn).not.toBeNull();
+        expect(fn![1]).toMatch(/^\s{4}role: GeocodeRole\s*$/m);
     });
 });

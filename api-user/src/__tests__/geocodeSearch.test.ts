@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { geocodeSearch, mapNominatimResults, FETCH_TIMEOUT_MS } from "../geocodeSearch";
+// 控え（DynamoDB）は差し替える。**規約は「結果はこちらでキャッシュせよ」**と
+// 求めるので、当たれば相手に投げない・外れれば投げて控える、を固定する
+const mockDdbSend = vi.hoisted(() => vi.fn());
+vi.mock("../dynamodb", () => ({ ddb: { send: mockDdbSend }, PHOTOS_TABLE: "photos-test" }));
+
+import { geocodeSearch, mapNominatimResults, FETCH_TIMEOUT_MS, CACHE_TTL_MS } from "../geocodeSearch";
 
 // 撮影地の位置さがし（Nominatim の代理）。
 // **画面から直接叩かない**——利用者の IP を相手に渡さず、規約が求める
@@ -13,7 +18,11 @@ const invoke = (q?: string): Promise<Result> => (geocodeSearch as any)({ querySt
 
 const fetchMock = vi.fn();
 let prevFetch: typeof globalThis.fetch;
-beforeEach(() => { prevFetch = globalThis.fetch; globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch; fetchMock.mockReset(); });
+beforeEach(() => {
+    prevFetch = globalThis.fetch; globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch; fetchMock.mockReset();
+    // 既定: 控えは空（Get → Item 無し、Put → 成功）
+    mockDdbSend.mockReset().mockResolvedValue({});
+});
 afterEach(() => { globalThis.fetch = prevFetch; });
 
 const ok = (rows: unknown) => ({ ok: true, json: async () => rows });
@@ -120,5 +129,57 @@ describe("geocodeSearch", () => {
         expect(FETCH_TIMEOUT_MS).toBeLessThan(lambdaMs);
         // JSON の読み取りと整形のぶんを残す
         expect(lambdaMs - FETCH_TIMEOUT_MS, "残り時間が短すぎる").toBeGreaterThanOrEqual(2000);
+    });
+
+});
+
+describe("結果の控え（Nominatim の規約: キャッシュせよ）", () => {
+    const putCalls = () => mockDdbSend.mock.calls.map((c) => c[0]).filter((cmd) => cmd?.constructor?.name === "PutCommand");
+    const cached = (ageMs: number) => ({
+        Item: { id: "geocache#福岡", results: [{ label: "福岡市, 福岡県", lat: 33.59, lng: 130.4 }], cachedAt: Date.now() - ageMs },
+    });
+
+    it("控えがあれば、相手に投げずにそれを返す", async () => {
+        mockDdbSend.mockImplementation(async (cmd: { constructor: { name: string } }) =>
+            cmd.constructor.name === "GetCommand" ? cached(60_000) : {});
+        const res = await invoke("福岡");
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).results).toEqual([{ label: "福岡市, 福岡県", lat: 33.59, lng: 130.4 }]);
+        expect(fetchMock, "控えがあるのに相手に投げている").not.toHaveBeenCalled();
+    });
+
+    it("控えが無ければ投げて、結果を控える", async () => {
+        fetchMock.mockResolvedValue(ok([{ lat: "33.59", lon: "130.40", display_name: "福岡市, 福岡県" }]));
+        await invoke("福岡");
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        const puts = putCalls();
+        expect(puts, "結果を控えていない").toHaveLength(1);
+        expect((puts[0] as { input: { Item: Record<string, unknown> } }).input.Item).toMatchObject({
+            id: "geocache#福岡",
+            results: [{ label: "福岡市, 福岡県", lat: 33.59, lng: 130.4 }],
+        });
+    });
+
+    it("古い控えは使わない（30日）", async () => {
+        mockDdbSend.mockImplementation(async (cmd: { constructor: { name: string } }) =>
+            cmd.constructor.name === "GetCommand" ? cached(CACHE_TTL_MS + 1) : {});
+        fetchMock.mockResolvedValue(ok([]));
+        await invoke("福岡");
+        expect(fetchMock, "古い控えを使っている").toHaveBeenCalledTimes(1);
+    });
+
+    // 表記ゆれで別の控えにしない（「福岡　」と「福岡」は同じ地名）
+    it("空白の違いは同じ控えに寄せる", async () => {
+        fetchMock.mockResolvedValue(ok([]));
+        await invoke("  福岡　 ");
+        expect((putCalls()[0] as { input: { Item: { id: string } } }).input.Item.id).toBe("geocache#福岡");
+    });
+
+    it("控えが読めなくても・書けなくても、探すことはできる", async () => {
+        mockDdbSend.mockRejectedValue(new Error("AccessDenied"));
+        fetchMock.mockResolvedValue(ok([{ lat: "33.59", lon: "130.40", display_name: "福岡市, 福岡県" }]));
+        const res = await invoke("福岡");
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).results).toHaveLength(1);
     });
 });
