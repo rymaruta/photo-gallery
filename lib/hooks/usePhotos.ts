@@ -2,12 +2,15 @@
 // 写真一覧をAPIから取得する共通フック（AbortController対応）
 
 import { usablePhotoRows } from "../utils/apiRows";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Photo } from "../data/photos";
 import BASE_PHOTOS_JSON from "@/app/data/photos.json";
 import { log } from "../utils/log";
 
 const BASE_PHOTOS = BASE_PHOTOS_JSON as Photo[];
+
+/** 取り直しの間隔（ms）。`online` のフラップで連発しないように */
+const RETRY_COOLDOWN_MS = 10_000;
 
 export function usePhotos() {
     // BASE_PHOTOSを初期値とすることで、APIが遅延・失敗しても即時コンテンツ表示を保証する
@@ -44,10 +47,19 @@ export function usePhotos() {
      * 取り直す——を採る（`useFollow` の撃ち直しと同じ手）。
      */
     const [reloadKey, setReloadKey] = useState(0);
+    const lastRetryRef = useRef(0);
     useEffect(() => {
         if (!failed) return;
         const retry = () => {
             if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+            // **立て続けに投げない。** `online` は回線が不安定なときに何度も
+            // 発火する（フラップ）。人の操作に律速される `visibilitychange` と
+            // 違って、そのぶんだけ取りに行ってしまう。
+            // **控えは ref に置く**——この効果は `failed` が立つたびに作り
+            // 直されるので、中に持つと毎回 0 に戻って効かない（実測）
+            const now = Date.now();
+            if (now - lastRetryRef.current < RETRY_COOLDOWN_MS) return;
+            lastRetryRef.current = now;
             setFailed(false);
             setReloadKey((k) => k + 1);
         };

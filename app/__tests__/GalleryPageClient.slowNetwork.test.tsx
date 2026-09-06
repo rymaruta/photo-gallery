@@ -103,4 +103,26 @@ describe("回線が遅いとき", () => {
         expect(showToast, "開いている写真に「読み込めませんでした」と言っている").not.toHaveBeenCalled();
         expect(window.location.search, "開けたのに ?photo= を消している").toContain("photo=snap-1");
     });
+
+    // **絞り込みで空のときも、手元にある写真は断らない**（レビューが実測）。
+    // `?feed=following` はフォロー集合が届くまで空になるので、写真APIが
+    // 落ちている場面では必ずここに来る
+    it("絞り込みで空でも、手元にある写真は理由を出さない", async () => {
+        photosState.current = { loaded: false, failed: true, photos: SNAPSHOT };
+        window.history.replaceState({}, "", "/?photo=snap-1&feed=following");
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        await new Promise((r) => setTimeout(r, 50));
+        expect(showToast, "開ける写真なのに断っている").not.toHaveBeenCalled();
+        expect(window.location.search).toContain("photo=snap-1");
+    });
+
+    // **待ち id を捨てない。** 通信の失敗は一時的で、`usePhotos` は戻ってきた
+    // ときに取り直す。id を捨てると取り直しが成功しても開き直せない
+    it("理由を出しても、?photo= は URL に残す", async () => {
+        photosState.current = { loaded: false, failed: true, photos: SNAPSHOT };
+        window.history.replaceState({}, "", "/?photo=not-in-snapshot");
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        await waitFor(() => expect(showToast).toHaveBeenCalled());
+        expect(window.location.search, "取り直せるのに id を捨てている").toContain("photo=not-in-snapshot");
+    });
 });

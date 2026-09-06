@@ -142,7 +142,12 @@ export default function GalleryPageClient() {
     const tellCouldNotLoad = () => {
       if (notFoundRef.current === photoParam) return;
       notFoundRef.current = photoParam;
-      setPendingPhoto(null);
+      // **待ち id は捨てない。** `setPendingPhoto(null)` は `?photo=` を URL から
+      // 削る（`useGallery`）。通信の失敗は一時的で、`usePhotos` は戻ってきた
+      // ときに取り直すので、id を捨てると**取り直しが成功しても開き直せない**
+      // うえ、アドレスバーからも復元できない（「見つからない」と同じ扱いに
+      // しすぎていた）。伝えるのは1回だけ、id は預けたままにする
+      setPendingPhoto(photoParam);
       showToast(locale === "en"
         ? "Could not load photos. Check your connection and try again."
         : "写真を読み込めませんでした。通信を確かめて、もう一度お試しください。", "error");
@@ -150,8 +155,11 @@ export default function GalleryPageClient() {
 
     if (filteredPhotos.length === 0) {
       // 絞り込みの結果が空。ここに来ると下の救済（絞り込みを外して開く）まで
-      // 届かないので、取れていないなら理由を出す
-      if (!photosLoaded && photosFailed) { tellCouldNotLoad(); return; }
+      // 届かないので、取れていないなら理由を出す。
+      // **ただし手元のスナップショットにある写真は別**——`?feed=following` は
+      // フォロー集合が届くまで空になるので、写真APIが落ちている場面では
+      // ここに来る。開ける写真まで断ってしまう（レビューが実測）
+      if (!photosLoaded && photosFailed && !PHOTOS.some((p) => p.id === photoParam)) { tellCouldNotLoad(); return; }
       setPendingPhoto(photoParam);
       return;
     }

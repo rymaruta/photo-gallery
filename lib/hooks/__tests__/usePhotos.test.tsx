@@ -208,4 +208,21 @@ describe("usePhotos の failed", () => {
         await new Promise((r) => setTimeout(r, 30));
         expect(mockPublicFetch.mock.calls.length, "成功しているのに取り直している").toBe(calls);
     });
+
+    // `online` は回線が不安定なときに何度も発火する。人の操作に律速される
+    // `visibilitychange` と違うので、間隔を空けないと連発で取りに行く
+    it("立て続けの online では取り直さない（間隔を空ける）", async () => {
+        mockPublicFetch.mockResolvedValue(new Response("boom", { status: 503 }));
+        const { result } = renderHook(() => usePhotos());
+        await waitFor(() => expect(result.current.failed).toBe(true));
+        const first = mockPublicFetch.mock.calls.length;
+
+        window.dispatchEvent(new Event("online"));
+        await waitFor(() => expect(mockPublicFetch.mock.calls.length).toBe(first + 1));
+        await waitFor(() => expect(result.current.failed).toBe(true));
+        window.dispatchEvent(new Event("online"));
+        window.dispatchEvent(new Event("online"));
+        await new Promise((r) => setTimeout(r, 40));
+        expect(mockPublicFetch.mock.calls.length, "間隔を空けずに投げている").toBe(first + 1);
+    });
 });

@@ -72,6 +72,14 @@ export type ApiRequestInit = RequestInit & { timeoutMs?: number };
  * こちら側にも）。返らなければ `fetch` に到達すらしないので、
  * 「返らない回線で固まる」がこの入口に残っていた（レビュー指摘）。
  */
+/**
+ * トークン取得の待ち。**要求ごとの打ち切りとは別に、短く固定する**
+ * ——`sessionWithTimeout` → `fetchWithTimeout` は直列なので、同じ値を使うと
+ * 最悪で倍かかる（退会の35秒なら70秒。「20秒で諦める」と言えなくなる）。
+ * トークンの更新に10秒以上かかる回線では、どのみち本体も通らない。
+ */
+const SESSION_TIMEOUT_MS = 10_000;
+
 async function sessionWithTimeout(ms: number) {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
@@ -114,23 +122,53 @@ function withTimeout(options?: ApiRequestInit): { init: RequestInit; done: () =>
 }
 
 /**
- * 打ち切り付きで投げる。
+ * 本文の読み取りにも時間切れを掛ける。
  *
- * **本文を読み終わるまで見張る。** `fetch` が返るのは**ヘッダが来た時点**で、
- * そこでタイマーを片付けると `await res.json()` が無防備になる——ヘッダだけ
- * 来て本文が止まる回線（電波が弱いときの典型）では従来どおり永久に待つ
- * （レビューが実測: 27秒経ってもトーストが出ない）。
- * 失敗したときだけその場で片付け、成功したら**タイマーは時間切れまで残す**。
- * 本文を読み終わったあとの中断は何も起こさない（済んだ `fetch` への
- * `abort` は無害）ので、これで「本文が止まったら諦める」が効く。
+ * **`abort` では駄目だった。** `fetch` が返るのはヘッダが来た時点で、
+ * そこから先（`res.json()`）を守るために「タイマーを残して後から
+ * `abort` する」形にしたが、Chromium で測ると **本文の途中で中断すると
+ * 理由が捨てられて `AbortError` になる**（実測: `TimeoutError` を渡しても
+ * `AbortError: The user aborted a request.`）。`AbortError` は
+ * 「自分で畳んだ」中断として各所が握り潰すので、時間切れが黙って消える。
+ * さらに **本文を読む前に中断すると、その応答は二度と読めない**（実測）
+ * ——`Promise.all([userPublicFetch(...), getCurrentSession()])` のように
+ * 応答を受け取ってから他を待つ経路で、届いていた本文が読めなくなっていた。
+ *
+ * なので中断ではなく**読み取り側を競走させる**。理由はこちらが作るので
+ * 必ず `TimeoutError` になり、応答そのものは壊さない。
+ */
+function guardBody(res: Response, ms: number): Response {
+    const race = <T,>(run: () => Promise<T>): Promise<T> => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        return Promise.race([
+            run(),
+            new Promise<never>((_r, rej) => {
+                timer = setTimeout(
+                    () => rej(new DOMException(`応答がありません（${Math.round(ms / 1000)}秒）`, "TimeoutError")),
+                    ms,
+                );
+            }),
+        ]).finally(() => clearTimeout(timer));
+    };
+    const json = res.json.bind(res);
+    const text = res.text.bind(res);
+    Object.defineProperty(res, "json", { configurable: true, value: () => race(json) });
+    Object.defineProperty(res, "text", { configurable: true, value: () => race(text) });
+    return res;
+}
+
+/**
+ * 打ち切り付きで投げる。ヘッダまでは中断で、本文は読み取り側の競走で守る。
+ * **ヘッダが来たらタイマーは必ず片付ける**——残すと、応答を受け取ってから
+ * 他の待ち事を挟む経路（`Promise.all`）で本文が読めなくなる（実測）。
  */
 async function fetchWithTimeout(url: string, options?: ApiRequestInit): Promise<Response> {
     const { init, done } = withTimeout(options);
     try {
-        return await fetch(url, init);
-    } catch (e) {
+        const res = await fetch(url, init);
+        return guardBody(res, options?.timeoutMs ?? REQUEST_TIMEOUT_MS);
+    } finally {
         done();
-        throw e;
     }
 }
 
@@ -151,7 +189,7 @@ export async function authenticatedFetch(path: string, options?: ApiRequestInit)
     const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
 
     // Cognito セッションから JWT トークンを取得（ここにも打ち切りが要る）
-    const session = await sessionWithTimeout(options?.timeoutMs ?? REQUEST_TIMEOUT_MS);
+    const session = await sessionWithTimeout(SESSION_TIMEOUT_MS);
     const token = session?.getIdToken()?.getJwtToken();
 
     if (!token) {
@@ -175,7 +213,7 @@ export async function userFetch(path: string, options?: ApiRequestInit): Promise
     const base = getUserApiBaseUrl();
     const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
 
-    const session = await sessionWithTimeout(options?.timeoutMs ?? REQUEST_TIMEOUT_MS);
+    const session = await sessionWithTimeout(SESSION_TIMEOUT_MS);
     const token = session?.getIdToken()?.getJwtToken();
 
     if (!token) {
