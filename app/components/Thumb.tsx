@@ -58,6 +58,7 @@ export default function Thumb({ photo, alt, sizes, priority = false, objectPosit
     // クライアント遷移で作った `<img>` は隠してフェードで出す
     const [phase, setPhase] = useState<"unknown" | "pending" | "loaded">("unknown");
     const fromHtml = useHydratedFromHtml();
+    const [error, setError] = useState(false);
     // ref は `useCallback` で固定する（描画のたびに作り直すと React が毎回
     // 外して付け直す。jsdom では `naturalWidth` が常に 0 なので、その再呼び出しで
     // 届いたあとに `pending` へ戻った——実ブラウザでは戻らないが、無駄な往復）
@@ -73,7 +74,6 @@ export default function Thumb({ photo, alt, sizes, priority = false, objectPosit
         else if (!fromHtml) setPhase("pending");
     }, [fromHtml]);
     const loaded = phase === "loaded";
-    const [error, setError] = useState(false);
 
     const fallback = photo.thumbSrc || photo.src;
     const avifSet = (photo.thumbSmAvif || photo.thumbAvif) ? buildSrcSet(photo.thumbSmAvif, photo.thumbAvif) : undefined;
