@@ -29,12 +29,59 @@ function getUserApiBaseUrl(): string {
 }
 
 /**
+ * API の打ち切り（ミリ秒）。
+ *
+ * **打ち切りが1つも無かった。** 応答が返らない回線（電波が弱い・トンネル・
+ * 相手が詰まっている）では、`fetch` は失敗もせずに待ち続ける。実測で
+ * 出ていた症状: ストーリーの投稿が返らず**全画面の下書きから出られない**
+ * （投稿ボタンもキャンセルも `disabled`）／フォローが「フォロー中」の見た目の
+ * まま固まる／通知の取得が60秒ごとに積み上がる（4本が同時に開いたまま）。
+ *
+ * API Gateway 自身は29秒で切るので、それより手前で諦める。
+ * **S3 への PUT はこの経路を通らない**（presign した URL へ素の `fetch`）ので、
+ * 大きな写真のアップロードが途中で切られることはない。
+ */
+export const REQUEST_TIMEOUT_MS = 20_000;
+
+/**
+ * 時間切れの中断を足した `RequestInit` を作る。呼び出し側が渡した
+ * `signal`（画面を離れたときの後片付け・追い越しの破棄）も生かす。
+ *
+ * 中断の理由は `TimeoutError` にする——`AbortError` にすると、
+ * 「自分で畳んだ」経路（`usePhotos` など `AbortError` を無視する実装がある）と
+ * 区別できず、**時間切れが黙って捨てられる**。
+ */
+function withTimeout(options?: RequestInit): { init: RequestInit; done: () => void } {
+    const controller = new AbortController();
+    const timer = setTimeout(
+        () => controller.abort(new DOMException(`応答がありません（${Math.round(REQUEST_TIMEOUT_MS / 1000)}秒）`, "TimeoutError")),
+        REQUEST_TIMEOUT_MS,
+    );
+    const caller = options?.signal;
+    if (caller) {
+        if (caller.aborted) controller.abort(caller.reason);
+        else caller.addEventListener("abort", () => controller.abort(caller.reason), { once: true });
+    }
+    return { init: { ...options, signal: controller.signal }, done: () => clearTimeout(timer) };
+}
+
+/** 打ち切り付きで投げる。成功しても失敗しても後始末する */
+async function fetchWithTimeout(url: string, options?: RequestInit): Promise<Response> {
+    const { init, done } = withTimeout(options);
+    try {
+        return await fetch(url, init);
+    } finally {
+        done();
+    }
+}
+
+/**
  * 認証不要のリクエスト（写真一覧取得など）
  */
 export async function publicFetch(path: string, options?: RequestInit): Promise<Response> {
     const base = getBaseUrl();
     const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
-    return fetch(url, options);
+    return fetchWithTimeout(url, options);
 }
 
 /**
@@ -52,7 +99,7 @@ export async function authenticatedFetch(path: string, options?: RequestInit): P
         throw new Error(AUTH_REQUIRED_MESSAGE);
     }
 
-    return fetch(url, {
+    return fetchWithTimeout(url, {
         ...options,
         headers: {
             "Content-Type": "application/json",
@@ -76,7 +123,7 @@ export async function userFetch(path: string, options?: RequestInit): Promise<Re
         throw new Error(AUTH_REQUIRED_MESSAGE);
     }
 
-    return fetch(url, {
+    return fetchWithTimeout(url, {
         ...options,
         headers: {
             "Content-Type": "application/json",
@@ -95,7 +142,7 @@ export async function userFetch(path: string, options?: RequestInit): Promise<Re
 export async function userPublicFetch(path: string, options?: RequestInit): Promise<Response> {
     const base = getUserApiBaseUrl();
     const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
-    return fetch(url, options);
+    return fetchWithTimeout(url, options);
 }
 
 /**
