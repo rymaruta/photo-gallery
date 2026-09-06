@@ -39,9 +39,17 @@ function FakeSearchParamWatcher({ name, onChange }: { name: string; onChange: (v
 vi.mock("../components/SearchParamWatcher", () => ({ default: FakeSearchParamWatcher }));
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
-const photosState = vi.hoisted(() => ({ current: { loaded: false, failed: false } }));
+// **本番は失敗しても手元のスナップショット（photos.json）が残る**
+// （`usePhotos` は空配列でそれを潰さない）。空配列で模すと、
+// 「開ける写真があるのに理由を出す」回帰がテストから消える
+const SNAPSHOT = [{
+    id: "snap-1", src: "https://cdn/snap.jpg", userId: "u1",
+    title: { ja: "手元にある写真" }, category: "x", tags: [],
+    date: "2026-01-01", createdAt: "2026-01-01T00:00:00.000Z", published: true,
+}];
+const photosState = vi.hoisted(() => ({ current: { loaded: false, failed: false, photos: [] as unknown[] } }));
 vi.mock("../../lib/hooks/usePhotos", () => ({
-    usePhotos: () => ({ photos: [], loading: false, ...photosState.current }),
+    usePhotos: () => ({ loading: false, ...photosState.current }),
 }));
 
 import ToastProvider from "../components/ToastProvider";
@@ -49,7 +57,7 @@ const GalleryPageClient = (await import("../GalleryPageClient")).default;
 
 beforeEach(async () => {
     showToast.mockReset();
-    photosState.current = { loaded: false, failed: false };
+    photosState.current = { loaded: false, failed: false, photos: SNAPSHOT };
     window.history.replaceState({}, "", "/");
     mockUserFetch.mockReset().mockImplementation(() => new Promise(() => {}));   // 返らない
     const { resetFollowingCache } = await import("../../lib/hooks/useFollow");
@@ -58,7 +66,7 @@ beforeEach(async () => {
 
 describe("回線が遅いとき", () => {
     it("一覧が取れないままなら、開けない写真の理由を出す", async () => {
-        photosState.current = { loaded: false, failed: true };
+        photosState.current = { loaded: false, failed: true, photos: SNAPSHOT };
         window.history.replaceState({}, "", "/?photo=abc");
         render(<ToastProvider><GalleryPageClient /></ToastProvider>);
         await waitFor(() => expect(showToast).toHaveBeenCalled());
@@ -68,7 +76,7 @@ describe("回線が遅いとき", () => {
 
     // 逆向き: **まだ来ていないだけなら黙って待つ**（届く前に嘘をつかない）
     it("まだ届いていないだけなら、何も言わずに待つ", async () => {
-        photosState.current = { loaded: false, failed: false };
+        photosState.current = { loaded: false, failed: false, photos: SNAPSHOT };
         window.history.replaceState({}, "", "/?photo=abc");
         render(<ToastProvider><GalleryPageClient /></ToastProvider>);
         await new Promise((r) => setTimeout(r, 50));
@@ -76,11 +84,23 @@ describe("回線が遅いとき", () => {
     });
 
     it("フォロー中タブは、返ってくるまで読み込み中と言う（空白にしない）", async () => {
-        photosState.current = { loaded: true, failed: false };
+        photosState.current = { loaded: true, failed: false, photos: SNAPSHOT };
         window.history.replaceState({}, "", "/?feed=following");
         render(<ToastProvider><GalleryPageClient /></ToastProvider>);
         await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("読み込み中"));
         // 「0人です」とは言わない
         expect(screen.queryByText(/フォロー中の人はまだいません|0人/)).toBeNull();
+    });
+
+    // **回帰**（レビューが実測）: 判定を `openById` より前に置いたら、
+    // 手元のスナップショットで開ける写真の上に「読み込めませんでした」を出し、
+    // `?photo=` を URL から消していた。本番の30枚＝共有リンクの大多数が該当
+    it("一覧が取れなくても、手元にある写真は開く（理由を出さない）", async () => {
+        photosState.current = { loaded: false, failed: true, photos: SNAPSHOT };
+        window.history.replaceState({}, "", "/?photo=snap-1");
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        await waitFor(() => expect(screen.getByText("modal")).toBeInTheDocument());
+        expect(showToast, "開いている写真に「読み込めませんでした」と言っている").not.toHaveBeenCalled();
+        expect(window.location.search, "開けたのに ?photo= を消している").toContain("photo=snap-1");
     });
 });

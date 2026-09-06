@@ -129,20 +129,32 @@ export default function GalleryPageClient() {
     // 試す前に預けると、開いたあとで同じ効果がもう一度走ったときに
     // （`photoParam` はまだ古い値のまま）**閉じた直後に預け直して**しまい、
     // 同期が `?photo=` を書き戻す＝閉じてもURLに残る。
-    // **取りに行って駄目だったなら、待たせない。** 以下の分岐はどれも
-    // 「まだ届いていない」前提で預け直すので、失敗したまま黙ると
-    // **押した写真だけが永久に開かず、理由も出ない**（通知・共有リンクからの
-    // 唯一の導線）。実測: 応答を保持すると 3秒・10秒・30秒のいずれでも
-    // モーダルもトーストも出ず、`?photo=` が URL に残ったままだった
-    if (!photosLoaded && photosFailed && notFoundRef.current !== photoParam) {
+    /**
+     * **取りに行って駄目で、しかも開けないときだけ伝える。**
+     *
+     * 一覧が取れなくても、手元のスナップショット（`app/data/photos.json`）に
+     * ある写真は開ける——本番の30枚、つまり共有リンクの大多数がそれ。
+     * 判定を `openById` より前に置いたら、**開いている写真の上に
+     * 「読み込めませんでした」を出し、`?photo=` を URL から消して**いた
+     * （レビューが実測。しかも `notFoundRef` に書くので、そのセッションの
+     * 以後の `?photo=` 遷移が全部拒否される）。開けるかどうかを先に見る。
+     */
+    const tellCouldNotLoad = () => {
+      if (notFoundRef.current === photoParam) return;
       notFoundRef.current = photoParam;
       setPendingPhoto(null);
       showToast(locale === "en"
         ? "Could not load photos. Check your connection and try again."
         : "写真を読み込めませんでした。通信を確かめて、もう一度お試しください。", "error");
+    };
+
+    if (filteredPhotos.length === 0) {
+      // 絞り込みの結果が空。ここに来ると下の救済（絞り込みを外して開く）まで
+      // 届かないので、取れていないなら理由を出す
+      if (!photosLoaded && photosFailed) { tellCouldNotLoad(); return; }
+      setPendingPhoto(photoParam);
       return;
     }
-    if (filteredPhotos.length === 0) { setPendingPhoto(photoParam); return; } // 絞り込みの結果が空
     if (openById(photoParam)) { dismissedRef.current = null; return; }
 
     // **開けなかったことを伝える。**
@@ -189,7 +201,13 @@ export default function GalleryPageClient() {
     // ——ビルド後にアップロードされた写真は必ずここに来る。届く前に
     // 言ってしまうと、嘘をつくうえに下の記録が残って**あとから届いても
     // 開かなくなる**（このモーダルは新着写真の唯一の閲覧手段）。
-    if (!photosLoaded) { setPendingPhoto(photoParam); return; }
+    if (!photosLoaded) {
+      // ここまで来た＝手元の一覧では開けなかった。取りに行って駄目だったなら、
+      // 「まだ届いていない」ではないので待たせない
+      if (photosFailed) { tellCouldNotLoad(); return; }
+      setPendingPhoto(photoParam);
+      return;
+    }
 
     // **記録は専用の ref に置く。** `dismissedRef` は「一度閉じた写真を
     // 開き直さない」ゲートで、そこへ書くと「トーストを止める」つもりの
