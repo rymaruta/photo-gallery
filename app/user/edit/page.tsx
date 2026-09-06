@@ -433,10 +433,16 @@ function EditContent() {
                 body: JSON.stringify(body),
             });
             if (res.ok) {
+                // **もともと下書きなら「非公開にしました」とは言わない**——
+                // 公開したことが無い写真に「非公開に」は、何かを取り下げたように
+                // 読める。公開中の写真を下げたときだけその文言
+                const wasPublished = original?.published !== false;
                 showToast(
                     published
                         ? (isJa ? "保存しました" : "Saved")
-                        : (isJa ? "非公開にしました" : "Unpublished"),
+                        : wasPublished
+                            ? (isJa ? "非公開にしました" : "Unpublished")
+                            : (isJa ? "下書きを保存しました" : "Draft saved"),
                     "success",
                 );
                 // 公開したままの保存は写真ページへ戻す。下書き一覧へ落とすと、

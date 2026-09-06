@@ -54,6 +54,27 @@ beforeEach(() => {
     mockPush.mockReset();
 });
 
+// 下書きのまま保存したときに「非公開にしました」と出ていた。公開したことが
+// 無い写真に「非公開に」は、何かを取り下げたように読める
+describe("保存のトースト", () => {
+    it("下書きを下書きのまま保存 → 「下書きを保存しました」", async () => {
+        world(false);
+        render(<EditPage />);
+        await screen.findByDisplayValue("湖");
+        await userEvent.click(screen.getByRole("button", { name: "下書き保存" }));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("下書きを保存しました", "success"));
+        expect(mockShowToast).not.toHaveBeenCalledWith("非公開にしました", "success");
+    });
+
+    it("公開中の写真を非公開に → 「非公開にしました」", async () => {
+        world(true);
+        render(<EditPage />);
+        await screen.findByDisplayValue("湖");
+        await userEvent.click(screen.getByRole("button", { name: "非公開にする" }));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("非公開にしました", "success"));
+    });
+});
+
 describe("公開済みの写真を編集するとき", () => {
     it("「下書き保存」を出さない（黙って非公開にしない）", async () => {
         world(true);

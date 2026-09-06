@@ -24,15 +24,9 @@ export type CameraExif = {
     dateTimeOriginal?: string; // 撮影地の壁時計 "YYYY-MM-DDTHH:mm:ss"（ゾーン無し）
 };
 
-/** Make と Model を重複なく結合（"SONY" + "SONY ILCE-7M3" → "SONY ILCE-7M3"） */
-export function formatCameraName(make?: string, model?: string): string | undefined {
-    const mk = (make ?? "").trim();
-    const md = (model ?? "").trim();
-    if (!mk && !md) return undefined;
-    if (!md) return mk;
-    if (!mk || md.toLowerCase().startsWith(mk.toLowerCase())) return md;
-    return `${mk} ${md}`;
-}
+// 実体は cameraName.ts（exifr を引き込まずに使えるように）。ここからも従来どおり引ける
+import { formatCameraName } from "./cameraName";
+export { formatCameraName };
 
 /** 露出時間（秒）→ "1/640s" / "2s" */
 export function formatExposure(t?: number): string | undefined {

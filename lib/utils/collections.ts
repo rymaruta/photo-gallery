@@ -27,6 +27,25 @@ export const CATEGORY_ALIASES: Record<string, string> = {
 };
 
 /**
+ * カテゴリの表示名（スラッグ → 日本語）。`CATEGORY_ALIASES` の逆引きで、
+ * 同じスラッグに複数の日本語が寄っていれば**表の先頭**（建築／建物 → 建築）。
+ *
+ * 集約ページの見出し・title・説明文は `labelForSlug`（最初に一致した写真の
+ * 生の値）で決めていたので、`street` と書いた写真しか無いカテゴリは
+ * 「streetの写真（1枚）」「streetカテゴリの旅写真」と英語スラッグが日本語文に
+ * 混ざり、`landscape` は「風景」——**写真の並び順で見出しが変わる**状態だった
+ * （実ビルドの `out/category/street.html` で確認）。写真ページ側は
+ * `labels.category.names` で日本語にしているので、そちらと揃える
+ * （表そのものは `app/i18n/labels.ts` と一致することをテストで縛る）。
+ */
+export function categoryDisplayName(slug: string): string | undefined {
+    for (const [ja, alias] of Object.entries(CATEGORY_ALIASES)) {
+        if (alias === slug) return ja;
+    }
+    return undefined;
+}
+
+/**
  * スラッグの長さ（バイト）の上限。
  *
  * **スラッグはファイル名になる。** 静的書き出しは `/location/<slug>` に対して
@@ -239,7 +258,7 @@ export function collectEntries(photos: Photo[], type: CollectionType): Collectio
             seen.add(slug);
             const cur = bySlug.get(slug);
             if (cur) cur.count++;
-            else bySlug.set(slug, { label: v, count: 1 });
+            else bySlug.set(slug, { label: (type === "category" && categoryDisplayName(slug)) || v, count: 1 });
         }
     }
     // 撮影地の件数は photosInCollection と同じ数え方（緩い一致）にする。
@@ -300,6 +319,10 @@ export function photosInCollection(photos: Photo[], type: CollectionType, slug: 
 /** slug に対応する代表表示ラベル（最初に一致した生の値）。無ければデコードした slug。 */
 export function labelForSlug(photos: Photo[], type: CollectionType, slug: string): string {
     const target = normalizeParam(slug, type);
+    if (type === "category") {
+        const name = categoryDisplayName(target);
+        if (name) return name;
+    }
     for (const p of photos) {
         for (const v of valuesFor(p, type)) {
             if (slugify(v, type) === target) return v;

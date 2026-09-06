@@ -26,6 +26,7 @@ import CommentSection from "../../components/CommentSection";
 import { relatedSections, adjacentPhotos } from "../../../lib/utils/related";
 import { ROUTES } from "../../../lib/routes";
 import { formatMapHash, PHOTO_LINK_ZOOM } from "../../../lib/utils/mapView";
+import { formatCameraName } from "../../../lib/utils/cameraName";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
@@ -449,9 +450,12 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
         }
         
         return {
-            camera: extracted.Make && extracted.Model 
-                ? `${extracted.Make} ${extracted.Model}`.trim() 
-                : extracted.Make || extracted.Model || fallback.camera || undefined,
+            // `formatCameraName` に寄せる。素の連結だと Model がメーカー名を含む機種
+            // （Hasselblad "X2D 100C" は Model が "Hasselblad X2D 100C"）で
+            // 「Hasselblad Hasselblad X2D 100C」になる。アップロード側は前から
+            // 同じ関数で畳んでいた（`lib/utils/exif.ts`）——画面で抽出する経路だけ
+            // 素のままだった
+            camera: formatCameraName(extracted.Make, extracted.Model) || fallback.camera || undefined,
             lens: extracted.LensModel || fallback.lens || undefined,
             aperture: extracted.FNumber 
                 ? `f/${extracted.FNumber}` 
