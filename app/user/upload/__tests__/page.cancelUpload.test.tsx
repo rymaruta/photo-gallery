@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { UPLOAD_FAILED_MESSAGE } from "../errorText";
-import { CANCEL_DISCARD_WAIT_MS } from "../page";
 
 // **アップロード中に止める手段が無かった。**
 // 押している間は公開も下書き保存も `disabled={uploading}` で、しかも
@@ -16,6 +15,10 @@ const mockUserFetch = vi.hoisted(() => vi.fn());
 const mockReadSharedPayload = vi.hoisted(() => vi.fn());
 const mockCreateThumbnail = vi.hoisted(() => vi.fn());
 const mockDominantColor = vi.hoisted(() => vi.fn());
+
+// **上限そのものは差し替える。** 本物は5秒で、待つことを見るテストが
+// 毎回5秒かかる（実装は同じ経路を通る）
+vi.mock("../cancelWait", () => ({ CANCEL_DISCARD_WAIT_MS: 50 }));
 
 vi.mock("next/navigation", () => ({
     useRouter: () => ({ push: mockPush, replace: vi.fn() }),
@@ -329,8 +332,8 @@ describe("アップロード中にやめる", () => {
     // 【A-1】捨てるのを待つのは正しいが、待ち先は `userFetch`
     //（セッション最大10秒＋要求20秒）をキーごとに直列で回す。返らない回線
     // ——「やめる」が要るまさにその場面——では最悪60秒 画面が戻らない。
-    // **偽のタイマーは使えない**（取り込みの 1.1 秒 sleep と userEvent が
-    // 絡んで進まない）ので、実時間で上限そのものを待つ。この1本だけ遅い
+    // 上限そのものは `vi.mock` で 50ms に差し替えている（本物は5秒。
+    // 偽のタイマーは取り込みの 1.1 秒 sleep と userEvent が絡んで進まない）
     it("捨てるのが返らない回線でも、上限で画面を返す", async () => {
         hangingPut();
         const base = mockUserFetch.getMockImplementation()!;
@@ -348,9 +351,9 @@ describe("アップロード中にやめる", () => {
             mockUserFetch.mock.calls.some((c) => c[0] === "/upload/discard"), "捨てにいっていない").toBe(true));
 
         await waitFor(() => expect(toasts(), "上限を過ぎても畳まない").toContain("info:アップロードをやめました"),
-            { timeout: CANCEL_DISCARD_WAIT_MS + 3_000 });
+            { timeout: 3_000 });
         expect(screen.queryByRole("button", { name: "中断中…" }), "止めたまま戻らない").toBeNull();
-    }, CANCEL_DISCARD_WAIT_MS + 5_000);
+    });
 
     // **控えたサムネのキーも捨てる。** ここを見ていなかったので、
     // `stale` からサムネを外す変異が素通りしていた（新テストは
@@ -466,4 +469,35 @@ describe("アップロード中にやめる", () => {
         expect(mockUserFetch.mock.calls.filter((c) => c[0] === "/upload/presigned-url").length,
             "やめたのに2枚目を上げ始めている").toBe(1);
     }, 15_000);   // 取り込みだけで 2.2 秒（1枚 1.1 秒）かかる
+    // **やめても、本当に落ちた写真のことは伝える。** 畳む分岐は `return` で
+    // 抜けるので、下の「N 件失敗しました」に届かない——やめた回だけ
+    // その通知が静かに消えていた（赤い注意書きは一覧に残るので気づけなくは
+    // ないが、伝えたはずのことを伝えていない）
+    it("やめる前に落ちた写真があれば、その件数は伝える", async () => {
+        mockReadSharedPayload.mockResolvedValue({
+            files: [new File(["a"], "a.jpg", { type: "image/jpeg" }), new File(["b"], "b.jpg", { type: "image/jpeg" })],
+            title: "", text: "", t: Date.now(),
+        });
+        hangingPut();
+        let n = 0;
+        const base = mockUserFetch.getMockImplementation()!;
+        mockUserFetch.mockImplementation((url: string, init?: unknown) => {
+            // 1枚目は上限で断られる（本物の失敗）。2枚目は PUT が返らない
+            if (url === "/upload/presigned-url" && n++ === 0) {
+                return Promise.resolve({ ok: false, status: 403, json: async () => ({ error: "アップロード上限に達しています" }) });
+            }
+            return base(url, init);
+        });
+
+        render(<UploadPage />);
+        const publish = await screen.findByRole("button", { name: /2枚を公開/ }, { timeout: 5_000 });
+        await waitFor(() => expect(publish).not.toBeDisabled(), { timeout: 5_000 });
+        await userEvent.click(publish);
+        await userEvent.click(await screen.findByRole("button", { name: "やめる" }));
+
+        await waitFor(() => expect(toasts()).toContain("info:アップロードをやめました"));
+        expect(toasts(), "落ちた1枚のことを伝えていない").toContain("error:1 件失敗しました");
+        // やめて手を付けていない残りは「失敗」に数えない
+        expect(toasts().filter((t) => t.startsWith("error:")).length, "やめた残りまで失敗に数えている").toBe(1);
+    }, 15_000);
 });

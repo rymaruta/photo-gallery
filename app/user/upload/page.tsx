@@ -17,6 +17,7 @@ import { ROUTES } from "../../../lib/routes";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
 import { userFacingUploadError, UPLOAD_FAILED_MESSAGE } from "./errorText";
+import { CANCEL_DISCARD_WAIT_MS } from "./cancelWait";
 import { unstrippableMessage, gifRejectedMessage, gifRejectedLabel } from "../../../lib/utils/uploadRejection";
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import type { Photo, Locale } from "../../../lib/data/photos";
@@ -162,15 +163,6 @@ const TITLE_MAX = 200;
 const LOCATION_MAX = 200;
 const CATEGORY_MAX = 100;
 
-/**
- * やめたときに「上げかけた実体を捨てる」のを待つ上限。
- *
- * 待つ理由は、投げっぱなしだと DELETE が飛ぶ前に離脱できるから
- * （`userFetch` はセッション取得を挟むので、要求は同じ tick では出ない）。
- * 上限を切る理由は、その待ちが**返らない回線でこそ長くなる**から
- * ——「やめる」が要るのはまさにその場面で、最悪60秒 画面が戻らない。
- */
-export const CANCEL_DISCARD_WAIT_MS = 5_000;
 
 /** `p` を待つ。ただし `ms` を過ぎたら待つのをやめる（`p` は走ったまま） */
 async function waitAtMost(p: Promise<unknown>, ms: number): Promise<void> {
@@ -689,6 +681,10 @@ function UploadPageInner() {
             }
 
             let successCount = 0;
+            // **失敗は別に数える。** やめたときは「上げていない残り」が出るので
+            // `pending.length - successCount` は使えない（手を付けていない
+            // 写真まで「失敗」に数えてしまう）
+            let failCount = 0;
             let cancelled = false;
             for (const item of pending) {
                 // **1枚ごとに見る。** 5枚選んで2枚目でやめたとき、残りを上げ始めない
@@ -711,6 +707,7 @@ function UploadPageInner() {
                         // 場合は**形式が正しい JPEG** なので、言われたとおりに
                         // 保存し直しても同じ結果になる（袋小路だった）。
                         updateItem(item.id, { status: "error", error: unstrippableMessage(e, locale) });
+                        failCount++;
                         continue;
                     }
                     updateItem(item.id, { progress: 20 });
@@ -921,6 +918,7 @@ function UploadPageInner() {
                     // 出していたので、画面に英語の技術文字列が並んでいた。
                     // 見せてよいのは、こちらが日本語で組み立てたものだけ
                     updateItem(item.id, { status: "error", error: userFacingUploadError(err) });
+                    failCount++;
                 }
             }
 
@@ -934,6 +932,12 @@ function UploadPageInner() {
                 showToast(locale === "en"
                     ? (successCount > 0 ? `Stopped. ${successCount} uploaded.` : "Stopped uploading")
                     : (successCount > 0 ? `やめました（${successCount}枚は完了）` : "アップロードをやめました"), "info");
+                // **失敗したことは、やめても伝える。** ここは `return` で抜けるので、
+                // 下の「N 件失敗しました」に届かない——本当に落ちた写真が
+                // あった回だけ、その通知が静かに消えていた
+                if (failCount > 0) {
+                    showToast(locale === "en" ? `${failCount} upload(s) failed` : `${failCount} 件失敗しました`, "error");
+                }
                 return;
             }
             if (successCount > 0) {
