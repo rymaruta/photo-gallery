@@ -127,6 +127,19 @@ describe("GalleryGrid: 枚数が増えても一度に全部は描かない", () 
         expect(cards(container)).toBe(GRID_INITIAL_VISIBLE + GRID_STEP * 2);
     });
 
+    // **足したあとに観測者を作り直す。** 番兵が画面に入ったままだと交差の状態が
+    // 変わらず、ブラウザは二度と呼んでくれない（＝そこで止まる）。jsdom には
+    // レイアウトが無いので「止まる」ことは再現できない——作り直していることを見る。
+    // 実ブラウザでは 300枚→7回・1,000枚→19回に分けて最後まで読めることを実測済み
+    it("足すたびに番兵を見張り直す（入ったままだと二度と呼ばれない）", () => {
+        const io = stubObserver();
+        render(<GalleryGrid photos={many(500)} locale="ja" />);
+        const before = io.instances.length;
+        io.fire();
+        expect(io.instances.length, "足したあと観測者を作り直していない").toBeGreaterThan(before);
+        expect(io.instances[io.instances.length - 1].el, "作り直した観測者が番兵を見ていない").not.toBeNull();
+    });
+
     it("最後まで足したら番兵を外す（無限に観測しない）", () => {
         const io = stubObserver();
         const { container } = render(<GalleryGrid photos={many(GRID_INITIAL_VISIBLE + 10)} locale="ja" />);
