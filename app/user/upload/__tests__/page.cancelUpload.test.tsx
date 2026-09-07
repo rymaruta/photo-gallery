@@ -2,6 +2,7 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { UPLOAD_FAILED_MESSAGE } from "../errorText";
 
 // **アップロード中に止める手段が無かった。**
 // 押している間は公開も下書き保存も `disabled={uploading}` で、しかも
@@ -131,7 +132,11 @@ describe("アップロード中にやめる", () => {
         await userEvent.click(await screen.findByRole("button", { name: "やめる" }));
 
         await waitFor(() => expect(screen.queryByRole("button", { name: "やめる" })).toBeNull());
-        // 「アップロードに失敗しました」のような赤い文言を出さない
-        expect(screen.queryByText(/失敗/), "やめただけなのに失敗と出している").toBeNull();
+        // **文言そのものを見る。** 最初は `/失敗/` で探していたが、中断したときに
+        // 出る文言は「画像をアップロードできませんでした…」で**その語を含まない**
+        // ——中断を失敗として扱う変異が素通りしていた（変異テストで気づいた）
+        expect(screen.queryByText(UPLOAD_FAILED_MESSAGE), "やめただけなのに失敗の文言を出している").toBeNull();
+        // 赤い注意書き自体が出ていないこと
+        expect(document.querySelector(".text-red-400"), "やめただけなのに赤い注意書きが出ている").toBeNull();
     });
 });
