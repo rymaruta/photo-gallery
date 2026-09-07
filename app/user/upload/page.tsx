@@ -162,6 +162,26 @@ const TITLE_MAX = 200;
 const LOCATION_MAX = 200;
 const CATEGORY_MAX = 100;
 
+/**
+ * やめたときに「上げかけた実体を捨てる」のを待つ上限。
+ *
+ * 待つ理由は、投げっぱなしだと DELETE が飛ぶ前に離脱できるから
+ * （`userFetch` はセッション取得を挟むので、要求は同じ tick では出ない）。
+ * 上限を切る理由は、その待ちが**返らない回線でこそ長くなる**から
+ * ——「やめる」が要るのはまさにその場面で、最悪60秒 画面が戻らない。
+ */
+export const CANCEL_DISCARD_WAIT_MS = 5_000;
+
+/** `p` を待つ。ただし `ms` を過ぎたら待つのをやめる（`p` は走ったまま） */
+async function waitAtMost(p: Promise<unknown>, ms: number): Promise<void> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        await Promise.race([p, new Promise<void>((resolve) => { timer = setTimeout(resolve, ms); })]);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 function UploadPageInner() {
     // 画面下の固定バーの実測値を CSS 変数に出す（MiniPlayer が読む）
     const bottomBarRef = useRef<HTMLDivElement | null>(null);
@@ -826,6 +846,13 @@ function UploadPageInner() {
                     // 元ファイルから抽出して保存する。GPS は含めない（coords で別管理）
                     const cameraExif = await extractCameraExif(item.file);
 
+                    // **重い処理のあとにもう一度見る。** 代表色・ぼかし・EXIF は
+                    // 原寸を3回デコードするが、どれも `signal` を見ない。その間に
+                    // 押した「やめる」は保存まで効かず、写真が1枚できあがる
+                    // （実 `userFetch` はセッション取得に最大10秒使うので、
+                    //   保存の口に届いてから止まるのでは遅い）
+                    if (signal.aborted) throw new DOMException("cancelled", "AbortError");
+
                     const saveResponse = await apiFetch("/upload/save", {
                         method: "POST",
                         signal,
@@ -869,7 +896,13 @@ function UploadPageInner() {
                     // 飛ぶ前に離脱できる（タブを閉じる・戻る）——この修正が目的に
                     // している孤児がそのまま残る。手本も `await` している
                     if (stale.length) {
-                        if (signal.aborted) await discardKeys(stale);
+                        // **待つが、待ち続けない。** `discardKeys` は
+                        // `userFetch`（セッション最大10秒＋要求20秒）を
+                        // キーごとに直列で回すので、返らない回線では
+                        // 本体＋サムネで最悪60秒。**その回線こそ「やめる」が
+                        // 要る場面**なので、上限を切って画面を先に返す
+                        // （要求は投げたまま。捨て損ねても記録は残る）
+                        if (signal.aborted) await waitAtMost(discardKeys(stale), CANCEL_DISCARD_WAIT_MS);
                         else void discardKeys(stale);
                     }
                     // **やめたのは失敗ではない。** 中断は利用者の操作なので、
@@ -891,7 +924,11 @@ function UploadPageInner() {
                 }
             }
 
-            if (cancelled) {
+            // **`signal.aborted` も見る。** `abort()` は決着済みの Promise を
+            // 巻き戻せないので、押した時点で保存の応答が届いていた回は
+            // `cancelled` が立たず、「アップロードしました」と出してトップへ
+            // 移していた（やめたのに遷移する）
+            if (cancelled || signal.aborted) {
                 // 上げ終わったぶんは残る（画面にも「完了」で出ている）。
                 // やめたことだけ伝えて、この画面に留まる（遷移しない）
                 showToast(locale === "en"
@@ -1232,11 +1269,17 @@ function UploadPageInner() {
                             {uploading && (
                                 <button
                                     onClick={() => {
+                                        if (stopping) return;
                                         setStopping(true);
                                         uploadAbortRef.current?.abort(new DOMException("cancelled", "AbortError"));
                                     }}
-                                    disabled={stopping}
-                                    className="px-4 py-3 text-white/70 hover:text-white text-sm font-semibold rounded-full ring-1 ring-white/15 hover:ring-white/30 transition-colors disabled:opacity-50"
+                                    // **`disabled` にしない。** 実ブラウザは focus 中の
+                                    // 要素が disabled になると blur するので、
+                                    // 「消さずに残す」理由（フォーカスを失わせない）を
+                                    // 自分で潰していた。手本の `StoriesBar` も
+                                    // disabled にせず名前だけ変えている
+                                    aria-disabled={stopping}
+                                    className={`px-4 py-3 text-white/70 hover:text-white text-sm font-semibold rounded-full ring-1 ring-white/15 hover:ring-white/30 transition-colors${stopping ? " opacity-50" : ""}`}
                                     style={{ touchAction: "manipulation", minHeight: "44px" }}
                                 >
                                     {stopping
