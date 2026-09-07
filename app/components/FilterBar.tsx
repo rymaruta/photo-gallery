@@ -312,7 +312,7 @@ function FilterBarInner({
                         <span className="truncate" style={{ maxWidth: 160 }}>
                             {display}
                         </span>
-                        {showCount ? <span className={`text-[11px] ${active ? "text-black/65" : "text-white/50"}`}>{count}</span> : null}
+                        {showCount ? <span className={`text-[11px] ${active ? "text-black/55" : "text-white/50"}`}>{count}</span> : null}
                     </button>
                 );
             }),

@@ -319,7 +319,7 @@ export default function SignupPage() {
                             <button
                                 type="button"
                                 onClick={() => { setStep("register"); setError(""); setCode(""); setResendCooldown(0); }}
-                                className="text-xs text-white/50 hover:text-white/60 transition-colors flex items-center gap-1"
+                                className="text-xs text-white/50 hover:text-white/75 transition-colors flex items-center gap-1"
                             >
                                 <ArrowLeftIcon className="w-3 h-3" /> 戻る
                             </button>
@@ -327,7 +327,7 @@ export default function SignupPage() {
                                 type="button"
                                 onClick={handleResend}
                                 disabled={resendCooldown > 0 || resending}
-                                className="text-xs text-white/50 hover:text-white/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="text-xs text-white/50 hover:text-white/75 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 {resendCooldown > 0
                                     ? `再送（${resendCooldown}秒後）`

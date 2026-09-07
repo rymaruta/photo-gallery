@@ -33,7 +33,8 @@ const GUARDED: Array<[string, string, string]> = [
     ["app/login/page.tsx", "パスワードをお忘れですか", "パスワード再設定への導線"],
     ["app/components/Footer.tsx", "© Journey Photo", "全ページに出る著作権表示"],
     ["app/privacy/page.tsx", "最終更新日", "プライバシーポリシーの更新日"],
-    ["app/components/CommentSection.tsx", "するとコメントできます", "コメントの案内"],
+    // 子の <Link>（/70）を親と取り違えていたので、包む <p> を直接の目印にする
+    ["app/components/CommentSection.tsx", '<p className="mb-4 text-xs', "コメントの案内"],
     ["app/map/page.tsx", "GPS 付きの写真をアップロード", "地図が空のときの案内"],
     // 画面に出る文字が変数で、目印にできないもの。コードの断片を目印にする
     ["app/components/FilterBar.tsx", "showCount ? <span", "絞り込みのチップの件数"],
@@ -45,7 +46,7 @@ const GUARDED: Array<[string, string, string]> = [
 function findLine(file: string): (needle: string) => { src: string[]; i: number } {
     const src = readFileSync(join(ROOT, file), "utf8").split("\n");
     return (needle: string) => {
-        const i = src.findIndex((l) => l.includes(needle) && !/^\s*(\/\/|\*|\/\*)/.test(l));
+        const i = src.findIndex((l) => l.includes(needle) && !/^\s*(\/\/|\*|\/\*|\{\/\*)/.test(l));
         return { src, i };
     };
 }

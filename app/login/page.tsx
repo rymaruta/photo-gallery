@@ -234,7 +234,7 @@ function LoginForm() {
                         <button
                             type="button"
                             onClick={() => { setStep("forgot-send"); setError(""); }}
-                            className="w-full text-center text-xs text-white/50 hover:text-white/60 transition-colors py-2"
+                            className="w-full text-center text-xs text-white/50 hover:text-white/75 transition-colors py-2"
                         >
                             パスワードをお忘れですか？
                         </button>
@@ -278,7 +278,7 @@ function LoginForm() {
                             {submitting ? "送信中..." : "確認コードを送信"}
                         </button>
                         <button type="button" onClick={() => { setStep("login"); setError(""); }}
-                            className="w-full text-center text-xs text-white/50 hover:text-white/60 transition-colors py-2 flex items-center justify-center gap-1">
+                            className="w-full text-center text-xs text-white/50 hover:text-white/75 transition-colors py-2 flex items-center justify-center gap-1">
                             <ArrowLeftIcon className="w-3 h-3" /> ログインに戻る
                         </button>
                     </form>
