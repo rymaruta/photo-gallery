@@ -189,6 +189,13 @@ function UploadPageInner() {
      * ストーリーの投稿（`StoriesBar`）が同じ理由で先に直してある形を借りる
      */
     const uploadAbortRef = useRef<AbortController | null>(null);
+    /**
+     * 「やめる」を押してから止まるまで。**ボタンを消さずに名前を変える**
+     * ——押した瞬間に消すと、そこに居たフォーカスが `<body>` へ落ちる
+     * （キーボード・読み上げの人は位置を失う）。手本の `StoriesBar` も
+     * 同じボタンを残して名前だけ変えている
+     */
+    const [stopping, setStopping] = useState(false);
     // EXIF の読み取りと撮影地の逆引きが終わるまで公開させない。
     // これらは写真を選んだ後に非同期で入るので、すぐ「公開」を押すと
     // 撮影日・撮影地・座標が入る前の状態で保存されていた
@@ -630,274 +637,296 @@ function UploadPageInner() {
         }
 
         setUploading(true);
+        setStopping(false);
         const controller = new AbortController();
         uploadAbortRef.current = controller;
         const { signal } = controller;
-        // 管理者でもユーザーAPIを使う。管理APIの savePhoto は published を見ずに
-        // 常に true で保存するため、「下書き保存」を押しても即公開になっていた
-        // （しかも撮影日・サムネURL・代表色・ぼかしも受け取らないので全部捨てられる）。
-        // ユーザーAPI側は isAdmin を見て100枚制限だけ免除している。
-        const { userFetch, readApiError } = await import("../../../lib/utils/api");
-        const apiFetch = userFetch;
+        // **押した状態から必ず抜ける。** ここから下で何が投げても `finally` が
+        // `uploading` を下ろす。手本にした `StoriesBar` は最初からこの形で、
+        // そこだけ借りていなかった（台帳 D-9 もこれで閉じる）
+        try {
+            // 管理者でもユーザーAPIを使う。管理APIの savePhoto は published を見ずに
+            // 常に true で保存するため、「下書き保存」を押しても即公開になっていた
+            // （しかも撮影日・サムネURL・代表色・ぼかしも受け取らないので全部捨てられる）。
+            // ユーザーAPI側は isAdmin を見て100枚制限だけ免除している。
+            const { userFetch, readApiError } = await import("../../../lib/utils/api");
+            const apiFetch = userFetch;
 
-        const tagList = tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
-        // 編集画面と同じ理由（`app/user/edit/page.tsx` を見よ）。
-        // 上限は画面に対応物が無く、超えた分は 200 のまま消える
-        if (tagList && tagList.length > TAGS_MAX) {
-            showToast(locale === "en"
-                ? `Up to ${TAGS_MAX} tags (${tagList.length}). The rest won't be saved`
-                : `タグは${TAGS_MAX}個までです（${tagList.length}個）。超えた分は保存されません`, "error");
-        }
-        // **文字数で見る**（この画面は説明を文字列で送るので、段落数は効かない）
-        const longDesc = pending.find((it) => it.description.trim().length > DESC_STRING_MAX);
-        if (longDesc) {
-            showToast(locale === "en"
-                ? `Up to ${DESC_STRING_MAX} characters in the description. The rest won't be saved`
-                : `説明は${DESC_STRING_MAX}字までです。超えた分は保存されません`, "error");
-        }
+            const tagList = tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
+            // 編集画面と同じ理由（`app/user/edit/page.tsx` を見よ）。
+            // 上限は画面に対応物が無く、超えた分は 200 のまま消える
+            if (tagList && tagList.length > TAGS_MAX) {
+                showToast(locale === "en"
+                    ? `Up to ${TAGS_MAX} tags (${tagList.length}). The rest won't be saved`
+                    : `タグは${TAGS_MAX}個までです（${tagList.length}個）。超えた分は保存されません`, "error");
+            }
+            // **文字数で見る**（この画面は説明を文字列で送るので、段落数は効かない）
+            const longDesc = pending.find((it) => it.description.trim().length > DESC_STRING_MAX);
+            if (longDesc) {
+                showToast(locale === "en"
+                    ? `Up to ${DESC_STRING_MAX} characters in the description. The rest won't be saved`
+                    : `説明は${DESC_STRING_MAX}字までです。超えた分は保存されません`, "error");
+            }
 
-        let successCount = 0;
-        let cancelled = false;
-        for (const item of pending) {
-            // **1枚ごとに見る。** 5枚選んで2枚目でやめたとき、残りを上げ始めない
-            if (signal.aborted) { cancelled = true; break; }
-            updateItem(item.id, { status: "uploading", progress: 0, error: undefined });
-            // **成否を確認できていないキー。** 失敗したらここに残るので
-            // catch で消す（残すと誰にも辿れない実体になる）。
-            // catch から見える必要があるので try の外に置く
-            let reservedKey: string | undefined;
-            let reservedThumbKey: string | undefined;
-            try {
-                // メタデータを除去できたものだけ上げる（消せない形式は上げない）
-                let uploadFile: File;
+            let successCount = 0;
+            let cancelled = false;
+            for (const item of pending) {
+                // **1枚ごとに見る。** 5枚選んで2枚目でやめたとき、残りを上げ始めない
+                if (signal.aborted) { cancelled = true; break; }
+                updateItem(item.id, { status: "uploading", progress: 0, error: undefined });
+                // **成否を確認できていないキー。** 失敗したらここに残るので
+                // catch で消す（残すと誰にも辿れない実体になる）。
+                // catch から見える必要があるので try の外に置く
+                let reservedKey: string | undefined;
+                let reservedThumbKey: string | undefined;
                 try {
-                    uploadFile = await toUploadSafeFile(item.file);
-                } catch (e) {
-                    log.error("could not strip metadata, skipping upload:", e);
-                    // **理由ごとに書き分ける。** 以前は全部「この形式は…JPEG か
-                    // PNG で保存し直してください」だったが、読めない／大きすぎる
-                    // 場合は**形式が正しい JPEG** なので、言われたとおりに
-                    // 保存し直しても同じ結果になる（袋小路だった）。
-                    updateItem(item.id, { status: "error", error: unstrippableMessage(e, locale) });
-                    continue;
-                }
-                updateItem(item.id, { progress: 20 });
+                    // メタデータを除去できたものだけ上げる（消せない形式は上げない）
+                    let uploadFile: File;
+                    try {
+                        uploadFile = await toUploadSafeFile(item.file);
+                    } catch (e) {
+                        log.error("could not strip metadata, skipping upload:", e);
+                        // **理由ごとに書き分ける。** 以前は全部「この形式は…JPEG か
+                        // PNG で保存し直してください」だったが、読めない／大きすぎる
+                        // 場合は**形式が正しい JPEG** なので、言われたとおりに
+                        // 保存し直しても同じ結果になる（袋小路だった）。
+                        updateItem(item.id, { status: "error", error: unstrippableMessage(e, locale) });
+                        continue;
+                    }
+                    updateItem(item.id, { progress: 20 });
 
-                // 前回この写真の S3 アップロードまでは成功していたら、それを使い回す。
-                //
-                // 以前は失敗のたびに presign を取り直していたので、再試行するたびに
-                // 参照されないオブジェクトが2つ（本体＋サムネ）増えていた。
-                // どの削除経路（写真削除・退会・ストーリー掃除）も DynamoDB の
-                // 項目からキーを引くので、項目の無いオブジェクトには永久に手が届かない。
-                let key = item.uploaded?.key;
-                let publicUrl = item.uploaded?.publicUrl;
-                let thumbUrl = item.uploaded?.thumbUrl;
+                    // 前回この写真の S3 アップロードまでは成功していたら、それを使い回す。
+                    //
+                    // 以前は失敗のたびに presign を取り直していたので、再試行するたびに
+                    // 参照されないオブジェクトが2つ（本体＋サムネ）増えていた。
+                    // どの削除経路（写真削除・退会・ストーリー掃除）も DynamoDB の
+                    // 項目からキーを引くので、項目の無いオブジェクトには永久に手が届かない。
+                    let key = item.uploaded?.key;
+                    let publicUrl = item.uploaded?.publicUrl;
+                    let thumbUrl = item.uploaded?.thumbUrl;
 
-                if (!key || !publicUrl) {
-                    const presignedResponse = await apiFetch("/upload/presigned-url", {
+                    if (!key || !publicUrl) {
+                        const presignedResponse = await apiFetch("/upload/presigned-url", {
+                            method: "POST",
+                            signal,
+                            body: JSON.stringify({
+                                fileName: uploadFile.name,
+                                fileType: uploadFile.type,
+                                fileSize: uploadFile.size,
+                            }),
+                        });
+                        if (!presignedResponse.ok) {
+                            // サーバーは日本語の理由を返す（例: アップロード上限に達しています）。
+                            // 生のJSONを80文字で切って出していたので、肝心の一文が
+                            // 途中で切れたクラッシュログのように見えていた。
+                            throw new Error(await readApiError(presignedResponse,
+                                locale === "en" ? "Could not start the upload." : "アップロードを開始できませんでした。"));
+                        }
+                        const presigned = await presignedResponse.json();
+                        key = presigned.key as string;
+                        publicUrl = presigned.publicUrl as string;
+                        // **サーバーが署名した種別で送る。** `content-type` は
+                        // 署名対象なので、違う文字列だと S3 が 403 にする。
+                        // 返ってこない古い API 相手でも動くよう、無ければ従来どおり
+                        const putType = (presigned.contentType as string | undefined) ?? uploadFile.type;
+                        // **PUT の前に控える。** ここで控えていなかったので、
+                        // `fetch` が **reject** したとき（本文は上がりきったが
+                        // 応答が返らない——モバイル回線でよくある）にキーが
+                        // どこにも残らず、再試行は presign を取り直して
+                        // **別のキー**へ上げ直していた。前の実体は
+                        // DynamoDB に行が無いので、写真削除・退会・discard の
+                        // どの経路からも辿れない。再試行のたびに1つずつ増える。
+                        reservedKey = key;
+                        updateItem(item.id, { progress: 40 });
+
+                        const uploadResponse = await fetch(presigned.presignedUrl, {
+                            method: "PUT",
+                            body: uploadFile,
+                            headers: { "Content-Type": putType, "Cache-Control": "max-age=31536000" },
+                            signal,
+                        });
+                        // **番号だけの文字列を投げない。** catch は e.message を
+                        // そのまま画面に出すので、利用者に「S3 403」が見えていた
+                        // （StoriesBar が同じ理由で先に直している）。
+                        if (!uploadResponse.ok) throw new Error(UPLOAD_FAILED_MESSAGE);
+                        // 上がったことが確認できた。以後この実体は使う
+                        reservedKey = undefined;
+                    }
+                    updateItem(item.id, { progress: 70 });
+
+                    // 一覧グリッド用の 512px WebP サムネイルを併せてアップロードする。
+                    // グリッドがフル画像（〜1920px）を落とすのが読み込みの遅さの主因。
+                    // サムネ生成/アップロードに失敗しても本体の投稿は成立させる。
+                    try {
+                        if (thumbUrl) throw new SkipThumb(); // 前回上げた分を使う
+                        const thumb = await createThumbnail(item.file);
+                        if (thumb) {
+                            const thumbPresign = await apiFetch("/upload/presigned-url", {
+                                method: "POST",
+                                signal,
+                                body: JSON.stringify({ fileName: thumb.name, fileType: thumb.type, fileSize: thumb.size }),
+                            });
+                            if (thumbPresign.ok) {
+                                const t = await thumbPresign.json() as { presignedUrl: string; publicUrl: string; key?: string; contentType?: string };
+                                // 本体と同じ理由で PUT の前に控える。ここは
+                                // 失敗しても「サムネ無しで続行」なので、控えて
+                                // いないと **本体が保存できても** その 512px WebP は
+                                // 永久に誰も消せない（写真を消しても、退会しても残る）
+                                if (t.key) reservedThumbKey = t.key;
+                                const thumbPut = await fetch(t.presignedUrl, {
+                                    method: "PUT",
+                                    body: thumb,
+                                    headers: { "Content-Type": t.contentType ?? thumb.type, "Cache-Control": "max-age=31536000" },
+                                    signal,
+                                });
+                                if (thumbPut.ok) {
+                                    thumbUrl = t.publicUrl;
+                                    reservedThumbKey = undefined;   // 使うので消さない
+                                } else if (reservedThumbKey) {
+                                    // **`!ok` もここで消す。** 本体の PUT は `!ok` で
+                                    // throw して外側の catch が消すが、サムネは
+                                    // 「無しで続行」なので投げない——`else` が無かった
+                                    // ので、403（署名切れ）や 5xx で上がった実体が
+                                    // 誰にも辿れず残っていた。控える意味が半分しか
+                                    // 無かった（コメントは全部塞いだように書いていた）
+                                    void discardKeys([reservedThumbKey]);
+                                    reservedThumbKey = undefined;
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        // **中断はここで握らない。** サムネの失敗は「無しで続ける」
+                        // 設計だが、やめたときまで続けると原寸のデコードを3回と
+                        // セッションの待ち（最大10秒）を通ってからようやく止まる
+                        if ((e as { name?: string } | null)?.name === "AbortError" || signal.aborted) throw e;
+                        if (!(e instanceof SkipThumb)) log.error("thumbnail upload failed (continuing without thumb):", e);
+                        // **ここで消す。** サムネの失敗は握って本体の保存へ進むので、
+                        // 下の catch には来ない。控えたまま進むと、本体が保存
+                        // できても そのサムネだけが誰にも辿れず残る
+                        if (reservedThumbKey) {
+                            void discardKeys([reservedThumbKey]);
+                            reservedThumbKey = undefined;
+                        }
+                    }
+                    // ここまでで S3 には上がっている。保存に失敗しても捨てないよう控える
+                    updateItem(item.id, { uploaded: { key, publicUrl, ...(thumbUrl ? { thumbUrl } : {}) }, progress: 85 });
+
+                    // 撮影地座標: GPS自動入力がONのときのみ、約1km精度に丸めて保存
+                    const coords = gpsAutofill && item.latitude !== undefined && item.longitude !== undefined
+                        ? { lat: Math.round(item.latitude * 100) / 100, lng: Math.round(item.longitude * 100) / 100 }
+                        : undefined;
+
+                    // 代表色: グリッドの読み込みプレースホルダーに使う（失敗しても続行）
+                    const dominantColor = await extractDominantColor(item.file);
+
+                    // ぼかしプレビュー（blur-up 用の極小画像）。失敗しても続行
+                    const blurDataURL = await createBlurPlaceholder(item.file);
+
+                    // 撮影情報（カメラ・レンズ・絞り等）: 圧縮で EXIF が失われる前に
+                    // 元ファイルから抽出して保存する。GPS は含めない（coords で別管理）
+                    const cameraExif = await extractCameraExif(item.file);
+
+                    const saveResponse = await apiFetch("/upload/save", {
                         method: "POST",
                         signal,
                         body: JSON.stringify({
-                            fileName: uploadFile.name,
-                            fileType: uploadFile.type,
-                            fileSize: uploadFile.size,
+                            key, publicUrl,
+                            published,
+                            // 撮影日: EXIF から読み取った日時。年表を「撮った順」で並べるために必須。
+                            // 送らないと createdAt（アップロード日）にフォールバックしてしまう。
+                            ...(item.dateTimeOriginal ? { date: item.dateTimeOriginal } : {}),
+                            title: item.title || undefined,
+                            description: item.description || undefined,
+                            location: item.location || undefined,
+                            category: category || undefined,
+                            tags: tagList,
+                            ...(coords ? { coords } : {}),
+                            ...(dominantColor ? { dominantColor } : {}),
+                            ...(blurDataURL ? { blurDataURL } : {}),
+                            ...(thumbUrl ? { thumbUrl } : {}),
+                            ...(Object.keys(cameraExif).length > 0 ? { exif: cameraExif } : {}),
                         }),
                     });
-                    if (!presignedResponse.ok) {
-                        // サーバーは日本語の理由を返す（例: アップロード上限に達しています）。
-                        // 生のJSONを80文字で切って出していたので、肝心の一文が
-                        // 途中で切れたクラッシュログのように見えていた。
-                        throw new Error(await readApiError(presignedResponse,
-                            locale === "en" ? "Could not start the upload." : "アップロードを開始できませんでした。"));
+                    if (!saveResponse.ok) {
+                        throw new Error(await readApiError(saveResponse,
+                            locale === "en" ? "Could not save the photo." : "写真を保存できませんでした。"));
                     }
-                    const presigned = await presignedResponse.json();
-                    key = presigned.key as string;
-                    publicUrl = presigned.publicUrl as string;
-                    // **サーバーが署名した種別で送る。** `content-type` は
-                    // 署名対象なので、違う文字列だと S3 が 403 にする。
-                    // 返ってこない古い API 相手でも動くよう、無ければ従来どおり
-                    const putType = (presigned.contentType as string | undefined) ?? uploadFile.type;
-                    // **PUT の前に控える。** ここで控えていなかったので、
-                    // `fetch` が **reject** したとき（本文は上がりきったが
-                    // 応答が返らない——モバイル回線でよくある）にキーが
-                    // どこにも残らず、再試行は presign を取り直して
-                    // **別のキー**へ上げ直していた。前の実体は
-                    // DynamoDB に行が無いので、写真削除・退会・discard の
-                    // どの経路からも辿れない。再試行のたびに1つずつ増える。
-                    reservedKey = key;
-                    updateItem(item.id, { progress: 40 });
-
-                    const uploadResponse = await fetch(presigned.presignedUrl, {
-                        method: "PUT",
-                        body: uploadFile,
-                        headers: { "Content-Type": putType, "Cache-Control": "max-age=31536000" },
-                        signal,
-                    });
-                    // **番号だけの文字列を投げない。** catch は e.message を
-                    // そのまま画面に出すので、利用者に「S3 403」が見えていた
-                    // （StoriesBar が同じ理由で先に直している）。
-                    if (!uploadResponse.ok) throw new Error(UPLOAD_FAILED_MESSAGE);
-                    // 上がったことが確認できた。以後この実体は使う
-                    reservedKey = undefined;
-                }
-                updateItem(item.id, { progress: 70 });
-
-                // 一覧グリッド用の 512px WebP サムネイルを併せてアップロードする。
-                // グリッドがフル画像（〜1920px）を落とすのが読み込みの遅さの主因。
-                // サムネ生成/アップロードに失敗しても本体の投稿は成立させる。
-                try {
-                    if (thumbUrl) throw new SkipThumb(); // 前回上げた分を使う
-                    const thumb = await createThumbnail(item.file);
-                    if (thumb) {
-                        const thumbPresign = await apiFetch("/upload/presigned-url", {
-                            method: "POST",
-                            signal,
-                            body: JSON.stringify({ fileName: thumb.name, fileType: thumb.type, fileSize: thumb.size }),
-                        });
-                        if (thumbPresign.ok) {
-                            const t = await thumbPresign.json() as { presignedUrl: string; publicUrl: string; key?: string; contentType?: string };
-                            // 本体と同じ理由で PUT の前に控える。ここは
-                            // 失敗しても「サムネ無しで続行」なので、控えて
-                            // いないと **本体が保存できても** その 512px WebP は
-                            // 永久に誰も消せない（写真を消しても、退会しても残る）
-                            if (t.key) reservedThumbKey = t.key;
-                            const thumbPut = await fetch(t.presignedUrl, {
-                                method: "PUT",
-                                body: thumb,
-                                headers: { "Content-Type": t.contentType ?? thumb.type, "Cache-Control": "max-age=31536000" },
-                                signal,
-                            });
-                            if (thumbPut.ok) {
-                                thumbUrl = t.publicUrl;
-                                reservedThumbKey = undefined;   // 使うので消さない
-                            } else if (reservedThumbKey) {
-                                // **`!ok` もここで消す。** 本体の PUT は `!ok` で
-                                // throw して外側の catch が消すが、サムネは
-                                // 「無しで続行」なので投げない——`else` が無かった
-                                // ので、403（署名切れ）や 5xx で上がった実体が
-                                // 誰にも辿れず残っていた。控える意味が半分しか
-                                // 無かった（コメントは全部塞いだように書いていた）
-                                void discardKeys([reservedThumbKey]);
-                                reservedThumbKey = undefined;
-                            }
-                        }
+                    updateItem(item.id, { status: "done", progress: 100 });
+                    successCount++;
+                    // 残り枚数はマウント時に1回取るだけだった。3枚上げても
+                    // 「あと5枚」のままで、押して初めて 403 に戻ってしまう。
+                    // 成功した分をその場で引く（取れていない＝null のときは触らない）。
+                    setUsedSlots((n) => (n === null ? n : n + 1));
+                } catch (err) {
+                    log.error(`Upload failed for ${item.file.name}:`, err);
+                    // **上げたかもしれない実体を捨てる。** `fetch` が reject した
+                    // 場合、本文は上がりきっているかもしれない。上がっていれば
+                    // ここで消える。上がっていなくても S3 の DeleteObject は
+                    // 成功するので、サーバーは 200 を返す（**404 にはならない**）
+                    // ——空振りしても害は無い。消し損ねても画面は進める。
+                    const stale = [reservedKey, reservedThumbKey].filter((k): k is string => !!k);
+                    // **やめたときは待つ。** 投げっぱなしだと、利用者は DELETE が
+                    // 飛ぶ前に離脱できる（タブを閉じる・戻る）——この修正が目的に
+                    // している孤児がそのまま残る。手本も `await` している
+                    if (stale.length) {
+                        if (signal.aborted) await discardKeys(stale);
+                        else void discardKeys(stale);
                     }
-                } catch (e) {
-                    if (!(e instanceof SkipThumb)) log.error("thumbnail upload failed (continuing without thumb):", e);
-                    // **ここで消す。** サムネの失敗は握って本体の保存へ進むので、
-                    // 下の catch には来ない。控えたまま進むと、本体が保存
-                    // できても そのサムネだけが誰にも辿れず残る
-                    if (reservedThumbKey) {
-                        void discardKeys([reservedThumbKey]);
-                        reservedThumbKey = undefined;
+                    // **やめたのは失敗ではない。** 中断は利用者の操作なので、
+                    // その写真を「エラー」にせず「待ち」に戻して畳む
+                    // （ストーリー側と同じ扱い。あちらは下書きごと閉じる）
+                    // **`err` は null でも来る。** `(err as {…}).name` と書くと
+                    // そこで TypeError になり catch の外へ抜けて `uploading` が
+                    // 下りない——「押しても何も起きないボタンだけが残る」状態を、
+                    // それを直すための修正で作っていた
+                    if ((err as { name?: string } | null)?.name === "AbortError" || signal.aborted) {
+                        updateItem(item.id, { status: "pending", progress: 0, error: undefined });
+                        cancelled = true;
+                        break;
                     }
+                    // オフラインの fetch は "Failed to fetch" を投げる。そのまま
+                    // 出していたので、画面に英語の技術文字列が並んでいた。
+                    // 見せてよいのは、こちらが日本語で組み立てたものだけ
+                    updateItem(item.id, { status: "error", error: userFacingUploadError(err) });
                 }
-                // ここまでで S3 には上がっている。保存に失敗しても捨てないよう控える
-                updateItem(item.id, { uploaded: { key, publicUrl, ...(thumbUrl ? { thumbUrl } : {}) }, progress: 85 });
-
-                // 撮影地座標: GPS自動入力がONのときのみ、約1km精度に丸めて保存
-                const coords = gpsAutofill && item.latitude !== undefined && item.longitude !== undefined
-                    ? { lat: Math.round(item.latitude * 100) / 100, lng: Math.round(item.longitude * 100) / 100 }
-                    : undefined;
-
-                // 代表色: グリッドの読み込みプレースホルダーに使う（失敗しても続行）
-                const dominantColor = await extractDominantColor(item.file);
-
-                // ぼかしプレビュー（blur-up 用の極小画像）。失敗しても続行
-                const blurDataURL = await createBlurPlaceholder(item.file);
-
-                // 撮影情報（カメラ・レンズ・絞り等）: 圧縮で EXIF が失われる前に
-                // 元ファイルから抽出して保存する。GPS は含めない（coords で別管理）
-                const cameraExif = await extractCameraExif(item.file);
-
-                const saveResponse = await apiFetch("/upload/save", {
-                    method: "POST",
-                    signal,
-                    body: JSON.stringify({
-                        key, publicUrl,
-                        published,
-                        // 撮影日: EXIF から読み取った日時。年表を「撮った順」で並べるために必須。
-                        // 送らないと createdAt（アップロード日）にフォールバックしてしまう。
-                        ...(item.dateTimeOriginal ? { date: item.dateTimeOriginal } : {}),
-                        title: item.title || undefined,
-                        description: item.description || undefined,
-                        location: item.location || undefined,
-                        category: category || undefined,
-                        tags: tagList,
-                        ...(coords ? { coords } : {}),
-                        ...(dominantColor ? { dominantColor } : {}),
-                        ...(blurDataURL ? { blurDataURL } : {}),
-                        ...(thumbUrl ? { thumbUrl } : {}),
-                        ...(Object.keys(cameraExif).length > 0 ? { exif: cameraExif } : {}),
-                    }),
-                });
-                if (!saveResponse.ok) {
-                    throw new Error(await readApiError(saveResponse,
-                        locale === "en" ? "Could not save the photo." : "写真を保存できませんでした。"));
-                }
-                updateItem(item.id, { status: "done", progress: 100 });
-                successCount++;
-                // 残り枚数はマウント時に1回取るだけだった。3枚上げても
-                // 「あと5枚」のままで、押して初めて 403 に戻ってしまう。
-                // 成功した分をその場で引く（取れていない＝null のときは触らない）。
-                setUsedSlots((n) => (n === null ? n : n + 1));
-            } catch (err) {
-                log.error(`Upload failed for ${item.file.name}:`, err);
-                // **上げたかもしれない実体を捨てる。** `fetch` が reject した
-                // 場合、本文は上がりきっているかもしれない。上がっていれば
-                // ここで消える。上がっていなくても S3 の DeleteObject は
-                // 成功するので、サーバーは 200 を返す（**404 にはならない**）
-                // ——空振りしても害は無い。消し損ねても画面は進める。
-                const stale = [reservedKey, reservedThumbKey].filter((k): k is string => !!k);
-                if (stale.length) void discardKeys(stale);
-                // **やめたのは失敗ではない。** 中断は利用者の操作なので、
-                // その写真を「エラー」にせず「待ち」に戻して畳む
-                // （ストーリー側と同じ扱い。あちらは下書きごと閉じる）
-                if ((err as { name?: string }).name === "AbortError" || signal.aborted) {
-                    updateItem(item.id, { status: "pending", progress: 0, error: undefined });
-                    cancelled = true;
-                    break;
-                }
-                // オフラインの fetch は "Failed to fetch" を投げる。そのまま
-                // 出していたので、画面に英語の技術文字列が並んでいた。
-                // 見せてよいのは、こちらが日本語で組み立てたものだけ
-                updateItem(item.id, { status: "error", error: userFacingUploadError(err) });
             }
-        }
 
-        setUploading(false);
-        uploadAbortRef.current = null;
-        if (cancelled) {
-            // 上げ終わったぶんは残る（画面にも「完了」で出ている）。
-            // やめたことだけ伝えて、この画面に留まる（遷移しない）
-            showToast(locale === "en"
-                ? (successCount > 0 ? `Stopped. ${successCount} uploaded.` : "Stopped uploading")
-                : (successCount > 0 ? `やめました（${successCount}枚は完了）` : "アップロードをやめました"), "info");
-            return;
-        }
-        if (successCount > 0) {
-            showToast(
-                published
-                    ? (locale === "en" ? `${successCount} photo(s) uploaded` : `${successCount} 枚アップロードしました`)
-                    : (locale === "en"
-                        ? `Saved ${successCount} draft(s). Fill in details later and publish.`
-                        : `${successCount} 枚を下書き保存しました。あとで編集して公開できます`),
-                "success",
-            );
-            // 全件成功時に遷移（items はループ開始時のクロージャなのでカウントで判定する）。
-            // 公開はトップへ、下書きは下書き一覧へ。
-            if (successCount === pending.length) {
-                const dest = published ? "/" : ROUTES.DRAFTS;
-                redirectTimerRef.current = setTimeout(() => router.push(dest), 1500);
+            if (cancelled) {
+                // 上げ終わったぶんは残る（画面にも「完了」で出ている）。
+                // やめたことだけ伝えて、この画面に留まる（遷移しない）
+                showToast(locale === "en"
+                    ? (successCount > 0 ? `Stopped. ${successCount} uploaded.` : "Stopped uploading")
+                    : (successCount > 0 ? `やめました（${successCount}枚は完了）` : "アップロードをやめました"), "info");
+                return;
             }
-        }
-        if (successCount < pending.length) {
-            showToast(
-                locale === "en"
-                    ? `${pending.length - successCount} upload(s) failed`
-                    : `${pending.length - successCount} 件失敗しました`,
-                "error",
-            );
+            if (successCount > 0) {
+                showToast(
+                    published
+                        ? (locale === "en" ? `${successCount} photo(s) uploaded` : `${successCount} 枚アップロードしました`)
+                        : (locale === "en"
+                            ? `Saved ${successCount} draft(s). Fill in details later and publish.`
+                            : `${successCount} 枚を下書き保存しました。あとで編集して公開できます`),
+                    "success",
+                );
+                // 全件成功時に遷移（items はループ開始時のクロージャなのでカウントで判定する）。
+                // 公開はトップへ、下書きは下書き一覧へ。
+                if (successCount === pending.length) {
+                    const dest = published ? "/" : ROUTES.DRAFTS;
+                    redirectTimerRef.current = setTimeout(() => router.push(dest), 1500);
+                }
+            }
+            if (successCount < pending.length) {
+                showToast(
+                    locale === "en"
+                        ? `${pending.length - successCount} upload(s) failed`
+                        : `${pending.length - successCount} 件失敗しました`,
+                    "error",
+                );
+            }
+        } finally {
+            setUploading(false);
+            setStopping(false);
+            uploadAbortRef.current = null;
         }
     }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys]);
 
@@ -1202,11 +1231,17 @@ function UploadPageInner() {
                                 上げ終わったぶんはそのまま残す（画面にも「完了」で出ている） */}
                             {uploading && (
                                 <button
-                                    onClick={() => uploadAbortRef.current?.abort(new DOMException("cancelled", "AbortError"))}
-                                    className="px-4 py-3 text-white/70 hover:text-white text-sm font-semibold rounded-full ring-1 ring-white/15 hover:ring-white/30 transition-colors"
+                                    onClick={() => {
+                                        setStopping(true);
+                                        uploadAbortRef.current?.abort(new DOMException("cancelled", "AbortError"));
+                                    }}
+                                    disabled={stopping}
+                                    className="px-4 py-3 text-white/70 hover:text-white text-sm font-semibold rounded-full ring-1 ring-white/15 hover:ring-white/30 transition-colors disabled:opacity-50"
                                     style={{ touchAction: "manipulation", minHeight: "44px" }}
                                 >
-                                    {locale === "en" ? "Stop" : "やめる"}
+                                    {stopping
+                                        ? (locale === "en" ? "Stopping…" : "中断中…")
+                                        : (locale === "en" ? "Stop" : "やめる")}
                                 </button>
                             )}
                             {/* 下書き保存: 必須項目なしで非公開保存。あとで編集して公開できる。

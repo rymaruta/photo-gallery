@@ -15,14 +15,16 @@ const mockUserFetch = vi.hoisted(() => vi.fn());
 const mockReadSharedPayload = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
-    useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+    useRouter: () => ({ push: mockPush, replace: vi.fn() }),
     useSearchParams: () => new URLSearchParams("from=share"),
 }));
 vi.mock("../../../auth/context", () => ({
     useAuth: () => ({ isAuthenticated: true, isAdminUser: false, isGeneralUser: true, loading: false }),
 }));
 vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
-vi.mock("../../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
+const mockShowToast = vi.hoisted(() => vi.fn());
+const mockPush = vi.hoisted(() => vi.fn());
+vi.mock("../../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: mockShowToast }) }));
 vi.mock("../../../components/AddToHomeScreenHint", () => ({ default: () => null }));
 vi.mock("../../../../lib/auth/cognito", () => ({ getCurrentSession: vi.fn(async () => null) }));
 vi.mock("../../../../lib/utils/shareStore", () => ({
@@ -63,6 +65,10 @@ function hangingPut() {
     let abortPut: (() => void) | null = null;
     const putStarted = { done: false };
     vi.stubGlobal("fetch", vi.fn((_url: string, init?: { signal?: AbortSignal }) => {
+        // **本物の契約に寄せる。** 既に中断済みの signal を渡されたら即 reject。
+        // 見ないままだと、複数枚に増やしたときに回帰があっても落ちずに
+        // 「返らないまま詰まる」（原因の読めない失敗になる）
+        if (init?.signal?.aborted) return Promise.reject(new DOMException("cancelled", "AbortError"));
         putStarted.done = true;
         return new Promise((_resolve, reject) => {
             init?.signal?.addEventListener("abort", () =>
@@ -74,6 +80,8 @@ function hangingPut() {
 }
 
 beforeEach(() => {
+    mockShowToast.mockReset();
+    mockPush.mockReset();
     mockUserFetch.mockReset().mockImplementation((url: string) => {
         if (url === "/upload/presigned-url") {
             return Promise.resolve({ ok: true, json: async () => ({ presignedUrl: "https://s3/put", publicUrl: "https://cdn/x.jpg", key: KEY }) });
@@ -90,6 +98,9 @@ beforeEach(() => {
         Object.defineProperty(URL, "revokeObjectURL", { value: () => undefined, writable: true });
     }
 });
+
+/** showToast の呼び出しを `種類:文言` で並べる */
+const toasts = () => mockShowToast.mock.calls.map((c) => `${String(c[1] ?? "success")}:${String(c[0])}`);
 
 describe("アップロード中にやめる", () => {
     it("止めるボタンは、押している間だけ出る", async () => {
@@ -123,6 +134,45 @@ describe("アップロード中にやめる", () => {
         await waitFor(() => expect(screen.getByRole("button", { name: /枚を公開/ })).not.toBeDisabled());
     });
 
+    // **本体の PUT は通り、保存だけ返らない**とき。5か所のうち行を作る
+    // いちばん重い口で、ここに signal が無いと止まらない
+    it("保存が返らないときも止まる", async () => {
+        vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200 })));   // S3 は通る
+        mockUserFetch.mockImplementation((url: string, init?: { signal?: AbortSignal }) => {
+            if (url === "/upload/presigned-url") {
+                return Promise.resolve({ ok: true, json: async () => ({ presignedUrl: "https://s3/put", publicUrl: "https://cdn/x.jpg", key: KEY }) });
+            }
+            if (url === "/upload/discard") return Promise.resolve({ ok: true, json: async () => ({}) });
+            if (url === "/user/photos") return Promise.resolve({ ok: true, json: async () => [] });
+            // 保存は中断されるまで返らない（本物の userFetch と同じく signal を見る）
+            return new Promise((_res, reject) => {
+                if (init?.signal?.aborted) reject(new DOMException("cancelled", "AbortError"));
+                init?.signal?.addEventListener("abort", () => reject(new DOMException("cancelled", "AbortError")));
+            });
+        });
+        render(<UploadPage />);
+        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        await waitFor(() => expect(publish).not.toBeDisabled());
+        await userEvent.click(publish);
+        await waitFor(() => expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/save")).toBe(true));
+
+        await userEvent.click(await screen.findByRole("button", { name: "やめる" }));
+        await waitFor(() => expect(screen.getByRole("button", { name: /枚を公開/ })).not.toBeDisabled());
+        expect(toasts()).toContain("info:アップロードをやめました");
+    });
+
+    // **押した状態から必ず抜ける。** catch の中で投げると、以前は
+    // `setUploading(false)` に届かず「押しても何も起きないボタン」だけが残った
+    it("中身の分からない失敗（null で reject）でも、押せる状態に戻る", async () => {
+        vi.stubGlobal("fetch", vi.fn(() => Promise.reject(null)));
+        render(<UploadPage />);
+        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        await waitFor(() => expect(publish).not.toBeDisabled());
+        await userEvent.click(publish);
+        await waitFor(() => expect(screen.getByRole("button", { name: /枚を公開/ })).not.toBeDisabled());
+        expect(screen.queryByRole("button", { name: "やめる" }), "止めるボタンが出たまま残っている").toBeNull();
+    });
+
     it("やめても「失敗」にせず、もう一度押せる状態に戻す", async () => {
         hangingPut();
         render(<UploadPage />);
@@ -138,5 +188,10 @@ describe("アップロード中にやめる", () => {
         expect(screen.queryByText(UPLOAD_FAILED_MESSAGE), "やめただけなのに失敗の文言を出している").toBeNull();
         // 赤い注意書き自体が出ていないこと
         expect(document.querySelector(".text-red-400"), "やめただけなのに赤い注意書きが出ている").toBeNull();
+        // **看板そのものを見る。** ここを見ていなかったので、
+        // 「やめました」を出して遷移しない分岐を**丸ごと消しても緑**だった
+        expect(toasts(), "やめたと伝えていない").toContain("info:アップロードをやめました");
+        expect(toasts().filter((t) => t.startsWith("error:")), "やめただけなのに失敗を出している").toEqual([]);
+        expect(mockPush, "やめたのに画面を移している").not.toHaveBeenCalled();
     });
 });
