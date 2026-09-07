@@ -62,24 +62,27 @@ const UploadPage = (await import("../page")).default;
 
 
 const KEY = "uploads/me/abc.jpg";
+const THUMB_KEY = "uploads/me/abc-thumb.webp";
 
-/** S3 への PUT を、中断されるまで返さない形にする */
-function hangingPut() {
-    let abortPut: (() => void) | null = null;
-    const putStarted = { done: false };
+/**
+ * S3 への PUT を、中断されるまで返さない形にする。
+ *
+ * `reason` を渡すと、中断のときにその理由で reject する
+ * ——**本物は必ず `AbortError` を投げるとは限らない**（本文の途中で
+ * 切れた回は素の `TypeError` で終わる）。中断かどうかを `signal.aborted`
+ * でも見ている側の判定は、そちらでしか確かめられない
+ */
+function hangingPut(reason?: () => unknown) {
     vi.stubGlobal("fetch", vi.fn((_url: string, init?: { signal?: AbortSignal }) => {
         // **本物の契約に寄せる。** 既に中断済みの signal を渡されたら即 reject。
         // 見ないままだと、複数枚に増やしたときに回帰があっても落ちずに
         // 「返らないまま詰まる」（原因の読めない失敗になる）
         if (init?.signal?.aborted) return Promise.reject(new DOMException("cancelled", "AbortError"));
-        putStarted.done = true;
         return new Promise((_resolve, reject) => {
             init?.signal?.addEventListener("abort", () =>
-                reject(new DOMException("cancelled", "AbortError")));
-            abortPut = () => reject(new DOMException("cancelled", "AbortError"));
+                reject(reason ? reason() : new DOMException("cancelled", "AbortError")));
         });
     }));
-    return { putStarted, get abortPut() { return abortPut; } };
 }
 
 beforeEach(() => {
@@ -349,4 +352,118 @@ describe("アップロード中にやめる", () => {
         expect(screen.queryByRole("button", { name: "中断中…" }), "止めたまま戻らない").toBeNull();
     }, CANCEL_DISCARD_WAIT_MS + 5_000);
 
+    // **控えたサムネのキーも捨てる。** ここを見ていなかったので、
+    // `stale` からサムネを外す変異が素通りしていた（新テストは
+    // 「保存に進まない」しか見ておらず、孤児を防ぐ本来の目的を外していた）
+    it("サムネの途中でやめたら、本体とサムネの両方を捨てる", async () => {
+        mockCreateThumbnail.mockResolvedValue(new File(["t"], "t.webp", { type: "image/webp" }));
+        let n = 0;
+        vi.stubGlobal("fetch", vi.fn((_url: string, init?: { signal?: AbortSignal }) => {
+            if (init?.signal?.aborted) return Promise.reject(new DOMException("cancelled", "AbortError"));
+            if (n++ === 0) return Promise.resolve({ ok: true, status: 200 });   // 本体は通る
+            return new Promise((_res, reject) => {                               // サムネは返らない
+                init?.signal?.addEventListener("abort", () => reject(new DOMException("cancelled", "AbortError")));
+            });
+        }));
+        const base = mockUserFetch.getMockImplementation()!;
+        mockUserFetch.mockImplementation((url: string, init?: unknown) => {
+            if (url === "/upload/presigned-url") {
+                // 2本目（サムネ）は別のキーを返す。同じだと入れ替えても気づけない
+                const key = n === 0 ? KEY : THUMB_KEY;
+                return Promise.resolve({ ok: true, json: async () => ({ presignedUrl: "https://s3/put", publicUrl: "https://cdn/x.jpg", key }) });
+            }
+            return base(url, init);
+        });
+
+        render(<UploadPage />);
+        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        await waitFor(() => expect(publish).not.toBeDisabled());
+        await userEvent.click(publish);
+        await waitFor(() => expect(n, "サムネの PUT まで進んでいない").toBe(2));
+
+        await userEvent.click(await screen.findByRole("button", { name: "やめる" }));
+        await waitFor(() => expect(toasts()).toContain("info:アップロードをやめました"));
+
+        const discarded = mockUserFetch.mock.calls
+            .filter((c) => c[0] === "/upload/discard")
+            .map((c) => JSON.parse(String((c[1] as { body: string }).body)).key);
+        expect(discarded, "サムネの実体を捨てていない").toContain(THUMB_KEY);
+    });
+
+    // **中断は `AbortError` とは限らない。** 本文の途中で切れた回は素の
+    // `TypeError` で終わる。`|| signal.aborted` を落とす変異が2か所とも
+    // 素通りしていた（どちらも「やめたのに失敗にしない」を守る対の判定）
+    it("理由が AbortError でなくても、中断なら失敗にしない", async () => {
+        hangingPut(() => new TypeError("Failed to fetch"));
+        render(<UploadPage />);
+        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        await waitFor(() => expect(publish).not.toBeDisabled());
+        await userEvent.click(publish);
+        await userEvent.click(await screen.findByRole("button", { name: "やめる" }));
+
+        await waitFor(() => expect(toasts()).toContain("info:アップロードをやめました"));
+        expect(toasts().filter((t) => t.startsWith("error:")), "やめただけなのに失敗を出している").toEqual([]);
+        expect(document.querySelector(".text-red-400"), "やめただけなのに赤い注意書きが出ている").toBeNull();
+    });
+
+    it("サムネの途中でやめたときも、理由に関係なくそこで止める", async () => {
+        mockCreateThumbnail.mockResolvedValue(new File(["t"], "t.webp", { type: "image/webp" }));
+        let n = 0;
+        vi.stubGlobal("fetch", vi.fn((_url: string, init?: { signal?: AbortSignal }) => {
+            if (init?.signal?.aborted) return Promise.reject(new TypeError("Failed to fetch"));
+            if (n++ === 0) return Promise.resolve({ ok: true, status: 200 });
+            return new Promise((_res, reject) => {
+                init?.signal?.addEventListener("abort", () => reject(new TypeError("Failed to fetch")));
+            });
+        }));
+
+        render(<UploadPage />);
+        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        await waitFor(() => expect(publish).not.toBeDisabled());
+        await userEvent.click(publish);
+        await waitFor(() => expect(n, "サムネの PUT まで進んでいない").toBe(2));
+
+        await userEvent.click(await screen.findByRole("button", { name: "やめる" }));
+        await waitFor(() => expect(toasts()).toContain("info:アップロードをやめました"));
+        expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/save"),
+            "やめたのに保存まで進んでいる").toBe(false);
+        // **止めた場所も見る。** 保存の手前に門があるので「保存に進まない」
+        // だけでは、サムネの catch が中断を握り潰しても緑になる。握ると
+        // そのあと原寸を3回デコードしてから止まる（やめたのに待たされる）
+        expect(mockDominantColor, "やめたのに原寸のデコードへ進んでいる").not.toHaveBeenCalled();
+    });
+
+    // **2枚目を上げ始めない。** 既存7本は全部1枚しか使っておらず、
+    // ループ先頭の中断の見張りも `break` も、消して緑のままだった
+    it("2枚選んで1枚目でやめたら、2枚目を上げ始めない", async () => {
+        mockReadSharedPayload.mockResolvedValue({
+            files: [new File(["a"], "a.jpg", { type: "image/jpeg" }), new File(["b"], "b.jpg", { type: "image/jpeg" })],
+            title: "", text: "", t: Date.now(),
+        });
+        let finishSave: (() => void) | null = null;
+        vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200 })));
+        const base = mockUserFetch.getMockImplementation()!;
+        mockUserFetch.mockImplementation((url: string, init?: unknown) => {
+            // 1枚目の保存は signal を見ない（＝やめても決着してしまう）。
+            // ここでループを降りないと、2枚目を上げ始める
+            if (url === "/upload/save") {
+                return new Promise((resolve) => { finishSave = () => resolve({ ok: true, json: async () => ({ id: "p1" }) }); });
+            }
+            return base(url, init);
+        });
+
+        render(<UploadPage />);
+        // 取り込みは1枚ごとに 1.1 秒 待つので、既定の1秒では間に合わない
+        const publish = await screen.findByRole("button", { name: /2枚を公開/ }, { timeout: 5_000 });
+        await waitFor(() => expect(publish).not.toBeDisabled(), { timeout: 5_000 });
+        await userEvent.click(publish);
+        await waitFor(() => expect(finishSave, "1枚目の保存まで進んでいない").not.toBeNull());
+
+        await userEvent.click(await screen.findByRole("button", { name: "やめる" }));
+        finishSave!();
+
+        await waitFor(() => expect(toasts().some((t) => t.startsWith("info:やめました"))).toBe(true));
+        expect(mockUserFetch.mock.calls.filter((c) => c[0] === "/upload/presigned-url").length,
+            "やめたのに2枚目を上げ始めている").toBe(1);
+    }, 15_000);   // 取り込みだけで 2.2 秒（1枚 1.1 秒）かかる
 });
