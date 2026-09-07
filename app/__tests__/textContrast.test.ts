@@ -22,8 +22,34 @@ import { join } from "node:path";
 
 const ROOT = join(__dirname, "..", "..");
 
-/** 4.5:1 に届く最小の段階。これ未満は本文の文字に使わない */
-const TOO_FAINT = /text-white\/(?:[0-3]\d|4[0-5])\b/;
+/**
+ * **禁止ではなく許可で見る。** 「薄いものを弾く」形にしていたら、
+ * `text-white/5`（単桁）・`text-white/[0.3]`（任意値）・`text-gray-600`
+ * （別の色系統へ逃がす）が全部素通りした——**いちばん捕まえたい方向**が
+ * 抜けていた。黒文字（白地）も見ていなかった。
+ *
+ * 通すのは、黒地／白地で 4.5:1 に届くと分かっているものだけ:
+ *   `text-white`（21:1）・`text-white/46` 以上（4.58:1〜）
+ *   `text-black`（21:1）・`text-black/55` 以上（4.76:1〜）
+ */
+const COLOR_TOKEN = /(?:^|[\s"'`{])((?:hover:|focus:|group-hover:|disabled:|placeholder:|active:)?)text-(white|black|[a-z]+-\d{2,3})(\/(\[[^\]]*\]|\d{1,3}))?/g;
+
+function unreadableTokens(cls: string): string[] {
+    const bad: string[] = [];
+    for (const m of cls.matchAll(COLOR_TOKEN)) {
+        const [, prefix, hue, , amount] = m;
+        // hover / focus は「濃くなる側」だが、その状態でも基準は要る。
+        // ただし土台が通っていれば hover を見る意味は薄いので、ここでは見ない
+        if (prefix) continue;
+        if (hue !== "white" && hue !== "black") { bad.push(m[0].trim()); continue; }   // 別の色系統へ逃がした
+        if (amount === undefined) continue;                                            // 素の white/black は 21:1
+        const n = Number(amount);
+        if (!Number.isFinite(n)) { bad.push(m[0].trim()); continue; }                   // /[0.3] のような任意値
+        const min = hue === "white" ? 46 : 55;
+        if (n < min) bad.push(m[0].trim());
+    }
+    return bad;
+}
 
 /** その行が「読めないと困る文字」であるもの。目印の文字列で行を特定する */
 const GUARDED: Array<[string, string, string]> = [
@@ -71,7 +97,7 @@ describe("読めない濃さの文字に戻っていないか", () => {
         const { src, i } = findLine(file)(needle);
         expect(i, `${file} に「${needle}」の行が無い`).toBeGreaterThanOrEqual(0);
         const cls = classNameFor(src, i);
-        expect(TOO_FAINT.test(cls), `4.5:1 に届かない濃さ: ${cls.slice(0, 100)}`).toBe(false);
+        expect(unreadableTokens(cls), `4.5:1 に届かない濃さ: ${cls.slice(0, 110)}`).toEqual([]);
     });
 
     // 目印の文字列だけを見ていると、その行から色の指定が消えたときに
@@ -83,13 +109,20 @@ describe("読めない濃さの文字に戻っていないか", () => {
             `色の指定が見当たらない（既定の色に落ちていないか）: ${src[i]?.trim().slice(0, 80)}`).toBe(true);
     });
 
-    // 上の正規表現が「薄い」を正しく捕まえることを確かめる（道具の自己確認）
-    it("判定そのものが効いている", () => {
-        expect(TOO_FAINT.test('className="text-white/40 text-sm"')).toBe(true);
-        expect(TOO_FAINT.test('className="text-white/45"')).toBe(true);
-        expect(TOO_FAINT.test('className="text-white/50"')).toBe(false);
-        expect(TOO_FAINT.test('className="text-white/70"')).toBe(false);
-        // hover: は据え置きでよい（濃くなる側）
-        expect(TOO_FAINT.test('className="text-white/50 hover:text-white/40"'), "hover を拾っている").toBe(true);
+    // 判定そのものの自己確認。**「薄いものを弾く」形で素通りしたもの**を並べる
+    it("判定が抜け道を塞いでいる", () => {
+        // 通す
+        for (const ok of ['text-white/50', 'text-white/46', 'text-white', 'text-black/55', 'text-black',
+                          'text-[11px] ${active ? "text-black/55" : "text-white/50"}']) {
+            expect(unreadableTokens(ok), ok).toEqual([]);
+        }
+        // 弾く（下の3つは「薄いものを弾く」形では全部素通りしていた）
+        for (const ng of ['text-white/40', 'text-white/45', 'text-white/5', 'text-white/[0.3]',
+                          'text-gray-600', 'text-black/50', 'text-black/10']) {
+            expect(unreadableTokens(ng).length, ng).toBeGreaterThan(0);
+        }
+        // hover / placeholder は土台と別。ここでは見ない
+        expect(unreadableTokens('text-white/50 hover:text-white/40')).toEqual([]);
+        expect(unreadableTokens('text-white placeholder:text-white/35')).toEqual([]);
     });
 });
