@@ -92,6 +92,14 @@ describe("撮影日の下限が、画面とサーバーで揃っている", () =
         expect(PHOTO_DATE_MIN).toBe(`${m![1]}-01-01`);
     });
 
+    // **画面がその定数を実際に使っているか**まで見る。数字の一致だけだと、
+    // `min={PHOTO_DATE_MIN}` を画面から外しても緑のままだった
+    it.each(["app/user/edit/page.tsx", "app/admin/edit/page.tsx"])("%s が撮影日の下限を出している", (page) => {
+        const src = read(page);
+        expect(src, `${page} が下限の定数を使っていない`).toContain("min={PHOTO_DATE_MIN}");
+        expect(src, `${page} が上限を出していない`).toContain("max={todayForDateInput()}");
+    });
+
     it("両パッケージの sanitize が同じ下限を持つ", () => {
         const other = readFileSync(join(__dirname, "..", "..", "api/src/sanitize.ts"), "utf8");
         const a = /year\s*<\s*(\d{4})/.exec(sanitize)?.[1];

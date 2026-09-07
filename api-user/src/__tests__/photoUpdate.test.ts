@@ -280,8 +280,10 @@ describe("updatePhotoVisibility: 撮影日の検証", () => {
         expect(res.statusCode).toBe(200);
         const updates = mockDdbSend.mock.calls.map((c) => c[0])
             .filter((cmd) => (cmd as { constructor: { name: string } })?.constructor?.name === "UpdateCommand");
-        expect(updates.some((u) => String((u as { input: { UpdateExpression: string } }).input.UpdateExpression)
-            .includes("REMOVE")), "空にしても消えていない").toBe(true);
+        // **何の REMOVE かまで見る。** "REMOVE" を含むだけだと別の属性でも緑
+        expect(updates.some((u) => /REMOVE[^A-Z]*#date\b/.test(
+            String((u as { input: { UpdateExpression: string } }).input.UpdateExpression))),
+            "撮影日が消えていない").toBe(true);
     });
 
     it("範囲内の撮影日は通る（境界の 1990-01-01 を含む）", async () => {

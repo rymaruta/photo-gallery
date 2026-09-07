@@ -118,7 +118,7 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
     // ——画面は「保存しました」と出す。フィルムの取り込みなど 1990年より前の
     // 日付は実在するのに、黙って落ちていた（実測: `1985-06-01` → undefined）
     if (dateWasRejected(body.date)) {
-        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "撮影日が正しくありません（1990年より前・未来の日付は保存できません）" }) };
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "撮影日が正しくありません（日付として読み取れないか、1990年より前・未来の日付です）" }) };
     }
 
     try {

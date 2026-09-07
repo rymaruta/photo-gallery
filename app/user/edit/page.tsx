@@ -660,8 +660,9 @@ function EditContent() {
                         </div>
                         <div>
                             <label className={labelCls}>{isJa ? "撮影日" : "Date"}</label>
-                            {/* 範囲を出す。サーバーは範囲外を 400 で断るので、ここで気づける方がよい
-                                （`dateWasRejected`。1990年より前・未来は保存できない） */}
+                            {/* カレンダーの選択肢を絞るだけ（打てば範囲外も入る）。断るのはサーバー
+                                （`dateWasRejected`）。保存ボタンは form の外の
+                                `type="button"` なので、範囲外でも押せる */}
                             <input type="date" min={PHOTO_DATE_MIN} max={todayForDateInput()} value={date} onChange={(e) => setDate(e.target.value)}
                                 className={inputCls} style={{ fontSize: "16px" }} />
                         </div>

@@ -64,9 +64,12 @@ describe("updatePhoto", () => {
         mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true });
         for (const bad of ["1985-06-01", "2099-01-01", "きのう"]) {
             mockUpdatePhotoFields.mockClear();
+            mockGetPhotoById.mockClear();
             const res = await invoke(ev("p1", { date: bad }));
             expect(res.statusCode, bad).toBe(400);
             expect(mockUpdatePhotoFields, bad).not.toHaveBeenCalled();
+            // ユーザーAPI と位置を揃える（写真を読みに行く前に断る）
+            expect(mockGetPhotoById, bad).not.toHaveBeenCalled();
         }
     });
 
@@ -75,7 +78,11 @@ describe("updatePhoto", () => {
         const res = await invoke(ev("p1", { date: "" }));
         expect(res.statusCode).toBe(200);
         expect(mockUpdatePhotoFields).toHaveBeenCalled();
-        expect((mockUpdatePhotoFields.mock.calls[0][1] as Record<string, unknown>).date).toBeUndefined();
+        const updates = mockUpdatePhotoFields.mock.calls[0][1] as Record<string, unknown>;
+        // **キーがあって値が undefined**＝REMOVE。キーごと落とす実装（＝触らない）に
+        // 退行しても `.date` は undefined なので、そこまで見ないと緑のまま
+        expect("date" in updates, "キーごと落としている（日付が消えない）").toBe(true);
+        expect(updates.date).toBeUndefined();
     });
 
     it("自分の写真は編集できる", async () => {

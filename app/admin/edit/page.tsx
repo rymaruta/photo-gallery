@@ -357,7 +357,11 @@ function AdminEditContent() {
                     )
                 )}
 
-                <form onSubmit={(e) => void handleSave(e)} className="space-y-5">
+                {/* **`noValidate`。** 撮影日に `min`/`max` を出したので、範囲外の値が
+                    入っている写真では **submit そのものが発火しなくなる**——保存ボタンが
+                    無反応になり、タイトルもタグも直せない（Chromium で実測）。
+                    範囲は「カレンダーで選びにくくする」目的にとどめ、断るのはサーバー */}
+                <form noValidate onSubmit={(e) => void handleSave(e)} className="space-y-5">
 
                     {/* タイトル。英語欄は廃止（サイト表示は日本語のみ）。
                         既存の英語テキストは保存時に引き継ぐが、**日本語を
@@ -392,8 +396,8 @@ function AdminEditContent() {
                         </div>
                         <div>
                             <label className={labelCls}>{isJa ? "撮影日" : "Date"}</label>
-                            {/* 範囲を出す。サーバーは範囲外を 400 で断るので、ここで気づける方がよい
-                                （`dateWasRejected`。1990年より前・未来は保存できない） */}
+                            {/* カレンダーの選択肢を絞るだけ（打てば範囲外も入る）。断るのはサーバー
+                                （`dateWasRejected`）。form は `noValidate` なので保存は止まらない */}
                             <input type="date" min={PHOTO_DATE_MIN} max={todayForDateInput()} value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
                         </div>
                         <div>
