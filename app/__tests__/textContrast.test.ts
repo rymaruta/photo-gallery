@@ -58,7 +58,7 @@ const GUARDED: Array<[string, string, string]> = [
     ["app/login/page.tsx", "写真をアップロードするにはログインが必要です", "ログインの説明"],
     ["app/login/page.tsx", "パスワードをお忘れですか", "パスワード再設定への導線"],
     ["app/components/Footer.tsx", "© Journey Photo", "全ページに出る著作権表示"],
-    ["app/privacy/page.tsx", "最終更新日", "プライバシーポリシーの更新日"],
+    ["app/privacy/page.tsx", "最終更新日: {LAST_UPDATED}", "プライバシーポリシーの更新日"],
     // 子の <Link>（/70）を親と取り違えていたので、包む <p> を直接の目印にする
     ["app/components/CommentSection.tsx", '<p className="mb-4 text-xs', "コメントの案内"],
     ["app/map/page.tsx", "GPS 付きの写真をアップロード", "地図が空のときの案内"],
@@ -66,15 +66,39 @@ const GUARDED: Array<[string, string, string]> = [
     ["app/components/FilterBar.tsx", "showCount ? <span", "絞り込みのチップの件数"],
     ["app/components/CollectionPageClient.tsx", "{r.count}", "関連する集約ページの件数"],
     ["app/photo/[id]/PhotoPageClient.tsx", "<dt ", "撮影情報のラベル（カメラ・レンズ…）"],
+    // 訪問者が読む画面（コメントがある／メニューを開いた／拡大した状態）。
+    // **ブラウザの実測は「そのとき描かれているもの」しか見られない**ので、
+    // 状態を作らないと出てこない文字はここで縛る
+    ["app/components/CommentSection.tsx", "No comments yet", "コメントが0件のときの案内"],
+    ["app/components/CommentSection.tsx", "{timeAgo(c.t, locale)}", "コメントの時刻"],
+    ["app/components/CommentSection.tsx", "{c.name}", "コメントした人の名前"],
+    ["app/components/HeaderNav.tsx", 'navLabels.account || "Account"', "メニューの見出し"],
+    ["app/components/GalleryModal/ModalCaption.tsx", '{parts.join(" ・ ")}', "拡大表示の撮影情報"],
+    ["app/components/GalleryModal/ModalKeyboardHelp.tsx", "下スワイプで閉じる", "拡大表示の操作の案内"],
+    ["app/not-found.tsx", ">404<", "404 の見出し"],
+    ["app/components/MusicCard.tsx", "{label}{songs.length > 1", "BGM のラベル"],
+    ["app/components/DeleteConfirmModal.tsx", "text-[13px] mb-6", "削除確認の本文"],
+    ["app/components/DeleteAccountModal.tsx", "text-[13px] mb-5", "退会確認の本文"],
+    // プロフィール（実ブラウザで「年表」タブが 3.66:1 だったのを実測）
+    ["app/users/UserProfileClient.tsx", 'active ? "text-white" :', "非選択のタブ（投稿／年表）"],
+    ["app/users/UserProfileClient.tsx", "うち非公開", "本人にだけ出る非公開の枚数"],
+    // 投稿タブと年表タブの2か所に同じものがある（両方見る）
+    ["app/users/UserProfileClient.tsx", "justify-center py-24", "写真が0枚のときの案内"],
+    ["app/users/UserProfileClient.tsx", "{g.photos.length}", "年表の月ごとの枚数"],
 ];
 
-/** 目印の行を探す。**コメント行は数えない**（「最終更新日」は注意書きにも出てくる） */
-function findLine(file: string): (needle: string) => { src: string[]; i: number } {
+/**
+ * 目印の行を**すべて**探す。**コメント行は数えない**（「最終更新日」は
+ * 注意書きにも出てくる）。同じ形が2か所にある画面（写真0枚の案内は
+ * 投稿タブと年表タブの2つ）で、片方だけ直すのを防ぐ
+ */
+function findLines(file: string, needle: string): { src: string[]; hits: number[] } {
     const src = readFileSync(join(ROOT, file), "utf8").split("\n");
-    return (needle: string) => {
-        const i = src.findIndex((l) => l.includes(needle) && !/^\s*(\/\/|\*|\/\*|\{\/\*)/.test(l));
-        return { src, i };
-    };
+    const hits: number[] = [];
+    src.forEach((l, i) => {
+        if (l.includes(needle) && !/^\s*(\/\/|\*|\/\*|\{\/\*)/.test(l)) hits.push(i);
+    });
+    return { src, hits };
 }
 
 /**
@@ -94,19 +118,23 @@ function classNameFor(src: string[], i: number): string {
 
 describe("読めない濃さの文字に戻っていないか", () => {
     it.each(GUARDED)("%s の「%s」（%s）", (file, needle) => {
-        const { src, i } = findLine(file)(needle);
-        expect(i, `${file} に「${needle}」の行が無い`).toBeGreaterThanOrEqual(0);
-        const cls = classNameFor(src, i);
-        expect(unreadableTokens(cls), `4.5:1 に届かない濃さ: ${cls.slice(0, 110)}`).toEqual([]);
+        const { src, hits } = findLines(file, needle);
+        expect(hits.length, `${file} に「${needle}」の行が無い`).toBeGreaterThan(0);
+        for (const i of hits) {
+            const cls = classNameFor(src, i);
+            expect(unreadableTokens(cls), `${file}:${i + 1} が 4.5:1 に届かない: ${cls.slice(0, 110)}`).toEqual([]);
+        }
     });
 
     // 目印の文字列だけを見ていると、その行から色の指定が消えたときに
     // 「薄くない」で通ってしまう。濃さの指定が残っていることも見る
     it.each(GUARDED)("%s の「%s」は濃さの指定を持っている", (file, needle) => {
-        const { src, i } = findLine(file)(needle);
-        const cls = classNameFor(src, i);
-        expect(/text-white(\/\d+)?\b|text-\[#|text-gray|text-black/.test(cls),
-            `色の指定が見当たらない（既定の色に落ちていないか）: ${src[i]?.trim().slice(0, 80)}`).toBe(true);
+        const { src, hits } = findLines(file, needle);
+        for (const i of hits) {
+            const cls = classNameFor(src, i);
+            expect(/text-white(\/\d+)?\b|text-\[#|text-gray|text-black/.test(cls),
+                `色の指定が見当たらない（既定の色に落ちていないか）: ${src[i]?.trim().slice(0, 80)}`).toBe(true);
+        }
     });
 
     // 判定そのものの自己確認。**「薄いものを弾く」形で素通りしたもの**を並べる

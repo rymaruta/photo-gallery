@@ -32,7 +32,7 @@ export default function ModalKeyboardHelp({ locale, onClose }: Props) {
                         </li>
                     ))}
                 </ul>
-                <p className="mt-4 text-xs text-white/30 text-center">
+                <p className="mt-4 text-xs text-white/50 text-center">
                     {locale === "en" ? "Swipe ↓ to close on mobile" : "モバイルは下スワイプで閉じる"}
                 </p>
             </div>

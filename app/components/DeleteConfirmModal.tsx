@@ -72,7 +72,7 @@ export default function DeleteConfirmModal({ photo, isOpen, onClose, onConfirm, 
                 <h2 className="text-base font-bold tracking-tight text-white mb-1.5">
                     {locale === "en" ? "Delete this photo?" : "この写真を削除しますか？"}
                 </h2>
-                <p className="text-white/45 text-[13px] mb-6 leading-relaxed">
+                <p className="text-white/50 text-[13px] mb-6 leading-relaxed">
                     {title
                         ? (locale === "en" ? `"${title}" will be removed. This can't be undone.` : `「${title}」を削除します。この操作は取り消せません。`)
                         : (locale === "en" ? "This can't be undone." : "この操作は取り消せません。")}

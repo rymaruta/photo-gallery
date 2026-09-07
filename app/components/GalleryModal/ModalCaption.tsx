@@ -149,7 +149,7 @@ export default function ModalCaption({
                     e.iso ? `ISO${e.iso}` : undefined, e.focalLength,
                 ].filter(Boolean);
                 return parts.length > 0 ? (
-                    <p className="mt-3 text-[11px] leading-relaxed text-white/45">{parts.join(" ・ ")}</p>
+                    <p className="mt-3 text-[11px] leading-relaxed text-white/50">{parts.join(" ・ ")}</p>
                 ) : null;
             })()}
 

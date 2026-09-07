@@ -40,7 +40,7 @@ export default function MusicCard({ queueKey, songs, label, locale, autoPlay = f
         <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden max-w-md">
             <div className="flex items-center gap-1.5 px-3.5 pt-2.5 pb-1.5">
                 <MusicalNoteIcon className="w-3.5 h-3.5 text-fuchsia-400" />
-                <span className="text-[11px] tracking-widest uppercase text-white/45">
+                <span className="text-[11px] tracking-widest uppercase text-white/50">
                     {label}{songs.length > 1 ? ` ${index + 1}/${songs.length}` : ""}
                 </span>
             </div>

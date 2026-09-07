@@ -1022,7 +1022,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             <span className="text-sm font-bold tabular-nums leading-none">{photosResolved ? postCount : "…"}</span>
                             <span className="text-[11px] text-white/60">{locale === "en" ? "posts" : "投稿"}</span>
                             {photosResolved && hiddenCount > 0 && (
-                                <span className="text-[11px] text-white/40">
+                                <span className="text-[11px] text-white/50">
                                     {locale === "en" ? `(${hiddenCount} private)` : `（うち非公開 ${hiddenCount}）`}
                                 </span>
                             )}
@@ -1182,7 +1182,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                 onClick={() => setTab(key)}
                                 aria-pressed={active}
                                 data-profile-tab={key}
-                                className={`relative flex items-center justify-center gap-1.5 py-3 text-xs font-medium tracking-wide transition-colors ${active ? "text-white" : "text-white/40 hover:text-white/70"}`}
+                                className={`relative flex items-center justify-center gap-1.5 py-3 text-xs font-medium tracking-wide transition-colors ${active ? "text-white" : "text-white/50 hover:text-white/70"}`}
                                 style={{ touchAction: "manipulation" }}
                             >
                                 <Icon className="w-4 h-4" />
@@ -1209,7 +1209,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     // 言わない**（言ってしまうと、写真がある人のページでも
                     // 空の案内が一瞬出る）
                     postCount === 0 ? (photosResolved ? (
-                        <div className="flex flex-col items-center justify-center py-24 text-white/40 gap-3">
+                        <div className="flex flex-col items-center justify-center py-24 text-white/50 gap-3">
                             <div className="w-16 h-16 rounded-full border-2 border-white/15 flex items-center justify-center">
                                 <PhotoStackIcon className="w-7 h-7" />
                             </div>
@@ -1242,7 +1242,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 {tab === "timeline" && (
                     <div className="pb-8 pt-2">
                         {timeline.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-24 text-white/40 gap-3">
+                            <div className="flex flex-col items-center justify-center py-24 text-white/50 gap-3">
                                 <CalendarDaysIcon className="w-10 h-10" />
                                 <p className="text-sm">{locale === "en" ? "No dated photos yet." : "撮影日のある写真がまだありません。"}</p>
                             </div>
@@ -1256,7 +1256,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                         <div className="flex items-center gap-2 mb-2 -ml-6">
                                             <span className="w-3.5 h-3.5 rounded-full bg-white ring-4 ring-black flex-shrink-0" />
                                             <span className="text-sm font-bold">{g.label}</span>
-                                            <span className="text-[11px] text-white/40">{g.photos.length}{locale === "en" ? "" : "枚"}</span>
+                                            <span className="text-[11px] text-white/50">{g.photos.length}{locale === "en" ? "" : "枚"}</span>
                                         </div>
                                         <div className="grid grid-cols-3 gap-1">
                                             {g.photos.map((photo) => (

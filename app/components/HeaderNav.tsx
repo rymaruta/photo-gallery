@@ -227,7 +227,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                 )}
                                 {isAuthenticated && (
                                     <li style={{ margin: 0, padding: "10px 12px 4px" }}>
-                                        <span className="text-[10px] tracking-widest uppercase text-white/35">
+                                        <span className="text-[10px] tracking-widest uppercase text-white/50">
                                             {navLabels.account || "Account"}
                                         </span>
                                     </li>
