@@ -77,15 +77,26 @@ describe("GalleryGrid: 枚数が増えても一度に全部は描かない", () 
         id: `p${i}`, src: `https://cdn/${i}.jpg`, userId: "u1", title: `写真${i}`, published: true,
     } as Photo));
 
-    /** IntersectionObserver を差し替えて、番兵が見えたことにする */
+    /**
+     * IntersectionObserver の差し替え。**本物の契約に寄せる**——
+     * `observe()` の直後に必ず1回配送し、交差していなければ `isIntersecting: false`
+     * が来る。これを模していなかったので「`isIntersecting` を見ない」変異が
+     * 素通りしていた（見ないと、作り直すたびに1回発火して結局全部描く）
+     */
     function stubObserver() {
-        const instances: Array<{ cb: IntersectionObserverCallback; el: Element | null }> = [];
+        const instances: Array<{ cb: IntersectionObserverCallback; el: Element | null; options?: IntersectionObserverInit; disconnected: boolean }> = [];
         class IO {
             cb: IntersectionObserverCallback;
             el: Element | null = null;
-            constructor(cb: IntersectionObserverCallback) { this.cb = cb; instances.push(this); }
-            observe(el: Element) { this.el = el; }
-            disconnect() { /* noop */ }
+            options?: IntersectionObserverInit;
+            disconnected = false;
+            constructor(cb: IntersectionObserverCallback, options?: IntersectionObserverInit) { this.cb = cb; this.options = options; instances.push(this); }
+            observe(el: Element) {
+                this.el = el;
+                // 本物と同じく、まず「いまの状態」を配る（画面外なら false）
+                this.cb([{ isIntersecting: false, target: el } as IntersectionObserverEntry], this as unknown as IntersectionObserver);
+            }
+            disconnect() { this.disconnected = true; }
             unobserve() { /* noop */ }
             takeRecords() { return []; }
             root = null; rootMargin = ""; thresholds = [];
@@ -140,12 +151,34 @@ describe("GalleryGrid: 枚数が増えても一度に全部は描かない", () 
         expect(io.instances[io.instances.length - 1].el, "作り直した観測者が番兵を見ていない").not.toBeNull();
     });
 
+    // **見えていないのに足さない。** 本物は observe の直後にも配ってくるので、
+    // `isIntersecting` を見ないと作り直すたびに1回発火し、結局全部描いてしまう
+    it("番兵が見えていないうちは増やさない", () => {
+        stubObserver();
+        const { container } = render(<GalleryGrid photos={many(500)} locale="ja" />);
+        expect(cards(container), "見えていないのに足している").toBe(GRID_INITIAL_VISIBLE);
+    });
+
+    it("下端に着く前に足す（画面に入ってからでは間に合わない）", () => {
+        const io = stubObserver();
+        render(<GalleryGrid photos={many(500)} locale="ja" />);
+        const margin = io.instances[0].options?.rootMargin ?? "";
+        expect(margin, "余裕を持たずに観測している").toMatch(/[1-9]\d{2,}px/);
+    });
+
+    it("作り直すときは前の観測者を捨てる（積み上げない）", () => {
+        const io = stubObserver();
+        render(<GalleryGrid photos={many(500)} locale="ja" />);
+        io.fire();
+        expect(io.instances[0].disconnected, "前の観測者を捨てていない").toBe(true);
+    });
+
     it("最後まで足したら番兵を外す（無限に観測しない）", () => {
         const io = stubObserver();
         const { container } = render(<GalleryGrid photos={many(GRID_INITIAL_VISIBLE + 10)} locale="ja" />);
         io.fire();
         expect(cards(container)).toBe(GRID_INITIAL_VISIBLE + 10);
-        expect(container.querySelector('[aria-hidden="true"][style*="height"]'), "番兵が残っている").toBeNull();
+        expect(container.querySelector('[data-testid="gallery-sentinel"]'), "番兵が残っている").toBeNull();
     });
 
     // **出さない方に倒さない。** 監視できない環境で60枚に打ち切ると、

@@ -34,7 +34,8 @@ type Props = {
  * `content-visibility: auto` も試したが 1割ほどしか効かない（重いのは
  * 描画ではなく DOM を作ること）。**作らない**のが唯一効く。
  *
- * 60 は「スマホ2列で30行・PC4列で15行」＝どの幅でも数画面ぶん。
+ * 60 は スマホ2列で30行・タブレット3列で20行・PC4列で15行＝どの幅でも数画面ぶん
+ * （いちばん広い `lg:grid-cols-4` でも約2,730px で、下端800px手前の番兵には届かない）。
  */
 export const GRID_INITIAL_VISIBLE = 60;
 export const GRID_STEP = 60;
@@ -110,7 +111,7 @@ export default function GalleryGrid({
         </div>
         {/* 続きを読み込む番兵。**見た目は何も足さない**——下まで送ると
             勝手に増える（ボタンを置くとデザインの追加になる） */}
-        {visible < total && <div ref={sentinelRef} aria-hidden={true} style={{ height: 1 }} />}
+        {visible < total && <div ref={sentinelRef} data-testid="gallery-sentinel" aria-hidden={true} style={{ height: 1 }} />}
         </>
     );
 }
