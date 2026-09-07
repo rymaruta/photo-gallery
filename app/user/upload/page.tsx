@@ -179,6 +179,16 @@ function UploadPageInner() {
     const [category, setCategory] = useState("");
     const [tags, setTags] = useState("");
     const [uploading, setUploading] = useState(false);
+    /**
+     * アップロード中の要求。「やめる」を押したら中断する。
+     *
+     * **止める手段が無かった。** 押している間は公開も下書き保存も
+     * `disabled={uploading}` で、しかも **S3 への PUT は素の `fetch`**
+     * （`userFetch` の20秒の打ち切りは経路外）。応答が返らない回線では
+     * リロード以外に出る手段が無く、リロードすると S3 に孤児が残る。
+     * ストーリーの投稿（`StoriesBar`）が同じ理由で先に直してある形を借りる
+     */
+    const uploadAbortRef = useRef<AbortController | null>(null);
     // EXIF の読み取りと撮影地の逆引きが終わるまで公開させない。
     // これらは写真を選んだ後に非同期で入るので、すぐ「公開」を押すと
     // 撮影日・撮影地・座標が入る前の状態で保存されていた
@@ -620,6 +630,9 @@ function UploadPageInner() {
         }
 
         setUploading(true);
+        const controller = new AbortController();
+        uploadAbortRef.current = controller;
+        const { signal } = controller;
         // 管理者でもユーザーAPIを使う。管理APIの savePhoto は published を見ずに
         // 常に true で保存するため、「下書き保存」を押しても即公開になっていた
         // （しかも撮影日・サムネURL・代表色・ぼかしも受け取らないので全部捨てられる）。
@@ -644,7 +657,10 @@ function UploadPageInner() {
         }
 
         let successCount = 0;
+        let cancelled = false;
         for (const item of pending) {
+            // **1枚ごとに見る。** 5枚選んで2枚目でやめたとき、残りを上げ始めない
+            if (signal.aborted) { cancelled = true; break; }
             updateItem(item.id, { status: "uploading", progress: 0, error: undefined });
             // **成否を確認できていないキー。** 失敗したらここに残るので
             // catch で消す（残すと誰にも辿れない実体になる）。
@@ -680,6 +696,7 @@ function UploadPageInner() {
                 if (!key || !publicUrl) {
                     const presignedResponse = await apiFetch("/upload/presigned-url", {
                         method: "POST",
+                        signal,
                         body: JSON.stringify({
                             fileName: uploadFile.name,
                             fileType: uploadFile.type,
@@ -714,6 +731,7 @@ function UploadPageInner() {
                         method: "PUT",
                         body: uploadFile,
                         headers: { "Content-Type": putType, "Cache-Control": "max-age=31536000" },
+                        signal,
                     });
                     // **番号だけの文字列を投げない。** catch は e.message を
                     // そのまま画面に出すので、利用者に「S3 403」が見えていた
@@ -733,6 +751,7 @@ function UploadPageInner() {
                     if (thumb) {
                         const thumbPresign = await apiFetch("/upload/presigned-url", {
                             method: "POST",
+                            signal,
                             body: JSON.stringify({ fileName: thumb.name, fileType: thumb.type, fileSize: thumb.size }),
                         });
                         if (thumbPresign.ok) {
@@ -746,6 +765,7 @@ function UploadPageInner() {
                                 method: "PUT",
                                 body: thumb,
                                 headers: { "Content-Type": t.contentType ?? thumb.type, "Cache-Control": "max-age=31536000" },
+                                signal,
                             });
                             if (thumbPut.ok) {
                                 thumbUrl = t.publicUrl;
@@ -792,6 +812,7 @@ function UploadPageInner() {
 
                 const saveResponse = await apiFetch("/upload/save", {
                     method: "POST",
+                    signal,
                     body: JSON.stringify({
                         key, publicUrl,
                         published,
@@ -829,6 +850,14 @@ function UploadPageInner() {
                 // ——空振りしても害は無い。消し損ねても画面は進める。
                 const stale = [reservedKey, reservedThumbKey].filter((k): k is string => !!k);
                 if (stale.length) void discardKeys(stale);
+                // **やめたのは失敗ではない。** 中断は利用者の操作なので、
+                // その写真を「エラー」にせず「待ち」に戻して畳む
+                // （ストーリー側と同じ扱い。あちらは下書きごと閉じる）
+                if ((err as { name?: string }).name === "AbortError" || signal.aborted) {
+                    updateItem(item.id, { status: "pending", progress: 0, error: undefined });
+                    cancelled = true;
+                    break;
+                }
                 // オフラインの fetch は "Failed to fetch" を投げる。そのまま
                 // 出していたので、画面に英語の技術文字列が並んでいた。
                 // 見せてよいのは、こちらが日本語で組み立てたものだけ
@@ -837,6 +866,15 @@ function UploadPageInner() {
         }
 
         setUploading(false);
+        uploadAbortRef.current = null;
+        if (cancelled) {
+            // 上げ終わったぶんは残る（画面にも「完了」で出ている）。
+            // やめたことだけ伝えて、この画面に留まる（遷移しない）
+            showToast(locale === "en"
+                ? (successCount > 0 ? `Stopped. ${successCount} uploaded.` : "Stopped uploading")
+                : (successCount > 0 ? `やめました（${successCount}枚は完了）` : "アップロードをやめました"), "info");
+            return;
+        }
         if (successCount > 0) {
             showToast(
                 published
@@ -1155,6 +1193,22 @@ function UploadPageInner() {
                             {locale === "en" ? `${pendingCount} ready` : `${pendingCount} 枚待ち`}
                         </p>
                         <div className="flex items-center gap-2 flex-1 sm:flex-none justify-end">
+                            {/* **アップロード中にやめられるようにする。** 押している間は
+                                公開も下書き保存も無効で、しかも S3 への PUT は素の `fetch`
+                                （`userFetch` の20秒の打ち切りは経路外）なので、応答が返らない
+                                回線では**リロード以外に出る手段が無かった**——しかもリロード
+                                すると S3 に孤児が残る。ストーリーの投稿が同じ理由で先に
+                                直してある形（`StoriesBar`）を借りる。
+                                上げ終わったぶんはそのまま残す（画面にも「完了」で出ている） */}
+                            {uploading && (
+                                <button
+                                    onClick={() => uploadAbortRef.current?.abort(new DOMException("cancelled", "AbortError"))}
+                                    className="px-4 py-3 text-white/70 hover:text-white text-sm font-semibold rounded-full ring-1 ring-white/15 hover:ring-white/30 transition-colors"
+                                    style={{ touchAction: "manipulation", minHeight: "44px" }}
+                                >
+                                    {locale === "en" ? "Stop" : "やめる"}
+                                </button>
+                            )}
                             {/* 下書き保存: 必須項目なしで非公開保存。あとで編集して公開できる。
                                 **地名の引き当てを待たない**——下書きは公開ではないので、
                                 場所は後から編集画面で足せる。公開だけが待つ
