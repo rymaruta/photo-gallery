@@ -82,6 +82,40 @@ describe("プロフィールの公開トグル", () => {
         expect(sent).toEqual({ published: true });
         expect(toast).toBe("写真を公開しました");
     });
+
+    // **押した結果が画面に出るのは、向きが直った今回が初めて。** 送る中身と
+    // 文言だけ見ていると、画面に書き戻す向き（`setPhotos`）が逆でも気づけない
+    it("押した結果が画面に出る（ボタンが裏返り、非公開の件数が増える）", async () => {
+        await toggleFirstPhoto(true, { success: true });
+        expect(await screen.findByTitle("公開する"), "非公開にしたのにボタンが変わらない").toBeInTheDocument();
+        expect(screen.queryByTitle("非公開にする")).toBeNull();
+        expect(screen.getByText(/うち非公開\s*1/)).toBeInTheDocument();
+    });
+
+    // 効くようになった今は、連打で「画面は公開・サーバーは非公開」を作れる
+    it("同じ写真の切り替えは重ねない（応答の入れ替わりで画面がずれる）", async () => {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ userId: ME, displayName: "私" }) });
+        // TS は「代入は fireEvent の中でしか起きない」と読めないので明示する
+        let release: (() => void) | undefined;
+        mockUserFetch.mockImplementation((_url: string, init?: { method?: string }) =>
+            init?.method === "PUT"
+                ? new Promise<unknown>((resolve) => { release = () => resolve(reply({ success: true })); })
+                : Promise.resolve({ ok: true, json: async () => [photo("p1")] }));
+        render(<UserProfileClient userId={ME} />);
+        const btn = await screen.findByTitle("非公開にする");
+        fireEvent.click(btn);
+        fireEvent.click(btn);
+        fireEvent.click(btn);
+        const puts = () => mockUserFetch.mock.calls.filter((c) => c[1]?.method === "PUT");
+        await waitFor(() => expect(puts().length).toBeGreaterThan(0));
+        expect(puts(), "応答を待たずに重ねて投げている").toHaveLength(1);
+        // 決着したら、また押せる
+        release?.();
+        await waitFor(() => expect(screen.getByTitle("公開する")).toBeInTheDocument());
+        fireEvent.click(screen.getByTitle("公開する"));
+        await waitFor(() => expect(puts()).toHaveLength(2));
+    });
 });
 
 describe("プロフィールから非公開にしたとき", () => {

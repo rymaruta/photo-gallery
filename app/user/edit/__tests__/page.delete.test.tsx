@@ -110,6 +110,21 @@ describe("写真の削除", () => {
         expect(String(mockShowToast.mock.calls[0][0])).toBe("写真を削除しました");
     });
 
+    // 応答の本文が読めなくても（HTMLのエラーページ・空・切断）、削除そのものは
+    // 成功している。**ここで投げると「削除に失敗しました」＋遷移なしになる**
+    it("応答の本文が読めなくても、成功として扱って一覧へ戻る", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (!init?.method) return Promise.resolve({ ok: true, json: async () => [PHOTO] });
+            return Promise.resolve({ ok: true, json: async () => { throw new SyntaxError("Unexpected token <"); } });
+        });
+        await openEditor();
+        await userEvent.click(screen.getByRole("button", { name: "削除" }));
+        await userEvent.click(await confirmButton());
+
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("写真を削除しました", "success"));
+        await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/user/drafts"));
+    });
+
     it("キャンセルしたら消さない", async () => {
         await openEditor();
         await userEvent.click(screen.getByRole("button", { name: "削除" }));

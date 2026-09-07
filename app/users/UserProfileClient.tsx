@@ -28,6 +28,7 @@ import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 import { EN_MONTHS, splitStoredDate } from "../../lib/utils/photoDate";
 import { compareNewest, compareOldest, photoTimeKey } from "../../lib/utils/photoOrder";
 import { ROUTES } from "../../lib/routes";
+import { toastWithStaticPage } from "../../lib/utils/staticPage";
 import UserAvatar from "../components/UserAvatar";
 import PHOTOS_JSON from "../data/photos.json";
 
@@ -794,7 +795,14 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         return typeof window !== "undefined" ? `${window.location.origin}${path}` : path;
     }, [userId]);
 
+    // **同じ写真の切り替えを重ねない。** 向きが直るまでこのボタンは何も
+    // 変えなかったので踏めなかったが、効くようになった今は「非公開→公開」を
+    // 続けて押すと応答の入れ替わりで画面とサーバーがずれる（ピン留めで
+    // 同じ型を踏んで `pinSeqRef` を置いたのと同じ話）
+    const togglingRef = useRef<Set<string>>(new Set());
     const handleTogglePublish = useCallback(async (photoId: string, publish: boolean) => {
+        if (togglingRef.current.has(photoId)) return;
+        togglingRef.current.add(photoId);
         try {
             const res = await userFetch(`/photos/${photoId}`, {
                 method: "PUT",
@@ -803,14 +811,11 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             if (res.ok) {
                 setPhotos(prev => prev.map(p => p.id === photoId ? { ...p, published: publish } : p));
                 // 非公開にしても静的ページが残ることがある（`lib/utils/staticPage.ts`）
-                const { staticPagePending, withStaticPageNotice } = await import("../../lib/utils/staticPage");
-                const body = await res.json().catch(() => null);
-                showToast(withStaticPageNotice(
+                toastWithStaticPage(showToast,
                     publish
                         ? (locale === "en" ? "Photo is now public" : "写真を公開しました")
                         : (locale === "en" ? "Photo is now hidden" : "写真を非公開にしました"),
-                    staticPagePending(body), locale !== "en"), "success"
-                );
+                    await res.json().catch(() => null), locale !== "en");
             } else {
                 // 別タブで先に消していると 404「写真が見つかりません」が返る。
                 // 「更新に失敗しました」に潰していたので、**何度押しても直らない
@@ -822,6 +827,10 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             showToast(authMissing
                 ? AUTH_REQUIRED_MESSAGE
                 : (locale === "en" ? "Failed to update" : "更新に失敗しました"), "error");
+        } finally {
+            // **必ず下ろす。** 失敗したまま札が残ると、その写真だけ
+            // 二度と切り替えられなくなる（押しても無反応）
+            togglingRef.current.delete(photoId);
         }
     }, [locale, showToast]);
 

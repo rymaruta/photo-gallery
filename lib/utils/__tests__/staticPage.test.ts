@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { staticPagePending, withStaticPageNotice } from "../staticPage";
+import { staticPagePending, withStaticPageNotice, toastWithStaticPage, STATIC_NOTICE_TOAST_MS } from "../staticPage";
 
 // 「消したのに、検索から開けるページはまだ残っている」を伝える一文。
 // 本番は再ビルドのトークンが未設定なので、非公開・削除のたびに残る
@@ -23,6 +23,30 @@ describe("staticPagePending", () => {
     });
 });
 
+describe("toastWithStaticPage", () => {
+    it("印が無ければ普段どおり（既定の表示時間のまま）", () => {
+        const calls: unknown[][] = [];
+        toastWithStaticPage((...a) => calls.push(a), "写真を削除しました", { success: true }, true);
+        expect(calls).toEqual([["写真を削除しました", "success"]]);
+    });
+
+    it("印があれば一文を足し、読む時間も伸ばす", () => {
+        const calls: unknown[][] = [];
+        toastWithStaticPage((...a) => calls.push(a), "写真を削除しました", { success: true, staticStale: true }, true);
+        expect(calls).toHaveLength(1);
+        expect(String(calls[0][0])).toContain("残ることがあります");
+        // 45文字を既定の3秒では読み切れない
+        expect(calls[0][2]).toBe(STATIC_NOTICE_TOAST_MS);
+        expect(STATIC_NOTICE_TOAST_MS).toBeGreaterThan(3000);
+    });
+
+    it("応答が読めなかった（null）ときは黙る", () => {
+        const calls: unknown[][] = [];
+        toastWithStaticPage((...a) => calls.push(a), "写真を削除しました", null, true);
+        expect(calls).toEqual([["写真を削除しました", "success"]]);
+    });
+});
+
 describe("withStaticPageNotice", () => {
     it("印が無ければ文言を変えない", () => {
         expect(withStaticPageNotice("非公開にしました", false, true)).toBe("非公開にしました");
@@ -33,8 +57,10 @@ describe("withStaticPageNotice", () => {
         const ja = withStaticPageNotice("非公開にしました", true, true);
         expect(ja).toContain("非公開にしました");
         expect(ja).toContain("残ることがあります");
-        // 言い切らない——まとめられた依頼は先のビルドが拾うことが多い
-        expect(ja).not.toContain("残ります。");
+        // 言い切らない——まとめられた依頼は先のビルドが拾うことが多い。
+        // 句点で見ていた頃は「必ず残ります」でも通っていた
+        expect(ja).not.toMatch(/必ず|確実に|残ります(?!。?$)/);
+        expect(ja).toMatch(/ことがあります/);
         expect(withStaticPageNotice("Photo deleted", true, false)).toContain("until the next site update");
     });
 });

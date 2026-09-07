@@ -12,6 +12,7 @@ import { ArrowLeftIcon, PhotoIcon } from "@heroicons/react/24/outline";
 import type { Photo, LocalizedParagraphs } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
+import { toastWithStaticPage } from "../../../lib/utils/staticPage";
 import { toDateInputValue, mergeDate } from "../../../lib/utils/dateInput";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { changedFields } from "../../../lib/utils/changedFields";
@@ -358,11 +359,9 @@ function EditContent() {
                 showToast(await readApiError(res, isJa ? "削除に失敗しました" : "Failed to delete"), "error");
                 return;
             }
-            const { staticPagePending, withStaticPageNotice } = await import("../../../lib/utils/staticPage");
-            const deleted = await res.json().catch(() => null);
-            showToast(withStaticPageNotice(
+            toastWithStaticPage(showToast,
                 isJa ? "写真を削除しました" : "Photo deleted",
-                staticPagePending(deleted), isJa), "success");
+                await res.json().catch(() => null), isJa);
             // 消した写真の編集画面は履歴に残さない（戻ると上の
             // 「写真が見つかりません」に落ちる）
             router.replace(ROUTES.DRAFTS);
@@ -447,10 +446,11 @@ function EditContent() {
                         ? (isJa ? "非公開にしました" : "Unpublished")
                         : (isJa ? "下書きを保存しました" : "Draft saved");
                 // サーバーが「静的ページはまだ残る」と言ってきたら、そう伝える
-                // （`lib/utils/staticPage.ts`。本番はトークン未設定で毎回残る）
-                const { staticPagePending, withStaticPageNotice } = await import("../../../lib/utils/staticPage");
-                const body = await res.json().catch(() => null);
-                showToast(withStaticPageNotice(base, staticPagePending(body), isJa), "success");
+                // （`lib/utils/staticPage.ts`。本番はトークン未設定で毎回残る）。
+                // **ここで動的 import しない**——保存が済んだあとに投げると、
+                // チャンクを取れなかっただけで catch に落ち、「保存に失敗しました」＋
+                // 遷移なしになる（実際は保存済み）
+                toastWithStaticPage(showToast, base, await res.json().catch(() => null), isJa);
                 // 公開したままの保存は写真ページへ戻す。下書き一覧へ落とすと、
                 // 直したものを確かめられない（そこには公開写真が出ない）。
                 router.push(published && photoId ? ROUTES.PHOTO(photoId) : ROUTES.DRAFTS);

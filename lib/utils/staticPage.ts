@@ -25,6 +25,26 @@ export function staticPagePending(data: unknown): boolean {
  * 拾うことが多い。逆に「もう見えません」と言い切ると、トークン未設定の今は
  * 毎回嘘になる。「残ることがある」がどちらの場合も正しい。
  */
+export const STATIC_NOTICE_TOAST_MS = 8000;
+
+/** `useToast` の `showToast`（この util から画面の型を引かないための構造型） */
+type ShowToast = (message: string, type?: "success" | "error" | "info", duration?: number) => void;
+
+/**
+ * 応答の印を見てトーストを出す。**3つの呼び出しはこれを通す**——文言と
+ * 表示時間を各画面に書き写すと、片方だけ直して静かにずれる（この台帳の型2）。
+ * 印が無いときは普段どおり（既定の3秒）。一文が付くと45文字あり、3秒では
+ * 後半を読み切れないので伸ばす
+ */
+export function toastWithStaticPage(showToast: ShowToast, message: string, data: unknown, isJa: boolean): void {
+    const pending = staticPagePending(data);
+    if (!pending) {
+        showToast(message, "success");
+        return;
+    }
+    showToast(withStaticPageNotice(message, true, isJa), "success", STATIC_NOTICE_TOAST_MS);
+}
+
 export function withStaticPageNotice(message: string, pending: boolean, isJa: boolean): string {
     if (!pending) return message;
     return isJa
