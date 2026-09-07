@@ -507,6 +507,39 @@ describe("非公開にするときの再ビルド依頼", () => {
         expect(JSON.parse(res.body)).toEqual({ success: true });
     });
 
+    // **消す意図の操作が公開ページに反映されない**のは、非公開・削除と同じ約束違反。
+    // 説明に書いた最寄り駅を消しても、静的HTMLと JSON-LD には残る
+    it("公開のまま項目を消して頼めなかったら、そう伝える", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, description: "最寄りは○○駅" } }).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: true, description: "" }));
+        expect(JSON.parse(res.body)).toEqual({ success: true, staticOutdated: true });
+    });
+
+    // 書き換えは「更新が遅れている」だけ。毎回の保存で断りが出ると、
+    // 肝心のとき（消したとき）に読まれなくなる
+    it("書き換えただけなら言わない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, title: "前の題" } }).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: true, title: "新しい題" }));
+        expect(JSON.parse(res.body)).toEqual({ success: true });
+    });
+
+    it("下書きのまま項目を消しても言わない（静的ページが無い）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, published: false, description: "あ" } }).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: false, description: "" }));
+        expect(JSON.parse(res.body)).toEqual({ success: true });
+    });
+
+    it("非公開にしながら項目を消したら、強い方（ページが残る）を出す", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, description: "あ" } })
+            .mockResolvedValueOnce({}).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: false, description: "" }));
+        expect(JSON.parse(res.body)).toEqual({ success: true, staticStale: true });
+    });
+
     it("頼めたときは印を立てない（余計な書き込みをしない）", async () => {
         mockDdbSend.mockResolvedValueOnce({ Item: stored2 }).mockResolvedValueOnce({});
         mockRebuild.mockResolvedValue(true);

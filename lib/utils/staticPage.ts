@@ -13,9 +13,25 @@
  * （`staticStale`）が立っているときだけ添える。
  */
 
+/**
+ * 応答の印。
+ * - `pending`  : 隠した／消したのに、ページがまだ取れる（`staticStale`）
+ * - `outdated` : 公開のままだが、**消した項目が**まだ出ている（`staticOutdated`）
+ * - `fresh`    : 掃除を頼めた（か、そもそも静的ページが無い）
+ */
+export type StaticPageState = "fresh" | "pending" | "outdated";
+
+export function staticPageState(data: unknown): StaticPageState {
+    if (!data || typeof data !== "object") return "fresh";
+    const d = data as { staticStale?: unknown; staticOutdated?: unknown };
+    if (d.staticStale === true) return "pending";
+    if (d.staticOutdated === true) return "outdated";
+    return "fresh";
+}
+
 /** 非公開・削除の応答に「静的ページがまだ残る」印があるか */
 export function staticPagePending(data: unknown): boolean {
-    return !!data && typeof data === "object" && (data as { staticStale?: unknown }).staticStale === true;
+    return staticPageState(data) === "pending";
 }
 
 /**
@@ -37,16 +53,22 @@ type ShowToast = (message: string, type?: "success" | "error" | "info", duration
  * 後半を読み切れないので伸ばす
  */
 export function toastWithStaticPage(showToast: ShowToast, message: string, data: unknown, isJa: boolean): void {
-    const pending = staticPagePending(data);
-    if (!pending) {
+    const state = staticPageState(data);
+    if (state === "fresh") {
         showToast(message, "success");
         return;
     }
-    showToast(withStaticPageNotice(message, true, isJa), "success", STATIC_NOTICE_TOAST_MS);
+    showToast(withStaticPageNotice(message, state, isJa), "success", STATIC_NOTICE_TOAST_MS);
 }
 
-export function withStaticPageNotice(message: string, pending: boolean, isJa: boolean): string {
-    if (!pending) return message;
+export function withStaticPageNotice(message: string, state: StaticPageState | boolean, isJa: boolean): string {
+    const s: StaticPageState = state === true ? "pending" : state === false ? "fresh" : state;
+    if (s === "fresh") return message;
+    if (s === "outdated") {
+        return isJa
+            ? `${message}。消した内容は、検索から開けるページに次のサイト更新まで残ることがあります`
+            : `${message}. What you removed may still show on the photo's own page until the next site update.`;
+    }
     return isJa
         ? `${message}。検索から開ける個別ページは、次のサイト更新まで残ることがあります`
         : `${message}. The photo's own page may stay reachable until the next site update.`;

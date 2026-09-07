@@ -132,3 +132,20 @@ describe("公開済みの写真を編集するとき", () => {
         expect(screen.getByRole("button", { name: "公開する" })).toBeInTheDocument();
     });
 });
+
+// 公開のまま項目を消した保存。ページ自体は残ってよいが、**消した中身が**残る
+describe("公開のまま項目を消したとき", () => {
+    it("「消した内容が残ることがある」と伝える", async () => {
+        mockUserFetch.mockReset().mockImplementation((url: string, init?: { method?: string }) => {
+            if (!init?.method) return Promise.resolve({ ok: true, json: async () => [photo(true)] });
+            return Promise.resolve({ ok: true, json: async () => ({ success: true, staticOutdated: true }) });
+        });
+        render(<EditPage />);
+        await screen.findByDisplayValue("湖");
+        await userEvent.click(screen.getByRole("button", { name: "保存する" }));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
+        const msg = String(mockShowToast.mock.calls[0][0]);
+        expect(msg).toContain("保存しました");
+        expect(msg).toContain("消した内容");
+    });
+});

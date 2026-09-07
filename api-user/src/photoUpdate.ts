@@ -146,6 +146,12 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // あわせて「本当に値が変わったか」も数える。静的ページの作り直しを
         // 頼むかの判定に使う（下の requestSiteRebuild）。
         let metaChanged = false;
+        // **消した項目があったか。** 「非公開にした・削除した」と同じで、
+        // 消す意図の操作が公開ページに反映されないのは約束違反になる
+        // （説明に書いた最寄り駅を消しても、静的HTMLと JSON-LD には残る）。
+        // 書き換え（別の文に直す）は「更新が遅れている」だけなので数えない
+        // ——公開中の写真を保存するたびに断りが出ると、肝心のときに読まれない
+        let metaRemoved = false;
         const applyMeta = (col: string, present: boolean, value: unknown): boolean => {
             if (!present) return false;
             const willRemove = value === undefined || value === null || (Array.isArray(value) && value.length === 0);
@@ -156,6 +162,7 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             // ——何も書き換えずに保存するだけでビルドが走り続ける。
             const changed = !sameStoredValue(willRemove ? undefined : value, existing.Item?.[col]);
             if (changed) metaChanged = true;
+            if (changed && willRemove) metaRemoved = true;
             names[`#${col}`] = col;
             if (willRemove) {
                 removes.push(`#${col}`);
@@ -270,6 +277,10 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // 「非公開にしました」だけが出て、実際には検索から開ける状態が続く
         const hiding = visibilityChanged && body.published === false;
         const staticStale = hiding && !dispatched;
+        // 公開のまま項目を消した場合。ページ自体は残ってよいが、**消した中身が
+        // 残る**。隠す側（`staticStale`）の方が強い断りなので重ねない
+        const stillPublished = hasPublished ? body.published !== false : wasPublished !== false;
+        const staticOutdated = !staticStale && metaRemoved && stillPublished && !dispatched;
         if (staticStale) {
             try {
                 await ddb.send(new UpdateCommand({
@@ -314,7 +325,10 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         return {
             statusCode: 200,
             headers: JSON_HEADERS,
-            body: JSON.stringify(staticStale ? { success: true, staticStale: true } : { success: true }),
+            body: JSON.stringify(
+                staticStale ? { success: true, staticStale: true }
+                    : staticOutdated ? { success: true, staticOutdated: true }
+                        : { success: true }),
         };
     } catch (e) {
         // 条件が外れた＝Get と Update の間に写真が消えた。作り直さずに
