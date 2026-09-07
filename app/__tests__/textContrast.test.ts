@@ -23,6 +23,37 @@ import { join } from "node:path";
 const ROOT = join(__dirname, "..", "..");
 
 /**
+ * 黒地でのコントラスト比。`#rrggbb` を実際に計算する
+ * （「任意の色は読めるか分からないので弾く」にしたら、取り消し操作の赤
+ *  `text-[#ff453a]`（6.16:1）まで弾いた。分からないなら計算すればよい）
+ */
+function ratioOnBlack(hexColor: string, alpha = 1): number {
+    const h = hexColor.replace("#", "");
+    const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+    const rgb = [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16) * alpha);
+    const lin = (v: number) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+    const lum = 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]);
+    return (lum + 0.05) / 0.05;
+}
+
+/**
+ * 灰色系は「意図して付けた色」ではなく**薄い白の言い換え**。黒地での実測:
+ *   gray-400 8.27:1 ／ gray-500 4.34:1 ／ gray-600 2.78:1 ／ gray-700 2.04:1
+ * 500 以上は届かない
+ */
+const GRAY_MIN_FAIL = 500;
+
+/**
+ * コメントを空白に潰す（行数は保つ）。JSX のコメント（波括弧で包んだもの）も含む。
+ * ここの説明に閉じ記号を書くと、その場でコメントが終わって構文が壊れる（実際に踏んだ）
+ */
+function stripComments(src: string): string {
+    return src
+        .replace(/\{?\/\*[\s\S]*?\*\/\}?/g, (m) => m.replace(/[^\n]/g, " "))
+        .replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + m.slice(p1.length).replace(/[^\n]/g, " "));
+}
+
+/**
  * **禁止ではなく許可で見る。** 「薄いものを弾く」形にしていたら、
  * `text-white/5`（単桁）・`text-white/[0.3]`（任意値）・`text-gray-600`
  * （別の色系統へ逃がす）が全部素通りした——**いちばん捕まえたい方向**が
@@ -32,7 +63,7 @@ const ROOT = join(__dirname, "..", "..");
  *   `text-white`（21:1）・`text-white/46` 以上（4.58:1〜）
  *   `text-black`（21:1）・`text-black/55` 以上（4.76:1〜）
  */
-const COLOR_TOKEN = /(?:^|[\s"'`{])((?:[\w-]+:)*)text-(white|black|\[[^\]]*\]|[a-z]+-\d{2,3})(\/(\[[^\]]*\]|\d{1,3}))?/g;
+const COLOR_TOKEN = /(?:^|[\s"'`{:\]])((?:(?:[\w-]+|\[[^\]]*\]|group-\[[^\]]*\]):)*)text-(white|black|\[[^\]]*\]|[a-z]+-\d{2,3})(\/(\[[^\]]*\]|\d{1,3}))?/g;
 
 /** 見送ってよい接頭辞＝「触ったとき」の状態だけ。`md:` などの画面幅は常に効くので見る */
 const INTERACTION_PREFIX = /^(hover|focus|focus-visible|active|group-hover|group-focus|disabled|placeholder|visited|peer-\w+)$/;
@@ -52,11 +83,27 @@ function unreadableTokens(cls: string, monochromeOnly = false): string[] {
         if (prefix && prefix.split(":").filter(Boolean).every((x) => INTERACTION_PREFIX.test(x))) continue;
         // `text-[11px]` は**文字の大きさ**で色ではない（最初これを色と誤認して
         // 守っている8件が一斉に落ちた）。任意値は中身が色のときだけ見る
+        // 任意の色（`text-[#333333]`）は**全体の走査でも弾く**。灰色なら
+        // 「白黒以外だから見送る」に当たらないのに、任意値を丸ごと見送っていた
         if (hue.startsWith("[")) {
-            if (!monochromeOnly && /^\[(#|rgb|hsl|oklch|oklab|color|var\()/i.test(hue)) { bad.push(m[0].trim()); }
+            const hex = /^\[(#[0-9a-f]{3,8})\]$/i.exec(hue)?.[1];
+            if (hex) {
+                const a = amount !== undefined && Number.isFinite(Number(amount)) ? Number(amount) / 100 : 1;
+                if (ratioOnBlack(hex, a) < 4.5) bad.push(m[0].trim());
+            } else if (/^\[(rgb|hsl|oklch|oklab|color|var\()/i.test(hue)) {
+                bad.push(m[0].trim());   // 計算できない書き方は「分からない」ので弾く
+            }
+            continue;   // `text-[11px]` のような大きさは色ではないので素通し
+        }
+        // 灰色系は「意図して付けた色」ではなく**薄い白の言い換え**なので、
+        // 全体の走査でも見る（黒地では -400 以下がおおむね 4.5:1 に届かない）
+        const grayLevel = /^(?:gray|neutral|zinc|slate|stone)-(\d{2,3})$/.exec(hue)?.[1];
+        if (grayLevel) {
+            if (Number(grayLevel) >= GRAY_MIN_FAIL) bad.push(m[0].trim());
             continue;
         }
-        // 別の色系統（`text-gray-600` など）は「読めるか分からない」ので弾く
+        // それ以外の色相（警告の amber・エラーの red・リンクの sky）は
+        // **意図して付けた色**。目印を書いた行でだけ「逃がしていないか」を見る
         if (hue !== "white" && hue !== "black") { if (!monochromeOnly) bad.push(m[0].trim()); continue; }
         if (amount === undefined) continue;                                            // 素の white/black は 21:1
         const n = Number(amount);
@@ -178,9 +225,14 @@ describe("読めない濃さの文字に戻っていないか", () => {
         }
         // 弾く（下の3つは「薄いものを弾く」形では全部素通りしていた）
         for (const ng of ['text-white/40', 'text-white/45', 'text-white/5', 'text-white/[0.3]',
-                          'text-gray-600', 'text-black/50', 'text-black/10']) {
-            expect(unreadableTokens(ng).length, ng).toBeGreaterThan(0);
+                          'text-gray-600', 'text-slate-500', 'text-black/50', 'text-black/10',
+                          'text-[#444444]', 'text-[#666]', '[&>p]:text-white/10', 'group-[.open]:text-white/5']) {
+            expect(unreadableTokens(ng, true).length, ng).toBeGreaterThan(0);
         }
+        // 計算できるものは計算する（意図して付けた色を「分からない」で弾かない）
+        expect(unreadableTokens('text-[#ff453a]', true), "取り消しの赤（6.16:1）を弾いている").toEqual([]);
+        expect(unreadableTokens('text-[#888]', true), "#888（5.92:1）を弾いている").toEqual([]);
+        expect(unreadableTokens('text-gray-400', true), "gray-400（8.27:1）を弾いている").toEqual([]);
         // hover / placeholder は土台と別。ここでは見ない
         expect(unreadableTokens('text-white/50 hover:text-white/40')).toEqual([]);
         expect(unreadableTokens('text-white placeholder:text-white/35')).toEqual([]);
@@ -231,6 +283,8 @@ describe("app 全体: 読めない濃さの文字を新しく増やさない", (
         ["app/photo/[id]/PhotoPageClient.tsx", '"p-1.5 text-white/40 hover:text-white/70 active:scale-95', "MV を外す（3.66:1）"],
         ["app/user/profile/page.tsx", '"px-1.5 py-1 text-white/40 hover:text-red-400', "曲を削除（3.66:1）"],
         ["app/users/UserProfileClient.tsx", "bg-black/0 text-white/0", "hover で初めて出る覆い（既定は完全に透明）"],
+        // **この走査は「黒地」を前提にしている。** 白い下地の上の文字は別
+        ["app/components/PhotoMap.tsx", 'loc.className = "text-xs text-gray-600"', "地図のポップアップは白地（gray-600 で約 7.5:1）"],
     ];
     const isExempt = (file: string, line: string) =>
         EXEMPT.some(([f, marker]) => f === file && line.includes(marker));
@@ -250,7 +304,11 @@ describe("app 全体: 読めない濃さの文字を新しく増やさない", (
         expect(files.length, "走査するファイルが見つからない").toBeGreaterThan(30);
         const bad: string[] = [];
         for (const rel of files) {
-            const src = readFileSync(join(ROOT, rel), "utf8").split("\n");
+            // **コメントは先に消す。** 行頭だけを見ていたので、複数行の
+            // `{/* … */}` の2行目以降が素のコードとして走査されていた
+            // ——「以前は text-white/40 だった」と経緯を1行書くだけで落ちる
+            // （app 配下に、除外されない継続行が197行あった）
+            const src = stripComments(readFileSync(join(ROOT, rel), "utf8")).split("\n");
             src.forEach((line, i) => {
                 if (/^\s*(\/\/|\*|\/\*|\{\/\*)/.test(line)) return;
                 if (isExempt(rel, line)) return;
