@@ -71,10 +71,19 @@ describe("todayForDateInput", () => {
         expect(todayForDateInput(new Date(2026, 0, 3))).toBe("2026-01-03");
     });
 
+    // **UTC で出すと、日本の 0:30 に撮った写真が今日として選べない**
+    // （UTC ではまだ前日なので `max` が昨日になる）。この環境は TZ=UTC なので、
+    // 素の `new Date(...)` では違いが出ない——ずれる時刻を作って測る
     it("UTC ではなく端末の暦で決める（時差で1日ずれない）", () => {
-        // ローカル 2026-09-07 00:30 は UTC ではまだ 9/6 のこともある。
-        // 画面が出す上限は端末の「今日」でよい——サーバーは24時間の余裕を持つ
-        const d = new Date(2026, 8, 7, 0, 30);
-        expect(todayForDateInput(d)).toBe("2026-09-07");
+        const prev = process.env.TZ;
+        process.env.TZ = "Asia/Tokyo";
+        try {
+            // JST 2026-09-07 00:30 ＝ UTC 2026-09-06 15:30
+            const d = new Date("2026-09-06T15:30:00Z");
+            expect(d.getUTCDate(), "前提: UTC ではまだ前日").toBe(6);
+            expect(todayForDateInput(d), "UTC の日付を出している").toBe("2026-09-07");
+        } finally {
+            if (prev === undefined) delete process.env.TZ; else process.env.TZ = prev;
+        }
     });
 });
