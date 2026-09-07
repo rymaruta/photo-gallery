@@ -1089,8 +1089,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         <div className="mt-4 rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden max-w-md">
                             <div className="flex items-center gap-1.5 px-3.5 py-2.5">
                                 <MusicalNoteIcon className="w-3.5 h-3.5 text-fuchsia-400" />
-                                <span className="text-[11px] tracking-widest uppercase text-white/45">{locale === "en" ? "My BGM" : "マイBGM"}</span>
-                                <span className="ml-auto text-[10px] text-white/30">{musicServiceLabel(songEmbed.service)}</span>
+                                <span className="text-[11px] tracking-widest uppercase text-white/50">{locale === "en" ? "My BGM" : "マイBGM"}</span>
+                                <span className="ml-auto text-[10px] text-white/50">{musicServiceLabel(songEmbed.service)}</span>
                                 {/* MV(YouTube)は大きいので折りたたみ式 */}
                                 {songEmbed.service === "youtube" && (
                                     <button
@@ -1299,7 +1299,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         <p className="mt-3 text-sm font-bold text-black truncate">
                             {displayName ?? (locale === "en" ? "Profile" : "プロフィール")}
                         </p>
-                        <p className="mt-0.5 text-[11px] text-black/50">
+                        <p className="mt-0.5 text-[11px] text-black/55">
                             {locale === "en" ? "Scan to open this profile" : "スキャンしてプロフィールを開く"}
                         </p>
                         <button

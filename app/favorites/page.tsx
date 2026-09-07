@@ -66,7 +66,7 @@ export default function FavoritesPage() {
                     <p className="text-white/70 text-sm">
                         {locale === "en" ? "No liked photos yet." : "いいねした写真はまだありません。"}
                     </p>
-                    <p className="text-white/40 text-xs">
+                    <p className="text-white/50 text-xs">
                         {locale === "en" ? "Tap the heart on a photo and it will be collected here." : "写真のハート（いいね）を押すとここに集まります。"}
                     </p>
                 </div>

@@ -32,16 +32,26 @@ const ROOT = join(__dirname, "..", "..");
  *   `text-white`（21:1）・`text-white/46` 以上（4.58:1〜）
  *   `text-black`（21:1）・`text-black/55` 以上（4.76:1〜）
  */
-const COLOR_TOKEN = /(?:^|[\s"'`{])((?:hover:|focus:|group-hover:|disabled:|placeholder:|active:)?)text-(white|black|[a-z]+-\d{2,3})(\/(\[[^\]]*\]|\d{1,3}))?/g;
+const COLOR_TOKEN = /(?:^|[\s"'`{])((?:[\w-]+:)*)text-(white|black|\[[^\]]*\]|[a-z]+-\d{2,3})(\/(\[[^\]]*\]|\d{1,3}))?/g;
+
+/** 見送ってよい接頭辞＝「触ったとき」の状態だけ。`md:` などの画面幅は常に効くので見る */
+const INTERACTION_PREFIX = /^(hover|focus|focus-visible|active|group-hover|group-focus|disabled|placeholder|visited|peer-\w+)$/;
 
 function unreadableTokens(cls: string): string[] {
     const bad: string[] = [];
     for (const m of cls.matchAll(COLOR_TOKEN)) {
         const [, prefix, hue, , amount] = m;
-        // hover / focus は「濃くなる側」だが、その状態でも基準は要る。
-        // ただし土台が通っていれば hover を見る意味は薄いので、ここでは見ない
-        if (prefix) continue;
-        if (hue !== "white" && hue !== "black") { bad.push(m[0].trim()); continue; }   // 別の色系統へ逃がした
+        // 触ったときの状態は見送る（土台が通っていれば足りる）。
+        // **画面幅の指定（`md:` 等）は見送らない**——その幅では常にその色になる
+        if (prefix && prefix.split(":").filter(Boolean).every((x) => INTERACTION_PREFIX.test(x))) continue;
+        // `text-[11px]` は**文字の大きさ**で色ではない（最初これを色と誤認して
+        // 守っている8件が一斉に落ちた）。任意値は中身が色のときだけ見る
+        if (hue.startsWith("[")) {
+            if (/^\[(#|rgb|hsl|oklch|oklab|color|var\()/i.test(hue)) { bad.push(m[0].trim()); }
+            continue;
+        }
+        // 別の色系統（`text-gray-600` など）は「読めるか分からない」ので弾く
+        if (hue !== "white" && hue !== "black") { bad.push(m[0].trim()); continue; }
         if (amount === undefined) continue;                                            // 素の white/black は 21:1
         const n = Number(amount);
         if (!Number.isFinite(n)) { bad.push(m[0].trim()); continue; }                   // /[0.3] のような任意値
@@ -52,7 +62,13 @@ function unreadableTokens(cls: string): string[] {
 }
 
 /** その行が「読めないと困る文字」であるもの。目印の文字列で行を特定する */
-const GUARDED: Array<[string, string, string]> = [
+/**
+ * `[ファイル, 目印, 説明, 親から色を継ぐ?]`。
+ * 4つ目が true の行は**自分で色を持たなくてよい**（親から継ぐ）。それでも
+ * 「薄い色で上書きしていないか」は見る——親を守っても子で上書きされたら
+ * 気づけない、というレビュー指摘への答え
+ */
+const GUARDED: Array<[string, string, string, boolean?]> = [
     ["app/signup/page.tsx", "英大文字・小文字・数字", "パスワードの条件（読めないと登録できない）"],
     ["app/signup/page.tsx", "写真のアップロードができるようになります", "新規登録の説明"],
     ["app/login/page.tsx", "写真をアップロードするにはログインが必要です", "ログインの説明"],
@@ -83,8 +99,17 @@ const GUARDED: Array<[string, string, string]> = [
     ["app/users/UserProfileClient.tsx", 'active ? "text-white" :', "非選択のタブ（投稿／年表）"],
     ["app/users/UserProfileClient.tsx", "うち非公開", "本人にだけ出る非公開の枚数"],
     // 投稿タブと年表タブの2か所に同じものがある（両方見る）
-    ["app/users/UserProfileClient.tsx", "justify-center py-24", "写真が0枚のときの案内"],
+    ["app/users/UserProfileClient.tsx", "justify-center py-24", "写真が0枚のときの案内（外枠の色）"],
+    // **子で上書きされたら気づけない**ので、文字そのものの行も見る
+    ["app/users/UserProfileClient.tsx", "No photos yet", "写真が0枚のときの案内（文字）", true],
     ["app/users/UserProfileClient.tsx", "{g.photos.length}", "年表の月ごとの枚数"],
+    // 訪問者が届くのに残っていた分（レビュー指摘）
+    ["app/users/UserProfileClient.tsx", "musicServiceLabel(songEmbed.service)", "BGM の配信元（Spotify など）"],
+    ["app/users/UserProfileClient.tsx", "Scan to open this profile", "QR の説明（白いカードの上）"],
+    ["app/users/search/page.tsx", "@{u.username}", "利用者検索の @名"],
+    ["app/users/search/page.tsx", "{u.bio}", "利用者検索の自己紹介"],
+    ["app/favorites/page.tsx", "text-white/50 text-xs", "お気に入りが空のときの案内"],
+    ["app/components/stories/StoriesBar.tsx", "text-[11px] text-white/50 px-1 pb-1", "ストーリーの読み込み失敗"],
 ];
 
 /**
@@ -128,8 +153,9 @@ describe("読めない濃さの文字に戻っていないか", () => {
 
     // 目印の文字列だけを見ていると、その行から色の指定が消えたときに
     // 「薄くない」で通ってしまう。濃さの指定が残っていることも見る
-    it.each(GUARDED)("%s の「%s」は濃さの指定を持っている", (file, needle) => {
+    it.each(GUARDED.filter((g) => !g[3]))("%s の「%s」は濃さの指定を持っている", (file, needle) => {
         const { src, hits } = findLines(file, needle);
+        expect(hits.length, `${file} に「${needle}」の行が無い`).toBeGreaterThan(0);
         for (const i of hits) {
             const cls = classNameFor(src, i);
             expect(/text-white(\/\d+)?\b|text-\[#|text-gray|text-black/.test(cls),
@@ -152,5 +178,11 @@ describe("読めない濃さの文字に戻っていないか", () => {
         // hover / placeholder は土台と別。ここでは見ない
         expect(unreadableTokens('text-white/50 hover:text-white/40')).toEqual([]);
         expect(unreadableTokens('text-white placeholder:text-white/35')).toEqual([]);
+        // **画面幅の指定は見送らない**（その幅では常にその色になる）
+        expect(unreadableTokens('text-white/50 md:text-white/20').length, "md: を見送っている").toBeGreaterThan(0);
+        expect(unreadableTokens('sm:text-white/30').length).toBeGreaterThan(0);
+        // `text-[11px]` は文字の大きさで色ではない（色と誤認して8件落とした）
+        expect(unreadableTokens('text-[11px] text-white/50')).toEqual([]);
+        expect(unreadableTokens('text-[#555555]').length, "任意の色を通している").toBeGreaterThan(0);
     });
 });

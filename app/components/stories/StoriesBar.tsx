@@ -612,7 +612,7 @@ export default function StoriesBar() {
                 // 「誰も投稿していない」ように見えたまま気づけない。
                 // ※古い一覧が見えている間（groups あり）の失敗は**意図して**
                 //   無言にする——バーは装飾的で、古い表示が出ていれば実害が薄い
-                <p className="text-[11px] text-white/45 px-1 pb-1">
+                <p className="text-[11px] text-white/50 px-1 pb-1">
                     {locale === "en" ? "Couldn't load stories. " : "ストーリーを読み込めませんでした。"}
                     <button onClick={() => void loadStories()} className="underline text-white/70 hover:text-white">
                         {locale === "en" ? "Retry" : "再試行"}

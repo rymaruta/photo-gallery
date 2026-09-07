@@ -100,7 +100,7 @@ export default function UserSearchPage() {
             </div>
 
             {!input && (
-                <p className="text-sm text-white/40 text-center py-10 leading-relaxed">
+                <p className="text-sm text-white/50 text-center py-10 leading-relaxed">
                     {isJa
                         ? "名前か @ユーザー名 で探せます。\n見つけたらその場でフォローできます。"
                         : "Search by name or @username.\nYou can follow right from here."}
@@ -108,7 +108,7 @@ export default function UserSearchPage() {
             )}
 
             {showEmpty && (
-                <p className="text-sm text-white/40 text-center py-10">
+                <p className="text-sm text-white/50 text-center py-10">
                     {isJa ? "見つかりませんでした" : "No one found"}
                 </p>
             )}
@@ -140,10 +140,10 @@ export default function UserSearchPage() {
                                     {u.displayName || (u.username ? `@${u.username}` : (isJa ? "ユーザー" : "User"))}
                                 </p>
                                 {u.username && u.displayName && (
-                                    <p className="text-xs text-white/45 truncate">@{u.username}</p>
+                                    <p className="text-xs text-white/50 truncate">@{u.username}</p>
                                 )}
                                 {u.bio && (
-                                    <p className="text-xs text-white/35 truncate">{u.bio}</p>
+                                    <p className="text-xs text-white/50 truncate">{u.bio}</p>
                                 )}
                             </div>
                         </Link>
