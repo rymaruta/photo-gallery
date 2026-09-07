@@ -847,7 +847,7 @@ export default function ProfileEditPage() {
                                             className="px-1.5 py-1 text-white/50 hover:text-white disabled:opacity-25 active:scale-90 transition text-sm">↓</button>
                                         <button type="button" onClick={() => removeSong(song.previewUrl)}
                                             aria-label={locale === "en" ? "Remove" : "削除"}
-                                            className="px-1.5 py-1 text-white/50 hover:text-red-400 active:scale-90 transition">
+                                            className="px-1.5 py-1 text-white/40 hover:text-red-400 active:scale-90 transition">
                                             <XMarkIcon className="w-4 h-4" />
                                         </button>
                                     </li>

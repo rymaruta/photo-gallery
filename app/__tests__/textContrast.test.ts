@@ -199,22 +199,38 @@ describe("読めない濃さの文字に戻っていないか", () => {
 // **アイコンと装飾は別基準**（WCAG 1.4.11 は 3:1、純粋な装飾は対象外）なので
 // 免除の一覧を持つ——ここに足すときは「なぜ文字ではないか」を書くこと。
 describe("app 全体: 読めない濃さの文字を新しく増やさない", () => {
-    /** 免除。`[ファイル, その行を見分ける印, 理由]` */
+    /**
+     * 免除。`[ファイル, その行を見分ける印, 理由]`。
+     * **印にはその行のクラス指定そのものを書く**（アイコン名だけだと、同じ
+     * アイコンを使う別の行や `import` の行まで黙らせる）。
+     * 比率は黒地での実測値（`scripts/audit-text-contrast.mjs` と同じ式）。
+     */
     const EXEMPT: Array<[string, string, string]> = [
-        ["app/admin/page.tsx", "PlusIcon", "追加を表す装飾アイコン（隣に文字がある）"],
-        ["app/components/FilterBar.tsx", "MagnifyingGlassIcon", "入力欄の中の装飾（3.01:1 ＝ 1.4.11 の 3:1 は満たす）"],
-        ["app/components/MiniPlayer.tsx", "MusicalNoteIcon", "アートワークが無いときの装飾"],
-        ["app/components/MusicCard.tsx", "MusicalNoteIcon", "同上"],
-        ["app/components/Thumb.tsx", "<svg", "画像を読めなかったときの装飾（3.66:1）"],
-        ["app/components/UserAvatar.tsx", "UserCircleIcon", "アバターが無いときの既定の絵（3.66:1）"],
-        ["app/favorites/page.tsx", "HeartIcon", "空のときの装飾"],
-        ["app/user/drafts/page.tsx", "PhotoIcon", "空のときの装飾"],
-        ["app/user/profile/page.tsx", "UserCircleIcon", "アバターが無いときの装飾"],
-        ["app/user/profile/page.tsx", "MagnifyingGlassIcon", "入力欄の中の装飾"],
-        ["app/user/upload/page.tsx", "PhotoIcon", "選ぶ前の装飾（3.66:1）"],
-        ["app/user/upload/page.tsx", "UserCircleIcon", "アバターが無いときの装飾"],
+        // 純粋な装飾のアイコン（WCAG 1.4.11 の対象外。比率は参考）
+        ["app/admin/page.tsx", 'PlusIcon className="w-8 h-8 text-white/30"', "追加の目印。隣に文字がある（2.46:1）"],
+        ["app/components/MiniPlayer.tsx", 'MusicalNoteIcon className="w-4 h-4 text-white/30"', "アートワークが無いときの絵（2.46:1）"],
+        ["app/components/MusicCard.tsx", 'MusicalNoteIcon className="w-6 h-6 text-white/30"', "同上（2.46:1）"],
+        ["app/favorites/page.tsx", 'HeartIcon className="w-8 h-8 text-white/30"', "空のときの絵（2.46:1）"],
+        ["app/user/drafts/page.tsx", 'PhotoIcon className="w-12 h-12 mx-auto mb-3 text-white/20"', "空のときの絵（1.66:1）"],
+        ["app/user/profile/page.tsx", 'UserCircleIcon className="w-10 h-10 text-white/30"', "アバターが無いときの絵（2.46:1）"],
+        ["app/user/profile/page.tsx", 'MagnifyingGlassIcon className="w-4 h-4 text-white/30 absolute', "入力欄の中の絵（2.46:1）"],
+        ["app/user/upload/page.tsx", 'PhotoIcon className="w-10 h-10 text-white/40 mb-2"', "選ぶ前の絵（3.66:1）"],
+        ["app/user/upload/page.tsx", 'UserCircleIcon className="w-10 h-10 text-white/40"', "アバターが無いときの絵（3.66:1）"],
+        ["app/components/Thumb.tsx", '<svg className="w-8 h-8 text-white/40"', "画像を読めなかったときの絵（3.66:1）"],
+        ["app/components/UserAvatar.tsx", "${iconClassName} text-white/40", "アバターが無いときの既定の絵（3.66:1）"],
+        ["app/components/FilterBar.tsx", '"text-white/70 animate-pulse" : "text-white/35"', "入力欄の中の絵（3.01:1）"],
+        ["app/users/search/page.tsx", "-translate-y-1/2 w-4 h-4 text-white/35", "入力欄の中の絵（3.01:1）"],
+        // アイコンだけの操作。**非テキストの基準は 3:1**（1.4.11）なので /40 で足りる。
+        // 文字と同じ /50 に上げると、控えめにしてある操作が目立ちすぎる
+        // ——シャッフル・リピートは「切」の状態で、隣の送りボタン（/60）と
+        // 見分けが付かなくなっていた（実際に一度上げてしまい、戻した）
+        ["app/components/AddToHomeScreenHint.tsx", '"-m-1 p-1 text-white/40 hover:text-white/70"', "閉じる（3.66:1）"],
+        ["app/components/CommentSection.tsx", "p-1 text-white/40 hover:text-red-400", "コメントを削除（3.66:1）"],
+        ["app/components/MiniPlayer.tsx", '"text-fuchsia-300" : "text-white/40', "シャッフル・リピートの「切」（3.66:1）"],
+        ["app/components/MiniPlayer.tsx", 'aria-label="閉じる" className="p-1.5 text-white/40', "閉じる（3.66:1）"],
+        ["app/photo/[id]/PhotoPageClient.tsx", '"p-1.5 text-white/40 hover:text-white/70 active:scale-95', "MV を外す（3.66:1）"],
+        ["app/user/profile/page.tsx", '"px-1.5 py-1 text-white/40 hover:text-red-400', "曲を削除（3.66:1）"],
         ["app/users/UserProfileClient.tsx", "bg-black/0 text-white/0", "hover で初めて出る覆い（既定は完全に透明）"],
-        ["app/users/search/page.tsx", "MagnifyingGlassIcon", "入力欄の中の装飾"],
     ];
     const isExempt = (file: string, line: string) =>
         EXEMPT.some(([f, marker]) => f === file && line.includes(marker));
@@ -245,10 +261,13 @@ describe("app 全体: 読めない濃さの文字を新しく増やさない", (
         expect(bad, `読めない濃さの文字が増えている:\n${bad.join("\n")}`).toEqual([]);
     });
 
+    // **`import` の行で満たされない印にする。** アイコン名だけを印にしていたら、
+    // 免除したい行を消しても `import { PhotoIcon }` が残っていて緑のままだった
     it("免除の一覧が古くなっていない（実在しない行を免除し続けない）", () => {
         for (const [file, marker, why] of EXEMPT) {
-            const src = readFileSync(join(ROOT, file), "utf8");
-            expect(src.includes(marker), `${file} に「${marker}」が無い（${why}）`).toBe(true);
+            const lines = readFileSync(join(ROOT, file), "utf8").split("\n")
+                .filter((l) => !/^\s*import\b/.test(l) && l.includes(marker));
+            expect(lines.length, `${file} に「${marker}」の行が無い（${why}）`).toBeGreaterThan(0);
         }
     });
 });

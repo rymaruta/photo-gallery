@@ -1017,7 +1017,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                     <button
                                         onClick={() => void savePhotoYoutube(null)}
                                         aria-label={locale === "en" ? "Remove MV" : "MVを外す"}
-                                        className="p-1.5 text-white/50 hover:text-white/70 active:scale-95 transition flex-shrink-0"
+                                        className="p-1.5 text-white/40 hover:text-white/70 active:scale-95 transition flex-shrink-0"
                                     >
                                         <XMarkIcon className="w-4 h-4" />
                                     </button>

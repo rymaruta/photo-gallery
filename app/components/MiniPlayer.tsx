@@ -180,7 +180,7 @@ export default function MiniPlayer() {
                             onClick={music.toggleShuffle}
                             aria-label="シャッフル"
                             aria-pressed={shuffle}
-                            className={`p-1.5 active:scale-90 transition ${shuffle ? "text-fuchsia-300" : "text-white/50 hover:text-white/70"}`}
+                            className={`p-1.5 active:scale-90 transition ${shuffle ? "text-fuchsia-300" : "text-white/40 hover:text-white/70"}`}
                         >
                             <ArrowsRightLeftIcon className="w-4 h-4" />
                         </button>
@@ -189,7 +189,7 @@ export default function MiniPlayer() {
                         onClick={music.toggleRepeatOne}
                         aria-label="1曲リピート"
                         aria-pressed={repeatOne}
-                        className={`p-1.5 active:scale-90 transition ${repeatOne ? "text-fuchsia-300" : "text-white/50 hover:text-white/70"}`}
+                        className={`p-1.5 active:scale-90 transition ${repeatOne ? "text-fuchsia-300" : "text-white/40 hover:text-white/70"}`}
                     >
                         <ArrowPathIcon className="w-4 h-4" />
                     </button>
@@ -210,7 +210,7 @@ export default function MiniPlayer() {
                             <ForwardIcon className="w-4 h-4" />
                         </button>
                     )}
-                    <button onClick={music.stop} aria-label="閉じる" className="p-1.5 text-white/50 hover:text-white/80 active:scale-90 transition">
+                    <button onClick={music.stop} aria-label="閉じる" className="p-1.5 text-white/40 hover:text-white/80 active:scale-90 transition">
                         <XMarkIcon className="w-4 h-4" />
                     </button>
                 </div>

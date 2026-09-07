@@ -52,7 +52,7 @@ export default function AddToHomeScreenHint() {
             <button
                 onClick={dismiss}
                 aria-label={locale === "en" ? "Dismiss" : "閉じる"}
-                className="-m-1 p-1 text-white/50 hover:text-white/70"
+                className="-m-1 p-1 text-white/40 hover:text-white/70"
                 style={{ touchAction: "manipulation" }}
             >
                 <XMarkIcon className="w-4 h-4" />

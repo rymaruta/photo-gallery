@@ -112,7 +112,7 @@ export default function DraftsPage() {
                 ) : loadError ? (
                     <div className="py-16 text-center text-white/50">
                         <p className="text-sm mb-1">{isJa ? "下書きを読み込めませんでした" : "Could not load your drafts"}</p>
-                        <p className="text-xs mb-4 text-white/50">
+                        <p className="text-xs mb-4">
                             {isJa ? "消えたわけではありません。通信を確かめてもう一度お試しください。"
                                 : "Nothing was lost. Check your connection and try again."}
                         </p>
