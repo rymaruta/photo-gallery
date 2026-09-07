@@ -289,10 +289,14 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // **そもそも静的ページがあるか。** 下書きを「公開する」で出しながら項目を
         // 消すと、これが無いと「消した内容がページに残る」と言ってしまう
         // ——そのページはまだ作られていない。判定は `deleteMyPhoto` と同じ形
-        // （非公開でも、掃除が届いていなければページは在る）
+        // （非公開でも、掃除が届いていなければページは在る）。
+        //
+        // **「公開のままか」は見ない。** 一度そう書いたが、非公開にしたのに掃除が
+        // 届かなかった写真（本番では毎回そうなる）を下書きとして編集し、項目を
+        // 消したときに黙ってしまう——そのページは公開されたままで、消した内容も
+        // 出ている。ページが在るなら、公開状態に関係なく伝える
         const staticPageExists = wasPublished || existing.Item.staticStale === true;
-        const stillPublished = hasPublished ? body.published !== false : wasPublished;
-        const staticOutdated = metaRemoved && staticPageExists && stillPublished && !dispatched;
+        const staticOutdated = metaRemoved && staticPageExists && !dispatched;
         if (staticStale) {
             try {
                 await ddb.send(new UpdateCommand({
@@ -337,9 +341,12 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         return {
             statusCode: 200,
             headers: JSON_HEADERS,
-            // 2つの印は排他——`hiding` は `body.published === false` を要求し、
-            // `stillPublished` はその否定なので、同時には立たない。三項の順番に
-            // 意味は無い（順番を入れ替える変異が緑になることで確認済み）
+            // **順番がそのまま規則。** 非公開にしながら項目も消した場合は両方
+            // 立つので、強い方——「隠したはずのページがまだ取れる」——を出す
+            // （消した内容の話はその中に含まれる）。
+            // 一度「2つは排他だから順番に意味は無い」と書いたが、それは
+            // `staticOutdated` に「公開のままか」を要求していたときの話で、
+            // その条件は上のとおり外した
             body: JSON.stringify(
                 staticStale ? { success: true, staticStale: true }
                     : staticOutdated ? { success: true, staticOutdated: true }

@@ -558,12 +558,23 @@ describe("非公開にするときの再ビルド依頼", () => {
     });
 
     // `published` を送らない呼び出し（この画面は毎回送るが、他の口・古いタブ）
-    it("published を送らない保存では、保存値の公開状態で判断する", async () => {
+    it("published を送らない保存でも、ページが無ければ黙る", async () => {
         mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, published: false, description: "あ" } })
             .mockResolvedValueOnce({});
         mockRebuild.mockResolvedValue(false);
         const res = await invoke(event("owner", "p1", { description: "" }));
         expect(JSON.parse(res.body), "下書きなのにページが在ると言っている").toEqual({ success: true });
+    });
+
+    // **非公開なら黙る、にしてはいけない。** 本番は掃除の依頼が毎回落ちるので、
+    // 「非公開にした写真」のページは公開されたまま。そこを下書きとして編集して
+    // 項目を消せば、消した内容が公開ページに出たままになる
+    it("掃除の届いていない非公開写真を下書きのまま編集して消したら、言う", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, published: false, staticStale: true, description: "あ" } })
+            .mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: false, description: "" }));
+        expect(JSON.parse(res.body)).toEqual({ success: true, staticOutdated: true });
     });
 
     it("書き換えただけなら言わない", async () => {
@@ -580,8 +591,8 @@ describe("非公開にするときの再ビルド依頼", () => {
         expect(JSON.parse(res.body)).toEqual({ success: true });
     });
 
-    // 2つの印は排他（非公開化には `hiding`、こちらには「公開のまま」が要る）。
-    // 非公開にした側は「ページがまだ取れる」で、消した中身の話は含まれる
+    // **両方立つ場合は強い方を出す。**「隠したはずのページがまだ取れる」の中に
+    // 「消した内容も出ている」は含まれる
     it("非公開にしながら項目を消したときは、ページが残る方を出す", async () => {
         mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, description: "あ" } })
             .mockResolvedValueOnce({}).mockResolvedValueOnce({});
