@@ -35,6 +35,10 @@ const GUARDED: Array<[string, string, string]> = [
     ["app/privacy/page.tsx", "最終更新日", "プライバシーポリシーの更新日"],
     ["app/components/CommentSection.tsx", "するとコメントできます", "コメントの案内"],
     ["app/map/page.tsx", "GPS 付きの写真をアップロード", "地図が空のときの案内"],
+    // 画面に出る文字が変数で、目印にできないもの。コードの断片を目印にする
+    ["app/components/FilterBar.tsx", "showCount ? <span", "絞り込みのチップの件数"],
+    ["app/components/CollectionPageClient.tsx", "{r.count}", "関連する集約ページの件数"],
+    ["app/photo/[id]/PhotoPageClient.tsx", "<dt ", "撮影情報のラベル（カメラ・レンズ…）"],
 ];
 
 /** 目印の行を探す。**コメント行は数えない**（「最終更新日」は注意書きにも出てくる） */
@@ -46,11 +50,17 @@ function findLine(file: string): (needle: string) => { src: string[]; i: number 
     };
 }
 
-/** その文字を包む要素の className（改行して書いてあるので上へたどる） */
+/**
+ * その文字を包む要素の色の指定。**まず同じ行を見る**——三項で書いてある場合
+ * （`${active ? "…" : "text-white/50"}`）は className の頭だけを取ると
+ * 色を取り逃がす。同じ行に無ければ、改行して書いてあるとみて上へたどる
+ */
 function classNameFor(src: string[], i: number): string {
-    for (let j = i; j >= Math.max(0, i - 15); j--) {
-        const m = /className=[{"`]?["`]([^"`]+)/.exec(src[j]);
-        if (m) return m[1];
+    const hasColor = (l: string) => /text-white(\/\d+)?\b|text-black(\/\d+)?\b|text-\[#|text-gray/.test(l);
+    if (i >= 0 && hasColor(src[i])) return src[i];
+    for (let j = i - 1; j >= Math.max(0, i - 15); j--) {
+        if (/className=/.test(src[j]) && hasColor(src[j])) return src[j];
+        if (/className=/.test(src[j])) return src[j];   // 指定はあるが色が無い＝既定の色
     }
     return "";
 }
