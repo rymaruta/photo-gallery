@@ -358,7 +358,11 @@ function EditContent() {
                 showToast(await readApiError(res, isJa ? "削除に失敗しました" : "Failed to delete"), "error");
                 return;
             }
-            showToast(isJa ? "写真を削除しました" : "Photo deleted", "success");
+            const { staticPagePending, withStaticPageNotice } = await import("../../../lib/utils/staticPage");
+            const deleted = await res.json().catch(() => null);
+            showToast(withStaticPageNotice(
+                isJa ? "写真を削除しました" : "Photo deleted",
+                staticPagePending(deleted), isJa), "success");
             // 消した写真の編集画面は履歴に残さない（戻ると上の
             // 「写真が見つかりません」に落ちる）
             router.replace(ROUTES.DRAFTS);
@@ -437,14 +441,16 @@ function EditContent() {
                 // 公開したことが無い写真に「非公開に」は、何かを取り下げたように
                 // 読める。公開中の写真を下げたときだけその文言
                 const wasPublished = original?.published !== false;
-                showToast(
-                    published
-                        ? (isJa ? "保存しました" : "Saved")
-                        : wasPublished
-                            ? (isJa ? "非公開にしました" : "Unpublished")
-                            : (isJa ? "下書きを保存しました" : "Draft saved"),
-                    "success",
-                );
+                const base = published
+                    ? (isJa ? "保存しました" : "Saved")
+                    : wasPublished
+                        ? (isJa ? "非公開にしました" : "Unpublished")
+                        : (isJa ? "下書きを保存しました" : "Draft saved");
+                // サーバーが「静的ページはまだ残る」と言ってきたら、そう伝える
+                // （`lib/utils/staticPage.ts`。本番はトークン未設定で毎回残る）
+                const { staticPagePending, withStaticPageNotice } = await import("../../../lib/utils/staticPage");
+                const body = await res.json().catch(() => null);
+                showToast(withStaticPageNotice(base, staticPagePending(body), isJa), "success");
                 // 公開したままの保存は写真ページへ戻す。下書き一覧へ落とすと、
                 // 直したものを確かめられない（そこには公開写真が出ない）。
                 router.push(published && photoId ? ROUTES.PHOTO(photoId) : ROUTES.DRAFTS);

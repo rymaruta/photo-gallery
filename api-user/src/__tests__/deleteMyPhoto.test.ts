@@ -273,6 +273,27 @@ describe("deleteMyPhoto", () => {
         expect(opts?.coalesce).not.toBe(true);
     });
 
+    // 削除でも同じ——消したのに `/photo/<id>` の HTML が残ることを画面に伝える
+    it("掃除を頼めなかったら、応答で伝える", async () => {
+        world(PHOTO);
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(ME, "p1");
+        expect(res.statusCode).toBe(200);   // 削除そのものは成立している
+        expect(JSON.parse(res.body)).toEqual({ success: true, staticStale: true });
+    });
+
+    it("頼めたら載せない", async () => {
+        world(PHOTO);
+        mockRebuild.mockResolvedValue(true);
+        expect(JSON.parse((await invoke(ME, "p1")).body)).toEqual({ success: true });
+    });
+
+    it("そもそも静的ページが無い下書きでは載せない", async () => {
+        world({ ...PHOTO, published: false });
+        mockRebuild.mockResolvedValue(false);
+        expect(JSON.parse((await invoke(ME, "p1")).body)).toEqual({ success: true });
+    });
+
     it("下書きなら頼まない", async () => {
         world({ ...PHOTO, published: false });
         await invoke(ME, "p1");

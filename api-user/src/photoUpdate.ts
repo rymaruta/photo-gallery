@@ -265,8 +265,12 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // 写真には静的ページが無い」と決め打ちして掃除を省くので、その前提が
         // 崩れたことを伝えないと、**非公開 →（依頼が届かない）→ 削除**で
         // 静的ページが誰にも消されないまま残る。
+        // **画面に伝える**（`staticStale` として返す）。行に印が書けたかとは
+        // 別に、「静的ページがまだ残りうる」ことは変わらない。ここを黙ると
+        // 「非公開にしました」だけが出て、実際には検索から開ける状態が続く
         const hiding = visibilityChanged && body.published === false;
-        if (hiding && !dispatched) {
+        const staticStale = hiding && !dispatched;
+        if (staticStale) {
             try {
                 await ddb.send(new UpdateCommand({
                     TableName: PHOTOS_TABLE,
@@ -307,7 +311,11 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             }
         }
 
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
+        return {
+            statusCode: 200,
+            headers: JSON_HEADERS,
+            body: JSON.stringify(staticStale ? { success: true, staticStale: true } : { success: true }),
+        };
     } catch (e) {
         // 条件が外れた＝Get と Update の間に写真が消えた。作り直さずに
         // 「見つかりません」と返す（stories.ts の viewStory と同じ扱い）。
@@ -420,6 +428,9 @@ export const deleteMyPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         //    非公開だった写真には静的ページが無いので頼まない（A-5d と同じ判定）。
         //    **ただしその前提は「非公開化の依頼が実際に届いた場合」だけ成り立つ。**
         //    届かなかったときは `staticStale` が立っているので、そこは頼む。
+        // 頼めたかどうかを画面に返す（`updatePhotoVisibility` と同じ `staticStale`）。
+        // 頼まなかった場合（非公開のまま印も無い）は静的ページが無いので false
+        let staticStale = false;
         if (item.published !== false || item.staticStale === true) {
             // **coalesce を付けてはいけない。** rebuild.ts が明記している
             // とおり「削除・退会は実データを1件消さないと起こせない → 素通し」。
@@ -429,10 +440,14 @@ export const deleteMyPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
             // 残り、cron を止めている今は誰かが次に依頼するまで消えない。
             // 3枚まとめて消したときに1枚目しか飛ばない、という形でも踏む。
             // 対の api/src/photosMutate.ts も account.ts も coalesce 無し。
-            await requestSiteRebuild(`photo deleted: ${id}`);
+            staticStale = !await requestSiteRebuild(`photo deleted: ${id}`);
         }
 
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
+        return {
+            statusCode: 200,
+            headers: JSON_HEADERS,
+            body: JSON.stringify(staticStale ? { success: true, staticStale: true } : { success: true }),
+        };
     } catch (e) {
         console.error("deleteMyPhoto error:", e);
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "削除に失敗しました" }) };

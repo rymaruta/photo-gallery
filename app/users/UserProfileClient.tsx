@@ -215,7 +215,11 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
             {/* 自分のプロフィール: 公開/非公開トグル */}
             {isOwner && (
                 <button
-                    onClick={(e) => { e.preventDefault(); onTogglePublish?.(photo.id, !isHidden); }}
+                    // **`isHidden` をそのまま渡す**（`publish` の意味で）。
+                    // `!isHidden` だと「いまの状態を送り直す」ことになり、
+                    // 公開中の写真の「非公開にする」で `published: true` が飛んで
+                    // 何も変わらないまま「公開しました」と出ていた（実測）
+                    onClick={(e) => { e.preventDefault(); onTogglePublish?.(photo.id, isHidden); }}
                     className={`absolute top-1.5 right-1.5 p-1.5 rounded-full transition-colors z-10 ${
                         isHidden
                             ? "bg-black/80 text-white/80 hover:bg-black"
@@ -798,10 +802,14 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             });
             if (res.ok) {
                 setPhotos(prev => prev.map(p => p.id === photoId ? { ...p, published: publish } : p));
-                showToast(publish
-                    ? (locale === "en" ? "Photo is now public" : "写真を公開しました")
-                    : (locale === "en" ? "Photo is now hidden" : "写真を非公開にしました"),
-                    "success"
+                // 非公開にしても静的ページが残ることがある（`lib/utils/staticPage.ts`）
+                const { staticPagePending, withStaticPageNotice } = await import("../../lib/utils/staticPage");
+                const body = await res.json().catch(() => null);
+                showToast(withStaticPageNotice(
+                    publish
+                        ? (locale === "en" ? "Photo is now public" : "写真を公開しました")
+                        : (locale === "en" ? "Photo is now hidden" : "写真を非公開にしました"),
+                    staticPagePending(body), locale !== "en"), "success"
                 );
             } else {
                 // 別タブで先に消していると 404「写真が見つかりません」が返る。

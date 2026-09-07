@@ -473,6 +473,40 @@ describe("非公開にするときの再ビルド依頼", () => {
             .includes("REMOVE staticStale")), "印が立ったまま残る").toBe(true);
     });
 
+    // **画面に伝える。** 印を行に書くだけでは、押した本人には何も分からない
+    // ——「非公開にしました」と出るのに、検索から開けるページは残っている
+    it("頼めなかったことを応答でも伝える（画面が「隠せた」と言い切らないように）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: stored2 }).mockResolvedValueOnce({}).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: false }));
+        expect(JSON.parse(res.body)).toEqual({ success: true, staticStale: true });
+    });
+
+    it("印を行に書けなくても、応答では伝える（残ることは変わらない）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: stored2 })
+            .mockResolvedValueOnce({})
+            .mockRejectedValueOnce(new Error("throttled"));   // 印の書き込みだけ失敗
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: false }));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).staticStale).toBe(true);
+    });
+
+    it("頼めたら応答に印を載せない（要らない不安を出さない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: stored2 }).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(true);
+        const res = await invoke(event("owner", "p1", { published: false }));
+        expect(JSON.parse(res.body)).toEqual({ success: true });
+    });
+
+    it("公開する側では印を載せない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, published: false } }).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: true }));
+        expect(JSON.parse(res.body)).toEqual({ success: true });
+    });
+
     it("頼めたときは印を立てない（余計な書き込みをしない）", async () => {
         mockDdbSend.mockResolvedValueOnce({ Item: stored2 }).mockResolvedValueOnce({});
         mockRebuild.mockResolvedValue(true);

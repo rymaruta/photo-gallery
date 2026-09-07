@@ -73,6 +73,20 @@ describe("保存のトースト", () => {
         await userEvent.click(screen.getByRole("button", { name: "非公開にする" }));
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("非公開にしました", "success"));
     });
+
+    // **「非公開にしました」と出るのに、検索から開ける個別ページは残っている。**
+    // サーバーが掃除を頼めなかったときは応答に `staticStale` が乗る
+    it("静的ページが残るなら、非公開のトーストにそう添える", async () => {
+        mockUserFetch.mockReset().mockImplementation((url: string, init?: { method?: string }) => {
+            if (!init?.method) return Promise.resolve({ ok: true, json: async () => [photo(true)] });
+            return Promise.resolve({ ok: true, json: async () => ({ success: true, staticStale: true }) });
+        });
+        render(<EditPage />);
+        await screen.findByDisplayValue("湖");
+        await userEvent.click(screen.getByRole("button", { name: "非公開にする" }));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
+        expect(String(mockShowToast.mock.calls[0][0])).toContain("残ることがあります");
+    });
 });
 
 describe("公開済みの写真を編集するとき", () => {
