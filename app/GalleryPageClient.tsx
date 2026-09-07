@@ -353,6 +353,14 @@ export default function GalleryPageClient() {
 
   return (
     <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+      {/* **スマホでは見出しが1つも無かった。** 下のタイトルは `hidden sm:flex`
+          の中なので、狭い画面では `display:none` ＝読み上げの木からも消える。
+          ホームはこのサイトの入口なのに、h1 が無く「何のページか」を見出しから
+          辿れない（実測: 390px 幅で h1 が0件）。**見た目は変えない**——
+          画面に出さない見出しを1つ置く。広い画面では下の h1 が出るので、
+          `sm:hidden` で重複させない */}
+      <h1 className="sr-only sm:hidden">{labels.site?.title ?? "Gallery"}</h1>
+
       {/* タイトル: モバイルでは非表示（ヘッダーナビにサイト名がある） */}
       <div className="hidden sm:flex sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
         <div className="flex-1">

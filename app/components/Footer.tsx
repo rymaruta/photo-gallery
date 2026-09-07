@@ -38,7 +38,8 @@ export default function Footer() {
                     </div>
 
                     {/* ナビゲーション */}
-                    <nav className="flex flex-wrap justify-center gap-x-5 gap-y-2">
+                    <nav aria-label={locale === "en" ? "Footer" : "フッター"}
+                        className="flex flex-wrap justify-center gap-x-5 gap-y-2">
                         {links.map(({ href, label }) => (
                             <Link
                                 key={href}

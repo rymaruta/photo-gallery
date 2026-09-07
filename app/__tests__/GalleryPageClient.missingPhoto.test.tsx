@@ -115,7 +115,9 @@ describe("開けない ?photo= を踏んだとき", () => {
 
         await new Promise((r) => setTimeout(r, 20));
         expect(mockShowToast).not.toHaveBeenCalled();
-        expect(screen.queryByText("Gallery")).toBeTruthy();
+        // 見出しは2つある（狭い画面用の `sr-only` と広い画面用）。jsdom は
+        // CSS を評価しないので両方 DOM に居る——画面が描けていることだけ見る
+        expect(screen.getAllByText("Gallery").length).toBeGreaterThan(0);
     });
 });
 

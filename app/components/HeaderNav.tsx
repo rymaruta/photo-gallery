@@ -131,7 +131,8 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     };
 
     return (
-        <nav className={`site-header__nav flex items-center gap-2 ${className}`}>
+        <nav aria-label={locale === "en" ? "Site header" : "ヘッダー"}
+             className={`site-header__nav flex items-center gap-2 ${className}`}>
             {/* ユーザーを探す。知り合いを見つけてフォローする導線をどのページからも1タップに */}
             <button
                 onClick={() => handleNavigation(ROUTES.USER_SEARCH)}
