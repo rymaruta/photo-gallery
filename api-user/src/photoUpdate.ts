@@ -2,7 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { UpdateCommand, GetCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId } from "./http";
-import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeDate, sameStoredValue, truncate } from "./sanitize";
+import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeDate, dateWasRejected, sameStoredValue, truncate } from "./sanitize";
 import { requestSiteRebuild } from "./rebuild";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { mediaKeys } from "./mediaKeys";
@@ -110,6 +110,15 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         } else {
             return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正な曲データです" }) };
         }
+    }
+
+    // **読めない撮影日は断る。** `sanitizeDate` は「消したい（空）」と
+    // 「読めない（1990年より前・未来）」の両方に undefined を返すので、
+    // そのまま書き込みに使うと**入れ直しただけで保存済みの日付が消える**
+    // ——画面は「保存しました」と出す。フィルムの取り込みなど 1990年より前の
+    // 日付は実在するのに、黙って落ちていた（実測: `1985-06-01` → undefined）
+    if (dateWasRejected(body.date)) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "撮影日が正しくありません（1990年より前・未来の日付は保存できません）" }) };
     }
 
     try {

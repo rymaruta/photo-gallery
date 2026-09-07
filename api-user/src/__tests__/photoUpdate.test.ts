@@ -251,15 +251,47 @@ describe("isValidYouTubeUrl", () => {
 // 撮影日は年表の並び順の元になる。保存経路によって検証が違うと、
 // 編集経由だけ任意の文字列が入って並びが壊れる。
 describe("updatePhotoVisibility: 撮影日の検証", () => {
-    it("日付でない文字列は保存しない", async () => {
-        mockDdbSend
-            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } })
-            .mockResolvedValueOnce({});
+    // **「保存しない」から「断る」へ変えた。** 黙って落とすと、
+    // `applyMeta` が undefined を「消す」と読んで**保存済みの日付を消す**
+    // ——入れ直しただけで消えるのに画面は「保存しました」と出ていた
+    it("日付でない文字列は 400 で断る（黙って落として日付を消さない）", async () => {
         const res = await invoke(event("u1", "p1", { date: "きのう撮った写真です" }));
-        expect(res.statusCode).toBe(200);
-        // 不正な値は SET されない（sanitizeDate が弾く）
-        expect(lastUpdate().ExpressionAttributeValues?.[":date"]).toBeUndefined();
+        expect(res.statusCode).toBe(400);
+        expect(mockDdbSend, "断るのに写真を読みに行っている").not.toHaveBeenCalled();
     });
+
+    // **「消したい」と「読めない」を同じ undefined にしていたので、
+    // 1985年と入れ直しただけで保存済みの撮影日が消えていた**（画面は
+    // 「保存しました」）。フィルムの取り込みなど 1990年より前は実在する
+    it("読めない撮影日は 400 で断る（黙って消さない）", async () => {
+        for (const bad of ["1985-06-01", "1989-12-31", "2099-01-01"]) {
+            mockDdbSend.mockReset();
+            const res = await invoke(event("owner", "p1", { published: true, date: bad }));
+            expect(res.statusCode, bad).toBe(400);
+            expect(JSON.parse(res.body).error).toContain("撮影日");
+            // **写真を1回も読みに行かない**＝書き込みまで届いていない
+            expect(mockDdbSend, bad).not.toHaveBeenCalled();
+        }
+    });
+
+    it("空の撮影日は今までどおり「消す」（断らない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true, date: "2024-10-12" } }).mockResolvedValueOnce({});
+        const res = await invoke(event("owner", "p1", { published: true, date: "" }));
+        expect(res.statusCode).toBe(200);
+        const updates = mockDdbSend.mock.calls.map((c) => c[0])
+            .filter((cmd) => (cmd as { constructor: { name: string } })?.constructor?.name === "UpdateCommand");
+        expect(updates.some((u) => String((u as { input: { UpdateExpression: string } }).input.UpdateExpression)
+            .includes("REMOVE")), "空にしても消えていない").toBe(true);
+    });
+
+    it("範囲内の撮影日は通る（境界の 1990-01-01 を含む）", async () => {
+        for (const ok of ["1990-01-01", "2024-10-12"]) {
+            mockDdbSend.mockReset().mockResolvedValueOnce({ Item: { id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true } }).mockResolvedValueOnce({});
+            const res = await invoke(event("owner", "p1", { published: true, date: ok }));
+            expect(res.statusCode, ok).toBe(200);
+        }
+    });
+
 
     // 以前は「保存経路で表記を揃える」として ISO に正規化していたが、
     // "2024-05-01" → "…T00:00:00.000Z" は表示側（photoDate.ts の

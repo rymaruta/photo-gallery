@@ -11,7 +11,7 @@ import { ArrowLeftIcon, PhotoIcon } from "@heroicons/react/24/outline";
 import type { Photo, LocalizedParagraphs } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
-import { toDateInputValue, mergeDate } from "../../../lib/utils/dateInput";
+import { toDateInputValue, mergeDate, todayForDateInput, PHOTO_DATE_MIN } from "../../../lib/utils/dateInput";
 import { changedFields } from "../../../lib/utils/changedFields";
 
 // text-base（16px）にする。iOS Safari は 16px 未満の入力欄にフォーカスすると
@@ -392,7 +392,9 @@ function AdminEditContent() {
                         </div>
                         <div>
                             <label className={labelCls}>{isJa ? "撮影日" : "Date"}</label>
-                            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
+                            {/* 範囲を出す。サーバーは範囲外を 400 で断るので、ここで気づける方がよい
+                                （`dateWasRejected`。1990年より前・未来は保存できない） */}
+                            <input type="date" min={PHOTO_DATE_MIN} max={todayForDateInput()} value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
                         </div>
                         <div>
                             <label className={labelCls}>{isJa ? "タグ（カンマ区切り）" : "Tags (comma separated)"}</label>

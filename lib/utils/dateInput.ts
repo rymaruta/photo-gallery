@@ -36,3 +36,24 @@ export function mergeDate(original: string | undefined, input: string): string {
     if (original.endsWith("T00:00:00.000Z")) return input;
     return original;
 }
+
+/**
+ * 撮影日として保存できる一番古い日。サーバー（両パッケージの `sanitizeDate`）が
+ * 1990年より前を断るので、入力欄にも同じ下限を出す。
+ * **数字を書き写しているので、`scripts/__tests__/limitParity.test.ts` と同じ形で
+ * サーバー側の値と突き合わせる**（片方だけ動かすと、入れられるのに保存できない
+ * ——または、入れられないのに保存はできる——が生まれる）。
+ */
+export const PHOTO_DATE_MIN = "1990-01-01";
+
+/**
+ * `<input type="date">` の `max` に入れる「今日」。サーバーは「今から24時間先」まで
+ * 許すが、画面では今日までにしておく（時差で1日ぶれる端末があっても、
+ * サーバーが断らない範囲に収まる）。
+ */
+export function todayForDateInput(now: Date = new Date()): string {
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+}

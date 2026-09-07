@@ -57,6 +57,27 @@ describe("updatePhoto", () => {
         expect(mockRebuild).not.toHaveBeenCalled();
     });
 
+    // ユーザーAPI側と同じ扱い（対の乖離を作らない）。黙って落とすと
+    // `pickEditableFields` が undefined を「消す」と読み、**入れ直しただけで
+    // 保存済みの撮影日が消える**（実測: `1985-06-01` → undefined）
+    it("読めない撮影日は 400 で断る（黙って消さない）", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true });
+        for (const bad of ["1985-06-01", "2099-01-01", "きのう"]) {
+            mockUpdatePhotoFields.mockClear();
+            const res = await invoke(ev("p1", { date: bad }));
+            expect(res.statusCode, bad).toBe(400);
+            expect(mockUpdatePhotoFields, bad).not.toHaveBeenCalled();
+        }
+    });
+
+    it("空の撮影日は今までどおり消せる", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true, date: "2024-10-12" });
+        const res = await invoke(ev("p1", { date: "" }));
+        expect(res.statusCode).toBe(200);
+        expect(mockUpdatePhotoFields).toHaveBeenCalled();
+        expect((mockUpdatePhotoFields.mock.calls[0][1] as Record<string, unknown>).date).toBeUndefined();
+    });
+
     it("自分の写真は編集できる", async () => {
         mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/p1.jpg" });
         expect((await invoke(ev("p1", { location: "北海道" }))).statusCode).toBe(200);

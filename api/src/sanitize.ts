@@ -119,6 +119,21 @@ export function sanitizeDate(v: unknown): string | undefined {
     return new Date(t).toISOString();
 }
 
+/**
+ * **撮影日を「消したい」と「読めない」は別。** `sanitizeDate` はどちらも
+ * `undefined` を返すので、呼び出し側がそのまま書き込みに使うと
+ * **1985年と入れただけで保存済みの日付が消える**（画面は「保存しました」）。
+ * フィルムの取り込みなど 1990年より前の日付は実在するのに、黙って落ちていた。
+ *
+ * 「値は来ているが使えない」ときだけ true。空文字・キー無しは「消す」意図
+ * なので false（そちらは今までどおり消えてよい）。
+ */
+export function dateWasRejected(v: unknown): boolean {
+    if (typeof v !== "string" || !v.trim()) return false;
+    return sanitizeDate(v) === undefined;
+}
+
+
 // タグ配列: 文字列のみ・trim・各50文字・重複排除・最大30件（空配列も返しうる＝全消し）
 export function sanitizeTags(v: unknown): string[] | undefined {
     if (!Array.isArray(v)) return undefined;

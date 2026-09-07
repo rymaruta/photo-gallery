@@ -14,7 +14,7 @@ import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
 import { toastWithStaticPage } from "../../../lib/utils/staticPage";
 import { AUTH_REQUIRED_MESSAGE } from "../../../lib/utils/api";
-import { toDateInputValue, mergeDate } from "../../../lib/utils/dateInput";
+import { toDateInputValue, mergeDate, todayForDateInput, PHOTO_DATE_MIN } from "../../../lib/utils/dateInput";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { changedFields } from "../../../lib/utils/changedFields";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
@@ -660,7 +660,9 @@ function EditContent() {
                         </div>
                         <div>
                             <label className={labelCls}>{isJa ? "撮影日" : "Date"}</label>
-                            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+                            {/* 範囲を出す。サーバーは範囲外を 400 で断るので、ここで気づける方がよい
+                                （`dateWasRejected`。1990年より前・未来は保存できない） */}
+                            <input type="date" min={PHOTO_DATE_MIN} max={todayForDateInput()} value={date} onChange={(e) => setDate(e.target.value)}
                                 className={inputCls} style={{ fontSize: "16px" }} />
                         </div>
                         <div>

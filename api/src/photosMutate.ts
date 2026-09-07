@@ -6,7 +6,7 @@ import { requestSiteRebuild } from "./rebuild";
 import { invalidateUploads } from "./cdnInvalidate";
 import { requireEnv } from "./env";
 import {
-    sanitizeExif, sanitizeText, sanitizeDate, sanitizeTags,
+    sanitizeExif, sanitizeText, sanitizeDate, dateWasRejected, sanitizeTags,
     sanitizeTitle, sanitizeDescription, sameStoredValue,
 } from "./sanitize";
 
@@ -107,6 +107,10 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
         }
 
+        // 読めない撮影日は断る（ユーザーAPI側と同じ。理由はあちらのコメント）
+        if (dateWasRejected(body.date)) {
+            return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "撮影日が正しくありません（1990年より前・未来の日付は保存できません）" }) };
+        }
         const fields = pickEditableFields(body);
         const updates: Record<string, unknown> = { ...fields, updatedAt: new Date().toISOString() };
         // 地名から補った座標（geoApprox）は地名に付随する。地名を直したら

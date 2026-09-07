@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toDateInputValue, mergeDate } from "../dateInput";
+import { toDateInputValue, mergeDate, todayForDateInput } from "../dateInput";
 
 // 背景: <input type="date"> に ISO 文字列を渡すと黙って空欄になる。
 // 空欄を「撮影日が未入力」と誤解して選び直すと、今度は時刻が落ちて
@@ -59,5 +59,22 @@ describe("mergeDate", () => {
 
     it("0時0分1秒は本物の時刻として保つ（直すのは 0時ちょうどだけ）", () => {
         expect(mergeDate("2026-01-20T00:00:01.000Z", "2026-01-20")).toBe("2026-01-20T00:00:01.000Z");
+    });
+});
+
+// 入力欄に出す範囲。サーバー（両パッケージの sanitizeDate）が 1990年より前と
+// 未来を断るので、入れる前に気づけるようにする
+describe("todayForDateInput", () => {
+    it("YYYY-MM-DD の形で、端末の暦の今日を返す", () => {
+        expect(todayForDateInput(new Date(2026, 8, 7))).toBe("2026-09-07");
+        // 1桁の月日を0埋めする（`2026-9-7` は input が黙って無視する）
+        expect(todayForDateInput(new Date(2026, 0, 3))).toBe("2026-01-03");
+    });
+
+    it("UTC ではなく端末の暦で決める（時差で1日ずれない）", () => {
+        // ローカル 2026-09-07 00:30 は UTC ではまだ 9/6 のこともある。
+        // 画面が出す上限は端末の「今日」でよい——サーバーは24時間の余裕を持つ
+        const d = new Date(2026, 8, 7, 0, 30);
+        expect(todayForDateInput(d)).toBe("2026-09-07");
     });
 });

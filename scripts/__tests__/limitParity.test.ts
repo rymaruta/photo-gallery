@@ -77,3 +77,26 @@ describe("件数の上限が、画面とサーバーで一致している", () =
         expect(src, "告げていない").toMatch(/超えた分は保存されません/);
     });
 });
+
+// **撮影日の下限を画面とサーバーの2か所に書いている。** 片方だけ動かすと
+// 「入れられるのに 400 で断られる」か「入れられないのに保存はできる」になる。
+// 実測（`1985-06-01` → undefined）で分かったとおり、断り方が黙っていた頃は
+// **保存済みの日付が消えていた**ので、この対はずれてはいけない。
+describe("撮影日の下限が、画面とサーバーで揃っている", () => {
+    it("PHOTO_DATE_MIN の年が sanitize.ts の下限と同じ", async () => {
+        const { PHOTO_DATE_MIN } = await import("../../lib/utils/dateInput");
+        const m = /year\s*<\s*(\d{4})/.exec(sanitize);
+        expect(m, "sanitize.ts に年の下限が見つからない").not.toBeNull();
+        expect(PHOTO_DATE_MIN.slice(0, 4), "画面の下限とサーバーの下限が違う").toBe(m![1]);
+        // その年の1月1日そのものは通る（境界の向き）
+        expect(PHOTO_DATE_MIN).toBe(`${m![1]}-01-01`);
+    });
+
+    it("両パッケージの sanitize が同じ下限を持つ", () => {
+        const other = readFileSync(join(__dirname, "..", "..", "api/src/sanitize.ts"), "utf8");
+        const a = /year\s*<\s*(\d{4})/.exec(sanitize)?.[1];
+        const b = /year\s*<\s*(\d{4})/.exec(other)?.[1];
+        expect(b, "api 側に年の下限が見つからない").toBeTruthy();
+        expect(b, "api と api-user で撮影日の下限が違う").toBe(a);
+    });
+});
