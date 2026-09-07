@@ -742,7 +742,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                             >
                                 <MapPinIcon className="w-4 h-4 text-sky-400 flex-shrink-0" />
                                 <span className="truncate">{locationText}</span>
-                                <span className="text-[11px] text-white/40 flex-shrink-0">{locale === "ja" ? "地図" : "Map"} ↗</span>
+                                <span className="text-[11px] text-white/50 flex-shrink-0">{locale === "ja" ? "地図" : "Map"} ↗</span>
                             </a>
                         ) : (
                             <span className="inline-flex items-center gap-1.5 max-w-full px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-sm text-white/75">
@@ -839,14 +839,14 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                         <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 max-w-md">
                             <div className="flex items-center gap-1.5 mb-3">
                                 <CameraIcon className="w-3.5 h-3.5 text-white/50" />
-                                <span className="text-[11px] tracking-widest uppercase text-white/45">
+                                <span className="text-[11px] tracking-widest uppercase text-white/50">
                                     {locale === "en" ? "Camera Settings" : "撮影情報"}
                                 </span>
                             </div>
                             <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
                                 {specs.map((s) => (
                                     <div key={s.label} className={s.wide ? "col-span-2" : ""}>
-                                        <dt className="text-[10px] uppercase tracking-wider text-white/35">{s.label}</dt>
+                                        <dt className="text-[10px] uppercase tracking-wider text-white/50">{s.label}</dt>
                                         <dd className="text-[13px] text-white/85 mt-0.5 break-words">{s.value}</dd>
                                     </div>
                                 ))}
@@ -873,7 +873,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                             <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden max-w-md">
                                 <div className="flex items-center gap-1.5 px-3.5 py-2.5">
                                     <MusicalNoteIcon className="w-3.5 h-3.5 text-fuchsia-400" />
-                                    <span className="text-[11px] tracking-widest uppercase text-white/45">{locale === "en" ? "Full MV" : "フル再生MV"}</span>
+                                    <span className="text-[11px] tracking-widest uppercase text-white/50">{locale === "en" ? "Full MV" : "フル再生MV"}</span>
                                     <button
                                         onClick={() => setMvOpen((v) => !v)}
                                         aria-expanded={mvOpen}
@@ -945,7 +945,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                                             <p className="text-xs text-white truncate">{r.title}</p>
                                                             <p className="text-[11px] text-white/50 truncate">{r.artist}</p>
                                                         </div>
-                                                        <span className="text-[11px] text-white/40 flex-shrink-0">{locale === "en" ? "Set" : "設定"}</span>
+                                                        <span className="text-[11px] text-white/50 flex-shrink-0">{locale === "en" ? "Set" : "設定"}</span>
                                                     </button>
                                                 </li>
                                             ))}
@@ -966,7 +966,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                     {photoSong && (
                                         <button
                                             onClick={() => void savePhotoSong(null)}
-                                            className="inline-flex items-center gap-0.5 text-xs text-white/40 hover:text-white/70 active:scale-95 transition"
+                                            className="inline-flex items-center gap-0.5 text-xs text-white/50 hover:text-white/70 active:scale-95 transition"
                                         >
                                             <XMarkIcon className="w-3 h-3" />
                                             {locale === "en" ? "Remove" : "外す"}
@@ -1073,7 +1073,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
 
                     {/* 共有: 丸形のガラスアイコンボタン列（プロフィールの共有ボタンと同じ質感） */}
                     <div>
-                        <div className="text-[11px] tracking-widest uppercase text-white/45 mb-2.5">
+                        <div className="text-[11px] tracking-widest uppercase text-white/50 mb-2.5">
                             {locale === "en" ? "Share" : "共有"}
                         </div>
                         <div className="flex flex-wrap gap-2.5">
@@ -1157,7 +1157,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                 >
                                     <ChevronLeftIcon className="w-5 h-5 flex-shrink-0 text-white/50" />
                                     <span className="min-w-0">
-                                        <span className="block text-[10px] uppercase tracking-wider text-white/35">{locale === "en" ? "Newer" : "新しい写真"}</span>
+                                        <span className="block text-[10px] uppercase tracking-wider text-white/50">{locale === "en" ? "Newer" : "新しい写真"}</span>
                                         <span className="block text-sm text-white/85 truncate">{getLocalized(related.prev.title, locale) || (locale === "en" ? "Photo" : "写真")}</span>
                                     </span>
                                 </Link>
@@ -1170,7 +1170,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                     style={{ touchAction: "manipulation" }}
                                 >
                                     <span className="min-w-0">
-                                        <span className="block text-[10px] uppercase tracking-wider text-white/35">{locale === "en" ? "Older" : "古い写真"}</span>
+                                        <span className="block text-[10px] uppercase tracking-wider text-white/50">{locale === "en" ? "Older" : "古い写真"}</span>
                                         <span className="block text-sm text-white/85 truncate">{getLocalized(related.next.title, locale) || (locale === "en" ? "Photo" : "写真")}</span>
                                     </span>
                                     <ChevronRightIcon className="w-5 h-5 flex-shrink-0 text-white/50" />

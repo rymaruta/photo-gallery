@@ -180,13 +180,13 @@ export default function SignupPage() {
 
                 {/* ヘッダー */}
                 <div className="mb-10 text-center">
-                    <p className="text-white/40 text-xs tracking-widest uppercase mb-3">Journey Photo</p>
+                    <p className="text-white/50 text-xs tracking-widest uppercase mb-3">Journey Photo</p>
                     <h1 className="text-2xl font-bold text-white">
                         {step === "register" && "アカウント作成"}
                         {step === "verify" && "メールを確認"}
                         {step === "done" && "登録完了"}
                     </h1>
-                    <p className="text-white/40 text-sm mt-2">
+                    <p className="text-white/50 text-sm mt-2">
                         {step === "register" && "写真のアップロードができるようになります"}
                         {step === "verify" && `${email} に確認コードを送信しました`}
                         {step === "done" && "アカウントが有効になりました"}
@@ -244,7 +244,7 @@ export default function SignupPage() {
                                 disabled={submitting}
                                 className={inputCls}
                             />
-                            <p className="text-xs text-white/30 mt-1.5">英大文字・小文字・数字・記号（!@#$など）をそれぞれ1文字以上含めてください</p>
+                            <p className="text-xs text-white/50 mt-1.5">英大文字・小文字・数字・記号（!@#$など）をそれぞれ1文字以上含めてください</p>
                         </div>
                         <div>
                             <label htmlFor="signup-password-confirm" className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード（確認）</label>
@@ -274,7 +274,7 @@ export default function SignupPage() {
                             {submitting ? "送信中..." : "確認コードを送信"}
                         </button>
 
-                        <p className="text-center text-xs text-white/40 pt-2">
+                        <p className="text-center text-xs text-white/50 pt-2">
                             すでにアカウントをお持ちの方は{" "}
                             <Link href="/login" className="text-white/60 hover:text-white underline transition-colors">
                                 ログイン
@@ -319,7 +319,7 @@ export default function SignupPage() {
                             <button
                                 type="button"
                                 onClick={() => { setStep("register"); setError(""); setCode(""); setResendCooldown(0); }}
-                                className="text-xs text-white/40 hover:text-white/60 transition-colors flex items-center gap-1"
+                                className="text-xs text-white/50 hover:text-white/60 transition-colors flex items-center gap-1"
                             >
                                 <ArrowLeftIcon className="w-3 h-3" /> 戻る
                             </button>
@@ -327,7 +327,7 @@ export default function SignupPage() {
                                 type="button"
                                 onClick={handleResend}
                                 disabled={resendCooldown > 0 || resending}
-                                className="text-xs text-white/40 hover:text-white/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="text-xs text-white/50 hover:text-white/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 {resendCooldown > 0
                                     ? `再送（${resendCooldown}秒後）`

@@ -57,7 +57,7 @@ export default function CollectionPageClient({ photos, heading, description, bre
                                 style={{ touchAction: "manipulation" }}
                             >
                                 {type === "tag" ? `#${r.label}` : r.label}
-                                <span className="text-white/30">{r.count}</span>
+                                <span className="text-white/50">{r.count}</span>
                             </Link>
                         ))}
                     </div>

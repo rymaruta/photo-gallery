@@ -141,7 +141,7 @@ function LoginForm() {
 
                 {/* ロゴ */}
                 <div className="mb-10 text-center">
-                    <p className="text-white/40 text-xs tracking-widest uppercase mb-3">Journey Photo</p>
+                    <p className="text-white/50 text-xs tracking-widest uppercase mb-3">Journey Photo</p>
                     <h1 className="text-2xl font-bold text-white">
                         {step === "login" && "ログイン"}
                         {step === "forgot-send" && "パスワードをリセット"}
@@ -149,13 +149,13 @@ function LoginForm() {
                         {step === "forgot-done" && "リセット完了"}
                     </h1>
                     {step === "login" && (
-                        <p className="text-white/40 text-sm mt-2">写真をアップロードするにはログインが必要です</p>
+                        <p className="text-white/50 text-sm mt-2">写真をアップロードするにはログインが必要です</p>
                     )}
                     {step === "forgot-send" && (
-                        <p className="text-white/40 text-sm mt-2">登録したメールアドレスに確認コードを送信します</p>
+                        <p className="text-white/50 text-sm mt-2">登録したメールアドレスに確認コードを送信します</p>
                     )}
                     {step === "forgot-confirm" && (
-                        <p className="text-white/40 text-sm mt-2">{username} に送信されたコードを入力してください</p>
+                        <p className="text-white/50 text-sm mt-2">{username} に送信されたコードを入力してください</p>
                     )}
                 </div>
 
@@ -234,12 +234,12 @@ function LoginForm() {
                         <button
                             type="button"
                             onClick={() => { setStep("forgot-send"); setError(""); }}
-                            className="w-full text-center text-xs text-white/40 hover:text-white/60 transition-colors py-2"
+                            className="w-full text-center text-xs text-white/50 hover:text-white/60 transition-colors py-2"
                         >
                             パスワードをお忘れですか？
                         </button>
 
-                        <p className="text-center text-xs text-white/40 pt-1">
+                        <p className="text-center text-xs text-white/50 pt-1">
                             アカウントをお持ちでない方は{" "}
                             <Link href="/signup" className="text-white/60 hover:text-white underline transition-colors">
                                 新規登録
@@ -278,7 +278,7 @@ function LoginForm() {
                             {submitting ? "送信中..." : "確認コードを送信"}
                         </button>
                         <button type="button" onClick={() => { setStep("login"); setError(""); }}
-                            className="w-full text-center text-xs text-white/40 hover:text-white/60 transition-colors py-2 flex items-center justify-center gap-1">
+                            className="w-full text-center text-xs text-white/50 hover:text-white/60 transition-colors py-2 flex items-center justify-center gap-1">
                             <ArrowLeftIcon className="w-3 h-3" /> ログインに戻る
                         </button>
                     </form>

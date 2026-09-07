@@ -53,7 +53,7 @@ export default function MapPage() {
                 // 無い状態を「地図が壊れた」と読ませない
                 <div className="rounded-2xl ring-1 ring-white/10 bg-white/5 px-6 py-16 text-center text-white/60 text-sm">
                     <p>{en ? "No photos with location yet." : "位置情報のある写真はまだありません。"}</p>
-                    <p className="mt-2 text-white/40">
+                    <p className="mt-2 text-white/50">
                         {en
                             ? "Photos uploaded with GPS data, or given a place from the edit screen, appear here (rounded to about 1 km)."
                             : "GPS 付きの写真をアップロードするか、編集画面の「地図に出す位置」で場所を選ぶと、約1km の粒度でここに載ります。"}

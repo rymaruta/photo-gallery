@@ -30,7 +30,7 @@ export default function Footer() {
                             <PaperAirplaneIcon className="w-3.5 h-3.5 -rotate-45 text-sky-400" />
                             Journey Photo
                         </p>
-                        <p className="mt-1.5 text-xs text-white/40">
+                        <p className="mt-1.5 text-xs text-white/50">
                             {locale === "en"
                                 ? "Moments that move someone's next journey."
                                 : "旅の一瞬を、誰かの次の旅へ。"}
@@ -51,7 +51,7 @@ export default function Footer() {
                         ))}
                     </nav>
 
-                    <p className="text-[11px] text-white/30">
+                    <p className="text-[11px] text-white/50">
                         {/* 年は出さない。ここは "use client" だが静的書き出しなので、
                             ビルド時の年が HTML に焼かれ、年が明けるとブラウザ側の
                             再描画とで食い違う（ハイドレーション不一致）。

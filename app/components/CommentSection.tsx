@@ -108,7 +108,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                 // 出すと、ログイン済みの人にも一瞬表示されて誤操作を誘う。
                 <div className="mb-4 h-[68px]" aria-hidden={true} />
             ) : (
-                <p className="mb-4 text-xs text-white/40">
+                <p className="mb-4 text-xs text-white/50">
                     {/* 戻り先を添える。無いとログイン後に自分のプロフィールへ
                         飛ばされ、コメントしようとしていた写真を見失う */}
                     <Link href={loginHref} className="text-white/70 underline hover:text-white">
