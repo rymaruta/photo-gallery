@@ -19,6 +19,26 @@ type Props = {
     onOpenPhoto?: (photoId: string) => boolean;
 };
 
+/**
+ * 最初に描く枚数と、下端に近づいたときに足す枚数。
+ *
+ * **一覧は全部を一度に DOM へ置いていた。** 枚数に比例して重くなり、
+ * Chromium で実測（390x844・CPU 4倍遅い＝中位のスマホ相当・画像はモック）:
+ *
+ *   枚数   要素数    描き終わるまで   いちばん長い詰まり
+ *     30     465          632ms              248ms
+ *    300   3,165        1,231ms              739ms
+ *  1,000  10,165        2,226ms            2,704ms   ← 2.7秒 何も反応しない
+ *  3,000  30,165        3,585ms            8,778ms   ← 8.8秒
+ *
+ * `content-visibility: auto` も試したが 1割ほどしか効かない（重いのは
+ * 描画ではなく DOM を作ること）。**作らない**のが唯一効く。
+ *
+ * 60 は「スマホ2列で30行・PC4列で15行」＝どの幅でも数画面ぶん。
+ */
+export const GRID_INITIAL_VISIBLE = 60;
+export const GRID_STEP = 60;
+
 export default function GalleryGrid({
     photos,
     locale,
@@ -27,15 +47,42 @@ export default function GalleryGrid({
 }: Props) {
     const labels = React.useMemo(() => getLabels(locale), [locale]);
     const emptyMessage = labels.gallery?.emptyMessage ?? (locale === "en" ? "No photos found." : "該当する写真がありません。");
+    const total = photos?.length ?? 0;
+    const [visible, setVisible] = React.useState(GRID_INITIAL_VISIBLE);
+    const sentinelRef = React.useRef<HTMLDivElement>(null);
+
+    // **絞り込みが変わったら最初から。** 深くスクロールしてから絞り込むと、
+    // 数件しかないのに何百枚ぶんの枠が残る
+    React.useEffect(() => { setVisible(GRID_INITIAL_VISIBLE); }, [photos]);
+
+    React.useEffect(() => {
+        if (visible >= total) return;
+        // 監視できない環境（古いブラウザ・jsdom）では全部出す。
+        // **出さない方に倒すと、その環境では写真が60枚で打ち切られる**
+        if (typeof IntersectionObserver === "undefined") { setVisible(total); return; }
+        const el = sentinelRef.current;
+        if (!el) return;
+        // 下端に着く前に足す（800px ＝ スマホで約1画面ぶん手前）
+        const io = new IntersectionObserver((entries) => {
+            if (entries.some((e) => e.isIntersecting)) setVisible((v) => Math.min(v + GRID_STEP, total));
+        }, { rootMargin: "800px 0px" });
+        io.observe(el);
+        // **`visible` を依存に入れて作り直す。** 足したあとも番兵が画面に
+        // 入ったままだと、交差の状態が変わらないので二度と呼ばれない（＝止まる）
+        return () => io.disconnect();
+    }, [visible, total]);
 
     if (!photos || photos.length === 0) {
         return <div className="text-sm text-white/70">{emptyMessage}</div>;
     }
 
+    const shown = photos.slice(0, visible);
+
     return (
-        // 写真同士は少し余白を空けて呼吸させる（ユーザー好みで gap-0 から変更）
+        <>
+        {/* 写真同士は少し余白を空けて呼吸させる（ユーザー好みで gap-0 から変更） */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1 sm:gap-1.5">
-            {photos.map((p, idx) => {
+            {shown.map((p, idx) => {
                 const localizedTitle = getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : "");
                 // alt に撮影地を併記（画像検索のキーワード関連性を強化。場所が既に含まれる場合は重複させない）
                 const baseAlt = getLocalized(p.alt, locale) || localizedTitle || "";
@@ -61,6 +108,10 @@ export default function GalleryGrid({
                 );
             })}
         </div>
+        {/* 続きを読み込む番兵。**見た目は何も足さない**——下まで送ると
+            勝手に増える（ボタンを置くとデザインの追加になる） */}
+        {visible < total && <div ref={sentinelRef} aria-hidden={true} style={{ height: 1 }} />}
+        </>
     );
 }
 
