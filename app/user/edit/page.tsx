@@ -13,6 +13,7 @@ import type { Photo, LocalizedParagraphs } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
 import { toastWithStaticPage } from "../../../lib/utils/staticPage";
+import { AUTH_REQUIRED_MESSAGE } from "../../../lib/utils/api";
 import { toDateInputValue, mergeDate } from "../../../lib/utils/dateInput";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { changedFields } from "../../../lib/utils/changedFields";
@@ -461,7 +462,9 @@ function EditContent() {
             }
         } catch (e) {
             log.error("edit save error:", e);
-            const { AUTH_REQUIRED_MESSAGE } = await import("../../../lib/utils/api");
+            // **catch の中で動的 import しない。** その import 自体が失敗して
+            // ここへ来た場合、もう一度失敗して**トーストが1つも出ない**まま終わる
+            // （`save` は `void save(...)` で呼ばれるので誰も拾わない）
             const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
             showToast(authMissing ? AUTH_REQUIRED_MESSAGE : (isJa ? "保存に失敗しました" : "Save failed"), "error");
         } finally {

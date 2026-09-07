@@ -29,11 +29,6 @@ export function staticPageState(data: unknown): StaticPageState {
     return "fresh";
 }
 
-/** 非公開・削除の応答に「静的ページがまだ残る」印があるか */
-export function staticPagePending(data: unknown): boolean {
-    return staticPageState(data) === "pending";
-}
-
 /**
  * 上の印が立っているときだけ、文言に一文を足す。
  *
@@ -61,10 +56,9 @@ export function toastWithStaticPage(showToast: ShowToast, message: string, data:
     showToast(withStaticPageNotice(message, state, isJa), "success", STATIC_NOTICE_TOAST_MS);
 }
 
-export function withStaticPageNotice(message: string, state: StaticPageState | boolean, isJa: boolean): string {
-    const s: StaticPageState = state === true ? "pending" : state === false ? "fresh" : state;
-    if (s === "fresh") return message;
-    if (s === "outdated") {
+export function withStaticPageNotice(message: string, state: StaticPageState, isJa: boolean): string {
+    if (state === "fresh") return message;
+    if (state === "outdated") {
         return isJa
             ? `${message}。消した内容は、検索から開けるページに次のサイト更新まで残ることがあります`
             : `${message}. What you removed may still show on the photo's own page until the next site update.`;

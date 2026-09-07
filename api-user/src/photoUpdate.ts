@@ -146,11 +146,15 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // あわせて「本当に値が変わったか」も数える。静的ページの作り直しを
         // 頼むかの判定に使う（下の requestSiteRebuild）。
         let metaChanged = false;
-        // **消した項目があったか。** 「非公開にした・削除した」と同じで、
+        // **項目をまるごと空にしたか。** 「非公開にした・削除した」と同じで、
         // 消す意図の操作が公開ページに反映されないのは約束違反になる
-        // （説明に書いた最寄り駅を消しても、静的HTMLと JSON-LD には残る）。
+        // （説明を空にしても、静的HTMLと JSON-LD には残る）。
         // 書き換え（別の文に直す）は「更新が遅れている」だけなので数えない
-        // ——公開中の写真を保存するたびに断りが出ると、肝心のときに読まれない
+        // ——公開中の写真を保存するたびに断りが出ると、肝心のときに読まれない。
+        // **拾えるのは項目まるごとの削除だけ**——説明の一文だけ消す・タグを1つ外す、
+        // といった部分編集は値が非空のままなので数えない。そこまで拾うには
+        // 「何が減ったか」を項目ごとに見ることになり、線が引けなくなる。
+        // 根本の直し方は文言ではなく `REBUILD_DISPATCH_TOKEN` の設定
         let metaRemoved = false;
         const applyMeta = (col: string, present: boolean, value: unknown): boolean => {
             if (!present) return false;
@@ -282,8 +286,13 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // `stillPublished` が要るので、同時には立たない。「強い方を優先する」と
         // 書きかけたが、そんな規則は要らなかった（変異で気づいた: 応答の三項の
         // 順番を入れ替えても何も変わらない）
-        const stillPublished = hasPublished ? body.published !== false : wasPublished !== false;
-        const staticOutdated = metaRemoved && stillPublished && !dispatched;
+        // **そもそも静的ページがあるか。** 下書きを「公開する」で出しながら項目を
+        // 消すと、これが無いと「消した内容がページに残る」と言ってしまう
+        // ——そのページはまだ作られていない。判定は `deleteMyPhoto` と同じ形
+        // （非公開でも、掃除が届いていなければページは在る）
+        const staticPageExists = wasPublished || existing.Item.staticStale === true;
+        const stillPublished = hasPublished ? body.published !== false : wasPublished;
+        const staticOutdated = metaRemoved && staticPageExists && stillPublished && !dispatched;
         if (staticStale) {
             try {
                 await ddb.send(new UpdateCommand({
@@ -328,8 +337,9 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         return {
             statusCode: 200,
             headers: JSON_HEADERS,
-            // 2つの印は排他（上の `staticOutdated` の説明を参照）。三項の順番に
-            // 意味は無い
+            // 2つの印は排他——`hiding` は `body.published === false` を要求し、
+            // `stillPublished` はその否定なので、同時には立たない。三項の順番に
+            // 意味は無い（順番を入れ替える変異が緑になることで確認済み）
             body: JSON.stringify(
                 staticStale ? { success: true, staticStale: true }
                     : staticOutdated ? { success: true, staticOutdated: true }

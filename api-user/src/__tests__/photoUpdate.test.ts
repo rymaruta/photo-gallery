@@ -518,6 +518,54 @@ describe("非公開にするときの再ビルド依頼", () => {
 
     // 書き換えは「更新が遅れている」だけ。毎回の保存で断りが出ると、
     // 肝心のとき（消したとき）に読まれなくなる
+    // **頼めたなら言わない。** `!dispatched` を落としても全部緑だった
+    // ——本番はトークン未設定で常に false なので今は無害だが、owner が
+    // トークンを入れた日に「もう消えているのに残ると言う」へ静かに変わる
+    it("掃除を頼めたなら、消していても言わない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, description: "あ" } }).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(true);
+        const res = await invoke(event("owner", "p1", { published: true, description: "" }));
+        expect(JSON.parse(res.body)).toEqual({ success: true });
+    });
+
+    // **過去の事故と同じ形。** `/user/edit` はタグを毎回 `[]` で送るので、
+    // 「変わったか」を見ずに `willRemove` だけで数えると、タグを持たない写真を
+    // 保存するたびに8秒の断りが出る
+    it("もともと空の項目に空を送っても、消したことにしない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: stored2 }).mockResolvedValueOnce({});   // tags を持たない
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: true, tags: [] }));
+        expect(JSON.parse(res.body)).toEqual({ success: true });
+    });
+
+    // 静的ページがまだ無い（下書きを公開しながら項目を消した）ときに
+    // 「ページに残る」と言わない
+    it("下書きを公開しながら項目を消しても言わない（ページがまだ無い）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, published: false, description: "あ" } })
+            .mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: true, description: "" }));
+        expect(JSON.parse(res.body)).toEqual({ success: true });
+    });
+
+    // ただし「非公開にしたが掃除が届かなかった」写真にはページが在る
+    it("掃除の届いていない非公開写真を公開し直しながら消したら、言う", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, published: false, staticStale: true, description: "あ" } })
+            .mockResolvedValueOnce({}).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: true, description: "" }));
+        expect(JSON.parse(res.body)).toEqual({ success: true, staticOutdated: true });
+    });
+
+    // `published` を送らない呼び出し（この画面は毎回送るが、他の口・古いタブ）
+    it("published を送らない保存では、保存値の公開状態で判断する", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, published: false, description: "あ" } })
+            .mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { description: "" }));
+        expect(JSON.parse(res.body), "下書きなのにページが在ると言っている").toEqual({ success: true });
+    });
+
     it("書き換えただけなら言わない", async () => {
         mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, title: "前の題" } }).mockResolvedValueOnce({});
         mockRebuild.mockResolvedValue(false);

@@ -1,24 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { staticPagePending, staticPageState, withStaticPageNotice, toastWithStaticPage, STATIC_NOTICE_TOAST_MS } from "../staticPage";
+import { staticPageState, withStaticPageNotice, toastWithStaticPage, STATIC_NOTICE_TOAST_MS } from "../staticPage";
 
 // 「消したのに、検索から開けるページはまだ残っている」を伝える一文。
 // 本番は再ビルドのトークンが未設定なので、非公開・削除のたびに残る
 
-describe("staticPagePending", () => {
-    it("サーバーの印が立っているときだけ true", () => {
-        expect(staticPagePending({ success: true, staticStale: true })).toBe(true);
-        expect(staticPagePending({ success: true })).toBe(false);
-        expect(staticPagePending({ success: true, staticStale: false })).toBe(false);
-    });
-
+describe("印の読み取り", () => {
     it("印が真値でも boolean でなければ拾わない（サーバーの形が変わったら黙る）", () => {
-        expect(staticPagePending({ staticStale: "true" })).toBe(false);
-        expect(staticPagePending({ staticStale: 1 })).toBe(false);
+        expect(staticPageState({ staticStale: "true" })).toBe("fresh");
+        expect(staticPageState({ staticStale: 1 })).toBe("fresh");
     });
 
     it("応答が読めなくても投げない", () => {
         for (const v of [null, undefined, "", 0, [], "staticStale"]) {
-            expect(staticPagePending(v), String(v)).toBe(false);
+            expect(staticPageState(v), String(v)).toBe("fresh");
         }
     });
 });
@@ -87,18 +81,21 @@ describe("toastWithStaticPage", () => {
 
 describe("withStaticPageNotice", () => {
     it("印が無ければ文言を変えない", () => {
-        expect(withStaticPageNotice("非公開にしました", false, true)).toBe("非公開にしました");
-        expect(withStaticPageNotice("Unpublished", false, false)).toBe("Unpublished");
+        expect(withStaticPageNotice("非公開にしました", "fresh", true)).toBe("非公開にしました");
+        expect(withStaticPageNotice("Unpublished", "fresh", false)).toBe("Unpublished");
     });
 
     it("印があれば一文を足す（「必ず残る」とは言わない）", () => {
-        const ja = withStaticPageNotice("非公開にしました", true, true);
+        const ja = withStaticPageNotice("非公開にしました", "pending", true);
         expect(ja).toContain("非公開にしました");
         expect(ja).toContain("残ることがあります");
         // 言い切らない——まとめられた依頼は先のビルドが拾うことが多い。
         // 句点で見ていた頃は「必ず残ります」でも通っていた
-        expect(ja).not.toMatch(/必ず|確実に|残ります(?!。?$)/);
+        // 3つ目の項を `残ります(?!。?$)` と書いていたが、文末の「残ります。」を
+        // 通してしまい**名前どおりの仕事をしていなかった**（実際に止めていたのは
+        // 次の行）。素直な形に直す
+        expect(ja).not.toMatch(/必ず|確実に|残ります/);
         expect(ja).toMatch(/ことがあります/);
-        expect(withStaticPageNotice("Photo deleted", true, false)).toContain("until the next site update");
+        expect(withStaticPageNotice("Photo deleted", "pending", false)).toContain("until the next site update");
     });
 });
