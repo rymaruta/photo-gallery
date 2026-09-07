@@ -13,6 +13,7 @@ import { UPLOAD_FAILED_MESSAGE } from "../errorText";
 
 const mockUserFetch = vi.hoisted(() => vi.fn());
 const mockReadSharedPayload = vi.hoisted(() => vi.fn());
+const mockCreateThumbnail = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
     useRouter: () => ({ push: mockPush, replace: vi.fn() }),
@@ -38,7 +39,7 @@ vi.mock("../../../../lib/utils/exif", () => ({
     reverseGeocode: vi.fn(async () => null),
 }));
 vi.mock("../../../../lib/utils/image", () => ({
-    createThumbnail: vi.fn(async () => null),        // サムネは作らない（本体のキーだけを見る）
+    createThumbnail: mockCreateThumbnail,            // 既定はサムネ無し（本体のキーだけを見る）
     toUploadSafeFile: vi.fn(async (f: File) => f),
     UnstrippableFileError: class extends Error {},
     extractDominantColor: vi.fn(async () => null),
@@ -80,6 +81,7 @@ function hangingPut() {
 }
 
 beforeEach(() => {
+    mockCreateThumbnail.mockReset().mockResolvedValue(null);
     mockShowToast.mockReset();
     mockPush.mockReset();
     mockUserFetch.mockReset().mockImplementation((url: string) => {
@@ -193,5 +195,70 @@ describe("アップロード中にやめる", () => {
         expect(toasts(), "やめたと伝えていない").toContain("info:アップロードをやめました");
         expect(toasts().filter((t) => t.startsWith("error:")), "やめただけなのに失敗を出している").toEqual([]);
         expect(mockPush, "やめたのに画面を移している").not.toHaveBeenCalled();
+    });
+    // **サムネの PUT で中断したとき。** サムネの失敗は「無しで続ける」設計
+    // なので catch が握るが、やめたときまで握ると そのあと原寸のデコード
+    // （代表色・ぼかし・EXIF）とセッションの待ちを通ってから保存まで飛ぶ
+    // ——「やめる」を押したのに写真が1枚できあがる
+    it("サムネの途中でやめたら、そこで止めて保存まで進めない", async () => {
+        mockCreateThumbnail.mockResolvedValue(new File(["t"], "t.webp", { type: "image/webp" }));
+        let thumbPutStarted = false;
+        vi.stubGlobal("fetch", vi.fn((_url: string, init?: { signal?: AbortSignal }) => {
+            if (init?.signal?.aborted) return Promise.reject(new DOMException("cancelled", "AbortError"));
+            if (!thumbPutStarted) {          // 1回目＝本体の PUT は通す
+                thumbPutStarted = true;
+                return Promise.resolve({ ok: true, status: 200 });
+            }
+            return new Promise((_res, reject) => {   // 2回目＝サムネの PUT は返らない
+                init?.signal?.addEventListener("abort", () => reject(new DOMException("cancelled", "AbortError")));
+            });
+        }));
+
+        render(<UploadPage />);
+        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        await waitFor(() => expect(publish).not.toBeDisabled());
+        await userEvent.click(publish);
+        await waitFor(() => expect(thumbPutStarted, "サムネの PUT まで進んでいない").toBe(true));
+
+        await userEvent.click(await screen.findByRole("button", { name: "やめる" }));
+        await waitFor(() => expect(screen.getByRole("button", { name: /枚を公開/ })).not.toBeDisabled());
+
+        expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/save"),
+            "やめたのに保存まで進んでいる").toBe(false);
+        expect(toasts()).toContain("info:アップロードをやめました");
+    });
+
+    // **やめたときは打ち消しを待つ。** 投げっぱなしだと、利用者は DELETE が
+    // 飛ぶ前に離脱できる（押した直後にタブを閉じる・戻る）——この修正が
+    // 目的にしている孤児がそのまま残る
+    it("やめたと出すのは、上げかけた実体を捨て終えてから", async () => {
+        hangingPut();
+        let finishDiscard: (() => void) | null = null;
+        const base = mockUserFetch.getMockImplementation()!;
+        mockUserFetch.mockImplementation((url: string, init?: unknown) => {
+            if (url === "/upload/discard") {
+                return new Promise((resolve) => {
+                    finishDiscard = () => resolve({ ok: true, json: async () => ({}) });
+                });
+            }
+            return base(url, init);
+        });
+
+        render(<UploadPage />);
+        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        await waitFor(() => expect(publish).not.toBeDisabled());
+        await userEvent.click(publish);
+        await userEvent.click(await screen.findByRole("button", { name: "やめる" }));
+
+        await waitFor(() => expect(finishDiscard, "捨てにいっていない").not.toBeNull());
+        expect(toasts(), "捨て終わる前に畳んでいる").not.toContain("info:アップロードをやめました");
+        // **止まるまでの間もボタンは残す。** 押した瞬間に消すと、そこに居た
+        // フォーカスが `<body>` へ落ちる（キーボード・読み上げの人は位置を失う）
+        const stopping = screen.getByRole("button", { name: "中断中…" });
+        expect(stopping, "押したら二度押しできる状態のまま").toBeDisabled();
+        expect(screen.queryByRole("button", { name: "やめる" }), "押したのに名前が変わっていない").toBeNull();
+
+        finishDiscard!();
+        await waitFor(() => expect(toasts()).toContain("info:アップロードをやめました"));
     });
 });
