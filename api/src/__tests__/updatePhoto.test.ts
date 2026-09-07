@@ -73,6 +73,15 @@ describe("updatePhoto", () => {
         }
     });
 
+    // ユーザーAPI側と同じ扱い（対の乖離を作らない）
+    it("日付でない型も断り、null は「消す」", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true, date: "2024-10-12" });
+        for (const bad of [12345, true, ["2024-01-01"]]) {
+            expect((await invoke(ev("p1", { date: bad }))).statusCode, JSON.stringify(bad)).toBe(400);
+        }
+        expect((await invoke(ev("p1", { date: null }))).statusCode, "null は消す意図").toBe(200);
+    });
+
     it("空の撮影日は今までどおり消せる", async () => {
         mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true, date: "2024-10-12" });
         const res = await invoke(ev("p1", { date: "" }));

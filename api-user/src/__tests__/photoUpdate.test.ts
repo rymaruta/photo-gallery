@@ -274,6 +274,25 @@ describe("updatePhotoVisibility: 撮影日の検証", () => {
         }
     });
 
+    // **消す意図は null・undefined・空文字だけ。** 数値や配列を「消す」と読むと、
+    // 同じ「黙って消える」が別の入口から戻ってくる（画面からは踏めないが、
+    // JSDoc は「値は来ているが使えないときだけ true」と書いてある）
+    it("日付でない型（数値・真偽・配列・オブジェクト）も断る", async () => {
+        for (const bad of [12345, 0, true, ["2024-01-01"], { y: 2024 }]) {
+            mockDdbSend.mockReset();
+            const res = await invoke(event("owner", "p1", { published: true, date: bad }));
+            expect(res.statusCode, JSON.stringify(bad)).toBe(400);
+            expect(mockDdbSend, JSON.stringify(bad)).not.toHaveBeenCalled();
+        }
+    });
+
+    it("null は「消す」（断らない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true, date: "2024-10-12" } })
+            .mockResolvedValueOnce({});
+        const res = await invoke(event("owner", "p1", { published: true, date: null }));
+        expect(res.statusCode).toBe(200);
+    });
+
     it("空の撮影日は今までどおり「消す」（断らない）", async () => {
         mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true, date: "2024-10-12" } }).mockResolvedValueOnce({});
         const res = await invoke(event("owner", "p1", { published: true, date: "" }));

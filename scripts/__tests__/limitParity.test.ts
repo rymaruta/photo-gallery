@@ -100,6 +100,22 @@ describe("撮影日の下限が、画面とサーバーで揃っている", () =
         expect(src, `${page} が上限を出していない`).toContain("max={todayForDateInput()}");
     });
 
+    // **`min` を出した `<input>` が `<form>` の中にあるなら、その form は
+    // `noValidate` でなければならない。** そうしないと範囲外の値が入っている
+    // 写真で **submit そのものが発火せず**、日付以外の項目まで保存できなくなる
+    // （Chromium で実測: 範囲外→発火せず／`noValidate`→発火）。
+    // **jsdom は制約検証を走らせない**ので振る舞いでは書けない。ここだけ綴りで見る
+    it.each(["app/user/edit/page.tsx", "app/admin/edit/page.tsx"])("%s: submit で保存する form は制約検証を止めている", (page) => {
+        const src = read(page);
+        const forms = [...src.matchAll(/<form\b[^>]*>/g)].map((m) => m[0]);
+        const submits = /type="submit"/.test(src);
+        if (!submits) return;   // 保存が type="button" なら form の検証は関係ない
+        expect(forms.length, `${page} に form が無いのに type="submit" がある`).toBeGreaterThan(0);
+        for (const f of forms) {
+            expect(f, `${page} の form が noValidate を持っていない`).toContain("noValidate");
+        }
+    });
+
     it("両パッケージの sanitize が同じ下限を持つ", () => {
         const other = readFileSync(join(__dirname, "..", "..", "api/src/sanitize.ts"), "utf8");
         const a = /year\s*<\s*(\d{4})/.exec(sanitize)?.[1];
