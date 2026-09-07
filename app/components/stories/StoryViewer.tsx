@@ -696,7 +696,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         </div>
                         <div className="overflow-y-auto p-2">
                             {(viewers ?? []).length === 0 ? (
-                                <p className="text-xs text-white/40 text-center py-8">
+                                <p className="text-xs text-white/50 text-center py-8">
                                     {viewersError
                                         ? (locale === "en"
                                             ? "Couldn't load viewers."
@@ -712,7 +712,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                         <span className="text-sm text-white/90 flex-1 truncate">
                                             {v.displayName || (locale === "en" ? "User" : "ユーザー")}
                                         </span>
-                                        {v.at && <span className="text-[11px] text-white/40">{timeAgo(v.at, locale)}</span>}
+                                        {v.at && <span className="text-[11px] text-white/50">{timeAgo(v.at, locale)}</span>}
                                     </div>
                                 ))
                             )}

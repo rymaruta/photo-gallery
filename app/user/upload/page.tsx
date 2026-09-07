@@ -891,7 +891,7 @@ function UploadPageInner() {
             {/* 残り枚数。**上限に当たるまで見えなかった**ので、選ぶ前に出す。
                 取れていなければ何も出さない（推測した数字は見せない）。 */}
             {remainingSlots !== null && (
-                <p className={`text-xs mb-3 ${remainingSlots === 0 ? "text-amber-400/90" : "text-white/40"}`}>
+                <p className={`text-xs mb-3 ${remainingSlots === 0 ? "text-amber-400/90" : "text-white/50"}`}>
                     {remainingSlots === 0
                         ? (locale === "en"
                             ? `Upload limit reached (${PHOTO_LIMIT_PER_USER}). Delete a photo to make room.`
@@ -919,7 +919,7 @@ function UploadPageInner() {
                 <p className="text-sm text-white/70 font-semibold">
                     {locale === "en" ? "Tap to choose photos" : "タップして写真を選ぶ"}
                 </p>
-                <p className="text-xs text-white/40 mt-1">
+                <p className="text-xs text-white/50 mt-1">
                     {locale === "en" ? "Multiple selection supported (max 50MB each)" : "複数選択OK・各50MBまで"}
                 </p>
                 <input
@@ -1062,7 +1062,7 @@ function UploadPageInner() {
                                     disabled={uploading || it.status === "done"}
                                 />
                                 {/* EXIF メタ表示 */}
-                                <div className="flex flex-wrap gap-2 text-xs text-white/40">
+                                <div className="flex flex-wrap gap-2 text-xs text-white/50">
                                     {it.dateTimeOriginal && (
                                         <span className="inline-flex items-center gap-0.5">
                                             <CalendarIcon className="w-3 h-3" />
@@ -1107,7 +1107,7 @@ function UploadPageInner() {
                                 <button
                                     type="button"
                                     onClick={() => updateItem(it.id, { expanded: !it.expanded })}
-                                    className="text-xs text-white/40 hover:text-white/70 inline-flex items-center gap-0.5"
+                                    className="text-xs text-white/50 hover:text-white/70 inline-flex items-center gap-0.5"
                                     disabled={uploading}
                                 >
                                     <ChevronDownIcon className={`w-3 h-3 transition-transform ${it.expanded ? "rotate-180" : ""}`} />

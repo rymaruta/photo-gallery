@@ -87,7 +87,7 @@ export default function DraftsPage() {
                         </Link>
                         <h1 className="text-xl font-semibold">
                             {isJa ? "下書き" : "Drafts"}
-                            {drafts.length > 0 && <span className="ml-2 text-sm text-white/40">{drafts.length}</span>}
+                            {drafts.length > 0 && <span className="ml-2 text-sm text-white/50">{drafts.length}</span>}
                         </h1>
                     </div>
                     <Link
@@ -112,7 +112,7 @@ export default function DraftsPage() {
                 ) : loadError ? (
                     <div className="py-16 text-center text-white/50">
                         <p className="text-sm mb-1">{isJa ? "下書きを読み込めませんでした" : "Could not load your drafts"}</p>
-                        <p className="text-xs mb-4 text-white/40">
+                        <p className="text-xs mb-4 text-white/50">
                             {isJa ? "消えたわけではありません。通信を確かめてもう一度お試しください。"
                                 : "Nothing was lost. Check your connection and try again."}
                         </p>
@@ -174,7 +174,7 @@ export default function DraftsPage() {
                                             {title || (isJa ? "無題" : "Untitled")}
                                         </p>
                                         {(p.location || dateText) && (
-                                            <p className="text-[11px] text-white/40 truncate">
+                                            <p className="text-[11px] text-white/50 truncate">
                                                 {[p.location, dateText].filter(Boolean).join(" · ")}
                                             </p>
                                         )}

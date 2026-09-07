@@ -169,12 +169,12 @@ export default function NotificationsBell() {
                     )}
                     <div className="absolute right-0 top-full mt-2 z-50 w-80 max-w-[85vw] rounded-2xl bg-[#16181c]/95 backdrop-blur-md ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in">
                         <div className="px-4 py-2.5 border-b border-white/5">
-                            <span className="text-xs font-semibold tracking-widest uppercase text-white/45">
+                            <span className="text-xs font-semibold tracking-widest uppercase text-white/50">
                                 {locale === "en" ? "Notifications" : "通知"}
                             </span>
                         </div>
                         {items.length === 0 ? (
-                            <p className="px-4 py-8 text-center text-xs text-white/40">
+                            <p className="px-4 py-8 text-center text-xs text-white/50">
                                 {status === "error"
                                     ? (locale === "en"
                                         ? "Couldn't load notifications. Retrying shortly."
@@ -229,7 +229,7 @@ export default function NotificationsBell() {
                                                         以前はここが「旅立たせました！」の分岐で、
                                                         将来わけの分からない通知が全部その文言で出る作りだった */}
                                                 </p>
-                                                <p className="text-[11px] text-white/35 mt-0.5">{fmtTime(n.t)}</p>
+                                                <p className="text-[11px] text-white/50 mt-0.5">{fmtTime(n.t)}</p>
                                             </div>
                                             {/* どの写真のことかが分かるよう、右端にその写真を出す */}
                                             {n.type !== "follow" && n.photoSrc && (n.byId || n.targetUserId) && (

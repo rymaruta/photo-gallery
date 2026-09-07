@@ -63,7 +63,7 @@ export default function ProfileSetupBanner() {
         <div className="mx-4 mt-3 rounded-2xl bg-white/[0.07] ring-1 ring-white/10 px-4 py-3 flex items-center gap-3">
             <p className="min-w-0 flex-1 text-sm text-white/85 leading-snug">
                 {isJa ? "名前を決めましょう" : "Pick a name"}
-                <span className="block text-xs text-white/45 mt-0.5">
+                <span className="block text-xs text-white/50 mt-0.5">
                     {isJa
                         ? "未設定だと「名前未設定さん」と表示され、検索でも見つけてもらえません。"
                         : "Without one you show up as “No name yet” and can’t be found in search."}

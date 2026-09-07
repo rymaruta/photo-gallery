@@ -37,7 +37,13 @@ const COLOR_TOKEN = /(?:^|[\s"'`{])((?:[\w-]+:)*)text-(white|black|\[[^\]]*\]|[a
 /** 見送ってよい接頭辞＝「触ったとき」の状態だけ。`md:` などの画面幅は常に効くので見る */
 const INTERACTION_PREFIX = /^(hover|focus|focus-visible|active|group-hover|group-focus|disabled|placeholder|visited|peer-\w+)$/;
 
-function unreadableTokens(cls: string): string[] {
+/**
+ * @param monochromeOnly 白・黒以外の色相を見ない。**全体の走査ではこちらを使う**
+ *   ——警告の amber、エラーの red のように**意図して付けた色**まで「読めるか
+ *   分からない」で弾いてしまう（実際、全体に当てた瞬間に14件が誤検知で出た）。
+ *   目印を書いた行では、逆に「別の色相へ逃がす」変異を捕まえたいので見る
+ */
+function unreadableTokens(cls: string, monochromeOnly = false): string[] {
     const bad: string[] = [];
     for (const m of cls.matchAll(COLOR_TOKEN)) {
         const [, prefix, hue, , amount] = m;
@@ -47,11 +53,11 @@ function unreadableTokens(cls: string): string[] {
         // `text-[11px]` は**文字の大きさ**で色ではない（最初これを色と誤認して
         // 守っている8件が一斉に落ちた）。任意値は中身が色のときだけ見る
         if (hue.startsWith("[")) {
-            if (/^\[(#|rgb|hsl|oklch|oklab|color|var\()/i.test(hue)) { bad.push(m[0].trim()); }
+            if (!monochromeOnly && /^\[(#|rgb|hsl|oklch|oklab|color|var\()/i.test(hue)) { bad.push(m[0].trim()); }
             continue;
         }
         // 別の色系統（`text-gray-600` など）は「読めるか分からない」ので弾く
-        if (hue !== "white" && hue !== "black") { bad.push(m[0].trim()); continue; }
+        if (hue !== "white" && hue !== "black") { if (!monochromeOnly) bad.push(m[0].trim()); continue; }
         if (amount === undefined) continue;                                            // 素の white/black は 21:1
         const n = Number(amount);
         if (!Number.isFinite(n)) { bad.push(m[0].trim()); continue; }                   // /[0.3] のような任意値
@@ -184,5 +190,65 @@ describe("読めない濃さの文字に戻っていないか", () => {
         // `text-[11px]` は文字の大きさで色ではない（色と誤認して8件落とした）
         expect(unreadableTokens('text-[11px] text-white/50')).toEqual([]);
         expect(unreadableTokens('text-[#555555]').length, "任意の色を通している").toBeGreaterThan(0);
+    });
+});
+
+// **1か所ずつ目印を書く形は、増えたぶんを守れない。**
+// （実際、前の周は直したうちの10行しか守れていなかった）
+// リポジトリ全体を1つの規則で見る: 黒地/白地の文字は 4.5:1 に届く濃さだけ。
+// **アイコンと装飾は別基準**（WCAG 1.4.11 は 3:1、純粋な装飾は対象外）なので
+// 免除の一覧を持つ——ここに足すときは「なぜ文字ではないか」を書くこと。
+describe("app 全体: 読めない濃さの文字を新しく増やさない", () => {
+    /** 免除。`[ファイル, その行を見分ける印, 理由]` */
+    const EXEMPT: Array<[string, string, string]> = [
+        ["app/admin/page.tsx", "PlusIcon", "追加を表す装飾アイコン（隣に文字がある）"],
+        ["app/components/FilterBar.tsx", "MagnifyingGlassIcon", "入力欄の中の装飾（3.01:1 ＝ 1.4.11 の 3:1 は満たす）"],
+        ["app/components/MiniPlayer.tsx", "MusicalNoteIcon", "アートワークが無いときの装飾"],
+        ["app/components/MusicCard.tsx", "MusicalNoteIcon", "同上"],
+        ["app/components/Thumb.tsx", "<svg", "画像を読めなかったときの装飾（3.66:1）"],
+        ["app/components/UserAvatar.tsx", "UserCircleIcon", "アバターが無いときの既定の絵（3.66:1）"],
+        ["app/favorites/page.tsx", "HeartIcon", "空のときの装飾"],
+        ["app/user/drafts/page.tsx", "PhotoIcon", "空のときの装飾"],
+        ["app/user/profile/page.tsx", "UserCircleIcon", "アバターが無いときの装飾"],
+        ["app/user/profile/page.tsx", "MagnifyingGlassIcon", "入力欄の中の装飾"],
+        ["app/user/upload/page.tsx", "PhotoIcon", "選ぶ前の装飾（3.66:1）"],
+        ["app/user/upload/page.tsx", "UserCircleIcon", "アバターが無いときの装飾"],
+        ["app/users/UserProfileClient.tsx", "bg-black/0 text-white/0", "hover で初めて出る覆い（既定は完全に透明）"],
+        ["app/users/search/page.tsx", "MagnifyingGlassIcon", "入力欄の中の装飾"],
+    ];
+    const isExempt = (file: string, line: string) =>
+        EXEMPT.some(([f, marker]) => f === file && line.includes(marker));
+
+    it("免除の一覧以外に、4.5:1 に届かない文字が無い", async () => {
+        // `fs.globSync` は型定義に無い版があるので、自前で辿る
+        const { readdirSync, statSync } = await import("node:fs");
+        const files: string[] = [];
+        const walk = (rel: string) => {
+            for (const name of readdirSync(join(ROOT, rel))) {
+                const child = rel ? `${rel}/${name}` : name;
+                if (statSync(join(ROOT, child)).isDirectory()) { if (name !== "__tests__") walk(child); }
+                else if (name.endsWith(".tsx")) files.push(child);
+            }
+        };
+        walk("app");
+        expect(files.length, "走査するファイルが見つからない").toBeGreaterThan(30);
+        const bad: string[] = [];
+        for (const rel of files) {
+            const src = readFileSync(join(ROOT, rel), "utf8").split("\n");
+            src.forEach((line, i) => {
+                if (/^\s*(\/\/|\*|\/\*|\{\/\*)/.test(line)) return;
+                if (isExempt(rel, line)) return;
+                const tokens = unreadableTokens(line, true);
+                if (tokens.length) bad.push(`${rel}:${i + 1} ${tokens.join(" ")}  ${line.trim().slice(0, 70)}`);
+            });
+        }
+        expect(bad, `読めない濃さの文字が増えている:\n${bad.join("\n")}`).toEqual([]);
+    });
+
+    it("免除の一覧が古くなっていない（実在しない行を免除し続けない）", () => {
+        for (const [file, marker, why] of EXEMPT) {
+            const src = readFileSync(join(ROOT, file), "utf8");
+            expect(src.includes(marker), `${file} に「${marker}」が無い（${why}）`).toBe(true);
+        }
     });
 });

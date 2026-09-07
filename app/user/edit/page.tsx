@@ -600,7 +600,7 @@ function EditContent() {
                     )
                 )}
                 {exifSummary && (
-                    <p className="text-xs text-white/40 mb-6">{isJa ? "撮影情報（自動）: " : "EXIF (auto): "}{exifSummary}</p>
+                    <p className="text-xs text-white/50 mb-6">{isJa ? "撮影情報（自動）: " : "EXIF (auto): "}{exifSummary}</p>
                 )}
 
                 <form onSubmit={(e) => { e.preventDefault(); void save(true); }} className="space-y-5">

@@ -175,7 +175,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                                                         : "コメントを削除できませんでした。もう一度お試しください", "error");
                                                 })}
                                                 aria-label={locale === "en" ? "Delete comment" : "コメントを削除"}
-                                                className="ml-auto flex-shrink-0 p-1 text-white/40 hover:text-red-400 transition"
+                                                className="ml-auto flex-shrink-0 p-1 text-white/50 hover:text-red-400 transition"
                                                 style={{ touchAction: "manipulation" }}
                                             >
                                                 <TrashIcon className="w-3.5 h-3.5" />

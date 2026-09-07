@@ -783,7 +783,7 @@ export default function StoriesBar() {
                                     動画は長さが可変で、曲は動画の長さぶん流れるため区間を選ぶ意味がない
                                     （可動域ゼロのバーを出すと「ドラッグしても動かない」ように見える）。 */}
                                 {draft.mediaType === "video" ? (
-                                    <p className="text-[11px] text-white/45">
+                                    <p className="text-[11px] text-white/50">
                                         {locale === "en"
                                             ? "Plays from the start, for the length of the video."
                                             : "動画の長さぶん、曲の頭から流れます"}
@@ -856,7 +856,7 @@ export default function StoriesBar() {
                                             />
                                         )}
                                     </div>
-                                    <p className="mt-1.5 text-[10px] text-white/40">
+                                    <p className="mt-1.5 text-[10px] text-white/50">
                                         {locale === "en"
                                             ? `Plays ${songWindowSec}s from here, matching the story length.`
                                             : `ここから${songWindowSec}秒（ストーリーの表示時間ぶん）が流れます`}
@@ -921,7 +921,7 @@ export default function StoriesBar() {
                                                         <p className="text-xs text-white truncate">{r.title}</p>
                                                         <p className="text-[11px] text-white/50 truncate">{r.artist}</p>
                                                     </div>
-                                                    <span className="text-[11px] text-white/40 flex-shrink-0">{locale === "en" ? "Set" : "設定"}</span>
+                                                    <span className="text-[11px] text-white/50 flex-shrink-0">{locale === "en" ? "Set" : "設定"}</span>
                                                 </button>
                                             </li>
                                         ))}

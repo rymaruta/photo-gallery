@@ -572,7 +572,7 @@ export default function ProfileEditPage() {
             <div className="max-w-sm mx-auto px-4 pt-12 pb-16">
                 <Link
                     href="/"
-                    className="inline-flex items-center gap-1.5 text-xs text-white/40 hover:text-white/60 transition-colors mb-10"
+                    className="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-white/60 transition-colors mb-10"
                 >
                     <ArrowLeftIcon className="w-3 h-3" />
                     {locale === "en" ? "Back" : "戻る"}
@@ -608,7 +608,7 @@ export default function ProfileEditPage() {
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={currentCoverUrl} alt="" className="w-full h-full object-cover" onError={() => setCoverError(true)} />
                         ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-white/30">
+                            <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-white/50">
                                 <CameraIcon className="w-6 h-6" />
                                 <span className="text-xs">{locale === "en" ? "Add cover photo" : "カバー写真を追加"}</span>
                             </div>
@@ -657,7 +657,7 @@ export default function ProfileEditPage() {
                             }
                         </div>
                     </button>
-                    <p className="text-xs text-white/40 mt-2">
+                    <p className="text-xs text-white/50 mt-2">
                         {locale === "en" ? "Tap to change photo" : "タップして写真を変更"}
                     </p>
                     <input
@@ -675,7 +675,7 @@ export default function ProfileEditPage() {
                             {locale === "en" ? "Username" : "ユーザー名"}
                         </label>
                         <div className="flex items-center gap-1.5">
-                            <span className="text-white/40 text-sm">@</span>
+                            <span className="text-white/50 text-sm">@</span>
                             <input
                                 type="text"
                                 value={username}
@@ -701,7 +701,7 @@ export default function ProfileEditPage() {
                                 spellCheck={false}
                             />
                         </div>
-                        <p className="text-[11px] text-white/40 mt-1">
+                        <p className="text-[11px] text-white/50 mt-1">
                             {locale === "en"
                                 ? "Lowercase letters, numbers and _ (3-20). Shown under your name."
                                 : "英小文字・数字・_ の3〜20文字。プロフィールの名前の下に表示されます。"}
@@ -734,7 +734,7 @@ export default function ProfileEditPage() {
                             placeholder={locale === "en" ? "Tell us about yourself..." : "旅と写真が好きです…"}
                             className={`${inputClass} resize-none`}
                         />
-                        <div className="text-right text-xs text-white/30 mt-1">{bio.length}/300</div>
+                        <div className="text-right text-xs text-white/50 mt-1">{bio.length}/300</div>
                     </div>
 
 
@@ -784,7 +784,7 @@ export default function ProfileEditPage() {
                                 </button>
                             )}
                         </div>
-                        <p className="text-xs text-white/30 mt-1.5">
+                        <p className="text-xs text-white/50 mt-1.5">
                             {locale === "en"
                                 ? "Colors your avatar ring and accents. The last swatch opens a full color picker."
                                 : "アバターのリングなどの色になります。右端の丸を押すとパレットから自由に選べます。"}
@@ -794,7 +794,7 @@ export default function ProfileEditPage() {
                     <div>
                         <label className={labelClass}>Instagram</label>
                         <div className="flex items-center">
-                            <span className="text-white/40 text-sm px-3 py-3 bg-white/5 border border-r-0 border-white/10 rounded-l-lg">@</span>
+                            <span className="text-white/50 text-sm px-3 py-3 bg-white/5 border border-r-0 border-white/10 rounded-l-lg">@</span>
                             <input
                                 type="text"
                                 value={instagram}
@@ -841,13 +841,13 @@ export default function ProfileEditPage() {
                                         </div>
                                         <button type="button" onClick={() => moveSong(idx, -1)} disabled={idx === 0}
                                             aria-label={locale === "en" ? "Move up" : "上へ"}
-                                            className="px-1.5 py-1 text-white/40 hover:text-white disabled:opacity-25 active:scale-90 transition text-sm">↑</button>
+                                            className="px-1.5 py-1 text-white/50 hover:text-white disabled:opacity-25 active:scale-90 transition text-sm">↑</button>
                                         <button type="button" onClick={() => moveSong(idx, 1)} disabled={idx === selectedSongs.length - 1}
                                             aria-label={locale === "en" ? "Move down" : "下へ"}
-                                            className="px-1.5 py-1 text-white/40 hover:text-white disabled:opacity-25 active:scale-90 transition text-sm">↓</button>
+                                            className="px-1.5 py-1 text-white/50 hover:text-white disabled:opacity-25 active:scale-90 transition text-sm">↓</button>
                                         <button type="button" onClick={() => removeSong(song.previewUrl)}
                                             aria-label={locale === "en" ? "Remove" : "削除"}
-                                            className="px-1.5 py-1 text-white/40 hover:text-red-400 active:scale-90 transition">
+                                            className="px-1.5 py-1 text-white/50 hover:text-red-400 active:scale-90 transition">
                                             <XMarkIcon className="w-4 h-4" />
                                         </button>
                                     </li>
@@ -857,7 +857,7 @@ export default function ProfileEditPage() {
 
                         {selectedSongs.length < 5 && (
                             <>
-                                <p className="text-xs text-white/40 -mt-1">
+                                <p className="text-xs text-white/50 -mt-1">
                                     {locale === "en"
                                         ? `Search songs — up to 5 play in order on your profile (${selectedSongs.length}/5).`
                                         : `曲名で検索して追加。プロフィールで順に再生されます（${selectedSongs.length}/5曲）。`}
@@ -921,7 +921,7 @@ export default function ProfileEditPage() {
                                                         <p className={`text-sm truncate ${isPreviewing ? "text-fuchsia-300" : "text-white"}`}>{song.title}</p>
                                                         <p className="text-xs text-white/50 truncate">{song.artist}</p>
                                                     </div>
-                                                    <span className="text-[11px] text-white/40 flex-shrink-0 pl-2">{locale === "en" ? "Add" : "追加"}</span>
+                                                    <span className="text-[11px] text-white/50 flex-shrink-0 pl-2">{locale === "en" ? "Add" : "追加"}</span>
                                                 </button>
                                             </li>
                                             );
@@ -937,14 +937,14 @@ export default function ProfileEditPage() {
                             <button
                                 type="button"
                                 onClick={() => setShowUrlMethod(v => !v)}
-                                className="w-full flex items-center justify-between text-xs text-white/45 hover:text-white/70 transition pt-2"
+                                className="w-full flex items-center justify-between text-xs text-white/50 hover:text-white/70 transition pt-2"
                             >
                                 <span>{locale === "en" ? "Or paste a link (full song / pick a section)" : "またはリンクを貼る（フル尺・区間指定）"}</span>
                                 <ChevronDownIcon className={`w-4 h-4 transition-transform ${showUrlMethod ? "rotate-180" : ""}`} />
                             </button>
 
                             {selectedSongs.length > 0 && (songUrl.trim() || showUrlMethod) && (
-                                <p className="text-[11px] text-white/35 pt-2">
+                                <p className="text-[11px] text-white/50 pt-2">
                                     {locale === "en"
                                         ? "A picked song plays first — this link is kept and used when no song is set."
                                         : "曲を選ぶとそちらが優先。リンクは保存され、曲を消すと使われます。"}
@@ -975,7 +975,7 @@ export default function ProfileEditPage() {
                                                 <>
                                                     <div className="flex items-center gap-2">
                                                         <div className="flex-1">
-                                                            <label className="block text-[11px] text-white/40 mb-1">{locale === "en" ? "Start (m:ss)" : "開始 (m:ss)"}</label>
+                                                            <label className="block text-[11px] text-white/50 mb-1">{locale === "en" ? "Start (m:ss)" : "開始 (m:ss)"}</label>
                                                             <input
                                                                 type="text"
                                                                 inputMode="numeric"
@@ -987,7 +987,7 @@ export default function ProfileEditPage() {
                                                             />
                                                         </div>
                                                         <div className="flex-1">
-                                                            <label className="block text-[11px] text-white/40 mb-1">{locale === "en" ? "End (m:ss)" : "終了 (m:ss)"}</label>
+                                                            <label className="block text-[11px] text-white/50 mb-1">{locale === "en" ? "End (m:ss)" : "終了 (m:ss)"}</label>
                                                             <input
                                                                 type="text"
                                                                 inputMode="numeric"
@@ -999,7 +999,7 @@ export default function ProfileEditPage() {
                                                             />
                                                         </div>
                                                     </div>
-                                                    <p className="text-[11px] text-white/35">
+                                                    <p className="text-[11px] text-white/50">
                                                         {isYouTubePreview
                                                             ? (locale === "en" ? "Set a start/end to play your favorite part." : "開始・終了を指定すると好きな部分だけ再生できます。")
                                                             : (locale === "en" ? `Section trim works with YouTube only (${musicServiceLabel(songPreview.service)} plays from the start).` : `区間指定は YouTube のみ対応（${musicServiceLabel(songPreview.service)} は先頭から再生）。`)}
@@ -1058,7 +1058,7 @@ export default function ProfileEditPage() {
                             <p className="text-sm font-semibold text-white/90 mb-1">
                                 {locale === "en" ? "Delete account" : "退会（アカウント削除）"}
                             </p>
-                            <p className="text-xs text-white/45 leading-relaxed mb-3">
+                            <p className="text-xs text-white/50 leading-relaxed mb-3">
                                 {locale === "en"
                                     ? "Permanently deletes your photos, stories, profile, and account. This can't be undone."
                                     : "写真・ストーリー・プロフィール・アカウントをすべて完全に削除します。取り消しはできません。"}

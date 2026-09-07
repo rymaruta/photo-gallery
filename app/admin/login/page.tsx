@@ -64,7 +64,7 @@ export default function AdminLoginPage() {
                     <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
                         <ShieldCheckIcon className="w-5 h-5 text-white/60" />
                     </div>
-                    <p className="text-white/30 text-xs tracking-widest uppercase mb-2">Journey Photo</p>
+                    <p className="text-white/50 text-xs tracking-widest uppercase mb-2">Journey Photo</p>
                     <h1 className="text-xl font-bold text-white">ログイン</h1>
                 </div>
 
@@ -122,7 +122,7 @@ export default function AdminLoginPage() {
                             <button
                                 type="button"
                                 onClick={() => { setStep("forgot"); setError(""); }}
-                                className="w-full text-center text-xs text-white/40 hover:text-white/60 transition-colors py-2"
+                                className="w-full text-center text-xs text-white/50 hover:text-white/60 transition-colors py-2"
                             >
                                 パスワードをお忘れですか？
                             </button>
@@ -140,7 +140,7 @@ export default function AdminLoginPage() {
                         <button
                             type="button"
                             onClick={() => setStep("login")}
-                            className="w-full text-center text-xs text-white/40 hover:text-white/60 transition-colors py-2"
+                            className="w-full text-center text-xs text-white/50 hover:text-white/60 transition-colors py-2"
                         >
                             ← ログインに戻る
                         </button>

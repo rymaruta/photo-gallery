@@ -414,7 +414,7 @@ function AdminEditContent() {
 
                     {/* EXIF */}
                     <div className={sectionCls}>
-                        <p className="text-xs text-white/40 mb-3">EXIF</p>
+                        <p className="text-xs text-white/50 mb-3">EXIF</p>
                         <div className="grid grid-cols-2 gap-4 [&>div]:min-w-0">
                             <div>
                                 <label className={labelCls}>{isJa ? "カメラ" : "Camera"}</label>
