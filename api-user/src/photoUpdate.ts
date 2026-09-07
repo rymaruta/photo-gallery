@@ -277,10 +277,13 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // 「非公開にしました」だけが出て、実際には検索から開ける状態が続く
         const hiding = visibilityChanged && body.published === false;
         const staticStale = hiding && !dispatched;
-        // 公開のまま項目を消した場合。ページ自体は残ってよいが、**消した中身が
-        // 残る**。隠す側（`staticStale`）の方が強い断りなので重ねない
+        // 公開のまま項目を消した場合。ページ自体は残ってよいが、**消した中身が残る**。
+        // `staticStale`（非公開にした）とは**排他**——あちらは `hiding`、こちらは
+        // `stillPublished` が要るので、同時には立たない。「強い方を優先する」と
+        // 書きかけたが、そんな規則は要らなかった（変異で気づいた: 応答の三項の
+        // 順番を入れ替えても何も変わらない）
         const stillPublished = hasPublished ? body.published !== false : wasPublished !== false;
-        const staticOutdated = !staticStale && metaRemoved && stillPublished && !dispatched;
+        const staticOutdated = metaRemoved && stillPublished && !dispatched;
         if (staticStale) {
             try {
                 await ddb.send(new UpdateCommand({
@@ -325,6 +328,8 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         return {
             statusCode: 200,
             headers: JSON_HEADERS,
+            // 2つの印は排他（上の `staticOutdated` の説明を参照）。三項の順番に
+            // 意味は無い
             body: JSON.stringify(
                 staticStale ? { success: true, staticStale: true }
                     : staticOutdated ? { success: true, staticOutdated: true }

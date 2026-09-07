@@ -532,7 +532,9 @@ describe("非公開にするときの再ビルド依頼", () => {
         expect(JSON.parse(res.body)).toEqual({ success: true });
     });
 
-    it("非公開にしながら項目を消したら、強い方（ページが残る）を出す", async () => {
+    // 2つの印は排他（非公開化には `hiding`、こちらには「公開のまま」が要る）。
+    // 非公開にした側は「ページがまだ取れる」で、消した中身の話は含まれる
+    it("非公開にしながら項目を消したときは、ページが残る方を出す", async () => {
         mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, description: "あ" } })
             .mockResolvedValueOnce({}).mockResolvedValueOnce({});
         mockRebuild.mockResolvedValue(false);

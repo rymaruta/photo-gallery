@@ -31,7 +31,9 @@ describe("staticPageState", () => {
         expect(staticPageState({ success: true, staticOutdated: true })).toBe("outdated");
     });
 
-    it("両方立っていたら「まだ取れる」を優先する（強い方を出す）", () => {
+    // サーバーは両方を同時に立てない（排他）が、画面側がそれに寄りかからない
+    // ようにしておく（形が変わったときに黙って壊れない）
+    it("両方立っていたら「まだ取れる」を返す", () => {
         expect(staticPageState({ staticStale: true, staticOutdated: true })).toBe("pending");
     });
 
