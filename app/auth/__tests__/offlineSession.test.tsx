@@ -43,12 +43,15 @@ const { AuthProvider, useAuth } = await import("../context");
 
 let renders = 0;
 function Harness() {
-    const { isAuthenticated, isGeneralUser, userId, loading } = useAuth();
+    const { isAuthenticated, isGeneralUser, userId, loading, logout } = useAuth();
     renders++;
     return (
-        <div data-testid="state">
-            {loading ? "loading" : isAuthenticated ? (isGeneralUser ? `in:user:${userId}` : "in") : "out"}
-        </div>
+        <>
+            <div data-testid="state">
+                {loading ? "loading" : isAuthenticated ? (isGeneralUser ? `in:user:${userId}` : "in") : "out"}
+            </div>
+            <button onClick={() => logout()}>ログアウト</button>
+        </>
     );
 }
 
@@ -221,5 +224,85 @@ describe("確かめ直す契機", () => {
         const before = mockLookupSession.mock.calls.length;
         act(() => { window.dispatchEvent(new Event("online")); });
         expect(mockLookupSession.mock.calls.length).toBe(before);
+    });
+});
+
+describe("旗の立て方・下ろし方", () => {
+    async function fire(make: () => void) {
+        const before = mockLookupSession.mock.calls.length;
+        const beforeRenders = renders;
+        act(make);
+        if (mockLookupSession.mock.calls.length === before) return false;
+        await waitFor(() => expect(renders).toBeGreaterThan(beforeRenders));
+        return true;
+    }
+
+    // **開いた最初から圏外**のときは前の状態が無いので保てない（未ログインで
+    // 始める）。ただし**答えを持っていないことは覚えておく**——覚えないと、
+    // 電波が戻っても確かめ直す契機が来ず、端末にトークンが残っているのに
+    // パス変更まで未ログインの顔のままになる
+    it("最初から圏外でも、電波が戻ったら確かめ直す", async () => {
+        mockLookupSession.mockResolvedValue(offline);
+        render(<AuthProvider><Harness /></AuthProvider>);
+        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("out"));
+
+        mockLookupSession.mockResolvedValue(ok("u1"));
+        expect(await fire(() => window.dispatchEvent(new Event("online"))), "確かめ直していない").toBe(true);
+        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user:u1"));
+    });
+
+    // `checkAuth` を通らない経路（ログイン・ログアウト・退会）でも札を揃える
+    it("ログアウトしたら旗を下ろす（復帰のたびに確かめ直さない）", async () => {
+        mockLookupSession.mockResolvedValue(ok("u1"));
+        render(<AuthProvider><Harness /></AuthProvider>);
+        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user:u1"));
+        mockLookupSession.mockResolvedValue(offline);
+        await recheck();
+
+        act(() => { screen.getByRole("button", { name: "ログアウト" }).click(); });
+        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("out"));
+
+        const before = mockLookupSession.mock.calls.length;
+        act(() => { window.dispatchEvent(new Event("online")); });
+        expect(mockLookupSession.mock.calls.length, "ログアウト済みなのに確かめ直している").toBe(before);
+    });
+
+    // **裏に回した瞬間に走らせない。** 走らせると、裏で失効と分かった時点で
+    // `useMemberGate` が `/login` へ replace し、戻ってきたら編集画面が
+    // 消えている——この差分が名指しで避けている事故そのもの
+    it("タブが隠れている間は確かめ直さない", async () => {
+        mockLookupSession.mockResolvedValue(ok("u1"));
+        render(<AuthProvider><Harness /></AuthProvider>);
+        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user:u1"));
+        mockLookupSession.mockResolvedValue(offline);
+        await recheck();
+
+        const spy = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+        try {
+            const before = mockLookupSession.mock.calls.length;
+            act(() => { document.dispatchEvent(new Event("visibilitychange")); });
+            expect(mockLookupSession.mock.calls.length, "隠れている間に走っている").toBe(before);
+        } finally { spy.mockRestore(); }
+    });
+
+    // 「タブに戻った瞬間に電波も戻った」＝いちばん起きやすい復帰の形。
+    // 旗を下ろすのは判定が終わってからなので、札が無いと2本同時に飛ぶ
+    it("online と visibilitychange が同時に来ても、判定は1回だけ", async () => {
+        mockLookupSession.mockResolvedValue(ok("u1"));
+        render(<AuthProvider><Harness /></AuthProvider>);
+        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user:u1"));
+        mockLookupSession.mockResolvedValue(offline);
+        await recheck();
+
+        // 応答を止めたまま両方を投げる
+        let release: (() => void) | null = null;
+        mockLookupSession.mockImplementation(() => new Promise((res) => { release = () => res(ok("u1")); }));
+        const before = mockLookupSession.mock.calls.length;
+        act(() => {
+            window.dispatchEvent(new Event("online"));
+            document.dispatchEvent(new Event("visibilitychange"));
+        });
+        expect(mockLookupSession.mock.calls.length - before, "同時に2本飛んでいる").toBe(1);
+        await act(async () => { release?.(); await Promise.resolve(); });
     });
 });

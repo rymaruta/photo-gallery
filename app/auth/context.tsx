@@ -73,6 +73,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
      */
     const unresolvedRef = useRef(false);
 
+    /**
+     * 「確かめた」を記録する。`checkAuth` を通らない経路
+     * （ログイン・ログアウト・退会）からも呼ぶ——呼ばないと、旗が立った
+     * ままになって復帰のたびに余計に確かめ直し、`resolvedRef` には
+     * 古い答えが残る。
+     */
+    const markResolved = useCallback((authenticated: boolean, admin: boolean) => {
+        unresolvedRef.current = false;
+        resolvedRef.current = { authenticated, admin };
+    }, []);
+
     // 認証状態をチェック
     /**
      * 認証状態を確かめ直す。
@@ -112,8 +123,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // **最初から確かめられない場合は保てない**（前の状態が無い）
                 // ので、そのときは今までどおり未ログインで始める
                 // ——まだ何も打っていないので失うものが無い。
+                // **答えを持っていないことを覚える。** 前の状態が無くて
+                // 保てない回（開いた最初から圏外）でも旗は立てる——
+                // 立てないと、電波が戻っても確かめ直す契機が来ない
+                unresolvedRef.current = true;
                 if (resolvedRef.current) {
-                    unresolvedRef.current = true;
                     setAuthState((prev) => ({ ...prev, loading: false }));
                     return null;   // 確かめられていない（前の状態を保った）
                 }
@@ -131,8 +145,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // **setAuthState より先に呼ぶ。** loading が false になった瞬間に
             // usePhotoLikes のフォールバック（serverLiked ?? isFavorite）が
             // 読むキーを確定させておくため（順序に意味がある）。
-            unresolvedRef.current = false;
-            resolvedRef.current = { authenticated, admin };
+            // **確かめられた回だけ記録する。** 圏外で保てず未ログインとして
+            // 始めた回にこれを書くと、「確かめた答え」として扱われて
+            // 旗が下り、電波が戻っても確かめ直さない
+            if (!unreachable) {
+                unresolvedRef.current = false;
+                resolvedRef.current = { authenticated, admin };
+            }
             setFavoritesUser(authenticated ? sub : null);
             setAuthState({
                 isAuthenticated: authenticated,
@@ -209,10 +228,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
      * 編集中に追い出される機会を増やす。
      */
     useEffect(() => {
+        // **二重に走らせない。** 「タブに戻った瞬間に電波も戻った」は
+        // いちばん起きやすい復帰の形で、`online` と `visibilitychange` が
+        // ほぼ同時に来る。旗を下ろすのは判定が終わってからなので、
+        // 札が無いと Cognito のリフレッシュが2本同時に飛ぶ
+        let running = false;
         const recheck = () => {
+            if (running) return;
             if (!unresolvedRef.current) return;
             if (document.visibilityState === "hidden") return;
-            void checkAuth();
+            running = true;
+            void checkAuth().finally(() => { running = false; });
         };
         window.addEventListener("online", recheck);
         document.addEventListener("visibilitychange", recheck);
@@ -248,6 +274,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // **新しいログインは白紙から始める**のが確実。
                 resetFollowingCache();
                 setFavoritesUser(sub ?? null);
+                // **ここも「確かめた」。** `checkAuth` を通らない経路なので、
+                // 揃えないと旗が立ちっぱなしになり、復帰のたびに余計に
+                // 確かめ直す（`resolvedRef` の方は古い答えが残る）
+                markResolved(true, admin);
                 setAuthState({
                     isAuthenticated: true,
                     isAdminUser: admin,
@@ -268,7 +298,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const errorMessage = error instanceof Error ? error.message : "ログインに失敗しました";
             return { success: false, error: errorMessage };
         }
-    }, []);
+    }, [markResolved]);
 
     // ログアウト
     const logout = useCallback(() => {
@@ -279,6 +309,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         resetFollowingCache();
         clearAccountLocalState();
         setFavoritesUser(null);
+        markResolved(false, false);
         setAuthState({
             isAuthenticated: false,
             isAdminUser: false,
@@ -287,7 +318,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             loading: false,
         });
         router.push("/");
-    }, [router]);
+    }, [router, markResolved]);
 
     // 退会（アカウント削除）。順序:
     //   0. **先に Cognito のセッションが使えるかを確かめる**
@@ -364,6 +395,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // 同じ userId では二度とログインできない。読めない鍵付きの
             // ハート一覧を端末に残さない
             if (deletedUserId) removeFavoritesUserData(deletedUserId);
+            markResolved(false, false);
             setAuthState({
                 isAuthenticated: false,
                 isAdminUser: false,
@@ -377,7 +409,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             log.error("AuthContext: 退会処理例外", error);
             return { success: false, error: error instanceof Error ? error.message : "退会処理中にエラーが発生しました" };
         }
-    }, [router]);
+    }, [router, markResolved]);
 
     return (
         <AuthContext.Provider
