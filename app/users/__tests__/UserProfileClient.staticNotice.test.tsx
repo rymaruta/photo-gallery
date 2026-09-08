@@ -130,3 +130,36 @@ describe("プロフィールから非公開にしたとき", () => {
         expect(toast).toBe("写真を非公開にしました");
     });
 });
+
+// **押し直しても直らない失敗は、そう伝える。**
+// 9か所に散っていた見分けを `sessionErrorMessage` に寄せたが、
+// 呼び出しが繋がっているかは大半が無検証だった（`sessionErrorMessage(e)` を
+// `null` に固定する変異で、この画面の切り替えは素通りした）
+describe("公開トグル: セッション切れ・通信できないとき", () => {
+    async function toggleWithError(err: Error) {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ userId: ME, displayName: "私" }) });
+        mockUserFetch.mockImplementation((_url: string, init?: { method?: string }) =>
+            init?.method === "PUT"
+                ? Promise.reject(err)
+                : Promise.resolve({ ok: true, json: async () => [photo("p1")] }));
+        render(<UserProfileClient userId={ME} />);
+        fireEvent.click(await screen.findByTitle("非公開にする"));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
+        return String(mockShowToast.mock.calls[0][0]);
+    }
+
+    it("セッションが切れていたら、そう伝える", async () => {
+        const { AUTH_REQUIRED_MESSAGE } = await import("../../../lib/utils/api");
+        expect(await toggleWithError(new Error(AUTH_REQUIRED_MESSAGE))).toBe(AUTH_REQUIRED_MESSAGE);
+    });
+
+    it("通信できないときは、ログインの話をしない", async () => {
+        const { NETWORK_UNREACHABLE_MESSAGE } = await import("../../../lib/utils/api");
+        expect(await toggleWithError(new Error(NETWORK_UNREACHABLE_MESSAGE))).toBe(NETWORK_UNREACHABLE_MESSAGE);
+    });
+
+    it("理由の分からない失敗は、今までどおりの文言", async () => {
+        expect(await toggleWithError(new TypeError("Failed to fetch"))).toBe("更新に失敗しました");
+    });
+});
