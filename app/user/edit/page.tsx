@@ -377,38 +377,74 @@ function EditContent() {
         }
     }, [photoId, isJa, showToast, router]);
 
+    /**
+     * 保存で送る値と、開いた時点の値。
+     *
+     * **保存と「未保存か」の判定で同じものを使う。** 別々に組むと、片方だけ
+     * 直したときに「変えていないのに毎回聞く」（読まずに押すようになる）か
+     * 「変えたのに黙って捨てる」のどちらかへ静かにずれる。
+     *
+     * **実際に変えた項目だけ送る**理由: 開いた時点の値を毎回全部送っていたので、
+     * 同じ写真を2タブで開いて片方で直したあと、もう片方で保存すると
+     * **先の編集が黙って消えた**（サーバーは部分更新だが、こちらが全項目を
+     * 送れば同じこと）。published はボタンの選択そのものなので常に送る。
+     */
+    const buildFields = useCallback(() => {
+        const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
+        const nextDescription = mergeLocalizedDescription(original?.description, description);
+        const nextFields: Record<string, unknown> = {
+            // 英語側が入っていれば残したまま日本語だけ差し替える
+            title: mergeLocalizedTitle(original?.title, title),
+            description: nextDescription,
+            location,
+            category,
+            // 日付だけを編集させているので、元の時刻を保つ
+            date: mergeDate(original?.date, date),
+            tags,
+            coords,
+        };
+        // **比較先も同じ道を通す。** `changedFields` の相手は「保存されている姿」
+        // ではなく「触らなかったらこの画面が送る姿」でなければならない。
+        // `mergeLocalizedDescription` は英語が空なら**素の文字列**を返すので、
+        // `{ja:[…], en:[]}` で保存されている写真（実データ30枚のうち2枚）は
+        // 直接比べると**毎回「変わった」**になり、触っていない説明を毎回
+        // 送っていた——差分送信が防いでいたもの（2タブで開いて片方で説明を
+        // 直したあと、もう片方でタイトルだけ直して保存すると、先に書いた
+        // 説明が古い写しで上書きされる）がそこだけ効いていなかった。
+        // タイトルも同じ形（`en: ""` を持つ行）で起きうる——今の30枚には無い。
+        const originalFields: Record<string, unknown> = {
+            title: mergeLocalizedTitle(original?.title, titleToText(original?.title)),
+            description: mergeLocalizedDescription(original?.description, descToText(original?.description)),
+            location: original?.location ?? "",
+            category: original?.category ?? "",
+            date: original?.date ?? "",
+            tags: Array.isArray(original?.tags) ? original.tags : [],
+            coords: original?.coords ?? null,
+        };
+        return { tags, nextDescription, nextFields, originalFields };
+    }, [original, title, description, location, category, date, tagsInput, coords]);
+
+    /**
+     * 保存していない変更があるか。
+     *
+     * この画面には未保存を知らせる仕組みが1つも無く、左上の矢印を押すと
+     * 黙って捨てていた（「保存する」は画面のいちばん下、矢印は上）。
+     * 座標は**触ったなら値が同じでも**未保存に数える——同じ候補を選び直すと
+     * サーバーが「おおよそ」の印を落とすので、保存の有無で結果が変わる。
+     */
+    const dirty = React.useMemo(() => {
+        if (!original) return false;
+        if (coordsTouched) return true;
+        const { nextFields, originalFields } = buildFields();
+        return Object.keys(changedFields(nextFields, originalFields)).length > 0;
+    }, [original, coordsTouched, buildFields]);
+
     const save = useCallback(async (published: boolean) => {
         if (!photoId) return;
         setSaving(true);
         try {
             const { userFetch, readApiError } = await import("../../../lib/utils/api");
-            const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
-            const nextDescription = mergeLocalizedDescription(original?.description, description);
-            // **実際に変えた項目だけ送る。**
-            // 開いた時点の値を毎回全部送っていたので、同じ写真を2タブで開いて
-            // 片方で直したあと、もう片方で保存すると**先の編集が黙って消えた**
-            // （サーバーは部分更新だが、こちらが全項目を送れば同じこと）。
-            // published はボタンの選択そのものなので常に送る。
-            const nextFields: Record<string, unknown> = {
-                // 英語側が入っていれば残したまま日本語だけ差し替える
-                title: mergeLocalizedTitle(original?.title, title),
-                description: nextDescription,
-                location,
-                category,
-                // 日付だけを編集させているので、元の時刻を保つ
-                date: mergeDate(original?.date, date),
-                tags,
-                coords,
-            };
-            const originalFields: Record<string, unknown> = {
-                title: original?.title,
-                description: original?.description,
-                location: original?.location ?? "",
-                category: original?.category ?? "",
-                date: original?.date ?? "",
-                tags: Array.isArray(original?.tags) ? original.tags : [],
-                coords: original?.coords ?? null,
-            };
+            const { tags, nextDescription, nextFields, originalFields } = buildFields();
             const changed = changedFields(nextFields, originalFields);
             // **触ったなら、値が同じでも送る。** 差分だけに任せると、機械が
             // 当てた座標と同じ候補を本人が選んだときに何も送られず、
@@ -470,7 +506,7 @@ function EditContent() {
         } finally {
             setSaving(false);
         }
-    }, [photoId, original, title, description, location, category, date, tagsInput, coords, coordsTouched, isJa, router, showToast]);
+    }, [photoId, buildFields, original, coords, coordsTouched, isJa, router, showToast]);
 
     /**
      * 地名から位置の候補を出す。**押したときだけ1回投げる**——Nominatim は
@@ -511,6 +547,13 @@ function EditContent() {
     // 閉じられないと、フォーカスは押した「削除」ボタンに残ったままなので、
     // Tab で進むと**オーバーレイの裏にある「保存する」**に届いてしまう。
     useEscapeKey(confirmDelete && !deleting, () => setConfirmDelete(false));
+    // 未保存のまま戻ろうとしたときの確認。削除確認と同じ作り（Escape・
+    // Tab の閉じ込め・最初のフォーカスは安全な側）
+    const [confirmLeave, setConfirmLeave] = useState(false);
+    useEscapeKey(confirmLeave, () => setConfirmLeave(false));
+    const leaveRef = useRef<HTMLDivElement | null>(null);
+    const leaveStayRef = useRef<HTMLButtonElement | null>(null);
+    useFocusTrap(confirmLeave, leaveRef, undefined, leaveStayRef);
     // **裏は「保存する」**。Tab で抜けると、見えないまま Enter で公開できる
     const confirmRef = useRef<HTMLDivElement | null>(null);
     // 最初に当てるのはキャンセル（DOM 順の先頭は赤い「削除」）
@@ -567,7 +610,19 @@ function EditContent() {
         <main className="min-h-screen bg-black text-white">
             <div className="max-w-2xl mx-auto px-4 py-8 pb-28">
                 <div className="flex items-center gap-4 mb-6">
-                    <Link href={backHref} className="text-white/60 hover:text-white transition-colors">
+                    {/* **名前を付ける。** 中身はアイコンだけ（`aria-hidden`）なので、
+                        読み上げでは名前の無いリンクとして読まれていた */}
+                    <Link
+                        href={backHref}
+                        aria-label={isJa ? "戻る" : "Back"}
+                        onClick={(e) => {
+                            // **直したものを黙って捨てない。** 押す前に一度だけ聞く
+                            if (!dirty) return;
+                            e.preventDefault();
+                            setConfirmLeave(true);
+                        }}
+                        className="text-white/60 hover:text-white transition-colors"
+                    >
                         <ArrowLeftIcon className="w-5 h-5" />
                     </Link>
                     <h1 className="text-xl font-semibold">
@@ -758,6 +813,47 @@ function EditContent() {
                     </div>
                 </form>
             </div>
+
+            {/* 未保存のまま戻る確認。削除確認と同じ形（別の見た目を増やさない）。
+                **既定は「編集を続ける」**——捨てる方に指が乗っていると、
+                聞いた意味が無い */}
+            {confirmLeave && (
+                <div
+                    ref={leaveRef}
+                    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] sm:pb-0"
+                    onClick={() => setConfirmLeave(false)}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={isJa ? "保存していない変更があります" : "You have unsaved changes"}
+                >
+                    <div className="w-full max-w-[340px] space-y-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl overflow-hidden">
+                            <p className="px-4 py-3.5 text-center text-[13px] text-white/55 leading-snug">
+                                {isJa
+                                    ? "保存していない変更があります。戻ると、直した内容は失われます。"
+                                    : "You have unsaved changes. If you go back, your edits will be lost."}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => { setConfirmLeave(false); router.push(backHref); }}
+                                className="w-full py-3.5 border-t border-white/10 text-[#ff453a] text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                {isJa ? "破棄して戻る" : "Discard and go back"}
+                            </button>
+                        </div>
+                        <button
+                            ref={leaveStayRef}
+                            type="button"
+                            onClick={() => setConfirmLeave(false)}
+                            className="w-full py-3.5 rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl text-white text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition"
+                            style={{ touchAction: "manipulation" }}
+                        >
+                            {isJa ? "編集を続ける" : "Keep editing"}
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* 削除確認。取り消せない操作なので、装飾を減らして文字で選ばせる
                 （app/components/stories/StoryViewer.tsx と同じ形） */}
