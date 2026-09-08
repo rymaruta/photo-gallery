@@ -468,6 +468,23 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     const bio = truncate(body.bio?.trim() ?? "", 300) || undefined;
     const instagram = body.instagram?.trim().slice(0, 100) || undefined;
     const website = body.website?.trim().slice(0, 200) || undefined;
+    // **実行できるスキームを保存しない。**
+    //
+    // いまは表示側（`UserProfileClient`）が `/^https?:\/\//` を見て、
+    // それ以外はリンクにしないので実害は出ていない。だが**サーバー側には
+    // 検証が1つも無く**、`javascript:alert(1)` はそのまま DynamoDB に入る
+    // ——曲の音源・アートワーク・サムネは既にサーバーで塞いだのに、
+    // ここだけ「表示側の1本の判定」が唯一の砦になっていた（対の乖離）。
+    // 表示する場所を1つ増やした瞬間に開く形なので、入口で止める。
+    //
+    // **スキームが無いもの（`example.com`）は今までどおり通す**——
+    // 弾くと、それを入れていた人がプロフィールを保存できなくなる。
+    // （今の画面はそれをリンクとして出さない。出し方は別の判断）
+    if (website && /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(website) && !/^https?:\/\//i.test(website)) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({
+            error: "ウェブサイトは http:// か https:// で始まるリンクを入れてください",
+        }) };
+    }
 
     // サイト内ユーザー名（@ハンドル）。形式・予約語を検証し、一意性は予約アイテムで担保する。
     //
