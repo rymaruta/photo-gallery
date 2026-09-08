@@ -297,6 +297,31 @@ describe("lookupSession", () => {
         expect(await lookupSession()).toEqual({ session: null, unreachable: false });
     });
 
+    // **返ってきたのが Cognito の応答でなかった回**（キャプティブポータル・
+    // 中継機のエラーページ）。ライブラリの中で `TypeError` になる。
+    // 文言は実物に通して測ったもの（`lib/auth/__tests__/captivePortal.test.ts`
+    // が本物のライブラリで同じことを確かめている）
+    it.each([
+        ["200 で HTML（キャプティブポータル）", "Cannot convert undefined or null to object"],
+        ["503 で HTML（中継機）", "Cannot read properties of undefined (reading 'split')"],
+    ])("%s は unreachable", async (_label, message) => {
+        mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
+        mockGetSession.mockImplementation((cb: (e: Error, s: null) => void) => cb(new TypeError(message), null));
+        expect((await lookupSession()).unreachable).toBe(true);
+    });
+
+    // **理由を名乗っている応答は保たない。** 名乗っているならそれが答え
+    it.each([
+        ["失効", { code: "NotAuthorizedException", message: "Refresh Token has expired" }],
+        ["サーバーの5xx", { code: "InternalErrorException", message: "boom" }],
+        ["トークン欠損", { message: "Local storage is missing an ID Token, Please authenticate" }],
+        ["更新できない", { message: "Cannot retrieve a new session. Please authenticate." }],
+    ])("%s は unreachable にしない", async (_label, props) => {
+        mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
+        mockGetSession.mockImplementation((cb: (e: Error, s: null) => void) => cb(err(props), null));
+        expect((await lookupSession()).unreachable).toBe(false);
+    });
+
     // **設定不備を「通信断」に混ぜない。** 混ぜると、前の状態を保つ側が
     // 永久に固まる（確かめ直しても毎回 unreachable になる）
     it("設定が壊れていて例外になった回は unreachable にしない", async () => {

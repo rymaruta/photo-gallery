@@ -161,10 +161,35 @@ export type SessionLookup = {
     unreachable: boolean;
 };
 
-/** 通信が届かなかった回か。ライブラリが立てる印だけを見る（文言の推測はしない） */
+/**
+ * セッションの有無を確かめられなかった回か。
+ *
+ * 2つある。どちらも**実物のライブラリに通して形を測って**決めた
+ * （`getSession` に届く err を印字した。推測ではない）:
+ *
+ * 1. **通信そのものが落ちた**（機内モード）——ライブラリが `fetch` の
+ *    `TypeError` を `Error("Network error")` に包み `code = "NetworkError"`
+ *    を立てる
+ * 2. **返ってきたのが Cognito の応答ではなかった**——ホテルや空港の
+ *    キャプティブポータル（200 で HTML）、中継機のエラーページ（503 で
+ *    HTML）。ライブラリは本文を JSON として読めず `{}` にしたあと、
+ *    `data.__type` や `RefreshToken` を触って **`TypeError`** で落ちる:
+ *      200+HTML → `Cannot convert undefined or null to object`
+ *      503+HTML → `Cannot read properties of undefined (reading 'split')`
+ *    **外出先で一番多いのはこちら**（繋がってはいるが通らない）。
+ *
+ * 逆に、**本当にログインしていない側は必ず素の `Error`** で来る（測定）:
+ *   失効           → `code = "NotAuthorizedException"`
+ *   サーバーの5xx  → `code = "InternalErrorException"`（理由を名乗っている）
+ *   トークン欠損   → `Error("Local storage is missing an ID Token, …")`
+ *   更新できない   → `Error("Cannot retrieve a new session. …")`
+ * なので `TypeError` かどうかで分けられる。**理由を名乗っている応答は
+ * 保たない**——名乗っているならそれは答えなので。
+ */
 function isUnreachable(err: unknown): boolean {
     const e = err as { code?: unknown; message?: unknown } | null;
-    return e?.code === "NetworkError" || e?.message === "Network error";
+    if (e?.code === "NetworkError" || e?.message === "Network error") return true;
+    return err instanceof TypeError;
 }
 
 // 現在のセッションを取得（理由は捨てる。**新しい呼び出しでは `lookupSession` を使う**）
