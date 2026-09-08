@@ -9,7 +9,10 @@ import { renderHook } from "@testing-library/react";
 
 const mockPush = vi.hoisted(() => vi.fn());
 const mockReplace = vi.hoisted(() => vi.fn());
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mockPush, replace: mockReplace }) }));
+// **同じ object を返す。** 毎回作ると `useEffect` の依存が常に変わり、
+// 依存配列の取りこぼし（`hasUnsavedWork` を入れ忘れる等）を素通りさせる
+const stableRouter = vi.hoisted(() => ({ push: mockPush, replace: mockReplace }));
+vi.mock("next/navigation", () => ({ useRouter: () => stableRouter }));
 
 const authState = vi.hoisted(() => ({
     current: { isAuthenticated: false, isAdminUser: false, isGeneralUser: false, loading: false },
@@ -70,6 +73,34 @@ describe("useMemberGate", () => {
         authState.current = { isAuthenticated: true, isAdminUser: true, isGeneralUser: false, loading: false };
         expect(renderHook(() => useMemberGate()).result.current).toBe("ok");
         expect(mockPush).not.toHaveBeenCalled();
+        expect(mockReplace).not.toHaveBeenCalled();
+    });
+});
+
+// **打ちかけがあるときは送り返さない。** `router.replace` は画面を
+// 作り直すので、打ちかけごと消える（`/user/edit` の未保存の確認も通らない）。
+// 引数を足したのに、この口を直接見るテストが1件も無かった。
+describe("useMemberGate: 打ちかけがあるとき", () => {
+    it("未ログインでも送り返さない", () => {
+        const { result } = renderHook(() => useMemberGate(true));
+        expect(result.current).toBe("anonymous");
+        expect(mockReplace, "打ちかけごと画面を入れ替えている").not.toHaveBeenCalled();
+    });
+
+    // **打ちかけが無くなったら送り返す。** 依存に入れ忘れると、
+    // 一度留めたあとは何をしても送り返さなくなる
+    it("打ちかけが無くなったら送り返す", () => {
+        const { rerender } = renderHook(({ unsaved }) => useMemberGate(unsaved), {
+            initialProps: { unsaved: true },
+        });
+        expect(mockReplace).not.toHaveBeenCalled();
+        rerender({ unsaved: false });
+        expect(mockReplace, "打ちかけが無くなっても送り返さない").toHaveBeenCalled();
+    });
+
+    it("ログイン済みなら、打ちかけの有無に関係なく通す", () => {
+        authState.current = { isAuthenticated: true, isAdminUser: false, isGeneralUser: true, loading: false };
+        expect(renderHook(() => useMemberGate(true)).result.current).toBe("ok");
         expect(mockReplace).not.toHaveBeenCalled();
     });
 });

@@ -379,8 +379,13 @@ function EditContent() {
             // 消した写真の編集画面は履歴に残さない（戻ると上の
             // 「写真が見つかりません」に落ちる）
             router.replace(ROUTES.DRAFTS);
-        } catch {
-            showToast(isJa ? "通信に失敗しました" : "Network error", "error");
+        } catch (e) {
+            // **保存と同じ見分けを通す。** ここだけ裸の catch で、押し直しても
+            // 直らない失敗（セッション切れ・通信できない）を「通信に失敗
+            // しました」に塗り潰していた。未ログインのまま画面に留めるように
+            // したぶん、削除ボタンは素直に押せる位置にある
+            showToast(sessionErrorMessage(e)
+                ?? (isJa ? "通信に失敗しました" : "Network error"), "error");
         } finally {
             setDeleting(false);
             // **失敗しても閉じない。** サーバーは「押し直せば続きから消える」と
@@ -474,6 +479,9 @@ function EditContent() {
     // 一度だけ出す（描画のたびに出すと読めない）
     const toldSignedOut = useRef(false);
     useEffect(() => {
+        // **ログインし直したら札を下ろす。** 下ろさないと「切れる →
+        // ログインし直す → また切れる」の二度目が無言になる
+        if (gate === "ok") { toldSignedOut.current = false; return; }
         if (gate !== "anonymous" || !dirty) { return; }
         if (toldSignedOut.current) return;
         toldSignedOut.current = true;

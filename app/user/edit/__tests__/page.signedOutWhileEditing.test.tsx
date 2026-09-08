@@ -12,7 +12,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 const mockUserFetch = vi.hoisted(() => vi.fn());
 const mockShowToast = vi.hoisted(() => vi.fn());
 const mockReplace = vi.hoisted(() => vi.fn());
-const auth = vi.hoisted(() => ({ isAuthenticated: true }));
+const auth = vi.hoisted(() => ({ isAuthenticated: true, noGroup: false }));
 
 vi.mock("../../../../lib/utils/api", async () => {
     const actual = await vi.importActual<typeof import("../../../../lib/utils/api")>("../../../../lib/utils/api");
@@ -26,7 +26,7 @@ vi.mock("../../../auth/context", () => ({
     useAuth: () => ({
         isAuthenticated: auth.isAuthenticated,
         isAdminUser: false,
-        isGeneralUser: auth.isAuthenticated,
+        isGeneralUser: auth.isAuthenticated && !auth.noGroup,
         loading: false,
     }),
 }));
@@ -39,7 +39,7 @@ const EditPage = (await import("../page")).default;
 const photo = { id: "p1", src: "https://cdn/p1.jpg", title: "夕焼け", location: "江ノ島", published: true };
 
 beforeEach(() => {
-    auth.isAuthenticated = true;
+    auth.isAuthenticated = true; auth.noGroup = false;
     mockShowToast.mockReset(); mockReplace.mockReset();
     mockUserFetch.mockReset().mockResolvedValue({ ok: true, json: async () => [photo] });
 });
@@ -52,6 +52,8 @@ async function editing() {
 }
 
 const toasts = () => mockShowToast.mock.calls.map((c) => String(c[0]));
+/** 種類まで見る（`種類:文言`）。文言だけ見ていると、成功として出しても気づけない */
+const typed = () => mockShowToast.mock.calls.map((c) => `${String(c[1] ?? "success")}:${String(c[0])}`);
 
 describe("編集中にログインが切れたとき", () => {
     it("打ちかけがあるなら、ログイン画面へ送り返さない", async () => {
@@ -154,5 +156,59 @@ describe("留めたあと、ログインし直したとき", () => {
         render(<EditPage />);
 
         await waitFor(() => expect(screen.getAllByDisplayValue("別のタブで直した題").length).toBeGreaterThan(0));
+    });
+});
+
+describe("留めている間に押せるもの", () => {
+    it("削除も「通信に失敗しました」に塗り潰さない", async () => {
+        const { AUTH_REQUIRED_MESSAGE } = await import("../../../../lib/utils/api");
+        const { rerender } = await editing();
+        auth.isAuthenticated = false;
+        rerender(<EditPage />);
+        await waitFor(() => expect(toasts().length).toBeGreaterThan(0));
+
+        mockUserFetch.mockRejectedValue(new Error(AUTH_REQUIRED_MESSAGE));
+        // 画面下の「削除」→ 確認シートの中の「削除」（同じ名前なので
+        // ダイアログの中から取る）
+        fireEvent.click(screen.getByRole("button", { name: "削除" }));
+        const sheet = await screen.findByRole("dialog");
+        const confirm = Array.from(sheet.querySelectorAll("button"))
+            .find((b) => b.textContent?.trim() === "削除")!;
+        fireEvent.click(confirm);
+        await waitFor(() => expect(toasts()).toContain(AUTH_REQUIRED_MESSAGE));
+        expect(toasts(), "削除だけ塗り潰している").not.toContain("通信に失敗しました");
+    });
+
+    it("知らせは赤（成功として出さない）", async () => {
+        const { rerender } = await editing();
+        auth.isAuthenticated = false;
+        rerender(<EditPage />);
+        await waitFor(() => expect(toasts().length).toBeGreaterThan(0));
+        expect(typed().some((t) => t.startsWith("error:") && t.includes("ログインが切れました"))).toBe(true);
+    });
+
+    // **ログインはしているが権限が無い人**に「ログインが切れました」と言わない
+    // （ログインしているのに切れたと言う型は、この campaign で3回出ている）
+    it("権限が無いだけの人には、ログインの話をしない", async () => {
+        const { rerender } = await editing();
+        auth.noGroup = true;
+        rerender(<EditPage />);
+        await waitFor(() => expect(screen.queryByDisplayValue("夕焼けの色")).toBeNull());
+        expect(toasts().some((t) => t.includes("ログインが切れました")), "権限の話とログインの話を混ぜている").toBe(false);
+    });
+
+    it("ログインし直してまた切れたら、もう一度知らせる", async () => {
+        const { rerender } = await editing();
+        auth.isAuthenticated = false;
+        rerender(<EditPage />);
+        await waitFor(() => expect(toasts().length).toBeGreaterThan(0));
+
+        auth.isAuthenticated = true;
+        rerender(<EditPage />);
+        await waitFor(() => expect(mockUserFetch.mock.calls.filter((c) => c[0] === "/user/photos").length).toBe(2));
+        auth.isAuthenticated = false;
+        rerender(<EditPage />);
+
+        await waitFor(() => expect(toasts().filter((t) => t.includes("ログインが切れました")).length).toBe(2));
     });
 });

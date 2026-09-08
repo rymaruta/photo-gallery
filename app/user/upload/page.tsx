@@ -195,9 +195,14 @@ function UploadPageInner() {
      * ログインが切れた側はどのみち上げられないが、**捨ててよい理由には
      * ならない**。送り返さない代わりに、下で伝える。
      */
-    const gate = useMemberGate(items.length > 0);
-    /** 送り返さずに留めている状態（未ログインだが取り込んだ写真がある） */
-    const holdingWork = gate === "anonymous" && items.length > 0;
+    // **守る価値があるのは、まだ上げていないぶんだけ。** `items` は
+    // 上げ終わっても `done` として残るので（1件でも失敗すると遷移しない）、
+    // 件数で見ると「もう上がっている写真」について「まだ上げられません」と
+    // 嘘をつくことになる
+    const pendingWork = items.some((i) => i.status !== "done");
+    const gate = useMemberGate(pendingWork);
+    /** 送り返さずに留めている状態（未ログインだが、まだ上げていない写真がある） */
+    const holdingWork = gate === "anonymous" && pendingWork;
     const [category, setCategory] = useState("");
     const [tags, setTags] = useState("");
     const [uploading, setUploading] = useState(false);
@@ -216,12 +221,14 @@ function UploadPageInner() {
      */
     const toldSignedOut = useRef(false);
     useEffect(() => {
+        // ログインし直したら札を下ろす（二度目を無言にしない）
+        if (gate === "ok") { toldSignedOut.current = false; return; }
         if (!holdingWork || toldSignedOut.current) return;
         toldSignedOut.current = true;
         showToast(locale === "en"
             ? "You are signed out. These photos can't be uploaded yet — sign in again in another tab, then publish."
             : "ログインが切れました。この写真はまだ上げられません。別のタブでログインし直してから、もう一度お試しください", "error");
-    }, [holdingWork, locale, showToast]);
+    }, [gate, holdingWork, locale, showToast]);
 
     const uploadAbortRef = useRef<AbortController | null>(null);
     /**
