@@ -179,7 +179,6 @@ function UploadPageInner() {
     const bottomBarRef = useRef<HTMLDivElement | null>(null);
     useBottomBarHeight(bottomBarRef);
     const { isAuthenticated, isAdminUser, loading } = useAuth();
-    const gate = useMemberGate();
     const router = useRouter();
     const searchParams = useSearchParams();
     const { locale } = useLocale();
@@ -188,6 +187,17 @@ function UploadPageInner() {
     const fromShare = searchParams?.get("from") === "share";
 
     const [items, setItems] = useState<Item[]>([]);
+    /**
+     * 認証ゲート。**取り込んだ写真があるときは送り返させない**——
+     * `router.replace` は画面を作り直すので、選んだ写真も打った題名・説明も
+     * 消える（取り込みには1枚 1.1秒かかっているし、共有シートから来た人は
+     * 元のアプリへ戻って選び直すことになる）。
+     * ログインが切れた側はどのみち上げられないが、**捨ててよい理由には
+     * ならない**。送り返さない代わりに、下で伝える。
+     */
+    const gate = useMemberGate(items.length > 0);
+    /** 送り返さずに留めている状態（未ログインだが取り込んだ写真がある） */
+    const holdingWork = gate === "anonymous" && items.length > 0;
     const [category, setCategory] = useState("");
     const [tags, setTags] = useState("");
     const [uploading, setUploading] = useState(false);
@@ -200,6 +210,19 @@ function UploadPageInner() {
      * リロード以外に出る手段が無く、リロードすると S3 に孤児が残る。
      * ストーリーの投稿（`StoriesBar`）が同じ理由で先に直してある形を借りる
      */
+    /**
+     * **ログインが切れたことを伝える。** 送り返さないぶん、黙っていると
+     * 「公開」を押しても失敗し続ける画面に取り残される。一度だけ出す
+     */
+    const toldSignedOut = useRef(false);
+    useEffect(() => {
+        if (!holdingWork || toldSignedOut.current) return;
+        toldSignedOut.current = true;
+        showToast(locale === "en"
+            ? "You are signed out. These photos can't be uploaded yet — sign in again in another tab, then publish."
+            : "ログインが切れました。この写真はまだ上げられません。別のタブでログインし直してから、もう一度お試しください", "error");
+    }, [holdingWork, locale, showToast]);
+
     const uploadAbortRef = useRef<AbortController | null>(null);
     /**
      * 「やめる」を押してから止まるまで。**ボタンを消さずに名前を変える**
@@ -973,7 +996,10 @@ function UploadPageInner() {
 
     // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
-    if (gate !== "ok") {
+    // **送り返さないと決めた回は、画面も出す。** ここでスピナーに落とすと
+    // 「取り込んだ写真を消さない」ために送り返さなかった意味が無い
+    // （見えないまま止まるだけで、選び直すのと同じことになる）
+    if (gate !== "ok" && !holdingWork) {
         return (
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-3xl mx-auto w-full flex items-center justify-center">
                 <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
