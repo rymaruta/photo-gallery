@@ -237,7 +237,10 @@ describe("useComments: 投稿の失敗の理由を塗り潰さない", () => {
         mockUserFetch.mockRejectedValue(new Error(AUTH_REQUIRED_MESSAGE));
         let r: { status: string; message?: string } | undefined;
         await act(async () => { r = await result.current.add("いいね"); });
-        expect(r?.status).toBe("error");
+        // **既にある `auth-required` の口へ返す。** 画面側はそこで
+        // ロケール対応の案内を info で出す（`error` だと素通りして、
+        // 日本語固定の定数が赤いトーストで出る）
+        expect(r?.status, "既にある案内の導線に乗っていない").toBe("auth-required");
         expect(r?.message, "「通信に失敗しました」で塗り潰している").toBe(AUTH_REQUIRED_MESSAGE);
     });
 

@@ -125,7 +125,13 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
             // だと回線の問題だと思って何度も押すことになる。押しても直らない。
             // `useFollow` は同じ場所で前からこう書いてある（対の乖離だった）
             const msg = e instanceof Error ? e.message : "";
-            if (msg === AUTH_REQUIRED_MESSAGE) return { status: "error", message: msg };
+            // **既にある導線に乗せる。** `auth-required` は「押す前に
+            // 未ログインと分かった」場合のために用意されていて、画面側は
+            // ロケール対応の案内（「コメントするにはログインしてください」）を
+            // info で出す。**送ってから分かった場合も同じことなので同じ口へ**
+            // ——`error` で返すと、その分岐を素通りして日本語固定の定数が
+            // 赤いトーストで出る（`useFollow.ts:378` は前からこの形）
+            if (msg === AUTH_REQUIRED_MESSAGE) return { status: "auth-required", message: msg };
             return { status: "error", message: "通信に失敗しました" };
         } finally {
             busyRef.current = false;
