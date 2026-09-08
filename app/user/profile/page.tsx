@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
-import { userFetch, readApiError, AUTH_REQUIRED_MESSAGE } from "../../../lib/utils/api";
+import { userFetch, readApiError, sessionErrorMessage } from "../../../lib/utils/api";
 import { changedFields } from "../../../lib/utils/changedFields";
 import { sanitizeProfile } from "../../../lib/utils/profileShape";
 import { parseMusicEmbed, musicServiceLabel, type SongResult } from "../../../lib/utils/music";
@@ -257,8 +257,7 @@ export default function ProfileEditPage() {
             saved = true;
             showToast("カバー写真を更新しました", "success");
         } catch (e) {
-            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
-            showToast(authMissing ? AUTH_REQUIRED_MESSAGE : "カバー写真のアップロードに失敗しました", "error");
+            showToast(sessionErrorMessage(e) ?? "カバー写真のアップロードに失敗しました", "error");
         } finally {
             setCoverUploading(false);
             if (!saved) { failed = true; setCoverPreview(null); }
@@ -317,8 +316,7 @@ export default function ProfileEditPage() {
             saved = true;
             showToast("プロフィール写真を更新しました", "success");
         } catch (e) {
-            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
-            showToast(authMissing ? AUTH_REQUIRED_MESSAGE : "アバターのアップロードに失敗しました", "error");
+            showToast(sessionErrorMessage(e) ?? "アバターのアップロードに失敗しました", "error");
         } finally {
             setAvatarUploading(false);
             if (!saved) { failed = true; setAvatarPreview(null); }
@@ -525,10 +523,8 @@ export default function ProfileEditPage() {
             // 直ると分からず**同じ操作を繰り返すことになった。
             // 同じファイルのアバター・カバー（`handleCoverChange` ほか）は
             // 前からこう書いてある——対の乖離だった
-            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
-            showToast(authMissing
-                ? AUTH_REQUIRED_MESSAGE
-                : (locale === "en" ? "Failed to save." : "保存に失敗しました。"), "error");
+            showToast(sessionErrorMessage(e)
+                ?? (locale === "en" ? "Failed to save." : "保存に失敗しました。"), "error");
         } finally {
             setSaving(false);
         }

@@ -21,11 +21,12 @@ vi.mock("../../utils/api", async () => {
         // 文言の突き合わせに使う定数。**綴りを書き写さない**
         // （写すと、片方だけ変えたときに気づけない）
         AUTH_REQUIRED_MESSAGE: actual.AUTH_REQUIRED_MESSAGE,
+        NETWORK_UNREACHABLE_MESSAGE: actual.NETWORK_UNREACHABLE_MESSAGE,
     };
 });
 
 import { useComments } from "../useComments";
-import { AUTH_REQUIRED_MESSAGE } from "../../utils/api";
+import { AUTH_REQUIRED_MESSAGE, NETWORK_UNREACHABLE_MESSAGE } from "../../utils/api";
 
 const comment = (id: string) => ({ id, uid: "u1", name: "旅人", text: "いいね", t: "2026-01-01" });
 
@@ -242,6 +243,20 @@ describe("useComments: 投稿の失敗の理由を塗り潰さない", () => {
         // 日本語固定の定数が赤いトーストで出る）
         expect(r?.status, "既にある案内の導線に乗っていない").toBe("auth-required");
         expect(r?.message, "「通信に失敗しました」で塗り潰している").toBe(AUTH_REQUIRED_MESSAGE);
+    });
+
+    // **通信できないだけの回はログインの案内にしない。** 案内どおり
+    // ログインし直そうにも、その通信も通らない
+    it("通信できないときは、ログインの案内ではなく その理由を返す", async () => {
+        mockList([], 0);
+        const { result } = renderHook(() => useComments("p1", true, 0));
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        mockUserFetch.mockRejectedValue(new Error(NETWORK_UNREACHABLE_MESSAGE));
+        let r: { status: string; message?: string } | undefined;
+        await act(async () => { r = await result.current.add("いいね"); });
+        expect(r?.status, "ログインの案内に倒している").toBe("error");
+        expect(r?.message).toBe(NETWORK_UNREACHABLE_MESSAGE);
     });
 
     it("理由の分からない失敗は、今までどおり「通信に失敗しました」", async () => {

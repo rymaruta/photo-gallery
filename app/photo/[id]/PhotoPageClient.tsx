@@ -35,6 +35,7 @@ import { formatStoredDateTime } from "@/lib/utils/photoDate";
 import { isImeKey } from "../../../lib/utils/ime";
 import { useSongSearch } from "../../../lib/hooks/useSongSearch";
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
+import { sessionErrorMessage } from "../../../lib/utils/api";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -381,11 +382,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
         } catch (e) {
             // fetch 自体の失敗。トークン不在（userFetch が投げる）は
             // 「時間をおいて」では直らないので、そのまま伝える
-            const { AUTH_REQUIRED_MESSAGE } = await import("../../../lib/utils/api");
-            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
-            showToast(authMissing
-                ? AUTH_REQUIRED_MESSAGE
-                : (locale === "en" ? "Network error. Please try again." : "通信に失敗しました。時間をおいてもう一度お試しください"), "error");
+            // **catch の中で動的 import しない。** そこで落ちると
+            // トーストが1つも出ない——しかも落ちやすいのは
+            // まさに通信が died している今の状況（台帳の既知の型）
+            showToast(sessionErrorMessage(e)
+                ?? (locale === "en" ? "Network error. Please try again." : "通信に失敗しました。時間をおいてもう一度お試しください"), "error");
         } finally {
             setYtSaving(false);
         }
@@ -425,11 +426,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                 "success",
             );
         } catch (e) {
-            const { AUTH_REQUIRED_MESSAGE } = await import("../../../lib/utils/api");
-            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
-            showToast(authMissing
-                ? AUTH_REQUIRED_MESSAGE
-                : (locale === "en" ? "Network error. Please try again." : "通信に失敗しました。時間をおいてもう一度お試しください"), "error");
+            // **catch の中で動的 import しない。** そこで落ちると
+            // トーストが1つも出ない——しかも落ちやすいのは
+            // まさに通信が died している今の状況（台帳の既知の型）
+            showToast(sessionErrorMessage(e)
+                ?? (locale === "en" ? "Network error. Please try again." : "通信に失敗しました。時間をおいてもう一度お試しください"), "error");
         }
     };
 

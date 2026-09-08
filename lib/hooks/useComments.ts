@@ -1,6 +1,6 @@
 import { usableRows } from "../utils/apiRows";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { userPublicFetch, userFetch, isGoneResponse, AUTH_REQUIRED_MESSAGE } from "../utils/api";
+import { userPublicFetch, userFetch, isGoneResponse, AUTH_REQUIRED_MESSAGE, NETWORK_UNREACHABLE_MESSAGE } from "../utils/api";
 import { log } from "../utils/log";
 
 // 写真コメント。公開読み取り + 認証投稿/削除。楽観更新は最小限（投稿は成功後に反映）。
@@ -132,6 +132,8 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
             // ——`error` で返すと、その分岐を素通りして日本語固定の定数が
             // 赤いトーストで出る（`useFollow.ts:378` は前からこの形）
             if (msg === AUTH_REQUIRED_MESSAGE) return { status: "auth-required", message: msg };
+            // 通信できないだけの回はログインの案内にしない（`useFollow` と同じ）
+            if (msg === NETWORK_UNREACHABLE_MESSAGE) return { status: "error", message: msg };
             return { status: "error", message: "通信に失敗しました" };
         } finally {
             busyRef.current = false;

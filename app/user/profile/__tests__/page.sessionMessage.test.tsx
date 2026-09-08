@@ -2,7 +2,7 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { AUTH_REQUIRED_MESSAGE } from "../../../../lib/utils/api";
+import { AUTH_REQUIRED_MESSAGE, NETWORK_UNREACHABLE_MESSAGE } from "../../../../lib/utils/api";
 
 // **セッションが切れているのに「保存に失敗しました。」だけ出していた。**
 // 裸の catch がトークン切れを塗り潰すので、**再ログインすれば直ると
@@ -59,6 +59,14 @@ describe("/user/profile の保存: 理由を塗り潰さない", () => {
         await openAndSave(() => Promise.reject(new TypeError("Failed to fetch")));
         expect(toasts()).toContain("保存に失敗しました。");
         expect(toasts(), "無関係な失敗にログインの話を出している").not.toContain(AUTH_REQUIRED_MESSAGE);
+    });
+
+    // **確かめられなかっただけの回に「ログインしてください」と言わない。**
+    // 言われたとおりログインし直そうにも、その通信も通らない
+    it("通信できないときは、そう伝える（ログインの話をしない）", async () => {
+        await openAndSave(() => Promise.reject(new Error(NETWORK_UNREACHABLE_MESSAGE)));
+        expect(toasts()).toContain(NETWORK_UNREACHABLE_MESSAGE);
+        expect(toasts(), "通信の問題なのにログインの話をしている").not.toContain(AUTH_REQUIRED_MESSAGE);
     });
 
     it("サーバーが理由を返したときは、その文言（既存の振る舞い）", async () => {

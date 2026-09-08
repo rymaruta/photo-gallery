@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { userPublicFetch, userFetch, readApiError, AUTH_REQUIRED_MESSAGE } from "../utils/api";
+import { userPublicFetch, userFetch, readApiError, AUTH_REQUIRED_MESSAGE, NETWORK_UNREACHABLE_MESSAGE } from "../utils/api";
 import { log } from "../utils/log";
 
 // フォロー。フォロー中の userId 集合はセッション内キャッシュ（useGoTo の goSet と同型）。
@@ -376,6 +376,9 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
             // 「うまくいきませんでした」では直らない。押し直させない
             const msg = e instanceof Error ? e.message : "";
             if (msg === AUTH_REQUIRED_MESSAGE) return { result: "auth-required", message: msg };
+            // **通信できないだけの回はログインの案内にしない**（ログインし直す
+            // 通信も通らない）。文言はそのまま出す
+            if (msg === NETWORK_UNREACHABLE_MESSAGE) return { result: "error", message: msg };
             return { result: "error", message: msg || FOLLOW_FAILED };
         } finally {
             busyRef.current = false;

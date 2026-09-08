@@ -11,9 +11,16 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 const session = vi.hoisted(() => ({
     current: null as null | Promise<unknown>,
 }));
-vi.mock("../../auth/cognito", () => ({
-    getCurrentSession: () => session.current ?? Promise.resolve({ getIdToken: () => ({ getJwtToken: () => "jwt" }) }),
-}));
+vi.mock("../../auth/cognito", () => {
+    const get = () => session.current ?? Promise.resolve({ getIdToken: () => ({ getJwtToken: () => "jwt" }) });
+    return {
+        getCurrentSession: get,
+        // `userFetch` / `authenticatedFetch` は「確かめられなかった」を
+        // 見分けるためこちらを使う。**同じ答えを包んだ形**にして、
+        // このファイルが守っている性質（打ち切り）は変えない
+        lookupSession: async () => ({ session: await get(), unreachable: false }),
+    };
+});
 
 const fetchMock = vi.fn();
 let prevFetch: typeof globalThis.fetch;

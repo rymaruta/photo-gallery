@@ -22,7 +22,7 @@ import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../lib/utils/log";
 import { getCurrentSession } from "../../lib/auth/cognito";
 import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
-import { publicFetch, userFetch, userPublicFetch, readApiError, AUTH_REQUIRED_MESSAGE } from "../../lib/utils/api";
+import { publicFetch, userFetch, userPublicFetch, readApiError, sessionErrorMessage } from "../../lib/utils/api";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 import { EN_MONTHS, splitStoredDate } from "../../lib/utils/photoDate";
@@ -703,9 +703,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             // 直らない。別のタブでログアウトした人・セッションが切れた人は、
             // 何をすればいいか分からないまま押し直すことになる。
             // PhotoPageClient の MV 保存と同じ見分け方。
-            showToast(e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE
-                ? AUTH_REQUIRED_MESSAGE
-                : failMsg, "error");
+            showToast(sessionErrorMessage(e) ?? failMsg, "error");
         }
     }, [userProfile, userId, locale, showToast, loadOwnPins]);
 
@@ -823,10 +821,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 showToast(await readApiError(res, locale === "en" ? "Failed to update" : "更新に失敗しました"), "error");
             }
         } catch (e) {
-            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
-            showToast(authMissing
-                ? AUTH_REQUIRED_MESSAGE
-                : (locale === "en" ? "Failed to update" : "更新に失敗しました"), "error");
+            showToast(sessionErrorMessage(e)
+                ?? (locale === "en" ? "Failed to update" : "更新に失敗しました"), "error");
         } finally {
             // **必ず下ろす。** 失敗したまま札が残ると、その写真だけ
             // 二度と切り替えられなくなる（押しても無反応）

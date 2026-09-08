@@ -28,6 +28,7 @@ vi.mock("../../../lib/utils/api", async () => {
         // 足りない export を「アクセスした瞬間に落ちる」形で教えてくれる**
         // ——ここが抜けていて、2通目のコメントでだけ落ちていた
         AUTH_REQUIRED_MESSAGE: actual.AUTH_REQUIRED_MESSAGE,
+        NETWORK_UNREACHABLE_MESSAGE: actual.NETWORK_UNREACHABLE_MESSAGE,
     };
 });
 

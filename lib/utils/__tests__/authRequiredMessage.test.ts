@@ -12,13 +12,14 @@ import { describe, it, expect, vi } from "vitest";
 // **投げる文言を別のものに変えてもフルスイート 3,340件が緑**だった
 // （＝本番では見分けが全部外れ、「保存に失敗しました」に戻る）。
 
-const session = vi.hoisted(() => ({ current: null as unknown }));
+const session = vi.hoisted(() => ({ current: null as unknown, unreachable: false }));
 vi.mock("../../auth/cognito", () => ({
     getCurrentSession: async () => session.current,
-    lookupSession: async () => ({ session: session.current, unreachable: false }),
+    lookupSession: async () => ({ session: session.current, unreachable: session.unreachable }),
 }));
 
-const { userFetch, authenticatedFetch, AUTH_REQUIRED_MESSAGE } = await import("../api");
+const { userFetch, authenticatedFetch, AUTH_REQUIRED_MESSAGE, NETWORK_UNREACHABLE_MESSAGE, sessionErrorMessage } =
+    await import("../api");
 
 const thrown = async (f: () => Promise<unknown>) => {
     try { await f(); } catch (e) { return e; }
@@ -30,7 +31,7 @@ describe("トークンが取れないときに投げる文言", () => {
         ["userFetch", () => userFetch("/x", { method: "POST" })],
         ["authenticatedFetch", () => authenticatedFetch("/x", { method: "POST" })],
     ])("%s は AUTH_REQUIRED_MESSAGE ちょうどを投げる", async (_name, call) => {
-        session.current = null;
+        session.current = null; session.unreachable = false;
         const e = await thrown(call);
         // **`toBe` で見る。** `toContain` だと、前後に何か足した文言でも通り、
         // 呼び出し側の `===` は外れる（見分けだけが静かに死ぬ）
@@ -53,5 +54,41 @@ describe("トークンが取れないときに投げる文言", () => {
         expect((e as Error).message, "トークンがあるのに門で止めている").not.toBe(AUTH_REQUIRED_MESSAGE);
         expect(f, "通信に進んでいない").toHaveBeenCalled();
         vi.unstubAllGlobals();
+    });
+});
+
+// **確かめられなかっただけの回に「ログインしてください」と言わない。**
+// 機内モードだけでなく、ホテル・空港の Wi-Fi（キャプティブポータル）でも
+// 起きる。言われたとおりログインし直そうにも、その通信も通らない。
+describe("セッションを確かめられなかったときに投げる文言", () => {
+    it.each([
+        ["userFetch", () => userFetch("/x", { method: "POST" })],
+        ["authenticatedFetch", () => authenticatedFetch("/x", { method: "POST" })],
+    ])("%s は NETWORK_UNREACHABLE_MESSAGE を投げる", async (_name, call) => {
+        session.current = null; session.unreachable = true;
+        const e = await thrown(call);
+        expect((e as Error).message).toBe(NETWORK_UNREACHABLE_MESSAGE);
+    });
+
+    it("2つは別の文言（同じにすると見分けの意味が無い）", () => {
+        expect(NETWORK_UNREACHABLE_MESSAGE).not.toBe(AUTH_REQUIRED_MESSAGE);
+    });
+});
+
+// 9か所が各自で書いていた突き合わせを1か所に寄せた口
+describe("sessionErrorMessage", () => {
+    it.each([
+        ["セッション切れ", AUTH_REQUIRED_MESSAGE],
+        ["通信できない", NETWORK_UNREACHABLE_MESSAGE],
+    ])("%s はそのまま返す", (_label, msg) => {
+        expect(sessionErrorMessage(new Error(msg))).toBe(msg);
+    });
+
+    it.each([
+        ["技術文字列", new TypeError("Failed to fetch")],
+        ["サーバーの理由", new Error("そのユーザー名は既に使われています")],
+        ["Error ですらない", null],
+    ])("%s は返さない（画面には既定文を出させる）", (_label, e) => {
+        expect(sessionErrorMessage(e)).toBeNull();
     });
 });
