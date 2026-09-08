@@ -73,7 +73,28 @@ export function safeNextPath(raw: unknown): string | null {
     }
     if (u.origin !== SAME_ORIGIN_SENTINEL) return null;
     // 解釈しなおした形を返す（紛れ込んだ制御文字はここで落ちる）
-    return u.pathname + u.search + u.hash;
+    const out = u.pathname + u.search + u.hash;
+    // **返す値そのものを、もう一度確かめる。**
+    //
+    // 判定は `raw` に対して行ったが、URL のパーサは**オリジンを決めたあとに
+    // パスを正規化する**——`..` で先頭のセグメントを潰すと `//evil.example`
+    // が残る:
+    //     new URL("/..//evil.example", base).origin   → base（同一オリジンに見える）
+    //     new URL("/..//evil.example", base).pathname → "//evil.example"
+    // つまり**「同一オリジンだと確かめた値」ではなく「外部を指す値」を
+    // 返していた**。`/login?next=%2F..%2F%2Fevil.example` を踏ませるだけで
+    // 外部へ飛ぶ（ログイン済みなら無操作、未ログインでもパスワードを
+    // 入れた直後）。正規ドメインのリンクなのでフィッシングの踏み台になる。
+    //
+    // 「`//` で始まるものを弾く」でも今の形は塞がるが、それは**また列挙**
+    // ——前回タブ文字で抜かれたのと同じ形に戻る。判定と返却の対象を
+    // 一致させる方が、次の言い回しにも耐える。
+    try {
+        if (new URL(out, SAME_ORIGIN_SENTINEL).origin !== SAME_ORIGIN_SENTINEL) return null;
+    } catch {
+        return null;
+    }
+    return out;
 }
 
 /** ログイン画面へ。戻り先を添える（省略時は既定＝自分のプロフィール） */

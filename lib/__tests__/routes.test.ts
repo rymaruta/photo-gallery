@@ -119,3 +119,49 @@ describe("safeNextPath: 制御文字によるオリジン抜け", () => {
         expect(safeNextPath("/")).toBe("/");
     });
 });
+
+// **判定した値と、返す値が違っていた。**
+// URL のパーサは**オリジンを決めたあとにパスを正規化する**ので、
+// `..` で先頭のセグメントを潰すと `//evil.example` が残る:
+//
+//     new URL("/..//evil.example", base).origin   → base（＝同一オリジンに見える）
+//     new URL("/..//evil.example", base).pathname → "//evil.example"（スキーム相対）
+//
+// `safeNextPath` は判定を `raw` に、返すのを `pathname` にしていたので、
+// **「同一オリジンだと確かめた値」ではなく「外部を指す値」を返していた**。
+// `https://journey-photo.com/login?next=%2F..%2F%2Fevil.example` を踏ませる
+// だけで外部へ飛ぶ（ログイン済みなら無操作、未ログインでもパスワードを
+// 入れた直後）。正規ドメインのリンクなので、フィッシングの踏み台になる。
+describe("safeNextPath: 正規化でスキーム相対に化ける形", () => {
+    it.each([
+        "/..//evil.example",
+        "/../..//evil.example/pwn?a=1",
+        "/photo/../..//evil.example",
+        "/%2e%2e//evil.example",
+        "/..\\\\evil.example",   // バックスラッシュ2つ（1つだと自サイトの `/evil.example` になるだけ）
+        "/a/..//evil.example",
+    ])("%s は通さない", (raw) => {
+        expect(safeNextPath(raw)).toBeNull();
+    });
+
+    // **返した値をそのまま解決しても、外へ出ないこと。**
+    // 「`//` で始まらない」のような一点狙いだと、次の言い回しで抜かれる
+    it.each([
+        "/photo/abc", "/", "/user/edit?id=1#x", "/photo/a/../b",
+        "/..//evil.example", "/%2e%2e//evil.example", "//evil.example",
+        "/\tevil", "/users?id=%2F%2Fevil",
+    ])("%s: 返る値は必ずこのサイトの中を指す", (raw) => {
+        const out = safeNextPath(raw);
+        if (out === null) return;
+        expect(new URL(out, "https://journey-photo.com").origin).toBe("https://journey-photo.com");
+    });
+
+    // 正常系: 普通のパスは今までどおり通る（塞ぎすぎない）
+    it.each([
+        ["/photo/abc", "/photo/abc"],
+        ["/user/upload?from=share", "/user/upload?from=share"],
+        ["/photo/a/../b", "/photo/b"],
+    ])("%s は通す", (raw, expected) => {
+        expect(safeNextPath(raw)).toBe(expected);
+    });
+});
