@@ -46,6 +46,17 @@ describe("Cognito の応答でないものが返ってきたとき（本物の�
         expect(await lookupSession()).toEqual({ session: null, unreachable: true });
     });
 
+    // **型そのものを pin する。** 実装は `err instanceof TypeError` で
+    // 見分けているので、ここで型を確かめていないと「V8 の文言との一致」に
+    // 退化させる変異が素通りする（Safari では文言が違う）
+    it("届く err は TypeError（文言ではなく型で見分けている）", async () => {
+        vi.stubGlobal("fetch", htmlBody(true, 200));
+        const { CognitoUserPool } = await import("amazon-cognito-identity-js");
+        const user = new CognitoUserPool({ UserPoolId: "ap-northeast-1_test", ClientId: "testclientid" }).getCurrentUser()!;
+        const err = await new Promise((resolve) => user.getSession((e: unknown) => resolve(e)));
+        expect(err).toBeInstanceOf(TypeError);
+    });
+
     // **503（HTML）と 400（失効を名乗る）はここに置かない。** 非 2xx は
     // ライブラリが5回まで撃ち直すので1本 6.5秒かかる。形は測ってあるので
     // `cognito.test.ts` 側で文言そのものを使って見る（あちらは即座に返る）:

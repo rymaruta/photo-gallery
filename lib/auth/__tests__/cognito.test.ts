@@ -301,9 +301,13 @@ describe("lookupSession", () => {
     // 中継機のエラーページ）。ライブラリの中で `TypeError` になる。
     // 文言は実物に通して測ったもの（`lib/auth/__tests__/captivePortal.test.ts`
     // が本物のライブラリで同じことを確かめている）
+    // **文言ではなく型で見分けている。** ここに測った2つしか置かないと、
+    // 実装を「V8 のこの2文言と一致するか」に退化させても緑になる
+    // （Safari は同じ状況で違う文言を出す）。3本目は「文言は問わない」を言う
     it.each([
         ["200 で HTML（キャプティブポータル）", "Cannot convert undefined or null to object"],
         ["503 で HTML（中継機）", "Cannot read properties of undefined (reading 'split')"],
+        ["別の言い回し（ブラウザやライブラリの版で変わる）", "undefined is not an object"],
     ])("%s は unreachable", async (_label, message) => {
         mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
         mockGetSession.mockImplementation((cb: (e: Error, s: null) => void) => cb(new TypeError(message), null));
@@ -324,8 +328,24 @@ describe("lookupSession", () => {
 
     // **設定不備を「通信断」に混ぜない。** 混ぜると、前の状態を保つ側が
     // 永久に固まる（確かめ直しても毎回 unreachable になる）
-    it("設定が壊れていて例外になった回は unreachable にしない", async () => {
-        mockGetCurrentUser.mockImplementation(() => { throw new Error("no pool"); });
+    // **外側の catch は `isUnreachable` を通さない。** 通すと、設定不備で
+    // `TypeError` になる回（このコード自身の壊れ方）を「通信断」と読んで
+    // **前の状態を永久に保ち続ける**（確かめ直すたびに同じ TypeError）。
+    // `Error` だけで見ていた頃は、この2本目が無くても緑だった
+    it.each([
+        ["素の Error", () => { throw new Error("no pool"); }],
+        ["TypeError（この判定が広がったぶん、こちらが要る）", () => { throw new TypeError("x is not a function"); }],
+    ])("設定が壊れて例外になった回は unreachable にしない（%s）", async (_label, boom) => {
+        mockGetCurrentUser.mockImplementation(boom);
+        expect(await lookupSession()).toEqual({ session: null, unreachable: false });
+    });
+
+    // `getSession` が「エラーも session も無し」で返る回（ライブラリの
+    // 契約上ありうる）。ここを unreachable にすると、ログアウト済みの人を
+    // ログイン中の顔のまま留める
+    it("エラーも session も無い回は unreachable にしない", async () => {
+        mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
+        mockGetSession.mockImplementation((cb: (e: null, s: null) => void) => cb(null, null));
         expect(await lookupSession()).toEqual({ session: null, unreachable: false });
     });
 
