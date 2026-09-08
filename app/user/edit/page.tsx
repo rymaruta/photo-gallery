@@ -261,8 +261,6 @@ function EditContent() {
     const [date, setDate] = useState("");
     const [tagsInput, setTagsInput] = useState("");
 
-    // 認証ゲート（一般ユーザー or 管理者）。upload ページと同じ方針。
-    const gate = useMemberGate();
 
     // 対象写真の取得: 公開 /photos/{id} は下書きを404にするため、認証済み /user/photos から探す
     useEffect(() => {
@@ -447,6 +445,25 @@ function EditContent() {
         delete changed.date;
         return Object.keys(changed).length > 0;
     }, [original, coordsTouched, date, buildFields]);
+
+    // 認証ゲート（一般ユーザー or 管理者）。upload ページと同じ方針。
+    // **打ちかけがあるときは送り返させない**——`router.replace` は画面を
+    // 作り直すので、上の未保存の確認を通らずに文章ごと消える。
+    // 送り返さない代わりに、保存できないことを下で伝える
+    const gate = useMemberGate(dirty);
+
+    // **ログインが切れたことを伝える。** 送り返さないぶん、黙っていると
+    // 「保存する」を押しても失敗し続ける画面に取り残される。
+    // 一度だけ出す（描画のたびに出すと読めない）
+    const toldSignedOut = useRef(false);
+    useEffect(() => {
+        if (gate !== "anonymous" || !dirty) { return; }
+        if (toldSignedOut.current) return;
+        toldSignedOut.current = true;
+        showToast(isJa
+            ? "ログインが切れました。この内容は保存できません。別のタブでログインし直してから、もう一度保存してください"
+            : "You are signed out. This can't be saved yet — sign in again in another tab, then save.", "error");
+    }, [gate, dirty, isJa, showToast]);
 
     const save = useCallback(async (published: boolean) => {
         if (!photoId) return;

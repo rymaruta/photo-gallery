@@ -27,7 +27,14 @@ import { loginWithNext } from "../routes";
  */
 export type MemberGate = "loading" | "anonymous" | "no-group" | "ok";
 
-export function useMemberGate(): MemberGate {
+/**
+ * @param hasUnsavedWork 打ちかけの内容があるか。**あるときは送り返さない**
+ *   ——`router.replace` は画面を作り直すので、未保存の確認（`/user/edit` の
+ *   「破棄して戻る」）を通らずに文章ごと消える。ログインが切れた側は
+ *   どのみち保存できないが、**書いたものを消してよい理由にはならない**。
+ *   呼び出し側は「保存できない」ことを画面で伝えること。
+ */
+export function useMemberGate(hasUnsavedWork = false): MemberGate {
     const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
     const router = useRouter();
 
@@ -40,8 +47,9 @@ export function useMemberGate(): MemberGate {
                 : "ok";
 
     useEffect(() => {
-        // 送るのは未ログインのときだけ。ここに no-group を含めると往復に戻る
-        if (state === "anonymous") {
+        // 送るのは未ログインのときだけ。ここに no-group を含めると往復に戻る。
+        // **打ちかけがあるときは送らない**（上のコメントを見よ）
+        if (state === "anonymous" && !hasUnsavedWork) {
             // **push ではなく replace。** push にすると、見られなかった
             // ページが履歴に残る:
             //   [/] [/user/upload] [/login?next=/user/upload]
@@ -51,7 +59,7 @@ export function useMemberGate(): MemberGate {
             // 通せなかったページは履歴に残す意味が無い。
             router.replace(loginWithNext(window.location.pathname + window.location.search));
         }
-    }, [state, router]);
+    }, [state, router, hasUnsavedWork]);
 
     return state;
 }
