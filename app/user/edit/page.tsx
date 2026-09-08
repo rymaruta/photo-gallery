@@ -260,6 +260,11 @@ function EditContent() {
     const [category, setCategory] = useState("");
     const [date, setDate] = useState("");
     const [tagsInput, setTagsInput] = useState("");
+    /**
+     * `dirty`（下で計算する）を effect から読むための写し。
+     * **依存に `dirty` を入れない**——入れると打鍵のたびに写真を取り直す
+     */
+    const dirtyRef = useRef(false);
 
 
     // 対象写真の取得: 公開 /photos/{id} は下書きを404にするため、認証済み /user/photos から探す
@@ -306,15 +311,25 @@ function EditContent() {
                     if (found) {
                         setPhoto(found);
                         setOriginal(found);
-                        setTitle(titleToText(found.title));
-                        setDescription(descToText(found.description));
-                        setLocation(found.location ?? "");
-                        setCoords(found.coords ?? null);
-                        setCategory(found.category ?? "");
-                        // <input type="date"> は YYYY-MM-DD しか受け付けない。
-                        // 保存値は ISO 文字列なので、そのまま入れると空欄になる。
-                        setDate(toDateInputValue(found.date));
-                        setTagsInput(Array.isArray(found.tags) ? found.tags.join(", ") : "");
+                        // **打ちかけがあるなら、欄は上書きしない。**
+                        // この取得は `isAuthenticated` が変わるたびに走る——
+                        // つまり**別のタブでログインし直した瞬間**にも走り、
+                        // 打ちかけをサーバーの値で塗り潰していた。
+                        // 「ログインが切れたので、ログインし直してから保存して
+                        // ください」と案内しておきながら、そのとおりに動いた人の
+                        // 文章を消す形だった（送り返さないようにした意味が無い）。
+                        // `original` は比較先なので**常に**入れ替える
+                        if (!dirtyRef.current) {
+                            setTitle(titleToText(found.title));
+                            setDescription(descToText(found.description));
+                            setLocation(found.location ?? "");
+                            setCoords(found.coords ?? null);
+                            setCategory(found.category ?? "");
+                            // <input type="date"> は YYYY-MM-DD しか受け付けない。
+                            // 保存値は ISO 文字列なので、そのまま入れると空欄になる。
+                            setDate(toDateInputValue(found.date));
+                            setTagsInput(Array.isArray(found.tags) ? found.tags.join(", ") : "");
+                        }
                     } else {
                         showToastRef.current(isJa ? "写真が見つかりません" : "Photo not found", "error");
                         // **replace。** もう無い写真の編集画面を履歴に残すと、
@@ -445,6 +460,8 @@ function EditContent() {
         delete changed.date;
         return Object.keys(changed).length > 0;
     }, [original, coordsTouched, date, buildFields]);
+    useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
+
 
     // 認証ゲート（一般ユーザー or 管理者）。upload ページと同じ方針。
     // **打ちかけがあるときは送り返させない**——`router.replace` は画面を

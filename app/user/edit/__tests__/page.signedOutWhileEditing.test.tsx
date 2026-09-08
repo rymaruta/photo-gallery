@@ -105,3 +105,54 @@ describe("編集中にログインが切れたとき", () => {
         expect(toasts().some((t) => t.includes("ログインが切れました")), "送り返すのに知らせている").toBe(false);
     });
 });
+
+// **案内どおりに動いた人の文章を消していた。**
+// 写真の取得 effect は `isAuthenticated` に依存しているので、別のタブで
+// ログインし直した瞬間にも走り、欄をサーバーの値で塗り潰す。
+// 「ログインし直してから保存してください」と案内しておきながら、
+// そのとおりにすると打ちかけが消える——送り返さないようにした意味が無い。
+describe("留めたあと、ログインし直したとき", () => {
+    it("打ちかけを塗り潰さない", async () => {
+        const { rerender } = await editing();
+        auth.isAuthenticated = false;
+        rerender(<EditPage />);
+        await waitFor(() => expect(toasts().length).toBeGreaterThan(0));
+
+        // 別のタブでログインし直した（storage イベントで isAuthenticated が戻る）
+        auth.isAuthenticated = true;
+        rerender(<EditPage />);
+        await waitFor(() => expect(mockUserFetch.mock.calls.filter((c) => c[0] === "/user/photos").length).toBe(2));
+
+        expect(screen.getByDisplayValue("夕焼けの色"), "ログインし直したら打ちかけが消えた").toBeInTheDocument();
+    });
+
+    it("そのまま保存できる（打ちかけがサーバーへ届く）", async () => {
+        const { rerender } = await editing();
+        auth.isAuthenticated = false;
+        rerender(<EditPage />);
+        await waitFor(() => expect(toasts().length).toBeGreaterThan(0));
+        auth.isAuthenticated = true;
+        rerender(<EditPage />);
+        await waitFor(() => expect(mockUserFetch.mock.calls.filter((c) => c[0] === "/user/photos").length).toBe(2));
+
+        fireEvent.click(screen.getByRole("button", { name: "保存する" }));
+        await waitFor(() => expect(mockUserFetch.mock.calls.some((c) => c[0] === "/photos/p1")).toBe(true));
+        const put = mockUserFetch.mock.calls.find((c) => c[0] === "/photos/p1")!;
+        expect(JSON.parse(String((put[1] as { body: string }).body))).toHaveProperty("title", "夕焼けの色");
+    });
+
+    // 逆向き: **何も直していなければ、取り直した値をそのまま入れる**
+    // （別のタブで直した内容を見せない方が困る）
+    it("打ちかけが無ければ、取り直した値で欄を作り直す", async () => {
+        render(<EditPage />);
+        await screen.findByDisplayValue("夕焼け");
+
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => [{ ...photo, title: "別のタブで直した題" }] });
+        auth.isAuthenticated = false;
+        render(<EditPage />);
+        auth.isAuthenticated = true;
+        render(<EditPage />);
+
+        await waitFor(() => expect(screen.getAllByDisplayValue("別のタブで直した題").length).toBeGreaterThan(0));
+    });
+});
