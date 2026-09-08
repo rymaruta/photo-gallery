@@ -9,6 +9,7 @@
 // タッチ端末ではスクロールと競合するため従来どおり画面下に固定する。
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { safeSongArtworkUrl } from "../../lib/utils/mediaHosts";
 import { PlayIcon, PauseIcon, ForwardIcon, BackwardIcon } from "@heroicons/react/24/solid";
 import { XMarkIcon, MusicalNoteIcon, ArrowsRightLeftIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 import { useMusic } from "../music/MusicContext";
@@ -160,7 +161,7 @@ export default function MiniPlayer() {
                         <div className="relative w-9 h-9 rounded-lg overflow-hidden bg-white/10 flex-shrink-0">
                             {current.artwork ? (
                                 // eslint-disable-next-line @next/next/no-img-element
-                                <img src={current.artwork} alt="" className="w-full h-full object-cover" draggable={false} />
+                                <img src={safeSongArtworkUrl(current.artwork)} alt="" className="w-full h-full object-cover" draggable={false} />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center">
                                     <MusicalNoteIcon className="w-4 h-4 text-white/30" />

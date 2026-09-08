@@ -5,6 +5,7 @@
 // ここから再生した曲は、ページを移動してもミニプレイヤーで流れ続ける。
 
 import React, { useEffect } from "react";
+import { safeSongArtworkUrl, safeSongTrackUrl } from "../../lib/utils/mediaHosts";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import { MusicalNoteIcon } from "@heroicons/react/24/outline";
 import { useMusic, type SongEntry } from "../music/MusicContext";
@@ -48,7 +49,7 @@ export default function MusicCard({ queueKey, songs, label, locale, autoPlay = f
                 <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-white/10 flex-shrink-0 ring-1 ring-white/10">
                     {cur.artwork ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={cur.artwork} alt="" className="w-full h-full object-cover" />
+                        <img src={safeSongArtworkUrl(cur.artwork)} alt="" className="w-full h-full object-cover" />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center">
                             <MusicalNoteIcon className="w-6 h-6 text-white/30" />
@@ -57,7 +58,7 @@ export default function MusicCard({ queueKey, songs, label, locale, autoPlay = f
                 </div>
                 <div className="min-w-0 flex-1">
                     {cur.trackUrl ? (
-                        <a href={cur.trackUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-white truncate block hover:underline">{cur.title}</a>
+                        <a href={safeSongTrackUrl(cur.trackUrl)} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-white truncate block hover:underline">{cur.title}</a>
                     ) : (
                         <p className="text-sm font-semibold text-white truncate">{cur.title}</p>
                     )}

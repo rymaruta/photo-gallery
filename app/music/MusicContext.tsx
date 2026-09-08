@@ -6,6 +6,7 @@
 // 画面下のミニプレイヤー（MiniPlayer）に常駐表示される。
 
 import React, { createContext, useCallback, useContext, useRef, useState } from "react";
+import { safeSongPreviewUrl } from "../../lib/utils/mediaHosts";
 
 export type SongEntry = {
     title: string;
@@ -161,7 +162,14 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
             {current && (
                 <audio
                     ref={audioRef}
-                    src={current.previewUrl}
+                    // **出すときにも確かめる。** サーバーの許可リストは
+                    // これから保存する値にしか効かず、許可リストを入れる前に
+                    // 保存された行は任意のホストのまま残りうる（本番を読めない
+                    // ので実態は未確認）。`preload` で取りに行くと、開いた人の
+                    // IP・User-Agent・時刻が外部へ渡る。**ここはこのサイトで
+                    // 唯一の `<audio>`** なので、プロフィール・写真BGM・
+                    // ストーリーの全部がここを通る
+                    src={safeSongPreviewUrl(current.previewUrl) ?? undefined}
                     preload="none"
                     onEnded={() => {
                         if (st.repeatOne) {

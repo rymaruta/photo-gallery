@@ -1,5 +1,4 @@
 import { usableObject, displayString, stringList } from "./apiRows";
-import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 
 /** プロフィールに載る曲。2画面が同じ形を持っている（型は各画面に置いたまま） */
 type SongEntry = {
@@ -44,14 +43,9 @@ export function sanitizeProfile<T extends object>(raw: unknown, label: string): 
         return {
             title: displayString(o.title) ?? "",
             artist: displayString(o.artist),
-            // **URL は出すときにも確かめる。** サーバーの許可リストは
-            // これから保存する値にしか効かず、**許可リストを入れる前に
-            // 保存された行**は任意のホストのまま残りうる（本番を読めないので
-            // 実態は未確認）。画面はそれを `<img src>` `<audio src>` で
-            // 読み込むので、開いた人の IP・User-Agent・時刻が外部に渡る
-            artwork: safeSongArtworkUrl(displayString(o.artwork)),
-            previewUrl: safeSongPreviewUrl(displayString(o.previewUrl)) ?? "",
-            trackUrl: safeSongTrackUrl(displayString(o.trackUrl)),
+            artwork: displayString(o.artwork),
+            previewUrl: displayString(o.previewUrl) ?? "",
+            trackUrl: displayString(o.trackUrl),
         };
     };
     return {
@@ -64,11 +58,11 @@ export function sanitizeProfile<T extends object>(raw: unknown, label: string): 
         instagram: displayString(obj.instagram),
         statusText: displayString(obj.statusText),
         themeColor: displayString(obj.themeColor),
-        songUrl: safeSongTrackUrl(displayString(obj.songUrl)),
+        songUrl: displayString(obj.songUrl),
         songTitle: displayString(obj.songTitle),
         songArtist: displayString(obj.songArtist),
-        songArtwork: safeSongArtworkUrl(displayString(obj.songArtwork)),
-        songPreviewUrl: safeSongPreviewUrl(displayString(obj.songPreviewUrl)),
+        songArtwork: displayString(obj.songArtwork),
+        songPreviewUrl: displayString(obj.songPreviewUrl),
         songTrackUrl: displayString(obj.songTrackUrl),
         // 曲は**件数を変えない**（1曲だけ形がおかしくても、残りの並びは
         // そのまま）。中の文字列だけ整える
