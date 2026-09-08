@@ -20,7 +20,13 @@ vi.mock("../../../auth/context", () => ({ useAuth: () => authState.current }));
 vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
 vi.mock("../../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
 vi.mock("../../../components/AddToHomeScreenHint", () => ({ default: () => null }));
-vi.mock("../../../../lib/auth/cognito", () => ({ getCurrentSession: vi.fn(async () => null) }));
+// **`lookupSession` も模す。** `userFetch` はこちらでトークンを引く
+// （`getCurrentSession` だけ差し替えても入口を支配できない）。
+// 同じ答えを包んだ形にして、このファイルが守っている性質は変えない
+vi.mock("../../../../lib/auth/cognito", () => {
+    const getCurrentSession = vi.fn(async () => null);
+    return { getCurrentSession, lookupSession: async () => ({ session: await getCurrentSession(), unreachable: false }) };
+});
 vi.mock("../../../../lib/utils/shareStore", () => ({
     // 受け皿は開けたが中身が無い（＝共有経由ではない通常の表示）
     readSharedResult: vi.fn(async () => ({ ok: true, payload: null })),

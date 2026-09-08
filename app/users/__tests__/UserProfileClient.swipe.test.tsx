@@ -6,7 +6,13 @@ import { render, screen, fireEvent } from "@testing-library/react";
 vi.mock("next/dynamic", () => ({ default: () => () => <div data-testid="dynamic-stub" /> }));
 vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "en" }) }));
 vi.mock("../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
-vi.mock("../../../lib/auth/cognito", () => ({ getCurrentSession: vi.fn().mockResolvedValue(null) }));
+// **`lookupSession` も模す。** `userFetch` はこちらでトークンを引く
+// （`getCurrentSession` だけ差し替えても入口を支配できない）。
+// 同じ答えを包んだ形にして、このファイルが守っている性質は変えない
+vi.mock("../../../lib/auth/cognito", () => {
+    const getCurrentSession = vi.fn().mockResolvedValue(null);
+    return { getCurrentSession, lookupSession: async () => ({ session: await getCurrentSession(), unreachable: false }) };
+});
 // 実物から足りない export を引き継ぐ（loadError 側と同じ理由）。
 // userPublicFetch すらモックしていなかったが、この画面の経路では
 // 一度も読まれないので通っていただけ。
