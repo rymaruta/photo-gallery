@@ -40,7 +40,7 @@ const saved = () => commands
 
 beforeEach(() => {
     commands.length = 0;
-    mockSend.mockReset().mockImplementation((cmd: { constructor: { name: string } }) =>
+    mockSend.mockReset().mockImplementation(() =>
         commands[commands.length - 1]?.type === "Get"
             ? Promise.resolve({ Item: marshall({ userId: "u1", displayName: "旅人" }, { removeUndefinedValues: true }) })
             : Promise.resolve({}));
