@@ -68,7 +68,12 @@ describe("曲の URL は出すときにも確かめる", () => {
 
 // `<audio>` はこのサイトに1つだけ（`MusicContext`）。プロフィール・
 // 写真BGM・ストーリーの全部がここを通る
-describe("音源はこのサイトで唯一の <audio> を通る", () => {
+// **「唯一の `<audio>`」ではない。** ストーリーは自前の
+// `<audio preload="auto">` を持つ（`StoryViewer`）。ここが受け持つのは
+// プロフィールの曲と写真BGM——最初この前提を `grep` せずに書いて、
+// **自分のコメントが最悪ケースと名指しした経路（ストーリー）を
+// 塞がないまま「全部ここを通る」と書いた**
+describe("プロフィール・写真BGM の音源（MusicContext の <audio>）", () => {
     it("許可していないホストの音源は読み込まない", async () => {
         const { useMusic } = await import("../../music/MusicContext");
         // **1回だけ鳴らす。** `music` は再生のたびに新しくなるので、
@@ -85,7 +90,9 @@ describe("音源はこのサイトで唯一の <audio> を通る", () => {
         }
         render(<MusicProvider><Play song={EVIL} /></MusicProvider>);
         const audio = document.querySelector("audio");
-        expect(audio?.getAttribute("src") ?? "", "外部の音源を先読みしている").not.toContain("evil.example");
+        // **`src=""` では駄目。** 空の src は「現在のページを取り直す」
+        // ので、属性そのものが無いことを見る
+        expect(audio?.hasAttribute("src"), "空の src を残している（現在のページを取り直す）").toBe(false);
     });
 
     it("Apple のホストの音源は読み込む", async () => {
@@ -104,5 +111,47 @@ describe("音源はこのサイトで唯一の <audio> を通る", () => {
         }
         render(<MusicProvider><Play song={APPLE} /></MusicProvider>);
         expect(document.querySelector("audio")?.getAttribute("src")).toBe(APPLE.previewUrl);
+    });
+});
+
+// **用途ごとに分けた許可リストが、画面側では1つも縛られていなかった。**
+// `is1-ssl.mzstatic.com` は音源にもアートワークにも通るので、
+// 取り違えても気づけない（サーバー側のテストは縛っている）
+describe("用途を取り違えない", () => {
+    it("アートワークの欄に音源のホストを入れたら落とす", () => {
+        renderCard({ ...APPLE, artwork: "https://audio-ssl.itunes.apple.com/p.m4a" });
+        expect(document.querySelector("img")?.getAttribute("src") ?? "",
+            "音源のホストをアートワークとして読み込んでいる").not.toContain("audio-ssl");
+    });
+});
+
+// MiniPlayer のアートワークも同じ（確認を戻す変異が素通りしていた）
+describe("MiniPlayer のアートワーク", () => {
+    async function playThen(song: typeof APPLE) {
+        const { useMusic } = await import("../../music/MusicContext");
+        const MiniPlayer = (await import("../MiniPlayer")).default;
+        function Play() {
+            const music = useMusic();
+            const done = React.useRef(false);
+            React.useEffect(() => {
+                if (done.current) return;
+                done.current = true;
+                music.play("q", [song], 0, "BGM");
+            }, [music]);
+            return null;
+        }
+        render(<MusicProvider><Play /><MiniPlayer /></MusicProvider>);
+    }
+
+    it("許可していないホストのアートワークは読み込まない", async () => {
+        await playThen(EVIL);
+        const srcs = Array.from(document.querySelectorAll("img")).map((i) => i.getAttribute("src") ?? "");
+        expect(srcs.join(" "), "外部の画像を読み込んでいる").not.toContain("evil.example");
+    });
+
+    it("Apple のホストは出す", async () => {
+        await playThen(APPLE);
+        const srcs = Array.from(document.querySelectorAll("img")).map((i) => i.getAttribute("src") ?? "");
+        expect(srcs.join(" ")).toContain("is1-ssl.mzstatic.com");
     });
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { usableRows } from "../../../lib/utils/apiRows";
+import { safeSongPreviewUrl } from "../../../lib/utils/mediaHosts";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
 import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon, PhotoIcon } from "@heroicons/react/24/outline";
@@ -475,7 +476,14 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 <audio
                     key={`audio-${item.id}`}
                     ref={audioRef}
-                    src={item.song.previewUrl}
+                    // **出すときにも確かめる。** サーバーの許可リストは
+                    // これから保存する値にしか効かず、許可リスト以前の行は
+                    // 任意のホストのまま残りうる。しかもここは
+                    // `preload="auto"`＝**開いた瞬間に取りに行く**うえ、
+                    // ストーリーはログイン中の全員のトレイに出る
+                    // ——`mediaHosts.ts` のコメントが最悪ケースとして
+                    // 名指ししているのがこの経路
+                    src={safeSongPreviewUrl(item.song.previewUrl)}
                     muted
                     preload="auto"
                     // 指定された「好きな部分」から繰り返す（loop属性だと必ず0秒に戻ってしまう）
