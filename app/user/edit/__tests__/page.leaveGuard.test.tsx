@@ -100,6 +100,7 @@ describe("/user/edit: 未保存のまま戻る", () => {
             ["海の色が変わる時間", "海の色が変わる"],
             ["江ノ島", "鎌倉"],
             ["旅, 海", "旅"],
+            ["landscape", "portrait"],
             ["2024-11-01", "2024-11-02"],
         ] as const) {
             const el = screen.getByDisplayValue(current);
@@ -160,5 +161,48 @@ describe("/user/edit: 未保存のまま戻る", () => {
         fireEvent.keyDown(document, { key: "Escape" });
         await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
         expect(screen.getByDisplayValue("夕焼けの色")).toBeInTheDocument();
+    });
+    // **移行が要る行を、毎回「変わった」と言わない。** 保存の側は
+    // 捏造の UTC 0時（C-12）をわざと日付だけへ倒すので、その行は開いた
+    // 瞬間から差分ありになる。触っていないのに毎回聞かれると、利用者は
+    // 読まずに押すようになる
+    it("捏造の UTC 0時で保存されている写真でも、触らなければ止めない", async () => {
+        mockUserFetch.mockReset().mockResolvedValue({
+            ok: true, json: async () => [{ ...photo, date: "2024-11-01T00:00:00.000Z" }],
+        });
+        render(<EditPage />);
+        await screen.findByDisplayValue("夕焼け");
+        await waitFor(() => expect(screen.getByDisplayValue("2024-11-01")).toBeInTheDocument());
+        expect(fireEvent.click(backLink()), "触っていないのに止めている").toBe(true);
+    });
+
+    it("その写真でも、日付を直したら止める", async () => {
+        mockUserFetch.mockReset().mockResolvedValue({
+            ok: true, json: async () => [{ ...photo, date: "2024-11-01T00:00:00.000Z" }],
+        });
+        render(<EditPage />);
+        const el = await screen.findByDisplayValue("2024-11-01");
+        fireEvent.change(el, { target: { value: "2024-11-02" } });
+        expect(fireEvent.click(backLink()), "日付を直したのに止めていない").toBe(false);
+    });
+
+    it("オーバーレイを押しても閉じる（打ったものは残る）", async () => {
+        const title = await loaded();
+        fireEvent.change(title, { target: { value: "夕焼けの色" } });
+        fireEvent.click(backLink());
+        fireEvent.click(await screen.findByRole("dialog"));
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+        expect(screen.getByDisplayValue("夕焼けの色")).toBeInTheDocument();
+        expect(mockPush, "閉じただけなのに移動している").not.toHaveBeenCalled();
+    });
+
+    it("破棄して戻ったら、確認は閉じる", async () => {
+        const title = await loaded();
+        fireEvent.change(title, { target: { value: "夕焼けの色" } });
+        fireEvent.click(backLink());
+        fireEvent.click(await screen.findByRole("button", { name: "破棄して戻る" }));
+        // 遷移で消えるとは限らない（同じ画面に留まる経路もある）。
+        // 開きっぱなしだと、行き先の上に確認シートが残って見える
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     });
 });

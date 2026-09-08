@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { toDateInputValue, mergeDate, todayForDateInput } from "../dateInput";
 
 // 背景: <input type="date"> に ISO 文字列を渡すと黙って空欄になる。
@@ -84,6 +84,49 @@ describe("todayForDateInput", () => {
             expect(todayForDateInput(d), "UTC の日付を出している").toBe("2026-09-07");
         } finally {
             if (prev === undefined) delete process.env.TZ; else process.env.TZ = prev;
+        }
+    });
+});
+
+// **端末のタイムゾーンで、撮影時刻が黙って落ちていた。**
+// EXIF 由来の撮影日時は `exifWallClock` が「書いてあるとおりの壁時計」
+// （`2024-11-01T07:30:00`・ゾーン指定なし）で保存する——`toISOString` を
+// 使うと端末のゾーンぶん平行移動するから、というのがその関数の存在理由。
+// ところが `mergeDate` の同日判定が `Date.parse` + `toISOString` で、
+// **ゾーン無しの文字列を端末のゾーンで解釈する**ので、同じずれを
+// 画面側で作り直していた。日付を1文字も触らずに保存すると時刻が消える。
+describe("mergeDate: 端末のタイムゾーンで結果が変わらない", () => {
+    const TZS = ["Asia/Tokyo", "UTC", "America/New_York"];
+    afterEach(() => { delete process.env.TZ; });
+
+    // JST では 00:00〜08:59、ニューヨークでは 19:00〜23:59 が UTC で別の日になる
+    it.each(["2024-11-01T07:30:00", "2024-11-01T20:30:00", "2024-11-01T12:00:00"])(
+        "%s は、どのゾーンでも時刻ごと保たれる", (stored) => {
+            for (const tz of TZS) {
+                process.env.TZ = tz;
+                expect(mergeDate(stored, toDateInputValue(stored)), `${tz} で時刻が落ちた`).toBe(stored);
+            }
+        });
+
+    it("日付を変えたら、どのゾーンでも新しい日付だけになる", () => {
+        for (const tz of TZS) {
+            process.env.TZ = tz;
+            expect(mergeDate("2024-11-01T07:30:00", "2024-11-02")).toBe("2024-11-02");
+        }
+    });
+
+    // 捏造の UTC 0時（C-12）は今までどおり日付だけへ移行する
+    it("UTC 0時ちょうどは、どのゾーンでも日付だけに直す", () => {
+        for (const tz of TZS) {
+            process.env.TZ = tz;
+            expect(mergeDate("2024-11-01T00:00:00.000Z", "2024-11-01")).toBe("2024-11-01");
+        }
+    });
+
+    it("本物の Z 付きは、どのゾーンでも保たれる", () => {
+        for (const tz of TZS) {
+            process.env.TZ = tz;
+            expect(mergeDate("2024-11-01T22:30:00.000Z", "2024-11-01")).toBe("2024-11-01T22:30:00.000Z");
         }
     });
 });

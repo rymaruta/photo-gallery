@@ -435,9 +435,18 @@ function EditContent() {
     const dirty = React.useMemo(() => {
         if (!original) return false;
         if (coordsTouched) return true;
+        // **日付だけは「欄に出した値と、いま欄にある値」で見る。**
+        // 保存の側は `mergeDate` を通すが、あれは捏造の UTC 0時（C-12）を
+        // わざと日付だけへ移行するので、**移行が要る行は開いた瞬間から
+        // 「変わった」**になる。触っていないのに毎回聞かれると、利用者は
+        // 読まずに押すようになり、確認そのものが意味を失う。
+        // 「送るべきか」と「触ったか」は別の問いなので、ここだけ分ける。
+        if (date !== toDateInputValue(original.date)) return true;
         const { nextFields, originalFields } = buildFields();
-        return Object.keys(changedFields(nextFields, originalFields)).length > 0;
-    }, [original, coordsTouched, buildFields]);
+        const changed = changedFields(nextFields, originalFields);
+        delete changed.date;
+        return Object.keys(changed).length > 0;
+    }, [original, coordsTouched, date, buildFields]);
 
     const save = useCallback(async (published: boolean) => {
         if (!photoId) return;
