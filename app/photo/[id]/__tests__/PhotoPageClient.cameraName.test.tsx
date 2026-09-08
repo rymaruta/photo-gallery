@@ -27,7 +27,7 @@ vi.mock("../../../components/RelatedPhotos", () => ({ default: () => null }));
 vi.mock("../../../components/ProfileLink", () => ({ default: () => null }));
 vi.mock("../../../components/MusicCard", () => ({ default: () => null }));
 vi.mock("../../../../lib/hooks/usePhotoLikes", () => ({
-    usePhotoLikes: () => ({ liked: false, count: 0, pending: false, toggle: vi.fn() }),
+    usePhotoLikes: () => ({ liked: false, count: 0, pending: false, toggle: vi.fn(async () => ({ ok: true })) }),
 }));
 
 const PhotoPageClient = (await import("../PhotoPageClient")).default;

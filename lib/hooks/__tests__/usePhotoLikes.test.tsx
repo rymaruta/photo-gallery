@@ -451,6 +451,71 @@ describe("usePhotoLikes: 断られた理由を運ぶ", () => {
         expect(r?.message, "英語の技術文字列を運んでいる").toBeUndefined();
     });
 
+    // **いちばん多いのは例外ではなく 401。** トークンをローカルで取れない
+    // 回だけが例外で、期限切れのトークンで投げた回は 401 の応答として返る。
+    // `readApiError` はそれを「セッションの有効期限が切れています…」に
+    // 置き換える——`useFollow` / `useComments` は前からこれを通している
+    it("401 は「セッションの有効期限が切れています」を運ぶ", async () => {
+        const { SESSION_EXPIRED_MESSAGE } = await import("../../utils/api");
+        mockUserFetch.mockResolvedValue({ ok: false, status: 401, json: async () => ({ message: "Unauthorized" }) });
+        const { result } = renderHook(() => usePhotoLikes("p1", 3, true));
+        let r: { ok: boolean; message?: string } | undefined;
+        await act(async () => { r = await result.current.toggle(); });
+        expect(r?.message, "サーバーが言っている理由を捨てている").toBe(SESSION_EXPIRED_MESSAGE);
+    });
+
+    it("サーバーが日本語の理由を返したら、それを運ぶ", async () => {
+        mockUserFetch.mockResolvedValue({ ok: false, status: 403, json: async () => ({ error: "この写真にはいいねできません" }) });
+        const { result } = renderHook(() => usePhotoLikes("p1", 3, true));
+        let r: { ok: boolean; message?: string } | undefined;
+        await act(async () => { r = await result.current.toggle(); });
+        expect(r?.message).toBe("この写真にはいいねできません");
+    });
+
+    it("理由の無い失敗は運ばない（画面が既定文を出す）", async () => {
+        mockUserFetch.mockResolvedValue({ ok: false, status: 500, json: async () => { throw new SyntaxError("<"); } });
+        const { result } = renderHook(() => usePhotoLikes("p1", 3, true));
+        let r: { ok: boolean; message?: string } | undefined;
+        await act(async () => { r = await result.current.toggle(); });
+        expect(r?.ok).toBe(false);
+        expect(r?.message, "空文字を運ぶと空のトーストが出る").toBeUndefined();
+    });
+
+    // **押していない3経路は「失敗」ではない。** まとめて書き換えたので、
+    // 1つ反転しても誰も気づかない状態だった。とくに未ログインが反転すると、
+    // 訪問者がハートを押すたびに赤いトーストが出る
+    it("未ログインで押しても失敗にしない（サーバーへ送っていない）", async () => {
+        const { result } = renderHook(() => usePhotoLikes("p1", 3, false));
+        let r: { ok: boolean } | undefined;
+        await act(async () => { r = await result.current.toggle(); });
+        expect(r?.ok, "未ログインを失敗として伝えている").toBe(true);
+        expect(mockUserFetch).not.toHaveBeenCalled();
+    });
+
+    it("ログイン状態が確定する前に押しても失敗にしない", async () => {
+        const { result } = renderHook(() => usePhotoLikes("p1", 3, false, true));
+        let r: { ok: boolean } | undefined;
+        await act(async () => { r = await result.current.toggle(); });
+        expect(r?.ok).toBe(true);
+        expect(mockUserFetch).not.toHaveBeenCalled();
+    });
+
+    it("押している最中の二度押しも失敗にしない", async () => {
+        let release: (() => void) | null = null;
+        mockUserFetch.mockImplementation(() => new Promise((res) => {
+            release = () => res({ ok: true, json: async () => ({ liked: true, likes: 4 }) });
+        }));
+        const { result } = renderHook(() => usePhotoLikes("p1", 3, true));
+        let second: { ok: boolean } | undefined;
+        await act(async () => {
+            const first = result.current.toggle();
+            second = await result.current.toggle();   // まだ返っていない間に押す
+            release?.();
+            await first;
+        });
+        expect(second?.ok, "二度押しを失敗として伝えている").toBe(true);
+    });
+
     it("成功したら文言は無い", async () => {
         mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ liked: true, likes: 4 }) });
         const { result } = renderHook(() => usePhotoLikes("p1", 3, true));

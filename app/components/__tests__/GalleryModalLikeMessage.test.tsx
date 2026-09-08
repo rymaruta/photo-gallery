@@ -36,14 +36,20 @@ beforeEach(() => {
     mockUserFetch.mockReset();
 });
 
-/** ハートを押して、出たトーストの文言を返す */
-async function likeWith(err: unknown) {
+/** いいねを失敗させる。押し方は呼び出し側が決める（3経路ある） */
+async function mounted(err: unknown) {
     mockUserFetch.mockImplementation((path: string) =>
         String(path).includes("/like") && !String(path).startsWith("/user/likes/")
             ? Promise.reject(err)
             : Promise.resolve({ ok: true, json: async () => ({ liked: false }) }));
     render(<GalleryModal photos={photos} currentIndex={0} onClose={vi.fn()} onNext={vi.fn()} onPrev={vi.fn()} locale="ja" />);
-    fireEvent.click(await screen.findByRole("button", { name: "お気に入りに追加" }));
+    return await screen.findByRole("button", { name: "お気に入りに追加" });
+}
+/** 出たトーストを `種類:文言` で（**種類も見る**——失敗を緑で出しても気づけない） */
+const toasts = () => mockShowToast.mock.calls.map((c) => `${String(c[1] ?? "success")}:${String(c[0])}`);
+
+async function likeWith(err: unknown) {
+    fireEvent.click(await mounted(err));
     await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
     return String(mockShowToast.mock.calls[0][0]);
 }
@@ -60,5 +66,30 @@ describe("モーダルのいいね: 断られた理由を出す", () => {
     it("理由の分からない失敗は、今までどおりの案内", async () => {
         expect(await likeWith(new TypeError("Failed to fetch")))
             .toContain("いいねを保存できませんでした");
+    });
+});
+
+// **押す道は3つある**（ボタン・ダブルタップ・キーボード `h`）。
+// 上のテストはボタンだけなので、残り2つは `.then(notifyIfLikeFailed)` を
+// 落としても素通りしていた
+describe("モーダルのいいね: どの押し方でも理由を出す", () => {
+    it("ダブルタップでも出す", async () => {
+        await mounted(new Error(AUTH_REQUIRED_MESSAGE));
+        // 判定は **click の座標**（`handleImageTap`）。350ms 以内かつ 40px 以内
+        const img = document.querySelector("img")!;
+        fireEvent.click(img, { clientX: 10, clientY: 10 });
+        fireEvent.click(img, { clientX: 12, clientY: 12 });
+        await waitFor(() => expect(toasts()).toContain(`error:${AUTH_REQUIRED_MESSAGE}`));
+    });
+
+    it("キーボード（h）でも出す", async () => {
+        await mounted(new Error(AUTH_REQUIRED_MESSAGE));
+        fireEvent.keyDown(document, { key: "h" });
+        await waitFor(() => expect(toasts()).toContain(`error:${AUTH_REQUIRED_MESSAGE}`));
+    });
+
+    it("知らせは赤（失敗を緑で出さない）", async () => {
+        await likeWith(new Error(AUTH_REQUIRED_MESSAGE));
+        expect(toasts()[0].startsWith("error:"), "失敗を成功として出している").toBe(true);
     });
 });

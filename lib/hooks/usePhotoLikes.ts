@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFavorites } from "./useFavorites";
-import { userPublicFetch, userFetch, isGoneResponse } from "../utils/api";
+import { userPublicFetch, userFetch, isGoneResponse, sessionErrorMessage, readApiError } from "../utils/api";
 import { log } from "../utils/log";
-import { sessionErrorMessage } from "../utils/api";
 
 // 写真の「いいね」。ハート1つで2つの役割を担う:
 //   - liked（塗りつぶし状態）と /favorites への収集 … 端末ローカル（useFavorites）
@@ -105,7 +104,9 @@ export function usePhotoLikes(
     }, [photoId, isAuthenticated, authLoading]);
 
     /**
-     * ハートを押す。**失敗したら false を返す**（呼び出し元が伝える）。
+     * ハートを押す。**失敗したら `{ ok: false }`**（呼び出し元が伝える）。
+     * サーバーが理由を言っている回・押し直しても直らない回は `message` に
+     * 載せる（呼び出し元は `message ?? 既定文`）。
      * 以前は log.warn だけで黙ってロールバックしていたので、押した人には
      * 「付いたハートが黙って戻る」だけに見えた——フォローは文言を出すのに
      * いいねだけ無言、という非対称でもあった（SW-b4）。
@@ -116,7 +117,7 @@ export function usePhotoLikes(
         // 「未ログイン」扱いになってサーバーへ届かない。
         if (authLoading) return { ok: true };
         let failed = false;
-        /** 押し直しても直らない失敗の文言（セッション切れ・通信できない） */
+        /** そのまま画面に出してよい理由（サーバーの文言・セッション切れ・通信できない） */
         let message: string | undefined;
         busyRef.current = true;
         setPending(true);
@@ -217,6 +218,16 @@ export function usePhotoLikes(
                 // を載せる必要があるので、ここでは**直していない**。
                 if (stillSamePhoto()) setServerLiked(false);
             } else {
+                // **サーバーが言っている理由を捨てない。** ここを読まずに
+                // いたので、**いちばん多いセッション切れ（API Gateway の
+                // 401）** が「もう一度お試しください」になっていた
+                // ——`readApiError` は 401 を「セッションの有効期限が切れて
+                // います。ログインし直してください」に置き換える。
+                // `useFollow` / `useComments` は前からこれを通している
+                // （直前のコミットで「対の乖離を直した」と書いたが、
+                //   直っていたのは例外の側だけだった）。
+                // 既定文は呼び出し側が持つので、ここでは空にして落とす
+                message = (await readApiError(res, "")) || undefined;
                 // 失敗 → 楽観更新を巻き戻す
                 if (didToggleFavorite) toggleFavorite(photoId);
                 if (stillSamePhoto()) {

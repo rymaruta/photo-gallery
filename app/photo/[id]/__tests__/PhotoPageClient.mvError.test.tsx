@@ -138,9 +138,9 @@ describe("いいね・曲検索の失敗が画面に出る", () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={photo} />);
         await userEvent.click(await screen.findByRole("button", { name: /いいね|Like/ }));
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(AUTH_REQUIRED_MESSAGE, "error"));
-        expect(mockShowToast.mock.calls.map((c) => String(c[0])),
-            "理由があるのに既定文で塗り潰している").not.toContain(
-            expect.stringContaining("いいねを保存できませんでした"));
+        // **`toContain` に非対称マッチャを渡すと必ず通る**（要素を `===` で
+        // 比べるため）ので、回数で見る。既定文も一緒に出す変異が素通りしていた
+        expect(mockShowToast, "理由と既定文を両方出している").toHaveBeenCalledTimes(1);
     });
 
     it("曲検索が失敗したら理由を出す（SW-b6 の配線）", async () => {
