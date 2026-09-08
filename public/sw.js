@@ -35,8 +35,16 @@ const CACHE_NAME = `journey-photo-${CACHE_VERSION}`;
  * 同じ入れ物にすると、写真を数十枚見ただけで受け皿（`offline.html`）と
  * `_next/static` を押し出す——「一度見たページが開く」という元の目的が
  * 崩れる（`trimCache` の説明にある事故と同じ形）。数え方も追い出しも別。
+ *
+ * **バージョンも別にする（`CACHE_VERSION` を混ぜない）。** ページの控えは
+ * 刻印（`x-sw-cached-at`）の形式が変わりうるので版上げで捨ててよいが、
+ * 写真は uuid のURLで中身が変わらないので、捨てる理由が無い。混ぜると
+ * ページ側の都合で版を上げた瞬間に**全端末の写真の控えが消える**
+ * （機内モードで「枠だけ」に逆戻り）。ここを上げるのは、控え方そのものを
+ * 変えたときだけ。
  */
-const IMG_CACHE_NAME = `journey-photo-img-${CACHE_VERSION}`;
+const IMG_CACHE_VERSION = "v1";
+const IMG_CACHE_NAME = `journey-photo-img-${IMG_CACHE_VERSION}`;
 
 /**
  * 写真の控えの上限（件数）。
@@ -282,10 +290,19 @@ async function handleNavigate(request) {
     }
 }
 
-/** ハッシュ名の資産だけキャッシュ優先（古いものを返しようがない） */
+/**
+ * ハッシュ名の資産だけキャッシュ優先（古いものを返しようがない）。
+ *
+ * 読み出しが投げたら素通しに倒す。ここが投げると `_next/static` が
+ * 返らず、**サイトごと止まる**（「表示はされるが一切タップできない」）。
+ */
 async function handleImmutable(request) {
-    const cached = await caches.match(request);
-    if (cached) return cached;
+    try {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+    } catch {
+        // 控えを読めない端末では、ただの素通しとして扱う
+    }
     const res = await fetch(request);
     if (isStorable(res)) {
         const copy = res.clone();
@@ -305,18 +322,25 @@ async function handleImmutable(request) {
  * **ホスト名では判定しない。** この SW は `public/` に置く素のファイルで、
  * ビルド時に環境変数（`NEXT_PUBLIC_CLOUDFRONT_URL`）を埋め込めない。
  * 代わりに「画像として要求されていて、うちが組み立てるパスの形」で見る
- * ——`uploads/<sub>/…`（写真の実体・サムネ）と `profiles/<sub>`
- * （アバター・カバー）はどちらも `lib/utils/uploadPolicy.ts` と
- * `UserAvatar.tsx` が組み立てる形。
+ * ——`uploads/<sub>/…`（写真の実体・サムネ）は
+ * `lib/utils/uploadPolicy.ts` が組み立てる形で、**キーが uuid**。
  *
- * これで曲のアートワーク（`is1-ssl.mzstatic.com/image/…`）や計測の画像は
+ * **アバター・カバー（`profiles/<sub>`）は入れない。** あちらは
+ * uuid ではなく**固定キーで中身だけ差し替わる**（`api-user/src/profile.ts`
+ * が `CacheControl: "no-store"` を付け、アップロード側も PUT に同じものを
+ * 付けている＝アプリが2か所で「キャッシュさせない」と明示している）。
+ * 表示側に `?v=` は無いので、ここで控えるとアイコンを変えても
+ * **差し替えが一生届かない**（Cache API は Cache-Control を見ない）。
+ * カバーまで機内モードで出したいなら、先に表示側へ更新時刻を通すこと。
+ *
+ * これで曲のアートワーク（`is1-ssl.mzstatic.com/image/…`）や計測の画像も
  * 入らない。**手を出す先を最小にする**（触らなければ壊せない）。
  */
 function isPhotoRequest(request, url) {
     if (request.destination !== "image") return false;
     // 素のHTTPは扱わない（本番は CloudFront の https だけ）
     if (url.protocol !== "https:") return false;
-    return url.pathname.startsWith("/uploads/") || url.pathname.startsWith("/profiles/");
+    return url.pathname.startsWith("/uploads/");
 }
 
 /**
@@ -361,23 +385,38 @@ async function trimImages(cache, max) {
  *
  * 控えるのは**応答を返したあと**。`await` してから返すと、機内モードの
  * 準備のために毎回の表示を遅らせることになる。
+ *
+ * **Cache Storage が投げても素通しに倒す。** ここが投げると
+ * `respondWith` に渡した Promise ごと落ちて、ネットワークが生きていても
+ * 写真が1枚も出ない（`fetch` にすら行かない）。
  */
 async function handlePhoto(request) {
-    const cached = await caches.match(request, { cacheName: IMG_CACHE_NAME });
-    if (cached) return cached;
+    try {
+        const cached = await caches.match(request, { cacheName: IMG_CACHE_NAME });
+        if (cached) return cached;
+    } catch {
+        // 控えを読めない端末では、ただの素通しとして扱う
+    }
     const res = await fetch(request);
     if (isStorablePhoto(res)) {
         const copy = res.clone();
+        // **やり直す用の写しを、1回目の put の前に取っておく。**
+        // `Cache.put` は中身を読み切るので、失敗したあとの `copy` は
+        // 使用済み（disturbed）で、同じものをもう一度 put すると
+        // 必ず TypeError になる。取り直せないものは取り直せない。
+        let spare = null;
+        try { spare = copy.clone(); } catch { spare = null; }
         caches.open(IMG_CACHE_NAME).then(async (c) => {
             try {
                 await c.put(request, copy);
             } catch {
                 // **容量で断られたら半分捨ててやり直す。** opaque は
                 // ブラウザが数MBの下駄を履かせることがあり、件数の上限だけ
-                // では足りない端末がある。ここで諦めると、以後ずっと
-                // 1枚も入らない（入れ替わらないまま埋まっている）
+                // では足りない端末がある。諦めても次の1枚からは入る
+                // （直後の trimImages が空きを作る）が、いま見ている写真を
+                // 落とす理由も無い。
                 await trimImages(c, Math.floor(MAX_IMAGE_ENTRIES / 2));
-                try { await c.put(request, copy); } catch { /* 諦める */ }
+                if (spare) { try { await c.put(request, spare); } catch { /* 諦める */ } }
             }
             await trimImages(c, MAX_IMAGE_ENTRIES);
         }).catch(() => undefined);
