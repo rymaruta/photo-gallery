@@ -519,8 +519,16 @@ export default function ProfileEditPage() {
                 showToast(await readApiError(res,
                     locale === "en" ? "Failed to save." : "保存に失敗しました。"), "error");
             }
-        } catch {
-            showToast(locale === "en" ? "Failed to save." : "保存に失敗しました。", "error");
+        } catch (e) {
+            // **セッション切れを塗り潰さない。** 裸の catch だった頃は
+            // 「保存に失敗しました。」だけが出るので、**再ログインすれば
+            // 直ると分からず**同じ操作を繰り返すことになった。
+            // 同じファイルのアバター・カバー（`handleCoverChange` ほか）は
+            // 前からこう書いてある——対の乖離だった
+            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
+            showToast(authMissing
+                ? AUTH_REQUIRED_MESSAGE
+                : (locale === "en" ? "Failed to save." : "保存に失敗しました。"), "error");
         } finally {
             setSaving(false);
         }

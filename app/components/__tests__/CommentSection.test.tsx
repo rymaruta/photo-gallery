@@ -24,6 +24,10 @@ vi.mock("../../../lib/utils/api", async () => {
         readApiError: actual.readApiError,
         // 本物を使う（サーバー由来の 404 だけを「もう無い」と読む判定そのもの）
         isGoneResponse: actual.isGoneResponse,
+        // `useComments` がセッション切れを見分けるのに読む。**列挙式のモックは
+        // 足りない export を「アクセスした瞬間に落ちる」形で教えてくれる**
+        // ——ここが抜けていて、2通目のコメントでだけ落ちていた
+        AUTH_REQUIRED_MESSAGE: actual.AUTH_REQUIRED_MESSAGE,
     };
 });
 

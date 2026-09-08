@@ -1,6 +1,6 @@
 import { usableRows } from "../utils/apiRows";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { userPublicFetch, userFetch, isGoneResponse } from "../utils/api";
+import { userPublicFetch, userFetch, isGoneResponse, AUTH_REQUIRED_MESSAGE } from "../utils/api";
 import { log } from "../utils/log";
 
 // 写真コメント。公開読み取り + 認証投稿/削除。楽観更新は最小限（投稿は成功後に反映）。
@@ -120,7 +120,12 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
         } catch (e) {
             log.error("comment add error:", e);
             // 通信そのものが落ちた場合も、前回の理由を残さない
-            // （無関係な失敗に「10件までです」が出ていた）
+            // （無関係な失敗に「10件までです」が出ていた）。
+            // **ただしセッション切れは塗り潰さない**——「通信に失敗しました」
+            // だと回線の問題だと思って何度も押すことになる。押しても直らない。
+            // `useFollow` は同じ場所で前からこう書いてある（対の乖離だった）
+            const msg = e instanceof Error ? e.message : "";
+            if (msg === AUTH_REQUIRED_MESSAGE) return { status: "error", message: msg };
             return { status: "error", message: "通信に失敗しました" };
         } finally {
             busyRef.current = false;

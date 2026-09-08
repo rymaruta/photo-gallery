@@ -18,10 +18,14 @@ vi.mock("../../utils/api", async () => {
         readApiError: actual.readApiError,
         // 本物を使う（サーバー由来の 404 だけを「もう無い」と読む判定そのもの）
         isGoneResponse: actual.isGoneResponse,
+        // 文言の突き合わせに使う定数。**綴りを書き写さない**
+        // （写すと、片方だけ変えたときに気づけない）
+        AUTH_REQUIRED_MESSAGE: actual.AUTH_REQUIRED_MESSAGE,
     };
 });
 
 import { useComments } from "../useComments";
+import { AUTH_REQUIRED_MESSAGE } from "../../utils/api";
 
 const comment = (id: string) => ({ id, uid: "u1", name: "旅人", text: "いいね", t: "2026-01-01" });
 
@@ -217,5 +221,34 @@ describe("useComments: 断られた理由", () => {
         await act(async () => { r = await result.current.add("2件目"); });
         expect(r).toEqual({ status: "ok" });
         expect(result.current.items.map((c) => c.id)).toEqual(["c9"]);
+    });
+});
+
+// **セッションが切れているのに「通信に失敗しました」と出していた。**
+// catch が理由を無条件で塗り潰すので、回線の問題だと思って何度も押す
+// ことになる。`useFollow` は同じ場所で `AUTH_REQUIRED_MESSAGE` を
+// 見分けている——対の乖離。
+describe("useComments: 投稿の失敗の理由を塗り潰さない", () => {
+    it("セッションが切れていたら、そう伝える", async () => {
+        mockList([], 0);
+        const { result } = renderHook(() => useComments("p1", true, 0));
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        mockUserFetch.mockRejectedValue(new Error(AUTH_REQUIRED_MESSAGE));
+        let r: { status: string; message?: string } | undefined;
+        await act(async () => { r = await result.current.add("いいね"); });
+        expect(r?.status).toBe("error");
+        expect(r?.message, "「通信に失敗しました」で塗り潰している").toBe(AUTH_REQUIRED_MESSAGE);
+    });
+
+    it("理由の分からない失敗は、今までどおり「通信に失敗しました」", async () => {
+        mockList([], 0);
+        const { result } = renderHook(() => useComments("p1", true, 0));
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        mockUserFetch.mockRejectedValue(new TypeError("Failed to fetch"));
+        let r: { status: string; message?: string } | undefined;
+        await act(async () => { r = await result.current.add("いいね"); });
+        expect(r?.message, "英語の技術文字列をそのまま出している").toBe("通信に失敗しました");
     });
 });
