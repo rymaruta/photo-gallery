@@ -114,13 +114,32 @@ describe("/user/edit: 未保存のまま戻る", () => {
     // サーバーが「おおよそ」の印を落とす（＝結果が変わる）。値の差分だけで
     // 判定すると、その操作を黙って捨てることになる
     it("地図に出す位置を触ったら、値が同じでも止める", async () => {
+        const coords = { lat: 35.3, lng: 139.4 };
+        mockUserFetch.mockReset().mockImplementation((url: string) => {
+            if (String(url).startsWith("/geocode/search")) {
+                // **機械が当てたのと同じ場所**を候補に出す（値は変わらない）
+                return Promise.resolve({ ok: true, json: async () => ({ results: [{ label: "江ノ島, 藤沢市", ...coords }] }) });
+            }
+            return Promise.resolve({ ok: true, json: async () => [{ ...photo, coords }] });
+        });
+        render(<EditPage />);
+        await screen.findByDisplayValue("夕焼け");
+
+        fireEvent.click(screen.getByRole("button", { name: "この場所名で候補を出す" }));
+        fireEvent.click(await screen.findByRole("button", { name: "江ノ島, 藤沢市" }));
+
+        // 値は1つも変わっていない。それでも保存すればサーバーの扱いは変わる
+        expect(fireEvent.click(backLink()), "位置を選び直したのに止めていない").toBe(false);
+    });
+
+    it("地図から外したときも止める", async () => {
         mockUserFetch.mockReset().mockResolvedValue({
             ok: true, json: async () => [{ ...photo, coords: { lat: 35.3, lng: 139.4 } }],
         });
         render(<EditPage />);
         await screen.findByDisplayValue("夕焼け");
         fireEvent.click(await screen.findByRole("button", { name: "地図に出さない" }));
-        expect(fireEvent.click(backLink()), "位置を触ったのに止めていない").toBe(false);
+        expect(fireEvent.click(backLink()), "位置を外したのに止めていない").toBe(false);
     });
 
     it("最初のフォーカスは「編集を続ける」（捨てる方に指を置かない）", async () => {
