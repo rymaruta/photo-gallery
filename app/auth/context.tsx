@@ -2,10 +2,10 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { signIn, signOut, getCurrentSession,
+import { signIn, signOut,
     lookupSession, deleteAccount as cognitoDeleteAccount } from "../../lib/auth/cognito";
 import { cognitoConfig } from "../../lib/auth/config";
-import { userFetch } from "../../lib/utils/api";
+import { userFetch, NETWORK_UNREACHABLE_MESSAGE } from "../../lib/utils/api";
 import { log } from "../../lib/utils/log";
 import { resetFollowingCache } from "../../lib/hooks/useFollow";
 import { clearSharedPayload } from "../../lib/utils/shareStore";
@@ -306,11 +306,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 不可逆な削除の前に、後段が通ることを先に確かめる。
     const deleteAccount = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
         try {
-            const session = await getCurrentSession();
+            // **止めること自体は変えない**（不可逆な削除の前に後段が通ることを
+            // 確かめる）。分けるのは**理由**だけ——確かめられなかっただけの回に
+            // 「ログインし直して」と言うのは嘘で、しかもその通信も通らない。
+            // `userFetch` から取り除いた同じ嘘が、ここだけ残っていた
+            const { session, unreachable } = await lookupSession();
             if (!session || !session.isValid()) {
                 return {
                     success: false,
-                    error: "ログインの有効期限が切れています。一度ログインし直してからお試しください",
+                    error: unreachable
+                        ? NETWORK_UNREACHABLE_MESSAGE
+                        : "ログインの有効期限が切れています。一度ログインし直してからお試しください",
                 };
             }
 
