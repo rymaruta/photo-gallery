@@ -1,8 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { signIn, signOut, getCurrentSession, deleteAccount as cognitoDeleteAccount } from "../../lib/auth/cognito";
+import { signIn, signOut, getCurrentSession,
+    lookupSession, deleteAccount as cognitoDeleteAccount } from "../../lib/auth/cognito";
 import { cognitoConfig } from "../../lib/auth/config";
 import { userFetch } from "../../lib/utils/api";
 import { log } from "../../lib/utils/log";
@@ -56,6 +57,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const pathname = usePathname();
 
+    /**
+     * 最後に**確かめられた**認証状態。通信が届かなかった回に前の答えを
+     * 保つためだけに使う（`lookupSession` の `unreachable`）。
+     */
+    const resolvedRef = useRef<{ authenticated: boolean; admin: boolean } | null>(null);
+
     // 認証状態をチェック
     const checkAuth = useCallback(async () => {
         try {
@@ -75,7 +82,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return { authenticated: false, admin: false };
             }
 
-            const session = await getCurrentSession();
+            const { session, unreachable } = await lookupSession();
+            if (!session && unreachable) {
+                // **「確かめられなかった」を「ログアウトした」にしない。**
+                // 電波が届かないだけの回で未ログインに倒すと、`useMemberGate`
+                // が `/login` へ replace し、**編集中の文章ごと画面が
+                // 入れ替わる**（未保存の確認も通らない）。電波が戻れば
+                // 何もせず直るので、本人には理由が分からない。
+                // 一度でも確かめられていれば、その状態を保つ。
+                // **最初から確かめられない場合は保てない**（前の状態が無い）
+                // ので、そのときは今までどおり未ログインで始める
+                // ——まだ何も打っていないので失うものが無い。
+                if (resolvedRef.current) {
+                    setAuthState((prev) => ({ ...prev, loading: false }));
+                    return { authenticated: resolvedRef.current.authenticated, admin: resolvedRef.current.admin };
+                }
+            }
             const authenticated = session !== null;
             const payload = authenticated ? session!.getIdToken().payload : {};
             const groups: string[] = Array.isArray(payload["cognito:groups"])
@@ -89,6 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // **setAuthState より先に呼ぶ。** loading が false になった瞬間に
             // usePhotoLikes のフォールバック（serverLiked ?? isFavorite）が
             // 読むキーを確定させておくため（順序に意味がある）。
+            resolvedRef.current = { authenticated, admin };
             setFavoritesUser(authenticated ? sub : null);
             setAuthState({
                 isAuthenticated: authenticated,

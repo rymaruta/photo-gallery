@@ -140,8 +140,39 @@ export function signOut(): void {
     }
 }
 
-// 現在のセッションを取得
+/**
+ * セッションを引いた結果。
+ *
+ * **「ログインしていない」と「確かめられなかった」を分ける。**
+ * 前は両方 `null` に潰していたので、電波の悪い場所で画面を移ると
+ * `isAuthenticated` が false になり、`useMemberGate` が `/login` へ
+ * 追い出していた——**トークンは端末に残っているのに**、編集中の文章ごと
+ * 画面が入れ替わる。電波が戻れば何もせず直るので、本人には理由が分からない。
+ *
+ * 見分けは**ライブラリが付ける印**で行う。`amazon-cognito-identity-js` は
+ * `fetch` が `TypeError` で落ちた回を `Error("Network error")` に包み直し、
+ * `err.code = "NetworkError"` を立てる（`lib/Client.js` の
+ * `} else if (err instanceof Error && err.message === 'Network error')`）。
+ * 失効は `NotAuthorizedException` として別に来る。
+ */
+export type SessionLookup = {
+    session: CognitoUserSession | null;
+    /** セッションの有無を確かめられなかった（通信が届かない）。`session` は必ず null */
+    unreachable: boolean;
+};
+
+/** 通信が届かなかった回か。ライブラリが立てる印だけを見る（文言の推測はしない） */
+function isUnreachable(err: unknown): boolean {
+    const e = err as { code?: unknown; message?: unknown } | null;
+    return e?.code === "NetworkError" || e?.message === "Network error";
+}
+
+// 現在のセッションを取得（理由は捨てる。**新しい呼び出しでは `lookupSession` を使う**）
 export async function getCurrentSession(): Promise<CognitoUserSession | null> {
+    return (await lookupSession()).session;
+}
+
+export async function lookupSession(): Promise<SessionLookup> {
     return new Promise((resolve) => {
         try {
             const userPool = getUserPool();
@@ -149,35 +180,36 @@ export async function getCurrentSession(): Promise<CognitoUserSession | null> {
 
             if (!cognitoUser) {
                         log.debug("[getCurrentSession] cognitoUserが見つかりません");
-                resolve(null);
+                resolve({ session: null, unreachable: false });
                 return;
             }
 
             cognitoUser.getSession((err: Error | null, session: CognitoUserSession | null) => {
                 if (err) {
                             log.error("[getCurrentSession] セッション取得エラー:", err.message);
-                    resolve(null);
+                    resolve({ session: null, unreachable: isUnreachable(err) });
                     return;
                 }
                 
                 if (!session) {
                             log.debug("[getCurrentSession] セッションがnullです");
-                    resolve(null);
+                    resolve({ session: null, unreachable: false });
                     return;
                 }
                 
                 if (!session.isValid()) {
                             log.debug("[getCurrentSession] セッションが無効です");
-                    resolve(null);
+                    resolve({ session: null, unreachable: false });
                     return;
                 }
 
-                resolve(session);
+                resolve({ session, unreachable: false });
             });
         } catch (error) {
             // 環境変数が設定されていない場合はnullを返す
             log.error("[getCurrentSession] 例外が発生しました:", error instanceof Error ? error.message : String(error));
-            resolve(null);
+            // 設定が無い等。**通信の問題ではない**ので保たない
+            resolve({ session: null, unreachable: false });
         }
     });
 }
