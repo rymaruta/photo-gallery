@@ -418,3 +418,133 @@ describe("受け皿の取り逃し", () => {
         expect(await cache.match("https://journey-photo.com/offline.html")).toBeTruthy();
     });
 });
+
+// **写真の控え（機内モードで写真が出る）。**
+// それまでは「一度見たページが開く」までで、画像は1枚もキャッシュして
+// いなかったので、機内モードでは枠だけが出ていた。
+//
+// 入れ物はページ・資産と**分ける**。同じにすると、写真を数十枚見ただけで
+// 受け皿（offline.html）と `_next/static` を押し出し、「一度見たページが
+// 開く」という元の目的が崩れる（この形の事故は既に一度踏んでいる）。
+
+/** `<img>` からの要求（no-cors → 応答は opaque） */
+function imgRequest(url: string) {
+    const req = new Request(url, { method: "GET" });
+    Object.defineProperty(req, "destination", { value: "image" });
+    return req;
+}
+/** ブラウザが返す opaque 応答に寄せる */
+const opaque = () => {
+    const res = new Response(null, { status: 200 });
+    Object.defineProperty(res, "type", { value: "opaque" });
+    return res;
+};
+const CDN = "https://d1s3dwwzgxf5ni.cloudfront.net";
+
+describe("写真の控え", () => {
+    it("画像CDN（別オリジン）の写真も控える", async () => {
+        fetchMock.mockResolvedValue(opaque());
+        const e = makeEvent(imgRequest(`${CDN}/uploads/u1/a.jpg`));
+        handlers.fetch(e);
+        await e.response;
+        await new Promise((r) => setTimeout(r, 0));
+
+        const img = caches_.get("journey-photo-img-v1");
+        expect(img, "写真用の入れ物が無い").toBeTruthy();
+        expect([...img!.store.keys()]).toEqual([`${CDN}/uploads/u1/a.jpg`]);
+        // **ページ・資産の入れ物には入れない**（押し出し事故を作らない）
+        expect([...(caches_.get("journey-photo-v1")?.store.keys() ?? [])])
+            .not.toContain(`${CDN}/uploads/u1/a.jpg`);
+    });
+
+    it("2回目はネットワークに行かない（機内モードで出る）", async () => {
+        fetchMock.mockResolvedValue(opaque());
+        const first = makeEvent(imgRequest(`${CDN}/uploads/u1/a.jpg`));
+        handlers.fetch(first);
+        await first.response;
+        await new Promise((r) => setTimeout(r, 0));
+
+        fetchMock.mockRejectedValue(new TypeError("offline"));
+        const second = makeEvent(imgRequest(`${CDN}/uploads/u1/a.jpg`));
+        handlers.fetch(second);
+        await expect(second.response).resolves.toBeTruthy();
+    });
+
+    it("プロフィールの画像も控える", async () => {
+        fetchMock.mockResolvedValue(opaque());
+        const e = makeEvent(imgRequest(`${CDN}/profiles/u1`));
+        handlers.fetch(e);
+        await e.response;
+        await new Promise((r) => setTimeout(r, 0));
+        expect([...(caches_.get("journey-photo-img-v1")?.store.keys() ?? [])])
+            .toEqual([`${CDN}/profiles/u1`]);
+    });
+
+    // **手を出す先を最小にする。** 曲のアートワークや計測の画像には触らない
+    it.each([
+        [`https://is1-ssl.mzstatic.com/image/a.jpg`, "曲のアートワーク"],
+        [`${CDN}/other/a.jpg`, "うちが組み立てないパス"],
+    ])("%s（%s）は素通し", async (url) => {
+        fetchMock.mockResolvedValue(opaque());
+        const e = makeEvent(imgRequest(url));
+        handlers.fetch(e);
+        expect(e.response, "手を出している").toBeUndefined();
+    });
+
+    it("画像以外の要求（fetch など）は素通し", async () => {
+        const req = new Request(`${CDN}/uploads/u1/a.jpg`, { method: "GET" });
+        Object.defineProperty(req, "destination", { value: "" });
+        const e = makeEvent(req);
+        handlers.fetch(e);
+        expect(e.response).toBeUndefined();
+    });
+
+    it("上限を超えたら古い順に捨てる", async () => {
+        fetchMock.mockResolvedValue(opaque());
+        for (let i = 0; i < 82; i++) {
+            const e = makeEvent(imgRequest(`${CDN}/uploads/u1/${i}.jpg`));
+            handlers.fetch(e);
+            await e.response;
+            await new Promise((r) => setTimeout(r, 0));
+        }
+        const keys = [...(caches_.get("journey-photo-img-v1")?.store.keys() ?? [])];
+        expect(keys.length).toBe(80);
+        expect(keys[0], "古い方から捨てていない").toBe(`${CDN}/uploads/u1/2.jpg`);
+    });
+
+    // **起動のたびに消さない。** ここを漏らすと元の「全消し」に逆戻りで、
+    // オフラインで写真が出ない
+    it("activate で写真の控えは消さない", async () => {
+        await installed();   // ページ・資産の入れ物も作っておく
+        fetchMock.mockResolvedValue(opaque());
+        const e = makeEvent(imgRequest(`${CDN}/uploads/u1/a.jpg`));
+        handlers.fetch(e);
+        await e.response;
+        await new Promise((r) => setTimeout(r, 0));
+        caches_.set("journey-photo-old", makeCache());
+
+        const act = makeEvent();
+        handlers.activate(act);
+        await act.settle();
+
+        expect([...caches_.keys()].sort()).toEqual(["journey-photo-img-v1", "journey-photo-v1"]);
+    });
+
+    // 中身を確かめられる応答（同一オリジン・将来 CORS が付いた場合）は
+    // 状態を見る。404 を控えない
+    it("読める応答なら、失敗は控えない", async () => {
+        fetchMock.mockResolvedValue(new Response("not found", { status: 404 }));
+        const e = makeEvent(imgRequest(`${CDN}/uploads/u1/gone.jpg`));
+        handlers.fetch(e);
+        await e.response;
+        await new Promise((r) => setTimeout(r, 0));
+        expect([...(caches_.get("journey-photo-img-v1")?.store.keys() ?? [])]).toEqual([]);
+    });
+
+    it("オフラインで控えも無ければ、今までどおり失敗する", async () => {
+        fetchMock.mockRejectedValue(new TypeError("offline"));
+        const e = makeEvent(imgRequest(`${CDN}/uploads/u1/a.jpg`));
+        handlers.fetch(e);
+        await expect(e.response).rejects.toThrow();
+    });
+});
