@@ -62,6 +62,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
      * 保つためだけに使う（`lookupSession` の `unreachable`）。
      */
     const resolvedRef = useRef<{ authenticated: boolean; admin: boolean } | null>(null);
+    /**
+     * 直前の判定が「確かめられなかった」で終わったか。
+     *
+     * **確かめ直す契機を増やすのは、この状態のときだけ。** どの画面でも
+     * 復帰のたびに確かめ直すと、本当に失効していた人が**編集中に
+     * 画面ごと追い出される**機会を増やすことになる（`useMemberGate` の
+     * replace は未保存の確認を通らない）。増やしてよいのは
+     * 「そもそも答えを持っていない」場合だけ。
+     */
+    const unresolvedRef = useRef(false);
 
     // 認証状態をチェック
     /**
@@ -103,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // ので、そのときは今までどおり未ログインで始める
                 // ——まだ何も打っていないので失うものが無い。
                 if (resolvedRef.current) {
+                    unresolvedRef.current = true;
                     setAuthState((prev) => ({ ...prev, loading: false }));
                     return null;   // 確かめられていない（前の状態を保った）
                 }
@@ -120,6 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // **setAuthState より先に呼ぶ。** loading が false になった瞬間に
             // usePhotoLikes のフォールバック（serverLiked ?? isFavorite）が
             // 読むキーを確定させておくため（順序に意味がある）。
+            unresolvedRef.current = false;
             resolvedRef.current = { authenticated, admin };
             setFavoritesUser(authenticated ? sub : null);
             setAuthState({
@@ -180,6 +192,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         window.addEventListener("storage", onStorage);
         return () => window.removeEventListener("storage", onStorage);
+    }, [checkAuth]);
+
+    /**
+     * **確かめられなかったまま留まらない。**
+     *
+     * 通信が届かなかった回は前の状態を保つ（`lookupSession` の
+     * `unreachable`）が、確かめ直す契機はパス変更と storage イベントしか
+     * 無かった。同じページに留まっていると、電波が戻っても・ホテルの
+     * Wi-Fi の認証を済ませても**答えを持たないまま**で、本当に失効して
+     * いた場合は「ログイン中の顔のまま、押すたびに『ログインして
+     * ください』と言われるのに、ログイン画面への導線が無い」になる。
+     *
+     * **増やすのは「確かめられていない」ときだけ**（`unresolvedRef`）。
+     * 常に確かめ直すと、答えを持っている人まで復帰のたびに判定にかけ、
+     * 編集中に追い出される機会を増やす。
+     */
+    useEffect(() => {
+        const recheck = () => {
+            if (!unresolvedRef.current) return;
+            if (document.visibilityState === "hidden") return;
+            void checkAuth();
+        };
+        window.addEventListener("online", recheck);
+        document.addEventListener("visibilitychange", recheck);
+        return () => {
+            window.removeEventListener("online", recheck);
+            document.removeEventListener("visibilitychange", recheck);
+        };
     }, [checkAuth]);
 
     // ログイン

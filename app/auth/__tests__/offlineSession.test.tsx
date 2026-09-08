@@ -134,3 +134,92 @@ describe("セッションを確かめられなかったとき", () => {
         await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("out"));
     });
 });
+
+// **確かめられなかったまま留まらない。**
+// 電波が戻っても・ホテルの Wi-Fi の認証を済ませても、同じページに
+// 留まっている限り確かめ直す契機が無かった。本当に失効していた場合は
+// 「ログイン中の顔のまま、押すたびに『ログインしてください』と言われるが、
+// ログイン画面への導線が無い」になる。
+describe("確かめ直す契機", () => {
+    /** イベントを投げて、判定が済むまで待つ */
+    async function fire(make: () => void) {
+        const before = mockLookupSession.mock.calls.length;
+        const beforeRenders = renders;
+        act(make);
+        if (mockLookupSession.mock.calls.length === before) return false;   // 走らなかった
+        await waitFor(() => expect(renders).toBeGreaterThan(beforeRenders));
+        return true;
+    }
+
+    it("圏外のあと電波が戻ったら、確かめ直して未ログインに直す", async () => {
+        mockLookupSession.mockResolvedValue(ok("u1"));
+        render(<AuthProvider><Harness /></AuthProvider>);
+        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user:u1"));
+
+        mockLookupSession.mockResolvedValue(offline);
+        await recheck();
+        expect(screen.getByTestId("state")).toHaveTextContent("in:user:u1");
+
+        // 電波が戻った。実は失効していた
+        mockLookupSession.mockResolvedValue(signedOut);
+        expect(await fire(() => window.dispatchEvent(new Event("online"))), "確かめ直していない").toBe(true);
+        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("out"));
+    });
+
+    it("画面に戻ってきたときも確かめ直す（ホテルのWi-Fiの認証を済ませた場合）", async () => {
+        mockLookupSession.mockResolvedValue(ok("u1"));
+        render(<AuthProvider><Harness /></AuthProvider>);
+        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user:u1"));
+
+        mockLookupSession.mockResolvedValue(offline);
+        await recheck();
+        mockLookupSession.mockResolvedValue(signedOut);
+        expect(await fire(() => document.dispatchEvent(new Event("visibilitychange"))), "確かめ直していない").toBe(true);
+        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("out"));
+    });
+
+    // **増やしてよいのは「答えを持っていない」ときだけ。**
+    // 常に確かめ直すと、本当に失効していた人が編集中に画面ごと
+    // 追い出される機会を増やす（gate の replace は未保存の確認を通らない）
+    it("確かめられている間は、復帰しても確かめ直さない", async () => {
+        mockLookupSession.mockResolvedValue(ok("u1"));
+        render(<AuthProvider><Harness /></AuthProvider>);
+        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user:u1"));
+
+        const before = mockLookupSession.mock.calls.length;
+        act(() => { window.dispatchEvent(new Event("online")); });
+        act(() => { document.dispatchEvent(new Event("visibilitychange")); });
+        expect(mockLookupSession.mock.calls.length, "確かめ済みなのに走っている").toBe(before);
+    });
+
+    // **一度確かめられたら、旗を下ろす。** 下ろさないと、答えを持っている
+    // 人まで復帰のたびに判定にかけ続ける（上と同じ理由で危ない）
+    it("圏外から戻って確かめられたら、そのあとは走らない", async () => {
+        mockLookupSession.mockResolvedValue(ok("u1"));
+        render(<AuthProvider><Harness /></AuthProvider>);
+        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user:u1"));
+
+        mockLookupSession.mockResolvedValue(offline);
+        await recheck();
+        mockLookupSession.mockResolvedValue(ok("u1"));
+        expect(await fire(() => window.dispatchEvent(new Event("online"))), "戻ったのに確かめ直していない").toBe(true);
+
+        const before = mockLookupSession.mock.calls.length;
+        act(() => { window.dispatchEvent(new Event("online")); });
+        act(() => { document.dispatchEvent(new Event("visibilitychange")); });
+        expect(mockLookupSession.mock.calls.length, "確かめ直したのに旗が残っている").toBe(before);
+    });
+
+    it("外したあとは購読が残らない", async () => {
+        mockLookupSession.mockResolvedValue(ok("u1"));
+        const { unmount } = render(<AuthProvider><Harness /></AuthProvider>);
+        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user:u1"));
+        mockLookupSession.mockResolvedValue(offline);
+        await recheck();
+        unmount();
+
+        const before = mockLookupSession.mock.calls.length;
+        act(() => { window.dispatchEvent(new Event("online")); });
+        expect(mockLookupSession.mock.calls.length).toBe(before);
+    });
+});
