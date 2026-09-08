@@ -33,7 +33,7 @@ vi.mock("../../../components/CommentSection", () => ({ default: () => null }));
 vi.mock("../../../components/RelatedPhotos", () => ({ default: () => null }));
 vi.mock("../../../components/ProfileLink", () => ({ default: () => null }));
 vi.mock("../../../components/MusicCard", () => ({ default: () => null }));
-const mockLikeToggle = vi.hoisted(() => vi.fn(async () => true));
+const mockLikeToggle = vi.hoisted(() => vi.fn(async (): Promise<{ ok: boolean; message?: string }> => ({ ok: true })));
 vi.mock("../../../../lib/hooks/usePhotoLikes", () => ({
     usePhotoLikes: () => ({ liked: false, count: 0, pending: false, toggle: mockLikeToggle }),
 }));
@@ -121,12 +121,26 @@ describe("MV設定の失敗理由が伝わる", () => {
 describe("いいね・曲検索の失敗が画面に出る", () => {
     it("いいねが失敗したらトーストを出す（SW-b4 の配線）", async () => {
         mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({}) });
-        mockLikeToggle.mockResolvedValue(false);
+        mockLikeToggle.mockResolvedValue({ ok: false });
         render(<PhotoPageClient photoId="p1" initialPhoto={photo} />);
         const heart = await screen.findByRole("button", { name: /いいね|Like/ });
         await userEvent.click(heart);
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
             expect.stringContaining("いいねを保存できませんでした"), "error"));
+    });
+
+    // **押し直しても直らない失敗はそう言う。** フックが理由を運ぶように
+    // したが、画面がそれを出すかは別の話（無視しても既定文で緑になる）
+    it("セッションが切れていたら、その文言をそのまま出す", async () => {
+        const { AUTH_REQUIRED_MESSAGE } = await import("../../../../lib/utils/api");
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({}) });
+        mockLikeToggle.mockResolvedValue({ ok: false, message: AUTH_REQUIRED_MESSAGE });
+        render(<PhotoPageClient photoId="p1" initialPhoto={photo} />);
+        await userEvent.click(await screen.findByRole("button", { name: /いいね|Like/ }));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(AUTH_REQUIRED_MESSAGE, "error"));
+        expect(mockShowToast.mock.calls.map((c) => String(c[0])),
+            "理由があるのに既定文で塗り潰している").not.toContain(
+            expect.stringContaining("いいねを保存できませんでした"));
     });
 
     it("曲検索が失敗したら理由を出す（SW-b6 の配線）", async () => {

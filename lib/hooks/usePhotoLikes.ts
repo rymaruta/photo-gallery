@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useFavorites } from "./useFavorites";
 import { userPublicFetch, userFetch, isGoneResponse } from "../utils/api";
 import { log } from "../utils/log";
+import { sessionErrorMessage } from "../utils/api";
 
 // 写真の「いいね」。ハート1つで2つの役割を担う:
 //   - liked（塗りつぶし状態）と /favorites への収集 … 端末ローカル（useFavorites）
@@ -14,6 +15,13 @@ import { log } from "../utils/log";
 // 共有リンクを開いた直後（セッション復元の往復中）に押したいいねが
 // 「未ログイン」と判定されてローカル保存だけで終わり、サーバーには
 // 何も送られない。リロードすると数が戻り、通知も飛ばない。
+/**
+ * いいねの結果。**boolean では理由を運べない**——押し直しても直らない失敗
+ * （セッション切れ・通信できない）を「もう一度お試しください」と言い続ける
+ * ことになる。`useFollow` / `useComments` は前から文言を運んでいる。
+ */
+export type LikeResult = { ok: boolean; message?: string };
+
 export function usePhotoLikes(
     photoId: string,
     initialLikes: number,
@@ -102,12 +110,14 @@ export function usePhotoLikes(
      * 「付いたハートが黙って戻る」だけに見えた——フォローは文言を出すのに
      * いいねだけ無言、という非対称でもあった（SW-b4）。
      */
-    const toggle = useCallback(async (): Promise<boolean> => {
-        if (busyRef.current) return true;
+    const toggle = useCallback(async (): Promise<LikeResult> => {
+        if (busyRef.current) return { ok: true };
         // ログイン状態が確定するまで待つ。確定前に処理すると、ログイン済みでも
         // 「未ログイン」扱いになってサーバーへ届かない。
-        if (authLoading) return true;
+        if (authLoading) return { ok: true };
         let failed = false;
+        /** 押し直しても直らない失敗の文言（セッション切れ・通信できない） */
+        let message: string | undefined;
         busyRef.current = true;
         setPending(true);
 
@@ -130,7 +140,7 @@ export function usePhotoLikes(
             // 公開の数字を勝手に上下させているだけだった。
             busyRef.current = false;
             setPending(false);
-            return true;   // 未ログインはローカル保存だけ＝失敗ではない
+            return { ok: true };   // 未ログインはローカル保存だけ＝失敗ではない
         }
         // **番人はサーバーに書きに行くと決まってから立てる。**
         //
@@ -220,6 +230,11 @@ export function usePhotoLikes(
             }
         } catch (e) {
             log.warn("like toggle error:", e);
+            // **「もう一度お試しください」で済ませない。** セッションが切れて
+            // いる／通信できない回は押し直しても直らない。フォロー・コメントは
+            // 前から見分けているのに、いいねだけ戻り値が boolean で
+            // 理由を運べず、一律「もう一度お試しください」になっていた
+            message = sessionErrorMessage(e) ?? undefined;
             if (didToggleFavorite) toggleFavorite(photoId);
             if (stillSamePhoto()) {
                 setServerLiked(wasLiked);
@@ -231,7 +246,7 @@ export function usePhotoLikes(
             busyRef.current = false;
             setPending(false);
         }
-        return !failed;
+        return { ok: !failed, message };
     }, [liked, photoId, isAuthenticated, authLoading, isFavorite, toggleFavorite]);
 
     return { liked, count, pending: pending || authLoading, toggle };

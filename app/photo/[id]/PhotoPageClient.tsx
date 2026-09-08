@@ -1039,10 +1039,12 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                 // 失敗すると楽観更新がロールバックしてハートが
                                 // 黙って戻る。フォローは文言を出すのに、いいねだけ
                                 // 無言だった（SW-b4）
-                                void toggleLike().then((ok) => {
-                                    if (!ok) showToast(locale === "en"
+                                void toggleLike().then((r) => {
+                                    // 押し直しても直らない失敗（セッション切れ・
+                                    // 通信できない）はその文言をそのまま出す
+                                    if (!r.ok) showToast(r.message ?? (locale === "en"
                                         ? "Couldn't save your like. Please try again."
-                                        : "いいねを保存できませんでした。もう一度お試しください", "error");
+                                        : "いいねを保存できませんでした。もう一度お試しください"), "error");
                                 });
                             }}
                             disabled={likePending}

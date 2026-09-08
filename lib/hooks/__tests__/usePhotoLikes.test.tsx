@@ -169,7 +169,7 @@ describe("usePhotoLikes", () => {
                 { initialProps: { id: "A", likes: 10 } });
 
             // A のいいねを開始（応答はまだ返さない）
-            let pending: Promise<boolean> | undefined;
+            let pending: Promise<{ ok: boolean; message?: string }> | undefined;
             act(() => { pending = result.current.toggle(); });
 
             // 応答を待たずに B へ送る
@@ -242,7 +242,7 @@ describe("usePhotoLikes: toggle は成否を返す", () => {
         mockUserFetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
         const { result } = renderHook(() => usePhotoLikes("p1", 10, true));
         let ok: boolean | undefined;
-        await act(async () => { ok = await result.current.toggle(); });
+        await act(async () => { ok = (await result.current.toggle()).ok; });
         expect(ok).toBe(false);
     });
 
@@ -250,7 +250,7 @@ describe("usePhotoLikes: toggle は成否を返す", () => {
         mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ likes: 11, liked: true }) });
         const { result } = renderHook(() => usePhotoLikes("p1", 10, true));
         let ok: boolean | undefined;
-        await act(async () => { ok = await result.current.toggle(); });
+        await act(async () => { ok = (await result.current.toggle()).ok; });
         expect(ok).toBe(true);
     });
 });
@@ -351,7 +351,7 @@ describe("もう見えない写真のいいね", () => {
         await waitFor(() => expect(result.current.liked).toBe(true));
 
         let ok = false;
-        await act(async () => { ok = await result.current.toggle(); });
+        await act(async () => { ok = (await result.current.toggle()).ok; });
 
         expect(ok, "解除できているのに失敗として伝えている").toBe(true);
         expect(result.current.liked, "サーバーは解除済みなのに、いいね済みへ戻している").toBe(false);
@@ -415,10 +415,47 @@ describe("もう見えない写真のいいね", () => {
         await waitFor(() => expect(result.current.count).toBe(11));
 
         let ok = true;
-        await act(async () => { ok = await result.current.toggle(); });
+        await act(async () => { ok = (await result.current.toggle()).ok; });
 
         expect(ok).toBe(false);
         expect(result.current.liked).toBe(false);
         expect(result.current.count).toBe(11);
+    });
+});
+
+// **押し直しても直らない失敗を「もう一度お試しください」で済ませない。**
+// 戻り値が boolean だったので理由を運べず、セッションが切れていても
+// 通信できなくても同じ案内になっていた（`useFollow` / `useComments` は
+// 前から見分けている）。
+describe("usePhotoLikes: 断られた理由を運ぶ", () => {
+    it.each([
+        ["セッション切れ", "AUTH_REQUIRED_MESSAGE"],
+        ["通信できない", "NETWORK_UNREACHABLE_MESSAGE"],
+    ])("%s はその文言を返す", async (_label, key) => {
+        const api = await import("../../utils/api");
+        const msg = (api as unknown as Record<string, string>)[key];
+        mockUserFetch.mockRejectedValue(new Error(msg));
+        const { result } = renderHook(() => usePhotoLikes("p1", 3, true));
+        let r: { ok: boolean; message?: string } | undefined;
+        await act(async () => { r = await result.current.toggle(); });
+        expect(r?.ok).toBe(false);
+        expect(r?.message, "理由を捨てている").toBe(msg);
+    });
+
+    it("理由の分からない失敗は文言を運ばない（画面が既定文を出す）", async () => {
+        mockUserFetch.mockRejectedValue(new TypeError("Failed to fetch"));
+        const { result } = renderHook(() => usePhotoLikes("p1", 3, true));
+        let r: { ok: boolean; message?: string } | undefined;
+        await act(async () => { r = await result.current.toggle(); });
+        expect(r?.ok).toBe(false);
+        expect(r?.message, "英語の技術文字列を運んでいる").toBeUndefined();
+    });
+
+    it("成功したら文言は無い", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ liked: true, likes: 4 }) });
+        const { result } = renderHook(() => usePhotoLikes("p1", 3, true));
+        let r: { ok: boolean; message?: string } | undefined;
+        await act(async () => { r = await result.current.toggle(); });
+        expect(r).toEqual({ ok: true, message: undefined });
     });
 });

@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { Photo, Locale } from "@/lib/data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
 import { useSwipe } from "../../../lib/hooks/useSwipe";
-import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
+import { usePhotoLikes, type LikeResult } from "../../../lib/hooks/usePhotoLikes";
 import { useAuth } from "../../auth/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { useImagePreloader } from "../../../lib/hooks/useImagePreloader";
@@ -68,10 +68,12 @@ export default function GalleryModal({
     const { showToast } = useToast();
     // いいねの失敗を伝える（SW-b4）。ダブルタップ・キーボード（h）からも
     // 呼ぶので、参照を ref に持って購読の張り直しを避ける
-    const notifyIfLikeFailed = useCallback((ok: boolean) => {
-        if (!ok) showToast(locale === "en"
+    const notifyIfLikeFailed = useCallback((r: LikeResult) => {
+        // **押し直しても直らない失敗はそう言う。** セッションが切れている／
+        // 通信できない回に「もう一度お試しください」と言うのは案内にならない
+        if (!r.ok) showToast(r.message ?? (locale === "en"
             ? "Couldn't save your like. Please try again."
-            : "いいねを保存できませんでした。もう一度お試しください", "error");
+            : "いいねを保存できませんでした。もう一度お試しください"), "error");
     }, [showToast, locale]);
     const notifyIfLikeFailedRef = useRef(notifyIfLikeFailed);
     useEffect(() => { notifyIfLikeFailedRef.current = notifyIfLikeFailed; }, [notifyIfLikeFailed]);
