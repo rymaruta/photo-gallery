@@ -39,7 +39,11 @@ function reachesRebuild(serviceDir: string, handler: string): boolean {
 }
 
 const services = [
-    { name: "api-user", dir: "api-user", expected: ["updatePhotoVisibility", "deleteMyPhoto", "deleteAccount"] },
+    // savePhoto は「公開したら静的ページを作ってもらう」ために頼む。
+    // presignedUrl / discardUpload は**自分では頼まない**が、savePhoto と同じ
+    // src/upload.ts に居るのでここの辿り方（ファイル単位）では届いてしまう。
+    // 厳密に1つにするなら savePhoto を別ファイルへ切り出す（未着手）。
+    { name: "api-user", dir: "api-user", expected: ["presignedUrl", "savePhoto", "discardUpload", "updatePhotoVisibility", "deleteMyPhoto", "deleteAccount"] },
     { name: "api", dir: "api", expected: ["updatePhoto", "deletePhoto"] },
 ];
 

@@ -9,6 +9,7 @@ import { lookupDisplayNameIfSet } from "./notify";
 import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags } from "./sanitize";
 import { extForType, uploadPrefix, canonicalUploadUrl, idFromUploadKey, isOwnUploadUrl as isOwnUploadUrlFor } from "./uploadPolicy";
 import { mediaKeys } from "./mediaKeys";
+import { requestSiteRebuild } from "./rebuild";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 /**
@@ -192,6 +193,34 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     };
 };
 
+/**
+ * 写真を1枚 公開したら、静的サイトを作り直してもらう。
+ *
+ * **これが無いと、投稿しても世に出ない。** このサイトは静的エクスポートで、
+ * 写真ページも sitemap もビルド時のHTMLとして S3 に置かれる。書き込みは
+ * DynamoDB に入るが、ページは**次の定期ビルド（週1・日曜 03:00 JST）まで
+ * 生まれない**——最大7日、本人が投稿のリンクを誰にも共有できない。
+ * 消す側（削除・非公開・退会）は最初から頼んでいたのに、**作る側だけが
+ * 抜けていた**。
+ *
+ * **`coalesce` は付けない。** クールダウンに当たった依頼は見送られるだけで
+ * 後から実行されないので、まとめて10枚上げると2枚目以降が丸ごと落ちる
+ * （`rebuild.ts` が「削除・退会に付けてはいけない」と書いているのと同じ理由
+ * ——実データを1件作らないと起こせない操作は素通しでよい）。連投の無駄は
+ * GitHub 側が畳む: 待機中の実行は concurrency グループで常に1つにまとまり、
+ * その1本は**ビルド時に DynamoDB を読み直す**ので後から着いた写真も載る。
+ *
+ * **下書きは頼まない。** 静的ページを持たないので作り直す理由が無い。
+ *
+ * 失敗しても投稿は成功で返す（写真はもう保存されている）。ログが手がかり。
+ * なお `REBUILD_DISPATCH_TOKEN` が未設定の本番では、ここは警告1行を出して
+ * 何もしない——**この関数が効くのは owner がトークンを登録してから**。
+ */
+async function requestRebuildForNewPhoto(id: string, isPublished: boolean): Promise<void> {
+    if (!isPublished) return;
+    await requestSiteRebuild(`photo published: ${id}`);
+}
+
 export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
     if (!userId) {
@@ -322,6 +351,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
 
     try {
         await putPhoto(photo);
+        await requestRebuildForNewPhoto(photo.id, isPublished);
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo }) };
     } catch (e) {
         if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
@@ -339,6 +369,10 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             const stored = existing.updatedAt ?? existing.createdAt ?? "";
             const rewritten = { ...photo, createdAt: existing.createdAt ?? photo.createdAt };
             if (stored && await overwriteOwnPhoto(rewritten, stored)) {
+                // 再送で「下書き → 公開」に変わることがある（公開で落ちて
+                // 下書き保存し、そのあと公開を押し直す形）。最初の保存の
+                // ときは下書きで頼まなかったので、ここでもう一度見る。
+                await requestRebuildForNewPhoto(photo.id, isPublished);
                 console.log(`savePhoto: 同じ写真の再送を受け取り、今回の内容で書き直しました（${photo.id}）`);
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: rewritten }) };
             }

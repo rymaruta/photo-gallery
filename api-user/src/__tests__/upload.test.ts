@@ -19,6 +19,9 @@ vi.mock("../ddb-photos", () => ({
 const mockLookupIfSet = vi.hoisted(() => vi.fn());
 vi.mock("../notify", () => ({ lookupDisplayNameIfSet: mockLookupIfSet }));
 
+const mockRequestSiteRebuild = vi.hoisted(() => vi.fn());
+vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRequestSiteRebuild }));
+
 // 署名は必ずモックする。本物を呼ぶと AWS の認証情報を要求するので、
 // 手元では通って CI では落ちる——**テストが実装ではなく環境を測る**。
 // 実際にそれで本番デプロイを止めた（386eeef）。
@@ -72,6 +75,74 @@ beforeEach(() => {
     mockLookupIfSet.mockReset().mockResolvedValue(undefined);
     mockGetPhotoById.mockReset().mockResolvedValue(undefined);
     mockOverwriteOwnPhoto.mockReset().mockResolvedValue(true);
+    mockRequestSiteRebuild.mockReset().mockResolvedValue(true);
+});
+
+// **投稿しても世に出ない、を直した分。**
+// このサイトは静的エクスポートなので、DynamoDB に書いただけでは写真ページも
+// sitemap も生まれない。消す側（削除・非公開・退会）は最初から再ビルドを
+// 頼んでいたのに、**作る側だけが抜けていた**——公開で投稿しても、次の
+// 定期ビルド（週1）まで最大7日、本人がリンクを共有できなかった。
+describe("savePhoto: 公開したら静的サイトを作り直してもらう", () => {
+    it("公開で保存したら再ビルドを頼む", async () => {
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockRequestSiteRebuild).toHaveBeenCalledTimes(1);
+        expect(mockRequestSiteRebuild.mock.calls[0][0]).toContain(savedPhoto().id);
+    });
+
+    // **coalesce を付けてはいけない。** 見送られた依頼は後から実行されない
+    // ので、まとめて10枚上げると2枚目以降のページが7日 生まれない
+    it("依頼をまとめない（coalesce を渡さない）", async () => {
+        await invoke(event("u1", { ...BASE, published: true }));
+        const opts = mockRequestSiteRebuild.mock.calls[0][1];
+        expect(opts?.coalesce, "まとめると2枚目以降が落ちる").not.toBe(true);
+    });
+
+    it("下書きでは頼まない（静的ページを持たないので作り直す理由が無い）", async () => {
+        const res = await invoke(event("u1", { ...BASE, published: false }));
+        expect(res.statusCode).toBe(200);
+        expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
+    });
+
+    // 写真はもう保存されている。ここで 500 を返すのは嘘になる
+    it("依頼できなくても、投稿は成功で返す", async () => {
+        mockRequestSiteRebuild.mockResolvedValue(false);
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).success).toBe(true);
+    });
+
+    it("保存に失敗したときは頼まない（作り直す中身が無い）", async () => {
+        mockPutPhoto.mockRejectedValue(new Error("boom"));
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(500);
+        expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
+    });
+
+    // 再送は「公開で落ちて下書き保存 → 公開を押し直す」経路で起きる。
+    // 最初の保存は下書きだったので頼んでいない＝ここで見ないと落ちる
+    it("再送で下書き→公開に変わったときも頼む", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: false,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockRequestSiteRebuild).toHaveBeenCalledTimes(1);
+    });
+
+    it("再送が下書きのままなら頼まない", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, published: false }));
+        expect(res.statusCode).toBe(200);
+        expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
+    });
 });
 
 describe("savePhoto: thumbUrl（一覧グリッド用サムネイル）", () => {

@@ -96,8 +96,17 @@ custom:
       - '@aws-sdk/*'
 
 functions:
+  # 注: この関数自身は再ビルドを頼まない。**savePhoto と同じ src/upload.ts に
+  # 居るため**、依存を辿る守り（scripts/__tests__/rebuildTokenScope.test.ts）が
+  # 「届く関数」として数える。配り先を厳密に1つにするには savePhoto を別ファイルへ
+  # 切り出すことになるので、今は配る側に倒す（どちらも認証必須の投稿系）。
   presignedUrl:
     handler: src/upload.presignedUrl
+    environment:
+      # 再ビルド依頼はこの関数から出す（provider には置かない。IAM-2）
+      REBUILD_REPO: ${param:rebuildRepo, ''}
+      REBUILD_DISPATCH_TOKEN: ${param:rebuildToken, ''}
+      REBUILD_MONTHLY_MAX: ${param:rebuildMonthlyMax, ''}
     events:
       - httpApi:
           path: /upload/presigned-url
@@ -107,6 +116,11 @@ functions:
 
   savePhoto:
     handler: src/upload.savePhoto
+    environment:
+      # 再ビルド依頼はこの関数から出す（provider には置かない。IAM-2）
+      REBUILD_REPO: ${param:rebuildRepo, ''}
+      REBUILD_DISPATCH_TOKEN: ${param:rebuildToken, ''}
+      REBUILD_MONTHLY_MAX: ${param:rebuildMonthlyMax, ''}
     events:
       - httpApi:
           path: /upload/save
@@ -119,6 +133,11 @@ functions:
   # （どの削除経路も DynamoDB の項目からキーを引くため）。
   discardUpload:
     handler: src/upload.discardUpload
+    environment:
+      # 再ビルド依頼はこの関数から出す（provider には置かない。IAM-2）
+      REBUILD_REPO: ${param:rebuildRepo, ''}
+      REBUILD_DISPATCH_TOKEN: ${param:rebuildToken, ''}
+      REBUILD_MONTHLY_MAX: ${param:rebuildMonthlyMax, ''}
     events:
       - httpApi:
           path: /upload/discard

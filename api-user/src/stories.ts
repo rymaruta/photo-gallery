@@ -5,8 +5,7 @@ import { ddb, PHOTOS_TABLE, USER_INDEX, STORY_INDEX, STORY_FEED_KEY } from "./dy
 import { JSON_HEADERS, getUserId, jsonError, isAdmin } from "./http";
 import { lookupDisplayName } from "./notify";
 import { mediaKeys, deriveUploadKey } from "./mediaKeys";
-import { isOwnUploadUrl } from "./upload";
-import { keyFromUploadUrl, canonicalUploadUrl } from "./uploadPolicy";
+import { isOwnUploadUrlFromEnv as isOwnUploadUrl, keyFromUploadUrl, canonicalUploadUrl } from "./uploadPolicy";
 import { s3DeleteMany } from "./s3Delete";
 import { invalidateUploads } from "./cdnInvalidate";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
