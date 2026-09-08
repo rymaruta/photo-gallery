@@ -41,11 +41,13 @@ vi.mock("../../../lib/hooks/useFavorites", () => ({
 
 const { AuthProvider, useAuth } = await import("../context");
 
+let renders = 0;
 function Harness() {
-    const { isAuthenticated, isGeneralUser, loading } = useAuth();
+    const { isAuthenticated, isGeneralUser, userId, loading } = useAuth();
+    renders++;
     return (
         <div data-testid="state">
-            {loading ? "loading" : isAuthenticated ? (isGeneralUser ? "in:user" : "in") : "out"}
+            {loading ? "loading" : isAuthenticated ? (isGeneralUser ? `in:user:${userId}` : "in") : "out"}
         </div>
     );
 }
@@ -65,6 +67,7 @@ const offline = { session: null, unreachable: true };
  */
 async function recheck() {
     const before = mockLookupSession.mock.calls.length;
+    const beforeRenders = renders;
     act(() => {
         window.dispatchEvent(new StorageEvent("storage", {
             key: "CognitoIdentityServiceProvider.client-test.u1.idToken",
@@ -72,46 +75,50 @@ async function recheck() {
         }));
     });
     await waitFor(() => expect(mockLookupSession.mock.calls.length).toBe(before + 1));
-    // 解決後の setState を反映させる（ここを飛ばすと「前のまま」を見てしまう）
-    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    // **呼ばれたことは「済んだこと」ではない。** ここで止めていた頃は、
+    // 応答が state に届く前に抜けていたので、実装が実際に追い出していても
+    // 「前のまま」を見て緑になった（分岐を消して `setAuthState` を 50ms
+    // 遅らせる変異で確認）。**どちらの道でも `setAuthState` は新しい
+    // オブジェクトを入れる**ので、再描画が必ず1回増える。それを関門にする
+    await waitFor(() => expect(renders).toBeGreaterThan(beforeRenders));
 }
 
-beforeEach(() => { mockLookupSession.mockReset(); stableRouter.replace.mockReset(); });
+beforeEach(() => { mockLookupSession.mockReset(); stableRouter.replace.mockReset(); renders = 0; });
 
 describe("セッションを確かめられなかったとき", () => {
     it("圏外になっても、ログイン中のままにする（追い出さない）", async () => {
         mockLookupSession.mockResolvedValue(ok("u1"));
         render(<AuthProvider><Harness /></AuthProvider>);
-        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user"));
+        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user:u1"));
 
         mockLookupSession.mockResolvedValue(offline);
         await recheck();
 
-        // **権限まで含めて前のまま。** ここで `isGeneralUser` を落とすと、
+        // **権限も誰かも前のまま。** ここで `isGeneralUser` を落とすと、
         // `useMemberGate` が「権限が無い人」の画面を出す（追い出しより静かで、
         // かつ本人には直しようが無い）
-        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user"));
+        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user:u1"));
         expect(stableRouter.replace, "圏外なだけでログイン画面へ送っている").not.toHaveBeenCalled();
     });
 
     it("電波が戻ったら、そのまま続けられる", async () => {
         mockLookupSession.mockResolvedValue(ok("u1"));
         render(<AuthProvider><Harness /></AuthProvider>);
-        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user"));
+        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user:u1"));
 
         mockLookupSession.mockResolvedValue(offline);
         await recheck();
         mockLookupSession.mockResolvedValue(ok("u1"));
         await recheck();
 
-        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user"));
+        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user:u1"));
     });
 
     // 逆向きを殺さない: 本当に失効した／別タブでログアウトした場合は今までどおり
     it("本当に失効していたら、未ログインに戻す", async () => {
         mockLookupSession.mockResolvedValue(ok("u1"));
         render(<AuthProvider><Harness /></AuthProvider>);
-        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user"));
+        await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user:u1"));
 
         mockLookupSession.mockResolvedValue(signedOut);
         await recheck();

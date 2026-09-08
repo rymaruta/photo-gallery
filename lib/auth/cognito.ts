@@ -179,26 +179,26 @@ export async function lookupSession(): Promise<SessionLookup> {
             const cognitoUser = userPool.getCurrentUser();
 
             if (!cognitoUser) {
-                        log.debug("[getCurrentSession] cognitoUserが見つかりません");
+                        log.debug("[lookupSession] cognitoUserが見つかりません");
                 resolve({ session: null, unreachable: false });
                 return;
             }
 
             cognitoUser.getSession((err: Error | null, session: CognitoUserSession | null) => {
                 if (err) {
-                            log.error("[getCurrentSession] セッション取得エラー:", err.message);
+                            log.error("[lookupSession] セッション取得エラー:", err.message);
                     resolve({ session: null, unreachable: isUnreachable(err) });
                     return;
                 }
                 
                 if (!session) {
-                            log.debug("[getCurrentSession] セッションがnullです");
+                            log.debug("[lookupSession] セッションがnullです");
                     resolve({ session: null, unreachable: false });
                     return;
                 }
                 
                 if (!session.isValid()) {
-                            log.debug("[getCurrentSession] セッションが無効です");
+                            log.debug("[lookupSession] セッションが無効です");
                     resolve({ session: null, unreachable: false });
                     return;
                 }
@@ -207,7 +207,7 @@ export async function lookupSession(): Promise<SessionLookup> {
             });
         } catch (error) {
             // 環境変数が設定されていない場合はnullを返す
-            log.error("[getCurrentSession] 例外が発生しました:", error instanceof Error ? error.message : String(error));
+            log.error("[lookupSession] 例外が発生しました:", error instanceof Error ? error.message : String(error));
             // 設定が無い等。**通信の問題ではない**ので保たない
             resolve({ session: null, unreachable: false });
         }

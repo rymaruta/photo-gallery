@@ -261,10 +261,13 @@ describe("lookupSession", () => {
     // ログイン画面へ追い出される
     const err = (props: Record<string, unknown>) => Object.assign(new Error(String(props.message ?? "x")), props);
 
-    it("通信が届かなかった回は unreachable（code で見る）", async () => {
+    // **印は2つ別々に見る。** 最初は `{code, message}` を両方立てた1本しか
+    // 無かったので、**`code` の判定を消しても緑**だった（message 側だけで
+    // 通っていた）。片方ずつ立てて2本にする
+    it("通信が届かなかった回は unreachable（code だけで見分ける）", async () => {
         mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
         mockGetSession.mockImplementation((cb: (e: Error, s: null) => void) =>
-            cb(err({ code: "NetworkError", message: "Network error" }), null));
+            cb(err({ code: "NetworkError", message: "Failed to fetch" }), null));
         expect(await lookupSession()).toEqual({ session: null, unreachable: true });
     });
 
@@ -291,6 +294,13 @@ describe("lookupSession", () => {
         mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
         mockGetSession.mockImplementation((cb: (e: null, s: { isValid: () => boolean }) => void) =>
             cb(null, { isValid: () => false }));
+        expect(await lookupSession()).toEqual({ session: null, unreachable: false });
+    });
+
+    // **設定不備を「通信断」に混ぜない。** 混ぜると、前の状態を保つ側が
+    // 永久に固まる（確かめ直しても毎回 unreachable になる）
+    it("設定が壊れていて例外になった回は unreachable にしない", async () => {
+        mockGetCurrentUser.mockImplementation(() => { throw new Error("no pool"); });
         expect(await lookupSession()).toEqual({ session: null, unreachable: false });
     });
 

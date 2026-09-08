@@ -64,7 +64,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const resolvedRef = useRef<{ authenticated: boolean; admin: boolean } | null>(null);
 
     // 認証状態をチェック
-    const checkAuth = useCallback(async () => {
+    /**
+     * 認証状態を確かめ直す。
+     *
+     * **確かめられなかった回は `null` を返す**（通信が届かず、前の状態を
+     * 保った回）。`{authenticated:false}` を返すと「確かめたら未ログイン
+     * だった」と区別できず、画面が保っている状態と戻り値が食い違う
+     * ——いまの呼び出しは2か所ともこれを読んでいないが、次に読む人が
+     * 静かに踏む。`null` にしておけば `tsc` が読む側に扱いを迫る。
+     */
+    const checkAuth = useCallback(async (): Promise<{ authenticated: boolean; admin: boolean } | null> => {
         try {
             // 設定が解決できない場合は認証機能を無効化
             // （config.ts が検証済みフォールバックを持つため、通常は常に有効）
@@ -95,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // ——まだ何も打っていないので失うものが無い。
                 if (resolvedRef.current) {
                     setAuthState((prev) => ({ ...prev, loading: false }));
-                    return { authenticated: resolvedRef.current.authenticated, admin: resolvedRef.current.admin };
+                    return null;   // 確かめられていない（前の状態を保った）
                 }
             }
             const authenticated = session !== null;
