@@ -55,14 +55,25 @@ const ok = (sub: string) => ({ session: session(sub), unreachable: false });
 const signedOut = { session: null, unreachable: false };
 const offline = { session: null, unreachable: true };
 
-/** 別のタブからの localStorage 変更（＝この画面が判定をやり直す唯一の契機） */
-function recheck() {
+/**
+ * 別のタブからの localStorage 変更（＝この画面が判定をやり直す唯一の契機）。
+ *
+ * **やり直しが済むまで待つ。** 最初はイベントを投げるだけだったので、
+ * 「変わっていないこと」を見るテストが**状態が更新される前に真になって
+ * 通っていた**（実装から分岐を消しても4件とも緑だった＝何も守っていない）。
+ * 呼び出し回数が増えたことを見て、そのあと保留中の更新を流す。
+ */
+async function recheck() {
+    const before = mockLookupSession.mock.calls.length;
     act(() => {
         window.dispatchEvent(new StorageEvent("storage", {
             key: "CognitoIdentityServiceProvider.client-test.u1.idToken",
             storageArea: window.localStorage,
         }));
     });
+    await waitFor(() => expect(mockLookupSession.mock.calls.length).toBe(before + 1));
+    // 解決後の setState を反映させる（ここを飛ばすと「前のまま」を見てしまう）
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
 }
 
 beforeEach(() => { mockLookupSession.mockReset(); stableRouter.replace.mockReset(); });
@@ -74,7 +85,7 @@ describe("セッションを確かめられなかったとき", () => {
         await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user"));
 
         mockLookupSession.mockResolvedValue(offline);
-        recheck();
+        await recheck();
 
         // **権限まで含めて前のまま。** ここで `isGeneralUser` を落とすと、
         // `useMemberGate` が「権限が無い人」の画面を出す（追い出しより静かで、
@@ -89,9 +100,9 @@ describe("セッションを確かめられなかったとき", () => {
         await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user"));
 
         mockLookupSession.mockResolvedValue(offline);
-        recheck();
+        await recheck();
         mockLookupSession.mockResolvedValue(ok("u1"));
-        recheck();
+        await recheck();
 
         await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user"));
     });
@@ -103,7 +114,7 @@ describe("セッションを確かめられなかったとき", () => {
         await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("in:user"));
 
         mockLookupSession.mockResolvedValue(signedOut);
-        recheck();
+        await recheck();
 
         await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("out"));
     });

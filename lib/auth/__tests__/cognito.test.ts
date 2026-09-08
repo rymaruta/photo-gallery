@@ -38,7 +38,7 @@ vi.mock("amazon-cognito-identity-js", () => ({
 
 // static import（環境変数に依存しない）
 import {
-    signIn, getCurrentSession, signUp, confirmSignUp,
+    signIn, getCurrentSession, lookupSession, signUp, confirmSignUp,
     getCurrentUserGroups, isAdmin, isGeneralUser,
 } from "../cognito";
 
@@ -247,5 +247,66 @@ describe("getCurrentUserGroups / isAdmin / isGeneralUser", () => {
         mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
         mockGetSession.mockImplementation((cb: (e: null, s2: typeof s) => void) => cb(null, s));
         expect(await isGeneralUser()).toBe(false);
+    });
+});
+
+// ────────────────────────────────
+// lookupSession（「ログインしていない」と「確かめられなかった」を分ける）
+// ────────────────────────────────
+describe("lookupSession", () => {
+    // ライブラリは `fetch` が TypeError で落ちた回を `Error("Network error")` に
+    // 包み直して `code = "NetworkError"` を立てる
+    // （node_modules/amazon-cognito-identity-js/lib/Client.js）。
+    // これを見分けないと、圏外が「ログアウト」になり、編集中の画面ごと
+    // ログイン画面へ追い出される
+    const err = (props: Record<string, unknown>) => Object.assign(new Error(String(props.message ?? "x")), props);
+
+    it("通信が届かなかった回は unreachable（code で見る）", async () => {
+        mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
+        mockGetSession.mockImplementation((cb: (e: Error, s: null) => void) =>
+            cb(err({ code: "NetworkError", message: "Network error" }), null));
+        expect(await lookupSession()).toEqual({ session: null, unreachable: true });
+    });
+
+    it("code が無くても、ライブラリの文言なら unreachable", async () => {
+        mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
+        mockGetSession.mockImplementation((cb: (e: Error, s: null) => void) =>
+            cb(new Error("Network error"), null));
+        expect((await lookupSession()).unreachable).toBe(true);
+    });
+
+    it("失効（NotAuthorizedException）は unreachable にしない", async () => {
+        mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
+        mockGetSession.mockImplementation((cb: (e: Error, s: null) => void) =>
+            cb(err({ code: "NotAuthorizedException", name: "NotAuthorizedException", message: "Refresh Token has expired" }), null));
+        expect(await lookupSession()).toEqual({ session: null, unreachable: false });
+    });
+
+    it("そもそもログインしていない（getCurrentUser が null）も unreachable にしない", async () => {
+        mockGetCurrentUser.mockReturnValue(null);
+        expect(await lookupSession()).toEqual({ session: null, unreachable: false });
+    });
+
+    it("無効なセッションも unreachable にしない", async () => {
+        mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
+        mockGetSession.mockImplementation((cb: (e: null, s: { isValid: () => boolean }) => void) =>
+            cb(null, { isValid: () => false }));
+        expect(await lookupSession()).toEqual({ session: null, unreachable: false });
+    });
+
+    it("取れたときは session を返す（unreachable は false）", async () => {
+        const sess = { isValid: () => true, getIdToken: () => ({ payload: {} }) };
+        mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
+        mockGetSession.mockImplementation((cb: (e: null, s: unknown) => void) => cb(null, sess));
+        const r = await lookupSession();
+        expect(r.session).toBe(sess);
+        expect(r.unreachable).toBe(false);
+    });
+
+    it("getCurrentSession は同じ答えの session だけを返す（既存の呼び出しは不変）", async () => {
+        mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
+        mockGetSession.mockImplementation((cb: (e: Error, s: null) => void) =>
+            cb(err({ code: "NetworkError" }), null));
+        expect(await getCurrentSession()).toBeNull();
     });
 });
