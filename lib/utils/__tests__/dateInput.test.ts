@@ -97,14 +97,23 @@ describe("todayForDateInput", () => {
 // 画面側で作り直していた。日付を1文字も触らずに保存すると時刻が消える。
 describe("mergeDate: 端末のタイムゾーンで結果が変わらない", () => {
     const TZS = ["Asia/Tokyo", "UTC", "America/New_York"];
-    afterEach(() => { delete process.env.TZ; });
+    // **前の値に戻す**（消すと、外から `TZ` を渡して走らせたときに
+    // このファイルより下の describe が黙ってゾーンを失う）
+    const prevTZ = process.env.TZ;
+    afterEach(() => { if (prevTZ === undefined) delete process.env.TZ; else process.env.TZ = prevTZ; });
 
-    // JST では 00:00〜08:59、ニューヨークでは 19:00〜23:59 が UTC で別の日になる
-    it.each(["2024-11-01T07:30:00", "2024-11-01T20:30:00", "2024-11-01T12:00:00"])(
-        "%s は、どのゾーンでも時刻ごと保たれる", (stored) => {
+    // JST では 00:00〜08:59、ニューヨークでは 19:00〜23:59 が UTC で別の日になる。
+    // **期待する入力は書き下す。** `toDateInputValue(stored)` を渡していた頃は、
+    // 両側が同じだけずれれば必ず一致するので、**`toDateInputValue` から
+    // 「先頭の YYYY-MM-DD をそのまま返す」枝を消しても 3,312 件が緑**だった
+    // （＝日本の朝に撮った写真の編集欄に前日が出る状態を、誰も見ていない）
+    it.each([["2024-11-01T07:30:00", "2024-11-01"], ["2024-11-01T20:30:00", "2024-11-01"],
+        ["2024-11-01T12:00:00", "2024-11-01"]])(
+        "%s は、どのゾーンでも時刻ごと保たれる", (stored, shown) => {
             for (const tz of TZS) {
                 process.env.TZ = tz;
-                expect(mergeDate(stored, toDateInputValue(stored)), `${tz} で時刻が落ちた`).toBe(stored);
+                expect(toDateInputValue(stored), `${tz} で欄に出る日付がずれた`).toBe(shown);
+                expect(mergeDate(stored, shown), `${tz} で時刻が落ちた`).toBe(stored);
             }
         });
 

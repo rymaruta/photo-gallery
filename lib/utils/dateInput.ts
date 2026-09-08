@@ -36,7 +36,8 @@ export function mergeDate(original: string | undefined, input: string): string {
     // 落ちると同じ日に撮った写真の並び順が変わる。
     // `toDateInputValue` は入力欄に出す値そのものなので、
     // 「欄に出したのと同じ日か」を見ることになり、ゾーンに依存しない。
-    if (!toDateInputValue(original)) return input;
+    // 読めない値は `toDateInputValue` が `""` を返すので、次の行で
+    // `input` と一致せず `input` が返る（別の門は要らない）
     if (toDateInputValue(original) !== input) return input;
     // 元の日付と同じ。時刻を保つ——ただし「UTC 0時ちょうど」は、
     // 旧 sanitizeDate が日付だけの入力に付けていた**捏造の時刻**（C-12）。
