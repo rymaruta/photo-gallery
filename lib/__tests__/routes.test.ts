@@ -135,6 +135,10 @@ describe("safeNextPath: 制御文字によるオリジン抜け", () => {
 describe("safeNextPath: 正規化でスキーム相対に化ける形", () => {
     it.each([
         "/..//evil.example",
+        // **ドット1個でも潰れる**。`..` だけを負例にしていると、
+        // 再確認を `..`/`%2e` に絞る変異が通ってしまう（同じ穴が復活する）
+        "/.//evil.example",
+        "/./..//evil.example",
         "/../..//evil.example/pwn?a=1",
         "/photo/../..//evil.example",
         "/%2e%2e//evil.example",
@@ -161,7 +165,20 @@ describe("safeNextPath: 正規化でスキーム相対に化ける形", () => {
         ["/photo/abc", "/photo/abc"],
         ["/user/upload?from=share", "/user/upload?from=share"],
         ["/photo/a/../b", "/photo/b"],
+        // **ハッシュも落とさない**（`+ u.hash` を消す変異が素通りしていた）
+        ["/users?id=u1#top", "/users?id=u1#top"],
+        ["/photo/abc#comments", "/photo/abc#comments"],
+        // 日本語のスラッグ（`location.pathname` は既にエンコード済みで渡る）
+        ["/location/%E4%BA%AC%E9%83%BD", "/location/%E4%BA%AC%E9%83%BD"],
     ])("%s は通す", (raw, expected) => {
         expect(safeNextPath(raw)).toBe(expected);
+    });
+
+    // **投げない。** `safeNextPath` は `/login` のコンポーネント本体から
+    // 呼ばれるので、投げると**ログイン画面が描画ごと落ちる**。
+    // 正規化したあとの値が URL として壊れている入力が実際にある
+    it.each(["/../\\.", "/.\\\\@%2f\t", "/.\t\\/[@"])("%s は投げずに null", (raw) => {
+        expect(() => safeNextPath(raw)).not.toThrow();
+        expect(safeNextPath(raw)).toBeNull();
     });
 });

@@ -477,13 +477,26 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     // ここだけ「表示側の1本の判定」が唯一の砦になっていた（対の乖離）。
     // 表示する場所を1つ増やした瞬間に開く形なので、入口で止める。
     //
-    // **スキームが無いもの（`example.com`）は今までどおり通す**——
-    // 弾くと、それを入れていた人がプロフィールを保存できなくなる。
-    // （今の画面はそれをリンクとして出さない。出し方は別の判断）
-    if (website && /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(website) && !/^https?:\/\//i.test(website)) {
-        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({
-            error: "ウェブサイトは http:// か https:// で始まるリンクを入れてください",
-        }) };
+    // **判定はパーサに任せる。** 正規表現でスキームを切り出していた頃は、
+    // `java<TAB>script:` が素通りした（URL のパーサはスキームの中のタブ・
+    // 改行・CR を**解釈の前に取り除く**ので、ブラウザはこれを
+    // `javascript:` として実行する）。**`lib/routes.ts` の `safeNextPath` が
+    // まったく同じタブ文字で抜かれた**ので、同じ直し方に揃える。
+    //
+    // **`:` を含まないもの（`example.com`）は今までどおり通す**——
+    // パースできない＝相対として扱う。弾くと、それを入れていた人が
+    // プロフィールを保存できなくなる。
+    // （`example.com:8080` は URL の仕様では**スキーム**なので断る。
+    //   その値は今の画面ではリンクにならず、何も表示されない。
+    //   `https://` を付けて入れ直してもらう方が、本人の望みに近い）
+    if (website) {
+        let parsed: URL | null = null;
+        try { parsed = new URL(website); } catch { parsed = null; }
+        if (parsed && parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+            return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({
+                error: "ウェブサイトは http:// か https:// で始まるリンクを入れてください",
+            }) };
+        }
     }
 
     // サイト内ユーザー名（@ハンドル）。形式・予約語を検証し、一意性は予約アイテムで担保する。

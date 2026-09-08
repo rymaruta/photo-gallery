@@ -52,6 +52,17 @@ describe("プロフィールのウェブサイト: 実行できるスキーム�
         "JavaScript:alert(1)",
         "data:text/html;base64,PHNjcmlwdD4=",
         "vbscript:msgbox(1)",
+        // **タブで割った形**。URL のパーサはスキームの中のタブ・改行・CR を
+        // 解釈の前に取り除くので、ブラウザはこれを `javascript:` として実行する
+        // （`safeNextPath` がまったく同じ形で抜かれた）
+        "java\tscript:alert(1)",
+        "java\nscript:alert(1)",
+        " javascript:alert(1)",       // 前後の空白（trim の前に見ると通る）
+        // **列挙に戻さない。** 「javascript|data|vbscript を弾く」に
+        // 置き換える変異は、この3つが無いと落ちない
+        "file:///etc/passwd",
+        "ms-msdt:/id",                // 英字以外を含むスキーム
+        "intent://x",
     ])("%s は 400 で断る（保存しない）", async (website) => {
         const res = await invoke({ website });
         expect(res.statusCode, "実行できるスキームを保存している").toBe(400);
