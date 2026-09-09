@@ -67,6 +67,11 @@ function savedPhoto(): Photo {
     return mockPutPhoto.mock.calls[0][0] as Photo;
 }
 
+/** 再送で書き直した内容（overwriteOwnPhoto に渡した写真） */
+function savedRewrite(): Photo {
+    return mockOverwriteOwnPhoto.mock.calls[0][0] as Photo;
+}
+
 beforeEach(() => {
     mockPutPhoto.mockReset().mockResolvedValue(undefined);
     mockCountUserPhotos.mockReset().mockResolvedValue(0);
@@ -112,6 +117,20 @@ describe("savePhoto: 公開したら静的サイトを作り直してもらう",
         expect(JSON.parse(res.body).success).toBe(true);
     });
 
+    // **黙って握らない。** rebuild.ts は失敗のたびに必ずログを出す作りなので、
+    // その終端に無言の catch を置くと、発動したときに手がかりが無くなる
+    it("例外を握るときは、手がかりを残す", async () => {
+        const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        try {
+            mockRequestSiteRebuild.mockRejectedValue(new Error("dispatch exploded"));
+            await invoke(event("u1", { ...BASE, published: true }));
+            const logged = err.mock.calls.some((c) => String(c[0]).includes("requestRebuildForNewPhoto"));
+            expect(logged, "無言で握っている").toBe(true);
+        } finally {
+            err.mockRestore();
+        }
+    });
+
     it("下書きでは頼まない（静的ページを持たないので作り直す理由が無い）", async () => {
         const res = await invoke(event("u1", { ...BASE, published: false }));
         expect(res.statusCode).toBe(200);
@@ -154,6 +173,39 @@ describe("savePhoto: 公開したら静的サイトを作り直してもらう",
         });
         const res = await invoke(event("u1", { ...BASE, published: false }));
         expect(res.statusCode).toBe(200);
+        expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
+    });
+
+    // **`published` を持たない古い行も「公開だった」と読む。**
+    // このリポジトリは「未指定は公開」で揃っている（同じ関数の `isPublished`
+    // 自身がそう）。`=== true` で書くとここだけ慣習と逆になり、古い行の
+    // 二重送信で予算を1本ずつ食う
+    it("再送で published を持たない行なら、公開済みとして頼まない", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
+    });
+
+    // **既存の穴の目撃者**（この差分で作った回帰ではない）。
+    // 「公開を押す → 応答だけ失われる → 下書き保存を押す」で、公開済みの行が
+    // 下書きに書き換わるのに再ビルドを頼まず `staticStale` も立てない
+    // （`photoUpdate.ts` の隠す3経路はどちらもやっている）。実際に静的ページが
+    // 残るのは「その間に別のビルドの scan が挟まった」場合だけなので窓は狭い。
+    // **いまの振る舞いを写し取っておく**——直すのは別の差分で。
+    it("【既知の穴】再送で公開→下書きに落としても、いまは何も頼まない", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, published: false }));
+        expect(res.statusCode).toBe(200);
+        expect(savedRewrite().published, "下書きに書き換わっている").toBe(false);
         expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
     });
 

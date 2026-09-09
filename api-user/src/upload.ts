@@ -205,11 +205,22 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
  * その月いっぱい**写真削除・退会の掃除まで全部落ちる**——「出るのが遅れる」を
  * 直して「消したのに検索から見える」を月単位で作る取り引きになっていた。
  *
- * 畳まれても落ちない: 畳まれた＝直近10分に誰かが頼んだ＝**ビルドがもう
- * 走っている**ということで、その1本は**ビルド時に DynamoDB を読み直す**。
- * しかも `scripts/sync-photos-from-ddb.js` は読み終わった時点で印を下ろすので、
- * 実際に取りこぼす窓は「そのビルドがテーブルを読んだ後〜印が下りるまで」の
- * 数秒〜数十秒だけ。**旧コメントの「2枚目以降が7日 生まれない」は誇張だった。**
+ * 畳まれても、たいていは落ちない: 畳まれた＝直近10分に誰かが頼んだ＝
+ * **ビルドがもう走っている**ということで、その1本は**ビルド時に DynamoDB を
+ * 読み直す**。取りこぼす窓は「そのビルドがテーブルを読んだ後 〜
+ * `clearRebuildLock` が走るまで」——`sync-photos-from-ddb.js` の `main()` の
+ * **最後**なので、scan のあとに表示名の突き合わせ（投稿者ごとに GetItem）と
+ * 書き出しが挟まります（投稿者が増えるほど伸びる）。
+ * **窓は短いが、そこに落ちた1枚は次に誰かが依頼を出すまで＝最悪7日**。
+ * 旧コメントの「2枚目以降が丸ごと7日」は誇張だったが、7日が消えたのでは
+ * なく確率が下がっただけ。
+ *
+ * **この変更で1つ失うもの**: 投稿がロックを取るので、**投稿直後の10分間は
+ * `/user/edit` の編集依頼（`photoUpdate.ts` の `coalesce`）が畳まれます**
+ * ——「投稿してすぐ、説明文に書いてしまった個人情報を消す」が、走っている
+ * ビルドの scan 位置次第で次の依頼まで載らない。あちらは隠す操作のときしか
+ * `staticStale` を立てないので、メタの消し忘れは行にも画面にも残りません。
+ * ロックは `api` と `api-user` で同じ `rebuild#lock` を使う1つのものです。
  *
  * **下書きは頼まない。** 静的ページを持たないので作り直す理由が無い。
  *
@@ -223,7 +234,14 @@ async function requestRebuildForNewPhoto(id: string, isPublished: boolean): Prom
     // ここで例外が上がると保存済みの写真について 500「保存に失敗しました」を
     // 返す（画面は実体を捨てにいく）。いまの rebuild.ts は全経路を包んでいて
     // 実際には投げないが、投げた瞬間に一番悪い形になる1行なので塞いでおく。
-    await requestSiteRebuild(`photo published: ${id}`, { coalesce: true }).catch(() => false);
+    await requestSiteRebuild(`photo published: ${id}`, { coalesce: true })
+        // **黙って握らない。** `rebuild.ts` は失敗のたびに必ずログを出す作りで、
+        // その終端に無言の catch を置くと方針が逆になる（今は投げないので
+        // これは将来のための保険だが、発動したときに手がかりが無くなる）。
+        .catch((e) => {
+            console.error(`requestRebuildForNewPhoto: 想定外の例外（写真は保存済み・${id}）:`, e);
+            return false;
+        });
 }
 
 export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
@@ -382,7 +400,12 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 // 応答だけが失われた」ときに起きるので、ただの二重送信でも
                 // ここに来る。そのたびに頼むと月の予算を1本ずつ食う
                 // （最初の保存で既に頼んである）。
-                const wasPublished = existing.published === true;
+                // **`!== false` で見る。** このリポジトリは「未指定は公開」で
+                // 揃っていて（`upload.ts:260` の `isPublished` 自身がそう。
+                // ほか photoUpdate・account・userProfile・sync スクリプト）、
+                // `=== true` はここだけだった＝対の乖離。`published` を持たない
+                // 古い行では「下書きだった」と読み、二重送信のたびに予算を食う。
+                const wasPublished = existing.published !== false;
                 await requestRebuildForNewPhoto(photo.id, isPublished && !wasPublished);
                 console.log(`savePhoto: 同じ写真の再送を受け取り、今回の内容で書き直しました（${photo.id}）`);
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: rewritten }) };
