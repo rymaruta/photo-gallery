@@ -56,7 +56,15 @@ function handlerBody(serviceDir: string, handler: string): string {
     // 次の**トップレベルの宣言**まで（export に限らない——`savePhoto` の直前に
     // 非 export の補助関数が居ると、そこまで飲み込んで誤検知する）
     const next = /^(?:export )?(?:const|function|async function|type|interface) /m.exec(rest);
-    return rest.slice(0, next ? next.index : rest.length);
+    const body = rest.slice(0, next ? next.index : rest.length);
+    // **コメントを先に潰す。** 切り出した範囲には次の関数の JSDoc が必ず入る
+    // （宣言の手前で切るため）。実測: `presignedUrl` は152行のうち89行が
+    // コメントで、そこには `requestRebuildForNewPhoto` の説明が丸ごと入る。
+    // 潰さないと、**経緯を1行書いただけで無関係に落ちる**——このリポジトリは
+    // 同じ形を一度踏んで「コメントを先に潰す」を教訓に書いている
+    // （scripts/audit-text-contrast.mjs）。倒れる先は安全側（誤検知）だが、
+    // 誤検知で落ちる守りは やがて外されるので、ここで閉じておく。
+    return body.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/.*$/gm, " ");
 }
 
 const services = [
