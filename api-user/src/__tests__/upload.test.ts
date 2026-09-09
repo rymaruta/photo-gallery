@@ -1114,6 +1114,44 @@ describe("savePhoto: 保存の再送で写真が増えない", () => {
         expect("coords" in (savedRewrite() as Record<string, unknown>), "切った座標が戻っている").toBe(false);
     });
 
+    // 撮影地を直したら、補った座標は付いてこない。
+    // 補った座標は地名に付随するので、「パリ」→「ロンドン」に直して
+    // 送り直すと「ロンドン（おおよそ）」のピンがパリに立つ
+    // （`photoUpdate.ts:223` が同じ理由で座標ごと捨てている）
+    it("撮影地を直した回は、補った座標を引き継がない", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`, published: true,
+            location: "パリ", coords: { lat: 48.85, lng: 2.35 }, geoApprox: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", { ...body, published: true, location: "ロンドン" }));
+
+        const w = savedRewrite() as Record<string, unknown>;
+        expect(w.location).toBe("ロンドン");
+        expect("coords" in w, "ロンドンなのにパリのピンが残っている").toBe(false);
+        expect("geoApprox" in w).toBe(false);
+    });
+
+    // 逆向き。**今回 GPS を入れて送ったら今回が勝つ**（保存済みの
+    // 「おおよそ」で上書きしない・印も付けない）。
+    // このガードを外しても全緑だった＝守れていなかった
+    it("今回 GPS を入れて送ったら、保存済みの「おおよそ」で上書きしない", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`, published: true,
+            location: "パリ", coords: { lat: 48.85, lng: 2.35 }, geoApprox: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", { ...body, published: true, location: "パリ", coords: { lat: 35.68, lng: 139.76 } }));
+
+        const w = savedRewrite() as Record<string, unknown>;
+        expect(w.coords, "今回送った座標を、保存済みの値で上書きしている").toEqual({ lat: 35.68, lng: 139.76 });
+        expect("geoApprox" in w, "正確な座標に「おおよそ」の印を付けている").toBe(false);
+    });
+
     // **「知らない項目は全部引き継ぐ」にしてはいけない。** 下書きに戻す再送で
     // 公開一覧の索引キーまで残ると、**非公開にしたのに一覧に出続ける**
     it("下書きに戻す再送で、公開一覧の索引キーを引き継がない", async () => {

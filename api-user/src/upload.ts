@@ -483,7 +483,15 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             // `api/src/photosMutate.ts:126` が対で塞いでいる形そのもの。
             // **印が立っているとき（＝地名から補った値）だけ、対で引き継ぐ。**
             // 利用者の GPS 由来の座標は引き継がない（切ったのに戻る、を作らない）。
-            if (photo.coords === undefined && existing.geoApprox === true && existing.coords !== undefined) {
+            //
+            // **地名を直した回は引き継がない。** 補った座標は地名に付随する
+            // ので、撮影地を「パリ」→「ロンドン」に直して送り直すと
+            // 「ロンドン（おおよそ）」のピンがパリに立つ
+            // ——`photoUpdate.ts:223` が「地名が変わったら座標ごと捨てる」で
+            // 塞いでいる形を、こちらに作り直すことになる。
+            const sameLocation = (photo.location ?? "") === (existing.location ?? "");
+            if (photo.coords === undefined && sameLocation
+                && existing.geoApprox === true && existing.coords !== undefined) {
                 serverOwned.coords = existing.coords;
                 serverOwned.geoApprox = true;
             }
