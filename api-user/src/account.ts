@@ -341,6 +341,11 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                 // 再実行で拾う手がかりが無くなる）。
                 if (itemFailures === 0) {
                     if (!await ddbDelete(PHOTOS_TABLE, { id: `comments#${id}` })) itemFailures++;
+                    // ストーリーには返信の文書が付く（`storyreplies#<id>`）。
+                    // 写真には付かないが、**両方まとめて消しにいく**——
+                    // 種類で分けると、`story` の判定が1か所ずれただけで
+                    // 本文が置き去りになる（消す側は空振りしても害が無い）
+                    if (!await ddbDelete(PHOTOS_TABLE, { id: `storyreplies#${id}` })) itemFailures++;
                 }
                 if (itemFailures === 0) {
                     if (!await ddbDelete(PHOTOS_TABLE, { id })) itemFailures++;

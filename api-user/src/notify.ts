@@ -7,10 +7,14 @@ import { requireEnv } from "./env";
 // （同時書き込みでも失われない）。件数上限の切り詰めは取得時に行う。
 
 export type Notif = {
-    // 実際に作られるのは like / comment / follow の3種類。
+    // 実際に作られるのは like / comment / follow / storyreply の4種類。
     // inspired / go は「行きたいリスト」機能のもので、通知を作る側が
     // どこにも無い（マーカーを書く経路も、UIのボタンも存在しない）。
-    type: "like" | "comment" | "follow";
+    //
+    // **種類を足したら `NotificationsBell` にも足すこと。** あちらは
+    // 知らない種類を**何も出さない**（既定の文言に落とさない）ので、
+    // 片方だけだと**届いているのに画面には何も出ない**通知になる。
+    type: "like" | "comment" | "follow" | "storyreply";
     photoId: string;
     photoSrc: string;
     byName: string;

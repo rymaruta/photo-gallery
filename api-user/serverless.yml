@@ -563,6 +563,27 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # ストーリーへの返信・リアクション。**どちらも認証必要**
+  # （送る側はログイン、読めるのは投稿者だけ）。`PublicReadRole` には
+  # 載せない——書き込みがあるので未認証の口の一覧に足してはいけない
+  postStoryReply:
+    handler: src/storyReplies.postStoryReply
+    events:
+      - httpApi:
+          path: /stories/{id}/replies
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  getStoryReplies:
+    handler: src/storyReplies.getStoryReplies
+    events:
+      - httpApi:
+          path: /stories/{id}/replies
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
   deleteAccount:
     handler: src/account.deleteAccount
     environment:

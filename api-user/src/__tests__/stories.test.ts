@@ -95,6 +95,21 @@ describe("getStories", () => {
         expect(res.headers?.["Cache-Control"]).toContain("no-store");
     });
 
+    // **返信の数は投稿者にだけ。** 誰が反応したかは `viewers` と同じく
+    // 本人だけのもので、見た人に「このストーリーに何件届いたか」を教えない
+    it("replyCount は投稿者にだけ返す", async () => {
+        mockDdbSend.mockResolvedValueOnce({
+            Items: [
+                { id: "s1", userId: "me", createdAt: "2026-07-04T10:00:00Z", replyCount: 3 },
+                { id: "s2", userId: "other", createdAt: "2026-07-04T11:00:00Z", replyCount: 7 },
+            ],
+        });
+        const res = await invoke(getStories, authedEvent("me"));
+        const items = JSON.parse(res.body) as Array<{ id: string; replyCount?: number }>;
+        expect(items.find((i) => i.id === "s1")?.replyCount, "自分の分まで消している").toBe(3);
+        expect(items.find((i) => i.id === "s2")?.replyCount, "他人に返信の数を教えている").toBeUndefined();
+    });
+
     it("ページネーション（LastEvaluatedKey）を辿って全件返す", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Items: [{ id: "a", createdAt: "1" }], LastEvaluatedKey: { id: "a" } })
@@ -410,7 +425,11 @@ describe("deleteStory", () => {
         expect(res.statusCode).toBe(200);
         const deletes = mockDdbSend.mock.calls.filter(
             (c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand");
-        expect(deletes).toHaveLength(1);
+        // 行と、そこに届いた返信の文書。**返信を先に消す**
+        // （逆だと、消し損ねた `storyreplies#` を辿る手がかりが無くなる）
+        const keys = deletes.map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
+        expect(keys, "返信の文書を消していない（24時間で消える約束の本文が残る）")
+            .toEqual(["storyreplies#story-1", "story-1"]);
     });
 
     // 以前はサムネ生成スクリプトがストーリーも対象にしていたため、
@@ -668,8 +687,9 @@ describe("cleanupExpiredStories", () => {
         expect(result.deleted).toBe(1);
         const deletes = mockDdbSend.mock.calls.filter(
             (c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand");
-        expect(deletes).toHaveLength(1);
-        expect((deletes[0][0] as { input: { Key: { id: string } } }).input.Key.id).toBe("good");
+        const keys = deletes.map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
+        // 消せた方だけ。返信の文書も一緒に（行より先に）
+        expect(keys).toEqual(["storyreplies#good", "good"]);
     });
 
     it("期限切れが無ければ何もしない", async () => {

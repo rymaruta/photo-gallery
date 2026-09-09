@@ -10,6 +10,7 @@ import { s3DeleteMany } from "./s3Delete";
 import { invalidateUploads } from "./cdnInvalidate";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { truncate } from "./sanitize";
+import { storyRepliesId } from "./storyReplies";
 
 // バケット名の検証と S3 の削除は `s3Delete.ts` に寄せた（未設定なら
 // そちらの読み込みで止まる）。
@@ -130,6 +131,10 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
         const items = await queryStories("active");
         for (const item of items) {
             delete item.viewers;
+            // **返信の数は投稿者にだけ返す。** 見た人には「このストーリーに
+            // 何件届いたか」を知らせない（誰が反応したかは `viewers` と同じく
+            // 本人だけのもの）。所有者の画面はこの数でバッジを出す
+            if (item.userId !== userId) delete item.replyCount;
         }
         items.sort((a, b) => String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? "")));
         return {
@@ -421,6 +426,12 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         if (s3Failures > 0) {
             return jsonError(500, "画像の削除を完了できませんでした。時間をおいてもう一度お試しください");
         }
+        // **返信の文書も消す。ストーリーの行より先に。**
+        // 逆にすると、消し損ねた `storyreplies#<id>` を辿る手がかりが無くなる
+        // （`account.ts` が `comments#` を行より先に消すのと同じ理由）。
+        // 24時間で消える約束のものに紐づく本文が、残り続けてよいはずがない。
+        await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(storyId) } }))
+            .catch((e) => console.error(`deleteStory: 返信を消せませんでした（${storyId}）:`, e));
         await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyId } }));
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
     } catch (e) {
@@ -462,6 +473,11 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
         }
 
         try {
+            // 返信の文書も消す（行より先に。`deleteStory` と同じ理由）。
+            // ここを落とすと、24時間で消えるはずの本文が**誰も辿れない
+            // まま永久に残る**——このテーブルに TTL は無い
+            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(id) } }))
+                .catch((e) => console.error(`cleanup: 返信を消せませんでした（${id}）:`, e));
             await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
             deleted++;
         } catch (e) {
