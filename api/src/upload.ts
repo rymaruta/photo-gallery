@@ -3,6 +3,7 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
 import { putPhoto } from "./ddb-photos";
+import { PUBLIC_FEED_KEY } from "./publicFeed";
 import { requireAdmin, getCallerUserId } from "./auth";
 import type { Photo } from "./types";
 import {
@@ -235,6 +236,9 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         userId: uploaderId,
         uploadedBy: uploaderId,
         published: true,
+        // 公開一覧用 GSI のパーティションキー（対の api-user/src/upload.ts と同じ）。
+        // この口は必ず公開で保存するので常に付ける。
+        publicFeed: PUBLIC_FEED_KEY,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     };

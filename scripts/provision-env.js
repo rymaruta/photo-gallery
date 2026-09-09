@@ -89,7 +89,7 @@ async function tableExists(name) {
 async function ensurePhotosTable() {
     step(`DynamoDB ${names.photosTable}`);
     if (await tableExists(names.photosTable)) return log("既にあります。作成はスキップ。");
-    log("作成します（オンデマンド課金・GSI userId-createdAt-index 付き）");
+    log("作成します（オンデマンド課金・GSI 3本: userId-createdAt / storyFeed-expiresAt / publicFeed-createdAt）");
     // プロビジョンドにするとテーブルあたり月$5〜6かかる。使わない環境なので必ずオンデマンド。
     if (!APPLY) return;
     await ddb.send(new CreateTableCommand({
@@ -101,6 +101,7 @@ async function ensurePhotosTable() {
             { AttributeName: "createdAt", AttributeType: "S" },
             { AttributeName: "storyFeed", AttributeType: "S" },
             { AttributeName: "expiresAt", AttributeType: "S" },
+            { AttributeName: "publicFeed", AttributeType: "S" },
         ],
         KeySchema: [{ AttributeName: "id", KeyType: "HASH" }],
         GlobalSecondaryIndexes: [
@@ -121,6 +122,19 @@ async function ensurePhotosTable() {
                 KeySchema: [
                     { AttributeName: "storyFeed", KeyType: "HASH" },
                     { AttributeName: "expiresAt", KeyType: "RANGE" },
+                ],
+                Projection: { ProjectionType: "ALL" },
+            },
+            {
+                // 公開一覧用。publicFeed は**公開中の写真だけ**に入る定数なので、
+                // 下書き・ストーリー・マーカー・文書はこの索引に載らない。
+                // 以前は `GET /photos` が毎回テーブル全体を Scan していて、
+                // 同居するマーカーが増えるほど1回が重くなっていた
+                // （FilterExpression は読んだ**あと**に効くので費用も払う）。
+                IndexName: "publicFeed-createdAt-index",
+                KeySchema: [
+                    { AttributeName: "publicFeed", KeyType: "HASH" },
+                    { AttributeName: "createdAt", KeyType: "RANGE" },
                 ],
                 Projection: { ProjectionType: "ALL" },
             },

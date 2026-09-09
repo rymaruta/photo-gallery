@@ -178,6 +178,20 @@ describe("savePhoto", () => {
         expect(saved.src).toBe("https://cdn.example.com/uploads/a.jpg");
     });
 
+    // この口は必ず公開で保存するので、公開一覧用 GSI の印を常に付ける
+    // （対の api-user/src/upload.ts と同じ。付け忘れると、ここから上げた
+    // 写真だけが一覧に出ない——索引にしか現れないので気づけない）
+    it("公開一覧の索引に載せる印を付ける", async () => {
+        const res = await invoke(savePhoto, ev({
+            publicUrl: "https://cdn.example.com/uploads/a.jpg",
+            key: "uploads/a.jpg",
+        }));
+        expect(res.statusCode).toBe(200);
+        const saved = mockPutPhoto.mock.calls[0][0] as { publicFeed?: string; published?: boolean };
+        expect(saved.published).toBe(true);
+        expect(saved.publicFeed).toBe("1");
+    });
+
     it("sub の無いトークンは 401（userId が空の写真を作らない）", async () => {
         const noSub = {
             requestContext: { authorizer: { jwt: { claims: { "cognito:groups": "admin" } } } },

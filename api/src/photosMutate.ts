@@ -1,6 +1,7 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getPhotoById, updatePhotoFields, deletePhotoById } from "./ddb-photos";
+import { PUBLIC_FEED_KEY } from "./publicFeed";
 import { isAdmin, getCallerUserId } from "./auth";
 import { requestSiteRebuild } from "./rebuild";
 import { invalidateUploads } from "./cdnInvalidate";
@@ -116,6 +117,12 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
 
         const fields = pickEditableFields(body);
         const updates: Record<string, unknown> = { ...fields, updatedAt: new Date().toISOString() };
+        // 公開一覧用 GSI の印（対の api-user/src/photoUpdate.ts と同じ）。
+        // `updatePhotoFields` は undefined を REMOVE に倒すので、
+        // 非公開にしたら索引から落ちる。
+        if ("published" in fields) {
+            updates.publicFeed = fields.published === false ? undefined : PUBLIC_FEED_KEY;
+        }
         // 地名から補った座標（geoApprox）は地名に付随する。地名を直したら
         // 座標ごと捨てる（ユーザーAPI側 api-user/src/photoUpdate.ts と同じ扱い。
         // 管理画面は座標を送らないので、残すと嘘のピンを直す手段が無い）

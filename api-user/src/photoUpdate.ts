@@ -1,6 +1,7 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { UpdateCommand, GetCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
+import { PUBLIC_FEED_KEY } from "./publicFeed";
 import { JSON_HEADERS, getUserId } from "./http";
 import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeDate, dateWasRejected, sameStoredValue, truncate } from "./sanitize";
 import { requestSiteRebuild } from "./rebuild";
@@ -143,7 +144,21 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         const values: Record<string, unknown> = { ":t": new Date().toISOString() };
         const names: Record<string, string> = {};
         const removes: string[] = [];
-        if (hasPublished) { sets.push("published = :p"); values[":p"] = body.published; }
+        if (hasPublished) {
+            sets.push("published = :p");
+            values[":p"] = body.published;
+            // **公開一覧用 GSI の印も一緒に動かす。** ここを忘れると、
+            // 非公開にした写真が一覧に出続ける／公開に戻した写真が
+            // 二度と一覧に出ない、という静かな壊れ方をする（索引にしか
+            // 現れないので、行を見ても分からない）。
+            if (body.published === false) {
+                names["#publicFeed"] = "publicFeed";
+                removes.push("#publicFeed");
+            } else {
+                sets.push("publicFeed = :pf");
+                values[":pf"] = PUBLIC_FEED_KEY;
+            }
+        }
         if (song) { sets.push("song = :s"); values[":s"] = song; }
         if (youtubeUrl) { sets.push("songYoutubeUrl = :yt"); values[":yt"] = youtubeUrl; }
         if (removeSong) removes.push("song");

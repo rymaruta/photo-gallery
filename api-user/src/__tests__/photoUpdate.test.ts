@@ -83,6 +83,39 @@ describe("updatePhotoVisibility", () => {
         expect(update.ExpressionAttributeValues[":p"]).toBe(false);
     });
 
+    // **公開一覧用 GSI の印を一緒に動かす。** 忘れると、非公開にした写真が
+    // 一覧に出続ける／公開に戻した写真が二度と一覧に出ない
+    it("非公開にしたら、公開一覧の印を外す", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } })
+            .mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { published: false }));
+        const update = (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string; ExpressionAttributeNames?: Record<string, string> } }).input;
+        expect(update.UpdateExpression, "印が残ると非公開の写真が一覧に出る").toMatch(/REMOVE[^]*#publicFeed/);
+        expect(update.ExpressionAttributeNames?.["#publicFeed"]).toBe("publicFeed");
+    });
+
+    it("公開に戻したら、公開一覧の印を付け直す", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: false } })
+            .mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { published: true }));
+        const update = (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string; ExpressionAttributeValues: Record<string, unknown> } }).input;
+        expect(update.UpdateExpression, "印が無いと二度と一覧に出ない").toContain("publicFeed = :pf");
+        expect(update.ExpressionAttributeValues[":pf"]).toBe("1");
+    });
+
+    // 公開状態を触っていない保存（曲だけ変えた等）で印に触ると、
+    // 索引の中身が編集のたびに書き換わる
+    it("published を送っていなければ、印には触らない", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } })
+            .mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { songYoutubeUrl: "https://www.youtube.com/watch?v=abcdefghijk" }));
+        const update = (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string } }).input;
+        expect(update.UpdateExpression).not.toContain("publicFeed");
+    });
+
     it("DynamoDB エラーは 500", async () => {
         mockDdbSend.mockRejectedValueOnce(new Error("boom"));
         const res = await invoke(event("u1", "p1", { published: true }));

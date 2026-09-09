@@ -41,6 +41,33 @@ beforeEach(() => {
 // どちらのホストもクライアントのバンドルに入っているので、利用者は
 // どちらでも叩ける。しかも権限判定は「管理者 **または** 所有者」なので
 // 管理者専用ではない——普通の利用者が自分の写真に対して使える。
+// **公開一覧用 GSI の印**（対の api-user/src/photoUpdate.ts と同じ）。
+// この口は「管理者 **または** 所有者」なので、普通の利用者も通る。
+// 片方だけ印を動かすと、どちらの経路で非公開にしたかで一覧の見え方が変わる。
+describe("updatePhoto: 公開一覧の索引に載せる印", () => {
+    it("非公開にしたら印を外す（undefined = REMOVE）", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", published: true });
+        await invoke(ev("p1", { published: false }));
+        const updates = mockUpdatePhotoFields.mock.calls[0][1] as Record<string, unknown>;
+        expect("publicFeed" in updates, "印に触っていない").toBe(true);
+        expect(updates.publicFeed, "印が残ると非公開の写真が一覧に出る").toBeUndefined();
+    });
+
+    it("公開に戻したら印を付け直す", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", published: false });
+        await invoke(ev("p1", { published: true }));
+        const updates = mockUpdatePhotoFields.mock.calls[0][1] as Record<string, unknown>;
+        expect(updates.publicFeed, "印が無いと二度と一覧に出ない").toBe("1");
+    });
+
+    it("published を送っていなければ、印には触らない", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", published: true });
+        await invoke(ev("p1", { title: { ja: "あたらしい題", en: "" } }));
+        const updates = mockUpdatePhotoFields.mock.calls[0][1] as Record<string, unknown>;
+        expect("publicFeed" in updates).toBe(false);
+    });
+});
+
 describe("updatePhoto", () => {
     it("ストーリーは編集できない（404）", async () => {
         // ストーリーを published:true にできると、24時間で消えるはずのものが

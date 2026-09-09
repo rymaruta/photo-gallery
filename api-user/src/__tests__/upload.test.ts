@@ -88,6 +88,38 @@ beforeEach(() => {
 // sitemap も生まれない。消す側（削除・非公開・退会）は最初から再ビルドを
 // 頼んでいたのに、**作る側だけが抜けていた**——公開で投稿しても、次の
 // 定期ビルド（週1）まで最大7日、本人がリンクを共有できなかった。
+// **公開一覧用 GSI の印。** `GET /photos` の全表 Scan をやめるための下ごしらえ。
+// 印は「公開中の写真」にだけ載せる——下書きに載せると一覧に出てしまい、
+// 公開に戻したときに載せ忘れると**二度と一覧に出ない**（索引にしか現れない
+// ので、行を見ても分からない）。
+describe("savePhoto: 公開一覧の索引に載せる印", () => {
+    it("公開で保存したら印を付ける", async () => {
+        await invoke(event("u1", { ...BASE, published: true }));
+        expect(savedPhoto().publicFeed).toBe("1");
+    });
+
+    it("下書きには付けない（付けると一覧に出る）", async () => {
+        await invoke(event("u1", { ...BASE, published: false }));
+        expect("publicFeed" in savedPhoto(), "下書きが一覧に出る").toBe(false);
+    });
+
+    it("published 未指定は公開なので付ける", async () => {
+        await invoke(event("u1", { ...BASE }));
+        expect(savedPhoto().publicFeed).toBe("1");
+    });
+
+    // 再送で書き直すときも、その回の意図で載せ直す
+    it("再送で下書き→公開に書き直したら、印も付く", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: false,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        await invoke(event("u1", { ...BASE, published: true }));
+        expect(savedRewrite().publicFeed).toBe("1");
+    });
+});
+
 describe("savePhoto: 公開したら静的サイトを作り直してもらう", () => {
     it("公開で保存したら再ビルドを頼む", async () => {
         const res = await invoke(event("u1", { ...BASE, published: true }));

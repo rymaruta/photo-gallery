@@ -10,6 +10,7 @@ import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, saniti
 import { extForType, uploadPrefix, canonicalUploadUrl, idFromUploadKey, isOwnUploadUrlFromEnv as isOwnUploadUrl } from "./uploadPolicy";
 import { mediaKeys } from "./mediaKeys";
 import { requestSiteRebuild } from "./rebuild";
+import { PUBLIC_FEED_KEY } from "./publicFeed";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 /**
@@ -368,6 +369,10 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         userId,
         uploadedBy: userId,
         published: isPublished,
+        // 公開一覧用 GSI（publicFeed-createdAt-index）のパーティションキー。
+        // **公開中の写真にだけ入れる**——下書きに入れると一覧に出る。
+        // 非公開にするときは photoUpdate.ts が REMOVE する。
+        ...(isPublished ? { publicFeed: PUBLIC_FEED_KEY } : {}),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     };
