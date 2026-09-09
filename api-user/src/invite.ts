@@ -67,6 +67,35 @@ export const inviteKey = (token: string) => `invite#${token}`;
 export const albumKey = (albumId: string) => `album#${albumId}`;
 /** 参加の印のキー。1人1行なので、参加の有無は GetItem 1回で分かる */
 export const albumMemberKey = (albumId: string, userId: string) => `albummember#${albumId}#${userId}`;
+/**
+ * その人が作ったアルバムの一覧（利用者ごとの文書）。
+ *
+ * **GSI（`userId-createdAt-index`）には載せない。** アルバムの行に `userId` を
+ * 付けると索引に載り、`hasAnyUserItem`（フォローできる相手か）と退会の掃除が
+ * **絞り込み無しでその索引を引いている**ので、写真以外の行が紛れ込む経路が
+ * 増える（ストーリーが公開一覧に漏れた前例と同じ形）。
+ * `following#<uid>`・`notifs#<uid>` と同じ「利用者ごとの1行」にする。
+ */
+export const albumsOfUserKey = (userId: string) => `albums#${userId}`;
+
+/**
+ * 1人が持てるアルバムの数。
+ *
+ * 上限が無いと、`following` の2000人切り捨てと同じ形になる
+ * （黙って落ちて、画面からは直せない）。ここは**1つの項目に入る一覧**なので、
+ * DynamoDB の 400KB を超えないことも兼ねる（ID は uuid で36文字なので余裕）。
+ */
+export const ALBUMS_PER_USER = 50;
+
+/**
+ * 1つのアルバムに入れる人数。
+ *
+ * 旅の同行者を想定した数。**超えたら断る**——黙って切り捨てない。
+ */
+export const MEMBERS_PER_ALBUM = 50;
+
+/** アルバムの題の最大長（保存する前に切る） */
+export const ALBUM_TITLE_MAX = 60;
 
 /** 招待の項目（DynamoDB に入る形） */
 export type InviteItem = {

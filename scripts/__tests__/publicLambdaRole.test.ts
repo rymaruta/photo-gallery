@@ -35,7 +35,15 @@ function functionBlocks(yml: string): Map<string, string> {
 }
 
 const services = [
-    { name: "api-user", file: "api-user/serverless.yml", publicFns: ["getPublicProfile", "searchUsers", "getLikeCount", "getComments", "getFollowStats"] },
+    {
+        name: "api-user", file: "api-user/serverless.yml",
+        // `getInvite` は共同アルバムの招待（案C）。**開いた瞬間にログインを
+        // 求めると拡散の輪がそこで切れる**ので、閲覧だけ未認証で開ける。
+        // 守りは「認証」ではなく**推測不能なトークン**（192ビット）で、
+        // 読むのは招待の行とアルバムの行の GetItem 2回だけ
+        // ——PublicReadRole の権限（写真テーブルは GetItem のみ）に収まる。
+        publicFns: ["getPublicProfile", "searchUsers", "getLikeCount", "getComments", "getFollowStats", "getInvite"],
+    },
     { name: "api", file: "api/serverless.yml", publicFns: ["getPhotos", "getPhoto"] },
 ];
 

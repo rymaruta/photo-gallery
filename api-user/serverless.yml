@@ -325,6 +325,59 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # ---- 共同アルバム（案C）--------------------------------------------
+  # 旅の同行者に招待リンクを1本配って、同じアルバムに写真を足してもらう。
+  # 判定は src/invite.ts（DynamoDB も HTTP も触らない層）にある。
+
+  createAlbum:
+    handler: src/albums.createAlbum
+    events:
+      - httpApi:
+          path: /albums
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  listAlbums:
+    handler: src/albums.listAlbums
+    events:
+      - httpApi:
+          path: /albums
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  createInvite:
+    handler: src/albums.createInvite
+    events:
+      - httpApi:
+          path: /albums/{id}/invite
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  revokeInvite:
+    handler: src/albums.revokeInvite
+    events:
+      - httpApi:
+          path: /albums/{id}/invite
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
+  # **未認証で読める口。** 招待を開いた瞬間にログインを求めると、
+  # 拡散の輪がそこで切れる。既定の共有ロール（削除権つき）ではなく
+  # 読み取り専用へ——この口は招待の行とアルバムの行を GetItem するだけで、
+  # PublicReadRole の権限（写真テーブルは GetItem のみ）に収まるように
+  # キーの形を決めてある。
+  getInvite:
+    handler: src/albums.getInvite
+    role: PublicReadRole
+    events:
+      - httpApi:
+          path: /invites/{token}
+          method: GET
+
   createStory:
     handler: src/stories.createStory
     events:
