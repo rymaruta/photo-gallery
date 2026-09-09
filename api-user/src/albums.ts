@@ -116,8 +116,12 @@ function memberCountOf(album: AlbumItem | null): number {
     return typeof album?.memberCount === "number" && album.memberCount > 0 ? album.memberCount : 1;
 }
 
-async function listOwnAlbumIds(userId: string): Promise<string[]> {
-    const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: albumsOfUserKey(userId) } }));
+async function listOwnAlbumIds(userId: string, consistent = false): Promise<string[]> {
+    const res = await ddb.send(new GetCommand({
+        TableName: PHOTOS_TABLE,
+        Key: { id: albumsOfUserKey(userId) },
+        ...(consistent ? { ConsistentRead: true } : {}),
+    }));
     const ids = res.Item?.albumIds;
     return Array.isArray(ids) ? ids.filter((v): v is string => typeof v === "string") : [];
 }
@@ -209,7 +213,14 @@ export const listAlbums: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
             inviteExpiresAt: a.inviteExpiresAt,
         });
     }
-    if (missing.length > 0) await pruneMissingAlbumIds(userId, ids, missing);
+    // **掃除は「ついで」。落ちても一覧は返す。**
+    // 返す中身はもう決まっているので、掃除の読み書きで 500 にすると
+    // 「幽霊 ID を持っている人だけ、一覧が丸ごと出せない」を作る
+    // （Lambda の同時実行はアカウント全体で10なので、スロットルは起きうる）。
+    if (missing.length > 0) {
+        await pruneMissingAlbumIds(userId, ids, missing)
+            .catch((e) => console.error(`listAlbums: 一覧の掃除に失敗（${userId}）:`, e));
+    }
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ albums }) };
 };
 
@@ -623,6 +634,16 @@ export const deleteAlbum: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
                 ExpressionAttributeValues: { ":next": ids.filter((v) => v !== albumId), ":prev": ids },
             }));
         } catch (e) {
+            // **条件不成立は「失敗」ではない。** `listOwnAlbumIds` は結果整合
+            // なので、二重タップや `listAlbums` の掃除と競ると、既に外れた
+            // あとの古い姿を条件にして落ちる。そのまま 500 にすると
+            // 「消せませんでした」→ 押し直すと「見つかりません」と、
+            // **消えているのに2回続けて失敗を見せる**。強整合で読み直して、
+            // もう一覧に無ければ目的は達している
+            if ((e as { name?: string }).name === "ConditionalCheckFailedException"
+                && !(await listOwnAlbumIds(userId, true)).includes(albumId)) {
+                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) };
+            }
             console.error(`deleteAlbum: 一覧の掃除に失敗（${albumId}）:`, e);
             return jsonError(500, "アルバムを消せませんでした。もう一度お試しください");
         }

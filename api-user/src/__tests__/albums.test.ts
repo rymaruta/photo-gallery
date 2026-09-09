@@ -731,6 +731,64 @@ describe("deleteAlbum / listAlbums: 結果整合の読み損ねで消さない",
         expect(fix!.ConditionExpression).toBe("albumIds = :prev");
     });
 
+    // **掃除は「ついで」。落ちても一覧は返す。**
+    // 返す中身はもう決まっているので、ここで 500 にすると
+    // 「幽霊 ID を持っている人だけ、一覧が丸ごと出せない」を作る
+    it("掃除が落ちても、一覧は返す", async () => {
+        mockSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string }; ConsistentRead?: boolean } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name !== "GetCommand") return Promise.resolve({});
+            if (id === "albums#u1") return Promise.resolve({ Item: { albumIds: ["a1", "ghost"] } });
+            if (id === "album#a1") return Promise.resolve({ Item: { id: "album#a1", ownerId: "u1", title: "北欧", memberIds: ["u1"] } });
+            // 幽霊の確かめ直し（強整合）でスロットルされる
+            if (cmd.input.ConsistentRead) return Promise.reject(new Error("ProvisionedThroughputExceededException"));
+            return Promise.resolve({});
+        });
+        const r = await call(albumsModule.listAlbums, authed("u1"));
+        expect(r.statusCode, "掃除の失敗で一覧ごと落ちている").toBe(200);
+        expect(bodyOf(r).albums.map((a: { id: string }) => a.id)).toEqual(["a1"]);
+    });
+
+    // **持ち主が違う行は掃除しない**（消えたのではなく、読み違えの可能性）
+    it("持ち主が違う行は、一覧から外さない", async () => {
+        mockSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name !== "GetCommand") return Promise.resolve({});
+            if (id === "albums#u1") return Promise.resolve({ Item: { albumIds: ["a1", "other"] } });
+            if (id === "album#a1") return Promise.resolve({ Item: { id: "album#a1", ownerId: "u1", title: "北欧", memberIds: ["u1"] } });
+            if (id === "album#other") return Promise.resolve({ Item: { id: "album#other", ownerId: "u2", title: "他人の" } });
+            return Promise.resolve({});
+        });
+        const r = await call(albumsModule.listAlbums, authed("u1"));
+        expect(bodyOf(r).albums.map((a: { id: string }) => a.id)).toEqual(["a1"]);
+        expect(inputs().some((i) => String(i.UpdateExpression ?? "").includes("albumIds = :next")), "持ち主違いを消しにいっている").toBe(false);
+        // **観測できる差はここだけ。** 掃除の側も強整合で引き直して
+        // 「引けたら外さない」ので、仮に候補へ入れても結果は変わらない
+        // ——変わるのは**無駄な強整合の読み取りが1件増える**こと。
+        // そこを見ないと、この分岐を消しても緑のままになる（実際そうだった）
+        expect(inputs().some((i) => (i.Key as { id?: string })?.id === "album#other" && i.ConsistentRead === true),
+            "持ち主違いを、消す候補として引き直している").toBe(false);
+    });
+
+    // **競り合いで条件が落ちただけなら、成功。**
+    // そのまま 500 にすると「消せませんでした」→ 押し直して「見つかりません」と、
+    // 消えているのに2回続けて失敗を見せる
+    it("掃除の条件が落ちても、もう一覧に無ければ成功", async () => {
+        let pruned = false;
+        mockSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string }; ConsistentRead?: boolean } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand" && id === "albums#u1") {
+                // 強整合で読み直したときには、もう外れている
+                return Promise.resolve({ Item: { albumIds: cmd.input.ConsistentRead && pruned ? [] : ["a1"] } });
+            }
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({});
+            pruned = true;
+            return Promise.reject(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
+        });
+        const r = await call(albumsModule.deleteAlbum, authed("u1", undefined, { id: "a1" }));
+        expect(r.statusCode, "消えているのに失敗と言っている").toBe(200);
+    });
+
     it("強整合で見つかった ID は外さない（作った直後を消さない）", async () => {
         mockSend.mockImplementation(staleThenFound("a1", { id: "album#a1", ownerId: "u1", title: "北欧", memberIds: ["u1"] }));
         const r = await call(albumsModule.listAlbums, authed("u1"));
