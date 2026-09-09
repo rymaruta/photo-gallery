@@ -94,12 +94,27 @@ describe("写真ページ: 端末で抽出できなかったときの控え", ()
 // 辿ってもらえない（このリポジトリは「関数は書いたが配線していない」を
 // 5回踏んでいる）。
 describe("写真ページ: カメラ名から機材ページへ", () => {
-    it("機種名がリンクになっている", async () => {
-        mockParse.mockResolvedValue({ Make: "SONY", Model: "ILCE-7M3" });
-        render(<PhotoPageClient photoId="p1" initialPhoto={base} />);
+    it("保存済みの機種名がリンクになっている", async () => {
+        mockParse.mockResolvedValue(null);
+        render(<PhotoPageClient photoId="p1" initialPhoto={{ ...base, exif: { camera: "SONY ILCE-7M3" } }} />);
         fireEvent.load(screen.getByAltText(/写真/));
         const link = await screen.findByRole("link", { name: "SONY ILCE-7M3" });
         expect(link).toHaveAttribute("href", "/camera/sony-ilce-7m3");
+    });
+
+    // **端末で抽出しただけの機種名はリンクにしない。**
+    // 抽出が走るのは保存済み exif が無いときだけで、集約
+    // （`valuesFor`）は保存済みの値しか見ない。つまりリンクを抽出値から
+    // 作ると、**飛んだ先に自分が居ない**（他の写真が同じ機種を持つ場合）か、
+    // **静的生成の対象外でハード404**（誰も持たない機種）になる。
+    // 最初これを「リンクになっている」として固定してしまっていた。
+    it("端末で抽出しただけの機種名はリンクにしない", async () => {
+        mockParse.mockResolvedValue({ Make: "SONY", Model: "ILCE-7M3" });
+        render(<PhotoPageClient photoId="p1" initialPhoto={base} />);   // 保存済み exif なし
+        fireEvent.load(screen.getByAltText(/写真/));
+        await screen.findByText("SONY ILCE-7M3");
+        expect(screen.queryByRole("link", { name: "SONY ILCE-7M3" }),
+            "集約に載っていない写真からリンクしている").toBeNull();
     });
 
     // **畳んだ名前で繋ぐ。** 二重のままだと、その1枚だけが別の機種の
@@ -116,8 +131,8 @@ describe("写真ページ: カメラ名から機材ページへ", () => {
 
     // 行き先の無い項目はリンクにしない（絞り・ISO 等）
     it("カメラ以外の撮影情報はリンクにしない", async () => {
-        mockParse.mockResolvedValue({ Make: "SONY", Model: "ILCE-7M3", FNumber: 4 });
-        render(<PhotoPageClient photoId="p1" initialPhoto={base} />);
+        mockParse.mockResolvedValue(null);
+        render(<PhotoPageClient photoId="p1" initialPhoto={{ ...base, exif: { camera: "SONY ILCE-7M3", aperture: "f/4" } }} />);
         fireEvent.load(screen.getByAltText(/写真/));
         await screen.findByText("f/4");
         expect(screen.queryByRole("link", { name: "f/4" })).toBeNull();

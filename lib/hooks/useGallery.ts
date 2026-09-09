@@ -164,8 +164,12 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
 
                 // location も検索対象に含める
                 const loc = p.location ?? "";
+                // **カメラ名も。** `/camera/<スラッグ>` の404救済が `/?q=` に
+                // 振り替えるので、ここに無いと**必ず0件**になる（撮影地で
+                // 一度踏んだ形）。機材名で探す人が居ることが案Dの前提でもある。
+                const cam = p.exif?.camera ?? "";
 
-                const haystack = `${titleJa} ${titleEn} ${descJa} ${descEn} ${loc}`.toLowerCase();
+                const haystack = `${titleJa} ${titleEn} ${descJa} ${descEn} ${loc} ${cam}`.toLowerCase();
                 // **スラッグ経由の検索も通す。** 集約ページの404救済
                 // （lib/utils/notFoundRedirect.ts）は /location/<スラッグ> を
                 // `/?q=<スラッグ>` に振り替えるが、スラッグは空白をハイフンに

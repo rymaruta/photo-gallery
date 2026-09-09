@@ -823,8 +823,20 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     // 撮影地・カテゴリ・タグは前から集約ページへ繋いであるのに、
                     // カメラだけ行き止まりだった。sitemap に載せても内部リンクが
                     // 1本も無いページは辿ってもらえない。
+                    //
+                    // **リンクは「保存済みの値」から作る。表示は mergedExif のまま。**
+                    // 最初 `mergedExif.camera` から作ったが、あれは端末で抽出した値を
+                    // 含む——そして端末抽出が走るのは `extractExif={!hasStoredExif(...)}`
+                    // ＝**保存済み exif が無いときだけ**。一方 `valuesFor(p,"camera")` は
+                    // 保存済みの値しか見ない。つまり「リンクが抽出値から作られる」
+                    // 状況と「その写真が集約に1件も数えられない」状況が**完全に一致**し、
+                    //   - 他の写真が同じ機種を保存済み → **飛んだ先に自分が居ない**
+                    //   - 誰も保存していない機種 → 静的生成の対象外で**ハード404**
+                    // になる（`dynamicParams = false`）。実データで公開30枚中3枚が
+                    // 保存済み exif を持たない。
+                    const storedCamera = dedupeCameraName(photo.exif?.camera);
                     add(locale === "en" ? "Camera" : "カメラ", mergedExif.camera, false,
-                        mergedExif.camera ? collectionPath("camera", slugify(mergedExif.camera)) : undefined);
+                        storedCamera ? collectionPath("camera", slugify(storedCamera, "camera")) : undefined);
                     add(locale === "en" ? "Lens" : "レンズ", mergedExif.lens);
                     add(locale === "en" ? "Aperture" : "絞り", mergedExif.aperture);
                     add(locale === "en" ? "Shutter" : "シャッター速度", mergedExif.exposure);

@@ -16,10 +16,14 @@ import { stripLoneSurrogates } from "./text";
  *
  * **数えて分かったこと**（公開30枚・索引に載る条件は3枚以上）:
  *   タグ 62種→7ページ / カテゴリ 10種→4ページ /
- *   **撮影地 14種→0ページ（全部 noindex）** / 機材 4種→2ページ
- * 撮影地は「パリ, フランス」のように1枚ずつ違う名前で散るので、いまのデータ
- * では1ページも検索に載らない（束ねる階層が要る＝コードではなくデータの話）。
+ *   撮影地 14種→**4ページ** / 機材 4種→2ページ
  * 機材は SONY の2機種だけで公開30枚のうち24枚を覆う。
+ *
+ * **訂正**: ここに一度「撮影地は0ページ（全部 noindex）」と書いたが**誤り**。
+ * 素朴な集計で数えて、この関数群を通していなかった。撮影地は
+ * `photosInCollection` の**緩い一致**で既に束ねてあり（下のコメント参照）、
+ * フランス4・パリ3・「パリ, フランス」3・「フランス ヴェルサイユ」3 の
+ * 4ページが載る。**数えるときは必ずここの関数を通すこと。**
  */
 export type CollectionType = "tag" | "location" | "category" | "camera";
 
@@ -253,8 +257,10 @@ function valuesFor(p: Photo, type: CollectionType): string[] {
         // **`dedupeCameraName` を必ず通す。** 保存済みの値には二重のメーカー名が
         // 残っている（実データに "Hasselblad Hasselblad X2D II 100C"）。
         // 通さないと**同じ機種が2つに割れる**（片方は永久に1枚のまま noindex）。
-        const raw = (p.exif as { camera?: unknown } | undefined)?.camera;
-        const camera = typeof raw === "string" ? dedupeCameraName(raw) : undefined;
+        // `as` で握らない。`Photo["exif"]` は `camera?: string` と定義済みで、
+        // 握ると**将来の改名を tsc が止めなくなる**（このコミットが
+        // `CollectionPageClient` で潰したのと同じ型の穴を別の場所に作っていた）
+        const camera = dedupeCameraName(p.exif?.camera);
         return camera ? [camera] : [];
     }
     // category
