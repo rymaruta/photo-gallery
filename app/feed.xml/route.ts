@@ -3,7 +3,6 @@ import { existsSync } from "fs";
 import path from "path";
 import { siteConfig } from "../../lib/utils/seo";
 import RAW_PHOTOS, { getLocalized, getLocalizedParagraphs, type Photo } from "@/lib/data/photos";
-import { compareNewest } from "../../lib/utils/photoOrder";
 
 export const dynamic = "force-static";
 
@@ -36,11 +35,17 @@ async function loadPhotos(): Promise<Photo[]> {
  * 1文字混ざると**フィード全体が parse error** になる
  * （`app/sitemap-images.xml` が同じ理由で同じことをしている。
  * あちらは制御文字1つでサイトマップが丸ごと壊れた）。
+ *
+ * **落とす範囲はあちらと同じにする。** 最初 `U+007F-U+009F`（DEL と C1）も
+ * 落としていたが、**C1 は XML 1.0 では合法**で、落とす必要が無い
+ * ——あちらのコメントが「C1 と非文字は合法なので落とさない」と明記して
+ * いるのに、隣で違う範囲を書いていた（合法な文字を黙って消す側）。
  */
 function xmlText(value: string): string {
     return value
-        // XML 1.0 の Char に無いもの（タブ・改行・復帰は残す）
-        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\uFFFE\uFFFF]/g, "")
+        // XML 1.0 の Char に無いもの（タブ・改行・復帰は残す）。
+        // `U+FFFE` / `U+FFFF` も Char に入っていない（実測済み・あちらと同じ）
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, "")
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
@@ -61,9 +66,18 @@ export const FEED_MAX_ITEMS = 30;
 
 /** フィードの本文を組み立てる（テストから直接呼べるように分けてある） */
 export function buildFeed(photos: Photo[]): string {
+    // **並べる基準と `pubDate` を揃える。**
+    // 最初 `compareNewest`（＝**撮影日**優先）で並べて `pubDate` には
+    // `createdAt` を入れていた。実データ30件で3か所 逆転していて、しかも
+    // 公開数がちょうど上限（30）なので、**次に「撮影日が古い写真」を
+    // 投稿すると、その新着が31番目に落ちてフィードに一度も載らない**
+    // ——「新しいものを伝える」という目的そのものを外していた。
+    // フィードは**投稿の新しさ**（`createdAt`）で並べる。
+    const postedAt = (p: Photo) => String(p.createdAt ?? p.updatedAt ?? "");
     const picked = photos
         .filter((p) => p.published !== false)
-        .sort(compareNewest)
+        .slice()
+        .sort((a, b) => postedAt(b).localeCompare(postedAt(a)))
         .slice(0, FEED_MAX_ITEMS);
 
     const updated = picked[0]?.updatedAt ?? picked[0]?.createdAt ?? new Date().toISOString();

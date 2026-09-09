@@ -102,7 +102,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
         return facts && base.length <= 80 ? `${base}（${facts}）` : base;
     };
 
-    const description = (ownDescription && withFacts(ownDescription, [place, camera]))
+    // **書かれた説明に既に撮影地が入っていたら足さない。**
+    // 実データ2枚で「北海道にも春が訪れ…（**北海道** / SONY ILCE-7M3）」
+    // 「**大阪**府万博にて…（**大阪** / …）」になっていた。
+    // 組み立て文の重複だけ塞いで、こちら側は素通りしていた
+    const description = (ownDescription
+        && withFacts(ownDescription, [ownDescription.includes(place) ? undefined : place, camera]))
         || (place || year ? withFacts(`${where}${when}撮影した${what}`, [camera]) : "")
         || (categoryLabel ? withFacts(`${categoryLabel}の写真。`, [camera]) : "")
         || siteConfig.description;

@@ -54,9 +54,8 @@ describe("壊れた入力でフィード全体を落とさない", () => {
     it.each([
         ["NUL", 0x00],
         ["縦タブ", 0x0b],
-        ["DEL", 0x7f],
         ["XML 1.0 に無い文字", 0xfffe],
-    ])("制御文字（%s）が混ざっても読める", (_n, code) => {
+    ])("XML 1.0 に無い文字（%s）が混ざっても読める", (_n, code) => {
         const title = `湖${String.fromCharCode(code as number)}です`;
         expect(failed(parse(buildFeed([photo({ title } as Partial<Photo>)]))), "フィード全体が壊れた").toBe(false);
     });
@@ -67,6 +66,19 @@ describe("壊れた入力でフィード全体を落とさない", () => {
         ["引用符", 'とても"静か"な湖'],
     ])("%s を含む題でも読める", (_n, title) => {
         expect(failed(parse(buildFeed([photo({ title } as Partial<Photo>)]))), "フィード全体が壊れた").toBe(false);
+    });
+
+    // **合法な文字は消さない。** `U+007F`（DEL）と C1（U+0085 等）は
+    // XML 1.0 では合法で、`app/sitemap-images.xml` も落としていない
+    // （隣で違う範囲を書くと、片方だけが黙って文字を消す）
+    it.each([
+        ["DEL", 0x7f],
+        ["C1（NEL）", 0x85],
+    ])("XML 1.0 で合法な文字（%s）は消さない", (_n, code) => {
+        const ch = String.fromCharCode(code as number);
+        const xml = buildFeed([photo({ title: `湖${ch}です` } as Partial<Photo>)]);
+        expect(failed(parse(xml))).toBe(false);
+        expect(xml, "合法な文字を消している").toContain(ch);
     });
 
     it("タグとして解釈させない", () => {
@@ -89,6 +101,25 @@ describe("何を出すか", () => {
             photo({ id: "new", createdAt: "2026-06-01T00:00:00.000Z" }),
         ]);
         expect(xml.indexOf("/photo/new")).toBeLessThan(xml.indexOf("/photo/old"));
+    });
+
+    // **並べる基準は「投稿の新しさ」。撮影日ではない。**
+    // 撮影日で並べていた頃は、`pubDate`（投稿日）と食い違い、しかも
+    // 公開数が上限ちょうどのとき**「撮影日が古い新着」がフィードに
+    // 一度も載らない**——「新しいものを伝える」目的を外していた
+    it("撮影日が古くても、投稿が新しければ先に出る", () => {
+        const xml = buildFeed([
+            photo({ id: "recent-shot", date: "2026-06-01", createdAt: "2026-01-01T00:00:00.000Z" }),
+            photo({ id: "old-shot", date: "1999-01-01", createdAt: "2026-06-01T00:00:00.000Z" }),
+        ]);
+        expect(xml.indexOf("/photo/old-shot"), "撮影日で並べている").toBeLessThan(xml.indexOf("/photo/recent-shot"));
+    });
+
+    it("上限に当たっても、新しい投稿は必ず載る", () => {
+        const filler = Array.from({ length: FEED_MAX_ITEMS }, (_, i) =>
+            photo({ id: `f${i}`, date: "2026-12-31", createdAt: "2026-01-01T00:00:00.000Z" }));
+        const xml = buildFeed([...filler, photo({ id: "newest", date: "1999-01-01", createdAt: "2026-09-09T00:00:00.000Z" })]);
+        expect(xml, "新着がフィードに載らない").toContain("/photo/newest");
     });
 
     // **フィードは「新しいもの」を伝えるもの。** 全件出すと重くなる
@@ -121,11 +152,25 @@ describe("フィードの場所を名乗っているか", () => {
     // レイアウトは `next/font` を読むので vitest から import できない
     // （`Inter is not a function`）。ソースで見る——このリポジトリの
     // 他の配線テスト（`sitemapCamera` / `collectionRoutes`）と同じ手。
-    it("ルートのメタデータが feed.xml を指す", () => {
-        const src = readFileSync(join(__dirname, "..", "layout.tsx"), "utf8")
-            .replace(/^\s*\/\/.*$/gm, " ");
-        expect(src, "フィードを名乗っていない（誰も購読できない）")
-            .toContain('"application/rss+xml"');
-        expect(src).toContain("/feed.xml");
+    // **`alternates` はオブジェクトごと差し替わる。** ルートに書いても、
+    // 子が `alternates: { canonical }` を返した瞬間に消える
+    // ——実際そうなっていて、実ビルドの141枚中フィードを名乗っていたのは
+    // 404 の2枚だけだった（`INDEXABLE_ROBOTS` が同じ理由で同じ形にしてある）。
+    // **`alternates` を書くページは、必ず `FEED_ALTERNATE` を混ぜること。**
+    it.each(["layout.tsx", "page.tsx"])("%s が alternates を書くなら FEED_ALTERNATE を混ぜる", (file) => {
+        const src = readFileSync(join(__dirname, "..", file), "utf8").replace(/^\s*\/\/.*$/gm, " ");
+        const at = src.indexOf("alternates:");
+        if (at === -1) return;   // 書いていないなら関係ない
+        // **`alternates` の中だけを見る。** ファイル全体を `toContain` で
+        // 見ていたら、**import 行の `FEED_ALTERNATE` に当たって**
+        // 宣言を消す変異が素通りした（守っているつもりで何も見ていない）
+        const block = src.slice(at, src.indexOf("},", at) + 2);
+        expect(block, `${file} の alternates がフィードの宣言を消している`).toContain("FEED_ALTERNATE");
+    });
+
+    it("FEED_ALTERNATE が feed.xml を指している", async () => {
+        const { FEED_ALTERNATE } = await import("../../lib/utils/seo");
+        const rss = (FEED_ALTERNATE.types as Record<string, { url: string }[]>)["application/rss+xml"];
+        expect(String(rss[0].url)).toContain("/feed.xml");
     });
 });

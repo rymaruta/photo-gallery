@@ -69,6 +69,20 @@ describe("説明に機材を添える", () => {
         expect(m.description).not.toContain("Hasselblad Hasselblad");
     });
 
+    // **書かれた説明に既に撮影地が入っていたら足さない。**
+    // 実データ2枚で「北海道にも春が訪れ…（北海道 / SONY ILCE-7M3）」に
+    // なっていた（組み立て文の重複だけ塞いで、こちらは素通りしていた）
+    it("説明に撮影地が入っていれば、撮影地は足さない", async () => {
+        const m = await meta({
+            ...base, location: "北海道",
+            description: { ja: ["北海道にも春が訪れ、桜が咲き誇る季節となった。"] },
+            exif: { camera: "SONY ILCE-7M3" },
+        });
+        expect(m.description, "撮影地が二重に出ている").not.toContain("（北海道");
+        // 機材は足す（説明に入っていない）
+        expect(m.description).toContain("SONY ILCE-7M3");
+    });
+
     // **長い説明には足さない。** 検索結果で切られて、括弧が開いたまま終わる
     it("長い説明には足さない", async () => {
         const long = "あ".repeat(100);
