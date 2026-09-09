@@ -1,4 +1,5 @@
 import type { Photo } from "@/lib/data/photos";
+import { dedupeCameraName } from "../../../lib/utils/cameraName";
 import PhotoPageClient from "./PhotoPageClient";
 import type { Metadata } from "next";
 import { splitStoredDate } from "@/lib/utils/photoDate";
@@ -45,7 +46,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     // （`sanitizeTitle` が空なら属性ごと REMOVE する）ので、公開のまま
     // 名前の無い写真が実在しうる。`a287ee3` で潰した「日本語UIに残る英語」
     // と同じ型だった
-    const title = getLocalized(photo.title, "ja") || getLocalized(photo.title, "en") || "無題";
+    const ownTitle = getLocalized(photo.title, "ja") || getLocalized(photo.title, "en") || "無題";
     const descriptionParagraphs = getLocalizedParagraphs(photo.description, "ja");
     const ownDescription = descriptionParagraphs.length > 0
         ? descriptionParagraphs.join(" ")
@@ -72,9 +73,38 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     const what = categoryLabel ? `${categoryLabel}の写真。` : "写真。";
     // 場所も日付も無ければ「撮影した」を付けない（`撮影した風景の写真。`
     // は日本語として落ち着かない）
-    const description = ownDescription
-        || (place || year ? `${where}${when}撮影した${what}` : "")
-        || (categoryLabel ? `${categoryLabel}の写真。` : "")
+    // **題に撮影地を添える。**
+    //
+    // 実データ30枚のうち**29枚は題だけ**で、「白鳥と湖」「紅白」「Cafe」の
+    // ように**実際に打たれる検索語に当たらない**（撮影地が題に入っているのは
+    // 1枚だけ）。写真ページは索引に出せるページの約6割なので、ここが
+    // 当たらないと他は誤差になる。
+    //
+    // **既に題に入っているなら足さない**（「山中湖の朝｜山中湖」を作らない）。
+    // 表示は `| Journey Photo 旅フォトギャラリー` が後ろに付いて切られうるが、
+    // **切られるのは見た目だけで、検索語との突き合わせは全文で行われる**。
+    const title = place && !ownTitle.includes(place) ? `${ownTitle}｜${place}` : ownTitle;
+
+    // **説明に機材を添える。**
+    //
+    // 機材名で作例を探す人が実在する（案D の前提）。説明の中央値は59文字で、
+    // 検索結果に出る長さ（およそ120文字）に対して余裕がある。
+    // **書かれた説明は消さず、事実を括弧で足すだけ**——長い説明には足さない
+    // （切られて括弧が開いたまま終わる）。
+    // **同じ言葉を二度書かない。** 組み立てた説明（「東京で撮影した風景の
+    // 写真。」）は既に撮影地を含むので、そこに撮影地を足すと
+    // 「東京で撮影した風景の写真。（東京）」になる。**書かれた説明**には
+    // 撮影地も足すが、組み立てた説明には機材だけを足す
+    // （既存のテストがこの重複を見つけた）。
+    const camera = dedupeCameraName(photo.exif?.camera);
+    const withFacts = (base: string, extra: (string | undefined)[]) => {
+        const facts = extra.filter(Boolean).join(" / ");
+        return facts && base.length <= 80 ? `${base}（${facts}）` : base;
+    };
+
+    const description = (ownDescription && withFacts(ownDescription, [place, camera]))
+        || (place || year ? withFacts(`${where}${when}撮影した${what}`, [camera]) : "")
+        || (categoryLabel ? withFacts(`${categoryLabel}の写真。`, [camera]) : "")
         || siteConfig.description;
     
     const imageUrl = photo.src.startsWith("http") 
