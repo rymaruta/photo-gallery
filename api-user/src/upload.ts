@@ -425,7 +425,26 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             // 今回の意図になる。まだ誰も触っていないときだけ書き直す
             // （/user/edit で後から直した内容を巻き戻さない）。
             const stored = existing.updatedAt ?? existing.createdAt ?? "";
-            const rewritten = { ...photo, createdAt: existing.createdAt ?? photo.createdAt };
+            // **サーバーが持つ項目は引き継ぐ。**
+            //
+            // 書き直しは `PutCommand`（全置換）で、`photo` にはいいね数も
+            // コメント数も入っていない。守りの `updatedAt = :ua` は
+            // 「まだ誰も触っていない」を見ているつもりだが、
+            // **`likes.ts` も `comments.ts` も加算のときに `updatedAt` を
+            // 触らない**ので、その2つは素通りする。
+            //
+            // 結果、公開の応答だけが失われた画面を開いたまま、誰かが
+            // いいね／コメントしたあとに押し直すと、**その数が消える**。
+            // しかも `like#<photoId>#<uid>` のマーカーは残るので、
+            // いいねした人が押し直しても「既にいいね済み」で +1 されず、
+            // 解除しても `likes > :z` が外れて空振り——**誰にも戻せない**。
+            const serverOwned = {
+                ...(typeof existing.likes === "number" ? { likes: existing.likes } : {}),
+                ...(typeof existing.commentCount === "number" ? { commentCount: existing.commentCount } : {}),
+                // 静的ページの掃除が届いていない印も、利用者の保存で消さない
+                ...(existing.staticStale === true ? { staticStale: true } : {}),
+            };
+            const rewritten = { ...photo, ...serverOwned, createdAt: existing.createdAt ?? photo.createdAt };
             if (stored && await overwriteOwnPhoto(rewritten, stored)) {
                 // **再送でもアルバムに足す。** 1回目の `addPhotoToAlbum` が
                 // 落ちた（スロットル・500枚上限）あとに押し直す場面で、

@@ -964,6 +964,64 @@ describe("savePhoto: 保存の再送で写真が増えない", () => {
         expect(res.statusCode).toBe(200);
         expect(JSON.parse(res.body).photo.title.ja).toBe("あとで直した");
     });
+
+    // **書き直しは `PutCommand`（全置換）。** `photo` にはサーバーが持つ項目
+    // （いいね数・コメント数）が入っていないので、素直に書き直すと消える。
+    // 守りの `updatedAt = :ua` は「まだ誰も触っていない」を見ているつもりだが、
+    // **`likes.ts` も `comments.ts` も加算のときに `updatedAt` を触らない**
+    // ので、その2つは条件をすり抜ける。
+    //
+    // しかも `like#<photoId>#<uid>` のマーカーは残るため、いいねした人が
+    // 押し直しても「既にいいね済み」で +1 されず、解除しても `likes > :z` が
+    // 外れて空振り——**誰にも戻せない**。
+    it("再送の書き直しで、いいね数とコメント数を消さない", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`,
+            published: true, likes: 7, commentCount: 3,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", { ...body, published: true }));
+
+        const written = savedRewrite() as Photo & { likes?: number; commentCount?: number };
+        expect(written.likes, "いいね数を消している").toBe(7);
+        expect(written.commentCount, "コメント数を消している").toBe(3);
+    });
+
+    // 静的ページの掃除が届いていない印は**サーバーが立てるもの**。
+    // 利用者の押し直しで消すと、「非公開にしたのにページが残っている」ことを
+    // 誰も知らないまま（削除側もこの印を見る）になる
+    it("静的ページの掃除が届いていない印も消さない", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`,
+            published: true, staticStale: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", { ...body, published: true }));
+
+        expect((savedRewrite() as Photo & { staticStale?: boolean }).staticStale, "印を消している").toBe(true);
+    });
+
+    // 逆向き。無い項目を勝手に足さない（`likes: 0` を書くと、いいねの
+    // 加算が使う `if_not_exists(likes, :z)` の意味が変わる場所に触れる）
+    it("いいねもコメントも無い写真には、その項目を足さない", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`,
+            published: true, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", { ...body, published: true }));
+
+        const written = savedRewrite() as Record<string, unknown>;
+        expect("likes" in written, "無いいいね数を作っている").toBe(false);
+        expect("commentCount" in written, "無いコメント数を作っている").toBe(false);
+        expect("staticStale" in written, "無い印を作っている").toBe(false);
+    });
+
 });
 
 // **許可リストだけでは塞げていなかった。**

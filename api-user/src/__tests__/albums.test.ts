@@ -624,3 +624,45 @@ describe("deleteAlbum", () => {
         expect(deletedIds().some((d) => d === "p1" || d === "p2"), "写真まで消している").toBe(false);
     });
 });
+
+
+// **押し直しで直せること。**
+// 削除は「本体を消す → 一覧から外す」の順で、後半が落ちると ID だけが
+// 一覧に残る。`createAlbum` の上限判定は生の配列長を数えるので、
+// **画面にはアルバムが0個なのに「50個までです」で作れない**——
+// しかも押し直すと本体がもう無いので 404 になり、永久に詰む。
+describe("deleteAlbum: 途中で切れたあと、押し直して直せる", () => {
+    it("本体がもう無くても、一覧に残っていたら外す", async () => {
+        mockSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand" && id === "album#a1") return Promise.resolve({});
+            if (cmd.constructor.name === "GetCommand" && id === "albums#u1") {
+                return Promise.resolve({ Item: { albumIds: ["a1", "a2"] } });
+            }
+            return Promise.resolve({});
+        });
+        const r = await call(albumsModule.deleteAlbum, authed("u1", undefined, { id: "a1" }));
+        expect(r.statusCode, "押し直しても直らない").toBe(200);
+        const fix = inputs().find((i) => String(i.UpdateExpression ?? "").includes("albumIds = :next"));
+        expect(fix, "一覧を掃除していない").toBeTruthy();
+        expect((fix!.ExpressionAttributeValues as Record<string, unknown>)[":next"]).toEqual(["a2"]);
+        // **一覧は丸ごと書き直す**ので、投げた時点の姿を条件にする。
+        // 付けないと、待っている間に作られたアルバムを黙って消す
+        expect(fix!.ConditionExpression, "取ってきた姿を条件にしていない").toBe("albumIds = :prev");
+        expect((fix!.ExpressionAttributeValues as Record<string, unknown>)[":prev"]).toEqual(["a1", "a2"]);
+    });
+
+    // 一覧にも無いなら、本当に存在しない（実在を教えない 404 のまま）
+    it("一覧にも無ければ 404（何も書かない）", async () => {
+        mockSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand" && id === "albums#u1") {
+                return Promise.resolve({ Item: { albumIds: ["other"] } });
+            }
+            return Promise.resolve({});
+        });
+        const r = await call(albumsModule.deleteAlbum, authed("u1", undefined, { id: "a1" }));
+        expect(r.statusCode).toBe(404);
+        expect(inputs().some((i) => i.UpdateExpression), "何か書いている").toBe(false);
+    });
+});

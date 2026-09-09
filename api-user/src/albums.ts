@@ -543,7 +543,28 @@ export const deleteAlbum: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     if (!albumId) return jsonError(400, "アルバムが指定されていません");
 
     const album = await getAlbum(albumId);
-    if (!album || album.ownerId !== userId) return jsonError(404, "アルバムが見つかりません");
+
+    // **本体がもう無くても、一覧に残っていたら外す。**
+    //
+    // 削除は「本体を消す → 一覧から外す」の順で、後半が落ちると
+    // **ID だけが一覧に残る**。`createAlbum` の上限判定は生の配列長を数える
+    // ので、**画面にはアルバムが0個なのに「50個までです」で作れない**
+    // ——しかも押し直すと本体がもう無いので 404 になり、**永久に詰む**
+    // （`removePinnedPhoto` が「枠を1つ永久に食い潰す」として塞いだのと同じ形）。
+    // 押し直しで直せるように、ここで一覧の掃除だけ済ませる。
+    if (!album) {
+        const ids = await listOwnAlbumIds(userId);
+        if (!ids.includes(albumId)) return jsonError(404, "アルバムが見つかりません");
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: albumsOfUserKey(userId) },
+            UpdateExpression: "SET albumIds = :next",
+            ConditionExpression: "albumIds = :prev",
+            ExpressionAttributeValues: { ":next": ids.filter((v) => v !== albumId), ":prev": ids },
+        })).catch((e) => console.error(`deleteAlbum: 一覧の掃除に失敗（${albumId}）:`, e));
+        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) };
+    }
+    if (album.ownerId !== userId) return jsonError(404, "アルバムが見つかりません");
 
     // 1. 招待リンクを取り消す（**アルバムを消す前に**。あとからでは辿れない）
     if (album.inviteToken && isValidInviteToken(album.inviteToken)) {
