@@ -300,3 +300,51 @@ describe("deleteMyPhoto", () => {
         expect(mockRebuild).not.toHaveBeenCalled();
     });
 });
+
+
+// **共同アルバム（案C）からも取り除く。**
+// 残すと、死んだ ID が500枚の枠を食い、招待ページの直近の窓を埋めて
+// 「生きている写真があるのに空」に見える。
+describe("deleteMyPhoto: 共同アルバム", () => {
+    /** アルバムの行に書いた内容 */
+    const albumWrites = () => mockDdbSend.mock.calls
+        .map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> })
+        .filter((c) => c.constructor.name === "UpdateCommand"
+            && String((c.input.Key as { id?: string })?.id ?? "").startsWith("album#"))
+        .map((c) => c.input);
+
+    it("アルバムに入っていた写真は、一覧から取り除く", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string })?.id ?? "");
+                if (id === "album#alb-1") return Promise.resolve({ Item: { id, photoIds: ["p0", "p1"] } });
+                return Promise.resolve({ Item: { ...PHOTO, albumId: "alb-1" } });
+            }
+            return Promise.resolve({});
+        });
+        const res = await invoke(ME, "p1");
+        expect(res.statusCode).toBe(200);
+        const w = albumWrites();
+        expect(w.length, "アルバムを書き直していない").toBe(1);
+        expect((w[0].ExpressionAttributeValues as Record<string, unknown>)[":next"]).toEqual(["p0"]);
+    });
+
+    it("アルバムに入っていなければ触らない", async () => {
+        world(PHOTO);
+        await invoke(ME, "p1");
+        expect(albumWrites().length).toBe(0);
+    });
+
+    // **削除そのものは止めない。** 写真はもう消えているので 500 は嘘になる
+    it("アルバムの掃除に失敗しても、削除は成功で返す", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string })?.id ?? "");
+                if (id === "album#alb-1") return Promise.reject(new Error("throttled"));
+                return Promise.resolve({ Item: { ...PHOTO, albumId: "alb-1" } });
+            }
+            return Promise.resolve({});
+        });
+        expect((await invoke(ME, "p1")).statusCode).toBe(200);
+    });
+});

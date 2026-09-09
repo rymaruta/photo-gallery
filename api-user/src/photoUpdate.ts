@@ -2,6 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { UpdateCommand, GetCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { PUBLIC_FEED_KEY } from "./publicFeed";
+import { removePhotoFromAlbum } from "./albums";
 import { JSON_HEADERS, getUserId } from "./http";
 import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeDate, dateWasRejected, sameStoredValue, truncate } from "./sanitize";
 import { requestSiteRebuild } from "./rebuild";
@@ -488,6 +489,16 @@ export const deleteMyPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         //    非公開だった写真には静的ページが無いので頼まない（A-5d と同じ判定）。
         //    **ただしその前提は「非公開化の依頼が実際に届いた場合」だけ成り立つ。**
         //    届かなかったときは `staticStale` が立っているので、そこは頼む。
+        // **共同アルバムからも取り除く**（案C）。残すと、死んだ ID が
+        // 500枚の枠を食い、招待ページの直近24枚の窓を埋める。
+        // 削除そのものは止めない——写真はもう消えているので、ここで 500 を
+        // 返すのは嘘になる（掃除の失敗を握らずログには残す）。
+        if (typeof item.albumId === "string" && item.albumId) {
+            await removePhotoFromAlbum(item.albumId, id).catch((e) => {
+                console.error(`deleteMyPhoto: アルバムから取り除けませんでした（${id}）:`, e);
+            });
+        }
+
         // 頼めたかどうかを画面に返す（`updatePhotoVisibility` と同じ `staticStale`）。
         // 頼まなかった場合（非公開のまま印も無い）は静的ページが無いので false
         let staticStale = false;

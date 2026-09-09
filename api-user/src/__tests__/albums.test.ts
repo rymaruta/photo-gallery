@@ -8,8 +8,9 @@ vi.mock("../dynamodb", () => ({
 }));
 
 const albumsModule = await import("../albums");
+const addPhotoToAlbumModule = albumsModule;
 const { createAlbum, listAlbums, createInvite, revokeInvite, getInvite, joinAlbum, isAlbumMember, addPhotoToAlbum } = albumsModule;
-const { ALBUMS_PER_USER, MEMBERS_PER_ALBUM, PHOTOS_PER_ALBUM, INVITE_PREVIEW_PHOTOS, isValidInviteToken } = await import("../invite");
+const { ALBUMS_PER_USER, MEMBERS_PER_ALBUM, PHOTOS_PER_ALBUM, INVITE_PREVIEW_PHOTOS, INVITE_LOOKUP_BUDGET, isValidInviteToken } = await import("../invite");
 
 type Result = { statusCode: number; body: string; headers?: Record<string, string> };
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -65,6 +66,25 @@ describe("createAlbum", () => {
 
     // **上限は作る前に見る。** 作ってから一覧に入れられないと、
     // どこからも辿れないアルバムが残る
+    // **途中で失敗したら、作ったアルバムを片付ける。**
+    // 参加の印を書けないまま残すと「自分のアルバムなのに自分がメンバーで
+    // ない」＝そこに写真を入れられない行ができる（一覧にも出ない）
+    it("参加の印を書けなかったら、アルバムを消して 500", async () => {
+        mockSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const id = String((cmd.input.Key as { id?: string })?.id ?? (cmd.input.Item as { id?: string })?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({ Item: { albumIds: [] } });
+            if (id.startsWith("albummember#")) return Promise.reject(new Error("boom"));
+            return Promise.resolve({});
+        });
+        const r = await call(createAlbum, authed("u1", { title: "北欧の冬" }));
+        expect(r.statusCode).toBe(500);
+        const deleted = mockSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string }; input: { Key?: { id?: string } } })
+            .filter((c) => c.constructor.name === "DeleteCommand")
+            .map((c) => String(c.input.Key?.id ?? ""));
+        expect(deleted.some((d) => d.startsWith("album#")), "作ったアルバムが残っている").toBe(true);
+    });
+
     it("上限に達していたら作らない", async () => {
         mockSend.mockResolvedValueOnce({ Item: { albumIds: Array.from({ length: ALBUMS_PER_USER }, (_, i) => `a${i}`) } });
         const r = await call(createAlbum, authed("u1", { title: "もう1つ" }));
@@ -158,6 +178,29 @@ describe("createInvite", () => {
     });
 });
 
+// **書き戻しに失敗したら、いま作ったトークンを取り消す。**
+// 取り消しは `album.inviteToken` からしか辿れないので、書き戻せないまま
+// 残すと**取り消せない生きたリンクが30日残る**
+describe("createInvite: 途中で失敗したとき", () => {
+    it("アルバムに書き戻せなかったら、作ったトークンを取り消して 500", async () => {
+        mockSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const key = String((cmd.input.Key as { id?: string })?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({ Item: { id: "album#a1", ownerId: "u1" } });
+            // アルバムへの書き戻しだけ落とす
+            if (cmd.constructor.name === "UpdateCommand" && key.startsWith("album#")) {
+                return Promise.reject(new Error("boom"));
+            }
+            return Promise.resolve({});
+        });
+        const r = await call(createInvite, authed("u1", undefined, { id: "a1" }));
+        expect(r.statusCode).toBe(500);
+        const revoked = inputs().find((i) =>
+            String((i.Key as { id?: string })?.id ?? "").startsWith("invite#")
+            && String(i.UpdateExpression ?? "").includes("revoked"));
+        expect(revoked, "取り消せないリンクが30日残る").toBeTruthy();
+    });
+});
+
 describe("revokeInvite", () => {
     it("持ち主でなければ 404", async () => {
         mockSend.mockResolvedValueOnce({ Item: { id: "album#a1", ownerId: "other", inviteToken: "t".repeat(32) } });
@@ -199,7 +242,7 @@ describe("getInvite（未認証で読める）", () => {
             .mockResolvedValueOnce({ Item: { id: "album#a1", ownerId: "u1", title: "北欧の冬", memberCount: 3 } });
         const r = await call(getInvite, { pathParameters: { token: "a".repeat(32) } });
         expect(r.statusCode).toBe(200);
-        expect(bodyOf(r).album).toEqual({ id: "a1", title: "北欧の冬", memberCount: 3, photoCount: 0 });
+        expect(bodyOf(r).album).toEqual({ id: "a1", title: "北欧の冬", memberCount: 3 });
         // **キャッシュさせない**（取り消しが効かなくなる）
         expect(r.headers?.["Cache-Control"]).toBe("no-store");
     });
@@ -355,7 +398,6 @@ describe("getInvite: アルバムの写真", () => {
         });
         const r = await call(getInvite, tok);
         expect(bodyOf(r).photos.map((p: { id: string }) => p.id), "新しい順になっていない").toEqual(["p2", "p1"]);
-        expect(bodyOf(r).album.photoCount).toBe(2);
     });
 
     // **未認証で叩ける口なので、ここが最後の砦。**
@@ -378,18 +420,37 @@ describe("getInvite: アルバムの写真", () => {
     });
 
     // **未認証で叩ける口。** 全部引くと写真500枚で GetItem 500回になる
-    it("決まった数までしか引かない", async () => {
+    it("決まった数までしか返さない", async () => {
         const ids = Array.from({ length: 100 }, (_, i) => `p${i}`);
-        mockSend
-            .mockResolvedValueOnce(live())
-            .mockResolvedValueOnce({ Item: { id: "album#a1", title: "旅", photoIds: ids } })
-            .mockResolvedValue({ Item: { id: "px", src: "https://cdn/x.jpg" } });
+        const photos = Object.fromEntries(ids.map((id) => [id, { id, src: `https://cdn/${id}.jpg` }]));
+        serve({ title: "旅", photoIds: ids }, photos);
         const r = await call(getInvite, tok);
         expect(bodyOf(r).photos.length).toBe(INVITE_PREVIEW_PHOTOS);
         // 招待 + アルバム + 写真 の回数（それ以上引いていない）
         expect(mockSend.mock.calls.length).toBe(2 + INVITE_PREVIEW_PHOTOS);
-        // 総数は伝える（画面が「ほか N 枚」と出せる）
-        expect(bodyOf(r).album.photoCount).toBe(100);
+    });
+
+    // **死んだ ID で窓を埋めない。** 消された写真が直近24件に並ぶと、
+    // 生きている写真があるのに空に見えていた
+    it("消された写真は飛ばして、生きている写真で埋める", async () => {
+        const ids = ["alive1", "dead1", "dead2", "alive2"];
+        serve({ title: "旅", photoIds: ids }, {
+            alive1: { id: "alive1", src: "https://cdn/1.jpg" },
+            alive2: { id: "alive2", src: "https://cdn/2.jpg" },
+            // dead1 / dead2 は行が無い
+        });
+        const r = await call(getInvite, tok);
+        expect(bodyOf(r).photos.map((p: { id: string }) => p.id),
+            "死んだ ID で窓が埋まっている").toEqual(["alive2", "alive1"]);
+    });
+
+    // **未認証で叩ける口なので、遡る回数にも歯止めが要る**
+    it("全部死んでいても、読み取りは上限で打ち切る", async () => {
+        const ids = Array.from({ length: 500 }, (_, i) => `dead${i}`);
+        serve({ title: "旅", photoIds: ids }, {});
+        const r = await call(getInvite, tok);
+        expect(bodyOf(r).photos).toEqual([]);
+        expect(mockSend.mock.calls.length, "好きなだけ読ませている").toBe(2 + INVITE_LOOKUP_BUDGET);
     });
 
     // **原本（GPS 入り）と S3 のキーを外に出さない**
@@ -425,5 +486,39 @@ describe("getInvite: アルバムの写真", () => {
         const r = await call(getInvite, tok);
         expect(r.statusCode).toBe(200);
         expect(bodyOf(r).photos).toEqual([]);
+    });
+});
+
+
+describe("removePhotoFromAlbum", () => {
+    it("一覧から取り除く（書き直す前の一覧を条件にする）", async () => {
+        mockSend
+            .mockResolvedValueOnce({ Item: { id: "album#a1", photoIds: ["p1", "p2", "p3"] } })
+            .mockResolvedValueOnce({});
+        await addPhotoToAlbumModule.removePhotoFromAlbum("a1", "p2");
+        const i = inputs()[1];
+        expect((i.ExpressionAttributeValues as Record<string, unknown>)[":next"]).toEqual(["p1", "p3"]);
+        // **その間に誰かが足していたら何もしない**（足された写真を取りこぼさない）
+        expect(String(i.ConditionExpression)).toContain("photoIds = :prev");
+    });
+
+    it("そこに無ければ書きに行かない", async () => {
+        mockSend.mockResolvedValueOnce({ Item: { id: "album#a1", photoIds: ["p1"] } });
+        await addPhotoToAlbumModule.removePhotoFromAlbum("a1", "p2");
+        expect(inputs().length, "無駄に書いている").toBe(1);
+    });
+
+    it("アルバムが無くても落ちない", async () => {
+        mockSend.mockResolvedValueOnce({});
+        await expect(addPhotoToAlbumModule.removePhotoFromAlbum("a1", "p1")).resolves.toBeUndefined();
+    });
+});
+
+describe("addPhotoToAlbum: 二度入れない", () => {
+    it("既に入っていれば条件で落ちる形になっている", async () => {
+        await addPhotoToAlbum("a1", "p1");
+        const i = inputs()[0];
+        expect(String(i.ConditionExpression), "同じ写真を二度入れられる").toContain("NOT contains(photoIds, :id)");
+        expect((i.ExpressionAttributeValues as Record<string, unknown>)[":id"]).toBe("p1");
     });
 });

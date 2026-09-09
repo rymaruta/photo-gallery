@@ -22,14 +22,14 @@
 
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer, APIGatewayProxyHandlerV2 } from "aws-lambda";
 import { randomUUID } from "node:crypto";
-import { GetCommand, PutCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { GetCommand, PutCommand, UpdateCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { sanitizeText } from "./sanitize";
 import {
     newInviteToken, isValidInviteToken, inviteState, inviteRejection,
     inviteKey, albumKey, albumsOfUserKey, inviteExpiryFrom,
-    ALBUMS_PER_USER, ALBUM_TITLE_MAX, MEMBERS_PER_ALBUM, PHOTOS_PER_ALBUM, INVITE_PREVIEW_PHOTOS,
+    ALBUMS_PER_USER, ALBUM_TITLE_MAX, MEMBERS_PER_ALBUM, PHOTOS_PER_ALBUM, INVITE_PREVIEW_PHOTOS, INVITE_LOOKUP_BUDGET,
     albumMemberKey, type InviteItem,
 } from "./invite";
 
@@ -89,17 +89,28 @@ export const createAlbum: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     }));
 
     // 作った人はそのまま参加者。**アルバムを作ってから一覧に足す**
-    // ——逆にすると、作成に失敗したときに存在しない ID が一覧に残る
-    await ddb.send(new PutCommand({
-        TableName: PHOTOS_TABLE,
-        Item: { id: `albummember#${albumId}#${userId}`, albumId, userId, joinedAt: now },
-    }));
-    await ddb.send(new UpdateCommand({
-        TableName: PHOTOS_TABLE,
-        Key: { id: albumsOfUserKey(userId) },
-        UpdateExpression: "SET albumIds = list_append(if_not_exists(albumIds, :empty), :one)",
-        ExpressionAttributeValues: { ":empty": [], ":one": [albumId] },
-    }));
+    // ——逆にすると、作成に失敗したときに存在しない ID が一覧に残る。
+    //
+    // **途中で失敗したら、作ったアルバムを片付けて 500 を返す。**
+    // 参加の印を書けないまま残すと「自分のアルバムなのに自分がメンバーで
+    // ない」＝そこに写真を入れられない行ができる（一覧にも出ない）。
+    try {
+        await ddb.send(new PutCommand({
+            TableName: PHOTOS_TABLE,
+            Item: { id: albumMemberKey(albumId, userId), albumId, userId, joinedAt: now },
+        }));
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: albumsOfUserKey(userId) },
+            UpdateExpression: "SET albumIds = list_append(if_not_exists(albumIds, :empty), :one)",
+            ExpressionAttributeValues: { ":empty": [], ":one": [albumId] },
+        }));
+    } catch (e) {
+        console.error(`createAlbum: 後片付け（${albumId}）:`, e);
+        await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: albumKey(albumId) } }))
+            .catch(() => undefined);
+        return jsonError(500, "アルバムを作れませんでした。もう一度お試しください");
+    }
 
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ album: { id: albumId, title, createdAt: now, memberCount: 1 } }) };
 };
@@ -163,13 +174,29 @@ export const createInvite: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
         })).catch(() => undefined);
     }
 
-    await ddb.send(new UpdateCommand({
-        TableName: PHOTOS_TABLE,
-        Key: { id: albumKey(albumId) },
-        UpdateExpression: "SET inviteToken = :t, inviteExpiresAt = :e",
-        ConditionExpression: "attribute_exists(id) AND ownerId = :me",
-        ExpressionAttributeValues: { ":t": token, ":e": expiresAt, ":me": userId },
-    }));
+    // **書き戻しに失敗したら、いま作ったトークンを取り消す。**
+    // 取り消しは `album.inviteToken` からしか辿れないので、書き戻せないまま
+    // 残すと**取り消せない生きたリンクが30日残る**（画面はエラーを出すので
+    // 配られはしないが、回収する手段が無い）。
+    try {
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: albumKey(albumId) },
+            UpdateExpression: "SET inviteToken = :t, inviteExpiresAt = :e",
+            ConditionExpression: "attribute_exists(id) AND ownerId = :me",
+            ExpressionAttributeValues: { ":t": token, ":e": expiresAt, ":me": userId },
+        }));
+    } catch (e) {
+        console.error(`createInvite: 書き戻しに失敗したので取り消します（${albumId}）:`, e);
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: inviteKey(token) },
+            UpdateExpression: "SET revoked = :t",
+            ConditionExpression: "attribute_exists(id)",
+            ExpressionAttributeValues: { ":t": true },
+        })).catch(() => undefined);
+        return jsonError(500, "招待リンクを作れませんでした。もう一度お試しください");
+    }
 
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ token, expiresAt }) };
 };
@@ -246,9 +273,18 @@ export const getInvite: APIGatewayProxyHandlerV2 = async (event) => {
     const ids = Array.isArray(album.photoIds)
         ? album.photoIds.filter((v): v is string => typeof v === "string")
         : [];
-    const recent = ids.slice(-INVITE_PREVIEW_PHOTOS).reverse();
+    // **死んだ ID・非公開で窓を埋めない。** 直近24件だけを見ていた頃は、
+    // 消された写真がその窓に並ぶと**生きている写真があるのに空に見えた**
+    // （`continue` するだけで埋め直していなかった）。新しい方から遡って、
+    // 24枚 見つかるか、読み取りの上限に当たるまで進む。
+    // 上限があるのは**未認証で叩ける口**だから（好きなだけ読ませない）。
+    const candidates = ids.slice().reverse();
     const photos = [];
-    for (const pid of recent) {
+    let looked = 0;
+    for (const pid of candidates) {
+        if (photos.length >= INVITE_PREVIEW_PHOTOS) break;
+        if (looked >= INVITE_LOOKUP_BUDGET) break;
+        looked++;
         const got = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: pid } }));
         const p = got.Item as Record<string, unknown> | undefined;
         if (!p || typeof p.src !== "string") continue;
@@ -282,7 +318,9 @@ export const getInvite: APIGatewayProxyHandlerV2 = async (event) => {
                 id: invite!.albumId,
                 title: album.title ?? "",
                 memberCount: typeof album.memberCount === "number" ? album.memberCount : 1,
-                photoCount: ids.length,
+                // **枚数は返さない。** `photoIds` は消された写真の ID を
+                // 持ち続けるので、数えると嘘になる（「写真5枚」なのに2枚しか
+                // 出ない）。出すなら全件引くことになり、未認証の口では引けない。
             },
             photos,
         }),
@@ -385,7 +423,38 @@ export async function addPhotoToAlbum(albumId: string, photoId: string): Promise
         TableName: PHOTOS_TABLE,
         Key: { id: albumKey(albumId) },
         UpdateExpression: "SET photoIds = list_append(if_not_exists(photoIds, :empty), :one)",
-        ConditionExpression: "attribute_exists(id) AND (attribute_not_exists(photoIds) OR size(photoIds) < :max)",
-        ExpressionAttributeValues: { ":empty": [], ":one": [photoId], ":max": PHOTOS_PER_ALBUM },
+        // **同じ写真を二度入れない。** 保存の再送（`overwriteOwnPhoto` の経路）で
+        // ここを呼ぶようにしたので、押し直すたびに増える形を塞ぐ。
+        // 既に入っていれば条件で落ちる（呼び出し側はそれを成功として扱う）。
+        ConditionExpression:
+            "attribute_exists(id) "
+            + "AND (attribute_not_exists(photoIds) OR size(photoIds) < :max) "
+            + "AND (attribute_not_exists(photoIds) OR NOT contains(photoIds, :id))",
+        ExpressionAttributeValues: { ":empty": [], ":one": [photoId], ":id": photoId, ":max": PHOTOS_PER_ALBUM },
+    }));
+}
+
+/**
+ * アルバムから写真の ID を取り除く（削除の経路から呼ぶ）。
+ *
+ * **一覧に死んだ ID が溜まると2つ困る**: 500枚の枠を食う／招待ページが
+ * 直近24枚の窓を死んだ ID で埋めて「生きている写真があるのに空」に見える。
+ *
+ * DynamoDB は値でリストから消せないので、読んで書き直す。**書き直す前の
+ * 一覧を条件に入れる**ので、その間に誰かが足していたら何もしない
+ * （足された写真を取りこぼさない。次の削除で拾える）。
+ */
+export async function removePhotoFromAlbum(albumId: string, photoId: string): Promise<void> {
+    const album = await getAlbum(albumId);
+    const ids = Array.isArray(album?.photoIds)
+        ? (album!.photoIds as unknown[]).filter((v): v is string => typeof v === "string")
+        : [];
+    if (!ids.includes(photoId)) return;
+    await ddb.send(new UpdateCommand({
+        TableName: PHOTOS_TABLE,
+        Key: { id: albumKey(albumId) },
+        UpdateExpression: "SET photoIds = :next",
+        ConditionExpression: "attribute_exists(id) AND photoIds = :prev",
+        ExpressionAttributeValues: { ":next": ids.filter((v) => v !== photoId), ":prev": ids },
     }));
 }

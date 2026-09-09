@@ -153,6 +153,19 @@ describe("savePhoto: 共同アルバム", () => {
         expect(mockAddPhotoToAlbum).not.toHaveBeenCalled();
     });
 
+    // **1回目が落ちたあと押し直す場面。** ここを呼ばないと、
+    // 直ってほしい操作で直らない（`addPhotoToAlbum` は冪等）
+    it("再送で書き直したときも、アルバムに足す", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: false,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, albumId: "alb-1", published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockAddPhotoToAlbum, "再送では足していない").toHaveBeenCalled();
+    });
+
     // 足せなくても投稿は成功で返す（写真はもう保存されている）
     it("アルバムに足せなくても、投稿は成功で返す", async () => {
         mockAddPhotoToAlbum.mockRejectedValue(new Error("full"));

@@ -20,7 +20,7 @@ import { ROUTES } from "../../lib/routes";
  * そこで切れる。参加と投稿だけログインが要る。
  */
 
-type InviteAlbum = { id: string; title: string; memberCount: number; photoCount: number };
+type InviteAlbum = { id: string; title: string; memberCount: number };
 type InvitePhoto = { id: string; src: string; thumbSrc?: string; blurDataURL?: string };
 
 function InviteView() {
@@ -118,9 +118,9 @@ function InviteView() {
             <div className="max-w-2xl mx-auto">
                 <p className="text-[11px] tracking-widest uppercase text-white/50">アルバムへの招待</p>
                 <h1 className="text-xl mt-1">{album.title}</h1>
-                <p className="text-xs text-white/60 mt-1">
-                    {album.memberCount}人が参加 ・ 写真{album.photoCount}枚
-                </p>
+                {/* **枚数は出さない。** サーバーは返さない——消された写真の ID を
+                    持ち続けるので、数えると嘘になる */}
+                <p className="text-xs text-white/60 mt-1">{album.memberCount}人が参加</p>
 
                 {photos.length > 0 && (
                     <ul className="grid grid-cols-3 gap-1 mt-6">

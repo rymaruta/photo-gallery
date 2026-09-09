@@ -427,6 +427,13 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             const stored = existing.updatedAt ?? existing.createdAt ?? "";
             const rewritten = { ...photo, createdAt: existing.createdAt ?? photo.createdAt };
             if (stored && await overwriteOwnPhoto(rewritten, stored)) {
+                // **再送でもアルバムに足す。** 1回目の `addPhotoToAlbum` が
+                // 落ちた（スロットル・500枚上限）あとに押し直す場面で、
+                // ここを呼ばないと**直ってほしい操作で直らない**。
+                // `addPhotoToAlbum` は冪等（既に入っていれば条件で落ちる）
+                if (albumId && isPublished) {
+                    await addPhotoToAlbum(albumId, photo.id).catch(() => undefined);
+                }
                 // 再送で「下書き → 公開」に変わることがある（公開で落ちて
                 // 下書き保存し、そのあと公開を押し直す形）。最初の保存の
                 // ときは下書きで頼まなかったので、ここでもう一度見る。

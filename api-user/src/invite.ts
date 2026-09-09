@@ -136,6 +136,14 @@ export const PHOTOS_PER_ALBUM = 500;
  */
 export const INVITE_PREVIEW_PHOTOS = 24;
 
+/**
+ * 招待ページで引く写真の**上限**（見つからなくても、ここまでで打ち切る）。
+ *
+ * 一覧には消された写真の ID も残るので、24枚 見つかるまで遡る必要がある。
+ * ただし**未認証で叩ける口**なので、遡る回数にも歯止めが要る。
+ */
+export const INVITE_LOOKUP_BUDGET = 60;
+
 /** 招待の項目（DynamoDB に入る形） */
 export type InviteItem = {
     id: string;
