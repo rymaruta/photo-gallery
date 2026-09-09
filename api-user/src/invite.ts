@@ -61,11 +61,30 @@ export function isValidInviteToken(raw: unknown): raw is string {
     return typeof raw === "string" && /^[A-Za-z0-9_-]{32,64}$/.test(raw);
 }
 
-/** 招待の項目のキー */
+/**
+ * 招待の項目のキー。
+ *
+ * **`storyFeed` を持たせてはいけない。** このテーブルの GSI は
+ * `storyFeed-expiresAt-index` で、この行は既に `expiresAt` を持っている
+ * ——`storyFeed` を足した瞬間に**ストーリー一覧に紛れ込む**。
+ */
 export const inviteKey = (token: string) => `invite#${token}`;
-/** アルバムの項目のキー */
+/**
+ * アルバムの項目のキー。
+ *
+ * **`userId` を持たせてはいけない。** この行は `createdAt` を持っているので、
+ * `userId` を足すと `userId-createdAt-index` に載る——その索引は
+ * `hasAnyUserItem`（フォローできる相手かの判定）と退会の掃除が
+ * **絞り込み無しで引いている**。
+ */
 export const albumKey = (albumId: string) => `album#${albumId}`;
-/** 参加の印のキー。1人1行なので、参加の有無は GetItem 1回で分かる */
+/**
+ * 参加の印のキー。1人1行なので、参加の有無は GetItem 1回で分かる。
+ *
+ * **`createdAt` を持たせてはいけない**（日時は `joinedAt` に入れてある）。
+ * この行は既に `userId` を持っているので、`createdAt` を足すと
+ * `userId-createdAt-index` に載る。理由は `albumKey` と同じ。
+ */
 export const albumMemberKey = (albumId: string, userId: string) => `albummember#${albumId}#${userId}`;
 /**
  * その人が作ったアルバムの一覧（利用者ごとの文書）。

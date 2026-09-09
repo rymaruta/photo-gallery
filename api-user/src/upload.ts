@@ -401,7 +401,10 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // **写真を書いてからアルバムに足す。** 逆にすると、保存に失敗した
         // ときにアルバムへ「存在しない写真の ID」が残る。
         // 足せなくても投稿は成功で返す（写真はもう保存されている）。
-        if (albumId) {
+        // **公開したときだけアルバムに入れる。** 下書きを入れると、
+        // 招待リンク（未認証で開ける）から読めてしまう。読む側でも
+        // 落としているが、そもそも入れない（多層で守る）。
+        if (albumId && isPublished) {
             await addPhotoToAlbum(albumId, photo.id).catch((e) => {
                 console.error(`savePhoto: アルバムに足せませんでした（写真は保存済み・${photo.id}）:`, e);
             });

@@ -73,7 +73,9 @@ export const createAlbum: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     // **上限は「作る前」に見る。** 作ってから一覧に入れられないと、
     // どこからも辿れないアルバムが残る
     if (existing.length >= ALBUMS_PER_USER) {
-        return jsonError(403, `アルバムは${ALBUMS_PER_USER}個までです。使わないものを消してください`);
+        // **「消してください」と書かない。** アルバムを消す口はまだ無い
+        // ——実行できない指示を出すと、上限に達した人が詰まる
+        return jsonError(403, `アルバムは${ALBUMS_PER_USER}個までです`);
     }
 
     const albumId = randomUUID();
@@ -250,6 +252,15 @@ export const getInvite: APIGatewayProxyHandlerV2 = async (event) => {
         const got = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: pid } }));
         const p = got.Item as Record<string, unknown> | undefined;
         if (!p || typeof p.src !== "string") continue;
+        // **非公開・下書きは出さない。** ここが最後の砦。
+        //
+        // 入る筋が2つある: (1) `/user/upload?album=X` は「下書き保存」でも
+        // `albumId` を送る、(2) あとから非公開にしても `photoIds` からは
+        // 消えない（`photoUpdate.ts` はアルバムを知らない）。
+        // **この口は未認証で叩ける**ので、ここを抜けると
+        // 「下書きに入れたつもりの写真が、リンクを持つ誰にでも読める」。
+        // 判定は `published !== false`（未指定は公開）——リポジトリ全体の慣習。
+        if (p.published === false) continue;
         // **返すのは表示に要るものだけ。** 原本（GPS 入り）・S3 のキー・
         // 内部の印は外に出さない（`api/src/photos.ts` の PRIVATE_FIELDS と同じ考え）
         photos.push({

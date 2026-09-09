@@ -7,7 +7,8 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 
-const { createAlbum, listAlbums, createInvite, revokeInvite, getInvite, joinAlbum, isAlbumMember, addPhotoToAlbum } = await import("../albums");
+const albumsModule = await import("../albums");
+const { createAlbum, listAlbums, createInvite, revokeInvite, getInvite, joinAlbum, isAlbumMember, addPhotoToAlbum } = albumsModule;
 const { ALBUMS_PER_USER, MEMBERS_PER_ALBUM, PHOTOS_PER_ALBUM, INVITE_PREVIEW_PHOTOS, isValidInviteToken } = await import("../invite");
 
 type Result = { statusCode: number; body: string; headers?: Record<string, string> };
@@ -70,6 +71,18 @@ describe("createAlbum", () => {
         expect(r.statusCode).toBe(403);
         expect(inputs().some((i) => String((i.Item as { id?: string })?.id ?? "").startsWith("album#")),
             "上限なのに作っている").toBe(false);
+    });
+
+    // **実行できない指示を出さない。** 「使わないものを消してください」と
+    // 書いていたが、**アルバムを消す口はまだ無い**（`deleteAlbum` は存在しない）。
+    // 上限に達した人が詰まる。削除を足したらこのテストを外してよい。
+    it("消す口が無いうちは、消せとは言わない", async () => {
+        mockSend.mockResolvedValueOnce({ Item: { albumIds: Array.from({ length: ALBUMS_PER_USER }, (_, i) => `a${i}`) } });
+        const r = await call(createAlbum, authed("u1", { title: "もう1つ" }));
+        const hasDelete = typeof (albumsModule as Record<string, unknown>).deleteAlbum === "function";
+        if (!hasDelete) {
+            expect(bodyOf(r).error, "消す口が無いのに「消してください」と言っている").not.toMatch(/消し|削除/);
+        }
     });
 
     it("上限の1つ手前は作れる（境界）", async () => {
@@ -321,15 +334,47 @@ describe("getInvite: アルバムの写真", () => {
     });
     const tok = { pathParameters: { token: "a".repeat(32) } };
 
+    /**
+     * **キーで返す。** 順番で返す `mockResolvedValueOnce` の並びだと、
+     * 実装が ID をどの順で引いても同じ答えになる——`.reverse()` を
+     * 消す変異が42件すべて緑のまま通っていた（レビューが実測）。
+     */
+    function serve(album: Record<string, unknown>, photos: Record<string, Record<string, unknown>>) {
+        mockSend.mockImplementation((cmd: { input: { Key?: { id?: string } } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (id.startsWith("invite#")) return Promise.resolve(live());
+            if (id.startsWith("album#")) return Promise.resolve({ Item: { id, ...album } });
+            return Promise.resolve({ Item: photos[id] });
+        });
+    }
+
     it("新しい方から返す", async () => {
-        mockSend
-            .mockResolvedValueOnce(live())
-            .mockResolvedValueOnce({ Item: { id: "album#a1", title: "旅", photoIds: ["p1", "p2"] } })
-            .mockResolvedValueOnce({ Item: { id: "p2", src: "https://cdn/2.jpg" } })
-            .mockResolvedValueOnce({ Item: { id: "p1", src: "https://cdn/1.jpg" } });
+        serve({ title: "旅", photoIds: ["p1", "p2"] }, {
+            p1: { id: "p1", src: "https://cdn/1.jpg" },
+            p2: { id: "p2", src: "https://cdn/2.jpg" },
+        });
         const r = await call(getInvite, tok);
-        expect(bodyOf(r).photos.map((p: { id: string }) => p.id)).toEqual(["p2", "p1"]);
+        expect(bodyOf(r).photos.map((p: { id: string }) => p.id), "新しい順になっていない").toEqual(["p2", "p1"]);
         expect(bodyOf(r).album.photoCount).toBe(2);
+    });
+
+    // **未認証で叩ける口なので、ここが最後の砦。**
+    // 入る筋が2つある: 「下書き保存」でも `albumId` を送る／あとから
+    // 非公開にしても `photoIds` からは消えない
+    it("非公開・下書きの写真は出さない", async () => {
+        serve({ title: "旅", photoIds: ["pub", "draft"] }, {
+            pub: { id: "pub", src: "https://cdn/pub.jpg", published: true },
+            draft: { id: "draft", src: "https://cdn/HIDDEN.jpg", published: false },
+        });
+        const r = await call(getInvite, tok);
+        expect(r.body, "下書きが未認証で読める").not.toContain("HIDDEN");
+        expect(bodyOf(r).photos.map((p: { id: string }) => p.id)).toEqual(["pub"]);
+    });
+
+    // 未指定は公開（リポジトリ全体の慣習）
+    it("published を持たない古い行は出す", async () => {
+        serve({ title: "旅", photoIds: ["old"] }, { old: { id: "old", src: "https://cdn/old.jpg" } });
+        expect(bodyOf(await call(getInvite, tok)).photos.map((p: { id: string }) => p.id)).toEqual(["old"]);
     });
 
     // **未認証で叩ける口。** 全部引くと写真500枚で GetItem 500回になる

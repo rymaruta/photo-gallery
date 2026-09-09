@@ -123,6 +123,15 @@ describe("savePhoto: 共同アルバム", () => {
         expect(mockPutPhoto, "メンバーでないのに保存している").not.toHaveBeenCalled();
     });
 
+    // **下書きはアルバムに入れない。** 招待リンクは未認証で開けるので、
+    // 入れると「下書きに入れたつもりの写真がリンクを持つ誰にでも読める」
+    it("下書きはアルバムに足さない（メンバーでも）", async () => {
+        const res = await invoke(event("u1", { ...BASE, albumId: "alb-1", published: false }));
+        expect(res.statusCode).toBe(200);
+        expect(savedPhoto().published).toBe(false);
+        expect(mockAddPhotoToAlbum, "下書きがアルバムに入っている").not.toHaveBeenCalled();
+    });
+
     it("albumId が無ければ、メンバーかどうかも見ない", async () => {
         await invoke(event("u1", { ...BASE }));
         expect(mockIsAlbumMember).not.toHaveBeenCalled();
