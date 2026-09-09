@@ -51,6 +51,7 @@ export type Labels = {
         favorites?: string;
         map?: string;
         mypage?: string;
+        albums?: string;
         wishlist?: string;
         account?: string;
         upload?: string;
@@ -107,6 +108,7 @@ const enLabels: Labels = {
         favorites: "Liked Photos",
         map: "Map",
         mypage: "My Page",
+        albums: "Shared Albums",
         wishlist: "Travel List",
         account: "Account",
         upload: "Upload",
@@ -160,6 +162,7 @@ export const ja: Labels = {
         favorites: "いいねした写真",
         map: "撮影地マップ",
         mypage: "マイページ",
+        albums: "共同アルバム",
         wishlist: "行きたいリスト",
         account: "アカウント",
         upload: "アップロード",

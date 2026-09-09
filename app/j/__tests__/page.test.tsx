@@ -110,6 +110,17 @@ describe("招待ページ: 参加", () => {
             `/invites/${"a".repeat(32)}/join`, expect.objectContaining({ method: "POST" }));
     });
 
+    // 招待リンクは共有されるので、同じ人が二度開くのは普通に起きる
+    it("既に参加していれば、そう言う", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ joined: true, already: true }) });
+        render(<InvitePage />);
+        await userEvent.click(await screen.findByRole("button", { name: /参加する/ }));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
+            "すでにこのアルバムに参加しています", "success"));
+        // それでも導線は出す（写真は足せる）
+        expect(await screen.findByRole("link", { name: /写真を追加/ })).toBeInTheDocument();
+    });
+
     it("参加に失敗したら理由を出し、導線は出さない", async () => {
         mockUserFetch.mockResolvedValue({ ok: false, status: 403, _msg: "このアルバムは50人までです" });
         render(<InvitePage />);

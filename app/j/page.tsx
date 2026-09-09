@@ -84,7 +84,10 @@ function InviteView() {
                 return;
             }
             setJoined(true);
-            showToast("このアルバムに参加しました", "success");
+            // 招待リンクは共有されるので、同じ人が二度開くのは普通に起きる。
+            // サーバーは `already` で区別を返すので、文言も分ける
+            const data = await res.json().catch(() => ({})) as { already?: boolean };
+            showToast(data.already ? "すでにこのアルバムに参加しています" : "このアルバムに参加しました", "success");
         } catch (e) {
             showToast(sessionErrorMessage(e) ?? "参加できませんでした", "error");
         } finally {
