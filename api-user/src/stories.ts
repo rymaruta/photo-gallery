@@ -166,7 +166,7 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "画像URLが必要です" }) };
     }
     // 自分のアップロード領域を指すURLだけを受け付ける。
-    // 判定は upload.ts の isOwnUploadUrl に寄せる（未設定なら通さない）。
+    // 判定は uploadPolicy.ts の isOwnUploadUrlFromEnv に寄せる（未設定なら通さない）。
     // userId を渡して「他人の領域」を弾くのが要（下の key の話と対になる）。
     if (!isOwnUploadUrl(publicUrl, userId)) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正な画像URLです" }) };

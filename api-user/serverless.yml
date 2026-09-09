@@ -115,6 +115,11 @@ functions:
             name: cognitoAuthorizer
 
   savePhoto:
+    # 再ビルドを頼む関数は 15 秒にする（updatePhotoVisibility / deleteMyPhoto と
+    # 同じ理由）。既定の 6 秒だと、**GitHub が遅いだけで写真はもう保存されて
+    # いるのに 500 が返る**——画面はそれを「保存できませんでした」と読んで
+    # 実体を捨てにいき、月次予算の解放（releaseMonthlyBudget）にも届かない。
+    timeout: 15
     handler: src/upload.savePhoto
     environment:
       # 再ビルド依頼はこの関数から出す（provider には置かない。IAM-2）

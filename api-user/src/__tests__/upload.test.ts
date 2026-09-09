@@ -91,12 +91,25 @@ describe("savePhoto: 公開したら静的サイトを作り直してもらう",
         expect(mockRequestSiteRebuild.mock.calls[0][0]).toContain(savedPhoto().id);
     });
 
-    // **coalesce を付けてはいけない。** 見送られた依頼は後から実行されない
-    // ので、まとめて10枚上げると2枚目以降のページが7日 生まれない
-    it("依頼をまとめない（coalesce を渡さない）", async () => {
+    // **coalesce を付ける。** 最初は外していたが逆向きだった——月次予算は
+    // coalesce の有無に関わらず1加算されるので、素通しにすると1人が100枚
+    // 公開しただけで既定 200本 の半分を使い切り、使い切った月は
+    // **削除・退会の掃除まで全部落ちる**（`photoUpdate.ts` が同じ判断を
+    // 一度して戻している）。畳まれても、その1本のビルドが DynamoDB を
+    // 読み直すので写真は載る。
+    it("依頼はまとめる（月次予算を食い潰さない）", async () => {
         await invoke(event("u1", { ...BASE, published: true }));
         const opts = mockRequestSiteRebuild.mock.calls[0][1];
-        expect(opts?.coalesce, "まとめると2枚目以降が落ちる").not.toBe(true);
+        expect(opts?.coalesce, "素通しにすると削除の掃除まで落ちる").toBe(true);
+    });
+
+    // 依頼が投げたら、**保存済みの写真について 500 を返す**ことになる
+    // （画面はそれを「保存できませんでした」と読んで実体を捨てにいく）
+    it("依頼が例外を投げても、投稿は成功で返す", async () => {
+        mockRequestSiteRebuild.mockRejectedValue(new Error("dispatch exploded"));
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).success).toBe(true);
     });
 
     it("下書きでは頼まない（静的ページを持たないので作り直す理由が無い）", async () => {
@@ -133,13 +146,27 @@ describe("savePhoto: 公開したら静的サイトを作り直してもらう",
         expect(mockRequestSiteRebuild).toHaveBeenCalledTimes(1);
     });
 
-    it("再送が下書きのままなら頼まない", async () => {
+    it("再送でも今回が下書きなら頼まない", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: false,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, published: false }));
+        expect(res.statusCode).toBe(200);
+        expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
+    });
+
+    // **ただの二重送信では頼まない。** 再送は「モバイル回線で応答だけが
+    // 失われた」ときに起きるので、公開済みの写真について何度も来うる。
+    // そのたびに頼むと月の予算を1本ずつ食う（最初の保存で頼んである）
+    it("再送で既に公開済みなら頼まない", async () => {
         mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
         mockGetPhotoById.mockResolvedValue({
             id: "x", userId: "u1", src: BASE.publicUrl, published: true,
             createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
         });
-        const res = await invoke(event("u1", { ...BASE, published: false }));
+        const res = await invoke(event("u1", { ...BASE, published: true }));
         expect(res.statusCode).toBe(200);
         expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
     });

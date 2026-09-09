@@ -74,20 +74,6 @@ export function uploadPrefix(userId: string): string {
  *
  * `cloudfrontUrl` が未設定なら常に false（検証できないものは通さない）。
  */
-/**
- * 上の判定を、環境の `CLOUDFRONT_URL` で束ねた版。
- *
- * **ここに置くのは、呼び出す側の import の輪を小さく保つため。**
- * 以前はこの束ね版が `upload.ts` にあり、`stories.ts` がそれだけのために
- * `upload.ts` を import していた。`upload.ts` が再ビルド依頼（`rebuild.ts`）を
- * 使い始めた途端、**ストーリーの6関数まで「再ビルドのトークンが要る関数」に
- * 見えるようになる**（`scripts/__tests__/rebuildTokenScope.test.ts` は
- * ファイル単位で辿るため）。書き込みトークンを配る先は狭いほどよい（IAM-2）。
- */
-export function isOwnUploadUrlFromEnv(raw: unknown, userId?: string): boolean {
-    return isOwnUploadUrl(raw, process.env.CLOUDFRONT_URL ?? "", userId);
-}
-
 export function isOwnUploadUrl(raw: unknown, cloudfrontUrl: string, userId?: string): boolean {
     if (typeof raw !== "string" || !raw) return false;
     let u: URL;
@@ -115,6 +101,21 @@ export function isOwnUploadUrl(raw: unknown, cloudfrontUrl: string, userId?: str
     // 接頭辞の先に実体が要る（"/uploads/<uid>/" だけ、は不可）
     return pathname.length > required.length;
 }
+
+/**
+ * 上の `isOwnUploadUrl` を、環境の `CLOUDFRONT_URL` で束ねた版。
+ *
+ * **ここに置くのは、呼び出す側の import の輪を小さく保つため。**
+ * 以前はこの束ね版が `upload.ts` にあり、`stories.ts` がそれだけのために
+ * `upload.ts` を import していた。`upload.ts` が再ビルド依頼（`rebuild.ts`）を
+ * 使い始めた途端、**ストーリーの6関数まで「再ビルドのトークンが要る関数」に
+ * 見えるようになる**（`scripts/__tests__/rebuildTokenScope.test.ts` は
+ * ファイル単位で辿るため）。書き込みトークンを配る先は狭いほどよい（IAM-2）。
+ */
+export function isOwnUploadUrlFromEnv(raw: unknown, userId?: string): boolean {
+    return isOwnUploadUrl(raw, process.env.CLOUDFRONT_URL ?? "", userId);
+}
+
 
 /** URL から uploads/ 配下のキーを取り出す（自分のものと確認済みの前提） */
 export function keyFromUploadUrl(raw: string): string {

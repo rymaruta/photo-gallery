@@ -7,7 +7,7 @@ import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
 import { lookupDisplayNameIfSet } from "./notify";
 import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags } from "./sanitize";
-import { extForType, uploadPrefix, canonicalUploadUrl, idFromUploadKey, isOwnUploadUrl as isOwnUploadUrlFor } from "./uploadPolicy";
+import { extForType, uploadPrefix, canonicalUploadUrl, idFromUploadKey, isOwnUploadUrlFromEnv as isOwnUploadUrl } from "./uploadPolicy";
 import { mediaKeys } from "./mediaKeys";
 import { requestSiteRebuild } from "./rebuild";
 
@@ -35,17 +35,10 @@ const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
 const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? "";
 
-/**
- * 自分のアップロード領域を指すURLかどうか。
- *
- * 保存された src は削除時にそのまま S3 のキーになるため、ここが最後の砦になる。
- * `userId` を渡すと「その人の領域か」まで見る。新しくURLを結び付ける場面
- * （写真の保存・ストーリーの作成）では必ず渡すこと。判定の中身は
- * uploadPolicy.ts にある。
- */
-export function isOwnUploadUrl(raw: unknown, userId?: string): boolean {
-    return isOwnUploadUrlFor(raw, CLOUDFRONT_URL, userId);
-}
+// 「自分のアップロード領域を指すURLか」の判定は uploadPolicy.ts の
+// `isOwnUploadUrlFromEnv` に一本化した（同じ束ね版がここにもあり、
+// **同じ規則が2つある**状態だった）。保存された src は削除時にそのまま
+// S3 のキーになるので、ここが最後の砦になる。
 
 const PHOTO_LIMIT_PER_USER = 100;
 
@@ -203,12 +196,20 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
  * 消す側（削除・非公開・退会）は最初から頼んでいたのに、**作る側だけが
  * 抜けていた**。
  *
- * **`coalesce` は付けない。** クールダウンに当たった依頼は見送られるだけで
- * 後から実行されないので、まとめて10枚上げると2枚目以降が丸ごと落ちる
- * （`rebuild.ts` が「削除・退会に付けてはいけない」と書いているのと同じ理由
- * ——実データを1件作らないと起こせない操作は素通しでよい）。連投の無駄は
- * GitHub 側が畳む: 待機中の実行は concurrency グループで常に1つにまとまり、
- * その1本は**ビルド時に DynamoDB を読み直す**ので後から着いた写真も載る。
+ * **`coalesce` を付ける。** 最初これを外したが、逆向きに倒していた——
+ * `photoUpdate.ts` が**まったく同じ判断を一度して戻している**（そちらの
+ * コメントを読まずに隣で繰り返した）。クールダウンは畳み込みの仕掛けである
+ * と同時に、**月次予算（`claimMonthlyBudget`）を減らす速度の唯一の歯止め**
+ * でもある。予算は `coalesce` の有無に関わらず1加算されるので、素通しだと
+ * 1人が100枚公開しただけで既定の 200本 の半分を使い切る。使い切ったら
+ * その月いっぱい**写真削除・退会の掃除まで全部落ちる**——「出るのが遅れる」を
+ * 直して「消したのに検索から見える」を月単位で作る取り引きになっていた。
+ *
+ * 畳まれても落ちない: 畳まれた＝直近10分に誰かが頼んだ＝**ビルドがもう
+ * 走っている**ということで、その1本は**ビルド時に DynamoDB を読み直す**。
+ * しかも `scripts/sync-photos-from-ddb.js` は読み終わった時点で印を下ろすので、
+ * 実際に取りこぼす窓は「そのビルドがテーブルを読んだ後〜印が下りるまで」の
+ * 数秒〜数十秒だけ。**旧コメントの「2枚目以降が7日 生まれない」は誇張だった。**
  *
  * **下書きは頼まない。** 静的ページを持たないので作り直す理由が無い。
  *
@@ -218,7 +219,11 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
  */
 async function requestRebuildForNewPhoto(id: string, isPublished: boolean): Promise<void> {
     if (!isPublished) return;
-    await requestSiteRebuild(`photo published: ${id}`);
+    // 投げさせない。**呼び出し元では `putPhoto` が既に成功している**ので、
+    // ここで例外が上がると保存済みの写真について 500「保存に失敗しました」を
+    // 返す（画面は実体を捨てにいく）。いまの rebuild.ts は全経路を包んでいて
+    // 実際には投げないが、投げた瞬間に一番悪い形になる1行なので塞いでおく。
+    await requestSiteRebuild(`photo published: ${id}`, { coalesce: true }).catch(() => false);
 }
 
 export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
@@ -372,7 +377,13 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 // 再送で「下書き → 公開」に変わることがある（公開で落ちて
                 // 下書き保存し、そのあと公開を押し直す形）。最初の保存の
                 // ときは下書きで頼まなかったので、ここでもう一度見る。
-                await requestRebuildForNewPhoto(photo.id, isPublished);
+                //
+                // **既に公開済みだったなら頼まない。** 再送は「モバイル回線で
+                // 応答だけが失われた」ときに起きるので、ただの二重送信でも
+                // ここに来る。そのたびに頼むと月の予算を1本ずつ食う
+                // （最初の保存で既に頼んである）。
+                const wasPublished = existing.published === true;
+                await requestRebuildForNewPhoto(photo.id, isPublished && !wasPublished);
                 console.log(`savePhoto: 同じ写真の再送を受け取り、今回の内容で書き直しました（${photo.id}）`);
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: rewritten }) };
             }
