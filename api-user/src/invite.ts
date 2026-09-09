@@ -97,6 +97,16 @@ export const MEMBERS_PER_ALBUM = 50;
 /** アルバムの題の最大長（保存する前に切る） */
 export const ALBUM_TITLE_MAX = 60;
 
+/**
+ * 1つのアルバムに入れる写真の数。
+ *
+ * **アルバムの行に ID の一覧を持つ**ので、DynamoDB の 400KB を超えない
+ * 数にする（uuid 36文字 × 500 ≒ 18KB）。索引を足さずに済ませるための形
+ * ——招待の閲覧は `PublicReadRole`（写真テーブルは GetItem のみ）で動くので、
+ * 「このアルバムの写真」を Query で引けない。
+ */
+export const PHOTOS_PER_ALBUM = 500;
+
 /** 招待の項目（DynamoDB に入る形） */
 export type InviteItem = {
     id: string;

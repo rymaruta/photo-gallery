@@ -11,6 +11,7 @@ import { extForType, uploadPrefix, canonicalUploadUrl, idFromUploadKey, isOwnUpl
 import { mediaKeys } from "./mediaKeys";
 import { requestSiteRebuild } from "./rebuild";
 import { PUBLIC_FEED_KEY } from "./publicFeed";
+import { isAlbumMember, addPhotoToAlbum } from "./albums";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 /**
@@ -274,6 +275,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         published?: boolean;
         blurDataURL?: string;
         date?: unknown;
+        /** 共同アルバムに入れる場合の行き先（案C）。メンバーでなければ断る */
+        albumId?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -282,6 +285,14 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     }
 
     const { key, publicUrl, title, description, location, category, tags, exif, coords, dominantColor, thumbUrl, blurDataURL } = body;
+    // **共同アルバムに入れるなら、メンバーかどうかをここで確かめる。**
+    // ここを通さずに `albumId` を保存できると、**誰でも他人のアルバムに
+    // 写真を差し込める**（アルバムの ID は招待を受けた人なら知っている）。
+    const albumId = typeof body.albumId === "string" && body.albumId ? body.albumId : undefined;
+    if (albumId && !await isAlbumMember(albumId, userId)) {
+        // **403 ではなく 404。** そのアルバムが実在することを教えない
+        return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "アルバムが見つかりません" }) };
+    }
     // 下書き保存: published === false のときだけ非公開。既定（未指定/true）は従来通り公開。
     const isPublished = body.published !== false;
     if (!key || !publicUrl) {
@@ -376,6 +387,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         userId,
         uploadedBy: userId,
         published: isPublished,
+        ...(albumId ? { albumId } : {}),
         // 公開一覧用 GSI（publicFeed-createdAt-index）のパーティションキー。
         // **公開中の写真にだけ入れる**——下書きに入れると一覧に出る。
         // 非公開にするときは photoUpdate.ts が REMOVE する。
@@ -386,6 +398,14 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
 
     try {
         await putPhoto(photo);
+        // **写真を書いてからアルバムに足す。** 逆にすると、保存に失敗した
+        // ときにアルバムへ「存在しない写真の ID」が残る。
+        // 足せなくても投稿は成功で返す（写真はもう保存されている）。
+        if (albumId) {
+            await addPhotoToAlbum(albumId, photo.id).catch((e) => {
+                console.error(`savePhoto: アルバムに足せませんでした（写真は保存済み・${photo.id}）:`, e);
+            });
+        }
         await requestRebuildForNewPhoto(photo.id, isPublished);
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo }) };
     } catch (e) {

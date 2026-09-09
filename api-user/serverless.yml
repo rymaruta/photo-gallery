@@ -365,6 +365,17 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 招待を受けて参加する。**ここはログインが要る**——閲覧は誰でも、
+  # 参加はログイン。参加した人は自分のプロフィールを持ち、次の招待者になれる。
+  joinAlbum:
+    handler: src/albums.joinAlbum
+    events:
+      - httpApi:
+          path: /invites/{token}/join
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
   # **未認証で読める口。** 招待を開いた瞬間にログインを求めると、
   # 拡散の輪がそこで切れる。既定の共有ロール（削除権つき）ではなく
   # 読み取り専用へ——この口は招待の行とアルバムの行を GetItem するだけで、

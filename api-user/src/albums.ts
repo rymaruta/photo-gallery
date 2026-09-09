@@ -29,7 +29,7 @@ import { sanitizeText } from "./sanitize";
 import {
     newInviteToken, isValidInviteToken, inviteState, inviteRejection,
     inviteKey, albumKey, albumsOfUserKey, inviteExpiryFrom,
-    ALBUMS_PER_USER, ALBUM_TITLE_MAX, type InviteItem,
+    ALBUMS_PER_USER, ALBUM_TITLE_MAX, MEMBERS_PER_ALBUM, PHOTOS_PER_ALBUM, albumMemberKey, type InviteItem,
 } from "./invite";
 
 type AlbumItem = {
@@ -248,3 +248,104 @@ export const getInvite: APIGatewayProxyHandlerV2 = async (event) => {
         }),
     };
 };
+
+
+/**
+ * POST /invites/{token}/join — 招待を受けて参加する（**ログインが要る**）。
+ *
+ * 閲覧は誰でも、参加はログイン。ここが「拡散の輪」の要で、参加した人は
+ * 自分のプロフィールを持ち、次の招待者になれる。
+ *
+ * **何度押しても同じ結果になる**（既に参加していれば成功で返す）。
+ * 招待リンクは共有されるものなので、同じ人が二度開くのは普通に起きる。
+ */
+export const joinAlbum: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const userId = getUserId(event);
+    if (!userId) return jsonError(401, "認証が必要です");
+
+    const token = event.pathParameters?.token;
+    if (!isValidInviteToken(token)) {
+        const r = inviteRejection("notfound");
+        return jsonError(r.statusCode, r.error);
+    }
+
+    const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: inviteKey(token) } }));
+    const invite = (res.Item as InviteItem | undefined) ?? null;
+    const state = inviteState(invite, Date.now());
+    if (state !== "ok") {
+        const r = inviteRejection(state);
+        return jsonError(r.statusCode, r.error);
+    }
+    const albumId = invite!.albumId!;
+
+    const album = await getAlbum(albumId);
+    if (!album) {
+        const r = inviteRejection("notfound");
+        return jsonError(r.statusCode, r.error);
+    }
+
+    // **既に参加していれば、何も書かずに成功で返す。**
+    // 書き直すと参加日時が動き、人数も二重に増える
+    const already = await ddb.send(new GetCommand({
+        TableName: PHOTOS_TABLE, Key: { id: albumMemberKey(albumId, userId) },
+    }));
+    if (already.Item) {
+        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ albumId, joined: true, already: true }) };
+    }
+
+    // **人数の上限は「入れる前」に見る。** 超えたら断る（黙って切り捨てない
+    // ——`following` の2000人切り捨てと同じ形を作らない）
+    const count = typeof album.memberCount === "number" ? album.memberCount : 1;
+    if (count >= MEMBERS_PER_ALBUM) {
+        return jsonError(403, `このアルバムは${MEMBERS_PER_ALBUM}人までです`);
+    }
+
+    await ddb.send(new PutCommand({
+        TableName: PHOTOS_TABLE,
+        Item: { id: albumMemberKey(albumId, userId), albumId, userId, joinedAt: new Date().toISOString() },
+        // **二重に入れない。** 同時に2回押されても印は1つ
+        ConditionExpression: "attribute_not_exists(id)",
+    }));
+    // 人数は原子加算。印を書いてから増やす（逆にすると、印の書き込みが
+    // 失敗したときに人数だけ増える）
+    await ddb.send(new UpdateCommand({
+        TableName: PHOTOS_TABLE,
+        Key: { id: albumKey(albumId) },
+        UpdateExpression: "SET memberCount = if_not_exists(memberCount, :one) + :one",
+        ConditionExpression: "attribute_exists(id)",
+        ExpressionAttributeValues: { ":one": 1 },
+    })).catch(() => undefined);
+
+    return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ albumId, joined: true }) };
+};
+
+/**
+ * その人がそのアルバムのメンバーか。**GetItem 1回**で分かる形にしてある。
+ *
+ * `savePhoto` から呼ぶ。ここを通さずに `albumId` を保存できると、
+ * **誰でも他人のアルバムに写真を差し込める**。
+ */
+export async function isAlbumMember(albumId: string, userId: string): Promise<boolean> {
+    if (!albumId || !userId) return false;
+    const res = await ddb.send(new GetCommand({
+        TableName: PHOTOS_TABLE, Key: { id: albumMemberKey(albumId, userId) },
+    }));
+    return Boolean(res.Item);
+}
+
+/**
+ * アルバムに写真の ID を足す。
+ *
+ * **索引を足さずに「このアルバムの写真」を引けるようにするための形**
+ * ——招待の閲覧は `PublicReadRole`（写真テーブルは GetItem のみ）で動くので、
+ * Query が使えない。上限を超えたら**足さない**（黙って古いものを押し出さない）。
+ */
+export async function addPhotoToAlbum(albumId: string, photoId: string): Promise<void> {
+    await ddb.send(new UpdateCommand({
+        TableName: PHOTOS_TABLE,
+        Key: { id: albumKey(albumId) },
+        UpdateExpression: "SET photoIds = list_append(if_not_exists(photoIds, :empty), :one)",
+        ConditionExpression: "attribute_exists(id) AND (attribute_not_exists(photoIds) OR size(photoIds) < :max)",
+        ExpressionAttributeValues: { ":empty": [], ":one": [photoId], ":max": PHOTOS_PER_ALBUM },
+    }));
+}

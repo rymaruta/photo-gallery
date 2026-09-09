@@ -7,8 +7,8 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 
-const { createAlbum, listAlbums, createInvite, revokeInvite, getInvite } = await import("../albums");
-const { ALBUMS_PER_USER, isValidInviteToken } = await import("../invite");
+const { createAlbum, listAlbums, createInvite, revokeInvite, getInvite, joinAlbum, isAlbumMember, addPhotoToAlbum } = await import("../albums");
+const { ALBUMS_PER_USER, MEMBERS_PER_ALBUM, PHOTOS_PER_ALBUM, isValidInviteToken } = await import("../invite");
 
 type Result = { statusCode: number; body: string; headers?: Record<string, string> };
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -223,5 +223,93 @@ describe("getInvite（未認証で読める）", () => {
     it("行き先のアルバムが無ければ 404", async () => {
         mockSend.mockResolvedValueOnce(live()).mockResolvedValueOnce({});
         expect((await call(getInvite, { pathParameters: { token: "a".repeat(32) } })).statusCode).toBe(404);
+    });
+});
+
+
+describe("joinAlbum（参加はログインが要る）", () => {
+    const live = { Item: { id: "invite#x", albumId: "a1", expiresAt: new Date(Date.now() + 60_000).toISOString() } };
+
+    it("未認証は 401", async () => {
+        const r = await call(joinAlbum, { requestContext: { authorizer: { jwt: { claims: {} } } }, pathParameters: { token: "a".repeat(32) } });
+        expect(r.statusCode).toBe(401);
+    });
+
+    it("形の違うトークンは読みに行かない", async () => {
+        const r = await call(joinAlbum, authed("u1", undefined, { token: "short" }));
+        expect(r.statusCode).toBe(404);
+        expect(mockSend).not.toHaveBeenCalled();
+    });
+
+    it("期限切れは 410", async () => {
+        mockSend.mockResolvedValueOnce({ Item: { id: "invite#x", albumId: "a1", expiresAt: new Date(Date.now() - 1).toISOString() } });
+        expect((await call(joinAlbum, authed("u1", undefined, { token: "a".repeat(32) }))).statusCode).toBe(410);
+    });
+
+    it("参加すると、印を書いて人数を増やす", async () => {
+        mockSend
+            .mockResolvedValueOnce(live)
+            .mockResolvedValueOnce({ Item: { id: "album#a1", ownerId: "u2", memberCount: 1 } })
+            .mockResolvedValueOnce({});                       // まだメンバーでない
+        const r = await call(joinAlbum, authed("u1", undefined, { token: "a".repeat(32) }));
+        expect(r.statusCode).toBe(200);
+        const put = inputs().find((i) => String((i.Item as { id?: string })?.id ?? "") === "albummember#a1#u1");
+        expect(put, "参加の印を書いていない").toBeTruthy();
+        // **二重に入れない**（同時に2回押されても印は1つ）
+        expect(String(put!.ConditionExpression)).toContain("attribute_not_exists(id)");
+        expect(inputs().some((i) => String(i.UpdateExpression ?? "").includes("memberCount")),
+            "人数を増やしていない").toBe(true);
+    });
+
+    // **何度押しても同じ結果になる。** 招待リンクは共有されるので、
+    // 同じ人が二度開くのは普通に起きる
+    it("既に参加していれば、何も書かずに成功で返す", async () => {
+        mockSend
+            .mockResolvedValueOnce(live)
+            .mockResolvedValueOnce({ Item: { id: "album#a1", ownerId: "u2", memberCount: 2 } })
+            .mockResolvedValueOnce({ Item: { id: "albummember#a1#u1" } });
+        const r = await call(joinAlbum, authed("u1", undefined, { token: "a".repeat(32) }));
+        expect(r.statusCode).toBe(200);
+        expect(bodyOf(r).already).toBe(true);
+        expect(inputs().some((i) => i.Item), "何か書いている").toBe(false);
+    });
+
+    // **黙って切り捨てない**（`following` の2000人切り捨てと同じ形を作らない）
+    it("人数の上限に達していたら断る", async () => {
+        mockSend
+            .mockResolvedValueOnce(live)
+            .mockResolvedValueOnce({ Item: { id: "album#a1", ownerId: "u2", memberCount: MEMBERS_PER_ALBUM } })
+            .mockResolvedValueOnce({});
+        const r = await call(joinAlbum, authed("u1", undefined, { token: "a".repeat(32) }));
+        expect(r.statusCode).toBe(403);
+        expect(inputs().some((i) => String((i.Item as { id?: string })?.id ?? "").startsWith("albummember#"))).toBe(false);
+    });
+});
+
+describe("isAlbumMember", () => {
+    it("印があれば true", async () => {
+        mockSend.mockResolvedValueOnce({ Item: { id: "albummember#a1#u1" } });
+        expect(await isAlbumMember("a1", "u1")).toBe(true);
+    });
+
+    it("印が無ければ false", async () => {
+        mockSend.mockResolvedValueOnce({});
+        expect(await isAlbumMember("a1", "u1")).toBe(false);
+    });
+
+    // 空を渡したときに DynamoDB を引きに行かない（無駄な読み取りを作らない）
+    it.each([["", "u1"], ["a1", ""]])("空なら引きに行かない（%s,%s）", async (a, u) => {
+        expect(await isAlbumMember(a, u)).toBe(false);
+        expect(mockSend).not.toHaveBeenCalled();
+    });
+});
+
+describe("addPhotoToAlbum", () => {
+    it("上限を超えたら足さない条件が付いている", async () => {
+        await addPhotoToAlbum("a1", "p1");
+        const i = inputs()[0];
+        expect(String(i.UpdateExpression)).toContain("list_append");
+        expect(String(i.ConditionExpression), "上限を見ていない").toContain("size(photoIds) <");
+        expect((i.ExpressionAttributeValues as Record<string, unknown>)[":max"]).toBe(PHOTOS_PER_ALBUM);
     });
 });

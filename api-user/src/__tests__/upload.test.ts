@@ -22,6 +22,16 @@ vi.mock("../notify", () => ({ lookupDisplayNameIfSet: mockLookupIfSet }));
 const mockRequestSiteRebuild = vi.hoisted(() => vi.fn());
 vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRequestSiteRebuild }));
 
+// 共同アルバム（案C）。`savePhoto` が「メンバーか」を確かめるようになったので、
+// ここを模さないと本物が DynamoDB を掴む。**列挙式のモックは production の
+// import が増えたときに足す必要がある**（台帳が何度も踏んでいる型）
+const mockIsAlbumMember = vi.hoisted(() => vi.fn());
+const mockAddPhotoToAlbum = vi.hoisted(() => vi.fn());
+vi.mock("../albums", () => ({
+    isAlbumMember: mockIsAlbumMember,
+    addPhotoToAlbum: mockAddPhotoToAlbum,
+}));
+
 // 署名は必ずモックする。本物を呼ぶと AWS の認証情報を要求するので、
 // 手元では通って CI では落ちる——**テストが実装ではなく環境を測る**。
 // 実際にそれで本番デプロイを止めた（386eeef）。
@@ -81,6 +91,8 @@ beforeEach(() => {
     mockGetPhotoById.mockReset().mockResolvedValue(undefined);
     mockOverwriteOwnPhoto.mockReset().mockResolvedValue(true);
     mockRequestSiteRebuild.mockReset().mockResolvedValue(true);
+    mockIsAlbumMember.mockReset().mockResolvedValue(true);
+    mockAddPhotoToAlbum.mockReset().mockResolvedValue(undefined);
 });
 
 // **投稿しても世に出ない、を直した分。**
@@ -92,6 +104,54 @@ beforeEach(() => {
 // 印は「公開中の写真」にだけ載せる——下書きに載せると一覧に出てしまい、
 // 公開に戻したときに載せ忘れると**二度と一覧に出ない**（索引にしか現れない
 // ので、行を見ても分からない）。
+// **共同アルバム（案C）。** `albumId` を付けて保存できるのはメンバーだけ。
+// ここを通さずに保存できると、**誰でも他人のアルバムに写真を差し込める**
+// （アルバムの ID は招待を受けた人なら知っている）。
+describe("savePhoto: 共同アルバム", () => {
+    it("メンバーなら albumId を保存し、アルバムにも足す", async () => {
+        const res = await invoke(event("u1", { ...BASE, albumId: "alb-1" }));
+        expect(res.statusCode).toBe(200);
+        expect(savedPhoto().albumId).toBe("alb-1");
+        expect(mockAddPhotoToAlbum).toHaveBeenCalledWith("alb-1", savedPhoto().id);
+    });
+
+    // **403 ではなく 404。** そのアルバムが実在することを教えない
+    it("メンバーでなければ 404（保存しない）", async () => {
+        mockIsAlbumMember.mockResolvedValue(false);
+        const res = await invoke(event("u1", { ...BASE, albumId: "alb-1" }));
+        expect(res.statusCode).toBe(404);
+        expect(mockPutPhoto, "メンバーでないのに保存している").not.toHaveBeenCalled();
+    });
+
+    it("albumId が無ければ、メンバーかどうかも見ない", async () => {
+        await invoke(event("u1", { ...BASE }));
+        expect(mockIsAlbumMember).not.toHaveBeenCalled();
+        expect("albumId" in savedPhoto()).toBe(false);
+    });
+
+    it.each([123, {}, [], "", null])("albumId が文字列でなければ無視する（%s）", async (v) => {
+        const res = await invoke(event("u1", { ...BASE, albumId: v }));
+        expect(res.statusCode).toBe(200);
+        expect("albumId" in savedPhoto()).toBe(false);
+        expect(mockIsAlbumMember).not.toHaveBeenCalled();
+    });
+
+    // **写真を書いてからアルバムに足す。** 逆にすると、保存に失敗したときに
+    // アルバムへ「存在しない写真の ID」が残る
+    it("保存に失敗したらアルバムにも足さない", async () => {
+        mockPutPhoto.mockRejectedValue(new Error("boom"));
+        await invoke(event("u1", { ...BASE, albumId: "alb-1" }));
+        expect(mockAddPhotoToAlbum).not.toHaveBeenCalled();
+    });
+
+    // 足せなくても投稿は成功で返す（写真はもう保存されている）
+    it("アルバムに足せなくても、投稿は成功で返す", async () => {
+        mockAddPhotoToAlbum.mockRejectedValue(new Error("full"));
+        const res = await invoke(event("u1", { ...BASE, albumId: "alb-1" }));
+        expect(res.statusCode).toBe(200);
+    });
+});
+
 describe("savePhoto: 公開一覧の索引に載せる印", () => {
     it("公開で保存したら印を付ける", async () => {
         await invoke(event("u1", { ...BASE, published: true }));
