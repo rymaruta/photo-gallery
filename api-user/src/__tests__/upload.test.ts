@@ -1005,24 +1005,35 @@ describe("savePhoto: 保存の再送で写真が増えない", () => {
         expect((savedRewrite() as Photo & { staticStale?: boolean }).staticStale, "印を消している").toBe(true);
     });
 
-    // 逆向き。無い項目を勝手に足さない（`likes: 0` を書くと、いいねの
-    // 加算が使う `if_not_exists(likes, :z)` の意味が変わる場所に触れる）
     // **ビルドが書いた表示用の項目も、利用者の押し直しで消えていた。**
     // `generate-thumbnails.js` は寸法・ぼかし・AVIF 派生を書くが、
     // sitemap の lastmod を守るために `updatedAt` を**意図的に触らない**。
     // 全置換で消えると AVIF の配信が止まり、寸法が無くなってグリッドが
     // ガタつく（次の定期ビルドまで最大7日）。
-    // `srcOriginal` はもっと重い——**削除経路はこの値からキーを引く**ので、
-    // 消えると GPS 入りの原本が公開URLに残り続ける（台帳 ORPHAN の型）。
-    it("ビルドが書いた表示用の項目と、原本の在りかを消さない", async () => {
+    // 曲（`photoUpdate.ts:163`）と地名から補った座標
+    // （`scripts/geocode-locations.js:227`）も同じ形。座標の方は手動実行
+    // なので、消えると定期ビルドでも戻らない。
+    // （`srcOriginal` は一覧に入れてあるが**今どの保存経路も書かない**ので、
+    // ここでは確かめていない。`generate-thumbnails.js:98` 参照）
+    it("ビルドが書いた表示用の項目と、あとから付けた曲を消さない", async () => {
         mockPutPhoto.mockRejectedValueOnce(condFail());
         mockGetPhotoById.mockResolvedValue({
             id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`, published: true,
             width: 4000, height: 3000, aspectRatio: 1.3333,
             blurDataURL: "data:image/webp;base64,zzz",
+            // **一覧の項目は1つずつ見る。** 「形」だけ見ていたので、
+            // `thumbSrc` や `dominantColor` を一覧から落としても全緑だった
+            // ——`thumbSrc` は一覧グリッドの軽量サムネそのもので、
+            // 消えると訪問者が毎回 原寸を落とす
+            thumbSrc: "https://cdn.example.com/uploads/u1/p_thumb.webp",
+            dominantColor: "#123456",
+            thumbAvif: "https://cdn.example.com/uploads/u1/p_thumb.avif",
+            thumbSmAvif: "https://cdn.example.com/uploads/u1/p_thumb_sm.avif",
+            src256: "https://cdn.example.com/uploads/u1/p_256.webp",
             srcAvif: "https://cdn.example.com/uploads/u1/p_lg.avif",
             thumbSm: "https://cdn.example.com/uploads/u1/p_thumb_sm.webp",
-            srcOriginal: "https://cdn.example.com/uploads/u1/p_orig.jpg",
+            song: { title: "曲", previewUrl: "https://audio-ssl.itunes.apple.com/x.m4a" },
+            songYoutubeUrl: "https://www.youtube.com/watch?v=abcdefghijk",
             createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
         });
         mockOverwriteOwnPhoto.mockResolvedValue(true);
@@ -1035,8 +1046,15 @@ describe("savePhoto: 保存の再送で写真が増えない", () => {
         expect(w.blurDataURL, "ぼかしを消している").toBe("data:image/webp;base64,zzz");
         expect(w.srcAvif, "AVIF 派生を消している").toBe("https://cdn.example.com/uploads/u1/p_lg.avif");
         expect(w.thumbSm).toBe("https://cdn.example.com/uploads/u1/p_thumb_sm.webp");
-        expect(w.srcOriginal, "原本の在りかを消している（消すと誰も辿れない）")
-            .toBe("https://cdn.example.com/uploads/u1/p_orig.jpg");
+        expect(w.thumbSrc, "一覧グリッドのサムネを消している").toBe("https://cdn.example.com/uploads/u1/p_thumb.webp");
+        expect(w.dominantColor, "代表色を消している").toBe("#123456");
+        expect(w.thumbAvif).toBe("https://cdn.example.com/uploads/u1/p_thumb.avif");
+        expect(w.thumbSmAvif).toBe("https://cdn.example.com/uploads/u1/p_thumb_sm.avif");
+        expect(w.src256).toBe("https://cdn.example.com/uploads/u1/p_256.webp");
+        // 曲は公開後に写真ページから付ける（`photoUpdate.ts:163`）。
+        // アップロード画面は送らないので、引き継がないと黙って消える
+        expect(w.song, "写真に付けた曲を消している").toEqual({ title: "曲", previewUrl: "https://audio-ssl.itunes.apple.com/x.m4a" });
+        expect(w.songYoutubeUrl).toBe("https://www.youtube.com/watch?v=abcdefghijk");
     });
 
     // 引き継ぎは「今回の本文に無いとき」だけ。サムネ・代表色・ぼかしは
@@ -1062,6 +1080,40 @@ describe("savePhoto: 保存の再送で写真が増えない", () => {
         expect(w.dominantColor).toBe("#ff0000");
     });
 
+    // **座標は「印が立っているときだけ、対で」引き継ぐ。**
+    // `geoApprox` だけ引き継ぐと、GPS を切って送り直した回に
+    // 「正確な座標に『おおよそ』の印が付いた行」ができる
+    // （`photoUpdate.ts:214` が対で塞いでいる形）。
+    it("地名から補った座標は、印と対で引き継ぐ", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`, published: true,
+            coords: { lat: 35.68, lng: 139.76 }, geoApprox: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", { ...body, published: true }));
+
+        const w = savedRewrite() as Record<string, unknown>;
+        expect(w.coords, "補った座標を消している（手動実行なので戻らない）").toEqual({ lat: 35.68, lng: 139.76 });
+        expect(w.geoApprox, "印だけ落ちている（正確な座標のように見える）").toBe(true);
+    });
+
+    // 利用者の GPS 由来（印が無い）は引き継がない。
+    // 「GPS を切って送り直したのに座標が戻る」を作らない
+    it("印の無い座標は引き継がない（切ったのに戻る、を作らない）", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`, published: true,
+            coords: { lat: 35.68, lng: 139.76 },
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", { ...body, published: true }));
+
+        expect("coords" in (savedRewrite() as Record<string, unknown>), "切った座標が戻っている").toBe(false);
+    });
+
     // **「知らない項目は全部引き継ぐ」にしてはいけない。** 下書きに戻す再送で
     // 公開一覧の索引キーまで残ると、**非公開にしたのに一覧に出続ける**
     it("下書きに戻す再送で、公開一覧の索引キーを引き継がない", async () => {
@@ -1080,6 +1132,8 @@ describe("savePhoto: 保存の再送で写真が増えない", () => {
         expect("albumId" in w, "非公開なのにアルバムの行き先を残している").toBe(false);
     });
 
+    // 逆向き。無い項目を勝手に足さない（`likes: 0` を書くと、いいねの
+    // 加算が使う `if_not_exists(likes, :z)` の意味が変わる場所に触れる）
     it("いいねもコメントも無い写真には、その項目を足さない", async () => {
         mockPutPhoto.mockRejectedValueOnce(condFail());
         mockGetPhotoById.mockResolvedValue({

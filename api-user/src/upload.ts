@@ -444,8 +444,18 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             //   - いいね数・コメント数（`likes.ts` / `comments.ts` が加算する）
             //   - 寸法・ぼかし・AVIF などの派生（`generate-thumbnails.js` が
             //     ビルド時に書く。あれは `updatedAt` を意図的に触らない）
-            //   - `srcOriginal`（GPS 入りの原本の在りか。**消えると削除経路が
-            //     キーを引けず、原本が公開URLに残り続ける**＝台帳 ORPHAN の型）
+            //   - 写真に付けた曲（`photoUpdate.ts:163` が `song` /
+            //     `songYoutubeUrl` を書く。写真ページから公開後に付ける）
+            //   - 地名から補った座標（`scripts/geocode-locations.js:227` が
+            //     `coords` と `geoApprox` を書く。**手動実行なので、消えると
+            //     定期ビルドでも戻らない**）
+            //
+            // `srcOriginal`（GPS 入りの原本の在りか）は**今どの保存経路も
+            // 書かない**（`scripts/generate-thumbnails.js:98` が同じことを
+            // 書いている。代入は grep で0件）。原本を残す判断に戻したときの
+            // 保険として一覧に入れておくだけで、いま消えるものではない
+            // ——`c789624e` のコミットメッセージはこれを実在する書き手と
+            // 同列に並べていた。**訂正**。
             //
             // いいね数が消えるのがいちばん重い。`like#<photoId>#<uid>` の
             // マーカーは残るので、いいねした人が押し直しても「既にいいね済み」
@@ -461,10 +471,21 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 "likes", "commentCount", "staticStale",
                 "width", "height", "aspectRatio", "dominantColor", "blurDataURL",
                 "thumbSrc", "thumbAvif", "thumbSm", "thumbSmAvif", "srcAvif", "src256", "srcOriginal",
+                "song", "songYoutubeUrl",
             ] as const;
             const serverOwned: Record<string, unknown> = {};
             for (const k of SERVER_OWNED_FIELDS) {
                 if (existing[k] !== undefined && photo[k] === undefined) serverOwned[k] = existing[k];
+            }
+            // **座標は一覧に並べない。** `geoApprox`（おおよその位置という印）
+            // だけ引き継ぐと、GPS を切って送り直した回に「正確な座標に
+            // 『おおよそ』の印が付いた行」ができる——`photoUpdate.ts:214` と
+            // `api/src/photosMutate.ts:126` が対で塞いでいる形そのもの。
+            // **印が立っているとき（＝地名から補った値）だけ、対で引き継ぐ。**
+            // 利用者の GPS 由来の座標は引き継がない（切ったのに戻る、を作らない）。
+            if (photo.coords === undefined && existing.geoApprox === true && existing.coords !== undefined) {
+                serverOwned.coords = existing.coords;
+                serverOwned.geoApprox = true;
             }
             const rewritten = { ...photo, ...serverOwned, createdAt: existing.createdAt ?? photo.createdAt };
             if (stored && await overwriteOwnPhoto(rewritten, stored)) {
@@ -489,11 +510,13 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 // `=== true` はここだけだった＝対の乖離。`published` を持たない
                 // 古い行では「下書きだった」と読み、二重送信のたびに予算を食う。
                 const wasPublished = existing.published !== false;
-                // **頼めても `staticStale` は下ろさない。** `photoUpdate.ts:353`
-                // は「届いたら REMOVE」の対を持っているが、ここは全置換の
-                // あとなので、下ろすにはもう1本書き込みが要る。倒す先は
-                // 「余分に頼む」側が安全——印を落として実際には届いて
-                // いなければ、**古い静的ページを誰も覚えていない**状態になる。
+                // **`staticStale` を下ろす対がここには作れない。**
+                // `photoUpdate.ts:353` は「依頼が届いたら REMOVE」を持って
+                // いるが、`requestRebuildForNewPhoto` は `Promise<void>` で
+                // 成否を返さないので、**そもそも判断する材料がここに無い**
+                // （下ろすなら戻り値を通すところから）。倒す先としては
+                // 「余分に頼む」側が安全ではある——印を落として実際には
+                // 届いていなければ、古い静的ページを誰も覚えていない。
                 await requestRebuildForNewPhoto(photo.id, isPublished && !wasPublished);
                 console.log(`savePhoto: 同じ写真の再送を受け取り、今回の内容で書き直しました（${photo.id}）`);
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: rewritten }) };
