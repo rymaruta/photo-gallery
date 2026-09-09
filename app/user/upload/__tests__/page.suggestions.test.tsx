@@ -1,6 +1,9 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+// **上限は定数から導く**（文言の中の数字を手書きすると、上限を動かすたびに
+// テストを実装に合わせて直すことになる。実際 100 → 1000 でここが落ちた）
+import { PHOTO_LIMIT_PER_USER } from "../../../../lib/utils/uploadLimits";
 import userEvent from "@testing-library/user-event";
 
 // **入力候補（前に使った撮影地・カテゴリ）を見るテストが1本も無かった。**
@@ -98,7 +101,9 @@ describe("アップロード画面の入力候補", () => {
         await pickOne();
         await waitFor(() => expect(optionValues("own-locations").length).toBeGreaterThan(0));
         expect(optionValues("own-locations")).toEqual(["パリ", "京都"]);
-        expect(screen.getByText("あと95枚アップロードできます（100枚まで）"),
+        // PHOTOS の3件 + 読めない2行 = サーバーは5件と数える
+        const used = PHOTOS.length + 2;
+        expect(screen.getByText(`あと${PHOTO_LIMIT_PER_USER - used}枚アップロードできます（${PHOTO_LIMIT_PER_USER}枚まで）`),
             "落とした行を枠から引いている（サーバーは数える）").toBeInTheDocument();
     });
 });
