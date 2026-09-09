@@ -28,6 +28,7 @@ export const ROUTES = {
     SIGNUP: "/signup",
     UPLOAD: "/user/upload",
     DRAFTS: "/user/drafts",
+    ALBUMS: "/user/albums",
     EDIT: (id: string) => `/user/edit?id=${encodeURIComponent(id)}`,
     PROFILE_EDIT: "/user/profile",
     USER_SEARCH: "/users/search",

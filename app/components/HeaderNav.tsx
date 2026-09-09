@@ -240,6 +240,15 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                         </button>
                                     </li>
                                 )}
+                                {/* 共同アルバム（案C）。**ログイン中だけ**——招待リンクを
+                                    配る側の画面で、未ログインには行き先が無い */}
+                                {isAuthenticated && (
+                                    <li style={{ margin: 0, padding: 0 }}>
+                                        <button onClick={() => handleNavigation(ROUTES.ALBUMS)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
+                                            共同アルバム
+                                        </button>
+                                    </li>
+                                )}
                                 {isAdminUser && (
                                     <li style={{ margin: 0, padding: 0 }}>
                                         <button onClick={() => handleNavigation(ROUTES.ADMIN)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>

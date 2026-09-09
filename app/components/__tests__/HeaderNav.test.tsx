@@ -361,3 +361,23 @@ describe("HeaderNav - 撮影地マップ", () => {
         expect(mockPush).toHaveBeenCalledWith("/map");
     });
 });
+
+// 共同アルバム（案C）は**招待リンクを配る側の画面**なので、ログイン中だけ。
+// 未ログインに出すと、押した先が会員限定の案内になる（行き先の無い項目）。
+describe("HeaderNav - 共同アルバム", () => {
+    it("ログイン中は出て、/user/albums へ移動する", async () => {
+        setRole("general");
+        render(<HeaderNav />);
+        await openMenu();
+        expect(menuItems()).toContain("共同アルバム");
+        fireEvent.click(screen.getByRole("button", { name: "共同アルバム" }));
+        expect(mockPush).toHaveBeenCalledWith("/user/albums");
+    });
+
+    it("未ログインには出さない", async () => {
+        setRole("anonymous");
+        render(<HeaderNav />);
+        await openMenu();
+        expect(menuItems(), "行き先の無い項目を出している").not.toContain("共同アルバム");
+    });
+});
