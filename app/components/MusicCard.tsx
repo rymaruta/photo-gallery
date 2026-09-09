@@ -26,6 +26,9 @@ export default function MusicCard({ queueKey, songs, label, locale, autoPlay = f
     const active = music.queueKey === queueKey;
     const index = active ? music.index : 0;
     const cur = songs[Math.min(index, songs.length - 1)];
+    // **分岐も描画も同じ値で。** 生の値で分岐すると、許可外のホストのとき
+    // `src` が消えた `<img>` になり、音符のフォールバックに落ちない
+    const artwork = safeSongArtworkUrl(cur?.artwork);
     const playing = active && music.playing;
 
     // 開いたときに自動再生（タップ起点なのでブラウザに許可されやすい。失敗時は手動で）
@@ -47,9 +50,9 @@ export default function MusicCard({ queueKey, songs, label, locale, autoPlay = f
             </div>
             <div className="flex items-center gap-3 px-3 pb-3">
                 <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-white/10 flex-shrink-0 ring-1 ring-white/10">
-                    {cur.artwork ? (
+                    {artwork ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={safeSongArtworkUrl(cur.artwork)} alt="" className="w-full h-full object-cover" />
+                        <img src={artwork} alt="" className="w-full h-full object-cover" />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center">
                             <MusicalNoteIcon className="w-6 h-6 text-white/30" />

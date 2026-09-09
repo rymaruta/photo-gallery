@@ -14,12 +14,16 @@ import { safeSongArtworkUrl } from "../../lib/utils/mediaHosts";
  * この1経路だけ両方無かった）。
  *
  * **落とすのは表示だけ。** 復元した値そのものを落としてはいけない
- * ——保存の差分の比較先に入り「利用者が消した」と読まれる
- * （`/user/profile` の 418・424・470 行がその値を保存の本文に載せる。
- * プロフィールの曲で一度踏んだ形）。
+ * ——`/user/profile` は復元した値を保存の本文（`songArtwork` と
+ * `songs[].artwork`）にそのまま載せ、`originalFields` の比較先にも使うので、
+ * 落とすと**触っていない曲が「消した」と読まれる**（プロフィールの曲で
+ * 一度踏んだ形）。**行番号では書かない**——腐る。
  *
  * 通らなかったときは**同じ大きさの箱**を出す（`bg-*` は呼び出し側の
- * className に入っているので、読み込みに失敗したときと同じ見た目になる）。
+ * className に入っている）。実ブラウザで測って、正常時は差0・弾いたときも
+ * 箱の大きさ・位置・背景・角丸が一致することを確認した。ただし
+ * **壊れた画像のアイコンは出なくなる**（`alt=""` でも Chromium は描く）
+ * ——「読み込みに失敗したときと同じ見た目」は言い過ぎだった。
  */
 export default function SongArtwork({ src, className }: { src?: string; className: string }) {
     const safe = safeSongArtworkUrl(src);

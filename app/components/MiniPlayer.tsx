@@ -122,6 +122,11 @@ export default function MiniPlayer() {
     }, []);
 
     if (!current) return null;
+    // **生の値で分岐して、安全な値を描いてはいけない。** 許可外のホストだと
+    // `src` が `undefined` になって属性ごと消えた `<img>` が残り、
+    // 用意してある音符のフォールバックに落ちない＝**無地の灰色の箱**が出る。
+    // 分岐も描画も同じ値で決める
+    const artwork = safeSongArtworkUrl(current.artwork);
 
     // 移動済み（デスクトップ）は left/top で自由配置。既定はこれまで通り画面下中央に固定。
     // z-index はヘッダー(z-50)より下(z-40)。常駐する装飾はヘッダーより前面に出さない
@@ -159,9 +164,9 @@ export default function MiniPlayer() {
                         title={draggable ? "ドラッグで移動" : undefined}
                     >
                         <div className="relative w-9 h-9 rounded-lg overflow-hidden bg-white/10 flex-shrink-0">
-                            {current.artwork ? (
+                            {artwork ? (
                                 // eslint-disable-next-line @next/next/no-img-element
-                                <img src={safeSongArtworkUrl(current.artwork)} alt="" className="w-full h-full object-cover" draggable={false} />
+                                <img src={artwork} alt="" className="w-full h-full object-cover" draggable={false} />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center">
                                     <MusicalNoteIcon className="w-4 h-4 text-white/30" />

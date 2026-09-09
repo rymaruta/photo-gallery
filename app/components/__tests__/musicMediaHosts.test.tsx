@@ -49,6 +49,12 @@ describe("曲の URL は出すときにも確かめる", () => {
         renderCard(EVIL);
         const img = document.querySelector("img");
         expect(img?.getAttribute("src") ?? "", "外部の画像を読み込んでいる").not.toContain("evil.example");
+        // **`<img>` ごと出さない。** ここは「生の値で分岐して、安全な値を描く」
+        // 形になっていたので、許可外だと `src` が `undefined` になり
+        // **属性ごと消えた `<img>`** が残っていた——用意してある音符の
+        // フォールバックに落ちず、無地の灰色の箱で固まる。
+        // 上の `not.toContain` はその状態でも通る（＝何も守っていなかった）
+        expect(img, "src の無い <img> が残っている（音符のフォールバックに落ちていない）").toBeNull();
     });
 
     it("許可していないホストのリンクは踏ませない", () => {
