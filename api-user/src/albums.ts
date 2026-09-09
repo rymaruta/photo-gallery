@@ -29,11 +29,13 @@ import { sanitizeText } from "./sanitize";
 import {
     newInviteToken, isValidInviteToken, inviteState, inviteRejection,
     inviteKey, albumKey, albumsOfUserKey, inviteExpiryFrom,
-    ALBUMS_PER_USER, ALBUM_TITLE_MAX, MEMBERS_PER_ALBUM, PHOTOS_PER_ALBUM, albumMemberKey, type InviteItem,
+    ALBUMS_PER_USER, ALBUM_TITLE_MAX, MEMBERS_PER_ALBUM, PHOTOS_PER_ALBUM, INVITE_PREVIEW_PHOTOS,
+    albumMemberKey, type InviteItem,
 } from "./invite";
 
 type AlbumItem = {
     id: string;
+    photoIds?: unknown;
     ownerId?: string;
     title?: string;
     createdAt?: string;
@@ -229,10 +231,35 @@ export const getInvite: APIGatewayProxyHandlerV2 = async (event) => {
 
     const album = await getAlbum(invite!.albumId!);
     if (!album) {
-        // 招待は生きているのにアルバインが無い＝掃除の取りこぼし。
+        // 招待は生きているのにアルバムが無い＝掃除の取りこぼし。
         // 利用者には同じ「見つかりません」を返す
         const r = inviteRejection("notfound");
         return jsonError(r.statusCode, r.error);
+    }
+
+    // **写真は新しい順に、決まった数だけ返す。**
+    // この口は `PublicReadRole`（写真テーブルは GetItem のみ）で動くので
+    // Query が使えない——アルバムの行が持つ ID を1件ずつ引く。
+    // 全部引くと写真500枚で GetItem 500回になるので、**上限で切る**。
+    const ids = Array.isArray(album.photoIds)
+        ? album.photoIds.filter((v): v is string => typeof v === "string")
+        : [];
+    const recent = ids.slice(-INVITE_PREVIEW_PHOTOS).reverse();
+    const photos = [];
+    for (const pid of recent) {
+        const got = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: pid } }));
+        const p = got.Item as Record<string, unknown> | undefined;
+        if (!p || typeof p.src !== "string") continue;
+        // **返すのは表示に要るものだけ。** 原本（GPS 入り）・S3 のキー・
+        // 内部の印は外に出さない（`api/src/photos.ts` の PRIVATE_FIELDS と同じ考え）
+        photos.push({
+            id: String(p.id ?? ""),
+            src: p.src,
+            thumbSrc: typeof p.thumbSrc === "string" ? p.thumbSrc : undefined,
+            width: typeof p.width === "number" ? p.width : undefined,
+            height: typeof p.height === "number" ? p.height : undefined,
+            blurDataURL: typeof p.blurDataURL === "string" ? p.blurDataURL : undefined,
+        });
     }
 
     return {
@@ -244,7 +271,9 @@ export const getInvite: APIGatewayProxyHandlerV2 = async (event) => {
                 id: invite!.albumId,
                 title: album.title ?? "",
                 memberCount: typeof album.memberCount === "number" ? album.memberCount : 1,
+                photoCount: ids.length,
             },
+            photos,
         }),
     };
 };

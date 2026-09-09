@@ -8,7 +8,7 @@ vi.mock("../dynamodb", () => ({
 }));
 
 const { createAlbum, listAlbums, createInvite, revokeInvite, getInvite, joinAlbum, isAlbumMember, addPhotoToAlbum } = await import("../albums");
-const { ALBUMS_PER_USER, MEMBERS_PER_ALBUM, PHOTOS_PER_ALBUM, isValidInviteToken } = await import("../invite");
+const { ALBUMS_PER_USER, MEMBERS_PER_ALBUM, PHOTOS_PER_ALBUM, INVITE_PREVIEW_PHOTOS, isValidInviteToken } = await import("../invite");
 
 type Result = { statusCode: number; body: string; headers?: Record<string, string> };
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -186,7 +186,7 @@ describe("getInvite（未認証で読める）", () => {
             .mockResolvedValueOnce({ Item: { id: "album#a1", ownerId: "u1", title: "北欧の冬", memberCount: 3 } });
         const r = await call(getInvite, { pathParameters: { token: "a".repeat(32) } });
         expect(r.statusCode).toBe(200);
-        expect(bodyOf(r).album).toEqual({ id: "a1", title: "北欧の冬", memberCount: 3 });
+        expect(bodyOf(r).album).toEqual({ id: "a1", title: "北欧の冬", memberCount: 3, photoCount: 0 });
         // **キャッシュさせない**（取り消しが効かなくなる）
         expect(r.headers?.["Cache-Control"]).toBe("no-store");
     });
@@ -311,5 +311,74 @@ describe("addPhotoToAlbum", () => {
         expect(String(i.UpdateExpression)).toContain("list_append");
         expect(String(i.ConditionExpression), "上限を見ていない").toContain("size(photoIds) <");
         expect((i.ExpressionAttributeValues as Record<string, unknown>)[":max"]).toBe(PHOTOS_PER_ALBUM);
+    });
+});
+
+
+describe("getInvite: アルバムの写真", () => {
+    const live = (extra: Record<string, unknown> = {}) => ({
+        Item: { id: "invite#x", albumId: "a1", expiresAt: new Date(Date.now() + 60_000).toISOString(), ...extra },
+    });
+    const tok = { pathParameters: { token: "a".repeat(32) } };
+
+    it("新しい方から返す", async () => {
+        mockSend
+            .mockResolvedValueOnce(live())
+            .mockResolvedValueOnce({ Item: { id: "album#a1", title: "旅", photoIds: ["p1", "p2"] } })
+            .mockResolvedValueOnce({ Item: { id: "p2", src: "https://cdn/2.jpg" } })
+            .mockResolvedValueOnce({ Item: { id: "p1", src: "https://cdn/1.jpg" } });
+        const r = await call(getInvite, tok);
+        expect(bodyOf(r).photos.map((p: { id: string }) => p.id)).toEqual(["p2", "p1"]);
+        expect(bodyOf(r).album.photoCount).toBe(2);
+    });
+
+    // **未認証で叩ける口。** 全部引くと写真500枚で GetItem 500回になる
+    it("決まった数までしか引かない", async () => {
+        const ids = Array.from({ length: 100 }, (_, i) => `p${i}`);
+        mockSend
+            .mockResolvedValueOnce(live())
+            .mockResolvedValueOnce({ Item: { id: "album#a1", title: "旅", photoIds: ids } })
+            .mockResolvedValue({ Item: { id: "px", src: "https://cdn/x.jpg" } });
+        const r = await call(getInvite, tok);
+        expect(bodyOf(r).photos.length).toBe(INVITE_PREVIEW_PHOTOS);
+        // 招待 + アルバム + 写真 の回数（それ以上引いていない）
+        expect(mockSend.mock.calls.length).toBe(2 + INVITE_PREVIEW_PHOTOS);
+        // 総数は伝える（画面が「ほか N 枚」と出せる）
+        expect(bodyOf(r).album.photoCount).toBe(100);
+    });
+
+    // **原本（GPS 入り）と S3 のキーを外に出さない**
+    it("表示に要るものだけ返す", async () => {
+        mockSend
+            .mockResolvedValueOnce(live())
+            .mockResolvedValueOnce({ Item: { id: "album#a1", title: "旅", photoIds: ["p1"] } })
+            .mockResolvedValueOnce({ Item: {
+                id: "p1", src: "https://cdn/1.jpg", thumbSrc: "https://cdn/t1.jpg",
+                srcOriginal: "https://cdn/orig-with-gps.jpg", key: "uploads/u1/1.jpg",
+                publicFeed: "1", staticStale: true,
+            } });
+        const r = await call(getInvite, tok);
+        expect(r.body).not.toContain("orig-with-gps");
+        expect(r.body).not.toContain("uploads/u1");
+        expect(r.body).not.toContain("staticStale");
+        expect(bodyOf(r).photos[0].thumbSrc).toBe("https://cdn/t1.jpg");
+    });
+
+    it("引けなかった写真・壊れた行は落とす", async () => {
+        mockSend
+            .mockResolvedValueOnce(live())
+            .mockResolvedValueOnce({ Item: { id: "album#a1", title: "旅", photoIds: ["p1", "p2"] } })
+            .mockResolvedValueOnce({})                                  // 消えた
+            .mockResolvedValueOnce({ Item: { id: "p1" } });             // src が無い
+        expect(bodyOf(await call(getInvite, tok)).photos).toEqual([]);
+    });
+
+    it("写真がまだ無くても 200 で返す", async () => {
+        mockSend
+            .mockResolvedValueOnce(live())
+            .mockResolvedValueOnce({ Item: { id: "album#a1", title: "旅" } });
+        const r = await call(getInvite, tok);
+        expect(r.statusCode).toBe(200);
+        expect(bodyOf(r).photos).toEqual([]);
     });
 });

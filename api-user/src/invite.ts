@@ -107,6 +107,16 @@ export const ALBUM_TITLE_MAX = 60;
  */
 export const PHOTOS_PER_ALBUM = 500;
 
+/**
+ * 招待ページに出す写真の数。
+ *
+ * この口は `PublicReadRole`（写真テーブルは GetItem のみ）で動くので、
+ * 「このアルバムの写真」を Query で引けず、**ID を1件ずつ引く**。
+ * 全部引くと写真500枚で GetItem 500回＝**未認証で叩ける口から**
+ * 好きなだけ読み取りを起こせることになる。新しい方から決まった数だけ返す。
+ */
+export const INVITE_PREVIEW_PHOTOS = 24;
+
 /** 招待の項目（DynamoDB に入る形） */
 export type InviteItem = {
     id: string;
