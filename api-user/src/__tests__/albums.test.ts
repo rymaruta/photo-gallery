@@ -666,3 +666,75 @@ describe("deleteAlbum: 途中で切れたあと、押し直して直せる", () 
         expect(inputs().some((i) => i.UpdateExpression), "何か書いている").toBe(false);
     });
 });
+
+
+// **「無い」を根拠に消しにいくときは、結果整合の読み取りを信じない。**
+// 作った直後の行はレプリカに載っておらず `null` に見えることがある。
+// そこで一覧から外すと、本体・参加の印・招待リンクは残ったまま
+// **持ち主の一覧からだけ消える**＝持ち主は二度と開けないのに、
+// 招待を配ってあれば他人は入れる。
+describe("deleteAlbum / listAlbums: 結果整合の読み損ねで消さない", () => {
+    /** 既定の読み取りでは見えないが、強整合なら見える行を作る */
+    const staleThenFound = (albumId: string, item: Record<string, unknown>, list = [albumId]) =>
+        (cmd: { constructor: { name: string }; input: { Key?: { id?: string }; ConsistentRead?: boolean } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name !== "GetCommand") return Promise.resolve({});
+            if (id === `album#${albumId}`) return Promise.resolve(cmd.input.ConsistentRead ? { Item: item } : {});
+            if (id.startsWith("albums#")) return Promise.resolve({ Item: { albumIds: list } });
+            return Promise.resolve({});
+        };
+
+    it("消えて見えても強整合で見つかったら、普通に消す（一覧だけ外さない）", async () => {
+        mockSend.mockImplementation(staleThenFound("a1", { id: "album#a1", ownerId: "u1", title: "北欧", memberIds: ["u1"] }));
+        const r = await call(albumsModule.deleteAlbum, authed("u1", undefined, { id: "a1" }));
+        expect(r.statusCode).toBe(200);
+        // **コマンドの種類まで見る。** 「album#a1 を触った」だけだと
+        // 最初の GetCommand が当たって、何も検証しない判定になる
+        const del = mockSend.mock.calls.some((c) => {
+            const cmd = c[0] as { constructor: { name: string }; input: { Key?: { id?: string } } };
+            return cmd.constructor.name === "DeleteCommand" && cmd.input.Key?.id === "album#a1";
+        });
+        expect(del, "本体を消していない（一覧から外しただけ）").toBe(true);
+    });
+
+    it("掃除に失敗したら、成功と言わない", async () => {
+        mockSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand" && id === "albums#u1") {
+                return Promise.resolve({ Item: { albumIds: ["a1"] } });
+            }
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({});
+            return Promise.reject(new Error("cond"));
+        });
+        const r = await call(albumsModule.deleteAlbum, authed("u1", undefined, { id: "a1" }));
+        // 200 を返すと画面は「消しました」と出して一覧を読み直す。
+        // 幽霊 ID は一覧に出ないので、**押す対象が消えたまま枠だけ食われる**
+        expect(r.statusCode, "掃除できていないのに成功と言っている").toBe(500);
+    });
+
+    // **画面から辿れる唯一の自己修復。** 幽霊 ID は `listAlbums` が
+    // 画面に出さないので、ここで外さないと誰も外せない
+    it("一覧を開くと、引けなくなった ID を外す", async () => {
+        mockSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string }; ConsistentRead?: boolean } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name !== "GetCommand") return Promise.resolve({});
+            if (id === "albums#u1") return Promise.resolve({ Item: { albumIds: ["a1", "ghost"] } });
+            if (id === "album#a1") return Promise.resolve({ Item: { id: "album#a1", ownerId: "u1", title: "北欧", memberIds: ["u1"] } });
+            return Promise.resolve({});   // ghost は強整合でも無い
+        });
+        const r = await call(albumsModule.listAlbums, authed("u1"));
+        expect(r.statusCode).toBe(200);
+        expect(bodyOf(r).albums.map((a: { id: string }) => a.id)).toEqual(["a1"]);
+        const fix = inputs().find((i) => String(i.UpdateExpression ?? "").includes("albumIds = :next"));
+        expect(fix, "幽霊 ID を外していない（誰も外せない）").toBeTruthy();
+        expect((fix!.ExpressionAttributeValues as Record<string, unknown>)[":next"]).toEqual(["a1"]);
+        expect(fix!.ConditionExpression).toBe("albumIds = :prev");
+    });
+
+    it("強整合で見つかった ID は外さない（作った直後を消さない）", async () => {
+        mockSend.mockImplementation(staleThenFound("a1", { id: "album#a1", ownerId: "u1", title: "北欧", memberIds: ["u1"] }));
+        const r = await call(albumsModule.listAlbums, authed("u1"));
+        expect(r.statusCode).toBe(200);
+        expect(inputs().some((i) => String(i.UpdateExpression ?? "").includes("albumIds = :next")), "作った直後のアルバムを一覧から外した").toBe(false);
+    });
+});

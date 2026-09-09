@@ -55,9 +55,51 @@ type AlbumItem = {
     inviteExpiresAt?: string;
 };
 
-async function getAlbum(albumId: string): Promise<AlbumItem | null> {
-    const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: albumKey(albumId) } }));
+/**
+ * アルバム1件。`consistent` を渡すと強整合で読む。
+ *
+ * **既定は結果整合**（費用と速さのため）。ただし「無い」を根拠に
+ * **消しにいく**ときだけは強整合で確かめること——作った直後の行は
+ * レプリカに載っておらず、既定の読み取りが `null` を返しうる。
+ * `comments.ts:75` が同じ理由で切り替えを持っている。
+ */
+async function getAlbum(albumId: string, consistent = false): Promise<AlbumItem | null> {
+    const res = await ddb.send(new GetCommand({
+        TableName: PHOTOS_TABLE,
+        Key: { id: albumKey(albumId) },
+        ...(consistent ? { ConsistentRead: true } : {}),
+    }));
     return (res.Item as AlbumItem | undefined) ?? null;
+}
+
+/**
+ * 一覧に残っているが本体を引けない ID を外す。
+ *
+ * 削除は「本体を消す → 一覧から外す」の順で、後半が落ちると**ID だけが
+ * 一覧に残る**。`listAlbums` はその ID を画面に出さないので、**持ち主は
+ * 押す対象すら持てないまま** `createAlbum` の上限（生の配列長）を食われる
+ * ＝「画面には0個なのに『50個までです』」。一覧を開くたびに掃除する
+ * （どのみち1件ずつ引いているので、追加の読み取りは**消えて見えた分だけ**）。
+ *
+ * **消す前に強整合で確かめる。** 作った直後の行は結果整合の読み取りで
+ * `null` に見えることがあり、それを根拠に外すと**生きているアルバムを
+ * 迷子にする**（本体・参加の印・招待リンクは残るのに一覧からだけ消える）。
+ */
+async function pruneMissingAlbumIds(userId: string, ids: string[], missing: string[]): Promise<void> {
+    const gone: string[] = [];
+    for (const id of missing) {
+        if (!await getAlbum(id, true)) gone.push(id);
+    }
+    if (gone.length === 0) return;
+    const next = ids.filter((v) => !gone.includes(v));
+    await ddb.send(new UpdateCommand({
+        TableName: PHOTOS_TABLE,
+        Key: { id: albumsOfUserKey(userId) },
+        UpdateExpression: "SET albumIds = :next",
+        // 読んだ時点の姿を条件にする（待っている間に増えた分を消さない）
+        ConditionExpression: "albumIds = :prev",
+        ExpressionAttributeValues: { ":next": next, ":prev": ids },
+    })).catch((e) => console.error(`listAlbums: 一覧の掃除に失敗（${userId}）:`, e));
 }
 
 /** 参加者の一覧（読めない形なら空とみなす） */
@@ -149,9 +191,15 @@ export const listAlbums: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
     // 引けなかった行は落とす（消えたアルバムの ID が一覧に残っていても、
     // 画面に「開けない何か」を出さない）
     const albums = [];
+    const missing: string[] = [];
     for (const id of ids) {
         const a = await getAlbum(id);
-        if (!a || a.ownerId !== userId) continue;
+        // **引けなかった ID はここで覚えて、あとで外す。**
+        // 画面に出さないだけだと、枠だけ食われて誰も外せない
+        // （持ち主の一覧に出ない＝削除を押す対象が無い）。
+        // 持ち主が違う行は外さない（消えたのではなく、読み違えの可能性）
+        if (!a) { missing.push(id); continue; }
+        if (a.ownerId !== userId) continue;
         albums.push({
             id,
             title: a.title ?? "",
@@ -161,6 +209,7 @@ export const listAlbums: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
             inviteExpiresAt: a.inviteExpiresAt,
         });
     }
+    if (missing.length > 0) await pruneMissingAlbumIds(userId, ids, missing);
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ albums }) };
 };
 
@@ -542,7 +591,13 @@ export const deleteAlbum: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     const albumId = event.pathParameters?.id;
     if (!albumId) return jsonError(400, "アルバムが指定されていません");
 
-    const album = await getAlbum(albumId);
+    let album = await getAlbum(albumId);
+    // **「無い」を根拠に一覧を書き換える前に、強整合で確かめる。**
+    // 既定の読み取りは結果整合なので、作った直後のアルバムは `null` に
+    // 見えることがある。そのまま下の掃除に入ると、**生きているアルバムを
+    // 持ち主の一覧からだけ外す**（本体・参加の印・招待リンクは残るので、
+    // 招待を配ってあれば他人は入れるのに、持ち主は二度と開けない）。
+    if (!album) album = await getAlbum(albumId, true);
 
     // **本体がもう無くても、一覧に残っていたら外す。**
     //
@@ -555,13 +610,22 @@ export const deleteAlbum: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     if (!album) {
         const ids = await listOwnAlbumIds(userId);
         if (!ids.includes(albumId)) return jsonError(404, "アルバムが見つかりません");
-        await ddb.send(new UpdateCommand({
-            TableName: PHOTOS_TABLE,
-            Key: { id: albumsOfUserKey(userId) },
-            UpdateExpression: "SET albumIds = :next",
-            ConditionExpression: "albumIds = :prev",
-            ExpressionAttributeValues: { ":next": ids.filter((v) => v !== albumId), ":prev": ids },
-        })).catch((e) => console.error(`deleteAlbum: 一覧の掃除に失敗（${albumId}）:`, e));
+        // **掃除できなかったら成功と言わない。** ここで押されたということは
+        // 前回が途中で落ちているので、200 を返すと画面は「消しました」と出して
+        // 一覧を読み直す——幽霊 ID は一覧に出ないので、**押す対象が消えたまま
+        // 枠だけ食われた状態**になる。落ちたことを伝えて、もう一度押させる。
+        try {
+            await ddb.send(new UpdateCommand({
+                TableName: PHOTOS_TABLE,
+                Key: { id: albumsOfUserKey(userId) },
+                UpdateExpression: "SET albumIds = :next",
+                ConditionExpression: "albumIds = :prev",
+                ExpressionAttributeValues: { ":next": ids.filter((v) => v !== albumId), ":prev": ids },
+            }));
+        } catch (e) {
+            console.error(`deleteAlbum: 一覧の掃除に失敗（${albumId}）:`, e);
+            return jsonError(500, "アルバムを消せませんでした。もう一度お試しください");
+        }
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) };
     }
     if (album.ownerId !== userId) return jsonError(404, "アルバムが見つかりません");
@@ -600,6 +664,9 @@ export const deleteAlbum: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             ConditionExpression: "albumIds = :prev",
             ExpressionAttributeValues: { ":next": ids.filter((v) => v !== albumId), ":prev": ids },
         })).catch((e) => {
+            // ここは握ってよい（**本体はもう消えている**ので、失敗を返すと
+            // 「消えていない」という別の嘘になる）。残った ID は
+            // `pruneMissingAlbumIds` が一覧を開いたときに外す
             console.error(`deleteAlbum: 一覧から外せませんでした（${albumId}）:`, e);
         });
     }
