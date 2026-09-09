@@ -422,28 +422,50 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             }
             // **保存済みの行をそのまま返してはいけない。** 再送は「下書き保存で
             // 落ちたあと公開を押す」ことがあり、その回の published とメタデータが
-            // 今回の意図になる。まだ誰も触っていないときだけ書き直す
-            // （/user/edit で後から直した内容を巻き戻さない）。
+            // 今回の意図になるので、今回の内容で書き直す。
+            //
+            // **`updatedAt = :ua` は「誰も触っていない」を見ていない。**
+            // `stored` はこの要求の中で読んだ `existing` の値なので、条件が
+            // 止められるのは **Get と Put の間に入った書き込みだけ**。
+            // 「/user/edit で後から直した内容を巻き戻さない」と以前ここに
+            // 書いていたが、そういう守りにはなっていない（半年前に直した行
+            // でも条件は成立する。実際に走らせて確認した）。開きっぱなしの
+            // アップロードタブで押し直すと、後から直したタイトル・説明は
+            // 今回の本文で上書きされる——**塞ぐには「作られてから一度も
+            // 更新されていない」を見る形が要る**が、`putPhoto` は
+            // `createdAt` と `updatedAt` を別々の `new Date()` で書くので
+            // ミリ秒でずれうる。倒し方を決める話なので、ここでは直さない。
             const stored = existing.updatedAt ?? existing.createdAt ?? "";
-            // **サーバーが持つ項目は引き継ぐ。**
+            // **サーバー側で書かれた項目は引き継ぐ。**
             //
-            // 書き直しは `PutCommand`（全置換）で、`photo` にはいいね数も
-            // コメント数も入っていない。守りの `updatedAt = :ua` は
-            // 「まだ誰も触っていない」を見ているつもりだが、
-            // **`likes.ts` も `comments.ts` も加算のときに `updatedAt` を
-            // 触らない**ので、その2つは素通りする。
+            // 書き直しは `PutCommand`（全置換）で、`photo` は今回の本文から
+            // 組み立てたものなので、**利用者が送らない項目はすべて消える**:
             //
-            // 結果、公開の応答だけが失われた画面を開いたまま、誰かが
-            // いいね／コメントしたあとに押し直すと、**その数が消える**。
-            // しかも `like#<photoId>#<uid>` のマーカーは残るので、
-            // いいねした人が押し直しても「既にいいね済み」で +1 されず、
-            // 解除しても `likes > :z` が外れて空振り——**誰にも戻せない**。
-            const serverOwned = {
-                ...(typeof existing.likes === "number" ? { likes: existing.likes } : {}),
-                ...(typeof existing.commentCount === "number" ? { commentCount: existing.commentCount } : {}),
-                // 静的ページの掃除が届いていない印も、利用者の保存で消さない
-                ...(existing.staticStale === true ? { staticStale: true } : {}),
-            };
+            //   - いいね数・コメント数（`likes.ts` / `comments.ts` が加算する）
+            //   - 寸法・ぼかし・AVIF などの派生（`generate-thumbnails.js` が
+            //     ビルド時に書く。あれは `updatedAt` を意図的に触らない）
+            //   - `srcOriginal`（GPS 入りの原本の在りか。**消えると削除経路が
+            //     キーを引けず、原本が公開URLに残り続ける**＝台帳 ORPHAN の型）
+            //
+            // いいね数が消えるのがいちばん重い。`like#<photoId>#<uid>` の
+            // マーカーは残るので、いいねした人が押し直しても「既にいいね済み」
+            // で +1 されず、解除しても `likes > :z` が外れて空振り
+            // ——**誰にも戻せない**。
+            //
+            // **一覧は明示的に持つ。** 「知らない項目は全部引き継ぐ」にすると、
+            // 下書きに戻す再送で `publicFeed`（公開一覧の索引キー）や
+            // `albumId` まで残り、**非公開にしたのに一覧に出続ける**。
+            // **今回の本文にある項目は今回が勝つ**（サムネ・代表色・ぼかしは
+            // クライアントも送る）。
+            const SERVER_OWNED_FIELDS = [
+                "likes", "commentCount", "staticStale",
+                "width", "height", "aspectRatio", "dominantColor", "blurDataURL",
+                "thumbSrc", "thumbAvif", "thumbSm", "thumbSmAvif", "srcAvif", "src256", "srcOriginal",
+            ] as const;
+            const serverOwned: Record<string, unknown> = {};
+            for (const k of SERVER_OWNED_FIELDS) {
+                if (existing[k] !== undefined && photo[k] === undefined) serverOwned[k] = existing[k];
+            }
             const rewritten = { ...photo, ...serverOwned, createdAt: existing.createdAt ?? photo.createdAt };
             if (stored && await overwriteOwnPhoto(rewritten, stored)) {
                 // **再送でもアルバムに足す。** 1回目の `addPhotoToAlbum` が
@@ -467,6 +489,11 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 // `=== true` はここだけだった＝対の乖離。`published` を持たない
                 // 古い行では「下書きだった」と読み、二重送信のたびに予算を食う。
                 const wasPublished = existing.published !== false;
+                // **頼めても `staticStale` は下ろさない。** `photoUpdate.ts:353`
+                // は「届いたら REMOVE」の対を持っているが、ここは全置換の
+                // あとなので、下ろすにはもう1本書き込みが要る。倒す先は
+                // 「余分に頼む」側が安全——印を落として実際には届いて
+                // いなければ、**古い静的ページを誰も覚えていない**状態になる。
                 await requestRebuildForNewPhoto(photo.id, isPublished && !wasPublished);
                 console.log(`savePhoto: 同じ写真の再送を受け取り、今回の内容で書き直しました（${photo.id}）`);
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: rewritten }) };

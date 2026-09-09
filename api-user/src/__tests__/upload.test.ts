@@ -1007,6 +1007,79 @@ describe("savePhoto: 保存の再送で写真が増えない", () => {
 
     // 逆向き。無い項目を勝手に足さない（`likes: 0` を書くと、いいねの
     // 加算が使う `if_not_exists(likes, :z)` の意味が変わる場所に触れる）
+    // **ビルドが書いた表示用の項目も、利用者の押し直しで消えていた。**
+    // `generate-thumbnails.js` は寸法・ぼかし・AVIF 派生を書くが、
+    // sitemap の lastmod を守るために `updatedAt` を**意図的に触らない**。
+    // 全置換で消えると AVIF の配信が止まり、寸法が無くなってグリッドが
+    // ガタつく（次の定期ビルドまで最大7日）。
+    // `srcOriginal` はもっと重い——**削除経路はこの値からキーを引く**ので、
+    // 消えると GPS 入りの原本が公開URLに残り続ける（台帳 ORPHAN の型）。
+    it("ビルドが書いた表示用の項目と、原本の在りかを消さない", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`, published: true,
+            width: 4000, height: 3000, aspectRatio: 1.3333,
+            blurDataURL: "data:image/webp;base64,zzz",
+            srcAvif: "https://cdn.example.com/uploads/u1/p_lg.avif",
+            thumbSm: "https://cdn.example.com/uploads/u1/p_thumb_sm.webp",
+            srcOriginal: "https://cdn.example.com/uploads/u1/p_orig.jpg",
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", { ...body, published: true }));
+
+        const w = savedRewrite() as Record<string, unknown>;
+        expect(w.width, "寸法を消している").toBe(4000);
+        expect(w.height).toBe(3000);
+        expect(w.aspectRatio).toBe(1.3333);
+        expect(w.blurDataURL, "ぼかしを消している").toBe("data:image/webp;base64,zzz");
+        expect(w.srcAvif, "AVIF 派生を消している").toBe("https://cdn.example.com/uploads/u1/p_lg.avif");
+        expect(w.thumbSm).toBe("https://cdn.example.com/uploads/u1/p_thumb_sm.webp");
+        expect(w.srcOriginal, "原本の在りかを消している（消すと誰も辿れない）")
+            .toBe("https://cdn.example.com/uploads/u1/p_orig.jpg");
+    });
+
+    // 引き継ぎは「今回の本文に無いとき」だけ。サムネ・代表色・ぼかしは
+    // クライアントも送るので、送ってきたら今回が勝つ（でないと、
+    // 差し替えたサムネが永久に古いままになる）
+    it("今回の本文にある項目は、保存済みの値で上書きしない", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`, published: true,
+            thumbSrc: "https://cdn.example.com/uploads/u1/old_thumb.webp",
+            dominantColor: "#000000",
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", {
+            ...body, published: true,
+            thumbUrl: "https://cdn.example.com/uploads/u1/new_thumb.webp",
+            dominantColor: "#ff0000",
+        }));
+
+        const w = savedRewrite() as Record<string, unknown>;
+        expect(w.thumbSrc, "古いサムネで上書きしている").toBe("https://cdn.example.com/uploads/u1/new_thumb.webp");
+        expect(w.dominantColor).toBe("#ff0000");
+    });
+
+    // **「知らない項目は全部引き継ぐ」にしてはいけない。** 下書きに戻す再送で
+    // 公開一覧の索引キーまで残ると、**非公開にしたのに一覧に出続ける**
+    it("下書きに戻す再送で、公開一覧の索引キーを引き継がない", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`,
+            published: true, publicFeed: "public", albumId: "a1",
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", { ...body, published: false }));
+
+        const w = savedRewrite() as Record<string, unknown>;
+        expect(w.published).toBe(false);
+        expect("publicFeed" in w, "非公開なのに一覧の索引に残している").toBe(false);
+        expect("albumId" in w, "非公開なのにアルバムの行き先を残している").toBe(false);
+    });
+
     it("いいねもコメントも無い写真には、その項目を足さない", async () => {
         mockPutPhoto.mockRejectedValueOnce(condFail());
         mockGetPhotoById.mockResolvedValue({
