@@ -191,8 +191,19 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
 
             // 投稿者へ「いいねされました」通知（自分の写真は除く）。
             // 初回いいね（マーカー新規作成）の時だけここに到達するので連打では鳴らない
-            const photo = res.Attributes as { userId?: string; src?: string; thumbSrc?: string; location?: string } | undefined;
-            const owner = photo?.userId ? String(photo.userId) : undefined;
+            const photo = res.Attributes as { userId?: string; uploadedBy?: string; src?: string; thumbSrc?: string; location?: string } | undefined;
+            // **所有者は `userId ?? uploadedBy`。** `userId` が入る前に保存された
+            // 古い行は `uploadedBy` しか持たない（`ddb-photos.ts:75` ほかが
+            // 前提にしている形）。ここだけ `userId` 単独だったので、
+            // **古い写真にいいねされても投稿者のベルに何も来ない**
+            // ——成功が返るので押した側も気づけない。`comments.ts:169` が
+            // 同じ見落としを直したときのコメントを、200行下で繰り返していた。
+            //
+            // **`ReturnValues: "ALL_NEW"` は射影の影響を受けない**ので
+            // `uploadedBy` は普通に返る。ここを `ProjectionExpression` 付きの
+            // 読みに変えると静かに落ちる（`isDeletedProfile` の docstring と同じ罠）。
+            const ownerRaw = photo?.userId ?? photo?.uploadedBy;
+            const owner = ownerRaw ? String(ownerRaw) : undefined;
             if (owner && owner !== userId && photo?.src) {
                 await pushNotification(owner, {
                     type: "like",

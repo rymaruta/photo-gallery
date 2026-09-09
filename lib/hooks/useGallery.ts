@@ -3,6 +3,7 @@ import type { Photo, LocalizedText, LocalizedParagraphs } from "../data/photos";
 import { getLocalized, getLocalizedParagraphs } from "../data/photos";
 import type { GalleryFilters } from "../types/gallery";
 import { slugify, normalizeForSearch, tagKey } from "../utils/collections";
+import { dedupeCameraName } from "../utils/cameraName";
 import { compareNewest, compareOldest } from "../utils/photoOrder";
 
 /**
@@ -167,7 +168,17 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
                 // **カメラ名も。** `/camera/<スラッグ>` の404救済が `/?q=` に
                 // 振り替えるので、ここに無いと**必ず0件**になる（撮影地で
                 // 一度踏んだ形）。機材名で探す人が居ることが案Dの前提でもある。
-                const cam = p.exif?.camera ?? "";
+                // **畳んだ名前も入れる。** 404救済が振り替える `?q=` の値は
+                // `dedupeCameraName` を通したスラッグ（集約ページの鍵と同じ）
+                // なのに、ここは保存された生の値だけを見ていた。いま当たって
+                // いるのは「先頭の語がすぐ繰り返される」形だから
+                // ——`"hasselblad-hasselblad-x2d-ii-100c"` が
+                // `"hasselblad-x2d-ii-100c"` を含む、という偶然に乗っている。
+                // 畳み方が末尾や中間に広がった瞬間に 0件になる。
+                // 両方入れる（生の値でも探せるようにする）。
+                const camRaw = p.exif?.camera ?? "";
+                const camFolded = dedupeCameraName(camRaw) ?? "";
+                const cam = camFolded && camFolded !== camRaw ? `${camRaw} ${camFolded}` : camRaw;
 
                 const haystack = `${titleJa} ${titleEn} ${descJa} ${descEn} ${loc} ${cam}`.toLowerCase();
                 // **スラッグ経由の検索も通す。** 集約ページの404救済

@@ -367,8 +367,12 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             ConditionExpression: "attribute_exists(id)",
         })).catch(() => { /* 写真が消えていても本文は保存済み */ });
 
-        // 写真オーナーへ通知（自分の写真は除く）
-        const owner = photo.userId ? String(photo.userId) : undefined;
+        // 写真オーナーへ通知（自分の写真は除く）。
+        // **`userId ?? uploadedBy`**——:169 が同じ見落としを直しているのに、
+        // ここだけ `userId` 単独で残っていた（古い写真にコメントしても
+        // 投稿者のベルに何も来ない。本文は普通に出るので誰も気づけない）
+        const ownerRaw = photo.userId ?? photo.uploadedBy;
+        const owner = ownerRaw ? String(ownerRaw) : undefined;
         if (owner && owner !== uid) {
             await pushNotification(owner, {
                 type: "comment",

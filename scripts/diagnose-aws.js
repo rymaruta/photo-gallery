@@ -67,8 +67,17 @@ async function dataShapes() {
         ExpressionAttributeNames: { "#d": "date" },
         ExpressionAttributeValues: { ":z": { S: "Z" } },
     });
+    // **索引に載らない行を両方数える。** `userId-createdAt-index` は
+    // **両方のキーが揃った項目しか載せない**ので、どちらが欠けても
+    // 同じ「索引を引く経路から丸ごと消える」になる。効くのは表示だけでなく
+    // **退会の掃除**——`deleteAccount` はこの索引の Query だけで消す対象を
+    // 列挙するので、載らない行は消えないまま 200 が返り、Cognito の
+    // アカウントだけ消える（本人はもう二度と消せない）。
     await count("createdAt を持たない写真（GSI から落ちる）", {
         FilterExpression: "attribute_exists(src) AND attribute_not_exists(createdAt)",
+    });
+    await count("userId を持たない写真（uploadedBy だけ・GSI から落ちる）", {
+        FilterExpression: "attribute_exists(src) AND attribute_exists(uploadedBy) AND attribute_not_exists(userId)",
     });
     // 地図ページ（/map）の材料。位置情報を持つ公開写真が無ければ地図は空
     await count("位置情報（coords）を持つ写真", {

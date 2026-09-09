@@ -856,3 +856,41 @@ describe("getComments: 退会した人の名前は出さない", () => {
         expect(mockDeletedIds).not.toHaveBeenCalled();
     });
 });
+
+
+// **通知の宛先だけ `userId` 単独で残っていた。**
+// 同じファイルの :169 が「ここだけフォールバックが無かった」と直したのに、
+// 200行下の通知の宛先が取り残されていた。`uploadedBy` しか持たない古い写真は
+// **コメントされても投稿者のベルに何も来ない**——本文は普通に表示され、
+// 相手には 200 が返るので、投稿者も書いた人も気づけない。
+describe("コメントの通知: 古い写真の投稿者にも届く", () => {
+    /** 写真の行の形だけ差し替えて、コメントを1件書く */
+    const commentOn = async (photo: Record<string, unknown>, as = "someone") => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const id = String(cmd.input.Key?.id ?? "");
+                if (id === "p1") return Promise.resolve({ Item: { id: "p1", src: "s", ...photo } });
+                return Promise.resolve({ Item: { items: [] } });
+            }
+            return Promise.resolve({ Attributes: { items: [] } });
+        });
+        return invoke(postComment, ev(as, { id: "p1" }, { text: "きれいですね" }));
+    };
+
+    it("uploadedBy しか無い写真でも、投稿者に通知が行く", async () => {
+        expect((await commentOn({ uploadedBy: "old-owner" })).statusCode).toBe(200);
+        expect(mockPush, "古い写真だと通知が飛ばない").toHaveBeenCalledTimes(1);
+        expect(mockPush.mock.calls[0][0]).toBe("old-owner");
+    });
+
+    it("userId がある写真は今までどおり", async () => {
+        expect((await commentOn({ userId: "owner" })).statusCode).toBe(200);
+        expect(mockPush.mock.calls[0][0]).toBe("owner");
+    });
+
+    // 逆向き。自分の写真には鳴らさない（`uploadedBy` 側でも同じ）
+    it("自分の写真には通知しない（uploadedBy でも）", async () => {
+        expect((await commentOn({ uploadedBy: "me" }, "me")).statusCode).toBe(200);
+        expect(mockPush, "自分のコメントで自分に通知している").not.toHaveBeenCalled();
+    });
+});

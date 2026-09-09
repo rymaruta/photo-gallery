@@ -147,6 +147,32 @@ describe("likePhoto", () => {
         expect(item.atLocation).toBe("北海道");
     });
 
+    // **`userId` が入る前に保存された行は `uploadedBy` しか持たない。**
+    // 所有者の判定はこのリポジトリ全体で `userId ?? uploadedBy` に揃っている
+    // のに、通知の宛先だけ `userId` 単独だった＝古い写真にいいねしても
+    // **投稿者のベルに何も来ない**（押した側には 200 が返るので気づけない）。
+    // `ReturnValues: "ALL_NEW"` は射影の影響を受けないので `uploadedBy` は返る。
+    it("uploadedBy しか無い古い写真でも、投稿者に通知が積まれる", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({}) // Put marker
+            .mockResolvedValueOnce({ Attributes: { likes: 1, uploadedBy: "old-owner", src: "https://c/p.jpg" } })
+            .mockResolvedValueOnce({ Item: { displayName: "旅子" } }) // lookupDisplayName
+            .mockResolvedValueOnce({}); // pushNotification
+        expect((await invoke(likePhoto, ev("u1", "p1"))).statusCode).toBe(200);
+        expect(mockDdbSend, "古い写真だと通知が飛ばない").toHaveBeenCalledTimes(4);
+        const notif = mockDdbSend.mock.calls[3][0] as { input: { Key: { id: string } } };
+        expect(notif.input.Key.id).toBe("notifs#old-owner");
+    });
+
+    // 逆向き。自分の写真には鳴らさない（`uploadedBy` 側でも同じ）
+    it("自分の写真なら uploadedBy でも通知しない", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Attributes: { likes: 1, uploadedBy: "u1", src: "https://c/p.jpg" } });
+        expect((await invoke(likePhoto, ev("u1", "p1"))).statusCode).toBe(200);
+        expect(mockDdbSend, "自分のいいねで自分に通知している").toHaveBeenCalledTimes(2);
+    });
+
     it("自分の写真へのいいねは通知しない", async () => {
         mockDdbSend
             .mockResolvedValueOnce({}) // Put marker
