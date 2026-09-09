@@ -164,6 +164,20 @@ describe("likePhoto", () => {
         expect(notif.input.Key.id).toBe("notifs#old-owner");
     });
 
+    // **順番も固定する。** `userId ?? uploadedBy` であって逆ではない
+    // （両方持つ行で値が違うと、逆順は別人に通知を送る）。
+    // 入れ替える変異が全緑だったので足した
+    it("両方あるときは userId を採る（uploadedBy ではない）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Attributes: { likes: 1, userId: "now", uploadedBy: "then", src: "https://c/p.jpg" } })
+            .mockResolvedValueOnce({ Item: { displayName: "旅子" } })
+            .mockResolvedValueOnce({});
+        await invoke(likePhoto, ev("u1", "p1"));
+        const notif = mockDdbSend.mock.calls[3][0] as { input: { Key: { id: string } } };
+        expect(notif.input.Key.id, "優先順位が逆").toBe("notifs#now");
+    });
+
     // 逆向き。自分の写真には鳴らさない（`uploadedBy` 側でも同じ）
     it("自分の写真なら uploadedBy でも通知しない", async () => {
         mockDdbSend

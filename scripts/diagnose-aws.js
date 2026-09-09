@@ -76,8 +76,13 @@ async function dataShapes() {
     await count("createdAt を持たない写真（GSI から落ちる）", {
         FilterExpression: "attribute_exists(src) AND attribute_not_exists(createdAt)",
     });
-    await count("userId を持たない写真（uploadedBy だけ・GSI から落ちる）", {
-        FilterExpression: "attribute_exists(src) AND attribute_exists(uploadedBy) AND attribute_not_exists(userId)",
+    // **`uploadedBy` の有無で絞らない。** 落ちる条件は「`userId` が無い」
+    // ことであって「`uploadedBy` を持つ」ことではない。管理APIの古い口は
+    // `uploadedBy` を書かなかった（`api/src/upload.ts` の履歴）ので、
+    // **どちらも持たない行**が最初期にありうる——絞ると 0件 と報告して
+    // 「無い」と読ませてしまう
+    await count("userId を持たない写真（GSI から落ちる・退会でも消えない）", {
+        FilterExpression: "attribute_exists(src) AND attribute_not_exists(userId)",
     });
     // 地図ページ（/map）の材料。位置情報を持つ公開写真が無ければ地図は空
     await count("位置情報（coords）を持つ写真", {

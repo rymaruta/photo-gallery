@@ -888,6 +888,12 @@ describe("コメントの通知: 古い写真の投稿者にも届く", () => {
         expect(mockPush.mock.calls[0][0]).toBe("owner");
     });
 
+    // **順番も固定する**（`userId ?? uploadedBy`。逆順は別人に届く）
+    it("両方あるときは userId を採る（uploadedBy ではない）", async () => {
+        expect((await commentOn({ userId: "now", uploadedBy: "then" })).statusCode).toBe(200);
+        expect(mockPush.mock.calls[0][0], "優先順位が逆").toBe("now");
+    });
+
     // 逆向き。自分の写真には鳴らさない（`uploadedBy` 側でも同じ）
     it("自分の写真には通知しない（uploadedBy でも）", async () => {
         expect((await commentOn({ uploadedBy: "me" }, "me")).statusCode).toBe(200);

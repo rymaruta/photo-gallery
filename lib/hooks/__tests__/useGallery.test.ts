@@ -176,6 +176,41 @@ describe("useGallery", () => {
                 "説明に押し出されて撮影地が比較対象から落ちている").toEqual(["loc1"]);
         });
 
+        // **機材名の検索を見るテストが1本も無かった。**
+        // `/camera/<スラッグ>` の404救済は `/?q=<スラッグ>` に振り替えるので、
+        // ここに機材名が入っていないと**必ず0件**になる。その土台ごと
+        // 無防備だった（`p.exif?.camera` の行を消しても全緑）。
+        it("機材名でも検索できる（/camera の404救済の土台）", () => {
+            const photos = [
+                { ...mockPhotos[0], id: "c1", exif: { camera: "SONY ILCE-7M3" } },
+                { ...mockPhotos[1], id: "c2", exif: { camera: "Apple iPhone 14 Pro" } },
+            ];
+            const { result } = renderHook(() => useGallery(photos));
+            act(() => { result.current.setFilters({ query: "sony-ilce-7m3" }); });
+            expect(result.current.filteredPhotos.map((p) => p.id),
+                "機材名が検索の対象に入っていない").toEqual(["c1"]);
+        });
+
+        // **二重のメーカー名で保存された古い行**（実データに
+        // `"Hasselblad Hasselblad X2D II 100C"` が実在）。集約ページの鍵は
+        // `dedupeCameraName` を通した名前なので、404救済が振り替える
+        // `?q=` の値もそちら。生の値だけを見ていると、**畳み方が
+        // 先頭トークン以外に広がった瞬間に0件**になる。
+        it("畳んだ機材名でも検索できる（集約ページの鍵と同じ形）", () => {
+            const photos = [
+                { ...mockPhotos[0], id: "c1", exif: { camera: "Hasselblad Hasselblad X2D II 100C" } },
+                { ...mockPhotos[1], id: "c2", exif: { camera: "Apple iPhone 14 Pro" } },
+            ];
+            const { result } = renderHook(() => useGallery(photos));
+            // 畳んだ形（集約ページの鍵）
+            act(() => { result.current.setFilters({ query: "hasselblad-x2d-ii-100c" }); });
+            expect(result.current.filteredPhotos.map((p) => p.id)).toEqual(["c1"]);
+            // 生の値でも従来どおり探せる（片方に寄せて壊していない）
+            act(() => { result.current.setFilters({ query: "hasselblad-hasselblad-x2d-ii-100c" }); });
+            expect(result.current.filteredPhotos.map((p) => p.id),
+                "生の値で探せなくなっている").toEqual(["c1"]);
+        });
+
         it("生の撮影地でも従来どおり検索できる（壊していない）", () => {
             const photos = [
                 { ...mockPhotos[0], id: "loc1", location: "フランス ヴェルサイユ" },
