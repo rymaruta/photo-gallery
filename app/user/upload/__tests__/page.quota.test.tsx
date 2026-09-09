@@ -1,4 +1,5 @@
 import React from "react";
+import { PHOTO_LIMIT_PER_USER } from "../../../../lib/utils/uploadLimits";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -54,6 +55,13 @@ const UploadPage = (await import("../page")).default;
 
 const photos = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `p${i}`, src: "s" }));
 
+// **上限は定数から導く。** 文言の中の数字を手書きすると、上限を動かすたびに
+// 「テストを実装に合わせて直す」形になり、守っている性質が分からなくなる
+// （100 → 1000 に動かしたときに8本が一斉に落ちた）。
+const LIMIT = PHOTO_LIMIT_PER_USER;
+/** 「あと N 枚アップロードできます（… 枚まで）」 */
+const remainText = (used: number) => `あと${LIMIT - used}枚アップロードできます（${LIMIT}枚まで）`;
+
 beforeEach(() => {
     authState.current = { isAuthenticated: true, isAdminUser: false, isGeneralUser: true, loading: false };
     mockUserFetch.mockReset();
@@ -63,13 +71,13 @@ describe("アップロードの残り枚数", () => {
     it("選ぶ前に残りを出す", async () => {
         mockUserFetch.mockResolvedValue({ ok: true, json: async () => photos(12) });
         render(<UploadPage />);
-        expect(await screen.findByText("あと88枚アップロードできます（100枚まで）")).toBeInTheDocument();
+        expect(await screen.findByText(remainText(12))).toBeInTheDocument();
     });
 
     it("上限に達していたら、空ける方法まで書く", async () => {
-        mockUserFetch.mockResolvedValue({ ok: true, json: async () => photos(100) });
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => photos(LIMIT) });
         render(<UploadPage />);
-        expect(await screen.findByText(/上限（100枚）に達しています/)).toBeInTheDocument();
+        expect(await screen.findByText(new RegExp(`上限（${LIMIT}枚）に達しています`))).toBeInTheDocument();
         expect(screen.getByText(/削除すると空きができます/)).toBeInTheDocument();
     });
 
@@ -106,7 +114,7 @@ describe("アップロードしたら残り枚数を減らす", () => {
     it("成功した枚数だけ減る", async () => {
         mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
             if (url === "/user/photos" && !init?.method) {
-                return Promise.resolve({ ok: true, json: async () => photos(97) });
+                return Promise.resolve({ ok: true, json: async () => photos(LIMIT - 3) });
             }
             if (url === "/upload/presigned-url") {
                 return Promise.resolve({
@@ -119,7 +127,7 @@ describe("アップロードしたら残り枚数を減らす", () => {
         vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200 })));
 
         const { container } = render(<UploadPage />);
-        expect(await screen.findByText("あと3枚アップロードできます（100枚まで）")).toBeInTheDocument();
+        expect(await screen.findByText(remainText(LIMIT - 3))).toBeInTheDocument();
 
         const input = container.querySelector('input[type="file"]') as HTMLInputElement;
         await userEvent.upload(input, new File(["x"], "a.jpg", { type: "image/jpeg" }));
@@ -127,7 +135,7 @@ describe("アップロードしたら残り枚数を減らす", () => {
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
 
-        expect(await screen.findByText("あと2枚アップロードできます（100枚まで）")).toBeInTheDocument();
+        expect(await screen.findByText(remainText(LIMIT - 2))).toBeInTheDocument();
     });
 });
 
@@ -141,11 +149,11 @@ describe("読めない行があっても、枠の数え方はサーバーと同�
     it("落とした行も枠に数える", async () => {
         mockUserFetch.mockResolvedValue({
             ok: true,
-            json: async () => [...photos(97), null, { src: "id なし" }],
+            json: async () => [...photos(LIMIT - 3), null, { src: "id なし" }],
         });
         render(<UploadPage />);
-        // サーバーは99件と数えるので、残りは1枚
-        expect(await screen.findByText("あと1枚アップロードできます（100枚まで）"),
+        // サーバーは 落とした2行も数える ので、残りは1枚
+        expect(await screen.findByText(remainText(LIMIT - 1)),
             "ふるいのあとの件数で数えている（サーバーは 403 を返す）").toBeInTheDocument();
     });
 
@@ -153,6 +161,6 @@ describe("読めない行があっても、枠の数え方はサーバーと同�
     it("全部読める応答は今までどおり", async () => {
         mockUserFetch.mockResolvedValue({ ok: true, json: async () => photos(12) });
         render(<UploadPage />);
-        expect(await screen.findByText("あと88枚アップロードできます（100枚まで）")).toBeInTheDocument();
+        expect(await screen.findByText(remainText(12))).toBeInTheDocument();
     });
 });

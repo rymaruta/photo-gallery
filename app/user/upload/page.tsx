@@ -23,10 +23,10 @@ import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import type { Photo, Locale } from "../../../lib/data/photos";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
+// 上限は lib/utils/uploadLimits.ts に置く（api-user 側と対。理由はあちらに書いた）
+import { PHOTO_LIMIT_PER_USER } from "../../../lib/utils/uploadLimits";
 
-// 1人あたりのアップロード上限。**api-user/src/upload.ts の
-// PHOTO_LIMIT_PER_USER と対**。片方だけ変えると、画面の残り枚数が嘘になる。
-const PHOTO_LIMIT_PER_USER = 100;
+
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
@@ -339,7 +339,7 @@ function UploadPageInner() {
 
     /**
      * 残りアップロード可能枚数。**上限に当たるまで見えなかった。**
-     * 100枚の上限（api-user/src/upload.ts の PHOTO_LIMIT_PER_USER）は
+     * 枚数の上限（api-user/src/upload.ts の PHOTO_LIMIT_PER_USER）は
      * 押して初めて 403 で伝わり、しかも数え上げ失敗の 503 と文言が違うだけで、
      * 利用者には「上限なのか障害なのか」も分からなかった。
      *

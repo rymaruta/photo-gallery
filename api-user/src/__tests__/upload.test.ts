@@ -43,7 +43,7 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({ getSignedUrl: mockGetSignedUrl
 
 // 環境変数はモジュール読込時に評価されるため、stub してから動的 import する
 vi.stubEnv("CLOUDFRONT_URL", "https://cdn.example.com");
-const { savePhoto, presignedUrl, discardUpload } = await import("../upload");
+const { savePhoto, presignedUrl, discardUpload, PHOTO_LIMIT_PER_USER } = await import("../upload");
 import type { Photo } from "../types";
 
 type LambdaResult = { statusCode: number; body: string };
@@ -336,8 +336,8 @@ describe("savePhoto: 基本バリデーション", () => {
         expect(res.statusCode).toBe(400);
     });
 
-    it("100枚上限に達していたら 403", async () => {
-        mockCountUserPhotos.mockResolvedValueOnce(100);
+    it("上限に達していたら 403", async () => {
+        mockCountUserPhotos.mockResolvedValueOnce(PHOTO_LIMIT_PER_USER);
         const res = await invoke(event("u1", { ...BASE }));
         expect(res.statusCode).toBe(403);
         expect(mockPutPhoto).not.toHaveBeenCalled();
@@ -576,8 +576,8 @@ describe("presignedUrl", () => {
         expect((await ask("u1", "{")).statusCode).toBe(400);
     });
 
-    it("100枚に達していれば 403（署名を渡さない）", async () => {
-        mockCountUserPhotos.mockResolvedValueOnce(100);
+    it("上限に達していれば 403（署名を渡さない）", async () => {
+        mockCountUserPhotos.mockResolvedValueOnce(PHOTO_LIMIT_PER_USER);
         const res = await ask("u1", { fileName: "a.jpg", fileType: "image/jpeg" });
         expect(res.statusCode).toBe(403);
     });
@@ -607,7 +607,7 @@ describe("savePhoto: 表示名はサーバーで引く", () => {
 
 // 上限は容量と費用の管理。数えられなかったときに通すと、
 // スロットリングを起こすだけで超えられる。
-describe("100枚の上限: 数えられなければ通さない", () => {
+describe("枚数の上限: 数えられなければ通さない", () => {
     it("savePhoto: 数え上げが落ちたら 503（保存しない）", async () => {
         mockCountUserPhotos.mockRejectedValueOnce(new Error("throttled"));
         const res = await invoke(event("u1", BASE));
@@ -626,9 +626,17 @@ describe("100枚の上限: 数えられなければ通さない", () => {
     });
 
     it("savePhoto: 上限に達していれば 403", async () => {
-        mockCountUserPhotos.mockResolvedValueOnce(100);
+        mockCountUserPhotos.mockResolvedValueOnce(PHOTO_LIMIT_PER_USER);
         expect((await invoke(event("u1", BASE))).statusCode).toBe(403);
         expect(mockPutPhoto).not.toHaveBeenCalled();
+    });
+
+    // **境界**: ちょうど上限なら断り、1つ手前なら通す。片側しか見ていないと
+    // 「>= を > に変える」変異が素通りする
+    it("上限の1つ手前は通る", async () => {
+        mockCountUserPhotos.mockResolvedValueOnce(PHOTO_LIMIT_PER_USER - 1);
+        expect((await invoke(event("u1", BASE))).statusCode).toBe(200);
+        expect(mockPutPhoto).toHaveBeenCalled();
     });
 
     it("管理者は数え上げが落ちても通る（上限の対象外）", async () => {

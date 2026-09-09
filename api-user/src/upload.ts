@@ -41,7 +41,14 @@ const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? "";
 // **同じ規則が2つある**状態だった）。保存された src は削除時にそのまま
 // S3 のキーになるので、ここが最後の砦になる。
 
-const PHOTO_LIMIT_PER_USER = 100;
+// 1人あたりのアップロード上限。**lib/utils/uploadLimits.ts と対**
+// （クライアントからこのパッケージは import できないので数字を2か所に持つ。
+// `scripts/__tests__/limitParity.test.ts` が突き合わせる）。
+//
+// 2026-09-09 に 100 → 1000 へ（owner の判断）。100 は「1日3枚で33日」で
+// 頭打ちになる数字で、たくさん投稿してほしいという方針と逆向きだった。
+// **一覧はまだ全件を返す**ので、300〜500枚に近づく前にページングが要る。
+export const PHOTO_LIMIT_PER_USER = 1000;
 
 /**
  * 100枚の上限を確かめる。超えていれば断る理由を返す。

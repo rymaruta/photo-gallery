@@ -17,6 +17,32 @@ const read = (p: string) => readFileSync(join(ROOT, p), "utf8").replace(/^\s*\/\
 
 const sanitize = read("api-user/src/sanitize.ts");
 
+// **1人あたりのアップロード上限。** 画面（lib/utils/uploadLimits.ts）と
+// サーバー（api-user/src/upload.ts）の2か所に数字がある。ずれると
+// 「あと N 枚と出ているのに押すと 403」か「上げたのに投稿できないまま」
+// のどちらかになる。**コメントは「片方だけ変えると嘘になる」と警告して
+// いたのに、それを縛るものが無かった**（100 → 1000 に動かすときに気づいた）。
+function numberIn(rel: string, re: RegExp, label: string): number {
+    const m = re.exec(read(rel));
+    expect(m, `${label} が ${rel} に見つからない`).not.toBeNull();
+    return Number(m![1]);
+}
+
+describe("1人あたりのアップロード上限は、画面とサーバーで同じ", () => {
+    const server = () => numberIn("api-user/src/upload.ts", /(?:export )?const PHOTO_LIMIT_PER_USER = (\d+);/, "サーバーの上限");
+    const client = () => numberIn("lib/utils/uploadLimits.ts", /export const PHOTO_LIMIT_PER_USER = (\d+);/, "画面の上限");
+
+    it("数字が一致する（片方だけ変えない）", () => {
+        expect(client(), "画面とサーバーで上限がずれている").toBe(server());
+    });
+
+    // 0 や NaN を「一致」と読まない（正規表現が壊れたときに緑にしない）
+    it("読めた数字が正の値である", () => {
+        expect(server()).toBeGreaterThan(0);
+        expect(client()).toBeGreaterThan(0);
+    });
+});
+
 /** `sanitize.ts` の該当行から実際の数字を取る（コメントの数字は見ない） */
 function serverLimit(re: RegExp, label: string): number {
     const m = re.exec(sanitize);
