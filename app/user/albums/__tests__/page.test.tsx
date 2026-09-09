@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // 共同アルバムの管理画面（案C）。作る・招待リンクを配る・取り消す。
@@ -143,5 +143,77 @@ describe("アルバムを作る", () => {
         await userEvent.type(await screen.findByLabelText("アルバムの名前"), "51個目");
         await userEvent.click(screen.getByRole("button", { name: "作る" }));
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("アルバムは50個までです", "error"));
+    });
+});
+
+
+describe("名前を変える", () => {
+    it("保存すると PATCH を叩き、一覧を取り直す", async () => {
+        render(<AlbumsPage />);
+        await userEvent.click(await screen.findByRole("button", { name: "名前を変える" }));
+        const input = screen.getByLabelText("アルバムの新しい名前");
+        await userEvent.clear(input);
+        await userEvent.type(input, "夏の旅");
+        await userEvent.click(screen.getByRole("button", { name: "保存" }));
+        await waitFor(() => {
+            const call = mockUserFetch.mock.calls.find((c) => c[0] === "/albums/alb-1" && c[1]?.method === "PATCH");
+            expect(call, "名前を変える口を叩いていない").toBeTruthy();
+            expect(JSON.parse(call![1].body).title).toBe("夏の旅");
+        });
+    });
+
+    it("空なら叩かない", async () => {
+        render(<AlbumsPage />);
+        await userEvent.click(await screen.findByRole("button", { name: "名前を変える" }));
+        await userEvent.clear(screen.getByLabelText("アルバムの新しい名前"));
+        mockUserFetch.mockClear();
+        await userEvent.click(screen.getByRole("button", { name: "保存" }));
+        expect(mockUserFetch.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
+    });
+
+    it("断られたら理由を出す", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) =>
+            Promise.resolve(init?.method === "PATCH"
+                ? { ok: false, status: 404, _msg: "アルバムが見つかりません" }
+                : { ok: true, json: async () => ({ albums: [album()] }) }));
+        render(<AlbumsPage />);
+        await userEvent.click(await screen.findByRole("button", { name: "名前を変える" }));
+        await userEvent.click(screen.getByRole("button", { name: "保存" }));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("アルバムが見つかりません", "error"));
+    });
+});
+
+describe("消す", () => {
+    // **押し間違いで消させない。** 削除は元に戻せない
+    it("いきなり消さず、一度聞く", async () => {
+        render(<AlbumsPage />);
+        await userEvent.click(await screen.findByRole("button", { name: "消す" }));
+        expect(screen.getByRole("dialog", { name: "アルバムを消す" })).toBeInTheDocument();
+        expect(mockUserFetch.mock.calls.some((c) => c[1]?.method === "DELETE"), "確認せずに消している").toBe(false);
+    });
+
+    // **写真は消えない**ことを伝える（アルバムは束ねているだけ）
+    it("写真は残ることを書く", async () => {
+        render(<AlbumsPage />);
+        await userEvent.click(await screen.findByRole("button", { name: "消す" }));
+        expect(screen.getByText(/写真そのものは消えません/)).toBeInTheDocument();
+    });
+
+    it("確認して消すと DELETE を叩く", async () => {
+        render(<AlbumsPage />);
+        await userEvent.click(await screen.findByRole("button", { name: "消す" }));
+        const dialog = screen.getByRole("dialog", { name: "アルバムを消す" });
+        await userEvent.click(within(dialog).getByRole("button", { name: "消す" }));
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalledWith(
+            "/albums/alb-1", expect.objectContaining({ method: "DELETE" })));
+    });
+
+    it("やめれば何もしない", async () => {
+        render(<AlbumsPage />);
+        await userEvent.click(await screen.findByRole("button", { name: "消す" }));
+        const dialog = screen.getByRole("dialog", { name: "アルバムを消す" });
+        await userEvent.click(within(dialog).getByRole("button", { name: "やめる" }));
+        expect(screen.queryByRole("dialog")).toBeNull();
+        expect(mockUserFetch.mock.calls.some((c) => c[1]?.method === "DELETE")).toBe(false);
     });
 });

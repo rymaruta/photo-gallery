@@ -40,6 +40,10 @@ export default function AlbumsPage() {
     const [loadError, setLoadError] = useState("");
     const [title, setTitle] = useState("");
     const [busy, setBusy] = useState(false);
+    /** 名前を変えている最中のアルバム（id → 入力中の名前） */
+    const [editing, setEditing] = useState<{ id: string; title: string } | null>(null);
+    /** 消す前に一度聞く。**押し間違いで消させない**（削除は元に戻せない） */
+    const [confirming, setConfirming] = useState<Album | null>(null);
 
     const load = useCallback(async () => {
         try {
@@ -116,6 +120,47 @@ export default function AlbumsPage() {
         }
     }, [busy, load, showToast]);
 
+    const rename = async () => {
+        if (!editing || busy) return;
+        const name = editing.title.trim();
+        if (!name) return;
+        setBusy(true);
+        try {
+            const res = await userFetch(`/albums/${encodeURIComponent(editing.id)}`, {
+                method: "PATCH", body: JSON.stringify({ title: name }),
+            });
+            if (!res.ok) {
+                showToast(await readApiError(res, "名前を変えられませんでした"), "error");
+                return;
+            }
+            setEditing(null);
+            await load();
+        } catch (e) {
+            showToast(sessionErrorMessage(e) ?? "名前を変えられませんでした", "error");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const remove = async (a: Album) => {
+        if (busy) return;
+        setBusy(true);
+        try {
+            const res = await userFetch(`/albums/${encodeURIComponent(a.id)}`, { method: "DELETE" });
+            if (!res.ok) {
+                showToast(await readApiError(res, "消せませんでした"), "error");
+                return;
+            }
+            setConfirming(null);
+            await load();
+            showToast("アルバムを消しました（写真は残ります）", "success");
+        } catch (e) {
+            showToast(sessionErrorMessage(e) ?? "消せませんでした", "error");
+        } finally {
+            setBusy(false);
+        }
+    };
+
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
     if (gate !== "ok") {
         return (
@@ -171,8 +216,43 @@ export default function AlbumsPage() {
                     <ul className="space-y-4">
                         {albums.map((a) => (
                             <li key={a.id} className="rounded-xl bg-white/5 ring-1 ring-white/10 p-4">
-                                <p className="text-sm">{a.title}</p>
-                                <p className="text-xs text-white/60 mt-0.5">{a.memberCount}人が参加</p>
+                                {editing?.id === a.id ? (
+                                    <div className="flex gap-2">
+                                        <label htmlFor={`rename-${a.id}`} className="sr-only">アルバムの新しい名前</label>
+                                        <input
+                                            id={`rename-${a.id}`}
+                                            value={editing.title}
+                                            onChange={(e) => setEditing({ id: a.id, title: e.target.value })}
+                                            maxLength={60}
+                                            className="flex-1 bg-white/5 rounded-lg px-3 py-2 text-sm ring-1 ring-white/10"
+                                        />
+                                        <button type="button" onClick={rename} aria-disabled={busy}
+                                            className="rounded-lg bg-white text-black text-sm px-3" style={{ minHeight: 44 }}>
+                                            保存
+                                        </button>
+                                        <button type="button" onClick={() => setEditing(null)}
+                                            className="text-xs text-white/70 px-2" style={{ minHeight: 44 }}>
+                                            やめる
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className="text-sm">{a.title}</p>
+                                            <p className="text-xs text-white/60 mt-0.5">{a.memberCount}人が参加</p>
+                                        </div>
+                                        <div className="flex gap-3 shrink-0">
+                                            <button type="button" onClick={() => setEditing({ id: a.id, title: a.title })}
+                                                className="text-xs underline decoration-white/40 underline-offset-2" style={{ minHeight: 44 }}>
+                                                名前を変える
+                                            </button>
+                                            <button type="button" onClick={() => setConfirming(a)}
+                                                className="text-xs underline decoration-white/40 underline-offset-2" style={{ minHeight: 44 }}>
+                                                消す
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {a.inviteToken ? (
                                     <div className="mt-3">
@@ -205,6 +285,30 @@ export default function AlbumsPage() {
                             </li>
                         ))}
                     </ul>
+                )}
+
+                {/* **消す前に一度聞く。** 削除は元に戻せない。
+                    「写真は残る」ことも書く——アルバムは束ねているだけで、
+                    写真そのものは投稿した人のもの */}
+                {confirming && (
+                    <div role="dialog" aria-modal="true" aria-label="アルバムを消す"
+                        className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center p-4 z-50">
+                        <div className="bg-neutral-900 rounded-2xl ring-1 ring-white/10 p-5 max-w-sm w-full">
+                            <p className="text-sm">「{confirming.title}」を消しますか？</p>
+                            <p className="text-xs text-white/60 mt-2">
+                                招待リンクは使えなくなり、参加者はこのアルバムを開けなくなります。
+                                <strong className="text-white/85">写真そのものは消えません。</strong>
+                            </p>
+                            <div className="flex gap-2 justify-end mt-5">
+                                <button type="button" onClick={() => setConfirming(null)}
+                                    className="text-sm px-4" style={{ minHeight: 44 }}>やめる</button>
+                                <button type="button" onClick={() => remove(confirming)} aria-disabled={busy}
+                                    className="rounded-lg bg-white text-black text-sm px-4" style={{ minHeight: 44 }}>
+                                    消す
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 )}
             </div>
         </main>

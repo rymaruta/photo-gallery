@@ -347,6 +347,25 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  renameAlbum:
+    handler: src/albums.renameAlbum
+    events:
+      - httpApi:
+          path: /albums/{id}
+          method: PATCH
+          authorizer:
+            name: cognitoAuthorizer
+
+  # **写真は消さない。** 消すのは束ね方（アルバム・参加の印・招待リンク）。
+  deleteAlbum:
+    handler: src/albums.deleteAlbum
+    events:
+      - httpApi:
+          path: /albums/{id}
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
   createInvite:
     handler: src/albums.createInvite
     events:

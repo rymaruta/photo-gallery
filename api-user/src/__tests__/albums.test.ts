@@ -93,15 +93,14 @@ describe("createAlbum", () => {
             "上限なのに作っている").toBe(false);
     });
 
-    // **実行できない指示を出さない。** 「使わないものを消してください」と
-    // 書いていたが、**アルバムを消す口はまだ無い**（`deleteAlbum` は存在しない）。
-    // 上限に達した人が詰まる。削除を足したらこのテストを外してよい。
-    it("消す口が無いうちは、消せとは言わない", async () => {
+    // **案内する操作が実際にできること。** 「使わないものを消してください」と
+    // 言うなら、消す口が無いといけない（無い間は文言から落としていた）
+    it("消せと案内するなら、消す口がある", async () => {
         mockSend.mockResolvedValueOnce({ Item: { albumIds: Array.from({ length: ALBUMS_PER_USER }, (_, i) => `a${i}`) } });
         const r = await call(createAlbum, authed("u1", { title: "もう1つ" }));
-        const hasDelete = typeof (albumsModule as Record<string, unknown>).deleteAlbum === "function";
-        if (!hasDelete) {
-            expect(bodyOf(r).error, "消す口が無いのに「消してください」と言っている").not.toMatch(/消し|削除/);
+        if (/消し|削除/.test(String(bodyOf(r).error))) {
+            expect(typeof (albumsModule as Record<string, unknown>).deleteAlbum,
+                "消せない口を案内している").toBe("function");
         }
     });
 
@@ -115,7 +114,7 @@ describe("listAlbums", () => {
     it("自分のものだけ返す", async () => {
         mockSend
             .mockResolvedValueOnce({ Item: { albumIds: ["a1", "a2"] } })
-            .mockResolvedValueOnce({ Item: { id: "album#a1", ownerId: "u1", title: "旅1", memberCount: 2 } })
+            .mockResolvedValueOnce({ Item: { id: "album#a1", ownerId: "u1", title: "旅1", memberIds: ["u1", "u2"] } })
             .mockResolvedValueOnce({ Item: { id: "album#a2", ownerId: "other", title: "他人の" } });
         const r = await call(listAlbums, authed("u1"));
         expect(bodyOf(r).albums.map((a: { id: string }) => a.id)).toEqual(["a1"]);
@@ -239,7 +238,7 @@ describe("getInvite（未認証で読める）", () => {
     it("生きている招待はアルバムの概要を返す", async () => {
         mockSend
             .mockResolvedValueOnce(live())
-            .mockResolvedValueOnce({ Item: { id: "album#a1", ownerId: "u1", title: "北欧の冬", memberCount: 3 } });
+            .mockResolvedValueOnce({ Item: { id: "album#a1", ownerId: "u1", title: "北欧の冬", memberIds: ["u1", "u2", "u3"] } });
         const r = await call(getInvite, { pathParameters: { token: "a".repeat(32) } });
         expect(r.statusCode).toBe(200);
         expect(bodyOf(r).album).toEqual({ id: "a1", title: "北欧の冬", memberCount: 3 });
@@ -302,10 +301,10 @@ describe("joinAlbum（参加はログインが要る）", () => {
         expect((await call(joinAlbum, authed("u1", undefined, { token: "a".repeat(32) }))).statusCode).toBe(410);
     });
 
-    it("参加すると、印を書いて人数を増やす", async () => {
+    it("参加すると、印を書いて一覧に足す", async () => {
         mockSend
             .mockResolvedValueOnce(live)
-            .mockResolvedValueOnce({ Item: { id: "album#a1", ownerId: "u2", memberCount: 1 } })
+            .mockResolvedValueOnce({ Item: { id: "album#a1", ownerId: "u2", memberIds: ["u2"] } })
             .mockResolvedValueOnce({});                       // まだメンバーでない
         const r = await call(joinAlbum, authed("u1", undefined, { token: "a".repeat(32) }));
         expect(r.statusCode).toBe(200);
@@ -313,8 +312,11 @@ describe("joinAlbum（参加はログインが要る）", () => {
         expect(put, "参加の印を書いていない").toBeTruthy();
         // **二重に入れない**（同時に2回押されても印は1つ）
         expect(String(put!.ConditionExpression)).toContain("attribute_not_exists(id)");
-        expect(inputs().some((i) => String(i.UpdateExpression ?? "").includes("memberCount")),
-            "人数を増やしていない").toBe(true);
+        const add = inputs().find((i) => String(i.UpdateExpression ?? "").includes("memberIds"));
+        expect(add, "参加者の一覧に足していない").toBeTruthy();
+        // **同時に2人が参加しても上限を超えない／重複しない**（条件付き更新）
+        expect(String(add!.ConditionExpression)).toContain("size(memberIds) <");
+        expect(String(add!.ConditionExpression)).toContain("NOT contains(memberIds, :uid)");
     });
 
     // **何度押しても同じ結果になる。** 招待リンクは共有されるので、
@@ -322,7 +324,7 @@ describe("joinAlbum（参加はログインが要る）", () => {
     it("既に参加していれば、何も書かずに成功で返す", async () => {
         mockSend
             .mockResolvedValueOnce(live)
-            .mockResolvedValueOnce({ Item: { id: "album#a1", ownerId: "u2", memberCount: 2 } })
+            .mockResolvedValueOnce({ Item: { id: "album#a1", ownerId: "u2", memberIds: ["u2", "u3"] } })
             .mockResolvedValueOnce({ Item: { id: "albummember#a1#u1" } });
         const r = await call(joinAlbum, authed("u1", undefined, { token: "a".repeat(32) }));
         expect(r.statusCode).toBe(200);
@@ -334,7 +336,7 @@ describe("joinAlbum（参加はログインが要る）", () => {
     it("人数の上限に達していたら断る", async () => {
         mockSend
             .mockResolvedValueOnce(live)
-            .mockResolvedValueOnce({ Item: { id: "album#a1", ownerId: "u2", memberCount: MEMBERS_PER_ALBUM } })
+            .mockResolvedValueOnce({ Item: { id: "album#a1", ownerId: "u2", memberIds: Array.from({ length: MEMBERS_PER_ALBUM }, (_, i) => `m${i}`) } })
             .mockResolvedValueOnce({});
         const r = await call(joinAlbum, authed("u1", undefined, { token: "a".repeat(32) }));
         expect(r.statusCode).toBe(403);
@@ -520,5 +522,105 @@ describe("addPhotoToAlbum: 二度入れない", () => {
         const i = inputs()[0];
         expect(String(i.ConditionExpression), "同じ写真を二度入れられる").toContain("NOT contains(photoIds, :id)");
         expect((i.ExpressionAttributeValues as Record<string, unknown>)[":id"]).toBe("p1");
+    });
+});
+
+
+describe("renameAlbum", () => {
+    it("未認証は 401", async () => {
+        const r = await call(albumsModule.renameAlbum, { requestContext: { authorizer: { jwt: { claims: {} } } }, pathParameters: { id: "a1" }, body: "{}" });
+        expect(r.statusCode).toBe(401);
+    });
+
+    it("名前が空なら 400（書きに行かない）", async () => {
+        const r = await call(albumsModule.renameAlbum, authed("u1", { title: "  " }, { id: "a1" }));
+        expect(r.statusCode).toBe(400);
+        expect(mockSend).not.toHaveBeenCalled();
+    });
+
+    it("持ち主だけが変えられる（条件に ownerId が入る）", async () => {
+        const r = await call(albumsModule.renameAlbum, authed("u1", { title: "夏の旅" }, { id: "a1" }));
+        expect(r.statusCode).toBe(200);
+        const i = inputs()[0];
+        expect(String(i.UpdateExpression)).toContain("title = :t");
+        // **Get してから Update だと、その間に持ち主が変わる筋が残る**
+        expect(String(i.ConditionExpression), "持ち主を見ていない").toContain("ownerId = :me");
+    });
+
+    // **持ち主でなければ「無い」と返す**（実在を教えない）
+    it("持ち主でなければ 404", async () => {
+        mockSend.mockRejectedValueOnce(Object.assign(new Error("x"), { name: "ConditionalCheckFailedException" }));
+        expect((await call(albumsModule.renameAlbum, authed("u1", { title: "夏" }, { id: "a1" }))).statusCode).toBe(404);
+    });
+});
+
+describe("deleteAlbum", () => {
+    const deletedIds = () => mockSend.mock.calls
+        .map((c) => c[0] as { constructor: { name: string }; input: { Key?: { id?: string } } })
+        .filter((c) => c.constructor.name === "DeleteCommand")
+        .map((c) => String(c.input.Key?.id ?? ""));
+
+    it("持ち主でなければ 404（何も消さない）", async () => {
+        mockSend.mockResolvedValueOnce({ Item: { id: "album#a1", ownerId: "other" } });
+        const r = await call(albumsModule.deleteAlbum, authed("u1", undefined, { id: "a1" }));
+        expect(r.statusCode).toBe(404);
+        expect(deletedIds()).toEqual([]);
+    });
+
+    it("本体・参加の印を消し、一覧から外す", async () => {
+        mockSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand" && id === "album#a1") {
+                return Promise.resolve({ Item: { id, ownerId: "u1", memberIds: ["u1", "u2"] } });
+            }
+            if (cmd.constructor.name === "GetCommand" && id === "albums#u1") {
+                return Promise.resolve({ Item: { albumIds: ["a1", "a2"] } });
+            }
+            return Promise.resolve({});
+        });
+        const r = await call(albumsModule.deleteAlbum, authed("u1", undefined, { id: "a1" }));
+        expect(r.statusCode).toBe(200);
+        const del = deletedIds();
+        expect(del, "本体を消していない").toContain("album#a1");
+        // **参加の印は一覧からしか辿れない**（前方一致で列挙できないテーブル）
+        expect(del, "参加の印が残る").toContain("albummember#a1#u1");
+        expect(del).toContain("albummember#a1#u2");
+        const list = inputs().find((i) => String(i.UpdateExpression ?? "").includes("albumIds = :next"));
+        expect((list!.ExpressionAttributeValues as Record<string, unknown>)[":next"]).toEqual(["a2"]);
+    });
+
+    // **アルバムの行を先に消すと、`inviteToken` から辿れなくなって
+    // 取り消せないリンクが残る**
+    it("招待リンクを、本体を消す前に取り消す", async () => {
+        const tok = "t".repeat(32);
+        mockSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand" && id === "album#a1") {
+                return Promise.resolve({ Item: { id, ownerId: "u1", inviteToken: tok, memberIds: ["u1"] } });
+            }
+            return Promise.resolve({});
+        });
+        await call(albumsModule.deleteAlbum, authed("u1", undefined, { id: "a1" }));
+        const order = mockSend.mock.calls.map((c) => {
+            const cmd = c[0] as { constructor: { name: string }; input: { Key?: { id?: string } } };
+            return `${cmd.constructor.name}:${cmd.input.Key?.id ?? ""}`;
+        });
+        const revokeAt = order.findIndex((o) => o === `UpdateCommand:invite#${tok}`);
+        const deleteAt = order.findIndex((o) => o === "DeleteCommand:album#a1");
+        expect(revokeAt, "招待を取り消していない").toBeGreaterThanOrEqual(0);
+        expect(revokeAt, "本体を消したあとでは辿れない").toBeLessThan(deleteAt);
+    });
+
+    // **写真は消さない。** アルバムは束ねているだけ
+    it("写真は消さない", async () => {
+        mockSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand" && id === "album#a1") {
+                return Promise.resolve({ Item: { id, ownerId: "u1", memberIds: ["u1"], photoIds: ["p1", "p2"] } });
+            }
+            return Promise.resolve({});
+        });
+        await call(albumsModule.deleteAlbum, authed("u1", undefined, { id: "a1" }));
+        expect(deletedIds().some((d) => d === "p1" || d === "p2"), "写真まで消している").toBe(false);
     });
 });

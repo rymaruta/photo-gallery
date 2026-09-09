@@ -36,6 +36,17 @@ import {
 type AlbumItem = {
     id: string;
     photoIds?: unknown;
+    /**
+     * 参加者。**人数はここから数える**（別のカウンタを持たない）。
+     *
+     * このテーブルはソートキーが無いので `albummember#<albumId>#…` を
+     * 前方一致で列挙できない——**アルバムを消すときに参加の印を掃除
+     * できるようにする**ために、行にも持つ。上限は `MEMBERS_PER_ALBUM`。
+     *
+     * 以前は `memberCount` を原子加算していたが、印の書き込みと二重管理に
+     * なり、加算だけ失敗するとずれた（しかも減る口が無い）。一本にした。
+     */
+    memberIds?: unknown;
     ownerId?: string;
     title?: string;
     createdAt?: string;
@@ -47,6 +58,20 @@ type AlbumItem = {
 async function getAlbum(albumId: string): Promise<AlbumItem | null> {
     const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: albumKey(albumId) } }));
     return (res.Item as AlbumItem | undefined) ?? null;
+}
+
+/** 参加者の一覧（読めない形なら空とみなす） */
+function memberIdsOf(album: AlbumItem | null): string[] {
+    return Array.isArray(album?.memberIds)
+        ? (album!.memberIds as unknown[]).filter((v): v is string => typeof v === "string")
+        : [];
+}
+
+/** 画面に返す人数。**一覧から数える**（古い行は memberCount に落とす） */
+function memberCountOf(album: AlbumItem | null): number {
+    const ids = memberIdsOf(album);
+    if (ids.length > 0) return ids.length;
+    return typeof album?.memberCount === "number" && album.memberCount > 0 ? album.memberCount : 1;
 }
 
 async function listOwnAlbumIds(userId: string): Promise<string[]> {
@@ -73,14 +98,13 @@ export const createAlbum: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     // **上限は「作る前」に見る。** 作ってから一覧に入れられないと、
     // どこからも辿れないアルバムが残る
     if (existing.length >= ALBUMS_PER_USER) {
-        // **「消してください」と書かない。** アルバムを消す口はまだ無い
-        // ——実行できない指示を出すと、上限に達した人が詰まる
-        return jsonError(403, `アルバムは${ALBUMS_PER_USER}個までです`);
+        // 消す口ができたので、案内してよい（`deleteAlbum`）
+        return jsonError(403, `アルバムは${ALBUMS_PER_USER}個までです。使わないものを消してください`);
     }
 
     const albumId = randomUUID();
     const now = new Date().toISOString();
-    const album: AlbumItem = { id: albumKey(albumId), ownerId: userId, title, createdAt: now, memberCount: 1 };
+    const album: AlbumItem = { id: albumKey(albumId), ownerId: userId, title, createdAt: now, memberIds: [userId] };
     await ddb.send(new PutCommand({
         TableName: PHOTOS_TABLE,
         Item: album,
@@ -132,7 +156,7 @@ export const listAlbums: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
             id,
             title: a.title ?? "",
             createdAt: a.createdAt ?? "",
-            memberCount: typeof a.memberCount === "number" ? a.memberCount : 1,
+            memberCount: memberCountOf(a),
             inviteToken: a.inviteToken,
             inviteExpiresAt: a.inviteExpiresAt,
         });
@@ -317,7 +341,7 @@ export const getInvite: APIGatewayProxyHandlerV2 = async (event) => {
             album: {
                 id: invite!.albumId,
                 title: album.title ?? "",
-                memberCount: typeof album.memberCount === "number" ? album.memberCount : 1,
+                memberCount: memberCountOf(album),
                 // **枚数は返さない。** `photoIds` は消された写真の ID を
                 // 持ち続けるので、数えると嘘になる（「写真5枚」なのに2枚しか
                 // 出ない）。出すなら全件引くことになり、未認証の口では引けない。
@@ -373,8 +397,7 @@ export const joinAlbum: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
 
     // **人数の上限は「入れる前」に見る。** 超えたら断る（黙って切り捨てない
     // ——`following` の2000人切り捨てと同じ形を作らない）
-    const count = typeof album.memberCount === "number" ? album.memberCount : 1;
-    if (count >= MEMBERS_PER_ALBUM) {
+    if (memberCountOf(album) >= MEMBERS_PER_ALBUM) {
         return jsonError(403, `このアルバムは${MEMBERS_PER_ALBUM}人までです`);
     }
 
@@ -384,15 +407,23 @@ export const joinAlbum: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // **二重に入れない。** 同時に2回押されても印は1つ
         ConditionExpression: "attribute_not_exists(id)",
     }));
-    // 人数は原子加算。印を書いてから増やす（逆にすると、印の書き込みが
-    // 失敗したときに人数だけ増える）
+    // 印を書いてから一覧に足す（逆にすると、印の書き込みが失敗したときに
+    // 人数だけ増える）。**上限と重複はここでも条件で見る**——同時に2人が
+    // 参加しても、条件付き更新なので上限を超えない
     await ddb.send(new UpdateCommand({
         TableName: PHOTOS_TABLE,
         Key: { id: albumKey(albumId) },
-        UpdateExpression: "SET memberCount = if_not_exists(memberCount, :one) + :one",
-        ConditionExpression: "attribute_exists(id)",
-        ExpressionAttributeValues: { ":one": 1 },
-    })).catch(() => undefined);
+        UpdateExpression: "SET memberIds = list_append(if_not_exists(memberIds, :empty), :one)",
+        ConditionExpression:
+            "attribute_exists(id) "
+            + "AND (attribute_not_exists(memberIds) OR size(memberIds) < :max) "
+            + "AND (attribute_not_exists(memberIds) OR NOT contains(memberIds, :uid))",
+        ExpressionAttributeValues: { ":empty": [], ":one": [userId], ":uid": userId, ":max": MEMBERS_PER_ALBUM },
+    })).catch((e) => {
+        // 印は書けているので参加は成立している。一覧に載らないと人数が
+        // 1人少なく見えるだけ（黙って握らずログは残す）
+        console.error(`joinAlbum: 参加者の一覧に足せませんでした（${albumId}/${userId}）:`, e);
+    });
 
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ albumId, joined: true }) };
 };
@@ -458,3 +489,99 @@ export async function removePhotoFromAlbum(albumId: string, photoId: string): Pr
         ExpressionAttributeValues: { ":next": ids.filter((v) => v !== photoId), ":prev": ids },
     }));
 }
+
+
+/** PATCH /albums/{id} — アルバムの名前を変える（持ち主だけ） */
+export const renameAlbum: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const userId = getUserId(event);
+    if (!userId) return jsonError(401, "認証が必要です");
+    const albumId = event.pathParameters?.id;
+    if (!albumId) return jsonError(400, "アルバムが指定されていません");
+
+    let body: { title?: unknown };
+    try {
+        body = JSON.parse(event.body ?? "{}") as typeof body;
+    } catch {
+        return jsonError(400, "不正なリクエスト");
+    }
+    const title = sanitizeText(body.title, ALBUM_TITLE_MAX);
+    if (!title) return jsonError(400, "アルバムの名前を入れてください");
+
+    try {
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: albumKey(albumId) },
+            UpdateExpression: "SET title = :t",
+            // **持ち主だけ。** Get で確かめてから Update すると、その間に
+            // 持ち主が変わる筋が残る（`createInvite` と同じ形）
+            ConditionExpression: "attribute_exists(id) AND ownerId = :me",
+            ExpressionAttributeValues: { ":t": title, ":me": userId },
+        }));
+    } catch (e) {
+        if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
+            // **持ち主でなければ「無い」と返す**（実在を教えない）
+            return jsonError(404, "アルバムが見つかりません");
+        }
+        throw e;
+    }
+    return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true, title }) };
+};
+
+/**
+ * DELETE /albums/{id} — アルバムを消す（持ち主だけ）。
+ *
+ * **写真は消さない。** アルバムは束ねているだけで、写真そのものは
+ * 投稿した人のもの。消すのは束ね方（アルバム・参加の印・招待リンク）。
+ *
+ * 消す順番: **招待を先に取り消す**——アルバムの行を先に消すと、
+ * `album.inviteToken` から辿れなくなって**取り消せないリンクが残る**。
+ */
+export const deleteAlbum: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const userId = getUserId(event);
+    if (!userId) return jsonError(401, "認証が必要です");
+    const albumId = event.pathParameters?.id;
+    if (!albumId) return jsonError(400, "アルバムが指定されていません");
+
+    const album = await getAlbum(albumId);
+    if (!album || album.ownerId !== userId) return jsonError(404, "アルバムが見つかりません");
+
+    // 1. 招待リンクを取り消す（**アルバムを消す前に**。あとからでは辿れない）
+    if (album.inviteToken && isValidInviteToken(album.inviteToken)) {
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: inviteKey(album.inviteToken) },
+            UpdateExpression: "SET revoked = :t",
+            ConditionExpression: "attribute_exists(id)",
+            ExpressionAttributeValues: { ":t": true },
+        })).catch(() => undefined);
+    }
+
+    // 2. 参加の印。**一覧からしか辿れない**（このテーブルはソートキーが無いので
+    //    `albummember#<albumId>#…` を前方一致で列挙できない）
+    for (const memberId of memberIdsOf(album)) {
+        await ddb.send(new DeleteCommand({
+            TableName: PHOTOS_TABLE, Key: { id: albumMemberKey(albumId, memberId) },
+        })).catch(() => undefined);
+    }
+
+    // 3. アルバム本体
+    await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: albumKey(albumId) } }));
+
+    // 4. 持ち主の一覧から外す。**本体を消してから**——先に外すと、途中で
+    //    失敗したときにどこからも辿れないアルバムが残る
+    const ids = await listOwnAlbumIds(userId);
+    if (ids.includes(albumId)) {
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: albumsOfUserKey(userId) },
+            UpdateExpression: "SET albumIds = :next",
+            // その間に別のアルバムが増えていたら何もしない（取りこぼさない）
+            ConditionExpression: "albumIds = :prev",
+            ExpressionAttributeValues: { ":next": ids.filter((v) => v !== albumId), ":prev": ids },
+        })).catch((e) => {
+            console.error(`deleteAlbum: 一覧から外せませんでした（${albumId}）:`, e);
+        });
+    }
+
+    return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) };
+};
