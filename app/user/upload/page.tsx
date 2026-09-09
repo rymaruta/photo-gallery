@@ -185,6 +185,14 @@ function UploadPageInner() {
     const { showToast } = useToast();
 
     const fromShare = searchParams?.get("from") === "share";
+    /**
+     * 共同アルバムに入れる場合の行き先（案C）。招待ページの
+     * 「写真を追加する」が `?album=<id>` を付けて送ってくる。
+     *
+     * **付いていても、メンバーでなければサーバーが断る**（404）。ここは
+     * 「どこに入れるつもりか」を運ぶだけで、権限の判断はしていない。
+     */
+    const albumId = searchParams?.get("album") || "";
 
     const [items, setItems] = useState<Item[]>([]);
     /**
@@ -899,6 +907,8 @@ function UploadPageInner() {
                             ...(blurDataURL ? { blurDataURL } : {}),
                             ...(thumbUrl ? { thumbUrl } : {}),
                             ...(Object.keys(cameraExif).length > 0 ? { exif: cameraExif } : {}),
+                            // 共同アルバム（案C）。メンバーでなければサーバーが断る
+                            ...(albumId ? { albumId } : {}),
                         }),
                     });
                     if (!saveResponse.ok) {
@@ -999,7 +1009,7 @@ function UploadPageInner() {
             setStopping(false);
             uploadAbortRef.current = null;
         }
-    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys]);
+    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId]);
 
     // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;

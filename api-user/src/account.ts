@@ -9,6 +9,7 @@ import { invalidateUploads } from "./cdnInvalidate";
 import { requireEnv } from "./env";
 import { requestSiteRebuild } from "./rebuild";
 import { isDeletedProfile } from "./types";
+import { albumKey, albumMemberKey, albumsOfUserKey } from "./invite";
 
 // 退会（アカウント削除）。DELETE /user/account、認証必須、呼び出し元の sub のみ対象。
 // 不可逆な破壊操作のため「確実に引ける範囲を確実に消す」方針:
@@ -551,6 +552,38 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // 5. 自分の各ドキュメント（既知キー）
         await ddbDelete(PHOTOS_TABLE, { id: `notifs#${uid}` });
         await ddbDelete(PHOTOS_TABLE, { id: `followstats#${uid}` });
+
+        // 共同アルバム（案C）。**自分が作ったアルバムと、自分の参加の印を消す。**
+        // 残すと、退会した人のアルバムが招待リンクから開けたまま残り、
+        // 参加人数にも数え続ける（写真は上で消えているので、中身の無い
+        // アルバムだけが生き残る）。
+        //
+        // **招待の行（`invite#<token>`）は消さない。** トークンからしか
+        // 引けず、アルバムが消えていれば `getInvite` が「見つかりません」を
+        // 返すので、実害が無い（消すには一覧が要る＝新しい索引が要る）。
+        //
+        // 参加していた**他人のアルバム**からは抜けない——その印は
+        // `albummember#<albumId>#<uid>` で、`albumId` の一覧を持っていない。
+        // 人数が1人ぶん多いまま残るが、写真は消えており、他人のアルバムを
+        // 壊すよりは軽い。**ここは承知のうえで残している。**
+        try {
+            const albumsDoc = await ddb.send(new GetCommand({
+                TableName: PHOTOS_TABLE, Key: { id: albumsOfUserKey(uid) },
+            }));
+            const ids = Array.isArray(albumsDoc.Item?.albumIds)
+                ? (albumsDoc.Item.albumIds as unknown[]).filter((v): v is string => typeof v === "string")
+                : [];
+            for (const albumId of ids) {
+                await ddbDelete(PHOTOS_TABLE, { id: albumKey(albumId) });
+                await ddbDelete(PHOTOS_TABLE, { id: albumMemberKey(albumId, uid) });
+            }
+            await ddbDelete(PHOTOS_TABLE, { id: albumsOfUserKey(uid) });
+        } catch (e) {
+            // **止めない。** ここで 500 にすると、写真もプロフィールも消えたのに
+            // ログインできるアカウントだけが残る（下のフォロー掃除と同じ理由）。
+            // 黙って握らないようにログは残す
+            console.error(`deleteAccount: アルバムの掃除に失敗（${uid}）:`, e);
+        }
         if (followCleanupComplete) {
             await ddbDelete(PHOTOS_TABLE, { id: `following#${uid}` });
         } else {

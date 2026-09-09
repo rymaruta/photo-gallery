@@ -935,3 +935,59 @@ describe("退会の再実行で収束する", () => {
         expect(deletedDdbIds()).toContain("comments#p1");
     });
 });
+
+
+// **共同アルバム（案C）の掃除。**
+// 残すと、退会した人のアルバムが招待リンクから開けたまま残り、人数にも
+// 数え続ける（写真は消えているので、中身の無いアルバムだけが生き残る）。
+describe("deleteAccount: 共同アルバム", () => {
+    /** DynamoDB から削除したキー */
+    const deletedIds = () => mockDdbSend.mock.calls
+        .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand")
+        .map((c) => String(((c[0] as { input: { Key?: { id?: string } } }).input.Key ?? {}).id ?? ""));
+
+    function withAlbums(albumIds: string[] | undefined) {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                if (id === "albums#me") return Promise.resolve({ Item: albumIds ? { albumIds } : undefined });
+                return Promise.resolve({ Item: undefined });
+            }
+            return Promise.resolve({});
+        });
+    }
+
+    it("自分が作ったアルバムと、参加の印と、一覧を消す", async () => {
+        withAlbums(["a1", "a2"]);
+        const res = await invoke(deleteAccount, ev("me"));
+        expect(res.statusCode).toBe(200);
+        const ids = deletedIds();
+        expect(ids, "アルバムを消していない").toContain("album#a1");
+        expect(ids).toContain("album#a2");
+        expect(ids, "参加の印を消していない").toContain("albummember#a1#me");
+        expect(ids, "一覧を消していない").toContain("albums#me");
+    });
+
+    it("アルバムを持っていなくても、退会は成功する", async () => {
+        withAlbums(undefined);
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+    });
+
+    // **止めない。** ここで 500 にすると、写真もプロフィールも消えたのに
+    // ログインできるアカウントだけが残る（フォローの掃除と同じ理由）
+    it("アルバムの掃除に失敗しても、退会は止めない", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                if (id === "albums#me") return Promise.reject(new Error("throttled"));
+                return Promise.resolve({ Item: undefined });
+            }
+            return Promise.resolve({});
+        });
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+    });
+});
