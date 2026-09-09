@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { indexState, createIndexInput, isPublicPhoto, INDEX_NAME, PUBLIC_FEED_KEY } from "../add-public-feed-index.js";
 
 // 公開一覧用 GSI の移行スクリプト（`add-story-index.js` の写真版）。
@@ -120,8 +122,7 @@ describe("isPublicPhoto: 印を付ける対象", () => {
 describe("印の値", () => {
     // ずれると、埋め戻した行が索引の別の場所に入って一覧に出ない
     it("api / api-user の publicFeed.ts と同じ", () => {
-        const src = require("node:fs").readFileSync(
-            require("node:path").join(__dirname, "..", "..", "api-user", "src", "publicFeed.ts"), "utf8");
+        const src = readFileSync(join(__dirname, "..", "..", "api-user", "src", "publicFeed.ts"), "utf8");
         const m = /export const PUBLIC_FEED_KEY = "([^"]*)"/.exec(src);
         expect(m, "publicFeed.ts から値を読めない").not.toBeNull();
         expect(PUBLIC_FEED_KEY).toBe(m![1]);

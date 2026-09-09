@@ -1,6 +1,7 @@
 "use client";
 
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
+import { dedupeCameraName } from "../../../lib/utils/cameraName";
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useBottomBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -655,7 +656,9 @@ function EditContent() {
     const ex = photo.exif ?? {};
     // 撮影日時は生の保存値ではなく整形して出す（他の3か所と同じ）。
     // ここだけ抜けていて "2024-11-01T07:30:00" がそのまま並んでいた。
-    const exifSummary = [ex.camera, ex.lens,
+    // 機材名は保存済みの値に二重のメーカー名が混じる（表示だけ直す。
+    // **入力欄には当てない**——落とした値が保存の差分の比較先に入る）
+    const exifSummary = [dedupeCameraName(ex.camera), ex.lens,
         formatStoredDateTime(ex.dateTimeOriginal, locale === "en" ? "en" : "ja")]
         .filter(Boolean).join(" · ");
 

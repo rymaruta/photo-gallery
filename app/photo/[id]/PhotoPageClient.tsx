@@ -26,7 +26,7 @@ import CommentSection from "../../components/CommentSection";
 import { relatedSections, adjacentPhotos } from "../../../lib/utils/related";
 import { ROUTES } from "../../../lib/routes";
 import { formatMapHash, PHOTO_LINK_ZOOM } from "../../../lib/utils/mapView";
-import { formatCameraName } from "../../../lib/utils/cameraName";
+import { formatCameraName, dedupeCameraName } from "../../../lib/utils/cameraName";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
@@ -458,7 +458,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
             // 「Hasselblad Hasselblad X2D 100C」になる。アップロード側は前から
             // 同じ関数で畳んでいた（`lib/utils/exif.ts`）——画面で抽出する経路だけ
             // 素のままだった
-            camera: formatCameraName(extracted.Make, extracted.Model) || fallback.camera || undefined,
+            // 控え（保存済みの値）には二重のメーカー名が混じるので、そこも通す
+            camera: formatCameraName(extracted.Make, extracted.Model) || dedupeCameraName(fallback.camera) || undefined,
             lens: extracted.LensModel || fallback.lens || undefined,
             aperture: extracted.FNumber 
                 ? `f/${extracted.FNumber}` 
