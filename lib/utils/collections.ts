@@ -3,11 +3,25 @@
 // fs や JSX を持たないため、サーバー・クライアント・テストのどこからでも読める。
 
 import type { Photo } from "../data/photos";
+import { dedupeCameraName } from "./cameraName";
 import { sortByNewest } from "./photoOrder";
 import { sameLocation } from "./related";
 import { stripLoneSurrogates } from "./text";
 
-export type CollectionType = "tag" | "location" | "category";
+/**
+ * 集約ページの種類。
+ *
+ * `camera` は 2026-09-09 に追加。**同じ機械に鍵を1つ挿すだけ**で、
+ * sitemap・OGP・JSON-LD・404救済・相互リンクが丸ごと付いてくる。
+ *
+ * **数えて分かったこと**（公開30枚・索引に載る条件は3枚以上）:
+ *   タグ 62種→7ページ / カテゴリ 10種→4ページ /
+ *   **撮影地 14種→0ページ（全部 noindex）** / 機材 4種→2ページ
+ * 撮影地は「パリ, フランス」のように1枚ずつ違う名前で散るので、いまのデータ
+ * では1ページも検索に載らない（束ねる階層が要る＝コードではなくデータの話）。
+ * 機材は SONY の2機種だけで公開30枚のうち24枚を覆う。
+ */
+export type CollectionType = "tag" | "location" | "category" | "camera";
 
 /**
  * カテゴリの日本語表記を英語キーへ寄せる表。
@@ -235,6 +249,14 @@ function valuesFor(p: Photo, type: CollectionType): string[] {
     if (type === "location") {
         return p.location ? [p.location.toString().trim()].filter(Boolean) : [];
     }
+    if (type === "camera") {
+        // **`dedupeCameraName` を必ず通す。** 保存済みの値には二重のメーカー名が
+        // 残っている（実データに "Hasselblad Hasselblad X2D II 100C"）。
+        // 通さないと**同じ機種が2つに割れる**（片方は永久に1枚のまま noindex）。
+        const raw = (p.exif as { camera?: unknown } | undefined)?.camera;
+        const camera = typeof raw === "string" ? dedupeCameraName(raw) : undefined;
+        return camera ? [camera] : [];
+    }
     // category
     return p.category ? [p.category.toString().trim()].filter(Boolean) : [];
 }
@@ -335,7 +357,7 @@ export function labelForSlug(photos: Photo[], type: CollectionType, slug: string
     }
 }
 
-const TYPE_PATH: Record<CollectionType, string> = { tag: "tag", location: "location", category: "category" };
+const TYPE_PATH: Record<CollectionType, string> = { tag: "tag", location: "location", category: "category", camera: "camera" };
 
 /** 集約ページの相対 URL（/tag/<encoded slug> 等） */
 export function collectionPath(type: CollectionType, slug: string): string {
@@ -382,13 +404,20 @@ export type CollectionCopy = { title: string; description: string; heading: stri
 
 /** ランディングページの見出し・メタ文言（日本語主体・ページ固有の導入文つき） */
 export function collectionCopy(type: CollectionType, label: string, count: number): CollectionCopy {
-    const kindJa = type === "tag" ? "タグ" : type === "location" ? "撮影地" : "カテゴリ";
+    const kindJa = type === "tag" ? "タグ" : type === "location" ? "撮影地"
+        : type === "camera" ? "カメラ" : "カテゴリ";
     const heading =
-        type === "location" ? `${label}の写真` : type === "category" ? `${label}の写真` : `#${label} の写真`;
+        type === "location" || type === "category" ? `${label}の写真`
+            : type === "camera" ? `${label} で撮った写真`
+                : `#${label} の写真`;
     // サイト名は app/layout.tsx の `template` が付ける（同上）
     const title = `${label}の写真${count ? `（${count}枚）` : ""}`;
     const description =
-        type === "location"
+        type === "camera"
+            // 機材名で検索する人に向けた文。作例・設定（絞り・シャッター速度・ISO）が
+            // このページの中身なので、それを名指しする
+            ? `${label} で撮影した旅の写真${count ? `${count}枚` : ""}を掲載。絞り・シャッター速度・ISO・レンズ（EXIF）と撮影地つきで、実際の作例をまとめています。${label} の作例をお探しの方へ。`
+            : type === "location"
             ? `${label}で撮影した旅の写真${count ? `${count}枚` : ""}を掲載。現地で切り取った風景やスナップを、撮影地・カメラ情報（EXIF）付きで紹介します。${label}への旅の参考にどうぞ。`
             : type === "category"
                 ? `${label}カテゴリの旅写真${count ? `${count}枚` : ""}を掲載。国内外の旅先で撮影した${label}の作品を、撮影地やカメラ情報（EXIF）と合わせて閲覧できます。`

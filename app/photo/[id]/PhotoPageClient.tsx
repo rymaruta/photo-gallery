@@ -815,11 +815,16 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
 
                 {/* EXIF情報: カメラのスペックシート風カード（ラベル上・値下の2列グリッド） */}
                 {(() => {
-                    const specs: Array<{ label: string; value: string; wide?: boolean }> = [];
-                    const add = (label: string, value: string | number | undefined | null, wide = false) => {
-                        if (value !== undefined && value !== null && `${value}`.trim() !== "") specs.push({ label, value: `${value}`, wide });
+                    const specs: Array<{ label: string; value: string; wide?: boolean; href?: string }> = [];
+                    const add = (label: string, value: string | number | undefined | null, wide = false, href?: string) => {
+                        if (value !== undefined && value !== null && `${value}`.trim() !== "") specs.push({ label, value: `${value}`, wide, href });
                     };
-                    add(locale === "en" ? "Camera" : "カメラ", mergedExif.camera);
+                    // **機種名からその機材の一覧へ行けるようにする。**
+                    // 撮影地・カテゴリ・タグは前から集約ページへ繋いであるのに、
+                    // カメラだけ行き止まりだった。sitemap に載せても内部リンクが
+                    // 1本も無いページは辿ってもらえない。
+                    add(locale === "en" ? "Camera" : "カメラ", mergedExif.camera, false,
+                        mergedExif.camera ? collectionPath("camera", slugify(mergedExif.camera)) : undefined);
                     add(locale === "en" ? "Lens" : "レンズ", mergedExif.lens);
                     add(locale === "en" ? "Aperture" : "絞り", mergedExif.aperture);
                     add(locale === "en" ? "Shutter" : "シャッター速度", mergedExif.exposure);
@@ -849,7 +854,13 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                 {specs.map((s) => (
                                     <div key={s.label} className={s.wide ? "col-span-2" : ""}>
                                         <dt className="text-[10px] uppercase tracking-wider text-white/50">{s.label}</dt>
-                                        <dd className="text-[13px] text-white/85 mt-0.5 break-words">{s.value}</dd>
+                                        <dd className="text-[13px] text-white/85 mt-0.5 break-words">
+                                            {/* リンクにするのは行き先がある項目だけ。
+                                                見た目（大きさ・色）は変えず、下線だけで示す */}
+                                            {s.href
+                                                ? <Link href={s.href} className="underline decoration-white/30 underline-offset-2 hover:decoration-white/70">{s.value}</Link>
+                                                : s.value}
+                                        </dd>
                                     </div>
                                 ))}
                             </dl>

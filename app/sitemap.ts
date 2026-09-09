@@ -61,7 +61,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     // 集約（ランディング）ページ: タグ / 撮影地 / カテゴリ。ロングテール検索の受け皿。
     // lastModified は「その集約内で最も新しい写真」の日時、代表画像も添える。
-    const collectionUrls: MetadataRoute.Sitemap = (["tag", "location", "category"] as CollectionType[])
+    const collectionUrls: MetadataRoute.Sitemap = (["tag", "location", "category", "camera"] as CollectionType[])
         .flatMap((type) =>
             // 写真が少ないページはサイトマップに載せない（noindex と揃える）
             collectEntries(photos, type).filter((e) => isIndexableCollection(e.count)).map((e) => {

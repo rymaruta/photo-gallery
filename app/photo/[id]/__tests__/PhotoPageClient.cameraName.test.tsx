@@ -87,3 +87,39 @@ describe("写真ページ: 端末で抽出できなかったときの控え", ()
         await screen.findByText("SONY ILCE-7M3");
     });
 });
+
+// **機種名から、その機材の一覧へ行けること。**
+// 撮影地・カテゴリ・タグは前から集約ページへ繋いであるのに、カメラだけ
+// 行き止まりだった。sitemap に載せても内部リンクが1本も無いページは
+// 辿ってもらえない（このリポジトリは「関数は書いたが配線していない」を
+// 5回踏んでいる）。
+describe("写真ページ: カメラ名から機材ページへ", () => {
+    it("機種名がリンクになっている", async () => {
+        mockParse.mockResolvedValue({ Make: "SONY", Model: "ILCE-7M3" });
+        render(<PhotoPageClient photoId="p1" initialPhoto={base} />);
+        fireEvent.load(screen.getByAltText(/写真/));
+        const link = await screen.findByRole("link", { name: "SONY ILCE-7M3" });
+        expect(link).toHaveAttribute("href", "/camera/sony-ilce-7m3");
+    });
+
+    // **畳んだ名前で繋ぐ。** 二重のままだと、その1枚だけが別の機種の
+    // ページへ行き、そこは永久に1枚（noindex）になる
+    it("二重のメーカー名でも、畳んだ名前のページへ繋ぐ", async () => {
+        mockParse.mockResolvedValue(null);
+        render(<PhotoPageClient photoId="p1" initialPhoto={{
+            ...base, exif: { camera: "Hasselblad Hasselblad X2D II 100C" },
+        }} />);
+        fireEvent.load(screen.getByAltText(/写真/));
+        const link = await screen.findByRole("link", { name: "Hasselblad X2D II 100C" });
+        expect(link).toHaveAttribute("href", "/camera/hasselblad-x2d-ii-100c");
+    });
+
+    // 行き先の無い項目はリンクにしない（絞り・ISO 等）
+    it("カメラ以外の撮影情報はリンクにしない", async () => {
+        mockParse.mockResolvedValue({ Make: "SONY", Model: "ILCE-7M3", FNumber: 4 });
+        render(<PhotoPageClient photoId="p1" initialPhoto={base} />);
+        fireEvent.load(screen.getByAltText(/写真/));
+        await screen.findByText("f/4");
+        expect(screen.queryByRole("link", { name: "f/4" })).toBeNull();
+    });
+});
