@@ -56,13 +56,24 @@ describe("公開一覧の GSI: 2パッケージの写しが一致する", () => 
     // **索引名は AWS 側の実体と一致していないと意味がない。**
     // 作る側（provision-env.js）と読む側の綴りが違うと、Query が
     // ValidationException で落ちる＝公開一覧が丸ごと出なくなる。
-    it("provision-env.js が同じ名前の索引を作る", () => {
+    it("provision-env.js が同じ名前・同じキーの組で索引を作る", () => {
         const provision = readFileSync(join(root, "scripts/provision-env.js"), "utf8");
         const indexName = constOf(SOURCES[0].rel, "PUBLIC_INDEX")!;
         expect(provision).toContain(`IndexName: "${indexName}"`);
-        // キーの組も見る（名前だけ合っていて中身が違うと、載る行が変わる）
-        expect(provision).toMatch(/\{ AttributeName: "publicFeed", KeyType: "HASH" \}/);
-        expect(provision).toMatch(/\{ AttributeName: "createdAt", KeyType: "RANGE" \}/);
+
+        // **その索引の定義の中だけを見る。** 最初はファイル全体に対して
+        // `{ AttributeName: "createdAt", KeyType: "RANGE" }` を探していたが、
+        // これは**既存の userId-createdAt-index の同じ行に当たる**ので、
+        // publicFeed 索引のソートキーを別の属性に差し替えても通っていた
+        // （レビューが変異で実証）。名前から Projection までを切り出す。
+        const from = provision.indexOf(`IndexName: "${indexName}"`);
+        const to = provision.indexOf("Projection:", from);
+        expect(from, "索引の定義が見つからない").toBeGreaterThan(-1);
+        expect(to, "Projection まで届かない（定義の形が変わった？）").toBeGreaterThan(from);
+        const block = provision.slice(from, to);
+        expect(block, "パーティションキーが publicFeed でない").toMatch(/\{ AttributeName: "publicFeed", KeyType: "HASH" \}/);
+        expect(block, "ソートキーが createdAt でない（載る行と並びが変わる）").toMatch(/\{ AttributeName: "createdAt", KeyType: "RANGE" \}/);
+
         // 属性定義が無いと CreateTable 自体が通らない
         expect(provision).toContain('{ AttributeName: "publicFeed", AttributeType: "S" }');
     });

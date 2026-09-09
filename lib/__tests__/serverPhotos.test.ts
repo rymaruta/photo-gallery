@@ -13,10 +13,10 @@ import type { Photo } from "../data/photos";
 describe("静的ページに渡す前に落とす項目", () => {
     const photo = {
         id: "p1", src: "https://cdn/x.jpg", title: "あ",
-        srcOriginal: "https://cdn/x_orig.jpg", key: "uploads/u/x.jpg", staticStale: true,
+        srcOriginal: "https://cdn/x_orig.jpg", key: "uploads/u/x.jpg", staticStale: true, publicFeed: "1",
     } as unknown as Photo;
 
-    it.each(["srcOriginal", "key", "staticStale"])("%s は渡さない", (field) => {
+    it.each(["srcOriginal", "key", "staticStale", "publicFeed"])("%s は渡さない", (field) => {
         const [out] = stripPrivateFields([photo]) as unknown as Array<Record<string, unknown>>;
         expect(out[field], `${field} が静的ページに焼かれる`).toBeUndefined();
     });

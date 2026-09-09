@@ -154,10 +154,10 @@ describe("公開JSONから落とす項目", () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { stripPrivateFields, PRIVATE_FIELDS } = require("../sync-photos-from-ddb.js");
 
-    it.each(["srcOriginal", "key", "staticStale"])("%s は出さない", (field) => {
+    it.each(["srcOriginal", "key", "staticStale", "publicFeed"])("%s は出さない", (field) => {
         const out = stripPrivateFields({
             id: "p1", src: "https://cdn/x.jpg", title: "あ",
-            srcOriginal: "https://cdn/x_orig.jpg", key: "uploads/u/x.jpg", staticStale: true,
+            srcOriginal: "https://cdn/x_orig.jpg", key: "uploads/u/x.jpg", staticStale: true, publicFeed: "1",
         });
         expect(out[field], `${field} が公開JSONに載っている`).toBeUndefined();
         expect(PRIVATE_FIELDS).toContain(field);

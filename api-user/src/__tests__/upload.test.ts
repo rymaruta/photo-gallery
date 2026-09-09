@@ -238,6 +238,9 @@ describe("savePhoto: 公開したら静的サイトを作り直してもらう",
         const res = await invoke(event("u1", { ...BASE, published: false }));
         expect(res.statusCode).toBe(200);
         expect(savedRewrite().published, "下書きに書き換わっている").toBe(false);
+        // **印も一緒に落ちる。** いまは丸ごと Put なので構造上そうなるが、
+        // `overwriteOwnPhoto` が部分更新に変われば静かに壊れる場所
+        expect("publicFeed" in savedRewrite(), "下書きなのに一覧に出る").toBe(false);
         expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
     });
 

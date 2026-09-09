@@ -121,7 +121,10 @@ function checkWriteSafety(nextCount, prevCount, { allowEmpty = ALLOW_EMPTY } = {
 //      古い数から「確実に嘘の 0」への入れ替えになる。
 //
 // 落とすなら、この2つを「未取得」と「0」で分けてからにすること。
-const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "commentCount"];
+// **`publicFeed` も落とす。** 公開一覧用 GSI に載せるための**内部の印**で、
+// 段階4のあとは「一覧に載っているかどうか」そのものになる。外に出す理由が
+// 無い（`staticStale` を同じ理由で落としているのと対）。
+const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "commentCount", "publicFeed"];
 
 function stripPrivateFields(item) {
     const out = { ...item };

@@ -21,7 +21,10 @@ import { siteConfig } from "@/lib/utils/seo";
 // 付くのは非公開の写真だけだが、**再公開の順序次第で公開中の行に残る**
 // ——非公開化が届かず印が立ち、そのあとの再公開が畳まれると
 // `published: true` のまま印が残り、この口から読める。
-const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale"] as const;
+// **`publicFeed` も落とす。** 公開一覧用 GSI に載せるための**内部の印**で、
+// 段階4のあとは「一覧に載っているかどうか」そのものになる。外に出す理由が
+// 無い（`staticStale` を同じ理由で落としているのと対）。
+const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "publicFeed"] as const;
 
 export function stripPrivateFields(photos: Photo[]): Photo[] {
     return photos.map((p) => {
