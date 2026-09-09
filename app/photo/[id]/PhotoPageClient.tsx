@@ -14,6 +14,7 @@ import { parseMusicEmbed } from "../../../lib/utils/music";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { type SongEntry } from "../../music/MusicContext";
 import MusicCard from "../../components/MusicCard";
+import SongArtwork from "../../components/SongArtwork";
 import { MusicalNoteIcon, XMarkIcon, MapPinIcon, CameraIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../../auth/context";
 import { useToast } from "../../../lib/hooks/useToast";
@@ -964,8 +965,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                                         onClick={() => void savePhotoSong({ title: r.title, artist: r.artist, artwork: r.artwork, previewUrl: r.previewUrl, trackUrl: r.trackUrl })}
                                                         className="w-full flex items-center gap-2.5 p-2 hover:bg-white/5 active:bg-white/10 transition text-left"
                                                     >
-                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                        <img src={r.artwork} alt="" loading="lazy" className="w-8 h-8 rounded object-cover bg-white/10 flex-shrink-0" />
+                                                        <SongArtwork src={r.artwork} className="w-8 h-8 rounded object-cover bg-white/10 flex-shrink-0" />
                                                         <div className="min-w-0 flex-1">
                                                             <p className="text-xs text-white truncate">{r.title}</p>
                                                             <p className="text-[11px] text-white/50 truncate">{r.artist}</p>

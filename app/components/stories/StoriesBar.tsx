@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { PlusIcon, XMarkIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import UserAvatar from "../UserAvatar";
+import SongArtwork from "../SongArtwork";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
@@ -757,8 +758,7 @@ export default function StoriesBar() {
                         {draftSong ? (
                             <div className="rounded-2xl bg-black/50 backdrop-blur-sm ring-1 ring-white/10 p-2.5 space-y-2.5">
                                 <div className="flex items-center gap-2.5">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={draftSong.artwork} alt="" className="w-9 h-9 rounded-lg object-cover bg-white/10 flex-shrink-0" />
+                                    <SongArtwork src={draftSong.artwork} className="w-9 h-9 rounded-lg object-cover bg-white/10 flex-shrink-0" />
                                     <div className="min-w-0 flex-1">
                                         <p className="text-xs text-white truncate">{draftSong.title}</p>
                                         <p className="text-[11px] text-white/50 truncate">{draftSong.artist}</p>
@@ -905,8 +905,7 @@ export default function StoriesBar() {
                                                         ? (locale === "en" ? `Pause ${r.title}` : `${r.title} を停止`)
                                                         : (locale === "en" ? `Play ${r.title}` : `${r.title} を試聴`)}
                                                 >
-                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                    <img src={r.artwork} alt="" loading="lazy" className="w-full h-full object-cover bg-white/10" />
+                                                    <SongArtwork src={r.artwork} className="w-full h-full object-cover bg-white/10" />
                                                     <span className="absolute inset-0 bg-black/45 flex items-center justify-center">
                                                         {previewingId === r.id
                                                             ? <PauseIcon className="w-4 h-4 text-white" />

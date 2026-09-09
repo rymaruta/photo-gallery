@@ -19,6 +19,7 @@ import { isImeKey } from "../../../lib/utils/ime";
 import { log } from "../../../lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
 import DeleteAccountModal from "../../components/DeleteAccountModal";
+import SongArtwork from "../../components/SongArtwork";
 import { loginWithNext } from "../../../lib/routes";
 
 type SongEntry = {
@@ -837,8 +838,10 @@ export default function ProfileEditPage() {
                                 {selectedSongs.map((song, idx) => (
                                     <li key={song.previewUrl} className="flex items-center gap-2 rounded-xl bg-white/5 ring-1 ring-white/10 p-2">
                                         <span className="w-4 text-center text-xs text-white/50 tabular-nums flex-shrink-0">{idx + 1}</span>
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img src={song.artwork} alt="" loading="lazy" className="w-9 h-9 rounded-md object-cover bg-white/10 flex-shrink-0" />
+                                        {/* **保存された値をそのまま読み込まない。** ここは
+                                            `GET /user/profile` が返した行そのもので、許可リスト
+                                            以前の曲は任意のホストのまま残りうる（`SongArtwork`） */}
+                                        <SongArtwork src={song.artwork} className="w-9 h-9 rounded-md object-cover bg-white/10 flex-shrink-0" />
                                         <div className="min-w-0 flex-1">
                                             <p className="text-xs text-white truncate">{song.title}</p>
                                             <p className="text-[11px] text-white/50 truncate">{song.artist}</p>
@@ -909,8 +912,7 @@ export default function ProfileEditPage() {
                                                     aria-label={isPreviewing ? `${song.title}を停止` : `${song.title}を試聴`}
                                                     className="relative w-10 h-10 ml-2 my-2 rounded-md overflow-hidden bg-white/10 flex-shrink-0 group"
                                                 >
-                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                    <img src={song.artwork} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+                                                    <SongArtwork src={song.artwork} className="absolute inset-0 w-full h-full object-cover" />
                                                     <span className={`absolute inset-0 flex items-center justify-center bg-black/45 ${isPreviewing ? "" : "opacity-0 group-hover:opacity-100"} transition-opacity`}>
                                                         {isPreviewing ? <PauseIcon className="w-4 h-4 text-white" /> : <PlayIcon className="w-4 h-4 text-white ml-0.5" />}
                                                     </span>
