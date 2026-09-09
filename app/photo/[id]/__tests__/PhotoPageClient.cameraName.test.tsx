@@ -57,3 +57,33 @@ describe("写真ページ: 画面で抽出したカメラ名", () => {
         await screen.findByText("Canon EOS R5");
     });
 });
+
+// **控えの経路。** 端末側の抽出が失敗したとき（原本の EXIF が落ちている・
+// exifr が読めない）は、保存済みの値をそのまま出していた。ところが
+// **保存済みの値には二重のメーカー名が残っている**（`formatCameraName` を
+// 使う前に保存された行。実データに "Hasselblad Hasselblad X2D II 100C" が実在）。
+//
+// この経路のテストが無かったので、`dedupeCameraName` を外す変異が
+// 642件すべて緑のまま通った（レビューが実証）。
+describe("写真ページ: 端末で抽出できなかったときの控え", () => {
+    const stored = {
+        ...base,
+        exif: { camera: "Hasselblad Hasselblad X2D II 100C", lens: "XCD 35-100E" },
+    };
+
+    it("保存済みの二重のメーカー名は畳んで出す", async () => {
+        mockParse.mockResolvedValue(null);   // 抽出できない
+        render(<PhotoPageClient photoId="p1" initialPhoto={stored} />);
+        fireEvent.load(screen.getByAltText(/写真/));
+        await screen.findByText("Hasselblad X2D II 100C");
+        expect(screen.queryByText(/Hasselblad Hasselblad/), "二重のまま出ている").toBeNull();
+    });
+
+    // **正常系**: 二重でない保存値はそのまま
+    it("二重でない保存値はそのまま出す", async () => {
+        mockParse.mockResolvedValue(null);
+        render(<PhotoPageClient photoId="p1" initialPhoto={{ ...stored, exif: { camera: "SONY ILCE-7M3" } }} />);
+        fireEvent.load(screen.getByAltText(/写真/));
+        await screen.findByText("SONY ILCE-7M3");
+    });
+});

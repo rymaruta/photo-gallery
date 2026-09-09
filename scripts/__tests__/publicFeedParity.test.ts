@@ -77,4 +77,28 @@ describe("公開一覧の GSI: 2パッケージの写しが一致する", () => 
         // 属性定義が無いと CreateTable 自体が通らない
         expect(provision).toContain('{ AttributeName: "publicFeed", AttributeType: "S" }');
     });
+
+    // **移行スクリプトの索引名も同じ網に入れる。**
+    // `addPublicFeedIndex.test.ts` の「索引名が定数と同じ」は**自分自身と
+    // 比べるトートロジー**で、綴りをずらす変異が642件すべて緑のまま通った
+    // （レビューが実証）。ずれると `--apply` が本番に**4本目の余計な GSI**を
+    // 作り、読む側は永久にそれを見ない。
+    it("移行スクリプトの索引名も同じ", () => {
+        const migration = readFileSync(join(root, "scripts/add-public-feed-index.js"), "utf8")
+            .replace(/\/\*[\s\S]*?\*\//g, " ")
+            .replace(/^\s*\/\/.*$/gm, " ");
+        const m = /const INDEX_NAME = "([^"]*)"/.exec(migration);
+        expect(m, "add-public-feed-index.js から索引名を読めない").not.toBeNull();
+        expect(m![1], "移行スクリプトの索引名がずれている").toBe(constOf(SOURCES[0].rel, "PUBLIC_INDEX"));
+    });
+
+    // 印の値も同じ網に（埋め戻した行が索引の別の場所に入る）
+    it("移行スクリプトの印の値も同じ", () => {
+        const migration = readFileSync(join(root, "scripts/add-public-feed-index.js"), "utf8")
+            .replace(/\/\*[\s\S]*?\*\//g, " ")
+            .replace(/^\s*\/\/.*$/gm, " ");
+        const m = /const PUBLIC_FEED_KEY = "([^"]*)"/.exec(migration);
+        expect(m, "add-public-feed-index.js から印の値を読めない").not.toBeNull();
+        expect(m![1], "移行スクリプトの印の値がずれている").toBe(constOf(SOURCES[0].rel, "PUBLIC_FEED_KEY"));
+    });
 });

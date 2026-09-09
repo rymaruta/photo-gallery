@@ -132,6 +132,8 @@ async function main() {
     let target = 0;
     let updated = 0;
     let vanished = 0;
+    /** CCF 以外で落ちた（スロットリング等）。緑にしてはいけない */
+    const failed = [];
     /** **索引に載せられない行**。0 でないと読む側を切り替えられない */
     const missingCreatedAt = [];
     let lastKey;
@@ -155,15 +157,29 @@ async function main() {
                     Key: { id: item.id },
                     UpdateExpression: "SET publicFeed = :k",
                     // **走査後に消えた・非公開になった行を蘇らせない／載せない。**
-                    // UpdateItem はキーが無ければ行を作る（api-user/src/photoUpdate.ts が
-                    // 同じ理由で同じ条件を付けている）。
+                    // UpdateItem はキーが無ければ行を作る（`photoUpdate.ts` が
+                    // 同じ理由で `attribute_exists(id)` を付けている。あちらは
+                    // 所有権を Get で確かめたあとなので条件はそれだけ）。
+                    //
+                    // **`published <> :f`（false でない）で書く。`= :t` ではない。**
+                    // 上の `isPublicPhoto` は `published !== false` で見ているので、
+                    // `= :t` だと boolean の true 以外（文字列の "true"・数値・null）を
+                    // 持つ古い行で**判定と条件がずれる**——ドライランでは「印が必要」と
+                    // 数えるのに apply では条件で弾かれ、「走査後に消えた」という
+                    // **一時的な競合として報告される**（恒久的に印が付かないのに）。
+                    // しかもドライランは条件式を評価しないので事前に検知できない。
+                    // `scripts/diagnose-aws.js` が同じ理由で同じ形を使っている。
                     ConditionExpression:
-                        "attribute_exists(id) AND attribute_exists(src) AND (attribute_not_exists(published) OR published = :t)",
-                    ExpressionAttributeValues: { ":k": PUBLIC_FEED_KEY, ":t": true },
+                        "attribute_exists(id) AND attribute_exists(src) "
+                        + "AND (attribute_not_exists(published) OR published <> :f) "
+                        + "AND (attribute_not_exists(story) OR story <> :t)",
+                    ExpressionAttributeValues: { ":k": PUBLIC_FEED_KEY, ":f": false, ":t": true },
                 }));
                 updated++;
             } catch (e) {
                 if (e?.name === "ConditionalCheckFailedException") { vanished++; continue; }
+                // **数える。** 握って先へ進むと、取りこぼしがあっても緑になる
+                failed.push(item.id);
                 console.warn(`[public-feed] ${item.id} の更新に失敗:`, e?.name ?? e);
             }
         }
@@ -184,7 +200,16 @@ async function main() {
         console.log("[public-feed] createdAt を持たない公開写真: 0 件（読む側を切り替えても落ちる行はありません）");
     }
 
+    if (failed.length > 0) {
+        console.log(`\n[public-feed] ⚠️ 想定外の失敗が ${failed.length} 件（スロットリング等）。もう一度流してください。`);
+    }
     if (!apply) console.log("\n[public-feed] ドライランのため何も変更していません。");
+
+    // **判定は終了コードに出す。** この道具の目的は「読む側を Query に
+    // 切り替えてよいか」を答えることなので、答えが「まだ駄目」なら
+    // ステップを赤にする。ログに書くだけだと、Actions は緑のまま
+    // 誰も読まずに次へ進む（このリポジトリで何度も起きた形）。
+    if (missingCreatedAt.length > 0 || failed.length > 0) process.exitCode = 1;
 }
 
 module.exports = { indexState, createIndexInput, isPublicPhoto, INDEX_NAME, PUBLIC_FEED_KEY };
