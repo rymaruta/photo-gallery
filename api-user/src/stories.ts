@@ -137,13 +137,19 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
     const userId = getUserId(event);
     if (!userId) return jsonError(401, "認証が必要です");
     try {
-        const items = await queryStories("active");
         // **ブロックした相手・ブロックした相手のストーリーは出さない（両向き）。**
         // 一覧を引くたびに自分の2行（`blocks#` と `blockedby#`）を読むだけ。
         // 失敗しても一覧は返す——**見えなくする側が落ちたときに全部消す**のは
-        // 倒しすぎで、ストーリーが誰にも出なくなる（`listAlbums` の掃除と同じ判断）
-        const hidden = await hiddenUserIds(userId)
-            .catch((e) => { console.error("getStories: ブロック一覧を読めませんでした:", e); return new Set<string>(); });
+        // 倒しすぎで、ストーリーが誰にも出なくなる（`listAlbums` の掃除と同じ判断）。
+        //
+        // **ストーリーの取得と同時に投げる。** 直列にしていたので、
+        // 一覧が返ってくるまで待ってからブロックを引いていた＝往復が1回増えた。
+        // 互いの結果に依存しないので並べてよい。
+        const [items, hidden] = await Promise.all([
+            queryStories("active"),
+            hiddenUserIds(userId)
+                .catch((e) => { console.error("getStories: ブロック一覧を読めませんでした:", e); return new Set<string>(); }),
+        ]);
         for (const item of items) {
             delete item.viewers;
             // **返信の数は投稿者にだけ返す。** 見た人には「このストーリーに

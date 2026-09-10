@@ -558,15 +558,14 @@ export default function StoriesBar() {
                 throw new Error(locale === "en" ? "Could not upload the file." : "ファイルをアップロードできませんでした。");
             }
 
-            // 表示名を取得（ベストエフォート）
-            let displayName: string | undefined;
-            try {
-                const profRes = await userFetch("/user/profile");
-                if (profRes.ok) {
-                    const prof = await profRes.json() as { displayName?: string };
-                    displayName = prof.displayName;
-                }
-            } catch { /* ignore */ }
+            // **表示名は取りに行かない。** ここで `GET /user/profile` を待って
+            // いたが、`createStory` は**クライアントの申告を受け取らない**
+            // （なりすまし防止のためサーバーが `lookupDisplayName` で引く。
+            // `stories.ts:176` にそう書いてある）。つまり**捨てられる値のために
+            // Lambda を1本余計に叩いて、その往復ぶん利用者を待たせていた**
+            // ——関数ごとにコールドスタートがあり、同時実行はアカウント全体で
+            // 10しかないので、待ちはミリ秒では済まない。
+            // 投稿の往復は presign → S3 → 保存 の3つで足りる。
 
             const saveRes = await userFetch("/stories", {
                 method: "POST",
@@ -587,7 +586,6 @@ export default function StoriesBar() {
                     ...(sendLocation && sendCoords ? { coords: sendCoords } : {}),
                     ...(draftSong ? { song: { title: draftSong.title, artist: draftSong.artist, artwork: draftSong.artwork, previewUrl: draftSong.previewUrl, trackUrl: draftSong.trackUrl, ...(songStart > 0 ? { startSec: songStart } : {}) } } : {}),
                     ...(draft.mediaType === "image" ? { durationSec } : {}),
-                    ...(displayName ? { displayName } : {}),
                 }),
             });
             if (!saveRes.ok) {

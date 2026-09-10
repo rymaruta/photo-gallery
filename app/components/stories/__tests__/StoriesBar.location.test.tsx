@@ -77,6 +77,28 @@ async function pickImage() {
     await screen.findByRole("button", { name: /ストーリーに投稿/ }, { timeout: 5000 });
 }
 
+// **投稿の往復を増やさない。** ここで `GET /user/profile` を待っていたが、
+// `createStory` は**クライアントの申告を受け取らない**（なりすまし防止で
+// サーバーが引く）。捨てられる値のために Lambda を1本余計に叩き、その往復ぶん
+// 利用者を待たせていた——関数ごとにコールドスタートがあり、同時実行は
+// アカウント全体で10しかないので、待ちはミリ秒では済まない。
+describe("投稿の往復", () => {
+    it("投稿の前にプロフィールを取りに行かない", async () => {
+        await pickImage();
+        await userEvent.click(screen.getByRole("button", { name: /ストーリーに投稿/ }));
+        await waitFor(() => expect(posted()).toHaveLength(1));
+        expect(mockUserFetch.mock.calls.some((c) => c[0] === "/user/profile"),
+            "捨てられる値のために往復を1つ増やしている").toBe(false);
+    });
+
+    it("表示名を送らない（サーバーが引く）", async () => {
+        await pickImage();
+        await userEvent.click(screen.getByRole("button", { name: /ストーリーに投稿/ }));
+        await waitFor(() => expect(posted()).toHaveLength(1));
+        expect("displayName" in posted()[0], "受け取られない値を送っている").toBe(false);
+    });
+});
+
 describe("ストーリーの撮影地", () => {
     it("写真の GPS から地名を自動で入れる", async () => {
         mockExtract.mockResolvedValue({ latitude: 35.4567, longitude: 139.6321 });

@@ -144,9 +144,15 @@ describe("getStories", () => {
     });
 
     it("ページネーション（LastEvaluatedKey）を辿って全件返す", async () => {
-        mockDdbSend
-            .mockResolvedValueOnce({ Items: [{ id: "a", createdAt: "1" }], LastEvaluatedKey: { id: "a" } })
-            .mockResolvedValueOnce({ Items: [{ id: "b", createdAt: "2" }] });
+        // 種類で答える（上と同じ理由。GetItem と並行になった）
+        let page = 0;
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({});
+            page++;
+            return Promise.resolve(page === 1
+                ? { Items: [{ id: "a", createdAt: "1" }], LastEvaluatedKey: { id: "a" } }
+                : { Items: [{ id: "b", createdAt: "2" }] });
+        });
         const res = await invoke(getStories, authedEvent("viewer"));
         const items = JSON.parse(res.body) as Array<Record<string, unknown>>;
         expect(items).toHaveLength(2);
@@ -183,15 +189,24 @@ describe("getStories", () => {
     it("索引がまだ無いテーブルでは Scan に落ちる（機能ごと止めない）", async () => {
         // 索引を足すのはデプロイとは別作業なので、順序が前後しても
         // ストーリーが見えなくならないようにする。
+        // **順番ではなくコマンドの種類で答える。** ブロックの一覧（GetItem）は
+        // ストーリーの取得と**並行**に投げるので、`mockResolvedValueOnce` を
+        // 積む書き方だと取り違える（並行にした時点で実際に落ちた）
         const missing = Object.assign(new Error("index not found"), { name: "ValidationException" });
-        mockDdbSend
-            .mockRejectedValueOnce(missing)
-            .mockResolvedValueOnce({ Items: [{ id: "s1", createdAt: "1" }] });
+        let queried = false;
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({});
+            if (cmd.constructor.name === "QueryCommand" && !queried) { queried = true; return Promise.reject(missing); }
+            return Promise.resolve({ Items: [{ id: "s1", createdAt: "1" }] });
+        });
         const res = await invoke(getStories, authedEvent("viewer"));
         expect(res.statusCode).toBe(200);
         expect(JSON.parse(res.body)).toHaveLength(1);
-        const fallback = mockDdbSend.mock.calls[1][0].input as { FilterExpression?: string };
-        expect(fallback.FilterExpression).toContain("story = :t");
+        const scan = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string }; input: { FilterExpression?: string } })
+            .find((c) => c.constructor.name === "ScanCommand");
+        expect(scan, "Scan に落ちていない").toBeTruthy();
+        expect(scan!.input.FilterExpression).toContain("story = :t");
     });
 });
 
