@@ -28,7 +28,13 @@ vi.mock("../../../lib/auth/cognito", () => ({
 }));
 vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
-vi.mock("../../components/FollowButton", () => ({ default: () => null, FollowAction: () => null }));
+vi.mock("../../components/FollowButton", () => ({
+    default: () => null,
+    // **消してしまうと症状が見えない。** ここを `() => null` にしていたので、
+    // 「ブロックしたのにボタンが『フォロー中』のまま」も
+    // 「必ず失敗するボタンが押せる」も、テストからは見えなかった
+    FollowAction: () => <button type="button" data-testid="follow-action">フォロー</button>,
+}));
 const mockSevered = vi.hoisted(() => vi.fn());
 vi.mock("../../../lib/hooks/useFollow", async (importActual) => ({
     ...(await importActual<typeof import("../../../lib/hooks/useFollow")>()),
@@ -193,6 +199,33 @@ describe("プロフィールからブロックする", () => {
         await user.click(await screen.findByRole("menuitem", { name: "この人をブロック" }));
         await waitFor(() => expect(blockCalls("POST")).toHaveLength(1));
         expect(mockSevered).not.toHaveBeenCalled();
+    });
+
+    // **ブロック中はフォローのボタンを出さない。**
+    // サーバーは 400「ブロック中の相手です。解除してからフォローして
+    // ください」を必ず返すので、押せる形で置くと**必ず失敗する操作へ誘う**。
+    // 直前のコミットはここを「フォロー」に戻すところまでで止めていた
+    it("ブロックしたら、フォローのボタンを引っ込める", async () => {
+        view();
+        expect(await screen.findByTestId("follow-action")).toBeInTheDocument();
+        const user = await openMenu();
+        await user.click(await screen.findByRole("menuitem", { name: "この人をブロック" }));
+        await waitFor(() => expect(blockCalls("POST")).toHaveLength(1));
+        await waitFor(() => expect(
+            screen.queryByTestId("follow-action"),
+            "押しても必ず 400 になるボタンが出ている",
+        ).toBeNull());
+    });
+
+    it("解除したら戻す", async () => {
+        view();
+        let user = await openMenu();
+        await user.click(await screen.findByRole("menuitem", { name: "この人をブロック" }));
+        await waitFor(() => expect(screen.queryByTestId("follow-action")).toBeNull());
+        user = await openMenu();
+        await user.click(await screen.findByRole("menuitem", { name: "ブロックを解除" }));
+        await waitFor(() => expect(blockCalls("DELETE")).toHaveLength(1));
+        expect(await screen.findByTestId("follow-action"), "解除してもフォローできない").toBeInTheDocument();
     });
 
     it("未ログインには出さない（口が断るので押させない）", async () => {

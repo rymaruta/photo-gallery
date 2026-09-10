@@ -68,16 +68,21 @@ describe("診断が見る「トークンを配ってあるべき関数」", () =
     });
 
     // **配る対象が0件のときは、それ自体を `!!` で言う。**
-    // ここも `expect(src).toContain("REBUILD_FNS.length === 0")` だったので、
-    // 条件を `false &&` で殺しても緑だった
+    //
+    // ここは2周続けて綴りを見ていた（`toContain("REBUILD_FNS.length === 0")`
+    // → `toMatch(/if \(…\)/)`）。どちらも**分岐の中身を空にすると緑**で、
+    // 題名の言う「診断が壊れていると言う」を一度も確かめていなかった。
+    // `reportFunctions` が `wanted` を受け取るようにして、実際に0件で呼ぶ
     it("配る対象を1つも読み取れなければ、診断が壊れていると言う", () => {
-        // 実際の一覧は8件なので、この分岐が生きていることは
-        // 「8件のときは出ない」で確かめる（出ていたら常時 `!!` になる）
+        const lines = reportFunctions([fn("savePhoto", true)], []).join("\n");
+        expect(lines, "0件なのに黙っている").toContain("1つも読み取れなかった");
+        expect(lines).toContain("再ビルドのトークンを持つ関数 0/0");
+    });
+
+    it("読み取れているときは、その警告を出さない", () => {
         expect(REBUILD_FNS.length, "一覧が空になっている").toBeGreaterThan(5);
         expect(reportFunctions([fn(wiredFns()[0], true)]).join("\n"))
             .not.toContain("1つも読み取れなかった");
-        expect(src, "0件を知らせる分岐が無い")
-            .toMatch(/if \(REBUILD_FNS\.length === 0\)/);
     });
 
     // 読み取りの実装がここと同じ結果を出すこと（両方が同じ規則で読む）

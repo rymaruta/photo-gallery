@@ -571,8 +571,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     /** ブロック中かどうか（この画面から押した結果だけを持つ。開いた時点では引かない） */
     const [blocked, setBlocked] = useState(false);
     const [blocking, setBlocking] = useState(false);
-    /** ブロックでフォローが切れたときに `FollowAction` を張り直すための世代 */
-    const [followEpoch, setFollowEpoch] = useState(0);
     // プロフィールQRコード（対面共有用）
     const [qrOpen, setQrOpen] = useState(false);
 
@@ -613,15 +611,13 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 // 空にするぶん数のピルが消えたまま戻らず、しかも
                 // `isFollowing` はコンポーネントの state なので「フォロー中」
                 // は直らない——**数字だけ消える**という、より悪い状態になる。
+                // ボタン自体はすぐ下で `blocked` のとき出さないので、
+                // ここで直すのは**共有している一覧と数**（ギャラリーの
+                // フォロー中フィードも同じ一覧を読む）。
                 //
                 // 解除（`next === false`）では撃たない。ブロックを外しても
                 // フォローは戻らないので、直すものが無い。
-                if (next) {
-                    noteFollowSevered(userId);
-                    // `isFollowing` を書くのは `useFollow` の effect だけで、
-                    // その依存は変わらない。**張り直して読み直させる**
-                    setFollowEpoch((n) => n + 1);
-                }
+                if (next) noteFollowSevered(userId);
                 // **状態を断定しない。** `blocked` はこの画面で押した結果しか
                 // 持たない（開き直すと戻る）ので、既にブロック済みの相手に
                 // 押しても `blockUser` は冪等に 200 を返す。「ブロック
@@ -1109,13 +1105,18 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                     <p className="mt-0.5 text-sm text-white/50 truncate">@{userProfile.username}</p>
                                 )}
                             </div>
-                            {!isOwner && (
+                            {/* **ブロック中は出さない。** サーバーは 400
+                                「ブロック中の相手です。解除してからフォロー
+                                してください」を必ず返すので、押せる形で
+                                置くと**必ず失敗する操作へ誘う**（解除は
+                                共有メニューにある）。
+                                これで `key` による張り直しも要らなくなった
+                                ——張り直すと `busyRef` / `pending` ごと
+                                作り直され、**二重送信の番人が外れる**
+                                （飛んでいる POST の最中に押せる） */}
+                            {!isOwner && !blocked && (
                                 <div className="flex-shrink-0">
                                     <FollowAction
-                                        // ブロックでフォローが切れたら張り直す
-                                        // （`isFollowing` は effect でしか
-                                        // 書かれず、その依存は変わらない）
-                                        key={followEpoch}
                                         targetUserId={userId}
                                         isOwner={isOwner}
                                         isAuthenticated={viewerAuthed}

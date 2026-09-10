@@ -74,13 +74,46 @@ describe("プロフィールの取得失敗", () => {
         ).toBe(true));
     });
 
-    // 中断（画面を離れた・userId が変わった）は失敗として出さない
+    // 中断（`userId` が変わった）は失敗として出さない。
+    //
+    // **`unmount()` してから見ていた回がある。** DOM ごと消えているので
+    // 何を実装しても通る＝`signal.aborted` の早期 return を消しても全緑
+    // だった（レビューが変異で実証）。**画面が残っている形で見る**
     it("中断は「読み込めませんでした」にしない", async () => {
+        const OTHER = "22222222-2222-4222-8222-222222222222";
+        // 1人目は返らないまま中断され、2人目は成功する
         const abort = Object.assign(new Error("aborted"), { name: "AbortError" });
-        mockUserPublicFetch.mockRejectedValue(abort);
-        const { unmount } = render(<UserProfileClient userId={ME} />);
-        unmount();
-        expect(screen.queryByText(/プロフィールを読み込めませんでした/)).toBeNull();
+        let rejectFirst!: (e: unknown) => void;
+        mockUserPublicFetch.mockImplementationOnce(() => new Promise((_r, rej) => { rejectFirst = rej; }));
+
+        const { rerender } = render(<UserProfileClient userId={ME} />);
+        await waitFor(() => expect(mockUserPublicFetch).toHaveBeenCalled());
+        rerender(<UserProfileClient userId={OTHER} />);
+        // 中断された1人目の rejection が、あとから届く
+        rejectFirst(abort);
+
+        await waitFor(() => expect(
+            mockUserPublicFetch.mock.calls.some((c) => String(c[0]).includes(OTHER)),
+        ).toBe(true));
+        await waitFor(() => expect(
+            screen.queryByText(/プロフィールを読み込めませんでした/),
+            "中断を失敗として出している（次の画面に前の失敗が出る）",
+        ).toBeNull());
+    });
+
+    // **訪問者の経路も見る。** 新しい `loadError` のテストはオーナー経路
+    // しか見ておらず、「プロフィールが落ちても公開一覧を取りに行く」は
+    // 訪問者だけ元に戻す変異で全緑だった（レビューが実証）
+    it("訪問者でも、プロフィールが投げたら公開一覧は取りに行く", async () => {
+        mockGetCurrentSession.mockResolvedValue(null);
+        mockUserPublicFetch.mockRejectedValue(new Error("network"));
+
+        render(<UserProfileClient userId={ME} />);
+
+        await waitFor(() => expect(
+            mockPublicFetch.mock.calls.some((c) => String(c[0]).includes("/photos?userId=")),
+            "プロフィールの失敗が公開一覧を巻き添えにしている",
+        ).toBe(true));
     });
 
     it("失敗を伝え、再読み込みで立て直す", async () => {

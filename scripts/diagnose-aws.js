@@ -331,10 +331,15 @@ async function lambdaRoles() {
  * **509件すべて緑**だった（レビューが変異で実証）。数えた結果を返す形に
  * すれば、嘘の数はそのまま落ちる。
  *
+ * `wanted` を引数に取るのは**テストのため**。モジュール定数を閉じ込めると
+ * 「1つも読み取れなかった」の分岐に入る入力を作れず、綴りを見るテストしか
+ * 書けない（実際そう書いていて、分岐の中身を空にしても緑だった）。
+ *
  * @param {Array<{FunctionName?: string, Role?: string, Environment?: {Variables?: Record<string, string>}}>} mine
+ * @param {string[]} [wanted] トークンを配ってあるべき関数（既定は serverless.yml から読んだもの）
  * @returns {string[]}
  */
-function reportFunctions(mine) {
+function reportFunctions(mine, wanted = REBUILD_FNS) {
     const out = [];
     const line = (s) => out.push(s);
     let publicOk = 0, leaked = 0, tokenOk = 0;
@@ -343,7 +348,7 @@ function reportFunctions(mine) {
         const role = (f.Role ?? "").split("/").pop() ?? "";
         const hasToken = Boolean(f.Environment?.Variables?.REBUILD_DISPATCH_TOKEN);
         const wantPublic = PUBLIC_FNS.includes(short);
-        const wantToken = REBUILD_FNS.includes(short);
+        const wantToken = wanted.includes(short);
         const isPublicRole = /publicRead$/.test(role);
         const flags = [];
         if (wantPublic && !isPublicRole) flags.push("!! 共有ロールのまま");
@@ -362,8 +367,8 @@ function reportFunctions(mine) {
     // ここで数え直すと**関数名を短くする規則の2つ目の写し**ができ、
     // 片方だけ直した日に黙ってずれる——このコミットが直した当のもの
     line(`  → 読み取り専用ロールの関数 ${publicOk}/${PUBLIC_FNS.length} ・ トークンが余計に付いた関数 ${leaked}`);
-    line(`  → 再ビルドのトークンを持つ関数 ${tokenOk}/${REBUILD_FNS.length}`);
-    if (REBUILD_FNS.length === 0) {
+    line(`  → 再ビルドのトークンを持つ関数 ${tokenOk}/${wanted.length}`);
+    if (wanted.length === 0) {
         line("  !! serverless.yml からトークンを配る関数を1つも読み取れなかった（診断が壊れています）");
     }
     return out;

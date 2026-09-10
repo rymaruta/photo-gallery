@@ -166,6 +166,33 @@ describe("フォロー中フィードの空表示", () => {
         expect(screen.queryByText("読み込み中…"), "落ちたのに読み込み中のまま").toBeNull();
     });
 
+    // **「読み込み中…」の真上に「結果: 0 件」を並べない。**
+    // 件数行を伏せる条件が `!followingLoaded` しか見ておらず、写真の
+    // 到着待ちを本文だけに足した回に並んでいた（レビューが実測）。
+    // 件数行のガードには「本文を伏せながら 0 件と言い続けるのは、
+    // 伏せた意味が無い」と書いてある
+    it("読み込み中は件数も出さない", async () => {
+        photosState.current = { loaded: false, failed: false };
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: ["u2"] }) });
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        fireEvent.click(await screen.findByRole("button", { name: "フォロー中" }));
+
+        expect(await screen.findByText("読み込み中…")).toBeInTheDocument();
+        expect(screen.queryByText(/結果: 0 件/), "本文を伏せながら0件と言っている").toBeNull();
+    });
+
+    // **フォローが0人なら待たない。** 答えはもう確定していて、写真を
+    // 待つ理由が無い。`followingIds.size > 0` を落としても全緑だった
+    it("フォローが0人なら、写真を待たずに案内を出す", async () => {
+        photosState.current = { loaded: false, failed: false };
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: [] }) });
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        fireEvent.click(await screen.findByRole("button", { name: "フォロー中" }));
+
+        expect(await screen.findByText(EMPTY)).toBeInTheDocument();
+        expect(screen.queryByText("読み込み中…"), "0人と分かっているのに待っている").toBeNull();
+    });
+
     it("フォローが0人なら、今までどおりの案内", async () => {
         mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: [] }) });
         render(<ToastProvider><GalleryPageClient /></ToastProvider>);
