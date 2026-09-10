@@ -58,6 +58,8 @@ export type StoryReply = {
 export type StoryViewer = {
     userId: string;
     displayName?: string;
+    /** 退会した人。名前は伏せ、プロフィールへは飛ばさない（返信一覧と同じ） */
+    deleted?: boolean;
     at?: string;
 };
 

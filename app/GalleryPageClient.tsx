@@ -444,11 +444,21 @@ export default function GalleryPageClient() {
           // 検索語やカテゴリで0件になった回にも出していたので、抜けるには
           // 「みんなの写真を見る」→まだ0件→「フィルターをリセット」と
           // 2手かかっていた（下の分岐はリセットで feed ごと戻せる）。
+          //
+          // **そう宣言しておきながら、条件に人数が入っていなかった。**
+          // 1人フォローした直後（その人がまだ投稿していない）に
+          // 「フォローした人の写真がここに集まります」＝**まだ誰も
+          // フォローしていない人と同じ画面**になり、フォローが効いて
+          // いないように見える。相手が最初の1枚を上げるまで続く。
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-white/60 text-center">
             <p className="text-sm">
-              {locale === "en"
-                ? "Photos from people you follow will show up here."
-                : "フォローした人の写真がここに集まります。"}
+              {followingIds.size === 0
+                ? (locale === "en"
+                  ? "Photos from people you follow will show up here."
+                  : "フォローした人の写真がここに集まります。")
+                : (locale === "en"
+                  ? "The people you follow haven't posted yet."
+                  : "フォロー中の人は、まだ写真を投稿していません。")}
             </p>
             <button
               onClick={() => setFilters({ feed: "all" })}

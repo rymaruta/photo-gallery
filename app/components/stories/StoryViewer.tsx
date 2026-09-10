@@ -1182,8 +1182,9 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                             ) : (
                                 (viewers ?? []).map((v) => (
                                     <div key={v.userId} className="flex items-center gap-3 px-3 py-2.5">
-                                        <UserAvatar userId={v.userId} className="w-9 h-9" iconClassName="w-5 h-5" />
-                                        <span className="text-sm text-white/90 flex-1 truncate">
+                                        {/* 退会した人はアバターも出さない（返信一覧・コメント欄と同じ扱い） */}
+                                        <UserAvatar userId={v.deleted ? "" : v.userId} className="w-9 h-9" iconClassName="w-5 h-5" />
+                                        <span className={`text-sm flex-1 truncate ${v.deleted ? "text-white/60" : "text-white/90"}`}>
                                             {v.displayName || (locale === "en" ? "User" : "ユーザー")}
                                         </span>
                                         {v.at && <span className="text-[11px] text-white/50">{timeAgo(v.at, locale)}</span>}

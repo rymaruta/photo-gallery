@@ -93,6 +93,29 @@ describe("フォロー中フィードの空表示", () => {
         await waitFor(() => expect(screen.queryByText(EMPTY)).toBeNull());
     });
 
+    // **「まだ誰もフォローしていない」と「フォロー先がまだ投稿していない」を
+    // 分ける。** すぐ上のコメントが「0件の理由がフォローが0人のときだけ
+    // この文言にする」と宣言しているのに、条件に人数が入っていなかった
+    // ——1人フォローした直後（相手がまだ投稿していない）に、**誰も
+    // フォローしていない人と同じ画面**が出てフォローが効いていないように見える
+    it("フォローが1人以上なら、「まだ投稿していません」と言う", async () => {
+        // その1人はまだ写真を投稿していない（一覧の写真は u1 のもの）
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: ["u2"] }) });
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        fireEvent.click(await screen.findByRole("button", { name: "フォロー中" }));
+
+        expect(await screen.findByText(/フォロー中の人は、まだ写真を投稿していません/)).toBeInTheDocument();
+        expect(screen.queryByText(EMPTY), "誰もフォローしていない人と同じ画面を出している").toBeNull();
+    });
+
+    it("フォローが0人なら、今までどおりの案内", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: [] }) });
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        fireEvent.click(await screen.findByRole("button", { name: "フォロー中" }));
+
+        expect(await screen.findByText(EMPTY)).toBeInTheDocument();
+    });
+
     // 未ログインは「取得しない」＝確定。ここで確定させ忘れると、本文は
     // null のまま・タブも出ないので、**抜け出せない真っ白**になる
     it("未ログインで ?feed=following を開いたら、案内を出す", async () => {
