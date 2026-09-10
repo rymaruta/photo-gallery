@@ -416,6 +416,28 @@ describe("deleteStory", () => {
         expect(deletes, "S3 が消せていないのに行を消した").toHaveLength(0);
     });
 
+    // **手がかりを残すのは「失敗したら行を消さない」の方。**
+    // `storyreplies#<id>` は `storyFeed` も `story` も `src` も持たないので、
+    // 行が消えると GSI にも Scan にも一覧にも出ない＝二度と辿れない
+    it("返信を消せなかったら、行を残して失敗を返す", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") {
+                return Promise.resolve({ Item: { id: "story-1", story: true, userId: "u1", key: "uploads/a.jpg" } });
+            }
+            if (id.startsWith("storyreplies#")) return Promise.reject(new Error("boom"));
+            return Promise.resolve({});
+        });
+        mockS3Send.mockResolvedValue({});
+        const res = await invoke(deleteStory, authedEvent("u1", { pathParameters: { id: "story-1" } }));
+        expect(res.statusCode, "返信を消せていないのに成功と言っている").toBe(500);
+        const rowDeleted = mockDdbSend.mock.calls.some((c) => {
+            const cmd = c[0] as { constructor: { name: string }; input: { Key?: { id?: string } } };
+            return cmd.constructor.name === "DeleteCommand" && cmd.input.Key?.id === "story-1";
+        });
+        expect(rowDeleted, "辿る手がかり（行）まで消している").toBe(false);
+    });
+
     it("S3 が消せていれば、これまでどおり行も消す（正常系）", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "u1", key: "uploads/a.jpg" } })
@@ -690,6 +712,26 @@ describe("cleanupExpiredStories", () => {
         const keys = deletes.map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
         // 消せた方だけ。返信の文書も一緒に（行より先に）
         expect(keys).toEqual(["storyreplies#good", "good"]);
+    });
+
+    // 掃除も同じ。消せなければ行を残して次回に回す
+    it("返信を消せなかった行は残す（次回に回す）", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "QueryCommand" || cmd.constructor.name === "ScanCommand") {
+                return Promise.resolve({ Items: [{ id: "bad", key: "uploads/bad.jpg" }] });
+            }
+            if (id.startsWith("storyreplies#")) return Promise.reject(new Error("boom"));
+            return Promise.resolve({});
+        });
+        mockS3Send.mockResolvedValue({});
+        const result = await cleanupExpiredStories();
+        expect(result.deleted, "返信を消せていないのに数えている").toBe(0);
+        const rowDeleted = mockDdbSend.mock.calls.some((c) => {
+            const cmd = c[0] as { constructor: { name: string }; input: { Key?: { id?: string } } };
+            return cmd.constructor.name === "DeleteCommand" && cmd.input.Key?.id === "bad";
+        });
+        expect(rowDeleted, "辿る手がかり（行）まで消している").toBe(false);
     });
 
     it("期限切れが無ければ何もしない", async () => {

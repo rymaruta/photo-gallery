@@ -112,6 +112,15 @@ describe("postStoryReply", () => {
         expect((bodyOf(r).reply.text as string).length, "本文の上限が効いていない").toBeLessThanOrEqual(200);
     });
 
+    // `String(...)` に通していたので `{"emoji":{"a":1}}` が
+    // 本文 `"[object Object]"` として保存されていた
+    it("文字列でない emoji は本文にしない（400）", async () => {
+        world(STORY);
+        const r = await invoke(postStoryReply, ev("u1", "story-1", { emoji: { a: 1 } }));
+        expect(r.statusCode, "オブジェクトを文字にして保存している").toBe(400);
+        expect(inputs().some((i) => i.UpdateExpression), "断ったのに書いている").toBe(false);
+    });
+
     it("本文は200文字で切る", async () => {
         world(STORY);
         const r = await invoke(postStoryReply, ev("u1", "story-1", { text: "あ".repeat(300) }));

@@ -789,6 +789,28 @@ describe("deleteAccount: コメントの消し残し", () => {
         expect(deletedDdbIds()).toContain("p1");
         expect(deletedDdbIds()).toContain("comments#p1");
     });
+
+    // **ストーリーには返信の文書が付く。** `storyreplies#<id>` は
+    // `userId` を持たないので退会の列挙（`userId-createdAt-index`）には
+    // 載らない＝**ストーリー本体を消すついででしか消せない**。
+    // ここを落とすと、退会したのに返信の本文・送信者名・送信者の sub が
+    // 残り続ける（このテーブルに TTL は無い）。
+    // **写真とストーリーで分けない**——`story` の判定が1か所ずれただけで
+    // 本文が置き去りになる。消す側は空振りしても害が無い
+    it("ストーリーと一緒に storyreplies#<ID> も消す", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input?: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "QueryCommand") {
+                return Promise.resolve({ Items: [{ id: "story-1" }] });
+            }
+            if (cmd.constructor.name === "GetCommand") {
+                return Promise.resolve({ Item: { id: "story-1", story: true, src: "https://cdn/uploads/me/s1.jpg" } });
+            }
+            return Promise.resolve({});
+        });
+        await invoke(deleteAccount, ev("me"));
+        expect(deletedDdbIds()).toContain("story-1");
+        expect(deletedDdbIds(), "退会しても返信の本文が残る").toContain("storyreplies#story-1");
+    });
 });
 
 describe("deleteAccount: 静的ページの掃除", () => {

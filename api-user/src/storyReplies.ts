@@ -120,7 +120,13 @@ export const postStoryReply: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
     }
     // 一覧に無い絵文字は本文として扱う（上限と切り詰めを必ず通す）
     const emoji = typeof body.emoji === "string" && REACTION_SET.has(body.emoji) ? body.emoji : undefined;
-    const rawText = typeof body.text === "string" ? body.text : (emoji ? "" : String(body.emoji ?? ""));
+    // 一覧に無い絵文字は本文として扱う（上限と切り詰めを必ず通す）。
+    // **文字列のときだけ。** `String(...)` に通していたので、
+    // `{"emoji":{"a":1}}` が本文 `"[object Object]"` として保存されていた
+    // ——「一覧に無いものは本文」の意図は、文字列で来たときの話
+    const rawText = typeof body.text === "string"
+        ? body.text
+        : (!emoji && typeof body.emoji === "string" ? body.emoji : "");
     const text = truncate(rawText.trim(), TEXT_MAX);
     if (!emoji && !text) return jsonError(400, "返信を入力してください");
 

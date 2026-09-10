@@ -426,12 +426,22 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         if (s3Failures > 0) {
             return jsonError(500, "画像の削除を完了できませんでした。時間をおいてもう一度お試しください");
         }
-        // **返信の文書も消す。ストーリーの行より先に。**
-        // 逆にすると、消し損ねた `storyreplies#<id>` を辿る手がかりが無くなる
-        // （`account.ts` が `comments#` を行より先に消すのと同じ理由）。
-        // 24時間で消える約束のものに紐づく本文が、残り続けてよいはずがない。
-        await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(storyId) } }))
-            .catch((e) => console.error(`deleteStory: 返信を消せませんでした（${storyId}）:`, e));
+        // **返信の文書も消す。ストーリーの行より先に、そして消せなければ
+        // 行を残す。**
+        //
+        // 順序だけでは足りない——**手がかりを残すのは「失敗したら行を
+        // 消さない」の方**。`storyreplies#<id>` は `storyFeed` も `story` も
+        // `src` も持たないので、行が消えると GSI にも Scan にも一覧にも
+        // 出ない＝**どの削除経路からも二度と辿れない**。このテーブルに
+        // TTL は無いので、24時間で消えるはずの本文が永久に残る。
+        // すぐ上の S3 の削除がまったく同じ理由で止めているのに、
+        // ここだけ握って先へ進んでいた。
+        try {
+            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(storyId) } }));
+        } catch (e) {
+            console.error(`deleteStory: 返信を消せませんでした（${storyId}）:`, e);
+            return jsonError(500, "削除を完了できませんでした。時間をおいてもう一度お試しください");
+        }
         await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyId } }));
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
     } catch (e) {
@@ -474,10 +484,11 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
 
         try {
             // 返信の文書も消す（行より先に。`deleteStory` と同じ理由）。
-            // ここを落とすと、24時間で消えるはずの本文が**誰も辿れない
-            // まま永久に残る**——このテーブルに TTL は無い
-            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(id) } }))
-                .catch((e) => console.error(`cleanup: 返信を消せませんでした（${id}）:`, e));
+            // **消せなければ行を残して次回に回す**——行が消えると
+            // `storyreplies#<id>` はどこからも辿れなくなり、24時間で消える
+            // はずの本文が永久に残る（S3 の失敗を `continue` で見送るのと
+            // 同じ判断。期限切れの行が残っても利用者には見えない）
+            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(id) } }));
             await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
             deleted++;
         } catch (e) {
