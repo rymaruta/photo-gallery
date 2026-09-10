@@ -62,6 +62,16 @@ describe("フォロー中の一覧", () => {
         expect(await screen.findByText(/60 人のうち、はじめの 1 人/)).toBeInTheDocument();
     });
 
+    // **2つを同時に出さない。** 一覧が空のときは「一覧はまだ用意
+    // できていません」だけ——「5人のうち、はじめの0人」を並べると、
+    // 同じことを2通りに言うことになる
+    it("一覧が空のときは、件数の一文を重ねて出さない", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ users: [], total: 5 }) });
+        view();
+        await screen.findByText(/一覧はまだ用意できていません/);
+        expect(screen.queryByText(/はじめの/), "同じことを2通りに言っている").toBeNull();
+    });
+
     it("全部出せているときは、その一文を出さない", async () => {
         listOk([{ id: "u2", name: "旅人B" }]);
         view();

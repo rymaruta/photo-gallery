@@ -26,6 +26,16 @@
  *   PHOTOS_TABLE  (必須)
  *
  * 冪等: 何度実行しても安全（併合するので重複しない）。
+ *
+ * **承知のうえの限界: 走っている間の「解除」は復活しうる。**
+ * 条件付き Put が守るのは `Get` から `Put` までで、`Scan` から `Put` まで
+ * （全表 Scan はページングで分単位）に解除が起きると、こちらは
+ * 古い Scan の結果を持ったまま書き戻す——`mergeFollowers` は足すだけで
+ * 消さないので、`followers#` に幽霊のフォロワーが残る（マーカーも数も
+ * その人を数えていない）。**気づく手がかりが無い**（`listed > total` に
+ * なるが画面は何も言わない）。
+ * 塞ぐなら書き込みの前に `follow#<target>#<follower>` の存在を確かめる
+ * （対象人数ぶんの Get）。**書き込みの少ない時間に流すこと。**
  */
 
 const fs = require("fs");
@@ -192,6 +202,12 @@ async function main(deps) {
 
     console.log(`\n[followers] 書き込み ${written} 人 / 変更なし ${unchanged} 人 / 競合で飛ばした ${skipped} 人`);
     if (!apply) console.log("[followers] ドライランです。--apply で実行します。");
+    // **飛ばしたぶんがあれば、黙って終わらない。** exit 0 のままだと
+    // ログを読まない限り「済んだ」と誤読する
+    if (skipped > 0) {
+        console.error(`[followers] ${skipped} 人ぶんが競合で入っていません。もう一度流してください。`);
+        process.exitCode = 1;
+    }
 }
 
 module.exports = { main, parseMarker, buildFollowers, mergeFollowers, FOLLOWERS_MAX, USER_ID_RE };

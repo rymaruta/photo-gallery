@@ -825,12 +825,44 @@ describe("getUserFollowing（その人がフォローしている人）", () => 
     });
 
     it("名前まで返す（画面が1人ずつ引きに行かなくて済むように）", async () => {
-        mockDdbSend.mockResolvedValue({ Item: { list: [OTHER, THIRD] } });
+        mockDdbSend.mockImplementation((cmd: { input: { Key?: { id?: string } } }) => {
+            const id = cmd.input.Key?.id ?? "";
+            if (id === `followstats#${ME}`) return Promise.resolve({ Item: { followers: 0, following: 2 } });
+            return Promise.resolve({ Item: { list: [OTHER, THIRD] } });
+        });
         mockLookupIfSet.mockImplementation(async (id: string) => (id === OTHER ? "旅人B" : undefined));
         const res = await invoke(getUserFollowing, evUid(ME, ME));
         expect(res.statusCode).toBe(200);
         expect(JSON.parse(res.body).users).toEqual([{ id: OTHER, name: "旅人B" }, { id: THIRD }]);
         expect(JSON.parse(res.body).total).toBe(2);
+        expect(JSON.parse(res.body).listed).toBe(2);
+    });
+
+    // **`total` は数（`followstats#`）。** 一覧の長さを返していた頃は、
+    // 上限（2000）で溢れた場合や `undoFollow` が落ちた回に、シートの
+    // 見出しとピルの数字が食い違った。`following#` が空で数が 0 でないと
+    // 「まだ誰もフォローしていません」と出る（followers 側で直した矛盾）
+    it("一覧が空でも、数は followstats# の値を返す", async () => {
+        mockDdbSend.mockImplementation((cmd: { input: { Key?: { id?: string } } }) => {
+            const id = cmd.input.Key?.id ?? "";
+            if (id === `followstats#${ME}`) return Promise.resolve({ Item: { followers: 0, following: 3 } });
+            return Promise.resolve({});
+        });
+        const res = await invoke(getUserFollowing, evUid(ME, ME));
+        expect(JSON.parse(res.body).total, "一覧の長さを数として返している").toBe(3);
+        expect(JSON.parse(res.body).listed).toBe(0);
+    });
+
+    // **数が取れなくても一覧は返す**（今より悪くしない）
+    it("数の取得が落ちても 200 で一覧を返す", async () => {
+        mockDdbSend.mockImplementation((cmd: { input: { Key?: { id?: string } } }) => {
+            const id = cmd.input.Key?.id ?? "";
+            if (id === `followstats#${ME}`) return Promise.reject(new Error("throttled"));
+            return Promise.resolve({ Item: { list: [OTHER] } });
+        });
+        const res = await invoke(getUserFollowing, evUid(ME, ME));
+        expect(res.statusCode, "数が取れないだけで一覧を失っている").toBe(200);
+        expect(JSON.parse(res.body).users).toHaveLength(1);
     });
 
     // **上限を「入れる前」に見る。** 2000回の GetItem は1回の呼び出しの
@@ -838,7 +870,11 @@ describe("getUserFollowing（その人がフォローしている人）", () => 
     // 再送のぶんが積み上がる）
     it("50人までしか名前を引かない（総数は返す）", async () => {
         const many = Array.from({ length: 60 }, (_, i) => `0000000${String(i).padStart(4, "0")}-1111-4111-8111-111111111111`);
-        mockDdbSend.mockResolvedValue({ Item: { list: many } });
+        mockDdbSend.mockImplementation((cmd: { input: { Key?: { id?: string } } }) => {
+            const id = cmd.input.Key?.id ?? "";
+            if (id === `followstats#${ME}`) return Promise.resolve({ Item: { followers: 0, following: 60 } });
+            return Promise.resolve({ Item: { list: many } });
+        });
         const res = await invoke(getUserFollowing, evUid(ME, ME));
         expect(JSON.parse(res.body).users).toHaveLength(50);
         expect(JSON.parse(res.body).total, "総数が分からない").toBe(60);
@@ -973,6 +1009,35 @@ describe("フォロワーの一覧（followers#）", () => {
         await unfollowQuietly(OTHER, ME);
         expect(puts().some((p) => p.input.Item?.id === `followers#${OTHER}`),
             "相手のフォロワー一覧に残る").toBe(true);
+    });
+
+    // **多人数が同じ行を書くので、やり直しに間を置く**（`following#<自分>` は
+    // 書き手が自分1人だが、`followers#<相手>` はその人をフォロー／解除する
+    // 全員）。ただし**最後の回は待たない**——待ってもループが尽きて投げる
+    // だけで、その 100〜300ms は丸損（`followUser` は2つの行を通るので
+    // 最悪 1,125ms、既定6秒の枠から削る意味が無い）
+    it("競合し続けても、最後の回は待たずに諦める", async () => {
+        const waits: number[] = [];
+        const realSetTimeout = globalThis.setTimeout;
+        vi.spyOn(globalThis, "setTimeout").mockImplementation(((fn: () => void, ms?: number) => {
+            waits.push(ms ?? 0);
+            return realSetTimeout(fn, 0);
+        }) as typeof setTimeout);
+        try {
+            mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+                if (cmd.constructor.name === "PutCommand") {
+                    return Promise.reject(Object.assign(new Error("c"), { name: "ConditionalCheckFailedException" }));
+                }
+                if (cmd.constructor.name === "GetCommand") return Promise.resolve({ Item: { list: [ME], rev: 1 } });
+                return Promise.resolve({});
+            });
+            const { updateFollowersQuietly } = await import("../follow");
+            await updateFollowersQuietly(OTHER, ME, false);
+            // 4回試して、待つのは3回（最後の1回のあとは待たない）
+            expect(waits.length, "最後の回のあとも待っている").toBe(3);
+        } finally {
+            vi.mocked(globalThis.setTimeout).mockRestore();
+        }
     });
 
     // 正常系。**これが無いと「成功しても触らない」変異が素通りする**

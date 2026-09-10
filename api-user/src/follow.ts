@@ -161,7 +161,12 @@ async function updateUserList(rowId: string, uid: string, mutate: (list: string[
             // 押し合いになるだけなので、指数で待ってばらす
             // （待たずに撃ち直すとスロットリング由来の失敗も悪化する
             //  ——`account.ts` の掃除が同じ理由で待っている）。
-            await new Promise((r) => setTimeout(r, LIST_RETRY_BASE_MS * 2 ** attempt * (0.5 + Math.random())));
+            // **最後の回は待たない。** 待ってもループが尽きて投げるだけで、
+            // その 100〜300ms は丸損（`followUser` は2つの行を通るので
+            // 最悪 1,125ms、既定6秒の枠から削る意味が無い）
+            if (attempt < FOLLOWING_WRITE_RETRIES) {
+                await new Promise((r) => setTimeout(r, LIST_RETRY_BASE_MS * 2 ** attempt * (0.5 + Math.random())));
+            }
         }
     }
     // 諦めたことを黙って飲み込まない。
@@ -659,10 +664,9 @@ const FOLLOWING_PAGE = 50;
  * `publicLambdaRole.test.ts` が未認証の口を増やしにくくしているのは
  * まさにこの判断を毎回させるため。
  *
- * **フォロワー側の一覧は返せない。** いまのデータは `following#<uid>`
- * （自分がフォローしている人）と `followstats#<uid>`（数）だけで、
- * 「誰にフォローされているか」を引ける行が無い。作るには
- * `followers#<uid>` を足して、既存のフォロー関係を埋め戻す移行が要る。
+ * **フォロワー側は `getUserFollowers`（すぐ下）。** `followers#<uid>` を
+ * 足すまでは引ける行が無かったが、いまはある（既にあるフォロー関係は
+ * `scripts/backfill-followers.js` で埋め戻す）。
  *
  * **ブロックされていたら 404**（存在を教えない）。写真もプロフィールも
  * 静的サイトで誰にでも見えるので「隠す」効果は限定的だが、
@@ -683,7 +687,12 @@ export const getUserFollowing: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
     if (!uid || !isUserId(uid)) return jsonError(400, "不正なリクエスト");
     try {
         if (me && await isBlocked(uid, me)) return jsonError(404, "ユーザーが見つかりません");
-        const list = await readFollowing(uid);
+        const [list, stats] = await Promise.all([
+            readFollowing(uid),
+            // **数が取れなくても一覧は返す。** 取れなかったら一覧の長さに
+            // 落とす（今より悪くならない）。`followers#` 側も同じ
+            readStats(uid).catch((e) => { console.error("getUserFollowing readStats:", e); return null; }),
+        ]);
         const page = list.slice(0, FOLLOWING_PAGE);
         // 引くのは一覧が空でないときだけ（`getComments` と同じ）
         const gone = page.length > 0 ? await deletedUserIds() : new Set<string>();
@@ -695,8 +704,15 @@ export const getUserFollowing: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
         return {
             statusCode: 200,
             headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
-            // `followers#` 側と形を揃える（`total` は数、`listed` は一覧の長さ）
-            body: JSON.stringify({ users, total: list.length, listed: list.length }),
+            // **`total` は数（`followstats#`）、`listed` は一覧の長さ。**
+            // 一度どちらも一覧の長さにして「形を揃えた」と書いたが、揃って
+            // いたのは名前だけだった。ピル（`useFollow`）は `followstats#`
+            // から出るので、上限（2000）で溢れた場合や `undoFollow` が
+            // 落ちた回に**見出しの数字とピルの数字が食い違う**。
+            // `following#` が空で数が 0 でないと、シートは
+            // 「まだ誰もフォローしていません」——`followers#` 側で直した
+            // 矛盾がそのまま残っていた
+            body: JSON.stringify({ users, total: stats?.following ?? list.length, listed: list.length }),
         };
     } catch (e) {
         console.error("getUserFollowing error:", e);
@@ -730,7 +746,9 @@ export const getUserFollowers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
         if (me && await isBlocked(uid, me)) return jsonError(404, "ユーザーが見つかりません");
         const [res, stats] = await Promise.all([
             ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: followersId(uid) } })),
-            readStats(uid),
+            // **数の Get が落ちただけで一覧を丸ごと失わせない。**
+            // `Promise.all` に素で入れると、スロットル1回で 500 になる
+            readStats(uid).catch((e) => { console.error("getUserFollowers readStats:", e); return null; }),
         ]);
         const list = Array.isArray(res.Item?.list) ? (res.Item.list as string[]) : [];
         const page = list.slice(0, FOLLOWING_PAGE);
@@ -744,7 +762,7 @@ export const getUserFollowers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
             statusCode: 200,
             headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
             // `total` は**数（`followstats#`）**。`listed` は一覧に入っている数
-            body: JSON.stringify({ users, total: stats.followers, listed: list.length }),
+            body: JSON.stringify({ users, total: stats?.followers ?? list.length, listed: list.length }),
         };
     } catch (e) {
         console.error("getUserFollowers error:", e);

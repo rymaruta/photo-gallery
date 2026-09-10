@@ -79,9 +79,20 @@ describe("フォロワーの埋め戻し: main()", () => {
             .toContain("attribute_not_exists(id)");
     });
 
-    it("競合したら上書きせずに飛ばす（次に流すと入る）", async () => {
+    // **飛ばしたぶんがあれば黙って終わらない。** exit 0 のままだと
+    // ログを読まない限り「済んだ」と誤読する
+    it("競合したら上書きせずに飛ばし、終了コードで知らせる", async () => {
         responses.putError = Object.assign(new Error("c"), { name: "ConditionalCheckFailedException" });
+        process.exitCode = undefined;
         await expect(run(true)).resolves.toBeUndefined();
+        expect(process.exitCode, "飛ばしたのに成功として終わっている").toBe(1);
+        process.exitCode = undefined;
+    });
+
+    it("全部入ったときは 0 で終わる", async () => {
+        process.exitCode = undefined;
+        await run(true);
+        expect(process.exitCode ?? 0).toBe(0);
     });
 
     it("競合以外の失敗は握らない（静かに終わらせない）", async () => {
