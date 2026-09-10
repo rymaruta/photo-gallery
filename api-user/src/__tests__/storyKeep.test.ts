@@ -229,6 +229,46 @@ describe("keepStory: ストーリーをギャラリーに残す", () => {
         expect("coords" in photo).toBe(false);
     });
 
+    // 端末が作って送るサムネ。無いまま公開すると一覧が 1440px の原寸を読む
+    it("サムネ・代表色・ぼかしを受け取る", async () => {
+        world(STORY);
+        await invoke({
+            ...ev("me", "story-1"),
+            body: JSON.stringify({
+                thumbUrl: "https://cdn.example.com/uploads/me/t.webp",
+                dominantColor: "#AABBCC",
+                blurDataURL: "data:image/webp;base64,zz",
+            }),
+        });
+        const photo = mockPutPhoto.mock.calls[0][0] as Record<string, unknown>;
+        expect(photo.thumbSrc).toBe("https://cdn.example.com/uploads/me/t.webp");
+        expect(photo.dominantColor, "小文字に揃えていない").toBe("#aabbcc");
+        expect(photo.blurDataURL).toBe("data:image/webp;base64,zz");
+    });
+
+    // **他人の領域・外部のURLは通さない**（写真の保存と同じ判定）。
+    // 通ると、一覧を見た人全員の IP を集められる
+    it("他人の領域を指すサムネは捨てる", async () => {
+        world(STORY);
+        await invoke({
+            ...ev("me", "story-1"),
+            body: JSON.stringify({ thumbUrl: "https://evil.example/t.webp" }),
+        });
+        expect("thumbSrc" in (mockPutPhoto.mock.calls[0][0] as Record<string, unknown>),
+            "外部のURLを一覧に出している").toBe(false);
+    });
+
+    it("本文が無くても残せる（サムネは任意）", async () => {
+        world(STORY);
+        expect((await invoke(ev("me", "story-1"))).statusCode).toBe(200);
+    });
+
+    it("壊れた本文でも残せる", async () => {
+        world(STORY);
+        const r = await invoke({ ...ev("me", "story-1"), body: "{broken" });
+        expect(r.statusCode).toBe(200);
+    });
+
     it("キャプションが無ければ「無題」", async () => {
         world({ ...STORY, caption: undefined });
         await invoke(ev("me", "story-1"));

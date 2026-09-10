@@ -4,8 +4,8 @@ import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { putPhoto } from "./ddb-photos";
 import { photoLimitError } from "./photoLimit";
-import { idFromUploadKey, keyFromUploadUrl } from "./uploadPolicy";
-import { sanitizeTitle } from "./sanitize";
+import { idFromUploadKey, keyFromUploadUrl, isOwnUploadUrlFromEnv as isOwnUploadUrl, canonicalUploadUrl } from "./uploadPolicy";
+import { sanitizeTitle, sanitizeBlurDataURL } from "./sanitize";
 import { lookupDisplayNameIfSet } from "./notify";
 import type { Photo } from "./types";
 
@@ -41,6 +41,17 @@ export const keepStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     const userId = getUserId(event);
     const storyId = event.pathParameters?.id;
     if (!userId || !storyId) return jsonError(400, "不正なリクエスト");
+
+    // **一覧用のサムネを受け取る。** 無くても残せるが、無いまま公開すると
+    // ホームの一覧が**1440px の原寸**を読む（普通のアップロードは端末側で
+    // 512px の WebP を作って送る）。補う `generate-thumbnails.js` は
+    // ビルド時にしか走らないので、`REBUILD_DISPATCH_TOKEN` が未設定の本番では
+    // **最大7日**そのまま——訪問者全員が毎回その差を払う。
+    // 検証は写真の保存（`savePhoto`）とまったく同じものを通す。
+    let body: { thumbUrl?: unknown; dominantColor?: unknown; blurDataURL?: unknown } = {};
+    try {
+        body = JSON.parse(event.body ?? "{}") as typeof body;
+    } catch { /* 本文は任意。壊れていても残す方は続ける */ }
 
     try {
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: storyId } }));
@@ -86,6 +97,13 @@ export const keepStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // 必ず同じIDになるので、二度押しは `putPhoto` の
         // `attribute_not_exists(id)` が自然に弾く——新しい仕掛けを作らない
         const photoId = idFromUploadKey(key);
+        const safeThumb = isOwnUploadUrl(body.thumbUrl, userId) && String(body.thumbUrl).length <= 500
+            ? canonicalUploadUrl(String(body.thumbUrl), process.env.CLOUDFRONT_URL ?? "")
+            : undefined;
+        const safeColor = typeof body.dominantColor === "string" && /^#[0-9a-fA-F]{6}$/.test(body.dominantColor)
+            ? body.dominantColor.toLowerCase()
+            : undefined;
+        const safeBlur = sanitizeBlurDataURL(body.blurDataURL);
         const now = new Date().toISOString();
         // 表示名はサーバーで引く（申告を保存しない）。未設定なら持たない
         const displayName = await lookupDisplayNameIfSet(userId);
@@ -110,6 +128,13 @@ export const keepStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             // ここは撮影時の GPS 由来（`geocode-locations.js` が後から補うのとは別物）
             ...(typeof story.location === "string" && story.location ? { location: story.location } : {}),
             ...(story.coords && typeof story.coords === "object" ? { coords: story.coords as { lat: number; lng: number } } : {}),
+            // 一覧用のサムネ・代表色・ぼかし（端末が作って送ったもの）。
+            // **判定は写真の保存と同じものを使う**——`thumbUrl` は
+            // 「自分のアップロード領域を指すURLか」まで見る（見ないと、
+            // 外部の任意URLを入れて一覧を見た人全員の IP を集められる）
+            ...(safeThumb ? { thumbSrc: safeThumb } : {}),
+            ...(safeColor ? { dominantColor: safeColor } : {}),
+            ...(safeBlur ? { blurDataURL: safeBlur } : {}),
             // **下書きで作る。** 公開は本人が編集画面で押す
             published: false,
             // **出どころ。** この写真を消すときに、まだ生きているストーリーも

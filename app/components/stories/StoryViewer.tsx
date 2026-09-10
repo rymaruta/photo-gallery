@@ -20,6 +20,46 @@ import { STORY_REACTIONS, type StoryReply } from "@/lib/stories";
 /** 返信の本文の上限。**サーバーの `TEXT_MAX` と対**（api-user/src/storyReplies.ts）。
  *  画面だけ緩いと、打てるのに保存で黙って切られる */
 const STORY_REPLY_MAX = 200;
+/**
+ * 「残す」ときに一緒に送る、一覧用のサムネ・代表色・ぼかし。
+ *
+ * 写真のアップロード画面と**同じ道具**（`lib/utils/image.ts`）を使う
+ * ——同じものを二度作らない。作れなかったら空を返す（残す方は進める）。
+ */
+async function buildKeepThumb(src: string): Promise<Record<string, string>> {
+    const [{ createThumbnail, extractDominantColor, createBlurPlaceholder }, { userFetch }] = await Promise.all([
+        import("../../../lib/utils/image"),
+        import("../../../lib/utils/api"),
+    ]);
+    // 画面に出ている画像なので、ふつうはブラウザの控えから返る
+    const blob = await (await fetch(src)).blob();
+    const file = new File([blob], "story.jpg", { type: blob.type || "image/jpeg" });
+    const out: Record<string, string> = {};
+    const color = await extractDominantColor(file).catch(() => null);
+    if (color) out.dominantColor = color;
+    const blur = await createBlurPlaceholder(file).catch(() => null);
+    if (blur) out.blurDataURL = blur;
+
+    const thumb = await createThumbnail(file).catch(() => null);
+    if (!thumb) return out;
+    const presign = await userFetch("/upload/presigned-url", {
+        method: "POST",
+        body: JSON.stringify({ fileName: thumb.name, fileType: thumb.type, fileSize: thumb.size }),
+    });
+    if (!presign.ok) return out;
+    const t = await presign.json() as { presignedUrl: string; publicUrl: string; contentType?: string };
+    const put = await fetch(t.presignedUrl, {
+        method: "PUT",
+        body: thumb,
+        // 署名した種別で送る（違うと S3 が 403）。`max-age` は写真と揃える
+        headers: { "Content-Type": t.contentType ?? thumb.type, "Cache-Control": "max-age=31536000" },
+    });
+    // **上げ切れなかったら URL を送らない。** 送ると、一覧が存在しない
+    // ファイルを指して**割れた画像**が並ぶ（サムネ無しより悪い）
+    if (put.ok) out.thumbUrl = t.publicUrl;
+    return out;
+}
+
 const STORY_DEFAULT_DURATION_SEC = 5; // 画像の表示時間（投稿時に未指定だったとき）
 const STORY_MIN_DURATION_SEC = 3;
 const STORY_MAX_DURATION_SEC = 15;
@@ -461,7 +501,21 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         const stillHere = () => itemIdRef.current === target;
         try {
             const { userFetch, readApiError } = await import("../../../lib/utils/api");
-            const res = await userFetch(`/stories/${encodeURIComponent(target)}/keep`, { method: "POST" });
+            // **一覧用のサムネを作って一緒に送る。**
+            // 送らないと、公開したときホームの一覧が**1440px の原寸**を読む
+            // （普通のアップロードは端末側で 512px の WebP を作って送る）。
+            // 補う `generate-thumbnails.js` はビルド時にしか走らないので、
+            // `REBUILD_DISPATCH_TOKEN` が未設定の本番では**最大7日**
+            // ——訪問者全員が毎回その差を払う。
+            // **失敗しても残す方は進める**（サムネは無くても写真は作れる。
+            // 次のビルドが補う）。画像はいま画面に出ているのでブラウザの
+            // 控えから取れる
+            const extra = await buildKeepThumb(item.src).catch(() => ({}));
+            const res = await userFetch(`/stories/${encodeURIComponent(target)}/keep`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(extra),
+            });
             if (!res.ok) {
                 const msg = await readApiError(res, locale === "en" ? "Couldn't keep it." : "残せませんでした");
                 if (stillHere()) setKeepError(msg);

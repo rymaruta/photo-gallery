@@ -10,6 +10,16 @@ import type { StoryGroup } from "@/lib/stories";
 
 const mockUserFetch = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+// 画像の道具は canvas を使うので jsdom では通らない。ここで見たいのは
+// 「サムネを作って一緒に送るか」なので、作れた／作れないを差し替える
+const mockThumb = vi.hoisted(() => vi.fn(async () => new File(["t"], "t.webp", { type: "image/webp" })));
+const mockColor = vi.hoisted(() => vi.fn(async () => "#123456"));
+const mockBlur = vi.hoisted(() => vi.fn(async () => "data:image/webp;base64,zz"));
+vi.mock("@/lib/utils/image", () => ({
+    createThumbnail: (...a: unknown[]) => mockThumb(...(a as [])),
+    extractDominantColor: (...a: unknown[]) => mockColor(...(a as [])),
+    createBlurPlaceholder: (...a: unknown[]) => mockBlur(...(a as [])),
+}));
 vi.mock("../../../../lib/utils/api", () => ({
     userFetch: (...a: unknown[]) => mockUserFetch(...a),
     authenticatedFetch: vi.fn(),
@@ -184,5 +194,60 @@ describe("下の段のレイアウト", () => {
         expect(row.className, "折り返さないとピルが画面の外へ出る").toContain("flex-wrap");
         expect(cap.className, "最小幅が無いとキャプションが潰れる").toContain("min-w-32");
         expect(cap.className, "収まらないときに次の段へ落ちる基準が無い").toContain("basis-32");
+    });
+});
+
+
+// **残した写真だけサムネが無かった。** 公開するとホームの一覧が
+// 1440px の原寸を読む（普通のアップロードは端末側で 512px を作って送る）。
+// 補う `generate-thumbnails.js` はビルド時にしか走らないので、
+// `REBUILD_DISPATCH_TOKEN` が未設定の本番では**最大7日**そのまま。
+describe("残すときに、一覧用のサムネも作って送る", () => {
+    const withUpload = () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/presigned-url")) {
+                return Promise.resolve({ ok: true, json: async () => ({ presignedUrl: "https://s3/put", publicUrl: "https://cdn/uploads/me/t.webp", contentType: "image/webp" }) });
+            }
+            if (String(url).includes("/keep") && init?.method === "POST") {
+                return Promise.resolve({ ok: true, json: async () => ({ photoId: "p-1" }) });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200, blob: async () => new Blob(["x"], { type: "image/jpeg" }) })));
+    };
+
+    it("サムネ・代表色・ぼかしを一緒に送る", async () => {
+        withUpload();
+        view(own());
+        await userEvent.click(await screen.findByLabelText("ギャラリーに残す"));
+        await waitFor(() => expect(keepPosts()).toHaveLength(1));
+        const body = JSON.parse((keepPosts()[0][1] as { body: string }).body);
+        expect(body.thumbUrl, "一覧が原寸を読む").toBe("https://cdn/uploads/me/t.webp");
+        expect(body.dominantColor).toBe("#123456");
+        expect(body.blurDataURL).toBe("data:image/webp;base64,zz");
+    });
+
+    // **上げ切れなかったら URL を送らない**（送ると一覧が存在しない
+    // ファイルを指して割れた画像が並ぶ＝サムネ無しより悪い）
+    it("サムネを上げ切れなかったら、URL は送らない", async () => {
+        withUpload();
+        vi.stubGlobal("fetch", vi.fn(async (url: string) => (String(url).includes("s3")
+            ? { ok: false, status: 403 }
+            : { ok: true, status: 200, blob: async () => new Blob(["x"], { type: "image/jpeg" }) })));
+        view(own());
+        await userEvent.click(await screen.findByLabelText("ギャラリーに残す"));
+        await waitFor(() => expect(keepPosts()).toHaveLength(1));
+        const body = JSON.parse((keepPosts()[0][1] as { body: string }).body);
+        expect("thumbUrl" in body, "存在しないファイルを指している").toBe(false);
+    });
+
+    // **作れなくても残す方は進める**（次のビルドが補う）
+    it("サムネを作れなくても、残すのは成功する", async () => {
+        withUpload();
+        mockThumb.mockResolvedValue(null as unknown as File);
+        view(own());
+        await userEvent.click(await screen.findByLabelText("ギャラリーに残す"));
+        await waitFor(() => expect(keepPosts()).toHaveLength(1));
+        expect(await screen.findByText("仕上げる")).toBeInTheDocument();
     });
 });
