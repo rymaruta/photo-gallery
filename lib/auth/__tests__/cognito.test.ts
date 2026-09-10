@@ -173,6 +173,21 @@ describe("signUp", () => {
         expect(attrs).toEqual([{ Name: "email", Value: "new@example.com" }]);
     });
 
+    // **前後の空白を落とす。** スマホのキーボードは補完のあとに空白を
+    // 付けることがあり、そのまま登録すると確認コードは届くのに
+    // ログインで打ち直したメールと一致しない。
+    // **大文字小文字は触らない**——プールの `UsernameConfiguration` は
+    // リポジトリのどこでも指定しておらず、揃え方を間違えると既にある
+    // アカウントでログインできなくなる（本番プールの設定は未確認）
+    it("メールの前後の空白は落とす（大文字小文字は変えない）", async () => {
+        mockSignUp.mockImplementation(
+            (_u: string, _p: string, _a: unknown[], _v: unknown[], cb: (e: null) => void) => cb(null)
+        );
+        await signUp("  Taro@Example.com ", "Password1!");
+        const attrs = (mockSignUp.mock.calls[0] as [string, string, { Name: string; Value: string }[]])[2];
+        expect(attrs[0].Value).toBe("Taro@Example.com");
+    });
+
     it("InvalidPasswordException → 日本語メッセージ", async () => {
         mockSignUp.mockImplementation(
             (_u: string, _p: string, _a: unknown[], _v: unknown[], cb: (e: { name: string; message: string }) => void) => {

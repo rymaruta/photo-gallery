@@ -47,7 +47,11 @@ vi.mock("../../../lib/hooks/useToast", () => ({
     useToast: () => ({ showToast: mockShowToast }),
 }));
 
-vi.mock("../../../lib/auth/cognito", () => ({
+// **実物を土台にする。** 列挙だけだと、画面が新しく使う export
+// （`PASSWORD_RULE_MESSAGE`）が undefined になって投げ、**その分岐を通る
+// テストだけが落ちる**——このリポジトリで一度踏んでいる形
+vi.mock("../../../lib/auth/cognito", async (importActual) => ({
+    ...(await importActual<typeof import("../../../lib/auth/cognito")>()),
     forgotPassword: (...args: unknown[]) => mockForgotPassword(...args),
     confirmForgotPassword: (...args: unknown[]) => mockConfirmForgotPassword(...args),
 }));
@@ -312,7 +316,7 @@ describe("LoginPage - 表示名持ち越しによるプロフィール作成", (
     // **登録を終えたばかりの初回ログインちょうど**——電波の悪い場所で
     // そこを踏んだ人は、トークンはもう手元にあるのに固まった画面を見て閉じる
     it("プロフィール作成の応答が返らなくても、着地は待たされない", async () => {
-        localStorageMock.setItem("jp_pending_displayName_u@example.com", "旅人");
+        localStorageMock.setItem("jp_pending_name_u@example.com", "旅人");
         mockLogin.mockResolvedValue({ success: true });
         mockUserFetch.mockImplementation(() => new Promise(() => { /* 返らない */ }));
         const user = userEvent.setup();
@@ -324,7 +328,32 @@ describe("LoginPage - 表示名持ち越しによるプロフィール作成", (
 
         await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/"));
         // 控えは残す（次の遷移で `ProfileSetupBanner` が拾い直す）
-        expect(localStorageMock.getItem("jp_pending_displayName_u@example.com")).toBe("旅人");
+        expect(localStorageMock.getItem("jp_pending_name_u@example.com")).toBe("旅人");
+        // **控えの経路を実際に通っていることを確かめる**（キーの綴りを
+        // 間違えると分岐に入らず、何も検証しないテストになる）
+        expect(mockUserFetch, "プロフィール作成の経路に入っていない").toHaveBeenCalled();
+    });
+
+    // **送る前に見る。** 登録側は長さと一致を見ているのに、ここは空でなければ
+    // 送っていた。3文字でも往復して、戻ってくるのは AWS の文言
+    it("再設定の新しいパスワードが短ければ、送らずにその場で言う", async () => {
+        mockForgotPassword.mockResolvedValue({ success: true });
+        const user = userEvent.setup();
+        render(<LoginPage />);
+        await user.click(screen.getByRole("button", { name: /パスワードをお忘れですか/ }));
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), "u@example.com");
+        await user.click(screen.getByRole("button", { name: /確認コードを送信/ }));
+        await waitFor(() => expect(screen.getByPlaceholderText("メールに届いたコードを入力")).toBeInTheDocument());
+
+        await user.type(screen.getByPlaceholderText("メールに届いたコードを入力"), "123456");
+        await user.type(screen.getByPlaceholderText(/8文字以上/), "abc");
+        await user.click(screen.getByRole("button", { name: /パスワードを更新/ }));
+
+        expect(mockConfirmForgotPassword, "短いまま送っている").not.toHaveBeenCalled();
+        // **プールは記号も要求している**（`provision-env.js` の
+        // `RequireSymbols: true`）。記号を書かないと、`Password1` を弾かれた
+        // 人が「条件は満たしている」と読んで打ち直し続ける
+        expect(screen.getByText(/記号/), "記号の条件を言っていない").toBeInTheDocument();
     });
 
     it("PUT /user/profile が失敗してもログインは成功扱いで `/` へリダイレクトする", async () => {
