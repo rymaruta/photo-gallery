@@ -325,3 +325,76 @@ describe("届いた返信（投稿者側）", () => {
         expect(await screen.findByText("返信を読み込めませんでした")).toBeInTheDocument();
     });
 });
+
+
+// **押せる場所が無かった。** サーバー側は入っていたのに呼ぶ画面がどこにも
+// 無く、迷惑な返信を受けた人にできることが**退会しかなかった**
+// （`block.ts` が「やり取りの口を持つ以上の最低限」と書いている当のもの）。
+// 困っているのは返信を読んでいる人なので、その場に置く。
+describe("届いた返信から、その人をブロックする", () => {
+    const withReply = () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/replies") && !init?.method) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({ items: [{ id: "r1", uid: "u2", name: "しつこい人", text: "…", t: "2026-07-04T12:00:00Z" }] }),
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+    };
+    const blockCalls = () => mockUserFetch.mock.calls.filter(
+        (c) => String(c[0]).includes("/block") && (c[1] as { method?: string })?.method === "POST");
+
+    it("押すとその人をブロックする", async () => {
+        withReply();
+        view(ownGroups(1));
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
+
+        await waitFor(() => expect(blockCalls()).toHaveLength(1));
+        expect(blockCalls()[0][0]).toBe("/users/u2/block");
+        expect(await screen.findByText("ブロック済み")).toBeInTheDocument();
+    });
+
+    // **効いたときだけ画面を変える。** 失敗を成功に見せると
+    // 「押したのにまた届く」で二度目の落胆になる
+    it("失敗したら「ブロック中」にしない", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/block") && init?.method === "POST") {
+                return Promise.resolve({ ok: false, status: 500, json: async () => ({}) });
+            }
+            if (String(url).includes("/replies") && !init?.method) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({ items: [{ id: "r1", uid: "u2", name: "しつこい人", text: "…", t: "2026-07-04T12:00:00Z" }] }),
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        view(ownGroups(1));
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
+        await waitFor(() => expect(blockCalls()).toHaveLength(1));
+
+        expect(screen.queryByText("ブロック済み"), "効いていないのにブロック済みと出ている").toBeNull();
+        expect(await screen.findByLabelText("しつこい人 さんをブロック"), "押し直せない").toBeInTheDocument();
+    });
+
+    // 退会した人にはもう届かない（押させない）
+    it("退会した人にはボタンを出さない", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/replies") && !init?.method) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({ items: [{ id: "r1", uid: "gone", name: "退会したユーザー", text: "…", t: "2026-07-04T12:00:00Z", deleted: true }] }),
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        view(ownGroups(1));
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await screen.findByText("退会したユーザー");
+        expect(screen.queryByLabelText(/さんをブロック/)).toBeNull();
+    });
+});

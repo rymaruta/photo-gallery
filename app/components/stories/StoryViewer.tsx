@@ -130,6 +130,9 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const [keeping, setKeeping] = useState(false);
     const [keptPhotoId, setKeptPhotoId] = useState<string | null>(null);
     const [keepError, setKeepError] = useState<string | null>(null);
+    /** 返信の一覧から「この人からの返信を受け取らない」を押した相手 */
+    const [blocking, setBlocking] = useState<string | null>(null);
+    const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const reportedRef = useRef<Set<string>>(new Set());
 
@@ -421,6 +424,8 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         setKeeping(false);
         setKeptPhotoId(null);
         setKeepError(null);
+        setBlocking(null);
+        setBlockedIds(new Set());
     }, [item?.id]);
 
     /** 返信を送る（本文または絵文字1つ） */
@@ -532,6 +537,29 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             setKeeping(false);
         }
     }, [item, keeping, locale]);
+
+    /**
+     * この人からの反応を受け取らない。
+     *
+     * **押せる場所を返信の一覧に置く。** サーバー側は前から入っていたが、
+     * 呼ぶ画面がどこにも無く、**迷惑な返信を受けた人にできることが
+     * 退会しかなかった**（`block.ts` が「やり取りの口を持つ以上の最低限」と
+     * 書いている当のもの）。困っているのは返信を読んでいる人なので、
+     * その場に置くのがいちばん短い。
+     */
+    const blockSender = useCallback(async (uid: string) => {
+        if (!uid || blocking) return;
+        setBlocking(uid);
+        try {
+            const { userFetch } = await import("../../../lib/utils/api");
+            const res = await userFetch(`/users/${encodeURIComponent(uid)}/block`, { method: "POST" });
+            // **効いたときだけ画面を変える。** 失敗を成功に見せると、
+            // 「押したのにまた届く」で二度目の落胆になる
+            if (res.ok) setBlockedIds((prev) => new Set(prev).add(uid));
+        } catch { /* 押し直せる。ここで画面は変えない */ } finally {
+            setBlocking(null);
+        }
+    }, [blocking]);
 
     const handleDelete = useCallback(async () => {
         if (!item || !onDelete) return;
@@ -1149,7 +1177,29 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                                 {r.emoji ? <span className="text-xl leading-none">{r.emoji}</span> : r.text}
                                             </p>
                                         </div>
-                                        <span className="text-[11px] text-white/50 flex-shrink-0">{timeAgo(r.t, locale)}</span>
+                                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                            <span className="text-[11px] text-white/50">{timeAgo(r.t, locale)}</span>
+                                            {/* 退会した人には出さない（もう届かない）。
+                                                濃さは `/50`——黒地で 4.5:1 に届く最小
+                                                （`/40` は 3.66:1。既存の走査が捕まえた） */}
+                                            {!r.deleted && (blockedIds.has(r.uid) ? (
+                                                <span className="text-[11px] text-white/50">
+                                                    {locale === "en" ? "Blocked" : "ブロック済み"}
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => void blockSender(r.uid)}
+                                                    disabled={blocking === r.uid}
+                                                    aria-label={locale === "en" ? `Block ${r.name}` : `${r.name} さんをブロック`}
+                                                    className="text-[11px] text-white/50 hover:text-rose-300 disabled:opacity-40 active:scale-95 transition"
+                                                    style={{ touchAction: "manipulation" }}
+                                                >
+                                                    {blocking === r.uid
+                                                        ? (locale === "en" ? "Blocking…" : "ブロックしています…")
+                                                        : (locale === "en" ? "Block" : "ブロック")}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 ))
                             )}
