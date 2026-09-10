@@ -347,7 +347,7 @@ function UploadPageInner() {
 
     /**
      * 残りアップロード可能枚数。**上限に当たるまで見えなかった。**
-     * 枚数の上限（api-user/src/upload.ts の PHOTO_LIMIT_PER_USER）は
+     * 枚数の上限（api-user/src/photoLimit.ts の PHOTO_LIMIT_PER_USER）は
      * 押して初めて 403 で伝わり、しかも数え上げ失敗の 503 と文言が違うだけで、
      * 利用者には「上限なのか障害なのか」も分からなかった。
      *

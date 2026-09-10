@@ -1,7 +1,7 @@
 /**
  * 1人あたりのアップロード上限（画面側の写し）。
  *
- * **`api-user/src/upload.ts` の `PHOTO_LIMIT_PER_USER` と対。**
+ * **`api-user/src/photoLimit.ts` の `PHOTO_LIMIT_PER_USER` と対。**
  * クライアントから api-user は import できない（別パッケージ・別ビルド）ので
  * 数字を2か所に持つことになる。片方だけ変えると
  *   - 画面が大きい  → 「あと N 枚」と出ているのに押すと 403

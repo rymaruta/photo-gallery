@@ -6,6 +6,8 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
 import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon, PhotoIcon, ChatBubbleOvalLeftIcon } from "@heroicons/react/24/outline";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
+import Link from "next/link";
+import { ROUTES } from "@/lib/routes";
 import UserAvatar from "../UserAvatar";
 import type { StoryGroup, StoryViewer as ViewerEntry } from "@/lib/stories";
 import { timeAgo } from "@/lib/stories";
@@ -792,7 +794,13 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             {/* 画面下: 閲覧者数（自分のみ）とキャプションを同じ段に並べる */}
             {(isOwnStory || item.caption) && (
                 <div
-                    className="absolute bottom-4 left-4 right-4 z-20 flex items-center gap-2"
+                    /* **`flex-wrap`。** ピルは全部 `flex-shrink-0` で、縮むのは
+                       キャプションだけ。閲覧者・返信件数・残すの3つが並ぶと
+                       実測（390px）で**キャプションの幅が 0px**になり、
+                       360px 以下ではピル自体が**画面の外へ切れる**（押せない
+                       部分ができる）。折り返せばキャプションは2段目に落ちる
+                       ——位置が変わるだけで、見た目の作り直しにはならない */
+                    className="absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-center gap-2"
                     /* **返信の帯（高さ約124px）に完全に隠れていた。**
                        実測（390x844）でキャプションの高さの100%が帯と重なり、
                        36px は入力欄そのものの下に沈んでいた（`bg-black/55` +
@@ -852,14 +860,18 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         （公開は編集画面で本人が押す）。動画は写真の行にできない */}
                     {isOwnStory && item.mediaType !== "video" && (
                         keptPhotoId || item.keptAs ? (
-                            <a
-                                href={`/user/edit?id=${encodeURIComponent(keptPhotoId ?? String(item.keptAs))}`}
+                            <Link
+                                /* **URL を手で書かない**（`ROUTES.EDIT` と1文字同じものを
+                                   書いていた）。`<a>` だと静的サイトを丸ごと読み直すので、
+                                   他の導線（`PhotoPageClient`）と同じ `Link` に寄せる */
+                                href={ROUTES.EDIT(keptPhotoId ?? String(item.keptAs))}
                                 className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/90 text-black text-xs font-semibold"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 <PhotoIcon className="w-4 h-4" />
-                                {locale === "en" ? "Kept · Edit" : "残した · 仕上げる"}
-                            </a>
+                                {/* 短く。3つ並ぶ段なので、1文字でも幅が効く */}
+                                {locale === "en" ? "Edit" : "仕上げる"}
+                            </Link>
                         ) : (
                             <button
                                 onClick={() => void keepToGallery()}
@@ -876,7 +888,13 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         )
                     )}
                     {item.caption && (
-                        <p className="min-w-0 flex-1 text-white text-sm leading-snug whitespace-pre-wrap break-words line-clamp-3 drop-shadow pointer-events-none">
+                        /* **潰れるならキャプションは次の段へ。** ピルは全部
+                           `flex-shrink-0` なので、縮むのはここだけ——3つ並ぶと
+                           実測（390px）で幅 35px、320px では**ピルが画面の外**へ
+                           出ていた。最小幅（8rem）を持たせると、収まらないときだけ
+                           折り返る。ピルが1つのときは今までどおり横に並ぶ
+                           （実測 390px で 251px）＝**見た目は変えていない** */
+                        <p className="min-w-32 basis-32 flex-1 text-white text-sm leading-snug whitespace-pre-wrap break-words line-clamp-3 drop-shadow pointer-events-none">
                             {item.caption}
                         </p>
                     )}

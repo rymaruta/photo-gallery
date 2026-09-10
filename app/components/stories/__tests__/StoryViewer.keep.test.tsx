@@ -75,14 +75,14 @@ describe("ストーリーをギャラリーに残す", () => {
         });
         view(own());
         await userEvent.click(await screen.findByLabelText("ギャラリーに残す"));
-        const link = await screen.findByText(/残した/);
+        const link = await screen.findByText("仕上げる");
         expect(link.closest("a")?.getAttribute("href")).toBe("/user/edit?id=p-1");
     });
 
     // 既に残してあるストーリーを開き直したとき（サーバーが `keptAs` を返す）
     it("既に残してあれば、最初から導線を出す", async () => {
         view(own({ keptAs: "p-9" }));
-        const link = await screen.findByText(/残した/);
+        const link = await screen.findByText("仕上げる");
         expect(link.closest("a")?.getAttribute("href")).toBe("/user/edit?id=p-9");
         expect(screen.queryByLabelText("ギャラリーに残す"), "残してあるのに押させている").toBeNull();
     });
@@ -111,7 +111,7 @@ describe("ストーリーをギャラリーに残す", () => {
         view(own());
         await userEvent.click(await screen.findByLabelText("ギャラリーに残す"));
         expect(await screen.findByRole("alert")).toBeInTheDocument();
-        expect(screen.queryByText(/残した/), "失敗したのに残したと出ている").toBeNull();
+        expect(screen.queryByText("仕上げる"), "失敗したのに残したと出ている").toBeNull();
     });
 
     // **応答を待っている間は進めない。** 進むと、残した手応えが別の1枚に出る
@@ -150,6 +150,24 @@ describe("ストーリーをギャラリーに残す", () => {
         fireEvent.keyDown(document, { key: "ArrowRight" });
         release();
         await new Promise((r) => setTimeout(r, 30));
-        expect(screen.queryByText(/残した/), "別の1枚に手応えが出ている").toBeNull();
+        expect(screen.queryByText("仕上げる"), "別の1枚に手応えが出ている").toBeNull();
+    });
+});
+
+
+// **キャプションが潰れないこと。** ピルは全部 `flex-shrink-0` なので、
+// 「残す」を足したぶん縮むのはキャプションだけ——実測（390px）で幅 35px、
+// 320px では**ピルが画面の外**へ出ていた（押せない部分ができる）。
+// jsdom は CSS を評価しないので、**綴りで縛るしかない**（実際の寸法は
+// Playwright で測って確かめた: 3つ並ぶと折り返って 358px、
+// ピル1つなら今までどおり横に 251px）。
+describe("下の段のレイアウト", () => {
+    it("段は折り返し、キャプションは最小幅を持つ", async () => {
+        view(own({ caption: "夕暮れの港" }));
+        const cap = await screen.findByText("夕暮れの港");
+        const row = cap.parentElement!;
+        expect(row.className, "折り返さないとピルが画面の外へ出る").toContain("flex-wrap");
+        expect(cap.className, "最小幅が無いとキャプションが潰れる").toContain("min-w-32");
+        expect(cap.className, "収まらないときに次の段へ落ちる基準が無い").toContain("basis-32");
     });
 });

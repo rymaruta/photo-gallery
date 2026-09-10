@@ -13,7 +13,7 @@ import { JSON_HEADERS } from "./http";
 export const PHOTO_LIMIT_PER_USER = 1000;
 
 /**
- * 100枚の上限を確かめる。超えていれば断る理由を返す。
+ * アップロードの上限（PHOTO_LIMIT_PER_USER）を確かめる。超えていれば断る理由を返す。
  *
  * **数えられなかったら通さない。** 以前は console.error だけ出して
  * そのまま保存していたので、スロットリングを起こせば上限を超えられた。
