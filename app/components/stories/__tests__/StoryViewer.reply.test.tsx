@@ -409,6 +409,17 @@ describe("届いた返信から、その人をブロックする", () => {
         expect(screen.queryByText(/お互いのフォローも外れます/)).toBeNull();
     });
 
+    // ボタンが1つも無くなったら注記も消す（残すと、案内ではなく雑音）
+    it("全員ブロックし終えたら、その一文も消える", async () => {
+        withReply();
+        view(ownGroups(1));
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await screen.findByText(/お互いのフォローも外れます/);
+        await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
+        await screen.findByText("ブロック済み");
+        expect(screen.queryByText(/お互いのフォローも外れます/)).toBeNull();
+    });
+
     // 退会した人にはもう届かない（押させない）
     it("退会した人にはボタンを出さない", async () => {
         mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {

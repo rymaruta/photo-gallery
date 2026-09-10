@@ -65,6 +65,10 @@ beforeEach(() => {
     mockThumb.mockReset().mockResolvedValue(new File(["t"], "t.webp", { type: "image/webp" }));
     mockColor.mockReset().mockResolvedValue("#123456");
     mockBlur.mockReset().mockResolvedValue("data:image/webp;base64,zz");
+    // **`vi.stubGlobal` にも後始末を付ける。** 上の `mockThumb` と同じ形の
+    // 漏れを、`fetch` の側で作っていた（いまは後続が自前で差し替えるので
+    // 発火していないが、そういう「たまたま」で持たせない）
+    vi.unstubAllGlobals();
 });
 
 describe("ストーリーをギャラリーに残す", () => {

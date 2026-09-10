@@ -65,7 +65,10 @@ async function buildKeepThumb(src: string): Promise<{ fields: Record<string, str
         import("../../../lib/utils/image"),
         import("../../../lib/utils/api"),
     ]);
-    // 画面に出ている画像なので、ふつうはブラウザの控えから返る
+    // **控えからは返らない。** 同一オリジンのパスに変えた＝別のキャッシュキーで、
+    // しかも `<img>` が別オリジンから取った応答は tainted なので cors の
+    // `fetch` には使い回されない。押すたびに1枚ぶん取り直す（CORS で必ず
+    // 落ちるよりは良い、という取り引き）
     const blob = await fetchImageBytes(src);
     const file = new File([blob], "story.jpg", { type: blob.type || "image/jpeg" });
     const fields: Record<string, string> = {};
@@ -1267,7 +1270,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                 押してから出しても遅い（確認ダイアログを増やす
                                 かわりに、ボタンと同じ画面に1行置く）。
                                 出すのはボタンが1つでも出ているときだけ */}
-                            {(replies ?? []).some((r) => !r.deleted) && (
+                            {(replies ?? []).some((r) => !r.deleted && !blockedIds.has(r.uid)) && (
                                 <p className="pt-1 text-[11px] text-white/60 leading-relaxed">
                                     {locale === "en"
                                         ? "Blocking also removes follows in both directions. You can unblock from your profile settings."

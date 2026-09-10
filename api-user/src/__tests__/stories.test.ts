@@ -646,7 +646,10 @@ describe("deleteStory", () => {
         mockS3Send.mockResolvedValue({});
         const res = await invoke(deleteStory, adminEvent({ pathParameters: { id: "story-1" } }));
         expect(res.statusCode).toBe(409);
-        expect(JSON.parse(res.body).error, "どうすればよいか言っていない").toContain("写真の方を削除");
+        expect(JSON.parse(res.body).error, "どうすればよいか言っていない").toContain("の方を削除してください");
+        // どの写真かを言わないと、管理画面（下書きも並ぶ）から人手で探すことになり、
+        // その間ずっとストーリーは全員のトレイに残る（最大24時間）
+        expect(JSON.parse(res.body).error, "どの写真か分からない").toContain("photo-1");
         const deleted = mockDdbSend.mock.calls
             .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand")
             .map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);

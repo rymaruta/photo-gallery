@@ -8,6 +8,11 @@ import { join } from "node:path";
 //   scripts/sync-photos-from-ddb.js … ビルド時に `app/data/photos.json` を作る
 //   lib/server/photos.ts            … その JSON を読み出す側（二重の守り）
 //
+// **4つ目もある**（ここでは突き合わせない）: `scripts/deploy-static-site.js` の
+// `FORBIDDEN_IN_OUTPUT`。あれは「出来上がった `out/` に禁止語が混ざっていたら
+// デプロイを止める」最後の関門で、意図的に網が狭い（誤検知で全デプロイが
+// 止まるため）。同じ一覧に揃えるものではない。
+//
 // **突き合わせるものが無かった。** 実際、`keptFrom` を足したとき
 // `lib/server/photos.ts` だけ落ちていて、誰も落ちなかった。書き手（sync）が
 // 落としているので当座は漏れないが、**二重の守りは片方が欠けても静か**
@@ -57,10 +62,20 @@ describe("公開データのふるいは3か所で揃っている", () => {
         expect(extra.sort()).toEqual([...SYNC_ONLY].sort());
     });
 
-    // 実データに出た項目。落とし忘れると GPS 入りの原本の URL が公開される
-    it("原本の URL（srcOriginal）はどこでも落とす", () => {
+    // **名指しでも固定する。** 上の3本は「3つが揃っているか」しか見ないので、
+    // **そろって1項目を落とす**変更は素通りする（`publicFeed` を3ファイルとも
+    // 消す変異で7件とも緑だったのを実測）。出してはいけないと分かっている
+    // ものは、理由つきで1つずつ名前で縛る。
+    const MUST_DROP: [string, string][] = [
+        ["srcOriginal", "EXIF を落とす前の原本（GPS 入り）の URL"],
+        ["key", "S3 のオブジェクトキー"],
+        ["staticStale", "静的ページの掃除が届いていないという内部の印"],
+        ["publicFeed", "公開一覧の GSI に載せるための内部の印"],
+        ["keptFrom", "ストーリーから残した写真に付く、元のストーリーのID"],
+    ];
+    it.each(MUST_DROP)("%s はどこでも落とす（%s）", (field) => {
         for (const p of [API, SYNC, READER]) {
-            expect(fieldsOf(p), `${p} が原本のURLを出している`).toContain("srcOriginal");
+            expect(fieldsOf(p), `${p} が ${field} を出している`).toContain(field);
         }
     });
 });

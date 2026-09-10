@@ -43,9 +43,13 @@ export default function BlockedUsers({ locale }: { locale: "ja" | "en" }) {
             try {
                 const res = await userFetch("/user/blocks");
                 if (!res.ok) throw new Error(String(res.status));
-                const data = await res.json() as { users?: unknown };
+                const data = await res.json() as { users?: unknown; blockedIds?: unknown };
                 if (cancelled) return;
-                setUsers(usableUsers(data.users));
+                // **古い応答の形（ID だけ）でも出す。** API を先に出す運用なので
+                // ふつうは起きないが、順序に依存させる理由が無い（2行で消せる）
+                const rows = data.users ?? (Array.isArray(data.blockedIds)
+                    ? (data.blockedIds as unknown[]).map((id) => ({ id })) : undefined);
+                setUsers(usableUsers(rows));
                 setState("ready");
             } catch {
                 if (!cancelled) setState("failed");
@@ -67,8 +71,23 @@ export default function BlockedUsers({ locale }: { locale: "ja" | "en" }) {
         }
     }, [busy]);
 
-    // 取得中と失敗は黙る（この節はふだん空。読み込み中の枠を置く方が邪魔）。
-    // **「0人」とは言い切らない**——取得できていないだけかもしれない
+    // **取得に失敗したら、そう言う。** 黙って消すと、ストーリーの返信欄が
+    // 「解除はプロフィール設定からできます」と案内している先が
+    // **何も無い行き止まり**になる（解除の口はここしかない）。
+    // 黙っていた頃は `state` が出力を1度も変えず、「0人と言い切らない」を
+    // 守っていたのは長さの判定だけだった＝この分岐は無検証だった。
+    if (state === "failed") {
+        return (
+            <div className="mt-10 pt-6 border-t border-white/10">
+                <p className="text-xs text-white/60">
+                    {locale === "en"
+                        ? "Couldn't load your blocked list. Reload the page to try again."
+                        : "ブロックした人を読み込めませんでした。ページを開き直すともう一度試します。"}
+                </p>
+            </div>
+        );
+    }
+    // 取得中は黙る（この節はふだん空。読み込み中の枠を置く方が邪魔）
     if (state !== "ready" || users.length === 0) return null;
 
     return (

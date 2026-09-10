@@ -512,7 +512,10 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             // なる**。実在を確かめてから断る（この枝は管理者の削除だけ）。
             const kept = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: keptPhotoId } }));
             if (kept.Item) {
-                return jsonError(409, "この投稿はギャラリーに残されています。写真の方を削除してください（元のストーリーも一緒に消えます）");
+                // **どの写真かを言う。** 言わないと管理画面（下書きも並ぶ）から
+                // 人手で探すことになり、その間ずっとストーリーは全員のトレイに
+                // 残る（最大24時間）
+                return jsonError(409, `この投稿はギャラリーに残されています。写真（${keptPhotoId}）の方を削除してください（元のストーリーも一緒に消えます）`);
             }
             // 写真がもう無い＝実体の持ち主が居ない。普通の削除に落とす
             delete item.keptAs;

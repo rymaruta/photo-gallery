@@ -251,7 +251,10 @@ export const listBlocks: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
     try {
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: blocksId(me) } }));
         const blockedIds = ids(res.Item as Record<string, unknown> | undefined, "blockedIds");
-        // 名前が引けなくても一覧は返す（解除できることの方が大事）
+        // 名前が引けなくても一覧は返す（解除できることの方が大事）。
+        // **それを保証しているのは `lookupDisplayNameIfSet` の側**——あちらが
+        // 内部で握って `undefined` を返すので、ここの `.catch` は現状
+        // 発火しない。あちらが投げるようになった日のための保険として置く
         const users = await Promise.all(blockedIds.slice(0, BLOCK_NAMES_MAX).map(async (id) => {
             const name = await lookupDisplayNameIfSet(id).catch(() => undefined);
             return name ? { id, name } : { id };

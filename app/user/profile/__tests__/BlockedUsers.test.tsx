@@ -59,12 +59,32 @@ describe("ブロックした人の一覧と解除", () => {
         expect(container.textContent).toBe("");
     });
 
-    // **「0人」と言い切らない。** 取得できていないだけかもしれない
-    it("取得に失敗しても、空の一覧を見せない", async () => {
+    // **「0人」と言い切らない。** 取得できていないだけかもしれない。
+    // 黙って消すと、ストーリーの返信欄が案内している先が
+    // **何も無い行き止まり**になる（解除の口はここしかない）
+    it("取得に失敗したら、空の一覧ではなく読み込めなかったと出す", async () => {
         mockUserFetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
-        const { container } = view();
-        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
-        expect(container.textContent).toBe("");
+        view();
+        expect(await screen.findByText(/読み込めませんでした/)).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "解除" }), "空の一覧を見せている").toBeNull();
+    });
+
+    it("通信ごと落ちても同じ", async () => {
+        mockUserFetch.mockRejectedValue(new Error("offline"));
+        view();
+        expect(await screen.findByText(/読み込めませんでした/)).toBeInTheDocument();
+    });
+
+    // API を先に出す運用なのでふつうは起きないが、順序に依存させる理由が無い
+    it("古い応答（IDだけ）でも一覧を出す", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url) === "/user/blocks" && !init?.method) {
+                return Promise.resolve({ ok: true, json: async () => ({ blockedIds: ["u9"] }) });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        view();
+        expect(await screen.findByRole("button", { name: "解除" })).toBeInTheDocument();
     });
 
     // 1件壊れていても画面ごと落とさない（`ErrorBoundary` のカードで
