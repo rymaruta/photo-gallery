@@ -200,23 +200,40 @@ describe("SignupPage - 登録ステップ", () => {
         expect(mockShowToast).toHaveBeenCalledWith("確認コードを再送しました", "success");
     });
 
-    // **効かない控えは捨てる。** 控えた UUID が既に確認済みのアカウントを
-    // 指していると再送は毎回失敗し、捨てないと24時間の TTL が切れるまで
-    // 同じ行き止まりを繰り返す（捨てれば次は登録済みの案内に落ちる）
-    it("再送に失敗したら、控えた UUID を捨てる（同じ行き止まりを繰り返さない）", async () => {
-        localStorageMock.setItem("jp_verify_u@example.com", JSON.stringify({ username: "stale-uuid", t: Date.now() }));
-        mockSignUp.mockResolvedValue({ success: false, aliasExists: true });
-        mockResend.mockResolvedValue({ success: false, error: "再送に失敗しました" });
-        const user = userEvent.setup();
-        render(<SignupPage />);
-
+    async function tryResend(user: ReturnType<typeof userEvent.setup>) {
         await user.type(screen.getByPlaceholderText(/example@email\.com/), "u@example.com");
         await user.type(screen.getByPlaceholderText("8文字以上"), "Password1!");
         await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
         await user.click(screen.getByRole("button", { name: /確認コードを送信/ }));
-
         await waitFor(() => expect(mockResend).toHaveBeenCalledWith("stale-uuid"));
+    }
+
+    // **もう使えない控えは捨てる。** その UUID が確認済みのアカウントを
+    // 指していると再送は毎回失敗し、捨てないと24時間の TTL が切れるまで
+    // 同じ行き止まりを繰り返す
+    it("もう使えない控え（確認済み）は捨てる", async () => {
+        localStorageMock.setItem("jp_verify_u@example.com", JSON.stringify({ username: "stale-uuid", t: Date.now() }));
+        mockSignUp.mockResolvedValue({ success: false, aliasExists: true });
+        mockResend.mockResolvedValue({ success: false, error: "x", code: "NotAuthorizedException" });
+        render(<SignupPage />);
+        await tryResend(userEvent.setup());
         expect(localStorageMock.getItem("jp_verify_u@example.com"), "効かない控えが残る").toBeNull();
+    });
+
+    // **一時的な失敗で捨ててはいけない。** 捨てると確認画面に二度と
+    // 戻れない（登録し直しても「すでに登録されています」で終わり、
+    // 未確認なのでパスワード再設定も効かない）。元の形（24時間で TTL が
+    // 切れて自然回復）より悪い
+    it.each([
+        ["回数制限", "LimitExceededException"],
+        ["通信断など理由の分からない失敗", undefined],
+    ])("一時的な失敗（%s）では控えを残す", async (_label, code) => {
+        localStorageMock.setItem("jp_verify_u@example.com", JSON.stringify({ username: "stale-uuid", t: Date.now() }));
+        mockSignUp.mockResolvedValue({ success: false, aliasExists: true });
+        mockResend.mockResolvedValue({ success: false, error: "x", ...(code ? { code } : {}) });
+        render(<SignupPage />);
+        await tryResend(userEvent.setup());
+        expect(localStorageMock.getItem("jp_verify_u@example.com"), "押し直す手がかりを捨てている").not.toBeNull();
     });
 
     it("AliasExistsException + 保存UUIDなし → エラー表示でverifyに遷移しない", async () => {

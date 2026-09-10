@@ -455,6 +455,17 @@ export async function confirmSignUp(username: string, code: string): Promise<{
 export async function resendConfirmationCode(username: string): Promise<{
     success: boolean;
     error?: string;
+    /**
+     * 例外の名前。**「一時的な失敗」と「この控えはもう使えない」を
+     * 呼び出し側が見分けるために返す。**
+     *
+     * 見分けずに「失敗したら控えを捨てる」にしたら、`LimitExceededException`
+     * （再送の回数制限）や通信断でも唯一の手がかり（UUID）を捨てるようになり、
+     * **確認画面に二度と戻れなくなった**（登録し直しても
+     * 「すでに登録されています」で終わり、未確認なのでパスワード再設定も
+     * 効かない）。24時間で TTL が切れて自然に回復する元の形より悪い。
+     */
+    code?: string;
 }> {
     return new Promise((resolve) => {
         try {
@@ -464,7 +475,7 @@ export async function resendConfirmationCode(username: string): Promise<{
                 if (err) {
                     let msg = "再送に失敗しました。しばらくしてからもう一度お試しください";
                     if (err.name === "LimitExceededException") msg = "送信回数の上限に達しました。しばらく時間をおいてから再試行してください";
-                    resolve({ success: false, error: msg });
+                    resolve({ success: false, error: msg, code: err.name });
                     return;
                 }
                 resolve({ success: true });

@@ -653,7 +653,8 @@ export const getUserFollowing: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
         return {
             statusCode: 200,
             headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
-            body: JSON.stringify({ users, total: list.length }),
+            // `followers#` 側と形を揃える（`total` は数、`listed` は一覧の長さ）
+            body: JSON.stringify({ users, total: list.length, listed: list.length }),
         };
     } catch (e) {
         console.error("getUserFollowing error:", e);
@@ -667,9 +668,17 @@ export const getUserFollowing: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
  * `getUserFollowing` と対。倒し方も揃える（認証必要・ブロックは 404・
  * 退会した人は `deleted: true`・名前は50人まで・総数は `total`）。
  *
- * **数は `followstats#` が正**。この一覧は上限（`FOLLOWING_MAX`）で
- * 古い方から溢れるので、`total` と件数が食い違うことがある
- * （画面は「N人のうち、はじめのM人」と出す）。
+ * **数は `followstats#` が正。一覧は追いついていないことがある。**
+ *
+ *   - 埋め戻し（`scripts/backfill-followers.js`）を流すまで、既にある
+ *     フォロー関係は行に入っていない＝**一覧は空だが数は5**
+ *   - 上限（`FOLLOWING_MAX`）で古い方から溢れる
+ *   - `updateFollowersQuietly` は失敗を握るので、1件だけ欠けることがある
+ *
+ * だから `total` に一覧の長さを返してはいけない。**返すのは数（`followers`）と
+ * 一覧の長さ（`listed`）の両方**——画面はこの2つで「0人」と「まだ揃って
+ * いない」を見分ける。片方だけだと「5 フォロワー」と言いながら開くと
+ * 「まだフォロワーはいません」になる（実際にそうなっていた）。
  */
 export const getUserFollowers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const uid = event.pathParameters?.uid;
@@ -677,7 +686,10 @@ export const getUserFollowers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
     if (!uid || !isUserId(uid)) return jsonError(400, "不正なリクエスト");
     try {
         if (me && await isBlocked(uid, me)) return jsonError(404, "ユーザーが見つかりません");
-        const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: followersId(uid) } }));
+        const [res, stats] = await Promise.all([
+            ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: followersId(uid) } })),
+            readStats(uid),
+        ]);
         const list = Array.isArray(res.Item?.list) ? (res.Item.list as string[]) : [];
         const page = list.slice(0, FOLLOWING_PAGE);
         const gone = page.length > 0 ? await deletedUserIds() : new Set<string>();
@@ -689,7 +701,8 @@ export const getUserFollowers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
         return {
             statusCode: 200,
             headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
-            body: JSON.stringify({ users, total: list.length }),
+            // `total` は**数（`followstats#`）**。`listed` は一覧に入っている数
+            body: JSON.stringify({ users, total: stats.followers, listed: list.length }),
         };
     } catch (e) {
         console.error("getUserFollowers error:", e);

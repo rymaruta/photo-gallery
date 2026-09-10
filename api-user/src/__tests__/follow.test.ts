@@ -966,12 +966,29 @@ describe("フォロワーの一覧（followers#）", () => {
     });
 
     it("その人のフォロワーを名前つきで返す", async () => {
-        world({ [`followers#${ME}`]: { list: [OTHER, THIRD] } });
+        world({
+            [`followers#${ME}`]: { list: [OTHER, THIRD] },
+            [`followstats#${ME}`]: { followers: 2, following: 0 },
+        });
         mockLookupIfSet.mockImplementation(async (id: string) => (id === OTHER ? "旅人B" : undefined));
         const res = await invoke(getUserFollowers, evUid(ME, ME));
         expect(res.statusCode).toBe(200);
         expect(JSON.parse(res.body).users).toEqual([{ id: OTHER, name: "旅人B" }, { id: THIRD }]);
         expect(JSON.parse(res.body).total).toBe(2);
+        expect(JSON.parse(res.body).listed).toBe(2);
+    });
+
+    // **数は `followstats#` が正。** 一覧の長さを `total` にすると、
+    // 埋め戻し前は「5 フォロワー」と言いながら開くと「まだフォロワーは
+    // いません」になる（一覧が空で `total: 0` なので、足りないことを
+    // 伝える行も出ない）。画面はこの2つで「0人」と「まだ揃っていない」を
+    // 見分ける
+    it("一覧が空でも、数は followstats# の値を返す（0人と混ぜない）", async () => {
+        world({ [`followstats#${ME}`]: { followers: 5, following: 0 } });
+        const res = await invoke(getUserFollowers, evUid(ME, ME));
+        expect(JSON.parse(res.body).users).toEqual([]);
+        expect(JSON.parse(res.body).total, "一覧の長さを数として返している").toBe(5);
+        expect(JSON.parse(res.body).listed).toBe(0);
     });
 
     it("退会した人には印を付ける", async () => {
@@ -995,9 +1012,13 @@ describe("フォロワーの一覧（followers#）", () => {
 
     it("50人までしか名前を引かない（総数は返す）", async () => {
         const many = Array.from({ length: 60 }, (_, i) => `0000000${String(i).padStart(4, "0")}-1111-4111-8111-111111111111`);
-        world({ [`followers#${ME}`]: { list: many } });
+        world({
+            [`followers#${ME}`]: { list: many },
+            [`followstats#${ME}`]: { followers: 60, following: 0 },
+        });
         const res = await invoke(getUserFollowers, evUid(ME, ME));
         expect(JSON.parse(res.body).users).toHaveLength(50);
         expect(JSON.parse(res.body).total).toBe(60);
+        expect(JSON.parse(res.body).listed).toBe(60);
     });
 });

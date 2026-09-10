@@ -16,6 +16,19 @@ const inputCls = "w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg 
 
 const PENDING_TTL = 24 * 60 * 60 * 1000;
 
+/**
+ * 控えた UUID を捨ててよい再送の失敗。**一時的な失敗を入れてはいけない**
+ * （`LimitExceededException`・通信断は残して押し直させる）。
+ *   NotAuthorizedException  … その UUID はもう確認済み
+ *   UserNotFoundException   … そんなユーザーは居ない（消された等）
+ *   InvalidParameterException … 確認済みで属性が無い等、やり直しでは直らない
+ */
+const PERMANENT_RESEND_FAILURES = new Set([
+    "NotAuthorizedException",
+    "UserNotFoundException",
+    "InvalidParameterException",
+]);
+
 function savePending(em: string, username: string) {
     try { localStorage.setItem(pendingVerifyKey(em), JSON.stringify({ username, t: Date.now() })); } catch { /* ignore */ }
 }
@@ -128,11 +141,18 @@ function SignupForm() {
                 const savedUsername = loadPending(email);
                 if (savedUsername) {
                     const resendResult = await resendConfirmationCode(savedUsername);
-                    // **効かない控えは捨てる。** 控えた UUID が既に確認済みの
-                    // アカウントを指していると、再送は毎回失敗する。捨てないと
-                    // 24時間の TTL が切れるまで同じ行き止まりを繰り返す
-                    // （捨てれば次は「すでに登録されています」の案内に落ちる）
-                    if (!resendResult.success) clearPending(email);
+                    // **捨てるのは「この控えはもう使えない」ときだけ。**
+                    //
+                    // 「失敗したら捨てる」にしたら、`LimitExceededException`
+                    // （再送の回数制限）や通信断でも唯一の手がかりを捨てて
+                    // いた——**確認画面に二度と戻れない**（登録し直しても
+                    // 「すでに登録されています」で終わり、未確認なので
+                    // パスワード再設定も効かない）。24時間で TTL が切れて
+                    // 自然に回復する元の形より悪い。
+                    //
+                    // 恒久的に効かないのは「その UUID がもう確認済み／存在
+                    // しない」場合だけ。一時的な失敗では残して押し直させる。
+                    if (PERMANENT_RESEND_FAILURES.has(resendResult.code ?? "")) clearPending(email);
                     if (resendResult.success) {
                         setCognitoUsername(savedUsername);
                         setStep("verify");

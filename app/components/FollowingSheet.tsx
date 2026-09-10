@@ -64,6 +64,8 @@ export default function FollowingSheet({ userId, kind, locale, onClose, openerRe
             try {
                 const res = await userFetch(`/users/${encodeURIComponent(userId)}/${kind}`);
                 if (!res.ok) throw new Error(String(res.status));
+                // `listed`（一覧に入っている数）も返るが、画面は使わない
+                // ——出す判断は `total` と実際に描く行数で足りる
                 const data = await res.json() as { users?: unknown; total?: unknown };
                 // **配列でなければ「取れなかった」**。`[]` に潰すと
                 // 「0人」と「壊れた応答」が混ざる（この部品が掲げている
@@ -125,9 +127,18 @@ export default function FollowingSheet({ userId, kind, locale, onClose, openerRe
                             {locale === "en" ? "Couldn't load the list." : "一覧を読み込めませんでした"}
                         </p>
                     )}
+                    {/* **「0人」と「まだ揃っていない」を分ける。**
+                        数（`followstats#`）は正しいのに一覧が空、という状態が
+                        ある——埋め戻しを流すまで／1件だけ書けなかったとき。
+                        分けないと「5 フォロワー」と言いながら開くと
+                        「まだフォロワーはいません」になる */}
                     {state === "ready" && rows.length === 0 && (
                         <p className="text-xs text-white/60 text-center py-8">
-                            {locale === "en" ? EMPTY[kind].en : EMPTY[kind].ja}
+                            {total > 0
+                                ? (locale === "en"
+                                    ? "This list isn't ready yet. The count above is correct."
+                                    : "一覧はまだ用意できていません。上の数は正しい値です。")
+                                : (locale === "en" ? EMPTY[kind].en : EMPTY[kind].ja)}
                         </p>
                     )}
                     {rows.map((u) => (u.deleted ? (
@@ -155,8 +166,10 @@ export default function FollowingSheet({ userId, kind, locale, onClose, openerRe
                         </Link>
                     )))}
                     {/* サーバーは50人までしか返さない（1回で2000回の GetItem は
-                        撃てない）。**足りないことを黙らない** */}
-                    {state === "ready" && total > rows.length && (
+                        撃てない）。**足りないことを黙らない**。
+                        `total`（正しい数）と比べる——一覧が追いついていない
+                        ぶんもここに出る */}
+                    {state === "ready" && rows.length > 0 && total > rows.length && (
                         <p className="px-3 py-3 text-[11px] text-white/60">
                             {locale === "en"
                                 ? `Showing the first ${rows.length} of ${total}.`

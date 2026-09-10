@@ -179,4 +179,15 @@ describe("フォロワーの一覧（同じ部品）", () => {
         view("followers");
         expect(await screen.findByText("まだフォロワーはいません")).toBeInTheDocument();
     });
+
+    // **「0人」と「まだ揃っていない」を分ける。** 埋め戻しを流すまで
+    // （あるいは1件だけ書けなかったとき）、数は正しいのに一覧は空。
+    // 分けないと「5 フォロワー」と言いながら開くと
+    // 「まだフォロワーはいません」になる
+    it("数はあるのに一覧が空なら、0人と言わない", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ users: [], total: 5 }) });
+        view("followers");
+        expect(await screen.findByText(/一覧はまだ用意できていません/)).toBeInTheDocument();
+        expect(screen.queryByText("まだフォロワーはいません"), "数と食い違うことを言っている").toBeNull();
+    });
 });
