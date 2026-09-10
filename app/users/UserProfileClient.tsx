@@ -5,7 +5,7 @@ import { sanitizeProfile } from "../../lib/utils/profileShape";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Thumb from "../components/Thumb";
 import Link from "next/link";
-import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { haversineKm } from "../../lib/utils/journey";
@@ -539,12 +539,52 @@ export default function UserProfileClient({ userId }: { userId: string }) {
 
     const [tab, setTab] = useState<TabKey>("posts");
     const [shareOpen, setShareOpen] = useState(false);
+    /** ブロック中かどうか（この画面から押した結果だけを持つ。開いた時点では引かない） */
+    const [blocked, setBlocked] = useState(false);
+    const [blocking, setBlocking] = useState(false);
     // プロフィールQRコード（対面共有用）
     const [qrOpen, setQrOpen] = useState(false);
 
     // 共有メニューも同じ。閉じる手段が `fixed inset-0` の**マウス専用
     // オーバーレイ**しか無く、QR だけ直して隣を直していなかった。
     useEscapeKey(shareOpen, () => setShareOpen(false));
+
+    /**
+     * この人からの反応を受け取らない。
+     *
+     * **押せる場所がストーリーの返信一覧しか無かった。** そこから足したが、
+     * 相手がストーリーに返信していなければ辿り着けない——**コメントを
+     * 付けられても止められない**（`getComments` はブロックを見ないので、
+     * 既に付いたものは残る。止まるのは以後の投稿と通知）。
+     * サーバー側は前から揃っていて、足りないのは押す場所だけだった。
+     *
+     * **効いたときだけ画面を変える**（`StoryViewer` と同じ）。失敗を成功に
+     * 見せると「押したのにまた届く」で二度目の落胆になる。
+     */
+    const toggleBlock = useCallback(async () => {
+        if (!userId || blocking) return;
+        setBlocking(true);
+        const next = !blocked;
+        try {
+            const res = await userFetch(`/users/${encodeURIComponent(userId)}/block`, {
+                method: next ? "POST" : "DELETE",
+            });
+            if (res.ok) {
+                setBlocked(next);
+                showToast(next
+                    ? (locale === "en"
+                        ? "Blocked. They can't reply, comment, or follow you. Follows in both directions were removed."
+                        : "ブロックしました。返信・コメント・フォローができなくなります。お互いのフォローも外れました。")
+                    : (locale === "en" ? "Unblocked." : "ブロックを解除しました。"), "success");
+            } else {
+                showToast(await readApiError(res, locale === "en" ? "Couldn't do that." : "できませんでした"), "error");
+            }
+        } catch {
+            showToast(locale === "en" ? "Couldn't do that." : "できませんでした", "error");
+        } finally {
+            setBlocking(false);
+        }
+    }, [userId, blocked, blocking, locale, showToast]);
 
     // Escape で閉じる。共有メニューから開くので、押した瞬間にその
     // ボタン自体がアンマウントされ、フォーカスは body に落ちる。
@@ -946,6 +986,21 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                             <QrCodeIcon className="w-[18px] h-[18px] text-white/50" />
                                             {locale === "en" ? "QR code" : "QRコードを表示"}
                                         </button>
+                                        {/* **他人のプロフィールにだけ出す。** ログインしていない人は
+                                            口が断るので出さない。自分は自分をブロックできない */}
+                                        {!isOwner && viewerAuthed && (
+                                            <button
+                                                role="menuitem"
+                                                onClick={() => { setShareOpen(false); void toggleBlock(); }}
+                                                disabled={blocking}
+                                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white/85 hover:bg-white/10 active:bg-white/15 transition text-left border-t border-white/5 disabled:opacity-50"
+                                            >
+                                                <NoSymbolIcon className="w-[18px] h-[18px] text-white/50" />
+                                                {blocked
+                                                    ? (locale === "en" ? "Unblock" : "ブロックを解除")
+                                                    : (locale === "en" ? "Block" : "ブロックする")}
+                                            </button>
+                                        )}
                                     </div>
                                 </>
                             )}
