@@ -484,6 +484,11 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         setKeepError(null);
         setBlocking(null);
         setBlockedIds(new Set());
+        // **写したのは setter と描画だけで、リセットが漏れていた。**
+        // 落とさないと、s1 でブロックに失敗した赤い1行が s2 の返信一覧に
+        // 出る——このすぐ上のコメントが「前の人へ送ったはずの手応えを
+        // 持ち越さない」と戒めている当の形
+        setBlockError(null);
     }, [item?.id]);
 
     /** 返信を送る（本文または絵文字1つ） */
@@ -1312,15 +1317,16 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                 押してから出しても遅い（確認ダイアログを増やす
                                 かわりに、ボタンと同じ画面に1行置く）。
                                 出すのはボタンが1つでも出ているときだけ */}
-                            {blockError && (
-                                <p className="pt-1.5 text-center text-[11px] text-rose-300" role="alert">{blockError}</p>
-                            )}
                             {(replies ?? []).some((r) => !r.deleted && !blockedIds.has(r.uid)) && (
                                 <p className="pt-1 text-[11px] text-white/60 leading-relaxed">
                                     {locale === "en"
                                         ? "Blocking also removes follows in both directions. You can unblock from your profile settings."
                                         : "ブロックすると、お互いのフォローも外れます。解除はプロフィール設定からできます。"}
                                 </p>
+                            )}
+                            {/* ブロックが効かなかった理由（`replyError` と同じ形） */}
+                            {blockError && (
+                                <p className="pt-1.5 text-center text-[11px] text-rose-300" role="alert">{blockError}</p>
                             )}
                         </div>
                     </div>

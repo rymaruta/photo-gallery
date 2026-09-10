@@ -82,6 +82,28 @@ describe("管理APIの写真削除", () => {
         expect(JSON.parse(res.body).success).toBe(true);
     });
 
+    // **一度も公開していない下書きには、残るページが無い。**
+    // `!dispatched` をそのまま返していたので、本番（トークン未設定＝常に
+    // false）では**下書きを消すたびに**「個別ページは残ることがあります」
+    // と出ていた——「管理者だけが『消えた』と思い込む」を直すつもりで、
+    // **逆向きの嘘**（消えているのに残ると言う）を作っていた。
+    // 判定は `api-user` の `deleteMyPhoto` と同じ形
+    it("下書きを消したときは、残るとは言わない", async () => {
+        mockRebuild.mockResolvedValue(false);
+        mockGetPhoto.mockResolvedValue({ ...PHOTO, published: false });
+        const res = await invoke();
+        expect(JSON.parse(res.body).staticStale, "まだ無いページについて残ると言っている").toBeUndefined();
+    });
+
+    // **掃除が届かなかった非公開写真は別。** ページは公開されたまま
+    // 残っているので、伝える（`staticStale` の印がその根拠）
+    it("掃除が届かなかった非公開写真では、残ると言う", async () => {
+        mockRebuild.mockResolvedValue(false);
+        mockGetPhoto.mockResolvedValue({ ...PHOTO, published: false, staticStale: true });
+        const res = await invoke();
+        expect(JSON.parse(res.body).staticStale, "公開されたままのページを黙っている").toBe(true);
+    });
+
 // 逆向き: 消せなかったキーは回さない（消えていない実体のキャッシュを
     // 捨てても取り直されるだけで、無効化はパス単位で課金される）
     it("消せなかったキーはエッジに回さない", async () => {

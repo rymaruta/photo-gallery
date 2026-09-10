@@ -453,6 +453,65 @@ describe("届いた返信から、その人をブロックする", () => {
         } finally { off(); }
     });
 
+    // **`catch` 側も見る。** 新しいテストは `!res.ok` しか撃っていなかった
+    // ので、通信ごと落ちた回（オフライン・DNS 失敗）に無言へ戻す変異が
+    // 160件すべて緑だった（レビューが実証）
+    it("通信ごと落ちても理由を出す", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/block") && init?.method === "POST") {
+                return Promise.reject(new Error("offline"));
+            }
+            if (String(url).includes("/replies")) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({ items: [{ id: "r1", uid: "u2", name: "しつこい人", text: "…", t: "2026-07-04T12:00:00Z" }] }),
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        view(ownGroups(1));
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
+        expect(await screen.findByRole("alert"), "押しても何も起きないように見える").toBeInTheDocument();
+    });
+
+    // **次のストーリーへ持ち越さない。**
+    // すぐ上の effect が「前の人へ送ったはずの手応えを持ち越さない」と
+    // 戒めているのに、`setBlockError` だけリセットに入れ忘れていた
+    // ——s1 で失敗した赤い1行が、s2 の返信一覧に出る
+    it("次のストーリーへ持ち越さない", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/block") && init?.method === "POST") {
+                return Promise.resolve({ ok: false, status: 500, json: async () => ({}) });
+            }
+            if (String(url).includes("/replies")) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({ items: [{ id: "r1", uid: "u2", name: "しつこい人", text: "…", t: "2026-07-04T12:00:00Z" }] }),
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        // 自分のストーリー2枚（送りで次へ行ける）
+        view([{
+            userId: "me", displayName: "自分",
+            items: [
+                { id: "s1", src: "https://cdn/x/a.jpg", userId: "me", createdAt: "2026-07-04T10:00:00Z", expiresAt: "2099-07-05T10:00:00Z", replyCount: 1 },
+                { id: "s2", src: "https://cdn/x/b.jpg", userId: "me", createdAt: "2026-07-04T11:00:00Z", expiresAt: "2099-07-05T11:00:00Z", replyCount: 1 },
+            ],
+        }]);
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
+        await screen.findByRole("alert");
+
+        // 返信シートを閉じて次のストーリーへ（他のテストと同じ矢印キー）
+        await userEvent.click(screen.getAllByLabelText("閉じる").slice(-1)[0]);
+        fireEvent.keyDown(document, { key: "ArrowRight" });
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+
+        expect(screen.queryByRole("alert"), "前のストーリーの失敗を持ち越している").toBeNull();
+    });
+
     // **効いたときだけ画面を変える。** 失敗を成功に見せると
     // 「押したのにまた届く」で二度目の落胆になる
     it("失敗したら「ブロック中」にしない", async () => {

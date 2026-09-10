@@ -105,3 +105,68 @@ describe("管理APIで非公開にしたとき", () => {
         expect(JSON.parse(res.body).success).toBe(true);
     });
 });
+
+// **`staticStale` だけ載せて「利用者側と同じことを言うようにした」と
+// 書いたが、`staticOutdated`（公開のまま、消した項目がページに残る）が
+// 抜けていた**——本文や撮影地を消した回は今までどおり黙っていた
+describe("管理APIで、公開のまま項目を消したとき", () => {
+    it("消した内容がページに残ることを知らせる", async () => {
+        mockRebuild.mockResolvedValue(false);
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                return Promise.resolve({ Item: { ...PHOTO, location: "東京" } });
+            }
+            return Promise.resolve({ Attributes: { ...PHOTO } });
+        });
+
+        const res = await invoke({ location: "" });   // 撮影地をまるごと消す
+        const body = JSON.parse(res.body);
+        expect(body.staticOutdated, "消した内容が残ることを言っていない").toBe(true);
+        expect(body.staticStale, "隠していないのに隠したと言っている").toBeUndefined();
+    });
+
+    // **書き換えただけでは言わない。** 公開中の写真を保存するたびに
+    // 断りが出ると、肝心のときに読まれない（`api-user` と同じ線）
+    it("書き換えただけなら黙る", async () => {
+        mockRebuild.mockResolvedValue(false);
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                return Promise.resolve({ Item: { ...PHOTO, location: "東京" } });
+            }
+            return Promise.resolve({ Attributes: { ...PHOTO, location: "大阪" } });
+        });
+
+        const res = await invoke({ location: "大阪" });
+        expect(JSON.parse(res.body).staticOutdated).toBeUndefined();
+    });
+
+    // 依頼が届いたなら残らない
+    it("依頼が届いたなら黙る", async () => {
+        mockRebuild.mockResolvedValue(true);
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                return Promise.resolve({ Item: { ...PHOTO, location: "東京" } });
+            }
+            return Promise.resolve({ Attributes: { ...PHOTO } });
+        });
+
+        const res = await invoke({ location: "" });
+        expect(JSON.parse(res.body).staticOutdated).toBeUndefined();
+    });
+
+    // **そもそも静的ページが無ければ言わない**（`deleteMyPhoto` と同じ判定）。
+    // 一度も公開していない下書きから項目を消しただけで
+    // 「ページに残る」と言うのは嘘
+    it("一度も公開していない下書きでは黙る", async () => {
+        mockRebuild.mockResolvedValue(false);
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                return Promise.resolve({ Item: { ...PHOTO, published: false, location: "東京" } });
+            }
+            return Promise.resolve({ Attributes: { ...PHOTO, published: false } });
+        });
+
+        const res = await invoke({ location: "" });
+        expect(JSON.parse(res.body).staticOutdated, "まだ無いページについて残ると言っている").toBeUndefined();
+    });
+});

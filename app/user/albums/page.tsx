@@ -34,14 +34,30 @@ const inviteUrl = (token: string) =>
 export default function AlbumsPage() {
     const { locale } = useLocale();
     const { showToast } = useToast();
-    const gate = useMemberGate();
-
     const [albums, setAlbums] = useState<Album[] | null>(null);
     const [loadError, setLoadError] = useState("");
     const [title, setTitle] = useState("");
     const [busy, setBusy] = useState(false);
     /** 名前を変えている最中のアルバム（id → 入力中の名前） */
     const [editing, setEditing] = useState<{ id: string; title: string } | null>(null);
+
+    /**
+     * 打ちかけがあるか。**送り返す前に見る。**
+     *
+     * この画面にも打って入れる欄が2つある——新規アルバムの名前と、
+     * 改名の欄。どちらもボタンでしか送らないので、別タブでログアウト
+     * すると `router.replace` が画面ごと作り直して**打った名前が消える**。
+     * `/user/profile` で同じものを直した回に、ここを取りこぼしていた
+     * （「横断で探した」と書いておきながら3件目を見落としていた）。
+     *
+     * 改名は「開いただけ」を打ちかけに数えない——開くときに元の名前を
+     * そのまま入れるので、変わっていなければ守るものが無い。
+     */
+    const hasUnsavedWork = title.trim() !== ""
+        || (!!editing && editing.title.trim()
+            !== (albums?.find((a) => a.id === editing.id)?.title ?? "").trim());
+
+    const gate = useMemberGate(hasUnsavedWork);
     /** 消す前に一度聞く。**押し間違いで消させない**（削除は元に戻せない） */
     const [confirming, setConfirming] = useState<Album | null>(null);
 

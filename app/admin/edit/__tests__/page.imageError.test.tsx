@@ -23,7 +23,14 @@ vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) })
 // 安定しているので、これはハーネス側の作り物）
 const mockShowToast = vi.hoisted(() => vi.fn());
 vi.mock("../../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: mockShowToast }) }));
-vi.mock("../../../../lib/utils/api", () => ({ authenticatedFetch: mockAuthFetch }));
+// **実物を土台にする。** 列挙だけだと、実装が新しく使い始めた export
+// （`readApiError`）が undefined になり、**その分岐を通るテストだけ**が
+// 落ちる（台帳の型: 分岐の中で初めて使う値は、その分岐を通るテストでしか
+// 露見しない）
+vi.mock("../../../../lib/utils/api", async (importActual) => ({
+    ...(await importActual<typeof import("../../../../lib/utils/api")>()),
+    authenticatedFetch: mockAuthFetch,
+}));
 
 const EditPage = (await import("../page")).default;
 

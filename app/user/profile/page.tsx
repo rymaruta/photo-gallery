@@ -155,12 +155,19 @@ export default function ProfileEditPage() {
      * 見るのは**打って入れる項目**だけ（テーマ色・曲は選び直せる）。
      * 誤って true になっても、倒れる先は「送り返さずに理由を出す」＝安全側。
      */
+    //
+    // **両側とも `trim()` して比べる。** サーバーは保存時に
+    // `displayName` / `bio` / `instagram` / `website` を trim して返す
+    // （`api-user/src/userProfile.ts`）が、画面は打った文字をそのまま
+    // 持つ。素で比べると**末尾に空白を1つ打って保存しただけで、成功後も
+    // true のまま固まる**——「保存しました」の直後に「この内容は保存
+    // できません」と言い、以後この画面では送り返しが永久に効かない。
     const hasUnsavedWork = !!profile && (
         username.trim().toLowerCase().replace(/^@/, "") !== (profile.username ?? "")
-        || displayName !== (profile.displayName ?? "")
-        || bio !== (profile.bio ?? "")
-        || instagram !== (profile.instagram ?? "")
-        || website !== (profile.website ?? "")
+        || displayName.trim() !== (profile.displayName ?? "").trim()
+        || bio.trim() !== (profile.bio ?? "").trim()
+        || instagram.trim() !== (profile.instagram ?? "").trim()
+        || website.trim() !== (profile.website ?? "").trim()
     );
 
     useEffect(() => {
