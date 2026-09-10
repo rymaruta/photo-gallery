@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
-import { GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { GetCommand, UpdateCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { v4 as uuidv4 } from "uuid";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
@@ -210,13 +210,33 @@ export const postStoryReply: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
 
         // 投稿者が数だけ見られるように、ストーリーの行にも数える。
         // **`replyCount` は所有者にしか返さない**（`getStories` が落とす）
+        //
+        // **この書き込みは、行がまだ在るかの見張りも兼ねている。**
+        // 「返信する」と「ストーリーを消す」が同時に走ると、削除が
+        // `storyreplies#<id>` → 行 の順に消したあとで、上の追記が
+        // **`storyreplies#<id>` を作り直す**（DynamoDB の UpdateItem は
+        // キーが無ければ作る）。行が無い文書は `storyFeed` も `story` も
+        // `src` も持たないので、GSI にも Scan にも一覧にも出ない
+        // ——**どの削除経路からも二度と辿れない**。このテーブルに TTL は無い。
+        //
+        // `attribute_exists(id)` が落ちたということは、まさにその状態。
+        // 追加の読み取りを増やさずに分かるので、ここで掃除する。
+        // （きれいに直すなら `TransactWriteItems`（行の ConditionCheck ＋
+        //   文書の Update）だが、`comments.ts` から写した構造ごと変わる。
+        //   `viewStory` が同じ事故を長いコメント付きで塞いでいる）
         await ddb.send(new UpdateCommand({
             TableName: PHOTOS_TABLE,
             Key: { id: storyId },
             UpdateExpression: "SET replyCount = :n",
             ConditionExpression: "attribute_exists(id)",
             ExpressionAttributeValues: { ":n": stored.length },
-        })).catch((e) => console.error(`postStoryReply: 件数を書けませんでした（${storyId}）:`, e));
+        })).catch(async (e) => {
+            console.error(`postStoryReply: 件数を書けませんでした（${storyId}）:`, e);
+            if ((e as { name?: string }).name !== "ConditionalCheckFailedException") return;
+            // 行が消えている＝いま作り直した文書は誰も辿れない。片付ける
+            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(storyId) } }))
+                .catch((e2) => console.error(`postStoryReply: 孤児の掃除に失敗（${storyId}）:`, e2));
+        });
 
         if (ownerId) {
             await pushNotification(ownerId, {

@@ -409,6 +409,36 @@ describe("createStory: 撮影地", () => {
         expect("coords" in saved(), "動画に座標を付けている").toBe(false);
     });
 
+    // **検証は写真と同じものを通す**（`sanitizeText`）と書いていたのに、
+    // それを外しても全58件が緑だった＝**1本も守っていなかった**。
+    // ここが素通しだと、改行入り・長大な地名がそのまま保存され、
+    // `keepStory` 経由で写真の `location` → `/location/<スラッグ>`・
+    // `<title>`・JSON-LD に入る（スラッグはファイル名にもなる）
+    it("制御文字を落とす", async () => {
+        mockDdbSend.mockResolvedValue({ Count: 0 });
+        await post({ location: `横浜${String.fromCharCode(10)}みなとみらい${String.fromCharCode(0)}` });
+        // `sanitizeText` は落とす（区切りに寄せない）。実際の振る舞いで固定する
+        expect(saved().location, "改行や NUL がそのまま保存されている").toBe("横浜みなとみらい");
+    });
+
+    it("200文字で切る", async () => {
+        mockDdbSend.mockResolvedValue({ Count: 0 });
+        await post({ location: "あ".repeat(300) });
+        expect(String(saved().location).length, "上限が効いていない").toBe(200);
+    });
+
+    it("空白だけなら持たない", async () => {
+        mockDdbSend.mockResolvedValue({ Count: 0 });
+        await post({ location: "   " });
+        expect("location" in saved()).toBe(false);
+    });
+
+    it("文字列でない地名は持たない", async () => {
+        mockDdbSend.mockResolvedValue({ Count: 0 });
+        await post({ location: { ja: "横浜" } });
+        expect("location" in saved(), "オブジェクトを地名として保存している").toBe(false);
+    });
+
     it("場所を送らなければ、項目ごと持たない", async () => {
         mockDdbSend.mockResolvedValue({ Count: 0 });
         await post({});

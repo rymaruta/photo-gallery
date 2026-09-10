@@ -200,6 +200,47 @@ describe("postStoryReply", () => {
         expect((count!.ExpressionAttributeValues as Record<string, unknown>)[":n"]).toBe(1);
     });
 
+    // **「返信する」と「ストーリーを消す」が同時に走ったとき。**
+    // 削除は `storyreplies#<id>` → 行 の順に消すので、その間に追記が入ると
+    // `UpdateCommand` が**文書を作り直す**（キーが無ければ作る）。行の無い
+    // 文書は `storyFeed` も `story` も `src` も持たないので、GSI にも Scan にも
+    // 一覧にも出ない＝**どの削除経路からも二度と辿れない**（TTL も無い）。
+    // 件数の書き込みが `attribute_exists(id)` で落ちることが、その合図になる
+    it("書いている間にストーリーが消えていたら、作り直した文書を片付ける", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string }; UpdateExpression?: string } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") {
+                if (id === "story-1") return Promise.resolve({ Item: STORY });
+                return Promise.resolve({ Item: { items: [] } });
+            }
+            if (String(cmd.input.UpdateExpression ?? "").includes("replyCount")) {
+                return Promise.reject(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
+            }
+            return Promise.resolve({});
+        });
+        await invoke(postStoryReply, ev("u1", "story-1", { text: "行き違い" }));
+        const del = mockDdbSend.mock.calls.some((c) => {
+            const cmd = c[0] as { constructor: { name: string }; input: { Key?: { id?: string } } };
+            return cmd.constructor.name === "DeleteCommand" && cmd.input.Key?.id === storyRepliesId("story-1");
+        });
+        expect(del, "誰も辿れない返信の文書が残る").toBe(true);
+    });
+
+    // 逆向き。ただの書き込み失敗では消さない（本文はもう入っている）
+    it("件数を書けなかっただけなら、返信は消さない", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string }; UpdateExpression?: string } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") {
+                return Promise.resolve(id === "story-1" ? { Item: STORY } : { Item: { items: [] } });
+            }
+            if (String(cmd.input.UpdateExpression ?? "").includes("replyCount")) return Promise.reject(new Error("throttle"));
+            return Promise.resolve({});
+        });
+        await invoke(postStoryReply, ev("u1", "story-1", { text: "混んでいた" }));
+        const del = mockDdbSend.mock.calls.some((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand");
+        expect(del, "書けなかっただけで返信を消している").toBe(false);
+    });
+
     // 件数を書けなくても返信そのものは成功（本文はもう入っている）
     it("件数を書けなくても、返信は成功として返す", async () => {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string }; UpdateExpression?: string } }) => {
