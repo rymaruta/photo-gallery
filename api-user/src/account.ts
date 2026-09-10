@@ -545,8 +545,13 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                 // **相手のフォロワー一覧からも外す。** 外さないと、退会した
                 // 人が相手の一覧に残り続ける（`getUserFollowers` は
                 // `deleted: true` で伏せるが、行そのものは誰も消さない）。
-                // ベストエフォート——失敗しても退会は止めない
-                await updateFollowersQuietly(t, uid, false);
+                //
+                // **失敗したら `failed` に積む。** 積まないと「片付いた」
+                // 扱いになって `followCleanupComplete` が立ち、手がかりの
+                // `following#<uid>` まで消える——すぐ下のコメントが
+                // 「消してしまうとやり直す手がかりが無くなる」と書いている、
+                // その安全網の外に置くことになる
+                if (!await updateFollowersQuietly(t, uid, false)) { failed.push(t); return; }
                 // フォロー通知の間引きマーカー（follow.ts の follownotify#）も消す。
                 // 消し忘れていた頃は退会のたびに1件ずつ残り、スコープ外リストにも
                 // 載っていない「誰も消さないゴミ」だった。ただの間引き印なので

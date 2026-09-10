@@ -431,6 +431,56 @@ describe("deleteAccount", () => {
         expect(deletedDdbIds()).not.toContain("following#me");   // やり直す手がかりを残す
     });
 
+    // **相手のフォロワー一覧からも外す。** 外さないと、退会した人が
+    // 相手の一覧に残り続ける（誰も消す人がいない）
+    it("退会すると、相手のフォロワー一覧からも外れる", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand") {
+                if ((cmd.input.Key as { userId?: string }).userId === "me") return Promise.resolve({ Item: { userId: "me" } });
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                if (id === "following#me") return Promise.resolve({ Item: { list: ["userA"] } });
+                if (id === "followers#userA") return Promise.resolve({ Item: { list: ["me"], rev: 1 } });
+                return Promise.resolve({ Item: undefined });
+            }
+            return Promise.resolve({});
+        });
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        const puts = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string }; input: { Item?: { id?: string } } })
+            .filter((c) => c.constructor.name === "PutCommand");
+        expect(puts.some((p) => p.input.Item?.id === "followers#userA"),
+            "相手の一覧に退会者が残る").toBe(true);
+    });
+
+    it("自分のフォロワー一覧の行も消す", async () => {
+        followingIs([]);
+        await invoke(deleteAccount, ev("me"));
+        expect(deletedDdbIds(), "誰も消さない行が残る").toContain("followers#me");
+    });
+
+    // **失敗を `failed` に積む。** 積まないと「片付いた」扱いになって
+    // 手がかりの `following#me` まで消える
+    it("相手の一覧から外せなかったら、片付いていない扱いにする", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                if (id === "following#me") return Promise.resolve({ Item: { list: ["userA"] } });
+                if (id === "followers#userA") return Promise.resolve({ Item: { list: ["me"], rev: 1 } });
+                return Promise.resolve({ Item: undefined });
+            }
+            if (name === "PutCommand" && String((cmd.input.Item as { id?: string })?.id ?? "") === "followers#userA") {
+                return Promise.reject(Object.assign(new Error("throttled"), { name: "ThrottlingException" }));
+            }
+            return Promise.resolve({});
+        });
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        expect(deletedDdbIds(), "やり直す手がかりを消している").not.toContain("following#me");
+    });
+
     it("競合（未コミット）ではマーカーを消さない——引き算が永久に消えるため", async () => {
         // 相手が人気ユーザーだと、他の人のフォロー操作（followstats# への
         // 素の UpdateItem）とぶつかってキャンセルされる。日常的に起きる。

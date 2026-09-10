@@ -104,6 +104,8 @@ async function readFollowing(uid: string): Promise<string[]> {
  * リビジョン番号で衝突を検出して読み直す。
  */
 const FOLLOWING_WRITE_RETRIES = 3;
+/** やり直しの待ち（指数＋ばらつき）。`followers#` は多人数が同じ行を書く */
+const LIST_RETRY_BASE_MS = 25;
 
 /** 一覧の書き込みを諦めたときのエラー。呼び出し側が打ち消し処理に使う */
 class FollowingListError extends Error {
@@ -151,7 +153,15 @@ async function updateUserList(rowId: string, uid: string, mutate: (list: string[
             return;
         } catch (e) {
             if ((e as { name?: string }).name !== "ConditionalCheckFailedException") throw e;
-            // 競合。読み直してやり直す
+            // 競合。読み直してやり直す。
+            //
+            // **間を置く。** `following#<自分>` は書き手が自分1人なので
+            // 競合はほぼ起きないが、`followers#<相手>` は**その人を
+            // フォロー／解除する全員が同じ1行を書く**。即座に撃ち直すと
+            // 押し合いになるだけなので、指数で待ってばらす
+            // （待たずに撃ち直すとスロットリング由来の失敗も悪化する
+            //  ——`account.ts` の掃除が同じ理由で待っている）。
+            await new Promise((r) => setTimeout(r, LIST_RETRY_BASE_MS * 2 ** attempt * (0.5 + Math.random())));
         }
     }
     // 諦めたことを黙って飲み込まない。
@@ -176,10 +186,16 @@ const updateFollowing = (uid: string, mutate: (list: string[]) => string[] | nul
  * フォローそのものを失敗させる**ことになる（`following#` を投げる側に
  * したのは、あちらが欠けると相手の写真がフィードから消えるため）。
  *
- * 直る道は用意してある: `followUser` は「既にフォロー済み」でもここを
- * 通すので、押し直せば入る。埋め戻しは `scripts/backfill-followers.js`。
+ * **ただし「押し直せば直る」は `following#` ほど素直ではない。**
+ * フォロワー本人のボタンの状態は `following#<本人>` から作るので、
+ * `followers#<相手>` が欠けても本人には「フォロー中」に見える
+ * ——押すと**解除**される。直すには「解除してもう一度フォロー」が要る。
+ * 気づく手がかりは、相手の画面で数（`followstats#`）と一覧が食い違うこと
+ * （`getUserFollowers` が両方返し、画面が「一覧はまだ用意できていません」と
+ * 出す）。取りこぼしをまとめて直すには
+ * `scripts/backfill-followers.js` を流す。
  */
-export async function updateFollowersQuietly(target: string, follower: string, add: boolean): Promise<void> {
+export async function updateFollowersQuietly(target: string, follower: string, add: boolean): Promise<boolean> {
     try {
         await updateUserList(followersId(target), target, (list) => {
             if (add) {
@@ -190,8 +206,10 @@ export async function updateFollowersQuietly(target: string, follower: string, a
             const next = list.filter((x) => x !== follower);
             return next.length === list.length ? null : next;
         });
+        return true;
     } catch (e) {
         console.error(`updateFollowersQuietly: ${target} の一覧を更新できませんでした（${follower}, add=${add}）:`, e);
+        return false;
     }
 }
 
@@ -503,9 +521,11 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
         // ——「マーカーはあるが一覧に無い」を押し直しで直せるようにする
         // （すぐ上の `following#` と同じ考え）。失敗しても投げない。
         //
-        // **応答の中身を先に決めてから書く。** 数は `followstats#` が正で、
-        // それはもうトランザクションで更新済み。ここが遅れても・落ちても、
-        // 画面に返す数は変わらない
+        // 応答の中身を先に決めてから書く。**守りではなく、テストの
+        // 読みやすさのため**——`updateFollowersQuietly` は `followstats#` を
+        // 触らないので、順番を入れ替えても返す数は変わらない
+        // （「ここが落ちても数は守られる」と書いていたが、守っているのは
+        //  この順番ではなくトランザクションの方）
         const body = JSON.stringify({ following: true, followers: (await readStats(target)).followers });
         await updateFollowersQuietly(target, me, true);
         return { statusCode: 200, headers: JSON_HEADERS, body };
@@ -541,10 +561,15 @@ export async function unfollowQuietly(target: string, me: string): Promise<void>
             const next = list.filter((x) => x !== target);
             return next.length === list.length ? null : next;
         });
-        await updateFollowersQuietly(target, me, false);
     } catch (e) {
         console.error(`unfollowQuietly: 解除できませんでした（${me} -> ${target}）:`, e);
     }
+    // **`try` の外に置く。** 中に入れると、`updateFollowing` が投げた回に
+    // ここが**丸ごと飛ぶ**——ブロックしたのに相手のフォロワー一覧に
+    // 自分が残る（`getUserFollowers` は行ごとのブロック除外をしないので、
+    // 一覧に見えたまま）。この関数自体が失敗を握る約束なので、
+    // 片方が落ちてももう片方は試す
+    await updateFollowersQuietly(target, me, false);
 }
 
 export const unfollowUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {

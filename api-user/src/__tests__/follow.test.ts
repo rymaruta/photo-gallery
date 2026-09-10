@@ -952,6 +952,29 @@ describe("フォロワーの一覧（followers#）", () => {
         expect(puts(), "押し直しても直らない").toHaveLength(1);
     });
 
+    // **`try` の外に置く。** 中に入れると `updateFollowing` が投げた回に
+    // 丸ごと飛ぶ——ブロックしたのに相手のフォロワー一覧に自分が残る
+    it("ブロックで、自分の一覧が書けなくても相手のフォロワー一覧からは外す", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string }; Item?: { id?: string } } }) => {
+            const name = cmd.constructor.name;
+            // `following#<自分>` の書き込みだけ、ずっと競合させる
+            if (name === "PutCommand" && cmd.input.Item?.id === `following#${ME}`) {
+                return Promise.reject(Object.assign(new Error("c"), { name: "ConditionalCheckFailedException" }));
+            }
+            if (name === "GetCommand") {
+                const id = cmd.input.Key?.id ?? "";
+                if (id === `following#${ME}`) return Promise.resolve({ Item: { list: [OTHER], rev: 1 } });
+                if (id === `followers#${OTHER}`) return Promise.resolve({ Item: { list: [ME], rev: 1 } });
+                return Promise.resolve({});
+            }
+            return Promise.resolve({});
+        });
+        const { unfollowQuietly } = await import("../follow");
+        await unfollowQuietly(OTHER, ME);
+        expect(puts().some((p) => p.input.Item?.id === `followers#${OTHER}`),
+            "相手のフォロワー一覧に残る").toBe(true);
+    });
+
     // **表示の都合でフォローを失敗させない。** マーカーと数は既に正しく、
     // 欠けるのは一覧の1行だけ
     it("一覧を書けなくても、フォローそのものは成功する", async () => {

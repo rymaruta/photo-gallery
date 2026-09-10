@@ -48,11 +48,24 @@ if (fs.existsSync(envLocalPath)) {
  */
 const FOLLOWERS_MAX = 2000;
 
+/**
+ * Cognito の sub の形。**`api-user/src/userId.ts` と同じ規則**。
+ *
+ * これを見ないと、`isUserId` を入れる前に作られた**でたらめな ID の
+ * マーカー**を拾ってしまう（当時は形も存在も見ていなかった）。拾うと
+ *   - `followers#<でたらめ>` という誰も読まない行が新しくできる
+ *     （`deleteAccount` は自分の行しか消さないので、消す人がいない）
+ *   - でたらめな follower が実在の人の一覧に並び、空のプロフィールへ
+ *     リンクする（`0af33008` で直したのと同じ形）
+ */
+const USER_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 /** `follow#<target>#<follower>` を分解する。形が違えば null */
 function parseMarker(item) {
     if (!item || item.follow !== true || typeof item.id !== "string") return null;
     const parts = item.id.split("#");
     if (parts.length !== 3 || parts[0] !== "follow" || !parts[1] || !parts[2]) return null;
+    if (!USER_ID_RE.test(parts[1]) || !USER_ID_RE.test(parts[2])) return null;
     return { target: parts[1], follower: parts[2], createdAt: typeof item.createdAt === "string" ? item.createdAt : "" };
 }
 
@@ -91,16 +104,24 @@ function mergeFollowers(existing, scanned) {
     return out.slice(0, FOLLOWERS_MAX);
 }
 
-async function main() {
+/**
+ * @param deps テスト用の差し込み口。**本番データに1回だけ流す破壊的な
+ *   スクリプトなので、`main()` にもテストを当てる**（`vi.mock` は
+ *   関数の中の `require` を確実には掴めなかったので、素直に渡す形にした）。
+ */
+async function main(deps) {
     const apply = process.argv.includes("--apply");
     const REGION = process.env.AWS_REGION ?? "ap-northeast-1";
     const TABLE = requireEnv("PHOTOS_TABLE");
 
-    const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
-    const { DynamoDBDocumentClient, ScanCommand, GetCommand, PutCommand } = require("@aws-sdk/lib-dynamodb");
-
-    const raw = new DynamoDBClient({ region: REGION });
-    const ddb = DynamoDBDocumentClient.from(raw, { marshallOptions: { removeUndefinedValues: true } });
+    const lib = deps?.lib ?? require("@aws-sdk/lib-dynamodb");
+    const { ScanCommand, GetCommand, PutCommand } = lib;
+    let ddb = deps?.ddb;
+    if (!ddb) {
+        const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+        const raw = new DynamoDBClient({ region: REGION });
+        ddb = lib.DynamoDBDocumentClient.from(raw, { marshallOptions: { removeUndefinedValues: true } });
+    }
 
     console.log(`[followers] テーブル: ${TABLE}`);
     console.log(`[followers] モード: ${apply ? "実行" : "ドライラン（--apply で実行）"}\n`);
@@ -127,6 +148,7 @@ async function main() {
 
     let written = 0;
     let unchanged = 0;
+    let skipped = 0;
     for (const [target, followers] of byTarget) {
         const cur = await ddb.send(new GetCommand({ TableName: TABLE, Key: { id: `followers#${target}` } }));
         const existing = Array.isArray(cur.Item?.list) ? cur.Item.list : [];
@@ -137,26 +159,42 @@ async function main() {
         }
         console.log(`[followers] ${target}: ${existing.length} → ${next.length} 人`);
         if (!apply) continue;
-        await ddb.send(new PutCommand({
-            TableName: TABLE,
-            Item: {
-                id: `followers#${target}`,
-                uid: target,
-                list: next,
-                // **`rev` は引き継ぐ。** サーバー側は `rev` を条件に書くので、
-                // ここで 0 に戻すと、走っている間の書き込みを黙って上書きする
-                rev: (typeof cur.Item?.rev === "number" ? cur.Item.rev : 0) + 1,
-                updatedAt: new Date().toISOString(),
-            },
-        }));
-        written++;
+        const rev = typeof cur.Item?.rev === "number" ? cur.Item.rev : 0;
+        try {
+            await ddb.send(new PutCommand({
+                TableName: TABLE,
+                Item: {
+                    id: `followers#${target}`,
+                    uid: target,
+                    list: next,
+                    // **`rev` は引き継ぐ。** サーバー側は `rev` を条件に書くので、
+                    // ここで 0 に戻すと、走っている間の書き込みを黙って上書きする
+                    rev: rev + 1,
+                    updatedAt: new Date().toISOString(),
+                },
+                // **条件を付ける。** 読んでから書くまでの間にサーバー側が
+                // 1件足すと、無条件の Put はその書き込みを黙って消す
+                // ——しかも書く `rev` は相手と同じ値になるので、以後の
+                // CAS でも検知されない。落ちたぶんは次に流したときに入る
+                ConditionExpression: rev === 0
+                    ? "attribute_not_exists(id) OR attribute_not_exists(rev) OR rev = :rev"
+                    : "rev = :rev",
+                ExpressionAttributeValues: { ":rev": rev },
+            }));
+            written++;
+        } catch (e) {
+            if (e?.name !== "ConditionalCheckFailedException") throw e;
+            // 走っている間にサーバー側が書いた。**上書きしない**
+            console.log(`[followers] ${target}: 競合したので飛ばしました（もう一度流すと入ります）`);
+            skipped++;
+        }
     }
 
-    console.log(`\n[followers] 書き込み ${written} 人 / 変更なし ${unchanged} 人`);
+    console.log(`\n[followers] 書き込み ${written} 人 / 変更なし ${unchanged} 人 / 競合で飛ばした ${skipped} 人`);
     if (!apply) console.log("[followers] ドライランです。--apply で実行します。");
 }
 
-module.exports = { parseMarker, buildFollowers, mergeFollowers, FOLLOWERS_MAX };
+module.exports = { main, parseMarker, buildFollowers, mergeFollowers, FOLLOWERS_MAX, USER_ID_RE };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
