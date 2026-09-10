@@ -21,6 +21,7 @@ import type { Photo } from "@/lib/data/photos";
 import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../lib/utils/log";
 import { getCurrentSession } from "../../lib/auth/cognito";
+import { resetFollowingCache } from "../../lib/hooks/useFollow";
 import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
 import { publicFetch, userFetch, userPublicFetch, readApiError, sessionErrorMessage } from "../../lib/utils/api";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
@@ -387,10 +388,24 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 // 未設定なら `/profile/<id>` になり、静的サイトでは 404 →
                 // 下の `if (profileRes.ok)` が握り潰して、名前・自己紹介・
                 // BGM・ピン留めが**黙って全部出ない**。
-                const [profileRes, sessionResult] = await Promise.all([
+                // **セッションの判定をプロフィール取得と運命共同体にしない。**
+                // `userPublicFetch` は打ち切り・通信断で投げるので、`Promise.all`
+                // だと catch に落ちて `setViewerAuthed(true)` に到達しない
+                // ——ログイン済みなのに未ログイン扱いになり、フォローボタンも
+                // ブロックの項目も消える（**安全のための項目だけが出ない**）。
+                const [profileSettled, sessionSettled] = await Promise.allSettled([
                     userPublicFetch(`/profile/${encodeURIComponent(userId)}`, { signal: controller.signal }),
                     getCurrentSession(),
                 ]);
+                const sessionResult = sessionSettled.status === "fulfilled" ? sessionSettled.value : null;
+                // **セッションの結果は、プロフィールの失敗より先に反映する。**
+                // 後に置くと、下の throw で catch に飛んで結局同じことになる
+                if (sessionResult) setViewerAuthed(true);
+                if (sessionResult && (sessionResult.getIdToken().payload["sub"] as string | undefined) === userId) {
+                    setIsOwner(true);
+                }
+                if (profileSettled.status === "rejected") throw profileSettled.reason;
+                const profileRes = profileSettled.value;
                 const prof = profileRes.ok
                     ? sanitizeProfile<UserProfile>(await profileRes.json(), `GET /profile/<id>`)
                     : null;
@@ -402,10 +417,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     // 「未設定」と見分けられるようにする
                     setLoadError("profile");
                 }
-                if (sessionResult) setViewerAuthed(true);
                 const isCurrentUserOwner = !!sessionResult &&
                     (sessionResult.getIdToken().payload["sub"] as string | undefined) === userId;
-                if (isCurrentUserOwner) setIsOwner(true);
 
                 // 自分のプロフィールは認証済みの一覧を「正」にする。
                 //
@@ -571,10 +584,23 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             });
             if (res.ok) {
                 setBlocked(next);
+                // **同じ画面のフォローの状態も捨てる。** ブロックは
+                // `unfollowQuietly` を両向きに撃つのに、共有ストアは
+                // ログイン・ログアウトでしか捨てないので、トーストが
+                // 「お互いのフォローも外れました」と言った直後に
+                // **すぐ下のボタンは「フォロー中」のまま**だった。
+                // コミットに「押した人には見えない」と書いたのは誤りで、
+                // 実際には**押した人の画面が間違った状態で見えていた**。
+                resetFollowingCache();
+                // **状態を断定しない。** `blocked` はこの画面で押した結果しか
+                // 持たない（開き直すと戻る）ので、既にブロック済みの相手に
+                // 押しても `blockUser` は冪等に 200 を返す。「ブロック
+                // しました」と言い切ると、何も変わっていないのに変わった
+                // ように読める
                 showToast(next
                     ? (locale === "en"
-                        ? "Blocked. They can't reply, comment, or follow you. Follows in both directions were removed."
-                        : "ブロックしました。返信・コメント・フォローができなくなります。お互いのフォローも外れました。")
+                        ? "This user is blocked. They can't reply, comment, or follow you. Follows in both directions were removed."
+                        : "この人をブロック中にしました。返信・コメント・フォローができなくなります。お互いのフォローも外れました。")
                     : (locale === "en" ? "Unblocked." : "ブロックを解除しました。"), "success");
             } else {
                 showToast(await readApiError(res, locale === "en" ? "Couldn't do that." : "できませんでした"), "error");
@@ -995,11 +1021,26 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                                 disabled={blocking}
                                                 className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white/85 hover:bg-white/10 active:bg-white/15 transition text-left border-t border-white/5 disabled:opacity-50"
                                             >
-                                                <NoSymbolIcon className="w-[18px] h-[18px] text-white/50" />
+                                                <NoSymbolIcon className="w-[18px] h-[18px] text-white/50 flex-shrink-0" />
                                                 {blocked
                                                     ? (locale === "en" ? "Unblock" : "ブロックを解除")
-                                                    : (locale === "en" ? "Block" : "ブロックする")}
+                                                    : (locale === "en" ? "Block this user" : "この人をブロック")}
                                             </button>
+                                        )}
+                                        {/* **押す前に、戻せないことを言う。**
+                                            ブロックは両向きのフォローを切り、
+                                            解除しても**戻らない**（`BlockedUsers` が
+                                            そう書いている）。それを、無害な4項目
+                                            （リンク・X・LINE・QR）の隣に確認なしで
+                                            置いていた。`StoryViewer` 側は押す前に
+                                            出しているのに、こちらは押したあとの
+                                            トーストで初めて言っていた */}
+                                        {!isOwner && viewerAuthed && !blocked && (
+                                            <p className="px-4 pb-3 text-[11px] text-white/60 leading-relaxed border-t border-white/5 pt-2">
+                                                {locale === "en"
+                                                    ? "Blocking also removes follows in both directions. Unblocking does not restore them."
+                                                    : "ブロックすると、お互いのフォローも外れます。解除しても戻りません。"}
+                                            </p>
                                         )}
                                     </div>
                                 </>

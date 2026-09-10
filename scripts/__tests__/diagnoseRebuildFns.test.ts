@@ -10,19 +10,16 @@ import { join } from "node:path";
 // 頼む当のものなので、そこが黙って外れるのがいちばん困る。
 const ROOT = join(__dirname, "..", "..");
 
-/** `serverless.yml` から、トークンを配ってある関数名を集める */
-function wiredFns(): string[] {
-    const out: string[] = [];
-    for (const dir of ["api", "api-user"]) {
-        const yml = readFileSync(join(ROOT, dir, "serverless.yml"), "utf8");
-        const fnSection = yml.split(/\nfunctions:\n/)[1].split(/\n(?=[a-zA-Z#])/)[0];
-        for (const part of ("\n" + fnSection).split(/\n(?=  \w+:\n)/)) {
-            const m = /^\n?  (\w+):/.exec(part);
-            if (m && part.includes("REBUILD_DISPATCH_TOKEN")) out.push(m[1]);
-        }
-    }
-    return out;
-}
+// **本物を呼ぶ。** 一度ここに同じ読み取りを写して検証していたが、
+// それでは**写しが正しいこと**しか確かめられない——本体の
+// `part.includes("REBUILD_DISPATCH_TOKEN")` を壊しても3本とも緑だった
+// （実測）。壊れると `!!` が1つも出ず、トークンが無いことに気づけなくなる。
+// **「複製した規則は静かにずれる」を防ぐために書いたテストの中で、
+// まさにそれをやっていた。**
+// `requireEnv` は `main()` の中なので、require の副作用は無い。
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { rebuildFnsFromServerless } = require("../diagnose-aws.js");
+const wiredFns = (): string[] => rebuildFnsFromServerless();
 
 describe("診断が見る「トークンを配ってあるべき関数」", () => {
     const src = readFileSync(join(ROOT, "scripts", "diagnose-aws.js"), "utf8");
@@ -32,6 +29,16 @@ describe("診断が見る「トークンを配ってあるべき関数」", () =
         expect(src, "手で並べた一覧に戻っている")
             .not.toMatch(/const REBUILD_FNS = \[\s*"/);
         expect(src).toContain("rebuildFnsFromServerless()");
+    });
+
+    // **0件を静かに素通ししない。** 読み取りが壊れると `wantToken` が
+    // 全関数 false になり、`!!` が1つも出ない＝「全部揃っている」と
+    // 同じ絵になる
+    it("読み取りが壊れたら 0件になる（＝壊れたことが分かる形）", () => {
+        expect(wiredFns().length, "1つも読めていない").toBeGreaterThan(5);
+        expect(src, "分母を出していない（0件の意味が読めない）")
+            .toContain("再ビルドのトークンを持つ関数");
+        expect(src).toContain("REBUILD_FNS.length === 0");
     });
 
     // 読み取りの実装がここと同じ結果を出すこと（両方が同じ規則で読む）

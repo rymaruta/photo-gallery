@@ -36,9 +36,18 @@ vi.mock("../components/SearchParamWatcher", () => ({ default: () => null }));
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 // フォローしている u1 の写真が1枚ある状態
+//
+// **一覧の取得の状態も差し替えられるようにしておく。** ここを
+// `loaded: true` 固定で書いていたので、「写真がまだ来ていない／取れなかった
+// ときに『まだ投稿していません』と言わない」という守りを**この8件が
+// 一度も通っていなかった**（守りを消しても全部緑だった）。
+const photosState = vi.hoisted(() => ({
+    current: { loaded: true, failed: false },
+}));
 vi.mock("../../lib/hooks/usePhotos", () => ({
     usePhotos: () => ({
-        loaded: true,
+        loaded: photosState.current.loaded,
+        failed: photosState.current.failed,
         photos: [{
             id: "p1", userId: "u1", src: "https://cdn/p1.jpg",
             title: { ja: "友達の写真", en: "Friend" }, category: "street", tags: [],
@@ -54,6 +63,7 @@ const EMPTY = /フォローした人の写真がここに集まります/;
 
 beforeEach(async () => {
     authState.current = { isAuthenticated: true, userId: "me", loading: false };
+    photosState.current = { loaded: true, failed: false };
     window.history.replaceState({}, "", "/");
     mockUserFetch.mockReset();
     const { resetFollowingCache } = await import("../../lib/hooks/useFollow");
@@ -106,6 +116,35 @@ describe("フォロー中フィードの空表示", () => {
 
         expect(await screen.findByText(/フォロー中の人は、まだ写真を投稿していません/)).toBeInTheDocument();
         expect(screen.queryByText(EMPTY), "誰もフォローしていない人と同じ画面を出している").toBeNull();
+    });
+
+    // **写真の一覧が来ていないうちは「まだ投稿していません」と言わない。**
+    // 相手が投稿していても、こちらの手元に写真が無ければ0件になる。
+    // 分からない間は断定しない側（「ここに集まります」）へ倒す。
+    it("写真の取得に失敗したときは「まだ投稿していません」と断定しない", async () => {
+        photosState.current = { loaded: true, failed: true };
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: ["u2"] }) });
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        fireEvent.click(await screen.findByRole("button", { name: "フォロー中" }));
+
+        expect(await screen.findByText(EMPTY)).toBeInTheDocument();
+        expect(
+            screen.queryByText(/フォロー中の人は、まだ写真を投稿していません/),
+            "写真が取れていないのに「投稿していません」と断定している",
+        ).toBeNull();
+    });
+
+    it("写真の一覧がまだ届いていないときも断定しない", async () => {
+        photosState.current = { loaded: false, failed: false };
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: ["u2"] }) });
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        fireEvent.click(await screen.findByRole("button", { name: "フォロー中" }));
+
+        expect(await screen.findByText(EMPTY)).toBeInTheDocument();
+        expect(
+            screen.queryByText(/フォロー中の人は、まだ写真を投稿していません/),
+            "一覧がまだ来ていないのに「投稿していません」と断定している",
+        ).toBeNull();
     });
 
     it("フォローが0人なら、今までどおりの案内", async () => {

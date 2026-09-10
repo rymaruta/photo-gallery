@@ -452,7 +452,13 @@ export default function GalleryPageClient() {
           // いないように見える。相手が最初の1枚を上げるまで続く。
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-white/60 text-center">
             <p className="text-sm">
-              {followingIds.size === 0
+              {/* **「まだ投稿していません」と言い切れるのは、一覧が届いた回だけ。**
+                  `photos` の初期値はビルド時の JSON で、**定期ビルドは週1**。
+                  取得がまだ／落ちた回や、フォロー先が前回の日曜以降に投稿した
+                  場合、`filteredPhotos` は0件になる。前の文言（「ここに集まります」）は
+                  曖昧だったので嘘ではなかった——**直したぶん強く間違える**、
+                  このセッションが何度も踏んだ型 */}
+              {followingIds.size === 0 || !photosLoaded || photosFailed
                 ? (locale === "en"
                   ? "Photos from people you follow will show up here."
                   : "フォローした人の写真がここに集まります。")

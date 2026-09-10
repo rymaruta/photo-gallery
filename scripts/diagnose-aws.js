@@ -337,7 +337,17 @@ async function lambdaRoles() {
         if (hasToken && !wantToken) leaked++;
         line(`  ${short.padEnd(26)} role=${role}${hasToken ? " REBUILD_DISPATCH_TOKEN=あり" : ""}${flags.length ? "  " + flags.join(" / ") : ""}`);
     }
+    // **分母を出す。** 出さないと「`!!` が0件」が「全部揃っている」なのか
+    // 「見る対象が0件」なのか読めない——一覧を `serverless.yml` から
+    // 読むようにしたぶん、**正規表現が壊れたら黙って0件になる**
+    const tokenOk = REBUILD_FNS.filter((n) =>
+        mine.some((f) => f.FunctionName.replace(/^photo-gallery(-user)?-api-[^-]+-/, "") === n
+            && Boolean(f.Environment?.Variables?.REBUILD_DISPATCH_TOKEN))).length;
     line(`  → 読み取り専用ロールの関数 ${publicOk}/${PUBLIC_FNS.length} ・ トークンが余計に付いた関数 ${leaked}`);
+    line(`  → 再ビルドのトークンを持つ関数 ${tokenOk}/${REBUILD_FNS.length}`);
+    if (REBUILD_FNS.length === 0) {
+        line("  !! serverless.yml からトークンを配る関数を1つも読み取れなかった（診断が壊れています）");
+    }
 }
 
 /**
@@ -449,7 +459,7 @@ async function main() {
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
 
-module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources };
+module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
