@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
-import { forgotPassword, confirmForgotPassword } from "../../lib/auth/cognito";
+import { forgotPassword, confirmForgotPassword, PASSWORD_RULE_MESSAGE } from "../../lib/auth/cognito";
 import { userFetch } from "../../lib/utils/api";
 import { ROUTES, safeNextPath } from "../../lib/routes";
 import { pendingNameKey } from "../../lib/utils/pendingName";
@@ -50,7 +50,7 @@ function LoginForm() {
         setNeedsVerification(false);
         setSubmitting(true);
         try {
-            const result = await login(username, password);
+            const result = await login(username.trim(), password);
             if (result.success) {
                 // 新規登録時に保存した表示名があれば、プロフィールを作成
                 // 登録したときと同じメールアドレスの分だけを使う。
@@ -60,24 +60,42 @@ function LoginForm() {
                 let pendingDisplayName: string | null = null;
                 try { pendingDisplayName = localStorage.getItem(pendingKey); } catch { /* ignore */ }
                 if (pendingDisplayName) {
-                    try {
-                        // PUT /user/profile は全置換なので、既にプロフィールがある場合は上書きしない
-                        const check = await userFetch("/user/profile");
-                        const existing = check.ok ? await check.json() as { displayName?: string } : null;
-                        if (existing?.displayName) {
-                            try { localStorage.removeItem(pendingKey); } catch { /* ignore */ }
-                        } else {
-                            const res = await userFetch("/user/profile", {
-                                method: "PUT",
-                                body: JSON.stringify({ displayName: pendingDisplayName }),
-                            });
-                            if (res.ok) {
+                    // **待たない。** ここは API を2本、直列で叩く。
+                    // `userFetch` はセッション最大10秒＋要求20秒なので、
+                    // **1本あたり最大30秒・2本で最大60秒**「ログイン中...」の
+                    // ままになる。しかもこの枝に入るのは
+                    // **登録を終えたばかりの初回ログインちょうど**——
+                    // 電波の悪い場所でそこを踏んだ人は、トークンはもう手元に
+                    // あるのに固まった画面を見て閉じる。
+                    //
+                    // 落ちても控え（`pendingKey`）は残るので、**次にログイン
+                    // したときにここがもう一度走る**。
+                    //
+                    // **`ProfileSetupBanner` は拾い直さない**（一度そう書いた
+                    // が誤り）。あちらは `GET /user/profile` で名前の有無を
+                    // 見て「名前を決めましょう」と促すだけで、`pendingKey` も
+                    // `localStorage` も読まない。つまり次のログインまでの間、
+                    // 登録時に入れた表示名は画面に出てこない。**先に着地させる。**
+                    void (async () => {
+                        try {
+                            // PUT /user/profile は全置換なので、既にプロフィールがある場合は上書きしない
+                            const check = await userFetch("/user/profile");
+                            const existing = check.ok ? await check.json() as { displayName?: string } : null;
+                            if (existing?.displayName) {
                                 try { localStorage.removeItem(pendingKey); } catch { /* ignore */ }
+                            } else {
+                                const res = await userFetch("/user/profile", {
+                                    method: "PUT",
+                                    body: JSON.stringify({ displayName: pendingDisplayName }),
+                                });
+                                if (res.ok) {
+                                    try { localStorage.removeItem(pendingKey); } catch { /* ignore */ }
+                                }
                             }
+                        } catch {
+                            /* プロフィール作成失敗してもログインは成功させる — /user/profile から再設定できる */
                         }
-                    } catch {
-                        /* プロフィール作成失敗してもログインは成功させる — /user/profile から再設定できる */
-                    }
+                    })();
                 }
                 showToast("ログインしました", "success");
                 // インスタ風: ログイン後は自分のプロフィールページへ
@@ -100,7 +118,7 @@ function LoginForm() {
         setError("");
         setSubmitting(true);
         try {
-            const result = await forgotPassword(username);
+            const result = await forgotPassword(username.trim());
             if (result.success) {
                 setStep("forgot-confirm");
             } else {
@@ -114,9 +132,21 @@ function LoginForm() {
     const handleForgotConfirm = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
+        // **送る前に見る。** 登録側（`app/signup`）は長さと一致を見ているのに
+        // ここは空でなければ送っていた。3文字でも往復して、しかも戻ってくる
+        // のは AWS の `InvalidPasswordException` の文言（記号の話が抜けていた）
+        // **`.trim()` は保険。** `type="email"` の欄はブラウザ側の
+        // 値の正規化で前後の空白が落ちる（jsdom でも実測: `.trim()` を
+        // 外してもこの画面のテストは全部通る＝ここは死にコードに近い）。
+        // 本当に効かせているのは `signUp` の境界（`lib/auth/cognito.ts`）で、
+        // そちらは呼び出し側が何を渡すか分からない。
+        if (newPassword.length < 8) {
+            setError(PASSWORD_RULE_MESSAGE);
+            return;
+        }
         setSubmitting(true);
         try {
-            const result = await confirmForgotPassword(username, resetCode, newPassword);
+            const result = await confirmForgotPassword(username.trim(), resetCode, newPassword);
             if (result.success) {
                 setStep("forgot-done");
             } else {
@@ -141,7 +171,7 @@ function LoginForm() {
 
                 {/* ロゴ */}
                 <div className="mb-10 text-center">
-                    <p className="text-white/40 text-xs tracking-widest uppercase mb-3">Journey Photo</p>
+                    <p className="text-white/50 text-xs tracking-widest uppercase mb-3">Journey Photo</p>
                     <h1 className="text-2xl font-bold text-white">
                         {step === "login" && "ログイン"}
                         {step === "forgot-send" && "パスワードをリセット"}
@@ -149,13 +179,13 @@ function LoginForm() {
                         {step === "forgot-done" && "リセット完了"}
                     </h1>
                     {step === "login" && (
-                        <p className="text-white/40 text-sm mt-2">写真をアップロードするにはログインが必要です</p>
+                        <p className="text-white/50 text-sm mt-2">写真をアップロードするにはログインが必要です</p>
                     )}
                     {step === "forgot-send" && (
-                        <p className="text-white/40 text-sm mt-2">登録したメールアドレスに確認コードを送信します</p>
+                        <p className="text-white/50 text-sm mt-2">登録したメールアドレスに確認コードを送信します</p>
                     )}
                     {step === "forgot-confirm" && (
-                        <p className="text-white/40 text-sm mt-2">{username} に送信されたコードを入力してください</p>
+                        <p className="text-white/50 text-sm mt-2">{username} に送信されたコードを入力してください</p>
                     )}
                 </div>
 
@@ -234,14 +264,18 @@ function LoginForm() {
                         <button
                             type="button"
                             onClick={() => { setStep("forgot-send"); setError(""); }}
-                            className="w-full text-center text-xs text-white/40 hover:text-white/60 transition-colors py-2"
+                            className="w-full text-center text-xs text-white/50 hover:text-white/75 transition-colors py-2"
                         >
                             パスワードをお忘れですか？
                         </button>
 
-                        <p className="text-center text-xs text-white/40 pt-1">
+                        <p className="text-center text-xs text-white/50 pt-1">
                             アカウントをお持ちでない方は{" "}
-                            <Link href="/signup" className="text-white/60 hover:text-white underline transition-colors">
+                            {/* **`next` を渡す。** 渡さないと、招待リンクや
+                                共有リンクから来た未登録の人は、ここを押した
+                                時点で行き先を失う（登録を終えると自分の空
+                                プロフィールに着地する） */}
+                            <Link href={nextPath ? `/signup?next=${encodeURIComponent(nextPath)}` : "/signup"} className="text-white/60 hover:text-white underline transition-colors">
                                 新規登録
                             </Link>
                         </p>
@@ -278,7 +312,7 @@ function LoginForm() {
                             {submitting ? "送信中..." : "確認コードを送信"}
                         </button>
                         <button type="button" onClick={() => { setStep("login"); setError(""); }}
-                            className="w-full text-center text-xs text-white/40 hover:text-white/60 transition-colors py-2 flex items-center justify-center gap-1">
+                            className="w-full text-center text-xs text-white/50 hover:text-white/75 transition-colors py-2 flex items-center justify-center gap-1">
                             <ArrowLeftIcon className="w-3 h-3" /> ログインに戻る
                         </button>
                     </form>

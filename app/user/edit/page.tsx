@@ -1,6 +1,7 @@
 "use client";
 
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
+import { dedupeCameraName } from "../../../lib/utils/cameraName";
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useBottomBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -12,7 +13,9 @@ import { ArrowLeftIcon, PhotoIcon } from "@heroicons/react/24/outline";
 import type { Photo, LocalizedParagraphs } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
-import { toDateInputValue, mergeDate } from "../../../lib/utils/dateInput";
+import { toastWithStaticPage } from "../../../lib/utils/staticPage";
+import { sessionErrorMessage } from "../../../lib/utils/api";
+import { toDateInputValue, mergeDate, todayForDateInput, PHOTO_DATE_MIN } from "../../../lib/utils/dateInput";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { changedFields } from "../../../lib/utils/changedFields";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
@@ -233,12 +236,37 @@ function EditContent() {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [location, setLocation] = useState("");
+    /**
+     * **地図に出す位置。撮影者本人が選ぶ。**
+     *
+     * 地名は自由入力なので、機械では「福岡」が福岡市か富山県の福岡町か
+     * 決められない（実測でどちらも起きた）。当てに行くのをやめて、
+     * **地名で候補を出して本人に選んでもらう**。選んだものは「おおよそ」では
+     * なく本人の指定なので、写真ページの「地図で見る」もそのまま出る。
+     * 精度は約1km に丸めたまま（サーバー側で丸める）。
+     */
+    const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+    /**
+     * **本人がこの画面で位置を触ったか。**
+     *
+     * 触ったなら、値が保存済みと同じでも送る。機械が当てた座標
+     * （`geoApprox: true`）と**同じ候補を本人が選んだとき**、値が等しいので
+     * 差分が出ず、サーバーは「おおよそ」の印を落とす分岐に入らない
+     * ——「機械の当て推量を本人が確定する」という、この機能が一番効く場面が
+     * 丸ごと無効になっていた（レビューが実測）。
+     */
+    const [coordsTouched, setCoordsTouched] = useState(false);
+    const [placeResults, setPlaceResults] = useState<{ label: string; lat: number; lng: number }[] | null>(null);
+    const [placeSearching, setPlaceSearching] = useState(false);
     const [category, setCategory] = useState("");
     const [date, setDate] = useState("");
     const [tagsInput, setTagsInput] = useState("");
+    /**
+     * `dirty`（下で計算する）を effect から読むための写し。
+     * **依存に `dirty` を入れない**——入れると打鍵のたびに写真を取り直す
+     */
+    const dirtyRef = useRef(false);
 
-    // 認証ゲート（一般ユーザー or 管理者）。upload ページと同じ方針。
-    const gate = useMemberGate();
 
     // 対象写真の取得: 公開 /photos/{id} は下書きを404にするため、認証済み /user/photos から探す
     useEffect(() => {
@@ -284,14 +312,25 @@ function EditContent() {
                     if (found) {
                         setPhoto(found);
                         setOriginal(found);
-                        setTitle(titleToText(found.title));
-                        setDescription(descToText(found.description));
-                        setLocation(found.location ?? "");
-                        setCategory(found.category ?? "");
-                        // <input type="date"> は YYYY-MM-DD しか受け付けない。
-                        // 保存値は ISO 文字列なので、そのまま入れると空欄になる。
-                        setDate(toDateInputValue(found.date));
-                        setTagsInput(Array.isArray(found.tags) ? found.tags.join(", ") : "");
+                        // **打ちかけがあるなら、欄は上書きしない。**
+                        // この取得は `isAuthenticated` が変わるたびに走る——
+                        // つまり**別のタブでログインし直した瞬間**にも走り、
+                        // 打ちかけをサーバーの値で塗り潰していた。
+                        // 「ログインが切れたので、ログインし直してから保存して
+                        // ください」と案内しておきながら、そのとおりに動いた人の
+                        // 文章を消す形だった（送り返さないようにした意味が無い）。
+                        // `original` は比較先なので**常に**入れ替える
+                        if (!dirtyRef.current) {
+                            setTitle(titleToText(found.title));
+                            setDescription(descToText(found.description));
+                            setLocation(found.location ?? "");
+                            setCoords(found.coords ?? null);
+                            setCategory(found.category ?? "");
+                            // <input type="date"> は YYYY-MM-DD しか受け付けない。
+                            // 保存値は ISO 文字列なので、そのまま入れると空欄になる。
+                            setDate(toDateInputValue(found.date));
+                            setTagsInput(Array.isArray(found.tags) ? found.tags.join(", ") : "");
+                        }
                     } else {
                         showToastRef.current(isJa ? "写真が見つかりません" : "Photo not found", "error");
                         // **replace。** もう無い写真の編集画面を履歴に残すと、
@@ -335,12 +374,19 @@ function EditContent() {
                 showToast(await readApiError(res, isJa ? "削除に失敗しました" : "Failed to delete"), "error");
                 return;
             }
-            showToast(isJa ? "写真を削除しました" : "Photo deleted", "success");
+            toastWithStaticPage(showToast,
+                isJa ? "写真を削除しました" : "Photo deleted",
+                await res.json().catch(() => null), isJa);
             // 消した写真の編集画面は履歴に残さない（戻ると上の
             // 「写真が見つかりません」に落ちる）
             router.replace(ROUTES.DRAFTS);
-        } catch {
-            showToast(isJa ? "通信に失敗しました" : "Network error", "error");
+        } catch (e) {
+            // **保存と同じ見分けを通す。** ここだけ裸の catch で、押し直しても
+            // 直らない失敗（セッション切れ・通信できない）を「通信に失敗
+            // しました」に塗り潰していた。未ログインのまま画面に留めるように
+            // したぶん、削除ボタンは素直に押せる位置にある
+            showToast(sessionErrorMessage(e)
+                ?? (isJa ? "通信に失敗しました" : "Network error"), "error");
         } finally {
             setDeleting(false);
             // **失敗しても閉じない。** サーバーは「押し直せば続きから消える」と
@@ -350,37 +396,113 @@ function EditContent() {
         }
     }, [photoId, isJa, showToast, router]);
 
+    /**
+     * 保存で送る値と、開いた時点の値。
+     *
+     * **保存と「未保存か」の判定で同じものを使う。** 別々に組むと、片方だけ
+     * 直したときに「変えていないのに毎回聞く」（読まずに押すようになる）か
+     * 「変えたのに黙って捨てる」のどちらかへ静かにずれる。
+     *
+     * **実際に変えた項目だけ送る**理由: 開いた時点の値を毎回全部送っていたので、
+     * 同じ写真を2タブで開いて片方で直したあと、もう片方で保存すると
+     * **先の編集が黙って消えた**（サーバーは部分更新だが、こちらが全項目を
+     * 送れば同じこと）。published はボタンの選択そのものなので常に送る。
+     */
+    const buildFields = useCallback(() => {
+        const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
+        const nextDescription = mergeLocalizedDescription(original?.description, description);
+        const nextFields: Record<string, unknown> = {
+            // 英語側が入っていれば残したまま日本語だけ差し替える
+            title: mergeLocalizedTitle(original?.title, title),
+            description: nextDescription,
+            location,
+            category,
+            // 日付だけを編集させているので、元の時刻を保つ
+            date: mergeDate(original?.date, date),
+            tags,
+            coords,
+        };
+        // **比較先も同じ道を通す。** `changedFields` の相手は「保存されている姿」
+        // ではなく「触らなかったらこの画面が送る姿」でなければならない。
+        // `mergeLocalizedDescription` は英語が空なら**素の文字列**を返すので、
+        // `{ja:[…], en:[]}` で保存されている写真（実データ30枚のうち2枚）は
+        // 直接比べると**毎回「変わった」**になり、触っていない説明を毎回
+        // 送っていた——差分送信が防いでいたもの（2タブで開いて片方で説明を
+        // 直したあと、もう片方でタイトルだけ直して保存すると、先に書いた
+        // 説明が古い写しで上書きされる）がそこだけ効いていなかった。
+        // タイトルも同じ形（`en: ""` を持つ行）で起きうる——今の30枚には無い。
+        const originalFields: Record<string, unknown> = {
+            title: mergeLocalizedTitle(original?.title, titleToText(original?.title)),
+            description: mergeLocalizedDescription(original?.description, descToText(original?.description)),
+            location: original?.location ?? "",
+            category: original?.category ?? "",
+            date: original?.date ?? "",
+            tags: Array.isArray(original?.tags) ? original.tags : [],
+            coords: original?.coords ?? null,
+        };
+        return { tags, nextDescription, nextFields, originalFields };
+    }, [original, title, description, location, category, date, tagsInput, coords]);
+
+    /**
+     * 保存していない変更があるか。
+     *
+     * この画面には未保存を知らせる仕組みが1つも無く、左上の矢印を押すと
+     * 黙って捨てていた（「保存する」は画面のいちばん下、矢印は上）。
+     * 座標は**触ったなら値が同じでも**未保存に数える——同じ候補を選び直すと
+     * サーバーが「おおよそ」の印を落とすので、保存の有無で結果が変わる。
+     */
+    const dirty = React.useMemo(() => {
+        if (!original) return false;
+        if (coordsTouched) return true;
+        // **日付だけは「欄に出した値と、いま欄にある値」で見る。**
+        // 保存の側は `mergeDate` を通すが、あれは捏造の UTC 0時（C-12）を
+        // わざと日付だけへ移行するので、**移行が要る行は開いた瞬間から
+        // 「変わった」**になる。触っていないのに毎回聞かれると、利用者は
+        // 読まずに押すようになり、確認そのものが意味を失う。
+        // 「送るべきか」と「触ったか」は別の問いなので、ここだけ分ける。
+        if (date !== toDateInputValue(original.date)) return true;
+        const { nextFields, originalFields } = buildFields();
+        const changed = changedFields(nextFields, originalFields);
+        delete changed.date;
+        return Object.keys(changed).length > 0;
+    }, [original, coordsTouched, date, buildFields]);
+    useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
+
+
+    // 認証ゲート（一般ユーザー or 管理者）。upload ページと同じ方針。
+    // **打ちかけがあるときは送り返させない**——`router.replace` は画面を
+    // 作り直すので、上の未保存の確認を通らずに文章ごと消える。
+    // 送り返さない代わりに、保存できないことを下で伝える
+    const gate = useMemberGate(dirty);
+
+    // **ログインが切れたことを伝える。** 送り返さないぶん、黙っていると
+    // 「保存する」を押しても失敗し続ける画面に取り残される。
+    // 一度だけ出す（描画のたびに出すと読めない）
+    const toldSignedOut = useRef(false);
+    useEffect(() => {
+        // **ログインし直したら札を下ろす。** 下ろさないと「切れる →
+        // ログインし直す → また切れる」の二度目が無言になる
+        if (gate === "ok") { toldSignedOut.current = false; return; }
+        if (gate !== "anonymous" || !dirty) { return; }
+        if (toldSignedOut.current) return;
+        toldSignedOut.current = true;
+        showToast(isJa
+            ? "ログインが切れました。この内容は保存できません。別のタブでログインし直してから、もう一度保存してください"
+            : "You are signed out. This can't be saved yet — sign in again in another tab, then save.", "error");
+    }, [gate, dirty, isJa, showToast]);
+
     const save = useCallback(async (published: boolean) => {
         if (!photoId) return;
         setSaving(true);
         try {
             const { userFetch, readApiError } = await import("../../../lib/utils/api");
-            const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
-            const nextDescription = mergeLocalizedDescription(original?.description, description);
-            // **実際に変えた項目だけ送る。**
-            // 開いた時点の値を毎回全部送っていたので、同じ写真を2タブで開いて
-            // 片方で直したあと、もう片方で保存すると**先の編集が黙って消えた**
-            // （サーバーは部分更新だが、こちらが全項目を送れば同じこと）。
-            // published はボタンの選択そのものなので常に送る。
-            const nextFields: Record<string, unknown> = {
-                // 英語側が入っていれば残したまま日本語だけ差し替える
-                title: mergeLocalizedTitle(original?.title, title),
-                description: nextDescription,
-                location,
-                category,
-                // 日付だけを編集させているので、元の時刻を保つ
-                date: mergeDate(original?.date, date),
-                tags,
-            };
-            const originalFields: Record<string, unknown> = {
-                title: original?.title,
-                description: original?.description,
-                location: original?.location ?? "",
-                category: original?.category ?? "",
-                date: original?.date ?? "",
-                tags: Array.isArray(original?.tags) ? original.tags : [],
-            };
+            const { tags, nextDescription, nextFields, originalFields } = buildFields();
             const changed = changedFields(nextFields, originalFields);
+            // **触ったなら、値が同じでも送る。** 差分だけに任せると、機械が
+            // 当てた座標と同じ候補を本人が選んだときに何も送られず、
+            // サーバーは「おおよそ」の印を落とす分岐に入らない
+            // （画面は「保存しました」と出すのに、地図の扱いは変わらない）
+            if (coordsTouched) changed.coords = coords;
             const body = { published, ...changed };
 
             // **黙って切られる前に告げる。**
@@ -403,12 +525,21 @@ function EditContent() {
                 body: JSON.stringify(body),
             });
             if (res.ok) {
-                showToast(
-                    published
-                        ? (isJa ? "保存しました" : "Saved")
-                        : (isJa ? "非公開にしました" : "Unpublished"),
-                    "success",
-                );
+                // **もともと下書きなら「非公開にしました」とは言わない**——
+                // 公開したことが無い写真に「非公開に」は、何かを取り下げたように
+                // 読める。公開中の写真を下げたときだけその文言
+                const wasPublished = original?.published !== false;
+                const base = published
+                    ? (isJa ? "保存しました" : "Saved")
+                    : wasPublished
+                        ? (isJa ? "非公開にしました" : "Unpublished")
+                        : (isJa ? "下書きを保存しました" : "Draft saved");
+                // サーバーが「静的ページはまだ残る」と言ってきたら、そう伝える
+                // （`lib/utils/staticPage.ts`。本番はトークン未設定で毎回残る）。
+                // **ここで動的 import しない**——保存が済んだあとに投げると、
+                // チャンクを取れなかっただけで catch に落ち、「保存に失敗しました」＋
+                // 遷移なしになる（実際は保存済み）
+                toastWithStaticPage(showToast, base, await res.json().catch(() => null), isJa);
                 // 公開したままの保存は写真ページへ戻す。下書き一覧へ落とすと、
                 // 直したものを確かめられない（そこには公開写真が出ない）。
                 router.push(published && photoId ? ROUTES.PHOTO(photoId) : ROUTES.DRAFTS);
@@ -419,19 +550,64 @@ function EditContent() {
             }
         } catch (e) {
             log.error("edit save error:", e);
-            const { AUTH_REQUIRED_MESSAGE } = await import("../../../lib/utils/api");
-            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
-            showToast(authMissing ? AUTH_REQUIRED_MESSAGE : (isJa ? "保存に失敗しました" : "Save failed"), "error");
+            // **catch の中で動的 import しない。** その import 自体が失敗して
+            // ここへ来た場合、もう一度失敗して**トーストが1つも出ない**まま終わる
+            // （`save` は `void save(...)` で呼ばれるので誰も拾わない）
+            // こちらが組み立てた文言（セッション切れ・通信できない）は
+            // そのまま出す。**2つ目が増えたときに書き足し忘れない**よう1か所へ
+            const known = sessionErrorMessage(e);
+            showToast(known ?? (isJa ? "保存に失敗しました" : "Save failed"), "error");
         } finally {
             setSaving(false);
         }
-    }, [photoId, original, title, description, location, category, date, tagsInput, isJa, router, showToast]);
+    }, [photoId, buildFields, original, coords, coordsTouched, isJa, router, showToast]);
+
+    /**
+     * 地名から位置の候補を出す。**押したときだけ1回投げる**——Nominatim は
+     * 打鍵ごとの検索を規約で禁じている。サーバー越しに叩くのは、利用者の IP を
+     * 相手に渡さず、規約が求める User-Agent をこちらで名乗るため
+     * （`api-user/src/geocodeSearch.ts`）。
+     */
+    const searchPlaces = useCallback(async () => {
+        const q = location.trim();
+        if (!q || placeSearching) return;
+        setPlaceSearching(true);
+        setPlaceResults(null);
+        try {
+            const { userFetch, readApiError } = await import("../../../lib/utils/api");
+            const { usableRows } = await import("../../../lib/utils/apiRows");
+            const res = await userFetch(`/geocode/search?q=${encodeURIComponent(q)}`);
+            if (!res.ok) {
+                showToast(await readApiError(res, isJa ? "位置を探せませんでした" : "Could not find the place"), "error");
+                return;
+            }
+            const data = await res.json() as { results?: { label: string; lat: number; lng: number }[] };
+            const rows = usableRows<{ label: string; lat: number; lng: number }>(data.results, "GET /geocode/search") ?? [];
+            setPlaceResults(rows);
+            if (rows.length === 0) {
+                showToast(isJa
+                    ? "その地名では見つかりませんでした。市区町村を足すと見つかることがあります。"
+                    : "No place found. Adding the city or prefecture often helps.", "info");
+            }
+        } catch (e) {
+            showToast(e instanceof Error && e.message ? e.message : (isJa ? "位置を探せませんでした" : "Could not find the place"), "error");
+        } finally {
+            setPlaceSearching(false);
+        }
+    }, [location, placeSearching, isJa, showToast]);
 
     // Escape でも閉じる。「StoryViewer と同じ形」と書いておきながら、
     // あちらが持っている Escape の振り分けだけ移していなかった。
     // 閉じられないと、フォーカスは押した「削除」ボタンに残ったままなので、
     // Tab で進むと**オーバーレイの裏にある「保存する」**に届いてしまう。
     useEscapeKey(confirmDelete && !deleting, () => setConfirmDelete(false));
+    // 未保存のまま戻ろうとしたときの確認。削除確認と同じ作り（Escape・
+    // Tab の閉じ込め・最初のフォーカスは安全な側）
+    const [confirmLeave, setConfirmLeave] = useState(false);
+    useEscapeKey(confirmLeave, () => setConfirmLeave(false));
+    const leaveRef = useRef<HTMLDivElement | null>(null);
+    const leaveStayRef = useRef<HTMLButtonElement | null>(null);
+    useFocusTrap(confirmLeave, leaveRef, undefined, leaveStayRef);
     // **裏は「保存する」**。Tab で抜けると、見えないまま Enter で公開できる
     const confirmRef = useRef<HTMLDivElement | null>(null);
     // 最初に当てるのはキャンセル（DOM 順の先頭は赤い「削除」）
@@ -480,7 +656,9 @@ function EditContent() {
     const ex = photo.exif ?? {};
     // 撮影日時は生の保存値ではなく整形して出す（他の3か所と同じ）。
     // ここだけ抜けていて "2024-11-01T07:30:00" がそのまま並んでいた。
-    const exifSummary = [ex.camera, ex.lens,
+    // 機材名は保存済みの値に二重のメーカー名が混じる（表示だけ直す。
+    // **入力欄には当てない**——落とした値が保存の差分の比較先に入る）
+    const exifSummary = [dedupeCameraName(ex.camera), ex.lens,
         formatStoredDateTime(ex.dateTimeOriginal, locale === "en" ? "en" : "ja")]
         .filter(Boolean).join(" · ");
 
@@ -488,7 +666,19 @@ function EditContent() {
         <main className="min-h-screen bg-black text-white">
             <div className="max-w-2xl mx-auto px-4 py-8 pb-28">
                 <div className="flex items-center gap-4 mb-6">
-                    <Link href={backHref} className="text-white/60 hover:text-white transition-colors">
+                    {/* **名前を付ける。** 中身はアイコンだけ（`aria-hidden`）なので、
+                        読み上げでは名前の無いリンクとして読まれていた */}
+                    <Link
+                        href={backHref}
+                        aria-label={isJa ? "戻る" : "Back"}
+                        onClick={(e) => {
+                            // **直したものを黙って捨てない。** 押す前に一度だけ聞く
+                            if (!dirty) return;
+                            e.preventDefault();
+                            setConfirmLeave(true);
+                        }}
+                        className="text-white/60 hover:text-white transition-colors"
+                    >
                         <ArrowLeftIcon className="w-5 h-5" />
                     </Link>
                     <h1 className="text-xl font-semibold">
@@ -521,7 +711,7 @@ function EditContent() {
                     )
                 )}
                 {exifSummary && (
-                    <p className="text-xs text-white/40 mb-6">{isJa ? "撮影情報（自動）: " : "EXIF (auto): "}{exifSummary}</p>
+                    <p className="text-xs text-white/50 mb-6">{isJa ? "撮影情報（自動）: " : "EXIF (auto): "}{exifSummary}</p>
                 )}
 
                 <form onSubmit={(e) => { e.preventDefault(); void save(true); }} className="space-y-5">
@@ -557,7 +747,10 @@ function EditContent() {
                     <div className="grid grid-cols-2 gap-4 [&>div]:min-w-0">
                         <div>
                             <label className={labelCls}>{isJa ? "場所" : "Location"}</label>
-                            <input type="text" value={location} onChange={(e) => setLocation(e.target.value)}
+                            <input type="text" value={location}
+                                // **地名を変えたら候補を捨てる。** 残すと「福岡」で出した
+                                // 候補を、撮影地を「京都」に直したあとに押せてしまう
+                                onChange={(e) => { setLocation(e.target.value); setPlaceResults(null); }}
                                 maxLength={LOCATION_MAX}
                                 list="own-locations"
                                 className={inputCls} style={{ fontSize: "16px" }} placeholder={isJa ? "任意" : "Optional"} />
@@ -578,7 +771,10 @@ function EditContent() {
                         </div>
                         <div>
                             <label className={labelCls}>{isJa ? "撮影日" : "Date"}</label>
-                            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+                            {/* カレンダーの選択肢を絞るだけ（打てば範囲外も入る）。断るのはサーバー
+                                （`dateWasRejected`）。保存ボタンは form の外の
+                                `type="button"` なので、範囲外でも押せる */}
+                            <input type="date" min={PHOTO_DATE_MIN} max={todayForDateInput()} value={date} onChange={(e) => setDate(e.target.value)}
                                 className={inputCls} style={{ fontSize: "16px" }} />
                         </div>
                         <div>
@@ -604,8 +800,116 @@ function EditContent() {
                             )}
                         </div>
                     </div>
+
+                    {/* 撮影地の位置（地図に出す場所）。**本人が選ぶ。**
+                        地名は自由入力なので、機械では「福岡」が福岡市か富山県の
+                        福岡町か決められない（実測でどちらも起きた）。候補を出して
+                        選んでもらう */}
+                    <div>
+                        <label className={labelCls}>{isJa ? "地図に出す位置" : "Location on the map"}</label>
+                        <div className="rounded-xl ring-1 ring-white/10 bg-white/5 p-3 space-y-2">
+                            <p className="text-xs text-white/70" data-testid="coords-state">
+                                {coords
+                                    ? (isJa
+                                        // 本人が触ったあとは「おおよそ」ではない（保存でサーバーが印を落とす）
+                                        ? `設定済み（${coords.lat}, ${coords.lng}）${photo?.geoApprox && !coordsTouched ? "・地名から引いたおおよその位置" : ""}`
+                                        : `Set (${coords.lat}, ${coords.lng})${photo?.geoApprox && !coordsTouched ? " · approximate, from the place name" : ""}`)
+                                    : (isJa ? "未設定（地図には出ません）" : "Not set (not shown on the map)")}
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => void searchPlaces()}
+                                    disabled={!location.trim() || placeSearching}
+                                    className="px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-40 text-sm"
+                                    style={{ touchAction: "manipulation" }}
+                                >
+                                    {placeSearching
+                                        ? (isJa ? "探しています…" : "Searching…")
+                                        : (isJa ? "この場所名で候補を出す" : "Find from the location name")}
+                                </button>
+                                {coords && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setCoords(null); setCoordsTouched(true); setPlaceResults(null); }}
+                                        className="px-3 py-2 rounded-full bg-white/5 hover:bg-white/10 text-sm text-white/70"
+                                        style={{ touchAction: "manipulation" }}
+                                    >
+                                        {isJa ? "地図に出さない" : "Remove from the map"}
+                                    </button>
+                                )}
+                            </div>
+                            {placeResults && placeResults.length > 0 && (
+                                <ul className="space-y-1" aria-label={isJa ? "位置の候補" : "Place candidates"}>
+                                    {placeResults.map((r) => (
+                                        <li key={`${r.lat},${r.lng},${r.label}`}>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setCoords({ lat: r.lat, lng: r.lng });
+                                                    setCoordsTouched(true);
+                                                    setPlaceResults(null);
+                                                    showToast(isJa ? "位置を選びました（保存すると反映されます）" : "Location chosen (save to apply)", "success");
+                                                }}
+                                                className="w-full text-left px-3 py-2 rounded-lg bg-white/5 hover:bg-white/15 text-sm break-words"
+                                                style={{ touchAction: "manipulation" }}
+                                            >
+                                                {r.label}
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                            <p className="text-[11px] text-white/50">
+                                {isJa
+                                    ? "位置は約1km の粒度に丸めて保存します。撮った場所そのものではなく、街のあたりが分かる程度です。"
+                                    : "Saved rounded to about 1 km — the neighbourhood, not the exact spot."}
+                            </p>
+                        </div>
+                    </div>
                 </form>
             </div>
+
+            {/* 未保存のまま戻る確認。削除確認と同じ形（別の見た目を増やさない）。
+                **既定は「編集を続ける」**——捨てる方に指が乗っていると、
+                聞いた意味が無い */}
+            {confirmLeave && (
+                <div
+                    ref={leaveRef}
+                    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] sm:pb-0"
+                    onClick={() => setConfirmLeave(false)}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={isJa ? "保存していない変更があります" : "You have unsaved changes"}
+                >
+                    <div className="w-full max-w-[340px] space-y-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl overflow-hidden">
+                            <p className="px-4 py-3.5 text-center text-[13px] text-white/55 leading-snug">
+                                {isJa
+                                    ? "保存していない変更があります。戻ると、直した内容は失われます。"
+                                    : "You have unsaved changes. If you go back, your edits will be lost."}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => { setConfirmLeave(false); router.push(backHref); }}
+                                className="w-full py-3.5 border-t border-white/10 text-[#ff453a] text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                {isJa ? "破棄して戻る" : "Discard and go back"}
+                            </button>
+                        </div>
+                        <button
+                            ref={leaveStayRef}
+                            type="button"
+                            onClick={() => setConfirmLeave(false)}
+                            className="w-full py-3.5 rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl text-white text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition"
+                            style={{ touchAction: "manipulation" }}
+                        >
+                            {isJa ? "編集を続ける" : "Keep editing"}
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* 削除確認。取り消せない操作なので、装飾を減らして文字で選ばせる
                 （app/components/stories/StoryViewer.tsx と同じ形） */}

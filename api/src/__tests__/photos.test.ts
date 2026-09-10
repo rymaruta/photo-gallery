@@ -181,10 +181,13 @@ describe("getPhoto: ストーリーを詳細でも弾く", () => {
 // 付くのは非公開の写真だけだが、非公開化が届かず印が立ち、そのあとの
 // 再公開が畳まれると `published: true` のまま印が残り、この口から読める。
 describe("公開応答から落とす項目", () => {
-    it.each(["srcOriginal", "key", "staticStale"])("%s は返さない", (field) => {
+    // `keptFrom`（ストーリーから残した出どころ）も落とす。載せると
+    // **まだ生きているストーリーのID**が公開JSONと公開APIに出る
+    it.each(["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom"])("%s は返さない", (field) => {
         const out = stripPrivate({
             id: "p1", src: "https://cdn/x.jpg", title: "あ",
-            srcOriginal: "https://cdn/x_orig.jpg", key: "uploads/u/x.jpg", staticStale: true,
+            srcOriginal: "https://cdn/x_orig.jpg", key: "uploads/u/x.jpg", staticStale: true, publicFeed: "1",
+            keptFrom: "story-abc",
         }) as Record<string, unknown>;
         expect(out[field], `${field} が公開応答に載っている`).toBeUndefined();
         expect(PRIVATE_FIELDS as readonly string[]).toContain(field);

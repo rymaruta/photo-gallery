@@ -17,8 +17,9 @@
 //     内容が変われば必ず別のURLになる＝古いものを返しようがない
 //   - 判断が付かないものはキャッシュしない。想定外は素通し
 //
-// **画像はまだキャッシュしていない。** 上限管理（追い出し）が要るので
-// 別枠にした。今の目的は「機内モードで開けること」まで。
+//   - **写真は別のキャッシュに分けて、件数で追い出す。** ページや資産と
+//     同じ入れ物に入れると、写真を数十枚見ただけで受け皿と JS を押し出す
+//     （その事故は既に一度踏んでいる。`trimCache` の説明を見よ）
 
 const SHARE_DB = "journey-photo-share";
 const SHARE_STORE = "files";
@@ -27,6 +28,37 @@ const SHARE_STORE = "files";
 // （全消しに戻すと、自分が入れたばかりの分まで毎回消えてオフラインが0点に戻る）。
 const CACHE_VERSION = "v1";
 const CACHE_NAME = `journey-photo-${CACHE_VERSION}`;
+
+/**
+ * 写真の控え。**ページ・資産とは別の入れ物にする。**
+ *
+ * 同じ入れ物にすると、写真を数十枚見ただけで受け皿（`offline.html`）と
+ * `_next/static` を押し出す——「一度見たページが開く」という元の目的が
+ * 崩れる（`trimCache` の説明にある事故と同じ形）。数え方も追い出しも別。
+ *
+ * **バージョンも別にする（`CACHE_VERSION` を混ぜない）。** ページの控えは
+ * 刻印（`x-sw-cached-at`）の形式が変わりうるので版上げで捨ててよいが、
+ * 写真は uuid のURLで中身が変わらないので、捨てる理由が無い。混ぜると
+ * ページ側の都合で版を上げた瞬間に**全端末の写真の控えが消える**
+ * （機内モードで「枠だけ」に逆戻り）。ここを上げるのは、控え方そのものを
+ * 変えたときだけ。
+ */
+const IMG_CACHE_VERSION = "v1";
+const IMG_CACHE_NAME = `journey-photo-img-${IMG_CACHE_VERSION}`;
+
+/**
+ * 写真の控えの上限（件数）。
+ *
+ * **バイト数では数えない。** `<img>` の要求は no-cors なので応答は
+ * opaque で、`Response` から中身の大きさを読めない（ブラウザは容量計算に
+ * 数MBの下駄を履かせる実装もある）。**数えられないものを数えたふりを
+ * しない**——件数で切って、容量で断られたら半分捨ててやり直す。
+ *
+ * 一覧1画面がおよそ 12〜20 枚なので、80 は「直前に見た数画面ぶん」。
+ * **この数字は測って決めたものではない**（この環境から実機の容量を
+ * 測れない）。際限なく増やさないための歯止め。
+ */
+const MAX_IMAGE_ENTRIES = 80;
 
 /**
  * オフラインの受け皿。**JavaScript を要求しないページにすること。**
@@ -67,7 +99,10 @@ self.addEventListener("activate", (e) => e.waitUntil((async () => {
     try {
         if (self.caches && caches.keys) {
             const keys = await caches.keys();
-            await Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)));
+            // **写真の控えも残す。** ここから漏らすと、起動のたびに
+            // 全部消えてオフラインで写真が出ない（元の全消しに逆戻り）
+            const keep = [CACHE_NAME, IMG_CACHE_NAME];
+            await Promise.all(keys.filter((k) => keep.indexOf(k) === -1).map((k) => caches.delete(k)));
         }
     } catch (e2) {
         // 失敗しても致命的ではない
@@ -255,10 +290,19 @@ async function handleNavigate(request) {
     }
 }
 
-/** ハッシュ名の資産だけキャッシュ優先（古いものを返しようがない） */
+/**
+ * ハッシュ名の資産だけキャッシュ優先（古いものを返しようがない）。
+ *
+ * 読み出しが投げたら素通しに倒す。ここが投げると `_next/static` が
+ * 返らず、**サイトごと止まる**（「表示はされるが一切タップできない」）。
+ */
 async function handleImmutable(request) {
-    const cached = await caches.match(request);
-    if (cached) return cached;
+    try {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+    } catch {
+        // 控えを読めない端末では、ただの素通しとして扱う
+    }
     const res = await fetch(request);
     if (isStorable(res)) {
         const copy = res.clone();
@@ -267,6 +311,114 @@ async function handleImmutable(request) {
             // **ここでも上限を見る。** ページを開かずに資産だけ増える経路
             // （プリフェッチ）があるので、ナビゲーション側だけでは効かない
             await trimCache(c);
+        }).catch(() => undefined);
+    }
+    return res;
+}
+
+/**
+ * 写真として控えてよい要求か。
+ *
+ * **ホスト名では判定しない。** この SW は `public/` に置く素のファイルで、
+ * ビルド時に環境変数（`NEXT_PUBLIC_CLOUDFRONT_URL`）を埋め込めない。
+ * 代わりに「画像として要求されていて、うちが組み立てるパスの形」で見る
+ * ——`uploads/<sub>/…`（写真の実体・サムネ）は
+ * `lib/utils/uploadPolicy.ts` が組み立てる形で、**キーが uuid**。
+ *
+ * **アバター・カバー（`profiles/<sub>`）は入れない。** あちらは
+ * uuid ではなく**固定キーで中身だけ差し替わる**（`api-user/src/profile.ts`
+ * が `CacheControl: "no-store"` を付け、アップロード側も PUT に同じものを
+ * 付けている＝アプリが2か所で「キャッシュさせない」と明示している）。
+ * 表示側に `?v=` は無いので、ここで控えるとアイコンを変えても
+ * **差し替えが一生届かない**（Cache API は Cache-Control を見ない）。
+ * カバーまで機内モードで出したいなら、先に表示側へ更新時刻を通すこと。
+ *
+ * これで曲のアートワーク（`is1-ssl.mzstatic.com/image/…`）や計測の画像も
+ * 入らない。**手を出す先を最小にする**（触らなければ壊せない）。
+ */
+function isPhotoRequest(request, url) {
+    if (request.destination !== "image") return false;
+    // 素のHTTPは扱わない（本番は CloudFront の https だけ）
+    if (url.protocol !== "https:") return false;
+    return url.pathname.startsWith("/uploads/");
+}
+
+/**
+ * 写真として控えてよい応答か。
+ *
+ * **`isStorable` と違って opaque を通す。** あちらは同一オリジンの
+ * ページ・資産用で、中身を確かめられないものを入れない方針。写真は
+ * `<img>` からの no-cors 要求なので**必ず opaque**になる——ここで
+ * opaque を弾くと、この機能は何も控えないことになる。
+ *
+ * 代わりに入口を絞ってある（`isPhotoRequest`）。opaque を通す代償は
+ * 「404 の応答も控えうる」こと。うちの画像URLは uuid で内容が固定なので
+ * 中身が古くなることは無く、404 になるのは**消された写真**だけ——
+ * その写真は一覧から消えるので、控えを引きに来る画面がもう無い。
+ *
+ * CloudFront が CORS を返すようになれば（いまは返していない。
+ * `/uploads/*` のキャッシュポリシーが `Origin` を転送しない）、
+ * ここは `res.ok` を見る側に落ちて 404 を控えなくなる。
+ */
+function isStorablePhoto(res) {
+    if (!res) return false;
+    // リダイレクトの中身は分からない（追った先が何かも分からない）
+    if (res.type === "opaqueredirect") return false;
+    if (res.type === "opaque") return true;
+    return res.ok && res.status === 200;
+}
+
+/** 写真の控えを古い順に捨てる（Cache API のキーは挿入順） */
+async function trimImages(cache, max) {
+    try {
+        const keys = await cache.keys();
+        const extra = keys.length - max;
+        for (let i = 0; i < extra; i++) await cache.delete(keys[i]);
+    } catch {
+        // 捨てられなくても致命的ではない
+    }
+}
+
+/**
+ * 写真はキャッシュ優先。**中身が uuid のURLなので古いものを返しようがない**
+ * （`_next/static` と同じ理由）。
+ *
+ * 控えるのは**応答を返したあと**。`await` してから返すと、機内モードの
+ * 準備のために毎回の表示を遅らせることになる。
+ *
+ * **Cache Storage が投げても素通しに倒す。** ここが投げると
+ * `respondWith` に渡した Promise ごと落ちて、ネットワークが生きていても
+ * 写真が1枚も出ない（`fetch` にすら行かない）。
+ */
+async function handlePhoto(request) {
+    try {
+        const cached = await caches.match(request, { cacheName: IMG_CACHE_NAME });
+        if (cached) return cached;
+    } catch {
+        // 控えを読めない端末では、ただの素通しとして扱う
+    }
+    const res = await fetch(request);
+    if (isStorablePhoto(res)) {
+        const copy = res.clone();
+        // **やり直す用の写しを、1回目の put の前に取っておく。**
+        // `Cache.put` は中身を読み切るので、失敗したあとの `copy` は
+        // 使用済み（disturbed）で、同じものをもう一度 put すると
+        // 必ず TypeError になる。取り直せないものは取り直せない。
+        let spare = null;
+        try { spare = copy.clone(); } catch { spare = null; }
+        caches.open(IMG_CACHE_NAME).then(async (c) => {
+            try {
+                await c.put(request, copy);
+            } catch {
+                // **容量で断られたら半分捨ててやり直す。** opaque は
+                // ブラウザが数MBの下駄を履かせることがあり、件数の上限だけ
+                // では足りない端末がある。諦めても次の1枚からは入る
+                // （直後の trimImages が空きを作る）が、いま見ている写真を
+                // 落とす理由も無い。
+                await trimImages(c, Math.floor(MAX_IMAGE_ENTRIES / 2));
+                if (spare) { try { await c.put(request, spare); } catch { /* 諦める */ } }
+            }
+            await trimImages(c, MAX_IMAGE_ENTRIES);
         }).catch(() => undefined);
     }
     return res;
@@ -296,6 +448,12 @@ self.addEventListener("fetch", (event) => {
     // ここから下は GET・同一オリジンだけ。**それ以外は素通し**
     // （API・画像CDN・計測などに手を出さない。触らなければ壊せない）。
     if (event.request.method !== "GET") return;
+    // **写真だけは別オリジン（画像CDN）でも扱う。** ここより下は同一
+    // オリジン限定なので、この分岐を後ろに置くと一生届かない
+    if (isPhotoRequest(event.request, url)) {
+        event.respondWith(handlePhoto(event.request));
+        return;
+    }
     if (url.origin !== self.location.origin) return;
     // ※ `/sw.js` の除外は置かない。**死にコードだから。**
     //   ブラウザが SW スクリプトを取りに行く要求は fetch イベントに来ないし、

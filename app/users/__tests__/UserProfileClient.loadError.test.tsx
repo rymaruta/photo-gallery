@@ -16,7 +16,13 @@ const mockGetCurrentSession = vi.hoisted(() => vi.fn());
 vi.mock("next/dynamic", () => ({ default: () => () => <div data-testid="dynamic-stub" /> }));
 vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
 vi.mock("../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
-vi.mock("../../../lib/auth/cognito", () => ({ getCurrentSession: mockGetCurrentSession }));
+// **`lookupSession` も模す。** `userFetch` はこちらでトークンを引く
+// （`getCurrentSession` だけ差し替えても入口を支配できない）。
+// 同じ答えを包んだ形にして、このファイルが守っている性質は変えない
+vi.mock("../../../lib/auth/cognito", () => {
+    const getCurrentSession = mockGetCurrentSession;
+    return { getCurrentSession, lookupSession: async () => ({ session: await getCurrentSession(), unreachable: false }) };
+});
 // 実物から足りない export を引き継ぐ。列挙だけのモックだと、実装が
 // 新しく使い始めた export（readApiError など）を読んだ瞬間に vitest が
 // 投げ、それが呼び出し側の catch に飲まれて**緑のまま間違ったことを

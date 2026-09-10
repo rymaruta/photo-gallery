@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { signUp, confirmSignUp, resendConfirmationCode } from "../../lib/auth/cognito";
 import { pendingNameKey, pendingVerifyKey } from "../../lib/utils/pendingName";
+import { safeNextPath } from "../../lib/routes";
 import { EnvelopeIcon, LockClosedIcon, CheckCircleIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 type Step = "register" | "verify" | "done";
@@ -14,6 +15,19 @@ type Step = "register" | "verify" | "done";
 const inputCls = "w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 focus:bg-white/8 transition-colors disabled:opacity-50";
 
 const PENDING_TTL = 24 * 60 * 60 * 1000;
+
+/**
+ * 控えた UUID を捨ててよい再送の失敗。**一時的な失敗を入れてはいけない**
+ * （`LimitExceededException`・通信断は残して押し直させる）。
+ *   NotAuthorizedException  … その UUID はもう確認済み
+ *   UserNotFoundException   … そんなユーザーは居ない（消された等）
+ *   InvalidParameterException … 確認済みで属性が無い等、やり直しでは直らない
+ */
+const PERMANENT_RESEND_FAILURES = new Set([
+    "NotAuthorizedException",
+    "UserNotFoundException",
+    "InvalidParameterException",
+]);
 
 function savePending(em: string, username: string) {
     try { localStorage.setItem(pendingVerifyKey(em), JSON.stringify({ username, t: Date.now() })); } catch { /* ignore */ }
@@ -34,8 +48,21 @@ function clearPending(em: string) {
     try { localStorage.removeItem(pendingVerifyKey(em)); } catch { /* ignore */ }
 }
 
-export default function SignupPage() {
+function SignupForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    // **戻り先を登録の向こう側まで運ぶ。** 招待リンク（`/j?t=…`）で来た
+    // 未登録の人は、ログイン画面の「新規登録」を押した時点で `next` を
+    // 落としていた——登録を終えると必ず自分の空プロフィールに着地し、
+    // 招待に戻る手段が履歴しか無かった。**招待から入った新規ユーザーが
+    // いちばん最後で必ず落ちる**形。値は `safeNextPath` に通す
+    // （外へ飛ばす値を素通しすると、この画面がオープンリダイレクトの
+    // 踏み台になる。`safeNextPath` は過去に2回抜かれている）
+    const nextPath = safeNextPath(searchParams?.get("next"));
+    // 確認が済んだことをログイン画面のバナーに伝える。**`verified=1` を
+    // 付ける箇所がリポジトリに1つも無く**、バナーは死んだ画面だった
+    // （テストは自前で `verified=1` を作っていたので気づけない）
+    const loginHref = `/login?verified=1${nextPath ? `&next=${encodeURIComponent(nextPath)}` : ""}`;
     const { isAuthenticated, loading } = useAuth();
     const { showToast } = useToast();
 
@@ -53,8 +80,11 @@ export default function SignupPage() {
 
     // ログイン済みならトップへ
     useEffect(() => {
-        if (!loading && isAuthenticated) router.replace("/");   // 済んだ画面は履歴に残さない
-    }, [isAuthenticated, loading, router]);
+        // **戻り先があればそこへ。** `/login` 側は `nextPath ?? …` を見るのに
+        // ここだけトップへ流していた——招待リンクから来た人が既にログイン
+        // 済みだった場合、その場で行き先を失う
+        if (!loading && isAuthenticated) router.replace(nextPath ?? "/");   // 済んだ画面は履歴に残さない
+    }, [isAuthenticated, loading, router, nextPath]);
 
     // URLパラメータ or localStorage から verify ステップを復元
     useEffect(() => {
@@ -114,6 +144,18 @@ export default function SignupPage() {
                 const savedUsername = loadPending(email);
                 if (savedUsername) {
                     const resendResult = await resendConfirmationCode(savedUsername);
+                    // **捨てるのは「この控えはもう使えない」ときだけ。**
+                    //
+                    // 「失敗したら捨てる」にしたら、`LimitExceededException`
+                    // （再送の回数制限）や通信断でも唯一の手がかりを捨てて
+                    // いた——**確認画面に二度と戻れない**（登録し直しても
+                    // 「すでに登録されています」で終わり、未確認なので
+                    // パスワード再設定も効かない）。24時間で TTL が切れて
+                    // 自然に回復する元の形より悪い。
+                    //
+                    // 恒久的に効かないのは「その UUID がもう確認済み／存在
+                    // しない」場合だけ。一時的な失敗では残して押し直させる。
+                    if (PERMANENT_RESEND_FAILURES.has(resendResult.code ?? "")) clearPending(email);
                     if (resendResult.success) {
                         setCognitoUsername(savedUsername);
                         setStep("verify");
@@ -180,13 +222,13 @@ export default function SignupPage() {
 
                 {/* ヘッダー */}
                 <div className="mb-10 text-center">
-                    <p className="text-white/40 text-xs tracking-widest uppercase mb-3">Journey Photo</p>
+                    <p className="text-white/50 text-xs tracking-widest uppercase mb-3">Journey Photo</p>
                     <h1 className="text-2xl font-bold text-white">
                         {step === "register" && "アカウント作成"}
                         {step === "verify" && "メールを確認"}
                         {step === "done" && "登録完了"}
                     </h1>
-                    <p className="text-white/40 text-sm mt-2">
+                    <p className="text-white/50 text-sm mt-2">
                         {step === "register" && "写真のアップロードができるようになります"}
                         {step === "verify" && `${email} に確認コードを送信しました`}
                         {step === "done" && "アカウントが有効になりました"}
@@ -244,7 +286,7 @@ export default function SignupPage() {
                                 disabled={submitting}
                                 className={inputCls}
                             />
-                            <p className="text-xs text-white/30 mt-1.5">英大文字・小文字・数字・記号（!@#$など）をそれぞれ1文字以上含めてください</p>
+                            <p className="text-xs text-white/50 mt-1.5">英大文字・小文字・数字・記号（!@#$など）をそれぞれ1文字以上含めてください</p>
                         </div>
                         <div>
                             <label htmlFor="signup-password-confirm" className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード（確認）</label>
@@ -274,9 +316,9 @@ export default function SignupPage() {
                             {submitting ? "送信中..." : "確認コードを送信"}
                         </button>
 
-                        <p className="text-center text-xs text-white/40 pt-2">
+                        <p className="text-center text-xs text-white/50 pt-2">
                             すでにアカウントをお持ちの方は{" "}
-                            <Link href="/login" className="text-white/60 hover:text-white underline transition-colors">
+                            <Link href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login"} className="text-white/60 hover:text-white underline transition-colors">
                                 ログイン
                             </Link>
                         </p>
@@ -319,7 +361,7 @@ export default function SignupPage() {
                             <button
                                 type="button"
                                 onClick={() => { setStep("register"); setError(""); setCode(""); setResendCooldown(0); }}
-                                className="text-xs text-white/40 hover:text-white/60 transition-colors flex items-center gap-1"
+                                className="text-xs text-white/50 hover:text-white/75 transition-colors flex items-center gap-1"
                             >
                                 <ArrowLeftIcon className="w-3 h-3" /> 戻る
                             </button>
@@ -327,7 +369,7 @@ export default function SignupPage() {
                                 type="button"
                                 onClick={handleResend}
                                 disabled={resendCooldown > 0 || resending}
-                                className="text-xs text-white/40 hover:text-white/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="text-xs text-white/50 hover:text-white/75 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 {resendCooldown > 0
                                     ? `再送（${resendCooldown}秒後）`
@@ -348,7 +390,7 @@ export default function SignupPage() {
                             ログインして写真のアップロードをお楽しみください。
                         </p>
                         <Link
-                            href="/login"
+                            href={loginHref}
                             className="block w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 active:scale-[0.98] transition text-center"
                         >
                             ログインする
@@ -357,5 +399,15 @@ export default function SignupPage() {
                 )}
             </div>
         </main>
+    );
+}
+
+export default function SignupPage() {
+    // `useSearchParams` は Suspense の中で使う（静的書き出しの前提。
+    // `/login`・`/users`・`/j` も同じ形）
+    return (
+        <Suspense>
+            <SignupForm />
+        </Suspense>
     );
 }

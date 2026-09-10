@@ -7,9 +7,9 @@ import { ROUTES } from "@/lib/routes";
 // 撮影地マップ（/map）。地図そのもの（Leaflet）は jsdom で描けないので
 // 差し替え、**何を地図に渡したか**と、地図の外側の文言・一覧を見る。
 
-const photosState = vi.hoisted(() => ({ current: [] as Photo[] }));
+const photosState = vi.hoisted(() => ({ current: [] as Photo[], loaded: true, failed: false }));
 vi.mock("../../../lib/hooks/usePhotos", () => ({
-    usePhotos: () => ({ loaded: true, photos: photosState.current }),
+    usePhotos: () => ({ loaded: photosState.loaded, failed: photosState.failed, photos: photosState.current }),
 }));
 vi.mock("../../i18n/context", () => ({
     useLocale: () => ({ locale: "ja", labels: {} }),
@@ -36,6 +36,8 @@ const base = (id: string, extra: Partial<Photo> = {}): Photo => ({
 
 beforeEach(() => {
     photosState.current = [];
+    photosState.loaded = true;
+    photosState.failed = false;
     mapProps.last = null;
 });
 
@@ -46,7 +48,45 @@ describe("/map", () => {
         expect(screen.getByText("位置情報のある写真はまだありません。")).toBeInTheDocument();
         expect(screen.queryByTestId("photo-map"), "0枚なのに地図を描いている").toBeNull();
         // 行き止まりにしない
-        expect(screen.getByRole("link", { name: "ギャラリーへ戻る" })).toHaveAttribute("href", "/");
+        expect(screen.getByRole("link", { name: "ギャラリーに戻る" })).toHaveAttribute("href", "/");
+    });
+
+    // 手元の断面に座標が無いだけで、API の一覧には有ることがある（実測: 4秒の
+    // 回線で「0枚・まだありません」が出たあと 18枚に変わった）
+    it("一覧がまだ届いていなければ「読み込み中」と言い、「まだありません」とは言わない", () => {
+        photosState.loaded = false;
+        render(<MapPage />);
+        expect(screen.getByText("読み込み中…")).toBeInTheDocument();
+        expect(screen.getByText("読み込み中…").getAttribute("aria-busy")).toBe("true");
+        expect(screen.queryByText("位置情報のある写真はまだありません。")).toBeNull();
+        expect(screen.queryByTestId("photo-map")).toBeNull();
+        // 見出しの枚数も「0枚」と言わない（実測: 4秒間「0枚」→「18枚」）
+        expect(screen.queryByText(/位置情報のある写真 \d+枚/)).toBeNull();
+    });
+
+    it("届いていなくても、手元の断面に座標があれば地図を出す", () => {
+        photosState.loaded = false;
+        photosState.current = [base("a", { coords: { lat: 35.68, lng: 139.77 } })];
+        render(<MapPage />);
+        expect(screen.getByTestId("photo-map")).toBeInTheDocument();
+        expect(screen.queryByText("読み込み中…")).toBeNull();
+        expect(screen.getByText("位置情報のある写真 1枚")).toBeInTheDocument();
+    });
+
+    it("取りに行って駄目だったなら、そう言う（「まだ」でも「読み込み中」でもなく）", () => {
+        photosState.loaded = false;
+        photosState.failed = true;
+        render(<MapPage />);
+        const msg = screen.getByText(/写真を読み込めませんでした/);
+        expect(screen.queryByText("読み込み中…")).toBeNull();
+        // 失敗の告知に「更新中」の印を付けない（支援技術が読み上げを抑える）
+        expect(msg.getAttribute("aria-busy")).toBe("false");
+        expect(screen.queryByText("位置情報のある写真はまだありません。")).toBeNull();
+    });
+
+    it("0枚の案内で、編集画面から場所を選べることも伝える", () => {
+        render(<MapPage />);
+        expect(screen.getByText(/編集画面の「地図に出す位置」で場所を選ぶ/)).toBeInTheDocument();
     });
 
     it("座標を持つ公開写真だけを地図に渡す（非公開・座標なし・NaN は外す）", () => {

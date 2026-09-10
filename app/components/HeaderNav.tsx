@@ -17,7 +17,7 @@ import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 
 export default function HeaderNav({ className = "" }: { className?: string }) {
     const router = useRouter();
-    const { isAuthenticated, isAdminUser, userId, logout, loading } = useAuth();
+    const { isAuthenticated, isAdminUser, isGeneralUser, userId, logout, loading } = useAuth();
     const { locale, labels } = useLocale();
     const { favorites } = useFavorites();
 
@@ -131,7 +131,8 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     };
 
     return (
-        <nav className={`site-header__nav flex items-center gap-2 ${className}`}>
+        <nav aria-label={locale === "en" ? "Site header" : "ヘッダー"}
+             className={`site-header__nav flex items-center gap-2 ${className}`}>
             {/* ユーザーを探す。知り合いを見つけてフォローする導線をどのページからも1タップに */}
             <button
                 onClick={() => handleNavigation(ROUTES.USER_SEARCH)}
@@ -227,7 +228,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                 )}
                                 {isAuthenticated && (
                                     <li style={{ margin: 0, padding: "10px 12px 4px" }}>
-                                        <span className="text-[10px] tracking-widest uppercase text-white/35">
+                                        <span className="text-[10px] tracking-widest uppercase text-white/50">
                                             {navLabels.account || "Account"}
                                         </span>
                                     </li>
@@ -236,6 +237,23 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                     <li style={{ margin: 0, padding: 0 }}>
                                         <button onClick={() => handleNavigation(ROUTES.USER_PROFILE(userId))} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                             {navLabels.mypage || "My Page"}
+                                        </button>
+                                    </li>
+                                )}
+                                {/* 共同アルバム（案C）。**ログイン中だけ**——招待リンクを
+                                    配る側の画面で、未ログインには行き先が無い。
+                                    文言は他の項目と同じく `navLabels` から取る
+                                    （直書きにすると英語UIでここだけ日本語になる） */}
+                                {/* **画面と同じ条件で出す。** 行き先は
+                                    `useMemberGate`（グループが要る）で守られて
+                                    いるので、`isAuthenticated` だけで出すと
+                                    グループ未所属の人には**押した先が会員限定の
+                                    案内**になる（行き先の無い項目）。
+                                    この項目はメニューで唯一の会員限定の行き先 */}
+                                {isAuthenticated && (isAdminUser || isGeneralUser) && (
+                                    <li style={{ margin: 0, padding: 0 }}>
+                                        <button onClick={() => handleNavigation(ROUTES.ALBUMS)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
+                                            {navLabels.albums || "Shared Albums"}
                                         </button>
                                     </li>
                                 )}

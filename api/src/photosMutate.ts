@@ -1,12 +1,13 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getPhotoById, updatePhotoFields, deletePhotoById } from "./ddb-photos";
+import { PUBLIC_FEED_KEY } from "./publicFeed";
 import { isAdmin, getCallerUserId } from "./auth";
 import { requestSiteRebuild } from "./rebuild";
 import { invalidateUploads } from "./cdnInvalidate";
 import { requireEnv } from "./env";
 import {
-    sanitizeExif, sanitizeText, sanitizeDate, sanitizeTags,
+    sanitizeExif, sanitizeText, sanitizeDate, dateWasRejected, sanitizeTags,
     sanitizeTitle, sanitizeDescription, sameStoredValue,
 } from "./sanitize";
 
@@ -84,6 +85,13 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なリクエスト" }) };
     }
 
+    // 読めない撮影日は断る（ユーザーAPI側と同じ。理由はあちらのコメント）。
+    // **写真を読みに行く前**——api-user と位置を揃える（片方だけ後ろだと、
+    // 同じリクエストが 400 と 404/403 に割れる）
+    if (dateWasRejected(body.date)) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "撮影日が正しくありません（日付として読み取れないか、1990年より前・未来の日付です）" }) };
+    }
+
     try {
         const photo = await getPhotoById(id);
         if (!photo) {
@@ -109,6 +117,12 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
 
         const fields = pickEditableFields(body);
         const updates: Record<string, unknown> = { ...fields, updatedAt: new Date().toISOString() };
+        // 公開一覧用 GSI の印（対の api-user/src/photoUpdate.ts と同じ）。
+        // `updatePhotoFields` は undefined を REMOVE に倒すので、
+        // 非公開にしたら索引から落ちる。
+        if ("published" in fields) {
+            updates.publicFeed = fields.published === false ? undefined : PUBLIC_FEED_KEY;
+        }
         // 地名から補った座標（geoApprox）は地名に付随する。地名を直したら
         // 座標ごと捨てる（ユーザーAPI側 api-user/src/photoUpdate.ts と同じ扱い。
         // 管理画面は座標を送らないので、残すと嘘のピンを直す手段が無い）
@@ -226,7 +240,26 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             "thumbSrc", "thumbSm", "thumbAvif", "thumbSmAvif",
         ] as const;
         const keys = new Set<string>();
-        for (const field of mediaFields) {
+        // **ギャラリーに残した1枚の実体は消さない**（`api-user/src/stories.ts`
+        // の `storyMediaKeys` と**対**）。`keptAs` が立っているストーリーは、
+        // その S3 オブジェクトの持ち主が写真の行に移っている。ここで消すと、
+        // 投稿者が残したはずの写真が**割れた画像**になる——行は残るので、
+        // 下書き一覧にも個別ページにも壊れた枠が並び、本人には直す手段が無い。
+        // **`updatePhoto` にはある `story === true` の門が、ここには無い**ので
+        // 管理者の削除はストーリーの行をそのまま対象にする。
+        const keptAs = (photo as Record<string, unknown>).keptAs;
+        const keepMedia = typeof keptAs === "string" && !!keptAs;
+        // **写真側の印（`keptFrom`）も見る。** `keptAs` はストーリーの行に
+        // しか立たないので、上の分岐は「管理者がストーリーを直に消しに来た」
+        // ときしか効かない。**残した写真**を管理画面から消すと、共有している
+        // S3 の実体は消えるのに元のストーリーの行が生きたまま残り、
+        //   - 期限切れまで最大24時間、**全員のトレイに割れた画像**が出続ける
+        //   - `keptAs` が死んだIDを指したままなので、押し直しても
+        //     `keepStory` の冪等分岐が死んだIDを返す＝**二度と残せない**
+        // api-user の `deleteMyPhoto` は同じ場面を `keptFrom` で塞いでいる。
+        const keptFrom = (photo as Record<string, unknown>).keptFrom;
+        const sourceStory = typeof keptFrom === "string" && keptFrom ? keptFrom : "";
+        for (const field of keepMedia ? [] : mediaFields) {
             const v = (photo as Record<string, unknown>)[field];
             if (typeof v !== "string" || !v) continue;
             if (v.startsWith("uploads/")) {
@@ -274,6 +307,17 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         await invalidateUploads(deleted, `deletePhoto(${id})`);
         if (s3Failures > 0) {
             return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "画像の削除を完了できませんでした。時間をおいてもう一度お試しください" }) };
+        }
+
+        // 元のストーリーも消す（返信の文書を先に。`deleteMyPhoto` と同じ順序）。
+        // 消せなくても写真の削除は成功で返す——実体はもう消えている
+        if (sourceStory) {
+            try {
+                await deletePhotoById(`storyreplies#${sourceStory}`);
+                await deletePhotoById(sourceStory);
+            } catch (e) {
+                console.error(`deletePhoto: 元のストーリーを消せませんでした（${sourceStory}）:`, e);
+            }
         }
 
         await deletePhotoById(id);

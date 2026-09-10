@@ -7,13 +7,52 @@ export type Story = {
     displayName?: string;
     mediaType?: "image" | "video";
     caption?: string;
+    /**
+     * 撮影地。**残したときにそのまま写真の撮影地になる**（`storyKeep.ts`）
+     * ＝地図と `/location/<スラッグ>` に載る。ここが空だと、残しても本人が
+     * 編集画面で打つまで何にも繋がらない。
+     */
+    location?: string;
     /** ストーリーBGM（30秒プレビュー）。付いていると視聴中に再生できる */
     /** startSec = 30秒プレビュー内の再生開始位置（投稿者が「好きな部分」を指定できる） */
     song?: { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string; startSec?: number };
     /** 画像ストーリーの表示秒数（投稿者が指定）。未指定なら既定の5秒 */
     durationSec?: number;
+    /**
+     * 届いた返信の数。**投稿者にしか入っていない**
+     * （`getStories` が所有者以外から落とす）。見た人に「このストーリーに
+     * 何件届いたか」を知らせないため——誰が反応したかは閲覧者と同じく
+     * 本人だけのもの。
+     */
+    replyCount?: number;
+    /**
+     * ギャラリーに残したときの写真ID（`POST /stories/{id}/keep`）。
+     * 立っていると、期限切れでも**S3 の実体は消えない**（持ち主が写真に
+     * 移っている）。画面はこれで「残した」を出し分ける。
+     */
+    keptAs?: string;
     createdAt: string;
     expiresAt: string;
+};
+
+/**
+ * ストーリーへのクイックリアクション。**サーバーの一覧と対**
+ * （`api-user/src/storyReplies.ts` の `REACTIONS`）。ずれると、画面に出ている
+ * 絵文字を押しても本文として保存される——`scripts/__tests__/storyReactionsParity.test.ts`
+ * が突き合わせる。
+ */
+export const STORY_REACTIONS = ["❤️", "😍", "😂", "😮", "😢", "👏"] as const;
+
+/** 届いた返信（投稿者だけが読める） */
+export type StoryReply = {
+    id: string;
+    uid: string;
+    name: string;
+    emoji?: string;
+    text?: string;
+    t: string;
+    /** 返信した人が退会している（サーバーが名前を伏せたときに立つ） */
+    deleted?: boolean;
 };
 
 export type StoryViewer = {

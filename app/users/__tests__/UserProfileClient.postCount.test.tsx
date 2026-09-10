@@ -17,7 +17,13 @@ const mockGetCurrentSession = vi.hoisted(() => vi.fn());
 vi.mock("next/dynamic", () => ({ default: () => () => <div data-testid="dynamic-stub" /> }));
 vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
 vi.mock("../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
-vi.mock("../../../lib/auth/cognito", () => ({ getCurrentSession: mockGetCurrentSession }));
+// **`lookupSession` も模す。** `userFetch` はこちらでトークンを引く
+// （`getCurrentSession` だけ差し替えても入口を支配できない）。
+// 同じ答えを包んだ形にして、このファイルが守っている性質は変えない
+vi.mock("../../../lib/auth/cognito", () => {
+    const getCurrentSession = mockGetCurrentSession;
+    return { getCurrentSession, lookupSession: async () => ({ session: await getCurrentSession(), unreachable: false }) };
+});
 vi.mock("../../../lib/utils/api", async (importActual) => {
     const actual = await importActual<typeof import("../../../lib/utils/api")>();
     return {

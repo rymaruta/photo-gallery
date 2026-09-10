@@ -5,12 +5,14 @@ import { ddb, PHOTOS_TABLE, USER_INDEX, STORY_INDEX, STORY_FEED_KEY } from "./dy
 import { JSON_HEADERS, getUserId, jsonError, isAdmin } from "./http";
 import { lookupDisplayName } from "./notify";
 import { mediaKeys, deriveUploadKey } from "./mediaKeys";
-import { isOwnUploadUrl } from "./upload";
-import { keyFromUploadUrl, canonicalUploadUrl } from "./uploadPolicy";
+import { isOwnUploadUrlFromEnv as isOwnUploadUrl, keyFromUploadUrl, canonicalUploadUrl } from "./uploadPolicy";
 import { s3DeleteMany } from "./s3Delete";
 import { invalidateUploads } from "./cdnInvalidate";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
-import { truncate } from "./sanitize";
+import { truncate, sanitizeText, sanitizeCoords } from "./sanitize";
+import { storyRepliesId } from "./storyReplies";
+import { hiddenUserIds } from "./block";
+import { isBlocked } from "./blockCheck";
 
 // バケット名の検証と S3 の削除は `s3Delete.ts` に寄せた（未設定なら
 // そちらの読み込みで止まる）。
@@ -37,6 +39,14 @@ function deriveStoryKey(item: Record<string, unknown>): string {
  * 公開URLで取得できる」状態になる。退会処理と同じ列挙を使う。
  */
 function storyMediaKeys(item: Record<string, unknown>): string[] {
+    // **ギャラリーに残した1枚の実体は消さない。**
+    // `keptAs` が立っているストーリーは、その S3 オブジェクトの持ち主が
+    // 写真の行に移っている（`storyKeep.ts`）。ここで消すと、残したはずの
+    // 写真が**割れた画像**になる——しかも写真の行は残るので、一覧にも
+    // 個別ページにも壊れた枠が並ぶ。
+    // 消すのは行だけ＝**24時間で消える約束は守られる**（残るのは本人が
+    // 選んだ1枚で、それは「ストーリー」ではなく「写真」になっている）。
+    if (typeof item.keptAs === "string" && item.keptAs) return [];
     const keys = new Set(mediaKeys(item));
     const primary = deriveStoryKey(item);
     if (primary) keys.add(primary);
@@ -128,16 +138,38 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
     const userId = getUserId(event);
     if (!userId) return jsonError(401, "認証が必要です");
     try {
-        const items = await queryStories("active");
+        // **ブロックした相手・ブロックした相手のストーリーは出さない（両向き）。**
+        // 一覧を引くたびに自分の2行（`blocks#` と `blockedby#`）を読むだけ。
+        // 失敗しても一覧は返す——**見えなくする側が落ちたときに全部消す**のは
+        // 倒しすぎで、ストーリーが誰にも出なくなる（`listAlbums` の掃除と同じ判断）。
+        //
+        // **ストーリーの取得と同時に投げる。** 直列にしていたので、
+        // 一覧が返ってくるまで待ってからブロックを引いていた＝往復が1回増えた。
+        // 互いの結果に依存しないので並べてよい。
+        const [items, hidden] = await Promise.all([
+            queryStories("active"),
+            hiddenUserIds(userId)
+                .catch((e) => { console.error("getStories: ブロック一覧を読めませんでした:", e); return new Set<string>(); }),
+        ]);
         for (const item of items) {
             delete item.viewers;
+            // **返信の数は投稿者にだけ返す。** 見た人には「このストーリーに
+            // 何件届いたか」を知らせない（誰が反応したかは `viewers` と同じく
+            // 本人だけのもの）。所有者の画面はこの数でバッジを出す
+            if (item.userId !== userId) {
+                delete item.replyCount;
+                // 「残した」印も本人だけ。画面は `isOwnStory` で守っているが、
+                // 応答に出す理由が無い（`viewers` と同じ扱い）
+                delete item.keptAs;
+            }
         }
-        items.sort((a, b) => String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? "")));
+        const visible = hidden.size === 0 ? items : items.filter((i) => !hidden.has(String(i.userId ?? "")));
+        visible.sort((a, b) => String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? "")));
         return {
             // 認証済みユーザー個別のレスポンスなので共有キャッシュには載せない
             statusCode: 200,
             headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
-            body: JSON.stringify(items),
+            body: JSON.stringify(visible),
         };
     } catch (e) {
         console.error("getStories error:", e);
@@ -155,7 +187,10 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
 
     // displayName は受け取らない（なりすまし防止のためサーバーで引く）。
     // key も受け取らない（publicUrl から導く。下のコメント参照）。
-    let body: { publicUrl?: string; caption?: string; mediaType?: string; song?: unknown; durationSec?: unknown };
+    let body: {
+        publicUrl?: string; caption?: string; mediaType?: string; song?: unknown; durationSec?: unknown;
+        location?: unknown; coords?: unknown;
+    };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
     } catch {
@@ -167,7 +202,7 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "画像URLが必要です" }) };
     }
     // 自分のアップロード領域を指すURLだけを受け付ける。
-    // 判定は upload.ts の isOwnUploadUrl に寄せる（未設定なら通さない）。
+    // 判定は uploadPolicy.ts の isOwnUploadUrlFromEnv に寄せる（未設定なら通さない）。
     // userId を渡して「他人の領域」を弾くのが要（下の key の話と対になる）。
     if (!isOwnUploadUrl(publicUrl, userId)) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正な画像URLです" }) };
@@ -182,6 +217,22 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
 
     const mediaType = body.mediaType === "video" ? "video" : "image";
     const caption = truncate((body.caption ?? "").trim(), 200) || undefined;
+
+    // **撮影地。** ストーリーにも場所を持たせる理由は2つある:
+    //   1. 見る側に「どこで」が伝わる（Instagram のロケーションと同じ）
+    //   2. **ギャラリーに残したときに、そのまま写真の撮影地になる**
+    //      （`storyKeep.ts`）——このサイトの価値は 撮影地 → 地図 →
+    //      `/location/<スラッグ>` → **検索流入** なので、ここが空だと
+    //      残しても本人が手で打つまで何にも繋がらない
+    //
+    // 検証は写真と同じものを通す（`sanitizeText` / `sanitizeCoords`）。
+    // 座標は約1kmに丸めたものだけを受ける——生の緯度経度を公開URLに
+    // 載せないのは、このリポジトリが写真で一貫して守っている線
+    // **動画には位置を付けない。** 位置は写真の EXIF から来るもので、動画は
+    // `toUploadSafeVideo` が GPS を落としている——画面側の1か所だけで守ると、
+    // 細工した要求で動画に座標を付けられる（「片側だけの防御」を作らない）
+    const location = mediaType === "image" ? (sanitizeText(body.location, 200) || undefined) : undefined;
+    const coords = mediaType === "image" ? (sanitizeCoords(body.coords) ?? undefined) : undefined;
 
     // 画像ストーリーの表示秒数。投稿者が選べる（既定5秒）。
     // 3秒未満は読み切れず、15秒を超えると見る側が飽きるため範囲を固定する。
@@ -251,6 +302,11 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         ...(key ? { key } : {}), // 期限切れ削除時に S3 オブジェクトを消すために保持
         mediaType,
         ...(caption ? { caption } : {}),
+        ...(location ? { location } : {}),
+        // **座標は地名とセットのときだけ持つ。** 地名の無い座標は画面に
+        // 出しようがなく（ピンだけ置く画面がストーリーには無い）、
+        // 残したときも「名前の無い点」が地図に増えるだけになる
+        ...(location && coords ? { coords } : {}),
         ...(song ? { song } : {}),
         ...(durationSec ? { durationSec } : {}),
         userId,
@@ -294,6 +350,13 @@ export const viewStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         }
         if (item.userId === viewerId) {
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, self: true }) };
+        }
+        // **ブロックした相手の閲覧は記録しない。** 一覧（`getStories`）からは
+        // 隠しているが、期限をまたいで開きっぱなしのタブや直接叩く経路では
+        // ここに来る（この関数のコメント自身がそう書いている）。記録すると、
+        // 所有者の閲覧者一覧に**相手が付けた任意の表示名**がそのまま出る
+        if (await isBlocked(String(item.userId ?? ""), viewerId)) {
+            return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "ストーリーが見つかりません" }) };
         }
         // **期限切れは「もう無い」。**
         //
@@ -418,9 +481,64 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         //
         // 押し直せば続きから消える（消せたキーは S3 に無いので、再実行の
         // DeleteObject は成功する）。24時間で期限切れになれば掃除が拾う。
+        // **管理者が消すときは、残された写真の方から消してもらう。**
+        //
+        // `storyMediaKeys` は `keptAs` があると実体を残す（本人が残した
+        // 1枚を守るため）。管理者は不適切なものを消しに来ているので実体も
+        // 消したい——が、**ここで写真の行を消すのは間違いだった**。
+        //
+        //   - **派生画像はストーリーの行に無い。** `thumbAvif` / `thumbSm` /
+        //     `thumbSmAvif` / `srcAvif` / `src256` は `generate-thumbnails.js`
+        //     が作って**写真の行**に書き戻す。ここは `storyMediaKeys(item)`
+        //     ＝ストーリーの行しか見ないので、行を消したあとは**どの経路
+        //     からも辿れない孤児**として S3 に残る（`max-age=31536000`）。
+        //     実体を消すつもりの分岐が、いちばん消せない形を作っていた
+        //   - `comments#<写真ID>` も残る（`storyFeed` も `story` も `src` も
+        //     持たないので一覧にも Scan の絞り込みにも出ない）
+        //   - ピン留めの枠を1つ永久に食う（`removePinnedPhoto` を通らない）
+        //   - 公開済みなら `/photo/<id>` の静的HTMLが残る（再ビルドを
+        //     頼まない。頼むには `stories.ts` に `rebuild.ts` を引き込む
+        //     ことになり、**このファイルの6つの handler 全部**に書き込み
+        //     トークンが配られる＝IAM-2 で潰したことの作り直し）
+        //   - 行の削除が失敗しても印だけ外れて S3 が消え、**割れた写真が
+        //     残る**（`storyMediaKeys` のコメントが避けると書いている当のもの）
+        //
+        // **同じものを二度作らない。** 管理APIの写真削除
+        // （`api/src/photosMutate.ts`）は上を全部やったうえで、`keptFrom` の
+        // ストーリーと返信の文書まで消す。そちらを1回叩けば済む。
+        const keptPhotoId = typeof item.keptAs === "string" ? item.keptAs : "";
+        if (keptPhotoId && item.userId !== callerId) {
+            // 印が死んだIDを指している場合まで断ると、管理者が**何もできなく
+            // なる**。実在を確かめてから断る（この枝は管理者の削除だけ）。
+            const kept = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: keptPhotoId } }));
+            if (kept.Item) {
+                // **どの写真かを言う。** 言わないと管理画面（下書きも並ぶ）から
+                // 人手で探すことになり、その間ずっとストーリーは全員のトレイに
+                // 残る（最大24時間）
+                return jsonError(409, `この投稿はギャラリーに残されています。写真（${keptPhotoId}）の方を削除してください（元のストーリーも一緒に消えます）`);
+            }
+            // 写真がもう無い＝実体の持ち主が居ない。普通の削除に落とす
+            delete item.keptAs;
+        }
         const s3Failures = await s3DeleteMany(storyMediaKeys(item), "deleteStory");
         if (s3Failures > 0) {
             return jsonError(500, "画像の削除を完了できませんでした。時間をおいてもう一度お試しください");
+        }
+        // **返信の文書も消す。ストーリーの行より先に、そして消せなければ
+        // 行を残す。**
+        //
+        // 順序だけでは足りない——**手がかりを残すのは「失敗したら行を
+        // 消さない」の方**。`storyreplies#<id>` は `storyFeed` も `story` も
+        // `src` も持たないので、行が消えると GSI にも Scan にも一覧にも
+        // 出ない＝**どの削除経路からも二度と辿れない**。このテーブルに
+        // TTL は無いので、24時間で消えるはずの本文が永久に残る。
+        // すぐ上の S3 の削除がまったく同じ理由で止めているのに、
+        // ここだけ握って先へ進んでいた。
+        try {
+            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(storyId) } }));
+        } catch (e) {
+            console.error(`deleteStory: 返信を消せませんでした（${storyId}）:`, e);
+            return jsonError(500, "削除を完了できませんでした。時間をおいてもう一度お試しください");
         }
         await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyId } }));
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
@@ -463,6 +581,12 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
         }
 
         try {
+            // 返信の文書も消す（行より先に。`deleteStory` と同じ理由）。
+            // **消せなければ行を残して次回に回す**——行が消えると
+            // `storyreplies#<id>` はどこからも辿れなくなり、24時間で消える
+            // はずの本文が永久に残る（S3 の失敗を `continue` で見送るのと
+            // 同じ判断。期限切れの行が残っても利用者には見えない）
+            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(id) } }));
             await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
             deleted++;
         } catch (e) {

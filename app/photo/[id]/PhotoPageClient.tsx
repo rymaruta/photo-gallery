@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 import { HeartIcon } from "@heroicons/react/24/solid";
@@ -14,6 +14,7 @@ import { parseMusicEmbed } from "../../../lib/utils/music";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { type SongEntry } from "../../music/MusicContext";
 import MusicCard from "../../components/MusicCard";
+import SongArtwork from "../../components/SongArtwork";
 import { MusicalNoteIcon, XMarkIcon, MapPinIcon, CameraIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../../auth/context";
 import { useToast } from "../../../lib/hooks/useToast";
@@ -25,6 +26,8 @@ import RelatedPhotos from "../../components/RelatedPhotos";
 import CommentSection from "../../components/CommentSection";
 import { relatedSections, adjacentPhotos } from "../../../lib/utils/related";
 import { ROUTES } from "../../../lib/routes";
+import { formatMapHash, PHOTO_LINK_ZOOM } from "../../../lib/utils/mapView";
+import { formatCameraName, dedupeCameraName } from "../../../lib/utils/cameraName";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
@@ -33,6 +36,7 @@ import { formatStoredDateTime } from "@/lib/utils/photoDate";
 import { isImeKey } from "../../../lib/utils/ime";
 import { useSongSearch } from "../../../lib/hooks/useSongSearch";
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
+import { sessionErrorMessage } from "../../../lib/utils/api";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -60,6 +64,26 @@ function hasStoredExif(exif?: Photo["exif"]): boolean {
     return !!exif && Object.values(exif).some((v) => v !== undefined && v !== null && v !== "");
 }
 
+
+/**
+ * この描画が「ハイドレーション」（静的HTMLに React を付けている）かどうか。
+ * サーバー側の値（false）はハイドレーションの最初の描画でだけ使われ、
+ * クライアント遷移で新しく作られた部品は最初から true。
+ * **ハイドレーション由来の `<img>` は隠さない**——Chromium は JPEG/WebP を
+ * 届いた行まで逐次描くので、途中まで見えている写真を React が付いた瞬間に
+ * `opacity-0` にすると「見えた → 消える → 出る」になる。ブラウザに任せ、
+ * 届いたら（onLoad）ぼかしを外すだけ。フェードで出すのは、クライアント遷移で
+ * 新しく作った `<img>`（作った瞬間に隠すので何も描かれていない）だけ
+ */
+const subscribeNoop = () => () => {};
+function useHydratedFromHtml(): boolean {
+    const clientRender = useSyncExternalStore(subscribeNoop, () => true, () => false);
+    // 最初の描画の値だけを覚える（あとで true に変わっても、この部品が
+    // 静的HTML由来であることは変わらない）。初期化関数は最初の描画でしか走らない
+    const [fromHtml] = useState(() => !clientRender);
+    return fromHtml;
+}
+
 // 画像コンポーネント（エラーハンドリング付き、EXIF読み取り機能付き）
 function PhotoImage({
     src,
@@ -85,7 +109,22 @@ function PhotoImage({
     onExifLoaded?: (exif: ExtractedExif | null) => void;
 }) {
     const [imageError, setImageError] = useState(false);
-    const [imageLoading, setImageLoading] = useState(true);
+    // **ハイドレーションまでは隠さない**（`Thumb` と同じ理由。この画面は検索の
+    // 着地点なので、JS を待ってから写真を出すのは LCP をそのぶん遅らせる）。
+    // "unknown" = React がまだ付いていない（静的HTMLのまま）。ref で決める。
+    // 静的HTML由来の `<img>` は届いていなくても隠さない（途中まで描かれて
+    // いるかもしれない。`useHydratedFromHtml` を参照）
+    const [phase, setPhase] = useState<"unknown" | "pending" | "loaded">("unknown");
+    const imageLoading = phase !== "loaded";
+    const fromHtml = useHydratedFromHtml();
+    // ref は `useCallback` で固定（`Thumb` と同じ理由）
+    const attach = useCallback((img: HTMLImageElement | null) => {
+        if (!img) return;
+        // React より先に失敗が終わっていた画像（`Thumb` と同じ）
+        if (img.complete && img.naturalWidth === 0) { setImageError(true); setPhase("loaded"); return; }
+        if (isImageReady(img)) setPhase("loaded");
+        else if (!fromHtml) setPhase("pending");
+    }, [fromHtml]);
 
     // データ側 exif が欠けている写真のみ、画像読み込み後に EXIF をクライアント抽出する。
     // exifr は重いので初期バンドルに含めず、必要時だけ動的 import する。
@@ -142,8 +181,14 @@ function PhotoImage({
         );
     }
 
+    // **枠の高さの予約は、実寸が分からないときだけ。** 実寸があれば `<img>` の
+    // 幅・高さ属性で比率ぶんの高さが先に確保される（CLS 0）。そこへ
+    // `min-height: 400px` を重ねると、幅の狭い画面では写真より箱が高くなり
+    // 上下が黒帯になる（Chromium 実測・390px: 3:2 の写真が 362x241、箱 400px
+    // → 上下 79px ずつ黒。768px では 0）。検索から着地する画面の一番上がこれだった
+    const reserve = width && height ? undefined : "400px";
     return (
-        <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ minHeight: "400px", position: "relative" }}>
+        <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ minHeight: reserve, position: "relative" }}>
             {/* blur-up: ぼかしプレビューを背景に即表示。本画像がロードされるとフェードで重なる */}
             {blurDataURL && imageLoading && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -155,12 +200,14 @@ function PhotoImage({
                     style={{ filter: "blur(24px)", transform: "scale(1.1)" }}
                 />
             )}
-            {imageLoading && !blurDataURL && (
+            {/* 回転は「まだ」と分かってから。分からないうちに黒で覆うと、
+                届いている写真まで隠す */}
+            {phase === "pending" && !blurDataURL && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
                     <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                 </div>
             )}
-            <div className="relative w-full" style={{ minHeight: "400px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div className="relative w-full" style={{ minHeight: reserve, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {/* AVIF があれば優先（詳細=LCP を軽く）、無ければ従来 src(WebP) にフォールバック */}
                 <picture className="w-full flex items-center justify-center">
                     {srcAvif && <source type="image/avif" srcSet={srcAvif} />}
@@ -203,18 +250,19 @@ function PhotoImage({
                         onContextMenu={(e) => e.preventDefault()}
                         fetchPriority="high"
                         decoding="async"
-                        className={`w-full h-auto object-contain max-h-[80vh] select-none transition-opacity duration-500 ${imageLoading ? "opacity-0" : "opacity-100"}`}
+                        className={`w-full h-auto object-contain max-h-[80vh] select-none transition-opacity duration-500 ${phase === "pending" ? "opacity-0" : "opacity-100"}`}
                         style={{
                             WebkitTouchCallout: "none",
                             ...(focalPoint ? { objectPosition: `${focalPoint.x * 100}% ${focalPoint.y * 100}%` } : {}),
                         }}
                         onError={() => {
                             setImageError(true);
-                            setImageLoading(false);
+                            setPhase("loaded");
                         }}
-                        onLoad={() => setImageLoading(false)}
-                        // キャッシュ済みで load を取り逃した場合の保険（imageReady.ts 参照）
-                        ref={(img) => { if (isImageReady(img)) setImageLoading(false); }}
+                        onLoad={() => setPhase("loaded")}
+                        // React が付いた時点で「もう届いている／まだ」を決める
+                        // （キャッシュ済みで load を取り逃す件も含む。imageReady.ts 参照）
+                        ref={attach}
                     />
                 </picture>
             </div>
@@ -335,11 +383,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
         } catch (e) {
             // fetch 自体の失敗。トークン不在（userFetch が投げる）は
             // 「時間をおいて」では直らないので、そのまま伝える
-            const { AUTH_REQUIRED_MESSAGE } = await import("../../../lib/utils/api");
-            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
-            showToast(authMissing
-                ? AUTH_REQUIRED_MESSAGE
-                : (locale === "en" ? "Network error. Please try again." : "通信に失敗しました。時間をおいてもう一度お試しください"), "error");
+            // **catch の中で動的 import しない。** そこで落ちると
+            // トーストが1つも出ない——しかも落ちやすいのは
+            // まさに通信が died している今の状況（台帳の既知の型）
+            showToast(sessionErrorMessage(e)
+                ?? (locale === "en" ? "Network error. Please try again." : "通信に失敗しました。時間をおいてもう一度お試しください"), "error");
         } finally {
             setYtSaving(false);
         }
@@ -379,11 +427,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                 "success",
             );
         } catch (e) {
-            const { AUTH_REQUIRED_MESSAGE } = await import("../../../lib/utils/api");
-            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
-            showToast(authMissing
-                ? AUTH_REQUIRED_MESSAGE
-                : (locale === "en" ? "Network error. Please try again." : "通信に失敗しました。時間をおいてもう一度お試しください"), "error");
+            // **catch の中で動的 import しない。** そこで落ちると
+            // トーストが1つも出ない——しかも落ちやすいのは
+            // まさに通信が died している今の状況（台帳の既知の型）
+            showToast(sessionErrorMessage(e)
+                ?? (locale === "en" ? "Network error. Please try again." : "通信に失敗しました。時間をおいてもう一度お試しください"), "error");
         }
     };
 
@@ -406,9 +454,13 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
         }
         
         return {
-            camera: extracted.Make && extracted.Model 
-                ? `${extracted.Make} ${extracted.Model}`.trim() 
-                : extracted.Make || extracted.Model || fallback.camera || undefined,
+            // `formatCameraName` に寄せる。素の連結だと Model がメーカー名を含む機種
+            // （Hasselblad "X2D 100C" は Model が "Hasselblad X2D 100C"）で
+            // 「Hasselblad Hasselblad X2D 100C」になる。アップロード側は前から
+            // 同じ関数で畳んでいた（`lib/utils/exif.ts`）——画面で抽出する経路だけ
+            // 素のままだった
+            // 控え（保存済みの値）には二重のメーカー名が混じるので、そこも通す
+            camera: formatCameraName(extracted.Make, extracted.Model) || dedupeCameraName(fallback.camera) || undefined,
             lens: extracted.LensModel || fallback.lens || undefined,
             aperture: extracted.FNumber 
                 ? `f/${extracted.FNumber}` 
@@ -548,6 +600,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     // そのまま出るので、場所が分からなくなるわけではない
     const fallbackHref = photo.coords && !photo.geoApprox ? makeGoogleSearch(photo.coords.lat, photo.coords.lng) : undefined;
     const href = preferred?.href ?? fallbackHref;
+    // 撮影地マップ（/map）へ、この写真の位置に寄せて飛ぶためのハッシュ。
+    // 座標が無ければ出さない（マップにもピンが無い）
+    const mapHash = photo.coords && Number.isFinite(photo.coords.lat) && Number.isFinite(photo.coords.lng)
+        ? formatMapHash({ lat: photo.coords.lat, lng: photo.coords.lng, zoom: PHOTO_LINK_ZOOM })
+        : "";
 
     // 共有機能
     const currentUrl = typeof window !== "undefined" 
@@ -688,13 +745,26 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                             >
                                 <MapPinIcon className="w-4 h-4 text-sky-400 flex-shrink-0" />
                                 <span className="truncate">{locationText}</span>
-                                <span className="text-[11px] text-white/40 flex-shrink-0">{locale === "ja" ? "地図" : "Map"} ↗</span>
+                                <span className="text-[11px] text-white/50 flex-shrink-0">{locale === "ja" ? "地図" : "Map"} ↗</span>
                             </a>
                         ) : (
                             <span className="inline-flex items-center gap-1.5 max-w-full px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-sm text-white/75">
                                 <MapPinIcon className="w-4 h-4 text-sky-400 flex-shrink-0" />
                                 <span className="truncate">{locationText}</span>
                             </span>
+                        )}
+                        {/* 撮影地マップのその位置へ（内部リンク）。おおよその座標
+                            （geoApprox）でも出す——地図の側は「おおよそ」の断りを
+                            出したうえでピンを立てているので、そこへ飛ぶのは嘘にならない。
+                            上の Google マップの chip とは別で、あちらは正確な座標のときだけ */}
+                        {mapHash && (
+                            <Link
+                                href={`${ROUTES.MAP}${mapHash}`}
+                                className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-sm text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                {locale === "en" ? "See on the map" : "撮影地マップで見る"}
+                            </Link>
                         )}
                         {/* 同じ場所の集約ページへ（内部リンク） */}
                         <Link
@@ -746,11 +816,28 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
 
                 {/* EXIF情報: カメラのスペックシート風カード（ラベル上・値下の2列グリッド） */}
                 {(() => {
-                    const specs: Array<{ label: string; value: string; wide?: boolean }> = [];
-                    const add = (label: string, value: string | number | undefined | null, wide = false) => {
-                        if (value !== undefined && value !== null && `${value}`.trim() !== "") specs.push({ label, value: `${value}`, wide });
+                    const specs: Array<{ label: string; value: string; wide?: boolean; href?: string }> = [];
+                    const add = (label: string, value: string | number | undefined | null, wide = false, href?: string) => {
+                        if (value !== undefined && value !== null && `${value}`.trim() !== "") specs.push({ label, value: `${value}`, wide, href });
                     };
-                    add(locale === "en" ? "Camera" : "カメラ", mergedExif.camera);
+                    // **機種名からその機材の一覧へ行けるようにする。**
+                    // 撮影地・カテゴリ・タグは前から集約ページへ繋いであるのに、
+                    // カメラだけ行き止まりだった。sitemap に載せても内部リンクが
+                    // 1本も無いページは辿ってもらえない。
+                    //
+                    // **リンクは「保存済みの値」から作る。表示は mergedExif のまま。**
+                    // 最初 `mergedExif.camera` から作ったが、あれは端末で抽出した値を
+                    // 含む——そして端末抽出が走るのは `extractExif={!hasStoredExif(...)}`
+                    // ＝**保存済み exif が無いときだけ**。一方 `valuesFor(p,"camera")` は
+                    // 保存済みの値しか見ない。つまり「リンクが抽出値から作られる」
+                    // 状況と「その写真が集約に1件も数えられない」状況が**完全に一致**し、
+                    //   - 他の写真が同じ機種を保存済み → **飛んだ先に自分が居ない**
+                    //   - 誰も保存していない機種 → 静的生成の対象外で**ハード404**
+                    // になる（`dynamicParams = false`）。実データで公開30枚中3枚が
+                    // 保存済み exif を持たない。
+                    const storedCamera = dedupeCameraName(photo.exif?.camera);
+                    add(locale === "en" ? "Camera" : "カメラ", mergedExif.camera, false,
+                        storedCamera ? collectionPath("camera", slugify(storedCamera, "camera")) : undefined);
                     add(locale === "en" ? "Lens" : "レンズ", mergedExif.lens);
                     add(locale === "en" ? "Aperture" : "絞り", mergedExif.aperture);
                     add(locale === "en" ? "Shutter" : "シャッター速度", mergedExif.exposure);
@@ -772,15 +859,21 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                         <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 max-w-md">
                             <div className="flex items-center gap-1.5 mb-3">
                                 <CameraIcon className="w-3.5 h-3.5 text-white/50" />
-                                <span className="text-[11px] tracking-widest uppercase text-white/45">
+                                <span className="text-[11px] tracking-widest uppercase text-white/50">
                                     {locale === "en" ? "Camera Settings" : "撮影情報"}
                                 </span>
                             </div>
                             <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
                                 {specs.map((s) => (
                                     <div key={s.label} className={s.wide ? "col-span-2" : ""}>
-                                        <dt className="text-[10px] uppercase tracking-wider text-white/35">{s.label}</dt>
-                                        <dd className="text-[13px] text-white/85 mt-0.5 break-words">{s.value}</dd>
+                                        <dt className="text-[10px] uppercase tracking-wider text-white/50">{s.label}</dt>
+                                        <dd className="text-[13px] text-white/85 mt-0.5 break-words">
+                                            {/* リンクにするのは行き先がある項目だけ。
+                                                見た目（大きさ・色）は変えず、下線だけで示す */}
+                                            {s.href
+                                                ? <Link href={s.href} className="underline decoration-white/30 underline-offset-2 hover:decoration-white/70">{s.value}</Link>
+                                                : s.value}
+                                        </dd>
                                     </div>
                                 ))}
                             </dl>
@@ -806,7 +899,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                             <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden max-w-md">
                                 <div className="flex items-center gap-1.5 px-3.5 py-2.5">
                                     <MusicalNoteIcon className="w-3.5 h-3.5 text-fuchsia-400" />
-                                    <span className="text-[11px] tracking-widest uppercase text-white/45">{locale === "en" ? "Full MV" : "フル再生MV"}</span>
+                                    <span className="text-[11px] tracking-widest uppercase text-white/50">{locale === "en" ? "Full MV" : "フル再生MV"}</span>
                                     <button
                                         onClick={() => setMvOpen((v) => !v)}
                                         aria-expanded={mvOpen}
@@ -872,13 +965,12 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                                         onClick={() => void savePhotoSong({ title: r.title, artist: r.artist, artwork: r.artwork, previewUrl: r.previewUrl, trackUrl: r.trackUrl })}
                                                         className="w-full flex items-center gap-2.5 p-2 hover:bg-white/5 active:bg-white/10 transition text-left"
                                                     >
-                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                        <img src={r.artwork} alt="" loading="lazy" className="w-8 h-8 rounded object-cover bg-white/10 flex-shrink-0" />
+                                                        <SongArtwork src={r.artwork} className="w-8 h-8 rounded object-cover bg-white/10 flex-shrink-0" />
                                                         <div className="min-w-0 flex-1">
                                                             <p className="text-xs text-white truncate">{r.title}</p>
                                                             <p className="text-[11px] text-white/50 truncate">{r.artist}</p>
                                                         </div>
-                                                        <span className="text-[11px] text-white/40 flex-shrink-0">{locale === "en" ? "Set" : "設定"}</span>
+                                                        <span className="text-[11px] text-white/50 flex-shrink-0">{locale === "en" ? "Set" : "設定"}</span>
                                                     </button>
                                                 </li>
                                             ))}
@@ -899,7 +991,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                     {photoSong && (
                                         <button
                                             onClick={() => void savePhotoSong(null)}
-                                            className="inline-flex items-center gap-0.5 text-xs text-white/40 hover:text-white/70 active:scale-95 transition"
+                                            className="inline-flex items-center gap-0.5 text-xs text-white/50 hover:text-white/70 active:scale-95 transition"
                                         >
                                             <XMarkIcon className="w-3 h-3" />
                                             {locale === "en" ? "Remove" : "外す"}
@@ -971,10 +1063,12 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                 // 失敗すると楽観更新がロールバックしてハートが
                                 // 黙って戻る。フォローは文言を出すのに、いいねだけ
                                 // 無言だった（SW-b4）
-                                void toggleLike().then((ok) => {
-                                    if (!ok) showToast(locale === "en"
+                                void toggleLike().then((r) => {
+                                    // 押し直しても直らない失敗（セッション切れ・
+                                    // 通信できない）はその文言をそのまま出す
+                                    if (!r.ok) showToast(r.message ?? (locale === "en"
                                         ? "Couldn't save your like. Please try again."
-                                        : "いいねを保存できませんでした。もう一度お試しください", "error");
+                                        : "いいねを保存できませんでした。もう一度お試しください"), "error");
                                 });
                             }}
                             disabled={likePending}
@@ -1006,7 +1100,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
 
                     {/* 共有: 丸形のガラスアイコンボタン列（プロフィールの共有ボタンと同じ質感） */}
                     <div>
-                        <div className="text-[11px] tracking-widest uppercase text-white/45 mb-2.5">
+                        <div className="text-[11px] tracking-widest uppercase text-white/50 mb-2.5">
                             {locale === "en" ? "Share" : "共有"}
                         </div>
                         <div className="flex flex-wrap gap-2.5">
@@ -1090,7 +1184,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                 >
                                     <ChevronLeftIcon className="w-5 h-5 flex-shrink-0 text-white/50" />
                                     <span className="min-w-0">
-                                        <span className="block text-[10px] uppercase tracking-wider text-white/35">{locale === "en" ? "Newer" : "新しい写真"}</span>
+                                        <span className="block text-[10px] uppercase tracking-wider text-white/50">{locale === "en" ? "Newer" : "新しい写真"}</span>
                                         <span className="block text-sm text-white/85 truncate">{getLocalized(related.prev.title, locale) || (locale === "en" ? "Photo" : "写真")}</span>
                                     </span>
                                 </Link>
@@ -1103,7 +1197,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                     style={{ touchAction: "manipulation" }}
                                 >
                                     <span className="min-w-0">
-                                        <span className="block text-[10px] uppercase tracking-wider text-white/35">{locale === "en" ? "Older" : "古い写真"}</span>
+                                        <span className="block text-[10px] uppercase tracking-wider text-white/50">{locale === "en" ? "Older" : "古い写真"}</span>
                                         <span className="block text-sm text-white/85 truncate">{getLocalized(related.next.title, locale) || (locale === "en" ? "Photo" : "写真")}</span>
                                     </span>
                                     <ChevronRightIcon className="w-5 h-5 flex-shrink-0 text-white/50" />

@@ -10,8 +10,9 @@ import type { Photo } from "@/lib/data/photos";
 export const dynamic = "force-static";
 
 // サイトマップはビルドごとに最新の photos.json（DynamoDB から同期）で再生成される。
-// deploy.yml の毎日 03:00 JST の再ビルドにより、新しい写真・ユーザーは
-// 少なくとも1日1回自動的に検索エンジンへ通知される内容に反映される。
+// 定期ビルドは**週1**（日曜 03:00 JST）。以前は毎日だったが 2026-09 に
+// 枠の都合で週1へ変えてある（CLAUDE.md）。写真の削除・非公開は API が
+// その場で再ビルドを頼むので、定期ビルド待ちにはならない。
 
 async function loadPhotos(): Promise<Photo[]> {
     const photosDataPath = path.join(process.cwd(), "app", "data", "photos.json");
@@ -60,7 +61,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     // 集約（ランディング）ページ: タグ / 撮影地 / カテゴリ。ロングテール検索の受け皿。
     // lastModified は「その集約内で最も新しい写真」の日時、代表画像も添える。
-    const collectionUrls: MetadataRoute.Sitemap = (["tag", "location", "category"] as CollectionType[])
+    const collectionUrls: MetadataRoute.Sitemap = (["tag", "location", "category", "camera"] as CollectionType[])
         .flatMap((type) =>
             // 写真が少ないページはサイトマップに載せない（noindex と揃える）
             collectEntries(photos, type).filter((e) => isIndexableCollection(e.count)).map((e) => {

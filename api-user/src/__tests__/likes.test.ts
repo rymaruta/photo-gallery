@@ -8,6 +8,17 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 
+const mockIsBlocked = vi.hoisted(() => vi.fn(async () => false));
+// **ブロックは境界としてモックする**（既定は「していない」）。
+// 実際の判定は `block.test.ts` が見る。ここで本物を通すと、
+// 全テストのモックに `block#` の分岐を足して回ることになり、
+// **本題と関係のない行が増えて読めなくなる**。
+// ブロックが効くことは、このファイルの専用のテストで見る。
+vi.mock("../blockCheck", () => ({
+    isBlocked: (...a: unknown[]) => mockIsBlocked(...(a as [])),
+    blockMarkerId: (a: string, b: string) => `block#${a}#${b}`,
+}));
+
 const { getLikeCount, getMyLike, likePhoto, unlikePhoto } = await import("../likes");
 
 type Result = { statusCode: number; body: string };
@@ -25,7 +36,10 @@ function condFail() {
     return Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" });
 }
 
-beforeEach(() => mockDdbSend.mockReset());
+// `mockReset()` は**モック自身を返す**ので、アローの暗黙の return だと
+// **vitest が後片付けの関数だと思って引数なしで呼ぶ**（`block.test.ts` 参照）。
+// 中括弧で包んで何も返さない。
+beforeEach(() => { mockDdbSend.mockReset(); });
 
 describe("getLikeCount", () => {
     it("id なしは 400", async () => {
@@ -145,6 +159,46 @@ describe("likePhoto", () => {
         expect(item.byName).toBe("旅子");
         expect(item.photoSrc).toBe("https://c/p_thumb.webp"); // サムネ優先
         expect(item.atLocation).toBe("北海道");
+    });
+
+    // **`userId` が入る前に保存された行は `uploadedBy` しか持たない。**
+    // 所有者の判定はこのリポジトリ全体で `userId ?? uploadedBy` に揃っている
+    // のに、通知の宛先だけ `userId` 単独だった＝古い写真にいいねしても
+    // **投稿者のベルに何も来ない**（押した側には 200 が返るので気づけない）。
+    // `ReturnValues: "ALL_NEW"` は射影の影響を受けないので `uploadedBy` は返る。
+    it("uploadedBy しか無い古い写真でも、投稿者に通知が積まれる", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({}) // Put marker
+            .mockResolvedValueOnce({ Attributes: { likes: 1, uploadedBy: "old-owner", src: "https://c/p.jpg" } })
+            .mockResolvedValueOnce({ Item: { displayName: "旅子" } }) // lookupDisplayName
+            .mockResolvedValueOnce({}); // pushNotification
+        expect((await invoke(likePhoto, ev("u1", "p1"))).statusCode).toBe(200);
+        expect(mockDdbSend, "古い写真だと通知が飛ばない").toHaveBeenCalledTimes(4);
+        const notif = mockDdbSend.mock.calls[3][0] as { input: { Key: { id: string } } };
+        expect(notif.input.Key.id).toBe("notifs#old-owner");
+    });
+
+    // **順番も固定する。** `userId ?? uploadedBy` であって逆ではない
+    // （両方持つ行で値が違うと、逆順は別人に通知を送る）。
+    // 入れ替える変異が全緑だったので足した
+    it("両方あるときは userId を採る（uploadedBy ではない）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Attributes: { likes: 1, userId: "now", uploadedBy: "then", src: "https://c/p.jpg" } })
+            .mockResolvedValueOnce({ Item: { displayName: "旅子" } })
+            .mockResolvedValueOnce({});
+        await invoke(likePhoto, ev("u1", "p1"));
+        const notif = mockDdbSend.mock.calls[3][0] as { input: { Key: { id: string } } };
+        expect(notif.input.Key.id, "優先順位が逆").toBe("notifs#now");
+    });
+
+    // 逆向き。自分の写真には鳴らさない（`uploadedBy` 側でも同じ）
+    it("自分の写真なら uploadedBy でも通知しない", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Attributes: { likes: 1, uploadedBy: "u1", src: "https://c/p.jpg" } });
+        expect((await invoke(likePhoto, ev("u1", "p1"))).statusCode).toBe(200);
+        expect(mockDdbSend, "自分のいいねで自分に通知している").toHaveBeenCalledTimes(2);
     });
 
     it("自分の写真へのいいねは通知しない", async () => {

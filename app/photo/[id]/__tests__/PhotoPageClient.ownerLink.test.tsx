@@ -33,7 +33,7 @@ vi.mock("../../../components/CommentSection", () => ({ default: () => null }));
 vi.mock("../../../components/RelatedPhotos", () => ({ default: () => null }));
 vi.mock("../../../components/ProfileLink", () => ({ default: () => null }));
 vi.mock("../../../components/MusicCard", () => ({ default: () => null }));
-const mockLikeToggle = vi.hoisted(() => vi.fn(async () => true));
+const mockLikeToggle = vi.hoisted(() => vi.fn(async (): Promise<{ ok: boolean; message?: string }> => ({ ok: true })));
 vi.mock("../../../../lib/hooks/usePhotoLikes", () => ({
     usePhotoLikes: () => ({ liked: false, count: 0, pending: false, toggle: mockLikeToggle }),
 }));

@@ -96,8 +96,17 @@ custom:
       - '@aws-sdk/*'
 
 functions:
+  # 注: この関数自身は再ビルドを頼まない。**savePhoto と同じ src/upload.ts に
+  # 居るため**、依存を辿る守り（scripts/__tests__/rebuildTokenScope.test.ts）が
+  # 「届く関数」として数える。配り先を厳密に1つにするには savePhoto を別ファイルへ
+  # 切り出すことになるので、今は配る側に倒す（どちらも認証必須の投稿系）。
   presignedUrl:
     handler: src/upload.presignedUrl
+    environment:
+      # 再ビルド依頼はこの関数から出す（provider には置かない。IAM-2）
+      REBUILD_REPO: ${param:rebuildRepo, ''}
+      REBUILD_DISPATCH_TOKEN: ${param:rebuildToken, ''}
+      REBUILD_MONTHLY_MAX: ${param:rebuildMonthlyMax, ''}
     events:
       - httpApi:
           path: /upload/presigned-url
@@ -106,7 +115,17 @@ functions:
             name: cognitoAuthorizer
 
   savePhoto:
+    # 再ビルドを頼む関数は 15 秒にする（updatePhotoVisibility / deleteMyPhoto と
+    # 同じ理由）。既定の 6 秒だと、**GitHub が遅いだけで写真はもう保存されて
+    # いるのに 500 が返る**——画面はそれを「保存できませんでした」と読んで
+    # 実体を捨てにいき、月次予算の解放（releaseMonthlyBudget）にも届かない。
+    timeout: 15
     handler: src/upload.savePhoto
+    environment:
+      # 再ビルド依頼はこの関数から出す（provider には置かない。IAM-2）
+      REBUILD_REPO: ${param:rebuildRepo, ''}
+      REBUILD_DISPATCH_TOKEN: ${param:rebuildToken, ''}
+      REBUILD_MONTHLY_MAX: ${param:rebuildMonthlyMax, ''}
     events:
       - httpApi:
           path: /upload/save
@@ -119,6 +138,11 @@ functions:
   # （どの削除経路も DynamoDB の項目からキーを引くため）。
   discardUpload:
     handler: src/upload.discardUpload
+    environment:
+      # 再ビルド依頼はこの関数から出す（provider には置かない。IAM-2）
+      REBUILD_REPO: ${param:rebuildRepo, ''}
+      REBUILD_DISPATCH_TOKEN: ${param:rebuildToken, ''}
+      REBUILD_MONTHLY_MAX: ${param:rebuildMonthlyMax, ''}
     events:
       - httpApi:
           path: /upload/discard
@@ -213,6 +237,43 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 撮影地の位置さがし（Nominatim の代理）。**画面から直接叩かない**——
+  # 利用者の IP を相手に渡さず、規約が求める User-Agent をこちらで名乗る。
+  # 打鍵ごとではなく「探す」を押したときだけ1回投げる（規約）。
+  geocodeSearch:
+    handler: src/geocodeSearch.geocodeSearch
+    # AWS の権限は控えの読み書きだけで足りる。共有ロール（写真の削除・S3・
+    # CloudFront まで持つ）には載せない——利用者入力を外向き URL に載せる口を
+    # 最小の権限で動かす
+    role: GeocodeRole
+    # 外向きの通信を待つので上限を明示する（`musicSearch` と同じ 6 秒。
+    # 縮めるときは `geocodeSearch.ts` の FETCH_TIMEOUT_MS も一緒に見ること）
+    timeout: 6
+    environment:
+      # Nominatim に名乗る文字列。規約は「識別できて連絡が取れること」を求める
+      GEOCODE_UA: "journey-photo.com place picker (+https://journey-photo.com/privacy)"
+    events:
+      - httpApi:
+          path: /geocode/search
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  # 座標 → 地名（アップロード時の自動入力）。これまでブラウザから直接
+  # Nominatim に**撮影地の座標**を送っていた。地名さがしと同じ理由でサーバー越しに
+  geocodeReverse:
+    handler: src/geocodeSearch.geocodeReverse
+    role: GeocodeRole
+    timeout: 6
+    environment:
+      GEOCODE_UA: "journey-photo.com place picker (+https://journey-photo.com/privacy)"
+    events:
+      - httpApi:
+          path: /geocode/reverse
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
   updatePhotoVisibility:
     # 実体を消したあとに静的サイトの再ビルドを頼む（外部への HTTP）。
     # 既定の6秒だと、GitHub が遅いだけで**データはもう消えているのに
@@ -263,6 +324,89 @@ functions:
           method: GET
           authorizer:
             name: cognitoAuthorizer
+
+  # ---- 共同アルバム（案C）--------------------------------------------
+  # 旅の同行者に招待リンクを1本配って、同じアルバムに写真を足してもらう。
+  # 判定は src/invite.ts（DynamoDB も HTTP も触らない層）にある。
+
+  createAlbum:
+    handler: src/albums.createAlbum
+    events:
+      - httpApi:
+          path: /albums
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  listAlbums:
+    handler: src/albums.listAlbums
+    events:
+      - httpApi:
+          path: /albums
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  renameAlbum:
+    handler: src/albums.renameAlbum
+    events:
+      - httpApi:
+          path: /albums/{id}
+          method: PATCH
+          authorizer:
+            name: cognitoAuthorizer
+
+  # **写真は消さない。** 消すのは束ね方（アルバム・参加の印・招待リンク）。
+  deleteAlbum:
+    handler: src/albums.deleteAlbum
+    events:
+      - httpApi:
+          path: /albums/{id}
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
+  createInvite:
+    handler: src/albums.createInvite
+    events:
+      - httpApi:
+          path: /albums/{id}/invite
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  revokeInvite:
+    handler: src/albums.revokeInvite
+    events:
+      - httpApi:
+          path: /albums/{id}/invite
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
+  # 招待を受けて参加する。**ここはログインが要る**——閲覧は誰でも、
+  # 参加はログイン。参加した人は自分のプロフィールを持ち、次の招待者になれる。
+  joinAlbum:
+    handler: src/albums.joinAlbum
+    events:
+      - httpApi:
+          path: /invites/{token}/join
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  # **未認証で読める口。** 招待を開いた瞬間にログインを求めると、
+  # 拡散の輪がそこで切れる。既定の共有ロール（削除権つき）ではなく
+  # 読み取り専用へ——この口は招待の行とアルバムの行を GetItem するだけで、
+  # PublicReadRole の権限（写真テーブルは GetItem のみ）に収まるように
+  # キーの形を決めてある。
+  getInvite:
+    handler: src/albums.getInvite
+    role: PublicReadRole
+    events:
+      - httpApi:
+          path: /invites/{token}
+          method: GET
 
   createStory:
     handler: src/stories.createStory
@@ -374,6 +518,28 @@ functions:
           path: /users/{uid}/follow
           method: GET
 
+  # その人がフォローしている人の一覧（名前つき）。**認証を要る側にした**
+  # ——人の繋がりそのものであることと、1回で最大50件の GetItem を撃つため
+  # （未認証の口を増やすと、同時実行10の枠を外から埋められる）
+  getUserFollowing:
+    handler: src/follow.getUserFollowing
+    events:
+      - httpApi:
+          path: /users/{uid}/following
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  # その人をフォローしている人の一覧（`getUserFollowing` と対・同じ倒し方）
+  getUserFollowers:
+    handler: src/follow.getUserFollowers
+    events:
+      - httpApi:
+          path: /users/{uid}/followers
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
   getMyFollowing:
     handler: src/follow.getMyFollowing
     events:
@@ -416,6 +582,67 @@ functions:
       - httpApi:
           path: /stories/{id}/viewers
           method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  # ストーリーへの返信・リアクション。**どちらも認証必要**
+  # （送る側はログイン、読めるのは投稿者だけ）。`PublicReadRole` には
+  # 載せない——書き込みがあるので未認証の口の一覧に足してはいけない
+  postStoryReply:
+    handler: src/storyReplies.postStoryReply
+    events:
+      - httpApi:
+          path: /stories/{id}/replies
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  getStoryReplies:
+    handler: src/storyReplies.getStoryReplies
+    events:
+      - httpApi:
+          path: /stories/{id}/replies
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  # ブロック。**やり取りの口を持つ以上の最低限**（返信を足した時点で、
+  # ログインしていれば誰でも誰の通知にも文字を送れるようになった）
+  blockUser:
+    handler: src/block.blockUser
+    events:
+      - httpApi:
+          path: /users/{id}/block
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  unblockUser:
+    handler: src/block.unblockUser
+    events:
+      - httpApi:
+          path: /users/{id}/block
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
+  listBlocks:
+    handler: src/block.listBlocks
+    events:
+      - httpApi:
+          path: /user/blocks
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  # ストーリーの1枚をギャラリーに残す（投稿者だけ）。
+  # 作るのは**下書きの写真**なので、公開・再ビルドは既存の経路が受け持つ
+  keepStory:
+    handler: src/storyKeep.keepStory
+    events:
+      - httpApi:
+          path: /stories/{id}/keep
+          method: POST
           authorizer:
             name: cognitoAuthorizer
 
@@ -487,6 +714,36 @@ functions:
 # CloudFormation を1つ書く方が読む人に見えるため。
 resources:
   Resources:
+    # 地名さがし（Nominatim の代理）専用。ログと、結果の控えの読み書きだけ
+    GeocodeRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:service}-${sls:stage}-${aws:region}-geocode
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: geocode
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${sls:stage}*:*
+                - Effect: Allow
+                  Action:
+                    - dynamodb:GetItem
+                    - dynamodb:PutItem
+                  Resource:
+                    - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}
+
     PublicReadRole:
       Type: AWS::IAM::Role
       Properties:

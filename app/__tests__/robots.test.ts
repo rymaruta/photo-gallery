@@ -132,3 +132,15 @@ describe("画像サイトマップ: 制御文字で壊れない", () => {
         expect(xml).toContain("?a=1&amp;b=2");
     });
 });
+
+
+// **招待リンク（案C）はクロールさせない。** 私的なリンクで、ページ自体も
+// noindex だが、`noindex` はクローラが**取りに来て初めて**効く。
+// そもそも取りに来させない方が確実（`/user/` と同じ扱い）。
+describe("共同アルバムの招待", () => {
+    it("/j をクロール対象から外す", async () => {
+        const r = await robotsFor("prod");
+        const disallow = [(r.rules as { disallow?: string | string[] }).disallow ?? []].flat();
+        expect(disallow, "招待ページがクロールされる").toContain("/j");
+    });
+});

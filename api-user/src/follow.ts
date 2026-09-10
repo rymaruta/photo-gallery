@@ -3,20 +3,16 @@ import { hasAnyUserItem } from "./ddb-photos";
 import { PutCommand, UpdateCommand, GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
-import { pushNotification, lookupDisplayName } from "./notify";
+import { pushNotification, lookupDisplayName, lookupDisplayNameIfSet, deletedUserIds } from "./notify";
 import { requireEnv } from "./env";
+import { isUserId } from "./userId";
+import { isBlocked } from "./blockCheck";
 import { isDeletedProfile } from "./types";
 
 const USERS_TABLE = requireEnv("USERS_TABLE");
 
-/**
- * Cognito の sub（UUID）の形かどうか。
- * ここを見ないと、任意の文字列を相手に見立ててマーカー・カウンタ・
- * 通知文書を作れる（テーブルにゴミが際限なく積める）。
- */
-function isUserId(v: string): boolean {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
-}
+// `isUserId` は `userId.ts` へ移した（`block.ts` も同じ判定が要るため。
+// **複製した規則は静かにずれる**——このリポジトリが何度も踏んでいる形）。
 
 /**
  * その人が実在するか（プロフィール行の有無で見る）。
@@ -65,6 +61,19 @@ const FOLLOWING_MAX = 2000;
 const markerId = (target: string, follower: string) => `follow#${target}#${follower}`;
 const statsId = (uid: string) => `followstats#${uid}`;
 const followingId = (uid: string) => `following#${uid}`;
+/**
+ * **自分をフォローしている人の一覧。**
+ *
+ * これまで持っていたのは「自分がフォローしている人」（`following#`）と
+ * 数（`followstats#`）だけで、**「誰にフォローされているか」を引ける行が
+ * 無かった**。マーカー（`follow#<自分>#<相手>`）は主キーが1本なので
+ * 前方一致で列挙できない（このテーブルにソートキーは無い）＝
+ * 全表 Scan しか手が無く、画面からは引けない。
+ *
+ * `following#` と同じ形（新しい順のリスト＋`rev`）で持つ。
+ * 既にあるフォロー関係は `scripts/backfill-followers.js` が埋める。
+ */
+const followersId = (uid: string) => `followers#${uid}`;
 
 async function readStats(uid: string): Promise<{ followers: number; following: number }> {
     const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: statsId(uid) } }));
@@ -95,6 +104,8 @@ async function readFollowing(uid: string): Promise<string[]> {
  * リビジョン番号で衝突を検出して読み直す。
  */
 const FOLLOWING_WRITE_RETRIES = 3;
+/** やり直しの待ち（指数＋ばらつき）。`followers#` は多人数が同じ行を書く */
+const LIST_RETRY_BASE_MS = 25;
 
 /** 一覧の書き込みを諦めたときのエラー。呼び出し側が打ち消し処理に使う */
 class FollowingListError extends Error {
@@ -104,9 +115,14 @@ class FollowingListError extends Error {
     }
 }
 
-async function updateFollowing(uid: string, mutate: (list: string[]) => string[] | null): Promise<void> {
+/**
+ * `following#` と `followers#` は同じ形（新しい順のリスト＋`rev`）なので、
+ * 書き換えも1つにする。**規則を2つ書くと静かにずれる**——このリポジトリが
+ * 何度も踏んでいる形。
+ */
+async function updateUserList(rowId: string, uid: string, mutate: (list: string[]) => string[] | null): Promise<void> {
     for (let attempt = 0; attempt <= FOLLOWING_WRITE_RETRIES; attempt++) {
-        const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: followingId(uid) } }));
+        const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: rowId } }));
         const current = Array.isArray(res.Item?.list) ? (res.Item.list as string[]) : [];
         const rev = typeof res.Item?.rev === "number" ? res.Item.rev : 0;
 
@@ -125,7 +141,7 @@ async function updateFollowing(uid: string, mutate: (list: string[]) => string[]
             await ddb.send(new PutCommand({
                 TableName: PHOTOS_TABLE,
                 Item: {
-                    id: followingId(uid),
+                    id: rowId,
                     uid,
                     list: next.slice(0, FOLLOWING_MAX),
                     rev: rev + 1,
@@ -137,7 +153,15 @@ async function updateFollowing(uid: string, mutate: (list: string[]) => string[]
             return;
         } catch (e) {
             if ((e as { name?: string }).name !== "ConditionalCheckFailedException") throw e;
-            // 競合。読み直してやり直す
+            // 競合。読み直してやり直す。
+            //
+            // **間を置く。** `following#<自分>` は書き手が自分1人なので
+            // 競合はほぼ起きないが、`followers#<相手>` は**その人を
+            // フォロー／解除する全員が同じ1行を書く**。即座に撃ち直すと
+            // 押し合いになるだけなので、指数で待ってばらす
+            // （待たずに撃ち直すとスロットリング由来の失敗も悪化する
+            //  ——`account.ts` の掃除が同じ理由で待っている）。
+            await new Promise((r) => setTimeout(r, LIST_RETRY_BASE_MS * 2 ** attempt * (0.5 + Math.random())));
         }
     }
     // 諦めたことを黙って飲み込まない。
@@ -147,7 +171,46 @@ async function updateFollowing(uid: string, mutate: (list: string[]) => string[]
     // 「既にフォロー済み」で早期 return するので、**二度と直らない**
     // （その人の写真がフィードに出ないままになる）。
     // 呼び出し側で打ち消して 500 を返せるように投げる。
-    throw new FollowingListError(`${uid} の一覧更新が競合し続けました`);
+    throw new FollowingListError(`${rowId} の一覧更新が競合し続けました`);
+}
+
+/** 自分がフォローしている人の一覧 */
+const updateFollowing = (uid: string, mutate: (list: string[]) => string[] | null) =>
+    updateUserList(followingId(uid), uid, mutate);
+
+/**
+ * 相手の「フォロワー一覧」に自分を足す／外す。
+ *
+ * **失敗しても投げない。** マーカーと数（`followstats#`）は既に正しく、
+ * 欠けるのは表示用の一覧の1行だけ。ここで 500 にすると、**表示の都合で
+ * フォローそのものを失敗させる**ことになる（`following#` を投げる側に
+ * したのは、あちらが欠けると相手の写真がフィードから消えるため）。
+ *
+ * **ただし「押し直せば直る」は `following#` ほど素直ではない。**
+ * フォロワー本人のボタンの状態は `following#<本人>` から作るので、
+ * `followers#<相手>` が欠けても本人には「フォロー中」に見える
+ * ——押すと**解除**される。直すには「解除してもう一度フォロー」が要る。
+ * 気づく手がかりは、相手の画面で数（`followstats#`）と一覧が食い違うこと
+ * （`getUserFollowers` が両方返し、画面が「一覧はまだ用意できていません」と
+ * 出す）。取りこぼしをまとめて直すには
+ * `scripts/backfill-followers.js` を流す。
+ */
+export async function updateFollowersQuietly(target: string, follower: string, add: boolean): Promise<boolean> {
+    try {
+        await updateUserList(followersId(target), target, (list) => {
+            if (add) {
+                if (list.includes(follower)) return null;
+                list.unshift(follower);
+                return list;
+            }
+            const next = list.filter((x) => x !== follower);
+            return next.length === list.length ? null : next;
+        });
+        return true;
+    } catch (e) {
+        console.error(`updateFollowersQuietly: ${target} の一覧を更新できませんでした（${follower}, add=${add}）:`, e);
+        return false;
+    }
 }
 
 /**
@@ -375,6 +438,33 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
     // ゴミが増えるほど全員の表示が遅くなる。しかも notifs# は
     // 退会処理でも消えない。
     if (!isUserId(target)) return jsonError(400, "不正なリクエスト");
+
+    // **ブロックした相手とは、フォローの関係を作らせない。**
+    //
+    // `blockUser` は両向きのフォローを切る（`unfollowQuietly` を2回）のに、
+    // **この口には判定が1つも無かった**——ブロックされた側がプロフィールを
+    // 開いて「フォロー」を押すだけで 200 が返り、関係が戻る。しかも
+    // `notify.ts` がフォロー通知を握るので、**ブロックした側は気づけない**
+    // （フォロワー数だけが増える）。「関係を切る」を1回の書き込みで
+    // 済ませた代償が、相手のワンタップで消えていた。
+    //
+    // 判定は2回とも要る（向きが違う）。**同時に投げるので往復は1回分**。
+    //   - 相手が自分をブロック → **404**。ブロックの事実を教えない
+    //     （`storyReplies.ts:150` と同じ倒し方）
+    //   - 自分が相手をブロック → **400 で理由を言う**。自分がやったことなので
+    //     隠す意味が無く、404 にすると「消えた人」に見えて行き止まりになる
+    const [blockedByTarget, blockedByMe] = await Promise.all([
+        isBlocked(target, me).catch((e) => { console.error("followUser isBlocked(target,me):", e); return null; }),
+        isBlocked(me, target).catch((e) => { console.error("followUser isBlocked(me,target):", e); return null; }),
+    ]);
+    // 「分からない」を素通ししない。`userExists` の unknown と同じ倒し方
+    // （押し直せば通る）。fail-open にすると、ブロックしたのに繋がる
+    if (blockedByTarget === null || blockedByMe === null) {
+        return jsonError(503, "確認できませんでした。時間をおいてもう一度お試しください");
+    }
+    if (blockedByTarget) return jsonError(404, "ユーザーが見つかりません");
+    if (blockedByMe) return jsonError(400, "ブロック中の相手です。解除してからフォローしてください");
+
     const exists = await userExists(target);
     // 「居ない」と「確認できなかった」を混ぜない。unknown で 404 を返すと
     // 「見つかりません」という嘘になり、fail-open に戻すとゴミが積める。
@@ -427,7 +517,18 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
             });
         }
 
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ following: true, followers: (await readStats(target)).followers }) };
+        // **相手のフォロワー一覧にも足す。** ここも `outcome` を見ない
+        // ——「マーカーはあるが一覧に無い」を押し直しで直せるようにする
+        // （すぐ上の `following#` と同じ考え）。失敗しても投げない。
+        //
+        // 応答の中身を先に決めてから書く。**守りではなく、テストの
+        // 読みやすさのため**——`updateFollowersQuietly` は `followstats#` を
+        // 触らないので、順番を入れ替えても返す数は変わらない
+        // （「ここが落ちても数は守られる」と書いていたが、守っているのは
+        //  この順番ではなくトランザクションの方）
+        const body = JSON.stringify({ following: true, followers: (await readStats(target)).followers });
+        await updateFollowersQuietly(target, me, true);
+        return { statusCode: 200, headers: JSON_HEADERS, body };
     } catch (e) {
         console.error("followUser error:", e);
         return jsonError(500, "フォローに失敗しました");
@@ -435,6 +536,42 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
 };
 
 // DELETE /users/{uid}/follow — フォロー解除（認証必要・冪等）
+/**
+ * 片向きのフォローを解く（口ではなく中身）。
+ *
+ * ブロックから呼ぶために切り出した。**関係を切るのは「見えなくする」より
+ * 強い**——このサイトの写真は静的サイトに焼かれて未ログインでも見えるので、
+ * 「ブロックした相手の写真をフィードから隠す」は閲覧者ごとの出し分けが要る
+ * のに対し、フォローを外すのは1回の書き込みで済み、静的サイトとも矛盾しない。
+ *
+ * **失敗しても投げない。** ブロックそのものは既に効いている（印が立って
+ * いる）ので、フォローが残ったからといってブロックを失敗にはしない。
+ *
+ * **`unfollowUser` と違って打ち消さない**（あちらは一覧の書き換えが
+ * 3回競合したら `undoUnfollow` でマーカーを戻す）。ここで戻すと
+ * **ブロックがいま切ったフォローを、自分で作り直す**ことになる。
+ * 残るのは「カウンタは減ったのに `following#<自分>` に相手が残る」形で、
+ * フィードは `hiddenUserIds` が両向きに隠すので出てこない。
+ */
+export async function unfollowQuietly(target: string, me: string): Promise<void> {
+    if (!target || !me || target === me) return;
+    try {
+        await unfollowAtomically(target, me);
+        await updateFollowing(me, (list) => {
+            const next = list.filter((x) => x !== target);
+            return next.length === list.length ? null : next;
+        });
+    } catch (e) {
+        console.error(`unfollowQuietly: 解除できませんでした（${me} -> ${target}）:`, e);
+    }
+    // **`try` の外に置く。** 中に入れると、`updateFollowing` が投げた回に
+    // ここが**丸ごと飛ぶ**——ブロックしたのに相手のフォロワー一覧に
+    // 自分が残る（`getUserFollowers` は行ごとのブロック除外をしないので、
+    // 一覧に見えたまま）。この関数自体が失敗を握る約束なので、
+    // 片方が落ちてももう片方は試す
+    await updateFollowersQuietly(target, me, false);
+}
+
 export const unfollowUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const me = getUserId(event);
     const target = event.pathParameters?.uid;
@@ -461,7 +598,9 @@ export const unfollowUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
             return jsonError(500, "フォロー解除に失敗しました。もう一度お試しください");
         }
 
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ following: false, followers: (await readStats(target)).followers }) };
+        const body = JSON.stringify({ following: false, followers: (await readStats(target)).followers });
+        await updateFollowersQuietly(target, me, false);
+        return { statusCode: 200, headers: JSON_HEADERS, body };
     } catch (e) {
         console.error("unfollowUser error:", e);
         return jsonError(500, "フォロー解除に失敗しました");
@@ -480,6 +619,118 @@ export const getFollowStats: APIGatewayProxyHandlerV2 = async (event) => {
         };
     } catch (e) {
         console.error("getFollowStats error:", e);
+        return jsonError(500, "取得に失敗しました");
+    }
+};
+
+/**
+ * 名前まで引く人数の上限。`FOLLOWING_MAX` は2000だが、1回の呼び出しの
+ * 6秒に 2000回の GetItem は収まらない（`Promise.all` の並列でも、
+ * DynamoDB の応答と再送のぶんが積み上がる）。
+ * 超えたぶんは返さず、`total` で件数だけ伝える。
+ */
+const FOLLOWING_PAGE = 50;
+
+/**
+ * GET /users/{uid}/following — その人がフォローしている人の一覧。
+ *
+ * owner の指示「誰をフォローしてて、みたいなの見れるようにして」。
+ *
+ * **認証を要る側にした。** 数（`getFollowStats`）は未認証で返しているが、
+ * こちらは (1) 人の繋がりそのもの、(2) 1回で最大50件の GetItem を撃つ
+ * ——未認証の口を増やすと、同時実行10の枠を外から埋められる。
+ * `publicLambdaRole.test.ts` が未認証の口を増やしにくくしているのは
+ * まさにこの判断を毎回させるため。
+ *
+ * **フォロワー側の一覧は返せない。** いまのデータは `following#<uid>`
+ * （自分がフォローしている人）と `followstats#<uid>`（数）だけで、
+ * 「誰にフォローされているか」を引ける行が無い。作るには
+ * `followers#<uid>` を足して、既存のフォロー関係を埋め戻す移行が要る。
+ *
+ * **ブロックされていたら 404**（存在を教えない）。写真もプロフィールも
+ * 静的サイトで誰にでも見えるので「隠す」効果は限定的だが、
+ * `getStories` / `getStoryReplies` / `postComment` が全部通している判定を
+ * 新しい口だけ素通りさせる理由が無い（片側だけの防御を作らない）。
+ *
+ * **退会した人は名前ではなく印で伝える。** 墓石の行には `displayName` が
+ * 無いので `lookupDisplayNameIfSet` は `undefined` を返すが、画面はそれを
+ * 「名前を設定していない人」と区別できず、**「旅人」という普通の行**として
+ * 出して空のプロフィールへリンクしていた。しかも退会は自分の
+ * `following#` しか消さないので（`account.ts`）、**他人の一覧には残り続ける**。
+ * `getComments` / `getNotifications` / `getStoryReplies` と同じ
+ * `deletedUserIds()`（60秒の控えつき）を通す。
+ */
+export const getUserFollowing: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const uid = event.pathParameters?.uid;
+    const me = getUserId(event);
+    if (!uid || !isUserId(uid)) return jsonError(400, "不正なリクエスト");
+    try {
+        if (me && await isBlocked(uid, me)) return jsonError(404, "ユーザーが見つかりません");
+        const list = await readFollowing(uid);
+        const page = list.slice(0, FOLLOWING_PAGE);
+        // 引くのは一覧が空でないときだけ（`getComments` と同じ）
+        const gone = page.length > 0 ? await deletedUserIds() : new Set<string>();
+        const users = await Promise.all(page.map(async (id) => {
+            if (gone.has(id)) return { id, deleted: true };
+            const name = await lookupDisplayNameIfSet(id);
+            return name ? { id, name } : { id };
+        }));
+        return {
+            statusCode: 200,
+            headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
+            // `followers#` 側と形を揃える（`total` は数、`listed` は一覧の長さ）
+            body: JSON.stringify({ users, total: list.length, listed: list.length }),
+        };
+    } catch (e) {
+        console.error("getUserFollowing error:", e);
+        return jsonError(500, "取得に失敗しました");
+    }
+};
+
+/**
+ * GET /users/{uid}/followers — その人をフォローしている人の一覧。
+ *
+ * `getUserFollowing` と対。倒し方も揃える（認証必要・ブロックは 404・
+ * 退会した人は `deleted: true`・名前は50人まで・総数は `total`）。
+ *
+ * **数は `followstats#` が正。一覧は追いついていないことがある。**
+ *
+ *   - 埋め戻し（`scripts/backfill-followers.js`）を流すまで、既にある
+ *     フォロー関係は行に入っていない＝**一覧は空だが数は5**
+ *   - 上限（`FOLLOWING_MAX`）で古い方から溢れる
+ *   - `updateFollowersQuietly` は失敗を握るので、1件だけ欠けることがある
+ *
+ * だから `total` に一覧の長さを返してはいけない。**返すのは数（`followers`）と
+ * 一覧の長さ（`listed`）の両方**——画面はこの2つで「0人」と「まだ揃って
+ * いない」を見分ける。片方だけだと「5 フォロワー」と言いながら開くと
+ * 「まだフォロワーはいません」になる（実際にそうなっていた）。
+ */
+export const getUserFollowers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const uid = event.pathParameters?.uid;
+    const me = getUserId(event);
+    if (!uid || !isUserId(uid)) return jsonError(400, "不正なリクエスト");
+    try {
+        if (me && await isBlocked(uid, me)) return jsonError(404, "ユーザーが見つかりません");
+        const [res, stats] = await Promise.all([
+            ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: followersId(uid) } })),
+            readStats(uid),
+        ]);
+        const list = Array.isArray(res.Item?.list) ? (res.Item.list as string[]) : [];
+        const page = list.slice(0, FOLLOWING_PAGE);
+        const gone = page.length > 0 ? await deletedUserIds() : new Set<string>();
+        const users = await Promise.all(page.map(async (id) => {
+            if (gone.has(id)) return { id, deleted: true };
+            const name = await lookupDisplayNameIfSet(id);
+            return name ? { id, name } : { id };
+        }));
+        return {
+            statusCode: 200,
+            headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
+            // `total` は**数（`followstats#`）**。`listed` は一覧に入っている数
+            body: JSON.stringify({ users, total: stats.followers, listed: list.length }),
+        };
+    } catch (e) {
+        console.error("getUserFollowers error:", e);
         return jsonError(500, "取得に失敗しました");
     }
 };

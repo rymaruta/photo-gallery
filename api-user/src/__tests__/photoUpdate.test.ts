@@ -9,6 +9,15 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRebuild }));
+// アルバムへの出し入れは境界としてモックする（実体は `albums.test.ts`）
+const mockAddToAlbum = vi.hoisted(() => vi.fn(async () => undefined));
+const mockRemoveFromAlbum = vi.hoisted(() => vi.fn(async () => undefined));
+const mockIsAlbumMember = vi.hoisted(() => vi.fn(async () => true));
+vi.mock("../albums", () => ({
+    addPhotoToAlbum: (...a: unknown[]) => mockAddToAlbum(...(a as [])),
+    removePhotoFromAlbum: (...a: unknown[]) => mockRemoveFromAlbum(...(a as [])),
+    isAlbumMember: (...a: unknown[]) => mockIsAlbumMember(...(a as [])),
+}));
 
 import { updatePhotoVisibility, isValidYouTubeUrl } from "../photoUpdate";
 
@@ -24,7 +33,13 @@ function event(sub: string, id: string | undefined, body: unknown) {
     };
 }
 
-beforeEach(() => { mockDdbSend.mockReset(); mockRebuild.mockReset().mockResolvedValue(true); });
+beforeEach(() => {
+    mockDdbSend.mockReset();
+    mockRebuild.mockReset().mockResolvedValue(true);
+    mockAddToAlbum.mockReset().mockResolvedValue(undefined);
+    mockRemoveFromAlbum.mockReset().mockResolvedValue(undefined);
+    mockIsAlbumMember.mockReset().mockResolvedValue(true);
+});
 
 describe("updatePhotoVisibility", () => {
     it("id なしは 400", async () => {
@@ -81,6 +96,39 @@ describe("updatePhotoVisibility", () => {
         const update = (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string; ExpressionAttributeValues: Record<string, unknown> } }).input;
         expect(update.UpdateExpression).toContain("published");
         expect(update.ExpressionAttributeValues[":p"]).toBe(false);
+    });
+
+    // **公開一覧用 GSI の印を一緒に動かす。** 忘れると、非公開にした写真が
+    // 一覧に出続ける／公開に戻した写真が二度と一覧に出ない
+    it("非公開にしたら、公開一覧の印を外す", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } })
+            .mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { published: false }));
+        const update = (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string; ExpressionAttributeNames?: Record<string, string> } }).input;
+        expect(update.UpdateExpression, "印が残ると非公開の写真が一覧に出る").toMatch(/REMOVE[^]*#publicFeed/);
+        expect(update.ExpressionAttributeNames?.["#publicFeed"]).toBe("publicFeed");
+    });
+
+    it("公開に戻したら、公開一覧の印を付け直す", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: false } })
+            .mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { published: true }));
+        const update = (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string; ExpressionAttributeValues: Record<string, unknown> } }).input;
+        expect(update.UpdateExpression, "印が無いと二度と一覧に出ない").toContain("publicFeed = :pf");
+        expect(update.ExpressionAttributeValues[":pf"]).toBe("1");
+    });
+
+    // 公開状態を触っていない保存（曲だけ変えた等）で印に触ると、
+    // 索引の中身が編集のたびに書き換わる
+    it("published を送っていなければ、印には触らない", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } })
+            .mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { songYoutubeUrl: "https://www.youtube.com/watch?v=abcdefghijk" }));
+        const update = (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string } }).input;
+        expect(update.UpdateExpression).not.toContain("publicFeed");
     });
 
     it("DynamoDB エラーは 500", async () => {
@@ -251,15 +299,68 @@ describe("isValidYouTubeUrl", () => {
 // 撮影日は年表の並び順の元になる。保存経路によって検証が違うと、
 // 編集経由だけ任意の文字列が入って並びが壊れる。
 describe("updatePhotoVisibility: 撮影日の検証", () => {
-    it("日付でない文字列は保存しない", async () => {
-        mockDdbSend
-            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } })
-            .mockResolvedValueOnce({});
+    // **「保存しない」から「断る」へ変えた。** 黙って落とすと、
+    // `applyMeta` が undefined を「消す」と読んで**保存済みの日付を消す**
+    // ——入れ直しただけで消えるのに画面は「保存しました」と出ていた
+    it("日付でない文字列は 400 で断る（黙って落として日付を消さない）", async () => {
         const res = await invoke(event("u1", "p1", { date: "きのう撮った写真です" }));
-        expect(res.statusCode).toBe(200);
-        // 不正な値は SET されない（sanitizeDate が弾く）
-        expect(lastUpdate().ExpressionAttributeValues?.[":date"]).toBeUndefined();
+        expect(res.statusCode).toBe(400);
+        expect(mockDdbSend, "断るのに写真を読みに行っている").not.toHaveBeenCalled();
     });
+
+    // **「消したい」と「読めない」を同じ undefined にしていたので、
+    // 1985年と入れ直しただけで保存済みの撮影日が消えていた**（画面は
+    // 「保存しました」）。フィルムの取り込みなど 1990年より前は実在する
+    it("読めない撮影日は 400 で断る（黙って消さない）", async () => {
+        for (const bad of ["1985-06-01", "1989-12-31", "2099-01-01"]) {
+            mockDdbSend.mockReset();
+            const res = await invoke(event("owner", "p1", { published: true, date: bad }));
+            expect(res.statusCode, bad).toBe(400);
+            expect(JSON.parse(res.body).error).toContain("撮影日");
+            // **写真を1回も読みに行かない**＝書き込みまで届いていない
+            expect(mockDdbSend, bad).not.toHaveBeenCalled();
+        }
+    });
+
+    // **消す意図は null・undefined・空文字だけ。** 数値や配列を「消す」と読むと、
+    // 同じ「黙って消える」が別の入口から戻ってくる（画面からは踏めないが、
+    // JSDoc は「値は来ているが使えないときだけ true」と書いてある）
+    it("日付でない型（数値・真偽・配列・オブジェクト）も断る", async () => {
+        for (const bad of [12345, 0, true, ["2024-01-01"], { y: 2024 }]) {
+            mockDdbSend.mockReset();
+            const res = await invoke(event("owner", "p1", { published: true, date: bad }));
+            expect(res.statusCode, JSON.stringify(bad)).toBe(400);
+            expect(mockDdbSend, JSON.stringify(bad)).not.toHaveBeenCalled();
+        }
+    });
+
+    it("null は「消す」（断らない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true, date: "2024-10-12" } })
+            .mockResolvedValueOnce({});
+        const res = await invoke(event("owner", "p1", { published: true, date: null }));
+        expect(res.statusCode).toBe(200);
+    });
+
+    it("空の撮影日は今までどおり「消す」（断らない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true, date: "2024-10-12" } }).mockResolvedValueOnce({});
+        const res = await invoke(event("owner", "p1", { published: true, date: "" }));
+        expect(res.statusCode).toBe(200);
+        const updates = mockDdbSend.mock.calls.map((c) => c[0])
+            .filter((cmd) => (cmd as { constructor: { name: string } })?.constructor?.name === "UpdateCommand");
+        // **何の REMOVE かまで見る。** "REMOVE" を含むだけだと別の属性でも緑
+        expect(updates.some((u) => /REMOVE[^A-Z]*#date\b/.test(
+            String((u as { input: { UpdateExpression: string } }).input.UpdateExpression))),
+            "撮影日が消えていない").toBe(true);
+    });
+
+    it("範囲内の撮影日は通る（境界の 1990-01-01 を含む）", async () => {
+        for (const ok of ["1990-01-01", "2024-10-12"]) {
+            mockDdbSend.mockReset().mockResolvedValueOnce({ Item: { id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true } }).mockResolvedValueOnce({});
+            const res = await invoke(event("owner", "p1", { published: true, date: ok }));
+            expect(res.statusCode, ok).toBe(200);
+        }
+    });
+
 
     // 以前は「保存経路で表記を揃える」として ISO に正規化していたが、
     // "2024-05-01" → "…T00:00:00.000Z" は表示側（photoDate.ts の
@@ -473,6 +574,134 @@ describe("非公開にするときの再ビルド依頼", () => {
             .includes("REMOVE staticStale")), "印が立ったまま残る").toBe(true);
     });
 
+    // **画面に伝える。** 印を行に書くだけでは、押した本人には何も分からない
+    // ——「非公開にしました」と出るのに、検索から開けるページは残っている
+    it("頼めなかったことを応答でも伝える（画面が「隠せた」と言い切らないように）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: stored2 }).mockResolvedValueOnce({}).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: false }));
+        expect(JSON.parse(res.body)).toEqual({ success: true, staticStale: true });
+    });
+
+    it("印を行に書けなくても、応答では伝える（残ることは変わらない）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: stored2 })
+            .mockResolvedValueOnce({})
+            .mockRejectedValueOnce(new Error("throttled"));   // 印の書き込みだけ失敗
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: false }));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).staticStale).toBe(true);
+    });
+
+    it("頼めたら応答に印を載せない（要らない不安を出さない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: stored2 }).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(true);
+        const res = await invoke(event("owner", "p1", { published: false }));
+        expect(JSON.parse(res.body)).toEqual({ success: true });
+    });
+
+    it("公開する側では印を載せない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, published: false } }).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: true }));
+        expect(JSON.parse(res.body)).toEqual({ success: true });
+    });
+
+    // **消す意図の操作が公開ページに反映されない**のは、非公開・削除と同じ約束違反。
+    // 説明に書いた最寄り駅を消しても、静的HTMLと JSON-LD には残る
+    it("公開のまま項目を消して頼めなかったら、そう伝える", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, description: "最寄りは○○駅" } }).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: true, description: "" }));
+        expect(JSON.parse(res.body)).toEqual({ success: true, staticOutdated: true });
+    });
+
+    // 書き換えは「更新が遅れている」だけ。毎回の保存で断りが出ると、
+    // 肝心のとき（消したとき）に読まれなくなる
+    // **頼めたなら言わない。** `!dispatched` を落としても全部緑だった
+    // ——本番はトークン未設定で常に false なので今は無害だが、owner が
+    // トークンを入れた日に「もう消えているのに残ると言う」へ静かに変わる
+    it("掃除を頼めたなら、消していても言わない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, description: "あ" } }).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(true);
+        const res = await invoke(event("owner", "p1", { published: true, description: "" }));
+        expect(JSON.parse(res.body)).toEqual({ success: true });
+    });
+
+    // **過去の事故と同じ形。** `/user/edit` はタグを毎回 `[]` で送るので、
+    // 「変わったか」を見ずに `willRemove` だけで数えると、タグを持たない写真を
+    // 保存するたびに8秒の断りが出る
+    it("もともと空の項目に空を送っても、消したことにしない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: stored2 }).mockResolvedValueOnce({});   // tags を持たない
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: true, tags: [] }));
+        expect(JSON.parse(res.body)).toEqual({ success: true });
+    });
+
+    // 静的ページがまだ無い（下書きを公開しながら項目を消した）ときに
+    // 「ページに残る」と言わない
+    it("下書きを公開しながら項目を消しても言わない（ページがまだ無い）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, published: false, description: "あ" } })
+            .mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: true, description: "" }));
+        expect(JSON.parse(res.body)).toEqual({ success: true });
+    });
+
+    // ただし「非公開にしたが掃除が届かなかった」写真にはページが在る
+    it("掃除の届いていない非公開写真を公開し直しながら消したら、言う", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, published: false, staticStale: true, description: "あ" } })
+            .mockResolvedValueOnce({}).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: true, description: "" }));
+        expect(JSON.parse(res.body)).toEqual({ success: true, staticOutdated: true });
+    });
+
+    // `published` を送らない呼び出し（この画面は毎回送るが、他の口・古いタブ）
+    it("published を送らない保存でも、ページが無ければ黙る", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, published: false, description: "あ" } })
+            .mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { description: "" }));
+        expect(JSON.parse(res.body), "下書きなのにページが在ると言っている").toEqual({ success: true });
+    });
+
+    // **非公開なら黙る、にしてはいけない。** 本番は掃除の依頼が毎回落ちるので、
+    // 「非公開にした写真」のページは公開されたまま。そこを下書きとして編集して
+    // 項目を消せば、消した内容が公開ページに出たままになる
+    it("掃除の届いていない非公開写真を下書きのまま編集して消したら、言う", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, published: false, staticStale: true, description: "あ" } })
+            .mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: false, description: "" }));
+        expect(JSON.parse(res.body)).toEqual({ success: true, staticOutdated: true });
+    });
+
+    it("書き換えただけなら言わない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, title: "前の題" } }).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: true, title: "新しい題" }));
+        expect(JSON.parse(res.body)).toEqual({ success: true });
+    });
+
+    it("下書きのまま項目を消しても言わない（静的ページが無い）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, published: false, description: "あ" } }).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: false, description: "" }));
+        expect(JSON.parse(res.body)).toEqual({ success: true });
+    });
+
+    // **両方立つ場合は強い方を出す。**「隠したはずのページがまだ取れる」の中に
+    // 「消した内容も出ている」は含まれる
+    it("非公開にしながら項目を消したときは、ページが残る方を出す", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...stored2, description: "あ" } })
+            .mockResolvedValueOnce({}).mockResolvedValueOnce({});
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke(event("owner", "p1", { published: false, description: "" }));
+        expect(JSON.parse(res.body)).toEqual({ success: true, staticStale: true });
+    });
+
     it("頼めたときは印を立てない（余計な書き込みをしない）", async () => {
         mockDdbSend.mockResolvedValueOnce({ Item: stored2 }).mockResolvedValueOnce({});
         mockRebuild.mockResolvedValue(true);
@@ -634,5 +863,103 @@ describe("updatePhotoVisibility: おおよその座標（geoApprox）の扱い",
         const u = lastUpdate();
         expect(u.UpdateExpression).not.toContain("#coords");
         expect(u.UpdateExpression).not.toContain("#geoApprox");
+    });
+});
+
+
+// **下書き保存したら、あとで公開してもアルバムに入らなかった。**
+// `savePhoto` は `albumId && isPublished` のときだけ入れるので、招待から
+// 入った人が「下書き保存」した写真は一生アルバムに出ない——本人の行には
+// `albumId` が付いているので、**入ったつもりになる**（画面上は成功して見える）。
+describe("公開に切り替えたら、共同アルバムに入れる", () => {
+    const world = (item: Record<string, unknown>) => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({ Item: { id: "p1", src: "s", userId: "u1", ...item } });
+            return Promise.resolve({ Attributes: { id: "p1" } });
+        });
+    };
+
+    it("下書き → 公開 で、アルバムに足す", async () => {
+        world({ published: false, albumId: "a1" });
+        const res = await invoke(event("u1", "p1", { published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockAddToAlbum, "公開してもアルバムに入らない").toHaveBeenCalledWith("a1", "p1");
+    });
+
+    // **「変わった回」で見ると、押し直しが効かない。** 1回目でここが落ちた
+    // （スロットル・500枚上限）あと押し直しても `wasPublished` が true で
+    // `visibilityChanged` が false ＝公開されているのに一生入らない。
+    // `upload.ts` の再送は同じ場面に「再送でもアルバムに足す」で答えている
+    it("既に公開済みの写真をもう一度公開しても、アルバムに足しにいく（押し直しで直る）", async () => {
+        world({ published: true, albumId: "a1" });
+        const res = await invoke(event("u1", "p1", { published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockAddToAlbum, "押し直しても直らない").toHaveBeenCalledWith("a1", "p1");
+    });
+
+    // 上の代償。公開中の写真を編集するたびに1回来る（冪等なので増えない）
+    it("公開中の写真のメタ情報だけ直しても、足しにいく", async () => {
+        world({ published: true, albumId: "a1" });
+        const res = await invoke(event("u1", "p1", { title: "新しい題" }));
+        expect(res.statusCode).toBe(200);
+        expect(mockAddToAlbum).toHaveBeenCalledWith("a1", "p1");
+    });
+
+    // **下書きのままなら足さない。** ここを緩めると、招待ページの
+    // `published !== false` のふるいだけが最後の砦になる
+    it("下書きのままメタ情報を直しても足さない", async () => {
+        world({ published: false, albumId: "a1" });
+        const res = await invoke(event("u1", "p1", { title: "新しい題" }));
+        expect(res.statusCode).toBe(200);
+        expect(mockAddToAlbum, "下書きがアルバムに入る").not.toHaveBeenCalled();
+    });
+
+    it("アルバムに入っていない写真では呼ばない", async () => {
+        world({ published: false });
+        await invoke(event("u1", "p1", { published: true }));
+        expect(mockAddToAlbum).not.toHaveBeenCalled();
+    });
+
+    it("非公開にするときは足さない（外す側の仕事）", async () => {
+        world({ published: true, albumId: "a1" });
+        await invoke(event("u1", "p1", { published: false }));
+        expect(mockAddToAlbum, "非公開にしたのにアルバムへ入れている").not.toHaveBeenCalled();
+    });
+
+    // **失敗しても公開は成功で返す**（写真はもう公開されている。
+    // `savePhoto` の同じ呼び出しと同じ扱い）
+    it("足せなくても公開は成功", async () => {
+        world({ published: false, albumId: "a1" });
+        mockAddToAlbum.mockRejectedValue(new Error("boom"));
+        expect((await invoke(event("u1", "p1", { published: true }))).statusCode).toBe(200);
+    });
+
+    // **片側だけの防御にしない。** `savePhoto` は「ここを通さずに
+    // `albumId` を保存できると、誰でも他人のアルバムに写真を差し込める」
+    // として `isAlbumMember` を通す。こちらは行の `albumId` を信じて
+    // 素通しだった。いまは脱退の口が無いので悪用できないが、
+    // 「脱退」を足した日に静かに穴になる
+    it("もうメンバーでなければ、公開してもアルバムには足さない", async () => {
+        world({ published: false, albumId: "a1" });
+        mockIsAlbumMember.mockResolvedValue(false);
+        expect((await invoke(event("u1", "p1", { published: true }))).statusCode).toBe(200);
+        expect(mockAddToAlbum, "メンバーでない人の写真が入っている").not.toHaveBeenCalled();
+    });
+
+    // **判定は `UpdateCommand` のあと。** 裸の await を置くと、写真はもう
+    // 公開されているのに 500 が返り、押し直すと `visibilityChanged` が
+    // false になって**アルバムに足す処理を永久に飛ばす**
+    it("メンバー判定が落ちても、公開そのものは成功で返す", async () => {
+        world({ published: false, albumId: "a1" });
+        mockIsAlbumMember.mockRejectedValue(new Error("throttled"));
+        const res = await invoke(event("u1", "p1", { published: true }));
+        expect(res.statusCode, "公開できているのに失敗と出る").toBe(200);
+        expect(mockAddToAlbum).not.toHaveBeenCalled();
+    });
+
+    it("メンバー判定は、そのアルバムと押した本人で見る", async () => {
+        world({ published: false, albumId: "a1" });
+        await invoke(event("u1", "p1", { published: true }));
+        expect(mockIsAlbumMember).toHaveBeenCalledWith("a1", "u1");
     });
 });

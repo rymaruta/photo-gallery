@@ -19,6 +19,19 @@ vi.mock("../ddb-photos", () => ({
 const mockLookupIfSet = vi.hoisted(() => vi.fn());
 vi.mock("../notify", () => ({ lookupDisplayNameIfSet: mockLookupIfSet }));
 
+const mockRequestSiteRebuild = vi.hoisted(() => vi.fn());
+vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRequestSiteRebuild }));
+
+// 共同アルバム（案C）。`savePhoto` が「メンバーか」を確かめるようになったので、
+// ここを模さないと本物が DynamoDB を掴む。**列挙式のモックは production の
+// import が増えたときに足す必要がある**（台帳が何度も踏んでいる型）
+const mockIsAlbumMember = vi.hoisted(() => vi.fn());
+const mockAddPhotoToAlbum = vi.hoisted(() => vi.fn());
+vi.mock("../albums", () => ({
+    isAlbumMember: mockIsAlbumMember,
+    addPhotoToAlbum: mockAddPhotoToAlbum,
+}));
+
 // 署名は必ずモックする。本物を呼ぶと AWS の認証情報を要求するので、
 // 手元では通って CI では落ちる——**テストが実装ではなく環境を測る**。
 // 実際にそれで本番デプロイを止めた（386eeef）。
@@ -40,7 +53,7 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({ getSignedUrl: mockGetSignedUrl
 
 // 環境変数はモジュール読込時に評価されるため、stub してから動的 import する
 vi.stubEnv("CLOUDFRONT_URL", "https://cdn.example.com");
-const { savePhoto, presignedUrl, discardUpload } = await import("../upload");
+const { savePhoto, presignedUrl, discardUpload, PHOTO_LIMIT_PER_USER } = await import("../upload");
 import type { Photo } from "../types";
 
 type LambdaResult = { statusCode: number; body: string };
@@ -64,6 +77,11 @@ function savedPhoto(): Photo {
     return mockPutPhoto.mock.calls[0][0] as Photo;
 }
 
+/** 再送で書き直した内容（overwriteOwnPhoto に渡した写真） */
+function savedRewrite(): Photo {
+    return mockOverwriteOwnPhoto.mock.calls[0][0] as Photo;
+}
+
 beforeEach(() => {
     mockPutPhoto.mockReset().mockResolvedValue(undefined);
     mockCountUserPhotos.mockReset().mockResolvedValue(0);
@@ -72,6 +90,255 @@ beforeEach(() => {
     mockLookupIfSet.mockReset().mockResolvedValue(undefined);
     mockGetPhotoById.mockReset().mockResolvedValue(undefined);
     mockOverwriteOwnPhoto.mockReset().mockResolvedValue(true);
+    mockRequestSiteRebuild.mockReset().mockResolvedValue(true);
+    mockIsAlbumMember.mockReset().mockResolvedValue(true);
+    mockAddPhotoToAlbum.mockReset().mockResolvedValue(undefined);
+});
+
+// **投稿しても世に出ない、を直した分。**
+// このサイトは静的エクスポートなので、DynamoDB に書いただけでは写真ページも
+// sitemap も生まれない。消す側（削除・非公開・退会）は最初から再ビルドを
+// 頼んでいたのに、**作る側だけが抜けていた**——公開で投稿しても、次の
+// 定期ビルド（週1）まで最大7日、本人がリンクを共有できなかった。
+// **公開一覧用 GSI の印。** `GET /photos` の全表 Scan をやめるための下ごしらえ。
+// 印は「公開中の写真」にだけ載せる——下書きに載せると一覧に出てしまい、
+// 公開に戻したときに載せ忘れると**二度と一覧に出ない**（索引にしか現れない
+// ので、行を見ても分からない）。
+// **共同アルバム（案C）。** `albumId` を付けて保存できるのはメンバーだけ。
+// ここを通さずに保存できると、**誰でも他人のアルバムに写真を差し込める**
+// （アルバムの ID は招待を受けた人なら知っている）。
+describe("savePhoto: 共同アルバム", () => {
+    it("メンバーなら albumId を保存し、アルバムにも足す", async () => {
+        const res = await invoke(event("u1", { ...BASE, albumId: "alb-1" }));
+        expect(res.statusCode).toBe(200);
+        expect(savedPhoto().albumId).toBe("alb-1");
+        expect(mockAddPhotoToAlbum).toHaveBeenCalledWith("alb-1", savedPhoto().id);
+    });
+
+    // **403 ではなく 404。** そのアルバムが実在することを教えない
+    it("メンバーでなければ 404（保存しない）", async () => {
+        mockIsAlbumMember.mockResolvedValue(false);
+        const res = await invoke(event("u1", { ...BASE, albumId: "alb-1" }));
+        expect(res.statusCode).toBe(404);
+        expect(mockPutPhoto, "メンバーでないのに保存している").not.toHaveBeenCalled();
+    });
+
+    // **下書きはアルバムに入れない。** 招待リンクは未認証で開けるので、
+    // 入れると「下書きに入れたつもりの写真がリンクを持つ誰にでも読める」
+    it("下書きはアルバムに足さない（メンバーでも）", async () => {
+        const res = await invoke(event("u1", { ...BASE, albumId: "alb-1", published: false }));
+        expect(res.statusCode).toBe(200);
+        expect(savedPhoto().published).toBe(false);
+        expect(mockAddPhotoToAlbum, "下書きがアルバムに入っている").not.toHaveBeenCalled();
+    });
+
+    it("albumId が無ければ、メンバーかどうかも見ない", async () => {
+        await invoke(event("u1", { ...BASE }));
+        expect(mockIsAlbumMember).not.toHaveBeenCalled();
+        expect("albumId" in savedPhoto()).toBe(false);
+    });
+
+    it.each([123, {}, [], "", null])("albumId が文字列でなければ無視する（%s）", async (v) => {
+        const res = await invoke(event("u1", { ...BASE, albumId: v }));
+        expect(res.statusCode).toBe(200);
+        expect("albumId" in savedPhoto()).toBe(false);
+        expect(mockIsAlbumMember).not.toHaveBeenCalled();
+    });
+
+    // **写真を書いてからアルバムに足す。** 逆にすると、保存に失敗したときに
+    // アルバムへ「存在しない写真の ID」が残る
+    it("保存に失敗したらアルバムにも足さない", async () => {
+        mockPutPhoto.mockRejectedValue(new Error("boom"));
+        await invoke(event("u1", { ...BASE, albumId: "alb-1" }));
+        expect(mockAddPhotoToAlbum).not.toHaveBeenCalled();
+    });
+
+    // **1回目が落ちたあと押し直す場面。** ここを呼ばないと、
+    // 直ってほしい操作で直らない（`addPhotoToAlbum` は冪等）
+    it("再送で書き直したときも、アルバムに足す", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: false,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, albumId: "alb-1", published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockAddPhotoToAlbum, "再送では足していない").toHaveBeenCalled();
+    });
+
+    // 足せなくても投稿は成功で返す（写真はもう保存されている）
+    it("アルバムに足せなくても、投稿は成功で返す", async () => {
+        mockAddPhotoToAlbum.mockRejectedValue(new Error("full"));
+        const res = await invoke(event("u1", { ...BASE, albumId: "alb-1" }));
+        expect(res.statusCode).toBe(200);
+    });
+});
+
+describe("savePhoto: 公開一覧の索引に載せる印", () => {
+    it("公開で保存したら印を付ける", async () => {
+        await invoke(event("u1", { ...BASE, published: true }));
+        expect(savedPhoto().publicFeed).toBe("1");
+    });
+
+    it("下書きには付けない（付けると一覧に出る）", async () => {
+        await invoke(event("u1", { ...BASE, published: false }));
+        expect("publicFeed" in savedPhoto(), "下書きが一覧に出る").toBe(false);
+    });
+
+    it("published 未指定は公開なので付ける", async () => {
+        await invoke(event("u1", { ...BASE }));
+        expect(savedPhoto().publicFeed).toBe("1");
+    });
+
+    // 再送で書き直すときも、その回の意図で載せ直す
+    it("再送で下書き→公開に書き直したら、印も付く", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: false,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        await invoke(event("u1", { ...BASE, published: true }));
+        expect(savedRewrite().publicFeed).toBe("1");
+    });
+});
+
+describe("savePhoto: 公開したら静的サイトを作り直してもらう", () => {
+    it("公開で保存したら再ビルドを頼む", async () => {
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockRequestSiteRebuild).toHaveBeenCalledTimes(1);
+        expect(mockRequestSiteRebuild.mock.calls[0][0]).toContain(savedPhoto().id);
+    });
+
+    // **coalesce を付ける。** 最初は外していたが逆向きだった——月次予算は
+    // coalesce の有無に関わらず1加算されるので、素通しにすると1人が100枚
+    // 公開しただけで既定 200本 の半分を使い切り、使い切った月は
+    // **削除・退会の掃除まで全部落ちる**（`photoUpdate.ts` が同じ判断を
+    // 一度して戻している）。畳まれても、その1本のビルドが DynamoDB を
+    // 読み直すので写真は載る。
+    it("依頼はまとめる（月次予算を食い潰さない）", async () => {
+        await invoke(event("u1", { ...BASE, published: true }));
+        const opts = mockRequestSiteRebuild.mock.calls[0][1];
+        expect(opts?.coalesce, "素通しにすると削除の掃除まで落ちる").toBe(true);
+    });
+
+    // 依頼が投げたら、**保存済みの写真について 500 を返す**ことになる
+    // （画面はそれを「保存できませんでした」と読んで実体を捨てにいく）
+    it("依頼が例外を投げても、投稿は成功で返す", async () => {
+        mockRequestSiteRebuild.mockRejectedValue(new Error("dispatch exploded"));
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).success).toBe(true);
+    });
+
+    // **黙って握らない。** rebuild.ts は失敗のたびに必ずログを出す作りなので、
+    // その終端に無言の catch を置くと、発動したときに手がかりが無くなる
+    it("例外を握るときは、手がかりを残す", async () => {
+        const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        try {
+            mockRequestSiteRebuild.mockRejectedValue(new Error("dispatch exploded"));
+            await invoke(event("u1", { ...BASE, published: true }));
+            const logged = err.mock.calls.some((c) => String(c[0]).includes("requestRebuildForNewPhoto"));
+            expect(logged, "無言で握っている").toBe(true);
+        } finally {
+            err.mockRestore();
+        }
+    });
+
+    it("下書きでは頼まない（静的ページを持たないので作り直す理由が無い）", async () => {
+        const res = await invoke(event("u1", { ...BASE, published: false }));
+        expect(res.statusCode).toBe(200);
+        expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
+    });
+
+    // 写真はもう保存されている。ここで 500 を返すのは嘘になる
+    it("依頼できなくても、投稿は成功で返す", async () => {
+        mockRequestSiteRebuild.mockResolvedValue(false);
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).success).toBe(true);
+    });
+
+    it("保存に失敗したときは頼まない（作り直す中身が無い）", async () => {
+        mockPutPhoto.mockRejectedValue(new Error("boom"));
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(500);
+        expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
+    });
+
+    // 再送は「公開で落ちて下書き保存 → 公開を押し直す」経路で起きる。
+    // 最初の保存は下書きだったので頼んでいない＝ここで見ないと落ちる
+    it("再送で下書き→公開に変わったときも頼む", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: false,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockRequestSiteRebuild).toHaveBeenCalledTimes(1);
+    });
+
+    it("再送でも今回が下書きなら頼まない", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: false,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, published: false }));
+        expect(res.statusCode).toBe(200);
+        expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
+    });
+
+    // **`published` を持たない古い行も「公開だった」と読む。**
+    // このリポジトリは「未指定は公開」で揃っている（同じ関数の `isPublished`
+    // 自身がそう）。`=== true` で書くとここだけ慣習と逆になり、古い行の
+    // 二重送信で予算を1本ずつ食う
+    it("再送で published を持たない行なら、公開済みとして頼まない", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
+    });
+
+    // **既存の穴の目撃者**（この差分で作った回帰ではない）。
+    // 「公開を押す → 応答だけ失われる → 下書き保存を押す」で、公開済みの行が
+    // 下書きに書き換わるのに再ビルドを頼まず `staticStale` も立てない
+    // （`photoUpdate.ts` の隠す3経路はどちらもやっている）。実際に静的ページが
+    // 残るのは「その間に別のビルドの scan が挟まった」場合だけなので窓は狭い。
+    // **いまの振る舞いを写し取っておく**——直すのは別の差分で。
+    it("【既知の穴】再送で公開→下書きに落としても、いまは何も頼まない", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, published: false }));
+        expect(res.statusCode).toBe(200);
+        expect(savedRewrite().published, "下書きに書き換わっている").toBe(false);
+        // **印も一緒に落ちる。** いまは丸ごと Put なので構造上そうなるが、
+        // `overwriteOwnPhoto` が部分更新に変われば静かに壊れる場所
+        expect("publicFeed" in savedRewrite(), "下書きなのに一覧に出る").toBe(false);
+        expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
+    });
+
+    // **ただの二重送信では頼まない。** 再送は「モバイル回線で応答だけが
+    // 失われた」ときに起きるので、公開済みの写真について何度も来うる。
+    // そのたびに頼むと月の予算を1本ずつ食う（最初の保存で頼んである）
+    it("再送で既に公開済みなら頼まない", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
+    });
 });
 
 describe("savePhoto: thumbUrl（一覧グリッド用サムネイル）", () => {
@@ -151,8 +418,8 @@ describe("savePhoto: 基本バリデーション", () => {
         expect(res.statusCode).toBe(400);
     });
 
-    it("100枚上限に達していたら 403", async () => {
-        mockCountUserPhotos.mockResolvedValueOnce(100);
+    it("上限に達していたら 403", async () => {
+        mockCountUserPhotos.mockResolvedValueOnce(PHOTO_LIMIT_PER_USER);
         const res = await invoke(event("u1", { ...BASE }));
         expect(res.statusCode).toBe(403);
         expect(mockPutPhoto).not.toHaveBeenCalled();
@@ -391,8 +658,8 @@ describe("presignedUrl", () => {
         expect((await ask("u1", "{")).statusCode).toBe(400);
     });
 
-    it("100枚に達していれば 403（署名を渡さない）", async () => {
-        mockCountUserPhotos.mockResolvedValueOnce(100);
+    it("上限に達していれば 403（署名を渡さない）", async () => {
+        mockCountUserPhotos.mockResolvedValueOnce(PHOTO_LIMIT_PER_USER);
         const res = await ask("u1", { fileName: "a.jpg", fileType: "image/jpeg" });
         expect(res.statusCode).toBe(403);
     });
@@ -422,7 +689,7 @@ describe("savePhoto: 表示名はサーバーで引く", () => {
 
 // 上限は容量と費用の管理。数えられなかったときに通すと、
 // スロットリングを起こすだけで超えられる。
-describe("100枚の上限: 数えられなければ通さない", () => {
+describe("枚数の上限: 数えられなければ通さない", () => {
     it("savePhoto: 数え上げが落ちたら 503（保存しない）", async () => {
         mockCountUserPhotos.mockRejectedValueOnce(new Error("throttled"));
         const res = await invoke(event("u1", BASE));
@@ -441,9 +708,17 @@ describe("100枚の上限: 数えられなければ通さない", () => {
     });
 
     it("savePhoto: 上限に達していれば 403", async () => {
-        mockCountUserPhotos.mockResolvedValueOnce(100);
+        mockCountUserPhotos.mockResolvedValueOnce(PHOTO_LIMIT_PER_USER);
         expect((await invoke(event("u1", BASE))).statusCode).toBe(403);
         expect(mockPutPhoto).not.toHaveBeenCalled();
+    });
+
+    // **境界**: ちょうど上限なら断り、1つ手前なら通す。片側しか見ていないと
+    // 「>= を > に変える」変異が素通りする
+    it("上限の1つ手前は通る", async () => {
+        mockCountUserPhotos.mockResolvedValueOnce(PHOTO_LIMIT_PER_USER - 1);
+        expect((await invoke(event("u1", BASE))).statusCode).toBe(200);
+        expect(mockPutPhoto).toHaveBeenCalled();
     });
 
     it("管理者は数え上げが落ちても通る（上限の対象外）", async () => {
@@ -689,6 +964,229 @@ describe("savePhoto: 保存の再送で写真が増えない", () => {
         expect(res.statusCode).toBe(200);
         expect(JSON.parse(res.body).photo.title.ja).toBe("あとで直した");
     });
+
+    // **書き直しは `PutCommand`（全置換）。** `photo` にはサーバーが持つ項目
+    // （いいね数・コメント数）が入っていないので、素直に書き直すと消える。
+    // 守りの `updatedAt = :ua` は「まだ誰も触っていない」を見ているつもりだが、
+    // **`likes.ts` も `comments.ts` も加算のときに `updatedAt` を触らない**
+    // ので、その2つは条件をすり抜ける。
+    //
+    // しかも `like#<photoId>#<uid>` のマーカーは残るため、いいねした人が
+    // 押し直しても「既にいいね済み」で +1 されず、解除しても `likes > :z` が
+    // 外れて空振り——**誰にも戻せない**。
+    it("再送の書き直しで、いいね数とコメント数を消さない", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`,
+            published: true, likes: 7, commentCount: 3,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", { ...body, published: true }));
+
+        const written = savedRewrite() as Photo & { likes?: number; commentCount?: number };
+        expect(written.likes, "いいね数を消している").toBe(7);
+        expect(written.commentCount, "コメント数を消している").toBe(3);
+    });
+
+    // 静的ページの掃除が届いていない印は**サーバーが立てるもの**。
+    // 利用者の押し直しで消すと、「非公開にしたのにページが残っている」ことを
+    // 誰も知らないまま（削除側もこの印を見る）になる
+    it("静的ページの掃除が届いていない印も消さない", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`,
+            published: true, staticStale: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", { ...body, published: true }));
+
+        expect((savedRewrite() as Photo & { staticStale?: boolean }).staticStale, "印を消している").toBe(true);
+    });
+
+    // **ビルドが書いた表示用の項目も、利用者の押し直しで消えていた。**
+    // `generate-thumbnails.js` は寸法・ぼかし・AVIF 派生を書くが、
+    // sitemap の lastmod を守るために `updatedAt` を**意図的に触らない**。
+    // 全置換で消えると AVIF の配信が止まり、寸法が無くなってグリッドが
+    // ガタつく（次の定期ビルドまで最大7日）。
+    // 曲（`photoUpdate.ts:163`）と地名から補った座標
+    // （`scripts/geocode-locations.js:227`）も同じ形。座標の方は手動実行
+    // なので、消えると定期ビルドでも戻らない。
+    // （`srcOriginal` は一覧に入れてあるが**今どの保存経路も書かない**ので、
+    // ここでは確かめていない。`generate-thumbnails.js:98` 参照）
+    it("ビルドが書いた表示用の項目と、あとから付けた曲を消さない", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`, published: true,
+            width: 4000, height: 3000, aspectRatio: 1.3333,
+            blurDataURL: "data:image/webp;base64,zzz",
+            // **一覧の項目は1つずつ見る。** 「形」だけ見ていたので、
+            // `thumbSrc` や `dominantColor` を一覧から落としても全緑だった
+            // ——`thumbSrc` は一覧グリッドの軽量サムネそのもので、
+            // 消えると訪問者が毎回 原寸を落とす
+            thumbSrc: "https://cdn.example.com/uploads/u1/p_thumb.webp",
+            dominantColor: "#123456",
+            thumbAvif: "https://cdn.example.com/uploads/u1/p_thumb.avif",
+            thumbSmAvif: "https://cdn.example.com/uploads/u1/p_thumb_sm.avif",
+            src256: "https://cdn.example.com/uploads/u1/p_256.webp",
+            srcAvif: "https://cdn.example.com/uploads/u1/p_lg.avif",
+            thumbSm: "https://cdn.example.com/uploads/u1/p_thumb_sm.webp",
+            song: { title: "曲", previewUrl: "https://audio-ssl.itunes.apple.com/x.m4a" },
+            songYoutubeUrl: "https://www.youtube.com/watch?v=abcdefghijk",
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", { ...body, published: true }));
+
+        const w = savedRewrite() as Record<string, unknown>;
+        expect(w.width, "寸法を消している").toBe(4000);
+        expect(w.height).toBe(3000);
+        expect(w.aspectRatio).toBe(1.3333);
+        expect(w.blurDataURL, "ぼかしを消している").toBe("data:image/webp;base64,zzz");
+        expect(w.srcAvif, "AVIF 派生を消している").toBe("https://cdn.example.com/uploads/u1/p_lg.avif");
+        expect(w.thumbSm).toBe("https://cdn.example.com/uploads/u1/p_thumb_sm.webp");
+        expect(w.thumbSrc, "一覧グリッドのサムネを消している").toBe("https://cdn.example.com/uploads/u1/p_thumb.webp");
+        expect(w.dominantColor, "代表色を消している").toBe("#123456");
+        expect(w.thumbAvif).toBe("https://cdn.example.com/uploads/u1/p_thumb.avif");
+        expect(w.thumbSmAvif).toBe("https://cdn.example.com/uploads/u1/p_thumb_sm.avif");
+        expect(w.src256).toBe("https://cdn.example.com/uploads/u1/p_256.webp");
+        // 曲は公開後に写真ページから付ける（`photoUpdate.ts:163`）。
+        // アップロード画面は送らないので、引き継がないと黙って消える
+        expect(w.song, "写真に付けた曲を消している").toEqual({ title: "曲", previewUrl: "https://audio-ssl.itunes.apple.com/x.m4a" });
+        expect(w.songYoutubeUrl).toBe("https://www.youtube.com/watch?v=abcdefghijk");
+    });
+
+    // 引き継ぎは「今回の本文に無いとき」だけ。サムネ・代表色・ぼかしは
+    // クライアントも送るので、送ってきたら今回が勝つ（でないと、
+    // 差し替えたサムネが永久に古いままになる）
+    it("今回の本文にある項目は、保存済みの値で上書きしない", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`, published: true,
+            thumbSrc: "https://cdn.example.com/uploads/u1/old_thumb.webp",
+            dominantColor: "#000000",
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", {
+            ...body, published: true,
+            thumbUrl: "https://cdn.example.com/uploads/u1/new_thumb.webp",
+            dominantColor: "#ff0000",
+        }));
+
+        const w = savedRewrite() as Record<string, unknown>;
+        expect(w.thumbSrc, "古いサムネで上書きしている").toBe("https://cdn.example.com/uploads/u1/new_thumb.webp");
+        expect(w.dominantColor).toBe("#ff0000");
+    });
+
+    // **座標は「印が立っているときだけ、対で」引き継ぐ。**
+    // `geoApprox` だけ引き継ぐと、GPS を切って送り直した回に
+    // 「正確な座標に『おおよそ』の印が付いた行」ができる
+    // （`photoUpdate.ts:214` が対で塞いでいる形）。
+    it("地名から補った座標は、印と対で引き継ぐ", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`, published: true,
+            coords: { lat: 35.68, lng: 139.76 }, geoApprox: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", { ...body, published: true }));
+
+        const w = savedRewrite() as Record<string, unknown>;
+        expect(w.coords, "補った座標を消している（手動実行なので戻らない）").toEqual({ lat: 35.68, lng: 139.76 });
+        expect(w.geoApprox, "印だけ落ちている（正確な座標のように見える）").toBe(true);
+    });
+
+    // 利用者の GPS 由来（印が無い）は引き継がない。
+    // 「GPS を切って送り直したのに座標が戻る」を作らない
+    it("印の無い座標は引き継がない（切ったのに戻る、を作らない）", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`, published: true,
+            coords: { lat: 35.68, lng: 139.76 },
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", { ...body, published: true }));
+
+        expect("coords" in (savedRewrite() as Record<string, unknown>), "切った座標が戻っている").toBe(false);
+    });
+
+    // 撮影地を直したら、補った座標は付いてこない。
+    // 補った座標は地名に付随するので、「パリ」→「ロンドン」に直して
+    // 送り直すと「ロンドン（おおよそ）」のピンがパリに立つ
+    // （`photoUpdate.ts:223` が同じ理由で座標ごと捨てている）
+    it("撮影地を直した回は、補った座標を引き継がない", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`, published: true,
+            location: "パリ", coords: { lat: 48.85, lng: 2.35 }, geoApprox: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", { ...body, published: true, location: "ロンドン" }));
+
+        const w = savedRewrite() as Record<string, unknown>;
+        expect(w.location).toBe("ロンドン");
+        expect("coords" in w, "ロンドンなのにパリのピンが残っている").toBe(false);
+        expect("geoApprox" in w).toBe(false);
+    });
+
+    // 逆向き。**今回 GPS を入れて送ったら今回が勝つ**（保存済みの
+    // 「おおよそ」で上書きしない・印も付けない）。
+    // このガードを外しても全緑だった＝守れていなかった
+    it("今回 GPS を入れて送ったら、保存済みの「おおよそ」で上書きしない", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`, published: true,
+            location: "パリ", coords: { lat: 48.85, lng: 2.35 }, geoApprox: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", { ...body, published: true, location: "パリ", coords: { lat: 35.68, lng: 139.76 } }));
+
+        const w = savedRewrite() as Record<string, unknown>;
+        expect(w.coords, "今回送った座標を、保存済みの値で上書きしている").toEqual({ lat: 35.68, lng: 139.76 });
+        expect("geoApprox" in w, "正確な座標に「おおよそ」の印を付けている").toBe(false);
+    });
+
+    // **「知らない項目は全部引き継ぐ」にしてはいけない。** 下書きに戻す再送で
+    // 公開一覧の索引キーまで残ると、**非公開にしたのに一覧に出続ける**
+    it("下書きに戻す再送で、公開一覧の索引キーを引き継がない", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`,
+            published: true, publicFeed: "public", albumId: "a1",
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", { ...body, published: false }));
+
+        const w = savedRewrite() as Record<string, unknown>;
+        expect(w.published).toBe(false);
+        expect("publicFeed" in w, "非公開なのに一覧の索引に残している").toBe(false);
+        expect("albumId" in w, "非公開なのにアルバムの行き先を残している").toBe(false);
+    });
+
+    // 逆向き。無い項目を勝手に足さない（`likes: 0` を書くと、いいねの
+    // 加算が使う `if_not_exists(likes, :z)` の意味が変わる場所に触れる）
+    it("いいねもコメントも無い写真には、その項目を足さない", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`,
+            published: true, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        await invoke(event("u1", { ...body, published: true }));
+
+        const written = savedRewrite() as Record<string, unknown>;
+        expect("likes" in written, "無いいいね数を作っている").toBe(false);
+        expect("commentCount" in written, "無いコメント数を作っている").toBe(false);
+        expect("staticStale" in written, "無い印を作っている").toBe(false);
+    });
+
 });
 
 // **許可リストだけでは塞げていなかった。**

@@ -1,6 +1,9 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+// **上限は定数から導く**（文言の中の数字を手書きすると、上限を動かすたびに
+// テストを実装に合わせて直すことになる。実際 100 → 1000 でここが落ちた）
+import { PHOTO_LIMIT_PER_USER } from "../../../../lib/utils/uploadLimits";
 import userEvent from "@testing-library/user-event";
 
 // **入力候補（前に使った撮影地・カテゴリ）を見るテストが1本も無かった。**
@@ -22,7 +25,13 @@ vi.mock("../../../auth/context", () => ({ useAuth: () => authState.current }));
 vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
 vi.mock("../../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
 vi.mock("../../../components/AddToHomeScreenHint", () => ({ default: () => null }));
-vi.mock("../../../../lib/auth/cognito", () => ({ getCurrentSession: vi.fn(async () => null) }));
+// **`lookupSession` も模す。** `userFetch` はこちらでトークンを引く
+// （`getCurrentSession` だけ差し替えても入口を支配できない）。
+// 同じ答えを包んだ形にして、このファイルが守っている性質は変えない
+vi.mock("../../../../lib/auth/cognito", () => {
+    const getCurrentSession = vi.fn(async () => null);
+    return { getCurrentSession, lookupSession: async () => ({ session: await getCurrentSession(), unreachable: false }) };
+});
 vi.mock("../../../../lib/utils/shareStore", () => ({
     // 受け皿は開けたが中身が無い（＝共有経由ではない通常の表示）
     readSharedResult: vi.fn(async () => ({ ok: true, payload: null })),
@@ -92,7 +101,9 @@ describe("アップロード画面の入力候補", () => {
         await pickOne();
         await waitFor(() => expect(optionValues("own-locations").length).toBeGreaterThan(0));
         expect(optionValues("own-locations")).toEqual(["パリ", "京都"]);
-        expect(screen.getByText("あと95枚アップロードできます（100枚まで）"),
+        // PHOTOS の3件 + 読めない2行 = サーバーは5件と数える
+        const used = PHOTOS.length + 2;
+        expect(screen.getByText(`あと${PHOTO_LIMIT_PER_USER - used}枚アップロードできます（${PHOTO_LIMIT_PER_USER}枚まで）`),
             "落とした行を枠から引いている（サーバーは数える）").toBeInTheDocument();
     });
 });

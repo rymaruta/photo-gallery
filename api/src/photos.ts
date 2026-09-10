@@ -50,7 +50,14 @@ const JSON_HEADERS = {
 // 付くのは非公開の写真だけだが、**再公開の順序次第で公開中の行に残る**
 // ——非公開化が届かず印が立ち、そのあとの再公開が畳まれると
 // `published: true` のまま印が残り、この口から読める。
-export const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale"] as const;
+// **`publicFeed` も落とす。** 公開一覧用 GSI に載せるための**内部の印**で、
+// 段階4のあとは「一覧に載っているかどうか」そのものになる。外に出す理由が
+// 無い（`staticStale` を同じ理由で落としているのと対）。
+// **内部の印は公開データに出さない。** `keptFrom` は「このストーリーから
+// 残した」という出どころで、載せると**まだ生きているストーリーのID**まで
+// 公開JSONと公開APIに出る。`staticStale` / `publicFeed` を落としているのと
+// 同じ線（振る舞いは変わらないが、内部の印を外に出さない）
+export const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom"] as const;
 
 export function stripPrivate<T extends Record<string, unknown>>(photo: T): T {
     const out = { ...photo };

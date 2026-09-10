@@ -10,6 +10,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockDdbSend = vi.hoisted(() => vi.fn());
 vi.mock("../dynamodb", () => ({ ddb: { send: mockDdbSend }, PHOTOS_TABLE: "photos-test" }));
 
+// ブロックの判定は境界としてモックする（実際の判定は `block.test.ts`）
+const mockIsBlocked = vi.hoisted(() => vi.fn(async () => false));
+vi.mock("../blockCheck", () => ({
+    isBlocked: (...a: unknown[]) => mockIsBlocked(...(a as [])),
+    blockMarkerId: (a: string, b: string) => `block#${a}#${b}`,
+}));
+
 vi.stubEnv("USERS_TABLE", "users-test");
 const { pushNotification, lookupDisplayName, NOTIFS_MAX, notifsId,
     deletedUserIds, resetDeletedUsersCache } = await import("../notify");
@@ -37,7 +44,10 @@ const list = (n: number) => Array.from({ length: n }, (_, i) => notif(`2026-08-2
 // フックの戻り値が関数だと後片付けとして扱うので、各テストのあとに
 // そのモックが**引数なしで呼ばれる**。実装が `mockResolvedValue` の
 // うちは無害だが、引数を見るモックに変えた瞬間に落ちる。
-beforeEach(() => { mockDdbSend.mockReset().mockResolvedValue({}); });
+beforeEach(() => {
+    mockDdbSend.mockReset().mockResolvedValue({});
+    mockIsBlocked.mockReset().mockResolvedValue(false);
+});
 
 describe("pushNotification: 追記", () => {
     it("上限を超えていなければ追記の1回だけ", async () => {
@@ -226,5 +236,46 @@ describe("deletedUserIds（退会した人の集合）", () => {
         // 失敗はキャッシュしない——次の呼び出しでやり直す
         mockDdbSend.mockReset().mockResolvedValue({ Items: [{ userId: "gone1" }] });
         expect([...(await deletedUserIds())]).toEqual(["gone1"]);
+    });
+});
+
+
+// **塞ぐのはここ1か所。** 通知を作るのは like / comment / follow /
+// storyreply の4経路で、どれも `byId`（起こした本人）を入れている。
+// 口ごとに配線すると、次に経路が増えたときに必ず1つ漏れる——実際、
+// ブロックを入れた回はストーリーの返信しか塞いでおらず、**より強い口
+// （公開・500字のコメント）が開いたままだった**。
+describe("pushNotification: ブロックした相手からは積まない", () => {
+    it("ブロックしていたら積まない", async () => {
+        mockIsBlocked.mockResolvedValue(true);
+        await pushNotification("owner", { ...notif(), byId: "them" });
+        expect(mockDdbSend, "ブロックした相手の通知が積まれている").not.toHaveBeenCalled();
+    });
+
+    it("ブロックしていなければ今までどおり積む", async () => {
+        await pushNotification("owner", { ...notif(), byId: "them" });
+        expect(updates().length).toBeGreaterThan(0);
+    });
+
+    // 判定は「通知の持ち主 → 起こした本人」の向き。逆に引くと、
+    // **自分がブロックした相手からの通知だけが届く**という逆の壊れ方になる
+    it("向きは「受け取る人 → 起こした人」", async () => {
+        await pushNotification("owner", { ...notif(), byId: "them" });
+        expect(mockIsBlocked).toHaveBeenCalledWith("owner", "them");
+    });
+
+    // **確かめられないなら届けない。** 元から「失敗しても本体は成功」の作りで、
+    // 呼び出し側はどこも戻り値を見ていない
+    it("判定に失敗したら積まない", async () => {
+        mockIsBlocked.mockRejectedValue(new Error("boom"));
+        await pushNotification("owner", { ...notif(), byId: "them" });
+        expect(mockDdbSend).not.toHaveBeenCalled();
+    });
+
+    // `byId` を持たない古い形の通知（あれば）は素通しする
+    it("byId が無ければ判定に行かない", async () => {
+        await pushNotification("owner", notif());
+        expect(mockIsBlocked).not.toHaveBeenCalled();
+        expect(updates().length).toBeGreaterThan(0);
     });
 });

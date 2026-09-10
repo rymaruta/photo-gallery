@@ -16,6 +16,8 @@ import userEvent from "@testing-library/user-event";
 const mockUserFetch = vi.hoisted(() => vi.fn());
 const mockSignIn = vi.hoisted(() => vi.fn());
 const mockGetCurrentSession = vi.hoisted(() => vi.fn());
+/** 「確かめられなかった」に切り替える札（既定は確かめられた） */
+const unreachable = vi.hoisted(() => ({ value: false }));
 const mockCognitoDelete = vi.hoisted(() => vi.fn());
 const mockSignOut = vi.hoisted(() => vi.fn());
 const mockPush = vi.hoisted(() => vi.fn());
@@ -25,7 +27,11 @@ vi.mock("next/navigation", () => ({
     useRouter: () => stableRouter,
     usePathname: () => "/user/profile",
 }));
-vi.mock("../../../lib/utils/api", () => ({ userFetch: mockUserFetch }));
+vi.mock("../../../lib/utils/api", async () => {
+    const actual = await vi.importActual<typeof import("../../../lib/utils/api")>("../../../lib/utils/api");
+    // 文言は**本物**を使う（写すと、片方だけ変えたときに気づけない）
+    return { userFetch: mockUserFetch, NETWORK_UNREACHABLE_MESSAGE: actual.NETWORK_UNREACHABLE_MESSAGE };
+});
 // テスト環境は NEXT_PUBLIC_* が無く cognitoConfig が空になり、checkAuth が
 // 「設定なし」経路で止まって成功経路を測れない。設定ありとして通す
 vi.mock("../../../lib/auth/config", () => ({ cognitoConfig: { userPoolId: "pool-test", clientId: "client-test" } }));
@@ -33,6 +39,10 @@ vi.mock("../../../lib/auth/cognito", () => ({
     signIn: mockSignIn,
     signOut: mockSignOut,
     getCurrentSession: mockGetCurrentSession,
+    // `AuthProvider` は「確かめられなかった」を見分けるため `lookupSession` を使う。
+    // ここで模すのは**同じ答えを包んだ形**——この2ファイルが守っているのは
+    // 別タブのログアウトと退会で、通信断ではない（そちらは offlineSession.test.tsx）
+    lookupSession: async () => ({ session: await mockGetCurrentSession(), unreachable: unreachable.value }),
     deleteAccount: mockCognitoDelete,
 }));
 vi.mock("../../../lib/hooks/useFollow", () => ({ resetFollowingCache: vi.fn() }));
@@ -86,6 +96,7 @@ const result = async () => {
 };
 
 beforeEach(() => {
+    unreachable.value = false;
     mockUserFetch.mockReset().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
     mockGetCurrentSession.mockReset().mockResolvedValue(validSession);
     mockCognitoDelete.mockReset().mockResolvedValue({ success: true });
@@ -266,5 +277,36 @@ describe("checkAuth がお気に入りのキーを向け直す", () => {
         mockGetCurrentSession.mockRejectedValue(new Error("cognito down"));
         render(<AuthProvider><Harness /></AuthProvider>);
         await waitFor(() => expect(setFavoritesUser).toHaveBeenCalledWith(null));
+    });
+});
+
+// **止めること自体は正しいが、理由が嘘だった。**
+// 圏外・キャプティブポータルで退会を押すと「ログインの有効期限が切れて
+// います。一度ログインし直して…」と出ていた。実際には失効しておらず、
+// 言われたとおりログインし直そうにもその通信も通らない。
+// `userFetch` からは `ed2649a0` で取り除いた同じ嘘が、ここだけ残っていた。
+describe("退会: 確かめられなかったとき", () => {
+    it("「ログインし直して」ではなく、通信できないと伝える", async () => {
+        const { NETWORK_UNREACHABLE_MESSAGE } = await import("../../../lib/utils/api");
+        unreachable.value = true;
+        mockGetCurrentSession.mockResolvedValue(null);
+
+        await clickDelete();
+        const r = await result();
+        expect(r.success).toBe(false);
+        expect(r.error).toBe(NETWORK_UNREACHABLE_MESSAGE);
+        // **不可逆な削除には進まない**（止め方は変えていない）
+        expect(mockUserFetch, "確かめられていないのに消しにいっている").not.toHaveBeenCalled();
+        expect(mockCognitoDelete).not.toHaveBeenCalled();
+    });
+
+    it("本当に失効しているときは、今までどおりログインし直すよう伝える", async () => {
+        unreachable.value = false;
+        mockGetCurrentSession.mockResolvedValue(expiredSession);
+
+        await clickDelete();
+        const r = await result();
+        expect(r.error).toContain("ログインの有効期限が切れています");
+        expect(mockUserFetch).not.toHaveBeenCalled();
     });
 });

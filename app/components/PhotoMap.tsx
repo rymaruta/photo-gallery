@@ -6,6 +6,7 @@ import type { Map as LeafletMap, LayerGroup } from "leaflet";
 import type { Photo } from "../../lib/data/photos";
 import { ROUTES } from "../../lib/routes";
 import { clusterPoints, boundsOf, type GeoPoint } from "../../lib/utils/mapClusters";
+import { MAP_MIN_ZOOM, MAP_MAX_ZOOM, chooseInitialView, readSavedView, saveView } from "../../lib/utils/mapView";
 
 /** 位置情報を持つ写真だけ（`coords` が有限の数であること） */
 export type MapPhoto = Photo & { coords: { lat: number; lng: number } };
@@ -21,8 +22,6 @@ const PIN_PX = 9;
 /** ポップアップのサムネの幅（px） */
 const THUMB_W = 160;
 const CELL_PX = 56;
-/** タイルの最大ズーム（OSM の標準タイルは 19 まであるが 18 で十分） */
-const MAX_ZOOM = 18;
 
 /**
  * 撮影地の地図。**Leaflet は effect の中で読む**——`window` に依存するので、
@@ -63,15 +62,18 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
             // ズームは**左下**。左上だと、少しスクロールした帯で固定ヘッダーの
             // 下に入り、半透明のヘッダー越しに「＋」が見えているのに押せない
             // （押すとヘッダーのロゴが反応してトップへ飛ぶ）——実測で確認
+            // `minZoom`: 引ききると世界1周が地図の高さより短くなり、上下に
+            // 下地の黒が出る（実測 390x844: ズーム0 で上 211px・1 で 39px）。
+            // 2 なら 1024px で、スマホの 70vh（≒590px）にも収まる
             const map = L.map(el, {
-                zoomControl: false, attributionControl: true, worldCopyJump: true,
+                zoomControl: false, attributionControl: true, worldCopyJump: true, minZoom: MAP_MIN_ZOOM,
                 zoomAnimation: !reduceMotion, fadeAnimation: !reduceMotion,
                 markerZoomAnimation: !reduceMotion, inertia: !reduceMotion,
             });
             L.control.zoom({ position: "bottomleft" }).addTo(map);
             mapRef.current = map;
             L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-                maxZoom: MAX_ZOOM,
+                maxZoom: MAP_MAX_ZOOM,
                 // OpenStreetMap の利用規約: 帯を出す
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             }).addTo(map);
@@ -82,10 +84,14 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
              *  **HTML 文字列を組まない。** タイトルは利用者の入力なので、
              *  文字列で innerHTML に入れると注入できる。DOM を作って渡す */
             const cardFor = (photo: MapPhoto, onImageLoad?: () => void): HTMLElement => {
+                // **サムネもリンクの中に入れる。** 写真が主役のサイトで、一番大きい
+                // 当たり（160px の画像）を押しても何も起きないのは導線の穴だった。
+                // 題名はリンクの読み上げ名になるので、画像の alt は空のまま
                 const a = document.createElement("a");
                 a.href = ROUTES.PHOTO(photo.id);
-                a.textContent = titleOf(photo, locale);
                 a.className = "block text-sm font-semibold";
+                const title = document.createElement("span");
+                title.textContent = titleOf(photo, locale);
                 const box = document.createElement("div");
                 // **クラスを付ける。** Tailwind の preflight（`img { max-width: 100% }`）が
                 // あると、Leaflet が幅を決めるときサムネの幅寄与が 0 になり、
@@ -111,8 +117,9 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                     // 伸びたぶんは枠の外へ出たままになる（実測: 見積もり 107px に対し
                     // 3:4 の写真は 128px で描かれ、3枚で 63px 超過しうる）
                     if (onImageLoad) img.addEventListener("load", onImageLoad, { once: true });
-                    box.appendChild(img);
+                    a.appendChild(img);
                 }
+                a.appendChild(title);
                 box.appendChild(a);
                 if (photo.location) {
                     const loc = document.createElement("div");
@@ -176,7 +183,7 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                         // 同じ升（約1km に丸めた同じ座標）の写真は**どこまで寄っても
                         // 割れない**ので、寄れないときは一覧のポップアップを出す
                         const inner = boundsOf(c.items);
-                        const splittable = !!inner && (inner.north !== inner.south || inner.east !== inner.west) && map.getZoom() < MAX_ZOOM;
+                        const splittable = !!inner && (inner.north !== inner.south || inner.east !== inner.west) && map.getZoom() < MAP_MAX_ZOOM;
                         if (splittable) {
                             // **`animate: true` は渡さない。** Leaflet の
                             // `options.animate !== true && !this.getSize().contains(offset)`
@@ -185,7 +192,7 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                             // 設定を入れていない人にまで「画面端の束を押すと約1秒
                             // かけて滑る」が起きる（実測）。止めたいときだけ false
                             marker.on("click", () => {
-                                map.fitBounds([[inner.south, inner.west], [inner.north, inner.east]], { padding: [48, 48], maxZoom: MAX_ZOOM, animate: reduceMotion ? false : undefined });
+                                map.fitBounds([[inner.south, inner.west], [inner.north, inner.east]], { padding: [48, 48], maxZoom: MAP_MAX_ZOOM, animate: reduceMotion ? false : undefined });
                             });
                         } else {
                             // **横に並べて指で送る。** 縦に積むと枚数ぶん背が伸びて
@@ -217,14 +224,30 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                 }
             };
 
+            // **最初に見せる場所。** 写真ページから飛んできた（URL のハッシュ）か、
+            // このタブで前に見ていた場所（控え）があればそこ。無ければ全部の
+            // ピンが収まる範囲。決め方は `chooseInitialView` を参照——
+            // 「写真を開いて戻るたびに全体へ戻される」を止めるのが目的
+            const initial = chooseInitialView(window.location.hash, readSavedView());
             const b = boundsOf(photosRef.current.map((p) => ({ id: p.id, lat: p.coords.lat, lng: p.coords.lng })));
-            if (b) {
+            if (initial) {
+                map.setView([initial.lat, initial.lng], initial.zoom);
+            } else if (b) {
                 map.fitBounds([[b.south, b.west], [b.north, b.east]], { padding: [32, 32], maxZoom: 12 });
             } else {
                 map.setView([36, 138], 4);   // 写真が無ければ日本全体
             }
             draw();
             map.on("zoomend", draw);
+            // 動かすたびに控える。URL は触らない（mapView.ts の冒頭を参照）。
+            // **最初の場所は控えに入らない**——上の `setView`/`fitBounds` は
+            // `moveend` を同期で出し終えている（Leaflet 1.9.4 を実行して確認:
+            // 後付けの listener には 0 回）。それで困らない: 動かしていなければ
+            // 控えの有無に関わらずハッシュ／全体表示に戻るので着地は同じ
+            map.on("moveend", () => {
+                const c = map.getCenter();
+                saveView({ lat: c.lat, lng: c.lng, zoom: map.getZoom() }, window.location.hash);
+            });
         })();
 
         return () => {

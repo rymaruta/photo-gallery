@@ -51,11 +51,25 @@ function makeCache(): FakeCache {
             }
             return undefined;
         },
-        async put(req, res) { store.set(keyOf(req), res); },
+        // **本物は中身を読み切る。** 使用済み（disturbed）の Response は
+        // TypeError で断り、読んだバイト列を持つ**別の Response** を返す。
+        // ここを「そのまま Map に入れるだけ」にしていたので、
+        //   - `res.clone()` を落とす変異（実機では put が `<img>` に返す本体を
+        //     食って**写真が表示されなくなる**）
+        //   - 容量エラーのあと同じ Response で put し直す誤り
+        // のどちらもテストから無害に見えていた。
+        async put(req, res) {
+            if (res.bodyUsed) throw new TypeError("Response body is already used");
+            const buf = res.body ? await res.arrayBuffer() : null;
+            const stored = new Response(buf, { status: res.status, statusText: res.statusText, headers: res.headers });
+            // opaque は Response では作れないので型だけ持ち回す
+            Object.defineProperty(stored, "type", { value: res.type });
+            store.set(keyOf(req), stored);
+        },
         async add(url) {
-            // 本物は fetch する。ここでは呼び出し側が用意した応答を使う
+            // 本物は fetch して put する。ここでは呼び出し側が用意した応答を使う
             const res = await fetchForAdd(keyOf(url));
-            store.set(keyOf(url), res);
+            await this.put(url, res);
         },
         // **本物は Request を返す**（文字列ではない）。ここを文字列にして
         // いたので、追い出しの実装が `k.url` を読むようになっても
@@ -83,8 +97,15 @@ function loadSw() {
         },
         keys: async () => [...caches_.keys()],
         delete: async (name: string) => caches_.delete(name),
-        match: async (req: Request | string, opts?: { ignoreSearch?: boolean }) => {
-            for (const c of caches_.values()) {
+        // **`cacheName` を無視してはいけない。** 本物は指定された入れ物しか
+        // 見ない。ここを全キャッシュ横断にしていたので、「写真を読む先を
+        // ページの入れ物に変える」変異（実機では常にミス＝機内モードで写真が
+        // 1枚も出ない）が31件緑のまま生き残っていた。
+        match: async (req: Request | string, opts?: { ignoreSearch?: boolean; cacheName?: string }) => {
+            const targets = opts?.cacheName
+                ? (caches_.has(opts.cacheName) ? [caches_.get(opts.cacheName)!] : [])
+                : [...caches_.values()];
+            for (const c of targets) {
                 const hit = await c.match(req, opts);
                 if (hit) return hit;
             }
@@ -416,5 +437,244 @@ describe("受け皿の取り逃し", () => {
         await new Promise((r) => setTimeout(r, 10));
 
         expect(await cache.match("https://journey-photo.com/offline.html")).toBeTruthy();
+    });
+});
+
+// **写真の控え（機内モードで写真が出る）。**
+// それまでは「一度見たページが開く」までで、画像は1枚もキャッシュして
+// いなかったので、機内モードでは枠だけが出ていた。
+//
+// 入れ物はページ・資産と**分ける**。同じにすると、写真を数十枚見ただけで
+// 受け皿（offline.html）と `_next/static` を押し出し、「一度見たページが
+// 開く」という元の目的が崩れる（この形の事故は既に一度踏んでいる）。
+
+/** `<img>` からの要求（no-cors → 応答は opaque） */
+function imgRequest(url: string) {
+    const req = new Request(url, { method: "GET" });
+    Object.defineProperty(req, "destination", { value: "image" });
+    return req;
+}
+/** ブラウザが返す opaque 応答に寄せる */
+const opaque = () => {
+    const res = new Response(null, { status: 200 });
+    Object.defineProperty(res, "type", { value: "opaque" });
+    return res;
+};
+const CDN = "https://d1s3dwwzgxf5ni.cloudfront.net";
+
+describe("写真の控え", () => {
+    it("画像CDN（別オリジン）の写真も控える", async () => {
+        fetchMock.mockResolvedValue(opaque());
+        const e = makeEvent(imgRequest(`${CDN}/uploads/u1/a.jpg`));
+        handlers.fetch(e);
+        await e.response;
+        await new Promise((r) => setTimeout(r, 0));
+
+        const img = caches_.get("journey-photo-img-v1");
+        expect(img, "写真用の入れ物が無い").toBeTruthy();
+        expect([...img!.store.keys()]).toEqual([`${CDN}/uploads/u1/a.jpg`]);
+        // **ページ・資産の入れ物には入れない**（押し出し事故を作らない）
+        expect([...(caches_.get("journey-photo-v1")?.store.keys() ?? [])])
+            .not.toContain(`${CDN}/uploads/u1/a.jpg`);
+    });
+
+    it("2回目はネットワークに行かない（機内モードで出る）", async () => {
+        fetchMock.mockResolvedValue(opaque());
+        const first = makeEvent(imgRequest(`${CDN}/uploads/u1/a.jpg`));
+        handlers.fetch(first);
+        await first.response;
+        await new Promise((r) => setTimeout(r, 0));
+
+        fetchMock.mockRejectedValue(new TypeError("offline"));
+        const second = makeEvent(imgRequest(`${CDN}/uploads/u1/a.jpg`));
+        handlers.fetch(second);
+        await expect(second.response).resolves.toBeTruthy();
+    });
+
+    // **アバター・カバーは控えない。** `profiles/<uid>` は uuid ではなく
+    // **固定キーで中身だけ差し替わる**ので、控えるとアイコンを変えても
+    // 差し替えが届かない（サーバーもアップロード側も `no-store` を付けて
+    // いる＝アプリが明示している防御を SW が上書きすることになる）。
+    it("プロフィールの画像は控えない（差し替えが届かなくなるため）", async () => {
+        fetchMock.mockResolvedValue(opaque());
+        const e = makeEvent(imgRequest(`${CDN}/profiles/u1`));
+        handlers.fetch(e);
+        expect(e.response, "アイコンに手を出している").toBeUndefined();
+    });
+
+    // **読む先を間違えると、実機では機能が丸ごと死ぬ**（常にミス＝機内モードで
+    // 写真が出ない）のに、偽の caches が全キャッシュを横断していたので
+    // 見えなかった。ページの入れ物にだけ在る写真は、無いものとして扱う。
+    it("ページの入れ物に同じURLが在っても、そこからは出さない", async () => {
+        const page = makeCache();
+        await page.put(`${CDN}/uploads/u1/a.jpg`, new Response("ページ側の写し", { status: 200 }));
+        caches_.set("journey-photo-v1", page);
+
+        fetchMock.mockRejectedValue(new TypeError("offline"));
+        const e = makeEvent(imgRequest(`${CDN}/uploads/u1/a.jpg`));
+        handlers.fetch(e);
+        await expect(e.response).rejects.toThrow();
+    });
+
+    // **控えるために本体を食ってはいけない。** 本物の `Cache.put` は中身を
+    // 読み切るので、`res.clone()` を落とすと画面に返る応答が空になる
+    // （＝写真が表示されない）
+    it("控えても、画面に返す応答はそのまま読める", async () => {
+        fetchMock.mockResolvedValue(new Response("photo-bytes", { status: 200 }));
+        const e = makeEvent(imgRequest(`${CDN}/uploads/u1/a.jpg`));
+        handlers.fetch(e);
+        const res = await e.response!;
+        expect(await res.text()).toBe("photo-bytes");
+    });
+
+    // **容量で断られたときの経路。** ここは設計判断として一番丁寧に書いた
+    // ところなのに、1行もテストが無かった。3つの誤りを同時に見る:
+    //   - やり直さない
+    //   - 半分に減らさない（減らさなければ次も断られる）
+    //   - 1回目で使い切った Response をそのまま put し直す（必ず TypeError）
+    it("容量で断られたら、半分捨ててやり直す", async () => {
+        const img = makeCache();
+        for (let i = 0; i < 80; i++) img.store.set(`${CDN}/uploads/u1/old${i}.jpg`, new Response("old"));
+        const realPut = img.put.bind(img);
+        img.put = async (req, res) => {
+            // 本物と同じ順序: 使用済みなら読む前に断る → 中身を読み切る → 容量を見る
+            if (res.bodyUsed) throw new TypeError("Response body is already used");
+            if (res.body) await res.arrayBuffer();
+            if (img.store.size > 40) throw new Error("QuotaExceededError");
+            img.store.set(keyOf(req), new Response("stored"));
+        };
+        void realPut;
+        caches_.set("journey-photo-img-v1", img);
+
+        // opaque（body なし）ではなく**読める応答**で見る。staging は
+        // 同一オリジン配信なのでこちらの形になり、使い回しの誤りが必ず出る
+        fetchMock.mockResolvedValue(new Response("photo-bytes", { status: 200 }));
+        const e = makeEvent(imgRequest(`${CDN}/uploads/u1/new.jpg`));
+        handlers.fetch(e);
+        await e.response;
+        await new Promise((r) => setTimeout(r, 0));
+
+        expect([...img.store.keys()], "やり直しで入っていない").toContain(`${CDN}/uploads/u1/new.jpg`);
+    });
+
+    it("リダイレクトの応答は控えない（追った先が分からない）", async () => {
+        const redirected = new Response(null, { status: 200 });
+        Object.defineProperty(redirected, "type", { value: "opaqueredirect" });
+        fetchMock.mockResolvedValue(redirected);
+        const e = makeEvent(imgRequest(`${CDN}/uploads/u1/a.jpg`));
+        handlers.fetch(e);
+        await e.response;
+        await new Promise((r) => setTimeout(r, 0));
+        expect([...(caches_.get("journey-photo-img-v1")?.store.keys() ?? [])]).toEqual([]);
+    });
+
+    it("http:// の画像には手を出さない", async () => {
+        fetchMock.mockResolvedValue(opaque());
+        const e = makeEvent(imgRequest("http://example.com/uploads/u1/a.jpg"));
+        handlers.fetch(e);
+        expect(e.response).toBeUndefined();
+    });
+
+    // **手を出す先を最小にする。** 曲のアートワークや計測の画像には触らない
+    it.each([
+        [`https://is1-ssl.mzstatic.com/image/a.jpg`, "曲のアートワーク"],
+        [`${CDN}/other/a.jpg`, "うちが組み立てないパス"],
+    ])("%s（%s）は素通し", async (url) => {
+        fetchMock.mockResolvedValue(opaque());
+        const e = makeEvent(imgRequest(url));
+        handlers.fetch(e);
+        expect(e.response, "手を出している").toBeUndefined();
+    });
+
+    it("画像以外の要求（fetch など）は素通し", async () => {
+        const req = new Request(`${CDN}/uploads/u1/a.jpg`, { method: "GET" });
+        Object.defineProperty(req, "destination", { value: "" });
+        const e = makeEvent(req);
+        handlers.fetch(e);
+        expect(e.response).toBeUndefined();
+    });
+
+    it("上限を超えたら古い順に捨てる", async () => {
+        fetchMock.mockResolvedValue(opaque());
+        for (let i = 0; i < 82; i++) {
+            const e = makeEvent(imgRequest(`${CDN}/uploads/u1/${i}.jpg`));
+            handlers.fetch(e);
+            await e.response;
+            await new Promise((r) => setTimeout(r, 0));
+        }
+        const keys = [...(caches_.get("journey-photo-img-v1")?.store.keys() ?? [])];
+        expect(keys.length).toBe(80);
+        expect(keys[0], "古い方から捨てていない").toBe(`${CDN}/uploads/u1/2.jpg`);
+    });
+
+    // **起動のたびに消さない。** ここを漏らすと元の「全消し」に逆戻りで、
+    // オフラインで写真が出ない
+    it("activate で写真の控えは消さない", async () => {
+        await installed();   // ページ・資産の入れ物も作っておく
+        fetchMock.mockResolvedValue(opaque());
+        const e = makeEvent(imgRequest(`${CDN}/uploads/u1/a.jpg`));
+        handlers.fetch(e);
+        await e.response;
+        await new Promise((r) => setTimeout(r, 0));
+        caches_.set("journey-photo-old", makeCache());
+
+        const act = makeEvent();
+        handlers.activate(act);
+        await act.settle();
+
+        expect([...caches_.keys()].sort()).toEqual(["journey-photo-img-v1", "journey-photo-v1"]);
+    });
+
+    // **ページ側の版を上げても写真は消さない。** 混ぜていた頃は、刻印の形式を
+    // 変えるといった無関係な理由で全端末の写真の控えが消えた
+    it("写真の入れ物の名前は、ページ側のバージョンを含まない", () => {
+        const src = readFileSync(resolve(process.cwd(), "public/sw.js"), "utf8");
+        expect(src).toMatch(/const IMG_CACHE_NAME = `journey-photo-img-\$\{IMG_CACHE_VERSION\}`/);
+    });
+
+    // 中身を確かめられる応答（同一オリジン・将来 CORS が付いた場合）は
+    // 状態を見る。404 を控えない
+    it("読める応答なら、失敗は控えない", async () => {
+        fetchMock.mockResolvedValue(new Response("not found", { status: 404 }));
+        const e = makeEvent(imgRequest(`${CDN}/uploads/u1/gone.jpg`));
+        handlers.fetch(e);
+        await e.response;
+        await new Promise((r) => setTimeout(r, 0));
+        expect([...(caches_.get("journey-photo-img-v1")?.store.keys() ?? [])]).toEqual([]);
+    });
+
+    // **Cache Storage が投げる端末（プライベートモード等）でも素通しに倒す。**
+    // 投げたまま respondWith に渡すと、ネットワークが生きていても写真が
+    // 1枚も出ない（fetch にすら行かない）
+    it("控えを読めない端末でも、ネットワークが生きていれば出る", async () => {
+        const broken = makeCache();
+        broken.match = async () => { throw new Error("Cache Storage が使えない"); };
+        caches_.set("journey-photo-img-v1", broken);
+
+        fetchMock.mockResolvedValue(new Response("photo-bytes", { status: 200 }));
+        const e = makeEvent(imgRequest(`${CDN}/uploads/u1/a.jpg`));
+        handlers.fetch(e);
+        const res = await e.response!;
+        expect(await res.text()).toBe("photo-bytes");
+    });
+
+    // 同じ形が `_next/static` 側にもある。あちらが投げると**サイトごと止まる**
+    it("控えを読めない端末でも、_next/static は出る", async () => {
+        const broken = makeCache();
+        broken.match = async () => { throw new Error("Cache Storage が使えない"); };
+        caches_.set("journey-photo-v1", broken);
+
+        fetchMock.mockResolvedValue(new Response("chunk", { status: 200 }));
+        const e = makeEvent(new Request("https://journey-photo.com/_next/static/chunks/a.js"));
+        handlers.fetch(e);
+        const res = await e.response!;
+        expect(await res.text()).toBe("chunk");
+    });
+
+    it("オフラインで控えも無ければ、今までどおり失敗する", async () => {
+        fetchMock.mockRejectedValue(new TypeError("offline"));
+        const e = makeEvent(imgRequest(`${CDN}/uploads/u1/a.jpg`));
+        handlers.fetch(e);
+        await expect(e.response).rejects.toThrow();
     });
 });

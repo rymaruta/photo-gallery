@@ -24,6 +24,11 @@ vi.mock("../../../lib/utils/api", async () => {
         readApiError: actual.readApiError,
         // 本物を使う（サーバー由来の 404 だけを「もう無い」と読む判定そのもの）
         isGoneResponse: actual.isGoneResponse,
+        // `useComments` がセッション切れを見分けるのに読む。**列挙式のモックは
+        // 足りない export を「アクセスした瞬間に落ちる」形で教えてくれる**
+        // ——ここが抜けていて、2通目のコメントでだけ落ちていた
+        AUTH_REQUIRED_MESSAGE: actual.AUTH_REQUIRED_MESSAGE,
+        NETWORK_UNREACHABLE_MESSAGE: actual.NETWORK_UNREACHABLE_MESSAGE,
     };
 });
 
@@ -38,6 +43,7 @@ vi.mock("../../../lib/hooks/useToast", () => ({
 vi.mock("../UserAvatar", () => ({ default: () => <div /> }));
 
 import CommentSection from "../CommentSection";
+import { AUTH_REQUIRED_MESSAGE } from "../../../lib/utils/api";
 
 beforeEach(() => {
     mockUserFetch.mockReset();
@@ -304,5 +310,25 @@ describe("CommentSection: 応答の形がおかしいとき", () => {
         mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ items: [], count: 0 }) });
         render(<CommentSection photoId="p1" locale="ja" />);
         expect(await screen.findByText(/まだコメントがありません/)).toBeInTheDocument();
+    });
+});
+
+// **セッションが切れて送れなかったときの案内。**
+// 押す前に未ログインと分かった場合の案内（`auth-required`）が既にあるのに、
+// 送ってから分かった場合はそこを通らず、日本語固定の定数が赤いトーストで
+// 出ていた。同じことなので同じ口へ。
+describe("CommentSection: セッションが切れていたとき", () => {
+    it("赤い失敗ではなく、ログインの案内を出す", async () => {
+        mockUserFetch.mockRejectedValue(new Error(AUTH_REQUIRED_MESSAGE));
+        await typeAndSend("いいね");
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
+        expect(mockShowToast).toHaveBeenLastCalledWith("コメントするにはログインしてください", "info");
+    });
+
+    it("打った文字は消さない（送り直せる）", async () => {
+        mockUserFetch.mockRejectedValue(new Error(AUTH_REQUIRED_MESSAGE));
+        await typeAndSend("いいね");
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
+        expect((screen.getByPlaceholderText("コメントを追加…") as HTMLTextAreaElement).value).toBe("いいね");
     });
 });

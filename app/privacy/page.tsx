@@ -38,7 +38,7 @@ export default function PrivacyPage() {
     return (
         <main className="mx-auto max-w-3xl px-4 py-10">
             <h1 className="text-2xl font-bold tracking-tight">プライバシーポリシー</h1>
-            <p className="mt-1.5 text-xs text-white/40">最終更新日: {LAST_UPDATED}</p>
+            <p className="mt-1.5 text-xs text-white/50">最終更新日: {LAST_UPDATED}</p>
 
             <div className="mt-8">
                 <Section title="1. はじめに">

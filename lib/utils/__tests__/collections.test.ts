@@ -5,6 +5,7 @@ import {
     photosInCollection,
     isIndexableCollection,
     labelForSlug,
+    categoryDisplayName,
     collectionPath,
     canonicalCollectionPath,
     collectionCopy,
@@ -209,6 +210,65 @@ describe("photosInCollection", () => {
             expect(photosInCollection(shuffled, "tag", "風景").map((p) => p.id))
                 .toEqual(["posted-first", "posted-mid", "posted-last"]);
         });
+    });
+});
+
+// カテゴリの見出しは別名表の逆引き（英語スラッグを日本語文に混ぜない）。
+// 実ビルドで `/category/street` が「streetの写真（1枚）」、`/category/landscape` は
+// 「風景の写真」——最初に一致した写真の生の値で決まっていた
+describe("カテゴリの表示名", () => {
+    const only = (category: string): Photo[] => [{ id: "s1", src: "https://cdn/s1.jpg", userId: "u", category, published: true } as Photo];
+
+    it("英語スラッグしか持たない写真でも、見出しは日本語", () => {
+        expect(labelForSlug(only("street"), "category", "street")).toBe("街");
+        expect(labelForSlug(only("landscape"), "category", "landscape")).toBe("風景");
+        // 別名が2つ寄るスラッグは表の先頭（建築／建物 → 建築）
+        expect(labelForSlug(only("建物"), "category", "architecture")).toBe("建築");
+    });
+
+    it("写真の並び順で見出しが変わらない", () => {
+        const a = { id: "a", src: "https://cdn/a.jpg", userId: "u", category: "street", published: true } as Photo;
+        const b = { id: "b", src: "https://cdn/b.jpg", userId: "u", category: "街", published: true } as Photo;
+        expect(labelForSlug([a, b], "category", "street")).toBe(labelForSlug([b, a], "category", "street"));
+    });
+
+    it("関連チップ（collectEntries）のラベルも同じ規則", () => {
+        const entries = collectEntries(only("street"), "category");
+        expect(entries.find((e) => e.slug === "street")?.label).toBe("街");
+    });
+
+    it("表に無いカテゴリは生の値のまま（ご飯・動物）", () => {
+        expect(labelForSlug(only("ご飯"), "category", "ご飯")).toBe("ご飯");
+        expect(collectEntries(only("動物"), "category")[0].label).toBe("動物");
+    });
+
+    it("タグ・撮影地には当てない（別名と同じ綴りでも生の値）", () => {
+        // `lake` のように表に無い語で見ると、タグにまで当てる変異が素通りする。
+        // 表にある綴り（street）のタグで見る
+        const tagged = [{ id: "t1", src: "https://cdn/t1.jpg", userId: "u", tags: ["Street"], location: "Street", published: true } as Photo];
+        expect(labelForSlug(tagged, "tag", "street")).toBe("Street");
+        expect(labelForSlug(tagged, "location", "street")).toBe("Street");
+        expect(collectEntries(tagged, "tag")[0].label).toBe("Street");
+    });
+
+    it("写真ページの表示名（labels.category.names）と食い違わない", async () => {
+        // 同じ意味の表が2つある（別名表と i18n の表示名）。片方だけ直すと
+        // 写真ページと集約ページで同じカテゴリが別の名前になる
+        const { ja } = await import("@/app/i18n/labels");
+        const names = ja.category?.names ?? {};
+        let compared = 0;
+        for (const [slug, name] of Object.entries(names)) {
+            const mine = categoryDisplayName(slug);
+            if (mine === undefined) continue;   // 別名表に無いスラッグ（all など）は対象外
+            expect(mine, slug).toBe(name);
+            compared++;
+        }
+        expect(compared).toBeGreaterThanOrEqual(4);
+        // 逆方向: 別名表にある slug は表示名の表にも要る（別名表にだけ足すと
+        // 写真ページが英語スラッグのまま）
+        for (const slug of new Set(Object.values(CATEGORY_ALIASES))) {
+            expect(names[slug], `labels.category.names に ${slug} が無い`).toBeTruthy();
+        }
     });
 });
 

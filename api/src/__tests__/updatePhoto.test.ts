@@ -41,6 +41,33 @@ beforeEach(() => {
 // どちらのホストもクライアントのバンドルに入っているので、利用者は
 // どちらでも叩ける。しかも権限判定は「管理者 **または** 所有者」なので
 // 管理者専用ではない——普通の利用者が自分の写真に対して使える。
+// **公開一覧用 GSI の印**（対の api-user/src/photoUpdate.ts と同じ）。
+// この口は「管理者 **または** 所有者」なので、普通の利用者も通る。
+// 片方だけ印を動かすと、どちらの経路で非公開にしたかで一覧の見え方が変わる。
+describe("updatePhoto: 公開一覧の索引に載せる印", () => {
+    it("非公開にしたら印を外す（undefined = REMOVE）", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", published: true });
+        await invoke(ev("p1", { published: false }));
+        const updates = mockUpdatePhotoFields.mock.calls[0][1] as Record<string, unknown>;
+        expect("publicFeed" in updates, "印に触っていない").toBe(true);
+        expect(updates.publicFeed, "印が残ると非公開の写真が一覧に出る").toBeUndefined();
+    });
+
+    it("公開に戻したら印を付け直す", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", published: false });
+        await invoke(ev("p1", { published: true }));
+        const updates = mockUpdatePhotoFields.mock.calls[0][1] as Record<string, unknown>;
+        expect(updates.publicFeed, "印が無いと二度と一覧に出ない").toBe("1");
+    });
+
+    it("published を送っていなければ、印には触らない", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", published: true });
+        await invoke(ev("p1", { title: { ja: "あたらしい題", en: "" } }));
+        const updates = mockUpdatePhotoFields.mock.calls[0][1] as Record<string, unknown>;
+        expect("publicFeed" in updates).toBe(false);
+    });
+});
+
 describe("updatePhoto", () => {
     it("ストーリーは編集できない（404）", async () => {
         // ストーリーを published:true にできると、24時間で消えるはずのものが
@@ -55,6 +82,43 @@ describe("updatePhoto", () => {
         expect(res.statusCode).toBe(404);
         expect(mockUpdatePhotoFields).not.toHaveBeenCalled();
         expect(mockRebuild).not.toHaveBeenCalled();
+    });
+
+    // ユーザーAPI側と同じ扱い（対の乖離を作らない）。黙って落とすと
+    // `pickEditableFields` が undefined を「消す」と読み、**入れ直しただけで
+    // 保存済みの撮影日が消える**（実測: `1985-06-01` → undefined）
+    it("読めない撮影日は 400 で断る（黙って消さない）", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true });
+        for (const bad of ["1985-06-01", "2099-01-01", "きのう"]) {
+            mockUpdatePhotoFields.mockClear();
+            mockGetPhotoById.mockClear();
+            const res = await invoke(ev("p1", { date: bad }));
+            expect(res.statusCode, bad).toBe(400);
+            expect(mockUpdatePhotoFields, bad).not.toHaveBeenCalled();
+            // ユーザーAPI と位置を揃える（写真を読みに行く前に断る）
+            expect(mockGetPhotoById, bad).not.toHaveBeenCalled();
+        }
+    });
+
+    // ユーザーAPI側と同じ扱い（対の乖離を作らない）
+    it("日付でない型も断り、null は「消す」", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true, date: "2024-10-12" });
+        for (const bad of [12345, true, ["2024-01-01"]]) {
+            expect((await invoke(ev("p1", { date: bad }))).statusCode, JSON.stringify(bad)).toBe(400);
+        }
+        expect((await invoke(ev("p1", { date: null }))).statusCode, "null は消す意図").toBe(200);
+    });
+
+    it("空の撮影日は今までどおり消せる", async () => {
+        mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", src: "https://cdn/p1.jpg", published: true, date: "2024-10-12" });
+        const res = await invoke(ev("p1", { date: "" }));
+        expect(res.statusCode).toBe(200);
+        expect(mockUpdatePhotoFields).toHaveBeenCalled();
+        const updates = mockUpdatePhotoFields.mock.calls[0][1] as Record<string, unknown>;
+        // **キーがあって値が undefined**＝REMOVE。キーごと落とす実装（＝触らない）に
+        // 退行しても `.date` は undefined なので、そこまで見ないと緑のまま
+        expect("date" in updates, "キーごと落としている（日付が消えない）").toBe(true);
+        expect(updates.date).toBeUndefined();
     });
 
     it("自分の写真は編集できる", async () => {

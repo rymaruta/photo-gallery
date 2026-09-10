@@ -16,7 +16,10 @@ type LambdaResult = { statusCode: number; body: string };
 const invoke = (event: unknown): Promise<LambdaResult> => (getMyPhotos as any)(event);
 const event = (sub: string) => ({ requestContext: { authorizer: { jwt: { claims: { sub } } } } });
 
-beforeEach(() => mockDdbSend.mockReset());
+// `mockReset()` は**モック自身を返す**ので、アローの暗黙の return だと
+// **vitest が後片付けの関数だと思って引数なしで呼ぶ**（`block.test.ts` 参照）。
+// 中括弧で包んで何も返さない。
+beforeEach(() => { mockDdbSend.mockReset(); });
 
 describe("listMyPhotos", () => {
     it("USER_INDEX を userId で引き、published フィルタを付けない（下書きも返す）", async () => {

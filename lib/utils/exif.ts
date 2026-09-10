@@ -24,15 +24,9 @@ export type CameraExif = {
     dateTimeOriginal?: string; // 撮影地の壁時計 "YYYY-MM-DDTHH:mm:ss"（ゾーン無し）
 };
 
-/** Make と Model を重複なく結合（"SONY" + "SONY ILCE-7M3" → "SONY ILCE-7M3"） */
-export function formatCameraName(make?: string, model?: string): string | undefined {
-    const mk = (make ?? "").trim();
-    const md = (model ?? "").trim();
-    if (!mk && !md) return undefined;
-    if (!md) return mk;
-    if (!mk || md.toLowerCase().startsWith(mk.toLowerCase())) return md;
-    return `${mk} ${md}`;
-}
+// 実体は cameraName.ts（exifr を引き込まずに使えるように）。ここからも従来どおり引ける
+import { formatCameraName } from "./cameraName";
+export { formatCameraName };
 
 /** 露出時間（秒）→ "1/640s" / "2s" */
 export function formatExposure(t?: number): string | undefined {
@@ -153,30 +147,30 @@ export async function extractExifFromFile(file: File): Promise<ExtractedMeta> {
     return mapMeta(await parseSafe(file, { chunked: false }));
 }
 
-// 簡易リバースジオコーディング（OpenStreetMap Nominatim、無料・APIキー不要）
-// 利用規約上、1リクエスト/秒の制限あり。呼び出し側で順次実行することを推奨。
-//
-// プライバシー: 自宅などの撮影地特定を防ぐため、座標を小数第2位（約1km）に丸め、
-// zoom=10（市区町村レベル）で問い合わせる。番地・建物レベルの情報は取得しない。
+/**
+ * 座標 → 地名（市区町村レベル）。**サーバー越しに引く**。
+ *
+ * 以前はここから直接 Nominatim に座標を送っていた。送っているのは
+ * **撮影した場所の座標**で、利用者の IP と一緒に相手へ渡っていた。
+ * 編集画面の位置さがし（`/geocode/search`）と同じ理由でサーバーの代理
+ * （`/geocode/reverse`）に寄せる——IP を渡さない・規約どおり名乗る・
+ * 控えて回数を減らす。丸め（約1km）と zoom=10 はサーバー側で同じ。
+ *
+ * **5秒で諦める。** 返らないと公開ボタンが「撮影情報を読み取り中…」の
+ * まま永久に押せなかった（実測: 12秒後も disabled、トグルを切っても解放
+ * されない）。地名は無くても写真は上げられるので、待たせる方が損。
+ */
+export const REVERSE_GEOCODE_TIMEOUT_MS = 5000;
 export async function reverseGeocode(lat: number, lng: number, locale: "ja" | "en" = "ja"): Promise<string | null> {
     try {
-        const rlat = Math.round(lat * 100) / 100;
-        const rlng = Math.round(lng * 100) / 100;
-        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${rlat}&lon=${rlng}&zoom=10&accept-language=${locale}`;
-        const res = await fetch(url, {
-            headers: { "Accept": "application/json" },
-        });
+        const { userFetch } = await import("./api");
+        const res = await userFetch(
+            `/geocode/reverse?lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lng))}&locale=${locale}`,
+            { timeoutMs: REVERSE_GEOCODE_TIMEOUT_MS },
+        );
         if (!res.ok) return null;
-        const data = await res.json() as { address?: Record<string, string>; display_name?: string };
-        const a = data.address ?? {};
-        // 都市レベルの位置名を組み立てる
-        const parts = [
-            a.city ?? a.town ?? a.village ?? a.suburb ?? a.county,
-            a.state ?? a.region,
-            a.country,
-        ].filter(Boolean);
-        if (parts.length > 0) return parts.join(", ");
-        return data.display_name ?? null;
+        const data = await res.json() as { place?: unknown };
+        return typeof data.place === "string" && data.place ? data.place : null;
     } catch {
         return null;
     }

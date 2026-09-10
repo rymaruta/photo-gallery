@@ -28,7 +28,10 @@ const draft = (over: Record<string, unknown>) => ({
     id: "d1", src: "https://cdn/d1.jpg", published: false, title: "下書きの写真", ...over,
 });
 
-beforeEach(() => mockUserFetch.mockReset());
+// `mockReset()` は**モック自身を返す**ので、アローの暗黙の return だと
+// **vitest が後片付けの関数だと思って引数なしで呼ぶ**（`block.test.ts` 参照）。
+// 中括弧で包んで何も返さない。
+beforeEach(() => { mockUserFetch.mockReset(); });
 
 describe("下書き一覧の撮影日時表示", () => {
     it("時刻付きの値は「YYYY年M月D日 HH:MM」に整形される（生ISOを出さない）", async () => {

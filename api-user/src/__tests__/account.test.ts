@@ -431,6 +431,56 @@ describe("deleteAccount", () => {
         expect(deletedDdbIds()).not.toContain("following#me");   // やり直す手がかりを残す
     });
 
+    // **相手のフォロワー一覧からも外す。** 外さないと、退会した人が
+    // 相手の一覧に残り続ける（誰も消す人がいない）
+    it("退会すると、相手のフォロワー一覧からも外れる", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand") {
+                if ((cmd.input.Key as { userId?: string }).userId === "me") return Promise.resolve({ Item: { userId: "me" } });
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                if (id === "following#me") return Promise.resolve({ Item: { list: ["userA"] } });
+                if (id === "followers#userA") return Promise.resolve({ Item: { list: ["me"], rev: 1 } });
+                return Promise.resolve({ Item: undefined });
+            }
+            return Promise.resolve({});
+        });
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        const puts = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string }; input: { Item?: { id?: string } } })
+            .filter((c) => c.constructor.name === "PutCommand");
+        expect(puts.some((p) => p.input.Item?.id === "followers#userA"),
+            "相手の一覧に退会者が残る").toBe(true);
+    });
+
+    it("自分のフォロワー一覧の行も消す", async () => {
+        followingIs([]);
+        await invoke(deleteAccount, ev("me"));
+        expect(deletedDdbIds(), "誰も消さない行が残る").toContain("followers#me");
+    });
+
+    // **失敗を `failed` に積む。** 積まないと「片付いた」扱いになって
+    // 手がかりの `following#me` まで消える
+    it("相手の一覧から外せなかったら、片付いていない扱いにする", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                if (id === "following#me") return Promise.resolve({ Item: { list: ["userA"] } });
+                if (id === "followers#userA") return Promise.resolve({ Item: { list: ["me"], rev: 1 } });
+                return Promise.resolve({ Item: undefined });
+            }
+            if (name === "PutCommand" && String((cmd.input.Item as { id?: string })?.id ?? "") === "followers#userA") {
+                return Promise.reject(Object.assign(new Error("throttled"), { name: "ThrottlingException" }));
+            }
+            return Promise.resolve({});
+        });
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        expect(deletedDdbIds(), "やり直す手がかりを消している").not.toContain("following#me");
+    });
+
     it("競合（未コミット）ではマーカーを消さない——引き算が永久に消えるため", async () => {
         // 相手が人気ユーザーだと、他の人のフォロー操作（followstats# への
         // 素の UpdateItem）とぶつかってキャンセルされる。日常的に起きる。
@@ -789,6 +839,28 @@ describe("deleteAccount: コメントの消し残し", () => {
         expect(deletedDdbIds()).toContain("p1");
         expect(deletedDdbIds()).toContain("comments#p1");
     });
+
+    // **ストーリーには返信の文書が付く。** `storyreplies#<id>` は
+    // `userId` を持たないので退会の列挙（`userId-createdAt-index`）には
+    // 載らない＝**ストーリー本体を消すついででしか消せない**。
+    // ここを落とすと、退会したのに返信の本文・送信者名・送信者の sub が
+    // 残り続ける（このテーブルに TTL は無い）。
+    // **写真とストーリーで分けない**——`story` の判定が1か所ずれただけで
+    // 本文が置き去りになる。消す側は空振りしても害が無い
+    it("ストーリーと一緒に storyreplies#<ID> も消す", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input?: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "QueryCommand") {
+                return Promise.resolve({ Items: [{ id: "story-1" }] });
+            }
+            if (cmd.constructor.name === "GetCommand") {
+                return Promise.resolve({ Item: { id: "story-1", story: true, src: "https://cdn/uploads/me/s1.jpg" } });
+            }
+            return Promise.resolve({});
+        });
+        await invoke(deleteAccount, ev("me"));
+        expect(deletedDdbIds()).toContain("story-1");
+        expect(deletedDdbIds(), "退会しても返信の本文が残る").toContain("storyreplies#story-1");
+    });
 });
 
 describe("deleteAccount: 静的ページの掃除", () => {
@@ -933,5 +1005,61 @@ describe("退会の再実行で収束する", () => {
         expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
         expect(deletedDdbIds()).toContain("p1");
         expect(deletedDdbIds()).toContain("comments#p1");
+    });
+});
+
+
+// **共同アルバム（案C）の掃除。**
+// 残すと、退会した人のアルバムが招待リンクから開けたまま残り、人数にも
+// 数え続ける（写真は消えているので、中身の無いアルバムだけが生き残る）。
+describe("deleteAccount: 共同アルバム", () => {
+    /** DynamoDB から削除したキー */
+    const deletedIds = () => mockDdbSend.mock.calls
+        .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand")
+        .map((c) => String(((c[0] as { input: { Key?: { id?: string } } }).input.Key ?? {}).id ?? ""));
+
+    function withAlbums(albumIds: string[] | undefined) {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                if (id === "albums#me") return Promise.resolve({ Item: albumIds ? { albumIds } : undefined });
+                return Promise.resolve({ Item: undefined });
+            }
+            return Promise.resolve({});
+        });
+    }
+
+    it("自分が作ったアルバムと、参加の印と、一覧を消す", async () => {
+        withAlbums(["a1", "a2"]);
+        const res = await invoke(deleteAccount, ev("me"));
+        expect(res.statusCode).toBe(200);
+        const ids = deletedIds();
+        expect(ids, "アルバムを消していない").toContain("album#a1");
+        expect(ids).toContain("album#a2");
+        expect(ids, "参加の印を消していない").toContain("albummember#a1#me");
+        expect(ids, "一覧を消していない").toContain("albums#me");
+    });
+
+    it("アルバムを持っていなくても、退会は成功する", async () => {
+        withAlbums(undefined);
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+    });
+
+    // **止めない。** ここで 500 にすると、写真もプロフィールも消えたのに
+    // ログインできるアカウントだけが残る（フォローの掃除と同じ理由）
+    it("アルバムの掃除に失敗しても、退会は止めない", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                if (id === "albums#me") return Promise.reject(new Error("throttled"));
+                return Promise.resolve({ Item: undefined });
+            }
+            return Promise.resolve({});
+        });
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
     });
 });

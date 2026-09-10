@@ -289,7 +289,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # **写真の投稿・削除で起動された回はテストを飛ばす。**
+      #
+      # `repository_dispatch` は API（Lambda）が「写真が増えた／消えた」と
+      # 頼んでくる経路で、**コードは1行も変わっていない**——その commit の
+      # テストは、この同じジョブが push のときに既に通している。
+      # 同じ木に対する2回目で、実測 4分34秒（1回7分02秒のうち65%）を使う。
+      #
+      # 効き方: 1回7分 → 約2分。月の枠2,000分に対して、再ビルド200本が
+      # 1,400分（70%）から 400分（20%）になる。**この枠は「投稿が世に出る
+      # 回数」の上限そのもの**（`REBUILD_MONTHLY_MAX`）なので、ここを削ると
+      # そのまま投稿できる量が増える。
+      #
+      # **飛ばさない場合**: push（コードが変わっている）・schedule・
+      # 手動実行（`workflow_dispatch`。壊れていないか確かめたいときに使う）。
       - name: Run tests
+        if: github.event_name != 'repository_dispatch'
         run: npm test
         timeout-minutes: 10
 

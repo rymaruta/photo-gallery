@@ -54,6 +54,41 @@ beforeEach(() => {
     mockPush.mockReset();
 });
 
+// 下書きのまま保存したときに「非公開にしました」と出ていた。公開したことが
+// 無い写真に「非公開に」は、何かを取り下げたように読める
+describe("保存のトースト", () => {
+    it("下書きを下書きのまま保存 → 「下書きを保存しました」", async () => {
+        world(false);
+        render(<EditPage />);
+        await screen.findByDisplayValue("湖");
+        await userEvent.click(screen.getByRole("button", { name: "下書き保存" }));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("下書きを保存しました", "success"));
+        expect(mockShowToast).not.toHaveBeenCalledWith("非公開にしました", "success");
+    });
+
+    it("公開中の写真を非公開に → 「非公開にしました」", async () => {
+        world(true);
+        render(<EditPage />);
+        await screen.findByDisplayValue("湖");
+        await userEvent.click(screen.getByRole("button", { name: "非公開にする" }));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("非公開にしました", "success"));
+    });
+
+    // **「非公開にしました」と出るのに、検索から開ける個別ページは残っている。**
+    // サーバーが掃除を頼めなかったときは応答に `staticStale` が乗る
+    it("静的ページが残るなら、非公開のトーストにそう添える", async () => {
+        mockUserFetch.mockReset().mockImplementation((url: string, init?: { method?: string }) => {
+            if (!init?.method) return Promise.resolve({ ok: true, json: async () => [photo(true)] });
+            return Promise.resolve({ ok: true, json: async () => ({ success: true, staticStale: true }) });
+        });
+        render(<EditPage />);
+        await screen.findByDisplayValue("湖");
+        await userEvent.click(screen.getByRole("button", { name: "非公開にする" }));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
+        expect(String(mockShowToast.mock.calls[0][0])).toContain("残ることがあります");
+    });
+});
+
 describe("公開済みの写真を編集するとき", () => {
     it("「下書き保存」を出さない（黙って非公開にしない）", async () => {
         world(true);
@@ -95,5 +130,22 @@ describe("公開済みの写真を編集するとき", () => {
 
         expect(screen.getByRole("button", { name: "下書き保存" })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "公開する" })).toBeInTheDocument();
+    });
+});
+
+// 公開のまま項目を消した保存。ページ自体は残ってよいが、**消した中身が**残る
+describe("公開のまま項目を消したとき", () => {
+    it("「消した内容が残ることがある」と伝える", async () => {
+        mockUserFetch.mockReset().mockImplementation((url: string, init?: { method?: string }) => {
+            if (!init?.method) return Promise.resolve({ ok: true, json: async () => [photo(true)] });
+            return Promise.resolve({ ok: true, json: async () => ({ success: true, staticOutdated: true }) });
+        });
+        render(<EditPage />);
+        await screen.findByDisplayValue("湖");
+        await userEvent.click(screen.getByRole("button", { name: "保存する" }));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
+        const msg = String(mockShowToast.mock.calls[0][0]);
+        expect(msg).toContain("保存しました");
+        expect(msg).toContain("消した内容");
     });
 });

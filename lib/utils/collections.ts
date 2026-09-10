@@ -3,11 +3,29 @@
 // fs や JSX を持たないため、サーバー・クライアント・テストのどこからでも読める。
 
 import type { Photo } from "../data/photos";
+import { dedupeCameraName } from "./cameraName";
 import { sortByNewest } from "./photoOrder";
 import { sameLocation } from "./related";
 import { stripLoneSurrogates } from "./text";
 
-export type CollectionType = "tag" | "location" | "category";
+/**
+ * 集約ページの種類。
+ *
+ * `camera` は 2026-09-09 に追加。**同じ機械に鍵を1つ挿すだけ**で、
+ * sitemap・OGP・JSON-LD・404救済・相互リンクが丸ごと付いてくる。
+ *
+ * **数えて分かったこと**（公開30枚・索引に載る条件は3枚以上）:
+ *   タグ 62種→7ページ / カテゴリ 10種→4ページ /
+ *   撮影地 14種→**4ページ** / 機材 4種→2ページ
+ * 機材は SONY の2機種だけで公開30枚のうち24枚を覆う。
+ *
+ * **訂正**: ここに一度「撮影地は0ページ（全部 noindex）」と書いたが**誤り**。
+ * 素朴な集計で数えて、この関数群を通していなかった。撮影地は
+ * `photosInCollection` の**緩い一致**で既に束ねてあり（下のコメント参照）、
+ * フランス4・パリ3・「パリ, フランス」3・「フランス ヴェルサイユ」3 の
+ * 4ページが載る。**数えるときは必ずここの関数を通すこと。**
+ */
+export type CollectionType = "tag" | "location" | "category" | "camera";
 
 /**
  * カテゴリの日本語表記を英語キーへ寄せる表。
@@ -25,6 +43,25 @@ export const CATEGORY_ALIASES: Record<string, string> = {
     "イラスト": "illustration",
     "デザイン": "design",
 };
+
+/**
+ * カテゴリの表示名（スラッグ → 日本語）。`CATEGORY_ALIASES` の逆引きで、
+ * 同じスラッグに複数の日本語が寄っていれば**表の先頭**（建築／建物 → 建築）。
+ *
+ * 集約ページの見出し・title・説明文は `labelForSlug`（最初に一致した写真の
+ * 生の値）で決めていたので、`street` と書いた写真しか無いカテゴリは
+ * 「streetの写真（1枚）」「streetカテゴリの旅写真」と英語スラッグが日本語文に
+ * 混ざり、`landscape` は「風景」——**写真の並び順で見出しが変わる**状態だった
+ * （実ビルドの `out/category/street.html` で確認）。写真ページ側は
+ * `labels.category.names` で日本語にしているので、そちらと揃える
+ * （表そのものは `app/i18n/labels.ts` と一致することをテストで縛る）。
+ */
+export function categoryDisplayName(slug: string): string | undefined {
+    for (const [ja, alias] of Object.entries(CATEGORY_ALIASES)) {
+        if (alias === slug) return ja;
+    }
+    return undefined;
+}
 
 /**
  * スラッグの長さ（バイト）の上限。
@@ -216,6 +253,16 @@ function valuesFor(p: Photo, type: CollectionType): string[] {
     if (type === "location") {
         return p.location ? [p.location.toString().trim()].filter(Boolean) : [];
     }
+    if (type === "camera") {
+        // **`dedupeCameraName` を必ず通す。** 保存済みの値には二重のメーカー名が
+        // 残っている（実データに "Hasselblad Hasselblad X2D II 100C"）。
+        // 通さないと**同じ機種が2つに割れる**（片方は永久に1枚のまま noindex）。
+        // `as` で握らない。`Photo["exif"]` は `camera?: string` と定義済みで、
+        // 握ると**将来の改名を tsc が止めなくなる**（このコミットが
+        // `CollectionPageClient` で潰したのと同じ型の穴を別の場所に作っていた）
+        const camera = dedupeCameraName(p.exif?.camera);
+        return camera ? [camera] : [];
+    }
     // category
     return p.category ? [p.category.toString().trim()].filter(Boolean) : [];
 }
@@ -239,7 +286,7 @@ export function collectEntries(photos: Photo[], type: CollectionType): Collectio
             seen.add(slug);
             const cur = bySlug.get(slug);
             if (cur) cur.count++;
-            else bySlug.set(slug, { label: v, count: 1 });
+            else bySlug.set(slug, { label: (type === "category" && categoryDisplayName(slug)) || v, count: 1 });
         }
     }
     // 撮影地の件数は photosInCollection と同じ数え方（緩い一致）にする。
@@ -300,6 +347,10 @@ export function photosInCollection(photos: Photo[], type: CollectionType, slug: 
 /** slug に対応する代表表示ラベル（最初に一致した生の値）。無ければデコードした slug。 */
 export function labelForSlug(photos: Photo[], type: CollectionType, slug: string): string {
     const target = normalizeParam(slug, type);
+    if (type === "category") {
+        const name = categoryDisplayName(target);
+        if (name) return name;
+    }
     for (const p of photos) {
         for (const v of valuesFor(p, type)) {
             if (slugify(v, type) === target) return v;
@@ -312,7 +363,7 @@ export function labelForSlug(photos: Photo[], type: CollectionType, slug: string
     }
 }
 
-const TYPE_PATH: Record<CollectionType, string> = { tag: "tag", location: "location", category: "category" };
+const TYPE_PATH: Record<CollectionType, string> = { tag: "tag", location: "location", category: "category", camera: "camera" };
 
 /** 集約ページの相対 URL（/tag/<encoded slug> 等） */
 export function collectionPath(type: CollectionType, slug: string): string {
@@ -359,13 +410,20 @@ export type CollectionCopy = { title: string; description: string; heading: stri
 
 /** ランディングページの見出し・メタ文言（日本語主体・ページ固有の導入文つき） */
 export function collectionCopy(type: CollectionType, label: string, count: number): CollectionCopy {
-    const kindJa = type === "tag" ? "タグ" : type === "location" ? "撮影地" : "カテゴリ";
+    const kindJa = type === "tag" ? "タグ" : type === "location" ? "撮影地"
+        : type === "camera" ? "カメラ" : "カテゴリ";
     const heading =
-        type === "location" ? `${label}の写真` : type === "category" ? `${label}の写真` : `#${label} の写真`;
+        type === "location" || type === "category" ? `${label}の写真`
+            : type === "camera" ? `${label} で撮った写真`
+                : `#${label} の写真`;
     // サイト名は app/layout.tsx の `template` が付ける（同上）
     const title = `${label}の写真${count ? `（${count}枚）` : ""}`;
     const description =
-        type === "location"
+        type === "camera"
+            // 機材名で検索する人に向けた文。作例・設定（絞り・シャッター速度・ISO）が
+            // このページの中身なので、それを名指しする
+            ? `${label} で撮影した旅の写真${count ? `${count}枚` : ""}を掲載。絞り・シャッター速度・ISO・レンズ（EXIF）と撮影地つきで、実際の作例をまとめています。${label} の作例をお探しの方へ。`
+            : type === "location"
             ? `${label}で撮影した旅の写真${count ? `${count}枚` : ""}を掲載。現地で切り取った風景やスナップを、撮影地・カメラ情報（EXIF）付きで紹介します。${label}への旅の参考にどうぞ。`
             : type === "category"
                 ? `${label}カテゴリの旅写真${count ? `${count}枚` : ""}を掲載。国内外の旅先で撮影した${label}の作品を、撮影地やカメラ情報（EXIF）と合わせて閲覧できます。`

@@ -297,6 +297,21 @@ export function generateWebSiteStructuredData() {
  *
  * 各セグメントの layout.tsx から使う。
  */
+/**
+ * フィードの場所（`<link rel="alternate" type="application/rss+xml">`）。
+ *
+ * **`alternates` を書くページは、必ずこれを混ぜること。**
+ * Next のメタデータは `alternates` を**オブジェクトごと差し替える**ので、
+ * ルートのレイアウトに書いても、子が `alternates: { canonical }` を返した
+ * 瞬間に消える——実際、トップページがそうで**フィードの宣言が
+ * どのページにも出ていなかった**（実ビルドの141枚中、出ていたのは
+ * 404 の2枚だけ）。`INDEXABLE_ROBOTS` が同じ理由で同じ形にしてある
+ * （あちらは `/users/<id>` が googlebot の指定を落とした）。
+ */
+export const FEED_ALTERNATE = {
+    types: { "application/rss+xml": [{ url: `${siteConfig.url}/feed.xml`, title: siteConfig.name }] },
+};
+
 export function appPageMetadata(path: string, title: string) {
     return {
         title,

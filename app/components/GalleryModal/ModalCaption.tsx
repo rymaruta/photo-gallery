@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { dedupeCameraName } from "../../../lib/utils/cameraName";
 import { CAPTION_MIN_HEIGHT } from "@/lib/utils/modalLayout";
 import Link from "next/link";
 import { ShareIcon, LinkIcon, MusicalNoteIcon, ChatBubbleOvalLeftIcon } from "@heroicons/react/24/outline";
@@ -145,11 +146,13 @@ export default function ModalCaption({
             {photo.exif && (() => {
                 const e = photo.exif;
                 const parts = [
-                    e.camera, e.lens, e.aperture, e.exposure,
+                    // 保存済みの値には二重のメーカー名が混じる（実データに
+                    // "Hasselblad Hasselblad X2D II 100C" が実在）。表示だけ直す
+                    dedupeCameraName(e.camera), e.lens, e.aperture, e.exposure,
                     e.iso ? `ISO${e.iso}` : undefined, e.focalLength,
                 ].filter(Boolean);
                 return parts.length > 0 ? (
-                    <p className="mt-3 text-[11px] leading-relaxed text-white/45">{parts.join(" ・ ")}</p>
+                    <p className="mt-3 text-[11px] leading-relaxed text-white/50">{parts.join(" ・ ")}</p>
                 ) : null;
             })()}
 

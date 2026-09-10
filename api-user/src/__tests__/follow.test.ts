@@ -3,6 +3,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockDdbSend = vi.hoisted(() => vi.fn());
 const mockPush = vi.hoisted(() => vi.fn());
 const mockLookup = vi.hoisted(() => vi.fn());
+const mockLookupIfSet = vi.hoisted(() => vi.fn<(uid: string) => Promise<string | undefined>>(async () => undefined));
+const mockDeleted = vi.hoisted(() => vi.fn<() => Promise<Set<string>>>(async () => new Set<string>()));
+const mockIsBlocked = vi.hoisted(() => vi.fn());
 
 vi.mock("../dynamodb", () => ({
     ddb: { send: mockDdbSend },
@@ -12,10 +15,17 @@ vi.mock("../dynamodb", () => ({
 vi.mock("../notify", () => ({
     pushNotification: mockPush,
     lookupDisplayName: mockLookup,
+    lookupDisplayNameIfSet: (...a: unknown[]) => mockLookupIfSet(...(a as [string])),
+    deletedUserIds: () => mockDeleted(),
 }));
+// **境界として差し替える。** 素で通すと、この画面のほとんどのテストが
+// 使っている「`mockDdbSend` に順番どおり答えさせる」形が1つずつずれる
+// （判定の GetItem が2本増えるため）。ブロックそのものの振る舞いは
+// `block.test.ts` と、下の専用の describe で見る。
+vi.mock("../blockCheck", () => ({ isBlocked: mockIsBlocked }));
 
 vi.stubEnv("USERS_TABLE", "users-test");
-const { followUser, unfollowUser, getFollowStats, getMyFollowing } = await import("../follow");
+const { followUser, unfollowUser, getFollowStats, getMyFollowing, getUserFollowing, getUserFollowers } = await import("../follow");
 
 type Result = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,6 +89,9 @@ beforeEach(() => {
     mockDdbSend.mockReset();
     mockPush.mockReset().mockResolvedValue(undefined);
     mockLookup.mockReset().mockResolvedValue("旅人A");
+    mockIsBlocked.mockReset().mockResolvedValue(false);
+    mockLookupIfSet.mockReset().mockResolvedValue(undefined);
+    mockDeleted.mockReset().mockResolvedValue(new Set<string>());
 });
 
 describe("followUser", () => {
@@ -124,6 +137,57 @@ describe("followUser", () => {
         expect(JSON.parse(res.body).error).toContain("確認できませんでした");
         expect(mockDdbSend).toHaveBeenCalledTimes(1); // 確認の1回だけ。マーカーは書かない
         expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    // **ブロックしたのに、相手のワンタップで関係が戻っていた。**
+    // `blockUser` は両向きのフォローを切るのに、この口には判定が
+    // 1つも無かった（`isBlocked` の呼び出しは stories / storyReplies /
+    // notify / comments の4か所だけで、follow.ts には0件）。
+    // しかも `notify.ts` がフォロー通知を握るので、**ブロックした側は
+    // 気づけない**——フォロワー数だけが増える。
+    it("相手にブロックされていたら 404（実在も確かめず、何も書かない）", async () => {
+        mockIsBlocked.mockImplementation((blocker: string) => Promise.resolve(blocker === OTHER));
+        const res = await invoke(followUser, ev(ME, OTHER));
+        expect(res.statusCode).toBe(404);
+        // **ブロックの事実を教えない**（`storyReplies` と同じ倒し方）
+        expect(JSON.parse(res.body).error).not.toContain("ブロック");
+        expect(mockDdbSend).not.toHaveBeenCalled();
+        expect(transactItems()).toHaveLength(0);
+        expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    // 自分がやったことなので隠す意味が無い。404 にすると
+    // 「消えた人」に見えて、解除すれば直ることが伝わらない
+    it("自分がブロックしている相手は 400 で理由を言う（何も書かない）", async () => {
+        mockIsBlocked.mockImplementation((blocker: string) => Promise.resolve(blocker === ME));
+        const res = await invoke(followUser, ev(ME, OTHER));
+        expect(res.statusCode).toBe(400);
+        expect(JSON.parse(res.body).error).toContain("解除");
+        expect(mockDdbSend).not.toHaveBeenCalled();
+        expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    // 「分からない」を素通ししない。fail-open にすると、
+    // DynamoDB が詰まっている間だけブロックが効かなくなる
+    it("ブロックを確認できなければ 503（何も書かない）", async () => {
+        mockIsBlocked.mockRejectedValue(new Error("throttled"));
+        const res = await invoke(followUser, ev(ME, OTHER));
+        expect(res.statusCode).toBe(503);
+        expect(mockDdbSend).not.toHaveBeenCalled();
+        expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    // 判定は2回とも要る（向きが違う）。往復を増やさないため同時に投げる
+    it("ブロックされていなければ、判定は両向き1回ずつで通る", async () => {
+        queueUserExists();
+        mockDdbSend
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Item: { list: [] } })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Item: { followers: 1, following: 0 } });
+        expect((await invoke(followUser, ev(ME, OTHER))).statusCode).toBe(200);
+        expect(mockIsBlocked.mock.calls).toEqual([[OTHER, ME], [ME, OTHER]]);
     });
 
     it("同じ相手を繰り返しフォローしても通知は積まない", async () => {
@@ -747,5 +811,237 @@ describe("フォローの実在判定: users 行が無い人", () => {
         expect(res.statusCode).toBe(404);
         // 何も書いていない
         expect(transactItems()).toHaveLength(0);
+    });
+});
+
+
+// owner の指示「誰をフォローしてて、みたいなの見れるようにして」。
+// **フォロワー側は返せない**——いまのデータは `following#<uid>` と
+// 数（`followstats#`）だけで、「誰にフォローされているか」を引ける行が無い。
+describe("getUserFollowing（その人がフォローしている人）", () => {
+    const evUid = (sub: string | undefined, uid: string | undefined) => ({
+        requestContext: { authorizer: { jwt: { claims: { sub } } } },
+        pathParameters: uid ? { uid } : undefined,
+    });
+
+    it("名前まで返す（画面が1人ずつ引きに行かなくて済むように）", async () => {
+        mockDdbSend.mockResolvedValue({ Item: { list: [OTHER, THIRD] } });
+        mockLookupIfSet.mockImplementation(async (id: string) => (id === OTHER ? "旅人B" : undefined));
+        const res = await invoke(getUserFollowing, evUid(ME, ME));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).users).toEqual([{ id: OTHER, name: "旅人B" }, { id: THIRD }]);
+        expect(JSON.parse(res.body).total).toBe(2);
+    });
+
+    // **上限を「入れる前」に見る。** 2000回の GetItem は1回の呼び出しの
+    // 6秒には収まらない（`Promise.all` の並列でも、DynamoDB の応答と
+    // 再送のぶんが積み上がる）
+    it("50人までしか名前を引かない（総数は返す）", async () => {
+        const many = Array.from({ length: 60 }, (_, i) => `0000000${String(i).padStart(4, "0")}-1111-4111-8111-111111111111`);
+        mockDdbSend.mockResolvedValue({ Item: { list: many } });
+        const res = await invoke(getUserFollowing, evUid(ME, ME));
+        expect(JSON.parse(res.body).users).toHaveLength(50);
+        expect(JSON.parse(res.body).total, "総数が分からない").toBe(60);
+        expect(mockLookupIfSet, "全員ぶん引きに行っている").toHaveBeenCalledTimes(50);
+    });
+
+    // **退会した人は印で伝える。** 墓石の行に `displayName` は無いので
+    // 名前は引けないが、画面はそれを「名前を設定していない人」と区別できず
+    // 「旅人」という普通の行として出し、空のプロフィールへリンクしていた。
+    // 退会が消すのは自分の `following#` だけなので（`account.ts`）、
+    // **他人の一覧には残り続ける**
+    it("退会した人には印を付ける（普通の行として出させない）", async () => {
+        mockDdbSend.mockResolvedValue({ Item: { list: [OTHER, THIRD] } });
+        mockDeleted.mockResolvedValue(new Set([THIRD]));
+        mockLookupIfSet.mockResolvedValue("旅人B");
+        const res = await invoke(getUserFollowing, evUid(ME, ME));
+        expect(JSON.parse(res.body).users).toEqual([{ id: OTHER, name: "旅人B" }, { id: THIRD, deleted: true }]);
+    });
+
+    it("一覧が空なら、退会者の照会には行かない", async () => {
+        mockDdbSend.mockResolvedValue({ Item: { list: [] } });
+        await invoke(getUserFollowing, evUid(ME, ME));
+        expect(mockDeleted).not.toHaveBeenCalled();
+    });
+
+    // 片側だけの防御を作らない（`getStories` / `getStoryReplies` /
+    // `postComment` は全部この判定を通している）
+    it("その人にブロックされていたら 404（一覧を読まない）", async () => {
+        mockIsBlocked.mockImplementation((blocker: string) => Promise.resolve(blocker === OTHER));
+        const res = await invoke(getUserFollowing, evUid(ME, OTHER));
+        expect(res.statusCode).toBe(404);
+        expect(JSON.parse(res.body).error).not.toContain("ブロック");
+        expect(mockDdbSend).not.toHaveBeenCalled();
+    });
+
+    it("でたらめなIDは断る（何も読まない）", async () => {
+        expect((await invoke(getUserFollowing, evUid(ME, "not-a-uuid"))).statusCode).toBe(400);
+        expect(mockDdbSend).not.toHaveBeenCalled();
+    });
+
+    // **共有キャッシュに載せない**（人の繋がりは本人向けの応答として扱う）
+    it("no-store で返す", async () => {
+        mockDdbSend.mockResolvedValue({ Item: { list: [] } });
+        const res = await invoke(getUserFollowing, evUid(ME, ME)) as unknown as { headers: Record<string, string> };
+        expect(res.headers["Cache-Control"]).toContain("no-store");
+    });
+});
+
+
+// **「誰にフォローされているか」を引ける行が無かった**（FOLLOWERS-1）。
+// マーカー（`follow#<自分>#<相手>`）は主キーが1本で前方一致の列挙ができない
+// ——このテーブルにソートキーは無いので、全表 Scan しか手が無かった。
+// `following#` と同じ形の行（新しい順のリスト＋`rev`）を持たせる。
+describe("フォロワーの一覧（followers#）", () => {
+    const evUid = (sub: string | undefined, uid: string | undefined) => ({
+        requestContext: { authorizer: { jwt: { claims: { sub } } } },
+        pathParameters: uid ? { uid } : undefined,
+    });
+    /** 種類とキーで答える（順番に並べる形だと、書き込みが1つ増えるたびに全部ずれる） */
+    function world(rows: Record<string, Record<string, unknown>> = {}) {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string; userId?: string } } }) => {
+            const name = cmd.constructor.name;
+            if (name === "GetCommand") {
+                // users テーブルの主キーは `userId`（写真テーブルは `id`）
+                if (cmd.input.Key?.userId) return Promise.resolve({ Item: { userId: cmd.input.Key.userId } });
+                return Promise.resolve({ Item: rows[cmd.input.Key?.id ?? ""] });
+            }
+            return Promise.resolve({});
+        });
+    }
+    const puts = () => mockDdbSend.mock.calls
+        .map((c) => c[0] as { constructor: { name: string }; input: { Item?: { id?: string; list?: string[] } } })
+        .filter((c) => c.constructor.name === "PutCommand" && c.input.Item?.id?.startsWith("followers#"));
+
+    it("フォローすると、相手のフォロワー一覧に自分が入る", async () => {
+        world({ [`followstats#${OTHER}`]: { followers: 1, following: 0 } });
+        expect((await invoke(followUser, ev(ME, OTHER))).statusCode).toBe(200);
+        expect(puts(), "相手の一覧に入っていない").toHaveLength(1);
+        expect(puts()[0].input.Item).toMatchObject({ id: `followers#${OTHER}`, list: [ME] });
+    });
+
+    it("解除すると、相手のフォロワー一覧から外れる", async () => {
+        world({
+            [`followers#${OTHER}`]: { list: [ME, THIRD], rev: 3 },
+            [`following#${ME}`]: { list: [OTHER], rev: 1 },
+            [`followstats#${OTHER}`]: { followers: 2, following: 0 },
+        });
+        expect((await invoke(unfollowUser, ev(ME, OTHER))).statusCode).toBe(200);
+        expect(puts()[0].input.Item).toMatchObject({ id: `followers#${OTHER}`, list: [THIRD] });
+    });
+
+    // **押し直しで直る。** `following#` と同じ考え——「マーカーはあるが
+    // 一覧に無い」を、利用者の操作だけで直せるようにしておく
+    it("既にフォロー済みでも、一覧に無ければ入れ直す", async () => {
+        world({
+            [`follow#${OTHER}#${ME}`]: { follow: true },
+            [`followstats#${OTHER}`]: { followers: 1, following: 0 },
+        });
+        // マーカーが既にある＝トランザクションは条件で落ちる
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: unknown } }) => {
+            if (cmd.constructor.name === "TransactWriteCommand") return Promise.reject(txCancelled(["ConditionalCheckFailed", "None", "None"]));
+            if (cmd.constructor.name === "GetCommand") {
+                const key = cmd.input.Key as { id?: string; userId?: string } | undefined;
+                if (key?.userId) return Promise.resolve({ Item: { userId: key.userId } });
+                if (key?.id === `followstats#${OTHER}`) return Promise.resolve({ Item: { followers: 1, following: 0 } });
+                return Promise.resolve({ Item: undefined });
+            }
+            return Promise.resolve({});
+        });
+        expect((await invoke(followUser, ev(ME, OTHER))).statusCode).toBe(200);
+        expect(puts(), "押し直しても直らない").toHaveLength(1);
+    });
+
+    // **`try` の外に置く。** 中に入れると `updateFollowing` が投げた回に
+    // 丸ごと飛ぶ——ブロックしたのに相手のフォロワー一覧に自分が残る
+    it("ブロックで、自分の一覧が書けなくても相手のフォロワー一覧からは外す", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string }; Item?: { id?: string } } }) => {
+            const name = cmd.constructor.name;
+            // `following#<自分>` の書き込みだけ、ずっと競合させる
+            if (name === "PutCommand" && cmd.input.Item?.id === `following#${ME}`) {
+                return Promise.reject(Object.assign(new Error("c"), { name: "ConditionalCheckFailedException" }));
+            }
+            if (name === "GetCommand") {
+                const id = cmd.input.Key?.id ?? "";
+                if (id === `following#${ME}`) return Promise.resolve({ Item: { list: [OTHER], rev: 1 } });
+                if (id === `followers#${OTHER}`) return Promise.resolve({ Item: { list: [ME], rev: 1 } });
+                return Promise.resolve({});
+            }
+            return Promise.resolve({});
+        });
+        const { unfollowQuietly } = await import("../follow");
+        await unfollowQuietly(OTHER, ME);
+        expect(puts().some((p) => p.input.Item?.id === `followers#${OTHER}`),
+            "相手のフォロワー一覧に残る").toBe(true);
+    });
+
+    // **表示の都合でフォローを失敗させない。** マーカーと数は既に正しく、
+    // 欠けるのは一覧の1行だけ
+    it("一覧を書けなくても、フォローそのものは成功する", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Item?: { id?: string } } }) => {
+            if (cmd.constructor.name === "PutCommand" && cmd.input.Item?.id?.startsWith("followers#")) {
+                return Promise.reject(new Error("throttled"));
+            }
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({ Item: { userId: OTHER, followers: 1, following: 0 } });
+            return Promise.resolve({});
+        });
+        expect((await invoke(followUser, ev(ME, OTHER))).statusCode).toBe(200);
+    });
+
+    it("その人のフォロワーを名前つきで返す", async () => {
+        world({
+            [`followers#${ME}`]: { list: [OTHER, THIRD] },
+            [`followstats#${ME}`]: { followers: 2, following: 0 },
+        });
+        mockLookupIfSet.mockImplementation(async (id: string) => (id === OTHER ? "旅人B" : undefined));
+        const res = await invoke(getUserFollowers, evUid(ME, ME));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).users).toEqual([{ id: OTHER, name: "旅人B" }, { id: THIRD }]);
+        expect(JSON.parse(res.body).total).toBe(2);
+        expect(JSON.parse(res.body).listed).toBe(2);
+    });
+
+    // **数は `followstats#` が正。** 一覧の長さを `total` にすると、
+    // 埋め戻し前は「5 フォロワー」と言いながら開くと「まだフォロワーは
+    // いません」になる（一覧が空で `total: 0` なので、足りないことを
+    // 伝える行も出ない）。画面はこの2つで「0人」と「まだ揃っていない」を
+    // 見分ける
+    it("一覧が空でも、数は followstats# の値を返す（0人と混ぜない）", async () => {
+        world({ [`followstats#${ME}`]: { followers: 5, following: 0 } });
+        const res = await invoke(getUserFollowers, evUid(ME, ME));
+        expect(JSON.parse(res.body).users).toEqual([]);
+        expect(JSON.parse(res.body).total, "一覧の長さを数として返している").toBe(5);
+        expect(JSON.parse(res.body).listed).toBe(0);
+    });
+
+    it("退会した人には印を付ける", async () => {
+        world({ [`followers#${ME}`]: { list: [THIRD] } });
+        mockDeleted.mockResolvedValue(new Set([THIRD]));
+        const res = await invoke(getUserFollowers, evUid(ME, ME));
+        expect(JSON.parse(res.body).users).toEqual([{ id: THIRD, deleted: true }]);
+    });
+
+    it("その人にブロックされていたら 404（一覧を読まない）", async () => {
+        mockIsBlocked.mockImplementation((blocker: string) => Promise.resolve(blocker === OTHER));
+        const res = await invoke(getUserFollowers, evUid(ME, OTHER));
+        expect(res.statusCode).toBe(404);
+        expect(mockDdbSend).not.toHaveBeenCalled();
+    });
+
+    it("でたらめなIDは断る（何も読まない）", async () => {
+        expect((await invoke(getUserFollowers, evUid(ME, "not-a-uuid"))).statusCode).toBe(400);
+        expect(mockDdbSend).not.toHaveBeenCalled();
+    });
+
+    it("50人までしか名前を引かない（総数は返す）", async () => {
+        const many = Array.from({ length: 60 }, (_, i) => `0000000${String(i).padStart(4, "0")}-1111-4111-8111-111111111111`);
+        world({
+            [`followers#${ME}`]: { list: many },
+            [`followstats#${ME}`]: { followers: 60, following: 0 },
+        });
+        const res = await invoke(getUserFollowers, evUid(ME, ME));
+        expect(JSON.parse(res.body).users).toHaveLength(50);
+        expect(JSON.parse(res.body).total).toBe(60);
+        expect(JSON.parse(res.body).listed).toBe(60);
     });
 });

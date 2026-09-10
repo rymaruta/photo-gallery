@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Cognito セッションは使わないが、import 時に評価されるためモックしておく
-vi.mock("../../auth/cognito", () => ({ getCurrentSession: async () => null }));
+// **`lookupSession` も模す。** `userFetch` はこちらでトークンを引く
+// （`getCurrentSession` だけ差し替えても入口を支配できない）。
+// 同じ答えを包んだ形にして、このファイルが守っている性質は変えない
+vi.mock("../../auth/cognito", () => {
+    const getCurrentSession = async () => null;
+    return { getCurrentSession, lookupSession: async () => ({ session: await getCurrentSession(), unreachable: false }) };
+});
 
 const { publicFetch, userPublicFetch } = await import("../api");
 

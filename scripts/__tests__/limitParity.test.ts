@@ -17,6 +17,36 @@ const read = (p: string) => readFileSync(join(ROOT, p), "utf8").replace(/^\s*\/\
 
 const sanitize = read("api-user/src/sanitize.ts");
 
+// **1人あたりのアップロード上限。** 画面（lib/utils/uploadLimits.ts）と
+// サーバー（api-user/src/photoLimit.ts）と画面の2か所に数字がある。ずれると
+// 「あと N 枚と出ているのに押すと 403」か「上げたのに投稿できないまま」
+// のどちらかになる。**コメントは「片方だけ変えると嘘になる」と警告して
+// いたのに、それを縛るものが無かった**（100 → 1000 に動かすときに気づいた）。
+function numberIn(rel: string, re: RegExp, label: string): number {
+    const m = re.exec(read(rel));
+    expect(m, `${label} が ${rel} に見つからない`).not.toBeNull();
+    return Number(m![1]);
+}
+
+describe("1人あたりのアップロード上限は、画面とサーバーで同じ", () => {
+    // **`upload.ts` から `photoLimit.ts` へ移した。** `upload.ts` を import
+    // すると `rebuild.ts` まで引きずられ、上限だけ使いたい `storyKeep.ts` が
+    // 「再ビルドのトークンを配る関数」の一覧に載ってしまうため
+    // （`rebuildTokenScope.test.ts` が止めた）。数字の在りかは1つのまま
+    const server = () => numberIn("api-user/src/photoLimit.ts", /(?:export )?const PHOTO_LIMIT_PER_USER = (\d+);/, "サーバーの上限");
+    const client = () => numberIn("lib/utils/uploadLimits.ts", /export const PHOTO_LIMIT_PER_USER = (\d+);/, "画面の上限");
+
+    it("数字が一致する（片方だけ変えない）", () => {
+        expect(client(), "画面とサーバーで上限がずれている").toBe(server());
+    });
+
+    // 0 や NaN を「一致」と読まない（正規表現が壊れたときに緑にしない）
+    it("読めた数字が正の値である", () => {
+        expect(server()).toBeGreaterThan(0);
+        expect(client()).toBeGreaterThan(0);
+    });
+});
+
 /** `sanitize.ts` の該当行から実際の数字を取る（コメントの数字は見ない） */
 function serverLimit(re: RegExp, label: string): number {
     const m = re.exec(sanitize);
@@ -75,5 +105,52 @@ describe("件数の上限が、画面とサーバーで一致している", () =
         expect(src, "TAGS_MAX を見ていない").toMatch(/>\s*TAGS_MAX/);
         expect(src, "DESC_STRING_MAX を見ていない").toMatch(/>\s*DESC_STRING_MAX/);
         expect(src, "告げていない").toMatch(/超えた分は保存されません/);
+    });
+});
+
+// **撮影日の下限を画面とサーバーの2か所に書いている。** 片方だけ動かすと
+// 「入れられるのに 400 で断られる」か「入れられないのに保存はできる」になる。
+// 実測（`1985-06-01` → undefined）で分かったとおり、断り方が黙っていた頃は
+// **保存済みの日付が消えていた**ので、この対はずれてはいけない。
+describe("撮影日の下限が、画面とサーバーで揃っている", () => {
+    it("PHOTO_DATE_MIN の年が sanitize.ts の下限と同じ", async () => {
+        const { PHOTO_DATE_MIN } = await import("../../lib/utils/dateInput");
+        const m = /year\s*<\s*(\d{4})/.exec(sanitize);
+        expect(m, "sanitize.ts に年の下限が見つからない").not.toBeNull();
+        expect(PHOTO_DATE_MIN.slice(0, 4), "画面の下限とサーバーの下限が違う").toBe(m![1]);
+        // その年の1月1日そのものは通る（境界の向き）
+        expect(PHOTO_DATE_MIN).toBe(`${m![1]}-01-01`);
+    });
+
+    // **画面がその定数を実際に使っているか**まで見る。数字の一致だけだと、
+    // `min={PHOTO_DATE_MIN}` を画面から外しても緑のままだった
+    it.each(["app/user/edit/page.tsx", "app/admin/edit/page.tsx"])("%s が撮影日の下限を出している", (page) => {
+        const src = read(page);
+        expect(src, `${page} が下限の定数を使っていない`).toContain("min={PHOTO_DATE_MIN}");
+        expect(src, `${page} が上限を出していない`).toContain("max={todayForDateInput()}");
+    });
+
+    // **`min` を出した `<input>` が `<form>` の中にあるなら、その form は
+    // `noValidate` でなければならない。** そうしないと範囲外の値が入っている
+    // 写真で **submit そのものが発火せず**、日付以外の項目まで保存できなくなる
+    // （Chromium で実測: 範囲外→発火せず／`noValidate`→発火）。
+    // **jsdom は制約検証を走らせない**ので振る舞いでは書けない。ここだけ綴りで見る
+    it.each(["app/user/edit/page.tsx", "app/admin/edit/page.tsx"])("%s: submit で保存する form は制約検証を止めている", (page) => {
+        const src = read(page);
+        const forms = [...src.matchAll(/<form\b[^>]*>/g)].map((m) => m[0]);
+        const submits = /type="submit"/.test(src);
+        if (!submits) return;   // 保存が type="button" なら form の検証は関係ない
+        expect(forms.length, `${page} に form が無いのに type="submit" がある`).toBeGreaterThan(0);
+        for (const f of forms) {
+            expect(f, `${page} の form が noValidate を持っていない`).toContain("noValidate");
+        }
+    });
+
+    it("両パッケージの sanitize が同じ下限を持つ", () => {
+        const other = readFileSync(join(__dirname, "..", "..", "api/src/sanitize.ts"), "utf8");
+        const a = /year\s*<\s*(\d{4})/.exec(sanitize)?.[1];
+        const b = /year\s*<\s*(\d{4})/.exec(other)?.[1];
+        expect(b, "api 側に年の下限が見つからない").toBeTruthy();
+        expect(b, "api と api-user で撮影日の下限が違う").toBe(a);
     });
 });

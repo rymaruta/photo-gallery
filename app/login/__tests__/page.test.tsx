@@ -47,7 +47,11 @@ vi.mock("../../../lib/hooks/useToast", () => ({
     useToast: () => ({ showToast: mockShowToast }),
 }));
 
-vi.mock("../../../lib/auth/cognito", () => ({
+// **実物を土台にする。** 列挙だけだと、画面が新しく使う export
+// （`PASSWORD_RULE_MESSAGE`）が undefined になって投げ、**その分岐を通る
+// テストだけが落ちる**——このリポジトリで一度踏んでいる形
+vi.mock("../../../lib/auth/cognito", async (importActual) => ({
+    ...(await importActual<typeof import("../../../lib/auth/cognito")>()),
     forgotPassword: (...args: unknown[]) => mockForgotPassword(...args),
     confirmForgotPassword: (...args: unknown[]) => mockConfirmForgotPassword(...args),
 }));
@@ -91,6 +95,21 @@ describe("LoginPage - 基本フロー", () => {
         expect(screen.getByText(/メールアドレスの確認が完了しました/)).toBeInTheDocument();
     });
 
+    // **`next` を落としていた。** 招待リンクや共有リンクから来た未登録の人が
+    // ここを押すと行き先が消え、登録を終えると自分の空プロフィールに着地する
+    it("next があれば、新規登録のリンクにも引き継ぐ", () => {
+        mockSearchParams = new URLSearchParams("next=%2Fj%3Ft%3Dabc");
+        render(<LoginPage />);
+        expect(screen.getByRole("link", { name: "新規登録" }))
+            .toHaveAttribute("href", `/signup?next=${encodeURIComponent("/j?t=abc")}`);
+    });
+
+    it("外部のURLを next に入れられても、新規登録には付けない", () => {
+        mockSearchParams = new URLSearchParams("next=https%3A%2F%2Fevil.example%2Fx");
+        render(<LoginPage />);
+        expect(screen.getByRole("link", { name: "新規登録" })).toHaveAttribute("href", "/signup");
+    });
+
     it("verifiedパラメータがないときバナーは表示されない", () => {
         render(<LoginPage />);
         expect(screen.queryByText(/メールアドレスの確認が完了しました/)).not.toBeInTheDocument();
@@ -109,6 +128,41 @@ describe("LoginPage - 基本フロー", () => {
             expect(mockReplace).toHaveBeenCalledWith("/users?id=my-sub-123");
         });
         expect(mockShowToast).toHaveBeenCalledWith("ログインしました", "success");
+    });
+
+    // **`next` の振る舞いを見るテストが1本も無かった。**
+    // `searchParams?.get("next")` を `"nxt"` に書き換えても、login・
+    // guardRedirects・routes・useMemberGate の 88件が緑（実測）。
+    // `guardRedirects.test.ts` は「その1行の文字列がある」ことしか見ない。
+    // 壊れると、写真の共有リンクや招待リンクを踏んでログインした人が
+    // 全員、自分のプロフィールに着地する
+    it("next があれば、そこへ戻す（自分のプロフィールへ流さない）", async () => {
+        mockSearchParams = new URLSearchParams("next=%2Fphoto%2Fabc");
+        mockLogin.mockResolvedValue({ success: true, userId: "my-sub-123" });
+        const user = userEvent.setup();
+        render(<LoginPage />);
+
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), "user@example.com");
+        await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
+        await user.click(screen.getByRole("button", { name: "ログイン" }));
+
+        await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/photo/abc"));
+    });
+
+    // 外へ飛ばす値は捨てる（`safeNextPath`。この関数自体は
+    // `lib/__tests__/routes.test.ts` が手厚く見ている）
+    it("外部のURLを next に入れられても、そこへは飛ばさない", async () => {
+        mockSearchParams = new URLSearchParams("next=https%3A%2F%2Fevil.example%2Fx");
+        mockLogin.mockResolvedValue({ success: true, userId: "my-sub-123" });
+        const user = userEvent.setup();
+        render(<LoginPage />);
+
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), "user@example.com");
+        await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
+        await user.click(screen.getByRole("button", { name: "ログイン" }));
+
+        await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/users?id=my-sub-123"));
+        expect(mockReplace).not.toHaveBeenCalledWith(expect.stringContaining("evil.example"));
     });
 
     it("ログイン成功（userIdなし）→ ルートへリダイレクト + トースト表示", async () => {
@@ -255,6 +309,94 @@ describe("LoginPage - 表示名持ち越しによるプロフィール作成", (
 
         await waitFor(() => { expect(mockReplace).toHaveBeenCalledWith("/"); });
         expect(mockUserFetch).not.toHaveBeenCalled();
+    });
+
+    // **待たない。** `userFetch` はセッション最大10秒＋要求20秒なので、
+    // 直列2本で最大60秒「ログイン中...」のままになる。しかもこの枝に入るのは
+    // **登録を終えたばかりの初回ログインちょうど**——電波の悪い場所で
+    // そこを踏んだ人は、トークンはもう手元にあるのに固まった画面を見て閉じる
+    it("プロフィール作成の応答が返らなくても、着地は待たされない", async () => {
+        localStorageMock.setItem("jp_pending_name_u@example.com", "旅人");
+        mockLogin.mockResolvedValue({ success: true });
+        mockUserFetch.mockImplementation(() => new Promise(() => { /* 返らない */ }));
+        const user = userEvent.setup();
+        render(<LoginPage />);
+
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), "u@example.com");
+        await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
+        await user.click(screen.getByRole("button", { name: "ログイン" }));
+
+        await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/"));
+        // 控えは残す（次の遷移で `ProfileSetupBanner` が拾い直す）
+        expect(localStorageMock.getItem("jp_pending_name_u@example.com")).toBe("旅人");
+        // **控えの経路を実際に通っていることを確かめる**（キーの綴りを
+        // 間違えると分岐に入らず、何も検証しないテストになる）
+        expect(mockUserFetch, "プロフィール作成の経路に入っていない").toHaveBeenCalled();
+    });
+
+    // **送る前に見る。** 登録側は長さと一致を見ているのに、ここは空でなければ
+    // 送っていた。3文字でも往復して、戻ってくるのは AWS の文言
+    it("再設定の新しいパスワードが短ければ、送らずにその場で言う", async () => {
+        mockForgotPassword.mockResolvedValue({ success: true });
+        const user = userEvent.setup();
+        render(<LoginPage />);
+        await user.click(screen.getByRole("button", { name: /パスワードをお忘れですか/ }));
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), "u@example.com");
+        await user.click(screen.getByRole("button", { name: /確認コードを送信/ }));
+        await waitFor(() => expect(screen.getByPlaceholderText("メールに届いたコードを入力")).toBeInTheDocument());
+
+        await user.type(screen.getByPlaceholderText("メールに届いたコードを入力"), "123456");
+        await user.type(screen.getByPlaceholderText(/8文字以上/), "abc");
+        await user.click(screen.getByRole("button", { name: /パスワードを更新/ }));
+
+        expect(mockConfirmForgotPassword, "短いまま送っている").not.toHaveBeenCalled();
+        // **プールは記号も要求している**（`provision-env.js` の
+        // `RequireSymbols: true`）。記号を書かないと、`Password1` を弾かれた
+        // 人が「条件は満たしている」と読んで打ち直し続ける
+        expect(screen.getByText(/記号/), "記号の条件を言っていない").toBeInTheDocument();
+    });
+
+    // **前後に空白があっても、そのまま送らない。**
+    //
+    // 実際に落としているのは `type="email"` のブラウザ側の値の正規化で、
+    // 画面の `.trim()` は保険（外してもこの3本は通る＝レビューが変異で
+    // 「テストが弱い」と読んだが、**弱いのではなく効かせている場所が
+    // 違った**。本当に効くのは `signUp` の境界で、そちらは
+    // `lib/auth/__tests__/cognito.test.ts` が固定している）。
+    // ここで見るのは「空白付きで打っても素通りしない」という結果の方。
+    it("ログインは、メールの前後の空白を落として送る", async () => {
+        mockLogin.mockResolvedValue({ success: true });
+        const user = userEvent.setup();
+        render(<LoginPage />);
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), "  u@example.com  ");
+        await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
+        await user.click(screen.getByRole("button", { name: "ログイン" }));
+        await waitFor(() => expect(mockLogin).toHaveBeenCalledWith("u@example.com", "Password1!"));
+    });
+
+    it("再設定のコード送信も、前後の空白を落として送る", async () => {
+        mockForgotPassword.mockResolvedValue({ success: true });
+        const user = userEvent.setup();
+        render(<LoginPage />);
+        await user.click(screen.getByRole("button", { name: /パスワードをお忘れですか/ }));
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), " u@example.com ");
+        await user.click(screen.getByRole("button", { name: /確認コードを送信/ }));
+        await waitFor(() => expect(mockForgotPassword).toHaveBeenCalledWith("u@example.com"));
+    });
+
+    it("再設定の確定も、前後の空白を落として送る", async () => {
+        mockForgotPassword.mockResolvedValue({ success: true });
+        mockConfirmForgotPassword.mockResolvedValue({ success: true });
+        const user = userEvent.setup();
+        render(<LoginPage />);
+        await user.click(screen.getByRole("button", { name: /パスワードをお忘れですか/ }));
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), " u@example.com ");
+        await user.click(screen.getByRole("button", { name: /確認コードを送信/ }));
+        await waitFor(() => expect(screen.getByPlaceholderText("メールに届いたコードを入力")).toBeInTheDocument());
+        await user.type(screen.getByPlaceholderText("メールに届いたコードを入力"), "123456");
+        await user.type(screen.getByPlaceholderText(/8文字以上/), "Password1!");
+        await user.click(screen.getByRole("button", { name: /パスワードを更新/ }));
+        await waitFor(() => expect(mockConfirmForgotPassword).toHaveBeenCalledWith("u@example.com", "123456", "Password1!"));
     });
 
     it("PUT /user/profile が失敗してもログインは成功扱いで `/` へリダイレクトする", async () => {

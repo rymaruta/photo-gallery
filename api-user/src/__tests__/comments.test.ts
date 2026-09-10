@@ -17,6 +17,17 @@ vi.mock("../notify", () => ({
     DELETED_USER_NAME: "退会したユーザー",
 }));
 
+const mockIsBlocked = vi.hoisted(() => vi.fn(async () => false));
+// **ブロックは境界としてモックする**（既定は「していない」）。
+// 実際の判定は `block.test.ts` が見る。ここで本物を通すと、
+// 全テストのモックに `block#` の分岐を足して回ることになり、
+// **本題と関係のない行が増えて読めなくなる**。
+// ブロックが効くことは、このファイルの専用のテストで見る。
+vi.mock("../blockCheck", () => ({
+    isBlocked: (...a: unknown[]) => mockIsBlocked(...(a as [])),
+    blockMarkerId: (a: string, b: string) => `block#${a}#${b}`,
+}));
+
 const { getComments, postComment, deleteComment, overBudgetCount } = await import("../comments");
 type Comment = { id: string; uid: string; name: string; text: string; t: string };
 
@@ -36,6 +47,7 @@ beforeEach(() => {
     mockDdbSend.mockReset();
     mockDeletedIds.mockReset().mockResolvedValue(new Set<string>());
     mockPush.mockReset().mockResolvedValue(undefined);
+    mockIsBlocked.mockReset().mockResolvedValue(false);
     mockLookup.mockReset().mockResolvedValue("旅人A");
 });
 
@@ -854,5 +866,86 @@ describe("getComments: 退会した人の名前は出さない", () => {
         mockDdbSend.mockResolvedValueOnce({});
         await invoke(getComments, ev(undefined, { id: "p1" }));
         expect(mockDeletedIds).not.toHaveBeenCalled();
+    });
+});
+
+
+// **通知の宛先だけ `userId` 単独で残っていた。**
+// 同じファイルの :169 が「ここだけフォールバックが無かった」と直したのに、
+// 200行下の通知の宛先が取り残されていた。`uploadedBy` しか持たない古い写真は
+// **コメントされても投稿者のベルに何も来ない**——本文は普通に表示され、
+// 相手には 200 が返るので、投稿者も書いた人も気づけない。
+describe("コメントの通知: 古い写真の投稿者にも届く", () => {
+    /** 写真の行の形だけ差し替えて、コメントを1件書く */
+    const commentOn = async (photo: Record<string, unknown>, as = "someone") => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const id = String(cmd.input.Key?.id ?? "");
+                if (id === "p1") return Promise.resolve({ Item: { id: "p1", src: "s", ...photo } });
+                return Promise.resolve({ Item: { items: [] } });
+            }
+            return Promise.resolve({ Attributes: { items: [] } });
+        });
+        return invoke(postComment, ev(as, { id: "p1" }, { text: "きれいですね" }));
+    };
+
+    it("uploadedBy しか無い写真でも、投稿者に通知が行く", async () => {
+        expect((await commentOn({ uploadedBy: "old-owner" })).statusCode).toBe(200);
+        expect(mockPush, "古い写真だと通知が飛ばない").toHaveBeenCalledTimes(1);
+        expect(mockPush.mock.calls[0][0]).toBe("old-owner");
+    });
+
+    it("userId がある写真は今までどおり", async () => {
+        expect((await commentOn({ userId: "owner" })).statusCode).toBe(200);
+        expect(mockPush.mock.calls[0][0]).toBe("owner");
+    });
+
+    // **順番も固定する**（`userId ?? uploadedBy`。逆順は別人に届く）
+    it("両方あるときは userId を採る（uploadedBy ではない）", async () => {
+        expect((await commentOn({ userId: "now", uploadedBy: "then" })).statusCode).toBe(200);
+        expect(mockPush.mock.calls[0][0], "優先順位が逆").toBe("now");
+    });
+
+    // 逆向き。自分の写真には鳴らさない（`uploadedBy` 側でも同じ）
+    it("自分の写真には通知しない（uploadedBy でも）", async () => {
+        expect((await commentOn({ uploadedBy: "me" }, "me")).statusCode).toBe(200);
+        expect(mockPush, "自分のコメントで自分に通知している").not.toHaveBeenCalled();
+    });
+});
+
+
+// **通知だけ止めても足りない。** コメントの本文は**公開**で誰でも読める
+// （500字）ので、相手の写真に自分の言葉が残り続ける。
+// **404 で返す**——「ブロックされています」と言うと相手の操作を教える
+describe("コメント: ブロックされていたら書けない", () => {
+    const world = (photo: Record<string, unknown>) => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const id = String(cmd.input.Key?.id ?? "");
+                if (id === "p1") return Promise.resolve({ Item: { id: "p1", src: "s", ...photo } });
+                return Promise.resolve({ Item: { items: [] } });
+            }
+            return Promise.resolve({ Attributes: { items: [] } });
+        });
+    };
+
+    it("ブロックされていたら 404（本文も通知も残さない）", async () => {
+        mockIsBlocked.mockResolvedValue(true);
+        world({ userId: "owner" });
+        const res = await invoke(postComment, ev("me", { id: "p1" }, { text: "しつこい" }));
+        expect(res.statusCode).toBe(404);
+        expect(mockPush, "ブロックされているのに通知が飛んでいる").not.toHaveBeenCalled();
+    });
+
+    it("ブロックされていなければ今までどおり", async () => {
+        world({ userId: "owner" });
+        expect((await invoke(postComment, ev("me", { id: "p1" }, { text: "きれい" }))).statusCode).toBe(200);
+    });
+
+    // 自分の写真には自分で書ける（判定を素通りさせない向き）
+    it("自分の写真なら、判定に行かない", async () => {
+        world({ userId: "me" });
+        expect((await invoke(postComment, ev("me", { id: "p1" }, { text: "自分の" }))).statusCode).toBe(200);
+        expect(mockIsBlocked, "自分の写真でブロックを引きに行っている").not.toHaveBeenCalled();
     });
 });

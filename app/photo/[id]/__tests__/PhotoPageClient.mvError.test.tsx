@@ -33,7 +33,7 @@ vi.mock("../../../components/CommentSection", () => ({ default: () => null }));
 vi.mock("../../../components/RelatedPhotos", () => ({ default: () => null }));
 vi.mock("../../../components/ProfileLink", () => ({ default: () => null }));
 vi.mock("../../../components/MusicCard", () => ({ default: () => null }));
-const mockLikeToggle = vi.hoisted(() => vi.fn(async () => true));
+const mockLikeToggle = vi.hoisted(() => vi.fn(async (): Promise<{ ok: boolean; message?: string }> => ({ ok: true })));
 vi.mock("../../../../lib/hooks/usePhotoLikes", () => ({
     usePhotoLikes: () => ({ liked: false, count: 0, pending: false, toggle: mockLikeToggle }),
 }));
@@ -121,12 +121,26 @@ describe("MV設定の失敗理由が伝わる", () => {
 describe("いいね・曲検索の失敗が画面に出る", () => {
     it("いいねが失敗したらトーストを出す（SW-b4 の配線）", async () => {
         mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({}) });
-        mockLikeToggle.mockResolvedValue(false);
+        mockLikeToggle.mockResolvedValue({ ok: false });
         render(<PhotoPageClient photoId="p1" initialPhoto={photo} />);
         const heart = await screen.findByRole("button", { name: /いいね|Like/ });
         await userEvent.click(heart);
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
             expect.stringContaining("いいねを保存できませんでした"), "error"));
+    });
+
+    // **押し直しても直らない失敗はそう言う。** フックが理由を運ぶように
+    // したが、画面がそれを出すかは別の話（無視しても既定文で緑になる）
+    it("セッションが切れていたら、その文言をそのまま出す", async () => {
+        const { AUTH_REQUIRED_MESSAGE } = await import("../../../../lib/utils/api");
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({}) });
+        mockLikeToggle.mockResolvedValue({ ok: false, message: AUTH_REQUIRED_MESSAGE });
+        render(<PhotoPageClient photoId="p1" initialPhoto={photo} />);
+        await userEvent.click(await screen.findByRole("button", { name: /いいね|Like/ }));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(AUTH_REQUIRED_MESSAGE, "error"));
+        // **`toContain` に非対称マッチャを渡すと必ず通る**（要素を `===` で
+        // 比べるため）ので、回数で見る。既定文も一緒に出す変異が素通りしていた
+        expect(mockShowToast, "理由と既定文を両方出している").toHaveBeenCalledTimes(1);
     });
 
     it("曲検索が失敗したら理由を出す（SW-b6 の配線）", async () => {

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { siteConfig, generateStructuredData, generateOrganizationStructuredData } from "../lib/utils/seo";
+import { siteConfig, generateStructuredData, generateOrganizationStructuredData, FEED_ALTERNATE } from "../lib/utils/seo";
 import { loadAllPhotos, resolveOgImage } from "../lib/server/photos";
 import GalleryPageClient from "./GalleryPageClient";
 
@@ -17,6 +17,10 @@ export async function generateMetadata(): Promise<Metadata> {
         ],
         alternates: {
             canonical: siteConfig.url,
+            // **`alternates` はオブジェクトごと差し替わる。** ここで
+            // `canonical` だけ書くと、レイアウトのフィード宣言が消える
+            // （実際そうなっていて、フィードはどのページからも辿れなかった）
+            ...FEED_ALTERNATE,
         },
         openGraph: {
             type: "website",

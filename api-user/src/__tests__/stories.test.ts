@@ -25,6 +25,21 @@ vi.mock("@aws-sdk/client-s3", () => ({
 // （静的 import はファイル先頭に巻き上げられ stubEnv より先に実行されてしまう）
 vi.stubEnv("CLOUDFRONT_URL", "https://cdn.test");
 vi.stubEnv("UPLOAD_BUCKET", "bucket-test");
+const mockIsBlocked = vi.hoisted(() => vi.fn(async () => false));
+const mockHidden = vi.hoisted(() => vi.fn(async () => new Set<string>()));
+// **ブロックは境界としてモックする**（既定は「していない」）。
+// 実際の判定は `block.test.ts` が見る。ここで本物を通すと、
+// 全テストのモックに `block#` の分岐を足して回ることになり、
+// **本題と関係のない行が増えて読めなくなる**。
+// ブロックが効くことは、このファイルの専用のテストで見る。
+vi.mock("../blockCheck", () => ({
+    isBlocked: (...a: unknown[]) => mockIsBlocked(...(a as [])),
+    blockMarkerId: (a: string, b: string) => `block#${a}#${b}`,
+}));
+vi.mock("../block", () => ({
+    hiddenUserIds: (...a: unknown[]) => mockHidden(...(a as [])),
+}));
+
 const { getStories, createStory, deleteStory, viewStory, getStoryViewers, cleanupExpiredStories } = await import("../stories");
 
 type LambdaResult = { statusCode: number; headers?: Record<string, string>; body: string };
@@ -39,9 +54,21 @@ function authedEvent(sub: string | undefined, overrides: Record<string, unknown>
     };
 }
 
+/** 管理者（`cognito:groups` に admin が入っている） */
+function adminEvent(overrides: Record<string, unknown> = {}) {
+    return {
+        requestContext: { authorizer: { jwt: { claims: { sub: "admin-user", "cognito:groups": ["admin"] } } } },
+        ...overrides,
+    };
+}
+
 beforeEach(() => {
     mockDdbSend.mockReset();
     mockS3Send.mockReset();
+    // **必ず戻す。** 1つのテストで「隠す相手」を差し替えたまま次へ持ち越すと、
+    // 関係のないテストがブロック済みの世界で走る
+    mockIsBlocked.mockReset().mockResolvedValue(false);
+    mockHidden.mockReset().mockResolvedValue(new Set<string>());
 });
 
 /**
@@ -95,14 +122,84 @@ describe("getStories", () => {
         expect(res.headers?.["Cache-Control"]).toContain("no-store");
     });
 
+    // **ブロックは両向きに効く。** 自分がブロックした相手のストーリーも、
+    // 自分をブロックした相手のストーリーも出さない
+    it("ブロックした相手・された相手のストーリーは出さない", async () => {
+        mockHidden.mockResolvedValue(new Set(["a", "b"]));
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({});
+            return Promise.resolve({ Items: [
+                { id: "s1", userId: "me", createdAt: "1" },
+                { id: "s2", userId: "a", createdAt: "2" },
+                { id: "s3", userId: "b", createdAt: "3" },
+                { id: "s4", userId: "c", createdAt: "4" },
+            ] });
+        });
+        const res = await invoke(getStories, authedEvent("me"));
+        const ids = (JSON.parse(res.body) as Array<{ id: string }>).map((i) => i.id);
+        expect(ids, "ブロックが効いていない").toEqual(["s1", "s4"]);
+    });
+
+    // **見えなくする側が落ちたときに全部消さない**（倒しすぎ）
+    it("ブロック一覧を読めなくても、一覧は返す", async () => {
+        mockHidden.mockRejectedValue(new Error("boom"));
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({});
+            return Promise.resolve({ Items: [{ id: "s1", userId: "me", createdAt: "1" }] });
+        });
+        const res = await invoke(getStories, authedEvent("me"));
+        expect(res.statusCode, "ブロック一覧の失敗で、ストーリーが誰にも出なくなる").toBe(200);
+        expect(JSON.parse(res.body)).toHaveLength(1);
+    });
+
+    // **返信の数は投稿者にだけ。** 誰が反応したかは `viewers` と同じく
+    // 本人だけのもので、見た人に「このストーリーに何件届いたか」を教えない
+    it("replyCount は投稿者にだけ返す", async () => {
+        mockDdbSend.mockResolvedValueOnce({
+            Items: [
+                { id: "s1", userId: "me", createdAt: "2026-07-04T10:00:00Z", replyCount: 3 },
+                { id: "s2", userId: "other", createdAt: "2026-07-04T11:00:00Z", replyCount: 7 },
+            ],
+        });
+        const res = await invoke(getStories, authedEvent("me"));
+        const items = JSON.parse(res.body) as Array<{ id: string; replyCount?: number }>;
+        expect(items.find((i) => i.id === "s1")?.replyCount, "自分の分まで消している").toBe(3);
+        expect(items.find((i) => i.id === "s2")?.replyCount, "他人に返信の数を教えている").toBeUndefined();
+    });
+
+    // 「残した」印も本人だけ（`viewers` と同じ扱い）
+    it("keptAs も投稿者にだけ返す", async () => {
+        mockDdbSend.mockResolvedValueOnce({
+            Items: [
+                { id: "s1", userId: "me", createdAt: "1", keptAs: "p-1" },
+                { id: "s2", userId: "other", createdAt: "2", keptAs: "p-2" },
+            ],
+        });
+        const res = await invoke(getStories, authedEvent("me"));
+        const items = JSON.parse(res.body) as Array<{ id: string; keptAs?: string }>;
+        expect(items.find((i) => i.id === "s1")?.keptAs, "自分の分まで消している").toBe("p-1");
+        expect(items.find((i) => i.id === "s2")?.keptAs, "他人に「残した」印を返している").toBeUndefined();
+    });
+
     it("ページネーション（LastEvaluatedKey）を辿って全件返す", async () => {
-        mockDdbSend
-            .mockResolvedValueOnce({ Items: [{ id: "a", createdAt: "1" }], LastEvaluatedKey: { id: "a" } })
-            .mockResolvedValueOnce({ Items: [{ id: "b", createdAt: "2" }] });
+        // 種類で答える（上と同じ理由。GetItem と並行になった）
+        let page = 0;
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({});
+            page++;
+            return Promise.resolve(page === 1
+                ? { Items: [{ id: "a", createdAt: "1" }], LastEvaluatedKey: { id: "a" } }
+                : { Items: [{ id: "b", createdAt: "2" }] });
+        });
         const res = await invoke(getStories, authedEvent("viewer"));
         const items = JSON.parse(res.body) as Array<Record<string, unknown>>;
         expect(items).toHaveLength(2);
-        expect(mockDdbSend).toHaveBeenCalledTimes(2);
+        // Query が2回（ページを辿る）。**GetItem の数は数えない**
+        // ——ブロックの一覧（`blocks#` / `blockedby#`）を読むぶんが増えるので、
+        // 総数で縛ると関係のない変更で落ちる
+        const queries = mockDdbSend.mock.calls
+            .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "QueryCommand");
+        expect(queries, "ページを辿っていない").toHaveLength(2);
     });
 
     it("DynamoDB エラーは 500", async () => {
@@ -130,15 +227,24 @@ describe("getStories", () => {
     it("索引がまだ無いテーブルでは Scan に落ちる（機能ごと止めない）", async () => {
         // 索引を足すのはデプロイとは別作業なので、順序が前後しても
         // ストーリーが見えなくならないようにする。
+        // **順番ではなくコマンドの種類で答える。** ブロックの一覧（GetItem）は
+        // ストーリーの取得と**並行**に投げるので、`mockResolvedValueOnce` を
+        // 積む書き方だと取り違える（並行にした時点で実際に落ちた）
         const missing = Object.assign(new Error("index not found"), { name: "ValidationException" });
-        mockDdbSend
-            .mockRejectedValueOnce(missing)
-            .mockResolvedValueOnce({ Items: [{ id: "s1", createdAt: "1" }] });
+        let queried = false;
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({});
+            if (cmd.constructor.name === "QueryCommand" && !queried) { queried = true; return Promise.reject(missing); }
+            return Promise.resolve({ Items: [{ id: "s1", createdAt: "1" }] });
+        });
         const res = await invoke(getStories, authedEvent("viewer"));
         expect(res.statusCode).toBe(200);
         expect(JSON.parse(res.body)).toHaveLength(1);
-        const fallback = mockDdbSend.mock.calls[1][0].input as { FilterExpression?: string };
-        expect(fallback.FilterExpression).toContain("story = :t");
+        const scan = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string }; input: { FilterExpression?: string } })
+            .find((c) => c.constructor.name === "ScanCommand");
+        expect(scan, "Scan に落ちていない").toBeTruthy();
+        expect(scan!.input.FilterExpression).toContain("story = :t");
     });
 });
 
@@ -349,6 +455,88 @@ describe("createStory", () => {
     });
 });
 
+// **ストーリーにも撮影地を持たせる。** 見る側に「どこで」が伝わるだけでなく、
+// **ギャラリーに残したときにそのまま写真の撮影地になる**（`storyKeep.ts`）
+// ——このサイトの価値は 撮影地 → 地図 → `/location/<スラッグ>` → 検索流入 なので、
+// ここが空だと残しても本人が手で打つまで何にも繋がらない。
+describe("createStory: 撮影地", () => {
+    const post = (body: Record<string, unknown>) => invoke(createStory, authedEvent("u1", {
+        body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.webp", ...body }),
+    }));
+    /** 保存された行 */
+    const saved = () => (mockDdbSend.mock.calls
+        .map((c) => c[0] as { constructor: { name: string }; input: { Item?: Record<string, unknown> } })
+        .find((c) => c.constructor.name === "PutCommand")?.input.Item) ?? {};
+
+    it("地名と座標を保存する", async () => {
+        mockDdbSend.mockResolvedValue({ Count: 0 });
+        await post({ location: "横浜 みなとみらい", coords: { lat: 35.4567, lng: 139.6321 } });
+        expect(saved().location).toBe("横浜 みなとみらい");
+        // **約1kmに丸めたものだけを保存する**（生の緯度経度を公開URLに載せない）
+        expect(saved().coords).toEqual({ lat: 35.46, lng: 139.63 });
+    });
+
+    // 地名の無い座標は画面に出しようがなく、残しても「名前の無い点」が増えるだけ
+    it("地名が無ければ座標も持たない", async () => {
+        mockDdbSend.mockResolvedValue({ Count: 0 });
+        await post({ coords: { lat: 35.45, lng: 139.63 } });
+        expect("coords" in saved(), "地名の無い座標を保存している").toBe(false);
+    });
+
+    it("壊れた座標は捨てる（地名は残す）", async () => {
+        mockDdbSend.mockResolvedValue({ Count: 0 });
+        await post({ location: "どこか", coords: { lat: 999, lng: "x" } });
+        expect(saved().location).toBe("どこか");
+        expect("coords" in saved(), "範囲外の座標を保存している").toBe(false);
+    });
+
+    // **動画には位置を付けない。** 位置は写真の EXIF から来るもので、動画は
+    // `toUploadSafeVideo` が GPS を落としている。画面側の1か所だけで守ると、
+    // 細工した要求で動画に座標を付けられる（片側だけの防御を作らない）
+    it("動画のストーリーには位置を付けない", async () => {
+        mockDdbSend.mockResolvedValue({ Count: 0 });
+        await post({ mediaType: "video", location: "横浜", coords: { lat: 35.45, lng: 139.63 } });
+        expect("location" in saved(), "動画に撮影地を付けている").toBe(false);
+        expect("coords" in saved(), "動画に座標を付けている").toBe(false);
+    });
+
+    // **検証は写真と同じものを通す**（`sanitizeText`）と書いていたのに、
+    // それを外しても全58件が緑だった＝**1本も守っていなかった**。
+    // ここが素通しだと、改行入り・長大な地名がそのまま保存され、
+    // `keepStory` 経由で写真の `location` → `/location/<スラッグ>`・
+    // `<title>`・JSON-LD に入る（スラッグはファイル名にもなる）
+    it("制御文字を落とす", async () => {
+        mockDdbSend.mockResolvedValue({ Count: 0 });
+        await post({ location: `横浜${String.fromCharCode(10)}みなとみらい${String.fromCharCode(0)}` });
+        // `sanitizeText` は落とす（区切りに寄せない）。実際の振る舞いで固定する
+        expect(saved().location, "改行や NUL がそのまま保存されている").toBe("横浜みなとみらい");
+    });
+
+    it("200文字で切る", async () => {
+        mockDdbSend.mockResolvedValue({ Count: 0 });
+        await post({ location: "あ".repeat(300) });
+        expect(String(saved().location).length, "上限が効いていない").toBe(200);
+    });
+
+    it("空白だけなら持たない", async () => {
+        mockDdbSend.mockResolvedValue({ Count: 0 });
+        await post({ location: "   " });
+        expect("location" in saved()).toBe(false);
+    });
+
+    it("文字列でない地名は持たない", async () => {
+        mockDdbSend.mockResolvedValue({ Count: 0 });
+        await post({ location: { ja: "横浜" } });
+        expect("location" in saved(), "オブジェクトを地名として保存している").toBe(false);
+    });
+
+    it("場所を送らなければ、項目ごと持たない", async () => {
+        mockDdbSend.mockResolvedValue({ Count: 0 });
+        await post({});
+        expect("location" in saved()).toBe(false);
+    });
+});
+
 // ────────────────────────────────
 // DELETE /stories/{id}
 // ────────────────────────────────
@@ -401,6 +589,101 @@ describe("deleteStory", () => {
         expect(deletes, "S3 が消せていないのに行を消した").toHaveLength(0);
     });
 
+    // **手がかりを残すのは「失敗したら行を消さない」の方。**
+    // `storyreplies#<id>` は `storyFeed` も `story` も `src` も持たないので、
+    // 行が消えると GSI にも Scan にも一覧にも出ない＝二度と辿れない
+    it("返信を消せなかったら、行を残して失敗を返す", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") {
+                return Promise.resolve({ Item: { id: "story-1", story: true, userId: "u1", key: "uploads/a.jpg" } });
+            }
+            if (id.startsWith("storyreplies#")) return Promise.reject(new Error("boom"));
+            return Promise.resolve({});
+        });
+        mockS3Send.mockResolvedValue({});
+        const res = await invoke(deleteStory, authedEvent("u1", { pathParameters: { id: "story-1" } }));
+        expect(res.statusCode, "返信を消せていないのに成功と言っている").toBe(500);
+        const rowDeleted = mockDdbSend.mock.calls.some((c) => {
+            const cmd = c[0] as { constructor: { name: string }; input: { Key?: { id?: string } } };
+            return cmd.constructor.name === "DeleteCommand" && cmd.input.Key?.id === "story-1";
+        });
+        expect(rowDeleted, "辿る手がかり（行）まで消している").toBe(false);
+    });
+
+    // **ギャラリーに残した1枚の実体は消さない。** `keptAs` が立っている
+    // ストーリーは、その S3 オブジェクトの持ち主が写真の行に移っている。
+    // ここで消すと、残したはずの写真が**割れた画像**になる（行は残るので
+    // 一覧にも個別ページにも壊れた枠が並ぶ）。行だけ消す＝24時間の約束は守る
+    it("ギャラリーに残した写真の実体は消さない（行だけ消す）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "u1", key: "uploads/a.jpg", keptAs: "photo-1" } })
+            .mockResolvedValue({});
+        const res = await invoke(deleteStory, authedEvent("u1", { pathParameters: { id: "story-1" } }));
+        expect(res.statusCode).toBe(200);
+        expect(mockS3Send, "残した写真の実体まで消している").not.toHaveBeenCalled();
+        const keys = mockDdbSend.mock.calls
+            .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand")
+            .map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
+        expect(keys, "行は予定どおり消す").toEqual(["storyreplies#story-1", "story-1"]);
+    });
+
+    // **ここで写真を消してはいけない。**
+    //
+    // 一度は「管理者なら残された写真ごと消す」と書いたが、消し方が
+    // 足りていなかった——派生画像（`thumbAvif` / `thumbSm` /
+    // `thumbSmAvif` / `srcAvif` / `src256`）は `generate-thumbnails.js` が
+    // **写真の行**に書き戻すので、`storyMediaKeys`（ストーリーの行しか
+    // 見ない）では1つも消えない。行を消したあとは**どの経路からも
+    // 辿れない孤児**になる。`comments#` もピンの枠も静的HTMLも残る。
+    // 管理APIの写真削除がその全部をやったうえでストーリーまで消すので、
+    // **そちらへ送る**（同じものを二度作らない）。
+    it("管理者でも、ギャラリーに残された写真は消さずに 409 で断る", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "someone", key: "uploads/a.jpg", keptAs: "photo-1" } })
+            .mockResolvedValueOnce({ Item: { id: "photo-1", src: "https://cdn/uploads/a.jpg" } })  // 残された写真は実在する
+            .mockResolvedValue({});
+        mockS3Send.mockResolvedValue({});
+        const res = await invoke(deleteStory, adminEvent({ pathParameters: { id: "story-1" } }));
+        expect(res.statusCode).toBe(409);
+        expect(JSON.parse(res.body).error, "どうすればよいか言っていない").toContain("の方を削除してください");
+        // どの写真かを言わないと、管理画面（下書きも並ぶ）から人手で探すことになり、
+        // その間ずっとストーリーは全員のトレイに残る（最大24時間）
+        expect(JSON.parse(res.body).error, "どの写真か分からない").toContain("photo-1");
+        const deleted = mockDdbSend.mock.calls
+            .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand")
+            .map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
+        expect(deleted, "中途半端に消している").toEqual([]);
+        expect(mockS3Send, "実体だけ消すと割れた写真が残る").not.toHaveBeenCalled();
+    });
+
+    // 断りっぱなしにすると、印が死んだIDを指している場合に
+    // **管理者が何もできなくなる**。実在を確かめてから断る
+    it("残された写真がもう無ければ、普通に消せる（実体も消す）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "someone", key: "uploads/a.jpg", keptAs: "photo-1" } })
+            .mockResolvedValueOnce({})   // 写真の行はもう無い
+            .mockResolvedValue({});
+        mockS3Send.mockResolvedValue({});
+        const res = await invoke(deleteStory, adminEvent({ pathParameters: { id: "story-1" } }));
+        expect(res.statusCode).toBe(200);
+        expect(mockS3Send, "持ち主の居ない実体が公開URLに残る").toHaveBeenCalled();
+        const deleted = mockDdbSend.mock.calls
+            .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand")
+            .map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
+        expect(deleted).toEqual(["storyreplies#story-1", "story-1"]);
+    });
+
+    // 本人が消すときは今までどおり（残した写真は守る）
+    it("本人が消すときは、残された写真の実体を守る", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "u1", key: "uploads/a.jpg", keptAs: "photo-1" } })
+            .mockResolvedValue({});
+        const res = await invoke(deleteStory, authedEvent("u1", { pathParameters: { id: "story-1" } }));
+        expect(res.statusCode).toBe(200);
+        expect(mockS3Send, "本人が残した写真の実体まで消している").not.toHaveBeenCalled();
+    });
+
     it("S3 が消せていれば、これまでどおり行も消す（正常系）", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "u1", key: "uploads/a.jpg" } })
@@ -410,7 +693,11 @@ describe("deleteStory", () => {
         expect(res.statusCode).toBe(200);
         const deletes = mockDdbSend.mock.calls.filter(
             (c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand");
-        expect(deletes).toHaveLength(1);
+        // 行と、そこに届いた返信の文書。**返信を先に消す**
+        // （逆だと、消し損ねた `storyreplies#` を辿る手がかりが無くなる）
+        const keys = deletes.map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
+        expect(keys, "返信の文書を消していない（24時間で消える約束の本文が残る）")
+            .toEqual(["storyreplies#story-1", "story-1"]);
     });
 
     // 以前はサムネ生成スクリプトがストーリーも対象にしていたため、
@@ -547,6 +834,19 @@ describe("viewStory", () => {
         expect(res.statusCode).toBe(404);
     });
 
+    // **ブロックした相手の閲覧は記録しない。** 一覧からは隠しているが、
+    // 期限をまたいで開きっぱなしのタブや直接叩く経路ではここに来る。
+    // 記録すると、所有者の閲覧者一覧に**相手が付けた任意の表示名**が出る
+    it("ブロックした相手の閲覧は記録しない（404）", async () => {
+        mockIsBlocked.mockResolvedValue(true);
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "s1", story: true, userId: "owner", expiresAt: "2099-01-01T00:00:00Z" } });
+        const res = await invoke(viewStory, authedEvent("them", { pathParameters: { id: "s1" } }));
+        expect(res.statusCode).toBe(404);
+        const writes = mockDdbSend.mock.calls
+            .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "UpdateCommand");
+        expect(writes, "ブロックした相手を閲覧者に記録している").toHaveLength(0);
+    });
+
     it("他人の閲覧は viewers マップに初回時刻つきで記録する", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } })
@@ -668,8 +968,29 @@ describe("cleanupExpiredStories", () => {
         expect(result.deleted).toBe(1);
         const deletes = mockDdbSend.mock.calls.filter(
             (c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand");
-        expect(deletes).toHaveLength(1);
-        expect((deletes[0][0] as { input: { Key: { id: string } } }).input.Key.id).toBe("good");
+        const keys = deletes.map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
+        // 消せた方だけ。返信の文書も一緒に（行より先に）
+        expect(keys).toEqual(["storyreplies#good", "good"]);
+    });
+
+    // 掃除も同じ。消せなければ行を残して次回に回す
+    it("返信を消せなかった行は残す（次回に回す）", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "QueryCommand" || cmd.constructor.name === "ScanCommand") {
+                return Promise.resolve({ Items: [{ id: "bad", key: "uploads/bad.jpg" }] });
+            }
+            if (id.startsWith("storyreplies#")) return Promise.reject(new Error("boom"));
+            return Promise.resolve({});
+        });
+        mockS3Send.mockResolvedValue({});
+        const result = await cleanupExpiredStories();
+        expect(result.deleted, "返信を消せていないのに数えている").toBe(0);
+        const rowDeleted = mockDdbSend.mock.calls.some((c) => {
+            const cmd = c[0] as { constructor: { name: string }; input: { Key?: { id?: string } } };
+            return cmd.constructor.name === "DeleteCommand" && cmd.input.Key?.id === "bad";
+        });
+        expect(rowDeleted, "辿る手がかり（行）まで消している").toBe(false);
     });
 
     it("期限切れが無ければ何もしない", async () => {

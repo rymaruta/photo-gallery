@@ -18,7 +18,7 @@ export default function NotFound() {
     return (
         <main className="min-h-screen bg-black text-white flex items-center justify-center px-4">
             <div className="text-center space-y-6">
-                <p className="text-white/40 text-xs tracking-widest uppercase">404</p>
+                <p className="text-white/50 text-xs tracking-widest uppercase">404</p>
                 <h1 className="text-2xl font-bold">ページが見つかりません</h1>
                 <p className="text-white/50 text-sm">
                     お探しのページは移動または削除された可能性があります。

@@ -2,7 +2,7 @@
 // API リクエストユーティリティ
 // NEXT_PUBLIC_API_BASE_URL が設定されている場合は Lambda、未設定の場合はローカル API Routes を使用
 
-import { getCurrentSession } from "../auth/cognito";
+import { lookupSession } from "../auth/cognito";
 
 function getBaseUrl(): string {
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -63,7 +63,7 @@ export type ApiRequestInit = RequestInit & { timeoutMs?: number };
  * 区別できず、**時間切れが黙って捨てられる**。
  */
 /**
- * トークンの取得（`getCurrentSession`）にも打ち切りを掛ける。
+ * トークンの取得（`lookupSession`）にも打ち切りを掛ける。
  *
  * **`fetch` に打ち切りを入れただけでは足りなかった。** `userFetch` /
  * `authenticatedFetch` は `await getCurrentSession()` の**後**に `fetch` を
@@ -84,7 +84,10 @@ async function sessionWithTimeout(ms: number) {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
         return await Promise.race([
-            getCurrentSession(),
+            // **`lookupSession` で引く。** `getCurrentSession` は「確かめられ
+            // なかった」を捨てて null にするので、通信できないだけの回まで
+            // 「ログインしてください」と言うことになる
+            lookupSession(),
             new Promise<never>((_res, rej) => {
                 timer = setTimeout(
                     () => rej(new DOMException(`応答がありません（${Math.round(ms / 1000)}秒）`, "TimeoutError")),
@@ -189,11 +192,12 @@ export async function authenticatedFetch(path: string, options?: ApiRequestInit)
     const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
 
     // Cognito セッションから JWT トークンを取得（ここにも打ち切りが要る）
-    const session = await sessionWithTimeout(SESSION_TIMEOUT_MS);
+    const { session, unreachable } = await sessionWithTimeout(SESSION_TIMEOUT_MS);
     const token = session?.getIdToken()?.getJwtToken();
 
     if (!token) {
-        throw new Error(AUTH_REQUIRED_MESSAGE);
+        // 確かめられなかっただけの回に「ログインしてください」と言わない
+        throw new Error(unreachable ? NETWORK_UNREACHABLE_MESSAGE : AUTH_REQUIRED_MESSAGE);
     }
 
     return fetchWithTimeout(url, {
@@ -213,11 +217,12 @@ export async function userFetch(path: string, options?: ApiRequestInit): Promise
     const base = getUserApiBaseUrl();
     const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
 
-    const session = await sessionWithTimeout(SESSION_TIMEOUT_MS);
+    const { session, unreachable } = await sessionWithTimeout(SESSION_TIMEOUT_MS);
     const token = session?.getIdToken()?.getJwtToken();
 
     if (!token) {
-        throw new Error(AUTH_REQUIRED_MESSAGE);
+        // 確かめられなかっただけの回に「ログインしてください」と言わない
+        throw new Error(unreachable ? NETWORK_UNREACHABLE_MESSAGE : AUTH_REQUIRED_MESSAGE);
     }
 
     return fetchWithTimeout(url, {
@@ -259,6 +264,28 @@ export async function userPublicFetch(path: string, options?: ApiRequestInit): P
  * 見分ける（文字列の重複比較を散らばらせない）。
  */
 export const AUTH_REQUIRED_MESSAGE = "認証が必要です。ログインしてください。";
+
+/**
+ * **セッションを確かめられなかった**ときの文言。
+ *
+ * 機内モードだけでなく、ホテル・空港の Wi-Fi（キャプティブポータル）や
+ * 中継機のエラーページでも起きる——「繋がってはいるが Cognito に届いて
+ * いない」。ここで `AUTH_REQUIRED_MESSAGE` を出すのは**嘘**で、しかも
+ * 言われたとおりログインし直そうにも、その通信も通らない。
+ */
+export const NETWORK_UNREACHABLE_MESSAGE = "ネットワークにつながりません。接続を確認してもう一度お試しください";
+
+/**
+ * こちらが自分で組み立てた「そのまま画面に出してよい」失敗の文言。
+ * 違うもの（`TypeError: Failed to fetch` のような技術文字列）なら null。
+ *
+ * **9か所が `e.message === AUTH_REQUIRED_MESSAGE` を各自で書いていた。**
+ * 文言が2つになった時点で、片方だけ足し忘れる形になる（この台帳の型2）。
+ */
+export function sessionErrorMessage(e: unknown): string | null {
+    const m = e instanceof Error ? e.message : "";
+    return m === AUTH_REQUIRED_MESSAGE || m === NETWORK_UNREACHABLE_MESSAGE ? m : null;
+}
 
 /** 期限切れトークンで API Gateway が返す 401 定型に対する置き換え文言 */
 export const SESSION_EXPIRED_MESSAGE = "セッションの有効期限が切れています。ログインし直してください";

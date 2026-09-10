@@ -300,7 +300,7 @@ export default function AdminPage() {
                     <p className="text-white/70 text-sm">
                         {locale === "en" ? "Could not load photos." : "写真の一覧を読み込めませんでした"}
                     </p>
-                    <p className="text-white/40 text-xs">
+                    <p className="text-white/50 text-xs">
                         {locale === "en"
                             ? "Nothing was lost. Check your connection or sign in again."
                             : "消えたわけではありません。通信かログイン状態を確かめてください。"}
@@ -329,13 +329,13 @@ export default function AdminPage() {
                 </div>
             ) : (
                 <>
-                    <p className="text-xs text-white/40 mb-3">
+                    <p className="text-xs text-white/50 mb-3">
                         {locale === "en"
                             ? `${visiblePhotos.length} of ${photos.length} photos`
                             : `${photos.length}枚中 ${visiblePhotos.length}枚`}
                     </p>
                     {visiblePhotos.length === 0 ? (
-                        <p className="py-12 text-center text-sm text-white/40">
+                        <p className="py-12 text-center text-sm text-white/50">
                             {locale === "en" ? "No photos match." : "条件に合う写真がありません。"}
                         </p>
                     ) : (

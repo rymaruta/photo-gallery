@@ -376,6 +376,10 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
             // 「うまくいきませんでした」では直らない。押し直させない
             const msg = e instanceof Error ? e.message : "";
             if (msg === AUTH_REQUIRED_MESSAGE) return { result: "auth-required", message: msg };
+            // 通信できないだけの回はログインの案内にしない（ログインし直す
+            // 通信も通らない）。**分岐は書かない**——すぐ下の `msg ||` が
+            // そのまま文言を返すので、足しても振る舞いが変わらない
+            // （変異で確かめたら消しても全緑だった＝死にコード）
             return { result: "error", message: msg || FOLLOW_FAILED };
         } finally {
             busyRef.current = false;

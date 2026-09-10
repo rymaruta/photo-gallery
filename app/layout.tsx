@@ -17,7 +17,7 @@ import { AuthProvider } from "./auth/context";
 import { MusicProvider } from "./music/MusicContext";
 import MiniPlayer from "./components/MiniPlayer";
 import { LocaleProvider } from "./i18n/context";
-import { siteConfig, generateWebSiteStructuredData, INDEXABLE_ROBOTS } from "../lib/utils/seo";
+import { siteConfig, generateWebSiteStructuredData, INDEXABLE_ROBOTS, FEED_ALTERNATE } from "../lib/utils/seo";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "700", "900"], display: "swap" });
 
@@ -91,6 +91,10 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     alternates: {
       canonical: siteConfig.url,
+      // **フィードの場所を名乗る。** 置いただけでは誰も見つけない
+      // ——ブラウザの拡張・収集サービスはこの宣言を見て購読先を出す。
+      // **子が `alternates` を書くと消える**ので、書く側も混ぜること
+      ...FEED_ALTERNATE,
     },
     // 中身は `lib/utils/seo.ts` の `INDEXABLE_ROBOTS`。子が
     // `robots` を書くとオブジェクトごと差し替わるので、同じものを

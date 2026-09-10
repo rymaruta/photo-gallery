@@ -80,7 +80,7 @@ function DeleteAccountModalInner({ onClose, onConfirm, locale, deleting, openerR
                 <h2 className="text-base font-bold tracking-tight text-white mb-1.5 text-center">
                     {locale === "en" ? "Delete your account?" : "本当に退会しますか？"}
                 </h2>
-                <p className="text-white/45 text-[13px] mb-5 leading-relaxed text-center">
+                <p className="text-white/50 text-[13px] mb-5 leading-relaxed text-center">
                     {locale === "en"
                         ? "Your photos, stories, profile, and account will be permanently deleted. This can't be undone."
                         : "あなたの写真・ストーリー・プロフィール・アカウントがすべて完全に削除されます。この操作は取り消せません。"}

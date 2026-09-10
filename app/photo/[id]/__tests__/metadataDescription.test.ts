@@ -35,6 +35,8 @@ describe("説明が無い写真の meta description", () => {
         const d = await describeOf({ location: "東京", category: "landscape", date: "2024-05-03" });
         expect(d, "英語のスラッグがそのまま出ている").not.toContain("landscape");
         expect(d).toBe("東京で2024年に撮影した風景の写真。");
+        // **同じ言葉を二度書かない**（組み立てた説明は既に撮影地を含む）
+        expect(d, "撮影地が二重に出ている").not.toContain("（東京）");
     });
 
     it("日付だけなら「に」でつなぐ", async () => {
@@ -50,6 +52,7 @@ describe("説明が無い写真の meta description", () => {
     it("日本語のカテゴリはそのまま使う", async () => {
         const d = await describeOf({ location: "京都", category: "祭り" });
         expect(d).toBe("京都で撮影した祭りの写真。");
+        expect(d, "撮影地が二重に出ている").not.toContain("（京都）");
     });
 
     // 何も分からなければ、初めてサイトの説明に落とす
@@ -61,6 +64,7 @@ describe("説明が無い写真の meta description", () => {
     // 正常系: 自分の説明があればそちらを出す
     it("説明があればそれを出す", async () => {
         const d = await describeOf({ description: { ja: ["静かな朝だった。"] }, location: "東京" });
-        expect(d).toBe("静かな朝だった。");
+        // **書かれた説明は消さない。** 事実（撮影地・機材）は括弧で足す
+        expect(d.startsWith("静かな朝だった。"), "書かれた説明が消えている").toBe(true);
     });
 });

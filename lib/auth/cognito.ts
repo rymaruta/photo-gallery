@@ -77,7 +77,9 @@ export async function signIn(username: string, password: string): Promise<{
                 onFailure: (err) => {
                     log.error("認証失敗:", err);
                     // エラーメッセージを日本語化
-                    let errorMessage = err.message || "ログインに失敗しました";
+                    // **生の英語を既定にしない。** ここに落ちる例外（`PasswordResetRequiredException`
+                    // など）は英語のまま画面に出て、しかも進む先が書いていない
+                    let errorMessage = "ログインに失敗しました。しばらくしてからもう一度お試しください";
                     
                     // **「そのメールアドレスは登録されている」を教えない。**
                     // `UserNotFoundException` に「ユーザーが見つかりません」と
@@ -95,6 +97,11 @@ export async function signIn(username: string, password: string): Promise<{
                     } else if (err.code === "UserNotConfirmedException") {
                         resolve({ success: false, error: "メールアドレスの確認が完了していません", needsVerification: true });
                         return;
+                    } else if (err.code === "PasswordResetRequiredException") {
+                        // 管理者がパスワードをリセットした状態。**進む先を言う**
+                        // ——以前は英語の "Password reset required for the user."
+                        // が出るだけで、画面のどこへ行けばよいか分からなかった
+                        errorMessage = "パスワードの再設定が必要です。「パスワードをお忘れですか？」から再設定してください";
                     } else if (err.code === "InvalidParameterException") {
                         errorMessage = "入力内容に誤りがあります";
                     } else if (err.message?.includes("SECRET_HASH")) {
@@ -140,44 +147,101 @@ export function signOut(): void {
     }
 }
 
-// 現在のセッションを取得
+/**
+ * セッションを引いた結果。
+ *
+ * **「ログインしていない」と「確かめられなかった」を分ける。**
+ * 前は両方 `null` に潰していたので、電波の悪い場所で画面を移ると
+ * `isAuthenticated` が false になり、`useMemberGate` が `/login` へ
+ * 追い出していた——**トークンは端末に残っているのに**、編集中の文章ごと
+ * 画面が入れ替わる。電波が戻れば何もせず直るので、本人には理由が分からない。
+ *
+ * 見分けは**ライブラリが付ける印**で行う。`amazon-cognito-identity-js` は
+ * `fetch` が `TypeError` で落ちた回を `Error("Network error")` に包み直し、
+ * `err.code = "NetworkError"` を立てる（`lib/Client.js` の
+ * `} else if (err instanceof Error && err.message === 'Network error')`）。
+ * 失効は `NotAuthorizedException` として別に来る。
+ */
+export type SessionLookup = {
+    session: CognitoUserSession | null;
+    /** セッションの有無を確かめられなかった（通信が届かない）。`session` は必ず null */
+    unreachable: boolean;
+};
+
+/**
+ * セッションの有無を確かめられなかった回か。
+ *
+ * 2つある。どちらも**実物のライブラリに通して形を測って**決めた
+ * （`getSession` に届く err を印字した。推測ではない）:
+ *
+ * 1. **通信そのものが落ちた**（機内モード）——ライブラリが `fetch` の
+ *    `TypeError` を `Error("Network error")` に包み `code = "NetworkError"`
+ *    を立てる
+ * 2. **返ってきたのが Cognito の応答ではなかった**——ホテルや空港の
+ *    キャプティブポータル（200 で HTML）、中継機のエラーページ（503 で
+ *    HTML）。ライブラリは本文を JSON として読めず `{}` にしたあと、
+ *    `data.__type` や `RefreshToken` を触って **`TypeError`** で落ちる:
+ *      200+HTML → `Cannot convert undefined or null to object`
+ *      503+HTML → `Cannot read properties of undefined (reading 'split')`
+ *    **外出先で一番多いのはこちら**（繋がってはいるが通らない）。
+ *
+ * 逆に、**本当にログインしていない側は必ず素の `Error`** で来る（測定）:
+ *   失効           → `code = "NotAuthorizedException"`
+ *   サーバーの5xx  → `code = "InternalErrorException"`（理由を名乗っている）
+ *   トークン欠損   → `Error("Local storage is missing an ID Token, …")`
+ *   更新できない   → `Error("Cannot retrieve a new session. …")`
+ * なので `TypeError` かどうかで分けられる。**理由を名乗っている応答は
+ * 保たない**——名乗っているならそれは答えなので。
+ */
+function isUnreachable(err: unknown): boolean {
+    const e = err as { code?: unknown; message?: unknown } | null;
+    if (e?.code === "NetworkError" || e?.message === "Network error") return true;
+    return err instanceof TypeError;
+}
+
+// 現在のセッションを取得（理由は捨てる。**新しい呼び出しでは `lookupSession` を使う**）
 export async function getCurrentSession(): Promise<CognitoUserSession | null> {
+    return (await lookupSession()).session;
+}
+
+export async function lookupSession(): Promise<SessionLookup> {
     return new Promise((resolve) => {
         try {
             const userPool = getUserPool();
             const cognitoUser = userPool.getCurrentUser();
 
             if (!cognitoUser) {
-                        log.debug("[getCurrentSession] cognitoUserが見つかりません");
-                resolve(null);
+                        log.debug("[lookupSession] cognitoUserが見つかりません");
+                resolve({ session: null, unreachable: false });
                 return;
             }
 
             cognitoUser.getSession((err: Error | null, session: CognitoUserSession | null) => {
                 if (err) {
-                            log.error("[getCurrentSession] セッション取得エラー:", err.message);
-                    resolve(null);
+                            log.error("[lookupSession] セッション取得エラー:", err.message);
+                    resolve({ session: null, unreachable: isUnreachable(err) });
                     return;
                 }
                 
                 if (!session) {
-                            log.debug("[getCurrentSession] セッションがnullです");
-                    resolve(null);
+                            log.debug("[lookupSession] セッションがnullです");
+                    resolve({ session: null, unreachable: false });
                     return;
                 }
                 
                 if (!session.isValid()) {
-                            log.debug("[getCurrentSession] セッションが無効です");
-                    resolve(null);
+                            log.debug("[lookupSession] セッションが無効です");
+                    resolve({ session: null, unreachable: false });
                     return;
                 }
 
-                resolve(session);
+                resolve({ session, unreachable: false });
             });
         } catch (error) {
             // 環境変数が設定されていない場合はnullを返す
-            log.error("[getCurrentSession] 例外が発生しました:", error instanceof Error ? error.message : String(error));
-            resolve(null);
+            log.error("[lookupSession] 例外が発生しました:", error instanceof Error ? error.message : String(error));
+            // 設定が無い等。**通信の問題ではない**ので保たない
+            resolve({ session: null, unreachable: false });
         }
     });
 }
@@ -221,7 +285,7 @@ export async function forgotPassword(username: string): Promise<{ success: boole
             cognitoUser.forgotPassword({
                 onSuccess: () => resolve({ success: true }),
                 onFailure: (err: { message?: string; code?: string }) => {
-                    let msg = err.message || "エラーが発生しました";
+                    let msg = "エラーが発生しました。しばらくしてからもう一度お試しください";
                     // ここも同じ理由で「登録の有無」を教えない。
                     // 送信したかどうかは、届いたかどうかで分かる
                     if (err.code === "UserNotFoundException") {
@@ -251,10 +315,10 @@ export async function confirmForgotPassword(
             cognitoUser.confirmPassword(code, newPassword, {
                 onSuccess: () => resolve({ success: true }),
                 onFailure: (err: { message?: string; code?: string }) => {
-                    let msg = err.message || "エラーが発生しました";
+                    let msg = "エラーが発生しました。しばらくしてからもう一度お試しください";
                     if (err.code === "CodeMismatchException") msg = "確認コードが正しくありません";
                     if (err.code === "ExpiredCodeException") msg = "確認コードの有効期限が切れています";
-                    if (err.code === "InvalidPasswordException") msg = "パスワードは8文字以上で、英大文字・小文字・数字を含む必要があります";
+                    if (err.code === "InvalidPasswordException") msg = PASSWORD_RULE_MESSAGE;
                     resolve({ success: false, error: msg });
                 },
             });
@@ -263,6 +327,20 @@ export async function confirmForgotPassword(
         }
     });
 }
+
+/**
+ * パスワードの規則。**画面とサーバーで食い違わせない。**
+ *
+ * `scripts/provision-env.js` のプールは
+ * `{MinimumLength: 8, RequireUppercase, RequireLowercase, RequireNumbers, RequireSymbols}`。
+ * ところがパスワード再設定の `InvalidPasswordException` だけ**記号が
+ * 抜けていた**——`Password1` を入れると弾かれるのに、エラーは
+ * 「英大文字・小文字・数字」と言うので条件は満たしているように読め、
+ * 同じものを打ち直して抜けられない。しかも真上のプレースホルダ
+ * （「8文字以上、英大・小文字・数字・記号を含む」）と矛盾していた。
+ */
+export const PASSWORD_RULE_MESSAGE =
+    "パスワードは8文字以上で、英大文字・小文字・数字・記号（!@#$%など）をそれぞれ1文字以上含める必要があります";
 
 // 新規ユーザー登録
 // このプールは AliasAttributes:email なので username は UUID、email は属性として渡す
@@ -277,14 +355,29 @@ export async function signUp(email: string, password: string): Promise<{
             const userPool = getUserPool();
             const username = uuidv4();
             const attributes = [
-                new CognitoUserAttribute({ Name: "email", Value: email }),
+                // **前後の空白を落とす。** スマホのキーボードは補完のあとに
+                // 空白を1つ付けることがあり、そのまま登録すると確認コードは
+                // 届くのに**ログインで打ち直したメールと一致しない**。
+                // 大文字小文字はここでは触らない——このプールの
+                // `UsernameConfiguration` はリポジトリのどこでも指定して
+                // おらず、揃え方を間違えると**既にあるアカウントで
+                // ログインできなくなる**（本番プールの設定は未確認）
+                new CognitoUserAttribute({ Name: "email", Value: email.trim() }),
             ];
             userPool.signUp(username, password, attributes, [], (err) => {
                 if (err) {
                     log.error("signUp error:", { name: err.name, message: err.message });
-                    let msg = err.message || "登録に失敗しました";
-                    if (err.name === "InvalidPasswordException") msg = "パスワードは8文字以上で、英大文字・小文字・数字・記号（!@#$%など）をそれぞれ1文字以上含める必要があります";
-                    if (err.name === "InvalidParameterException") msg = `入力エラー: ${err.message}`;
+                    let msg = "登録に失敗しました。しばらくしてからもう一度お試しください";
+                    if (err.name === "InvalidPasswordException") msg = PASSWORD_RULE_MESSAGE;
+                    // **AWS の英文をそのまま出さない。** `InvalidParameterException` の
+                    // `message` は "1 validation error detected: Value at 'password'
+                    // failed to satisfy constraint: Member must satisfy regular
+                    // expression pattern: ..." のような正規表現つきの英文で、
+                    // 読んでも直し方が分からない。実際にここへ落ちるのは
+                    // パスワードかメールの形なので、その2つを言う
+                    if (err.name === "InvalidParameterException") {
+                        msg = `メールアドレスの形式か、${PASSWORD_RULE_MESSAGE}`;
+                    }
                     if (err.name === "UsernameExistsException" || err.name === "AliasExistsException") {
                         resolve({ success: false, error: "このメールアドレスはすでに登録されています", aliasExists: true });
                         return;
@@ -333,7 +426,7 @@ export async function confirmSignUp(username: string, code: string): Promise<{
                         resolve({ success: true });
                         return;
                     }
-                    let msg = err.message || "確認に失敗しました";
+                    let msg = "確認に失敗しました。しばらくしてからもう一度お試しください";
                     if (err.name === "CodeMismatchException") msg = "確認コードが正しくありません";
                     if (err.name === "ExpiredCodeException") msg = "確認コードの有効期限が切れています。再送してください";
                     // forceAliasCreation を false にしたので、そのメールが既に
@@ -362,6 +455,17 @@ export async function confirmSignUp(username: string, code: string): Promise<{
 export async function resendConfirmationCode(username: string): Promise<{
     success: boolean;
     error?: string;
+    /**
+     * 例外の名前。**「一時的な失敗」と「この控えはもう使えない」を
+     * 呼び出し側が見分けるために返す。**
+     *
+     * 見分けずに「失敗したら控えを捨てる」にしたら、`LimitExceededException`
+     * （再送の回数制限）や通信断でも唯一の手がかり（UUID）を捨てるようになり、
+     * **確認画面に二度と戻れなくなった**（登録し直しても
+     * 「すでに登録されています」で終わり、未確認なのでパスワード再設定も
+     * 効かない）。24時間で TTL が切れて自然に回復する元の形より悪い。
+     */
+    code?: string;
 }> {
     return new Promise((resolve) => {
         try {
@@ -369,9 +473,9 @@ export async function resendConfirmationCode(username: string): Promise<{
             const cognitoUser = new CognitoUser({ Username: username, Pool: userPool });
             cognitoUser.resendConfirmationCode((err) => {
                 if (err) {
-                    let msg = err.message || "再送に失敗しました";
+                    let msg = "再送に失敗しました。しばらくしてからもう一度お試しください";
                     if (err.name === "LimitExceededException") msg = "送信回数の上限に達しました。しばらく時間をおいてから再試行してください";
-                    resolve({ success: false, error: msg });
+                    resolve({ success: false, error: msg, code: err.name });
                     return;
                 }
                 resolve({ success: true });

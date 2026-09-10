@@ -21,6 +21,8 @@ on:
           - who-liked         # 自分の写真にいいねした人を特定
           - image-perf        # 写真表示の速さに効く材料が揃っているか測る
           - story-index       # ストーリー一覧用の GSI を足す（全件 Scan をやめる）
+          - public-feed-index # 公開一覧用の GSI を足す（GET /photos の全件 Scan をやめる）
+          - backfill-followers # 既にあるフォロー関係から followers#<uid> を作る
           - normalize-image-urls  # 保存済みの画像URLのホスト名を配信URLに揃える
           - geocode-locations # 地名はあるが座標が無い写真に、おおよその座標を補う（地図ページの材料）
           - diagnose          # 本番の設定を読むだけ（索引の射影・日付の形・Cognito・CDN の TTL）
@@ -127,6 +129,25 @@ jobs:
       - name: ストーリー一覧用の索引を足す
         if: inputs.task == 'story-index'
         run: node scripts/add-story-index.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 15
+
+      # 公開一覧（GET /photos）の全件 Scan をやめるための索引。
+      # **必ずドライランを先に流すこと**——`createdAt` を持たない公開写真が
+      # あると、読む側を Query に切り替えた瞬間にその写真が一覧から消える
+      # （GSI はキーが揃った項目しか載せない）。件数はドライランで報告する。
+      # 索引の作成は完了を待たない。ACTIVE になるまでもう一度流すと状態が出る。
+      - name: 公開一覧用の索引を足す
+        if: inputs.task == 'public-feed-index'
+        run: node scripts/add-public-feed-index.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 15
+
+      # `followers#<uid>`（誰にフォローされているか）は、これまで持って
+      # いなかった行。`follow.ts` は今後のフォローにしか書かないので、
+      # **既にある関係はここで埋める**（解除→再フォローしない限り入らない）。
+      # 併合するので何度流しても安全。ドライランで人数が出る。
+      - name: フォロワー一覧を埋め戻す
+        if: inputs.task == 'backfill-followers'
+        run: node scripts/backfill-followers.js ${{ inputs.apply && '--apply' || '' }}
         timeout-minutes: 15
 
       # 読み取り専用。apply の指定は不要

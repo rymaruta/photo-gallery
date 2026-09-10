@@ -29,6 +29,6 @@ describe("下書き一覧: 権限が無い人", () => {
         expect(await screen.findByText(/投稿の権限が付いていません/)).toBeInTheDocument();
         expect(mockPush).not.toHaveBeenCalled();
         // 行き止まりにしない
-        expect(screen.getByRole("link", { name: /ギャラリーへ戻る/ })).toHaveAttribute("href", "/");
+        expect(screen.getByRole("link", { name: /ギャラリーに戻る/ })).toHaveAttribute("href", "/");
     });
 });

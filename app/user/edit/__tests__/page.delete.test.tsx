@@ -84,6 +84,47 @@ describe("写真の削除", () => {
         expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining("削除しました"), "success");
     });
 
+    // **消したのに、検索から開ける個別ページは残っている。** サーバーが
+    // 掃除を頼めなかったときは応答に `staticStale` が乗るので、そのまま伝える
+    it("静的ページが残るなら、削除のトーストにそう添える", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (!init?.method) return Promise.resolve({ ok: true, json: async () => [PHOTO] });
+            return Promise.resolve({ ok: true, json: async () => ({ success: true, staticStale: true }) });
+        });
+        await openEditor();
+        await userEvent.click(screen.getByRole("button", { name: "削除" }));
+        await userEvent.click(await confirmButton());
+
+        await waitFor(() => expect(deleteCalls()).toHaveLength(1));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
+        const msg = String(mockShowToast.mock.calls[0][0]);
+        expect(msg).toContain("写真を削除しました");
+        expect(msg, "消えていないのに「消した」だけを出している").toContain("残ることがあります");
+    });
+
+    it("掃除が頼めていれば、余計なことは言わない", async () => {
+        await openEditor();
+        await userEvent.click(screen.getByRole("button", { name: "削除" }));
+        await userEvent.click(await confirmButton());
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
+        expect(String(mockShowToast.mock.calls[0][0])).toBe("写真を削除しました");
+    });
+
+    // 応答の本文が読めなくても（HTMLのエラーページ・空・切断）、削除そのものは
+    // 成功している。**ここで投げると「削除に失敗しました」＋遷移なしになる**
+    it("応答の本文が読めなくても、成功として扱って一覧へ戻る", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (!init?.method) return Promise.resolve({ ok: true, json: async () => [PHOTO] });
+            return Promise.resolve({ ok: true, json: async () => { throw new SyntaxError("Unexpected token <"); } });
+        });
+        await openEditor();
+        await userEvent.click(screen.getByRole("button", { name: "削除" }));
+        await userEvent.click(await confirmButton());
+
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("写真を削除しました", "success"));
+        await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/user/drafts"));
+    });
+
     it("キャンセルしたら消さない", async () => {
         await openEditor();
         await userEvent.click(screen.getByRole("button", { name: "削除" }));

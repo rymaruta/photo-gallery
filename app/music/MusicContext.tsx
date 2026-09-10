@@ -6,6 +6,7 @@
 // 画面下のミニプレイヤー（MiniPlayer）に常駐表示される。
 
 import React, { createContext, useCallback, useContext, useRef, useState } from "react";
+import { safeSongPreviewUrl } from "../../lib/utils/mediaHosts";
 
 export type SongEntry = {
     title: string;
@@ -161,7 +162,22 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
             {current && (
                 <audio
                     ref={audioRef}
-                    src={current.previewUrl}
+                    // **出すときにも確かめる。** サーバーの許可リストは
+                    // これから保存する値にしか効かず、許可リストを入れる前に
+                    // 保存された行は任意のホストのまま残りうる（本番を読めない
+                    // ので実態は未確認）。`preload` で取りに行くと、開いた人の
+                    // IP・User-Agent・時刻が外部へ渡る。
+                    // **「唯一の `<audio>`」ではない**——ストーリーは自前の
+                    // `<audio preload="auto">` を持つ（`StoryViewer.tsx`）。
+                    // 曲の試聴も `new Audio()` を2か所で作る
+                    // （`StoriesBar` と `/user/profile`。どちらも曲検索の
+                    //  結果＝その場で API から来た値なので、古い行の話は無い）。
+                    // ここが受け持つのはプロフィールの曲と写真BGM
+                    // `safeSongPreviewUrl` は `string | undefined` を返すので
+                    // `?? undefined` は要らない。**空文字にしても React 19 は
+                    // 属性ごと落とす**（`hasAttribute=false` を実測）ので、
+                    // 「空の src で現在のページを取り直す」型もここでは起きない
+                    src={safeSongPreviewUrl(current.previewUrl)}
                     preload="none"
                     onEnded={() => {
                         if (st.repeatOne) {

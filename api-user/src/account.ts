@@ -6,9 +6,12 @@ import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { mediaKeys } from "./mediaKeys";
 import { s3DeleteMany } from "./s3Delete";
 import { invalidateUploads } from "./cdnInvalidate";
+import { purgeBlocksFor } from "./block";
+import { updateFollowersQuietly } from "./follow";
 import { requireEnv } from "./env";
 import { requestSiteRebuild } from "./rebuild";
 import { isDeletedProfile } from "./types";
+import { albumKey, albumMemberKey, albumsOfUserKey } from "./invite";
 
 // 退会（アカウント削除）。DELETE /user/account、認証必須、呼び出し元の sub のみ対象。
 // 不可逆な破壊操作のため「確実に引ける範囲を確実に消す」方針:
@@ -340,6 +343,11 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                 // 再実行で拾う手がかりが無くなる）。
                 if (itemFailures === 0) {
                     if (!await ddbDelete(PHOTOS_TABLE, { id: `comments#${id}` })) itemFailures++;
+                    // ストーリーには返信の文書が付く（`storyreplies#<id>`）。
+                    // 写真には付かないが、**両方まとめて消しにいく**——
+                    // 種類で分けると、`story` の判定が1か所ずれただけで
+                    // 本文が置き去りになる（消す側は空振りしても害が無い）
+                    if (!await ddbDelete(PHOTOS_TABLE, { id: `storyreplies#${id}` })) itemFailures++;
                 }
                 if (itemFailures === 0) {
                     if (!await ddbDelete(PHOTOS_TABLE, { id })) itemFailures++;
@@ -534,6 +542,16 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
             await mapWithConcurrency(targets, 8, async (t) => {
                 if (timeLeft() < CLEANUP_RESERVE_MS) { failed.push(t); return; }
                 if (!await unfollowAtomically(t, uid)) { failed.push(t); return; }
+                // **相手のフォロワー一覧からも外す。** 外さないと、退会した
+                // 人が相手の一覧に残り続ける（`getUserFollowers` は
+                // `deleted: true` で伏せるが、行そのものは誰も消さない）。
+                //
+                // **失敗したら `failed` に積む。** 積まないと「片付いた」
+                // 扱いになって `followCleanupComplete` が立ち、手がかりの
+                // `following#<uid>` まで消える——すぐ下のコメントが
+                // 「消してしまうとやり直す手がかりが無くなる」と書いている、
+                // その安全網の外に置くことになる
+                if (!await updateFollowersQuietly(t, uid, false)) { failed.push(t); return; }
                 // フォロー通知の間引きマーカー（follow.ts の follownotify#）も消す。
                 // 消し忘れていた頃は退会のたびに1件ずつ残り、スコープ外リストにも
                 // 載っていない「誰も消さないゴミ」だった。ただの間引き印なので
@@ -551,6 +569,46 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // 5. 自分の各ドキュメント（既知キー）
         await ddbDelete(PHOTOS_TABLE, { id: `notifs#${uid}` });
         await ddbDelete(PHOTOS_TABLE, { id: `followstats#${uid}` });
+        // 自分をフォローしていた人の一覧。**自分の行なので消してよい**
+        // （相手側の `following#<相手>` に自分が残るのは既知——
+        //  `getUserFollowing` が `deleted: true` で伏せる）
+        await ddbDelete(PHOTOS_TABLE, { id: `followers#${uid}` });
+        // ブロックの行（印・自分の一覧・被ブロックの一覧）。
+        // **失敗しても退会は止めない**（フォローの掃除と同じ扱い）
+        await purgeBlocksFor(uid)
+            .catch((e) => console.error(`deleteAccount: ブロックの掃除に失敗（${uid}）:`, e));
+
+        // 共同アルバム（案C）。**自分が作ったアルバムと、自分の参加の印を消す。**
+        // 残すと、退会した人のアルバムが招待リンクから開けたまま残り、
+        // 参加人数にも数え続ける（写真は上で消えているので、中身の無い
+        // アルバムだけが生き残る）。
+        //
+        // **招待の行（`invite#<token>`）は消さない。** トークンからしか
+        // 引けず、アルバムが消えていれば `getInvite` が「見つかりません」を
+        // 返すので、実害が無い（消すには一覧が要る＝新しい索引が要る）。
+        //
+        // 参加していた**他人のアルバム**からは抜けない——その印は
+        // `albummember#<albumId>#<uid>` で、`albumId` の一覧を持っていない。
+        // 人数が1人ぶん多いまま残るが、写真は消えており、他人のアルバムを
+        // 壊すよりは軽い。**ここは承知のうえで残している。**
+        try {
+            const albumsDoc = await ddb.send(new GetCommand({
+                TableName: PHOTOS_TABLE, Key: { id: albumsOfUserKey(uid) },
+            }));
+            const ids = Array.isArray(albumsDoc.Item?.albumIds)
+                ? (albumsDoc.Item.albumIds as unknown[]).filter((v): v is string => typeof v === "string")
+                : [];
+            for (const albumId of ids) {
+                await ddbDelete(PHOTOS_TABLE, { id: albumKey(albumId) });
+                await ddbDelete(PHOTOS_TABLE, { id: albumMemberKey(albumId, uid) });
+            }
+            await ddbDelete(PHOTOS_TABLE, { id: albumsOfUserKey(uid) });
+        } catch (e) {
+            // **止めない。** ここで 500 にすると、写真もプロフィールも消えたのに
+            // ログインできるアカウントだけが残る（下のフォロー掃除と同じ理由）。
+            // 黙って握らないようにログは残す
+            console.error(`deleteAccount: アルバムの掃除に失敗（${uid}）:`, e);
+        }
         if (followCleanupComplete) {
             await ddbDelete(PHOTOS_TABLE, { id: `following#${uid}` });
         } else {

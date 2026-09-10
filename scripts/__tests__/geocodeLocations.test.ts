@@ -166,4 +166,26 @@ describe("skipSet（GEOCODE_SKIP）", () => {
     it("地名の中のカンマで割らない", () => {
         expect([...skipSet("パリ, フランス")]).toEqual(["パリ, フランス"]);
     });
+
+});
+
+// Nominatim は道路・番地も返す。「福岡」で富山県の県道が返ったのがそれで、
+// 知名度だけで選ぶと街より道路が勝つことがある。撮影地には施設そのものも
+// あるので、**捨てるのではなく最後に回す**
+describe("場所として弱い当たり", () => {
+    it("知名度が高くても、道路より街を採る", () => {
+        const road = { lat: "36.71", lon: "136.93", importance: 0.8, addresstype: "road", display_name: "福岡, 福岡停車場線, 高岡市, 富山県" };
+        const city = { lat: "33.59", lon: "130.40", importance: 0.5, addresstype: "city", display_name: "福岡市, 福岡県" };
+        expect(pickCoords([road, city])?.label).toBe("福岡市, 福岡県");
+    });
+
+    it("道路しか無ければ、それでも採る（捨てない）", () => {
+        const road = { lat: "36.71", lon: "136.93", importance: 0.8, addresstype: "road", display_name: "福岡停車場線" };
+        expect(pickCoords([road])?.lat).toBe(36.71);
+    });
+
+    it("施設（神社・公園）は今までどおり採れる", () => {
+        const shrine = { lat: "34.15", lon: "133.65", importance: 0.4, addresstype: "place_of_worship", display_name: "高屋神社, 観音寺市, 香川県" };
+        expect(pickCoords([shrine])?.label).toContain("高屋神社");
+    });
 });

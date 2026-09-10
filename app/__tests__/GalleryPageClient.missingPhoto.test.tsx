@@ -115,7 +115,11 @@ describe("開けない ?photo= を踏んだとき", () => {
 
         await new Promise((r) => setTimeout(r, 20));
         expect(mockShowToast).not.toHaveBeenCalled();
-        expect(screen.queryByText("Gallery")).toBeTruthy();
+        // 見出しは2つある（狭い画面用の `sr-only` と広い画面用）。jsdom は
+        // CSS を評価しないので両方 DOM に居る。
+        // **`.length > 0` は死んだ判定**——`getAllByText` は0件で投げるので、
+        // その比較が単独で赤くなることはない。件数を固定して、片方を消したら落とす
+        expect(screen.getAllByText("Gallery")).toHaveLength(2);
     });
 });
 

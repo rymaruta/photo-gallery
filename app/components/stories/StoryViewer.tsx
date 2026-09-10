@@ -1,16 +1,106 @@
 "use client";
 
 import { usableRows } from "../../../lib/utils/apiRows";
+import { safeSongPreviewUrl } from "../../../lib/utils/mediaHosts";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
-import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon, PhotoIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon, PhotoIcon, ChatBubbleOvalLeftIcon, MapPinIcon } from "@heroicons/react/24/outline";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
+import Link from "next/link";
+import { ROUTES } from "@/lib/routes";
 import UserAvatar from "../UserAvatar";
 import type { StoryGroup, StoryViewer as ViewerEntry } from "@/lib/stories";
 import { timeAgo } from "@/lib/stories";
 import { log } from "@/lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
+import { isImeKey } from "@/lib/utils/ime";
+import { STORY_REACTIONS, type StoryReply } from "@/lib/stories";
+
+/** 返信の本文の上限。**サーバーの `TEXT_MAX` と対**（api-user/src/storyReplies.ts）。
+ *  画面だけ緩いと、打てるのに保存で黙って切られる */
+const STORY_REPLY_MAX = 200;
+/**
+ * 「残す」ときに一緒に送る、一覧用のサムネ・代表色・ぼかし。
+ *
+ * 写真のアップロード画面と**同じ道具**（`lib/utils/image.ts`）を使う
+ * ——同じものを二度作らない。作れなかったら空を返す（残す方は進める）。
+ */
+/**
+ * 画像のバイト列を取り直す。**まず同一オリジンで。**
+ *
+ * `item.src` は CloudFront の既定ドメイン（`CLOUDFRONT_URL`）を指すので、
+ * `journey-photo.com` から見ると**別オリジン**。`fetch` の既定は
+ * `mode: "cors"` なので `Access-Control-Allow-Origin` が要るが、
+ * **`/uploads/*` は CORS を返していない**——キャッシュポリシーが `Origin`
+ * を転送しないので S3 のバケット CORS まで届かない
+ * （`public/sw.js` の `isStorablePhoto` が同じことを書いている。
+ *  `PhotoPageClient` の EXIF 取得が best-effort なのも同じ理由）。
+ * つまり素で `fetch(src)` すると **必ず TypeError** で、呼び出し側の
+ * `.catch` が飲んで「サムネ無しで成功」になる＝直したつもりで何も
+ * 変わらない、というこのリポジトリが繰り返している形。
+ *
+ * `/uploads/*` は**サイトと同じディストリビューションのビヘイビア**なので、
+ * パスだけにすれば同一オリジンとして取れる（CORS が要らない）。
+ * 取れなければ元の URL でもう一度試す——CORS が入った環境や、
+ * サイト側に `/uploads/*` が無い置き方でも動くように。
+ */
+async function fetchImageBytes(src: string): Promise<Blob> {
+    let sameOrigin = "";
+    try {
+        const u = new URL(src, location.href);
+        if (u.origin !== location.origin && u.pathname.startsWith("/uploads/")) sameOrigin = u.pathname;
+    } catch { /* URL でなければそのまま */ }
+    if (sameOrigin) {
+        const res = await fetch(sameOrigin).catch(() => null);
+        if (res?.ok) return await res.blob();
+    }
+    const res = await fetch(src);
+    if (!res.ok) throw new Error(`image fetch failed: ${res.status}`);
+    return await res.blob();
+}
+
+async function buildKeepThumb(src: string): Promise<{ fields: Record<string, string>; thumbKey?: string }> {
+    const [{ createThumbnail, extractDominantColor, createBlurPlaceholder }, { userFetch }] = await Promise.all([
+        import("../../../lib/utils/image"),
+        import("../../../lib/utils/api"),
+    ]);
+    // **控えからは返らない。** 同一オリジンのパスに変えた＝別のキャッシュキーで、
+    // しかも `<img>` が別オリジンから取った応答は tainted なので cors の
+    // `fetch` には使い回されない。押すたびに1枚ぶん取り直す（CORS で必ず
+    // 落ちるよりは良い、という取り引き）
+    const blob = await fetchImageBytes(src);
+    const file = new File([blob], "story.jpg", { type: blob.type || "image/jpeg" });
+    const fields: Record<string, string> = {};
+    const color = await extractDominantColor(file).catch(() => null);
+    if (color) fields.dominantColor = color;
+    const blur = await createBlurPlaceholder(file).catch(() => null);
+    if (blur) fields.blurDataURL = blur;
+
+    const thumb = await createThumbnail(file).catch(() => null);
+    if (!thumb) return { fields };
+    const presign = await userFetch("/upload/presigned-url", {
+        method: "POST",
+        body: JSON.stringify({ fileName: thumb.name, fileType: thumb.type, fileSize: thumb.size }),
+    });
+    if (!presign.ok) return { fields };
+    const t = await presign.json() as { presignedUrl: string; publicUrl: string; key?: string; contentType?: string };
+    const put = await fetch(t.presignedUrl, {
+        method: "PUT",
+        body: thumb,
+        // 署名した種別で送る（違うと S3 が 403）。`max-age` は写真と揃える
+        headers: { "Content-Type": t.contentType ?? thumb.type, "Cache-Control": "max-age=31536000" },
+    });
+    // **上げ切れなかったら URL を送らない。** 送ると、一覧が存在しない
+    // ファイルを指して**割れた画像**が並ぶ（サムネ無しより悪い）
+    if (!put.ok) return { fields };
+    fields.thumbUrl = t.publicUrl;
+    // **キーを控える。** `/keep` が通らなかったら S3 の孤児になる
+    // （上げた実体を指す行がどこにも無い＝どの削除経路からも辿れない）。
+    // 同じことをする既存の2経路——`app/user/upload` の `reservedThumbKey` と
+    // `StoriesBar` の `uploadedKey`——は両方とも後始末を持っている。
+    return { fields, thumbKey: typeof t.key === "string" ? t.key : undefined };
+}
 
 const STORY_DEFAULT_DURATION_SEC = 5; // 画像の表示時間（投稿時に未指定だったとき）
 const STORY_MIN_DURATION_SEC = 3;
@@ -66,6 +156,25 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const [viewersOpen, setViewersOpen] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    // 返信（見た人 → 投稿者）。**ストーリーごとに必ずリセットする**
+    // ——打ちかけのまま次へ送られると、**書いた相手と違う人に届く**
+    const [replyText, setReplyText] = useState("");
+    const [replySending, setReplySending] = useState(false);
+    const [replySent, setReplySent] = useState(false);
+    const [replyError, setReplyError] = useState<string | null>(null);
+    /** 入力中は進めない（打っている間に次のストーリーへ送られない） */
+    const [replyFocused, setReplyFocused] = useState(false);
+    // 届いた返信（投稿者だけ）
+    const [replies, setReplies] = useState<StoryReply[] | null>(null);
+    const [repliesError, setRepliesError] = useState(false);
+    const [repliesOpen, setRepliesOpen] = useState(false);
+    // ギャラリーに残す（このサイトにしかない向き。消えるもの → 検索に出るもの）
+    const [keeping, setKeeping] = useState(false);
+    const [keptPhotoId, setKeptPhotoId] = useState<string | null>(null);
+    const [keepError, setKeepError] = useState<string | null>(null);
+    /** 返信の一覧から「この人からの返信を受け取らない」を押した相手 */
+    const [blocking, setBlocking] = useState<string | null>(null);
+    const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const reportedRef = useRef<Set<string>>(new Set());
 
@@ -73,6 +182,12 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const item = group?.items[i];
     const isVideo = item?.mediaType === "video";
     const isOwnStory = !!ownUserId && group?.userId === ownUserId;
+    // 非同期の中から「今どれを表示しているか」を見るための控え。
+    // state を閉じ込めると送信を始めた時点の値になる
+    const itemIdRef = useRef<string | undefined>(item?.id);
+    itemIdRef.current = item?.id;
+    /** 返信の帯を出すか。**キャプションの位置がこれで決まる**ので1か所で持つ */
+    const showReplyBar = !isOwnStory && isAuthenticated;
 
     // 表示したストーリーを既読にする（端末側）
     useEffect(() => {
@@ -290,7 +405,12 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const [paused, setPaused] = useState(() =>
         typeof window !== "undefined" && typeof window.matchMedia === "function"
         && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-    const frozen = paused || viewersOpen || confirmDelete;
+    // **入力中・送信中・シートを開いている間は進めない。** 打っている途中で
+    // 次へ送られると、書いた相手と違う人に届く（Instagram も入力中は止まる）。
+    // **`replySending` を入れ忘れていた**——絵文字を押した時点で入力欄に
+    // フォーカスは無いので `replyFocused` は効かず、応答が返るまでの間に
+    // 表示が次へ移ると「送信しました」が**次の人の画面**に出ていた。
+    const frozen = paused || viewersOpen || confirmDelete || repliesOpen || replyFocused || replySending || keeping;
 
     // 画像の進捗は CSS アニメーション（60fps・再描画なし）が駆動し、
     // 完了は onAnimationEnd で検知する。動画は下の onTimeUpdate で進捗を更新。
@@ -330,6 +450,178 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         if (audioRef.current) audioRef.current.muted = muted;
     }, [muted, item]);
 
+    // **ストーリーが変わったら返信の状態を捨てる。**
+    // 打ちかけを持ち越すと、書いた相手と違う人に届く（送り先は `item.id`）。
+    // 「送信しました」の表示も持ち越さない——次のストーリーに、前の人へ
+    // 送ったはずの手応えが出る。
+    useEffect(() => {
+        setReplyText("");
+        setReplySent(false);
+        setReplyError(null);
+        setReplySending(false);
+        setReplyFocused(false);
+        setReplies(null);
+        setRepliesError(false);
+        setRepliesOpen(false);
+        setKeeping(false);
+        setKeptPhotoId(null);
+        setKeepError(null);
+        setBlocking(null);
+        setBlockedIds(new Set());
+    }, [item?.id]);
+
+    /** 返信を送る（本文または絵文字1つ） */
+    const sendReply = useCallback(async (payload: { text?: string; emoji?: string }) => {
+        if (!item || replySending) return;
+        setReplySending(true);
+        setReplyError(null);
+        // **送り先を先に控える。** 送っている間に次へ送られても、
+        // 応答を書き戻す相手を間違えない。
+        // **書き戻す側も見る**（下の `stillHere`）——`frozen` は自動送りしか
+        // 止めないので、手で矢印を押されれば表示は変わる。そのときに
+        // 「送信しました」を出すと、**送っていない人の画面に手応えが出る**
+        const target = item.id;
+        const stillHere = () => itemIdRef.current === target;
+        try {
+            const { userFetch } = await import("../../../lib/utils/api");
+            const { readApiError } = await import("../../../lib/utils/api");
+            const res = await userFetch(`/stories/${encodeURIComponent(target)}/replies`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+                const msg = await readApiError(res, locale === "en" ? "Couldn't send." : "送信できませんでした");
+                if (stillHere()) setReplyError(msg);
+                return;
+            }
+            if (!stillHere()) return;
+            setReplyText("");
+            setReplySent(true);
+        } catch (e) {
+            const { sessionErrorMessage } = await import("../../../lib/utils/api");
+            if (stillHere()) setReplyError(sessionErrorMessage(e) ?? (locale === "en" ? "Couldn't send." : "送信できませんでした"));
+        } finally {
+            setReplySending(false);
+        }
+    }, [item, replySending, locale]);
+
+    // 届いた返信は**開いたときに取りに行く**（バッジの数は `replyCount` が
+    // 持っているので、開かない限り読みに行かない）。
+    // 中断ガードは閲覧者リストと同じ理由——ストーリーは次々に切り替わる
+    useEffect(() => {
+        if (!repliesOpen || !item || !isOwnStory) return;
+        let aborted = false;
+        void (async () => {
+            try {
+                const { userFetch } = await import("../../../lib/utils/api");
+                const res = await userFetch(`/stories/${encodeURIComponent(item.id)}/replies`);
+                if (aborted) return;
+                if (!res.ok) { setRepliesError(true); return; }
+                const data = await res.json() as { items?: StoryReply[] };
+                if (aborted) return;
+                const rows = usableRows<StoryReply>(data.items, "GET /stories/{id}/replies");
+                // **配列でない応答を「まだ返信はありません」にしない**
+                // （閲覧者リストと同じ SW-b8）
+                if (!rows) { setRepliesError(true); return; }
+                setReplies(rows);
+                setRepliesError(false);
+            } catch {
+                if (!aborted) setRepliesError(true);
+            }
+        })();
+        return () => { aborted = true; };
+    }, [repliesOpen, item, isOwnStory]);
+
+    /**
+     * このストーリーをギャラリーに残す。
+     *
+     * **できるのは下書きの写真**なので、そのまま検索に出ることはない。
+     * 残したあとは編集画面（撮影地・題を入れて公開する）へ誘う。
+     */
+    const keepToGallery = useCallback(async () => {
+        if (!item || keeping) return;
+        setKeeping(true);
+        setKeepError(null);
+        const target = item.id;
+        // 送信中に手で次へ進められても、手応えを別の1枚に出さない（返信と同じ）
+        const stillHere = () => itemIdRef.current === target;
+        // **`/keep` が通らなかったら、上げたサムネを捨てる。**
+        // 残すと S3 の孤児になる（指す行がどこにも無い＝どの削除経路からも
+        // 辿れない）。しかも枚数上限・期限切れ・通信断はどれも押し直せる
+        // 失敗なので、**押すたびに1個ずつ増える**。同じことをする
+        // `app/user/upload`（`reservedThumbKey`）と `StoriesBar`
+        // （`uploadedKey`）は両方とも後始末を持っている——ここだけ無かった。
+        // **`finally` に置く。** 応答を読む前に投げる経路（通信断・
+        // セッション切れ）が `catch` に飛ぶので、`!res.ok` の枝だけでは足りない。
+        let thumbKey: string | undefined;
+        let thumbUsed = false;
+        try {
+            const { userFetch, readApiError } = await import("../../../lib/utils/api");
+            // **一覧用のサムネを作って一緒に送る。**
+            // 送らないと、公開したときホームの一覧が**1440px の原寸**を読む
+            // （普通のアップロードは端末側で 512px の WebP を作って送る）。
+            // 補う `generate-thumbnails.js` はビルド時にしか走らないので、
+            // `REBUILD_DISPATCH_TOKEN` が未設定の本番では**最大7日**
+            // ——訪問者全員が毎回その差を払う。
+            // **失敗しても残す方は進める**（サムネは無くても写真は作れる。
+            // 次のビルドが補う）。画像はいま画面に出ているのでブラウザの
+            // 控えから取れる
+            const extra = await buildKeepThumb(item.src).catch(() => ({ fields: {} as Record<string, string> }));
+            thumbKey = (extra as { thumbKey?: string }).thumbKey;
+            const res = await userFetch(`/stories/${encodeURIComponent(target)}/keep`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(extra.fields),
+            });
+            if (!res.ok) {
+                const msg = await readApiError(res, locale === "en" ? "Couldn't keep it." : "残せませんでした");
+                if (stillHere()) setKeepError(msg);
+                return;
+            }
+            const data = await res.json() as { photoId?: string; already?: boolean };
+            // **二度押しは「使われた」に数えない。** サーバーは既に残って
+            // いれば `thumbUrl` を見ないので、上げたぶんは誰にも参照されない
+            thumbUsed = data.already !== true;
+            if (!stillHere()) return;
+            if (typeof data.photoId === "string" && data.photoId) setKeptPhotoId(data.photoId);
+            else setKeepError(locale === "en" ? "Couldn't keep it." : "残せませんでした");
+        } catch (e) {
+            const { sessionErrorMessage } = await import("../../../lib/utils/api");
+            if (stillHere()) setKeepError(sessionErrorMessage(e) ?? (locale === "en" ? "Couldn't keep it." : "残せませんでした"));
+        } finally {
+            if (thumbKey && !thumbUsed) {
+                const { userFetch } = await import("../../../lib/utils/api");
+                await userFetch("/upload/discard", { method: "DELETE", body: JSON.stringify({ key: thumbKey }) })
+                    .catch(() => { /* 消せなくても、残す操作の結果は伝える */ });
+            }
+            setKeeping(false);
+        }
+    }, [item, keeping, locale]);
+
+    /**
+     * この人からの反応を受け取らない。
+     *
+     * **押せる場所を返信の一覧に置く。** サーバー側は前から入っていたが、
+     * 呼ぶ画面がどこにも無く、**迷惑な返信を受けた人にできることが
+     * 退会しかなかった**（`block.ts` が「やり取りの口を持つ以上の最低限」と
+     * 書いている当のもの）。困っているのは返信を読んでいる人なので、
+     * その場に置くのがいちばん短い。
+     */
+    const blockSender = useCallback(async (uid: string) => {
+        if (!uid || blocking) return;
+        setBlocking(uid);
+        try {
+            const { userFetch } = await import("../../../lib/utils/api");
+            const res = await userFetch(`/users/${encodeURIComponent(uid)}/block`, { method: "POST" });
+            // **効いたときだけ画面を変える。** 失敗を成功に見せると、
+            // 「押したのにまた届く」で二度目の落胆になる
+            if (res.ok) setBlockedIds((prev) => new Set(prev).add(uid));
+        } catch { /* 押し直せる。ここで画面は変えない */ } finally {
+            setBlocking(null);
+        }
+    }, [blocking]);
+
     const handleDelete = useCallback(async () => {
         if (!item || !onDelete) return;
         setDeleting(true);
@@ -358,8 +650,17 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     // （他の確認ダイアログと逆の挙動）。
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
-            if (confirmDelete || viewersOpen) {
-                if (e.key === "Escape") { setConfirmDelete(false); setViewersOpen(false); }
+            // **返信を打っている間は横取りしない。** スペースは一時停止、
+            // 矢印は送り、Escape は閉じるに割り当ててあるので、そのままだと
+            // **空白が打てず、カーソルも動かせず、Escape で画面ごと消える**。
+            // Escape だけは入力から抜ける方に使う（変換の取り消しは除く）
+            const t = e.target as HTMLElement | null;
+            if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) {
+                if (e.key === "Escape" && !isImeKey(e)) (t as HTMLInputElement).blur();
+                return;
+            }
+            if (confirmDelete || viewersOpen || repliesOpen) {
+                if (e.key === "Escape") { setConfirmDelete(false); setViewersOpen(false); setRepliesOpen(false); }
                 return;
             }
             if (e.key === "Escape") onClose();
@@ -371,7 +672,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         };
         document.addEventListener("keydown", onKey);
         return () => document.removeEventListener("keydown", onKey);
-    }, [onClose, goNext, goPrev, confirmDelete, viewersOpen]);
+    }, [onClose, goNext, goPrev, confirmDelete, viewersOpen, repliesOpen]);
 
     // **Tab を中に閉じ込める。** `aria-modal="true"` を付けた8つのうち、
     // ここと StoriesBar の投稿プレビューだけ管理が無かった。全画面
@@ -475,7 +776,14 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 <audio
                     key={`audio-${item.id}`}
                     ref={audioRef}
-                    src={item.song.previewUrl}
+                    // **出すときにも確かめる。** サーバーの許可リストは
+                    // これから保存する値にしか効かず、許可リスト以前の行は
+                    // 任意のホストのまま残りうる。しかもここは
+                    // `preload="auto"`＝**開いた瞬間に取りに行く**うえ、
+                    // ストーリーはログイン中の全員のトレイに出る
+                    // ——`mediaHosts.ts` のコメントが最悪ケースとして
+                    // 名指ししているのがこの経路
+                    src={safeSongPreviewUrl(item.song.previewUrl)}
                     muted
                     preload="auto"
                     // 指定された「好きな部分」から繰り返す（loop属性だと必ず0秒に戻ってしまう）
@@ -534,6 +842,15 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                             <span className="text-sm font-semibold text-white drop-shadow truncate">{group.displayName}</span>
                             <span className="text-xs text-white/60 flex-shrink-0">{timeAgo(item.createdAt, locale)}</span>
                         </div>
+                        {/* **撮影地。** 見る側に「どこで」が伝わる。名前の段の下に
+                            置くのは、キャプションの段（下端）が既に3つのピルで
+                            埋まっているため（実測でキャプションが潰れた前例あり） */}
+                        {item.location && (
+                            <p className="text-[11px] text-white/70 drop-shadow truncate max-w-full">
+                                <MapPinIcon className="w-3 h-3 inline -mt-0.5 mr-0.5" aria-hidden="true" />
+                                {item.location}
+                            </p>
+                        )}
                         {/* 曲は名前のすぐ下の段（親は pointer-events-none なのでここで戻す） */}
                         {item.song && (
                             <button
@@ -629,8 +946,24 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             {/* 画面下: 閲覧者数（自分のみ）とキャプションを同じ段に並べる */}
             {(isOwnStory || item.caption) && (
                 <div
-                    className="absolute bottom-4 left-4 right-4 z-20 flex items-center gap-2"
-                    style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+                    /* **`flex-wrap`。** ピルは全部 `flex-shrink-0` で、縮むのは
+                       キャプションだけ。閲覧者・返信件数・残すの3つが並ぶと
+                       実測（390px）で**キャプションの幅が 0px**になり、
+                       360px 以下ではピル自体が**画面の外へ切れる**（押せない
+                       部分ができる）。折り返せばキャプションは2段目に落ちる
+                       ——位置が変わるだけで、見た目の作り直しにはならない */
+                    className="absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-center gap-2"
+                    /* **返信の帯（高さ約124px）に完全に隠れていた。**
+                       実測（390x844）でキャプションの高さの100%が帯と重なり、
+                       36px は入力欄そのものの下に沈んでいた（`bg-black/55` +
+                       `backdrop-blur` なので判読不能）。帯が出る条件のときだけ
+                       その分持ち上げる。**位置を上げるだけ**——キャプションを
+                       帯の中へ移すのは見た目の作り直しになる */
+                    style={{
+                        marginBottom: showReplyBar
+                            ? "calc(7.5rem + env(safe-area-inset-bottom, 0px))"
+                            : "env(safe-area-inset-bottom, 0px)",
+                    }}
                 >
                     {isOwnStory && (
                         <button
@@ -657,10 +990,151 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                     : `閲覧 ${viewers.length}人`}
                         </button>
                     )}
+                    {/* 届いた返信（投稿者だけ）。数は `replyCount` が持っている
+                        ので、開かない限り読みに行かない。**0件のときは出さない**
+                        ——押しても何も無いボタンを常に置かない */}
+                    {isOwnStory && (item.replyCount ?? 0) > 0 && (
+                        <button
+                            onClick={() => setRepliesOpen(true)}
+                            aria-label={locale === "en" ? "Replies" : "届いた返信を見る"}
+                            className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm"
+                            style={{ touchAction: "manipulation" }}
+                        >
+                            <ChatBubbleOvalLeftIcon className="w-4 h-4" />
+                            {locale === "en"
+                                ? `${item.replyCount} repl${item.replyCount === 1 ? "y" : "ies"}`
+                                : `返信 ${item.replyCount}件`}
+                        </button>
+                    )}
+                    {/* **消えるもの → 残るもの。** ストーリーは24時間で消えて
+                        検索にも出ないが、写真には個別ページも地図も集約ページも
+                        ある。この1枚だけ、**下書きの写真**として残す
+                        （公開は編集画面で本人が押す）。動画は写真の行にできない */}
+                    {isOwnStory && item.mediaType !== "video" && (
+                        keptPhotoId || item.keptAs ? (
+                            <Link
+                                /* **URL を手で書かない**（`ROUTES.EDIT` と1文字同じものを
+                                   書いていた）。`<a>` だと静的サイトを丸ごと読み直すので、
+                                   他の導線（`PhotoPageClient`）と同じ `Link` に寄せる */
+                                href={ROUTES.EDIT(keptPhotoId ?? String(item.keptAs))}
+                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/90 text-black text-xs font-semibold"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                <PhotoIcon className="w-4 h-4" />
+                                {/* 短く。3つ並ぶ段なので、1文字でも幅が効く */}
+                                {locale === "en" ? "Edit" : "仕上げる"}
+                            </Link>
+                        ) : (
+                            <button
+                                onClick={() => void keepToGallery()}
+                                disabled={keeping}
+                                aria-label={locale === "en" ? "Keep in gallery" : "ギャラリーに残す"}
+                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm disabled:opacity-50"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                <PhotoIcon className="w-4 h-4" />
+                                {keeping
+                                    ? (locale === "en" ? "Keeping…" : "残しています…")
+                                    : (locale === "en" ? "Keep" : "残す")}
+                            </button>
+                        )
+                    )}
                     {item.caption && (
-                        <p className="min-w-0 flex-1 text-white text-sm leading-snug whitespace-pre-wrap break-words line-clamp-3 drop-shadow pointer-events-none">
+                        /* **潰れるならキャプションは次の段へ。** ピルは全部
+                           `flex-shrink-0` なので、縮むのはここだけ——3つ並ぶと
+                           実測（390px）で幅 35px、320px では**ピルが画面の外**へ
+                           出ていた。最小幅（8rem）を持たせると、収まらないときだけ
+                           折り返る。ピルが1つのときは今までどおり横に並ぶ
+                           （実測 390px で 251px）＝**見た目は変えていない** */
+                        <p className="min-w-32 basis-32 flex-1 text-white text-sm leading-snug whitespace-pre-wrap break-words line-clamp-3 drop-shadow pointer-events-none">
                             {item.caption}
                         </p>
+                    )}
+                </div>
+            )}
+
+            {keepError && isOwnStory && (
+                <p
+                    className="absolute inset-x-4 bottom-16 z-20 text-center text-[11px] text-rose-300"
+                    style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+                    role="alert"
+                >{keepError}</p>
+            )}
+
+            {/* **見た人が反応する道。** 自分のストーリーには出さない
+                （送れない）。未ログインにも出さない——押してから断るのは
+                いちばん不親切な形で、このリポジトリは会員限定の操作を
+                最初から出さない側に揃えている */}
+            {showReplyBar && (
+                <div
+                    className="absolute inset-x-0 bottom-0 z-30 px-3 pt-8 pb-3 bg-gradient-to-t from-black/80 to-transparent"
+                    style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+                    /* **`stopPropagation` は要らない**（一度書いて外した）。
+                       左右のタップ領域は**兄弟**の要素で、しかもこの帯は
+                       その前面（z-30 対 z-10）。React のイベントは親へ上がる
+                       だけなので、兄弟の送り操作には最初から届かない。
+                       共通の親にも click は付いていない＝**死にコードだった**
+                       （外しても挙動は変わらないことを変異で確認） */
+                >
+                    {replySent ? (
+                        <p className="text-center text-white/80 text-xs py-2.5" role="status">
+                            {locale === "en" ? "Sent" : "送信しました"}
+                        </p>
+                    ) : (
+                        <>
+                            <div className="flex items-center justify-center gap-1 pb-2">
+                                {STORY_REACTIONS.map((emoji) => (
+                                    <button
+                                        key={emoji}
+                                        onClick={() => void sendReply({ emoji })}
+                                        disabled={replySending}
+                                        aria-label={locale === "en" ? `React ${emoji}` : `${emoji} で反応する`}
+                                        className="text-2xl leading-none px-1.5 py-1 rounded-full active:scale-90 transition disabled:opacity-40"
+                                        style={{ touchAction: "manipulation" }}
+                                    >
+                                        {emoji}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    value={replyText}
+                                    onChange={(e) => setReplyText(e.target.value)}
+                                    /* **打っている間は進めない。** 入力中に次へ送られると、
+                                       書いた相手と違う人に届く */
+                                    onFocus={() => setReplyFocused(true)}
+                                    onBlur={() => setReplyFocused(false)}
+                                    /* **変換確定の Enter で送らない。** 「きょう」を
+                                       「今日」に変換した瞬間に飛ぶ（`lib/utils/ime.ts`） */
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" && !isImeKey(e.nativeEvent) && replyText.trim()) {
+                                            e.preventDefault();
+                                            void sendReply({ text: replyText.trim() });
+                                        }
+                                    }}
+                                    maxLength={STORY_REPLY_MAX}
+                                    disabled={replySending}
+                                    placeholder={locale === "en" ? "Send a message…" : "メッセージを送信…"}
+                                    aria-label={locale === "en" ? "Reply to this story" : "このストーリーに返信"}
+                                    className="min-w-0 flex-1 px-4 py-2.5 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/20 text-white text-sm placeholder:text-white/50 focus:outline-none focus:ring-white/40"
+                                />
+                                {replyText.trim() && (
+                                    <button
+                                        onClick={() => void sendReply({ text: replyText.trim() })}
+                                        disabled={replySending}
+                                        aria-label={locale === "en" ? "Send" : "送信"}
+                                        className="flex-shrink-0 px-3 py-2.5 text-sm text-white font-semibold disabled:opacity-40 active:scale-95 transition"
+                                        style={{ touchAction: "manipulation" }}
+                                    >
+                                        {locale === "en" ? "Send" : "送信"}
+                                    </button>
+                                )}
+                            </div>
+                            {replyError && (
+                                <p className="pt-1.5 text-center text-[11px] text-rose-300" role="alert">{replyError}</p>
+                            )}
+                        </>
                     )}
                 </div>
             )}
@@ -696,7 +1170,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         </div>
                         <div className="overflow-y-auto p-2">
                             {(viewers ?? []).length === 0 ? (
-                                <p className="text-xs text-white/40 text-center py-8">
+                                <p className="text-xs text-white/50 text-center py-8">
                                     {viewersError
                                         ? (locale === "en"
                                             ? "Couldn't load viewers."
@@ -712,9 +1186,96 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                         <span className="text-sm text-white/90 flex-1 truncate">
                                             {v.displayName || (locale === "en" ? "User" : "ユーザー")}
                                         </span>
-                                        {v.at && <span className="text-[11px] text-white/40">{timeAgo(v.at, locale)}</span>}
+                                        {v.at && <span className="text-[11px] text-white/50">{timeAgo(v.at, locale)}</span>}
                                     </div>
                                 ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 届いた返信（投稿者だけ。閲覧者リストと同じ形のボトムシート） */}
+            {repliesOpen && isOwnStory && (
+                <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={() => setRepliesOpen(false)}>
+                    <div
+                        className="absolute inset-x-0 bottom-0 bg-[#16181c] ring-1 ring-white/10 rounded-t-3xl max-h-[60%] flex flex-col shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+                    >
+                        <div className="flex justify-center pt-2.5 pb-1">
+                            <span className="w-9 h-1 rounded-full bg-white/20" />
+                        </div>
+                        <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                            <h3 className="text-sm font-semibold text-white">
+                                {locale === "en" ? "Replies" : "届いた返信"}
+                                {/* 取得中を 0 と言わない・失敗したら数字を出さない
+                                    （閲覧者リストと同じ扱い） */}
+                                {!repliesError && (
+                                    <span className="ml-2 text-white/50 font-normal">{replies === null ? "…" : replies.length}</span>
+                                )}
+                            </h3>
+                            <button onClick={() => setRepliesOpen(false)} className="p-1 text-white/60 hover:text-white" aria-label={locale === "en" ? "Close" : "閉じる"}>
+                                <XMarkIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="overflow-y-auto p-2">
+                            {(replies ?? []).length === 0 ? (
+                                <p className="text-xs text-white/50 text-center py-8">
+                                    {repliesError
+                                        ? (locale === "en" ? "Couldn't load replies." : "返信を読み込めませんでした")
+                                        : (locale === "en" ? "No replies yet." : "まだ返信はありません")}
+                                </p>
+                            ) : (
+                                (replies ?? []).map((r) => (
+                                    <div key={r.id} className="flex items-start gap-3 px-3 py-2.5">
+                                        {/* 退会した人はプロフィールへ飛ばさない
+                                            （開いても墓石。コメント欄と同じ扱い） */}
+                                        <UserAvatar userId={r.deleted ? "" : r.uid} className="w-9 h-9 flex-shrink-0" iconClassName="w-5 h-5" />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-[13px] text-white/90 truncate">{r.name}</p>
+                                            <p className="text-sm text-white leading-snug break-words">
+                                                {r.emoji ? <span className="text-xl leading-none">{r.emoji}</span> : r.text}
+                                            </p>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                            <span className="text-[11px] text-white/50">{timeAgo(r.t, locale)}</span>
+                                            {/* 退会した人には出さない（もう届かない）。
+                                                濃さは `/50`——黒地で 4.5:1 に届く最小
+                                                （`/40` は 3.66:1。既存の走査が捕まえた） */}
+                                            {!r.deleted && (blockedIds.has(r.uid) ? (
+                                                <span className="text-[11px] text-white/50">
+                                                    {locale === "en" ? "Blocked" : "ブロック済み"}
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => void blockSender(r.uid)}
+                                                    disabled={blocking === r.uid}
+                                                    aria-label={locale === "en" ? `Block ${r.name}` : `${r.name} さんをブロック`}
+                                                    className="text-[11px] text-white/50 hover:text-rose-300 disabled:opacity-40 active:scale-95 transition"
+                                                    style={{ touchAction: "manipulation" }}
+                                                >
+                                                    {blocking === r.uid
+                                                        ? (locale === "en" ? "Blocking…" : "ブロックしています…")
+                                                        : (locale === "en" ? "Block" : "ブロック")}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                            {/* **何が起きるかと、戻し方を先に言う。** ブロックは
+                                相手とのフォローを**両向きに切る**（`block.ts`）。
+                                黙って切ると「フォロワーが1人減った」だけが残る。
+                                押してから出しても遅い（確認ダイアログを増やす
+                                かわりに、ボタンと同じ画面に1行置く）。
+                                出すのはボタンが1つでも出ているときだけ */}
+                            {(replies ?? []).some((r) => !r.deleted && !blockedIds.has(r.uid)) && (
+                                <p className="pt-1 text-[11px] text-white/60 leading-relaxed">
+                                    {locale === "en"
+                                        ? "Blocking also removes follows in both directions. You can unblock from your profile settings."
+                                        : "ブロックすると、お互いのフォローも外れます。解除はプロフィール設定からできます。"}
+                                </p>
                             )}
                         </div>
                     </div>

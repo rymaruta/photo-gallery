@@ -195,6 +195,10 @@ const NO_CACHE_KEYS = new Set([
     "app/data/photos.json",
     "sitemap.xml",
     "sitemap-images.xml",
+    // フィードも写真を追加するたびに変わる。入れないと 1時間 immutable で
+    // 配られ、しかも**更新しても CloudFront を無効化しない**
+    // （無効化の対象は .html/.txt とこの一覧だけ）
+    "feed.xml",
 ]);
 
 async function uploadFile(filePath) {

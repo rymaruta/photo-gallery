@@ -15,6 +15,8 @@ const mockConfirmReg    = vi.hoisted(() => vi.fn());
 const mockResendCode    = vi.hoisted(() => vi.fn());
 const mockAuthUser      = vi.hoisted(() => vi.fn());
 const mockGetSession    = vi.hoisted(() => vi.fn());
+const mockForgot        = vi.hoisted(() => vi.fn());
+const mockConfirmPw     = vi.hoisted(() => vi.fn());
 
 vi.mock("amazon-cognito-identity-js", () => ({
     // new で呼ばれるコンストラクタには通常関数（非アロー）を使う
@@ -28,8 +30,8 @@ vi.mock("amazon-cognito-identity-js", () => ({
             getSession: mockGetSession,
             confirmRegistration: mockConfirmReg,
             resendConfirmationCode: mockResendCode,
-            forgotPassword: vi.fn(),
-            confirmPassword: vi.fn(),
+            forgotPassword: mockForgot,
+            confirmPassword: mockConfirmPw,
             signOut: vi.fn(),
         };
     }),
@@ -38,8 +40,9 @@ vi.mock("amazon-cognito-identity-js", () => ({
 
 // static import（環境変数に依存しない）
 import {
-    signIn, getCurrentSession, signUp, confirmSignUp,
-    getCurrentUserGroups, isAdmin, isGeneralUser,
+    signIn, getCurrentSession, lookupSession, signUp, confirmSignUp,
+    getCurrentUserGroups, isAdmin, isGeneralUser, forgotPassword, confirmForgotPassword,
+    PASSWORD_RULE_MESSAGE,
 } from "../cognito";
 
 beforeEach(() => {
@@ -52,6 +55,8 @@ beforeEach(() => {
     mockResendCode.mockReset();
     mockAuthUser.mockReset();
     mockGetSession.mockReset();
+    mockForgot.mockReset();
+    mockConfirmPw.mockReset();
 });
 
 // ────────────────────────────────
@@ -155,6 +160,35 @@ describe("signUp", () => {
         expect(result.username).toMatch(/^[0-9a-f-]{36}$/i);
     });
 
+    // **メール属性を固定文字列に差し替えても 50件とも緑だった**（実測）。
+    // ここが壊れると確認コードが**別の人の受信箱**へ飛ぶ（あるいはどこにも
+    // 飛ばない）。ユーザー名は UUID なので、メールは属性でしか渡らない。
+    it("登録するメールアドレスを、そのまま属性で渡す", async () => {
+        mockSignUp.mockImplementation(
+            (_u: string, _p: string, _a: unknown[], _v: unknown[], cb: (e: null) => void) => cb(null)
+        );
+        await signUp("new@example.com", "Password1!");
+        const [username, password, attrs] = mockSignUp.mock.calls[0] as [string, string, { Name: string; Value: string }[]];
+        expect(username, "ユーザー名にメールを使っている").not.toBe("new@example.com");
+        expect(password).toBe("Password1!");
+        expect(attrs).toEqual([{ Name: "email", Value: "new@example.com" }]);
+    });
+
+    // **前後の空白を落とす。** スマホのキーボードは補完のあとに空白を
+    // 付けることがあり、そのまま登録すると確認コードは届くのに
+    // ログインで打ち直したメールと一致しない。
+    // **大文字小文字は触らない**——プールの `UsernameConfiguration` は
+    // リポジトリのどこでも指定しておらず、揃え方を間違えると既にある
+    // アカウントでログインできなくなる（本番プールの設定は未確認）
+    it("メールの前後の空白は落とす（大文字小文字は変えない）", async () => {
+        mockSignUp.mockImplementation(
+            (_u: string, _p: string, _a: unknown[], _v: unknown[], cb: (e: null) => void) => cb(null)
+        );
+        await signUp("  Taro@Example.com ", "Password1!");
+        const attrs = (mockSignUp.mock.calls[0] as [string, string, { Name: string; Value: string }[]])[2];
+        expect(attrs[0].Value).toBe("Taro@Example.com");
+    });
+
     it("InvalidPasswordException → 日本語メッセージ", async () => {
         mockSignUp.mockImplementation(
             (_u: string, _p: string, _a: unknown[], _v: unknown[], cb: (e: { name: string; message: string }) => void) => {
@@ -217,6 +251,97 @@ describe("confirmSignUp", () => {
         );
         expect((await confirmSignUp("uuid", "123456")).success).toBe(true);
     });
+
+    // **この4行を丸ごと削っても `lib/auth` + `app/signup` は 67件 緑だった**
+    // （実測）。PostConfirmation トリガーが落ちた人は Cognito 側では
+    // 既に CONFIRMED なので、ここで失敗を返すと**コードを入れ直しても
+    // 永久に確認画面から出られない**（"User cannot be confirmed. Current
+    // status is CONFIRMED" が英語で出るだけ）。トリガーは Lambda の
+    // 同時実行（アカウント全体で10）に当たれば実際に落ちる。
+    it("すでに確認済みなら成功として扱う（確認画面から出られなくしない）", async () => {
+        mockConfirmReg.mockImplementation(
+            (_code: string, _f: boolean, cb: (e: { name: string; message: string }) => void) => {
+                cb({ name: "NotAuthorizedException", message: "User cannot be confirmed. Current status is CONFIRMED" });
+            }
+        );
+        const res = await confirmSignUp("uuid", "123456");
+        expect(res.success, "確認済みなのに先へ進めない").toBe(true);
+        expect(res.error, "英語の技術文言が出ている").toBeUndefined();
+    });
+});
+
+// ────────────────────────────────
+// forgotPassword — **1本も実行されていなかった**
+// ────────────────────────────────
+// `accountEnumeration.test.ts` は「特定の日本語1文がソースに無いこと」しか
+// 見ていないので、`UserNotFoundException` の分岐を
+// `resolve({ success: false, error: "そのアカウントは存在しません" })` に
+// 書き換えても 50件とも緑だった（実測）。振る舞いで固定する。
+// **1本も実行されていなかった。** `52fd2e21` の見出しに書いた
+// 「再設定のエラーだけ記号が抜けていた」を直したのに、その文言を固定する
+// テストがどこにも無く、旧文言に戻しても緑だった（レビューが変異で実証）。
+// 画面側に足したのは**送る前の長さチェック**で、AWS が
+// `InvalidPasswordException` を返したときの経路は素通りだった。
+describe("confirmForgotPassword", () => {
+    const fail = (err: { code?: string; message?: string }) =>
+        mockConfirmPw.mockImplementation((_c: string, _p: string, cb: { onFailure: (e: unknown) => void }) => cb.onFailure(err));
+
+    it("成功したら success:true", async () => {
+        mockConfirmPw.mockImplementation((_c: string, _p: string, cb: { onSuccess: () => void }) => cb.onSuccess());
+        expect((await confirmForgotPassword("u", "123456", "Password1!")).success).toBe(true);
+    });
+
+    // **プールは記号も要求している**（`provision-env.js` の
+    // `RequireSymbols: true`）。記号を書かないと、`Password1` を弾かれた人が
+    // 「条件は満たしている」と読んで同じものを打ち直し続ける
+    it("パスワードの規則は、記号まで含めて言う", async () => {
+        fail({ code: "InvalidPasswordException", message: "Password does not conform to policy" });
+        const res = await confirmForgotPassword("u", "123456", "Password1");
+        expect(res.success).toBe(false);
+        expect(res.error).toBe(PASSWORD_RULE_MESSAGE);
+        expect(res.error, "記号の条件が抜けている").toContain("記号");
+    });
+
+    it.each([
+        ["CodeMismatchException", "確認コードが正しくありません"],
+        ["ExpiredCodeException", "確認コードの有効期限が切れています"],
+    ])("%s は日本語で伝える", async (code, expected) => {
+        fail({ code, message: "Invalid verification code provided." });
+        expect((await confirmForgotPassword("u", "123456", "Password1!")).error).toBe(expected);
+    });
+
+    // **AWS の英文をそのまま出さない**
+    it("知らない失敗でも英文は出さない", async () => {
+        fail({ code: "SomethingElse", message: "Attempt limit exceeded, please try after some time." });
+        const res = await confirmForgotPassword("u", "123456", "Password1!");
+        expect(res.error).not.toContain("Attempt limit");
+        expect(res.error).toContain("しばらく");
+    });
+});
+
+describe("forgotPassword", () => {
+    const fail = (err: { code?: string; message?: string }) =>
+        mockForgot.mockImplementation((cb: { onFailure: (e: unknown) => void }) => cb.onFailure(err));
+
+    it("登録が無くても成功として返す（登録の有無を教えない）", async () => {
+        fail({ code: "UserNotFoundException", message: "Username/client id combination not found." });
+        const res = await forgotPassword("nobody@example.com");
+        expect(res.success, "そのメールが未登録だと分かってしまう").toBe(true);
+        expect(res.error).toBeUndefined();
+    });
+
+    it("送れたときも成功", async () => {
+        mockForgot.mockImplementation((cb: { onSuccess: () => void }) => cb.onSuccess());
+        expect((await forgotPassword("a@example.com")).success).toBe(true);
+    });
+
+    // 回数制限は「教えてよい」失敗（本人の操作の結果で、相手の存在を明かさない）
+    it("回数制限は日本語で伝える", async () => {
+        fail({ code: "LimitExceededException", message: "Attempt limit exceeded, please try after some time." });
+        const res = await forgotPassword("a@example.com");
+        expect(res.success).toBe(false);
+        expect(res.error, "英語のまま出している").toBe("しばらく時間をおいてから再試行してください");
+    });
 });
 
 // ────────────────────────────────
@@ -247,5 +372,121 @@ describe("getCurrentUserGroups / isAdmin / isGeneralUser", () => {
         mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
         mockGetSession.mockImplementation((cb: (e: null, s2: typeof s) => void) => cb(null, s));
         expect(await isGeneralUser()).toBe(false);
+    });
+});
+
+// ────────────────────────────────
+// lookupSession（「ログインしていない」と「確かめられなかった」を分ける）
+// ────────────────────────────────
+describe("lookupSession", () => {
+    // ライブラリは `fetch` が TypeError で落ちた回を `Error("Network error")` に
+    // 包み直して `code = "NetworkError"` を立てる
+    // （node_modules/amazon-cognito-identity-js/lib/Client.js）。
+    // これを見分けないと、圏外が「ログアウト」になり、編集中の画面ごと
+    // ログイン画面へ追い出される
+    const err = (props: Record<string, unknown>) => Object.assign(new Error(String(props.message ?? "x")), props);
+
+    // **印は2つ別々に見る。** 最初は `{code, message}` を両方立てた1本しか
+    // 無かったので、**`code` の判定を消しても緑**だった（message 側だけで
+    // 通っていた）。片方ずつ立てて2本にする
+    it("通信が届かなかった回は unreachable（code だけで見分ける）", async () => {
+        mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
+        mockGetSession.mockImplementation((cb: (e: Error, s: null) => void) =>
+            cb(err({ code: "NetworkError", message: "Failed to fetch" }), null));
+        expect(await lookupSession()).toEqual({ session: null, unreachable: true });
+    });
+
+    it("code が無くても、ライブラリの文言なら unreachable", async () => {
+        mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
+        mockGetSession.mockImplementation((cb: (e: Error, s: null) => void) =>
+            cb(new Error("Network error"), null));
+        expect((await lookupSession()).unreachable).toBe(true);
+    });
+
+    it("失効（NotAuthorizedException）は unreachable にしない", async () => {
+        mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
+        mockGetSession.mockImplementation((cb: (e: Error, s: null) => void) =>
+            cb(err({ code: "NotAuthorizedException", name: "NotAuthorizedException", message: "Refresh Token has expired" }), null));
+        expect(await lookupSession()).toEqual({ session: null, unreachable: false });
+    });
+
+    it("そもそもログインしていない（getCurrentUser が null）も unreachable にしない", async () => {
+        mockGetCurrentUser.mockReturnValue(null);
+        expect(await lookupSession()).toEqual({ session: null, unreachable: false });
+    });
+
+    it("無効なセッションも unreachable にしない", async () => {
+        mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
+        mockGetSession.mockImplementation((cb: (e: null, s: { isValid: () => boolean }) => void) =>
+            cb(null, { isValid: () => false }));
+        expect(await lookupSession()).toEqual({ session: null, unreachable: false });
+    });
+
+    // **返ってきたのが Cognito の応答でなかった回**（キャプティブポータル・
+    // 中継機のエラーページ）。ライブラリの中で `TypeError` になる。
+    // 文言は実物に通して測ったもの（`lib/auth/__tests__/captivePortal.test.ts`
+    // が本物のライブラリで同じことを確かめている）
+    // **文言ではなく型で見分けている。** ここに測った2つしか置かないと、
+    // 実装を「V8 のこの2文言と一致するか」に退化させても緑になる
+    // （Safari は同じ状況で違う文言を出す）。3本目は「文言は問わない」を言う
+    it.each([
+        ["200 で HTML（キャプティブポータル）", "Cannot convert undefined or null to object"],
+        ["503 で HTML（中継機）", "Cannot read properties of undefined (reading 'split')"],
+        ["別の言い回し（ブラウザやライブラリの版で変わる）", "undefined is not an object"],
+    ])("%s は unreachable", async (_label, message) => {
+        mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
+        mockGetSession.mockImplementation((cb: (e: Error, s: null) => void) => cb(new TypeError(message), null));
+        expect((await lookupSession()).unreachable).toBe(true);
+    });
+
+    // **理由を名乗っている応答は保たない。** 名乗っているならそれが答え
+    it.each([
+        ["失効", { code: "NotAuthorizedException", message: "Refresh Token has expired" }],
+        ["サーバーの5xx", { code: "InternalErrorException", message: "boom" }],
+        ["トークン欠損", { message: "Local storage is missing an ID Token, Please authenticate" }],
+        ["更新できない", { message: "Cannot retrieve a new session. Please authenticate." }],
+    ])("%s は unreachable にしない", async (_label, props) => {
+        mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
+        mockGetSession.mockImplementation((cb: (e: Error, s: null) => void) => cb(err(props), null));
+        expect((await lookupSession()).unreachable).toBe(false);
+    });
+
+    // **設定不備を「通信断」に混ぜない。** 混ぜると、前の状態を保つ側が
+    // 永久に固まる（確かめ直しても毎回 unreachable になる）
+    // **外側の catch は `isUnreachable` を通さない。** 通すと、設定不備で
+    // `TypeError` になる回（このコード自身の壊れ方）を「通信断」と読んで
+    // **前の状態を永久に保ち続ける**（確かめ直すたびに同じ TypeError）。
+    // `Error` だけで見ていた頃は、この2本目が無くても緑だった
+    it.each([
+        ["素の Error", () => { throw new Error("no pool"); }],
+        ["TypeError（この判定が広がったぶん、こちらが要る）", () => { throw new TypeError("x is not a function"); }],
+    ])("設定が壊れて例外になった回は unreachable にしない（%s）", async (_label, boom) => {
+        mockGetCurrentUser.mockImplementation(boom);
+        expect(await lookupSession()).toEqual({ session: null, unreachable: false });
+    });
+
+    // `getSession` が「エラーも session も無し」で返る回（ライブラリの
+    // 契約上ありうる）。ここを unreachable にすると、ログアウト済みの人を
+    // ログイン中の顔のまま留める
+    it("エラーも session も無い回は unreachable にしない", async () => {
+        mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
+        mockGetSession.mockImplementation((cb: (e: null, s: null) => void) => cb(null, null));
+        expect(await lookupSession()).toEqual({ session: null, unreachable: false });
+    });
+
+    it("取れたときは session を返す（unreachable は false）", async () => {
+        const sess = { isValid: () => true, getIdToken: () => ({ payload: {} }) };
+        mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
+        mockGetSession.mockImplementation((cb: (e: null, s: unknown) => void) => cb(null, sess));
+        const r = await lookupSession();
+        expect(r.session).toBe(sess);
+        expect(r.unreachable).toBe(false);
+    });
+
+    it("getCurrentSession は同じ答えの session だけを返す（既存の呼び出しは不変）", async () => {
+        mockGetCurrentUser.mockReturnValue({ getSession: mockGetSession });
+        mockGetSession.mockImplementation((cb: (e: Error, s: null) => void) =>
+            cb(err({ code: "NetworkError" }), null));
+        expect(await getCurrentSession()).toBeNull();
     });
 });

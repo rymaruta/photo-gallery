@@ -26,12 +26,17 @@ const mockConfirmSignUp = vi.fn();
 const mockResend = vi.fn();
 const mockShowToast = vi.fn();
 
+let mockSearchParams = new URLSearchParams();
+const mockReplace = vi.fn();
+/** ログイン済みかどうかを差し替える（object 越しにしないと巻き上げに間に合わない） */
+const mockAuthed = { value: false };
 vi.mock("next/navigation", () => ({
-    useRouter: () => ({ push: mockPush, replace: vi.fn() }),
+    useRouter: () => ({ push: mockPush, replace: mockReplace }),
+    useSearchParams: () => mockSearchParams,
 }));
 
 vi.mock("../../auth/context", () => ({
-    useAuth: () => ({ isAuthenticated: false, loading: false }),
+    useAuth: () => ({ isAuthenticated: mockAuthed.value, loading: false }),
 }));
 
 vi.mock("../../../lib/hooks/useToast", () => ({
@@ -54,6 +59,9 @@ vi.mock("next/link", () => ({
 import SignupPage from "../page";
 
 beforeEach(() => {
+    mockSearchParams = new URLSearchParams();
+    mockReplace.mockReset();
+    mockAuthed.value = false;
     localStorageMock.clear();
     mockPush.mockReset();
     mockSignUp.mockReset();
@@ -197,6 +205,42 @@ describe("SignupPage - 登録ステップ", () => {
         expect(mockShowToast).toHaveBeenCalledWith("確認コードを再送しました", "success");
     });
 
+    async function tryResend(user: ReturnType<typeof userEvent.setup>) {
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), "u@example.com");
+        await user.type(screen.getByPlaceholderText("8文字以上"), "Password1!");
+        await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
+        await user.click(screen.getByRole("button", { name: /確認コードを送信/ }));
+        await waitFor(() => expect(mockResend).toHaveBeenCalledWith("stale-uuid"));
+    }
+
+    // **もう使えない控えは捨てる。** その UUID が確認済みのアカウントを
+    // 指していると再送は毎回失敗し、捨てないと24時間の TTL が切れるまで
+    // 同じ行き止まりを繰り返す
+    it("もう使えない控え（確認済み）は捨てる", async () => {
+        localStorageMock.setItem("jp_verify_u@example.com", JSON.stringify({ username: "stale-uuid", t: Date.now() }));
+        mockSignUp.mockResolvedValue({ success: false, aliasExists: true });
+        mockResend.mockResolvedValue({ success: false, error: "x", code: "NotAuthorizedException" });
+        render(<SignupPage />);
+        await tryResend(userEvent.setup());
+        expect(localStorageMock.getItem("jp_verify_u@example.com"), "効かない控えが残る").toBeNull();
+    });
+
+    // **一時的な失敗で捨ててはいけない。** 捨てると確認画面に二度と
+    // 戻れない（登録し直しても「すでに登録されています」で終わり、
+    // 未確認なのでパスワード再設定も効かない）。元の形（24時間で TTL が
+    // 切れて自然回復）より悪い
+    it.each([
+        ["回数制限", "LimitExceededException"],
+        ["通信断など理由の分からない失敗", undefined],
+    ])("一時的な失敗（%s）では控えを残す", async (_label, code) => {
+        localStorageMock.setItem("jp_verify_u@example.com", JSON.stringify({ username: "stale-uuid", t: Date.now() }));
+        mockSignUp.mockResolvedValue({ success: false, aliasExists: true });
+        mockResend.mockResolvedValue({ success: false, error: "x", ...(code ? { code } : {}) });
+        render(<SignupPage />);
+        await tryResend(userEvent.setup());
+        expect(localStorageMock.getItem("jp_verify_u@example.com"), "押し直す手がかりを捨てている").not.toBeNull();
+    });
+
     it("AliasExistsException + 保存UUIDなし → エラー表示でverifyに遷移しない", async () => {
         mockSignUp.mockResolvedValue({ success: false, aliasExists: true });
         const user = userEvent.setup();
@@ -242,6 +286,52 @@ describe("SignupPage - 確認ステップ", () => {
         });
         expect(mockConfirmSignUp).toHaveBeenCalledWith("uuid-1234", "123456");
         expect(localStorageMock.getItem("jp_verify_u@example.com")).toBeNull();
+        // **確認が済んだことをログイン画面に伝える。** `verified=1` を付ける
+        // 箇所がリポジトリに1つも無く、あちらのバナーは死んだ画面だった
+        // （テストが自前で `verified=1` を作っていたので気づけない）
+        expect(screen.getByRole("link", { name: "ログインする" }))
+            .toHaveAttribute("href", "/login?verified=1");
+    });
+
+    // **戻り先を登録の向こう側まで運ぶ。** 招待リンク（`/j?t=…`）で来た
+    // 未登録の人は、ログイン画面の「新規登録」を押した時点で `next` を
+    // 落としていた——登録を終えると必ず自分の空プロフィールに着地し、
+    // 招待に戻る手段が履歴しか無かった
+    it("next があれば、完了後のログインにも引き継ぐ", async () => {
+        mockSearchParams = new URLSearchParams("next=%2Fj%3Ft%3Dabc");
+        const user = userEvent.setup();
+        render(<SignupPage />);
+        await goToVerifyStep(user);
+
+        mockConfirmSignUp.mockResolvedValue({ success: true });
+        await user.type(screen.getByPlaceholderText(/メールに届いた6桁のコード/), "123456");
+        await user.click(screen.getByRole("button", { name: /登録を確定する/ }));
+
+        await waitFor(() => expect(screen.getByRole("heading", { name: "登録完了" })).toBeInTheDocument());
+        expect(screen.getByRole("link", { name: "ログインする" }))
+            .toHaveAttribute("href", `/login?verified=1&next=${encodeURIComponent("/j?t=abc")}`);
+    });
+
+    // 外へ飛ばす値は捨てる（この画面が踏み台にならないように）
+    it("外部のURLを next に入れられても引き継がない", async () => {
+        mockSearchParams = new URLSearchParams("next=https%3A%2F%2Fevil.example%2Fx");
+        render(<SignupPage />);
+        expect(screen.getByRole("link", { name: "ログイン" })).toHaveAttribute("href", "/login");
+    });
+
+    // `/login` は `nextPath ?? …` を見るのに、ここだけトップへ流していた
+    it("既にログイン済みなら、next があるときはそこへ送る", async () => {
+        mockSearchParams = new URLSearchParams("next=%2Fj%3Ft%3Dabc");
+        mockAuthed.value = true;
+        render(<SignupPage />);
+        await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/j?t=abc"));
+    });
+
+    it("next があれば「すでにアカウントをお持ちの方」のリンクにも付ける", async () => {
+        mockSearchParams = new URLSearchParams("next=%2Fj%3Ft%3Dabc");
+        render(<SignupPage />);
+        expect(screen.getByRole("link", { name: "ログイン" }))
+            .toHaveAttribute("href", `/login?next=${encodeURIComponent("/j?t=abc")}`);
     });
 
     it("確認コードが正しくない → エラーを表示し、ステップは変わらない", async () => {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import GalleryGrid from "./GalleryGrid";
 import { useLocale } from "../i18n/context";
 import type { Photo } from "@/lib/data/photos";
+import type { CollectionType } from "@/lib/utils/collections";
 
 type RelatedLink = { label: string; count: number; path: string };
 
@@ -12,17 +13,20 @@ type Props = {
     heading: string;
     description: string;
     breadcrumb: string;
-    type?: "tag" | "location" | "category";
+    // **型を書き下さない。** 種類が増えたときにここだけ古いままになる
+    // （`camera` を足したとき実際に tsc が止めた）
+    type?: CollectionType;
     related?: RelatedLink[];
 };
 
-const RELATED_HEADING: Record<string, { ja: string; en: string }> = {
+const RELATED_HEADING: Record<CollectionType, { ja: string; en: string }> = {
     tag: { ja: "関連タグ", en: "Related tags" },
     location: { ja: "他の撮影地", en: "More locations" },
     category: { ja: "他のカテゴリ", en: "More categories" },
+    camera: { ja: "他のカメラ", en: "More cameras" },
 };
 
-/** タグ/場所/カテゴリの集約ページ本体（見出し＋パンくず＋グリッド＋相互リンク） */
+/** タグ/場所/カテゴリ/カメラの集約ページ本体（見出し＋パンくず＋グリッド＋相互リンク） */
 export default function CollectionPageClient({ photos, heading, description, breadcrumb, type = "tag", related = [] }: Props) {
     const { locale } = useLocale();
 
@@ -57,7 +61,7 @@ export default function CollectionPageClient({ photos, heading, description, bre
                                 style={{ touchAction: "manipulation" }}
                             >
                                 {type === "tag" ? `#${r.label}` : r.label}
-                                <span className="text-white/30">{r.count}</span>
+                                <span className="text-white/50">{r.count}</span>
                             </Link>
                         ))}
                     </div>

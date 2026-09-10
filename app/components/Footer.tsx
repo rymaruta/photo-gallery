@@ -13,6 +13,9 @@ export default function Footer() {
 
     const links = [
         { href: ROUTES.HOME, label: navLabels.works || (locale === "en" ? "Works" : "作品") },
+        // 撮影地マップはメニューの中にしか無かった。フッターは全ページに
+        // 出るので、写真ページから来た人にも見つかる
+        { href: ROUTES.MAP, label: navLabels.map || (locale === "en" ? "Map" : "撮影地マップ") },
         { href: ROUTES.FAVORITES, label: navLabels.favorites || (locale === "en" ? "Liked Photos" : "いいねした写真") },
         { href: ROUTES.PRIVACY, label: locale === "en" ? "Privacy" : "プライバシーポリシー" },
     ];
@@ -27,7 +30,7 @@ export default function Footer() {
                             <PaperAirplaneIcon className="w-3.5 h-3.5 -rotate-45 text-sky-400" />
                             Journey Photo
                         </p>
-                        <p className="mt-1.5 text-xs text-white/40">
+                        <p className="mt-1.5 text-xs text-white/50">
                             {locale === "en"
                                 ? "Moments that move someone's next journey."
                                 : "旅の一瞬を、誰かの次の旅へ。"}
@@ -35,7 +38,8 @@ export default function Footer() {
                     </div>
 
                     {/* ナビゲーション */}
-                    <nav className="flex flex-wrap justify-center gap-x-5 gap-y-2">
+                    <nav aria-label={locale === "en" ? "Footer" : "フッター"}
+                        className="flex flex-wrap justify-center gap-x-5 gap-y-2">
                         {links.map(({ href, label }) => (
                             <Link
                                 key={href}
@@ -48,7 +52,7 @@ export default function Footer() {
                         ))}
                     </nav>
 
-                    <p className="text-[11px] text-white/30">
+                    <p className="text-[11px] text-white/50">
                         {/* 年は出さない。ここは "use client" だが静的書き出しなので、
                             ビルド時の年が HTML に焼かれ、年が明けるとブラウザ側の
                             再描画とで食い違う（ハイドレーション不一致）。

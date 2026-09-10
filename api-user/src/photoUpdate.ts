@@ -1,8 +1,10 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { UpdateCommand, GetCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
+import { PUBLIC_FEED_KEY } from "./publicFeed";
+import { removePhotoFromAlbum, addPhotoToAlbum, isAlbumMember } from "./albums";
 import { JSON_HEADERS, getUserId } from "./http";
-import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeDate, sameStoredValue, truncate } from "./sanitize";
+import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeDate, dateWasRejected, sameStoredValue, truncate } from "./sanitize";
 import { requestSiteRebuild } from "./rebuild";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { mediaKeys } from "./mediaKeys";
@@ -112,6 +114,15 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         }
     }
 
+    // **読めない撮影日は断る。** `sanitizeDate` は「消したい（空）」と
+    // 「読めない（1990年より前・未来）」の両方に undefined を返すので、
+    // そのまま書き込みに使うと**入れ直しただけで保存済みの日付が消える**
+    // ——画面は「保存しました」と出す。フィルムの取り込みなど 1990年より前の
+    // 日付は実在するのに、黙って落ちていた（実測: `1985-06-01` → undefined）
+    if (dateWasRejected(body.date)) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "撮影日が正しくありません（日付として読み取れないか、1990年より前・未来の日付です）" }) };
+    }
+
     try {
         // 所有権チェック
         const existing = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
@@ -134,7 +145,21 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         const values: Record<string, unknown> = { ":t": new Date().toISOString() };
         const names: Record<string, string> = {};
         const removes: string[] = [];
-        if (hasPublished) { sets.push("published = :p"); values[":p"] = body.published; }
+        if (hasPublished) {
+            sets.push("published = :p");
+            values[":p"] = body.published;
+            // **公開一覧用 GSI の印も一緒に動かす。** ここを忘れると、
+            // 非公開にした写真が一覧に出続ける／公開に戻した写真が
+            // 二度と一覧に出ない、という静かな壊れ方をする（索引にしか
+            // 現れないので、行を見ても分からない）。
+            if (body.published === false) {
+                names["#publicFeed"] = "publicFeed";
+                removes.push("#publicFeed");
+            } else {
+                sets.push("publicFeed = :pf");
+                values[":pf"] = PUBLIC_FEED_KEY;
+            }
+        }
         if (song) { sets.push("song = :s"); values[":s"] = song; }
         if (youtubeUrl) { sets.push("songYoutubeUrl = :yt"); values[":yt"] = youtubeUrl; }
         if (removeSong) removes.push("song");
@@ -146,6 +171,16 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // あわせて「本当に値が変わったか」も数える。静的ページの作り直しを
         // 頼むかの判定に使う（下の requestSiteRebuild）。
         let metaChanged = false;
+        // **項目をまるごと空にしたか。** 「非公開にした・削除した」と同じで、
+        // 消す意図の操作が公開ページに反映されないのは約束違反になる
+        // （説明を空にしても、静的HTMLと JSON-LD には残る）。
+        // 書き換え（別の文に直す）は「更新が遅れている」だけなので数えない
+        // ——公開中の写真を保存するたびに断りが出ると、肝心のときに読まれない。
+        // **拾えるのは項目まるごとの削除だけ**——説明の一文だけ消す・タグを1つ外す、
+        // といった部分編集は値が非空のままなので数えない。そこまで拾うには
+        // 「何が減ったか」を項目ごとに見ることになり、線が引けなくなる。
+        // 根本の直し方は文言ではなく `REBUILD_DISPATCH_TOKEN` の設定
+        let metaRemoved = false;
         const applyMeta = (col: string, present: boolean, value: unknown): boolean => {
             if (!present) return false;
             const willRemove = value === undefined || value === null || (Array.isArray(value) && value.length === 0);
@@ -156,6 +191,7 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             // ——何も書き換えずに保存するだけでビルドが走り続ける。
             const changed = !sameStoredValue(willRemove ? undefined : value, existing.Item?.[col]);
             if (changed) metaChanged = true;
+            if (changed && willRemove) metaRemoved = true;
             names[`#${col}`] = col;
             if (willRemove) {
                 removes.push(`#${col}`);
@@ -260,13 +296,82 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             ? await requestSiteRebuild(`photo updated: ${id}`, { coalesce: true })
             : false;
 
+        // **下書きから公開に変えたら、共同アルバムに入れる。**
+        //
+        // `savePhoto` は `albumId && isPublished` のときだけ入れるので、
+        // 招待から入った人が「下書き保存」した写真は**あとで公開しても
+        // 一生アルバムに入らない**（招待ページにも一覧にも出ない）。
+        // 本人の行には `albumId` が付いているので、**入ったつもりになる**
+        // ——画面上は成功して見える壊れ方。
+        // `addPhotoToAlbum` は冪等（既に入っていれば条件で落ちる）なので、
+        // 二度押しでも増えない。**失敗しても公開は成功で返す**
+        // （写真はもう公開されている。`savePhoto` の同じ呼び出しと同じ扱い）。
+        //
+        // **いまもメンバーかを確かめてから足す。** `savePhoto` は
+        // 「ここを通さずに `albumId` を保存できると、誰でも他人のアルバムに
+        // 写真を差し込める」として `isAlbumMember` を通している。こちらは
+        // 行に書いてある `albumId` を信じて素通しだった。**いまは脱退の口が
+        // 無いので悪用できない**が、片側だけの防御は「脱退」を足した日に
+        // 静かに穴になる（このリポジトリが何度も踏んでいる形）。
+        //
+        // **「変わった回」ではなく「いま公開か」で見る。** `visibilityChanged`
+        // を条件にすると、1回目でここが落ちた（スロットル・500枚上限）あとに
+        // 押し直しても `wasPublished` が true なので二度と来ない
+        // ——**公開されているのにアルバムには一生入らない**。しかも 500 を
+        // 消したぶん、気づく手がかりも無い。`upload.ts` の再送は同じ場面に
+        // 「再送でもアルバムに足す（`addPhotoToAlbum` は冪等）」で答えていて、
+        // その理由もそこに書いてある。**同じ判断を隣で逆に書かない。**
+        //
+        // 代償はアルバムの写真を編集するたびに GetItem 1回と、条件で落ちる
+        // 書き込み1回。アルバムに入っている写真は数が少ないので飲む。
+        //
+        // **判定は投げさせない。** ここは `UpdateCommand`（上の 238行）の
+        // **あと**なので、裸の `await` を置くと写真はもう公開されているのに
+        // 外側の catch に落ちて **500「更新に失敗しました」**になる。
+        // すぐ下の `addPhotoToAlbum` が `.catch` で「失敗しても公開は成功で
+        // 返す」と書いているのに、その直前に投げうる await を足していた。
+        const albumId = typeof existing.Item.albumId === "string" ? existing.Item.albumId : "";
+        // 今回の指定が無ければ、保存されている状態がそのまま残る
+        const willBePublished = hasPublished ? body.published !== false : wasPublished;
+        const stillMember = willBePublished && albumId
+            ? await isAlbumMember(albumId, callerId).catch((e) => {
+                console.error(`updatePhotoVisibility: メンバー判定に失敗（${id}）:`, e);
+                return false;
+            })
+            : false;
+        if (stillMember) {
+            await addPhotoToAlbum(albumId, id).catch((e) => {
+                console.error(`updatePhotoVisibility: アルバムに足せませんでした（${id}）:`, e);
+            });
+        }
+
         // **届かなかったことを行に残す。** 畳まれた・予算切れ・設定漏れ・
         // dispatch の失敗、どれでも false が返る。削除側は「非公開だった
         // 写真には静的ページが無い」と決め打ちして掃除を省くので、その前提が
         // 崩れたことを伝えないと、**非公開 →（依頼が届かない）→ 削除**で
         // 静的ページが誰にも消されないまま残る。
+        // **画面に伝える**（`staticStale` として返す）。行に印が書けたかとは
+        // 別に、「静的ページがまだ残りうる」ことは変わらない。ここを黙ると
+        // 「非公開にしました」だけが出て、実際には検索から開ける状態が続く
         const hiding = visibilityChanged && body.published === false;
-        if (hiding && !dispatched) {
+        const staticStale = hiding && !dispatched;
+        // 公開のまま項目を消した場合。ページ自体は残ってよいが、**消した中身が残る**。
+        // `staticStale`（非公開にした）とは**排他**——あちらは `hiding`、こちらは
+        // `stillPublished` が要るので、同時には立たない。「強い方を優先する」と
+        // 書きかけたが、そんな規則は要らなかった（変異で気づいた: 応答の三項の
+        // 順番を入れ替えても何も変わらない）
+        // **そもそも静的ページがあるか。** 下書きを「公開する」で出しながら項目を
+        // 消すと、これが無いと「消した内容がページに残る」と言ってしまう
+        // ——そのページはまだ作られていない。判定は `deleteMyPhoto` と同じ形
+        // （非公開でも、掃除が届いていなければページは在る）。
+        //
+        // **「公開のままか」は見ない。** 一度そう書いたが、非公開にしたのに掃除が
+        // 届かなかった写真（本番では毎回そうなる）を下書きとして編集し、項目を
+        // 消したときに黙ってしまう——そのページは公開されたままで、消した内容も
+        // 出ている。ページが在るなら、公開状態に関係なく伝える
+        const staticPageExists = wasPublished || existing.Item.staticStale === true;
+        const staticOutdated = metaRemoved && staticPageExists && !dispatched;
+        if (staticStale) {
             try {
                 await ddb.send(new UpdateCommand({
                     TableName: PHOTOS_TABLE,
@@ -307,7 +412,20 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             }
         }
 
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
+        return {
+            statusCode: 200,
+            headers: JSON_HEADERS,
+            // **順番がそのまま規則。** 非公開にしながら項目も消した場合は両方
+            // 立つので、強い方——「隠したはずのページがまだ取れる」——を出す
+            // （消した内容の話はその中に含まれる）。
+            // 一度「2つは排他だから順番に意味は無い」と書いたが、それは
+            // `staticOutdated` に「公開のままか」を要求していたときの話で、
+            // その条件は上のとおり外した
+            body: JSON.stringify(
+                staticStale ? { success: true, staticStale: true }
+                    : staticOutdated ? { success: true, staticOutdated: true }
+                        : { success: true }),
+        };
     } catch (e) {
         // 条件が外れた＝Get と Update の間に写真が消えた。作り直さずに
         // 「見つかりません」と返す（stories.ts の viewStory と同じ扱い）。
@@ -393,6 +511,35 @@ export const deleteMyPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
             return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "画像の削除を完了できませんでした。時間をおいてもう一度お試しください" }) };
         }
 
+        // 1b. **ストーリーから残した写真なら、元のストーリーも消す。**
+        //
+        // 実体（S3）は**共有**している（`storyKeep.ts`）。写真だけ消すと、
+        // まだ生きているストーリーが**全員のトレイに割れた画像で出続ける**
+        // ——しかも `keptAs` が消した写真のIDを指したまま残るので、
+        // 画面は「残した · 仕上げる」を出し、押すと「写真が見つかりません」、
+        // 押し直しても冪等の分岐が死んだIDを返す＝**二度と残せない**。
+        // 実体はもう無いのでストーリーは描けない。**行ごと消すのが正しい。**
+        // 消せなくても写真の削除は成功で返す（最大24時間で掃除が拾う）。
+        // **返信の文書も消す。ストーリーの行より先に。**
+        // ここだけ行しか消していなかった——他の3経路（`deleteStory`・
+        // 期限切れの掃除・退会）は全部 `storyreplies#` を先に消している。
+        // 行が消えると返信の文書は `storyFeed` も `story` も `src` も
+        // 持たないので **GSI にも Scan にも一覧にも出ない**＝どの削除経路
+        // からも二度と辿れない（TTL も無い）。24時間で消えるはずの
+        // 他人の文章とその人の `uid` が、無期限に残っていた。
+        if (typeof item.keptFrom === "string" && item.keptFrom) {
+            const storyId = item.keptFrom;
+            try {
+                await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: `storyreplies#${storyId}` } }));
+                await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyId } }));
+            } catch (e) {
+                // **消せなければ行を残す**（次に辿る手がかりになる）。
+                // 写真の削除そのものは成功で返す——実体はもう消えていて、
+                // ここで 500 にすると「写真が消えていない」という別の嘘になる
+                console.error(`deleteMyPhoto: 元のストーリーを消せませんでした（${storyId}）:`, e);
+            }
+        }
+
         // 2. 自分のピン留めから外す（**行を消す前に**）。
         //    applyPinOp は上限(3)を配列長だけで数え、写真の実在を見ない。
         //    一方で画面は見つからないピンを黙って落とすので、消した写真が
@@ -420,6 +567,19 @@ export const deleteMyPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         //    非公開だった写真には静的ページが無いので頼まない（A-5d と同じ判定）。
         //    **ただしその前提は「非公開化の依頼が実際に届いた場合」だけ成り立つ。**
         //    届かなかったときは `staticStale` が立っているので、そこは頼む。
+        // **共同アルバムからも取り除く**（案C）。残すと、死んだ ID が
+        // 500枚の枠を食い、招待ページの直近24枚の窓を埋める。
+        // 削除そのものは止めない——写真はもう消えているので、ここで 500 を
+        // 返すのは嘘になる（掃除の失敗を握らずログには残す）。
+        if (typeof item.albumId === "string" && item.albumId) {
+            await removePhotoFromAlbum(item.albumId, id).catch((e) => {
+                console.error(`deleteMyPhoto: アルバムから取り除けませんでした（${id}）:`, e);
+            });
+        }
+
+        // 頼めたかどうかを画面に返す（`updatePhotoVisibility` と同じ `staticStale`）。
+        // 頼まなかった場合（非公開のまま印も無い）は静的ページが無いので false
+        let staticStale = false;
         if (item.published !== false || item.staticStale === true) {
             // **coalesce を付けてはいけない。** rebuild.ts が明記している
             // とおり「削除・退会は実データを1件消さないと起こせない → 素通し」。
@@ -429,10 +589,14 @@ export const deleteMyPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
             // 残り、cron を止めている今は誰かが次に依頼するまで消えない。
             // 3枚まとめて消したときに1枚目しか飛ばない、という形でも踏む。
             // 対の api/src/photosMutate.ts も account.ts も coalesce 無し。
-            await requestSiteRebuild(`photo deleted: ${id}`);
+            staticStale = !await requestSiteRebuild(`photo deleted: ${id}`);
         }
 
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
+        return {
+            statusCode: 200,
+            headers: JSON_HEADERS,
+            body: JSON.stringify(staticStale ? { success: true, staticStale: true } : { success: true }),
+        };
     } catch (e) {
         console.error("deleteMyPhoto error:", e);
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "削除に失敗しました" }) };

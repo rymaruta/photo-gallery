@@ -24,6 +24,10 @@ vi.mock("../../../lib/auth/cognito", () => ({
     signIn: mockSignIn,
     signOut: mockSignOut,
     getCurrentSession: mockGetCurrentSession,
+    // `AuthProvider` は「確かめられなかった」を見分けるため `lookupSession` を使う。
+    // ここで模すのは**同じ答えを包んだ形**——この2ファイルが守っているのは
+    // 別タブのログアウトと退会で、通信断ではない（そちらは offlineSession.test.tsx）
+    lookupSession: async () => ({ session: await mockGetCurrentSession(), unreachable: false }),
     deleteAccount: mockCognitoDelete,
 }));
 vi.mock("../../../lib/hooks/useFollow", () => ({ resetFollowingCache: vi.fn() }));

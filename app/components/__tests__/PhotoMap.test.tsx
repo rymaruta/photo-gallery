@@ -21,17 +21,32 @@ type FakeMarker = {
     bindPopup: (el: HTMLElement, o: Record<string, unknown>) => FakeMarker;
     getPopup: () => { update: ReturnType<typeof vi.fn> };
 };
-const state = vi.hoisted(() => ({ markers: [] as FakeMarker[], zoom: 4, zoomControl: null as unknown, mapOpts: null as Record<string, unknown> | null, fitOpts: null as Record<string, unknown> | null }));
+const state = vi.hoisted(() => ({
+    markers: [] as FakeMarker[], zoom: 4, center: [36, 138] as [number, number],
+    zoomControl: null as unknown, mapOpts: null as Record<string, unknown> | null,
+    fitOpts: null as Record<string, unknown> | null, fitCalls: 0,
+    setViewArgs: [] as Array<{ center: [number, number]; zoom: number }>,
+    fireMap: (() => {}) as (ev: string) => void,
+}));
+const fireMap = (ev: string) => state.fireMap(ev);
 
 vi.mock("leaflet", () => {
     const handlers: Record<string, Array<() => void>> = {};
     const map = {
         getZoom: () => state.zoom,
-        fitBounds: vi.fn((_b: unknown, o: Record<string, unknown>) => { state.fitOpts = o; }),
-        setView: vi.fn(), remove: vi.fn(),
+        getCenter: () => ({ lat: state.center[0], lng: state.center[1] }),
+        fitBounds: vi.fn((_b: unknown, o: Record<string, unknown>) => { state.fitOpts = o; state.fitCalls++; (handlers.moveend ?? []).forEach((f) => f()); }),
+        setView: vi.fn((center: [number, number], zoom: number) => {
+            state.setViewArgs.push({ center, zoom }); state.center = center; state.zoom = zoom;
+            (handlers.moveend ?? []).forEach((f) => f());   // 本物も setView の直後に moveend を出す
+        }),
+        // アンマウントで listener を捨てる（溜めるとテストをまたいで前の
+        // コンポーネントの moveend が走る）
+        remove: vi.fn(() => { for (const k of Object.keys(handlers)) delete handlers[k]; }),
         on: (ev: string, fn: () => void) => { (handlers[ev] ||= []).push(fn); },
         fire: (ev: string) => (handlers[ev] ?? []).forEach((f) => f()),
     };
+    state.fireMap = map.fire;
     const group = { addTo: () => group, clearLayers: () => { state.markers.length = 0; } };
     const make = (kind: string) => (latlng: unknown, opts: Record<string, unknown> = {}) => {
         const update = vi.fn();
@@ -79,8 +94,58 @@ function setReducedMotion(reduce: boolean) {
 }
 
 beforeEach(() => {
-    state.markers.length = 0; state.zoom = 4; state.zoomControl = null; state.mapOpts = null; state.fitOpts = null;
+    state.markers.length = 0; state.zoom = 4; state.center = [36, 138]; state.zoomControl = null;
+    state.mapOpts = null; state.fitOpts = null; state.fitCalls = 0; state.setViewArgs.length = 0;
     setReducedMotion(false);
+    window.location.hash = "";
+    sessionStorage.clear();
+});
+
+// 最初に見せる場所と、動かしたあとの控え。決め方は lib/utils/mapView.ts
+describe("見る場所", () => {
+    it("引ききれる限界を 2 にする（世界1周が地図の高さより短いと上下に下地が出る）", async () => {
+        await draw([photo("a")]);
+        // 実測 390x844: ズーム0 で上に 211px・1 で 39px の黒帯
+        expect(state.mapOpts?.minZoom).toBe(2);
+    });
+
+    it("何も無ければ、全部のピンが収まる範囲に合わせる", async () => {
+        await draw([photo("a")]);
+        expect(state.fitCalls).toBe(1);
+        expect(state.setViewArgs).toEqual([]);
+    });
+
+    it("URL の #z/lat/lng があればそこを見せる（写真ページからの導線）", async () => {
+        window.location.hash = "#12/48.86/2.35";
+        await draw([photo("a")]);
+        expect(state.setViewArgs).toEqual([{ center: [48.86, 2.35], zoom: 12 }]);
+        expect(state.fitCalls, "ハッシュの位置に寄せたあと全体へ戻している").toBe(0);
+    });
+
+    it("このタブで前に見ていた場所があれば、そこから始める（戻るたびに全体へ戻さない）", async () => {
+        // 実測: ズーム 6 まで寄って写真を開き、戻ると 1 に戻っていた
+        sessionStorage.setItem("photo-map:view", JSON.stringify({ lat: 35.42, lng: 138.88, zoom: 6, hash: "" }));
+        await draw([photo("a")]);
+        expect(state.setViewArgs).toEqual([{ center: [35.42, 138.88], zoom: 6 }]);
+        expect(state.fitCalls).toBe(0);
+    });
+
+    it("ハッシュが控えを取ったときと同じなら、控え（そのあと動かした場所）を優先する", async () => {
+        window.location.hash = "#12/48.86/2.35";
+        sessionStorage.setItem("photo-map:view", JSON.stringify({ lat: 48.9, lng: 2.4, zoom: 9, hash: "#12/48.86/2.35" }));
+        await draw([photo("a")]);
+        expect(state.setViewArgs).toEqual([{ center: [48.9, 2.4], zoom: 9 }]);
+    });
+
+    it("動かすたびに、見ている場所を控える", async () => {
+        window.location.hash = "#12/48.86/2.35";
+        await draw([photo("a")]);
+        state.center = [41.38, 2.18]; state.zoom = 7;
+        // 本物の Leaflet は移動が終わると moveend を出す
+        fireMap("moveend");
+        const saved = JSON.parse(sessionStorage.getItem("photo-map:view")!);
+        expect(saved).toEqual({ lat: 41.38, lng: 2.18, zoom: 7, hash: "#12/48.86/2.35" });
+    });
 });
 
 describe("地図の枠", () => {
@@ -212,6 +277,15 @@ describe("ポップアップ", () => {
         card.scrollIntoView = spy;   // jsdom には実装が無い
         list.querySelectorAll("a")[1].dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
         expect(spy).toHaveBeenCalledWith({ inline: "start", block: "nearest" });
+    });
+
+    it("サムネもリンクの中に入れる（一番大きい当たりを押して何も起きない、を無くす）", async () => {
+        await draw([photo("a")]);
+        const card = state.markers[0].popup!;
+        expect(card.querySelector("a img"), "サムネがリンクの外にある").not.toBeNull();
+        // リンクの読み上げ名は題名（画像の alt は空）
+        expect(card.querySelector("a")!.textContent).toBe("写真a");
+        expect(card.querySelector("a")!.getAttribute("href")).toBe("/?photo=a");
     });
 
     it("サムネが preflight に潰されないよう、カードに目印を付ける", async () => {

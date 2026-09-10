@@ -77,3 +77,65 @@ describe("管理APIの写真削除", () => {
         expect(keys, "消せたぶんは掃除する").toContain("uploads/someone/p1.jpg");
     });
 });
+
+
+// **ギャラリーに残した1枚の実体は消さない**（`api-user/src/stories.ts` の
+// `storyMediaKeys` と**対**）。`keptAs` が立っているストーリーは、その S3
+// オブジェクトの持ち主が写真の行に移っている。ここで消すと、投稿者が
+// 残したはずの写真が**割れた画像**になる——行は残るので、下書き一覧にも
+// 個別ページにも壊れた枠が並び、本人には直す手段が無い。
+// `updatePhoto` にはある `story === true` の門が、削除には無い。
+describe("管理APIの削除: ギャラリーに残した実体は消さない", () => {
+    it("keptAs が立っていたら S3 に触らない（行は消す）", async () => {
+        mockGetPhoto.mockResolvedValue({
+            id: "p1", userId: "someone", story: true, keptAs: "photo-kept",
+            src: "https://cdn.test/uploads/someone/s1.webp",
+        });
+        const res = await invoke();
+
+        expect(res.statusCode).toBe(200);
+        expect(mockS3Send, "残した写真の実体まで消している").not.toHaveBeenCalled();
+        expect(mockInvalidate.mock.calls[0]?.[0] ?? [], "消していないものをエッジから消しにいく").toEqual([]);
+        expect(mockDeleteRow, "行は予定どおり消す").toHaveBeenCalledWith("p1");
+    });
+
+    it("残していないストーリーは、これまでどおり実体ごと消す", async () => {
+        mockGetPhoto.mockResolvedValue({
+            id: "p1", userId: "someone", story: true,
+            src: "https://cdn.test/uploads/someone/s1.webp",
+        });
+        await invoke();
+        expect(mockS3Send, "実体を消していない").toHaveBeenCalled();
+    });
+});
+
+
+// **`keptAs` はストーリーの行にしか立たない。** 上の分岐は「管理者が
+// ストーリーを直に消しに来た」ときしか効かないので、**残した写真**を
+// 管理画面から消すと、共有している S3 の実体は消えるのに元のストーリーが
+// 生きたまま残る——期限切れまで最大24時間、**全員のトレイに割れた画像**が
+// 出続け、`keptAs` が死んだIDを指したままなので二度と残せなくなる。
+describe("管理APIの削除: 残した写真を消したら、元のストーリーも消す", () => {
+    it("keptFrom があれば、返信の文書とストーリーの行も消す", async () => {
+        mockGetPhoto.mockResolvedValue({
+            id: "p1", userId: "someone", keptFrom: "story-1",
+            src: "https://cdn.test/uploads/someone/p1.jpg",
+        });
+        const res = await invoke();
+
+        expect(res.statusCode).toBe(200);
+        const deleted = mockDeleteRow.mock.calls.map((c) => c[0] as string);
+        expect(deleted, "割れたストーリーが残る").toContain("story-1");
+        expect(deleted, "返信の本文が誰も辿れないまま残る").toContain("storyreplies#story-1");
+        // 返信の文書を先に（行が消えると辿る手がかりが無くなる）
+        expect(deleted.indexOf("storyreplies#story-1")).toBeLessThan(deleted.indexOf("story-1"));
+        // 実体は消す（写真の側が持ち主）
+        expect(mockS3Send, "残した写真の実体を消していない").toHaveBeenCalled();
+    });
+
+    it("出どころが無ければ、余計な行を消さない", async () => {
+        mockGetPhoto.mockResolvedValue({ id: "p1", userId: "someone", src: "https://cdn.test/uploads/someone/p1.jpg" });
+        await invoke();
+        expect(mockDeleteRow.mock.calls.map((c) => c[0] as string)).toEqual(["p1"]);
+    });
+});

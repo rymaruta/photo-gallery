@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { PlusIcon, XMarkIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import UserAvatar from "../UserAvatar";
+import SongArtwork from "../SongArtwork";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
@@ -98,6 +99,22 @@ export default function StoriesBar() {
     const postAbortRef = useRef<AbortController | null>(null);
     const [draft, setDraft] = useState<Draft | null>(null);
     const [caption, setCaption] = useState("");
+    // 撮影地。**ここが「残す」の価値を決める**——空のまま残すと、写真は
+    // 地図にも `/location/<スラッグ>` にも載らない（本人が編集画面で打つまで）
+    const [storyLocation, setStoryLocation] = useState("");
+    /** 写真の GPS（丸めはサーバー側。写真のアップロード画面と同じ形） */
+    const [storyCoords, setStoryCoords] = useState<{ lat: number; lng: number } | null>(null);
+    /**
+     * 下書きの世代。**自動入力の書き戻しを、今の下書きに限る。**
+     *
+     * 位置を引くのに数秒かかるので、その間に閉じて別の写真（や動画）を選ぶと、
+     * **前の写真の撮影地が次の投稿に載る**——自宅で撮った1枚を選んで閉じ、
+     * 次に別の写真を上げると、ログイン中の全員のトレイに自宅の地名が出る。
+     * そのまま「残す」を押せば公開写真の撮影地と地図のピンになる。
+     * 写真のアップロード画面は同じ形を2つの手（写真ごとの id 照合と
+     * 離脱の札）で塞いでいて、こちらだけ無かった。
+     */
+    const draftGenRef = useRef(0);
     // ストーリーBGM（任意・1曲）
     const [draftSong, setDraftSong] = useState<SongResult | null>(null);
     const [songPickerOpen, setSongPickerOpen] = useState(false);
@@ -279,7 +296,10 @@ export default function StoriesBar() {
     const closeDraft = useCallback(() => {
         // 解放は上の effect が担う（✕ を押さずに離れた場合も拾うため）
         stopPreview();
+        draftGenRef.current++;
         setDraft(null);
+        setStoryLocation("");
+        setStoryCoords(null);
         setCaption("");
         setDraftSong(null);
         setSongPickerOpen(false);
@@ -390,13 +410,61 @@ export default function StoriesBar() {
         // あるが、それは「押しても何も起きない数秒」を新しく作る。
         // 開くときに片方を閉じる方が、見えている物と操作の対応が保てる。
         setViewerGroup(null);
+        const gen = ++draftGenRef.current;
         setDraft({ file: prepared, previewUrl: URL.createObjectURL(prepared), mediaType: isVideo ? "video" : "image" });
         setCaption("");
+        setStoryLocation("");
+        setStoryCoords(null);
+
+        // **撮影地は、EXIF を落とす前の元ファイルから読む。**
+        // 投稿の直前に `toUploadSafeFile` が GPS ごと消すので、ここを逃すと
+        // 二度と取れない。写真のアップロード画面と同じ形（設定 `jp_gps_autofill`・
+        // 座標はサーバーが約1kmに丸める・地名はサーバー越しに引く）。
+        //
+        // **下書きを開くのを待たせない。** 位置を引くのに数秒かかることが
+        // あり、その間プレビューが出ないと「固まった」に見える。
+        // 失敗しても黙って諦める（写真側と同じ——場所は必須ではない）。
+        if (!isVideo) {
+            void (async () => {
+                try {
+                    if (localStorage.getItem("jp_gps_autofill") === "0") return;
+                } catch { /* 読めない端末は既定（オン）のまま進む */ }
+                try {
+                    const { extractExifFromFile, reverseGeocode } = await import("../../../lib/utils/exif");
+                    const meta = await extractExifFromFile(file);
+                    if (typeof meta.latitude !== "number" || typeof meta.longitude !== "number") return;
+                    // **今の下書き宛てのときだけ書き戻す**（上の `draftGenRef`）
+                    if (gen !== draftGenRef.current) return;
+                    setStoryCoords({ lat: meta.latitude, lng: meta.longitude });
+                    const place = await reverseGeocode(meta.latitude, meta.longitude, locale);
+                    if (gen !== draftGenRef.current) return;
+                    // **打ち始めていたら上書きしない**（後から届く値で消さない）
+                    if (place) setStoryLocation((prev) => prev || place);
+                } catch (e) {
+                    log.warn("story location autofill failed:", e);
+                }
+            })();
+        }
     }, [locale, showToast]);
 
     // 投稿: 圧縮（画像のみ）→ presigned URL → S3 → レコード作成
     const handlePost = useCallback(async () => {
         if (!draft) return;
+        // **送る撮影地は、ここで1回だけ決める。**
+        //   - **動画には付けない。** 位置は写真の EXIF から来るもので、動画は
+        //     `toUploadSafeVideo` が GPS を落としている（サーバーも同じ判断）
+        //   - **設定をもう一度見る。** 引いたのは選んだ時点なので、待っている
+        //     間に GPS 自動入力を切られたら送らない（写真側は都度と送信時の
+        //     両方で見ていて、こちらは選択時の1回だけだった）
+        //   - **座標は送る前に丸める。** 写真のアップロード画面は
+        //     `page.tsx:870` で同じことをしている
+        const gpsOn = (() => {
+            try { return localStorage.getItem("jp_gps_autofill") !== "0"; } catch { return true; }
+        })();
+        const sendLocation = draft.mediaType === "image" && gpsOn ? storyLocation.trim() : "";
+        const sendCoords = sendLocation && storyCoords
+            ? { lat: Math.round(storyCoords.lat * 100) / 100, lng: Math.round(storyCoords.lng * 100) / 100 }
+            : null;
         setPosting(true);
         stopPreview();
         // **投稿中でもやめられるようにする。** 以前は投稿ボタンもキャンセルも
@@ -490,15 +558,14 @@ export default function StoriesBar() {
                 throw new Error(locale === "en" ? "Could not upload the file." : "ファイルをアップロードできませんでした。");
             }
 
-            // 表示名を取得（ベストエフォート）
-            let displayName: string | undefined;
-            try {
-                const profRes = await userFetch("/user/profile");
-                if (profRes.ok) {
-                    const prof = await profRes.json() as { displayName?: string };
-                    displayName = prof.displayName;
-                }
-            } catch { /* ignore */ }
+            // **表示名は取りに行かない。** ここで `GET /user/profile` を待って
+            // いたが、`createStory` は**クライアントの申告を受け取らない**
+            // （なりすまし防止のためサーバーが `lookupDisplayName` で引く。
+            // `stories.ts:176` にそう書いてある）。つまり**捨てられる値のために
+            // Lambda を1本余計に叩いて、その往復ぶん利用者を待たせていた**
+            // ——関数ごとにコールドスタートがあり、同時実行はアカウント全体で
+            // 10しかないので、待ちはミリ秒では済まない。
+            // 投稿の往復は presign → S3 → 保存 の3つで足りる。
 
             const saveRes = await userFetch("/stories", {
                 method: "POST",
@@ -508,9 +575,17 @@ export default function StoriesBar() {
                     ...(key ? { key } : {}),
                     mediaType: draft.mediaType,
                     ...(caption.trim() ? { caption: caption.trim() } : {}),
+                    // **撮影地。** 残したときにそのまま写真の撮影地になる
+                    // （`storyKeep.ts`）＝地図と `/location/<スラッグ>` に載る。
+                    // 座標は地名とセットのときだけ送る（サーバーも同じ判断）
+                    ...(sendLocation ? { location: sendLocation } : {}),
+                    // **送る前に丸める。** サーバーも `sanitizeCoords` で丸めるが、
+                    // 写真のアップロード画面は**送る前にも**丸めている
+                    // （`page.tsx:870`）。片側だけ欠けると、経路が1つ増えた
+                    // ときに生の緯度経度が外に出る側へ倒れる
+                    ...(sendLocation && sendCoords ? { coords: sendCoords } : {}),
                     ...(draftSong ? { song: { title: draftSong.title, artist: draftSong.artist, artwork: draftSong.artwork, previewUrl: draftSong.previewUrl, trackUrl: draftSong.trackUrl, ...(songStart > 0 ? { startSec: songStart } : {}) } } : {}),
                     ...(draft.mediaType === "image" ? { durationSec } : {}),
-                    ...(displayName ? { displayName } : {}),
                 }),
             });
             if (!saveRes.ok) {
@@ -563,7 +638,7 @@ export default function StoriesBar() {
             postAbortRef.current = null;
             setPosting(false);
         }
-    }, [draft, caption, draftSong, songStart, durationSec, locale, showToast, loadStories, closeDraft, stopPreview]);
+    }, [draft, caption, storyLocation, storyCoords, draftSong, songStart, durationSec, locale, showToast, loadStories, closeDraft, stopPreview]);
 
     // 自分のストーリーを削除
     const handleDeleteStory = useCallback(async (storyId: string) => {
@@ -612,7 +687,7 @@ export default function StoriesBar() {
                 // 「誰も投稿していない」ように見えたまま気づけない。
                 // ※古い一覧が見えている間（groups あり）の失敗は**意図して**
                 //   無言にする——バーは装飾的で、古い表示が出ていれば実害が薄い
-                <p className="text-[11px] text-white/45 px-1 pb-1">
+                <p className="text-[11px] text-white/50 px-1 pb-1">
                     {locale === "en" ? "Couldn't load stories. " : "ストーリーを読み込めませんでした。"}
                     <button onClick={() => void loadStories()} className="underline text-white/70 hover:text-white">
                         {locale === "en" ? "Retry" : "再試行"}
@@ -753,12 +828,36 @@ export default function StoriesBar() {
                             style={{ fontSize: "16px" }}
                         />
 
+                        {/* **動画には出さない。** 位置は写真の EXIF から来るもので、
+                            動画は `toUploadSafeVideo` が GPS を落としている
+                            （サーバーも動画の位置は受けない）。押しても効かない
+                            欄を置かない */}
+                        {draft.mediaType === "image" && (
+                        <>
+                        {/* **撮影地（任意）。** 写真の GPS から自動で入る
+                            （設定 `jp_gps_autofill` がオフなら入らない）。
+                            ここを埋めておくと、あとで「残す」を押したときに
+                            **そのまま地図に載る写真**になる——空だと本人が
+                            編集画面で打つまで何にも繋がらない */}
+                        <input
+                            type="text"
+                            value={storyLocation}
+                            onChange={(e) => setStoryLocation(e.target.value)}
+                            maxLength={200}
+                            disabled={posting}
+                            placeholder={locale === "en" ? "Where? (optional)" : "撮影地（任意）"}
+                            aria-label={locale === "en" ? "Shooting location" : "撮影地"}
+                            className="w-full px-4 py-2.5 bg-black/55 backdrop-blur-sm ring-1 ring-white/10 rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-black/70"
+                            style={{ fontSize: "16px" }}
+                        />
+                        </>
+                        )}
+
                         {/* ストーリーBGM（任意） */}
                         {draftSong ? (
                             <div className="rounded-2xl bg-black/50 backdrop-blur-sm ring-1 ring-white/10 p-2.5 space-y-2.5">
                                 <div className="flex items-center gap-2.5">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={draftSong.artwork} alt="" className="w-9 h-9 rounded-lg object-cover bg-white/10 flex-shrink-0" />
+                                    <SongArtwork src={draftSong.artwork} className="w-9 h-9 rounded-lg object-cover bg-white/10 flex-shrink-0" />
                                     <div className="min-w-0 flex-1">
                                         <p className="text-xs text-white truncate">{draftSong.title}</p>
                                         <p className="text-[11px] text-white/50 truncate">{draftSong.artist}</p>
@@ -783,7 +882,7 @@ export default function StoriesBar() {
                                     動画は長さが可変で、曲は動画の長さぶん流れるため区間を選ぶ意味がない
                                     （可動域ゼロのバーを出すと「ドラッグしても動かない」ように見える）。 */}
                                 {draft.mediaType === "video" ? (
-                                    <p className="text-[11px] text-white/45">
+                                    <p className="text-[11px] text-white/50">
                                         {locale === "en"
                                             ? "Plays from the start, for the length of the video."
                                             : "動画の長さぶん、曲の頭から流れます"}
@@ -856,7 +955,7 @@ export default function StoriesBar() {
                                             />
                                         )}
                                     </div>
-                                    <p className="mt-1.5 text-[10px] text-white/40">
+                                    <p className="mt-1.5 text-[10px] text-white/50">
                                         {locale === "en"
                                             ? `Plays ${songWindowSec}s from here, matching the story length.`
                                             : `ここから${songWindowSec}秒（ストーリーの表示時間ぶん）が流れます`}
@@ -905,8 +1004,7 @@ export default function StoriesBar() {
                                                         ? (locale === "en" ? `Pause ${r.title}` : `${r.title} を停止`)
                                                         : (locale === "en" ? `Play ${r.title}` : `${r.title} を試聴`)}
                                                 >
-                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                    <img src={r.artwork} alt="" loading="lazy" className="w-full h-full object-cover bg-white/10" />
+                                                    <SongArtwork src={r.artwork} className="w-full h-full object-cover bg-white/10" />
                                                     <span className="absolute inset-0 bg-black/45 flex items-center justify-center">
                                                         {previewingId === r.id
                                                             ? <PauseIcon className="w-4 h-4 text-white" />
@@ -921,7 +1019,7 @@ export default function StoriesBar() {
                                                         <p className="text-xs text-white truncate">{r.title}</p>
                                                         <p className="text-[11px] text-white/50 truncate">{r.artist}</p>
                                                     </div>
-                                                    <span className="text-[11px] text-white/40 flex-shrink-0">{locale === "en" ? "Set" : "設定"}</span>
+                                                    <span className="text-[11px] text-white/50 flex-shrink-0">{locale === "en" ? "Set" : "設定"}</span>
                                                 </button>
                                             </li>
                                         ))}

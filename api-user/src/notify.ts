@@ -1,16 +1,21 @@
 import { GetCommand, UpdateCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { requireEnv } from "./env";
+import { isBlocked } from "./blockCheck";
 
 // 通知の共通ヘルパー。
 // 通知は "notifs#<uid>" 文書に list_append + ADD unread でアトミックに追記する
 // （同時書き込みでも失われない）。件数上限の切り詰めは取得時に行う。
 
 export type Notif = {
-    // 実際に作られるのは like / comment / follow の3種類。
+    // 実際に作られるのは like / comment / follow / storyreply の4種類。
     // inspired / go は「行きたいリスト」機能のもので、通知を作る側が
     // どこにも無い（マーカーを書く経路も、UIのボタンも存在しない）。
-    type: "like" | "comment" | "follow";
+    //
+    // **種類を足したら `NotificationsBell` にも足すこと。** あちらは
+    // 知らない種類を**何も出さない**（既定の文言に落とさない）ので、
+    // 片方だけだと**届いているのに画面には何も出ない**通知になる。
+    type: "like" | "comment" | "follow" | "storyreply";
     photoId: string;
     photoSrc: string;
     byName: string;
@@ -142,6 +147,22 @@ export const NOTIFS_MAX = 50;
  */
 export async function pushNotification(ownerId: string, notif: Notif): Promise<void> {
     try {
+        // **ブロックした相手からの通知は積まない。**
+        //
+        // 塞ぐのは**ここ1か所**。通知を作るのは like / comment / follow /
+        // storyreply の4経路で、どれも `byId`（起こした本人）を入れている。
+        // 口ごとに配線すると、次に経路が増えたときに必ず1つ漏れる
+        // ——実際、ブロックを入れた回はストーリーの返信しか塞いでおらず、
+        // **より強い口（公開・500字のコメント）が開いたままだった**。
+        // 表示名は本人が自由に変えられるので、通知の輪（50件）を自分の名前で
+        // 押し流すこともできた。GetItem 1回で4経路とも閉じる。
+        //
+        // **落ちたら通知は積まない**（下の catch へ落ちる）。ブロックを
+        // 確かめられないまま届けるより、届かない方に倒す
+        // ——`pushNotification` は元から「失敗しても本体は成功」の作りで、
+        // 呼び出し側はどこも戻り値を見ていない。
+        if (notif.byId && await isBlocked(ownerId, notif.byId)) return;
+
         const res = await ddb.send(new UpdateCommand({
             TableName: PHOTOS_TABLE,
             Key: { id: notifsId(ownerId) },

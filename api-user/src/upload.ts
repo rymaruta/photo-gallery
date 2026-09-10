@@ -2,13 +2,17 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
-import { putPhoto, getPhotoById, overwriteOwnPhoto, countUserPhotos, listMyMediaItems } from "./ddb-photos";
+import { putPhoto, getPhotoById, overwriteOwnPhoto, listMyMediaItems } from "./ddb-photos";
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
 import { lookupDisplayNameIfSet } from "./notify";
 import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags } from "./sanitize";
-import { extForType, uploadPrefix, canonicalUploadUrl, idFromUploadKey, isOwnUploadUrl as isOwnUploadUrlFor } from "./uploadPolicy";
+import { extForType, uploadPrefix, canonicalUploadUrl, idFromUploadKey, isOwnUploadUrlFromEnv as isOwnUploadUrl } from "./uploadPolicy";
 import { mediaKeys } from "./mediaKeys";
+import { requestSiteRebuild } from "./rebuild";
+import { photoLimitError } from "./photoLimit";
+import { PUBLIC_FEED_KEY } from "./publicFeed";
+import { isAlbumMember, addPhotoToAlbum } from "./albums";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 /**
@@ -34,54 +38,17 @@ const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 const UPLOAD_BUCKET = process.env.UPLOAD_BUCKET!;
 const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? "";
 
-/**
- * 自分のアップロード領域を指すURLかどうか。
- *
- * 保存された src は削除時にそのまま S3 のキーになるため、ここが最後の砦になる。
- * `userId` を渡すと「その人の領域か」まで見る。新しくURLを結び付ける場面
- * （写真の保存・ストーリーの作成）では必ず渡すこと。判定の中身は
- * uploadPolicy.ts にある。
- */
-export function isOwnUploadUrl(raw: unknown, userId?: string): boolean {
-    return isOwnUploadUrlFor(raw, CLOUDFRONT_URL, userId);
-}
+// 「自分のアップロード領域を指すURLか」の判定は uploadPolicy.ts の
+// `isOwnUploadUrlFromEnv` に一本化した（同じ束ね版がここにもあり、
+// **同じ規則が2つある**状態だった）。保存された src は削除時にそのまま
+// S3 のキーになるので、ここが最後の砦になる。
 
-const PHOTO_LIMIT_PER_USER = 100;
-
-/**
- * 100枚の上限を確かめる。超えていれば断る理由を返す。
- *
- * **数えられなかったら通さない。** 以前は console.error だけ出して
- * そのまま保存していたので、スロットリングを起こせば上限を超えられた。
- * これは容量と費用の上限なので、「分からないなら通す」ではなく
- * 「分からないなら止める」に倒す
- * （CLAUDE.md の「設定ミスは『本番を触る』ではなく『動かない』に倒す」と同じ）。
- *
- * 入口が2つある（presignedUrl と savePhoto）ので、判定はここ1か所に置く。
- * 片方だけ直しても、もう片方から素通りする。
- */
-async function photoLimitError(userId: string, admin: boolean) {
-    if (admin) return null;
-    let count: number;
-    try {
-        count = await countUserPhotos(userId);
-    } catch (e) {
-        console.error("photo count check error:", e);
-        return {
-            statusCode: 503,
-            headers: JSON_HEADERS,
-            body: JSON.stringify({ error: "枚数を確認できませんでした。時間をおいてもう一度お試しください" }),
-        };
-    }
-    if (count >= PHOTO_LIMIT_PER_USER) {
-        return {
-            statusCode: 403,
-            headers: JSON_HEADERS,
-            body: JSON.stringify({ error: `アップロード上限（${PHOTO_LIMIT_PER_USER}枚）に達しています` }),
-        };
-    }
-    return null;
-}
+// 枚数の上限とその判定は `photoLimit.ts` へ切り出した。
+// **`upload.ts` から import すると `rebuild.ts` まで引きずられる**ので
+// ——`storyKeep.ts` が上限だけ使いたいのに、再ビルドのトークンを配る関数の
+// 一覧に載ってしまった（`rebuildTokenScope.test.ts` が止めた）。
+// 判定は1か所のまま、依存だけ切る。
+export { PHOTO_LIMIT_PER_USER } from "./photoLimit";
 
 export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
@@ -192,6 +159,64 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     };
 };
 
+/**
+ * 写真を1枚 公開したら、静的サイトを作り直してもらう。
+ *
+ * **これが無いと、投稿しても世に出ない。** このサイトは静的エクスポートで、
+ * 写真ページも sitemap もビルド時のHTMLとして S3 に置かれる。書き込みは
+ * DynamoDB に入るが、ページは**次の定期ビルド（週1・日曜 03:00 JST）まで
+ * 生まれない**——最大7日、本人が投稿のリンクを誰にも共有できない。
+ * 消す側（削除・非公開・退会）は最初から頼んでいたのに、**作る側だけが
+ * 抜けていた**。
+ *
+ * **`coalesce` を付ける。** 最初これを外したが、逆向きに倒していた——
+ * `photoUpdate.ts` が**まったく同じ判断を一度して戻している**（そちらの
+ * コメントを読まずに隣で繰り返した）。クールダウンは畳み込みの仕掛けである
+ * と同時に、**月次予算（`claimMonthlyBudget`）を減らす速度の唯一の歯止め**
+ * でもある。予算は `coalesce` の有無に関わらず1加算されるので、素通しだと
+ * 1人が100枚公開しただけで既定の 200本 の半分を使い切る。使い切ったら
+ * その月いっぱい**写真削除・退会の掃除まで全部落ちる**——「出るのが遅れる」を
+ * 直して「消したのに検索から見える」を月単位で作る取り引きになっていた。
+ *
+ * 畳まれても、たいていは落ちない: 畳まれた＝直近10分に誰かが頼んだ＝
+ * **ビルドがもう走っている**ということで、その1本は**ビルド時に DynamoDB を
+ * 読み直す**。取りこぼす窓は「そのビルドがテーブルを読んだ後 〜
+ * `clearRebuildLock` が走るまで」——`sync-photos-from-ddb.js` の `main()` の
+ * **最後**なので、scan のあとに表示名の突き合わせ（投稿者ごとに GetItem）と
+ * 書き出しが挟まります（投稿者が増えるほど伸びる）。
+ * **窓は短いが、そこに落ちた1枚は次に誰かが依頼を出すまで＝最悪7日**。
+ * 旧コメントの「2枚目以降が丸ごと7日」は誇張だったが、7日が消えたのでは
+ * なく確率が下がっただけ。
+ *
+ * **この変更で1つ失うもの**: 投稿がロックを取るので、**投稿直後の10分間は
+ * `/user/edit` の編集依頼（`photoUpdate.ts` の `coalesce`）が畳まれます**
+ * ——「投稿してすぐ、説明文に書いてしまった個人情報を消す」が、走っている
+ * ビルドの scan 位置次第で次の依頼まで載らない。あちらは隠す操作のときしか
+ * `staticStale` を立てないので、メタの消し忘れは行にも画面にも残りません。
+ * ロックは `api` と `api-user` で同じ `rebuild#lock` を使う1つのものです。
+ *
+ * **下書きは頼まない。** 静的ページを持たないので作り直す理由が無い。
+ *
+ * 失敗しても投稿は成功で返す（写真はもう保存されている）。ログが手がかり。
+ * なお `REBUILD_DISPATCH_TOKEN` が未設定の本番では、ここは警告1行を出して
+ * 何もしない——**この関数が効くのは owner がトークンを登録してから**。
+ */
+async function requestRebuildForNewPhoto(id: string, isPublished: boolean): Promise<void> {
+    if (!isPublished) return;
+    // 投げさせない。**呼び出し元では `putPhoto` が既に成功している**ので、
+    // ここで例外が上がると保存済みの写真について 500「保存に失敗しました」を
+    // 返す（画面は実体を捨てにいく）。いまの rebuild.ts は全経路を包んでいて
+    // 実際には投げないが、投げた瞬間に一番悪い形になる1行なので塞いでおく。
+    await requestSiteRebuild(`photo published: ${id}`, { coalesce: true })
+        // **黙って握らない。** `rebuild.ts` は失敗のたびに必ずログを出す作りで、
+        // その終端に無言の catch を置くと方針が逆になる（今は投げないので
+        // これは将来のための保険だが、発動したときに手がかりが無くなる）。
+        .catch((e) => {
+            console.error(`requestRebuildForNewPhoto: 想定外の例外（写真は保存済み・${id}）:`, e);
+            return false;
+        });
+}
+
 export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
     if (!userId) {
@@ -214,6 +239,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         published?: boolean;
         blurDataURL?: string;
         date?: unknown;
+        /** 共同アルバムに入れる場合の行き先（案C）。メンバーでなければ断る */
+        albumId?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -222,6 +249,14 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     }
 
     const { key, publicUrl, title, description, location, category, tags, exif, coords, dominantColor, thumbUrl, blurDataURL } = body;
+    // **共同アルバムに入れるなら、メンバーかどうかをここで確かめる。**
+    // ここを通さずに `albumId` を保存できると、**誰でも他人のアルバムに
+    // 写真を差し込める**（アルバムの ID は招待を受けた人なら知っている）。
+    const albumId = typeof body.albumId === "string" && body.albumId ? body.albumId : undefined;
+    if (albumId && !await isAlbumMember(albumId, userId)) {
+        // **403 ではなく 404。** そのアルバムが実在することを教えない
+        return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "アルバムが見つかりません" }) };
+    }
     // 下書き保存: published === false のときだけ非公開。既定（未指定/true）は従来通り公開。
     const isPublished = body.published !== false;
     if (!key || !publicUrl) {
@@ -316,12 +351,29 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         userId,
         uploadedBy: userId,
         published: isPublished,
+        ...(albumId ? { albumId } : {}),
+        // 公開一覧用 GSI（publicFeed-createdAt-index）のパーティションキー。
+        // **公開中の写真にだけ入れる**——下書きに入れると一覧に出る。
+        // 非公開にするときは photoUpdate.ts が REMOVE する。
+        ...(isPublished ? { publicFeed: PUBLIC_FEED_KEY } : {}),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     };
 
     try {
         await putPhoto(photo);
+        // **写真を書いてからアルバムに足す。** 逆にすると、保存に失敗した
+        // ときにアルバムへ「存在しない写真の ID」が残る。
+        // 足せなくても投稿は成功で返す（写真はもう保存されている）。
+        // **公開したときだけアルバムに入れる。** 下書きを入れると、
+        // 招待リンク（未認証で開ける）から読めてしまう。読む側でも
+        // 落としているが、そもそも入れない（多層で守る）。
+        if (albumId && isPublished) {
+            await addPhotoToAlbum(albumId, photo.id).catch((e) => {
+                console.error(`savePhoto: アルバムに足せませんでした（写真は保存済み・${photo.id}）:`, e);
+            });
+        }
+        await requestRebuildForNewPhoto(photo.id, isPublished);
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo }) };
     } catch (e) {
         if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
@@ -334,11 +386,110 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             }
             // **保存済みの行をそのまま返してはいけない。** 再送は「下書き保存で
             // 落ちたあと公開を押す」ことがあり、その回の published とメタデータが
-            // 今回の意図になる。まだ誰も触っていないときだけ書き直す
-            // （/user/edit で後から直した内容を巻き戻さない）。
+            // 今回の意図になるので、今回の内容で書き直す。
+            //
+            // **`updatedAt = :ua` は「誰も触っていない」を見ていない。**
+            // `stored` はこの要求の中で読んだ `existing` の値なので、条件が
+            // 止められるのは **Get と Put の間に入った書き込みだけ**。
+            // 「/user/edit で後から直した内容を巻き戻さない」と以前ここに
+            // 書いていたが、そういう守りにはなっていない（半年前に直した行
+            // でも条件は成立する。実際に走らせて確認した）。開きっぱなしの
+            // アップロードタブで押し直すと、後から直したタイトル・説明は
+            // 今回の本文で上書きされる——**塞ぐには「作られてから一度も
+            // 更新されていない」を見る形が要る**が、`putPhoto` は
+            // `createdAt` と `updatedAt` を別々の `new Date()` で書くので
+            // ミリ秒でずれうる。倒し方を決める話なので、ここでは直さない。
             const stored = existing.updatedAt ?? existing.createdAt ?? "";
-            const rewritten = { ...photo, createdAt: existing.createdAt ?? photo.createdAt };
+            // **サーバー側で書かれた項目は引き継ぐ。**
+            //
+            // 書き直しは `PutCommand`（全置換）で、`photo` は今回の本文から
+            // 組み立てたものなので、**利用者が送らない項目はすべて消える**:
+            //
+            //   - いいね数・コメント数（`likes.ts` / `comments.ts` が加算する）
+            //   - 寸法・ぼかし・AVIF などの派生（`generate-thumbnails.js` が
+            //     ビルド時に書く。あれは `updatedAt` を意図的に触らない）
+            //   - 写真に付けた曲（`photoUpdate.ts:163` が `song` /
+            //     `songYoutubeUrl` を書く。写真ページから公開後に付ける）
+            //   - 地名から補った座標（`scripts/geocode-locations.js:227` が
+            //     `coords` と `geoApprox` を書く。**手動実行なので、消えると
+            //     定期ビルドでも戻らない**）
+            //
+            // `srcOriginal`（GPS 入りの原本の在りか）は**今どの保存経路も
+            // 書かない**（`scripts/generate-thumbnails.js:98` が同じことを
+            // 書いている。代入は grep で0件）。原本を残す判断に戻したときの
+            // 保険として一覧に入れておくだけで、いま消えるものではない
+            // ——`c789624e` のコミットメッセージはこれを実在する書き手と
+            // 同列に並べていた。**訂正**。
+            //
+            // いいね数が消えるのがいちばん重い。`like#<photoId>#<uid>` の
+            // マーカーは残るので、いいねした人が押し直しても「既にいいね済み」
+            // で +1 されず、解除しても `likes > :z` が外れて空振り
+            // ——**誰にも戻せない**。
+            //
+            // **一覧は明示的に持つ。** 「知らない項目は全部引き継ぐ」にすると、
+            // 下書きに戻す再送で `publicFeed`（公開一覧の索引キー）や
+            // `albumId` まで残り、**非公開にしたのに一覧に出続ける**。
+            // **今回の本文にある項目は今回が勝つ**（サムネ・代表色・ぼかしは
+            // クライアントも送る）。
+            const SERVER_OWNED_FIELDS = [
+                "likes", "commentCount", "staticStale",
+                "width", "height", "aspectRatio", "dominantColor", "blurDataURL",
+                "thumbSrc", "thumbAvif", "thumbSm", "thumbSmAvif", "srcAvif", "src256", "srcOriginal",
+                "song", "songYoutubeUrl",
+            ] as const;
+            const serverOwned: Record<string, unknown> = {};
+            for (const k of SERVER_OWNED_FIELDS) {
+                if (existing[k] !== undefined && photo[k] === undefined) serverOwned[k] = existing[k];
+            }
+            // **座標は一覧に並べない。** `geoApprox`（おおよその位置という印）
+            // だけ引き継ぐと、GPS を切って送り直した回に「正確な座標に
+            // 『おおよそ』の印が付いた行」ができる——`photoUpdate.ts:214` と
+            // `api/src/photosMutate.ts:126` が対で塞いでいる形そのもの。
+            // **印が立っているとき（＝地名から補った値）だけ、対で引き継ぐ。**
+            // 利用者の GPS 由来の座標は引き継がない（切ったのに戻る、を作らない）。
+            //
+            // **地名を直した回は引き継がない。** 補った座標は地名に付随する
+            // ので、撮影地を「パリ」→「ロンドン」に直して送り直すと
+            // 「ロンドン（おおよそ）」のピンがパリに立つ
+            // ——`photoUpdate.ts:223` が「地名が変わったら座標ごと捨てる」で
+            // 塞いでいる形を、こちらに作り直すことになる。
+            const sameLocation = (photo.location ?? "") === (existing.location ?? "");
+            if (photo.coords === undefined && sameLocation
+                && existing.geoApprox === true && existing.coords !== undefined) {
+                serverOwned.coords = existing.coords;
+                serverOwned.geoApprox = true;
+            }
+            const rewritten = { ...photo, ...serverOwned, createdAt: existing.createdAt ?? photo.createdAt };
             if (stored && await overwriteOwnPhoto(rewritten, stored)) {
+                // **再送でもアルバムに足す。** 1回目の `addPhotoToAlbum` が
+                // 落ちた（スロットル・500枚上限）あとに押し直す場面で、
+                // ここを呼ばないと**直ってほしい操作で直らない**。
+                // `addPhotoToAlbum` は冪等（既に入っていれば条件で落ちる）
+                if (albumId && isPublished) {
+                    await addPhotoToAlbum(albumId, photo.id).catch(() => undefined);
+                }
+                // 再送で「下書き → 公開」に変わることがある（公開で落ちて
+                // 下書き保存し、そのあと公開を押し直す形）。最初の保存の
+                // ときは下書きで頼まなかったので、ここでもう一度見る。
+                //
+                // **既に公開済みだったなら頼まない。** 再送は「モバイル回線で
+                // 応答だけが失われた」ときに起きるので、ただの二重送信でも
+                // ここに来る。そのたびに頼むと月の予算を1本ずつ食う
+                // （最初の保存で既に頼んである）。
+                // **`!== false` で見る。** このリポジトリは「未指定は公開」で
+                // 揃っていて（`upload.ts:260` の `isPublished` 自身がそう。
+                // ほか photoUpdate・account・userProfile・sync スクリプト）、
+                // `=== true` はここだけだった＝対の乖離。`published` を持たない
+                // 古い行では「下書きだった」と読み、二重送信のたびに予算を食う。
+                const wasPublished = existing.published !== false;
+                // **`staticStale` を下ろす対がここには作れない。**
+                // `photoUpdate.ts:353` は「依頼が届いたら REMOVE」を持って
+                // いるが、`requestRebuildForNewPhoto` は `Promise<void>` で
+                // 成否を返さないので、**そもそも判断する材料がここに無い**
+                // （下ろすなら戻り値を通すところから）。倒す先としては
+                // 「余分に頼む」側が安全ではある——印を落として実際には
+                // 届いていなければ、古い静的ページを誰も覚えていない。
+                await requestRebuildForNewPhoto(photo.id, isPublished && !wasPublished);
                 console.log(`savePhoto: 同じ写真の再送を受け取り、今回の内容で書き直しました（${photo.id}）`);
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: rewritten }) };
             }

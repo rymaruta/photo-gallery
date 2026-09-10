@@ -12,10 +12,13 @@ import { ROUTES } from "../../lib/routes";
 import UserAvatar from "./UserAvatar";
 
 type Notif = {
-    // 実際に作られるのは like / comment / follow の3種類。
+    // 実際に作られるのは like / comment / follow / storyreply の4種類。
     // inspired / go は「行きたいリスト」機能のもので、通知を作る側が
     // どこにも無い（マーカーを書く経路も、UIのボタンも存在しない）。
-    type: "like" | "comment" | "follow";
+    // **`api-user/src/notify.ts` の `Notif` と対。** 足したのに
+    // ここへ足さないと、下の分岐が「知らない種類」として何も出さない
+    // ＝**届いているのに画面には何も出ない**通知になる。
+    type: "like" | "comment" | "follow" | "storyreply";
     photoId: string;
     photoSrc: string;
     byName: string;
@@ -169,12 +172,12 @@ export default function NotificationsBell() {
                     )}
                     <div className="absolute right-0 top-full mt-2 z-50 w-80 max-w-[85vw] rounded-2xl bg-[#16181c]/95 backdrop-blur-md ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in">
                         <div className="px-4 py-2.5 border-b border-white/5">
-                            <span className="text-xs font-semibold tracking-widest uppercase text-white/45">
+                            <span className="text-xs font-semibold tracking-widest uppercase text-white/50">
                                 {locale === "en" ? "Notifications" : "通知"}
                             </span>
                         </div>
                         {items.length === 0 ? (
-                            <p className="px-4 py-8 text-center text-xs text-white/40">
+                            <p className="px-4 py-8 text-center text-xs text-white/50">
                                 {status === "error"
                                     ? (locale === "en"
                                         ? "Couldn't load notifications. Retrying shortly."
@@ -182,8 +185,8 @@ export default function NotificationsBell() {
                                     : status === "loading"
                                         ? (locale === "en" ? "Loading…" : "読み込み中…")
                                         : (locale === "en"
-                                            ? "Likes, comments, and new followers will show up here."
-                                            : "いいね・コメント・フォローがここに届きます。")}
+                                            ? "Likes, comments, story replies, and new followers will show up here."
+                                            : "いいね・コメント・ストーリーへの返信・フォローがここに届きます。")}
                             </p>
                         ) : (
                             <ul className="max-h-96 overflow-y-auto no-scrollbar divide-y divide-white/5">
@@ -196,7 +199,14 @@ export default function NotificationsBell() {
                                     // 本文はリンクのまま、という食い違いになる。
                                     // 迷ったら伏せる側（コメント欄も truthy 判定）。
                                     const isDeleted = !!n.deleted;
-                                    const goesNowhere = isDeleted && n.type === "follow";
+                                    // **開く先が無い通知**。判定は1か所で作る
+                                    // （2か所に分けると、アイコンだけ伏せて本文は
+                                    // リンクのまま、という食い違いになる）。
+                                    //   - 退会した人のフォロー通知（開く先が墓石）
+                                    //   - ストーリーへの返信（ストーリーに個別ページは無い。
+                                    //     `ROUTES.PHOTO(story-…)` は静的書き出しに
+                                    //     存在しないので 404 になる）
+                                    const goesNowhere = (isDeleted && n.type === "follow") || n.type === "storyreply";
                                     const body = (
                                         <>
                                             <div className="min-w-0 flex-1">
@@ -218,6 +228,13 @@ export default function NotificationsBell() {
                                                                 ? <><span className="font-semibold">{n.byName}</span> liked your photo</>
                                                                 : <><span className="font-semibold">{n.byName}</span> さんがあなたの写真にいいねしました</>}
                                                         </>
+                                                    ) : n.type === "storyreply" ? (
+                                                        <>
+                                                            <ChatBubbleOvalLeftIcon className="w-3.5 h-3.5 text-amber-300 inline -mt-0.5 mr-1" />
+                                                            {locale === "en"
+                                                                ? <><span className="font-semibold">{n.byName}</span> replied to your story</>
+                                                                : <><span className="font-semibold">{n.byName}</span> さんがあなたのストーリーに返信しました</>}
+                                                        </>
                                                     ) : n.type === "comment" ? (
                                                         <>
                                                             <ChatBubbleOvalLeftIcon className="w-3.5 h-3.5 text-fuchsia-400 inline -mt-0.5 mr-1" />
@@ -229,10 +246,14 @@ export default function NotificationsBell() {
                                                         以前はここが「旅立たせました！」の分岐で、
                                                         将来わけの分からない通知が全部その文言で出る作りだった */}
                                                 </p>
-                                                <p className="text-[11px] text-white/35 mt-0.5">{fmtTime(n.t)}</p>
+                                                <p className="text-[11px] text-white/50 mt-0.5">{fmtTime(n.t)}</p>
                                             </div>
                                             {/* どの写真のことかが分かるよう、右端にその写真を出す */}
-                                            {n.type !== "follow" && n.photoSrc && (n.byId || n.targetUserId) && (
+                                            {/* **ストーリーのサムネは出さない。** 返信の通知が持つ
+                                                `photoSrc` は24時間で消えるストーリーの画像で、
+                                                通知の方は残る＝**古い返信通知はすべて灰色の四角**に
+                                                なる。写真の通知は消えない限り出し続けてよい */}
+                                            {n.type !== "follow" && n.type !== "storyreply" && n.photoSrc && (n.byId || n.targetUserId) && (
                                                 // eslint-disable-next-line @next/next/no-img-element
                                                 <img src={n.photoSrc} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
                                             )}

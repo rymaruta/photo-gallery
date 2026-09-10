@@ -66,7 +66,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                 <ChatBubbleOvalLeftIcon className="w-4 h-4 text-white/50" />
                 <h2 className="text-sm font-semibold text-white/70">
                     {locale === "en" ? "Comments" : "コメント"}
-                    {count > 0 && <span className="ml-1.5 text-white/40 tabular-nums">{count}</span>}
+                    {count > 0 && <span className="ml-1.5 text-white/50 tabular-nums">{count}</span>}
                 </h2>
             </div>
 
@@ -108,7 +108,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                 // 出すと、ログイン済みの人にも一瞬表示されて誤操作を誘う。
                 <div className="mb-4 h-[68px]" aria-hidden={true} />
             ) : (
-                <p className="mb-4 text-xs text-white/40">
+                <p className="mb-4 text-xs text-white/50">
                     {/* 戻り先を添える。無いとログイン後に自分のプロフィールへ
                         飛ばされ、コメントしようとしていた写真を見失う */}
                     <Link href={loginHref} className="text-white/70 underline hover:text-white">
@@ -131,7 +131,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                     </button>
                 </p>
             ) : items.length === 0 ? (
-                <p className="text-xs text-white/35 py-2">
+                <p className="text-xs text-white/50 py-2">
                     {locale === "en" ? "No comments yet. Be the first!" : "まだコメントがありません。最初のひとことを。"}
                 </p>
             ) : (
@@ -155,7 +155,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
                                         {c.deleted ? (
-                                            <span className="text-[13px] font-semibold text-white/40 truncate">
+                                            <span className="text-[13px] font-semibold text-white/50 truncate">
                                                 {c.name}
                                             </span>
                                         ) : (
@@ -163,7 +163,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                                                 {c.name}
                                             </Link>
                                         )}
-                                        <span className="text-[11px] text-white/35 flex-shrink-0">{timeAgo(c.t, locale)}</span>
+                                        <span className="text-[11px] text-white/50 flex-shrink-0">{timeAgo(c.t, locale)}</span>
                                         {canDelete && (
                                             <button
                                                 onClick={() => void remove(c.id).then((ok) => {
@@ -175,7 +175,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                                                         : "コメントを削除できませんでした。もう一度お試しください", "error");
                                                 })}
                                                 aria-label={locale === "en" ? "Delete comment" : "コメントを削除"}
-                                                className="ml-auto flex-shrink-0 p-1 text-white/30 hover:text-red-400 transition"
+                                                className="ml-auto flex-shrink-0 p-1 text-white/40 hover:text-red-400 transition"
                                                 style={{ touchAction: "manipulation" }}
                                             >
                                                 <TrashIcon className="w-3.5 h-3.5" />

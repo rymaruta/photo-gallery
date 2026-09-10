@@ -127,6 +127,23 @@ export function sanitizeDate(v: unknown): string | undefined {
     return new Date(t).toISOString();
 }
 
+/**
+ * **撮影日を「消したい」と「読めない」は別。** `sanitizeDate` はどちらも
+ * `undefined` を返すので、呼び出し側がそのまま書き込みに使うと
+ * **1985年と入れただけで保存済みの日付が消える**（画面は「保存しました」）。
+ * フィルムの取り込みなど 1990年より前の日付は実在するのに、黙って落ちていた。
+ *
+ * 「値は来ているが使えない」ときだけ true。**消す意図は `null`・`undefined`・
+ * 空文字（と空白だけ）に限る**——数値や配列を「消す」と読むと、同じ黙って
+ * 消える形が別の入口から戻ってくる（画面からは踏めないが、記述と実装は揃える）。
+ */
+export function dateWasRejected(v: unknown): boolean {
+    if (v === null || v === undefined) return false;
+    if (typeof v === "string" && !v.trim()) return false;
+    return sanitizeDate(v) === undefined;
+}
+
+
 // ぼかしプレビュー: 画像の data URI（webp/jpeg/png の base64）のみ許可。長すぎるものは破棄。
 // 極小画像想定のため上限は 4000 文字（~3KB）。
 export function sanitizeBlurDataURL(v: unknown): string | undefined {

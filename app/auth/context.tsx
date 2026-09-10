@@ -1,10 +1,11 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { signIn, signOut, getCurrentSession, deleteAccount as cognitoDeleteAccount } from "../../lib/auth/cognito";
+import { signIn, signOut,
+    lookupSession, deleteAccount as cognitoDeleteAccount } from "../../lib/auth/cognito";
 import { cognitoConfig } from "../../lib/auth/config";
-import { userFetch } from "../../lib/utils/api";
+import { userFetch, NETWORK_UNREACHABLE_MESSAGE } from "../../lib/utils/api";
 import { log } from "../../lib/utils/log";
 import { resetFollowingCache } from "../../lib/hooks/useFollow";
 import { clearSharedPayload } from "../../lib/utils/shareStore";
@@ -56,8 +57,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const pathname = usePathname();
 
+    /**
+     * 最後に**確かめられた**認証状態。通信が届かなかった回に前の答えを
+     * 保つためだけに使う（`lookupSession` の `unreachable`）。
+     */
+    const resolvedRef = useRef<{ authenticated: boolean; admin: boolean } | null>(null);
+    /**
+     * 直前の判定が「確かめられなかった」で終わったか。
+     *
+     * **確かめ直す契機を増やすのは、この状態のときだけ。** どの画面でも
+     * 復帰のたびに確かめ直すと、本当に失効していた人が**編集中に
+     * 画面ごと追い出される**機会を増やすことになる（`useMemberGate` の
+     * replace は未保存の確認を通らない）。増やしてよいのは
+     * 「そもそも答えを持っていない」場合だけ。
+     */
+    const unresolvedRef = useRef(false);
+
+    /**
+     * 「確かめた」を記録する。`checkAuth` を通らない経路
+     * （ログイン・ログアウト・退会）からも呼ぶ——呼ばないと、旗が立った
+     * ままになって復帰のたびに余計に確かめ直し、`resolvedRef` には
+     * 古い答えが残る。
+     */
+    const markResolved = useCallback((authenticated: boolean, admin: boolean) => {
+        unresolvedRef.current = false;
+        resolvedRef.current = { authenticated, admin };
+    }, []);
+
     // 認証状態をチェック
-    const checkAuth = useCallback(async () => {
+    /**
+     * 認証状態を確かめ直す。
+     *
+     * **確かめられなかった回は `null` を返す**（通信が届かず、前の状態を
+     * 保った回）。`{authenticated:false}` を返すと「確かめたら未ログイン
+     * だった」と区別できず、画面が保っている状態と戻り値が食い違う
+     * ——いまの呼び出しは2か所ともこれを読んでいないが、次に読む人が
+     * 静かに踏む。`null` にしておけば `tsc` が読む側に扱いを迫る。
+     */
+    const checkAuth = useCallback(async (): Promise<{ authenticated: boolean; admin: boolean } | null> => {
         try {
             // 設定が解決できない場合は認証機能を無効化
             // （config.ts が検証済みフォールバックを持つため、通常は常に有効）
@@ -75,7 +112,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return { authenticated: false, admin: false };
             }
 
-            const session = await getCurrentSession();
+            const { session, unreachable } = await lookupSession();
+            if (!session && unreachable) {
+                // **「確かめられなかった」を「ログアウトした」にしない。**
+                // 電波が届かないだけの回で未ログインに倒すと、`useMemberGate`
+                // が `/login` へ replace し、**編集中の文章ごと画面が
+                // 入れ替わる**（未保存の確認も通らない）。電波が戻れば
+                // 何もせず直るので、本人には理由が分からない。
+                // 一度でも確かめられていれば、その状態を保つ。
+                // **最初から確かめられない場合は保てない**（前の状態が無い）
+                // ので、そのときは今までどおり未ログインで始める
+                // ——まだ何も打っていないので失うものが無い。
+                // **答えを持っていないことを覚える。** 前の状態が無くて
+                // 保てない回（開いた最初から圏外）でも旗は立てる——
+                // 立てないと、電波が戻っても確かめ直す契機が来ない
+                unresolvedRef.current = true;
+                if (resolvedRef.current) {
+                    setAuthState((prev) => ({ ...prev, loading: false }));
+                    return null;   // 確かめられていない（前の状態を保った）
+                }
+            }
             const authenticated = session !== null;
             const payload = authenticated ? session!.getIdToken().payload : {};
             const groups: string[] = Array.isArray(payload["cognito:groups"])
@@ -89,6 +145,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // **setAuthState より先に呼ぶ。** loading が false になった瞬間に
             // usePhotoLikes のフォールバック（serverLiked ?? isFavorite）が
             // 読むキーを確定させておくため（順序に意味がある）。
+            // **確かめられた回だけ記録する。** 圏外で保てず未ログインとして
+            // 始めた回にこれを書くと、「確かめた答え」として扱われて
+            // 旗が下り、電波が戻っても確かめ直さない
+            if (!unreachable) {
+                unresolvedRef.current = false;
+                resolvedRef.current = { authenticated, admin };
+            }
             setFavoritesUser(authenticated ? sub : null);
             setAuthState({
                 isAuthenticated: authenticated,
@@ -150,6 +213,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return () => window.removeEventListener("storage", onStorage);
     }, [checkAuth]);
 
+    /**
+     * **確かめられなかったまま留まらない。**
+     *
+     * 通信が届かなかった回は前の状態を保つ（`lookupSession` の
+     * `unreachable`）が、確かめ直す契機はパス変更と storage イベントしか
+     * 無かった。同じページに留まっていると、電波が戻っても・ホテルの
+     * Wi-Fi の認証を済ませても**答えを持たないまま**で、本当に失効して
+     * いた場合は「ログイン中の顔のまま、押すたびに『ログインして
+     * ください』と言われるのに、ログイン画面への導線が無い」になる。
+     *
+     * **増やすのは「確かめられていない」ときだけ**（`unresolvedRef`）。
+     * 常に確かめ直すと、答えを持っている人まで復帰のたびに判定にかけ、
+     * 編集中に追い出される機会を増やす。
+     */
+    useEffect(() => {
+        // **二重に走らせない。** 「タブに戻った瞬間に電波も戻った」は
+        // いちばん起きやすい復帰の形で、`online` と `visibilitychange` が
+        // ほぼ同時に来る。旗を下ろすのは判定が終わってからなので、
+        // 札が無いと Cognito のリフレッシュが2本同時に飛ぶ
+        let running = false;
+        const recheck = () => {
+            if (running) return;
+            if (!unresolvedRef.current) return;
+            if (document.visibilityState === "hidden") return;
+            running = true;
+            void checkAuth().finally(() => { running = false; });
+        };
+        window.addEventListener("online", recheck);
+        document.addEventListener("visibilitychange", recheck);
+        return () => {
+            window.removeEventListener("online", recheck);
+            document.removeEventListener("visibilitychange", recheck);
+        };
+    }, [checkAuth]);
+
     // ログイン
     const login = useCallback(async (username: string, password: string) => {
         setAuthState((prev) => ({ ...prev, loading: true }));
@@ -176,6 +274,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // **新しいログインは白紙から始める**のが確実。
                 resetFollowingCache();
                 setFavoritesUser(sub ?? null);
+                // **ここも「確かめた」。** `checkAuth` を通らない経路なので、
+                // 揃えないと旗が立ちっぱなしになり、復帰のたびに余計に
+                // 確かめ直す（`resolvedRef` の方は古い答えが残る）
+                markResolved(true, admin);
                 setAuthState({
                     isAuthenticated: true,
                     isAdminUser: admin,
@@ -196,7 +298,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const errorMessage = error instanceof Error ? error.message : "ログインに失敗しました";
             return { success: false, error: errorMessage };
         }
-    }, []);
+    }, [markResolved]);
 
     // ログアウト
     const logout = useCallback(() => {
@@ -207,6 +309,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         resetFollowingCache();
         clearAccountLocalState();
         setFavoritesUser(null);
+        markResolved(false, false);
         setAuthState({
             isAuthenticated: false,
             isAdminUser: false,
@@ -215,7 +318,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             loading: false,
         });
         router.push("/");
-    }, [router]);
+    }, [router, markResolved]);
 
     // 退会（アカウント削除）。順序:
     //   0. **先に Cognito のセッションが使えるかを確かめる**
@@ -234,11 +337,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 不可逆な削除の前に、後段が通ることを先に確かめる。
     const deleteAccount = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
         try {
-            const session = await getCurrentSession();
+            // **止めること自体は変えない**（不可逆な削除の前に後段が通ることを
+            // 確かめる）。分けるのは**理由**だけ——確かめられなかっただけの回に
+            // 「ログインし直して」と言うのは嘘で、しかもその通信も通らない。
+            // `userFetch` から取り除いた同じ嘘が、ここだけ残っていた
+            const { session, unreachable } = await lookupSession();
             if (!session || !session.isValid()) {
                 return {
                     success: false,
-                    error: "ログインの有効期限が切れています。一度ログインし直してからお試しください",
+                    error: unreachable
+                        ? NETWORK_UNREACHABLE_MESSAGE
+                        : "ログインの有効期限が切れています。一度ログインし直してからお試しください",
                 };
             }
 
@@ -286,6 +395,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // 同じ userId では二度とログインできない。読めない鍵付きの
             // ハート一覧を端末に残さない
             if (deletedUserId) removeFavoritesUserData(deletedUserId);
+            markResolved(false, false);
             setAuthState({
                 isAuthenticated: false,
                 isAdminUser: false,
@@ -299,7 +409,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             log.error("AuthContext: 退会処理例外", error);
             return { success: false, error: error instanceof Error ? error.message : "退会処理中にエラーが発生しました" };
         }
-    }, [router]);
+    }, [router, markResolved]);
 
     return (
         <AuthContext.Provider

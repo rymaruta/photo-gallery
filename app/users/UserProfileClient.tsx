@@ -22,12 +22,13 @@ import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../lib/utils/log";
 import { getCurrentSession } from "../../lib/auth/cognito";
 import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
-import { publicFetch, userFetch, userPublicFetch, readApiError, AUTH_REQUIRED_MESSAGE } from "../../lib/utils/api";
+import { publicFetch, userFetch, userPublicFetch, readApiError, sessionErrorMessage } from "../../lib/utils/api";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 import { EN_MONTHS, splitStoredDate } from "../../lib/utils/photoDate";
 import { compareNewest, compareOldest, photoTimeKey } from "../../lib/utils/photoOrder";
 import { ROUTES } from "../../lib/routes";
+import { toastWithStaticPage } from "../../lib/utils/staticPage";
 import UserAvatar from "../components/UserAvatar";
 import PHOTOS_JSON from "../data/photos.json";
 
@@ -215,7 +216,11 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
             {/* 自分のプロフィール: 公開/非公開トグル */}
             {isOwner && (
                 <button
-                    onClick={(e) => { e.preventDefault(); onTogglePublish?.(photo.id, !isHidden); }}
+                    // **`isHidden` をそのまま渡す**（`publish` の意味で）。
+                    // `!isHidden` だと「いまの状態を送り直す」ことになり、
+                    // 公開中の写真の「非公開にする」で `published: true` が飛んで
+                    // 何も変わらないまま「公開しました」と出ていた（実測）
+                    onClick={(e) => { e.preventDefault(); onTogglePublish?.(photo.id, isHidden); }}
                     className={`absolute top-1.5 right-1.5 p-1.5 rounded-full transition-colors z-10 ${
                         isHidden
                             ? "bg-black/80 text-white/80 hover:bg-black"
@@ -698,9 +703,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             // 直らない。別のタブでログアウトした人・セッションが切れた人は、
             // 何をすればいいか分からないまま押し直すことになる。
             // PhotoPageClient の MV 保存と同じ見分け方。
-            showToast(e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE
-                ? AUTH_REQUIRED_MESSAGE
-                : failMsg, "error");
+            showToast(sessionErrorMessage(e) ?? failMsg, "error");
         }
     }, [userProfile, userId, locale, showToast, loadOwnPins]);
 
@@ -790,7 +793,14 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         return typeof window !== "undefined" ? `${window.location.origin}${path}` : path;
     }, [userId]);
 
+    // **同じ写真の切り替えを重ねない。** 向きが直るまでこのボタンは何も
+    // 変えなかったので踏めなかったが、効くようになった今は「非公開→公開」を
+    // 続けて押すと応答の入れ替わりで画面とサーバーがずれる（ピン留めで
+    // 同じ型を踏んで `pinSeqRef` を置いたのと同じ話）
+    const togglingRef = useRef<Set<string>>(new Set());
     const handleTogglePublish = useCallback(async (photoId: string, publish: boolean) => {
+        if (togglingRef.current.has(photoId)) return;
+        togglingRef.current.add(photoId);
         try {
             const res = await userFetch(`/photos/${photoId}`, {
                 method: "PUT",
@@ -798,11 +808,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             });
             if (res.ok) {
                 setPhotos(prev => prev.map(p => p.id === photoId ? { ...p, published: publish } : p));
-                showToast(publish
-                    ? (locale === "en" ? "Photo is now public" : "写真を公開しました")
-                    : (locale === "en" ? "Photo is now hidden" : "写真を非公開にしました"),
-                    "success"
-                );
+                // 非公開にしても静的ページが残ることがある（`lib/utils/staticPage.ts`）
+                toastWithStaticPage(showToast,
+                    publish
+                        ? (locale === "en" ? "Photo is now public" : "写真を公開しました")
+                        : (locale === "en" ? "Photo is now hidden" : "写真を非公開にしました"),
+                    await res.json().catch(() => null), locale !== "en");
             } else {
                 // 別タブで先に消していると 404「写真が見つかりません」が返る。
                 // 「更新に失敗しました」に潰していたので、**何度押しても直らない
@@ -810,10 +821,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 showToast(await readApiError(res, locale === "en" ? "Failed to update" : "更新に失敗しました"), "error");
             }
         } catch (e) {
-            const authMissing = e instanceof Error && e.message === AUTH_REQUIRED_MESSAGE;
-            showToast(authMissing
-                ? AUTH_REQUIRED_MESSAGE
-                : (locale === "en" ? "Failed to update" : "更新に失敗しました"), "error");
+            showToast(sessionErrorMessage(e)
+                ?? (locale === "en" ? "Failed to update" : "更新に失敗しました"), "error");
+        } finally {
+            // **必ず下ろす。** 失敗したまま札が残ると、その写真だけ
+            // 二度と切り替えられなくなる（押しても無反応）
+            togglingRef.current.delete(photoId);
         }
     }, [locale, showToast]);
 
@@ -992,7 +1005,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             <p className="text-sm text-white/85 whitespace-pre-wrap break-words mb-4 leading-relaxed">{userProfile.bio}</p>
                         )}
 
-                    {/* 統計（投稿 / いいね / フォロー中 / フォロワー）— 1行にまとめる */}
+                    {/* 統計（投稿 / いいね / 距離）— 1行にまとめる。
+                        フォロー中 / フォロワーは下の `FollowButton` が次の行に出す */}
                     <div className="flex flex-wrap items-center gap-2 mb-4">
                         <div className="inline-flex items-baseline gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
                             {/* **届く前に「0投稿」と言い切らない。** 同じ画面の
@@ -1005,7 +1019,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             <span className="text-sm font-bold tabular-nums leading-none">{photosResolved ? postCount : "…"}</span>
                             <span className="text-[11px] text-white/60">{locale === "en" ? "posts" : "投稿"}</span>
                             {photosResolved && hiddenCount > 0 && (
-                                <span className="text-[11px] text-white/40">
+                                <span className="text-[11px] text-white/50">
                                     {locale === "en" ? `(${hiddenCount} private)` : `（うち非公開 ${hiddenCount}）`}
                                 </span>
                             )}
@@ -1023,14 +1037,18 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                 <span className="text-[11px] text-white/60">km</span>
                             </div>
                         )}
-                        {/* フォロワー / フォロー中（同じ行に並べる） */}
-                        <FollowButton
-                            targetUserId={userId}
-                            isOwner={isOwner}
-                            isAuthenticated={viewerAuthed}
-                            locale={locale as "ja" | "en"}
-                        />
                     </div>
+
+                    {/* フォロー中 / フォロワーは**次の行**（owner の指示）。
+                        自分の行と余白は `FollowButton` が持つ——数がまだ
+                        取れていない回に何も描かないので、ここに空の行を
+                        置くと、その回だけ余白が残る */}
+                    <FollowButton
+                        targetUserId={userId}
+                        isOwner={isOwner}
+                        isAuthenticated={viewerAuthed}
+                        locale={locale as "ja" | "en"}
+                    />
 
 
 
@@ -1072,8 +1090,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         <div className="mt-4 rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden max-w-md">
                             <div className="flex items-center gap-1.5 px-3.5 py-2.5">
                                 <MusicalNoteIcon className="w-3.5 h-3.5 text-fuchsia-400" />
-                                <span className="text-[11px] tracking-widest uppercase text-white/45">{locale === "en" ? "My BGM" : "マイBGM"}</span>
-                                <span className="ml-auto text-[10px] text-white/30">{musicServiceLabel(songEmbed.service)}</span>
+                                <span className="text-[11px] tracking-widest uppercase text-white/50">{locale === "en" ? "My BGM" : "マイBGM"}</span>
+                                <span className="ml-auto text-[10px] text-white/50">{musicServiceLabel(songEmbed.service)}</span>
                                 {/* MV(YouTube)は大きいので折りたたみ式 */}
                                 {songEmbed.service === "youtube" && (
                                     <button
@@ -1165,7 +1183,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                 onClick={() => setTab(key)}
                                 aria-pressed={active}
                                 data-profile-tab={key}
-                                className={`relative flex items-center justify-center gap-1.5 py-3 text-xs font-medium tracking-wide transition-colors ${active ? "text-white" : "text-white/40 hover:text-white/70"}`}
+                                className={`relative flex items-center justify-center gap-1.5 py-3 text-xs font-medium tracking-wide transition-colors ${active ? "text-white" : "text-white/50 hover:text-white/70"}`}
                                 style={{ touchAction: "manipulation" }}
                             >
                                 <Icon className="w-4 h-4" />
@@ -1192,7 +1210,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     // 言わない**（言ってしまうと、写真がある人のページでも
                     // 空の案内が一瞬出る）
                     postCount === 0 ? (photosResolved ? (
-                        <div className="flex flex-col items-center justify-center py-24 text-white/40 gap-3">
+                        <div className="flex flex-col items-center justify-center py-24 text-white/50 gap-3">
                             <div className="w-16 h-16 rounded-full border-2 border-white/15 flex items-center justify-center">
                                 <PhotoStackIcon className="w-7 h-7" />
                             </div>
@@ -1225,7 +1243,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 {tab === "timeline" && (
                     <div className="pb-8 pt-2">
                         {timeline.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-24 text-white/40 gap-3">
+                            <div className="flex flex-col items-center justify-center py-24 text-white/50 gap-3">
                                 <CalendarDaysIcon className="w-10 h-10" />
                                 <p className="text-sm">{locale === "en" ? "No dated photos yet." : "撮影日のある写真がまだありません。"}</p>
                             </div>
@@ -1239,7 +1257,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                         <div className="flex items-center gap-2 mb-2 -ml-6">
                                             <span className="w-3.5 h-3.5 rounded-full bg-white ring-4 ring-black flex-shrink-0" />
                                             <span className="text-sm font-bold">{g.label}</span>
-                                            <span className="text-[11px] text-white/40">{g.photos.length}{locale === "en" ? "" : "枚"}</span>
+                                            <span className="text-[11px] text-white/50">{g.photos.length}{locale === "en" ? "" : "枚"}</span>
                                         </div>
                                         <div className="grid grid-cols-3 gap-1">
                                             {g.photos.map((photo) => (
@@ -1282,7 +1300,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         <p className="mt-3 text-sm font-bold text-black truncate">
                             {displayName ?? (locale === "en" ? "Profile" : "プロフィール")}
                         </p>
-                        <p className="mt-0.5 text-[11px] text-black/50">
+                        <p className="mt-0.5 text-[11px] text-black/55">
                             {locale === "en" ? "Scan to open this profile" : "スキャンしてプロフィールを開く"}
                         </p>
                         <button

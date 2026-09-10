@@ -29,7 +29,7 @@ vi.mock("../../../components/RelatedPhotos", () => ({ default: () => null }));
 vi.mock("../../../components/ProfileLink", () => ({ default: () => null }));
 vi.mock("../../../components/MusicCard", () => ({ default: () => null }));
 vi.mock("../../../../lib/hooks/usePhotoLikes", () => ({
-    usePhotoLikes: () => ({ liked: false, count: 0, pending: false, toggle: vi.fn() }),
+    usePhotoLikes: () => ({ liked: false, count: 0, pending: false, toggle: vi.fn(async () => ({ ok: true })) }),
 }));
 
 const PhotoPageClient = (await import("../PhotoPageClient")).default;
@@ -42,7 +42,10 @@ const newPhoto = {
     exif: { Model: "X-T5" },
 };
 
-beforeEach(() => mockPublicFetch.mockReset());
+// `mockReset()` は**モック自身を返す**ので、アローの暗黙の return だと
+// **vitest が後片付けの関数だと思って引数なしで呼ぶ**（`block.test.ts` 参照）。
+// 中括弧で包んで何も返さない。
+beforeEach(() => { mockPublicFetch.mockReset(); });
 
 describe("静的データに無い写真 × API失敗", () => {
     it("「存在しません」と断定せず、再試行で立て直す", async () => {

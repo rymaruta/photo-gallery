@@ -109,6 +109,13 @@ describe("invalidationPathsFor", () => {
         expect(paths.some((p: string) => p.startsWith("/uploads"))).toBe(false);
     });
 
+    // **フィードも写真を追加するたびに変わる。** 入れないと 1時間 immutable で
+    // 配られ、しかも**無効化の対象にもならない**（対象は .html/.txt と
+    // `NO_CACHE_KEYS` だけ）——`sitemap.xml` を入れたのと同じ理由
+    it("フィードが変わったら無効化する", () => {
+        expect(invalidationPathsFor(["feed.xml"]), "更新が届かない").toContain("/feed.xml");
+    });
+
     it("ハッシュ付きアセットは無効化しない（内容が変われば名前も変わる）", () => {
         const paths = invalidationPathsFor(["_next/static/chunks/main-abc123.js", "index.html"]);
         expect(paths.some((p: string) => p.startsWith("/_next"))).toBe(false);

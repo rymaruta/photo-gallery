@@ -361,3 +361,43 @@ describe("HeaderNav - 撮影地マップ", () => {
         expect(mockPush).toHaveBeenCalledWith("/map");
     });
 });
+
+// 共同アルバム（案C）は**招待リンクを配る側の画面**なので、ログイン中だけ。
+// 未ログインに出すと、押した先が会員限定の案内になる（行き先の無い項目）。
+describe("HeaderNav - 共同アルバム", () => {
+    it("ログイン中は出て、/user/albums へ移動する", async () => {
+        setRole("general");
+        render(<HeaderNav />);
+        await openMenu();
+        expect(menuItems()).toContain("Shared Albums");
+        fireEvent.click(screen.getByRole("button", { name: "Shared Albums" }));
+        expect(mockPush).toHaveBeenCalledWith("/user/albums");
+    });
+
+    it("未ログインには出さない", async () => {
+        setRole("anonymous");
+        render(<HeaderNav />);
+        await openMenu();
+        expect(menuItems(), "行き先の無い項目を出している").not.toContain("Shared Albums");
+    });
+
+    // **画面と同じ条件で出す。** 行き先は `useMemberGate`（グループが要る）で
+    // 守られているので、`isAuthenticated` だけで出すと、グループ未所属の人には
+    // **押した先が会員限定の案内**になる（登録直後にトリガーが失敗した人）
+    it("グループ未所属には出さない（押した先が会員限定の案内になる）", async () => {
+        authState.current = {
+            isAuthenticated: true, isAdminUser: false, isGeneralUser: false,
+            userId: "user-1", loading: false, logout: vi.fn(),
+        };
+        render(<HeaderNav />);
+        await openMenu();
+        expect(menuItems(), "会員限定の案内に当たる項目を出している").not.toContain("Shared Albums");
+    });
+
+    it("管理者にも出る", async () => {
+        setRole("admin");
+        render(<HeaderNav />);
+        await openMenu();
+        expect(menuItems()).toContain("Shared Albums");
+    });
+});
