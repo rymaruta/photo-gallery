@@ -135,6 +135,11 @@ function LoginForm() {
         // **送る前に見る。** 登録側（`app/signup`）は長さと一致を見ているのに
         // ここは空でなければ送っていた。3文字でも往復して、しかも戻ってくる
         // のは AWS の `InvalidPasswordException` の文言（記号の話が抜けていた）
+        // **`.trim()` は保険。** `type="email"` の欄はブラウザ側の
+        // 値の正規化で前後の空白が落ちる（jsdom でも実測: `.trim()` を
+        // 外してもこの画面のテストは全部通る＝ここは死にコードに近い）。
+        // 本当に効かせているのは `signUp` の境界（`lib/auth/cognito.ts`）で、
+        // そちらは呼び出し側が何を渡すか分からない。
         if (newPassword.length < 8) {
             setError(PASSWORD_RULE_MESSAGE);
             return;
