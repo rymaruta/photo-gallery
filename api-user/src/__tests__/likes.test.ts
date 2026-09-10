@@ -8,6 +8,17 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 
+const mockIsBlocked = vi.hoisted(() => vi.fn(async () => false));
+// **ブロックは境界としてモックする**（既定は「していない」）。
+// 実際の判定は `block.test.ts` が見る。ここで本物を通すと、
+// 全テストのモックに `block#` の分岐を足して回ることになり、
+// **本題と関係のない行が増えて読めなくなる**。
+// ブロックが効くことは、このファイルの専用のテストで見る。
+vi.mock("../block", () => ({
+    isBlocked: (...a: unknown[]) => mockIsBlocked(...(a as [])),
+    hiddenUserIds: async () => new Set<string>(),
+}));
+
 const { getLikeCount, getMyLike, likePhoto, unlikePhoto } = await import("../likes");
 
 type Result = { statusCode: number; body: string };

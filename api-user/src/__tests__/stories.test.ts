@@ -25,6 +25,18 @@ vi.mock("@aws-sdk/client-s3", () => ({
 // （静的 import はファイル先頭に巻き上げられ stubEnv より先に実行されてしまう）
 vi.stubEnv("CLOUDFRONT_URL", "https://cdn.test");
 vi.stubEnv("UPLOAD_BUCKET", "bucket-test");
+const mockIsBlocked = vi.hoisted(() => vi.fn(async () => false));
+const mockHidden = vi.hoisted(() => vi.fn(async () => new Set<string>()));
+// **ブロックは境界としてモックする**（既定は「していない」）。
+// 実際の判定は `block.test.ts` が見る。ここで本物を通すと、
+// 全テストのモックに `block#` の分岐を足して回ることになり、
+// **本題と関係のない行が増えて読めなくなる**。
+// ブロックが効くことは、このファイルの専用のテストで見る。
+vi.mock("../block", () => ({
+    isBlocked: (...a: unknown[]) => mockIsBlocked(...(a as [])),
+    hiddenUserIds: (...a: unknown[]) => mockHidden(...(a as [])),
+}));
+
 const { getStories, createStory, deleteStory, viewStory, getStoryViewers, cleanupExpiredStories } = await import("../stories");
 
 type LambdaResult = { statusCode: number; headers?: Record<string, string>; body: string };
@@ -42,6 +54,10 @@ function authedEvent(sub: string | undefined, overrides: Record<string, unknown>
 beforeEach(() => {
     mockDdbSend.mockReset();
     mockS3Send.mockReset();
+    // **必ず戻す。** 1つのテストで「隠す相手」を差し替えたまま次へ持ち越すと、
+    // 関係のないテストがブロック済みの世界で走る
+    mockIsBlocked.mockReset().mockResolvedValue(false);
+    mockHidden.mockReset().mockResolvedValue(new Set<string>());
 });
 
 /**
@@ -98,13 +114,9 @@ describe("getStories", () => {
     // **ブロックは両向きに効く。** 自分がブロックした相手のストーリーも、
     // 自分をブロックした相手のストーリーも出さない
     it("ブロックした相手・された相手のストーリーは出さない", async () => {
-        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
-            if (cmd.constructor.name === "GetCommand") {
-                const id = String(cmd.input.Key?.id ?? "");
-                if (id === "blocks#me") return Promise.resolve({ Item: { blockedIds: ["a"] } });
-                if (id === "blockedby#me") return Promise.resolve({ Item: { blockerIds: ["b"] } });
-                return Promise.resolve({});
-            }
+        mockHidden.mockResolvedValue(new Set(["a", "b"]));
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({});
             return Promise.resolve({ Items: [
                 { id: "s1", userId: "me", createdAt: "1" },
                 { id: "s2", userId: "a", createdAt: "2" },
@@ -119,8 +131,9 @@ describe("getStories", () => {
 
     // **見えなくする側が落ちたときに全部消さない**（倒しすぎ）
     it("ブロック一覧を読めなくても、一覧は返す", async () => {
+        mockHidden.mockRejectedValue(new Error("boom"));
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
-            if (cmd.constructor.name === "GetCommand") return Promise.reject(new Error("boom"));
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({});
             return Promise.resolve({ Items: [{ id: "s1", userId: "me", createdAt: "1" }] });
         });
         const res = await invoke(getStories, authedEvent("me"));
@@ -738,6 +751,19 @@ describe("viewStory", () => {
             .mockRejectedValueOnce(cond);
         const res = await invoke(viewStory, authedEvent("viewer-1", { pathParameters: { id: "story-1" }, body: "{}" }));
         expect(res.statusCode).toBe(404);
+    });
+
+    // **ブロックした相手の閲覧は記録しない。** 一覧からは隠しているが、
+    // 期限をまたいで開きっぱなしのタブや直接叩く経路ではここに来る。
+    // 記録すると、所有者の閲覧者一覧に**相手が付けた任意の表示名**が出る
+    it("ブロックした相手の閲覧は記録しない（404）", async () => {
+        mockIsBlocked.mockResolvedValue(true);
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "s1", story: true, userId: "owner", expiresAt: "2099-01-01T00:00:00Z" } });
+        const res = await invoke(viewStory, authedEvent("them", { pathParameters: { id: "s1" } }));
+        expect(res.statusCode).toBe(404);
+        const writes = mockDdbSend.mock.calls
+            .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "UpdateCommand");
+        expect(writes, "ブロックした相手を閲覧者に記録している").toHaveLength(0);
     });
 
     it("他人の閲覧は viewers マップに初回時刻つきで記録する", async () => {

@@ -11,7 +11,7 @@ import { invalidateUploads } from "./cdnInvalidate";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { truncate, sanitizeText, sanitizeCoords } from "./sanitize";
 import { storyRepliesId } from "./storyReplies";
-import { hiddenUserIds } from "./block";
+import { hiddenUserIds, isBlocked } from "./block";
 
 // バケット名の検証と S3 の削除は `s3Delete.ts` に寄せた（未設定なら
 // そちらの読み込みで止まる）。
@@ -344,6 +344,13 @@ export const viewStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         }
         if (item.userId === viewerId) {
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, self: true }) };
+        }
+        // **ブロックした相手の閲覧は記録しない。** 一覧（`getStories`）からは
+        // 隠しているが、期限をまたいで開きっぱなしのタブや直接叩く経路では
+        // ここに来る（この関数のコメント自身がそう書いている）。記録すると、
+        // 所有者の閲覧者一覧に**相手が付けた任意の表示名**がそのまま出る
+        if (await isBlocked(String(item.userId ?? ""), viewerId)) {
+            return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "ストーリーが見つかりません" }) };
         }
         // **期限切れは「もう無い」。**
         //

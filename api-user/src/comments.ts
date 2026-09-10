@@ -5,6 +5,7 @@ import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { pushNotification, lookupDisplayName, deletedUserIds, DELETED_USER_NAME } from "./notify";
 import { truncate } from "./sanitize";
+import { isBlocked } from "./block";
 
 // 写真コメント。
 // ストレージ: "comments#<photoId>" の list ドキュメント（notifs と同型）に
@@ -167,7 +168,15 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // 「userId が無い写真は uploadedBy で判定する」専用テストまである。
         // 無いと、`uploadedBy` しか持たない古い写真の**本人が11件目で 429**に
         // なる——免除を入れた理由（30人にお礼を書くと途中で止まる）そのもの。
-        const isOwner = (photo.userId ?? photo.uploadedBy) === uid;
+        const photoOwner = photo.userId ?? photo.uploadedBy;
+        // **ブロックされていたら書けない。** 通知は `pushNotification` が
+        // 止めるが、コメントの**本文は公開**で誰でも読める（500字）。
+        // 通知だけ止めても、相手の写真に自分の言葉が残り続ける。
+        // **404 で返す**——「ブロックされています」と言うと相手の操作を教える
+        if (photoOwner && photoOwner !== uid && await isBlocked(String(photoOwner), uid)) {
+            return jsonError(404, "写真が見つかりません");
+        }
+        const isOwner = photoOwner === uid;
 
         const comment: Comment = {
             id: uuidv4(),

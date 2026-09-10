@@ -17,6 +17,17 @@ vi.mock("../notify", () => ({
     DELETED_USER_NAME: "退会したユーザー",
 }));
 
+const mockIsBlocked = vi.hoisted(() => vi.fn(async () => false));
+// **ブロックは境界としてモックする**（既定は「していない」）。
+// 実際の判定は `block.test.ts` が見る。ここで本物を通すと、
+// 全テストのモックに `block#` の分岐を足して回ることになり、
+// **本題と関係のない行が増えて読めなくなる**。
+// ブロックが効くことは、このファイルの専用のテストで見る。
+vi.mock("../block", () => ({
+    isBlocked: (...a: unknown[]) => mockIsBlocked(...(a as [])),
+    hiddenUserIds: async () => new Set<string>(),
+}));
+
 const { getComments, postComment, deleteComment, overBudgetCount } = await import("../comments");
 type Comment = { id: string; uid: string; name: string; text: string; t: string };
 
@@ -36,6 +47,7 @@ beforeEach(() => {
     mockDdbSend.mockReset();
     mockDeletedIds.mockReset().mockResolvedValue(new Set<string>());
     mockPush.mockReset().mockResolvedValue(undefined);
+    mockIsBlocked.mockReset().mockResolvedValue(false);
     mockLookup.mockReset().mockResolvedValue("旅人A");
 });
 
@@ -898,5 +910,42 @@ describe("コメントの通知: 古い写真の投稿者にも届く", () => {
     it("自分の写真には通知しない（uploadedBy でも）", async () => {
         expect((await commentOn({ uploadedBy: "me" }, "me")).statusCode).toBe(200);
         expect(mockPush, "自分のコメントで自分に通知している").not.toHaveBeenCalled();
+    });
+});
+
+
+// **通知だけ止めても足りない。** コメントの本文は**公開**で誰でも読める
+// （500字）ので、相手の写真に自分の言葉が残り続ける。
+// **404 で返す**——「ブロックされています」と言うと相手の操作を教える
+describe("コメント: ブロックされていたら書けない", () => {
+    const world = (photo: Record<string, unknown>) => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const id = String(cmd.input.Key?.id ?? "");
+                if (id === "p1") return Promise.resolve({ Item: { id: "p1", src: "s", ...photo } });
+                return Promise.resolve({ Item: { items: [] } });
+            }
+            return Promise.resolve({ Attributes: { items: [] } });
+        });
+    };
+
+    it("ブロックされていたら 404（本文も通知も残さない）", async () => {
+        mockIsBlocked.mockResolvedValue(true);
+        world({ userId: "owner" });
+        const res = await invoke(postComment, ev("me", { id: "p1" }, { text: "しつこい" }));
+        expect(res.statusCode).toBe(404);
+        expect(mockPush, "ブロックされているのに通知が飛んでいる").not.toHaveBeenCalled();
+    });
+
+    it("ブロックされていなければ今までどおり", async () => {
+        world({ userId: "owner" });
+        expect((await invoke(postComment, ev("me", { id: "p1" }, { text: "きれい" }))).statusCode).toBe(200);
+    });
+
+    // 自分の写真には自分で書ける（判定を素通りさせない向き）
+    it("自分の写真なら、判定に行かない", async () => {
+        world({ userId: "me" });
+        expect((await invoke(postComment, ev("me", { id: "p1" }, { text: "自分の" }))).statusCode).toBe(200);
+        expect(mockIsBlocked, "自分の写真でブロックを引きに行っている").not.toHaveBeenCalled();
     });
 });
