@@ -49,6 +49,19 @@ const run = async (apply: boolean) => {
 };
 
 describe("フォロワーの埋め戻し: main()", () => {
+    // **数が合わないときは理由を出す。** 本番で「マーカー 2 件 / 対象 0 人」
+    // が出たのに、理由がログに無かった
+    it("捨てたマーカーがあれば、理由と件数をログに出す", async () => {
+        const logs: string[] = [];
+        vi.mocked(console.log).mockImplementation(((...a: unknown[]) => { logs.push(a.join(" ")); }) as typeof console.log);
+        responses.scan = [
+            { id: `follow#${T}#${A}`, follow: true, createdAt: "2026-01-01" },
+            { id: "follow#garbage#alsobad", follow: true },
+        ];
+        await run(false);
+        expect(logs.join("\n"), "捨てた理由が出ていない").toMatch(/捨てた: 1 件/);
+    });
+
     it("ドライランでは1行も書かない", async () => {
         await run(false);
         expect(puts(), "ドライランなのに書いている").toHaveLength(0);

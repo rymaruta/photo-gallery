@@ -5,7 +5,7 @@ import { join } from "node:path";
 // `followers#<uid>` は既にあるフォロー関係には無い（`follow.ts` は今後の
 // フォローにしか書かない）。埋め戻しの中身をここで固定する。
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { parseMarker, buildFollowers, mergeFollowers, FOLLOWERS_MAX } = require("../backfill-followers.js");
+const { parseMarker, buildFollowers, mergeFollowers, FOLLOWERS_MAX, SKIP_REASONS } = require("../backfill-followers.js");
 
 const A = "11111111-1111-4111-8111-111111111111";
 const B = "22222222-2222-4222-8222-222222222222";
@@ -30,7 +30,29 @@ describe("フォロワーの埋め戻し", () => {
         [{ id: "follow#not-a-uuid#" + B, follow: true }],
         [{ id: `follow#${A}#not-a-uuid`, follow: true }],
     ])("フォロー関係でない行は捨てる: %j", (item) => {
-        expect(parseMarker(item)).toBeNull();
+        expect(parseMarker(item).skip, "理由を返していない").toBeTruthy();
+        expect(parseMarker(item).target).toBeUndefined();
+    });
+
+    // **捨てた理由を数える。** 本番のドライランで「マーカー 2 件 / 対象 0 人」
+    // が出たとき、理由を出していなかったので**正しくゴミを弾いたのか、
+    // 本物のフォローを取りこぼしたのかが分からなかった**
+    it("捨てた件数を理由ごとに数える", () => {
+        const out = buildFollowers([
+            { id: `follow#${A}#${B}`, follow: true },
+            { id: `follow#not-a-uuid#${B}`, follow: true },
+            { id: `follow#${A}`, follow: true },
+            { id: `follow#${A}#${B}` },
+        ]);
+        expect(out.size, "生きているフォロー関係まで捨てている").toBe(1);
+        expect(out.skipped.get(SKIP_REASONS.NOT_USER_ID)).toBe(1);
+        expect(out.skipped.get(SKIP_REASONS.SHAPE)).toBe(1);
+        expect(out.skipped.get(SKIP_REASONS.NOT_MARKER)).toBe(1);
+    });
+
+    it("全部きれいなら、捨てた理由は空", () => {
+        const out = buildFollowers([{ id: `follow#${A}#${B}`, follow: true }]);
+        expect(out.skipped.size).toBe(0);
     });
 
     // 並びは `following#` と同じ「新しい順」。`createdAt` を持たない

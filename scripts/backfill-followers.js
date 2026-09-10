@@ -70,12 +70,29 @@ const FOLLOWERS_MAX = 2000;
  */
 const USER_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-/** `follow#<target>#<follower>` を分解する。形が違えば null */
+/**
+ * 捨てた理由。**「マーカー N 件・対象 0 人」を黙って出さないため。**
+ *
+ * 本番のドライランで実際に「マーカー 2 件 / 対象 0 人」が出た。理由を
+ * 出していなかったので、**正しくゴミを弾いたのか、本物のフォローを
+ * 取りこぼしたのかが分からなかった**——台帳が戒めている
+ * 「0件と報告して『無い』と読ませる」型。
+ *
+ * **IDそのものは出さない**（診断ログに表示名を全部書き出した事故がある）。
+ * 出すのは理由と件数だけ。
+ */
+const SKIP_REASONS = {
+    NOT_MARKER: "follow: true を持たない",
+    SHAPE: "follow#<相手>#<自分> の形でない",
+    NOT_USER_ID: "IDが Cognito の sub の形でない（isUserId 導入前のゴミ）",
+};
+
+/** `follow#<target>#<follower>` を分解する。形が違えば `{ skip: 理由 }` */
 function parseMarker(item) {
-    if (!item || item.follow !== true || typeof item.id !== "string") return null;
+    if (!item || item.follow !== true || typeof item.id !== "string") return { skip: SKIP_REASONS.NOT_MARKER };
     const parts = item.id.split("#");
-    if (parts.length !== 3 || parts[0] !== "follow" || !parts[1] || !parts[2]) return null;
-    if (!USER_ID_RE.test(parts[1]) || !USER_ID_RE.test(parts[2])) return null;
+    if (parts.length !== 3 || parts[0] !== "follow" || !parts[1] || !parts[2]) return { skip: SKIP_REASONS.SHAPE };
+    if (!USER_ID_RE.test(parts[1]) || !USER_ID_RE.test(parts[2])) return { skip: SKIP_REASONS.NOT_USER_ID };
     return { target: parts[1], follower: parts[2], createdAt: typeof item.createdAt === "string" ? item.createdAt : "" };
 }
 
@@ -85,9 +102,14 @@ function parseMarker(item) {
  */
 function buildFollowers(items) {
     const byTarget = new Map();
+    /** 捨てた件数を理由ごとに数える（呼び出し側が必ず出す） */
+    const skipped = new Map();
     for (const item of items) {
         const m = parseMarker(item);
-        if (!m) continue;
+        if (m.skip) {
+            skipped.set(m.skip, (skipped.get(m.skip) ?? 0) + 1);
+            continue;
+        }
         if (!byTarget.has(m.target)) byTarget.set(m.target, []);
         byTarget.get(m.target).push(m);
     }
@@ -96,6 +118,7 @@ function buildFollowers(items) {
         list.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
         out.set(target, list.map((m) => m.follower));
     }
+    out.skipped = skipped;
     return out;
 }
 
@@ -155,6 +178,11 @@ async function main(deps) {
 
     const byTarget = buildFollowers(markers);
     console.log(`[followers] 走査 ${scanned} 行 / マーカー ${markers.length} 件 / 対象 ${byTarget.size} 人`);
+    // **数が合わないときは、必ず理由を出す。** 出さないと「対象 0 人」が
+    // 「フォロー関係が無い」なのか「全部弾いた」なのか読めない
+    for (const [reason, count] of byTarget.skipped) {
+        console.log(`[followers]   捨てた: ${count} 件（${reason}）`);
+    }
 
     let written = 0;
     let unchanged = 0;
@@ -210,7 +238,7 @@ async function main(deps) {
     }
 }
 
-module.exports = { main, parseMarker, buildFollowers, mergeFollowers, FOLLOWERS_MAX, USER_ID_RE };
+module.exports = { main, parseMarker, buildFollowers, mergeFollowers, FOLLOWERS_MAX, USER_ID_RE, SKIP_REASONS };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
