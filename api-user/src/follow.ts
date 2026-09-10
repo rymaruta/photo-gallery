@@ -85,10 +85,30 @@ async function readStats(uid: string): Promise<{ followers: number; following: n
     };
 }
 
+/**
+ * 一覧に入っている ID のうち、**画面に出してよいものだけ**返す。
+ *
+ * `isUserId` を入れる前は形も存在も見ずにマーカーと一覧を作れたので、
+ * **でたらめな ID が本番に実在する**（`backfill-followers` のドライランで
+ * 2件確認）。素通しすると一覧に「旅人」として並び、押すと空のプロフィール
+ * ——このリポジトリが何度も潰してきた行き止まり。
+ *
+ * **行は書き直さない**（読むだけ）。書き換えは競合の窓を増やすうえ、
+ * 消していいものかの判断が要る。出さないだけにする。
+ * **落とした ID は出さない**（診断ログに表示名を書き出した事故がある）。
+ */
+function usableUserIds(list: unknown, label: string): string[] {
+    if (!Array.isArray(list)) return [];
+    const out = list.filter((x): x is string => typeof x === "string" && isUserId(x));
+    if (out.length !== list.length) {
+        console.warn(`${label}: 形の違う ID を ${list.length - out.length} 件落としました`);
+    }
+    return out;
+}
+
 async function readFollowing(uid: string): Promise<string[]> {
     const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: followingId(uid) } }));
-    const list = res.Item?.list;
-    return Array.isArray(list) ? (list as string[]) : [];
+    return usableUserIds(res.Item?.list, `following#${uid}`);
 }
 
 /**
@@ -750,7 +770,7 @@ export const getUserFollowers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
             // `Promise.all` に素で入れると、スロットル1回で 500 になる
             readStats(uid).catch((e) => { console.error("getUserFollowers readStats:", e); return null; }),
         ]);
-        const list = Array.isArray(res.Item?.list) ? (res.Item.list as string[]) : [];
+        const list = usableUserIds(res.Item?.list, `followers#${uid}`);
         const page = list.slice(0, FOLLOWING_PAGE);
         const gone = page.length > 0 ? await deletedUserIds() : new Set<string>();
         const users = await Promise.all(page.map(async (id) => {

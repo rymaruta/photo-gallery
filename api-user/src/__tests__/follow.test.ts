@@ -624,8 +624,15 @@ describe("getFollowStats / getMyFollowing", () => {
     });
 
     it("自分の following userId 一覧を返す", async () => {
-        mockDdbSend.mockResolvedValueOnce({ Item: { list: ["a", "b"] } });
-        expect(JSON.parse((await invoke(getMyFollowing, ev(ME, undefined))).body)).toEqual({ userIds: ["a", "b"] });
+        mockDdbSend.mockResolvedValueOnce({ Item: { list: [OTHER, THIRD] } });
+        expect(JSON.parse((await invoke(getMyFollowing, ev(ME, undefined))).body)).toEqual({ userIds: [OTHER, THIRD] });
+    });
+
+    // 形の違う ID（`isUserId` 導入前のゴミ・本番に実在）は返さない。
+    // 画面はこれで `isFollowing` を決めるので、当たらない値を渡す意味が無い
+    it("形の違う ID は返さない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { list: [OTHER, "not-a-uuid"] } });
+        expect(JSON.parse((await invoke(getMyFollowing, ev(ME, undefined))).body)).toEqual({ userIds: [OTHER] });
     });
 });
 
@@ -869,7 +876,7 @@ describe("getUserFollowing（その人がフォローしている人）", () => 
     // 6秒には収まらない（`Promise.all` の並列でも、DynamoDB の応答と
     // 再送のぶんが積み上がる）
     it("50人までしか名前を引かない（総数は返す）", async () => {
-        const many = Array.from({ length: 60 }, (_, i) => `0000000${String(i).padStart(4, "0")}-1111-4111-8111-111111111111`);
+        const many = Array.from({ length: 60 }, (_, i) => `${String(i).padStart(8, "0")}-1111-4111-8111-111111111111`);
         mockDdbSend.mockImplementation((cmd: { input: { Key?: { id?: string } } }) => {
             const id = cmd.input.Key?.id ?? "";
             if (id === `followstats#${ME}`) return Promise.resolve({ Item: { followers: 0, following: 60 } });
@@ -913,6 +920,18 @@ describe("getUserFollowing（その人がフォローしている人）", () => 
     it("でたらめなIDは断る（何も読まない）", async () => {
         expect((await invoke(getUserFollowing, evUid(ME, "not-a-uuid"))).statusCode).toBe(400);
         expect(mockDdbSend).not.toHaveBeenCalled();
+    });
+
+    // フォロワー側と同じ。`following#` にも同じゴミが入りうる
+    it("形の違う ID は一覧に出さない", async () => {
+        mockDdbSend.mockImplementation((cmd: { input: { Key?: { id?: string } } }) => {
+            const id = cmd.input.Key?.id ?? "";
+            if (id === `followstats#${ME}`) return Promise.resolve({ Item: { followers: 0, following: 3 } });
+            return Promise.resolve({ Item: { list: [OTHER, "not-a-uuid", null] } });
+        });
+        const res = await invoke(getUserFollowing, evUid(ME, ME));
+        expect(JSON.parse(res.body).users).toEqual([{ id: OTHER }]);
+        expect(JSON.parse(res.body).listed).toBe(1);
     });
 
     // **共有キャッシュに載せない**（人の繋がりは本人向けの応答として扱う）
@@ -1149,8 +1168,24 @@ describe("フォロワーの一覧（followers#）", () => {
         expect(mockDdbSend).not.toHaveBeenCalled();
     });
 
+    // **本番に実在する。** `isUserId` を入れる前は形も存在も見ずにマーカーと
+    // 一覧を作れたので、でたらめな ID が残っている（埋め戻しのドライランで
+    // 2件確認）。素通しすると一覧に「旅人」として並び、押すと空のプロフィール
+    it("形の違う ID は一覧に出さない（行き止まりのリンクを作らない）", async () => {
+        world({
+            [`followers#${ME}`]: { list: [OTHER, "not-a-uuid", "", 42] },
+            [`followstats#${ME}`]: { followers: 4, following: 0 },
+        });
+        const res = await invoke(getUserFollowers, evUid(ME, ME));
+        expect(JSON.parse(res.body).users).toEqual([{ id: OTHER }]);
+        // **数は `followstats#` のまま**（落としたのは出せない行だけで、
+        // 数を作り直す根拠にはならない）。画面は食い違いを言える
+        expect(JSON.parse(res.body).total).toBe(4);
+        expect(JSON.parse(res.body).listed).toBe(1);
+    });
+
     it("50人までしか名前を引かない（総数は返す）", async () => {
-        const many = Array.from({ length: 60 }, (_, i) => `0000000${String(i).padStart(4, "0")}-1111-4111-8111-111111111111`);
+        const many = Array.from({ length: 60 }, (_, i) => `${String(i).padStart(8, "0")}-1111-4111-8111-111111111111`);
         world({
             [`followers#${ME}`]: { list: many },
             [`followstats#${ME}`]: { followers: 60, following: 0 },
