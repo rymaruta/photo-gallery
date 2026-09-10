@@ -82,6 +82,37 @@ describe("プロフィール編集: ログインが切れたときに打ちか�
         expect(String(mockReplace.mock.calls[0][0])).toContain("/login");
     });
 
+    // **保存が済んだら、留めるのをやめる。**
+    //
+    // サーバーは `displayName` / `bio` などを trim して返す
+    // （`api-user/src/userProfile.ts`）。素で比べていたので、**末尾に空白を
+    // 1つ打って保存すると、成功後も打ちかけ扱いのまま固まっていた**
+    // ——「保存しました」の直後に「この内容は保存できません」と言い、
+    // 以後この画面では送り返しが永久に効かない。
+    it("末尾の空白は打ちかけに数えない（保存後に固まらない）", async () => {
+        // 起動時の読み込み → 保存の PUT（trim された姿を返す）
+        mockUserFetch
+            .mockResolvedValueOnce({ ok: true, json: async () => STORED })
+            .mockResolvedValue({ ok: true, json: async () => ({ ...STORED, bio: "こんにちは" }) });
+
+        // **同じインスタンスのまま切り替える。** `render` で作り直すと
+        // state が読み込み直され、比べ方に関係なく打ちかけが消える
+        // ——最初そう書いて、素の比較に戻す変異が落ちなかった
+        const { rerender } = render(<ProfilePage />);
+        const bio = await screen.findByDisplayValue("こんにちは");
+        await userEvent.type(bio, "  ");   // 空白だけ足す
+        await userEvent.click(screen.getByRole("button", { name: /保存/ }));
+
+        // 保存が済んでもログインが切れたら送り返す（打ちかけは無い）
+        await waitFor(() => expect(toasts().some((t) => t.includes("保存しました"))).toBe(true));
+        authState.current = { isAuthenticated: false, loading: false };
+        rerender(<ProfilePage />);
+
+        await waitFor(() => expect(mockReplace, "空白だけで留まり続けている").toHaveBeenCalled());
+        expect(toasts().some((t) => t.includes("保存できません")),
+            "保存できたのに「保存できません」と言っている").toBe(false);
+    });
+
     // 判定中（`loading`）を「未ログイン」と混ぜない
     it("判定中は送り返さない", async () => {
         authState.current = { isAuthenticated: false, loading: true };

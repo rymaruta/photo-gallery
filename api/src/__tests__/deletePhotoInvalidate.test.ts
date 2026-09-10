@@ -104,6 +104,31 @@ describe("管理APIの写真削除", () => {
         expect(JSON.parse(res.body).staticStale, "公開されたままのページを黙っている").toBe(true);
     });
 
+    // **下書きでは依頼そのものを出さない**（`api-user` の `deleteMyPhoto`
+    // と同じ位置）。一度、依頼は無条件のまま応答の印だけ抑える形にした
+    // ——印の嘘は消えるが、**月次の予算は1本使う**（`rebuild.ts` は
+    // 「総量の予算は coalesce に関わらず見る」と明記）。下書きを1枚消す
+    // たびに8分のビルドが走る
+    it("下書きでは再ビルドを頼まない（予算を使わない）", async () => {
+        mockGetPhoto.mockResolvedValue({ ...PHOTO, published: false });
+        await invoke();
+        expect(mockRebuild, "無いページのためにビルドを1本使っている").not.toHaveBeenCalled();
+    });
+
+    it("公開中なら、今までどおり頼む", async () => {
+        mockGetPhoto.mockResolvedValue({ ...PHOTO, published: true });
+        await invoke();
+        expect(mockRebuild).toHaveBeenCalled();
+    });
+
+    // `published` を持たない古い行は「公開」（このリポジトリの慣習）
+    it("published を持たない古い行でも頼む", async () => {
+        const { published: _drop, ...noPublished } = { ...PHOTO, published: true };
+        mockGetPhoto.mockResolvedValue(noPublished);
+        await invoke();
+        expect(mockRebuild, "未指定＝公開の慣習から外れている").toHaveBeenCalled();
+    });
+
 // 逆向き: 消せなかったキーは回さない（消えていない実体のキャッシュを
     // 捨てても取り直されるだけで、無効化はパス単位で課金される）
     it("消せなかったキーはエッジに回さない", async () => {

@@ -154,9 +154,13 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         const metaChanged = META_FIELDS
             .some((k) => k in fields && !sameStoredValue(fields[k], stored[k]));
         // **項目まるごとの削除だけを拾う**（`api-user` の `applyMeta` と同じ線）。
-        // 説明の一文だけ消す・タグを1つ外すは値が非空のままなので数えない
-        const isRemoval = (v: unknown) => v === undefined || v === null
-            || (Array.isArray(v) && v.length === 0);
+        // 説明の一文だけ消す・タグを1つ外すは値が非空のままなので数えない。
+        //
+        // **空配列は見ない。** `pickEditableFields` が `tags: []` を
+        // undefined に潰すので、ここへ空配列が来る筋が無い（`api-user` の
+        // `applyMeta` は生の sanitize 結果を見るので、あちらでは要る）。
+        // 一度書いたが死にコードだった
+        const isRemoval = (v: unknown) => v === undefined || v === null;
         const metaRemoved = META_FIELDS
             .some((k) => k in fields && isRemoval(fields[k]) && !sameStoredValue(fields[k], stored[k]));
         // **届かなかったら行に印を残す**（api-user 側と同じ）。畳まれた・
@@ -356,24 +360,27 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // /photo/<id> の HTML はそのまま残る（本文・撮影地・EXIF・
         // 表示名入りの JSON-LD まで焼き込まれている）。定期ビルドは
         // 止めてあるので、頼まないと誰かが push するまで消えない。
-        // **戻り値を捨てない。** 捨てていたので「頼めたか」を返しようが
-        // なく、管理画面は削除のたびに「削除しました。」とだけ言っていた
-        const dispatched = await requestSiteRebuild(`photo deleted: ${id}`);
-
         // **「そもそも静的ページがあったか」を見る**（`api-user` の
-        // `deleteMyPhoto` と同じ条件）。見ずに `!dispatched` をそのまま
-        // 返すと、**一度も公開していない下書きを消すたびに**「個別ページは
-        // 残ることがあります」と出る——本番はトークン未設定で常に
-        // `dispatched === false` なので毎回。管理画面の一覧は下書きも並べる。
-        // 「管理者だけが『消えた』と思い込む」を直すつもりで、**逆向きの嘘**
-        // （消えているのに残ると言う）を作っていた
-        const hadStaticPage = (photo as Record<string, unknown>).published !== false
-            || (photo as Record<string, unknown>).staticStale === true;
+        // `deleteMyPhoto` と同じ条件・同じ位置）。
+        //
+        // 一度、**依頼は無条件に出したまま応答の印だけ抑える**形にした。
+        // 印の嘘（一度も公開していない下書きに「ページが残る」と言う）は
+        // 消えるが、**依頼は出たまま**——`rebuild.ts` が明記しているとおり
+        // 月次の予算は coalesce に関わらず1本使うので、下書きを1枚消す
+        // たびに8分のビルドが1本走る（トークンを登録した日から）。
+        // あちらは**依頼そのものを飛ばして**いる。揃える
+        let staticStale = false;
+        if ((photo as Record<string, unknown>).published !== false
+            || (photo as Record<string, unknown>).staticStale === true) {
+            // **戻り値を捨てない。** 捨てていたので「頼めたか」を返しようが
+            // なく、管理画面は削除のたびに「削除しました。」とだけ言っていた
+            staticStale = !await requestSiteRebuild(`photo deleted: ${id}`);
+        }
 
         return {
             statusCode: 200,
             headers: JSON_HEADERS,
-            body: JSON.stringify(hadStaticPage && !dispatched
+            body: JSON.stringify(staticStale
                 ? { success: true, staticStale: true }
                 : { success: true }),
         };

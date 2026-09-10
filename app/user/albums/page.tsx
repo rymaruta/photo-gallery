@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { useLocale } from "../../i18n/context";
@@ -58,6 +58,22 @@ export default function AlbumsPage() {
             !== (albums?.find((a) => a.id === editing.id)?.title ?? "").trim());
 
     const gate = useMemberGate(hasUnsavedWork);
+
+    /**
+     * **留めたぶん、保存できないことを伝える。** 送り返さないだけで黙って
+     * いると、「作る」を押しても失敗し続ける画面に取り残される。
+     * 一度だけ出す（`/user/edit` `/user/upload` `/user/profile` と同じ形）
+     */
+    const toldSignedOut = useRef(false);
+    useEffect(() => {
+        // ログインし直したら札を下ろす（二度目を無言にしない）
+        if (gate === "ok") { toldSignedOut.current = false; return; }
+        if (!hasUnsavedWork || toldSignedOut.current) return;
+        toldSignedOut.current = true;
+        showToast(locale === "en"
+            ? "You are signed out. This can't be saved yet — sign in again in another tab, then try again."
+            : "ログインが切れました。この内容は保存できません。別のタブでログインし直してから、もう一度お試しください", "error");
+    }, [gate, hasUnsavedWork, locale, showToast]);
     /** 消す前に一度聞く。**押し間違いで消させない**（削除は元に戻せない） */
     const [confirming, setConfirming] = useState<Album | null>(null);
 
@@ -178,7 +194,15 @@ export default function AlbumsPage() {
     };
 
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
-    if (gate !== "ok") {
+    // **送り返さないと決めた回は、画面も出す。**
+    //
+    // ここでスピナーに落とすと、打ちかけを守るために送り返さなかった意味が
+    // 無い——**見えないまま止まるだけ**で、打った名前は state に残っていても
+    // 読むことも直すこともできない。`/user/upload:1016` のコメントが
+    // この形を名指しで戒めているのに、**その戒めを読まずに同じ形を作った**
+    // （借りたのは `useMemberGate` の引数だけで、その引数が前提にしている
+    //   「画面も出す」を持ってこなかった）
+    if (gate !== "ok" && !hasUnsavedWork) {
         return (
             <main className="min-h-screen bg-black text-white flex items-center justify-center">
                 <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
