@@ -1123,6 +1123,20 @@ describe("フォロワーの一覧（followers#）", () => {
         expect(JSON.parse(res.body).users).toEqual([{ id: THIRD, deleted: true }]);
     });
 
+    // **数の Get が落ちただけで一覧を丸ごと失わせない**（`Promise.all` に
+    // 素で入れると、スロットル1回で 500 になる）
+    it("数の取得が落ちても 200 で一覧を返す", async () => {
+        mockDdbSend.mockImplementation((cmd: { input: { Key?: { id?: string } } }) => {
+            const id = cmd.input.Key?.id ?? "";
+            if (id === `followstats#${ME}`) return Promise.reject(new Error("throttled"));
+            return Promise.resolve({ Item: { list: [OTHER] } });
+        });
+        const res = await invoke(getUserFollowers, evUid(ME, ME));
+        expect(res.statusCode, "数が取れないだけで一覧を失っている").toBe(200);
+        expect(JSON.parse(res.body).users).toHaveLength(1);
+        expect(JSON.parse(res.body).total).toBe(1);
+    });
+
     it("その人にブロックされていたら 404（一覧を読まない）", async () => {
         mockIsBlocked.mockImplementation((blocker: string) => Promise.resolve(blocker === OTHER));
         const res = await invoke(getUserFollowers, evUid(ME, OTHER));
