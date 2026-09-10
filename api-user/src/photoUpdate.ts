@@ -314,25 +314,33 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // 無いので悪用できない**が、片側だけの防御は「脱退」を足した日に
         // 静かに穴になる（このリポジトリが何度も踏んでいる形）。
         //
+        // **「変わった回」ではなく「いま公開か」で見る。** `visibilityChanged`
+        // を条件にすると、1回目でここが落ちた（スロットル・500枚上限）あとに
+        // 押し直しても `wasPublished` が true なので二度と来ない
+        // ——**公開されているのにアルバムには一生入らない**。しかも 500 を
+        // 消したぶん、気づく手がかりも無い。`upload.ts` の再送は同じ場面に
+        // 「再送でもアルバムに足す（`addPhotoToAlbum` は冪等）」で答えていて、
+        // その理由もそこに書いてある。**同じ判断を隣で逆に書かない。**
+        //
+        // 代償はアルバムの写真を編集するたびに GetItem 1回と、条件で落ちる
+        // 書き込み1回。アルバムに入っている写真は数が少ないので飲む。
+        //
         // **判定は投げさせない。** ここは `UpdateCommand`（上の 238行）の
         // **あと**なので、裸の `await` を置くと写真はもう公開されているのに
-        // 外側の catch に落ちて **500「更新に失敗しました」**になる。しかも
-        // 画面の言うとおり押し直すと `wasPublished` が true で
-        // `visibilityChanged` が false ——**アルバムに足す処理を永久に飛ばす**
-        // ＝直したはずの「公開したのにアルバムに入らない」が戻る。
+        // 外側の catch に落ちて **500「更新に失敗しました」**になる。
         // すぐ下の `addPhotoToAlbum` が `.catch` で「失敗しても公開は成功で
         // 返す」と書いているのに、その直前に投げうる await を足していた。
-        // 分からないときは足さない側へ倒す（押し直しでは直らないので、
-        // 直すのは招待ページ側の `published !== false` のふるいに任せる）。
-        const stillMember = visibilityChanged && body.published !== false
-            && typeof existing.Item.albumId === "string" && existing.Item.albumId
-            ? await isAlbumMember(existing.Item.albumId, callerId).catch((e) => {
+        const albumId = typeof existing.Item.albumId === "string" ? existing.Item.albumId : "";
+        // 今回の指定が無ければ、保存されている状態がそのまま残る
+        const willBePublished = hasPublished ? body.published !== false : wasPublished;
+        const stillMember = willBePublished && albumId
+            ? await isAlbumMember(albumId, callerId).catch((e) => {
                 console.error(`updatePhotoVisibility: メンバー判定に失敗（${id}）:`, e);
                 return false;
             })
             : false;
         if (stillMember) {
-            await addPhotoToAlbum(existing.Item.albumId as string, id).catch((e) => {
+            await addPhotoToAlbum(albumId, id).catch((e) => {
                 console.error(`updatePhotoVisibility: アルバムに足せませんでした（${id}）:`, e);
             });
         }

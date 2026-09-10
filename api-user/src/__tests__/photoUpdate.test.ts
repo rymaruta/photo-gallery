@@ -886,6 +886,34 @@ describe("公開に切り替えたら、共同アルバムに入れる", () => {
         expect(mockAddToAlbum, "公開してもアルバムに入らない").toHaveBeenCalledWith("a1", "p1");
     });
 
+    // **「変わった回」で見ると、押し直しが効かない。** 1回目でここが落ちた
+    // （スロットル・500枚上限）あと押し直しても `wasPublished` が true で
+    // `visibilityChanged` が false ＝公開されているのに一生入らない。
+    // `upload.ts` の再送は同じ場面に「再送でもアルバムに足す」で答えている
+    it("既に公開済みの写真をもう一度公開しても、アルバムに足しにいく（押し直しで直る）", async () => {
+        world({ published: true, albumId: "a1" });
+        const res = await invoke(event("u1", "p1", { published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockAddToAlbum, "押し直しても直らない").toHaveBeenCalledWith("a1", "p1");
+    });
+
+    // 上の代償。公開中の写真を編集するたびに1回来る（冪等なので増えない）
+    it("公開中の写真のメタ情報だけ直しても、足しにいく", async () => {
+        world({ published: true, albumId: "a1" });
+        const res = await invoke(event("u1", "p1", { title: "新しい題" }));
+        expect(res.statusCode).toBe(200);
+        expect(mockAddToAlbum).toHaveBeenCalledWith("a1", "p1");
+    });
+
+    // **下書きのままなら足さない。** ここを緩めると、招待ページの
+    // `published !== false` のふるいだけが最後の砦になる
+    it("下書きのままメタ情報を直しても足さない", async () => {
+        world({ published: false, albumId: "a1" });
+        const res = await invoke(event("u1", "p1", { title: "新しい題" }));
+        expect(res.statusCode).toBe(200);
+        expect(mockAddToAlbum, "下書きがアルバムに入る").not.toHaveBeenCalled();
+    });
+
     it("アルバムに入っていない写真では呼ばない", async () => {
         world({ published: false });
         await invoke(event("u1", "p1", { published: true }));

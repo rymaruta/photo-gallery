@@ -4,6 +4,7 @@ const mockDdbSend = vi.hoisted(() => vi.fn());
 const mockPush = vi.hoisted(() => vi.fn());
 const mockLookup = vi.hoisted(() => vi.fn());
 const mockLookupIfSet = vi.hoisted(() => vi.fn<(uid: string) => Promise<string | undefined>>(async () => undefined));
+const mockDeleted = vi.hoisted(() => vi.fn<() => Promise<Set<string>>>(async () => new Set<string>()));
 const mockIsBlocked = vi.hoisted(() => vi.fn());
 
 vi.mock("../dynamodb", () => ({
@@ -15,6 +16,7 @@ vi.mock("../notify", () => ({
     pushNotification: mockPush,
     lookupDisplayName: mockLookup,
     lookupDisplayNameIfSet: (...a: unknown[]) => mockLookupIfSet(...(a as [string])),
+    deletedUserIds: () => mockDeleted(),
 }));
 // **境界として差し替える。** 素で通すと、この画面のほとんどのテストが
 // 使っている「`mockDdbSend` に順番どおり答えさせる」形が1つずつずれる
@@ -89,6 +91,7 @@ beforeEach(() => {
     mockLookup.mockReset().mockResolvedValue("旅人A");
     mockIsBlocked.mockReset().mockResolvedValue(false);
     mockLookupIfSet.mockReset().mockResolvedValue(undefined);
+    mockDeleted.mockReset().mockResolvedValue(new Set<string>());
 });
 
 describe("followUser", () => {
@@ -839,6 +842,35 @@ describe("getUserFollowing（その人がフォローしている人）", () => 
         expect(JSON.parse(res.body).users).toHaveLength(50);
         expect(JSON.parse(res.body).total, "総数が分からない").toBe(60);
         expect(mockLookupIfSet, "全員ぶん引きに行っている").toHaveBeenCalledTimes(50);
+    });
+
+    // **退会した人は印で伝える。** 墓石の行に `displayName` は無いので
+    // 名前は引けないが、画面はそれを「名前を設定していない人」と区別できず
+    // 「旅人」という普通の行として出し、空のプロフィールへリンクしていた。
+    // 退会が消すのは自分の `following#` だけなので（`account.ts`）、
+    // **他人の一覧には残り続ける**
+    it("退会した人には印を付ける（普通の行として出させない）", async () => {
+        mockDdbSend.mockResolvedValue({ Item: { list: [OTHER, THIRD] } });
+        mockDeleted.mockResolvedValue(new Set([THIRD]));
+        mockLookupIfSet.mockResolvedValue("旅人B");
+        const res = await invoke(getUserFollowing, evUid(ME, ME));
+        expect(JSON.parse(res.body).users).toEqual([{ id: OTHER, name: "旅人B" }, { id: THIRD, deleted: true }]);
+    });
+
+    it("一覧が空なら、退会者の照会には行かない", async () => {
+        mockDdbSend.mockResolvedValue({ Item: { list: [] } });
+        await invoke(getUserFollowing, evUid(ME, ME));
+        expect(mockDeleted).not.toHaveBeenCalled();
+    });
+
+    // 片側だけの防御を作らない（`getStories` / `getStoryReplies` /
+    // `postComment` は全部この判定を通している）
+    it("その人にブロックされていたら 404（一覧を読まない）", async () => {
+        mockIsBlocked.mockImplementation((blocker: string) => Promise.resolve(blocker === OTHER));
+        const res = await invoke(getUserFollowing, evUid(ME, OTHER));
+        expect(res.statusCode).toBe(404);
+        expect(JSON.parse(res.body).error).not.toContain("ブロック");
+        expect(mockDdbSend).not.toHaveBeenCalled();
     });
 
     it("でたらめなIDは断る（何も読まない）", async () => {

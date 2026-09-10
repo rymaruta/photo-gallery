@@ -3,7 +3,7 @@ import { hasAnyUserItem } from "./ddb-photos";
 import { PutCommand, UpdateCommand, GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
-import { pushNotification, lookupDisplayName, lookupDisplayNameIfSet } from "./notify";
+import { pushNotification, lookupDisplayName, lookupDisplayNameIfSet, deletedUserIds } from "./notify";
 import { requireEnv } from "./env";
 import { isUserId } from "./userId";
 import { isBlocked } from "./blockCheck";
@@ -559,15 +559,32 @@ const FOLLOWING_PAGE = 50;
  * （自分がフォローしている人）と `followstats#<uid>`（数）だけで、
  * 「誰にフォローされているか」を引ける行が無い。作るには
  * `followers#<uid>` を足して、既存のフォロー関係を埋め戻す移行が要る。
+ *
+ * **ブロックされていたら 404**（存在を教えない）。写真もプロフィールも
+ * 静的サイトで誰にでも見えるので「隠す」効果は限定的だが、
+ * `getStories` / `getStoryReplies` / `postComment` が全部通している判定を
+ * 新しい口だけ素通りさせる理由が無い（片側だけの防御を作らない）。
+ *
+ * **退会した人は名前ではなく印で伝える。** 墓石の行には `displayName` が
+ * 無いので `lookupDisplayNameIfSet` は `undefined` を返すが、画面はそれを
+ * 「名前を設定していない人」と区別できず、**「旅人」という普通の行**として
+ * 出して空のプロフィールへリンクしていた。しかも退会は自分の
+ * `following#` しか消さないので（`account.ts`）、**他人の一覧には残り続ける**。
+ * `getComments` / `getNotifications` / `getStoryReplies` と同じ
+ * `deletedUserIds()`（60秒の控えつき）を通す。
  */
 export const getUserFollowing: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const uid = event.pathParameters?.uid;
+    const me = getUserId(event);
     if (!uid || !isUserId(uid)) return jsonError(400, "不正なリクエスト");
     try {
+        if (me && await isBlocked(uid, me)) return jsonError(404, "ユーザーが見つかりません");
         const list = await readFollowing(uid);
-        const users = await Promise.all(list.slice(0, FOLLOWING_PAGE).map(async (id) => {
-            // 退会した人は名前を出さない（`getComments` と同じ扱い）。
-            // `lookupDisplayNameIfSet` は握って undefined を返す
+        const page = list.slice(0, FOLLOWING_PAGE);
+        // 引くのは一覧が空でないときだけ（`getComments` と同じ）
+        const gone = page.length > 0 ? await deletedUserIds() : new Set<string>();
+        const users = await Promise.all(page.map(async (id) => {
+            if (gone.has(id)) return { id, deleted: true };
             const name = await lookupDisplayNameIfSet(id);
             return name ? { id, name } : { id };
         }));
