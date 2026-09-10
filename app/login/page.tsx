@@ -241,7 +241,11 @@ function LoginForm() {
 
                         <p className="text-center text-xs text-white/50 pt-1">
                             アカウントをお持ちでない方は{" "}
-                            <Link href="/signup" className="text-white/60 hover:text-white underline transition-colors">
+                            {/* **`next` を渡す。** 渡さないと、招待リンクや
+                                共有リンクから来た未登録の人は、ここを押した
+                                時点で行き先を失う（登録を終えると自分の空
+                                プロフィールに着地する） */}
+                            <Link href={nextPath ? `/signup?next=${encodeURIComponent(nextPath)}` : "/signup"} className="text-white/60 hover:text-white underline transition-colors">
                                 新規登録
                             </Link>
                         </p>

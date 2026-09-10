@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { signUp, confirmSignUp, resendConfirmationCode } from "../../lib/auth/cognito";
 import { pendingNameKey, pendingVerifyKey } from "../../lib/utils/pendingName";
+import { safeNextPath } from "../../lib/routes";
 import { EnvelopeIcon, LockClosedIcon, CheckCircleIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 type Step = "register" | "verify" | "done";
@@ -34,8 +35,21 @@ function clearPending(em: string) {
     try { localStorage.removeItem(pendingVerifyKey(em)); } catch { /* ignore */ }
 }
 
-export default function SignupPage() {
+function SignupForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    // **戻り先を登録の向こう側まで運ぶ。** 招待リンク（`/j?t=…`）で来た
+    // 未登録の人は、ログイン画面の「新規登録」を押した時点で `next` を
+    // 落としていた——登録を終えると必ず自分の空プロフィールに着地し、
+    // 招待に戻る手段が履歴しか無かった。**招待から入った新規ユーザーが
+    // いちばん最後で必ず落ちる**形。値は `safeNextPath` に通す
+    // （外へ飛ばす値を素通しすると、この画面がオープンリダイレクトの
+    // 踏み台になる。`safeNextPath` は過去に2回抜かれている）
+    const nextPath = safeNextPath(searchParams?.get("next"));
+    // 確認が済んだことをログイン画面のバナーに伝える。**`verified=1` を
+    // 付ける箇所がリポジトリに1つも無く**、バナーは死んだ画面だった
+    // （テストは自前で `verified=1` を作っていたので気づけない）
+    const loginHref = `/login?verified=1${nextPath ? `&next=${encodeURIComponent(nextPath)}` : ""}`;
     const { isAuthenticated, loading } = useAuth();
     const { showToast } = useToast();
 
@@ -276,7 +290,7 @@ export default function SignupPage() {
 
                         <p className="text-center text-xs text-white/50 pt-2">
                             すでにアカウントをお持ちの方は{" "}
-                            <Link href="/login" className="text-white/60 hover:text-white underline transition-colors">
+                            <Link href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login"} className="text-white/60 hover:text-white underline transition-colors">
                                 ログイン
                             </Link>
                         </p>
@@ -348,7 +362,7 @@ export default function SignupPage() {
                             ログインして写真のアップロードをお楽しみください。
                         </p>
                         <Link
-                            href="/login"
+                            href={loginHref}
                             className="block w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 active:scale-[0.98] transition text-center"
                         >
                             ログインする
@@ -357,5 +371,15 @@ export default function SignupPage() {
                 )}
             </div>
         </main>
+    );
+}
+
+export default function SignupPage() {
+    // `useSearchParams` は Suspense の中で使う（静的書き出しの前提。
+    // `/login`・`/users`・`/j` も同じ形）
+    return (
+        <Suspense>
+            <SignupForm />
+        </Suspense>
     );
 }

@@ -91,6 +91,21 @@ describe("LoginPage - 基本フロー", () => {
         expect(screen.getByText(/メールアドレスの確認が完了しました/)).toBeInTheDocument();
     });
 
+    // **`next` を落としていた。** 招待リンクや共有リンクから来た未登録の人が
+    // ここを押すと行き先が消え、登録を終えると自分の空プロフィールに着地する
+    it("next があれば、新規登録のリンクにも引き継ぐ", () => {
+        mockSearchParams = new URLSearchParams("next=%2Fj%3Ft%3Dabc");
+        render(<LoginPage />);
+        expect(screen.getByRole("link", { name: "新規登録" }))
+            .toHaveAttribute("href", `/signup?next=${encodeURIComponent("/j?t=abc")}`);
+    });
+
+    it("外部のURLを next に入れられても、新規登録には付けない", () => {
+        mockSearchParams = new URLSearchParams("next=https%3A%2F%2Fevil.example%2Fx");
+        render(<LoginPage />);
+        expect(screen.getByRole("link", { name: "新規登録" })).toHaveAttribute("href", "/signup");
+    });
+
     it("verifiedパラメータがないときバナーは表示されない", () => {
         render(<LoginPage />);
         expect(screen.queryByText(/メールアドレスの確認が完了しました/)).not.toBeInTheDocument();

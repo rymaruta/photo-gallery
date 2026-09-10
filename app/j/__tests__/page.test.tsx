@@ -63,6 +63,15 @@ describe("招待ページ: 閲覧", () => {
         expect(link.getAttribute("href")).toContain(`next=${encodeURIComponent(`/j?t=${"a".repeat(32)}`)}`);
     });
 
+    // **はじめての人の入口が無かった。** ログインしか出していないと、
+    // 未登録の人はログイン画面の「新規登録」を押すことになり、
+    // そこで戻り先が消えていた（登録を終えると自分の空プロフィールへ）
+    it("未登録の人には新規登録も出す（戻り先つき）", async () => {
+        render(<InvitePage />);
+        const link = await screen.findByRole("link", { name: "新規登録" });
+        expect(link.getAttribute("href")).toBe(`/signup?next=${encodeURIComponent(`/j?t=${"a".repeat(32)}`)}`);
+    });
+
     it("見るだけならログインが要らないと伝える", async () => {
         render(<InvitePage />);
         expect(await screen.findByText(/見るだけならログインは要りません/)).toBeInTheDocument();

@@ -171,7 +171,19 @@ function InviteView() {
                             >
                                 ログインして参加する
                             </Link>
-                            <p className="text-xs text-white/60 mt-3">写真を見るだけならログインは要りません。</p>
+                            {/* **はじめての人の入口も出す。** ログインしか
+                                無いと、未登録の人はログイン画面の「新規登録」を
+                                押すことになり、そこで戻り先が消えていた */}
+                            <p className="text-xs text-white/60 mt-3">
+                                はじめての方は{" "}
+                                <Link
+                                    href={`${ROUTES.SIGNUP}?next=${encodeURIComponent(`/j?t=${token}`)}`}
+                                    className="underline hover:text-white transition-colors"
+                                >
+                                    新規登録
+                                </Link>
+                                。写真を見るだけならログインは要りません。
+                            </p>
                         </>
                     )}
                 </div>

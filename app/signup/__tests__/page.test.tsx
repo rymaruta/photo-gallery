@@ -26,8 +26,10 @@ const mockConfirmSignUp = vi.fn();
 const mockResend = vi.fn();
 const mockShowToast = vi.fn();
 
+let mockSearchParams = new URLSearchParams();
 vi.mock("next/navigation", () => ({
     useRouter: () => ({ push: mockPush, replace: vi.fn() }),
+    useSearchParams: () => mockSearchParams,
 }));
 
 vi.mock("../../auth/context", () => ({
@@ -54,6 +56,7 @@ vi.mock("next/link", () => ({
 import SignupPage from "../page";
 
 beforeEach(() => {
+    mockSearchParams = new URLSearchParams();
     localStorageMock.clear();
     mockPush.mockReset();
     mockSignUp.mockReset();
@@ -242,6 +245,44 @@ describe("SignupPage - 確認ステップ", () => {
         });
         expect(mockConfirmSignUp).toHaveBeenCalledWith("uuid-1234", "123456");
         expect(localStorageMock.getItem("jp_verify_u@example.com")).toBeNull();
+        // **確認が済んだことをログイン画面に伝える。** `verified=1` を付ける
+        // 箇所がリポジトリに1つも無く、あちらのバナーは死んだ画面だった
+        // （テストが自前で `verified=1` を作っていたので気づけない）
+        expect(screen.getByRole("link", { name: "ログインする" }))
+            .toHaveAttribute("href", "/login?verified=1");
+    });
+
+    // **戻り先を登録の向こう側まで運ぶ。** 招待リンク（`/j?t=…`）で来た
+    // 未登録の人は、ログイン画面の「新規登録」を押した時点で `next` を
+    // 落としていた——登録を終えると必ず自分の空プロフィールに着地し、
+    // 招待に戻る手段が履歴しか無かった
+    it("next があれば、完了後のログインにも引き継ぐ", async () => {
+        mockSearchParams = new URLSearchParams("next=%2Fj%3Ft%3Dabc");
+        const user = userEvent.setup();
+        render(<SignupPage />);
+        await goToVerifyStep(user);
+
+        mockConfirmSignUp.mockResolvedValue({ success: true });
+        await user.type(screen.getByPlaceholderText(/メールに届いた6桁のコード/), "123456");
+        await user.click(screen.getByRole("button", { name: /登録を確定する/ }));
+
+        await waitFor(() => expect(screen.getByRole("heading", { name: "登録完了" })).toBeInTheDocument());
+        expect(screen.getByRole("link", { name: "ログインする" }))
+            .toHaveAttribute("href", `/login?verified=1&next=${encodeURIComponent("/j?t=abc")}`);
+    });
+
+    // 外へ飛ばす値は捨てる（この画面が踏み台にならないように）
+    it("外部のURLを next に入れられても引き継がない", async () => {
+        mockSearchParams = new URLSearchParams("next=https%3A%2F%2Fevil.example%2Fx");
+        render(<SignupPage />);
+        expect(screen.getByRole("link", { name: "ログイン" })).toHaveAttribute("href", "/login");
+    });
+
+    it("next があれば「すでにアカウントをお持ちの方」のリンクにも付ける", async () => {
+        mockSearchParams = new URLSearchParams("next=%2Fj%3Ft%3Dabc");
+        render(<SignupPage />);
+        expect(screen.getByRole("link", { name: "ログイン" }))
+            .toHaveAttribute("href", `/login?next=${encodeURIComponent("/j?t=abc")}`);
     });
 
     it("確認コードが正しくない → エラーを表示し、ステップは変わらない", async () => {
