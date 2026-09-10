@@ -5,18 +5,13 @@ import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { pushNotification, lookupDisplayName } from "./notify";
 import { requireEnv } from "./env";
+import { isUserId } from "./userId";
 import { isDeletedProfile } from "./types";
 
 const USERS_TABLE = requireEnv("USERS_TABLE");
 
-/**
- * Cognito の sub（UUID）の形かどうか。
- * ここを見ないと、任意の文字列を相手に見立ててマーカー・カウンタ・
- * 通知文書を作れる（テーブルにゴミが際限なく積める）。
- */
-function isUserId(v: string): boolean {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
-}
+// `isUserId` は `userId.ts` へ移した（`block.ts` も同じ判定が要るため。
+// **複製した規則は静かにずれる**——このリポジトリが何度も踏んでいる形）。
 
 /**
  * その人が実在するか（プロフィール行の有無で見る）。
