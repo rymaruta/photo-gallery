@@ -1,0 +1,135 @@
+import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
+import { GetCommand, UpdateCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
+import { ddb, PHOTOS_TABLE } from "./dynamodb";
+import { JSON_HEADERS, getUserId, jsonError } from "./http";
+import { putPhoto } from "./ddb-photos";
+import { photoLimitError } from "./photoLimit";
+import { idFromUploadKey, keyFromUploadUrl } from "./uploadPolicy";
+import { sanitizeTitle } from "./sanitize";
+import { lookupDisplayNameIfSet } from "./notify";
+import type { Photo } from "./types";
+
+/**
+ * ストーリーの1枚を、ギャラリーの写真として残す。
+ *
+ * **このサイトにしかない向き。** Instagram が持っているのは
+ * 「投稿 → ストーリーへシェア」だけで、逆は無い（ハイライトは
+ * 「消えるものを消えないように見せる」だけで、中身はストーリーのまま）。
+ *
+ * ここでは段差の向きが逆になっている:
+ *
+ *     写真     個別ページ・サイトマップ・地図・撮影地/機材/タグの集約ページ
+ *              ＝**検索から人が来る**（CLAUDE.md の優先度そのもの）
+ *     ストーリー 24時間で消える。検索にはまったく出ない
+ *
+ * だから「消えるもの → 残るもの」を作る。新しい概念は増やさない
+ * ——できるのは**普通の写真の行**なので、編集画面も地図も年表も
+ * サイトマップも、既存の機械がそのまま働く。
+ *
+ * **下書き（`published: false`）で作る。** その場のノリで上げたものが
+ * 黙って検索に出るのは驚きが大きいし、撮影地もタイトルも無いままでは
+ * SEO の価値も無い。公開は本人が編集画面で押す（既存の経路）。
+ *
+ * **24時間で消える約束は壊さない。** 残るのは本人が選んだ1枚だけで、
+ * ストーリーの行は予定どおり消える。変わるのは「S3 の実体を消すかどうか」
+ * だけ——`keptAs` が立っていれば、その実体の持ち主は写真になったので
+ * ストーリー側は消さない（`stories.ts` の `storyMediaKeys`）。
+ */
+
+/** POST /stories/{id}/keep — このストーリーをギャラリーに残す（投稿者だけ） */
+export const keepStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const userId = getUserId(event);
+    const storyId = event.pathParameters?.id;
+    if (!userId || !storyId) return jsonError(400, "不正なリクエスト");
+
+    try {
+        const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: storyId } }));
+        const story = res.Item as Record<string, unknown> | undefined;
+        if (!story || story.story !== true) return jsonError(404, "ストーリーが見つかりません");
+        // 持ち主でない相手には実在を教えない（`getStoryViewers` と同じ）。
+        // **`userId ?? uploadedBy`**——`createStory` は必ず `userId` を書くが、
+        // 所有権の判定はリポジトリ全体でこの形に揃っている
+        if ((story.userId ?? story.uploadedBy) !== userId) return jsonError(404, "ストーリーが見つかりません");
+
+        // **動画は残せない。** 写真の行は画像を前提にしていて、サムネも
+        // 派生（AVIF）も `sharp` が作る。動画を写真として置くと、
+        // 一覧にも個別ページにも**再生できない静止画の枠**が並ぶ
+        if (story.mediaType === "video") {
+            return jsonError(400, "動画はギャラリーに残せません（写真だけ）");
+        }
+
+        // **既に残してあれば、そのまま返す（冪等）。** 二度押しても2枚に
+        // ならない。押した側からは1回目と同じ結果に見える
+        if (typeof story.keptAs === "string" && story.keptAs) {
+            return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ photoId: story.keptAs, already: true }) };
+        }
+
+        // 枚数の上限は写真の口と同じものを使う（複製した規則は静かにずれる）
+        const limit = await photoLimitError(userId, false);
+        if (limit) return limit;
+
+        const src = String(story.src ?? "");
+        const key = typeof story.key === "string" && story.key ? story.key : keyFromUploadUrl(src);
+        if (!src || !key) return jsonError(400, "この投稿は残せません");
+
+        // **写真IDは鍵から導出する**（`upload.ts` と同じ規則）。同じ実体からは
+        // 必ず同じIDになるので、二度押しは `putPhoto` の
+        // `attribute_not_exists(id)` が自然に弾く——新しい仕掛けを作らない
+        const photoId = idFromUploadKey(key);
+        const now = new Date().toISOString();
+        // 表示名はサーバーで引く（申告を保存しない）。未設定なら持たない
+        const displayName = await lookupDisplayNameIfSet(userId);
+
+        const photo: Photo = {
+            id: photoId,
+            src,
+            key,
+            // キャプションがあれば題に。**撮影日は作らない**——ストーリーの
+            // 投稿時刻から撮影日をこしらえると、年表と JSON-LD が嘘の日付で
+            // 並ぶ（台帳が「捏造の UTC 0時の行」として一度踏んでいる形）
+            title: sanitizeTitle(story.caption) ?? { ja: "無題", en: "Untitled" },
+            userId,
+            uploadedBy: userId,
+            ...(displayName ? { displayName } : {}),
+            // **下書きで作る。** 公開は本人が編集画面で押す
+            published: false,
+            // 投稿の時刻はストーリーのものを引き継ぐ（一覧の並びが
+            // 「その日に上げたもの」として正しい位置に来る）
+            createdAt: typeof story.createdAt === "string" ? story.createdAt : now,
+            updatedAt: now,
+        };
+
+        try {
+            await putPhoto(photo);
+        } catch (e) {
+            // 同じ鍵から既に写真が作られている（`keptAs` を書けなかった回の
+            // 押し直しなど）。**その写真を指して成功にする**——ここで 500 に
+            // すると、印だけが立たないまま永久に残せなくなる
+            if ((e as { name?: string }).name !== "ConditionalCheckFailedException") throw e;
+        }
+
+        // ストーリーに印を立てる。**これが「S3 の実体を消さない」の根拠**
+        // （`storyMediaKeys` が見る）。既に立っていれば何もしない
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: storyId },
+            UpdateExpression: "SET keptAs = :p",
+            ConditionExpression: "attribute_exists(id) AND attribute_not_exists(keptAs)",
+            ExpressionAttributeValues: { ":p": photoId },
+        })).catch(async (e) => {
+            if ((e as { name?: string }).name === "ConditionalCheckFailedException") return;
+            // **印を立てられなかったら、作った写真を片付ける。**
+            // 印が無いままだと、ストーリーの期限切れで **S3 の実体が消えて**
+            // 割れた画像の行だけが残る（`createAlbum` が同じ理由で
+            // 後片付けをしている）
+            console.error(`keepStory: 印を立てられませんでした（${storyId}）:`, e);
+            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: photoId } })).catch(() => undefined);
+            throw e;
+        });
+
+        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ photoId }) };
+    } catch (e) {
+        console.error("keepStory error:", e);
+        return jsonError(500, "残せませんでした。もう一度お試しください");
+    }
+};

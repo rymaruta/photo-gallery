@@ -37,6 +37,14 @@ function deriveStoryKey(item: Record<string, unknown>): string {
  * 公開URLで取得できる」状態になる。退会処理と同じ列挙を使う。
  */
 function storyMediaKeys(item: Record<string, unknown>): string[] {
+    // **ギャラリーに残した1枚の実体は消さない。**
+    // `keptAs` が立っているストーリーは、その S3 オブジェクトの持ち主が
+    // 写真の行に移っている（`storyKeep.ts`）。ここで消すと、残したはずの
+    // 写真が**割れた画像**になる——しかも写真の行は残るので、一覧にも
+    // 個別ページにも壊れた枠が並ぶ。
+    // 消すのは行だけ＝**24時間で消える約束は守られる**（残るのは本人が
+    // 選んだ1枚で、それは「ストーリー」ではなく「写真」になっている）。
+    if (typeof item.keptAs === "string" && item.keptAs) return [];
     const keys = new Set(mediaKeys(item));
     const primary = deriveStoryKey(item);
     if (primary) keys.add(primary);

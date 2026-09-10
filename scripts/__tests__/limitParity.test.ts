@@ -18,7 +18,7 @@ const read = (p: string) => readFileSync(join(ROOT, p), "utf8").replace(/^\s*\/\
 const sanitize = read("api-user/src/sanitize.ts");
 
 // **1人あたりのアップロード上限。** 画面（lib/utils/uploadLimits.ts）と
-// サーバー（api-user/src/upload.ts）の2か所に数字がある。ずれると
+// サーバー（api-user/src/photoLimit.ts）と画面の2か所に数字がある。ずれると
 // 「あと N 枚と出ているのに押すと 403」か「上げたのに投稿できないまま」
 // のどちらかになる。**コメントは「片方だけ変えると嘘になる」と警告して
 // いたのに、それを縛るものが無かった**（100 → 1000 に動かすときに気づいた）。
@@ -29,7 +29,11 @@ function numberIn(rel: string, re: RegExp, label: string): number {
 }
 
 describe("1人あたりのアップロード上限は、画面とサーバーで同じ", () => {
-    const server = () => numberIn("api-user/src/upload.ts", /(?:export )?const PHOTO_LIMIT_PER_USER = (\d+);/, "サーバーの上限");
+    // **`upload.ts` から `photoLimit.ts` へ移した。** `upload.ts` を import
+    // すると `rebuild.ts` まで引きずられ、上限だけ使いたい `storyKeep.ts` が
+    // 「再ビルドのトークンを配る関数」の一覧に載ってしまうため
+    // （`rebuildTokenScope.test.ts` が止めた）。数字の在りかは1つのまま
+    const server = () => numberIn("api-user/src/photoLimit.ts", /(?:export )?const PHOTO_LIMIT_PER_USER = (\d+);/, "サーバーの上限");
     const client = () => numberIn("lib/utils/uploadLimits.ts", /export const PHOTO_LIMIT_PER_USER = (\d+);/, "画面の上限");
 
     it("数字が一致する（片方だけ変えない）", () => {

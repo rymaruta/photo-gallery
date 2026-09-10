@@ -438,6 +438,23 @@ describe("deleteStory", () => {
         expect(rowDeleted, "辿る手がかり（行）まで消している").toBe(false);
     });
 
+    // **ギャラリーに残した1枚の実体は消さない。** `keptAs` が立っている
+    // ストーリーは、その S3 オブジェクトの持ち主が写真の行に移っている。
+    // ここで消すと、残したはずの写真が**割れた画像**になる（行は残るので
+    // 一覧にも個別ページにも壊れた枠が並ぶ）。行だけ消す＝24時間の約束は守る
+    it("ギャラリーに残した写真の実体は消さない（行だけ消す）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "u1", key: "uploads/a.jpg", keptAs: "photo-1" } })
+            .mockResolvedValue({});
+        const res = await invoke(deleteStory, authedEvent("u1", { pathParameters: { id: "story-1" } }));
+        expect(res.statusCode).toBe(200);
+        expect(mockS3Send, "残した写真の実体まで消している").not.toHaveBeenCalled();
+        const keys = mockDdbSend.mock.calls
+            .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand")
+            .map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
+        expect(keys, "行は予定どおり消す").toEqual(["storyreplies#story-1", "story-1"]);
+    });
+
     it("S3 が消せていれば、これまでどおり行も消す（正常系）", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "u1", key: "uploads/a.jpg" } })

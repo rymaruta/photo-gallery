@@ -584,6 +584,17 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # ストーリーの1枚をギャラリーに残す（投稿者だけ）。
+  # 作るのは**下書きの写真**なので、公開・再ビルドは既存の経路が受け持つ
+  keepStory:
+    handler: src/storyKeep.keepStory
+    events:
+      - httpApi:
+          path: /stories/{id}/keep
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
   deleteAccount:
     handler: src/account.deleteAccount
     environment:
