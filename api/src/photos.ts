@@ -53,7 +53,11 @@ const JSON_HEADERS = {
 // **`publicFeed` も落とす。** 公開一覧用 GSI に載せるための**内部の印**で、
 // 段階4のあとは「一覧に載っているかどうか」そのものになる。外に出す理由が
 // 無い（`staticStale` を同じ理由で落としているのと対）。
-export const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "publicFeed"] as const;
+// **内部の印は公開データに出さない。** `keptFrom` は「このストーリーから
+// 残した」という出どころで、載せると**まだ生きているストーリーのID**まで
+// 公開JSONと公開APIに出る。`staticStale` / `publicFeed` を落としているのと
+// 同じ線（振る舞いは変わらないが、内部の印を外に出さない）
+export const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom"] as const;
 
 export function stripPrivate<T extends Record<string, unknown>>(photo: T): T {
     const out = { ...photo };

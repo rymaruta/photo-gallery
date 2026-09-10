@@ -156,6 +156,20 @@ describe("getStories", () => {
         expect(items.find((i) => i.id === "s2")?.replyCount, "他人に返信の数を教えている").toBeUndefined();
     });
 
+    // 「残した」印も本人だけ（`viewers` と同じ扱い）
+    it("keptAs も投稿者にだけ返す", async () => {
+        mockDdbSend.mockResolvedValueOnce({
+            Items: [
+                { id: "s1", userId: "me", createdAt: "1", keptAs: "p-1" },
+                { id: "s2", userId: "other", createdAt: "2", keptAs: "p-2" },
+            ],
+        });
+        const res = await invoke(getStories, authedEvent("me"));
+        const items = JSON.parse(res.body) as Array<{ id: string; keptAs?: string }>;
+        expect(items.find((i) => i.id === "s1")?.keptAs, "自分の分まで消している").toBe("p-1");
+        expect(items.find((i) => i.id === "s2")?.keptAs, "他人に「残した」印を返している").toBeUndefined();
+    });
+
     it("ページネーション（LastEvaluatedKey）を辿って全件返す", async () => {
         // 種類で答える（上と同じ理由。GetItem と並行になった）
         let page = 0;

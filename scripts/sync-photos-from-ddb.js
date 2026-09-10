@@ -124,7 +124,9 @@ function checkWriteSafety(nextCount, prevCount, { allowEmpty = ALLOW_EMPTY } = {
 // **`publicFeed` も落とす。** 公開一覧用 GSI に載せるための**内部の印**で、
 // 段階4のあとは「一覧に載っているかどうか」そのものになる。外に出す理由が
 // 無い（`staticStale` を同じ理由で落としているのと対）。
-const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "commentCount", "publicFeed"];
+// `keptFrom`（残した出どころ）も落とす。載せると、まだ生きている
+// ストーリーのIDが静的サイトに焼かれる（`api/src/photos.ts` と対）
+const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "commentCount", "publicFeed", "keptFrom"];
 
 function stripPrivateFields(item) {
     const out = { ...item };

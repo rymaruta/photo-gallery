@@ -181,6 +181,39 @@ export const unblockUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     }
 };
 
+/**
+ * 退会したときの掃除。**自分が作ったブロックの行を消す。**
+ *
+ * 残すと、相手のブロック一覧に「退会したユーザー」の行が出続け、印
+ * （`block#`）も誰にも消されないまま残る——このファイルの冒頭が書いている
+ * とおり、このテーブルは公開一覧（全表 Scan）が端から端まで読むので、
+ * 増えるほど全員の表示が遅くなる。
+ *
+ * **一覧の書き換えは `editList` に通す**（条件付き＋やり直し）。
+ * ここで自前に書くと、同じ規則が2つになって静かにずれる。
+ * **失敗しても投げない**——退会を止めるほどのものではない
+ * （消し残しても見えるのは相手の一覧の1行で、GPS 入りの原本のような
+ * 取り返しのつかないものではない）。呼び出し側はログだけ残す。
+ */
+export async function purgeBlocksFor(uid: string): Promise<void> {
+    if (!uid) return;
+    const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: blocksId(uid) } }));
+    const blocked = ids(res.Item as Record<string, unknown> | undefined, "blockedIds");
+    for (const target of blocked) {
+        await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: blockMarkerId(uid, target) } }))
+            .catch((e) => console.error(`purgeBlocksFor: 印を消せませんでした（${target}）:`, e));
+        await editList(blockedById(target), "blockerIds", null, uid)
+            .catch((e) => console.error(`purgeBlocksFor: 相手の一覧から外せませんでした（${target}）:`, e));
+    }
+    await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: blocksId(uid) } }))
+        .catch((e) => console.error(`purgeBlocksFor: 自分の一覧を消せませんでした（${uid}）:`, e));
+    // 自分をブロックしていた人の印（`block#<相手>#<自分>`）はここからは
+    // 辿れるが**消さない**——相手の `blocks#` に残っている ID と食い違わせない
+    // ため。相手が解除するか、相手が退会するときに一緒に消える
+    await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: blockedById(uid) } }))
+        .catch((e) => console.error(`purgeBlocksFor: 被ブロックの一覧を消せませんでした（${uid}）:`, e));
+}
+
 /** GET /user/blocks — 自分がブロックした人 */
 export const listBlocks: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const me = getUserId(event);

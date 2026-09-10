@@ -6,6 +6,7 @@ import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { mediaKeys } from "./mediaKeys";
 import { s3DeleteMany } from "./s3Delete";
 import { invalidateUploads } from "./cdnInvalidate";
+import { purgeBlocksFor } from "./block";
 import { requireEnv } from "./env";
 import { requestSiteRebuild } from "./rebuild";
 import { isDeletedProfile } from "./types";
@@ -557,6 +558,10 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // 5. 自分の各ドキュメント（既知キー）
         await ddbDelete(PHOTOS_TABLE, { id: `notifs#${uid}` });
         await ddbDelete(PHOTOS_TABLE, { id: `followstats#${uid}` });
+        // ブロックの行（印・自分の一覧・被ブロックの一覧）。
+        // **失敗しても退会は止めない**（フォローの掃除と同じ扱い）
+        await purgeBlocksFor(uid)
+            .catch((e) => console.error(`deleteAccount: ブロックの掃除に失敗（${uid}）:`, e));
 
         // 共同アルバム（案C）。**自分が作ったアルバムと、自分の参加の印を消す。**
         // 残すと、退会した人のアルバムが招待リンクから開けたまま残り、

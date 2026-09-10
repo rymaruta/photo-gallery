@@ -7,7 +7,7 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 
-const { blockUser, unblockUser, listBlocks, isBlocked, hiddenUserIds, BLOCKS_MAX, blockMarkerId, blocksId, blockedById }
+const { blockUser, unblockUser, listBlocks, isBlocked, hiddenUserIds, purgeBlocksFor, BLOCKS_MAX, blockMarkerId, blocksId, blockedById }
     = await import("../block");
 
 // **UUID の形で書く。** 実装は相手のIDの形を見る（見ないと、任意の文字列で
@@ -237,5 +237,45 @@ describe("ブロック: 途中で落ちたときの倒れ方", () => {
         expect(r.statusCode, "競合しただけで諦めている").toBe(200);
         const writes = cmds().filter((c) => c.constructor.name === "UpdateCommand").map(keyOf);
         expect(writes.filter((k) => k === blocksId(ME)).length, "やり直していない").toBe(2);
+    });
+});
+
+
+// **退会したら、自分が作ったブロックの行を消す。** 残すと相手の一覧に
+// 「退会したユーザー」の行が出続け、印も誰にも消されない——このテーブルは
+// 公開一覧（全表 Scan）が端から端まで読むので、増えるほど全員が遅くなる
+describe("purgeBlocksFor（退会の掃除）", () => {
+    it("印・自分の一覧・被ブロックの一覧を消し、相手の一覧からも外す", async () => {
+        world({
+            [blocksId(ME)]: { blockedIds: [THEM] },
+            [blockedById(THEM)]: { blockerIds: [ME, OTHER] },
+        });
+        await purgeBlocksFor(ME);
+        const deleted = cmds().filter((c) => c.constructor.name === "DeleteCommand").map(keyOf);
+        expect(deleted, "印が残る").toContain(blockMarkerId(ME, THEM));
+        expect(deleted, "自分の一覧が残る").toContain(blocksId(ME));
+        expect(deleted, "被ブロックの一覧が残る").toContain(blockedById(ME));
+        // 相手の一覧からは**自分だけ**外す（他の人を巻き込まない）
+        const edit = cmds().find((c) => c.constructor.name === "UpdateCommand" && keyOf(c) === blockedById(THEM));
+        expect(edit, "相手の一覧に自分が残る").toBeTruthy();
+        expect((edit!.input.ExpressionAttributeValues as Record<string, unknown>)[":next"],
+            "他の人まで消している").toEqual([OTHER]);
+    });
+
+    it("誰もブロックしていなければ、自分の行だけ消す", async () => {
+        world();
+        await purgeBlocksFor(ME);
+        const edits = cmds().filter((c) => c.constructor.name === "UpdateCommand");
+        expect(edits, "誰の一覧も触らない").toHaveLength(0);
+    });
+
+    // **退会は止めない。** 消し残しても見えるのは相手の一覧の1行で、
+    // GPS 入りの原本のような取り返しのつかないものではない
+    it("途中で落ちても投げない", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({ Item: { blockedIds: [THEM] } });
+            return Promise.reject(new Error("boom"));
+        });
+        await expect(purgeBlocksFor(ME)).resolves.toBeUndefined();
     });
 });

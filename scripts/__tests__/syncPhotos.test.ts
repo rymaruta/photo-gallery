@@ -154,10 +154,12 @@ describe("公開JSONから落とす項目", () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { stripPrivateFields, PRIVATE_FIELDS } = require("../sync-photos-from-ddb.js");
 
-    it.each(["srcOriginal", "key", "staticStale", "publicFeed"])("%s は出さない", (field) => {
+    // `keptFrom` も。載せると、まだ生きているストーリーのIDが静的サイトに焼かれる
+    it.each(["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom"])("%s は出さない", (field) => {
         const out = stripPrivateFields({
             id: "p1", src: "https://cdn/x.jpg", title: "あ",
             srcOriginal: "https://cdn/x_orig.jpg", key: "uploads/u/x.jpg", staticStale: true, publicFeed: "1",
+            keptFrom: "story-abc",
         });
         expect(out[field], `${field} が公開JSONに載っている`).toBeUndefined();
         expect(PRIVATE_FIELDS).toContain(field);

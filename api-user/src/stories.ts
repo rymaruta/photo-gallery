@@ -155,7 +155,12 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
             // **返信の数は投稿者にだけ返す。** 見た人には「このストーリーに
             // 何件届いたか」を知らせない（誰が反応したかは `viewers` と同じく
             // 本人だけのもの）。所有者の画面はこの数でバッジを出す
-            if (item.userId !== userId) delete item.replyCount;
+            if (item.userId !== userId) {
+                delete item.replyCount;
+                // 「残した」印も本人だけ。画面は `isOwnStory` で守っているが、
+                // 応答に出す理由が無い（`viewers` と同じ扱い）
+                delete item.keptAs;
+            }
         }
         const visible = hidden.size === 0 ? items : items.filter((i) => !hidden.has(String(i.userId ?? "")));
         visible.sort((a, b) => String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? "")));
