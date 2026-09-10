@@ -12,10 +12,13 @@ import { ROUTES } from "../../lib/routes";
 import UserAvatar from "./UserAvatar";
 
 type Notif = {
-    // 実際に作られるのは like / comment / follow の3種類。
+    // 実際に作られるのは like / comment / follow / storyreply の4種類。
     // inspired / go は「行きたいリスト」機能のもので、通知を作る側が
     // どこにも無い（マーカーを書く経路も、UIのボタンも存在しない）。
-    type: "like" | "comment" | "follow";
+    // **`api-user/src/notify.ts` の `Notif` と対。** 足したのに
+    // ここへ足さないと、下の分岐が「知らない種類」として何も出さない
+    // ＝**届いているのに画面には何も出ない**通知になる。
+    type: "like" | "comment" | "follow" | "storyreply";
     photoId: string;
     photoSrc: string;
     byName: string;
@@ -182,8 +185,8 @@ export default function NotificationsBell() {
                                     : status === "loading"
                                         ? (locale === "en" ? "Loading…" : "読み込み中…")
                                         : (locale === "en"
-                                            ? "Likes, comments, and new followers will show up here."
-                                            : "いいね・コメント・フォローがここに届きます。")}
+                                            ? "Likes, comments, story replies, and new followers will show up here."
+                                            : "いいね・コメント・ストーリーへの返信・フォローがここに届きます。")}
                             </p>
                         ) : (
                             <ul className="max-h-96 overflow-y-auto no-scrollbar divide-y divide-white/5">
@@ -196,7 +199,14 @@ export default function NotificationsBell() {
                                     // 本文はリンクのまま、という食い違いになる。
                                     // 迷ったら伏せる側（コメント欄も truthy 判定）。
                                     const isDeleted = !!n.deleted;
-                                    const goesNowhere = isDeleted && n.type === "follow";
+                                    // **開く先が無い通知**。判定は1か所で作る
+                                    // （2か所に分けると、アイコンだけ伏せて本文は
+                                    // リンクのまま、という食い違いになる）。
+                                    //   - 退会した人のフォロー通知（開く先が墓石）
+                                    //   - ストーリーへの返信（ストーリーに個別ページは無い。
+                                    //     `ROUTES.PHOTO(story-…)` は静的書き出しに
+                                    //     存在しないので 404 になる）
+                                    const goesNowhere = (isDeleted && n.type === "follow") || n.type === "storyreply";
                                     const body = (
                                         <>
                                             <div className="min-w-0 flex-1">
@@ -217,6 +227,13 @@ export default function NotificationsBell() {
                                                             {locale === "en"
                                                                 ? <><span className="font-semibold">{n.byName}</span> liked your photo</>
                                                                 : <><span className="font-semibold">{n.byName}</span> さんがあなたの写真にいいねしました</>}
+                                                        </>
+                                                    ) : n.type === "storyreply" ? (
+                                                        <>
+                                                            <ChatBubbleOvalLeftIcon className="w-3.5 h-3.5 text-amber-300 inline -mt-0.5 mr-1" />
+                                                            {locale === "en"
+                                                                ? <><span className="font-semibold">{n.byName}</span> replied to your story</>
+                                                                : <><span className="font-semibold">{n.byName}</span> さんがあなたのストーリーに返信しました</>}
                                                         </>
                                                     ) : n.type === "comment" ? (
                                                         <>

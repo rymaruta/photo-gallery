@@ -1,0 +1,239 @@
+import React from "react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type { StoryGroup } from "@/lib/stories";
+import { STORY_REACTIONS } from "@/lib/stories";
+
+// **見た人が反応する手段が1つも無かった。** 見て、消える。
+// 返信はストーリーの中心にある往復で、ここが無いと置いておくだけになる。
+
+const mockUserFetch = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+vi.mock("../../../../lib/utils/api", () => ({
+    userFetch: (...a: unknown[]) => mockUserFetch(...a),
+    authenticatedFetch: vi.fn(),
+    publicFetch: vi.fn(),
+    readApiError: async (_res: unknown, fallback: string) => fallback,
+    sessionErrorMessage: () => null,
+}));
+
+import StoryViewer from "../StoryViewer";
+
+/** 他人のストーリー2枚（返信できる側） */
+const othersGroups = (): StoryGroup[] => [{
+    userId: "friend",
+    displayName: "友人",
+    items: [
+        { id: "s1", src: "https://cdn/x/a.jpg", userId: "friend", createdAt: "2026-07-04T10:00:00Z", expiresAt: "2099-07-05T10:00:00Z" },
+        { id: "s2", src: "https://cdn/x/b.jpg", userId: "friend", createdAt: "2026-07-04T11:00:00Z", expiresAt: "2099-07-05T11:00:00Z" },
+    ],
+}];
+
+/** 自分のストーリー（返信を受け取る側） */
+const ownGroups = (replyCount?: number): StoryGroup[] => [{
+    userId: "me",
+    displayName: "自分",
+    items: [
+        { id: "s1", src: "https://cdn/x/a.jpg", userId: "me", createdAt: "2026-07-04T10:00:00Z", expiresAt: "2099-07-05T10:00:00Z", ...(replyCount ? { replyCount } : {}) },
+    ],
+}];
+
+const view = (groups: StoryGroup[], props: Partial<React.ComponentProps<typeof StoryViewer>> = {}) => render(
+    <StoryViewer
+        groups={groups}
+        initialGroupIndex={0}
+        locale="ja"
+        isAuthenticated
+        ownUserId="me"
+        onSeen={() => { /* noop */ }}
+        onClose={() => { /* noop */ }}
+        {...props}
+    />,
+);
+
+const replyPosts = () => mockUserFetch.mock.calls.filter(
+    (c) => String(c[0]).includes("/replies") && (c[1] as { method?: string })?.method === "POST");
+
+beforeEach(() => {
+    mockUserFetch.mockReset().mockResolvedValue({ ok: true, json: async () => ({}) });
+});
+
+describe("ストーリーへの返信（見る側）", () => {
+    it("絵文字を押すと、そのストーリーへ送る", async () => {
+        view(othersGroups());
+        await userEvent.click(await screen.findByLabelText(`${STORY_REACTIONS[0]} で反応する`));
+
+        await waitFor(() => expect(replyPosts()).toHaveLength(1));
+        const [url, init] = replyPosts()[0] as [string, { body: string }];
+        expect(url).toBe("/stories/s1/replies");
+        expect(JSON.parse(init.body)).toEqual({ emoji: STORY_REACTIONS[0] });
+        expect(await screen.findByText("送信しました")).toBeInTheDocument();
+    });
+
+    it("一言を打って送れる", async () => {
+        view(othersGroups());
+        await userEvent.type(await screen.findByLabelText("このストーリーに返信"), "きれい！");
+        await userEvent.click(screen.getByLabelText("送信"));
+
+        await waitFor(() => expect(replyPosts()).toHaveLength(1));
+        expect(JSON.parse((replyPosts()[0][1] as { body: string }).body)).toEqual({ text: "きれい！" });
+    });
+
+    // **変換確定の Enter で送らない。**「きょう」を「今日」に変換した瞬間に
+    // 飛ぶ（`lib/utils/ime.ts`。日本語で打つ人は必ず踏む）
+    it("変換確定の Enter では送らない", async () => {
+        view(othersGroups());
+        const input = await screen.findByLabelText("このストーリーに返信");
+        await userEvent.type(input, "きょう");
+        fireEvent.keyDown(input, { key: "Enter", keyCode: 13, isComposing: true });
+        // **待ってから数える。** `sendReply` は `await import(...)` から始まるので、
+        // 直後に数えると**送っていても 0 件に見える**（変異で確かめたら、
+        // IME の判定を外しても緑のままだった＝何も検証していなかった）
+        await new Promise((r) => setTimeout(r, 30));
+        expect(replyPosts(), "変換確定で送っている").toHaveLength(0);
+
+        fireEvent.keyDown(input, { key: "Enter", keyCode: 13, isComposing: false });
+        await waitFor(() => expect(replyPosts()).toHaveLength(1));
+    });
+
+    // **打ちかけを持ち越さない。** 送り先は表示中のストーリーなので、
+    // 持ち越すと**書いた相手と違う人に届く**
+    it("次のストーリーへ進むと、打ちかけを捨てる", async () => {
+        view(othersGroups());
+        const input = await screen.findByLabelText("このストーリーに返信");
+        await userEvent.type(input, "1枚目に書いた");
+        fireEvent.blur(input);   // 入力中は進まないので、まず外す
+        fireEvent.keyDown(document, { key: "ArrowRight" });
+
+        await waitFor(() => expect(
+            (screen.getByLabelText("このストーリーに返信") as HTMLInputElement).value,
+            "前のストーリーに書いた文が残っている",
+        ).toBe(""));
+    });
+
+    it("送ったあとの「送信しました」も持ち越さない", async () => {
+        view(othersGroups());
+        await userEvent.click(await screen.findByLabelText(`${STORY_REACTIONS[0]} で反応する`));
+        expect(await screen.findByText("送信しました")).toBeInTheDocument();
+
+        fireEvent.keyDown(document, { key: "ArrowRight" });
+        await waitFor(() => expect(
+            screen.queryByText("送信しました"), "次のストーリーに前の手応えが出ている").toBeNull());
+    });
+
+    // **入力中は進めない。** 打っている途中で次へ送られると、
+    // 書いた相手と違う人に届く
+    it("入力中は次へ進まない", async () => {
+        view(othersGroups());
+        const input = await screen.findByLabelText("このストーリーに返信");
+        await userEvent.type(input, "打っている途中");
+        // **入力の中で押した矢印**（実ブラウザでは target が入力になる）。
+        // 横取りされると、カーソルを動かしたつもりで次のストーリーへ飛び、
+        // 打ちかけが捨てられる
+        fireEvent.keyDown(input, { key: "ArrowRight", keyCode: 39, isComposing: false });
+
+        await new Promise((r) => setTimeout(r, 20));
+        expect((screen.getByLabelText("このストーリーに返信") as HTMLInputElement).value,
+            "入力中に次のストーリーへ送られた").toBe("打っている途中");
+    });
+
+    // 空白・矢印・Escape はビューアの操作に割り当ててある。
+    // そのままだと**空白が打てず、Escape で画面ごと消える**
+    it("入力中のスペースはビューアに横取りされない", async () => {
+        view(othersGroups());
+        const input = await screen.findByLabelText("このストーリーに返信") as HTMLInputElement;
+        await userEvent.type(input, "あ い");
+        expect(input.value, "スペースを横取りされている").toBe("あ い");
+    });
+
+    it("入力中の Escape はビューアを閉じない（入力から抜ける）", async () => {
+        const onClose = vi.fn();
+        view(othersGroups(), { onClose });
+        const input = await screen.findByLabelText("このストーリーに返信");
+        fireEvent.keyDown(input, { key: "Escape", keyCode: 27, isComposing: false });
+        expect(onClose, "入力中の Escape で画面ごと閉じている").not.toHaveBeenCalled();
+    });
+
+    it("失敗したら理由を出す（送信しましたにしない）", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/replies") && init?.method === "POST") {
+                return Promise.resolve({ ok: false, status: 429, json: async () => ({}) });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        view(othersGroups());
+        await userEvent.click(await screen.findByLabelText(`${STORY_REACTIONS[0]} で反応する`));
+
+        expect(await screen.findByRole("alert")).toBeInTheDocument();
+        expect(screen.queryByText("送信しました"), "失敗したのに成功と出ている").toBeNull();
+    });
+
+    // 自分のストーリーには送れない（サーバーも 400 で断る）
+    it("自分のストーリーには返信欄を出さない", async () => {
+        view(ownGroups());
+        await screen.findByLabelText("閉じる");
+        expect(screen.queryByLabelText("このストーリーに返信"), "自分のストーリーに返信欄が出ている").toBeNull();
+    });
+
+    // 押してから断るのがいちばん不親切。会員限定の操作は最初から出さない
+    it("未ログインには返信欄を出さない", async () => {
+        view(othersGroups(), { isAuthenticated: false, ownUserId: null });
+        await screen.findByLabelText("閉じる");
+        expect(screen.queryByLabelText("このストーリーに返信")).toBeNull();
+    });
+});
+
+describe("届いた返信（投稿者側）", () => {
+    it("0件のときはボタンを出さない", async () => {
+        view(ownGroups());
+        await screen.findByLabelText("閉じる");
+        expect(screen.queryByLabelText("届いた返信を見る"), "押しても何も無いボタンを出している").toBeNull();
+    });
+
+    it("届いていれば数を出し、開くと中身を読みに行く", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/replies") && !init?.method) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({ items: [{ id: "r1", uid: "u2", name: "友人", text: "いいね！", t: "2026-07-04T12:00:00Z" }] }),
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        view(ownGroups(2));
+        const btn = await screen.findByLabelText("届いた返信を見る");
+        expect(btn.textContent).toContain("2");
+
+        // **開くまで読みに行かない**（バッジの数は `replyCount` が持っている）
+        expect(mockUserFetch.mock.calls.some((c) => String(c[0]).includes("/replies"))).toBe(false);
+        await userEvent.click(btn);
+        expect(await screen.findByText("いいね！")).toBeInTheDocument();
+    });
+
+    it("読み込めなければ「0件」と言わない", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/replies") && !init?.method) {
+                return Promise.resolve({ ok: false, status: 500, json: async () => ({}) });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        view(ownGroups(1));
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        expect(await screen.findByText("返信を読み込めませんでした")).toBeInTheDocument();
+        expect(screen.queryByText("まだ返信はありません"), "失敗を0件と言っている").toBeNull();
+    });
+
+    // 配列でない応答を「まだ返信はありません」にしない（SW-b8）
+    it("配列でない応答も「0件」と言わない", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/replies") && !init?.method) {
+                return Promise.resolve({ ok: true, json: async () => ({ items: { nope: true } }) });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        view(ownGroups(1));
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        expect(await screen.findByText("返信を読み込めませんでした")).toBeInTheDocument();
+    });
+});

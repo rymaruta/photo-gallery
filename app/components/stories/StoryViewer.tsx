@@ -4,7 +4,7 @@ import { usableRows } from "../../../lib/utils/apiRows";
 import { safeSongPreviewUrl } from "../../../lib/utils/mediaHosts";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
-import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon, PhotoIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon, PhotoIcon, ChatBubbleOvalLeftIcon } from "@heroicons/react/24/outline";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import UserAvatar from "../UserAvatar";
 import type { StoryGroup, StoryViewer as ViewerEntry } from "@/lib/stories";
@@ -12,7 +12,12 @@ import { timeAgo } from "@/lib/stories";
 import { log } from "@/lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
+import { isImeKey } from "@/lib/utils/ime";
+import { STORY_REACTIONS, type StoryReply } from "@/lib/stories";
 
+/** 返信の本文の上限。**サーバーの `TEXT_MAX` と対**（api-user/src/storyReplies.ts）。
+ *  画面だけ緩いと、打てるのに保存で黙って切られる */
+const STORY_REPLY_MAX = 200;
 const STORY_DEFAULT_DURATION_SEC = 5; // 画像の表示時間（投稿時に未指定だったとき）
 const STORY_MIN_DURATION_SEC = 3;
 const STORY_MAX_DURATION_SEC = 15;
@@ -67,6 +72,18 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const [viewersOpen, setViewersOpen] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    // 返信（見た人 → 投稿者）。**ストーリーごとに必ずリセットする**
+    // ——打ちかけのまま次へ送られると、**書いた相手と違う人に届く**
+    const [replyText, setReplyText] = useState("");
+    const [replySending, setReplySending] = useState(false);
+    const [replySent, setReplySent] = useState(false);
+    const [replyError, setReplyError] = useState<string | null>(null);
+    /** 入力中は進めない（打っている間に次のストーリーへ送られない） */
+    const [replyFocused, setReplyFocused] = useState(false);
+    // 届いた返信（投稿者だけ）
+    const [replies, setReplies] = useState<StoryReply[] | null>(null);
+    const [repliesError, setRepliesError] = useState(false);
+    const [repliesOpen, setRepliesOpen] = useState(false);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const reportedRef = useRef<Set<string>>(new Set());
 
@@ -291,7 +308,9 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const [paused, setPaused] = useState(() =>
         typeof window !== "undefined" && typeof window.matchMedia === "function"
         && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-    const frozen = paused || viewersOpen || confirmDelete;
+    // **入力中とシートを開いている間は進めない。** 打っている途中で次へ
+    // 送られると、書いた相手と違う人に届く（Instagram も入力中は止まる）
+    const frozen = paused || viewersOpen || confirmDelete || repliesOpen || replyFocused;
 
     // 画像の進捗は CSS アニメーション（60fps・再描画なし）が駆動し、
     // 完了は onAnimationEnd で検知する。動画は下の onTimeUpdate で進捗を更新。
@@ -331,6 +350,78 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         if (audioRef.current) audioRef.current.muted = muted;
     }, [muted, item]);
 
+    // **ストーリーが変わったら返信の状態を捨てる。**
+    // 打ちかけを持ち越すと、書いた相手と違う人に届く（送り先は `item.id`）。
+    // 「送信しました」の表示も持ち越さない——次のストーリーに、前の人へ
+    // 送ったはずの手応えが出る。
+    useEffect(() => {
+        setReplyText("");
+        setReplySent(false);
+        setReplyError(null);
+        setReplySending(false);
+        setReplyFocused(false);
+        setReplies(null);
+        setRepliesError(false);
+        setRepliesOpen(false);
+    }, [item?.id]);
+
+    /** 返信を送る（本文または絵文字1つ） */
+    const sendReply = useCallback(async (payload: { text?: string; emoji?: string }) => {
+        if (!item || replySending) return;
+        setReplySending(true);
+        setReplyError(null);
+        // **送り先を先に控える。** 送っている間に次へ送られても、
+        // 応答を書き戻す相手を間違えない
+        const target = item.id;
+        try {
+            const { userFetch } = await import("../../../lib/utils/api");
+            const { readApiError } = await import("../../../lib/utils/api");
+            const res = await userFetch(`/stories/${encodeURIComponent(target)}/replies`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+                setReplyError(await readApiError(res, locale === "en" ? "Couldn't send." : "送信できませんでした"));
+                return;
+            }
+            setReplyText("");
+            setReplySent(true);
+        } catch (e) {
+            const { sessionErrorMessage } = await import("../../../lib/utils/api");
+            setReplyError(sessionErrorMessage(e) ?? (locale === "en" ? "Couldn't send." : "送信できませんでした"));
+        } finally {
+            setReplySending(false);
+        }
+    }, [item, replySending, locale]);
+
+    // 届いた返信は**開いたときに取りに行く**（バッジの数は `replyCount` が
+    // 持っているので、開かない限り読みに行かない）。
+    // 中断ガードは閲覧者リストと同じ理由——ストーリーは次々に切り替わる
+    useEffect(() => {
+        if (!repliesOpen || !item || !isOwnStory) return;
+        let aborted = false;
+        void (async () => {
+            try {
+                const { userFetch } = await import("../../../lib/utils/api");
+                const res = await userFetch(`/stories/${encodeURIComponent(item.id)}/replies`);
+                if (aborted) return;
+                if (!res.ok) { setRepliesError(true); return; }
+                const data = await res.json() as { items?: StoryReply[] };
+                if (aborted) return;
+                const rows = usableRows<StoryReply>(data.items, "GET /stories/{id}/replies");
+                // **配列でない応答を「まだ返信はありません」にしない**
+                // （閲覧者リストと同じ SW-b8）
+                if (!rows) { setRepliesError(true); return; }
+                setReplies(rows);
+                setRepliesError(false);
+            } catch {
+                if (!aborted) setRepliesError(true);
+            }
+        })();
+        return () => { aborted = true; };
+    }, [repliesOpen, item, isOwnStory]);
+
     const handleDelete = useCallback(async () => {
         if (!item || !onDelete) return;
         setDeleting(true);
@@ -359,8 +450,17 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     // （他の確認ダイアログと逆の挙動）。
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
-            if (confirmDelete || viewersOpen) {
-                if (e.key === "Escape") { setConfirmDelete(false); setViewersOpen(false); }
+            // **返信を打っている間は横取りしない。** スペースは一時停止、
+            // 矢印は送り、Escape は閉じるに割り当ててあるので、そのままだと
+            // **空白が打てず、カーソルも動かせず、Escape で画面ごと消える**。
+            // Escape だけは入力から抜ける方に使う（変換の取り消しは除く）
+            const t = e.target as HTMLElement | null;
+            if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) {
+                if (e.key === "Escape" && !isImeKey(e)) (t as HTMLInputElement).blur();
+                return;
+            }
+            if (confirmDelete || viewersOpen || repliesOpen) {
+                if (e.key === "Escape") { setConfirmDelete(false); setViewersOpen(false); setRepliesOpen(false); }
                 return;
             }
             if (e.key === "Escape") onClose();
@@ -372,7 +472,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         };
         document.addEventListener("keydown", onKey);
         return () => document.removeEventListener("keydown", onKey);
-    }, [onClose, goNext, goPrev, confirmDelete, viewersOpen]);
+    }, [onClose, goNext, goPrev, confirmDelete, viewersOpen, repliesOpen]);
 
     // **Tab を中に閉じ込める。** `aria-modal="true"` を付けた8つのうち、
     // ここと StoriesBar の投稿プレビューだけ管理が無かった。全画面
@@ -665,10 +765,102 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                     : `閲覧 ${viewers.length}人`}
                         </button>
                     )}
+                    {/* 届いた返信（投稿者だけ）。数は `replyCount` が持っている
+                        ので、開かない限り読みに行かない。**0件のときは出さない**
+                        ——押しても何も無いボタンを常に置かない */}
+                    {isOwnStory && (item.replyCount ?? 0) > 0 && (
+                        <button
+                            onClick={() => setRepliesOpen(true)}
+                            aria-label={locale === "en" ? "Replies" : "届いた返信を見る"}
+                            className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm"
+                            style={{ touchAction: "manipulation" }}
+                        >
+                            <ChatBubbleOvalLeftIcon className="w-4 h-4" />
+                            {locale === "en"
+                                ? `${item.replyCount} repl${item.replyCount === 1 ? "y" : "ies"}`
+                                : `返信 ${item.replyCount}件`}
+                        </button>
+                    )}
                     {item.caption && (
                         <p className="min-w-0 flex-1 text-white text-sm leading-snug whitespace-pre-wrap break-words line-clamp-3 drop-shadow pointer-events-none">
                             {item.caption}
                         </p>
+                    )}
+                </div>
+            )}
+
+            {/* **見た人が反応する道。** 自分のストーリーには出さない
+                （送れない）。未ログインにも出さない——押してから断るのは
+                いちばん不親切な形で、このリポジトリは会員限定の操作を
+                最初から出さない側に揃えている */}
+            {!isOwnStory && isAuthenticated && (
+                <div
+                    className="absolute inset-x-0 bottom-0 z-30 px-3 pt-8 pb-3 bg-gradient-to-t from-black/80 to-transparent"
+                    style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+                    /* 左右のタップ領域（送り）に吸われないようにする。
+                       ここを止めないと、絵文字を押した瞬間に次のストーリーへ進む */
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                >
+                    {replySent ? (
+                        <p className="text-center text-white/80 text-xs py-2.5" role="status">
+                            {locale === "en" ? "Sent" : "送信しました"}
+                        </p>
+                    ) : (
+                        <>
+                            <div className="flex items-center justify-center gap-1 pb-2">
+                                {STORY_REACTIONS.map((emoji) => (
+                                    <button
+                                        key={emoji}
+                                        onClick={() => void sendReply({ emoji })}
+                                        disabled={replySending}
+                                        aria-label={locale === "en" ? `React ${emoji}` : `${emoji} で反応する`}
+                                        className="text-2xl leading-none px-1.5 py-1 rounded-full active:scale-90 transition disabled:opacity-40"
+                                        style={{ touchAction: "manipulation" }}
+                                    >
+                                        {emoji}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    value={replyText}
+                                    onChange={(e) => setReplyText(e.target.value)}
+                                    /* **打っている間は進めない。** 入力中に次へ送られると、
+                                       書いた相手と違う人に届く */
+                                    onFocus={() => setReplyFocused(true)}
+                                    onBlur={() => setReplyFocused(false)}
+                                    /* **変換確定の Enter で送らない。** 「きょう」を
+                                       「今日」に変換した瞬間に飛ぶ（`lib/utils/ime.ts`） */
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" && !isImeKey(e.nativeEvent) && replyText.trim()) {
+                                            e.preventDefault();
+                                            void sendReply({ text: replyText.trim() });
+                                        }
+                                    }}
+                                    maxLength={STORY_REPLY_MAX}
+                                    disabled={replySending}
+                                    placeholder={locale === "en" ? "Send a message…" : "メッセージを送信…"}
+                                    aria-label={locale === "en" ? "Reply to this story" : "このストーリーに返信"}
+                                    className="min-w-0 flex-1 px-4 py-2.5 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/20 text-white text-sm placeholder:text-white/50 focus:outline-none focus:ring-white/40"
+                                />
+                                {replyText.trim() && (
+                                    <button
+                                        onClick={() => void sendReply({ text: replyText.trim() })}
+                                        disabled={replySending}
+                                        aria-label={locale === "en" ? "Send" : "送信"}
+                                        className="flex-shrink-0 px-3 py-2.5 text-sm text-white font-semibold disabled:opacity-40 active:scale-95 transition"
+                                        style={{ touchAction: "manipulation" }}
+                                    >
+                                        {locale === "en" ? "Send" : "送信"}
+                                    </button>
+                                )}
+                            </div>
+                            {replyError && (
+                                <p className="pt-1.5 text-center text-[11px] text-rose-300" role="alert">{replyError}</p>
+                            )}
+                        </>
                     )}
                 </div>
             )}
@@ -721,6 +913,58 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                             {v.displayName || (locale === "en" ? "User" : "ユーザー")}
                                         </span>
                                         {v.at && <span className="text-[11px] text-white/50">{timeAgo(v.at, locale)}</span>}
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 届いた返信（投稿者だけ。閲覧者リストと同じ形のボトムシート） */}
+            {repliesOpen && isOwnStory && (
+                <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={() => setRepliesOpen(false)}>
+                    <div
+                        className="absolute inset-x-0 bottom-0 bg-[#16181c] ring-1 ring-white/10 rounded-t-3xl max-h-[60%] flex flex-col shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+                    >
+                        <div className="flex justify-center pt-2.5 pb-1">
+                            <span className="w-9 h-1 rounded-full bg-white/20" />
+                        </div>
+                        <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                            <h3 className="text-sm font-semibold text-white">
+                                {locale === "en" ? "Replies" : "届いた返信"}
+                                {/* 取得中を 0 と言わない・失敗したら数字を出さない
+                                    （閲覧者リストと同じ扱い） */}
+                                {!repliesError && (
+                                    <span className="ml-2 text-white/50 font-normal">{replies === null ? "…" : replies.length}</span>
+                                )}
+                            </h3>
+                            <button onClick={() => setRepliesOpen(false)} className="p-1 text-white/60 hover:text-white" aria-label={locale === "en" ? "Close" : "閉じる"}>
+                                <XMarkIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="overflow-y-auto p-2">
+                            {(replies ?? []).length === 0 ? (
+                                <p className="text-xs text-white/50 text-center py-8">
+                                    {repliesError
+                                        ? (locale === "en" ? "Couldn't load replies." : "返信を読み込めませんでした")
+                                        : (locale === "en" ? "No replies yet." : "まだ返信はありません")}
+                                </p>
+                            ) : (
+                                (replies ?? []).map((r) => (
+                                    <div key={r.id} className="flex items-start gap-3 px-3 py-2.5">
+                                        {/* 退会した人はプロフィールへ飛ばさない
+                                            （開いても墓石。コメント欄と同じ扱い） */}
+                                        <UserAvatar userId={r.deleted ? "" : r.uid} className="w-9 h-9 flex-shrink-0" iconClassName="w-5 h-5" />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-[13px] text-white/90 truncate">{r.name}</p>
+                                            <p className="text-sm text-white leading-snug break-words">
+                                                {r.emoji ? <span className="text-xl leading-none">{r.emoji}</span> : r.text}
+                                            </p>
+                                        </div>
+                                        <span className="text-[11px] text-white/50 flex-shrink-0">{timeAgo(r.t, locale)}</span>
                                     </div>
                                 ))
                             )}

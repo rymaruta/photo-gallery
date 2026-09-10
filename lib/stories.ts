@@ -12,8 +12,35 @@ export type Story = {
     song?: { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string; startSec?: number };
     /** 画像ストーリーの表示秒数（投稿者が指定）。未指定なら既定の5秒 */
     durationSec?: number;
+    /**
+     * 届いた返信の数。**投稿者にしか入っていない**
+     * （`getStories` が所有者以外から落とす）。見た人に「このストーリーに
+     * 何件届いたか」を知らせないため——誰が反応したかは閲覧者と同じく
+     * 本人だけのもの。
+     */
+    replyCount?: number;
     createdAt: string;
     expiresAt: string;
+};
+
+/**
+ * ストーリーへのクイックリアクション。**サーバーの一覧と対**
+ * （`api-user/src/storyReplies.ts` の `REACTIONS`）。ずれると、画面に出ている
+ * 絵文字を押しても本文として保存される——`scripts/__tests__/storyReactionsParity.test.ts`
+ * が突き合わせる。
+ */
+export const STORY_REACTIONS = ["❤️", "😍", "😂", "😮", "😢", "👏"] as const;
+
+/** 届いた返信（投稿者だけが読める） */
+export type StoryReply = {
+    id: string;
+    uid: string;
+    name: string;
+    emoji?: string;
+    text?: string;
+    t: string;
+    /** 返信した人が退会している（サーバーが名前を伏せたときに立つ） */
+    deleted?: boolean;
 };
 
 export type StoryViewer = {

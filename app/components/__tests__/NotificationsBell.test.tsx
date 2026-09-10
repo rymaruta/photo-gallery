@@ -135,7 +135,10 @@ describe("NotificationsBell", () => {
         render(<NotificationsBell />);
         await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
         fireEvent.click(screen.getByRole("button", { name: "通知" }));
-        expect(screen.getByText(/いいね・コメント・フォローがここに届きます/)).toBeInTheDocument();
+        // **実際に届く種類だけを案内する。** 以前ここは「行きたいリスト追加」
+        // 「旅立ちの報告」という**存在しない機能**を案内していた。
+        // 種類を足したらこの文にも足す（ストーリーへの返信を追加）
+        expect(screen.getByText(/いいね・コメント・ストーリーへの返信・フォローがここに届きます/)).toBeInTheDocument();
     });
 });
 
@@ -465,5 +468,45 @@ describe("新着の取り込み", () => {
             hidden.mockRestore();
             vi.useRealTimers();
         }
+    });
+});
+
+
+// **種類を足したら、ここにも足さないと「届いているのに何も出ない」通知になる。**
+// このコンポーネントは知らない種類を（既定の文言に落とさず）**何も出さない**
+// ので、サーバー側だけ足しても画面には空の行が並ぶ。
+describe("ストーリーへの返信の通知", () => {
+    const reply = {
+        type: "storyreply", photoId: "story-1", photoSrc: "https://c/s1.jpg",
+        byName: "友人", byId: "u2", t: "2026-07-10T00:00:00Z",
+    };
+
+    it("文面を出す", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({ items: [reply], unread: 1 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+        expect(screen.getByText(/さんがあなたのストーリーに返信しました/)).toBeInTheDocument();
+    });
+
+    // **ストーリーに個別ページは無い。** `/photo/story-…` は静的書き出しに
+    // 存在しないので、リンクにすると 404 へ送ることになる
+    it("写真ページへのリンクにしない（404 へ送らない）", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({ items: [reply], unread: 1 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+
+        const hrefs = Array.from(document.querySelectorAll("a")).map((a) => a.getAttribute("href"));
+        expect(hrefs.some((h) => String(h).includes("story-1")), "存在しない写真ページへ送っている").toBe(false);
+    });
+
+    // 空のときの案内に入れる（登録直後の人が最初に読む文）
+    it("0件の案内に返信も書いてある", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({ items: [], unread: 0 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+        expect(screen.getByText(/ストーリーへの返信/)).toBeInTheDocument();
     });
 });
