@@ -235,7 +235,7 @@ export async function purgeBlocksFor(uid: string): Promise<void> {
  * 既定の6秒に近づく。ここを超えたぶんは ID だけ返し、画面は既定名を出す
  * （実際に500人ブロックしている人は居ない。上限は歯止めであって想定値ではない）。
  */
-const BLOCK_NAMES_MAX = 100;
+export const BLOCK_NAMES_MAX = 100;
 
 /**
  * GET /user/blocks — 自分がブロックした人。
@@ -259,7 +259,17 @@ export const listBlocks: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
         //  `getUserFollowing` / `getUserFollowers` / `getStoryViewers`）。
         // 引くのは一覧が空でないときだけ（あちらと同じ）
         const named = blockedIds.slice(0, BLOCK_NAMES_MAX);
-        const gone = named.length > 0 ? await deletedUserIds() : new Set<string>();
+        // 引くのは一覧が空でないときだけ（`getComments` と同じ）。
+        // **`named` ではなく `blockedIds` で見る**——名前を引かない
+        // 101人目以降にも、退会したかどうかは出すため
+        const gone = blockedIds.length > 0
+            // **ここだけ握る。** 他の6本は裸の `await` で揃っているが、
+            // この口は**ブロックを解除できる唯一の入口**（`BlockedUsers`）。
+            // 墓石が引けないだけで 500 になると、伏せられないどころか
+            // **外せなくなる**。伏せない側に倒す（`deletedUserIds` 自身の
+            // fail-open と同じ向き）
+            ? await deletedUserIds().catch((e) => { console.error("listBlocks deletedUserIds:", e); return new Set<string>(); })
+            : new Set<string>();
         // 名前が引けなくても一覧は返す（解除できることの方が大事）。
         // **それを保証しているのは `lookupDisplayNameIfSet` の側**——あちらが
         // 内部で握って `undefined` を返すので、ここの `.catch` は現状
@@ -269,7 +279,13 @@ export const listBlocks: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
             const name = await lookupDisplayNameIfSet(id).catch(() => undefined);
             return name ? { id, name } : { id };
         }));
-        for (const id of blockedIds.slice(BLOCK_NAMES_MAX)) users.push({ id });
+        // **上限を超えたぶんも伏せる。** ここだけ `gone` を見ていなかった
+        // ので、101人目以降にいる退会者は画面のフォールバック（「旅人」）に
+        // 落ちて**生きている人に見えていた**——直したはずの症状が、
+        // 同じ関数の3行下に残っていた。集合はもう手元にある
+        for (const id of blockedIds.slice(BLOCK_NAMES_MAX)) {
+            users.push(gone.has(id) ? { id, name: DELETED_USER_NAME, deleted: true } : { id });
+        }
         return {
             statusCode: 200,
             // 本人向け。共有キャッシュに載せない

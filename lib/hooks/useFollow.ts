@@ -65,6 +65,12 @@ export async function fetchFollowingSet(): Promise<Set<string>> {
  */
 const followingListeners = new Set<() => void>();
 
+/**
+ * 「フォロー中の一覧が変わった」を購読する。解除の関数を返す。
+ *
+ * （すぐ上の経緯を見よ。**doc は関数に付ける**——`const` に付けると
+ *   ホバーで出ない。同じ形を `resetFollowingCache` でやって直したばかり）
+ */
 export function subscribeFollowingSet(fn: () => void): () => void {
     followingListeners.add(fn);
     return () => { followingListeners.delete(fn); };

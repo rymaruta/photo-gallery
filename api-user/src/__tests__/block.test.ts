@@ -24,7 +24,7 @@ vi.mock("../notify", () => ({
 // **await は1つにまとめる**——このパッケージの tsconfig は top-level await を
 // 通さないので、増やすと `tsc` のエラー件数が増える（件数で見ているため）
 const [
-    { blockUser, unblockUser, listBlocks, hiddenUserIds, purgeBlocksFor, BLOCKS_MAX, blocksId, blockedById },
+    { blockUser, unblockUser, listBlocks, hiddenUserIds, purgeBlocksFor, BLOCKS_MAX, BLOCK_NAMES_MAX, blocksId, blockedById },
     { isBlocked, blockMarkerId },
 ] = await Promise.all([import("../block"), import("../blockCheck")]);
 
@@ -257,15 +257,40 @@ describe("listBlocks", () => {
         expect(mockGone, "0件なのに Scan している").not.toHaveBeenCalled();
     });
 
-    // **伏せられなくても一覧は返す。** `deletedUserIds` は失敗を空集合に
-    // 倒す（伏せない側）ので、ここが落ちて 500 になってはいけない
+    // **伏せられなくても一覧は返す。**
+    //
+    // 一度ここを `mockResolvedValue(new Set())`（＝`beforeEach` の既定と
+    // 同じ）で書いていた。**何も検証していない重複**で、しかも
+    // 実際に投げさせると `listBlocks` は 500 を返していた
+    // ——テスト名が言っている性質はどこでも守られていなかった。
+    //
+    // この口は**ブロックを解除できる唯一の入口**（`BlockedUsers`）なので、
+    // 墓石が引けないだけで外せなくなるのは倒れ方として悪い
     it("墓石が引けなくても一覧は返す", async () => {
         world({ [blocksId(ME)]: { blockedIds: [THEM] } });
-        mockGone.mockResolvedValue(new Set());
+        mockGone.mockRejectedValue(new Error("throttled"));
         mockName.mockResolvedValue("しつこい人");
         const r = await invoke(listBlocks, ev(ME));
-        expect(r.statusCode).toBe(200);
+        expect(r.statusCode, "墓石が引けないだけで解除できなくなる").toBe(200);
         expect(bodyOf(r).users).toEqual([{ id: THEM, name: "しつこい人" }]);
+    });
+
+    // **名前を引く上限を超えたぶんも伏せる。**
+    // ここだけ `gone` を見ておらず、101人目以降にいる退会者は画面の
+    // フォールバック（「旅人」）に落ちて生きている人に見えていた
+    it("名前を引く上限を超えたぶんも、退会は伏せる", async () => {
+        const many = Array.from({ length: BLOCK_NAMES_MAX + 2 }, (_, i) =>
+            `${String(i).padStart(8, "0")}-2222-4222-8222-222222222222`);
+        const late = many[BLOCK_NAMES_MAX + 1];
+        world({ [blocksId(ME)]: { blockedIds: many } });
+        mockGone.mockResolvedValue(new Set([late]));
+        const r = await invoke(listBlocks, ev(ME));
+        const users = bodyOf(r).users as { id: string; name?: string; deleted?: boolean }[];
+        expect(users, "上限を超えたぶんが落ちている").toHaveLength(many.length);
+        expect(users.find((u) => u.id === late), "上限の外の退会者が「旅人」として並ぶ")
+            .toEqual({ id: late, name: "退会したユーザー", deleted: true });
+        // 名前を引くのは上限までのまま（往復を増やさない）
+        expect(mockName.mock.calls.length).toBe(BLOCK_NAMES_MAX);
     });
 });
 

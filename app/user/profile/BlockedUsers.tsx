@@ -91,8 +91,17 @@ export default function BlockedUsers({ locale }: { locale: "ja" | "en" }) {
             <ul className="rounded-2xl bg-white/[0.03] ring-1 ring-white/10 divide-y divide-white/5">
                 {users.map((u) => (
                     <li key={u.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                        <span className="text-sm text-white/85 truncate">
-                            {u.name ?? (locale === "en" ? "User" : "旅人")}
+                        {/* **退会した人はここで出し分ける。** サーバーが返す
+                            `name` は日本語固定なので、そのまま出すと
+                            英語表示の人にも「退会したユーザー」が出る
+                            （`FollowingSheet` は `deleted` を見て
+                            "Deleted user" を出している＝同じ画面群で
+                            扱いが割れていた）。解除は押せるままにする
+                            ——押せないと外せなくなる */}
+                        <span className={`text-sm truncate ${u.deleted ? "text-white/60" : "text-white/85"}`}>
+                            {u.deleted
+                                ? (locale === "en" ? "Deleted user" : "退会したユーザー")
+                                : (u.name ?? (locale === "en" ? "User" : "旅人"))}
                         </span>
                         <button
                             type="button"

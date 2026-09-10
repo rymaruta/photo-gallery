@@ -97,6 +97,38 @@ describe("ブロックした人の一覧と解除", () => {
     });
 
     // 名前が引けなかった人も解除できないと意味が無い
+    // **退会した人を「旅人」として並べない。**
+    // 名前が引けないのは「未設定の人」も「退会した人」も同じなので、
+    // フォールバックに落ちると**生きている人に見える**。
+    // サーバー側（`listBlocks`）を直しても、ここが `deleted` を読んで
+    // いなければ**日本語固定の名前をそのまま出すだけ**だった
+    it("退会した人は、その旨を出す", async () => {
+        listOk([{ id: "u2", name: "退会したユーザー", deleted: true }]);
+        view();
+        expect(await screen.findByText("退会したユーザー")).toBeInTheDocument();
+        expect(screen.queryByText("旅人"), "退会した人を「旅人」として並べている").toBeNull();
+    });
+
+    // **サーバーの文言をそのまま出さない。** `DELETED_USER_NAME` は
+    // 日本語固定なので、素通しだと英語表示の人にも日本語が出る
+    //（`FollowingSheet` は `deleted` を見て "Deleted user" を出している）
+    it("英語表示では英語で出す", async () => {
+        listOk([{ id: "u2", name: "退会したユーザー", deleted: true }]);
+        render(<BlockedUsers locale="en" />);
+        expect(await screen.findByText("Deleted user")).toBeInTheDocument();
+        expect(screen.queryByText("退会したユーザー"), "英語UIに日本語が出ている").toBeNull();
+    });
+
+    // **解除は押せるままにする。** 押せないと外せなくなる
+    // （相手が退会していても、こちらの `blocks#` の行は残る）
+    it("退会した人でも解除できる", async () => {
+        listOk([{ id: "u2", name: "退会したユーザー", deleted: true }]);
+        view();
+        await userEvent.click(await screen.findByRole("button", { name: "解除" }));
+        await waitFor(() => expect(deletes()).toHaveLength(1));
+        expect(deletes()[0][0]).toBe("/users/u2/block");
+    });
+
     it("名前が無くても行は出す", async () => {
         listOk([{ id: "u4" }]);
         view();
