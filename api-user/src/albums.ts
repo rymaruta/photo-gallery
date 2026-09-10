@@ -376,7 +376,8 @@ export const getInvite: APIGatewayProxyHandlerV2 = async (event) => {
         //
         // 入る筋が2つある: (1) `/user/upload?album=X` は「下書き保存」でも
         // `albumId` を送る、(2) あとから非公開にしても `photoIds` からは
-        // 消えない（`photoUpdate.ts` はアルバムを知らない）。
+        // 消えない（`photoUpdate.ts` が外すのは**削除のとき**だけで、
+        // 非公開にしただけでは外さない——外すと再公開のたびに入れ直しになる）。
         // **この口は未認証で叩ける**ので、ここを抜けると
         // 「下書きに入れたつもりの写真が、リンクを持つ誰にでも読める」。
         // 判定は `published !== false`（未指定は公開）——リポジトリ全体の慣習。

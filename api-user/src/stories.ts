@@ -480,17 +480,41 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         //
         // 押し直せば続きから消える（消せたキーは S3 に無いので、再実行の
         // DeleteObject は成功する）。24時間で期限切れになれば掃除が拾う。
-        // **管理者が消すときは、残された写真ごと消す。**
-        // `storyMediaKeys` は `keptAs` があると実体を残す——本人が残した
-        // ものを守るための判断だが、**管理者は不適切なストーリーを消しに
-        // 来ている**。実体を残すと URL を知っていれば取り続けられる
-        // （`/uploads/*` は max-age 31536000）。写真の行ごと消してから、
-        // 印を外して普通の削除に落とす。
+        // **管理者が消すときは、残された写真の方から消してもらう。**
+        //
+        // `storyMediaKeys` は `keptAs` があると実体を残す（本人が残した
+        // 1枚を守るため）。管理者は不適切なものを消しに来ているので実体も
+        // 消したい——が、**ここで写真の行を消すのは間違いだった**。
+        //
+        //   - **派生画像はストーリーの行に無い。** `thumbAvif` / `thumbSm` /
+        //     `thumbSmAvif` / `srcAvif` / `src256` は `generate-thumbnails.js`
+        //     が作って**写真の行**に書き戻す。ここは `storyMediaKeys(item)`
+        //     ＝ストーリーの行しか見ないので、行を消したあとは**どの経路
+        //     からも辿れない孤児**として S3 に残る（`max-age=31536000`）。
+        //     実体を消すつもりの分岐が、いちばん消せない形を作っていた
+        //   - `comments#<写真ID>` も残る（`storyFeed` も `story` も `src` も
+        //     持たないので一覧にも Scan の絞り込みにも出ない）
+        //   - ピン留めの枠を1つ永久に食う（`removePinnedPhoto` を通らない）
+        //   - 公開済みなら `/photo/<id>` の静的HTMLが残る（再ビルドを
+        //     頼まない。頼むには `stories.ts` に `rebuild.ts` を引き込む
+        //     ことになり、**このファイルの6つの handler 全部**に書き込み
+        //     トークンが配られる＝IAM-2 で潰したことの作り直し）
+        //   - 行の削除が失敗しても印だけ外れて S3 が消え、**割れた写真が
+        //     残る**（`storyMediaKeys` のコメントが避けると書いている当のもの）
+        //
+        // **同じものを二度作らない。** 管理APIの写真削除
+        // （`api/src/photosMutate.ts`）は上を全部やったうえで、`keptFrom` の
+        // ストーリーと返信の文書まで消す。そちらを1回叩けば済む。
         const keptPhotoId = typeof item.keptAs === "string" ? item.keptAs : "";
         if (keptPhotoId && item.userId !== callerId) {
-            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: keptPhotoId } }))
-                .catch((e) => console.error(`deleteStory: 残された写真を消せませんでした（${keptPhotoId}）:`, e));
-            delete item.keptAs;   // 実体も消す側へ落とす（`storyMediaKeys` が見る）
+            // 印が死んだIDを指している場合まで断ると、管理者が**何もできなく
+            // なる**。実在を確かめてから断る（この枝は管理者の削除だけ）。
+            const kept = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: keptPhotoId } }));
+            if (kept.Item) {
+                return jsonError(409, "この投稿はギャラリーに残されています。写真の方を削除してください（元のストーリーも一緒に消えます）");
+            }
+            // 写真がもう無い＝実体の持ち主が居ない。普通の削除に落とす
+            delete item.keptAs;
         }
         const s3Failures = await s3DeleteMany(storyMediaKeys(item), "deleteStory");
         if (s3Failures > 0) {

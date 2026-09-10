@@ -12,9 +12,11 @@ vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRebuild }));
 // アルバムへの出し入れは境界としてモックする（実体は `albums.test.ts`）
 const mockAddToAlbum = vi.hoisted(() => vi.fn(async () => undefined));
 const mockRemoveFromAlbum = vi.hoisted(() => vi.fn(async () => undefined));
+const mockIsAlbumMember = vi.hoisted(() => vi.fn(async () => true));
 vi.mock("../albums", () => ({
     addPhotoToAlbum: (...a: unknown[]) => mockAddToAlbum(...(a as [])),
     removePhotoFromAlbum: (...a: unknown[]) => mockRemoveFromAlbum(...(a as [])),
+    isAlbumMember: (...a: unknown[]) => mockIsAlbumMember(...(a as [])),
 }));
 
 import { updatePhotoVisibility, isValidYouTubeUrl } from "../photoUpdate";
@@ -36,6 +38,7 @@ beforeEach(() => {
     mockRebuild.mockReset().mockResolvedValue(true);
     mockAddToAlbum.mockReset().mockResolvedValue(undefined);
     mockRemoveFromAlbum.mockReset().mockResolvedValue(undefined);
+    mockIsAlbumMember.mockReset().mockResolvedValue(true);
 });
 
 describe("updatePhotoVisibility", () => {
@@ -901,5 +904,23 @@ describe("公開に切り替えたら、共同アルバムに入れる", () => {
         world({ published: false, albumId: "a1" });
         mockAddToAlbum.mockRejectedValue(new Error("boom"));
         expect((await invoke(event("u1", "p1", { published: true }))).statusCode).toBe(200);
+    });
+
+    // **片側だけの防御にしない。** `savePhoto` は「ここを通さずに
+    // `albumId` を保存できると、誰でも他人のアルバムに写真を差し込める」
+    // として `isAlbumMember` を通す。こちらは行の `albumId` を信じて
+    // 素通しだった。いまは脱退の口が無いので悪用できないが、
+    // 「脱退」を足した日に静かに穴になる
+    it("もうメンバーでなければ、公開してもアルバムには足さない", async () => {
+        world({ published: false, albumId: "a1" });
+        mockIsAlbumMember.mockResolvedValue(false);
+        expect((await invoke(event("u1", "p1", { published: true }))).statusCode).toBe(200);
+        expect(mockAddToAlbum, "メンバーでない人の写真が入っている").not.toHaveBeenCalled();
+    });
+
+    it("メンバー判定は、そのアルバムと押した本人で見る", async () => {
+        world({ published: false, albumId: "a1" });
+        await invoke(event("u1", "p1", { published: true }));
+        expect(mockIsAlbumMember).toHaveBeenCalledWith("a1", "u1");
     });
 });

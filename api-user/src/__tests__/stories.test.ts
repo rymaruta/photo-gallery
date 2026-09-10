@@ -625,21 +625,47 @@ describe("deleteStory", () => {
         expect(keys, "行は予定どおり消す").toEqual(["storyreplies#story-1", "story-1"]);
     });
 
-    // **管理者は不適切なストーリーを消しに来ている。** 本人が「残す」を
-    // 押していると `storyMediaKeys` が実体を守るので、URL を知っていれば
-    // 取り続けられた（`/uploads/*` は max-age 31536000）
-    it("管理者が消すときは、残された写真ごと消す", async () => {
+    // **ここで写真を消してはいけない。**
+    //
+    // 一度は「管理者なら残された写真ごと消す」と書いたが、消し方が
+    // 足りていなかった——派生画像（`thumbAvif` / `thumbSm` /
+    // `thumbSmAvif` / `srcAvif` / `src256`）は `generate-thumbnails.js` が
+    // **写真の行**に書き戻すので、`storyMediaKeys`（ストーリーの行しか
+    // 見ない）では1つも消えない。行を消したあとは**どの経路からも
+    // 辿れない孤児**になる。`comments#` もピンの枠も静的HTMLも残る。
+    // 管理APIの写真削除がその全部をやったうえでストーリーまで消すので、
+    // **そちらへ送る**（同じものを二度作らない）。
+    it("管理者でも、ギャラリーに残された写真は消さずに 409 で断る", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "someone", key: "uploads/a.jpg", keptAs: "photo-1" } })
+            .mockResolvedValueOnce({ Item: { id: "photo-1", src: "https://cdn/uploads/a.jpg" } })  // 残された写真は実在する
+            .mockResolvedValue({});
+        mockS3Send.mockResolvedValue({});
+        const res = await invoke(deleteStory, adminEvent({ pathParameters: { id: "story-1" } }));
+        expect(res.statusCode).toBe(409);
+        expect(JSON.parse(res.body).error, "どうすればよいか言っていない").toContain("写真の方を削除");
+        const deleted = mockDdbSend.mock.calls
+            .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand")
+            .map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
+        expect(deleted, "中途半端に消している").toEqual([]);
+        expect(mockS3Send, "実体だけ消すと割れた写真が残る").not.toHaveBeenCalled();
+    });
+
+    // 断りっぱなしにすると、印が死んだIDを指している場合に
+    // **管理者が何もできなくなる**。実在を確かめてから断る
+    it("残された写真がもう無ければ、普通に消せる（実体も消す）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "someone", key: "uploads/a.jpg", keptAs: "photo-1" } })
+            .mockResolvedValueOnce({})   // 写真の行はもう無い
             .mockResolvedValue({});
         mockS3Send.mockResolvedValue({});
         const res = await invoke(deleteStory, adminEvent({ pathParameters: { id: "story-1" } }));
         expect(res.statusCode).toBe(200);
+        expect(mockS3Send, "持ち主の居ない実体が公開URLに残る").toHaveBeenCalled();
         const deleted = mockDdbSend.mock.calls
             .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand")
             .map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
-        expect(deleted, "残された写真が残る").toContain("photo-1");
-        expect(mockS3Send, "実体が公開URLに残り続ける").toHaveBeenCalled();
+        expect(deleted).toEqual(["storyreplies#story-1", "story-1"]);
     });
 
     // 本人が消すときは今までどおり（残した写真は守る）

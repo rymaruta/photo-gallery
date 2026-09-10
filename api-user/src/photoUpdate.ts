@@ -2,7 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { UpdateCommand, GetCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { PUBLIC_FEED_KEY } from "./publicFeed";
-import { removePhotoFromAlbum, addPhotoToAlbum } from "./albums";
+import { removePhotoFromAlbum, addPhotoToAlbum, isAlbumMember } from "./albums";
 import { JSON_HEADERS, getUserId } from "./http";
 import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeDate, dateWasRejected, sameStoredValue, truncate } from "./sanitize";
 import { requestSiteRebuild } from "./rebuild";
@@ -296,14 +296,6 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             ? await requestSiteRebuild(`photo updated: ${id}`, { coalesce: true })
             : false;
 
-        // **届かなかったことを行に残す。** 畳まれた・予算切れ・設定漏れ・
-        // dispatch の失敗、どれでも false が返る。削除側は「非公開だった
-        // 写真には静的ページが無い」と決め打ちして掃除を省くので、その前提が
-        // 崩れたことを伝えないと、**非公開 →（依頼が届かない）→ 削除**で
-        // 静的ページが誰にも消されないまま残る。
-        // **画面に伝える**（`staticStale` として返す）。行に印が書けたかとは
-        // 別に、「静的ページがまだ残りうる」ことは変わらない。ここを黙ると
-        // 「非公開にしました」だけが出て、実際には検索から開ける状態が続く
         // **下書きから公開に変えたら、共同アルバムに入れる。**
         //
         // `savePhoto` は `albumId && isPublished` のときだけ入れるので、
@@ -314,13 +306,29 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // `addPhotoToAlbum` は冪等（既に入っていれば条件で落ちる）なので、
         // 二度押しでも増えない。**失敗しても公開は成功で返す**
         // （写真はもう公開されている。`savePhoto` の同じ呼び出しと同じ扱い）。
+        //
+        // **いまもメンバーかを確かめてから足す。** `savePhoto` は
+        // 「ここを通さずに `albumId` を保存できると、誰でも他人のアルバムに
+        // 写真を差し込める」として `isAlbumMember` を通している。こちらは
+        // 行に書いてある `albumId` を信じて素通しだった。**いまは脱退の口が
+        // 無いので悪用できない**が、片側だけの防御は「脱退」を足した日に
+        // 静かに穴になる（このリポジトリが何度も踏んでいる形）。
         if (visibilityChanged && body.published !== false
-            && typeof existing.Item.albumId === "string" && existing.Item.albumId) {
+            && typeof existing.Item.albumId === "string" && existing.Item.albumId
+            && await isAlbumMember(existing.Item.albumId, callerId)) {
             await addPhotoToAlbum(existing.Item.albumId, id).catch((e) => {
                 console.error(`updatePhotoVisibility: アルバムに足せませんでした（${id}）:`, e);
             });
         }
 
+        // **届かなかったことを行に残す。** 畳まれた・予算切れ・設定漏れ・
+        // dispatch の失敗、どれでも false が返る。削除側は「非公開だった
+        // 写真には静的ページが無い」と決め打ちして掃除を省くので、その前提が
+        // 崩れたことを伝えないと、**非公開 →（依頼が届かない）→ 削除**で
+        // 静的ページが誰にも消されないまま残る。
+        // **画面に伝える**（`staticStale` として返す）。行に印が書けたかとは
+        // 別に、「静的ページがまだ残りうる」ことは変わらない。ここを黙ると
+        // 「非公開にしました」だけが出て、実際には検索から開ける状態が続く
         const hiding = visibilityChanged && body.published === false;
         const staticStale = hiding && !dispatched;
         // 公開のまま項目を消した場合。ページ自体は残ってよいが、**消した中身が残る**。
