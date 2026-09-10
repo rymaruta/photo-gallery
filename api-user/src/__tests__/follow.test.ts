@@ -25,7 +25,7 @@ vi.mock("../notify", () => ({
 vi.mock("../blockCheck", () => ({ isBlocked: mockIsBlocked }));
 
 vi.stubEnv("USERS_TABLE", "users-test");
-const { followUser, unfollowUser, getFollowStats, getMyFollowing, getUserFollowing } = await import("../follow");
+const { followUser, unfollowUser, getFollowStats, getMyFollowing, getUserFollowing, getUserFollowers } = await import("../follow");
 
 type Result = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -884,5 +884,120 @@ describe("getUserFollowing（その人がフォローしている人）", () => 
         mockDdbSend.mockResolvedValue({ Item: { list: [] } });
         const res = await invoke(getUserFollowing, evUid(ME, ME)) as unknown as { headers: Record<string, string> };
         expect(res.headers["Cache-Control"]).toContain("no-store");
+    });
+});
+
+
+// **「誰にフォローされているか」を引ける行が無かった**（FOLLOWERS-1）。
+// マーカー（`follow#<自分>#<相手>`）は主キーが1本で前方一致の列挙ができない
+// ——このテーブルにソートキーは無いので、全表 Scan しか手が無かった。
+// `following#` と同じ形の行（新しい順のリスト＋`rev`）を持たせる。
+describe("フォロワーの一覧（followers#）", () => {
+    const evUid = (sub: string | undefined, uid: string | undefined) => ({
+        requestContext: { authorizer: { jwt: { claims: { sub } } } },
+        pathParameters: uid ? { uid } : undefined,
+    });
+    /** 種類とキーで答える（順番に並べる形だと、書き込みが1つ増えるたびに全部ずれる） */
+    function world(rows: Record<string, Record<string, unknown>> = {}) {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string; userId?: string } } }) => {
+            const name = cmd.constructor.name;
+            if (name === "GetCommand") {
+                // users テーブルの主キーは `userId`（写真テーブルは `id`）
+                if (cmd.input.Key?.userId) return Promise.resolve({ Item: { userId: cmd.input.Key.userId } });
+                return Promise.resolve({ Item: rows[cmd.input.Key?.id ?? ""] });
+            }
+            return Promise.resolve({});
+        });
+    }
+    const puts = () => mockDdbSend.mock.calls
+        .map((c) => c[0] as { constructor: { name: string }; input: { Item?: { id?: string; list?: string[] } } })
+        .filter((c) => c.constructor.name === "PutCommand" && c.input.Item?.id?.startsWith("followers#"));
+
+    it("フォローすると、相手のフォロワー一覧に自分が入る", async () => {
+        world({ [`followstats#${OTHER}`]: { followers: 1, following: 0 } });
+        expect((await invoke(followUser, ev(ME, OTHER))).statusCode).toBe(200);
+        expect(puts(), "相手の一覧に入っていない").toHaveLength(1);
+        expect(puts()[0].input.Item).toMatchObject({ id: `followers#${OTHER}`, list: [ME] });
+    });
+
+    it("解除すると、相手のフォロワー一覧から外れる", async () => {
+        world({
+            [`followers#${OTHER}`]: { list: [ME, THIRD], rev: 3 },
+            [`following#${ME}`]: { list: [OTHER], rev: 1 },
+            [`followstats#${OTHER}`]: { followers: 2, following: 0 },
+        });
+        expect((await invoke(unfollowUser, ev(ME, OTHER))).statusCode).toBe(200);
+        expect(puts()[0].input.Item).toMatchObject({ id: `followers#${OTHER}`, list: [THIRD] });
+    });
+
+    // **押し直しで直る。** `following#` と同じ考え——「マーカーはあるが
+    // 一覧に無い」を、利用者の操作だけで直せるようにしておく
+    it("既にフォロー済みでも、一覧に無ければ入れ直す", async () => {
+        world({
+            [`follow#${OTHER}#${ME}`]: { follow: true },
+            [`followstats#${OTHER}`]: { followers: 1, following: 0 },
+        });
+        // マーカーが既にある＝トランザクションは条件で落ちる
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: unknown } }) => {
+            if (cmd.constructor.name === "TransactWriteCommand") return Promise.reject(txCancelled(["ConditionalCheckFailed", "None", "None"]));
+            if (cmd.constructor.name === "GetCommand") {
+                const key = cmd.input.Key as { id?: string; userId?: string } | undefined;
+                if (key?.userId) return Promise.resolve({ Item: { userId: key.userId } });
+                if (key?.id === `followstats#${OTHER}`) return Promise.resolve({ Item: { followers: 1, following: 0 } });
+                return Promise.resolve({ Item: undefined });
+            }
+            return Promise.resolve({});
+        });
+        expect((await invoke(followUser, ev(ME, OTHER))).statusCode).toBe(200);
+        expect(puts(), "押し直しても直らない").toHaveLength(1);
+    });
+
+    // **表示の都合でフォローを失敗させない。** マーカーと数は既に正しく、
+    // 欠けるのは一覧の1行だけ
+    it("一覧を書けなくても、フォローそのものは成功する", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Item?: { id?: string } } }) => {
+            if (cmd.constructor.name === "PutCommand" && cmd.input.Item?.id?.startsWith("followers#")) {
+                return Promise.reject(new Error("throttled"));
+            }
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({ Item: { userId: OTHER, followers: 1, following: 0 } });
+            return Promise.resolve({});
+        });
+        expect((await invoke(followUser, ev(ME, OTHER))).statusCode).toBe(200);
+    });
+
+    it("その人のフォロワーを名前つきで返す", async () => {
+        world({ [`followers#${ME}`]: { list: [OTHER, THIRD] } });
+        mockLookupIfSet.mockImplementation(async (id: string) => (id === OTHER ? "旅人B" : undefined));
+        const res = await invoke(getUserFollowers, evUid(ME, ME));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).users).toEqual([{ id: OTHER, name: "旅人B" }, { id: THIRD }]);
+        expect(JSON.parse(res.body).total).toBe(2);
+    });
+
+    it("退会した人には印を付ける", async () => {
+        world({ [`followers#${ME}`]: { list: [THIRD] } });
+        mockDeleted.mockResolvedValue(new Set([THIRD]));
+        const res = await invoke(getUserFollowers, evUid(ME, ME));
+        expect(JSON.parse(res.body).users).toEqual([{ id: THIRD, deleted: true }]);
+    });
+
+    it("その人にブロックされていたら 404（一覧を読まない）", async () => {
+        mockIsBlocked.mockImplementation((blocker: string) => Promise.resolve(blocker === OTHER));
+        const res = await invoke(getUserFollowers, evUid(ME, OTHER));
+        expect(res.statusCode).toBe(404);
+        expect(mockDdbSend).not.toHaveBeenCalled();
+    });
+
+    it("でたらめなIDは断る（何も読まない）", async () => {
+        expect((await invoke(getUserFollowers, evUid(ME, "not-a-uuid"))).statusCode).toBe(400);
+        expect(mockDdbSend).not.toHaveBeenCalled();
+    });
+
+    it("50人までしか名前を引かない（総数は返す）", async () => {
+        const many = Array.from({ length: 60 }, (_, i) => `0000000${String(i).padStart(4, "0")}-1111-4111-8111-111111111111`);
+        world({ [`followers#${ME}`]: { list: many } });
+        const res = await invoke(getUserFollowers, evUid(ME, ME));
+        expect(JSON.parse(res.body).users).toHaveLength(50);
+        expect(JSON.parse(res.body).total).toBe(60);
     });
 });

@@ -530,6 +530,16 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # その人をフォローしている人の一覧（`getUserFollowing` と対・同じ倒し方）
+  getUserFollowers:
+    handler: src/follow.getUserFollowers
+    events:
+      - httpApi:
+          path: /users/{uid}/followers
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
   getMyFollowing:
     handler: src/follow.getMyFollowing
     events:

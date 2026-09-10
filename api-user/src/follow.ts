@@ -61,6 +61,19 @@ const FOLLOWING_MAX = 2000;
 const markerId = (target: string, follower: string) => `follow#${target}#${follower}`;
 const statsId = (uid: string) => `followstats#${uid}`;
 const followingId = (uid: string) => `following#${uid}`;
+/**
+ * **自分をフォローしている人の一覧。**
+ *
+ * これまで持っていたのは「自分がフォローしている人」（`following#`）と
+ * 数（`followstats#`）だけで、**「誰にフォローされているか」を引ける行が
+ * 無かった**。マーカー（`follow#<自分>#<相手>`）は主キーが1本なので
+ * 前方一致で列挙できない（このテーブルにソートキーは無い）＝
+ * 全表 Scan しか手が無く、画面からは引けない。
+ *
+ * `following#` と同じ形（新しい順のリスト＋`rev`）で持つ。
+ * 既にあるフォロー関係は `scripts/backfill-followers.js` が埋める。
+ */
+const followersId = (uid: string) => `followers#${uid}`;
 
 async function readStats(uid: string): Promise<{ followers: number; following: number }> {
     const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: statsId(uid) } }));
@@ -100,9 +113,14 @@ class FollowingListError extends Error {
     }
 }
 
-async function updateFollowing(uid: string, mutate: (list: string[]) => string[] | null): Promise<void> {
+/**
+ * `following#` と `followers#` は同じ形（新しい順のリスト＋`rev`）なので、
+ * 書き換えも1つにする。**規則を2つ書くと静かにずれる**——このリポジトリが
+ * 何度も踏んでいる形。
+ */
+async function updateUserList(rowId: string, uid: string, mutate: (list: string[]) => string[] | null): Promise<void> {
     for (let attempt = 0; attempt <= FOLLOWING_WRITE_RETRIES; attempt++) {
-        const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: followingId(uid) } }));
+        const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: rowId } }));
         const current = Array.isArray(res.Item?.list) ? (res.Item.list as string[]) : [];
         const rev = typeof res.Item?.rev === "number" ? res.Item.rev : 0;
 
@@ -121,7 +139,7 @@ async function updateFollowing(uid: string, mutate: (list: string[]) => string[]
             await ddb.send(new PutCommand({
                 TableName: PHOTOS_TABLE,
                 Item: {
-                    id: followingId(uid),
+                    id: rowId,
                     uid,
                     list: next.slice(0, FOLLOWING_MAX),
                     rev: rev + 1,
@@ -143,7 +161,38 @@ async function updateFollowing(uid: string, mutate: (list: string[]) => string[]
     // 「既にフォロー済み」で早期 return するので、**二度と直らない**
     // （その人の写真がフィードに出ないままになる）。
     // 呼び出し側で打ち消して 500 を返せるように投げる。
-    throw new FollowingListError(`${uid} の一覧更新が競合し続けました`);
+    throw new FollowingListError(`${rowId} の一覧更新が競合し続けました`);
+}
+
+/** 自分がフォローしている人の一覧 */
+const updateFollowing = (uid: string, mutate: (list: string[]) => string[] | null) =>
+    updateUserList(followingId(uid), uid, mutate);
+
+/**
+ * 相手の「フォロワー一覧」に自分を足す／外す。
+ *
+ * **失敗しても投げない。** マーカーと数（`followstats#`）は既に正しく、
+ * 欠けるのは表示用の一覧の1行だけ。ここで 500 にすると、**表示の都合で
+ * フォローそのものを失敗させる**ことになる（`following#` を投げる側に
+ * したのは、あちらが欠けると相手の写真がフィードから消えるため）。
+ *
+ * 直る道は用意してある: `followUser` は「既にフォロー済み」でもここを
+ * 通すので、押し直せば入る。埋め戻しは `scripts/backfill-followers.js`。
+ */
+export async function updateFollowersQuietly(target: string, follower: string, add: boolean): Promise<void> {
+    try {
+        await updateUserList(followersId(target), target, (list) => {
+            if (add) {
+                if (list.includes(follower)) return null;
+                list.unshift(follower);
+                return list;
+            }
+            const next = list.filter((x) => x !== follower);
+            return next.length === list.length ? null : next;
+        });
+    } catch (e) {
+        console.error(`updateFollowersQuietly: ${target} の一覧を更新できませんでした（${follower}, add=${add}）:`, e);
+    }
 }
 
 /**
@@ -450,7 +499,16 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
             });
         }
 
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ following: true, followers: (await readStats(target)).followers }) };
+        // **相手のフォロワー一覧にも足す。** ここも `outcome` を見ない
+        // ——「マーカーはあるが一覧に無い」を押し直しで直せるようにする
+        // （すぐ上の `following#` と同じ考え）。失敗しても投げない。
+        //
+        // **応答の中身を先に決めてから書く。** 数は `followstats#` が正で、
+        // それはもうトランザクションで更新済み。ここが遅れても・落ちても、
+        // 画面に返す数は変わらない
+        const body = JSON.stringify({ following: true, followers: (await readStats(target)).followers });
+        await updateFollowersQuietly(target, me, true);
+        return { statusCode: 200, headers: JSON_HEADERS, body };
     } catch (e) {
         console.error("followUser error:", e);
         return jsonError(500, "フォローに失敗しました");
@@ -483,6 +541,7 @@ export async function unfollowQuietly(target: string, me: string): Promise<void>
             const next = list.filter((x) => x !== target);
             return next.length === list.length ? null : next;
         });
+        await updateFollowersQuietly(target, me, false);
     } catch (e) {
         console.error(`unfollowQuietly: 解除できませんでした（${me} -> ${target}）:`, e);
     }
@@ -514,7 +573,9 @@ export const unfollowUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
             return jsonError(500, "フォロー解除に失敗しました。もう一度お試しください");
         }
 
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ following: false, followers: (await readStats(target)).followers }) };
+        const body = JSON.stringify({ following: false, followers: (await readStats(target)).followers });
+        await updateFollowersQuietly(target, me, false);
+        return { statusCode: 200, headers: JSON_HEADERS, body };
     } catch (e) {
         console.error("unfollowUser error:", e);
         return jsonError(500, "フォロー解除に失敗しました");
@@ -596,6 +657,42 @@ export const getUserFollowing: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
         };
     } catch (e) {
         console.error("getUserFollowing error:", e);
+        return jsonError(500, "取得に失敗しました");
+    }
+};
+
+/**
+ * GET /users/{uid}/followers — その人をフォローしている人の一覧。
+ *
+ * `getUserFollowing` と対。倒し方も揃える（認証必要・ブロックは 404・
+ * 退会した人は `deleted: true`・名前は50人まで・総数は `total`）。
+ *
+ * **数は `followstats#` が正**。この一覧は上限（`FOLLOWING_MAX`）で
+ * 古い方から溢れるので、`total` と件数が食い違うことがある
+ * （画面は「N人のうち、はじめのM人」と出す）。
+ */
+export const getUserFollowers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const uid = event.pathParameters?.uid;
+    const me = getUserId(event);
+    if (!uid || !isUserId(uid)) return jsonError(400, "不正なリクエスト");
+    try {
+        if (me && await isBlocked(uid, me)) return jsonError(404, "ユーザーが見つかりません");
+        const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: followersId(uid) } }));
+        const list = Array.isArray(res.Item?.list) ? (res.Item.list as string[]) : [];
+        const page = list.slice(0, FOLLOWING_PAGE);
+        const gone = page.length > 0 ? await deletedUserIds() : new Set<string>();
+        const users = await Promise.all(page.map(async (id) => {
+            if (gone.has(id)) return { id, deleted: true };
+            const name = await lookupDisplayNameIfSet(id);
+            return name ? { id, name } : { id };
+        }));
+        return {
+            statusCode: 200,
+            headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
+            body: JSON.stringify({ users, total: list.length }),
+        };
+    } catch (e) {
+        console.error("getUserFollowers error:", e);
         return jsonError(500, "取得に失敗しました");
     }
 };

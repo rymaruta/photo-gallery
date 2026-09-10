@@ -84,15 +84,28 @@ describe("フォロー数のピル", () => {
     });
 
     // owner の指示「誰をフォローしてて、みたいなの見れるようにして」。
-    // **押せるのはフォロー中だけ**——フォロワー側は一覧を引けるデータが
-    // 無い（`following#<uid>` と数しか持っていない）ので、押せそうに見せない
-    it("フォロー中は押せる。フォロワーは押せない", async () => {
+    // フォロワー側は `followers#<uid>` を足して（FOLLOWERS-1）両方押せる
+    it("フォロー中もフォロワーも押して一覧を開ける", async () => {
         mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ followers: 5, following: 4 }) });
         await renderButton(true);
         await screen.findByText("4");   // 数が届くまで待つ（届く前はどちらも押せない）
-        const following = screen.getByText("フォロー中").closest("button");
-        expect(following, "一覧を開けない").not.toBeNull();
-        expect(screen.getByText("フォロワー").closest("button"), "引けない一覧を押せそうに見せている").toBeNull();
+        expect(screen.getByText("フォロー中").closest("button"), "フォロー中の一覧を開けない").not.toBeNull();
+        expect(screen.getByText("フォロワー").closest("button"), "フォロワーの一覧を開けない").not.toBeNull();
+    });
+
+    it("フォロワーが0人なら押させない", async () => {
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ followers: 0, following: 4 }) });
+        await renderButton(true);
+        await screen.findByText("4");
+        expect(screen.getByText("フォロワー").closest("button")).toBeNull();
+    });
+
+    it("フォロワーを押すと、フォロワーの一覧が開く", async () => {
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ followers: 5, following: 4 }) });
+        await renderButton(true);
+        await screen.findByText("5");
+        screen.getByText("フォロワー").closest("button")!.click();
+        expect(await screen.findByRole("dialog", { name: "フォロワー" })).toBeInTheDocument();
     });
 
     it("0人なら押させない（開いても空）", async () => {

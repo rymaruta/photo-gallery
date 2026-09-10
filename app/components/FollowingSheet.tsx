@@ -1,14 +1,13 @@
 "use client";
 
 /**
- * その人がフォローしている人の一覧（下から出るシート）。
+ * フォロー中／フォロワーの一覧（下から出るシート）。
  *
  * owner の指示「誰をフォローしてて、みたいなの見れるようにして」。
  *
- * **フォロワー側は出せない。** いまのデータは `following#<uid>`
- * （自分がフォローしている人）と `followstats#<uid>`（数）だけで、
- * 「誰にフォローされているか」を引ける行が無い。出すには
- * `followers#<uid>` を足して既存の関係を埋め戻す移行が要る＝別件。
+ * **1つの部品で両方出す。** 違うのは口と見出しだけで、倒し方
+ * （読み込み中・失敗・0人を分ける／退会した人はリンクにしない／
+ * 全部出せていないことを言う）は同じ。分けて書くと静かにずれる。
  */
 
 import React, { useEffect, useRef, useState } from "react";
@@ -22,14 +21,26 @@ import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 import { lockBodyScroll, unlockBodyScroll } from "../../lib/utils/scrollLock";
 
+export type FollowListKind = "following" | "followers";
+
 type Props = {
     userId: string;
+    kind: FollowListKind;
     locale: "ja" | "en";
     onClose: () => void;
     openerRef?: React.RefObject<HTMLElement | null>;
 };
 
-export default function FollowingSheet({ userId, locale, onClose, openerRef }: Props) {
+const TITLE: Record<FollowListKind, { ja: string; en: string }> = {
+    following: { ja: "フォロー中", en: "Following" },
+    followers: { ja: "フォロワー", en: "Followers" },
+};
+const EMPTY: Record<FollowListKind, { ja: string; en: string }> = {
+    following: { ja: "まだ誰もフォローしていません", en: "Not following anyone yet." },
+    followers: { ja: "まだフォロワーはいません", en: "No followers yet." },
+};
+
+export default function FollowingSheet({ userId, kind, locale, onClose, openerRef }: Props) {
     const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
     const [rows, setRows] = useState<UserRow[]>([]);
     const [total, setTotal] = useState(0);
@@ -51,13 +62,13 @@ export default function FollowingSheet({ userId, locale, onClose, openerRef }: P
         let cancelled = false;
         void (async () => {
             try {
-                const res = await userFetch(`/users/${encodeURIComponent(userId)}/following`);
+                const res = await userFetch(`/users/${encodeURIComponent(userId)}/${kind}`);
                 if (!res.ok) throw new Error(String(res.status));
                 const data = await res.json() as { users?: unknown; total?: unknown };
                 // **配列でなければ「取れなかった」**。`[]` に潰すと
                 // 「0人」と「壊れた応答」が混ざる（この部品が掲げている
                 // 「読み込み中・失敗・0人を分ける」の逆）
-                const list = usableUserRows(data.users, "following");
+                const list = usableUserRows(data.users, kind);
                 if (cancelled) return;
                 if (!list) { setState("failed"); return; }
                 setRows(list);
@@ -68,7 +79,7 @@ export default function FollowingSheet({ userId, locale, onClose, openerRef }: P
             }
         })();
         return () => { cancelled = true; };
-    }, [userId]);
+    }, [userId, kind]);
 
     return (
         <div
@@ -79,7 +90,7 @@ export default function FollowingSheet({ userId, locale, onClose, openerRef }: P
                 ref={panelRef}
                 role="dialog"
                 aria-modal="true"
-                aria-label={locale === "en" ? "Following" : "フォロー中"}
+                aria-label={locale === "en" ? TITLE[kind].en : TITLE[kind].ja}
                 // 下端に密着させない（iPhone のホームインジケータに最後の行が
                 // かぶる）。既存のボトムシート2つと同じ形
                 className="w-full sm:max-w-sm max-h-[70dvh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-[#1c1c1e] ring-1 ring-white/10 pb-[calc(env(safe-area-inset-bottom,0px))] sm:pb-0"
@@ -87,7 +98,7 @@ export default function FollowingSheet({ userId, locale, onClose, openerRef }: P
             >
                 <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
                     <p className="text-sm text-white/90">
-                        {locale === "en" ? "Following" : "フォロー中"}
+                        {locale === "en" ? TITLE[kind].en : TITLE[kind].ja}
                         {state === "ready" && total > 0 && (
                             <span className="ml-2 text-[11px] text-white/60 tabular-nums">{total}</span>
                         )}
@@ -116,7 +127,7 @@ export default function FollowingSheet({ userId, locale, onClose, openerRef }: P
                     )}
                     {state === "ready" && rows.length === 0 && (
                         <p className="text-xs text-white/60 text-center py-8">
-                            {locale === "en" ? "Not following anyone yet." : "まだ誰もフォローしていません"}
+                            {locale === "en" ? EMPTY[kind].en : EMPTY[kind].ja}
                         </p>
                     )}
                     {rows.map((u) => (u.deleted ? (

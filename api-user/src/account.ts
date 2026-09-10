@@ -7,6 +7,7 @@ import { mediaKeys } from "./mediaKeys";
 import { s3DeleteMany } from "./s3Delete";
 import { invalidateUploads } from "./cdnInvalidate";
 import { purgeBlocksFor } from "./block";
+import { updateFollowersQuietly } from "./follow";
 import { requireEnv } from "./env";
 import { requestSiteRebuild } from "./rebuild";
 import { isDeletedProfile } from "./types";
@@ -541,6 +542,11 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
             await mapWithConcurrency(targets, 8, async (t) => {
                 if (timeLeft() < CLEANUP_RESERVE_MS) { failed.push(t); return; }
                 if (!await unfollowAtomically(t, uid)) { failed.push(t); return; }
+                // **相手のフォロワー一覧からも外す。** 外さないと、退会した
+                // 人が相手の一覧に残り続ける（`getUserFollowers` は
+                // `deleted: true` で伏せるが、行そのものは誰も消さない）。
+                // ベストエフォート——失敗しても退会は止めない
+                await updateFollowersQuietly(t, uid, false);
                 // フォロー通知の間引きマーカー（follow.ts の follownotify#）も消す。
                 // 消し忘れていた頃は退会のたびに1件ずつ残り、スコープ外リストにも
                 // 載っていない「誰も消さないゴミ」だった。ただの間引き印なので
@@ -558,6 +564,10 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // 5. 自分の各ドキュメント（既知キー）
         await ddbDelete(PHOTOS_TABLE, { id: `notifs#${uid}` });
         await ddbDelete(PHOTOS_TABLE, { id: `followstats#${uid}` });
+        // 自分をフォローしていた人の一覧。**自分の行なので消してよい**
+        // （相手側の `following#<相手>` に自分が残るのは既知——
+        //  `getUserFollowing` が `deleted: true` で伏せる）
+        await ddbDelete(PHOTOS_TABLE, { id: `followers#${uid}` });
         // ブロックの行（印・自分の一覧・被ブロックの一覧）。
         // **失敗しても退会は止めない**（フォローの掃除と同じ扱い）
         await purgeBlocksFor(uid)

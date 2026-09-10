@@ -15,7 +15,8 @@ import FollowingSheet from "../FollowingSheet";
 
 const UID = "11111111-1111-4111-8111-111111111111";
 const onClose = vi.fn();
-const view = () => render(<FollowingSheet userId={UID} locale="ja" onClose={onClose} />);
+const view = (kind: "following" | "followers" = "following") =>
+    render(<FollowingSheet userId={UID} kind={kind} locale="ja" onClose={onClose} />);
 
 const listOk = (users: unknown, total?: number) => mockUserFetch.mockResolvedValue({
     ok: true, json: async () => ({ users, total: total ?? (Array.isArray(users) ? users.length : 0) }),
@@ -159,5 +160,23 @@ describe("フォロー中の一覧: モーダルとしての作法", () => {
         view();
         await userEvent.click(await screen.findByText("旅人B"));
         expect(onClose).toHaveBeenCalled();
+    });
+});
+
+// **1つの部品で両方出す。** 違うのは口と見出しだけで、倒し方は同じ。
+// 分けて書くと静かにずれる
+describe("フォロワーの一覧（同じ部品）", () => {
+    it("フォロワー側の口を叩き、見出しも変える", async () => {
+        listOk([{ id: "u2", name: "旅人B" }]);
+        view("followers");
+        await screen.findByText("旅人B");
+        expect(mockUserFetch.mock.calls[0][0]).toBe(`/users/${UID}/followers`);
+        expect(screen.getByRole("dialog", { name: "フォロワー" })).toBeInTheDocument();
+    });
+
+    it("0人のときの文言もフォロワー向けにする", async () => {
+        listOk([]);
+        view("followers");
+        expect(await screen.findByText("まだフォロワーはいません")).toBeInTheDocument();
     });
 });
