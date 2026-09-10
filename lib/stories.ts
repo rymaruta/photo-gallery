@@ -19,6 +19,12 @@ export type Story = {
      * 本人だけのもの。
      */
     replyCount?: number;
+    /**
+     * ギャラリーに残したときの写真ID（`POST /stories/{id}/keep`）。
+     * 立っていると、期限切れでも**S3 の実体は消えない**（持ち主が写真に
+     * 移っている）。画面はこれで「残した」を出し分ける。
+     */
+    keptAs?: string;
     createdAt: string;
     expiresAt: string;
 };

@@ -84,6 +84,10 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const [replies, setReplies] = useState<StoryReply[] | null>(null);
     const [repliesError, setRepliesError] = useState(false);
     const [repliesOpen, setRepliesOpen] = useState(false);
+    // ギャラリーに残す（このサイトにしかない向き。消えるもの → 検索に出るもの）
+    const [keeping, setKeeping] = useState(false);
+    const [keptPhotoId, setKeptPhotoId] = useState<string | null>(null);
+    const [keepError, setKeepError] = useState<string | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const reportedRef = useRef<Set<string>>(new Set());
 
@@ -319,7 +323,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     // **`replySending` を入れ忘れていた**——絵文字を押した時点で入力欄に
     // フォーカスは無いので `replyFocused` は効かず、応答が返るまでの間に
     // 表示が次へ移ると「送信しました」が**次の人の画面**に出ていた。
-    const frozen = paused || viewersOpen || confirmDelete || repliesOpen || replyFocused || replySending;
+    const frozen = paused || viewersOpen || confirmDelete || repliesOpen || replyFocused || replySending || keeping;
 
     // 画像の進捗は CSS アニメーション（60fps・再描画なし）が駆動し、
     // 完了は onAnimationEnd で検知する。動画は下の onTimeUpdate で進捗を更新。
@@ -372,6 +376,9 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         setReplies(null);
         setRepliesError(false);
         setRepliesOpen(false);
+        setKeeping(false);
+        setKeptPhotoId(null);
+        setKeepError(null);
     }, [item?.id]);
 
     /** 返信を送る（本文または絵文字1つ） */
@@ -436,6 +443,39 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         })();
         return () => { aborted = true; };
     }, [repliesOpen, item, isOwnStory]);
+
+    /**
+     * このストーリーをギャラリーに残す。
+     *
+     * **できるのは下書きの写真**なので、そのまま検索に出ることはない。
+     * 残したあとは編集画面（撮影地・題を入れて公開する）へ誘う。
+     */
+    const keepToGallery = useCallback(async () => {
+        if (!item || keeping) return;
+        setKeeping(true);
+        setKeepError(null);
+        const target = item.id;
+        // 送信中に手で次へ進められても、手応えを別の1枚に出さない（返信と同じ）
+        const stillHere = () => itemIdRef.current === target;
+        try {
+            const { userFetch, readApiError } = await import("../../../lib/utils/api");
+            const res = await userFetch(`/stories/${encodeURIComponent(target)}/keep`, { method: "POST" });
+            if (!res.ok) {
+                const msg = await readApiError(res, locale === "en" ? "Couldn't keep it." : "残せませんでした");
+                if (stillHere()) setKeepError(msg);
+                return;
+            }
+            const data = await res.json() as { photoId?: string };
+            if (!stillHere()) return;
+            if (typeof data.photoId === "string" && data.photoId) setKeptPhotoId(data.photoId);
+            else setKeepError(locale === "en" ? "Couldn't keep it." : "残せませんでした");
+        } catch (e) {
+            const { sessionErrorMessage } = await import("../../../lib/utils/api");
+            if (stillHere()) setKeepError(sessionErrorMessage(e) ?? (locale === "en" ? "Couldn't keep it." : "残せませんでした"));
+        } finally {
+            setKeeping(false);
+        }
+    }, [item, keeping, locale]);
 
     const handleDelete = useCallback(async () => {
         if (!item || !onDelete) return;
@@ -806,12 +846,49 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                 : `返信 ${item.replyCount}件`}
                         </button>
                     )}
+                    {/* **消えるもの → 残るもの。** ストーリーは24時間で消えて
+                        検索にも出ないが、写真には個別ページも地図も集約ページも
+                        ある。この1枚だけ、**下書きの写真**として残す
+                        （公開は編集画面で本人が押す）。動画は写真の行にできない */}
+                    {isOwnStory && item.mediaType !== "video" && (
+                        keptPhotoId || item.keptAs ? (
+                            <a
+                                href={`/user/edit?id=${encodeURIComponent(keptPhotoId ?? String(item.keptAs))}`}
+                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/90 text-black text-xs font-semibold"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                <PhotoIcon className="w-4 h-4" />
+                                {locale === "en" ? "Kept · Edit" : "残した · 仕上げる"}
+                            </a>
+                        ) : (
+                            <button
+                                onClick={() => void keepToGallery()}
+                                disabled={keeping}
+                                aria-label={locale === "en" ? "Keep in gallery" : "ギャラリーに残す"}
+                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm disabled:opacity-50"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                <PhotoIcon className="w-4 h-4" />
+                                {keeping
+                                    ? (locale === "en" ? "Keeping…" : "残しています…")
+                                    : (locale === "en" ? "Keep" : "残す")}
+                            </button>
+                        )
+                    )}
                     {item.caption && (
                         <p className="min-w-0 flex-1 text-white text-sm leading-snug whitespace-pre-wrap break-words line-clamp-3 drop-shadow pointer-events-none">
                             {item.caption}
                         </p>
                     )}
                 </div>
+            )}
+
+            {keepError && isOwnStory && (
+                <p
+                    className="absolute inset-x-4 bottom-16 z-20 text-center text-[11px] text-rose-300"
+                    style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+                    role="alert"
+                >{keepError}</p>
             )}
 
             {/* **見た人が反応する道。** 自分のストーリーには出さない
