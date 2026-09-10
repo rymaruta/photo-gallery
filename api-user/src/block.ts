@@ -4,14 +4,15 @@ import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { isUserId } from "./userId";
 import { unfollowQuietly } from "./follow";
-import { blockMarkerId, isBlocked } from "./blockCheck";
+import { blockMarkerId } from "./blockCheck";
+import { lookupDisplayNameIfSet } from "./notify";
 
 // 判定（印の綴りと GetItem 1回）は `blockCheck.ts` にある。
-// **`follow.ts` から使うため**に切り出した——このファイルは
-// `unfollowQuietly` を呼ぶので、あちらからここを import すると輪になる。
-// 既存の呼び出し側（`stories` / `comments` / `notify` / `storyReplies`）が
-// 変わらずに済むよう、ここから再輸出する。
-export { blockMarkerId, isBlocked };
+// **輪を作らないため**の切り出し——このファイルは `follow.ts` の
+// `unfollowQuietly` と `notify.ts` の表示名引きを呼ぶので、
+// あちらからここを import すると輪になる。判定だけを使う側
+// （`follow` / `notify` / `comments` / `stories` / `storyReplies`）は
+// `blockCheck.ts` を直接見る。
 
 /**
  * ブロック。**「この人からの反応を受け取らない」**。
@@ -227,17 +228,40 @@ export async function purgeBlocksFor(uid: string): Promise<void> {
         .catch((e) => console.error(`purgeBlocksFor: 被ブロックの一覧を消せませんでした（${uid}）:`, e));
 }
 
-/** GET /user/blocks — 自分がブロックした人 */
+/**
+ * 名前まで引く人数の上限。
+ *
+ * `BLOCKS_MAX` は500だが、500件の GetItem を1回の呼び出しで撃つと
+ * 既定の6秒に近づく。ここを超えたぶんは ID だけ返し、画面は既定名を出す
+ * （実際に500人ブロックしている人は居ない。上限は歯止めであって想定値ではない）。
+ */
+const BLOCK_NAMES_MAX = 100;
+
+/**
+ * GET /user/blocks — 自分がブロックした人。
+ *
+ * **名前まで返す。** ID だけ返していた頃はこの口を呼ぶ画面が1つも
+ * 無く（grep で0件）、**一度ブロックすると解除する手段が無かった**。
+ * 画面側で1人ずつ `GET /profile/{id}` を叩く形にすると、Lambda の
+ * 同時実行がアカウント全体で10しかないので人数ぶんの往復が刺さる。
+ */
 export const listBlocks: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const me = getUserId(event);
     if (!me) return jsonError(401, "認証が必要です");
     try {
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: blocksId(me) } }));
+        const blockedIds = ids(res.Item as Record<string, unknown> | undefined, "blockedIds");
+        // 名前が引けなくても一覧は返す（解除できることの方が大事）
+        const users = await Promise.all(blockedIds.slice(0, BLOCK_NAMES_MAX).map(async (id) => {
+            const name = await lookupDisplayNameIfSet(id).catch(() => undefined);
+            return name ? { id, name } : { id };
+        }));
+        for (const id of blockedIds.slice(BLOCK_NAMES_MAX)) users.push({ id });
         return {
             statusCode: 200,
             // 本人向け。共有キャッシュに載せない
             headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
-            body: JSON.stringify({ blockedIds: ids(res.Item as Record<string, unknown> | undefined, "blockedIds") }),
+            body: JSON.stringify({ blockedIds, users }),
         };
     } catch (e) {
         console.error("listBlocks error:", e);

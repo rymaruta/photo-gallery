@@ -1261,6 +1261,19 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                     </div>
                                 ))
                             )}
+                            {/* **何が起きるかと、戻し方を先に言う。** ブロックは
+                                相手とのフォローを**両向きに切る**（`block.ts`）。
+                                黙って切ると「フォロワーが1人減った」だけが残る。
+                                押してから出しても遅い（確認ダイアログを増やす
+                                かわりに、ボタンと同じ画面に1行置く）。
+                                出すのはボタンが1つでも出ているときだけ */}
+                            {(replies ?? []).some((r) => !r.deleted) && (
+                                <p className="pt-1 text-[11px] text-white/60 leading-relaxed">
+                                    {locale === "en"
+                                        ? "Blocking also removes follows in both directions. You can unblock from your profile settings."
+                                        : "ブロックすると、お互いのフォローも外れます。解除はプロフィール設定からできます。"}
+                                </p>
+                            )}
                         </div>
                     </div>
                 </div>

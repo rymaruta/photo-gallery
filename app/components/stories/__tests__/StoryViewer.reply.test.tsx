@@ -381,6 +381,34 @@ describe("届いた返信から、その人をブロックする", () => {
         expect(await screen.findByLabelText("しつこい人 さんをブロック"), "押し直せない").toBeInTheDocument();
     });
 
+    // **押す前に、何が起きるかを言う。** ブロックは相手とのフォローを
+    // 両向きに切る（`block.ts`）。黙って切ると「フォロワーが1人減った」
+    // だけが残る。戻し方（プロフィール設定）も同じ場所に書く
+    it("押す前に、フォローも外れることと解除の場所を出す", async () => {
+        withReply();
+        view(ownGroups(1));
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        const note = await screen.findByText(/お互いのフォローも外れます/);
+        expect(note.textContent, "解除の場所を言っていない").toContain("プロフィール設定");
+    });
+
+    // 押せる相手が居ないのに出すと、ただの雑音
+    it("ブロックできる相手が居なければ、その一文は出さない", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/replies") && !init?.method) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({ items: [{ id: "r1", uid: "gone", name: "退会したユーザー", text: "…", t: "2026-07-04T12:00:00Z", deleted: true }] }),
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        view(ownGroups(1));
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await screen.findByText("退会したユーザー");
+        expect(screen.queryByText(/お互いのフォローも外れます/)).toBeNull();
+    });
+
     // 退会した人にはもう届かない（押させない）
     it("退会した人にはボタンを出さない", async () => {
         mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {

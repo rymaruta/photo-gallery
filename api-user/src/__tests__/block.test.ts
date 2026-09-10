@@ -10,8 +10,18 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 
-const { blockUser, unblockUser, listBlocks, isBlocked, hiddenUserIds, purgeBlocksFor, BLOCKS_MAX, blockMarkerId, blocksId, blockedById }
-    = await import("../block");
+// 表示名の引きは境界としてモックする（`notify` は USERS_TABLE を要求する）
+const mockName = vi.hoisted(() => vi.fn<(uid: string) => Promise<string | undefined>>(async () => undefined));
+vi.mock("../notify", () => ({ lookupDisplayNameIfSet: (...a: unknown[]) => mockName(...(a as [string])) }));
+
+// 判定は `blockCheck.ts` にある（`follow.ts` / `notify.ts` から輪を作らずに
+// 使うための切り出し）。同じ `mockDdbSend` を見るので振る舞いは変わらない。
+// **await は1つにまとめる**——このパッケージの tsconfig は top-level await を
+// 通さないので、増やすと `tsc` のエラー件数が増える（件数で見ているため）
+const [
+    { blockUser, unblockUser, listBlocks, hiddenUserIds, purgeBlocksFor, BLOCKS_MAX, blocksId, blockedById },
+    { isBlocked, blockMarkerId },
+] = await Promise.all([import("../block"), import("../blockCheck")]);
 
 // **UUID の形で書く。** 実装は相手のIDの形を見る（見ないと、任意の文字列で
 // 誰も掃除しない行を作れる）ので、"me" / "them" のままだと 400 で弾かれ、
@@ -50,7 +60,7 @@ function world(rows: Record<string, Record<string, unknown>> = {}) {
 // `cmd.constructor` を読むと、その呼び出しだけ `undefined` で落ちる
 // ——「1つ前のテストが原因」に見えるので、たどり着くのに時間がかかった。
 // 中括弧で包んで何も返さない。
-beforeEach(() => { mockDdbSend.mockReset(); mockUnfollow.mockReset().mockResolvedValue(undefined); });
+beforeEach(() => { mockDdbSend.mockReset(); mockUnfollow.mockReset().mockResolvedValue(undefined); mockName.mockReset().mockResolvedValue(undefined); });
 
 // **やり取りの口を持つ以上の最低限。** ストーリーへの返信を足した時点で、
 // ログインしていれば誰でも誰の通知にも文字を送れるようになった
@@ -197,6 +207,24 @@ describe("listBlocks", () => {
 
     it("未認証は 401", async () => {
         expect((await invoke(listBlocks, ev(undefined))).statusCode).toBe(401);
+    });
+
+    // **名前まで返す。** ID だけだと、画面が1人ずつ `GET /profile/{id}` を
+    // 叩くことになる——Lambda の同時実行はアカウント全体で10しかない
+    it("表示名まで返す（画面が1人ずつ引きに行かなくて済むように）", async () => {
+        world({ [blocksId(ME)]: { blockedIds: [THEM, OTHER] } });
+        mockName.mockImplementation(async (id: string) => (id === THEM ? "しつこい人" : undefined));
+        const r = await invoke(listBlocks, ev(ME));
+        expect(bodyOf(r).users).toEqual([{ id: THEM, name: "しつこい人" }, { id: OTHER }]);
+    });
+
+    // 名前が引けないことより、**解除できないこと**の方が困る
+    it("名前が引けなくても一覧は返す", async () => {
+        world({ [blocksId(ME)]: { blockedIds: [THEM] } });
+        mockName.mockRejectedValue(new Error("throttled"));
+        const r = await invoke(listBlocks, ev(ME));
+        expect(r.statusCode).toBe(200);
+        expect(bodyOf(r).users).toEqual([{ id: THEM }]);
     });
 });
 

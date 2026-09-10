@@ -23,9 +23,9 @@ const mockIsBlocked = vi.hoisted(() => vi.fn(async () => false));
 // 全テストのモックに `block#` の分岐を足して回ることになり、
 // **本題と関係のない行が増えて読めなくなる**。
 // ブロックが効くことは、このファイルの専用のテストで見る。
-vi.mock("../block", () => ({
+vi.mock("../blockCheck", () => ({
     isBlocked: (...a: unknown[]) => mockIsBlocked(...(a as [])),
-    hiddenUserIds: async () => new Set<string>(),
+    blockMarkerId: (a: string, b: string) => `block#${a}#${b}`,
 }));
 
 const { getComments, postComment, deleteComment, overBudgetCount } = await import("../comments");

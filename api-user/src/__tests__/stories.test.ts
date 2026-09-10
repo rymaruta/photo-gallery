@@ -32,8 +32,11 @@ const mockHidden = vi.hoisted(() => vi.fn(async () => new Set<string>()));
 // 全テストのモックに `block#` の分岐を足して回ることになり、
 // **本題と関係のない行が増えて読めなくなる**。
 // ブロックが効くことは、このファイルの専用のテストで見る。
-vi.mock("../block", () => ({
+vi.mock("../blockCheck", () => ({
     isBlocked: (...a: unknown[]) => mockIsBlocked(...(a as [])),
+    blockMarkerId: (a: string, b: string) => `block#${a}#${b}`,
+}));
+vi.mock("../block", () => ({
     hiddenUserIds: (...a: unknown[]) => mockHidden(...(a as [])),
 }));
 

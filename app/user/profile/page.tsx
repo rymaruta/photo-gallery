@@ -19,6 +19,7 @@ import { isImeKey } from "../../../lib/utils/ime";
 import { log } from "../../../lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
 import DeleteAccountModal from "../../components/DeleteAccountModal";
+import BlockedUsers from "./BlockedUsers";
 import SongArtwork from "../../components/SongArtwork";
 import { loginWithNext } from "../../../lib/routes";
 
@@ -1054,6 +1055,11 @@ export default function ProfileEditPage() {
                                 : (locale === "en" ? "Save" : "保存する")}
                         </button>
                     </div>
+
+                    {/* ブロックした人（1人も居なければ何も描かない）。
+                        **解除できる場所がここしか無い**——ストーリーの返信から
+                        ブロックできるようにしたぶん、戻す口が要る */}
+                    <BlockedUsers locale={locale as "ja" | "en"} />
 
                     {/* 危険な操作: 退会（アカウント削除） */}
                     <div className="mt-10 pt-6 border-t border-white/10">

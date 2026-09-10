@@ -5,7 +5,7 @@ import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { pushNotification, lookupDisplayName, deletedUserIds, DELETED_USER_NAME } from "./notify";
 import { truncate } from "./sanitize";
-import { isBlocked } from "./block";
+import { isBlocked } from "./blockCheck";
 
 /**
  * ストーリーへの返信とリアクション。

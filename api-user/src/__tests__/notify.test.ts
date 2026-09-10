@@ -12,9 +12,9 @@ vi.mock("../dynamodb", () => ({ ddb: { send: mockDdbSend }, PHOTOS_TABLE: "photo
 
 // ブロックの判定は境界としてモックする（実際の判定は `block.test.ts`）
 const mockIsBlocked = vi.hoisted(() => vi.fn(async () => false));
-vi.mock("../block", () => ({
+vi.mock("../blockCheck", () => ({
     isBlocked: (...a: unknown[]) => mockIsBlocked(...(a as [])),
-    hiddenUserIds: async () => new Set<string>(),
+    blockMarkerId: (a: string, b: string) => `block#${a}#${b}`,
 }));
 
 vi.stubEnv("USERS_TABLE", "users-test");

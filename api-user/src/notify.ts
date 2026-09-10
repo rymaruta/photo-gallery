@@ -1,7 +1,7 @@
 import { GetCommand, UpdateCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { requireEnv } from "./env";
-import { isBlocked } from "./block";
+import { isBlocked } from "./blockCheck";
 
 // 通知の共通ヘルパー。
 // 通知は "notifs#<uid>" 文書に list_append + ADD unread でアトミックに追記する

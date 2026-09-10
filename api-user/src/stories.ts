@@ -11,7 +11,8 @@ import { invalidateUploads } from "./cdnInvalidate";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { truncate, sanitizeText, sanitizeCoords } from "./sanitize";
 import { storyRepliesId } from "./storyReplies";
-import { hiddenUserIds, isBlocked } from "./block";
+import { hiddenUserIds } from "./block";
+import { isBlocked } from "./blockCheck";
 
 // バケット名の検証と S3 の削除は `s3Delete.ts` に寄せた（未設定なら
 // そちらの読み込みで止まる）。
