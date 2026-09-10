@@ -184,7 +184,90 @@ describe("ストーリーへの返信（見る側）", () => {
     });
 });
 
+// **「入力中は進めない」を、進行そのもので確かめる。**
+// 既存の「入力中は次へ進まない」は矢印キーのガード（タグ名で見る側）を
+// 検証しているだけで、**自動送りは1本も見ていなかった**——`frozen` から
+// `replyFocused` や `repliesOpen` を外しても全部緑だった。
+describe("入力中・送信中は自動で進まない", () => {
+    /** 画像の進捗は CSS アニメーションが駆動する。止まっていれば paused */
+    const playState = () => (document.querySelector(".story-progress-fill") as HTMLElement | null)
+        ?.style.animationPlayState;
+
+    it("何もしていなければ進む", async () => {
+        view(othersGroups());
+        await screen.findByLabelText("このストーリーに返信");
+        expect(playState()).toBe("running");
+    });
+
+    it("入力欄にフォーカスしている間は止まる", async () => {
+        view(othersGroups());
+        const input = await screen.findByLabelText("このストーリーに返信");
+        fireEvent.focus(input);
+        await waitFor(() => expect(playState(), "打っている間も進んでいる").toBe("paused"));
+    });
+
+    // **絵文字を押した時点で入力欄にフォーカスは無い。**
+    // 送信中に表示が次へ移ると、「送信しました」が**次の人の画面**に出る
+    it("送信中は止まる", async () => {
+        let release!: () => void;
+        const held = new Promise<void>((r) => { release = r; });
+        mockUserFetch.mockImplementation(async (url: string, init?: { method?: string }) => {
+            if (String(url).includes("/replies") && init?.method === "POST") {
+                await held;
+                return { ok: true, json: async () => ({}) };
+            }
+            return { ok: true, json: async () => ({}) };
+        });
+        view(othersGroups());
+        fireEvent.click(await screen.findByLabelText(`${STORY_REACTIONS[0]} で反応する`));
+        await waitFor(() => expect(playState(), "応答を待っている間も進んでいる").toBe("paused"));
+        release();
+    });
+
+    // 手で矢印を押されれば表示は変わる。そのときに「送信しました」を出すと、
+    // **送っていない人の画面に手応えが出る**
+    it("送信中に手で次へ進めたら、次の人の画面に手応えを出さない", async () => {
+        let release!: () => void;
+        const held = new Promise<void>((r) => { release = r; });
+        mockUserFetch.mockImplementation(async (url: string, init?: { method?: string }) => {
+            if (String(url).includes("/replies") && init?.method === "POST") {
+                await held;
+                return { ok: true, json: async () => ({}) };
+            }
+            return { ok: true, json: async () => ({}) };
+        });
+        view(othersGroups());
+        fireEvent.click(await screen.findByLabelText(`${STORY_REACTIONS[0]} で反応する`));
+        await waitFor(() => expect(mockUserFetch.mock.calls.some(
+            (c) => String(c[0]).includes("/replies")))
+            .toBe(true));
+
+        fireEvent.keyDown(document, { key: "ArrowRight" });   // 手で次へ
+        release();
+        await new Promise((r) => setTimeout(r, 30));
+
+        expect(screen.queryByText("送信しました"), "送っていない人の画面に手応えが出ている").toBeNull();
+        expect(screen.getByLabelText("このストーリーに返信"), "返信欄が消えている").toBeInTheDocument();
+    });
+});
+
 describe("届いた返信（投稿者側）", () => {
+    // シートを開いている間も止める（閲覧者リストと同じ）。
+    // 止めないと、読んでいる途中で次のストーリーへ移って**別の人の返信**が
+    // 出る（`viewersOpen` は最初から入っていたのに、こちらは無検証だった）
+    it("返信のシートを開いている間は止まる", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/replies") && !init?.method) {
+                return Promise.resolve({ ok: true, json: async () => ({ items: [] }) });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        view(ownGroups(1));
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        const fill = document.querySelector(".story-progress-fill") as HTMLElement | null;
+        expect(fill?.style.animationPlayState, "シートを開いている間も進んでいる").toBe("paused");
+    });
+
     it("0件のときはボタンを出さない", async () => {
         view(ownGroups());
         await screen.findByLabelText("閉じる");
@@ -205,8 +288,13 @@ describe("届いた返信（投稿者側）", () => {
         const btn = await screen.findByLabelText("届いた返信を見る");
         expect(btn.textContent).toContain("2");
 
-        // **開くまで読みに行かない**（バッジの数は `replyCount` が持っている）
-        expect(mockUserFetch.mock.calls.some((c) => String(c[0]).includes("/replies"))).toBe(false);
+        // **開くまでシートの中身は出ない。**
+        // 「まだ `/replies` を呼んでいない」を数で言う形にしていたが、
+        // それは**何も検証していなかった**（変異を入れても緑。原因は
+        // このエフェクトの `await import` が実物のモジュールを掴み、
+        // 実物の `userFetch` が投げて `catch` に吸われるため、
+        // モックの呼び出し回数がそもそも増えない）。肯定側で見る
+        expect(screen.queryByText("いいね！"), "開く前から中身が出ている").toBeNull();
         await userEvent.click(btn);
         expect(await screen.findByText("いいね！")).toBeInTheDocument();
     });

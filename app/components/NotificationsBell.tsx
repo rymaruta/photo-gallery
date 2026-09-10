@@ -249,7 +249,11 @@ export default function NotificationsBell() {
                                                 <p className="text-[11px] text-white/50 mt-0.5">{fmtTime(n.t)}</p>
                                             </div>
                                             {/* どの写真のことかが分かるよう、右端にその写真を出す */}
-                                            {n.type !== "follow" && n.photoSrc && (n.byId || n.targetUserId) && (
+                                            {/* **ストーリーのサムネは出さない。** 返信の通知が持つ
+                                                `photoSrc` は24時間で消えるストーリーの画像で、
+                                                通知の方は残る＝**古い返信通知はすべて灰色の四角**に
+                                                なる。写真の通知は消えない限り出し続けてよい */}
+                                            {n.type !== "follow" && n.type !== "storyreply" && n.photoSrc && (n.byId || n.targetUserId) && (
                                                 // eslint-disable-next-line @next/next/no-img-element
                                                 <img src={n.photoSrc} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
                                             )}

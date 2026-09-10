@@ -91,6 +91,12 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const item = group?.items[i];
     const isVideo = item?.mediaType === "video";
     const isOwnStory = !!ownUserId && group?.userId === ownUserId;
+    // 非同期の中から「今どれを表示しているか」を見るための控え。
+    // state を閉じ込めると送信を始めた時点の値になる
+    const itemIdRef = useRef<string | undefined>(item?.id);
+    itemIdRef.current = item?.id;
+    /** 返信の帯を出すか。**キャプションの位置がこれで決まる**ので1か所で持つ */
+    const showReplyBar = !isOwnStory && isAuthenticated;
 
     // 表示したストーリーを既読にする（端末側）
     useEffect(() => {
@@ -308,9 +314,12 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const [paused, setPaused] = useState(() =>
         typeof window !== "undefined" && typeof window.matchMedia === "function"
         && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-    // **入力中とシートを開いている間は進めない。** 打っている途中で次へ
-    // 送られると、書いた相手と違う人に届く（Instagram も入力中は止まる）
-    const frozen = paused || viewersOpen || confirmDelete || repliesOpen || replyFocused;
+    // **入力中・送信中・シートを開いている間は進めない。** 打っている途中で
+    // 次へ送られると、書いた相手と違う人に届く（Instagram も入力中は止まる）。
+    // **`replySending` を入れ忘れていた**——絵文字を押した時点で入力欄に
+    // フォーカスは無いので `replyFocused` は効かず、応答が返るまでの間に
+    // 表示が次へ移ると「送信しました」が**次の人の画面**に出ていた。
+    const frozen = paused || viewersOpen || confirmDelete || repliesOpen || replyFocused || replySending;
 
     // 画像の進捗は CSS アニメーション（60fps・再描画なし）が駆動し、
     // 完了は onAnimationEnd で検知する。動画は下の onTimeUpdate で進捗を更新。
@@ -371,8 +380,12 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         setReplySending(true);
         setReplyError(null);
         // **送り先を先に控える。** 送っている間に次へ送られても、
-        // 応答を書き戻す相手を間違えない
+        // 応答を書き戻す相手を間違えない。
+        // **書き戻す側も見る**（下の `stillHere`）——`frozen` は自動送りしか
+        // 止めないので、手で矢印を押されれば表示は変わる。そのときに
+        // 「送信しました」を出すと、**送っていない人の画面に手応えが出る**
         const target = item.id;
+        const stillHere = () => itemIdRef.current === target;
         try {
             const { userFetch } = await import("../../../lib/utils/api");
             const { readApiError } = await import("../../../lib/utils/api");
@@ -382,14 +395,16 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 body: JSON.stringify(payload),
             });
             if (!res.ok) {
-                setReplyError(await readApiError(res, locale === "en" ? "Couldn't send." : "送信できませんでした"));
+                const msg = await readApiError(res, locale === "en" ? "Couldn't send." : "送信できませんでした");
+                if (stillHere()) setReplyError(msg);
                 return;
             }
+            if (!stillHere()) return;
             setReplyText("");
             setReplySent(true);
         } catch (e) {
             const { sessionErrorMessage } = await import("../../../lib/utils/api");
-            setReplyError(sessionErrorMessage(e) ?? (locale === "en" ? "Couldn't send." : "送信できませんでした"));
+            if (stillHere()) setReplyError(sessionErrorMessage(e) ?? (locale === "en" ? "Couldn't send." : "送信できませんでした"));
         } finally {
             setReplySending(false);
         }
@@ -738,7 +753,17 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             {(isOwnStory || item.caption) && (
                 <div
                     className="absolute bottom-4 left-4 right-4 z-20 flex items-center gap-2"
-                    style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+                    /* **返信の帯（高さ約124px）に完全に隠れていた。**
+                       実測（390x844）でキャプションの高さの100%が帯と重なり、
+                       36px は入力欄そのものの下に沈んでいた（`bg-black/55` +
+                       `backdrop-blur` なので判読不能）。帯が出る条件のときだけ
+                       その分持ち上げる。**位置を上げるだけ**——キャプションを
+                       帯の中へ移すのは見た目の作り直しになる */
+                    style={{
+                        marginBottom: showReplyBar
+                            ? "calc(7.5rem + env(safe-area-inset-bottom, 0px))"
+                            : "env(safe-area-inset-bottom, 0px)",
+                    }}
                 >
                     {isOwnStory && (
                         <button
@@ -793,14 +818,16 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 （送れない）。未ログインにも出さない——押してから断るのは
                 いちばん不親切な形で、このリポジトリは会員限定の操作を
                 最初から出さない側に揃えている */}
-            {!isOwnStory && isAuthenticated && (
+            {showReplyBar && (
                 <div
                     className="absolute inset-x-0 bottom-0 z-30 px-3 pt-8 pb-3 bg-gradient-to-t from-black/80 to-transparent"
                     style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
-                    /* 左右のタップ領域（送り）に吸われないようにする。
-                       ここを止めないと、絵文字を押した瞬間に次のストーリーへ進む */
-                    onClick={(e) => e.stopPropagation()}
-                    onPointerDown={(e) => e.stopPropagation()}
+                    /* **`stopPropagation` は要らない**（一度書いて外した）。
+                       左右のタップ領域は**兄弟**の要素で、しかもこの帯は
+                       その前面（z-30 対 z-10）。React のイベントは親へ上がる
+                       だけなので、兄弟の送り操作には最初から届かない。
+                       共通の親にも click は付いていない＝**死にコードだった**
+                       （外しても挙動は変わらないことを変異で確認） */
                 >
                     {replySent ? (
                         <p className="text-center text-white/80 text-xs py-2.5" role="status">
