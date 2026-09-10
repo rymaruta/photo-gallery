@@ -25,7 +25,10 @@ function condFail() {
     return Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" });
 }
 
-beforeEach(() => mockDdbSend.mockReset());
+// `mockReset()` は**モック自身を返す**ので、アローの暗黙の return だと
+// **vitest が後片付けの関数だと思って引数なしで呼ぶ**（`block.test.ts` 参照）。
+// 中括弧で包んで何も返さない。
+beforeEach(() => { mockDdbSend.mockReset(); });
 
 describe("getLikeCount", () => {
     it("id なしは 400", async () => {

@@ -43,7 +43,7 @@ function world(story: Record<string, unknown> | undefined, replies: unknown[] = 
         if (cmd.constructor.name === "GetCommand") {
             if (id === "story-1") return Promise.resolve(story ? { Item: story } : {});
             if (id === storyRepliesId("story-1")) return Promise.resolve({ Item: { items: replies } });
-            return Promise.resolve({});
+            return Promise.resolve({});   // ブロックの印を含め、その他は無し
         }
         return Promise.resolve({});
     });
@@ -134,6 +134,38 @@ describe("postStoryReply", () => {
         expect(mockPush, "自分宛ての通知を作っている").not.toHaveBeenCalled();
     });
 
+    // **やり取りの口を持つ以上の最低限。** ここは「誰でも誰の通知にも
+    // 文字を送れる」口の出口（1ストーリー10件 × 1日20本）。
+    // **404 で返す**——「ブロックされています」と言うと相手の操作を教える
+    it("ブロックされていたら送れない（実在も教えない 404）", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name !== "GetCommand") return Promise.resolve({});
+            if (id === "story-1") return Promise.resolve({ Item: STORY });
+            if (id === "block#owner#u1") return Promise.resolve({ Item: { blockerId: "owner", blockedId: "u1" } });
+            return Promise.resolve({});
+        });
+        const r = await invoke(postStoryReply, ev("u1", "story-1", { text: "しつこい" }));
+        expect(r.statusCode).toBe(404);
+        expect(inputs().some((i) => String(i.UpdateExpression ?? "").includes("list_append")), "ブロックされているのに書いている").toBe(false);
+        expect(mockPush, "ブロックされているのに通知を飛ばしている").not.toHaveBeenCalled();
+    });
+
+    // 向きを取り違えない（自分が相手をブロックしていても、送るのは自由）
+    it("自分が相手をブロックしていても、返信は送れる", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name !== "GetCommand") return Promise.resolve({});
+            if (id === "story-1") return Promise.resolve({ Item: STORY });
+            if (id === "block#u1#owner") return Promise.resolve({ Item: { blockerId: "u1", blockedId: "owner" } });
+            // **逆向きの印は無い。** ここを素の `{ Item: ... }` で返すと
+            // 「相手にブロックされている」と読まれ、何も検証しないテストになる
+            if (id.startsWith("block#")) return Promise.resolve({});
+            return Promise.resolve({ Item: { items: [] } });
+        });
+        expect((await invoke(postStoryReply, ev("u1", "story-1", { text: "こんにちは" }))).statusCode).toBe(200);
+    });
+
     it("ストーリーが無ければ 404", async () => {
         world(undefined);
         expect((await invoke(postStoryReply, ev("u1", "story-1", { text: "x" }))).statusCode).toBe(404);
@@ -180,6 +212,9 @@ describe("postStoryReply", () => {
             const id = String(cmd.input.Key?.id ?? "");
             if (cmd.constructor.name === "GetCommand") {
                 if (id === "story-1") return Promise.resolve({ Item: STORY });
+                // ブロックの印は無い（`block#<owner>#<uid>`）。ここを
+                // 素の `{ Item: ... }` で返すと「ブロックされている」と読まれる
+                if (id.startsWith("block#")) return Promise.resolve({});
                 return Promise.resolve({ Item: { items: [] } });
             }
             if (String(id).startsWith("storyreplies#") && first) {
@@ -211,6 +246,9 @@ describe("postStoryReply", () => {
             const id = String(cmd.input.Key?.id ?? "");
             if (cmd.constructor.name === "GetCommand") {
                 if (id === "story-1") return Promise.resolve({ Item: STORY });
+                // ブロックの印は無い（`block#<owner>#<uid>`）。ここを
+                // 素の `{ Item: ... }` で返すと「ブロックされている」と読まれる
+                if (id.startsWith("block#")) return Promise.resolve({});
                 return Promise.resolve({ Item: { items: [] } });
             }
             if (String(cmd.input.UpdateExpression ?? "").includes("replyCount")) {
@@ -231,6 +269,7 @@ describe("postStoryReply", () => {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string }; UpdateExpression?: string } }) => {
             const id = String(cmd.input.Key?.id ?? "");
             if (cmd.constructor.name === "GetCommand") {
+                if (id.startsWith("block#")) return Promise.resolve({});
                 return Promise.resolve(id === "story-1" ? { Item: STORY } : { Item: { items: [] } });
             }
             if (String(cmd.input.UpdateExpression ?? "").includes("replyCount")) return Promise.reject(new Error("throttle"));
@@ -246,6 +285,7 @@ describe("postStoryReply", () => {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string }; UpdateExpression?: string } }) => {
             const id = String(cmd.input.Key?.id ?? "");
             if (cmd.constructor.name === "GetCommand") {
+                if (id.startsWith("block#")) return Promise.resolve({});
                 return Promise.resolve(id === "story-1" ? { Item: STORY } : { Item: { items: [] } });
             }
             if (String(cmd.input.UpdateExpression ?? "").includes("replyCount")) return Promise.reject(new Error("boom"));

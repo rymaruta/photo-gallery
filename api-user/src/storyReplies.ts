@@ -5,6 +5,7 @@ import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { pushNotification, lookupDisplayName, deletedUserIds, DELETED_USER_NAME } from "./notify";
 import { truncate } from "./sanitize";
+import { isBlocked } from "./block";
 
 /**
  * ストーリーへの返信とリアクション。
@@ -141,6 +142,12 @@ export const postStoryReply: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
         if (story.expiresAt && String(story.expiresAt) <= new Date().toISOString()) {
             return jsonError(404, "ストーリーが見つかりません");
         }
+        // **ブロックされていたら送れない。** ここは返信を足したことで
+        // 生まれた「誰でも誰の通知にも文字を送れる」口の出口
+        // （1ストーリー10件 × 1日20本）。**404 で返す**——「ブロック
+        // されています」と言うと、相手の操作を教えることになる
+        // （持ち主でない相手に 404 を返しているのと同じ判断）
+        if (ownerId && await isBlocked(ownerId, uid)) return jsonError(404, "ストーリーが見つかりません");
 
         const reply: StoryReply = {
             id: uuidv4(),

@@ -29,7 +29,10 @@ vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: 
 
 const DraftsPage = (await import("../page")).default;
 
-beforeEach(() => mockUserFetch.mockReset());
+// `mockReset()` は**モック自身を返す**ので、アローの暗黙の return だと
+// **vitest が後片付けの関数だと思って引数なしで呼ぶ**（`block.test.ts` 参照）。
+// 中括弧で包んで何も返さない。
+beforeEach(() => { mockUserFetch.mockReset(); });
 
 describe("下書きの取得が想定と違ったとき", () => {
     it.each([

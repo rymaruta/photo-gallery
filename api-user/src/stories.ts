@@ -11,6 +11,7 @@ import { invalidateUploads } from "./cdnInvalidate";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { truncate, sanitizeText, sanitizeCoords } from "./sanitize";
 import { storyRepliesId } from "./storyReplies";
+import { hiddenUserIds } from "./block";
 
 // バケット名の検証と S3 の削除は `s3Delete.ts` に寄せた（未設定なら
 // そちらの読み込みで止まる）。
@@ -137,6 +138,12 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
     if (!userId) return jsonError(401, "認証が必要です");
     try {
         const items = await queryStories("active");
+        // **ブロックした相手・ブロックした相手のストーリーは出さない（両向き）。**
+        // 一覧を引くたびに自分の2行（`blocks#` と `blockedby#`）を読むだけ。
+        // 失敗しても一覧は返す——**見えなくする側が落ちたときに全部消す**のは
+        // 倒しすぎで、ストーリーが誰にも出なくなる（`listAlbums` の掃除と同じ判断）
+        const hidden = await hiddenUserIds(userId)
+            .catch((e) => { console.error("getStories: ブロック一覧を読めませんでした:", e); return new Set<string>(); });
         for (const item of items) {
             delete item.viewers;
             // **返信の数は投稿者にだけ返す。** 見た人には「このストーリーに
@@ -144,12 +151,13 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
             // 本人だけのもの）。所有者の画面はこの数でバッジを出す
             if (item.userId !== userId) delete item.replyCount;
         }
-        items.sort((a, b) => String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? "")));
+        const visible = hidden.size === 0 ? items : items.filter((i) => !hidden.has(String(i.userId ?? "")));
+        visible.sort((a, b) => String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? "")));
         return {
             // 認証済みユーザー個別のレスポンスなので共有キャッシュには載せない
             statusCode: 200,
             headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
-            body: JSON.stringify(items),
+            body: JSON.stringify(visible),
         };
     } catch (e) {
         console.error("getStories error:", e);

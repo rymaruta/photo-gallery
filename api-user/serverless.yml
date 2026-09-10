@@ -584,6 +584,35 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # ブロック。**やり取りの口を持つ以上の最低限**（返信を足した時点で、
+  # ログインしていれば誰でも誰の通知にも文字を送れるようになった）
+  blockUser:
+    handler: src/block.blockUser
+    events:
+      - httpApi:
+          path: /users/{id}/block
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  unblockUser:
+    handler: src/block.unblockUser
+    events:
+      - httpApi:
+          path: /users/{id}/block
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
+  listBlocks:
+    handler: src/block.listBlocks
+    events:
+      - httpApi:
+          path: /user/blocks
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
   # ストーリーの1枚をギャラリーに残す（投稿者だけ）。
   # 作るのは**下書きの写真**なので、公開・再ビルドは既存の経路が受け持つ
   keepStory:

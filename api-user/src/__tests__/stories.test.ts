@@ -95,6 +95,39 @@ describe("getStories", () => {
         expect(res.headers?.["Cache-Control"]).toContain("no-store");
     });
 
+    // **ブロックは両向きに効く。** 自分がブロックした相手のストーリーも、
+    // 自分をブロックした相手のストーリーも出さない
+    it("ブロックした相手・された相手のストーリーは出さない", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const id = String(cmd.input.Key?.id ?? "");
+                if (id === "blocks#me") return Promise.resolve({ Item: { blockedIds: ["a"] } });
+                if (id === "blockedby#me") return Promise.resolve({ Item: { blockerIds: ["b"] } });
+                return Promise.resolve({});
+            }
+            return Promise.resolve({ Items: [
+                { id: "s1", userId: "me", createdAt: "1" },
+                { id: "s2", userId: "a", createdAt: "2" },
+                { id: "s3", userId: "b", createdAt: "3" },
+                { id: "s4", userId: "c", createdAt: "4" },
+            ] });
+        });
+        const res = await invoke(getStories, authedEvent("me"));
+        const ids = (JSON.parse(res.body) as Array<{ id: string }>).map((i) => i.id);
+        expect(ids, "ブロックが効いていない").toEqual(["s1", "s4"]);
+    });
+
+    // **見えなくする側が落ちたときに全部消さない**（倒しすぎ）
+    it("ブロック一覧を読めなくても、一覧は返す", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (cmd.constructor.name === "GetCommand") return Promise.reject(new Error("boom"));
+            return Promise.resolve({ Items: [{ id: "s1", userId: "me", createdAt: "1" }] });
+        });
+        const res = await invoke(getStories, authedEvent("me"));
+        expect(res.statusCode, "ブロック一覧の失敗で、ストーリーが誰にも出なくなる").toBe(200);
+        expect(JSON.parse(res.body)).toHaveLength(1);
+    });
+
     // **返信の数は投稿者にだけ。** 誰が反応したかは `viewers` と同じく
     // 本人だけのもので、見た人に「このストーリーに何件届いたか」を教えない
     it("replyCount は投稿者にだけ返す", async () => {
@@ -117,7 +150,12 @@ describe("getStories", () => {
         const res = await invoke(getStories, authedEvent("viewer"));
         const items = JSON.parse(res.body) as Array<Record<string, unknown>>;
         expect(items).toHaveLength(2);
-        expect(mockDdbSend).toHaveBeenCalledTimes(2);
+        // Query が2回（ページを辿る）。**GetItem の数は数えない**
+        // ——ブロックの一覧（`blocks#` / `blockedby#`）を読むぶんが増えるので、
+        // 総数で縛ると関係のない変更で落ちる
+        const queries = mockDdbSend.mock.calls
+            .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "QueryCommand");
+        expect(queries, "ページを辿っていない").toHaveLength(2);
     });
 
     it("DynamoDB エラーは 500", async () => {
