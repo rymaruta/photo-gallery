@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
-import { forgotPassword, confirmForgotPassword } from "../../lib/auth/cognito";
+import { forgotPassword, confirmForgotPassword, PASSWORD_RULE_MESSAGE } from "../../lib/auth/cognito";
 import { userFetch } from "../../lib/utils/api";
 import { ROUTES, safeNextPath } from "../../lib/routes";
 import { pendingNameKey } from "../../lib/utils/pendingName";
@@ -50,7 +50,7 @@ function LoginForm() {
         setNeedsVerification(false);
         setSubmitting(true);
         try {
-            const result = await login(username, password);
+            const result = await login(username.trim(), password);
             if (result.success) {
                 // 新規登録時に保存した表示名があれば、プロフィールを作成
                 // 登録したときと同じメールアドレスの分だけを使う。
@@ -60,24 +60,37 @@ function LoginForm() {
                 let pendingDisplayName: string | null = null;
                 try { pendingDisplayName = localStorage.getItem(pendingKey); } catch { /* ignore */ }
                 if (pendingDisplayName) {
-                    try {
-                        // PUT /user/profile は全置換なので、既にプロフィールがある場合は上書きしない
-                        const check = await userFetch("/user/profile");
-                        const existing = check.ok ? await check.json() as { displayName?: string } : null;
-                        if (existing?.displayName) {
-                            try { localStorage.removeItem(pendingKey); } catch { /* ignore */ }
-                        } else {
-                            const res = await userFetch("/user/profile", {
-                                method: "PUT",
-                                body: JSON.stringify({ displayName: pendingDisplayName }),
-                            });
-                            if (res.ok) {
+                    // **待たない。** ここは API を2本、直列で叩く。
+                    // `userFetch` はセッション最大10秒＋要求20秒なので、
+                    // **1本あたり最大30秒・2本で最大60秒**「ログイン中...」の
+                    // ままになる。しかもこの枝に入るのは
+                    // **登録を終えたばかりの初回ログインちょうど**——
+                    // 電波の悪い場所でそこを踏んだ人は、トークンはもう手元に
+                    // あるのに固まった画面を見て閉じる。
+                    //
+                    // 落としても取り返しはつく: `ProfileSetupBanner` が
+                    // 表示名の無い間は遷移ごとに拾い直し、`pendingKey` も
+                    // 成功するまで残る。**先に着地させる。**
+                    void (async () => {
+                        try {
+                            // PUT /user/profile は全置換なので、既にプロフィールがある場合は上書きしない
+                            const check = await userFetch("/user/profile");
+                            const existing = check.ok ? await check.json() as { displayName?: string } : null;
+                            if (existing?.displayName) {
                                 try { localStorage.removeItem(pendingKey); } catch { /* ignore */ }
+                            } else {
+                                const res = await userFetch("/user/profile", {
+                                    method: "PUT",
+                                    body: JSON.stringify({ displayName: pendingDisplayName }),
+                                });
+                                if (res.ok) {
+                                    try { localStorage.removeItem(pendingKey); } catch { /* ignore */ }
+                                }
                             }
+                        } catch {
+                            /* プロフィール作成失敗してもログインは成功させる — /user/profile から再設定できる */
                         }
-                    } catch {
-                        /* プロフィール作成失敗してもログインは成功させる — /user/profile から再設定できる */
-                    }
+                    })();
                 }
                 showToast("ログインしました", "success");
                 // インスタ風: ログイン後は自分のプロフィールページへ
@@ -100,7 +113,7 @@ function LoginForm() {
         setError("");
         setSubmitting(true);
         try {
-            const result = await forgotPassword(username);
+            const result = await forgotPassword(username.trim());
             if (result.success) {
                 setStep("forgot-confirm");
             } else {
@@ -114,9 +127,16 @@ function LoginForm() {
     const handleForgotConfirm = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
+        // **送る前に見る。** 登録側（`app/signup`）は長さと一致を見ているのに
+        // ここは空でなければ送っていた。3文字でも往復して、しかも戻ってくる
+        // のは AWS の `InvalidPasswordException` の文言（記号の話が抜けていた）
+        if (newPassword.length < 8) {
+            setError(PASSWORD_RULE_MESSAGE);
+            return;
+        }
         setSubmitting(true);
         try {
-            const result = await confirmForgotPassword(username, resetCode, newPassword);
+            const result = await confirmForgotPassword(username.trim(), resetCode, newPassword);
             if (result.success) {
                 setStep("forgot-done");
             } else {

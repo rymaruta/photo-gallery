@@ -77,7 +77,9 @@ export async function signIn(username: string, password: string): Promise<{
                 onFailure: (err) => {
                     log.error("認証失敗:", err);
                     // エラーメッセージを日本語化
-                    let errorMessage = err.message || "ログインに失敗しました";
+                    // **生の英語を既定にしない。** ここに落ちる例外（`PasswordResetRequiredException`
+                    // など）は英語のまま画面に出て、しかも進む先が書いていない
+                    let errorMessage = "ログインに失敗しました。しばらくしてからもう一度お試しください";
                     
                     // **「そのメールアドレスは登録されている」を教えない。**
                     // `UserNotFoundException` に「ユーザーが見つかりません」と
@@ -95,6 +97,11 @@ export async function signIn(username: string, password: string): Promise<{
                     } else if (err.code === "UserNotConfirmedException") {
                         resolve({ success: false, error: "メールアドレスの確認が完了していません", needsVerification: true });
                         return;
+                    } else if (err.code === "PasswordResetRequiredException") {
+                        // 管理者がパスワードをリセットした状態。**進む先を言う**
+                        // ——以前は英語の "Password reset required for the user."
+                        // が出るだけで、画面のどこへ行けばよいか分からなかった
+                        errorMessage = "パスワードの再設定が必要です。「パスワードをお忘れですか？」から再設定してください";
                     } else if (err.code === "InvalidParameterException") {
                         errorMessage = "入力内容に誤りがあります";
                     } else if (err.message?.includes("SECRET_HASH")) {
@@ -278,7 +285,7 @@ export async function forgotPassword(username: string): Promise<{ success: boole
             cognitoUser.forgotPassword({
                 onSuccess: () => resolve({ success: true }),
                 onFailure: (err: { message?: string; code?: string }) => {
-                    let msg = err.message || "エラーが発生しました";
+                    let msg = "エラーが発生しました。しばらくしてからもう一度お試しください";
                     // ここも同じ理由で「登録の有無」を教えない。
                     // 送信したかどうかは、届いたかどうかで分かる
                     if (err.code === "UserNotFoundException") {
@@ -308,10 +315,10 @@ export async function confirmForgotPassword(
             cognitoUser.confirmPassword(code, newPassword, {
                 onSuccess: () => resolve({ success: true }),
                 onFailure: (err: { message?: string; code?: string }) => {
-                    let msg = err.message || "エラーが発生しました";
+                    let msg = "エラーが発生しました。しばらくしてからもう一度お試しください";
                     if (err.code === "CodeMismatchException") msg = "確認コードが正しくありません";
                     if (err.code === "ExpiredCodeException") msg = "確認コードの有効期限が切れています";
-                    if (err.code === "InvalidPasswordException") msg = "パスワードは8文字以上で、英大文字・小文字・数字を含む必要があります";
+                    if (err.code === "InvalidPasswordException") msg = PASSWORD_RULE_MESSAGE;
                     resolve({ success: false, error: msg });
                 },
             });
@@ -320,6 +327,20 @@ export async function confirmForgotPassword(
         }
     });
 }
+
+/**
+ * パスワードの規則。**画面とサーバーで食い違わせない。**
+ *
+ * `scripts/provision-env.js` のプールは
+ * `{MinimumLength: 8, RequireUppercase, RequireLowercase, RequireNumbers, RequireSymbols}`。
+ * ところがパスワード再設定の `InvalidPasswordException` だけ**記号が
+ * 抜けていた**——`Password1` を入れると弾かれるのに、エラーは
+ * 「英大文字・小文字・数字」と言うので条件は満たしているように読め、
+ * 同じものを打ち直して抜けられない。しかも真上のプレースホルダ
+ * （「8文字以上、英大・小文字・数字・記号を含む」）と矛盾していた。
+ */
+export const PASSWORD_RULE_MESSAGE =
+    "パスワードは8文字以上で、英大文字・小文字・数字・記号（!@#$%など）をそれぞれ1文字以上含める必要があります";
 
 // 新規ユーザー登録
 // このプールは AliasAttributes:email なので username は UUID、email は属性として渡す
@@ -334,14 +355,29 @@ export async function signUp(email: string, password: string): Promise<{
             const userPool = getUserPool();
             const username = uuidv4();
             const attributes = [
-                new CognitoUserAttribute({ Name: "email", Value: email }),
+                // **前後の空白を落とす。** スマホのキーボードは補完のあとに
+                // 空白を1つ付けることがあり、そのまま登録すると確認コードは
+                // 届くのに**ログインで打ち直したメールと一致しない**。
+                // 大文字小文字はここでは触らない——このプールの
+                // `UsernameConfiguration` はリポジトリのどこでも指定して
+                // おらず、揃え方を間違えると**既にあるアカウントで
+                // ログインできなくなる**（本番プールの設定は未確認）
+                new CognitoUserAttribute({ Name: "email", Value: email.trim() }),
             ];
             userPool.signUp(username, password, attributes, [], (err) => {
                 if (err) {
                     log.error("signUp error:", { name: err.name, message: err.message });
-                    let msg = err.message || "登録に失敗しました";
-                    if (err.name === "InvalidPasswordException") msg = "パスワードは8文字以上で、英大文字・小文字・数字・記号（!@#$%など）をそれぞれ1文字以上含める必要があります";
-                    if (err.name === "InvalidParameterException") msg = `入力エラー: ${err.message}`;
+                    let msg = "登録に失敗しました。しばらくしてからもう一度お試しください";
+                    if (err.name === "InvalidPasswordException") msg = PASSWORD_RULE_MESSAGE;
+                    // **AWS の英文をそのまま出さない。** `InvalidParameterException` の
+                    // `message` は "1 validation error detected: Value at 'password'
+                    // failed to satisfy constraint: Member must satisfy regular
+                    // expression pattern: ..." のような正規表現つきの英文で、
+                    // 読んでも直し方が分からない。実際にここへ落ちるのは
+                    // パスワードかメールの形なので、その2つを言う
+                    if (err.name === "InvalidParameterException") {
+                        msg = `メールアドレスの形式か、${PASSWORD_RULE_MESSAGE}`;
+                    }
                     if (err.name === "UsernameExistsException" || err.name === "AliasExistsException") {
                         resolve({ success: false, error: "このメールアドレスはすでに登録されています", aliasExists: true });
                         return;
@@ -390,7 +426,7 @@ export async function confirmSignUp(username: string, code: string): Promise<{
                         resolve({ success: true });
                         return;
                     }
-                    let msg = err.message || "確認に失敗しました";
+                    let msg = "確認に失敗しました。しばらくしてからもう一度お試しください";
                     if (err.name === "CodeMismatchException") msg = "確認コードが正しくありません";
                     if (err.name === "ExpiredCodeException") msg = "確認コードの有効期限が切れています。再送してください";
                     // forceAliasCreation を false にしたので、そのメールが既に
@@ -426,7 +462,7 @@ export async function resendConfirmationCode(username: string): Promise<{
             const cognitoUser = new CognitoUser({ Username: username, Pool: userPool });
             cognitoUser.resendConfirmationCode((err) => {
                 if (err) {
-                    let msg = err.message || "再送に失敗しました";
+                    let msg = "再送に失敗しました。しばらくしてからもう一度お試しください";
                     if (err.name === "LimitExceededException") msg = "送信回数の上限に達しました。しばらく時間をおいてから再試行してください";
                     resolve({ success: false, error: msg });
                     return;

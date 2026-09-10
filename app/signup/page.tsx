@@ -128,6 +128,11 @@ function SignupForm() {
                 const savedUsername = loadPending(email);
                 if (savedUsername) {
                     const resendResult = await resendConfirmationCode(savedUsername);
+                    // **効かない控えは捨てる。** 控えた UUID が既に確認済みの
+                    // アカウントを指していると、再送は毎回失敗する。捨てないと
+                    // 24時間の TTL が切れるまで同じ行き止まりを繰り返す
+                    // （捨てれば次は「すでに登録されています」の案内に落ちる）
+                    if (!resendResult.success) clearPending(email);
                     if (resendResult.success) {
                         setCognitoUsername(savedUsername);
                         setStep("verify");

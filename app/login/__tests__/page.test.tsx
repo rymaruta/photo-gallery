@@ -307,6 +307,26 @@ describe("LoginPage - 表示名持ち越しによるプロフィール作成", (
         expect(mockUserFetch).not.toHaveBeenCalled();
     });
 
+    // **待たない。** `userFetch` はセッション最大10秒＋要求20秒なので、
+    // 直列2本で最大60秒「ログイン中...」のままになる。しかもこの枝に入るのは
+    // **登録を終えたばかりの初回ログインちょうど**——電波の悪い場所で
+    // そこを踏んだ人は、トークンはもう手元にあるのに固まった画面を見て閉じる
+    it("プロフィール作成の応答が返らなくても、着地は待たされない", async () => {
+        localStorageMock.setItem("jp_pending_displayName_u@example.com", "旅人");
+        mockLogin.mockResolvedValue({ success: true });
+        mockUserFetch.mockImplementation(() => new Promise(() => { /* 返らない */ }));
+        const user = userEvent.setup();
+        render(<LoginPage />);
+
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), "u@example.com");
+        await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
+        await user.click(screen.getByRole("button", { name: "ログイン" }));
+
+        await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/"));
+        // 控えは残す（次の遷移で `ProfileSetupBanner` が拾い直す）
+        expect(localStorageMock.getItem("jp_pending_displayName_u@example.com")).toBe("旅人");
+    });
+
     it("PUT /user/profile が失敗してもログインは成功扱いで `/` へリダイレクトする", async () => {
         localStorageMock.setItem("jp_pending_name_u@example.com", "失敗太郎");
         mockLogin.mockResolvedValue({ success: true });

@@ -200,6 +200,25 @@ describe("SignupPage - 登録ステップ", () => {
         expect(mockShowToast).toHaveBeenCalledWith("確認コードを再送しました", "success");
     });
 
+    // **効かない控えは捨てる。** 控えた UUID が既に確認済みのアカウントを
+    // 指していると再送は毎回失敗し、捨てないと24時間の TTL が切れるまで
+    // 同じ行き止まりを繰り返す（捨てれば次は登録済みの案内に落ちる）
+    it("再送に失敗したら、控えた UUID を捨てる（同じ行き止まりを繰り返さない）", async () => {
+        localStorageMock.setItem("jp_verify_u@example.com", JSON.stringify({ username: "stale-uuid", t: Date.now() }));
+        mockSignUp.mockResolvedValue({ success: false, aliasExists: true });
+        mockResend.mockResolvedValue({ success: false, error: "再送に失敗しました" });
+        const user = userEvent.setup();
+        render(<SignupPage />);
+
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), "u@example.com");
+        await user.type(screen.getByPlaceholderText("8文字以上"), "Password1!");
+        await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
+        await user.click(screen.getByRole("button", { name: /確認コードを送信/ }));
+
+        await waitFor(() => expect(mockResend).toHaveBeenCalledWith("stale-uuid"));
+        expect(localStorageMock.getItem("jp_verify_u@example.com"), "効かない控えが残る").toBeNull();
+    });
+
     it("AliasExistsException + 保存UUIDなし → エラー表示でverifyに遷移しない", async () => {
         mockSignUp.mockResolvedValue({ success: false, aliasExists: true });
         const user = userEvent.setup();
