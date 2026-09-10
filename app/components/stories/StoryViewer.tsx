@@ -4,7 +4,7 @@ import { usableRows } from "../../../lib/utils/apiRows";
 import { safeSongPreviewUrl } from "../../../lib/utils/mediaHosts";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
-import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon, PhotoIcon, ChatBubbleOvalLeftIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon, PhotoIcon, ChatBubbleOvalLeftIcon, MapPinIcon } from "@heroicons/react/24/outline";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
@@ -699,6 +699,15 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                             <span className="text-sm font-semibold text-white drop-shadow truncate">{group.displayName}</span>
                             <span className="text-xs text-white/60 flex-shrink-0">{timeAgo(item.createdAt, locale)}</span>
                         </div>
+                        {/* **撮影地。** 見る側に「どこで」が伝わる。名前の段の下に
+                            置くのは、キャプションの段（下端）が既に3つのピルで
+                            埋まっているため（実測でキャプションが潰れた前例あり） */}
+                        {item.location && (
+                            <p className="text-[11px] text-white/70 drop-shadow truncate max-w-full">
+                                <MapPinIcon className="w-3 h-3 inline -mt-0.5 mr-0.5" aria-hidden="true" />
+                                {item.location}
+                            </p>
+                        )}
                         {/* 曲は名前のすぐ下の段（親は pointer-events-none なのでここで戻す） */}
                         {item.song && (
                             <button

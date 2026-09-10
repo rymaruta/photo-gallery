@@ -161,6 +161,21 @@ describe("ストーリーをギャラリーに残す", () => {
 // jsdom は CSS を評価しないので、**綴りで縛るしかない**（実際の寸法は
 // Playwright で測って確かめた: 3つ並ぶと折り返って 358px、
 // ピル1つなら今までどおり横に 251px）。
+// 見る側に「どこで」が伝わる（Instagram のロケーションと同じ）。
+// 名前の段の下に置くのは、下端の段が既に3つのピルで埋まっているため
+describe("ストーリーの撮影地", () => {
+    it("付いていれば出す", async () => {
+        view(own({ location: "横浜 みなとみらい" }));
+        expect(await screen.findByText("横浜 みなとみらい")).toBeInTheDocument();
+    });
+
+    it("無ければ何も出さない", async () => {
+        view(own());
+        await screen.findByLabelText("閉じる");
+        expect(document.body.textContent).not.toContain("みなとみらい");
+    });
+});
+
 describe("下の段のレイアウト", () => {
     it("段は折り返し、キャプションは最小幅を持つ", async () => {
         view(own({ caption: "夕暮れの港" }));

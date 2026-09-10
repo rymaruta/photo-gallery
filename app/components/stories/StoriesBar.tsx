@@ -99,6 +99,11 @@ export default function StoriesBar() {
     const postAbortRef = useRef<AbortController | null>(null);
     const [draft, setDraft] = useState<Draft | null>(null);
     const [caption, setCaption] = useState("");
+    // 撮影地。**ここが「残す」の価値を決める**——空のまま残すと、写真は
+    // 地図にも `/location/<スラッグ>` にも載らない（本人が編集画面で打つまで）
+    const [storyLocation, setStoryLocation] = useState("");
+    /** 写真の GPS（丸めはサーバー側。写真のアップロード画面と同じ形） */
+    const [storyCoords, setStoryCoords] = useState<{ lat: number; lng: number } | null>(null);
     // ストーリーBGM（任意・1曲）
     const [draftSong, setDraftSong] = useState<SongResult | null>(null);
     const [songPickerOpen, setSongPickerOpen] = useState(false);
@@ -281,6 +286,8 @@ export default function StoriesBar() {
         // 解放は上の effect が担う（✕ を押さずに離れた場合も拾うため）
         stopPreview();
         setDraft(null);
+        setStoryLocation("");
+        setStoryCoords(null);
         setCaption("");
         setDraftSong(null);
         setSongPickerOpen(false);
@@ -393,6 +400,35 @@ export default function StoriesBar() {
         setViewerGroup(null);
         setDraft({ file: prepared, previewUrl: URL.createObjectURL(prepared), mediaType: isVideo ? "video" : "image" });
         setCaption("");
+        setStoryLocation("");
+        setStoryCoords(null);
+
+        // **撮影地は、EXIF を落とす前の元ファイルから読む。**
+        // 投稿の直前に `toUploadSafeFile` が GPS ごと消すので、ここを逃すと
+        // 二度と取れない。写真のアップロード画面と同じ形（設定 `jp_gps_autofill`・
+        // 座標はサーバーが約1kmに丸める・地名はサーバー越しに引く）。
+        //
+        // **下書きを開くのを待たせない。** 位置を引くのに数秒かかることが
+        // あり、その間プレビューが出ないと「固まった」に見える。
+        // 失敗しても黙って諦める（写真側と同じ——場所は必須ではない）。
+        if (!isVideo) {
+            void (async () => {
+                try {
+                    if (localStorage.getItem("jp_gps_autofill") === "0") return;
+                } catch { /* 読めない端末は既定（オン）のまま進む */ }
+                try {
+                    const { extractExifFromFile, reverseGeocode } = await import("../../../lib/utils/exif");
+                    const meta = await extractExifFromFile(file);
+                    if (typeof meta.latitude !== "number" || typeof meta.longitude !== "number") return;
+                    setStoryCoords({ lat: meta.latitude, lng: meta.longitude });
+                    const place = await reverseGeocode(meta.latitude, meta.longitude, locale);
+                    // **打ち始めていたら上書きしない**（後から届く値で消さない）
+                    if (place) setStoryLocation((prev) => prev || place);
+                } catch (e) {
+                    log.warn("story location autofill failed:", e);
+                }
+            })();
+        }
     }, [locale, showToast]);
 
     // 投稿: 圧縮（画像のみ）→ presigned URL → S3 → レコード作成
@@ -509,6 +545,11 @@ export default function StoriesBar() {
                     ...(key ? { key } : {}),
                     mediaType: draft.mediaType,
                     ...(caption.trim() ? { caption: caption.trim() } : {}),
+                    // **撮影地。** 残したときにそのまま写真の撮影地になる
+                    // （`storyKeep.ts`）＝地図と `/location/<スラッグ>` に載る。
+                    // 座標は地名とセットのときだけ送る（サーバーも同じ判断）
+                    ...(storyLocation.trim() ? { location: storyLocation.trim() } : {}),
+                    ...(storyLocation.trim() && storyCoords ? { coords: storyCoords } : {}),
                     ...(draftSong ? { song: { title: draftSong.title, artist: draftSong.artist, artwork: draftSong.artwork, previewUrl: draftSong.previewUrl, trackUrl: draftSong.trackUrl, ...(songStart > 0 ? { startSec: songStart } : {}) } } : {}),
                     ...(draft.mediaType === "image" ? { durationSec } : {}),
                     ...(displayName ? { displayName } : {}),
@@ -564,7 +605,7 @@ export default function StoriesBar() {
             postAbortRef.current = null;
             setPosting(false);
         }
-    }, [draft, caption, draftSong, songStart, durationSec, locale, showToast, loadStories, closeDraft, stopPreview]);
+    }, [draft, caption, storyLocation, storyCoords, draftSong, songStart, durationSec, locale, showToast, loadStories, closeDraft, stopPreview]);
 
     // 自分のストーリーを削除
     const handleDeleteStory = useCallback(async (storyId: string) => {
@@ -751,6 +792,23 @@ export default function StoriesBar() {
                             placeholder={locale === "en" ? "Add a caption..." : "キャプションを追加..."}
                             disabled={posting}
                             className="w-full px-4 py-3 bg-black/55 backdrop-blur-sm ring-1 ring-white/10 rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-black/70"
+                            style={{ fontSize: "16px" }}
+                        />
+
+                        {/* **撮影地（任意）。** 写真の GPS から自動で入る
+                            （設定 `jp_gps_autofill` がオフなら入らない）。
+                            ここを埋めておくと、あとで「残す」を押したときに
+                            **そのまま地図に載る写真**になる——空だと本人が
+                            編集画面で打つまで何にも繋がらない */}
+                        <input
+                            type="text"
+                            value={storyLocation}
+                            onChange={(e) => setStoryLocation(e.target.value)}
+                            maxLength={200}
+                            disabled={posting}
+                            placeholder={locale === "en" ? "Where? (optional)" : "撮影地（任意）"}
+                            aria-label={locale === "en" ? "Shooting location" : "撮影地"}
+                            className="w-full mt-2 px-4 py-2.5 bg-black/55 backdrop-blur-sm ring-1 ring-white/10 rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-black/70"
                             style={{ fontSize: "16px" }}
                         />
 
