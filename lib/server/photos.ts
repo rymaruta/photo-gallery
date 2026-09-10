@@ -24,7 +24,14 @@ import { siteConfig } from "@/lib/utils/seo";
 // **`publicFeed` も落とす。** 公開一覧用 GSI に載せるための**内部の印**で、
 // 段階4のあとは「一覧に載っているかどうか」そのものになる。外に出す理由が
 // 無い（`staticStale` を同じ理由で落としているのと対）。
-const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "publicFeed"] as const;
+// **`keptFrom` も落とす。** ストーリーから残した写真に付く内部の印
+// （元のストーリーのID）で、削除の後始末が辿るためだけにある。
+// `api/src/photos.ts` と `scripts/sync-photos-from-ddb.js` は落として
+// いるのに**ここだけ落としていなかった**——3つの写しを突き合わせる
+// テストが無かったので、ずれても誰も落ちない。いまは書き手（sync）が
+// 落とすので実際には漏れていないが、**二重の守りの片方が欠けていた**。
+// 3つの一致は `scripts/__tests__/privateFieldsParity.test.ts` が縛る。
+const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom"] as const;
 
 export function stripPrivateFields(photos: Photo[]): Photo[] {
     return photos.map((p) => {
