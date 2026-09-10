@@ -975,6 +975,29 @@ describe("フォロワーの一覧（followers#）", () => {
             "相手のフォロワー一覧に残る").toBe(true);
     });
 
+    // **解除そのものが失敗した回は、相手の一覧も触らない。**
+    // 一度この呼び出しを `try` の外に出したが、`try` には
+    // `unfollowAtomically` も入っているので、解除が成立していないのに
+    // 相手の一覧からだけ自分が消えていた——マーカーも数も自分を数えた
+    // ままなので、**誰も直せない不整合**（変更前は1行も書かれず整合していた）
+    it("解除そのものが落ちたら、相手のフォロワー一覧は触らない", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            if (cmd.constructor.name === "TransactWriteCommand") {
+                return Promise.reject(txCancelled(["None", "TransactionConflict"]));
+            }
+            if (cmd.constructor.name === "GetCommand") {
+                const id = cmd.input.Key?.id ?? "";
+                if (id === `followers#${OTHER}`) return Promise.resolve({ Item: { list: [ME], rev: 1 } });
+                if (id === `following#${ME}`) return Promise.resolve({ Item: { list: [OTHER], rev: 1 } });
+                return Promise.resolve({});
+            }
+            return Promise.resolve({});
+        });
+        const { unfollowQuietly } = await import("../follow");
+        await unfollowQuietly(OTHER, ME);
+        expect(puts(), "解除できていないのに相手の一覧から消している").toHaveLength(0);
+    });
+
     // **表示の都合でフォローを失敗させない。** マーカーと数は既に正しく、
     // 欠けるのは一覧の1行だけ
     it("一覧を書けなくても、フォローそのものは成功する", async () => {

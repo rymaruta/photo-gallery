@@ -555,8 +555,27 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
  */
 export async function unfollowQuietly(target: string, me: string): Promise<void> {
     if (!target || !me || target === me) return;
+    // **「解除が成立したか」を持ち回る。**
+    //
+    // 一度この呼び出しを `try` の外に出したが、**`try` には
+    // `unfollowAtomically` も入っている**ので、解除そのものが失敗した回にも
+    // 相手の一覧から自分を消すようになっていた。`unfollowAtomically` は
+    // 投げる——`runMarkerTx` が3回とも `TransactionConflict` だったとき、
+    // キャンセル系でない失敗（通信断・5xx）では1回目で即。しかも
+    // `runMarkerTx` 自身が「`followstats#<人気ユーザー>` は全フォロー／解除が
+    // 触るので、競合は日常」と書いている。
+    //
+    // そのとき残るのは:
+    //     follow#<相手>#<自分>        残る（解除は成立していない）
+    //     followstats#<相手>.followers 自分を数えたまま
+    //     following#<自分>            相手が残る
+    //     followers#<相手>            **自分だけ消える** ← ここだけ動く
+    // 変更前は1行も書かれず整合していたので、**直したつもりで作った不整合**。
+    // 誰も直せない（埋め戻しを流すしかない）。
+    let severed = false;
     try {
         await unfollowAtomically(target, me);
+        severed = true;
         await updateFollowing(me, (list) => {
             const next = list.filter((x) => x !== target);
             return next.length === list.length ? null : next;
@@ -564,12 +583,10 @@ export async function unfollowQuietly(target: string, me: string): Promise<void>
     } catch (e) {
         console.error(`unfollowQuietly: 解除できませんでした（${me} -> ${target}）:`, e);
     }
-    // **`try` の外に置く。** 中に入れると、`updateFollowing` が投げた回に
-    // ここが**丸ごと飛ぶ**——ブロックしたのに相手のフォロワー一覧に
-    // 自分が残る（`getUserFollowers` は行ごとのブロック除外をしないので、
-    // 一覧に見えたまま）。この関数自体が失敗を握る約束なので、
-    // 片方が落ちてももう片方は試す
-    await updateFollowersQuietly(target, me, false);
+    // **`updateFollowing` が投げた回はここに来る。** そこが元の狙い
+    // ——ブロックしたのに相手のフォロワー一覧に自分が残るのを防ぐ
+    // （`getUserFollowers` は行ごとのブロック除外をしない）。
+    if (severed) await updateFollowersQuietly(target, me, false);
 }
 
 export const unfollowUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {

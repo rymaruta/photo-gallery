@@ -479,6 +479,9 @@ describe("deleteAccount", () => {
         });
         expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
         expect(deletedDdbIds(), "やり直す手がかりを消している").not.toContain("following#me");
+        // **`follownotify#` の削除は飛ばさない。** 早期 return で飛ばすと、
+        // コメントが「誰も消さないゴミ」と書いている印がそのまま残る
+        expect(deletedDdbIds(), "間引きの印が残る").toContain("follownotify#userA#me");
     });
 
     it("競合（未コミット）ではマーカーを消さない——引き算が永久に消えるため", async () => {
