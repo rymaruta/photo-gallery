@@ -51,6 +51,16 @@ export const keepStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // 所有権の判定はリポジトリ全体でこの形に揃っている
         if ((story.userId ?? story.uploadedBy) !== userId) return jsonError(404, "ストーリーが見つかりません");
 
+        // **期限切れは断る**（`postStoryReply` に揃える）。
+        // 意図の話ではなく**掃除の作り**の問題——`cleanupExpiredStories` は
+        // 期限切れを**一度に読んだスナップショット**で回すので、`keptAs` の
+        // 判定は読み取り時点の値。「掃除がその行を読んだ後・消す前」に
+        // 印が立つと、**S3 だけ消えた写真**ができる。期限切れの行は
+        // `getStories` が返さない＝画面から押せないので、断っても失うものは無い
+        if (typeof story.expiresAt === "string" && story.expiresAt <= new Date().toISOString()) {
+            return jsonError(404, "ストーリーが見つかりません");
+        }
+
         // **動画は残せない。** 写真の行は画像を前提にしていて、サムネも
         // 派生（AVIF）も `sharp` が作る。動画を写真として置くと、
         // 一覧にも個別ページにも**再生できない静止画の枠**が並ぶ
@@ -93,6 +103,11 @@ export const keepStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             ...(displayName ? { displayName } : {}),
             // **下書きで作る。** 公開は本人が編集画面で押す
             published: false,
+            // **出どころ。** この写真を消すときに、まだ生きているストーリーも
+            // 一緒に消すために要る（`deleteMyPhoto`）——実体は共有なので、
+            // 写真だけ消すと**自分のストーリーが全員に割れた画像で出続ける**
+            // うえ、`keptAs` が死んだIDを指したまま残って**二度と残せなくなる**
+            keptFrom: storyId,
             // 投稿の時刻はストーリーのものを引き継ぐ（一覧の並びが
             // 「その日に上げたもの」として正しい位置に来る）
             createdAt: typeof story.createdAt === "string" ? story.createdAt : now,
@@ -117,12 +132,26 @@ export const keepStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             ConditionExpression: "attribute_exists(id) AND attribute_not_exists(keptAs)",
             ExpressionAttributeValues: { ":p": photoId },
         })).catch(async (e) => {
-            if ((e as { name?: string }).name === "ConditionalCheckFailedException") return;
-            // **印を立てられなかったら、作った写真を片付ける。**
-            // 印が無いままだと、ストーリーの期限切れで **S3 の実体が消えて**
-            // 割れた画像の行だけが残る（`createAlbum` が同じ理由で
-            // 後片付けをしている）
+            // **例外の名前で決め打ちしない。** 条件は
+            // `attribute_exists(id) AND attribute_not_exists(keptAs)` の2つを
+            // 見ているので、`ConditionalCheckFailedException` は
+            //   (a) もう印が立っている（＝成功と同じ）
+            //   (b) **ストーリーの行がもう無い**（掃除と競合した）
+            // のどちらでも起きる。(b) を成功として通すと、S3 は掃除に消された
+            // 後なので**割れた写真がギャラリーに残る**——このコミットが塞いだ
+            // と書いている形そのもの。ネットワークの失敗も、DynamoDB では
+            // 書けているのに失敗が返ることがある（そのまま写真を消すと
+            // 印だけが残り、**誰も辿れない S3 の孤児**になる）。
+            // **どちらも「読み直して現物を見る」で分かる。**
+            const after = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: storyId } }))
+                .then((r) => r.Item as Record<string, unknown> | undefined)
+                .catch(() => undefined);
+            if (after && after.keptAs === photoId) return;   // 実は立っていた
             console.error(`keepStory: 印を立てられませんでした（${storyId}）:`, e);
+            // **印が立っていないなら、作った写真を片付ける。**
+            // そのままだと、ストーリーの期限切れで S3 の実体が消えて
+            // 割れた画像の行だけが残る（`createAlbum` が同じ理由で
+            // 後片付けをしている。あちらは例外を選り好みしない）
             await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: photoId } })).catch(() => undefined);
             throw e;
         });

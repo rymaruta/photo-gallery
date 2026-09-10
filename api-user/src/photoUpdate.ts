@@ -462,6 +462,20 @@ export const deleteMyPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
             return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "画像の削除を完了できませんでした。時間をおいてもう一度お試しください" }) };
         }
 
+        // 1b. **ストーリーから残した写真なら、元のストーリーも消す。**
+        //
+        // 実体（S3）は**共有**している（`storyKeep.ts`）。写真だけ消すと、
+        // まだ生きているストーリーが**全員のトレイに割れた画像で出続ける**
+        // ——しかも `keptAs` が消した写真のIDを指したまま残るので、
+        // 画面は「残した · 仕上げる」を出し、押すと「写真が見つかりません」、
+        // 押し直しても冪等の分岐が死んだIDを返す＝**二度と残せない**。
+        // 実体はもう無いのでストーリーは描けない。**行ごと消すのが正しい。**
+        // 消せなくても写真の削除は成功で返す（最大24時間で掃除が拾う）。
+        if (typeof item.keptFrom === "string" && item.keptFrom) {
+            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: item.keptFrom } }))
+                .catch((e) => console.error(`deleteMyPhoto: 元のストーリーを消せませんでした（${item.keptFrom}）:`, e));
+        }
+
         // 2. 自分のピン留めから外す（**行を消す前に**）。
         //    applyPinOp は上限(3)を配列長だけで数え、写真の実在を見ない。
         //    一方で画面は見つからないピンを黙って落とすので、消した写真が

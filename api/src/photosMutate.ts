@@ -240,7 +240,16 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             "thumbSrc", "thumbSm", "thumbAvif", "thumbSmAvif",
         ] as const;
         const keys = new Set<string>();
-        for (const field of mediaFields) {
+        // **ギャラリーに残した1枚の実体は消さない**（`api-user/src/stories.ts`
+        // の `storyMediaKeys` と**対**）。`keptAs` が立っているストーリーは、
+        // その S3 オブジェクトの持ち主が写真の行に移っている。ここで消すと、
+        // 投稿者が残したはずの写真が**割れた画像**になる——行は残るので、
+        // 下書き一覧にも個別ページにも壊れた枠が並び、本人には直す手段が無い。
+        // **`updatePhoto` にはある `story === true` の門が、ここには無い**ので
+        // 管理者の削除はストーリーの行をそのまま対象にする。
+        const keptAs = (photo as Record<string, unknown>).keptAs;
+        const keepMedia = typeof keptAs === "string" && !!keptAs;
+        for (const field of keepMedia ? [] : mediaFields) {
             const v = (photo as Record<string, unknown>)[field];
             if (typeof v !== "string" || !v) continue;
             if (v.startsWith("uploads/")) {

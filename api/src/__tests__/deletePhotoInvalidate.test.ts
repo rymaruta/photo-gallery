@@ -77,3 +77,34 @@ describe("管理APIの写真削除", () => {
         expect(keys, "消せたぶんは掃除する").toContain("uploads/someone/p1.jpg");
     });
 });
+
+
+// **ギャラリーに残した1枚の実体は消さない**（`api-user/src/stories.ts` の
+// `storyMediaKeys` と**対**）。`keptAs` が立っているストーリーは、その S3
+// オブジェクトの持ち主が写真の行に移っている。ここで消すと、投稿者が
+// 残したはずの写真が**割れた画像**になる——行は残るので、下書き一覧にも
+// 個別ページにも壊れた枠が並び、本人には直す手段が無い。
+// `updatePhoto` にはある `story === true` の門が、削除には無い。
+describe("管理APIの削除: ギャラリーに残した実体は消さない", () => {
+    it("keptAs が立っていたら S3 に触らない（行は消す）", async () => {
+        mockGetPhoto.mockResolvedValue({
+            id: "p1", userId: "someone", story: true, keptAs: "photo-kept",
+            src: "https://cdn.test/uploads/someone/s1.webp",
+        });
+        const res = await invoke();
+
+        expect(res.statusCode).toBe(200);
+        expect(mockS3Send, "残した写真の実体まで消している").not.toHaveBeenCalled();
+        expect(mockInvalidate.mock.calls[0]?.[0] ?? [], "消していないものをエッジから消しにいく").toEqual([]);
+        expect(mockDeleteRow, "行は予定どおり消す").toHaveBeenCalledWith("p1");
+    });
+
+    it("残していないストーリーは、これまでどおり実体ごと消す", async () => {
+        mockGetPhoto.mockResolvedValue({
+            id: "p1", userId: "someone", story: true,
+            src: "https://cdn.test/uploads/someone/s1.webp",
+        });
+        await invoke();
+        expect(mockS3Send, "実体を消していない").toHaveBeenCalled();
+    });
+});

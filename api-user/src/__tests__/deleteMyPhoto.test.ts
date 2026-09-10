@@ -348,3 +348,37 @@ describe("deleteMyPhoto: 共同アルバム", () => {
         expect((await invoke(ME, "p1")).statusCode).toBe(200);
     });
 });
+
+
+// **ストーリーから残した写真を消すときは、元のストーリーも消す。**
+//
+// 実体（S3）は共有している（`storyKeep.ts`）。写真だけ消すと、まだ生きている
+// ストーリーが**全員のトレイに割れた画像で出続ける**——しかも `keptAs` が
+// 消した写真のIDを指したまま残るので、画面は「残した · 仕上げる」を出し、
+// 押すと「写真が見つかりません」、押し直しても冪等の分岐が死んだIDを返す
+// ＝**その1枚は二度と残せない**。実体はもう無いのでストーリーは描けない。
+describe("deleteMyPhoto: ストーリーから残した写真", () => {
+    it("元のストーリーの行も消す", async () => {
+        world({ ...PHOTO, keptFrom: "story-1" });
+        const res = await invoke(ME, "p1");
+        expect(res.statusCode).toBe(200);
+        expect(deletedIds(), "割れたストーリーが最大24時間 全員に出続ける").toContain("story-1");
+        expect(deletedS3(), "実体は共有なので、写真の側で消す").toContain("uploads/me/p1.jpg");
+    });
+
+    it("出どころが無ければ、余計な行を消さない", async () => {
+        world(PHOTO);
+        await invoke(ME, "p1");
+        expect(deletedIds().filter((k) => k.startsWith("story-")), "関係のない行を消している").toEqual([]);
+    });
+
+    // 消せなくても写真の削除は成功で返す（最大24時間で掃除が拾う）
+    it("元のストーリーを消せなくても、写真の削除は成功", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({ Item: { ...PHOTO, keptFrom: "story-1" } });
+            if (String(cmd.input.Key?.id ?? "") === "story-1") return Promise.reject(new Error("boom"));
+            return Promise.resolve({});
+        });
+        expect((await invoke(ME, "p1")).statusCode).toBe(200);
+    });
+});

@@ -27,6 +27,9 @@ const ev = (sub: string | undefined, id: string | undefined) => ({
 const bodyOf = (r: Result) => JSON.parse(r.body);
 const inputs = () => mockDdbSend.mock.calls.map((c) => (c[0] as { input: Record<string, unknown> }).input);
 
+/** KEY から `idFromUploadKey`（uuidv5）で決まる値。**手で書かない**——
+ *  ずれると「印が実は立っていた」の分岐に入らず、何も検証しないテストになる */
+const KEPT_ID = "66bd8e0f-536c-5dd5-b9f8-82b6460587e0";
 const KEY = "uploads/me/3f2a1b4c-5d6e-4f70-8a91-b2c3d4e5f607.webp";
 const STORY = {
     id: "story-1", story: true, userId: "me", mediaType: "image",
@@ -50,6 +53,14 @@ beforeEach(() => {
 // **このサイトにしかない向き。** Instagram は「投稿 → ストーリーへシェア」
 // しか持っていない。ここは逆で、24時間で消えるものを**検索に出る写真**にする。
 describe("keepStory: ストーリーをギャラリーに残す", () => {
+    // **手で書いた KEPT_ID が実装と一致していることを、まず確かめる。**
+    // ずれると「印が実は立っていた」の分岐に入らず、何も検証しなくなる
+    it("KEPT_ID は実装が導く写真IDと同じ", async () => {
+        world(STORY);
+        const r = await invoke(ev("me", "story-1"));
+        expect(bodyOf(r).photoId, "フィクスチャの写真IDが実装とずれている").toBe(KEPT_ID);
+    });
+
     it("下書きの写真として作る（黙って検索に出さない）", async () => {
         world(STORY);
         const r = await invoke(ev("me", "story-1"));
@@ -141,6 +152,61 @@ describe("keepStory: ストーリーをギャラリーに残す", () => {
         mockCountUserPhotos.mockResolvedValue({ statusCode: 403, headers: {}, body: JSON.stringify({ error: "上限" }) });
         expect((await invoke(ev("me", "story-1"))).statusCode).toBe(403);
         expect(mockPutPhoto, "上限なのに作っている").not.toHaveBeenCalled();
+    });
+
+    // **掃除との競合を広げない。** `cleanupExpiredStories` は期限切れを
+    // 一度に読んだスナップショットで回すので、「読んだ後・消す前」に印が
+    // 立つと **S3 だけ消えた写真**ができる。期限切れは画面から押せない
+    it("期限切れのストーリーは残せない", async () => {
+        world({ ...STORY, expiresAt: "2020-01-01T00:00:00.000Z" });
+        expect((await invoke(ev("me", "story-1"))).statusCode).toBe(404);
+        expect(mockPutPhoto, "期限切れなのに作っている").not.toHaveBeenCalled();
+    });
+
+    // 写真を消すときに、まだ生きているストーリーも消すために要る
+    it("写真に出どころ（keptFrom）を書く", async () => {
+        world(STORY);
+        await invoke(ev("me", "story-1"));
+        expect((mockPutPhoto.mock.calls[0][0] as { keptFrom?: string }).keptFrom,
+            "出どころが無いと、写真を消しても割れたストーリーが残る").toBe("story-1");
+    });
+
+    // **例外の名前で決め打ちしない。** 条件は2つ見ているので、
+    // 条件不成立は「もう立っている」と「行がもう無い」の両方で起きる
+    it("印が実は立っていたら、成功として返す（写真を消さない）", async () => {
+        let marked = false;
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { UpdateExpression?: string } }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                return Promise.resolve({ Item: marked ? { ...STORY, keptAs: KEPT_ID } : STORY });
+            }
+            if (String(cmd.input.UpdateExpression ?? "").includes("keptAs")) {
+                marked = true;   // DynamoDB では書けたが、応答は失敗で返る
+                return Promise.reject(new Error("timeout"));
+            }
+            return Promise.resolve({});
+        });
+        const r = await invoke(ev("me", "story-1"));
+        expect(r.statusCode, "書けているのに失敗にしている").toBe(200);
+        const del = mockDdbSend.mock.calls.some((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand");
+        expect(del, "残った写真を消している（辿れない孤児になる）").toBe(false);
+    });
+
+    // 行がもう無い（掃除と競合）。**成功にしてはいけない**
+    // ——S3 は掃除に消された後なので、割れた写真がギャラリーに残る
+    it("ストーリーの行が消えていたら、作った写真を片付ける", async () => {
+        let gone = false;
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { UpdateExpression?: string } }) => {
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve(gone ? {} : { Item: STORY });
+            if (String(cmd.input.UpdateExpression ?? "").includes("keptAs")) {
+                gone = true;
+                return Promise.reject(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
+            }
+            return Promise.resolve({});
+        });
+        const r = await invoke(ev("me", "story-1"));
+        expect(r.statusCode, "行が消えているのに成功と言っている").toBe(500);
+        const del = mockDdbSend.mock.calls.some((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand");
+        expect(del, "割れた写真をギャラリーに残している").toBe(true);
     });
 
     it("キャプションが無ければ「無題」", async () => {
