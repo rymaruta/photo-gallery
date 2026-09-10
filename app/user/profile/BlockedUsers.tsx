@@ -16,25 +16,11 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { userFetch } from "../../../lib/utils/api";
-
-type Blocked = { id: string; name?: string };
-
-/** 応答の形は信用しない（1件壊れていても画面ごと落とさない） */
-function usableUsers(raw: unknown): Blocked[] {
-    if (!Array.isArray(raw)) return [];
-    const out: Blocked[] = [];
-    for (const r of raw) {
-        if (!r || typeof r !== "object") continue;
-        const { id, name } = r as { id?: unknown; name?: unknown };
-        if (typeof id !== "string" || !id) continue;
-        out.push(typeof name === "string" && name ? { id, name } : { id });
-    }
-    return out;
-}
+import { usableUserRows, type UserRow } from "../../../lib/utils/userRows";
 
 export default function BlockedUsers({ locale }: { locale: "ja" | "en" }) {
     const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
-    const [users, setUsers] = useState<Blocked[]>([]);
+    const [users, setUsers] = useState<UserRow[]>([]);
     const [busy, setBusy] = useState<string | null>(null);
 
     useEffect(() => {
@@ -47,9 +33,11 @@ export default function BlockedUsers({ locale }: { locale: "ja" | "en" }) {
                 if (cancelled) return;
                 // **古い応答の形（ID だけ）でも出す。** API を先に出す運用なので
                 // ふつうは起きないが、順序に依存させる理由が無い（2行で消せる）
-                const rows = data.users ?? (Array.isArray(data.blockedIds)
+                const raw = data.users ?? (Array.isArray(data.blockedIds)
                     ? (data.blockedIds as unknown[]).map((id) => ({ id })) : undefined);
-                setUsers(usableUsers(rows));
+                const list = usableUserRows(raw, "blocks");
+                if (!list) { setState("failed"); return; }
+                setUsers(list);
                 setState("ready");
             } catch {
                 if (!cancelled) setState("failed");

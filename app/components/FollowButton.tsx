@@ -4,7 +4,7 @@
 // 他人のプロフィールにはフォローボタン。
 
 import React, { useRef, useState } from "react";
-import { UserPlusIcon, CheckIcon } from "@heroicons/react/24/outline";
+import { UserPlusIcon, CheckIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useFollow } from "../../lib/hooks/useFollow";
 import { useToast } from "../../lib/hooks/useToast";
 import FollowingSheet from "./FollowingSheet";
@@ -24,22 +24,26 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale }: 
 
     // **自分の行を持つ。** 以前は「投稿・いいね」と同じ行に並べるために
     // ラッパー無しのフラグメントを返していたが、フォロー中／フォロワーは
-    // 次の行に置く（owner の指示）。ラッパーをここに持たせるのは、
-    // **数が取れていないときに何も描かない**から——親側に空の行を
-    // 置くと、その回だけ余白が16px 残る。
-    if (!countsKnown) return null;
+    // 次の行に置く（owner の指示）。
+    //
+    // **行ごと消さない。** `countsKnown` は毎回 false から始まるので、
+    // 行ごと消すと**初回描画には必ず無く**、数が届いた瞬間に約33pxの行が
+    // 挿入されて自己紹介より下（サイト・タブ・写真グリッド）が全部動く。
+    // すぐ上の「投稿・いいね」は同じ問題に `photosResolved ? postCount : "…"`
+    // で答えている。**数字だけ `…` にすれば**「0人と言い切らない」を守った
+    // まま行の高さが動かない。
+    const shown = (n: number) => (countsKnown ? n.toLocaleString() : "…");
 
     return (
         <div className="flex flex-wrap items-center gap-2 -mt-2 mb-4">
             {/* カウントピル（全員に表示）。フォロー中 → フォロワー の順。
-                **まだ分からない間は出さない**——`?? EMPTY` の 0/0 をそのまま
-                描いていた頃は、取得が落ちた人が「フォロワー 0」と言い切られて
-                いた（本当に0人の人と区別が付かない）。この画面には読み込み中の
-                表示が無いので、出さずに待つ。 */}
+                **まだ分からない間は数を出さない**——`?? EMPTY` の 0/0 を
+                そのまま描いていた頃は、取得が落ちた人が「フォロワー 0」と
+                言い切られていた（本当に0人の人と区別が付かない）。 */}
             {/* **押せるのはフォロー中だけ。** フォロワー側は一覧を引ける
                 データが無い（`following#<uid>` と数しか持っていない）ので、
                 押せそうに見せない。0人のときも押させない（開いても空） */}
-            {isAuthenticated && following > 0 ? (
+            {isAuthenticated && countsKnown && following > 0 ? (
                 <button
                     type="button"
                     ref={followingBtnRef}
@@ -48,17 +52,20 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale }: 
                     className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5 hover:bg-black/50 active:scale-95 transition"
                     style={{ touchAction: "manipulation" }}
                 >
-                    <span className="text-sm font-bold tabular-nums leading-none">{following.toLocaleString()}</span>
+                    <span className="text-sm font-bold tabular-nums leading-none">{shown(following)}</span>
                     <span className="text-[11px] text-white/60">{locale === "en" ? "following" : "フォロー中"}</span>
+                    {/* **押せると分かるようにする。** 押せない側のピルと
+                        `hover:` しか違わないと、スマホでは見分けが付かない */}
+                    <ChevronRightIcon className="w-3 h-3 text-white/60" aria-hidden="true" />
                 </button>
             ) : (
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
-                    <span className="text-sm font-bold tabular-nums leading-none">{following.toLocaleString()}</span>
+                    <span className="text-sm font-bold tabular-nums leading-none">{shown(following)}</span>
                     <span className="text-[11px] text-white/60">{locale === "en" ? "following" : "フォロー中"}</span>
                 </div>
             )}
             <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
-                <span className="text-sm font-bold tabular-nums leading-none">{followers.toLocaleString()}</span>
+                <span className="text-sm font-bold tabular-nums leading-none">{shown(followers)}</span>
                 <span className="text-[11px] text-white/60">{locale === "en" ? "followers" : "フォロワー"}</span>
             </div>
             {showFollowing && (

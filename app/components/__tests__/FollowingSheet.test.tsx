@@ -85,4 +85,79 @@ describe("フォロー中の一覧", () => {
         await userEvent.keyboard("{Escape}");
         await waitFor(() => expect(onClose).toHaveBeenCalled());
     });
+
+    // **`document` で聞かないと、パネルの文字をタップした時点で効かなくなる。**
+    // React の合成イベントはフォーカスがパネルの中にあるときしか届かない
+    it("フォーカスが外れていても Escape で閉じる", async () => {
+        listOk([]);
+        view();
+        await screen.findByText("まだ誰もフォローしていません");
+        (document.activeElement as HTMLElement | null)?.blur();
+        expect(document.activeElement).toBe(document.body);
+        await userEvent.keyboard("{Escape}");
+        await waitFor(() => expect(onClose).toHaveBeenCalled());
+    });
+
+    // 退会した人は開いても空のページ。退会が消すのは本人の `following#`
+    // だけなので、他人の一覧には残り続ける
+    it("退会した人はリンクにしない", async () => {
+        listOk([{ id: "gone", deleted: true }, { id: "u2", name: "旅人B" }]);
+        view();
+        expect(await screen.findByText("退会したユーザー")).toBeInTheDocument();
+        expect(screen.getAllByRole("link"), "空のページへ飛ばしている").toHaveLength(1);
+        expect(screen.queryByText("旅人"), "「旅人」という普通の行として出している").toBeNull();
+    });
+
+    // **配列でなければ「取れなかった」**。`[]` に潰すと「0人」と混ざる
+    it("users が配列でなければ、0人ではなく失敗として出す", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ users: { broken: true }, total: 5 }) });
+        view();
+        expect(await screen.findByText("一覧を読み込めませんでした")).toBeInTheDocument();
+        expect(screen.queryByText("まだ誰もフォローしていません")).toBeNull();
+        expect(screen.queryByText(/はじめの/), "0人と件数を同時に出している").toBeNull();
+    });
+});
+
+// **モーダルとしての作法**。他のモーダルには専用のテストがあるのに
+// （`GalleryModalFocus` / `StoryFocus` / `StoriesBar.focus`）、ここだけ
+// 無かった——`useFocusTrap` も `lockBodyScroll` も背景クリックも、
+// 消して全件緑になる状態だった（変異で実測）
+describe("フォロー中の一覧: モーダルとしての作法", () => {
+    it("開いたら中にフォーカスを移す（外へ漏らさない）", async () => {
+        listOk([{ id: "u2", name: "旅人B" }]);
+        view();
+        const panel = await screen.findByRole("dialog");
+        await waitFor(() => expect(panel.contains(document.activeElement)).toBe(true));
+    });
+
+    it("開いている間は背景をスクロールさせない", async () => {
+        listOk([]);
+        const { unmount } = view();
+        await screen.findByRole("dialog");
+        expect(document.body.style.position, "背景が一緒に動く").toBe("fixed");
+        unmount();
+        expect(document.body.style.position, "閉じても固まったまま").toBe("");
+    });
+
+    it("背景を押したら閉じる", async () => {
+        listOk([]);
+        view();
+        await screen.findByRole("dialog");
+        await userEvent.click(document.querySelector(".fixed.inset-0") as HTMLElement);
+        expect(onClose).toHaveBeenCalled();
+    });
+
+    it("中を押しても閉じない", async () => {
+        listOk([]);
+        view();
+        await userEvent.click(await screen.findByRole("dialog"));
+        expect(onClose, "中を触っただけで閉じる").not.toHaveBeenCalled();
+    });
+
+    it("名前を押したら閉じる（開いたまま裏で遷移させない）", async () => {
+        listOk([{ id: "u2", name: "旅人B" }]);
+        view();
+        await userEvent.click(await screen.findByText("旅人B"));
+        expect(onClose).toHaveBeenCalled();
+    });
 });

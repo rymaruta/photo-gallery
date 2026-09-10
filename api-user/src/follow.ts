@@ -538,8 +538,9 @@ export const getFollowStats: APIGatewayProxyHandlerV2 = async (event) => {
 };
 
 /**
- * 名前まで引く人数の上限。`FOLLOWING_MAX` は2000だが、1回の呼び出しで
- * 2000回の GetItem は撃てない（既定の6秒・同時実行はアカウント全体で10）。
+ * 名前まで引く人数の上限。`FOLLOWING_MAX` は2000だが、1回の呼び出しの
+ * 6秒に 2000回の GetItem は収まらない（`Promise.all` の並列でも、
+ * DynamoDB の応答と再送のぶんが積み上がる）。
  * 超えたぶんは返さず、`total` で件数だけ伝える。
  */
 const FOLLOWING_PAGE = 50;

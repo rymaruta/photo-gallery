@@ -833,8 +833,9 @@ describe("getUserFollowing（その人がフォローしている人）", () => 
         expect(JSON.parse(res.body).total).toBe(2);
     });
 
-    // **上限を「入れる前」に見る。** 2000回の GetItem は1回の呼び出しで
-    // 撃てない（既定6秒・同時実行はアカウント全体で10）
+    // **上限を「入れる前」に見る。** 2000回の GetItem は1回の呼び出しの
+    // 6秒には収まらない（`Promise.all` の並列でも、DynamoDB の応答と
+    // 再送のぶんが積み上がる）
     it("50人までしか名前を引かない（総数は返す）", async () => {
         const many = Array.from({ length: 60 }, (_, i) => `0000000${String(i).padStart(4, "0")}-1111-4111-8111-111111111111`);
         mockDdbSend.mockResolvedValue({ Item: { list: many } });

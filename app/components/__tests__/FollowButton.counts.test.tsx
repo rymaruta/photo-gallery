@@ -36,6 +36,9 @@ async function renderButton(isAuthenticated = false) {
 }
 
 describe("フォロー数のピル", () => {
+    // **数だけ伏せる。** 行ごと消すと、数が届いた瞬間に約33pxの行が
+    // 挿入されて下が全部動く（すぐ上の「投稿・いいね」は同じ問題に
+    // `photosResolved ? postCount : "…"` で答えている）
     it("取得に失敗したら数を出さない（0と言い切らない）", async () => {
         mockUserPublicFetch.mockRejectedValue(new Error("network"));
         await renderButton();
@@ -44,8 +47,8 @@ describe("フォロー数のピル", () => {
         await waitFor(() => expect(mockUserPublicFetch).toHaveBeenCalled());
         await new Promise((r) => setTimeout(r, 20));
 
-        expect(screen.queryByText("フォロワー"), "取れていないのに「0」と言い切っている").toBeNull();
-        expect(screen.queryByText("フォロー中")).toBeNull();
+        expect(screen.queryByText("0"), "取れていないのに「0」と言い切っている").toBeNull();
+        expect(screen.getAllByText("…"), "数の場所が空になっている").toHaveLength(2);
     });
 
     it("取得できたら数を出す（正常系）", async () => {
@@ -71,12 +74,13 @@ describe("フォロー数のピル", () => {
         expect(row.contains(screen.getByText("フォロワー"))).toBe(true);
     });
 
-    it("数が取れていない回は、空の行も描かない（余白だけ残さない）", async () => {
-        mockUserPublicFetch.mockRejectedValue(new Error("network"));
+    // 行の高さが動かないこと（数が届く前後で行が1つある）
+    it("数が届く前も、行は1つあって高さが動かない", async () => {
+        mockUserPublicFetch.mockImplementation(() => new Promise(() => { /* 返らない */ }));
         const { container } = await renderButton();
-        await waitFor(() => expect(mockUserPublicFetch).toHaveBeenCalled());
-        await new Promise((r) => setTimeout(r, 20));
-        expect(container.innerHTML, "空の行の余白が残る").toBe("");
+        await screen.findByText("フォロー中");
+        expect(container.children, "行ごと無い（届いた瞬間に下が全部動く）").toHaveLength(1);
+        expect(screen.getAllByText("…")).toHaveLength(2);
     });
 
     // owner の指示「誰をフォローしてて、みたいなの見れるようにして」。
@@ -85,7 +89,8 @@ describe("フォロー数のピル", () => {
     it("フォロー中は押せる。フォロワーは押せない", async () => {
         mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ followers: 5, following: 4 }) });
         await renderButton(true);
-        const following = (await screen.findByText("フォロー中")).closest("button");
+        await screen.findByText("4");   // 数が届くまで待つ（届く前はどちらも押せない）
+        const following = screen.getByText("フォロー中").closest("button");
         expect(following, "一覧を開けない").not.toBeNull();
         expect(screen.getByText("フォロワー").closest("button"), "引けない一覧を押せそうに見せている").toBeNull();
     });
@@ -93,20 +98,31 @@ describe("フォロー数のピル", () => {
     it("0人なら押させない（開いても空）", async () => {
         mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ followers: 0, following: 0 }) });
         await renderButton(true);
-        expect((await screen.findByText("フォロー中")).closest("button")).toBeNull();
+        await screen.findByText("フォロワー");
+        expect(screen.getByText("フォロー中").closest("button")).toBeNull();
+    });
+
+    // 数が届く前は押させない（開いても空・押せる/押せないが途中で変わる）
+    it("数が届く前は押させない", async () => {
+        mockUserPublicFetch.mockImplementation(() => new Promise(() => { /* 返らない */ }));
+        await renderButton(true);
+        await screen.findByText("フォロー中");
+        expect(screen.getByText("フォロー中").closest("button")).toBeNull();
     });
 
     // 一覧の口は認証が要る（未認証で押すと必ず失敗する）
     it("未ログインなら押させない", async () => {
         mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ followers: 5, following: 4 }) });
         await renderButton(false);
-        expect((await screen.findByText("フォロー中")).closest("button")).toBeNull();
+        await screen.findByText("4");
+        expect(screen.getByText("フォロー中").closest("button")).toBeNull();
     });
 
     it("押すと一覧が開く", async () => {
         mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ followers: 5, following: 4 }) });
         await renderButton(true);
-        (await screen.findByText("フォロー中")).closest("button")!.click();
+        await screen.findByText("4");
+        screen.getByText("フォロー中").closest("button")!.click();
         expect(await screen.findByRole("dialog", { name: "フォロー中" })).toBeInTheDocument();
     });
 

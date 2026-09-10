@@ -11,29 +11,16 @@
  * `followers#<uid>` を足して既存の関係を埋め戻す移行が要る＝別件。
  */
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import UserAvatar from "./UserAvatar";
 import { ROUTES } from "../../lib/routes";
 import { userFetch } from "../../lib/utils/api";
+import { usableUserRows, type UserRow } from "../../lib/utils/userRows";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
+import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 import { lockBodyScroll, unlockBodyScroll } from "../../lib/utils/scrollLock";
-
-type Row = { id: string; name?: string };
-
-/** 応答の形は信用しない（1件壊れていても画面ごと落とさない） */
-export function usableRows(raw: unknown): Row[] {
-    if (!Array.isArray(raw)) return [];
-    const out: Row[] = [];
-    for (const r of raw) {
-        if (!r || typeof r !== "object") continue;
-        const { id, name } = r as { id?: unknown; name?: unknown };
-        if (typeof id !== "string" || !id) continue;
-        out.push(typeof name === "string" && name ? { id, name } : { id });
-    }
-    return out;
-}
 
 type Props = {
     userId: string;
@@ -44,20 +31,21 @@ type Props = {
 
 export default function FollowingSheet({ userId, locale, onClose, openerRef }: Props) {
     const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
-    const [rows, setRows] = useState<Row[]>([]);
+    const [rows, setRows] = useState<UserRow[]>([]);
     const [total, setTotal] = useState(0);
     const panelRef = useRef<HTMLDivElement>(null);
     // 外へ漏らさない・閉じたら押した場所へ戻す（このリポジトリの8か所と同じ道具）
     useFocusTrap(true, panelRef, openerRef);
+    // **`document` で聞く。** React の合成イベントはフォーカスがパネルの
+    // 中にあるときしか届かないので、`<p>` の文字をタップしてフォーカスが
+    // body に落ちた時点で Escape が効かなくなる。既存の6か所と同じ道具
+    // （変換中の Escape ＝「変換の取り消し」を除く判定も入っている）
+    useEscapeKey(true, onClose);
 
     useEffect(() => {
         lockBodyScroll();
         return () => unlockBodyScroll();
     }, []);
-
-    const onKeyDown = useCallback((e: React.KeyboardEvent) => {
-        if (e.key === "Escape") onClose();
-    }, [onClose]);
 
     useEffect(() => {
         let cancelled = false;
@@ -66,8 +54,13 @@ export default function FollowingSheet({ userId, locale, onClose, openerRef }: P
                 const res = await userFetch(`/users/${encodeURIComponent(userId)}/following`);
                 if (!res.ok) throw new Error(String(res.status));
                 const data = await res.json() as { users?: unknown; total?: unknown };
+                // **配列でなければ「取れなかった」**。`[]` に潰すと
+                // 「0人」と「壊れた応答」が混ざる（この部品が掲げている
+                // 「読み込み中・失敗・0人を分ける」の逆）
+                const list = usableUserRows(data.users, "following");
                 if (cancelled) return;
-                setRows(usableRows(data.users));
+                if (!list) { setState("failed"); return; }
+                setRows(list);
                 setTotal(typeof data.total === "number" ? data.total : 0);
                 setState("ready");
             } catch {
@@ -81,14 +74,15 @@ export default function FollowingSheet({ userId, locale, onClose, openerRef }: P
         <div
             className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60"
             onClick={onClose}
-            onKeyDown={onKeyDown}
         >
             <div
                 ref={panelRef}
                 role="dialog"
                 aria-modal="true"
                 aria-label={locale === "en" ? "Following" : "フォロー中"}
-                className="w-full sm:max-w-sm max-h-[70vh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-[#1c1c1e] ring-1 ring-white/10"
+                // 下端に密着させない（iPhone のホームインジケータに最後の行が
+                // かぶる）。既存のボトムシート2つと同じ形
+                className="w-full sm:max-w-sm max-h-[70dvh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-[#1c1c1e] ring-1 ring-white/10 pb-[calc(env(safe-area-inset-bottom,0px))] sm:pb-0"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
@@ -125,7 +119,18 @@ export default function FollowingSheet({ userId, locale, onClose, openerRef }: P
                             {locale === "en" ? "Not following anyone yet." : "まだ誰もフォローしていません"}
                         </p>
                     )}
-                    {rows.map((u) => (
+                    {rows.map((u) => (u.deleted ? (
+                        // **退会した人はリンクにしない**（開いても空のページ）。
+                        // 退会が消すのは本人の `following#` だけなので、
+                        // 他人の一覧には残り続ける。コメント欄・ストーリーの
+                        // 返信と同じ扱い（アバターも出さない）
+                        <div key={u.id} className="flex items-center gap-3 px-3 py-2.5">
+                            <UserAvatar userId="" className="w-9 h-9 flex-shrink-0" iconClassName="w-5 h-5" />
+                            <span className="text-sm text-white/60 truncate">
+                                {locale === "en" ? "Deleted user" : "退会したユーザー"}
+                            </span>
+                        </div>
+                    ) : (
                         <Link
                             key={u.id}
                             href={ROUTES.USER_PROFILE(u.id)}
@@ -137,7 +142,7 @@ export default function FollowingSheet({ userId, locale, onClose, openerRef }: P
                                 {u.name ?? (locale === "en" ? "User" : "旅人")}
                             </span>
                         </Link>
-                    ))}
+                    )))}
                     {/* サーバーは50人までしか返さない（1回で2000回の GetItem は
                         撃てない）。**足りないことを黙らない** */}
                     {state === "ready" && total > rows.length && (
