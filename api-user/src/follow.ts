@@ -754,9 +754,14 @@ export const getUserFollowing: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
  *   - `updateFollowersQuietly` は失敗を握るので、1件だけ欠けることがある
  *
  * だから `total` に一覧の長さを返してはいけない。**返すのは数（`followers`）と
- * 一覧の長さ（`listed`）の両方**——画面はこの2つで「0人」と「まだ揃って
- * いない」を見分ける。片方だけだと「5 フォロワー」と言いながら開くと
- * 「まだフォロワーはいません」になる（実際にそうなっていた）。
+ * 一覧の長さ（`listed`）の両方。** 片方だけだと「5 フォロワー」と言いながら
+ * 開くと「まだフォロワーはいません」になる（実際にそうなっていた）。
+ *
+ * **ただし画面は `listed` を読んでいない**（`FollowingSheet` は `total` と
+ * 実際に描いた行数で見分ける。あちらのコメントが正）。ここに残して
+ * あるのは、サーバーが50人で切っているぶんと「一覧が追いついていない」
+ * ぶんを外から区別できる唯一の値だから。一度「画面はこの2つで見分ける」
+ * と書いたが、それは事実ではない。
  */
 export const getUserFollowers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const uid = event.pathParameters?.uid;

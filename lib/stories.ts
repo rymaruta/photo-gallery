@@ -58,7 +58,13 @@ export type StoryReply = {
 export type StoryViewer = {
     userId: string;
     displayName?: string;
-    /** 退会した人。名前は伏せ、プロフィールへは飛ばさない（返信一覧と同じ） */
+    /**
+     * 退会した人。名前を伏せる（返信一覧・コメント欄と同じ）。
+     *
+     * 一度「プロフィールへは飛ばさない」と書いたが、**閲覧者の行は
+     * `<div>` でリンクだったことが一度も無い**（`StoryViewer`）。
+     * 実際に変わるのは名前と、アバターを出さないことだけ。
+     */
     deleted?: boolean;
     at?: string;
 };

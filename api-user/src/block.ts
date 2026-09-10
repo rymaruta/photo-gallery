@@ -5,7 +5,7 @@ import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { isUserId } from "./userId";
 import { unfollowQuietly } from "./follow";
 import { blockMarkerId } from "./blockCheck";
-import { lookupDisplayNameIfSet } from "./notify";
+import { lookupDisplayNameIfSet, deletedUserIds, DELETED_USER_NAME } from "./notify";
 
 // 判定（印の綴りと GetItem 1回）は `blockCheck.ts` にある。
 // **輪を作らないため**の切り出し——このファイルは `follow.ts` の
@@ -251,11 +251,21 @@ export const listBlocks: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
     try {
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: blocksId(me) } }));
         const blockedIds = ids(res.Item as Record<string, unknown> | undefined, "blockedIds");
+        // **退会した人を「旅人」として並べない。**
+        // 名前が引けないのは「未設定の人」も「退会した人」も同じなので、
+        // 画面のフォールバック（`旅人`）に落ちると**生きている人に見える**。
+        // 一覧を返す口はこれで7本目で、ここだけ通っていなかった
+        // （`getComments` / `getNotifications` / `getStoryReplies` /
+        //  `getUserFollowing` / `getUserFollowers` / `getStoryViewers`）。
+        // 引くのは一覧が空でないときだけ（あちらと同じ）
+        const named = blockedIds.slice(0, BLOCK_NAMES_MAX);
+        const gone = named.length > 0 ? await deletedUserIds() : new Set<string>();
         // 名前が引けなくても一覧は返す（解除できることの方が大事）。
         // **それを保証しているのは `lookupDisplayNameIfSet` の側**——あちらが
         // 内部で握って `undefined` を返すので、ここの `.catch` は現状
         // 発火しない。あちらが投げるようになった日のための保険として置く
-        const users = await Promise.all(blockedIds.slice(0, BLOCK_NAMES_MAX).map(async (id) => {
+        const users = await Promise.all(named.map(async (id) => {
+            if (gone.has(id)) return { id, name: DELETED_USER_NAME, deleted: true };
             const name = await lookupDisplayNameIfSet(id).catch(() => undefined);
             return name ? { id, name } : { id };
         }));
