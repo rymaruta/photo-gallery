@@ -141,9 +141,49 @@ export default function ProfileEditPage() {
     // app/users/UserProfileClient.tsx にも同じ理由のガードがある。
     const [loadFailed, setLoadFailed] = useState(false);
 
+    /**
+     * 打ちかけがあるか。**送り返す前に見る。**
+     *
+     * この画面は会員ページの門を**手書きで写して**いて、
+     * `useMemberGate` が持っている「打ちかけがあるときは送り返さない」
+     * だけが抜けていた（`/user/edit` `/user/upload` `/user/drafts`
+     * `/user/albums` は本物を使っている）。自己紹介を書いている最中に
+     * **別タブでログアウト・退会**すると、`storage` イベントで
+     * `isAuthenticated` が落ち、`router.replace` が画面ごと作り直して
+     * **打った文章が消える**。
+     *
+     * 見るのは**打って入れる項目**だけ（テーマ色・曲は選び直せる）。
+     * 誤って true になっても、倒れる先は「送り返さずに理由を出す」＝安全側。
+     */
+    const hasUnsavedWork = !!profile && (
+        username.trim().toLowerCase().replace(/^@/, "") !== (profile.username ?? "")
+        || displayName !== (profile.displayName ?? "")
+        || bio !== (profile.bio ?? "")
+        || instagram !== (profile.instagram ?? "")
+        || website !== (profile.website ?? "")
+    );
+
     useEffect(() => {
-        if (!loading && !isAuthenticated) router.replace(loginWithNext(window.location.pathname + window.location.search));
-    }, [isAuthenticated, loading, router]);
+        // **打ちかけがあるときは送り返さない**（`useMemberGate` と同じ判断）。
+        // ログインが切れた側はどのみち保存できないが、書いたものを消して
+        // よい理由にはならない。保存できないことは下のトーストで伝える
+        if (!loading && !isAuthenticated && !hasUnsavedWork) {
+            router.replace(loginWithNext(window.location.pathname + window.location.search));
+        }
+    }, [isAuthenticated, loading, router, hasUnsavedWork]);
+
+    // 留めたぶん、**保存できないことを言う**（`/user/edit` と同じ形）。
+    // 一度だけ出す（描画のたびに出すと読めない）
+    const toldSignedOut = useRef(false);
+    useEffect(() => {
+        // **ログインし直したら札を下ろす。** 下ろさないと二度目が無言になる
+        if (isAuthenticated) { toldSignedOut.current = false; return; }
+        if (loading || !hasUnsavedWork || toldSignedOut.current) return;
+        toldSignedOut.current = true;
+        showToast(locale === "en"
+            ? "You are signed out. This can't be saved yet — sign in again in another tab, then save."
+            : "ログインが切れました。この内容は保存できません。別のタブでログインし直してから、もう一度保存してください", "error");
+    }, [isAuthenticated, loading, hasUnsavedWork, locale, showToast]);
 
     useEffect(() => {
         if (!isAuthenticated) return;
