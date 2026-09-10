@@ -36,6 +36,8 @@ vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: 
 const AlbumsPage = (await import("../page")).default;
 
 const toasts = () => mockShowToast.mock.calls.map((c) => String(c[0]));
+/** 種別まで見る（`/user/edit` の `typed()` と同じ形。緑で出していないこと） */
+const typed = () => mockShowToast.mock.calls.map((c) => `${String(c[1] ?? "")}:${String(c[0])}`);
 
 beforeEach(() => {
     authState.current = { isAuthenticated: true, isAdminUser: false, isGeneralUser: true, loading: false };
@@ -60,9 +62,78 @@ describe("共同アルバム: ログインが切れたときに打ちかけを�
         rerender(<AlbumsPage />);
 
         await waitFor(() => expect(toasts().some((t) => t.includes("保存できません"))).toBe(true));
+        // **文言と種別まで見る**（`/user/edit` は `error:` 接頭辞まで見ている）。
+        // 「別のタブでログインし直してから」は**唯一の対処法**なので落とさない
+        expect(typed().some((t) => t.startsWith("error:")), "知らせを緑で出している").toBe(true);
+        expect(toasts()[0], "何が起きたか言っていない").toContain("ログインが切れました");
+        expect(toasts()[0], "唯一の対処法が落ちている").toContain("別のタブで");
         expect(mockReplace, "打ちかけごと画面を作り直している").not.toHaveBeenCalled();
         // **スピナーに落とさない**——見えないまま止まるのは送り返すのと同じ
         expect(screen.getByDisplayValue("石垣島の3日間"), "打った名前が画面から消えている").toBeInTheDocument();
+    });
+
+    // **改名欄も打って入れる欄。** 新規名の分しか打っていなかったので、
+    // `hasUnsavedWork` から改名の項を丸ごと削除しても緑だった
+    // （前のコミットが「新規アルバム名と改名の欄」と書いて直した、その片方）
+    it("改名の途中でも、送り返さず画面も消さない", async () => {
+        mockUserFetch.mockResolvedValue({
+            ok: true, json: async () => ({ albums: [{ id: "a1", title: "北欧の冬", photoIds: [], memberIds: [] }] }),
+        });
+        const { rerender } = render(<AlbumsPage />);
+        await userEvent.click(await screen.findByRole("button", { name: "名前を変える" }));
+        const input = await screen.findByDisplayValue("北欧の冬");
+        await userEvent.clear(input);
+        await userEvent.type(input, "北欧の冬 2026");
+
+        authState.current = { ...authState.current, isAuthenticated: false };
+        rerender(<AlbumsPage />);
+
+        await waitFor(() => expect(toasts().some((t) => t.includes("保存できません"))).toBe(true));
+        expect(mockReplace, "打ちかけごと画面を作り直している").not.toHaveBeenCalled();
+        expect(screen.getByDisplayValue("北欧の冬 2026"), "打った名前が画面から消えている").toBeInTheDocument();
+    });
+
+    // **開いただけは打ちかけに数えない**（元の名前がそのまま入る）
+    it("改名を開いただけなら、今までどおり送り返す", async () => {
+        mockUserFetch.mockResolvedValue({
+            ok: true, json: async () => ({ albums: [{ id: "a1", title: "北欧の冬", photoIds: [], memberIds: [] }] }),
+        });
+        const { rerender } = render(<AlbumsPage />);
+        await userEvent.click(await screen.findByRole("button", { name: "名前を変える" }));
+        await screen.findByDisplayValue("北欧の冬");
+
+        authState.current = { ...authState.current, isAuthenticated: false };
+        rerender(<AlbumsPage />);
+
+        await waitFor(() => expect(mockReplace, "開いただけで留まり続けている").toHaveBeenCalled());
+    });
+
+    // **ログインしているが権限が無い人に、ログインの話をしない。**
+    // `/user/edit` が同じテストを持ち、そのコメントに「この campaign で
+    // 3回出ている」と書いてある——**4回目をやった**。
+    // `no-group` は再ログインでも直らない（`useMemberGate` の doc）ので、
+    // 「別のタブでログインし直して」は絶対に効かない対処法になる
+    it("権限が無いだけの人には、ログインの話をしない", async () => {
+        const rerender = await typeNewAlbumName();
+
+        authState.current = { isAuthenticated: true, isAdminUser: false, isGeneralUser: false, loading: false };
+        rerender(<AlbumsPage />);
+
+        await waitFor(() => expect(screen.queryByDisplayValue("石垣島の3日間")).toBeNull());
+        expect(toasts().some((t) => t.includes("ログインが切れました")),
+            "権限の話とログインの話を混ぜている").toBe(false);
+    });
+
+    // 判定中も同じ（まだ分からないうちに「切れました」と言わない）
+    it("判定中には、ログインの話をしない", async () => {
+        const rerender = await typeNewAlbumName();
+
+        authState.current = { ...authState.current, isAuthenticated: false, loading: true };
+        rerender(<AlbumsPage />);
+
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        expect(toasts().some((t) => t.includes("ログインが切れました")),
+            "まだ分からないのに切れたと言っている").toBe(false);
     });
 
     // **留めすぎない。** 打ちかけが無ければ今までどおり送り返す

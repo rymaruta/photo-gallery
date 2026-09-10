@@ -68,7 +68,19 @@ export default function AlbumsPage() {
     useEffect(() => {
         // ログインし直したら札を下ろす（二度目を無言にしない）
         if (gate === "ok") { toldSignedOut.current = false; return; }
-        if (!hasUnsavedWork || toldSignedOut.current) return;
+        // **ログインしているが権限が無い人に、ログインの話をしない。**
+        //
+        // `gate !== "ok"` で書いていたので `no-group` と `loading` にも
+        // 出ていた。`no-group` の人は**ログインしている**うえ、
+        // `useMemberGate` 自身が「グループを入れ直す経路はアプリのどこにも
+        // 無い。再ログインでも直らない」と書いている——`MemberOnlyNotice`
+        // の上に**絶対に効かない対処法**を重ねることになる。
+        // しかも札は `ok` でしか下りないので、1回誤射すると**本物の
+        // ログイン切れが無言**になる。
+        //
+        // `/user/edit:486` が同じ1行を持ち、それを守るテストのコメントに
+        // 「この campaign で3回出ている」と書いてある。**4回目をやった。**
+        if (gate !== "anonymous" || !hasUnsavedWork || toldSignedOut.current) return;
         toldSignedOut.current = true;
         showToast(locale === "en"
             ? "You are signed out. This can't be saved yet — sign in again in another tab, then try again."
