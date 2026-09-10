@@ -13,7 +13,7 @@ import { capitalize } from "../lib/utils/string";
 import { usePhotos } from "../lib/hooks/usePhotos";
 import { useAuth } from "./auth/context";
 import { useToast } from "../lib/hooks/useToast";
-import { fetchFollowingSet } from "../lib/hooks/useFollow";
+import { fetchFollowingSet, subscribeFollowingSet } from "../lib/hooks/useFollow";
 
 // フィルタバーに出すタグ数の上限（枚数の多い順）。残りは検索で辿る
 const POPULAR_TAG_LIMIT = 10;
@@ -70,6 +70,15 @@ export default function GalleryPageClient() {
       .finally(() => { if (!aborted) setFollowingLoaded(true); });
     return () => { aborted = true; };
   }, [authLoading, isAuthenticated, followingReloadKey]);
+
+  // **共有している一覧が変わったら取り直す。**
+  // 上の effect は結果を `followingIds` に**コピー**するので、
+  // 共有ストア（`useFollow`）を直しても伝わらない。ストーリーの返信一覧
+  // からブロックしても、この画面は重なって開くだけで再マウントされない
+  // ＝取り直す契機が無く、ブロックした相手の写真が出続けていた
+  React.useEffect(() => subscribeFollowingSet(() => {
+    setFollowingReloadKey((k) => k + 1);
+  }), []);
 
   const {
     PHOTOS,

@@ -616,7 +616,17 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             const res = await userFetch(`/users/${encodeURIComponent(uid)}/block`, { method: "POST" });
             // **効いたときだけ画面を変える。** 失敗を成功に見せると、
             // 「押したのにまた届く」で二度目の落胆になる
-            if (res.ok) setBlockedIds((prev) => new Set(prev).add(uid));
+            if (res.ok) {
+                setBlockedIds((prev) => new Set(prev).add(uid));
+                // **サーバーは両向きのフォローを切る**（`block.ts`）。
+                // ここを呼ばないと、共有しているフォロー中の一覧が古いまま
+                // ——**ギャラリーのフォロー中フィードにブロックした相手の
+                // 写真が出続ける**（この画面はギャラリーの上に重なって
+                // 開くので、閉じても再マウントされない＝取り直す契機が無い）。
+                // プロフィール経由のブロックだけ直して、こちらを忘れていた
+                const { noteFollowSevered } = await import("../../../lib/hooks/useFollow");
+                noteFollowSevered(uid);
+            }
         } catch { /* 押し直せる。ここで画面は変えない */ } finally {
             setBlocking(null);
         }

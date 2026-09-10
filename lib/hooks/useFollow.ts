@@ -59,6 +59,27 @@ export async function fetchFollowingSet(): Promise<Set<string>> {
  * 前の人のフォロー一覧がそのまま使われる（ログアウトはクライアント遷移なので
  * モジュールの状態が生き残る）。
  */
+/**
+ * 「フォロー中の一覧が変わった」の購読口。
+ *
+ * **数（`counts`）には購読があるのに、一覧には無かった。**
+ * `GalleryPageClient` は `fetchFollowingSet()` の結果を
+ * `setFollowingIds(new Set(set))` と**コピーして自分の state に持つ**ので、
+ * 共有ストアを直しても伝わらない——ストーリーの返信一覧からブロックしても、
+ * ギャラリーのフォロー中フィードにその人の写真が出続けていた
+ * （プロフィール経由だとギャラリーが再マウントされるので偶然直っていた）。
+ */
+const followingListeners = new Set<() => void>();
+
+export function subscribeFollowingSet(fn: () => void): () => void {
+    followingListeners.add(fn);
+    return () => { followingListeners.delete(fn); };
+}
+
+function emitFollowingChanged() {
+    for (const fn of [...followingListeners]) fn();
+}
+
 export function resetFollowingCache() {
     cacheGen++;   // 走っている取得の結果を書き戻させない
     followingCache = null;
@@ -81,6 +102,7 @@ export function resetFollowingCache() {
     for (const [, fns] of listeners) {
         for (const fn of fns) fn();
     }
+    emitFollowingChanged();
 }
 
 // ────────────────────────────────
@@ -210,11 +232,12 @@ function bumpCountsGen(userId: string): boolean {
  *
  * **ボタンの見た目は呼び出し側の仕事。** `isFollowing` を書くのは下の
  * effect だけで、その依存は `[targetUserId, isAuthenticated, withCounts]`
- * ——どれも変わらない。`UserProfileClient` はブロック中フォローのボタンを
- * **出さない**ので張り直しは要らない（`key` で張り直す形は
- * `busyRef` / `pending` ごと作り直して二重送信の番人を外すのでやめた）。
- * 解除して出し直したときは、新しくマウントされた effect が
- * `fetchFollowingSet()` を読み、切れたあとの一覧から `false` を得る。
+ * ——どれも変わらない。`UserProfileClient` は**その画面でブロックを押した回**
+ * だけボタンを出さない（`key` で張り直す形は `busyRef` / `pending` ごと
+ * 作り直して二重送信の番人を外すのでやめた）。開き直すと `blocked` は
+ * false に戻るので、以前ブロックした相手にはボタンが出て、押すと 400 が
+ * 返る——**まだ直っていない**（`GET /user/blocks` を引けば分かるが、
+ * プロフィールを開くたびに1往復増えるので別に判断する）。
  */
 export function noteFollowSevered(targetUserId: string): void {
     if (!targetUserId) return;
@@ -230,13 +253,22 @@ export function noteFollowSevered(targetUserId: string): void {
     //     `followingCache.add()` を実行する（同上）
     //
     // どちらも `cacheGen` で無効にする——`resetFollowingCache` が同じ穴に
-    // 対して持っている札で、こちらには無かった。捨てるのは走っている
-    // 取得の**結果**だけで、既に持っている一覧は捨てない
+    // 対して持っている札で、こちらには無かった。既に持っている一覧は捨てない。
+    //
+    // **止まるのは「キャッシュへの書き込み」まで。** `fetchFollowingSet` は
+    // 世代が古くても `return set` するので、**もう待っている購読者には
+    // 押す前の一覧がそのまま届く**（一度「結果だけを捨てる」と書いたが、
+    // それは言い過ぎだった）。届いた側を直すのは下の `emitFollowingChanged`
+    // ——取り直させる。`followingPromise = null` は「このあと来る購読者」を
+    // 古い取得に相乗りさせないため
     cacheGen++;
     followingPromise = null;
     // 走っている取り込みは押す前の数なので、書き戻させない
     bumpCountsGen(targetUserId);
     void loadCounts(targetUserId);
+    // 一覧をコピーして持っている画面（ギャラリーのフォロー中フィード）に
+    // 取り直させる。ここが無いと、ブロックした相手の写真が出続ける
+    emitFollowingChanged();
 }
 
 function loadCounts(userId: string): Promise<void> {
@@ -388,6 +420,8 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
         // 押した＝取り込み中の「押す前の数」はもう古い。
         // 潰したなら、このあと必ず取り直す（下の2か所）
         const killedLoad = bumpCountsGen(targetUserId);
+        // 押した時点の世代。着地したときに「まだ自分の番か」を見る
+        const genCountsAtPress = countsGen.get(targetUserId) ?? 0;
         if (before) {
             setCounts(targetUserId, { ...before, followers: Math.max(0, before.followers + (was ? -1 : 1)) });
         }
@@ -405,7 +439,14 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
             // ここも同じ——`following` を知らないまま `followers` だけ書くと、
             // 知らない方が 0 として残る
             const cur = counts.get(targetUserId) ?? before;
-            if (typeof data.followers === "number" && cur) {
+            // **数の書き戻しにも札を見せる。** 一覧だけ見て数を素通しに
+            // していたので、フォローの POST が飛んでいる間にブロックすると
+            // 「切れたあとの数」を「押す前の数」が上書きしていた
+            // （取り直しがバックオフに入った回は必ずこの順になる）
+            const countsStale = (countsGen.get(targetUserId) ?? 0) !== genCountsAtPress;
+            if (countsStale) {
+                // 押した結果はもう古い。取り直しに任せる
+            } else if (typeof data.followers === "number" && cur) {
                 setCounts(targetUserId, { ...cur, followers: data.followers });
             } else if (killedLoad || withCounts) {
                 // **数を知らないまま押したときは、押したあとに取り直す。**

@@ -357,6 +357,52 @@ describe("届いた返信から、その人をブロックする", () => {
         expect(await screen.findByText("ブロック済み")).toBeInTheDocument();
     });
 
+    // **共有しているフォロー中の一覧にも反映する。**
+    //
+    // サーバーは両向きのフォローを切る（`block.ts`）。ここを呼ばないと、
+    // **ギャラリーのフォロー中フィードにブロックした相手の写真が出続ける**
+    // ——この画面はギャラリーの上に重なって開くので、閉じても再マウント
+    // されず、取り直す契機が無い。プロフィール経由のブロックだけ直して
+    // こちらを忘れていた（＝唯一マウントしたまま踏める経路が残っていた）
+    it("共有しているフォロー中の一覧にも反映する", async () => {
+        withReply();
+        const mod = await import("../../../../lib/hooks/useFollow");
+        const seen: string[] = [];
+        const off = mod.subscribeFollowingSet(() => seen.push("changed"));
+        try {
+            view(ownGroups(1));
+            await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+            await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
+            await waitFor(() => expect(blockCalls()).toHaveLength(1));
+            await waitFor(() => expect(seen, "一覧が古いまま（写真が出続ける）").toHaveLength(1));
+        } finally { off(); }
+    });
+
+    it("失敗した回は反映しない", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/block") && init?.method === "POST") {
+                return Promise.resolve({ ok: false, status: 500, json: async () => ({}) });
+            }
+            if (String(url).includes("/replies")) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({ items: [{ id: "r1", uid: "u2", name: "しつこい人", text: "…", t: "2026-07-04T12:00:00Z" }] }),
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        const mod = await import("../../../../lib/hooks/useFollow");
+        const seen: string[] = [];
+        const off = mod.subscribeFollowingSet(() => seen.push("changed"));
+        try {
+            view(ownGroups(1));
+            await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+            await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
+            await waitFor(() => expect(blockCalls()).toHaveLength(1));
+            expect(seen, "効いていないのに一覧を捨てている").toHaveLength(0);
+        } finally { off(); }
+    });
+
     // **効いたときだけ画面を変える。** 失敗を成功に見せると
     // 「押したのにまた届く」で二度目の落胆になる
     it("失敗したら「ブロック中」にしない", async () => {

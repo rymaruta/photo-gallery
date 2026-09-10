@@ -89,7 +89,10 @@ describe("noteFollowSevered: ブロックで切れたフォローを反映する
     // フォロー中フィードにもブロックした相手の写真が出続ける。
     // `resetFollowingCache` が持っていた `cacheGen` の札が、こちらには
     // 無かった
-    it("一覧を取りに行っている最中でも効く", async () => {
+    // **止まるのは「キャッシュへの書き込み」まで。** もう待っている購読者に
+    // は押す前の一覧がそのまま届く（`fetchFollowingSet` は世代が古くても
+    // `return set` する）。ここが縛るのは「共有している一覧が汚れないこと」
+    it("一覧を取りに行っている最中でも、押す前の一覧を共有ストアに残さない", async () => {
         const mod = await load();
         let settle!: (v: unknown) => void;
         mockUserFetch.mockReturnValue(new Promise((r) => { settle = r; }));
@@ -158,6 +161,67 @@ describe("noteFollowSevered: ブロックで切れたフォローを反映する
 
         await waitFor(() => expect(result.current.followers).toBe(2));
         expect(result.current.followers, "押す前の数が書き戻っている").toBe(2);
+    });
+
+    // **`followingPromise = null` は load-bearing。**
+    // 消しても全4,206件が緑だった（レビューが実証）。この行が無いと、
+    // ブロックの**あとに来た購読者**が走っている古い取得に相乗りして、
+    // ブロックした相手を含む一覧を受け取る
+    it("ブロックのあとに来た購読者は、古い取得に相乗りしない", async () => {
+        const mod = await load();
+        let settleOld!: (v: unknown) => void;
+        mockUserFetch.mockReturnValueOnce(new Promise((r) => { settleOld = r; }));
+
+        const early = mod.fetchFollowingSet();
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+
+        mod.noteFollowSevered(TARGET);
+        // 取り直しは切れたあとの一覧
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: [] }) });
+        const late = mod.fetchFollowingSet();
+
+        settleOld({ ok: true, json: async () => ({ userIds: [TARGET] }) });
+        await early.catch(() => undefined);
+
+        expect((await late).has(TARGET), "古い取得に相乗りしている").toBe(false);
+    });
+
+    // **一覧をコピーして持っている画面に取り直させる。**
+    // 数（`counts`）には購読があるのに一覧には無く、ギャラリーの
+    // フォロー中フィードへ伝わらなかった
+    it("一覧が変わったことを購読者へ伝える", async () => {
+        const mod = await load();
+        const seen: string[] = [];
+        const off = mod.subscribeFollowingSet(() => seen.push("changed"));
+        mod.noteFollowSevered(TARGET);
+        expect(seen, "一覧の変化を誰にも伝えていない").toHaveLength(1);
+        off();
+        mod.noteFollowSevered(TARGET);
+        expect(seen, "解除しても呼ばれている").toHaveLength(1);
+    });
+
+    // **数の書き戻しにも札を見せる。** 一覧だけ世代を見て数を素通しに
+    // していたので、押す前の数が「切れたあとの数」を上書きしていた
+    it("押しかけのフォローが返す数で、切れたあとの数を上書きしない", async () => {
+        const mod = await load();
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: [] }) });
+        const { result } = renderHook(() => mod.useFollow(TARGET, true));
+        await waitFor(() => expect(result.current.countsKnown).toBe(true));
+
+        let settlePost!: (v: unknown) => void;
+        mockUserFetch.mockReturnValue(new Promise((r) => { settlePost = r; }));
+        const pressed = result.current.toggle();
+        await waitFor(() => expect(result.current.pending).toBe(true));
+
+        // ブロックの取り直しが先に着地する（切れたあとの数 = 3）
+        mockPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ followers: 3, following: 1 }) });
+        mod.noteFollowSevered(TARGET);
+        await waitFor(() => expect(result.current.followers).toBe(3));
+
+        // 押す前の POST が返す 4 は、もう古い
+        settlePost({ ok: true, json: async () => ({ followers: 4 }) });
+        await pressed;
+        expect(result.current.followers, "押す前の数が上書きしている").toBe(3);
     });
 
     it("空の id では何もしない", async () => {
