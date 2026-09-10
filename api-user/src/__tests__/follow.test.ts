@@ -975,6 +975,20 @@ describe("フォロワーの一覧（followers#）", () => {
             "相手のフォロワー一覧に残る").toBe(true);
     });
 
+    // 正常系。**これが無いと「成功しても触らない」変異が素通りする**
+    // （実際に素通りした）
+    it("ブロックでの解除が通ったら、相手のフォロワー一覧からも外す", async () => {
+        world({
+            [`followers#${OTHER}`]: { list: [ME, THIRD], rev: 1 },
+            [`following#${ME}`]: { list: [OTHER], rev: 1 },
+        });
+        const { unfollowQuietly } = await import("../follow");
+        await unfollowQuietly(OTHER, ME);
+        const followersPut = puts().find((p) => p.input.Item?.id === `followers#${OTHER}`);
+        expect(followersPut, "相手の一覧に残る").toBeDefined();
+        expect(followersPut!.input.Item?.list).toEqual([THIRD]);
+    });
+
     // **解除そのものが失敗した回は、相手の一覧も触らない。**
     // 一度この呼び出しを `try` の外に出したが、`try` には
     // `unfollowAtomically` も入っているので、解除が成立していないのに

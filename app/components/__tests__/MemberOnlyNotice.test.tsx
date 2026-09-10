@@ -38,11 +38,26 @@ describe("投稿の権限が無い人への案内", () => {
         expect(screen.getByText(/運営側での設定が必要です/)).toBeInTheDocument();
     });
 
-    // ログインし直しても直らない（`useMemberGate` が無限往復を作らない
-    // ように、ここで止めている）
-    it("ログインし直しても直らないことを言う", () => {
+    // **本番で実際に出るのは「未設定」の枝**（`NEXT_PUBLIC_CONTACT_EMAIL` は
+    // リポジトリのどこにも設定が無い）。連絡先を設定してから描いていた頃は、
+    // **本番で走らない枝だけを固定していた**
+    it("ログインし直しても直らないことを言う（連絡先が無くても）", () => {
+        render(<MemberOnlyNotice />);
+        expect(screen.getByText(/ログインし直しても直りません/)).toBeInTheDocument();
+    });
+
+    it("連絡先があるときも同じことを言う", () => {
         contact.value = "hi@example.com";
         render(<MemberOnlyNotice />);
         expect(screen.getByText(/ログインし直しても直りません/)).toBeInTheDocument();
+    });
+
+    // 英語の分岐は4つの文字列とも無検証だった
+    it("英語でも、権限が無いことと直らないことを言う", () => {
+        render(<MemberOnlyNotice locale="en" />);
+        expect(screen.getByText(/can't post yet/)).toBeInTheDocument();
+        expect(screen.getByText(/Signing in again won't fix it/)).toBeInTheDocument();
+        expect(screen.getByText(/the site owner has to set it up/)).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "Back to gallery" })).toBeInTheDocument();
     });
 });

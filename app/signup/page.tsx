@@ -19,9 +19,17 @@ const PENDING_TTL = 24 * 60 * 60 * 1000;
 /**
  * 控えた UUID を捨ててよい再送の失敗。**一時的な失敗を入れてはいけない**
  * （`LimitExceededException`・通信断は残して押し直させる）。
- *   NotAuthorizedException  … その UUID はもう確認済み
- *   UserNotFoundException   … そんなユーザーは居ない（消された等）
- *   InvalidParameterException … 確認済みで属性が無い等、やり直しでは直らない
+ *   NotAuthorizedException    … 無効化された／もう確認済み
+ *   UserNotFoundException     … そんなユーザーは居ない（消された等）
+ *   InvalidParameterException … 確認済み（"User is already confirmed."）
+ *
+ * **どの例外がどの状態かは、この環境から本物の Cognito で確かめられて
+ * いない**（ネットワークが遮断されている）。3つとも入れてあるので
+ * 挙動は変わらないが、名前と説明の対応はそのまま信じないこと。
+ *
+ * **足りない側に倒す。** 足りなければ控えが残り、24時間の TTL で
+ * 自然に回復する（元の形と同じ）。多すぎると、直したはずの
+ * 「確認画面に二度と戻れない」がそのまま戻る。
  */
 const PERMANENT_RESEND_FAILURES = new Set([
     "NotAuthorizedException",

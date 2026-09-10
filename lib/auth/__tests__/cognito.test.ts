@@ -42,7 +42,7 @@ vi.mock("amazon-cognito-identity-js", () => ({
 import {
     signIn, getCurrentSession, lookupSession, signUp, confirmSignUp,
     getCurrentUserGroups, isAdmin, isGeneralUser, forgotPassword, confirmForgotPassword,
-    PASSWORD_RULE_MESSAGE,
+    resendConfirmationCode, PASSWORD_RULE_MESSAGE,
 } from "../cognito";
 
 beforeEach(() => {
@@ -282,6 +282,51 @@ describe("confirmSignUp", () => {
 // テストがどこにも無く、旧文言に戻しても緑だった（レビューが変異で実証）。
 // 画面側に足したのは**送る前の長さチェック**で、AWS が
 // `InvalidPasswordException` を返したときの経路は素通りだった。
+// **1本も実行されていなかった。** `code: err.name` を落としても
+// `lib/auth` + `app/signup` の85件が緑（レビューが変異で実証）。
+// 落ちると `resendResult.code ?? ""` が常に空になり、
+// `PERMANENT_RESEND_FAILURES.has("")` が常に false ＝**控えを永久に
+// 捨てない**——「確認済みを指す控えで24時間ずっと同じ行き止まり」が
+// 静かに戻る。呼び出し側のテストは関数ごとモックしているので気づけない。
+describe("resendConfirmationCode", () => {
+    const fail = (err: { name?: string; message?: string }) =>
+        mockResendCode.mockImplementation((cb: (e: unknown) => void) => cb(err));
+
+    it("成功したら success:true", async () => {
+        mockResendCode.mockImplementation((cb: (e: null) => void) => cb(null));
+        expect((await resendConfirmationCode("uuid")).success).toBe(true);
+    });
+
+    // **失敗の理由を返す。** 呼び出し側はこれで「恒久（控えを捨てる）」と
+    // 「一時（残して押し直させる）」を見分ける
+    it.each([
+        "LimitExceededException",
+        "NotAuthorizedException",
+        "InvalidParameterException",
+        "UserNotFoundException",
+    ])("%s は code で返す", async (name) => {
+        fail({ name, message: "x" });
+        const res = await resendConfirmationCode("uuid");
+        expect(res.success).toBe(false);
+        expect(res.code, "呼び出し側が恒久と一時を見分けられない").toBe(name);
+    });
+
+    it("回数制限は日本語で伝える", async () => {
+        fail({ name: "LimitExceededException", message: "Attempt limit exceeded, please try after some time." });
+        const res = await resendConfirmationCode("uuid");
+        expect(res.error).toBe("送信回数の上限に達しました。しばらく時間をおいてから再試行してください");
+    });
+
+    // 通信断はライブラリが `name = "Error"` にする（`code = "NetworkError"`）。
+    // 恒久の一覧に当たらないので控えが残る＝正しい倒れ方
+    it("通信断は恒久の名前にならない（控えを残せる）", async () => {
+        fail({ name: "Error", message: "Network error" });
+        const res = await resendConfirmationCode("uuid");
+        expect(res.code).toBe("Error");
+        expect(res.error).not.toContain("Network error");
+    });
+});
+
 describe("confirmForgotPassword", () => {
     const fail = (err: { code?: string; message?: string }) =>
         mockConfirmPw.mockImplementation((_c: string, _p: string, cb: { onFailure: (e: unknown) => void }) => cb.onFailure(err));

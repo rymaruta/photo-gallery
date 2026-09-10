@@ -393,7 +393,11 @@ describe("LoginPage - 表示名持ち越しによるプロフィール作成", (
         await user.type(screen.getByPlaceholderText(/example@email\.com/), " u@example.com ");
         await user.click(screen.getByRole("button", { name: /確認コードを送信/ }));
         await waitFor(() => expect(screen.getByPlaceholderText("メールに届いたコードを入力")).toBeInTheDocument());
-        await user.type(screen.getByPlaceholderText("メールに届いたコードを入力"), "123456");
+        // **コード欄にも空白を入れる。** ここは `type="text"` なので
+        // ブラウザ側の正規化が効かない（メールから6桁をコピペすると
+        // 末尾に空白が付くことがある）。空白なしで打っていた頃は、
+        // 確かめていたのは jsdom が勝手に落とすメールの分だけだった
+        await user.type(screen.getByPlaceholderText("メールに届いたコードを入力"), " 123456 ");
         await user.type(screen.getByPlaceholderText(/8文字以上/), "Password1!");
         await user.click(screen.getByRole("button", { name: /パスワードを更新/ }));
         await waitFor(() => expect(mockConfirmForgotPassword).toHaveBeenCalledWith("u@example.com", "123456", "Password1!"));
