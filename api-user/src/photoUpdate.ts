@@ -471,9 +471,24 @@ export const deleteMyPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // 押し直しても冪等の分岐が死んだIDを返す＝**二度と残せない**。
         // 実体はもう無いのでストーリーは描けない。**行ごと消すのが正しい。**
         // 消せなくても写真の削除は成功で返す（最大24時間で掃除が拾う）。
+        // **返信の文書も消す。ストーリーの行より先に。**
+        // ここだけ行しか消していなかった——他の3経路（`deleteStory`・
+        // 期限切れの掃除・退会）は全部 `storyreplies#` を先に消している。
+        // 行が消えると返信の文書は `storyFeed` も `story` も `src` も
+        // 持たないので **GSI にも Scan にも一覧にも出ない**＝どの削除経路
+        // からも二度と辿れない（TTL も無い）。24時間で消えるはずの
+        // 他人の文章とその人の `uid` が、無期限に残っていた。
         if (typeof item.keptFrom === "string" && item.keptFrom) {
-            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: item.keptFrom } }))
-                .catch((e) => console.error(`deleteMyPhoto: 元のストーリーを消せませんでした（${item.keptFrom}）:`, e));
+            const storyId = item.keptFrom;
+            try {
+                await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: `storyreplies#${storyId}` } }));
+                await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyId } }));
+            } catch (e) {
+                // **消せなければ行を残す**（次に辿る手がかりになる）。
+                // 写真の削除そのものは成功で返す——実体はもう消えていて、
+                // ここで 500 にすると「写真が消えていない」という別の嘘になる
+                console.error(`deleteMyPhoto: 元のストーリーを消せませんでした（${storyId}）:`, e);
+            }
         }
 
         // 2. 自分のピン留めから外す（**行を消す前に**）。

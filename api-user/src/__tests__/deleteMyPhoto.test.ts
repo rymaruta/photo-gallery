@@ -358,11 +358,19 @@ describe("deleteMyPhoto: 共同アルバム", () => {
 // 押すと「写真が見つかりません」、押し直しても冪等の分岐が死んだIDを返す
 // ＝**その1枚は二度と残せない**。実体はもう無いのでストーリーは描けない。
 describe("deleteMyPhoto: ストーリーから残した写真", () => {
-    it("元のストーリーの行も消す", async () => {
+    it("元のストーリーの行も、返信の文書も消す", async () => {
         world({ ...PHOTO, keptFrom: "story-1" });
         const res = await invoke(ME, "p1");
         expect(res.statusCode).toBe(200);
         expect(deletedIds(), "割れたストーリーが最大24時間 全員に出続ける").toContain("story-1");
+        // **返信の文書を先に消す。** 行が消えると、この文書は `storyFeed` も
+        // `story` も `src` も持たないので GSI にも Scan にも一覧にも出ない
+        // ＝どの削除経路からも二度と辿れない（TTL も無い）。
+        // 他の3経路は全部そうしていて、ここだけ行しか消していなかった
+        expect(deletedIds(), "返信の本文が誰も辿れないまま残る").toContain("storyreplies#story-1");
+        const order = deletedIds();
+        expect(order.indexOf("storyreplies#story-1"), "行を先に消している（手がかりが消える）")
+            .toBeLessThan(order.indexOf("story-1"));
         expect(deletedS3(), "実体は共有なので、写真の側で消す").toContain("uploads/me/p1.jpg");
     });
 

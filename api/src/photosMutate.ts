@@ -249,6 +249,16 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // 管理者の削除はストーリーの行をそのまま対象にする。
         const keptAs = (photo as Record<string, unknown>).keptAs;
         const keepMedia = typeof keptAs === "string" && !!keptAs;
+        // **写真側の印（`keptFrom`）も見る。** `keptAs` はストーリーの行に
+        // しか立たないので、上の分岐は「管理者がストーリーを直に消しに来た」
+        // ときしか効かない。**残した写真**を管理画面から消すと、共有している
+        // S3 の実体は消えるのに元のストーリーの行が生きたまま残り、
+        //   - 期限切れまで最大24時間、**全員のトレイに割れた画像**が出続ける
+        //   - `keptAs` が死んだIDを指したままなので、押し直しても
+        //     `keepStory` の冪等分岐が死んだIDを返す＝**二度と残せない**
+        // api-user の `deleteMyPhoto` は同じ場面を `keptFrom` で塞いでいる。
+        const keptFrom = (photo as Record<string, unknown>).keptFrom;
+        const sourceStory = typeof keptFrom === "string" && keptFrom ? keptFrom : "";
         for (const field of keepMedia ? [] : mediaFields) {
             const v = (photo as Record<string, unknown>)[field];
             if (typeof v !== "string" || !v) continue;
@@ -297,6 +307,17 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         await invalidateUploads(deleted, `deletePhoto(${id})`);
         if (s3Failures > 0) {
             return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "画像の削除を完了できませんでした。時間をおいてもう一度お試しください" }) };
+        }
+
+        // 元のストーリーも消す（返信の文書を先に。`deleteMyPhoto` と同じ順序）。
+        // 消せなくても写真の削除は成功で返す——実体はもう消えている
+        if (sourceStory) {
+            try {
+                await deletePhotoById(`storyreplies#${sourceStory}`);
+                await deletePhotoById(sourceStory);
+            } catch (e) {
+                console.error(`deletePhoto: 元のストーリーを消せませんでした（${sourceStory}）:`, e);
+            }
         }
 
         await deletePhotoById(id);
