@@ -123,7 +123,8 @@ describe("管理APIの写真削除", () => {
 
     // `published` を持たない古い行は「公開」（このリポジトリの慣習）
     it("published を持たない古い行でも頼む", async () => {
-        const { published: _drop, ...noPublished } = { ...PHOTO, published: true };
+        const noPublished: Record<string, unknown> = { ...PHOTO };
+        delete noPublished.published;
         mockGetPhoto.mockResolvedValue(noPublished);
         await invoke();
         expect(mockRebuild, "未指定＝公開の慣習から外れている").toHaveBeenCalled();

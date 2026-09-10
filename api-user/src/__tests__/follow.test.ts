@@ -162,7 +162,14 @@ describe("followUser", () => {
         mockIsBlocked.mockImplementation((blocker: string) => Promise.resolve(blocker === ME));
         const res = await invoke(followUser, ev(ME, OTHER));
         expect(res.statusCode).toBe(400);
-        expect(JSON.parse(res.body).error).toContain("解除");
+        // **どこで解除するかまで言う。** 「解除」の1語しか見ていなかったので、
+        // 場所を落としても緑だった——押した人はその画面に解除の口が無い
+        // （開き直した直後のプロフィールの共有メニューに出ているのは、
+        //  逆の「この人をブロック」）。他の2か所（`StoryViewer` と
+        // `UserProfileClient` の注意書き）は場所まで言っているのに、
+        // **押した人が実際に受け取るこの文言だけ**が言っていなかった
+        expect(JSON.parse(res.body).error, "どこで解除するか言っていない")
+            .toContain("プロフィール設定");
         expect(mockDdbSend).not.toHaveBeenCalled();
         expect(mockPush).not.toHaveBeenCalled();
     });

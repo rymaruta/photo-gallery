@@ -11,7 +11,10 @@ import type { StoryGroup } from "@/lib/stories";
 
 const mockUserFetch = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
-vi.mock("../../../../lib/utils/api", () => ({
+// **実物を土台にする。** 列挙だけだと、実装が新しく使い始めた export が
+// undefined になり、呼んだ瞬間に投げたものを catch が飲む
+vi.mock("../../../../lib/utils/api", async (importActual) => ({
+    ...(await importActual<typeof import("../../../../lib/utils/api")>()),
     userFetch: (...a: unknown[]) => mockUserFetch(...a),
     authenticatedFetch: vi.fn(),
     publicFetch: vi.fn(),
@@ -310,5 +313,70 @@ describe("閲覧者一覧: 見出しの数字", () => {
 
         open();
         await waitFor(() => expect(headingCount()).toBe("0"));
+    });
+});
+
+// **失敗した回は、開き直したときに引き直す。**
+//
+// 取得の deps が `[item, isOwnStory]` だったので、閉じて開き直しても
+// 取り直さなかった（再試行ボタンも無い）——抜けるには別のストーリーへ
+// 移って戻るしかなく、その手順は画面から読み取れない。
+// **すぐ下の返信一覧は `repliesOpen` を deps に入れていて開き直せば
+// 取り直す**＝同じファイル内で扱いが割れていた。
+describe("閲覧者一覧: 失敗したあと", () => {
+    const view = () => render(
+        <StoryViewer
+            groups={groups()}
+            initialGroupIndex={0}
+            locale="ja"
+            isAuthenticated
+            ownUserId="me"
+            onSeen={() => { /* noop */ }}
+            onClose={() => { /* noop */ }}
+        />,
+    );
+    const viewerCalls = () => mockUserFetch.mock.calls.filter((c) => String(c[0]).includes("/viewers"));
+
+    it("開き直すと引き直す", async () => {
+        mockUserFetch.mockImplementation((path: string) =>
+            Promise.resolve(String(path).includes("/viewers")
+                ? { ok: false, status: 500, json: async () => ({}) }
+                : { ok: true, json: async () => ({}) }));
+
+        view();
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+        expect(await screen.findByText(/閲覧者を読み込めませんでした/)).toBeInTheDocument();
+        const before = viewerCalls().length;
+
+        // 閉じて、開き直す
+        await userEvent.click(screen.getAllByLabelText("閉じる").slice(-1)[0]);
+        mockUserFetch.mockImplementation((path: string) =>
+            Promise.resolve(String(path).includes("/viewers")
+                ? viewersOf(["旅子"])
+                : { ok: true, json: async () => ({}) }));
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+
+        await waitFor(() => expect(viewerCalls().length, "開き直しても引き直していない").toBeGreaterThan(before));
+        expect(await screen.findByText("旅子")).toBeInTheDocument();
+    });
+
+    // **取れている回は引き直さない。** 開くたびに撃つと、成功した回まで
+    // 往復が増える（Lambda の同時実行はアカウント全体で10）
+    it("取れているなら、開き直しても引き直さない", async () => {
+        mockUserFetch.mockImplementation((path: string) =>
+            Promise.resolve(String(path).includes("/viewers")
+                ? viewersOf(["旅子"])
+                : { ok: true, json: async () => ({}) }));
+
+        view();
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+        expect(await screen.findByText("旅子")).toBeInTheDocument();
+        const before = viewerCalls().length;
+
+        await userEvent.click(screen.getAllByLabelText("閉じる").slice(-1)[0]);
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+
+        await waitFor(() => expect(screen.getByText("旅子")).toBeInTheDocument());
+        expect(viewerCalls().length, "取れているのに引き直している").toBe(before);
     });
 });

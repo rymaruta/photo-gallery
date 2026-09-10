@@ -54,6 +54,51 @@ async function typeNewAlbumName() {
     return rerender;
 }
 
+// **失敗を「0件」に潰していた。**
+// `setAlbums([])` していたので、赤いエラーと「まだアルバムがありません。」が
+// 同時に出て、持っているアルバムが消えたように読めた。再試行の口も無く、
+// `load()` は `gate` が変わったときしか走らないので開き直すしかなかった。
+describe("共同アルバム: 取得に失敗したとき", () => {
+    it("「まだアルバムがありません。」と同時に出さない", async () => {
+        mockUserFetch.mockResolvedValue({
+            ok: false, status: 500,
+            clone: () => ({ json: async () => ({}) }),
+            json: async () => ({}),
+        });
+        render(<AlbumsPage />);
+
+        expect(await screen.findByRole("alert")).toBeInTheDocument();
+        expect(screen.queryByText("まだアルバムがありません。"),
+            "失敗を0件と混ぜている（持っているアルバムが消えたように読める）").toBeNull();
+        // 失敗した回は「読み込み中…」でも止めない
+        expect(screen.queryByText("読み込み中…")).toBeNull();
+    });
+
+    it("再試行で立て直せる", async () => {
+        mockUserFetch.mockResolvedValueOnce({
+            ok: false, status: 500,
+            clone: () => ({ json: async () => ({}) }),
+            json: async () => ({}),
+        }).mockResolvedValue({
+            ok: true, json: async () => ({ albums: [{ id: "a1", title: "北欧の冬", photoIds: [], memberIds: [] }] }),
+        });
+        render(<AlbumsPage />);
+        await screen.findByRole("alert");
+
+        await userEvent.click(screen.getByRole("button", { name: "もう一度読み込む" }));
+
+        expect(await screen.findByText("北欧の冬")).toBeInTheDocument();
+        await waitFor(() => expect(screen.queryByRole("alert"), "直ったのに失敗表示が残っている").toBeNull());
+    });
+
+    it("本当に0件なら、今までどおり案内を出す", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ albums: [] }) });
+        render(<AlbumsPage />);
+        expect(await screen.findByText("まだアルバムがありません。")).toBeInTheDocument();
+        expect(screen.queryByRole("alert")).toBeNull();
+    });
+});
+
 describe("共同アルバム: ログインが切れたときに打ちかけを守る", () => {
     it("打ちかけがあれば送り返さず、画面も消さない", async () => {
         const rerender = await typeNewAlbumName();

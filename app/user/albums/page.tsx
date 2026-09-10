@@ -99,11 +99,19 @@ export default function AlbumsPage() {
     const [confirming, setConfirming] = useState<Album | null>(null);
 
     const load = useCallback(async () => {
+        // **失敗を「0件」に潰さない。**
+        //
+        // `setAlbums([])` していたので、赤いエラーと「まだアルバムが
+        // ありません。」が**同時に出て**いた——持っているアルバムが
+        // 消えたように読める。同じリポジトリの `FollowingSheet` が
+        // 「`[]` に潰すと『0人』と『壊れた応答』が混ざる」と書いていて、
+        // `NotificationsBell` も `drafts` も同じ判断をしている。
+        // ここだけ逆をやっていた。`null` のままにすれば
+        // 「読み込み中…」でも「0件」でもなく、失敗の1行だけが出る
         try {
             const res = await userFetch("/albums");
             if (!res.ok) {
                 setLoadError(await readApiError(res, "アルバムを読み込めませんでした"));
-                setAlbums([]);
                 return;
             }
             const data = await res.json() as { albums?: Album[] };
@@ -112,7 +120,6 @@ export default function AlbumsPage() {
         } catch (e) {
             // 圏外とセッション切れを混ぜない
             setLoadError(sessionErrorMessage(e) ?? "アルバムを読み込めませんでした");
-            setAlbums([]);
         }
     }, []);
 
@@ -267,10 +274,26 @@ export default function AlbumsPage() {
                     </button>
                 </div>
 
-                {loadError && <p role="alert" className="text-sm text-white/85 mb-4">{loadError}</p>}
+                {/* **再試行の口を出す。** `load()` は `gate` が変わったときしか
+                    走らないので、無いとページを開き直すしかなかった
+                    （`drafts` は再試行ボタンを持っている） */}
+                {loadError && (
+                    <div className="mb-4">
+                        <p role="alert" className="text-sm text-white/85">{loadError}</p>
+                        <button
+                            type="button"
+                            onClick={() => { setLoadError(""); void load(); }}
+                            className="mt-2 px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+                            style={{ touchAction: "manipulation" }}
+                        >
+                            {locale === "en" ? "Retry" : "もう一度読み込む"}
+                        </button>
+                    </div>
+                )}
 
                 {albums === null ? (
-                    <p className="text-sm text-white/60" aria-live="polite">読み込み中…</p>
+                    // 失敗した回は「読み込み中…」を出さない（上の1行が説明する）
+                    loadError ? null : <p className="text-sm text-white/60" aria-live="polite">読み込み中…</p>
                 ) : albums.length === 0 ? (
                     <p className="text-sm text-white/60">まだアルバムがありません。</p>
                 ) : (

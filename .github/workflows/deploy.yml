@@ -73,12 +73,30 @@ jobs:
       cloudfrontUrl: ${{ steps.pick.outputs.cloudfrontUrl }}
       gaId: ${{ steps.pick.outputs.gaId }}
       allowEmptyPhotos: ${{ steps.pick.outputs.allowEmptyPhotos }}
+      contactEmail: ${{ steps.pick.outputs.contactEmail }}
     steps:
       - id: pick
         run: |
           set -euo pipefail
           # gaId だけは空を許す（staging で解析を止めるため）
           gaId=""
+          # **問い合わせ先。空を許す（未設定なら画面に出さない）。**
+          #
+          # これを渡していなかったので、`NEXT_PUBLIC_CONTACT_EMAIL` は
+          # **どのビルドでも必ず空**だった——読むのは `lib/utils/seo.ts` だけで、
+          # ここに書かれていなかった。つまり owner がリポジトリ変数を
+          # 設定しても**何も起きない**状態で、台帳には「未設定（owner の作業）」
+          # としか書いていなかった。
+          #
+          # 効くのは `MemberOnlyNotice`——登録の最後のトリガーが失敗して
+          # 投稿権限が付かなかった人が必ず着く画面で、`useMemberGate` 自身が
+          # 「グループを入れ直す経路はアプリのどこにも無い。再ログインでも
+          # 直らない」と書いている。**そこで唯一の出口**が「問い合わせる」。
+          #
+          # `gaId` のように直書きしないのは、メールアドレスは環境ごとに
+          # 変わりうるうえ、私が値を知らないため。vars が未作成なら空＝今までどおり
+          contactEmail='${{ vars.CONTACT_EMAIL }}'
+
           # 作りたての環境はテーブルが空。本番では絶対に立てない（0件を通すと全ページが消える）
           allowEmptyPhotos=0
           case "${{ github.ref_name }}" in
@@ -148,6 +166,7 @@ jobs:
             exit 1
           fi
           echo "gaId=$gaId" >> "$GITHUB_OUTPUT"
+          echo "contactEmail=$contactEmail" >> "$GITHUB_OUTPUT"
           echo "allowEmptyPhotos=$allowEmptyPhotos" >> "$GITHUB_OUTPUT"
           echo "envName=$envName" >> "$GITHUB_OUTPUT"
           echo "デプロイ先: $envName"
@@ -358,6 +377,8 @@ jobs:
           NEXT_PUBLIC_SITE_URL: ${{ needs.config.outputs.siteUrl }}
           # staging では空＝解析タグを出さない
           NEXT_PUBLIC_GA_ID: ${{ needs.config.outputs.gaId }}
+          # 未設定なら空＝「問い合わせる」を出さない（今までどおり）
+          NEXT_PUBLIC_CONTACT_EMAIL: ${{ needs.config.outputs.contactEmail }}
           # robots.txt を環境で切り替えるため（staging は全拒否）
           NEXT_PUBLIC_ENV_NAME: ${{ needs.config.outputs.envName }}
           # ビルド中の photos.json 同期先

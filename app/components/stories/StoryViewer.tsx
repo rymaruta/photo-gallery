@@ -234,10 +234,35 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     }, [item, isAuthenticated, isOwnStory]);
 
     // 自分のストーリー表示中は閲覧者リストを取得
+    /**
+     * 開き直したときに引き直すための世代。
+     *
+     * **前回が失敗していたときだけ**進める。閲覧者の数はシートを開く前の
+     * ボタンに出るので取得は先に走る＝毎回引き直すと成功した回まで
+     * 往復が増える（Lambda の同時実行はアカウント全体で10）。
+     */
+    const [viewersRetry, setViewersRetry] = useState(0);
+
+    // **リセットは取得と分ける。** 一緒にしていたので `viewersOpen` を
+    // deps に入れられなかった（入れると開いた瞬間に `setViewersOpen(false)`
+    // が走って開けない）。分けたので、取得の側に開閉を効かせられる
     useEffect(() => {
         setViewers(null);
         setViewersError(false);   // 前のストーリーの失敗を持ち越さない
         setViewersOpen(false);
+    }, [item?.id]);
+
+    // **失敗した回は、開き直したときに引き直す。**
+    // 入れていなかったので、閉じて開き直しても取り直さず（再試行ボタンも
+    // 無い）、抜けるには別のストーリーへ移って戻るしかなかった
+    // ——その手順は画面から読み取れない。**すぐ下の返信一覧は
+    // `repliesOpen` を deps に入れていて開き直せば取り直す**＝
+    // 同じファイル内で扱いが割れていた
+    useEffect(() => {
+        if (viewersOpen && viewersError) setViewersRetry((n) => n + 1);
+    }, [viewersOpen, viewersError]);
+
+    useEffect(() => {
         if (!item || !isOwnStory) return;
         // 中断ガード。ストーリーは左右で次々に切り替わるので、前のストーリーの
         // 応答が後から届く。無かった頃は**別のストーリーの閲覧者数と名前**が
@@ -280,7 +305,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             }
         })();
         return () => { aborted = true; };
-    }, [item, isOwnStory]);
+    }, [item, isOwnStory, viewersRetry]);
 
     // 再生し直し用のカウンタ。進捗アニメーション/動画/BGM を最初から流し直す
     const [replay, setReplay] = useState(0);

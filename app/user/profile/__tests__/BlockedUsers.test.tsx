@@ -8,7 +8,12 @@ import userEvent from "@testing-library/user-event";
 // ストーリーの返信からブロックできるようにしたぶん、**誤って押すと
 // 元に戻せない**状態を新しく作っていた（ブロックはフォローを両向きに切る）。
 const mockUserFetch = vi.hoisted(() => vi.fn());
-vi.mock("../../../../lib/utils/api", () => ({
+// **実物を土台にする。** 列挙だけだと、実装が新しく使い始めた export
+// （`readApiError` / `sessionErrorMessage`）が undefined になり、
+// 呼んだ瞬間に vitest が投げる——それを画面の `catch` が飲むので
+// **緑のまま何も出ない**（台帳が何度も踏んでいる形）
+vi.mock("../../../../lib/utils/api", async (importActual) => ({
+    ...(await importActual<typeof import("../../../../lib/utils/api")>()),
     userFetch: (...a: unknown[]) => mockUserFetch(...a),
 }));
 
@@ -52,6 +57,53 @@ describe("ブロックした人の一覧と解除", () => {
     });
 
     // 普通の人には一生関係の無い節。空なら丸ごと出さない
+    // **解除の失敗を無言にしない。**
+    // `if (res.ok)` だけで、失敗時にトーストも文言も出していなかった
+    // ——ボタンが戻って行が残るだけなので、効かなかったのか・まだなのか・
+    // 押し方が悪いのかが分からない。**ここはブロック解除の唯一の口**で、
+    // `StoryViewer` と `UserProfileClient` が「解除はプロフィール設定から」と
+    // 案内する到達先。同じファイルの取得失敗は文言で伝えているのに、
+    // ここだけ黙っていた
+    it("解除に失敗したら、その理由を出す", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (init?.method === "DELETE") {
+                return Promise.resolve({
+                    ok: false, status: 500,
+                    clone: () => ({ json: async () => ({}) }),
+                    json: async () => ({}),
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({ users: [{ id: "u2", name: "しつこい人" }] }) });
+        });
+        view();
+        await userEvent.click(await screen.findByRole("button", { name: "解除" }));
+        await waitFor(() => expect(deletes()).toHaveLength(1));
+
+        expect(await screen.findByRole("alert"), "押しても何も起きないように見える").toBeInTheDocument();
+        // 効いていないので行は残す（押し直せる）
+        expect(screen.getByText("しつこい人")).toBeInTheDocument();
+    });
+
+    it("通信ごと落ちても理由を出す", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (init?.method === "DELETE") return Promise.reject(new Error("offline"));
+            return Promise.resolve({ ok: true, json: async () => ({ users: [{ id: "u2", name: "しつこい人" }] }) });
+        });
+        view();
+        await userEvent.click(await screen.findByRole("button", { name: "解除" }));
+        await waitFor(() => expect(deletes()).toHaveLength(1));
+        expect(await screen.findByRole("alert")).toBeInTheDocument();
+    });
+
+    // **成功した回に理由を出さない**（押すたびに赤い1行が残らないこと）
+    it("解除できたら、理由は出さない", async () => {
+        listOk([{ id: "u2", name: "しつこい人" }]);
+        view();
+        await userEvent.click(await screen.findByRole("button", { name: "解除" }));
+        await waitFor(() => expect(screen.queryByText("しつこい人")).toBeNull());
+        expect(screen.queryByRole("alert"), "成功したのに理由を出している").toBeNull();
+    });
+
     it("1人も居なければ何も描かない", async () => {
         listOk([]);
         const { container } = view();

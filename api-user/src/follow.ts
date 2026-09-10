@@ -488,7 +488,13 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
         return jsonError(503, "確認できませんでした。時間をおいてもう一度お試しください");
     }
     if (blockedByTarget) return jsonError(404, "ユーザーが見つかりません");
-    if (blockedByMe) return jsonError(400, "ブロック中の相手です。解除してからフォローしてください");
+    // **どこで解除するかを言う。** 「解除してから」だけでは、その画面に
+    // 解除の口が無い（プロフィールの共有メニューに出ているのは、開き直した
+    // 直後は逆の「この人をブロック」）。他の2か所——`StoryViewer` と
+    // `UserProfileClient` の注意書き——は「解除はプロフィール設定から」と
+    // 場所まで言っているのに、**押した人が実際に受け取るこの文言だけ**が
+    // 言っていなかった
+    if (blockedByMe) return jsonError(400, "ブロック中の相手です。解除はプロフィール設定の「ブロックした人」からできます");
 
     const exists = await userExists(target);
     // 「居ない」と「確認できなかった」を混ぜない。unknown で 404 を返すと
