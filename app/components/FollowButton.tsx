@@ -3,10 +3,11 @@
 // プロフィールのフォローUI: フォロワー/フォロー中の数（全員に表示）と、
 // 他人のプロフィールにはフォローボタン。
 
-import React from "react";
+import React, { useRef, useState } from "react";
 import { UserPlusIcon, CheckIcon } from "@heroicons/react/24/outline";
 import { useFollow } from "../../lib/hooks/useFollow";
 import { useToast } from "../../lib/hooks/useToast";
+import FollowingSheet from "./FollowingSheet";
 
 type Props = {
     targetUserId: string;
@@ -17,6 +18,8 @@ type Props = {
 
 export default function FollowButton({ targetUserId, isAuthenticated, locale }: Omit<Props, "isOwner"> & { isOwner?: boolean }) {
     const { followers, following, countsKnown } = useFollow(targetUserId, isAuthenticated);
+    const [showFollowing, setShowFollowing] = useState(false);
+    const followingBtnRef = useRef<HTMLButtonElement>(null);
 
 
     // **自分の行を持つ。** 以前は「投稿・いいね」と同じ行に並べるために
@@ -33,14 +36,39 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale }: 
                 描いていた頃は、取得が落ちた人が「フォロワー 0」と言い切られて
                 いた（本当に0人の人と区別が付かない）。この画面には読み込み中の
                 表示が無いので、出さずに待つ。 */}
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
-                <span className="text-sm font-bold tabular-nums leading-none">{following.toLocaleString()}</span>
-                <span className="text-[11px] text-white/60">{locale === "en" ? "following" : "フォロー中"}</span>
-            </div>
+            {/* **押せるのはフォロー中だけ。** フォロワー側は一覧を引ける
+                データが無い（`following#<uid>` と数しか持っていない）ので、
+                押せそうに見せない。0人のときも押させない（開いても空） */}
+            {isAuthenticated && following > 0 ? (
+                <button
+                    type="button"
+                    ref={followingBtnRef}
+                    onClick={() => setShowFollowing(true)}
+                    aria-haspopup="dialog"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5 hover:bg-black/50 active:scale-95 transition"
+                    style={{ touchAction: "manipulation" }}
+                >
+                    <span className="text-sm font-bold tabular-nums leading-none">{following.toLocaleString()}</span>
+                    <span className="text-[11px] text-white/60">{locale === "en" ? "following" : "フォロー中"}</span>
+                </button>
+            ) : (
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
+                    <span className="text-sm font-bold tabular-nums leading-none">{following.toLocaleString()}</span>
+                    <span className="text-[11px] text-white/60">{locale === "en" ? "following" : "フォロー中"}</span>
+                </div>
+            )}
             <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
                 <span className="text-sm font-bold tabular-nums leading-none">{followers.toLocaleString()}</span>
                 <span className="text-[11px] text-white/60">{locale === "en" ? "followers" : "フォロワー"}</span>
             </div>
+            {showFollowing && (
+                <FollowingSheet
+                    userId={targetUserId}
+                    locale={locale}
+                    openerRef={followingBtnRef}
+                    onClose={() => setShowFollowing(false)}
+                />
+            )}
         </div>
     );
 }

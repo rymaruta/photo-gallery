@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockDdbSend = vi.hoisted(() => vi.fn());
 const mockPush = vi.hoisted(() => vi.fn());
 const mockLookup = vi.hoisted(() => vi.fn());
+const mockLookupIfSet = vi.hoisted(() => vi.fn<(uid: string) => Promise<string | undefined>>(async () => undefined));
 const mockIsBlocked = vi.hoisted(() => vi.fn());
 
 vi.mock("../dynamodb", () => ({
@@ -13,6 +14,7 @@ vi.mock("../dynamodb", () => ({
 vi.mock("../notify", () => ({
     pushNotification: mockPush,
     lookupDisplayName: mockLookup,
+    lookupDisplayNameIfSet: (...a: unknown[]) => mockLookupIfSet(...(a as [string])),
 }));
 // **境界として差し替える。** 素で通すと、この画面のほとんどのテストが
 // 使っている「`mockDdbSend` に順番どおり答えさせる」形が1つずつずれる
@@ -21,7 +23,7 @@ vi.mock("../notify", () => ({
 vi.mock("../blockCheck", () => ({ isBlocked: mockIsBlocked }));
 
 vi.stubEnv("USERS_TABLE", "users-test");
-const { followUser, unfollowUser, getFollowStats, getMyFollowing } = await import("../follow");
+const { followUser, unfollowUser, getFollowStats, getMyFollowing, getUserFollowing } = await import("../follow");
 
 type Result = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -86,6 +88,7 @@ beforeEach(() => {
     mockPush.mockReset().mockResolvedValue(undefined);
     mockLookup.mockReset().mockResolvedValue("旅人A");
     mockIsBlocked.mockReset().mockResolvedValue(false);
+    mockLookupIfSet.mockReset().mockResolvedValue(undefined);
 });
 
 describe("followUser", () => {
@@ -805,5 +808,48 @@ describe("フォローの実在判定: users 行が無い人", () => {
         expect(res.statusCode).toBe(404);
         // 何も書いていない
         expect(transactItems()).toHaveLength(0);
+    });
+});
+
+
+// owner の指示「誰をフォローしてて、みたいなの見れるようにして」。
+// **フォロワー側は返せない**——いまのデータは `following#<uid>` と
+// 数（`followstats#`）だけで、「誰にフォローされているか」を引ける行が無い。
+describe("getUserFollowing（その人がフォローしている人）", () => {
+    const evUid = (sub: string | undefined, uid: string | undefined) => ({
+        requestContext: { authorizer: { jwt: { claims: { sub } } } },
+        pathParameters: uid ? { uid } : undefined,
+    });
+
+    it("名前まで返す（画面が1人ずつ引きに行かなくて済むように）", async () => {
+        mockDdbSend.mockResolvedValue({ Item: { list: [OTHER, THIRD] } });
+        mockLookupIfSet.mockImplementation(async (id: string) => (id === OTHER ? "旅人B" : undefined));
+        const res = await invoke(getUserFollowing, evUid(ME, ME));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).users).toEqual([{ id: OTHER, name: "旅人B" }, { id: THIRD }]);
+        expect(JSON.parse(res.body).total).toBe(2);
+    });
+
+    // **上限を「入れる前」に見る。** 2000回の GetItem は1回の呼び出しで
+    // 撃てない（既定6秒・同時実行はアカウント全体で10）
+    it("50人までしか名前を引かない（総数は返す）", async () => {
+        const many = Array.from({ length: 60 }, (_, i) => `0000000${String(i).padStart(4, "0")}-1111-4111-8111-111111111111`);
+        mockDdbSend.mockResolvedValue({ Item: { list: many } });
+        const res = await invoke(getUserFollowing, evUid(ME, ME));
+        expect(JSON.parse(res.body).users).toHaveLength(50);
+        expect(JSON.parse(res.body).total, "総数が分からない").toBe(60);
+        expect(mockLookupIfSet, "全員ぶん引きに行っている").toHaveBeenCalledTimes(50);
+    });
+
+    it("でたらめなIDは断る（何も読まない）", async () => {
+        expect((await invoke(getUserFollowing, evUid(ME, "not-a-uuid"))).statusCode).toBe(400);
+        expect(mockDdbSend).not.toHaveBeenCalled();
+    });
+
+    // **共有キャッシュに載せない**（人の繋がりは本人向けの応答として扱う）
+    it("no-store で返す", async () => {
+        mockDdbSend.mockResolvedValue({ Item: { list: [] } });
+        const res = await invoke(getUserFollowing, evUid(ME, ME)) as unknown as { headers: Record<string, string> };
+        expect(res.headers["Cache-Control"]).toContain("no-store");
     });
 });

@@ -3,7 +3,7 @@ import { hasAnyUserItem } from "./ddb-photos";
 import { PutCommand, UpdateCommand, GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
-import { pushNotification, lookupDisplayName } from "./notify";
+import { pushNotification, lookupDisplayName, lookupDisplayNameIfSet } from "./notify";
 import { requireEnv } from "./env";
 import { isUserId } from "./userId";
 import { isBlocked } from "./blockCheck";
@@ -533,6 +533,51 @@ export const getFollowStats: APIGatewayProxyHandlerV2 = async (event) => {
         };
     } catch (e) {
         console.error("getFollowStats error:", e);
+        return jsonError(500, "取得に失敗しました");
+    }
+};
+
+/**
+ * 名前まで引く人数の上限。`FOLLOWING_MAX` は2000だが、1回の呼び出しで
+ * 2000回の GetItem は撃てない（既定の6秒・同時実行はアカウント全体で10）。
+ * 超えたぶんは返さず、`total` で件数だけ伝える。
+ */
+const FOLLOWING_PAGE = 50;
+
+/**
+ * GET /users/{uid}/following — その人がフォローしている人の一覧。
+ *
+ * owner の指示「誰をフォローしてて、みたいなの見れるようにして」。
+ *
+ * **認証を要る側にした。** 数（`getFollowStats`）は未認証で返しているが、
+ * こちらは (1) 人の繋がりそのもの、(2) 1回で最大50件の GetItem を撃つ
+ * ——未認証の口を増やすと、同時実行10の枠を外から埋められる。
+ * `publicLambdaRole.test.ts` が未認証の口を増やしにくくしているのは
+ * まさにこの判断を毎回させるため。
+ *
+ * **フォロワー側の一覧は返せない。** いまのデータは `following#<uid>`
+ * （自分がフォローしている人）と `followstats#<uid>`（数）だけで、
+ * 「誰にフォローされているか」を引ける行が無い。作るには
+ * `followers#<uid>` を足して、既存のフォロー関係を埋め戻す移行が要る。
+ */
+export const getUserFollowing: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const uid = event.pathParameters?.uid;
+    if (!uid || !isUserId(uid)) return jsonError(400, "不正なリクエスト");
+    try {
+        const list = await readFollowing(uid);
+        const users = await Promise.all(list.slice(0, FOLLOWING_PAGE).map(async (id) => {
+            // 退会した人は名前を出さない（`getComments` と同じ扱い）。
+            // `lookupDisplayNameIfSet` は握って undefined を返す
+            const name = await lookupDisplayNameIfSet(id);
+            return name ? { id, name } : { id };
+        }));
+        return {
+            statusCode: 200,
+            headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
+            body: JSON.stringify({ users, total: list.length }),
+        };
+    } catch (e) {
+        console.error("getUserFollowing error:", e);
         return jsonError(500, "取得に失敗しました");
     }
 };

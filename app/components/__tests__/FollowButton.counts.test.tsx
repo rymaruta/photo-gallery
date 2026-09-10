@@ -29,10 +29,10 @@ beforeEach(async () => {
 });
 
 /** ストアはモジュール内に持たれるので、毎回読み込み直す */
-async function renderButton() {
+async function renderButton(isAuthenticated = false) {
     const mod = await import("../FollowButton");
     const FollowButton = mod.default;
-    return render(<FollowButton targetUserId={TARGET} isAuthenticated={false} locale="ja" />);
+    return render(<FollowButton targetUserId={TARGET} isAuthenticated={isAuthenticated} locale="ja" />);
 }
 
 describe("フォロー数のピル", () => {
@@ -77,6 +77,37 @@ describe("フォロー数のピル", () => {
         await waitFor(() => expect(mockUserPublicFetch).toHaveBeenCalled());
         await new Promise((r) => setTimeout(r, 20));
         expect(container.innerHTML, "空の行の余白が残る").toBe("");
+    });
+
+    // owner の指示「誰をフォローしてて、みたいなの見れるようにして」。
+    // **押せるのはフォロー中だけ**——フォロワー側は一覧を引けるデータが
+    // 無い（`following#<uid>` と数しか持っていない）ので、押せそうに見せない
+    it("フォロー中は押せる。フォロワーは押せない", async () => {
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ followers: 5, following: 4 }) });
+        await renderButton(true);
+        const following = (await screen.findByText("フォロー中")).closest("button");
+        expect(following, "一覧を開けない").not.toBeNull();
+        expect(screen.getByText("フォロワー").closest("button"), "引けない一覧を押せそうに見せている").toBeNull();
+    });
+
+    it("0人なら押させない（開いても空）", async () => {
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ followers: 0, following: 0 }) });
+        await renderButton(true);
+        expect((await screen.findByText("フォロー中")).closest("button")).toBeNull();
+    });
+
+    // 一覧の口は認証が要る（未認証で押すと必ず失敗する）
+    it("未ログインなら押させない", async () => {
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ followers: 5, following: 4 }) });
+        await renderButton(false);
+        expect((await screen.findByText("フォロー中")).closest("button")).toBeNull();
+    });
+
+    it("押すと一覧が開く", async () => {
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ followers: 5, following: 4 }) });
+        await renderButton(true);
+        (await screen.findByText("フォロー中")).closest("button")!.click();
+        expect(await screen.findByRole("dialog", { name: "フォロー中" })).toBeInTheDocument();
     });
 
     it("本当に0人なら0を出す（未取得と混ぜない）", async () => {

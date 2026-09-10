@@ -518,6 +518,18 @@ functions:
           path: /users/{uid}/follow
           method: GET
 
+  # その人がフォローしている人の一覧（名前つき）。**認証を要る側にした**
+  # ——人の繋がりそのものであることと、1回で最大50件の GetItem を撃つため
+  # （未認証の口を増やすと、同時実行10の枠を外から埋められる）
+  getUserFollowing:
+    handler: src/follow.getUserFollowing
+    events:
+      - httpApi:
+          path: /users/{uid}/following
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
   getMyFollowing:
     handler: src/follow.getMyFollowing
     events:
