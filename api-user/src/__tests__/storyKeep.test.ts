@@ -209,6 +209,26 @@ describe("keepStory: ストーリーをギャラリーに残す", () => {
         expect(del, "割れた写真をギャラリーに残している").toBe(true);
     });
 
+    // **ここがこの機能の要。** 撮影地 → 地図 → `/location/<スラッグ>` →
+    // 検索流入、という段差を渡るために、ストーリーで付けた場所をそのまま持つ
+    it("撮影地と座標を引き継ぐ（地図に載る写真になる）", async () => {
+        world({ ...STORY, location: "横浜 みなとみらい", coords: { lat: 35.45, lng: 139.63 } });
+        await invoke(ev("me", "story-1"));
+        const photo = mockPutPhoto.mock.calls[0][0] as Record<string, unknown>;
+        expect(photo.location, "撮影地が落ちている（残しても何にも繋がらない）").toBe("横浜 みなとみらい");
+        expect(photo.coords).toEqual({ lat: 35.45, lng: 139.63 });
+        // `geoApprox` は「地名から機械が引いた値」の印。GPS 由来には立てない
+        expect("geoApprox" in photo, "撮影時の GPS に「おおよそ」の印を付けている").toBe(false);
+    });
+
+    it("場所が無いストーリーは、場所の項目を持たない", async () => {
+        world(STORY);
+        await invoke(ev("me", "story-1"));
+        const photo = mockPutPhoto.mock.calls[0][0] as Record<string, unknown>;
+        expect("location" in photo).toBe(false);
+        expect("coords" in photo).toBe(false);
+    });
+
     it("キャプションが無ければ「無題」", async () => {
         world({ ...STORY, caption: undefined });
         await invoke(ev("me", "story-1"));

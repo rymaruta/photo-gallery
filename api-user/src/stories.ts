@@ -9,7 +9,7 @@ import { isOwnUploadUrlFromEnv as isOwnUploadUrl, keyFromUploadUrl, canonicalUpl
 import { s3DeleteMany } from "./s3Delete";
 import { invalidateUploads } from "./cdnInvalidate";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
-import { truncate } from "./sanitize";
+import { truncate, sanitizeText, sanitizeCoords } from "./sanitize";
 import { storyRepliesId } from "./storyReplies";
 
 // バケット名の検証と S3 の削除は `s3Delete.ts` に寄せた（未設定なら
@@ -167,7 +167,10 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
 
     // displayName は受け取らない（なりすまし防止のためサーバーで引く）。
     // key も受け取らない（publicUrl から導く。下のコメント参照）。
-    let body: { publicUrl?: string; caption?: string; mediaType?: string; song?: unknown; durationSec?: unknown };
+    let body: {
+        publicUrl?: string; caption?: string; mediaType?: string; song?: unknown; durationSec?: unknown;
+        location?: unknown; coords?: unknown;
+    };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
     } catch {
@@ -194,6 +197,19 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
 
     const mediaType = body.mediaType === "video" ? "video" : "image";
     const caption = truncate((body.caption ?? "").trim(), 200) || undefined;
+
+    // **撮影地。** ストーリーにも場所を持たせる理由は2つある:
+    //   1. 見る側に「どこで」が伝わる（Instagram のロケーションと同じ）
+    //   2. **ギャラリーに残したときに、そのまま写真の撮影地になる**
+    //      （`storyKeep.ts`）——このサイトの価値は 撮影地 → 地図 →
+    //      `/location/<スラッグ>` → **検索流入** なので、ここが空だと
+    //      残しても本人が手で打つまで何にも繋がらない
+    //
+    // 検証は写真と同じものを通す（`sanitizeText` / `sanitizeCoords`）。
+    // 座標は約1kmに丸めたものだけを受ける——生の緯度経度を公開URLに
+    // 載せないのは、このリポジトリが写真で一貫して守っている線
+    const location = sanitizeText(body.location, 200) || undefined;
+    const coords = sanitizeCoords(body.coords) ?? undefined;
 
     // 画像ストーリーの表示秒数。投稿者が選べる（既定5秒）。
     // 3秒未満は読み切れず、15秒を超えると見る側が飽きるため範囲を固定する。
@@ -263,6 +279,11 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         ...(key ? { key } : {}), // 期限切れ削除時に S3 オブジェクトを消すために保持
         mediaType,
         ...(caption ? { caption } : {}),
+        ...(location ? { location } : {}),
+        // **座標は地名とセットのときだけ持つ。** 地名の無い座標は画面に
+        // 出しようがなく（ピンだけ置く画面がストーリーには無い）、
+        // 残したときも「名前の無い点」が地図に増えるだけになる
+        ...(location && coords ? { coords } : {}),
         ...(song ? { song } : {}),
         ...(durationSec ? { durationSec } : {}),
         userId,

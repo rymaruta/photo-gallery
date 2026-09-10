@@ -364,6 +364,48 @@ describe("createStory", () => {
     });
 });
 
+// **ストーリーにも撮影地を持たせる。** 見る側に「どこで」が伝わるだけでなく、
+// **ギャラリーに残したときにそのまま写真の撮影地になる**（`storyKeep.ts`）
+// ——このサイトの価値は 撮影地 → 地図 → `/location/<スラッグ>` → 検索流入 なので、
+// ここが空だと残しても本人が手で打つまで何にも繋がらない。
+describe("createStory: 撮影地", () => {
+    const post = (body: Record<string, unknown>) => invoke(createStory, authedEvent("u1", {
+        body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.webp", ...body }),
+    }));
+    /** 保存された行 */
+    const saved = () => (mockDdbSend.mock.calls
+        .map((c) => c[0] as { constructor: { name: string }; input: { Item?: Record<string, unknown> } })
+        .find((c) => c.constructor.name === "PutCommand")?.input.Item) ?? {};
+
+    it("地名と座標を保存する", async () => {
+        mockDdbSend.mockResolvedValue({ Count: 0 });
+        await post({ location: "横浜 みなとみらい", coords: { lat: 35.4567, lng: 139.6321 } });
+        expect(saved().location).toBe("横浜 みなとみらい");
+        // **約1kmに丸めたものだけを保存する**（生の緯度経度を公開URLに載せない）
+        expect(saved().coords).toEqual({ lat: 35.46, lng: 139.63 });
+    });
+
+    // 地名の無い座標は画面に出しようがなく、残しても「名前の無い点」が増えるだけ
+    it("地名が無ければ座標も持たない", async () => {
+        mockDdbSend.mockResolvedValue({ Count: 0 });
+        await post({ coords: { lat: 35.45, lng: 139.63 } });
+        expect("coords" in saved(), "地名の無い座標を保存している").toBe(false);
+    });
+
+    it("壊れた座標は捨てる（地名は残す）", async () => {
+        mockDdbSend.mockResolvedValue({ Count: 0 });
+        await post({ location: "どこか", coords: { lat: 999, lng: "x" } });
+        expect(saved().location).toBe("どこか");
+        expect("coords" in saved(), "範囲外の座標を保存している").toBe(false);
+    });
+
+    it("場所を送らなければ、項目ごと持たない", async () => {
+        mockDdbSend.mockResolvedValue({ Count: 0 });
+        await post({});
+        expect("location" in saved()).toBe(false);
+    });
+});
+
 // ────────────────────────────────
 // DELETE /stories/{id}
 // ────────────────────────────────

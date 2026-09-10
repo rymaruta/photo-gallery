@@ -101,6 +101,15 @@ export const keepStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             userId,
             uploadedBy: userId,
             ...(displayName ? { displayName } : {}),
+            // **撮影地はそのまま引き継ぐ。** ここが要——このサイトの価値は
+            // 撮影地 → 地図 → `/location/<スラッグ>` → **検索流入**なので、
+            // ストーリーで場所を付けておけば、残した瞬間に地図に載る写真になる
+            // （空だと、本人が編集画面で打つまで何にも繋がらない）。
+            // 座標は保存の時点で約1kmに丸めてある（`sanitizeCoords`）。
+            // **`geoApprox` は立てない**——あれは「地名から機械が引いた値」の印で、
+            // ここは撮影時の GPS 由来（`geocode-locations.js` が後から補うのとは別物）
+            ...(typeof story.location === "string" && story.location ? { location: story.location } : {}),
+            ...(story.coords && typeof story.coords === "object" ? { coords: story.coords as { lat: number; lng: number } } : {}),
             // **下書きで作る。** 公開は本人が編集画面で押す
             published: false,
             // **出どころ。** この写真を消すときに、まだ生きているストーリーも
