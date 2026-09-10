@@ -64,6 +64,15 @@ export default function AlbumsPage() {
      * いると、「作る」を押しても失敗し続ける画面に取り残される。
      * 一度だけ出す（`/user/edit` `/user/upload` `/user/profile` と同じ形）
      */
+    // **札そのものは縛れていない。** 消しても落ちるテストが無い
+    // （レビューが変異で実証）。ただし**等価だと断定もしていない**——
+    // deps（`gate` / `hasUnsavedWork` / `locale` / `showToast`）は全部
+    // 値が安定していて（`showToast` は `useCallback([])`）、
+    // 打ちかけが false に戻る回は `useMemberGate` が送り返すので、
+    // **この画面で2回出る経路を作れなかった**。他3画面と揃える意味で残す。
+    // 直前に「等価だから縛らない」と書いて外した判断が誤りだった
+    // （`type="url"` は ASCII の空白しか落とさない）ので、
+    // **断定は書かない**
     const toldSignedOut = useRef(false);
     useEffect(() => {
         // ログインし直したら札を下ろす（二度目を無言にしない）

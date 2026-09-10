@@ -136,6 +136,23 @@ describe("共同アルバム: ログインが切れたときに打ちかけを�
             "まだ分からないのに切れたと言っている").toBe(false);
     });
 
+    // **新規名も両側 trim。** 改名側だけ縛っていて、こちらは
+    // `title !== ""` に戻しても緑だった（レビューが実証）
+    // ——空白だけ打った人が「打ちかけあり」になり、送り返されずに
+    // 「保存できません」と言われる
+    it("空白だけ打っても、打ちかけには数えない", async () => {
+        const { rerender } = render(<AlbumsPage />);
+        const input = await screen.findByPlaceholderText("例: 北欧の冬");
+        await userEvent.type(input, "   ");
+
+        authState.current = { ...authState.current, isAuthenticated: false };
+        rerender(<AlbumsPage />);
+
+        await waitFor(() => expect(mockReplace, "空白だけで留まり続けている").toHaveBeenCalled());
+        expect(toasts().some((t) => t.includes("保存できません")),
+            "空白だけなのに「保存できません」と言っている").toBe(false);
+    });
+
     // **留めすぎない。** 打ちかけが無ければ今までどおり送り返す
     it("打ちかけが無ければ、今までどおり送り返す", async () => {
         render(<AlbumsPage />);
