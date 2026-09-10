@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockDdbSend = vi.hoisted(() => vi.fn());
+// フォローの解除は境界としてモックする（実体は `follow.test.ts` が見る）
+const mockUnfollow = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock("../follow", () => ({ unfollowQuietly: (...a: unknown[]) => mockUnfollow(...(a as [])) }));
 vi.mock("../dynamodb", () => ({
     ddb: { send: mockDdbSend },
     PHOTOS_TABLE: "photos-test",
@@ -47,7 +50,7 @@ function world(rows: Record<string, Record<string, unknown>> = {}) {
 // `cmd.constructor` を読むと、その呼び出しだけ `undefined` で落ちる
 // ——「1つ前のテストが原因」に見えるので、たどり着くのに時間がかかった。
 // 中括弧で包んで何も返さない。
-beforeEach(() => { mockDdbSend.mockReset(); });
+beforeEach(() => { mockDdbSend.mockReset(); mockUnfollow.mockReset().mockResolvedValue(undefined); });
 
 // **やり取りの口を持つ以上の最低限。** ストーリーへの返信を足した時点で、
 // ログインしていれば誰でも誰の通知にも文字を送れるようになった
@@ -277,5 +280,30 @@ describe("purgeBlocksFor（退会の掃除）", () => {
             return Promise.reject(new Error("boom"));
         });
         await expect(purgeBlocksFor(ME)).resolves.toBeUndefined();
+    });
+});
+
+
+// **隠すだけでは足りない。** このサイトの写真は静的サイトに焼かれて
+// 未ログインでも見えるので、「フォロー中」フィードから相手の写真を消すには
+// 閲覧者ごとの出し分けが要る（そんな仕組みは無い）。ブロックしたのに
+// 相手の写真がフィードに並び、フォロワー数にも数えられたままなのは、
+// **ストーリーだけ消える**ぶん食い違いが目立つ。
+describe("ブロックすると、フォローは両向きに切れる", () => {
+    it("自分→相手・相手→自分 の両方を外す", async () => {
+        world();
+        await invoke(blockUser, ev(ME, THEM));
+        const pairs = mockUnfollow.mock.calls.map((c) => `${c[0]}->${c[1]}`);
+        expect(pairs, "自分がフォローしたままになる").toContain(`${THEM}->${ME}`);
+        expect(pairs, "相手にフォローされたままになる").toContain(`${ME}->${THEM}`);
+    });
+
+    // **印はもう立っている。** 通知・返信・コメント・ストーリーはその印で
+    // 止まるので、フォローが残ったからといってブロックを失敗にしない
+    it("フォローを外せなくても、ブロックは成功で返す", async () => {
+        world();
+        mockUnfollow.mockRejectedValue(new Error("boom"));
+        const r = await invoke(blockUser, ev(ME, THEM));
+        expect(r.statusCode, "フォローの解除に引きずられている").toBe(200);
     });
 });

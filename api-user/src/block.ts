@@ -3,6 +3,7 @@ import { GetCommand, PutCommand, UpdateCommand, DeleteCommand } from "@aws-sdk/l
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { isUserId } from "./userId";
+import { unfollowQuietly } from "./follow";
 
 /**
  * ブロック。**「この人からの反応を受け取らない」**。
@@ -149,6 +150,27 @@ export const blockUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // **相手側の一覧にも書く。** 隠すのは両向きで、相手は自分の
         // `blocks#` に何も持っていないため（docstring 参照）
         await editList(blockedById(target), "blockerIds", me, null);
+
+        // **フォローは両向きに外す。**
+        //
+        // 隠すだけでは足りない——このサイトの写真は静的サイトに焼かれて
+        // 未ログインでも見えるので、「フォロー中」フィードから相手の写真を
+        // 消すには閲覧者ごとの出し分けが要る（そんな仕組みは無い）。
+        // ブロックしたのに相手の写真がフィードに並び、フォロワー数にも
+        // 数えられたままなのは、**ストーリーだけ消える**ぶん食い違いが目立つ。
+        // 関係を切る方は1回の書き込みで済み、静的サイトとも矛盾しない
+        // （Instagram も同じ倒し方）。
+        //
+        // **失敗してもブロックは成功で返す。** 印はもう立っていて、
+        // 通知・返信・コメント・ストーリーはその印で止まる。
+        // **呼ぶ側で握る**——`unfollowQuietly` も中で握っているが、
+        // その保証は向こうの実装に依存する（相手が投げる形に変わった日に、
+        // ブロックが 500 を返すようになる）。ここで守れば、この行だけ読んで
+        // 「ブロックは通る」と分かる
+        await Promise.all([
+            unfollowQuietly(target, me).catch((e) => console.error("blockUser: 解除に失敗:", e)),
+            unfollowQuietly(me, target).catch((e) => console.error("blockUser: 解除に失敗:", e)),
+        ]);
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ blocked: true }) };
     } catch (e) {
         console.error("blockUser error:", e);

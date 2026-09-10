@@ -51,6 +51,14 @@ function authedEvent(sub: string | undefined, overrides: Record<string, unknown>
     };
 }
 
+/** 管理者（`cognito:groups` に admin が入っている） */
+function adminEvent(overrides: Record<string, unknown> = {}) {
+    return {
+        requestContext: { authorizer: { jwt: { claims: { sub: "admin-user", "cognito:groups": ["admin"] } } } },
+        ...overrides,
+    };
+}
+
 beforeEach(() => {
     mockDdbSend.mockReset();
     mockS3Send.mockReset();
@@ -615,6 +623,33 @@ describe("deleteStory", () => {
             .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand")
             .map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
         expect(keys, "行は予定どおり消す").toEqual(["storyreplies#story-1", "story-1"]);
+    });
+
+    // **管理者は不適切なストーリーを消しに来ている。** 本人が「残す」を
+    // 押していると `storyMediaKeys` が実体を守るので、URL を知っていれば
+    // 取り続けられた（`/uploads/*` は max-age 31536000）
+    it("管理者が消すときは、残された写真ごと消す", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "someone", key: "uploads/a.jpg", keptAs: "photo-1" } })
+            .mockResolvedValue({});
+        mockS3Send.mockResolvedValue({});
+        const res = await invoke(deleteStory, adminEvent({ pathParameters: { id: "story-1" } }));
+        expect(res.statusCode).toBe(200);
+        const deleted = mockDdbSend.mock.calls
+            .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand")
+            .map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
+        expect(deleted, "残された写真が残る").toContain("photo-1");
+        expect(mockS3Send, "実体が公開URLに残り続ける").toHaveBeenCalled();
+    });
+
+    // 本人が消すときは今までどおり（残した写真は守る）
+    it("本人が消すときは、残された写真の実体を守る", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "u1", key: "uploads/a.jpg", keptAs: "photo-1" } })
+            .mockResolvedValue({});
+        const res = await invoke(deleteStory, authedEvent("u1", { pathParameters: { id: "story-1" } }));
+        expect(res.statusCode).toBe(200);
+        expect(mockS3Send, "本人が残した写真の実体まで消している").not.toHaveBeenCalled();
     });
 
     it("S3 が消せていれば、これまでどおり行も消す（正常系）", async () => {

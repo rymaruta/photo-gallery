@@ -9,6 +9,13 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRebuild }));
+// アルバムへの出し入れは境界としてモックする（実体は `albums.test.ts`）
+const mockAddToAlbum = vi.hoisted(() => vi.fn(async () => undefined));
+const mockRemoveFromAlbum = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock("../albums", () => ({
+    addPhotoToAlbum: (...a: unknown[]) => mockAddToAlbum(...(a as [])),
+    removePhotoFromAlbum: (...a: unknown[]) => mockRemoveFromAlbum(...(a as [])),
+}));
 
 import { updatePhotoVisibility, isValidYouTubeUrl } from "../photoUpdate";
 
@@ -24,7 +31,12 @@ function event(sub: string, id: string | undefined, body: unknown) {
     };
 }
 
-beforeEach(() => { mockDdbSend.mockReset(); mockRebuild.mockReset().mockResolvedValue(true); });
+beforeEach(() => {
+    mockDdbSend.mockReset();
+    mockRebuild.mockReset().mockResolvedValue(true);
+    mockAddToAlbum.mockReset().mockResolvedValue(undefined);
+    mockRemoveFromAlbum.mockReset().mockResolvedValue(undefined);
+});
 
 describe("updatePhotoVisibility", () => {
     it("id なしは 400", async () => {
@@ -848,5 +860,46 @@ describe("updatePhotoVisibility: おおよその座標（geoApprox）の扱い",
         const u = lastUpdate();
         expect(u.UpdateExpression).not.toContain("#coords");
         expect(u.UpdateExpression).not.toContain("#geoApprox");
+    });
+});
+
+
+// **下書き保存したら、あとで公開してもアルバムに入らなかった。**
+// `savePhoto` は `albumId && isPublished` のときだけ入れるので、招待から
+// 入った人が「下書き保存」した写真は一生アルバムに出ない——本人の行には
+// `albumId` が付いているので、**入ったつもりになる**（画面上は成功して見える）。
+describe("公開に切り替えたら、共同アルバムに入れる", () => {
+    const world = (item: Record<string, unknown>) => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({ Item: { id: "p1", src: "s", userId: "u1", ...item } });
+            return Promise.resolve({ Attributes: { id: "p1" } });
+        });
+    };
+
+    it("下書き → 公開 で、アルバムに足す", async () => {
+        world({ published: false, albumId: "a1" });
+        const res = await invoke(event("u1", "p1", { published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockAddToAlbum, "公開してもアルバムに入らない").toHaveBeenCalledWith("a1", "p1");
+    });
+
+    it("アルバムに入っていない写真では呼ばない", async () => {
+        world({ published: false });
+        await invoke(event("u1", "p1", { published: true }));
+        expect(mockAddToAlbum).not.toHaveBeenCalled();
+    });
+
+    it("非公開にするときは足さない（外す側の仕事）", async () => {
+        world({ published: true, albumId: "a1" });
+        await invoke(event("u1", "p1", { published: false }));
+        expect(mockAddToAlbum, "非公開にしたのにアルバムへ入れている").not.toHaveBeenCalled();
+    });
+
+    // **失敗しても公開は成功で返す**（写真はもう公開されている。
+    // `savePhoto` の同じ呼び出しと同じ扱い）
+    it("足せなくても公開は成功", async () => {
+        world({ published: false, albumId: "a1" });
+        mockAddToAlbum.mockRejectedValue(new Error("boom"));
+        expect((await invoke(event("u1", "p1", { published: true }))).statusCode).toBe(200);
     });
 });

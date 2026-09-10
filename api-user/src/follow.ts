@@ -430,6 +430,30 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
 };
 
 // DELETE /users/{uid}/follow — フォロー解除（認証必要・冪等）
+/**
+ * 片向きのフォローを解く（口ではなく中身）。
+ *
+ * ブロックから呼ぶために切り出した。**関係を切るのは「見えなくする」より
+ * 強い**——このサイトの写真は静的サイトに焼かれて未ログインでも見えるので、
+ * 「ブロックした相手の写真をフィードから隠す」は閲覧者ごとの出し分けが要る
+ * のに対し、フォローを外すのは1回の書き込みで済み、静的サイトとも矛盾しない。
+ *
+ * **失敗しても投げない。** ブロックそのものは既に効いている（印が立って
+ * いる）ので、フォローが残ったからといってブロックを失敗にはしない。
+ */
+export async function unfollowQuietly(target: string, me: string): Promise<void> {
+    if (!target || !me || target === me) return;
+    try {
+        await unfollowAtomically(target, me);
+        await updateFollowing(me, (list) => {
+            const next = list.filter((x) => x !== target);
+            return next.length === list.length ? null : next;
+        });
+    } catch (e) {
+        console.error(`unfollowQuietly: 解除できませんでした（${me} -> ${target}）:`, e);
+    }
+}
+
 export const unfollowUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const me = getUserId(event);
     const target = event.pathParameters?.uid;

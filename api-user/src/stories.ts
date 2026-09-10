@@ -480,6 +480,18 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         //
         // 押し直せば続きから消える（消せたキーは S3 に無いので、再実行の
         // DeleteObject は成功する）。24時間で期限切れになれば掃除が拾う。
+        // **管理者が消すときは、残された写真ごと消す。**
+        // `storyMediaKeys` は `keptAs` があると実体を残す——本人が残した
+        // ものを守るための判断だが、**管理者は不適切なストーリーを消しに
+        // 来ている**。実体を残すと URL を知っていれば取り続けられる
+        // （`/uploads/*` は max-age 31536000）。写真の行ごと消してから、
+        // 印を外して普通の削除に落とす。
+        const keptPhotoId = typeof item.keptAs === "string" ? item.keptAs : "";
+        if (keptPhotoId && item.userId !== callerId) {
+            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: keptPhotoId } }))
+                .catch((e) => console.error(`deleteStory: 残された写真を消せませんでした（${keptPhotoId}）:`, e));
+            delete item.keptAs;   // 実体も消す側へ落とす（`storyMediaKeys` が見る）
+        }
         const s3Failures = await s3DeleteMany(storyMediaKeys(item), "deleteStory");
         if (s3Failures > 0) {
             return jsonError(500, "画像の削除を完了できませんでした。時間をおいてもう一度お試しください");
