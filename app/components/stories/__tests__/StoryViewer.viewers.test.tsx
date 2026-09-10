@@ -380,3 +380,76 @@ describe("閲覧者一覧: 失敗したあと", () => {
         expect(viewerCalls().length, "取れているのに引き直している").toBe(before);
     });
 });
+
+// **ストーリーを切り替えたときのリセット。**
+//
+// この差分で「リセット」と「取得」に分けた当の effect なのに、
+// 3行のうち縛れていたのは1行だけだった（レビューが変異で実証）
+// ——`setViewers(null)` も `setViewersOpen(false)` も、消して全緑。
+// 既存の「切り替えたあとに届いた古い応答を捨てる」は**中断ガード**を
+// 見ているだけで、リセットは見ていない。
+describe("閲覧者一覧: ストーリーを切り替えたときのリセット", () => {
+    const view = () => render(
+        <StoryViewer
+            groups={groups()}
+            initialGroupIndex={0}
+            locale="ja"
+            isAuthenticated
+            ownUserId="me"
+            onSeen={() => { /* noop */ }}
+            onClose={() => { /* noop */ }}
+        />,
+    );
+
+    // **前のストーリーの閲覧者を出さない。** この effect の存在理由そのもの。
+    //
+    // 送るのはシートを閉じてから——**開いている間は矢印が効かない**
+    // （keydown が `viewersOpen` で早期 return する。自動送りも `frozen` で
+    // 止まる）。最初それを知らずに開いたまま送ろうとして、
+    // 「リセットが効かない」と読み違えた
+    it("前のストーリーの閲覧者を持ち越さない", async () => {
+        mockUserFetch.mockImplementation((path: string) => {
+            const p = String(path);
+            if (!p.includes("/viewers")) return Promise.resolve({ ok: true, json: async () => ({}) });
+            // s1 は取れる／s2 は返らない（＝リセットしないと s1 の名前が残る）
+            return p.includes("s1")
+                ? Promise.resolve(viewersOf(["1枚目を見た人"]))
+                : new Promise(() => { /* 返らない */ });
+        });
+
+        view();
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+        expect(await screen.findByText("1枚目を見た人")).toBeInTheDocument();
+
+        fireEvent.keyDown(document, { key: "Escape" });          // シートを閉じる
+        fireEvent.keyDown(document, { key: "ArrowRight" });      // 次のストーリーへ
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+
+        expect(screen.queryByText("1枚目を見た人"),
+            "前のストーリーの閲覧者を持ち越している").toBeNull();
+    });
+
+    // **`setViewersOpen(false)` は、いまは届かない守り。**
+    // シートが開いている間は (a) keydown が `viewersOpen` で早期 return し、
+    // (b) 自動送りも `frozen` に `viewersOpen` が入っていて止まる。
+    // **等価とは書かない**——どちらかを外した日に効くようになる。
+    //
+    // **このテストが縛るのは (a) だけ**（`frozen` から `viewersOpen` を
+    // 外す変異は落ちない。自動送りは実タイマーで、ここでは回していない）。
+    // (b) を縛るなら別に書く——**縛れている範囲を実際より広く書かない**
+    it("シートが開いている間は、矢印でストーリーが切り替わらない", async () => {
+        mockUserFetch.mockImplementation((path: string) =>
+            Promise.resolve(String(path).includes("/viewers")
+                ? viewersOf(["旅子"])
+                : { ok: true, json: async () => ({}) }));
+
+        view();
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+        expect(await screen.findByText("旅子")).toBeInTheDocument();
+
+        fireEvent.keyDown(document, { key: "ArrowRight" });
+
+        // 送られていない＝シートも一覧もそのまま
+        expect(screen.getByText("旅子"), "開いたまま次のストーリーへ行った").toBeInTheDocument();
+    });
+});

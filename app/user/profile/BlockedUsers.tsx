@@ -72,7 +72,8 @@ export default function BlockedUsers({ locale }: { locale: "ja" | "en" }) {
         } finally {
             setBusy(null);
         }
-    }, [busy]);
+        // `locale` を入れる（文言を読むようになったので、古い値を掴まない）
+    }, [busy, locale]);
 
     // **取得に失敗したら、そう言う。** 黙って消すと、ストーリーの返信欄が
     // 「解除はプロフィール設定からできます」と案内している先が

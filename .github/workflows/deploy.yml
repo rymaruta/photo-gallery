@@ -76,6 +76,13 @@ jobs:
       contactEmail: ${{ steps.pick.outputs.contactEmail }}
     steps:
       - id: pick
+        # **shell のテキストに値を埋め込まない。** `${{ vars.X }}` を
+        # `run:` の中に直接書くと、値がスクリプトの一部として展開される
+        # ——アポストロフィ1つ（`o'brien@example.com` は RFC 上も合法）で
+        # **config ジョブが死んでデプロイが止まる**（実測 rc=2）。
+        # `env:` 経由なら値は環境変数として渡るだけで、構文には触れない
+        env:
+          CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL }}
         run: |
           set -euo pipefail
           # gaId だけは空を許す（staging で解析を止めるため）
@@ -93,9 +100,32 @@ jobs:
           # 「グループを入れ直す経路はアプリのどこにも無い。再ログインでも
           # 直らない」と書いている。**そこで唯一の出口**が「問い合わせる」。
           #
-          # `gaId` のように直書きしないのは、メールアドレスは環境ごとに
-          # 変わりうるうえ、私が値を知らないため。vars が未作成なら空＝今までどおり
-          contactEmail='${{ vars.CONTACT_EMAIL }}'
+          # `gaId` のように直書きしないのは、私が値を知らないため。
+          # vars が未作成なら空＝今までどおり。
+          # **リポジトリ変数なので prod と staging で同じ宛先**になる
+          # （このワークフローに `environment:` は無い）。分けたくなったら
+          # `case` の中で環境ごとに読むこと。
+          #
+          # **改行を落とす。** `$GITHUB_OUTPUT` は1行1値なので、値に改行が
+          # 入ると2行目がそのままキー=値として載る——しかもこの書き出しは
+          # 下の必須チェックの**後**なので、**検証済みの `siteUrl` や
+          # `siteBucket` を後勝ちで上書きできる**（実測で確認）。
+          # 「設定ミスは『本番を触る』ではなく『動かない』に倒す」の逆側だった
+          contactEmail="${CONTACT_EMAIL:-}"
+          # 空は許す。埋めるなら形を見る——**静かに別物にしない**。
+          # 改行を落として繋ぐ手もあるが、それだと
+          # `a@b.com<改行>siteUrl=…` が `a@b.comsiteUrl=…` という
+          # 「通るが誰も読めない宛先」になる＝「動かない」ではなく
+          # 「静かに間違う」側。空白・改行を含む値はここで止める
+          if [ -n "$contactEmail" ]; then
+            case "$contactEmail" in
+              *[[:space:]]*) echo "::error::CONTACT_EMAIL に空白または改行が入っています"; exit 1 ;;
+            esac
+            case "$contactEmail" in
+              *@*.*) ;;
+              *) echo "::error::CONTACT_EMAIL がメールアドレスの形ではありません（$contactEmail）"; exit 1 ;;
+            esac
+          fi
 
           # 作りたての環境はテーブルが空。本番では絶対に立てない（0件を通すと全ページが消える）
           allowEmptyPhotos=0
