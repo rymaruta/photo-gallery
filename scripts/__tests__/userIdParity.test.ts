@@ -57,11 +57,18 @@ function corpus(): string[] {
 describe("userId の形を見る規則（API とスクリプト）", () => {
     // corpus が「効く軸」を実際に動かしていることを、先に確かめる。
     // ここが崩れると、また原理的に落ちないテストになる
-    it("corpus は、API が弾く文字列を十分に含む", () => {
+    it("corpus は、包含の判定が空回りしない程度に太い", () => {
         const all = corpus();
-        const rejected = all.filter((v) => !isUserId(v));
         expect(all.length, "corpus が痩せている").toBeGreaterThan(500);
-        expect(rejected.length, "API が全部通す＝包含の判定が空回りする").toBeGreaterThan(300);
+        // 後件（API が弾く形を含むか）
+        expect(all.filter((v) => !isUserId(v)).length,
+            "API が全部通す＝包含の判定が空回りする").toBeGreaterThan(300);
+        // **前件（スクリプトが通す形を含むか）も見る。**
+        // 空回りを防ぐのに本当に要るのはこちら——`scriptAccepts(v)` が
+        // どの corpus でも false なら、`leaked` は常に空になる。
+        // 前の版は後件しか測っておらず、**測る側を間違えていた**
+        expect(all.filter(scriptAccepts).length,
+            "スクリプトが1つも通さない＝包含の判定が空回りする").toBeGreaterThan(50);
     });
 
     it("スクリプトが通すものは、API も必ず通す", () => {

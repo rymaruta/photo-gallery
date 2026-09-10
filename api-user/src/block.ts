@@ -257,17 +257,21 @@ export const listBlocks: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
         // 一覧を返す口はこれで7本目で、ここだけ通っていなかった
         // （`getComments` / `getNotifications` / `getStoryReplies` /
         //  `getUserFollowing` / `getUserFollowers` / `getStoryViewers`）。
-        // 引くのは一覧が空でないときだけ（あちらと同じ）
+        // 引くのは一覧が空でないときだけ（あちらと同じ）。
+        // このテーブルの走査は Scan なので、0件のときに撃たない
         const named = blockedIds.slice(0, BLOCK_NAMES_MAX);
-        // 引くのは一覧が空でないときだけ（`getComments` と同じ）。
-        // **`named` ではなく `blockedIds` で見る**——名前を引かない
-        // 101人目以降にも、退会したかどうかは出すため
+        // **`.catch` は現状発火しない。** `deletedUserIds` は
+        // `notify.ts` の中で握って空集合を返すので reject しない
+        // ——4行下の `lookupDisplayNameIfSet` と同じ「保険」として置く。
+        // あちらが投げるようになった日に、この口だけは 500 に倒したくない
+        // （**ブロックを解除できる唯一の入口**なので、伏せられないどころか
+        //   外せなくなる）。他の6本は裸の `await` のままでよい
+        //   ——落ちても「読めない」で済む。
+        //
+        // 一度ここに「`named` ではなく `blockedIds` で見る」と書いたが、
+        // `named` は `blockedIds.slice(0, 100)` なので**両者は等価**。
+        // 101人目を救っているのは下のループだけ。
         const gone = blockedIds.length > 0
-            // **ここだけ握る。** 他の6本は裸の `await` で揃っているが、
-            // この口は**ブロックを解除できる唯一の入口**（`BlockedUsers`）。
-            // 墓石が引けないだけで 500 になると、伏せられないどころか
-            // **外せなくなる**。伏せない側に倒す（`deletedUserIds` 自身の
-            // fail-open と同じ向き）
             ? await deletedUserIds().catch((e) => { console.error("listBlocks deletedUserIds:", e); return new Set<string>(); })
             : new Set<string>();
         // 名前が引けなくても一覧は返す（解除できることの方が大事）。

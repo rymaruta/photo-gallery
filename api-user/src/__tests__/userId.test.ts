@@ -32,13 +32,42 @@ describe("isUserId", () => {
         ]) expect(isUserId(v), `16進でない文字を通している: ${v}`).toBe(false);
     });
 
-    it("長さが違うものを通さない", () => {
+    // **5つの群すべての桁数を見る。**
+    // 一度、第1群と最終群しか動かしていなかった——中間3群を
+    // `{4}` → `{1,8}` に緩めても**全4,234件が緑**だった（レビューが実証）。
+    // 「絶対の厳しさはここで見る」と書いた当のものが、半分しか見ていなかった
+    it("どの群も、桁数が違えば通さない", () => {
+        const GROUPS = [8, 4, 4, 4, 12];
+        const parts = "0123abcd-4567-489a-8bcd-0123456789ab".split("-");
+        expect(parts.map((p) => p.length), "土台がずれている").toEqual(GROUPS);
+
+        for (let g = 0; g < GROUPS.length; g++) {
+            for (const delta of [-3, -1, 1, 3]) {
+                const len = GROUPS[g] + delta;
+                if (len <= 0) continue;
+                const mutated = parts.map((p, i) => (i === g ? "a".repeat(len) : p)).join("-");
+                expect(isUserId(mutated), `第${g + 1}群が ${len} 桁でも通している: ${mutated}`).toBe(false);
+            }
+        }
+    });
+
+    // 群を空にする（`{4}` → `{0,4}` のような緩め方）
+    it("群が空でも通さない", () => {
+        const parts = "0123abcd-4567-489a-8bcd-0123456789ab".split("-");
+        for (let g = 0; g < parts.length; g++) {
+            const mutated = parts.map((p, i) => (i === g ? "" : p)).join("-");
+            expect(isUserId(mutated), `第${g + 1}群が空でも通している: ${mutated}`).toBe(false);
+        }
+    });
+
+    // 区切りの数（ハイフン4本）
+    it("区切りの数が違えば通さない", () => {
         for (const v of [
-            "0123abc-4567-489a-8bcd-0123456789ab",      // 1文字短い
-            "0123abcde-4567-489a-8bcd-0123456789ab",    // 1文字長い
-            "0123abcd-4567-489a-8bcd-0123456789a",
-            "0123abcd-4567-489a-8bcd-0123456789abc",
-        ]) expect(isUserId(v), `長さが違うのに通している: ${v}`).toBe(false);
+            "0123abcd45674 89a8bcd0123456789ab".replace(" ", ""),
+            "0123abcd45674 89a-8bcd-0123456789ab".replace(" ", ""),
+            "0123abcd-4567-489a-8bcd-0123-456789ab",
+            "0123abcd45674 89a8bcd0123456789a".replace(" ", "") + "b",
+        ]) expect(isUserId(v), `区切りの数が違うのに通している: ${v}`).toBe(false);
     });
 
     it("区切りの形が違うものを通さない", () => {

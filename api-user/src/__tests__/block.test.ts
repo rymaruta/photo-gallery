@@ -265,8 +265,14 @@ describe("listBlocks", () => {
     // ——テスト名が言っている性質はどこでも守られていなかった。
     //
     // この口は**ブロックを解除できる唯一の入口**（`BlockedUsers`）なので、
-    // 墓石が引けないだけで外せなくなるのは倒れ方として悪い
-    it("墓石が引けなくても一覧は返す", async () => {
+    // 墓石が引けないだけで外せなくなるのは倒れ方として悪い。
+    //
+    // **ただし本番では発火しない。** `deletedUserIds` は `notify.ts` の
+    // 中で握って空集合を返すので reject しない——ここが reject するのは
+    // このファイルが `../notify` をモジュールごと差し替えているから。
+    // コミットに「実際に投げさせると 500 を返していた」と書いたが、
+    // 真なのは**モックの世界でだけ**。保険を保険として縛るテスト
+    it("墓石が引けなくても一覧は返す（保険。本番では発火しない）", async () => {
         world({ [blocksId(ME)]: { blockedIds: [THEM] } });
         mockGone.mockRejectedValue(new Error("throttled"));
         mockName.mockResolvedValue("しつこい人");

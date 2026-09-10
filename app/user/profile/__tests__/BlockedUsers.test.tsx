@@ -102,10 +102,16 @@ describe("ブロックした人の一覧と解除", () => {
     // フォールバックに落ちると**生きている人に見える**。
     // サーバー側（`listBlocks`）を直しても、ここが `deleted` を読んで
     // いなければ**日本語固定の名前をそのまま出すだけ**だった
-    it("退会した人は、その旨を出す", async () => {
-        listOk([{ id: "u2", name: "退会したユーザー", deleted: true }]);
+    // **`deleted` で決める。`name` に頼らない。**
+    // 最初はフィクスチャの `name` を「退会したユーザー」にしていたので、
+    // **画面の変更を戻しても通った**（サーバーが日本語を返すから出ていた
+    // だけ）。名前を別の文字列にして、画面が `deleted` を読んでいることを
+    // 見る——サーバーの文言に依存しないのがこの修正の目的
+    it("退会した人は、名前ではなく `deleted` で判断して伏せる", async () => {
+        listOk([{ id: "u2", name: "退会前の名前", deleted: true }]);
         view();
         expect(await screen.findByText("退会したユーザー")).toBeInTheDocument();
+        expect(screen.queryByText("退会前の名前"), "退会した人の名前を出している").toBeNull();
         expect(screen.queryByText("旅人"), "退会した人を「旅人」として並べている").toBeNull();
     });
 
@@ -113,7 +119,7 @@ describe("ブロックした人の一覧と解除", () => {
     // 日本語固定なので、素通しだと英語表示の人にも日本語が出る
     //（`FollowingSheet` は `deleted` を見て "Deleted user" を出している）
     it("英語表示では英語で出す", async () => {
-        listOk([{ id: "u2", name: "退会したユーザー", deleted: true }]);
+        listOk([{ id: "u2", name: "退会前の名前", deleted: true }]);
         render(<BlockedUsers locale="en" />);
         expect(await screen.findByText("Deleted user")).toBeInTheDocument();
         expect(screen.queryByText("退会したユーザー"), "英語UIに日本語が出ている").toBeNull();
@@ -122,7 +128,7 @@ describe("ブロックした人の一覧と解除", () => {
     // **解除は押せるままにする。** 押せないと外せなくなる
     // （相手が退会していても、こちらの `blocks#` の行は残る）
     it("退会した人でも解除できる", async () => {
-        listOk([{ id: "u2", name: "退会したユーザー", deleted: true }]);
+        listOk([{ id: "u2", name: "退会前の名前", deleted: true }]);
         view();
         await userEvent.click(await screen.findByRole("button", { name: "解除" }));
         await waitFor(() => expect(deletes()).toHaveLength(1));
