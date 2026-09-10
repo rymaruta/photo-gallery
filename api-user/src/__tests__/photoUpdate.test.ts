@@ -918,6 +918,17 @@ describe("公開に切り替えたら、共同アルバムに入れる", () => {
         expect(mockAddToAlbum, "メンバーでない人の写真が入っている").not.toHaveBeenCalled();
     });
 
+    // **判定は `UpdateCommand` のあと。** 裸の await を置くと、写真はもう
+    // 公開されているのに 500 が返り、押し直すと `visibilityChanged` が
+    // false になって**アルバムに足す処理を永久に飛ばす**
+    it("メンバー判定が落ちても、公開そのものは成功で返す", async () => {
+        world({ published: false, albumId: "a1" });
+        mockIsAlbumMember.mockRejectedValue(new Error("throttled"));
+        const res = await invoke(event("u1", "p1", { published: true }));
+        expect(res.statusCode, "公開できているのに失敗と出る").toBe(200);
+        expect(mockAddToAlbum).not.toHaveBeenCalled();
+    });
+
     it("メンバー判定は、そのアルバムと押した本人で見る", async () => {
         world({ published: false, albumId: "a1" });
         await invoke(event("u1", "p1", { published: true }));

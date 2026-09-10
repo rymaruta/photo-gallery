@@ -313,10 +313,26 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // 行に書いてある `albumId` を信じて素通しだった。**いまは脱退の口が
         // 無いので悪用できない**が、片側だけの防御は「脱退」を足した日に
         // 静かに穴になる（このリポジトリが何度も踏んでいる形）。
-        if (visibilityChanged && body.published !== false
+        //
+        // **判定は投げさせない。** ここは `UpdateCommand`（上の 238行）の
+        // **あと**なので、裸の `await` を置くと写真はもう公開されているのに
+        // 外側の catch に落ちて **500「更新に失敗しました」**になる。しかも
+        // 画面の言うとおり押し直すと `wasPublished` が true で
+        // `visibilityChanged` が false ——**アルバムに足す処理を永久に飛ばす**
+        // ＝直したはずの「公開したのにアルバムに入らない」が戻る。
+        // すぐ下の `addPhotoToAlbum` が `.catch` で「失敗しても公開は成功で
+        // 返す」と書いているのに、その直前に投げうる await を足していた。
+        // 分からないときは足さない側へ倒す（押し直しでは直らないので、
+        // 直すのは招待ページ側の `published !== false` のふるいに任せる）。
+        const stillMember = visibilityChanged && body.published !== false
             && typeof existing.Item.albumId === "string" && existing.Item.albumId
-            && await isAlbumMember(existing.Item.albumId, callerId)) {
-            await addPhotoToAlbum(existing.Item.albumId, id).catch((e) => {
+            ? await isAlbumMember(existing.Item.albumId, callerId).catch((e) => {
+                console.error(`updatePhotoVisibility: メンバー判定に失敗（${id}）:`, e);
+                return false;
+            })
+            : false;
+        if (stillMember) {
+            await addPhotoToAlbum(existing.Item.albumId as string, id).catch((e) => {
                 console.error(`updatePhotoVisibility: アルバムに足せませんでした（${id}）:`, e);
             });
         }
