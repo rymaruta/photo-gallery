@@ -258,6 +258,22 @@ describe("keepStory: ストーリーをギャラリーに残す", () => {
             "外部のURLを一覧に出している").toBe(false);
     });
 
+    // **見ていたのは外部ホストだけだった。** 同じ CDN の**他人の領域**を
+    // 指す URL は無検証で、`isOwnUploadUrl` の接頭辞の判定を落としても
+    // 22件が緑のままだった（変異で確認）。`thumbSrc` は `mediaKeys` に
+    // 入るので、ここを抜けると **他人の実ファイルを自分の写真として
+    // 消せる**——`upload.ts` が「相手の実ファイルが S3 から消えた」と
+    // 書いている当の事故と同じ形。
+    it("同じ CDN でも、他人の領域を指すサムネは捨てる", async () => {
+        world(STORY);
+        await invoke({
+            ...ev("me", "story-1"),
+            body: JSON.stringify({ thumbUrl: "https://cdn.example.com/uploads/other/t.webp" }),
+        });
+        expect("thumbSrc" in (mockPutPhoto.mock.calls[0][0] as Record<string, unknown>),
+            "他人の領域のファイルを自分の写真に付けている").toBe(false);
+    });
+
     it("本文が無くても残せる（サムネは任意）", async () => {
         world(STORY);
         expect((await invoke(ev("me", "story-1"))).statusCode).toBe(200);

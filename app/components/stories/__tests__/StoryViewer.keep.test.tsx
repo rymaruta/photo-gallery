@@ -58,6 +58,13 @@ const keepPosts = () => mockUserFetch.mock.calls.filter(
 
 beforeEach(() => {
     mockUserFetch.mockReset().mockResolvedValue({ ok: true, json: async () => ({}) });
+    // **画像の道具も戻す。** 「サムネを作れなくても残せる」のテストが
+    // `mockThumb` を null に置き換えたまま次へ渡していて、あとから足した
+    // テストが**サムネの経路を一度も通らないまま緑**になっていた
+    // （単体では通り、フルで走らせると落ちる形で気づいた）
+    mockThumb.mockReset().mockResolvedValue(new File(["t"], "t.webp", { type: "image/webp" }));
+    mockColor.mockReset().mockResolvedValue("#123456");
+    mockBlur.mockReset().mockResolvedValue("data:image/webp;base64,zz");
 });
 
 describe("ストーリーをギャラリーに残す", () => {
@@ -249,5 +256,122 @@ describe("残すときに、一覧用のサムネも作って送る", () => {
         await userEvent.click(await screen.findByLabelText("ギャラリーに残す"));
         await waitFor(() => expect(keepPosts()).toHaveLength(1));
         expect(await screen.findByText("仕上げる")).toBeInTheDocument();
+    });
+});
+
+
+// **別オリジンから素で取ると、必ず失敗する。**
+// `item.src` は CloudFront の既定ドメインで、`/uploads/*` は CORS を
+// 返していない（キャッシュポリシーが `Origin` を転送しないので S3 の
+// バケット CORS まで届かない。`public/sw.js` の `isStorablePhoto` が
+// 同じことを書いている）。`fetch` の既定は `mode: "cors"` なので
+// TypeError になり、呼び出し側の `.catch` が飲んで
+// **「サムネ無しで成功」**——直したつもりで何も変わらない形。
+// `/uploads/*` はサイトと同じディストリビューションのビヘイビアなので、
+// パスだけにすれば同一オリジンとして取れる。
+describe("画像のバイト列は、まず同一オリジンから取り直す", () => {
+    const cdnStory = (): StoryGroup[] => [{
+        userId: "me", displayName: "自分",
+        items: [{ id: "s1", src: "https://cdn.example.com/uploads/me/a.jpg", userId: "me", createdAt: "2026-07-04T10:00:00Z", expiresAt: "2099-07-05T10:00:00Z" }],
+    }];
+    const imageFetches = (f: ReturnType<typeof vi.fn>) => f.mock.calls
+        .map((c) => String(c[0])).filter((u) => !u.includes("s3"));
+
+    it("別オリジンの URL では投げず、パスだけで取りに行く", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/presigned-url")) {
+                return Promise.resolve({ ok: true, json: async () => ({ presignedUrl: "https://s3/put", publicUrl: "https://cdn/uploads/me/t.webp", key: "uploads/me/t.webp", contentType: "image/webp" }) });
+            }
+            if (String(url).includes("/keep") && init?.method === "POST") {
+                return Promise.resolve({ ok: true, json: async () => ({ photoId: "p-1" }) });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        const f = vi.fn(async () => ({ ok: true, status: 200, blob: async () => new Blob(["x"], { type: "image/jpeg" }) }));
+        vi.stubGlobal("fetch", f);
+        view(cdnStory());
+        await userEvent.click(await screen.findByLabelText("ギャラリーに残す"));
+        await waitFor(() => expect(keepPosts()).toHaveLength(1));
+        expect(imageFetches(f)[0], "別オリジンのまま取りに行っている（CORS で必ず落ちる）")
+            .toBe("/uploads/me/a.jpg");
+    });
+
+    // サイト側に `/uploads/*` が無い置き方・CORS が入った環境でも動くように
+    it("同一オリジンで取れなければ、元の URL でもう一度試す", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/presigned-url")) {
+                return Promise.resolve({ ok: true, json: async () => ({ presignedUrl: "https://s3/put", publicUrl: "https://cdn/uploads/me/t.webp", key: "uploads/me/t.webp", contentType: "image/webp" }) });
+            }
+            if (String(url).includes("/keep") && init?.method === "POST") {
+                return Promise.resolve({ ok: true, json: async () => ({ photoId: "p-1" }) });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        const f = vi.fn(async (url: string) => (String(url).startsWith("/uploads/")
+            ? { ok: false, status: 404 }
+            : { ok: true, status: 200, blob: async () => new Blob(["x"], { type: "image/jpeg" }) }));
+        vi.stubGlobal("fetch", f);
+        view(cdnStory());
+        await userEvent.click(await screen.findByLabelText("ギャラリーに残す"));
+        await waitFor(() => expect(keepPosts()).toHaveLength(1));
+        expect(imageFetches(f)).toEqual(["/uploads/me/a.jpg", "https://cdn.example.com/uploads/me/a.jpg"]);
+        const body = JSON.parse((keepPosts()[0][1] as { body: string }).body);
+        expect(body.thumbUrl, "取り直せたのにサムネを作っていない").toBe("https://cdn/uploads/me/t.webp");
+    });
+});
+
+// **上げたサムネを、誰も参照しないまま S3 に置き去りにしていた。**
+// 枚数上限・期限切れ・通信断はどれも押し直せる失敗なので、押すたびに
+// 1個ずつ増える。指す行がどこにも無いので、どの削除経路からも辿れない。
+// 同じことをする `app/user/upload`（`reservedThumbKey`）と `StoriesBar`
+// （`uploadedKey`）は両方とも後始末を持っている。
+describe("残せなかったら、上げたサムネを捨てる", () => {
+    const discards = () => mockUserFetch.mock.calls.filter(
+        (c) => String(c[0]).includes("/upload/discard") && (c[1] as { method?: string })?.method === "DELETE");
+
+    const withKeepResult = (keep: () => Promise<unknown>) => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/presigned-url")) {
+                return Promise.resolve({ ok: true, json: async () => ({ presignedUrl: "https://s3/put", publicUrl: "https://cdn/uploads/me/t.webp", key: "uploads/me/t.webp", contentType: "image/webp" }) });
+            }
+            if (String(url).includes("/keep") && init?.method === "POST") return keep();
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200, blob: async () => new Blob(["x"], { type: "image/jpeg" }) })));
+    };
+
+    it("`/keep` が失敗したら捨てる", async () => {
+        withKeepResult(async () => ({ ok: false, status: 403, json: async () => ({}) }));
+        view(own());
+        await userEvent.click(await screen.findByLabelText("ギャラリーに残す"));
+        await waitFor(() => expect(discards()).toHaveLength(1));
+        expect(JSON.parse((discards()[0][1] as { body: string }).body).key).toBe("uploads/me/t.webp");
+    });
+
+    // **応答を読む前に投げる経路（通信断・セッション切れ）もある。**
+    // `!res.ok` の枝だけに置くと、いちばん起きやすい形が抜ける
+    it("通信が落ちても捨てる", async () => {
+        withKeepResult(async () => { throw new Error("offline"); });
+        view(own());
+        await userEvent.click(await screen.findByLabelText("ギャラリーに残す"));
+        await waitFor(() => expect(discards()).toHaveLength(1));
+    });
+
+    // 二度押し。サーバーは既に残っていれば `thumbUrl` を見ないので、
+    // 上げたぶんは誰にも参照されない
+    it("既に残してあった（already）ときも捨てる", async () => {
+        withKeepResult(async () => ({ ok: true, json: async () => ({ photoId: "p-1", already: true }) }));
+        view(own());
+        await userEvent.click(await screen.findByLabelText("ギャラリーに残す"));
+        await waitFor(() => expect(discards()).toHaveLength(1));
+    });
+
+    it("残せたときは捨てない（使われている実体を消さない）", async () => {
+        withKeepResult(async () => ({ ok: true, json: async () => ({ photoId: "p-1" }) }));
+        view(own());
+        await userEvent.click(await screen.findByLabelText("ギャラリーに残す"));
+        await waitFor(() => expect(keepPosts()).toHaveLength(1));
+        await screen.findByText("仕上げる");
+        expect(discards(), "使われているサムネを消している").toHaveLength(0);
     });
 });

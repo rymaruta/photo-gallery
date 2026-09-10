@@ -26,28 +26,62 @@ const STORY_REPLY_MAX = 200;
  * 写真のアップロード画面と**同じ道具**（`lib/utils/image.ts`）を使う
  * ——同じものを二度作らない。作れなかったら空を返す（残す方は進める）。
  */
-async function buildKeepThumb(src: string): Promise<Record<string, string>> {
+/**
+ * 画像のバイト列を取り直す。**まず同一オリジンで。**
+ *
+ * `item.src` は CloudFront の既定ドメイン（`CLOUDFRONT_URL`）を指すので、
+ * `journey-photo.com` から見ると**別オリジン**。`fetch` の既定は
+ * `mode: "cors"` なので `Access-Control-Allow-Origin` が要るが、
+ * **`/uploads/*` は CORS を返していない**——キャッシュポリシーが `Origin`
+ * を転送しないので S3 のバケット CORS まで届かない
+ * （`public/sw.js` の `isStorablePhoto` が同じことを書いている。
+ *  `PhotoPageClient` の EXIF 取得が best-effort なのも同じ理由）。
+ * つまり素で `fetch(src)` すると **必ず TypeError** で、呼び出し側の
+ * `.catch` が飲んで「サムネ無しで成功」になる＝直したつもりで何も
+ * 変わらない、というこのリポジトリが繰り返している形。
+ *
+ * `/uploads/*` は**サイトと同じディストリビューションのビヘイビア**なので、
+ * パスだけにすれば同一オリジンとして取れる（CORS が要らない）。
+ * 取れなければ元の URL でもう一度試す——CORS が入った環境や、
+ * サイト側に `/uploads/*` が無い置き方でも動くように。
+ */
+async function fetchImageBytes(src: string): Promise<Blob> {
+    let sameOrigin = "";
+    try {
+        const u = new URL(src, location.href);
+        if (u.origin !== location.origin && u.pathname.startsWith("/uploads/")) sameOrigin = u.pathname;
+    } catch { /* URL でなければそのまま */ }
+    if (sameOrigin) {
+        const res = await fetch(sameOrigin).catch(() => null);
+        if (res?.ok) return await res.blob();
+    }
+    const res = await fetch(src);
+    if (!res.ok) throw new Error(`image fetch failed: ${res.status}`);
+    return await res.blob();
+}
+
+async function buildKeepThumb(src: string): Promise<{ fields: Record<string, string>; thumbKey?: string }> {
     const [{ createThumbnail, extractDominantColor, createBlurPlaceholder }, { userFetch }] = await Promise.all([
         import("../../../lib/utils/image"),
         import("../../../lib/utils/api"),
     ]);
     // 画面に出ている画像なので、ふつうはブラウザの控えから返る
-    const blob = await (await fetch(src)).blob();
+    const blob = await fetchImageBytes(src);
     const file = new File([blob], "story.jpg", { type: blob.type || "image/jpeg" });
-    const out: Record<string, string> = {};
+    const fields: Record<string, string> = {};
     const color = await extractDominantColor(file).catch(() => null);
-    if (color) out.dominantColor = color;
+    if (color) fields.dominantColor = color;
     const blur = await createBlurPlaceholder(file).catch(() => null);
-    if (blur) out.blurDataURL = blur;
+    if (blur) fields.blurDataURL = blur;
 
     const thumb = await createThumbnail(file).catch(() => null);
-    if (!thumb) return out;
+    if (!thumb) return { fields };
     const presign = await userFetch("/upload/presigned-url", {
         method: "POST",
         body: JSON.stringify({ fileName: thumb.name, fileType: thumb.type, fileSize: thumb.size }),
     });
-    if (!presign.ok) return out;
-    const t = await presign.json() as { presignedUrl: string; publicUrl: string; contentType?: string };
+    if (!presign.ok) return { fields };
+    const t = await presign.json() as { presignedUrl: string; publicUrl: string; key?: string; contentType?: string };
     const put = await fetch(t.presignedUrl, {
         method: "PUT",
         body: thumb,
@@ -56,8 +90,13 @@ async function buildKeepThumb(src: string): Promise<Record<string, string>> {
     });
     // **上げ切れなかったら URL を送らない。** 送ると、一覧が存在しない
     // ファイルを指して**割れた画像**が並ぶ（サムネ無しより悪い）
-    if (put.ok) out.thumbUrl = t.publicUrl;
-    return out;
+    if (!put.ok) return { fields };
+    fields.thumbUrl = t.publicUrl;
+    // **キーを控える。** `/keep` が通らなかったら S3 の孤児になる
+    // （上げた実体を指す行がどこにも無い＝どの削除経路からも辿れない）。
+    // 同じことをする既存の2経路——`app/user/upload` の `reservedThumbKey` と
+    // `StoriesBar` の `uploadedKey`——は両方とも後始末を持っている。
+    return { fields, thumbKey: typeof t.key === "string" ? t.key : undefined };
 }
 
 const STORY_DEFAULT_DURATION_SEC = 5; // 画像の表示時間（投稿時に未指定だったとき）
@@ -504,6 +543,16 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         const target = item.id;
         // 送信中に手で次へ進められても、手応えを別の1枚に出さない（返信と同じ）
         const stillHere = () => itemIdRef.current === target;
+        // **`/keep` が通らなかったら、上げたサムネを捨てる。**
+        // 残すと S3 の孤児になる（指す行がどこにも無い＝どの削除経路からも
+        // 辿れない）。しかも枚数上限・期限切れ・通信断はどれも押し直せる
+        // 失敗なので、**押すたびに1個ずつ増える**。同じことをする
+        // `app/user/upload`（`reservedThumbKey`）と `StoriesBar`
+        // （`uploadedKey`）は両方とも後始末を持っている——ここだけ無かった。
+        // **`finally` に置く。** 応答を読む前に投げる経路（通信断・
+        // セッション切れ）が `catch` に飛ぶので、`!res.ok` の枝だけでは足りない。
+        let thumbKey: string | undefined;
+        let thumbUsed = false;
         try {
             const { userFetch, readApiError } = await import("../../../lib/utils/api");
             // **一覧用のサムネを作って一緒に送る。**
@@ -515,18 +564,22 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             // **失敗しても残す方は進める**（サムネは無くても写真は作れる。
             // 次のビルドが補う）。画像はいま画面に出ているのでブラウザの
             // 控えから取れる
-            const extra = await buildKeepThumb(item.src).catch(() => ({}));
+            const extra = await buildKeepThumb(item.src).catch(() => ({ fields: {} as Record<string, string> }));
+            thumbKey = (extra as { thumbKey?: string }).thumbKey;
             const res = await userFetch(`/stories/${encodeURIComponent(target)}/keep`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(extra),
+                body: JSON.stringify(extra.fields),
             });
             if (!res.ok) {
                 const msg = await readApiError(res, locale === "en" ? "Couldn't keep it." : "残せませんでした");
                 if (stillHere()) setKeepError(msg);
                 return;
             }
-            const data = await res.json() as { photoId?: string };
+            const data = await res.json() as { photoId?: string; already?: boolean };
+            // **二度押しは「使われた」に数えない。** サーバーは既に残って
+            // いれば `thumbUrl` を見ないので、上げたぶんは誰にも参照されない
+            thumbUsed = data.already !== true;
             if (!stillHere()) return;
             if (typeof data.photoId === "string" && data.photoId) setKeptPhotoId(data.photoId);
             else setKeepError(locale === "en" ? "Couldn't keep it." : "残せませんでした");
@@ -534,6 +587,11 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             const { sessionErrorMessage } = await import("../../../lib/utils/api");
             if (stillHere()) setKeepError(sessionErrorMessage(e) ?? (locale === "en" ? "Couldn't keep it." : "残せませんでした"));
         } finally {
+            if (thumbKey && !thumbUsed) {
+                const { userFetch } = await import("../../../lib/utils/api");
+                await userFetch("/upload/discard", { method: "DELETE", body: JSON.stringify({ key: thumbKey }) })
+                    .catch(() => { /* 消せなくても、残す操作の結果は伝える */ });
+            }
             setKeeping(false);
         }
     }, [item, keeping, locale]);
