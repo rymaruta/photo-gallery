@@ -15,6 +15,8 @@ const mockConfirmReg    = vi.hoisted(() => vi.fn());
 const mockResendCode    = vi.hoisted(() => vi.fn());
 const mockAuthUser      = vi.hoisted(() => vi.fn());
 const mockGetSession    = vi.hoisted(() => vi.fn());
+const mockForgot        = vi.hoisted(() => vi.fn());
+const mockConfirmPw     = vi.hoisted(() => vi.fn());
 
 vi.mock("amazon-cognito-identity-js", () => ({
     // new で呼ばれるコンストラクタには通常関数（非アロー）を使う
@@ -28,8 +30,8 @@ vi.mock("amazon-cognito-identity-js", () => ({
             getSession: mockGetSession,
             confirmRegistration: mockConfirmReg,
             resendConfirmationCode: mockResendCode,
-            forgotPassword: vi.fn(),
-            confirmPassword: vi.fn(),
+            forgotPassword: mockForgot,
+            confirmPassword: mockConfirmPw,
             signOut: vi.fn(),
         };
     }),
@@ -39,7 +41,7 @@ vi.mock("amazon-cognito-identity-js", () => ({
 // static import（環境変数に依存しない）
 import {
     signIn, getCurrentSession, lookupSession, signUp, confirmSignUp,
-    getCurrentUserGroups, isAdmin, isGeneralUser,
+    getCurrentUserGroups, isAdmin, isGeneralUser, forgotPassword,
 } from "../cognito";
 
 beforeEach(() => {
@@ -52,6 +54,8 @@ beforeEach(() => {
     mockResendCode.mockReset();
     mockAuthUser.mockReset();
     mockGetSession.mockReset();
+    mockForgot.mockReset();
+    mockConfirmPw.mockReset();
 });
 
 // ────────────────────────────────
@@ -155,6 +159,20 @@ describe("signUp", () => {
         expect(result.username).toMatch(/^[0-9a-f-]{36}$/i);
     });
 
+    // **メール属性を固定文字列に差し替えても 50件とも緑だった**（実測）。
+    // ここが壊れると確認コードが**別の人の受信箱**へ飛ぶ（あるいはどこにも
+    // 飛ばない）。ユーザー名は UUID なので、メールは属性でしか渡らない。
+    it("登録するメールアドレスを、そのまま属性で渡す", async () => {
+        mockSignUp.mockImplementation(
+            (_u: string, _p: string, _a: unknown[], _v: unknown[], cb: (e: null) => void) => cb(null)
+        );
+        await signUp("new@example.com", "Password1!");
+        const [username, password, attrs] = mockSignUp.mock.calls[0] as [string, string, { Name: string; Value: string }[]];
+        expect(username, "ユーザー名にメールを使っている").not.toBe("new@example.com");
+        expect(password).toBe("Password1!");
+        expect(attrs).toEqual([{ Name: "email", Value: "new@example.com" }]);
+    });
+
     it("InvalidPasswordException → 日本語メッセージ", async () => {
         mockSignUp.mockImplementation(
             (_u: string, _p: string, _a: unknown[], _v: unknown[], cb: (e: { name: string; message: string }) => void) => {
@@ -216,6 +234,55 @@ describe("confirmSignUp", () => {
             (_code: string, _f: boolean, cb: (e: null) => void) => cb(null)
         );
         expect((await confirmSignUp("uuid", "123456")).success).toBe(true);
+    });
+
+    // **この4行を丸ごと削っても `lib/auth` + `app/signup` は 67件 緑だった**
+    // （実測）。PostConfirmation トリガーが落ちた人は Cognito 側では
+    // 既に CONFIRMED なので、ここで失敗を返すと**コードを入れ直しても
+    // 永久に確認画面から出られない**（"User cannot be confirmed. Current
+    // status is CONFIRMED" が英語で出るだけ）。トリガーは Lambda の
+    // 同時実行（アカウント全体で10）に当たれば実際に落ちる。
+    it("すでに確認済みなら成功として扱う（確認画面から出られなくしない）", async () => {
+        mockConfirmReg.mockImplementation(
+            (_code: string, _f: boolean, cb: (e: { name: string; message: string }) => void) => {
+                cb({ name: "NotAuthorizedException", message: "User cannot be confirmed. Current status is CONFIRMED" });
+            }
+        );
+        const res = await confirmSignUp("uuid", "123456");
+        expect(res.success, "確認済みなのに先へ進めない").toBe(true);
+        expect(res.error, "英語の技術文言が出ている").toBeUndefined();
+    });
+});
+
+// ────────────────────────────────
+// forgotPassword — **1本も実行されていなかった**
+// ────────────────────────────────
+// `accountEnumeration.test.ts` は「特定の日本語1文がソースに無いこと」しか
+// 見ていないので、`UserNotFoundException` の分岐を
+// `resolve({ success: false, error: "そのアカウントは存在しません" })` に
+// 書き換えても 50件とも緑だった（実測）。振る舞いで固定する。
+describe("forgotPassword", () => {
+    const fail = (err: { code?: string; message?: string }) =>
+        mockForgot.mockImplementation((cb: { onFailure: (e: unknown) => void }) => cb.onFailure(err));
+
+    it("登録が無くても成功として返す（登録の有無を教えない）", async () => {
+        fail({ code: "UserNotFoundException", message: "Username/client id combination not found." });
+        const res = await forgotPassword("nobody@example.com");
+        expect(res.success, "そのメールが未登録だと分かってしまう").toBe(true);
+        expect(res.error).toBeUndefined();
+    });
+
+    it("送れたときも成功", async () => {
+        mockForgot.mockImplementation((cb: { onSuccess: () => void }) => cb.onSuccess());
+        expect((await forgotPassword("a@example.com")).success).toBe(true);
+    });
+
+    // 回数制限は「教えてよい」失敗（本人の操作の結果で、相手の存在を明かさない）
+    it("回数制限は日本語で伝える", async () => {
+        fail({ code: "LimitExceededException", message: "Attempt limit exceeded, please try after some time." });
+        const res = await forgotPassword("a@example.com");
+        expect(res.success).toBe(false);
+        expect(res.error, "英語のまま出している").toBe("しばらく時間をおいてから再試行してください");
     });
 });
 

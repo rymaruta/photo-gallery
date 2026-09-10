@@ -111,6 +111,41 @@ describe("LoginPage - 基本フロー", () => {
         expect(mockShowToast).toHaveBeenCalledWith("ログインしました", "success");
     });
 
+    // **`next` の振る舞いを見るテストが1本も無かった。**
+    // `searchParams?.get("next")` を `"nxt"` に書き換えても、login・
+    // guardRedirects・routes・useMemberGate の 88件が緑（実測）。
+    // `guardRedirects.test.ts` は「その1行の文字列がある」ことしか見ない。
+    // 壊れると、写真の共有リンクや招待リンクを踏んでログインした人が
+    // 全員、自分のプロフィールに着地する
+    it("next があれば、そこへ戻す（自分のプロフィールへ流さない）", async () => {
+        mockSearchParams = new URLSearchParams("next=%2Fphoto%2Fabc");
+        mockLogin.mockResolvedValue({ success: true, userId: "my-sub-123" });
+        const user = userEvent.setup();
+        render(<LoginPage />);
+
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), "user@example.com");
+        await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
+        await user.click(screen.getByRole("button", { name: "ログイン" }));
+
+        await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/photo/abc"));
+    });
+
+    // 外へ飛ばす値は捨てる（`safeNextPath`。この関数自体は
+    // `lib/__tests__/routes.test.ts` が手厚く見ている）
+    it("外部のURLを next に入れられても、そこへは飛ばさない", async () => {
+        mockSearchParams = new URLSearchParams("next=https%3A%2F%2Fevil.example%2Fx");
+        mockLogin.mockResolvedValue({ success: true, userId: "my-sub-123" });
+        const user = userEvent.setup();
+        render(<LoginPage />);
+
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), "user@example.com");
+        await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
+        await user.click(screen.getByRole("button", { name: "ログイン" }));
+
+        await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/users?id=my-sub-123"));
+        expect(mockReplace).not.toHaveBeenCalledWith(expect.stringContaining("evil.example"));
+    });
+
     it("ログイン成功（userIdなし）→ ルートへリダイレクト + トースト表示", async () => {
         mockLogin.mockResolvedValue({ success: true });
         const user = userEvent.setup();
