@@ -15,6 +15,7 @@ import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import { log } from "../../lib/utils/log";
 import { ROUTES } from "../../lib/routes";
 import { readApiError } from "../../lib/utils/api";
+import { toastWithStaticPage } from "../../lib/utils/staticPage";
 
 export default function AdminPage() {
     const { isAuthenticated, isAdminUser, loading } = useAuth();
@@ -131,10 +132,13 @@ export default function AdminPage() {
                 const result = await response.json().catch(() => ({}));
                 log.info("削除成功:", result);
                 
-                showToast(
-                    locale === "en" ? "Photo deleted successfully." : "写真を削除しました。",
-                    "success"
-                );
+                // **「個別ページは残る」を管理者にも伝える。**
+                // 利用者側の3画面は毎回言っているのに、ここだけ固定文だった
+                // ——本番はトークン未設定で毎回残るので、**管理者だけが
+                // 「消えた」と思い込む**状態になっていた
+                toastWithStaticPage(showToast,
+                    locale === "en" ? "Photo deleted successfully" : "写真を削除しました",
+                    result, locale !== "en");
                 setDeleteModalOpen(false);
                 setPhotoToDelete(null);
                 

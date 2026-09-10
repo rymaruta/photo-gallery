@@ -170,7 +170,18 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             }
         }
 
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: updated }) };
+        // **管理画面にも「個別ページは残る」を伝える。**
+        // 印は行に書いていたのに応答に載せていなかったので、
+        // 管理者だけが「消えた／隠れた」と思い込む状態だった
+        // （利用者側の3画面は `toastWithStaticPage` で毎回言っている）。
+        // 本番はトークン未設定なので、実際には毎回残る
+        return {
+            statusCode: 200,
+            headers: JSON_HEADERS,
+            body: JSON.stringify(hiding && !dispatched
+                ? { success: true, photo: updated, staticStale: true }
+                : { success: true, photo: updated }),
+        };
     } catch (e) {
         // 条件が外れた＝Get と Update の間に写真が消えた。
         // 対の api-user/src/photoUpdate.ts と同じく 404 で返す
@@ -326,9 +337,15 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // /photo/<id> の HTML はそのまま残る（本文・撮影地・EXIF・
         // 表示名入りの JSON-LD まで焼き込まれている）。定期ビルドは
         // 止めてあるので、頼まないと誰かが push するまで消えない。
-        await requestSiteRebuild(`photo deleted: ${id}`);
+        // **戻り値を捨てない。** 捨てていたので「頼めたか」を返しようが
+        // なく、管理画面は削除のたびに「削除しました。」とだけ言っていた
+        const dispatched = await requestSiteRebuild(`photo deleted: ${id}`);
 
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
+        return {
+            statusCode: 200,
+            headers: JSON_HEADERS,
+            body: JSON.stringify(dispatched ? { success: true } : { success: true, staticStale: true }),
+        };
     } catch (e) {
         console.error("deletePhoto error:", e);
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "削除に失敗しました" }) };

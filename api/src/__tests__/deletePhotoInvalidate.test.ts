@@ -37,7 +37,7 @@ const PHOTO = {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const invoke = (): Promise<{ statusCode: number }> => (deletePhoto as any)({
+const invoke = (): Promise<{ statusCode: number; body: string }> => (deletePhoto as any)({
     pathParameters: { id: "p1" },
     requestContext: { authorizer: { jwt: { claims: { sub: "admin" } } } },
 });
@@ -61,7 +61,28 @@ describe("管理APIの写真削除", () => {
         ]));
     });
 
-    // 逆向き: 消せなかったキーは回さない（消えていない実体のキャッシュを
+        // **掃除を頼めたかを応答に載せる。**
+    //
+    // `requestSiteRebuild` の**戻り値を捨てて**いたので、管理画面は削除の
+    // たびに「写真を削除しました。」とだけ言っていた——利用者側の3画面は
+    // 「個別ページは残ることがあります」と毎回言っているのに、
+    // **管理者だけが「消えた」と思い込む**状態だった。本番はトークン
+    // 未設定なので、実際は毎回残る（本文・撮影地・表示名入りの JSON-LD ごと）
+    it("依頼が届かなければ、応答で知らせる", async () => {
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke();
+        expect(res.statusCode).toBe(200);   // 削除そのものは成立している
+        expect(JSON.parse(res.body).staticStale, "画面が伝えようがない").toBe(true);
+    });
+
+    it("届いたときは載せない", async () => {
+        mockRebuild.mockResolvedValue(true);
+        const res = await invoke();
+        expect(JSON.parse(res.body).staticStale).toBeUndefined();
+        expect(JSON.parse(res.body).success).toBe(true);
+    });
+
+// 逆向き: 消せなかったキーは回さない（消えていない実体のキャッシュを
     // 捨てても取り直されるだけで、無効化はパス単位で課金される）
     it("消せなかったキーはエッジに回さない", async () => {
         mockS3Send.mockImplementation((cmd: { input: { Key: string } }) =>

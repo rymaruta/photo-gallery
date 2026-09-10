@@ -84,4 +84,24 @@ describe("管理APIで非公開にしたとき", () => {
         expect(mockRebuild).not.toHaveBeenCalled();
         expect(updateExprs().some((e) => e.includes("staticStale"))).toBe(false);
     });
+
+    // **印を行に書くだけでなく、応答にも載せる。**
+    //
+    // 書いてはいたが返していなかったので、管理画面は
+    // 「保存しました」とだけ言っていた——利用者側の3画面は
+    // `toastWithStaticPage` で毎回「個別ページは残ることがあります」と
+    // 言っているのに、**管理者だけが「隠れた」と思い込む**状態だった。
+    // 本番はトークン未設定なので、実際には毎回残る
+    it("応答にも印を載せる（画面が伝えられるように）", async () => {
+        mockRebuild.mockResolvedValue(false);
+        const res = await invoke({ published: false });
+        expect(JSON.parse(res.body).staticStale, "画面が伝えようがない").toBe(true);
+    });
+
+    it("届いたときは応答に載せない", async () => {
+        mockRebuild.mockResolvedValue(true);
+        const res = await invoke({ published: false });
+        expect(JSON.parse(res.body).staticStale).toBeUndefined();
+        expect(JSON.parse(res.body).success).toBe(true);
+    });
 });

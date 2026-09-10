@@ -261,6 +261,17 @@ export default function StoriesBar() {
         }
     }, [userId]);
 
+    /**
+     * ビューアの中でブロックしたか。**閉じたときに一覧を取り直す。**
+     *
+     * サーバーは `GET /stories` でブロック両向きを除外するが、ここが
+     * 取り直すのはマウント時と `isAuthenticated` の変化時だけ。
+     * 伝えないと、ブロックした相手のリングが残って開ける
+     * （プロフィール経由だと、ギャラリーへ戻る時点で再マウントされるので
+     *   症状が出ない——**症状が出る唯一の経路がビューア側**）。
+     */
+    const blockedWhileViewingRef = useRef(false);
+
     useEffect(() => {
         // 未ログインではストーリーを取得も表示もしない
         if (!isAuthenticated) {
@@ -1090,7 +1101,17 @@ export default function StoriesBar() {
                     isAuthenticated={isAuthenticated}
                     onSeen={handleSeen}
                     onDelete={handleDeleteStory}
-                    onClose={() => setViewerGroup(null)}
+                    onBlocked={() => { blockedWhileViewingRef.current = true; }}
+                    // **閉じてから取り直す。** 開いている間に `groups` を
+                    // 差し替えると添字がずれ、見ている最中に別の人の
+                    // ストーリーへ飛ぶ（消えるのは自分ではなく相手の束）
+                    onClose={() => {
+                        setViewerGroup(null);
+                        if (blockedWhileViewingRef.current) {
+                            blockedWhileViewingRef.current = false;
+                            void loadStories();
+                        }
+                    }}
                 />
             )}
         </div>

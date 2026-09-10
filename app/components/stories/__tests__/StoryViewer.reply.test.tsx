@@ -9,6 +9,7 @@ import { STORY_REACTIONS } from "@/lib/stories";
 // 返信はストーリーの中心にある往復で、ここが無いと置いておくだけになる。
 
 const mockUserFetch = vi.hoisted(() => vi.fn());
+
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 vi.mock("../../../../lib/utils/api", () => ({
     userFetch: (...a: unknown[]) => mockUserFetch(...a),
@@ -383,6 +384,48 @@ describe("届いた返信から、その人をブロックする", () => {
             await waitFor(() => expect(blockCalls()).toHaveLength(1));
             await waitFor(() => expect(seen, "一覧が古いまま（写真が出続ける）").toHaveLength(1));
         } finally { off(); }
+    });
+
+    // **ストーリーのバーも取り直させる。**
+    // サーバーは `GET /stories` でブロック両向きを除外するが、
+    // `StoriesBar` が取り直すのはマウント時と認証の変化時だけ。
+    // 伝えないと**ブロックした相手のリングが残って開ける**。
+    // プロフィール経由だとギャラリーへ戻る時点で再マウントされるので
+    // 症状が出ない——**症状が出る唯一の経路がこちら**
+    it("ブロックしたことを親へ伝える（バーを取り直させる）", async () => {
+        withReply();
+        const onBlocked = vi.fn();
+        view(ownGroups(1), { onBlocked });
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
+        await waitFor(() => expect(blockCalls()).toHaveLength(1));
+        await waitFor(() => expect(onBlocked, "リングが残ったままになる").toHaveBeenCalledWith("u2"));
+    });
+
+    // **失敗を無言にしない。** プロフィール側は理由を出すのに、
+    // ここだけ押しても何も起きないように見えていた
+    it("失敗したら理由を出す", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/block") && init?.method === "POST") {
+                return Promise.resolve({ ok: false, status: 500, json: async () => ({}) });
+            }
+            if (String(url).includes("/replies")) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({ items: [{ id: "r1", uid: "u2", name: "しつこい人", text: "…", t: "2026-07-04T12:00:00Z" }] }),
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        const onBlocked = vi.fn();
+        view(ownGroups(1), { onBlocked });
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
+        await waitFor(() => expect(blockCalls()).toHaveLength(1));
+        // **その場に出す**（`replyError` と同じ形。トーストにすると
+        // `useToast` の Provider がこの部品に必要になり、単体で描けなくなる）
+        expect(await screen.findByRole("alert"), "押しても何も起きないように見える").toBeInTheDocument();
+        expect(onBlocked, "効いていないのに親へ伝えている").not.toHaveBeenCalled();
     });
 
     it("失敗した回は反映しない", async () => {

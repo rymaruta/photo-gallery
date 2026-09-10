@@ -13,7 +13,7 @@ import { changedFields } from "../../../lib/utils/changedFields";
 import { sanitizeProfile } from "../../../lib/utils/profileShape";
 import { parseMusicEmbed, musicServiceLabel, type SongResult } from "../../../lib/utils/music";
 import { toUploadSafeFile, AVATAR_MAX_PX, COVER_MAX_PX } from "../../../lib/utils/image";
-import { unstrippableMessage } from "../../../lib/utils/uploadRejection";
+import { unstrippableMessage, gifRejectedMessage } from "../../../lib/utils/uploadRejection";
 import { useSongSearch } from "../../../lib/hooks/useSongSearch";
 import { isImeKey } from "../../../lib/utils/ime";
 import { log } from "../../../lib/utils/log";
@@ -252,6 +252,15 @@ export default function ProfileEditPage() {
         // アップロードに失敗したあと同じ写真でやり直せなかった。
         e.target.value = "";
         if (!file) return;
+        // **GIF は選んだ時点で断る。** `toUploadSafeFile` は GIF を必ず
+        // `UnstrippableFileError` にするので、進めても必ず失敗する
+        // ——プレビューが一瞬出てから断られる形だった。
+        // アップロード画面（アイコン）とストーリーは選択時に断っている
+        // ＝この2か所（カバー・アバター）だけ残っていた
+        if (file.type === "image/gif") {
+            showToast(gifRejectedMessage(locale), "error");
+            return;
+        }
         const reader = new FileReader();
         // 失敗したらプレビューを消す。残したままだと**保存された気になる**
         // ——画面には新しい写真が出ているのに、S3 にもプロフィールにも
@@ -311,6 +320,15 @@ export default function ProfileEditPage() {
         // 同じファイルを選び直せるように値を空にする（失敗後のやり直し用）
         e.target.value = "";
         if (!file) return;
+        // **GIF は選んだ時点で断る。** `toUploadSafeFile` は GIF を必ず
+        // `UnstrippableFileError` にするので、進めても必ず失敗する
+        // ——プレビューが一瞬出てから断られる形だった。
+        // アップロード画面（アイコン）とストーリーは選択時に断っている
+        // ＝この2か所（カバー・アバター）だけ残っていた
+        if (file.type === "image/gif") {
+            showToast(gifRejectedMessage(locale), "error");
+            return;
+        }
 
         // プレビュー表示
         const reader = new FileReader();

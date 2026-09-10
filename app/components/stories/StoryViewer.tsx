@@ -129,10 +129,24 @@ type Props = {
     onSeen: (storyId: string) => void;
     /** 自分のストーリーを削除。成功時 true を返すと閉じる */
     onDelete?: (storyId: string) => Promise<boolean>;
+    /**
+     * 返信一覧からブロックした。**親はストーリーの一覧を取り直すこと。**
+     *
+     * サーバーは `GET /stories` でブロック両向きを除外する
+     * （`api-user/src/stories.ts` の `hiddenUserIds`）が、`StoriesBar` が
+     * 取り直すのは**マウント時と `isAuthenticated` の変化時だけ**。
+     * 伝えないと、ブロックした相手のリングがバーに残り、開いて再生できる。
+     *
+     * **プロフィール経由のブロックでは起きない**——あちらはギャラリーへ
+     * 戻る時点で `StoriesBar` が再マウントされて取り直すので、直さなくても
+     * 症状が出ない。**症状が出る唯一の経路がこちら**、という非対称は
+     * フォローの一覧でまったく同じ形を踏んだばかり
+     */
+    onBlocked?: (userId: string) => void;
     onClose: () => void;
 };
 
-export default function StoryViewer({ groups, initialGroupIndex, locale, ownUserId, isAuthenticated, onSeen, onDelete, onClose }: Props) {
+export default function StoryViewer({ groups, initialGroupIndex, locale, ownUserId, isAuthenticated, onSeen, onDelete, onBlocked, onClose }: Props) {
     const [g, setG] = useState(initialGroupIndex);
     const [i, setI] = useState(0);
     // 動画の進捗は **DOM に直接書く**（下の rAF ループ）。
@@ -162,6 +176,8 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const [replySending, setReplySending] = useState(false);
     const [replySent, setReplySent] = useState(false);
     const [replyError, setReplyError] = useState<string | null>(null);
+    /** ブロックが効かなかった理由（`replyError` と同じ形でその場に出す） */
+    const [blockError, setBlockError] = useState<string | null>(null);
     /** 入力中は進めない（打っている間に次のストーリーへ送られない） */
     const [replyFocused, setReplyFocused] = useState(false);
     // 届いた返信（投稿者だけ）
@@ -611,6 +627,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const blockSender = useCallback(async (uid: string) => {
         if (!uid || blocking) return;
         setBlocking(uid);
+        setBlockError(null);
         try {
             const { userFetch } = await import("../../../lib/utils/api");
             const res = await userFetch(`/users/${encodeURIComponent(uid)}/block`, { method: "POST" });
@@ -626,11 +643,25 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 // プロフィール経由のブロックだけ直して、こちらを忘れていた
                 const { noteFollowSevered } = await import("../../../lib/hooks/useFollow");
                 noteFollowSevered(uid);
+                // ストーリーのバーも取り直させる（doc を見よ）
+                onBlocked?.(uid);
+            } else {
+                // **失敗を無言にしない。** プロフィール側は理由を出すのに、
+                // ここだけ押しても何も起きないように見えていた。
+                //
+                // **トーストは使わない。** `useToast` は Provider が無いと
+                // 投げるので、この部品に持たせると**単体で描けなくなる**
+                // （実際 7ファイル・68件が落ちた）。同じファイルの
+                // `replyError` と同じ形——押したボタンの近くに1行出す
+                const { readApiError } = await import("../../../lib/utils/api");
+                setBlockError(await readApiError(res, locale === "en" ? "Couldn't do that." : "できませんでした"));
             }
-        } catch { /* 押し直せる。ここで画面は変えない */ } finally {
+        } catch {
+            setBlockError(locale === "en" ? "Couldn't do that." : "できませんでした");
+        } finally {
             setBlocking(null);
         }
-    }, [blocking]);
+    }, [blocking, onBlocked, locale]);
 
     const handleDelete = useCallback(async () => {
         if (!item || !onDelete) return;
@@ -1281,6 +1312,9 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                 押してから出しても遅い（確認ダイアログを増やす
                                 かわりに、ボタンと同じ画面に1行置く）。
                                 出すのはボタンが1つでも出ているときだけ */}
+                            {blockError && (
+                                <p className="pt-1.5 text-center text-[11px] text-rose-300" role="alert">{blockError}</p>
+                            )}
                             {(replies ?? []).some((r) => !r.deleted && !blockedIds.has(r.uid)) && (
                                 <p className="pt-1 text-[11px] text-white/60 leading-relaxed">
                                     {locale === "en"
