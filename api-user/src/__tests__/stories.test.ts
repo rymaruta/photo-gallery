@@ -399,6 +399,16 @@ describe("createStory: 撮影地", () => {
         expect("coords" in saved(), "範囲外の座標を保存している").toBe(false);
     });
 
+    // **動画には位置を付けない。** 位置は写真の EXIF から来るもので、動画は
+    // `toUploadSafeVideo` が GPS を落としている。画面側の1か所だけで守ると、
+    // 細工した要求で動画に座標を付けられる（片側だけの防御を作らない）
+    it("動画のストーリーには位置を付けない", async () => {
+        mockDdbSend.mockResolvedValue({ Count: 0 });
+        await post({ mediaType: "video", location: "横浜", coords: { lat: 35.45, lng: 139.63 } });
+        expect("location" in saved(), "動画に撮影地を付けている").toBe(false);
+        expect("coords" in saved(), "動画に座標を付けている").toBe(false);
+    });
+
     it("場所を送らなければ、項目ごと持たない", async () => {
         mockDdbSend.mockResolvedValue({ Count: 0 });
         await post({});

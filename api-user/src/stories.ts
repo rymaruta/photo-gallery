@@ -208,8 +208,11 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     // 検証は写真と同じものを通す（`sanitizeText` / `sanitizeCoords`）。
     // 座標は約1kmに丸めたものだけを受ける——生の緯度経度を公開URLに
     // 載せないのは、このリポジトリが写真で一貫して守っている線
-    const location = sanitizeText(body.location, 200) || undefined;
-    const coords = sanitizeCoords(body.coords) ?? undefined;
+    // **動画には位置を付けない。** 位置は写真の EXIF から来るもので、動画は
+    // `toUploadSafeVideo` が GPS を落としている——画面側の1か所だけで守ると、
+    // 細工した要求で動画に座標を付けられる（「片側だけの防御」を作らない）
+    const location = mediaType === "image" ? (sanitizeText(body.location, 200) || undefined) : undefined;
+    const coords = mediaType === "image" ? (sanitizeCoords(body.coords) ?? undefined) : undefined;
 
     // 画像ストーリーの表示秒数。投稿者が選べる（既定5秒）。
     // 3秒未満は読み切れず、15秒を超えると見る側が飽きるため範囲を固定する。

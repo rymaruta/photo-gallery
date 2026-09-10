@@ -104,6 +104,17 @@ export default function StoriesBar() {
     const [storyLocation, setStoryLocation] = useState("");
     /** 写真の GPS（丸めはサーバー側。写真のアップロード画面と同じ形） */
     const [storyCoords, setStoryCoords] = useState<{ lat: number; lng: number } | null>(null);
+    /**
+     * 下書きの世代。**自動入力の書き戻しを、今の下書きに限る。**
+     *
+     * 位置を引くのに数秒かかるので、その間に閉じて別の写真（や動画）を選ぶと、
+     * **前の写真の撮影地が次の投稿に載る**——自宅で撮った1枚を選んで閉じ、
+     * 次に別の写真を上げると、ログイン中の全員のトレイに自宅の地名が出る。
+     * そのまま「残す」を押せば公開写真の撮影地と地図のピンになる。
+     * 写真のアップロード画面は同じ形を2つの手（写真ごとの id 照合と
+     * 離脱の札）で塞いでいて、こちらだけ無かった。
+     */
+    const draftGenRef = useRef(0);
     // ストーリーBGM（任意・1曲）
     const [draftSong, setDraftSong] = useState<SongResult | null>(null);
     const [songPickerOpen, setSongPickerOpen] = useState(false);
@@ -285,6 +296,7 @@ export default function StoriesBar() {
     const closeDraft = useCallback(() => {
         // 解放は上の effect が担う（✕ を押さずに離れた場合も拾うため）
         stopPreview();
+        draftGenRef.current++;
         setDraft(null);
         setStoryLocation("");
         setStoryCoords(null);
@@ -398,6 +410,7 @@ export default function StoriesBar() {
         // あるが、それは「押しても何も起きない数秒」を新しく作る。
         // 開くときに片方を閉じる方が、見えている物と操作の対応が保てる。
         setViewerGroup(null);
+        const gen = ++draftGenRef.current;
         setDraft({ file: prepared, previewUrl: URL.createObjectURL(prepared), mediaType: isVideo ? "video" : "image" });
         setCaption("");
         setStoryLocation("");
@@ -420,8 +433,11 @@ export default function StoriesBar() {
                     const { extractExifFromFile, reverseGeocode } = await import("../../../lib/utils/exif");
                     const meta = await extractExifFromFile(file);
                     if (typeof meta.latitude !== "number" || typeof meta.longitude !== "number") return;
+                    // **今の下書き宛てのときだけ書き戻す**（上の `draftGenRef`）
+                    if (gen !== draftGenRef.current) return;
                     setStoryCoords({ lat: meta.latitude, lng: meta.longitude });
                     const place = await reverseGeocode(meta.latitude, meta.longitude, locale);
+                    if (gen !== draftGenRef.current) return;
                     // **打ち始めていたら上書きしない**（後から届く値で消さない）
                     if (place) setStoryLocation((prev) => prev || place);
                 } catch (e) {
@@ -434,6 +450,21 @@ export default function StoriesBar() {
     // 投稿: 圧縮（画像のみ）→ presigned URL → S3 → レコード作成
     const handlePost = useCallback(async () => {
         if (!draft) return;
+        // **送る撮影地は、ここで1回だけ決める。**
+        //   - **動画には付けない。** 位置は写真の EXIF から来るもので、動画は
+        //     `toUploadSafeVideo` が GPS を落としている（サーバーも同じ判断）
+        //   - **設定をもう一度見る。** 引いたのは選んだ時点なので、待っている
+        //     間に GPS 自動入力を切られたら送らない（写真側は都度と送信時の
+        //     両方で見ていて、こちらは選択時の1回だけだった）
+        //   - **座標は送る前に丸める。** 写真のアップロード画面は
+        //     `page.tsx:870` で同じことをしている
+        const gpsOn = (() => {
+            try { return localStorage.getItem("jp_gps_autofill") !== "0"; } catch { return true; }
+        })();
+        const sendLocation = draft.mediaType === "image" && gpsOn ? storyLocation.trim() : "";
+        const sendCoords = sendLocation && storyCoords
+            ? { lat: Math.round(storyCoords.lat * 100) / 100, lng: Math.round(storyCoords.lng * 100) / 100 }
+            : null;
         setPosting(true);
         stopPreview();
         // **投稿中でもやめられるようにする。** 以前は投稿ボタンもキャンセルも
@@ -548,8 +579,12 @@ export default function StoriesBar() {
                     // **撮影地。** 残したときにそのまま写真の撮影地になる
                     // （`storyKeep.ts`）＝地図と `/location/<スラッグ>` に載る。
                     // 座標は地名とセットのときだけ送る（サーバーも同じ判断）
-                    ...(storyLocation.trim() ? { location: storyLocation.trim() } : {}),
-                    ...(storyLocation.trim() && storyCoords ? { coords: storyCoords } : {}),
+                    ...(sendLocation ? { location: sendLocation } : {}),
+                    // **送る前に丸める。** サーバーも `sanitizeCoords` で丸めるが、
+                    // 写真のアップロード画面は**送る前にも**丸めている
+                    // （`page.tsx:870`）。片側だけ欠けると、経路が1つ増えた
+                    // ときに生の緯度経度が外に出る側へ倒れる
+                    ...(sendLocation && sendCoords ? { coords: sendCoords } : {}),
                     ...(draftSong ? { song: { title: draftSong.title, artist: draftSong.artist, artwork: draftSong.artwork, previewUrl: draftSong.previewUrl, trackUrl: draftSong.trackUrl, ...(songStart > 0 ? { startSec: songStart } : {}) } } : {}),
                     ...(draft.mediaType === "image" ? { durationSec } : {}),
                     ...(displayName ? { displayName } : {}),
@@ -795,6 +830,12 @@ export default function StoriesBar() {
                             style={{ fontSize: "16px" }}
                         />
 
+                        {/* **動画には出さない。** 位置は写真の EXIF から来るもので、
+                            動画は `toUploadSafeVideo` が GPS を落としている
+                            （サーバーも動画の位置は受けない）。押しても効かない
+                            欄を置かない */}
+                        {draft.mediaType === "image" && (
+                        <>
                         {/* **撮影地（任意）。** 写真の GPS から自動で入る
                             （設定 `jp_gps_autofill` がオフなら入らない）。
                             ここを埋めておくと、あとで「残す」を押したときに
@@ -808,9 +849,11 @@ export default function StoriesBar() {
                             disabled={posting}
                             placeholder={locale === "en" ? "Where? (optional)" : "撮影地（任意）"}
                             aria-label={locale === "en" ? "Shooting location" : "撮影地"}
-                            className="w-full mt-2 px-4 py-2.5 bg-black/55 backdrop-blur-sm ring-1 ring-white/10 rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-black/70"
+                            className="w-full px-4 py-2.5 bg-black/55 backdrop-blur-sm ring-1 ring-white/10 rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-black/70"
                             style={{ fontSize: "16px" }}
                         />
+                        </>
+                        )}
 
                         {/* ストーリーBGM（任意） */}
                         {draftSong ? (

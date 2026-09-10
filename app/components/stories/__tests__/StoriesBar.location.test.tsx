@@ -34,6 +34,9 @@ vi.mock("@/lib/utils/image", () => ({
     compressImage: async (f: File) => f,
     UnstrippableFileError: class extends Error {},
 }));
+// 動画の位置除去は本物を通すと jsdom で走らない。ここで見たいのは
+// 「動画には撮影地の欄を出さない」なので素通しにする
+vi.mock("@/lib/utils/video", () => ({ toUploadSafeVideo: async (f: File) => f }));
 vi.mock("../../../../lib/utils/exif", () => ({
     extractExifFromFile: (f: File) => mockExtract(f),
     reverseGeocode: (...a: unknown[]) => mockReverse(...a),
@@ -101,8 +104,10 @@ describe("ストーリーの撮影地", () => {
 
         await waitFor(() => expect(posted()).toHaveLength(1));
         expect(posted()[0].location).toBe("横浜市");
-        // 丸めはサーバー側（写真のアップロード画面と同じ形）
-        expect(posted()[0].coords).toEqual({ lat: 35.4567, lng: 139.6321 });
+        // **送る前にも丸める**（サーバーも `sanitizeCoords` で丸めるが、
+        // 写真のアップロード画面は送る前にも丸めている＝二重）。
+        // 一度「丸めはサーバー側だけ」と書いていたが、それは写真側と違った
+        expect(posted()[0].coords, "生の緯度経度を送っている").toEqual({ lat: 35.46, lng: 139.63 });
     });
 
     // 地名の無い座標は画面に出しようがなく、残しても「名前の無い点」が増えるだけ
@@ -149,5 +154,84 @@ describe("ストーリーの撮影地", () => {
         await waitFor(() => expect(mockExtract).toHaveBeenCalled());
         expect(mockReverse, "座標が無いのに地名を引きに行っている").not.toHaveBeenCalled();
         expect((screen.getByLabelText("撮影地") as HTMLInputElement).value).toBe("");
+    });
+});
+
+
+// **待っている間に別の写真へ移っても、前の場所を持ち越さない。**
+// 位置を引くのに数秒かかるので、その間に閉じて別の写真（や動画）を選ぶと、
+// 前の写真の撮影地が次の投稿に載る——自宅で撮った1枚を選んで閉じ、次に
+// 別の写真を上げると、**ログイン中の全員のトレイに自宅の地名が出る**。
+// そのまま「残す」を押せば公開写真の撮影地と地図のピンになる。
+describe("撮影地を持ち越さない", () => {
+    /** 逆ジオコーディングを手で解決できるようにする */
+    const heldReverse = () => {
+        let release!: (v: string) => void;
+        mockReverse.mockImplementation(() => new Promise<string>((r) => { release = r; }));
+        return { release: (v: string) => release(v) };
+    };
+
+    it("閉じて別の写真を選んだら、前の撮影地は載らない", async () => {
+        const held = heldReverse();
+        mockExtract.mockResolvedValue({ latitude: 35.45, longitude: 139.63 });
+        const { container } = render(<StoriesBar />);
+        await screen.findByText("あなた");
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, new File(["A"], "a.jpg", { type: "image/jpeg" }));
+        await screen.findByRole("button", { name: /ストーリーに投稿/ }, { timeout: 5000 });
+
+        // 引いている途中で閉じて、別の写真（GPS 無し）を選ぶ
+        await userEvent.click(screen.getByLabelText("キャンセル"));
+        mockExtract.mockResolvedValue({});
+        await userEvent.upload(input, new File(["B"], "b.jpg", { type: "image/jpeg" }));
+        await screen.findByRole("button", { name: /ストーリーに投稿/ }, { timeout: 5000 });
+
+        // ここで1枚目の地名がようやく届く
+        held.release("横浜 みなとみらい");
+        await new Promise((r) => setTimeout(r, 30));
+
+        expect((screen.getByLabelText("撮影地") as HTMLInputElement).value,
+            "前の写真の撮影地が次の下書きに載っている").toBe("");
+    });
+
+    // 動画は `toUploadSafeVideo` が GPS を落とす前提。**欄そのものを出さない**
+    // （押しても効かない欄を置かない。サーバーも動画の位置は受けない）
+    it("動画には撮影地の欄を出さない", async () => {
+        const restore = vi.spyOn(document, "createElement").mockImplementation(((tag: string) => {
+            const el = Object.getPrototypeOf(document).createElement.call(document, tag);
+            if (tag === "video") {
+                Object.defineProperty(el, "duration", { configurable: true, get: () => 5 });
+                Object.defineProperty(el, "src", {
+                    configurable: true,
+                    set() { (el as HTMLVideoElement).onloadedmetadata?.(new Event("loadedmetadata")); },
+                    get() { return "blob:x"; },
+                });
+            }
+            return el;
+        }) as typeof document.createElement);
+        try {
+            const { container } = render(<StoriesBar />);
+            await screen.findByText("あなた");
+            const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+            await userEvent.upload(input, new File(["V"], "v.mp4", { type: "video/mp4" }));
+            await screen.findByRole("button", { name: /ストーリーに投稿/ }, { timeout: 5000 });
+            expect(screen.queryByLabelText("撮影地"), "動画に撮影地の欄を出している").toBeNull();
+        } finally {
+            restore.mockRestore();
+        }
+    });
+
+    // 引いたのは選んだ時点。待っている間に切られたら送らない
+    it("待っている間に GPS 自動入力を切ったら、送らない", async () => {
+        mockExtract.mockResolvedValue({ latitude: 35.45, longitude: 139.63 });
+        mockReverse.mockResolvedValue("横浜 みなとみらい");
+        await pickImage();
+        await waitFor(() => expect((screen.getByLabelText("撮影地") as HTMLInputElement).value).toBe("横浜 みなとみらい"));
+
+        localStorage.setItem("jp_gps_autofill", "0");
+        await userEvent.click(screen.getByRole("button", { name: /ストーリーに投稿/ }));
+
+        await waitFor(() => expect(posted()).toHaveLength(1));
+        expect("location" in posted()[0], "切ったのに送っている").toBe(false);
     });
 });
