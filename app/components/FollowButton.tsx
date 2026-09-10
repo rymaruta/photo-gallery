@@ -19,16 +19,20 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale }: 
     const { followers, following, countsKnown } = useFollow(targetUserId, isAuthenticated);
 
 
-    // 統計ピル（投稿・いいね）と同じ行に並べられるよう、ラッパーを持たない
-    // フラグメントで返す。並びと余白は親のフレックス行が決める。
+    // **自分の行を持つ。** 以前は「投稿・いいね」と同じ行に並べるために
+    // ラッパー無しのフラグメントを返していたが、フォロー中／フォロワーは
+    // 次の行に置く（owner の指示）。ラッパーをここに持たせるのは、
+    // **数が取れていないときに何も描かない**から——親側に空の行を
+    // 置くと、その回だけ余白が16px 残る。
+    if (!countsKnown) return null;
+
     return (
-        <>
+        <div className="flex flex-wrap items-center gap-2 -mt-2 mb-4">
             {/* カウントピル（全員に表示）。フォロー中 → フォロワー の順。
                 **まだ分からない間は出さない**——`?? EMPTY` の 0/0 をそのまま
                 描いていた頃は、取得が落ちた人が「フォロワー 0」と言い切られて
                 いた（本当に0人の人と区別が付かない）。この画面には読み込み中の
                 表示が無いので、出さずに待つ。 */}
-            {countsKnown && (<>
             <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
                 <span className="text-sm font-bold tabular-nums leading-none">{following.toLocaleString()}</span>
                 <span className="text-[11px] text-white/60">{locale === "en" ? "following" : "フォロー中"}</span>
@@ -37,9 +41,7 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale }: 
                 <span className="text-sm font-bold tabular-nums leading-none">{followers.toLocaleString()}</span>
                 <span className="text-[11px] text-white/60">{locale === "en" ? "followers" : "フォロワー"}</span>
             </div>
-            </>)}
-
-        </>
+        </div>
     );
 }
 

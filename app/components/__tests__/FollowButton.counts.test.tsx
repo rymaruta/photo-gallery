@@ -32,7 +32,7 @@ beforeEach(async () => {
 async function renderButton() {
     const mod = await import("../FollowButton");
     const FollowButton = mod.default;
-    render(<FollowButton targetUserId={TARGET} isAuthenticated={false} locale="ja" />);
+    return render(<FollowButton targetUserId={TARGET} isAuthenticated={false} locale="ja" />);
 }
 
 describe("フォロー数のピル", () => {
@@ -55,6 +55,28 @@ describe("フォロー数のピル", () => {
         expect(await screen.findByText("フォロワー")).toBeInTheDocument();
         expect(screen.getByText("501")).toBeInTheDocument();
         expect(screen.getByText("87")).toBeInTheDocument();
+    });
+
+    // **次の行に置く**（owner の指示）。以前はラッパー無しのフラグメントで
+    // 返して、親の「投稿・いいね」の行に混ざっていた。ラッパーを持たせる
+    // 側を間違えると、数が取れていない回に**空の行の余白だけ残る**
+    it("2つのピルは、投稿・いいねとは別の1つの行にまとまっている", async () => {
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ followers: 3, following: 4 }) });
+        const { container } = await renderButton();
+        await screen.findByText("フォロワー");
+        expect(container.children, "行のラッパーが無い（親の行に混ざる）").toHaveLength(1);
+        const row = container.firstElementChild!;
+        expect(row.className).toContain("flex");
+        expect(row.contains(screen.getByText("フォロー中"))).toBe(true);
+        expect(row.contains(screen.getByText("フォロワー"))).toBe(true);
+    });
+
+    it("数が取れていない回は、空の行も描かない（余白だけ残さない）", async () => {
+        mockUserPublicFetch.mockRejectedValue(new Error("network"));
+        const { container } = await renderButton();
+        await waitFor(() => expect(mockUserPublicFetch).toHaveBeenCalled());
+        await new Promise((r) => setTimeout(r, 20));
+        expect(container.innerHTML, "空の行の余白が残る").toBe("");
     });
 
     it("本当に0人なら0を出す（未取得と混ぜない）", async () => {

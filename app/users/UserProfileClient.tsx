@@ -1005,7 +1005,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             <p className="text-sm text-white/85 whitespace-pre-wrap break-words mb-4 leading-relaxed">{userProfile.bio}</p>
                         )}
 
-                    {/* 統計（投稿 / いいね / フォロー中 / フォロワー）— 1行にまとめる */}
+                    {/* 統計（投稿 / いいね / 距離）— 1行にまとめる。
+                        フォロー中 / フォロワーは下の `FollowButton` が次の行に出す */}
                     <div className="flex flex-wrap items-center gap-2 mb-4">
                         <div className="inline-flex items-baseline gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
                             {/* **届く前に「0投稿」と言い切らない。** 同じ画面の
@@ -1036,14 +1037,18 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                 <span className="text-[11px] text-white/60">km</span>
                             </div>
                         )}
-                        {/* フォロワー / フォロー中（同じ行に並べる） */}
-                        <FollowButton
-                            targetUserId={userId}
-                            isOwner={isOwner}
-                            isAuthenticated={viewerAuthed}
-                            locale={locale as "ja" | "en"}
-                        />
                     </div>
+
+                    {/* フォロー中 / フォロワーは**次の行**（owner の指示）。
+                        自分の行と余白は `FollowButton` が持つ——数がまだ
+                        取れていない回に何も描かないので、ここに空の行を
+                        置くと、その回だけ余白が残る */}
+                    <FollowButton
+                        targetUserId={userId}
+                        isOwner={isOwner}
+                        isAuthenticated={viewerAuthed}
+                        locale={locale as "ja" | "en"}
+                    />
 
 
 
