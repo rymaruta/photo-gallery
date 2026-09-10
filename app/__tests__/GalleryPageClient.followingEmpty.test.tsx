@@ -134,17 +134,36 @@ describe("フォロー中フィードの空表示", () => {
         ).toBeNull();
     });
 
-    it("写真の一覧がまだ届いていないときも断定しない", async () => {
+    // 写真がまだ届いていないのは「0人」でも「投稿していません」でもない
+    // ——**読み込み中**。フォロー中の一覧を待つときと同じ扱いにする
+    it("写真の一覧がまだ届いていない間は「読み込み中…」", async () => {
         photosState.current = { loaded: false, failed: false };
         mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: ["u2"] }) });
         render(<ToastProvider><GalleryPageClient /></ToastProvider>);
         fireEvent.click(await screen.findByRole("button", { name: "フォロー中" }));
 
-        expect(await screen.findByText(EMPTY)).toBeInTheDocument();
+        expect(await screen.findByText("読み込み中…")).toBeInTheDocument();
         expect(
             screen.queryByText(/フォロー中の人は、まだ写真を投稿していません/),
             "一覧がまだ来ていないのに「投稿していません」と断定している",
         ).toBeNull();
+        expect(
+            screen.queryByText(EMPTY),
+            "まだ来ていないのに「誰もフォローしていない人」と同じ画面を出している",
+        ).toBeNull();
+    });
+
+    // **落ちた回は「読み込み中…」に落とさない。** `usePhotos` は失敗しても
+    // `loaded` を立てないので、`!photosLoaded` だけで判定すると
+    // **永久に「読み込み中…」**になる
+    it("写真の取得に失敗したら、読み込み中のまま固まらない", async () => {
+        photosState.current = { loaded: false, failed: true };
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: ["u2"] }) });
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        fireEvent.click(await screen.findByRole("button", { name: "フォロー中" }));
+
+        expect(await screen.findByText(EMPTY)).toBeInTheDocument();
+        expect(screen.queryByText("読み込み中…"), "落ちたのに読み込み中のまま").toBeNull();
     });
 
     it("フォローが0人なら、今までどおりの案内", async () => {

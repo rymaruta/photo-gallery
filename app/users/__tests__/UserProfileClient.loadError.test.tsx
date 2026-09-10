@@ -51,6 +51,38 @@ beforeEach(() => {
 });
 
 describe("プロフィールの取得失敗", () => {
+    // **プロフィールが投げた回に、オーナーの操作だけを有効にしない。**
+    //
+    // `Promise.all` → `Promise.allSettled` に変えたとき、セッションの結果を
+    // プロフィールの失敗より**先に**反映するようにした。それ自体は正しい
+    // （ログイン済みなのにフォロー・ブロックの項目が消えるのを直した）が、
+    // その直後に `throw` を残したので **`isOwner` は true・一覧は
+    // ビルド時 JSON（`photos.json` は全件 published:true）** という
+    // 組み合わせが新しくできた。目のアイコン・ピン・カバーが押せる状態で
+    // 非公開バッジが出ないので、押すと**本当に再公開する**
+    // ——このファイルが元から戒めている当の形。
+    it("プロフィールが投げても、自分の一覧は取りに行く", async () => {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        // `userPublicFetch` は打ち切り・通信断で**投げる**
+        mockUserPublicFetch.mockRejectedValue(new Error("network"));
+
+        render(<UserProfileClient userId={ME} />);
+
+        await waitFor(() => expect(
+            mockUserFetch.mock.calls.some((c) => String(c[0]).startsWith("/user/photos")),
+            "オーナー扱いなのに自分の一覧を取りに行っていない（ビルド時の公開データが残る）",
+        ).toBe(true));
+    });
+
+    // 中断（画面を離れた・userId が変わった）は失敗として出さない
+    it("中断は「読み込めませんでした」にしない", async () => {
+        const abort = Object.assign(new Error("aborted"), { name: "AbortError" });
+        mockUserPublicFetch.mockRejectedValue(abort);
+        const { unmount } = render(<UserProfileClient userId={ME} />);
+        unmount();
+        expect(screen.queryByText(/プロフィールを読み込めませんでした/)).toBeNull();
+    });
+
     it("失敗を伝え、再読み込みで立て直す", async () => {
         // 失敗の間はすべて失敗にする（effect は再マウント等で複数回走りうるので
         // Once で組むと、2回目の成功が1回目の失敗表示を消してしまう）

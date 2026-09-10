@@ -18,7 +18,7 @@ const ROOT = join(__dirname, "..", "..");
 // まさにそれをやっていた。**
 // `requireEnv` は `main()` の中なので、require の副作用は無い。
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { rebuildFnsFromServerless } = require("../diagnose-aws.js");
+const { rebuildFnsFromServerless, reportFunctions, REBUILD_FNS } = require("../diagnose-aws.js");
 const wiredFns = (): string[] => rebuildFnsFromServerless();
 
 describe("診断が見る「トークンを配ってあるべき関数」", () => {
@@ -36,9 +36,48 @@ describe("診断が見る「トークンを配ってあるべき関数」", () =
     // 同じ絵になる
     it("読み取りが壊れたら 0件になる（＝壊れたことが分かる形）", () => {
         expect(wiredFns().length, "1つも読めていない").toBeGreaterThan(5);
-        expect(src, "分母を出していない（0件の意味が読めない）")
-            .toContain("再ビルドのトークンを持つ関数");
-        expect(src).toContain("REBUILD_FNS.length === 0");
+    });
+
+    // **ソースの綴りではなく、出た行を見る。**
+    //
+    // ここは以前 `expect(src).toContain("再ビルドのトークンを持つ関数")` と
+    // 書いていた。文字列が在るかしか見ていないので、**数え方を
+    // `REBUILD_FNS.length`（＝全部揃っていると嘘をつく）に変えても
+    // 509件すべて緑**だった（レビューが変異で実証）。分母を出した目的は
+    // 「0件が『問題なし』なのか『見ていない』なのかを読めるように」なので、
+    // 嘘の数が出せる状態では目的を果たしていない。
+    const fn = (name: string, hasToken: boolean) => ({
+        FunctionName: `photo-gallery-user-api-prod-${name}`,
+        Role: "arn:aws:iam::1:role/shared",
+        Environment: { Variables: hasToken ? { REBUILD_DISPATCH_TOKEN: "x" } : {} },
+    });
+
+    it("トークンを持つ関数の数を、実際に数えて出す", () => {
+        const wired = wiredFns();
+        const lines = reportFunctions([fn(wired[0], true), fn(wired[1], false)]).join("\n");
+        expect(lines, "数えずに分母をそのまま出している（全部揃っていると嘘をつく）")
+            .toContain(`再ビルドのトークンを持つ関数 1/${REBUILD_FNS.length}`);
+        // トークンが無い方には理由付きの `!!` が出る
+        expect(lines).toContain("再ビルドのトークンが無い");
+    });
+
+    it("1つも持っていなければ 0 と出す", () => {
+        const wired = wiredFns();
+        const lines = reportFunctions([fn(wired[0], false)]).join("\n");
+        expect(lines).toContain(`再ビルドのトークンを持つ関数 0/${REBUILD_FNS.length}`);
+    });
+
+    // **配る対象が0件のときは、それ自体を `!!` で言う。**
+    // ここも `expect(src).toContain("REBUILD_FNS.length === 0")` だったので、
+    // 条件を `false &&` で殺しても緑だった
+    it("配る対象を1つも読み取れなければ、診断が壊れていると言う", () => {
+        // 実際の一覧は8件なので、この分岐が生きていることは
+        // 「8件のときは出ない」で確かめる（出ていたら常時 `!!` になる）
+        expect(REBUILD_FNS.length, "一覧が空になっている").toBeGreaterThan(5);
+        expect(reportFunctions([fn(wiredFns()[0], true)]).join("\n"))
+            .not.toContain("1つも読み取れなかった");
+        expect(src, "0件を知らせる分岐が無い")
+            .toMatch(/if \(REBUILD_FNS\.length === 0\)/);
     });
 
     // 読み取りの実装がここと同じ結果を出すこと（両方が同じ規則で読む）

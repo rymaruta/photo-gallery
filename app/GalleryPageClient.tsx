@@ -431,10 +431,22 @@ export default function GalleryPageClient() {
               {locale === "en" ? "Retry" : "もう一度読み込む"}
             </button>
           </div>
-        ) : filters.feed === "following" && !followingLoaded ? (
+        ) : filters.feed === "following" && (!followingLoaded || (filteredPhotos.length === 0 && !photosLoaded && !photosFailed)) ? (
           // まだ分からない。**「0人です」とは言わない**が、真っ白でも困る
           // ——実測: 応答が返らない回線では 5秒・20秒・45秒のいずれでも
           // フィルタバーの直後がフッターで、読み込み中とも失敗とも分からない
+          //
+          // **写真の一覧が届いていない間も同じ。** `photos` の初期値は
+          // ビルド時の JSON で、定期ビルドは週1。0件の理由が「まだ来て
+          // いない」なのに「フォローした人の写真がここに集まります。」を
+          // 出すと、`0caa56d5` が潰した画面（フォローが効いていないように
+          // 見える）が読み込み中だけ復活する。**分からない間は
+          // 読み込み中と言う**——1つ上の分岐と同じ扱い。
+          //
+          // **落ちた回はここに入れない**（`photosFailed`）。入れると
+          // 「読み込み中…」から永久に動かない——`usePhotos` は
+          // `loaded` を立てずに `failed` を立てるので、`!photosLoaded` は
+          // 真のまま。落ちた回は下の分岐が受ける
           <div className="py-16 text-center text-sm text-white/50" role="status" aria-live="polite">
             {locale === "en" ? "Loading…" : "読み込み中…"}
           </div>
@@ -457,8 +469,11 @@ export default function GalleryPageClient() {
                   取得がまだ／落ちた回や、フォロー先が前回の日曜以降に投稿した
                   場合、`filteredPhotos` は0件になる。前の文言（「ここに集まります」）は
                   曖昧だったので嘘ではなかった——**直したぶん強く間違える**、
-                  このセッションが何度も踏んだ型 */}
-              {followingIds.size === 0 || !photosLoaded || photosFailed
+                  このセッションが何度も踏んだ型。
+                  「まだ来ていない」は1つ上の分岐が「読み込み中…」で受ける
+                  ので、ここに残るのは**届いた回と、落ちた回**。落ちた回は
+                  0件の理由が分からないので断定しない側へ倒す */}
+              {followingIds.size === 0 || photosFailed
                 ? (locale === "en"
                   ? "Photos from people you follow will show up here."
                   : "フォローした人の写真がここに集まります。")

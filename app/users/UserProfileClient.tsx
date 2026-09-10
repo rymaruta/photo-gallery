@@ -21,7 +21,7 @@ import type { Photo } from "@/lib/data/photos";
 import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../lib/utils/log";
 import { getCurrentSession } from "../../lib/auth/cognito";
-import { resetFollowingCache } from "../../lib/hooks/useFollow";
+import { noteFollowSevered } from "../../lib/hooks/useFollow";
 import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
 import { publicFetch, userFetch, userPublicFetch, readApiError, sessionErrorMessage } from "../../lib/utils/api";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
@@ -397,16 +397,32 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     userPublicFetch(`/profile/${encodeURIComponent(userId)}`, { signal: controller.signal }),
                     getCurrentSession(),
                 ]);
+                // 中断（画面を離れた・userId が変わった）は何もしない。
+                // `throw` をやめたぶん、ここで見ないと `AbortError` が
+                // 「取得に失敗」として画面に出る
+                if (controller.signal.aborted) return;
                 const sessionResult = sessionSettled.status === "fulfilled" ? sessionSettled.value : null;
                 // **セッションの結果は、プロフィールの失敗より先に反映する。**
-                // 後に置くと、下の throw で catch に飛んで結局同じことになる
                 if (sessionResult) setViewerAuthed(true);
                 if (sessionResult && (sessionResult.getIdToken().payload["sub"] as string | undefined) === userId) {
                     setIsOwner(true);
                 }
-                if (profileSettled.status === "rejected") throw profileSettled.reason;
-                const profileRes = profileSettled.value;
-                const prof = profileRes.ok
+                // **プロフィールが取れなくても、写真の一覧は取りに行く。**
+                //
+                // 以前はここで `throw` していた。`Promise.all` の頃は
+                // `setIsOwner` にも届かなかったので訪問者の見え方に退避して
+                // いたが、セッションを先に反映するようにしたぶん、
+                // **オーナーの操作（目のアイコン・ピン・カバー）が有効なまま
+                // 一覧はビルド時 JSON（`photos.json` は全件 published:true）**
+                // という組み合わせが新しくできていた——このファイルが3か所で
+                // 戒めている「古い公開状態にオーナー操作を載せて誤再公開を
+                // 誘う」形そのもの。プロフィールの失敗は `loadError` に
+                // 落とすだけにして、下の一覧の取得へ進む
+                if (profileSettled.status === "rejected") {
+                    log.error("user profile fetch error:", profileSettled.reason);
+                }
+                const profileRes = profileSettled.status === "fulfilled" ? profileSettled.value : null;
+                const prof = profileRes?.ok
                     ? sanitizeProfile<UserProfile>(await profileRes.json(), `GET /profile/<id>`)
                     : null;
                 if (prof) {
@@ -555,6 +571,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     /** ブロック中かどうか（この画面から押した結果だけを持つ。開いた時点では引かない） */
     const [blocked, setBlocked] = useState(false);
     const [blocking, setBlocking] = useState(false);
+    /** ブロックでフォローが切れたときに `FollowAction` を張り直すための世代 */
+    const [followEpoch, setFollowEpoch] = useState(0);
     // プロフィールQRコード（対面共有用）
     const [qrOpen, setQrOpen] = useState(false);
 
@@ -584,23 +602,35 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             });
             if (res.ok) {
                 setBlocked(next);
-                // **同じ画面のフォローの状態も捨てる。** ブロックは
+                // **同じ画面のフォローの状態も直す。** ブロックは
                 // `unfollowQuietly` を両向きに撃つのに、共有ストアは
                 // ログイン・ログアウトでしか捨てないので、トーストが
-                // 「お互いのフォローも外れました」と言った直後に
-                // **すぐ下のボタンは「フォロー中」のまま**だった。
-                // コミットに「押した人には見えない」と書いたのは誤りで、
-                // 実際には**押した人の画面が間違った状態で見えていた**。
-                resetFollowingCache();
+                // フォローも外れたと言った直後に**すぐ下のボタンは
+                // 「フォロー中」のまま**だった。
+                //
+                // **ここで `resetFollowingCache()` を撃つのは誤り**（一度
+                // そう書いて回帰にした）。あれはログアウト用で、`counts` を
+                // 空にするぶん数のピルが消えたまま戻らず、しかも
+                // `isFollowing` はコンポーネントの state なので「フォロー中」
+                // は直らない——**数字だけ消える**という、より悪い状態になる。
+                //
+                // 解除（`next === false`）では撃たない。ブロックを外しても
+                // フォローは戻らないので、直すものが無い。
+                if (next) {
+                    noteFollowSevered(userId);
+                    // `isFollowing` を書くのは `useFollow` の effect だけで、
+                    // その依存は変わらない。**張り直して読み直させる**
+                    setFollowEpoch((n) => n + 1);
+                }
                 // **状態を断定しない。** `blocked` はこの画面で押した結果しか
                 // 持たない（開き直すと戻る）ので、既にブロック済みの相手に
                 // 押しても `blockUser` は冪等に 200 を返す。「ブロック
-                // しました」と言い切ると、何も変わっていないのに変わった
-                // ように読める
+                // しました」「外れました」と言い切ると、何も変わっていない
+                // のに変わったように読める（2回目は外れていない）
                 showToast(next
                     ? (locale === "en"
-                        ? "This user is blocked. They can't reply, comment, or follow you. Follows in both directions were removed."
-                        : "この人をブロック中にしました。返信・コメント・フォローができなくなります。お互いのフォローも外れました。")
+                        ? "This user is blocked. They can't reply, comment, or follow you, and follows in both directions are removed."
+                        : "この人をブロック中です。返信・コメント・フォローができなくなり、お互いのフォローは外れます。")
                     : (locale === "en" ? "Unblocked." : "ブロックを解除しました。"), "success");
             } else {
                 showToast(await readApiError(res, locale === "en" ? "Couldn't do that." : "できませんでした"), "error");
@@ -1082,6 +1112,10 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             {!isOwner && (
                                 <div className="flex-shrink-0">
                                     <FollowAction
+                                        // ブロックでフォローが切れたら張り直す
+                                        // （`isFollowing` は effect でしか
+                                        // 書かれず、その依存は変わらない）
+                                        key={followEpoch}
                                         targetUserId={userId}
                                         isOwner={isOwner}
                                         isAuthenticated={viewerAuthed}

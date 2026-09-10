@@ -187,6 +187,36 @@ function bumpCountsGen(userId: string): boolean {
     return inflight.delete(userId);
 }
 
+/**
+ * **ブロックでお互いのフォローが切れた**ことを共有ストアへ反映する。
+ *
+ * ここで `resetFollowingCache()` を撃ってはいけない（一度そう書いて
+ * 回帰にした）。あちらは**ログアウト用**で、
+ *
+ *   (a) `counts` を丸ごと空にするので `countsKnown` が false に落ち、
+ *       数のピルが**消える**。取り直しの契機は `online` /
+ *       `visibilitychange` しか無いので、そのタブでは戻ってこない
+ *   (b) `isFollowing` はこの共有ストアではなく**コンポーネントの state**
+ *       なので、リセットしても「フォロー中」のまま
+ *
+ * ＝押した人の画面は「フォロー中のまま、数字だけ消える」になり、
+ * 直そうとした状態より悪い。ここでは切れた相手を一覧から外し、
+ * 数は**消さずに取り直す**（古い数を出したまま新しい数に差し替わる）。
+ *
+ * **ボタンの見た目は呼び出し側の仕事。** `isFollowing` を書くのは下の
+ * effect だけで、その依存は `[targetUserId, isAuthenticated, withCounts]`
+ * ——どれも変わらないので回らない。呼び出し側が `key` を変えて張り直すこと
+ * （`UserProfileClient` がそうしている）。張り直すと effect が
+ * `fetchFollowingSet()` を読み、ここで外した一覧から `false` を得る。
+ */
+export function noteFollowSevered(targetUserId: string): void {
+    if (!targetUserId) return;
+    followingCache?.delete(targetUserId);
+    // 走っている取り込みは押す前の数なので、書き戻させない
+    bumpCountsGen(targetUserId);
+    void loadCounts(targetUserId);
+}
+
 function loadCounts(userId: string): Promise<void> {
     const running = inflight.get(userId);
     if (running) return running;
