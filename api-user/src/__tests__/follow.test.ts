@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockDdbSend = vi.hoisted(() => vi.fn());
 const mockPush = vi.hoisted(() => vi.fn());
 const mockLookup = vi.hoisted(() => vi.fn());
+const mockIsBlocked = vi.hoisted(() => vi.fn());
 
 vi.mock("../dynamodb", () => ({
     ddb: { send: mockDdbSend },
@@ -13,6 +14,11 @@ vi.mock("../notify", () => ({
     pushNotification: mockPush,
     lookupDisplayName: mockLookup,
 }));
+// **境界として差し替える。** 素で通すと、この画面のほとんどのテストが
+// 使っている「`mockDdbSend` に順番どおり答えさせる」形が1つずつずれる
+// （判定の GetItem が2本増えるため）。ブロックそのものの振る舞いは
+// `block.test.ts` と、下の専用の describe で見る。
+vi.mock("../blockCheck", () => ({ isBlocked: mockIsBlocked }));
 
 vi.stubEnv("USERS_TABLE", "users-test");
 const { followUser, unfollowUser, getFollowStats, getMyFollowing } = await import("../follow");
@@ -79,6 +85,7 @@ beforeEach(() => {
     mockDdbSend.mockReset();
     mockPush.mockReset().mockResolvedValue(undefined);
     mockLookup.mockReset().mockResolvedValue("旅人A");
+    mockIsBlocked.mockReset().mockResolvedValue(false);
 });
 
 describe("followUser", () => {
@@ -124,6 +131,57 @@ describe("followUser", () => {
         expect(JSON.parse(res.body).error).toContain("確認できませんでした");
         expect(mockDdbSend).toHaveBeenCalledTimes(1); // 確認の1回だけ。マーカーは書かない
         expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    // **ブロックしたのに、相手のワンタップで関係が戻っていた。**
+    // `blockUser` は両向きのフォローを切るのに、この口には判定が
+    // 1つも無かった（`isBlocked` の呼び出しは stories / storyReplies /
+    // notify / comments の4か所だけで、follow.ts には0件）。
+    // しかも `notify.ts` がフォロー通知を握るので、**ブロックした側は
+    // 気づけない**——フォロワー数だけが増える。
+    it("相手にブロックされていたら 404（実在も確かめず、何も書かない）", async () => {
+        mockIsBlocked.mockImplementation((blocker: string) => Promise.resolve(blocker === OTHER));
+        const res = await invoke(followUser, ev(ME, OTHER));
+        expect(res.statusCode).toBe(404);
+        // **ブロックの事実を教えない**（`storyReplies` と同じ倒し方）
+        expect(JSON.parse(res.body).error).not.toContain("ブロック");
+        expect(mockDdbSend).not.toHaveBeenCalled();
+        expect(transactItems()).toHaveLength(0);
+        expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    // 自分がやったことなので隠す意味が無い。404 にすると
+    // 「消えた人」に見えて、解除すれば直ることが伝わらない
+    it("自分がブロックしている相手は 400 で理由を言う（何も書かない）", async () => {
+        mockIsBlocked.mockImplementation((blocker: string) => Promise.resolve(blocker === ME));
+        const res = await invoke(followUser, ev(ME, OTHER));
+        expect(res.statusCode).toBe(400);
+        expect(JSON.parse(res.body).error).toContain("解除");
+        expect(mockDdbSend).not.toHaveBeenCalled();
+        expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    // 「分からない」を素通ししない。fail-open にすると、
+    // DynamoDB が詰まっている間だけブロックが効かなくなる
+    it("ブロックを確認できなければ 503（何も書かない）", async () => {
+        mockIsBlocked.mockRejectedValue(new Error("throttled"));
+        const res = await invoke(followUser, ev(ME, OTHER));
+        expect(res.statusCode).toBe(503);
+        expect(mockDdbSend).not.toHaveBeenCalled();
+        expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    // 判定は2回とも要る（向きが違う）。往復を増やさないため同時に投げる
+    it("ブロックされていなければ、判定は両向き1回ずつで通る", async () => {
+        queueUserExists();
+        mockDdbSend
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Item: { list: [] } })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Item: { followers: 1, following: 0 } });
+        expect((await invoke(followUser, ev(ME, OTHER))).statusCode).toBe(200);
+        expect(mockIsBlocked.mock.calls).toEqual([[OTHER, ME], [ME, OTHER]]);
     });
 
     it("同じ相手を繰り返しフォローしても通知は積まない", async () => {

@@ -4,6 +4,14 @@ import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { isUserId } from "./userId";
 import { unfollowQuietly } from "./follow";
+import { blockMarkerId, isBlocked } from "./blockCheck";
+
+// 判定（印の綴りと GetItem 1回）は `blockCheck.ts` にある。
+// **`follow.ts` から使うため**に切り出した——このファイルは
+// `unfollowQuietly` を呼ぶので、あちらからここを import すると輪になる。
+// 既存の呼び出し側（`stories` / `comments` / `notify` / `storyReplies`）が
+// 変わらずに済むよう、ここから再輸出する。
+export { blockMarkerId, isBlocked };
 
 /**
  * ブロック。**「この人からの反応を受け取らない」**。
@@ -35,7 +43,6 @@ import { unfollowQuietly } from "./follow";
 /** 1人がブロックできる人数。`following` の2000より小さくてよい */
 export const BLOCKS_MAX = 500;
 
-export const blockMarkerId = (blocker: string, blocked: string) => `block#${blocker}#${blocked}`;
 export const blocksId = (uid: string) => `blocks#${uid}`;
 export const blockedById = (uid: string) => `blockedby#${uid}`;
 
@@ -43,22 +50,6 @@ export const blockedById = (uid: string) => `blockedby#${uid}`;
 function ids(item: Record<string, unknown> | undefined, field: string): string[] {
     const v = item?.[field];
     return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
-}
-
-/**
- * `blocker` が `blocked` をブロックしているか。**GetItem 1回**。
- *
- * 一覧（`blocks#`）ではなく印を引くのは、一覧が上限で切り捨てられても
- * 判定が狂わないようにするため（`follow.ts` が2000人の切り捨てで
- * 「画面から解除できない」を作った形を、こちらでは作らない）。
- */
-export async function isBlocked(blocker: string, blocked: string): Promise<boolean> {
-    if (!blocker || !blocked || blocker === blocked) return false;
-    const res = await ddb.send(new GetCommand({
-        TableName: PHOTOS_TABLE,
-        Key: { id: blockMarkerId(blocker, blocked) },
-    }));
-    return !!res.Item;
 }
 
 /**

@@ -6,6 +6,7 @@ import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { pushNotification, lookupDisplayName } from "./notify";
 import { requireEnv } from "./env";
 import { isUserId } from "./userId";
+import { isBlocked } from "./blockCheck";
 import { isDeletedProfile } from "./types";
 
 const USERS_TABLE = requireEnv("USERS_TABLE");
@@ -370,6 +371,33 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
     // ゴミが増えるほど全員の表示が遅くなる。しかも notifs# は
     // 退会処理でも消えない。
     if (!isUserId(target)) return jsonError(400, "不正なリクエスト");
+
+    // **ブロックした相手とは、フォローの関係を作らせない。**
+    //
+    // `blockUser` は両向きのフォローを切る（`unfollowQuietly` を2回）のに、
+    // **この口には判定が1つも無かった**——ブロックされた側がプロフィールを
+    // 開いて「フォロー」を押すだけで 200 が返り、関係が戻る。しかも
+    // `notify.ts` がフォロー通知を握るので、**ブロックした側は気づけない**
+    // （フォロワー数だけが増える）。「関係を切る」を1回の書き込みで
+    // 済ませた代償が、相手のワンタップで消えていた。
+    //
+    // 判定は2回とも要る（向きが違う）。**同時に投げるので往復は1回分**。
+    //   - 相手が自分をブロック → **404**。ブロックの事実を教えない
+    //     （`storyReplies.ts:150` と同じ倒し方）
+    //   - 自分が相手をブロック → **400 で理由を言う**。自分がやったことなので
+    //     隠す意味が無く、404 にすると「消えた人」に見えて行き止まりになる
+    const [blockedByTarget, blockedByMe] = await Promise.all([
+        isBlocked(target, me).catch((e) => { console.error("followUser isBlocked(target,me):", e); return null; }),
+        isBlocked(me, target).catch((e) => { console.error("followUser isBlocked(me,target):", e); return null; }),
+    ]);
+    // 「分からない」を素通ししない。`userExists` の unknown と同じ倒し方
+    // （押し直せば通る）。fail-open にすると、ブロックしたのに繋がる
+    if (blockedByTarget === null || blockedByMe === null) {
+        return jsonError(503, "確認できませんでした。時間をおいてもう一度お試しください");
+    }
+    if (blockedByTarget) return jsonError(404, "ユーザーが見つかりません");
+    if (blockedByMe) return jsonError(400, "ブロック中の相手です。解除してからフォローしてください");
+
     const exists = await userExists(target);
     // 「居ない」と「確認できなかった」を混ぜない。unknown で 404 を返すと
     // 「見つかりません」という嘘になり、fail-open に戻すとゴミが積める。
@@ -440,6 +468,12 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
  *
  * **失敗しても投げない。** ブロックそのものは既に効いている（印が立って
  * いる）ので、フォローが残ったからといってブロックを失敗にはしない。
+ *
+ * **`unfollowUser` と違って打ち消さない**（あちらは一覧の書き換えが
+ * 3回競合したら `undoUnfollow` でマーカーを戻す）。ここで戻すと
+ * **ブロックがいま切ったフォローを、自分で作り直す**ことになる。
+ * 残るのは「カウンタは減ったのに `following#<自分>` に相手が残る」形で、
+ * フィードは `hiddenUserIds` が両向きに隠すので出てこない。
  */
 export async function unfollowQuietly(target: string, me: string): Promise<void> {
     if (!target || !me || target === me) return;
