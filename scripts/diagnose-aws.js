@@ -271,7 +271,39 @@ const PUBLIC_FNS = [
     "getPublicProfile", "searchUsers", "getLikeCount", "getComments", "getFollowStats",
     "getPhotos", "getPhoto",
 ];
-const REBUILD_FNS = ["updatePhotoVisibility", "deleteMyPhoto", "deleteAccount", "updatePhoto", "deletePhoto"];
+/**
+ * トークンを配ってあるべき関数。**手で並べない。**
+ *
+ * 一度 `["updatePhotoVisibility", "deleteMyPhoto", "deleteAccount",
+ * "updatePhoto", "deletePhoto"]` と書いていたが、実際に配線されているのは
+ * **8つ**（api-user は `presignedUrl` / `savePhoto` / `discardUpload` も）。
+ * つまり**診断が3つ見落としていた**——トークンを登録して5つにだけ届いた
+ * 状態でも `!!` が消え、「済んだ」と読めてしまう。`savePhoto` は公開時に
+ * 再ビルドを頼む当のものなので、そこが黙って外れるのがいちばん困る。
+ *
+ * **診断の数え方を自分で狭くして「0件」と報告する**のは、この台帳で
+ * 一度やって戒めた形（そのときも同じスクリプト）。`serverless.yml` から
+ * 読む——デプロイが見ているのと同じ場所。
+ * 突き合わせは `scripts/__tests__/diagnoseRebuildFns.test.ts`。
+ */
+function rebuildFnsFromServerless() {
+    const fs = require("fs");
+    const path = require("path");
+    const out = [];
+    for (const dir of ["api", "api-user"]) {
+        const file = path.resolve(__dirname, "..", dir, "serverless.yml");
+        if (!fs.existsSync(file)) continue;
+        const yml = fs.readFileSync(file, "utf8");
+        const fnSection = yml.split(/\nfunctions:\n/)[1];
+        if (!fnSection) continue;
+        for (const part of ("\n" + fnSection.split(/\n(?=[a-zA-Z#])/)[0]).split(/\n(?=  \w+:\n)/)) {
+            const m = /^\n?  (\w+):/.exec(part);
+            if (m && part.includes("REBUILD_DISPATCH_TOKEN")) out.push(m[1]);
+        }
+    }
+    return out;
+}
+const REBUILD_FNS = rebuildFnsFromServerless();
 
 async function lambdaRoles() {
     head("Lambda のロールと環境変数（IAM-1 / IAM-2 が当たっているか）");
