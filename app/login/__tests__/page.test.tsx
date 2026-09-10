@@ -356,6 +356,45 @@ describe("LoginPage - 表示名持ち越しによるプロフィール作成", (
         expect(screen.getByText(/記号/), "記号の条件を言っていない").toBeInTheDocument();
     });
 
+    // **前後の空白を落とす。** スマホのキーボードは補完のあとに空白を
+    // 付けることがある。`68a82e10` は「登録・ログイン・再設定」を直したと
+    // 書いたが、**固定できていたのは登録（`cognito.ts`）だけ**だった
+    // （画面側3か所の `.trim()` を消しても全部緑＝レビューが変異で実証）
+    it("ログインは、メールの前後の空白を落として送る", async () => {
+        mockLogin.mockResolvedValue({ success: true });
+        const user = userEvent.setup();
+        render(<LoginPage />);
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), "  u@example.com  ");
+        await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
+        await user.click(screen.getByRole("button", { name: "ログイン" }));
+        await waitFor(() => expect(mockLogin).toHaveBeenCalledWith("u@example.com", "Password1!"));
+    });
+
+    it("再設定のコード送信も、前後の空白を落として送る", async () => {
+        mockForgotPassword.mockResolvedValue({ success: true });
+        const user = userEvent.setup();
+        render(<LoginPage />);
+        await user.click(screen.getByRole("button", { name: /パスワードをお忘れですか/ }));
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), " u@example.com ");
+        await user.click(screen.getByRole("button", { name: /確認コードを送信/ }));
+        await waitFor(() => expect(mockForgotPassword).toHaveBeenCalledWith("u@example.com"));
+    });
+
+    it("再設定の確定も、前後の空白を落として送る", async () => {
+        mockForgotPassword.mockResolvedValue({ success: true });
+        mockConfirmForgotPassword.mockResolvedValue({ success: true });
+        const user = userEvent.setup();
+        render(<LoginPage />);
+        await user.click(screen.getByRole("button", { name: /パスワードをお忘れですか/ }));
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), " u@example.com ");
+        await user.click(screen.getByRole("button", { name: /確認コードを送信/ }));
+        await waitFor(() => expect(screen.getByPlaceholderText("メールに届いたコードを入力")).toBeInTheDocument());
+        await user.type(screen.getByPlaceholderText("メールに届いたコードを入力"), "123456");
+        await user.type(screen.getByPlaceholderText(/8文字以上/), "Password1!");
+        await user.click(screen.getByRole("button", { name: /パスワードを更新/ }));
+        await waitFor(() => expect(mockConfirmForgotPassword).toHaveBeenCalledWith("u@example.com", "123456", "Password1!"));
+    });
+
     it("PUT /user/profile が失敗してもログインは成功扱いで `/` へリダイレクトする", async () => {
         localStorageMock.setItem("jp_pending_name_u@example.com", "失敗太郎");
         mockLogin.mockResolvedValue({ success: true });

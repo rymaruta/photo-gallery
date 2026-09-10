@@ -80,8 +80,11 @@ function SignupForm() {
 
     // ログイン済みならトップへ
     useEffect(() => {
-        if (!loading && isAuthenticated) router.replace("/");   // 済んだ画面は履歴に残さない
-    }, [isAuthenticated, loading, router]);
+        // **戻り先があればそこへ。** `/login` 側は `nextPath ?? …` を見るのに
+        // ここだけトップへ流していた——招待リンクから来た人が既にログイン
+        // 済みだった場合、その場で行き先を失う
+        if (!loading && isAuthenticated) router.replace(nextPath ?? "/");   // 済んだ画面は履歴に残さない
+    }, [isAuthenticated, loading, router, nextPath]);
 
     // URLパラメータ or localStorage から verify ステップを復元
     useEffect(() => {

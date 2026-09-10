@@ -27,13 +27,16 @@ const mockResend = vi.fn();
 const mockShowToast = vi.fn();
 
 let mockSearchParams = new URLSearchParams();
+const mockReplace = vi.fn();
+/** ログイン済みかどうかを差し替える（object 越しにしないと巻き上げに間に合わない） */
+const mockAuthed = { value: false };
 vi.mock("next/navigation", () => ({
-    useRouter: () => ({ push: mockPush, replace: vi.fn() }),
+    useRouter: () => ({ push: mockPush, replace: mockReplace }),
     useSearchParams: () => mockSearchParams,
 }));
 
 vi.mock("../../auth/context", () => ({
-    useAuth: () => ({ isAuthenticated: false, loading: false }),
+    useAuth: () => ({ isAuthenticated: mockAuthed.value, loading: false }),
 }));
 
 vi.mock("../../../lib/hooks/useToast", () => ({
@@ -57,6 +60,8 @@ import SignupPage from "../page";
 
 beforeEach(() => {
     mockSearchParams = new URLSearchParams();
+    mockReplace.mockReset();
+    mockAuthed.value = false;
     localStorageMock.clear();
     mockPush.mockReset();
     mockSignUp.mockReset();
@@ -312,6 +317,14 @@ describe("SignupPage - 確認ステップ", () => {
         mockSearchParams = new URLSearchParams("next=https%3A%2F%2Fevil.example%2Fx");
         render(<SignupPage />);
         expect(screen.getByRole("link", { name: "ログイン" })).toHaveAttribute("href", "/login");
+    });
+
+    // `/login` は `nextPath ?? …` を見るのに、ここだけトップへ流していた
+    it("既にログイン済みなら、next があるときはそこへ送る", async () => {
+        mockSearchParams = new URLSearchParams("next=%2Fj%3Ft%3Dabc");
+        mockAuthed.value = true;
+        render(<SignupPage />);
+        await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/j?t=abc"));
     });
 
     it("next があれば「すでにアカウントをお持ちの方」のリンクにも付ける", async () => {

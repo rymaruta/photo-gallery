@@ -41,7 +41,8 @@ vi.mock("amazon-cognito-identity-js", () => ({
 // static import（環境変数に依存しない）
 import {
     signIn, getCurrentSession, lookupSession, signUp, confirmSignUp,
-    getCurrentUserGroups, isAdmin, isGeneralUser, forgotPassword,
+    getCurrentUserGroups, isAdmin, isGeneralUser, forgotPassword, confirmForgotPassword,
+    PASSWORD_RULE_MESSAGE,
 } from "../cognito";
 
 beforeEach(() => {
@@ -276,6 +277,48 @@ describe("confirmSignUp", () => {
 // 見ていないので、`UserNotFoundException` の分岐を
 // `resolve({ success: false, error: "そのアカウントは存在しません" })` に
 // 書き換えても 50件とも緑だった（実測）。振る舞いで固定する。
+// **1本も実行されていなかった。** `52fd2e21` の見出しに書いた
+// 「再設定のエラーだけ記号が抜けていた」を直したのに、その文言を固定する
+// テストがどこにも無く、旧文言に戻しても緑だった（レビューが変異で実証）。
+// 画面側に足したのは**送る前の長さチェック**で、AWS が
+// `InvalidPasswordException` を返したときの経路は素通りだった。
+describe("confirmForgotPassword", () => {
+    const fail = (err: { code?: string; message?: string }) =>
+        mockConfirmPw.mockImplementation((_c: string, _p: string, cb: { onFailure: (e: unknown) => void }) => cb.onFailure(err));
+
+    it("成功したら success:true", async () => {
+        mockConfirmPw.mockImplementation((_c: string, _p: string, cb: { onSuccess: () => void }) => cb.onSuccess());
+        expect((await confirmForgotPassword("u", "123456", "Password1!")).success).toBe(true);
+    });
+
+    // **プールは記号も要求している**（`provision-env.js` の
+    // `RequireSymbols: true`）。記号を書かないと、`Password1` を弾かれた人が
+    // 「条件は満たしている」と読んで同じものを打ち直し続ける
+    it("パスワードの規則は、記号まで含めて言う", async () => {
+        fail({ code: "InvalidPasswordException", message: "Password does not conform to policy" });
+        const res = await confirmForgotPassword("u", "123456", "Password1");
+        expect(res.success).toBe(false);
+        expect(res.error).toBe(PASSWORD_RULE_MESSAGE);
+        expect(res.error, "記号の条件が抜けている").toContain("記号");
+    });
+
+    it.each([
+        ["CodeMismatchException", "確認コードが正しくありません"],
+        ["ExpiredCodeException", "確認コードの有効期限が切れています"],
+    ])("%s は日本語で伝える", async (code, expected) => {
+        fail({ code, message: "Invalid verification code provided." });
+        expect((await confirmForgotPassword("u", "123456", "Password1!")).error).toBe(expected);
+    });
+
+    // **AWS の英文をそのまま出さない**
+    it("知らない失敗でも英文は出さない", async () => {
+        fail({ code: "SomethingElse", message: "Attempt limit exceeded, please try after some time." });
+        const res = await confirmForgotPassword("u", "123456", "Password1!");
+        expect(res.error).not.toContain("Attempt limit");
+        expect(res.error).toContain("しばらく");
+    });
+});
+
 describe("forgotPassword", () => {
     const fail = (err: { code?: string; message?: string }) =>
         mockForgot.mockImplementation((cb: { onFailure: (e: unknown) => void }) => cb.onFailure(err));
