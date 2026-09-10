@@ -14,6 +14,13 @@ vi.mock("../../../../lib/utils/api", () => ({
     userFetch: (...a: unknown[]) => mockUserFetch(...a),
     authenticatedFetch: vi.fn(),
     publicFetch: vi.fn(),
+    // **列挙のモックに漏れがあると、そこで throw する。**
+    // ブロックが `noteFollowSevered` → `loadCounts` → `userPublicFetch` を
+    // 撃つようになったのに、これが無かった。vitest が
+    // 「No "userPublicFetch" export is defined」を投げ、`loadCounts` の
+    // 内側 catch が飲んで**400ms のタイマーを置き去りにしていた**
+    // （テストは緑のまま、数の取り直しは一度も通っていなかった）
+    userPublicFetch: vi.fn(async () => ({ ok: true, json: async () => ({ followers: 0, following: 0 }) })),
     readApiError: async (_res: unknown, fallback: string) => fallback,
     sessionErrorMessage: () => null,
 }));

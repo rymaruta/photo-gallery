@@ -54,12 +54,6 @@ export async function fetchFollowingSet(): Promise<Set<string>> {
 }
 
 /**
- * ログアウト時に必ず呼ぶこと。
- * これを呼ばないと、同じタブで別の人がログインしたときに
- * 前の人のフォロー一覧がそのまま使われる（ログアウトはクライアント遷移なので
- * モジュールの状態が生き残る）。
- */
-/**
  * 「フォロー中の一覧が変わった」の購読口。
  *
  * **数（`counts`）には購読があるのに、一覧には無かった。**
@@ -80,6 +74,15 @@ function emitFollowingChanged() {
     for (const fn of [...followingListeners]) fn();
 }
 
+/**
+ * ログアウト時に必ず呼ぶこと。
+ * これを呼ばないと、同じタブで別の人がログインしたときに
+ * 前の人のフォロー一覧がそのまま使われる（ログアウトはクライアント遷移なので
+ * モジュールの状態が生き残る）。
+ *
+ * （この doc は `app/auth/context.tsx` が名指しで引いている。
+ *   関数から離すと、ホバーしても出なくなる——一度離した）
+ */
 export function resetFollowingCache() {
     cacheGen++;   // 走っている取得の結果を書き戻させない
     followingCache = null;
@@ -102,6 +105,14 @@ export function resetFollowingCache() {
     for (const [, fns] of listeners) {
         for (const fn of fns) fn();
     }
+    // 一覧をコピーして持っている画面にも伝える。
+    //
+    // **今の3つの呼び出し元（ログイン・ログアウト・退会）では、これが
+    // 無くても直る**——どれも `setAuthState` と同じハンドラの中なので、
+    // `isAuthenticated` の変化で取得の effect が回る。ここが効くのは
+    // **認証の状態を変えずにこれを撃つ形**（モーダルログインなど）を
+    // 入れた日で、そのとき無いと古いコピーが残る。
+    // `noteFollowSevered` と揃えておく方が、片方だけ忘れる形を作らない
     emitFollowingChanged();
 }
 
@@ -445,7 +456,9 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
             // （取り直しがバックオフに入った回は必ずこの順になる）
             const countsStale = (countsGen.get(targetUserId) ?? 0) !== genCountsAtPress;
             if (countsStale) {
-                // 押した結果はもう古い。取り直しに任せる
+                // 押した結果はもう古い。**`noteFollowSevered` が直後に撃つ
+                // 取り直しに任せる**（それも3回とも落ちたら、次に画面へ
+                // 戻ったとき＝`online` / `visibilitychange` まで待つ）
             } else if (typeof data.followers === "number" && cur) {
                 setCounts(targetUserId, { ...cur, followers: data.followers });
             } else if (killedLoad || withCounts) {

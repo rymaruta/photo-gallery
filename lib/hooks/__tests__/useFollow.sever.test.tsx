@@ -224,6 +224,22 @@ describe("noteFollowSevered: ブロックで切れたフォローを反映する
         expect(result.current.followers, "押す前の数が上書きしている").toBe(3);
     });
 
+    // **ログアウト側も揃えておく。**
+    // 今の3つの呼び出し元（ログイン・ログアウト・退会）では、認証の状態が
+    // 同じハンドラで変わるので、これが無くても取得の effect は回る
+    // ＝**今日は無くても同じ**。それでも縛るのは、片方だけ忘れる形
+    // （`noteFollowSevered` は伝えるのに `resetFollowingCache` は伝えない）
+    // を作らないため。認証を変えずに撃つ形を入れた日にここが効く
+    it("resetFollowingCache も一覧の変化を伝える", async () => {
+        const mod = await load();
+        const seen: string[] = [];
+        const off = mod.subscribeFollowingSet(() => seen.push("changed"));
+        try {
+            mod.resetFollowingCache();
+            expect(seen, "一覧を捨てたのに誰にも伝えていない").toHaveLength(1);
+        } finally { off(); }
+    });
+
     it("空の id では何もしない", async () => {
         const mod = await load();
         const before = mockPublicFetch.mock.calls.length;

@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 
 // **取得中と「0人」を同じ画面にしていた。**
 //
@@ -191,6 +191,35 @@ describe("フォロー中フィードの空表示", () => {
 
         expect(await screen.findByText(EMPTY)).toBeInTheDocument();
         expect(screen.queryByText("読み込み中…"), "0人と分かっているのに待っている").toBeNull();
+    });
+
+    // **共有している一覧が変わったら取り直す。**
+    //
+    // この画面は `fetchFollowingSet()` の結果を `followingIds` へ
+    // **コピー**して持つので、共有ストアを直しても伝わらない。
+    // ストーリーの返信一覧からブロックしても、この画面はその下に
+    // 重なったままで再マウントされない＝**ブロックした相手の写真が
+    // 出続けていた**。
+    //
+    // **その受け側を、直したコミットが1本も縛っていなかった**
+    // （撃つ側だけ変異で確かめて「確認した」と書いた）。
+    it("共有している一覧が変わったら取り直す", async () => {
+        // u1 の写真1枚が出ている状態から始める
+        let ids = ["u1"];
+        mockUserFetch.mockImplementation(async () => ({ ok: true, json: async () => ({ userIds: ids }) }));
+        window.history.replaceState({}, "", "/?feed=following");
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        expect(await screen.findByText(/結果: 1 件/)).toBeInTheDocument();
+
+        // ブロックでサーバー側の関係が切れた
+        ids = [];
+        const mod = await import("../../lib/hooks/useFollow");
+        await act(async () => { mod.noteFollowSevered("u1"); });
+
+        await waitFor(() => expect(
+            screen.queryByText(/結果: 0 件/),
+            "一覧が古いまま（ブロックした相手の写真が出続ける）",
+        ).toBeInTheDocument());
     });
 
     it("フォローが0人なら、今までどおりの案内", async () => {
