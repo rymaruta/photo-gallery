@@ -12,7 +12,12 @@ const mockUserFetch = vi.hoisted(() => vi.fn());
 const mockShowToast = vi.hoisted(() => vi.fn());
 const mockReplace = vi.hoisted(() => vi.fn());
 const mockReadSharedPayload = vi.hoisted(() => vi.fn());
-const auth = vi.hoisted(() => ({ isAuthenticated: true }));
+// **`no-group` を作れるようにする。** `isGeneralUser: auth.isAuthenticated`
+// と書いていたので、この画面のテストでは**ログイン済みで権限が無い状態を
+// 一度も作れなかった**——トーストの条件を `gate !== "ok"` に戻しても
+// 14ファイル81件が全部緑（レビューが変異で実証）。
+// 「ログインしているのに切れたと言う」型は、この campaign で**4回**出ている
+const auth = vi.hoisted(() => ({ isAuthenticated: true, inGroup: true }));
 
 vi.mock("next/navigation", () => ({
     useRouter: () => ({ push: vi.fn(), replace: mockReplace }),
@@ -21,7 +26,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("../../../auth/context", () => ({
     useAuth: () => ({
         isAuthenticated: auth.isAuthenticated, isAdminUser: false,
-        isGeneralUser: auth.isAuthenticated, loading: false,
+        isGeneralUser: auth.isAuthenticated && auth.inGroup, loading: false,
     }),
 }));
 vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
@@ -57,6 +62,7 @@ const UploadPage = (await import("../page")).default;
 
 beforeEach(() => {
     auth.isAuthenticated = true;
+    auth.inGroup = true;
     mockShowToast.mockReset(); mockReplace.mockReset();
     mockUserFetch.mockReset().mockResolvedValue({ ok: true, json: async () => [] });
     mockReadSharedPayload.mockResolvedValue({
@@ -101,6 +107,20 @@ describe("取り込んだ写真があるときにログインが切れたら", (
         // 写真0枚では「N枚を公開」が元から無いので、**画面そのものの見出し**で見る
         expect(screen.queryByRole("heading", { name: "写真をアップロード" }),
             "送り返すのに会員画面を出している").toBeNull();
+    });
+
+    // **ログインはしているが権限が無い人**に「ログインが切れました」と言わない。
+    // `/user/edit` が同じテストを持ち、そのコメントに「この campaign で
+    // 3回出ている」と書いてある——その後 `/user/albums` で4回目をやった。
+    // **この画面はテストの作りのせいで、その状態を一度も作れていなかった**
+    it("権限が無いだけの人には、ログインの話をしない", async () => {
+        const { rerender } = render(<UploadPage />);
+        await screen.findByRole("button", { name: /枚を公開/ });
+        auth.inGroup = false;
+        rerender(<UploadPage />);
+
+        await waitFor(() => expect(screen.queryByRole("button", { name: /枚を公開/ })).toBeNull());
+        expect(signedOutToasts().length, "権限の話とログインの話を混ぜている").toBe(0);
     });
 
     it("知らせは赤（成功として出さない）", async () => {

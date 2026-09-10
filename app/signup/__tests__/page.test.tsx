@@ -216,10 +216,14 @@ describe("SignupPage - 登録ステップ", () => {
     // **もう使えない控えは捨てる。** その UUID が確認済みのアカウントを
     // 指していると再送は毎回失敗し、捨てないと24時間の TTL が切れるまで
     // 同じ行き止まりを繰り返す
-    it("もう使えない控え（確認済み）は捨てる", async () => {
+    it.each([
+        ["確認済み扱い", "NotAuthorizedException"],
+        ["居ないユーザー", "UserNotFoundException"],
+        ["確認済み（User is already confirmed）", "InvalidParameterException"],
+    ])("もう使えない控え（%s）は捨てる", async (_label, code) => {
         localStorageMock.setItem("jp_verify_u@example.com", JSON.stringify({ username: "stale-uuid", t: Date.now() }));
         mockSignUp.mockResolvedValue({ success: false, aliasExists: true });
-        mockResend.mockResolvedValue({ success: false, error: "x", code: "NotAuthorizedException" });
+        mockResend.mockResolvedValue({ success: false, error: "x", code });
         render(<SignupPage />);
         await tryResend(userEvent.setup());
         expect(localStorageMock.getItem("jp_verify_u@example.com"), "効かない控えが残る").toBeNull();

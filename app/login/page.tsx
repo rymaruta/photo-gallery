@@ -146,7 +146,13 @@ function LoginForm() {
         }
         setSubmitting(true);
         try {
-            const result = await confirmForgotPassword(username.trim(), resetCode, newPassword);
+            // **コードも落とす。** ここは `type="text"` なので、ブラウザ側の
+            // 正規化は効かない（`type="email"` の欄とは違う）。メールから
+            // 6桁をコピペすると末尾に空白が付くことがあり、そのまま送ると
+            // `CodeMismatchException` →「確認コードが正しくありません」で、
+            // 利用者は同じものを打ち直す。登録側（`app/signup`）は
+            // `code.trim()` に加えて長さまで見ている
+            const result = await confirmForgotPassword(username.trim(), resetCode.trim(), newPassword);
             if (result.success) {
                 setStep("forgot-done");
             } else {
@@ -349,7 +355,7 @@ function LoginForm() {
                         </div>
                         <button
                             type="submit"
-                            disabled={submitting || !resetCode || !newPassword}
+                            disabled={submitting || resetCode.trim().length < 6 || !newPassword}
                             className="w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {submitting ? (

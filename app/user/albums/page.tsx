@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { useLocale } from "../../i18n/context";
@@ -34,23 +34,84 @@ const inviteUrl = (token: string) =>
 export default function AlbumsPage() {
     const { locale } = useLocale();
     const { showToast } = useToast();
-    const gate = useMemberGate();
-
     const [albums, setAlbums] = useState<Album[] | null>(null);
     const [loadError, setLoadError] = useState("");
     const [title, setTitle] = useState("");
     const [busy, setBusy] = useState(false);
     /** 名前を変えている最中のアルバム（id → 入力中の名前） */
     const [editing, setEditing] = useState<{ id: string; title: string } | null>(null);
+
+    /**
+     * 打ちかけがあるか。**送り返す前に見る。**
+     *
+     * この画面にも打って入れる欄が2つある——新規アルバムの名前と、
+     * 改名の欄。どちらもボタンでしか送らないので、別タブでログアウト
+     * すると `router.replace` が画面ごと作り直して**打った名前が消える**。
+     * `/user/profile` で同じものを直した回に、ここを取りこぼしていた
+     * （「横断で探した」と書いておきながら3件目を見落としていた）。
+     *
+     * 改名は「開いただけ」を打ちかけに数えない——開くときに元の名前を
+     * そのまま入れるので、変わっていなければ守るものが無い。
+     */
+    const hasUnsavedWork = title.trim() !== ""
+        || (!!editing && editing.title.trim()
+            !== (albums?.find((a) => a.id === editing.id)?.title ?? "").trim());
+
+    const gate = useMemberGate(hasUnsavedWork);
+
+    /**
+     * **留めたぶん、保存できないことを伝える。** 送り返さないだけで黙って
+     * いると、「作る」を押しても失敗し続ける画面に取り残される。
+     * 一度だけ出す（`/user/edit` `/user/upload` `/user/profile` と同じ形）
+     */
+    // **札そのものは縛れていない。** 消しても落ちるテストが無い
+    // （レビューが変異で実証）。ただし**等価だと断定もしていない**——
+    // deps（`gate` / `hasUnsavedWork` / `locale` / `showToast`）は全部
+    // 値が安定していて（`showToast` は `useCallback([])`）、
+    // 打ちかけが false に戻る回は `useMemberGate` が送り返すので、
+    // **この画面で2回出る経路を作れなかった**。他3画面と揃える意味で残す。
+    // 直前に「等価だから縛らない」と書いて外した判断が誤りだった
+    // （`type="url"` は ASCII の空白しか落とさない）ので、
+    // **断定は書かない**
+    const toldSignedOut = useRef(false);
+    useEffect(() => {
+        // ログインし直したら札を下ろす（二度目を無言にしない）
+        if (gate === "ok") { toldSignedOut.current = false; return; }
+        // **ログインしているが権限が無い人に、ログインの話をしない。**
+        //
+        // `gate !== "ok"` で書いていたので `no-group` と `loading` にも
+        // 出ていた。`no-group` の人は**ログインしている**うえ、
+        // `useMemberGate` 自身が「グループを入れ直す経路はアプリのどこにも
+        // 無い。再ログインでも直らない」と書いている——`MemberOnlyNotice`
+        // の上に**絶対に効かない対処法**を重ねることになる。
+        // しかも札は `ok` でしか下りないので、1回誤射すると**本物の
+        // ログイン切れが無言**になる。
+        //
+        // `/user/edit:486` が同じ1行を持ち、それを守るテストのコメントに
+        // 「この campaign で3回出ている」と書いてある。**4回目をやった。**
+        if (gate !== "anonymous" || !hasUnsavedWork || toldSignedOut.current) return;
+        toldSignedOut.current = true;
+        showToast(locale === "en"
+            ? "You are signed out. This can't be saved yet — sign in again in another tab, then try again."
+            : "ログインが切れました。この内容は保存できません。別のタブでログインし直してから、もう一度お試しください", "error");
+    }, [gate, hasUnsavedWork, locale, showToast]);
     /** 消す前に一度聞く。**押し間違いで消させない**（削除は元に戻せない） */
     const [confirming, setConfirming] = useState<Album | null>(null);
 
     const load = useCallback(async () => {
+        // **失敗を「0件」に潰さない。**
+        //
+        // `setAlbums([])` していたので、赤いエラーと「まだアルバムが
+        // ありません。」が**同時に出て**いた——持っているアルバムが
+        // 消えたように読める。同じリポジトリの `FollowingSheet` が
+        // 「`[]` に潰すと『0人』と『壊れた応答』が混ざる」と書いていて、
+        // `NotificationsBell` も `drafts` も同じ判断をしている。
+        // ここだけ逆をやっていた。`null` のままにすれば
+        // 「読み込み中…」でも「0件」でもなく、失敗の1行だけが出る
         try {
             const res = await userFetch("/albums");
             if (!res.ok) {
                 setLoadError(await readApiError(res, "アルバムを読み込めませんでした"));
-                setAlbums([]);
                 return;
             }
             const data = await res.json() as { albums?: Album[] };
@@ -59,7 +120,6 @@ export default function AlbumsPage() {
         } catch (e) {
             // 圏外とセッション切れを混ぜない
             setLoadError(sessionErrorMessage(e) ?? "アルバムを読み込めませんでした");
-            setAlbums([]);
         }
     }, []);
 
@@ -162,7 +222,15 @@ export default function AlbumsPage() {
     };
 
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
-    if (gate !== "ok") {
+    // **送り返さないと決めた回は、画面も出す。**
+    //
+    // ここでスピナーに落とすと、打ちかけを守るために送り返さなかった意味が
+    // 無い——**見えないまま止まるだけ**で、打った名前は state に残っていても
+    // 読むことも直すこともできない。`/user/upload:1016` のコメントが
+    // この形を名指しで戒めているのに、**その戒めを読まずに同じ形を作った**
+    // （借りたのは `useMemberGate` の引数だけで、その引数が前提にしている
+    //   「画面も出す」を持ってこなかった）
+    if (gate !== "ok" && !hasUnsavedWork) {
         return (
             <main className="min-h-screen bg-black text-white flex items-center justify-center">
                 <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
@@ -206,10 +274,26 @@ export default function AlbumsPage() {
                     </button>
                 </div>
 
-                {loadError && <p role="alert" className="text-sm text-white/85 mb-4">{loadError}</p>}
+                {/* **再試行の口を出す。** `load()` は `gate` が変わったときしか
+                    走らないので、無いとページを開き直すしかなかった
+                    （`drafts` は再試行ボタンを持っている） */}
+                {loadError && (
+                    <div className="mb-4">
+                        <p role="alert" className="text-sm text-white/85">{loadError}</p>
+                        <button
+                            type="button"
+                            onClick={() => { setLoadError(""); void load(); }}
+                            className="mt-2 px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+                            style={{ touchAction: "manipulation" }}
+                        >
+                            {locale === "en" ? "Retry" : "もう一度読み込む"}
+                        </button>
+                    </div>
+                )}
 
                 {albums === null ? (
-                    <p className="text-sm text-white/60" aria-live="polite">読み込み中…</p>
+                    // 失敗した回は「読み込み中…」を出さない（上の1行が説明する）
+                    loadError ? null : <p className="text-sm text-white/60" aria-live="polite">読み込み中…</p>
                 ) : albums.length === 0 ? (
                     <p className="text-sm text-white/60">まだアルバムがありません。</p>
                 ) : (

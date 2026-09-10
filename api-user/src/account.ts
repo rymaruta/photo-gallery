@@ -551,12 +551,18 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                 // `following#<uid>` まで消える——すぐ下のコメントが
                 // 「消してしまうとやり直す手がかりが無くなる」と書いている、
                 // その安全網の外に置くことになる
-                if (!await updateFollowersQuietly(t, uid, false)) { failed.push(t); return; }
+                const listOk = await updateFollowersQuietly(t, uid, false);
                 // フォロー通知の間引きマーカー（follow.ts の follownotify#）も消す。
                 // 消し忘れていた頃は退会のたびに1件ずつ残り、スコープ外リストにも
                 // 載っていない「誰も消さないゴミ」だった。ただの間引き印なので
                 // ベストエフォート（ddbDelete は失敗を握って続行する）。
                 await ddbDelete(PHOTOS_TABLE, { id: `follownotify#${t}#${uid}` });
+                // **一覧から外せなかったら、片付いていない扱いにする。**
+                // 積まないと `followCleanupComplete` が立ち、手がかりの
+                // `following#<uid>` まで消える。ただし**この判定で
+                // `return` しない**——上の `follownotify#` の削除
+                // （誰も消さないゴミになる印）を飛ばさないため
+                if (!listOk) failed.push(t);
             });
             targets = failed;
             // 最後の回では「やり直す」と書かない（実際にはもう回らない）

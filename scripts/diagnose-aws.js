@@ -271,7 +271,39 @@ const PUBLIC_FNS = [
     "getPublicProfile", "searchUsers", "getLikeCount", "getComments", "getFollowStats",
     "getPhotos", "getPhoto",
 ];
-const REBUILD_FNS = ["updatePhotoVisibility", "deleteMyPhoto", "deleteAccount", "updatePhoto", "deletePhoto"];
+/**
+ * トークンを配ってあるべき関数。**手で並べない。**
+ *
+ * 一度 `["updatePhotoVisibility", "deleteMyPhoto", "deleteAccount",
+ * "updatePhoto", "deletePhoto"]` と書いていたが、実際に配線されているのは
+ * **8つ**（api-user は `presignedUrl` / `savePhoto` / `discardUpload` も）。
+ * つまり**診断が3つ見落としていた**——トークンを登録して5つにだけ届いた
+ * 状態でも `!!` が消え、「済んだ」と読めてしまう。`savePhoto` は公開時に
+ * 再ビルドを頼む当のものなので、そこが黙って外れるのがいちばん困る。
+ *
+ * **診断の数え方を自分で狭くして「0件」と報告する**のは、この台帳で
+ * 一度やって戒めた形（そのときも同じスクリプト）。`serverless.yml` から
+ * 読む——デプロイが見ているのと同じ場所。
+ * 突き合わせは `scripts/__tests__/diagnoseRebuildFns.test.ts`。
+ */
+function rebuildFnsFromServerless() {
+    const fs = require("fs");
+    const path = require("path");
+    const out = [];
+    for (const dir of ["api", "api-user"]) {
+        const file = path.resolve(__dirname, "..", dir, "serverless.yml");
+        if (!fs.existsSync(file)) continue;
+        const yml = fs.readFileSync(file, "utf8");
+        const fnSection = yml.split(/\nfunctions:\n/)[1];
+        if (!fnSection) continue;
+        for (const part of ("\n" + fnSection.split(/\n(?=[a-zA-Z#])/)[0]).split(/\n(?=  \w+:\n)/)) {
+            const m = /^\n?  (\w+):/.exec(part);
+            if (m && part.includes("REBUILD_DISPATCH_TOKEN")) out.push(m[1]);
+        }
+    }
+    return out;
+}
+const REBUILD_FNS = rebuildFnsFromServerless();
 
 async function lambdaRoles() {
     head("Lambda のロールと環境変数（IAM-1 / IAM-2 が当たっているか）");
@@ -287,14 +319,36 @@ async function lambdaRoles() {
     const mine = fns.filter((f) => (f.FunctionName ?? "").startsWith(`photo-gallery-api-${stage}-`)
         || (f.FunctionName ?? "").startsWith(`photo-gallery-user-api-${stage}-`));
     if (mine.length === 0) { line(`  photo-gallery(-user)-api-${stage}-* が1つも見つかりません`); return; }
+    for (const l of reportFunctions(mine)) line(l);
+}
 
-    let publicOk = 0, leaked = 0;
+/**
+ * 関数の一覧から報告の行を組む。**AWS を叩く部分と分ける。**
+ *
+ * 分けないと、テストが `診断のソースにこの文字列があるか` しか見られない
+ * ——実際そうなっていて、`tokenOk` を `REBUILD_FNS.length`（＝全部揃って
+ * いると嘘をつく）に変えても、`REBUILD_FNS.length === 0` の分岐を殺しても
+ * **509件すべて緑**だった（レビューが変異で実証）。数えた結果を返す形に
+ * すれば、嘘の数はそのまま落ちる。
+ *
+ * `wanted` を引数に取るのは**テストのため**。モジュール定数を閉じ込めると
+ * 「1つも読み取れなかった」の分岐に入る入力を作れず、綴りを見るテストしか
+ * 書けない（実際そう書いていて、分岐の中身を空にしても緑だった）。
+ *
+ * @param {Array<{FunctionName?: string, Role?: string, Environment?: {Variables?: Record<string, string>}}>} mine
+ * @param {string[]} [wanted] トークンを配ってあるべき関数（既定は serverless.yml から読んだもの）
+ * @returns {string[]}
+ */
+function reportFunctions(mine, wanted = REBUILD_FNS) {
+    const out = [];
+    const line = (s) => out.push(s);
+    let publicOk = 0, leaked = 0, tokenOk = 0;
     for (const f of mine.sort((a, b) => a.FunctionName.localeCompare(b.FunctionName))) {
         const short = f.FunctionName.replace(/^photo-gallery(-user)?-api-[^-]+-/, "");
         const role = (f.Role ?? "").split("/").pop() ?? "";
         const hasToken = Boolean(f.Environment?.Variables?.REBUILD_DISPATCH_TOKEN);
         const wantPublic = PUBLIC_FNS.includes(short);
-        const wantToken = REBUILD_FNS.includes(short);
+        const wantToken = wanted.includes(short);
         const isPublicRole = /publicRead$/.test(role);
         const flags = [];
         if (wantPublic && !isPublicRole) flags.push("!! 共有ロールのまま");
@@ -303,9 +357,21 @@ async function lambdaRoles() {
         if (!hasToken && wantToken) flags.push("!! 再ビルドのトークンが無い（削除しても静的ページが残る）");
         if (wantPublic && isPublicRole) publicOk++;
         if (hasToken && !wantToken) leaked++;
+        if (hasToken && wantToken) tokenOk++;
         line(`  ${short.padEnd(26)} role=${role}${hasToken ? " REBUILD_DISPATCH_TOKEN=あり" : ""}${flags.length ? "  " + flags.join(" / ") : ""}`);
     }
+    // **分母を出す。** 出さないと「`!!` が0件」が「全部揃っている」なのか
+    // 「見る対象が0件」なのか読めない——一覧を `serverless.yml` から
+    // 読むようにしたぶん、**正規表現が壊れたら黙って0件になる**
+    // 数えるのは上のループの中（`publicOk` / `leaked` と同じ場所）。
+    // ここで数え直すと**関数名を短くする規則の2つ目の写し**ができ、
+    // 片方だけ直した日に黙ってずれる——このコミットが直した当のもの
     line(`  → 読み取り専用ロールの関数 ${publicOk}/${PUBLIC_FNS.length} ・ トークンが余計に付いた関数 ${leaked}`);
+    line(`  → 再ビルドのトークンを持つ関数 ${tokenOk}/${wanted.length}`);
+    if (wanted.length === 0) {
+        line("  !! serverless.yml からトークンを配る関数を1つも読み取れなかった（診断が壊れています）");
+    }
+    return out;
 }
 
 /**
@@ -417,7 +483,7 @@ async function main() {
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
 
-module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources };
+module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });

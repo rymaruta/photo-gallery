@@ -5,7 +5,7 @@ import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { isUserId } from "./userId";
 import { unfollowQuietly } from "./follow";
 import { blockMarkerId } from "./blockCheck";
-import { lookupDisplayNameIfSet } from "./notify";
+import { lookupDisplayNameIfSet, deletedUserIds, DELETED_USER_NAME } from "./notify";
 
 // 判定（印の綴りと GetItem 1回）は `blockCheck.ts` にある。
 // **輪を作らないため**の切り出し——このファイルは `follow.ts` の
@@ -235,7 +235,7 @@ export async function purgeBlocksFor(uid: string): Promise<void> {
  * 既定の6秒に近づく。ここを超えたぶんは ID だけ返し、画面は既定名を出す
  * （実際に500人ブロックしている人は居ない。上限は歯止めであって想定値ではない）。
  */
-const BLOCK_NAMES_MAX = 100;
+export const BLOCK_NAMES_MAX = 100;
 
 /**
  * GET /user/blocks — 自分がブロックした人。
@@ -251,15 +251,45 @@ export const listBlocks: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
     try {
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: blocksId(me) } }));
         const blockedIds = ids(res.Item as Record<string, unknown> | undefined, "blockedIds");
+        // **退会した人を「旅人」として並べない。**
+        // 名前が引けないのは「未設定の人」も「退会した人」も同じなので、
+        // 画面のフォールバック（`旅人`）に落ちると**生きている人に見える**。
+        // 一覧を返す口はこれで7本目で、ここだけ通っていなかった
+        // （`getComments` / `getNotifications` / `getStoryReplies` /
+        //  `getUserFollowing` / `getUserFollowers` / `getStoryViewers`）。
+        // 引くのは一覧が空でないときだけ（あちらと同じ）。
+        // このテーブルの走査は Scan なので、0件のときに撃たない
+        const named = blockedIds.slice(0, BLOCK_NAMES_MAX);
+        // **`.catch` は現状発火しない。** `deletedUserIds` は
+        // `notify.ts` の中で握って空集合を返すので reject しない
+        // ——4行下の `lookupDisplayNameIfSet` と同じ「保険」として置く。
+        // あちらが投げるようになった日に、この口だけは 500 に倒したくない
+        // （**ブロックを解除できる唯一の入口**なので、伏せられないどころか
+        //   外せなくなる）。他の6本は裸の `await` のままでよい
+        //   ——落ちても「読めない」で済む。
+        //
+        // 一度ここに「`named` ではなく `blockedIds` で見る」と書いたが、
+        // `named` は `blockedIds.slice(0, 100)` なので**両者は等価**。
+        // 101人目を救っているのは下のループだけ。
+        const gone = blockedIds.length > 0
+            ? await deletedUserIds().catch((e) => { console.error("listBlocks deletedUserIds:", e); return new Set<string>(); })
+            : new Set<string>();
         // 名前が引けなくても一覧は返す（解除できることの方が大事）。
         // **それを保証しているのは `lookupDisplayNameIfSet` の側**——あちらが
         // 内部で握って `undefined` を返すので、ここの `.catch` は現状
         // 発火しない。あちらが投げるようになった日のための保険として置く
-        const users = await Promise.all(blockedIds.slice(0, BLOCK_NAMES_MAX).map(async (id) => {
+        const users = await Promise.all(named.map(async (id) => {
+            if (gone.has(id)) return { id, name: DELETED_USER_NAME, deleted: true };
             const name = await lookupDisplayNameIfSet(id).catch(() => undefined);
             return name ? { id, name } : { id };
         }));
-        for (const id of blockedIds.slice(BLOCK_NAMES_MAX)) users.push({ id });
+        // **上限を超えたぶんも伏せる。** ここだけ `gone` を見ていなかった
+        // ので、101人目以降にいる退会者は画面のフォールバック（「旅人」）に
+        // 落ちて**生きている人に見えていた**——直したはずの症状が、
+        // 同じ関数の3行下に残っていた。集合はもう手元にある
+        for (const id of blockedIds.slice(BLOCK_NAMES_MAX)) {
+            users.push(gone.has(id) ? { id, name: DELETED_USER_NAME, deleted: true } : { id });
+        }
         return {
             statusCode: 200,
             // 本人向け。共有キャッシュに載せない

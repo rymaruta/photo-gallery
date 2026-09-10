@@ -39,6 +39,13 @@ vi.mock("../blockCheck", () => ({
 vi.mock("../block", () => ({
     hiddenUserIds: (...a: unknown[]) => mockHidden(...(a as [])),
 }));
+// 退会の判定も境界にする。本物は 60秒の控えを持つので、テストの順番で
+// 結果が変わる（`notify.ts` に控えを消す口が無い）
+const mockDeleted = vi.hoisted(() => vi.fn(async () => new Set<string>()));
+vi.mock("../notify", async (importActual) => ({
+    ...(await importActual<typeof import("../notify")>()),
+    deletedUserIds: () => mockDeleted(),
+}));
 
 const { getStories, createStory, deleteStory, viewStory, getStoryViewers, cleanupExpiredStories } = await import("../stories");
 
@@ -69,6 +76,7 @@ beforeEach(() => {
     // 関係のないテストがブロック済みの世界で走る
     mockIsBlocked.mockReset().mockResolvedValue(false);
     mockHidden.mockReset().mockResolvedValue(new Set<string>());
+    mockDeleted.mockReset().mockResolvedValue(new Set<string>());
 });
 
 /**
@@ -907,6 +915,30 @@ describe("getStoryViewers", () => {
         mockDdbSend.mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } });
         const res = await invoke(getStoryViewers, authedEvent("owner", { pathParameters: { id: "story-1" } }));
         expect(JSON.parse(res.body)).toEqual({ viewers: [], count: 0 });
+        expect(mockDeleted, "閲覧者が居ないのに退会者を引きに行っている").not.toHaveBeenCalled();
+    });
+
+    // **表示名は閲覧のときに焼き込む**（`viewStory`）ので、そのあと
+    // 退会しても残る。「誰が何をしたか」を返す一覧6本のうち、
+    // ここだけ `deletedUserIds()` を通していなかった
+    it("退会した人の名前は出さない", async () => {
+        mockDeleted.mockResolvedValue(new Set(["u-b"]));
+        mockDdbSend.mockResolvedValueOnce({
+            Item: {
+                id: "story-1", story: true, userId: "owner",
+                viewers: {
+                    "u-a": { displayName: "A", at: "2026-07-04T10:00:00Z" },
+                    "u-b": { displayName: "退会前の名前", at: "2026-07-04T11:00:00Z" },
+                },
+            },
+        });
+        const res = await invoke(getStoryViewers, authedEvent("owner", { pathParameters: { id: "story-1" } }));
+        const body = JSON.parse(res.body) as { viewers: Array<{ userId: string; displayName?: string; deleted?: boolean }> };
+        const gone = body.viewers.find((v) => v.userId === "u-b")!;
+        expect(gone.displayName, "退会した人の名前が残っている").toBe("退会したユーザー");
+        expect(gone.deleted).toBe(true);
+        // 退会していない人はそのまま
+        expect(body.viewers.find((v) => v.userId === "u-a")?.displayName).toBe("A");
     });
 });
 

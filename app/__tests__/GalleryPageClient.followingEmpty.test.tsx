@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 
 // **取得中と「0人」を同じ画面にしていた。**
 //
@@ -36,9 +36,18 @@ vi.mock("../components/SearchParamWatcher", () => ({ default: () => null }));
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 // フォローしている u1 の写真が1枚ある状態
+//
+// **一覧の取得の状態も差し替えられるようにしておく。** ここを
+// `loaded: true` 固定で書いていたので、「写真がまだ来ていない／取れなかった
+// ときに『まだ投稿していません』と言わない」という守りを**この8件が
+// 一度も通っていなかった**（守りを消しても全部緑だった）。
+const photosState = vi.hoisted(() => ({
+    current: { loaded: true, failed: false },
+}));
 vi.mock("../../lib/hooks/usePhotos", () => ({
     usePhotos: () => ({
-        loaded: true,
+        loaded: photosState.current.loaded,
+        failed: photosState.current.failed,
         photos: [{
             id: "p1", userId: "u1", src: "https://cdn/p1.jpg",
             title: { ja: "友達の写真", en: "Friend" }, category: "street", tags: [],
@@ -54,6 +63,7 @@ const EMPTY = /フォローした人の写真がここに集まります/;
 
 beforeEach(async () => {
     authState.current = { isAuthenticated: true, userId: "me", loading: false };
+    photosState.current = { loaded: true, failed: false };
     window.history.replaceState({}, "", "/");
     mockUserFetch.mockReset();
     const { resetFollowingCache } = await import("../../lib/hooks/useFollow");
@@ -91,6 +101,133 @@ describe("フォロー中フィードの空表示", () => {
         authState.current = { isAuthenticated: true, userId: "me", loading: false };
         rerender(<ToastProvider><GalleryPageClient /></ToastProvider>);
         await waitFor(() => expect(screen.queryByText(EMPTY)).toBeNull());
+    });
+
+    // **「まだ誰もフォローしていない」と「フォロー先がまだ投稿していない」を
+    // 分ける。** すぐ上のコメントが「0件の理由がフォローが0人のときだけ
+    // この文言にする」と宣言しているのに、条件に人数が入っていなかった
+    // ——1人フォローした直後（相手がまだ投稿していない）に、**誰も
+    // フォローしていない人と同じ画面**が出てフォローが効いていないように見える
+    it("フォローが1人以上なら、「まだ投稿していません」と言う", async () => {
+        // その1人はまだ写真を投稿していない（一覧の写真は u1 のもの）
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: ["u2"] }) });
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        fireEvent.click(await screen.findByRole("button", { name: "フォロー中" }));
+
+        expect(await screen.findByText(/フォロー中の人は、まだ写真を投稿していません/)).toBeInTheDocument();
+        expect(screen.queryByText(EMPTY), "誰もフォローしていない人と同じ画面を出している").toBeNull();
+    });
+
+    // **写真の一覧が来ていないうちは「まだ投稿していません」と言わない。**
+    // 相手が投稿していても、こちらの手元に写真が無ければ0件になる。
+    // 分からない間は断定しない側（「ここに集まります」）へ倒す。
+    it("写真の取得に失敗したときは「まだ投稿していません」と断定しない", async () => {
+        photosState.current = { loaded: true, failed: true };
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: ["u2"] }) });
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        fireEvent.click(await screen.findByRole("button", { name: "フォロー中" }));
+
+        expect(await screen.findByText(EMPTY)).toBeInTheDocument();
+        expect(
+            screen.queryByText(/フォロー中の人は、まだ写真を投稿していません/),
+            "写真が取れていないのに「投稿していません」と断定している",
+        ).toBeNull();
+    });
+
+    // 写真がまだ届いていないのは「0人」でも「投稿していません」でもない
+    // ——**読み込み中**。フォロー中の一覧を待つときと同じ扱いにする
+    it("写真の一覧がまだ届いていない間は「読み込み中…」", async () => {
+        photosState.current = { loaded: false, failed: false };
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: ["u2"] }) });
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        fireEvent.click(await screen.findByRole("button", { name: "フォロー中" }));
+
+        expect(await screen.findByText("読み込み中…")).toBeInTheDocument();
+        expect(
+            screen.queryByText(/フォロー中の人は、まだ写真を投稿していません/),
+            "一覧がまだ来ていないのに「投稿していません」と断定している",
+        ).toBeNull();
+        expect(
+            screen.queryByText(EMPTY),
+            "まだ来ていないのに「誰もフォローしていない人」と同じ画面を出している",
+        ).toBeNull();
+    });
+
+    // **落ちた回は「読み込み中…」に落とさない。** `usePhotos` は失敗しても
+    // `loaded` を立てないので、`!photosLoaded` だけで判定すると
+    // **永久に「読み込み中…」**になる
+    it("写真の取得に失敗したら、読み込み中のまま固まらない", async () => {
+        photosState.current = { loaded: false, failed: true };
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: ["u2"] }) });
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        fireEvent.click(await screen.findByRole("button", { name: "フォロー中" }));
+
+        expect(await screen.findByText(EMPTY)).toBeInTheDocument();
+        expect(screen.queryByText("読み込み中…"), "落ちたのに読み込み中のまま").toBeNull();
+    });
+
+    // **「読み込み中…」の真上に「結果: 0 件」を並べない。**
+    // 件数行を伏せる条件が `!followingLoaded` しか見ておらず、写真の
+    // 到着待ちを本文だけに足した回に並んでいた（レビューが実測）。
+    // 件数行のガードには「本文を伏せながら 0 件と言い続けるのは、
+    // 伏せた意味が無い」と書いてある
+    it("読み込み中は件数も出さない", async () => {
+        photosState.current = { loaded: false, failed: false };
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: ["u2"] }) });
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        fireEvent.click(await screen.findByRole("button", { name: "フォロー中" }));
+
+        expect(await screen.findByText("読み込み中…")).toBeInTheDocument();
+        expect(screen.queryByText(/結果: 0 件/), "本文を伏せながら0件と言っている").toBeNull();
+    });
+
+    // **フォローが0人なら待たない。** 答えはもう確定していて、写真を
+    // 待つ理由が無い。`followingIds.size > 0` を落としても全緑だった
+    it("フォローが0人なら、写真を待たずに案内を出す", async () => {
+        photosState.current = { loaded: false, failed: false };
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: [] }) });
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        fireEvent.click(await screen.findByRole("button", { name: "フォロー中" }));
+
+        expect(await screen.findByText(EMPTY)).toBeInTheDocument();
+        expect(screen.queryByText("読み込み中…"), "0人と分かっているのに待っている").toBeNull();
+    });
+
+    // **共有している一覧が変わったら取り直す。**
+    //
+    // この画面は `fetchFollowingSet()` の結果を `followingIds` へ
+    // **コピー**して持つので、共有ストアを直しても伝わらない。
+    // ストーリーの返信一覧からブロックしても、この画面はその下に
+    // 重なったままで再マウントされない＝**ブロックした相手の写真が
+    // 出続けていた**。
+    //
+    // **その受け側を、直したコミットが1本も縛っていなかった**
+    // （撃つ側だけ変異で確かめて「確認した」と書いた）。
+    it("共有している一覧が変わったら取り直す", async () => {
+        // u1 の写真1枚が出ている状態から始める
+        let ids = ["u1"];
+        mockUserFetch.mockImplementation(async () => ({ ok: true, json: async () => ({ userIds: ids }) }));
+        window.history.replaceState({}, "", "/?feed=following");
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        expect(await screen.findByText(/結果: 1 件/)).toBeInTheDocument();
+
+        // ブロックでサーバー側の関係が切れた
+        ids = [];
+        const mod = await import("../../lib/hooks/useFollow");
+        await act(async () => { mod.noteFollowSevered("u1"); });
+
+        await waitFor(() => expect(
+            screen.queryByText(/結果: 0 件/),
+            "一覧が古いまま（ブロックした相手の写真が出続ける）",
+        ).toBeInTheDocument());
+    });
+
+    it("フォローが0人なら、今までどおりの案内", async () => {
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => ({ userIds: [] }) });
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        fireEvent.click(await screen.findByRole("button", { name: "フォロー中" }));
+
+        expect(await screen.findByText(EMPTY)).toBeInTheDocument();
     });
 
     // 未ログインは「取得しない」＝確定。ここで確定させ忘れると、本文は

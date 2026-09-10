@@ -5,7 +5,7 @@ import { sanitizeProfile } from "../../lib/utils/profileShape";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Thumb from "../components/Thumb";
 import Link from "next/link";
-import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { haversineKm } from "../../lib/utils/journey";
@@ -21,6 +21,7 @@ import type { Photo } from "@/lib/data/photos";
 import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../lib/utils/log";
 import { getCurrentSession } from "../../lib/auth/cognito";
+import { noteFollowSevered } from "../../lib/hooks/useFollow";
 import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
 import { publicFetch, userFetch, userPublicFetch, readApiError, sessionErrorMessage } from "../../lib/utils/api";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
@@ -387,11 +388,41 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 // 未設定なら `/profile/<id>` になり、静的サイトでは 404 →
                 // 下の `if (profileRes.ok)` が握り潰して、名前・自己紹介・
                 // BGM・ピン留めが**黙って全部出ない**。
-                const [profileRes, sessionResult] = await Promise.all([
+                // **セッションの判定をプロフィール取得と運命共同体にしない。**
+                // `userPublicFetch` は打ち切り・通信断で投げるので、`Promise.all`
+                // だと catch に落ちて `setViewerAuthed(true)` に到達しない
+                // ——ログイン済みなのに未ログイン扱いになり、フォローボタンも
+                // ブロックの項目も消える（**安全のための項目だけが出ない**）。
+                const [profileSettled, sessionSettled] = await Promise.allSettled([
                     userPublicFetch(`/profile/${encodeURIComponent(userId)}`, { signal: controller.signal }),
                     getCurrentSession(),
                 ]);
-                const prof = profileRes.ok
+                // 中断（画面を離れた・userId が変わった）は何もしない。
+                // `throw` をやめたぶん、ここで見ないと `AbortError` が
+                // 「取得に失敗」として画面に出る
+                if (controller.signal.aborted) return;
+                const sessionResult = sessionSettled.status === "fulfilled" ? sessionSettled.value : null;
+                // **セッションの結果は、プロフィールの失敗より先に反映する。**
+                if (sessionResult) setViewerAuthed(true);
+                if (sessionResult && (sessionResult.getIdToken().payload["sub"] as string | undefined) === userId) {
+                    setIsOwner(true);
+                }
+                // **プロフィールが取れなくても、写真の一覧は取りに行く。**
+                //
+                // 以前はここで `throw` していた。`Promise.all` の頃は
+                // `setIsOwner` にも届かなかったので訪問者の見え方に退避して
+                // いたが、セッションを先に反映するようにしたぶん、
+                // **オーナーの操作（目のアイコン・ピン・カバー）が有効なまま
+                // 一覧はビルド時 JSON（`photos.json` は全件 published:true）**
+                // という組み合わせが新しくできていた——このファイルが3か所で
+                // 戒めている「古い公開状態にオーナー操作を載せて誤再公開を
+                // 誘う」形そのもの。プロフィールの失敗は `loadError` に
+                // 落とすだけにして、下の一覧の取得へ進む
+                if (profileSettled.status === "rejected") {
+                    log.error("user profile fetch error:", profileSettled.reason);
+                }
+                const profileRes = profileSettled.status === "fulfilled" ? profileSettled.value : null;
+                const prof = profileRes?.ok
                     ? sanitizeProfile<UserProfile>(await profileRes.json(), `GET /profile/<id>`)
                     : null;
                 if (prof) {
@@ -402,10 +433,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     // 「未設定」と見分けられるようにする
                     setLoadError("profile");
                 }
-                if (sessionResult) setViewerAuthed(true);
                 const isCurrentUserOwner = !!sessionResult &&
                     (sessionResult.getIdToken().payload["sub"] as string | undefined) === userId;
-                if (isCurrentUserOwner) setIsOwner(true);
 
                 // 自分のプロフィールは認証済みの一覧を「正」にする。
                 //
@@ -539,12 +568,81 @@ export default function UserProfileClient({ userId }: { userId: string }) {
 
     const [tab, setTab] = useState<TabKey>("posts");
     const [shareOpen, setShareOpen] = useState(false);
+    /** ブロック中かどうか（この画面から押した結果だけを持つ。開いた時点では引かない） */
+    const [blocked, setBlocked] = useState(false);
+    const [blocking, setBlocking] = useState(false);
     // プロフィールQRコード（対面共有用）
     const [qrOpen, setQrOpen] = useState(false);
 
     // 共有メニューも同じ。閉じる手段が `fixed inset-0` の**マウス専用
     // オーバーレイ**しか無く、QR だけ直して隣を直していなかった。
     useEscapeKey(shareOpen, () => setShareOpen(false));
+
+    /**
+     * この人からの反応を受け取らない。
+     *
+     * **押せる場所がストーリーの返信一覧しか無かった。** そこから足したが、
+     * 相手がストーリーに返信していなければ辿り着けない——**コメントを
+     * 付けられても止められない**（`getComments` はブロックを見ないので、
+     * 既に付いたものは残る。止まるのは以後の投稿と通知）。
+     * サーバー側は前から揃っていて、足りないのは押す場所だけだった。
+     *
+     * **効いたときだけ画面を変える**（`StoryViewer` と同じ）。失敗を成功に
+     * 見せると「押したのにまた届く」で二度目の落胆になる。
+     */
+    const toggleBlock = useCallback(async () => {
+        if (!userId || blocking) return;
+        setBlocking(true);
+        const next = !blocked;
+        try {
+            const res = await userFetch(`/users/${encodeURIComponent(userId)}/block`, {
+                method: next ? "POST" : "DELETE",
+            });
+            if (res.ok) {
+                setBlocked(next);
+                // **同じ画面のフォローの状態も直す。** ブロックは
+                // `unfollowQuietly` を両向きに撃つのに、共有ストアは
+                // ログイン・ログアウトでしか捨てないので、トーストが
+                // フォローも外れたと言った直後に**すぐ下のボタンは
+                // 「フォロー中」のまま**だった。
+                //
+                // **ここで `resetFollowingCache()` を撃つのは誤り**（一度
+                // そう書いて回帰にした）。あれはログアウト用で、`counts` を
+                // 空にするぶん数のピルが消えたまま戻らず、しかも
+                // `isFollowing` はコンポーネントの state なので「フォロー中」
+                // は直らない——**数字だけ消える**という、より悪い状態になる。
+                // ボタン自体はすぐ下で `blocked` のとき出さないので、
+                // ここで直すのは**共有している一覧と数**。一覧をコピーして
+                // 持っている画面（ギャラリーのフォロー中フィード）は
+                // `subscribeFollowingSet` で取り直す。
+                //
+                // 解除（`next === false`）では撃たない。ブロックを外しても
+                // フォローは戻らないので、直すものが無い。
+                if (next) noteFollowSevered(userId);
+                // **状態を断定しない。** `blocked` はこの画面で押した結果しか
+                // 持たない（開き直すと戻る）ので、既にブロック済みの相手に
+                // 押しても `blockUser` は冪等に 200 を返す。「ブロック
+                // しました」「外れました」と言い切ると、何も変わっていない
+                // のに変わったように読める（2回目は外れていない）
+                showToast(next
+                    ? (locale === "en"
+                        ? "This user is blocked. They can't reply, comment, or follow you, and follows in both directions are removed. You can unblock from your profile settings."
+                        // **解除の場所まで言う。** 言っているのは
+                        // `StoryViewer` の注意書きだけで、**プロフィールから
+                        // ブロックした人はどこで戻せるか受け取っていなかった**
+                        // ——コミットに「他の2か所は場所まで言っている」と
+                        // 書いたが、1か所だけだった（レビューの指摘）
+                        : "この人をブロック中です。返信・コメント・フォローができなくなり、お互いのフォローは外れます。解除はプロフィール設定の「ブロックした人」からできます。")
+                    : (locale === "en" ? "Unblocked." : "ブロックを解除しました。"), "success");
+            } else {
+                showToast(await readApiError(res, locale === "en" ? "Couldn't do that." : "できませんでした"), "error");
+            }
+        } catch {
+            showToast(locale === "en" ? "Couldn't do that." : "できませんでした", "error");
+        } finally {
+            setBlocking(false);
+        }
+    }, [userId, blocked, blocking, locale, showToast]);
 
     // Escape で閉じる。共有メニューから開くので、押した瞬間にその
     // ボタン自体がアンマウントされ、フォーカスは body に落ちる。
@@ -946,6 +1044,36 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                             <QrCodeIcon className="w-[18px] h-[18px] text-white/50" />
                                             {locale === "en" ? "QR code" : "QRコードを表示"}
                                         </button>
+                                        {/* **他人のプロフィールにだけ出す。** ログインしていない人は
+                                            口が断るので出さない。自分は自分をブロックできない */}
+                                        {!isOwner && viewerAuthed && (
+                                            <button
+                                                role="menuitem"
+                                                onClick={() => { setShareOpen(false); void toggleBlock(); }}
+                                                disabled={blocking}
+                                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white/85 hover:bg-white/10 active:bg-white/15 transition text-left border-t border-white/5 disabled:opacity-50"
+                                            >
+                                                <NoSymbolIcon className="w-[18px] h-[18px] text-white/50 flex-shrink-0" />
+                                                {blocked
+                                                    ? (locale === "en" ? "Unblock" : "ブロックを解除")
+                                                    : (locale === "en" ? "Block this user" : "この人をブロック")}
+                                            </button>
+                                        )}
+                                        {/* **押す前に、戻せないことを言う。**
+                                            ブロックは両向きのフォローを切り、
+                                            解除しても**戻らない**（`BlockedUsers` が
+                                            そう書いている）。それを、無害な4項目
+                                            （リンク・X・LINE・QR）の隣に確認なしで
+                                            置いていた。`StoryViewer` 側は押す前に
+                                            出しているのに、こちらは押したあとの
+                                            トーストで初めて言っていた */}
+                                        {!isOwner && viewerAuthed && !blocked && (
+                                            <p className="px-4 pb-3 text-[11px] text-white/60 leading-relaxed border-t border-white/5 pt-2">
+                                                {locale === "en"
+                                                    ? "Blocking also removes follows in both directions. Unblocking does not restore them."
+                                                    : "ブロックすると、お互いのフォローも外れます。解除しても戻りません。"}
+                                            </p>
+                                        )}
                                     </div>
                                 </>
                             )}
@@ -983,7 +1111,21 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                                     <p className="mt-0.5 text-sm text-white/50 truncate">@{userProfile.username}</p>
                                 )}
                             </div>
-                            {!isOwner && (
+                            {/* **ブロック中は出さない。** サーバーは 400
+                                「ブロック中の相手です。解除はプロフィール設定の
+                                『ブロックした人』からできます」を必ず返すので、
+                                押せる形で置くと**必ず失敗する操作へ誘う**。
+                                **`blocked` はこの画面で押した結果しか
+                                持たない**ので、開き直すとボタンは戻る
+                                ——以前ブロックした相手には今も出る。
+                                塞ぐには開いたときに `GET /user/blocks` を
+                                引くことになり、プロフィールを開くたびに
+                                1往復増えるので別に判断する。
+                                これで `key` による張り直しも要らなくなった
+                                ——張り直すと `busyRef` / `pending` ごと
+                                作り直され、**二重送信の番人が外れる**
+                                （飛んでいる POST の最中に押せる） */}
+                            {!isOwner && !blocked && (
                                 <div className="flex-shrink-0">
                                     <FollowAction
                                         targetUserId={userId}

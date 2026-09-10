@@ -148,8 +148,21 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         const visibilityChanged = "published" in fields && fields.published !== (photo.published !== false);
         // 比べるのは**書いたあとの姿**。pickEditableFields が空を undefined に
         // 揃えてあり、updatePhotoFields はそれを REMOVE にする。
-        const metaChanged = ["title", "description", "location", "category", "date", "tags", "exif"]
-            .some((k) => k in fields && !sameStoredValue(fields[k], (photo as Record<string, unknown>)[k]));
+        // **一覧は1つ。** 「変わったか」と「消えたか」で書き写すと静かにずれる
+        const META_FIELDS = ["title", "description", "location", "category", "date", "tags", "exif"];
+        const stored = photo as Record<string, unknown>;
+        const metaChanged = META_FIELDS
+            .some((k) => k in fields && !sameStoredValue(fields[k], stored[k]));
+        // **項目まるごとの削除だけを拾う**（`api-user` の `applyMeta` と同じ線）。
+        // 説明の一文だけ消す・タグを1つ外すは値が非空のままなので数えない。
+        //
+        // **空配列は見ない。** `pickEditableFields` が `tags: []` を
+        // undefined に潰すので、ここへ空配列が来る筋が無い（`api-user` の
+        // `applyMeta` は生の sanitize 結果を見るので、あちらでは要る）。
+        // 一度書いたが死にコードだった
+        const isRemoval = (v: unknown) => v === undefined || v === null;
+        const metaRemoved = META_FIELDS
+            .some((k) => k in fields && isRemoval(fields[k]) && !sameStoredValue(fields[k], stored[k]));
         // **届かなかったら行に印を残す**（api-user 側と同じ）。畳まれた・
         // 予算切れ・dispatch 失敗のどれでも false が返る。印が無いと、
         // 非公開 →（依頼が届かない）→ 削除 で `/photo/<id>` の静的HTML が
@@ -170,7 +183,28 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             }
         }
 
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: updated }) };
+        // **管理画面にも「個別ページは残る」を伝える。**
+        // 印は行に書いていたのに応答に載せていなかったので、
+        // 管理者だけが「消えた／隠れた」と思い込む状態だった
+        // （利用者側の3画面は `toastWithStaticPage` で毎回言っている）。
+        // 本番はトークン未設定なので、実際には毎回残る。
+        //
+        // **`staticOutdated` も返す。** 一度 `staticStale` だけ載せて
+        // 「利用者側と同じことを言うようにした」と書いたが、
+        // 「公開のまま、消した項目がページに残る」側が抜けていた
+        // ——本文や撮影地を消した回は今までどおり黙っていた。
+        // 判定と順番は `api-user/src/photoUpdate.ts` に揃える
+        // （両方立つときは強い方＝隠せていない方を出す）。
+        const staticPageExists = stored.published !== false || stored.staticStale === true;
+        const staticOutdated = metaRemoved && staticPageExists && !dispatched;
+        return {
+            statusCode: 200,
+            headers: JSON_HEADERS,
+            body: JSON.stringify(
+                hiding && !dispatched ? { success: true, photo: updated, staticStale: true }
+                    : staticOutdated ? { success: true, photo: updated, staticOutdated: true }
+                        : { success: true, photo: updated }),
+        };
     } catch (e) {
         // 条件が外れた＝Get と Update の間に写真が消えた。
         // 対の api-user/src/photoUpdate.ts と同じく 404 で返す
@@ -326,9 +360,30 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // /photo/<id> の HTML はそのまま残る（本文・撮影地・EXIF・
         // 表示名入りの JSON-LD まで焼き込まれている）。定期ビルドは
         // 止めてあるので、頼まないと誰かが push するまで消えない。
-        await requestSiteRebuild(`photo deleted: ${id}`);
+        // **「そもそも静的ページがあったか」を見る**（`api-user` の
+        // `deleteMyPhoto` と同じ条件・同じ位置）。
+        //
+        // 一度、**依頼は無条件に出したまま応答の印だけ抑える**形にした。
+        // 印の嘘（一度も公開していない下書きに「ページが残る」と言う）は
+        // 消えるが、**依頼は出たまま**——`rebuild.ts` が明記しているとおり
+        // 月次の予算は coalesce に関わらず1本使うので、下書きを1枚消す
+        // たびに8分のビルドが1本走る（トークンを登録した日から）。
+        // あちらは**依頼そのものを飛ばして**いる。揃える
+        let staticStale = false;
+        if ((photo as Record<string, unknown>).published !== false
+            || (photo as Record<string, unknown>).staticStale === true) {
+            // **戻り値を捨てない。** 捨てていたので「頼めたか」を返しようが
+            // なく、管理画面は削除のたびに「削除しました。」とだけ言っていた
+            staticStale = !await requestSiteRebuild(`photo deleted: ${id}`);
+        }
 
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
+        return {
+            statusCode: 200,
+            headers: JSON_HEADERS,
+            body: JSON.stringify(staticStale
+                ? { success: true, staticStale: true }
+                : { success: true }),
+        };
     } catch (e) {
         console.error("deletePhoto error:", e);
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "削除に失敗しました" }) };

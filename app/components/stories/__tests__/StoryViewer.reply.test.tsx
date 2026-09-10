@@ -9,11 +9,19 @@ import { STORY_REACTIONS } from "@/lib/stories";
 // 返信はストーリーの中心にある往復で、ここが無いと置いておくだけになる。
 
 const mockUserFetch = vi.hoisted(() => vi.fn());
+
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 vi.mock("../../../../lib/utils/api", () => ({
     userFetch: (...a: unknown[]) => mockUserFetch(...a),
     authenticatedFetch: vi.fn(),
     publicFetch: vi.fn(),
+    // **列挙のモックに漏れがあると、そこで throw する。**
+    // ブロックが `noteFollowSevered` → `loadCounts` → `userPublicFetch` を
+    // 撃つようになったのに、これが無かった。vitest が
+    // 「No "userPublicFetch" export is defined」を投げ、`loadCounts` の
+    // 内側 catch が飲んで**400ms のタイマーを置き去りにしていた**
+    // （テストは緑のまま、数の取り直しは一度も通っていなかった）
+    userPublicFetch: vi.fn(async () => ({ ok: true, json: async () => ({ followers: 0, following: 0 }) })),
     readApiError: async (_res: unknown, fallback: string) => fallback,
     sessionErrorMessage: () => null,
 }));
@@ -355,6 +363,153 @@ describe("届いた返信から、その人をブロックする", () => {
         await waitFor(() => expect(blockCalls()).toHaveLength(1));
         expect(blockCalls()[0][0]).toBe("/users/u2/block");
         expect(await screen.findByText("ブロック済み")).toBeInTheDocument();
+    });
+
+    // **共有しているフォロー中の一覧にも反映する。**
+    //
+    // サーバーは両向きのフォローを切る（`block.ts`）。ここを呼ばないと、
+    // **ギャラリーのフォロー中フィードにブロックした相手の写真が出続ける**
+    // ——この画面はギャラリーの上に重なって開くので、閉じても再マウント
+    // されず、取り直す契機が無い。プロフィール経由のブロックだけ直して
+    // こちらを忘れていた（＝唯一マウントしたまま踏める経路が残っていた）
+    it("共有しているフォロー中の一覧にも反映する", async () => {
+        withReply();
+        const mod = await import("../../../../lib/hooks/useFollow");
+        const seen: string[] = [];
+        const off = mod.subscribeFollowingSet(() => seen.push("changed"));
+        try {
+            view(ownGroups(1));
+            await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+            await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
+            await waitFor(() => expect(blockCalls()).toHaveLength(1));
+            await waitFor(() => expect(seen, "一覧が古いまま（写真が出続ける）").toHaveLength(1));
+        } finally { off(); }
+    });
+
+    // **ストーリーのバーも取り直させる。**
+    // サーバーは `GET /stories` でブロック両向きを除外するが、
+    // `StoriesBar` が取り直すのはマウント時と認証の変化時だけ。
+    // 伝えないと**ブロックした相手のリングが残って開ける**。
+    // プロフィール経由だとギャラリーへ戻る時点で再マウントされるので
+    // 症状が出ない——**症状が出る唯一の経路がこちら**
+    it("ブロックしたことを親へ伝える（バーを取り直させる）", async () => {
+        withReply();
+        const onBlocked = vi.fn();
+        view(ownGroups(1), { onBlocked });
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
+        await waitFor(() => expect(blockCalls()).toHaveLength(1));
+        await waitFor(() => expect(onBlocked, "リングが残ったままになる").toHaveBeenCalledWith("u2"));
+    });
+
+    // **失敗を無言にしない。** プロフィール側は理由を出すのに、
+    // ここだけ押しても何も起きないように見えていた
+    it("失敗したら理由を出す", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/block") && init?.method === "POST") {
+                return Promise.resolve({ ok: false, status: 500, json: async () => ({}) });
+            }
+            if (String(url).includes("/replies")) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({ items: [{ id: "r1", uid: "u2", name: "しつこい人", text: "…", t: "2026-07-04T12:00:00Z" }] }),
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        const onBlocked = vi.fn();
+        view(ownGroups(1), { onBlocked });
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
+        await waitFor(() => expect(blockCalls()).toHaveLength(1));
+        // **その場に出す**（`replyError` と同じ形。トーストにすると
+        // `useToast` の Provider がこの部品に必要になり、単体で描けなくなる）
+        expect(await screen.findByRole("alert"), "押しても何も起きないように見える").toBeInTheDocument();
+        expect(onBlocked, "効いていないのに親へ伝えている").not.toHaveBeenCalled();
+    });
+
+    it("失敗した回は反映しない", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/block") && init?.method === "POST") {
+                return Promise.resolve({ ok: false, status: 500, json: async () => ({}) });
+            }
+            if (String(url).includes("/replies")) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({ items: [{ id: "r1", uid: "u2", name: "しつこい人", text: "…", t: "2026-07-04T12:00:00Z" }] }),
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        const mod = await import("../../../../lib/hooks/useFollow");
+        const seen: string[] = [];
+        const off = mod.subscribeFollowingSet(() => seen.push("changed"));
+        try {
+            view(ownGroups(1));
+            await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+            await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
+            await waitFor(() => expect(blockCalls()).toHaveLength(1));
+            expect(seen, "効いていないのに一覧を捨てている").toHaveLength(0);
+        } finally { off(); }
+    });
+
+    // **`catch` 側も見る。** 新しいテストは `!res.ok` しか撃っていなかった
+    // ので、通信ごと落ちた回（オフライン・DNS 失敗）に無言へ戻す変異が
+    // 160件すべて緑だった（レビューが実証）
+    it("通信ごと落ちても理由を出す", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/block") && init?.method === "POST") {
+                return Promise.reject(new Error("offline"));
+            }
+            if (String(url).includes("/replies")) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({ items: [{ id: "r1", uid: "u2", name: "しつこい人", text: "…", t: "2026-07-04T12:00:00Z" }] }),
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        view(ownGroups(1));
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
+        expect(await screen.findByRole("alert"), "押しても何も起きないように見える").toBeInTheDocument();
+    });
+
+    // **次のストーリーへ持ち越さない。**
+    // すぐ上の effect が「前の人へ送ったはずの手応えを持ち越さない」と
+    // 戒めているのに、`setBlockError` だけリセットに入れ忘れていた
+    // ——s1 で失敗した赤い1行が、s2 の返信一覧に出る
+    it("次のストーリーへ持ち越さない", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url).includes("/block") && init?.method === "POST") {
+                return Promise.resolve({ ok: false, status: 500, json: async () => ({}) });
+            }
+            if (String(url).includes("/replies")) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({ items: [{ id: "r1", uid: "u2", name: "しつこい人", text: "…", t: "2026-07-04T12:00:00Z" }] }),
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        // 自分のストーリー2枚（送りで次へ行ける）
+        view([{
+            userId: "me", displayName: "自分",
+            items: [
+                { id: "s1", src: "https://cdn/x/a.jpg", userId: "me", createdAt: "2026-07-04T10:00:00Z", expiresAt: "2099-07-05T10:00:00Z", replyCount: 1 },
+                { id: "s2", src: "https://cdn/x/b.jpg", userId: "me", createdAt: "2026-07-04T11:00:00Z", expiresAt: "2099-07-05T11:00:00Z", replyCount: 1 },
+            ],
+        }]);
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
+        await screen.findByRole("alert");
+
+        // 返信シートを閉じて次のストーリーへ（他のテストと同じ矢印キー）
+        await userEvent.click(screen.getAllByLabelText("閉じる").slice(-1)[0]);
+        fireEvent.keyDown(document, { key: "ArrowRight" });
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+
+        expect(screen.queryByRole("alert"), "前のストーリーの失敗を持ち越している").toBeNull();
     });
 
     // **効いたときだけ画面を変える。** 失敗を成功に見せると

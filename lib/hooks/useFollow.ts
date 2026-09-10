@@ -54,10 +54,40 @@ export async function fetchFollowingSet(): Promise<Set<string>> {
 }
 
 /**
+ * 「フォロー中の一覧が変わった」の購読口。
+ *
+ * **数（`counts`）には購読があるのに、一覧には無かった。**
+ * `GalleryPageClient` は `fetchFollowingSet()` の結果を
+ * `setFollowingIds(new Set(set))` と**コピーして自分の state に持つ**ので、
+ * 共有ストアを直しても伝わらない——ストーリーの返信一覧からブロックしても、
+ * ギャラリーのフォロー中フィードにその人の写真が出続けていた
+ * （プロフィール経由だとギャラリーが再マウントされるので偶然直っていた）。
+ */
+const followingListeners = new Set<() => void>();
+
+/**
+ * 「フォロー中の一覧が変わった」を購読する。解除の関数を返す。
+ *
+ * （すぐ上の経緯を見よ。**doc は関数に付ける**——`const` に付けると
+ *   ホバーで出ない。同じ形を `resetFollowingCache` でやって直したばかり）
+ */
+export function subscribeFollowingSet(fn: () => void): () => void {
+    followingListeners.add(fn);
+    return () => { followingListeners.delete(fn); };
+}
+
+function emitFollowingChanged() {
+    for (const fn of [...followingListeners]) fn();
+}
+
+/**
  * ログアウト時に必ず呼ぶこと。
  * これを呼ばないと、同じタブで別の人がログインしたときに
  * 前の人のフォロー一覧がそのまま使われる（ログアウトはクライアント遷移なので
  * モジュールの状態が生き残る）。
+ *
+ * （この doc は `app/auth/context.tsx` が名指しで引いている。
+ *   関数から離すと、ホバーしても出なくなる——一度離した）
  */
 export function resetFollowingCache() {
     cacheGen++;   // 走っている取得の結果を書き戻させない
@@ -81,6 +111,15 @@ export function resetFollowingCache() {
     for (const [, fns] of listeners) {
         for (const fn of fns) fn();
     }
+    // 一覧をコピーして持っている画面にも伝える。
+    //
+    // **今の3つの呼び出し元（ログイン・ログアウト・退会）では、これが
+    // 無くても直る**——どれも `setAuthState` と同じハンドラの中なので、
+    // `isAuthenticated` の変化で取得の effect が回る。ここが効くのは
+    // **認証の状態を変えずにこれを撃つ形**（モーダルログインなど）を
+    // 入れた日で、そのとき無いと古いコピーが残る。
+    // `noteFollowSevered` と揃えておく方が、片方だけ忘れる形を作らない
+    emitFollowingChanged();
 }
 
 // ────────────────────────────────
@@ -185,6 +224,68 @@ function bumpCountsGen(userId: string): boolean {
     // 走っている取り込みは**もう古い**ので、次の呼び出しが待たされない
     // ように札を外す（走っている方の書き込みは世代で弾かれる）
     return inflight.delete(userId);
+}
+
+/**
+ * **ブロックでお互いのフォローが切れた**ことを共有ストアへ反映する。
+ *
+ * ここで `resetFollowingCache()` を撃ってはいけない（一度そう書いて
+ * 回帰にした）。あちらは**ログアウト用**で、
+ *
+ *   (a) `counts` を丸ごと空にするので `countsKnown` が false に落ち、
+ *       数のピルが**消える**。取り直しの契機は `online` /
+ *       `visibilitychange` しか無いので、そのタブでは戻ってこない
+ *   (b) `isFollowing` はこの共有ストアではなく**コンポーネントの state**
+ *       なので、リセットしても「フォロー中」のまま
+ *
+ * ＝押した人の画面は「フォロー中のまま、数字だけ消える」になり、
+ * 直そうとした状態より悪い。ここでは切れた相手を一覧から外し、
+ * 数は**消さずに取り直す**（古い数を出したまま新しい数に差し替わる）。
+ *
+ * **取り直しが3回とも落ちたら、古い数がそのまま残る。** `useFollow` の
+ * 撃ち直しは `known === undefined` のときだけ張るので、値を持っている
+ * この場合は arm されない。消える（`resetFollowingCache`）よりは穏当だが、
+ * 「必ず正しい数になる」とは言えない。承知のうえで残す。
+ *
+ * **ボタンの見た目は呼び出し側の仕事。** `isFollowing` を書くのは下の
+ * effect だけで、その依存は `[targetUserId, isAuthenticated, withCounts]`
+ * ——どれも変わらない。`UserProfileClient` は**その画面でブロックを押した回**
+ * だけボタンを出さない（`key` で張り直す形は `busyRef` / `pending` ごと
+ * 作り直して二重送信の番人を外すのでやめた）。開き直すと `blocked` は
+ * false に戻るので、以前ブロックした相手にはボタンが出て、押すと 400 が
+ * 返る——**まだ直っていない**（`GET /user/blocks` を引けば分かるが、
+ * プロフィールを開くたびに1往復増えるので別に判断する）。
+ */
+export function noteFollowSevered(targetUserId: string): void {
+    if (!targetUserId) return;
+    followingCache?.delete(targetUserId);
+    // **一覧から外すだけでは足りない。**
+    //
+    //   - まだ取りに行っている最中なら、外す先（`followingCache`）が無い。
+    //     その取得は**押す前の一覧**なので、あとから書き戻ると
+    //     「フォロー中」がそのまま復活する（レビューが実測で再現）。
+    //     しかも共有ストアなので、ギャラリーのフォロー中フィードにも
+    //     ブロックした相手の写真が出続ける
+    //   - フォローの POST が飛んでいる最中なら、着地した `toggle` が
+    //     `followingCache.add()` を実行する（同上）
+    //
+    // どちらも `cacheGen` で無効にする——`resetFollowingCache` が同じ穴に
+    // 対して持っている札で、こちらには無かった。既に持っている一覧は捨てない。
+    //
+    // **止まるのは「キャッシュへの書き込み」まで。** `fetchFollowingSet` は
+    // 世代が古くても `return set` するので、**もう待っている購読者には
+    // 押す前の一覧がそのまま届く**（一度「結果だけを捨てる」と書いたが、
+    // それは言い過ぎだった）。届いた側を直すのは下の `emitFollowingChanged`
+    // ——取り直させる。`followingPromise = null` は「このあと来る購読者」を
+    // 古い取得に相乗りさせないため
+    cacheGen++;
+    followingPromise = null;
+    // 走っている取り込みは押す前の数なので、書き戻させない
+    bumpCountsGen(targetUserId);
+    void loadCounts(targetUserId);
+    // 一覧をコピーして持っている画面（ギャラリーのフォロー中フィード）に
+    // 取り直させる。ここが無いと、ブロックした相手の写真が出続ける
+    emitFollowingChanged();
 }
 
 function loadCounts(userId: string): Promise<void> {
@@ -328,11 +429,16 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
         // ——その足でプロフィールを開くと「フォロワー 501 / フォロー中 0」
         // と出る（実際は87人）。未取得なら触らないでおく。
         const before = counts.get(targetUserId);
+        // 押している間に一覧が無効になったか（ブロックで切れた・ログアウト）。
+        // 下の書き戻しで見る
+        const genAtPress = cacheGen;
         setIsFollowing(!was);
         // 楽観的更新。共有ストア経由なので数字のピルもその場で動く
         // 押した＝取り込み中の「押す前の数」はもう古い。
         // 潰したなら、このあと必ず取り直す（下の2か所）
         const killedLoad = bumpCountsGen(targetUserId);
+        // 押した時点の世代。着地したときに「まだ自分の番か」を見る
+        const genCountsAtPress = countsGen.get(targetUserId) ?? 0;
         if (before) {
             setCounts(targetUserId, { ...before, followers: Math.max(0, before.followers + (was ? -1 : 1)) });
         }
@@ -350,7 +456,16 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
             // ここも同じ——`following` を知らないまま `followers` だけ書くと、
             // 知らない方が 0 として残る
             const cur = counts.get(targetUserId) ?? before;
-            if (typeof data.followers === "number" && cur) {
+            // **数の書き戻しにも札を見せる。** 一覧だけ見て数を素通しに
+            // していたので、フォローの POST が飛んでいる間にブロックすると
+            // 「切れたあとの数」を「押す前の数」が上書きしていた
+            // （取り直しがバックオフに入った回は必ずこの順になる）
+            const countsStale = (countsGen.get(targetUserId) ?? 0) !== genCountsAtPress;
+            if (countsStale) {
+                // 押した結果はもう古い。**`noteFollowSevered` が直後に撃つ
+                // 取り直しに任せる**（それも3回とも落ちたら、次に画面へ
+                // 戻ったとき＝`online` / `visibilitychange` まで待つ）
+            } else if (typeof data.followers === "number" && cur) {
                 setCounts(targetUserId, { ...cur, followers: data.followers });
             } else if (killedLoad || withCounts) {
                 // **数を知らないまま押したときは、押したあとに取り直す。**
@@ -360,7 +475,12 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
                 // 世代で弾かれるので、取り直さないと永久に出ない）。
                 void loadCounts(targetUserId);
             }
-            if (followingCache) {
+            // **押している間に一覧が無効になっていたら書き戻さない。**
+            // ブロックは両向きのフォローを切るので、飛んでいたフォローの
+            // POST が着地して `add()` すると、切れているのに
+            // 「フォロー中」が共有ストアに戻る（プロフィールのボタンも
+            // ギャラリーのフォロー中フィードも、同じ一覧を読む）
+            if (followingCache && genAtPress === cacheGen) {
                 if (was) followingCache.delete(targetUserId); else followingCache.add(targetUserId);
             }
             return { result: was ? "unfollowed" : "followed" };

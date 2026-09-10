@@ -13,6 +13,8 @@ import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
 import { toDateInputValue, mergeDate, todayForDateInput, PHOTO_DATE_MIN } from "../../../lib/utils/dateInput";
 import { changedFields } from "../../../lib/utils/changedFields";
+import { readApiError } from "../../../lib/utils/api";
+import { toastWithStaticPage } from "../../../lib/utils/staticPage";
 
 // text-base（16px）にする。iOS Safari は 16px 未満の入力欄にフォーカスすると
 // ページを拡大し、blur しても戻さない。他のページでは inline style で
@@ -275,11 +277,22 @@ function AdminEditContent() {
             });
 
             if (res.ok) {
-                showToast(locale === "en" ? "Saved" : "保存しました", "success");
+                // **非公開にしたのに個別ページが残ることを伝える。**
+                // 利用者側の3画面は毎回言っているのに、管理画面だけ固定文
+                // だった——本番はトークン未設定で毎回残るので、
+                // **管理者だけが「隠れた」と思い込む**状態になっていた
+                toastWithStaticPage(showToast,
+                    locale === "en" ? "Saved" : "保存しました",
+                    await res.json().catch(() => null), locale !== "en");
                 router.push(ROUTES.ADMIN);
             } else {
-                const err = await res.json().catch(() => ({})) as { error?: string };
-                showToast(err.error ?? (locale === "en" ? "Save failed" : "保存に失敗しました"), "error");
+                // **`readApiError` に寄せる。** 自前で `err.error` を読んで
+                // いたので、API Gateway の期限切れ応答 `{"message":"Unauthorized"}`
+                // には `error` が無く「保存に失敗しました」に落ちていた
+                // ——押し直しても直らないのに、直りそうな文言だった。
+                // 同じ管理画面でも削除は寄せ済み（`app/admin/page.tsx`）
+                showToast(await readApiError(res,
+                    locale === "en" ? "Save failed" : "保存に失敗しました"), "error");
             }
         } catch (e) {
             log.error("savePhoto error:", e);

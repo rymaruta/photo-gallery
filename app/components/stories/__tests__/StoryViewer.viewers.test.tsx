@@ -11,7 +11,10 @@ import type { StoryGroup } from "@/lib/stories";
 
 const mockUserFetch = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
-vi.mock("../../../../lib/utils/api", () => ({
+// **実物を土台にする。** 列挙だけだと、実装が新しく使い始めた export が
+// undefined になり、呼んだ瞬間に投げたものを catch が飲む
+vi.mock("../../../../lib/utils/api", async (importActual) => ({
+    ...(await importActual<typeof import("../../../../lib/utils/api")>()),
     userFetch: (...a: unknown[]) => mockUserFetch(...a),
     authenticatedFetch: vi.fn(),
     publicFetch: vi.fn(),
@@ -310,5 +313,143 @@ describe("閲覧者一覧: 見出しの数字", () => {
 
         open();
         await waitFor(() => expect(headingCount()).toBe("0"));
+    });
+});
+
+// **失敗した回は、開き直したときに引き直す。**
+//
+// 取得の deps が `[item, isOwnStory]` だったので、閉じて開き直しても
+// 取り直さなかった（再試行ボタンも無い）——抜けるには別のストーリーへ
+// 移って戻るしかなく、その手順は画面から読み取れない。
+// **すぐ下の返信一覧は `repliesOpen` を deps に入れていて開き直せば
+// 取り直す**＝同じファイル内で扱いが割れていた。
+describe("閲覧者一覧: 失敗したあと", () => {
+    const view = () => render(
+        <StoryViewer
+            groups={groups()}
+            initialGroupIndex={0}
+            locale="ja"
+            isAuthenticated
+            ownUserId="me"
+            onSeen={() => { /* noop */ }}
+            onClose={() => { /* noop */ }}
+        />,
+    );
+    const viewerCalls = () => mockUserFetch.mock.calls.filter((c) => String(c[0]).includes("/viewers"));
+
+    it("開き直すと引き直す", async () => {
+        mockUserFetch.mockImplementation((path: string) =>
+            Promise.resolve(String(path).includes("/viewers")
+                ? { ok: false, status: 500, json: async () => ({}) }
+                : { ok: true, json: async () => ({}) }));
+
+        view();
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+        expect(await screen.findByText(/閲覧者を読み込めませんでした/)).toBeInTheDocument();
+        const before = viewerCalls().length;
+
+        // 閉じて、開き直す
+        await userEvent.click(screen.getAllByLabelText("閉じる").slice(-1)[0]);
+        mockUserFetch.mockImplementation((path: string) =>
+            Promise.resolve(String(path).includes("/viewers")
+                ? viewersOf(["旅子"])
+                : { ok: true, json: async () => ({}) }));
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+
+        await waitFor(() => expect(viewerCalls().length, "開き直しても引き直していない").toBeGreaterThan(before));
+        expect(await screen.findByText("旅子")).toBeInTheDocument();
+    });
+
+    // **取れている回は引き直さない。** 開くたびに撃つと、成功した回まで
+    // 往復が増える（Lambda の同時実行はアカウント全体で10）
+    it("取れているなら、開き直しても引き直さない", async () => {
+        mockUserFetch.mockImplementation((path: string) =>
+            Promise.resolve(String(path).includes("/viewers")
+                ? viewersOf(["旅子"])
+                : { ok: true, json: async () => ({}) }));
+
+        view();
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+        expect(await screen.findByText("旅子")).toBeInTheDocument();
+        const before = viewerCalls().length;
+
+        await userEvent.click(screen.getAllByLabelText("閉じる").slice(-1)[0]);
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+
+        await waitFor(() => expect(screen.getByText("旅子")).toBeInTheDocument());
+        expect(viewerCalls().length, "取れているのに引き直している").toBe(before);
+    });
+});
+
+// **ストーリーを切り替えたときのリセット。**
+//
+// この差分で「リセット」と「取得」に分けた当の effect なのに、
+// 3行のうち縛れていたのは1行だけだった（レビューが変異で実証）
+// ——`setViewers(null)` も `setViewersOpen(false)` も、消して全緑。
+// 既存の「切り替えたあとに届いた古い応答を捨てる」は**中断ガード**を
+// 見ているだけで、リセットは見ていない。
+describe("閲覧者一覧: ストーリーを切り替えたときのリセット", () => {
+    const view = () => render(
+        <StoryViewer
+            groups={groups()}
+            initialGroupIndex={0}
+            locale="ja"
+            isAuthenticated
+            ownUserId="me"
+            onSeen={() => { /* noop */ }}
+            onClose={() => { /* noop */ }}
+        />,
+    );
+
+    // **前のストーリーの閲覧者を出さない。** この effect の存在理由そのもの。
+    //
+    // 送るのはシートを閉じてから——**開いている間は矢印が効かない**
+    // （keydown が `viewersOpen` で早期 return する。自動送りも `frozen` で
+    // 止まる）。最初それを知らずに開いたまま送ろうとして、
+    // 「リセットが効かない」と読み違えた
+    it("前のストーリーの閲覧者を持ち越さない", async () => {
+        mockUserFetch.mockImplementation((path: string) => {
+            const p = String(path);
+            if (!p.includes("/viewers")) return Promise.resolve({ ok: true, json: async () => ({}) });
+            // s1 は取れる／s2 は返らない（＝リセットしないと s1 の名前が残る）
+            return p.includes("s1")
+                ? Promise.resolve(viewersOf(["1枚目を見た人"]))
+                : new Promise(() => { /* 返らない */ });
+        });
+
+        view();
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+        expect(await screen.findByText("1枚目を見た人")).toBeInTheDocument();
+
+        fireEvent.keyDown(document, { key: "Escape" });          // シートを閉じる
+        fireEvent.keyDown(document, { key: "ArrowRight" });      // 次のストーリーへ
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+
+        expect(screen.queryByText("1枚目を見た人"),
+            "前のストーリーの閲覧者を持ち越している").toBeNull();
+    });
+
+    // **`setViewersOpen(false)` は、いまは届かない守り。**
+    // シートが開いている間は (a) keydown が `viewersOpen` で早期 return し、
+    // (b) 自動送りも `frozen` に `viewersOpen` が入っていて止まる。
+    // **等価とは書かない**——どちらかを外した日に効くようになる。
+    //
+    // **このテストが縛るのは (a) だけ**（`frozen` から `viewersOpen` を
+    // 外す変異は落ちない。自動送りは実タイマーで、ここでは回していない）。
+    // (b) を縛るなら別に書く——**縛れている範囲を実際より広く書かない**
+    it("シートが開いている間は、矢印でストーリーが切り替わらない", async () => {
+        mockUserFetch.mockImplementation((path: string) =>
+            Promise.resolve(String(path).includes("/viewers")
+                ? viewersOf(["旅子"])
+                : { ok: true, json: async () => ({}) }));
+
+        view();
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+        expect(await screen.findByText("旅子")).toBeInTheDocument();
+
+        fireEvent.keyDown(document, { key: "ArrowRight" });
+
+        // 送られていない＝シートも一覧もそのまま
+        expect(screen.getByText("旅子"), "開いたまま次のストーリーへ行った").toBeInTheDocument();
     });
 });

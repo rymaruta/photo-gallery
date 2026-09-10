@@ -136,8 +136,12 @@ export default function FollowingSheet({ userId, kind, locale, onClose, openerRe
                         <p className="text-xs text-white/60 text-center py-8">
                             {total > 0
                                 ? (locale === "en"
-                                    ? "This list isn't ready yet. The count above is correct."
-                                    : "一覧はまだ用意できていません。上の数は正しい値です。")
+                                    ? "This list isn't ready yet. The count above may be more up to date."
+                                    // **「正しい値です」と言い切らない。** `followstats#` も
+                                    // ずれることがある（`account.ts` が「誰にも直せない +1／
+                                    // 引きすぎ」を認めている）。言えるのは「こちらの方が
+                                    // 新しいことがある」まで
+                                    : "一覧はまだ用意できていません。上の数の方が新しい場合があります。")
                                 : (locale === "en" ? EMPTY[kind].en : EMPTY[kind].ja)}
                         </p>
                     )}

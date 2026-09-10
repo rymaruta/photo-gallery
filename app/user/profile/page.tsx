@@ -13,7 +13,7 @@ import { changedFields } from "../../../lib/utils/changedFields";
 import { sanitizeProfile } from "../../../lib/utils/profileShape";
 import { parseMusicEmbed, musicServiceLabel, type SongResult } from "../../../lib/utils/music";
 import { toUploadSafeFile, AVATAR_MAX_PX, COVER_MAX_PX } from "../../../lib/utils/image";
-import { unstrippableMessage } from "../../../lib/utils/uploadRejection";
+import { unstrippableMessage, gifRejectedMessage } from "../../../lib/utils/uploadRejection";
 import { useSongSearch } from "../../../lib/hooks/useSongSearch";
 import { isImeKey } from "../../../lib/utils/ime";
 import { log } from "../../../lib/utils/log";
@@ -141,9 +141,56 @@ export default function ProfileEditPage() {
     // app/users/UserProfileClient.tsx にも同じ理由のガードがある。
     const [loadFailed, setLoadFailed] = useState(false);
 
+    /**
+     * 打ちかけがあるか。**送り返す前に見る。**
+     *
+     * この画面は会員ページの門を**手書きで写して**いて、
+     * `useMemberGate` が持っている「打ちかけがあるときは送り返さない」
+     * だけが抜けていた（`/user/edit` `/user/upload` `/user/drafts`
+     * `/user/albums` は本物を使っている）。自己紹介を書いている最中に
+     * **別タブでログアウト・退会**すると、`storage` イベントで
+     * `isAuthenticated` が落ち、`router.replace` が画面ごと作り直して
+     * **打った文章が消える**。
+     *
+     * 見るのは**打って入れる項目**だけ（テーマ色・曲は選び直せる）。
+     * 誤って true になっても、倒れる先は「送り返さずに理由を出す」＝安全側。
+     */
+    //
+    // **両側とも `trim()` して比べる。** サーバーは保存時に
+    // `displayName` / `bio` / `instagram` / `website` を trim して返す
+    // （`api-user/src/userProfile.ts`）が、画面は打った文字をそのまま
+    // 持つ。素で比べると**末尾に空白を1つ打って保存しただけで、成功後も
+    // true のまま固まる**——「保存しました」の直後に「この内容は保存
+    // できません」と言い、以後この画面では送り返しが永久に効かない。
+    const hasUnsavedWork = !!profile && (
+        username.trim().toLowerCase().replace(/^@/, "") !== (profile.username ?? "")
+        || displayName.trim() !== (profile.displayName ?? "").trim()
+        || bio.trim() !== (profile.bio ?? "").trim()
+        || instagram.trim() !== (profile.instagram ?? "").trim()
+        || website.trim() !== (profile.website ?? "").trim()
+    );
+
     useEffect(() => {
-        if (!loading && !isAuthenticated) router.replace(loginWithNext(window.location.pathname + window.location.search));
-    }, [isAuthenticated, loading, router]);
+        // **打ちかけがあるときは送り返さない**（`useMemberGate` と同じ判断）。
+        // ログインが切れた側はどのみち保存できないが、書いたものを消して
+        // よい理由にはならない。保存できないことは下のトーストで伝える
+        if (!loading && !isAuthenticated && !hasUnsavedWork) {
+            router.replace(loginWithNext(window.location.pathname + window.location.search));
+        }
+    }, [isAuthenticated, loading, router, hasUnsavedWork]);
+
+    // 留めたぶん、**保存できないことを言う**（`/user/edit` と同じ形）。
+    // 一度だけ出す（描画のたびに出すと読めない）
+    const toldSignedOut = useRef(false);
+    useEffect(() => {
+        // **ログインし直したら札を下ろす。** 下ろさないと二度目が無言になる
+        if (isAuthenticated) { toldSignedOut.current = false; return; }
+        if (loading || !hasUnsavedWork || toldSignedOut.current) return;
+        toldSignedOut.current = true;
+        showToast(locale === "en"
+            ? "You are signed out. This can't be saved yet — sign in again in another tab, then save."
+            : "ログインが切れました。この内容は保存できません。別のタブでログインし直してから、もう一度保存してください", "error");
+    }, [isAuthenticated, loading, hasUnsavedWork, locale, showToast]);
 
     useEffect(() => {
         if (!isAuthenticated) return;
@@ -212,6 +259,15 @@ export default function ProfileEditPage() {
         // アップロードに失敗したあと同じ写真でやり直せなかった。
         e.target.value = "";
         if (!file) return;
+        // **GIF は選んだ時点で断る。** `toUploadSafeFile` は GIF を必ず
+        // `UnstrippableFileError` にするので、進めても必ず失敗する
+        // ——プレビューが一瞬出てから断られる形だった。
+        // アップロード画面（アイコン）とストーリーは選択時に断っている
+        // ＝この2か所（カバー・アバター）だけ残っていた
+        if (file.type === "image/gif") {
+            showToast(gifRejectedMessage(locale), "error");
+            return;
+        }
         const reader = new FileReader();
         // 失敗したらプレビューを消す。残したままだと**保存された気になる**
         // ——画面には新しい写真が出ているのに、S3 にもプロフィールにも
@@ -271,6 +327,15 @@ export default function ProfileEditPage() {
         // 同じファイルを選び直せるように値を空にする（失敗後のやり直し用）
         e.target.value = "";
         if (!file) return;
+        // **GIF は選んだ時点で断る。** `toUploadSafeFile` は GIF を必ず
+        // `UnstrippableFileError` にするので、進めても必ず失敗する
+        // ——プレビューが一瞬出てから断られる形だった。
+        // アップロード画面（アイコン）とストーリーは選択時に断っている
+        // ＝この2か所（カバー・アバター）だけ残っていた
+        if (file.type === "image/gif") {
+            showToast(gifRejectedMessage(locale), "error");
+            return;
+        }
 
         // プレビュー表示
         const reader = new FileReader();

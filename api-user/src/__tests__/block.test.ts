@@ -12,14 +12,19 @@ vi.mock("../dynamodb", () => ({
 
 // 表示名の引きは境界としてモックする（`notify` は USERS_TABLE を要求する）
 const mockName = vi.hoisted(() => vi.fn<(uid: string) => Promise<string | undefined>>(async () => undefined));
-vi.mock("../notify", () => ({ lookupDisplayNameIfSet: (...a: unknown[]) => mockName(...(a as [string])) }));
+const mockGone = vi.hoisted(() => vi.fn<() => Promise<Set<string>>>(async () => new Set<string>()));
+vi.mock("../notify", () => ({
+    lookupDisplayNameIfSet: (...a: unknown[]) => mockName(...(a as [string])),
+    deletedUserIds: () => mockGone(),
+    DELETED_USER_NAME: "退会したユーザー",
+}));
 
 // 判定は `blockCheck.ts` にある（`follow.ts` / `notify.ts` から輪を作らずに
 // 使うための切り出し）。同じ `mockDdbSend` を見るので振る舞いは変わらない。
 // **await は1つにまとめる**——このパッケージの tsconfig は top-level await を
 // 通さないので、増やすと `tsc` のエラー件数が増える（件数で見ているため）
 const [
-    { blockUser, unblockUser, listBlocks, hiddenUserIds, purgeBlocksFor, BLOCKS_MAX, blocksId, blockedById },
+    { blockUser, unblockUser, listBlocks, hiddenUserIds, purgeBlocksFor, BLOCKS_MAX, BLOCK_NAMES_MAX, blocksId, blockedById },
     { isBlocked, blockMarkerId },
 ] = await Promise.all([import("../block"), import("../blockCheck")]);
 
@@ -60,7 +65,7 @@ function world(rows: Record<string, Record<string, unknown>> = {}) {
 // `cmd.constructor` を読むと、その呼び出しだけ `undefined` で落ちる
 // ——「1つ前のテストが原因」に見えるので、たどり着くのに時間がかかった。
 // 中括弧で包んで何も返さない。
-beforeEach(() => { mockDdbSend.mockReset(); mockUnfollow.mockReset().mockResolvedValue(undefined); mockName.mockReset().mockResolvedValue(undefined); });
+beforeEach(() => { mockDdbSend.mockReset(); mockUnfollow.mockReset().mockResolvedValue(undefined); mockName.mockReset().mockResolvedValue(undefined); mockGone.mockReset().mockResolvedValue(new Set()); });
 
 // **やり取りの口を持つ以上の最低限。** ストーリーへの返信を足した時点で、
 // ログインしていれば誰でも誰の通知にも文字を送れるようになった
@@ -225,6 +230,73 @@ describe("listBlocks", () => {
         const r = await invoke(listBlocks, ev(ME));
         expect(r.statusCode).toBe(200);
         expect(bodyOf(r).users).toEqual([{ id: THEM }]);
+    });
+
+    // **退会した人を「旅人」として並べない。**
+    // 名前が引けないのは「未設定の人」も「退会した人」も同じなので、
+    // 画面のフォールバック（`旅人`）に落ちると**生きている人に見える**。
+    // 一覧を返す口はこれで7本目で、ここだけ通っていなかった
+    it("退会した人は伏せる", async () => {
+        world({ [blocksId(ME)]: { blockedIds: [THEM, OTHER] } });
+        mockGone.mockResolvedValue(new Set([THEM]));
+        mockName.mockImplementation(async (id: string) => (id === OTHER ? "生きている人" : "退会前の名前"));
+        const r = await invoke(listBlocks, ev(ME));
+        expect(bodyOf(r).users).toEqual([
+            { id: THEM, name: "退会したユーザー", deleted: true },
+            { id: OTHER, name: "生きている人" },
+        ]);
+        expect(mockName, "退会した人の名前を引きに行っている").not.toHaveBeenCalledWith(THEM);
+    });
+
+    // 引くのは一覧が空でないときだけ（`getComments` と同じ）。
+    // このテーブルの走査は Scan なので、0件のときに撃たない
+    it("一覧が空なら墓石を引きに行かない", async () => {
+        world({ [blocksId(ME)]: { blockedIds: [] } });
+        const r = await invoke(listBlocks, ev(ME));
+        expect(bodyOf(r).users).toEqual([]);
+        expect(mockGone, "0件なのに Scan している").not.toHaveBeenCalled();
+    });
+
+    // **伏せられなくても一覧は返す。**
+    //
+    // 一度ここを `mockResolvedValue(new Set())`（＝`beforeEach` の既定と
+    // 同じ）で書いていた。**何も検証していない重複**で、しかも
+    // 実際に投げさせると `listBlocks` は 500 を返していた
+    // ——テスト名が言っている性質はどこでも守られていなかった。
+    //
+    // この口は**ブロックを解除できる唯一の入口**（`BlockedUsers`）なので、
+    // 墓石が引けないだけで外せなくなるのは倒れ方として悪い。
+    //
+    // **ただし本番では発火しない。** `deletedUserIds` は `notify.ts` の
+    // 中で握って空集合を返すので reject しない——ここが reject するのは
+    // このファイルが `../notify` をモジュールごと差し替えているから。
+    // コミットに「実際に投げさせると 500 を返していた」と書いたが、
+    // 真なのは**モックの世界でだけ**。保険を保険として縛るテスト
+    it("墓石が引けなくても一覧は返す（保険。本番では発火しない）", async () => {
+        world({ [blocksId(ME)]: { blockedIds: [THEM] } });
+        mockGone.mockRejectedValue(new Error("throttled"));
+        mockName.mockResolvedValue("しつこい人");
+        const r = await invoke(listBlocks, ev(ME));
+        expect(r.statusCode, "墓石が引けないだけで解除できなくなる").toBe(200);
+        expect(bodyOf(r).users).toEqual([{ id: THEM, name: "しつこい人" }]);
+    });
+
+    // **名前を引く上限を超えたぶんも伏せる。**
+    // ここだけ `gone` を見ておらず、101人目以降にいる退会者は画面の
+    // フォールバック（「旅人」）に落ちて生きている人に見えていた
+    it("名前を引く上限を超えたぶんも、退会は伏せる", async () => {
+        const many = Array.from({ length: BLOCK_NAMES_MAX + 2 }, (_, i) =>
+            `${String(i).padStart(8, "0")}-2222-4222-8222-222222222222`);
+        const late = many[BLOCK_NAMES_MAX + 1];
+        world({ [blocksId(ME)]: { blockedIds: many } });
+        mockGone.mockResolvedValue(new Set([late]));
+        const r = await invoke(listBlocks, ev(ME));
+        const users = bodyOf(r).users as { id: string; name?: string; deleted?: boolean }[];
+        expect(users, "上限を超えたぶんが落ちている").toHaveLength(many.length);
+        expect(users.find((u) => u.id === late), "上限の外の退会者が「旅人」として並ぶ")
+            .toEqual({ id: late, name: "退会したユーザー", deleted: true });
+        // 名前を引くのは上限までのまま（往復を増やさない）
+        expect(mockName.mock.calls.length).toBe(BLOCK_NAMES_MAX);
     });
 });
 

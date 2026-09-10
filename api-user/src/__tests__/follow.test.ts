@@ -162,7 +162,14 @@ describe("followUser", () => {
         mockIsBlocked.mockImplementation((blocker: string) => Promise.resolve(blocker === ME));
         const res = await invoke(followUser, ev(ME, OTHER));
         expect(res.statusCode).toBe(400);
-        expect(JSON.parse(res.body).error).toContain("解除");
+        // **どこで解除するかまで言う。** 「解除」の1語しか見ていなかったので、
+        // 場所を落としても緑だった——押した人はその画面に解除の口が無い
+        // （開き直した直後のプロフィールの共有メニューに出ているのは、
+        //  逆の「この人をブロック」）。他の2か所（`StoryViewer` と
+        // `UserProfileClient` の注意書き）は場所まで言っているのに、
+        // **押した人が実際に受け取るこの文言だけ**が言っていなかった
+        expect(JSON.parse(res.body).error, "どこで解除するか言っていない")
+            .toContain("プロフィール設定");
         expect(mockDdbSend).not.toHaveBeenCalled();
         expect(mockPush).not.toHaveBeenCalled();
     });
@@ -624,8 +631,15 @@ describe("getFollowStats / getMyFollowing", () => {
     });
 
     it("自分の following userId 一覧を返す", async () => {
-        mockDdbSend.mockResolvedValueOnce({ Item: { list: ["a", "b"] } });
-        expect(JSON.parse((await invoke(getMyFollowing, ev(ME, undefined))).body)).toEqual({ userIds: ["a", "b"] });
+        mockDdbSend.mockResolvedValueOnce({ Item: { list: [OTHER, THIRD] } });
+        expect(JSON.parse((await invoke(getMyFollowing, ev(ME, undefined))).body)).toEqual({ userIds: [OTHER, THIRD] });
+    });
+
+    // 形の違う ID（`isUserId` 導入前のゴミ・本番に実在）は返さない。
+    // 画面はこれで `isFollowing` を決めるので、当たらない値を渡す意味が無い
+    it("形の違う ID は返さない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { list: [OTHER, "not-a-uuid"] } });
+        expect(JSON.parse((await invoke(getMyFollowing, ev(ME, undefined))).body)).toEqual({ userIds: [OTHER] });
     });
 });
 
@@ -825,20 +839,56 @@ describe("getUserFollowing（その人がフォローしている人）", () => 
     });
 
     it("名前まで返す（画面が1人ずつ引きに行かなくて済むように）", async () => {
-        mockDdbSend.mockResolvedValue({ Item: { list: [OTHER, THIRD] } });
+        mockDdbSend.mockImplementation((cmd: { input: { Key?: { id?: string } } }) => {
+            const id = cmd.input.Key?.id ?? "";
+            if (id === `followstats#${ME}`) return Promise.resolve({ Item: { followers: 0, following: 2 } });
+            return Promise.resolve({ Item: { list: [OTHER, THIRD] } });
+        });
         mockLookupIfSet.mockImplementation(async (id: string) => (id === OTHER ? "旅人B" : undefined));
         const res = await invoke(getUserFollowing, evUid(ME, ME));
         expect(res.statusCode).toBe(200);
         expect(JSON.parse(res.body).users).toEqual([{ id: OTHER, name: "旅人B" }, { id: THIRD }]);
         expect(JSON.parse(res.body).total).toBe(2);
+        expect(JSON.parse(res.body).listed).toBe(2);
+    });
+
+    // **`total` は数（`followstats#`）。** 一覧の長さを返していた頃は、
+    // 上限（2000）で溢れた場合や `undoFollow` が落ちた回に、シートの
+    // 見出しとピルの数字が食い違った。`following#` が空で数が 0 でないと
+    // 「まだ誰もフォローしていません」と出る（followers 側で直した矛盾）
+    it("一覧が空でも、数は followstats# の値を返す", async () => {
+        mockDdbSend.mockImplementation((cmd: { input: { Key?: { id?: string } } }) => {
+            const id = cmd.input.Key?.id ?? "";
+            if (id === `followstats#${ME}`) return Promise.resolve({ Item: { followers: 0, following: 3 } });
+            return Promise.resolve({});
+        });
+        const res = await invoke(getUserFollowing, evUid(ME, ME));
+        expect(JSON.parse(res.body).total, "一覧の長さを数として返している").toBe(3);
+        expect(JSON.parse(res.body).listed).toBe(0);
+    });
+
+    // **数が取れなくても一覧は返す**（今より悪くしない）
+    it("数の取得が落ちても 200 で一覧を返す", async () => {
+        mockDdbSend.mockImplementation((cmd: { input: { Key?: { id?: string } } }) => {
+            const id = cmd.input.Key?.id ?? "";
+            if (id === `followstats#${ME}`) return Promise.reject(new Error("throttled"));
+            return Promise.resolve({ Item: { list: [OTHER] } });
+        });
+        const res = await invoke(getUserFollowing, evUid(ME, ME));
+        expect(res.statusCode, "数が取れないだけで一覧を失っている").toBe(200);
+        expect(JSON.parse(res.body).users).toHaveLength(1);
     });
 
     // **上限を「入れる前」に見る。** 2000回の GetItem は1回の呼び出しの
     // 6秒には収まらない（`Promise.all` の並列でも、DynamoDB の応答と
     // 再送のぶんが積み上がる）
     it("50人までしか名前を引かない（総数は返す）", async () => {
-        const many = Array.from({ length: 60 }, (_, i) => `0000000${String(i).padStart(4, "0")}-1111-4111-8111-111111111111`);
-        mockDdbSend.mockResolvedValue({ Item: { list: many } });
+        const many = Array.from({ length: 60 }, (_, i) => `${String(i).padStart(8, "0")}-1111-4111-8111-111111111111`);
+        mockDdbSend.mockImplementation((cmd: { input: { Key?: { id?: string } } }) => {
+            const id = cmd.input.Key?.id ?? "";
+            if (id === `followstats#${ME}`) return Promise.resolve({ Item: { followers: 0, following: 60 } });
+            return Promise.resolve({ Item: { list: many } });
+        });
         const res = await invoke(getUserFollowing, evUid(ME, ME));
         expect(JSON.parse(res.body).users).toHaveLength(50);
         expect(JSON.parse(res.body).total, "総数が分からない").toBe(60);
@@ -877,6 +927,18 @@ describe("getUserFollowing（その人がフォローしている人）", () => 
     it("でたらめなIDは断る（何も読まない）", async () => {
         expect((await invoke(getUserFollowing, evUid(ME, "not-a-uuid"))).statusCode).toBe(400);
         expect(mockDdbSend).not.toHaveBeenCalled();
+    });
+
+    // フォロワー側と同じ。`following#` にも同じゴミが入りうる
+    it("形の違う ID は一覧に出さない", async () => {
+        mockDdbSend.mockImplementation((cmd: { input: { Key?: { id?: string } } }) => {
+            const id = cmd.input.Key?.id ?? "";
+            if (id === `followstats#${ME}`) return Promise.resolve({ Item: { followers: 0, following: 3 } });
+            return Promise.resolve({ Item: { list: [OTHER, "not-a-uuid", null] } });
+        });
+        const res = await invoke(getUserFollowing, evUid(ME, ME));
+        expect(JSON.parse(res.body).users).toEqual([{ id: OTHER }]);
+        expect(JSON.parse(res.body).listed).toBe(1);
     });
 
     // **共有キャッシュに載せない**（人の繋がりは本人向けの応答として扱う）
@@ -975,6 +1037,72 @@ describe("フォロワーの一覧（followers#）", () => {
             "相手のフォロワー一覧に残る").toBe(true);
     });
 
+    // **多人数が同じ行を書くので、やり直しに間を置く**（`following#<自分>` は
+    // 書き手が自分1人だが、`followers#<相手>` はその人をフォロー／解除する
+    // 全員）。ただし**最後の回は待たない**——待ってもループが尽きて投げる
+    // だけで、その 100〜300ms は丸損（`followUser` は2つの行を通るので
+    // 最悪 1,125ms、既定6秒の枠から削る意味が無い）
+    it("競合し続けても、最後の回は待たずに諦める", async () => {
+        const waits: number[] = [];
+        const realSetTimeout = globalThis.setTimeout;
+        vi.spyOn(globalThis, "setTimeout").mockImplementation(((fn: () => void, ms?: number) => {
+            waits.push(ms ?? 0);
+            return realSetTimeout(fn, 0);
+        }) as typeof setTimeout);
+        try {
+            mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
+                if (cmd.constructor.name === "PutCommand") {
+                    return Promise.reject(Object.assign(new Error("c"), { name: "ConditionalCheckFailedException" }));
+                }
+                if (cmd.constructor.name === "GetCommand") return Promise.resolve({ Item: { list: [ME], rev: 1 } });
+                return Promise.resolve({});
+            });
+            const { updateFollowersQuietly } = await import("../follow");
+            await updateFollowersQuietly(OTHER, ME, false);
+            // 4回試して、待つのは3回（最後の1回のあとは待たない）
+            expect(waits.length, "最後の回のあとも待っている").toBe(3);
+        } finally {
+            vi.mocked(globalThis.setTimeout).mockRestore();
+        }
+    });
+
+    // 正常系。**これが無いと「成功しても触らない」変異が素通りする**
+    // （実際に素通りした）
+    it("ブロックでの解除が通ったら、相手のフォロワー一覧からも外す", async () => {
+        world({
+            [`followers#${OTHER}`]: { list: [ME, THIRD], rev: 1 },
+            [`following#${ME}`]: { list: [OTHER], rev: 1 },
+        });
+        const { unfollowQuietly } = await import("../follow");
+        await unfollowQuietly(OTHER, ME);
+        const followersPut = puts().find((p) => p.input.Item?.id === `followers#${OTHER}`);
+        expect(followersPut, "相手の一覧に残る").toBeDefined();
+        expect(followersPut!.input.Item?.list).toEqual([THIRD]);
+    });
+
+    // **解除そのものが失敗した回は、相手の一覧も触らない。**
+    // 一度この呼び出しを `try` の外に出したが、`try` には
+    // `unfollowAtomically` も入っているので、解除が成立していないのに
+    // 相手の一覧からだけ自分が消えていた——マーカーも数も自分を数えた
+    // ままなので、**誰も直せない不整合**（変更前は1行も書かれず整合していた）
+    it("解除そのものが落ちたら、相手のフォロワー一覧は触らない", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            if (cmd.constructor.name === "TransactWriteCommand") {
+                return Promise.reject(txCancelled(["None", "TransactionConflict"]));
+            }
+            if (cmd.constructor.name === "GetCommand") {
+                const id = cmd.input.Key?.id ?? "";
+                if (id === `followers#${OTHER}`) return Promise.resolve({ Item: { list: [ME], rev: 1 } });
+                if (id === `following#${ME}`) return Promise.resolve({ Item: { list: [OTHER], rev: 1 } });
+                return Promise.resolve({});
+            }
+            return Promise.resolve({});
+        });
+        const { unfollowQuietly } = await import("../follow");
+        await unfollowQuietly(OTHER, ME);
+        expect(puts(), "解除できていないのに相手の一覧から消している").toHaveLength(0);
+    });
+
     // **表示の都合でフォローを失敗させない。** マーカーと数は既に正しく、
     // 欠けるのは一覧の1行だけ
     it("一覧を書けなくても、フォローそのものは成功する", async () => {
@@ -1021,6 +1149,20 @@ describe("フォロワーの一覧（followers#）", () => {
         expect(JSON.parse(res.body).users).toEqual([{ id: THIRD, deleted: true }]);
     });
 
+    // **数の Get が落ちただけで一覧を丸ごと失わせない**（`Promise.all` に
+    // 素で入れると、スロットル1回で 500 になる）
+    it("数の取得が落ちても 200 で一覧を返す", async () => {
+        mockDdbSend.mockImplementation((cmd: { input: { Key?: { id?: string } } }) => {
+            const id = cmd.input.Key?.id ?? "";
+            if (id === `followstats#${ME}`) return Promise.reject(new Error("throttled"));
+            return Promise.resolve({ Item: { list: [OTHER] } });
+        });
+        const res = await invoke(getUserFollowers, evUid(ME, ME));
+        expect(res.statusCode, "数が取れないだけで一覧を失っている").toBe(200);
+        expect(JSON.parse(res.body).users).toHaveLength(1);
+        expect(JSON.parse(res.body).total).toBe(1);
+    });
+
     it("その人にブロックされていたら 404（一覧を読まない）", async () => {
         mockIsBlocked.mockImplementation((blocker: string) => Promise.resolve(blocker === OTHER));
         const res = await invoke(getUserFollowers, evUid(ME, OTHER));
@@ -1033,8 +1175,24 @@ describe("フォロワーの一覧（followers#）", () => {
         expect(mockDdbSend).not.toHaveBeenCalled();
     });
 
+    // **本番に実在する。** `isUserId` を入れる前は形も存在も見ずにマーカーと
+    // 一覧を作れたので、でたらめな ID が残っている（埋め戻しのドライランで
+    // 2件確認）。素通しすると一覧に「旅人」として並び、押すと空のプロフィール
+    it("形の違う ID は一覧に出さない（行き止まりのリンクを作らない）", async () => {
+        world({
+            [`followers#${ME}`]: { list: [OTHER, "not-a-uuid", "", 42] },
+            [`followstats#${ME}`]: { followers: 4, following: 0 },
+        });
+        const res = await invoke(getUserFollowers, evUid(ME, ME));
+        expect(JSON.parse(res.body).users).toEqual([{ id: OTHER }]);
+        // **数は `followstats#` のまま**（落としたのは出せない行だけで、
+        // 数を作り直す根拠にはならない）。画面は食い違いを言える
+        expect(JSON.parse(res.body).total).toBe(4);
+        expect(JSON.parse(res.body).listed).toBe(1);
+    });
+
     it("50人までしか名前を引かない（総数は返す）", async () => {
-        const many = Array.from({ length: 60 }, (_, i) => `0000000${String(i).padStart(4, "0")}-1111-4111-8111-111111111111`);
+        const many = Array.from({ length: 60 }, (_, i) => `${String(i).padStart(8, "0")}-1111-4111-8111-111111111111`);
         world({
             [`followers#${ME}`]: { list: many },
             [`followstats#${ME}`]: { followers: 60, following: 0 },

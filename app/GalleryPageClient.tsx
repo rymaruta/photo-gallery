@@ -13,7 +13,7 @@ import { capitalize } from "../lib/utils/string";
 import { usePhotos } from "../lib/hooks/usePhotos";
 import { useAuth } from "./auth/context";
 import { useToast } from "../lib/hooks/useToast";
-import { fetchFollowingSet } from "../lib/hooks/useFollow";
+import { fetchFollowingSet, subscribeFollowingSet } from "../lib/hooks/useFollow";
 
 // フィルタバーに出すタグ数の上限（枚数の多い順）。残りは検索で辿る
 const POPULAR_TAG_LIMIT = 10;
@@ -71,6 +71,15 @@ export default function GalleryPageClient() {
     return () => { aborted = true; };
   }, [authLoading, isAuthenticated, followingReloadKey]);
 
+  // **共有している一覧が変わったら取り直す。**
+  // 上の effect は結果を `followingIds` に**コピー**するので、
+  // 共有ストア（`useFollow`）を直しても伝わらない。ストーリーの返信一覧
+  // からブロックしても、この画面は重なって開くだけで再マウントされない
+  // ＝取り直す契機が無く、ブロックした相手の写真が出続けていた
+  React.useEffect(() => subscribeFollowingSet(() => {
+    setFollowingReloadKey((k) => k + 1);
+  }), []);
+
   const {
     PHOTOS,
     filters,
@@ -84,6 +93,29 @@ export default function GalleryPageClient() {
     next,
     prev,
   } = useGallery(photos, followingIds);
+
+  /**
+   * フォロー中フィードで「まだ分からない」——**件数も本文も出さない**。
+   *
+   *   - フォロー中の一覧がまだ（`!followingLoaded`）
+   *   - 一覧は来たが**写真がまだ**。`photos` の初期値はビルド時の JSON で、
+   *     定期ビルドは週1。ここで「フォローした人の写真がここに集まります。」
+   *     を出すと、`0caa56d5` が潰した画面（フォローが効いていないように
+   *     見える）が読み込み中だけ復活する
+   *
+   * **落ちた回は入れない**（`photosFailed`）。`usePhotos` は失敗時に
+   * `loaded` を立てないので、入れると「読み込み中…」から永久に動かない。
+   *
+   * **フォローが0人なら入れない。** 答えはもう確定していて、写真を待つ
+   * 理由が無い（待つと0人の人にだけ無意味な「読み込み中…」が出る）。
+   *
+   * **1つの式にしておく。** 本文だけに足した回に、「読み込み中…」の
+   * 真上へ「結果: 0 件」が並んだ（レビューが実測）。
+   */
+  const followingFeedPending = filters.feed === "following" && (
+    !followingLoaded
+    || (followingIds.size > 0 && filteredPhotos.length === 0 && !photosLoaded && !photosFailed)
+  );
 
   // URLパラメータ(?photo=)で写真モーダルを開く。
   // 一覧タップは個別ページへ直接遷移するが、ビルド前の新着写真は
@@ -406,9 +438,11 @@ export default function GalleryPageClient() {
 
       <>
         {/* 件数も「まだ分からない」ときは出さない。本文を伏せながら
-            「結果: 0 件」と言い続けるのは、伏せた意味が無い */}
+            「結果: 0 件」と言い続けるのは、伏せた意味が無い。
+            **本文と同じ式で見ること**——写真の到着待ちを本文だけに足したら、
+            「読み込み中…」の真上に「結果: 0 件」が並んだ（レビューが実測） */}
         {!(followingError && filters.feed === "following")
-          && !(filters.feed === "following" && !followingLoaded) && (
+          && !followingFeedPending && (
           <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
             {locale === "en"
               ? `${labels.gallery?.resultsCount ?? "Results"}: ${filteredPhotos.length}`
@@ -431,10 +465,11 @@ export default function GalleryPageClient() {
               {locale === "en" ? "Retry" : "もう一度読み込む"}
             </button>
           </div>
-        ) : filters.feed === "following" && !followingLoaded ? (
+        ) : followingFeedPending ? (
           // まだ分からない。**「0人です」とは言わない**が、真っ白でも困る
           // ——実測: 応答が返らない回線では 5秒・20秒・45秒のいずれでも
           // フィルタバーの直後がフッターで、読み込み中とも失敗とも分からない
+          // （条件は `followingFeedPending` を見よ）
           <div className="py-16 text-center text-sm text-white/50" role="status" aria-live="polite">
             {locale === "en" ? "Loading…" : "読み込み中…"}
           </div>
@@ -444,11 +479,30 @@ export default function GalleryPageClient() {
           // 検索語やカテゴリで0件になった回にも出していたので、抜けるには
           // 「みんなの写真を見る」→まだ0件→「フィルターをリセット」と
           // 2手かかっていた（下の分岐はリセットで feed ごと戻せる）。
+          //
+          // **そう宣言しておきながら、条件に人数が入っていなかった。**
+          // 1人フォローした直後（その人がまだ投稿していない）に
+          // 「フォローした人の写真がここに集まります」＝**まだ誰も
+          // フォローしていない人と同じ画面**になり、フォローが効いて
+          // いないように見える。相手が最初の1枚を上げるまで続く。
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-white/60 text-center">
             <p className="text-sm">
-              {locale === "en"
-                ? "Photos from people you follow will show up here."
-                : "フォローした人の写真がここに集まります。"}
+              {/* **「まだ投稿していません」と言い切れるのは、一覧が届いた回だけ。**
+                  `photos` の初期値はビルド時の JSON で、**定期ビルドは週1**。
+                  取得がまだ／落ちた回や、フォロー先が前回の日曜以降に投稿した
+                  場合、`filteredPhotos` は0件になる。前の文言（「ここに集まります」）は
+                  曖昧だったので嘘ではなかった——**直したぶん強く間違える**、
+                  このセッションが何度も踏んだ型。
+                  「まだ来ていない」は1つ上の分岐が「読み込み中…」で受ける
+                  ので、ここに残るのは**届いた回と、落ちた回**。落ちた回は
+                  0件の理由が分からないので断定しない側へ倒す */}
+              {followingIds.size === 0 || photosFailed
+                ? (locale === "en"
+                  ? "Photos from people you follow will show up here."
+                  : "フォローした人の写真がここに集まります。")
+                : (locale === "en"
+                  ? "The people you follow haven't posted yet."
+                  : "フォロー中の人は、まだ写真を投稿していません。")}
             </p>
             <button
               onClick={() => setFilters({ feed: "all" })}

@@ -24,7 +24,12 @@ vi.mock("../components/stories/StoriesBar", () => ({ default: () => null }));
 vi.mock("../components/GalleryGrid", () => ({ default: () => null }));
 vi.mock("../components/GalleryModal", () => ({ default: () => null }));
 vi.mock("../components/SearchParamWatcher", () => ({ default: () => null }));
-vi.mock("../../lib/hooks/usePhotos", () => ({ usePhotos: () => ({ photos: [] }) }));
+// **`loaded` を落とさない。** 実物は必ず返すので、落とすと
+// 「一覧がまだ来ていない」状態でこのファイルを回すことになる
+// （フォロー中フィードは、写真が届くまで「読み込み中…」を出す）
+vi.mock("../../lib/hooks/usePhotos", () => ({
+    usePhotos: () => ({ photos: [], loaded: true, failed: false }),
+}));
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 import ToastProvider from "../components/ToastProvider";

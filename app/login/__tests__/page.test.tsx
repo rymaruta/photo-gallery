@@ -393,10 +393,56 @@ describe("LoginPage - 表示名持ち越しによるプロフィール作成", (
         await user.type(screen.getByPlaceholderText(/example@email\.com/), " u@example.com ");
         await user.click(screen.getByRole("button", { name: /確認コードを送信/ }));
         await waitFor(() => expect(screen.getByPlaceholderText("メールに届いたコードを入力")).toBeInTheDocument());
-        await user.type(screen.getByPlaceholderText("メールに届いたコードを入力"), "123456");
+        // **コード欄にも空白を入れる。** ここは `type="text"` なので
+        // ブラウザ側の正規化が効かない（メールから6桁をコピペすると
+        // 末尾に空白が付くことがある）。空白なしで打っていた頃は、
+        // 確かめていたのは jsdom が勝手に落とすメールの分だけだった
+        await user.type(screen.getByPlaceholderText("メールに届いたコードを入力"), " 123456 ");
         await user.type(screen.getByPlaceholderText(/8文字以上/), "Password1!");
         await user.click(screen.getByRole("button", { name: /パスワードを更新/ }));
         await waitFor(() => expect(mockConfirmForgotPassword).toHaveBeenCalledWith("u@example.com", "123456", "Password1!"));
+    });
+
+    // **「パスワードを更新」の門番が、1件も検証されていなかった**
+    // （このファイルに `toBeDisabled` が0件だった）。
+    // コード欄は `type="text"` なのでブラウザ側の正規化が効かない
+    // ——メールから6桁をコピペすると空白が付くことがあり、
+    // `resetCode.length` で数えると空白ぶんで6文字に届いてしまう
+    it("コードが6桁に満たない間は「パスワードを更新」を押せない", async () => {
+        mockForgotPassword.mockResolvedValue({ success: true });
+        const user = userEvent.setup();
+        render(<LoginPage />);
+        await user.click(screen.getByRole("button", { name: /パスワードをお忘れですか/ }));
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), "u@example.com");
+        await user.click(screen.getByRole("button", { name: /確認コードを送信/ }));
+        await waitFor(() => expect(screen.getByPlaceholderText("メールに届いたコードを入力")).toBeInTheDocument());
+
+        const update = screen.getByRole("button", { name: /パスワードを更新/ });
+        // 何も入れていない
+        expect(update, "空のまま押せる").toBeDisabled();
+
+        // **空白を混ぜた5桁。** 文字数だけ数えると7文字で通ってしまう
+        await user.type(screen.getByPlaceholderText("メールに届いたコードを入力"), " 12345 ");
+        await user.type(screen.getByPlaceholderText(/8文字以上/), "Password1!");
+        expect(update, "空白を数えて6桁に届いたことにしている").toBeDisabled();
+
+        // 6桁そろえば押せる
+        await user.clear(screen.getByPlaceholderText("メールに届いたコードを入力"));
+        await user.type(screen.getByPlaceholderText("メールに届いたコードを入力"), " 123456 ");
+        expect(update, "6桁そろっているのに押せない").toBeEnabled();
+    });
+
+    it("新しいパスワードが空の間も押せない", async () => {
+        mockForgotPassword.mockResolvedValue({ success: true });
+        const user = userEvent.setup();
+        render(<LoginPage />);
+        await user.click(screen.getByRole("button", { name: /パスワードをお忘れですか/ }));
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), "u@example.com");
+        await user.click(screen.getByRole("button", { name: /確認コードを送信/ }));
+        await waitFor(() => expect(screen.getByPlaceholderText("メールに届いたコードを入力")).toBeInTheDocument());
+
+        await user.type(screen.getByPlaceholderText("メールに届いたコードを入力"), "123456");
+        expect(screen.getByRole("button", { name: /パスワードを更新/ }), "パスワードが空でも押せる").toBeDisabled();
     });
 
     it("PUT /user/profile が失敗してもログインは成功扱いで `/` へリダイレクトする", async () => {

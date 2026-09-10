@@ -15,13 +15,15 @@
  */
 
 import React, { useCallback, useEffect, useState } from "react";
-import { userFetch } from "../../../lib/utils/api";
+import { userFetch, readApiError, sessionErrorMessage } from "../../../lib/utils/api";
 import { usableUserRows, type UserRow } from "../../../lib/utils/userRows";
 
 export default function BlockedUsers({ locale }: { locale: "ja" | "en" }) {
     const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
     const [users, setUsers] = useState<UserRow[]>([]);
     const [busy, setBusy] = useState<string | null>(null);
+    /** 解除が効かなかった理由（押した場所の近くに1行出す） */
+    const [actionError, setActionError] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -49,15 +51,29 @@ export default function BlockedUsers({ locale }: { locale: "ja" | "en" }) {
     const unblock = useCallback(async (id: string) => {
         if (busy) return;
         setBusy(id);
+        setActionError(null);
         try {
             const res = await userFetch(`/users/${encodeURIComponent(id)}/block`, { method: "DELETE" });
             // **効いたときだけ画面から消す。** 失敗を成功に見せると
             // 「解除したのにまだ届かない」で二度目の落胆になる
-            if (res.ok) setUsers((prev) => prev.filter((u) => u.id !== id));
-        } catch { /* 押し直せる */ } finally {
+            if (res.ok) { setUsers((prev) => prev.filter((u) => u.id !== id)); return; }
+            // **失敗を無言にしない。** ボタンが「解除しています…」から
+            // 戻って行が残るだけなので、効かなかったのか・まだなのか・
+            // 押し方が悪いのかが分からなかった。**ここはブロック解除の
+            // 唯一の口**で、`StoryViewer` と `UserProfileClient` が
+            // 「解除はプロフィール設定から」と案内する到達先。
+            // 同じファイルの取得失敗は文言で伝えているのに、ここだけ黙っていた
+            setActionError(await readApiError(res, locale === "en"
+                ? "Couldn't unblock. Please try again." : "解除できませんでした。もう一度お試しください"));
+        } catch (e) {
+            // 圏外とセッション切れを混ぜない（同じファイルの取得側と同じ形）
+            setActionError(sessionErrorMessage(e) ?? (locale === "en"
+                ? "Couldn't unblock. Please try again." : "解除できませんでした。もう一度お試しください"));
+        } finally {
             setBusy(null);
         }
-    }, [busy]);
+        // `locale` を入れる（文言を読むようになったので、古い値を掴まない）
+    }, [busy, locale]);
 
     // **取得に失敗したら、そう言う。** 黙って消すと、ストーリーの返信欄が
     // 「解除はプロフィール設定からできます」と案内している先が
@@ -88,11 +104,25 @@ export default function BlockedUsers({ locale }: { locale: "ja" | "en" }) {
                     ? "They can't reply to your stories, comment on your photos, or follow you. Unblocking does not restore the follows that blocking removed."
                     : "ストーリーへの返信・写真へのコメント・フォローができなくなります。解除しても、ブロックのときに外れたフォローは戻りません。"}
             </p>
+            {/* 解除が効かなかった理由。**一覧の上**に置く——押したボタンは
+                行の中にあるが、行は消えないので近くに1行あれば足りる */}
+            {actionError && (
+                <p role="alert" className="text-sm text-white/85 mb-3">{actionError}</p>
+            )}
             <ul className="rounded-2xl bg-white/[0.03] ring-1 ring-white/10 divide-y divide-white/5">
                 {users.map((u) => (
                     <li key={u.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                        <span className="text-sm text-white/85 truncate">
-                            {u.name ?? (locale === "en" ? "User" : "旅人")}
+                        {/* **退会した人はここで出し分ける。** サーバーが返す
+                            `name` は日本語固定なので、そのまま出すと
+                            英語表示の人にも「退会したユーザー」が出る
+                            （`FollowingSheet` は `deleted` を見て
+                            "Deleted user" を出している＝同じ画面群で
+                            扱いが割れていた）。解除は押せるままにする
+                            ——押せないと外せなくなる */}
+                        <span className={`text-sm truncate ${u.deleted ? "text-white/60" : "text-white/85"}`}>
+                            {u.deleted
+                                ? (locale === "en" ? "Deleted user" : "退会したユーザー")
+                                : (u.name ?? (locale === "en" ? "User" : "旅人"))}
                         </span>
                         <button
                             type="button"

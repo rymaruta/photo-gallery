@@ -51,6 +51,71 @@ beforeEach(() => {
 });
 
 describe("プロフィールの取得失敗", () => {
+    // **プロフィールが投げた回に、オーナーの操作だけを有効にしない。**
+    //
+    // `Promise.all` → `Promise.allSettled` に変えたとき、セッションの結果を
+    // プロフィールの失敗より**先に**反映するようにした。それ自体は正しい
+    // （ログイン済みなのにフォロー・ブロックの項目が消えるのを直した）が、
+    // その直後に `throw` を残したので **`isOwner` は true・一覧は
+    // ビルド時 JSON（`photos.json` は全件 published:true）** という
+    // 組み合わせが新しくできた。目のアイコン・ピン・カバーが押せる状態で
+    // 非公開バッジが出ないので、押すと**本当に再公開する**
+    // ——このファイルが元から戒めている当の形。
+    it("プロフィールが投げても、自分の一覧は取りに行く", async () => {
+        mockGetCurrentSession.mockResolvedValue(session(ME));
+        // `userPublicFetch` は打ち切り・通信断で**投げる**
+        mockUserPublicFetch.mockRejectedValue(new Error("network"));
+
+        render(<UserProfileClient userId={ME} />);
+
+        await waitFor(() => expect(
+            mockUserFetch.mock.calls.some((c) => String(c[0]).startsWith("/user/photos")),
+            "オーナー扱いなのに自分の一覧を取りに行っていない（ビルド時の公開データが残る）",
+        ).toBe(true));
+    });
+
+    // 中断（`userId` が変わった）は失敗として出さない。
+    //
+    // **`unmount()` してから見ていた回がある。** DOM ごと消えているので
+    // 何を実装しても通る＝`signal.aborted` の早期 return を消しても全緑
+    // だった（レビューが変異で実証）。**画面が残っている形で見る**
+    it("中断は「読み込めませんでした」にしない", async () => {
+        const OTHER = "22222222-2222-4222-8222-222222222222";
+        // 1人目は返らないまま中断され、2人目は成功する
+        const abort = Object.assign(new Error("aborted"), { name: "AbortError" });
+        let rejectFirst!: (e: unknown) => void;
+        mockUserPublicFetch.mockImplementationOnce(() => new Promise((_r, rej) => { rejectFirst = rej; }));
+
+        const { rerender } = render(<UserProfileClient userId={ME} />);
+        await waitFor(() => expect(mockUserPublicFetch).toHaveBeenCalled());
+        rerender(<UserProfileClient userId={OTHER} />);
+        // 中断された1人目の rejection が、あとから届く
+        rejectFirst(abort);
+
+        await waitFor(() => expect(
+            mockUserPublicFetch.mock.calls.some((c) => String(c[0]).includes(OTHER)),
+        ).toBe(true));
+        await waitFor(() => expect(
+            screen.queryByText(/プロフィールを読み込めませんでした/),
+            "中断を失敗として出している（次の画面に前の失敗が出る）",
+        ).toBeNull());
+    });
+
+    // **訪問者の経路も見る。** 新しい `loadError` のテストはオーナー経路
+    // しか見ておらず、「プロフィールが落ちても公開一覧を取りに行く」は
+    // 訪問者だけ元に戻す変異で全緑だった（レビューが実証）
+    it("訪問者でも、プロフィールが投げたら公開一覧は取りに行く", async () => {
+        mockGetCurrentSession.mockResolvedValue(null);
+        mockUserPublicFetch.mockRejectedValue(new Error("network"));
+
+        render(<UserProfileClient userId={ME} />);
+
+        await waitFor(() => expect(
+            mockPublicFetch.mock.calls.some((c) => String(c[0]).includes("/photos?userId=")),
+            "プロフィールの失敗が公開一覧を巻き添えにしている",
+        ).toBe(true));
+    });
+
     it("失敗を伝え、再読み込みで立て直す", async () => {
         // 失敗の間はすべて失敗にする（effect は再マウント等で複数回走りうるので
         // Once で組むと、2回目の成功が1回目の失敗表示を消してしまう）

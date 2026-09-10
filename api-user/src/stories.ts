@@ -3,7 +3,7 @@ import { ScanCommand, QueryCommand, PutCommand, GetCommand, UpdateCommand, Delet
 import { randomUUID } from "crypto";
 import { ddb, PHOTOS_TABLE, USER_INDEX, STORY_INDEX, STORY_FEED_KEY } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError, isAdmin } from "./http";
-import { lookupDisplayName } from "./notify";
+import { lookupDisplayName, deletedUserIds, DELETED_USER_NAME } from "./notify";
 import { mediaKeys, deriveUploadKey } from "./mediaKeys";
 import { isOwnUploadUrlFromEnv as isOwnUploadUrl, keyFromUploadUrl, canonicalUploadUrl } from "./uploadPolicy";
 import { s3DeleteMany } from "./s3Delete";
@@ -439,9 +439,22 @@ export const getStoryViewers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
             return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: "権限がありません" }) };
         }
 
+        // **退会した人の名前を出さない。**
+        //
+        // 閲覧のときに引いた表示名を焼き込んでいるので（`viewStory`）、
+        // そのあと退会しても残る。「誰が何をしたか」を返す一覧6本のうち、
+        // **ここだけ `deletedUserIds()` を通していなかった**
+        // （comments / notifications / storyReplies / getUserFollowing /
+        //  getUserFollowers は全部通している）。
+        // ストーリーは24時間で消えるので窓は短いが、その間は出続ける。
         const viewersMap = (item.viewers ?? {}) as Record<string, { displayName?: string; at?: string }>;
-        const viewers = Object.entries(viewersMap)
-            .map(([userId, v]) => ({ userId, displayName: v?.displayName, at: v?.at }))
+        const entries = Object.entries(viewersMap);
+        // 引くのは閲覧者が居るときだけ（`getComments` と同じ）
+        const gone = entries.length > 0 ? await deletedUserIds() : new Set<string>();
+        const viewers = entries
+            .map(([userId, v]) => (gone.has(userId)
+                ? { userId, displayName: DELETED_USER_NAME, deleted: true, at: v?.at }
+                : { userId, displayName: v?.displayName, at: v?.at }))
             .sort((a, b) => String(b.at ?? "").localeCompare(String(a.at ?? "")));
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ viewers, count: viewers.length }) };
     } catch (e) {

@@ -129,10 +129,29 @@ type Props = {
     onSeen: (storyId: string) => void;
     /** 自分のストーリーを削除。成功時 true を返すと閉じる */
     onDelete?: (storyId: string) => Promise<boolean>;
+    /**
+     * 返信一覧からブロックした。**親はストーリーの一覧を取り直すこと。**
+     *
+     * サーバーは `GET /stories` でブロック両向きを除外する
+     * （`api-user/src/stories.ts` の `hiddenUserIds`）が、`StoriesBar` が
+     * 取り直すのは**マウント時と `isAuthenticated` の変化時だけ**。
+     * 伝えないと、ブロックした相手のリングがバーに残り、開いて再生できる。
+     *
+     * **プロフィール経由のブロックでは起きない**——あちらはギャラリーへ
+     * 戻る時点で `StoriesBar` が再マウントされて取り直すので、直さなくても
+     * 症状が出ない。**症状が出る唯一の経路がこちら**、という非対称は
+     * フォローの一覧でまったく同じ形を踏んだばかり。
+     *
+     * （再マウントの根拠は**配置**——`StoriesBar` を描くのは
+     *   `GalleryPageClient` だけ、それを描くのは `app/page.tsx`（`/`）だけ。
+     *   プロフィールは `/users/<id>` か `/users?id=` で別ルート。
+     *   **実ブラウザでは測っていない**）
+     */
+    onBlocked?: (userId: string) => void;
     onClose: () => void;
 };
 
-export default function StoryViewer({ groups, initialGroupIndex, locale, ownUserId, isAuthenticated, onSeen, onDelete, onClose }: Props) {
+export default function StoryViewer({ groups, initialGroupIndex, locale, ownUserId, isAuthenticated, onSeen, onDelete, onBlocked, onClose }: Props) {
     const [g, setG] = useState(initialGroupIndex);
     const [i, setI] = useState(0);
     // 動画の進捗は **DOM に直接書く**（下の rAF ループ）。
@@ -162,6 +181,8 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const [replySending, setReplySending] = useState(false);
     const [replySent, setReplySent] = useState(false);
     const [replyError, setReplyError] = useState<string | null>(null);
+    /** ブロックが効かなかった理由（`replyError` と同じ形でその場に出す） */
+    const [blockError, setBlockError] = useState<string | null>(null);
     /** 入力中は進めない（打っている間に次のストーリーへ送られない） */
     const [replyFocused, setReplyFocused] = useState(false);
     // 届いた返信（投稿者だけ）
@@ -213,10 +234,35 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     }, [item, isAuthenticated, isOwnStory]);
 
     // 自分のストーリー表示中は閲覧者リストを取得
+    /**
+     * 開き直したときに引き直すための世代。
+     *
+     * **前回が失敗していたときだけ**進める。閲覧者の数はシートを開く前の
+     * ボタンに出るので取得は先に走る＝毎回引き直すと成功した回まで
+     * 往復が増える（Lambda の同時実行はアカウント全体で10）。
+     */
+    const [viewersRetry, setViewersRetry] = useState(0);
+
+    // **リセットは取得と分ける。** 一緒にしていたので `viewersOpen` を
+    // deps に入れられなかった（入れると開いた瞬間に `setViewersOpen(false)`
+    // が走って開けない）。分けたので、取得の側に開閉を効かせられる
     useEffect(() => {
         setViewers(null);
         setViewersError(false);   // 前のストーリーの失敗を持ち越さない
         setViewersOpen(false);
+    }, [item?.id]);
+
+    // **失敗した回は、開き直したときに引き直す。**
+    // 入れていなかったので、閉じて開き直しても取り直さず（再試行ボタンも
+    // 無い）、抜けるには別のストーリーへ移って戻るしかなかった
+    // ——その手順は画面から読み取れない。**すぐ下の返信一覧は
+    // `repliesOpen` を deps に入れていて開き直せば取り直す**＝
+    // 同じファイル内で扱いが割れていた
+    useEffect(() => {
+        if (viewersOpen && viewersError) setViewersRetry((n) => n + 1);
+    }, [viewersOpen, viewersError]);
+
+    useEffect(() => {
         if (!item || !isOwnStory) return;
         // 中断ガード。ストーリーは左右で次々に切り替わるので、前のストーリーの
         // 応答が後から届く。無かった頃は**別のストーリーの閲覧者数と名前**が
@@ -259,7 +305,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             }
         })();
         return () => { aborted = true; };
-    }, [item, isOwnStory]);
+    }, [item, isOwnStory, viewersRetry]);
 
     // 再生し直し用のカウンタ。進捗アニメーション/動画/BGM を最初から流し直す
     const [replay, setReplay] = useState(0);
@@ -468,6 +514,11 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         setKeepError(null);
         setBlocking(null);
         setBlockedIds(new Set());
+        // **写したのは setter と描画だけで、リセットが漏れていた。**
+        // 落とさないと、s1 でブロックに失敗した赤い1行が s2 の返信一覧に
+        // 出る——このすぐ上のコメントが「前の人へ送ったはずの手応えを
+        // 持ち越さない」と戒めている当の形
+        setBlockError(null);
     }, [item?.id]);
 
     /** 返信を送る（本文または絵文字1つ） */
@@ -611,16 +662,41 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const blockSender = useCallback(async (uid: string) => {
         if (!uid || blocking) return;
         setBlocking(uid);
+        setBlockError(null);
         try {
             const { userFetch } = await import("../../../lib/utils/api");
             const res = await userFetch(`/users/${encodeURIComponent(uid)}/block`, { method: "POST" });
             // **効いたときだけ画面を変える。** 失敗を成功に見せると、
             // 「押したのにまた届く」で二度目の落胆になる
-            if (res.ok) setBlockedIds((prev) => new Set(prev).add(uid));
-        } catch { /* 押し直せる。ここで画面は変えない */ } finally {
+            if (res.ok) {
+                setBlockedIds((prev) => new Set(prev).add(uid));
+                // **サーバーは両向きのフォローを切る**（`block.ts`）。
+                // ここを呼ばないと、共有しているフォロー中の一覧が古いまま
+                // ——**ギャラリーのフォロー中フィードにブロックした相手の
+                // 写真が出続ける**（この画面はギャラリーの上に重なって
+                // 開くので、閉じても再マウントされない＝取り直す契機が無い）。
+                // プロフィール経由のブロックだけ直して、こちらを忘れていた
+                const { noteFollowSevered } = await import("../../../lib/hooks/useFollow");
+                noteFollowSevered(uid);
+                // ストーリーのバーも取り直させる（doc を見よ）
+                onBlocked?.(uid);
+            } else {
+                // **失敗を無言にしない。** プロフィール側は理由を出すのに、
+                // ここだけ押しても何も起きないように見えていた。
+                //
+                // **トーストは使わない。** `useToast` は Provider が無いと
+                // 投げるので、この部品に持たせると**単体で描けなくなる**
+                // （実際 7ファイル・68件が落ちた）。同じファイルの
+                // `replyError` と同じ形——押したボタンの近くに1行出す
+                const { readApiError } = await import("../../../lib/utils/api");
+                setBlockError(await readApiError(res, locale === "en" ? "Couldn't do that." : "できませんでした"));
+            }
+        } catch {
+            setBlockError(locale === "en" ? "Couldn't do that." : "できませんでした");
+        } finally {
             setBlocking(null);
         }
-    }, [blocking]);
+    }, [blocking, onBlocked, locale]);
 
     const handleDelete = useCallback(async () => {
         if (!item || !onDelete) return;
@@ -1182,8 +1258,9 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                             ) : (
                                 (viewers ?? []).map((v) => (
                                     <div key={v.userId} className="flex items-center gap-3 px-3 py-2.5">
-                                        <UserAvatar userId={v.userId} className="w-9 h-9" iconClassName="w-5 h-5" />
-                                        <span className="text-sm text-white/90 flex-1 truncate">
+                                        {/* 退会した人はアバターも出さない（返信一覧・コメント欄と同じ扱い） */}
+                                        <UserAvatar userId={v.deleted ? "" : v.userId} className="w-9 h-9" iconClassName="w-5 h-5" />
+                                        <span className={`text-sm flex-1 truncate ${v.deleted ? "text-white/60" : "text-white/90"}`}>
                                             {v.displayName || (locale === "en" ? "User" : "ユーザー")}
                                         </span>
                                         {v.at && <span className="text-[11px] text-white/50">{timeAgo(v.at, locale)}</span>}
@@ -1276,6 +1353,10 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                         ? "Blocking also removes follows in both directions. You can unblock from your profile settings."
                                         : "ブロックすると、お互いのフォローも外れます。解除はプロフィール設定からできます。"}
                                 </p>
+                            )}
+                            {/* ブロックが効かなかった理由（`replyError` と同じ形） */}
+                            {blockError && (
+                                <p className="pt-1.5 text-center text-[11px] text-rose-300" role="alert">{blockError}</p>
                             )}
                         </div>
                     </div>
