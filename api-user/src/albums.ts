@@ -526,31 +526,12 @@ export async function addPhotoToAlbum(albumId: string, photoId: string): Promise
     }));
 }
 
-/**
- * アルバムから写真の ID を取り除く（削除の経路から呼ぶ）。
- *
- * **一覧に死んだ ID が溜まると2つ困る**: 500枚の枠を食う／招待ページが
- * 直近24枚の窓を死んだ ID で埋めて「生きている写真があるのに空」に見える。
- *
- * DynamoDB は値でリストから消せないので、読んで書き直す。**書き直す前の
- * 一覧を条件に入れる**ので、その間に誰かが足していたら何もしない
- * （足された写真を取りこぼさない。次の削除で拾える）。
- */
-export async function removePhotoFromAlbum(albumId: string, photoId: string): Promise<void> {
-    const album = await getAlbum(albumId);
-    const ids = Array.isArray(album?.photoIds)
-        ? (album!.photoIds as unknown[]).filter((v): v is string => typeof v === "string")
-        : [];
-    if (!ids.includes(photoId)) return;
-    await ddb.send(new UpdateCommand({
-        TableName: PHOTOS_TABLE,
-        Key: { id: albumKey(albumId) },
-        UpdateExpression: "SET photoIds = :next",
-        ConditionExpression: "attribute_exists(id) AND photoIds = :prev",
-        ExpressionAttributeValues: { ":next": ids.filter((v) => v !== photoId), ":prev": ids },
-    }));
-}
-
+// **実装は `albumCleanup.ts` に移した。** 削除の経路が3つあるのに
+// 呼んでいたのは1つだけで、退会と管理者削除が素通りしていた
+// ——管理API（`api`）からも呼ぶ必要があり、あちらは import できないので
+// 写しを持てる小さなファイルに切り出した（`cdnInvalidate` と同じ手）。
+// ここから再輸出するのは、既存の呼び出し元をそのままにするため
+export { removePhotoFromAlbum } from "./albumCleanup";
 
 /** PATCH /albums/{id} — アルバムの名前を変える（持ち主だけ） */
 export const renameAlbum: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {

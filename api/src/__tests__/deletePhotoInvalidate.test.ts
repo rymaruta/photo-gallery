@@ -19,6 +19,10 @@ vi.mock("@aws-sdk/client-s3", () => ({
     DeleteObjectCommand: class { input: unknown; constructor(i: unknown) { this.input = i; } },
 }));
 vi.mock("../cdnInvalidate", () => ({ invalidateUploads: mockInvalidate }));
+// **アルバムの掃除は境界としてモックする**（実体は突き合わせのテストと
+// `api-user` 側が見る）。ここで見たいのは「呼ぶかどうか」
+const mockRemoveFromAlbum = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock("../albumCleanup", () => ({ removePhotoFromAlbum: mockRemoveFromAlbum }));
 vi.mock("../ddb-photos", () => ({
     getPhotoById: mockGetPhoto,
     deletePhotoById: mockDeleteRow,
@@ -48,6 +52,7 @@ beforeEach(() => {
     mockGetPhoto.mockReset().mockResolvedValue(PHOTO);
     mockDeleteRow.mockReset().mockResolvedValue(undefined);
     mockRebuild.mockReset().mockResolvedValue(true);
+    mockRemoveFromAlbum.mockReset().mockResolvedValue(undefined);
 });
 
 describe("管理APIの写真削除", () => {
@@ -206,5 +211,40 @@ describe("管理APIの削除: 残した写真を消したら、元のストー�
         mockGetPhoto.mockResolvedValue({ id: "p1", userId: "someone", src: "https://cdn.test/uploads/someone/p1.jpg" });
         await invoke();
         expect(mockDeleteRow.mock.calls.map((c) => c[0] as string)).toEqual(["p1"]);
+    });
+});
+
+// **管理者削除がアルバムから取り除いていなかった。**
+//
+// `removePhotoFromAlbum` の docstring が「呼ばれないと何が困るか」を
+// 自分で書いている——500枚の枠を食う／招待ページの窓を死んだ ID で
+// 埋めて「生きている写真があるのに空」に見える。それでも呼んでいたのは
+// `deleteMyPhoto` だけで、`api/src` には `album` の文字が1つも無かった。
+//
+// 写真の行が `albumId` の唯一の手がかりなので、行を消したあとは
+// 誰も辿り直せない＝**永久にずれる**。
+describe("管理APIの削除: 共同アルバムから取り除く", () => {
+    it("アルバムに入っていた写真は、アルバムからも外す", async () => {
+        mockGetPhoto.mockResolvedValue({ ...PHOTO, albumId: "A" });
+        const res = await invoke();
+        expect(res.statusCode).toBe(200);
+        expect(mockRemoveFromAlbum, "死んだ ID がアルバムに残る（枠を食い、招待ページの窓を埋める）")
+            .toHaveBeenCalledWith("A", "p1");
+    });
+
+    it("アルバムに入っていない写真では呼ばない", async () => {
+        mockGetPhoto.mockResolvedValue(PHOTO);
+        await invoke();
+        expect(mockRemoveFromAlbum, "関係ないのに引きに行っている").not.toHaveBeenCalled();
+    });
+
+    // **掃除の失敗で削除を失敗にしない。** 写真はもう消えているので、
+    // ここで 500 を返すと「消えているのに失敗と出る」——押し直しても
+    // 行はもう無いので直らない（`deleteMyPhoto`・`deleteAccount` と同じ形）
+    it("取り除きに失敗しても、削除は成立する", async () => {
+        mockGetPhoto.mockResolvedValue({ ...PHOTO, albumId: "A" });
+        mockRemoveFromAlbum.mockRejectedValue(new Error("conditional check failed"));
+        const res = await invoke();
+        expect(res.statusCode, "掃除の失敗で削除を止めている").toBe(200);
     });
 });
