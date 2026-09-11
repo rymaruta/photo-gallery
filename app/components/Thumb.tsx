@@ -70,7 +70,16 @@ export default function Thumb({ photo, alt, sizes, priority = false, objectPosit
         // 404 など）は `complete` なのに実体が無い。`error` は既に発火済みで
         // React には来ないので、ここで失敗の絵に切り替える（放っておくと、
         // 隠さない設計にしたぶんブラウザの破損表示が上に出る）
-        if (img.complete && img.naturalWidth === 0) { setError(true); return; }
+        if (img.complete && img.naturalWidth === 0) {
+            // **ここも控えを捨てる。** 静的HTMLの `<img>` はパースの時点で
+            // 要求され、SW はキャッシュ優先で即座に返すので、毒を食った控えは
+            // **JS が届くより前に**失敗し終える＝`onError` には来ない。
+            // 一覧の上段と写真ページの本体はこの経路なので、ここが抜けると
+            // 「いちばん出る場所だけ一生直らない」
+            setError(true);
+            void dropCachedPhoto(img.currentSrc || img.src);
+            return;
+        }
         if (isImageReady(img)) setPhase("loaded");
         else if (!fromHtml) setPhase("pending");
     }, [fromHtml]);

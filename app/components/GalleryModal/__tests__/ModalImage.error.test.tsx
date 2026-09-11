@@ -28,9 +28,12 @@ describe("モーダルの画像が取れないとき", () => {
     // ので、キャプティブポータルの HTML を控えた端末は再読込しても直らない
     it("読み込めなかった写真の控えを捨てる", async () => {
         const deleted: string[] = [];
+        const opened: string[] = [];
+        // **開いた名前は外で見る。** `open` の中で expect すると、その throw は
+        // `dropCachedPhoto` の catch に飲まれて「deleted が空」としか出ない
         vi.stubGlobal("caches", {
             open: async (name: string) => {
-                expect(name, "違う入れ物を開いている").toBe("journey-photo-img-v1");
+                opened.push(name);
                 return { delete: async (u: string) => { deleted.push(u); return true; } };
             },
         });
@@ -40,6 +43,7 @@ describe("モーダルの画像が取れないとき", () => {
         await Promise.resolve();
         await Promise.resolve();
 
+        expect(opened, "違う入れ物を開いている").toEqual(["journey-photo-img-v1"]);
         expect(deleted).toEqual(["https://cdn/gone.jpg"]);
     });
 

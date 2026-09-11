@@ -1,6 +1,7 @@
 "use client";
 
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
+import { dropCachedPhoto } from "../../../lib/utils/photoCache";
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -365,7 +366,7 @@ function AdminEditContent() {
                             src={photo.src}
                             alt=""
                             className="w-full max-h-64 object-contain rounded-lg mb-6 bg-white/5"
-                            onError={() => setImageError(true)}
+                            onError={(e) => { setImageError(true); void dropCachedPhoto(e.currentTarget.currentSrc || e.currentTarget.src); }}
                         />
                     )
                 )}

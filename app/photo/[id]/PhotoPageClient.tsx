@@ -122,7 +122,14 @@ function PhotoImage({
     const attach = useCallback((img: HTMLImageElement | null) => {
         if (!img) return;
         // React より先に失敗が終わっていた画像（`Thumb` と同じ）
-        if (img.complete && img.naturalWidth === 0) { setImageError(true); setPhase("loaded"); return; }
+        if (img.complete && img.naturalWidth === 0) {
+            // 控えも捨てる（`Thumb` と同じ。この画面は検索の着地点で、
+            // 本体は静的HTML由来＝失敗は React より先に終わっている）
+            setImageError(true);
+            setPhase("loaded");
+            void dropCachedPhoto(img.currentSrc || img.src);
+            return;
+        }
         if (isImageReady(img)) setPhase("loaded");
         else if (!fromHtml) setPhase("pending");
     }, [fromHtml]);

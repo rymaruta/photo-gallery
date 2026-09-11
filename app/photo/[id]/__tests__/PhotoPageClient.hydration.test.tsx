@@ -168,6 +168,32 @@ describe("写真ページ: ハイドレーション由来の本体はブラウ�
         } finally { restore(); }
     });
 
+    // **本丸。** この画面の本体は静的HTML由来なので、毒を食った控えは
+    // JS が届くより前に失敗し終える＝`onError` には来ない。検索の着地点で
+    // いちばん出る1枚がここ
+    it("React が付く前に失敗し終えていた本体も、控えを捨てる", async () => {
+        const deleted: string[] = [];
+        const opened: string[] = [];
+        vi.stubGlobal("caches", {
+            open: async (name: string) => {
+                opened.push(name);
+                return { delete: async (u: string) => { deleted.push(u); return true; } };
+            },
+        });
+        setReady(true);
+        Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", { configurable: true, get: () => 0 });
+        try {
+            const { cleanup } = await hydrate();
+            try {
+                await Promise.resolve();
+                await Promise.resolve();
+                expect(opened, "違う入れ物を開いている").toEqual(["journey-photo-img-v1"]);
+                expect(deleted, "onError に来ない経路で控えを残している")
+                    .toEqual(["https://cdn.example.com/uploads/u1/a.jpg"]);
+            } finally { await cleanup(); }
+        } finally { restore(); }
+    });
+
     it("React が付いてもまだ届いていない本体を隠さず、回転も出さない", async () => {
         const { hydrateRoot } = await import("react-dom/client");
         const { act } = await import("react");

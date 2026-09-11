@@ -713,7 +713,7 @@ describe("写真の控え", () => {
         broken.match = async () => { throw new Error("Cache Storage が使えない"); };
         caches_.set("journey-photo-img-v1", broken);
 
-        fetchMock.mockResolvedValue(new Response("photo-bytes", { status: 200 }));
+        fetchMock.mockResolvedValue(photoResponse("photo-bytes"));
         const e = makeEvent(imgRequest(`${CDN}/uploads/u1/a.jpg`));
         handlers.fetch(e);
         const res = await e.response!;
