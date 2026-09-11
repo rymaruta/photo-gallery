@@ -1066,3 +1066,75 @@ describe("deleteAccount: 共同アルバム", () => {
         expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
     });
 });
+
+// **共同アルバムから取り除く経路が、退会に無かった。**
+//
+// `removePhotoFromAlbum` の docstring が「呼ばれないと何が困るか」を
+// 自分で書いている——**500枚の枠を食う／招待ページの窓を死んだ ID で
+// 埋めて「生きている写真があるのに空」に見える**。それでも呼んで
+// いたのは `deleteMyPhoto` だけで、退会と管理者削除は素通りだった。
+//
+// 消えるのは**他人のアルバム**に上げた写真。自分が作ったアルバムは
+// 行ごと消えるので関係ない。写真の行が `albumId` の唯一の手がかりなので、
+// 行を消したあとは誰も辿り直せない＝**永久にずれる**。
+describe("退会: 他人のアルバムから自分の写真を取り除く", () => {
+    /** 写真1枚が albumId を持つ世界 */
+    const world = (photo: Record<string, unknown>, opts: { removeFails?: boolean } = {}) => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            const id = String((cmd.input.Key as { id?: string })?.id ?? "");
+            if (name === "QueryCommand") return Promise.resolve({ Items: [{ id: "p1", userId: "me" }] });
+            if (name === "GetCommand") {
+                if (id === "p1") return Promise.resolve({ Item: photo });
+                if (id === "album#A") return Promise.resolve({ Item: { id: "album#A", photoIds: ["p1", "other"] } });
+                return Promise.resolve({});
+            }
+            if (name === "UpdateCommand" && id === "album#A" && opts.removeFails) {
+                return Promise.reject(new Error("conditional check failed"));
+            }
+            return Promise.resolve({});
+        });
+    };
+    /** アルバムの行に対する UpdateCommand（＝取り除き） */
+    const albumUpdates = () => mockDdbSend.mock.calls
+        .map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> })
+        .filter((cmd) => cmd?.constructor?.name === "UpdateCommand"
+            && String((cmd.input.Key as { id?: string })?.id ?? "") === "album#A");
+    /**
+     * `album#…` を引きに行った回数。
+     *
+     * **Update の有無だけでは足りない。** `albumId` が無いまま呼んでも
+     * `removePhotoFromAlbum` は「その ID は入っていない」で早期 return する
+     * ので、Update は出ない——**引きに行ったかどうか**を見ないと、
+     * 門を外す変異が素通りする（実際に素通りした）
+     */
+    const albumGets = () => mockDdbSend.mock.calls
+        .map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> })
+        .filter((cmd) => cmd?.constructor?.name === "GetCommand"
+            && String((cmd.input.Key as { id?: string })?.id ?? "").startsWith("album#"));
+
+    it("アルバムに入れた写真は、アルバムからも取り除く", async () => {
+        world({ id: "p1", userId: "me", src: "https://cdn/uploads/me/p1.jpg", albumId: "A" });
+        const res = await invoke(deleteAccount, ev("me"));
+        expect(res.statusCode).toBe(200);
+        expect(albumUpdates(), "死んだ ID がアルバムに残る（枠を食い、招待ページの窓を埋める）")
+            .toHaveLength(1);
+    });
+
+    // **アルバムに入れていない写真では触らない**（往復を増やさない）
+    it("アルバムに入れていない写真では、アルバムを触らない", async () => {
+        world({ id: "p1", userId: "me", src: "https://cdn/uploads/me/p1.jpg" });
+        await invoke(deleteAccount, ev("me"));
+        expect(albumUpdates(), "関係ないのにアルバムを触っている").toHaveLength(0);
+        expect(albumGets(), "関係ないのにアルバムを引きに行っている（退会の実行時間は有限）")
+            .toHaveLength(0);
+    });
+
+    // **掃除の失敗で退会を止めない。** 写真はもう消えているので、
+    // ここで失敗を返すと「消えているのに退会できない」になる
+    it("取り除きに失敗しても、退会は成立する", async () => {
+        world({ id: "p1", userId: "me", src: "https://cdn/uploads/me/p1.jpg", albumId: "A" }, { removeFails: true });
+        const res = await invoke(deleteAccount, ev("me"));
+        expect(res.statusCode, "掃除の失敗で退会を止めている").toBe(200);
+    });
+});

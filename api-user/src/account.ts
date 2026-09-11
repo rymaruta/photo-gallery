@@ -12,6 +12,7 @@ import { requireEnv } from "./env";
 import { requestSiteRebuild } from "./rebuild";
 import { isDeletedProfile } from "./types";
 import { albumKey, albumMemberKey, albumsOfUserKey } from "./invite";
+import { removePhotoFromAlbum } from "./albums";
 
 // 退会（アカウント削除）。DELETE /user/account、認証必須、呼び出し元の sub のみ対象。
 // 不可逆な破壊操作のため「確実に引ける範囲を確実に消す」方針:
@@ -354,6 +355,29 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                     // 静的ページの入力（photos.json）と同じ条件
                     else if (item.src && item.published !== false && item.story !== true) {
                         deletedPublicPhoto = true;
+                    }
+                    // **共同アルバムからも取り除く。**
+                    //
+                    // `removePhotoFromAlbum` の docstring が「呼ばれないと
+                    // 何が困るか」を自分で書いている——**500枚の枠を食う／
+                    // 招待ページの窓を死んだ ID で埋めて『生きている写真が
+                    // あるのに空』に見える**。なのに呼んでいたのは
+                    // `deleteMyPhoto` だけで、**退会と管理者削除は素通り**
+                    // だった（この campaign が何度も踏んだ「入口が複数あるのに
+                    // 片方しか直っていない」の再発）。
+                    //
+                    // ここで消えるのは**他人のアルバム**に上げた写真。
+                    // 自分が作ったアルバムは下（ステップ6）で行ごと消える。
+                    //
+                    // **行を消したあとに呼ぶ。** 写真の行が `albumId` の
+                    // 唯一の手がかりなので、先に呼んで落ちると行だけ残って
+                    // やり直しの手がかりが増える——`deleteMyPhoto` も
+                    // 同じ順で、同じ理由で握る（掃除の失敗で退会を止めない。
+                    // 写真はもう消えている）。**`itemFailures` には数えない**
+                    if (itemFailures === 0 && typeof item.albumId === "string" && item.albumId) {
+                        await removePhotoFromAlbum(item.albumId, id).catch((e) => {
+                            console.error(`deleteAccount: アルバムから取り除けませんでした（${id}）:`, e);
+                        });
                     }
                 }
                 mediaFailures += itemFailures;
