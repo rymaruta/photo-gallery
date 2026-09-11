@@ -44,6 +44,13 @@ describe("アルバムの掃除の複製2本は同じ中身", () => {
         expect(code, "条件付き書き込みが落ちている")
             .toContain("attribute_exists(id) AND photoIds = :prev");
         expect(code, "キーの綴りが落ちている").toContain("album#");
+        // **書き換えの式そのものを見る。** 見ていなかったので、
+        // `:next` を `:prev` に変える（＝同じ一覧を書き戻すだけで
+        // 何も外れない）変異が**両方の写しを同時に壊しても緑**だった
+        // ——「中身を名指しで見る」と書いたのに、中核が抜けていた
+        expect(code, "書き換えの式が落ちている").toContain('UpdateExpression: "SET photoIds = :next"');
+        // やり直し（並列の呼び出し元が同じ行を取り合う）
+        expect(code, "やり直しが落ちている").toContain("ConditionalCheckFailedException");
     });
 
     // **キーの綴りが `invite.ts` とずれていないこと。**

@@ -1090,7 +1090,7 @@ describe("退会: 他人のアルバムから自分の写真を取り除く", ()
                 return Promise.resolve({});
             }
             if (name === "UpdateCommand" && id === "album#A" && opts.removeFails) {
-                return Promise.reject(new Error("conditional check failed"));
+                return Promise.reject(Object.assign(new Error("boom"), { name: "ValidationException" }));
             }
             return Promise.resolve({});
         });
@@ -1121,6 +1121,42 @@ describe("退会: 他人のアルバムから自分の写真を取り除く", ()
             .toHaveLength(1);
     });
 
+    // **行が消せた写真だけを控える。**
+    // S3 が消えず行が残っている写真をアルバムから外すと、**写真は在るのに
+    // アルバムから消える**——退会をやり直しても行は残っているので、
+    // 誰も戻せない
+    it("行を消せなかった写真は、アルバムから外さない", async () => {
+        // S3 の削除が落ちる → 行を消さない（既存の設計）
+        mockS3Send.mockRejectedValue(new Error("s3 down"));
+        world({ id: "p1", userId: "me", src: "https://cdn/uploads/me/p1.jpg", albumId: "A" });
+        await invoke(deleteAccount, ev("me"));
+        expect(albumUpdates(), "写真は在るのにアルバムから消している").toHaveLength(0);
+    });
+
+    // **行の削除そのものが落ちた場合も外さない。**
+    // すぐ上のテストは S3 を落としているので、**外側の門**（S3 が全部
+    // 消せたか）で止まっていた——内側の `itemFailures === 0` を外す変異は
+    // それでは落ちない（実際に落ちなかった）。行の DeleteCommand だけを
+    // 落として、内側の門を通る
+    it("行の削除が落ちた写真も、アルバムから外さない", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            const id = String((cmd.input.Key as { id?: string })?.id ?? "");
+            if (name === "QueryCommand") return Promise.resolve({ Items: [{ id: "p1", userId: "me" }] });
+            if (name === "GetCommand") {
+                if (id === "p1") return Promise.resolve({ Item: { id: "p1", userId: "me", src: "https://cdn/uploads/me/p1.jpg", albumId: "A" } });
+                if (id === "album#A") return Promise.resolve({ Item: { id: "album#A", photoIds: ["p1", "other"] } });
+                return Promise.resolve({});
+            }
+            // 写真の行だけ消せない（comments# / storyreplies# は消せる）
+            if (name === "DeleteCommand" && id === "p1") return Promise.reject(new Error("throttled"));
+            return Promise.resolve({});
+        });
+
+        await invoke(deleteAccount, ev("me"));
+        expect(albumUpdates(), "行が残っているのにアルバムから消している").toHaveLength(0);
+    });
+
     // **アルバムに入れていない写真では触らない**（往復を増やさない）
     it("アルバムに入れていない写真では、アルバムを触らない", async () => {
         world({ id: "p1", userId: "me", src: "https://cdn/uploads/me/p1.jpg" });
@@ -1136,5 +1172,65 @@ describe("退会: 他人のアルバムから自分の写真を取り除く", ()
         world({ id: "p1", userId: "me", src: "https://cdn/uploads/me/p1.jpg", albumId: "A" }, { removeFails: true });
         const res = await invoke(deleteAccount, ev("me"));
         expect(res.statusCode, "掃除の失敗で退会を止めている").toBe(200);
+    });
+});
+
+// **8並列が同じアルバムの行を取り合う。**
+//
+// 最初は1枚ずつ `removePhotoFromAlbum` を呼んでいた。掃除は
+// 「読んで書き直す＋書き直す前の一覧を条件にする」形なので、同じ
+// アルバムの写真は**同じ1行を取り合って先着1本以外が全部条件不成立**に
+// なる——実測（Get も Update も往復させたモデル）で **8枚中1枚**しか
+// 外れなかった。`deleteMyPhoto` の「1枚ずつ直列」の形を、前提を
+// 読まずに8並列の文脈へ持ち込んでいた。
+//
+// **モックが本番より緩いと、この穴は見えない。** Update を同期で返す
+// モックだと Get→Update が直列化して 8/8 成功に見える（最初それで
+// 「問題なし」と読み違えた）。**両方に往復を入れる。**
+describe("退会: 同じアルバムの写真が複数あっても、全部外れる", () => {
+    /** 写真 n 枚が同じアルバムに入っている世界（Get も Update も往復する） */
+    function manyInOneAlbum(n: number) {
+        const ids = Array.from({ length: n }, (_, i) => `p${i}`);
+        let stored = [...ids, "other"];
+        mockDdbSend.mockImplementation(async (cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            const id = String((cmd.input.Key as { id?: string })?.id ?? "");
+            if (name === "QueryCommand") return { Items: ids.map((p) => ({ id: p, userId: "me" })) };
+            await new Promise((r) => setTimeout(r, 2));   // 往復
+            if (name === "GetCommand") {
+                if (ids.includes(id)) return { Item: { id, userId: "me", src: `https://cdn/uploads/me/${id}.jpg`, albumId: "A" } };
+                if (id === "album#A") return { Item: { id: "album#A", photoIds: [...stored] } };
+                return {};
+            }
+            if (name === "UpdateCommand" && id === "album#A") {
+                const v = cmd.input.ExpressionAttributeValues as { ":prev": string[]; ":next": string[] };
+                if (JSON.stringify(v[":prev"]) !== JSON.stringify(stored)) {
+                    throw Object.assign(new Error("ccf"), { name: "ConditionalCheckFailedException" });
+                }
+                stored = v[":next"];
+                return {};
+            }
+            return {};
+        });
+        return { left: () => stored };
+    }
+
+    it("8枚とも外れる（先着1本だけにならない）", async () => {
+        const w = manyInOneAlbum(8);
+        const res = await invoke(deleteAccount, ev("me"));
+        expect(res.statusCode).toBe(200);
+        expect(w.left(), "同じ行を取り合って取りこぼしている").toEqual(["other"]);
+    });
+
+    // **アルバム1件につき1回で済ませる。** 1枚ずつ撃つと往復が枚数ぶん
+    // 増え、退会の実行時間（29秒）を削る
+    it("アルバムへの書き込みは1回だけ", async () => {
+        manyInOneAlbum(8);
+        await invoke(deleteAccount, ev("me"));
+        const albumUpdates = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> })
+            .filter((cmd) => cmd?.constructor?.name === "UpdateCommand"
+                && String((cmd.input.Key as { id?: string })?.id ?? "") === "album#A");
+        expect(albumUpdates, "1枚ずつ撃っている").toHaveLength(1);
     });
 });

@@ -12,7 +12,7 @@ import { requireEnv } from "./env";
 import { requestSiteRebuild } from "./rebuild";
 import { isDeletedProfile } from "./types";
 import { albumKey, albumMemberKey, albumsOfUserKey } from "./invite";
-import { removePhotoFromAlbum } from "./albums";
+import { removePhotosFromAlbum } from "./albumCleanup";
 
 // 退会（アカウント削除）。DELETE /user/account、認証必須、呼び出し元の sub のみ対象。
 // 不可逆な破壊操作のため「確実に引ける範囲を確実に消す」方針:
@@ -297,6 +297,14 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // 8並列から push するが、Array.push は同期なので取りこぼしは無い。
         const edgeKeys: string[] = [];
         let lastKey: Record<string, unknown> | undefined;
+        /**
+         * アルバムごとに「消した写真の ID」を控える。
+         *
+         * **まとめて1回で外す。** 1枚ずつだと8並列が同じ行を取り合って
+         * ほとんど外れない（すぐ下のコメントを見よ）。往復も減るので、
+         * 退会の実行時間（29秒）にも効く
+         */
+        const albumPhotoIds = new Map<string, string[]>();
         do {
             const res = await ddb.send(new QueryCommand({
                 TableName: PHOTOS_TABLE,
@@ -356,34 +364,43 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                     else if (item.src && item.published !== false && item.story !== true) {
                         deletedPublicPhoto = true;
                     }
-                    // **共同アルバムからも取り除く。**
+                    // **共同アルバムから取り除く分を控える**（消すのはループの後）。
                     //
-                    // `removePhotoFromAlbum` の docstring が「呼ばれないと
-                    // 何が困るか」を自分で書いている——**500枚の枠を食う／
-                    // 招待ページの窓を死んだ ID で埋めて『生きている写真が
-                    // あるのに空』に見える**。なのに呼んでいたのは
-                    // `deleteMyPhoto` だけで、**退会と管理者削除は素通り**
-                    // だった（この campaign が何度も踏んだ「入口が複数あるのに
-                    // 片方しか直っていない」の再発）。
+                    // **ここで1枚ずつ消してはいけない。** このループは
+                    // 8並列で、アルバムの掃除は「読んで書き直す＋書き直す前の
+                    // 一覧を条件にする」形なので、同じアルバムの写真が
+                    // **同じ1行を取り合って先着1本以外が全部条件不成立**に
+                    // なる。実測（Get も Update も往復させたモデル）で
+                    // **8枚中1枚・20枚中1枚**しか外れなかった——`deleteMyPhoto`
+                    // の「1枚ずつ直列」の形を、前提を読まずに並列へ持ち込んでいた。
                     //
-                    // ここで消えるのは**他人のアルバム**に上げた写真。
-                    // 自分が作ったアルバムは下（ステップ6）で行ごと消える。
-                    //
-                    // **行を消したあとに呼ぶ。** 写真の行が `albumId` の
-                    // 唯一の手がかりなので、先に呼んで落ちると行だけ残って
-                    // やり直しの手がかりが増える——`deleteMyPhoto` も
-                    // 同じ順で、同じ理由で握る（掃除の失敗で退会を止めない。
-                    // 写真はもう消えている）。**`itemFailures` には数えない**
+                    // **行を消したあとに控える。** 写真の行が `albumId` の
+                    // 唯一の手がかりなので、行が消えた分だけが対象
                     if (itemFailures === 0 && typeof item.albumId === "string" && item.albumId) {
-                        await removePhotoFromAlbum(item.albumId, id).catch((e) => {
-                            console.error(`deleteAccount: アルバムから取り除けませんでした（${id}）:`, e);
-                        });
+                        const list = albumPhotoIds.get(item.albumId) ?? [];
+                        list.push(id);
+                        albumPhotoIds.set(item.albumId, list);
                     }
                 }
                 mediaFailures += itemFailures;
             });
             lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
         } while (lastKey);
+
+        // 1b. 控えたぶんを、アルバムごとに1回で外す。
+        //
+        // **掃除の失敗で退会を止めない**（写真はもう消えているので、
+        // ここで 500 を返すと「消えているのに退会できない」になる）。
+        // `mediaFailures` にも数えない。
+        //
+        // 自分が作ったアルバムの写真もここに混じる（下のステップ6で行ごと
+        // 消えるので無駄になる）。**分けない**——アルバム1件につき往復は
+        // 1〜2回で、持ち主かどうかを先に引く方が高くつく
+        for (const [albumId, ids] of albumPhotoIds) {
+            await removePhotosFromAlbum(albumId, ids).catch((e) => {
+                console.error(`deleteAccount: アルバムから取り除けませんでした（${albumId}・${ids.length}枚）:`, e);
+            });
+        }
 
         // 2. アバター/カバー（決定的キー・探索不要）。GPS は無いが、
         //    消し残しは公開URLに残り続けるので写真と同じく失敗に数える
