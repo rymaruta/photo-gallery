@@ -15,6 +15,7 @@ import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
 import { toastWithStaticPage } from "../../../lib/utils/staticPage";
 import { sessionErrorMessage } from "../../../lib/utils/api";
+import { dropCachedPhoto } from "../../../lib/utils/photoCache";
 import { toDateInputValue, mergeDate, todayForDateInput, PHOTO_DATE_MIN } from "../../../lib/utils/dateInput";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { changedFields } from "../../../lib/utils/changedFields";
@@ -706,7 +707,7 @@ function EditContent() {
                             src={photo.thumbSrc || photo.src}
                             alt=""
                             className="w-full max-h-64 object-contain rounded-lg mb-3 bg-white/5"
-                            onError={() => setImageError(true)}
+                            onError={(e) => { setImageError(true); void dropCachedPhoto(e.currentTarget.currentSrc || e.currentTarget.src); }}
                         />
                     )
                 )}

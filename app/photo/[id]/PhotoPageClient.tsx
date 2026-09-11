@@ -10,6 +10,7 @@ import type { Photo } from "@/lib/data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
 import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
 import { hapticTap } from "../../../lib/utils/haptics";
+import { dropCachedPhoto } from "../../../lib/utils/photoCache";
 import { parseMusicEmbed } from "../../../lib/utils/music";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { type SongEntry } from "../../music/MusicContext";
@@ -121,7 +122,14 @@ function PhotoImage({
     const attach = useCallback((img: HTMLImageElement | null) => {
         if (!img) return;
         // React より先に失敗が終わっていた画像（`Thumb` と同じ）
-        if (img.complete && img.naturalWidth === 0) { setImageError(true); setPhase("loaded"); return; }
+        if (img.complete && img.naturalWidth === 0) {
+            // 控えも捨てる（`Thumb` と同じ。この画面は検索の着地点で、
+            // 本体は静的HTML由来＝失敗は React より先に終わっている）
+            setImageError(true);
+            setPhase("loaded");
+            void dropCachedPhoto(img.currentSrc || img.src);
+            return;
+        }
         if (isImageReady(img)) setPhase("loaded");
         else if (!fromHtml) setPhase("pending");
     }, [fromHtml]);
@@ -255,9 +263,10 @@ function PhotoImage({
                             WebkitTouchCallout: "none",
                             ...(focalPoint ? { objectPosition: `${focalPoint.x * 100}% ${focalPoint.y * 100}%` } : {}),
                         }}
-                        onError={() => {
+                        onError={(e) => {
                             setImageError(true);
                             setPhase("loaded");
+                            void dropCachedPhoto(e.currentTarget.currentSrc || e.currentTarget.src);
                         }}
                         onLoad={() => setPhase("loaded")}
                         // React が付いた時点で「もう届いている／まだ」を決める

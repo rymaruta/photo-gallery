@@ -64,6 +64,27 @@ async function failPhoto() {
 }
 
 describe("編集画面の写真が取れないとき", () => {
+    // 控えも捨てる（写真の控えはキャッシュ優先で寿命が無いので、写真でない
+    // ものを一度控えると再読込では直らない）。`lib/utils/photoCache.ts`
+    it("読み込めなかった写真の控えを捨てる", async () => {
+        const deleted: string[] = [];
+        const opened: string[] = [];
+        vi.stubGlobal("caches", {
+            open: async (name: string) => {
+                opened.push(name);
+                return { delete: async (u: string) => { deleted.push(u); return true; } };
+            },
+        });
+        try {
+            render(<EditPage />);
+            await screen.findByDisplayValue("湖");
+            await failPhoto();
+            await Promise.resolve();
+            expect(opened, "違う入れ物を開いている").toEqual(["journey-photo-img-v1"]);
+            expect(deleted.some((u) => u.includes("gone.jpg")), "控えを捨てていない").toBe(true);
+        } finally { vi.unstubAllGlobals(); }
+    });
+
     it("枠ごと消さずに理由を出す", async () => {
         render(<EditPage />);
         await screen.findByDisplayValue("湖");

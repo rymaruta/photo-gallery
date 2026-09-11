@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { isImageReady } from "../../../lib/utils/imageReady";
+import { dropCachedPhoto } from "../../../lib/utils/photoCache";
 
 type Props = {
     src: string;
@@ -48,7 +49,7 @@ export default function ModalImage({ src, alt, srcAvif, focalPoint }: Props) {
                         WebkitTouchCallout: "none",
                         ...(focalPoint ? { objectPosition: `${focalPoint.x * 100}% ${focalPoint.y * 100}%` } : {}),
                     }}
-                    onError={() => { setImageError(true); setImageLoading(false); }}
+                    onError={(e) => { setImageError(true); setImageLoading(false); void dropCachedPhoto(e.currentTarget.currentSrc || e.currentTarget.src); }}
                     onLoad={() => setImageLoading(false)}
                     // キャッシュ済みで load を取り逃した場合の保険（imageReady.ts 参照）
                     ref={(img) => { if (isImageReady(img)) setImageLoading(false); }}

@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import Thumb, { buildSrcSet } from "../Thumb";
@@ -171,6 +171,33 @@ describe("Thumb: ハイドレーション由来の画像はブラウザに任せ
         } finally { restore(); }
     });
 
+    // **ここが本丸。** 静的HTMLの `<img>` はパースの時点で要求され、SW は
+    // キャッシュ優先で即座に返すので、毒を食った控えは**JS が届くより前に**
+    // 失敗し終える＝`onError` には来ない（`attach` が拾う）。一覧の上段と
+    // 写真ページの本体はこの経路なので、ここが抜けると「いちばん出る場所
+    // だけ一生直らない」。最初の実装は `onError` にしか配線していなかった
+    it("React が付く前に失敗し終えていた写真も、控えを捨てる", async () => {
+        const deleted: string[] = [];
+        const opened: string[] = [];
+        vi.stubGlobal("caches", {
+            open: async (name: string) => {
+                opened.push(name);
+                return { delete: async (u: string) => { deleted.push(u); return true; } };
+            },
+        });
+        const restore = stub(true, 0);
+        try {
+            const { cleanup } = await hydrate(base);
+            try {
+                await Promise.resolve();
+                await Promise.resolve();
+                expect(opened, "違う入れ物を開いている").toEqual(["journey-photo-img-v1"]);
+                expect(deleted, "onError に来ない経路で控えを残している")
+                    .toEqual(["https://cdn/x_thumb.webp"]);
+            } finally { await cleanup(); }
+        } finally { restore(); vi.unstubAllGlobals(); }
+    });
+
     it("React が付く前に失敗し終えていれば、失敗の絵に切り替える（破損表示を出さない）", async () => {
         // 静的HTMLに残った削除済み写真の 404 が JS より先に届く形
         const restore = stub(true, 0);
@@ -182,5 +209,37 @@ describe("Thumb: ハイドレーション由来の画像はブラウザに任せ
                 expect(host.querySelector("svg")).not.toBeNull();
             } finally { await cleanup(); }
         } finally { restore(); }
+    });
+});
+
+// **失敗した写真の控えを捨てる。** SW の写真はキャッシュ優先で寿命が無いので、
+// 中身が写真でないものを一度控えると再読込では直らない（別オリジンの写真は
+// 応答が opaque で、SW 側では種別を確かめようが無い）。一覧は写真がいちばん
+// 多く出る画面なので、ここが抜けると症状も一番出る。
+describe("Thumb: 読み込めなかった写真の控えを捨てる", () => {
+    afterEach(() => { vi.unstubAllGlobals(); });
+
+    it("失敗した URL を写真の入れ物から消す", async () => {
+        const deleted: string[] = [];
+        const opened: string[] = [];
+        vi.stubGlobal("caches", {
+            open: async (name: string) => {
+                opened.push(name);
+                return { delete: async (u: string) => { deleted.push(u); return true; } };
+            },
+        });
+
+        const { container } = render(
+            <div style={{ position: "relative" }}>
+                <Thumb photo={{ src: "https://cdn/x.jpg", thumbSrc: "https://cdn/x_thumb.webp" } as never} alt="湖" />
+            </div>,
+        );
+        const img = container.querySelector("picture > img") as HTMLImageElement;
+        fireEvent.error(img);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(opened, "違う入れ物を開いている").toEqual(["journey-photo-img-v1"]);
+        expect(deleted).toEqual(["https://cdn/x_thumb.webp"]);
     });
 });

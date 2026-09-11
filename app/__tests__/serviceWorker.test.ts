@@ -461,6 +461,9 @@ const opaque = () => {
     return res;
 };
 const CDN = "https://d1s3dwwzgxf5ni.cloudfront.net";
+/** 同一オリジン配信（実データ30枚中19枚）で返ってくる、中身の読める写真 */
+const photoResponse = (body = "photo-bytes", type = "image/jpeg") =>
+    new Response(body, { status: 200, headers: { "content-type": type } });
 
 describe("写真の控え", () => {
     it("画像CDN（別オリジン）の写真も控える", async () => {
@@ -520,7 +523,10 @@ describe("写真の控え", () => {
     // 読み切るので、`res.clone()` を落とすと画面に返る応答が空になる
     // （＝写真が表示されない）
     it("控えても、画面に返す応答はそのまま読める", async () => {
-        fetchMock.mockResolvedValue(new Response("photo-bytes", { status: 200 }));
+        // **種別を持たせる。** `new Response("...")` の既定は `text/plain` で、
+        // `isStorablePhoto` が控えない側に倒すので、種別が無いと put 自体が
+        // 走らず「clone を落としても緑」＝何も検証しないテストになる
+        fetchMock.mockResolvedValue(photoResponse("photo-bytes"));
         const e = makeEvent(imgRequest(`${CDN}/uploads/u1/a.jpg`));
         handlers.fetch(e);
         const res = await e.response!;
@@ -548,7 +554,7 @@ describe("写真の控え", () => {
 
         // opaque（body なし）ではなく**読める応答**で見る。staging は
         // 同一オリジン配信なのでこちらの形になり、使い回しの誤りが必ず出る
-        fetchMock.mockResolvedValue(new Response("photo-bytes", { status: 200 }));
+        fetchMock.mockResolvedValue(photoResponse("photo-bytes"));
         const e = makeEvent(imgRequest(`${CDN}/uploads/u1/new.jpg`));
         handlers.fetch(e);
         await e.response;
@@ -562,6 +568,62 @@ describe("写真の控え", () => {
         Object.defineProperty(redirected, "type", { value: "opaqueredirect" });
         fetchMock.mockResolvedValue(redirected);
         const e = makeEvent(imgRequest(`${CDN}/uploads/u1/a.jpg`));
+        handlers.fetch(e);
+        await e.response;
+        await new Promise((r) => setTimeout(r, 0));
+        expect([...(caches_.get("journey-photo-img-v1")?.store.keys() ?? [])]).toEqual([]);
+    });
+
+    // **キャプティブポータル（ホテル・空港の Wi-Fi）は、画像の要求にも
+    // 200 で自分のログインページ（HTML）を返す。** ここは寿命も再検証も
+    // 無いキャッシュ優先なので、控えてしまうと**以後ずっと割れた画像**に
+    // なる（再読込でも直らない）。中身が読める回は種別まで見る
+    it.each([
+        ["text/html; charset=utf-8", "キャプティブポータルのログインページ"],
+        ["application/json", "プロキシのエラー本文"],
+        ["", "種別が無い"],
+    ])("200 でも %s（%s）は控えない", async (type) => {
+        fetchMock.mockResolvedValue(
+            type
+                ? new Response("<html>Wi-Fi ログイン</html>", { status: 200, headers: { "content-type": type } })
+                : new Response(null, { status: 200 }),
+        );
+        const e = makeEvent(imgRequest("https://journey-photo.com/uploads/u1/a.jpg"));
+        handlers.fetch(e);
+        await e.response;
+        await new Promise((r) => setTimeout(r, 0));
+        expect([...(caches_.get("journey-photo-img-v1")?.store.keys() ?? [])], "毒を控えた").toEqual([]);
+    });
+
+    it.each(["image/jpeg", "image/avif", "image/webp", "image/jpeg; charset=binary"])(
+        "%s は控える（正当な写真を落とさない）",
+        async (type) => {
+            fetchMock.mockResolvedValue(photoResponse("photo-bytes", type));
+            const e = makeEvent(imgRequest("https://journey-photo.com/uploads/u1/a.jpg"));
+            handlers.fetch(e);
+            await e.response;
+            await new Promise((r) => setTimeout(r, 0));
+            expect([...(caches_.get("journey-photo-img-v1")?.store.keys() ?? [])])
+                .toEqual(["https://journey-photo.com/uploads/u1/a.jpg"]);
+        },
+    );
+
+    // **opaque は中身も種別も読めないので、従来どおり通す。**
+    // ここを「分からないから弾く」にすると、別オリジンで配信されている
+    // 写真（実データ30枚中11枚）が1枚も控えられなくなる
+    it("opaque は種別を読めないので控える", async () => {
+        fetchMock.mockResolvedValue(opaque());
+        const e = makeEvent(imgRequest(`${CDN}/uploads/u1/a.jpg`));
+        handlers.fetch(e);
+        await e.response;
+        await new Promise((r) => setTimeout(r, 0));
+        expect([...(caches_.get("journey-photo-img-v1")?.store.keys() ?? [])])
+            .toEqual([`${CDN}/uploads/u1/a.jpg`]);
+    });
+
+    it("404（消された写真）は控えない", async () => {
+        fetchMock.mockResolvedValue(new Response("<html>404</html>", { status: 404, headers: { "content-type": "text/html" } }));
+        const e = makeEvent(imgRequest("https://journey-photo.com/uploads/u1/a.jpg"));
         handlers.fetch(e);
         await e.response;
         await new Promise((r) => setTimeout(r, 0));
@@ -651,7 +713,7 @@ describe("写真の控え", () => {
         broken.match = async () => { throw new Error("Cache Storage が使えない"); };
         caches_.set("journey-photo-img-v1", broken);
 
-        fetchMock.mockResolvedValue(new Response("photo-bytes", { status: 200 }));
+        fetchMock.mockResolvedValue(photoResponse("photo-bytes"));
         const e = makeEvent(imgRequest(`${CDN}/uploads/u1/a.jpg`));
         handlers.fetch(e);
         const res = await e.response!;

@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 // **「画像を読み込めません」の分岐にテストが1本も無かった**（レビュー指摘）。
@@ -24,6 +24,29 @@ describe("モーダルの画像が取れないとき", () => {
         expect(document.body.querySelector(".animate-spin"), "スピナーが回りっぱなし").toBeNull();
     });
 
+    // **控えも捨てる。** SW は写真をキャッシュ優先で持っていて寿命が無い
+    // ので、キャプティブポータルの HTML を控えた端末は再読込しても直らない
+    it("読み込めなかった写真の控えを捨てる", async () => {
+        const deleted: string[] = [];
+        const opened: string[] = [];
+        // **開いた名前は外で見る。** `open` の中で expect すると、その throw は
+        // `dropCachedPhoto` の catch に飲まれて「deleted が空」としか出ない
+        vi.stubGlobal("caches", {
+            open: async (name: string) => {
+                opened.push(name);
+                return { delete: async (u: string) => { deleted.push(u); return true; } };
+            },
+        });
+
+        render(<ModalImage src="https://cdn/gone.jpg" alt="湖" />);
+        fireEvent.error(img()!);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(opened, "違う入れ物を開いている").toEqual(["journey-photo-img-v1"]);
+        expect(deleted).toEqual(["https://cdn/gone.jpg"]);
+    });
+
     // 正常系: 読み込めたらスピナーだけ消える
     it("読み込めたら何も出さない", () => {
         render(<ModalImage src="https://cdn/ok.jpg" alt="湖" />);
@@ -34,3 +57,5 @@ describe("モーダルの画像が取れないとき", () => {
         expect(document.body.querySelector(".animate-spin")).toBeNull();
     });
 });
+
+afterEach(() => { vi.unstubAllGlobals(); });

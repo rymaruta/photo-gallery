@@ -2,6 +2,7 @@
 
 import { usableRows } from "../../../lib/utils/apiRows";
 import { safeSongPreviewUrl } from "../../../lib/utils/mediaHosts";
+import { dropCachedPhoto } from "../../../lib/utils/photoCache";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
 import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon, PhotoIcon, ChatBubbleOvalLeftIcon, MapPinIcon } from "@heroicons/react/24/outline";
@@ -842,7 +843,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         alt=""
                         className="block max-w-full max-h-full object-contain rounded-lg story-media-in"
                         draggable={false}
-                        onError={() => setMediaError(true)}
+                        onError={(e) => { setMediaError(true); void dropCachedPhoto(e.currentTarget.currentSrc || e.currentTarget.src); }}
                     />
                 )}
             </div>
