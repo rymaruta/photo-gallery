@@ -347,25 +347,38 @@ function isPhotoRequest(request, url) {
  * 写真として控えてよい応答か。
  *
  * **`isStorable` と違って opaque を通す。** あちらは同一オリジンの
- * ページ・資産用で、中身を確かめられないものを入れない方針。写真は
- * `<img>` からの no-cors 要求なので**必ず opaque**になる——ここで
- * opaque を弾くと、この機能は何も控えないことになる。
+ * ページ・資産用で、中身を確かめられないものを入れない方針。
  *
- * 代わりに入口を絞ってある（`isPhotoRequest`）。opaque を通す代償は
- * 「404 の応答も控えうる」こと。うちの画像URLは uuid で内容が固定なので
- * 中身が古くなることは無く、404 になるのは**消された写真**だけ——
- * その写真は一覧から消えるので、控えを引きに来る画面がもう無い。
+ * **「写真は必ず opaque」ではない。** 写真の URL は2種類あり、実データ
+ * （`app/data/photos.json` の30枚）では **19枚が `journey-photo.com`
+ * ＝同一オリジン**・11枚が CloudFront の既定ドメイン＝別オリジンだった
+ * （`normalize-image-urls` を流すと前者に寄る）。同一オリジンなら応答は
+ * 読めるので、**読める回は中身の種別まで見る**。
  *
- * CloudFront が CORS を返すようになれば（いまは返していない。
- * `/uploads/*` のキャッシュポリシーが `Origin` を転送しない）、
- * ここは `res.ok` を見る側に落ちて 404 を控えなくなる。
+ * なぜ種別を見るか——キャプティブポータル（ホテル・空港の Wi-Fi）は
+ * 画像の要求にも **200 で自分のログインページ（HTML）を返す**。
+ * `ok && status === 200` だけだと、その HTML が「写真」として控えられ、
+ * ここはキャッシュ優先なので**以後ずっと割れた画像**になる。寿命も
+ * 検証も無いので、再読込では直らない（資産には水和ウォッチドッグという
+ * 回復路があるが、写真には無い）。
+ *
+ * 種別が分からない回（opaque・ヘッダが無い）は控えない側へ倒す——
+ * ただし opaque は**中身を確かめようが無い**ので従来どおり通す。
+ * そこが毒を食った場合の出口は `lib/utils/photoCache.ts`（画面が
+ * 読み込みに失敗したら、その URL の控えを捨てる）。
+ *
+ * S3 に置く写真は全部 `image/*`（presign は許可リストの種別を署名に
+ * 入れ、サムネ生成は `image/webp`・`image/avif`）なので、正当な写真が
+ * この判定で落ちることは無い。
  */
 function isStorablePhoto(res) {
     if (!res) return false;
     // リダイレクトの中身は分からない（追った先が何かも分からない）
     if (res.type === "opaqueredirect") return false;
     if (res.type === "opaque") return true;
-    return res.ok && res.status === 200;
+    if (!res.ok || res.status !== 200) return false;
+    const ct = (res.headers && res.headers.get("content-type")) || "";
+    return ct.toLowerCase().indexOf("image/") === 0;
 }
 
 /** 写真の控えを古い順に捨てる（Cache API のキーは挿入順） */

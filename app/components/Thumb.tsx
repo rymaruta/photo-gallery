@@ -3,6 +3,7 @@
 import React, { useCallback, useState, useSyncExternalStore } from "react";
 import type { Photo } from "@/lib/data/photos";
 import { isImageReady } from "@/lib/utils/imageReady";
+import { dropCachedPhoto } from "@/lib/utils/photoCache";
 
 /** 256w/512w の srcset 文字列を組み立てる（無い分は除外） */
 function buildSrcSet(w256?: string, w512?: string): string | undefined {
@@ -116,7 +117,7 @@ export default function Thumb({ photo, alt, sizes, priority = false, objectPosit
                     fetchPriority={priority ? "high" : "auto"}
                     decoding="async"
                     onLoad={() => setPhase("loaded")}
-                    onError={() => setError(true)}
+                    onError={(e) => { setError(true); void dropCachedPhoto(e.currentTarget.currentSrc || e.currentTarget.src); }}
                     className={`absolute inset-0 w-full h-full object-cover select-none transition-opacity duration-500 ${phase === "pending" ? "opacity-0" : "opacity-100"} ${className}`}
                     style={{ WebkitTouchCallout: "none", ...(objectPosition ? { objectPosition } : {}) }}
                 />

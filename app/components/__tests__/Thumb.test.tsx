@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import Thumb, { buildSrcSet } from "../Thumb";
@@ -182,5 +182,37 @@ describe("Thumb: ハイドレーション由来の画像はブラウザに任せ
                 expect(host.querySelector("svg")).not.toBeNull();
             } finally { await cleanup(); }
         } finally { restore(); }
+    });
+});
+
+// **失敗した写真の控えを捨てる。** SW の写真はキャッシュ優先で寿命が無いので、
+// 中身が写真でないものを一度控えると再読込では直らない（別オリジンの写真は
+// 応答が opaque で、SW 側では種別を確かめようが無い）。一覧は写真がいちばん
+// 多く出る画面なので、ここが抜けると症状も一番出る。
+describe("Thumb: 読み込めなかった写真の控えを捨てる", () => {
+    afterEach(() => { vi.unstubAllGlobals(); });
+
+    it("失敗した URL を写真の入れ物から消す", async () => {
+        const deleted: string[] = [];
+        const opened: string[] = [];
+        vi.stubGlobal("caches", {
+            open: async (name: string) => {
+                opened.push(name);
+                return { delete: async (u: string) => { deleted.push(u); return true; } };
+            },
+        });
+
+        const { container } = render(
+            <div style={{ position: "relative" }}>
+                <Thumb photo={{ src: "https://cdn/x.jpg", thumbSrc: "https://cdn/x_thumb.webp" } as never} alt="湖" />
+            </div>,
+        );
+        const img = container.querySelector("picture > img") as HTMLImageElement;
+        fireEvent.error(img);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(opened, "違う入れ物を開いている").toEqual(["journey-photo-img-v1"]);
+        expect(deleted).toEqual(["https://cdn/x_thumb.webp"]);
     });
 });

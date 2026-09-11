@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import type { StoryGroup } from "@/lib/stories";
 
@@ -56,6 +56,28 @@ describe("ストーリーの写真が取れなかったとき", () => {
         expect(screen.getByText("画像を読み込めません")).toBeInTheDocument();
         // 勝手に飛ばさない・閉じない（1枚しか無い人のリングが「無反応」に見える）
         expect(props.onClose).not.toHaveBeenCalled();
+    });
+
+    // **控えも捨てる。** ストーリーは開いた瞬間に取りに行くので、
+    // キャプティブポータル（ホテル・空港の Wi-Fi）に当たりやすい。
+    // 控えが毒を食うと、SW はキャッシュ優先・寿命なしなので**再読込しても
+    // 割れたまま**——別オリジンの写真は opaque で SW 側では弾けない
+    it("読み込めなかった写真の控えを捨てる", async () => {
+        const deleted: string[] = [];
+        const opened: string[] = [];
+        vi.stubGlobal("caches", {
+            open: async (name: string) => {
+                opened.push(name);
+                return { delete: async (u: string) => { deleted.push(u); return true; } };
+            },
+        });
+        setup();
+        fireEvent.error(mainImage("a.jpg").at(-1)!);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(opened, "違う入れ物を開いている").toEqual(["journey-photo-img-v1"]);
+        expect(deleted).toEqual(["https://cdn/x/a.jpg"]);
     });
 
     it("次のストーリーへ進むと元に戻る（1枚の失敗を持ち越さない）", () => {
@@ -121,3 +143,5 @@ describe("ストーリーの写真が取れなかったとき", () => {
         expect(mainImage("a.jpg").length).toBeGreaterThan(0);
     });
 });
+
+afterEach(() => { vi.unstubAllGlobals(); });

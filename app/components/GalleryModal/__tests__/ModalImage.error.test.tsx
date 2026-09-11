@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 // **「画像を読み込めません」の分岐にテストが1本も無かった**（レビュー指摘）。
@@ -24,6 +24,25 @@ describe("モーダルの画像が取れないとき", () => {
         expect(document.body.querySelector(".animate-spin"), "スピナーが回りっぱなし").toBeNull();
     });
 
+    // **控えも捨てる。** SW は写真をキャッシュ優先で持っていて寿命が無い
+    // ので、キャプティブポータルの HTML を控えた端末は再読込しても直らない
+    it("読み込めなかった写真の控えを捨てる", async () => {
+        const deleted: string[] = [];
+        vi.stubGlobal("caches", {
+            open: async (name: string) => {
+                expect(name, "違う入れ物を開いている").toBe("journey-photo-img-v1");
+                return { delete: async (u: string) => { deleted.push(u); return true; } };
+            },
+        });
+
+        render(<ModalImage src="https://cdn/gone.jpg" alt="湖" />);
+        fireEvent.error(img()!);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(deleted).toEqual(["https://cdn/gone.jpg"]);
+    });
+
     // 正常系: 読み込めたらスピナーだけ消える
     it("読み込めたら何も出さない", () => {
         render(<ModalImage src="https://cdn/ok.jpg" alt="湖" />);
@@ -34,3 +53,5 @@ describe("モーダルの画像が取れないとき", () => {
         expect(document.body.querySelector(".animate-spin")).toBeNull();
     });
 });
+
+afterEach(() => { vi.unstubAllGlobals(); });

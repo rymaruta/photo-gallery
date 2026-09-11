@@ -10,6 +10,7 @@ import type { Photo } from "@/lib/data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
 import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
 import { hapticTap } from "../../../lib/utils/haptics";
+import { dropCachedPhoto } from "../../../lib/utils/photoCache";
 import { parseMusicEmbed } from "../../../lib/utils/music";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { type SongEntry } from "../../music/MusicContext";
@@ -255,9 +256,10 @@ function PhotoImage({
                             WebkitTouchCallout: "none",
                             ...(focalPoint ? { objectPosition: `${focalPoint.x * 100}% ${focalPoint.y * 100}%` } : {}),
                         }}
-                        onError={() => {
+                        onError={(e) => {
                             setImageError(true);
                             setPhase("loaded");
+                            void dropCachedPhoto(e.currentTarget.currentSrc || e.currentTarget.src);
                         }}
                         onLoad={() => setPhase("loaded")}
                         // React が付いた時点で「もう届いている／まだ」を決める

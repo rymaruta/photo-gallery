@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 
@@ -93,7 +93,33 @@ describe("写真ページ: ハイドレーション前は隠さない", () => {
             expect(screen.getByText("画像を読み込めません")).toBeInTheDocument();
         } finally { restore(); }
     });
+
+    // **控えも捨てる。** この画面は検索の着地点＝共有リンクを開いた人が
+    // 最初に見る1枚。SW の写真はキャッシュ優先で寿命が無いので、写真では
+    // ないもの（キャプティブポータルの HTML）を一度控えると再読込でも
+    // 直らない。別オリジンの写真は opaque で SW 側では種別を読めない
+    it("読み込めなかった写真の控えを捨てる", async () => {
+        const deleted: string[] = [];
+        const opened: string[] = [];
+        vi.stubGlobal("caches", {
+            open: async (name: string) => {
+                opened.push(name);
+                return { delete: async (u: string) => { deleted.push(u); return true; } };
+            },
+        });
+        setReady(false);
+        try {
+            render(<PhotoPageClient photoId="p1" initialPhoto={base} />);
+            fireEvent.error(mainImage());
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(opened, "違う入れ物を開いている").toEqual(["journey-photo-img-v1"]);
+            expect(deleted).toEqual(["https://cdn.example.com/uploads/u1/a.jpg"]);
+        } finally { restore(); }
+    });
 });
+
+afterEach(() => { vi.unstubAllGlobals(); });
 
 // 静的HTML由来の本体は、届いていなくても隠さない（`Thumb` と同じ理由。
 // 本物のハイドレーションで確かめる）
