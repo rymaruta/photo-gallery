@@ -229,6 +229,35 @@ describe("ブロックした相手の通知は出さない", () => {
         expect(body.unread, "見えない通知ぶんのバッジが残っている").toBe(1);
     });
 
+    // **未読は「先頭 stored 件」＝位置の意味を持つ数**（追記は先頭に足す）。
+    // 全体の長さで丸めるだけだと、**落ちたのが先頭側だったこと**を見ていない。
+    // 上のテストは `unread = 全件` なので「全体の長さで丸める」式でも答えが
+    // 一致してしまい、**2つの式を区別できなかった**（レビュー指摘）。
+    //
+    // これがいちばん起きる形——人がブロックを押すのは「その人から立て続けに
+    // 通知が来た直後」なので、未読がまるごとブロック相手のものになる。
+    it("未読が全部ブロック相手のものなら、バッジは0になる", async () => {
+        world(
+            [{ ...notif(0), byId: BLOCKED }, { ...notif(1), byId: BLOCKED },
+             { ...notif(2), byId: OTHER }, { ...notif(3), byId: OTHER }, { ...notif(4), byId: OTHER }],
+            [BLOCKED], [], 2,
+        );
+        const body = await bodyOf();
+        expect(body.items).toHaveLength(3);
+        expect(body.unread, "既に読んだぶんがバッジに残っている（先頭を見ていない）").toBe(0);
+    });
+
+    // 逆向き: 未読が**生きている相手**のものなら減らさない
+    it("未読がブロックしていない相手のものなら、そのまま残す", async () => {
+        world(
+            [{ ...notif(0), byId: OTHER }, { ...notif(1), byId: OTHER }, { ...notif(2), byId: BLOCKED }],
+            [BLOCKED], [], 2,
+        );
+        const body = await bodyOf();
+        expect(body.items).toHaveLength(2);
+        expect(body.unread, "生きている未読まで削っている").toBe(2);
+    });
+
     // 正常系: 誰もブロックしていなければ素通し
     it("ブロックしていなければ何も落とさない", async () => {
         world([{ ...notif(0), byId: OTHER }, { ...notif(1), byId: BLOCKED }], [], []);
@@ -248,6 +277,11 @@ describe("ブロックした相手の通知は出さない", () => {
         });
         const body = await bodyOf();
         expect(body.items, "ブロックを読めないだけで通知が消えている").toHaveLength(1);
+        // **実際に読みに行ったことも見る。** これが無いと、配線ごと外した
+        // 変異でもモックの reject 枝に到達せず緑になる（レビュー指摘）
+        const read = mockDdbSend.mock.calls
+            .map((c) => (c[0].input as { Key?: { id?: string } })?.Key?.id ?? "");
+        expect(read, "ブロック一覧を引きに行っていない").toContain(`blocks#${ME}`);
     });
 
     it("通知が無ければブロック一覧も引きに行かない（無駄な読み取りをしない）", async () => {

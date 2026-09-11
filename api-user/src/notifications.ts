@@ -47,12 +47,11 @@ export const getNotifications: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
                 }),
                 deletedUserIds(),
             ]);
-        const items = hidden.size === 0
-            ? all
-            : all.filter((n) => {
-                const by = (n as { byId?: unknown }).byId;
-                return !(typeof by === "string" && hidden.has(by));
-            });
+        const visible = (n: unknown): boolean => {
+            const by = (n as { byId?: unknown }).byId;
+            return !(typeof by === "string" && hidden.has(by));
+        };
+        const items = hidden.size === 0 ? all : all.filter(visible);
         // 未読数は保存件数を超えられない。DynamoDB 側は素のカウンタで、
         // 開かずに溜め続けると保存件数（NOTIFS_MAX）を超えて伸びる。
         // 丸めるのは**ここだけ**——切り詰め側で丸めると、その書き込みが
@@ -61,7 +60,20 @@ export const getNotifications: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
         // と描くので、ズレるのは「開くと50件しか無い」という点だけ）が、
         // 未読数と中身が食い違ったままにはしない。
         const stored = typeof res.Item?.unread === "number" ? res.Item.unread : 0;
-        const unread = Math.max(0, Math.min(stored, items.length));
+        // **未読は「先頭 stored 件」＝位置の意味を持つ数**（追記は
+        // `list_append(:new, existing)` で**先頭が新しい**——`notify.ts:170`）。
+        // なので落としたぶんを**全体の長さ**で丸めるだけでは足りない
+        // ——落ちたのが先頭側（＝未読側）だったことを見ていないため。
+        //
+        // 実際、人がブロックを押すのは「その人から立て続けに通知が来た直後」
+        // なので、**未読がまるごとブロック相手のもの**がいちばん起きる形。
+        // `min(stored, items.length)` だと `[B,B,B,X,Y] / unread=3` で
+        // **2**（既に読んだ X・Y のぶん）が残り、「バッジ2 → 開くと
+        // 『まだ届いていません』」という、この修正が消したはずの症状に戻る。
+        const headCount = Math.max(0, Math.min(stored, all.length));
+        const unread = hidden.size === 0
+            ? headCount
+            : all.slice(0, headCount).filter(visible).length;
 
         // **退会した人の名前は出さない。**
         //
