@@ -120,6 +120,23 @@ describe("ビルドに渡す NEXT_PUBLIC_*", () => {
             "設定しても何も起きない状態に戻っている").toBe(true);
     });
 
+    // **値そのものも見る。** 配線があっても空なら画面には出ない
+    // ——この一連の修正が直したのは「配線が無い」方で、
+    // 「配線はあるが空」は同じ見た目になる。`gaId` と同じく直書きなので、
+    // ここで中身まで固定できる
+    it("問い合わせ先に実際の宛先が入っている", () => {
+        const yml = readFileSync(join(ROOT, ".github", "workflows", "deploy.yml"), "utf8");
+        const m = /^\s+contactEmail=(.*)$/m.exec(yml);
+        expect(m, "直書きの行が無い（vars 参照に戻した？）").not.toBeNull();
+        const value = (m?.[1] ?? "").trim();
+        expect(value, "空に戻っている（画面に出口が出ない）").not.toBe("");
+        expect(value, "メールアドレスの形ではない").toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+        // **`${{ }}` を `run:` に埋め直していないこと。**
+        // アポストロフィでジョブが死に、改行で検証済みの出力を
+        // 上書きできる（どちらも実測した）
+        expect(value, "run: の中で式を展開している").not.toContain("${{");
+    });
+
     // **鎖を最後まで見る。**
     //
     // 配線は4本ある——`vars` → shell 変数 → `steps.pick.outputs` →
