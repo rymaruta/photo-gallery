@@ -1,6 +1,7 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getPhotoById, updatePhotoFields, deletePhotoById } from "./ddb-photos";
+import { removePhotoFromAlbum } from "./albumCleanup";
 import { PUBLIC_FEED_KEY } from "./publicFeed";
 import { isAdmin, getCallerUserId } from "./auth";
 import { requestSiteRebuild } from "./rebuild";
@@ -355,6 +356,25 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         }
 
         await deletePhotoById(id);
+
+        // **共同アルバムからも取り除く。**
+        //
+        // `removePhotoFromAlbum` の docstring が「呼ばれないと何が困るか」を
+        // 自分で書いている——500枚の枠を食う／招待ページの窓を死んだ ID で
+        // 埋めて「生きている写真があるのに空」に見える。それでも呼んで
+        // いたのは `deleteMyPhoto` だけで、**退会とここが素通り**だった
+        // （`api/src` には `album` の文字が1つも無かった）。
+        //
+        // **行を消したあとに呼び、失敗は握る**（`deleteMyPhoto`・
+        // `deleteAccount` と同じ形）。写真はもう消えているので、掃除の
+        // 失敗で 500 を返すのは嘘になる。
+        // 写真の行が `albumId` の唯一の手がかりなので、取りこぼすと永久
+        const albumId = (photo as Record<string, unknown>).albumId;
+        if (typeof albumId === "string" && albumId) {
+            await removePhotoFromAlbum(albumId, id).catch((e) => {
+                console.error(`deletePhoto: アルバムから取り除けませんでした（${id}）:`, e);
+            });
+        }
 
         // 静的ページの掃除を頼む。実体を消しても、既に配ってある
         // /photo/<id> の HTML はそのまま残る（本文・撮影地・EXIF・
