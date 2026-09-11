@@ -1224,6 +1224,96 @@ describe("退会: 同じアルバムの写真が複数あっても、全部外�
 
     // **アルバム1件につき1回で済ませる。** 1枚ずつ撃つと往復が枚数ぶん
     // 増え、退会の実行時間（29秒）を削る
+    // **ページごとに流す。**
+    //
+    // ループの外まで溜めると、打ち切られたときに掃除が丸ごと飛ぶ
+    // ——写真の行はもう無く（`albumId` の唯一の手がかり）、控えは
+    // メモリ上にしか無いので一緒に消える。このループには期限の
+    // 見張りが無い（見ているのは下のフォロー掃除だけ）。
+    //
+    // **1ページしか作らないと、内と外の区別がつかない**（実際、
+    // 最初のテストがそうで、外へ戻す変異が緑だった）。2ページ作る。
+    it("ページごとに流す（次のページを引く前に書いている）", async () => {
+        const order: string[] = [];
+        let page = 0;
+        mockDdbSend.mockImplementation(async (cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            const id = String((cmd.input.Key as { id?: string })?.id ?? "");
+            if (name === "QueryCommand") {
+                page++;
+                order.push(`query${page}`);
+                return page === 1
+                    ? { Items: [{ id: "p0", userId: "me" }], LastEvaluatedKey: { id: "p0" } }
+                    : { Items: [{ id: "p1", userId: "me" }] };
+            }
+            if (name === "GetCommand") {
+                if (id === "p0") return { Item: { id, userId: "me", src: "https://cdn/uploads/me/p0.jpg", albumId: "A" } };
+                if (id === "p1") return { Item: { id, userId: "me", src: "https://cdn/uploads/me/p1.jpg", albumId: "B" } };
+                if (id.startsWith("album#")) { order.push(`get:${id}`); return { Item: { id, photoIds: ["p0", "p1", "other"] } }; }
+                return {};
+            }
+            if (name === "UpdateCommand" && id.startsWith("album#")) { order.push(`update:${id}`); return {}; }
+            return {};
+        });
+
+        await invoke(deleteAccount, ev("me"));
+
+        // 1ページ目のアルバムは、2ページ目を引く**前**に書いている
+        expect(order.indexOf("update:album#A"), "album#A を書いていない").toBeGreaterThanOrEqual(0);
+        expect(order.indexOf("update:album#A"), "次のページを引いたあとに書いている（打ち切られると全損）")
+            .toBeLessThan(order.indexOf("query2"));
+        // **控えはページごとに空にする。** 空にしないと、2ページ目の流しで
+        // 1ページ目のアルバムをもう一度引きに行く（無駄な往復）
+        expect(order.filter((o) => o === "get:album#A"), "控えを空にしていない（同じアルバムを引き直している）")
+            .toHaveLength(1);
+    });
+
+    // **500 を返す前に流す。**
+    //
+    // 写真が1枚でも消せないと退会は 500 で止まるが、**その時点で行が
+    // 消えている写真の ID はアルバムに残る**——行が無いので二度と辿れない。
+    // 流す位置を 500 の後ろへ動かす変異が緑だった（レビューが実証）。
+    //
+    // **ページの中で流す**ことも、ここで縛る。ループの外まで溜めると、
+    // 打ち切られたときに掃除が丸ごと飛ぶ
+    it("一部の写真が消せずに 500 でも、消えた写真はアルバムから外れている", async () => {
+        let stored = ["p0", "p1", "other"];
+        mockDdbSend.mockImplementation(async (cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            const id = String((cmd.input.Key as { id?: string })?.id ?? "");
+            if (name === "QueryCommand") {
+                return { Items: [{ id: "p0", userId: "me" }, { id: "p1", userId: "me" }] };
+            }
+            if (name === "GetCommand") {
+                if (id === "p0" || id === "p1") {
+                    return { Item: { id, userId: "me", src: `https://cdn/uploads/me/${id}.jpg`, albumId: "A" } };
+                }
+                if (id === "album#A") return { Item: { id: "album#A", photoIds: [...stored] } };
+                return {};
+            }
+            if (name === "UpdateCommand" && id === "album#A") {
+                const v = cmd.input.ExpressionAttributeValues as { ":prev": string[]; ":next": string[] };
+                if (JSON.stringify(v[":prev"]) !== JSON.stringify(stored)) {
+                    throw Object.assign(new Error("ccf"), { name: "ConditionalCheckFailedException" });
+                }
+                stored = v[":next"];
+                return {};
+            }
+            return {};
+        });
+        // p1 の実体だけ消せない → 行も残り、退会は 500
+        mockS3Send.mockImplementation(async (cmd: { input: { Delete?: { Objects?: { Key?: string }[] } } }) => {
+            const keys = (cmd.input.Delete?.Objects ?? []).map((o) => String(o.Key));
+            if (keys.some((k) => k.includes("p1"))) throw new Error("s3 down");
+            return {};
+        });
+
+        const res = await invoke(deleteAccount, ev("me"));
+        expect(res.statusCode, "消せない写真があるのに成功にしている").toBe(500);
+        // 消せた p0 はアルバムから外れ、消せなかった p1 は残る
+        expect(stored, "500 で止まる前に流していない（永久に残る）").toEqual(["p1", "other"]);
+    });
+
     it("アルバムへの書き込みは1回だけ", async () => {
         manyInOneAlbum(8);
         await invoke(deleteAccount, ev("me"));

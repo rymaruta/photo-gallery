@@ -302,7 +302,10 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
          *
          * **まとめて1回で外す。** 1枚ずつだと8並列が同じ行を取り合って
          * ほとんど外れない（すぐ下のコメントを見よ）。往復も減るので、
-         * 退会の実行時間（29秒）にも効く
+         * 退会の実行時間（29秒）にも効く。
+         *
+         * **ページごとに空にする**（流したあと）。ループの外まで溜めると、
+         * 打ち切られたときに掃除が丸ごと飛ぶ
          */
         const albumPhotoIds = new Map<string, string[]>();
         do {
@@ -384,23 +387,43 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                 }
                 mediaFailures += itemFailures;
             });
+            // **控えたぶんは、このページのうちに流す。**
+            //
+            // ループの外へ出していた回があった。まとめる効果は同じだが、
+            // **途中で打ち切られると掃除が丸ごと飛ぶ**——写真の行はもう
+            // 無く（`albumId` の唯一の手がかり）、控えはメモリ上にしか
+            // 無いので、一緒に消える。このループには期限の見張りが無い
+            // （見ているのは下のフォロー掃除だけ）。
+            //
+            // **1枚ずつ呼んでいた頃より悪くなる場合があった**——
+            // 取り合いが起きるのは**同じアルバム**の写真どうしだけで、
+            // 別々のアルバムに上げた写真は競合せず全部外れていた。
+            // 失うのを最悪1ページぶんに抑える。
+            //
+            // 1ページは最大1MB＝写真の行が数百件なので、普通は往復数が
+            // 変わらない（増えるのは同じアルバムの写真がページをまたいだ時だけ）。
+            //
+            // **アルバムごとに並列で流す**（別々のアルバムは別々の行なので
+            // 取り合わない）。直列だと、参加しているアルバムが多い人で
+            // 遅くなる——`ALBUMS_PER_USER` は**自分が作る**上限で、
+            // 参加する数には上限が無い。
+            //
+            // **掃除の失敗で退会を止めない**（写真はもう消えているので、
+            // ここで 500 を返すと「消えているのに退会できない」になる）。
+            // `mediaFailures` にも数えない。
+            //
+            // 自分が作ったアルバムの写真もここに混じる（下のステップ6で行ごと
+            // 消えるので無駄になる）。**分けない**——アルバム1件につき往復は
+            // 1〜2回で、持ち主かどうかを先に引く方が高くつく
+            await mapWithConcurrency([...albumPhotoIds], 8, async ([albumId, ids]) => {
+                await removePhotosFromAlbum(albumId, ids).catch((e) => {
+                    console.error(`deleteAccount: アルバムから取り除けませんでした（${albumId}・${ids.length}枚）:`, e);
+                });
+            });
+            albumPhotoIds.clear();
+
             lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
         } while (lastKey);
-
-        // 1b. 控えたぶんを、アルバムごとに1回で外す。
-        //
-        // **掃除の失敗で退会を止めない**（写真はもう消えているので、
-        // ここで 500 を返すと「消えているのに退会できない」になる）。
-        // `mediaFailures` にも数えない。
-        //
-        // 自分が作ったアルバムの写真もここに混じる（下のステップ6で行ごと
-        // 消えるので無駄になる）。**分けない**——アルバム1件につき往復は
-        // 1〜2回で、持ち主かどうかを先に引く方が高くつく
-        for (const [albumId, ids] of albumPhotoIds) {
-            await removePhotosFromAlbum(albumId, ids).catch((e) => {
-                console.error(`deleteAccount: アルバムから取り除けませんでした（${albumId}・${ids.length}枚）:`, e);
-            });
-        }
 
         // 2. アバター/カバー（決定的キー・探索不要）。GPS は無いが、
         //    消し残しは公開URLに残り続けるので写真と同じく失敗に数える
