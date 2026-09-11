@@ -177,3 +177,85 @@ describe("退会した人の名前は出さない", () => {
         expect(body.unread).toBe(2);
     });
 });
+
+// **ブロックした相手の通知が、ベルに残り続けていた。**
+//
+// `pushNotification` が断るのは「これから来るぶん」だけ。通知は作られた時点の
+// 表示名と ID を焼き込んで持つので、ブロックしても**それまでに届いたぶんは
+// 名前もプロフィールへのリンクも生きたまま**残っていた（50件の輪から
+// 押し出されるまで）。フォローは両向きに切り、ストーリーも両向きに隠すのに、
+// ここだけ「見せない相手」を通していた。
+describe("ブロックした相手の通知は出さない", () => {
+    const BLOCKED = "44444444-4444-4444-8444-444444444444";
+    const BLOCKER = "55555555-5555-4555-8555-555555555555";
+    const OTHER = "66666666-6666-4666-8666-666666666666";
+
+    /**
+     * notifs の Get → ブロックの2行（`blocks#` / `blockedby#`）→ 退会者の Scan。
+     * `mine` は自分がブロックした人、`theirs` は自分をブロックした人。
+     */
+    const world = (items: unknown[], mine: string[], theirs: string[], unread = items.length) => {
+        resetDeletedUsersCache();
+        mockDdbSend.mockReset().mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "ScanCommand") return Promise.resolve({ Items: [] });
+            const key = (cmd.input.Key as { id?: string } | undefined)?.id ?? "";
+            if (key === `blocks#${ME}`) return Promise.resolve({ Item: { id: key, blockedIds: mine } });
+            if (key === `blockedby#${ME}`) return Promise.resolve({ Item: { id: key, blockerIds: theirs } });
+            return Promise.resolve({ Item: { id: `notifs#${ME}`, items, unread } });
+        });
+    };
+    const bodyOf = async () =>
+        JSON.parse((await invoke(getNotifications, ev())).body) as { items: Array<Record<string, unknown>>; unread: number };
+
+    it("自分がブロックした人からの通知は落とす", async () => {
+        world([{ ...notif(0), byId: BLOCKED, byName: "迷惑な人" }, { ...notif(1), byId: OTHER, byName: "旅人" }], [BLOCKED], []);
+        const body = await bodyOf();
+        expect(body.items.map((n) => n.byId), "ブロックした相手の通知が残っている").toEqual([OTHER]);
+    });
+
+    // **和集合で見る。** 片向きだけだと、相手が自分をブロックした側が残る
+    it("自分をブロックした人からの通知も落とす", async () => {
+        world([{ ...notif(0), byId: BLOCKER, byName: "向こうが切った人" }, { ...notif(1), byId: OTHER }], [], [BLOCKER]);
+        const body = await bodyOf();
+        expect(body.items.map((n) => n.byId)).toEqual([OTHER]);
+    });
+
+    // **未読数も落としたぶんに合わせる。** 合わせないと「1件未読」なのに
+    // 開いても何も無い（バッジだけ残る）
+    it("未読数は落としたあとの件数まで下げる", async () => {
+        world([{ ...notif(0), byId: BLOCKED }, { ...notif(1), byId: BLOCKED }, { ...notif(2), byId: OTHER }], [BLOCKED], [], 3);
+        const body = await bodyOf();
+        expect(body.items).toHaveLength(1);
+        expect(body.unread, "見えない通知ぶんのバッジが残っている").toBe(1);
+    });
+
+    // 正常系: 誰もブロックしていなければ素通し
+    it("ブロックしていなければ何も落とさない", async () => {
+        world([{ ...notif(0), byId: OTHER }, { ...notif(1), byId: BLOCKED }], [], []);
+        const body = await bodyOf();
+        expect(body.items).toHaveLength(2);
+        expect(body.unread).toBe(2);
+    });
+
+    // **見えなくする側が落ちたときに全部消さない**（`getStories` と同じ判断）
+    it("ブロック一覧を読めなくても、通知は返す", async () => {
+        resetDeletedUsersCache();
+        mockDdbSend.mockReset().mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "ScanCommand") return Promise.resolve({ Items: [] });
+            const key = (cmd.input.Key as { id?: string } | undefined)?.id ?? "";
+            if (key.startsWith("blocks#") || key.startsWith("blockedby#")) return Promise.reject(new Error("throttled"));
+            return Promise.resolve({ Item: { id: `notifs#${ME}`, items: [{ ...notif(0), byId: OTHER }], unread: 1 } });
+        });
+        const body = await bodyOf();
+        expect(body.items, "ブロックを読めないだけで通知が消えている").toHaveLength(1);
+    });
+
+    it("通知が無ければブロック一覧も引きに行かない（無駄な読み取りをしない）", async () => {
+        world([], [], []);
+        await invoke(getNotifications, ev());
+        const keys = mockDdbSend.mock.calls
+            .map((c) => (c[0].input as { Key?: { id?: string } })?.Key?.id ?? "")
+            .filter((k) => k.startsWith("blocks#") || k.startsWith("blockedby#"));
+        expect(keys, "通知が無いのにブロック一覧を読んでいる").toHaveLength(0);
+    });
+});
