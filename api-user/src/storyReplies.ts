@@ -6,6 +6,7 @@ import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { pushNotification, lookupDisplayName, deletedUserIds, DELETED_USER_NAME } from "./notify";
 import { truncate } from "./sanitize";
 import { isBlocked } from "./blockCheck";
+import { hiddenUserIds } from "./block";
 
 /**
  * ストーリーへの返信とリアクション。
@@ -54,7 +55,7 @@ export type StoryReply = {
 export const REACTIONS = ["❤️", "😍", "😂", "😮", "😢", "👏"] as const;
 const REACTION_SET: ReadonlySet<string> = new Set(REACTIONS);
 
-const REPLIES_MAX = 200;
+export const REPLIES_MAX = 200;
 /**
  * 1人が1つのストーリーに送れる数。
  *
@@ -276,7 +277,34 @@ export const getStoryReplies: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         if ((story.userId ?? story.uploadedBy) !== callerId) return jsonError(403, "権限がありません");
 
         const all = await readReplies(storyId);
-        const items = all.slice(-REPLIES_MAX).reverse();   // 末尾追記なので後ろが新しい
+
+        // **ブロックした相手の返信は出さない（両向き）。**
+        //
+        // `postStoryReply` が断るのは**これから来るぶん**だけ。返信は
+        // `{uid, name}` を書き込みの時点で焼き込むので、ブロックしても
+        // **それまでに届いたぶんは名前つきで残る**（ストーリーの残り寿命＝
+        // 最大24時間）。通知・閲覧者と同じ型。
+        //
+        // **窓を切る前に落とす。** あとで切ると、ブロックした相手の返信が
+        // `REPLIES_MAX` の窓を食って**生きている返信が押し出される**
+        // （招待ページが「死んだ ID で窓を埋めない」としているのと同じ）。
+        //
+        // **バッジとはずれる。** ストーリーの一覧が返す `replyCount` は
+        // 行に持っている数（`postStoryReply` が書く）で、ここは通さない。
+        // つまり「返信 3件」と出たのに開くと2件、が起きうる。
+        // 揃えるには一覧を引くたびに返信の文書を読む（ストーリーの数だけ
+        // GetItem が増える）か、ブロックのたびに相手の返信を消して回る
+        // （他人の書いたものを消す）ことになるので**倒さない**。
+        // ずれる向きは**多い側**に固定で、寿命は最大24時間。
+        const hidden = all.length === 0
+            ? new Set<string>()
+            // 読めなければ一覧は返す（`getStories` と同じ判断）
+            : await hiddenUserIds(callerId).catch((e) => {
+                console.error("getStoryReplies: ブロック一覧を読めませんでした:", e);
+                return new Set<string>();
+            });
+        const visible = hidden.size === 0 ? all : all.filter((r) => !hidden.has(r.uid));
+        const items = visible.slice(-REPLIES_MAX).reverse();   // 末尾追記なので後ろが新しい
         // 退会した人の名前は出さない（`getComments` と同じ）。0件なら引きに行かない
         const gone = items.length === 0 ? new Set<string>() : await deletedUserIds();
         const safeItems = gone.size === 0
@@ -286,7 +314,8 @@ export const getStoryReplies: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
             // 本人向けの内容。共有キャッシュに載せない
             statusCode: 200,
             headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
-            body: JSON.stringify({ items: safeItems, count: all.length }),
+            // `count` も落としたあとの数（この応答の中で食い違わせない）
+            body: JSON.stringify({ items: safeItems, count: visible.length }),
         };
     } catch (e) {
         console.error("getStoryReplies error:", e);

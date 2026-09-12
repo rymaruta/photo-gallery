@@ -447,11 +447,31 @@ export const getStoryViewers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         // （comments / notifications / storyReplies / getUserFollowing /
         //  getUserFollowers は全部通している）。
         // ストーリーは24時間で消えるので窓は短いが、その間は出続ける。
+        // **ブロックした相手は一覧に出さない（両向き）。**
+        //
+        // 表示名と同じで、閲覧の記録は `viewStory` の時点で焼き込まれる。
+        // `viewStory` はブロック後の閲覧を断るが、**断るのはこれからのぶん**
+        // だけ——ブロックする前に見られたぶんは、名前も `userId` も付いたまま
+        // 残る（ストーリーの残り寿命＝最大24時間）。通知で直したのと同じ型。
+        //
+        // ここは `count` を**この一覧から導いている**ので、落としても数と
+        // 中身が食い違わない（返信側はバッジが別系統なので、そちらは
+        // `storyReplies.ts` にずれ方を書いた）。
         const viewersMap = (item.viewers ?? {}) as Record<string, { displayName?: string; at?: string }>;
         const entries = Object.entries(viewersMap);
         // 引くのは閲覧者が居るときだけ（`getComments` と同じ）
-        const gone = entries.length > 0 ? await deletedUserIds() : new Set<string>();
+        const [gone, hidden] = entries.length === 0
+            ? [new Set<string>(), new Set<string>()]
+            : await Promise.all([
+                deletedUserIds(),
+                // 読めなければ一覧は返す（`getStories` と同じ判断）
+                hiddenUserIds(callerId).catch((e) => {
+                    console.error("getStoryViewers: ブロック一覧を読めませんでした:", e);
+                    return new Set<string>();
+                }),
+            ]);
         const viewers = entries
+            .filter(([userId]) => !hidden.has(userId))
             .map(([userId, v]) => (gone.has(userId)
                 ? { userId, displayName: DELETED_USER_NAME, deleted: true, at: v?.at }
                 : { userId, displayName: v?.displayName, at: v?.at }))

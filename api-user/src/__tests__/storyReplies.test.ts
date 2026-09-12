@@ -16,8 +16,11 @@ vi.mock("../notify", () => ({
     deletedUserIds: mockDeletedIds,
     DELETED_USER_NAME: "退会したユーザー",
 }));
+// ブロックの判定も境界にする（`stories.test.ts` と同じ形）
+const mockHidden = vi.hoisted(() => vi.fn(async () => new Set<string>()));
+vi.mock("../block", () => ({ hiddenUserIds: (...a: unknown[]) => mockHidden(...(a as [])) }));
 
-const { postStoryReply, getStoryReplies, overBudgetCount, REACTIONS, storyRepliesId } =
+const { postStoryReply, getStoryReplies, overBudgetCount, REACTIONS, storyRepliesId, REPLIES_MAX } =
     await import("../storyReplies");
 
 type Result = { statusCode: number; body: string };
@@ -54,6 +57,7 @@ beforeEach(() => {
     mockPush.mockReset().mockResolvedValue(undefined);
     mockLookup.mockReset().mockResolvedValue("旅人A");
     mockDeletedIds.mockReset().mockResolvedValue(new Set<string>());
+    mockHidden.mockReset().mockResolvedValue(new Set<string>());
 });
 
 // **ストーリーを見た人が反応する手段が1つも無かった。** 見て、消える。
@@ -329,6 +333,53 @@ describe("getStoryReplies", () => {
         world(STORY, []);
         await invoke(getStoryReplies, ev("owner", "story-1"));
         expect(mockDeletedIds).not.toHaveBeenCalled();
+    });
+
+    // **ブロックした相手の返信は出さない（両向き）。**
+    // `postStoryReply` が断るのはこれから来るぶんだけで、既に届いたぶんは
+    // `{uid, name}` を焼き込んだまま残っていた（通知・閲覧者と同じ型）
+    it("ブロックした相手の返信は出さない", async () => {
+        mockHidden.mockResolvedValue(new Set(["u2"]));
+        world(STORY, [
+            { id: "r1", uid: "u1", name: "A", text: "ふつう", t: "2026-01-01T00:00:00.000Z" },
+            { id: "r2", uid: "u2", name: "B", text: "ブロックした人", t: "2026-01-02T00:00:00.000Z" },
+        ]);
+        const r = await invoke(getStoryReplies, ev("owner", "story-1"));
+        expect(bodyOf(r).items.map((x: { id: string }) => x.id), "ブロックした相手の返信が残っている").toEqual(["r1"]);
+        // **この応答の中では数と中身を食い違わせない**
+        expect(bodyOf(r).count).toBe(1);
+        expect(mockHidden).toHaveBeenCalledWith("owner");
+    });
+
+    // **窓を切る前に落とす。** あとで切ると、ブロックした相手の返信が
+    // `REPLIES_MAX` の窓を食って生きている返信が押し出される
+    it("窓（REPLIES_MAX）を、ブロックした相手の返信で埋めない", async () => {
+        mockHidden.mockResolvedValue(new Set(["spam"]));
+        const blocked = Array.from({ length: REPLIES_MAX }, (_, i) => (
+            { id: `b${i}`, uid: "spam", name: "B", text: "x", t: `2026-01-02T00:00:${String(i).padStart(2, "0")}.000Z` }
+        ));
+        world(STORY, [{ id: "keep", uid: "u1", name: "A", text: "生きている", t: "2026-01-01T00:00:00.000Z" }, ...blocked]);
+        const r = await invoke(getStoryReplies, ev("owner", "story-1"));
+        expect(bodyOf(r).items.map((x: { id: string }) => x.id), "生きている返信が窓から押し出された").toEqual(["keep"]);
+    });
+
+    it("ブロックしていなければ何も落とさない", async () => {
+        world(STORY, [{ id: "r1", uid: "u1", name: "A", text: "x", t: "t" }]);
+        expect(bodyOf(await invoke(getStoryReplies, ev("owner", "story-1"))).count).toBe(1);
+    });
+
+    // 見えなくする側が落ちたときに全部消さない（`getStories` と同じ判断）
+    it("ブロック一覧を読めなくても、返信は返す", async () => {
+        mockHidden.mockRejectedValue(new Error("throttled"));
+        world(STORY, [{ id: "r1", uid: "u1", name: "A", text: "x", t: "t" }]);
+        expect(bodyOf(await invoke(getStoryReplies, ev("owner", "story-1"))).count,
+            "ブロックを読めないだけで返信が消えている").toBe(1);
+    });
+
+    it("0件ならブロック一覧も引きに行かない", async () => {
+        world(STORY, []);
+        await invoke(getStoryReplies, ev("owner", "story-1"));
+        expect(mockHidden, "返信が無いのにブロック一覧を読んでいる").not.toHaveBeenCalled();
     });
 
     // 本人向けの内容なので共有キャッシュに載せない

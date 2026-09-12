@@ -940,6 +940,54 @@ describe("getStoryViewers", () => {
         // 退会していない人はそのまま
         expect(body.viewers.find((v) => v.userId === "u-a")?.displayName).toBe("A");
     });
+
+    // **ブロックした相手は一覧に出さない（両向き）。**
+    // 閲覧の記録は `viewStory` の時点で焼き込まれる。`viewStory` が断るのは
+    // これからのぶんだけなので、ブロック前に見られたぶんは名前も `userId` も
+    // 付いたまま残っていた（通知で直したのと同じ型）。
+    const seen = {
+        "u-a": { displayName: "A", at: "2026-07-04T10:00:00Z" },
+        "u-b": { displayName: "B", at: "2026-07-04T11:00:00Z" },
+    };
+    const withViewers = (viewers: Record<string, unknown>) => {
+        mockDdbSend.mockReset().mockResolvedValue({ Item: { id: "story-1", story: true, userId: "owner", viewers } });
+    };
+    const call = async () => JSON.parse(
+        (await invoke(getStoryViewers, authedEvent("owner", { pathParameters: { id: "story-1" } }))).body,
+    ) as { viewers: Array<{ userId: string }>; count: number };
+
+    it("ブロックした相手は閲覧者に出さない", async () => {
+        withViewers(seen);
+        mockHidden.mockResolvedValue(new Set(["u-b"]));
+        const body = await call();
+        expect(body.viewers.map((v) => v.userId), "ブロックした相手が閲覧者に残っている").toEqual(["u-a"]);
+        // **数はこの一覧から導く**（食い違わせない）
+        expect(body.count).toBe(1);
+        // 和集合を引いているか（両向きに効くのはこの関数の性質）
+        expect(mockHidden).toHaveBeenCalledWith("owner");
+    });
+
+    it("ブロックしていなければ誰も落とさない", async () => {
+        withViewers(seen);
+        mockHidden.mockResolvedValue(new Set<string>());
+        const body = await call();
+        expect(body.count).toBe(2);
+    });
+
+    // 見えなくする側が落ちたときに全部消さない（`getStories` と同じ判断）
+    it("ブロック一覧を読めなくても、閲覧者は返す", async () => {
+        withViewers(seen);
+        mockHidden.mockRejectedValue(new Error("throttled"));
+        const body = await call();
+        expect(body.count, "ブロックを読めないだけで閲覧者が消えている").toBe(2);
+    });
+
+    it("閲覧者が居なければブロック一覧も引きに行かない", async () => {
+        withViewers({});
+        mockHidden.mockResolvedValue(new Set<string>());
+        await invoke(getStoryViewers, authedEvent("owner", { pathParameters: { id: "story-1" } }));
+        expect(mockHidden, "閲覧者が居ないのにブロック一覧を読んでいる").not.toHaveBeenCalled();
+    });
 });
 
 // ────────────────────────────────
