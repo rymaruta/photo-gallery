@@ -98,6 +98,10 @@ function InviteView() {
     if (state === "loading") {
         return (
             <main className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+                {/* **見出しを1つ置く。** 読み上げは見出しでページを渡り歩くので、
+                    h1 が無いとこの画面には入口が無い。見た目は変えない
+                    （ホームの `sr-only sm:hidden` と同じ形） */}
+                <h1 className="sr-only">アルバムへの招待</h1>
                 <p className="text-sm text-white/60" aria-live="polite">読み込み中…</p>
             </main>
         );
@@ -107,6 +111,9 @@ function InviteView() {
         return (
             <main className="min-h-screen bg-black text-white flex items-center justify-center px-4">
                 <div className="text-center max-w-sm">
+                    {/* **失敗の画面こそ見出しが要る。** 招待リンクは30日で
+                        失効するので、ここは実際に人が着地する */}
+                    <h1 className="sr-only">アルバムへの招待</h1>
                     <p className="text-sm text-white/85" role="alert">{error}</p>
                     <Link href={ROUTES.HOME} className="inline-block mt-4 text-sm underline decoration-white/40 underline-offset-2">
                         トップへ

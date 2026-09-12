@@ -138,3 +138,40 @@ describe("招待ページ: 参加", () => {
         expect(screen.queryByRole("link", { name: /写真を追加/ })).toBeNull();
     });
 });
+
+/**
+ * **見出しが1つあること。**
+ *
+ * 全141ページを実ブラウザで走査して出た（2026-09-12）。`/j` は
+ * **成功したときだけ** h1 を持ち、読み込み中と失敗時は見出しが1つも
+ * 無かった。読み上げは見出しでページを渡り歩くので、その2状態には
+ * 入口が無い。**招待リンクは30日で失効する**ので、失敗の画面は実際に
+ * 人が着地する。
+ *
+ * 足したのは `sr-only` の見出し＝**見た目は変えない**
+ * （ホームが `9a5a9edc` で同じ形を使っている）。
+ */
+describe("招待ページ: 見出し", () => {
+    it("中身が出たら見出しがある", async () => {
+        render(<InvitePage />);
+        await screen.findByText("北欧の冬");
+        expect(document.querySelectorAll("h1").length, "h1 が1つでない").toBe(1);
+    });
+
+    it("読み込み中でも見出しがある", async () => {
+        // 解決しない応答＝読み込み中のまま
+        mockUserPublicFetch.mockReset().mockReturnValue(new Promise(() => {}));
+        render(<InvitePage />);
+        expect(await screen.findByText("読み込み中…")).toBeInTheDocument();
+        expect(document.querySelectorAll("h1").length, "読み込み中に見出しが無い").toBe(1);
+    });
+
+    it("失効した招待でも見出しがある（ここに人が着地する）", async () => {
+        mockUserPublicFetch.mockReset().mockResolvedValue(
+            Object.assign({ ok: false, status: 410, json: async () => ({}) }, { _msg: "この招待リンクは期限切れです" }),
+        );
+        render(<InvitePage />);
+        await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+        expect(document.querySelectorAll("h1").length, "失敗の画面に見出しが無い").toBe(1);
+    });
+});
