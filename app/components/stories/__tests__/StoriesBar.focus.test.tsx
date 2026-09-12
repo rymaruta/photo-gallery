@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // 投稿プレビューは `fixed inset-0 z-[95]` の全画面で、裏にはストーリーの
@@ -173,7 +173,16 @@ describe("ストーリーの投稿プレビュー: Tab が外へ漏れない", (
 
             const dialog = await screen.findByRole("dialog");
             expect(dialog.querySelector("video")).not.toBeNull();
-            expect(document.activeElement).toBe(screen.getByLabelText("キャンセル"));
+            // **「もう当たり終えている」を前提にしない。** ここを同期で見て
+            // いた頃、負荷の高い回で `document.activeElement` が `body` の
+            // まま落ちた（単体でも15回に1回・台帳に 2026-09-04 から
+            // 載っていたフレーク）。**原因は特定できていない**——メタデータの
+            // stub は同期だし、フォーカスは effect の中で同期に当たる。
+            // 分かっているのは前提が崩れる回がある事実だけなので、その前提
+            // だけを外す。**見るもの（キャンセルに当たる）は変えていない。**
+            await waitFor(() => {
+                expect(document.activeElement).toBe(screen.getByLabelText("キャンセル"));
+            });
         } finally {
             restore();
         }
