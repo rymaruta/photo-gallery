@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 // /users は "use client" なので metadata を持てず、**ルートのメタデータを
 // そのまま継承していた**——canonical がトップページを指し（out/users.html を
@@ -77,5 +77,53 @@ describe("/users/<id>（プロフィール）のメタデータ", () => {
         if (Array.isArray(images) && images.length > 0 && typeof images[0] === "object") {
             expect(images[0], "実寸を知らないのに 1200x800 を名乗っている").not.toHaveProperty("width");
         }
+    });
+});
+
+/**
+ * **人名で探されたときに効く材料（owner の指示・2026-09-12）。**
+ *
+ * 説明文は組み立て文（「…さんが Journey Photo で旅の写真をN枚公開中。」）
+ * だけだった——**投稿数以外どの人でも同じ**で、「この人は誰か」を何も
+ * 伝えない。自己紹介は本人が書いた唯一の自己記述なので、検索結果の
+ * スニペットとしても、機械の同定材料としても強い。
+ */
+describe("プロフィールの説明文に自己紹介を使う", () => {
+    const OWNER = "67d49a68-80f1-7083-b0e0-c767886ef868";
+    const metaFor = async (bio: string | undefined) => {
+        vi.resetModules();
+        vi.doMock("../data/profiles.json", () => ({ default: bio === undefined ? {} : { [OWNER]: { bio } } }));
+        const { generateMetadata } = await import("../users/[id]/page");
+        return generateMetadata({ params: Promise.resolve({ id: OWNER }) });
+    };
+
+    it("自己紹介があれば、それを説明文にする", async () => {
+        const meta = await metaFor("旅先の光を追いかけて写真を撮っています。");
+        expect(meta.description, "自己紹介を使っていない").toContain("旅先の光を追いかけて");
+        // 何枚あるかは残す（スニペットで「中身がある」と伝わる）
+        expect(meta.description).toContain("枚公開中");
+    });
+
+    it("自己紹介が無ければ、組み立て文に落とす", async () => {
+        const meta = await metaFor(undefined);
+        expect(meta.description).toContain("さんが Journey Photo で旅の写真を");
+    });
+
+    // **検索結果で切られる長さ（およそ120文字）を大きく超えるものは使わない**
+    // ——途中で切れて意味をなさない
+    it("長すぎる自己紹介は使わない", async () => {
+        const meta = await metaFor("あ".repeat(200));
+        expect(meta.description, "長すぎる自己紹介をそのまま出している").not.toContain("あああああ");
+    });
+
+    it("短すぎる自己紹介は使わない", async () => {
+        const meta = await metaFor("よろしく");
+        expect(meta.description).toContain("さんが Journey Photo で旅の写真を");
+    });
+
+    // **改行を潰す。** meta の中で改行するとスニペットが崩れる
+    it("改行やタブは1つの空白に畳む", async () => {
+        const meta = await metaFor("旅の写真を\n\n撮っています。\tよろしく。");
+        expect(meta.description).toContain("旅の写真を 撮っています。 よろしく。");
     });
 });

@@ -83,7 +83,22 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     }
 
     const title = `${summary.displayName}の旅フォト`;
-    const description = `${summary.displayName}さんが Journey Photo で旅の写真を${summary.photoCount}枚公開中。旅先の風景やスナップをお楽しみください。`;
+    // **自己紹介があれば、それを説明文にする。**
+    //
+    // 組み立てた文（「…さんが Journey Photo で旅の写真をN枚公開中。」）は
+    // **投稿数以外どの人でも同じ**で、人名で探した人に「この人は誰か」を
+    // 何も伝えない。自己紹介は本人が書いた唯一の自己記述なので、
+    // 検索結果のスニペットとしても、機械の同定材料としても強い。
+    //
+    // **長すぎたら組み立て文に落とす**——検索結果で切られる長さ（およそ
+    // 120文字）を大きく超える自己紹介は、途中で切れて意味をなさない。
+    // 短すぎる（10文字未満）ものも落とす（「よろしく」だけ、等）。
+    // 材料は `app/data/profiles.json`（ビルド時に users テーブルから引く）。
+    const bio = (PROFILES as Record<string, { bio?: string }>)[id]?.bio?.replace(/\s+/g, " ").trim() ?? "";
+    const generated = `${summary.displayName}さんが Journey Photo で旅の写真を${summary.photoCount}枚公開中。旅先の風景やスナップをお楽しみください。`;
+    const description = bio.length >= 10 && bio.length <= 120
+        ? `${bio}（Journey Photo で旅の写真を${summary.photoCount}枚公開中）`
+        : generated;
     const url = `${siteConfig.url}/users/${id}`;
     const images = summary.latestPhotoSrc
         // **寸法は出さない。** 代表画像はその人の最新投稿で縦横比はまちまち、
