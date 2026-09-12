@@ -1,4 +1,5 @@
 import { siteConfig } from "./seo";
+import { spacelessName } from "./nameVariants";
 
 /**
  * 人の構造化データ（schema.org の `Person`）。
@@ -50,6 +51,7 @@ export function instagramUrl(value: string | undefined): string | undefined {
     return /^[A-Za-z0-9._]{1,30}$/.test(v) ? `https://www.instagram.com/${v}/` : undefined;
 }
 
+
 export function personEntity(input: {
     id: string;
     displayName: string;
@@ -60,9 +62,11 @@ export function personEntity(input: {
     const sameAs = [safeSameAs(input.profile?.website), instagramUrl(input.profile?.instagram)]
         .filter((v): v is string => !!v);
     const bio = (input.profile?.bio ?? "").trim();
+    const alt = spacelessName(input.displayName);
     return {
         "@type": "Person",
         name: input.displayName,
+        ...(alt ? { alternateName: alt } : {}),
         url,
         // **このページがその人のページだ、と名乗る。** `mainEntityOfPage` が
         // 無いと「人の情報が載っているページ」と「その人のページ」を

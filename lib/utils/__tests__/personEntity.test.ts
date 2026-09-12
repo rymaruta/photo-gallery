@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { personEntity, safeSameAs, instagramUrl } from "../personEntity";
+import { spacelessName } from "../nameVariants";
 
 /**
  * **人名で探されたときに1位を取る、という owner の指示（2026-09-12）。**
@@ -69,5 +70,46 @@ describe("人の構造化データ", () => {
             .toEqual(["https://a.example/"]);
         expect(personEntity({ ...base, profile: { instagram: "x" } }).sameAs)
             .toEqual(["https://www.instagram.com/x/"]);
+    });
+});
+
+/**
+ * **空白を詰めた別表記。** owner が挙げた検索語は「丸田竜平」と
+ * 「丸田　竜平」で、**保存されている表示名（「丸田 竜平」）とはどちらも
+ * 綴りが違う**。schema.org の `alternateName` に詰めた形を出す。
+ */
+describe("空白を詰めた別表記", () => {
+    it("日本語の姓名は、空白を詰めた形も名乗る", () => {
+        expect(spacelessName("丸田 竜平")).toBe("丸田竜平");
+        // 全角空白でも同じ
+        expect(spacelessName("丸田\u3000竜平")).toBe("丸田竜平");
+        expect(personEntity({ id: "u1", displayName: "丸田 竜平" }).alternateName).toBe("丸田竜平");
+    });
+
+    it("ラテン文字が混じる名前には当てない（実在しない綴りを作らない）", () => {
+        expect(spacelessName("John Smith")).toBeUndefined();
+        expect(spacelessName("丸田 Ryuhei")).toBeUndefined();
+        expect(spacelessName("Journey Photo")).toBeUndefined();
+        expect("alternateName" in personEntity({ id: "u1", displayName: "John Smith" })).toBe(false);
+    });
+
+    it("空白が無ければ別表記は生まれない", () => {
+        expect(spacelessName("丸田竜平")).toBeUndefined();
+        expect(spacelessName("")).toBeUndefined();
+        expect(spacelessName("   ")).toBeUndefined();
+        expect("alternateName" in personEntity({ id: "u1", displayName: "丸田竜平" })).toBe(false);
+    });
+
+    it("仮名・長音・繰り返し記号も日本語名として通す", () => {
+        expect(spacelessName("さくら ひなの")).toBe("さくらひなの");
+        expect(spacelessName("マリー ローランサン")).toBe("マリーローランサン");
+        expect(spacelessName("佐々木 蔦ヶ谷")).toBe("佐々木蔦ヶ谷");
+    });
+
+    // **名乗るのは別表記であって、本来の名前ではない。** name を詰めた形に
+    // すると、画面に出ている名前と構造化データが食い違う
+    it("本来の名前は空白入りのまま", () => {
+        const p = personEntity({ id: "u1", displayName: "丸田 竜平" });
+        expect(p.name).toBe("丸田 竜平");
     });
 });

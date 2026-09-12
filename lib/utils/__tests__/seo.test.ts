@@ -56,6 +56,23 @@ describe("generatePhotoStructuredData", () => {
         expect((data.creator as { name: string }).name).toBe("山田太郎");
     });
 
+    // **人名で探されたときのため。** 保存されている表示名は「丸田 竜平」
+    // （空白入り）だが、探す側は「丸田竜平」とも打つ。`/users/<id>` の
+    // `Person` と**同じ規則**で別表記を出す（30枚の写真ページと
+    // プロフィールが違う名前の集合を名乗ると、同定の手がかりにならない）
+    it("日本語の名前は、空白を詰めた別表記も名乗る", () => {
+        const data = generatePhotoStructuredData({ ...base, photographer: "丸田 竜平" });
+        const creator = data.creator as { name: string; alternateName?: string };
+        expect(creator.name).toBe("丸田 竜平");
+        expect(creator.alternateName, "空白を詰めた別表記が出ていない").toBe("丸田竜平");
+        expect((data.author as { alternateName?: string }).alternateName).toBe("丸田竜平");
+    });
+
+    it("ラテン文字の名前には別表記を作らない", () => {
+        const data = generatePhotoStructuredData({ ...base, photographer: "John Smith" });
+        expect("alternateName" in (data.creator as object)).toBe(false);
+    });
+
     it("location + coords がある場合 contentLocation に geo を含む", () => {
         const data = generatePhotoStructuredData({
             ...base,

@@ -1,3 +1,4 @@
+import { spacelessName } from "./nameVariants";
 // lib/utils/seo.ts
 // SEO設定と構造化データ生成用のユーティリティ
 
@@ -234,6 +235,11 @@ export function generatePhotoStructuredData(photo: {
     // `<meta name="author">` も無し）。
     if (credit) {
         const person: Record<string, unknown> = { "@type": "Person", name: credit };
+        // 空白を詰めた別表記も添える（「丸田 竜平」→「丸田竜平」）。
+        // プロフィールの `Person` と同じ規則で作る＝30枚の写真ページと
+        // `/users/<id>` が**同じ名前の集合**を名乗る
+        const alt = spacelessName(credit);
+        if (alt) person.alternateName = alt;
         if (photo.userId) person.url = `${siteConfig.url}/users/${photo.userId}`;
         structuredData.creator = person;
         structuredData.author = person;
