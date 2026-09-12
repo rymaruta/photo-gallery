@@ -9,7 +9,8 @@ import { useAuth } from "../../auth/context";
 import AddToHomeScreenHint from "../../components/AddToHomeScreenHint";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
-import { getCurrentSession } from "../../../lib/auth/cognito";
+// 薄い入口から引く（`lib/auth/session.ts`。端末に痕跡が無ければ SDK を読まない）
+import { getCurrentSession } from "../../../lib/auth/session";
 import { createThumbnail, toUploadSafeFile, UnstrippableFileError, extractDominantColor, createBlurPlaceholder, AVATAR_MAX_PX } from "../../../lib/utils/image";
 import { extractExifFromFile, extractCameraExif, reverseGeocode } from "../../../lib/utils/exif";
 import { readSharedResult, clearSharedPayload } from "../../../lib/utils/shareStore";

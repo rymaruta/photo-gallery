@@ -20,7 +20,9 @@ import { useToast } from "../../lib/hooks/useToast";
 import type { Photo } from "@/lib/data/photos";
 import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../lib/utils/log";
-import { getCurrentSession } from "../../lib/auth/cognito";
+// **公開ページ**（サイトマップに載る）なので、未ログインの訪問者にも描かれる。
+// 薄い入口から引いて、端末に痕跡が無ければ認証 SDK を読み込まない
+import { getCurrentSession } from "../../lib/auth/session";
 import { noteFollowSevered } from "../../lib/hooks/useFollow";
 import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
 import { publicFetch, userFetch, userPublicFetch, readApiError, sessionErrorMessage } from "../../lib/utils/api";

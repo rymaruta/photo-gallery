@@ -2,7 +2,11 @@
 // API リクエストユーティリティ
 // NEXT_PUBLIC_API_BASE_URL が設定されている場合は Lambda、未設定の場合はローカル API Routes を使用
 
-import { lookupSession } from "../auth/cognito";
+// **薄い入口から引く。** 端末に何も残っていなければ、認証 SDK
+// （gzip 28KB）を読み込まずに「ログインしていない」を返す。
+// このファイルは API を叩く全画面が読むので、ここが静的に
+// `auth/cognito` を掴んでいると SDK が**全ページの共通チャンク**に載る。
+import { lookupSession } from "../auth/session";
 
 function getBaseUrl(): string {
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
