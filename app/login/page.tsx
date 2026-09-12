@@ -388,7 +388,16 @@ function LoginForm() {
 
 export default function LoginPage() {
     return (
-        <Suspense>
+        <Suspense fallback={
+            // **事前描画で焼かれるのはこの fallback。** 空のままだと
+            // JS が走る前の HTML に本文が1つも無い（`main` も見出しも0で、
+            // 出るのはヘッダーとフッターだけ）。見た目は変えずに、
+            // ランドマークと見出しだけ置く——`sr-only` は
+            // `position: absolute` なので描画に影響しない
+            <main className="min-h-screen bg-black">
+                <h1 className="sr-only">ログイン</h1>
+            </main>
+        }>
             <LoginForm />
         </Suspense>
     );
