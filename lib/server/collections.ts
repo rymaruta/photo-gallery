@@ -56,7 +56,7 @@ export async function collectionMetadata(type: CollectionType, slug: string): Pr
         // 写真が少ないページは検索エンジンに載せない。
         // 写真1〜2枚＋定型文だけのページを大量に作ると「中身の薄いサイト」と
         // 判断され、サイト全体の評価が下がる。サイト内から辿る分には見られる。
-        robots: isIndexableCollection(matched.length) ? undefined : { index: false, follow: true },
+        robots: isIndexableCollection(matched.length, type) ? undefined : { index: false, follow: true },
         openGraph: {
             type: "website",
             locale: siteConfig.locale.ja,

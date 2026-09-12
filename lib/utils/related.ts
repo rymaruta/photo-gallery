@@ -1,5 +1,6 @@
 import type { Photo } from "../data/photos";
-import { compareNewest } from "./photoOrder";
+import { compareNewest, sortByNewest } from "./photoOrder";
+import { tagKey, slugify } from "./collections";
 
 // 写真ページの回遊導線に使う「関連写真」の選定ロジック。
 // ビルド時の photos.json（+ APIの最新一覧）だけで計算でき、API追加は不要。
@@ -111,4 +112,56 @@ export function relatedSections(
     const author = sameAuthorPhotos(current, all, limit);
     const shown = new Set(author.map((p) => p.id));
     return { author, location: sameLocationPhotos(current, all, limit, shown) };
+}
+
+
+/**
+ * 集約ページの「ほかにこんな写真も」。
+ *
+ * **薄いページを、読む価値のあるページにするため。** 実データの
+ * `/location/*` は14ページ中10ページが写真2枚以下で、`isIndexableCollection`
+ * が noindex にしていた——「高屋神社」のような**具体語で1位を狙える
+ * 唯一のページ**を、こちらから検索に出すなと言っている状態だった。
+ *
+ * **既存の `relatedSections` は使えない。** あれは「同じ撮影者／同じ撮影地」で、
+ * 集約ページが既に出しているものと重なる（撮影地ページなら丸ごと同じ）。
+ * ここで欲しいのは「**そのページに出ていない、近い写真**」。
+ *
+ * 近さは共有する**タグとカテゴリ**で測る。撮影地は足さない——足すと
+ * 撮影地ページで「同じ場所の写真」が二重に出る。
+ *
+ * **水増しではない。** 出すのは実在の写真で、押せば個別ページへ行ける
+ * （回遊が増える）。並びは決定的（点数 → 新しい順）にして、
+ * ビルドのたびに順が変わらないようにする。
+ */
+export function relatedCollectionPhotos(
+    shown: Photo[],
+    all: Photo[],
+    limit = 6,
+): Photo[] {
+    if (shown.length === 0) return [];
+    const here = new Set(shown.map((p) => p.id));
+    const tags = new Set<string>();
+    const cats = new Set<string>();
+    for (const p of shown) {
+        for (const t of p.tags ?? []) if (typeof t === "string" && t.trim()) tags.add(tagKey(t));
+        const c = typeof p.category === "string" ? p.category.trim() : "";
+        if (c) cats.add(slugify(c, "category"));
+    }
+    if (tags.size === 0 && cats.size === 0) return [];
+
+    const scored: Array<{ p: Photo; score: number }> = [];
+    for (const p of all) {
+        if (here.has(p.id) || p.published === false) continue;
+        let score = 0;
+        for (const t of p.tags ?? []) {
+            if (typeof t === "string" && t.trim() && tags.has(tagKey(t))) score += 1;
+        }
+        const c = typeof p.category === "string" ? p.category.trim() : "";
+        if (c && cats.has(slugify(c, "category"))) score += 2;
+        if (score > 0) scored.push({ p, score });
+    }
+    return sortByNewest(
+        scored.sort((a, b) => b.score - a.score).slice(0, limit).map((x) => x.p),
+    );
 }

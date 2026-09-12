@@ -64,7 +64,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const collectionUrls: MetadataRoute.Sitemap = (["tag", "location", "category", "camera"] as CollectionType[])
         .flatMap((type) =>
             // 写真が少ないページはサイトマップに載せない（noindex と揃える）
-            collectEntries(photos, type).filter((e) => isIndexableCollection(e.count)).map((e) => {
+            collectEntries(photos, type).filter((e) => isIndexableCollection(e.count, type)).map((e) => {
                 const matched = photosInCollection(photos, type, e.slug);
                 const last = matched
                     .map((p) => String(p.updatedAt ?? p.createdAt ?? p.date ?? ""))

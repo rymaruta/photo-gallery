@@ -41,7 +41,7 @@ describe("タグの日英を1ページに寄せる", () => {
         const entries = collectEntries(photos, "tag");
         const arch = entries.find((e) => e.slug === "architecture");
         expect(arch?.count, "建物1枚 + architecture2枚 が寄っていない").toBe(3);
-        expect(isIndexableCollection(arch!.count), "3枚あるのに noindex のまま").toBe(true);
+        expect(isIndexableCollection(arch!.count, "tag"), "3枚あるのに noindex のまま").toBe(true);
         // 寄せる前の姿（別ページ）が残っていないこと
         expect(entries.map((e) => e.slug)).not.toContain("建物");
         expect(entries.map((e) => e.slug)).not.toContain("風景");

@@ -216,9 +216,29 @@ export function tagKey(value: string | undefined): string {
 
 export const MIN_INDEXABLE_COUNT = 3;
 
+/**
+ * **撮影地だけは1枚から載せる。**
+ *
+ * 実データの `/location/*` は14ページ中10ページが2枚以下で、全部 noindex
+ * だった——「高屋神社」「国営ひたち海浜公園」のような**具体語で1位を
+ * 狙える唯一のページ**を、こちらから検索に出すなと言っている状態。
+ * 「旅行 写真」のような語で30枚のサイトが勝てない以上、**勝てるのは
+ * そこだけ**なので、開ける。
+ *
+ * **タグ・カテゴリ・機材は3枚のまま。** あちらは一般語で、「winter の
+ * 写真1枚」のページは世界中にありふれている——薄いページを量産する側に
+ * 倒れる。撮影地は固有名詞で、そのページが持つ写真は**このサイトにしか
+ * 無い**。ここが線引きの理由。
+ *
+ * **これは測定ではなく判断。** 数週間後に Search Console の
+ * 「ページ」で、撮影地ページが登録されているか・除外されているかを見て
+ * 見直すこと（owner が登録済みなので見られる）。
+ */
+export const MIN_INDEXABLE_LOCATION = 1;
+
 /** そのページを検索エンジンに載せてよいか */
-export function isIndexableCollection(count: number): boolean {
-    return count >= MIN_INDEXABLE_COUNT;
+export function isIndexableCollection(count: number, type: CollectionType): boolean {
+    return count >= (type === "location" ? MIN_INDEXABLE_LOCATION : MIN_INDEXABLE_COUNT);
 }
 
 /**

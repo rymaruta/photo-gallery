@@ -86,7 +86,7 @@ describe("機材ページの URL と文言", () => {
 
 describe("索引に載せる条件は他の種類と同じ", () => {
     it("3枚以上で載る", () => {
-        expect(isIndexableCollection(2)).toBe(false);
-        expect(isIndexableCollection(3)).toBe(true);
+        expect(isIndexableCollection(2, "camera")).toBe(false);
+        expect(isIndexableCollection(3, "camera")).toBe(true);
     });
 });

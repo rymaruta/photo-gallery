@@ -13,7 +13,11 @@ import {
     relatedEntries,
     type CollectionType,
 } from "@/lib/utils/collections";
+import { relatedCollectionPhotos } from "@/lib/utils/related";
 import { siteConfig, generateStructuredData, generateBreadcrumbStructuredData } from "@/lib/utils/seo";
+
+/** 「ほかにこんな写真も」を出す枚数の線。これ未満のページにだけ足す */
+const RELATED_PHOTOS_WHEN_FEWER_THAN = 6;
 
 const jsonLd = (data: unknown) => JSON.stringify(data).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
 
@@ -35,6 +39,14 @@ export default async function CollectionPage({ type, slug }: { type: CollectionT
         path: collectionPath(type, e.slug),
     }));
 
+    // **薄いページを、読む価値のあるページにする。**
+    // 実データの `/location/*` は14ページ中10ページが2枚以下だった。
+    // 写真が少ないページにだけ足す——たくさん並ぶページに足すと、
+    // 主役（そのページの写真）が薄まるだけで得が無い。
+    const nearby = matched.length < RELATED_PHOTOS_WHEN_FEWER_THAN
+        ? relatedCollectionPhotos(matched, photos, 6)
+        : [];
+
     const galleryData = generateStructuredData(matched, {
         name: heading,
         description,
@@ -49,7 +61,7 @@ export default async function CollectionPage({ type, slug }: { type: CollectionT
         <>
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(galleryData) }} />
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbData) }} />
-            <CollectionPageClient photos={matched} heading={heading} description={description} breadcrumb={breadcrumb} type={type} related={related} />
+            <CollectionPageClient photos={matched} heading={heading} description={description} breadcrumb={breadcrumb} type={type} related={related} nearby={nearby} />
         </>
     );
 }

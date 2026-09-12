@@ -453,7 +453,7 @@ describe("撮影地の集約は related と同じ「緩い一致」で見る", (
         const paris = entries.find((e) => e.slug === "パリ");
         expect(paris?.count).toBe(3);
         // これで初めて検索エンジンに載せてよい枚数になる
-        expect(isIndexableCollection(paris!.count)).toBe(true);
+        expect(isIndexableCollection(paris!.count, "location")).toBe(true);
     });
 
     it("関係ない地名は混ざらない", () => {

@@ -17,6 +17,8 @@ type Props = {
     // （`camera` を足したとき実際に tsc が止めた）
     type?: CollectionType;
     related?: RelatedLink[];
+    /** 写真が少ないページにだけ出す「ほかにこんな写真も」 */
+    nearby?: Photo[];
 };
 
 const RELATED_HEADING: Record<CollectionType, { ja: string; en: string }> = {
@@ -27,7 +29,7 @@ const RELATED_HEADING: Record<CollectionType, { ja: string; en: string }> = {
 };
 
 /** タグ/場所/カテゴリ/カメラの集約ページ本体（見出し＋パンくず＋グリッド＋相互リンク） */
-export default function CollectionPageClient({ photos, heading, description, breadcrumb, type = "tag", related = [] }: Props) {
+export default function CollectionPageClient({ photos, heading, description, breadcrumb, type = "tag", related = [], nearby = [] }: Props) {
     const { locale } = useLocale();
 
     return (
@@ -45,6 +47,18 @@ export default function CollectionPageClient({ photos, heading, description, bre
             </p>
 
             <GalleryGrid photos={photos} locale={locale} />
+
+            {/* **写真が少ないページにだけ。** 1枚だけのページは、それ自体は
+                このサイトにしか無い写真でも「見るものが1つ」で終わる。
+                近い写真を出すと読む価値が出て、押せば個別ページへ回遊する */}
+            {nearby.length > 0 && (
+                <section className="mt-10 pt-5 border-t border-white/10">
+                    <h2 className="text-sm font-semibold text-white/70 mb-3">
+                        {locale === "en" ? "You might also like" : "ほかにこんな写真も"}
+                    </h2>
+                    <GalleryGrid photos={nearby} locale={locale} />
+                </section>
+            )}
 
             {/* 同タイプの他ページへの相互リンク（回遊・SEO） */}
             {related.length > 0 && (
