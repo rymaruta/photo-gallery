@@ -174,3 +174,59 @@ describe("フィードの場所を名乗っているか", () => {
         expect(String(rss[0].url)).toContain("/feed.xml");
     });
 });
+
+/**
+ * **誰が撮ったかを名乗る（owner の指示「人名で1位に」）。**
+ *
+ * RSS 2.0 の `<author>` は**メールアドレスが必須**（仕様が
+ * `<author>user@example.com (Name)`）なので使えない。名前だけを出す標準は
+ * Dublin Core の `dc:creator`。写真ページの `author`（JSON-LD と
+ * `<meta name="author">`）と同じ目的——「この30件は同じ人のもの」を
+ * 機械に言う。
+ */
+describe("フィードに撮影者を出す", () => {
+    const withName = (n: number, name?: string): Photo[] =>
+        Array.from({ length: n }, (_, i) => ({
+            id: `p${i}`, src: `https://cdn/${i}.jpg`, title: `題${i}`,
+            createdAt: "2026-01-01T00:00:00Z", ...(name ? { displayName: name } : {}),
+        } as unknown as Photo));
+
+    it("dc:creator に表示名を出す", () => {
+        const doc = parse(buildFeed(withName(2, "丸田 竜平")));
+        expect(doc.querySelector("parsererror"), "XML として読めない").toBeNull();
+        const creators = Array.from(doc.getElementsByTagName("dc:creator")).map((e) => e.textContent);
+        expect(creators, "撮影者を出していない").toEqual(["丸田 竜平", "丸田 竜平"]);
+    });
+
+    // **名前空間の宣言を落とすと、フィード全体が parse error になる**
+    // （`sitemap-images.xml` で一度踏んだ形）
+    it("dc の名前空間を宣言している", () => {
+        const xml = buildFeed(withName(1, "丸田 竜平"));
+        expect(xml, "宣言が無い（収集側が読めない）").toContain('xmlns:dc="http://purl.org/dc/elements/1.1/"');
+        expect(parse(xml).querySelector("parsererror")).toBeNull();
+    });
+
+    // **無いときは行ごと出さない**（空のタグを並べない）
+    it("表示名が無ければ、その行は出さない", () => {
+        const xml = buildFeed(withName(2));
+        expect(xml).not.toContain("dc:creator");
+        expect(parse(xml).querySelector("parsererror")).toBeNull();
+    });
+
+    // **名前にも記号が入りうる**（`&` `<` は必ずエスケープする）
+    it("記号を含む名前でも壊れない", () => {
+        const xml = buildFeed(withName(1, "A & B <x>"));
+        const doc = parse(xml);
+        expect(doc.querySelector("parsererror"), "エスケープしていない").toBeNull();
+        expect(doc.getElementsByTagName("dc:creator")[0]?.textContent).toBe("A & B <x>");
+    });
+
+    it("人によって違う名前を出す（1つに丸めない）", () => {
+        const photos = [
+            ...withName(1, "丸田 竜平"),
+            { id: "x", src: "https://cdn/x.jpg", title: "他", createdAt: "2026-01-02T00:00:00Z", displayName: "別の人" } as unknown as Photo,
+        ];
+        const creators = Array.from(parse(buildFeed(photos)).getElementsByTagName("dc:creator")).map((e) => e.textContent);
+        expect(new Set(creators).size, "全部同じ名前になっている").toBe(2);
+    });
+});

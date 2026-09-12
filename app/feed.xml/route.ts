@@ -65,6 +65,12 @@ export function feedExcerpt(photo: Photo): string {
 export const FEED_MAX_ITEMS = 30;
 
 /** フィードの本文を組み立てる（テストから直接呼べるように分けてある） */
+/** 撮影者の表示名（無ければ空。空なら `dc:creator` の行ごと出さない） */
+export function displayNameOf(p: Photo): string {
+    const v = (p as { displayName?: unknown }).displayName;
+    return typeof v === "string" ? v.trim() : "";
+}
+
 export function buildFeed(photos: Photo[]): string {
     // **並べる基準と `pubDate` を揃える。**
     // 最初 `compareNewest`（＝**撮影日**優先）で並べて `pubDate` には
@@ -94,13 +100,27 @@ export function buildFeed(photos: Photo[]): string {
             `      <guid isPermaLink="true">${xmlText(url)}</guid>`,
             `      <pubDate>${xmlText(date)}</pubDate>`,
             `      <description>${xmlText(feedExcerpt(p))}</description>`,
+            // **誰が撮ったかを名乗る。**
+            //
+            // RSS 2.0 の `<author>` は**メールアドレスが必須**（仕様が
+            // `<author>user@example.com (Name)` の形）なので使えない
+            // ——利用者のメールを配るわけにいかない。名前だけを出す標準の
+            // 語が Dublin Core の `dc:creator` で、主要な収集側はこれを読む。
+            //
+            // 人名で探されたときに効くのは「この30件は同じ人のもの」と
+            // 機械に言えること。写真ページの `author`（JSON-LD と
+            // `<meta name="author">`）と同じ目的で、フィードにも同じ線を引く。
+            ...(displayNameOf(p) ? [`      <dc:creator>${xmlText(displayNameOf(p))}</dc:creator>`] : []),
             "    </item>",
         ].join("\n");
     });
 
     return [
         '<?xml version="1.0" encoding="UTF-8"?>',
-        '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">',
+        // `dc` は `dc:creator`（撮影者名）のため。宣言を落とすと
+        // **フィード全体が parse error** になる（`sitemap-images.xml` で
+        // 一度踏んだ形——制御文字1つで丸ごと読めなくなった）
+        '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">',
         "  <channel>",
         `    <title>${xmlText(siteConfig.name)}</title>`,
         `    <link>${xmlText(siteConfig.url)}</link>`,
