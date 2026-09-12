@@ -221,7 +221,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-md border-b border-white/10">
                 <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
                 <div className="relative max-w-5xl mx-auto flex items-center justify-between h-[64px] md:h-[72px] px-6 md:px-8">
-                  <p className={`${inter.className} text-2xl md:text-3xl font-bold tracking-tight text-white m-0`}>
+                  {/* **文字を大きくしたときに譲る側。** `min-w-0` が無いと flex の
+                      既定（`min-width:auto`）で縮まず、文字サイズ200%でヘッダーが
+                      画面から 27px はみ出して**全ページが横スクロール**していた
+                      （実測。WCAG 1.4.10 は拡大時に横スクロールを出さないことを求める）。
+                      **100% では場所が余っているので見た目は変わらない。** */}
+                  <p className={`${inter.className} text-2xl md:text-3xl font-bold tracking-tight text-white m-0 min-w-0 truncate`}>
                     <Link
                       href="/"
                       className="inline-block hover:opacity-70 transition-opacity duration-200 relative group"
