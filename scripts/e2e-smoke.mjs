@@ -326,6 +326,29 @@ async function runChecks(browser, eng) {
         await expectMenuWorks(page, `[${eng}] プロフィール`);
     }
 
+    // 撮影地マップ（`/map`）。**このスモークが一度も開いていなかった**のに、
+    // 台帳には実在の不具合が記録されている画面——`2922526f` で
+    // 「**地図が固定ヘッダーを覆い、メニューボタンが見えないまま押せた**」を
+    // 直している（Leaflet のペインがページ全体の重なり順に出ていた）。
+    // `expectMenuWorks` は覆いを `elementFromPoint` で見るので、まさに
+    // その形を捕まえる。
+    //
+    // **ピンの有無は見ない。** 座標を持つ写真はビルドのデータ次第で
+    // （手元は0件・本番は16件）、どちらでも成り立つことだけ見る。
+    if (fs.existsSync(path.join(OUT, "map.html"))) {
+        console.log(`\n[${eng}][3] 撮影地マップ`);
+        await page.goto(`http://localhost:${PORT}/map`, { waitUntil: "domcontentloaded" });
+        check(`[${eng}] 地図: ハイドレーション完了`, await waitForHydration(page));
+        const m = await page.evaluate(() => ({
+            h1: document.querySelector("h1")?.textContent?.trim() ?? "",
+            // 地図の枠（または「まだありません」の案内）が出ていること
+            body: (document.querySelector("main")?.textContent ?? "").trim().length,
+        }));
+        check(`[${eng}] 地図: 見出しが出る`, m.h1.length > 0, m.h1);
+        check(`[${eng}] 地図: 本文が出る`, m.body > 0, `文字数=${m.body}`);
+        await expectMenuWorks(page, `[${eng}] 地図`);
+    }
+
     // 写真ページ（`/photo/<id>`）。**検索から人が着地する当のページ**なのに、
     // このスモークは `/?photo=<id>`（ホームのモーダル）しか開いていなかった
     // ——別の画面で、渡る props も違う。
@@ -341,7 +364,7 @@ async function runChecks(browser, eng) {
         ? fs.readdirSync(photoDir).filter((f) => f.endsWith(".html") && f !== "_none.html").sort()
         : [];
     if (photoPages.length > 0) {
-        console.log(`\n[${eng}][3] 写真ページ`);
+        console.log(`\n[${eng}][4] 写真ページ`);
         const id = photoPages[0].replace(/\.html$/, "");
         await page.goto(`http://localhost:${PORT}/photo/${encodeURIComponent(id)}`, { waitUntil: "domcontentloaded" });
         check(`[${eng}] 写真ページ: ハイドレーション完了`, await waitForHydration(page));
@@ -387,7 +410,7 @@ async function runChecks(browser, eng) {
         ? fs.readdirSync(tagDir).filter((f) => f.endsWith(".html") && f !== "_none.html")
         : [];
     if (tags.length > 0) {
-        console.log(`\n[${eng}][4] 集約ページ`);
+        console.log(`\n[${eng}][5] 集約ページ`);
         const slug = tags[0].replace(/\.html$/, "");
         await page.goto(`http://localhost:${PORT}/tag/${encodeURIComponent(slug)}`, { waitUntil: "domcontentloaded" });
         check(`[${eng}] 集約ページ: ハイドレーション完了`, await waitForHydration(page));
@@ -413,7 +436,7 @@ async function runChecks(browser, eng) {
     // ── デスクトップ（hover/マウス）context ──
     // ミニプレイヤーのドラッグはデスクトップ限定なので、モバイル context では
     // この経路を通らずメニュー被り不具合をすり抜けていた。ここで塞ぐ。
-    console.log(`\n[${eng}][5] デスクトップ（hover・マウス）`);
+    console.log(`\n[${eng}][6] デスクトップ（hover・マウス）`);
     const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: "block" });
     await sealContext(dctx);
     // 保存位置を右上(ヘッダー上)に seed。将来ミニプレイヤーがそこに出てもメニューを塞がないこと（クランプ）を確認。
