@@ -17,9 +17,10 @@ const ROOT = join(__dirname, "..", "..");
 // **「複製した規則は静かにずれる」を防ぐために書いたテストの中で、
 // まさにそれをやっていた。**
 // `requireEnv` は `main()` の中なので、require の副作用は無い。
+// **1行に収める。** 折り返すと `eslint-disable-next-line` が
+// `require(` の行に届かず、指示だけが「未使用」として警告に出る
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { rebuildFnsFromServerless, reportFunctions, REBUILD_FNS,
-    publicFnsFromServerless, PUBLIC_FNS, qualify } = require("../diagnose-aws.js");
+const { rebuildFnsFromServerless, reportFunctions, REBUILD_FNS, publicFnsFromServerless, PUBLIC_FNS, qualify } = require("../diagnose-aws.js");
 const wiredFns = (): string[] => rebuildFnsFromServerless();
 
 describe("診断が見る「トークンを配ってあるべき関数」", () => {

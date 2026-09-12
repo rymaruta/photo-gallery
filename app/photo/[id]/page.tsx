@@ -4,7 +4,7 @@ import PhotoPageClient from "./PhotoPageClient";
 import type { Metadata } from "next";
 import { splitStoredDate } from "@/lib/utils/photoDate";
 import { ja } from "../../i18n/labels";
-import { siteConfig } from "@/lib/utils/seo";
+import { siteConfig, publicImageUrl } from "@/lib/utils/seo";
 import { getLocalized, getLocalizedParagraphs } from "@/lib/data/photos";
 import { loadAllPhotos } from "@/lib/server/photos";
 import { initialRelatedFor } from "@/lib/utils/related";
@@ -113,9 +113,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
         || (categoryLabel ? withFacts(`${categoryLabel}の写真。`, [camera]) : "")
         || siteConfig.description;
     
-    const imageUrl = photo.src.startsWith("http") 
-        ? photo.src 
-        : `${siteConfig.url}${photo.src}`;
+    // 出すURLはサイトのドメインに揃える（`publicImageUrl`）。同じ配信の
+    // 別名で2つに割れていた——実測 138ページ中 69ページが CloudFront の既定ドメイン
+    const imageUrl = publicImageUrl(photo.src);
     
     const pageUrl = `${siteConfig.url}/photo/${id}`;
     

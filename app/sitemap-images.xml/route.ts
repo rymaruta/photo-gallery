@@ -5,7 +5,7 @@
 //    Google 向けの主目的は「全画像 URL の網羅提示」で、既存 sitemap.xml と併用する。
 
 import { loadAllPhotos } from "@/lib/server/photos";
-import { siteConfig } from "@/lib/utils/seo";
+import { siteConfig, publicImageUrl } from "@/lib/utils/seo";
 import { getLocalized, getLocalizedParagraphs } from "@/lib/data/photos";
 import type { Photo } from "@/lib/data/photos";
 import { truncate } from "@/lib/utils/text";
@@ -43,9 +43,9 @@ function esc(s: string): string {
         .replace(/'/g, "&apos;");
 }
 
-function toAbsolute(src: string): string {
-    return src.startsWith("http") ? src : `${siteConfig.url}${src}`;
-}
+// 出すURLはサイトのドメインに揃える（`publicImageUrl`。同じ配信の別名で
+// 2つに割れていた——実測 30件中 11件が CloudFront の既定ドメイン）
+const toAbsolute = (src: string): string => publicImageUrl(src);
 
 function titleOf(p: Photo): string {
     const ja = getLocalized(p.title, "ja");

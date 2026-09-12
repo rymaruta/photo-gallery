@@ -15,7 +15,7 @@ import {
     collectionCopy,
     type CollectionType,
 } from "../utils/collections";
-import { siteConfig } from "../utils/seo";
+import { siteConfig, publicImageUrl } from "../utils/seo";
 import { withPlaceholderParam } from "./staticParams";
 
 /** 静的エクスポート用: そのタイプの全 slug を列挙（列挙外のパスは 404） */
@@ -46,7 +46,8 @@ export async function collectionMetadata(type: CollectionType, slug: string): Pr
 
     const first = matched[0];
     const rawImage = first?.thumbSrc || first?.src;
-    const image = rawImage ? (rawImage.startsWith("http") ? rawImage : `${siteConfig.url}${rawImage}`) : undefined;
+    // 出すURLはサイトのドメインに揃える（`publicImageUrl`）
+    const image = rawImage ? publicImageUrl(rawImage) : undefined;
 
     return {
         title,

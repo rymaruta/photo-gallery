@@ -3,7 +3,7 @@ import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import type { Photo } from "@/lib/data/photos";
-import { siteConfig, INDEXABLE_ROBOTS } from "@/lib/utils/seo";
+import { siteConfig, INDEXABLE_ROBOTS, publicImageUrl } from "@/lib/utils/seo";
 import UserProfileClient from "../UserProfileClient";
 import { withPlaceholderParam } from "../../../lib/server/staticParams";
 import PROFILES from "../../data/profiles.json";
@@ -49,7 +49,11 @@ async function loadUserSummary(userId: string): Promise<UserSummary | null> {
     return {
         displayName: userPhotos.find((p) => p.displayName)?.displayName ?? "ユーザー",
         photoCount: userPhotos.length,
-        latestPhotoSrc: userPhotos[0]?.src,
+        // **出すURLはサイトのドメインに揃える**（`publicImageUrl`）。
+        // この値は OGP（`images`・`twitter.images`）と Person の `image` の
+        // 3か所へ渡る——**ここで揃えれば3か所とも揃う**。揃える前は
+        // このページだけ CloudFront の既定ドメインで出ていた（実ビルドで確認）
+        latestPhotoSrc: userPhotos[0]?.src ? publicImageUrl(userPhotos[0].src) : undefined,
     };
 }
 

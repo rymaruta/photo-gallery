@@ -9,7 +9,7 @@ import path from "path";
 import RAW_PHOTOS from "@/lib/data/photos";
 import type { Photo } from "@/lib/data/photos";
 import { sortByNewest } from "@/lib/utils/photoOrder";
-import { siteConfig } from "@/lib/utils/seo";
+import { siteConfig, publicImageUrl } from "@/lib/utils/seo";
 
 /**
  * 公開してはいけない項目（scripts/sync-photos-from-ddb.js の PRIVATE_FIELDS と対）。
@@ -82,7 +82,10 @@ export async function resolveOgImage(siteUrl: string, source?: () => Promise<Pho
         const photos = await (source ?? loadAllPhotos)();
         const newest = sortByNewest(photos.filter((p) => p.published !== false && p.src))[0];
         if (newest?.src) {
-            return newest.src.startsWith("http") ? newest.src : `${siteUrl}${newest.src}`;
+            // 出すURLはサイトのドメインに揃える（`publicImageUrl`）。
+            // ここはトップ・ログイン後の画面・404 など**18ページ**が使う
+            // 既定のOGPで、直前まで CloudFront の既定ドメインのまま出ていた
+            return publicImageUrl(newest.src);
         }
     } catch {
         // 読めなければアイコンに落とす（メタ情報のために本体を落とさない）

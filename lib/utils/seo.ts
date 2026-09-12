@@ -1,6 +1,55 @@
 // lib/utils/seo.ts
 // SEO設定と構造化データ生成用のユーティリティ
 
+/**
+ * 公開する画像URLを、**サイトのドメインに揃える**。
+ *
+ * **同じ写真が2つのホストで出ていた。** 実ビルド（2026-09-12）:
+ *
+ *     sitemap-images.xml の <image:loc>  30件 = journey-photo.com 19 + d1s3….cloudfront.net 11
+ *     og:image                           138ページ = 69 + 69
+ *
+ * どちらも**同じ CloudFront ディストリビューション**（`EYRLTGCPOS9E4`）の
+ * 別名で、返るバイトは同一。それでも検索エンジンには**別々の画像**に見える
+ * ので、画像検索の評価が2つに割れ、しかも半分は正規のドメインではない側に
+ * 付く。保存側は `738bef3` 以降サイトのURLで書くようになったが、
+ * **それ以前に上がった写真はそのまま残る**（実データで11枚）。
+ *
+ * **保存済みのデータは書き換えない。** 移行（`scripts/normalize-image-urls.js`）
+ * も用意してあるが、本番のDBを触るのは owner の判断で、しかも**出す側で
+ * 揃えれば SEO の問題はそれで解ける**（宣言するURLが1つになる）。
+ * ここは「出すときに揃える」側。
+ *
+ * **揃えるのは自分の配信ドメインだけ。** 知らないホストは触らない
+ * （曲のアートワークなど、別のところから来るURLがある）。
+ */
+const CDN_HOST = (() => {
+    try {
+        return new URL(process.env.NEXT_PUBLIC_CLOUDFRONT_URL || "").host;
+    } catch {
+        return "";
+    }
+})();
+
+export function publicImageUrl(src: string | undefined): string {
+    const v = (src ?? "").trim();
+    if (!v) return "";
+    const base = process.env.NEXT_PUBLIC_SITE_URL || "https://journey-photo.com";
+    if (!/^https?:\/\//i.test(v)) return `${base}${v.startsWith("/") ? "" : "/"}${v}`;
+    try {
+        const u = new URL(v);
+        if (CDN_HOST && u.host === CDN_HOST) {
+            const site = new URL(base);
+            u.protocol = site.protocol;
+            u.host = site.host;
+            return u.toString();
+        }
+        return v;
+    } catch {
+        return v;
+    }
+}
+
 export const siteConfig = {
     name: "Journey Photo | 旅フォトギャラリー",
     description: "旅の記憶を写真で残す。国内外の旅行写真・風景写真・スナップ写真を集めたフォトギャラリー。旅先の景色や日常のひとこまを届けます。",
@@ -68,9 +117,7 @@ export function generateStructuredData(
         image: photos
             .filter((photo) => photo.id && photo.src)
             .map((photo) => {
-                const imageUrl = photo.src.startsWith("http") 
-                    ? photo.src 
-                    : `${siteConfig.url}${photo.src}`;
+                const imageUrl = publicImageUrl(photo.src);
                 return {
                     "@type": "ImageObject",
                     "@id": `${siteConfig.url}/photo/${photo.id}`,
@@ -127,9 +174,7 @@ export function generatePhotoStructuredData(photo: {
     const description = [descMain, descOther && descOther !== descMain ? descOther : ""]
         .filter(Boolean).join(" / ");
 
-    const imageUrl = photo.src.startsWith("http")
-        ? photo.src
-        : `${siteConfig.url}${photo.src}`;
+    const imageUrl = publicImageUrl(photo.src);
 
     const structuredData: Record<string, unknown> = {
         "@context": "https://schema.org",
@@ -152,9 +197,7 @@ export function generatePhotoStructuredData(photo: {
 
     // Google 画像検索向けメタデータ（データがある項目だけ出力）
     if (photo.thumbSrc) {
-        structuredData.thumbnailUrl = photo.thumbSrc.startsWith("http")
-            ? photo.thumbSrc
-            : `${siteConfig.url}${photo.thumbSrc}`;
+        structuredData.thumbnailUrl = publicImageUrl(photo.thumbSrc);
     }
     if (photo.tags && photo.tags.length > 0) {
         structuredData.keywords = photo.tags.join(", ");

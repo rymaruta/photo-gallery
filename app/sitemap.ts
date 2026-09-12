@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
-import { siteConfig } from "../lib/utils/seo";
+import { siteConfig, publicImageUrl } from "../lib/utils/seo";
 import { collectEntries, collectionPath, isIndexableCollection, photosInCollection, type CollectionType } from "../lib/utils/collections";
 import RAW_PHOTOS from "@/lib/data/photos";
 import type { Photo } from "@/lib/data/photos";
@@ -23,9 +23,8 @@ async function loadPhotos(): Promise<Photo[]> {
     return RAW_PHOTOS as Photo[];
 }
 
-function toAbsolute(src: string): string {
-    return src.startsWith("http") ? src : `${siteConfig.url}${src}`;
-}
+// 出すURLはサイトのドメインに揃える（`publicImageUrl`）
+const toAbsolute = (src: string): string => publicImageUrl(src);
 
 /** プライバシーポリシーの本文を最後に変えた日。本文を直したらここも直す */
 const PRIVACY_LAST_MODIFIED = "2026-04-01";
