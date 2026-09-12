@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { isAssetElement } from "@/lib/utils/assetRecovery";
+import { isAssetElement, stylesheetsApplied } from "@/lib/utils/assetRecovery";
 
 /**
  * **同じ規則が2か所にある。**
@@ -52,6 +52,10 @@ function inlineFires(target: Element): boolean {
 
 beforeEach(() => {
     document.body.innerHTML = "";
+    // **`<head>` も掃除する。** ここを忘れると前のテストが足した
+    // `<link rel=stylesheet>` が残り、「規則が0なら直す」の判定が
+    // 前のテストの CSS を見て通ってしまう（自分で踏んだ）
+    document.head.querySelectorAll("link").forEach((l) => l.remove());
     sessionStorage.clear();
     vi.spyOn(console, "error").mockImplementation(() => { });
 });
@@ -84,3 +88,58 @@ describe("`<head>` の見張りと `isAssetElement` が同じ判断をする", (
         expect(src).toContain("location.reload");
     });
 });
+
+/**
+ * **写しのもう半分。**
+ *
+ * 見張りは2つの入口を持つ:
+ *   `error` イベント          … 上の `isAssetElement`
+ *   `load` 後の CSS の当たり具合 … こちら（`stylesheetsApplied`）
+ *
+ * `eccc8779` では前半しか突き合わせていなかった。片方の写しだけ触れば、
+ * また静かにずれる（この周で2回踏んだ型）。
+ *
+ * `error` だけに頼ると取りこぼす経路が2つある、というのがこの入口の理由:
+ *   `<link rel=stylesheet>` は `<head>` の先頭に置かれるので、
+ *   見張りが動く前に失敗しうる／CDN が 200 + HTML を返すと error にならない。
+ */
+/** jsdom は実際に CSS を読み込まないので `sheet` を差し込む */
+function sheetEl(rules: number | "throws" | null): HTMLLinkElement {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = `${HERE}/a.css`;
+    document.head.appendChild(link);
+    const value = rules === null ? null
+        : rules === "throws"
+            ? { get cssRules(): never { throw new DOMException("cross-origin", "SecurityError"); } }
+            : { cssRules: { length: rules } };
+    Object.defineProperty(link, "sheet", { configurable: true, value });
+    return link;
+}
+
+/** インライン側が `load` 後に「リロードする」と判断したか */
+function inlineFiresOnLoad(): boolean {
+    sessionStorage.removeItem(KEY);
+    window.dispatchEvent(new Event("load"));
+    return sessionStorage.getItem(KEY) !== null;
+}
+
+describe("CSS が当たっているかの判定も、2つの写しで同じ", () => {
+    const cases: [name: string, setup: () => void, reload: boolean][] = [
+        ["外部CSSが無いページ", () => { }, false],
+        ["規則が当たっている", () => { sheetEl(125); }, false],
+        ["規則が0（200 + HTML を掴んだ形）", () => { sheetEl(0); }, true],
+        ["読み込みに失敗（sheet が無い）", () => { sheetEl(null); }, true],
+        ["別オリジンで規則を読めない（＝読み込みは成功）", () => { sheetEl("throws"); }, false],
+        ["1枚は駄目でも1枚当たっていれば良い", () => { sheetEl(0); sheetEl(125); }, false],
+    ];
+
+    it.each(cases)("%s", (_name, setup, reload) => {
+        runInline();
+        setup();
+        expect(inlineFiresOnLoad(), "インラインの見張りの判断が違う").toBe(reload);
+        // モジュール側は「当たっているか」を返すので、リロードするかは否定
+        expect(stylesheetsApplied(document), "stylesheetsApplied の判断が違う").toBe(!reload);
+    });
+});
+
