@@ -5,7 +5,7 @@
 import type { Photo } from "../data/photos";
 import { dedupeCameraName } from "./cameraName";
 import { sortByNewest } from "./photoOrder";
-import { sameLocation } from "./related";
+import { photoIsInLocation } from "./related";
 import { stripLoneSurrogates } from "./text";
 
 /**
@@ -391,7 +391,8 @@ export function collectEntries(photos: Photo[], type: CollectionType): Collectio
             bySlug.set(slug, cur);
         }
     }
-    // 撮影地の件数は photosInCollection と同じ数え方（緩い一致）にする。
+    // 撮影地の件数は photosInCollection と**同じ関数**で数える
+    // （`photoIsInLocation`。向きも同じ）。
     // ここが1件ずつの加算だと、ページの見出し「（N枚）」と実際に並ぶ枚数、
     // そして noindex の判定（MIN_INDEXABLE_COUNT）が食い違う。
     if (type === "location") {
@@ -401,7 +402,7 @@ export function collectEntries(photos: Photo[], type: CollectionType): Collectio
                 return {
                     slug,
                     label,
-                    count: photos.filter((p) => isPublished(p) && sameLocation(p.location, label)).length,
+                    count: photos.filter((p) => isPublished(p) && photoIsInLocation(p.location, label)).length,
                 };
             })
             .sort((a, b) => b.count - a.count || a.slug.localeCompare(b.slug));
@@ -414,20 +415,22 @@ export function collectEntries(photos: Photo[], type: CollectionType): Collectio
 /**
  * 指定 slug に一致する（公開）写真を返す。
  *
- * **撮影地だけは「緩い一致」で見る（related.ts の sameLocation と同じ）。**
+ * **撮影地だけは包含で見る（`photoIsInLocation`）。**
  * ここが完全一致だったせいで、生成側と回遊リンクが食い違っていた:
  * 写真ページの「「パリ」の他の写真」は部分一致で3枚出るのに、そこから
  * 飛ぶ `/location/パリ` は**自分1枚**しか無い、という状態。
  * 実データ14件の撮影地は、完全一致だと**1つも 3枚に届かない**（当時は
  * 撮影地も3枚が線だったので、14ページすべてが noindex・サイトマップ0件
  * ——SEO のために作ったランディングが1枚も検索に出ていなかった）。
- * 緩い一致で束ねると3枚以上が4つできる。**線は今 `MIN_INDEXABLE_LOCATION`
- * ＝2枚**なので、緩い一致で7ページ・完全一致でも3ページは載る。
  *
  * 撮影地は「パリ」「パリ, フランス」「オペラ・ガルニエ（パリ）」のように
  * 入れ子の書き方が混ざる。タグ・カテゴリは離散的なラベルなので完全一致のまま。
- * 代償として `/location/パリ` と `/location/パリ,-フランス` は写真が重なるが、
- * 同じ写真を別の地名から辿れること自体は狙いどおり。
+ *
+ * **向きがある。** 一度 `sameLocation`（対称）を使っていたので、
+ * **広い方の写真が狭いページに載っていた**——`/location/オペラ・ガルニエ（パリ）`
+ * が、撮影地が「パリ」の写真を数えて2枚になり、`MIN_INDEXABLE_LOCATION = 2`
+ * を通り抜けていた（1枚のページは載せない、と決めてあるのに）。
+ * 詳しい実測は `photoIsInLocation` の説明に書いた。
  */
 /**
  * その集約ページに載る写真。**新しい順に並べて返す。**
@@ -446,7 +449,7 @@ export function photosInCollection(photos: Photo[], type: CollectionType, slug: 
     if (!target) return [];
     if (type === "location") {
         const label = labelForSlug(photos, "location", slug);
-        return sortByNewest(photos.filter((p) => isPublished(p) && sameLocation(p.location, label)));
+        return sortByNewest(photos.filter((p) => isPublished(p) && photoIsInLocation(p.location, label)));
     }
     return sortByNewest(photos.filter((p) => isPublished(p) && valuesFor(p, type).some((v) => slugify(v, type) === target)));
 }

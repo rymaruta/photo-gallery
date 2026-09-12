@@ -10,12 +10,51 @@ function normalizeLocation(loc?: string): string {
     return (loc ?? "").trim().toLowerCase().replace(/\s+/g, "");
 }
 
-/** 2つの場所名が「同じ場所」とみなせるか（完全一致 or 一方が他方を含む） */
+/**
+ * 2つの場所名が「同じ場所」とみなせるか（完全一致 or 一方が他方を含む）。
+ *
+ * **これは写真ページの回遊（「この場所の写真」）のための緩い判定。**
+ * 向きを見ないので、「ロヴァニエミ, フィンランド」の写真に「フィンランド」の
+ * 写真を並べる。**見て回る導線としてはそれでよい**（近くの写真が出る）。
+ *
+ * **集約ページには使えない**——そちらは `photoIsInLocation` を使う。
+ * 理由はそちらに書いた。
+ */
 export function sameLocation(a?: string, b?: string): boolean {
     const na = normalizeLocation(a);
     const nb = normalizeLocation(b);
     if (na.length < 2 || nb.length < 2) return false;
     return na === nb || na.includes(nb) || nb.includes(na);
+}
+
+/**
+ * その写真は `/location/<見出し>` のページに載るか（**向きがある**）。
+ *
+ * 条件は「**写真の撮影地が、ページの見出しと同じか、より細かい**」。
+ *
+ * `sameLocation` は対称（`a.includes(b) || b.includes(a)`）なので、
+ * 集約ページに使うと**広い方の写真が狭いページに載る**:
+ *
+ *     ページ「フィンランド」        ← 写真「ヘルシンキ, フィンランド」   ○ 正しい
+ *     ページ「ヘルシンキ, フィンランド」← 写真「フィンランド」            ✗ 撮影地が違う
+ *
+ * 実測（撮影地12枚を埋めた状態で実ビルド）: `/location/ロヴァニエミ,-フィンランド`
+ * が **7枚**を並べていた（ロヴァニエミで撮ったのは1枚）。
+ * 現データでも `/location/オペラ・ガルニエ（パリ）` が、撮影地が「パリ」の
+ * 写真を1枚数えて **2枚**になっていた。
+ *
+ * **これは `MIN_INDEXABLE_LOCATION = 2` を骨抜きにしていた。**
+ * 「1枚しか無い撮影地ページは、その写真の個別ページと中身が同じだから
+ * 索引に載せない」と決めてあるのに、**別の場所の写真で枚数を水増しして**
+ * 通り抜けていた。実測で索引に載る撮影地は **7 → 5**（減った2つは
+ * (a) 1枚しか無いページ (b) `/location/パリ` とほぼ同じ中身の
+ * `/location/パリ,-フランス`）。**枚数は減るが、嘘は消える。**
+ */
+export function photoIsInLocation(photoLocation?: string, pageLabel?: string): boolean {
+    const photo = normalizeLocation(photoLocation);
+    const page = normalizeLocation(pageLabel);
+    if (photo.length < 2 || page.length < 2) return false;
+    return photo.includes(page);
 }
 
 // 並べ替えは lib/utils/photoOrder.ts に1本化した（ホーム・集約ページと
