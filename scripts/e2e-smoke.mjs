@@ -224,6 +224,21 @@ async function runChecks(browser, eng) {
     const hydrated = await waitForHydration(page);
     check(`[${eng}] Reactがハイドレーションを完了する`, hydrated);
     if (!hydrated) reportDiagnostics(`${eng}/home`, bag); // 無反応の主因診断
+
+    // **Service Worker が止まっていることを、ここで名指しで確かめる。**
+    //
+    // 止まっていないと、SW が2ページ目以降の画像要求を仲介して**密閉を破り**、
+    // 集約ページ・写真ページの「写真が並ぶ」が `img=0` で落ちる
+    // ——原因が画像に見えて、実は SW という分かりにくい形になる（実際に踏んだ）。
+    // **止め方が効かないエンジンがあっても、ここで名指しで落ちる**ので
+    // 次に読む人が迷わない（WebKit は手元に無く、確かめられていない）。
+    const swCount = await page.evaluate(async () => {
+        try {
+            if (!navigator.serviceWorker?.getRegistrations) return 0;
+            return (await navigator.serviceWorker.getRegistrations()).length;
+        } catch { return 0; }
+    });
+    check(`[${eng}] Service Worker が登録されていない（密閉が破れていない）`, swCount === 0, `登録=${swCount}`);
     await expectMenuWorks(page, `[${eng}] 初期表示`);
 
     // 言語切替のチェックは置かない。切替UI（LocaleToggle）は R-1 で削除済みで、
