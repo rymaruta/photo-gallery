@@ -17,7 +17,15 @@ import { join } from "node:path";
  *
  * WCAG 1.4.11（操作部品は 3:1）に届いていなかった。
  */
-const css = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
+/**
+ * **コメントを外してから見る。**
+ *
+ * 最初は素のまま照合していたので、**この修正の理由として CSS に書いた
+ * コメントの中の「color-scheme: dark」に一致**し、宣言そのものを消す変異が
+ * 素通りした（自分で踏んだ。`publicAssets.test.ts` で踏んだ自己参照と同じ型）。
+ */
+const raw = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
+const css = raw.replace(/\/\*[\s\S]*?\*\//g, "");
 
 describe("ブラウザが描く部品の配色", () => {
     it("color-scheme を宣言している", () => {
