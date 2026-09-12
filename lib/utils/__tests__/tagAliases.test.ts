@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { collectEntries, photosInCollection, isIndexableCollection, legacyTagSlugs, canonicalCollectionPath } from "../collections";
+import { collectEntries, photosInCollection, isIndexableCollection, legacyTagSlugs, canonicalCollectionPath, labelForSlug } from "../collections";
 import { collectOwnValues } from "../ownValues";
 import type { Photo } from "../../data/photos";
 
@@ -65,6 +65,33 @@ describe("タグの日英を1ページに寄せる", () => {
     // **評価は統合後へ寄せる。** 旧URLが別ページとして競合しない
     it("旧URLの canonical は統合後を指す", () => {
         expect(canonicalCollectionPath("tag", "風景")).toBe(canonicalCollectionPath("tag", "landscape"));
+    });
+
+    // **`#` の付いたタグからも旧URLを作る。** `slugify("#風景","tag")` は
+    // `landscape` を返す＝統合前は `/tag/風景` で公開されていた。
+    // 旧URLを作る側だけ手書きの正規化にしていて、この形が漏れていた
+    it("記号つきのタグでも旧URLを残す", () => {
+        const legacy = legacyTagSlugs([P({ id: "h", tags: ["#風景"] })]);
+        expect(photosInCollection([P({ id: "h", tags: ["#風景"] })], "tag", "landscape"), "そもそも寄っていない").toHaveLength(1);
+        expect(legacy, "/tag/風景 がハード404になる").toContain("風景");
+    });
+
+    // **見出しは「最初に当たった写真の生表記」で決めない。**
+    // `photos.json` は `createdAt` 降順なので、英語表記の写真を1枚足すだけで
+    // インデックス済みページの H1 が変わってしまう
+    it("見出しは並び順で変わらない（最多の生表記を採る）", () => {
+        const fwd = labelForSlug(photos, "tag", "architecture");
+        const rev = labelForSlug([...photos].reverse(), "tag", "architecture");
+        expect(fwd, "並び順で見出しが変わる").toBe(rev);
+        expect(fwd, "最多の生表記になっていない").toBe("architecture");
+        expect(labelForSlug(photos, "tag", "landscape")).toBe("風景");
+    });
+
+    // 同数なら文字順で決める（どちらでもよい場面でも順序に依らせない）
+    it("同数なら文字順で決める", () => {
+        const tie = [P({ id: "t1", tags: ["建物"] }), P({ id: "t2", tags: ["architecture"] })];
+        expect(labelForSlug(tie, "tag", "architecture")).toBe(
+            labelForSlug([...tie].reverse(), "tag", "architecture"));
     });
 
     // **入力画面の候補も1つにまとまる。** ここが割れていると、

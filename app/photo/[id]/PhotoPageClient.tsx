@@ -779,7 +779,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                         )}
                         {/* 同じ場所の集約ページへ（内部リンク） */}
                         <Link
-                            href={collectionPath("location", slugify(locationText))}
+                            href={collectionPath("location", slugify(locationText, "location"))}
                             className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-sm text-white/60 hover:bg-white/10 hover:text-white transition-colors"
                             style={{ touchAction: "manipulation" }}
                         >
@@ -794,7 +794,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                         {(photo.tags ?? []).map((tag) => (
                             <Link
                                 key={tag}
-                                href={collectionPath("tag", slugify(tag))}
+                                href={collectionPath("tag", slugify(tag, "tag"))}
                                 className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors"
                                 style={{ touchAction: "manipulation" }}
                             >

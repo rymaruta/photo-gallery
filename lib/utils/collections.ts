@@ -217,13 +217,25 @@ export function tagKey(value: string | undefined): string {
 export const MIN_INDEXABLE_COUNT = 3;
 
 /**
- * **撮影地だけは1枚から載せる。**
+ * **撮影地だけは2枚から載せる。**
  *
  * 実データの `/location/*` は14ページ中10ページが2枚以下で、全部 noindex
  * だった——「高屋神社」「国営ひたち海浜公園」のような**具体語で1位を
  * 狙える唯一のページ**を、こちらから検索に出すなと言っている状態。
  * 「旅行 写真」のような語で30枚のサイトが勝てない以上、**勝てるのは
- * そこだけ**なので、開ける。
+ * そこだけ**なので、3枚から2枚へ開ける（実測 4ページ → **7ページ**）。
+ *
+ * **1枚からにはしない（一度 1 にして戻した）。** 1枚の撮影地ページは、
+ * **その写真の個別ページと中身が同じ**になる——写真ページの題は
+ * `a2158892` 以降 `「天空の鳥居｜香川県 観音寺市 高屋神社」` と撮影地を
+ * 含み、説明という**このサイトにしか無い文章**も持つ。集約ページの側は
+ * 同じ1枚と定型文だけ。実データの1枚ページ7件すべてがこの形だった
+ * （`バルセロナ` `フィンランド` `北海道` `大阪` `福岡` `国営ひたち海浜公園`
+ *  `高屋神社`）。同じ語で自分の2ページを競わせて、弱い方も出している。
+ *
+ * **「ほかにこんな写真も」は枚数に数えない。** あれは他のページにも出る
+ * 写真で、そのページ固有の中身ではない（数えると、`フィンランド` のように
+ * 近い写真が0件のページまで載せることになる）。
  *
  * **タグ・カテゴリ・機材は3枚のまま。** あちらは一般語で、「winter の
  * 写真1枚」のページは世界中にありふれている——薄いページを量産する側に
@@ -234,7 +246,7 @@ export const MIN_INDEXABLE_COUNT = 3;
  * 「ページ」で、撮影地ページが登録されているか・除外されているかを見て
  * 見直すこと（owner が登録済みなので見られる）。
  */
-export const MIN_INDEXABLE_LOCATION = 1;
+export const MIN_INDEXABLE_LOCATION = 2;
 
 /** そのページを検索エンジンに載せてよいか */
 export function isIndexableCollection(count: number, type: CollectionType): boolean {
@@ -272,18 +284,19 @@ function legacyAliasSlugs(photos: Photo[], pick: (p: Photo) => readonly unknown[
     for (const p of photos) {
         if (!isPublished(p)) continue;
         for (const v of pick(p)) {
-            const raw = (typeof v === "string" ? v : "").trim().toLowerCase().replace(/\s+/g, "-");
+            // **`slugify` が別名表を引くときと同じ正規化で引く。**
+            // ここだけ手書きの正規化にしていたので、`#風景` のように
+            // `slugify` 側では落ちる文字を含む値が「旧URL」から漏れていた
+            // （`slugify("#風景","tag")` は `landscape` を返すのに、
+            //  こちらは `#風景` を表に引けず `/tag/風景` を生成しない
+            //  ＝統合前に公開していた URL が**ハード404**になる）。
+            const raw = normalizeSlugChars(typeof v === "string" ? v : "");
             // 別名表に載っていて、かつ統合後の名前と違うものだけが「旧URL」
             const canonical = CATEGORY_ALIASES[raw];
             if (canonical && canonical !== raw) out.add(raw);
         }
     }
     return [...out];
-}
-
-/** 統合後の正しいスラッグ（旧スラッグを渡すと統合後を返す） */
-export function canonicalCategorySlug(slug: string): string {
-    return slugify(decodeURIComponentSafe(slug), "category");
 }
 
 /** ルートパラメータ（既にデコード済みのことが多いが念のため）を安全にデコードして正規化 */
@@ -402,6 +415,32 @@ export function labelForSlug(photos: Photo[], type: CollectionType, slug: string
     if (type === "category") {
         const name = categoryDisplayName(target);
         if (name) return name;
+    }
+    // **タグは「最初に当たった生表記」で決めない。**
+    //
+    // 別名でタグを統合したので、`/tag/architecture` には「建物」と
+    // 「architecture」の両方の写真が入る。先頭一致だと**写真の並び順で
+    // 見出し・title・description が変わる**——`photos.json` は `createdAt`
+    // 降順なので、**英語表記のタグを付けた写真を1枚投稿するだけで、
+    // インデックス済みページの H1 が「建物の写真」→「architectureの写真」に
+    // 変わる**（実測: 正順「建物」／逆順「architecture」）。
+    // カテゴリが `categoryDisplayName` で代表を1つに決めている理由と同じ。
+    //
+    // 決め方は**入力画面の候補チップと同じ規則**（最多の生表記 → 文字順）に
+    // 揃える。揃えないと、同じ主題の表示名がサイト内で3通りに割れる
+    // （チップ "architecture" ／ `/tag/` の見出し「建物」／
+    //  `/category/` の見出し「建築」）。
+    if (type === "tag") {
+        const votes = new Map<string, number>();
+        for (const p of photos) {
+            for (const v of valuesFor(p, type)) {
+                if (slugify(v, type) !== target) continue;
+                votes.set(v, (votes.get(v) ?? 0) + 1);
+            }
+        }
+        if (votes.size > 0) {
+            return [...votes.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
+        }
     }
     for (const p of photos) {
         for (const v of valuesFor(p, type)) {

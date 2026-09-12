@@ -118,10 +118,14 @@ export function relatedSections(
 /**
  * 集約ページの「ほかにこんな写真も」。
  *
- * **薄いページを、読む価値のあるページにするため。** 実データの
- * `/location/*` は14ページ中10ページが写真2枚以下で、`isIndexableCollection`
- * が noindex にしていた——「高屋神社」のような**具体語で1位を狙える
- * 唯一のページ**を、こちらから検索に出すなと言っている状態だった。
+ * **1〜2枚の集約ページを、人が読んで次へ行けるページにするため。**
+ * 実データの `/location/*` は14ページ中10ページが写真2枚以下で、
+ * 開いても行き止まりだった。
+ *
+ * **これは「索引に載せてよい」の根拠にはしない。** ここで足す写真は
+ * 他のページにも出るもので、そのページ固有の中身ではない
+ * （`isIndexableCollection` は `matched` の枚数だけで見る）。効くのは
+ * 回遊——押せば個別ページへ行ける、内部リンクが増える、の2つ。
  *
  * **既存の `relatedSections` は使えない。** あれは「同じ撮影者／同じ撮影地」で、
  * 集約ページが既に出しているものと重なる（撮影地ページなら丸ごと同じ）。
@@ -130,9 +134,8 @@ export function relatedSections(
  * 近さは共有する**タグとカテゴリ**で測る。撮影地は足さない——足すと
  * 撮影地ページで「同じ場所の写真」が二重に出る。
  *
- * **水増しではない。** 出すのは実在の写真で、押せば個別ページへ行ける
- * （回遊が増える）。並びは決定的（点数 → 新しい順）にして、
- * ビルドのたびに順が変わらないようにする。
+ * 並びは決定的（点数 → 新しい順 → 新しい順で表示）にして、ビルドの
+ * たびに順が変わらないようにする。
  */
 export function relatedCollectionPhotos(
     shown: Photo[],
@@ -161,7 +164,14 @@ export function relatedCollectionPhotos(
         if (c && cats.has(slugify(c, "category"))) score += 2;
         if (score > 0) scored.push({ p, score });
     }
+    // **同点の決着まで書く。** `slice` で切る前に順序が決まっていないと、
+    // 「どの写真が載るか」が `all` の並び順という**書いていない規則**で
+    // 決まる（`Array.sort` は安定なので、渡された配列の順がそのまま
+    // 出る）。集約ページはビルド時の `photos.json` から、写真ページは
+    // APIの一覧からも組むので、同じ点数の写真のうち載る側が経路で変わる。
+    // 表示の並びと同じ「新しい順」で決める。
     return sortByNewest(
-        scored.sort((a, b) => b.score - a.score).slice(0, limit).map((x) => x.p),
+        scored.sort((a, b) => b.score - a.score || compareNewest(a.p, b.p))
+            .slice(0, limit).map((x) => x.p),
     );
 }

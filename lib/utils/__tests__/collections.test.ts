@@ -485,8 +485,19 @@ describe("canonicalCollectionPath: 旧カテゴリは統合後を指す", () => 
         expect(canonicalCollectionPath("category", "風景")).toContain("/category/landscape");
     });
 
-    it("タグ・撮影地はそのまま（統合の対象ではない）", () => {
+    // タグも別名表で統合するようになった（`255e8af5`）ので、canonical も
+    // 統合後を指す。**この行の名前は一度「タグは統合の対象ではない」と
+    // 嘘をついていた**
+    it("旧タグでも統合後のパスを返す", () => {
+        expect(canonicalCollectionPath("tag", "建物")).toContain("/tag/architecture");
+        expect(canonicalCollectionPath("tag", "建物")).toBe(
+            canonicalCollectionPath("tag", "architecture"));
+    });
+
+    it("表に無いタグ・撮影地はそのまま", () => {
         expect(canonicalCollectionPath("tag", "夜景")).toBe(collectionPath("tag", "夜景"));
+        // 撮影地は別名表を当てない（「建物」という地名を landscape に寄せない）
+        expect(canonicalCollectionPath("location", "建物")).toBe(collectionPath("location", "建物"));
         expect(canonicalCollectionPath("location", "パリ")).toBe(collectionPath("location", "パリ"));
     });
 });
