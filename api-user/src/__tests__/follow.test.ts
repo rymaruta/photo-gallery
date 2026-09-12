@@ -6,6 +6,7 @@ const mockLookup = vi.hoisted(() => vi.fn());
 const mockLookupIfSet = vi.hoisted(() => vi.fn<(uid: string) => Promise<string | undefined>>(async () => undefined));
 const mockDeleted = vi.hoisted(() => vi.fn<() => Promise<Set<string>>>(async () => new Set<string>()));
 const mockIsBlocked = vi.hoisted(() => vi.fn());
+const mockHidden = vi.hoisted(() => vi.fn<(uid: string) => Promise<Set<string>>>(async () => new Set<string>()));
 
 vi.mock("../dynamodb", () => ({
     ddb: { send: mockDdbSend },
@@ -23,6 +24,10 @@ vi.mock("../notify", () => ({
 // （判定の GetItem が2本増えるため）。ブロックそのものの振る舞いは
 // `block.test.ts` と、下の専用の describe で見る。
 vi.mock("../blockCheck", () => ({ isBlocked: mockIsBlocked }));
+// `hiddenUserIds` も同じ理由で境界として差し替える（素で通すと
+// `blocks#` と `blockedby#` の GetItem が2本増えて、順番に答えさせている
+// テストが1つずつずれる）。集合の作り方そのものは `block.test.ts` が見る。
+vi.mock("../block", () => ({ hiddenUserIds: (uid: string) => mockHidden(uid) }));
 
 vi.stubEnv("USERS_TABLE", "users-test");
 const { followUser, unfollowUser, getFollowStats, getMyFollowing, getUserFollowing, getUserFollowers } = await import("../follow");
@@ -92,6 +97,7 @@ beforeEach(() => {
     mockIsBlocked.mockReset().mockResolvedValue(false);
     mockLookupIfSet.mockReset().mockResolvedValue(undefined);
     mockDeleted.mockReset().mockResolvedValue(new Set<string>());
+    mockHidden.mockReset().mockResolvedValue(new Set<string>());
 });
 
 describe("followUser", () => {
@@ -828,6 +834,92 @@ describe("フォローの実在判定: users 行が無い人", () => {
     });
 });
 
+
+/**
+ * **ブロック関係の相手を一覧から落とす。**
+ *
+ * 普段は `blockUser` が両向きのフォローを外すのでここに残らないが、
+ * その解除は `.catch` で握られるので**落ちた回は残る**。しかも
+ * `hiddenUserIds` は「自分がブロックした人 ∪ 自分をブロックした人」なので、
+ * **他人のフォロワー一覧で、自分をブロックした人が名前つきで並ぶ**のが
+ * 実際に起きる形。ストーリー・通知・返信・閲覧者の4経路が既に通している。
+ */
+describe("フォロー一覧のブロックのふるい", () => {
+    const evUid = (sub: string | undefined, uid: string | undefined) => ({
+        requestContext: { authorizer: { jwt: { claims: { sub } } } },
+        pathParameters: uid ? { uid } : undefined,
+    });
+    const listOf = (ids: string[]) => (cmd: { input: { Key?: { id?: string } } }) => {
+        const id = cmd.input.Key?.id ?? "";
+        if (id.startsWith("followstats#")) return Promise.resolve({ Item: { followers: ids.length, following: ids.length } });
+        return Promise.resolve({ Item: { list: ids } });
+    };
+
+    it("フォロー中から、ブロック関係の相手を落とす", async () => {
+        mockDdbSend.mockImplementation(listOf([OTHER, THIRD]));
+        mockHidden.mockResolvedValue(new Set([THIRD]));
+        const res = await invoke(getUserFollowing, evUid(ME, ME));
+        expect(JSON.parse(res.body).users.map((u: { id: string }) => u.id),
+            "ブロックした相手が一覧に残っている").toEqual([OTHER]);
+        expect(mockHidden, "呼び手ではなく相手のブロック一覧を見ている").toHaveBeenCalledWith(ME);
+    });
+
+    it("フォロワーからも同じように落とす（片側だけの防御を作らない）", async () => {
+        mockDdbSend.mockImplementation(listOf([OTHER, THIRD]));
+        mockHidden.mockResolvedValue(new Set([OTHER]));
+        const res = await invoke(getUserFollowers, evUid(ME, THIRD));
+        expect(JSON.parse(res.body).users.map((u: { id: string }) => u.id)).toEqual([THIRD]);
+    });
+
+    // **見るのは呼び手のブロック一覧**（`uid` のものではない）。
+    // 他人のプロフィールを開いたとき、落とすのは「自分に関係する相手」
+    it("他人の一覧でも、見るのは呼び手のブロック一覧", async () => {
+        mockDdbSend.mockImplementation(listOf([THIRD]));
+        const res = await invoke(getUserFollowing, evUid(ME, OTHER));
+        expect(res.statusCode).toBe(200);
+        expect(mockHidden).toHaveBeenCalledWith(ME);
+        expect(mockHidden).not.toHaveBeenCalledWith(OTHER);
+    });
+
+    // **窓を切る前に落とす。** あとで落とすと、落とした相手が50の枠を食って
+    // 生きている行が押し出される（`storyReplies.ts` が同じ理由で並べ替えた）
+    it("50人の枠を、落とす相手に食わせない", async () => {
+        const many = Array.from({ length: 60 }, (_, i) => `${String(i).padStart(8, "0")}-1111-4111-8111-111111111111`);
+        mockDdbSend.mockImplementation(listOf(many));
+        // 先頭10人をブロック関係にする。あとで落とすと 40人しか残らない
+        mockHidden.mockResolvedValue(new Set(many.slice(0, 10)));
+        const res = await invoke(getUserFollowing, evUid(ME, ME));
+        const users = JSON.parse(res.body).users as { id: string }[];
+        expect(users, "枠を落とす相手に食われて、生きている行が押し出されている").toHaveLength(50);
+        expect(users.map((u) => u.id)).toEqual(many.slice(10, 60));
+    });
+
+    // **数（`followstats#`）は下げない。** あちらは「関係が実在するか」を
+    // 数える別のカウンタで、画面は `total` と描いた行数で見分ける
+    it("数は下げない（ずれる向きは既にあるものと同じ「多い側」）", async () => {
+        mockDdbSend.mockImplementation(listOf([OTHER, THIRD]));
+        mockHidden.mockResolvedValue(new Set([THIRD]));
+        const body = JSON.parse((await invoke(getUserFollowing, evUid(ME, ME))).body);
+        expect(body.total, "実在する関係の数まで下げている").toBe(2);
+        expect(body.listed, "落としたあとの長さになっていない").toBe(1);
+    });
+
+    // 読めなければ一覧を返す（`getStories` と同じ判断）
+    it("ブロック一覧を読めなくても一覧は返す", async () => {
+        mockDdbSend.mockImplementation(listOf([OTHER, THIRD]));
+        mockHidden.mockRejectedValue(new Error("throttled"));
+        const res = await invoke(getUserFollowing, evUid(ME, ME));
+        expect(res.statusCode, "読めないだけで一覧を失っている").toBe(200);
+        expect(JSON.parse(res.body).users).toHaveLength(2);
+    });
+
+    it("一覧が空なら、ブロック一覧を引きに行かない", async () => {
+        mockDdbSend.mockImplementation(listOf([]));
+        await invoke(getUserFollowing, evUid(ME, ME));
+        await invoke(getUserFollowers, evUid(ME, ME));
+        expect(mockHidden).not.toHaveBeenCalled();
+    });
+});
 
 // owner の指示「誰をフォローしてて、みたいなの見れるようにして」。
 // **フォロワー側は返せない**——いまのデータは `following#<uid>` と

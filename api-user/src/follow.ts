@@ -6,6 +6,7 @@ import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { pushNotification, lookupDisplayName, lookupDisplayNameIfSet, deletedUserIds } from "./notify";
 import { requireEnv } from "./env";
 import { isUserId } from "./userId";
+import { hiddenUserIds } from "./block";
 import { isBlocked } from "./blockCheck";
 import { isDeletedProfile } from "./types";
 
@@ -680,6 +681,40 @@ export const getFollowStats: APIGatewayProxyHandlerV2 = async (event) => {
 const FOLLOWING_PAGE = 50;
 
 /**
+ * 一覧からブロック関係の相手を落とす。
+ *
+ * **`blockUser` が両向きのフォローを外すので、普通はここに残らない。**
+ * 残るのは `unfollowQuietly` の `.catch` が握った回だけ——だから「稀」で
+ * あって「起きない」ではない。しかも**呼び手が違えば見える相手も違う**
+ * （`hiddenUserIds` は「自分がブロックした人 ∪ 自分をブロックした人」）。
+ * 他人のフォロワー一覧を開いたとき、**自分をブロックした人**が名前つきで
+ * 並んでプロフィールへリンクする、というのが実際に起きる形。
+ * ストーリー・通知・返信・閲覧者の4経路が既に通している判定なので、
+ * ここだけ素通りさせる理由が無い（片側だけの防御を作らない）。
+ *
+ * **窓を切る前に落とす。** `slice(0, FOLLOWING_PAGE)` のあとで落とすと、
+ * 落とした相手が50の枠を食って**生きている行が押し出される**
+ * （`storyReplies.ts` が同じ理由で並びを変えた）。
+ *
+ * **数（`total`）は下げない。** あちらは `followstats#` の独立したカウンタで、
+ * 「関係が実在するか」を数える。ここで落とすのは「この呼び手に見せるか」で、
+ * 別のことを数えている。画面（`FollowingSheet`）は `total` と実際に描いた
+ * 行数で見分ける作りなので、**ずれる向きは既にある3つ**
+ * （50人で切る・埋め戻し前・`updateFollowersQuietly` の握り潰し）と同じ
+ * 「多い側」に揃う。新しい形のずれは作っていない。
+ *
+ * 読めなければ一覧をそのまま返す（`getStories` と同じ判断）。
+ */
+async function withoutHidden(list: string[], me: string | undefined, where: string): Promise<string[]> {
+    if (!me || list.length === 0) return list;
+    const hidden = await hiddenUserIds(me).catch((e) => {
+        console.error(`${where}: ブロック一覧を読めませんでした:`, e);
+        return new Set<string>();
+    });
+    return hidden.size === 0 ? list : list.filter((id) => !hidden.has(id));
+}
+
+/**
  * GET /users/{uid}/following — その人がフォローしている人の一覧。
  *
  * owner の指示「誰をフォローしてて、みたいなの見れるようにして」。
@@ -719,7 +754,8 @@ export const getUserFollowing: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
             // 落とす（今より悪くならない）。`followers#` 側も同じ
             readStats(uid).catch((e) => { console.error("getUserFollowing readStats:", e); return null; }),
         ]);
-        const page = list.slice(0, FOLLOWING_PAGE);
+        const visible = await withoutHidden(list, me, "getUserFollowing");
+        const page = visible.slice(0, FOLLOWING_PAGE);
         // 引くのは一覧が空でないときだけ（`getComments` と同じ）
         const gone = page.length > 0 ? await deletedUserIds() : new Set<string>();
         const users = await Promise.all(page.map(async (id) => {
@@ -738,7 +774,10 @@ export const getUserFollowing: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
             // `following#` が空で数が 0 でないと、シートは
             // 「まだ誰もフォローしていません」——`followers#` 側で直した
             // 矛盾がそのまま残っていた
-            body: JSON.stringify({ users, total: stats?.following ?? list.length, listed: list.length }),
+            // `listed` は**落としたあとの長さ**。この値の役目は「サーバーが
+            // 50人で切ったぶん」と「一覧が追いついていないぶん」を外から
+            // 区別することなので、呼び手に見せない相手を数えても意味がない
+            body: JSON.stringify({ users, total: stats?.following ?? visible.length, listed: visible.length }),
         };
     } catch (e) {
         console.error("getUserFollowing error:", e);
@@ -782,7 +821,8 @@ export const getUserFollowers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
             readStats(uid).catch((e) => { console.error("getUserFollowers readStats:", e); return null; }),
         ]);
         const list = usableUserIds(res.Item?.list, `followers#${uid}`);
-        const page = list.slice(0, FOLLOWING_PAGE);
+        const visible = await withoutHidden(list, me, "getUserFollowers");
+        const page = visible.slice(0, FOLLOWING_PAGE);
         const gone = page.length > 0 ? await deletedUserIds() : new Set<string>();
         const users = await Promise.all(page.map(async (id) => {
             if (gone.has(id)) return { id, deleted: true };
@@ -792,8 +832,9 @@ export const getUserFollowers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
         return {
             statusCode: 200,
             headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
-            // `total` は**数（`followstats#`）**。`listed` は一覧に入っている数
-            body: JSON.stringify({ users, total: stats?.followers ?? list.length, listed: list.length }),
+            // `total` は**数（`followstats#`）**。`listed` は落としたあとの
+            // 一覧の長さ（`getUserFollowing` と揃える）
+            body: JSON.stringify({ users, total: stats?.followers ?? visible.length, listed: visible.length }),
         };
     } catch (e) {
         console.error("getUserFollowers error:", e);
