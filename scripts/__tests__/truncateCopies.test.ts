@@ -130,3 +130,83 @@ describe("2つのパッケージの sanitize が同じように制御文字を�
         expect(ap.sanitizeText(input, 200)).toBe(au.sanitizeText(input, 200));
     });
 });
+
+/**
+ * **対テストが見ていた入口は、共有10関数のうち6つだけだった。**
+ *
+ * `b67628c9` で立てた型（「対テストを書いたら、その写しが持つ入口を数える」）を
+ * 既存の対テストに当て直して出た。数えると:
+ *
+ *     両方にある export   10（`sanitizeBlurDataURL` は api-user だけ）
+ *     見ていた             6（truncate / sanitizeText / Title / Tags / Exif / Description）
+ *     見ていなかった       4（sanitizeCoords / sanitizeDate / dateWasRejected / sameStoredValue）
+ *
+ * **今は4つとも一致している**（コメントを落として比較して確認）。
+ * ここで縛るのは「これから片方だけ直さない」こと。とくに:
+ *
+ *   `sanitizeCoords` … 座標を**約1km（小数2桁）に丸める**。片方だけ細かくすると
+ *                      管理API経由で保存した写真だけ自宅が特定できる粒度で残る
+ *   `sanitizeDate`   … 範囲外を `undefined` にする。`4416c99c` で
+ *                      「**保存済みの日付が黙って消える**」を踏んだ当の関数で、
+ *                      `dateWasRejected` は「消えたのか、そもそも空なのか」を分ける
+ */
+describe("2つのパッケージの sanitize: 残り4つの入口", () => {
+    const IMPLS = [["api-user", au], ["api", ap]] as const;
+
+    // **座標はプライバシー。** 丸めが片方だけ細かくなったら気づく
+    it.each(IMPLS)("%s: 座標は小数2桁（約1km）に丸める", (_name, m) => {
+        expect(m.sanitizeCoords({ lat: 35.6812345, lng: 139.7671248 })).toEqual({ lat: 35.68, lng: 139.77 });
+        expect(m.sanitizeCoords({ lat: -0.123456, lng: -179.987 })).toEqual({ lat: -0.12, lng: -179.99 });
+    });
+
+    // **捨てるときは `null`**（`undefined` ではない）。実装を読んでから書いた
+    // ——最初 `undefined` と書いて2件落ちた
+    it.each(IMPLS)("%s: 範囲外・数でない座標は捨てる", (_name, m) => {
+        expect(m.sanitizeCoords({ lat: 91, lng: 0 })).toBeNull();
+        expect(m.sanitizeCoords({ lat: 0, lng: 181 })).toBeNull();
+        expect(m.sanitizeCoords({ lat: Number.NaN, lng: 0 })).toBeNull();
+        expect(m.sanitizeCoords(undefined)).toBeNull();
+        expect(m.sanitizeCoords({ lat: "35.68", lng: "139.77" })).toBeNull();
+        expect(m.sanitizeCoords({ lat: 90, lng: 180 }), "境界（±90/±180）は通す").toEqual({ lat: 90, lng: 180 });
+    });
+
+    it.each(IMPLS)("%s: 日付は YYYY-MM-DD を通す", (_name, m) => {
+        expect(m.sanitizeDate("2024-11-01")).toBe("2024-11-01");
+    });
+
+    // **範囲外は捨てる。** ここが片方だけ緩むと、管理API経由で
+    // 1900年の写真が年表の先頭に居座る
+    it.each(IMPLS)("%s: 範囲外の日付は捨てる", (_name, m) => {
+        expect(m.sanitizeDate("1985-06-01")).toBeUndefined();
+        expect(m.sanitizeDate("なんでもない文字")).toBeUndefined();
+        expect(m.sanitizeDate("")).toBeUndefined();
+    });
+
+    // **「消えた」と「そもそも空」を分ける。** `4416c99c` の当の判定
+    it.each(IMPLS)("%s: 断った日付だけ dateWasRejected が立つ", (_name, m) => {
+        expect(m.dateWasRejected("1985-06-01")).toBe(true);
+        expect(m.dateWasRejected("2024-11-01")).toBe(false);
+        expect(m.dateWasRejected("")).toBe(false);
+        expect(m.dateWasRejected(undefined)).toBe(false);
+    });
+
+    it.each(IMPLS)("%s: sameStoredValue が同じ判断をする", (_name, m) => {
+        expect(m.sameStoredValue("a", "a")).toBe(true);
+        expect(m.sameStoredValue("a", "b")).toBe(false);
+        expect(m.sameStoredValue(undefined, undefined)).toBe(true);
+        expect(m.sameStoredValue({ ja: "京都" }, { ja: "京都" })).toBe(true);
+        expect(m.sameStoredValue({ ja: "京都" }, { ja: "大阪" })).toBe(false);
+    });
+
+    // **数え上げ自体を縛る。** 片方に共有の export が増えたら、
+    // 「見ていない入口」が静かに戻る
+    it("共有している export は10個（増えたらここも増やす）", () => {
+        const shared = Object.keys(au).filter((k) => k in ap);
+        expect(shared.sort()).toEqual([
+            "dateWasRejected", "sameStoredValue", "sanitizeCoords", "sanitizeDate",
+            "sanitizeDescription", "sanitizeExif", "sanitizeTags", "sanitizeText",
+            "sanitizeTitle", "truncate",
+        ]);
+    });
+});
+
