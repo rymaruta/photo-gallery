@@ -195,14 +195,42 @@ export function relatedCollectionPhotos(
  */
 const THUMB_FIELDS = ["src", "thumbSrc", "thumbSm", "thumbAvif", "thumbSmAvif", "blurDataURL"] as const;
 const LINK_FIELDS = ["id", "title", "dominantColor"] as const;
+/**
+ * グリッド（`GalleryGrid`）が追加で読むもの。
+ *   `focalPoint` … 切り抜きの中心
+ *   `category`   … hover で出す分類名
+ *   `alt` / `location` … `photoAltText` が読む（題＋撮影地で alt を組む）
+ */
+const GRID_FIELDS = ["focalPoint", "category", "alt", "location"] as const;
 
-export function slimForLinks(p: Photo): Photo {
+function pick(p: Photo, keys: readonly string[]): Photo {
     const out: Record<string, unknown> = {};
-    for (const k of [...LINK_FIELDS, ...THUMB_FIELDS]) {
+    for (const k of keys) {
         const v = (p as unknown as Record<string, unknown>)[k];
         if (v !== undefined) out[k] = v;
     }
     return out as unknown as Photo;
+}
+
+export function slimForLinks(p: Photo): Photo {
+    return pick(p, [...LINK_FIELDS, ...THUMB_FIELDS]);
+}
+
+/**
+ * 集約ページのグリッドに要る項目だけに絞る。
+ *
+ * 集約ページ（`/tag/*` `/location/*` `/category/*` `/camera/*` ＝約86ページ）も
+ * 写真オブジェクトを丸ごと props に渡していた。実測:
+ *
+ *     /category/landscape  67.7KB → gzip 15.0KB
+ *       description 19回 / exif 15回 / tags 16回 / userId 16回
+ *
+ * グリッドが読むのは `id` / `title` / `dominantColor` / `focalPoint` /
+ * `category` と、`photoAltText` の `alt` / `location`、それに `Thumb` の6項目。
+ * **JSON-LD は絞る前の `matched` から作る**ので影響しない。
+ */
+export function slimForGrid(p: Photo): Photo {
+    return pick(p, [...LINK_FIELDS, ...THUMB_FIELDS, ...GRID_FIELDS]);
 }
 
 /** 写真ページに焼き込む回遊リンクの材料（**絞ったもの**） */

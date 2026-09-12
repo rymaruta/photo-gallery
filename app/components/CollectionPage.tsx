@@ -13,7 +13,7 @@ import {
     relatedEntries,
     type CollectionType,
 } from "@/lib/utils/collections";
-import { relatedCollectionPhotos } from "@/lib/utils/related";
+import { relatedCollectionPhotos, slimForGrid } from "@/lib/utils/related";
 import { siteConfig, generateStructuredData, generateBreadcrumbStructuredData } from "@/lib/utils/seo";
 
 /** 「ほかにこんな写真も」を出す枚数の線。これ未満のページにだけ足す */
@@ -47,6 +47,18 @@ export default async function CollectionPage({ type, slug }: { type: CollectionT
         ? relatedCollectionPhotos(matched, photos, 6)
         : [];
 
+    // **クライアントへ渡すのはグリッドが読む項目だけ。**
+    // 丸ごと渡すと、説明も EXIF もタグも付いた写真が RSC ペイロードに載る
+    // （実測 `/category/landscape` で description 19回・exif 15回）。
+    // **JSON-LD は絞る前の `matched` から作る。**
+    // 今は結果が同じ（`generateStructuredData` が読むのは `id` / `title` /
+    // `src` の3つで、どれも絞ったあとにも在る＝**この選択は等価**・変異でも
+    // 落ちない）。それでも絞る前から作るのは、**あちらが項目を増やした日に
+    // 構造化データだけ黙って痩せる**のを避けるため（例: 画像ごとに説明を
+    // 足すのは素直な改善で、そのとき `gridPhotos` からでは出せない）
+    const gridPhotos = matched.map(slimForGrid);
+    const gridNearby = nearby.map(slimForGrid);
+
     const galleryData = generateStructuredData(matched, {
         name: heading,
         description,
@@ -61,7 +73,7 @@ export default async function CollectionPage({ type, slug }: { type: CollectionT
         <>
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(galleryData) }} />
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbData) }} />
-            <CollectionPageClient photos={matched} heading={heading} description={description} breadcrumb={breadcrumb} type={type} related={related} nearby={nearby} />
+            <CollectionPageClient photos={gridPhotos} heading={heading} description={description} breadcrumb={breadcrumb} type={type} related={related} nearby={gridNearby} />
         </>
     );
 }

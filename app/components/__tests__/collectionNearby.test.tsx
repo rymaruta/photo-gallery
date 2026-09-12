@@ -14,7 +14,14 @@ import type { Photo } from "../../../lib/data/photos";
  * 外しても 4,431件が1つも落ちなかった（この台帳が何度も記録している
  * 「関数は書いたが配線していない」）。
  */
-const P = (o: Partial<Photo>): Photo => ({ src: "https://cdn/x.jpg", ...o } as Photo);
+// **落とすべき項目を持たせる。** 持っていないと、絞っているかどうかを
+// 確かめようがない（何もしなくても「載っていない」になる）
+const P = (o: Partial<Photo>): Photo => ({
+    src: "https://cdn/x.jpg", thumbSrc: "https://cdn/x-512.webp", dominantColor: "#123456",
+    description: { ja: ["長い説明"] }, exif: { camera: "SONY ILCE-7M3" },
+    userId: "u1", updatedAt: "2026-06-06T00:00:00Z", likes: 3,
+    ...o,
+} as Photo);
 
 const photos: Photo[] = [
     // 撮影地ページは1枚＝薄い
@@ -78,5 +85,48 @@ describe("薄い集約ページに「ほかにこんな写真も」を出す", (
         const el = await CollectionPage({ type: "location", slug: "手がかり無し" });
         render(el as React.ReactElement);
         expect(screen.queryByText("ほかにこんな写真も"), "空の節を置いている").toBeNull();
+    });
+});
+
+/**
+ * **クライアントへ渡す写真から、読まれない項目を落とす。**
+ *
+ * 集約ページ（`/tag/*` `/location/*` `/category/*` `/camera/*` ＝約86ページ）は
+ * 写真オブジェクトを丸ごと props に渡していた。RSC ペイロードに載るので、
+ * **HTML そのものが太る**（実測 `/category/landscape` で description 19回・
+ * exif 15回）。絞り方は `lib/utils/__tests__/slimForLinks.test.ts`、
+ * ここで見るのは**渡す側に効いているか**（`map(slimForGrid)` を
+ * 消しても誰も気づかない、を起こさない）。
+ */
+describe("集約ページが渡す写真は絞ってある", () => {
+    it("そのページの写真から、読まれない項目を落とす", async () => {
+        const props = clientProps(await CollectionPage({ type: "category", slug: "風景" }));
+        const photos = props.photos as Photo[];
+        expect(photos.length, "写真が渡っていない（この確認が空回りしている）").toBeGreaterThan(2);
+        for (const p of photos) {
+            expect("description" in (p as object), "説明が載っている").toBe(false);
+            expect("exif" in (p as object), "EXIF が載っている").toBe(false);
+            expect("userId" in (p as object), "投稿者IDが載っている").toBe(false);
+            // 画面が読むものは残っている
+            expect(p.id).toBeTruthy();
+            expect((p as unknown as Record<string, unknown>).thumbSrc, "サムネが落ちている").toBeTruthy();
+        }
+    });
+
+    it("「ほかにこんな写真も」の方も絞る", async () => {
+        const props = clientProps(await CollectionPage({ type: "location", slug: "高屋神社" }));
+        const nearby = props.nearby as Photo[];
+        expect(nearby.length, "近い写真が渡っていない").toBeGreaterThan(0);
+        for (const p of nearby) {
+            expect("description" in (p as object), "説明が載っている").toBe(false);
+            expect("exif" in (p as object), "EXIF が載っている").toBe(false);
+        }
+    });
+
+    // **JSON-LD は絞る前から作る**（構造化データを痩せさせない）
+    it("構造化データは絞る前の写真から作る", async () => {
+        const el = await CollectionPage({ type: "category", slug: "風景" });
+        const html = JSON.stringify(el);
+        expect(html, "JSON-LD が出ていない").toContain("ImageGallery");
     });
 });

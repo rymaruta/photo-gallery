@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { slimForLinks, initialRelatedFor } from "../related";
+import { slimForLinks, initialRelatedFor, slimForGrid } from "../related";
 import type { Photo } from "../../data/photos";
 
 /**
@@ -21,6 +21,10 @@ const FULL = {
     src: "https://cdn/a.jpg", thumbSrc: "https://cdn/a-512.webp", thumbSm: "https://cdn/a-256.webp",
     thumbAvif: "https://cdn/a-512.avif", thumbSmAvif: "https://cdn/a-256.avif",
     blurDataURL: "data:image/webp;base64,zz",
+    // グリッドが読む（切り抜きの中心・alt の材料）。**フィクスチャに無いと、
+    // `pick` が undefined を飛ばすので「落としている」に見える**——
+    // 実際そう出て、この2つを足した（テストが仕掛けの穴を捕まえた側）
+    focalPoint: { x: 0.5, y: 0.3 }, alt: { ja: "代替テキスト" },
     // ここから下は回遊リンクが読まない
     description: { ja: ["長い説明".repeat(20)] }, exif: { camera: "SONY ILCE-7M3", lens: "FE 24-70" },
     tags: ["雲海", "神社"], category: "landscape", location: "高屋神社",
@@ -114,5 +118,52 @@ describe("写真ページに渡す回遊リンク（組み立て）", () => {
     it("端の写真では prev / next が null（生やさない）", () => {
         expect(initialRelatedFor(all[0], all).prev).toBeNull();
         expect(initialRelatedFor(all[2], all).next).toBeNull();
+    });
+});
+
+/**
+ * **集約ページのグリッドも同じ形だった。**
+ * `/tag/*` `/location/*` `/category/*` `/camera/*` ＝約86ページが、
+ * 写真オブジェクトを丸ごと props に渡していた（実測
+ * `/category/landscape` で description 19回・exif 15回）。
+ */
+describe("集約ページのグリッドに渡す写真を絞る", () => {
+    it("グリッドが読む項目は全部残る", () => {
+        const out = slimForGrid(FULL) as unknown as Record<string, unknown>;
+        for (const k of ["id", "title", "dominantColor",
+            "src", "thumbSrc", "thumbSm", "thumbAvif", "thumbSmAvif", "blurDataURL",
+            // グリッド固有（切り抜きの中心・分類名・alt の材料）
+            "focalPoint", "category", "alt", "location"]) {
+            expect(out[k], `${k} が落ちている`).toEqual((FULL as unknown as Record<string, unknown>)[k]);
+        }
+    });
+
+    it("読まない項目は落とす", () => {
+        const out = slimForGrid(FULL) as unknown as Record<string, unknown>;
+        for (const k of ["description", "exif", "tags", "userId", "createdAt", "likes", "commentCount"]) {
+            expect(k in out, `${k} が残っている`).toBe(false);
+        }
+    });
+
+    // **回遊リンク用より広い**（グリッドは切り抜きと分類名と alt を出す）
+    it("回遊リンク用より項目が多い（用途ごとに分けている）", () => {
+        expect(Object.keys(slimForGrid(FULL)).length)
+            .toBeGreaterThan(Object.keys(slimForLinks(FULL)).length);
+    });
+
+    // **`GalleryGrid` と `photoAltText` が実際に読む項目と突き合わせる**
+    it("GalleryGrid / photoAltText が読む項目を、1つも落としていない", () => {
+        const grid = readFileSync(join(__dirname, "..", "..", "..", "app", "components", "GalleryGrid.tsx"), "utf8");
+        const alt = readFileSync(join(__dirname, "..", "photoAlt.ts"), "utf8");
+        const used = [
+            ...[...grid.matchAll(/\b[p]\.([a-zA-Z]+)/g)].map((m) => m[1]),
+            ...[...grid.matchAll(/\bphoto\.([a-zA-Z]+)/g)].map((m) => m[1]),
+            ...[...alt.matchAll(/\bphoto\.([a-zA-Z]+)/g)].map((m) => m[1]),
+        ];
+        expect(used.length, "ソースから項目を1つも読めていない").toBeGreaterThan(4);
+        const kept = Object.keys(slimForGrid(FULL));
+        for (const k of new Set(used)) {
+            expect(kept, `画面が読む ${k} を落としている`).toContain(k);
+        }
     });
 });
