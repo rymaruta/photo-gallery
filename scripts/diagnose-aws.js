@@ -135,20 +135,62 @@ function humanSeconds(sec) {
  * @param b        CacheBehavior（`DefaultCacheBehavior` は PathPattern を持たない）
  * @param policies Map<policyId, { name, MinTTL, DefaultTTL, MaxTTL }>
  */
+/**
+ * **圧縮しているか。** ここが `false` だと、届くのは**そのままのバイト数**。
+ *
+ * 2026-09-12 にビルドの出力を数えて、写真ページの JS を
+ * **688KB → gzip 215KB** と報告した。**その gzip は CloudFront が
+ * 掛けるもので、リポジトリのどこにも「掛かっている」証拠が無かった**
+ * ——`scripts/deploy-static-site.js` は `ContentEncoding` を付けない
+ * （＝事前に圧縮して上げてはいない）ので、圧縮するかは配信側の
+ * `Compress` ひとつで決まる。なのに診断は TTL しか出しておらず、
+ * **見積もりが3倍外れていても誰も気づけない**状態だった。
+ *
+ * 台帳の型「道具が『0件』と言うとき、数え方を疑う」の裏返し——
+ * **道具が何も言わない項目は、無いのではなく見ていない。**
+ */
+function compressLabel(b) {
+    if (b.Compress === true) return "圧縮=ON";
+    if (b.Compress === false) return "圧縮=**OFF**";
+    return "圧縮=不明";
+}
+
 function describeBehavior(b, policies) {
     const path = b.PathPattern ?? "(default)";
+    const zip = compressLabel(b);
     // 旧式（ポリシーではなく behavior に直接 TTL を書く形）はそのまま出す
     if (typeof b.DefaultTTL === "number") {
-        return `  ${path}: 旧式 defaultTTL=${humanSeconds(b.DefaultTTL)} maxTTL=${humanSeconds(b.MaxTTL)} minTTL=${humanSeconds(b.MinTTL)}`;
+        return `  ${path}: 旧式 defaultTTL=${humanSeconds(b.DefaultTTL)} maxTTL=${humanSeconds(b.MaxTTL)} minTTL=${humanSeconds(b.MinTTL)} ${zip}`;
     }
     const id = b.CachePolicyId;
     const p = id ? policies.get(id) : undefined;
     if (!p) {
         // **読めなかったことを「TTL はポリシー側」で誤魔化さない。**
         // 権限が無い・ID が無いのどちらかで、どちらも「分かっていない」
-        return `  ${path}: cachePolicyId=${id ?? "-"}（ポリシーを読めなかった＝TTL 不明）`;
+        return `  ${path}: cachePolicyId=${id ?? "-"}（ポリシーを読めなかった＝TTL 不明） ${zip}`;
     }
-    return `  ${path}: ${p.name} defaultTTL=${humanSeconds(p.DefaultTTL)} maxTTL=${humanSeconds(p.MaxTTL)} minTTL=${humanSeconds(p.MinTTL)}`;
+    return `  ${path}: ${p.name} defaultTTL=${humanSeconds(p.DefaultTTL)} maxTTL=${humanSeconds(p.MaxTTL)} minTTL=${humanSeconds(p.MinTTL)} ${zip}`;
+}
+
+/**
+ * 圧縮の結果を「何が起きるか」に翻訳する行（**純関数**）。
+ * 秒数と同じで、`Compress=false` とだけ出しても意味が伝わらない。
+ */
+function compressNote(behaviors) {
+    const off = behaviors.filter((b) => b.Compress === false).map((b) => b.PathPattern ?? "(default)");
+    const unknown = behaviors.filter((b) => b.Compress !== true && b.Compress !== false)
+        .map((b) => b.PathPattern ?? "(default)");
+    const out = [];
+    if (off.length > 0) {
+        out.push(`  !! 圧縮が OFF の経路: ${off.join(" / ")}`);
+        out.push("     → HTML と JS が**そのままのバイト数**で届く（実測で約3倍）。");
+        out.push("     → CloudFront の該当ビヘイビアで「オブジェクトを自動的に圧縮」を ON に。");
+    }
+    if (unknown.length > 0) {
+        out.push(`  ?? 圧縮の設定を読めなかった経路: ${unknown.join(" / ")}`);
+    }
+    if (out.length === 0) out.push("  圧縮: 全経路で ON（測った gzip のバイト数がそのまま届く）");
+    return out;
 }
 
 /** 削除がエッジに残る期間（LEFT-4） */
@@ -177,9 +219,23 @@ async function cdnTtl() {
         }
     }
 
-    for (const b of behaviors) line(describeBehavior(b, policies));
+    for (const l of cdnLines(behaviors, policies)) line(l);
+}
 
-    for (const l of residencyNote()) line(l);
+/**
+ * CDN の節に出す行を全部組み立てる（**純関数**）。
+ *
+ * **配線を「呼んでいるか」ではなく「出た行」で見るため**に切り出した。
+ * 前は `cdnTtl()` の中で3種類を順に `line()` していたので、
+ * **`compressNote` の呼び出しを丸ごと消しても全テストが緑**だった
+ * （変異で確認）。台帳が `reportFunctions` で同じ判断をしている。
+ */
+function cdnLines(behaviors, policies) {
+    return [
+        ...behaviors.map((b) => describeBehavior(b, policies)),
+        ...compressNote(behaviors),
+        ...residencyNote(),
+    ];
 }
 
 /**
@@ -483,7 +539,7 @@ async function main() {
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
 
-module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions };
+module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, cdnLines };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
