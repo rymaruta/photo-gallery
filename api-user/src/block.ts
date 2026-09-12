@@ -10,9 +10,14 @@ import { lookupDisplayNameIfSet, deletedUserIds, DELETED_USER_NAME } from "./not
 // 判定（印の綴りと GetItem 1回）は `blockCheck.ts` にある。
 // **輪を作らないため**の切り出し——このファイルは `follow.ts` の
 // `unfollowQuietly` と `notify.ts` の表示名引きを呼ぶので、
-// あちらからここを import すると輪になる。判定だけを使う側
-// （`follow` / `notify` / `comments` / `stories` / `storyReplies`）は
-// `blockCheck.ts` を直接見る。
+// **あちら（`follow` / `notify`）からここを import すると輪になる**。
+// その2つは `blockCheck.ts` を直接見ること。
+//
+// 一覧をまとめて落とす側（`stories` / `storyReplies` / `notifications`）は
+// 印1つでは足りない（相手が何人いるか分からない）ので、ここの
+// `hiddenUserIds` を import している。**輪にはならない**——`block.ts` から
+// `stories` / `storyReplies` / `notifications` へ戻る辺が無いため。
+// `comments` は未認証の口なので誰が見ているか分からず、どちらも使わない。
 
 /**
  * ブロック。**「この人からの反応を受け取らない」**。

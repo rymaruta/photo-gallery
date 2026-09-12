@@ -10,7 +10,7 @@ import { s3DeleteMany } from "./s3Delete";
 import { invalidateUploads } from "./cdnInvalidate";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { truncate, sanitizeText, sanitizeCoords } from "./sanitize";
-import { storyRepliesId } from "./storyReplies";
+import { storyRepliesId, visibleReplyCount } from "./storyReplies";
 import { hiddenUserIds } from "./block";
 import { isBlocked } from "./blockCheck";
 
@@ -164,6 +164,34 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
             }
         }
         const visible = hidden.size === 0 ? items : items.filter((i) => !hidden.has(String(i.userId ?? "")));
+
+        // **バッジの数も、返信一覧と同じふるいを通した数にする。**
+        //
+        // `replyCount` は行が持つ「全部の数」。`getStoryReplies` がブロック分を
+        // 落とすので、ここを通さないと**バッジだけ多いまま**になる——
+        // 「返信 1件」を押すと「まだ返信はありません」。しかも**ブロックの導線は
+        // 返信一覧の中にしか無い**ので、「返信1件 → 読む → ブロック」＝
+        // いちばん起きる筋でそうなる。`StoryViewer` はこの数が 0 ならボタンを
+        // 出さない（「押しても何も無いボタンを常に置かない」）ので、揃えれば
+        // ボタンごと消える。
+        //
+        // **払うのはブロックしている人の、自分のストーリーのぶんだけ。**
+        // `hidden` が空なら `visibleReplyCount` は即 null を返して読みに行かない
+        // ＝ブロックしていない人（ほとんど）は1回も増えない。自分のストーリーは
+        // 24時間で20本までなので上限も小さい。
+        //
+        // **見張りは1本ずつ。** 「ブロックしていなければ読まない」は
+        // `visibleReplyCount` が持ち（空集合なら即 null）、「自分のストーリー
+        // だけ」は**すぐ上で `replyCount` を落としていること**が持つ。
+        // ここで `userId === userId` や `hidden.size > 0` を書き足すと
+        // 二重になり、**片方を壊してもテストが緑**になる（台帳の型1。実際、
+        // 最初はそう書いて変異2種が生き残った）。
+        const withCount = visible.filter((i) => typeof i.replyCount === "number" && i.replyCount > 0);
+        await Promise.all(withCount.map(async (item) => {
+            const n = await visibleReplyCount(String(item.id ?? ""), hidden);
+            // 読めなければ行の数のまま（バッジを消して唯一の入口を奪わない）
+            if (n !== null) item.replyCount = n;
+        }));
         visible.sort((a, b) => String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? "")));
         return {
             // 認証済みユーザー個別のレスポンスなので共有キャッシュには載せない

@@ -95,6 +95,33 @@ async function readReplies(storyId: string, consistent = false): Promise<StoryRe
     return Array.isArray(items) ? (items as StoryReply[]) : [];
 }
 
+/**
+ * ブロックした相手を除いた返信の数。**バッジ（`replyCount`）を一覧と
+ * 揃えるために `getStories` が使う。**
+ *
+ * 行が持つ `replyCount` は `postStoryReply` が書いた「全部の数」なので、
+ * 読み側でブロック分を落とすと**バッジだけ多いまま**になる
+ * ——「返信 1件」を押したら「まだ返信はありません」。しかも人がブロックを
+ * 押すのは返信一覧の中（`StoryViewer` のブロック導線はそこにしか無い）＝
+ * **返信が1件だけでその1人、がいちばん起きる形**なので、例外ではなく
+ * 常態でそうなる。`StoryViewer` 自身が「0件のときは出さない——押しても
+ * 何も無いボタンを常に置かない」と書いている当の不変条件を破っていた。
+ *
+ * **読めなければ null を返す**（呼び出し側は行の数をそのまま使う）。
+ * ここで 0 に倒すと、一時的な失敗でバッジが消えて**所有者が届いた返信を
+ * 読む唯一の入口を失う**。
+ */
+export async function visibleReplyCount(storyId: string, hidden: Set<string>): Promise<number | null> {
+    if (hidden.size === 0) return null;
+    try {
+        const all = await readReplies(storyId);
+        return all.filter((r) => !hidden.has(r.uid)).length;
+    } catch (e) {
+        console.error(`visibleReplyCount: 返信を読めませんでした（${storyId}）:`, e);
+        return null;
+    }
+}
+
 type StoryItem = {
     story?: boolean; userId?: string; uploadedBy?: string;
     src?: string; expiresAt?: string;
@@ -285,17 +312,17 @@ export const getStoryReplies: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         // **それまでに届いたぶんは名前つきで残る**（ストーリーの残り寿命＝
         // 最大24時間）。通知・閲覧者と同じ型。
         //
-        // **窓を切る前に落とす。** あとで切ると、ブロックした相手の返信が
-        // `REPLIES_MAX` の窓を食って**生きている返信が押し出される**
-        // （招待ページが「死んだ ID で窓を埋めない」としているのと同じ）。
+        // **窓を切る前に落とす。** ただし**今この順序で結果が変わることは無い**
+        // ——`postStoryReply` が保存の時点で必ず `slice(-REPLIES_MAX)` を通す
+        // ので（190行）、`all` が200件を超える状態はどの書き込み経路からも
+        // 作れない。順序をこちらにしておくのは、書き込み側の上限が外れても
+        // 読み側が壊れないようにするため（**現に効いている修正ではない**）。
         //
-        // **バッジとはずれる。** ストーリーの一覧が返す `replyCount` は
-        // 行に持っている数（`postStoryReply` が書く）で、ここは通さない。
-        // つまり「返信 3件」と出たのに開くと2件、が起きうる。
-        // 揃えるには一覧を引くたびに返信の文書を読む（ストーリーの数だけ
-        // GetItem が増える）か、ブロックのたびに相手の返信を消して回る
-        // （他人の書いたものを消す）ことになるので**倒さない**。
-        // ずれる向きは**多い側**に固定で、寿命は最大24時間。
+        // **バッジ（`replyCount`）も同じふるいを通す。** 通していなかった頃は
+        // 「返信 1件」を押すと「まだ返信はありません」になった
+        // ——ブロックの導線は**返信一覧の中にしか無い**ので、
+        // 「返信1件 → 読む → ブロック」といういちばん起きる筋で必ずそうなる。
+        // 揃えるのは `getStories` 側（`visibleReplyCount`）。
         const hidden = all.length === 0
             ? new Set<string>()
             // 読めなければ一覧は返す（`getStories` と同じ判断）
