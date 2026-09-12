@@ -37,6 +37,26 @@ function fontFallback(): string[] {
 
 const GENERIC = new Set(["sans-serif", "serif", "monospace", "cursive", "fantasy", "system-ui", "ui-sans-serif"]);
 
+/**
+ * `public/offline.html` の宣言（**3つ目の写し**）。
+ *
+ * あのページは Service Worker が機内モードで出す受け皿で、**アプリの CSS も
+ * JS も届かない**（それが存在理由）。だから宣言を共有できず、必ず写しになる。
+ *
+ * **並びまで同じにはしない。** あちらは単独のページとして独立に書かれていて
+ * （`-apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif`）、
+ * どちらの並びが良いかは字体の好みの判断＝owner の領分。
+ * ここで縛るのは**壊れ方が同じ2つ**だけ:
+ *   - 総称ファミリで終わらない（ブラウザの既定に落ちる。環境により明朝）
+ *   - 日本語の字体を1つも名指ししない
+ */
+function offlineStack(): string[] {
+    const html = read("public/offline.html");
+    const m = /font-family:\s*([^;}]+)/.exec(html);
+    if (!m) return [];
+    return m[1].split(",").map((x) => x.trim().replace(/^["']|["']$/g, ""));
+}
+
 describe("本文の字体", () => {
     it("ヘッダーの宣言を読めている（空振りしていない）", () => {
         expect(navStack().length).toBeGreaterThan(2);
@@ -62,5 +82,30 @@ describe("本文の字体", () => {
     // 日本語の字体を1つは名指しする（総称だけだと端末の既定任せに戻る）
     it("日本語の字体を名指ししている", () => {
         expect(fontFallback().some((f) => /JP|Japanese|Gothic|ゴシック/i.test(f)), "日本語の字体が並びに無い").toBe(true);
+    });
+});
+
+/**
+ * **機内モードで出るページにも同じ性質を求める。**
+ * ここは `app/globals.css` も `next/font` も届かないので、写しが1つ増える。
+ */
+describe("オフラインの受け皿（public/offline.html）", () => {
+    it("宣言を読めている（空振りしていない）", () => {
+        expect(offlineStack().length).toBeGreaterThan(2);
+    });
+
+    it("総称ファミリで終わる", () => {
+        expect(GENERIC.has(String(offlineStack().at(-1))), `最後が総称でない: ${offlineStack().at(-1)}`).toBe(true);
+    });
+
+    it("日本語の字体を名指ししている", () => {
+        expect(offlineStack().some((f) => /JP|Japanese|Gothic|Hiragino|ゴシック/i.test(f)), "日本語の字体が無い").toBe(true);
+    });
+
+    // 今日 `globals.css` に足したのと同じもの。あちらの CSS は届かないので、
+    // このページは自分で持つ必要がある（実際に持っている）
+    it("暗い配色を宣言している", () => {
+        const html = read("public/offline.html").replace(/<!--[\s\S]*?-->/g, "");
+        expect(/color-scheme:\s*dark/.test(html), "color-scheme: dark が無い（UA の部品が明色のまま）").toBe(true);
     });
 });
