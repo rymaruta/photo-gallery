@@ -9,7 +9,7 @@ import { join } from "node:path";
 // 4つがこの形だった）。ポリシーを引いて秒で出す。
 
 const require_ = createRequire(import.meta.url);
-const { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, compressNote, errorPageNote, cdnLines, securityHeadersNote } = require_("../diagnose-aws.js") as {
+const { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, compressNote, errorPageNote, cdnLines, securityHeadersNote, edgeFunctionNote } = require_("../diagnose-aws.js") as {
     describeBehavior: (b: Record<string, unknown>, p: Map<string, unknown>) => string;
     humanSeconds: (s: unknown) => string;
     residencyNote: () => string[];
@@ -19,6 +19,7 @@ const { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInva
     errorPageNote: (items: Record<string, unknown>[]) => string[];
     cdnLines: (behaviors: Record<string, unknown>[], policies: Map<string, unknown>, errorResponses?: Record<string, unknown>[]) => string[];
     securityHeadersNote: (behaviors: Record<string, unknown>[]) => string[];
+    edgeFunctionNote: (behaviors: Record<string, unknown>[]) => string[];
 };
 
 const OPTIMIZED = new Map([["p1", {
@@ -346,5 +347,83 @@ describe("応答ヘッダーのポリシー", () => {
     it("組み立て（cdnLines）に入っている", () => {
         const out = cdnLines([{ PathPattern: "/uploads/*", CachePolicyId: "p1", Compress: true }], OPTIMIZED);
         expect(out.some((l) => l.includes("応答ヘッダー")), "cdnLines に入っていない").toBe(true);
+    });
+});
+
+
+/**
+ * **エッジの関数が付いているかを、診断が言う。**
+ *
+ * サイトマップの54件も内部リンクも全部**拡張子なし**なのに、`out/` に
+ * 拡張子なしのファイルは0件で、デプロイはキーをそのまま
+ * （`photo/<id>.html`）上げる。オリジンは S3 の REST + OAC なので、
+ * 存在しないキーは 403 → `/404.html`。
+ * **エッジで `/foo` → `/foo.html` に書き換える関数が無ければ、
+ * トップ以外の全ページが 404 になる。**
+ *
+ * その関数のコードは**このリポジトリに無い**（`fix-cdn-static-behavior.js`
+ * と `provision-env.js` が実在を前提に書いているだけ）。しかも
+ * `provision-env.js` の `stripLambdaAssociations` は**これを外す**関数で、
+ * 走らせる先を間違えれば本番の全ページが消える。検知する口が無かった。
+ */
+describe("エッジの関数（拡張子なしURLの書き換え）", () => {
+    const DEFAULT_OK = { LambdaFunctionAssociations: { Items: [{ EventType: "viewer-request" }, { EventType: "origin-response" }] } };
+    const STATIC_CLEAN = { PathPattern: "/_next/static/*", LambdaFunctionAssociations: { Items: [] } };
+
+    it("既定に viewer-request が無ければ、全ページが 404 になると言う", () => {
+        const out = edgeFunctionNote([{ LambdaFunctionAssociations: { Items: [] } }, STATIC_CLEAN]);
+        const text = out.join("\n");
+        expect(text, "見出しの行が無い").toContain("viewer-request のエッジ関数が無い");
+        // **「何が起きるか」まで見る。** 綴りだけだと、結論の行を消しても緑になる
+        expect(text, "結末を言っていない").toContain("トップ以外の全ページ");
+        expect(text, "直し方を言っていない").toContain("付け直す");
+    });
+
+    // **他のイベントで満たしたことにしない。** origin-response だけでは
+    // URL の書き換えはできない（オリジンに投げる前に効く必要がある）
+    it("origin-response だけでは満たさない", () => {
+        const out = edgeFunctionNote([{ LambdaFunctionAssociations: { Items: [{ EventType: "origin-response" }] } }, STATIC_CLEAN]);
+        expect(out.join("\n")).toContain("viewer-request のエッジ関数が無い");
+    });
+
+    // Lambda@Edge でも CloudFront Functions でも書き換えはできる。
+    // 片方しか数えないと、もう片方で運用している日に嘘の警告を出す
+    it("CloudFront Functions で付けていても満たす", () => {
+        const out = edgeFunctionNote([{ FunctionAssociations: { Items: [{ EventType: "viewer-request" }] } }, STATIC_CLEAN]);
+        expect(out.join("\n"), "付いているのに警告している").not.toContain("エッジ関数が無い");
+        expect(out.join("\n")).toContain("拡張子なしURLの書き換えはここ");
+    });
+
+    // `/_next/static/*` は**外れているのが正しい**（fix-cdn-static-behavior.js）。
+    // 逆向きの警告なので、正常系で鳴らないことも一緒に見る
+    it("/_next/static/* に付き直したら、503 で CSS/JS が欠けると言う", () => {
+        const out = edgeFunctionNote([DEFAULT_OK, { PathPattern: "/_next/static/*", LambdaFunctionAssociations: { Items: [{ EventType: "viewer-request" }] } }]);
+        const text = out.join("\n");
+        expect(text).toContain("/_next/static/* にエッジ関数が付いている");
+        expect(text, "結末を言っていない").toContain("503");
+        expect(text).toContain("fix-cdn-static-behavior.js");
+    });
+
+    it("/_next/static/* 専用の動作が無ければ、その旨を言う", () => {
+        const out = edgeFunctionNote([DEFAULT_OK]);
+        expect(out.join("\n")).toContain("専用の動作が無い");
+    });
+
+    it("正常なら、警告を1行も出さない", () => {
+        const out = edgeFunctionNote([DEFAULT_OK, STATIC_CLEAN]);
+        expect(out.filter((l) => l.includes("!!")), `余計な警告: ${out.join(" / ")}`).toEqual([]);
+        expect(out.join("\n")).toContain("viewer-request / origin-response");
+    });
+
+    // **読めなかったのを「付いている」に丸めない**（圧縮・応答ヘッダーと同じ）
+    it("既定の動作が見つからなければ、確かめられなかったと言う", () => {
+        const out = edgeFunctionNote([{ PathPattern: "/api/*" }, STATIC_CLEAN]);
+        expect(out.join("\n")).toContain("確かめられなかった");
+    });
+
+    // **配線は「出た行」で見る**（`cdnLines` から抜けても気づく）
+    it("組み立て（cdnLines）に入っている", () => {
+        const out = cdnLines([{ PathPattern: "/uploads/*", CachePolicyId: "p1", Compress: true }], OPTIMIZED);
+        expect(out.some((l) => l.includes("エッジ関数")), "cdnLines に入っていない").toBe(true);
     });
 });

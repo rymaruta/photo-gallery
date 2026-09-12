@@ -276,9 +276,87 @@ function cdnLines(behaviors, policies, errorResponses) {
         ...behaviors.map((b) => describeBehavior(b, policies)),
         ...compressNote(behaviors),
         ...securityHeadersNote(behaviors),
+        ...edgeFunctionNote(behaviors),
         ...errorPageNote(errorResponses ?? []),
         ...residencyNote(),
     ];
+}
+
+/**
+ * エッジの関数が付いているか（**純関数**）。
+ *
+ * **このサイトで一番外れたら困る設定なのに、診断が一度も見ていなかった。**
+ *
+ * サイトマップの54件も内部リンクも全部**拡張子なし**（`/photo/<id>`・
+ * `/location/%E6%9D%B1%E4%BA%AC`）なのに、`out/` に拡張子なしのファイルは
+ * **0件**で、`deploy-static-site.js` はキーをそのまま上げる
+ * （`photo/<id>.html`）。オリジンは S3 の REST + OAC なので、存在しない
+ * キーは 403 → カスタムエラー応答で `/404.html`（ステータス404）。
+ * **つまり、エッジで `/foo` → `/foo.html` に書き換える関数が無ければ、
+ * トップ以外の全ページが 404 になる。**
+ *
+ * その関数は本番の既定ビヘイビアに付いている Lambda@Edge で、
+ * **コードはこのリポジトリに無い**——`fix-cdn-static-behavior.js` も
+ * `provision-env.js` も「既定ビヘイビアに viewer-request と
+ * origin-response が付いている」前提で書かれている（前者はその実行回数を
+ * 減らすため、後者は staging に引き継がないため）。しかも
+ * `provision-env.js` の `stripLambdaAssociations` は**まさにこれを外す**
+ * 関数で、走らせる先を間違えれば本番の全ページが消える。それを
+ * **検知する口がどこにも無かった。**
+ *
+ * `/_next/static/*` だけは**外れているのが正しい**
+ * （`fix-cdn-static-behavior.js` の目的そのもの。付けたままだと1ページで
+ * 十数回起動し、コールドな初回アクセスで 503 になって CSS/JS が欠ける）。
+ * そこは逆向きに警告する。
+ *
+ * 圧縮・応答ヘッダーと同じ判断（`4548278a`・`cb1ad087`）——
+ * **道具が何も言わない項目は、無いのではなく見ていない。**
+ * **読めなかったのを「付いている」に丸めない。**
+ */
+function edgeAssociations(b) {
+    const lambda = (b?.LambdaFunctionAssociations?.Items ?? []).map((f) => f?.EventType).filter(Boolean);
+    const fns = (b?.FunctionAssociations?.Items ?? []).map((f) => f?.EventType).filter(Boolean);
+    return [...lambda, ...fns];
+}
+
+const STATIC_PATTERN = "/_next/static/*";
+
+function edgeFunctionNote(behaviors) {
+    const out = [];
+    const def = behaviors.find((b) => !b.PathPattern);
+    if (!def) {
+        out.push("  ?? 既定のキャッシュ動作が見つからない（エッジの関数を確かめられなかった）");
+    } else {
+        const evts = edgeAssociations(def);
+        if (!evts.includes("viewer-request")) {
+            out.push("  !! 既定の経路に viewer-request のエッジ関数が無い");
+            out.push("     → 拡張子なしのURL（`/photo/<id>`）を `.html` に書き換える先が無い。");
+            out.push("       S3 に `photo/<id>` というキーは無いので 403 → 404.html。");
+            out.push("       **トップ以外の全ページ（サイトマップの54件すべて）が 404 になる。**");
+            out.push("     → 関数のコードはこのリポジトリに無い。CloudFront の既定ビヘイビアに");
+            out.push("       viewer-request の Lambda@Edge / CloudFront Function を付け直す。");
+        } else {
+            out.push(`  エッジの関数（既定）: ${evts.join(" / ")}（拡張子なしURLの書き換えはここ）`);
+        }
+    }
+
+    const statics = behaviors.filter((b) => b.PathPattern === STATIC_PATTERN);
+    if (statics.length === 0) {
+        out.push(`  !! ${STATIC_PATTERN} 専用の動作が無い（CSS/JS も既定＝エッジ関数を通る）`);
+        out.push("     → 1ページで十数回起動する。コールドな初回アクセスで 503 になり");
+        out.push("       CSS/JS が欠けて画面が崩れる（再現済み）。");
+        out.push("     → node scripts/fix-cdn-static-behavior.js --apply（maintenance に口は無い）");
+    }
+    for (const b of statics) {
+        const evts = edgeAssociations(b);
+        if (evts.length > 0) {
+            out.push(`  !! ${STATIC_PATTERN} にエッジ関数が付いている: ${evts.join(" / ")}`);
+            out.push("     → 1ページで十数回起動する。コールドな初回アクセスで 503 になり");
+            out.push("       CSS/JS が欠けて画面が崩れる（再現済み）。");
+            out.push("     → node scripts/fix-cdn-static-behavior.js --apply（maintenance に口は無い）");
+        }
+    }
+    return out;
 }
 
 /**
@@ -669,7 +747,7 @@ async function main() {
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
 
-module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, securityHeadersNote, publicFnsFromServerless, PUBLIC_FNS, qualify };
+module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, securityHeadersNote, edgeFunctionNote, edgeAssociations, STATIC_PATTERN, publicFnsFromServerless, PUBLIC_FNS, qualify };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
