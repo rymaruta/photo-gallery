@@ -597,11 +597,25 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     const titleText = getLocalized(photo.title, locale) || (typeof photo.title === "string" ? photo.title : "");
     // **画像検索が見るのはこの1枚。** 撮影地まで入れる（`photoAlt.ts`）
     const altText = photoAltText(photo, locale);
-    // もう一方の言語のテキスト。視覚非表示(sr-only)で静的HTMLに含め、
-    // 日英どちらの検索クエリでも拾えるようにする（既定SSRは ja のため主に英語が対象）
-    const otherLocale: "ja" | "en" = locale === "ja" ? "en" : "ja";
-    const otherTitle = getLocalized(photo.title, otherLocale);
-    const otherParagraphs = getLocalizedParagraphs(photo.description, otherLocale);
+    // **もう一方の言語の本文は出さない。**
+    //
+    // 以前はここで英語の題と説明を組み、`sr-only` で静的HTMLに焼いていた
+    // （コメントは「視覚非表示・検索エンジン向け」）。実ビルドで **28/30
+    // ページ**に入っていた。やめる理由:
+    //
+    //   1. **英語のページが存在しない。** `locale` は `ja` 固定で切替は
+    //      `6d72bfb` で撤去済み。英語の検索から来た人は日本語のページに
+    //      着地する。同じ理由で `og:locale:alternate`（I18N-2）・
+    //      JSON-LD の説明・画像サイトマップの日英併記も外してある
+    //   2. **利用者が消せない。** `app/user/edit/page.tsx` が既に書いている
+    //      とおり、**英語を編集・削除する画面はどこにも無い**（この画面も
+    //      `/admin/edit` も日本語欄しか描かない）。日本語を消しても英訳が
+    //      残る形を「消した方を優先する」で潰したのに、**その英訳を
+    //      画面に出し続けていた**
+    //   3. 見えない文字を検索エンジンのためだけに置くのは、Google が
+    //      「隠しテキスト」として名指ししている形に当たる
+    //
+    // **題の英語は捨てていない**——`ImageObject.alternateName` が持つ。
     const locationText = typeof photo.location === "string" ? photo.location : "";
     const paragraphs = getLocalizedParagraphs(photo.description, locale);
 
@@ -728,16 +742,6 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                             <p key={i} className={i === 0 ? "" : "mt-3"}>
                                 {line}
                             </p>
-                        ))}
-                    </div>
-                )}
-
-                {/* 他言語のタイトル/説明（視覚非表示・検索エンジン向け。見た目は不変） */}
-                {((otherTitle && otherTitle !== titleText) || (otherParagraphs.length > 0 && otherParagraphs.join(" ") !== paragraphs.join(" "))) && (
-                    <div className="sr-only" lang={otherLocale}>
-                        {otherTitle && otherTitle !== titleText && <p>{otherTitle}</p>}
-                        {otherParagraphs.join(" ") !== paragraphs.join(" ") && otherParagraphs.map((line, i) => (
-                            <p key={i}>{line}</p>
                         ))}
                     </div>
                 )}
