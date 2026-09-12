@@ -284,6 +284,53 @@ describe("postStoryReply", () => {
         expect(del, "書けなかっただけで返信を消している").toBe(false);
     });
 
+    // **一時的な失敗ではやり直す。** 握って先へ進むと、返信は保存されたのに
+    // 数だけ据え置きになる。最初の1件でそれが起きると `replyCount` が付かず、
+    // `StoryViewer` はその数が 0 ならボタンを出さない＝**所有者はその返信を
+    // 読む手段を失う**（返信一覧を開く入口は他に無い）
+    const countAttempts = () => mockDdbSend.mock.calls
+        .filter((c) => String((c[0] as { input: { UpdateExpression?: string } }).input.UpdateExpression ?? "").includes("replyCount"))
+        .length;
+    const flakyCount = (failTimes: number, err: Error) => {
+        let seen = 0;
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string }; UpdateExpression?: string } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") {
+                if (id.startsWith("block#")) return Promise.resolve({});
+                return Promise.resolve(id === "story-1" ? { Item: STORY } : { Item: { items: [] } });
+            }
+            if (String(cmd.input.UpdateExpression ?? "").includes("replyCount")) {
+                seen++;
+                return seen <= failTimes ? Promise.reject(err) : Promise.resolve({});
+            }
+            return Promise.resolve({});
+        });
+    };
+
+    it("件数の書き込みが一度こけても、やり直して書く", async () => {
+        flakyCount(1, new Error("throttled"));
+        expect((await invoke(postStoryReply, ev("u1", "story-1", { text: "x" }))).statusCode).toBe(200);
+        expect(countAttempts(), "やり直していない（返信はあるのに数が付かない）").toBe(2);
+    });
+
+    // **CCF はやり直さない。** あれは「ストーリーの行が消えた」で、
+    // 待っても戻らない。孤児になった文書を片付けて終わる
+    it("行が消えていた場合はやり直さず、孤児を片付ける", async () => {
+        const ccf = Object.assign(new Error("gone"), { name: "ConditionalCheckFailedException" });
+        flakyCount(99, ccf);
+        await invoke(postStoryReply, ev("u1", "story-1", { text: "x" }));
+        expect(countAttempts(), "消えた行にやり直しをかけている").toBe(1);
+        const del = mockDdbSend.mock.calls.some((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand");
+        expect(del, "辿れなくなった文書を片付けていない").toBe(true);
+    });
+
+    // やり直しに上限がある（一時的な失敗が続いても終わる）
+    it("やり直しは上限で止まる", async () => {
+        flakyCount(99, new Error("throttled"));
+        expect((await invoke(postStoryReply, ev("u1", "story-1", { text: "x" }))).statusCode).toBe(200);
+        expect(countAttempts(), "やり直しの上限が効いていない").toBe(4);   // 初回 + 3回
+    });
+
     // 件数を書けなくても返信そのものは成功（本文はもう入っている）
     it("件数を書けなくても、返信は成功として返す", async () => {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string }; UpdateExpression?: string } }) => {

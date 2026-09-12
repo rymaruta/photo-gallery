@@ -56,6 +56,16 @@ export const REACTIONS = ["❤️", "😍", "😂", "😮", "😢", "👏"] as c
 const REACTION_SET: ReadonlySet<string> = new Set(REACTIONS);
 
 export const REPLIES_MAX = 200;
+
+/**
+ * 返信の数（`replyCount`）を書けなかったときのやり直し。
+ *
+ * **本文はもう入っている**ので、ここで諦めると「返信はあるのに数が無い」
+ * が残る。最初の1件でそうなると**バッジが出ず、所有者はその返信に
+ * 辿り着けない**（入口は返信バッジだけ）。数字は `follow.ts` に揃えた。
+ */
+const COUNT_WRITE_RETRIES = 3;
+const COUNT_RETRY_BASE_MS = 25;
 /**
  * 1人が1つのストーリーに送れる数。
  *
@@ -259,19 +269,38 @@ export const postStoryReply: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
         // （きれいに直すなら `TransactWriteItems`（行の ConditionCheck ＋
         //   文書の Update）だが、`comments.ts` から写した構造ごと変わる。
         //   `viewStory` が同じ事故を長いコメント付きで塞いでいる）
-        await ddb.send(new UpdateCommand({
-            TableName: PHOTOS_TABLE,
-            Key: { id: storyId },
-            UpdateExpression: "SET replyCount = :n",
-            ConditionExpression: "attribute_exists(id)",
-            ExpressionAttributeValues: { ":n": stored.length },
-        })).catch(async (e) => {
-            console.error(`postStoryReply: 件数を書けませんでした（${storyId}）:`, e);
-            if ((e as { name?: string }).name !== "ConditionalCheckFailedException") return;
-            // 行が消えている＝いま作り直した文書は誰も辿れない。片付ける
-            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(storyId) } }))
-                .catch((e2) => console.error(`postStoryReply: 孤児の掃除に失敗（${storyId}）:`, e2));
-        });
+        //
+        // **一時的な失敗ではやり直す。** 握って先へ進むと、返信は保存された
+        // のに数だけ据え置きになる。**最初の1件でそれが起きると `replyCount` が
+        // 付かず、`StoryViewer` はその数が 0 ならボタンを出さない**
+        // ——返信一覧を開く入口は他に無いので、**所有者はその返信を読む手段を
+        // 失う**（ストーリーが消えるまで気づけない）。
+        // やり直しの形は `follow.ts` の `updateFollowing` に揃える。
+        // **CCF はやり直さない**——あれは「行が消えた」で、待っても戻らない。
+        for (let attempt = 0; attempt <= COUNT_WRITE_RETRIES; attempt++) {
+            try {
+                await ddb.send(new UpdateCommand({
+                    TableName: PHOTOS_TABLE,
+                    Key: { id: storyId },
+                    UpdateExpression: "SET replyCount = :n",
+                    ConditionExpression: "attribute_exists(id)",
+                    ExpressionAttributeValues: { ":n": stored.length },
+                }));
+                break;
+            } catch (e) {
+                if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
+                    console.error(`postStoryReply: 行が消えていました（${storyId}）:`, e);
+                    // 行が消えている＝いま作り直した文書は誰も辿れない。片付ける
+                    await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(storyId) } }))
+                        .catch((e2) => console.error(`postStoryReply: 孤児の掃除に失敗（${storyId}）:`, e2));
+                    break;
+                }
+                console.error(`postStoryReply: 件数を書けませんでした（${storyId}・${attempt + 1}回目）:`, e);
+                if (attempt < COUNT_WRITE_RETRIES) {
+                    await new Promise((r) => setTimeout(r, COUNT_RETRY_BASE_MS * 2 ** attempt * (0.5 + Math.random())));
+                }
+            }
+        }
 
         if (ownerId) {
             await pushNotification(ownerId, {
