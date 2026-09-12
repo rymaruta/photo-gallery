@@ -56,9 +56,15 @@ const toAbsolute = (src: string): string => publicImageUrl(src);
  *
  * **併記をやめる理由は3つ**:
  *
- *   1. **ページ自体が日本語だけ。** `locale` は `ja` 固定で切替はもう無く
+ *   1. **ページの本文は日本語。** `locale` は `ja` 固定で切替はもう無く
  *      （`6d72bfb`）、`<html lang="ja">`・`<meta description>` も日本語
- *      だけを出している。**機械向けの経路にだけ英語が残っていた**
+ *      だけを出している。
+ *      **ただし「英語はどこにも無い」わけではない**——写真ページは
+ *      `sr-only` の英語ブロックを静的HTMLに焼いており（実ビルドで
+ *      28/30ページ・`PhotoPageClient.tsx:600`）、そこには同じ
+ *      「日英どちらのクエリでも拾えるように」という意図が書いてある。
+ *      **その1か所をどうするかは別の判断**（残すならここを消した理由と
+ *      食い違う／消すと英語の説明はサイトから無くなる）
  *   2. 台帳が同じ判断を一度している——`og:locale:alternate` は
  *      「英語版があると主張してしまう」ので撤去した（I18N-2）。
  *      英語の題を配るのは、無い英語ページへ英語の検索から人を呼ぶこと
@@ -83,8 +89,14 @@ export function captionOf(p: Photo): string {
     const loc = p.location ? `（${p.location}）` : "";
     // **撮影地は説明のあとに足すので、そのままだと真っ先に切れる。**
     // 撮影地はこの写真の固有名詞＝説明の末尾より情報が濃いので、
-    // 先に席を取ってから説明を詰める
-    return `${truncate(text, Math.max(0, CAPTION_MAX - loc.length))}${loc}`;
+    // 先に席を取ってから説明を詰める。
+    //
+    // **最後にもう一度切るのは上限の保証を落とさないため。** 席を引くだけ
+    // だと、撮影地が上限より長い回に `CAPTION_MAX` を超える（実測
+    // 600字の撮影地で 602字）。サーバーが撮影地を200字に切る
+    // （`api-user/src/photoUpdate.ts` ほか3か所）ので**今は踏めない**が、
+    // 上限を持つ関数が上限を守らない形は残さない
+    return truncate(`${truncate(text, Math.max(0, CAPTION_MAX - loc.length))}${loc}`, CAPTION_MAX);
 }
 
 /**

@@ -77,8 +77,10 @@ function descToText(d: Photo["description"]): string {
  * どこにも無い**（この画面も /admin/edit も日本語欄しか描かない）ので、
  * 利用者には直す手段が無かった。
  *
- * 言語切替の UI は `6d72bfb` で削除済みで、英語が出るのは JSON-LD・
- * `sr-only` の併記・画像サイトマップだけ——「消した」の方を優先する。
+ * 言語切替の UI は `6d72bfb` で削除済み。英語が出るのは
+ * **写真ページの `sr-only` ブロックと、JSON-LD の `alternateName`（題）だけ**
+ * ——説明の日英併記は JSON-LD からも画像サイトマップからも外した
+ * （`8644e451`）。「消した」の方を優先する、の判断は変わらない。
  */
 export function mergeLocalizedTitle(original: Photo["title"], ja: string): Photo["title"] {
     if (!ja) return "";   // 空にした＝消したい（サーバーは空を REMOVE に倒す）
