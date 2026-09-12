@@ -85,7 +85,11 @@ describe("管理の編集画面の写真が取れないとき", () => {
             await screen.findByDisplayValue("海の朝");
             await failPhoto();
             await Promise.resolve();
-            expect(opened, "違う入れ物を開いている").toEqual(["journey-photo-img-v1"]);
+            // **回数では見ない。** `failPhoto` は文言が出るまで `error` を
+            // 撃ち直すので、負荷の高い回は2回開く（実際にフルスイートで落ちた）。
+            // 見たいのは「どの入れ物を開いたか」であって回数ではない
+            expect(opened.length, "控えを開いていない").toBeGreaterThan(0);
+            expect([...new Set(opened)], "違う入れ物を開いている").toEqual(["journey-photo-img-v1"]);
             expect(deleted.some((u) => u.includes("gone.jpg")), "控えを捨てていない").toBe(true);
         } finally { vi.unstubAllGlobals(); }
     });

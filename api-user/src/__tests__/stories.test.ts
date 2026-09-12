@@ -148,6 +148,72 @@ describe("getStories", () => {
         expect(ids, "ブロックが効いていない").toEqual(["s1", "s4"]);
     });
 
+    // **バッジの数も同じふるいを通す。**
+    // `replyCount` は行が持つ「全部の数」で、返信一覧はブロック分を落とす。
+    // 揃えないと「返信 1件」を押して「まだ返信はありません」——しかも
+    // **ブロックの導線は返信一覧の中にしか無い**ので、
+    // 「返信1件 → 読む → ブロック」がいちばん起きる筋で必ずそうなる
+    const storiesWithReplies = (replies: Array<{ uid: string }> | "fail") => {
+        mockDdbSend.mockReset().mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const key = (cmd.input.Key as { id?: string } | undefined)?.id ?? "";
+                if (key.startsWith("storyreplies#")) {
+                    return replies === "fail"
+                        ? Promise.reject(new Error("throttled"))
+                        : Promise.resolve({ Item: { id: key, items: replies } });
+                }
+                return Promise.resolve({});
+            }
+            return Promise.resolve({ Items: [{ id: "s1", userId: "me", createdAt: "1", replyCount: 2 }] });
+        });
+    };
+    const badge = async () => (JSON.parse((await invoke(getStories, authedEvent("me"))).body) as Array<{ replyCount?: number }>)[0].replyCount;
+
+    it("ブロックした相手の返信は、バッジの数からも外す", async () => {
+        mockHidden.mockResolvedValue(new Set(["blocked"]));
+        storiesWithReplies([{ uid: "blocked" }, { uid: "blocked" }]);
+        expect(await badge(), "押しても何も無いボタンが残る").toBe(0);
+    });
+
+    it("生きている返信は数える", async () => {
+        mockHidden.mockResolvedValue(new Set(["blocked"]));
+        storiesWithReplies([{ uid: "blocked" }, { uid: "friend" }]);
+        expect(await badge()).toBe(1);
+    });
+
+    // **読めなければ行の数のまま。** 0 に倒すとバッジが消え、所有者が
+    // 届いた返信を読む唯一の入口を失う
+    it("返信を読めなければ、行の数のままにする", async () => {
+        mockHidden.mockResolvedValue(new Set(["blocked"]));
+        storiesWithReplies("fail");
+        expect(await badge(), "一時的な失敗でバッジを消している").toBe(2);
+    });
+
+    // **ブロックしていない人（ほとんど）は1回も読まない**
+    it("誰もブロックしていなければ、返信の文書を読みに行かない", async () => {
+        mockHidden.mockResolvedValue(new Set<string>());
+        storiesWithReplies([{ uid: "friend" }]);
+        expect(await badge()).toBe(2);
+        const keys = mockDdbSend.mock.calls
+            .map((c) => (c[0].input as { Key?: { id?: string } })?.Key?.id ?? "")
+            .filter((k) => k.startsWith("storyreplies#"));
+        expect(keys, "ブロックしていないのに返信を読みに行っている").toHaveLength(0);
+    });
+
+    // 他人のストーリーの返信数はそもそも返さないので、読みにも行かない
+    it("他人のストーリーの返信は読みに行かない", async () => {
+        mockHidden.mockResolvedValue(new Set(["blocked"]));
+        mockDdbSend.mockReset().mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({});
+            return Promise.resolve({ Items: [{ id: "s9", userId: "someone", createdAt: "1", replyCount: 3 }] });
+        });
+        await invoke(getStories, authedEvent("me"));
+        const keys = mockDdbSend.mock.calls
+            .map((c) => (c[0].input as { Key?: { id?: string } })?.Key?.id ?? "")
+            .filter((k) => k.startsWith("storyreplies#"));
+        expect(keys, "他人のストーリーの返信を読んでいる").toHaveLength(0);
+    });
+
     // **見えなくする側が落ちたときに全部消さない**（倒しすぎ）
     it("ブロック一覧を読めなくても、一覧は返す", async () => {
         mockHidden.mockRejectedValue(new Error("boom"));
@@ -939,6 +1005,54 @@ describe("getStoryViewers", () => {
         expect(gone.deleted).toBe(true);
         // 退会していない人はそのまま
         expect(body.viewers.find((v) => v.userId === "u-a")?.displayName).toBe("A");
+    });
+
+    // **ブロックした相手は一覧に出さない（両向き）。**
+    // 閲覧の記録は `viewStory` の時点で焼き込まれる。`viewStory` が断るのは
+    // これからのぶんだけなので、ブロック前に見られたぶんは名前も `userId` も
+    // 付いたまま残っていた（通知で直したのと同じ型）。
+    const seen = {
+        "u-a": { displayName: "A", at: "2026-07-04T10:00:00Z" },
+        "u-b": { displayName: "B", at: "2026-07-04T11:00:00Z" },
+    };
+    const withViewers = (viewers: Record<string, unknown>) => {
+        mockDdbSend.mockReset().mockResolvedValue({ Item: { id: "story-1", story: true, userId: "owner", viewers } });
+    };
+    const call = async () => JSON.parse(
+        (await invoke(getStoryViewers, authedEvent("owner", { pathParameters: { id: "story-1" } }))).body,
+    ) as { viewers: Array<{ userId: string }>; count: number };
+
+    it("ブロックした相手は閲覧者に出さない", async () => {
+        withViewers(seen);
+        mockHidden.mockResolvedValue(new Set(["u-b"]));
+        const body = await call();
+        expect(body.viewers.map((v) => v.userId), "ブロックした相手が閲覧者に残っている").toEqual(["u-a"]);
+        // **数はこの一覧から導く**（食い違わせない）
+        expect(body.count).toBe(1);
+        // 和集合を引いているか（両向きに効くのはこの関数の性質）
+        expect(mockHidden).toHaveBeenCalledWith("owner");
+    });
+
+    it("ブロックしていなければ誰も落とさない", async () => {
+        withViewers(seen);
+        mockHidden.mockResolvedValue(new Set<string>());
+        const body = await call();
+        expect(body.count).toBe(2);
+    });
+
+    // 見えなくする側が落ちたときに全部消さない（`getStories` と同じ判断）
+    it("ブロック一覧を読めなくても、閲覧者は返す", async () => {
+        withViewers(seen);
+        mockHidden.mockRejectedValue(new Error("throttled"));
+        const body = await call();
+        expect(body.count, "ブロックを読めないだけで閲覧者が消えている").toBe(2);
+    });
+
+    it("閲覧者が居なければブロック一覧も引きに行かない", async () => {
+        withViewers({});
+        mockHidden.mockResolvedValue(new Set<string>());
+        await invoke(getStoryViewers, authedEvent("owner", { pathParameters: { id: "story-1" } }));
+        expect(mockHidden, "閲覧者が居ないのにブロック一覧を読んでいる").not.toHaveBeenCalled();
     });
 });
 

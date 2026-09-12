@@ -3,6 +3,7 @@ import { UpdateCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { notifsId, NOTIFS_MAX, deletedUserIds, DELETED_USER_NAME } from "./notify";
+import { hiddenUserIds } from "./block";
 
 // 通知の取得と既読化。
 // 通知本体は "notifs#<uid>" 文書に { items: Notif[], unread: number } として持つ。
@@ -18,7 +19,39 @@ export const getNotifications: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
     if (!uid) return jsonError(401, "認証が必要です");
     try {
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: notifsId(uid) } }));
-        const items = (Array.isArray(res.Item?.items) ? res.Item.items : []).slice(0, NOTIFS_MAX);
+        const all = (Array.isArray(res.Item?.items) ? res.Item.items : []).slice(0, NOTIFS_MAX);
+
+        // **ブロックした相手の通知は出さない（両向き）。**
+        //
+        // `pushNotification` が断るのは**これから来るぶん**だけ。通知は
+        // 作られた時点の表示名（`byName`）と ID（`byId`）を焼き込んで持つので、
+        // ブロックしても**それまでに届いたぶんはベルに残る**——名前も、
+        // プロフィールへのリンク（`NotificationsBell` の `ROUTES.USER_PROFILE`）も
+        // 生きたまま。50件の輪から押し出されるまで消えない。
+        // ブロックはフォローを両向きに切り、ストーリーも両向きに隠すのに、
+        // ここだけ「見せない相手」を通していた。
+        //
+        // **`hiddenUserIds` は和集合**（自分がブロックした人 ∪ 自分を
+        // ブロックした人）なので、相手が自分をブロックした側も同じ形で消える。
+        // 片側だけ（ブロックした本人の行を掃除する）にすると、もう片方は
+        // **他人の行を書き換える**ことになるうえ、取りこぼしの窓も残る。
+        //
+        // **読めなければ一覧は返す**（`getStories` と同じ判断）。見えなくする側が
+        // 落ちたときに全部消すのは倒しすぎで、通知が一件も出なくなる。
+        const [hidden, gone] = all.length === 0
+            ? [new Set<string>(), new Set<string>()]
+            : await Promise.all([
+                hiddenUserIds(uid).catch((e) => {
+                    console.error("getNotifications: ブロック一覧を読めませんでした:", e);
+                    return new Set<string>();
+                }),
+                deletedUserIds(),
+            ]);
+        const visible = (n: unknown): boolean => {
+            const by = (n as { byId?: unknown }).byId;
+            return !(typeof by === "string" && hidden.has(by));
+        };
+        const items = hidden.size === 0 ? all : all.filter(visible);
         // 未読数は保存件数を超えられない。DynamoDB 側は素のカウンタで、
         // 開かずに溜め続けると保存件数（NOTIFS_MAX）を超えて伸びる。
         // 丸めるのは**ここだけ**——切り詰め側で丸めると、その書き込みが
@@ -27,7 +60,20 @@ export const getNotifications: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
         // と描くので、ズレるのは「開くと50件しか無い」という点だけ）が、
         // 未読数と中身が食い違ったままにはしない。
         const stored = typeof res.Item?.unread === "number" ? res.Item.unread : 0;
-        const unread = Math.max(0, Math.min(stored, items.length));
+        // **未読は「先頭 stored 件」＝位置の意味を持つ数**（追記は
+        // `list_append(:new, existing)` で**先頭が新しい**——`notify.ts:170`）。
+        // なので落としたぶんを**全体の長さ**で丸めるだけでは足りない
+        // ——落ちたのが先頭側（＝未読側）だったことを見ていないため。
+        //
+        // 実際、人がブロックを押すのは「その人から立て続けに通知が来た直後」
+        // なので、**未読がまるごとブロック相手のもの**がいちばん起きる形。
+        // `min(stored, items.length)` だと `[B,B,B,X,Y] / unread=3` で
+        // **2**（既に読んだ X・Y のぶん）が残り、「バッジ2 → 開くと
+        // 『まだ届いていません』」という、この修正が消したはずの症状に戻る。
+        const headCount = Math.max(0, Math.min(stored, all.length));
+        const unread = hidden.size === 0
+            ? headCount
+            : all.slice(0, headCount).filter(visible).length;
 
         // **退会した人の名前は出さない。**
         //
@@ -37,7 +83,6 @@ export const getNotifications: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
         // 残り、プロフィールへのリンクも生きたまま**になる。
         // コメント側（`getComments`）は同じ理由で同じ判定を入れてあるので、
         // そこへ揃える。画面は `deleted` を見て導線を出さない。
-        const gone = items.length === 0 ? new Set<string>() : await deletedUserIds();
         const safeItems = gone.size === 0
             ? items
             : items.map((n) => {

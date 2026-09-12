@@ -16,8 +16,11 @@ vi.mock("../notify", () => ({
     deletedUserIds: mockDeletedIds,
     DELETED_USER_NAME: "退会したユーザー",
 }));
+// ブロックの判定も境界にする（`stories.test.ts` と同じ形）
+const mockHidden = vi.hoisted(() => vi.fn(async () => new Set<string>()));
+vi.mock("../block", () => ({ hiddenUserIds: (...a: unknown[]) => mockHidden(...(a as [])) }));
 
-const { postStoryReply, getStoryReplies, overBudgetCount, REACTIONS, storyRepliesId } =
+const { postStoryReply, getStoryReplies, overBudgetCount, REACTIONS, storyRepliesId, REPLIES_MAX } =
     await import("../storyReplies");
 
 type Result = { statusCode: number; body: string };
@@ -54,6 +57,7 @@ beforeEach(() => {
     mockPush.mockReset().mockResolvedValue(undefined);
     mockLookup.mockReset().mockResolvedValue("旅人A");
     mockDeletedIds.mockReset().mockResolvedValue(new Set<string>());
+    mockHidden.mockReset().mockResolvedValue(new Set<string>());
 });
 
 // **ストーリーを見た人が反応する手段が1つも無かった。** 見て、消える。
@@ -280,6 +284,129 @@ describe("postStoryReply", () => {
         expect(del, "書けなかっただけで返信を消している").toBe(false);
     });
 
+    // **一時的な失敗ではやり直す。** 握って先へ進むと、返信は保存されたのに
+    // 数だけ据え置きになる。最初の1件でそれが起きると `replyCount` が付かず、
+    // `StoryViewer` はその数が 0 ならボタンを出さない＝**所有者はその返信を
+    // 読む手段を失う**（返信一覧を開く入口は他に無い）
+    const countAttempts = () => mockDdbSend.mock.calls
+        .filter((c) => String((c[0] as { input: { UpdateExpression?: string } }).input.UpdateExpression ?? "").includes("replyCount"))
+        .length;
+    const flakyCount = (failTimes: number, err: Error) => {
+        let seen = 0;
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string }; UpdateExpression?: string } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") {
+                if (id.startsWith("block#")) return Promise.resolve({});
+                return Promise.resolve(id === "story-1" ? { Item: STORY } : { Item: { items: [] } });
+            }
+            if (String(cmd.input.UpdateExpression ?? "").includes("replyCount")) {
+                seen++;
+                return seen <= failTimes ? Promise.reject(err) : Promise.resolve({});
+            }
+            return Promise.resolve({});
+        });
+    };
+
+    it("件数の書き込みが一度こけても、やり直して書く", async () => {
+        flakyCount(1, new Error("throttled"));
+        expect((await invoke(postStoryReply, ev("u1", "story-1", { text: "x" }))).statusCode).toBe(200);
+        expect(countAttempts(), "やり直していない（返信はあるのに数が付かない）").toBe(2);
+    });
+
+    // **CCF はやり直さない。** あれは「ストーリーの行が消えた」で、
+    // 待っても戻らない。孤児になった文書を片付けて終わる
+    it("行が消えていた場合はやり直さず、孤児を片付ける", async () => {
+        const ccf = Object.assign(new Error("gone"), { name: "ConditionalCheckFailedException" });
+        flakyCount(99, ccf);
+        await invoke(postStoryReply, ev("u1", "story-1", { text: "x" }));
+        expect(countAttempts(), "消えた行にやり直しをかけている").toBe(1);
+        const del = mockDdbSend.mock.calls.some((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand");
+        expect(del, "辿れなくなった文書を片付けていない").toBe(true);
+    });
+
+    // やり直しに上限がある（一時的な失敗が続いても終わる）
+    it("やり直しは上限で止まる", async () => {
+        flakyCount(99, new Error("throttled"));
+        expect((await invoke(postStoryReply, ev("u1", "story-1", { text: "x" }))).statusCode).toBe(200);
+        expect(countAttempts(), "やり直しの上限が効いていない").toBe(4);   // 初回 + 3回
+    });
+
+    /** 最後に書こうとした件数（`:n`） */
+    const lastWritten = () => {
+        const calls = mockDdbSend.mock.calls
+            .map((c) => c[0] as { input: { UpdateExpression?: string; ExpressionAttributeValues?: Record<string, unknown> } })
+            .filter((c) => String(c.input.UpdateExpression ?? "").includes("replyCount"));
+        return calls.at(-1)?.input.ExpressionAttributeValues?.[":n"];
+    };
+
+    // **やり直すときは数を読み直す。** `stored.length` は追記した瞬間で
+    // 固定されているので、待っている間に別の人の返信が入っていると、
+    // 古い数で**上書きして巻き戻す**（その人の返信がバッジから消える）。
+    // 「2回撃った」だけを見ていると、この巻き戻しを通してしまう
+    it("やり直しの前に数を読み直す（間に入った返信を巻き戻さない）", async () => {
+        let countCalls = 0;
+        let repliesReads = 0;
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string }; UpdateExpression?: string } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") {
+                if (id.startsWith("block#")) return Promise.resolve({});
+                if (id === "story-1") return Promise.resolve({ Item: STORY });
+                repliesReads++;
+                // 1回目（追記の前）は空。やり直しの前に読み直すと、
+                // その間に別の人の返信が入って2件になっている
+                return Promise.resolve(repliesReads === 1
+                    ? { Item: { items: [] } }
+                    : { Item: { items: [{ id: "x", uid: "other", name: "B", text: "y", t: "t" }, { id: "y", uid: "u1", name: "A", text: "x", t: "t" }] } });
+            }
+            if (String(cmd.input.UpdateExpression ?? "").includes("replyCount")) {
+                countCalls++;
+                return countCalls === 1 ? Promise.reject(new Error("throttled")) : Promise.resolve({});
+            }
+            return Promise.resolve({});
+        });
+        await invoke(postStoryReply, ev("u1", "story-1", { text: "x" }));
+        expect(lastWritten(), "古い数を撃ち直してバッジを巻き戻している").toBe(2);
+    });
+
+    // **通知は件数より先に出す。** 件数のやり直しで枠（既定6秒）を使い切ると
+    // `pushNotification` に届かず、所有者は「返信が来たこと」すら知れない
+    it("件数を最後まで書けなくても、通知は出す", async () => {
+        flakyCount(99, new Error("throttled"));
+        await invoke(postStoryReply, ev("u1", "story-1", { text: "x" }));
+        expect(mockPush, "件数のやり直しの後ろに通知を置いている").toHaveBeenCalled();
+        // 順番まで見る（後ろに置くと、枠を使い切った回に届かない）
+        const pushOrder = mockPush.mock.invocationCallOrder[0];
+        const lastCount = mockDdbSend.mock.calls
+            .map((c, i) => ({ c: c[0] as { input: { UpdateExpression?: string } }, i }))
+            .filter((x) => String(x.c.input.UpdateExpression ?? "").includes("replyCount"))
+            .at(-1)!;
+        const lastCountOrder = mockDdbSend.mock.invocationCallOrder[lastCount.i];
+        expect(pushOrder, "通知が件数のやり直しより後ろにある").toBeLessThan(lastCountOrder);
+    });
+
+    // **件数の書き込みは通知の有無に依らない。**
+    // 通知を件数より前に出すよう並べ替えたとき、**やり直しのループごと
+    // `if (ownerId)` の中に入れてしまった**（`ownerId` が無い回は数を
+    // 書かない）。40本すべて緑だったので、構造を見る1本を足す。
+    // **この状態は今のデータでは作れない**（`createStory` は必ず `userId` を
+    // 書く）が、入れ子を戻す変異はここでしか落ちない
+    it("宛先が分からなくても、件数は書く", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") {
+                if (id.startsWith("block#")) return Promise.resolve({});
+                // userId も uploadedBy も持たない行
+                return Promise.resolve(id === "story-1"
+                    ? { Item: { id: "story-1", story: true, src: "https://cdn/x.jpg", expiresAt: "2099-01-01T00:00:00Z" } }
+                    : { Item: { items: [] } });
+            }
+            return Promise.resolve({});
+        });
+        await invoke(postStoryReply, ev("u1", "story-1", { text: "x" }));
+        expect(lastWritten(), "宛先が無いと件数を書かない構造になっている").toBe(1);
+        expect(mockPush, "宛先が無いのに通知を出している").not.toHaveBeenCalled();
+    });
+
     // 件数を書けなくても返信そのものは成功（本文はもう入っている）
     it("件数を書けなくても、返信は成功として返す", async () => {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string }; UpdateExpression?: string } }) => {
@@ -329,6 +456,53 @@ describe("getStoryReplies", () => {
         world(STORY, []);
         await invoke(getStoryReplies, ev("owner", "story-1"));
         expect(mockDeletedIds).not.toHaveBeenCalled();
+    });
+
+    // **ブロックした相手の返信は出さない（両向き）。**
+    // `postStoryReply` が断るのはこれから来るぶんだけで、既に届いたぶんは
+    // `{uid, name}` を焼き込んだまま残っていた（通知・閲覧者と同じ型）
+    it("ブロックした相手の返信は出さない", async () => {
+        mockHidden.mockResolvedValue(new Set(["u2"]));
+        world(STORY, [
+            { id: "r1", uid: "u1", name: "A", text: "ふつう", t: "2026-01-01T00:00:00.000Z" },
+            { id: "r2", uid: "u2", name: "B", text: "ブロックした人", t: "2026-01-02T00:00:00.000Z" },
+        ]);
+        const r = await invoke(getStoryReplies, ev("owner", "story-1"));
+        expect(bodyOf(r).items.map((x: { id: string }) => x.id), "ブロックした相手の返信が残っている").toEqual(["r1"]);
+        // **この応答の中では数と中身を食い違わせない**
+        expect(bodyOf(r).count).toBe(1);
+        expect(mockHidden).toHaveBeenCalledWith("owner");
+    });
+
+    // **窓を切る前に落とす。** あとで切ると、ブロックした相手の返信が
+    // `REPLIES_MAX` の窓を食って生きている返信が押し出される
+    it("窓（REPLIES_MAX）を、ブロックした相手の返信で埋めない", async () => {
+        mockHidden.mockResolvedValue(new Set(["spam"]));
+        const blocked = Array.from({ length: REPLIES_MAX }, (_, i) => (
+            { id: `b${i}`, uid: "spam", name: "B", text: "x", t: `2026-01-02T00:00:${String(i).padStart(2, "0")}.000Z` }
+        ));
+        world(STORY, [{ id: "keep", uid: "u1", name: "A", text: "生きている", t: "2026-01-01T00:00:00.000Z" }, ...blocked]);
+        const r = await invoke(getStoryReplies, ev("owner", "story-1"));
+        expect(bodyOf(r).items.map((x: { id: string }) => x.id), "生きている返信が窓から押し出された").toEqual(["keep"]);
+    });
+
+    it("ブロックしていなければ何も落とさない", async () => {
+        world(STORY, [{ id: "r1", uid: "u1", name: "A", text: "x", t: "t" }]);
+        expect(bodyOf(await invoke(getStoryReplies, ev("owner", "story-1"))).count).toBe(1);
+    });
+
+    // 見えなくする側が落ちたときに全部消さない（`getStories` と同じ判断）
+    it("ブロック一覧を読めなくても、返信は返す", async () => {
+        mockHidden.mockRejectedValue(new Error("throttled"));
+        world(STORY, [{ id: "r1", uid: "u1", name: "A", text: "x", t: "t" }]);
+        expect(bodyOf(await invoke(getStoryReplies, ev("owner", "story-1"))).count,
+            "ブロックを読めないだけで返信が消えている").toBe(1);
+    });
+
+    it("0件ならブロック一覧も引きに行かない", async () => {
+        world(STORY, []);
+        await invoke(getStoryReplies, ev("owner", "story-1"));
+        expect(mockHidden, "返信が無いのにブロック一覧を読んでいる").not.toHaveBeenCalled();
     });
 
     // 本人向けの内容なので共有キャッシュに載せない

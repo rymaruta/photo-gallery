@@ -1,0 +1,106 @@
+name: Token health
+
+# **再ビルドのトークンが死んだことに、誰も気づけなかった。**
+#
+# `REBUILD_DISPATCH_TOKEN` が切れる／取り消される／権限を失うと、
+# 写真の公開・削除・非公開・退会のあとに走るはずの再ビルドが黙って止まる
+# （`api-user/src/rebuild.ts` は警告を1行出して先へ進むので、利用者にも
+#  管理者にも何も出ない）。症状は「出した写真が最大7日 検索に出ない」
+# 「消した写真のページが最大7日残る」で、**次の定期ビルドまで誰も気づかない**。
+#
+# そこで**週1でトークンを実際に使ってみる**。駄目ならこのワークフローが
+# 赤くなり、GitHub が既定でオーナーにメールを送る——新しい通知の仕組みを
+# 増やさずに済む。
+#
+# **ビルドは起きない。** `deploy.yml` が待ち受けているのは
+# `types: [site-rebuild]` だけなので、別の名前で dispatch すれば
+# GitHub は 204 を返すだけで、どのワークフローも走らない。
+# つまり「トークンが生きているか」と「Contents の書き込み権限があるか」を
+# **副作用ゼロで**、本番と同じ口（`POST /repos/{owner}/{repo}/dispatches`）で
+# 確かめられる。
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    # 月曜 00:00 UTC（＝月曜 09:00 JST）。サイトの定期ビルド
+    # （土 18:00 UTC ＝ 日 03:00 JST）の**あと**に置く。壊れていれば
+    # 週明けに気づける。1回あたり約10秒なので枠はほぼ食わない
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 再ビルドのトークンが使えるか確かめる
+        env:
+          # **`run:` のテキストに `${{ secrets.X }}` を埋めない。**
+          # 値に含まれる文字が shell の構文として解釈される（この
+          # リポジトリは同じ形で一度事故を起こしかけている）。
+          # 環境変数として渡し、shell からは参照だけする。
+          TOKEN: ${{ secrets.REBUILD_DISPATCH_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${TOKEN}" ]; then
+            echo "::error::REBUILD_DISPATCH_TOKEN がリポジトリの Secrets にありません。"
+            echo "::error::この状態だと、写真の公開・削除・非公開・退会のあとにサイトが作り直されず、"
+            echo "::error::出した写真が最大7日 検索に出ず、消した写真のページが最大7日残ります。"
+            echo "::error::直し方: Settings → Secrets and variables → Actions → New repository secret"
+            echo "::error::  Name=REBUILD_DISPATCH_TOKEN / 値=fine-grained PAT（このリポジトリの Contents: Read and write）"
+            exit 1
+          fi
+
+          # **本番と同じ口を叩く。** 別の口（GET /repos など）で確かめると
+          # 「読めるが書けない」を見逃す。`event_type` は deploy.yml が
+          # 待ち受けていない名前なので、成功してもビルドは走らない。
+          code=$(curl -sS -o /tmp/out.txt -D /tmp/hdr.txt -w '%{http_code}' \
+            -X POST "https://api.github.com/repos/${REPO}/dispatches" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -d '{"event_type":"token-healthcheck"}')
+
+          if [ "${code}" = "204" ]; then
+            echo "再ビルドのトークンは使えます（${REPO} への dispatch が 204）。"
+
+            # **切れる前に言う。** GitHub は fine-grained PAT の応答に
+            # 残りの期限をヘッダで返す。期限を付けたトークンは、切れた
+            # 瞬間から「削除が最大7日残る」に静かに戻るので、**切れてから
+            # 気づく**のでは遅い。2週間前から警告を出す
+            # （期限なしのトークンではこのヘッダが付かないので、その場合は
+            #  何も言わない）。
+            exp=$(grep -i '^github-authentication-token-expiration:' /tmp/hdr.txt | head -1 | cut -d':' -f2- | tr -d '\r' | sed 's/^ *//') || true
+            if [ -n "${exp:-}" ]; then
+              if left=$(( ( $(date -u -d "${exp}" +%s) - $(date -u +%s) ) / 86400 )) 2>/dev/null; then
+                echo "このトークンの残り: ${left} 日（${exp}）"
+                if [ "${left}" -le 14 ]; then
+                  echo "::error::再ビルドのトークンがあと ${left} 日で切れます（${exp}）。"
+                  echo "::error::切れると、写真の公開・削除・非公開・退会のあとにサイトが作り直されず、"
+                  echo "::error::出した写真が最大7日 検索に出ず、消した写真のページが最大7日残ります。"
+                  echo "::error::直し方: 新しい fine-grained PAT（このリポジトリの Contents: Read and write）を作り、"
+                  echo "::error::  Settings → Secrets and variables → Actions の REBUILD_DISPATCH_TOKEN を差し替える。"
+                  exit 1
+                fi
+              else
+                echo "::warning::残り期限のヘッダを読めませんでした（${exp}）。期限切れは検知できません。"
+              fi
+            else
+              echo "期限なしのトークンです（残り期限のヘッダがありません）。"
+            fi
+            exit 0
+          fi
+
+          echo "::error::再ビルドのトークンが使えません（HTTP ${code}）。"
+          case "${code}" in
+            401) echo "::error::期限切れか、取り消されています。新しい PAT を作って Secrets を差し替えてください。" ;;
+            403) echo "::error::権限が足りません。PAT の Repository permissions → Contents を Read and write にしてください。" ;;
+            404) echo "::error::このリポジトリにアクセスできません。PAT の Repository access に ${REPO} が入っているか確認してください。" ;;
+            *)   echo "::error::想定外の応答です。下の本文を見てください。" ;;
+          esac
+          echo "--- GitHub の応答 ---"
+          cat /tmp/out.txt || true
+          exit 1

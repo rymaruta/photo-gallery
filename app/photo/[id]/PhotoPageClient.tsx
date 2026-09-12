@@ -10,6 +10,7 @@ import type { Photo } from "@/lib/data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
 import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
 import { hapticTap } from "../../../lib/utils/haptics";
+import { photoAltText } from "../../../lib/utils/photoAlt";
 import { dropCachedPhoto } from "../../../lib/utils/photoCache";
 import { parseMusicEmbed } from "../../../lib/utils/music";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
@@ -594,7 +595,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     }
 
     const titleText = getLocalized(photo.title, locale) || (typeof photo.title === "string" ? photo.title : "");
-    const altText = getLocalized(photo.alt, locale) || titleText || "";
+    // **画像検索が見るのはこの1枚。** 撮影地まで入れる（`photoAlt.ts`）
+    const altText = photoAltText(photo, locale);
     // もう一方の言語のテキスト。視覚非表示(sr-only)で静的HTMLに含め、
     // 日英どちらの検索クエリでも拾えるようにする（既定SSRは ja のため主に英語が対象）
     const otherLocale: "ja" | "en" = locale === "ja" ? "en" : "ja";

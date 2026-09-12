@@ -6,6 +6,7 @@ import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { pushNotification, lookupDisplayName, deletedUserIds, DELETED_USER_NAME } from "./notify";
 import { truncate } from "./sanitize";
 import { isBlocked } from "./blockCheck";
+import { hiddenUserIds } from "./block";
 
 /**
  * ストーリーへの返信とリアクション。
@@ -54,7 +55,17 @@ export type StoryReply = {
 export const REACTIONS = ["❤️", "😍", "😂", "😮", "😢", "👏"] as const;
 const REACTION_SET: ReadonlySet<string> = new Set(REACTIONS);
 
-const REPLIES_MAX = 200;
+export const REPLIES_MAX = 200;
+
+/**
+ * 返信の数（`replyCount`）を書けなかったときのやり直し。
+ *
+ * **本文はもう入っている**ので、ここで諦めると「返信はあるのに数が無い」
+ * が残る。最初の1件でそうなると**バッジが出ず、所有者はその返信に
+ * 辿り着けない**（入口は返信バッジだけ）。数字は `follow.ts` に揃えた。
+ */
+const COUNT_WRITE_RETRIES = 3;
+const COUNT_RETRY_BASE_MS = 25;
 /**
  * 1人が1つのストーリーに送れる数。
  *
@@ -92,6 +103,33 @@ async function readReplies(storyId: string, consistent = false): Promise<StoryRe
     }));
     const items = res.Item?.items;
     return Array.isArray(items) ? (items as StoryReply[]) : [];
+}
+
+/**
+ * ブロックした相手を除いた返信の数。**バッジ（`replyCount`）を一覧と
+ * 揃えるために `getStories` が使う。**
+ *
+ * 行が持つ `replyCount` は `postStoryReply` が書いた「全部の数」なので、
+ * 読み側でブロック分を落とすと**バッジだけ多いまま**になる
+ * ——「返信 1件」を押したら「まだ返信はありません」。しかも人がブロックを
+ * 押すのは返信一覧の中（`StoryViewer` のブロック導線はそこにしか無い）＝
+ * **返信が1件だけでその1人、がいちばん起きる形**なので、例外ではなく
+ * 常態でそうなる。`StoryViewer` 自身が「0件のときは出さない——押しても
+ * 何も無いボタンを常に置かない」と書いている当の不変条件を破っていた。
+ *
+ * **読めなければ null を返す**（呼び出し側は行の数をそのまま使う）。
+ * ここで 0 に倒すと、一時的な失敗でバッジが消えて**所有者が届いた返信を
+ * 読む唯一の入口を失う**。
+ */
+export async function visibleReplyCount(storyId: string, hidden: Set<string>): Promise<number | null> {
+    if (hidden.size === 0) return null;
+    try {
+        const all = await readReplies(storyId);
+        return all.filter((r) => !hidden.has(r.uid)).length;
+    } catch (e) {
+        console.error(`visibleReplyCount: 返信を読めませんでした（${storyId}）:`, e);
+        return null;
+    }
 }
 
 type StoryItem = {
@@ -231,20 +269,11 @@ export const postStoryReply: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
         // （きれいに直すなら `TransactWriteItems`（行の ConditionCheck ＋
         //   文書の Update）だが、`comments.ts` から写した構造ごと変わる。
         //   `viewStory` が同じ事故を長いコメント付きで塞いでいる）
-        await ddb.send(new UpdateCommand({
-            TableName: PHOTOS_TABLE,
-            Key: { id: storyId },
-            UpdateExpression: "SET replyCount = :n",
-            ConditionExpression: "attribute_exists(id)",
-            ExpressionAttributeValues: { ":n": stored.length },
-        })).catch(async (e) => {
-            console.error(`postStoryReply: 件数を書けませんでした（${storyId}）:`, e);
-            if ((e as { name?: string }).name !== "ConditionalCheckFailedException") return;
-            // 行が消えている＝いま作り直した文書は誰も辿れない。片付ける
-            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(storyId) } }))
-                .catch((e2) => console.error(`postStoryReply: 孤児の掃除に失敗（${storyId}）:`, e2));
-        });
-
+        // **通知は件数より先に出す。** この関数は既定の6秒で動くので、
+        // 件数のやり直しで枠を使い切ると `pushNotification` に届かない
+        // ——所有者は「返信が来たこと」すら知れなくなる（ベルの1行が
+        // 唯一の手がかり）。通知は件数と独立で、`notify.ts` 側が自前で
+        // 握るので投げない。
         if (ownerId) {
             await pushNotification(ownerId, {
                 type: "storyreply",
@@ -255,6 +284,61 @@ export const postStoryReply: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
                 t: reply.t,
             });
         }
+
+        //
+        // **一時的な失敗ではやり直す。** 握って先へ進むと、返信は保存された
+        // のに数だけ据え置きになる。**最初の1件でそれが起きると `replyCount` が
+        // 付かず、`StoryViewer` はその数が 0 ならボタンを出さない**
+        // ——返信一覧を開く入口は他に無いので、**所有者はその返信を読む手段を
+        // 失う**（ストーリーが消えるまで気づけない）。
+        // やり直しの形は `follow.ts` の `updateFollowing` に揃える。
+        // **CCF はやり直さない**——あれは「行が消えた」で、待っても戻らない。
+        //
+        // **やり直すときは数を読み直す。** `stored.length` は**追記した瞬間**の
+        // 長さで固定されているので、待っている間に別の人の返信が入って
+        // `replyCount` が先に進んでいると、古い数で**上書きして巻き戻す**
+        // （その人の返信がバッジから消える）。`follow.ts` の `updateFollowing` が
+        // やり直しのたびに読み直しているのと同じ理由——形だけ写して
+        // **読み直しを置いてきていた**。読むのは失敗した回だけ。
+        //
+        // **条件式で単調にするのは駄目**（`replyCount < :n` を足す等）。
+        // 下の CCF は「**行が消えた**」と読んで `storyreplies#` を丸ごと
+        // 消すので、「行は在るが数が大きい」でも CCF になった瞬間に
+        // **生きている返信が全部消える**。条件は `attribute_exists(id)` だけに保つ。
+        let count = stored.length;
+        for (let attempt = 0; attempt <= COUNT_WRITE_RETRIES; attempt++) {
+            if (attempt > 0) {
+                // 読めなければ手元の数のまま（撃たないより撃つ方がまし）
+                const fresh = await readReplies(storyId, true).catch((e) => {
+                    console.error(`postStoryReply: 数の読み直しに失敗（${storyId}）:`, e);
+                    return null;
+                });
+                if (fresh) count = fresh.length;
+            }
+            try {
+                await ddb.send(new UpdateCommand({
+                    TableName: PHOTOS_TABLE,
+                    Key: { id: storyId },
+                    UpdateExpression: "SET replyCount = :n",
+                    ConditionExpression: "attribute_exists(id)",
+                    ExpressionAttributeValues: { ":n": count },
+                }));
+                break;
+            } catch (e) {
+                if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
+                    console.error(`postStoryReply: 行が消えていました（${storyId}）:`, e);
+                    // 行が消えている＝いま作り直した文書は誰も辿れない。片付ける
+                    await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(storyId) } }))
+                        .catch((e2) => console.error(`postStoryReply: 孤児の掃除に失敗（${storyId}）:`, e2));
+                    break;
+                }
+                console.error(`postStoryReply: 件数を書けませんでした（${storyId}・${attempt + 1}回目）:`, e);
+                if (attempt < COUNT_WRITE_RETRIES) {
+                    await new Promise((r) => setTimeout(r, COUNT_RETRY_BASE_MS * 2 ** attempt * (0.5 + Math.random())));
+                }
+            }
+        }
+
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, reply }) };
     } catch (e) {
         console.error("postStoryReply error:", e);
@@ -276,7 +360,34 @@ export const getStoryReplies: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         if ((story.userId ?? story.uploadedBy) !== callerId) return jsonError(403, "権限がありません");
 
         const all = await readReplies(storyId);
-        const items = all.slice(-REPLIES_MAX).reverse();   // 末尾追記なので後ろが新しい
+
+        // **ブロックした相手の返信は出さない（両向き）。**
+        //
+        // `postStoryReply` が断るのは**これから来るぶん**だけ。返信は
+        // `{uid, name}` を書き込みの時点で焼き込むので、ブロックしても
+        // **それまでに届いたぶんは名前つきで残る**（ストーリーの残り寿命＝
+        // 最大24時間）。通知・閲覧者と同じ型。
+        //
+        // **窓を切る前に落とす。** ただし**今この順序で結果が変わることは無い**
+        // ——`postStoryReply` が保存の時点で必ず `slice(-REPLIES_MAX)` を通す
+        // ので（190行）、`all` が200件を超える状態はどの書き込み経路からも
+        // 作れない。順序をこちらにしておくのは、書き込み側の上限が外れても
+        // 読み側が壊れないようにするため（**現に効いている修正ではない**）。
+        //
+        // **バッジ（`replyCount`）も同じふるいを通す。** 通していなかった頃は
+        // 「返信 1件」を押すと「まだ返信はありません」になった
+        // ——ブロックの導線は**返信一覧の中にしか無い**ので、
+        // 「返信1件 → 読む → ブロック」といういちばん起きる筋で必ずそうなる。
+        // 揃えるのは `getStories` 側（`visibleReplyCount`）。
+        const hidden = all.length === 0
+            ? new Set<string>()
+            // 読めなければ一覧は返す（`getStories` と同じ判断）
+            : await hiddenUserIds(callerId).catch((e) => {
+                console.error("getStoryReplies: ブロック一覧を読めませんでした:", e);
+                return new Set<string>();
+            });
+        const visible = hidden.size === 0 ? all : all.filter((r) => !hidden.has(r.uid));
+        const items = visible.slice(-REPLIES_MAX).reverse();   // 末尾追記なので後ろが新しい
         // 退会した人の名前は出さない（`getComments` と同じ）。0件なら引きに行かない
         const gone = items.length === 0 ? new Set<string>() : await deletedUserIds();
         const safeItems = gone.size === 0
@@ -286,7 +397,8 @@ export const getStoryReplies: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
             // 本人向けの内容。共有キャッシュに載せない
             statusCode: 200,
             headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
-            body: JSON.stringify({ items: safeItems, count: all.length }),
+            // `count` も落としたあとの数（この応答の中で食い違わせない）
+            body: JSON.stringify({ items: safeItems, count: visible.length }),
         };
     } catch (e) {
         console.error("getStoryReplies error:", e);
