@@ -94,7 +94,30 @@ const PNG_1X1 = Buffer.from(
     "base64",
 );
 
-function sealContext(ctx) {
+async function sealContext(ctx) {
+    // **Service Worker を登録させない。**
+    //
+    // 登録されると2ページ目以降の画像要求を SW が仲介し、**その fetch は
+    // Playwright の route を通らない**ので密閉を破って実ネットワークへ出る
+    // （そして失敗する）。実測でこれが「集約ページ: 写真が並ぶ」を落として
+    // いた。
+    //
+    // **`serviceWorkers: "block"` だけに頼らない。** あちらは
+    // playwright-core の中でプロトコルの検証にしか現れず、**エンジンごとに
+    // 効くかを確かめられない**（この環境に WebKit が無い）。本番は
+    // chromium と webkit の両方を回すので、**どのエンジンでも同じになる
+    // 形**——登録の口そのものを塞ぐ——を主にする。
+    await ctx.addInitScript(() => {
+        try {
+            const sw = navigator.serviceWorker;
+            if (sw) {
+                Object.defineProperty(sw, "register", {
+                    configurable: true,
+                    value: () => Promise.reject(new Error("smoke: service worker disabled")),
+                });
+            }
+        } catch { /* 触れない環境ならそのまま */ }
+    });
     return ctx.route("**/*", (route) => {
         const host = new URL(route.request().url()).hostname;
         if (host === "localhost" || host === "127.0.0.1") return route.continue();
