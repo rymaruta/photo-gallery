@@ -93,6 +93,33 @@ describe("アップロード画面の入力候補", () => {
         expect(optionValues("own-categories")).toContain("街");
     });
 
+    // **タグは datalist が効かない**（欄全体を置き換えるのでカンマ区切りが
+    // 壊れる）ので、押して足せるチップにしてある。**押して本当に入るかを
+    // 見るテストが、この画面には1本も無かった**——`/user/edit` にはあった。
+    // owner の「自分で入力するのではなく決まったのを選ぶ方が楽？」に
+    // 答えるには、grep ではなく実際に押して確かめる必要がある
+    it("タグは押して足せる（カンマ区切りを壊さない）", async () => {
+        await pickOne();
+        const chip = await screen.findByRole("button", { name: "夜景" });
+        await userEvent.click(chip);
+        const field = screen.getByPlaceholderText("タグ（カンマ区切り）") as HTMLInputElement;
+        expect(field.value, "押しても欄に入っていない").toBe("夜景");
+        // 2つ目を足しても1つ目が消えない（datalist にできない理由そのもの）
+        await userEvent.click(await screen.findByRole("button", { name: "街" }));
+        expect(field.value, "前に足したタグが消えている").toBe("夜景, 街");
+        // 同じものを二度押しても増えない
+        await userEvent.click(chip);
+        expect(field.value, "同じタグが2つ入った").toBe("夜景, 街");
+    });
+
+    // **よく使う順**（`collectOwnValues`）。並びが崩れると、いちばん押す
+    // ものが12個の枠から落ちる
+    it("タグの候補は、よく使う順に並ぶ", async () => {
+        await pickOne();
+        const chips = await screen.findAllByRole("button", { name: /^(夜景|街)$/ });
+        expect(chips.map((c) => c.textContent), "よく使う順になっていない").toEqual(["夜景", "街"]);
+    });
+
     // **読めない行が混じっても候補は出す**（1件の巻き添えで全部を失わない）。
     // 枠の数え方は別: `countUserPhotos` は `Select: "COUNT"` なので、
     // 落とした行も上限に数える（「あと3枚」と出て 403 にしない）
