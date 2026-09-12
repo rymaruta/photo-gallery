@@ -158,3 +158,72 @@ describe("appendTag は同じタグを二重に足さない", () => {
         expect(appendTag("", "山")).toBe("山");
     });
 });
+
+/**
+ * **同数のときの決着を「最後に使った順」にした。**
+ *
+ * 実データで数えたら 62種のうち **46種が1枚にしか付いていない**ので、
+ * ほとんどが `total === 1` で並び、決着は文字順だけだった。
+ * `localeCompare` は**日本語をラテン文字の後ろに置く**（実測
+ * `apple < zebra < 白鳥 < 苔`）ので、上限30で切ると**日本語から落ちる**。
+ * 実測: 隠れた29種のうち10種が日本語／チップに出ていた日本語は2種。
+ * 直したあと **8種**が出るようになった（隠れた日本語は4種）。
+ */
+describe("タグの候補は、同数なら最後に使った順", () => {
+    it("同数なら新しく使った方が先", () => {
+        const photos = [
+            P({ tags: ["ふるい"], createdAt: "2024-01-01T00:00:00Z" }),
+            P({ tags: ["あたらしい"], createdAt: "2026-09-01T00:00:00Z" }),
+        ];
+        expect(collectOwnValues(photos).tags).toEqual(["あたらしい", "ふるい"]);
+    });
+
+    // **回数が先なのは変えない。** よく使うタグが上に来る性質は正しい
+    it("回数の方が強い（古くても多く使った方が先）", () => {
+        const photos = [
+            P({ tags: ["よく使う"], createdAt: "2024-01-01T00:00:00Z" }),
+            P({ tags: ["よく使う"], createdAt: "2024-01-02T00:00:00Z" }),
+            P({ tags: ["一度だけ"], createdAt: "2026-09-01T00:00:00Z" }),
+        ];
+        expect(collectOwnValues(photos).tags).toEqual(["よく使う", "一度だけ"]);
+    });
+
+    // **文字順は最後の砦**（毎回同じ並びにするため）
+    it("回数も時刻も同じなら文字順", () => {
+        const photos = [
+            P({ tags: ["い", "あ"], createdAt: "2026-09-01T00:00:00Z" }),
+        ];
+        expect(collectOwnValues(photos).tags).toEqual(["あ", "い"]);
+    });
+
+    // **撮影日を持つ写真は `date` で見る**（`photoOrder` の `photoTimeKey`
+    // に合わせる。並びの規則をこのファイルで作り直さない）
+    it("撮影日があれば投稿日より撮影日で見る", () => {
+        const photos = [
+            P({ tags: ["撮影が新しい"], date: "2026-09-01", createdAt: "2024-01-01T00:00:00Z" }),
+            P({ tags: ["投稿が新しい"], date: "2020-01-01", createdAt: "2026-09-02T00:00:00Z" }),
+        ];
+        expect(collectOwnValues(photos).tags).toEqual(["撮影が新しい", "投稿が新しい"]);
+    });
+
+    // 時刻を持たない写真があっても落ちない（持つ方が先に来る）
+    it("時刻が無い写真も混ぜられる", () => {
+        const photos = [
+            P({ tags: ["時刻なし"] }),
+            P({ tags: ["時刻あり"], createdAt: "2026-09-01T00:00:00Z" }),
+        ];
+        expect(collectOwnValues(photos).tags).toEqual(["時刻あり", "時刻なし"]);
+    });
+
+    // **これが直したかったこと。** 文字順のままだと、上限で切ったときに
+    // 日本語が落ちる
+    it("上限で切るとき、文字順だけでは日本語が落ちる（新しい順なら残る）", () => {
+        const latin = Array.from({ length: 30 }, (_, i) =>
+            P({ tags: [`tag${String(i).padStart(2, "0")}`], createdAt: "2024-01-01T00:00:00Z" }));
+        const jp = P({ tags: ["白鳥"], createdAt: "2026-09-01T00:00:00Z" });
+        const tags = collectOwnValues([...latin, jp]).tags;
+        expect(tags, "新しく使った日本語のタグが候補から落ちている").toContain("白鳥");
+        expect(tags[0]).toBe("白鳥");
+    });
+});
+

@@ -1,5 +1,6 @@
 import type { Photo } from "../data/photos";
 import { tagKey } from "./collections";
+import { photoTimeKey } from "./photoOrder";
 
 /**
  * 自分がこれまでに使った撮影地・カテゴリ・タグを、よく使う順に集める。
@@ -37,7 +38,7 @@ function byFrequency(counts: Map<string, number>): string[] {
  * ことにはならない（`e541b23` で件数側に入れたのと同じ守り）。
  */
 function collectTags(photos: readonly Photo[], limit: number): string[] {
-    const groups = new Map<string, { total: number; raws: Map<string, number> }>();
+    const groups = new Map<string, { total: number; last: string; raws: Map<string, number> }>();
     for (const p of photos) {
         const seen = new Set<string>();
         for (const raw of p.tags ?? []) {
@@ -45,7 +46,7 @@ function collectTags(photos: readonly Photo[], limit: number): string[] {
             const v = raw.trim();
             if (!v) continue;
             const key = tagKey(v);
-            const g = groups.get(key) ?? { total: 0, raws: new Map<string, number>() };
+            const g = groups.get(key) ?? { total: 0, last: "", raws: new Map<string, number>() };
             // **表記の票は、畳む前に必ず数える。** `seen` の後ろに置くと、
             // 1枚の中で2通り書いた片方（先に見た方）の票だけが入り、
             // **同じ写真集合でもタグ配列の並び順で代表表記が変わる**
@@ -57,14 +58,36 @@ function collectTags(photos: readonly Photo[], limit: number): string[] {
                 seen.add(key);
                 g.total += 1;
             }
+            // **そのタグを最後に使ったのはいつか。** 同数のときの決着に使う
+            // （下の説明を参照）。キーの作り方は `photoOrder` に合わせる
+            // ——並びの規則をこのファイルで作り直さない
+            const t = photoTimeKey(p);
+            if (t > g.last) g.last = t;
             groups.set(key, g);
         }
     }
     const label = (g: { raws: Map<string, number> }) =>
         [...g.raws.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
+    // **同数のときは「最後に使った順」。**
+    //
+    // 実データで数えたら **62種のうち46種が1枚にしか付いていない**ので、
+    // ほとんどのタグが `total === 1` で並び、決着は文字順だけだった。
+    // `localeCompare` は**日本語をラテン文字の後ろに置く**（実測
+    // `apple < zebra < 白鳥 < 苔`）ので、上限30で切ると
+    // **日本語のタグから落ちる**——実測で隠れた29種のうち10種が日本語、
+    // 出ていた日本語は2種だけだった。このサイトの弱点は
+    // 「索引に載るタグ8種のうち日本語は1種」なのに、**候補の出し方が
+    // それを強めていた**。
+    //
+    // 旅から帰って続けて上げるときに欲しいのは「昨日使ったタグ」なので、
+    // 同数なら新しい順にする。文字順は**最後の砦**として残す
+    // （毎回同じ並びにするため）。**回数が先なのは変えない**
+    // ——よく使うタグが上に来る性質は正しい。
     return [...groups.values()]
-        .map((g) => ({ total: g.total, name: label(g) }))
-        .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name))
+        .map((g) => ({ total: g.total, last: g.last, name: label(g) }))
+        .sort((a, b) => b.total - a.total
+            || (a.last < b.last ? 1 : a.last > b.last ? -1 : 0)
+            || a.name.localeCompare(b.name))
         .map((g) => g.name)
         .slice(0, limit);
 }
