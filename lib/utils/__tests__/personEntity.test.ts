@@ -93,6 +93,17 @@ describe("空白を詰めた別表記", () => {
         expect("alternateName" in personEntity({ id: "u1", displayName: "John Smith" })).toBe(false);
     });
 
+    /**
+     * **`name` と同じ文字列を `alternateName` に出さない。** 前後の空白しか
+     * 無い名前で `trim()` を落とすと、詰めた形が表示名と一致したまま
+     * 「別の呼び名」として出る（保存側は trim 済みなので本番では起きないが、
+     * この関数が守るべき不変条件）
+     */
+    it("前後の空白しか無い名前では別表記を作らない", () => {
+        expect(spacelessName("  丸田竜平  ")).toBeUndefined();
+        expect(spacelessName("丸田竜平\u3000")).toBeUndefined();
+    });
+
     it("空白が無ければ別表記は生まれない", () => {
         expect(spacelessName("丸田竜平")).toBeUndefined();
         expect(spacelessName("")).toBeUndefined();
@@ -102,8 +113,44 @@ describe("空白を詰めた別表記", () => {
 
     it("仮名・長音・繰り返し記号も日本語名として通す", () => {
         expect(spacelessName("さくら ひなの")).toBe("さくらひなの");
+        // 長音符「ー」（U+30FC）
         expect(spacelessName("マリー ローランサン")).toBe("マリーローランサン");
+        // 繰り返し記号「々」（U+3005）・小書き「ヶ」（U+30F6）
         expect(spacelessName("佐々木 蔦ヶ谷")).toBe("佐々木蔦ヶ谷");
+        // 「〆」（U+3006）・「〇」（U+3007）。〇 は名前を伏せるときに使う
+        expect(spacelessName("井〆 一")).toBe("井〆一");
+        expect(spacelessName("〇〇 太郎")).toBe("〇〇太郎");
+        // ゝゞ（U+309D/309E）
+        expect(spacelessName("さゝ木 一")).toBe("さゝ木一");
+    });
+
+    /**
+     * **基本の漢字（U+4E00-9FFF）だけでは足りない。** どれも実在する姓名の
+     * 字で、**弾いた側は静かに何も出ない**（気づく手がかりが無い）。
+     */
+    it("互換漢字・拡張漢字の名字も通す", () => {
+        expect(spacelessName("山﨑 太郎"), "﨑 U+FA11（互換漢字）").toBe("山﨑太郎");
+        expect(spacelessName("𠮷田 太郎"), "𠮷 U+20BB7（拡張B・サロゲートペア）").toBe("𠮷田太郎");
+        expect(spacelessName("髙橋 花子"), "髙 U+9AD9").toBe("髙橋花子");
+        // 拡張A（U+3400-4DBF）
+        expect(spacelessName("㐂 一郎")).toBe("㐂一郎");
+    });
+
+    /**
+     * **「仮名・漢字だけ」と説明した以上、記号だけの名前は通さない。**
+     * 仮名の塊（U+3040-30FF）をそのまま通すと、濁点記号・中黒・二重
+     * ハイフンまで入り、JSON-LD に意味の無い別表記が出る
+     */
+    it("記号だけの名前は別表記にしない", () => {
+        expect(spacelessName("・ ・"), "中黒 U+30FB").toBeUndefined();
+        expect(spacelessName("゛ ゜"), "濁点・半濁点 U+309B/309C").toBeUndefined();
+        expect(spacelessName("゠ ゠"), "二重ハイフン U+30A0").toBeUndefined();
+    });
+
+    it("半角カナ・全角英数は日本語名として扱わない", () => {
+        expect(spacelessName("ﾏﾙﾀ ﾘｭｳﾍｲ")).toBeUndefined();
+        expect(spacelessName("Ａ Ｂ")).toBeUndefined();
+        expect(spacelessName("丸田 🌸")).toBeUndefined();
     });
 
     // **名乗るのは別表記であって、本来の名前ではない。** name を詰めた形に

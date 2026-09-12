@@ -1,6 +1,6 @@
-import { spacelessName } from "./nameVariants";
 // lib/utils/seo.ts
 // SEO設定と構造化データ生成用のユーティリティ
+import { spacelessName } from "./nameVariants";
 
 /**
  * 公開する画像URLを、**サイトのドメインに揃える**。

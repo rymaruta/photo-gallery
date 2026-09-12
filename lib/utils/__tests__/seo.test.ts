@@ -60,6 +60,20 @@ describe("generatePhotoStructuredData", () => {
     // （空白入り）だが、探す側は「丸田竜平」とも打つ。`/users/<id>` の
     // `Person` と**同じ規則**で別表記を出す（30枚の写真ページと
     // プロフィールが違う名前の集合を名乗ると、同定の手がかりにならない）
+    /**
+     * **本番が通るのは `displayName` の側。** `credit` は
+     * `photo.photographer || photo.displayName` で、実データ30枚は
+     * `photographer` が **0/30**・`displayName` が **30/30**（実測）。
+     * `photographer` だけでテストを書くと、`credit` を `photographer` に
+     * 変える変異が**素通りしたまま本番30ページの別表記が消える**
+     */
+    it("displayName（本番が通る側）でも別表記を出す", () => {
+        const data = generatePhotoStructuredData({ ...base, displayName: "丸田 竜平" });
+        const creator = data.creator as { name: string; alternateName?: string };
+        expect(creator.name).toBe("丸田 竜平");
+        expect(creator.alternateName, "本番の経路で別表記が出ていない").toBe("丸田竜平");
+    });
+
     it("日本語の名前は、空白を詰めた別表記も名乗る", () => {
         const data = generatePhotoStructuredData({ ...base, photographer: "丸田 竜平" });
         const creator = data.creator as { name: string; alternateName?: string };
