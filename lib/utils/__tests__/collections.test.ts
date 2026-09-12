@@ -432,8 +432,9 @@ describe("slugify: URL のパスに置けない文字", () => {
 // （related.ts の sameLocation）が部分一致で食い違っていた。
 // 症状: 写真ページの「「パリ」の他の写真」には3枚出るのに、そこから飛ぶ
 // `/location/パリ` は自分1枚しか無い。しかも実データ14件の撮影地は
-// **1つも MIN_INDEXABLE_COUNT(3) に届かず、14ページ全部が noindex・
-// サイトマップ0件**だった（SEO のために作ったランディングが検索に出ていない）。
+// **1つも3枚に届かず**、当時は撮影地も3枚が線だったので **14ページ全部が
+// noindex・サイトマップ0件**だった（SEO のために作ったランディングが
+// 検索に出ていない）。線は今 `MIN_INDEXABLE_LOCATION`＝2枚。
 describe("撮影地の集約は related と同じ「緩い一致」で見る", () => {
     const photos = [
         { id: "p1", src: "s", location: "パリ" },
@@ -452,8 +453,11 @@ describe("撮影地の集約は related と同じ「緩い一致」で見る", (
         const entries = collectEntries(photos, "location");
         const paris = entries.find((e) => e.slug === "パリ");
         expect(paris?.count).toBe(3);
-        // これで初めて検索エンジンに載せてよい枚数になる
+        // **完全一致に戻すと 1枚**＝この束ね方が効いていることを、
+        // 索引の線をまたぐ形で見る（`count` が3では線が1でも2でも3でも
+        // 緑になり、閾値を何も確かめていなかった）
         expect(isIndexableCollection(paris!.count, "location")).toBe(true);
+        expect(isIndexableCollection(1, "location"), "束ねる前の枚数でも載ってしまう").toBe(false);
     });
 
     it("関係ない地名は混ざらない", () => {

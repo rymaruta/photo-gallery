@@ -14,16 +14,18 @@ import { stripLoneSurrogates } from "./text";
  * `camera` は 2026-09-09 に追加。**同じ機械に鍵を1つ挿すだけ**で、
  * sitemap・OGP・JSON-LD・404救済・相互リンクが丸ごと付いてくる。
  *
- * **数えて分かったこと**（公開30枚・索引に載る条件は3枚以上）:
- *   タグ 62種→7ページ / カテゴリ 10種→4ページ /
- *   撮影地 14種→**4ページ** / 機材 4種→2ページ
+ * **数えて分かったこと**（公開30枚・2026-09-12 に本体の関数で実測）:
+ *
+ *     タグ    59種 → **8ページ**（3枚以上）
+ *     撮影地  14種 → **7ページ**（2枚以上・`MIN_INDEXABLE_LOCATION`）
+ *     カテゴリ 6種 → **3ページ**  機材 4種 → 2ページ
+ *
  * 機材は SONY の2機種だけで公開30枚のうち24枚を覆う。
  *
  * **訂正**: ここに一度「撮影地は0ページ（全部 noindex）」と書いたが**誤り**。
  * 素朴な集計で数えて、この関数群を通していなかった。撮影地は
- * `photosInCollection` の**緩い一致**で既に束ねてあり（下のコメント参照）、
- * フランス4・パリ3・「パリ, フランス」3・「フランス ヴェルサイユ」3 の
- * 4ページが載る。**数えるときは必ずここの関数を通すこと。**
+ * `photosInCollection` の**緩い一致**で既に束ねてある（下のコメント参照）。
+ * **数えるときは必ずここの関数を通すこと。**
  */
 export type CollectionType = "tag" | "location" | "category" | "camera";
 
@@ -193,11 +195,6 @@ function normalizeSlugChars(value: string): string {
 }
 
 /**
- * 検索エンジンに載せてよい最小の写真枚数。
- * 写真1〜2枚＋定型文だけのページを大量に作ると「中身の薄いサイト」と
- * 判断されて全体の評価が下がる。人がサイト内から辿る分には見られる。
- */
-/**
  * タグの同一性を見るキー。
  *
  * 表示は生のタグ（`Mount Fuji`・`#旅`）のままで、**比べるときだけ**
@@ -214,6 +211,12 @@ export function tagKey(value: string | undefined): string {
     return slugify(raw, "tag") || raw;
 }
 
+/**
+ * 検索エンジンに載せてよい最小の写真枚数（タグ・カテゴリ・機材）。
+ * 写真1〜2枚＋定型文だけのページを大量に作ると「中身の薄いサイト」と
+ * 判断されて全体の評価が下がる。人がサイト内から辿る分には見られる。
+ * **撮影地だけは別の線**（`MIN_INDEXABLE_LOCATION`）。
+ */
 export const MIN_INDEXABLE_COUNT = 3;
 
 /**
@@ -334,6 +337,33 @@ function valuesFor(p: Photo, type: CollectionType): string[] {
 
 const isPublished = (p: Photo) => p.published !== false;
 
+/**
+ * 代表の表記を決める共通の規則: **いちばん多く使われた生表記 → 同数なら文字順**。
+ *
+ * **一覧のチップと、飛んだ先の見出しは同じ字でなければならない。**
+ * `/tag/architecture` には「建物」と「architecture」の両方の写真が入るので、
+ * 「最初に当たった生表記」で決めると**写真の並び順で字が変わる**。
+ * `photos.json` は `createdAt` 降順なので、**英語表記のタグを付けた写真を
+ * 1枚投稿するだけで、インデックス済みページの H1 が変わる**
+ * （実測: 正順「建物」／逆順「architecture」）。
+ *
+ * 一度 `labelForSlug` にだけこの規則を入れて `collectEntries` を置いてきた。
+ * 結果、実データで**チップ「#自然」→ 飛んだ先「#nature の写真（4枚）」**と
+ * **チップ「#建物」→「#architecture の写真（3枚）」**の2組が食い違っていた。
+ * だから規則はここ1つに置き、両方から呼ぶ。
+ *
+ * 規則そのものは入力画面の候補チップ（`lib/utils/ownValues.ts`）と同形。
+ */
+function pickRepresentative(votes: Map<string, number>): string | undefined {
+    if (votes.size === 0) return undefined;
+    return [...votes.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
+}
+
+/** 集約エントリのラベル（カテゴリだけは日本語の表示名を優先する） */
+function entryLabel(type: CollectionType, slug: string, votes: Map<string, number>): string {
+    return (type === "category" && categoryDisplayName(slug)) || pickRepresentative(votes) || slug;
+}
+
 export type CollectionEntry = { slug: string; label: string; count: number };
 
 /**
@@ -341,17 +371,24 @@ export type CollectionEntry = { slug: string; label: string; count: number };
  * 同一写真内での重複はカウントしない。件数降順・slug 昇順で安定ソート。
  */
 export function collectEntries(photos: Photo[], type: CollectionType): CollectionEntry[] {
-    const bySlug = new Map<string, { label: string; count: number }>();
+    const bySlug = new Map<string, { votes: Map<string, number>; count: number }>();
     for (const p of photos) {
         if (!isPublished(p)) continue;
         const seen = new Set<string>();
         for (const v of valuesFor(p, type)) {
             const slug = slugify(v, type);
-            if (!slug || seen.has(slug)) continue;
-            seen.add(slug);
-            const cur = bySlug.get(slug);
-            if (cur) cur.count++;
-            else bySlug.set(slug, { label: (type === "category" && categoryDisplayName(slug)) || v, count: 1 });
+            if (!slug) continue;
+            const cur = bySlug.get(slug) ?? { votes: new Map<string, number>(), count: 0 };
+            // **表記の票は、畳む前に必ず数える。** `seen` の後ろに置くと、
+            // 1枚の中で2通り書いた片方の票だけが入る（`ownValues.ts` が
+            // 同じ場所で踏んで直した形）
+            cur.votes.set(v, (cur.votes.get(v) ?? 0) + 1);
+            // 件数は写真1枚につき1回だけ
+            if (!seen.has(slug)) {
+                seen.add(slug);
+                cur.count++;
+            }
+            bySlug.set(slug, cur);
         }
     }
     // 撮影地の件数は photosInCollection と同じ数え方（緩い一致）にする。
@@ -359,15 +396,18 @@ export function collectEntries(photos: Photo[], type: CollectionType): Collectio
     // そして noindex の判定（MIN_INDEXABLE_COUNT）が食い違う。
     if (type === "location") {
         return [...bySlug.entries()]
-            .map(([slug, { label }]) => ({
-                slug,
-                label,
-                count: photos.filter((p) => isPublished(p) && sameLocation(p.location, label)).length,
-            }))
+            .map(([slug, { votes }]) => {
+                const label = entryLabel(type, slug, votes);
+                return {
+                    slug,
+                    label,
+                    count: photos.filter((p) => isPublished(p) && sameLocation(p.location, label)).length,
+                };
+            })
             .sort((a, b) => b.count - a.count || a.slug.localeCompare(b.slug));
     }
     return [...bySlug.entries()]
-        .map(([slug, { label, count }]) => ({ slug, label, count }))
+        .map(([slug, { votes, count }]) => ({ slug, label: entryLabel(type, slug, votes), count }))
         .sort((a, b) => b.count - a.count || a.slug.localeCompare(b.slug));
 }
 
@@ -378,9 +418,11 @@ export function collectEntries(photos: Photo[], type: CollectionType): Collectio
  * ここが完全一致だったせいで、生成側と回遊リンクが食い違っていた:
  * 写真ページの「「パリ」の他の写真」は部分一致で3枚出るのに、そこから
  * 飛ぶ `/location/パリ` は**自分1枚**しか無い、という状態。
- * 実データ14件の撮影地は、完全一致だと**1つも 3枚（MIN_INDEXABLE_COUNT）に
- * 届かず、14ページすべてが noindex・サイトマップ0件**だった——SEO のために
- * 作ったランディングが1枚も検索に出ていなかった。緩い一致なら4つが載る。
+ * 実データ14件の撮影地は、完全一致だと**1つも 3枚に届かない**（当時は
+ * 撮影地も3枚が線だったので、14ページすべてが noindex・サイトマップ0件
+ * ——SEO のために作ったランディングが1枚も検索に出ていなかった）。
+ * 緩い一致で束ねると3枚以上が4つできる。**線は今 `MIN_INDEXABLE_LOCATION`
+ * ＝2枚**なので、緩い一致で7ページ・完全一致でも3ページは載る。
  *
  * 撮影地は「パリ」「パリ, フランス」「オペラ・ガルニエ（パリ）」のように
  * 入れ子の書き方が混ざる。タグ・カテゴリは離散的なラベルなので完全一致のまま。
@@ -409,44 +451,29 @@ export function photosInCollection(photos: Photo[], type: CollectionType, slug: 
     return sortByNewest(photos.filter((p) => isPublished(p) && valuesFor(p, type).some((v) => slugify(v, type) === target)));
 }
 
-/** slug に対応する代表表示ラベル（最初に一致した生の値）。無ければデコードした slug。 */
+/** slug に対応する代表表示ラベル（`pickRepresentative` の規則）。無ければデコードした slug。 */
 export function labelForSlug(photos: Photo[], type: CollectionType, slug: string): string {
     const target = normalizeParam(slug, type);
     if (type === "category") {
         const name = categoryDisplayName(target);
         if (name) return name;
     }
-    // **タグは「最初に当たった生表記」で決めない。**
+    // **「最初に当たった生表記」では決めない**（理由は `pickRepresentative`）。
+    // 一覧のチップ（`collectEntries`）と同じ規則・同じ関数で決める。
     //
-    // 別名でタグを統合したので、`/tag/architecture` には「建物」と
-    // 「architecture」の両方の写真が入る。先頭一致だと**写真の並び順で
-    // 見出し・title・description が変わる**——`photos.json` は `createdAt`
-    // 降順なので、**英語表記のタグを付けた写真を1枚投稿するだけで、
-    // インデックス済みページの H1 が「建物の写真」→「architectureの写真」に
-    // 変わる**（実測: 正順「建物」／逆順「architecture」）。
-    // カテゴリが `categoryDisplayName` で代表を1つに決めている理由と同じ。
-    //
-    // 決め方は**入力画面の候補チップと同じ規則**（最多の生表記 → 文字順）に
-    // 揃える。揃えないと、同じ主題の表示名がサイト内で3通りに割れる
-    // （チップ "architecture" ／ `/tag/` の見出し「建物」／
-    //  `/category/` の見出し「建築」）。
-    if (type === "tag") {
-        const votes = new Map<string, number>();
-        for (const p of photos) {
-            for (const v of valuesFor(p, type)) {
-                if (slugify(v, type) !== target) continue;
-                votes.set(v, (votes.get(v) ?? 0) + 1);
-            }
-        }
-        if (votes.size > 0) {
-            return [...votes.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
-        }
-    }
+    // **数えるのは公開写真だけ。** `collectEntries` と `photosInCollection` は
+    // どちらも `isPublished` で絞るので、ここだけ非公開の表記に票を持たせると
+    // 「並んでいる写真のどれにも無い字」が見出しになりうる。
+    const votes = new Map<string, number>();
     for (const p of photos) {
+        if (!isPublished(p)) continue;
         for (const v of valuesFor(p, type)) {
-            if (slugify(v, type) === target) return v;
+            if (slugify(v, type) !== target) continue;
+            votes.set(v, (votes.get(v) ?? 0) + 1);
         }
     }
+    const rep = pickRepresentative(votes);
+    if (rep) return rep;
     try {
         return decodeURIComponent(slug);
     } catch {

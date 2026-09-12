@@ -87,11 +87,53 @@ describe("タグの日英を1ページに寄せる", () => {
         expect(labelForSlug(photos, "tag", "landscape")).toBe("風景");
     });
 
-    // 同数なら文字順で決める（どちらでもよい場面でも順序に依らせない）
+    // 同数なら文字順で決める（どちらでもよい場面でも順序に依らせない）。
+    // **向きまで見る**——`fwd === rev` だけだと比較を逆向きにしても緑
     it("同数なら文字順で決める", () => {
         const tie = [P({ id: "t1", tags: ["建物"] }), P({ id: "t2", tags: ["architecture"] })];
         expect(labelForSlug(tie, "tag", "architecture")).toBe(
             labelForSlug([...tie].reverse(), "tag", "architecture"));
+        // "architecture" < "建物"（ASCII が先）
+        expect(labelForSlug(tie, "tag", "architecture"), "文字順が逆向き").toBe("architecture");
+    });
+
+    // **一覧のチップと、飛んだ先の見出しは同じ字でなければならない。**
+    // 規則を `labelForSlug` にだけ入れて `collectEntries` を置いてきたとき、
+    // 実データで チップ「#自然」→ 見出し「#nature の写真（4枚）」、
+    // チップ「#建物」→「#architecture の写真（3枚）」と食い違っていた
+    it("チップの字と、飛んだ先の見出しが一致する", () => {
+        // 1枚の写真が「自然」と「nature」の両方を持つ実データの形を写す
+        // （同じ写真内なので件数は1。票は畳む前に数えるので2表記とも入る）
+        const mixed = [
+            P({ id: "m1", tags: ["自然", "nature"] }),
+            P({ id: "m2", tags: ["nature"] }),
+            P({ id: "m3", tags: ["建物"] }), P({ id: "m4", tags: ["architecture"] }), P({ id: "m5", tags: ["architecture"] }),
+        ];
+        for (const e of collectEntries(mixed, "tag")) {
+            expect(e.label, `チップ「${e.label}」と見出しが違う（${e.slug}）`)
+                .toBe(labelForSlug(mixed, "tag", e.slug));
+        }
+        const nature = collectEntries(mixed, "tag").find((e) => e.slug === "nature");
+        expect(nature?.label, "先頭一致のまま（並び順で字が変わる）").toBe("nature");
+    });
+
+    // **チップの字も並び順に依らない**（`collectEntries` 側の回帰よけ）
+    it("チップの字は写真の並び順で変わらない", () => {
+        const fwd = collectEntries(photos, "tag").find((e) => e.slug === "architecture")?.label;
+        const rev = collectEntries([...photos].reverse(), "tag").find((e) => e.slug === "architecture")?.label;
+        expect(fwd, "並び順でチップの字が変わる").toBe(rev);
+        expect(fwd).toBe("architecture");
+    });
+
+    // 非公開の写真の表記に票を持たせない（並ぶ写真のどれにも無い字が
+    // 見出しになる。`collectEntries` と `photosInCollection` は公開だけ見る）
+    it("非公開の表記は見出しの票にしない", () => {
+        const withHidden = [
+            P({ id: "v1", tags: ["architecture"] }),
+            P({ id: "h1", tags: ["建物"], published: false }),
+            P({ id: "h2", tags: ["建物"], published: false }),
+        ];
+        expect(labelForSlug(withHidden, "tag", "architecture"), "非公開の表記が見出しになっている").toBe("architecture");
     });
 
     // **入力画面の候補も1つにまとまる。** ここが割れていると、

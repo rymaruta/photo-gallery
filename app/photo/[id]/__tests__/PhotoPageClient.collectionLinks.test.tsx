@@ -9,12 +9,19 @@ import { collectionPath } from "@/lib/utils/collections";
  *
  * `slugify` は**第2引数に種別を渡したときだけ**別名表（`風景 → landscape`）を
  * 引く。タグのリンクだけ渡し忘れていたので、写真ページのタグは全部
- * `/tag/風景` ＝ **旧URL（canonical が別を指す・索引に載らない側）** を
- * 指していた。写真ページは索引に載るページの約6割で、集約ページへの
- * 内部リンクは**そこからしか出ていない**——寄せた先にリンクが1本も
- * 集まらない状態だった。
+ * `/tag/風景`＝**統合前のURL**を指していた。あちらのページは
+ * `photosInCollection` が統合後で数えるので中身も枚数も同じだが、
+ * **canonical は `/tag/landscape` を指す**——つまり「この URL は正規では
+ * ない」と自分で申告しているページへ、内部リンクを集めていた。
+ * 写真ページは索引に載るページの約6割で、そこからのリンクが
+ * 統合後のページに1本も入らない状態だった
+ * （集約ページどうしの相互リンク〈`relatedEntries`〉は統合後を指すので
+ *  「1本も無い」のはあくまで写真ページ由来のぶん）。
  *
- * 種別はスラッグに効く唯一の引数なので、**リンク4種すべて**を見る。
+ * **種別が効くのは `category` と `tag` だけ**（`slugify` の別名表の行）。
+ * `location`・`camera` に渡しても値は変わらないので、そこは
+ * 「**別名表を当てない**」ことの方を見る——撮影地に `建物` という地名が
+ * 入っても `/location/建物` のままであること。
  */
 vi.mock("../../../auth/context", () => ({
     useAuth: () => ({ isAuthenticated: false, userId: null, loading: false }),
@@ -72,11 +79,21 @@ describe("集約ページへの内部リンク", () => {
             .toBe(collectionPath("category", "architecture"));
     });
 
-    it("撮影地とカメラは別名表を当てずにリンクする", async () => {
+    // **表に載っている語を撮影地に入れる。** 載っていない語（高屋神社）だと
+    // 別名表を当てても当てなくても同じ値になり、何も確かめていない
+    it("撮影地には別名表を当てない", async () => {
+        const placed = { ...photo, location: "建物" } as unknown as Photo;
+        render(<PhotoPageClient photoId="p1" initialPhoto={placed} />);
+        await screen.findByText("テスト写真");
+        expect(hrefOf("この場所の写真"), "地名を architecture に寄せている")
+            .toBe(collectionPath("location", "建物"));
+    });
+
+    it("カメラは保存済みの機種名からリンクする", async () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={photo} />);
         await screen.findByText("テスト写真");
+        expect(hrefOf("SONY ILCE-7M3")).toBe(collectionPath("camera", "sony-ilce-7m3"));
         expect(hrefOf("この場所の写真"))
             .toBe(collectionPath("location", "香川県-観音寺市-高屋神社"));
-        expect(hrefOf("SONY ILCE-7M3")).toBe(collectionPath("camera", "sony-ilce-7m3"));
     });
 });

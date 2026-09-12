@@ -53,9 +53,11 @@ export async function collectionMetadata(type: CollectionType, slug: string): Pr
         description,
         keywords: [label, "旅", "写真", "フォトギャラリー"].filter(Boolean),
         alternates: { canonical: url },
-        // 写真が少ないページは検索エンジンに載せない。
-        // 写真1〜2枚＋定型文だけのページを大量に作ると「中身の薄いサイト」と
-        // 判断され、サイト全体の評価が下がる。サイト内から辿る分には見られる。
+        // 写真が少ないページは検索エンジンに載せない。定型文だけのページを
+        // 大量に作ると「中身の薄いサイト」と判断され、サイト全体の評価が
+        // 下がる。サイト内から辿る分には見られる。
+        // **線は種別で違う**（タグ・カテゴリ・機材は3枚、撮影地は2枚）ので、
+        // 枚数の条件はここに書かず `isIndexableCollection` に集めてある。
         robots: isIndexableCollection(matched.length, type) ? undefined : { index: false, follow: true },
         openGraph: {
             type: "website",
