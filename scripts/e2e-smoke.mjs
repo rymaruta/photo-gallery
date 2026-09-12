@@ -257,6 +257,38 @@ async function runChecks(browser, eng) {
         await expectMenuWorks(page, `[${eng}] プロフィール`);
     }
 
+    // 集約ページ（タグ／カテゴリ／撮影地／機材）。**生成の 86/140 がここ**で、
+    // 検索から人が着地する側でもあるのに、このスモークは一度も開いていなかった。
+    //
+    // **見るのは「写真が並ぶこと」。** 集約ページはサーバーが写真を props で
+    // 渡す（`CollectionPage` → `CollectionPageClient` → `GalleryGrid`）ので、
+    // 渡す項目を絞りすぎると**静的HTMLは出るのに、水和後にサムネが消える**。
+    // 実際 2026-09-12 に props を絞ったが、**それを見る仕組みが無かった**
+    // （`GalleryGrid` が読む項目は `lib/utils/__tests__/slimForLinks.test.ts`
+    //  が縛るが、あれは単体テスト——配線が壊れても気づけない）。
+    const tagDir = path.join(OUT, "tag");
+    const tags = fs.existsSync(tagDir)
+        ? fs.readdirSync(tagDir).filter((f) => f.endsWith(".html") && f !== "_none.html")
+        : [];
+    if (tags.length > 0) {
+        console.log(`\n[${eng}][3] 集約ページ`);
+        const slug = tags[0].replace(/\.html$/, "");
+        await page.goto(`http://localhost:${PORT}/tag/${encodeURIComponent(slug)}`, { waitUntil: "domcontentloaded" });
+        check(`[${eng}] 集約ページ: ハイドレーション完了`, await waitForHydration(page));
+        const grid = await page.evaluate(() => ({
+            h1: document.querySelector("h1")?.textContent?.trim() ?? "",
+            imgs: document.querySelectorAll("img").length,
+            broken: [...document.querySelectorAll("img")].filter((i) => i.complete && i.naturalWidth === 0).length,
+            links: document.querySelectorAll("a[href^='/photo/'],a[href^='/?photo=']").length,
+        }));
+        check(`[${eng}] 集約ページ: 見出しが出る`, grid.h1.length > 0, grid.h1);
+        // **水和のあとに数える。** 静的HTMLだけ見ても「消える」形は捕まらない
+        check(`[${eng}] 集約ページ: 写真が並ぶ`, grid.imgs > 0, `img=${grid.imgs}`);
+        check(`[${eng}] 集約ページ: 壊れた画像が無い`, grid.broken === 0, `broken=${grid.broken}`);
+        check(`[${eng}] 集約ページ: 写真へのリンクがある`, grid.links > 0, `links=${grid.links}`);
+        await expectMenuWorks(page, `[${eng}] 集約ページ`);
+    }
+
     const realErrors = bag.pageErrors.filter((m) => !isExpectedNetworkNoise(m));
     check(`[${eng}] 実行時のJSエラーがない`, realErrors.length === 0, realErrors.slice(0, 3).join(" / "));
     reportDiagnostics(`${eng}/mobile`, bag);
