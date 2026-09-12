@@ -19,7 +19,43 @@ import MiniPlayer from "./components/MiniPlayer";
 import { LocaleProvider } from "./i18n/context";
 import { siteConfig, generateWebSiteStructuredData, INDEXABLE_ROBOTS, FEED_ALTERNATE } from "../lib/utils/seo";
 
-const inter = Inter({ subsets: ["latin"], weight: ["400", "700", "900"], display: "swap" });
+/**
+ * **日本語の字体を宣言する。**
+ *
+ * `Inter` は日本語のグリフを持たない。生成されるクラスは
+ * `font-family: Inter, "Inter Fallback"` **だけ**で、総称ファミリ
+ * （`sans-serif`）が付かない。`globals.css` の
+ * `html, body { font-family: Arial, Helvetica, sans-serif }` は
+ * **クラスの方が詳細度が高いので効かない**（実ビルドの CSS で確認）。
+ *
+ * つまりこのサイトの本文（ほぼ全部が日本語）は**どのフォントも宣言されて
+ * いない**状態で、ブラウザの既定に落ちていた。既定は環境ごとに違う。
+ * 一方**ヘッダーだけは `.site-header__nav` で
+ * `"Noto Sans JP", system-ui, -apple-system, sans-serif` を宣言している**
+ * ので、同じページの中で見出しと本文の字体が割れうる。
+ *
+ * `fallback` に**そのヘッダーと同じ並び**を渡して揃える
+ * （`app/__tests__/fontStack.test.ts` が2つの一致を縛る）。
+ * **新しい字体を持ち込んでいない**——`Noto Sans JP` は端末に在れば使う
+ * 名前で、ここから webfont を落とすわけではない。
+ *
+ * **代償を測った。** `fallback` を渡すと Next は CLS 対策の
+ * `Inter Fallback`（Arial を Inter の字幅に合わせた面）を出さなくなる。
+ * 実ビルドをフォント 1.5 秒遅延で測った CLS は
+ * **元 0.0008 / 変更後 0.0006**＝誤差。本文がほぼ日本語で Inter が
+ * もともと当たらないため。
+ *
+ * ⚠️ **字体の見た目の差はこの環境では測れていない**（コンテナに CJK
+ * フォントが1つしか無く、serif と sans-serif が同じ幅になる）。
+ * 直したのは「総称ファミリも日本語の字体も宣言されていない」という
+ * CSS の側の事実。
+ */
+const inter = Inter({
+    subsets: ["latin"],
+    weight: ["400", "700", "900"],
+    display: "swap",
+    fallback: ["Noto Sans JP", "system-ui", "-apple-system", "sans-serif"],
+});
 
 // Instagram IAB / iOS Safari でブラウザUIを除いた実際の表示領域を使う
 // viewportFit=cover でノッチ・ホームインジケーター領域の safe-area-inset を有効化
