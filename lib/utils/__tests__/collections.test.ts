@@ -352,9 +352,33 @@ describe("CATEGORY_ALIASES: 表記ゆれを1か所で吸収する", () => {
         expect(CATEGORY_ALIASES["風景"]).toBe("landscape");
     });
 
-    it("カテゴリ以外の種別には別名を当てない", () => {
-        expect(slugify("建物", "tag")).toBe("建物");
+    // **タグにも当てるようにした（2026-09-12）。**
+    //
+    // このテストは元々「当てない」を固定していたが、それは表を1本化した
+    // ときに**適用範囲を止めた見張り**で、「タグには当ててはいけない」と
+    // いう判断ではなかった（`4c27d71e` の理由は「表が2か所にあった」）。
+    //
+    // 実データで測ると、同じ主題が**別々の写真に別の言語で**付いていた:
+    //
+    //     風景 3枚 / landscape 1枚      ご飯 1枚 / restaurant 3枚
+    //     自然 2枚 / nature 3枚         建物 1枚 / architecture 2枚
+    //
+    // どちらも 3枚（`MIN_INDEXABLE_COUNT`）に届かず**両方 noindex**になる。
+    // 寄せれば3〜4枚で検索に載る。副産物として入力画面の候補チップ
+    // （`collectOwnValues` が `tagKey` で畳む）も1つにまとまる。
+    it("タグにも別名を当てる（同じ主題が日英で2ページに割れていた）", () => {
+        expect(slugify("建物", "tag")).toBe("architecture");
+        expect(slugify("風景", "tag")).toBe("landscape");
+        expect(slugify("自然", "tag")).toBe("nature");
+    });
+
+    // **撮影地と機材には当てない。** どちらも固有名詞で、表の語
+    //（風景・建物…）と同じ綴りでも意味が違う。「建物」という地名を
+    // `/location/architecture` に寄せるのは明確に誤り
+    it("撮影地と機材には別名を当てない（固有名詞なので）", () => {
         expect(slugify("建物", "location")).toBe("建物");
+        expect(slugify("建物", "camera")).toBe("建物");
+        expect(slugify("風景", "location")).toBe("風景");
     });
 });
 

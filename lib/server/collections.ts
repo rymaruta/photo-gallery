@@ -9,6 +9,7 @@ import {
     collectEntries,
     isIndexableCollection,
     legacyCategorySlugs,
+    legacyTagSlugs,
     photosInCollection,
     labelForSlug,
     collectionCopy,
@@ -25,6 +26,8 @@ export async function collectionStaticParams(type: CollectionType, paramKey: str
     // `/category/風景` などもページとして残す（静的エクスポートではリダイレクトが
     // 張れず、消すとハード404になるため）。中身は統合後と同じで、canonical で寄せる。
     if (type === "category") slugs.push(...legacyCategorySlugs(photos));
+    // タグも同じ別名表で統合したので、同じだけ旧URLを残す
+    if (type === "tag") slugs.push(...legacyTagSlugs(photos));
     // 写真が0件でも1件は返す（空だと output: export がビルドを落とす）
     return withPlaceholderParam(slugs.map((slug) => ({ [paramKey]: slug })), paramKey);
 }

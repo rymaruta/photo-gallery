@@ -115,7 +115,19 @@ function clampSlugBytes(s: string): string {
 export function slugify(value: string, type?: CollectionType): string {
     const base = normalizeSlugChars(value);
     if (/^\.+$/.test(base)) return "";
-    if (type === "category" && Object.hasOwn(CATEGORY_ALIASES, base)) return CATEGORY_ALIASES[base];
+    // **タグにも同じ別名表を当てる。** 実データで「風景3枚 / landscape 1枚」
+    // 「ご飯1枚 / restaurant 3枚」「建物1枚 / architecture 2枚」のように、
+    // **同じ主題が別々の写真に別の言語で付いて**2ページに割れていた。
+    // どちらも 3枚（`MIN_INDEXABLE_COUNT`）に届かず**両方 noindex**になる形。
+    // 寄せると3〜4枚になって検索に載る。
+    //
+    // **新しい表は作らない。** カテゴリで既に持っている表を使う
+    // （表を増やすと、owner が育てないぶん静かに古くなる——別名表を
+    //  「私が毎回直す」形は一度断られている）。
+    //
+    // 副産物として `tagKey` も寄るので、入力画面の候補チップ
+    // （`collectOwnValues`）が畳まれて**選びやすくなる**。
+    if ((type === "category" || type === "tag") && Object.hasOwn(CATEGORY_ALIASES, base)) return CATEGORY_ALIASES[base];
     const cut = clampSlugBytes(base);
     // **切った結果が `.` だけになることもある。** 上の判定は切る前の値を
     // 見ているので、`"...(250個)x"` は全ドットではない → 通過 → 切ると
@@ -218,13 +230,33 @@ export function isIndexableCollection(count: number): boolean {
  * 旧URLもページとして残し、canonical で統合後へ寄せる。
  */
 export function legacyCategorySlugs(photos: Photo[]): string[] {
+    return legacyAliasSlugs(photos, (p) => [p.category]);
+}
+
+/**
+ * タグ側の旧スラッグ。**`/tag/風景` を残す。**
+ *
+ * カテゴリと同じ理由——統合すると `/tag/風景` が生成されなくなり、
+ * 静的エクスポート（`dynamicParams=false`）ではリダイレクトの層が無いので
+ * **ハード404**になる。外部リンクと、既に Google が持っている URL を
+ * 落とすことになる（`sitemap.xml` は3枚未満を載せないので送信済みの
+ * 50件には入っていないが、**内部リンクからクロールされている**）。
+ */
+export function legacyTagSlugs(photos: Photo[]): string[] {
+    return legacyAliasSlugs(photos, (p) => p.tags ?? []);
+}
+
+/** 別名表で統合された「統合前の名前」のうち、実際に写真が使っているもの */
+function legacyAliasSlugs(photos: Photo[], pick: (p: Photo) => readonly unknown[]): string[] {
     const out = new Set<string>();
     for (const p of photos) {
         if (!isPublished(p)) continue;
-        const raw = (p.category ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
-        // 別名表に載っていて、かつ統合後の名前と違うものだけが「旧URL」
-        const canonical = CATEGORY_ALIASES[raw];
-        if (canonical && canonical !== raw) out.add(raw);
+        for (const v of pick(p)) {
+            const raw = (typeof v === "string" ? v : "").trim().toLowerCase().replace(/\s+/g, "-");
+            // 別名表に載っていて、かつ統合後の名前と違うものだけが「旧URL」
+            const canonical = CATEGORY_ALIASES[raw];
+            if (canonical && canonical !== raw) out.add(raw);
+        }
     }
     return [...out];
 }
@@ -402,7 +434,8 @@ export function collectionPath(type: CollectionType, slug: string): string {
  * 対して、構造化データが逆を言っていた。組み立てを1か所にする。
  */
 export function canonicalCollectionPath(type: CollectionType, slug: string): string {
-    const canonicalSlug = type === "category" ? canonicalCategorySlug(slug) : slug;
+    // タグも別名表で統合するので、旧スラッグの canonical は統合後へ向ける
+    const canonicalSlug = type === "category" || type === "tag" ? slugify(decodeURIComponentSafe(slug), type) : slug;
     return collectionPath(type, canonicalSlug);
 }
 
