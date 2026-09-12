@@ -32,11 +32,15 @@ const mockHidden = vi.hoisted(() => vi.fn(async () => new Set<string>()));
 // 全テストのモックに `block#` の分岐を足して回ることになり、
 // **本題と関係のない行が増えて読めなくなる**。
 // ブロックが効くことは、このファイルの専用のテストで見る。
-vi.mock("../blockCheck", () => ({
+// `hiddenUserIds` は `blockCheck.ts` へ移した（`follow.ts` から `block.ts` を
+// import して輪を作ったため。読むだけの物は1か所に集めた）。
+// **全置換にしない。** 「読むだけの物はここに集める」という方針の下では、
+// このファイルが新しい読み取りを import した瞬間に、書いていない export が
+// **エラーではなく `undefined`** になって静かに壊れる
+vi.mock("../blockCheck", async (importActual) => ({
+    ...(await importActual<typeof import("../blockCheck")>()),
     isBlocked: (...a: unknown[]) => mockIsBlocked(...(a as [])),
     blockMarkerId: (a: string, b: string) => `block#${a}#${b}`,
-    // `hiddenUserIds` は `blockCheck.ts` へ移した（`follow.ts` から
-    // `block.ts` を import して輪を作ったため。読むだけの物は1か所に集めた）
     hiddenUserIds: (...a: unknown[]) => mockHidden(...(a as [])),
 }));
 // 退会の判定も境界にする。本物は 60秒の控えを持つので、テストの順番で

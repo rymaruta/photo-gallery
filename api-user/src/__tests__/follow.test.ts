@@ -26,7 +26,10 @@ vi.mock("../notify", () => ({
 // `hiddenUserIds` も同じ理由で境界として差し替える（素で通すと
 // `blocks#` と `blockedby#` の GetItem が2本増えて、順番に答えさせている
 // テストが1つずつずれる）。集合の作り方そのものは `block.test.ts` が見る。
-vi.mock("../blockCheck", () => ({
+// **全置換にしない**（`stories.test.ts` と同じ理由。新しい読み取りを
+// import した日に、書いていない export が `undefined` で静かに壊れる）
+vi.mock("../blockCheck", async (importActual) => ({
+    ...(await importActual<typeof import("../blockCheck")>()),
     isBlocked: mockIsBlocked,
     hiddenUserIds: (uid: string) => mockHidden(uid),
 }));

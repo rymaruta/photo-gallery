@@ -23,16 +23,74 @@ import path from "node:path";
  */
 const SRC = path.join(__dirname, "..");
 
+/**
+ * コメントを落としてから走査する。**コメントの中にモジュール名を書くだけで
+ * 偽の辺ができる**——このリポジトリは doc コメントで隣のファイルを頻繁に
+ * 名指しする（この節も `block.ts` と書いている）ので、実際に踏みやすい。
+ * 文字列リテラルの中の `//` を消さないよう、行コメントは
+ * 「引用符に挟まれていない `//`」だけを落とす。
+ */
+export function stripComments(src: string): string {
+    return src
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n")
+        .map((line) => {
+            let quote: string | null = null;
+            for (let i = 0; i < line.length; i++) {
+                const c = line[i];
+                if (quote) {
+                    if (c === "\\") i++;
+                    else if (c === quote) quote = null;
+                } else if (c === '"' || c === "'" || c === "`") {
+                    quote = c;
+                } else if (c === "/" && line[i + 1] === "/") {
+                    return line.slice(0, i);
+                }
+            }
+            return line;
+        })
+        .join("\n");
+}
+
+/**
+ * 1ファイルが実行時に読むモジュール。
+ *
+ *   - `import ... from "./x"` / `export ... from "./x"`
+ *   - **`await import("./x")` も数える**（`rebuild.ts:45` に実在する。
+ *     `from` を伴わないので、素朴な走査では取りこぼす）
+ *   - **`import type` は数えない**（コンパイルで消えるので実行時の輪に
+ *     ならない。数えると「型だけの輪」で意味のない書き換えを強いる）
+ */
+export function depsOf(src: string): string[] {
+    const body = stripComments(src);
+    const out: string[] = [];
+    for (const m of body.matchAll(/(^|\n)\s*import\s+type\b[^\n]*?from\s+"\.\/([A-Za-z0-9_-]+)"/g)) {
+        out.push(`!type:${m[2]}`);
+    }
+    const typeOnly = new Set(out.map((x) => x.slice(6)));
+    const deps: string[] = [];
+    for (const m of body.matchAll(/\bfrom\s+"\.\/([A-Za-z0-9_-]+)"/g)) deps.push(m[1]);
+    for (const m of body.matchAll(/\bimport\s*\(\s*"\.\/([A-Za-z0-9_-]+)"\s*\)/g)) deps.push(m[1]);
+    // 副作用だけの `import "./x";`。いまリポジトリに無い書き方だが、
+    // **無い書き方こそ走査の穴になる**（足すのは1行）
+    for (const m of body.matchAll(/(^|\n)\s*import\s+"\.\/([A-Za-z0-9_-]+)"\s*;/g)) deps.push(m[2]);
+    // 同じモジュールを型でも値でも読んでいるなら、値の側が勝つ
+    const valueDeps = deps.filter((d) => {
+        if (!typeOnly.has(d)) return true;
+        // `import type { X } from "./d"` しか無いなら落とす
+        const re = new RegExp(`(^|\\n)\\s*import\\s+(?!type\\b)[^\\n]*?from\\s+"\\./${d}"`);
+        const dyn = new RegExp(`\\bimport\\s*\\(\\s*"\\./${d}"\\s*\\)`);
+        return re.test(body) || dyn.test(body);
+    });
+    return [...new Set(valueDeps)];
+}
+
 function graph(): Record<string, string[]> {
     const files = fs.readdirSync(SRC).filter((f) => f.endsWith(".ts"));
     const g: Record<string, string[]> = {};
     for (const f of files) {
         const src = fs.readFileSync(path.join(SRC, f), "utf8");
-        // `import ... from "./x"` と `export ... from "./x"` の両方
-        const deps = [...src.matchAll(/\bfrom\s+"\.\/([A-Za-z0-9_-]+)"/g)]
-            .map((m) => `${m[1]}.ts`)
-            .filter((d) => files.includes(d));
-        g[f] = [...new Set(deps)];
+        g[f] = depsOf(src).map((d) => `${d}.ts`).filter((d) => files.includes(d));
     }
     return g;
 }
@@ -81,5 +139,35 @@ describe("api-user の import に輪を作らない", () => {
         expect(g["follow.ts"], "follow.ts → blockCheck.ts の辺を読めていない").toContain("blockCheck.ts");
         // この辺があると輪になる。いま無いことが、上の判定が守っているもの
         expect(g["follow.ts"], "follow.ts から block.ts を import している").not.toContain("block.ts");
+        // **動的 import も辺として読む**（`rebuild.ts` に実在する書き方）
+        expect(g["rebuild.ts"], "await import(\"./dynamodb\") を読めていない").toContain("dynamodb.ts");
+    });
+
+    // `from` を伴わない `await import()` は素朴な走査では落ちる。
+    // **落ちると輪があっても「循環なし」で緑**になる
+    it("動的 import も辺として数える", () => {
+        expect(depsOf('const { x } = await import("./dynamodb");')).toEqual(["dynamodb"]);
+        expect(depsOf('import { a } from "./one";\nconst b = await import("./two");')).toEqual(["one", "two"]);
+    });
+
+    it("副作用だけの import も辺として数える", () => {
+        expect(depsOf('import "./side";')).toEqual(["side"]);
+    });
+
+    // **型だけの import は実行時に消える**ので辺にしない。数えると
+    // 「型だけの輪」で意味のない書き換えを強いられる
+    it("import type は辺として数えない", () => {
+        expect(depsOf('import type { Photo } from "./types";')).toEqual([]);
+        // 同じモジュールを値でも読んでいるなら数える
+        expect(depsOf('import type { Photo } from "./types";\nimport { f } from "./types";')).toEqual(["types"]);
+    });
+
+    // **コメントに書いたモジュール名で偽の辺を作らない。**
+    // このリポジトリは doc コメントで隣のファイルを頻繁に名指しする
+    it("コメントの中の import は数えない", () => {
+        expect(depsOf('// import { x } from "./ghost";\nimport { y } from "./real";')).toEqual(["real"]);
+        expect(depsOf('/* from "./ghost" */\nimport { y } from "./real";')).toEqual(["real"]);
+        // 文字列の中の `//`（URL など）でコードを切り落とさない
+        expect(depsOf('const u = "https://x/y"; import { y } from "./real";')).toEqual(["real"]);
     });
 });

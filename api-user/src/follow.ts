@@ -803,9 +803,14 @@ export const getUserFollowing: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
             // `following#` が空で数が 0 でないと、シートは
             // 「まだ誰もフォローしていません」——`followers#` 側で直した
             // 矛盾がそのまま残っていた
-            // `listed` は**落としたあとの長さ**。この値の役目は「サーバーが
-            // 50人で切ったぶん」と「一覧が追いついていないぶん」を外から
-            // 区別することなので、呼び手に見せない相手を数えても意味がない
+            // `listed` は**落としたあとの長さ**（呼び手に見せない相手を
+            // 数えても意味がない）。
+            // **ただし、これで `total - listed` の原因は3つになった**
+            // ——50人で切ったぶん／一覧が追いついていないぶん／ブロックで
+            // 落としたぶん。もともと「前の2つを外から区別する値」として
+            // 置いたものなので、**その役目はもう果たせない**。読み手は
+            // 今のところテストだけ（画面は `total` と描いた行数で見分ける）
+            // なので残すが、使う前にこの注記を読むこと
             body: JSON.stringify({ users, total: stats?.following ?? list.length, listed: visible.length }),
         };
     } catch (e) {

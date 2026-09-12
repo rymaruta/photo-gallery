@@ -255,7 +255,12 @@ describe("postStoryReply", () => {
                 // **書き込み自体は成功している。** 応答だけが失われ、SDK の
                 // 再送が条件に外れて CCF になった、という状態を作る
                 const vals = cmd.input.ExpressionAttributeValues as Record<string, unknown>;
-                landed = ((vals[":new"] ?? vals[":kept"]) as Record<string, unknown>[])[0];
+                // **`:new` は `[reply]`、`:kept` は items 全体**（末尾が今回の分）。
+                // 両方 `[0]` で取ると、切り詰めが走る回に**いちばん古い返信**を
+                // 掴んで重複判定が一度も発火しないまま緑になる
+                const added = (vals[":new"] as Record<string, unknown>[] | undefined)?.[0]
+                    ?? (vals[":kept"] as Record<string, unknown>[]).at(-1)!;
+                landed = added;
                 return Promise.reject(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
             }
             return Promise.resolve({});
@@ -286,7 +291,12 @@ describe("postStoryReply", () => {
             }
             if (id.startsWith("storyreplies#") && !landed) {
                 const vals = cmd.input.ExpressionAttributeValues as Record<string, unknown>;
-                landed = ((vals[":new"] ?? vals[":kept"]) as Record<string, unknown>[])[0];
+                // **`:new` は `[reply]`、`:kept` は items 全体**（末尾が今回の分）。
+                // 両方 `[0]` で取ると、切り詰めが走る回に**いちばん古い返信**を
+                // 掴んで重複判定が一度も発火しないまま緑になる
+                const added = (vals[":new"] as Record<string, unknown>[] | undefined)?.[0]
+                    ?? (vals[":kept"] as Record<string, unknown>[]).at(-1)!;
+                landed = added;
                 return Promise.reject(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
             }
             return Promise.resolve({});
