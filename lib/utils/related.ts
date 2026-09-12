@@ -175,3 +175,61 @@ export function relatedCollectionPhotos(
             .slice(0, limit).map((x) => x.p),
     );
 }
+
+/**
+ * 回遊リンクに要る項目だけに絞る。
+ *
+ * **写真ページの RSC ペイロードに、読まれない項目が載っていた。**
+ * `app/photo/[id]/page.tsx` は `relatedSections(photo, photos, 8)` と
+ * `adjacentPhotos` を丸ごと props に渡す——**写真オブジェクト最大18個**が
+ * 説明も EXIF もタグも付いたまま、全写真ページの HTML に埋め込まれる。
+ *
+ * 使うのは `RelatedPhotos`（`id` / `title` / `dominantColor` ＋ `Thumb`）と
+ * 前後のリンク（`id` / `title`）だけ。`Thumb` が読むのは
+ * `src` / `thumbSrc` / `thumbSm` / `thumbAvif` / `thumbSmAvif` /
+ * `blurDataURL` の6つで、`alt` は呼び出し側が prop で渡す。
+ *
+ * **消す側ではなく残す側を並べる。** 「要らないものを消す」形にすると、
+ * 新しい項目が増えた日に黙って載る（台帳の型: `PRIVATE_FIELDS` を
+ * 「落とす一覧」で持っていて、増えた属性が公開JSONに出た）。
+ */
+const THUMB_FIELDS = ["src", "thumbSrc", "thumbSm", "thumbAvif", "thumbSmAvif", "blurDataURL"] as const;
+const LINK_FIELDS = ["id", "title", "dominantColor"] as const;
+
+export function slimForLinks(p: Photo): Photo {
+    const out: Record<string, unknown> = {};
+    for (const k of [...LINK_FIELDS, ...THUMB_FIELDS]) {
+        const v = (p as unknown as Record<string, unknown>)[k];
+        if (v !== undefined) out[k] = v;
+    }
+    return out as unknown as Photo;
+}
+
+/** 写真ページに焼き込む回遊リンクの材料（**絞ったもの**） */
+export type InitialRelated = {
+    author: Photo[];
+    location: Photo[];
+    prev: Photo | null;
+    next: Photo | null;
+};
+
+/**
+ * 写真ページに渡す回遊リンクを組み立てる（**純関数**）。
+ *
+ * **絞る処理を呼び出し側に置かない。** ページの中で
+ * `relatedSections(...).author.map(slimForLinks)` と書いていると、
+ * **`map(slimForLinks)` を1つ消しても誰も気づかない**（配線は
+ * サーバーコンポーネントの中で、テストから触れない）。
+ * 台帳が `cdnLines` / `reportFunctions` で同じ判断をしている
+ * ——「配線は『呼んでいるか』ではなく『出たもの』で見る」。
+ */
+export function initialRelatedFor(current: Photo, all: Photo[], limit = 8): InitialRelated {
+    const sections = relatedSections(current, all, limit);
+    const adjacent = adjacentPhotos(current, all);
+    return {
+        author: sections.author.map(slimForLinks),
+        location: sections.location.map(slimForLinks),
+        prev: adjacent.prev ? slimForLinks(adjacent.prev) : null,
+        next: adjacent.next ? slimForLinks(adjacent.next) : null,
+    };
+}

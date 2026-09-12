@@ -7,7 +7,7 @@ import { ja } from "../../i18n/labels";
 import { siteConfig } from "@/lib/utils/seo";
 import { getLocalized, getLocalizedParagraphs } from "@/lib/data/photos";
 import { loadAllPhotos } from "@/lib/server/photos";
-import { relatedSections, adjacentPhotos } from "@/lib/utils/related";
+import { initialRelatedFor } from "@/lib/utils/related";
 import { withPlaceholderParam } from "../../../lib/server/staticParams";
 import { photoAltText } from "../../../lib/utils/photoAlt";
 
@@ -179,11 +179,10 @@ export default async function PhotoPage({ params }: PageProps) {
     const photo = photos.find((p) => p.id === id) ?? null;
     // 回遊リンク（同投稿者/同場所/前後）をビルド時に計算して静的HTMLに焼き込む。
     // クライアント取得を待たずにクローラーが内部リンクを辿れるようにする（SEO）。
-    const initialRelated = photo
-        ? {
-            ...relatedSections(photo, photos, 8),
-            ...adjacentPhotos(photo, photos),
-        }
-        : undefined;
+    // **リンクに要る項目だけ渡す。** 丸ごと渡すと、説明も EXIF もタグも
+    // 付いた写真オブジェクトが最大18個、**全写真ページの HTML に**埋め込まれる
+    // （RSC ペイロード）。組み立ては `initialRelatedFor` に置いてある
+    // ——ここに `map(slimForLinks)` と書くと、**1つ消しても誰も気づかない**
+    const initialRelated = photo ? initialRelatedFor(photo, photos, 8) : undefined;
     return <PhotoPageClient photoId={id} initialPhoto={photo ?? undefined} initialRelated={initialRelated} />;
 }
