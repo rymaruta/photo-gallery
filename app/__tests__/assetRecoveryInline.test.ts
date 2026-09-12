@@ -33,7 +33,6 @@ function inlineSource(): string {
 
 function runInline() {
     // `location.reload()` は jsdom で未実装。印は reload の**前**に付くので判定に影響しない
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
     new Function(inlineSource())();
 }
 
