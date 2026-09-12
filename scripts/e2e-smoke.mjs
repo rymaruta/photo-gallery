@@ -75,6 +75,36 @@ function check(name, ok, detail = "") {
     else { console.error(`  ❌ ${name}${detail ? ` — ${detail}` : ""}`); failures.push(name); }
 }
 
+/**
+ * 外部リクエストの遮断。**密閉の目的は「外に出ない」ことで、
+ * 「画像を失敗させる」ことではない。**
+ *
+ * 全部 `abort()` にしていた頃、集約ページの「写真が並ぶ」判定が
+ * **必ず落ちた**——画像が失敗すると `Thumb` は `<picture>` ごと消すので、
+ * 水和のあとに `<img>` が 0 になる（実測: 静的HTML 9 → 水和1.5秒後 0）。
+ * つまりその判定は**この環境では原理的に通らない**もので、
+ * 本番のデプロイをそのまま落とす（同じハーネスを使う）。
+ *
+ * → **画像の要求だけ 1x1 PNG で返す。** 外へは出ないまま、
+ *    「水和後にサムネが消えないか」を本当に見られるようになる。
+ *    それ以外（API・フォント・別オリジンのスクリプト）は今までどおり遮断。
+ */
+const PNG_1X1 = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64",
+);
+
+function sealContext(ctx) {
+    return ctx.route("**/*", (route) => {
+        const host = new URL(route.request().url()).hostname;
+        if (host === "localhost" || host === "127.0.0.1") return route.continue();
+        if (route.request().resourceType() === "image") {
+            return route.fulfill({ status: 200, contentType: "image/png", body: PNG_1X1 });
+        }
+        return route.abort();
+    });
+}
+
 // スモークは外部リクエスト（API/CDN）を route.abort() で遮断する密閉型。
 // その遮断は WebKit では pageerror（"Load failed" / "access control checks" 等）として
 // 表面化し、Chromium では console の net::ERR_FAILED になる——いずれも本番では成功する
@@ -155,13 +185,14 @@ async function expectMenuWorks(page, label) {
 // 1エンジン分の検査一式（モバイル context + デスクトップ context）。
 async function runChecks(browser, eng) {
     // ── モバイル（タッチ）context ──
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
-    // 外部リクエスト（CloudFront画像・API等）を即座に遮断して密閉型にする。
-    await ctx.route("**/*", (route) => {
-        const host = new URL(route.request().url()).hostname;
-        if (host === "localhost" || host === "127.0.0.1") return route.continue();
-        return route.abort();
-    });
+    // **Service Worker は止める。** 登録されると2ページ目以降の画像要求を
+    // SW が仲介し、**その fetch は Playwright の route を通らない**ので
+    // 密閉を破って実ネットワークへ出る（そして失敗する）。実測でこれが
+    // 「集約ページ: 写真が並ぶ」を落としていた。SW 自体は
+    // `public/sw.js` のテストが別に見ている
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, serviceWorkers: "block" });
+    // 外部リクエストを遮断して密閉型にする（画像だけは 1x1 PNG で返す）。
+    await sealContext(ctx);
     const page = await ctx.newPage();
     const bag = attachDiagnostics(page);
 
@@ -298,12 +329,8 @@ async function runChecks(browser, eng) {
     // ミニプレイヤーのドラッグはデスクトップ限定なので、モバイル context では
     // この経路を通らずメニュー被り不具合をすり抜けていた。ここで塞ぐ。
     console.log(`\n[${eng}][3] デスクトップ（hover・マウス）`);
-    const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await dctx.route("**/*", (route) => {
-        const host = new URL(route.request().url()).hostname;
-        if (host === "localhost" || host === "127.0.0.1") return route.continue();
-        return route.abort();
-    });
+    const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: "block" });
+    await sealContext(dctx);
     // 保存位置を右上(ヘッダー上)に seed。将来ミニプレイヤーがそこに出てもメニューを塞がないこと（クランプ）を確認。
     await dctx.addInitScript(() => {
         try { localStorage.setItem("jp_miniplayer_pos", JSON.stringify({ x: 99999, y: 0 })); } catch { /* ignore */ }
