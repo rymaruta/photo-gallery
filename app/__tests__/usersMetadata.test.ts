@@ -127,3 +127,25 @@ describe("プロフィールの説明文に自己紹介を使う", () => {
         expect(meta.description).toContain("旅の写真を 撮っています。 よろしく。");
     });
 });
+
+/**
+ * **自己紹介も1行に均す。** この画面は前から `replace(/\s+/g, " ")` を
+ * していたが、規則が手書きで置いてあり、写真の説明を通す4経路は
+ * 素通りしていた。規則を `lib/utils/metaText.ts` 1つに寄せたので、
+ * こちら側が外れていないことも縛る。
+ */
+describe("プロフィールの説明文も1行", () => {
+    const OWNER2 = "67d49a68-80f1-7083-b0e0-c767886ef868";
+    const metaFor2 = async (bio: string) => {
+        vi.resetModules();
+        vi.doMock("../data/profiles.json", () => ({ default: { [OWNER2]: { bio } } }));
+        const { generateMetadata } = await import("../users/[id]/page");
+        return generateMetadata({ params: Promise.resolve({ id: OWNER2 }) });
+    };
+
+    it("自己紹介の改行を空白にする", async () => {
+        const meta = await metaFor2("旅先の光を追いかけて\n写真を撮っています。");
+        expect(meta.description, "生の改行が残っている").not.toContain("\n");
+        expect(meta.description).toContain("旅先の光を追いかけて 写真を撮っています。");
+    });
+});

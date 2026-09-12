@@ -1,6 +1,7 @@
 // lib/utils/seo.ts
 // SEO設定と構造化データ生成用のユーティリティ
 import { spacelessName } from "./nameVariants";
+import { metaText } from "./metaText";
 
 /**
  * 公開する画像URLを、**サイトのドメインに揃える**。
@@ -189,7 +190,9 @@ export function generatePhotoStructuredData(photo: {
     //
     // **題の別言語は捨てていない**——`alternateName` が持つ（あちらは
     // 「別の呼び名」を置く正しい場所で、混ぜ物にならない）。
-    const description = descOf(locale) || descOf(other);
+    // 1行に均す（`metaText` の説明を参照）。JSON-LD の description と
+    // caption、画像サイトマップの caption がここから出る
+    const description = metaText(descOf(locale) || descOf(other));
 
     const imageUrl = publicImageUrl(photo.src);
 

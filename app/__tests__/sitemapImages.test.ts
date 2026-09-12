@@ -139,3 +139,13 @@ describe("画像サイトマップの形", () => {
         expect(c.length, "上限を超えている").toBeLessThanOrEqual(CAPTION_MAX);
     });
 });
+
+// **caption は1行の説明文として読まれる。** XML としては改行も通るが、
+// 実ビルドで4件が生の改行を含んでいた
+describe("画像サイトマップの caption は1行", () => {
+    it("説明の改行を空白にする", () => {
+        const c = captionOf(photo({ description: { ja: ["一行目。\n二行目。"] } } as Partial<Photo>));
+        expect(c, "生の改行が残っている").not.toContain("\n");
+        expect(c).toBe("一行目。 二行目。");
+    });
+});

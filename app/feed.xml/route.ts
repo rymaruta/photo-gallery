@@ -3,6 +3,7 @@ import { existsSync } from "fs";
 import path from "path";
 import { siteConfig } from "../../lib/utils/seo";
 import RAW_PHOTOS, { getLocalized, getLocalizedParagraphs, type Photo } from "@/lib/data/photos";
+import { metaText } from "@/lib/utils/metaText";
 
 export const dynamic = "force-static";
 
@@ -55,7 +56,10 @@ function xmlText(value: string): string {
 /** 抜粋。長い説明を丸ごと載せない（サイトに来てもらうため） */
 export function feedExcerpt(photo: Photo): string {
     const ja = getLocalizedParagraphs(photo.description, "ja");
-    const text = (ja.length > 0 ? ja : getLocalizedParagraphs(photo.description, "en")).join(" ");
+    // 1行に均す（`metaText` の説明を参照）。**140字で切る前に**畳む。
+    // 効くのは「空白の連なり」——単独の改行は空白1つになるだけで字数は
+    // 変わらないが、空行を挟んで書かれた説明はそのぶん本文が早く切れる
+    const text = metaText((ja.length > 0 ? ja : getLocalizedParagraphs(photo.description, "en")).join(" "));
     const place = (photo.location ?? "").toString().trim();
     const base = text || (place ? `${place}で撮影した写真。` : "写真。");
     return base.length > 140 ? `${base.slice(0, 140)}…` : base;

@@ -230,3 +230,21 @@ describe("フィードに撮影者を出す", () => {
         expect(new Set(creators).size, "全部同じ名前になっている").toBe(2);
     });
 });
+
+// **140字で切る前に畳む。** 畳まないと改行のぶんまで数えて本文が短くなる
+describe("抜粋は1行", () => {
+    it("説明の改行を空白にする", () => {
+        const e = feedExcerpt(photo({ description: { ja: ["一行目。\n二行目。"] } } as Partial<Photo>));
+        expect(e, "生の改行が残っている").not.toContain("\n");
+        expect(e).toBe("一行目。 二行目。");
+    });
+
+    // **畳んでから切る。** 効くのは「空白の連なり」——単独の改行は空白1つに
+    // なるだけで字数は変わらない。空行を挟む書き方だけが縮む
+    it("空白の連なりを畳んでから140字で切る", () => {
+        const text = "あ".repeat(138) + "\n\n\n\n\n" + "い"; // 生 144字 / 畳むと 140字
+        const e = feedExcerpt(photo({ description: { ja: [text] } } as Partial<Photo>));
+        expect(e.endsWith("…"), "畳む前に切っている").toBe(false);
+        expect(e.length).toBe(140);
+    });
+});

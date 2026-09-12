@@ -8,6 +8,7 @@ import UserProfileClient from "../UserProfileClient";
 import { withPlaceholderParam } from "../../../lib/server/staticParams";
 import PROFILES from "../../data/profiles.json";
 import { personEntity } from "../../../lib/utils/personEntity";
+import { metaText } from "@/lib/utils/metaText";
 
 // ユーザープロフィールの静的生成版（/users/<userId>）。
 // ビルド時点の photos.json に投稿があるユーザーごとにページを生成し、
@@ -98,7 +99,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     // 120文字）を大きく超える自己紹介は、途中で切れて意味をなさない。
     // 短すぎる（10文字未満）ものも落とす（「よろしく」だけ、等）。
     // 材料は `app/data/profiles.json`（ビルド時に users テーブルから引く）。
-    const bio = (PROFILES as Record<string, { bio?: string }>)[id]?.bio?.replace(/\s+/g, " ").trim() ?? "";
+    const bio = metaText((PROFILES as Record<string, { bio?: string }>)[id]?.bio ?? "");
     const generated = `${summary.displayName}さんが Journey Photo で旅の写真を${summary.photoCount}枚公開中。旅先の風景やスナップをお楽しみください。`;
     const description = bio.length >= 10 && bio.length <= 120
         ? `${bio}（Journey Photo で旅の写真を${summary.photoCount}枚公開中）`

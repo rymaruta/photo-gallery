@@ -279,3 +279,16 @@ describe("写真の構造化データ: 撮影日", () => {
         expect(d.datePublished).toBe(base.createdAt);
     });
 });
+
+// **JSON-LD の description / caption も1行に均す**（実ビルドで8件が
+// 生の改行を含んでいた）。画像サイトマップの caption もここから出る
+describe("写真の構造化データ: 説明は1行", () => {
+    it("説明の改行を空白にする", () => {
+        const d = generatePhotoStructuredData(
+            { id: "p1", src: "https://cdn/1.jpg", description: { ja: ["一行目。\n二行目。"] } } as unknown as Parameters<typeof generatePhotoStructuredData>[0],
+        ) as Record<string, unknown>;
+        expect(String(d.description), "生の改行が残っている").not.toContain("\n");
+        expect(d.description).toBe("一行目。 二行目。");
+        expect(d.caption).toBe("一行目。 二行目。");
+    });
+});

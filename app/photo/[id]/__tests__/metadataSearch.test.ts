@@ -105,3 +105,46 @@ describe("説明に機材を添える", () => {
         expect(m.description).not.toContain("旅フォトギャラリー");
     });
 });
+
+/**
+ * **撮影地の方が題を含む回**に、題と撮影地を重ねていた。
+ * 実ビルド:「オペラ・ガルニエ｜オペラ・ガルニエ（パリ）」＝サイトで一番長い題。
+ * 判定が「題が撮影地を含むか」の片方向だけだった。
+ */
+describe("題と撮影地が重なるとき", () => {
+    it("撮影地の方が題を含むなら、撮影地を出す（重ねない）", async () => {
+        const m = await meta({ ...base, title: { ja: "オペラ・ガルニエ" }, location: "オペラ・ガルニエ（パリ）" });
+        expect(m.title).toBe("オペラ・ガルニエ（パリ）");
+    });
+
+    // **短い題がたまたま撮影地の一部と一致する回を巻き込まない。**
+    // 「海」は「…国営ひたち海浜公園」に含まれるが、撮影地は「海」で
+    // 始まっていないので足す側のまま（実データで確認）
+    it("題が撮影地の途中に現れるだけなら、今までどおり足す", async () => {
+        const m = await meta({ ...base, title: { ja: "海" }, location: "茨城県 ひたちなか市 国営ひたち海浜公園" });
+        expect(m.title).toBe("海｜茨城県 ひたちなか市 国営ひたち海浜公園");
+    });
+
+    it("題と撮影地が同じなら、題を残す", async () => {
+        const m = await meta({ ...base, title: { ja: "山中湖" }, location: "山中湖" });
+        expect(m.title).toBe("山中湖");
+    });
+});
+
+/**
+ * **説明の改行が `<meta name="description">` の属性値に残っていた**
+ * （実ビルドで写真ページ5枚 × 3メタ）。`app/users/[id]` は自己紹介に
+ * 同じ処理を前からしていた＝片方だけ素通りしていた。
+ */
+describe("説明は1行に均す", () => {
+    it("説明の中の改行を空白にする", async () => {
+        const m = await meta({ ...base, description: { ja: ["一行目。\n二行目。"] } });
+        expect(m.description, "生の改行が残っている").not.toContain("\n");
+        expect(m.description).toContain("一行目。 二行目。");
+    });
+
+    it("段落をまたぐ改行も残さない", async () => {
+        const m = await meta({ ...base, description: { ja: ["前\n半", "後\n半"] } });
+        expect(m.description).not.toContain("\n");
+    });
+});

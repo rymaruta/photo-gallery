@@ -10,6 +10,7 @@ import { loadAllPhotos } from "@/lib/server/photos";
 import { initialRelatedFor } from "@/lib/utils/related";
 import { withPlaceholderParam } from "../../../lib/server/staticParams";
 import { photoAltText } from "../../../lib/utils/photoAlt";
+import { metaText } from "@/lib/utils/metaText";
 
 // 写真データを読み込む関数
 async function loadPhoto(id: string): Promise<Photo | null> {
@@ -49,9 +50,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     // と同じ型だった
     const ownTitle = getLocalized(photo.title, "ja") || getLocalized(photo.title, "en") || "無題";
     const descriptionParagraphs = getLocalizedParagraphs(photo.description, "ja");
-    const ownDescription = descriptionParagraphs.length > 0
+    // **1行に均す。** 利用者は段落の中でも改行するので、素で入れると
+    //  `<meta name="description">` の属性値に生の改行が残る
+    //  （実ビルドで写真ページ5枚 × 3メタ）。`app/users/[id]` は
+    //  自己紹介に同じ処理を前からしていた
+    const ownDescription = metaText(descriptionParagraphs.length > 0
         ? descriptionParagraphs.join(" ")
-        : getLocalizedParagraphs(photo.description, "en").join(" ");
+        : getLocalizedParagraphs(photo.description, "en").join(" "));
     // **説明が無いときに、サイトのキャッチコピーを名乗らない。**
     // 説明を空にした写真が全部**同じ meta description** を持つことになり、
     // しかも「この写真の説明はサイトの宣伝文です」と申告する形になる。
@@ -84,7 +89,18 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     // **既に題に入っているなら足さない**（「山中湖の朝｜山中湖」を作らない）。
     // 表示は `| Journey Photo 旅フォトギャラリー` が後ろに付いて切られうるが、
     // **切られるのは見た目だけで、検索語との突き合わせは全文で行われる**。
-    const title = place && !ownTitle.includes(place) ? `${ownTitle}｜${place}` : ownTitle;
+    //
+    // **逆向きも見る。** 判定が「題が撮影地を含むか」だけだったので、
+    // **撮影地の方が題を含む**回に重ねていた（実ビルド:
+    // 「オペラ・ガルニエ｜オペラ・ガルニエ（パリ）」＝サイトで一番長い題）。
+    // そのときは**撮影地を出す**——題を丸ごと含んでいるので何も失わず、
+    // 「（パリ）」のぶん情報が増える。
+    // **`includes` を先に見る**（題＝撮影地のときに題を残すため）。
+    // 「海」が「…海浜公園」に含まれるような回は、撮影地が題で始まって
+    // いないので `startsWith` に掛からない（実データで確認）。
+    const title = !place || ownTitle.includes(place) ? ownTitle
+        : place.startsWith(ownTitle) ? place
+            : `${ownTitle}｜${place}`;
 
     // **説明に機材を添える。**
     //

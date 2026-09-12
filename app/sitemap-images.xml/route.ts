@@ -9,6 +9,7 @@ import { siteConfig, publicImageUrl } from "@/lib/utils/seo";
 import { getLocalized, getLocalizedParagraphs } from "@/lib/data/photos";
 import type { Photo } from "@/lib/data/photos";
 import { truncate } from "@/lib/utils/text";
+import { metaText } from "@/lib/utils/metaText";
 
 export const dynamic = "force-static";
 
@@ -85,7 +86,9 @@ export const CAPTION_MAX = 500;
 export function captionOf(p: Photo): string {
     // 英語への落とし方は `getLocalizedParagraphs` が持っている
     // （`v[locale] ?? v.ja ?? v.en`）ので、ここでは足さない
-    const text = getLocalizedParagraphs(p.description, "ja").join(" ");
+    // 1行に均す（`metaText` の説明を参照）。XML としては改行も通るが、
+    // 読み手に出るのは1行の説明文なので、出口で揃える
+    const text = metaText(getLocalizedParagraphs(p.description, "ja").join(" "));
     const loc = p.location ? `（${p.location}）` : "";
     // **撮影地は説明のあとに足すので、そのままだと真っ先に切れる。**
     // 撮影地はこの写真の固有名詞＝説明の末尾より情報が濃いので、
