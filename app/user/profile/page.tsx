@@ -619,6 +619,9 @@ export default function ProfileEditPage() {
     if (loading || fetching) {
         return (
             <main className="min-h-screen bg-black text-white flex items-center justify-center">
+                {/* **事前描画で焼かれるのはこの枝**（認証を確かめる前）。
+                    JS が走る前に見えるのはここなので見出しを持たせる */}
+                <h1 className="sr-only">プロフィール編集</h1>
                 <div className="w-10 h-10 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
             </main>
         );

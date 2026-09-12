@@ -501,9 +501,13 @@ function AdminEditContent() {
 export default function AdminEditPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-black flex items-center justify-center">
+            <main className="min-h-screen bg-black flex items-center justify-center">
+                {/* **事前描画で焼かれるのはこの fallback。** JS が走る前に見えるのは
+                    ここなので、ランドマークと見出しを持たせる
+                    （`sr-only` は position:absolute で描画に影響しない） */}
+                <h1 className="sr-only">写真を編集</h1>
                 <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            </div>
+            </main>
         }>
             <AdminEditContent />
         </Suspense>

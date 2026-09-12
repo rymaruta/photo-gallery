@@ -37,9 +37,27 @@ const PAGES: ReadonlyArray<readonly [string, () => Promise<{ default: React.Comp
     ["/signup", () => import("../signup/page")],
     ["/j", () => import("../j/page")],
     ["/users", () => import("../users/page")],
+    ["/user/edit", () => import("../user/edit/page")],
+    ["/user/upload", () => import("../user/upload/page")],
+    ["/admin/edit", () => import("../admin/edit/page")],
 ];
 
 describe("JS が走る前に焼かれる中身（Suspense の fallback）", () => {
+    /**
+     * **JSX のコメントは `{/*…*\/}`。** `//` で書くとそのまま**文字として
+     * 描かれる**。この一群を直しているときに実際にやり、実ビルドの
+     * `/user/edit` と `/admin/edit` の本文に解説文が出ていた
+     * （`tsc` も `eslint` も通る）。
+     */
+    it("fallback にコメントの文字が漏れていない", async () => {
+        for (const [name, load] of PAGES) {
+            const Page = (await load()).default;
+            const { container, unmount } = render(<Page />);
+            expect(container.textContent ?? "", `${name} にコメントが漏れている`).not.toMatch(/\/\/|事前描画|sr-only は/);
+            unmount();
+        }
+    });
+
     for (const [name, load] of PAGES) {
         it(`${name}: 見出しが1つある`, async () => {
             const Page = (await load()).default;

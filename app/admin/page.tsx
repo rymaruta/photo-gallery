@@ -206,6 +206,9 @@ export default function AdminPage() {
     if (loading || !isAuthenticated || !isAdminUser) {
         return (
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-7xl mx-auto w-full flex items-center justify-center">
+                {/* **事前描画で焼かれるのはこの枝**（認証を確かめる前）。
+                    JS が走る前に見えるのはここなので見出しを持たせる */}
+                <h1 className="sr-only">写真管理</h1>
                 <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
             </main>
         );
