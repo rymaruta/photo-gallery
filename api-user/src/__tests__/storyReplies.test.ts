@@ -236,6 +236,76 @@ describe("postStoryReply", () => {
         expect((await invoke(postStoryReply, ev("u1", "story-1", { text: "やり直し" }))).statusCode).toBe(200);
     });
 
+    // **応答だけを取り逃した回に、同じ返信を2件入れない。**
+    // SDK は接続断・5xx で自前に再送する（既定 maxAttempts=3）。サーバー側で
+    // 追記が通ったあとに応答が失われると、再送は `size(#items) = :len` に
+    // 外れて `ConditionalCheckFailedException` として返る。読み直して
+    // やり直すと**同じ id の返信が2件**入る（`comments.ts` が先に踏んだ形）
+    it("追記は通ったが応答を取り逃した回に、同じ返信を2件入れない", async () => {
+        let landed: Record<string, unknown> | undefined;
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const id = String((cmd.input.Key as { id?: string } | undefined)?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") {
+                if (id === "story-1") return Promise.resolve({ Item: STORY });
+                if (id.startsWith("block#")) return Promise.resolve({});
+                // 1回目の追記が「通った」あとは、その返信が読めるようになる
+                return Promise.resolve({ Item: { items: landed ? [landed] : [] } });
+            }
+            if (id.startsWith("storyreplies#") && !landed) {
+                // **書き込み自体は成功している。** 応答だけが失われ、SDK の
+                // 再送が条件に外れて CCF になった、という状態を作る
+                const vals = cmd.input.ExpressionAttributeValues as Record<string, unknown>;
+                landed = ((vals[":new"] ?? vals[":kept"]) as Record<string, unknown>[])[0];
+                return Promise.reject(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
+            }
+            return Promise.resolve({});
+        });
+        const res = await invoke(postStoryReply, ev("u1", "story-1", { text: "取り逃した" }));
+        expect(res.statusCode, "成功しているのに失敗として返している").toBe(200);
+        // **読みを混ぜない**（Get も同じ Key を持つ）。書き込みだけを数える
+        const writes = inputs().filter((i) => i.UpdateExpression
+            && String((i.Key as { id?: string } | undefined)?.id ?? "").startsWith("storyreplies#"));
+        expect(writes, "読み直したあともう一度足している").toHaveLength(1);
+        // 返した件数も、二重に数えていない
+        const count = inputs().find((i) => String(i.UpdateExpression ?? "").includes("replyCount"));
+        expect((count!.ExpressionAttributeValues as Record<string, unknown>)[":n"], "件数を二重に数えている").toBe(1);
+    });
+
+    // **上限より先に見る。** 逆にすると、前回の追記でちょうど上限に達した回に
+    // 「10件までです」を返す——保存は成功しているのに、押した人には
+    // 何が起きたか分からない形
+    it("取り逃した追記で上限に達していても、429 にしない", async () => {
+        const mine = Array.from({ length: 9 }, (_, i) => ({ id: `old-${i}`, uid: "u1", text: "x", t: "2026-01-01T00:00:00.000Z" }));
+        let landed: Record<string, unknown> | undefined;
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const id = String((cmd.input.Key as { id?: string } | undefined)?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") {
+                if (id === "story-1") return Promise.resolve({ Item: STORY });
+                if (id.startsWith("block#")) return Promise.resolve({});
+                return Promise.resolve({ Item: { items: landed ? [...mine, landed] : mine } });
+            }
+            if (id.startsWith("storyreplies#") && !landed) {
+                const vals = cmd.input.ExpressionAttributeValues as Record<string, unknown>;
+                landed = ((vals[":new"] ?? vals[":kept"]) as Record<string, unknown>[])[0];
+                return Promise.reject(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
+            }
+            return Promise.resolve({});
+        });
+        const res = await invoke(postStoryReply, ev("u1", "story-1", { text: "10件目" }));
+        expect(res.statusCode, "保存できているのに上限で断っている").toBe(200);
+    });
+
+    // 正常系（取り逃していない回は、これまでどおり1回で足す）
+    it("ふつうの追記は1回で足す", async () => {
+        world(STORY, [{ id: "other", uid: "u2", text: "先の人", t: "2026-01-01T00:00:00.000Z" }]);
+        const res = await invoke(postStoryReply, ev("u1", "story-1", { text: "ふつう" }));
+        expect(res.statusCode).toBe(200);
+        // **読みを混ぜない**（Get も同じ Key を持つ）。書き込みだけを数える
+        const writes = inputs().filter((i) => i.UpdateExpression
+            && String((i.Key as { id?: string } | undefined)?.id ?? "").startsWith("storyreplies#"));
+        expect(writes).toHaveLength(1);
+    });
+
     // 投稿者だけがバッジで数を見られるように、行にも数える
     it("ストーリーの行に件数を書く", async () => {
         world(STORY);

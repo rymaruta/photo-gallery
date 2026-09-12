@@ -216,6 +216,21 @@ export const postStoryReply: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
         let stored: StoryReply[] | undefined;
         for (let attempt = 0; attempt < REPLY_APPEND_RETRIES; attempt++) {
             const existing = await readReplies(storyId, attempt > 0);
+            // **前回の追記が通っていたら、もう足さない。**
+            // 追記がサーバー側では成功したのに応答が失われると、SDK が自前で
+            // 再送し（既定 maxAttempts=3）、再送は `size(#items) = :len` に
+            // 外れて `ConditionalCheckFailedException` としてここに返る。
+            // 気づかずにやり直すと**同じ id の返信が2件入る**。
+            // `reply` はループの外で1回だけ作っている（id は `uuidv4()`）ので
+            // 見分けられる。`comments.ts` が同じ形で先に踏んで直した側。
+            //
+            // **上限より先に見る。** 逆にすると、前回の追記でちょうど上限に
+            // 達した回に 429 を返すことになる——**保存は成功しているのに
+            // 「10件までです」**と言う形で、押した人には何が起きたか分からない。
+            if (existing.some((r) => r.id === reply.id)) {
+                stored = existing;
+                break;
+            }
             if (existing.filter((r) => r.uid === uid).length >= REPLIES_MAX_PER_USER) {
                 return jsonError(429, `このストーリーへの返信は${REPLIES_MAX_PER_USER}件までです`);
             }
