@@ -1,5 +1,6 @@
 import { siteConfig } from "./seo";
 import { spacelessName } from "./nameVariants";
+import { personNodeId } from "./personId";
 
 /**
  * 人の構造化データ（schema.org の `Person`）。
@@ -54,7 +55,6 @@ export function instagramUrl(value: string | undefined): string | undefined {
 export function personEntity(input: {
     id: string;
     displayName: string;
-    image?: string;
     profile?: PublicProfile;
 }): Record<string, unknown> {
     const url = `${siteConfig.url}/users/${input.id}`;
@@ -64,6 +64,8 @@ export function personEntity(input: {
     const alt = spacelessName(input.displayName);
     return {
         "@type": "Person",
+        // **写真ページ30枚の `creator` / `author` と同じ節点だと名乗る**
+        "@id": personNodeId(url),
         name: input.displayName,
         ...(alt ? { alternateName: alt } : {}),
         url,
@@ -71,7 +73,23 @@ export function personEntity(input: {
         // 無いと「人の情報が載っているページ」と「その人のページ」を
         // 区別できない
         mainEntityOfPage: url,
-        ...(input.image ? { image: input.image } : {}),
+        // **`image` は出さない。**
+        //
+        // 出していたのは `summary.latestPhotoSrc`＝**その人が最後に上げた
+        // 写真**で、実ビルドでは白鳥の湖の風景だった。`Person.image` は
+        // 「その人の画像」＝顔写真・アバターを指す語なので、風景写真を
+        // 入れると**丸田竜平とはこういう見た目だ**と申告することになる。
+        //
+        // 正しい材料はアバター（`profiles/<uid>`）だが、**在るかどうかを
+        // ビルド時に知る手段が無い**——`app/components/UserAvatar.tsx` は
+        // 実際に取りに行って失敗したら人型アイコンに落ちる形で、
+        // `scripts/sync-photos-from-ddb.js` が書き出す
+        // `app/data/profiles.json` にもアバターの有無は入っていない
+        // （`bio` / `website` / `instagram` / `username` だけ）。
+        // **無い画像を申告するのは、違う画像を申告するのと同じくらい悪い。**
+        //
+        // SNS のカード画像（`og:image`）は最後に上げた写真のままで正しい
+        // ——あちらは「このページを貼ったときに出る絵」で、人の顔ではない。
         ...(bio ? { description: bio } : {}),
         ...(sameAs.length > 0 ? { sameAs } : {}),
     };

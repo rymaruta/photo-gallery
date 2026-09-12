@@ -1,6 +1,7 @@
 // lib/utils/seo.ts
 // SEO設定と構造化データ生成用のユーティリティ
 import { spacelessName } from "./nameVariants";
+import { personNodeId } from "./personId";
 import { metaText } from "./metaText";
 
 /**
@@ -259,7 +260,13 @@ export function generatePhotoStructuredData(photo: {
         // `/users/<id>` が**同じ名前の集合**を名乗る
         const alt = spacelessName(credit);
         if (alt) person.alternateName = alt;
-        if (photo.userId) person.url = `${siteConfig.url}/users/${photo.userId}`;
+        if (photo.userId) {
+            const profileUrl = `${siteConfig.url}/users/${photo.userId}`;
+            person.url = profileUrl;
+            // **`/users/<id>` の `Person` と同じ節点だと名乗る。**
+            // `url` だけだと「同じ人らしい」までで、言い切ってはいない
+            person["@id"] = personNodeId(profileUrl);
+        }
         structuredData.creator = person;
         structuredData.author = person;
     }

@@ -163,7 +163,6 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
             mainEntity: personEntity({
                 id,
                 displayName: summary.displayName,
-                image: summary.latestPhotoSrc,
                 profile: (PROFILES as Record<string, { bio?: string; website?: string; instagram?: string }>)[id],
             }),
         }
