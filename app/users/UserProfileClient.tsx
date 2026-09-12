@@ -284,7 +284,15 @@ const OWNER_CHIP_IDLE =
 // オーナーは展開時に旅の名前を編集できる（カスタム名はプロフィールに保存され全員に見える）。
 // /users/<id>（静的生成・OGP付き）と /users?id=<id>（新規ユーザー向けフォールバック）の
 // 両方から使われる。
-export default function UserProfileClient({ userId }: { userId: string }) {
+/**
+ * @param initialBio ビルド時に分かっている自己紹介（`/users/<id>` の静的生成だけが渡す）。
+ *   **JS が走る前の本文に出すため**——実測でこのページの静的本文は**131文字**
+ *   （見出しと `…` だけ）で、自己紹介は `<head>` の `description` と JSON-LD には
+ *   出ているのに**本文には1文字も無かった**。索引に載るページで、しかも
+ *   本人が書いた唯一の自己記述なので、ここに出す価値がいちばん高い。
+ *   **`/users?id=` のクエリ版は渡さない**（あちらはビルド時に相手が決まらない）。
+ */
+export default function UserProfileClient({ userId, initialBio }: { userId: string; initialBio?: string }) {
     const { locale } = useLocale();
     const { showToast } = useToast();
 
@@ -1145,8 +1153,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             55文字、320pxで50文字の URL から `scrollWidth` が超える。
                             自己紹介は300文字まで入る）。ストーリーのキャプションと
                             コメント本文には最初から付いていた */}
-                        {userProfile?.bio && (
-                            <p className="text-sm text-white/85 whitespace-pre-wrap break-words mb-4 leading-relaxed">{userProfile.bio}</p>
+                        {/* **届いたら控えは使わない。** `?? initialBio` にすると、
+                            自己紹介を**消した**人の画面に、ビルド時の古い自己紹介が
+                            次のビルドまで残る（消す操作が効かなく見える）。
+                            「まだ届いていない間だけ控え」で見る */}
+                        {(userProfile ? userProfile.bio : initialBio) && (
+                            <p className="text-sm text-white/85 whitespace-pre-wrap break-words mb-4 leading-relaxed">{userProfile ? userProfile.bio : initialBio}</p>
                         )}
 
                     {/* 統計（投稿 / いいね / 距離）— 1行にまとめる。

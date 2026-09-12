@@ -99,7 +99,10 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     // 120文字）を大きく超える自己紹介は、途中で切れて意味をなさない。
     // 短すぎる（10文字未満）ものも落とす（「よろしく」だけ、等）。
     // 材料は `app/data/profiles.json`（ビルド時に users テーブルから引く）。
-    const bio = metaText((PROFILES as Record<string, { bio?: string }>)[id]?.bio ?? "");
+    // 表示は**生のまま**（改行は `whitespace-pre-wrap` が出す）。
+    // メタ情報だけ1行に均す（`metaText` の説明を参照）
+    const rawBio = ((PROFILES as Record<string, { bio?: string }>)[id]?.bio ?? "").trim();
+    const bio = metaText(rawBio);
     const generated = `${summary.displayName}さんが Journey Photo で旅の写真を${summary.photoCount}枚公開中。旅先の風景やスナップをお楽しみください。`;
     const description = bio.length >= 10 && bio.length <= 120
         ? `${bio}（Journey Photo で旅の写真を${summary.photoCount}枚公開中）`
@@ -154,6 +157,11 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function UserProfilePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
     const summary = await loadUserSummary(id);
+    // **JS が走る前の本文にも自己紹介を出す。** ここまでは `<head>` の
+    // `description` と JSON-LD にしか出ておらず、静的本文は**131文字**
+    // （見出しと `…` だけ）だった。改行は落とさない
+    // （`whitespace-pre-wrap` が出す。1行に均すのはメタ情報だけ）
+    const rawBio = ((PROFILES as Record<string, { bio?: string }>)[id]?.bio ?? "").trim();
 
     // ProfilePage 構造化データ（検索結果でのプロフィール理解を助ける）
     const jsonLd = summary
@@ -176,7 +184,7 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
                     dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c").replace(/>/g, "\\u003e") }}
                 />
             )}
-            <UserProfileClient key={id} userId={id} />
+            <UserProfileClient key={id} userId={id} initialBio={rawBio} />
         </>
     );
 }
