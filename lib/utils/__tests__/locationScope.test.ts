@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { photoIsInLocation, sameLocation } from "../related";
-import { photosInCollection, isIndexableCollection } from "../collections";
+import { photosInCollection, isIndexableCollection, collectEntries } from "../collections";
 import type { Photo } from "../../data/photos";
 
 /**
@@ -79,3 +79,35 @@ describe("集約ページの中身と、索引に載るかどうか", () => {
         expect(isIndexableCollection(inC.length, "location"), "1枚なのに索引に載せている").toBe(false);
     });
 });
+
+/**
+ * **数える側とページの中身は、同じ関数で見る。**
+ *
+ * 一覧のチップは `collectEntries` が件数を持ち、ページの中身は
+ * `photosInCollection` が決める。**片方だけ直すと、チップの「N枚」と
+ * 実際に並ぶ枚数、そして noindex の判定が食い違う。**
+ * 変異で確かめたら、**数える側だけ対称に戻しても全部緑**だった
+ * （＝誰も見ていなかった）。
+ */
+describe("チップの件数と、ページの中身が一致する", () => {
+    const photos = [
+        P("a", "ロヴァニエミ, フィンランド"),
+        P("b", "フィンランド"),
+        P("c", "フィンランド"),
+        P("d", "ヘルシンキ, フィンランド"),
+        P("e", "ヘルシンキ, フィンランド"),
+    ];
+
+    it("撮影地のチップの件数が、そのページに並ぶ枚数と同じ", () => {
+        for (const e of collectEntries(photos, "location")) {
+            expect(e.count, `${e.label} のチップの件数がページの枚数と違う`)
+                .toBe(photosInCollection(photos, "location", e.slug).length);
+        }
+    });
+
+    it("1枚しか無い街は、チップでも1件（別の場所の写真で水増ししない）", () => {
+        const e = collectEntries(photos, "location").find((x) => x.label.startsWith("ロヴァニエミ"));
+        expect(e?.count).toBe(1);
+    });
+});
+
