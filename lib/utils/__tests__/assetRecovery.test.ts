@@ -16,26 +16,64 @@ function makeStorage(): Storage {
     } as Storage;
 }
 
+// **文書自身のオリジンを基準にする。** 別の文字列を渡すと、要素の `src` は
+// 文書の基底 URL で解決されるので相対パスが「別オリジン」に見える
+// （jsdom でも実ブラウザでも同じ。最初これで嘘の失敗を出した）
+const HERE = window.location.origin;
+const scriptAt = (src: string) => { const el = document.createElement("script"); el.src = src; return el; };
+const sheetAt = (href: string) => { const el = document.createElement("link"); el.rel = "stylesheet"; el.href = href; return el; };
+
 describe("isAssetElement（リロード対象の判定）", () => {
-    it("script の失敗は対象", () => {
-        expect(isAssetElement(document.createElement("script"))).toBe(true);
+    it("自分のサイトの script の失敗は対象", () => {
+        expect(isAssetElement(scriptAt(`${HERE}/_next/static/chunks/a.js`), HERE)).toBe(true);
     });
-    it("stylesheet link の失敗は対象", () => {
-        const link = document.createElement("link");
-        link.rel = "stylesheet";
-        expect(isAssetElement(link)).toBe(true);
+    it("自分のサイトの stylesheet の失敗は対象", () => {
+        expect(isAssetElement(sheetAt(`${HERE}/_next/static/chunks/a.css`), HERE)).toBe(true);
+    });
+
+    /**
+     * **別オリジンは対象にしない。**
+     *
+     * ここが「`<script>` なら何でも」だったので、**広告ブロッカーが解析タグを
+     * 落とすだけでページが自分でリロードしていた**。実ブラウザで A/B して確認:
+     *
+     *     GA が通る      読み込み 1回 / リロードの印 なし
+     *     GA をブロック   読み込み 2回 / リロードの印 あり
+     *
+     * 解析タグが落ちてもページは壊れない。この仕組みが直すのは
+     * 「CSS/JS チャンクが来なくて画面が壊れた」場合で、それは必ず同じオリジン。
+     */
+    it("別オリジンの script（解析タグなど）は対象外", () => {
+        expect(isAssetElement(scriptAt("https://www.googletagmanager.com/gtag/js?id=G-X"), HERE)).toBe(false);
+        expect(isAssetElement(scriptAt("https://plausible.io/js/script.js"), HERE)).toBe(false);
+    });
+    it("別オリジンの stylesheet も対象外", () => {
+        expect(isAssetElement(sheetAt("https://cdn.example.com/a.css"), HERE)).toBe(false);
+    });
+    it("相対パスは自分のサイトとして扱う", () => {
+        expect(isAssetElement(scriptAt("/_next/static/chunks/a.js"), HERE)).toBe(true);
+    });
+    it("インラインの script（src 無し）は対象外", () => {
+        expect(isAssetElement(document.createElement("script"), HERE)).toBe(false);
+    });
+    // オリジンが分からないときは「何もしない」に倒す（勝手にリロードしない）
+    it("オリジンが分からなければ対象外", () => {
+        expect(isAssetElement(scriptAt("/a.js"), "")).toBe(false);
     });
     it("stylesheet 以外の link は対象外", () => {
         const link = document.createElement("link");
         link.rel = "icon";
-        expect(isAssetElement(link)).toBe(false);
+        link.href = `${HERE}/favicon.ico`;
+        expect(isAssetElement(link, HERE)).toBe(false);
     });
     it("画像の読み込み失敗ではリロードしない（写真の404は正常系にあり得る）", () => {
-        expect(isAssetElement(document.createElement("img"))).toBe(false);
+        const img = document.createElement("img");
+        img.src = `${HERE}/uploads/a.jpg`;
+        expect(isAssetElement(img, HERE)).toBe(false);
     });
     it("window 起因のJSエラー（target無し）は対象外", () => {
-        expect(isAssetElement(null)).toBe(false);
-        expect(isAssetElement(window)).toBe(false);
+        expect(isAssetElement(null, HERE)).toBe(false);
+        expect(isAssetElement(window, HERE)).toBe(false);
     });
 });
 

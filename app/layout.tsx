@@ -188,6 +188,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           1回だけ自動リロードする。lib/utils/assetRecovery.ts と同じキー・
           クールダウン（60秒）を共有するので二重リロードにはならない。
 
+          **別オリジンは対象にしない。** ここが「`<script>` なら何でも」だったので、
+          **広告ブロッカーが解析タグ（googletagmanager.com）を落とすだけで
+          ページが自分でリロードしていた**。実ブラウザで A/B して確認した:
+
+              GA が通る      読み込み 1回・リロードの印なし
+              GA をブロック   読み込み 2回・navigation の type が "reload"
+
+          **`lib/utils/assetRecovery.ts` の `isAssetElement` と同じ規則。**
+          写しが2つあるのは、こちらが**チャンクより先に**動く必要があるため
+          （React の部品では `<head>` の時点の失敗を拾えない）。
+          最初あちらだけ直したが、**先に登録されるこちらが発火し続けていた**
+          ——測って気づいた。突き合わせは
+          `app/__tests__/assetRecoveryInline.test.ts` が振る舞いで行う。
+
           error イベントだけでは取りこぼす経路が2つある:
           (1) <link rel=stylesheet> は Next が head の先頭に置くため、
               このスクリプトが動く前に error が発火しうる（キャッシュ済みの失敗など）
@@ -197,7 +211,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var KEY="jp_asset_reload_at";function rl(){var now=Date.now(),last=0;try{last=Number(sessionStorage.getItem(KEY)||0)}catch(x){return}if(last&&now-last<60000)return;try{sessionStorage.setItem(KEY,String(now))}catch(x){return}location.reload()}addEventListener("error",function(e){var t=e.target;if(!t||typeof t.tagName!=="string")return;var tag=t.tagName.toUpperCase();var isAsset=tag==="SCRIPT"||(tag==="LINK"&&String(t.rel||"").toLowerCase().indexOf("stylesheet")>-1);if(!isAsset)return;rl()},true);addEventListener("load",function(){try{var ls=document.querySelectorAll('link[rel~="stylesheet"]');if(!ls.length)return;for(var i=0;i<ls.length;i++){var s=ls[i].sheet;if(!s)continue;try{if(s.cssRules&&s.cssRules.length)return}catch(x){return}}rl()}catch(e){}})}catch(e){}})();`,
+            __html: `(function(){try{var KEY="jp_asset_reload_at";function rl(){var now=Date.now(),last=0;try{last=Number(sessionStorage.getItem(KEY)||0)}catch(x){return}if(last&&now-last<60000)return;try{sessionStorage.setItem(KEY,String(now))}catch(x){return}location.reload()}addEventListener("error",function(e){var t=e.target;if(!t||typeof t.tagName!=="string")return;var tag=t.tagName.toUpperCase();var url="";if(tag==="SCRIPT")url=t.src||"";else if(tag==="LINK"&&String(t.rel||"").toLowerCase().indexOf("stylesheet")>-1)url=t.href||"";else return;if(!url)return;var here=location.origin;if(!here)return;try{if(new URL(url,here).origin!==here)return}catch(x){return}rl()},true);addEventListener("load",function(){try{var ls=document.querySelectorAll('link[rel~="stylesheet"]');if(!ls.length)return;for(var i=0;i<ls.length;i++){var s=ls[i].sheet;if(!s)continue;try{if(s.cssRules&&s.cssRules.length)return}catch(x){return}}rl()}catch(e){}})}catch(e){}})();`,
           }}
         />
         {/*
