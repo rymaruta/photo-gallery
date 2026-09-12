@@ -275,9 +275,47 @@ function cdnLines(behaviors, policies, errorResponses) {
     return [
         ...behaviors.map((b) => describeBehavior(b, policies)),
         ...compressNote(behaviors),
+        ...securityHeadersNote(behaviors),
         ...errorPageNote(errorResponses ?? []),
         ...residencyNote(),
     ];
+}
+
+/**
+ * 応答ヘッダーのポリシーが付いているか（**純関数**）。
+ *
+ * **リポジトリのどこにも設定が無い**（`X-Content-Type-Options` /
+ * `Referrer-Policy` / `Content-Security-Policy` / HSTS を grep して0件）。
+ * ただし**付いていないと断定はできない**——コンソールで付けた場合は
+ * コードに現れない。だから**診断に出す**。圧縮のときと同じ判断
+ * （`4548278a`「道具が何も言わない項目は、無いのではなく見ていない」）。
+ *
+ * とくに効くのが `X-Content-Type-Options: nosniff`。**利用者が上げた
+ * ファイルを同じオリジンから配っている**（`/uploads/*` は
+ * `journey-photo.com` のパス）ので、ブラウザが中身を見て種別を推測すると、
+ * 画像のつもりのものが HTML として実行されうる。入口は
+ * `uploadPolicy.ts` が SVG を断り、presign が `content-type` を署名に
+ * 入れて塞いである（`738bef3`）——`nosniff` はその**二重目**。
+ *
+ * **読めなかったのを「付いている」に丸めない**（権限が足りない日に
+ * 嘘を報告する）。
+ */
+function securityHeadersNote(behaviors) {
+    const named = (b) => b.PathPattern ?? "(default)";
+    const without = behaviors.filter((b) => !b.ResponseHeadersPolicyId).map(named);
+    const out = [];
+    if (without.length === behaviors.length && behaviors.length > 0) {
+        out.push("  !! 応答ヘッダーのポリシーが1つも付いていない");
+        out.push("     → nosniff / Referrer-Policy / HSTS / CSP がどれも付かない。");
+        out.push("     → とくに nosniff。利用者が上げたファイルを同じオリジンから配っているので、");
+        out.push("       種別の推測が働くと「画像のつもりのもの」が実行されうる（入口は塞いであるが二重目が無い）。");
+        out.push("     → CloudFront のマネージドポリシー SecurityHeadersPolicy を各ビヘイビアに付けるのが最短。");
+    } else if (without.length > 0) {
+        out.push(`  !! 応答ヘッダーのポリシーが無い経路: ${without.join(" / ")}`);
+    } else if (behaviors.length > 0) {
+        out.push("  応答ヘッダー: 全経路にポリシーが付いている（中身までは見ていない）");
+    }
+    return out;
 }
 
 /**
@@ -631,7 +669,7 @@ async function main() {
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
 
-module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, publicFnsFromServerless, PUBLIC_FNS, qualify };
+module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, securityHeadersNote, publicFnsFromServerless, PUBLIC_FNS, qualify };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });

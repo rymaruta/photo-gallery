@@ -9,7 +9,7 @@ import { join } from "node:path";
 // 4つがこの形だった）。ポリシーを引いて秒で出す。
 
 const require_ = createRequire(import.meta.url);
-const { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, compressNote, errorPageNote, cdnLines } = require_("../diagnose-aws.js") as {
+const { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, compressNote, errorPageNote, cdnLines, securityHeadersNote } = require_("../diagnose-aws.js") as {
     describeBehavior: (b: Record<string, unknown>, p: Map<string, unknown>) => string;
     humanSeconds: (s: unknown) => string;
     residencyNote: () => string[];
@@ -18,6 +18,7 @@ const { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInva
     compressNote: (behaviors: Record<string, unknown>[]) => string[];
     errorPageNote: (items: Record<string, unknown>[]) => string[];
     cdnLines: (behaviors: Record<string, unknown>[], policies: Map<string, unknown>, errorResponses?: Record<string, unknown>[]) => string[];
+    securityHeadersNote: (behaviors: Record<string, unknown>[]) => string[];
 };
 
 const OPTIMIZED = new Map([["p1", {
@@ -298,5 +299,52 @@ describe("存在しない URL に何を返しているか", () => {
     it("CDN の節に入っている", () => {
         const out = cdnLines([{ PathPattern: "/x/*", CachePolicyId: "p1", Compress: true }], OPTIMIZED, ok);
         expect(out.some((l) => l.includes("404 → /404.html")), "404 の行が節に入っていない").toBe(true);
+    });
+});
+
+/**
+ * **応答ヘッダーのポリシーが付いているかを、診断が言う。**
+ *
+ * リポジトリのどこにも設定が無い（`X-Content-Type-Options` /
+ * `Referrer-Policy` / `Content-Security-Policy` / HSTS を grep して0件）。
+ * **付いていないと断定はできない**——コンソールで付けた場合はコードに
+ * 現れない。だから診断に出す（圧縮のときと同じ判断・`4548278a`）。
+ *
+ * とくに `nosniff`。**利用者が上げたファイルを同じオリジンから配って
+ * いる**ので、種別の推測が働くと「画像のつもりのもの」が実行されうる。
+ */
+describe("応答ヘッダーのポリシー", () => {
+    it("1つも付いていなければ、何が起きるかまで言う", () => {
+        const out = securityHeadersNote([
+            { PathPattern: "/uploads/*" }, { PathPattern: undefined },
+        ]);
+        expect(out.some((l) => l.includes("1つも付いていない")), "見出しの行が無い").toBe(true);
+        // **4つの名前まで見る。** 「nosniff に触れているか」だけだと、
+        // 一覧の行を丸ごと削っても別の行の "nosniff" で緑になった（変異で確認）
+        for (const h of ["nosniff", "Referrer-Policy", "HSTS", "CSP"]) {
+            expect(out.join("\n"), `${h} を挙げていない`).toContain(h);
+        }
+        expect(out.join("\n"), "直し方を言っていない").toContain("SecurityHeadersPolicy");
+    });
+
+    it("一部だけ無い経路は、その経路を名指しする", () => {
+        const out = securityHeadersNote([
+            { PathPattern: "/uploads/*" },
+            { PathPattern: "/api/*", ResponseHeadersPolicyId: "r1" },
+        ]);
+        expect(out.join("\n")).toContain("/uploads/*");
+        expect(out.join("\n"), "付いている経路まで名指ししている").not.toContain("/api/*");
+    });
+
+    // **「付いている」に丸めない。** 全部に付いていても中身は見ていないので、
+    // そう書く（圧縮のときに「読めなかったのを ON に丸めない」と決めた形）
+    it("全部に付いていても、中身は見ていないと断る", () => {
+        const out = securityHeadersNote([{ ResponseHeadersPolicyId: "r1" }]);
+        expect(out.join("\n")).toContain("中身までは見ていない");
+    });
+
+    it("組み立て（cdnLines）に入っている", () => {
+        const out = cdnLines([{ PathPattern: "/uploads/*", CachePolicyId: "p1", Compress: true }], OPTIMIZED);
+        expect(out.some((l) => l.includes("応答ヘッダー")), "cdnLines に入っていない").toBe(true);
     });
 });
