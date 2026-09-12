@@ -74,3 +74,48 @@ describe("JS が走る前に焼かれる中身（Suspense の fallback）", () =
         });
     }
 });
+
+/**
+ * **一覧そのものを縛る。**
+ *
+ * 上の `PAGES` は手書きなので、`useSearchParams` を使うページが8つ目に
+ * 増えても**この守りは静かに素通りする**。`1b150344` / `9cf264b0` で
+ * 立てた型（「その入口は全部か」を数える）をここにも当てる。
+ *
+ * なぜ `useSearchParams` かというと、**それを使うページは全体が Suspense で
+ * 包まれる**ので、静的書き出しで焼かれるのは中身ではなく fallback になる
+ * ——`8ec1dd8e` 〜 `53e2307c` で12ページ直したときの根がこれで、
+ * 「内側の loading 状態に足しても静的HTMLには入らない」を2回続けて落とした。
+ */
+describe("見る対象の一覧が、実際の page.tsx と合っている", () => {
+    it("useSearchParams を使うページは全部 PAGES に在る", async () => {
+        const { readdirSync, readFileSync, statSync } = await import("node:fs");
+        const { join, relative } = await import("node:path");
+        const root = join(process.cwd(), "app");
+        const found: string[] = [];
+        const stack = [root];
+        while (stack.length > 0) {
+            const dir = stack.pop()!;
+            for (const name of readdirSync(dir)) {
+                if (name === "__tests__" || name === "api") continue;
+                const full = join(dir, name);
+                if (statSync(full).isDirectory()) { stack.push(full); continue; }
+                if (name !== "page.tsx") continue;
+                if (!readFileSync(full, "utf8").includes("useSearchParams")) continue;
+                // "app/login/page.tsx" → "/login"
+                const rel = relative(root, full).split("\\").join("/").replace(/\/page\.tsx$/, "");
+                found.push(rel === "page.tsx" ? "/" : `/${rel}`);
+            }
+        }
+        const listed = PAGES.map(([route]) => route);
+        expect(found.sort(), `一覧に無いページがある（足すか、理由を書いて外す）`).toEqual([...listed].sort());
+    });
+
+    // **走査が空振りしていないこと。** パスの組み立てを間違えると
+    // 「0件 === 0件」ではなく「0件 ≠ 7件」で落ちるが、逆に PAGES を
+    // 空にした変異は気づけない。数の下限も見る
+    it("一覧が空でない", () => {
+        expect(PAGES.length).toBeGreaterThan(5);
+    });
+});
+
