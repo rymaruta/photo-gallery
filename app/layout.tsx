@@ -27,6 +27,15 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // **`manifest.webmanifest` が `theme_color: "#000000"` を宣言しているのに、
+  // `<meta name="theme-color">` が1ページも無かった**（実ビルドで確認）。
+  // マニフェストの色が効くのは**インストール後**で、ブラウザで見ている間の
+  // ツールバーの色はこのメタタグが決める。真っ黒なサイトの上に既定の
+  // 明るいツールバーが乗っていた。
+  //
+  // **新しい色を決めていない**——マニフェストが既に宣言している色を、
+  // 閲覧中にも届くようにしただけ（`public/manifest.webmanifest` と同じ `#000000`）。
+  themeColor: "#000000",
 };
 
 // **OGP 画像はビルド時に決める（静的な `metadata` から関数に変えた理由）。**
