@@ -11,6 +11,7 @@ import { initialRelatedFor } from "@/lib/utils/related";
 import { withPlaceholderParam } from "../../../lib/server/staticParams";
 import { photoAltText } from "../../../lib/utils/photoAlt";
 import { metaText } from "@/lib/utils/metaText";
+import { titleWithPlace } from "@/lib/utils/titlePlace";
 
 // 写真データを読み込む関数
 async function loadPhoto(id: string): Promise<Photo | null> {
@@ -101,9 +102,10 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     // 最初「includes を先に見ないと題＝撮影地で題が消える」と書いたが誤り。
     // 「海」が「…海浜公園」に含まれるような回は、撮影地が題で始まって
     // いないので `startsWith` に掛からない（実データで確認）。
-    const title = !place || ownTitle.includes(place) ? ownTitle
-        : place.startsWith(ownTitle) ? place
-            : `${ownTitle}｜${place}`;
+    // **並べ方の決め方は `titleWithPlace` 1つに置く**（画像の `alt` と同じ判断。
+    // ここが決めるのは「｜でつなぐ」ことだけ）
+    const tp = titleWithPlace(ownTitle, place);
+    const title = tp.kind === "single" ? tp.text : `${tp.title}｜${tp.place}`;
 
     // **説明に機材を添える。**
     //
