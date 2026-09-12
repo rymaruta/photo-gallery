@@ -323,10 +323,23 @@ async function invalidationHistory() {
  * 値は出さない。**設定名と「有る/無い」だけ**——診断のログは Actions に
  * 残るので、トークンの中身をそこへ書き写したら直した意味が無くなる。
  */
-const PUBLIC_FNS = [
-    "getPublicProfile", "searchUsers", "getLikeCount", "getComments", "getFollowStats",
-    "getPhotos", "getPhoto",
-];
+/**
+ * 読み取り専用ロールを付けてあるべき関数。**手で並べない。**
+ *
+ * 2026-09-12 に本番で流したら、`getInvite` に
+ * `!! 読み取り専用ロールが付いている` と出た——**誤報**。
+ * `api-user/serverless.yml` はあの関数に正しく `role: PublicReadRole` を
+ * 付けている。手書きの7個にあとから足した1つが入っていなかっただけ。
+ * しかも要約は `7/7` と出るので、**「!! が出ているのに問題なし」**という
+ * 読めない報告になっていた。
+ *
+ * **同じスクリプトが一度「手で並べない」と直した隣**（下の
+ * `rebuildFnsFromServerless`）に、手書きの一覧が残っていた
+ * ——台帳の型「片方の入口だけ直して、もう片方を置いてくる」。
+ */
+function publicFnsFromServerless() {
+    return fnsFromServerless((part) => /\n\s*role:\s*PublicReadRole\b/.test(part));
+}
 /**
  * トークンを配ってあるべき関数。**手で並べない。**
  *
@@ -342,7 +355,19 @@ const PUBLIC_FNS = [
  * 読む——デプロイが見ているのと同じ場所。
  * 突き合わせは `scripts/__tests__/diagnoseRebuildFns.test.ts`。
  */
-function rebuildFnsFromServerless() {
+/**
+ * **名前はパッケージ込みで持つ**（`api:presignedUrl` / `api-user:presignedUrl`）。
+ *
+ * 2026-09-12 に本番で流したら、管理API（`api`）の `presignedUrl` と
+ * `savePhoto` に `!! 再ビルドのトークンが無い` と出た——**誤報**。
+ * `api/serverless.yml` がトークンを渡すのは `updatePhoto` と `deletePhoto`
+ * だけで、あの2つは渡さないのが正しい。**短い名前がパッケージを落とす**
+ * ので、`api-user` 側の同名関数の期待が管理API側に当たっていた。
+ *
+ * しかも要約は `8/8`（＝重複を畳んだ名前の数）と出るので、
+ * **`!!` が2つ出ているのに「全部揃っている」**という自己矛盾になっていた。
+ */
+function fnsFromServerless(match) {
     const fs = require("fs");
     const path = require("path");
     const out = [];
@@ -354,12 +379,29 @@ function rebuildFnsFromServerless() {
         if (!fnSection) continue;
         for (const part of ("\n" + fnSection.split(/\n(?=[a-zA-Z#])/)[0]).split(/\n(?=  \w+:\n)/)) {
             const m = /^\n?  (\w+):/.exec(part);
-            if (m && part.includes("REBUILD_DISPATCH_TOKEN")) out.push(m[1]);
+            if (m && match(part)) out.push(`${dir}:${m[1]}`);
         }
     }
     return out;
 }
+
+function rebuildFnsFromServerless() {
+    return fnsFromServerless((part) => part.includes("REBUILD_DISPATCH_TOKEN"));
+}
 const REBUILD_FNS = rebuildFnsFromServerless();
+const PUBLIC_FNS = publicFnsFromServerless();
+
+/**
+ * Lambda の関数名から `パッケージ:短い名前` を作る。
+ * `photo-gallery-user-api-prod-…-presignedUrl` → `api-user:presignedUrl`
+ * `photo-gallery-api-prod-…-presignedUrl`      → `api:presignedUrl`
+ */
+function qualify(functionName) {
+    const m = /^photo-gallery(-user)?-api-[^-]+-(.+)$/.exec(functionName ?? "");
+    if (!m) return { pkg: "", short: functionName ?? "", key: functionName ?? "" };
+    const pkg = m[1] ? "api-user" : "api";
+    return { pkg, short: m[2], key: `${pkg}:${m[2]}` };
+}
 
 async function lambdaRoles() {
     head("Lambda のロールと環境変数（IAM-1 / IAM-2 が当たっているか）");
@@ -395,16 +437,21 @@ async function lambdaRoles() {
  * @param {string[]} [wanted] トークンを配ってあるべき関数（既定は serverless.yml から読んだもの）
  * @returns {string[]}
  */
-function reportFunctions(mine, wanted = REBUILD_FNS) {
+function reportFunctions(mine, wanted = REBUILD_FNS, publics = PUBLIC_FNS) {
     const out = [];
     const line = (s) => out.push(s);
     let publicOk = 0, leaked = 0, tokenOk = 0;
     for (const f of mine.sort((a, b) => a.FunctionName.localeCompare(b.FunctionName))) {
-        const short = f.FunctionName.replace(/^photo-gallery(-user)?-api-[^-]+-/, "");
+        const { pkg, short, key } = qualify(f.FunctionName);
         const role = (f.Role ?? "").split("/").pop() ?? "";
         const hasToken = Boolean(f.Environment?.Variables?.REBUILD_DISPATCH_TOKEN);
-        const wantPublic = PUBLIC_FNS.includes(short);
-        const wantToken = wanted.includes(short);
+        // **パッケージ込みで突き合わせる**（`api:presignedUrl` と
+        // `api-user:presignedUrl` は別の関数で、期待も別）
+        const wantPublic = publics.includes(key);
+        const wantToken = wanted.includes(key);
+        // **表示もパッケージ込み。** `presignedUrl` は2つあるので、
+        // 短い名前だけだとどちらの行か読めない（`!!` が出たとき困る）
+        const label = pkg ? `${pkg}:${short}` : short;
         const isPublicRole = /publicRead$/.test(role);
         const flags = [];
         if (wantPublic && !isPublicRole) flags.push("!! 共有ロールのまま");
@@ -414,7 +461,7 @@ function reportFunctions(mine, wanted = REBUILD_FNS) {
         if (wantPublic && isPublicRole) publicOk++;
         if (hasToken && !wantToken) leaked++;
         if (hasToken && wantToken) tokenOk++;
-        line(`  ${short.padEnd(26)} role=${role}${hasToken ? " REBUILD_DISPATCH_TOKEN=あり" : ""}${flags.length ? "  " + flags.join(" / ") : ""}`);
+        line(`  ${label.padEnd(34)} role=${role}${hasToken ? " REBUILD_DISPATCH_TOKEN=あり" : ""}${flags.length ? "  " + flags.join(" / ") : ""}`);
     }
     // **分母を出す。** 出さないと「`!!` が0件」が「全部揃っている」なのか
     // 「見る対象が0件」なのか読めない——一覧を `serverless.yml` から
@@ -422,10 +469,13 @@ function reportFunctions(mine, wanted = REBUILD_FNS) {
     // 数えるのは上のループの中（`publicOk` / `leaked` と同じ場所）。
     // ここで数え直すと**関数名を短くする規則の2つ目の写し**ができ、
     // 片方だけ直した日に黙ってずれる——このコミットが直した当のもの
-    line(`  → 読み取り専用ロールの関数 ${publicOk}/${PUBLIC_FNS.length} ・ トークンが余計に付いた関数 ${leaked}`);
+    line(`  → 読み取り専用ロールの関数 ${publicOk}/${publics.length} ・ トークンが余計に付いた関数 ${leaked}`);
     line(`  → 再ビルドのトークンを持つ関数 ${tokenOk}/${wanted.length}`);
     if (wanted.length === 0) {
         line("  !! serverless.yml からトークンを配る関数を1つも読み取れなかった（診断が壊れています）");
+    }
+    if (publics.length === 0) {
+        line("  !! serverless.yml から読み取り専用ロールの関数を1つも読み取れなかった（診断が壊れています）");
     }
     return out;
 }
@@ -539,7 +589,7 @@ async function main() {
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
 
-module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, cdnLines };
+module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, cdnLines, publicFnsFromServerless, PUBLIC_FNS, qualify };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
