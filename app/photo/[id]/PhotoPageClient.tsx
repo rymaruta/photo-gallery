@@ -30,6 +30,7 @@ import { relatedSections, adjacentPhotos } from "../../../lib/utils/related";
 import { ROUTES } from "../../../lib/routes";
 import { formatMapHash, PHOTO_LINK_ZOOM } from "../../../lib/utils/mapView";
 import { formatCameraName, dedupeCameraName } from "../../../lib/utils/cameraName";
+import { displayWhiteBalance } from "../../../lib/utils/exifDisplay";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
@@ -858,7 +859,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     add(locale === "en" ? "Shutter" : "シャッター速度", mergedExif.exposure);
                     add("ISO", mergedExif.iso);
                     add(locale === "en" ? "Focal Length" : "焦点距離", mergedExif.focalLength);
-                    add(locale === "en" ? "White Balance" : "ホワイトバランス", mergedExif.whiteBalance);
+                    add(locale === "en" ? "White Balance" : "ホワイトバランス",
+                        displayWhiteBalance(mergedExif.whiteBalance, locale === "en" ? "en" : "ja"));
                     add(locale === "en" ? "Image Size" : "画像サイズ", mergedExif.imageSize);
                     // 撮影日時は**保存されている通り**に出す。toLocaleString を
                     // 描画中に呼んでいた頃は、ビルド(UTC)と閲覧者のゾーンで
