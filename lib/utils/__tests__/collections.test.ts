@@ -312,11 +312,41 @@ describe("collectionCopy", () => {
     it("タイプ別に見出し・タイトル・説明を作る", () => {
         const t = collectionCopy("tag", "白鳥", 3);
         expect(t.heading).toBe("#白鳥 の写真");
-        expect(t.title).toContain("白鳥の写真");
-        expect(t.title).toContain("3枚");
+        expect(t.title).toBe("#白鳥 の写真（3枚）");
         const l = collectionCopy("location", "山中湖", 2);
         expect(l.heading).toBe("山中湖の写真");
         expect(l.description).toContain("山中湖");
+    });
+
+    /**
+     * **`<title>` が種別を区別していなかった。**
+     *
+     * 以前は種別に関係なく `${label}の写真（N枚）` だったので、
+     * 実ビルドで `/tag/風景`（4枚）と `/category/風景`（16枚）の
+     * `<title>` が**枚数しか違わなかった**。枚数が一致すれば
+     * **索引可の2ページが完全に同じ題**になる。
+     * 見出し（`heading`）は前から種別を出し分けているので、揃えた。
+     */
+    it("タグとカテゴリで題が違う（枚数が同じでも）", () => {
+        const tag = collectionCopy("tag", "風景", 4).title;
+        const cat = collectionCopy("category", "風景", 4).title;
+        expect(tag, "題が種別を区別していない").not.toBe(cat);
+        expect(tag).toBe("#風景 の写真（4枚）");
+        expect(cat).toBe("風景の写真（4枚）");
+    });
+
+    // 機材は「〜で撮った写真」の方が自然（見出しは前からそうだった）
+    it("機材の題は「で撮った写真」", () => {
+        expect(collectionCopy("camera", "SONY ILCE-7M3", 24).title)
+            .toBe("SONY ILCE-7M3 で撮った写真（24枚）");
+    });
+
+    // **題と見出しは同じ言い回し**（片方だけ直すとサイト内で割れる）
+    it("題は見出しに枚数を足したもの", () => {
+        for (const type of ["tag", "location", "category", "camera"] as const) {
+            const c = collectionCopy(type, "X", 5);
+            expect(c.title, `${type} で題と見出しが割れている`).toBe(`${c.heading}（5枚）`);
+        }
     });
 });
 
@@ -333,7 +363,8 @@ describe("collectionCopy: タイトルにサイト名を足さない", () => {
     });
 
     it("枚数が無ければ枚数を出さない", () => {
-        expect(collectionCopy("tag", "海", 0).title).toBe("海の写真");
+        expect(collectionCopy("tag", "海", 0).title).toBe("#海 の写真");
+        expect(collectionCopy("location", "海", 0).title).toBe("海の写真");
     });
 });
 

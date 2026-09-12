@@ -454,6 +454,22 @@ export function photosInCollection(photos: Photo[], type: CollectionType, slug: 
 /** slug に対応する代表表示ラベル（`pickRepresentative` の規則）。無ければデコードした slug。 */
 export function labelForSlug(photos: Photo[], type: CollectionType, slug: string): string {
     const target = normalizeParam(slug, type);
+    // **日本語の表示名を当てるのはカテゴリだけ。タグには当てない。**
+    //
+    // 一度タグにも当てた（`/tag/architecture` が「#architecture の写真」と、
+    // **日本語のサイトに英語スラッグ**を出していたため。カテゴリは
+    // `d9f33cbf` で同じ理由から日本語へ寄せている）。**が、巻き戻した。**
+    //
+    // `/category/architecture` が既に「建築の写真」を名乗っているので、
+    // タグも「建築」にすると**同じ名前のページが2つ**できる。しかも
+    // `建物` と打った写真を、誰も打っていない「建築」という第3の語で
+    // 呼ぶことになる。**カテゴリが日本語の呼び名を持ち、タグは打たれた
+    // ままを見せる**、で役割が分かれているのが正しい。
+    // 英語スラッグが見出しに出る件は、`title` を種別ごとに分けた
+    // （`#architecture の写真` と `建築の写真`）ことで区別は付く。
+    //
+    // この判断は `collections.test.ts` の
+    // 「タグ・撮影地には当てない（別名と同じ綴りでも生の値）」が守っている。
     if (type === "category") {
         const name = categoryDisplayName(target);
         if (name) return name;
@@ -535,8 +551,23 @@ export function collectionCopy(type: CollectionType, label: string, count: numbe
         type === "location" || type === "category" ? `${label}の写真`
             : type === "camera" ? `${label} で撮った写真`
                 : `#${label} の写真`;
-    // サイト名は app/layout.tsx の `template` が付ける（同上）
-    const title = `${label}の写真${count ? `（${count}枚）` : ""}`;
+    // サイト名は app/layout.tsx の `template` が付ける（同上）。
+    //
+    // **見出しと同じ組み方にする。** 以前は種別に関係なく
+    // `${label}の写真（N枚）` だったので、**`/tag/風景` と `/category/風景`
+    // の `<title>` が枚数しか違わなかった**（実ビルドで確認。枚数が
+    // 一致すれば完全に同じになる）。見出し（`heading`）は前から
+    // 種別を出し分けているので、そちらに揃える:
+    //
+    //     タグ    #風景 の写真（4枚）
+    //     カテゴリ 風景の写真（16枚）
+    //     機材    SONY ILCE-7M3 で撮った写真（24枚）  ← 「…の写真」より自然
+    //     撮影地   パリの写真（3枚）
+    //
+    // **別名の旧URL同士（`/tag/風景` と `/tag/landscape`）は同じままでよい**
+    // ——あちらは canonical で統合後に寄せてある（同じページの別名なので、
+    // 題が同じなのが正しい）。
+    const title = `${heading}${count ? `（${count}枚）` : ""}`;
     const description =
         type === "camera"
             // 機材名で検索する人に向けた文。作例・設定（絞り・シャッター速度・ISO）が
