@@ -47,23 +47,54 @@ function esc(s: string): string {
 // 2つに割れていた——実測 30件中 11件が CloudFront の既定ドメイン）
 const toAbsolute = (src: string): string => publicImageUrl(src);
 
-function titleOf(p: Photo): string {
-    const ja = getLocalized(p.title, "ja");
-    const en = getLocalized(p.title, "en");
-    return [ja, en && en !== ja ? en : ""].filter(Boolean).join(" / ");
+/**
+ * **このサイトの言語（日本語）で書く。**
+ *
+ * 以前は `ja + " / " + en` と併記していた（「両言語のクエリで拾える
+ * ように」）。実ビルドで測ると `<image:title>` と `<image:caption>` の
+ * **54か所**が「白鳥と湖 / Swans on the Lake」の形になっていた。
+ *
+ * **併記をやめる理由は3つ**:
+ *
+ *   1. **ページ自体が日本語だけ。** `locale` は `ja` 固定で切替はもう無く
+ *      （`6d72bfb`）、`<html lang="ja">`・`<meta description>` も日本語
+ *      だけを出している。**機械向けの経路にだけ英語が残っていた**
+ *   2. 台帳が同じ判断を一度している——`og:locale:alternate` は
+ *      「英語版があると主張してしまう」ので撤去した（I18N-2）。
+ *      英語の題を配るのは、無い英語ページへ英語の検索から人を呼ぶこと
+ *   3. `<image:caption>` は500字で切るので、**半分を英語に使うと
+ *      日本語の説明が入り切らない**（実測で英語が途中で切れていた）
+ *
+ * **日本語が無い写真は英語に落ちる**（出せるものが無いよりはよい）。
+ * その落とし方は `getLocalized` が持っている（`v[locale] || v.ja || v.en`）
+ * ので、ここで `|| getLocalized(p.title, "en")` と書き足すのは死にコード
+ * ——変異で生き残って気づいた。
+ */
+export function titleOf(p: Photo): string {
+    return getLocalized(p.title, "ja");
 }
 
-function captionOf(p: Photo): string {
-    const ja = getLocalizedParagraphs(p.description, "ja").join(" ");
-    const en = getLocalizedParagraphs(p.description, "en").join(" ");
-    const text = [ja, en && en !== ja ? en : ""].filter(Boolean).join(" / ");
+export const CAPTION_MAX = 500;
+
+export function captionOf(p: Photo): string {
+    // 英語への落とし方は `getLocalizedParagraphs` が持っている
+    // （`v[locale] ?? v.ja ?? v.en`）ので、ここでは足さない
+    const text = getLocalizedParagraphs(p.description, "ja").join(" ");
     const loc = p.location ? `（${p.location}）` : "";
-    return truncate(`${text}${loc}`, 500);
+    // **撮影地は説明のあとに足すので、そのままだと真っ先に切れる。**
+    // 撮影地はこの写真の固有名詞＝説明の末尾より情報が濃いので、
+    // 先に席を取ってから説明を詰める
+    return `${truncate(text, Math.max(0, CAPTION_MAX - loc.length))}${loc}`;
 }
 
-export async function GET() {
-    const photos = (await loadAllPhotos()).filter((p) => p.published !== false && p.src);
-
+/**
+ * 画像サイトマップの XML を組み立てる。
+ *
+ * **`GET` から切り出してある**のは、中身をテストから直に見るため
+ * （`feed.xml/route.ts` の `buildFeed` と同じ形。あちらは「制御文字1つで
+ * フィード全体が壊れない」をここで固定している）。
+ */
+export function buildImageSitemap(photos: readonly Photo[]): string {
     const entries = photos.map((p) => {
         const title = titleOf(p);
         const caption = captionOf(p);
@@ -79,14 +110,17 @@ export async function GET() {
         ].filter(Boolean).join("\n");
     });
 
-    const xml = [
+    return [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">',
         ...entries,
         "</urlset>",
     ].join("\n");
+}
 
-    return new Response(xml, {
+export async function GET() {
+    const photos = (await loadAllPhotos()).filter((p) => p.published !== false && p.src);
+    return new Response(buildImageSitemap(photos), {
         headers: { "Content-Type": "application/xml; charset=utf-8" },
     });
 }

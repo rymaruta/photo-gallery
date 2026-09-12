@@ -87,6 +87,42 @@ describe("generatePhotoStructuredData", () => {
         expect("alternateName" in (data.creator as object)).toBe(false);
     });
 
+    /**
+     * **説明はこのページの言語で1本だけ。**
+     *
+     * 以前は日英を `" / "` で併記していた。同じページの
+     * `<meta name="description">` は日本語だけを出しているので、
+     * **機械向けの経路にだけ英語が残っていた**。schema.org の
+     * `description` は「そのものの説明」で、2言語を `/` で繋いだ文字列は
+     * どちらの言語としても読めない。
+     */
+    it("説明は日本語だけ（英語を併記しない）", () => {
+        const data = generatePhotoStructuredData({
+            ...base,
+            description: { ja: ["静かな朝でした。"], en: ["It was a quiet morning."] },
+        }, "ja");
+        expect(data.description).toBe("静かな朝でした。");
+        expect(data.caption).toBe("静かな朝でした。");
+        expect(JSON.stringify(data), "英語が併記されている").not.toContain("quiet morning");
+    });
+
+    it("日本語の説明が無ければ英語に落ちる", () => {
+        const data = generatePhotoStructuredData({
+            ...base, description: { en: ["Only English."] },
+        }, "ja");
+        expect(data.description).toBe("Only English.");
+    });
+
+    // **題の別言語は捨てていない**——`alternateName` が持つ
+    // （「別の呼び名」を置く正しい場所で、混ぜ物にならない）
+    it("題の英語は alternateName に残る", () => {
+        const data = generatePhotoStructuredData({
+            ...base, title: { ja: "北海道の桜", en: "Cherry Blossoms" },
+        }, "ja");
+        expect(data.name).toBe("北海道の桜");
+        expect(data.alternateName).toBe("Cherry Blossoms");
+    });
+
     it("location + coords がある場合 contentLocation に geo を含む", () => {
         const data = generatePhotoStructuredData({
             ...base,
@@ -130,14 +166,20 @@ describe("generatePhotoStructuredData", () => {
         expect(data.alternateName).toBe("Swan");
     });
 
-    it("説明は日英併記になり caption にも入る", () => {
+    /**
+     * **かつては日英併記だった**（「両言語のクエリで拾えるように」）。
+     * その前提——英語UIが選べること——は `6d72bfb` で消えている
+     * （`locale` は `ja` 固定・切替の呼び出しはテスト以外に0件）。
+     * 台帳は同じ理由で `og:locale:alternate` も撤去した（I18N-2）。
+     */
+    it("説明はこのページの言語で1本・caption も同じ", () => {
         const data = generatePhotoStructuredData({
             ...base,
             description: { ja: ["湖の白鳥"], en: ["Swans on the lake"] },
         });
-        expect(String(data.description)).toContain("湖の白鳥");
-        expect(String(data.description)).toContain("Swans on the lake");
+        expect(data.description).toBe("湖の白鳥");
         expect(data.caption).toBe(data.description);
+        expect(String(data.description), "英語が併記されている").not.toContain("Swans on the lake");
     });
 
     it("thumbnailUrl / keywords / datePublished / representativeOfPage を含む", () => {

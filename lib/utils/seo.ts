@@ -169,11 +169,23 @@ export function generatePhotoStructuredData(photo: {
     const other: "ja" | "en" = locale === "ja" ? "en" : "ja";
     const title = titleOf(locale) || titleOf(other) || "";
     const altTitle = titleOf(other);
-    // 説明は日英を併記（両言語のクエリで拾えるように）
-    const descMain = descOf(locale);
-    const descOther = descOf(other);
-    const description = [descMain, descOther && descOther !== descMain ? descOther : ""]
-        .filter(Boolean).join(" / ");
+    // **説明はこのページの言語で1本だけ。**
+    //
+    // 以前は日英を `" / "` で併記していた（「両言語のクエリで拾えるように」）。
+    // 実ビルドの JSON-LD はこうなっていた:
+    //
+    //     description: "北海道にも春が訪れ… / Spring has come to Hokkaido…"
+    //
+    // 同じページの `<meta name="description">` は**日本語だけ**を出して
+    // いるので、**機械向けの経路にだけ英語が残っていた**。schema.org の
+    // `description` は「そのものの説明」で、2言語を `/` で繋いだ文字列は
+    // どちらの言語としても読めない。`locale` は `ja` 固定で英語ページは
+    // 存在しないので（`og:locale:alternate` も同じ理由で撤去済み）、
+    // このページの言語を出し、無いときだけもう一方に落とす。
+    //
+    // **題の別言語は捨てていない**——`alternateName` が持つ（あちらは
+    // 「別の呼び名」を置く正しい場所で、混ぜ物にならない）。
+    const description = descOf(locale) || descOf(other);
 
     const imageUrl = publicImageUrl(photo.src);
 
