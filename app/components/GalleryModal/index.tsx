@@ -19,6 +19,7 @@ import ModalControls from "./ModalControls";
 import ModalCaption from "./ModalCaption";
 import ModalKeyboardHelp from "./ModalKeyboardHelp";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
+import { photoAltText } from "../../../lib/utils/photoAlt";
 
 type Props = {
     photos: Photo[];
@@ -170,7 +171,7 @@ export default function GalleryModal({
     if (!p) return null;
 
     const titleText = getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : "");
-    const altText = getLocalized(p.alt, locale) || titleText || "";
+    const altText = photoAltText(p, locale);
     const locationText = typeof p.location === "string" ? p.location : "";
     const mapText = locale === "ja" ? mapLabel.ja : mapLabel.en;
     const paragraphs = getLocalizedParagraphs(p.description, locale);

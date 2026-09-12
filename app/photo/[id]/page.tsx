@@ -9,6 +9,7 @@ import { getLocalized, getLocalizedParagraphs } from "@/lib/data/photos";
 import { loadAllPhotos } from "@/lib/server/photos";
 import { relatedSections, adjacentPhotos } from "@/lib/utils/related";
 import { withPlaceholderParam } from "../../../lib/server/staticParams";
+import { photoAltText } from "../../../lib/utils/photoAlt";
 
 // 写真データを読み込む関数
 async function loadPhoto(id: string): Promise<Photo | null> {
@@ -147,7 +148,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
                     // 領域を確保するので、共有カードで写真が切れる・伸びる。
                     // 分からないなら黙る方がよい（省略すれば取得側が実寸を見る）。
                     ...(photo.width && photo.height ? { width: photo.width, height: photo.height } : {}),
-                    alt: getLocalized(photo.alt, "ja") || getLocalized(photo.alt, "en") || title,
+                    // 共有カードの alt も本体と同じ組み方に寄せる（`photoAlt.ts`）
+                    alt: photoAltText(photo, "ja") || photoAltText(photo, "en") || title,
                 },
             ],
         },
