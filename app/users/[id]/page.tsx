@@ -79,6 +79,17 @@ export async function generateStaticParams() {
     return withPlaceholderParam(Array.from(ids).map((id) => ({ id })), "id");
 }
 
+/**
+ * ビルド時に分かっている自己紹介（**生のまま**）。
+ * 改行は落とさない——画面は `whitespace-pre-wrap` で出す。
+ * 1行に均すのはメタ情報だけ（`metaText`）。
+ *
+ * **取り出しは1か所。** 2か所に書くと、片方だけ変えた変異が素通りする。
+ */
+function rawBioOf(id: string): string {
+    return ((PROFILES as Record<string, { bio?: string }>)[id]?.bio ?? "").trim();
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
     const { id } = await params;
     const summary = await loadUserSummary(id);
@@ -101,8 +112,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     // 材料は `app/data/profiles.json`（ビルド時に users テーブルから引く）。
     // 表示は**生のまま**（改行は `whitespace-pre-wrap` が出す）。
     // メタ情報だけ1行に均す（`metaText` の説明を参照）
-    const rawBio = ((PROFILES as Record<string, { bio?: string }>)[id]?.bio ?? "").trim();
-    const bio = metaText(rawBio);
+    const bio = metaText(rawBioOf(id));
     const generated = `${summary.displayName}さんが Journey Photo で旅の写真を${summary.photoCount}枚公開中。旅先の風景やスナップをお楽しみください。`;
     const description = bio.length >= 10 && bio.length <= 120
         ? `${bio}（Journey Photo で旅の写真を${summary.photoCount}枚公開中）`
@@ -159,9 +169,8 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
     const summary = await loadUserSummary(id);
     // **JS が走る前の本文にも自己紹介を出す。** ここまでは `<head>` の
     // `description` と JSON-LD にしか出ておらず、静的本文は**131文字**
-    // （見出しと `…` だけ）だった。改行は落とさない
-    // （`whitespace-pre-wrap` が出す。1行に均すのはメタ情報だけ）
-    const rawBio = ((PROFILES as Record<string, { bio?: string }>)[id]?.bio ?? "").trim();
+    // （見出しと `…` だけ）だった
+    const rawBio = rawBioOf(id);
 
     // ProfilePage 構造化データ（検索結果でのプロフィール理解を助ける）
     const jsonLd = summary

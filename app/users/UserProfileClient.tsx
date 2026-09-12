@@ -828,6 +828,19 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
 
 
     // ピン留め（投稿タブ先頭に固定・最大3枚・全員に見える）
+    /**
+     * 画面に出す自己紹介。
+     *
+     * **届いたら控えは使わない。** `userProfile?.bio ?? initialBio` にすると、
+     * 自己紹介を**消した**人の画面にビルド時の古い自己紹介が次のビルドまで
+     * 残る（消す操作が効かなく見える）。「まだ届いていない間だけ控え」。
+     *
+     * **1つの式にしておく。** 出すかどうかと何を出すかを別々に書いていたら、
+     * **片方だけ `??` に戻す変異がどちらも素通りした**——一方は「空の `<p>` が
+     * 出るだけ」、他方は「条件が偽で出ない」で、どちらも文字として現れない。
+     */
+    const shownBio = userProfile ? userProfile.bio : initialBio;
+
     const pinnedPhotoIds = useMemo(() => userProfile?.pinnedPhotoIds ?? [], [userProfile?.pinnedPhotoIds]);
     const togglePin = useCallback(async (photoId: string, pin: boolean) => {
         const cur = userProfile?.pinnedPhotoIds ?? [];
@@ -1153,12 +1166,8 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             55文字、320pxで50文字の URL から `scrollWidth` が超える。
                             自己紹介は300文字まで入る）。ストーリーのキャプションと
                             コメント本文には最初から付いていた */}
-                        {/* **届いたら控えは使わない。** `?? initialBio` にすると、
-                            自己紹介を**消した**人の画面に、ビルド時の古い自己紹介が
-                            次のビルドまで残る（消す操作が効かなく見える）。
-                            「まだ届いていない間だけ控え」で見る */}
-                        {(userProfile ? userProfile.bio : initialBio) && (
-                            <p className="text-sm text-white/85 whitespace-pre-wrap break-words mb-4 leading-relaxed">{userProfile ? userProfile.bio : initialBio}</p>
+                        {shownBio && (
+                            <p className="text-sm text-white/85 whitespace-pre-wrap break-words mb-4 leading-relaxed">{shownBio}</p>
                         )}
 
                     {/* 統計（投稿 / いいね / 距離）— 1行にまとめる。
