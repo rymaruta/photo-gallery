@@ -44,6 +44,31 @@ if (fs.existsSync(envLocalPath)) {
 const REGION = process.env.AWS_REGION ?? "ap-northeast-1";
 const TABLE = requireEnv("PHOTOS_TABLE");
 const OUTPUT = path.resolve(__dirname, "../app/data/photos.json");
+/**
+ * **軽い索引。`lib/routes.ts` はこれだけを読む。**
+ *
+ * あちらが要るのは「ビルド時に個別ページができている写真の id」と
+ * 「個別ページができている利用者の id」の2組だけなのに、`photos.json` を
+ * **丸ごと** import していた。JSON のモジュールは項目単位で落とせない
+ * （バンドラは使っていない属性を捨てられない）ので、説明文も EXIF も
+ * ぼかしも一緒にクライアントへ載る。
+ *
+ * `lib/routes.ts` を読むのはヘッダーとフッター——**つまり全ページ**。
+ * 実測（`npx next build` の出力）: 写真の中身を含む 36.2KB のチャンクを
+ * **生成された140ページ中138ページ**が読み込んでいた。索引だけなら
+ * この30枚で約 2.4KB。
+ */
+const INDEX_OUTPUT = path.resolve(__dirname, "../app/data/photo-index.json");
+
+/** `photos.json` から軽い索引を作る（`lib/routes.ts` と同じ条件で絞る） */
+function buildIndex(photos) {
+    return {
+        photoIds: photos.map((p) => p.id).filter((id) => typeof id === "string" && id),
+        userIds: [...new Set(photos
+            .filter((p) => p.userId && p.published !== false)
+            .map((p) => p.userId))],
+    };
+}
 const DRY_RUN = process.env.DRY_RUN === "1";
 const FORCE = process.argv.includes("--force");
 const IS_CI = !!process.env.CI;
@@ -377,6 +402,11 @@ async function main() {
 
     fs.writeFileSync(OUTPUT, JSON.stringify(photos, null, 2) + "\n", "utf-8");
     console.log(`[sync] ${OUTPUT} に書き込みました`);
+    // **索引は写真と同じ書き込みで更新する。** 別のタイミングにすると、
+    // 写真だけ増えて索引が古いまま＝新しい写真のリンクが `/?photo=<id>` の
+    // 控えに落ちる（個別ページは在るのに）状態を作る
+    fs.writeFileSync(INDEX_OUTPUT, JSON.stringify(buildIndex(photos), null, 2) + "\n", "utf-8");
+    console.log(`[sync] ${INDEX_OUTPUT} に書き込みました（${photos.length}枚ぶんの索引）`);
 
     await writeLastSyncedCount(ddb, photos.length);
     await clearRebuildLock();
@@ -389,4 +419,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { checkWriteSafety, existingCount, readLastSyncedCount, writeLastSyncedCount, SYNC_STATS_ID, stripPrivateFields, PRIVATE_FIELDS, freshDisplayNames };
+module.exports = { checkWriteSafety, existingCount, readLastSyncedCount, writeLastSyncedCount, SYNC_STATS_ID, stripPrivateFields, PRIVATE_FIELDS, freshDisplayNames, buildIndex };
