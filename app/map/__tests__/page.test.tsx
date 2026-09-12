@@ -133,4 +133,33 @@ describe("/map", () => {
         expect(links.map((a) => a.getAttribute("href"))).toEqual([ROUTES.PHOTO("a"), ROUTES.PHOTO("c")]);
         expect(links.map((a) => a.textContent)).toEqual(["場所a", "場所c"]);
     });
+
+    /**
+     * **撮影地が無い写真では、リンクの文字が id になっていた。**
+     *
+     * GPS 付きの写真を上げると座標だけ入り、撮影地は空のまま（実データも
+     * 30枚中13枚が空）。読み上げは36文字の UUID を読み上げることになる。
+     */
+    it("撮影地が無ければ題を出す（id を読み上げさせない）", () => {
+        photosState.current = [
+            base("11111111-2222-3333-4444-555555555555", {
+                coords: { lat: 35.68, lng: 139.77 }, location: undefined, title: { ja: "夜明けの港" },
+            }),
+        ];
+        render(<MapPage />);
+        const list = screen.getByRole("list", { name: "地図上の写真" });
+        const link = within(list).getAllByRole("link")[0];
+        expect(link.textContent, "id がそのまま出ている").toBe("夜明けの港");
+    });
+
+    it("撮影地も題も無ければ「写真」と出す", () => {
+        photosState.current = [
+            base("11111111-2222-3333-4444-555555555555", {
+                coords: { lat: 35.68, lng: 139.77 }, location: undefined, title: undefined,
+            }),
+        ];
+        render(<MapPage />);
+        const list = screen.getByRole("list", { name: "地図上の写真" });
+        expect(within(list).getAllByRole("link")[0].textContent).toBe("写真");
+    });
 });

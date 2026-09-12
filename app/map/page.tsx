@@ -6,6 +6,7 @@ import { usePhotos } from "../../lib/hooks/usePhotos";
 import { useLocale } from "../i18n/context";
 import { ROUTES } from "../../lib/routes";
 import PhotoMap, { photosWithCoords } from "../components/PhotoMap";
+import { getLocalized } from "../../lib/data/photos";
 
 /**
  * 撮影地マップ（/map）。位置情報を持つ公開写真を地図に載せる。
@@ -80,7 +81,13 @@ export default function MapPage() {
                     <ul className="sr-only" aria-label={en ? "Photos on the map" : "地図上の写真"}>
                         {geo.map((p) => (
                             <li key={p.id}>
-                                <Link href={ROUTES.PHOTO(p.id)}>{p.location || p.id}</Link>
+                                {/* **撮影地が無い写真では、リンクの文字が id になっていた。**
+                                    GPS 付きの写真を上げると座標だけ入って撮影地は空のままなので
+                                    （実データも30枚中13枚が空）、読み上げは36文字の UUID を
+                                    読み上げることになる。題 → 「写真」の順に落とす */}
+                                <Link href={ROUTES.PHOTO(p.id)}>
+                                    {p.location || getLocalized(p.title, locale) || (en ? "Photo" : "写真")}
+                                </Link>
                             </li>
                         ))}
                     </ul>
