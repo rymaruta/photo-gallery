@@ -269,6 +269,34 @@ const SYNC_STATS_ID = "syncstats#photos";
  */
 /** 直近の `freshDisplayNames` が拾った公開プロフィール（`main()` が書き出す） */
 let lastProfiles = {};
+/** 直近の実行で、プロフィールを読めなかった人数（0 でなければ欠けたまま出る） */
+let lastProfileFailures = 0;
+
+/**
+ * プロフィールを書き出したときに出す行（**純関数**）。
+ *
+ * **「誰も書いていない」と「読めなかった」を同じ 0 にしない。**
+ * 表示名の側はこれを一度直してある（人数を一緒に出す）のに、
+ * プロフィールの書き出しには当てていなかった。
+ *
+ * **配線は「出た行」で見る**ために切り出す（`diagnose-aws.js` の
+ * `cdnLines` / `reportFunctions` と同じ判断。`main()` の中で条件分岐を
+ * 書くと、その分岐を消しても誰も気づけない）。
+ */
+function profileWriteNotes(outputPath, profiles, readFailures) {
+    const lines = [`[sync] ${outputPath} に書き込みました（${Object.keys(profiles ?? {}).length}人ぶん）`];
+    if (readFailures > 0) {
+        lines.push(`[sync] ⚠️ ${readFailures}人ぶんのプロフィールを読めませんでした。`
+            + "このビルドでは その人の 自己紹介・website・Instagram が出ません"
+            + "（プロフィールの説明文も組み立て文に落ちます）。次のビルドで戻ります。");
+    }
+    return lines;
+}
+
+/** 直近の結果（`main()` とテストが見る） */
+function lastPublicProfiles() {
+    return { profiles: lastProfiles, readFailures: lastProfileFailures };
+}
 
 /**
  * 公開プロフィールに出ている項目だけを抜く。
@@ -309,9 +337,17 @@ async function freshDisplayNames(ddb, photos) {
 
     const names = new Map();
     const profiles = new Map();
-    try {
-        // 人数ぶんの GetItem。写真30枚でも投稿者は数人なので件数は小さい
-        for (const userId of ids) {
+    let failures = 0;
+    // 人数ぶんの GetItem。写真30枚でも投稿者は数人なので件数は小さい。
+    //
+    // **見張りは1人ずつ。** 前は for 全体を try で包んでいたので、
+    // **1人の読み取りが落ちると全員ぶんが空**になっていた。表示名の側は
+    // 「古いまま」で済むが、**プロフィールには古い値が無い**
+    // ——`app/data/profiles.json` は毎ビルド作り直す（git の中身は `{}`）ので、
+    // 落ちた回はそのビルドから**自己紹介・website・Instagram が消える**。
+    // 「今までどおり」ではなく「消える」＝非対称だったのに、扱いが同じだった。
+    for (const userId of ids) {
+        try {
             const res = await ddb.send(new GetCommand({
                 TableName: usersTable,
                 Key: { userId },
@@ -324,12 +360,12 @@ async function freshDisplayNames(ddb, photos) {
             const name = typeof item.displayName === "string" ? item.displayName.trim() : "";
             names.set(userId, name || undefined);
             profiles.set(userId, publicProfileFields(item));
+        } catch (err) {
+            // **写真の同期は止めない。** ここで落とすとビルドごと止まる
+            // （消した写真のページが残る方が悪い）
+            failures++;
+            console.warn(`[sync] ${userId} のプロフィールを読めませんでした:`, err.message ?? err);
         }
-    } catch (err) {
-        // **写真の同期は止めない。** 名前が古いままなのは今までどおりで、
-        // ここで落とすとビルドごと止まる（消した写真のページが残る方が悪い）
-        console.warn("[sync] 表示名の突き合わせに失敗:", err.message ?? err);
-        return photos;
     }
 
     let changed = 0;
@@ -347,8 +383,9 @@ async function freshDisplayNames(ddb, photos) {
     // **更新0件でも必ず出す。** 「0件だった」と「間違ったテーブルを引いて
     // 誰も見つからなかった」は同じ 0 になる。人数を一緒に出せば、
     // ログを見るだけで区別できる（別環境のテーブルを引くと 見つかった 0人）。
-    console.log(`[sync] 表示名の突き合わせ: 投稿者 ${ids.length}人 / 見つかった ${names.size}人 / 更新 ${changed}件`);
+    console.log(`[sync] 表示名の突き合わせ: 投稿者 ${ids.length}人 / 見つかった ${names.size}人 / 読めなかった ${failures}人 / 更新 ${changed}件`);
     lastProfiles = Object.fromEntries([...profiles].filter(([, v]) => Object.keys(v).length > 0));
+    lastProfileFailures = failures;
     return out;
 }
 
@@ -445,8 +482,9 @@ async function main() {
     // 控えに落ちる（個別ページは在るのに）状態を作る
     fs.writeFileSync(INDEX_OUTPUT, JSON.stringify(buildIndex(photos), null, 2) + "\n", "utf-8");
     console.log(`[sync] ${INDEX_OUTPUT} に書き込みました（${photos.length}枚ぶんの索引）`);
-    fs.writeFileSync(PROFILE_OUTPUT, JSON.stringify(lastProfiles, null, 2) + "\n", "utf-8");
-    console.log(`[sync] ${PROFILE_OUTPUT} に書き込みました（${Object.keys(lastProfiles).length}人ぶん）`);
+    const { profiles: writtenProfiles, readFailures } = lastPublicProfiles();
+    fs.writeFileSync(PROFILE_OUTPUT, JSON.stringify(writtenProfiles, null, 2) + "\n", "utf-8");
+    for (const line of profileWriteNotes(PROFILE_OUTPUT, writtenProfiles, readFailures)) console.log(line);
 
     await writeLastSyncedCount(ddb, photos.length);
     await clearRebuildLock();
@@ -459,4 +497,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { checkWriteSafety, existingCount, readLastSyncedCount, writeLastSyncedCount, SYNC_STATS_ID, stripPrivateFields, PRIVATE_FIELDS, freshDisplayNames, buildIndex, publicProfileFields };
+module.exports = { checkWriteSafety, existingCount, readLastSyncedCount, writeLastSyncedCount, SYNC_STATS_ID, stripPrivateFields, PRIVATE_FIELDS, freshDisplayNames, buildIndex, publicProfileFields, lastPublicProfiles, profileWriteNotes };
