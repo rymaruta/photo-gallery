@@ -95,6 +95,8 @@ export function generatePhotoStructuredData(photo: {
     tags?: string[];
     photographer?: string;
     displayName?: string;
+    /** 投稿者。`author` をその人のプロフィールへ結ぶのに使う */
+    userId?: string;
     license?: string;
     copyrightOwner?: string;
     copyrightYear?: string;
@@ -173,11 +175,25 @@ export function generatePhotoStructuredData(photo: {
     // 作者。photographer だけを見ていたため、実データ（30件中0件）では
     // 一度も出力されていなかった。creditText 側は displayName に落ちているので、
     // 同じ値を使う（「クレジットはあるのに作者は空」という状態をやめる）。
+    //
+    // **`author` も出す。そして `url` でプロフィールへ結ぶ。**
+    //
+    // 一度は `creator` だけだった。`creator` も正しい語だが、**人名で
+    // 探されたときに効くのは「この30ページは同じ人のもの」と機械に
+    // 言えること**で、そのための標準の語は `author`（`ImageObject` は
+    // `CreativeWork` なので両方使える）。しかも名前を書くだけでは
+    // **同姓同名と区別が付かない**——`url` を添えて初めて
+    // 「`/users/<id>` に居るその人」という一つの実体を指せる。
+    //
+    // 実測（2026-09-12・実ビルド）: 写真ページ30枚はどれも表示名を5回
+    // 出しているのに、**構造化データでは `creator` の名前だけ**で、
+    // プロフィールへ結ぶものが1つも無かった（`author` も
+    // `<meta name="author">` も無し）。
     if (credit) {
-        structuredData.creator = {
-            "@type": "Person",
-            name: credit,
-        };
+        const person: Record<string, unknown> = { "@type": "Person", name: credit };
+        if (photo.userId) person.url = `${siteConfig.url}/users/${photo.userId}`;
+        structuredData.creator = person;
+        structuredData.author = person;
     }
     
     if (photo.location) {

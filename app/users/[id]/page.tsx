@@ -6,6 +6,8 @@ import type { Photo } from "@/lib/data/photos";
 import { siteConfig, INDEXABLE_ROBOTS } from "@/lib/utils/seo";
 import UserProfileClient from "../UserProfileClient";
 import { withPlaceholderParam } from "../../../lib/server/staticParams";
+import PROFILES from "../../data/profiles.json";
+import { personEntity } from "../../../lib/utils/personEntity";
 
 // ユーザープロフィールの静的生成版（/users/<userId>）。
 // ビルド時点の photos.json に投稿があるユーザーごとにページを生成し、
@@ -138,12 +140,12 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
         ? {
             "@context": "https://schema.org",
             "@type": "ProfilePage",
-            mainEntity: {
-                "@type": "Person",
-                name: summary.displayName,
-                url: `${siteConfig.url}/users/${id}`,
-                ...(summary.latestPhotoSrc ? { image: summary.latestPhotoSrc } : {}),
-            },
+            mainEntity: personEntity({
+                id,
+                displayName: summary.displayName,
+                image: summary.latestPhotoSrc,
+                profile: (PROFILES as Record<string, { bio?: string; website?: string; instagram?: string }>)[id],
+            }),
         }
         : null;
 

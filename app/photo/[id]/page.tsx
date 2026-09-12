@@ -130,7 +130,18 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
             photo.category || "",
             photo.location || "",
         ].filter(Boolean),
-        authors: photo.photographer ? [{ name: photo.photographer }] : undefined,
+        // **作者を名乗る。** `photographer` は実データ30件中0件なので、
+        // これまで `<meta name="author">` は一度も出ていなかった
+        // （実ビルドで確認）。表示名（`displayName`）に落として、
+        // 投稿者のプロフィールへ `url` で結ぶ——人名で探されたときに
+        // 「この30ページは同じ人のもの」と機械に伝わる唯一の線
+        authors: (() => {
+            const name = photo.photographer || photo.displayName;
+            if (!name) return undefined;
+            return [photo.userId
+                ? { name, url: `${siteConfig.url}/users/${photo.userId}` }
+                : { name }];
+        })(),
         openGraph: {
             type: "website",
             locale: "ja_JP",

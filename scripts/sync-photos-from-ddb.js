@@ -59,6 +59,24 @@ const OUTPUT = path.resolve(__dirname, "../app/data/photos.json");
  * この30枚で約 2.4KB。
  */
 const INDEX_OUTPUT = path.resolve(__dirname, "../app/data/photo-index.json");
+/**
+ * **投稿者の素性。人名で探されたときに効く。**
+ *
+ * `/users/<id>` の構造化データ（`ProfilePage` → `Person`）は、これまで
+ * **名前と URL と画像しか**持っていなかった（実ビルドで確認）。
+ * 人名の検索で Google がするのは「このページは誰のことか」の同定なので、
+ * 効くのは:
+ *
+ *   `description` … 何をしている人か（自己紹介）
+ *   `sameAs`      … **他所の自分**（ウェブサイト・Instagram）。
+ *                   同姓同名と区別する、いちばん強い手がかり
+ *
+ * `photos.json` には写真の項目しか無く、自己紹介もリンクも持っていない
+ * （users テーブルの側）。表示名を突き合わせるついでに引いて、ここへ出す。
+ * **公開プロフィールに出ている情報だけ**（`bio` / `website` /
+ * `instagram` / `username`）。メールも登録日時も出さない。
+ */
+const PROFILE_OUTPUT = path.resolve(__dirname, "../app/data/profiles.json");
 
 /** `photos.json` から軽い索引を作る（`lib/routes.ts` と同じ条件で絞る） */
 function buildIndex(photos) {
@@ -249,6 +267,23 @@ const SYNC_STATS_ID = "syncstats#photos";
  * 写しは直らない。出るのはモーダルと写真ページの投稿者リンクで、
  * プロフィール画面の見出しは API のプロフィールを優先するので新しい名前。
  */
+/** 直近の `freshDisplayNames` が拾った公開プロフィール（`main()` が書き出す） */
+let lastProfiles = {};
+
+/**
+ * 公開プロフィールに出ている項目だけを抜く。
+ * **「落とす一覧」ではなく「出す一覧」**——増えた属性が黙って出るのを防ぐ
+ * （`PRIVATE_FIELDS` を落とす形にしていて、増えた属性が公開JSONに出た前例）。
+ */
+function publicProfileFields(item) {
+    const out = {};
+    for (const k of ["bio", "website", "instagram", "username"]) {
+        const v = item?.[k];
+        if (typeof v === "string" && v.trim()) out[k] = v.trim();
+    }
+    return out;
+}
+
 async function freshDisplayNames(ddb, photos) {
     const usersTable = process.env.USERS_TABLE;
     if (!usersTable) {
@@ -273,13 +308,14 @@ async function freshDisplayNames(ddb, photos) {
     }
 
     const names = new Map();
+    const profiles = new Map();
     try {
         // 人数ぶんの GetItem。写真30枚でも投稿者は数人なので件数は小さい
         for (const userId of ids) {
             const res = await ddb.send(new GetCommand({
                 TableName: usersTable,
                 Key: { userId },
-                ProjectionExpression: "displayName, deletedAt",
+                ProjectionExpression: "displayName, deletedAt, bio, website, instagram, username",
             }));
             const item = res.Item;
             // 退会した人の名前は入れ直さない（写真側の値もそのまま残す。
@@ -287,6 +323,7 @@ async function freshDisplayNames(ddb, photos) {
             if (!item || item.deletedAt) continue;
             const name = typeof item.displayName === "string" ? item.displayName.trim() : "";
             names.set(userId, name || undefined);
+            profiles.set(userId, publicProfileFields(item));
         }
     } catch (err) {
         // **写真の同期は止めない。** 名前が古いままなのは今までどおりで、
@@ -311,6 +348,7 @@ async function freshDisplayNames(ddb, photos) {
     // 誰も見つからなかった」は同じ 0 になる。人数を一緒に出せば、
     // ログを見るだけで区別できる（別環境のテーブルを引くと 見つかった 0人）。
     console.log(`[sync] 表示名の突き合わせ: 投稿者 ${ids.length}人 / 見つかった ${names.size}人 / 更新 ${changed}件`);
+    lastProfiles = Object.fromEntries([...profiles].filter(([, v]) => Object.keys(v).length > 0));
     return out;
 }
 
@@ -407,6 +445,8 @@ async function main() {
     // 控えに落ちる（個別ページは在るのに）状態を作る
     fs.writeFileSync(INDEX_OUTPUT, JSON.stringify(buildIndex(photos), null, 2) + "\n", "utf-8");
     console.log(`[sync] ${INDEX_OUTPUT} に書き込みました（${photos.length}枚ぶんの索引）`);
+    fs.writeFileSync(PROFILE_OUTPUT, JSON.stringify(lastProfiles, null, 2) + "\n", "utf-8");
+    console.log(`[sync] ${PROFILE_OUTPUT} に書き込みました（${Object.keys(lastProfiles).length}人ぶん）`);
 
     await writeLastSyncedCount(ddb, photos.length);
     await clearRebuildLock();
@@ -419,4 +459,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { checkWriteSafety, existingCount, readLastSyncedCount, writeLastSyncedCount, SYNC_STATS_ID, stripPrivateFields, PRIVATE_FIELDS, freshDisplayNames, buildIndex };
+module.exports = { checkWriteSafety, existingCount, readLastSyncedCount, writeLastSyncedCount, SYNC_STATS_ID, stripPrivateFields, PRIVATE_FIELDS, freshDisplayNames, buildIndex, publicProfileFields };
