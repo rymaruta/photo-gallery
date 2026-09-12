@@ -590,6 +590,10 @@ functions:
   # 載せない——書き込みがあるので未認証の口の一覧に足してはいけない
   postStoryReply:
     handler: src/storyReplies.postStoryReply
+    # 既定の6秒だと、件数の書き込みをやり直す回に枠を使い切りうる
+    # （本文はもう入っているので、そこで切れると画面は失敗と読んで
+    #  送り直し＝二重投稿になる）。`savePhoto` と同じ理由で広げる。
+    timeout: 15
     events:
       - httpApi:
           path: /stories/{id}/replies

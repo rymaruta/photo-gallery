@@ -331,6 +331,82 @@ describe("postStoryReply", () => {
         expect(countAttempts(), "やり直しの上限が効いていない").toBe(4);   // 初回 + 3回
     });
 
+    /** 最後に書こうとした件数（`:n`） */
+    const lastWritten = () => {
+        const calls = mockDdbSend.mock.calls
+            .map((c) => c[0] as { input: { UpdateExpression?: string; ExpressionAttributeValues?: Record<string, unknown> } })
+            .filter((c) => String(c.input.UpdateExpression ?? "").includes("replyCount"));
+        return calls.at(-1)?.input.ExpressionAttributeValues?.[":n"];
+    };
+
+    // **やり直すときは数を読み直す。** `stored.length` は追記した瞬間で
+    // 固定されているので、待っている間に別の人の返信が入っていると、
+    // 古い数で**上書きして巻き戻す**（その人の返信がバッジから消える）。
+    // 「2回撃った」だけを見ていると、この巻き戻しを通してしまう
+    it("やり直しの前に数を読み直す（間に入った返信を巻き戻さない）", async () => {
+        let countCalls = 0;
+        let repliesReads = 0;
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string }; UpdateExpression?: string } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") {
+                if (id.startsWith("block#")) return Promise.resolve({});
+                if (id === "story-1") return Promise.resolve({ Item: STORY });
+                repliesReads++;
+                // 1回目（追記の前）は空。やり直しの前に読み直すと、
+                // その間に別の人の返信が入って2件になっている
+                return Promise.resolve(repliesReads === 1
+                    ? { Item: { items: [] } }
+                    : { Item: { items: [{ id: "x", uid: "other", name: "B", text: "y", t: "t" }, { id: "y", uid: "u1", name: "A", text: "x", t: "t" }] } });
+            }
+            if (String(cmd.input.UpdateExpression ?? "").includes("replyCount")) {
+                countCalls++;
+                return countCalls === 1 ? Promise.reject(new Error("throttled")) : Promise.resolve({});
+            }
+            return Promise.resolve({});
+        });
+        await invoke(postStoryReply, ev("u1", "story-1", { text: "x" }));
+        expect(lastWritten(), "古い数を撃ち直してバッジを巻き戻している").toBe(2);
+    });
+
+    // **通知は件数より先に出す。** 件数のやり直しで枠（既定6秒）を使い切ると
+    // `pushNotification` に届かず、所有者は「返信が来たこと」すら知れない
+    it("件数を最後まで書けなくても、通知は出す", async () => {
+        flakyCount(99, new Error("throttled"));
+        await invoke(postStoryReply, ev("u1", "story-1", { text: "x" }));
+        expect(mockPush, "件数のやり直しの後ろに通知を置いている").toHaveBeenCalled();
+        // 順番まで見る（後ろに置くと、枠を使い切った回に届かない）
+        const pushOrder = mockPush.mock.invocationCallOrder[0];
+        const lastCount = mockDdbSend.mock.calls
+            .map((c, i) => ({ c: c[0] as { input: { UpdateExpression?: string } }, i }))
+            .filter((x) => String(x.c.input.UpdateExpression ?? "").includes("replyCount"))
+            .at(-1)!;
+        const lastCountOrder = mockDdbSend.mock.invocationCallOrder[lastCount.i];
+        expect(pushOrder, "通知が件数のやり直しより後ろにある").toBeLessThan(lastCountOrder);
+    });
+
+    // **件数の書き込みは通知の有無に依らない。**
+    // 通知を件数より前に出すよう並べ替えたとき、**やり直しのループごと
+    // `if (ownerId)` の中に入れてしまった**（`ownerId` が無い回は数を
+    // 書かない）。40本すべて緑だったので、構造を見る1本を足す。
+    // **この状態は今のデータでは作れない**（`createStory` は必ず `userId` を
+    // 書く）が、入れ子を戻す変異はここでしか落ちない
+    it("宛先が分からなくても、件数は書く", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") {
+                if (id.startsWith("block#")) return Promise.resolve({});
+                // userId も uploadedBy も持たない行
+                return Promise.resolve(id === "story-1"
+                    ? { Item: { id: "story-1", story: true, src: "https://cdn/x.jpg", expiresAt: "2099-01-01T00:00:00Z" } }
+                    : { Item: { items: [] } });
+            }
+            return Promise.resolve({});
+        });
+        await invoke(postStoryReply, ev("u1", "story-1", { text: "x" }));
+        expect(lastWritten(), "宛先が無いと件数を書かない構造になっている").toBe(1);
+        expect(mockPush, "宛先が無いのに通知を出している").not.toHaveBeenCalled();
+    });
+
     // 件数を書けなくても返信そのものは成功（本文はもう入っている）
     it("件数を書けなくても、返信は成功として返す", async () => {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string }; UpdateExpression?: string } }) => {

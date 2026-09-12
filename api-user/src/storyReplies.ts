@@ -269,6 +269,22 @@ export const postStoryReply: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
         // （きれいに直すなら `TransactWriteItems`（行の ConditionCheck ＋
         //   文書の Update）だが、`comments.ts` から写した構造ごと変わる。
         //   `viewStory` が同じ事故を長いコメント付きで塞いでいる）
+        // **通知は件数より先に出す。** この関数は既定の6秒で動くので、
+        // 件数のやり直しで枠を使い切ると `pushNotification` に届かない
+        // ——所有者は「返信が来たこと」すら知れなくなる（ベルの1行が
+        // 唯一の手がかり）。通知は件数と独立で、`notify.ts` 側が自前で
+        // 握るので投げない。
+        if (ownerId) {
+            await pushNotification(ownerId, {
+                type: "storyreply",
+                photoId: storyId,
+                photoSrc: String(story.src ?? ""),
+                byName: reply.name,
+                byId: uid,
+                t: reply.t,
+            });
+        }
+
         //
         // **一時的な失敗ではやり直す。** 握って先へ進むと、返信は保存された
         // のに数だけ据え置きになる。**最初の1件でそれが起きると `replyCount` が
@@ -277,14 +293,35 @@ export const postStoryReply: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
         // 失う**（ストーリーが消えるまで気づけない）。
         // やり直しの形は `follow.ts` の `updateFollowing` に揃える。
         // **CCF はやり直さない**——あれは「行が消えた」で、待っても戻らない。
+        //
+        // **やり直すときは数を読み直す。** `stored.length` は**追記した瞬間**の
+        // 長さで固定されているので、待っている間に別の人の返信が入って
+        // `replyCount` が先に進んでいると、古い数で**上書きして巻き戻す**
+        // （その人の返信がバッジから消える）。`follow.ts` の `updateFollowing` が
+        // やり直しのたびに読み直しているのと同じ理由——形だけ写して
+        // **読み直しを置いてきていた**。読むのは失敗した回だけ。
+        //
+        // **条件式で単調にするのは駄目**（`replyCount < :n` を足す等）。
+        // 下の CCF は「**行が消えた**」と読んで `storyreplies#` を丸ごと
+        // 消すので、「行は在るが数が大きい」でも CCF になった瞬間に
+        // **生きている返信が全部消える**。条件は `attribute_exists(id)` だけに保つ。
+        let count = stored.length;
         for (let attempt = 0; attempt <= COUNT_WRITE_RETRIES; attempt++) {
+            if (attempt > 0) {
+                // 読めなければ手元の数のまま（撃たないより撃つ方がまし）
+                const fresh = await readReplies(storyId, true).catch((e) => {
+                    console.error(`postStoryReply: 数の読み直しに失敗（${storyId}）:`, e);
+                    return null;
+                });
+                if (fresh) count = fresh.length;
+            }
             try {
                 await ddb.send(new UpdateCommand({
                     TableName: PHOTOS_TABLE,
                     Key: { id: storyId },
                     UpdateExpression: "SET replyCount = :n",
                     ConditionExpression: "attribute_exists(id)",
-                    ExpressionAttributeValues: { ":n": stored.length },
+                    ExpressionAttributeValues: { ":n": count },
                 }));
                 break;
             } catch (e) {
@@ -302,16 +339,6 @@ export const postStoryReply: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
             }
         }
 
-        if (ownerId) {
-            await pushNotification(ownerId, {
-                type: "storyreply",
-                photoId: storyId,
-                photoSrc: String(story.src ?? ""),
-                byName: reply.name,
-                byId: uid,
-                t: reply.t,
-            });
-        }
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, reply }) };
     } catch (e) {
         console.error("postStoryReply error:", e);
