@@ -144,7 +144,7 @@ const GUARDED: Array<[string, string, string, boolean?]> = [
     ["app/components/HeaderNav.tsx", 'navLabels.account || "Account"', "メニューの見出し"],
     ["app/components/GalleryModal/ModalCaption.tsx", '{parts.join(" ・ ")}', "拡大表示の撮影情報"],
     ["app/components/GalleryModal/ModalKeyboardHelp.tsx", "下スワイプで閉じる", "拡大表示の操作の案内"],
-    ["app/not-found.tsx", ">404<", "404 の見出し"],
+    ["app/NotFoundClient.tsx", ">404<", "404 の見出し"],
     ["app/components/MusicCard.tsx", "{label}{songs.length > 1", "BGM のラベル"],
     ["app/components/DeleteConfirmModal.tsx", "text-[13px] mb-6", "削除確認の本文"],
     ["app/components/DeleteAccountModal.tsx", "text-[13px] mb-5", "退会確認の本文"],
