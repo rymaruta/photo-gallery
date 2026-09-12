@@ -44,7 +44,9 @@ function UsersPageInner() {
 export default function UsersPage() {
     return (
         <Suspense fallback={
+            // 事前描画で焼かれるのはこの fallback（`/j` と同じ理由）
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+                <h1 className="sr-only">ユーザー</h1>
                 <div className="flex items-center justify-center min-h-[60vh]">
                     <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                 </div>

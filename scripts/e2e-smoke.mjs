@@ -320,7 +320,10 @@ async function runChecks(browser, eng) {
     // 同じ穴をこちらにも空けておかない。
     const photoDir = path.join(OUT, "photo");
     const photoPages = fs.existsSync(photoDir)
-        ? fs.readdirSync(photoDir).filter((f) => f.endsWith(".html"))
+        // `_none.html` は公開写真0枚のビルドを通すための空枠（`users` と
+        // `tag` は前から除いている）。除かないと、その1枚しか無いビルドで
+        // `hero=0` になり**デプロイが止まる**
+        ? fs.readdirSync(photoDir).filter((f) => f.endsWith(".html") && f !== "_none.html").sort()
         : [];
     if (photoPages.length > 0) {
         console.log(`\n[${eng}][3] 写真ページ`);
@@ -337,15 +340,21 @@ async function runChecks(browser, eng) {
                 .filter((i) => (i.getAttribute("src") ?? "").includes(photoId)).length,
             broken: [...document.querySelectorAll("img")].filter((i) => i.complete && i.naturalWidth === 0).length,
             // 回遊: 投稿者・集約ページ・ほかの写真のどれかへ出られること
+            // **投稿者リンク1本で緑になる `> 0` では何も見ていない**
+            // （実測: 30ページとも投稿者・タグ・カテゴリ・写真の4種を持ち、
+            //  最小でも13本）。`RelatedPhotos` が消えたことを見たいので、
+            //  **ほかの写真への導線**を別に数える
             outLinks: document.querySelectorAll(
-                "a[href^='/users/'],a[href^='/tag/'],a[href^='/location/'],a[href^='/category/'],a[href^='/camera/'],a[href^='/photo/']",
+                "a[href^='/users/'],a[href^='/tag/'],a[href^='/location/'],a[href^='/category/'],a[href^='/camera/']",
             ).length,
+            otherPhotos: document.querySelectorAll("a[href^='/photo/'],a[href^='/?photo=']").length,
         }), id);
         check(`[${eng}] 写真ページ: 見出しが出る`, detail.h1.length > 0, detail.h1);
         // **水和のあとに数える。** 主役の1枚が消える形はここでしか出ない
         check(`[${eng}] 写真ページ: 主役の写真が出る`, detail.hero > 0, `hero=${detail.hero} / img=${detail.imgs}`);
         check(`[${eng}] 写真ページ: 壊れた画像が無い`, detail.broken === 0, `broken=${detail.broken}`);
         check(`[${eng}] 写真ページ: 回遊の導線がある`, detail.outLinks > 0, `links=${detail.outLinks}`);
+        check(`[${eng}] 写真ページ: ほかの写真への導線がある`, detail.otherPhotos > 0, `links=${detail.otherPhotos}`);
         await expectMenuWorks(page, `[${eng}] 写真ページ`);
     }
 

@@ -82,11 +82,19 @@ export default function MapPage() {
                         {geo.map((p) => (
                             <li key={p.id}>
                                 {/* **撮影地が無い写真では、リンクの文字が id になっていた。**
-                                    GPS 付きの写真を上げると座標だけ入って撮影地は空のままなので
-                                    （実データも30枚中13枚が空）、読み上げは36文字の UUID を
-                                    読み上げることになる。題 → 「写真」の順に落とす */}
+                                    読み上げが36文字の UUID を読むことになる。この一覧は
+                                    地図を操作できない人の唯一の経路なので、題 →「写真」へ落とす。
+
+                                    **今の本番では起きない**（実測: 一覧に出る16件は全部
+                                    撮影地を持つ）。いまの座標は `geocode-locations.js` が
+                                    **地名から**引いたものだけなので、地名がある写真にしか
+                                    付かないため。**GPS 付きのアップロード**
+                                    （`api-user/src/upload.ts` の `sanitizeCoords`）では
+                                    座標だけ入って撮影地は空になりうるので、予防で直す。
+                                    空白だけの撮影地も落とす——`||` だけだと
+                                    **名前の無いリンク**になり、id より悪い */}
                                 <Link href={ROUTES.PHOTO(p.id)}>
-                                    {p.location || getLocalized(p.title, locale) || (en ? "Photo" : "写真")}
+                                    {p.location?.trim() || getLocalized(p.title, locale) || (en ? "Photo" : "写真")}
                                 </Link>
                             </li>
                         ))}

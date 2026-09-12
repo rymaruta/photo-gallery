@@ -204,7 +204,12 @@ export default function InvitePage() {
     // `/users` も同じ形）
     return (
         <Suspense fallback={
+            // **事前描画で焼かれるのはこの fallback。** 内側の
+            // `state === "loading"` ではない——`useSearchParams` のために
+            // 全体を包んでいるので、**JS が走る前に見えるのはここ**。
+            // 内側にだけ見出しを足しても静的HTMLは h1=0 のままだった（実測）
             <main className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+                <h1 className="sr-only">アルバムへの招待</h1>
                 <p className="text-sm text-white/60">読み込み中…</p>
             </main>
         }>

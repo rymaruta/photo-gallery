@@ -152,6 +152,24 @@ describe("/map", () => {
         expect(link.textContent, "id がそのまま出ている").toBe("夜明けの港");
     });
 
+    /**
+     * **空白だけの撮影地は「無い」と同じに扱う。** `||` だけだと真になり、
+     * リンクの文字が空＝**名前の無いリンク**になる（読み上げは URL を
+     * 読み始めるので、id が出るより悪い）。
+     */
+    it("撮影地が空白だけなら題を出す（名前の無いリンクを作らない）", () => {
+        photosState.current = [
+            base("11111111-2222-3333-4444-555555555555", {
+                coords: { lat: 35.68, lng: 139.77 }, location: "   ", title: { ja: "夜明けの港" },
+            }),
+        ];
+        render(<MapPage />);
+        const list = screen.getByRole("list", { name: "地図上の写真" });
+        const link = within(list).getAllByRole("link")[0];
+        expect(link.textContent?.trim(), "リンクの文字が空").not.toBe("");
+        expect(link.textContent).toBe("夜明けの港");
+    });
+
     it("撮影地も題も無ければ「写真」と出す", () => {
         photosState.current = [
             base("11111111-2222-3333-4444-555555555555", {

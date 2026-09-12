@@ -15,8 +15,15 @@ import { render, screen } from "@testing-library/react";
 const params = vi.hoisted(() => ({ current: new URLSearchParams("") }));
 vi.mock("next/navigation", () => ({ useSearchParams: () => params.current }));
 vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "ja", labels: {} }) }));
-// id がある枝は別のテストが見ている（UserProfileClient.*.test.tsx）
-vi.mock("../UserProfileClient", () => ({ default: () => <main><h1>プロフィール</h1></main> }));
+// **見出しを持たない偽物を置く。**
+//
+// 以前は `<main><h1>プロフィール</h1></main>` を返す偽物だったので、
+// 「二重にならない」のテストが数えていたのは**偽物が自分で描いた h1**
+// だった＝`page.tsx` の id 枝に h1 を足す変異が素通りする（レビュー指摘）。
+// 見出しの無い偽物にすると、**このファイルが h1 を足したかどうか**だけが
+// 数に出る。本物の `UserProfileClient` が h1 を1つ持つことは
+// `UserProfileClient.*.test.tsx` 側の話。
+vi.mock("../UserProfileClient", () => ({ default: () => <main data-testid="profile" /> }));
 vi.mock("next/link", () => ({
     default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
 }));
@@ -28,13 +35,17 @@ describe("/users の見出し", () => {
         params.current = new URLSearchParams("");
         render(<UsersPage />);
         expect(await screen.findByText(/ユーザーIDが指定されていません/)).toBeInTheDocument();
-        expect(document.querySelectorAll("h1").length, "見出しが1つでない").toBe(1);
+        const hs = document.querySelectorAll("h1");
+        expect(hs.length, "見出しが1つでない").toBe(1);
+        // 文字も見る。個数だけだと ja/en の取り違えが素通りする（レビュー指摘）
+        expect(hs[0].textContent).toBe("ユーザー");
     });
 
-    it("id があるときはプロフィール側の見出しが1つ（二重に置かない）", async () => {
+    it("id があるときは、このページ自身は見出しを足さない", async () => {
         params.current = new URLSearchParams("id=u1");
         render(<UsersPage />);
-        expect(await screen.findByText("プロフィール")).toBeInTheDocument();
-        expect(document.querySelectorAll("h1").length, "見出しが2つになっている").toBe(1);
+        expect(await screen.findByTestId("profile")).toBeInTheDocument();
+        // 本物のプロフィールは自分で h1 を1つ持つので、ここで足すと二重になる
+        expect(document.querySelectorAll("h1").length, "このページが余計な見出しを足している").toBe(0);
     });
 });
