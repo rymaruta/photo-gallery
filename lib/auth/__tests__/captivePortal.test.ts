@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("../config", () => ({
     cognitoConfig: { userPoolId: "ap-northeast-1_test", clientId: "testclientid", region: "ap-northeast-1" },
-    ADMIN_GROUP_NAME: "admin", USER_GROUP_NAME: "user", PROTECTED_PATHS: [],
+    ADMIN_GROUP_NAME: "admin", USER_GROUP_NAME: "user",
 }));
 
 const { lookupSession } = await import("../cognito");
