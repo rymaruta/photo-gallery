@@ -117,6 +117,23 @@ describe("タグの日英を1ページに寄せる", () => {
         expect(nature?.label, "先頭一致のまま（並び順で字が変わる）").toBe("nature");
     });
 
+    // **票は「畳む前」に数える。** `seen`（1枚1件の数え）の後ろで数えると、
+    // 1枚の中で2通り書いた**先に書いた方の票しか入らない**ので、
+    // タグ配列の並び順で代表表記が変わる（`ownValues.ts` が同じ場所で
+    // 踏んで直した形）。下の入力は2つの実装で答えが割れる:
+    //   畳む前に数える → 自然2 / nature1 → 「自然」
+    //   畳んだ後に数える → 自然1 / nature1 → 同数 → 文字順 → 「nature」
+    it("1枚の中で2通り書いても、票は書いた回数ぶん数える", () => {
+        const mixed = [
+            P({ id: "n1", tags: ["nature", "自然"] }),   // 配列の先頭は英語
+            P({ id: "n2", tags: ["自然"] }),
+        ];
+        expect(labelForSlug(mixed, "tag", "nature"), "畳んでから票を数えている").toBe("自然");
+        expect(collectEntries(mixed, "tag").find((e) => e.slug === "nature")?.label).toBe("自然");
+        // 件数の方は写真1枚につき1回（票と混ぜない）
+        expect(collectEntries(mixed, "tag").find((e) => e.slug === "nature")?.count).toBe(2);
+    });
+
     // **チップの字も並び順に依らない**（`collectEntries` 側の回帰よけ）
     it("チップの字は写真の並び順で変わらない", () => {
         const fwd = collectEntries(photos, "tag").find((e) => e.slug === "architecture")?.label;
