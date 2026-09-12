@@ -216,7 +216,7 @@ describe("changedKeys", () => {
 
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { assertNoForbiddenContent } = require("../deploy-static-site.js");
+const { assertNoForbiddenContent, shouldScan } = require("../deploy-static-site.js");
 
 // 一度、EXIF を落とす前の原本のURL（srcOriginal）が photos.json 経由で
 // 全ページのHTMLに埋まっていた。同期スクリプトと読み出し側の両方で落とす
@@ -558,5 +558,59 @@ describe("bulkDeleteGuard: 数えるのはページ（.html）だけ", () => {
         // ページの半分を消す。分母に .txt を含めると 10/180 = 6% で見逃す
         const toDelete = pages.slice(0, 10).map((o) => o.key);
         expect(bulkDeleteGuard(toDelete, [...pages, ...rsc])).toBeTruthy();
+    });
+});
+
+/**
+ * **`.js` も検査する。**
+ *
+ * 台帳はこれを「誤検知で全デプロイが止まる危険」として見送っていたが、
+ * **実測で否定できた**——本物の判定（`forbiddenPattern`）を実ビルドの
+ * **45チャンクに当てて一致0件**。判定は「キーの位置（`"srcOriginal":`）」か
+ * 「ID の形（`"notifs#<英数字>"`）」しか見ないので、minified の JS にも
+ * 日本語の文章にも当たらない。
+ *
+ * **見る理由**: クライアントは `app/data/photos.json` を丸ごと import する
+ * 経路を持つ（`usePhotos`）。同期スクリプトのふるいが将来また素通りしたら、
+ * **原本のURL（GPS 入り）がチャンクに載る**——HTML だけ見ていると素通りする。
+ */
+describe("検査する対象", () => {
+    it("HTML・txt・photos.json・JS を見る", () => {
+        for (const k of ["index.html", "photo/x.txt", "app/data/photos.json", "_next/static/chunks/a.js"]) {
+            expect(shouldScan(k), `${k} を見ていない`).toBe(true);
+        }
+    });
+
+    // **`.map` は自然に外れる**（`a.js.map` は `.js` で終わらない）。
+    // 一度 `&& !key.endsWith(".map")` と書いたが、**一度も効かない条件**
+    // だった（変異で当てても落ちず、等価と分かって消した）
+    it("ソースマップと画像・CSS は見ない", () => {
+        for (const k of ["_next/static/chunks/a.js.map", "icon-512.png", "styles.css", "favicon.ico"]) {
+            expect(shouldScan(k), `${k} まで見ている`).toBe(false);
+        }
+    });
+
+    it("JS に原本のURLが混ざっていたら止める", () => {
+        const f = nodePath.join(process.cwd(), "out", "_guard_js_.js");
+        nodeFs.mkdirSync(nodePath.dirname(f), { recursive: true });
+        nodeFs.writeFileSync(f, 'self.x=JSON.parse(\'{"srcOriginal":"https://cdn/a.jpg"}\')');
+        try {
+            expect(() => assertNoForbiddenContent(["_guard_js_.js"])).toThrow(/srcOriginal/);
+        } finally {
+            nodeFs.rmSync(f, { force: true });
+        }
+    });
+
+    // **誤検知しないこと**（минified の JS で識別子として出る形）
+    it("識別子として出てくるだけなら止めない", () => {
+        const f = nodePath.join(process.cwd(), "out", "_guard_js2_.js");
+        nodeFs.mkdirSync(nodePath.dirname(f), { recursive: true });
+        // 引用符の付かないキー・変数名は漏れではない
+        nodeFs.writeFileSync(f, "const a={srcOriginal:1};function notifs(){}");
+        try {
+            expect(() => assertNoForbiddenContent(["_guard_js2_.js"])).not.toThrow();
+        } finally {
+            nodeFs.rmSync(f, { force: true });
+        }
     });
 });
