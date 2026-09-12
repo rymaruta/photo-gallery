@@ -4,19 +4,21 @@ import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { isUserId } from "./userId";
 import { unfollowQuietly } from "./follow";
-import { blockMarkerId } from "./blockCheck";
+import { blockMarkerId, blocksId, blockedById, ids } from "./blockCheck";
 import { lookupDisplayNameIfSet, deletedUserIds, DELETED_USER_NAME } from "./notify";
 
-// 判定（印の綴りと GetItem 1回）は `blockCheck.ts` にある。
-// **輪を作らないため**の切り出し——このファイルは `follow.ts` の
-// `unfollowQuietly` と `notify.ts` の表示名引きを呼ぶので、
-// **あちら（`follow` / `notify`）からここを import すると輪になる**。
-// その2つは `blockCheck.ts` を直接見ること。
+// **読み取りは全部 `blockCheck.ts` にある**（`isBlocked` / `hiddenUserIds` /
+// キーの綴り）。ここに残すのは書き込みと口だけ。
 //
-// 一覧をまとめて落とす側（`stories` / `storyReplies` / `notifications`）は
-// 印1つでは足りない（相手が何人いるか分からない）ので、ここの
-// `hiddenUserIds` を import している。**輪にはならない**——`block.ts` から
-// `stories` / `storyReplies` / `notifications` へ戻る辺が無いため。
+// **輪を作らないため**の分け方——このファイルは `follow.ts` の
+// `unfollowQuietly` と `notify.ts` の表示名引きを呼ぶので、
+// **ここを import したモジュールから戻る辺があると輪になる**。
+// 以前は「戻る辺が無い呼び手（`stories` / `storyReplies` / `notifications`）
+// だけは `block.ts` から取ってよい」という置き方にしていたが、
+// **`follow.ts` から取って実際に輪を作った**（戻る辺があるのに、同じ形を
+// 借りたつもりで前提を読まなかった）。呼び手ごとに考えさせる置き方が原因
+// なので、読むだけの物は1か所に集めた。**ここから読み取りを export しない。**
+//
 // `comments` は未認証の口なので誰が見ているか分からず、どちらも使わない。
 
 /**
@@ -48,31 +50,6 @@ import { lookupDisplayNameIfSet, deletedUserIds, DELETED_USER_NAME } from "./not
 
 /** 1人がブロックできる人数。`following` の2000より小さくてよい */
 export const BLOCKS_MAX = 500;
-
-export const blocksId = (uid: string) => `blocks#${uid}`;
-export const blockedById = (uid: string) => `blockedby#${uid}`;
-
-/** 文字列だけの配列にして返す（壊れた行で落ちない） */
-function ids(item: Record<string, unknown> | undefined, field: string): string[] {
-    const v = item?.[field];
-    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
-}
-
-/**
- * 見せない相手の集合（自分がブロックした人 ∪ 自分をブロックした人）。
- * 一覧を引く画面（ストーリーなど）が1回だけ呼ぶ。
- */
-export async function hiddenUserIds(uid: string): Promise<Set<string>> {
-    if (!uid) return new Set();
-    const [mine, theirs] = await Promise.all([
-        ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: blocksId(uid) } })),
-        ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: blockedById(uid) } })),
-    ]);
-    return new Set([
-        ...ids(mine.Item as Record<string, unknown> | undefined, "blockedIds"),
-        ...ids(theirs.Item as Record<string, unknown> | undefined, "blockerIds"),
-    ]);
-}
 
 /** 一覧に足す／外す（`follow.ts` と同じ「読んだ長さを条件にする」形） */
 const LIST_WRITE_RETRIES = 3;

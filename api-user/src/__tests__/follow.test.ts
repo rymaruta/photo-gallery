@@ -23,11 +23,13 @@ vi.mock("../notify", () => ({
 // 使っている「`mockDdbSend` に順番どおり答えさせる」形が1つずつずれる
 // （判定の GetItem が2本増えるため）。ブロックそのものの振る舞いは
 // `block.test.ts` と、下の専用の describe で見る。
-vi.mock("../blockCheck", () => ({ isBlocked: mockIsBlocked }));
 // `hiddenUserIds` も同じ理由で境界として差し替える（素で通すと
 // `blocks#` と `blockedby#` の GetItem が2本増えて、順番に答えさせている
 // テストが1つずつずれる）。集合の作り方そのものは `block.test.ts` が見る。
-vi.mock("../block", () => ({ hiddenUserIds: (uid: string) => mockHidden(uid) }));
+vi.mock("../blockCheck", () => ({
+    isBlocked: mockIsBlocked,
+    hiddenUserIds: (uid: string) => mockHidden(uid),
+}));
 
 vi.stubEnv("USERS_TABLE", "users-test");
 const { followUser, unfollowUser, getFollowStats, getMyFollowing, getUserFollowing, getUserFollowers } = await import("../follow");
@@ -911,6 +913,55 @@ describe("フォロー一覧のブロックのふるい", () => {
         const res = await invoke(getUserFollowing, evUid(ME, ME));
         expect(res.statusCode, "読めないだけで一覧を失っている").toBe(200);
         expect(JSON.parse(res.body).users).toHaveLength(2);
+    });
+
+    // **`total` のフォールバックはふるいの前。** 本線（`followstats#`）と
+    // フォールバックが別のものを数えていると、`readStats` が落ちた回だけ
+    // 画面が「まだ誰もフォローしていません」になる——`readStats` の失敗は
+    // 仮定ではなく、スロットル1回で 500 にしないために握っている実在の経路
+    it("数が読めない回でも、フォールバックをふるいの後の数にしない", async () => {
+        mockDdbSend.mockImplementation((cmd: { input: { Key?: { id?: string } } }) => {
+            const id = cmd.input.Key?.id ?? "";
+            if (id.startsWith("followstats#")) return Promise.reject(new Error("throttled"));
+            return Promise.resolve({ Item: { list: [THIRD] } });
+        });
+        mockHidden.mockResolvedValue(new Set([THIRD]));
+        const body = JSON.parse((await invoke(getUserFollowing, evUid(ME, ME))).body);
+        expect(body.users, "落とした相手が残っている").toEqual([]);
+        // 0 だと画面が「まだ誰もフォローしていません」＝関係が無いと言い切る
+        expect(body.total, "ふるいの後の数をフォールバックにしている").toBe(1);
+    });
+
+    it("フォロワー側も、数のフォールバックはふるいの前", async () => {
+        mockDdbSend.mockImplementation((cmd: { input: { Key?: { id?: string } } }) => {
+            const id = cmd.input.Key?.id ?? "";
+            if (id.startsWith("followstats#")) return Promise.reject(new Error("throttled"));
+            return Promise.resolve({ Item: { list: [THIRD] } });
+        });
+        mockHidden.mockResolvedValue(new Set([THIRD]));
+        const body = JSON.parse((await invoke(getUserFollowers, evUid(ME, OTHER))).body);
+        expect(body.total).toBe(1);
+        expect(body.listed, "落としたあとの長さになっていない").toBe(0);
+    });
+
+    // 窓の話は**両方の口**で見る（片側だけ順序を戻す変異が素通りしていた）
+    it("フォロワー側でも、50人の枠を落とす相手に食わせない", async () => {
+        const many = Array.from({ length: 60 }, (_, i) => `${String(i).padStart(8, "0")}-2222-4222-8222-222222222222`);
+        mockDdbSend.mockImplementation(listOf(many));
+        mockHidden.mockResolvedValue(new Set(many.slice(0, 10)));
+        const users = JSON.parse((await invoke(getUserFollowers, evUid(ME, OTHER))).body).users as { id: string }[];
+        expect(users, "枠を落とす相手に食われている").toHaveLength(50);
+        expect(users.map((u) => u.id)).toEqual(many.slice(10, 60));
+    });
+
+    // **自分のフォロー中（`/user/following`）には当てない。** ここで隠すと
+    // `following#` に行が残ったまま画面は「フォローしていない」になり、
+    // 本人が解除できなくなる（「見せない」より「直せる」を採る）
+    it("自分のフォロー中は落とさない（解除できなくなるため）", async () => {
+        mockDdbSend.mockResolvedValue({ Item: { list: [OTHER, THIRD] } });
+        mockHidden.mockResolvedValue(new Set([THIRD]));
+        const res = await invoke(getMyFollowing, { requestContext: { authorizer: { jwt: { claims: { sub: ME } } } } });
+        expect(JSON.parse(res.body).userIds, "解除する手段ごと消している").toEqual([OTHER, THIRD]);
     });
 
     it("一覧が空なら、ブロック一覧を引きに行かない", async () => {

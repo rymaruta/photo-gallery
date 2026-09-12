@@ -18,7 +18,13 @@ vi.mock("../notify", () => ({
 }));
 // ブロックの判定も境界にする（`stories.test.ts` と同じ形）
 const mockHidden = vi.hoisted(() => vi.fn(async () => new Set<string>()));
-vi.mock("../block", () => ({ hiddenUserIds: (...a: unknown[]) => mockHidden(...(a as [])) }));
+// `hiddenUserIds` は `blockCheck.ts` へ移した。**`isBlocked` は本物のまま**
+// （このファイルは差し替えておらず、モックした ddb を通って動いている）ので、
+// 実物を広げて1つだけ差し替える
+vi.mock("../blockCheck", async (importActual) => ({
+    ...(await importActual<typeof import("../blockCheck")>()),
+    hiddenUserIds: (...a: unknown[]) => mockHidden(...(a as [])),
+}));
 
 const { postStoryReply, getStoryReplies, overBudgetCount, REACTIONS, storyRepliesId, REPLIES_MAX } =
     await import("../storyReplies");

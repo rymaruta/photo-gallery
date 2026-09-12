@@ -35,8 +35,8 @@ const mockHidden = vi.hoisted(() => vi.fn(async () => new Set<string>()));
 vi.mock("../blockCheck", () => ({
     isBlocked: (...a: unknown[]) => mockIsBlocked(...(a as [])),
     blockMarkerId: (a: string, b: string) => `block#${a}#${b}`,
-}));
-vi.mock("../block", () => ({
+    // `hiddenUserIds` は `blockCheck.ts` へ移した（`follow.ts` から
+    // `block.ts` を import して輪を作ったため。読むだけの物は1か所に集めた）
     hiddenUserIds: (...a: unknown[]) => mockHidden(...(a as [])),
 }));
 // 退会の判定も境界にする。本物は 60秒の控えを持つので、テストの順番で
