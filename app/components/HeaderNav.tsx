@@ -162,7 +162,14 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
             <button
                 ref={toggleRef}
                 aria-expanded={open}
-                aria-controls="site-menu"
+                // **開いている間だけ指す。** メニュー本体（`id="site-menu"`）は
+                // `open` のときしか描かれない（body へポータルする）ので、
+                // 無条件に書くと**閉じている全ページで存在しない id を指す**
+                // ——実ビルドの141ページ全部がその状態だった。ARIA は
+                // IDREF の指す先が在ることを求める。
+                // **状態は `aria-expanded` が伝える**ので、閉じている間に
+                // `aria-controls` を落としても読み上げは痩せない。
+                aria-controls={open ? "site-menu" : undefined}
                 aria-label={open ? "メニューを閉じる" : "メニューを開く"}
                 // **E2E はこの目印で引く。** 表示ラベルで引いていたので、
                 // 文言を日本語に直した回に `scripts/e2e-smoke.mjs` が

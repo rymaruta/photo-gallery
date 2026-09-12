@@ -148,3 +148,29 @@ describe("並び替えメニューを閉じる", () => {
         expect(screen.getByRole("listbox"), "中を触っただけで閉じている").toBeInTheDocument();
     });
 });
+
+/**
+ * **`aria-controls` は、指す先が在るときだけ書く。**
+ *
+ * 並び替えの一覧（`id="sort-menu"`）は開いたときだけ描かれる。無条件に
+ * 書いていたので、**閉じているトップページ**が存在しない id を指していた
+ * （2026-09-12 に `out/` の141ページを走査して判明。`HeaderNav` と同じ形が
+ * 2か所にあった）。状態は `aria-expanded` が伝える。
+ */
+describe("並び替えボタンの aria-controls", () => {
+    it("閉じている間は、存在しない id を指さない", () => {
+        setup();
+        const btn = screen.getByRole("button", { expanded: false, name: /並び|順/ });
+        expect(btn.getAttribute("aria-controls"), "閉じているのに id を指している").toBeNull();
+        expect(document.getElementById("sort-menu")).toBeNull();
+    });
+
+    it("開いたら指す。そしてその id は実在する", () => {
+        setup();
+        fireEvent.click(screen.getByRole("button", { expanded: false, name: /並び|順/ }));
+        const btn = screen.getByRole("button", { expanded: true });
+        const ref = btn.getAttribute("aria-controls");
+        expect(ref, "開いているのに指していない").toBe("sort-menu");
+        expect(document.getElementById(ref!), "指す先が存在しない").not.toBeNull();
+    });
+});
