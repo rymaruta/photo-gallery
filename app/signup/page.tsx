@@ -339,6 +339,7 @@ function SignupForm() {
                         <div>
                             <label htmlFor="signup-code" className="block text-xs text-white/50 mb-1.5 tracking-wide">確認コード</label>
                             <input
+                                autoComplete="one-time-code"
                                 id="signup-code"
                                 type="text"
                                 value={code}

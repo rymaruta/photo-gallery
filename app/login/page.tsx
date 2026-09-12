@@ -330,6 +330,7 @@ function LoginForm() {
                         <div>
                             <label htmlFor="reset-code" className="block text-xs text-white/50 mb-1.5 tracking-wide">確認コード</label>
                             <input
+                                autoComplete="one-time-code"
                                 id="reset-code"
                                 type="text"
                                 value={resetCode}
@@ -343,6 +344,7 @@ function LoginForm() {
                         <div>
                             <label htmlFor="reset-new-password" className="block text-xs text-white/50 mb-1.5 tracking-wide">新しいパスワード</label>
                             <input
+                                autoComplete="new-password"
                                 id="reset-new-password"
                                 type="password"
                                 value={newPassword}
