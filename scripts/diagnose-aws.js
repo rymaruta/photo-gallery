@@ -219,7 +219,48 @@ async function cdnTtl() {
         }
     }
 
-    for (const l of cdnLines(behaviors, policies)) line(l);
+    for (const l of cdnLines(behaviors, policies, cfg.CustomErrorResponses?.Items ?? [])) line(l);
+}
+
+/**
+ * 存在しない URL に何を返しているか（**純関数**）。
+ *
+ * **静的サイトの 404 は CloudFront の設定で決まる。**
+ * `scripts/fix-cdn-error-pages.js` が 403/404 を `/404.html` に振り替え、
+ * **ステータスは 404 のまま**返すよう設定する（これが無いと
+ * `/404.html` の中身が **200 で**返る＝いわゆる soft-404。
+ * 消した写真のURLも「中身のあるページ」として扱われ、
+ * **検索エンジンが消えたページを索引に残し続ける**）。
+ *
+ * ところが**その設定を確かめるものが何も無かった**——圧縮と同じ盲点で、
+ * ディストリビューションを作り直した日に静かに戻る。
+ * 期待値は `fix-cdn-error-pages.js` の定数と同じ（403/404 → `/404.html`・
+ * ステータス 404）。ずれていたら、何が起きるかまで書く。
+ */
+function errorPageNote(items) {
+    const want = [403, 404];
+    const out = [];
+    if (!Array.isArray(items) || items.length === 0) {
+        out.push("  !! カスタムエラー応答が1つも無い");
+        out.push("     → 存在しない URL に **S3 の XML エラー**がそのまま出る（自作404が出ない）。");
+        out.push("     → Actions → Maintenance → task=cdn-error-pages で設定する。");
+        return out;
+    }
+    for (const code of want) {
+        const cur = items.find((e) => Number(e.ErrorCode) === code);
+        if (!cur) {
+            out.push(`  !! ${code} の振り替えが無い`);
+            continue;
+        }
+        const page = cur.ResponsePagePath ?? "(そのまま)";
+        const status = String(cur.ResponseCode ?? "(そのまま)");
+        const ok = page === "/404.html" && status === "404";
+        out.push(`  ${code} → ${page} / ステータス ${status}${ok ? "" : "  !! 期待は /404.html と 404"}`);
+        if (status === "200") {
+            out.push("     → **soft-404**（中身のあるページとして返る）。消したページが索引に残り続ける。");
+        }
+    }
+    return out;
 }
 
 /**
@@ -230,10 +271,11 @@ async function cdnTtl() {
  * **`compressNote` の呼び出しを丸ごと消しても全テストが緑**だった
  * （変異で確認）。台帳が `reportFunctions` で同じ判断をしている。
  */
-function cdnLines(behaviors, policies) {
+function cdnLines(behaviors, policies, errorResponses) {
     return [
         ...behaviors.map((b) => describeBehavior(b, policies)),
         ...compressNote(behaviors),
+        ...errorPageNote(errorResponses ?? []),
         ...residencyNote(),
     ];
 }
@@ -589,7 +631,7 @@ async function main() {
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
 
-module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, cdnLines, publicFnsFromServerless, PUBLIC_FNS, qualify };
+module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, publicFnsFromServerless, PUBLIC_FNS, qualify };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });

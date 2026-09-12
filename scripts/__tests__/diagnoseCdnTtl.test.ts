@@ -9,14 +9,15 @@ import { join } from "node:path";
 // 4つがこの形だった）。ポリシーを引いて秒で出す。
 
 const require_ = createRequire(import.meta.url);
-const { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, compressNote, cdnLines } = require_("../diagnose-aws.js") as {
+const { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, compressNote, errorPageNote, cdnLines } = require_("../diagnose-aws.js") as {
     describeBehavior: (b: Record<string, unknown>, p: Map<string, unknown>) => string;
     humanSeconds: (s: unknown) => string;
     residencyNote: () => string[];
     UPLOAD_MAX_AGE: number;
     countInvalidationSources: (refs: string[]) => { total: number; fromLambda: number; latestLambda: string | null };
     compressNote: (behaviors: Record<string, unknown>[]) => string[];
-    cdnLines: (behaviors: Record<string, unknown>[], policies: Map<string, unknown>) => string[];
+    errorPageNote: (items: Record<string, unknown>[]) => string[];
+    cdnLines: (behaviors: Record<string, unknown>[], policies: Map<string, unknown>, errorResponses?: Record<string, unknown>[]) => string[];
 };
 
 const OPTIMIZED = new Map([["p1", {
@@ -222,5 +223,80 @@ describe("CDN の節に出す行（組み立て）", () => {
     it("behavior の数だけ TTL の行が出る（1つも落とさない）", () => {
         const ttlLines = cdnLines(behaviors, OPTIMIZED).filter((l) => l.includes("maxTTL="));
         expect(ttlLines).toHaveLength(behaviors.length);
+    });
+});
+
+/**
+ * **静的サイトの 404 は CloudFront の設定で決まる。**
+ *
+ * `fix-cdn-error-pages.js` が 403/404 を `/404.html` に振り替え、
+ * **ステータスは 404 のまま**返すよう設定する。これが無いと
+ * `/404.html` の中身が **200 で**返る＝soft-404 になり、消した写真の URL も
+ * 「中身のあるページ」として扱われて**検索エンジンが索引に残し続ける**。
+ *
+ * ところが**その設定を確かめるものが何も無かった**——圧縮と同じ盲点で、
+ * ディストリビューションを作り直した日に静かに戻る。
+ */
+describe("存在しない URL に何を返しているか", () => {
+    const ok = [
+        { ErrorCode: 403, ResponsePagePath: "/404.html", ResponseCode: "404" },
+        { ErrorCode: 404, ResponsePagePath: "/404.html", ResponseCode: "404" },
+    ];
+
+    it("正しい設定なら `!!` を出さない", () => {
+        const out = errorPageNote(ok).join("\n");
+        expect(out).toContain("404 → /404.html / ステータス 404");
+        expect(out, "正しい設定に !! を出している").not.toContain("!!");
+    });
+
+    // **200 で返すのが soft-404。** 何が起きるかまで書く（秒数と同じ）。
+    // **403 も揃えたフィクスチャで見る**——404 だけだと「403 の振り替えが
+    // 無い」の `!!` が出て、**その行のおかげで判定が通ってしまう**
+    // （実際そうなっていて、ステータスを見ない変異が2種素通りした）
+    it("200 で返していたら soft-404 と言い、その行に `!!` を出す", () => {
+        const lines = errorPageNote([
+            { ErrorCode: 403, ResponsePagePath: "/404.html", ResponseCode: "404" },
+            { ErrorCode: 404, ResponsePagePath: "/404.html", ResponseCode: "200" },
+        ]);
+        const out = lines.join("\n");
+        expect(out, "soft-404 だと言っていない").toContain("soft-404");
+        expect(out, "何が起きるかを書いていない").toContain("索引に残り続ける");
+        // **その 404 の行自体**に `!!` が付いていること（別の行の `!!` で
+        // 通さない）
+        const line404 = lines.find((l) => l.includes("404 → /404.html / ステータス 200"));
+        expect(line404, "404 の行が出ていない").toBeTruthy();
+        expect(line404, "ステータスを見ていない（期待は404 と言っていない）").toContain("!!");
+        expect(lines.filter((l) => l.includes("403")).join(""), "正しい 403 に !! を出している").not.toContain("!!");
+    });
+
+    it("振り替えが片方だけなら、無い方を名指しする", () => {
+        const out = errorPageNote([{ ErrorCode: 404, ResponsePagePath: "/404.html", ResponseCode: "404" }]).join("\n");
+        expect(out).toContain("403 の振り替えが無い");
+        expect(out, "在る方まで !! にしている").toContain("404 → /404.html / ステータス 404");
+    });
+
+    it("1つも無ければ、何が起きるかとどこで直すかを書く", () => {
+        const out = errorPageNote([]).join("\n");
+        expect(out).toContain("1つも無い");
+        expect(out, "何が起きるかを書いていない").toContain("S3 の XML エラー");
+        expect(out, "どこで直すかを書いていない").toContain("cdn-error-pages");
+    });
+
+    // 振り替え先が別のページになっていたら気づく。
+    // **403 も揃えて、その行自体を見る**（欠けた 403 の `!!` で通さない）
+    it("振り替え先が違えば、その行に `!!` を出す", () => {
+        const lines = errorPageNote([
+            { ErrorCode: 403, ResponsePagePath: "/404.html", ResponseCode: "404" },
+            { ErrorCode: 404, ResponsePagePath: "/index.html", ResponseCode: "404" },
+        ]);
+        const line404 = lines.find((l) => l.includes("404 → /index.html"));
+        expect(line404, "404 の行が出ていない").toBeTruthy();
+        expect(line404, "振り替え先を見ていない").toContain("!!");
+    });
+
+    // **配線は「出た行」で見る**（`cdnLines` から抜けても気づく）
+    it("CDN の節に入っている", () => {
+        const out = cdnLines([{ PathPattern: "/x/*", CachePolicyId: "p1", Compress: true }], OPTIMIZED, ok);
+        expect(out.some((l) => l.includes("404 → /404.html")), "404 の行が節に入っていない").toBe(true);
     });
 });
