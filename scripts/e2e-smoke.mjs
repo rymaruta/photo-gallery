@@ -288,6 +288,44 @@ async function runChecks(browser, eng) {
         await expectMenuWorks(page, `[${eng}] プロフィール`);
     }
 
+    // 写真ページ（`/photo/<id>`）。**検索から人が着地する当のページ**なのに、
+    // このスモークは `/?photo=<id>`（ホームのモーダル）しか開いていなかった
+    // ——別の画面で、渡る props も違う。
+    //
+    // 見るのは (a) 主役の1枚が水和後も残ること (b) 回遊の導線が出ること。
+    // 集約ページで実際に「水和後にサムネが消える」形の判定が効いたので、
+    // 同じ穴をこちらにも空けておかない。
+    const photoDir = path.join(OUT, "photo");
+    const photoPages = fs.existsSync(photoDir)
+        ? fs.readdirSync(photoDir).filter((f) => f.endsWith(".html"))
+        : [];
+    if (photoPages.length > 0) {
+        console.log(`\n[${eng}][3] 写真ページ`);
+        const id = photoPages[0].replace(/\.html$/, "");
+        await page.goto(`http://localhost:${PORT}/photo/${encodeURIComponent(id)}`, { waitUntil: "domcontentloaded" });
+        check(`[${eng}] 写真ページ: ハイドレーション完了`, await waitForHydration(page));
+        const detail = await page.evaluate((photoId) => ({
+            h1: document.querySelector("h1")?.textContent?.trim() ?? "",
+            imgs: document.querySelectorAll("img").length,
+            // **主役の1枚を名指しで数える。** ただの `img > 0` では、
+            // アバターや「ほかにこんな写真も」のサムネが残るので
+            // **主役を消しても緑のまま**だった（変異で確認）
+            hero: [...document.querySelectorAll("img")]
+                .filter((i) => (i.getAttribute("src") ?? "").includes(photoId)).length,
+            broken: [...document.querySelectorAll("img")].filter((i) => i.complete && i.naturalWidth === 0).length,
+            // 回遊: 投稿者・集約ページ・ほかの写真のどれかへ出られること
+            outLinks: document.querySelectorAll(
+                "a[href^='/users/'],a[href^='/tag/'],a[href^='/location/'],a[href^='/category/'],a[href^='/camera/'],a[href^='/photo/']",
+            ).length,
+        }), id);
+        check(`[${eng}] 写真ページ: 見出しが出る`, detail.h1.length > 0, detail.h1);
+        // **水和のあとに数える。** 主役の1枚が消える形はここでしか出ない
+        check(`[${eng}] 写真ページ: 主役の写真が出る`, detail.hero > 0, `hero=${detail.hero} / img=${detail.imgs}`);
+        check(`[${eng}] 写真ページ: 壊れた画像が無い`, detail.broken === 0, `broken=${detail.broken}`);
+        check(`[${eng}] 写真ページ: 回遊の導線がある`, detail.outLinks > 0, `links=${detail.outLinks}`);
+        await expectMenuWorks(page, `[${eng}] 写真ページ`);
+    }
+
     // 集約ページ（タグ／カテゴリ／撮影地／機材）。**生成の 86/140 がここ**で、
     // 検索から人が着地する側でもあるのに、このスモークは一度も開いていなかった。
     //
@@ -302,7 +340,7 @@ async function runChecks(browser, eng) {
         ? fs.readdirSync(tagDir).filter((f) => f.endsWith(".html") && f !== "_none.html")
         : [];
     if (tags.length > 0) {
-        console.log(`\n[${eng}][3] 集約ページ`);
+        console.log(`\n[${eng}][4] 集約ページ`);
         const slug = tags[0].replace(/\.html$/, "");
         await page.goto(`http://localhost:${PORT}/tag/${encodeURIComponent(slug)}`, { waitUntil: "domcontentloaded" });
         check(`[${eng}] 集約ページ: ハイドレーション完了`, await waitForHydration(page));
@@ -328,7 +366,7 @@ async function runChecks(browser, eng) {
     // ── デスクトップ（hover/マウス）context ──
     // ミニプレイヤーのドラッグはデスクトップ限定なので、モバイル context では
     // この経路を通らずメニュー被り不具合をすり抜けていた。ここで塞ぐ。
-    console.log(`\n[${eng}][3] デスクトップ（hover・マウス）`);
+    console.log(`\n[${eng}][5] デスクトップ（hover・マウス）`);
     const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: "block" });
     await sealContext(dctx);
     // 保存位置を右上(ヘッダー上)に seed。将来ミニプレイヤーがそこに出てもメニューを塞がないこと（クランプ）を確認。
