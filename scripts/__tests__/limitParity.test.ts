@@ -154,3 +154,91 @@ describe("撮影日の下限が、画面とサーバーで揃っている", () =
         expect(b, "api と api-user で撮影日の下限が違う").toBe(a);
     });
 });
+
+/**
+ * **題・撮影地・カテゴリの上限は、十数か所に散っている。**
+ *
+ * `1b150344` で立てた数え上げ（「その入口は全部か」）を、この対テストに
+ * 当て直して出た。実際に数えると:
+ *
+ *     撮影地 200   api/upload・api/photosMutate・api-user/stories・
+ *                  api-user/upload・api-user/photoUpdate ＋ 画面2枚 = **7か所**
+ *     カテゴリ 100  上のうち4か所 ＋ 画面2枚 = **6か所**
+ *     題 200        `sanitizeTitle` の中に4回 ＋ 画面2枚
+ *
+ * **1つも縛られていなかった。** `PHOTO_LIMIT_PER_USER` で一度踏んだ形と同じ
+ * ——画面だけ広げると「入力できるのにサーバーが黙って切る」（保存は成功して、
+ * あとで開くと末尾が無い）、サーバーだけ広げると「受け付けるのに入力できない」。
+ *
+ * **今は全部揃っている**ので実在の欠陥は0。縛るのは「これから片方だけ変えない」こと。
+ */
+describe("題・撮影地・カテゴリの上限が、全部の書き場所で同じ", () => {
+    /** サーバーの `sanitizeText(..., N)` を全部集める（呼び出しごとに数字を書く形） */
+    function serverCalls(field: "location" | "category"): { where: string; n: number }[] {
+        const files = [
+            "api/src/upload.ts", "api/src/photosMutate.ts",
+            "api-user/src/upload.ts", "api-user/src/photoUpdate.ts", "api-user/src/stories.ts",
+        ];
+        const out: { where: string; n: number }[] = [];
+        for (const f of files) {
+            const src = read(f);
+            const re = new RegExp(`sanitizeText\\(\\s*(?:body\\.)?${field}\\s*,\\s*(\\d+)\\s*\\)`, "g");
+            for (const m of src.matchAll(re)) out.push({ where: f, n: Number(m[1]) });
+        }
+        return out;
+    }
+
+    /** 画面の定数（2枚とも同じ数字のはず） */
+    function clientConsts(name: string): { where: string; n: number }[] {
+        const files = ["app/user/edit/page.tsx", "app/user/upload/page.tsx"];
+        const out: { where: string; n: number }[] = [];
+        for (const f of files) {
+            const m = new RegExp(`const ${name}\\s*=\\s*(\\d+)`).exec(read(f));
+            if (m) out.push({ where: f, n: Number(m[1]) });
+        }
+        return out;
+    }
+
+    // **読めていることを先に確かめる。** 正規表現が外れると
+    // 「0件 === 0件」で通る（この台帳が何度も踏んだ形）
+    it("サーバーと画面の書き場所を実際に見つけられている", () => {
+        expect(serverCalls("location").length, "撮影地の上限を1つも読めていない").toBeGreaterThanOrEqual(5);
+        expect(serverCalls("category").length, "カテゴリの上限を1つも読めていない").toBeGreaterThanOrEqual(4);
+        expect(clientConsts("LOCATION_MAX").length, "画面の LOCATION_MAX を読めていない").toBe(2);
+        expect(clientConsts("CATEGORY_MAX").length, "画面の CATEGORY_MAX を読めていない").toBe(2);
+        expect(clientConsts("TITLE_MAX").length, "画面の TITLE_MAX を読めていない").toBe(2);
+    });
+
+    it.each([["location", "LOCATION_MAX"], ["category", "CATEGORY_MAX"]] as const)(
+        "%s の上限が、サーバーの全ての呼び出しと画面で同じ",
+        (field, constName) => {
+            const server = serverCalls(field);
+            const client = clientConsts(constName);
+            const all = [...server, ...client];
+            const values = [...new Set(all.map((x) => x.n))];
+            expect(values, `ずれている: ${all.map((x) => `${x.where}=${x.n}`).join(" / ")}`).toHaveLength(1);
+            expect(values[0], "0 や NaN を一致と読まない").toBeGreaterThan(0);
+        },
+    );
+
+    // 題は `sanitizeTitle` の中に数字が書いてある（呼び出し側は渡さない）
+    it("題の上限が、sanitizeTitle と画面で同じ", () => {
+        // **`sanitizeTitle` の本体だけを見る。** ファイル全体だと他の上限
+        // （説明・タグ）まで拾う。`truncate(...)` は引数に括弧を含むので
+        // `[^)]*` では途中で止まる（最初これで「1つも読めていない」と嘘の
+        // 失敗を出した）——本体を切り出してから数字を拾う
+        const body = /export function sanitizeTitle[\s\S]*?\n\}/.exec(read("api-user/src/sanitize.ts"));
+        expect(body, "sanitizeTitle が見つからない").not.toBeNull();
+        const inTitle = [...body![0].matchAll(/,\s*(\d+)\s*\)/g)].map((m) => Number(m[1]));
+        expect(inTitle.length, "sanitizeTitle の中の上限を読めていない").toBeGreaterThanOrEqual(3);
+        const client = clientConsts("TITLE_MAX");
+        expect([...new Set(client.map((c) => c.n))], "画面2枚で TITLE_MAX がずれている").toHaveLength(1);
+        // **「どれか1つが一致」では足りない。** `sanitizeTitle` は素の文字列・
+        // 日本語・英語の3か所で切るので、**日本語だけ 120 に狭める**変異が
+        // 「200 も在るから」で素通りした（変異で確認）。それは「画面は通すのに
+        // サーバーが黙って切る」そのもの。**全部が同じ数字**であることを見る
+        expect([...new Set(inTitle)], `sanitizeTitle の中で上限が割れている: ${inTitle.join(", ")}`).toHaveLength(1);
+        expect(inTitle[0], "画面とサーバーで題の上限がずれている").toBe(client[0].n);
+    });
+});
+
