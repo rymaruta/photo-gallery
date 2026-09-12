@@ -227,7 +227,10 @@ describe("共有シートから送った写真が、アップロード画面ま�
         expect(read.ok && read.payload!.files.map((f) => f.name)).toEqual(["real.jpg"]);
     });
 
-    // 前回の共有が残っていると、今回送っていない写真が並ぶ
+    // 前回の共有が残っていると、今回送っていない写真が並ぶ。
+    // **`store.clear()` を守るテストではない**——id が `"current"` 固定なので
+    // `put` の上書きだけで成り立つ（clear を外す変異は等価だった）。
+    // 守っているのは「2回目の共有で1回目が出てこない」という結果の方
     it("前回の共有は残さない", async () => {
         const first = new FormData();
         first.append(FILES_FIELD, new File([new Uint8Array([1])], "old.jpg", { type: "image/jpeg" }));
