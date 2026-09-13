@@ -26,6 +26,7 @@ on:
           - normalize-image-urls  # 保存済みの画像URLのホスト名を配信URLに揃える
           - geocode-locations # 地名はあるが座標が無い写真に、おおよその座標を補う（地図ページの材料）
           - diagnose          # 本番の設定を読むだけ（索引の射影・日付の形・Cognito・CDN の TTL）
+          - content-opportunities # どこを直すと「検索に出せるページ」が増えるかを数える（読み取りのみ）
           - orphan-uploads    # どの行からも参照されていないアップロード実体を探す
           - verify-upload     # **staging** で presign が本当に使えるか確かめる（apply が要る）
           - verify-invalidate # **staging** で削除時のエッジ掃除が Lambda の中で動くか確かめる（apply が要る）
@@ -210,6 +211,17 @@ jobs:
         timeout-minutes: 10
         env:
           GEOCODE_SKIP: ${{ inputs.geocode_skip }}
+
+      # **読み取りだけ（Scan のみ）。** apply の指定は要らない。
+      # 検索での面積はサイトマップの件数そのもので、写真を増やす以外に
+      # 増やす道は集約ページを線の上に押し上げること。いちばん効くのは
+      # 「あと1枚」——1枚の写真にタグや撮影地を足すだけでページが丸ごと
+      # 検索に出せるようになる。**手で数えない**（撮影地は緩い一致で
+      # 束ねるので、完全一致で数えると結論を誤る）
+      - name: どこを直すと検索の面積が増えるか
+        if: inputs.task == 'content-opportunities'
+        run: npx tsx scripts/content-opportunities.ts
+        timeout-minutes: 10
 
       - name: 本番の設定を読む（診断）
         if: inputs.task == 'diagnose'
