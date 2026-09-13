@@ -794,9 +794,12 @@ export default function ProfileEditPage() {
                                 autoCapitalize="none"
                                 autoCorrect="off"
                                 spellCheck={false}
+                                // **使える文字と長さは、この文にしか書いていない。**
+                                // 結ばないと読み上げに届かず、打っても入らない理由が分からない
+                                aria-describedby="profile-username-rule"
                             />
                         </div>
-                        <p className="text-[11px] text-white/50 mt-1">
+                        <p id="profile-username-rule" className="text-[11px] text-white/50 mt-1">
                             {locale === "en"
                                 ? "Lowercase letters, numbers and _ (3-20). Shown under your name."
                                 : "英小文字・数字・_ の3〜20文字。プロフィールの名前の下に表示されます。"}

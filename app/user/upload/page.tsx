@@ -1131,8 +1131,11 @@ function UploadPageInner() {
 
             {/* 共通設定 */}
             {items.length > 0 && (
-                <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-3.5 mb-4 space-y-2">
-                    <p className="text-xs text-white/50 uppercase tracking-wide">
+                <div role="group" aria-labelledby="upload-common" className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-3.5 mb-4 space-y-2">
+                    {/* **「全写真に適用」は見えている文にしか書いていなかった。**
+                        読み上げでは箱の外の独立した1文なので、中のカテゴリ・タグが
+                        「この1枚ぶん」なのか「全部ぶん」なのか分からない */}
+                    <p id="upload-common" className="text-xs text-white/50 uppercase tracking-wide">
                         {locale === "en" ? "Common settings (applied to all)" : "共通設定（全写真に適用）"}
                     </p>
                     {/* 前に使った値を候補に出す（選ばずに自由入力もできる） */}
@@ -1191,7 +1194,12 @@ function UploadPageInner() {
 
             {/* 写真リスト */}
             <div className="space-y-3 mb-6">
-                {items.map((it) => (
+                {/* **同じ名前の欄が枚数ぶん並ぶ。** placeholder は名前の最後の
+                    受け皿なので「無名」ではないが、2枚選ぶと「タイトル（任意）」が
+                    **2つ**——読み上げではどちらがどの写真か分からない（`/user/edit` の
+                    罪として挙げたのと同じ形が、枚数ぶんに増えた形）。
+                    何枚目かを名前に入れる。**見た目は変えない**（属性だけ） */}
+                {items.map((it, photoIndex) => (
                     <div key={it.id} className="border border-white/10 rounded-lg overflow-hidden bg-white/5">
                         {/* トリミングプレビュー（一覧表示範囲を白枠で明示） */}
                         <div className="relative">
@@ -1206,7 +1214,10 @@ function UploadPageInner() {
                                 onClick={() => removeItem(it.id)}
                                 disabled={uploading || it.status === "uploading"}
                                 className="absolute top-2 right-2 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white transition-colors disabled:opacity-30 z-10"
-                                aria-label={locale === "en" ? "Remove" : "削除"}
+                                // **語は変えない**（元から「削除」）。足すのは何枚目かだけ
+                                aria-label={locale === "en"
+                                    ? `Remove photo ${photoIndex + 1}`
+                                    : `${photoIndex + 1}枚目を削除`}
                                 style={{ touchAction: "manipulation" }}
                             >
                                 <XMarkIcon className="w-5 h-5" />
@@ -1220,6 +1231,9 @@ function UploadPageInner() {
                                     value={it.title}
                                     onChange={(e) => updateItem(it.id, { title: e.target.value })}
                                     maxLength={TITLE_MAX}
+                                    aria-label={locale === "en"
+                                        ? `Title of photo ${photoIndex + 1}`
+                                        : `${photoIndex + 1}枚目のタイトル`}
                                     placeholder={locale === "en" ? "Title (optional)" : "タイトル（任意）"}
                                     className={inputCls}
                                     style={{ fontSize: "16px" }}
@@ -1249,6 +1263,9 @@ function UploadPageInner() {
                                         <textarea
                                             value={it.description}
                                             onChange={(e) => updateItem(it.id, { description: e.target.value })}
+                                            aria-label={locale === "en"
+                                                ? `Description of photo ${photoIndex + 1}`
+                                                : `${photoIndex + 1}枚目の説明`}
                                             placeholder={locale === "en" ? "Description (optional)" : "説明（任意）"}
                                             rows={2}
                                             className={`${inputCls} resize-none`}
@@ -1260,6 +1277,9 @@ function UploadPageInner() {
                                             value={it.location}
                                             onChange={(e) => updateItem(it.id, { location: e.target.value })}
                                             maxLength={LOCATION_MAX}
+                                            aria-label={locale === "en"
+                                                ? `Location of photo ${photoIndex + 1}`
+                                                : `${photoIndex + 1}枚目の撮影地`}
                                             placeholder={locale === "en" ? "Location (optional)" : "場所（任意）"}
                                             className={inputCls}
                                             list="own-locations"

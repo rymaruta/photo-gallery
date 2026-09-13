@@ -292,9 +292,13 @@ function SignupForm() {
                                 autoComplete="new-password"
                                 placeholder="8文字以上"
                                 disabled={submitting}
+                                // **条件の文は、欄に結ばないと読み上げに届かない。**
+                                // ラベルは「パスワード」としか言わないので、満たすべき
+                                // 条件を一度も言われないまま弾かれる（新規登録の唯一の進み方）
+                                aria-describedby="signup-password-rule"
                                 className={inputCls}
                             />
-                            <p className="text-xs text-white/50 mt-1.5">英大文字・小文字・数字・記号（!@#$など）をそれぞれ1文字以上含めてください</p>
+                            <p id="signup-password-rule" className="text-xs text-white/50 mt-1.5">英大文字・小文字・数字・記号（!@#$など）をそれぞれ1文字以上含めてください</p>
                         </div>
                         <div>
                             <label htmlFor="signup-password-confirm" className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード（確認）</label>

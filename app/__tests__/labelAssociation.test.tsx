@@ -191,6 +191,20 @@ describe("見えているラベルは入力欄に結ばれている", () => {
             "絵は出ているのに、名前が「追加」のまま").toBe("カバー写真を変更");
     });
 
+    // **制約を書いた文が、欄に結ばれていなかった。**
+    // 「英小文字・数字・_ の3〜20文字」はこの1文にしか書いていないので、
+    // 結ばないと読み上げには届かず、**打っても入らない理由が分からない**
+    it("/user/profile: ユーザー名の条件が欄に結ばれている", async () => {
+        const { container } = render(<ProfilePage />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        const input = container.querySelector("#profile-username") as HTMLInputElement;
+        const id = input.getAttribute("aria-describedby");
+        expect(id, "条件の文が欄に結ばれていない").toBeTruthy();
+        expect(container.querySelector(`#${CSS.escape(id!)}`)?.textContent)
+            .toContain("3〜20文字");
+        expect(danglingRefs(container)).toEqual([]);
+    });
+
     // **取り消せない操作の唯一の関門。** 「`退会` と入力してください」が
     // 入力欄の名前になっていないと、読み上げでは何を打てばいいか分からない
     it("退会の確認欄は、指示そのものが名前になる", () => {
