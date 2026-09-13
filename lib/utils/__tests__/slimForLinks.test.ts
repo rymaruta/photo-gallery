@@ -72,7 +72,11 @@ describe("回遊リンクに渡す写真を絞る", () => {
     // 片方だけ増えた日に静かにずれる（台帳の型2）
     it("Thumb が読む項目を、1つも落としていない", () => {
         const thumb = readFileSync(join(__dirname, "..", "..", "..", "app", "components", "Thumb.tsx"), "utf8");
-        const used = [...thumb.matchAll(/photo\.([a-zA-Z]+)/g)].map((m) => m[1]);
+        // **コメントを先に落とす。** 理由を書くほど、綴りで見る判定は自分の
+        // 説明に当たる（実際、コメントに書いた `journey-photo.com` が
+        // `photo.com` として「Thumb が読む項目 `com`」に化けた）
+        const code = thumb.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+        const used = [...code.matchAll(/photo\.([a-zA-Z]+)/g)].map((m) => m[1]);
         expect(used.length, "Thumb.tsx から項目を1つも読めていない").toBeGreaterThan(3);
         const kept = Object.keys(slimForLinks(FULL));
         for (const k of new Set(used)) {

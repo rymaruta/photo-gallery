@@ -43,6 +43,10 @@ export function imageSinks(raw: string, file: string): Sink[] {
     }
     for (const a of src.matchAll(/\.src\s*=\s*([^\n;]+)/g))
         out.push({ file, expr: a[1].trim() });
+    // 配信URLを自分で組み立てているところ（アバター・カバー）。
+    // 変数に入れてから `<img>` に渡すので、上の3つでは追えない
+    for (const a of src.matchAll(/^.*\$\{CLOUDFRONT_URL\}.*$/gm))
+        out.push({ file, expr: a[0].trim().replace(/\s+/g, " ") });
     return out;
 }
 
@@ -150,6 +154,13 @@ describe("画面に描く画像URLは、サイトのドメインに揃える", (
         it("コメントの中の `<img src={x}>` では発火しない", () => {
             const commented = `{/* 以前は <img src={photo.src} /> と書いていた */}\n// <img src={photo.src} />\n<img src={publicImageUrl(photo.src)} alt="" />`;
             expect(imageSinks(commented, "x.tsx").filter((s) => !s.expr.includes("publicImageUrl"))).toEqual([]);
+        });
+
+        it("配信URLの組み立ても数える（変数に入れてから渡す形）", () => {
+            const build = 'const u = CLOUDFRONT_URL ? `${CLOUDFRONT_URL}/profiles/${id}` : "";';
+            expect(imageSinks(build, "x.tsx").map((s) => s.expr)).toEqual([build]);
+            const wrapped = 'const u = publicImageUrl(`${CLOUDFRONT_URL}/profiles/${id}`);';
+            expect(imageSinks(wrapped, "x.tsx").filter((s) => !s.expr.includes("publicImageUrl"))).toEqual([]);
         });
 
         it("`https://` の `//` をコメントと読み違えない", () => {
