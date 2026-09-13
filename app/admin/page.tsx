@@ -16,6 +16,7 @@ import { log } from "../../lib/utils/log";
 import { ROUTES } from "../../lib/routes";
 import { readApiError } from "../../lib/utils/api";
 import { toastWithStaticPage } from "../../lib/utils/staticPage";
+import { publicImageUrl } from "@/lib/utils/seo";
 
 export default function AdminPage() {
     const { isAuthenticated, isAdminUser, loading } = useAuth();
@@ -351,7 +352,7 @@ export default function AdminPage() {
                             {visiblePhotos.map((photo) => (
                                 <div key={photo.id} className="group relative aspect-square rounded-xl overflow-hidden bg-[#16181c] ring-1 ring-white/10 hover:ring-white/25 transition">
                                     <Image
-                                        src={photo.thumbSrc ?? photo.src}
+                                        src={publicImageUrl(photo.thumbSrc ?? photo.src)}
                                         alt={getTitle(photo)}
                                         fill
                                         className="object-cover"

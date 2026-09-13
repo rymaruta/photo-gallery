@@ -22,6 +22,7 @@ import DeleteAccountModal from "../../components/DeleteAccountModal";
 import BlockedUsers from "./BlockedUsers";
 import SongArtwork from "../../components/SongArtwork";
 import { loginWithNext } from "../../../lib/routes";
+import { publicImageUrl } from "@/lib/utils/seo";
 
 type SongEntry = {
     title: string;
@@ -628,10 +629,10 @@ export default function ProfileEditPage() {
     }
 
     const currentAvatarUrl = profile?.userId && CLOUDFRONT_URL
-        ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}`
+        ? publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}`)
         : null;
     const currentCoverUrl = profile?.userId && CLOUDFRONT_URL
-        ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}/cover`
+        ? publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}/cover`)
         : null;
 
     const inputClass = "w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors";

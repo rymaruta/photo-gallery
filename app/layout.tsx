@@ -166,17 +166,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           本体CSS（globals.css）が同じ値を指定するので、正常時の見た目は変わらない。
         */}
         <style dangerouslySetInnerHTML={{ __html: "html,body{background:#000;color:#fff;margin:0}" }} />
-        {/* 画像配信元(CloudFront)へ事前接続し、最初の画像の DNS+TLS 待ちを削減（LCP改善）。
-            **本番ドメインを直書きしない。** 直書きだった頃は staging の全ページが
-            開くたびに本番CDNへ無駄な接続を張り、実際の配信元（staging のCDN）には
-            preconnect が効かない——狙った LCP 改善が staging で再現しなかった。
-            未設定なら出さない（本番へフォールバックしない。CLAUDE.md の方針）。 */}
-        {process.env.NEXT_PUBLIC_CLOUDFRONT_URL ? (
-          <>
-            <link rel="preconnect" href={process.env.NEXT_PUBLIC_CLOUDFRONT_URL} crossOrigin="" />
-            <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_CLOUDFRONT_URL} />
-          </>
-        ) : null}
+        {/* **画像配信元への事前接続はもう出さない。**
+            以前はここで CloudFront の既定ドメインへ preconnect / dns-prefetch を
+            張っていた。「最初の画像の DNS+TLS 待ちを削る」ためだが、
+            **画面に描く画像URLを全部サイトのドメインに揃えた**ので
+            （`lib/utils/seo.ts` の `publicImageUrl`）、その接続は**一度も使われない**。
+            本番と同じ環境変数でビルドして数えた（2026-09-13）:
+
+                out/**.html の src/srcset の絶対URL   981件 すべて journey-photo.com
+                CloudFront の既定ドメインを指すタグ    preconnect と dns-prefetch だけ（140ページ）
+
+            使わない相手への preconnect は、削ろうとしていた当の
+            DNS+TLS を無駄に1本張る。画像はページと同じオリジンから来るので、
+            その接続はもう開いている＝事前接続の相手がいない。 */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteStructuredData).replace(/</g, "\\u003c").replace(/>/g, "\\u003e") }}

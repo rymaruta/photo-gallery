@@ -24,6 +24,7 @@ import { useEscapeKey } from "../../../lib/hooks/useEscapeKey";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
+import { publicImageUrl } from "@/lib/utils/seo";
 
 const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
 const labelCls = "block text-sm text-white/60 mb-1";
@@ -706,7 +707,7 @@ function EditContent() {
                     ) : (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                            src={photo.thumbSrc || photo.src}
+                            src={publicImageUrl(photo.thumbSrc || photo.src)}
                             alt=""
                             className="w-full max-h-64 object-contain rounded-lg mb-3 bg-white/5"
                             onError={(e) => { setImageError(true); void dropCachedPhoto(e.currentTarget.currentSrc || e.currentTarget.src); }}

@@ -13,6 +13,7 @@ import { ROUTES } from "../../../lib/routes";
 import { formatStoredDateTime } from "@/lib/utils/photoDate";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
+import { publicImageUrl } from "@/lib/utils/seo";
 
 export default function DraftsPage() {
     const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
@@ -162,7 +163,7 @@ export default function DraftsPage() {
                                         {(p.thumbSrc || p.src) && (
                                             // eslint-disable-next-line @next/next/no-img-element
                                             <img
-                                                src={p.thumbSrc || p.src}
+                                                src={publicImageUrl(p.thumbSrc || p.src)}
                                                 alt=""
                                                 loading="lazy"
                                                 className="absolute inset-0 w-full h-full object-cover"

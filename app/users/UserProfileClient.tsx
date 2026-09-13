@@ -34,6 +34,7 @@ import { ROUTES } from "../../lib/routes";
 import { toastWithStaticPage } from "../../lib/utils/staticPage";
 import UserAvatar from "../components/UserAvatar";
 import PHOTOS_JSON from "../data/photos.json";
+import { publicImageUrl } from "@/lib/utils/seo";
 
 type SongEntry = {
     title: string;
@@ -127,7 +128,7 @@ function buildTimeline(photos: Photo[], locale: "ja" | "en"): TimelineGroup[] {
 // バンドの下は黒（フェードで徐々に黒くする演出はしない）。
 function CoverBackground({ userId }: { userId: string }) {
     const [coverError, setCoverError] = useState(false);
-    const coverUrl = CLOUDFRONT_URL ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(userId)}/cover` : "";
+    const coverUrl = CLOUDFRONT_URL ? publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(userId)}/cover`) : "";
     const hasCover = coverUrl && !coverError;
 
     return (

@@ -40,6 +40,7 @@ import { isImeKey } from "../../../lib/utils/ime";
 import { useSongSearch } from "../../../lib/hooks/useSongSearch";
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import { sessionErrorMessage } from "../../../lib/utils/api";
+import { publicImageUrl } from "@/lib/utils/seo";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -218,11 +219,17 @@ function PhotoImage({
                 </div>
             )}
             <div className="relative w-full" style={{ minHeight: reserve, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {/* AVIF があれば優先（詳細=LCP を軽く）、無ければ従来 src(WebP) にフォールバック */}
+                {/* AVIF があれば優先（詳細=LCP を軽く）、無ければ従来 src(WebP) にフォールバック。
+                    **出すURLはここで揃える**（`publicImageUrl`）——保存されている値は
+                    CloudFront の既定ドメインで書かれる（api-user の `canonicalUploadUrl` が
+                    `CLOUDFRONT_URL` を土台にする）ので、そのまま描くとサイトのドメインと
+                    2つのホストに割れる。**呼ぶ側ではなく部品の中で揃える**——ここは
+                    検索の着地点の LCP で、AVIF を出す端末が実際に取りに行くのは
+                    `<source>` の方。呼ぶ側で `src` だけ包んでいた間、AVIF は生のままだった */}
                 <picture className="w-full flex items-center justify-center">
-                    {srcAvif && <source type="image/avif" srcSet={srcAvif} />}
+                    {srcAvif && <source type="image/avif" srcSet={publicImageUrl(srcAvif)} />}
                     <img
-                        src={src}
+                        src={publicImageUrl(src)}
                         alt={alt}
                         // **実寸が分かるときだけ名乗る。** 以前は全写真が
                         // `1200x800`（3:2）を名乗っていたので、縦位置の写真は

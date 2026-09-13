@@ -7,6 +7,7 @@ import type { Photo } from "../../lib/data/photos";
 import { ROUTES } from "../../lib/routes";
 import { clusterPoints, boundsOf, type GeoPoint } from "../../lib/utils/mapClusters";
 import { MAP_MIN_ZOOM, MAP_MAX_ZOOM, chooseInitialView, readSavedView, saveView } from "../../lib/utils/mapView";
+import { publicImageUrl } from "@/lib/utils/seo";
 
 /** 位置情報を持つ写真だけ（`coords` が有限の数であること） */
 export type MapPhoto = Photo & { coords: { lat: number; lng: number } };
@@ -100,7 +101,8 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                 box.className = "photo-map-card";
                 if (photo.thumbSrc || photo.src) {
                     const img = document.createElement("img");
-                    img.src = photo.thumbSrc || photo.src;
+                    // 出すURLはサイトのドメインに揃える（`Thumb` と同じ理由）
+                    img.src = publicImageUrl(photo.thumbSrc || photo.src);
                     img.alt = "";
                     img.width = THUMB_W;
                     // **高さも入れる。** Leaflet は開いた瞬間に中身の高さを測って、

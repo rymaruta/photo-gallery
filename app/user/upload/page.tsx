@@ -26,6 +26,7 @@ import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
 // 上限は lib/utils/uploadLimits.ts に置く（api-user 側と対。理由はあちらに書いた）
 import { PHOTO_LIMIT_PER_USER } from "../../../lib/utils/uploadLimits";
+import { publicImageUrl } from "@/lib/utils/seo";
 
 
 
@@ -1377,7 +1378,7 @@ function UploadPageInner() {
                         ) : currentUserId && CLOUDFRONT_URL ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
-                                src={`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(currentUserId)}?v=${avatarCacheBust}`}
+                                src={publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(currentUserId)}?v=${avatarCacheBust}`)}
                                 alt=""
                                 className="w-full h-full object-cover"
                                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}

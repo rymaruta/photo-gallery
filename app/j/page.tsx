@@ -7,6 +7,7 @@ import { userPublicFetch, userFetch, readApiError, sessionErrorMessage } from ".
 import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { ROUTES } from "../../lib/routes";
+import { publicImageUrl } from "@/lib/utils/seo";
 
 /**
  * 共同アルバムの招待（案C）。
@@ -138,7 +139,7 @@ function InviteView() {
                             <li key={p.id} className="aspect-square overflow-hidden rounded-sm bg-white/5">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
-                                    src={p.thumbSrc || p.src}
+                                    src={publicImageUrl(p.thumbSrc || p.src)}
                                     alt=""
                                     loading="lazy"
                                     className="w-full h-full object-cover"

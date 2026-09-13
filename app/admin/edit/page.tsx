@@ -16,6 +16,7 @@ import { toDateInputValue, mergeDate, todayForDateInput, PHOTO_DATE_MIN } from "
 import { changedFields } from "../../../lib/utils/changedFields";
 import { readApiError } from "../../../lib/utils/api";
 import { toastWithStaticPage } from "../../../lib/utils/staticPage";
+import { publicImageUrl } from "@/lib/utils/seo";
 
 // text-base（16px）にする。iOS Safari は 16px 未満の入力欄にフォーカスすると
 // ページを拡大し、blur しても戻さない。他のページでは inline style で
@@ -363,7 +364,7 @@ function AdminEditContent() {
                     ) : (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                            src={photo.src}
+                            src={publicImageUrl(photo.src)}
                             alt=""
                             className="w-full max-h-64 object-contain rounded-lg mb-6 bg-white/5"
                             onError={(e) => { setImageError(true); void dropCachedPhoto(e.currentTarget.currentSrc || e.currentTarget.src); }}
