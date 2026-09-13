@@ -230,3 +230,42 @@ describe("GalleryGrid: カテゴリ名", () => {
         expect(screen.getByText("travel")).toBeInTheDocument();
     });
 });
+
+/**
+ * **最初の画面に出る写真を「すぐ読む」にする枚数。**
+ *
+ * `index < 8` は `GalleryGrid.tsx` にあるが、**それを見るテストが1本も
+ * 無かった**（`fetchPriority` を見るテストがリポジトリ全体で0件だった）。
+ * 外すと最初の画面の写真まで後回しになり、入れすぎると画面外の写真が
+ * 高い優先度で主役と帯域を取り合う。
+ *
+ * 8 という数の根拠は実測（`IMG-2`）——390x844 で画面内10枚・1280x800 で12枚
+ * なので、**どちらでも画面内の枚数を超えない**。
+ */
+describe("読み込みの優先度", () => {
+    const many = Array.from({ length: 12 }, (_, i) => photo(`p${i}`));
+
+    // alt は全部同じ（フィクスチャの題が共通）なので、**出た順**で見る
+    const renderMany = () => {
+        const { container } = render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={many} locale="ja" />);
+        return Array.from(container.querySelectorAll("picture img"));
+    };
+
+    it("先頭8枚は eager + high、9枚目からは lazy + auto", () => {
+        const imgs = renderMany();
+        expect(imgs).toHaveLength(many.length);
+        imgs.slice(0, 8).forEach((img, i) => {
+            expect(img.getAttribute("loading"), `${i}枚目が後回し指定`).toBe("eager");
+            expect(img.getAttribute("fetchpriority")?.toLowerCase()).toBe("high");
+        });
+        imgs.slice(8).forEach((img, i) => {
+            expect(img.getAttribute("loading"), `${i + 8}枚目を無駄に先読みしている`).toBe("lazy");
+            expect(img.getAttribute("fetchpriority")?.toLowerCase()).toBe("auto");
+        });
+    });
+
+    it("「すぐ読む」はちょうど8枚（0枚でも全部でも通らない）", () => {
+        const eager = renderMany().filter((i) => i.getAttribute("loading") === "eager");
+        expect(eager).toHaveLength(8);
+    });
+});

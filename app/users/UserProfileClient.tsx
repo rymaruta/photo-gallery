@@ -158,7 +158,30 @@ function CoverBackground({ userId }: { userId: string }) {
     );
 }
 
-function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, onTogglePin, coverSelected = false, onSetCover }: {
+/**
+ * **最初の画面に出る写真を「すぐ読む」にする枚数。**
+ *
+ * ここを渡していなかったので、プロフィールのグリッドは**1枚目から全部
+ * `loading="lazy"`＋`fetchPriority="auto"`** だった（`GalleryGrid` は
+ * `index < 8` で渡している）。`/users/<id>` はサイトマップに載る公開ページで、
+ * **画面のいちばん上に出る写真が後回し指定**になっていた。
+ *
+ *     実測（Chromium・代替画像）  画面内の img   うち loading="lazy"
+ *       スマホ 390x844                11              9
+ *       デスクトップ 1280x800           5              3
+ *
+ * **3（1行ぶん）にしてある。** グリッドは3列固定で、**いちばん狭い条件
+ * （デスクトップ）で最初の画面に入るのが3枚**だから——`GalleryGrid` が
+ * 「画面内の枚数を超えない」形（8枚に対し画面内10〜12）にしているのと同じ考え。
+ * 多く指定すると、画面外の写真が高い優先度で主役と帯域を取り合う（IMG-2 で
+ * 一度測り、トップページでは超えていないことを確かめてある）。
+ *
+ * **スマホの2〜3行目は lazy のまま**。そこを「すぐ読む」にすると、
+ * デスクトップで画面外の6枚が高優先になる。どちらか一方しか選べない。
+ */
+const PROFILE_PRIORITY_THUMBS = 3;
+
+function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, onTogglePin, coverSelected = false, onSetCover, priority = false }: {
     photo: Photo;
     locale: string;
     isOwner: boolean;
@@ -167,6 +190,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
     onTogglePin?: (id: string, pin: boolean) => void;
     coverSelected?: boolean;
     onSetCover?: (id: string) => void;
+    priority?: boolean;
 }) {
     const title = getLocalized(photo.title, locale as "ja" | "en") || (typeof photo.title === "string" ? photo.title : "");
     const isHidden = photo.published === false;
@@ -189,6 +213,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                     photo={photo}
                     alt={title}
                     sizes="(max-width:640px) 33vw, (max-width:1024px) 33vw, 340px"
+                    priority={priority}
                     className="transition-transform duration-300 group-hover:scale-[1.04]"
                 />
                 {/* ホバー: いいね数オーバーレイ */}
@@ -1397,9 +1422,10 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         </div>
                     ) : null) : (
                         <div className="grid grid-cols-3 gap-1 pb-8">
-                            {orderedPhotos.map(photo => (
+                            {orderedPhotos.map((photo, i) => (
                                 <PhotoCard
                                     key={photo.id}
+                                    priority={i < PROFILE_PRIORITY_THUMBS}
                                     photo={photo}
                                     locale={locale}
                                     isOwner={isOwner}
