@@ -57,7 +57,11 @@ const path = require("path");
 const { requireEnv } = require("./lib/env");
 // **規則は借りる。** ID の形とマーカーの分解を書き写すと、片方を直した日に
 // 静かにずれる（このリポジトリが何度も踏んでいる形）。
-const { parseMarker, USER_ID_RE } = require("./backfill-followers.js");
+const { parseMarker, SKIP_REASONS } = require("./backfill-followers.js");
+// **並びの掃除は「読む側の規則」で見る。** 書き込む側の厳しい規則で
+// 外すと、API が通して画面にも出ている ID を一覧から消すことになる
+// （＝規則のずれを、直すのではなく実害に変える）
+const { apiAccepts } = require("./lib/userId");
 
 const envLocalPath = path.resolve(__dirname, "../.env.local");
 if (fs.existsSync(envLocalPath)) {
@@ -80,16 +84,34 @@ function rowKind(id) {
  * **正はマーカー。** 数も並びも、マーカーから数え直せる。逆はできない
  * （数は ID を持たず、並びは失敗を握る経路で書かれる）。
  *
- * @returns {{ following: Map<string, Set<string>>, followers: Map<string, Set<string>>, brokenMarkerIds: string[] }}
+ * @returns {{ following: Map<string, Set<string>>, followers: Map<string, Set<string>>, brokenMarkerIds: string[], driftMarkers: number }}
  */
 function buildTruth(rows) {
     const following = new Map();   // 自分 → フォローしている人
     const followers = new Map();   // 相手 → フォローしている人たち
     const brokenMarkerIds = [];
+    let driftMarkers = 0;
     for (const row of rows) {
         if (rowKind(row.id) !== "follow") continue;
         const m = parseMarker(row);
         if (m.skip) {
+            // **規則のずれで弾かれたものは消さない。** API（読む側）が
+            // 通す ID なら、それは**本物のフォローかもしれない**。
+            // 消すと関係そのものが失われ、押し直すしか戻す手が無い
+            // ——しかも相手は画面に出ないので押しようがない。
+            // 数えて報告するだけにして、判断は人に渡す
+            if (m.skip === SKIP_REASONS.RULE_DRIFT) {
+                driftMarkers++;
+                // **正しい姿には数える。** 消さないと決めた以上、一覧と数からも
+                // 外してはいけない——外すと「消さない」と言いながら、
+                // 並びと数の側で同じことをすることになる
+                const [, target, follower] = row.id.split("#");
+                if (!following.has(follower)) following.set(follower, new Set());
+                following.get(follower).add(target);
+                if (!followers.has(target)) followers.set(target, new Set());
+                followers.get(target).add(follower);
+                continue;
+            }
             // **`follow: true` を持たない行は「壊れたマーカー」ではない。**
             // 種別で既に絞っているので、ここに来るのは
             // 「`follow#` だが形か ID が違う」だけ。ただし `follow: true` が
@@ -103,7 +125,7 @@ function buildTruth(rows) {
         if (!followers.has(m.target)) followers.set(m.target, new Set());
         followers.get(m.target).add(m.follower);
     }
-    return { following, followers, brokenMarkerIds };
+    return { following, followers, brokenMarkerIds, driftMarkers };
 }
 
 /**
@@ -112,7 +134,7 @@ function buildTruth(rows) {
  */
 function pruneList(list, truthSet) {
     const cur = Array.isArray(list) ? list : [];
-    const next = cur.filter((id) => typeof id === "string" && USER_ID_RE.test(id) && truthSet.has(id));
+    const next = cur.filter((id) => apiAccepts(id) && truthSet.has(id));
     if (next.length === cur.length && next.every((v, i) => v === cur[i])) return null;
     return next;
 }
@@ -191,6 +213,12 @@ async function main(deps) {
         console.log(`[follow-repair]   ${kind}#… ${byKind.get(kind) ?? 0} 行`);
     }
     console.log(`[follow-repair] 有効なフォロー ${validMarkers} 件 / 壊れたマーカー ${truth.brokenMarkerIds.length} 件`);
+    // **0 でも黙らない。** 出さないと「規則のずれは無い」のか「見ていない」
+    // のかが読めない（本番のドライランでまさにそれが読めなかった）
+    console.log(`[follow-repair] 規則のずれで保留したマーカー ${truth.driftMarkers} 件`
+        + (truth.driftMarkers > 0
+            ? "（API は通す ID。**本物のフォローの可能性がある**ので消さず、数にも入れていません）"
+            : ""));
     console.log(`[follow-repair] フォローしている人 ${truth.following.size} 人 / されている人 ${truth.followers.size} 人\n`);
 
     let fixed = 0;
