@@ -786,9 +786,10 @@ function EditContent() {
                             <input type="text" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)}
                                 className={inputCls} style={{ fontSize: "16px" }} placeholder={isJa ? "自然, 山" : "nature, mountain"} />
                             {/* タグはカンマ区切りなので datalist が効かない（欄全体を
-                                置き換えてしまう）。押して足せるチップにする。 */}
+                                置き換えてしまう）。**押して選ぶチップにする**——押し直すと外れ、
+                                選んでいるものは白地で出す（一覧の絞り込みと同じ `role="switch"`）。 */}
                             {ownValues.tags.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                <div className="flex flex-wrap gap-1.5 mt-1.5" role="group" aria-label={isJa ? "よく使うタグ" : "Your frequent tags"}>
                                     {ownValues.tags.slice(0, 12).map((t) => {
                                         const on = hasTag(tagsInput, t);
                                         return (
@@ -798,7 +799,7 @@ function EditContent() {
                                                 onClick={() => setTagsInput((cur) => toggleTag(cur, t))}
                                                 role="switch"
                                                 aria-checked={on}
-                                                className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors disabled:opacity-40 ${on ? "bg-white text-black font-medium ring-white" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
+                                                className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-white text-black font-medium ring-white" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
                                                 style={{ touchAction: "manipulation" }}
                                             >
                                                 {t}

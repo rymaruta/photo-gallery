@@ -1158,9 +1158,10 @@ function UploadPageInner() {
                         disabled={uploading}
                     />
                     {/* タグはカンマ区切りなので datalist が効かない（欄全体を
-                        置き換えてしまう）。押して足せるチップにする。 */}
+                        置き換えてしまう）。**押して選ぶチップにする**——押し直すと外れ、
+                        選んでいるものは白地で出す（一覧の絞り込みと同じ `role="switch"`）。 */}
                     {ownValues.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex flex-wrap gap-1.5" role="group" aria-label={locale === "en" ? "Your frequent tags" : "よく使うタグ"}>
                             {ownValues.tags.slice(0, 12).map((t) => {
                                 const on = hasTag(tags, t);
                                 return (

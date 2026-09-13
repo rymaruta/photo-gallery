@@ -122,10 +122,16 @@ describe("アップロード画面の入力候補", () => {
         await userEvent.click(chip);
         expect(field.value).toBe("夜景");
         expect(chip, "選んだことが分からない").toHaveAttribute("aria-checked", "true");
+        // **見た目でも分かること。** 直した症状の見出しは「選んだかどうかが
+        // 分からない」＝見た目の話なので、`aria-checked` だけでは足りない
+        // （選択中の色を未選択と同じに戻す変異が素通りしていた）
+        expect(chip.className, "選択中の見た目になっていない").toContain("bg-white ");
+        expect(chip.className).toContain("text-black");
 
         await userEvent.click(chip);
         expect(field.value, "押し直しても外れない（押しても何も起きないボタン）").toBe("");
         expect(chip).toHaveAttribute("aria-checked", "false");
+        expect(chip.className, "外したのに選択中の見た目のまま").not.toContain("text-black");
     });
 
     // 手で打った綴りが違っても、同じタグとして見る（二重に入れない）
@@ -159,5 +165,13 @@ describe("アップロード画面の入力候補", () => {
         const used = PHOTOS.length + 2;
         expect(screen.getByText(`あと${PHOTO_LIMIT_PER_USER - used}枚アップロードできます（${PHOTO_LIMIT_PER_USER}枚まで）`),
             "落とした行を枠から引いている（サーバーは数える）").toBeInTheDocument();
+    });
+
+    // **候補のまとまりに名前を付ける。** 読み上げは「夜景 スイッチ オン」としか
+    // 言わないので、何のスイッチか分からない（`role="switch"` にしたぶん、
+    // ただのボタンだった頃より「何の」が要る）
+    it("候補のまとまりに名前がある", async () => {
+        await pickOne();
+        expect(screen.getByRole("group", { name: "よく使うタグ" }), "何のスイッチか分からない").toBeInTheDocument();
     });
 });

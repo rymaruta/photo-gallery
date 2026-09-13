@@ -136,7 +136,8 @@ export function appendTag(current: string, tag: string): string {
 
 /** いまの欄にそのタグが入っているか（大小・`#`・日英の別名は畳んで見る） */
 export function hasTag(current: string, tag: string): boolean {
-    const key = tagKey(tag.trim());
+    // `tagKey` は中で trim するので、ここでは trim しない
+    const key = tagKey(tag);
     if (!key) return false;
     return current.split(",").some((t) => tagKey(t.trim()) === key);
 }
@@ -154,10 +155,23 @@ export function hasTag(current: string, tag: string): boolean {
  *
  * 足す側は `appendTag` に任せる（何も変わらない回に**元の文字列を
  * そのまま返す**——空白の入れ方を勝手に直さない、という性質がある）。
+ * **空のタグのガードはここに置かない**——`hasTag` が必ず false を返して
+ * `appendTag` に流れ、あちらのガードが受ける。ここにも書くと
+ * **二重の守りになって、片方を壊しても誰も気づけない**
+ * （`bf3df612`「二重の守りは1本にする」。実際、変異で素通りして分かった）。
+ *
+ * ⚠️ **外して戻すと、2つ変わる**（承知のうえで残す）:
+ *   - **並びが末尾へ移る。** 編集画面は「触っていない項目は送らない」ので、
+ *     元に戻したつもりでも「未保存の変更」になり、保存すると**並びだけ
+ *     違う**内容が送られる（サーバーは変更と見て静的サイトの再ビルドを頼む）。
+ *     直すには画面とサーバーの比較を両方「集合として比べる」に変えることになり、
+ *     対の実装がずれる方が危ない
+ *   - **綴りが候補の代表表記になる。** `風景` の写真で候補「landscape」を
+ *     押し直すと `landscape` になる。押した本人が選んだ綴りではあるが、
+ *     日本語のタグが検索面積に効くという方針とは逆に倒れうる
  */
 export function toggleTag(current: string, tag: string): string {
     const t = tag.trim();
-    if (!t) return current;
     if (!hasTag(current, t)) return appendTag(current, t);
     const key = tagKey(t);
     return current

@@ -80,9 +80,13 @@ describe("入力候補", () => {
         const tags = (await screen.findByDisplayValue("夜景")) as HTMLInputElement;
         const chip = await screen.findByRole("switch", { name: "夜景" });
         expect(chip, "付いているのに未選択に見える").toHaveAttribute("aria-checked", "true");
+        // 見た目でも分かること（`aria-checked` だけだと、色を戻す変異が素通りする）
+        expect(chip.className, "選択中の見た目になっていない").toContain("bg-white ");
+        expect(chip.className).toContain("text-black");
         await userEvent.click(chip);
         await waitFor(() => expect(tags.value, "押し直しても外れない").toBe(""));
         expect(chip).toHaveAttribute("aria-checked", "false");
+        expect(chip.className, "外したのに選択中の見た目のまま").not.toContain("text-black");
     });
 
     // **候補を state に入れると「毎回新しいオブジェクト」になる。**
@@ -93,5 +97,14 @@ describe("入力候補", () => {
         await screen.findByDisplayValue("湖");
         await new Promise((r) => setTimeout(r, 60));
         expect(listCalls()).toHaveLength(1);
+    });
+
+    // **候補のまとまりに名前を付ける。** 読み上げは「夜景 スイッチ オン」としか
+    // 言わないので、何のスイッチか分からない（`role="switch"` にしたぶん、
+    // ただのボタンだった頃より「何の」が要る）
+    it("候補のまとまりに名前がある", async () => {
+        render(<EditPage />);
+        await screen.findByDisplayValue("夜景");
+        expect(screen.getByRole("group", { name: "よく使うタグ" }), "何のスイッチか分からない").toBeInTheDocument();
     });
 });
