@@ -57,19 +57,26 @@ const stripComments = (src: string): string =>
  * それを使う画面を数え上げれば「失敗の出し方を置いてきた画面」が分かる。
  * 手書きの一覧にすると、4つ目の画面が増えた日に静かに素通りする。
  */
+/**
+ * 曲を探す画面の見分け方。**呼び出しの綴りではなく import で数える**
+ * ——`useSongSearch as useSongs` と別名で入れた画面は `useSongSearch(` に
+ * 一致せず、素通りしていた（4つ目の画面を実際に作って確かめた）。
+ *
+ * **判定はこの1つを両方から使う。** 自己確認に正規表現を書き写していた
+ * 間は、`users()` の側だけ元に戻しても自己確認が緑のままだった。
+ */
+const USES_HOOK = /from\s+["'][^"']*useSongSearch["']/;
+
 describe("曲を探す画面", () => {
-    // **呼び出しの綴りではなく import で数える。** `useSongSearch as useSongs`
-    // と別名で入れた画面は `useSongSearch(` に一致せず、素通りしていた
-    // （4つ目の画面を実際に作って確かめた）
     const users = (): string[] =>
         walk(nodePath.join(process.cwd(), "app"))
-            .filter((f: string) => /from\s+["'][^"']*useSongSearch["']/.test(stripComments(nodeFs.readFileSync(f, "utf8"))))
+            .filter((f: string) => USES_HOOK.test(stripComments(nodeFs.readFileSync(f, "utf8"))))
             .map((f: string) => nodePath.relative(process.cwd(), f).split(nodePath.sep).join("/"));
 
     // 判定そのものが効くか（0件の状態では、壊れた検出器と正しい検出器が
     // 同じ答えを返す）。**別名で入れた形も数える**
     it("判定は、別名で入れた画面も数える", () => {
-        const re = /from\s+["'][^"']*useSongSearch["']/;
+        const re = USES_HOOK;
         expect(re.test(`import { useSongSearch } from "@/lib/hooks/useSongSearch";`)).toBe(true);
         expect(re.test(`import { useSongSearch as useSongs } from "../../lib/hooks/useSongSearch";`),
             "別名で入れた画面を見落とす").toBe(true);

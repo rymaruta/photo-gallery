@@ -2,7 +2,7 @@
 
 import React from "react";
 import { tagKey } from "@/lib/utils/collections";
-import { categoryLabel } from "@/lib/utils/collections";
+import { categoryChipMap } from "@/lib/utils/categoryMap";
 import FilterBar from "./components/FilterBar";
 import StoriesBar from "./components/stories/StoriesBar";
 import { useLocale } from "./i18n/context";
@@ -354,14 +354,10 @@ export default function GalleryPageClient() {
   // ループを置いていたが、**1件も足せない死にコード**だった——中身を
   // `throw` に変えても GalleryPageClient 系9ファイル62件が全部緑）。
   // 名前の決め方は `categoryLabel` 1つ（`/favorites` と同じ）。
-  const categoryDisplayMap = React.useMemo(() => {
-    const map: Record<string, string> = {};
-    const names = labels.category.names ?? {};
-    for (const key of categories) {
-      map[key] = key === "all" ? labels.category.all : categoryLabel(key, names);
-    }
-    return map;
-  }, [labels, categories]);
+  const categoryDisplayMap = React.useMemo(
+    () => categoryChipMap(categories, { all: labels.category.all, names: labels.category.names }),
+    [labels, categories],
+  );
 
   const renderSubtitle = (sub?: string | string[]) => {
     if (!sub) return null;

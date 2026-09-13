@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { photoCategoryMap } from "../categoryMap";
+import { photoCategoryMap, categoryChipMap } from "../categoryMap";
 import { ja } from "@/app/i18n/labels";
 
 /**
@@ -65,5 +65,34 @@ describe("一覧のカテゴリ名の地図", () => {
     it("同じカテゴリが何枚あっても鍵は1つ", () => {
         const map = photoCategoryMap([{ category: "風景" }, { category: "風景" }], names);
         expect(Object.keys(map)).toEqual(["風景"]);
+    });
+});
+
+describe("トップの絞り込みチップの名前", () => {
+    const labels = { all: "すべて", names };
+
+    it("別名は代表表記・表に無いものは生のまま（一覧と同じ規則）", () => {
+        const map = categoryChipMap(["architecture", "landscape", "ご飯", "travel"], labels);
+        expect(map["architecture"]).toBe("建築");
+        expect(map["landscape"]).toBe("風景");
+        expect(map["ご飯"]).toBe("ご飯");
+        expect(map["travel"], "見出し語に書き換えている").toBe("travel");
+    });
+
+    it("`all` だけは呼ぶ側の言葉", () => {
+        expect(categoryChipMap(["all", "landscape"], labels)["all"]).toBe("すべて");
+    });
+
+    it("鍵は渡されたものだけ（勝手に増やさない）", () => {
+        expect(Object.keys(categoryChipMap(["landscape"], labels))).toEqual(["landscape"]);
+    });
+
+    // **2つの地図が同じ言葉を出す。** 片方だけ落とし先を変えると、
+    // トップのチップと いいね一覧で同じカテゴリが違う名前になる
+    it("写真から作る地図と同じ言葉になる", () => {
+        const raws = ["architecture", "landscape", "ご飯", "travel"];
+        const chip = categoryChipMap(raws, labels);
+        const photo = photoCategoryMap(raws.map((category) => ({ category })), names);
+        expect(chip).toEqual(photo);
     });
 });

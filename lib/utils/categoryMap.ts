@@ -36,3 +36,28 @@ export function photoCategoryMap(
     }
     return map;
 }
+
+/**
+ * 絞り込みのチップとサムネの下に出す名前（**トップの一覧**が使う）。
+ *
+ * トップの写真は `useGallery` が既にスラッグへ正規化しているので、
+ * 鍵は `categories`（その重複除去）で足りる——**写真からもう一周する
+ * ループは1件も足せない死にコード**だった。
+ *
+ * 名前の決め方は `photoCategoryMap` と同じ `categoryLabel` 1つ。
+ * ここだけ `capitalize(スラッグ)` に落としていた頃は、同じカテゴリが
+ * トップでは `Travel`・写真ページでは `travel` になっていた。
+ *
+ * `all`（すべて）は写真のカテゴリではないので、表示名は呼ぶ側が渡す。
+ */
+export function categoryChipMap(
+    categories: ReadonlyArray<string>,
+    labels: { all: string; names?: Record<string, string> },
+): Record<string, string> {
+    const names = labels.names ?? {};
+    const map: Record<string, string> = {};
+    for (const key of categories) {
+        map[key] = key === "all" ? labels.all : categoryLabel(key, names);
+    }
+    return map;
+}
