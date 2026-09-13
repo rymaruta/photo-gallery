@@ -91,6 +91,13 @@ export function linkTags(raw: string): Array<{ tag: string; bare: string }> {
     return out;
 };
 
+/**
+ * 先読みを切っていないリンクか。**判定はこの1つ**——走査側と自己確認側で
+ * 別々に書いていた間、走査側だけ引用符を見ない形に戻しても緑のままだった
+ * （変異で発覚。`bf3df612`「二重の守りは1本にする」と同じ筋）。
+ */
+export const missesPrefetch = (t: { bare: string }): boolean => !t.bare.includes("prefetch={false}");
+
 describe("公開ページのリンクは先読みしない", () => {
     const walk = (dir: string): string[] => {
         const out: string[] = [];
@@ -113,8 +120,8 @@ describe("公開ページのリンクは先読みしない", () => {
         const stray: string[] = [];
         for (const [f, tags] of withLinks()) {
             if (exempt.has(f)) continue;
-            for (const { tag, bare } of tags) {
-                if (!bare.includes("prefetch={false}")) stray.push(`${f}  ${tag.replace(/\s+/g, " ").slice(0, 60)}`);
+            for (const t of tags) {
+                if (missesPrefetch(t)) stray.push(`${f}  ${t.tag.replace(/\s+/g, " ").slice(0, 60)}`);
             }
         }
         expect(stray, "画面に入るたびに行き先を丸ごと落とし直す").toEqual([]);
@@ -134,8 +141,8 @@ describe("公開ページのリンクは先読みしない", () => {
     // 判定そのものが効くか（0件の状態では、壊れた検出器と正しい検出器が同じ答えを返す）
     describe("判定の自己確認", () => {
         it("先読みを切っていないリンクを見つける", () => {
-            expect(linkTags('<Link href="/x">a</Link>').some((t) => !t.bare.includes("prefetch={false}"))).toBe(true);
-            expect(linkTags('<Link href="/x" prefetch={false}>a</Link>').every((t) => t.bare.includes("prefetch={false}"))).toBe(true);
+            expect(linkTags('<Link href="/x">a</Link>').some(missesPrefetch)).toBe(true);
+            expect(linkTags('<Link href="/x" prefetch={false}>a</Link>').some(missesPrefetch)).toBe(false);
         });
 
         it("`=>` の `>` でタグを切らない", () => {
@@ -147,7 +154,7 @@ describe("公開ページのリンクは先読みしない", () => {
         // 「付いている」と数えてはいけない
         it("href の中に紛れた `prefetch={false}` は数えない", () => {
             const broken = "<Link href={`${ROUTES.MAP} prefetch={false}${mapHash}`} className=\"x\">a</Link>";
-            expect(linkTags(broken).some((t) => !t.bare.includes("prefetch={false}")),
+            expect(linkTags(broken).some(missesPrefetch),
                 "リンク先が壊れているのに「付いている」と読んでいる").toBe(true);
         });
 
