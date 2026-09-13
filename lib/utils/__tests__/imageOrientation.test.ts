@@ -20,7 +20,7 @@ import { stripJpegExifDetailed, toUploadSafeFile } from "../image";
  */
 
 /** EXIF の APP1 を組み立てる（Orientation と Make を持たせる） */
-function exifApp1(orientation: number, endian: "MM" | "II" = "MM"): number[] {
+function exifApp1(orientation: number, endian: "MM" | "II" = "MM", type = 3): number[] {
     const be = endian === "MM";
     const u16 = (v: number) => (be ? [(v >> 8) & 0xFF, v & 0xFF] : [v & 0xFF, (v >> 8) & 0xFF]);
     const u32 = (v: number) => (be
@@ -31,7 +31,7 @@ function exifApp1(orientation: number, endian: "MM" | "II" = "MM"): number[] {
     const ifd = [
         ...u16(2),
         ...u16(0x010F), ...u16(2), ...u32(make.length), ...u32(8 + 2 + 24 + 4), // Make は末尾に置く
-        ...u16(0x0112), ...u16(3), ...u32(1), ...u16(orientation), 0x00, 0x00,
+        ...u16(0x0112), ...u16(type), ...u32(1), ...u16(orientation), 0x00, 0x00,
         ...u32(0),
     ];
     const tiff = [
@@ -129,6 +129,17 @@ describe("向き（EXIF Orientation）を落とさない", () => {
         ["途中で切れている", [0x45, 0x78, 0x69, 0x66, 0x00, 0x00, 0x4D, 0x4D]],
     ])("壊れた APP1 では向きを戻さない（%s）", async (_name, payload) => {
         const r = await stripJpegExifDetailed(asFile(jpegWith(payload)), { keepOrientation: true });
+        expect(r.stripped).toBe(true);
+        expect(r.orientation).toBeUndefined();
+        expect(app1Offsets(await bytesOf(r.file))).toEqual([]);
+    });
+
+    // **型が SHORT でなければ戻さない。** 規格外（LONG など）の Orientation は、
+    // リトルエンディアンだと `u16` が下位2バイトを拾って**正しい値に読めてしまう**
+    // 一方、ビッグエンディアンでは 0 になって弾かれる——つまり検査を外すと
+    // **並び順で結果が変わる**。知らない形は戻さない側に倒す。
+    it.each([["II"], ["MM"]] as const)("SHORT 以外の型（LONG）は戻さない（%s）", async (endian) => {
+        const r = await stripJpegExifDetailed(asFile(jpegWith(exifApp1(6, endian, 4))), { keepOrientation: true });
         expect(r.stripped).toBe(true);
         expect(r.orientation).toBeUndefined();
         expect(app1Offsets(await bytesOf(r.file))).toEqual([]);
