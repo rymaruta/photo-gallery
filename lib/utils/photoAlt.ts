@@ -2,6 +2,7 @@
 // 写真の代替テキスト（alt）を1か所で組む。
 
 import { getLocalized, type Photo, type Locale } from "../data/photos";
+import { titleWithPlace } from "./titlePlace";
 
 /**
  * 写真の alt。**画像検索に出るかどうかは、ほぼここで決まる。**
@@ -31,8 +32,9 @@ export function photoAltText(photo: Photo, locale: Locale): string {
 
     const title = getLocalized(photo.title, locale) || (typeof photo.title === "string" ? photo.title : "");
     const place = typeof photo.location === "string" ? photo.location.trim() : "";
-    if (!title) return place;
-    // 既に地名が入っているなら重ねない（「山中湖の白鳥（山中湖）」を作らない）
-    if (!place || title.includes(place)) return title;
-    return `${title}（${place}）`;
+    // **並べ方の決め方は `titleWithPlace` 1つに置く**（写真ページの `<title>` と
+    // 同じ判断。片方だけ直して `alt="オペラ・ガルニエ（オペラ・ガルニエ（パリ））"`
+    // を19ページに出した）。ここが決めるのは「（）でつなぐ」ことだけ
+    const r = titleWithPlace(title, place);
+    return r.kind === "single" ? r.text : `${r.title}（${r.place}）`;
 }

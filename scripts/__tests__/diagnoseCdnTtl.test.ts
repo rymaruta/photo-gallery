@@ -9,12 +9,17 @@ import { join } from "node:path";
 // 4つがこの形だった）。ポリシーを引いて秒で出す。
 
 const require_ = createRequire(import.meta.url);
-const { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources } = require_("../diagnose-aws.js") as {
+const { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, compressNote, errorPageNote, cdnLines, securityHeadersNote, edgeFunctionNote } = require_("../diagnose-aws.js") as {
     describeBehavior: (b: Record<string, unknown>, p: Map<string, unknown>) => string;
     humanSeconds: (s: unknown) => string;
     residencyNote: () => string[];
     UPLOAD_MAX_AGE: number;
     countInvalidationSources: (refs: string[]) => { total: number; fromLambda: number; latestLambda: string | null };
+    compressNote: (behaviors: Record<string, unknown>[]) => string[];
+    errorPageNote: (items: Record<string, unknown>[]) => string[];
+    cdnLines: (behaviors: Record<string, unknown>[], policies: Map<string, unknown>, errorResponses?: Record<string, unknown>[]) => string[];
+    securityHeadersNote: (behaviors: Record<string, unknown>[]) => string[];
+    edgeFunctionNote: (behaviors: Record<string, unknown>[]) => string[];
 };
 
 const OPTIMIZED = new Map([["p1", {
@@ -28,17 +33,17 @@ describe("CloudFront の TTL の出し方", () => {
     // 正しく読ませる」ことなので、どの数がどのラベルに付くかまで見る
     it("ポリシーを引けた行は、この文字列そのもの", () => {
         expect(describeBehavior({ PathPattern: "/uploads/*", CachePolicyId: "p1" }, OPTIMIZED))
-            .toBe("  /uploads/*: Managed-CachingOptimized defaultTTL=86400秒（約1日） maxTTL=31536000秒（約365日） minTTL=1秒");
+            .toBe("  /uploads/*: Managed-CachingOptimized defaultTTL=86400秒（約1日） maxTTL=31536000秒（約365日） minTTL=1秒 圧縮=不明");
     });
 
     it("旧式の行も、この文字列そのもの", () => {
         expect(describeBehavior({ PathPattern: "/old/*", DefaultTTL: 3600, MaxTTL: 86400, MinTTL: 0 }, OPTIMIZED))
-            .toBe("  /old/*: 旧式 defaultTTL=3600秒（約1時間） maxTTL=86400秒（約1日） minTTL=0秒");
+            .toBe("  /old/*: 旧式 defaultTTL=3600秒（約1時間） maxTTL=86400秒（約1日） minTTL=0秒 圧縮=不明");
     });
 
     it("読めなかった行も、この文字列そのもの", () => {
         expect(describeBehavior({ PathPattern: "/x/*", CachePolicyId: "none" }, OPTIMIZED))
-            .toBe("  /x/*: cachePolicyId=none（ポリシーを読めなかった＝TTL 不明）");
+            .toBe("  /x/*: cachePolicyId=none（ポリシーを読めなかった＝TTL 不明） 圧縮=不明");
     });
 
     it("ポリシーを引けたら秒と日で出す（ID だけで終わらせない）", () => {
@@ -145,5 +150,280 @@ describe("無効化を誰が作ったか（LEFT-4 の効き確認）", () => {
     // 頭が `del-` の判定であること（`del` を含むだけの別物を拾わない）
     it("頭が del- のものだけ（含むだけでは数えない）", () => {
         expect(countInvalidationSources(["shrink-del-1", "xdel-2"]).fromLambda).toBe(0);
+    });
+});
+
+
+/**
+ * **圧縮しているかを、診断が出していなかった。**
+ *
+ * 2026-09-12 にビルドの出力を数えて「写真ページ 688KB → gzip 215KB」と
+ * 報告したが、**その gzip を掛けるのは CloudFront**で、
+ * `scripts/deploy-static-site.js` は `ContentEncoding` を付けない
+ * （事前に圧縮して上げてはいない）。つまり配信側の `Compress` ひとつで
+ * 決まるのに、診断は TTL しか出していなかった——**見積もりが3倍外れて
+ * いても誰も気づけない**。
+ *
+ * 台帳の型「道具が『0件』と言うとき、数え方を疑う」の裏返し:
+ * **道具が何も言わない項目は、無いのではなく見ていない。**
+ */
+describe("圧縮しているかを出す", () => {
+    it("行の末尾に ON / OFF / 不明 を付ける", () => {
+        const at = (c: unknown) => describeBehavior({ PathPattern: "/x/*", CachePolicyId: "p1", Compress: c }, OPTIMIZED);
+        expect(at(true)).toContain("圧縮=ON");
+        expect(at(false), "OFF が目立たない").toContain("圧縮=**OFF**");
+        expect(at(undefined), "読めなかったのを ON 扱いにしている").toContain("圧縮=不明");
+    });
+
+    // **秒数と同じで、`Compress=false` とだけ出しても意味が伝わらない。**
+    // 「何が起きるか」と「どこを直すか」まで書く
+    it("OFF の経路は名指しして、何が起きるかを書く", () => {
+        const out = compressNote([
+            { PathPattern: "/_next/static/*", Compress: true },
+            { PathPattern: "/uploads/*", Compress: false },
+            { Compress: false },
+        ]).join("\n");
+        expect(out).toContain("/uploads/*");
+        expect(out, "既定の経路を名指ししていない").toContain("(default)");
+        expect(out, "ON の経路まで名指ししている").not.toContain("/_next/static/*");
+        expect(out, "何が起きるかを書いていない").toContain("そのままのバイト数");
+        expect(out, "どこを直すかを書いていない").toContain("自動的に圧縮");
+    });
+
+    it("全部 ON なら、そう言い切る", () => {
+        expect(compressNote([{ Compress: true }, { PathPattern: "/x/*", Compress: true }]).join("\n"))
+            .toContain("全経路で ON");
+    });
+
+    // **読めなかったのを「ON」に丸めない。** 丸めると、権限が足りない日に
+    // 「圧縮されている」と嘘を報告する
+    it("読めなかった経路は、別に名指しする", () => {
+        const out = compressNote([{ PathPattern: "/y/*" }]).join("\n");
+        expect(out).toContain("読めなかった");
+        expect(out).toContain("/y/*");
+        expect(out, "読めないのを「全部 ON」にしている").not.toContain("全経路で ON");
+    });
+});
+
+/**
+ * **配線は「呼んだか」ではなく「出た行」で見る。**
+ * 前は `cdnTtl()` の中で順に `line()` していたので、`compressNote` の
+ * 呼び出しを**丸ごと消しても全テストが緑**だった（変異で確認）。
+ */
+describe("CDN の節に出す行（組み立て）", () => {
+    const behaviors = [
+        { PathPattern: "/uploads/*", CachePolicyId: "p1", Compress: false },
+        { CachePolicyId: "p1", Compress: true },
+    ];
+    it("TTL の行・圧縮の注記・残り期間の注記が全部入る", () => {
+        const out = cdnLines(behaviors, OPTIMIZED);
+        expect(out.some((l) => l.includes("/uploads/*") && l.includes("maxTTL=")), "TTL の行が無い").toBe(true);
+        expect(out.some((l) => l.includes("圧縮が OFF の経路")), "圧縮の注記が無い").toBe(true);
+        expect(out.join("\n"), "残り期間の注記が無い").toContain(residencyNote()[0]);
+    });
+
+    it("behavior の数だけ TTL の行が出る（1つも落とさない）", () => {
+        const ttlLines = cdnLines(behaviors, OPTIMIZED).filter((l) => l.includes("maxTTL="));
+        expect(ttlLines).toHaveLength(behaviors.length);
+    });
+});
+
+/**
+ * **静的サイトの 404 は CloudFront の設定で決まる。**
+ *
+ * `fix-cdn-error-pages.js` が 403/404 を `/404.html` に振り替え、
+ * **ステータスは 404 のまま**返すよう設定する。これが無いと
+ * `/404.html` の中身が **200 で**返る＝soft-404 になり、消した写真の URL も
+ * 「中身のあるページ」として扱われて**検索エンジンが索引に残し続ける**。
+ *
+ * ところが**その設定を確かめるものが何も無かった**——圧縮と同じ盲点で、
+ * ディストリビューションを作り直した日に静かに戻る。
+ */
+describe("存在しない URL に何を返しているか", () => {
+    const ok = [
+        { ErrorCode: 403, ResponsePagePath: "/404.html", ResponseCode: "404" },
+        { ErrorCode: 404, ResponsePagePath: "/404.html", ResponseCode: "404" },
+    ];
+
+    it("正しい設定なら `!!` を出さない", () => {
+        const out = errorPageNote(ok).join("\n");
+        expect(out).toContain("404 → /404.html / ステータス 404");
+        expect(out, "正しい設定に !! を出している").not.toContain("!!");
+    });
+
+    // **200 で返すのが soft-404。** 何が起きるかまで書く（秒数と同じ）。
+    // **403 も揃えたフィクスチャで見る**——404 だけだと「403 の振り替えが
+    // 無い」の `!!` が出て、**その行のおかげで判定が通ってしまう**
+    // （実際そうなっていて、ステータスを見ない変異が2種素通りした）
+    it("200 で返していたら soft-404 と言い、その行に `!!` を出す", () => {
+        const lines = errorPageNote([
+            { ErrorCode: 403, ResponsePagePath: "/404.html", ResponseCode: "404" },
+            { ErrorCode: 404, ResponsePagePath: "/404.html", ResponseCode: "200" },
+        ]);
+        const out = lines.join("\n");
+        expect(out, "soft-404 だと言っていない").toContain("soft-404");
+        expect(out, "何が起きるかを書いていない").toContain("索引に残り続ける");
+        // **その 404 の行自体**に `!!` が付いていること（別の行の `!!` で
+        // 通さない）
+        const line404 = lines.find((l) => l.includes("404 → /404.html / ステータス 200"));
+        expect(line404, "404 の行が出ていない").toBeTruthy();
+        expect(line404, "ステータスを見ていない（期待は404 と言っていない）").toContain("!!");
+        expect(lines.filter((l) => l.includes("403")).join(""), "正しい 403 に !! を出している").not.toContain("!!");
+    });
+
+    it("振り替えが片方だけなら、無い方を名指しする", () => {
+        const out = errorPageNote([{ ErrorCode: 404, ResponsePagePath: "/404.html", ResponseCode: "404" }]).join("\n");
+        expect(out).toContain("403 の振り替えが無い");
+        expect(out, "在る方まで !! にしている").toContain("404 → /404.html / ステータス 404");
+    });
+
+    it("1つも無ければ、何が起きるかとどこで直すかを書く", () => {
+        const out = errorPageNote([]).join("\n");
+        expect(out).toContain("1つも無い");
+        expect(out, "何が起きるかを書いていない").toContain("S3 の XML エラー");
+        expect(out, "どこで直すかを書いていない").toContain("cdn-error-pages");
+    });
+
+    // 振り替え先が別のページになっていたら気づく。
+    // **403 も揃えて、その行自体を見る**（欠けた 403 の `!!` で通さない）
+    it("振り替え先が違えば、その行に `!!` を出す", () => {
+        const lines = errorPageNote([
+            { ErrorCode: 403, ResponsePagePath: "/404.html", ResponseCode: "404" },
+            { ErrorCode: 404, ResponsePagePath: "/index.html", ResponseCode: "404" },
+        ]);
+        const line404 = lines.find((l) => l.includes("404 → /index.html"));
+        expect(line404, "404 の行が出ていない").toBeTruthy();
+        expect(line404, "振り替え先を見ていない").toContain("!!");
+    });
+
+    // **配線は「出た行」で見る**（`cdnLines` から抜けても気づく）
+    it("CDN の節に入っている", () => {
+        const out = cdnLines([{ PathPattern: "/x/*", CachePolicyId: "p1", Compress: true }], OPTIMIZED, ok);
+        expect(out.some((l) => l.includes("404 → /404.html")), "404 の行が節に入っていない").toBe(true);
+    });
+});
+
+/**
+ * **応答ヘッダーのポリシーが付いているかを、診断が言う。**
+ *
+ * リポジトリのどこにも設定が無い（`X-Content-Type-Options` /
+ * `Referrer-Policy` / `Content-Security-Policy` / HSTS を grep して0件）。
+ * **付いていないと断定はできない**——コンソールで付けた場合はコードに
+ * 現れない。だから診断に出す（圧縮のときと同じ判断・`4548278a`）。
+ *
+ * とくに `nosniff`。**利用者が上げたファイルを同じオリジンから配って
+ * いる**ので、種別の推測が働くと「画像のつもりのもの」が実行されうる。
+ */
+describe("応答ヘッダーのポリシー", () => {
+    it("1つも付いていなければ、何が起きるかまで言う", () => {
+        const out = securityHeadersNote([
+            { PathPattern: "/uploads/*" }, { PathPattern: undefined },
+        ]);
+        expect(out.some((l) => l.includes("1つも付いていない")), "見出しの行が無い").toBe(true);
+        // **4つの名前まで見る。** 「nosniff に触れているか」だけだと、
+        // 一覧の行を丸ごと削っても別の行の "nosniff" で緑になった（変異で確認）
+        for (const h of ["nosniff", "Referrer-Policy", "HSTS", "CSP"]) {
+            expect(out.join("\n"), `${h} を挙げていない`).toContain(h);
+        }
+        expect(out.join("\n"), "直し方を言っていない").toContain("SecurityHeadersPolicy");
+    });
+
+    it("一部だけ無い経路は、その経路を名指しする", () => {
+        const out = securityHeadersNote([
+            { PathPattern: "/uploads/*" },
+            { PathPattern: "/api/*", ResponseHeadersPolicyId: "r1" },
+        ]);
+        expect(out.join("\n")).toContain("/uploads/*");
+        expect(out.join("\n"), "付いている経路まで名指ししている").not.toContain("/api/*");
+    });
+
+    // **「付いている」に丸めない。** 全部に付いていても中身は見ていないので、
+    // そう書く（圧縮のときに「読めなかったのを ON に丸めない」と決めた形）
+    it("全部に付いていても、中身は見ていないと断る", () => {
+        const out = securityHeadersNote([{ ResponseHeadersPolicyId: "r1" }]);
+        expect(out.join("\n")).toContain("中身までは見ていない");
+    });
+
+    it("組み立て（cdnLines）に入っている", () => {
+        const out = cdnLines([{ PathPattern: "/uploads/*", CachePolicyId: "p1", Compress: true }], OPTIMIZED);
+        expect(out.some((l) => l.includes("応答ヘッダー")), "cdnLines に入っていない").toBe(true);
+    });
+});
+
+
+/**
+ * **エッジの関数が付いているかを、診断が言う。**
+ *
+ * サイトマップの54件も内部リンクも全部**拡張子なし**なのに、`out/` に
+ * 拡張子なしのファイルは0件で、デプロイはキーをそのまま
+ * （`photo/<id>.html`）上げる。オリジンは S3 の REST + OAC なので、
+ * 存在しないキーは 403 → `/404.html`。
+ * **エッジで `/foo` → `/foo.html` に書き換える関数が無ければ、
+ * トップ以外の全ページが 404 になる。**
+ *
+ * その関数のコードは**このリポジトリに無い**（`fix-cdn-static-behavior.js`
+ * と `provision-env.js` が実在を前提に書いているだけ）。しかも
+ * `provision-env.js` の `stripLambdaAssociations` は**これを外す**関数で、
+ * 走らせる先を間違えれば本番の全ページが消える。検知する口が無かった。
+ */
+describe("エッジの関数（拡張子なしURLの書き換え）", () => {
+    const DEFAULT_OK = { LambdaFunctionAssociations: { Items: [{ EventType: "viewer-request" }, { EventType: "origin-response" }] } };
+    const STATIC_CLEAN = { PathPattern: "/_next/static/*", LambdaFunctionAssociations: { Items: [] } };
+
+    it("既定に viewer-request が無ければ、全ページが 404 になると言う", () => {
+        const out = edgeFunctionNote([{ LambdaFunctionAssociations: { Items: [] } }, STATIC_CLEAN]);
+        const text = out.join("\n");
+        expect(text, "見出しの行が無い").toContain("viewer-request のエッジ関数が無い");
+        // **「何が起きるか」まで見る。** 綴りだけだと、結論の行を消しても緑になる
+        expect(text, "結末を言っていない").toContain("トップ以外の全ページ");
+        expect(text, "直し方を言っていない").toContain("付け直す");
+    });
+
+    // **他のイベントで満たしたことにしない。** origin-response だけでは
+    // URL の書き換えはできない（オリジンに投げる前に効く必要がある）
+    it("origin-response だけでは満たさない", () => {
+        const out = edgeFunctionNote([{ LambdaFunctionAssociations: { Items: [{ EventType: "origin-response" }] } }, STATIC_CLEAN]);
+        expect(out.join("\n")).toContain("viewer-request のエッジ関数が無い");
+    });
+
+    // Lambda@Edge でも CloudFront Functions でも書き換えはできる。
+    // 片方しか数えないと、もう片方で運用している日に嘘の警告を出す
+    it("CloudFront Functions で付けていても満たす", () => {
+        const out = edgeFunctionNote([{ FunctionAssociations: { Items: [{ EventType: "viewer-request" }] } }, STATIC_CLEAN]);
+        expect(out.join("\n"), "付いているのに警告している").not.toContain("エッジ関数が無い");
+        expect(out.join("\n")).toContain("拡張子なしURLの書き換えはここ");
+    });
+
+    // `/_next/static/*` は**外れているのが正しい**（fix-cdn-static-behavior.js）。
+    // 逆向きの警告なので、正常系で鳴らないことも一緒に見る
+    it("/_next/static/* に付き直したら、503 で CSS/JS が欠けると言う", () => {
+        const out = edgeFunctionNote([DEFAULT_OK, { PathPattern: "/_next/static/*", LambdaFunctionAssociations: { Items: [{ EventType: "viewer-request" }] } }]);
+        const text = out.join("\n");
+        expect(text).toContain("/_next/static/* にエッジ関数が付いている");
+        expect(text, "結末を言っていない").toContain("503");
+        expect(text).toContain("fix-cdn-static-behavior.js");
+    });
+
+    it("/_next/static/* 専用の動作が無ければ、その旨を言う", () => {
+        const out = edgeFunctionNote([DEFAULT_OK]);
+        expect(out.join("\n")).toContain("専用の動作が無い");
+    });
+
+    it("正常なら、警告を1行も出さない", () => {
+        const out = edgeFunctionNote([DEFAULT_OK, STATIC_CLEAN]);
+        expect(out.filter((l) => l.includes("!!")), `余計な警告: ${out.join(" / ")}`).toEqual([]);
+        expect(out.join("\n")).toContain("viewer-request / origin-response");
+    });
+
+    // **読めなかったのを「付いている」に丸めない**（圧縮・応答ヘッダーと同じ）
+    it("既定の動作が見つからなければ、確かめられなかったと言う", () => {
+        const out = edgeFunctionNote([{ PathPattern: "/api/*" }, STATIC_CLEAN]);
+        expect(out.join("\n")).toContain("確かめられなかった");
+    });
+
+    // **配線は「出た行」で見る**（`cdnLines` から抜けても気づく）
+    it("組み立て（cdnLines）に入っている", () => {
+        const out = cdnLines([{ PathPattern: "/uploads/*", CachePolicyId: "p1", Compress: true }], OPTIMIZED);
+        expect(out.some((l) => l.includes("エッジ関数")), "cdnLines に入っていない").toBe(true);
     });
 });

@@ -3,9 +3,12 @@ import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import type { Photo } from "@/lib/data/photos";
-import { siteConfig, INDEXABLE_ROBOTS } from "@/lib/utils/seo";
+import { siteConfig, INDEXABLE_ROBOTS, publicImageUrl } from "@/lib/utils/seo";
 import UserProfileClient from "../UserProfileClient";
 import { withPlaceholderParam } from "../../../lib/server/staticParams";
+import PROFILES from "../../data/profiles.json";
+import { personEntity } from "../../../lib/utils/personEntity";
+import { metaText } from "@/lib/utils/metaText";
 
 // ユーザープロフィールの静的生成版（/users/<userId>）。
 // ビルド時点の photos.json に投稿があるユーザーごとにページを生成し、
@@ -47,7 +50,11 @@ async function loadUserSummary(userId: string): Promise<UserSummary | null> {
     return {
         displayName: userPhotos.find((p) => p.displayName)?.displayName ?? "ユーザー",
         photoCount: userPhotos.length,
-        latestPhotoSrc: userPhotos[0]?.src,
+        // **出すURLはサイトのドメインに揃える**（`publicImageUrl`）。
+        // この値は OGP（`images`・`twitter.images`）と Person の `image` の
+        // 3か所へ渡る——**ここで揃えれば3か所とも揃う**。揃える前は
+        // このページだけ CloudFront の既定ドメインで出ていた（実ビルドで確認）
+        latestPhotoSrc: userPhotos[0]?.src ? publicImageUrl(userPhotos[0].src) : undefined,
     };
 }
 
@@ -72,6 +79,17 @@ export async function generateStaticParams() {
     return withPlaceholderParam(Array.from(ids).map((id) => ({ id })), "id");
 }
 
+/**
+ * ビルド時に分かっている自己紹介（**生のまま**）。
+ * 改行は落とさない——画面は `whitespace-pre-wrap` で出す。
+ * 1行に均すのはメタ情報だけ（`metaText`）。
+ *
+ * **取り出しは1か所。** 2か所に書くと、片方だけ変えた変異が素通りする。
+ */
+function rawBioOf(id: string): string {
+    return ((PROFILES as Record<string, { bio?: string }>)[id]?.bio ?? "").trim();
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
     const { id } = await params;
     const summary = await loadUserSummary(id);
@@ -81,7 +99,24 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     }
 
     const title = `${summary.displayName}の旅フォト`;
-    const description = `${summary.displayName}さんが Journey Photo で旅の写真を${summary.photoCount}枚公開中。旅先の風景やスナップをお楽しみください。`;
+    // **自己紹介があれば、それを説明文にする。**
+    //
+    // 組み立てた文（「…さんが Journey Photo で旅の写真をN枚公開中。」）は
+    // **投稿数以外どの人でも同じ**で、人名で探した人に「この人は誰か」を
+    // 何も伝えない。自己紹介は本人が書いた唯一の自己記述なので、
+    // 検索結果のスニペットとしても、機械の同定材料としても強い。
+    //
+    // **長すぎたら組み立て文に落とす**——検索結果で切られる長さ（およそ
+    // 120文字）を大きく超える自己紹介は、途中で切れて意味をなさない。
+    // 短すぎる（10文字未満）ものも落とす（「よろしく」だけ、等）。
+    // 材料は `app/data/profiles.json`（ビルド時に users テーブルから引く）。
+    // 表示は**生のまま**（改行は `whitespace-pre-wrap` が出す）。
+    // メタ情報だけ1行に均す（`metaText` の説明を参照）
+    const bio = metaText(rawBioOf(id));
+    const generated = `${summary.displayName}さんが Journey Photo で旅の写真を${summary.photoCount}枚公開中。旅先の風景やスナップをお楽しみください。`;
+    const description = bio.length >= 10 && bio.length <= 120
+        ? `${bio}（Journey Photo で旅の写真を${summary.photoCount}枚公開中）`
+        : generated;
     const url = `${siteConfig.url}/users/${id}`;
     const images = summary.latestPhotoSrc
         // **寸法は出さない。** 代表画像はその人の最新投稿で縦横比はまちまち、
@@ -132,18 +167,21 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function UserProfilePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
     const summary = await loadUserSummary(id);
+    // **JS が走る前の本文にも自己紹介を出す。** ここまでは `<head>` の
+    // `description` と JSON-LD にしか出ておらず、静的本文は**131文字**
+    // （見出しと `…` だけ）だった
+    const rawBio = rawBioOf(id);
 
     // ProfilePage 構造化データ（検索結果でのプロフィール理解を助ける）
     const jsonLd = summary
         ? {
             "@context": "https://schema.org",
             "@type": "ProfilePage",
-            mainEntity: {
-                "@type": "Person",
-                name: summary.displayName,
-                url: `${siteConfig.url}/users/${id}`,
-                ...(summary.latestPhotoSrc ? { image: summary.latestPhotoSrc } : {}),
-            },
+            mainEntity: personEntity({
+                id,
+                displayName: summary.displayName,
+                profile: (PROFILES as Record<string, { bio?: string; website?: string; instagram?: string }>)[id],
+            }),
         }
         : null;
 
@@ -155,7 +193,7 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
                     dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c").replace(/>/g, "\\u003e") }}
                 />
             )}
-            <UserProfileClient key={id} userId={id} />
+            <UserProfileClient key={id} userId={id} initialBio={rawBio} />
         </>
     );
 }

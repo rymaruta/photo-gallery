@@ -111,7 +111,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                 <p className="mb-4 text-xs text-white/50">
                     {/* 戻り先を添える。無いとログイン後に自分のプロフィールへ
                         飛ばされ、コメントしようとしていた写真を見失う */}
-                    <Link href={loginHref} className="text-white/70 underline hover:text-white">
+                    <Link href={loginHref} prefetch={false} className="text-white/70 underline hover:text-white">
                         {locale === "en" ? "Log in" : "ログイン"}
                     </Link>
                     {locale === "en" ? " to join the conversation." : " するとコメントできます。"}
@@ -148,7 +148,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                                         <UserAvatar userId="" className="w-7 h-7" iconClassName="w-4 h-4" />
                                     </span>
                                 ) : (
-                                    <Link href={ROUTES.USER_PROFILE(c.uid)} className="flex-shrink-0 mt-0.5">
+                                    <Link href={ROUTES.USER_PROFILE(c.uid)} prefetch={false} className="flex-shrink-0 mt-0.5">
                                         <UserAvatar userId={c.uid} className="w-7 h-7" iconClassName="w-4 h-4" />
                                     </Link>
                                 )}
@@ -159,7 +159,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                                                 {c.name}
                                             </span>
                                         ) : (
-                                            <Link href={ROUTES.USER_PROFILE(c.uid)} className="text-[13px] font-semibold text-white/85 hover:underline truncate">
+                                            <Link href={ROUTES.USER_PROFILE(c.uid)} prefetch={false} className="text-[13px] font-semibold text-white/85 hover:underline truncate">
                                                 {c.name}
                                             </Link>
                                         )}

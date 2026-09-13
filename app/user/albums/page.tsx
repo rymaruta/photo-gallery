@@ -233,6 +233,9 @@ export default function AlbumsPage() {
     if (gate !== "ok" && !hasUnsavedWork) {
         return (
             <main className="min-h-screen bg-black text-white flex items-center justify-center">
+                {/* **事前描画で焼かれるのはこの枝**（認証を確かめる前）。
+                    JS が走る前に見えるのはここなので見出しを持たせる */}
+                <h1 className="sr-only">共同アルバム</h1>
                 <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
             </main>
         );

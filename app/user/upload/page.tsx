@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, useRef, Suspense } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef, Suspense } from "react";
+import CropFramePicker from "../../components/CropFramePicker";
 import { useBottomBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PhotoIcon, XMarkIcon, UserCircleIcon, MapPinIcon, CalendarIcon, ChevronDownIcon, CheckCircleIcon, ExclamationTriangleIcon, CameraIcon } from "@heroicons/react/24/outline";
@@ -9,7 +10,8 @@ import { useAuth } from "../../auth/context";
 import AddToHomeScreenHint from "../../components/AddToHomeScreenHint";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
-import { getCurrentSession } from "../../../lib/auth/cognito";
+// 薄い入口から引く（`lib/auth/session.ts`。端末に痕跡が無ければ SDK を読まない）
+import { getCurrentSession } from "../../../lib/auth/session";
 import { createThumbnail, toUploadSafeFile, UnstrippableFileError, extractDominantColor, createBlurPlaceholder, AVATAR_MAX_PX } from "../../../lib/utils/image";
 import { extractExifFromFile, extractCameraExif, reverseGeocode } from "../../../lib/utils/exif";
 import { readSharedResult, clearSharedPayload } from "../../../lib/utils/shareStore";
@@ -20,11 +22,12 @@ import { userFacingUploadError, UPLOAD_FAILED_MESSAGE } from "./errorText";
 import { CANCEL_DISCARD_WAIT_MS } from "./cancelWait";
 import { unstrippableMessage, gifRejectedMessage, gifRejectedLabel } from "../../../lib/utils/uploadRejection";
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
-import type { Photo, Locale } from "../../../lib/data/photos";
+import type { Photo } from "../../../lib/data/photos";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
-import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
+import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, type OwnValues } from "../../../lib/utils/ownValues";
 // 上限は lib/utils/uploadLimits.ts に置く（api-user 側と対。理由はあちらに書いた）
 import { PHOTO_LIMIT_PER_USER } from "../../../lib/utils/uploadLimits";
+import { publicImageUrl } from "@/lib/utils/seo";
 
 
 
@@ -36,6 +39,12 @@ type Item = {
     id: string;
     file: File;
     preview: string;
+    /**
+     * 一覧（正方形）で写真のどこを中心に置くか（0〜1）。**中央が既定**。
+     * `undefined` のまま送らなければ、サーバーは属性を書かない
+     * ＝今までの写真と同じ見え方になる
+     */
+    focalPoint?: { x: number; y: number };
     title: string;
     description: string;
     location: string;
@@ -60,85 +69,6 @@ function makeId() {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// アップロード写真のプレビュー。写真全体を表示しつつ、ギャラリー一覧で
-// 表示される「中央の正方形」を白枠で示し、枠外を暗くして
-// "どこまで反映されるか" を明示する。
-function CropPreview({ src, hint, locale }: { src: string; hint: string; locale: Locale }) {
-    const imgRef = useRef<HTMLImageElement>(null);
-    const [box, setBox] = useState<{ side: number; left: number; top: number } | null>(null);
-    // **このブラウザで開けなかった写真**（PC の Chrome で選んだ HEIC など。
-    // `addFiles` が断るのは「画像でない」「GIF」「50MB超」だけなので、
-    // 種別が画像で開けないファイルはここまで来る）。
-    // `block w-auto max-h-56` は高さを予約しないので、`onError` を持たない
-    // 頃は**プレビューが高さ 0 に潰れ**（Chromium 実測 390x224 → 390x0）、
-    // 切り抜きの白枠も出ないまま「公開」を押して初めて断られていた。
-    // 文言は `unstrippableMessage` の「開けなかった」と同じものを使う
-    // ——公開を押したときに出るのと同じ文にする（画面ごとに書き分けない）
-    // 下ろす側は書かない——`src` は項目ごとに1回だけ作られ（`addFiles` の
-    // `URL.createObjectURL`）、同じ instance で差し替わらない。念のため
-    // 呼び出し側で `key={it.preview}` にしてあるので、変わったら作り直される。
-    // 「入るたびに下ろす」の effect を足すと**踏まれない分岐**になり、
-    // このリポジトリが避けている死にコードになる
-    const [failed, setFailed] = useState(false);
-
-    const measure = useCallback(() => {
-        const el = imgRef.current;
-        if (!el) return;
-        const w = el.clientWidth, h = el.clientHeight;
-        if (!w || !h) return;
-        const side = Math.min(w, h);
-        setBox({ side, left: (w - side) / 2, top: (h - side) / 2 });
-    }, []);
-
-    useEffect(() => {
-        window.addEventListener("resize", measure);
-        return () => window.removeEventListener("resize", measure);
-    }, [measure]);
-
-    if (failed) {
-        return (
-            <div className="relative bg-black flex flex-col items-center justify-center gap-2 h-40 px-6 text-center text-white/60">
-                <PhotoIcon className="w-8 h-8" />
-                <p className="text-xs">{unstrippableMessage(new UnstrippableFileError("", "undecodable"), locale)}</p>
-            </div>
-        );
-    }
-
-    return (
-        <div className="relative bg-black flex justify-center">
-            <div className="relative inline-block overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                    ref={imgRef}
-                    src={src}
-                    alt=""
-                    onLoad={measure}
-                    onError={() => setFailed(true)}
-                    className="block w-auto max-h-56 max-w-full"
-                    draggable={false}
-                />
-                {box && (
-                    <div
-                        className="absolute border-2 border-white/90 pointer-events-none"
-                        style={{
-                            width: box.side,
-                            height: box.side,
-                            left: box.left,
-                            top: box.top,
-                            // 枠外を暗くする（コンテナで overflow-hidden 済み）
-                            boxShadow: "0 0 0 9999px rgba(0,0,0,0.5)",
-                        }}
-                    >
-                        <span className="absolute -top-px left-0 right-0 h-px bg-white/40" />
-                    </div>
-                )}
-            </div>
-            <span className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full bg-black/70 text-[11px] text-white/90 pointer-events-none whitespace-nowrap">
-                {hint}
-            </span>
-        </div>
-    );
-}
 
 // **サーバーの上限と同じ数字。** 入れないと、超えた分は保存時に黙って
 // 切られる（保存は成功したように見えて、あとで開くと末尾が無い）。
@@ -363,6 +293,11 @@ function UploadPageInner() {
      * datalist で「前に何と書いたか」を出す。選ばずに自由入力もできる。
      */
     const [ownValues, setOwnValues] = useState<OwnValues>({ locations: [], categories: [], tags: [] });
+    // **候補は打ちかけの文字で絞る。** 枠は12個だが owner のタグは実データで
+    // 59種あり、絞らないと上位12種しか選べない（残り47種は打つしかない＝
+    // 打つから表記が割れる）。理由と実測は `suggestTags` に書いた
+    const tagSuggestions = useMemo(() => suggestTags(ownValues.tags, tags), [ownValues.tags, tags]);
+
     useEffect(() => {
         if (loading || !isAuthenticated) return;
         let aborted = false;
@@ -903,6 +838,10 @@ function UploadPageInner() {
                             category: category || undefined,
                             tags: tagList,
                             ...(coords ? { coords } : {}),
+                            // 一覧での切り抜き位置。**動かしていなければ送らない**
+                            // ——中央は既定なので、属性を持たない今までの写真と
+                            // 同じ形で保存される
+                            ...(item.focalPoint ? { focalPoint: item.focalPoint } : {}),
                             ...(dominantColor ? { dominantColor } : {}),
                             ...(blurDataURL ? { blurDataURL } : {}),
                             ...(thumbUrl ? { thumbUrl } : {}),
@@ -1124,8 +1063,11 @@ function UploadPageInner() {
 
             {/* 共通設定 */}
             {items.length > 0 && (
-                <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-3.5 mb-4 space-y-2">
-                    <p className="text-xs text-white/50 uppercase tracking-wide">
+                <div role="group" aria-labelledby="upload-common" className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-3.5 mb-4 space-y-2">
+                    {/* **「全写真に適用」は見えている文にしか書いていなかった。**
+                        読み上げでは箱の外の独立した1文なので、中のカテゴリ・タグが
+                        「この1枚ぶん」なのか「全部ぶん」なのか分からない */}
+                    <p id="upload-common" className="text-xs text-white/50 uppercase tracking-wide">
                         {locale === "en" ? "Common settings (applied to all)" : "共通設定（全写真に適用）"}
                     </p>
                     {/* 前に使った値を候補に出す（選ばずに自由入力もできる） */}
@@ -1156,21 +1098,27 @@ function UploadPageInner() {
                         disabled={uploading}
                     />
                     {/* タグはカンマ区切りなので datalist が効かない（欄全体を
-                        置き換えてしまう）。押して足せるチップにする。 */}
-                    {ownValues.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                            {ownValues.tags.slice(0, 12).map((t) => (
-                                <button
-                                    key={t}
-                                    type="button"
-                                    onClick={() => setTags((cur) => appendTag(cur, t))}
-                                    disabled={uploading}
-                                    className="px-2 py-0.5 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors disabled:opacity-40"
-                                    style={{ touchAction: "manipulation" }}
-                                >
-                                    {t}
-                                </button>
-                            ))}
+                        置き換えてしまう）。**押して選ぶチップにする**——押し直すと外れ、
+                        選んでいるものは白地で出す（一覧の絞り込みと同じ `role="switch"`）。 */}
+                    {tagSuggestions.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5" role="group" aria-label={locale === "en" ? "Your frequent tags" : "よく使うタグ"}>
+                            {tagSuggestions.map((t: string) => {
+                                const on = hasTag(tags, t);
+                                return (
+                                    <button
+                                        key={t}
+                                        type="button"
+                                        onClick={() => setTags((cur) => toggleTag(dropFragment(ownValues.tags, cur), t))}
+                                        disabled={uploading}
+                                        role="switch"
+                                        aria-checked={on}
+                                        className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors disabled:opacity-40 ${on ? "bg-white text-black font-medium ring-white" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
+                                        style={{ touchAction: "manipulation" }}
+                                    >
+                                        {t}
+                                    </button>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
@@ -1178,22 +1126,44 @@ function UploadPageInner() {
 
             {/* 写真リスト */}
             <div className="space-y-3 mb-6">
-                {items.map((it) => (
+                {/* **同じ名前の欄が枚数ぶん並ぶ。** placeholder は名前の最後の
+                    受け皿なので「無名」ではないが、2枚選ぶと「タイトル（任意）」が
+                    **2つ**——読み上げではどちらがどの写真か分からない（`/user/edit` の
+                    罪として挙げたのと同じ形が、枚数ぶんに増えた形）。
+                    何枚目かを名前に入れる。**見た目は変えない**（属性だけ） */}
+                {items.map((it, photoIndex) => (
                     <div key={it.id} className="border border-white/10 rounded-lg overflow-hidden bg-white/5">
                         {/* トリミングプレビュー（一覧表示範囲を白枠で明示） */}
                         <div className="relative">
-                            <CropPreview
+                            <CropFramePicker
                                 key={it.preview}
                                 src={it.preview}
-                                hint={locale === "en" ? "White frame = shown in the grid" : "白い枠が一覧に表示されます"}
-                                locale={locale}
+                                hint={locale === "en"
+                                    ? "White frame = shown in the grid (drag to move)"
+                                    : "白い枠が一覧に表示されます（ドラッグで移動）"}
+                                focalPoint={it.focalPoint}
+                                onChange={(focalPoint) => updateItem(it.id, { focalPoint })}
+                                // **このブラウザで開けなかった写真**（PC の Chrome で選んだ
+                                // HEIC など。`addFiles` が断るのは「画像でない」「GIF」
+                                // 「50MB超」だけなので、種別が画像で開けないファイルは
+                                // ここまで来る）。文言は公開を押したときに出るものと
+                                // 同じにする（画面ごとに書き分けない）
+                                fallback={
+                                    <div className="relative bg-black flex flex-col items-center justify-center gap-2 h-40 px-6 text-center text-white/60">
+                                        <PhotoIcon className="w-8 h-8" />
+                                        <p className="text-xs">{unstrippableMessage(new UnstrippableFileError("", "undecodable"), locale)}</p>
+                                    </div>
+                                }
                             />
                             <button
                                 type="button"
                                 onClick={() => removeItem(it.id)}
                                 disabled={uploading || it.status === "uploading"}
                                 className="absolute top-2 right-2 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white transition-colors disabled:opacity-30 z-10"
-                                aria-label={locale === "en" ? "Remove" : "削除"}
+                                // **語は変えない**（元から「削除」）。足すのは何枚目かだけ
+                                aria-label={locale === "en"
+                                    ? `Remove photo ${photoIndex + 1}`
+                                    : `${photoIndex + 1}枚目を削除`}
                                 style={{ touchAction: "manipulation" }}
                             >
                                 <XMarkIcon className="w-5 h-5" />
@@ -1207,6 +1177,15 @@ function UploadPageInner() {
                                     value={it.title}
                                     onChange={(e) => updateItem(it.id, { title: e.target.value })}
                                     maxLength={TITLE_MAX}
+                                    // **見えている placeholder と同じ言葉にする。**
+                                    // `aria-label` は placeholder を上書きするので、
+                                    // 違う語を書くと**見えている言葉と読み上げる言葉が
+                                    // 別物**になる（音声操作は読み上げる名前で当てるので、
+                                    // 「場所をタップ」が効かなくなる）。`（任意）` も
+                                    // 落とすと、任意であることが読み上げにだけ届かない
+                                    aria-label={locale === "en"
+                                        ? `Title of photo ${photoIndex + 1} (optional)`
+                                        : `${photoIndex + 1}枚目のタイトル（任意）`}
                                     placeholder={locale === "en" ? "Title (optional)" : "タイトル（任意）"}
                                     className={inputCls}
                                     style={{ fontSize: "16px" }}
@@ -1236,6 +1215,9 @@ function UploadPageInner() {
                                         <textarea
                                             value={it.description}
                                             onChange={(e) => updateItem(it.id, { description: e.target.value })}
+                                            aria-label={locale === "en"
+                                                ? `Description of photo ${photoIndex + 1} (optional)`
+                                                : `${photoIndex + 1}枚目の説明（任意）`}
                                             placeholder={locale === "en" ? "Description (optional)" : "説明（任意）"}
                                             rows={2}
                                             className={`${inputCls} resize-none`}
@@ -1247,6 +1229,9 @@ function UploadPageInner() {
                                             value={it.location}
                                             onChange={(e) => updateItem(it.id, { location: e.target.value })}
                                             maxLength={LOCATION_MAX}
+                                            aria-label={locale === "en"
+                                                ? `Location of photo ${photoIndex + 1} (optional)`
+                                                : `${photoIndex + 1}枚目の場所（任意）`}
                                             placeholder={locale === "en" ? "Location (optional)" : "場所（任意）"}
                                             className={inputCls}
                                             list="own-locations"
@@ -1255,9 +1240,16 @@ function UploadPageInner() {
                                         />
                                     </div>
                                 ) : null}
+                                {/* **この差分が潰した症状が、同じ画面に残っていた。**
+                                    開閉ボタンも枚数ぶん「詳細」で同じ名前だった。
+                                    開いているかどうかも読み上げに出ていない */}
                                 <button
                                     type="button"
                                     onClick={() => updateItem(it.id, { expanded: !it.expanded })}
+                                    aria-label={locale === "en"
+                                        ? `Details of photo ${photoIndex + 1}`
+                                        : `${photoIndex + 1}枚目の詳細`}
+                                    aria-expanded={it.expanded}
                                     className="text-xs text-white/50 hover:text-white/70 inline-flex items-center gap-0.5"
                                     disabled={uploading}
                                 >
@@ -1376,7 +1368,7 @@ function UploadPageInner() {
                         ) : currentUserId && CLOUDFRONT_URL ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
-                                src={`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(currentUserId)}?v=${avatarCacheBust}`}
+                                src={publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(currentUserId)}?v=${avatarCacheBust}`)}
                                 alt=""
                                 className="w-full h-full object-cover"
                                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
@@ -1483,6 +1475,10 @@ export default function UploadPage() {
     return (
         <Suspense fallback={
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-3xl mx-auto w-full flex items-center justify-center">
+                {/* **事前描画で焼かれるのはこの fallback。** JS が走る前に見えるのは
+                    ここなので、ランドマークと見出しを持たせる
+                    （`sr-only` は position:absolute で描画に影響しない） */}
+                <h1 className="sr-only">写真をアップロード</h1>
                 <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
             </main>
         }>

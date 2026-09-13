@@ -41,6 +41,7 @@
 const fs = require("fs");
 const path = require("path");
 const { requireEnv } = require("./lib/env");
+const { USER_ID_RE } = require("./lib/userId");
 
 const envLocalPath = path.resolve(__dirname, "../.env.local");
 if (fs.existsSync(envLocalPath)) {
@@ -58,17 +59,17 @@ if (fs.existsSync(envLocalPath)) {
  */
 const FOLLOWERS_MAX = 2000;
 
-/**
- * Cognito の sub の形。**`api-user/src/userId.ts` と同じ規則**。
- *
- * これを見ないと、`isUserId` を入れる前に作られた**でたらめな ID の
- * マーカー**を拾ってしまう（当時は形も存在も見ていなかった）。拾うと
- *   - `followers#<でたらめ>` という誰も読まない行が新しくできる
- *     （`deleteAccount` は自分の行しか消さないので、消す人がいない）
- *   - でたらめな follower が実在の人の一覧に並び、空のプロフィールへ
- *     リンクする（`0af33008` で直したのと同じ形）
- */
-const USER_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// Cognito の sub の形は `scripts/lib/userId.js` に1本化した
+// （**`api-user/src/userId.ts` と同一**。以前ここだけ版/variant まで見る
+//  厳しい規則を書き写していて、本番の**本物のフォロー2件**をゴミとして
+//  捨て、`followers#` が一度も作られていなかった）。
+//
+// 形を見ること自体は要る。見ないと、`isUserId` を入れる前に作られた
+// でたらめな ID のマーカーを拾い、
+//   - `followers#<でたらめ>` という誰も読まない行が新しくできる
+//     （`deleteAccount` は自分の行しか消さないので、消す人がいない）
+//   - でたらめな follower が実在の人の一覧に並び、空のプロフィールへ
+//     リンクする（`0af33008` で直したのと同じ形）
 
 /**
  * 捨てた理由。**「マーカー N 件・対象 0 人」を黙って出さないため。**
@@ -195,7 +196,11 @@ async function main(deps) {
             unchanged++;
             continue;
         }
-        console.log(`[followers] ${target}: ${existing.length} → ${next.length} 人`);
+        // **IDは出さない。** このファイルの冒頭が「出すのは理由と件数だけ」と
+        // 書いているのに、ここだけ相手の userId を丸ごとログへ落としていた
+        // （Actions のログに本番の sub が2件残った）。台帳の
+        // 「診断ログに表示名を書き出した事故」と同じ型
+        console.log(`[followers] ある人の一覧: ${existing.length} → ${next.length} 人`);
         if (!apply) continue;
         const rev = typeof cur.Item?.rev === "number" ? cur.Item.rev : 0;
         try {
@@ -223,7 +228,7 @@ async function main(deps) {
         } catch (e) {
             if (e?.name !== "ConditionalCheckFailedException") throw e;
             // 走っている間にサーバー側が書いた。**上書きしない**
-            console.log(`[followers] ${target}: 競合したので飛ばしました（もう一度流すと入ります）`);
+            console.log("[followers] ある人の一覧: 競合したので飛ばしました（もう一度流すと入ります）");
             skipped++;
         }
     }

@@ -3,15 +3,24 @@ import { describe, it, expect, vi } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
 
 // 環境変数はモジュール読込時に評価されるため、stub してから動的 import する
+// （`lib/utils/seo.ts` の `CDN_HOST` も読み込み時に決まる）
 vi.stubEnv("NEXT_PUBLIC_CLOUDFRONT_URL", "https://cdn.test");
+vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://site.test");
 const { default: UserAvatar } = await import("../UserAvatar");
 
 describe("UserAvatar", () => {
-    it("CloudFront のプロフィール画像URLで img を描画する", () => {
+    // **出すのは配信の既定ドメインではなくサイトのドメイン。**
+    // どちらも同じ配信の別名だが、1ページの中でホストが割れると
+    // 接続がもう1本増え、Service Worker の控えも二重になる
+    // （`lib/utils/seo.ts` の `publicImageUrl`）。
+    // この判定が、組み立てるところで通すのをやめる変異を落とす
+    // ——`app/__tests__/imageOriginSites.test.ts` の一覧は
+    // 「変数に入れてから渡す形」を綴りでは追えない
+    it("プロフィール画像はサイトのドメインで描く", () => {
         const { container } = render(<UserAvatar userId="user-1" />);
         const img = container.querySelector("img")!;
         expect(img).not.toBeNull();
-        expect(img.src).toBe("https://cdn.test/profiles/user-1");
+        expect(img.src, "配信の既定ドメインのまま出している").toBe("https://site.test/profiles/user-1");
     });
 
     it("userId は URL エンコードされる", () => {

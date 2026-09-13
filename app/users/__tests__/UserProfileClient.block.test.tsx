@@ -21,10 +21,18 @@ vi.mock("../../../lib/utils/api", async (importOriginal) => ({
 vi.mock("../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: mockShowToast }) }));
 vi.mock("../../auth/context", () => ({ useAuth: () => authState.current }));
 // `viewerAuthed` / `isOwner` はこのセッションから決まる（`useAuth` ではない）
-vi.mock("../../../lib/auth/cognito", () => ({
+// **公開ページなので、薄い入口（`lib/auth/session.ts`）から引く**
+// ——未ログインの訪問者に認証 SDK（gzip 27KB）を読ませない
+vi.mock("../../../lib/auth/session", () => ({
     getCurrentSession: async () => (authState.current.isAuthenticated
         ? { getIdToken: () => ({ payload: { sub: authState.current.userId } }) }
         : null),
+    lookupSession: async () => ({
+        session: authState.current.isAuthenticated
+            ? { getIdToken: () => ({ payload: { sub: authState.current.userId } }) }
+            : null,
+        unreachable: false,
+    }),
 }));
 vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));

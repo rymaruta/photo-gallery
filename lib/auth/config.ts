@@ -26,5 +26,3 @@ export const cognitoConfig = {
 export const ADMIN_GROUP_NAME = "admin";
 export const USER_GROUP_NAME = "user";
 
-// 認証が必要なページパス
-export const PROTECTED_PATHS = ["/user/upload"];

@@ -52,7 +52,11 @@ jobs:
   verify:
     name: 型・lint・テスト
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # **`deploy.yml` と同じ理由で上げた。** 全スイートは CI で約9〜10分
+    # （実測: Deploy Site の `Run tests` が 2026-09-12 に 8分59秒、
+    # 2026-09-13 に 10分の上限で打ち切られた）。install・tsc・eslint を
+    # 足すと 15分では足りない。上限の目的（ハングを止める）は 25分でも残る。
+    timeout-minutes: 25
 
     steps:
       - name: Checkout

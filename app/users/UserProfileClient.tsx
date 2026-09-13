@@ -20,7 +20,9 @@ import { useToast } from "../../lib/hooks/useToast";
 import type { Photo } from "@/lib/data/photos";
 import { getLocalized } from "@/lib/data/photos";
 import { log } from "../../lib/utils/log";
-import { getCurrentSession } from "../../lib/auth/cognito";
+// **公開ページ**（サイトマップに載る）なので、未ログインの訪問者にも描かれる。
+// 薄い入口から引いて、端末に痕跡が無ければ認証 SDK を読み込まない
+import { getCurrentSession } from "../../lib/auth/session";
 import { noteFollowSevered } from "../../lib/hooks/useFollow";
 import { copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
 import { publicFetch, userFetch, userPublicFetch, readApiError, sessionErrorMessage } from "../../lib/utils/api";
@@ -32,6 +34,7 @@ import { ROUTES } from "../../lib/routes";
 import { toastWithStaticPage } from "../../lib/utils/staticPage";
 import UserAvatar from "../components/UserAvatar";
 import PHOTOS_JSON from "../data/photos.json";
+import { publicImageUrl } from "@/lib/utils/seo";
 
 type SongEntry = {
     title: string;
@@ -125,7 +128,7 @@ function buildTimeline(photos: Photo[], locale: "ja" | "en"): TimelineGroup[] {
 // バンドの下は黒（フェードで徐々に黒くする演出はしない）。
 function CoverBackground({ userId }: { userId: string }) {
     const [coverError, setCoverError] = useState(false);
-    const coverUrl = CLOUDFRONT_URL ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(userId)}/cover` : "";
+    const coverUrl = CLOUDFRONT_URL ? publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(userId)}/cover`) : "";
     const hasCover = coverUrl && !coverError;
 
     return (
@@ -172,8 +175,12 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
 
     return (
         <div className="relative rounded-md overflow-hidden group" style={{ paddingTop: "100%" }}>
+            {/* **先読みしない。** 一覧で何本も出るリンクなので、画面に入るたびに
+                行き先の RSC の控え（`no-store` 配信）を落とし直す。理由と実測は
+                `app/components/GalleryGrid.tsx` のカードのコメントに書いた */}
             <Link
                 href={ROUTES.PHOTO(photo.id)}
+                prefetch={false}
                 className={`absolute inset-0 overflow-hidden bg-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${isHidden ? "opacity-40" : ""}`}
                 style={photo.dominantColor ? { backgroundColor: photo.dominantColor } : undefined}
             >
@@ -282,7 +289,15 @@ const OWNER_CHIP_IDLE =
 // オーナーは展開時に旅の名前を編集できる（カスタム名はプロフィールに保存され全員に見える）。
 // /users/<id>（静的生成・OGP付き）と /users?id=<id>（新規ユーザー向けフォールバック）の
 // 両方から使われる。
-export default function UserProfileClient({ userId }: { userId: string }) {
+/**
+ * @param initialBio ビルド時に分かっている自己紹介（`/users/<id>` の静的生成だけが渡す）。
+ *   **JS が走る前の本文に出すため**——実測でこのページの静的本文は**131文字**
+ *   （見出しと `…` だけ）で、自己紹介は `<head>` の `description` と JSON-LD には
+ *   出ているのに**本文には1文字も無かった**。索引に載るページで、しかも
+ *   本人が書いた唯一の自己記述なので、ここに出す価値がいちばん高い。
+ *   **`/users?id=` のクエリ版は渡さない**（あちらはビルド時に相手が決まらない）。
+ */
+export default function UserProfileClient({ userId, initialBio }: { userId: string; initialBio?: string }) {
     const { locale } = useLocale();
     const { showToast } = useToast();
 
@@ -818,6 +833,19 @@ export default function UserProfileClient({ userId }: { userId: string }) {
 
 
     // ピン留め（投稿タブ先頭に固定・最大3枚・全員に見える）
+    /**
+     * 画面に出す自己紹介。
+     *
+     * **届いたら控えは使わない。** `userProfile?.bio ?? initialBio` にすると、
+     * 自己紹介を**消した**人の画面にビルド時の古い自己紹介が次のビルドまで
+     * 残る（消す操作が効かなく見える）。「まだ届いていない間だけ控え」。
+     *
+     * **1つの式にしておく。** 出すかどうかと何を出すかを別々に書いていたら、
+     * **片方だけ `??` に戻す変異がどちらも素通りした**——一方は「空の `<p>` が
+     * 出るだけ」、他方は「条件が偽で出ない」で、どちらも文字として現れない。
+     */
+    const shownBio = userProfile ? userProfile.bio : initialBio;
+
     const pinnedPhotoIds = useMemo(() => userProfile?.pinnedPhotoIds ?? [], [userProfile?.pinnedPhotoIds]);
     const togglePin = useCallback(async (photoId: string, pin: boolean) => {
         const cur = userProfile?.pinnedPhotoIds ?? [];
@@ -979,6 +1007,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     <div className="pt-4 mb-2 flex items-center justify-between">
                         <Link
                             href="/"
+                            prefetch={false}
                             aria-label={locale === "en" ? "Back to Gallery" : "ギャラリーに戻る"}
                             className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-black/40 backdrop-blur-md ring-1 ring-white/15 text-white/90 hover:bg-black/60 active:scale-95 transition shadow-lg shadow-black/30"
                         >
@@ -1143,8 +1172,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             55文字、320pxで50文字の URL から `scrollWidth` が超える。
                             自己紹介は300文字まで入る）。ストーリーのキャプションと
                             コメント本文には最初から付いていた */}
-                        {userProfile?.bio && (
-                            <p className="text-sm text-white/85 whitespace-pre-wrap break-words mb-4 leading-relaxed">{userProfile.bio}</p>
+                        {shownBio && (
+                            <p className="text-sm text-white/85 whitespace-pre-wrap break-words mb-4 leading-relaxed">{shownBio}</p>
                         )}
 
                     {/* 統計（投稿 / いいね / 距離）— 1行にまとめる。
@@ -1278,6 +1307,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         <div className="flex gap-2 mt-4">
                             <Link
                                 href="/user/profile"
+                                prefetch={false}
                                 className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-black/30 backdrop-blur-md ring-1 ring-white/15 hover:bg-black/40 text-white text-sm font-medium rounded-full transition-colors"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >
@@ -1286,6 +1316,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             </Link>
                             <Link
                                 href="/user/upload"
+                                prefetch={false}
                                 className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >
@@ -1298,6 +1329,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                         <div className="mt-2 text-center">
                             <Link
                                 href="/user/drafts"
+                                prefetch={false}
                                 className="inline-flex items-center justify-center px-3 py-1.5 text-sm text-white/60 hover:text-white transition-colors"
                                 style={{ touchAction: "manipulation" }}
                             >
@@ -1358,7 +1390,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                             </div>
                             <p className="text-sm">{locale === "en" ? "No photos yet." : "まだ写真がありません。"}</p>
                             {isOwner && (
-                                <Link href="/user/upload" className="mt-1 px-5 py-2 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors">
+                                <Link href="/user/upload" prefetch={false} className="mt-1 px-5 py-2 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors">
                                     {locale === "en" ? "Share your first photo" : "最初の写真を投稿"}
                                 </Link>
                             )}

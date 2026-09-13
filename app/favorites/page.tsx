@@ -7,7 +7,7 @@ import { useImagePreloader } from "../../lib/hooks/useImagePreloader";
 import { usePhotos } from "../../lib/hooks/usePhotos";
 import GalleryGrid from "../components/GalleryGrid";
 import { useLocale } from "../i18n/context";
-import { capitalize } from "../../lib/utils/string";
+import { photoCategoryMap } from "../../lib/utils/categoryMap";
 
 export default function FavoritesPage() {
     const { locale, labels } = useLocale();
@@ -30,17 +30,13 @@ export default function FavoritesPage() {
         }
     }, [favoritePhotos, preloadMultiple]);
 
-    const categoryDisplayMap = React.useMemo(() => {
-        const map: Record<string, string> = {};
-        const names = labels.category.names ?? {};
-        for (const p of favoritePhotos) {
-            const k = (p.category ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
-            if (k && !map[k]) {
-                map[k] = names[k] ?? capitalize(k.replace(/-/g, " "));
-            }
-        }
-        return map;
-    }, [labels, favoritePhotos]);
+    // **鍵は写真が持っている値そのもの**（読む側 `GalleryGrid` が生の値で
+    // 引き、落とし先を持たない）。名前を引くときだけスラッグにする
+    // ——理由は `lib/utils/categoryMap.ts` に書いた
+    const categoryDisplayMap = React.useMemo(
+        () => photoCategoryMap(favoritePhotos, labels.category.names ?? {}),
+        [labels, favoritePhotos],
+    );
 
     return (
         <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">

@@ -3,6 +3,7 @@
 import { usableRows } from "../../../lib/utils/apiRows";
 import { safeSongPreviewUrl } from "../../../lib/utils/mediaHosts";
 import { dropCachedPhoto } from "../../../lib/utils/photoCache";
+import { publicImageUrl } from "@/lib/utils/seo";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
 import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon, PhotoIcon, ChatBubbleOvalLeftIcon, MapPinIcon } from "@heroicons/react/24/outline";
@@ -713,7 +714,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         const next = group?.items[i + 1] ?? groups[g + 1]?.items[0];
         if (next && next.mediaType !== "video") {
             const img = new window.Image();
-            img.src = next.src;
+            img.src = publicImageUrl(next.src);
         }
     }, [group, groups, g, i]);
 
@@ -803,7 +804,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                     key={`bg-${item.id}`}
-                    src={item.src}
+                    src={publicImageUrl(item.src)}
                     alt=""
                     aria-hidden="true"
                     className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40 pointer-events-none"
@@ -817,7 +818,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                     <video
                         key={item.id}
                         ref={videoRef}
-                        src={item.src}
+                        src={publicImageUrl(item.src)}
                         className="block max-w-full max-h-full object-contain rounded-lg story-media-in"
                         autoPlay
                         playsInline
@@ -839,7 +840,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                         key={item.id}
-                        src={item.src}
+                        src={publicImageUrl(item.src)}
                         alt=""
                         className="block max-w-full max-h-full object-contain rounded-lg story-media-in"
                         draggable={false}

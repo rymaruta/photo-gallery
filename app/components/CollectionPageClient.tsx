@@ -17,6 +17,8 @@ type Props = {
     // （`camera` を足したとき実際に tsc が止めた）
     type?: CollectionType;
     related?: RelatedLink[];
+    /** 写真が少ないページにだけ出す「ほかにこんな写真も」 */
+    nearby?: Photo[];
 };
 
 const RELATED_HEADING: Record<CollectionType, { ja: string; en: string }> = {
@@ -27,13 +29,13 @@ const RELATED_HEADING: Record<CollectionType, { ja: string; en: string }> = {
 };
 
 /** タグ/場所/カテゴリ/カメラの集約ページ本体（見出し＋パンくず＋グリッド＋相互リンク） */
-export default function CollectionPageClient({ photos, heading, description, breadcrumb, type = "tag", related = [] }: Props) {
+export default function CollectionPageClient({ photos, heading, description, breadcrumb, type = "tag", related = [], nearby = [] }: Props) {
     const { locale } = useLocale();
 
     return (
         <main className="mx-auto max-w-6xl px-4 py-8">
             <nav aria-label="パンくずリスト" className="mb-3 text-sm text-white/60">
-                <Link href="/" className="hover:text-white/90">ホーム</Link>
+                <Link href="/" prefetch={false} className="hover:text-white/90">ホーム</Link>
                 <span className="mx-2" aria-hidden>/</span>
                 <span className="text-white/80">{breadcrumb}</span>
             </nav>
@@ -46,6 +48,18 @@ export default function CollectionPageClient({ photos, heading, description, bre
 
             <GalleryGrid photos={photos} locale={locale} />
 
+            {/* **写真が少ないページにだけ。** 1枚だけのページは、それ自体は
+                このサイトにしか無い写真でも「見るものが1つ」で終わる。
+                近い写真を出すと読む価値が出て、押せば個別ページへ回遊する */}
+            {nearby.length > 0 && (
+                <section className="mt-10 pt-5 border-t border-white/10">
+                    <h2 className="text-sm font-semibold text-white/70 mb-3">
+                        {locale === "en" ? "You might also like" : "ほかにこんな写真も"}
+                    </h2>
+                    <GalleryGrid photos={nearby} locale={locale} />
+                </section>
+            )}
+
             {/* 同タイプの他ページへの相互リンク（回遊・SEO） */}
             {related.length > 0 && (
                 <section className="mt-10 pt-5 border-t border-white/10">
@@ -54,9 +68,13 @@ export default function CollectionPageClient({ photos, heading, description, bre
                     </h2>
                     <div className="flex flex-wrap gap-1.5">
                         {related.map((r) => (
+                            // **先読みしない。** 一覧で何本も出るリンクなので、画面に入るたびに
+                            // 行き先の RSC の控え（`no-store` 配信）を落とし直す。理由と実測は
+                            // `app/components/GalleryGrid.tsx` のカードのコメントに書いた
                             <Link
                                 key={r.path}
                                 href={r.path}
+                                prefetch={false}
                                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors"
                                 style={{ touchAction: "manipulation" }}
                             >

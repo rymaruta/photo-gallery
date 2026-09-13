@@ -6,6 +6,7 @@ import { usePhotos } from "../../lib/hooks/usePhotos";
 import { useLocale } from "../i18n/context";
 import { ROUTES } from "../../lib/routes";
 import PhotoMap, { photosWithCoords } from "../components/PhotoMap";
+import { getLocalized } from "../../lib/data/photos";
 
 /**
  * 撮影地マップ（/map）。位置情報を持つ公開写真を地図に載せる。
@@ -58,7 +59,7 @@ export default function MapPage() {
                             ? "Photos uploaded with GPS data, or given a place from the edit screen, appear here (rounded to about 1 km)."
                             : "GPS 付きの写真をアップロードするか、編集画面の「地図に出す位置」で場所を選ぶと、約1km の粒度でここに載ります。"}
                     </p>
-                    <Link href={ROUTES.HOME} className="inline-block mt-6 text-sky-300 hover:text-sky-200 underline underline-offset-4">
+                    <Link href={ROUTES.HOME} prefetch={false} className="inline-block mt-6 text-sky-300 hover:text-sky-200 underline underline-offset-4">
                         {en ? "Back to gallery" : "ギャラリーに戻る"}
                     </Link>
                 </div>
@@ -80,7 +81,21 @@ export default function MapPage() {
                     <ul className="sr-only" aria-label={en ? "Photos on the map" : "地図上の写真"}>
                         {geo.map((p) => (
                             <li key={p.id}>
-                                <Link href={ROUTES.PHOTO(p.id)}>{p.location || p.id}</Link>
+                                {/* **撮影地が無い写真では、リンクの文字が id になっていた。**
+                                    読み上げが36文字の UUID を読むことになる。この一覧は
+                                    地図を操作できない人の唯一の経路なので、題 →「写真」へ落とす。
+
+                                    **今の本番では起きない**（実測: 一覧に出る16件は全部
+                                    撮影地を持つ）。いまの座標は `geocode-locations.js` が
+                                    **地名から**引いたものだけなので、地名がある写真にしか
+                                    付かないため。**GPS 付きのアップロード**
+                                    （`api-user/src/upload.ts` の `sanitizeCoords`）では
+                                    座標だけ入って撮影地は空になりうるので、予防で直す。
+                                    空白だけの撮影地も落とす——`||` だけだと
+                                    **名前の無いリンク**になり、id より悪い */}
+                                <Link href={ROUTES.PHOTO(p.id)} prefetch={false}>
+                                    {p.location?.trim() || getLocalized(p.title, locale) || (en ? "Photo" : "写真")}
+                                </Link>
                             </li>
                         ))}
                     </ul>

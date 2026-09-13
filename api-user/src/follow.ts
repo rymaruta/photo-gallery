@@ -6,7 +6,7 @@ import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { pushNotification, lookupDisplayName, lookupDisplayNameIfSet, deletedUserIds } from "./notify";
 import { requireEnv } from "./env";
 import { isUserId } from "./userId";
-import { isBlocked } from "./blockCheck";
+import { hiddenUserIds, isBlocked } from "./blockCheck";
 import { isDeletedProfile } from "./types";
 
 const USERS_TABLE = requireEnv("USERS_TABLE");
@@ -582,7 +582,8 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
  * 3回競合したら `undoUnfollow` でマーカーを戻す）。ここで戻すと
  * **ブロックがいま切ったフォローを、自分で作り直す**ことになる。
  * 残るのは「カウンタは減ったのに `following#<自分>` に相手が残る」形で、
- * フィードは `hiddenUserIds` が両向きに隠すので出てこない。
+ * フィードは `hiddenUserIds` が両向きに隠すので出てこない——**これは誤り**
+ * （下の `getMyFollowing` の注記を見ること）。
  */
 export async function unfollowQuietly(target: string, me: string): Promise<void> {
     if (!target || !me || target === me) return;
@@ -614,9 +615,13 @@ export async function unfollowQuietly(target: string, me: string): Promise<void>
     } catch (e) {
         console.error(`unfollowQuietly: 解除できませんでした（${me} -> ${target}）:`, e);
     }
-    // **`updateFollowing` が投げた回はここに来る。** そこが元の狙い
-    // ——ブロックしたのに相手のフォロワー一覧に自分が残るのを防ぐ
-    // （`getUserFollowers` は行ごとのブロック除外をしない）。
+    // **`updateFollowing` が投げた回はここに来る。**
+    // 括弧の中に「`getUserFollowers` は行ごとのブロック除外をしない」と
+    // 書いていたが、**その除外は入れた**（`withoutHidden`）ので根拠としては
+    // 無効。それでもここは要る——`followers#` の行そのものを直しておかないと、
+    // (a) 2000人の上限を切れた関係が食う (b) 数（`followstats#`）と一覧が
+    // ずれたまま残る (c) ブロックを解除した瞬間に古い関係が生き返って見える。
+    // ふるいは「見せない」だけで、行は直さない。
     if (severed) await updateFollowersQuietly(target, me, false);
 }
 
@@ -680,6 +685,65 @@ export const getFollowStats: APIGatewayProxyHandlerV2 = async (event) => {
 const FOLLOWING_PAGE = 50;
 
 /**
+ * 一覧からブロック関係の相手を落とす。
+ *
+ * **`blockUser` が両向きのフォローを外すので、普通はここに残らない。**
+ * 残るのは `unfollowQuietly` の `.catch` が握った回だけ——だから「稀」で
+ * あって「起きない」ではない。しかも**呼び手が違えば見える相手も違う**
+ * （`hiddenUserIds` は「自分がブロックした人 ∪ 自分をブロックした人」）。
+ * 他人のフォロワー一覧を開いたとき、**自分をブロックした人**が名前つきで
+ * 並んでプロフィールへリンクする、というのが実際に起きる形。
+ * ストーリー・通知・返信・閲覧者の4経路が既に通している判定なので、
+ * ここだけ素通りさせる理由が無い（片側だけの防御を作らない）。
+ *
+ * **窓を切る前に落とす。** `slice(0, FOLLOWING_PAGE)` のあとで落とすと、
+ * 落とした相手が50の枠を食って**生きている行が押し出される**
+ * （`storyReplies.ts` が同じ理由で並びを変えた）。
+ *
+ * **数（`total`）は下げない——落ちた枝でも下げない。** あちらは
+ * `followstats#` の独立したカウンタで「関係が実在するか」を数える。
+ * ここで落とすのは「この呼び手に見せるか」＝別のことを数えている。
+ *
+ * **一度これを `total` のフォールバック（`stats` が読めなかったときの
+ * 代わり）にも当ててしまった。** 本線だけ `followstats#` を見て、
+ * フォールバックは `visible.length` ＝ふるいの後、という**同じ項目が
+ * 枝によって別のものを数える**形になり、実際に画面が壊れた:
+ *
+ *     `readStats` がスロットル（`.catch` で握る実在の経路）
+ *       ＋ 一覧の相手が全員ブロック関係（例: 自分をブロックした1人だけ）
+ *     → total 0 / 行 0 → `FollowingSheet` は **「まだ誰もフォローして
+ *       いません」**（すぐ上のコメントが名指しで避けている矛盾）
+ *
+ * フォールバックは `list.length`＝**ふるいの前**が正しい。
+ *
+ * 画面（`FollowingSheet`）は `total` と実際に描いた行数で見分ける作りなので、
+ * **ずれる向きは既にある3つ**（50人で切る・埋め戻し前・
+ * `updateFollowersQuietly` の握り潰し）と同じ「多い側」に揃う。
+ *
+ * **承知で残す副作用**: 一覧の相手が全員ブロック関係だと、
+ * 「一覧はまだ用意できていません。上の数の方が新しい場合があります。」が
+ * **待っても解消しない**（あの文言は埋め戻し待ち＝そのうち直る、を想定して
+ * いる）。解消するには「見せない相手が居る」ことを画面に伝えることになり、
+ * それはブロック関係そのものを教える。**言わない方を採る。**
+ *
+ * 読めなければ一覧をそのまま返す（`getStoryViewers` と同じ倒し方）。
+ *
+ * **`getStories` のように並列にはしない。** あちらは
+ * `Promise.all([queryStories, hiddenUserIds])` だが、こちらは
+ * 「一覧が空なら引きに行かない」を優先した——新しく登録した人の
+ * フォロー一覧は空で、そこで毎回 GetItem を2回増やすより、
+ * 一覧が実際にある回にだけ往復1回を払う方がよい。
+ */
+async function withoutHidden(list: string[], me: string | undefined, where: string): Promise<string[]> {
+    if (!me || list.length === 0) return list;
+    const hidden = await hiddenUserIds(me).catch((e) => {
+        console.error(`${where}: ブロック一覧を読めませんでした:`, e);
+        return new Set<string>();
+    });
+    return hidden.size === 0 ? list : list.filter((id) => !hidden.has(id));
+}
+
+/**
  * GET /users/{uid}/following — その人がフォローしている人の一覧。
  *
  * owner の指示「誰をフォローしてて、みたいなの見れるようにして」。
@@ -719,7 +783,8 @@ export const getUserFollowing: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
             // 落とす（今より悪くならない）。`followers#` 側も同じ
             readStats(uid).catch((e) => { console.error("getUserFollowing readStats:", e); return null; }),
         ]);
-        const page = list.slice(0, FOLLOWING_PAGE);
+        const visible = await withoutHidden(list, me, "getUserFollowing");
+        const page = visible.slice(0, FOLLOWING_PAGE);
         // 引くのは一覧が空でないときだけ（`getComments` と同じ）
         const gone = page.length > 0 ? await deletedUserIds() : new Set<string>();
         const users = await Promise.all(page.map(async (id) => {
@@ -738,7 +803,15 @@ export const getUserFollowing: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
             // `following#` が空で数が 0 でないと、シートは
             // 「まだ誰もフォローしていません」——`followers#` 側で直した
             // 矛盾がそのまま残っていた
-            body: JSON.stringify({ users, total: stats?.following ?? list.length, listed: list.length }),
+            // `listed` は**落としたあとの長さ**（呼び手に見せない相手を
+            // 数えても意味がない）。
+            // **ただし、これで `total - listed` の原因は3つになった**
+            // ——50人で切ったぶん／一覧が追いついていないぶん／ブロックで
+            // 落としたぶん。もともと「前の2つを外から区別する値」として
+            // 置いたものなので、**その役目はもう果たせない**。読み手は
+            // 今のところテストだけ（画面は `total` と描いた行数で見分ける）
+            // なので残すが、使う前にこの注記を読むこと
+            body: JSON.stringify({ users, total: stats?.following ?? list.length, listed: visible.length }),
         };
     } catch (e) {
         console.error("getUserFollowing error:", e);
@@ -782,7 +855,8 @@ export const getUserFollowers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
             readStats(uid).catch((e) => { console.error("getUserFollowers readStats:", e); return null; }),
         ]);
         const list = usableUserIds(res.Item?.list, `followers#${uid}`);
-        const page = list.slice(0, FOLLOWING_PAGE);
+        const visible = await withoutHidden(list, me, "getUserFollowers");
+        const page = visible.slice(0, FOLLOWING_PAGE);
         const gone = page.length > 0 ? await deletedUserIds() : new Set<string>();
         const users = await Promise.all(page.map(async (id) => {
             if (gone.has(id)) return { id, deleted: true };
@@ -792,8 +866,9 @@ export const getUserFollowers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
         return {
             statusCode: 200,
             headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
-            // `total` は**数（`followstats#`）**。`listed` は一覧に入っている数
-            body: JSON.stringify({ users, total: stats?.followers ?? list.length, listed: list.length }),
+            // `total` は**数（`followstats#`）**。`listed` は落としたあとの
+            // 一覧の長さ（`getUserFollowing` と揃える）
+            body: JSON.stringify({ users, total: stats?.followers ?? list.length, listed: visible.length }),
         };
     } catch (e) {
         console.error("getUserFollowers error:", e);
@@ -801,7 +876,27 @@ export const getUserFollowers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
     }
 };
 
-// GET /user/following — 自分がフォロー中の userId 一覧（認証必要・feed/ボタン用）
+/**
+ * GET /user/following — 自分がフォロー中の userId 一覧（認証必要・feed/ボタン用）。
+ *
+ * **ここには `withoutHidden` を当てない。意図的。**
+ *
+ * 「一覧を返す口は3つあるのに2つしか直していない」＝片方の入口、に見えるが、
+ * この口だけは落とすと悪くなる:
+ *
+ *   - この一覧は**フォローボタンの状態の出どころ**（`lib/hooks/useFollow.ts`）。
+ *     ここで隠すと `following#` に行が残ったまま画面は「フォローしていない」に
+ *     なり、**本人が解除できなくなって残骸が永久に残る**
+ *   - 「自分をブロックした人」の筋は**そもそも発生しない**——`blockUser` は
+ *     `unfollowQuietly` を両向きに呼ぶので、相手が自分をブロックした時点で
+ *     `following#<自分>` からその人は消える
+ *   - 残るのは `unfollowQuietly` の `.catch` が握って落ちた回だけ。そのとき
+ *     フォロー中フィードにその人の写真が出るが、**画面から解除できる**ので
+ *     行き止まりにならない
+ *
+ * ＝「見せない」より「直せる」を採る。他人の一覧（`getUserFollowing` /
+ * `getUserFollowers`）にはその人を直す手段が無いので、あちらは落とす。
+ */
 export const getMyFollowing: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const me = getUserId(event);
     if (!me) return jsonError(400, "不正なリクエスト");

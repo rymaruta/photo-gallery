@@ -13,6 +13,7 @@ import { ROUTES } from "../../../lib/routes";
 import { formatStoredDateTime } from "@/lib/utils/photoDate";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
+import { publicImageUrl } from "@/lib/utils/seo";
 
 export default function DraftsPage() {
     const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
@@ -72,6 +73,9 @@ export default function DraftsPage() {
     if (loading || (!isAuthenticated && loadingDrafts)) {
         return (
             <main className="min-h-screen bg-black flex items-center justify-center">
+                {/* **事前描画で焼かれるのはこの枝**（認証を確かめる前）。
+                    JS が走る前に見えるのはここなので見出しを持たせる */}
+                <h1 className="sr-only">下書き</h1>
                 <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             </main>
         );
@@ -159,7 +163,7 @@ export default function DraftsPage() {
                                         {(p.thumbSrc || p.src) && (
                                             // eslint-disable-next-line @next/next/no-img-element
                                             <img
-                                                src={p.thumbSrc || p.src}
+                                                src={publicImageUrl(p.thumbSrc || p.src)}
                                                 alt=""
                                                 loading="lazy"
                                                 className="absolute inset-0 w-full h-full object-cover"

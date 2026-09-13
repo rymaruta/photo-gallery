@@ -1,4 +1,18 @@
-import PHOTOS_JSON from "@/app/data/photos.json";
+import PHOTO_INDEX from "@/app/data/photo-index.json";
+
+// **`photos.json` を丸ごと読まない。** ここで要るのは id が2組だけなのに、
+// 以前は写真データを全部 import していた——JSON のモジュールは項目単位で
+// 落とせない（バンドラは使っていない属性を捨てられない）ので、説明文も
+// EXIF もぼかしも一緒にクライアントへ載る。
+//
+// **このファイルを読むのはヘッダーとフッター＝全ページ。**
+// 実測（`npx next build` の出力）: 写真の中身を含む **36.2KB** のチャンクを
+// **生成された140ページ中138ページ**が読み込んでいた。索引だけなら 1.4KB。
+//
+// 索引は `scripts/sync-photos-from-ddb.js` が `photos.json` と**同じ
+// 書き込み**で作る（別のタイミングにすると、写真だけ増えて索引が古いまま
+// ＝個別ページは在るのにリンクが `/?photo=<id>` に落ちる）。
+// 2つがずれていないことは `scripts/__tests__/photoIndexParity.test.ts` が見る。
 
 // ビルド時に静的生成された写真詳細ページの ID 一覧。
 // 静的エクスポート（output: "export"）では /photo/[id] のページは
@@ -6,17 +20,20 @@ import PHOTOS_JSON from "@/app/data/photos.json";
 // ビルド後にアップロードされた写真の /photo/<id> は S3 に存在せず 404 になるため、
 // その場合はトップページのモーダル表示（/?photo=<id>）へフォールバックする。
 // 翌日の定期再ビルドで静的ページが生成されると、自動的に /photo/<id> に切り替わる。
-const BUILT_PHOTO_IDS = new Set(
-    (PHOTOS_JSON as Array<{ id: string }>).map((p) => p.id),
-);
+// **型は明示する。** `new Set(PHOTO_INDEX.photoIds)` だけだと、索引が
+// **空配列のとき** TypeScript が `Set<never>` と推論し、`.has(id: string)` が
+// 型エラーになる——**写真が1枚も無い環境ではサイトがビルドできない**。
+// staging の DynamoDB は空（本番の写真はコピーしない方針）なので、
+// ビルド時の同期で索引が空になり、**staging のデプロイが必ず落ちていた**
+// （実測: run 375 の Build が `Argument of type 'string' is not assignable
+// to parameter of type 'never'` で停止）。
+// 手元の `photos.json` は写真を持っているので、**コミット済みの断面では
+// 再現しない**。空の索引を置いて初めて出る。
+const BUILT_PHOTO_IDS: ReadonlySet<string> = new Set<string>(PHOTO_INDEX.photoIds);
 
 // ビルド時に投稿があるユーザーは /users/<id> が静的生成されている
 // （ユーザー個別の OGP カード付き）。それ以外はクエリ版にフォールバック。
-const BUILT_USER_IDS = new Set(
-    (PHOTOS_JSON as Array<{ userId?: string; published?: boolean }>)
-        .filter((p) => p.userId && p.published !== false)
-        .map((p) => p.userId as string),
-);
+const BUILT_USER_IDS: ReadonlySet<string> = new Set<string>(PHOTO_INDEX.userIds);
 
 export const ROUTES = {
     HOME: "/",

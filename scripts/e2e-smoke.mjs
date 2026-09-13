@@ -75,6 +75,59 @@ function check(name, ok, detail = "") {
     else { console.error(`  ❌ ${name}${detail ? ` — ${detail}` : ""}`); failures.push(name); }
 }
 
+/**
+ * 外部リクエストの遮断。**密閉の目的は「外に出ない」ことで、
+ * 「画像を失敗させる」ことではない。**
+ *
+ * 全部 `abort()` にしていた頃、集約ページの「写真が並ぶ」判定が
+ * **必ず落ちた**——画像が失敗すると `Thumb` は `<picture>` ごと消すので、
+ * 水和のあとに `<img>` が 0 になる（実測: 静的HTML 9 → 水和1.5秒後 0）。
+ * つまりその判定は**この環境では原理的に通らない**もので、
+ * 本番のデプロイをそのまま落とす（同じハーネスを使う）。
+ *
+ * → **画像の要求だけ 1x1 PNG で返す。** 外へは出ないまま、
+ *    「水和後にサムネが消えないか」を本当に見られるようになる。
+ *    それ以外（API・フォント・別オリジンのスクリプト）は今までどおり遮断。
+ */
+const PNG_1X1 = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64",
+);
+
+async function sealContext(ctx) {
+    // **Service Worker を登録させない。**
+    //
+    // 登録されると2ページ目以降の画像要求を SW が仲介し、**その fetch は
+    // Playwright の route を通らない**ので密閉を破って実ネットワークへ出る
+    // （そして失敗する）。実測でこれが「集約ページ: 写真が並ぶ」を落として
+    // いた。
+    //
+    // **`serviceWorkers: "block"` だけに頼らない。** あちらは
+    // playwright-core の中でプロトコルの検証にしか現れず、**エンジンごとに
+    // 効くかを確かめられない**（この環境に WebKit が無い）。本番は
+    // chromium と webkit の両方を回すので、**どのエンジンでも同じになる
+    // 形**——登録の口そのものを塞ぐ——を主にする。
+    await ctx.addInitScript(() => {
+        try {
+            const sw = navigator.serviceWorker;
+            if (sw) {
+                Object.defineProperty(sw, "register", {
+                    configurable: true,
+                    value: () => Promise.reject(new Error("smoke: service worker disabled")),
+                });
+            }
+        } catch { /* 触れない環境ならそのまま */ }
+    });
+    return ctx.route("**/*", (route) => {
+        const host = new URL(route.request().url()).hostname;
+        if (host === "localhost" || host === "127.0.0.1") return route.continue();
+        if (route.request().resourceType() === "image") {
+            return route.fulfill({ status: 200, contentType: "image/png", body: PNG_1X1 });
+        }
+        return route.abort();
+    });
+}
+
 // スモークは外部リクエスト（API/CDN）を route.abort() で遮断する密閉型。
 // その遮断は WebKit では pageerror（"Load failed" / "access control checks" 等）として
 // 表面化し、Chromium では console の net::ERR_FAILED になる——いずれも本番では成功する
@@ -155,13 +208,14 @@ async function expectMenuWorks(page, label) {
 // 1エンジン分の検査一式（モバイル context + デスクトップ context）。
 async function runChecks(browser, eng) {
     // ── モバイル（タッチ）context ──
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
-    // 外部リクエスト（CloudFront画像・API等）を即座に遮断して密閉型にする。
-    await ctx.route("**/*", (route) => {
-        const host = new URL(route.request().url()).hostname;
-        if (host === "localhost" || host === "127.0.0.1") return route.continue();
-        return route.abort();
-    });
+    // **Service Worker は止める。** 登録されると2ページ目以降の画像要求を
+    // SW が仲介し、**その fetch は Playwright の route を通らない**ので
+    // 密閉を破って実ネットワークへ出る（そして失敗する）。実測でこれが
+    // 「集約ページ: 写真が並ぶ」を落としていた。SW 自体は
+    // `public/sw.js` のテストが別に見ている
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, serviceWorkers: "block" });
+    // 外部リクエストを遮断して密閉型にする（画像だけは 1x1 PNG で返す）。
+    await sealContext(ctx);
     const page = await ctx.newPage();
     const bag = attachDiagnostics(page);
 
@@ -170,6 +224,21 @@ async function runChecks(browser, eng) {
     const hydrated = await waitForHydration(page);
     check(`[${eng}] Reactがハイドレーションを完了する`, hydrated);
     if (!hydrated) reportDiagnostics(`${eng}/home`, bag); // 無反応の主因診断
+
+    // **Service Worker が止まっていることを、ここで名指しで確かめる。**
+    //
+    // 止まっていないと、SW が2ページ目以降の画像要求を仲介して**密閉を破り**、
+    // 集約ページ・写真ページの「写真が並ぶ」が `img=0` で落ちる
+    // ——原因が画像に見えて、実は SW という分かりにくい形になる（実際に踏んだ）。
+    // **止め方が効かないエンジンがあっても、ここで名指しで落ちる**ので
+    // 次に読む人が迷わない（WebKit は手元に無く、確かめられていない）。
+    const swCount = await page.evaluate(async () => {
+        try {
+            if (!navigator.serviceWorker?.getRegistrations) return 0;
+            return (await navigator.serviceWorker.getRegistrations()).length;
+        } catch { return 0; }
+    });
+    check(`[${eng}] Service Worker が登録されていない（密閉が破れていない）`, swCount === 0, `登録=${swCount}`);
     await expectMenuWorks(page, `[${eng}] 初期表示`);
 
     // 言語切替のチェックは置かない。切替UI（LocaleToggle）は R-1 で削除済みで、
@@ -257,6 +326,108 @@ async function runChecks(browser, eng) {
         await expectMenuWorks(page, `[${eng}] プロフィール`);
     }
 
+    // 撮影地マップ（`/map`）。**このスモークが一度も開いていなかった**のに、
+    // 台帳には実在の不具合が記録されている画面——`2922526f` で
+    // 「**地図が固定ヘッダーを覆い、メニューボタンが見えないまま押せた**」を
+    // 直している（Leaflet のペインがページ全体の重なり順に出ていた）。
+    // `expectMenuWorks` は覆いを `elementFromPoint` で見るので、まさに
+    // その形を捕まえる。
+    //
+    // **ピンの有無は見ない。** 座標を持つ写真はビルドのデータ次第で
+    // （手元は0件・本番は16件）、どちらでも成り立つことだけ見る。
+    if (fs.existsSync(path.join(OUT, "map.html"))) {
+        console.log(`\n[${eng}][3] 撮影地マップ`);
+        await page.goto(`http://localhost:${PORT}/map`, { waitUntil: "domcontentloaded" });
+        check(`[${eng}] 地図: ハイドレーション完了`, await waitForHydration(page));
+        const m = await page.evaluate(() => ({
+            h1: document.querySelector("h1")?.textContent?.trim() ?? "",
+            // 地図の枠（または「まだありません」の案内）が出ていること
+            body: (document.querySelector("main")?.textContent ?? "").trim().length,
+        }));
+        check(`[${eng}] 地図: 見出しが出る`, m.h1.length > 0, m.h1);
+        check(`[${eng}] 地図: 本文が出る`, m.body > 0, `文字数=${m.body}`);
+        await expectMenuWorks(page, `[${eng}] 地図`);
+    }
+
+    // 写真ページ（`/photo/<id>`）。**検索から人が着地する当のページ**なのに、
+    // このスモークは `/?photo=<id>`（ホームのモーダル）しか開いていなかった
+    // ——別の画面で、渡る props も違う。
+    //
+    // 見るのは (a) 主役の1枚が水和後も残ること (b) 回遊の導線が出ること。
+    // 集約ページで実際に「水和後にサムネが消える」形の判定が効いたので、
+    // 同じ穴をこちらにも空けておかない。
+    const photoDir = path.join(OUT, "photo");
+    const photoPages = fs.existsSync(photoDir)
+        // `_none.html` は公開写真0枚のビルドを通すための空枠（`users` と
+        // `tag` は前から除いている）。除かないと、その1枚しか無いビルドで
+        // `hero=0` になり**デプロイが止まる**
+        ? fs.readdirSync(photoDir).filter((f) => f.endsWith(".html") && f !== "_none.html").sort()
+        : [];
+    if (photoPages.length > 0) {
+        console.log(`\n[${eng}][4] 写真ページ`);
+        const id = photoPages[0].replace(/\.html$/, "");
+        await page.goto(`http://localhost:${PORT}/photo/${encodeURIComponent(id)}`, { waitUntil: "domcontentloaded" });
+        check(`[${eng}] 写真ページ: ハイドレーション完了`, await waitForHydration(page));
+        const detail = await page.evaluate((photoId) => ({
+            h1: document.querySelector("h1")?.textContent?.trim() ?? "",
+            imgs: document.querySelectorAll("img").length,
+            // **主役の1枚を名指しで数える。** ただの `img > 0` では、
+            // アバターや「ほかにこんな写真も」のサムネが残るので
+            // **主役を消しても緑のまま**だった（変異で確認）
+            hero: [...document.querySelectorAll("img")]
+                .filter((i) => (i.getAttribute("src") ?? "").includes(photoId)).length,
+            broken: [...document.querySelectorAll("img")].filter((i) => i.complete && i.naturalWidth === 0).length,
+            // 回遊: 投稿者・集約ページ・ほかの写真のどれかへ出られること
+            // **投稿者リンク1本で緑になる `> 0` では何も見ていない**
+            // （実測: 30ページとも投稿者・タグ・カテゴリ・写真の4種を持ち、
+            //  最小でも13本）。`RelatedPhotos` が消えたことを見たいので、
+            //  **ほかの写真への導線**を別に数える
+            outLinks: document.querySelectorAll(
+                "a[href^='/users/'],a[href^='/tag/'],a[href^='/location/'],a[href^='/category/'],a[href^='/camera/']",
+            ).length,
+            otherPhotos: document.querySelectorAll("a[href^='/photo/'],a[href^='/?photo=']").length,
+        }), id);
+        check(`[${eng}] 写真ページ: 見出しが出る`, detail.h1.length > 0, detail.h1);
+        // **水和のあとに数える。** 主役の1枚が消える形はここでしか出ない
+        check(`[${eng}] 写真ページ: 主役の写真が出る`, detail.hero > 0, `hero=${detail.hero} / img=${detail.imgs}`);
+        check(`[${eng}] 写真ページ: 壊れた画像が無い`, detail.broken === 0, `broken=${detail.broken}`);
+        check(`[${eng}] 写真ページ: 回遊の導線がある`, detail.outLinks > 0, `links=${detail.outLinks}`);
+        check(`[${eng}] 写真ページ: ほかの写真への導線がある`, detail.otherPhotos > 0, `links=${detail.otherPhotos}`);
+        await expectMenuWorks(page, `[${eng}] 写真ページ`);
+    }
+
+    // 集約ページ（タグ／カテゴリ／撮影地／機材）。**生成の 86/140 がここ**で、
+    // 検索から人が着地する側でもあるのに、このスモークは一度も開いていなかった。
+    //
+    // **見るのは「写真が並ぶこと」。** 集約ページはサーバーが写真を props で
+    // 渡す（`CollectionPage` → `CollectionPageClient` → `GalleryGrid`）ので、
+    // 渡す項目を絞りすぎると**静的HTMLは出るのに、水和後にサムネが消える**。
+    // 実際 2026-09-12 に props を絞ったが、**それを見る仕組みが無かった**
+    // （`GalleryGrid` が読む項目は `lib/utils/__tests__/slimForLinks.test.ts`
+    //  が縛るが、あれは単体テスト——配線が壊れても気づけない）。
+    const tagDir = path.join(OUT, "tag");
+    const tags = fs.existsSync(tagDir)
+        ? fs.readdirSync(tagDir).filter((f) => f.endsWith(".html") && f !== "_none.html")
+        : [];
+    if (tags.length > 0) {
+        console.log(`\n[${eng}][5] 集約ページ`);
+        const slug = tags[0].replace(/\.html$/, "");
+        await page.goto(`http://localhost:${PORT}/tag/${encodeURIComponent(slug)}`, { waitUntil: "domcontentloaded" });
+        check(`[${eng}] 集約ページ: ハイドレーション完了`, await waitForHydration(page));
+        const grid = await page.evaluate(() => ({
+            h1: document.querySelector("h1")?.textContent?.trim() ?? "",
+            imgs: document.querySelectorAll("img").length,
+            broken: [...document.querySelectorAll("img")].filter((i) => i.complete && i.naturalWidth === 0).length,
+            links: document.querySelectorAll("a[href^='/photo/'],a[href^='/?photo=']").length,
+        }));
+        check(`[${eng}] 集約ページ: 見出しが出る`, grid.h1.length > 0, grid.h1);
+        // **水和のあとに数える。** 静的HTMLだけ見ても「消える」形は捕まらない
+        check(`[${eng}] 集約ページ: 写真が並ぶ`, grid.imgs > 0, `img=${grid.imgs}`);
+        check(`[${eng}] 集約ページ: 壊れた画像が無い`, grid.broken === 0, `broken=${grid.broken}`);
+        check(`[${eng}] 集約ページ: 写真へのリンクがある`, grid.links > 0, `links=${grid.links}`);
+        await expectMenuWorks(page, `[${eng}] 集約ページ`);
+    }
+
     const realErrors = bag.pageErrors.filter((m) => !isExpectedNetworkNoise(m));
     check(`[${eng}] 実行時のJSエラーがない`, realErrors.length === 0, realErrors.slice(0, 3).join(" / "));
     reportDiagnostics(`${eng}/mobile`, bag);
@@ -265,13 +436,9 @@ async function runChecks(browser, eng) {
     // ── デスクトップ（hover/マウス）context ──
     // ミニプレイヤーのドラッグはデスクトップ限定なので、モバイル context では
     // この経路を通らずメニュー被り不具合をすり抜けていた。ここで塞ぐ。
-    console.log(`\n[${eng}][3] デスクトップ（hover・マウス）`);
-    const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    await dctx.route("**/*", (route) => {
-        const host = new URL(route.request().url()).hostname;
-        if (host === "localhost" || host === "127.0.0.1") return route.continue();
-        return route.abort();
-    });
+    console.log(`\n[${eng}][6] デスクトップ（hover・マウス）`);
+    const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: "block" });
+    await sealContext(dctx);
     // 保存位置を右上(ヘッダー上)に seed。将来ミニプレイヤーがそこに出てもメニューを塞がないこと（クランプ）を確認。
     await dctx.addInitScript(() => {
         try { localStorage.setItem("jp_miniplayer_pos", JSON.stringify({ x: 99999, y: 0 })); } catch { /* ignore */ }

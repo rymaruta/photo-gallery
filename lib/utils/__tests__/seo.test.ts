@@ -56,6 +56,73 @@ describe("generatePhotoStructuredData", () => {
         expect((data.creator as { name: string }).name).toBe("山田太郎");
     });
 
+    // **人名で探されたときのため。** 保存されている表示名は「丸田 竜平」
+    // （空白入り）だが、探す側は「丸田竜平」とも打つ。`/users/<id>` の
+    // `Person` と**同じ規則**で別表記を出す（30枚の写真ページと
+    // プロフィールが違う名前の集合を名乗ると、同定の手がかりにならない）
+    /**
+     * **本番が通るのは `displayName` の側。** `credit` は
+     * `photo.photographer || photo.displayName` で、実データ30枚は
+     * `photographer` が **0/30**・`displayName` が **30/30**（実測）。
+     * `photographer` だけでテストを書くと、`credit` を `photographer` に
+     * 変える変異が**素通りしたまま本番30ページの別表記が消える**
+     */
+    it("displayName（本番が通る側）でも別表記を出す", () => {
+        const data = generatePhotoStructuredData({ ...base, displayName: "丸田 竜平" });
+        const creator = data.creator as { name: string; alternateName?: string };
+        expect(creator.name).toBe("丸田 竜平");
+        expect(creator.alternateName, "本番の経路で別表記が出ていない").toBe("丸田竜平");
+    });
+
+    it("日本語の名前は、空白を詰めた別表記も名乗る", () => {
+        const data = generatePhotoStructuredData({ ...base, photographer: "丸田 竜平" });
+        const creator = data.creator as { name: string; alternateName?: string };
+        expect(creator.name).toBe("丸田 竜平");
+        expect(creator.alternateName, "空白を詰めた別表記が出ていない").toBe("丸田竜平");
+        expect((data.author as { alternateName?: string }).alternateName).toBe("丸田竜平");
+    });
+
+    it("ラテン文字の名前には別表記を作らない", () => {
+        const data = generatePhotoStructuredData({ ...base, photographer: "John Smith" });
+        expect("alternateName" in (data.creator as object)).toBe(false);
+    });
+
+    /**
+     * **説明はこのページの言語で1本だけ。**
+     *
+     * 以前は日英を `" / "` で併記していた。同じページの
+     * `<meta name="description">` は日本語だけを出しているので、
+     * **機械向けの経路にだけ英語が残っていた**。schema.org の
+     * `description` は「そのものの説明」で、2言語を `/` で繋いだ文字列は
+     * どちらの言語としても読めない。
+     */
+    it("説明は日本語だけ（英語を併記しない）", () => {
+        const data = generatePhotoStructuredData({
+            ...base,
+            description: { ja: ["静かな朝でした。"], en: ["It was a quiet morning."] },
+        }, "ja");
+        expect(data.description).toBe("静かな朝でした。");
+        expect(data.caption).toBe("静かな朝でした。");
+        expect(JSON.stringify(data), "英語が併記されている").not.toContain("quiet morning");
+    });
+
+    it("日本語の説明が無ければ英語に落ちる", () => {
+        const data = generatePhotoStructuredData({
+            ...base, description: { en: ["Only English."] },
+        }, "ja");
+        expect(data.description).toBe("Only English.");
+    });
+
+    // **題の別言語は捨てていない**——`alternateName` が持つ
+    // （「別の呼び名」を置く正しい場所で、混ぜ物にならない）
+    it("題の英語は alternateName に残る", () => {
+        const data = generatePhotoStructuredData({
+            ...base, title: { ja: "北海道の桜", en: "Cherry Blossoms" },
+        }, "ja");
+        expect(data.name).toBe("北海道の桜");
+        expect(data.alternateName).toBe("Cherry Blossoms");
+    });
+
     it("location + coords がある場合 contentLocation に geo を含む", () => {
         const data = generatePhotoStructuredData({
             ...base,
@@ -99,14 +166,20 @@ describe("generatePhotoStructuredData", () => {
         expect(data.alternateName).toBe("Swan");
     });
 
-    it("説明は日英併記になり caption にも入る", () => {
+    /**
+     * **かつては日英併記だった**（「両言語のクエリで拾えるように」）。
+     * その前提——英語UIが選べること——は `6d72bfb` で消えている
+     * （`locale` は `ja` 固定・切替の呼び出しはテスト以外に0件）。
+     * 台帳は同じ理由で `og:locale:alternate` も撤去した（I18N-2）。
+     */
+    it("説明はこのページの言語で1本・caption も同じ", () => {
         const data = generatePhotoStructuredData({
             ...base,
             description: { ja: ["湖の白鳥"], en: ["Swans on the lake"] },
         });
-        expect(String(data.description)).toContain("湖の白鳥");
-        expect(String(data.description)).toContain("Swans on the lake");
+        expect(data.description).toBe("湖の白鳥");
         expect(data.caption).toBe(data.description);
+        expect(String(data.description), "英語が併記されている").not.toContain("Swans on the lake");
     });
 
     it("thumbnailUrl / keywords / datePublished / representativeOfPage を含む", () => {
@@ -204,5 +277,18 @@ describe("写真の構造化データ: 撮影日", () => {
         expect(d).not.toHaveProperty("dateCreated");
         // 公開日は登録日時のままでよい
         expect(d.datePublished).toBe(base.createdAt);
+    });
+});
+
+// **JSON-LD の description / caption も1行に均す**（実ビルドで8件が
+// 生の改行を含んでいた）。画像サイトマップの caption もここから出る
+describe("写真の構造化データ: 説明は1行", () => {
+    it("説明の改行を空白にする", () => {
+        const d = generatePhotoStructuredData(
+            { id: "p1", src: "https://cdn/1.jpg", description: { ja: ["一行目。\n二行目。"] } } as unknown as Parameters<typeof generatePhotoStructuredData>[0],
+        ) as Record<string, unknown>;
+        expect(String(d.description), "生の改行が残っている").not.toContain("\n");
+        expect(d.description).toBe("一行目。 二行目。");
+        expect(d.caption).toBe("一行目。 二行目。");
     });
 });

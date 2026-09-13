@@ -3,6 +3,7 @@ import { existsSync } from "fs";
 import path from "path";
 import { siteConfig } from "../../lib/utils/seo";
 import RAW_PHOTOS, { getLocalized, getLocalizedParagraphs, type Photo } from "@/lib/data/photos";
+import { metaText } from "@/lib/utils/metaText";
 
 export const dynamic = "force-static";
 
@@ -55,7 +56,10 @@ function xmlText(value: string): string {
 /** 抜粋。長い説明を丸ごと載せない（サイトに来てもらうため） */
 export function feedExcerpt(photo: Photo): string {
     const ja = getLocalizedParagraphs(photo.description, "ja");
-    const text = (ja.length > 0 ? ja : getLocalizedParagraphs(photo.description, "en")).join(" ");
+    // 1行に均す（`metaText` の説明を参照）。**140字で切る前に**畳む。
+    // 効くのは「空白の連なり」——単独の改行は空白1つになるだけで字数は
+    // 変わらないが、空行を挟んで書かれた説明はそのぶん本文が早く切れる
+    const text = metaText((ja.length > 0 ? ja : getLocalizedParagraphs(photo.description, "en")).join(" "));
     const place = (photo.location ?? "").toString().trim();
     const base = text || (place ? `${place}で撮影した写真。` : "写真。");
     return base.length > 140 ? `${base.slice(0, 140)}…` : base;
@@ -65,6 +69,12 @@ export function feedExcerpt(photo: Photo): string {
 export const FEED_MAX_ITEMS = 30;
 
 /** フィードの本文を組み立てる（テストから直接呼べるように分けてある） */
+/** 撮影者の表示名（無ければ空。空なら `dc:creator` の行ごと出さない） */
+export function displayNameOf(p: Photo): string {
+    const v = (p as { displayName?: unknown }).displayName;
+    return typeof v === "string" ? v.trim() : "";
+}
+
 export function buildFeed(photos: Photo[]): string {
     // **並べる基準と `pubDate` を揃える。**
     // 最初 `compareNewest`（＝**撮影日**優先）で並べて `pubDate` には
@@ -94,13 +104,27 @@ export function buildFeed(photos: Photo[]): string {
             `      <guid isPermaLink="true">${xmlText(url)}</guid>`,
             `      <pubDate>${xmlText(date)}</pubDate>`,
             `      <description>${xmlText(feedExcerpt(p))}</description>`,
+            // **誰が撮ったかを名乗る。**
+            //
+            // RSS 2.0 の `<author>` は**メールアドレスが必須**（仕様が
+            // `<author>user@example.com (Name)` の形）なので使えない
+            // ——利用者のメールを配るわけにいかない。名前だけを出す標準の
+            // 語が Dublin Core の `dc:creator` で、主要な収集側はこれを読む。
+            //
+            // 人名で探されたときに効くのは「この30件は同じ人のもの」と
+            // 機械に言えること。写真ページの `author`（JSON-LD と
+            // `<meta name="author">`）と同じ目的で、フィードにも同じ線を引く。
+            ...(displayNameOf(p) ? [`      <dc:creator>${xmlText(displayNameOf(p))}</dc:creator>`] : []),
             "    </item>",
         ].join("\n");
     });
 
     return [
         '<?xml version="1.0" encoding="UTF-8"?>',
-        '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">',
+        // `dc` は `dc:creator`（撮影者名）のため。宣言を落とすと
+        // **フィード全体が parse error** になる（`sitemap-images.xml` で
+        // 一度踏んだ形——制御文字1つで丸ごと読めなくなった）
+        '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">',
         "  <channel>",
         `    <title>${xmlText(siteConfig.name)}</title>`,
         `    <link>${xmlText(siteConfig.url)}</link>`,

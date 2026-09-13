@@ -22,6 +22,7 @@ import {
 import StoryViewer from "./StoryViewer";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import { useMusic } from "../../music/MusicContext";
+import SongSearchError from "../SongSearchError";
 
 
 // 画像ストーリーの表示秒数。投稿者が選べる（既定5秒）
@@ -999,9 +1000,7 @@ export default function StoriesBar() {
                                     </button>
                                 </div>
                                 {songSearchError && (
-                                    <p className="text-xs text-amber-400/80">
-                                        {locale === "en" ? "Search failed. Try again." : "検索に失敗しました。もう一度お試しください。"}
-                                    </p>
+                                    <SongSearchError />
                                 )}
                                 {songResults.length > 0 && (
                                     <ul className="rounded-xl bg-black/40 divide-y divide-white/5 overflow-hidden max-h-44 overflow-y-auto no-scrollbar">

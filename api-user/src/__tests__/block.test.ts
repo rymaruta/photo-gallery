@@ -19,13 +19,14 @@ vi.mock("../notify", () => ({
     DELETED_USER_NAME: "退会したユーザー",
 }));
 
-// 判定は `blockCheck.ts` にある（`follow.ts` / `notify.ts` から輪を作らずに
-// 使うための切り出し）。同じ `mockDdbSend` を見るので振る舞いは変わらない。
+// **読み取りは全部 `blockCheck.ts`**（`isBlocked` / `hiddenUserIds` / キーの綴り）。
+// `follow.ts` などから輪を作らずに使うための切り出しで、書き込みと口だけが
+// `block.ts` に残る。同じ `mockDdbSend` を見るので振る舞いは変わらない。
 // **await は1つにまとめる**——このパッケージの tsconfig は top-level await を
 // 通さないので、増やすと `tsc` のエラー件数が増える（件数で見ているため）
 const [
-    { blockUser, unblockUser, listBlocks, hiddenUserIds, purgeBlocksFor, BLOCKS_MAX, BLOCK_NAMES_MAX, blocksId, blockedById },
-    { isBlocked, blockMarkerId },
+    { blockUser, unblockUser, listBlocks, purgeBlocksFor, BLOCKS_MAX, BLOCK_NAMES_MAX },
+    { isBlocked, blockMarkerId, hiddenUserIds, blocksId, blockedById },
 ] = await Promise.all([import("../block"), import("../blockCheck")]);
 
 // **UUID の形で書く。** 実装は相手のIDの形を見る（見ないと、任意の文字列で

@@ -2,7 +2,7 @@
 
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import { dedupeCameraName } from "../../../lib/utils/cameraName";
-import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef, Suspense } from "react";
 import { useBottomBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -15,6 +15,7 @@ import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
 import { toastWithStaticPage } from "../../../lib/utils/staticPage";
 import { sessionErrorMessage } from "../../../lib/utils/api";
+import CropFramePicker, { type FocalPoint } from "../../components/CropFramePicker";
 import { dropCachedPhoto } from "../../../lib/utils/photoCache";
 import { toDateInputValue, mergeDate, todayForDateInput, PHOTO_DATE_MIN } from "../../../lib/utils/dateInput";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
@@ -23,7 +24,8 @@ import { useMemberGate } from "../../../lib/hooks/useMemberGate";
 import { useEscapeKey } from "../../../lib/hooks/useEscapeKey";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
-import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
+import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, type OwnValues } from "../../../lib/utils/ownValues";
+import { publicImageUrl } from "@/lib/utils/seo";
 
 const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
 const labelCls = "block text-sm text-white/60 mb-1";
@@ -77,8 +79,10 @@ function descToText(d: Photo["description"]): string {
  * どこにも無い**（この画面も /admin/edit も日本語欄しか描かない）ので、
  * 利用者には直す手段が無かった。
  *
- * 言語切替の UI は `6d72bfb` で削除済みで、英語が出るのは JSON-LD・
- * `sr-only` の併記・画像サイトマップだけ——「消した」の方を優先する。
+ * 言語切替の UI は `6d72bfb` で削除済み。英語が出るのは
+ * **写真ページの `sr-only` ブロックと、JSON-LD の `alternateName`（題）だけ**
+ * ——説明の日英併記は JSON-LD からも画像サイトマップからも外した
+ * （`8644e451`）。「消した」の方を優先する、の判断は変わらない。
  */
 export function mergeLocalizedTitle(original: Photo["title"], ja: string): Photo["title"] {
     if (!ja) return "";   // 空にした＝消したい（サーバーは空を REMOVE に倒す）
@@ -248,6 +252,13 @@ function EditContent() {
      */
     const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
     /**
+     * 一覧（正方形）での切り抜き位置。**`null` は「中央」**（属性を持たない）。
+     * アップロード時だけでなくここでも直せないと、既にある写真は一生
+     * 中央のままになる——読む側は前からこれを見ていたのに、書く口が
+     * どこにも無かったのが元の状態
+     */
+    const [focalPoint, setFocalPoint] = useState<FocalPoint | null>(null);
+    /**
      * **本人がこの画面で位置を触ったか。**
      *
      * 触ったなら、値が保存済みと同じでも送る。機械が当てた座標
@@ -262,6 +273,11 @@ function EditContent() {
     const [category, setCategory] = useState("");
     const [date, setDate] = useState("");
     const [tagsInput, setTagsInput] = useState("");
+    // **候補は打ちかけの文字で絞る。** 枠は12個だが owner のタグは実データで
+    // 59種あり、絞らないと上位12種しか選べない（残り47種は打つしかない＝
+    // 打つから表記が割れる）。理由と実測は `suggestTags` に書いた
+    const tagSuggestions = useMemo(() => suggestTags(ownValues.tags, tagsInput), [ownValues.tags, tagsInput]);
+
     /**
      * `dirty`（下で計算する）を effect から読むための写し。
      * **依存に `dirty` を入れない**——入れると打鍵のたびに写真を取り直す
@@ -326,6 +342,7 @@ function EditContent() {
                             setDescription(descToText(found.description));
                             setLocation(found.location ?? "");
                             setCoords(found.coords ?? null);
+                            setFocalPoint(found.focalPoint ?? null);
                             setCategory(found.category ?? "");
                             // <input type="date"> は YYYY-MM-DD しか受け付けない。
                             // 保存値は ISO 文字列なので、そのまま入れると空欄になる。
@@ -422,6 +439,7 @@ function EditContent() {
             date: mergeDate(original?.date, date),
             tags,
             coords,
+            focalPoint,
         };
         // **比較先も同じ道を通す。** `changedFields` の相手は「保存されている姿」
         // ではなく「触らなかったらこの画面が送る姿」でなければならない。
@@ -440,9 +458,10 @@ function EditContent() {
             date: original?.date ?? "",
             tags: Array.isArray(original?.tags) ? original.tags : [],
             coords: original?.coords ?? null,
+            focalPoint: original?.focalPoint ?? null,
         };
         return { tags, nextDescription, nextFields, originalFields };
-    }, [original, title, description, location, category, date, tagsInput, coords]);
+    }, [original, title, description, location, category, date, tagsInput, coords, focalPoint]);
 
     /**
      * 保存していない変更があるか。
@@ -696,20 +715,45 @@ function EditContent() {
                     // 高さが 0 になる方は `w-full` の有無に関わらず同じだった）。
                     // 編集画面から「どの写真を触っているか」の手がかりが消える。
                     // 文言は写真ページ・モーダル・ストーリーと同じ
-                    imageError ? (
-                        <div className="w-full h-40 flex flex-col items-center justify-center gap-2 rounded-lg mb-3 bg-white/5 text-white/50">
-                            <PhotoIcon className="w-8 h-8" />
-                            <p className="text-xs">{isJa ? "画像を読み込めません" : "Couldn't load image"}</p>
-                        </div>
-                    ) : (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                            src={photo.thumbSrc || photo.src}
-                            alt=""
-                            className="w-full max-h-64 object-contain rounded-lg mb-3 bg-white/5"
-                            onError={(e) => { setImageError(true); void dropCachedPhoto(e.currentTarget.currentSrc || e.currentTarget.src); }}
+                    <div className="rounded-lg overflow-hidden mb-3">
+                        {/* **一覧に出る範囲をここで直せるようにした。**
+                            アップロード画面と同じ部品（`CropFramePicker`）。
+                            既にある写真は、ここが無いと一生中央のまま
+                            ——読む側は前からこの値を見ていたのに、書く口が
+                            どこにも無かった。
+
+                            **原本ではなくサムネを掴ませる。** 位置は割合で
+                            持つので、どちらを見ても結果は同じ。原本は数MB
+                            あり、編集画面を開くたびに落とすのは重い */}
+                        <CropFramePicker
+                            // **同一オリジンに寄せる**（`develop` で入った扱い）。
+                            // 別オリジンのままだと、控えの掃除も種別の確認も効かない
+                            src={publicImageUrl(photo.thumbSrc || photo.src)}
+                            hint={isJa ? "白い枠が一覧に表示されます（ドラッグで移動）" : "White frame = shown in the grid (drag to move)"}
+                            focalPoint={focalPoint ?? undefined}
+                            onChange={setFocalPoint}
+                            onLoadError={(el) => { setImageError(true); void dropCachedPhoto(el.currentSrc || el.src); }}
+                            fallback={
+                                <div className="w-full h-40 flex flex-col items-center justify-center gap-2 bg-white/5 text-white/50">
+                                    <PhotoIcon className="w-8 h-8" />
+                                    <p className="text-xs">{isJa ? "画像を読み込めません" : "Couldn't load image"}</p>
+                                </div>
+                            }
                         />
-                    )
+                    </div>
+                )}
+                {/* **中央に戻す口を置く。** 割合は0.5固定でなく「属性を持たない」
+                    に戻す——持たない写真と同じ形にしておかないと、あとから
+                    既定を変えたときに揃わない。動かしていなければ出さない */}
+                {photo.src && !imageError && focalPoint && (
+                    <button
+                        type="button"
+                        onClick={() => setFocalPoint(null)}
+                        className="mb-6 text-xs text-white/60 hover:text-white/90 underline decoration-white/30 underline-offset-2"
+                        style={{ touchAction: "manipulation" }}
+                    >
+                        {isJa ? "中央に戻す" : "Reset to center"}
+                    </button>
                 )}
                 {exifSummary && (
                     <p className="text-xs text-white/50 mb-6">{isJa ? "撮影情報（自動）: " : "EXIF (auto): "}{exifSummary}</p>
@@ -717,7 +761,7 @@ function EditContent() {
 
                 <form onSubmit={(e) => { e.preventDefault(); void save(true); }} className="space-y-5">
                     <div>
-                        <label className={labelCls}>{isJa ? "タイトル" : "Title"}</label>
+                        <label className={labelCls} htmlFor="edit-title">{isJa ? "タイトル" : "Title"}</label>
                         {isEnglishOnly(photo?.title) && (
                             <p className="text-[11px] text-amber-300/80 mb-1">
                                 {isJa
@@ -725,14 +769,14 @@ function EditContent() {
                                     : "This photo only has an English title. What you see here will be saved as the Japanese title."}
                             </p>
                         )}
-                        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+                        <input id="edit-title" type="text" value={title} onChange={(e) => setTitle(e.target.value)}
                             maxLength={TITLE_MAX}
                             className={inputCls} style={{ fontSize: "16px" }}
                             placeholder={isJa ? "任意" : "Optional"} />
                     </div>
 
                     <div>
-                        <label className={labelCls}>{isJa ? "説明" : "Description"}</label>
+                        <label className={labelCls} htmlFor="edit-description">{isJa ? "説明" : "Description"}</label>
                         {isEnglishOnly(photo?.description) && (
                             <p className="text-[11px] text-amber-300/80 mb-1">
                                 {isJa
@@ -740,15 +784,15 @@ function EditContent() {
                                     : "This photo only has an English description. What you see here will be saved as the Japanese description."}
                             </p>
                         )}
-                        <textarea value={description} onChange={(e) => setDescription(e.target.value)}
+                        <textarea id="edit-description" value={description} onChange={(e) => setDescription(e.target.value)}
                             rows={5} className={inputCls + " resize-y"} style={{ fontSize: "16px" }}
                             placeholder={isJa ? "任意（改行で段落）" : "Optional (newline = paragraph)"} />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 [&>div]:min-w-0">
                         <div>
-                            <label className={labelCls}>{isJa ? "場所" : "Location"}</label>
-                            <input type="text" value={location}
+                            <label className={labelCls} htmlFor="edit-location">{isJa ? "場所" : "Location"}</label>
+                            <input id="edit-location" type="text" value={location}
                                 // **地名を変えたら候補を捨てる。** 残すと「福岡」で出した
                                 // 候補を、撮影地を「京都」に直したあとに押せてしまう
                                 onChange={(e) => { setLocation(e.target.value); setPlaceResults(null); }}
@@ -761,8 +805,8 @@ function EditContent() {
                             </datalist>
                         </div>
                         <div>
-                            <label className={labelCls}>{isJa ? "カテゴリ" : "Category"}</label>
-                            <input type="text" value={category} onChange={(e) => setCategory(e.target.value)}
+                            <label className={labelCls} htmlFor="edit-category">{isJa ? "カテゴリ" : "Category"}</label>
+                            <input id="edit-category" type="text" value={category} onChange={(e) => setCategory(e.target.value)}
                                 maxLength={CATEGORY_MAX}
                                 list="own-categories"
                                 className={inputCls} style={{ fontSize: "16px" }} placeholder={isJa ? "例: 風景" : "e.g. Landscape"} />
@@ -771,32 +815,38 @@ function EditContent() {
                             </datalist>
                         </div>
                         <div>
-                            <label className={labelCls}>{isJa ? "撮影日" : "Date"}</label>
+                            <label className={labelCls} htmlFor="edit-date">{isJa ? "撮影日" : "Date"}</label>
                             {/* カレンダーの選択肢を絞るだけ（打てば範囲外も入る）。断るのはサーバー
                                 （`dateWasRejected`）。保存ボタンは form の外の
                                 `type="button"` なので、範囲外でも押せる */}
-                            <input type="date" min={PHOTO_DATE_MIN} max={todayForDateInput()} value={date} onChange={(e) => setDate(e.target.value)}
+                            <input id="edit-date" type="date" min={PHOTO_DATE_MIN} max={todayForDateInput()} value={date} onChange={(e) => setDate(e.target.value)}
                                 className={inputCls} style={{ fontSize: "16px" }} />
                         </div>
                         <div>
-                            <label className={labelCls}>{isJa ? "タグ（カンマ区切り）" : "Tags (comma separated)"}</label>
-                            <input type="text" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)}
+                            <label className={labelCls} htmlFor="edit-tags">{isJa ? "タグ（カンマ区切り）" : "Tags (comma separated)"}</label>
+                            <input id="edit-tags" type="text" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)}
                                 className={inputCls} style={{ fontSize: "16px" }} placeholder={isJa ? "自然, 山" : "nature, mountain"} />
                             {/* タグはカンマ区切りなので datalist が効かない（欄全体を
-                                置き換えてしまう）。押して足せるチップにする。 */}
-                            {ownValues.tags.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5 mt-1.5">
-                                    {ownValues.tags.slice(0, 12).map((t) => (
-                                        <button
-                                            key={t}
-                                            type="button"
-                                            onClick={() => setTagsInput((cur) => appendTag(cur, t))}
-                                            className="px-2 py-0.5 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors"
-                                            style={{ touchAction: "manipulation" }}
-                                        >
-                                            {t}
-                                        </button>
-                                    ))}
+                                置き換えてしまう）。**押して選ぶチップにする**——押し直すと外れ、
+                                選んでいるものは白地で出す（一覧の絞り込みと同じ `role="switch"`）。 */}
+                            {tagSuggestions.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-1.5" role="group" aria-label={isJa ? "よく使うタグ" : "Your frequent tags"}>
+                                    {tagSuggestions.map((t: string) => {
+                                        const on = hasTag(tagsInput, t);
+                                        return (
+                                            <button
+                                                key={t}
+                                                type="button"
+                                                onClick={() => setTagsInput((cur) => toggleTag(dropFragment(ownValues.tags, cur), t))}
+                                                role="switch"
+                                                aria-checked={on}
+                                                className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-white text-black font-medium ring-white" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
+                                                style={{ touchAction: "manipulation" }}
+                                            >
+                                                {t}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
@@ -807,8 +857,12 @@ function EditContent() {
                         福岡町か決められない（実測でどちらも起きた）。候補を出して
                         選んでもらう */}
                     <div>
-                        <label className={labelCls}>{isJa ? "地図に出す位置" : "Location on the map"}</label>
-                        <div className="rounded-xl ring-1 ring-white/10 bg-white/5 p-3 space-y-2">
+                        {/* **ここは `<label>` にしない。** 中身は1つの入力ではなく
+                            ボタンと状態表示の集まりで、`<label>` は単一の部品にしか
+                            結べない（結べない `<label>` は読み上げに何も渡さない）。
+                            見出しとして `aria-labelledby` で箱に結ぶ */}
+                        <p className={labelCls} id="edit-map-position">{isJa ? "地図に出す位置" : "Location on the map"}</p>
+                        <div role="group" aria-labelledby="edit-map-position" className="rounded-xl ring-1 ring-white/10 bg-white/5 p-3 space-y-2">
                             <p className="text-xs text-white/70" data-testid="coords-state">
                                 {coords
                                     ? (isJa
@@ -1009,9 +1063,13 @@ function EditContent() {
 export default function UserEditPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-black flex items-center justify-center">
+            <main className="min-h-screen bg-black flex items-center justify-center">
+                {/* **事前描画で焼かれるのはこの fallback。** JS が走る前に見えるのは
+                    ここなので、ランドマークと見出しを持たせる
+                    （`sr-only` は position:absolute で描画に影響しない） */}
+                <h1 className="sr-only">写真を編集</h1>
                 <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            </div>
+            </main>
         }>
             <EditContent />
         </Suspense>

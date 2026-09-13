@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { collectOwnValues, appendTag } from "../ownValues";
+import { collectOwnValues, appendTag, toggleTag, hasTag, suggestTags, dropFragment, typingFragment, TAG_POOL_MAX } from "../ownValues";
 import type { Photo } from "../../data/photos";
 
 const P = (over: Partial<Photo>) => ({ id: "x", src: "s", ...over }) as Photo;
@@ -57,12 +57,12 @@ describe("collectOwnValues", () => {
 // ので、「自然, 山」と書いている途中に候補を選ぶと既に入れた分が消える。
 describe("appendTag（カンマ区切りに1つ足す）", () => {
     it("末尾に足す", () => {
-        expect(appendTag("自然, 山", "夜景")).toBe("自然, 山, 夜景");
+        expect(appendTag("自然, 山", "夜景")).toBe("自然, 山, 夜景, ");
     });
 
     it("空の欄にも足せる", () => {
-        expect(appendTag("", "夜景")).toBe("夜景");
-        expect(appendTag("   ", "夜景")).toBe("夜景");
+        expect(appendTag("", "夜景")).toBe("夜景, ");
+        expect(appendTag("   ", "夜景")).toBe("夜景, ");
     });
 
     it("既にあるタグは足さない（重複させない）", () => {
@@ -76,7 +76,7 @@ describe("appendTag（カンマ区切りに1つ足す）", () => {
     });
 
     it("区切りの空白を揃える（サーバーの trim と同じ形にする）", () => {
-        expect(appendTag("自然,山", "海")).toBe("自然, 山, 海");
+        expect(appendTag("自然,山", "海")).toBe("自然, 山, 海, ");
     });
 
     it("空のタグは無視する", () => {
@@ -154,7 +154,357 @@ describe("appendTag は同じタグを二重に足さない", () => {
 
     // 正常系: 別のタグは足す（畳みすぎて足せなくならないこと）
     it("別のタグは足す", () => {
-        expect(appendTag("夜景", "富士山")).toBe("夜景, 富士山");
-        expect(appendTag("", "山")).toBe("山");
+        expect(appendTag("夜景", "富士山")).toBe("夜景, 富士山, ");
+        expect(appendTag("", "山")).toBe("山, ");
+    });
+});
+
+/**
+ * **同数のときの決着を「最後に使った順」にした。**
+ *
+ * 実データで数えたら 59種のうち **44種が1枚にしか付いていない**ので、
+ * ほとんどが `total === 1` で並び、決着は文字順だけだった。
+ * `localeCompare` は**日本語をラテン文字の後ろに置く**（実測
+ * `apple < zebra < 白鳥 < 苔`）ので、上限30で切ると**日本語から落ちる**。
+ * 実測: 隠れた29種のうち10種が日本語／チップに出ていた日本語は2種。
+ * 直したあと **8種**が出るようになった（隠れた日本語は4種）。
+ */
+describe("タグの候補は、同数なら最後に使った順", () => {
+    it("同数なら新しく使った方が先", () => {
+        const photos = [
+            P({ tags: ["ふるい"], createdAt: "2024-01-01T00:00:00Z" }),
+            P({ tags: ["あたらしい"], createdAt: "2026-09-01T00:00:00Z" }),
+        ];
+        expect(collectOwnValues(photos).tags).toEqual(["あたらしい", "ふるい"]);
+    });
+
+    // **回数が先なのは変えない。** よく使うタグが上に来る性質は正しい
+    it("回数の方が強い（古くても多く使った方が先）", () => {
+        const photos = [
+            P({ tags: ["よく使う"], createdAt: "2024-01-01T00:00:00Z" }),
+            P({ tags: ["よく使う"], createdAt: "2024-01-02T00:00:00Z" }),
+            P({ tags: ["一度だけ"], createdAt: "2026-09-01T00:00:00Z" }),
+        ];
+        expect(collectOwnValues(photos).tags).toEqual(["よく使う", "一度だけ"]);
+    });
+
+    // **文字順は最後の砦**（毎回同じ並びにするため）
+    it("回数も時刻も同じなら文字順", () => {
+        const photos = [
+            P({ tags: ["い", "あ"], createdAt: "2026-09-01T00:00:00Z" }),
+        ];
+        expect(collectOwnValues(photos).tags).toEqual(["あ", "い"]);
+    });
+
+    // **撮影日を持つ写真は `date` で見る**（`photoOrder` の `photoTimeKey`
+    // に合わせる。並びの規則をこのファイルで作り直さない）
+    it("撮影日があれば投稿日より撮影日で見る", () => {
+        const photos = [
+            P({ tags: ["撮影が新しい"], date: "2026-09-01", createdAt: "2024-01-01T00:00:00Z" }),
+            P({ tags: ["投稿が新しい"], date: "2020-01-01", createdAt: "2026-09-02T00:00:00Z" }),
+        ];
+        expect(collectOwnValues(photos).tags).toEqual(["撮影が新しい", "投稿が新しい"]);
+    });
+
+    // 時刻を持たない写真があっても落ちない（持つ方が先に来る）
+    it("時刻が無い写真も混ぜられる", () => {
+        const photos = [
+            P({ tags: ["時刻なし"] }),
+            P({ tags: ["時刻あり"], createdAt: "2026-09-01T00:00:00Z" }),
+        ];
+        expect(collectOwnValues(photos).tags).toEqual(["時刻あり", "時刻なし"]);
+    });
+
+    // **これが直したかったこと。** 文字順のままだと、上限で切ったときに
+    // 日本語が落ちる
+    it("上限で切るとき、文字順だけでは日本語が落ちる（新しい順なら残る）", () => {
+        const latin = Array.from({ length: 30 }, (_, i) =>
+            P({ tags: [`tag${String(i).padStart(2, "0")}`], createdAt: "2024-01-01T00:00:00Z" }));
+        const jp = P({ tags: ["白鳥"], createdAt: "2026-09-01T00:00:00Z" });
+        const tags = collectOwnValues([...latin, jp]).tags;
+        expect(tags, "新しく使った日本語のタグが候補から落ちている").toContain("白鳥");
+        expect(tags[0]).toBe("白鳥");
+    });
+});
+
+// 変異で見つかった穴2つ（どちらも等価ではなく、見ていなかっただけ）
+describe("タグの候補: 上限と、複数枚に付いたタグの時刻", () => {
+    // **「最後に使った」は最大であって、最後に見た写真ではない。**
+    // 一覧の並びは保証されていないので、上書きにすると
+    // 「古い写真が後ろに来た回」だけ順位が下がる
+    it("複数枚に付いたタグは、いちばん新しい写真の時刻で見る", () => {
+        const photos = [
+            P({ tags: ["旅"], createdAt: "2026-09-01T00:00:00Z" }),
+            P({ tags: ["旅"], createdAt: "2024-01-01T00:00:00Z" }),  // 後ろに古いものが来る
+            P({ tags: ["山"], createdAt: "2025-01-01T00:00:00Z" }),
+            P({ tags: ["山"], createdAt: "2025-01-02T00:00:00Z" }),
+        ];
+        expect(collectOwnValues(photos).tags).toEqual(["旅", "山"]);
+    });
+
+    // 上限は撮影地では縛ってあったが、**タグでは見ていなかった**
+    // （実データで上限に届くのはタグだけ＝ここが本番）。
+    //
+    // **数は 30 → `TAG_POOL_MAX` に変えた。** 画面は打ちかけの文字で
+    // 絞ってから12個だけ出す（`suggestTags`）ので、ここで30に切ると
+    // **絞っても30種までしか届かない**（実データ59種で 30/59）。
+    // 見ている性質——**際限なく返さない**——は変えていない。
+    // **数そのものを縛る。** 入力も期待値も `TAG_POOL_MAX` にすると
+    // 自己参照になり、定数を 30 に戻しても緑のまま通る（実際そうだった）。
+    // 画面が絞りで届かせたいのは owner の全種類なので、そこを下回らないこと
+    it("プールは、いま持っているタグの種類を下回らない", async () => {
+        const photos = (await import("@/app/data/photos.json")).default as unknown as Photo[];
+        const kinds = collectOwnValues(photos, 10_000).tags.length;
+        expect(TAG_POOL_MAX, `実データの ${kinds} 種に届かない`).toBeGreaterThanOrEqual(kinds);
+        expect(TAG_POOL_MAX).toBeGreaterThan(30);
+    });
+
+    it("タグも上限で切る", () => {
+        const photos = Array.from({ length: TAG_POOL_MAX + 10 }, (_, i) => P({ tags: [`tag${i}`] }));
+        expect(collectOwnValues(photos).tags).toHaveLength(TAG_POOL_MAX);
+    });
+
+    // **撮影地・カテゴリの上限は変えていない**（あちらは datalist で
+    // 全部出るので、広げると候補の一覧が長くなるだけ）
+    it("撮影地とカテゴリの上限は 30 のまま", () => {
+        const photos = Array.from({ length: 40 }, (_, i) => P({ location: `場所${i}`, category: `cat${i}` }));
+        expect(collectOwnValues(photos).locations).toHaveLength(30);
+        expect(collectOwnValues(photos).categories).toHaveLength(30);
+    });
+});
+
+/**
+ * **候補チップは「選ぶ」もの。押し直したら外れる。**
+ *
+ * もとは足すだけだったので、**既に付いているタグのチップを押しても
+ * 何も起きなかった**（見た目も変わらないので、押せていないのか効かないのかも
+ * 分からない）。同じ場面を一覧の絞り込み（`FilterBar` のタグチップ）は
+ * **押し直して外す**形にしてあり、投稿・編集の候補チップだけ古いままだった。
+ */
+describe("hasTag（いま欄に入っているか）", () => {
+    it("大小・`#`・日英の別名を畳んで見る", () => {
+        expect(hasTag("fuji, 夜景", "Fuji")).toBe(true);
+        expect(hasTag("旅", "#旅")).toBe(true);
+        expect(hasTag("風景", "landscape"), "別名表が効いていない").toBe(true);
+        expect(hasTag("夜景", "富士山")).toBe(false);
+    });
+
+    it("空の欄・空のタグで誤判定しない", () => {
+        expect(hasTag("", "山")).toBe(false);
+        expect(hasTag("山", "   "), "空のタグが当たっている").toBe(false);
+        // **欄の末尾のカンマと、空のタグが噛み合う形。** 空の判定を外すと
+        // `tagKey("")` どうしが一致して「入っている」になる（欄が
+        // `"山, "` のときに空のタグが当たる）
+        expect(hasTag("山, ", "  "), "空のタグが空の欄に当たっている").toBe(false);
+        expect(hasTag(" , ,山", "山")).toBe(true);
+    });
+});
+
+describe("toggleTag（押し直したら外れる）", () => {
+    it("入っていなければ足す", () => {
+        expect(toggleTag("自然, 山", "夜景")).toBe("自然, 山, 夜景, ");
+        expect(toggleTag("", "山")).toBe("山, ");
+    });
+
+    it("入っていれば外す", () => {
+        expect(toggleTag("自然, 山", "山"), "押しても何も起きない").toBe("自然, ");
+        expect(toggleTag("山", "山")).toBe("");
+    });
+
+    // 外すときも畳んで見る（`fuji` の欄で候補の `Fuji` を押したら外れる）
+    it("書き方が違っても、同じタグなら外れる", () => {
+        expect(toggleTag("夜景, Fuji", "fuji")).toBe("夜景, ");
+        expect(toggleTag("旅", "#旅")).toBe("");
+        expect(toggleTag("風景, 山", "landscape")).toBe("山, ");
+    });
+
+    // 空のタグのガードは `appendTag` 側に1つだけ置く（二重にすると
+    // 片方を壊しても気づけない）。ここはその委譲が効いていることを見る
+    it("空のタグでは何もしない", () => {
+        expect(toggleTag("自然", "  ")).toBe("自然");
+        expect(toggleTag("", "  ")).toBe("");
+    });
+
+    // 欄に空の要素が混じっていても、外した結果にゴミを残さない
+    it("空の要素を挟んだ欄でも、外した結果が汚れない", () => {
+        expect(toggleTag("自然, , 山", "山"), "空の要素が残っている").toBe("自然, ");
+        expect(toggleTag(" , ,山", "山")).toBe("");
+    });
+
+    // **足す側は `appendTag` に任せる**——何も変わらない回に元の文字列を
+    // そのまま返す性質（空白の入れ方を勝手に直さない）を壊さない
+    it("足す側の空白の扱いは変えない", () => {
+        expect(toggleTag("自然,山", "海")).toBe("自然, 山, 海, ");
+    });
+});
+
+/**
+ * **打ちかけの文字で候補を絞る。**
+ *
+ * チップの枠は12個だが、owner のタグは実データで59種——何も打たないと
+ * 上位12種しか選べず、**残り47種（80%）は打つしかない**。打つから表記が
+ * 割れる。絞れば実データで **打ち切る手前で58/59が12枠に入る**。
+ */
+describe("suggestTags（打ちかけの文字で絞る）", () => {
+    const all = ["finland", "winter", "helsinki", "風景", "夜景", "山中湖", "sauna"];
+
+    it("何も打っていなければ、よく使う順のまま上から出す", () => {
+        expect(suggestTags(all, "", 3)).toEqual(["finland", "winter", "helsinki"]);
+        // 欄に入っているタグ（夜景）は先頭へ。押し直して外せるようにするため
+        expect(suggestTags(all, "夜景, ", 3), "カンマの後ろは空として扱う").toEqual(["夜景", "finland", "winter"]);
+    });
+
+    // **打ち終わったら絞りを解く。** チップを1つ押すと欄は `夜景` になる
+    // ——そこで絞ったままだと**他の候補が全部消えて**、2つ目をカンマから
+    // 打ち直すことになる（続けて選べない）
+    it("最後の欠片が候補と丸ごと同じなら、絞らない", () => {
+        // 選んだものが先頭に来たうえで、**他の候補も出る**（続けて選べる）
+        expect(suggestTags(all, "夜景", 3), "1つ選んだら他が選べない").toEqual(["夜景", "finland", "winter"]);
+        expect(suggestTags(all, "夜景, 山中湖", 3)).toEqual(["夜景", "山中湖", "finland"]);
+        // 別名で書いても「選び終えた1つ」と見る
+        expect(suggestTags(["landscape", "夜景"], "風景", 3)).toEqual(["landscape", "夜景"]);
+    });
+
+    it("**最後のカンマから後ろ**で絞る（前に入れたタグに引きずられない）", () => {
+        expect(suggestTags(all, "fin")).toEqual(["finland"]);
+        expect(suggestTags(all, "夜景, hel"), "前のタグで絞っている").toEqual(["helsinki"]);
+    });
+
+    it("途中の文字でも当たる（前方一致に限らない）", () => {
+        expect(suggestTags(all, "inla"), "前方一致しか見ていない").toEqual(["finland"]);
+        expect(suggestTags(all, "中湖")).toEqual(["山中湖"]);
+    });
+
+    // **別名表を通した一致は、意図どおり**。`land` と打つと `finland` の
+    // ほかに `風景` も出る——このサイトは `風景` と `landscape` を同じタグと
+    // して畳むので（`tagKey`）、`land` は `landscape` の一部として当たる。
+    // 打った人が探しているのは「landscape のこと」で、既に使っている綴りが
+    // `風景` なら**それを出すのが正しい**（新しい綴りを増やさない）
+    it("別名表を通して、既に使っている綴りの方を出す", () => {
+        expect(suggestTags(all, "land")).toEqual(["finland", "風景"]);
+    });
+
+    it("大小と `#` は無視する", () => {
+        expect(suggestTags(all, "FIN")).toEqual(["finland"]);
+        expect(suggestTags(all, "#風")).toEqual(["風景"]);
+    });
+
+    it("一致が無ければ空（関係ない候補を並べない）", () => {
+        expect(suggestTags(all, "zzz")).toEqual([]);
+    });
+
+    it("絞ったあとも枠で切る", () => {
+        const many = Array.from({ length: 20 }, (_, i) => `tag${i}`);
+        expect(suggestTags(many, "tag", 12)).toHaveLength(12);
+    });
+
+    // **枠の既定値も縛る。** 画面は枠を渡さないので、既定を広げると
+    // チップが何十個も並ぶ（実データなら最大59個）
+    it("枠を渡さなければ12個まで", () => {
+        const many = Array.from({ length: 30 }, (_, i) => `tag${i}`);
+        expect(suggestTags(many, ""), "既定の枠が広がっている").toHaveLength(12);
+        expect(suggestTags(many, "tag")).toHaveLength(12);
+    });
+});
+
+/**
+ * **打って絞って押したら、打ちかけの文字が残ってはいけない。**
+ *
+ * 絞りを入れた最初の版は、`sau` と打って `sauna` のチップを押すと
+ * 欄が `"sau, sauna"` になった——`sau` がそのまま**写真のタグとして保存される**。
+ * 絞りの目的は「打つから表記が割れる」を減らすことなのに、
+ * **新しい綴りを増やしていた**（実データ59種の全接頭辞で必ず起きた）。
+ */
+describe("打ちかけの欠片の扱い", () => {
+    const all = ["sauna", "helsinki", "夜景", "白鳥"];
+
+    it("打ちかけかどうかを、1つの判定で決める", () => {
+        expect(typingFragment(all, "sau"), "打ちかけを見落としている").toBe("sau");
+        expect(typingFragment(all, "夜景, hel")).toBe("hel");
+        // 候補と丸ごと同じなら「選び終えた1つ」
+        expect(typingFragment(all, "sauna")).toBe("");
+        expect(typingFragment(all, "夜景, ")).toBe("");
+        expect(typingFragment(all, "")).toBe("");
+    });
+
+    it("チップを押すときは、打ちかけの欠片を落とす", () => {
+        expect(dropFragment(all, "sau"), "欠片が残る").toBe("");
+        expect(dropFragment(all, "夜景, hel")).toBe("夜景");
+        // 打ちかけでなければ触らない
+        expect(dropFragment(all, "夜景")).toBe("夜景");
+        expect(dropFragment(all, "夜景, ")).toBe("夜景, ");
+    });
+
+    // 画面と同じ組み合わせ（絞る → 押す）を1本の式で見る
+    it("打って絞って押すと、欄には選んだタグだけが入る", () => {
+        for (const [typed, expected] of [["sau", ["sauna"]], ["白", ["白鳥"]], ["夜景, hel", ["夜景", "helsinki"]]] as const) {
+            const pick = suggestTags(all, typed, 12)[0];
+            // **区切りの形ではなく、保存されるタグで見る。** 生の文字列で
+            // 比べると、末尾の区切りのような表示上の違いで落ちて、
+            // 守りたい性質（欠片がタグとして残らない）が見えなくなる
+            const savedTags = toggleTag(dropFragment(all, typed), pick)
+                .split(",").map((x) => x.trim()).filter(Boolean);
+            expect(savedTags, `「${typed}」で欠片が残った`).toEqual([...expected]);
+        }
+    });
+
+    // **選んだチップが消えない。** 上位12種の外にあるタグを選ぶと、
+    // 絞りが解けた瞬間に視界から消えて押し直して外せなくなっていた
+    it("絞っていないときは、欄に入っているタグを先に出す", () => {
+        const many = ["a", "b", "c", "d", "zzz"];
+        expect(suggestTags(many, "zzz", 3), "選んだタグが候補から消えている").toEqual(["zzz", "a", "b"]);
+        expect(suggestTags(many, "", 3)).toEqual(["a", "b", "c"]);
+    });
+});
+
+/**
+ * **チップを押したあと、そのまま打つと新しいタグになる。**
+ *
+ * 欄はカンマ区切りなのに、押す側が区切りを入れていなかったので
+ * `[sauna]` を押して `hokkaido` と打つと `"saunahokkaido"` という
+ * **1つの嘘のタグ**が保存されていた。`8774ccd2`（打ちかけの欠片がタグとして
+ * 保存される）と同じ型の裏返し——**チップの目的は「打つから表記が割れる」を
+ * 減らすこと**なのに、押すたびに新しい綴りを作れる形だった。
+ *
+ * 実データの owner は1枚に中央値3タグ・最大8タグを日英で付けており、
+ * **59種のうち49種はチップに出ない**（上位10種だけ）ので、
+ * 押す→打つ→押す、が主動線になる。
+ */
+describe("押したあとに打つと、新しいタグになる", () => {
+    const pool = ["sauna", "winter", "山中湖"];
+    /** 画面がやっていること */
+    const press = (cur: string, t: string) => toggleTag(dropFragment(pool, cur), t);
+    /** 保存されるタグ（サーバーの sanitizeTags と同じ素の分割） */
+    const saved = (cur: string) => cur.split(",").map((x) => x.trim()).filter(Boolean);
+
+    it("押してから打つと、前のタグに繋がらない", () => {
+        const after = press("", "sauna") + "hokkaido";
+        expect(saved(after), "前のタグに繋がっている").toEqual(["sauna", "hokkaido"]);
+    });
+
+    it("外してから打つ場合も同じ", () => {
+        const after = press(press("", "sauna"), "sauna") + "hokkaido";
+        expect(saved(after)).toEqual(["hokkaido"]);
+    });
+
+    it("2つ押してから打つ", () => {
+        const after = press(press("", "sauna"), "winter") + "北海道";
+        expect(saved(after)).toEqual(["sauna", "winter", "北海道"]);
+    });
+
+    // **末尾の区切りは保存に響かない**（サーバーは空を落とす）
+    it("末尾の区切りが空のタグにならない", () => {
+        expect(saved(press("", "sauna"))).toEqual(["sauna"]);
+        expect(saved(press(press("", "sauna"), "winter"))).toEqual(["sauna", "winter"]);
+    });
+
+    // 空になったら区切りも残さない（`", "` だけの欄を作らない）
+    it("全部外したら空文字に戻る", () => {
+        expect(press(press("", "sauna"), "sauna")).toBe("");
+    });
+
+    // 押した直後は「打ちかけ」が無いので、候補は絞られていない
+    it("押した直後の欄は、打ちかけとして扱われない", () => {
+        expect(typingFragment(pool, press("", "sauna"))).toBe("");
     });
 });

@@ -292,9 +292,13 @@ function SignupForm() {
                                 autoComplete="new-password"
                                 placeholder="8文字以上"
                                 disabled={submitting}
+                                // **条件の文は、欄に結ばないと読み上げに届かない。**
+                                // ラベルは「パスワード」としか言わないので、満たすべき
+                                // 条件を一度も言われないまま弾かれる（新規登録の唯一の進み方）
+                                aria-describedby="signup-password-rule"
                                 className={inputCls}
                             />
-                            <p className="text-xs text-white/50 mt-1.5">英大文字・小文字・数字・記号（!@#$など）をそれぞれ1文字以上含めてください</p>
+                            <p id="signup-password-rule" className="text-xs text-white/50 mt-1.5">英大文字・小文字・数字・記号（!@#$など）をそれぞれ1文字以上含めてください</p>
                         </div>
                         <div>
                             <label htmlFor="signup-password-confirm" className="block text-xs text-white/50 mb-1.5 tracking-wide">パスワード（確認）</label>
@@ -326,7 +330,7 @@ function SignupForm() {
 
                         <p className="text-center text-xs text-white/50 pt-2">
                             すでにアカウントをお持ちの方は{" "}
-                            <Link href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login"} className="text-white/60 hover:text-white underline transition-colors">
+                            <Link href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login"} prefetch={false} className="text-white/60 hover:text-white underline transition-colors">
                                 ログイン
                             </Link>
                         </p>
@@ -339,6 +343,7 @@ function SignupForm() {
                         <div>
                             <label htmlFor="signup-code" className="block text-xs text-white/50 mb-1.5 tracking-wide">確認コード</label>
                             <input
+                                autoComplete="one-time-code"
                                 id="signup-code"
                                 type="text"
                                 value={code}
@@ -399,6 +404,7 @@ function SignupForm() {
                         </p>
                         <Link
                             href={loginHref}
+                            prefetch={false}
                             className="block w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 active:scale-[0.98] transition text-center"
                         >
                             ログインする
@@ -414,7 +420,16 @@ export default function SignupPage() {
     // `useSearchParams` は Suspense の中で使う（静的書き出しの前提。
     // `/login`・`/users`・`/j` も同じ形）
     return (
-        <Suspense>
+        <Suspense fallback={
+            // **事前描画で焼かれるのはこの fallback。** 空のままだと
+            // JS が走る前の HTML に本文が1つも無い（`main` も見出しも0で、
+            // 出るのはヘッダーとフッターだけ）。見た目は変えずに、
+            // ランドマークと見出しだけ置く——`sr-only` は
+            // `position: absolute` なので描画に影響しない
+            <main className="min-h-screen bg-black">
+                <h1 className="sr-only">アカウント作成</h1>
+            </main>
+        }>
             <SignupForm />
         </Suspense>
     );

@@ -135,20 +135,62 @@ function humanSeconds(sec) {
  * @param b        CacheBehavior（`DefaultCacheBehavior` は PathPattern を持たない）
  * @param policies Map<policyId, { name, MinTTL, DefaultTTL, MaxTTL }>
  */
+/**
+ * **圧縮しているか。** ここが `false` だと、届くのは**そのままのバイト数**。
+ *
+ * 2026-09-12 にビルドの出力を数えて、写真ページの JS を
+ * **688KB → gzip 215KB** と報告した。**その gzip は CloudFront が
+ * 掛けるもので、リポジトリのどこにも「掛かっている」証拠が無かった**
+ * ——`scripts/deploy-static-site.js` は `ContentEncoding` を付けない
+ * （＝事前に圧縮して上げてはいない）ので、圧縮するかは配信側の
+ * `Compress` ひとつで決まる。なのに診断は TTL しか出しておらず、
+ * **見積もりが3倍外れていても誰も気づけない**状態だった。
+ *
+ * 台帳の型「道具が『0件』と言うとき、数え方を疑う」の裏返し——
+ * **道具が何も言わない項目は、無いのではなく見ていない。**
+ */
+function compressLabel(b) {
+    if (b.Compress === true) return "圧縮=ON";
+    if (b.Compress === false) return "圧縮=**OFF**";
+    return "圧縮=不明";
+}
+
 function describeBehavior(b, policies) {
     const path = b.PathPattern ?? "(default)";
+    const zip = compressLabel(b);
     // 旧式（ポリシーではなく behavior に直接 TTL を書く形）はそのまま出す
     if (typeof b.DefaultTTL === "number") {
-        return `  ${path}: 旧式 defaultTTL=${humanSeconds(b.DefaultTTL)} maxTTL=${humanSeconds(b.MaxTTL)} minTTL=${humanSeconds(b.MinTTL)}`;
+        return `  ${path}: 旧式 defaultTTL=${humanSeconds(b.DefaultTTL)} maxTTL=${humanSeconds(b.MaxTTL)} minTTL=${humanSeconds(b.MinTTL)} ${zip}`;
     }
     const id = b.CachePolicyId;
     const p = id ? policies.get(id) : undefined;
     if (!p) {
         // **読めなかったことを「TTL はポリシー側」で誤魔化さない。**
         // 権限が無い・ID が無いのどちらかで、どちらも「分かっていない」
-        return `  ${path}: cachePolicyId=${id ?? "-"}（ポリシーを読めなかった＝TTL 不明）`;
+        return `  ${path}: cachePolicyId=${id ?? "-"}（ポリシーを読めなかった＝TTL 不明） ${zip}`;
     }
-    return `  ${path}: ${p.name} defaultTTL=${humanSeconds(p.DefaultTTL)} maxTTL=${humanSeconds(p.MaxTTL)} minTTL=${humanSeconds(p.MinTTL)}`;
+    return `  ${path}: ${p.name} defaultTTL=${humanSeconds(p.DefaultTTL)} maxTTL=${humanSeconds(p.MaxTTL)} minTTL=${humanSeconds(p.MinTTL)} ${zip}`;
+}
+
+/**
+ * 圧縮の結果を「何が起きるか」に翻訳する行（**純関数**）。
+ * 秒数と同じで、`Compress=false` とだけ出しても意味が伝わらない。
+ */
+function compressNote(behaviors) {
+    const off = behaviors.filter((b) => b.Compress === false).map((b) => b.PathPattern ?? "(default)");
+    const unknown = behaviors.filter((b) => b.Compress !== true && b.Compress !== false)
+        .map((b) => b.PathPattern ?? "(default)");
+    const out = [];
+    if (off.length > 0) {
+        out.push(`  !! 圧縮が OFF の経路: ${off.join(" / ")}`);
+        out.push("     → HTML と JS が**そのままのバイト数**で届く（実測で約3倍）。");
+        out.push("     → CloudFront の該当ビヘイビアで「オブジェクトを自動的に圧縮」を ON に。");
+    }
+    if (unknown.length > 0) {
+        out.push(`  ?? 圧縮の設定を読めなかった経路: ${unknown.join(" / ")}`);
+    }
+    if (out.length === 0) out.push("  圧縮: 全経路で ON（測った gzip のバイト数がそのまま届く）");
+    return out;
 }
 
 /** 削除がエッジに残る期間（LEFT-4） */
@@ -177,9 +219,181 @@ async function cdnTtl() {
         }
     }
 
-    for (const b of behaviors) line(describeBehavior(b, policies));
+    for (const l of cdnLines(behaviors, policies, cfg.CustomErrorResponses?.Items ?? [])) line(l);
+}
 
-    for (const l of residencyNote()) line(l);
+/**
+ * 存在しない URL に何を返しているか（**純関数**）。
+ *
+ * **静的サイトの 404 は CloudFront の設定で決まる。**
+ * `scripts/fix-cdn-error-pages.js` が 403/404 を `/404.html` に振り替え、
+ * **ステータスは 404 のまま**返すよう設定する（これが無いと
+ * `/404.html` の中身が **200 で**返る＝いわゆる soft-404。
+ * 消した写真のURLも「中身のあるページ」として扱われ、
+ * **検索エンジンが消えたページを索引に残し続ける**）。
+ *
+ * ところが**その設定を確かめるものが何も無かった**——圧縮と同じ盲点で、
+ * ディストリビューションを作り直した日に静かに戻る。
+ * 期待値は `fix-cdn-error-pages.js` の定数と同じ（403/404 → `/404.html`・
+ * ステータス 404）。ずれていたら、何が起きるかまで書く。
+ */
+function errorPageNote(items) {
+    const want = [403, 404];
+    const out = [];
+    if (!Array.isArray(items) || items.length === 0) {
+        out.push("  !! カスタムエラー応答が1つも無い");
+        out.push("     → 存在しない URL に **S3 の XML エラー**がそのまま出る（自作404が出ない）。");
+        out.push("     → Actions → Maintenance → task=cdn-error-pages で設定する。");
+        return out;
+    }
+    for (const code of want) {
+        const cur = items.find((e) => Number(e.ErrorCode) === code);
+        if (!cur) {
+            out.push(`  !! ${code} の振り替えが無い`);
+            continue;
+        }
+        const page = cur.ResponsePagePath ?? "(そのまま)";
+        const status = String(cur.ResponseCode ?? "(そのまま)");
+        const ok = page === "/404.html" && status === "404";
+        out.push(`  ${code} → ${page} / ステータス ${status}${ok ? "" : "  !! 期待は /404.html と 404"}`);
+        if (status === "200") {
+            out.push("     → **soft-404**（中身のあるページとして返る）。消したページが索引に残り続ける。");
+        }
+    }
+    return out;
+}
+
+/**
+ * CDN の節に出す行を全部組み立てる（**純関数**）。
+ *
+ * **配線を「呼んでいるか」ではなく「出た行」で見るため**に切り出した。
+ * 前は `cdnTtl()` の中で3種類を順に `line()` していたので、
+ * **`compressNote` の呼び出しを丸ごと消しても全テストが緑**だった
+ * （変異で確認）。台帳が `reportFunctions` で同じ判断をしている。
+ */
+function cdnLines(behaviors, policies, errorResponses) {
+    return [
+        ...behaviors.map((b) => describeBehavior(b, policies)),
+        ...compressNote(behaviors),
+        ...securityHeadersNote(behaviors),
+        ...edgeFunctionNote(behaviors),
+        ...errorPageNote(errorResponses ?? []),
+        ...residencyNote(),
+    ];
+}
+
+/**
+ * エッジの関数が付いているか（**純関数**）。
+ *
+ * **このサイトで一番外れたら困る設定なのに、診断が一度も見ていなかった。**
+ *
+ * サイトマップの54件も内部リンクも全部**拡張子なし**（`/photo/<id>`・
+ * `/location/%E6%9D%B1%E4%BA%AC`）なのに、`out/` に拡張子なしのファイルは
+ * **0件**で、`deploy-static-site.js` はキーをそのまま上げる
+ * （`photo/<id>.html`）。オリジンは S3 の REST + OAC なので、存在しない
+ * キーは 403 → カスタムエラー応答で `/404.html`（ステータス404）。
+ * **つまり、エッジで `/foo` → `/foo.html` に書き換える関数が無ければ、
+ * トップ以外の全ページが 404 になる。**
+ *
+ * その関数は本番の既定ビヘイビアに付いている Lambda@Edge で、
+ * **コードはこのリポジトリに無い**——`fix-cdn-static-behavior.js` も
+ * `provision-env.js` も「既定ビヘイビアに viewer-request と
+ * origin-response が付いている」前提で書かれている（前者はその実行回数を
+ * 減らすため、後者は staging に引き継がないため）。しかも
+ * `provision-env.js` の `stripLambdaAssociations` は**まさにこれを外す**
+ * 関数で、走らせる先を間違えれば本番の全ページが消える。それを
+ * **検知する口がどこにも無かった。**
+ *
+ * `/_next/static/*` だけは**外れているのが正しい**
+ * （`fix-cdn-static-behavior.js` の目的そのもの。付けたままだと1ページで
+ * 十数回起動し、コールドな初回アクセスで 503 になって CSS/JS が欠ける）。
+ * そこは逆向きに警告する。
+ *
+ * 圧縮・応答ヘッダーと同じ判断（`4548278a`・`cb1ad087`）——
+ * **道具が何も言わない項目は、無いのではなく見ていない。**
+ * **読めなかったのを「付いている」に丸めない。**
+ */
+function edgeAssociations(b) {
+    const lambda = (b?.LambdaFunctionAssociations?.Items ?? []).map((f) => f?.EventType).filter(Boolean);
+    const fns = (b?.FunctionAssociations?.Items ?? []).map((f) => f?.EventType).filter(Boolean);
+    return [...lambda, ...fns];
+}
+
+const STATIC_PATTERN = "/_next/static/*";
+
+function edgeFunctionNote(behaviors) {
+    const out = [];
+    const def = behaviors.find((b) => !b.PathPattern);
+    if (!def) {
+        out.push("  ?? 既定のキャッシュ動作が見つからない（エッジの関数を確かめられなかった）");
+    } else {
+        const evts = edgeAssociations(def);
+        if (!evts.includes("viewer-request")) {
+            out.push("  !! 既定の経路に viewer-request のエッジ関数が無い");
+            out.push("     → 拡張子なしのURL（`/photo/<id>`）を `.html` に書き換える先が無い。");
+            out.push("       S3 に `photo/<id>` というキーは無いので 403 → 404.html。");
+            out.push("       **トップ以外の全ページ（サイトマップの54件すべて）が 404 になる。**");
+            out.push("     → 関数のコードはこのリポジトリに無い。CloudFront の既定ビヘイビアに");
+            out.push("       viewer-request の Lambda@Edge / CloudFront Function を付け直す。");
+        } else {
+            out.push(`  エッジの関数（既定）: ${evts.join(" / ")}（拡張子なしURLの書き換えはここ）`);
+        }
+    }
+
+    const statics = behaviors.filter((b) => b.PathPattern === STATIC_PATTERN);
+    if (statics.length === 0) {
+        out.push(`  !! ${STATIC_PATTERN} 専用の動作が無い（CSS/JS も既定＝エッジ関数を通る）`);
+        out.push("     → 1ページで十数回起動する。コールドな初回アクセスで 503 になり");
+        out.push("       CSS/JS が欠けて画面が崩れる（再現済み）。");
+        out.push("     → node scripts/fix-cdn-static-behavior.js --apply（maintenance に口は無い）");
+    }
+    for (const b of statics) {
+        const evts = edgeAssociations(b);
+        if (evts.length > 0) {
+            out.push(`  !! ${STATIC_PATTERN} にエッジ関数が付いている: ${evts.join(" / ")}`);
+            out.push("     → 1ページで十数回起動する。コールドな初回アクセスで 503 になり");
+            out.push("       CSS/JS が欠けて画面が崩れる（再現済み）。");
+            out.push("     → node scripts/fix-cdn-static-behavior.js --apply（maintenance に口は無い）");
+        }
+    }
+    return out;
+}
+
+/**
+ * 応答ヘッダーのポリシーが付いているか（**純関数**）。
+ *
+ * **リポジトリのどこにも設定が無い**（`X-Content-Type-Options` /
+ * `Referrer-Policy` / `Content-Security-Policy` / HSTS を grep して0件）。
+ * ただし**付いていないと断定はできない**——コンソールで付けた場合は
+ * コードに現れない。だから**診断に出す**。圧縮のときと同じ判断
+ * （`4548278a`「道具が何も言わない項目は、無いのではなく見ていない」）。
+ *
+ * とくに効くのが `X-Content-Type-Options: nosniff`。**利用者が上げた
+ * ファイルを同じオリジンから配っている**（`/uploads/*` は
+ * `journey-photo.com` のパス）ので、ブラウザが中身を見て種別を推測すると、
+ * 画像のつもりのものが HTML として実行されうる。入口は
+ * `uploadPolicy.ts` が SVG を断り、presign が `content-type` を署名に
+ * 入れて塞いである（`738bef3`）——`nosniff` はその**二重目**。
+ *
+ * **読めなかったのを「付いている」に丸めない**（権限が足りない日に
+ * 嘘を報告する）。
+ */
+function securityHeadersNote(behaviors) {
+    const named = (b) => b.PathPattern ?? "(default)";
+    const without = behaviors.filter((b) => !b.ResponseHeadersPolicyId).map(named);
+    const out = [];
+    if (without.length === behaviors.length && behaviors.length > 0) {
+        out.push("  !! 応答ヘッダーのポリシーが1つも付いていない");
+        out.push("     → nosniff / Referrer-Policy / HSTS / CSP がどれも付かない。");
+        out.push("     → とくに nosniff。利用者が上げたファイルを同じオリジンから配っているので、");
+        out.push("       種別の推測が働くと「画像のつもりのもの」が実行されうる（入口は塞いであるが二重目が無い）。");
+        out.push("     → CloudFront のマネージドポリシー SecurityHeadersPolicy を各ビヘイビアに付けるのが最短。");
+    } else if (without.length > 0) {
+        out.push(`  !! 応答ヘッダーのポリシーが無い経路: ${without.join(" / ")}`);
+    } else if (behaviors.length > 0) {
+        out.push("  応答ヘッダー: 全経路にポリシーが付いている（中身までは見ていない）");
+    }
+    return out;
 }
 
 /**
@@ -267,10 +481,23 @@ async function invalidationHistory() {
  * 値は出さない。**設定名と「有る/無い」だけ**——診断のログは Actions に
  * 残るので、トークンの中身をそこへ書き写したら直した意味が無くなる。
  */
-const PUBLIC_FNS = [
-    "getPublicProfile", "searchUsers", "getLikeCount", "getComments", "getFollowStats",
-    "getPhotos", "getPhoto",
-];
+/**
+ * 読み取り専用ロールを付けてあるべき関数。**手で並べない。**
+ *
+ * 2026-09-12 に本番で流したら、`getInvite` に
+ * `!! 読み取り専用ロールが付いている` と出た——**誤報**。
+ * `api-user/serverless.yml` はあの関数に正しく `role: PublicReadRole` を
+ * 付けている。手書きの7個にあとから足した1つが入っていなかっただけ。
+ * しかも要約は `7/7` と出るので、**「!! が出ているのに問題なし」**という
+ * 読めない報告になっていた。
+ *
+ * **同じスクリプトが一度「手で並べない」と直した隣**（下の
+ * `rebuildFnsFromServerless`）に、手書きの一覧が残っていた
+ * ——台帳の型「片方の入口だけ直して、もう片方を置いてくる」。
+ */
+function publicFnsFromServerless() {
+    return fnsFromServerless((part) => /\n\s*role:\s*PublicReadRole\b/.test(part));
+}
 /**
  * トークンを配ってあるべき関数。**手で並べない。**
  *
@@ -286,7 +513,19 @@ const PUBLIC_FNS = [
  * 読む——デプロイが見ているのと同じ場所。
  * 突き合わせは `scripts/__tests__/diagnoseRebuildFns.test.ts`。
  */
-function rebuildFnsFromServerless() {
+/**
+ * **名前はパッケージ込みで持つ**（`api:presignedUrl` / `api-user:presignedUrl`）。
+ *
+ * 2026-09-12 に本番で流したら、管理API（`api`）の `presignedUrl` と
+ * `savePhoto` に `!! 再ビルドのトークンが無い` と出た——**誤報**。
+ * `api/serverless.yml` がトークンを渡すのは `updatePhoto` と `deletePhoto`
+ * だけで、あの2つは渡さないのが正しい。**短い名前がパッケージを落とす**
+ * ので、`api-user` 側の同名関数の期待が管理API側に当たっていた。
+ *
+ * しかも要約は `8/8`（＝重複を畳んだ名前の数）と出るので、
+ * **`!!` が2つ出ているのに「全部揃っている」**という自己矛盾になっていた。
+ */
+function fnsFromServerless(match) {
     const fs = require("fs");
     const path = require("path");
     const out = [];
@@ -298,12 +537,29 @@ function rebuildFnsFromServerless() {
         if (!fnSection) continue;
         for (const part of ("\n" + fnSection.split(/\n(?=[a-zA-Z#])/)[0]).split(/\n(?=  \w+:\n)/)) {
             const m = /^\n?  (\w+):/.exec(part);
-            if (m && part.includes("REBUILD_DISPATCH_TOKEN")) out.push(m[1]);
+            if (m && match(part)) out.push(`${dir}:${m[1]}`);
         }
     }
     return out;
 }
+
+function rebuildFnsFromServerless() {
+    return fnsFromServerless((part) => part.includes("REBUILD_DISPATCH_TOKEN"));
+}
 const REBUILD_FNS = rebuildFnsFromServerless();
+const PUBLIC_FNS = publicFnsFromServerless();
+
+/**
+ * Lambda の関数名から `パッケージ:短い名前` を作る。
+ * `photo-gallery-user-api-prod-…-presignedUrl` → `api-user:presignedUrl`
+ * `photo-gallery-api-prod-…-presignedUrl`      → `api:presignedUrl`
+ */
+function qualify(functionName) {
+    const m = /^photo-gallery(-user)?-api-[^-]+-(.+)$/.exec(functionName ?? "");
+    if (!m) return { pkg: "", short: functionName ?? "", key: functionName ?? "" };
+    const pkg = m[1] ? "api-user" : "api";
+    return { pkg, short: m[2], key: `${pkg}:${m[2]}` };
+}
 
 async function lambdaRoles() {
     head("Lambda のロールと環境変数（IAM-1 / IAM-2 が当たっているか）");
@@ -339,16 +595,21 @@ async function lambdaRoles() {
  * @param {string[]} [wanted] トークンを配ってあるべき関数（既定は serverless.yml から読んだもの）
  * @returns {string[]}
  */
-function reportFunctions(mine, wanted = REBUILD_FNS) {
+function reportFunctions(mine, wanted = REBUILD_FNS, publics = PUBLIC_FNS) {
     const out = [];
     const line = (s) => out.push(s);
     let publicOk = 0, leaked = 0, tokenOk = 0;
     for (const f of mine.sort((a, b) => a.FunctionName.localeCompare(b.FunctionName))) {
-        const short = f.FunctionName.replace(/^photo-gallery(-user)?-api-[^-]+-/, "");
+        const { pkg, short, key } = qualify(f.FunctionName);
         const role = (f.Role ?? "").split("/").pop() ?? "";
         const hasToken = Boolean(f.Environment?.Variables?.REBUILD_DISPATCH_TOKEN);
-        const wantPublic = PUBLIC_FNS.includes(short);
-        const wantToken = wanted.includes(short);
+        // **パッケージ込みで突き合わせる**（`api:presignedUrl` と
+        // `api-user:presignedUrl` は別の関数で、期待も別）
+        const wantPublic = publics.includes(key);
+        const wantToken = wanted.includes(key);
+        // **表示もパッケージ込み。** `presignedUrl` は2つあるので、
+        // 短い名前だけだとどちらの行か読めない（`!!` が出たとき困る）
+        const label = pkg ? `${pkg}:${short}` : short;
         const isPublicRole = /publicRead$/.test(role);
         const flags = [];
         if (wantPublic && !isPublicRole) flags.push("!! 共有ロールのまま");
@@ -358,7 +619,7 @@ function reportFunctions(mine, wanted = REBUILD_FNS) {
         if (wantPublic && isPublicRole) publicOk++;
         if (hasToken && !wantToken) leaked++;
         if (hasToken && wantToken) tokenOk++;
-        line(`  ${short.padEnd(26)} role=${role}${hasToken ? " REBUILD_DISPATCH_TOKEN=あり" : ""}${flags.length ? "  " + flags.join(" / ") : ""}`);
+        line(`  ${label.padEnd(34)} role=${role}${hasToken ? " REBUILD_DISPATCH_TOKEN=あり" : ""}${flags.length ? "  " + flags.join(" / ") : ""}`);
     }
     // **分母を出す。** 出さないと「`!!` が0件」が「全部揃っている」なのか
     // 「見る対象が0件」なのか読めない——一覧を `serverless.yml` から
@@ -366,10 +627,13 @@ function reportFunctions(mine, wanted = REBUILD_FNS) {
     // 数えるのは上のループの中（`publicOk` / `leaked` と同じ場所）。
     // ここで数え直すと**関数名を短くする規則の2つ目の写し**ができ、
     // 片方だけ直した日に黙ってずれる——このコミットが直した当のもの
-    line(`  → 読み取り専用ロールの関数 ${publicOk}/${PUBLIC_FNS.length} ・ トークンが余計に付いた関数 ${leaked}`);
+    line(`  → 読み取り専用ロールの関数 ${publicOk}/${publics.length} ・ トークンが余計に付いた関数 ${leaked}`);
     line(`  → 再ビルドのトークンを持つ関数 ${tokenOk}/${wanted.length}`);
     if (wanted.length === 0) {
         line("  !! serverless.yml からトークンを配る関数を1つも読み取れなかった（診断が壊れています）");
+    }
+    if (publics.length === 0) {
+        line("  !! serverless.yml から読み取り専用ロールの関数を1つも読み取れなかった（診断が壊れています）");
     }
     return out;
 }
@@ -483,7 +747,7 @@ async function main() {
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
 
-module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions };
+module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, securityHeadersNote, edgeFunctionNote, edgeAssociations, STATIC_PATTERN, publicFnsFromServerless, PUBLIC_FNS, qualify };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });

@@ -1,30 +1,45 @@
 import { describe, it, expect } from "vitest";
 import { isUserId } from "../../api-user/src/userId";
 
-// **同じ「Cognito の sub の形か」を、2か所が別の規則で書いている。**
+// **同じ「Cognito の sub の形か」を、2か所が別の規則で書いていた。**
 //
 //   api-user/src/userId.ts         isUserId     素の16進（版も variant も見ない）
 //   scripts/backfill-followers.js  USER_ID_RE   版 1-5・variant 8-b まで見る
 //
-// 今は実害が無い（sub は UUIDv4 なので両方通る）。危ないのは**ずれる向き**:
+// 「スクリプトの方が厳しい」を安全側として記録していた（緩いと、API が
+// 弾く行を書き込むため）。**安全ではなかった。**
 //
-//   - スクリプトの方が厳しい（今の形）＝ API が受け付けたゴミを埋め戻しが
-//     捨てる。捨てた件数と理由は出るので気づける
-//   - **スクリプトの方が緩い**＝ API が弾いた形の行を、埋め戻しが
-//     `followers#` に書き込む。誰も掃除しないゴミが増える
+// 2026-09-13 の本番の実測（`repair-follow-graph` のドライラン）:
 //
-// **後者を作らせない**のがこのテストの仕事。
+//     follow#… 2 行 / following#… 2 行 / followers#… 0 行
+//     有効なフォロー 2 件 / 壊れたマーカー 0 件
+//     規則のずれで保留したマーカー 2 件
+//
+// **本番のフォロー2件は本物**（読む側を通り、画面にも出ていた）。
+// なのに埋め戻しだけが「Cognito の sub の形でないゴミ」として捨てていて、
+// **`followers#` が一度も作られなかった**——「フォロー一覧は観れるのに
+// フォロワー一覧が見れない」の正体。厳しい側が捨てたものは**気づけるが
+// 直せない**。実データが「sub は必ずしも RFC 4122 v4 の形ではない」と
+// 示した以上、書く側が読む側より厳しい理由は無い。
+//
+// **いまは1つ**（`scripts/lib/userId.js`）。このテストの仕事は2つ:
+//
+//   1. 書き写しに戻らせない——`api-user/src/userId.ts` の正規表現**そのもの**を
+//      読んで突き合わせる
+//   2. 振る舞いでも一致を見る——定数が同じでも、判定を通る経路
+//      （`parseMarker`）に別の規則を差し込めば意味が無い（レビューが実証した形）
 //
 // **一度、原理的に落ちないテストを書いた。** 版と variant の2文字だけを
 // 16進で総当たりしていたので、生成した256通りは**全部 `isUserId` を通る**
-// ——包含の判定は右辺が常に false で、スクリプトをどう緩めても緑だった
-// （レビューが実証。`USER_ID_RE = /./` でも緑）。**総当たりの軸が、
-// 判定に効く軸と違っていた。**
+// ——包含の判定は右辺が常に false で、スクリプトをどう緩めても緑だった。
+// **総当たりの軸が、判定に効く軸と違っていた。**
 //
 // 作り直したこちらは、正しい UUID の**各位置**を 16進以外も含む文字で
 // 置き換えた corpus を回す。長さ・区切り・大文字・空白も混ぜる。
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { USER_ID_RE, parseMarker } = require("../backfill-followers.js");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { apiRuleSource } = require("../lib/userId.js");
 
 const scriptAccepts = (v: string): boolean => USER_ID_RE.test(v);
 
@@ -104,11 +119,37 @@ describe("userId の形を見る規則（API とスクリプト）", () => {
         expect(m.target).toBe(v4);
     });
 
-    // ずれている向きを事実として書き留める（片方だけ直した日に、
-    // このテストが「意図が変わった」と教える）
-    it("いまは、スクリプトの方が厳しい", () => {
-        const v0 = "0123abcd-4567-089a-0bcd-0123456789ab";   // 版0・variant 0
-        expect(isUserId(v0), "API は素の16進なので通す").toBe(true);
-        expect(scriptAccepts(v0), "スクリプトは版と variant を見るので弾く").toBe(false);
+    // **こちらが本命。** 上の「スクリプトが通すものは API も通す」だけだと、
+    // 厳しくする方向（本物を捨てる方向）が素通りする——本番で実際に
+    // 起きたのはそちらだった
+    it("API が通すものは、スクリプトも必ず通す", () => {
+        const dropped = corpus().filter((v) => isUserId(v) && !scriptAccepts(v));
+        expect(dropped, "埋め戻しが、API の通す本物のフォローを捨てる").toEqual([]);
+    });
+
+    it("マーカーの分解も、API が通す相手を捨てない", () => {
+        const dropped = corpus().filter((v) => {
+            const m = parseMarker({ follow: true, id: `follow#${v}#${VALID}`, createdAt: "" });
+            return isUserId(v) && !!m.skip;
+        });
+        expect(dropped, "埋め戻しが、API の通す相手のマーカーを捨てる").toEqual([]);
+    });
+
+    // 版0・variant 0 ＝ RFC 4122 の v4 ではないが、**本番の sub に実在する形**。
+    // ここが落ちたら、また本物のフォローを捨てている
+    it("RFC 4122 の版/variant でない sub も、両方が通す", () => {
+        const v0 = "0123abcd-4567-089a-0bcd-0123456789ab";
+        expect(isUserId(v0), "API が本物の sub を弾いている").toBe(true);
+        expect(scriptAccepts(v0), "埋め戻しが本物の sub を捨てている").toBe(true);
+        const m = parseMarker({ follow: true, id: `follow#${v0}#${VALID}`, createdAt: "" });
+        expect(m.skip, "本物の sub のマーカーを捨てている").toBeUndefined();
+    });
+
+    // **書き写しに戻らせない。** 振る舞いの突き合わせ（上の2本）は corpus の
+    // 太さに依存するが、これは定義そのものを見る
+    it("スクリプトの規則は、api-user/src/userId.ts の正規表現と同一", () => {
+        const api = apiRuleSource();
+        expect(api, "api-user/src/userId.ts から正規表現を読めなかった").toBeTruthy();
+        expect(String(USER_ID_RE), "規則が2か所に分かれている").toBe(api);
     });
 });

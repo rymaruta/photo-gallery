@@ -44,6 +44,49 @@ if (fs.existsSync(envLocalPath)) {
 const REGION = process.env.AWS_REGION ?? "ap-northeast-1";
 const TABLE = requireEnv("PHOTOS_TABLE");
 const OUTPUT = path.resolve(__dirname, "../app/data/photos.json");
+/**
+ * **軽い索引。`lib/routes.ts` はこれだけを読む。**
+ *
+ * あちらが要るのは「ビルド時に個別ページができている写真の id」と
+ * 「個別ページができている利用者の id」の2組だけなのに、`photos.json` を
+ * **丸ごと** import していた。JSON のモジュールは項目単位で落とせない
+ * （バンドラは使っていない属性を捨てられない）ので、説明文も EXIF も
+ * ぼかしも一緒にクライアントへ載る。
+ *
+ * `lib/routes.ts` を読むのはヘッダーとフッター——**つまり全ページ**。
+ * 実測（`npx next build` の出力）: 写真の中身を含む 36.2KB のチャンクを
+ * **生成された140ページ中138ページ**が読み込んでいた。索引だけなら
+ * この30枚で約 2.4KB。
+ */
+const INDEX_OUTPUT = path.resolve(__dirname, "../app/data/photo-index.json");
+/**
+ * **投稿者の素性。人名で探されたときに効く。**
+ *
+ * `/users/<id>` の構造化データ（`ProfilePage` → `Person`）は、これまで
+ * **名前と URL と画像しか**持っていなかった（実ビルドで確認）。
+ * 人名の検索で Google がするのは「このページは誰のことか」の同定なので、
+ * 効くのは:
+ *
+ *   `description` … 何をしている人か（自己紹介）
+ *   `sameAs`      … **他所の自分**（ウェブサイト・Instagram）。
+ *                   同姓同名と区別する、いちばん強い手がかり
+ *
+ * `photos.json` には写真の項目しか無く、自己紹介もリンクも持っていない
+ * （users テーブルの側）。表示名を突き合わせるついでに引いて、ここへ出す。
+ * **公開プロフィールに出ている情報だけ**（`bio` / `website` /
+ * `instagram` / `username`）。メールも登録日時も出さない。
+ */
+const PROFILE_OUTPUT = path.resolve(__dirname, "../app/data/profiles.json");
+
+/** `photos.json` から軽い索引を作る（`lib/routes.ts` と同じ条件で絞る） */
+function buildIndex(photos) {
+    return {
+        photoIds: photos.map((p) => p.id).filter((id) => typeof id === "string" && id),
+        userIds: [...new Set(photos
+            .filter((p) => p.userId && p.published !== false)
+            .map((p) => p.userId))],
+    };
+}
 const DRY_RUN = process.env.DRY_RUN === "1";
 const FORCE = process.argv.includes("--force");
 const IS_CI = !!process.env.CI;
@@ -224,6 +267,51 @@ const SYNC_STATS_ID = "syncstats#photos";
  * 写しは直らない。出るのはモーダルと写真ページの投稿者リンクで、
  * プロフィール画面の見出しは API のプロフィールを優先するので新しい名前。
  */
+/** 直近の `freshDisplayNames` が拾った公開プロフィール（`main()` が書き出す） */
+let lastProfiles = {};
+/** 直近の実行で、プロフィールを読めなかった人数（0 でなければ欠けたまま出る） */
+let lastProfileFailures = 0;
+
+/**
+ * プロフィールを書き出したときに出す行（**純関数**）。
+ *
+ * **「誰も書いていない」と「読めなかった」を同じ 0 にしない。**
+ * 表示名の側はこれを一度直してある（人数を一緒に出す）のに、
+ * プロフィールの書き出しには当てていなかった。
+ *
+ * **配線は「出た行」で見る**ために切り出す（`diagnose-aws.js` の
+ * `cdnLines` / `reportFunctions` と同じ判断。`main()` の中で条件分岐を
+ * 書くと、その分岐を消しても誰も気づけない）。
+ */
+function profileWriteNotes(outputPath, profiles, readFailures) {
+    const lines = [`[sync] ${outputPath} に書き込みました（${Object.keys(profiles ?? {}).length}人ぶん）`];
+    if (readFailures > 0) {
+        lines.push(`[sync] ⚠️ ${readFailures}人ぶんのプロフィールを読めませんでした。`
+            + "このビルドでは その人の 自己紹介・website・Instagram が出ません"
+            + "（プロフィールの説明文も組み立て文に落ちます）。次のビルドで戻ります。");
+    }
+    return lines;
+}
+
+/** 直近の結果（`main()` とテストが見る） */
+function lastPublicProfiles() {
+    return { profiles: lastProfiles, readFailures: lastProfileFailures };
+}
+
+/**
+ * 公開プロフィールに出ている項目だけを抜く。
+ * **「落とす一覧」ではなく「出す一覧」**——増えた属性が黙って出るのを防ぐ
+ * （`PRIVATE_FIELDS` を落とす形にしていて、増えた属性が公開JSONに出た前例）。
+ */
+function publicProfileFields(item) {
+    const out = {};
+    for (const k of ["bio", "website", "instagram", "username"]) {
+        const v = item?.[k];
+        if (typeof v === "string" && v.trim()) out[k] = v.trim();
+    }
+    return out;
+}
+
 async function freshDisplayNames(ddb, photos) {
     const usersTable = process.env.USERS_TABLE;
     if (!usersTable) {
@@ -248,13 +336,22 @@ async function freshDisplayNames(ddb, photos) {
     }
 
     const names = new Map();
-    try {
-        // 人数ぶんの GetItem。写真30枚でも投稿者は数人なので件数は小さい
-        for (const userId of ids) {
+    const profiles = new Map();
+    let failures = 0;
+    // 人数ぶんの GetItem。写真30枚でも投稿者は数人なので件数は小さい。
+    //
+    // **見張りは1人ずつ。** 前は for 全体を try で包んでいたので、
+    // **1人の読み取りが落ちると全員ぶんが空**になっていた。表示名の側は
+    // 「古いまま」で済むが、**プロフィールには古い値が無い**
+    // ——`app/data/profiles.json` は毎ビルド作り直す（git の中身は `{}`）ので、
+    // 落ちた回はそのビルドから**自己紹介・website・Instagram が消える**。
+    // 「今までどおり」ではなく「消える」＝非対称だったのに、扱いが同じだった。
+    for (const userId of ids) {
+        try {
             const res = await ddb.send(new GetCommand({
                 TableName: usersTable,
                 Key: { userId },
-                ProjectionExpression: "displayName, deletedAt",
+                ProjectionExpression: "displayName, deletedAt, bio, website, instagram, username",
             }));
             const item = res.Item;
             // 退会した人の名前は入れ直さない（写真側の値もそのまま残す。
@@ -262,12 +359,13 @@ async function freshDisplayNames(ddb, photos) {
             if (!item || item.deletedAt) continue;
             const name = typeof item.displayName === "string" ? item.displayName.trim() : "";
             names.set(userId, name || undefined);
+            profiles.set(userId, publicProfileFields(item));
+        } catch (err) {
+            // **写真の同期は止めない。** ここで落とすとビルドごと止まる
+            // （消した写真のページが残る方が悪い）
+            failures++;
+            console.warn(`[sync] ${userId} のプロフィールを読めませんでした:`, err.message ?? err);
         }
-    } catch (err) {
-        // **写真の同期は止めない。** 名前が古いままなのは今までどおりで、
-        // ここで落とすとビルドごと止まる（消した写真のページが残る方が悪い）
-        console.warn("[sync] 表示名の突き合わせに失敗:", err.message ?? err);
-        return photos;
     }
 
     let changed = 0;
@@ -285,7 +383,9 @@ async function freshDisplayNames(ddb, photos) {
     // **更新0件でも必ず出す。** 「0件だった」と「間違ったテーブルを引いて
     // 誰も見つからなかった」は同じ 0 になる。人数を一緒に出せば、
     // ログを見るだけで区別できる（別環境のテーブルを引くと 見つかった 0人）。
-    console.log(`[sync] 表示名の突き合わせ: 投稿者 ${ids.length}人 / 見つかった ${names.size}人 / 更新 ${changed}件`);
+    console.log(`[sync] 表示名の突き合わせ: 投稿者 ${ids.length}人 / 見つかった ${names.size}人 / 読めなかった ${failures}人 / 更新 ${changed}件`);
+    lastProfiles = Object.fromEntries([...profiles].filter(([, v]) => Object.keys(v).length > 0));
+    lastProfileFailures = failures;
     return out;
 }
 
@@ -377,6 +477,14 @@ async function main() {
 
     fs.writeFileSync(OUTPUT, JSON.stringify(photos, null, 2) + "\n", "utf-8");
     console.log(`[sync] ${OUTPUT} に書き込みました`);
+    // **索引は写真と同じ書き込みで更新する。** 別のタイミングにすると、
+    // 写真だけ増えて索引が古いまま＝新しい写真のリンクが `/?photo=<id>` の
+    // 控えに落ちる（個別ページは在るのに）状態を作る
+    fs.writeFileSync(INDEX_OUTPUT, JSON.stringify(buildIndex(photos), null, 2) + "\n", "utf-8");
+    console.log(`[sync] ${INDEX_OUTPUT} に書き込みました（${photos.length}枚ぶんの索引）`);
+    const { profiles: writtenProfiles, readFailures } = lastPublicProfiles();
+    fs.writeFileSync(PROFILE_OUTPUT, JSON.stringify(writtenProfiles, null, 2) + "\n", "utf-8");
+    for (const line of profileWriteNotes(PROFILE_OUTPUT, writtenProfiles, readFailures)) console.log(line);
 
     await writeLastSyncedCount(ddb, photos.length);
     await clearRebuildLock();
@@ -389,4 +497,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { checkWriteSafety, existingCount, readLastSyncedCount, writeLastSyncedCount, SYNC_STATS_ID, stripPrivateFields, PRIVATE_FIELDS, freshDisplayNames };
+module.exports = { checkWriteSafety, existingCount, readLastSyncedCount, writeLastSyncedCount, SYNC_STATS_ID, stripPrivateFields, PRIVATE_FIELDS, freshDisplayNames, buildIndex, publicProfileFields, lastPublicProfiles, profileWriteNotes };

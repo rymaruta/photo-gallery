@@ -19,7 +19,43 @@ import MiniPlayer from "./components/MiniPlayer";
 import { LocaleProvider } from "./i18n/context";
 import { siteConfig, generateWebSiteStructuredData, INDEXABLE_ROBOTS, FEED_ALTERNATE } from "../lib/utils/seo";
 
-const inter = Inter({ subsets: ["latin"], weight: ["400", "700", "900"], display: "swap" });
+/**
+ * **日本語の字体を宣言する。**
+ *
+ * `Inter` は日本語のグリフを持たない。生成されるクラスは
+ * `font-family: Inter, "Inter Fallback"` **だけ**で、総称ファミリ
+ * （`sans-serif`）が付かない。`globals.css` の
+ * `html, body { font-family: Arial, Helvetica, sans-serif }` は
+ * **クラスの方が詳細度が高いので効かない**（実ビルドの CSS で確認）。
+ *
+ * つまりこのサイトの本文（ほぼ全部が日本語）は**どのフォントも宣言されて
+ * いない**状態で、ブラウザの既定に落ちていた。既定は環境ごとに違う。
+ * 一方**ヘッダーだけは `.site-header__nav` で
+ * `"Noto Sans JP", system-ui, -apple-system, sans-serif` を宣言している**
+ * ので、同じページの中で見出しと本文の字体が割れうる。
+ *
+ * `fallback` に**そのヘッダーと同じ並び**を渡して揃える
+ * （`app/__tests__/fontStack.test.ts` が2つの一致を縛る）。
+ * **新しい字体を持ち込んでいない**——`Noto Sans JP` は端末に在れば使う
+ * 名前で、ここから webfont を落とすわけではない。
+ *
+ * **代償を測った。** `fallback` を渡すと Next は CLS 対策の
+ * `Inter Fallback`（Arial を Inter の字幅に合わせた面）を出さなくなる。
+ * 実ビルドをフォント 1.5 秒遅延で測った CLS は
+ * **元 0.0008 / 変更後 0.0006**＝誤差。本文がほぼ日本語で Inter が
+ * もともと当たらないため。
+ *
+ * ⚠️ **字体の見た目の差はこの環境では測れていない**（コンテナに CJK
+ * フォントが1つしか無く、serif と sans-serif が同じ幅になる）。
+ * 直したのは「総称ファミリも日本語の字体も宣言されていない」という
+ * CSS の側の事実。
+ */
+const inter = Inter({
+    subsets: ["latin"],
+    weight: ["400", "700", "900"],
+    display: "swap",
+    fallback: ["Noto Sans JP", "system-ui", "-apple-system", "sans-serif"],
+});
 
 // Instagram IAB / iOS Safari でブラウザUIを除いた実際の表示領域を使う
 // viewportFit=cover でノッチ・ホームインジケーター領域の safe-area-inset を有効化
@@ -27,6 +63,15 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // **`manifest.webmanifest` が `theme_color: "#000000"` を宣言しているのに、
+  // `<meta name="theme-color">` が1ページも無かった**（実ビルドで確認）。
+  // マニフェストの色が効くのは**インストール後**で、ブラウザで見ている間の
+  // ツールバーの色はこのメタタグが決める。真っ黒なサイトの上に既定の
+  // 明るいツールバーが乗っていた。
+  //
+  // **新しい色を決めていない**——マニフェストが既に宣言している色を、
+  // 閲覧中にも届くようにしただけ（`public/manifest.webmanifest` と同じ `#000000`）。
+  themeColor: "#000000",
 };
 
 // **OGP 画像はビルド時に決める（静的な `metadata` から関数に変えた理由）。**
@@ -121,17 +166,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           本体CSS（globals.css）が同じ値を指定するので、正常時の見た目は変わらない。
         */}
         <style dangerouslySetInnerHTML={{ __html: "html,body{background:#000;color:#fff;margin:0}" }} />
-        {/* 画像配信元(CloudFront)へ事前接続し、最初の画像の DNS+TLS 待ちを削減（LCP改善）。
-            **本番ドメインを直書きしない。** 直書きだった頃は staging の全ページが
-            開くたびに本番CDNへ無駄な接続を張り、実際の配信元（staging のCDN）には
-            preconnect が効かない——狙った LCP 改善が staging で再現しなかった。
-            未設定なら出さない（本番へフォールバックしない。CLAUDE.md の方針）。 */}
-        {process.env.NEXT_PUBLIC_CLOUDFRONT_URL ? (
-          <>
-            <link rel="preconnect" href={process.env.NEXT_PUBLIC_CLOUDFRONT_URL} crossOrigin="" />
-            <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_CLOUDFRONT_URL} />
-          </>
-        ) : null}
+        {/* **画像配信元への事前接続はもう出さない。**
+            以前はここで CloudFront の既定ドメインへ preconnect / dns-prefetch を
+            張っていた。「最初の画像の DNS+TLS 待ちを削る」ためだが、
+            **画面に描く画像URLを全部サイトのドメインに揃えた**ので
+            （`lib/utils/seo.ts` の `publicImageUrl`）、その接続は**一度も使われない**。
+            本番と同じ環境変数でビルドして数えた（2026-09-13）:
+
+                out/**.html の src/srcset の絶対URL   981件 すべて journey-photo.com
+                CloudFront の既定ドメインを指すタグ    preconnect と dns-prefetch だけ（140ページ）
+
+            使わない相手への preconnect は、削ろうとしていた当の
+            DNS+TLS を無駄に1本張る。画像はページと同じオリジンから来るので、
+            その接続はもう開いている＝事前接続の相手がいない。 */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteStructuredData).replace(/</g, "\\u003c").replace(/>/g, "\\u003e") }}
@@ -143,6 +190,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           1回だけ自動リロードする。lib/utils/assetRecovery.ts と同じキー・
           クールダウン（60秒）を共有するので二重リロードにはならない。
 
+          **別オリジンは対象にしない。** ここが「`<script>` なら何でも」だったので、
+          **広告ブロッカーが解析タグ（googletagmanager.com）を落とすだけで
+          ページが自分でリロードしていた**。実ブラウザで A/B して確認した:
+
+              GA が通る      読み込み 1回・リロードの印なし
+              GA をブロック   読み込み 2回・navigation の type が "reload"
+
+          **`lib/utils/assetRecovery.ts` の `isAssetElement` と同じ規則。**
+          写しが2つあるのは、こちらが**チャンクより先に**動く必要があるため
+          （React の部品では `<head>` の時点の失敗を拾えない）。
+          最初あちらだけ直したが、**先に登録されるこちらが発火し続けていた**
+          ——測って気づいた。突き合わせは
+          `app/__tests__/assetRecoveryInline.test.ts` が振る舞いで行う。
+
           error イベントだけでは取りこぼす経路が2つある:
           (1) <link rel=stylesheet> は Next が head の先頭に置くため、
               このスクリプトが動く前に error が発火しうる（キャッシュ済みの失敗など）
@@ -152,7 +213,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var KEY="jp_asset_reload_at";function rl(){var now=Date.now(),last=0;try{last=Number(sessionStorage.getItem(KEY)||0)}catch(x){return}if(last&&now-last<60000)return;try{sessionStorage.setItem(KEY,String(now))}catch(x){return}location.reload()}addEventListener("error",function(e){var t=e.target;if(!t||typeof t.tagName!=="string")return;var tag=t.tagName.toUpperCase();var isAsset=tag==="SCRIPT"||(tag==="LINK"&&String(t.rel||"").toLowerCase().indexOf("stylesheet")>-1);if(!isAsset)return;rl()},true);addEventListener("load",function(){try{var ls=document.querySelectorAll('link[rel~="stylesheet"]');if(!ls.length)return;for(var i=0;i<ls.length;i++){var s=ls[i].sheet;if(!s)continue;try{if(s.cssRules&&s.cssRules.length)return}catch(x){return}}rl()}catch(e){}})}catch(e){}})();`,
+            __html: `(function(){try{var KEY="jp_asset_reload_at";function rl(){var now=Date.now(),last=0;try{last=Number(sessionStorage.getItem(KEY)||0)}catch(x){return}if(last&&now-last<60000)return;try{sessionStorage.setItem(KEY,String(now))}catch(x){return}location.reload()}addEventListener("error",function(e){var t=e.target;if(!t||typeof t.tagName!=="string")return;var tag=t.tagName.toUpperCase();var url="";if(tag==="SCRIPT")url=t.src||"";else if(tag==="LINK"&&String(t.rel||"").toLowerCase().indexOf("stylesheet")>-1)url=t.href||"";else return;if(!url)return;var here=location.origin;if(!here)return;try{if(new URL(url,here).origin!==here)return}catch(x){return}rl()},true);addEventListener("load",function(){try{var ls=document.querySelectorAll('link[rel~="stylesheet"]');if(!ls.length)return;for(var i=0;i<ls.length;i++){var s=ls[i].sheet;if(!s)continue;try{if(s.cssRules&&s.cssRules.length)return}catch(x){return}}rl()}catch(e){}})}catch(e){}})();`,
           }}
         />
         {/*
@@ -212,9 +273,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-md border-b border-white/10">
                 <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
                 <div className="relative max-w-5xl mx-auto flex items-center justify-between h-[64px] md:h-[72px] px-6 md:px-8">
-                  <p className={`${inter.className} text-2xl md:text-3xl font-bold tracking-tight text-white m-0`}>
+                  {/* **文字を大きくしたときに譲る側。** `min-w-0` が無いと flex の
+                      既定（`min-width:auto`）で縮まず、文字サイズ200%でヘッダーが
+                      画面から 27px はみ出して**全ページが横スクロール**していた
+                      （実測。WCAG 1.4.10 は拡大時に横スクロールを出さないことを求める）。
+                      **100% では場所が余っているので見た目は変わらない。** */}
+                  <p className={`${inter.className} text-2xl md:text-3xl font-bold tracking-tight text-white m-0 min-w-0 truncate`}>
                     <Link
                       href="/"
+                      prefetch={false}
                       className="inline-block hover:opacity-70 transition-opacity duration-200 relative group"
                     >
                       <span className="relative z-10">Journey Photo</span>

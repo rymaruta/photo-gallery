@@ -12,17 +12,17 @@ import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
 import { hapticTap } from "../../../lib/utils/haptics";
 import { photoAltText } from "../../../lib/utils/photoAlt";
 import { dropCachedPhoto } from "../../../lib/utils/photoCache";
-import { parseMusicEmbed } from "../../../lib/utils/music";
+import { parseMusicEmbed, isYouTubeMvUrl } from "../../../lib/utils/music";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { type SongEntry } from "../../music/MusicContext";
 import MusicCard from "../../components/MusicCard";
 import SongArtwork from "../../components/SongArtwork";
-import { MusicalNoteIcon, XMarkIcon, MapPinIcon, CameraIcon } from "@heroicons/react/24/outline";
+import { MusicalNoteIcon, XMarkIcon, MapPinIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../../auth/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { shareUrl, copyToClipboard, shareToTwitter, shareToLine } from "../../../lib/utils/share";
 import { siteConfig, generatePhotoStructuredData, generateBreadcrumbStructuredData } from "../../../lib/utils/seo";
-import { slugify, collectionPath } from "../../../lib/utils/collections";
+import { slugify, collectionPath, categoryLabel } from "../../../lib/utils/collections";
 import ProfileLink from "../../components/ProfileLink";
 import RelatedPhotos from "../../components/RelatedPhotos";
 import CommentSection from "../../components/CommentSection";
@@ -34,11 +34,13 @@ import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
 import { isImageReady } from "../../../lib/utils/imageReady";
-import { formatStoredDateTime } from "@/lib/utils/photoDate";
+import ExifSpecs, { buildExifSpecs } from "../../components/ExifSpecs";
 import { isImeKey } from "../../../lib/utils/ime";
 import { useSongSearch } from "../../../lib/hooks/useSongSearch";
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import { sessionErrorMessage } from "../../../lib/utils/api";
+import { publicImageUrl } from "@/lib/utils/seo";
+import SongSearchError from "../../components/SongSearchError";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -217,11 +219,22 @@ function PhotoImage({
                 </div>
             )}
             <div className="relative w-full" style={{ minHeight: reserve, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {/* AVIF があれば優先（詳細=LCP を軽く）、無ければ従来 src(WebP) にフォールバック */}
+                {/* AVIF があれば優先（詳細=LCP を軽く）、無ければ従来 src(WebP) にフォールバック。
+                    **出すURLはここで揃える**（`publicImageUrl`）——保存されている値は
+                    CloudFront の既定ドメインで書かれる（api-user の `canonicalUploadUrl` が
+                    `CLOUDFRONT_URL` を土台にする）ので、そのまま描くとサイトのドメインと
+                    2つのホストに割れる。**呼ぶ側ではなく部品の中で揃える**——ここは
+                    検索の着地点の LCP で、AVIF を出す端末が実際に取りに行くのは
+                    `<source>` の方。呼ぶ側で `src` だけ包んでいた間、AVIF は生のままだった。
+                    ⚠️ **手元のビルドでは確かめられない**——コミットしてある
+                    `app/data/photos.json` は古い断面で、30枚すべて派生
+                    （`srcAvif`・`thumbSrc` …）を持たないので `<source>` が1つも出ない。
+                    本番に派生が揃っていることは 2026-09-05 の `diagnose-image-perf`
+                    の実測（公開32枚すべてにサムネ・AVIF3種）による */}
                 <picture className="w-full flex items-center justify-center">
-                    {srcAvif && <source type="image/avif" srcSet={srcAvif} />}
+                    {srcAvif && <source type="image/avif" srcSet={publicImageUrl(srcAvif)} />}
                     <img
-                        src={src}
+                        src={publicImageUrl(src)}
                         alt={alt}
                         // **実寸が分かるときだけ名乗る。** 以前は全写真が
                         // `1200x800`（3:2）を名乗っていたので、縦位置の写真は
@@ -369,6 +382,15 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     const [ytSaving, setYtSaving] = useState(false);
     const mvEmbed = useMemo(() => (photoYtUrl ? parseMusicEmbed(photoYtUrl) : null), [photoYtUrl]);
     const savePhotoYoutube = async (url: string | null) => {
+        // **送る前に断る。** サーバーは合わなければ 400「不正なYouTube URLです」を
+        // 返すが、画面は `!ytInput.trim()` しか見ていなかったので、Vimeo の
+        // リンクや `abc` を貼ると**必ず往復1回ぶん無駄にしてから**同じ文言が出る。
+        // **文言はサーバーと同じものを使う**（利用者から見た結果を変えない）。
+        // 見た目も変えない——新しい注意書きは置かず、押したときの手応えだけ早くする。
+        if (url !== null && !isYouTubeMvUrl(url)) {
+            showToast(locale === "en" ? "Not a valid YouTube URL" : "不正なYouTube URLです", "error");
+            return;
+        }
         setYtSaving(true);
         try {
             const { userFetch, readApiError } = await import("../../../lib/utils/api");
@@ -579,6 +601,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     </p>
                     <Link
                         href="/"
+                        prefetch={false}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
                         style={{ 
                             touchAction: "manipulation",
@@ -597,11 +620,25 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     const titleText = getLocalized(photo.title, locale) || (typeof photo.title === "string" ? photo.title : "");
     // **画像検索が見るのはこの1枚。** 撮影地まで入れる（`photoAlt.ts`）
     const altText = photoAltText(photo, locale);
-    // もう一方の言語のテキスト。視覚非表示(sr-only)で静的HTMLに含め、
-    // 日英どちらの検索クエリでも拾えるようにする（既定SSRは ja のため主に英語が対象）
-    const otherLocale: "ja" | "en" = locale === "ja" ? "en" : "ja";
-    const otherTitle = getLocalized(photo.title, otherLocale);
-    const otherParagraphs = getLocalizedParagraphs(photo.description, otherLocale);
+    // **もう一方の言語の本文は出さない。**
+    //
+    // 以前はここで英語の題と説明を組み、`sr-only` で静的HTMLに焼いていた
+    // （コメントは「視覚非表示・検索エンジン向け」）。実ビルドで **28/30
+    // ページ**に入っていた。やめる理由:
+    //
+    //   1. **英語のページが存在しない。** `locale` は `ja` 固定で切替は
+    //      `6d72bfb` で撤去済み。英語の検索から来た人は日本語のページに
+    //      着地する。同じ理由で `og:locale:alternate`（I18N-2）・
+    //      JSON-LD の説明・画像サイトマップの日英併記も外してある
+    //   2. **利用者が消せない。** `app/user/edit/page.tsx` が既に書いている
+    //      とおり、**英語を編集・削除する画面はどこにも無い**（この画面も
+    //      `/admin/edit` も日本語欄しか描かない）。日本語を消しても英訳が
+    //      残る形を「消した方を優先する」で潰したのに、**その英訳を
+    //      画面に出し続けていた**
+    //   3. 見えない文字を検索エンジンのためだけに置くのは、Google が
+    //      「隠しテキスト」として名指ししている形に当たる
+    //
+    // **題の英語は捨てていない**——`ImageObject.alternateName` が持つ。
     const locationText = typeof photo.location === "string" ? photo.location : "";
     const paragraphs = getLocalizedParagraphs(photo.description, locale);
 
@@ -646,7 +683,9 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     };
 
     // カテゴリ表示名の取得
-    const categoryDisplayName = photo ? (labels.category?.names?.[photo.category ?? ""] ?? photo.category ?? "") : "";
+    // **鍵はスラッグ。** 生の値で引くと、別名で保存された写真だけ
+    // 表に当たらず生のまま出る（「建物」と出して「建築の写真」へ飛ぶ）
+    const categoryDisplayName = photo ? categoryLabel(photo.category, labels.category?.names ?? {}) : "";
 
     return (
         <>
@@ -669,6 +708,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                 <div className="flex-1">
                     <Link
                         href="/"
+                        prefetch={false}
                         className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-2"
                         style={{ 
                             touchAction: "manipulation",
@@ -710,9 +750,13 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                         （自己紹介・説明と同じ。実測で幅375pxの55文字から超える） */}
                     <h1 className="text-2xl sm:text-3xl font-bold mb-2.5 break-words">{titleText}</h1>
                     {categoryDisplayName && photo.category && (
-                        // カテゴリの集約ページへ（内部リンク＝SEO・回遊）
+                        // カテゴリの集約ページへ（内部リンク＝SEO・回遊）。
+                        // **先読みしない**（理由と実測は `app/components/GalleryGrid.tsx` の
+                        // カードのコメント。静的書き出し＋`no-store` 配信なので、画面に
+                        // 入るたびに行き先を丸ごと落とし直す）
                         <Link
                             href={collectionPath("category", slugify(photo.category, "category"))}
+                            prefetch={false}
                             className="inline-flex items-center px-2.5 py-1 rounded-full bg-white/10 ring-1 ring-white/10 text-xs text-white/70 hover:bg-white/20 hover:text-white transition-colors"
                             style={{ touchAction: "manipulation" }}
                         >
@@ -728,16 +772,6 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                             <p key={i} className={i === 0 ? "" : "mt-3"}>
                                 {line}
                             </p>
-                        ))}
-                    </div>
-                )}
-
-                {/* 他言語のタイトル/説明（視覚非表示・検索エンジン向け。見た目は不変） */}
-                {((otherTitle && otherTitle !== titleText) || (otherParagraphs.length > 0 && otherParagraphs.join(" ") !== paragraphs.join(" "))) && (
-                    <div className="sr-only" lang={otherLocale}>
-                        {otherTitle && otherTitle !== titleText && <p>{otherTitle}</p>}
-                        {otherParagraphs.join(" ") !== paragraphs.join(" ") && otherParagraphs.map((line, i) => (
-                            <p key={i}>{line}</p>
                         ))}
                     </div>
                 )}
@@ -771,6 +805,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                         {mapHash && (
                             <Link
                                 href={`${ROUTES.MAP}${mapHash}`}
+                                prefetch={false}
                                 className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-sm text-white/60 hover:bg-white/10 hover:text-white transition-colors"
                                 style={{ touchAction: "manipulation" }}
                             >
@@ -779,7 +814,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                         )}
                         {/* 同じ場所の集約ページへ（内部リンク） */}
                         <Link
-                            href={collectionPath("location", slugify(locationText))}
+                            href={collectionPath("location", slugify(locationText, "location"))}
+                            prefetch={false}
                             className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-sm text-white/60 hover:bg-white/10 hover:text-white transition-colors"
                             style={{ touchAction: "manipulation" }}
                         >
@@ -792,9 +828,13 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                 {(photo.tags?.length ?? 0) > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                         {(photo.tags ?? []).map((tag) => (
+                            // **先読みしない。** 一覧で何本も出るリンクなので、画面に入るたびに
+                            // 行き先の RSC の控え（`no-store` 配信）を落とし直す。理由と実測は
+                            // `app/components/GalleryGrid.tsx` のカードのコメントに書いた
                             <Link
                                 key={tag}
-                                href={collectionPath("tag", slugify(tag))}
+                                href={collectionPath("tag", slugify(tag, "tag"))}
+                                prefetch={false}
                                 className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors"
                                 style={{ touchAction: "manipulation" }}
                             >
@@ -825,12 +865,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     </div>
                 )}
 
-                {/* EXIF情報: カメラのスペックシート風カード（ラベル上・値下の2列グリッド） */}
+                {/* EXIF情報: カメラのスペックシート風カード（ラベル上・値下の2列グリッド）。
+                    **組み立てと見た目は `ExifSpecs` に出した**——モーダルが同じ値を
+                    中黒でつないだ1行で出していて、どの数字が何なのか読めなかった。
+                    ここに直書きしたままだと、片方だけ直して静かにずれる */}
                 {(() => {
-                    const specs: Array<{ label: string; value: string; wide?: boolean; href?: string }> = [];
-                    const add = (label: string, value: string | number | undefined | null, wide = false, href?: string) => {
-                        if (value !== undefined && value !== null && `${value}`.trim() !== "") specs.push({ label, value: `${value}`, wide, href });
-                    };
                     // **機種名からその機材の一覧へ行けるようにする。**
                     // 撮影地・カテゴリ・タグは前から集約ページへ繋いであるのに、
                     // カメラだけ行き止まりだった。sitemap に載せても内部リンクが
@@ -847,48 +886,13 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     // になる（`dynamicParams = false`）。実データで公開30枚中3枚が
                     // 保存済み exif を持たない。
                     const storedCamera = dedupeCameraName(photo.exif?.camera);
-                    add(locale === "en" ? "Camera" : "カメラ", mergedExif.camera, false,
-                        storedCamera ? collectionPath("camera", slugify(storedCamera, "camera")) : undefined);
-                    add(locale === "en" ? "Lens" : "レンズ", mergedExif.lens);
-                    add(locale === "en" ? "Aperture" : "絞り", mergedExif.aperture);
-                    add(locale === "en" ? "Shutter" : "シャッター速度", mergedExif.exposure);
-                    add("ISO", mergedExif.iso);
-                    add(locale === "en" ? "Focal Length" : "焦点距離", mergedExif.focalLength);
-                    add(locale === "en" ? "White Balance" : "ホワイトバランス", mergedExif.whiteBalance);
-                    add(locale === "en" ? "Image Size" : "画像サイズ", mergedExif.imageSize);
-                    // 撮影日時は**保存されている通り**に出す。toLocaleString を
-                    // 描画中に呼んでいた頃は、ビルド(UTC)と閲覧者のゾーンで
-                    // 文字列が食い違ってハイドレーション不一致になり、しかも
-                    // 日付だけの値（"2024-10-12"）が UTC 0時として読まれるため
-                    // ニューヨークからは前日と表示されていた。
-                    const shotAt = formatStoredDateTime(mergedExif.dateTimeOriginal, locale === "en" ? "en" : "ja");
-                    if (shotAt) {
-                        add(locale === "en" ? "Date Taken" : "撮影日時", shotAt, true);
-                    }
-                    if (specs.length === 0) return null;
+                    const cameraHref = storedCamera ? collectionPath("camera", slugify(storedCamera, "camera")) : undefined;
                     return (
-                        <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 max-w-md">
-                            <div className="flex items-center gap-1.5 mb-3">
-                                <CameraIcon className="w-3.5 h-3.5 text-white/50" />
-                                <span className="text-[11px] tracking-widest uppercase text-white/50">
-                                    {locale === "en" ? "Camera Settings" : "撮影情報"}
-                                </span>
-                            </div>
-                            <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
-                                {specs.map((s) => (
-                                    <div key={s.label} className={s.wide ? "col-span-2" : ""}>
-                                        <dt className="text-[10px] uppercase tracking-wider text-white/50">{s.label}</dt>
-                                        <dd className="text-[13px] text-white/85 mt-0.5 break-words">
-                                            {/* リンクにするのは行き先がある項目だけ。
-                                                見た目（大きさ・色）は変えず、下線だけで示す */}
-                                            {s.href
-                                                ? <Link href={s.href} className="underline decoration-white/30 underline-offset-2 hover:decoration-white/70">{s.value}</Link>
-                                                : s.value}
-                                        </dd>
-                                    </div>
-                                ))}
-                            </dl>
-                        </div>
+                        <ExifSpecs
+                            specs={buildExifSpecs(mergedExif, locale, cameraHref)}
+                            locale={locale}
+                            className="max-w-md"
+                        />
                     );
                 })()}
 
@@ -964,9 +968,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                         </button>
                                     </div>
                                     {songSearchError && (
-                                        <p className="text-xs text-amber-400/80">
-                                            {locale === "en" ? "Search failed. Try again." : "検索に失敗しました。もう一度お試しください。"}
-                                        </p>
+                                        <SongSearchError />
                                     )}
                                     {songResults.length > 0 && (
                                         <ul className="rounded-lg ring-1 ring-white/10 divide-y divide-white/5 overflow-hidden max-h-56 overflow-y-auto no-scrollbar">
@@ -1019,6 +1021,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                         {isOwnPhoto && (
                             <Link
                                 href={ROUTES.EDIT(photoId)}
+                                prefetch={false}
                                 className="inline-flex items-center gap-1.5 self-start px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/60 hover:bg-white/10 hover:text-white transition-colors"
                                 style={{ touchAction: "manipulation" }}
                             >
@@ -1037,6 +1040,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                     placeholder={photoYtUrl
                                         ? (locale === "en" ? "Change YouTube MV link" : "YouTube MV リンクを変更")
                                         : (locale === "en" ? "Paste a YouTube link for full playback" : "YouTubeリンクを貼るとフル再生MVに")}
+                                    // **サーバーは 500 文字で切る**（`isValidYouTubeUrl` の
+                                    // `raw.trim().slice(0, 500)`）。上限が無いと、500 を
+                                    // またぐ長さで画面とサーバーの答えが割れる。
+                                    // プロフィールの曲のリンク欄は既に 500 なので揃える
+                                    maxLength={500}
                                     className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
                                     style={{ fontSize: "16px" }}
                                 />
@@ -1189,6 +1197,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                             {related.prev ? (
                                 <Link
                                     href={ROUTES.PHOTO(related.prev.id)}
+                                    prefetch={false}
                                     data-photo-id={related.prev.id}
                                     className="flex-1 inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 active:scale-[0.99] transition min-w-0"
                                     style={{ touchAction: "manipulation" }}
@@ -1203,6 +1212,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                             {related.next ? (
                                 <Link
                                     href={ROUTES.PHOTO(related.next.id)}
+                                    prefetch={false}
                                     data-photo-id={related.next.id}
                                     className="flex-1 inline-flex items-center justify-end gap-2 px-4 py-3 rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 active:scale-[0.99] transition min-w-0 text-right"
                                     style={{ touchAction: "manipulation" }}

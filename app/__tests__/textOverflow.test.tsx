@@ -22,7 +22,10 @@ const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
 describe("長い文字列で横に流れない", () => {
     it("プロフィールの自己紹介", () => {
         const src = read("app/users/UserProfileClient.tsx");
-        const line = src.split("\n").find((l) => l.includes("{userProfile.bio}"));
+        // 目印は `757c90b3` で `{userProfile.bio}` から変わった（届く前は
+        // ビルド時の控えを出すので、式を `shownBio` 1つにまとめた）。
+        // **見ているものは同じ**——自己紹介を描く行に `break-words` があること
+        const line = src.split("\n").find((l) => l.includes("{shownBio}</p>"));
         expect(line, "自己紹介を描く行が見つからない").toBeDefined();
         expect(line, "break-words が無い（長い URL でページごと横に流れる）").toContain("break-words");
     });

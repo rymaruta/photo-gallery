@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
+import { usernameLengthError, USERNAME_MAX } from "../../../lib/utils/usernameRule";
 import { userFetch, readApiError, sessionErrorMessage } from "../../../lib/utils/api";
 import { changedFields } from "../../../lib/utils/changedFields";
 import { sanitizeProfile } from "../../../lib/utils/profileShape";
@@ -22,6 +23,8 @@ import DeleteAccountModal from "../../components/DeleteAccountModal";
 import BlockedUsers from "./BlockedUsers";
 import SongArtwork from "../../components/SongArtwork";
 import { loginWithNext } from "../../../lib/routes";
+import { publicImageUrl } from "@/lib/utils/seo";
+import SongSearchError from "../../components/SongSearchError";
 
 type SongEntry = {
     title: string;
@@ -464,6 +467,17 @@ export default function ProfileEditPage() {
         //  - 曲(検索)があれば表示は曲を優先（UserProfileClient 側で判定）
         //  - リンクはそのまま保持され、曲を消すとリンクが使われる
         const trimmedUrl = songUrl.trim();
+        // **@名の長さも、送る前に確かめる。** 画面は `maxLength` で**上限だけ**
+        // 縛り、**下限3文字を一切見ていなかった**。`ab` のまま保存すると
+        // サーバーは**書き込みの前に** 400 を返す（`userProfile.ts:522`）ので、
+        // **同じ保存に乗せた自己紹介・表示名・テーマ色も1件も保存されない**。
+        // すぐ下の曲のリンクと同じ形に揃える（文言はサーバーと同じもの）。
+        // 予約語はサーバーだけが持つ一覧なので、こちらには写さない。
+        const nameError = usernameLengthError(username, locale !== "en");
+        if (nameError) {
+            showToast(nameError, "error");
+            return;
+        }
         if (trimmedUrl && !parseMusicEmbed(trimmedUrl)) {
             showToast(locale === "en"
                 ? "Song link must be Spotify, YouTube, or Apple Music."
@@ -619,17 +633,27 @@ export default function ProfileEditPage() {
     if (loading || fetching) {
         return (
             <main className="min-h-screen bg-black text-white flex items-center justify-center">
+                {/* **事前描画で焼かれるのはこの枝**（認証を確かめる前）。
+                    JS が走る前に見えるのはここなので見出しを持たせる */}
+                <h1 className="sr-only">プロフィール編集</h1>
                 <div className="w-10 h-10 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
             </main>
         );
     }
 
     const currentAvatarUrl = profile?.userId && CLOUDFRONT_URL
-        ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}`
+        ? publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}`)
         : null;
     const currentCoverUrl = profile?.userId && CLOUDFRONT_URL
-        ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}/cover`
+        ? publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}/cover`)
         : null;
+
+    // **ボタンの名前を状態で分けるための旗。** 描き分けの式と同じ材料から
+    // 作る（`src` の式そのものは触らない——`imageOriginSites.test.ts` の
+    // 免除一覧が式の綴りで突き合わせているので、`!` を足すだけで落ちる。
+    // 実際に落として気づいた）。**片方だけずれる変異は、対テストが
+    // 「出ている絵」と「名前の言葉」を突き合わせて捕まえる**
+    const hasCover = !!coverPreview || (!!currentCoverUrl && !coverError);
 
     const inputClass = "w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors";
     const labelClass = "block text-xs text-white/50 mb-1.5 tracking-wide";
@@ -666,10 +690,21 @@ export default function ProfileEditPage() {
                 {/* カバー写真 */}
                 <div className="mb-6">
                     <p className={labelClass}>{locale === "en" ? "Cover photo" : "カバー写真"}</p>
+                    {/* **カバーを一度でも設定すると、このボタンは名前を失う。**
+                        中身は `alt=""` の `<img>` とアイコンだけになるので、
+                        読み上げでは「ボタン」としか言われない（未設定のときだけ
+                        「カバー写真を追加」の文字が中にある）。**すぐ下の
+                        アバターのボタンは前から `aria-label` を持っている**
+                        ——対になっている片方だけ漏れていた。
+                        文言は見えている文字と食い違わないよう状態で分ける
+                        （未設定のときは中の文字と同じ「追加」）。 */}
                     <button
                         type="button"
                         onClick={() => coverInputRef.current?.click()}
                         disabled={coverUploading}
+                        aria-label={hasCover
+                            ? (locale === "en" ? "Change cover photo" : "カバー写真を変更")
+                            : (locale === "en" ? "Add cover photo" : "カバー写真を追加")}
                         className="relative w-full h-28 rounded-lg overflow-hidden bg-white/5 border border-white/10 hover:border-white/30 transition-colors group"
                     >
                         {coverPreview ? (
@@ -742,12 +777,13 @@ export default function ProfileEditPage() {
 
                 <div className="space-y-5">
                     <div>
-                        <label className={labelClass}>
+                        <label className={labelClass} htmlFor="profile-username">
                             {locale === "en" ? "Username" : "ユーザー名"}
                         </label>
                         <div className="flex items-center gap-1.5">
                             <span className="text-white/50 text-sm">@</span>
                             <input
+                                id="profile-username"
                                 type="text"
                                 value={username}
                                 // **変換中は書き換えない。** 毎打鍵で値を作り直すと
@@ -764,15 +800,18 @@ export default function ProfileEditPage() {
                                 }}
                                 onChange={e => setUsername(
                                     usernameComposing.current ? e.target.value : cleanUsername(e.target.value))}
-                                maxLength={20}
+                                maxLength={USERNAME_MAX}
                                 placeholder="travel_photo"
                                 className={inputClass}
                                 autoCapitalize="none"
                                 autoCorrect="off"
                                 spellCheck={false}
+                                // **使える文字と長さは、この文にしか書いていない。**
+                                // 結ばないと読み上げに届かず、打っても入らない理由が分からない
+                                aria-describedby="profile-username-rule"
                             />
                         </div>
-                        <p className="text-[11px] text-white/50 mt-1">
+                        <p id="profile-username-rule" className="text-[11px] text-white/50 mt-1">
                             {locale === "en"
                                 ? "Lowercase letters, numbers and _ (3-20). Shown under your name."
                                 : "英小文字・数字・_ の3〜20文字。プロフィールの名前の下に表示されます。"}
@@ -780,10 +819,11 @@ export default function ProfileEditPage() {
                     </div>
 
                     <div>
-                        <label className={labelClass}>
+                        <label className={labelClass} htmlFor="profile-display-name">
                             {locale === "en" ? "Display name" : "表示名"}
                         </label>
                         <input
+                            id="profile-display-name"
                             type="text"
                             value={displayName}
                             onChange={e => setDisplayName(e.target.value)}
@@ -794,10 +834,11 @@ export default function ProfileEditPage() {
                     </div>
 
                     <div>
-                        <label className={labelClass}>
+                        <label className={labelClass} htmlFor="profile-bio">
                             {locale === "en" ? "Bio" : "自己紹介"}
                         </label>
                         <textarea
+                            id="profile-bio"
                             value={bio}
                             onChange={e => setBio(e.target.value)}
                             maxLength={300}
@@ -810,10 +851,12 @@ export default function ProfileEditPage() {
 
 
                     <div>
-                        <label className={labelClass}>
+                        {/* **ここは `<label>` にしない。** 中身は見本の丸ボタンの集まりで、
+                            `<label>` は単一の部品にしか結べない。見出しとして結ぶ */}
+                        <p className={labelClass} id="profile-theme-color">
                             {locale === "en" ? "Theme color" : "テーマカラー"}
-                        </label>
-                        <div className="flex flex-wrap items-center gap-2.5">
+                        </p>
+                        <div role="group" aria-labelledby="profile-theme-color" className="flex flex-wrap items-center gap-2.5">
                             {THEME_COLOR_PRESETS.map((c) => (
                                 <button
                                     key={c}
@@ -863,10 +906,11 @@ export default function ProfileEditPage() {
                     </div>
 
                     <div>
-                        <label className={labelClass}>Instagram</label>
+                        <label className={labelClass} htmlFor="profile-instagram">Instagram</label>
                         <div className="flex items-center">
                             <span className="text-white/50 text-sm px-3 py-3 bg-white/5 border border-r-0 border-white/10 rounded-l-lg">@</span>
                             <input
+                                id="profile-instagram"
                                 type="text"
                                 value={instagram}
                                 onChange={e => setInstagram(e.target.value.replace(/^@/, ""))}
@@ -878,10 +922,11 @@ export default function ProfileEditPage() {
                     </div>
 
                     <div>
-                        <label className={labelClass}>
+                        <label className={labelClass} htmlFor="profile-website">
                             {locale === "en" ? "Website" : "ウェブサイト"}
                         </label>
                         <input
+                            id="profile-website"
                             type="url"
                             value={website}
                             onChange={e => setWebsite(e.target.value)}
@@ -960,9 +1005,7 @@ export default function ProfileEditPage() {
                                 </div>
 
                                 {searchError && (
-                                    <p className="text-xs text-amber-400/80">
-                                        {locale === "en" ? "Search failed. Try again." : "検索に失敗しました。もう一度お試しください。"}
-                                    </p>
+                                    <SongSearchError />
                                 )}
 
                                 {songResults.length > 0 && (
@@ -1047,8 +1090,9 @@ export default function ProfileEditPage() {
                                                 <>
                                                     <div className="flex items-center gap-2">
                                                         <div className="flex-1">
-                                                            <label className="block text-[11px] text-white/50 mb-1">{locale === "en" ? "Start (m:ss)" : "開始 (m:ss)"}</label>
+                                                            <label className="block text-[11px] text-white/50 mb-1" htmlFor="profile-song-start">{locale === "en" ? "Start (m:ss)" : "開始 (m:ss)"}</label>
                                                             <input
+                                                                id="profile-song-start"
                                                                 type="text"
                                                                 inputMode="numeric"
                                                                 value={songStartText}
@@ -1059,8 +1103,9 @@ export default function ProfileEditPage() {
                                                             />
                                                         </div>
                                                         <div className="flex-1">
-                                                            <label className="block text-[11px] text-white/50 mb-1">{locale === "en" ? "End (m:ss)" : "終了 (m:ss)"}</label>
+                                                            <label className="block text-[11px] text-white/50 mb-1" htmlFor="profile-song-end">{locale === "en" ? "End (m:ss)" : "終了 (m:ss)"}</label>
                                                             <input
+                                                                id="profile-song-end"
                                                                 type="text"
                                                                 inputMode="numeric"
                                                                 value={songEndText}

@@ -21,6 +21,19 @@ type FakeMarker = {
     bindPopup: (el: HTMLElement, o: Record<string, unknown>) => FakeMarker;
     getPopup: () => { update: ReturnType<typeof vi.fn> };
 };
+// **配信のホストを先に決める。** `lib/utils/seo.ts` の `CDN_HOST` は
+// モジュール読み込み時に `NEXT_PUBLIC_CLOUDFRONT_URL` から決まるので、
+// import より前（= `vi.hoisted`）で入れないと「揃える」経路に入らない。
+// 既存のフィクスチャは `https://cdn/...` で、ここで決めるホストとは別物
+// ——揃える対象にならないので、他のテストの見え方は変わらない。
+const ORIGINS = vi.hoisted(() => {
+    const cdn = "https://cdn-default.invalid";
+    const site = "https://site.invalid";
+    process.env.NEXT_PUBLIC_CLOUDFRONT_URL = cdn;
+    process.env.NEXT_PUBLIC_SITE_URL = site;
+    return { cdn, site };
+});
+
 const state = vi.hoisted(() => ({
     markers: [] as FakeMarker[], zoom: 4, center: [36, 138] as [number, number],
     zoomControl: null as unknown, mapOpts: null as Record<string, unknown> | null,
@@ -355,5 +368,22 @@ describe("動きを減らす設定", () => {
         await draw([photo("a"), photo("b", { coords: { lat: 35.6, lng: 139.9 } })]);
         state.markers.find((m) => m.kind === "marker")?.clickHandler?.();
         expect(state.fitOpts?.animate, "true を渡すと Leaflet の安全弁が外れる").toBeUndefined();
+    });
+});
+
+// 地図のポップアップのサムネは `document.createElement("img")` で組む＝
+// JSX の入口を数えるテスト（`app/__tests__/imageOriginSites.test.ts`）から
+// 見えない場所。ここで描画として見る。
+describe("ポップアップのサムネのURL", () => {
+    it("配信の既定ドメインで保存された写真も、サイトのドメインで出す", async () => {
+        await draw([photo("a", { thumbSrc: `${ORIGINS.cdn}/uploads/a_512.webp` })]);
+        const img = state.markers[0].popup?.querySelector("img");
+        expect(img?.getAttribute("src")).toBe(`${ORIGINS.site}/uploads/a_512.webp`);
+    });
+
+    it("知らないホストの写真は触らない", async () => {
+        await draw([photo("b", { thumbSrc: "https://example.org/x.webp" })]);
+        const img = state.markers[0].popup?.querySelector("img");
+        expect(img?.getAttribute("src")).toBe("https://example.org/x.webp");
     });
 });

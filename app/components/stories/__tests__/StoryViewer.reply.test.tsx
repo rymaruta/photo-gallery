@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { StoryGroup } from "@/lib/stories";
@@ -65,6 +65,17 @@ const replyPosts = () => mockUserFetch.mock.calls.filter(
 
 beforeEach(() => {
     mockUserFetch.mockReset().mockResolvedValue({ ok: true, json: async () => ({}) });
+});
+
+// **テストは、自分が始めた要求を自分で着地させてから終わること。**
+// `StoryViewer.keep.test.tsx` と同じ見張り（あちらは、着地しなかった POST が
+// 次のテストの件数に入って**本番の Deploy Site を1回落とした**）。
+// 返信の側も「保留した応答を release して、待たずに終える」形を2つ持つ。
+afterEach(async () => {
+    const before = mockUserFetch.mock.calls.length;
+    await new Promise((r) => setTimeout(r, 20));
+    const late = mockUserFetch.mock.calls.slice(before).map((c) => String(c[0]));
+    expect(late, "テストが終わったあとに要求が着地している（次のテストの件数に入る）").toEqual([]);
 });
 
 describe("ストーリーへの返信（見る側）", () => {

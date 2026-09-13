@@ -36,3 +36,45 @@ describe("E2E スモークが引く目印", () => {
             .toContain('data-e2e="menu-toggle"');
     });
 });
+
+/**
+ * **集約ページを、本番のスモークが一度も開いていなかった。**
+ *
+ * 生成の **86/140** が集約ページ（タグ／カテゴリ／撮影地／機材）で、
+ * 検索から人が着地する側でもある。そこをスモークが見ていないと、
+ * **静的HTMLは出るのに水和後にサムネが消える**形（サーバーが渡す props を
+ * 絞りすぎた、など）が本番まで通ってしまう。
+ *
+ * 2026-09-12 に実際にその props を絞った（`slimForGrid`）。単体テストは
+ * 「何を渡すか」を縛るが、**配線が壊れた場合は捕まえられない**。
+ *
+ * ここで固定するのは「スモークが集約ページを開き、水和後に数えること」。
+ */
+describe("E2E スモークが見る範囲", () => {
+    const script = read("scripts/e2e-smoke.mjs");
+
+    it("集約ページ（/tag/…）を開く", () => {
+        expect(script, "集約ページを一度も開いていない").toContain("/tag/");
+    });
+
+    it("水和のあとに写真の数を数える（静的HTMLだけ見ない）", () => {
+        expect(script).toContain("集約ページ: ハイドレーション完了");
+        expect(script, "写真が並ぶことを見ていない").toContain("集約ページ: 写真が並ぶ");
+        expect(script, "壊れた画像を見ていない").toContain("集約ページ: 壊れた画像が無い");
+        expect(script, "写真へのリンクを見ていない").toContain("集約ページ: 写真へのリンクがある");
+    });
+
+    // **空枠は開かない**（写真0件のビルドを通すための `_none.html`）。
+    // プロフィール側が同じ理由で除いている
+    it("空枠（_none.html）は開かない", () => {
+        const tagBlock = script.slice(script.indexOf("const tagDir"), script.indexOf("const realErrors"));
+        expect(tagBlock, "空枠を実在ページとして開いている").toContain('f !== "_none.html"');
+    });
+
+    // **生成が無い環境（写真0件の staging）で落とさない**
+    it("集約ページが1つも無ければ飛ばす", () => {
+        const tagBlock = script.slice(script.indexOf("const tagDir"), script.indexOf("const realErrors"));
+        expect(tagBlock).toContain("tags.length > 0");
+        expect(tagBlock, "ディレクトリが無い環境で落ちる").toContain("fs.existsSync(tagDir)");
+    });
+});

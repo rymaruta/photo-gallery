@@ -29,6 +29,8 @@ vi.stubEnv("USERS_TABLE", "users-test");
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mod: any = await import("../sync-photos-from-ddb.js");
 const freshDisplayNames = mod.freshDisplayNames ?? mod.default?.freshDisplayNames;
+const lastPublicProfiles = mod.lastPublicProfiles ?? mod.default?.lastPublicProfiles;
+const profileWriteNotes = mod.profileWriteNotes ?? mod.default?.profileWriteNotes;
 
 const ddb = { send: mockSend };
 const photo = (id: string, userId: string, displayName?: string) =>
@@ -144,7 +146,7 @@ describe("ビルド時に、写真の表示名を users テーブルの今の値
             await freshDisplayNames(ddb, [photo("p1", "u1", "同じ名前")]);
             const lines = log.mock.calls.map((c) => String(c[0]));
             expect(lines.join("\n"), "無言だと『0件』と『引けていない』を区別できない")
-                .toMatch(/投稿者 1人 \/ 見つかった 1人 \/ 更新 0件/);
+                .toMatch(/投稿者 1人 \/ 見つかった 1人 \/ 読めなかった 0人 \/ 更新 0件/);
         } finally { log.mockRestore(); }
     });
 
@@ -244,3 +246,85 @@ describe("Deploy Site が users テーブル名をビルドへ渡す", () => {
             .toMatch(/USERS_TABLE:\s*\$\{\{\s*needs\.config\.outputs\.usersTable\s*\}\}/);
     });
 });
+
+/**
+ * **プロフィールは「古いまま」ではなく「消える」。**
+ *
+ * `app/data/profiles.json` は毎ビルド作り直す（git に入っているのは `{}`）。
+ * 表示名は読めなくても写真の行に前の値が残るが、**プロフィールには
+ * 前の値が無い**ので、読めなかった回はそのビルドから自己紹介・website・
+ * Instagram が消える。非対称なのに扱いが同じで、
+ * **for 全体を try で包んでいたので1人でも落ちれば全員ぶんが空**だった。
+ */
+describe("プロフィールの読み取りは1人ずつ見張る", () => {
+    const withItem = (extra: Record<string, unknown>) => ({ Item: { displayName: "名前", ...extra } });
+
+    it("1人が読めなくても、読めた人のプロフィールは残る", async () => {
+        mockSend
+            .mockRejectedValueOnce(new Error("throughput exceeded"))
+            .mockResolvedValueOnce(withItem({ bio: "旅の写真を撮っています" }));
+        await freshDisplayNames(ddb, [photo("p1", "u1"), photo("p2", "u2")]);
+        const { profiles, readFailures } = lastPublicProfiles();
+        expect(Object.keys(profiles), "読めた人まで落としている").toEqual(["u2"]);
+        expect(profiles.u2.bio).toBe("旅の写真を撮っています");
+        expect(readFailures).toBe(1);
+    });
+
+    it("全員読めなければ 0人・失敗の人数が残る", async () => {
+        mockSend.mockRejectedValue(new Error("throughput exceeded"));
+        await freshDisplayNames(ddb, [photo("p1", "u1")]);
+        const { profiles, readFailures } = lastPublicProfiles();
+        expect(Object.keys(profiles)).toEqual([]);
+        expect(readFailures, "読めなかったことが残っていない（0人と区別が付かない）").toBe(1);
+    });
+
+    // **「誰も書いていない」と「読めなかった」を同じ 0 にしない**
+    it("全員読めたなら失敗は 0", async () => {
+        mockSend.mockResolvedValue(withItem({ bio: "自己紹介" }));
+        await freshDisplayNames(ddb, [photo("p1", "u1")]);
+        expect(lastPublicProfiles().readFailures).toBe(0);
+    });
+
+    it("読めなかった人数をログの1行に出す", async () => {
+        const log = vi.spyOn(console, "log").mockImplementation(() => { });
+        vi.spyOn(console, "warn").mockImplementation(() => { });
+        try {
+            mockSend
+                .mockRejectedValueOnce(new Error("boom"))
+                .mockResolvedValueOnce(withItem({}));
+            await freshDisplayNames(ddb, [photo("p1", "u1"), photo("p2", "u2")]);
+            const line = log.mock.calls.map((c) => String(c[0])).find((l) => l.includes("表示名の突き合わせ"));
+            expect(line, "まとめの行が出ていない").toBeTruthy();
+            expect(line).toContain("読めなかった 1人");
+        } finally { vi.restoreAllMocks(); }
+    });
+
+    // 落ちた人の写真は触らない（表示名の側の約束は変わらない）
+    it("読めなかった人の写真はそのまま", async () => {
+        mockSend.mockRejectedValue(new Error("boom"));
+        const input = [photo("p1", "u1", "旧い名前")];
+        expect(await freshDisplayNames(ddb, input)).toEqual(input);
+    });
+});
+
+// **配線は「出た行」で見る**（`main()` の中で分岐を書くと、消しても気づけない）
+describe("プロフィールを書き出したときに出す行", () => {
+    it("人数を必ず出す", () => {
+        expect(profileWriteNotes("/out/profiles.json", { u1: { bio: "あ" } }, 0))
+            .toEqual(["[sync] /out/profiles.json に書き込みました（1人ぶん）"]);
+    });
+
+    it("読めなかった人が居たら、何が消えるかまで言う", () => {
+        const lines = profileWriteNotes("/out/profiles.json", {}, 2).join("\n");
+        expect(lines).toContain("2人ぶんのプロフィールを読めませんでした");
+        expect(lines, "何が起きるかを言っていない").toContain("自己紹介");
+        expect(lines).toContain("website");
+        expect(lines).toContain("Instagram");
+        expect(lines, "戻ることを言っていない").toContain("次のビルド");
+    });
+
+    it("読めなかった人が居なければ、警告は出さない", () => {
+        expect(profileWriteNotes("/out/profiles.json", {}, 0)).toHaveLength(1);
+    });
+});
+

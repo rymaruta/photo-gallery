@@ -39,10 +39,37 @@ describe("フロントのソースに本番CDNのドメインを直書きしな�
         expect(hits).toEqual([]);
     });
 
-    it("preconnect は環境変数から組む（本番へフォールバックしない）", () => {
-        const src = nodeFs.readFileSync(nodePath.join(process.cwd(), "app", "layout.tsx"), "utf8");
-        expect(src).toContain("NEXT_PUBLIC_CLOUDFRONT_URL");
-        // 未設定なら出さない分岐があること（`? (` の三項で囲われている）
-        expect(src).toMatch(/NEXT_PUBLIC_CLOUDFRONT_URL \? \(/);
+    // **配信元への事前接続は出さない。**
+    //
+    // 以前はここに「preconnect は環境変数から組む（本番へフォールバックしない）」
+    // という判定があった。直書きをやめた当時は正しかったが、
+    // **画面に描く画像URLを全部サイトのドメインに揃えた**ので
+    // （`lib/utils/seo.ts` の `publicImageUrl`）、その preconnect は
+    // **一度も使われない相手**への接続になった。本番と同じ環境変数で
+    // ビルドして数えた（2026-09-13）: 描画された絶対URL 981件はすべて
+    // `journey-photo.com`、CloudFront の既定ドメインを指していたのは
+    // preconnect と dns-prefetch だけ（140ページ）。
+    //
+    // 見張る向きを**逆にする**——「環境変数から組めているか」ではなく
+    // 「もう出していないか」。戻すなら画像URLの揃え方も一緒に戻す話になる。
+    describe("配信元への事前接続", () => {
+        const layoutSrc = () => nodeFs.readFileSync(nodePath.join(process.cwd(), "app", "layout.tsx"), "utf8");
+        /** コメントを落としてから探す（理由を書くほど綴りの検出は自分の説明に当たる） */
+        const stripComments = (src: string) => src.replace(/\{\/\*[\s\S]*?\*\/\}/g, "").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+        const preconnectsCdn = (src: string) =>
+            /<link[^>]*rel=\{?"(?:preconnect|dns-prefetch)"[^>]*NEXT_PUBLIC_CLOUDFRONT_URL/.test(stripComments(src));
+
+        it("CloudFront への preconnect / dns-prefetch を出さない", () => {
+            expect(preconnectsCdn(layoutSrc()), "使われない相手への事前接続が戻っている").toBe(false);
+        });
+
+        // 判定そのものが効くか（0件の状態では、壊れた検出器と正しい検出器が同じ答えを返す）
+        it("判定は、戻されたら見つける", () => {
+            const readded = layoutSrc() + '\n<link rel="preconnect" href={process.env.NEXT_PUBLIC_CLOUDFRONT_URL} crossOrigin="" />\n';
+            expect(preconnectsCdn(readded), "戻されても見つけられていない").toBe(true);
+            // コメントの中の言及では発火しない
+            const mentioned = layoutSrc() + '\n{/* <link rel="preconnect" href={process.env.NEXT_PUBLIC_CLOUDFRONT_URL} /> は出さない */}\n';
+            expect(preconnectsCdn(mentioned), "コメントに一致している").toBe(false);
+        });
     });
 });

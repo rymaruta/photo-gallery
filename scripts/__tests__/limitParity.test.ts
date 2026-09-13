@@ -154,3 +154,217 @@ describe("撮影日の下限が、画面とサーバーで揃っている", () =
         expect(b, "api と api-user で撮影日の下限が違う").toBe(a);
     });
 });
+
+/**
+ * **題・撮影地・カテゴリの上限は、十数か所に散っている。**
+ *
+ * `1b150344` で立てた数え上げ（「その入口は全部か」）を、この対テストに
+ * 当て直して出た。実際に数えると:
+ *
+ *     撮影地 200   api/upload・api/photosMutate・api-user/stories・
+ *                  api-user/upload・api-user/photoUpdate ＋ 画面2枚 = **7か所**
+ *     カテゴリ 100  上のうち4か所 ＋ 画面2枚 = **6か所**
+ *     題 200        `sanitizeTitle` の中に4回 ＋ 画面2枚
+ *
+ * **1つも縛られていなかった。** `PHOTO_LIMIT_PER_USER` で一度踏んだ形と同じ
+ * ——画面だけ広げると「入力できるのにサーバーが黙って切る」（保存は成功して、
+ * あとで開くと末尾が無い）、サーバーだけ広げると「受け付けるのに入力できない」。
+ *
+ * **今は全部揃っている**ので実在の欠陥は0。縛るのは「これから片方だけ変えない」こと。
+ */
+describe("題・撮影地・カテゴリの上限が、全部の書き場所で同じ", () => {
+    /** サーバーの `sanitizeText(..., N)` を全部集める（呼び出しごとに数字を書く形） */
+    function serverCalls(field: "location" | "category"): { where: string; n: number }[] {
+        const files = [
+            "api/src/upload.ts", "api/src/photosMutate.ts",
+            "api-user/src/upload.ts", "api-user/src/photoUpdate.ts", "api-user/src/stories.ts",
+        ];
+        const out: { where: string; n: number }[] = [];
+        for (const f of files) {
+            const src = read(f);
+            const re = new RegExp(`sanitizeText\\(\\s*(?:body\\.)?${field}\\s*,\\s*(\\d+)\\s*\\)`, "g");
+            for (const m of src.matchAll(re)) out.push({ where: f, n: Number(m[1]) });
+        }
+        return out;
+    }
+
+    /** 画面の定数（2枚とも同じ数字のはず） */
+    function clientConsts(name: string): { where: string; n: number }[] {
+        const files = ["app/user/edit/page.tsx", "app/user/upload/page.tsx"];
+        const out: { where: string; n: number }[] = [];
+        for (const f of files) {
+            const m = new RegExp(`const ${name}\\s*=\\s*(\\d+)`).exec(read(f));
+            if (m) out.push({ where: f, n: Number(m[1]) });
+        }
+        return out;
+    }
+
+    // **読めていることを先に確かめる。** 正規表現が外れると
+    // 「0件 === 0件」で通る（この台帳が何度も踏んだ形）
+    it("サーバーと画面の書き場所を実際に見つけられている", () => {
+        expect(serverCalls("location").length, "撮影地の上限を1つも読めていない").toBeGreaterThanOrEqual(5);
+        expect(serverCalls("category").length, "カテゴリの上限を1つも読めていない").toBeGreaterThanOrEqual(4);
+        expect(clientConsts("LOCATION_MAX").length, "画面の LOCATION_MAX を読めていない").toBe(2);
+        expect(clientConsts("CATEGORY_MAX").length, "画面の CATEGORY_MAX を読めていない").toBe(2);
+        expect(clientConsts("TITLE_MAX").length, "画面の TITLE_MAX を読めていない").toBe(2);
+    });
+
+    it.each([["location", "LOCATION_MAX"], ["category", "CATEGORY_MAX"]] as const)(
+        "%s の上限が、サーバーの全ての呼び出しと画面で同じ",
+        (field, constName) => {
+            const server = serverCalls(field);
+            const client = clientConsts(constName);
+            const all = [...server, ...client];
+            const values = [...new Set(all.map((x) => x.n))];
+            expect(values, `ずれている: ${all.map((x) => `${x.where}=${x.n}`).join(" / ")}`).toHaveLength(1);
+            expect(values[0], "0 や NaN を一致と読まない").toBeGreaterThan(0);
+        },
+    );
+
+    // 題は `sanitizeTitle` の中に数字が書いてある（呼び出し側は渡さない）
+    it("題の上限が、sanitizeTitle と画面で同じ", () => {
+        // **`sanitizeTitle` の本体だけを見る。** ファイル全体だと他の上限
+        // （説明・タグ）まで拾う。`truncate(...)` は引数に括弧を含むので
+        // `[^)]*` では途中で止まる（最初これで「1つも読めていない」と嘘の
+        // 失敗を出した）——本体を切り出してから数字を拾う
+        const body = /export function sanitizeTitle[\s\S]*?\n\}/.exec(read("api-user/src/sanitize.ts"));
+        expect(body, "sanitizeTitle が見つからない").not.toBeNull();
+        const inTitle = [...body![0].matchAll(/,\s*(\d+)\s*\)/g)].map((m) => Number(m[1]));
+        expect(inTitle.length, "sanitizeTitle の中の上限を読めていない").toBeGreaterThanOrEqual(3);
+        const client = clientConsts("TITLE_MAX");
+        expect([...new Set(client.map((c) => c.n))], "画面2枚で TITLE_MAX がずれている").toHaveLength(1);
+        // **「どれか1つが一致」では足りない。** `sanitizeTitle` は素の文字列・
+        // 日本語・英語の3か所で切るので、**日本語だけ 120 に狭める**変異が
+        // 「200 も在るから」で素通りした（変異で確認）。それは「画面は通すのに
+        // サーバーが黙って切る」そのもの。**全部が同じ数字**であることを見る
+        expect([...new Set(inTitle)], `sanitizeTitle の中で上限が割れている: ${inTitle.join(", ")}`).toHaveLength(1);
+        expect(inTitle[0], "画面とサーバーで題の上限がずれている").toBe(client[0].n);
+    });
+});
+
+/**
+ * **@ユーザー名の規則は4か所にあった。**
+ *
+ *     api-user/src/userProfile.ts  USERNAME_RE（正）
+ *     api-user/src/userSearch.ts   **手で写した同じ正規表現**
+ *     app/user/profile/page.tsx    説明の文（日本語・英語）
+ *
+ * `userSearch.ts` は**同じパッケージ**なのに import せず写していた。
+ * 規則を広げた日にここだけ古いままになり、新しい綴りの人は予約行
+ * （`username#<名>`）を持っているのに「@名の完全一致」の経路へ入れず、
+ * **@名で探しても出てこない**（Scan のふるいに落ちる）。写しは撤去したので、
+ * 残りは「画面の説明文と規則が同じことを言っているか」を縛る。
+ */
+describe("@ユーザー名の規則は、サーバーと画面の説明で同じ", () => {
+    const server = read("api-user/src/userProfile.ts");
+    const search = read("api-user/src/userSearch.ts");
+    const screen = read("app/user/profile/page.tsx");
+
+    const bounds = () => {
+        const m = /export const USERNAME_RE = \/\^\[a-z0-9_\]\{(\d+),(\d+)\}\$\//.exec(server);
+        expect(m, "USERNAME_RE を読めていない").not.toBeNull();
+        return [Number(m![1]), Number(m![2])] as const;
+    };
+
+    it("読めた下限・上限が正の値である", () => {
+        const [lo, hi] = bounds();
+        expect(lo).toBeGreaterThan(0);
+        expect(hi).toBeGreaterThan(lo);
+    });
+
+    it("画面の説明が、規則と同じ長さを言っている", () => {
+        const [lo, hi] = bounds();
+        expect(screen, `日本語の説明が ${lo}〜${hi} と言っていない`).toContain(`${lo}〜${hi}文字`);
+        expect(screen, `英語の説明が (${lo}-${hi}) と言っていない`).toContain(`(${lo}-${hi})`);
+    });
+
+    // **写しを作り直させない。** 同じパッケージなので import できる
+    it("@名の検索は、規則を写さず import している", () => {
+        expect(search, "userSearch.ts に正規表現の写しが戻っている")
+            .not.toMatch(/\/\^\[a-z0-9_\]\{\d+,\d+\}\$\//);
+        expect(search, "USERNAME_RE を使っていない").toContain("USERNAME_RE");
+    });
+
+    // 画面の入力欄の maxLength が規則の上限と同じ
+    // （ずれていると、打てるのに保存で必ず断られる）。
+    // **数字の直書きをやめて定数にした**ので、ここは「定数を使っているか」を見る
+    // ——数字そのものは上の `USERNAME_MAX` の突き合わせが縛る
+    it("入力欄の maxLength は、縛られた定数を使う", () => {
+        const m = /id="profile-username"[\s\S]{0,1500}?maxLength=\{([^}]+)\}/.exec(screen);
+        expect(m, "ユーザー名の欄の maxLength を読めていない").not.toBeNull();
+        expect(m![1].trim(), "数字を直書きしている（片方だけ変えられる）").toBe("USERNAME_MAX");
+    });
+});
+
+/**
+ * **プレイリストの曲数も4か所にあった**（画面のガード・日本語の文言・
+ * 英語の文言・サーバーの切り詰め）。増やすと「画面では6曲目を足せるのに
+ * サーバーが黙って5曲に切る」＝保存は成功して、開くと1曲無い形になる。
+ */
+describe("プレイリストの曲数は、画面とサーバーで同じ", () => {
+    const server = () => numberIn("api-user/src/userProfile.ts",
+        /export const PROFILE_SONGS_MAX = (\d+);/, "サーバーの曲数");
+    const screen = read("app/user/profile/page.tsx");
+
+    it("読めた数字が正の値である", () => {
+        expect(server()).toBeGreaterThan(0);
+    });
+
+    it("切り詰めが定数を使っている（数字を直書きしていない）", () => {
+        expect(read("api-user/src/userProfile.ts"), "slice に数字を直書きしている")
+            .toContain("body.songs.slice(0, PROFILE_SONGS_MAX)");
+    });
+
+    it("画面のガードと文言が、同じ数字を言っている", () => {
+        const n = server();
+        expect(screen, `画面のガードが ${n} になっていない`).toContain(`cur.length >= ${n}`);
+        expect(screen, `日本語の文言が ${n} 曲と言っていない`).toContain(`${n}曲までです`);
+        expect(screen, `英語の文言が ${n} と言っていない`).toContain(`Up to ${n} songs`);
+    });
+});
+
+/**
+ * **画面が「送る前に断る」判定は、サーバーの断り方と同じでなければならない。**
+ *
+ * 広すぎると正当な操作を止め（台帳が何度も踏んだ「押せないのに押せるべき」）、
+ * 狭すぎると**押せるのに必ず失敗する**（往復が1回無駄になる）。
+ */
+describe("送る前の判定が、サーバーと同じ答えを出す", () => {
+    /**
+     * @ユーザー名の長さ。**正は `USERNAME_RE`**、画面は数字だけ持つ。
+     *
+     * 画面は `maxLength` で**上限だけ**縛り、**下限を一切見ていなかった**
+     * ——`ab` で保存するとサーバーが**書き込みの前に** 400 を返すので、
+     * 同じ保存に乗せた自己紹介・表示名・テーマ色も1件も保存されない。
+     */
+    it("@名の下限・上限が、サーバーの正規表現と同じ", async () => {
+        const server = read("api-user/src/userProfile.ts");
+        const m = /export const USERNAME_RE = \/\^\[a-z0-9_\]\{(\d+),(\d+)\}\$\//.exec(server);
+        expect(m, "USERNAME_RE を読めていない").not.toBeNull();
+        const { USERNAME_MIN, USERNAME_MAX } = await import("../../lib/utils/usernameRule");
+        expect(USERNAME_MIN, "画面の下限がサーバーとずれている").toBe(Number(m![1]));
+        expect(USERNAME_MAX, "画面の上限がサーバーとずれている").toBe(Number(m![2]));
+    });
+
+    it("@名の判定が、長さの境界ちょうどで一致する", async () => {
+        const { usernameLengthError, USERNAME_MIN, USERNAME_MAX } = await import("../../lib/utils/usernameRule");
+        const ok = (v: string) => usernameLengthError(v, true) === null;
+        expect(ok(""), "空（＝@名を消す）まで断っている").toBe(true);
+        expect(ok("a".repeat(USERNAME_MIN - 1)), "短すぎるのに通している").toBe(false);
+        expect(ok("a".repeat(USERNAME_MIN)), "ちょうど下限を断っている").toBe(true);
+        expect(ok("a".repeat(USERNAME_MAX)), "ちょうど上限を断っている").toBe(true);
+        expect(ok("a".repeat(USERNAME_MAX + 1)), "長すぎるのに通している").toBe(false);
+        // `@` と大小は画面側で寄せてから見る（サーバーの normalizeUsername と同じ）
+        // `@` を外し、小文字に寄せてから長さを見る（サーバーと同じ順）
+        expect(ok("@Abc"), "@ と大文字を寄せていない").toBe(true);
+        expect(ok("@Ab"), "@ を外すと下限未満なのに通している").toBe(false);
+    });
+
+    // **予約語は写さない。** サーバーだけが持つ一覧で、写すと静かに古くなる
+    it("予約語の一覧を画面に写していない", () => {
+        const client = read("lib/utils/usernameRule.ts");
+        for (const w of ["admin", "support", "undefined"]) {
+            expect(client, `予約語「${w}」を画面に写している`).not.toContain(`"${w}"`);
+        }
+    });
+});

@@ -215,6 +215,7 @@ function LoginForm() {
                         <p className="text-amber-300/80 mb-2 text-xs">確認コードのメールが届いているか確認してください。</p>
                         <Link
                             href={`/signup?email=${encodeURIComponent(username)}`}
+                            prefetch={false}
                             className="text-amber-300 hover:text-amber-200 underline text-xs transition-colors"
                         >
                             確認コードを入力・再送する →
@@ -281,7 +282,7 @@ function LoginForm() {
                                 共有リンクから来た未登録の人は、ここを押した
                                 時点で行き先を失う（登録を終えると自分の空
                                 プロフィールに着地する） */}
-                            <Link href={nextPath ? `/signup?next=${encodeURIComponent(nextPath)}` : "/signup"} className="text-white/60 hover:text-white underline transition-colors">
+                            <Link href={nextPath ? `/signup?next=${encodeURIComponent(nextPath)}` : "/signup"} prefetch={false} className="text-white/60 hover:text-white underline transition-colors">
                                 新規登録
                             </Link>
                         </p>
@@ -330,6 +331,7 @@ function LoginForm() {
                         <div>
                             <label htmlFor="reset-code" className="block text-xs text-white/50 mb-1.5 tracking-wide">確認コード</label>
                             <input
+                                autoComplete="one-time-code"
                                 id="reset-code"
                                 type="text"
                                 value={resetCode}
@@ -343,6 +345,7 @@ function LoginForm() {
                         <div>
                             <label htmlFor="reset-new-password" className="block text-xs text-white/50 mb-1.5 tracking-wide">新しいパスワード</label>
                             <input
+                                autoComplete="new-password"
                                 id="reset-new-password"
                                 type="password"
                                 value={newPassword}
@@ -388,7 +391,16 @@ function LoginForm() {
 
 export default function LoginPage() {
     return (
-        <Suspense>
+        <Suspense fallback={
+            // **事前描画で焼かれるのはこの fallback。** 空のままだと
+            // JS が走る前の HTML に本文が1つも無い（`main` も見出しも0で、
+            // 出るのはヘッダーとフッターだけ）。見た目は変えずに、
+            // ランドマークと見出しだけ置く——`sr-only` は
+            // `position: absolute` なので描画に影響しない
+            <main className="min-h-screen bg-black">
+                <h1 className="sr-only">ログイン</h1>
+            </main>
+        }>
             <LoginForm />
         </Suspense>
     );

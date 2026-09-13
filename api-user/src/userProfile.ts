@@ -169,6 +169,16 @@ export type UserProfile = {
 // サイト内ユーザー名（@ハンドル）の規則。小文字英数字とアンダースコアのみ。
 export const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 
+/**
+ * プロフィールのプレイリストに入る曲数。
+ *
+ * **数字が4か所にあった**（画面のガード・日本語の文言・英語の文言・
+ * ここの切り詰め）のに、どれも突き合わせていなかった。増やすと
+ * 「画面では6曲目を足せるのにサーバーが黙って5曲に切る」
+ * ＝保存は成功して、開くと1曲無い形になる。
+ */
+export const PROFILE_SONGS_MAX = 5;
+
 /** 誰にも取らせないユーザー名（ルート衝突・なりすまし・紛らわしい語）。 */
 export const RESERVED_USERNAMES = new Set([
     // 1) サイトのルート名と衝突する語（将来URLに使う可能性も考えて確保）
@@ -544,7 +554,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     let songsMalformed = false;
     if (Array.isArray(body.songs)) {
         const cleaned: SongEntry[] = [];
-        for (const raw of body.songs.slice(0, 5)) {
+        for (const raw of body.songs.slice(0, PROFILE_SONGS_MAX)) {
             if (!raw || typeof raw !== "object") { songsMalformed = true; continue; }
             const o = raw as Record<string, unknown>;
             const title = typeof o.title === "string" ? truncate(o.title.trim(), 200) : "";

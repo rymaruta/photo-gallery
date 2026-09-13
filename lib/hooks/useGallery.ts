@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Photo, LocalizedText, LocalizedParagraphs } from "../data/photos";
 import { getLocalized, getLocalizedParagraphs } from "../data/photos";
 import type { GalleryFilters } from "../types/gallery";
-import { slugify, normalizeForSearch, tagKey } from "../utils/collections";
+import { slugify, normalizeForSearch, tagKey, categoryDisplayName } from "../utils/collections";
 import { dedupeCameraName } from "../utils/cameraName";
 import { compareNewest, compareOldest } from "../utils/photoOrder";
 
@@ -180,7 +180,37 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
                 const camFolded = dedupeCameraName(camRaw) ?? "";
                 const cam = camFolded && camFolded !== camRaw ? `${camRaw} ${camFolded}` : camRaw;
 
-                const haystack = `${titleJa} ${titleEn} ${descJa} ${descEn} ${loc} ${cam}`.toLowerCase();
+                // **タグとカテゴリも。** 入っていなかったので、owner 自身が
+                // 書いた語を打っても0件になっていた。実データ（公開30枚）で:
+                //
+                //     タグ59種のうち **12種が0件**（nature 3枚・architecture 2枚・
+                //       yamanaka 2枚・loyly 2枚・白鳥の写真の「動物」…）
+                //     当たっていた43種も**偶然**（題か説明に同じ語がある回だけ）
+                //     カテゴリは `landscape` 12枚 → **0件**・`nature` 3枚 → 0件
+                //
+                // しかも**ホームのタグチップは上位10種だけ**（`POPULAR_TAG_LIMIT`）
+                // なので、残り49種はチップからも選べない——打つしかないのに
+                // 打っても出ない、という形だった。
+                //
+                // 撮影地とカメラは既に入っている（欄の文言だけが「タイトルや説明」の
+                // まま古かった）。**材料を足すのであって、規則は変えない**。
+                // **ここに来る `p` は正規化済み**（上の `PHOTOS`）——`tags` は
+                // 生のまま配列で、`category` は **`normalizeKey` でスラッグ**に
+                // なっている。なので `?? []` / `?? ""` は要らない（書くと
+                // 二重の守りになり、片方ずつの変異がどちらも観測できなくなる）。
+                const tags = p.tags.map(String).join(" ");
+                // **スラッグだけでは日本語で探せない。** カテゴリは保存された
+                // 「建築」が `architecture` に畳まれるので、スラッグだけ入れると
+                // 日本語で打った人に当たらない。表示に使っている日本語名も足す
+                // （カメラ名で先にやった「生の値でも探せるようにする」と同じ判断）。
+                //
+                // ⚠️ **当たるのは「代表の日本語名」1つだけ。** `categoryDisplayName` は
+                // 別名表の**先頭**しか返さない（`建築`/`建物` → どちらも `建築`）ので、
+                // 「建物」と打つとカテゴリとしては当たらない。**別名表に載っていない
+                // からではない**（`建物` は載っている）——次に読む人が表を足しに
+                // 行かないよう、理由を書いておく。
+                const category = `${p.category} ${categoryDisplayName(p.category) ?? ""}`;
+                const haystack = `${titleJa} ${titleEn} ${descJa} ${descEn} ${loc} ${cam} ${tags} ${category}`.toLowerCase();
                 // **スラッグ経由の検索も通す。** 集約ページの404救済
                 // （lib/utils/notFoundRedirect.ts）は /location/<スラッグ> を
                 // `/?q=<スラッグ>` に振り替えるが、スラッグは空白をハイフンに

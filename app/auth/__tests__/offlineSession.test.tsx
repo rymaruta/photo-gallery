@@ -31,6 +31,16 @@ vi.mock("../../../lib/auth/cognito", () => ({
     lookupSession: mockLookupSession,
     deleteAccount: vi.fn(),
 }));
+// **セッションを引く口は `lib/auth/session.ts` へ移した**（認証 SDK を
+// 全ページに載せないための薄い入口。`AuthProvider` はルートレイアウトに
+// あるので、静的に `auth/cognito` を掴むと SDK が全ページに載る）。
+// ここで見たいのは**その答えを受けた側の振る舞い**なので、境界も動かす。
+// 短絡（端末に痕跡が無ければ SDK を読まない）そのものは
+// `lib/auth/__tests__/session.test.ts` が見る。
+vi.mock("../../../lib/auth/session", () => ({
+    lookupSession: mockLookupSession,
+    getCurrentSession: async () => (await mockLookupSession()).session,
+}));
 vi.mock("../../../lib/hooks/useFollow", () => ({ resetFollowingCache: vi.fn() }));
 vi.mock("../../../lib/utils/shareStore", () => ({ clearSharedPayload: vi.fn(async () => { /* noop */ }) }));
 vi.mock("../../../lib/stories", () => ({ clearSeenStories: vi.fn() }));

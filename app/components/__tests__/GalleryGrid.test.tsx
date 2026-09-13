@@ -200,3 +200,32 @@ describe("GalleryGrid: 枚数が増えても一度に全部は描かない", () 
         expect(cards(container), "絞り込んでも前の枚数のままになっている").toBe(GRID_INITIAL_VISIBLE);
     });
 });
+
+// **地図と読む側の契約。**
+//
+// ここは `categoryDisplayMap?.[photo.category ?? ""]` と**生の値**で引き、
+// 落とし先を持たない——鍵が外れると文字が丸ごと消える。実際、地図の鍵を
+// スラッグに変えた回で `/favorites` のカテゴリ行が空欄になった（実データ
+// 30枚中9枚）。**地図を作る側と読む側を、同じ入力で突き合わせる。**
+describe("GalleryGrid: カテゴリ名", () => {
+    const withCategory = (id: string, category: string): Photo => ({
+        ...photo(id), category,
+    } as Photo);
+
+    it("地図を作る側と同じ写真なら、必ず名前が出る", async () => {
+        const { photoCategoryMap } = await import("@/lib/utils/categoryMap");
+        const { ja } = await import("@/app/i18n/labels");
+        // 別名（建物）・日本語（風景）・スラッグ（landscape）・表に無い値（travel）
+        const photos = [
+            withCategory("a", "建物"), withCategory("b", "風景"),
+            withCategory("c", "landscape"), withCategory("d", "travel"),
+        ];
+        const map = photoCategoryMap(photos, (ja.category?.names ?? {}) as Record<string, string>);
+        render(<GalleryGrid photos={photos} locale="ja" categoryDisplayMap={map} />);
+        // 別名で保存されていても、飛び先の集約ページと同じ言葉
+        expect(screen.getByText("建築"), "別名の写真だけ名前が消えている").toBeInTheDocument();
+        expect(screen.getAllByText("風景"), "landscape と 風景 が同じ名前になっていない").toHaveLength(2);
+        // 表に無いカテゴリは本人が書いた言葉のまま（写真ページと同じ）
+        expect(screen.getByText("travel")).toBeInTheDocument();
+    });
+});

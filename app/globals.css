@@ -28,6 +28,21 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--color-background);
   color: var(--color-foreground);
+  /* **ブラウザが描く部品も黒地に合わせる。**
+     宣言が無いと UA は明色の既定で描くので、`type="date"` の
+     カレンダーアイコン・`type="search"` の消去ボタン・数値の上下ボタン・
+     自動入力の下地・キャレット・スクロールバーが黒地の上で明色前提のまま。
+     実測（Chromium・入力欄は本文と同じ `bg-white/5` 相当）:
+
+         color-scheme なし   アイコンの最明 61 / 下地 13 → コントラスト 1.79:1
+         color-scheme: dark  アイコンの最明 255 / 下地 13 → 19.44:1
+
+     WCAG 1.4.11（操作部品は 3:1）に届いていなかった。このサイトは
+     `body` が `bg-black text-white` で、入力欄も `bg-white/5 text-white`
+     ——**暗い意匠はもう決まっている**ので、UA 側を揃えるだけ。
+     ⚠️ スクロールバーの差はこの環境では測れていない（この Chromium は
+     オーバーレイで描くため、どちらも黒のまま）。 */
+  color-scheme: dark;
   font-family: Arial, Helvetica, sans-serif;
   /* iOS / Instagram IAB の 300ms タップ遅延を解消 */
   touch-action: manipulation;

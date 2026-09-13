@@ -96,7 +96,7 @@ const enLabels: Labels = {
     },
     tags: { title: "Tags" },
     actions: { clearTags: "Clear" },
-    search: { placeholder: "Search title or description", clear: "Clear" },
+    search: { placeholder: "Search photos", clear: "Clear" },
     gallery: {
         emptyMessage: "No photos found.",
         resultsCount: "Results",
@@ -150,7 +150,7 @@ export const ja: Labels = {
     },
     tags: { title: "タグ" },
     actions: { clearTags: "選択を解除" },
-    search: { placeholder: "タイトルや説明で検索", clear: "クリア" },
+    search: { placeholder: "写真を検索（タイトル・説明・タグなど）", clear: "クリア" },
     gallery: {
         emptyMessage: "該当する写真がありません。",
         resultsCount: "結果",

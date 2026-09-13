@@ -4,12 +4,33 @@ import React, { useCallback, useState, useSyncExternalStore } from "react";
 import type { Photo } from "@/lib/data/photos";
 import { isImageReady } from "@/lib/utils/imageReady";
 import { dropCachedPhoto } from "@/lib/utils/photoCache";
+import { publicImageUrl } from "@/lib/utils/seo";
+
+/**
+ * **出すURLはサイトのドメインに揃える**（`publicImageUrl`）。
+ *
+ * 保存されている画像URLは**2つのホストに割れている**（`app/data/photos.json`
+ * の30枚を数えると `journey-photo.com` 19 / `d1s3….cloudfront.net` 11）。
+ * どちらも同じ CloudFront ディストリビューションの別名で、返るバイトは同じ。
+ * og:image・画像サイトマップ・JSON-LD は前から `publicImageUrl` を通して
+ * 揃えていたが、**画面に描く `<img>` は保存された生のURLのまま**だった。
+ *
+ * 揃える理由は2つ（SEO の話とは別）:
+ *   - **接続がもう1本増える**（DNS + TLS のやり直し）。1ページの中で
+ *     ホストが割れていると、携帯の初回表示にそのぶん乗る
+ *   - **Service Worker の写真の控えが二重になる**——鍵は URL なので、
+ *     同じ写真がページによって別のURLになり **80件の枠を2つ食う**
+ *     （`public/sw.js` の `journey-photo-img-v1`）
+ *
+ * 保存側を直す移行（`scripts/normalize-image-urls.js`）は owner の実行待ちだが、
+ * **出す側で揃えれば、その実行を待たずに表示は1オリジンになる**。
+ */
 
 /** 256w/512w の srcset 文字列を組み立てる（無い分は除外） */
 function buildSrcSet(w256?: string, w512?: string): string | undefined {
     const parts: string[] = [];
-    if (w256) parts.push(`${w256} 256w`);
-    if (w512) parts.push(`${w512} 512w`);
+    if (w256) parts.push(`${publicImageUrl(w256)} 256w`);
+    if (w512) parts.push(`${publicImageUrl(w512)} 512w`);
     return parts.length ? parts.join(", ") : undefined;
 }
 
@@ -85,7 +106,7 @@ export default function Thumb({ photo, alt, sizes, priority = false, objectPosit
     }, [fromHtml]);
     const loaded = phase === "loaded";
 
-    const fallback = photo.thumbSrc || photo.src;
+    const fallback = publicImageUrl(photo.thumbSrc || photo.src);
     const avifSet = (photo.thumbSmAvif || photo.thumbAvif) ? buildSrcSet(photo.thumbSmAvif, photo.thumbAvif) : undefined;
     const webpSet = photo.thumbSm ? buildSrcSet(photo.thumbSm, photo.thumbSrc) : undefined;
 

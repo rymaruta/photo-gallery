@@ -10,6 +10,7 @@ import { userFetch } from "../../lib/utils/api";
 import { useLocale } from "../i18n/context";
 import { ROUTES } from "../../lib/routes";
 import UserAvatar from "./UserAvatar";
+import { publicImageUrl } from "@/lib/utils/seo";
 
 type Notif = {
     // 実際に作られるのは like / comment / follow / storyreply の4種類。
@@ -255,7 +256,7 @@ export default function NotificationsBell() {
                                                 なる。写真の通知は消えない限り出し続けてよい */}
                                             {n.type !== "follow" && n.type !== "storyreply" && n.photoSrc && (n.byId || n.targetUserId) && (
                                                 // eslint-disable-next-line @next/next/no-img-element
-                                                <img src={n.photoSrc} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
+                                                <img src={publicImageUrl(n.photoSrc)} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
                                             )}
                                         </>
                                     );
@@ -281,7 +282,7 @@ export default function NotificationsBell() {
                                                 </Link>
                                             ) : n.photoSrc ? (
                                                 // eslint-disable-next-line @next/next/no-img-element
-                                                <img src={n.photoSrc} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
+                                                <img src={publicImageUrl(n.photoSrc)} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-white/10 flex-shrink-0" />
                                             ) : (
                                                 // **空の `src` を出さない。** 右端のサムネ（下）には
                                                 // `n.photoSrc &&` のガードがあるのに、ここだけ無かった。

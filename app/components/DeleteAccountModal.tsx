@@ -87,19 +87,27 @@ function DeleteAccountModalInner({ onClose, onConfirm, locale, deleting, openerR
                 </p>
 
                 {/* type-to-confirm */}
-                <label className="block text-xs text-white/50 mb-1.5">
+                {/* **結んでいない `<label>` は読み上げに何も渡さない。**
+                    ここは「`退会` と打たないと押せない」という、この画面で
+                    唯一の進み方を書いた行なのに、入力欄には別の
+                    `aria-label`（「確認テキスト」）が付いていた——
+                    aria-label が勝つので、**読み上げでは何を打てばいいか
+                    一度も言われない**（取り消せない操作の唯一の関門で）。
+                    `htmlFor` で結び、見えている文がそのまま名前になるように
+                    `aria-label` は外す */}
+                <label className="block text-xs text-white/50 mb-1.5" htmlFor="delete-account-confirm">
                     {locale === "en"
                         ? <>Type <span className="font-semibold text-white/80">{CONFIRM_WORD}</span> to confirm</>
                         : <>確認のため <span className="font-semibold text-white/80">{CONFIRM_WORD}</span> と入力してください</>}
                 </label>
                 <input
+                    id="delete-account-confirm"
                     type="text"
                     value={typed}
                     onChange={(e) => setTyped(e.target.value)}
                     disabled={deleting}
                     autoFocus
                     autoComplete="off"
-                    aria-label={locale === "en" ? "Confirmation text" : "確認テキスト"}
                     className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-red-500/50 transition-colors mb-6"
                     placeholder={CONFIRM_WORD}
                 />

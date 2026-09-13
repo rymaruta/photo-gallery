@@ -4,13 +4,20 @@ import { render, fireEvent } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import Thumb, { buildSrcSet } from "../Thumb";
 
+// ここで見るのは**組み立て方**（並び順と幅の指定）。
+// URL を1本ずつ `publicImageUrl` に通すようになったので、入力は
+// 保存されている形（絶対URL）にする——相対パスを渡すと配信元が補われて、
+// 見たいものと関係ないところで値が変わる。
+// **ホストを揃える側は描画で見る**（`imageOrigin.test.tsx`）。
 describe("buildSrcSet", () => {
+    const A = "https://cdn.example/a256.webp";
+    const B = "https://cdn.example/b512.webp";
     it("256/512 の両方があれば srcset を組む", () => {
-        expect(buildSrcSet("a256.webp", "b512.webp")).toBe("a256.webp 256w, b512.webp 512w");
+        expect(buildSrcSet(A, B)).toBe(`${A} 256w, ${B} 512w`);
     });
     it("片方だけ・無しに対応", () => {
-        expect(buildSrcSet(undefined, "b512.webp")).toBe("b512.webp 512w");
-        expect(buildSrcSet("a256.webp", undefined)).toBe("a256.webp 256w");
+        expect(buildSrcSet(undefined, B)).toBe(`${B} 512w`);
+        expect(buildSrcSet(A, undefined)).toBe(`${A} 256w`);
         expect(buildSrcSet(undefined, undefined)).toBeUndefined();
     });
 });
