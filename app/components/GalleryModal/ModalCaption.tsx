@@ -1,6 +1,5 @@
 "use client";
 import React from "react";
-import { dedupeCameraName } from "../../../lib/utils/cameraName";
 import { CAPTION_MIN_HEIGHT } from "@/lib/utils/modalLayout";
 import Link from "next/link";
 import { ShareIcon, LinkIcon, MusicalNoteIcon, ChatBubbleOvalLeftIcon } from "@heroicons/react/24/outline";
@@ -10,6 +9,7 @@ import type { Photo, Locale } from "@/lib/data/photos";
 import { shareToTwitter, shareToLine } from "../../../lib/utils/share";
 import { ROUTES } from "../../../lib/routes";
 import ProfileLink from "../ProfileLink";
+import ExifSpecs, { buildExifSpecs } from "../ExifSpecs";
 
 type Props = {
     photo: Photo;
@@ -141,20 +141,23 @@ export default function ModalCaption({
                 </div>
             )}
 
-            {/* 撮影情報（簡易版）: ビルド前の新着写真は個別ページが無く
-                モーダルでしか見られないため、ここにも1行で出す */}
-            {photo.exif && (() => {
-                const e = photo.exif;
-                const parts = [
-                    // 保存済みの値には二重のメーカー名が混じる（実データに
-                    // "Hasselblad Hasselblad X2D II 100C" が実在）。表示だけ直す
-                    dedupeCameraName(e.camera), e.lens, e.aperture, e.exposure,
-                    e.iso ? `ISO${e.iso}` : undefined, e.focalLength,
-                ].filter(Boolean);
-                return parts.length > 0 ? (
-                    <p className="mt-3 text-[11px] leading-relaxed text-white/50">{parts.join(" ・ ")}</p>
-                ) : null;
-            })()}
+            {/* 撮影情報: ビルド前の新着写真は個別ページが無くモーダルでしか
+                見られないので、ここにも出す。
+
+                **写真ページと同じカードにした（owner の指示）。** 以前は
+                「Hasselblad X2D II 100C ・ XCD 35-100E@70 ・ f/11 ・ 1/125s ・
+                ISO50 ・ 70mm」と中黒でつないだ1行で、どの数字が何なのか
+                読めなかった。組み立ても見た目も `ExifSpecs` に1本化してある
+                ——ここで別に書くと、片方だけ直して静かにずれる。
+
+                **機種名のリンクは付けない。** 写真ページは保存済みの値から
+                集約ページへ繋いでいるが、モーダルが出るのは**ビルド前の
+                新着写真**を含む場面で、その機種の集約ページはまだ無い
+                （`dynamicParams = false` なのでハード404）。行き止まりを
+                作らないために、リンクは個別ページ側だけに置く */}
+            <div className="mt-3">
+                <ExifSpecs specs={buildExifSpecs(photo.exif, locale)} locale={locale} />
+            </div>
 
             {/* コメント数（個別ページで読める） */}
             {typeof photo.commentCount === "number" && photo.commentCount > 0 && (

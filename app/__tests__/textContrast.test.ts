@@ -134,7 +134,10 @@ const GUARDED: Array<[string, string, string, boolean?]> = [
     // 画面に出る文字が変数で、目印にできないもの。コードの断片を目印にする
     ["app/components/FilterBar.tsx", "showCount ? <span", "絞り込みのチップの件数"],
     ["app/components/CollectionPageClient.tsx", "{r.count}", "関連する集約ページの件数"],
-    ["app/photo/[id]/PhotoPageClient.tsx", "<dt ", "撮影情報のラベル（カメラ・レンズ…）"],
+    // 撮影情報のカードは `ExifSpecs.tsx` に1本化した（写真ページと拡大表示が
+    // 同じ部品を使う）。ラベルと値の両方を見る——薄いのはラベル側だった
+    ["app/components/ExifSpecs.tsx", "<dt ", "撮影情報のラベル（カメラ・レンズ…）"],
+    ["app/components/ExifSpecs.tsx", "<dd ", "撮影情報の値"],
     // 訪問者が読む画面（コメントがある／メニューを開いた／拡大した状態）。
     // **ブラウザの実測は「そのとき描かれているもの」しか見られない**ので、
     // 状態を作らないと出てこない文字はここで縛る
@@ -142,7 +145,6 @@ const GUARDED: Array<[string, string, string, boolean?]> = [
     ["app/components/CommentSection.tsx", "{timeAgo(c.t, locale)}", "コメントの時刻"],
     ["app/components/CommentSection.tsx", "{c.name}", "コメントした人の名前"],
     ["app/components/HeaderNav.tsx", 'navLabels.account || "Account"', "メニューの見出し"],
-    ["app/components/GalleryModal/ModalCaption.tsx", '{parts.join(" ・ ")}', "拡大表示の撮影情報"],
     ["app/components/GalleryModal/ModalKeyboardHelp.tsx", "下スワイプで閉じる", "拡大表示の操作の案内"],
     ["app/not-found.tsx", ">404<", "404 の見出し"],
     ["app/components/MusicCard.tsx", "{label}{songs.length > 1", "BGM のラベル"],

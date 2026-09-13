@@ -41,7 +41,7 @@
 const fs = require("fs");
 const path = require("path");
 const { requireEnv } = require("./lib/env");
-const { STRICT_RE, rejectReason } = require("./lib/userId");
+const { USER_ID_RE } = require("./lib/userId");
 
 const envLocalPath = path.resolve(__dirname, "../.env.local");
 if (fs.existsSync(envLocalPath)) {
@@ -59,19 +59,17 @@ if (fs.existsSync(envLocalPath)) {
  */
 const FOLLOWERS_MAX = 2000;
 
-/**
- * Cognito の sub の形。**`api-user/src/userId.ts` より厳しい**（版 1-5・
- * variant 8-b まで見る）。規則は `scripts/lib/userId.js` に1本化した
- * ——ここに書き写していたので、2か所を突き合わせる手段が無かった。
- *
- * これを見ないと、`isUserId` を入れる前に作られた**でたらめな ID の
- * マーカー**を拾ってしまう（当時は形も存在も見ていなかった）。拾うと
- *   - `followers#<でたらめ>` という誰も読まない行が新しくできる
- *     （`deleteAccount` は自分の行しか消さないので、消す人がいない）
- *   - でたらめな follower が実在の人の一覧に並び、空のプロフィールへ
- *     リンクする（`0af33008` で直したのと同じ形）
- */
-const USER_ID_RE = STRICT_RE;
+// Cognito の sub の形は `scripts/lib/userId.js` に1本化した
+// （**`api-user/src/userId.ts` と同一**。以前ここだけ版/variant まで見る
+//  厳しい規則を書き写していて、本番の**本物のフォロー2件**をゴミとして
+//  捨て、`followers#` が一度も作られていなかった）。
+//
+// 形を見ること自体は要る。見ないと、`isUserId` を入れる前に作られた
+// でたらめな ID のマーカーを拾い、
+//   - `followers#<でたらめ>` という誰も読まない行が新しくできる
+//     （`deleteAccount` は自分の行しか消さないので、消す人がいない）
+//   - でたらめな follower が実在の人の一覧に並び、空のプロフィールへ
+//     リンクする（`0af33008` で直したのと同じ形）
 
 /**
  * 捨てた理由。**「マーカー N 件・対象 0 人」を黙って出さないため。**
@@ -88,11 +86,6 @@ const SKIP_REASONS = {
     NOT_MARKER: "follow: true を持たない",
     SHAPE: "follow#<相手>#<自分> の形でない",
     NOT_USER_ID: "IDが Cognito の sub の形でない（isUserId 導入前のゴミ）",
-    // **「捨てた」を1つの理由に丸めない。** API（読む側）が通す ID を
-    // こちらだけが弾いているなら、それは**ゴミではなく規則のずれ**で、
-    // 本物のフォローを埋め戻していないことになる。本番のドライランが
-    // 「捨てた 2 件」を出したとき、どちらなのかが読めなかった
-    RULE_DRIFT: "IDは API が通す形だが、埋め戻しの規則（版/variant）が弾いた ＝ **規則のずれ**",
 };
 
 /** `follow#<target>#<follower>` を分解する。形が違えば `{ skip: 理由 }` */
@@ -100,8 +93,7 @@ function parseMarker(item) {
     if (!item || item.follow !== true || typeof item.id !== "string") return { skip: SKIP_REASONS.NOT_MARKER };
     const parts = item.id.split("#");
     if (parts.length !== 3 || parts[0] !== "follow" || !parts[1] || !parts[2]) return { skip: SKIP_REASONS.SHAPE };
-    const why = rejectReason(parts[1]) ?? rejectReason(parts[2]);
-    if (why) return { skip: why === "rule-drift" ? SKIP_REASONS.RULE_DRIFT : SKIP_REASONS.NOT_USER_ID };
+    if (!USER_ID_RE.test(parts[1]) || !USER_ID_RE.test(parts[2])) return { skip: SKIP_REASONS.NOT_USER_ID };
     return { target: parts[1], follower: parts[2], createdAt: typeof item.createdAt === "string" ? item.createdAt : "" };
 }
 

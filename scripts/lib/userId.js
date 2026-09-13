@@ -1,48 +1,55 @@
 /**
- * userId の形を見る規則（スクリプト側）。**2つある。**
+ * userId の形を見る規則（スクリプト側）。**`api-user/src/userId.ts` と同一。**
  *
- *   apiAccepts  … `api-user/src/userId.ts` の `isUserId` と同じ。素の16進。
- *                 **API が実際に受け付けた／読む側が実際に通す**のはこちら。
- *   STRICT_RE   … 版 1-5・variant 8-b まで見る。書き込む側（埋め戻し・修復）は
- *                 こちらで絞る。`scripts/__tests__/userIdParity.test.ts` が
- *                 「スクリプトが通すものは API も必ず通す」を縛っている。
+ * ## 分けていた頃に何が起きたか（2026-09-13・本番の実測）
  *
- * **なぜ分けるか。** 厳しい側だけを持っていると、捨てた行が
+ * 以前ここは版 1-5・variant 8-b まで見る**より厳しい**規則で、
+ * `userIdParity.test.ts` は「スクリプトの方が厳しい」を安全側として
+ * 記録していた（緩いと、API が弾く行を書き込んでしまうため）。
  *
- *   (a) API も弾く形（本物のゴミ）
- *   (b) API は通すのにスクリプトだけが弾く形（**規則のずれ**）
+ * 実際には安全ではなかった。`repair-follow-graph` のドライランが出した本番:
  *
- * のどちらなのか**外から区別できない**。本番のドライランが
- * 「マーカー 2 件 / 対象 0 人・捨てた 2 件」を出したとき、まさにそれが
- * 読めなかった——(b) なら**本物のフォローを埋め戻していない**ことになり、
- * 「フォロワー一覧だけ空」の直接の原因になる。台帳の型
- * 「道具が『0件』と言うとき、数え方を疑う」。
+ *     follow#… 2 行 / following#… 2 行 / followers#… 0 行
+ *     有効なフォロー 2 件 / 壊れたマーカー 0 件
+ *     規則のずれで保留したマーカー 2 件
  *
- * 規則そのものは変えない（緩めると、API が弾く行を書き込む側に倒れる）。
- * **理由を分けて数えられるようにするだけ。**
+ * **本番のフォロー2件は本物**（読む側の `isUserId` を通り、画面にも出て
+ * いた）。なのに埋め戻し（`backfill-followers.js`）だけが「Cognito の sub の
+ * 形でないゴミ」として捨てていたので、**`followers#` が一度も作られなかった**
+ * ——「フォロー一覧は観れるのにフォロワー一覧が見れない」の正体。
+ *
+ * 厳しい側が捨てたものは、**気づける**（件数と理由は出る）が**直せない**。
+ * 出た理由は「Cognito の sub の形でない」で、それ自体が誤りだった。
+ * 実データが「sub は必ずしも RFC 4122 v4 の形ではない」と示した以上、
+ * **書く側が読む側より厳しい理由は無い。**
+ *
+ * ## だから1つにする
+ *
+ * 同一なので「スクリプトの方が緩い」（＝API が弾く行を書き込む）も
+ * 起こらない。`scripts/__tests__/userIdParity.test.ts` が、
+ * **`api-user/src/userId.ts` の正規表現そのものを読んで**一致を縛る
+ * ——書き写しに戻ると落ちる。
  */
 
-/** `api-user/src/userId.ts` の `isUserId` と同じ規則（素の16進） */
-const API_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const fs = require("fs");
+const path = require("path");
 
-/** 書き込む側が使う、より厳しい規則（版 1-5・variant 8-b） */
-const STRICT_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+/** `api-user/src/userId.ts` の `isUserId` と同じ規則 */
+const USER_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** API（読む側）が通すか */
-const apiAccepts = (v) => typeof v === "string" && API_RE.test(v);
-
-/** スクリプト（書く側）が通すか */
-const strictAccepts = (v) => typeof v === "string" && STRICT_RE.test(v);
+/** その文字列が userId の形か */
+const isUserId = (v) => typeof v === "string" && USER_ID_RE.test(v);
 
 /**
- * 捨てる理由を分ける。**通るなら `null`。**
+ * `api-user/src/userId.ts` に書いてある正規表現を、ソースから読み出す。
+ * **テスト専用**（本番の経路では使わない——Lambda のバンドルにこの
+ * ファイルは入らないし、実行時にソースを読むのは筋が悪い）。
  *
- * @returns `null`（通す）／`"api-rejects"`（本物のゴミ）／
- *   `"rule-drift"`（API は通すのにスクリプトが弾いた＝規則のずれ）
+ * @returns 正規表現リテラルの文字列（`/^…$/i`）。見つからなければ `null`
  */
-function rejectReason(v) {
-    if (strictAccepts(v)) return null;
-    return apiAccepts(v) ? "rule-drift" : "api-rejects";
+function apiRuleSource() {
+    const src = fs.readFileSync(path.resolve(__dirname, "../../api-user/src/userId.ts"), "utf8");
+    return /return\s+(\/.+\/i?)\.test\(/.exec(src)?.[1] ?? null;
 }
 
-module.exports = { API_RE, STRICT_RE, apiAccepts, strictAccepts, rejectReason };
+module.exports = { USER_ID_RE, isUserId, apiRuleSource };

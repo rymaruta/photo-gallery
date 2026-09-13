@@ -79,16 +79,13 @@ describe("正しい姿をマーカーから組む", () => {
         expect(t.brokenMarkerIds).toEqual([]);
     });
 
-    // **規則のずれ（API は通すが、書き込む側の規則が弾く形）は消さない。**
-    // 本物のフォローかもしれない。消すと関係そのものが失われ、
-    // 相手は画面に出ないので押し直すこともできない
-    it("規則のずれで弾かれたマーカーは、消さずに正しい姿へ数える", () => {
-        const V0 = "0123abcd-4567-089a-0bcd-0123456789ab";   // 版0・variant 0（API は通す）
+    // **本番の sub は RFC 4122 の v4 とは限らない。** ここを厳しく見ていた
+    // せいで、本物のフォロー2件が「ゴミ」として捨てられ、`followers#` が
+    // 一度も作られていなかった（2026-09-13 実測）。消さず、正しい姿に数える
+    it("版/variant が v4 でない sub のマーカーも、本物として扱う", () => {
+        const V0 = "0123abcd-4567-089a-0bcd-0123456789ab";   // 版0・variant 0
         const t = buildTruth([{ id: `follow#${T}#${V0}`, follow: true }]);
-        expect(t.brokenMarkerIds, "本物かもしれないマーカーを消そうとしている").toEqual([]);
-        expect(t.driftMarkers).toBe(1);
-        // **並びと数からも外さない。** 外すと「消さない」と言いながら
-        // 同じことを別の口でやることになる
+        expect(t.brokenMarkerIds, "本物のマーカーを消そうとしている").toEqual([]);
         expect([...t.followers.get(T)]).toEqual([V0]);
         expect([...t.following.get(V0)]).toEqual([T]);
     });
@@ -125,9 +122,8 @@ describe("並びの掃除", () => {
     it("形の壊れた ID も外す", () => {
         expect(pruneList(["not-a-uuid", A], new Set([A, "not-a-uuid"]))).toEqual([A]);
     });
-    // **読む側の規則で見る。** 書き込む側の厳しい規則で外すと、
-    // API が通して画面にも出ている ID を一覧から消してしまう
-    it("API が通す形（版/variant が違うだけ）は残す", () => {
+    // 厳しい規則で外すと、API が通して画面にも出ている ID を一覧から消す
+    it("版/variant が v4 でない ID も残す", () => {
         const V0 = "0123abcd-4567-089a-0bcd-0123456789ab";
         expect(pruneList([V0], new Set([V0]))).toBeNull();
     });
