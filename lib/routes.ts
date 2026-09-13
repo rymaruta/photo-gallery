@@ -20,11 +20,20 @@ import PHOTO_INDEX from "@/app/data/photo-index.json";
 // ビルド後にアップロードされた写真の /photo/<id> は S3 に存在せず 404 になるため、
 // その場合はトップページのモーダル表示（/?photo=<id>）へフォールバックする。
 // 翌日の定期再ビルドで静的ページが生成されると、自動的に /photo/<id> に切り替わる。
-const BUILT_PHOTO_IDS = new Set(PHOTO_INDEX.photoIds);
+// **型は明示する。** `new Set(PHOTO_INDEX.photoIds)` だけだと、索引が
+// **空配列のとき** TypeScript が `Set<never>` と推論し、`.has(id: string)` が
+// 型エラーになる——**写真が1枚も無い環境ではサイトがビルドできない**。
+// staging の DynamoDB は空（本番の写真はコピーしない方針）なので、
+// ビルド時の同期で索引が空になり、**staging のデプロイが必ず落ちていた**
+// （実測: run 375 の Build が `Argument of type 'string' is not assignable
+// to parameter of type 'never'` で停止）。
+// 手元の `photos.json` は写真を持っているので、**コミット済みの断面では
+// 再現しない**。空の索引を置いて初めて出る。
+const BUILT_PHOTO_IDS: ReadonlySet<string> = new Set<string>(PHOTO_INDEX.photoIds);
 
 // ビルド時に投稿があるユーザーは /users/<id> が静的生成されている
 // （ユーザー個別の OGP カード付き）。それ以外はクエリ版にフォールバック。
-const BUILT_USER_IDS = new Set(PHOTO_INDEX.userIds);
+const BUILT_USER_IDS: ReadonlySet<string> = new Set<string>(PHOTO_INDEX.userIds);
 
 export const ROUTES = {
     HOME: "/",
