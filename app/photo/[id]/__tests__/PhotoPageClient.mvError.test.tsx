@@ -37,7 +37,14 @@ const mockLikeToggle = vi.hoisted(() => vi.fn(async (): Promise<{ ok: boolean; m
 vi.mock("../../../../lib/hooks/usePhotoLikes", () => ({
     usePhotoLikes: () => ({ liked: false, count: 0, pending: false, toggle: mockLikeToggle }),
 }));
-vi.mock("../../../../lib/utils/music", () => ({
+// **実物を土台にする。** 列挙だけだと、実装が新しく使い始めた export
+// （`isYouTubeMvUrl`）が **undefined** になり、**その分岐を通るテストだけ**が
+// 落ちる（台帳の型。`admin/edit` の `readApiError` で一度踏んでいる）。
+// `parseMusicEmbed` だけ差し替える——埋め込みを描かせないため。
+// `isYouTubeMvUrl` は実物を通す（中では**モジュール内の**
+// `parseMusicEmbed` を呼ぶので、この差し替えの影響を受けない）。
+vi.mock("../../../../lib/utils/music", async (importActual) => ({
+    ...(await importActual<typeof import("../../../../lib/utils/music")>()),
     searchSongs: (...a: unknown[]) => mockSearchSongs(...a),
     parseMusicEmbed: () => null,
 }));
@@ -69,12 +76,34 @@ beforeEach(() => {
 });
 
 describe("MV設定の失敗理由が伝わる", () => {
+    // **形は合っているのにサーバーが断る回**を使う。以前は
+    // `https://example.com/not-youtube` を貼っていたが、いまは画面が
+    // 送る前に断るのでサーバーまで届かない——このテストが見ている性質
+    // （**サーバーの文言をそのまま出す・一律に潰さない**）を保つため、
+    // 画面を通り抜ける形のリンクにする
     it("400 はサーバーの文言を出す（一律の文言に潰さない）", async () => {
         mockUserFetch.mockResolvedValueOnce({
-            ok: false, status: 400, json: async () => ({ error: "不正なYouTube URLです" }),
+            ok: false, status: 400, json: async () => ({ error: "その動画は埋め込めません" }),
         });
+        await saveMv("https://www.youtube.com/watch?v=abc123");
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("その動画は埋め込めません", "error"));
+    });
+
+    // **形が合っていないリンクは、送る前に断る。**
+    // 以前は必ず往復してから同じ文言が返っていた
+    it("YouTube でないリンクは、送らずに同じ文言を出す", async () => {
         await saveMv("https://example.com/not-youtube");
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("不正なYouTube URLです", "error"));
+        expect(mockUserFetch.mock.calls.filter((c) => (c[1] as { method?: string } | undefined)?.method === "PUT"),
+            "サーバーへ送っている（必ず 400 で返ってくる往復）").toHaveLength(0);
+    });
+
+    // 断りすぎない: https の YouTube は今までどおり送る
+    it("正しい YouTube リンクは送る", async () => {
+        mockUserFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) });
+        await saveMv("https://youtu.be/dQw4w9WgXcQ");
+        await waitFor(() => expect(mockUserFetch.mock.calls.filter(
+            (c) => (c[1] as { method?: string } | undefined)?.method === "PUT")).toHaveLength(1));
     });
 
     it("500 など文言の無い失敗は保存できなかった旨を出す（リンクのせいにしない）", async () => {

@@ -12,7 +12,7 @@ import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
 import { hapticTap } from "../../../lib/utils/haptics";
 import { photoAltText } from "../../../lib/utils/photoAlt";
 import { dropCachedPhoto } from "../../../lib/utils/photoCache";
-import { parseMusicEmbed } from "../../../lib/utils/music";
+import { parseMusicEmbed, isYouTubeMvUrl } from "../../../lib/utils/music";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { type SongEntry } from "../../music/MusicContext";
 import MusicCard from "../../components/MusicCard";
@@ -382,6 +382,15 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     const [ytSaving, setYtSaving] = useState(false);
     const mvEmbed = useMemo(() => (photoYtUrl ? parseMusicEmbed(photoYtUrl) : null), [photoYtUrl]);
     const savePhotoYoutube = async (url: string | null) => {
+        // **送る前に断る。** サーバーは合わなければ 400「不正なYouTube URLです」を
+        // 返すが、画面は `!ytInput.trim()` しか見ていなかったので、Vimeo の
+        // リンクや `abc` を貼ると**必ず往復1回ぶん無駄にしてから**同じ文言が出る。
+        // **文言はサーバーと同じものを使う**（利用者から見た結果を変えない）。
+        // 見た目も変えない——新しい注意書きは置かず、押したときの手応えだけ早くする。
+        if (url !== null && !isYouTubeMvUrl(url)) {
+            showToast(locale === "en" ? "Not a valid YouTube URL" : "不正なYouTube URLです", "error");
+            return;
+        }
         setYtSaving(true);
         try {
             const { userFetch, readApiError } = await import("../../../lib/utils/api");

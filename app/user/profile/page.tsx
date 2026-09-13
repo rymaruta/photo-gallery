@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
+import { usernameLengthError, USERNAME_MAX } from "../../../lib/utils/usernameRule";
 import { userFetch, readApiError, sessionErrorMessage } from "../../../lib/utils/api";
 import { changedFields } from "../../../lib/utils/changedFields";
 import { sanitizeProfile } from "../../../lib/utils/profileShape";
@@ -466,6 +467,17 @@ export default function ProfileEditPage() {
         //  - 曲(検索)があれば表示は曲を優先（UserProfileClient 側で判定）
         //  - リンクはそのまま保持され、曲を消すとリンクが使われる
         const trimmedUrl = songUrl.trim();
+        // **@名の長さも、送る前に確かめる。** 画面は `maxLength` で**上限だけ**
+        // 縛り、**下限3文字を一切見ていなかった**。`ab` のまま保存すると
+        // サーバーは**書き込みの前に** 400 を返す（`userProfile.ts:522`）ので、
+        // **同じ保存に乗せた自己紹介・表示名・テーマ色も1件も保存されない**。
+        // すぐ下の曲のリンクと同じ形に揃える（文言はサーバーと同じもの）。
+        // 予約語はサーバーだけが持つ一覧なので、こちらには写さない。
+        const nameError = usernameLengthError(username, locale !== "en");
+        if (nameError) {
+            showToast(nameError, "error");
+            return;
+        }
         if (trimmedUrl && !parseMusicEmbed(trimmedUrl)) {
             showToast(locale === "en"
                 ? "Song link must be Spotify, YouTube, or Apple Music."
@@ -788,7 +800,7 @@ export default function ProfileEditPage() {
                                 }}
                                 onChange={e => setUsername(
                                     usernameComposing.current ? e.target.value : cleanUsername(e.target.value))}
-                                maxLength={20}
+                                maxLength={USERNAME_MAX}
                                 placeholder="travel_photo"
                                 className={inputClass}
                                 autoCapitalize="none"

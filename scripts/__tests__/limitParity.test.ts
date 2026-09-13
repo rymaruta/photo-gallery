@@ -285,13 +285,14 @@ describe("@ユーザー名の規則は、サーバーと画面の説明で同じ
         expect(search, "USERNAME_RE を使っていない").toContain("USERNAME_RE");
     });
 
-    // 画面の入力欄の maxLength が規則の上限を超えていない
-    // （超えていると、打てるのに保存で必ず断られる）
-    it("入力欄の maxLength が規則の上限を超えない", () => {
-        const [, hi] = bounds();
-        const m = /id="profile-username"[\s\S]{0,1500}?maxLength=\{(\d+)\}/.exec(screen);
+    // 画面の入力欄の maxLength が規則の上限と同じ
+    // （ずれていると、打てるのに保存で必ず断られる）。
+    // **数字の直書きをやめて定数にした**ので、ここは「定数を使っているか」を見る
+    // ——数字そのものは上の `USERNAME_MAX` の突き合わせが縛る
+    it("入力欄の maxLength は、縛られた定数を使う", () => {
+        const m = /id="profile-username"[\s\S]{0,1500}?maxLength=\{([^}]+)\}/.exec(screen);
         expect(m, "ユーザー名の欄の maxLength を読めていない").not.toBeNull();
-        expect(Number(m![1]), "打てるのに保存できない長さがある").toBeLessThanOrEqual(hi);
+        expect(m![1].trim(), "数字を直書きしている（片方だけ変えられる）").toBe("USERNAME_MAX");
     });
 });
 
@@ -319,5 +320,86 @@ describe("プレイリストの曲数は、画面とサーバーで同じ", () =
         expect(screen, `画面のガードが ${n} になっていない`).toContain(`cur.length >= ${n}`);
         expect(screen, `日本語の文言が ${n} 曲と言っていない`).toContain(`${n}曲までです`);
         expect(screen, `英語の文言が ${n} と言っていない`).toContain(`Up to ${n} songs`);
+    });
+});
+
+/**
+ * **画面が「送る前に断る」判定は、サーバーの断り方と同じでなければならない。**
+ *
+ * 広すぎると正当な操作を止め（台帳が何度も踏んだ「押せないのに押せるべき」）、
+ * 狭すぎると**押せるのに必ず失敗する**（往復が1回無駄になる）。
+ */
+describe("送る前の判定が、サーバーと同じ答えを出す", () => {
+    /**
+     * @ユーザー名の長さ。**正は `USERNAME_RE`**、画面は数字だけ持つ。
+     *
+     * 画面は `maxLength` で**上限だけ**縛り、**下限を一切見ていなかった**
+     * ——`ab` で保存するとサーバーが**書き込みの前に** 400 を返すので、
+     * 同じ保存に乗せた自己紹介・表示名・テーマ色も1件も保存されない。
+     */
+    it("@名の下限・上限が、サーバーの正規表現と同じ", async () => {
+        const server = read("api-user/src/userProfile.ts");
+        const m = /export const USERNAME_RE = \/\^\[a-z0-9_\]\{(\d+),(\d+)\}\$\//.exec(server);
+        expect(m, "USERNAME_RE を読めていない").not.toBeNull();
+        const { USERNAME_MIN, USERNAME_MAX } = await import("../../lib/utils/usernameRule");
+        expect(USERNAME_MIN, "画面の下限がサーバーとずれている").toBe(Number(m![1]));
+        expect(USERNAME_MAX, "画面の上限がサーバーとずれている").toBe(Number(m![2]));
+    });
+
+    it("@名の判定が、長さの境界ちょうどで一致する", async () => {
+        const { usernameLengthError, USERNAME_MIN, USERNAME_MAX } = await import("../../lib/utils/usernameRule");
+        const ok = (v: string) => usernameLengthError(v, true) === null;
+        expect(ok(""), "空（＝@名を消す）まで断っている").toBe(true);
+        expect(ok("a".repeat(USERNAME_MIN - 1)), "短すぎるのに通している").toBe(false);
+        expect(ok("a".repeat(USERNAME_MIN)), "ちょうど下限を断っている").toBe(true);
+        expect(ok("a".repeat(USERNAME_MAX)), "ちょうど上限を断っている").toBe(true);
+        expect(ok("a".repeat(USERNAME_MAX + 1)), "長すぎるのに通している").toBe(false);
+        // `@` と大小は画面側で寄せてから見る（サーバーの normalizeUsername と同じ）
+        // `@` を外し、小文字に寄せてから長さを見る（サーバーと同じ順）
+        expect(ok("@Abc"), "@ と大文字を寄せていない").toBe(true);
+        expect(ok("@Ab"), "@ を外すと下限未満なのに通している").toBe(false);
+    });
+
+    // **予約語は写さない。** サーバーだけが持つ一覧で、写すと静かに古くなる
+    it("予約語の一覧を画面に写していない", () => {
+        const client = read("lib/utils/usernameRule.ts");
+        for (const w of ["admin", "support", "undefined"]) {
+            expect(client, `予約語「${w}」を画面に写している`).not.toContain(`"${w}"`);
+        }
+    });
+
+    /**
+     * 写真の MV の YouTube リンク。サーバーは `isValidYouTubeUrl`、
+     * 画面は `parseMusicEmbed` を使い回す。**同じ表を2つ持たない**ぶん、
+     * 答えが一致することをここで確かめる。
+     */
+    it("YouTube のリンクの判定が、サーバーと同じ答えを出す", async () => {
+        const { isYouTubeMvUrl } = await import("../../lib/utils/music");
+        const { isValidYouTubeUrl } = await import("../../api-user/src/photoUpdate");
+        const corpus = [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "https://youtu.be/dQw4w9WgXcQ",
+            "https://m.youtube.com/watch?v=dQw4w9WgXcQ",
+            "https://music.youtube.com/watch?v=dQw4w9WgXcQ",
+            "https://youtube.com/watch?v=dQw4w9WgXcQ",
+            // 断るべきもの
+            "http://www.youtube.com/watch?v=dQw4w9WgXcQ",  // https でない
+            "https://vimeo.com/12345",
+            "https://open.spotify.com/track/abc",
+            "https://music.apple.com/jp/album/x/1",
+            "abc",
+            "",
+            "   ",
+            "https://www.youtube.com/watch?v=short",        // id が短い
+            "https://www.youtube.com/watch",                // id が無い
+            "https://evil.com/watch?v=dQw4w9WgXcQ",
+        ];
+        for (const u of corpus) {
+            expect(isYouTubeMvUrl(u), `「${u}」で画面とサーバーの答えが違う`)
+                .toBe(Boolean(isValidYouTubeUrl(u)));
+        }
+        // **corpus が両方の答えを含んでいること**（全部 false だと素通りする）
+        expect(corpus.filter(isYouTubeMvUrl).length, "通す例が入っていない").toBeGreaterThan(0);
+        expect(corpus.filter((u) => !isYouTubeMvUrl(u)).length, "断る例が入っていない").toBeGreaterThan(0);
     });
 });

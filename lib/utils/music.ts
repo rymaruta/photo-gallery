@@ -67,6 +67,30 @@ function parseAppleMusic(u: URL): MusicEmbed | null {
 }
 
 /**
+ * **写真の MV に使える YouTube のリンクか。**
+ *
+ * サーバー（`api-user/src/photoUpdate.ts` の `isValidYouTubeUrl`）は
+ * 合わなければ **400「不正なYouTube URLです」** を返すのに、画面は
+ * `disabled={ytSaving || !ytInput.trim()}` としか見ていなかった——
+ * Vimeo のリンクや `abc` を貼ると**必ず往復1回ぶん無駄にしてから断られる**。
+ * 同じリポジトリの `/user/profile` は曲のリンクを**送る前に**
+ * `parseMusicEmbed` で判定して伝えている（`songInvalid`）ので、対の乖離だった。
+ *
+ * **新しい判定は作らない。** ホストの一覧も id の形も `parseYouTube` が
+ * 既に持っているので、そこへ通す。サーバーだけが持つ条件は `https:` の1つ
+ * （`new URL` は `http:` も通す）なので、それだけ足す。
+ *
+ * ⚠️ **予約語のような「サーバーだけが知っていること」は写さない。**
+ * ここで見るのは、画面が持っている材料だけで確実に分かる形だけ。
+ * 突き合わせは `scripts/__tests__/limitParity.test.ts` が行う。
+ */
+export function isYouTubeMvUrl(raw: string): boolean {
+    const s = (raw ?? "").trim();
+    if (!/^https:\/\//.test(s)) return false;
+    return parseMusicEmbed(s)?.service === "youtube";
+}
+
+/**
  * サポート対象(Spotify / YouTube / Apple Music)なら埋め込み情報を返す。非対応なら null。
  * start / end（秒）を渡すと「好きな部分だけ再生」に対応（現状 YouTube のみ有効）。
  */
