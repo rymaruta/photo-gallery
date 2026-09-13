@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import GalleryGrid, { GRID_SIZES_5XL, GRID_SIZES_6XL } from "../GalleryGrid";
+import GalleryGrid from "../GalleryGrid";
+import { GRID_SIZES_5XL, GRID_SIZES_6XL } from "../gridSizes";
 import type { Photo } from "@/lib/data/photos";
 
 /**
@@ -107,10 +108,28 @@ const photo = (id: string): Photo => {
 };
 
 describe("配線", () => {
-    it("既定は max-w-5xl の式を出す", () => {
-        const { container } = render(<GalleryGrid photos={[photo("a")]} locale="ja" />);
+    it("渡した max-w-5xl の式がそのまま出る", () => {
+        const { container } = render(<GalleryGrid photos={[photo("a")]} locale="ja" sizes={GRID_SIZES_5XL} />);
         const src = container.querySelector("source[sizes]");
         expect(src?.getAttribute("sizes") ?? container.querySelector("img")?.getAttribute("sizes")).toBe(GRID_SIZES_5XL);
+    });
+
+    /**
+     * **`sizes` は必須。既定値を置かない。**
+     *
+     * 置いていた頃、「集約ページが `GRID_SIZES_6XL` を渡すのをやめる」変異が
+     * テストを**素通りした**——容器が広いのに狭い方の式が黙って使われ、
+     * 箱 276px に 236px と申告して**小さすぎる候補を選ぶ**（ぼやける）。
+     *
+     * ここは `tsc` が守る。任意に戻すと「使われていない
+     * `@ts-expect-error`」で**型検査が落ちる**（`npm run verify` が拾う）。
+     */
+    it("sizes を省くと型検査が落ちる（既定値を置かない）", () => {
+        const omitted = () => (
+            // @ts-expect-error sizes は必須（省略できてはいけない）
+            <GalleryGrid photos={[photo("z")]} locale="ja" />
+        );
+        expect(typeof omitted).toBe("function");
     });
 
     it("渡された式をそのまま出す", () => {
@@ -120,7 +139,7 @@ describe("配線", () => {
     });
 
     it("写真が出ている（描画そのものが壊れていない）", () => {
-        render(<GalleryGrid photos={[photo("c")]} locale="ja" />);
+        render(<GalleryGrid photos={[photo("c")]} locale="ja" sizes={GRID_SIZES_5XL} />);
         expect(screen.getAllByRole("img").length).toBeGreaterThan(0);
     });
 });

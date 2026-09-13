@@ -6,6 +6,7 @@ import { useFavorites } from "../../lib/hooks/useFavorites";
 import { useImagePreloader } from "../../lib/hooks/useImagePreloader";
 import { usePhotos } from "../../lib/hooks/usePhotos";
 import GalleryGrid from "../components/GalleryGrid";
+import { GRID_SIZES_5XL } from "../components/gridSizes";
 import { useLocale } from "../i18n/context";
 import { photoCategoryMap } from "../../lib/utils/categoryMap";
 
@@ -68,6 +69,7 @@ export default function FavoritesPage() {
                 </div>
             ) : (
                 <GalleryGrid
+                        sizes={GRID_SIZES_5XL}
                     photos={favoritePhotos}
                     locale={locale}
                     categoryDisplayMap={categoryDisplayMap}

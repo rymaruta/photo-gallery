@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import GalleryGrid, { GRID_SIZES_6XL } from "./GalleryGrid";
+import GalleryGrid from "./GalleryGrid";
+import { GRID_SIZES_6XL } from "./gridSizes";
 import { useLocale } from "../i18n/context";
 import type { Photo } from "@/lib/data/photos";
 import type { CollectionType } from "@/lib/utils/collections";
