@@ -123,21 +123,33 @@ export async function updatePhotoFields(id: string, updates: Record<string, unkn
  *
  * 以前は写真の item だけを消していた。コメントは写真ごとに
  * `comments#<photoId>` という別文書に溜まっており、そちらが残るので、
- * **写真を消してもコメント本文・投稿者名・投稿者IDが誰でも読めるまま**
- * だった（一覧APIは公開で、写真の存在確認もしていない）。
+ * **写真を消してもコメント本文・投稿者名・投稿者IDが残る**。
  * 「不適切なコメントが付いたので写真を消してほしい」に応えられていない。
+ *
+ * **`comments#` は写真の行より先に消す。** 逆にすると、コメントの削除が
+ * 一時的に失敗した回に**写真の行だけが消えて、コメント文書が永久に残る**
+ * ——`comments#` は `src` も `userId` も持たないので GSI にも一覧にも出ず、
+ * 退会の掃除（`userId` の GSI を回る）にも拾われない。押し直しても
+ * `getPhotoById` が 404 を返すので**やり直す入口も消える**。
+ * 消せなければ**投げて、行を残す**（押し直せば続きから消える）。
+ *
+ * **これは新しい判断ではない。** 利用者側の `deleteMyPhoto`
+ * （`api-user/src/photoUpdate.ts`）と退会（`account.ts`）は、
+ * どちらも**同じ順序・同じ倒し方**で、理由をコメントに書いてある
+ * （「comments# は行より先に消す（逆だと再実行で拾う手がかりが無くなる）」）。
+ * **管理者の削除だけがその逆を書いていた。**
+ *
+ * ⚠️ 以前ここに「一覧APIは公開で、写真の存在確認もしていない」と書いていたが
+ * **もう事実ではない**——`api-user/src/comments.ts` の `getComments` は
+ * 写真の実在・公開・ストーリーを見て 404 を返す。残ったコメントが
+ * 誰かに読まれることは無く、実害は「消えない個人データがテーブルに残る」。
  *
  * いいねマーカー（like#<photoId>#<uid>）は per-photo に引く手段が無く、
  * 全件 Scan が要るので今回は対象外。中身を持たないので実害は軽い。
  */
 export async function deletePhotoById(id: string): Promise<void> {
+    await ddb.send(new DeleteCommand({ TableName: TABLE, Key: { id: `comments#${id}` } }));
     await ddb.send(new DeleteCommand({ TableName: TABLE, Key: { id } }));
-    try {
-        await ddb.send(new DeleteCommand({ TableName: TABLE, Key: { id: `comments#${id}` } }));
-    } catch (e) {
-        // 写真本体は消えているので、ここで失敗しても全体は失敗にしない
-        console.error(`deletePhotoById: comments#${id} の削除に失敗:`, e);
-    }
 }
 
 export async function listPhotosByUser(userId: string): Promise<Photo[]> {

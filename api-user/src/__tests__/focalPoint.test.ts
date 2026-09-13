@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { sanitizeFocalPoint } from "../sanitize";
-import { sanitizeFocalPoint as adminSanitizeFocalPoint } from "../../../api/src/sanitize";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -44,19 +43,10 @@ describe("切り抜き位置のサニタイズ", () => {
         expect(sanitizeFocalPoint({ x: 0.123456789, y: 0.987654321 })).toEqual({ x: 0.1235, y: 0.9877 });
     });
 
-    // **api と api-user は別々にデプロイされる。** 片方だけ直すと、
-    // 同じ `PUT /photos/{id}` でも通る API によって保存されるものが変わる
-    // （実際にそうなっていた、と `sanitize.ts` の冒頭が書いている）
-    it("api 側の実装と同じ判定になる", () => {
-        for (const fp of [
-            { x: 0.5, y: 0.5 }, { x: 0, y: 0 }, { x: 1, y: 1 },
-            { x: -1, y: 0.5 }, { x: 0.5, y: 2 }, { x: 0.123456789, y: 0.5 },
-            null, "x", { x: "0.5", y: 0.5 },
-        ]) {
-            expect(adminSanitizeFocalPoint(fp), `食い違い: ${JSON.stringify(fp)}`)
-                .toEqual(sanitizeFocalPoint(fp));
-        }
-    });
+    // **api 側との突き合わせは `scripts/__tests__/truncateCopies.test.ts`。**
+    // あそこが「共有している export は11個」と数え上げていて、共有の
+    // サニタイズが増えたら**必ずあちらにも突き合わせを書かせる**作りに
+    // なっている。ここに2本目を置くと、片方を直した日にずれる
 });
 
 describe("保存の配線", () => {

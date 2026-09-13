@@ -23,6 +23,7 @@ export default function ProfileLink({ userId, displayName, size = "md", onClick 
     return (
         <Link
             href={href}
+            prefetch={false}
             onClick={onClick}
             className="inline-flex items-center gap-2.5 group"
             style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}

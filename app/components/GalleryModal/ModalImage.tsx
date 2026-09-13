@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { isImageReady } from "../../../lib/utils/imageReady";
 import { dropCachedPhoto } from "../../../lib/utils/photoCache";
+import { publicImageUrl } from "@/lib/utils/seo";
 
 type Props = {
     src: string;
@@ -36,9 +37,9 @@ export default function ModalImage({ src, alt, srcAvif, focalPoint }: Props) {
             )}
             {/* AVIF があれば優先、無ければ従来 src(WebP) にフォールバック */}
             <picture>
-                {srcAvif && <source type="image/avif" srcSet={srcAvif} />}
+                {srcAvif && <source type="image/avif" srcSet={publicImageUrl(srcAvif)} />}
                 <img
-                    src={src}
+                    src={publicImageUrl(src)}
                     alt={alt}
                     draggable={false}
                     onContextMenu={(e) => e.preventDefault()}

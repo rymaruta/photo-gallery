@@ -4,12 +4,15 @@ import PhotoPageClient from "./PhotoPageClient";
 import type { Metadata } from "next";
 import { splitStoredDate } from "@/lib/utils/photoDate";
 import { ja } from "../../i18n/labels";
-import { siteConfig } from "@/lib/utils/seo";
+import { siteConfig, publicImageUrl } from "@/lib/utils/seo";
 import { getLocalized, getLocalizedParagraphs } from "@/lib/data/photos";
 import { loadAllPhotos } from "@/lib/server/photos";
-import { relatedSections, adjacentPhotos } from "@/lib/utils/related";
+import { initialRelatedFor } from "@/lib/utils/related";
 import { withPlaceholderParam } from "../../../lib/server/staticParams";
 import { photoAltText } from "../../../lib/utils/photoAlt";
+import { metaText } from "@/lib/utils/metaText";
+import { titleWithPlace } from "@/lib/utils/titlePlace";
+import { categoryLabel } from "../../../lib/utils/collections";
 
 // 写真データを読み込む関数
 async function loadPhoto(id: string): Promise<Photo | null> {
@@ -49,9 +52,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     // と同じ型だった
     const ownTitle = getLocalized(photo.title, "ja") || getLocalized(photo.title, "en") || "無題";
     const descriptionParagraphs = getLocalizedParagraphs(photo.description, "ja");
-    const ownDescription = descriptionParagraphs.length > 0
+    // **1行に均す。** 利用者は段落の中でも改行するので、素で入れると
+    //  `<meta name="description">` の属性値に生の改行が残る
+    //  （実ビルドで写真ページ5枚 × 3メタ）。`app/users/[id]` は
+    //  自己紹介に同じ処理を前からしていた
+    const ownDescription = metaText(descriptionParagraphs.length > 0
         ? descriptionParagraphs.join(" ")
-        : getLocalizedParagraphs(photo.description, "en").join(" ");
+        : getLocalizedParagraphs(photo.description, "en").join(" "));
     // **説明が無いときに、サイトのキャッチコピーを名乗らない。**
     // 説明を空にした写真が全部**同じ meta description** を持つことになり、
     // しかも「この写真の説明はサイトの宣伝文です」と申告する形になる。
@@ -65,13 +72,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     // 画面は `app/i18n/labels.ts` の日本語ラベルを出している）——`a287ee3`
     // で潰した「日本語UIに残る英語」を作っていた。
     const year = splitStoredDate(String(photo.date ?? ""))?.y;
-    const categoryRaw = (photo.category ?? "").toString().trim().toLowerCase();
-    const categoryLabel = (ja.category.names as Record<string, string>)[categoryRaw]
-        || (photo.category ?? "").toString().trim();
+    // **鍵はスラッグ**（`categoryLabel`）。生の値で引くと、別名で保存された
+    // 写真だけ表に当たらず生のまま出る（説明文に「建物」、飛び先は「建築」）
+    const categoryText = categoryLabel(photo.category?.toString(), ja.category.names as Record<string, string>);
     const place = (photo.location ?? "").toString().trim();
     const when = year ? `${year}年に` : "";
     const where = place ? `${place}で` : "";
-    const what = categoryLabel ? `${categoryLabel}の写真。` : "写真。";
+    const what = categoryText ? `${categoryText}の写真。` : "写真。";
     // 場所も日付も無ければ「撮影した」を付けない（`撮影した風景の写真。`
     // は日本語として落ち着かない）
     // **題に撮影地を添える。**
@@ -84,7 +91,22 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     // **既に題に入っているなら足さない**（「山中湖の朝｜山中湖」を作らない）。
     // 表示は `| Journey Photo 旅フォトギャラリー` が後ろに付いて切られうるが、
     // **切られるのは見た目だけで、検索語との突き合わせは全文で行われる**。
-    const title = place && !ownTitle.includes(place) ? `${ownTitle}｜${place}` : ownTitle;
+    //
+    // **逆向きも見る。** 判定が「題が撮影地を含むか」だけだったので、
+    // **撮影地の方が題を含む**回に重ねていた（実ビルド:
+    // 「オペラ・ガルニエ｜オペラ・ガルニエ（パリ）」＝サイトで一番長い題）。
+    // そのときは**撮影地を出す**——題を丸ごと含んでいるので何も失わず、
+    // 「（パリ）」のぶん情報が増える。
+    // **2つの枝の順番はどちらでもよい**（変異で確かめた）。両方が真に
+    // なるのは「題が撮影地を含む」かつ「撮影地が題で始まる」＝**同じ
+    // 文字列のとき**だけで、そのときどちらの枝も同じものを返す。
+    // 最初「includes を先に見ないと題＝撮影地で題が消える」と書いたが誤り。
+    // 「海」が「…海浜公園」に含まれるような回は、撮影地が題で始まって
+    // いないので `startsWith` に掛からない（実データで確認）。
+    // **並べ方の決め方は `titleWithPlace` 1つに置く**（画像の `alt` と同じ判断。
+    // ここが決めるのは「｜でつなぐ」ことだけ）
+    const tp = titleWithPlace(ownTitle, place);
+    const title = tp.kind === "single" ? tp.text : `${tp.title}｜${tp.place}`;
 
     // **説明に機材を添える。**
     //
@@ -110,12 +132,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     const description = (ownDescription
         && withFacts(ownDescription, [ownDescription.includes(place) ? undefined : place, camera]))
         || (place || year ? withFacts(`${where}${when}撮影した${what}`, [camera]) : "")
-        || (categoryLabel ? withFacts(`${categoryLabel}の写真。`, [camera]) : "")
+        || (categoryText ? withFacts(`${categoryText}の写真。`, [camera]) : "")
         || siteConfig.description;
     
-    const imageUrl = photo.src.startsWith("http") 
-        ? photo.src 
-        : `${siteConfig.url}${photo.src}`;
+    // 出すURLはサイトのドメインに揃える（`publicImageUrl`）。同じ配信の
+    // 別名で2つに割れていた——実測 138ページ中 69ページが CloudFront の既定ドメイン
+    const imageUrl = publicImageUrl(photo.src);
     
     const pageUrl = `${siteConfig.url}/photo/${id}`;
     
@@ -130,7 +152,18 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
             photo.category || "",
             photo.location || "",
         ].filter(Boolean),
-        authors: photo.photographer ? [{ name: photo.photographer }] : undefined,
+        // **作者を名乗る。** `photographer` は実データ30件中0件なので、
+        // これまで `<meta name="author">` は一度も出ていなかった
+        // （実ビルドで確認）。表示名（`displayName`）に落として、
+        // 投稿者のプロフィールへ `url` で結ぶ——人名で探されたときに
+        // 「この30ページは同じ人のもの」と機械に伝わる唯一の線
+        authors: (() => {
+            const name = photo.photographer || photo.displayName;
+            if (!name) return undefined;
+            return [photo.userId
+                ? { name, url: `${siteConfig.url}/users/${photo.userId}` }
+                : { name }];
+        })(),
         openGraph: {
             type: "website",
             locale: "ja_JP",
@@ -179,11 +212,10 @@ export default async function PhotoPage({ params }: PageProps) {
     const photo = photos.find((p) => p.id === id) ?? null;
     // 回遊リンク（同投稿者/同場所/前後）をビルド時に計算して静的HTMLに焼き込む。
     // クライアント取得を待たずにクローラーが内部リンクを辿れるようにする（SEO）。
-    const initialRelated = photo
-        ? {
-            ...relatedSections(photo, photos, 8),
-            ...adjacentPhotos(photo, photos),
-        }
-        : undefined;
+    // **リンクに要る項目だけ渡す。** 丸ごと渡すと、説明も EXIF もタグも
+    // 付いた写真オブジェクトが最大18個、**全写真ページの HTML に**埋め込まれる
+    // （RSC ペイロード）。組み立ては `initialRelatedFor` に置いてある
+    // ——ここに `map(slimForLinks)` と書くと、**1つ消しても誰も気づかない**
+    const initialRelated = photo ? initialRelatedFor(photo, photos, 8) : undefined;
     return <PhotoPageClient photoId={id} initialPhoto={photo ?? undefined} initialRelated={initialRelated} />;
 }

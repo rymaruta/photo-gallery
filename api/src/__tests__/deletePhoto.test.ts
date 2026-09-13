@@ -26,19 +26,40 @@ function deletedIds(): string[] {
 beforeEach(() => { mockDdbSend.mockReset().mockResolvedValue({}); });
 
 // 写真を消してもコメントは別文書（comments#<写真ID>）に残っていた。
-// 一覧APIは公開で写真の存在確認もしないので、
-// **写真を消したあともコメント本文・投稿者名・投稿者IDが誰でも読めた**。
 // 「不適切なコメントが付いたので写真を消してほしい」に応えられていない。
+//
+// **順序と倒し方を変えた（2026-09-13）。** もとは「行 → comments#」で、
+// コメントの削除に失敗しても成功として返していた。理由は当時
+// 「写真本体は消えているので全体は失敗にしない」。だが:
+//
+//   - `comments#` は `src` も `userId` も持たないので **GSI にも一覧にも
+//     出ず**、退会の掃除（`userId` の GSI を回る）にも拾われない
+//   - 行が先に消えると、押し直しても `getPhotoById` が 404 を返すので
+//     **やり直す入口が消える**＝消えない個人データが永久に残る
+//   - **利用者側の `deleteMyPhoto` と退会は、どちらも逆の順序**で、
+//     理由まで書いてある（「comments# は行より先に消す（逆だと再実行で
+//     拾う手がかりが無くなる）」）。**管理者の削除だけが逆**だった
+//
+// 当時の前提「一覧APIは公開で写真の存在確認もしない」も**もう事実でない**
+// ——`api-user/src/comments.ts` の `getComments` は写真の実在・公開・
+// ストーリーを見て 404 を返す。だから「読まれてしまう」ことは無く、
+// 残るのは「消えないデータ」だけ。**消せるようにする方を採る。**
 describe("deletePhotoById", () => {
+    // 元のテストが守っていた性質（両方消える）はそのまま
     it("写真本体とコメント文書の両方を消す", async () => {
         await deletePhotoById("p1");
-        expect(deletedIds()).toEqual(["p1", "comments#p1"]);
+        expect(deletedIds()).toEqual(["comments#p1", "p1"]);
     });
 
-    it("コメント文書の削除に失敗しても写真の削除は成立させる", async () => {
-        mockDdbSend
-            .mockResolvedValueOnce({})
-            .mockRejectedValueOnce(new Error("boom"));
-        await expect(deletePhotoById("p1")).resolves.toBeUndefined();
+    // **順序そのものを見る。** これが逆だと、失敗した回に手がかりが消える
+    it("コメント文書を、写真の行より先に消す", async () => {
+        await deletePhotoById("p1");
+        expect(deletedIds()[0], "行を先に消している").toBe("comments#p1");
+    });
+
+    it("コメント文書を消せなければ投げる（写真の行を残す）", async () => {
+        mockDdbSend.mockRejectedValueOnce(new Error("boom"));
+        await expect(deletePhotoById("p1")).rejects.toThrow("boom");
+        expect(deletedIds(), "行まで消している（押し直しても辿れなくなる）").toEqual(["comments#p1"]);
     });
 });

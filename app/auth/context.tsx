@@ -2,8 +2,14 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { signIn, signOut,
-    lookupSession, deleteAccount as cognitoDeleteAccount } from "../../lib/auth/cognito";
+// **認証 SDK は「使うとき」に読み込む。** `AuthProvider` はルートレイアウトに
+// あるので、ここが静的に `auth/cognito` を掴んでいると
+// `amazon-cognito-identity-js`（SRP の BigInteger と SHA-256。実測で
+// gzip 28KB）が**全ページ**に載る。検索から写真ページに着地する人の
+// ほとんどはログインしていないので、その 28KB は丸ごと無駄になる。
+// 読むのは「セッションを引く（端末に痕跡があるときだけ）」
+// 「ログインする」「ログアウトする」「退会する」の4つの瞬間だけ。
+import { lookupSession } from "../../lib/auth/session";
 import { cognitoConfig } from "../../lib/auth/config";
 import { userFetch, NETWORK_UNREACHABLE_MESSAGE } from "../../lib/utils/api";
 import { log } from "../../lib/utils/log";
@@ -179,8 +185,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     // 初回ロードおよびパス変更時に認証状態をチェック
+    //
+    // **`eslint-disable react-hooks/set-state-in-effect` を外した。**
+    // セッションを引く口を `lib/auth/session.ts`（動的 import）に替えたら、
+    // 規則が「この effect は state を同期に触らない」と読めるようになり、
+    // 抑制が**未使用の指示**として警告に出た（eslint が数える）。
+    // 振る舞いは変わっていない——前から `checkAuth` は非同期だった。
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         void checkAuth();
     }, [pathname, checkAuth]);
 
@@ -254,6 +265,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         try {
             log.info("AuthContext: ログイン開始", { usernameLength: username.length });
+            const { signIn } = await import("../../lib/auth/cognito");
             const result = await signIn(username, password);
             log.info("AuthContext: ログイン結果", { 
                 success: result.success, 
@@ -301,7 +313,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [markResolved]);
 
     // ログアウト
-    const logout = useCallback(() => {
+    //
+    // **`signOut` を待ってから片付ける。** 先に画面の状態だけ落とすと、
+    // 同時に走っている `checkAuth` が「まだ有効なセッション」を見て
+    // ログイン中に戻しうる。順序は SDK を静的に読んでいた頃と同じ
+    // （`signOut` → 手元の掃除 → 画面 → 遷移）。
+    // 呼び手（`HeaderNav`）は戻り値を見ないので、async にしても影響しない
+    const logout = useCallback(async () => {
+        const { signOut } = await import("../../lib/auth/cognito");
         signOut();
         // フォロー中の一覧はモジュール変数に持っている。ログアウトは
         // クライアント遷移でモジュール状態が残るため、明示的に捨てないと
@@ -370,6 +389,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 } catch { /* JSON でなければ既定文 */ }
                 return { success: false, error: serverError || "退会処理に失敗しました。時間をおいて再度お試しください" };
             }
+            const { deleteAccount: cognitoDeleteAccount, signOut } = await import("../../lib/auth/cognito");
             const del = await cognitoDeleteAccount();
             if (!del.success) {
                 // ここに来た時点で**サーバー側のデータはもう消えている**。

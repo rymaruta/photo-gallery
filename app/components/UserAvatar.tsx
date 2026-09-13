@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { UserCircleIcon } from "@heroicons/react/24/outline";
+import { publicImageUrl } from "@/lib/utils/seo";
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
@@ -24,7 +25,7 @@ export default function UserAvatar({ userId, className = "w-10 h-10", iconClassN
     // 403 が1本飛び、アイコンに落ちるまでちらつく。テストでは
     // NEXT_PUBLIC_CLOUDFRONT_URL が未設定なので url が空になり、見えない。
     const url = CLOUDFRONT_URL && userId
-        ? `${CLOUDFRONT_URL}/profiles/${encodeURIComponent(userId)}${cacheBust !== undefined ? `?v=${cacheBust}` : ""}`
+        ? publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(userId)}${cacheBust !== undefined ? `?v=${cacheBust}` : ""}`)
         : "";
 
     return (

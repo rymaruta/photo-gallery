@@ -22,7 +22,10 @@ vi.mock("next/navigation", () => ({
     useSearchParams: () => new URLSearchParams(""),
 }));
 vi.mock("../../../auth/context", () => ({ useAuth: () => authState.current }));
-vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
+// **言語を切り替えられる形にする。** 固定だと「言語も見る」と書いた
+// `aria-label` の英語側を誰も通らない（日本語固定に戻す変異が素通りした）
+const uiLocale = vi.hoisted(() => ({ value: "ja" as "ja" | "en" }));
+vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: uiLocale.value }) }));
 vi.mock("../../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
 vi.mock("../../../components/AddToHomeScreenHint", () => ({ default: () => null }));
 // **`lookupSession` も模す。** `userFetch` はこちらでトークンを引く
@@ -93,6 +96,66 @@ describe("アップロード画面の入力候補", () => {
         expect(optionValues("own-categories")).toContain("街");
     });
 
+    // **タグは datalist が効かない**（欄全体を置き換えるのでカンマ区切りが
+    // 壊れる）ので、押して足せるチップにしてある。**押して本当に入るかを
+    // 見るテストが、この画面には1本も無かった**——`/user/edit` にはあった。
+    // owner の「自分で入力するのではなく決まったのを選ぶ方が楽？」に
+    // 答えるには、grep ではなく実際に押して確かめる必要がある
+    it("タグは押して足せる（カンマ区切りを壊さない）", async () => {
+        await pickOne();
+        const chip = await screen.findByRole("switch", { name: "夜景" });
+        await userEvent.click(chip);
+        const field = screen.getByPlaceholderText("タグ（カンマ区切り）") as HTMLInputElement;
+        expect(field.value, "押しても欄に入っていない").toBe("夜景");
+        // 2つ目を足しても1つ目が消えない（datalist にできない理由そのもの）
+        await userEvent.click(await screen.findByRole("switch", { name: "街" }));
+        expect(field.value, "前に足したタグが消えている").toBe("夜景, 街");
+    });
+
+    // **押し直したら外れる。** もとは足すだけだったので、既に付いている
+    // タグのチップは**押しても何も起きなかった**（見た目も変わらないので
+    // 押せていないのかも分からない）。一覧の絞り込みは前から押し直して
+    // 外す形で、投稿・編集の候補チップだけ古いままだった
+    it("押し直したら外れる（選んだかどうかも分かる）", async () => {
+        await pickOne();
+        const chip = await screen.findByRole("switch", { name: "夜景" });
+        const field = screen.getByPlaceholderText("タグ（カンマ区切り）") as HTMLInputElement;
+        expect(chip, "まだ選んでいないのに選択済みに見える").toHaveAttribute("aria-checked", "false");
+
+        await userEvent.click(chip);
+        expect(field.value).toBe("夜景");
+        expect(chip, "選んだことが分からない").toHaveAttribute("aria-checked", "true");
+        // **見た目でも分かること。** 直した症状の見出しは「選んだかどうかが
+        // 分からない」＝見た目の話なので、`aria-checked` だけでは足りない
+        // （選択中の色を未選択と同じに戻す変異が素通りしていた）
+        expect(chip.className, "選択中の見た目になっていない").toContain("bg-white ");
+        expect(chip.className).toContain("text-black");
+
+        await userEvent.click(chip);
+        expect(field.value, "押し直しても外れない（押しても何も起きないボタン）").toBe("");
+        expect(chip).toHaveAttribute("aria-checked", "false");
+        expect(chip.className, "外したのに選択中の見た目のまま").not.toContain("text-black");
+    });
+
+    // 手で打った綴りが違っても、同じタグとして見る（二重に入れない）
+    it("手で打ったタグも、同じものなら選択済みとして扱う", async () => {
+        await pickOne();
+        const field = screen.getByPlaceholderText("タグ（カンマ区切り）") as HTMLInputElement;
+        await userEvent.type(field, "#夜景");
+        const chip = await screen.findByRole("switch", { name: "夜景" });
+        expect(chip, "同じタグなのに未選択に見える").toHaveAttribute("aria-checked", "true");
+        await userEvent.click(chip);
+        expect(field.value, "同じタグが2つ入った").toBe("");
+    });
+
+    // **よく使う順**（`collectOwnValues`）。並びが崩れると、いちばん押す
+    // ものが12個の枠から落ちる
+    it("タグの候補は、よく使う順に並ぶ", async () => {
+        await pickOne();
+        const chips = await screen.findAllByRole("switch", { name: /^(夜景|街)$/ });
+        expect(chips.map((c) => c.textContent), "よく使う順になっていない").toEqual(["夜景", "街"]);
+    });
+
     // **読めない行が混じっても候補は出す**（1件の巻き添えで全部を失わない）。
     // 枠の数え方は別: `countUserPhotos` は `Select: "COUNT"` なので、
     // 落とした行も上限に数える（「あと3枚」と出て 403 にしない）
@@ -105,5 +168,76 @@ describe("アップロード画面の入力候補", () => {
         const used = PHOTOS.length + 2;
         expect(screen.getByText(`あと${PHOTO_LIMIT_PER_USER - used}枚アップロードできます（${PHOTO_LIMIT_PER_USER}枚まで）`),
             "落とした行を枠から引いている（サーバーは数える）").toBeInTheDocument();
+    });
+
+    // **候補のまとまりに名前を付ける。** 読み上げは「夜景 スイッチ オン」としか
+    // 言わないので、何のスイッチか分からない（`role="switch"` にしたぶん、
+    // ただのボタンだった頃より「何の」が要る）
+    it("候補のまとまりに名前がある", async () => {
+        await pickOne();
+        expect(screen.getByRole("group", { name: "よく使うタグ" }), "何のスイッチか分からない").toBeInTheDocument();
+    });
+
+    // **打ちかけの文字で候補を絞る。** 枠は12個だが owner のタグは59種——
+    // 絞らないと上位12種しか選べず、残りは打つしかない（打つから表記が割れる）
+    it("打ちかけの文字で候補を絞る", async () => {
+        await pickOne();
+        const field = screen.getByPlaceholderText("タグ（カンマ区切り）") as HTMLInputElement;
+        expect(await screen.findByRole("switch", { name: "街" })).toBeInTheDocument();
+
+        await userEvent.type(field, "夜");
+        expect(screen.getByRole("switch", { name: "夜景" })).toBeInTheDocument();
+        expect(screen.queryByRole("switch", { name: "街" }), "絞れていない").toBeNull();
+
+        // **最後のカンマから後ろで絞る**（前に入れたタグに引きずられない）
+        await userEvent.clear(field);
+        await userEvent.type(field, "夜景, 街x");
+        expect(screen.queryByRole("switch", { name: "夜景" }), "前のタグで絞っている").toBeNull();
+        expect(screen.queryByRole("switch", { name: "街" }), "打ちかけに当たらない候補が残っている").toBeNull();
+
+        // **打ち終わったら絞りを解く**（1つ選んだら、続けて2つ目を選べる）
+        await userEvent.clear(field);
+        await userEvent.type(field, "夜景");
+        expect(screen.getByRole("switch", { name: "街" }), "1つ選んだら他が選べない").toBeInTheDocument();
+        expect(screen.getByRole("switch", { name: "夜景" })).toHaveAttribute("aria-checked", "true");
+
+        // 一致が無ければ候補そのものを出さない（関係ないものを並べない）
+        await userEvent.clear(field);
+        await userEvent.type(field, "zzz");
+        expect(screen.queryByRole("group", { name: "よく使うタグ" }), "関係ない候補が残っている").toBeNull();
+    });
+
+    it("英語UIでは候補のまとまりの名前も英語", async () => {
+        uiLocale.value = "en";
+        try {
+            // `pickOne` は日本語の見出しを待つので、ここは英語側の見出しで待つ
+            const { container } = render(<UploadPage />);
+            const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+            await userEvent.upload(input, new File(["x"], "a.jpg", { type: "image/jpeg" }));
+            await screen.findByText(/Common settings/i);
+            expect(screen.getByRole("group", { name: "Your frequent tags" }), "日本語のまま出している").toBeInTheDocument();
+        } finally {
+            uiLocale.value = "ja";
+        }
+    });
+
+    // **打って絞って押したら、打ちかけの文字が残ってはいけない。**
+    // 絞りを入れた最初の版は `"夜"` と打って `夜景` を押すと `"夜, 夜景"` になり、
+    // **`夜` がそのまま写真のタグとして保存された**（絞りの目的は
+    // 「打つから表記が割れる」を減らすことなのに、逆に綴りを増やしていた）。
+    // 単体だけだと、画面が欠片を落としていない変異が素通りする
+    it("打って絞って押すと、欄には選んだタグだけが入る", async () => {
+        await pickOne();
+        const field = screen.getByPlaceholderText("タグ（カンマ区切り）") as HTMLInputElement;
+
+        await userEvent.type(field, "夜");
+        await userEvent.click(await screen.findByRole("switch", { name: "夜景" }));
+        expect(field.value, "打ちかけの文字がタグとして残っている").toBe("夜景");
+
+        // 前に選んだタグは残る（落とすのは**最後の欠片だけ**）
+        await userEvent.clear(field);
+        await userEvent.type(field, "街, 夜");
+        await userEvent.click(await screen.findByRole("switch", { name: "夜景" }));
+        expect(field.value, "前に選んだタグまで落としている").toBe("街, 夜景");
     });
 });

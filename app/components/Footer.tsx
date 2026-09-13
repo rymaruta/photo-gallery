@@ -41,9 +41,13 @@ export default function Footer() {
                     <nav aria-label={locale === "en" ? "Footer" : "フッター"}
                         className="flex flex-wrap justify-center gap-x-5 gap-y-2">
                         {links.map(({ href, label }) => (
+                            // **先読みしない**（理由と実測は `app/components/GalleryGrid.tsx` の
+                            // カードのコメント。静的書き出し＋`no-store` 配信なので、画面に
+                            // 入るたびに行き先を丸ごと落とし直す）
                             <Link
                                 key={href}
                                 href={href}
+                                prefetch={false}
                                 className="text-xs text-white/50 hover:text-white transition-colors"
                                 style={{ touchAction: "manipulation" }}
                             >

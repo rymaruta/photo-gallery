@@ -19,6 +19,7 @@ import Link from "next/link";
 import { CameraIcon } from "@heroicons/react/24/outline";
 import { dedupeCameraName } from "../../lib/utils/cameraName";
 import { formatStoredDateTime } from "../../lib/utils/photoDate";
+import { displayWhiteBalance } from "../../lib/utils/exifDisplay";
 
 export type ExifSpec = { label: string; value: string; wide?: boolean; href?: string };
 
@@ -57,7 +58,10 @@ export function buildExifSpecs(exif: ExifLike, locale: string, cameraHref?: stri
     add(en ? "Shutter" : "シャッター速度", exif.exposure);
     add("ISO", exif.iso);
     add(en ? "Focal Length" : "焦点距離", exif.focalLength);
-    add(en ? "White Balance" : "ホワイトバランス", exif.whiteBalance);
+    // **保存済みの値は英語のまま。表示のときだけ日本語にする**
+    // （`/admin/edit` の入力欄に当てると、保存の差分の比較先が変わって
+    //  「利用者が書き換えた」と読まれる——`dedupeCameraName` と同じ判断）
+    add(en ? "White Balance" : "ホワイトバランス", displayWhiteBalance(exif.whiteBalance, en ? "en" : "ja"));
     add(en ? "Image Size" : "画像サイズ", exif.imageSize);
     // 撮影日時は**保存されている通り**に出す。`toLocaleString` を描画中に
     // 呼んでいた頃は、ビルド(UTC)と閲覧者のゾーンで文字列が食い違って
@@ -92,7 +96,7 @@ export default function ExifSpecs({ specs, locale, className = "" }: { specs: Ex
                             {/* リンクにするのは行き先がある項目だけ。
                                 見た目（大きさ・色）は変えず、下線だけで示す */}
                             {s.href
-                                ? <Link href={s.href} className="underline decoration-white/30 underline-offset-2 hover:decoration-white/70">{s.value}</Link>
+                                ? <Link href={s.href} prefetch={false} className="underline decoration-white/30 underline-offset-2 hover:decoration-white/70">{s.value}</Link>
                                 : s.value}
                         </dd>
                     </div>

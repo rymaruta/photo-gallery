@@ -159,7 +159,7 @@ export default function PrivacyPage() {
             </div>
 
             <div className="mt-10 pt-6 border-t border-white/10">
-                <Link href="/" className="text-sm text-white/60 hover:text-white transition-colors">← ホームに戻る</Link>
+                <Link href="/" prefetch={false} className="text-sm text-white/60 hover:text-white transition-colors">← ホームに戻る</Link>
             </div>
         </main>
     );

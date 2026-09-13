@@ -18,12 +18,32 @@ const invoke = (q?: string): Promise<Result> => (geocodeSearch as any)({ querySt
 
 const fetchMock = vi.fn();
 let prevFetch: typeof globalThis.fetch;
+
+/**
+ * **時計を握る。**
+ *
+ * `waitForSlot` は Nominatim の規約（1リクエスト/秒）を守るために
+ * `lastRequestAt + 1000 - Date.now()` だけ**実時間で眠る**。
+ * その結果、相手に投げる経路のテストが**1本あたりきっかり 1000ms** 払っていた
+ * ——実測でこのファイルだけで **12秒**（スイート全体 118秒の10%・2位の3倍）。
+ *
+ * `Date.now` を進めれば、待ち時間の計算は同じまま**眠らずに済む**。
+ * 規約を守る仕組み自体は下の「1秒の間隔」で別に確かめる。
+ * 台帳の前例: `2a90081e`（上限のテストが実時間で5秒待っていた。7.2 → 2.3秒）。
+ */
+let nowMs = 1_700_000_000_000;
+let prevNow: typeof Date.now;
+
 beforeEach(() => {
     prevFetch = globalThis.fetch; globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch; fetchMock.mockReset();
+    // 前のテストが「いま投げた」ことになっているので、十分に進めてから始める
+    nowMs += 60_000;
+    prevNow = Date.now;
+    Date.now = () => nowMs;
     // 既定: 控えは空（Get → Item 無し、Put → 成功）
     mockDdbSend.mockReset().mockResolvedValue({});
 });
-afterEach(() => { globalThis.fetch = prevFetch; });
+afterEach(() => { globalThis.fetch = prevFetch; Date.now = prevNow; });
 
 const ok = (rows: unknown) => ({ ok: true, json: async () => rows });
 
@@ -241,3 +261,65 @@ describe("geocodeReverse", () => {
         expect((await rev({ lat: "35", lng: "135" })).statusCode).toBe(500);
     });
 });
+
+/**
+ * **規約の1リクエスト/秒を、実際に守っているか。**
+ *
+ * `waitForSlot` は在るのに、**それを確かめるテストが1本も無かった**
+ * （この周の「対テストの入口を数える」でこのファイルを見ていて気づいた）。
+ * 外すと Nominatim に遮断され、**撮影地さがしも自動入力も丸ごと死ぬ**
+ * ——しかも落ちるのは相手の判断なので、こちらのログには「502」としか出ない。
+ *
+ * **実時間では待たない。** `setTimeout` に渡された待ち時間を記録して、
+ * 呼び出しは 0ms で通す。確かめたいのは「いくつ待とうとしたか」。
+ */
+describe("Nominatim の規約: 同じインスタンスからは1秒に1回まで", () => {
+    /** `setTimeout` に頼まれた待ち時間を集める（実際には待たない） */
+    function captureDelays(): { delays: number[]; restore: () => void } {
+        const delays: number[] = [];
+        const orig = globalThis.setTimeout;
+        globalThis.setTimeout = ((fn: () => void, ms?: number, ...rest: unknown[]) => {
+            if (typeof ms === "number" && ms > 0) delays.push(ms);
+            return (orig as unknown as (f: () => void, m?: number, ...r: unknown[]) => number)(fn, 0, ...rest);
+        }) as unknown as typeof globalThis.setTimeout;
+        return { delays, restore: () => { globalThis.setTimeout = orig; } };
+    }
+
+    it("続けて投げると、2回目は1秒まで待つ", async () => {
+        const { delays, restore } = captureDelays();
+        try {
+            fetchMock.mockResolvedValue(ok([{ lat: "1", lon: "2", display_name: "A" }]));
+            await invoke("ひとつめ");
+            // 時計を進めない＝「たった今投げた」状態のまま2回目
+            await invoke("ふたつめ");
+        } finally { restore(); }
+        const waits = delays.filter((d) => d >= 900 && d <= 1000);
+        expect(waits.length, `1秒の間隔を空けていない（頼んだ待ち: ${delays.join(", ")}）`).toBeGreaterThanOrEqual(1);
+    });
+
+    it("1秒以上あいていれば待たない", async () => {
+        const { delays, restore } = captureDelays();
+        try {
+            fetchMock.mockResolvedValue(ok([{ lat: "1", lon: "2", display_name: "A" }]));
+            await invoke("ひとつめ");
+            nowMs += 1500;      // 1.5秒たった
+            await invoke("ふたつめ");
+        } finally { restore(); }
+        expect(delays.filter((d) => d >= 900), `あいているのに待っている: ${delays.join(", ")}`).toEqual([]);
+    });
+
+    // 控えに当たった回は相手に投げないので、待つ必要も無い
+    it("控えに当たった回は待たない", async () => {
+        const { delays, restore } = captureDelays();
+        try {
+            fetchMock.mockResolvedValue(ok([{ lat: "1", lon: "2", display_name: "A" }]));
+            await invoke("ひとつめ");
+            mockDdbSend.mockReset().mockResolvedValue({
+                Item: { id: "geocache#ふたつめ", results: [{ label: "B", lat: 1, lng: 2 }], cachedAt: nowMs },
+            });
+            await invoke("ふたつめ");
+        } finally { restore(); }
+        expect(delays.filter((d) => d >= 900), `控えに当たったのに待っている: ${delays.join(", ")}`).toEqual([]);
+    });
+});
+

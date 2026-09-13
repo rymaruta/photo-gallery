@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { StoryGroup } from "@/lib/stories";
@@ -69,6 +69,38 @@ beforeEach(() => {
     // 漏れを、`fetch` の側で作っていた（いまは後続が自前で差し替えるので
     // 発火していないが、そういう「たまたま」で持たせない）
     vi.unstubAllGlobals();
+});
+
+/**
+ * **テストは、自分が始めた要求を自分で着地させてから終わること。**
+ *
+ * `keepToGallery` は `await import(...)` と `buildKeepThumb` の後ろで
+ * `/keep` を撃つので、**画面の変化を見た時点ではまだ飛んでいない**。
+ * そこでテストを終えると、要求は `beforeEach` の `mockReset()` を
+ * またいで**次のテストの呼び出し記録に着地する**。
+ *
+ * これが本番の `Deploy Site`（run 371・1回目）を落とした:
+ * 「待っている間に手で次へ進めたら…」が
+ * `expected [...] to have a length of 1 but got 2` で落ちた——2つ目は
+ * **前のテストが飛ばしたまま終えた POST** だった。負荷で着地が早まると
+ * 最初の `waitFor` の時点で 2 になるので、CI でだけ落ちる。
+ *
+ * 実測（probe で順番に記録した）:
+ *
+ *     [A] /stories/s1/viewers GET
+ *     [A] test end                  ← A のクリックの POST はまだ出ていない
+ *     [B] /stories/s1/keep POST     ← B 自身のぶん（件数 1）
+ *     [B] /stories/s1/keep POST     ← **A のぶんが遅れて着地**（件数 2）
+ *
+ * 目視では気づけないので、**テストの本体が終わったあとに要求が増えないこと**
+ * を機械で見る。増えたら、そのテストが着地を待っていない。
+ */
+afterEach(async () => {
+    const before = mockUserFetch.mock.calls.length;
+    // マイクロタスクとタイマーを1周させる（飛んでいる要求があれば、ここで着地する）
+    await new Promise((r) => setTimeout(r, 20));
+    const late = mockUserFetch.mock.calls.slice(before).map((c) => String(c[0]));
+    expect(late, "テストが終わったあとに要求が着地している（次のテストの件数に入る）").toEqual([]);
 });
 
 describe("ストーリーをギャラリーに残す", () => {
@@ -152,7 +184,15 @@ describe("ストーリーをギャラリーに残す", () => {
             (document.querySelector(".story-progress-fill") as HTMLElement | null)?.style.animationPlayState,
             "応答を待っている間も進んでいる",
         ).toBe("paused"));
+        // **自分が始めた要求を、自分で着地させてから終わる。**
+        // 止まったことを見た時点では `/keep` の POST はまだ出ていない
+        // （`setKeeping(true)` は同期だが、POST は `await import` と
+        //  `buildKeepThumb` の後ろにある）。ここで終わると、その POST は
+        // **次のテストの `mockUserFetch` に着地して、あちらの件数を1つ増やす**
+        // ——本番の Deploy Site を1回落とした当のもの（下の afterEach を見よ）
+        await waitFor(() => expect(keepPosts()).toHaveLength(1));
         release();
+        await screen.findByText("仕上げる");
     });
 
     // **実時間で待たない。** 以前はここで `setTimeout(30)` を挟んでいたが、

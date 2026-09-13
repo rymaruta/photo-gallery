@@ -171,6 +171,7 @@ export default function ModalCaption({
             <div className="mt-4 pt-4 border-t border-white/10 flex flex-wrap gap-2">
                 <Link
                     href={ROUTES.PHOTO(photo.id)}
+                    prefetch={false}
                     onClick={stop}
                     onTouchStart={stop}
                     className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-white/10 hover:bg-white/20 active:scale-[0.98] text-white rounded-full transition"

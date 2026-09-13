@@ -113,7 +113,7 @@ describe("保存に失敗した項目を捨てるとき", () => {
         await uploadAndFail();
         expect(discardCalls()).toHaveLength(0);   // 捨てるまでは消さない
 
-        await userEvent.click(await screen.findByRole("button", { name: "削除" }));
+        await userEvent.click(await screen.findByRole("button", { name: "1枚目を削除" }));
 
         await waitFor(() => expect(discardCalls()).toHaveLength(1));
         const [, init] = discardCalls()[0] as [string, { method: string; body: string }];
@@ -126,7 +126,7 @@ describe("保存に失敗した項目を捨てるとき", () => {
     // updater の外に出す「規約どおりの直し方」は逆効果になる）。
     it("削除を連打しても DELETE は1回", async () => {
         await uploadAndFail();
-        const btn = await screen.findByRole("button", { name: "削除" });
+        const btn = await screen.findByRole("button", { name: "1枚目を削除" });
         await userEvent.click(btn);
         await userEvent.click(btn).catch(() => { /* 消えていれば押せない */ });
 
@@ -151,7 +151,7 @@ describe("保存に失敗した項目を捨てるとき", () => {
         await userEvent.click(publish);
         await waitFor(() => expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/save")).toBe(true));
 
-        await userEvent.click(await screen.findByRole("button", { name: "削除" }));
+        await userEvent.click(await screen.findByRole("button", { name: "1枚目を削除" }));
         await new Promise((r) => setTimeout(r, 20));
         expect(discardCalls()).toHaveLength(0);
     });

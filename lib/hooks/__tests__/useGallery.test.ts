@@ -303,11 +303,23 @@ describe("useGallery", () => {
             { id: "plain", src: "p.jpg", title: { ja: "ふつう", en: "Plain" }, category: "street", tags: ["night"], date: "2024-05-03" },
         ];
 
+        // **守っているのは「全件一致にならない」こと。**「0件」はその一例だった。
+        // タグを検索の材料に入れた（`useGallery.ts`）ので、`-` という**そのタグを
+        // 持つ写真**には素の `includes` で当たるようになった——これは
+        // 「空スラッグが全件に当たる」穴とは別物で、生の文字としての一致。
+        // 危ない側（3件とも出る）が起きないことを名指しで見る。
         it("検索語が空スラッグでも、全件一致にならない", () => {
             window.history.replaceState({}, "", "/?q=-");
             const { result } = renderHook(() => useGallery(odd2));
-            expect(result.current.filteredPhotos.map((p) => p.id),
-                "絞り込みが効かず全件出ている").toEqual([]);
+            const ids = result.current.filteredPhotos.map((p) => p.id);
+            expect(ids, "絞り込みが効かず全件出ている").not.toEqual(["dash", "hash", "plain"]);
+            expect(ids, "その文字を持たない写真まで出ている").toEqual(["dash"]);
+        });
+
+        it("スラッグが空になる別の値でも全件一致にならない", () => {
+            window.history.replaceState({}, "", "/?q=%23%23%23");
+            const { result } = renderHook(() => useGallery(odd2));
+            expect(result.current.filteredPhotos.map((p) => p.id)).toEqual(["hash"]);
         });
 
         it("生の文字が本文にあれば、今までどおり当たる", () => {
@@ -332,6 +344,92 @@ describe("useGallery", () => {
             const { result } = renderHook(() => useGallery(odd2));
             expect(result.current.filters.category, "空のまま絞り込んでいる").toBe("all");
             expect(result.current.filteredPhotos).toHaveLength(3);
+        });
+    });
+
+    /**
+     * **タグとカテゴリも検索の材料に入れる。**
+     *
+     * 入っていなかったので、owner 自身が書いた語を打っても0件だった。
+     * 実データ（公開30枚）で数えた:
+     *
+     *     タグ59種のうち **12種が0件**（nature 3枚 / architecture 2枚 /
+     *       yamanaka 2枚 / loyly 2枚 / 「動物」…）
+     *     当たっていた43種も**偶然**（題か説明に同じ語がある回だけ）
+     *     カテゴリは `landscape` 12枚 → **0件**・`nature` 3枚 → 0件
+     *
+     * しかも**ホームのタグチップは上位10種だけ**（`POPULAR_TAG_LIMIT`）なので、
+     * 残り49種はチップからも選べない——打つしかないのに打っても出なかった。
+     */
+    describe("タグ・カテゴリでも探せる", () => {
+        const tagged: Photo[] = [
+            { id: "s", src: "s.jpg", title: { ja: "湖の朝", en: "Lake morning" },
+              category: "nature", tags: ["swan", "白鳥"], date: "2024-05-01" },
+            { id: "o", src: "o.jpg", title: { ja: "街の夜", en: "City night" },
+              category: "street", tags: ["night"], date: "2024-05-02" },
+        ];
+
+        it("タグの語で探せる（題にも説明にも無い語）", () => {
+            window.history.replaceState({}, "", "/?q=swan");
+            const { result } = renderHook(() => useGallery(tagged));
+            expect(result.current.filteredPhotos.map((p) => p.id),
+                "タグが検索の材料に入っていない").toEqual(["s"]);
+        });
+
+        it("日本語のタグでも探せる", () => {
+            window.history.replaceState({}, "", "/?q=%E7%99%BD%E9%B3%A5");
+            const { result } = renderHook(() => useGallery(tagged));
+            expect(result.current.filteredPhotos.map((p) => p.id)).toEqual(["s"]);
+        });
+
+        it("カテゴリの語で探せる", () => {
+            window.history.replaceState({}, "", "/?q=nature");
+            const { result } = renderHook(() => useGallery(tagged));
+            expect(result.current.filteredPhotos.map((p) => p.id),
+                "カテゴリが検索の材料に入っていない").toEqual(["s"]);
+        });
+
+        // **日本語のカテゴリでも探せる。** `useGallery` は写真を先に正規化して
+        // `category` を**スラッグ**にするので（`normalizeKey`）、スラッグだけを
+        // 材料にすると「建築」と打った人には当たらない。表示に使う日本語名も足す
+        it("日本語のカテゴリ語で探せる（保存はスラッグに畳まれていても）", () => {
+            const ja: Photo[] = [
+                { id: "k", src: "k.jpg", title: { ja: "ビル", en: "Building" },
+                  category: "建築", tags: [], date: "2024-05-01" },
+                { id: "z", src: "z.jpg", title: { ja: "海", en: "Sea" },
+                  category: "nature", tags: [], date: "2024-05-02" },
+            ];
+            window.history.replaceState({}, "", "/?q=%E5%BB%BA%E7%AF%89");
+            const { result } = renderHook(() => useGallery(ja));
+            expect(result.current.filteredPhotos.map((p) => p.id),
+                "日本語の表示名が材料に入っていない").toEqual(["k"]);
+        });
+
+        // **タグは区切って連結する。** 詰めて並べると、隣り合う2つが
+        // くっついて**存在しない語**ができ、その語で当たってしまう
+        it("隣り合うタグがくっついた語では当たらない", () => {
+            const two: Photo[] = [
+                { id: "f", src: "f.jpg", title: { ja: "写真", en: "Photo" },
+                  category: "street", tags: ["fuji", "film"], date: "2024-05-01" },
+            ];
+            window.history.replaceState({}, "", "/?q=fujifilm");
+            const { result } = renderHook(() => useGallery(two));
+            expect(result.current.filteredPhotos, "タグを詰めて連結している").toHaveLength(0);
+        });
+
+        // **材料を足しただけで、規則は変えていない。** 当たらない語は当たらない
+        it("関係ない語では当たらない", () => {
+            window.history.replaceState({}, "", "/?q=penguin");
+            const { result } = renderHook(() => useGallery(tagged));
+            expect(result.current.filteredPhotos).toHaveLength(0);
+        });
+
+        // タグが無い・カテゴリが無い写真で落ちない（`undefined` を連結しない）
+        it("タグもカテゴリも無い写真を混ぜても壊れない", () => {
+            const bare = [{ id: "b", src: "b.jpg", title: { ja: "無印", en: "Bare" }, date: "2024-05-03" } as Photo, ...tagged];
+            window.history.replaceState({}, "", "/?q=undefined");
+            const { result } = renderHook(() => useGallery(bare));
+            expect(result.current.filteredPhotos, "undefined が本文として混ざっている").toHaveLength(0);
         });
     });
 

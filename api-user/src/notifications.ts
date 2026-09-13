@@ -3,7 +3,7 @@ import { UpdateCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { notifsId, NOTIFS_MAX, deletedUserIds, DELETED_USER_NAME } from "./notify";
-import { hiddenUserIds } from "./block";
+import { hiddenUserIds } from "./blockCheck";
 
 // 通知の取得と既読化。
 // 通知本体は "notifs#<uid>" 文書に { items: Notif[], unread: number } として持つ。

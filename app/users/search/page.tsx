@@ -107,14 +107,17 @@ export default function UserSearchPage() {
                 </p>
             )}
 
+            {/* **押した結果を読み上げる**（WCAG 4.1.3・曲検索と同じ判断）。
+                どちらも「検索」を押したあとにだけ出る（`searched` が要る）ので、
+                開いた瞬間に喋り出すことはない。見た目は変わらない */}
             {showEmpty && (
-                <p className="text-sm text-white/50 text-center py-10">
+                <p className="text-sm text-white/50 text-center py-10" role="status">
                     {isJa ? "見つかりませんでした" : "No one found"}
                 </p>
             )}
 
             {showFailed && (
-                <p className="text-sm text-amber-200/80 text-center py-10">
+                <p className="text-sm text-amber-200/80 text-center py-10" role="alert">
                     {isJa ? "検索できませんでした。少し待ってからもう一度お試しください。" : "Couldn't search right now. Please try again in a moment."}
                 </p>
             )}
@@ -124,6 +127,7 @@ export default function UserSearchPage() {
                     <li key={u.userId} className="flex items-center gap-3 py-3">
                         <Link
                             href={ROUTES.USER_PROFILE(u.userId)}
+                            prefetch={false}
                             className="flex items-center gap-3 min-w-0 flex-1 group"
                             style={{ touchAction: "manipulation" }}
                         >

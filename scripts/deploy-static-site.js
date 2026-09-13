@@ -616,11 +616,33 @@ function forbiddenPattern(needle) {
         : new RegExp(`${QUOTE}${esc}${ID_BODY}${QUOTE}`);      // ID そのもの
 }
 
+/**
+ * 検査する対象か。
+ *
+ * **`.js` も見る。** 台帳はこれを「誤検知で全デプロイが止まる危険」として
+ * 見送っていたが、**実測で否定できた**——本物の判定ロジック
+ * （`forbiddenPattern`）を実ビルドの **45チャンクに当てて一致0件**。
+ * 判定は「キーの位置（`"srcOriginal":`）」か「ID の形
+ * （`"notifs#<英数字>"`）」しか見ないので、минified の JS や日本語の
+ * 文章には当たらない。
+ *
+ * **見る理由**: クライアントは `app/data/photos.json` を丸ごと import する
+ * 経路を持つ（`usePhotos`）。同期スクリプトのふるいが将来また素通りしたら、
+ * **原本のURL（GPS 入り）がチャンクに載る**——HTML だけ見ていると
+ * そこは素通りする。`.map` は配らないので対象外。
+ */
+function shouldScan(key) {
+    // **`.map` を除く条件は書かない。** `a.js.map` は `.js` で終わらないので
+    // `endsWith(".js")` の時点で外れる——書くと**一度も効かない条件**になる
+    // （変異で当てても落ちず、等価だと分かった）。
+    return isHtmlOrTxt(key) || key === "app/data/photos.json" || key.endsWith(".js");
+}
+
 function assertNoForbiddenContent(files) {
     const hits = [];
     for (const file of files) {
         const key = file.split(path.sep).join("/");
-        if (!(isHtmlOrTxt(key) || key === "app/data/photos.json")) continue;
+        if (!shouldScan(key)) continue;
         const text = fs.readFileSync(path.join(outDir, file), "utf8");
         for (const needle of FORBIDDEN_IN_OUTPUT) {
             const re = forbiddenPattern(needle);
@@ -761,7 +783,7 @@ async function main() {
 module.exports = {
     verifyOgImage,
     assertNoForbiddenContent, assertRobotsMatchesTarget, invalidationTargets,
-    FORBIDDEN_IN_OUTPUT, forbiddenPattern, classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys,
+    FORBIDDEN_IN_OUTPUT, forbiddenPattern, shouldScan, classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys,
     bulkDeleteGuard, BULK_DELETE_RATIO, BULK_DELETE_MIN, deleteStaleKeys };
 
 if (require.main === module) main().catch(err => {

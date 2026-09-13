@@ -6,16 +6,44 @@
 const KEY = "jp_asset_reload_at";
 const RELOAD_COOLDOWN_MS = 60_000; // 連続リロードのループ防止
 
-/** script / stylesheet の読み込み失敗か（IMG 等の失敗では発火させない） */
-export function isAssetElement(target: EventTarget | null): boolean {
+/**
+ * **自分のサイトの** script / stylesheet の読み込み失敗か
+ * （IMG 等の失敗では発火させない）。
+ *
+ * **別オリジンは対象にしない。** ここが「`<script>` なら何でも」だったので、
+ * **広告ブロッカーが解析タグを落とすだけでページが自分でリロードしていた**。
+ * 実ブラウザで A/B して確認した（本番と同じ `NEXT_PUBLIC_GA_ID` でビルドし、
+ * `googletagmanager.com` を `blockedbyclient` で落とす）:
+ *
+ *     GA が通る      読み込み 1回 / リロードの印 なし
+ *     GA をブロック   読み込み 2回 / リロードの印 あり   ← 自分でリロードしていた
+ *
+ * uBlock Origin・AdGuard・Brave・学校や職場の網は日常的にこのホストを落とす。
+ * **解析タグが落ちてもページは何も壊れない**ので、直す対象ではない
+ * ——この仕組みが直すのは「CSS/JS チャンクが来なくて画面が壊れた」場合で、
+ * それは必ず**同じオリジン**から来る。
+ *
+ * インラインの `<script>`（`src` が空）も対象外。読み込みで失敗しようが無く、
+ * 中で投げた例外は `target` が window になるのでそもそもここに来ない。
+ */
+export function isAssetElement(target: EventTarget | null, origin?: string): boolean {
     if (!target || typeof (target as HTMLElement).tagName !== "string") return false;
     const tag = (target as HTMLElement).tagName.toUpperCase();
-    if (tag === "SCRIPT") return true;
-    if (tag === "LINK") {
+    let url = "";
+    if (tag === "SCRIPT") url = (target as HTMLScriptElement).src ?? "";
+    else if (tag === "LINK") {
         const rel = ((target as HTMLLinkElement).rel ?? "").toLowerCase();
-        return rel.includes("stylesheet");
+        if (!rel.includes("stylesheet")) return false;
+        url = (target as HTMLLinkElement).href ?? "";
+    } else return false;
+    if (!url) return false;
+    const here = origin ?? (typeof location !== "undefined" ? location.origin : "");
+    if (!here) return false;   // オリジンが分からないなら発火させない（倒す先は「何もしない」）
+    try {
+        return new URL(url, here).origin === here;
+    } catch {
+        return false;
     }
-    return false;
 }
 
 function getStorage(): Storage | null {

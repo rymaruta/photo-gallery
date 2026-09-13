@@ -2,6 +2,7 @@
 
 import React from "react";
 import { tagKey } from "@/lib/utils/collections";
+import { categoryChipMap } from "@/lib/utils/categoryMap";
 import FilterBar from "./components/FilterBar";
 import StoriesBar from "./components/stories/StoriesBar";
 import { useLocale } from "./i18n/context";
@@ -9,7 +10,6 @@ import useGallery from "../lib/hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
 import GalleryModal from "./components/GalleryModal";
 import SearchParamWatcher from "./components/SearchParamWatcher";
-import { capitalize } from "../lib/utils/string";
 import { usePhotos } from "../lib/hooks/usePhotos";
 import { useAuth } from "./auth/context";
 import { useToast } from "../lib/hooks/useToast";
@@ -349,18 +349,15 @@ export default function GalleryPageClient() {
     return [...popular, ...extra];
   }, [tagCounts, tagLabels, filters.selectedTags]);
 
-  const categoryDisplayMap = React.useMemo(() => {
-    const map: Record<string, string> = {};
-    const names = labels.category.names ?? {};
-    for (const key of categories) {
-      map[key] = key === "all" ? labels.category.all : names[key] ?? capitalize(key.replace(/-/g, " "));
-    }
-    for (const p of PHOTOS) {
-      const k = (p.category ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
-      if (k && !map[k]) map[k] = names[k] ?? capitalize(k.replace(/-/g, " "));
-    }
-    return map;
-  }, [labels, categories, PHOTOS]);
+  // **写真から作り直さない。** `categories` は `PHOTOS` の全カテゴリを
+  // 重複除去したものなので、そこを埋めれば足りる（写真からもう一周する
+  // ループを置いていたが、**1件も足せない死にコード**だった——中身を
+  // `throw` に変えても GalleryPageClient 系9ファイル62件が全部緑）。
+  // 名前の決め方は `categoryLabel` 1つ（`/favorites` と同じ）。
+  const categoryDisplayMap = React.useMemo(
+    () => categoryChipMap(categories, { all: labels.category.all, names: labels.category.names }),
+    [labels, categories],
+  );
 
   const renderSubtitle = (sub?: string | string[]) => {
     if (!sub) return null;

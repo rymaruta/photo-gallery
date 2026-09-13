@@ -6,6 +6,7 @@ import {
     isIndexableCollection,
     labelForSlug,
     categoryDisplayName,
+    categoryLabel,
     collectionPath,
     canonicalCollectionPath,
     collectionCopy,
@@ -251,6 +252,43 @@ describe("カテゴリの表示名", () => {
         expect(collectEntries(tagged, "tag")[0].label).toBe("Street");
     });
 
+    // **鍵はスラッグ。** 生の値で引くと、別名で保存された写真だけ表に
+    // 当たらず生のまま出る（「建物」と出して「建築の写真」へ飛ぶ）
+    describe("categoryLabel（保存されている生の値 → 画面に出す名前）", () => {
+        it("同じ集約ページへ行く値は、同じ言葉になる", async () => {
+            const { ja } = await import("@/app/i18n/labels");
+            const names = (ja.category?.names ?? {}) as Record<string, string>;
+            const bySlug: Record<string, Set<string>> = {};
+            // 別名表の全部＋スラッグそのものを入れて、行き先ごとに畳む
+            const raws = [...Object.keys(CATEGORY_ALIASES), ...new Set(Object.values(CATEGORY_ALIASES))];
+            for (const raw of raws) {
+                const slug = slugify(raw, "category");
+                (bySlug[slug] ||= new Set()).add(categoryLabel(raw, names));
+            }
+            const split = Object.entries(bySlug).filter(([, v]) => v.size > 1);
+            expect(split.map(([k, v]) => `${k}: ${[...v].join(" / ")}`),
+                "同じ場所を指すのに違う言葉を出している").toEqual([]);
+            // 空回りしていないこと（同じ先に2つ以上の綴りが在る組がある）
+            expect(raws.length).toBeGreaterThan(new Set(Object.values(CATEGORY_ALIASES)).size);
+        });
+
+        it("別名は表の代表表記になる", async () => {
+            const { ja } = await import("@/app/i18n/labels");
+            const names = (ja.category?.names ?? {}) as Record<string, string>;
+            expect(categoryLabel("建物", names), "生の値がそのまま出ている").toBe("建築");
+            expect(categoryLabel("architecture", names)).toBe("建築");
+            expect(categoryLabel("風景", names)).toBe("風景");
+        });
+
+        it("表に無い値・空は生のまま", async () => {
+            const { ja } = await import("@/app/i18n/labels");
+            const names = (ja.category?.names ?? {}) as Record<string, string>;
+            expect(categoryLabel("ご飯", names)).toBe("ご飯");
+            expect(categoryLabel("  ", names)).toBe("");
+            expect(categoryLabel(undefined, names)).toBe("");
+        });
+    });
+
     it("写真ページの表示名（labels.category.names）と食い違わない", async () => {
         // 同じ意味の表が2つある（別名表と i18n の表示名）。片方だけ直すと
         // 写真ページと集約ページで同じカテゴリが別の名前になる
@@ -312,11 +350,41 @@ describe("collectionCopy", () => {
     it("タイプ別に見出し・タイトル・説明を作る", () => {
         const t = collectionCopy("tag", "白鳥", 3);
         expect(t.heading).toBe("#白鳥 の写真");
-        expect(t.title).toContain("白鳥の写真");
-        expect(t.title).toContain("3枚");
+        expect(t.title).toBe("#白鳥 の写真（3枚）");
         const l = collectionCopy("location", "山中湖", 2);
         expect(l.heading).toBe("山中湖の写真");
         expect(l.description).toContain("山中湖");
+    });
+
+    /**
+     * **`<title>` が種別を区別していなかった。**
+     *
+     * 以前は種別に関係なく `${label}の写真（N枚）` だったので、
+     * 実ビルドで `/tag/風景`（4枚）と `/category/風景`（16枚）の
+     * `<title>` が**枚数しか違わなかった**。枚数が一致すれば
+     * **索引可の2ページが完全に同じ題**になる。
+     * 見出し（`heading`）は前から種別を出し分けているので、揃えた。
+     */
+    it("タグとカテゴリで題が違う（枚数が同じでも）", () => {
+        const tag = collectionCopy("tag", "風景", 4).title;
+        const cat = collectionCopy("category", "風景", 4).title;
+        expect(tag, "題が種別を区別していない").not.toBe(cat);
+        expect(tag).toBe("#風景 の写真（4枚）");
+        expect(cat).toBe("風景の写真（4枚）");
+    });
+
+    // 機材は「〜で撮った写真」の方が自然（見出しは前からそうだった）
+    it("機材の題は「で撮った写真」", () => {
+        expect(collectionCopy("camera", "SONY ILCE-7M3", 24).title)
+            .toBe("SONY ILCE-7M3 で撮った写真（24枚）");
+    });
+
+    // **題と見出しは同じ言い回し**（片方だけ直すとサイト内で割れる）
+    it("題は見出しに枚数を足したもの", () => {
+        for (const type of ["tag", "location", "category", "camera"] as const) {
+            const c = collectionCopy(type, "X", 5);
+            expect(c.title, `${type} で題と見出しが割れている`).toBe(`${c.heading}（5枚）`);
+        }
     });
 });
 
@@ -333,7 +401,8 @@ describe("collectionCopy: タイトルにサイト名を足さない", () => {
     });
 
     it("枚数が無ければ枚数を出さない", () => {
-        expect(collectionCopy("tag", "海", 0).title).toBe("海の写真");
+        expect(collectionCopy("tag", "海", 0).title).toBe("#海 の写真");
+        expect(collectionCopy("location", "海", 0).title).toBe("海の写真");
     });
 });
 
@@ -352,9 +421,33 @@ describe("CATEGORY_ALIASES: 表記ゆれを1か所で吸収する", () => {
         expect(CATEGORY_ALIASES["風景"]).toBe("landscape");
     });
 
-    it("カテゴリ以外の種別には別名を当てない", () => {
-        expect(slugify("建物", "tag")).toBe("建物");
+    // **タグにも当てるようにした（2026-09-12）。**
+    //
+    // このテストは元々「当てない」を固定していたが、それは表を1本化した
+    // ときに**適用範囲を止めた見張り**で、「タグには当ててはいけない」と
+    // いう判断ではなかった（`4c27d71e` の理由は「表が2か所にあった」）。
+    //
+    // 実データで測ると、同じ主題が**別々の写真に別の言語で**付いていた:
+    //
+    //     風景 3枚 / landscape 1枚      ご飯 1枚 / restaurant 3枚
+    //     自然 2枚 / nature 3枚         建物 1枚 / architecture 2枚
+    //
+    // どちらも 3枚（`MIN_INDEXABLE_COUNT`）に届かず**両方 noindex**になる。
+    // 寄せれば3〜4枚で検索に載る。副産物として入力画面の候補チップ
+    // （`collectOwnValues` が `tagKey` で畳む）も1つにまとまる。
+    it("タグにも別名を当てる（同じ主題が日英で2ページに割れていた）", () => {
+        expect(slugify("建物", "tag")).toBe("architecture");
+        expect(slugify("風景", "tag")).toBe("landscape");
+        expect(slugify("自然", "tag")).toBe("nature");
+    });
+
+    // **撮影地と機材には当てない。** どちらも固有名詞で、表の語
+    //（風景・建物…）と同じ綴りでも意味が違う。「建物」という地名を
+    // `/location/architecture` に寄せるのは明確に誤り
+    it("撮影地と機材には別名を当てない（固有名詞なので）", () => {
         expect(slugify("建物", "location")).toBe("建物");
+        expect(slugify("建物", "camera")).toBe("建物");
+        expect(slugify("風景", "location")).toBe("風景");
     });
 });
 
@@ -408,8 +501,9 @@ describe("slugify: URL のパスに置けない文字", () => {
 // （related.ts の sameLocation）が部分一致で食い違っていた。
 // 症状: 写真ページの「「パリ」の他の写真」には3枚出るのに、そこから飛ぶ
 // `/location/パリ` は自分1枚しか無い。しかも実データ14件の撮影地は
-// **1つも MIN_INDEXABLE_COUNT(3) に届かず、14ページ全部が noindex・
-// サイトマップ0件**だった（SEO のために作ったランディングが検索に出ていない）。
+// **1つも3枚に届かず**、当時は撮影地も3枚が線だったので **14ページ全部が
+// noindex・サイトマップ0件**だった（SEO のために作ったランディングが
+// 検索に出ていない）。線は今 `MIN_INDEXABLE_LOCATION`＝2枚。
 describe("撮影地の集約は related と同じ「緩い一致」で見る", () => {
     const photos = [
         { id: "p1", src: "s", location: "パリ" },
@@ -428,8 +522,11 @@ describe("撮影地の集約は related と同じ「緩い一致」で見る", (
         const entries = collectEntries(photos, "location");
         const paris = entries.find((e) => e.slug === "パリ");
         expect(paris?.count).toBe(3);
-        // これで初めて検索エンジンに載せてよい枚数になる
-        expect(isIndexableCollection(paris!.count)).toBe(true);
+        // **完全一致に戻すと 1枚**＝この束ね方が効いていることを、
+        // 索引の線をまたぐ形で見る（`count` が3では線が1でも2でも3でも
+        // 緑になり、閾値を何も確かめていなかった）
+        expect(isIndexableCollection(paris!.count, "location")).toBe(true);
+        expect(isIndexableCollection(1, "location"), "束ねる前の枚数でも載ってしまう").toBe(false);
     });
 
     it("関係ない地名は混ざらない", () => {
@@ -461,8 +558,19 @@ describe("canonicalCollectionPath: 旧カテゴリは統合後を指す", () => 
         expect(canonicalCollectionPath("category", "風景")).toContain("/category/landscape");
     });
 
-    it("タグ・撮影地はそのまま（統合の対象ではない）", () => {
+    // タグも別名表で統合するようになった（`255e8af5`）ので、canonical も
+    // 統合後を指す。**この行の名前は一度「タグは統合の対象ではない」と
+    // 嘘をついていた**
+    it("旧タグでも統合後のパスを返す", () => {
+        expect(canonicalCollectionPath("tag", "建物")).toContain("/tag/architecture");
+        expect(canonicalCollectionPath("tag", "建物")).toBe(
+            canonicalCollectionPath("tag", "architecture"));
+    });
+
+    it("表に無いタグ・撮影地はそのまま", () => {
         expect(canonicalCollectionPath("tag", "夜景")).toBe(collectionPath("tag", "夜景"));
+        // 撮影地は別名表を当てない（「建物」という地名を landscape に寄せない）
+        expect(canonicalCollectionPath("location", "建物")).toBe(collectionPath("location", "建物"));
         expect(canonicalCollectionPath("location", "パリ")).toBe(collectionPath("location", "パリ"));
     });
 });

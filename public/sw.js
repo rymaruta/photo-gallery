@@ -125,7 +125,11 @@ async function saveSharedFiles(files, title, text) {
     const db = await openShareDb();
     const tx = db.transaction(SHARE_STORE, "readwrite");
     const store = tx.objectStore(SHARE_STORE);
-    // 既存の共有データはクリア（前回分が残らないように）
+    // 既存の共有データはクリア。**保険であって、これが前回分を消している
+    // わけではない**——書く id は `"current"` 固定（履歴上ずっとそう）なので、
+    // 下の `put` が同じキーを上書きする時点で前回分は残らない。
+    // 効くのは id を変えたときだけ。変異で確かめたら**この行を外しても
+    // 何も変わらなかった**ので、目的を書いておく。
     await new Promise((resolve, reject) => {
         const clearReq = store.clear();
         clearReq.onsuccess = () => resolve();

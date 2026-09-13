@@ -9,12 +9,13 @@ import {
     collectEntries,
     isIndexableCollection,
     legacyCategorySlugs,
+    legacyTagSlugs,
     photosInCollection,
     labelForSlug,
     collectionCopy,
     type CollectionType,
 } from "../utils/collections";
-import { siteConfig } from "../utils/seo";
+import { siteConfig, publicImageUrl } from "../utils/seo";
 import { withPlaceholderParam } from "./staticParams";
 
 /** 静的エクスポート用: そのタイプの全 slug を列挙（列挙外のパスは 404） */
@@ -25,6 +26,8 @@ export async function collectionStaticParams(type: CollectionType, paramKey: str
     // `/category/風景` などもページとして残す（静的エクスポートではリダイレクトが
     // 張れず、消すとハード404になるため）。中身は統合後と同じで、canonical で寄せる。
     if (type === "category") slugs.push(...legacyCategorySlugs(photos));
+    // タグも同じ別名表で統合したので、同じだけ旧URLを残す
+    if (type === "tag") slugs.push(...legacyTagSlugs(photos));
     // 写真が0件でも1件は返す（空だと output: export がビルドを落とす）
     return withPlaceholderParam(slugs.map((slug) => ({ [paramKey]: slug })), paramKey);
 }
@@ -43,17 +46,20 @@ export async function collectionMetadata(type: CollectionType, slug: string): Pr
 
     const first = matched[0];
     const rawImage = first?.thumbSrc || first?.src;
-    const image = rawImage ? (rawImage.startsWith("http") ? rawImage : `${siteConfig.url}${rawImage}`) : undefined;
+    // 出すURLはサイトのドメインに揃える（`publicImageUrl`）
+    const image = rawImage ? publicImageUrl(rawImage) : undefined;
 
     return {
         title,
         description,
         keywords: [label, "旅", "写真", "フォトギャラリー"].filter(Boolean),
         alternates: { canonical: url },
-        // 写真が少ないページは検索エンジンに載せない。
-        // 写真1〜2枚＋定型文だけのページを大量に作ると「中身の薄いサイト」と
-        // 判断され、サイト全体の評価が下がる。サイト内から辿る分には見られる。
-        robots: isIndexableCollection(matched.length) ? undefined : { index: false, follow: true },
+        // 写真が少ないページは検索エンジンに載せない。定型文だけのページを
+        // 大量に作ると「中身の薄いサイト」と判断され、サイト全体の評価が
+        // 下がる。サイト内から辿る分には見られる。
+        // **線は種別で違う**（タグ・カテゴリ・機材は3枚、撮影地は2枚）ので、
+        // 枚数の条件はここに書かず `isIndexableCollection` に集めてある。
+        robots: isIndexableCollection(matched.length, type) ? undefined : { index: false, follow: true },
         openGraph: {
             type: "website",
             locale: siteConfig.locale.ja,

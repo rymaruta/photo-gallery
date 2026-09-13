@@ -27,9 +27,13 @@ export default function RelatedPhotos({ title, photos, locale }: Props) {
                 {photos.map((p) => {
                     const t = getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : "");
                     return (
+                        // **先読みしない。** 一覧で何本も出るリンクなので、画面に入るたびに
+                        // 行き先の RSC の控え（`no-store` 配信）を落とし直す。理由と実測は
+                        // `app/components/GalleryGrid.tsx` のカードのコメントに書いた
                         <Link
                             key={p.id}
                             href={ROUTES.PHOTO(p.id)}
+                            prefetch={false}
                             data-photo-id={p.id}
                             className="group flex-shrink-0 w-28 sm:w-32 snap-start focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 rounded-lg"
                             style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}

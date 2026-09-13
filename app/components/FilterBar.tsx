@@ -382,7 +382,11 @@ function FilterBarInner({
                             onClick={() => setSortOpen((s) => !s)}
                             aria-haspopup="listbox"
                             aria-expanded={isSortOpen}
-                            aria-controls="sort-menu"
+                            // 開いている間だけ指す（`HeaderNav` と同じ理由）。
+                            // 一覧（`id="sort-menu"`）は `isSortOpen` のときしか
+                            // 描かれないので、無条件だと閉じている間は
+                            // **存在しない id を指す**
+                            aria-controls={isSortOpen ? "sort-menu" : undefined}
                             className="inline-flex items-center gap-1 text-[13px] text-white/60 hover:text-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 bg-transparent transition-colors"
                             style={{
                                 padding: "8px 4px 8px 10px",

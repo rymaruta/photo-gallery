@@ -1,5 +1,72 @@
 // lib/utils/seo.ts
 // SEO設定と構造化データ生成用のユーティリティ
+import { spacelessName } from "./nameVariants";
+import { personNodeId } from "./personId";
+import { metaText } from "./metaText";
+
+/**
+ * 公開する画像URLを、**サイトのドメインに揃える**。
+ *
+ * **同じ写真が2つのホストで出ていた。** 実ビルド（2026-09-12）:
+ *
+ *     sitemap-images.xml の <image:loc>  30件 = journey-photo.com 19 + d1s3….cloudfront.net 11
+ *     og:image                           138ページ = 69 + 69
+ *
+ * どちらも**同じ CloudFront ディストリビューション**（`EYRLTGCPOS9E4`）の
+ * 別名で、返るバイトは同一。それでも検索エンジンには**別々の画像**に見える
+ * ので、画像検索の評価が2つに割れ、しかも半分は正規のドメインではない側に
+ * 付く（実データの30枚で 19 / 11 に割れている。下の「訂正」も読むこと）。
+ *
+ * **保存済みのデータは書き換えない。** 移行（`scripts/normalize-image-urls.js`）
+ * も用意してあるが、本番のDBを触るのは owner の判断で、しかも**出す側で
+ * 揃えれば SEO の問題はそれで解ける**（宣言するURLが1つになる）。
+ * ここは「出すときに揃える」側。
+ *
+ * **訂正（2026-09-13・コードを読んで確かめた）。** 「保存側は直ったので
+ * これは後片付け」は**写真の本体URLには当てはまらない**:
+ *
+ *     api-user/src/upload.ts   `canonicalUploadUrl(publicUrl, CLOUDFRONT_URL)`
+ *     api/src/upload.ts        `${CLOUDFRONT_URL}/${key}`
+ *     deploy-api.yml           本番の cloudfrontUrl は CloudFront の既定ドメイン
+ *
+ * ＝**これから上がる写真も既定ドメインで保存される**。直っているのは
+ * ビルドが作る派生（`generate-thumbnails.js` は `PUBLIC_BASE_URL` を優先）
+ * の方だけ。つまり移行を1回流しても、次の投稿からまた割れる
+ * ——**出す側で揃えるこの関数が、恒常的な受け皿**になる。
+ *
+ * **画像以外にも使う。** ストーリーの動画（`<video src>`）も同じ
+ * `/uploads/**` から同じ配信で出るので、同じ規則で揃える
+ * （別名の関数は作らない——同じ規則を2つの名前で持たない）。
+ *
+ * **揃えるのは自分の配信ドメインだけ。** 知らないホストは触らない
+ * （曲のアートワークなど、別のところから来るURLがある）。
+ */
+const CDN_HOST = (() => {
+    try {
+        return new URL(process.env.NEXT_PUBLIC_CLOUDFRONT_URL || "").host;
+    } catch {
+        return "";
+    }
+})();
+
+export function publicImageUrl(src: string | undefined): string {
+    const v = (src ?? "").trim();
+    if (!v) return "";
+    const base = process.env.NEXT_PUBLIC_SITE_URL || "https://journey-photo.com";
+    if (!/^https?:\/\//i.test(v)) return `${base}${v.startsWith("/") ? "" : "/"}${v}`;
+    try {
+        const u = new URL(v);
+        if (CDN_HOST && u.host === CDN_HOST) {
+            const site = new URL(base);
+            u.protocol = site.protocol;
+            u.host = site.host;
+            return u.toString();
+        }
+        return v;
+    } catch {
+        return v;
+    }
+}
 
 export const siteConfig = {
     name: "Journey Photo | 旅フォトギャラリー",
@@ -68,9 +135,7 @@ export function generateStructuredData(
         image: photos
             .filter((photo) => photo.id && photo.src)
             .map((photo) => {
-                const imageUrl = photo.src.startsWith("http") 
-                    ? photo.src 
-                    : `${siteConfig.url}${photo.src}`;
+                const imageUrl = publicImageUrl(photo.src);
                 return {
                     "@type": "ImageObject",
                     "@id": `${siteConfig.url}/photo/${photo.id}`,
@@ -95,6 +160,8 @@ export function generatePhotoStructuredData(photo: {
     tags?: string[];
     photographer?: string;
     displayName?: string;
+    /** 投稿者。`author` をその人のプロフィールへ結ぶのに使う */
+    userId?: string;
     license?: string;
     copyrightOwner?: string;
     copyrightYear?: string;
@@ -119,15 +186,31 @@ export function generatePhotoStructuredData(photo: {
     const other: "ja" | "en" = locale === "ja" ? "en" : "ja";
     const title = titleOf(locale) || titleOf(other) || "";
     const altTitle = titleOf(other);
-    // 説明は日英を併記（両言語のクエリで拾えるように）
-    const descMain = descOf(locale);
-    const descOther = descOf(other);
-    const description = [descMain, descOther && descOther !== descMain ? descOther : ""]
-        .filter(Boolean).join(" / ");
+    // **説明はこのページの言語で1本だけ。**
+    //
+    // 以前は日英を `" / "` で併記していた（「両言語のクエリで拾えるように」）。
+    // 実ビルドの JSON-LD はこうなっていた:
+    //
+    //     description: "北海道にも春が訪れ… / Spring has come to Hokkaido…"
+    //
+    // 同じページの `<meta name="description">` は**日本語だけ**を出して
+    // いる。schema.org の
+    // `description` は「そのものの説明」で、2言語を `/` で繋いだ文字列は
+    // どちらの言語としても読めない。`locale` は `ja` 固定で英語ページは
+    // 存在しないので（`og:locale:alternate` も同じ理由で撤去済み）、
+    // このページの言語を出し、無いときだけもう一方に落とす。
+    //
+    // **英語がサイトから消えたわけではない**——写真ページは `sr-only` の
+    // 英語ブロックを静的HTMLに持つ（実ビルドで28/30）。そこをどうするかは
+    // 別の判断として残している。
+    //
+    // **題の別言語は捨てていない**——`alternateName` が持つ（あちらは
+    // 「別の呼び名」を置く正しい場所で、混ぜ物にならない）。
+    // 1行に均す（`metaText` の説明を参照）。JSON-LD の description と
+    // caption、画像サイトマップの caption がここから出る
+    const description = metaText(descOf(locale) || descOf(other));
 
-    const imageUrl = photo.src.startsWith("http")
-        ? photo.src
-        : `${siteConfig.url}${photo.src}`;
+    const imageUrl = publicImageUrl(photo.src);
 
     const structuredData: Record<string, unknown> = {
         "@context": "https://schema.org",
@@ -150,9 +233,7 @@ export function generatePhotoStructuredData(photo: {
 
     // Google 画像検索向けメタデータ（データがある項目だけ出力）
     if (photo.thumbSrc) {
-        structuredData.thumbnailUrl = photo.thumbSrc.startsWith("http")
-            ? photo.thumbSrc
-            : `${siteConfig.url}${photo.thumbSrc}`;
+        structuredData.thumbnailUrl = publicImageUrl(photo.thumbSrc);
     }
     if (photo.tags && photo.tags.length > 0) {
         structuredData.keywords = photo.tags.join(", ");
@@ -173,11 +254,36 @@ export function generatePhotoStructuredData(photo: {
     // 作者。photographer だけを見ていたため、実データ（30件中0件）では
     // 一度も出力されていなかった。creditText 側は displayName に落ちているので、
     // 同じ値を使う（「クレジットはあるのに作者は空」という状態をやめる）。
+    //
+    // **`author` も出す。そして `url` でプロフィールへ結ぶ。**
+    //
+    // 一度は `creator` だけだった。`creator` も正しい語だが、**人名で
+    // 探されたときに効くのは「この30ページは同じ人のもの」と機械に
+    // 言えること**で、そのための標準の語は `author`（`ImageObject` は
+    // `CreativeWork` なので両方使える）。しかも名前を書くだけでは
+    // **同姓同名と区別が付かない**——`url` を添えて初めて
+    // 「`/users/<id>` に居るその人」という一つの実体を指せる。
+    //
+    // 実測（2026-09-12・実ビルド）: 写真ページ30枚はどれも表示名を5回
+    // 出しているのに、**構造化データでは `creator` の名前だけ**で、
+    // プロフィールへ結ぶものが1つも無かった（`author` も
+    // `<meta name="author">` も無し）。
     if (credit) {
-        structuredData.creator = {
-            "@type": "Person",
-            name: credit,
-        };
+        const person: Record<string, unknown> = { "@type": "Person", name: credit };
+        // 空白を詰めた別表記も添える（「丸田 竜平」→「丸田竜平」）。
+        // プロフィールの `Person` と同じ規則で作る＝30枚の写真ページと
+        // `/users/<id>` が**同じ名前の集合**を名乗る
+        const alt = spacelessName(credit);
+        if (alt) person.alternateName = alt;
+        if (photo.userId) {
+            const profileUrl = `${siteConfig.url}/users/${photo.userId}`;
+            person.url = profileUrl;
+            // **`/users/<id>` の `Person` と同じ節点だと名乗る。**
+            // `url` だけだと「同じ人らしい」までで、言い切ってはいない
+            person["@id"] = personNodeId(profileUrl);
+        }
+        structuredData.creator = person;
+        structuredData.author = person;
     }
     
     if (photo.location) {

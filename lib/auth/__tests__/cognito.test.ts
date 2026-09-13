@@ -5,7 +5,6 @@ vi.mock("../config", () => ({
     cognitoConfig: { userPoolId: "ap-northeast-1_test", clientId: "test-client-id", region: "ap-northeast-1" },
     ADMIN_GROUP_NAME: "admin",
     USER_GROUP_NAME: "user",
-    PROTECTED_PATHS: ["/user/upload"],
 }));
 
 // Cognito SDK モック
