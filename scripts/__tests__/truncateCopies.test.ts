@@ -198,14 +198,32 @@ describe("2つのパッケージの sanitize: 残り4つの入口", () => {
         expect(m.sameStoredValue({ ja: "京都" }, { ja: "大阪" })).toBe(false);
     });
 
+    // **一覧での切り抜き位置。** 範囲の外は**丸めずに捨てる**
+    // ——丸めると、想定していない単位（%・px）で送られたときに
+    // 「端に貼り付いた位置」が保存され、利用者には「ずらしたのに端に飛ぶ」
+    // としか見えない。捨てれば中央のまま＝今までの写真と同じ見え方に落ちる
+    it.each(IMPLS)("%s: 切り抜き位置は 0〜1 の外を捨てる（丸めない）", (_name, m) => {
+        expect(m.sanitizeFocalPoint({ x: 0, y: 1 })).toEqual({ x: 0, y: 1 });
+        expect(m.sanitizeFocalPoint({ x: -0.1, y: 0.5 })).toBeNull();
+        expect(m.sanitizeFocalPoint({ x: 0.5, y: 50 })).toBeNull();
+        expect(m.sanitizeFocalPoint({ x: "0.5", y: 0.5 })).toBeNull();
+        expect(m.sanitizeFocalPoint(null)).toBeNull();
+    });
+
+    // `object-position` は % で使うので、それ以上の桁は表示に効かないうえ
+    // 静的JSON（`photos.json` は全ページに載る）を太らせる
+    it.each(IMPLS)("%s: 切り抜き位置は小数第4位まで", (_name, m) => {
+        expect(m.sanitizeFocalPoint({ x: 0.123456789, y: 0.987654321 })).toEqual({ x: 0.1235, y: 0.9877 });
+    });
+
     // **数え上げ自体を縛る。** 片方に共有の export が増えたら、
     // 「見ていない入口」が静かに戻る
-    it("共有している export は10個（増えたらここも増やす）", () => {
+    it("共有している export は11個（増えたらここも増やす）", () => {
         const shared = Object.keys(au).filter((k) => k in ap);
         expect(shared.sort()).toEqual([
             "dateWasRejected", "sameStoredValue", "sanitizeCoords", "sanitizeDate",
-            "sanitizeDescription", "sanitizeExif", "sanitizeTags", "sanitizeText",
-            "sanitizeTitle", "truncate",
+            "sanitizeDescription", "sanitizeExif", "sanitizeFocalPoint", "sanitizeTags",
+            "sanitizeText", "sanitizeTitle", "truncate",
         ]);
     });
 });

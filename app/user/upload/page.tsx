@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect, useRef, Suspense } from "react";
+import CropFramePicker from "../../components/CropFramePicker";
 import { useBottomBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PhotoIcon, XMarkIcon, UserCircleIcon, MapPinIcon, CalendarIcon, ChevronDownIcon, CheckCircleIcon, ExclamationTriangleIcon, CameraIcon } from "@heroicons/react/24/outline";
@@ -21,7 +22,7 @@ import { userFacingUploadError, UPLOAD_FAILED_MESSAGE } from "./errorText";
 import { CANCEL_DISCARD_WAIT_MS } from "./cancelWait";
 import { unstrippableMessage, gifRejectedMessage, gifRejectedLabel } from "../../../lib/utils/uploadRejection";
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
-import type { Photo, Locale } from "../../../lib/data/photos";
+import type { Photo } from "../../../lib/data/photos";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, type OwnValues } from "../../../lib/utils/ownValues";
 // 上限は lib/utils/uploadLimits.ts に置く（api-user 側と対。理由はあちらに書いた）
@@ -38,6 +39,12 @@ type Item = {
     id: string;
     file: File;
     preview: string;
+    /**
+     * 一覧（正方形）で写真のどこを中心に置くか（0〜1）。**中央が既定**。
+     * `undefined` のまま送らなければ、サーバーは属性を書かない
+     * ＝今までの写真と同じ見え方になる
+     */
+    focalPoint?: { x: number; y: number };
     title: string;
     description: string;
     location: string;
@@ -62,85 +69,6 @@ function makeId() {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// アップロード写真のプレビュー。写真全体を表示しつつ、ギャラリー一覧で
-// 表示される「中央の正方形」を白枠で示し、枠外を暗くして
-// "どこまで反映されるか" を明示する。
-function CropPreview({ src, hint, locale }: { src: string; hint: string; locale: Locale }) {
-    const imgRef = useRef<HTMLImageElement>(null);
-    const [box, setBox] = useState<{ side: number; left: number; top: number } | null>(null);
-    // **このブラウザで開けなかった写真**（PC の Chrome で選んだ HEIC など。
-    // `addFiles` が断るのは「画像でない」「GIF」「50MB超」だけなので、
-    // 種別が画像で開けないファイルはここまで来る）。
-    // `block w-auto max-h-56` は高さを予約しないので、`onError` を持たない
-    // 頃は**プレビューが高さ 0 に潰れ**（Chromium 実測 390x224 → 390x0）、
-    // 切り抜きの白枠も出ないまま「公開」を押して初めて断られていた。
-    // 文言は `unstrippableMessage` の「開けなかった」と同じものを使う
-    // ——公開を押したときに出るのと同じ文にする（画面ごとに書き分けない）
-    // 下ろす側は書かない——`src` は項目ごとに1回だけ作られ（`addFiles` の
-    // `URL.createObjectURL`）、同じ instance で差し替わらない。念のため
-    // 呼び出し側で `key={it.preview}` にしてあるので、変わったら作り直される。
-    // 「入るたびに下ろす」の effect を足すと**踏まれない分岐**になり、
-    // このリポジトリが避けている死にコードになる
-    const [failed, setFailed] = useState(false);
-
-    const measure = useCallback(() => {
-        const el = imgRef.current;
-        if (!el) return;
-        const w = el.clientWidth, h = el.clientHeight;
-        if (!w || !h) return;
-        const side = Math.min(w, h);
-        setBox({ side, left: (w - side) / 2, top: (h - side) / 2 });
-    }, []);
-
-    useEffect(() => {
-        window.addEventListener("resize", measure);
-        return () => window.removeEventListener("resize", measure);
-    }, [measure]);
-
-    if (failed) {
-        return (
-            <div className="relative bg-black flex flex-col items-center justify-center gap-2 h-40 px-6 text-center text-white/60">
-                <PhotoIcon className="w-8 h-8" />
-                <p className="text-xs">{unstrippableMessage(new UnstrippableFileError("", "undecodable"), locale)}</p>
-            </div>
-        );
-    }
-
-    return (
-        <div className="relative bg-black flex justify-center">
-            <div className="relative inline-block overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                    ref={imgRef}
-                    src={src}
-                    alt=""
-                    onLoad={measure}
-                    onError={() => setFailed(true)}
-                    className="block w-auto max-h-56 max-w-full"
-                    draggable={false}
-                />
-                {box && (
-                    <div
-                        className="absolute border-2 border-white/90 pointer-events-none"
-                        style={{
-                            width: box.side,
-                            height: box.side,
-                            left: box.left,
-                            top: box.top,
-                            // 枠外を暗くする（コンテナで overflow-hidden 済み）
-                            boxShadow: "0 0 0 9999px rgba(0,0,0,0.5)",
-                        }}
-                    >
-                        <span className="absolute -top-px left-0 right-0 h-px bg-white/40" />
-                    </div>
-                )}
-            </div>
-            <span className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full bg-black/70 text-[11px] text-white/90 pointer-events-none whitespace-nowrap">
-                {hint}
-            </span>
-        </div>
-    );
-}
 
 // **サーバーの上限と同じ数字。** 入れないと、超えた分は保存時に黙って
 // 切られる（保存は成功したように見えて、あとで開くと末尾が無い）。
@@ -910,6 +838,10 @@ function UploadPageInner() {
                             category: category || undefined,
                             tags: tagList,
                             ...(coords ? { coords } : {}),
+                            // 一覧での切り抜き位置。**動かしていなければ送らない**
+                            // ——中央は既定なので、属性を持たない今までの写真と
+                            // 同じ形で保存される
+                            ...(item.focalPoint ? { focalPoint: item.focalPoint } : {}),
                             ...(dominantColor ? { dominantColor } : {}),
                             ...(blurDataURL ? { blurDataURL } : {}),
                             ...(thumbUrl ? { thumbUrl } : {}),
@@ -1203,11 +1135,25 @@ function UploadPageInner() {
                     <div key={it.id} className="border border-white/10 rounded-lg overflow-hidden bg-white/5">
                         {/* トリミングプレビュー（一覧表示範囲を白枠で明示） */}
                         <div className="relative">
-                            <CropPreview
+                            <CropFramePicker
                                 key={it.preview}
                                 src={it.preview}
-                                hint={locale === "en" ? "White frame = shown in the grid" : "白い枠が一覧に表示されます"}
-                                locale={locale}
+                                hint={locale === "en"
+                                    ? "White frame = shown in the grid (drag to move)"
+                                    : "白い枠が一覧に表示されます（ドラッグで移動）"}
+                                focalPoint={it.focalPoint}
+                                onChange={(focalPoint) => updateItem(it.id, { focalPoint })}
+                                // **このブラウザで開けなかった写真**（PC の Chrome で選んだ
+                                // HEIC など。`addFiles` が断るのは「画像でない」「GIF」
+                                // 「50MB超」だけなので、種別が画像で開けないファイルは
+                                // ここまで来る）。文言は公開を押したときに出るものと
+                                // 同じにする（画面ごとに書き分けない）
+                                fallback={
+                                    <div className="relative bg-black flex flex-col items-center justify-center gap-2 h-40 px-6 text-center text-white/60">
+                                        <PhotoIcon className="w-8 h-8" />
+                                        <p className="text-xs">{unstrippableMessage(new UnstrippableFileError("", "undecodable"), locale)}</p>
+                                    </div>
+                                }
                             />
                             <button
                                 type="button"

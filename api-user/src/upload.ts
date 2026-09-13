@@ -6,7 +6,7 @@ import { putPhoto, getPhotoById, overwriteOwnPhoto, listMyMediaItems } from "./d
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
 import { lookupDisplayNameIfSet } from "./notify";
-import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags } from "./sanitize";
+import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags, sanitizeFocalPoint } from "./sanitize";
 import { extForType, uploadPrefix, canonicalUploadUrl, idFromUploadKey, isOwnUploadUrlFromEnv as isOwnUploadUrl } from "./uploadPolicy";
 import { mediaKeys } from "./mediaKeys";
 import { requestSiteRebuild } from "./rebuild";
@@ -236,6 +236,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         coords?: unknown;
         dominantColor?: string;
         thumbUrl?: string;
+        /** 一覧で写真のどこを中心に切り抜くか（0〜1）。未指定なら中央 */
+        focalPoint?: unknown;
         published?: boolean;
         blurDataURL?: string;
         date?: unknown;
@@ -343,6 +345,9 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         ...(() => { const t = sanitizeTags(tags); return t && t.length > 0 ? { tags: t } : {}; })(),
         ...(() => { const safeExif = sanitizeExif(exif); return safeExif ? { exif: safeExif } : {}; })(),
         ...(safeCoords ? { coords: safeCoords } : {}),
+        // **使えない値は属性ごと書かない**（`coords` と同じ）。中央のままに
+        // 落ちるので、今までの写真と見え方が変わらない
+        ...(() => { const f = sanitizeFocalPoint(body.focalPoint); return f ? { focalPoint: f } : {}; })(),
         ...(safeDominantColor ? { dominantColor: safeDominantColor } : {}),
         ...(safeThumbSrc ? { thumbSrc: safeThumbSrc } : {}),
         ...(safeBlurDataURL ? { blurDataURL: safeBlurDataURL } : {}),

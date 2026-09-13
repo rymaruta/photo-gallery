@@ -17,7 +17,7 @@ import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { type SongEntry } from "../../music/MusicContext";
 import MusicCard from "../../components/MusicCard";
 import SongArtwork from "../../components/SongArtwork";
-import { MusicalNoteIcon, XMarkIcon, MapPinIcon, CameraIcon } from "@heroicons/react/24/outline";
+import { MusicalNoteIcon, XMarkIcon, MapPinIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../../auth/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { shareUrl, copyToClipboard, shareToTwitter, shareToLine } from "../../../lib/utils/share";
@@ -30,12 +30,11 @@ import { relatedSections, adjacentPhotos } from "../../../lib/utils/related";
 import { ROUTES } from "../../../lib/routes";
 import { formatMapHash, PHOTO_LINK_ZOOM } from "../../../lib/utils/mapView";
 import { formatCameraName, dedupeCameraName } from "../../../lib/utils/cameraName";
-import { displayWhiteBalance } from "../../../lib/utils/exifDisplay";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
 import { isImageReady } from "../../../lib/utils/imageReady";
-import { formatStoredDateTime } from "@/lib/utils/photoDate";
+import ExifSpecs, { buildExifSpecs } from "../../components/ExifSpecs";
 import { isImeKey } from "../../../lib/utils/ime";
 import { useSongSearch } from "../../../lib/hooks/useSongSearch";
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
@@ -857,12 +856,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     </div>
                 )}
 
-                {/* EXIF情報: カメラのスペックシート風カード（ラベル上・値下の2列グリッド） */}
+                {/* EXIF情報: カメラのスペックシート風カード（ラベル上・値下の2列グリッド）。
+                    **組み立てと見た目は `ExifSpecs` に出した**——モーダルが同じ値を
+                    中黒でつないだ1行で出していて、どの数字が何なのか読めなかった。
+                    ここに直書きしたままだと、片方だけ直して静かにずれる */}
                 {(() => {
-                    const specs: Array<{ label: string; value: string; wide?: boolean; href?: string }> = [];
-                    const add = (label: string, value: string | number | undefined | null, wide = false, href?: string) => {
-                        if (value !== undefined && value !== null && `${value}`.trim() !== "") specs.push({ label, value: `${value}`, wide, href });
-                    };
                     // **機種名からその機材の一覧へ行けるようにする。**
                     // 撮影地・カテゴリ・タグは前から集約ページへ繋いであるのに、
                     // カメラだけ行き止まりだった。sitemap に載せても内部リンクが
@@ -879,49 +877,13 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     // になる（`dynamicParams = false`）。実データで公開30枚中3枚が
                     // 保存済み exif を持たない。
                     const storedCamera = dedupeCameraName(photo.exif?.camera);
-                    add(locale === "en" ? "Camera" : "カメラ", mergedExif.camera, false,
-                        storedCamera ? collectionPath("camera", slugify(storedCamera, "camera")) : undefined);
-                    add(locale === "en" ? "Lens" : "レンズ", mergedExif.lens);
-                    add(locale === "en" ? "Aperture" : "絞り", mergedExif.aperture);
-                    add(locale === "en" ? "Shutter" : "シャッター速度", mergedExif.exposure);
-                    add("ISO", mergedExif.iso);
-                    add(locale === "en" ? "Focal Length" : "焦点距離", mergedExif.focalLength);
-                    add(locale === "en" ? "White Balance" : "ホワイトバランス",
-                        displayWhiteBalance(mergedExif.whiteBalance, locale === "en" ? "en" : "ja"));
-                    add(locale === "en" ? "Image Size" : "画像サイズ", mergedExif.imageSize);
-                    // 撮影日時は**保存されている通り**に出す。toLocaleString を
-                    // 描画中に呼んでいた頃は、ビルド(UTC)と閲覧者のゾーンで
-                    // 文字列が食い違ってハイドレーション不一致になり、しかも
-                    // 日付だけの値（"2024-10-12"）が UTC 0時として読まれるため
-                    // ニューヨークからは前日と表示されていた。
-                    const shotAt = formatStoredDateTime(mergedExif.dateTimeOriginal, locale === "en" ? "en" : "ja");
-                    if (shotAt) {
-                        add(locale === "en" ? "Date Taken" : "撮影日時", shotAt, true);
-                    }
-                    if (specs.length === 0) return null;
+                    const cameraHref = storedCamera ? collectionPath("camera", slugify(storedCamera, "camera")) : undefined;
                     return (
-                        <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 max-w-md">
-                            <div className="flex items-center gap-1.5 mb-3">
-                                <CameraIcon className="w-3.5 h-3.5 text-white/50" />
-                                <span className="text-[11px] tracking-widest uppercase text-white/50">
-                                    {locale === "en" ? "Camera Settings" : "撮影情報"}
-                                </span>
-                            </div>
-                            <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
-                                {specs.map((s) => (
-                                    <div key={s.label} className={s.wide ? "col-span-2" : ""}>
-                                        <dt className="text-[10px] uppercase tracking-wider text-white/50">{s.label}</dt>
-                                        <dd className="text-[13px] text-white/85 mt-0.5 break-words">
-                                            {/* リンクにするのは行き先がある項目だけ。
-                                                見た目（大きさ・色）は変えず、下線だけで示す */}
-                                            {s.href
-                                                ? <Link href={s.href} prefetch={false} className="underline decoration-white/30 underline-offset-2 hover:decoration-white/70">{s.value}</Link>
-                                                : s.value}
-                                        </dd>
-                                    </div>
-                                ))}
-                            </dl>
-                        </div>
+                        <ExifSpecs
+                            specs={buildExifSpecs(mergedExif, locale, cameraHref)}
+                            locale={locale}
+                            className="max-w-md"
+                        />
                     );
                 })()}
 

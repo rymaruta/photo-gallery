@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { StoryGroup } from "@/lib/stories";
 
@@ -195,22 +195,45 @@ describe("ストーリーをギャラリーに残す", () => {
         await screen.findByText("仕上げる");
     });
 
+    // **実時間で待たない。** 以前はここで `setTimeout(30)` を挟んでいたが、
+    // 30ms は「応答の後始末が終わる時間」ではなく**ただの当て推量**で、
+    // 込み合った回には足りない。フルスイート（337ファイル）で実際に落ちた
+    // ——4回中2回。テストファイルが増えて機械が混んだだけで結果が変わる、
+    // つまり**何も保証していない待ち方**だった。
+    //
+    // 残す処理の続きはマイクロタスクだけ（タイマーを挟まない）ので、
+    // 応答が読まれたことを合図にしてキューを空にすれば、必ず最後まで進む。
     it("待っている間に手で次へ進めたら、その1枚に手応えを出さない", async () => {
         let release!: () => void;
         const held = new Promise<void>((r) => { release = r; });
+        // 応答の本文が読まれた＝この直後に「まだ同じ1枚か」の判定が走る
+        let bodyRead!: () => void;
+        const readBody = new Promise<void>((r) => { bodyRead = r; });
         mockUserFetch.mockImplementation(async (url: string, init?: { method?: string }) => {
             if (String(url).includes("/keep") && init?.method === "POST") {
                 await held;
-                return { ok: true, json: async () => ({ photoId: "p-1" }) };
+                return { ok: true, json: async () => { bodyRead(); return { photoId: "p-1" }; } };
             }
             return { ok: true, json: async () => ({}) };
         });
         view(own());
         fireEvent.click(await screen.findByLabelText("ギャラリーに残す"));
         await waitFor(() => expect(keepPosts()).toHaveLength(1));
+
         fireEvent.keyDown(document, { key: "ArrowRight" });
+        // **進んだことを先に確かめる。** ここを見ないと、「進んでいない」
+        // という別の壊れ方が「手応えが出ている」として報告される
+        await waitFor(() => expect(
+            document.querySelector('img[src="https://cdn/x/b.jpg"]'),
+            "手で次へ進めていない（この後の判定が別の理由で落ちる）",
+        ).toBeTruthy());
+
         release();
-        await new Promise((r) => setTimeout(r, 30));
+        await act(async () => {
+            await readBody;
+            // 判定とその後始末（`setKeeping(false)`）まで進める
+            for (let i = 0; i < 10; i++) await Promise.resolve();
+        });
         expect(screen.queryByText("仕上げる"), "別の1枚に手応えが出ている").toBeNull();
     });
 });

@@ -122,7 +122,11 @@ const EXEMPT: Array<[string, string, string]> = [
     ["app/user/profile/page.tsx", "coverPreview", "選んだ直後の data: URL"],
     ["app/user/profile/page.tsx", "avatarPreview", "選んだ直後の data: URL"],
     ["app/user/upload/page.tsx", "avatarPreview", "選んだ直後の data: URL"],
-    ["app/user/upload/page.tsx", "src", "切り抜きプレビュー（blob: URL を受け取る部品）"],
+    // 切り抜きプレビューは `app/components/CropFramePicker.tsx` へ切り出した
+    // （アップロードと編集で共用）。**呼ぶ側で使い分ける**——
+    // アップロードは端末の blob: URL をそのまま、編集は保存済みの URL を
+    // `publicImageUrl` に通してから渡す
+    ["app/components/CropFramePicker.tsx", "src", "切り抜きプレビュー（blob: URL も受け取る部品。通すのは呼ぶ側）"],
     ["app/users/UserProfileClient.tsx", "qrDataUrl", "QRコードは data: URL"],
     ["lib/utils/image.ts", "url", "圧縮の前に読む `URL.createObjectURL(file)`（端末の中だけ）"],
 
