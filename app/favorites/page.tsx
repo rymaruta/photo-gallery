@@ -7,8 +7,7 @@ import { useImagePreloader } from "../../lib/hooks/useImagePreloader";
 import { usePhotos } from "../../lib/hooks/usePhotos";
 import GalleryGrid from "../components/GalleryGrid";
 import { useLocale } from "../i18n/context";
-import { capitalize } from "../../lib/utils/string";
-import { slugify } from "../../lib/utils/collections";
+import { photoCategoryMap } from "../../lib/utils/categoryMap";
 
 export default function FavoritesPage() {
     const { locale, labels } = useLocale();
@@ -31,20 +30,13 @@ export default function FavoritesPage() {
         }
     }, [favoritePhotos, preloadMultiple]);
 
-    const categoryDisplayMap = React.useMemo(() => {
-        const map: Record<string, string> = {};
-        const names = labels.category.names ?? {};
-        for (const p of favoritePhotos) {
-            // **鍵の作り方は `slugify` に任せる。** ここで手書きに正規化すると
-            // 別名（建物 → architecture）が寄らず、表示名の表にも当たらない
-            // ——同じ規則がリポジトリに3通りある状態だった
-            const k = slugify((p.category ?? "").toString(), "category");
-            if (k && !map[k]) {
-                map[k] = names[k] ?? capitalize(k.replace(/-/g, " "));
-            }
-        }
-        return map;
-    }, [labels, favoritePhotos]);
+    // **鍵は写真が持っている値そのもの**（読む側 `GalleryGrid` が生の値で
+    // 引き、落とし先を持たない）。名前を引くときだけスラッグにする
+    // ——理由は `lib/utils/categoryMap.ts` に書いた
+    const categoryDisplayMap = React.useMemo(
+        () => photoCategoryMap(favoritePhotos, labels.category.names ?? {}),
+        [labels, favoritePhotos],
+    );
 
     return (
         <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">

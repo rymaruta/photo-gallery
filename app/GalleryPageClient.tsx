@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { tagKey, slugify } from "@/lib/utils/collections";
+import { tagKey } from "@/lib/utils/collections";
+import { photoCategoryMap } from "@/lib/utils/categoryMap";
 import FilterBar from "./components/FilterBar";
 import StoriesBar from "./components/stories/StoriesBar";
 import { useLocale } from "./i18n/context";
@@ -355,10 +356,11 @@ export default function GalleryPageClient() {
     for (const key of categories) {
       map[key] = key === "all" ? labels.category.all : names[key] ?? capitalize(key.replace(/-/g, " "));
     }
-    for (const p of PHOTOS) {
-      // **鍵の作り方は `slugify` に任せる**（`app/favorites` と同じ理由）
-      const k = slugify((p.category ?? "").toString(), "category");
-      if (k && !map[k]) map[k] = names[k] ?? capitalize(k.replace(/-/g, " "));
+    // 写真から作る分は `photoCategoryMap` に任せる（鍵は写真が持っている値
+    // そのもの）。**ここの `PHOTOS` は `useGallery` が正規化済み**なので
+    // 鍵はスラッグになるが、読む側も同じ値を持つので食い違わない
+    for (const [k, v] of Object.entries(photoCategoryMap(PHOTOS, names))) {
+      if (!map[k]) map[k] = v;
     }
     return map;
   }, [labels, categories, PHOTOS]);

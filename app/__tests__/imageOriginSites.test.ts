@@ -134,7 +134,7 @@ const EXEMPT: Array<[string, string, string]> = [
     ["app/user/profile/page.tsx", "currentCoverUrl", "組み立てるところで通している"],
     ["app/user/profile/page.tsx", "currentAvatarUrl", "組み立てるところで通している"],
     ["app/users/UserProfileClient.tsx", "coverUrl", "組み立てるところで通している"],
-    ["lib/hooks/useImagePreloader.ts", "url", "`preloadImage` の入口で通している（`useImagePreloader.test.ts` が描画側で見る）"],
+    ["lib/hooks/useImagePreloader.ts", "url", "`preloadImage` の入口で通している（`useImagePreloader.origin.test.ts` が `Image` に入った値で見る）"],
 ];
 
 const walk = (dir: string): string[] => {
