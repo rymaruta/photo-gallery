@@ -148,9 +148,34 @@ const GalleryItem = React.memo(function GalleryItem({
     return (
         <div className="w-full m-0 p-0">
             {/* タップで個別ページへ直接遷移する。まだ静的ページが無い新着写真は
-                ROUTES.PHOTO が /?photo=<id> を返し、ホームがモーダルで表示する */}
+                ROUTES.PHOTO が /?photo=<id> を返し、ホームがモーダルで表示する。
+
+                **先読みはしない（`prefetch={false}`）。**
+                Next の `<Link>` は既定で「画面に入ったら先読み」で、一覧は
+                カードが30枚ある。しかも静的書き出しなので先読みの中身は
+                `/photo/<id>.txt`（RSC の控え）で、**`deploy-static-site.js` は
+                これを `no-cache, no-store` で配る**（`isHtmlOrTxt`）
+                ——つまりカードが画面に出入りするたびに**毎回落とし直す**。
+
+                実測（`out/` を手元に配り、往復80msを足して5回の中央値）:
+
+                    先読みあり  1訪問あたり 142要求 / **1.74 MB**（生）  タップ→表示 150ms
+                    先読みなし  1訪問あたり   1要求 /    18 KB          タップ→表示 233ms
+
+                **1.72 MB を落とさなくなる代わりに、最初のタップが +83ms。**
+                1枚も開かずに帰る人にも毎回 1.7MB 掛かっていたので、
+                写真そのものと帯域を奪い合う方が高くつく（このサイトの優先度は
+                表示速度）。写真が増えるほど差は開く。
+
+                ⚠️ **`prefetch={false}` は hover / touchstart の先読みも止める**
+                （`next/dist/client/app-dir/link.js` の `prefetchEnabled`）。
+                タップの手前で温める形（`router.prefetch` を `onTouchStart` で）
+                にすれば 83ms の大半は取り戻せるはずだが、**この環境では
+                実機のタップ間隔を作れないので測れない**——測れないものを
+                入れない。遷移が遅いと感じたらそこが次の一手。 */}
             <Link
                 href={href}
+                prefetch={false}
                 onClick={opensHere ? (e) => {
                     // 新しいタブ・別ウィンドウで開く操作は邪魔しない
                     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
