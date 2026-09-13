@@ -25,26 +25,35 @@ import type { Photo } from "@/lib/data/photos";
  */
 
 /** `sizes` の式を、指定の画面幅で解く（ブラウザがやることの最小版） */
+const ROOT_PX = 16; // `sizes` の rem は**ブラウザの既定**で解かれる（実測）
+
 function resolveSizes(sizes: string, viewport: number): number | null {
+    const unit = (n: string, u: string) =>
+        u === "vw" ? (parseFloat(n) / 100) * viewport : u === "rem" ? parseFloat(n) * ROOT_PX : parseFloat(n);
     const len = (raw: string): number | null => {
         const s = raw.trim();
-        const calc = s.match(/^calc\(\s*([\d.]+)vw\s*-\s*([\d.]+)px\s*\)$/);
-        if (calc) return (parseFloat(calc[1]) / 100) * viewport - parseFloat(calc[2]);
-        const vw = s.match(/^([\d.]+)vw$/);
-        if (vw) return (parseFloat(vw[1]) / 100) * viewport;
-        const px = s.match(/^([\d.]+)px$/);
-        return px ? parseFloat(px[1]) : null;
+        const calc = s.match(/^calc\(\s*([\d.]+)(vw|rem|px)\s*-\s*([\d.]+)(vw|rem|px)\s*\)$/);
+        if (calc) return unit(calc[1], calc[2]) - unit(calc[3], calc[4]);
+        const one = s.match(/^([\d.]+)(vw|rem|px)$/);
+        return one ? unit(one[1], one[2]) : null;
     };
     for (const part of sizes.split(",")) {
         const t = part.trim();
-        const m = t.match(/^\(max-width:\s*([\d.]+)px\)\s+(.+)$/);
+        const m = t.match(/^\(max-width:\s*([\d.]+)(px|rem)\)\s+(.+)$/);
         if (!m) return len(t);              // 条件なし＝最後の受け皿
-        if (viewport <= parseFloat(m[1])) return len(m[2]);
+        if (viewport <= unit(m[1], m[2])) return len(m[3]);
     }
     return null;
 }
 
-/** Chromium で実測した箱の幅（画面幅 → px） */
+/**
+ * Chromium で実測した箱の幅（画面幅 → px）。**ブラウザの既定フォントは 16px。**
+ *
+ * このサイトは `@media (max-width:639px)` で `html{font-size:14px}` を当てている
+ * ので、**640px 未満は root が 14px**（余白14・隙間3.5）。実測 179.25 は
+ * `(390 - 28 - 3.5) / 2` と一致する。取り直すときは `out/` を配って
+ * `img.getBoundingClientRect().width` を読むこと。
+ */
 const MEASURED_5XL: Array<[number, number]> = [
     [320, 144], [390, 179], [640, 193], [641, 194], [768, 231], [1024, 236], [1280, 236], [1536, 236],
 ];
@@ -52,7 +61,7 @@ const MEASURED_6XL: Array<[number, number]> = [
     [320, 144], [390, 179], [640, 199], [641, 199], [768, 241], [1024, 244], [1280, 276], [1536, 276],
 ];
 
-const TOLERANCE = 0.05; // 実測との差は5%まで
+const TOLERANCE = 0.02; // 実測との差は2%まで（式を実測に合わせたので絞れる）
 
 describe("グリッドの sizes が実際の幅と合っている", () => {
     it.each(MEASURED_5XL)("max-w-5xl の画面: 画面幅 %ipx で実測 %ipx に合う", (vw, actual) => {
@@ -87,13 +96,14 @@ describe("グリッドの sizes が実際の幅と合っている", () => {
     // **容器に上限があるので、いちばん広いときは vw で申告してはいけない。**
     it.each([["5xl", GRID_SIZES_5XL], ["6xl", GRID_SIZES_6XL]])("%s: 最後の受け皿は固定px（vw ではない）", (_n, sizes) => {
         const last = sizes.split(",").pop()!.trim();
-        expect(last).toMatch(/^\d+px$/);
+        expect(last).toMatch(/^[\d.]+(px|rem)$/);
     });
 
     // **境界は Tailwind に合わせて手前で切る。** `sm:` は 640px **から**効くのに
     // `(max-width:640px)` も 640 を含むので、ちょうど 640px で食い違っていた。
     it.each([["5xl", GRID_SIZES_5XL], ["6xl", GRID_SIZES_6XL]])("%s: 境界に 640px / 1024px を素で使わない", (_n, sizes) => {
-        expect(sizes).not.toMatch(/max-width:\s*(640|768|1024|1152)px/);
+        expect(sizes).not.toMatch(/max-width:\s*(640|768|1024|1152)(px|rem)/);
+        expect(sizes).not.toMatch(/max-width:\s*(40|48|64|72)rem/);
     });
 });
 
@@ -108,10 +118,13 @@ const photo = (id: string): Photo => {
 };
 
 describe("配線", () => {
-    it("渡した max-w-5xl の式がそのまま出る", () => {
+    // **`<source>` は AVIF と WebP の2本ある。** 片方だけ見ていると、もう片方が
+    // `sizes` を失っても緑になる（WebP しか出ない端末で効かなくなる）。
+    it("渡した max-w-5xl の式が、全部の <source> に出る", () => {
         const { container } = render(<GalleryGrid photos={[photo("a")]} locale="ja" sizes={GRID_SIZES_5XL} />);
-        const src = container.querySelector("source[sizes]");
-        expect(src?.getAttribute("sizes") ?? container.querySelector("img")?.getAttribute("sizes")).toBe(GRID_SIZES_5XL);
+        const all = Array.from(container.querySelectorAll("source"));
+        expect(all.length).toBeGreaterThanOrEqual(2);
+        expect(all.map((s) => s.getAttribute("sizes"))).toEqual(all.map(() => GRID_SIZES_5XL));
     });
 
     /**
@@ -134,8 +147,9 @@ describe("配線", () => {
 
     it("渡された式をそのまま出す", () => {
         const { container } = render(<GalleryGrid photos={[photo("b")]} locale="ja" sizes={GRID_SIZES_6XL} />);
-        const src = container.querySelector("source[sizes]");
-        expect(src?.getAttribute("sizes") ?? container.querySelector("img")?.getAttribute("sizes")).toBe(GRID_SIZES_6XL);
+        const all = Array.from(container.querySelectorAll("source"));
+        expect(all.length).toBeGreaterThanOrEqual(2);
+        expect(all.map((s) => s.getAttribute("sizes"))).toEqual(all.map(() => GRID_SIZES_6XL));
     });
 
     it("写真が出ている（描画そのものが壊れていない）", () => {

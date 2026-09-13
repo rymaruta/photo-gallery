@@ -28,21 +28,44 @@
  * 箱が 236px なら 256px の候補で足りる（画素数で4倍・合成画像での実測で
  * webp 2.7倍 / avif 2.3倍のバイト）。
  *
- * 値は CSS から導いた: 段の数（`grid-cols-2 sm:grid-cols-3 lg:grid-cols-4`）と
- * 隙間（`gap-1 sm:gap-1.5`）と容器の左右の余白。境界は Tailwind に合わせて
- * `639.98px` のように**手前**で切る（`640px` にすると 640 ちょうどで食い違う）。
+ * ## 単位が2種類あるのは、基準が2つあるから（どちらも実測）
+ *
+ * **Tailwind v4 は全部 rem。** 出力された CSS を読むと
+ * `@media (min-width:40rem)` ・ `--spacing:.25rem` ・ `--container-5xl:64rem`。
+ * つまり利用者がブラウザの既定フォントを大きくすると、**折り返す幅も余白も
+ * 容器の上限も一緒に伸びる**。
+ *
+ * **`sizes` の中の rem は「ブラウザの既定」で解ける**（条件も長さも。実測:
+ * ページが `html{font-size:14px}` を当てていても 16px で解かれた）。
+ * これは Tailwind のメディアクエリと同じ土俵なので、**640px 以上は rem で
+ * 書けば追随する**。
+ *
+ * **640px 未満だけは px。** このサイトは `app/globals.css` で
+ * `@media (max-width:639px) { html,body { font-size:14px } }` と**自分で
+ * root を固定している**（しかも境界は px）。だから余白は 14px・隙間は 3.5px で
+ * 動かない——ここを rem で書くと既定16px で解かれてずれる。
+ *
+ *     実測（画面390px）  root=14px / 余白14px / 隙間3.5px / セル 179.25px
+ *                        (390 - 28 - 3.5) / 2 = 179.25  ← 一致
+ *     実測（画面1280px） root=16px / 余白32px / 隙間6px  / セル 235.5px
+ *                        (1024 - 64 - 18) / 4 = 235.5    ← 一致
+ *
+ * 境界は Tailwind の手前で切る（`39.99rem`）。`640px` と書くと 640 ちょうどで
+ * 食い違う（`sm:` は 640 **から**効くのに `max-width:640px` も 640 を含む）。
  */
 export const GRID_SIZES_5XL = [
-    "(max-width:639.98px) calc(50vw - 18px)",      // 2列 / 余白16 / 隙間4
-    "(max-width:767.98px) calc(33.33vw - 20px)",   // 3列 / 余白24 / 隙間12
-    "(max-width:1023.98px) calc(33.33vw - 25px)",  // 3列 / 余白32 / 隙間12
-    "236px",                                       // 4列 / 容器が 1024px で頭打ち
+    "(max-width:639px) calc(50vw - 15.75px)",        // 2列 / root は 14px 固定（余白14・隙間3.5）
+    "(max-width:39.99rem) calc(50vw - 1.125rem)",    // 2列 / root はブラウザ既定（余白1rem×2・隙間0.25rem）
+    "(max-width:47.99rem) calc(33.33vw - 1.25rem)",  // 3列 / p-6（1.5rem×2）・隙間0.375rem×2
+    "(max-width:63.99rem) calc(33.33vw - 1.583rem)", // 3列 / p-8（2rem×2）・隙間0.375rem×2
+    "14.71875rem",                                   // 4列 / 容器 64rem で頭打ち: (64 - 4 - 1.125) / 4
 ].join(", ");
 
-/** 集約ページ（`max-w-6xl` ＋ 左右の余白は 16px 固定） */
+/** 集約ページ（`max-w-6xl` ＝ 72rem ＋ 左右の余白は `px-4` 固定） */
 export const GRID_SIZES_6XL = [
-    "(max-width:639.98px) calc(50vw - 18px)",
-    "(max-width:1023.98px) calc(33.33vw - 14px)",
-    "(max-width:1151.98px) calc(25vw - 12px)",
-    "276px",                                       // 容器が 1152px で頭打ち
+    "(max-width:639px) calc(50vw - 15.75px)",
+    "(max-width:39.99rem) calc(50vw - 1.125rem)",
+    "(max-width:63.99rem) calc(33.33vw - 0.9167rem)", // 3列 / px-4（1rem×2）・隙間0.375rem×2
+    "(max-width:71.99rem) calc(25vw - 0.78125rem)",   // 4列 / (vw - 2rem - 1.125rem) / 4
+    "17.21875rem",                                    // 容器 72rem で頭打ち: (72 - 2 - 1.125) / 4
 ].join(", ");
