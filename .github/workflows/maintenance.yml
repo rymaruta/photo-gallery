@@ -23,6 +23,7 @@ on:
           - story-index       # ストーリー一覧用の GSI を足す（全件 Scan をやめる）
           - public-feed-index # 公開一覧用の GSI を足す（GET /photos の全件 Scan をやめる）
           - backfill-followers # 既にあるフォロー関係から followers#<uid> を作る
+          - repair-follow-graph # フォローの4種類の行を突き合わせ、食い違いを直す（既定は読むだけ）
           - normalize-image-urls  # 保存済みの画像URLのホスト名を配信URLに揃える
           - geocode-locations # 地名はあるが座標が無い写真に、おおよその座標を補う（地図ページの材料）
           - diagnose          # 本番の設定を読むだけ（索引の射影・日付の形・Cognito・CDN の TTL）
@@ -148,6 +149,18 @@ jobs:
       - name: フォロワー一覧を埋め戻す
         if: inputs.task == 'backfill-followers'
         run: node scripts/backfill-followers.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 15
+
+      # フォローは4種類の行（マーカー・数・フォロー中の並び・フォロワーの並び）に
+      # 分かれていて、1回の書き込みで揃うのはマーカーと数だけ。**ずれる形が
+      # 最初から入っている**。さらに `isUserId` を入れる前の壊れた ID の
+      # マーカーが本番に実在し（2026-09-13 実測で2件）、読む側は弾けても
+      # **数は弾けない**——「フォロー中 2」なのに一覧は空、という
+      # 誰にも直せない状態になる。マーカーを正として数え直す。
+      # **ドライラン（既定）は1行も書かない**ので、実態の確認にそのまま使える。
+      - name: フォローの行の食い違いを直す
+        if: inputs.task == 'repair-follow-graph'
+        run: node scripts/repair-follow-graph.js ${{ inputs.apply && '--apply' || '' }}
         timeout-minutes: 15
 
       # 読み取り専用。apply の指定は不要
