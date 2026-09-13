@@ -23,7 +23,7 @@ import { useMemberGate } from "../../../lib/hooks/useMemberGate";
 import { useEscapeKey } from "../../../lib/hooks/useEscapeKey";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
-import { collectOwnValues, toggleTag, hasTag, suggestTags, type OwnValues } from "../../../lib/utils/ownValues";
+import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, type OwnValues } from "../../../lib/utils/ownValues";
 import { publicImageUrl } from "@/lib/utils/seo";
 
 const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
@@ -266,7 +266,7 @@ function EditContent() {
     const [date, setDate] = useState("");
     const [tagsInput, setTagsInput] = useState("");
     // **候補は打ちかけの文字で絞る。** 枠は12個だが owner のタグは実データで
-    // 62種あり、絞らないと上位12種しか選べない（残り50種は打つしかない＝
+    // 59種あり、絞らないと上位12種しか選べない（残り47種は打つしかない＝
     // 打つから表記が割れる）。理由と実測は `suggestTags` に書いた
     const tagSuggestions = useMemo(() => suggestTags(ownValues.tags, tagsInput), [ownValues.tags, tagsInput]);
 
@@ -801,7 +801,7 @@ function EditContent() {
                                             <button
                                                 key={t}
                                                 type="button"
-                                                onClick={() => setTagsInput((cur) => toggleTag(cur, t))}
+                                                onClick={() => setTagsInput((cur) => toggleTag(dropFragment(ownValues.tags, cur), t))}
                                                 role="switch"
                                                 aria-checked={on}
                                                 className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-white text-black font-medium ring-white" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}

@@ -22,7 +22,10 @@ vi.mock("next/navigation", () => ({
     useSearchParams: () => new URLSearchParams(""),
 }));
 vi.mock("../../../auth/context", () => ({ useAuth: () => authState.current }));
-vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
+// **言語を切り替えられる形にする。** 固定だと「言語も見る」と書いた
+// `aria-label` の英語側を誰も通らない（日本語固定に戻す変異が素通りした）
+const uiLocale = vi.hoisted(() => ({ value: "ja" as "ja" | "en" }));
+vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: uiLocale.value }) }));
 vi.mock("../../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
 vi.mock("../../../components/AddToHomeScreenHint", () => ({ default: () => null }));
 // **`lookupSession` も模す。** `userFetch` はこちらでトークンを引く
@@ -175,7 +178,7 @@ describe("アップロード画面の入力候補", () => {
         expect(screen.getByRole("group", { name: "よく使うタグ" }), "何のスイッチか分からない").toBeInTheDocument();
     });
 
-    // **打ちかけの文字で候補を絞る。** 枠は12個だが owner のタグは62種——
+    // **打ちかけの文字で候補を絞る。** 枠は12個だが owner のタグは59種——
     // 絞らないと上位12種しか選べず、残りは打つしかない（打つから表記が割れる）
     it("打ちかけの文字で候補を絞る", async () => {
         await pickOne();
@@ -202,5 +205,19 @@ describe("アップロード画面の入力候補", () => {
         await userEvent.clear(field);
         await userEvent.type(field, "zzz");
         expect(screen.queryByRole("group", { name: "よく使うタグ" }), "関係ない候補が残っている").toBeNull();
+    });
+
+    it("英語UIでは候補のまとまりの名前も英語", async () => {
+        uiLocale.value = "en";
+        try {
+            // `pickOne` は日本語の見出しを待つので、ここは英語側の見出しで待つ
+            const { container } = render(<UploadPage />);
+            const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+            await userEvent.upload(input, new File(["x"], "a.jpg", { type: "image/jpeg" }));
+            await screen.findByText(/Common settings/i);
+            expect(screen.getByRole("group", { name: "Your frequent tags" }), "日本語のまま出している").toBeInTheDocument();
+        } finally {
+            uiLocale.value = "ja";
+        }
     });
 });

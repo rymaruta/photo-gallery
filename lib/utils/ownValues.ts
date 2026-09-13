@@ -70,7 +70,9 @@ function collectTags(photos: readonly Photo[], limit: number): string[] {
         [...g.raws.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
     // **同数のときは「最後に使った順」。**
     //
-    // 実データで数えたら **62種のうち46種が1枚にしか付いていない**ので、
+    // 実データで数えたら **59種のうち44種が1枚にしか付いていない**ので、
+    // （生の異なりは62だが、この関数が `tagKey` で畳むので59。**自前で
+    //  数え直さない**——生の62で測って doc を6か所間違えた）
     // ほとんどのタグが `total === 1` で並び、決着は文字順だけだった。
     // `localeCompare` は**日本語をラテン文字の後ろに置く**（実測
     // `apple < zebra < 白鳥 < 苔`）ので、上限30で切ると
@@ -115,7 +117,7 @@ export function collectOwnValues(photos: readonly Photo[] | null | undefined, li
         categories: byFrequency(cat).slice(0, limit),
         // **タグだけプールを広く持つ。** 画面は打ちかけの文字で絞ってから
         // 12個だけ出す（`suggestTags`）ので、ここで30に切ると
-        // **絞っても30種までしか届かない**（実データ62種で 30/62）。
+        // **絞っても30種までしか届かない**（実データ59種で 30/59）。
         // 上限そのものは残す——1人のタグが際限なく増えたときの歯止め
         tags: collectTags(photos ?? [], TAG_POOL_MAX),
     };
@@ -190,48 +192,77 @@ export function toggleTag(current: string, tag: string): string {
 }
 
 /**
+ * 欄の**最後の欠片**が「打ちかけ」なら返す（候補と丸ごと同じなら「選び終えた
+ * 1つ」なので空）。
+ *
+ * **この判定を2か所に書かない。** 絞る側（`suggestTags`）と、チップを
+ * 押したときに欠片を捨てる側（`dropFragment`）が同じ答えを使う。
+ * 別々に書いた版は、**打って絞ってチップを押すと欠片がタグとして残った**
+ * （`sau` と打って `sauna` を押すと `"sau, sauna"`）——絞りを入れた目的が
+ * 「打つから表記が割れる」を減らすことなのに、**新しい綴りを増やしていた**。
+ */
+export function typingFragment(all: readonly string[], current: string): string {
+    const frag = (current.split(",").pop() ?? "").trim();
+    if (!frag) return "";
+    const key = tagKey(frag);
+    return all.some((t) => tagKey(t) === key) ? "" : frag;
+}
+
+/** 打ちかけの欠片を欄から落とす（チップを押すときに使う） */
+export function dropFragment(all: readonly string[], current: string): string {
+    if (!typingFragment(all, current)) return current;
+    const cut = current.lastIndexOf(",");
+    return cut < 0 ? "" : current.slice(0, cut);
+}
+
+/**
  * 候補のタグを、**打ちかけの文字で絞る**。
  *
- * チップの枠は12個だが、owner のタグは実データで **62種**ある。
- * 何も打たないと上位12種しか選べず、**残り50種（81%）は打つしかない**
- * ——そして打つから表記が割れる（このサイトの弱点は「索引に載るタグ8種の
- * うち日本語は1種」で、割れはそこを直接悪くする）。
+ * チップの枠は12個だが、owner のタグは**59種**ある
+ * （`collectOwnValues(photos).tags` を実際に走らせて数えた。生の異なりは62だが
+ *  `tagKey` で `自然/nature`・`風景/landscape`・`建物/architecture` が畳まれる。
+ *  **自前で数え直さない**——この数を自分の正規化で出して62と書き、doc を
+ *  6か所間違えた）。
+ * 何も打たないと上位12種しか選べず、**残り47種（80%）は打つしかない**
+ * ——そして打つから表記が割れる（このサイトの弱点は「索引に載るタグ8種のうち
+ * 日本語は1種」で、割れはそこを直接悪くする）。
  *
- * 打ちかけの文字で絞ると、実データでこうなる（`app/data/photos.json` の
- * 62種で、この関数を実際に走らせて数えた）:
+ * 実データでの効き（`collectOwnValues(photos).tags` の59種に、この関数を
+ * 実際に走らせて数えた）:
  *
- *     何も打たずに選べる        12 / 62
- *     打ち切る手前で候補に出る  **61 / 62**
+ *     何も打たずに選べる        12 / 59
+ *     打ち切る手前で候補に出る  **58 / 59**
  *
  * （「打ち切る手前」で見るのは、全部打てば当然その文字列になるから
  *   ——チップの値打ちは**打ち終わる前に出る**ことにある。届かない1つは
- *   `trees`：`tree` と打った時点で `tree` 自身が候補と丸ごと一致して
- *   絞りが解ける。そのとき出るのは既に使っている `tree` の方で、
- *   綴りを増やさない向きではある）
- *
- * **新しい語彙も新しい部品も要らない。** 出す順番（よく使う順 → 最近使った順）
- * はそのままで、並びを絞るだけ。
+ *   `trees`：`tree` と打った時点で `tree` 自身が候補と丸ごと一致して絞りが
+ *   解ける。そのとき出るのは既に使っている `tree` の方で、綴りを増やさない
+ *   向きではある。同じ理由で `street` と打つと `streetlight` が隠れる
+ *   ——`streetl` まで打てば出る）
  *
  * 見るのは**最後のカンマから後ろ**（`"自然, 山"` と書いている途中なら `山`）。
  * 突き合わせは生の文字と `tagKey` の両方——`風` と打てば `風景` に当たり、
- * `風景` と打てば別名表を通って `landscape` にも当たる。
+ * `風景` は別名表を通って `landscape` にも当たる（**既に使っている綴りの方を
+ * 出す**＝新しい綴りを増やさない）。一致が無ければ空にする。
  *
- * 一致が無ければ**空にする**（関係ない候補を並べない）。
+ * **絞っていないときは、欄に入っているタグを先に出す。** 上位12種の外にある
+ * タグを選ぶと、絞りが解けた瞬間にそのチップが視界から消え、
+ * **押し直して外せない・選んだ白地も見えない**（実データで59種中47種が該当）。
  */
 export function suggestTags(all: readonly string[], current: string, limit = 12): string[] {
-    const frag = (current.split(",").pop() ?? "").trim();
-    if (!frag) return all.slice(0, limit);
-    const key = tagKey(frag);
-    // **打ち終わったら絞りを解く。** 最後の欠片が候補と**丸ごと同じ**なら、
-    // それは「打ちかけ」ではなく「選び終えた1つ」。絞ったままだと、
-    // チップを1つ押した瞬間に欄が `夜景` になって**他の候補が全部消え**、
-    // 2つ目をカンマから打ち直すことになる（実際それで既存のテストが落ちた）
-    if (all.some((t) => tagKey(t) === key)) return all.slice(0, limit);
+    const frag = typingFragment(all, current);
+    if (!frag) {
+        const picked = all.filter((t) => hasTag(current, t));
+        return [...picked, ...all.filter((t) => !picked.includes(t))].slice(0, limit);
+    }
     const raw = frag.toLowerCase().replace(/^#+/, "");
+    const key = tagKey(frag);
     return all
         .filter((t) => {
             const r = t.toLowerCase().replace(/^#+/, "");
-            return r.includes(raw) || (!!key && tagKey(t).includes(key));
+            // `key` は非空（`frag` が非空なら `tagKey` は最低でも小文字化した
+            // 生文字を返す）。`!!key` を足すと**到達しない二重の守り**になる
+            return r.includes(raw) || tagKey(t).includes(key);
         })
         .slice(0, limit);
 }

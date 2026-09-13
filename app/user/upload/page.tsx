@@ -23,7 +23,7 @@ import { unstrippableMessage, gifRejectedMessage, gifRejectedLabel } from "../..
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import type { Photo, Locale } from "../../../lib/data/photos";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
-import { collectOwnValues, toggleTag, hasTag, suggestTags, type OwnValues } from "../../../lib/utils/ownValues";
+import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, type OwnValues } from "../../../lib/utils/ownValues";
 // 上限は lib/utils/uploadLimits.ts に置く（api-user 側と対。理由はあちらに書いた）
 import { PHOTO_LIMIT_PER_USER } from "../../../lib/utils/uploadLimits";
 import { publicImageUrl } from "@/lib/utils/seo";
@@ -366,7 +366,7 @@ function UploadPageInner() {
      */
     const [ownValues, setOwnValues] = useState<OwnValues>({ locations: [], categories: [], tags: [] });
     // **候補は打ちかけの文字で絞る。** 枠は12個だが owner のタグは実データで
-    // 62種あり、絞らないと上位12種しか選べない（残り50種は打つしかない＝
+    // 59種あり、絞らないと上位12種しか選べない（残り47種は打つしかない＝
     // 打つから表記が割れる）。理由と実測は `suggestTags` に書いた
     const tagSuggestions = useMemo(() => suggestTags(ownValues.tags, tags), [ownValues.tags, tags]);
 
@@ -1173,7 +1173,7 @@ function UploadPageInner() {
                                     <button
                                         key={t}
                                         type="button"
-                                        onClick={() => setTags((cur) => toggleTag(cur, t))}
+                                        onClick={() => setTags((cur) => toggleTag(dropFragment(ownValues.tags, cur), t))}
                                         disabled={uploading}
                                         role="switch"
                                         aria-checked={on}

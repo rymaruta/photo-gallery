@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { collectOwnValues, appendTag, toggleTag, hasTag, suggestTags, TAG_POOL_MAX } from "../ownValues";
+import { collectOwnValues, appendTag, toggleTag, hasTag, suggestTags, dropFragment, typingFragment, TAG_POOL_MAX } from "../ownValues";
 import type { Photo } from "../../data/photos";
 
 const P = (over: Partial<Photo>) => ({ id: "x", src: "s", ...over }) as Photo;
@@ -162,7 +162,7 @@ describe("appendTag は同じタグを二重に足さない", () => {
 /**
  * **同数のときの決着を「最後に使った順」にした。**
  *
- * 実データで数えたら 62種のうち **46種が1枚にしか付いていない**ので、
+ * 実データで数えたら 59種のうち **44種が1枚にしか付いていない**ので、
  * ほとんどが `total === 1` で並び、決着は文字順だけだった。
  * `localeCompare` は**日本語をラテン文字の後ろに置く**（実測
  * `apple < zebra < 白鳥 < 苔`）ので、上限30で切ると**日本語から落ちる**。
@@ -247,8 +247,18 @@ describe("タグの候補: 上限と、複数枚に付いたタグの時刻", ()
     //
     // **数は 30 → `TAG_POOL_MAX` に変えた。** 画面は打ちかけの文字で
     // 絞ってから12個だけ出す（`suggestTags`）ので、ここで30に切ると
-    // **絞っても30種までしか届かない**（実データ62種で 30/62）。
+    // **絞っても30種までしか届かない**（実データ59種で 30/59）。
     // 見ている性質——**際限なく返さない**——は変えていない。
+    // **数そのものを縛る。** 入力も期待値も `TAG_POOL_MAX` にすると
+    // 自己参照になり、定数を 30 に戻しても緑のまま通る（実際そうだった）。
+    // 画面が絞りで届かせたいのは owner の全種類なので、そこを下回らないこと
+    it("プールは、いま持っているタグの種類を下回らない", async () => {
+        const photos = (await import("@/app/data/photos.json")).default as unknown as Photo[];
+        const kinds = collectOwnValues(photos, 10_000).tags.length;
+        expect(TAG_POOL_MAX, `実データの ${kinds} 種に届かない`).toBeGreaterThanOrEqual(kinds);
+        expect(TAG_POOL_MAX).toBeGreaterThan(30);
+    });
+
     it("タグも上限で切る", () => {
         const photos = Array.from({ length: TAG_POOL_MAX + 10 }, (_, i) => P({ tags: [`tag${i}`] }));
         expect(collectOwnValues(photos).tags).toHaveLength(TAG_POOL_MAX);
@@ -331,24 +341,26 @@ describe("toggleTag（押し直したら外れる）", () => {
 /**
  * **打ちかけの文字で候補を絞る。**
  *
- * チップの枠は12個だが、owner のタグは実データで62種——何も打たないと
- * 上位12種しか選べず、**残り50種（81%）は打つしかない**。打つから表記が
- * 割れる。絞れば実データで **2文字で62種すべてが12枠に入る**。
+ * チップの枠は12個だが、owner のタグは実データで59種——何も打たないと
+ * 上位12種しか選べず、**残り47種（80%）は打つしかない**。打つから表記が
+ * 割れる。絞れば実データで **打ち切る手前で58/59が12枠に入る**。
  */
 describe("suggestTags（打ちかけの文字で絞る）", () => {
     const all = ["finland", "winter", "helsinki", "風景", "夜景", "山中湖", "sauna"];
 
     it("何も打っていなければ、よく使う順のまま上から出す", () => {
         expect(suggestTags(all, "", 3)).toEqual(["finland", "winter", "helsinki"]);
-        expect(suggestTags(all, "夜景, ", 3), "カンマの後ろは空として扱う").toEqual(["finland", "winter", "helsinki"]);
+        // 欄に入っているタグ（夜景）は先頭へ。押し直して外せるようにするため
+        expect(suggestTags(all, "夜景, ", 3), "カンマの後ろは空として扱う").toEqual(["夜景", "finland", "winter"]);
     });
 
     // **打ち終わったら絞りを解く。** チップを1つ押すと欄は `夜景` になる
     // ——そこで絞ったままだと**他の候補が全部消えて**、2つ目をカンマから
     // 打ち直すことになる（続けて選べない）
     it("最後の欠片が候補と丸ごと同じなら、絞らない", () => {
-        expect(suggestTags(all, "夜景", 3), "1つ選んだら他が選べない").toEqual(["finland", "winter", "helsinki"]);
-        expect(suggestTags(all, "夜景, 山中湖", 3)).toEqual(["finland", "winter", "helsinki"]);
+        // 選んだものが先頭に来たうえで、**他の候補も出る**（続けて選べる）
+        expect(suggestTags(all, "夜景", 3), "1つ選んだら他が選べない").toEqual(["夜景", "finland", "winter"]);
+        expect(suggestTags(all, "夜景, 山中湖", 3)).toEqual(["夜景", "山中湖", "finland"]);
         // 別名で書いても「選び終えた1つ」と見る
         expect(suggestTags(["landscape", "夜景"], "風景", 3)).toEqual(["landscape", "夜景"]);
     });
@@ -384,5 +396,58 @@ describe("suggestTags（打ちかけの文字で絞る）", () => {
     it("絞ったあとも枠で切る", () => {
         const many = Array.from({ length: 20 }, (_, i) => `tag${i}`);
         expect(suggestTags(many, "tag", 12)).toHaveLength(12);
+    });
+
+    // **枠の既定値も縛る。** 画面は枠を渡さないので、既定を広げると
+    // チップが何十個も並ぶ（実データなら最大59個）
+    it("枠を渡さなければ12個まで", () => {
+        const many = Array.from({ length: 30 }, (_, i) => `tag${i}`);
+        expect(suggestTags(many, ""), "既定の枠が広がっている").toHaveLength(12);
+        expect(suggestTags(many, "tag")).toHaveLength(12);
+    });
+});
+
+/**
+ * **打って絞って押したら、打ちかけの文字が残ってはいけない。**
+ *
+ * 絞りを入れた最初の版は、`sau` と打って `sauna` のチップを押すと
+ * 欄が `"sau, sauna"` になった——`sau` がそのまま**写真のタグとして保存される**。
+ * 絞りの目的は「打つから表記が割れる」を減らすことなのに、
+ * **新しい綴りを増やしていた**（実データ59種の全接頭辞で必ず起きた）。
+ */
+describe("打ちかけの欠片の扱い", () => {
+    const all = ["sauna", "helsinki", "夜景", "白鳥"];
+
+    it("打ちかけかどうかを、1つの判定で決める", () => {
+        expect(typingFragment(all, "sau"), "打ちかけを見落としている").toBe("sau");
+        expect(typingFragment(all, "夜景, hel")).toBe("hel");
+        // 候補と丸ごと同じなら「選び終えた1つ」
+        expect(typingFragment(all, "sauna")).toBe("");
+        expect(typingFragment(all, "夜景, ")).toBe("");
+        expect(typingFragment(all, "")).toBe("");
+    });
+
+    it("チップを押すときは、打ちかけの欠片を落とす", () => {
+        expect(dropFragment(all, "sau"), "欠片が残る").toBe("");
+        expect(dropFragment(all, "夜景, hel")).toBe("夜景");
+        // 打ちかけでなければ触らない
+        expect(dropFragment(all, "夜景")).toBe("夜景");
+        expect(dropFragment(all, "夜景, ")).toBe("夜景, ");
+    });
+
+    // 画面と同じ組み合わせ（絞る → 押す）を1本の式で見る
+    it("打って絞って押すと、欄には選んだタグだけが入る", () => {
+        for (const [typed, expected] of [["sau", "sauna"], ["白", "白鳥"], ["夜景, hel", "夜景, helsinki"]] as const) {
+            const pick = suggestTags(all, typed, 12)[0];
+            expect(toggleTag(dropFragment(all, typed), pick), `「${typed}」で欠片が残った`).toBe(expected);
+        }
+    });
+
+    // **選んだチップが消えない。** 上位12種の外にあるタグを選ぶと、
+    // 絞りが解けた瞬間に視界から消えて押し直して外せなくなっていた
+    it("絞っていないときは、欄に入っているタグを先に出す", () => {
+        const many = ["a", "b", "c", "d", "zzz"];
+        expect(suggestTags(many, "zzz", 3), "選んだタグが候補から消えている").toEqual(["zzz", "a", "b"]);
+        expect(suggestTags(many, "", 3)).toEqual(["a", "b", "c"]);
     });
 });

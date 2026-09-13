@@ -21,7 +21,10 @@ vi.mock("next/navigation", () => ({
 vi.mock("../../../auth/context", () => ({
     useAuth: () => ({ isAuthenticated: true, isAdminUser: false, isGeneralUser: true, loading: false }),
 }));
-vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
+// **言語を切り替えられる形にする。** 固定だと「言語も見る」と書いた
+// `aria-label` の英語側を誰も通らない（日本語固定に戻す変異が素通りした）
+const uiLocale = vi.hoisted(() => ({ value: "ja" as "ja" | "en" }));
+vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: uiLocale.value }) }));
 vi.mock("../../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
 vi.mock("../../../../lib/utils/api", () => ({
     userFetch: (...a: unknown[]) => mockUserFetch(...a),
@@ -119,5 +122,16 @@ describe("入力候補", () => {
         await userEvent.type(tags, "夜");
         await waitFor(() => expect(screen.queryByRole("switch", { name: "街" }), "絞れていない").toBeNull());
         expect(screen.getByRole("switch", { name: "夜景" })).toBeInTheDocument();
+    });
+
+    it("英語UIでは候補のまとまりの名前も英語", async () => {
+        uiLocale.value = "en";
+        try {
+            render(<EditPage />);
+        await screen.findByDisplayValue("夜景");
+            expect(screen.getByRole("group", { name: "Your frequent tags" }), "日本語のまま出している").toBeInTheDocument();
+        } finally {
+            uiLocale.value = "ja";
+        }
     });
 });
