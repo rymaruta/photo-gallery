@@ -238,6 +238,14 @@ describe("画面に描く画像URLは、サイトのドメインに揃える", (
             expect(imageSinks(src, "x.tsx")).toEqual([]);
         });
 
+        // 中身は**波括弧の対応**で切る（「最初の `}`」だと途中で切れる）
+        it("入れ子の波括弧・テンプレートリテラルでも、式を最後まで取る", () => {
+            const nested = `<img src={makeUrl({ id: 1 })} alt="" />`;
+            expect(imageSinks(nested, "x.tsx").map((s) => s.expr)).toEqual(["makeUrl({ id: 1 })"]);
+            const tpl = "<img src={`${CLOUDFRONT_URL}/profiles/${id}`} alt=\"\" />";
+            expect(imageSinks(tpl, "x.tsx").map((s) => s.expr)).toContain("`${CLOUDFRONT_URL}/profiles/${id}`");
+        });
+
         it("`https://` の `//` をコメントと読み違えない", () => {
             const withUrl = `const u = "https://example.com/a.jpg";\n<img src={u} alt="" />`;
             expect(imageSinks(withUrl, "x.tsx").map((s) => s.expr)).toEqual(["u"]);
