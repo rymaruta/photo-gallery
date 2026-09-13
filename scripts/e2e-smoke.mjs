@@ -13,6 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, webkit } from "playwright-core";
+import { stubImageFor } from "./lib/smokeStubImages.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.resolve(__dirname, "..", "out");
@@ -75,25 +76,6 @@ function check(name, ok, detail = "") {
     else { console.error(`  ❌ ${name}${detail ? ` — ${detail}` : ""}`); failures.push(name); }
 }
 
-/**
- * 外部リクエストの遮断。**密閉の目的は「外に出ない」ことで、
- * 「画像を失敗させる」ことではない。**
- *
- * 全部 `abort()` にしていた頃、集約ページの「写真が並ぶ」判定が
- * **必ず落ちた**——画像が失敗すると `Thumb` は `<picture>` ごと消すので、
- * 水和のあとに `<img>` が 0 になる（実測: 静的HTML 9 → 水和1.5秒後 0）。
- * つまりその判定は**この環境では原理的に通らない**もので、
- * 本番のデプロイをそのまま落とす（同じハーネスを使う）。
- *
- * → **画像の要求だけ 1x1 PNG で返す。** 外へは出ないまま、
- *    「水和後にサムネが消えないか」を本当に見られるようになる。
- *    それ以外（API・フォント・別オリジンのスクリプト）は今までどおり遮断。
- */
-const PNG_1X1 = Buffer.from(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
-    "base64",
-);
-
 async function sealContext(ctx) {
     // **Service Worker を登録させない。**
     //
@@ -122,7 +104,7 @@ async function sealContext(ctx) {
         const host = new URL(route.request().url()).hostname;
         if (host === "localhost" || host === "127.0.0.1") return route.continue();
         if (route.request().resourceType() === "image") {
-            return route.fulfill({ status: 200, contentType: "image/png", body: PNG_1X1 });
+            return route.fulfill({ status: 200, ...stubImageFor(route.request().url()) });
         }
         return route.abort();
     });
