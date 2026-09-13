@@ -203,6 +203,12 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
                 // 「建築」が `architecture` に畳まれるので、スラッグだけ入れると
                 // 日本語で打った人に当たらない。表示に使っている日本語名も足す
                 // （カメラ名で先にやった「生の値でも探せるようにする」と同じ判断）。
+                //
+                // ⚠️ **当たるのは「代表の日本語名」1つだけ。** `categoryDisplayName` は
+                // 別名表の**先頭**しか返さない（`建築`/`建物` → どちらも `建築`）ので、
+                // 「建物」と打つとカテゴリとしては当たらない。**別名表に載っていない
+                // からではない**（`建物` は載っている）——次に読む人が表を足しに
+                // 行かないよう、理由を書いておく。
                 const category = `${p.category} ${categoryDisplayName(p.category) ?? ""}`;
                 const haystack = `${titleJa} ${titleEn} ${descJa} ${descEn} ${loc} ${cam} ${tags} ${category}`.toLowerCase();
                 // **スラッグ経由の検索も通す。** 集約ページの404救済

@@ -1231,9 +1231,15 @@ function UploadPageInner() {
                                     value={it.title}
                                     onChange={(e) => updateItem(it.id, { title: e.target.value })}
                                     maxLength={TITLE_MAX}
+                                    // **見えている placeholder と同じ言葉にする。**
+                                    // `aria-label` は placeholder を上書きするので、
+                                    // 違う語を書くと**見えている言葉と読み上げる言葉が
+                                    // 別物**になる（音声操作は読み上げる名前で当てるので、
+                                    // 「場所をタップ」が効かなくなる）。`（任意）` も
+                                    // 落とすと、任意であることが読み上げにだけ届かない
                                     aria-label={locale === "en"
-                                        ? `Title of photo ${photoIndex + 1}`
-                                        : `${photoIndex + 1}枚目のタイトル`}
+                                        ? `Title of photo ${photoIndex + 1} (optional)`
+                                        : `${photoIndex + 1}枚目のタイトル（任意）`}
                                     placeholder={locale === "en" ? "Title (optional)" : "タイトル（任意）"}
                                     className={inputCls}
                                     style={{ fontSize: "16px" }}
@@ -1264,8 +1270,8 @@ function UploadPageInner() {
                                             value={it.description}
                                             onChange={(e) => updateItem(it.id, { description: e.target.value })}
                                             aria-label={locale === "en"
-                                                ? `Description of photo ${photoIndex + 1}`
-                                                : `${photoIndex + 1}枚目の説明`}
+                                                ? `Description of photo ${photoIndex + 1} (optional)`
+                                                : `${photoIndex + 1}枚目の説明（任意）`}
                                             placeholder={locale === "en" ? "Description (optional)" : "説明（任意）"}
                                             rows={2}
                                             className={`${inputCls} resize-none`}
@@ -1278,8 +1284,8 @@ function UploadPageInner() {
                                             onChange={(e) => updateItem(it.id, { location: e.target.value })}
                                             maxLength={LOCATION_MAX}
                                             aria-label={locale === "en"
-                                                ? `Location of photo ${photoIndex + 1}`
-                                                : `${photoIndex + 1}枚目の撮影地`}
+                                                ? `Location of photo ${photoIndex + 1} (optional)`
+                                                : `${photoIndex + 1}枚目の場所（任意）`}
                                             placeholder={locale === "en" ? "Location (optional)" : "場所（任意）"}
                                             className={inputCls}
                                             list="own-locations"
@@ -1288,9 +1294,16 @@ function UploadPageInner() {
                                         />
                                     </div>
                                 ) : null}
+                                {/* **この差分が潰した症状が、同じ画面に残っていた。**
+                                    開閉ボタンも枚数ぶん「詳細」で同じ名前だった。
+                                    開いているかどうかも読み上げに出ていない */}
                                 <button
                                     type="button"
                                     onClick={() => updateItem(it.id, { expanded: !it.expanded })}
+                                    aria-label={locale === "en"
+                                        ? `Details of photo ${photoIndex + 1}`
+                                        : `${photoIndex + 1}枚目の詳細`}
+                                    aria-expanded={it.expanded}
                                     className="text-xs text-white/50 hover:text-white/70 inline-flex items-center gap-0.5"
                                     disabled={uploading}
                                 >
