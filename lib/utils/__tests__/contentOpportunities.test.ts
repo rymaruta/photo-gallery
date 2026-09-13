@@ -84,3 +84,82 @@ describe("あと1枚で検索に載るページ", () => {
         expect(r.total.tag).toBe(0);
     });
 });
+
+/**
+ * **撮影地が空の写真は、行き先を自分のタグに書いていることが多い。**
+ *
+ * 実データ（公開30枚）で数えると撮影地が空なのは13枚で、**そのうち12枚が
+ * `finland` を持つ**——1回の旅ぶん。数だけ出しても「13枚ある」で終わるので、
+ * 同じタグを共有する塊にして並べる。
+ *
+ * **地名の表は持たない。** どのタグが地名かは機械が決めない（表は owner が
+ * 育てないぶん静かに古くなる＝一度断られている形）。並べるだけ。
+ */
+describe("撮影地が空の写真を、共有タグでまとめる", () => {
+    it("いちばん多くを覆うタグから塊にする", () => {
+        const photos = [
+            P("a", { tags: ["finland", "sauna"] }),
+            P("b", { tags: ["finland", "forest"] }),
+            P("c", { tags: ["finland"] }),
+            P("d", { tags: ["paris", "opera"] }),
+            P("e", { tags: ["paris"] }),
+            P("f", { location: "東京", tags: ["finland"] }),
+        ];
+        const g = contentOpportunities(photos).missingLocation;
+        expect(g.map((x) => [x.sharedTag, x.photos.map((p) => p.id)]))
+            .toEqual([["finland", ["a", "b", "c"]], ["paris", ["d", "e"]]]);
+    });
+
+    it("2枚以上を覆うタグだけが塊になる（1枚ずつに割らない）", () => {
+        const photos = [P("a", { tags: ["x"] }), P("b", { tags: ["y"] })];
+        const g = contentOpportunities(photos).missingLocation;
+        expect(g.map((x) => x.sharedTag), "1枚しか覆わないタグで括っている").toEqual([""]);
+        expect(g[0].photos.map((p) => p.id)).toEqual(["a", "b"]);
+    });
+
+    it("塊に入らなかったものは最後にまとめる", () => {
+        const photos = [
+            P("a", { tags: ["finland"] }), P("b", { tags: ["finland"] }),
+            P("c", { tags: ["紫陽花"] }),
+        ];
+        const g = contentOpportunities(photos).missingLocation;
+        expect(g.map((x) => x.sharedTag)).toEqual(["finland", ""]);
+        expect(g[1].photos.map((p) => p.id)).toEqual(["c"]);
+    });
+
+    // **タグは畳んでから数える。** `#finland` と `Finland` を別物として数えると
+    // 塊が割れて「1枚ずつ」に戻る（`slugify(_, "tag")` が畳む規則）
+    it("大小・# の違いは同じタグとして束ねる", () => {
+        const photos = [
+            P("a", { tags: ["Finland"] }), P("b", { tags: ["#finland"] }), P("c", { tags: ["finland"] }),
+        ];
+        const g = contentOpportunities(photos).missingLocation;
+        expect(g.length, "同じタグが別物として割れている").toBe(1);
+        expect(g[0].photos.map((p) => p.id)).toEqual(["a", "b", "c"]);
+    });
+
+    it("1枚の中の重複タグは1回だけ出す", () => {
+        const photos = [P("a", { tags: ["finland", "#Finland", "", "  "] }), P("b", { tags: ["finland"] })];
+        const g = contentOpportunities(photos).missingLocation;
+        expect(g[0].photos[0].tags, "同じタグや空を並べている").toEqual(["finland"]);
+    });
+
+    it("題は日本語で出す（無題も潰さない）", () => {
+        const photos = [
+            P("a", { tags: ["t"], title: { ja: "北欧の森", en: "Nordic forest" } } as Partial<Photo>),
+            P("b", { tags: ["t"] }),
+        ];
+        const g = contentOpportunities(photos).missingLocation;
+        expect(g[0].photos.map((p) => p.title)).toEqual(["北欧の森", ""]);
+    });
+
+    it("撮影地がある写真は出さない", () => {
+        const photos = [P("a", { location: "パリ", tags: ["x"] }), P("b", { location: "  ", tags: ["x"] })];
+        const g = contentOpportunities(photos).missingLocation;
+        expect(g.map((x) => x.photos.map((p) => p.id))).toEqual([["b"]]);
+    });
+
+    it("全部に撮影地があれば空", () => {
+        expect(contentOpportunities([P("a", { location: "パリ" })]).missingLocation).toEqual([]);
+    });
+});

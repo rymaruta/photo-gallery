@@ -1,6 +1,6 @@
-import type { Photo } from "../data/photos";
+import { getLocalized, type Photo } from "../data/photos";
 import {
-    collectEntries, isIndexableCollection,
+    collectEntries, isIndexableCollection, slugify,
     MIN_INDEXABLE_COUNT, MIN_INDEXABLE_LOCATION, type CollectionType,
 } from "./collections";
 
@@ -36,6 +36,23 @@ export type Opportunity = {
     need: number;
 };
 
+/**
+ * 撮影地が空の写真の塊。**同じタグを共有しているものをまとめる。**
+ *
+ * 実データで数えると、**撮影地が空の13枚のうち12枚が `finland` を持っている**
+ * ——つまり1回の旅で、行き先は本人がタグに書いてある。数だけ出しても
+ * 「13枚ある」で終わるが、**どの写真に何を足すかは本人のタグが知っている**。
+ *
+ * **地名の表は持たない。** どのタグが地名かを機械が決める形は一度断られている
+ * （表は owner が育てないぶん静かに古くなる）。この道具がするのは
+ * 「同じタグを持つ写真を並べて見せる」だけで、地名の判断は owner がする。
+ */
+export type MissingLocationGroup = {
+    /** その塊を束ねているタグ（共有している中でいちばん多いもの）。共有が無ければ空 */
+    sharedTag: string;
+    photos: { id: string; title: string; tags: string[] }[];
+};
+
 export type ContentReport = {
     /** あと1枚で検索に載る集約ページ（効く順） */
     almost: Opportunity[];
@@ -45,6 +62,8 @@ export type ContentReport = {
     total: Record<CollectionType, number>;
     /** 撮影地が空の公開写真 */
     photosWithoutLocation: number;
+    /** その内訳（同じタグを共有するものをまとめる。多い塊から） */
+    missingLocation: MissingLocationGroup[];
     /** 説明が100文字未満の公開写真 */
     photosWithShortDescription: number;
     /** 公開写真の枚数 */
@@ -63,6 +82,54 @@ function descriptionLength(p: Photo): number {
         if (typeof ja === "string") return ja.trim().length;
     }
     return 0;
+}
+
+/** 写真1枚のタグ（空・重複を落とす。表示は生のまま） */
+function tagsOf(p: Photo): string[] {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const t of p.tags ?? []) {
+        const v = String(t ?? "").trim();
+        const key = slugify(v, "tag");
+        if (!v || !key || seen.has(key)) continue;
+        seen.add(key);
+        out.push(v);
+    }
+    return out;
+}
+
+/**
+ * 撮影地が空の写真を、共有しているタグでまとめる。
+ *
+ * いちばん多くの写真を覆うタグから塊を切り出し、残りに同じことを繰り返す。
+ * **2枚以上を覆うタグだけが塊になる**（1枚しか覆わないタグで括っても
+ * 「1枚ずつ13塊」になって数だけ出すのと変わらない）。
+ */
+function groupMissingLocation(photos: Photo[]): MissingLocationGroup[] {
+    let rest = photos.map((p) => ({
+        id: String(p.id ?? ""),
+        title: getLocalized(p.title, "ja"),
+        tags: tagsOf(p),
+    }));
+    const groups: MissingLocationGroup[] = [];
+    for (;;) {
+        const votes = new Map<string, { label: string; n: number }>();
+        for (const r of rest) {
+            for (const t of r.tags) {
+                const key = slugify(t, "tag");
+                const cur = votes.get(key) ?? { label: t, n: 0 };
+                cur.n++;
+                votes.set(key, cur);
+            }
+        }
+        const best = [...votes.values()].sort((a, b) => b.n - a.n || a.label.localeCompare(b.label))[0];
+        if (!best || best.n < 2) break;
+        const key = slugify(best.label, "tag");
+        groups.push({ sharedTag: best.label, photos: rest.filter((r) => r.tags.some((t) => slugify(t, "tag") === key)) });
+        rest = rest.filter((r) => !r.tags.some((t) => slugify(t, "tag") === key));
+    }
+    if (rest.length > 0) groups.push({ sharedTag: "", photos: rest });
+    return groups;
 }
 
 export function contentOpportunities(photos: Photo[]): ContentReport {
@@ -100,6 +167,7 @@ export function contentOpportunities(photos: Photo[]): ContentReport {
         indexable,
         total,
         photosWithoutLocation: live.filter((p) => !(p.location ?? "").trim()).length,
+        missingLocation: groupMissingLocation(live.filter((p) => !(p.location ?? "").trim())),
         photosWithShortDescription: live.filter((p) => descriptionLength(p) < 100).length,
         published: live.length,
     };

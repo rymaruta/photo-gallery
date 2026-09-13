@@ -50,6 +50,17 @@ function main(photos: Photo[]): void {
     const r = contentOpportunities(photos);
     console.log(`公開写真 ${r.published}枚`);
     console.log(`  撮影地が空        ${r.photosWithoutLocation}枚  ← /map と /location/* に出ない`);
+    // **数だけ出しても「N枚ある」で終わる。** 行き先は本人のタグに
+    // 書いてあることが多いので、同じタグを共有する塊にして並べる
+    for (const g of r.missingLocation) {
+        console.log(g.sharedTag
+            ? `    「${g.sharedTag}」を持つ ${g.photos.length}枚:`
+            : `    共通のタグが無い ${g.photos.length}枚:`);
+        for (const ph of g.photos) {
+            // **日本語に padEnd は効かない**（全角1文字を1と数えるので揃わない）。区切りで出す
+            console.log(`      ${ph.title || "(無題)"} — ${ph.tags.join(" / ")}`);
+        }
+    }
     console.log(`  説明が100字未満   ${r.photosWithShortDescription}枚  ← 検索結果のスニペットが痩せる`);
     console.log("");
     console.log("集約ページ（検索に載る / 全部）");
