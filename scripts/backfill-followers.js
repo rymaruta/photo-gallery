@@ -196,7 +196,11 @@ async function main(deps) {
             unchanged++;
             continue;
         }
-        console.log(`[followers] ${target}: ${existing.length} → ${next.length} 人`);
+        // **IDは出さない。** このファイルの冒頭が「出すのは理由と件数だけ」と
+        // 書いているのに、ここだけ相手の userId を丸ごとログへ落としていた
+        // （Actions のログに本番の sub が2件残った）。台帳の
+        // 「診断ログに表示名を書き出した事故」と同じ型
+        console.log(`[followers] ある人の一覧: ${existing.length} → ${next.length} 人`);
         if (!apply) continue;
         const rev = typeof cur.Item?.rev === "number" ? cur.Item.rev : 0;
         try {
@@ -224,7 +228,7 @@ async function main(deps) {
         } catch (e) {
             if (e?.name !== "ConditionalCheckFailedException") throw e;
             // 走っている間にサーバー側が書いた。**上書きしない**
-            console.log(`[followers] ${target}: 競合したので飛ばしました（もう一度流すと入ります）`);
+            console.log("[followers] ある人の一覧: 競合したので飛ばしました（もう一度流すと入ります）");
             skipped++;
         }
     }

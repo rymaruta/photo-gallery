@@ -36,6 +36,12 @@ type Item = {
     id: string;
     file: File;
     preview: string;
+    /**
+     * 一覧（正方形）で写真のどこを中心に置くか（0〜1）。**中央が既定**。
+     * `undefined` のまま送らなければ、サーバーは属性を書かない
+     * ＝今までの写真と同じ見え方になる
+     */
+    focalPoint?: { x: number; y: number };
     title: string;
     description: string;
     location: string;
@@ -61,11 +67,26 @@ function makeId() {
 }
 
 // アップロード写真のプレビュー。写真全体を表示しつつ、ギャラリー一覧で
-// 表示される「中央の正方形」を白枠で示し、枠外を暗くして
+// 表示される「正方形」を白枠で示し、枠外を暗くして
 // "どこまで反映されるか" を明示する。
-function CropPreview({ src, hint, locale }: { src: string; hint: string; locale: Locale }) {
+//
+// **枠は掴んで動かせる**（owner の指示「固定ではなくユーザが任意に
+// ずらせるといいね」）。動かした位置は `focalPoint`（0〜1 の割合）として
+// 保存され、一覧・拡大表示・写真ページが `object-position` で同じ場所を
+// 出す——**読む側は前からこれを見ていたが、書く口がどこにも無かった**ので
+// 誰も設定できず、実質いつでも中央だった。
+//
+// **横長なら左右、縦長なら上下にしか動かない。** 短い辺は枠と同じ長さなので
+// 動かす余地が無い。動かない軸を掴めるように見せると「効かない」と読まれる。
+function CropPreview({ src, hint, locale, focalPoint, onChange }: {
+    src: string;
+    hint: string;
+    locale: Locale;
+    focalPoint?: { x: number; y: number };
+    onChange?: (fp: { x: number; y: number }) => void;
+}) {
     const imgRef = useRef<HTMLImageElement>(null);
-    const [box, setBox] = useState<{ side: number; left: number; top: number } | null>(null);
+    const [size, setSize] = useState<{ w: number; h: number } | null>(null);
     // **このブラウザで開けなかった写真**（PC の Chrome で選んだ HEIC など。
     // `addFiles` が断るのは「画像でない」「GIF」「50MB超」だけなので、
     // 種別が画像で開けないファイルはここまで来る）。
@@ -86,14 +107,41 @@ function CropPreview({ src, hint, locale }: { src: string; hint: string; locale:
         if (!el) return;
         const w = el.clientWidth, h = el.clientHeight;
         if (!w || !h) return;
-        const side = Math.min(w, h);
-        setBox({ side, left: (w - side) / 2, top: (h - side) / 2 });
+        setSize({ w, h });
     }, []);
 
     useEffect(() => {
         window.addEventListener("resize", measure);
         return () => window.removeEventListener("resize", measure);
     }, [measure]);
+
+    const fp = focalPoint ?? { x: 0.5, y: 0.5 };
+    const side = size ? Math.min(size.w, size.h) : 0;
+    // 枠の左上。**中心の割合から、はみ出さない位置へ直す。**
+    // 素直に `fp.x * w - side/2` と置くと端で枠が画像から出る
+    const clamp = (v: number, max: number) => Math.max(0, Math.min(max, v));
+    const box = size
+        ? { side, left: clamp(fp.x * size.w - side / 2, size.w - side), top: clamp(fp.y * size.h - side / 2, size.h - side) }
+        : null;
+    const movable = size ? { x: size.w > size.h, y: size.h > size.w } : { x: false, y: false };
+    const draggable = !!onChange && (movable.x || movable.y);
+
+    /** 画面の座標を、枠の中心の割合へ。**動かせない軸は 0.5 のまま** */
+    const pointTo = useCallback((clientX: number, clientY: number) => {
+        const el = imgRef.current;
+        if (!el || !onChange) return;
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height) return;
+        const s = Math.min(r.width, r.height);
+        // 枠が画像から出ない範囲に中心を収める（`clamp` と同じ考え）
+        const half = s / 2;
+        const x = r.width > r.height ? clamp(clientX - r.left, r.width) : r.width / 2;
+        const y = r.height > r.width ? clamp(clientY - r.top, r.height) : r.height / 2;
+        onChange({
+            x: Math.max(half, Math.min(r.width - half, x)) / r.width,
+            y: Math.max(half, Math.min(r.height - half, y)) / r.height,
+        });
+    }, [onChange]);
 
     if (failed) {
         return (
@@ -116,6 +164,22 @@ function CropPreview({ src, hint, locale }: { src: string; hint: string; locale:
                     onError={() => setFailed(true)}
                     className="block w-auto max-h-56 max-w-full"
                     draggable={false}
+                    // **掴むのは写真そのもの。** 枠だけを的にすると、
+                    // 指の太さ（枠は画像の短辺ぶんしかない）で外しやすい。
+                    // `setPointerCapture` で、指が枠から出ても追随させる
+                    onPointerDown={draggable ? (e) => {
+                        e.preventDefault();
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                        pointTo(e.clientX, e.clientY);
+                    } : undefined}
+                    onPointerMove={draggable ? (e) => {
+                        if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+                        pointTo(e.clientX, e.clientY);
+                    } : undefined}
+                    // **縦スクロールを奪わない。** 動かせるのが横だけの写真で
+                    // `touch-none` にすると、写真の上で指を上下に振っても
+                    // ページが動かなくなる
+                    style={draggable ? { touchAction: movable.x && movable.y ? "none" : movable.x ? "pan-y" : "pan-x" } : undefined}
                 />
                 {box && (
                     <div
@@ -903,6 +967,10 @@ function UploadPageInner() {
                             category: category || undefined,
                             tags: tagList,
                             ...(coords ? { coords } : {}),
+                            // 一覧での切り抜き位置。**動かしていなければ送らない**
+                            // ——中央は既定なので、属性を持たない今までの写真と
+                            // 同じ形で保存される
+                            ...(item.focalPoint ? { focalPoint: item.focalPoint } : {}),
                             ...(dominantColor ? { dominantColor } : {}),
                             ...(blurDataURL ? { blurDataURL } : {}),
                             ...(thumbUrl ? { thumbUrl } : {}),
@@ -1185,8 +1253,12 @@ function UploadPageInner() {
                             <CropPreview
                                 key={it.preview}
                                 src={it.preview}
-                                hint={locale === "en" ? "White frame = shown in the grid" : "白い枠が一覧に表示されます"}
+                                hint={locale === "en"
+                                    ? "White frame = shown in the grid (drag to move)"
+                                    : "白い枠が一覧に表示されます（ドラッグで移動）"}
                                 locale={locale}
+                                focalPoint={it.focalPoint}
+                                onChange={(focalPoint) => updateItem(it.id, { focalPoint })}
                             />
                             <button
                                 type="button"

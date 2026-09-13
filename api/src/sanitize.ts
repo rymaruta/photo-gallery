@@ -53,6 +53,30 @@ export function sanitizeExif(exif: unknown): Photo["exif"] {
 }
 
 // 撮影地座標の検証と丸め。プライバシーのため約1km精度（小数第2位）に丸めて保存する
+/**
+ * 一覧での切り抜き位置（0〜1 の割合）。
+ *
+ * **範囲の外は捨てる（丸めない）。** 丸めると、こちらの想定していない
+ * 単位（%・px）で送られたときに「0 か 1 に貼り付いた位置」が保存され、
+ * 利用者には「ずらしたのに端に飛ぶ」としか見えない。捨てれば中央のまま
+ * ＝今までの挙動に落ちる。
+ *
+ * **小数第4位まで。** `object-position` は % で使うので、それ以上の桁は
+ * 表示に効かないうえ、静的JSON（`photos.json` は全ページに載る）を太らせる。
+ *
+ * `null` を返すのは「値が無い／使えない」。呼び出し側は属性を書かない
+ * （`coords` と同じ扱い）。
+ */
+export function sanitizeFocalPoint(fp: unknown): { x: number; y: number } | null {
+    if (!fp || typeof fp !== "object") return null;
+    const { x, y } = fp as { x?: unknown; y?: unknown };
+    if (typeof x !== "number" || typeof y !== "number") return null;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    if (x < 0 || x > 1 || y < 0 || y > 1) return null;
+    const round = (v: number) => Math.round(v * 10000) / 10000;
+    return { x: round(x), y: round(y) };
+}
+
 export function sanitizeCoords(coords: unknown): { lat: number; lng: number } | null {
     if (!coords || typeof coords !== "object") return null;
     const { lat, lng } = coords as { lat?: unknown; lng?: unknown };

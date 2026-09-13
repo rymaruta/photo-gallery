@@ -4,7 +4,7 @@ import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { PUBLIC_FEED_KEY } from "./publicFeed";
 import { removePhotoFromAlbum, addPhotoToAlbum, isAlbumMember } from "./albums";
 import { JSON_HEADERS, getUserId } from "./http";
-import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeDate, dateWasRejected, sameStoredValue, truncate } from "./sanitize";
+import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeFocalPoint, sanitizeDate, dateWasRejected, sameStoredValue, truncate } from "./sanitize";
 import { requestSiteRebuild } from "./rebuild";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { mediaKeys } from "./mediaKeys";
@@ -14,7 +14,10 @@ import { removePinnedPhoto } from "./userProfile";
 type PhotoSong = { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string };
 
 // 下書き編集で更新できるメタデータ項目。キーが body にあれば更新対象。
-const META_KEYS = ["title", "description", "location", "category", "tags", "date", "coords"] as const;
+// **ここに足し忘れると 400「更新項目がありません」で断られる。**
+// 切り抜き位置だけを直す保存は、この配列に `focalPoint` が無いと
+// 本文に入っていても「何も送られていない」と見なされる
+const META_KEYS = ["title", "description", "location", "category", "tags", "date", "coords", "focalPoint"] as const;
 
 // YouTube URL の検証（フル再生MV用）。youtube.com/watch?v= と youtu.be/ を許可。
 // lib/utils/music.ts の parseYouTube と同等の安全策（ホワイトリスト + ID書式）。
@@ -53,7 +56,7 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
     let body: {
         published?: boolean; song?: unknown; songYoutubeUrl?: unknown;
         title?: unknown; description?: unknown; location?: unknown;
-        category?: unknown; tags?: unknown; date?: unknown; coords?: unknown;
+        category?: unknown; tags?: unknown; date?: unknown; coords?: unknown; focalPoint?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -209,6 +212,10 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // 撮影日は upload.ts と同じ検証を通す。sanitizeText だと40文字までの
         // 任意の文字列が入り、年表の並び順が壊れる
         applyMeta("date", "date" in body, sanitizeDate(body.date));
+        // 一覧での切り抜き位置。**送られてきたときだけ触る**（`applyMeta` の
+        // `present` がそれを見ている）。使えない値は `undefined` ＝ REMOVE に
+        // 倒れるので、「中央に戻す」は `focalPoint: null` を送れば足りる
+        applyMeta("focalPoint", "focalPoint" in body, sanitizeFocalPoint(body.focalPoint) ?? undefined);
         const newCoords = sanitizeCoords(body.coords) ?? undefined;
         applyMeta("coords", "coords" in body, newCoords);
         // **地名から補った座標（geoApprox）は地名に付随する。**
