@@ -747,12 +747,13 @@ export default function ProfileEditPage() {
 
                 <div className="space-y-5">
                     <div>
-                        <label className={labelClass}>
+                        <label className={labelClass} htmlFor="profile-username">
                             {locale === "en" ? "Username" : "ユーザー名"}
                         </label>
                         <div className="flex items-center gap-1.5">
                             <span className="text-white/50 text-sm">@</span>
                             <input
+                                id="profile-username"
                                 type="text"
                                 value={username}
                                 // **変換中は書き換えない。** 毎打鍵で値を作り直すと
@@ -785,10 +786,11 @@ export default function ProfileEditPage() {
                     </div>
 
                     <div>
-                        <label className={labelClass}>
+                        <label className={labelClass} htmlFor="profile-display-name">
                             {locale === "en" ? "Display name" : "表示名"}
                         </label>
                         <input
+                            id="profile-display-name"
                             type="text"
                             value={displayName}
                             onChange={e => setDisplayName(e.target.value)}
@@ -799,10 +801,11 @@ export default function ProfileEditPage() {
                     </div>
 
                     <div>
-                        <label className={labelClass}>
+                        <label className={labelClass} htmlFor="profile-bio">
                             {locale === "en" ? "Bio" : "自己紹介"}
                         </label>
                         <textarea
+                            id="profile-bio"
                             value={bio}
                             onChange={e => setBio(e.target.value)}
                             maxLength={300}
@@ -815,10 +818,12 @@ export default function ProfileEditPage() {
 
 
                     <div>
-                        <label className={labelClass}>
+                        {/* **ここは `<label>` にしない。** 中身は見本の丸ボタンの集まりで、
+                            `<label>` は単一の部品にしか結べない。見出しとして結ぶ */}
+                        <p className={labelClass} id="profile-theme-color">
                             {locale === "en" ? "Theme color" : "テーマカラー"}
-                        </label>
-                        <div className="flex flex-wrap items-center gap-2.5">
+                        </p>
+                        <div role="group" aria-labelledby="profile-theme-color" className="flex flex-wrap items-center gap-2.5">
                             {THEME_COLOR_PRESETS.map((c) => (
                                 <button
                                     key={c}
@@ -868,10 +873,11 @@ export default function ProfileEditPage() {
                     </div>
 
                     <div>
-                        <label className={labelClass}>Instagram</label>
+                        <label className={labelClass} htmlFor="profile-instagram">Instagram</label>
                         <div className="flex items-center">
                             <span className="text-white/50 text-sm px-3 py-3 bg-white/5 border border-r-0 border-white/10 rounded-l-lg">@</span>
                             <input
+                                id="profile-instagram"
                                 type="text"
                                 value={instagram}
                                 onChange={e => setInstagram(e.target.value.replace(/^@/, ""))}
@@ -883,10 +889,11 @@ export default function ProfileEditPage() {
                     </div>
 
                     <div>
-                        <label className={labelClass}>
+                        <label className={labelClass} htmlFor="profile-website">
                             {locale === "en" ? "Website" : "ウェブサイト"}
                         </label>
                         <input
+                            id="profile-website"
                             type="url"
                             value={website}
                             onChange={e => setWebsite(e.target.value)}
@@ -1050,8 +1057,9 @@ export default function ProfileEditPage() {
                                                 <>
                                                     <div className="flex items-center gap-2">
                                                         <div className="flex-1">
-                                                            <label className="block text-[11px] text-white/50 mb-1">{locale === "en" ? "Start (m:ss)" : "開始 (m:ss)"}</label>
+                                                            <label className="block text-[11px] text-white/50 mb-1" htmlFor="profile-song-start">{locale === "en" ? "Start (m:ss)" : "開始 (m:ss)"}</label>
                                                             <input
+                                                                id="profile-song-start"
                                                                 type="text"
                                                                 inputMode="numeric"
                                                                 value={songStartText}
@@ -1062,8 +1070,9 @@ export default function ProfileEditPage() {
                                                             />
                                                         </div>
                                                         <div className="flex-1">
-                                                            <label className="block text-[11px] text-white/50 mb-1">{locale === "en" ? "End (m:ss)" : "終了 (m:ss)"}</label>
+                                                            <label className="block text-[11px] text-white/50 mb-1" htmlFor="profile-song-end">{locale === "en" ? "End (m:ss)" : "終了 (m:ss)"}</label>
                                                             <input
+                                                                id="profile-song-end"
                                                                 type="text"
                                                                 inputMode="numeric"
                                                                 value={songEndText}

@@ -383,14 +383,15 @@ function AdminEditContent() {
                         空にしたら英語ごと消す**（残すと表示が英語に化けるうえ、
                         この画面から戻せない）。もともと空の写真は触らない。 */}
                     <div>
-                        <label className={labelCls}>{isJa ? "タイトル" : "Title"}</label>
-                        <input type="text" value={titleJa} onChange={(e) => setTitleJa(e.target.value)} className={inputCls} />
+                        <label className={labelCls} htmlFor="admin-title">{isJa ? "タイトル" : "Title"}</label>
+                        <input id="admin-title" type="text" value={titleJa} onChange={(e) => setTitleJa(e.target.value)} className={inputCls} />
                     </div>
 
                     {/* 説明 */}
                     <div className={sectionCls}>
-                        <label className={labelCls}>{isJa ? "説明（1行 = 1段落）" : "Description (1 line = 1 paragraph)"}</label>
+                        <label className={labelCls} htmlFor="admin-description">{isJa ? "説明（1行 = 1段落）" : "Description (1 line = 1 paragraph)"}</label>
                         <textarea
+                            id="admin-description"
                             value={descJa}
                             onChange={(e) => setDescJa(e.target.value)}
                             rows={5}
@@ -402,22 +403,23 @@ function AdminEditContent() {
                     {/* メタデータ */}
                     <div className={sectionCls + " grid grid-cols-2 gap-4 [&>div]:min-w-0"}>
                         <div>
-                            <label className={labelCls}>{isJa ? "場所" : "Location"}</label>
-                            <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className={inputCls} />
+                            <label className={labelCls} htmlFor="admin-location">{isJa ? "場所" : "Location"}</label>
+                            <input id="admin-location" type="text" value={location} onChange={(e) => setLocation(e.target.value)} className={inputCls} />
                         </div>
                         <div>
-                            <label className={labelCls}>{isJa ? "カテゴリ" : "Category"}</label>
-                            <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls} />
+                            <label className={labelCls} htmlFor="admin-category">{isJa ? "カテゴリ" : "Category"}</label>
+                            <input id="admin-category" type="text" value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls} />
                         </div>
                         <div>
-                            <label className={labelCls}>{isJa ? "撮影日" : "Date"}</label>
+                            <label className={labelCls} htmlFor="admin-date">{isJa ? "撮影日" : "Date"}</label>
                             {/* カレンダーの選択肢を絞るだけ（打てば範囲外も入る）。断るのはサーバー
                                 （`dateWasRejected`）。form は `noValidate` なので保存は止まらない */}
-                            <input type="date" min={PHOTO_DATE_MIN} max={todayForDateInput()} value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
+                            <input id="admin-date" type="date" min={PHOTO_DATE_MIN} max={todayForDateInput()} value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
                         </div>
                         <div>
-                            <label className={labelCls}>{isJa ? "タグ（カンマ区切り）" : "Tags (comma separated)"}</label>
+                            <label className={labelCls} htmlFor="admin-tags">{isJa ? "タグ（カンマ区切り）" : "Tags (comma separated)"}</label>
                             <input
+                                id="admin-tags"
                                 type="text"
                                 value={tagsInput}
                                 onChange={(e) => setTagsInput(e.target.value)}
@@ -432,32 +434,32 @@ function AdminEditContent() {
                         <p className="text-xs text-white/50 mb-3">EXIF</p>
                         <div className="grid grid-cols-2 gap-4 [&>div]:min-w-0">
                             <div>
-                                <label className={labelCls}>{isJa ? "カメラ" : "Camera"}</label>
-                                <input type="text" value={exifCamera} onChange={(e) => setExifCamera(e.target.value)} className={inputCls} placeholder="Sony α7IV" />
+                                <label className={labelCls} htmlFor="admin-exif-camera">{isJa ? "カメラ" : "Camera"}</label>
+                                <input id="admin-exif-camera" type="text" value={exifCamera} onChange={(e) => setExifCamera(e.target.value)} className={inputCls} placeholder="Sony α7IV" />
                             </div>
                             <div>
-                                <label className={labelCls}>{isJa ? "レンズ" : "Lens"}</label>
-                                <input type="text" value={exifLens} onChange={(e) => setExifLens(e.target.value)} className={inputCls} placeholder="FE 24-70mm F2.8 GM" />
+                                <label className={labelCls} htmlFor="admin-exif-lens">{isJa ? "レンズ" : "Lens"}</label>
+                                <input id="admin-exif-lens" type="text" value={exifLens} onChange={(e) => setExifLens(e.target.value)} className={inputCls} placeholder="FE 24-70mm F2.8 GM" />
                             </div>
                             <div>
-                                <label className={labelCls}>{isJa ? "絞り" : "Aperture"}</label>
-                                <input type="text" value={exifAperture} onChange={(e) => setExifAperture(e.target.value)} className={inputCls} placeholder="f/2.8" />
+                                <label className={labelCls} htmlFor="admin-exif-aperture">{isJa ? "絞り" : "Aperture"}</label>
+                                <input id="admin-exif-aperture" type="text" value={exifAperture} onChange={(e) => setExifAperture(e.target.value)} className={inputCls} placeholder="f/2.8" />
                             </div>
                             <div>
-                                <label className={labelCls}>{isJa ? "シャッタースピード" : "Exposure"}</label>
-                                <input type="text" value={exifExposure} onChange={(e) => setExifExposure(e.target.value)} className={inputCls} placeholder="1/250s" />
+                                <label className={labelCls} htmlFor="admin-exif-exposure">{isJa ? "シャッタースピード" : "Exposure"}</label>
+                                <input id="admin-exif-exposure" type="text" value={exifExposure} onChange={(e) => setExifExposure(e.target.value)} className={inputCls} placeholder="1/250s" />
                             </div>
                             <div>
-                                <label className={labelCls}>ISO</label>
-                                <input type="number" value={exifIso} onChange={(e) => setExifIso(e.target.value)} className={inputCls} placeholder="400" min="0" />
+                                <label className={labelCls} htmlFor="admin-exif-iso">ISO</label>
+                                <input id="admin-exif-iso" type="number" value={exifIso} onChange={(e) => setExifIso(e.target.value)} className={inputCls} placeholder="400" min="0" />
                             </div>
                             <div>
-                                <label className={labelCls}>{isJa ? "焦点距離" : "Focal Length"}</label>
-                                <input type="text" value={exifFocalLength} onChange={(e) => setExifFocalLength(e.target.value)} className={inputCls} placeholder="50mm" />
+                                <label className={labelCls} htmlFor="admin-exif-focal">{isJa ? "焦点距離" : "Focal Length"}</label>
+                                <input id="admin-exif-focal" type="text" value={exifFocalLength} onChange={(e) => setExifFocalLength(e.target.value)} className={inputCls} placeholder="50mm" />
                             </div>
                             <div>
-                                <label className={labelCls}>{isJa ? "ホワイトバランス" : "White Balance"}</label>
-                                <input type="text" value={exifWhiteBalance} onChange={(e) => setExifWhiteBalance(e.target.value)} className={inputCls} placeholder="Auto" />
+                                <label className={labelCls} htmlFor="admin-exif-wb">{isJa ? "ホワイトバランス" : "White Balance"}</label>
+                                <input id="admin-exif-wb" type="text" value={exifWhiteBalance} onChange={(e) => setExifWhiteBalance(e.target.value)} className={inputCls} placeholder="Auto" />
                             </div>
                         </div>
                     </div>

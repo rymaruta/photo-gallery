@@ -725,7 +725,7 @@ function EditContent() {
 
                 <form onSubmit={(e) => { e.preventDefault(); void save(true); }} className="space-y-5">
                     <div>
-                        <label className={labelCls}>{isJa ? "タイトル" : "Title"}</label>
+                        <label className={labelCls} htmlFor="edit-title">{isJa ? "タイトル" : "Title"}</label>
                         {isEnglishOnly(photo?.title) && (
                             <p className="text-[11px] text-amber-300/80 mb-1">
                                 {isJa
@@ -733,14 +733,14 @@ function EditContent() {
                                     : "This photo only has an English title. What you see here will be saved as the Japanese title."}
                             </p>
                         )}
-                        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+                        <input id="edit-title" type="text" value={title} onChange={(e) => setTitle(e.target.value)}
                             maxLength={TITLE_MAX}
                             className={inputCls} style={{ fontSize: "16px" }}
                             placeholder={isJa ? "任意" : "Optional"} />
                     </div>
 
                     <div>
-                        <label className={labelCls}>{isJa ? "説明" : "Description"}</label>
+                        <label className={labelCls} htmlFor="edit-description">{isJa ? "説明" : "Description"}</label>
                         {isEnglishOnly(photo?.description) && (
                             <p className="text-[11px] text-amber-300/80 mb-1">
                                 {isJa
@@ -748,15 +748,15 @@ function EditContent() {
                                     : "This photo only has an English description. What you see here will be saved as the Japanese description."}
                             </p>
                         )}
-                        <textarea value={description} onChange={(e) => setDescription(e.target.value)}
+                        <textarea id="edit-description" value={description} onChange={(e) => setDescription(e.target.value)}
                             rows={5} className={inputCls + " resize-y"} style={{ fontSize: "16px" }}
                             placeholder={isJa ? "任意（改行で段落）" : "Optional (newline = paragraph)"} />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 [&>div]:min-w-0">
                         <div>
-                            <label className={labelCls}>{isJa ? "場所" : "Location"}</label>
-                            <input type="text" value={location}
+                            <label className={labelCls} htmlFor="edit-location">{isJa ? "場所" : "Location"}</label>
+                            <input id="edit-location" type="text" value={location}
                                 // **地名を変えたら候補を捨てる。** 残すと「福岡」で出した
                                 // 候補を、撮影地を「京都」に直したあとに押せてしまう
                                 onChange={(e) => { setLocation(e.target.value); setPlaceResults(null); }}
@@ -769,8 +769,8 @@ function EditContent() {
                             </datalist>
                         </div>
                         <div>
-                            <label className={labelCls}>{isJa ? "カテゴリ" : "Category"}</label>
-                            <input type="text" value={category} onChange={(e) => setCategory(e.target.value)}
+                            <label className={labelCls} htmlFor="edit-category">{isJa ? "カテゴリ" : "Category"}</label>
+                            <input id="edit-category" type="text" value={category} onChange={(e) => setCategory(e.target.value)}
                                 maxLength={CATEGORY_MAX}
                                 list="own-categories"
                                 className={inputCls} style={{ fontSize: "16px" }} placeholder={isJa ? "例: 風景" : "e.g. Landscape"} />
@@ -779,16 +779,16 @@ function EditContent() {
                             </datalist>
                         </div>
                         <div>
-                            <label className={labelCls}>{isJa ? "撮影日" : "Date"}</label>
+                            <label className={labelCls} htmlFor="edit-date">{isJa ? "撮影日" : "Date"}</label>
                             {/* カレンダーの選択肢を絞るだけ（打てば範囲外も入る）。断るのはサーバー
                                 （`dateWasRejected`）。保存ボタンは form の外の
                                 `type="button"` なので、範囲外でも押せる */}
-                            <input type="date" min={PHOTO_DATE_MIN} max={todayForDateInput()} value={date} onChange={(e) => setDate(e.target.value)}
+                            <input id="edit-date" type="date" min={PHOTO_DATE_MIN} max={todayForDateInput()} value={date} onChange={(e) => setDate(e.target.value)}
                                 className={inputCls} style={{ fontSize: "16px" }} />
                         </div>
                         <div>
-                            <label className={labelCls}>{isJa ? "タグ（カンマ区切り）" : "Tags (comma separated)"}</label>
-                            <input type="text" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)}
+                            <label className={labelCls} htmlFor="edit-tags">{isJa ? "タグ（カンマ区切り）" : "Tags (comma separated)"}</label>
+                            <input id="edit-tags" type="text" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)}
                                 className={inputCls} style={{ fontSize: "16px" }} placeholder={isJa ? "自然, 山" : "nature, mountain"} />
                             {/* タグはカンマ区切りなので datalist が効かない（欄全体を
                                 置き換えてしまう）。**押して選ぶチップにする**——押し直すと外れ、
@@ -821,8 +821,12 @@ function EditContent() {
                         福岡町か決められない（実測でどちらも起きた）。候補を出して
                         選んでもらう */}
                     <div>
-                        <label className={labelCls}>{isJa ? "地図に出す位置" : "Location on the map"}</label>
-                        <div className="rounded-xl ring-1 ring-white/10 bg-white/5 p-3 space-y-2">
+                        {/* **ここは `<label>` にしない。** 中身は1つの入力ではなく
+                            ボタンと状態表示の集まりで、`<label>` は単一の部品にしか
+                            結べない（結べない `<label>` は読み上げに何も渡さない）。
+                            見出しとして `aria-labelledby` で箱に結ぶ */}
+                        <p className={labelCls} id="edit-map-position">{isJa ? "地図に出す位置" : "Location on the map"}</p>
+                        <div role="group" aria-labelledby="edit-map-position" className="rounded-xl ring-1 ring-white/10 bg-white/5 p-3 space-y-2">
                             <p className="text-xs text-white/70" data-testid="coords-state">
                                 {coords
                                     ? (isJa
