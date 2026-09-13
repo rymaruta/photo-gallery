@@ -23,7 +23,7 @@ import { useMemberGate } from "../../../lib/hooks/useMemberGate";
 import { useEscapeKey } from "../../../lib/hooks/useEscapeKey";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
-import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
+import { collectOwnValues, toggleTag, hasTag, type OwnValues } from "../../../lib/utils/ownValues";
 import { publicImageUrl } from "@/lib/utils/seo";
 
 const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
@@ -789,17 +789,22 @@ function EditContent() {
                                 置き換えてしまう）。押して足せるチップにする。 */}
                             {ownValues.tags.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5 mt-1.5">
-                                    {ownValues.tags.slice(0, 12).map((t) => (
-                                        <button
-                                            key={t}
-                                            type="button"
-                                            onClick={() => setTagsInput((cur) => appendTag(cur, t))}
-                                            className="px-2 py-0.5 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors"
-                                            style={{ touchAction: "manipulation" }}
-                                        >
-                                            {t}
-                                        </button>
-                                    ))}
+                                    {ownValues.tags.slice(0, 12).map((t) => {
+                                        const on = hasTag(tagsInput, t);
+                                        return (
+                                            <button
+                                                key={t}
+                                                type="button"
+                                                onClick={() => setTagsInput((cur) => toggleTag(cur, t))}
+                                                role="switch"
+                                                aria-checked={on}
+                                                className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors disabled:opacity-40 ${on ? "bg-white text-black font-medium ring-white" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
+                                                style={{ touchAction: "manipulation" }}
+                                            >
+                                                {t}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>

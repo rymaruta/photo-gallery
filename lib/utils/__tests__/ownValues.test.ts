@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { collectOwnValues, appendTag } from "../ownValues";
+import { collectOwnValues, appendTag, toggleTag, hasTag } from "../ownValues";
 import type { Photo } from "../../data/photos";
 
 const P = (over: Partial<Photo>) => ({ id: "x", src: "s", ...over }) as Photo;
@@ -250,3 +250,54 @@ describe("タグの候補: 上限と、複数枚に付いたタグの時刻", ()
     });
 });
 
+/**
+ * **候補チップは「選ぶ」もの。押し直したら外れる。**
+ *
+ * もとは足すだけだったので、**既に付いているタグのチップを押しても
+ * 何も起きなかった**（見た目も変わらないので、押せていないのか効かないのかも
+ * 分からない）。同じ場面を一覧の絞り込み（`FilterBar` のタグチップ）は
+ * **押し直して外す**形にしてあり、投稿・編集の候補チップだけ古いままだった。
+ */
+describe("hasTag（いま欄に入っているか）", () => {
+    it("大小・`#`・日英の別名を畳んで見る", () => {
+        expect(hasTag("fuji, 夜景", "Fuji")).toBe(true);
+        expect(hasTag("旅", "#旅")).toBe(true);
+        expect(hasTag("風景", "landscape"), "別名表が効いていない").toBe(true);
+        expect(hasTag("夜景", "富士山")).toBe(false);
+    });
+
+    it("空の欄・空のタグで誤判定しない", () => {
+        expect(hasTag("", "山")).toBe(false);
+        expect(hasTag("山", "   "), "空のタグが当たっている").toBe(false);
+        expect(hasTag(" , ,山", "山")).toBe(true);
+    });
+});
+
+describe("toggleTag（押し直したら外れる）", () => {
+    it("入っていなければ足す", () => {
+        expect(toggleTag("自然, 山", "夜景")).toBe("自然, 山, 夜景");
+        expect(toggleTag("", "山")).toBe("山");
+    });
+
+    it("入っていれば外す", () => {
+        expect(toggleTag("自然, 山", "山"), "押しても何も起きない").toBe("自然");
+        expect(toggleTag("山", "山")).toBe("");
+    });
+
+    // 外すときも畳んで見る（`fuji` の欄で候補の `Fuji` を押したら外れる）
+    it("書き方が違っても、同じタグなら外れる", () => {
+        expect(toggleTag("夜景, Fuji", "fuji")).toBe("夜景");
+        expect(toggleTag("旅", "#旅")).toBe("");
+        expect(toggleTag("風景, 山", "landscape")).toBe("山");
+    });
+
+    it("空のタグでは何もしない", () => {
+        expect(toggleTag("自然", "  ")).toBe("自然");
+    });
+
+    // **足す側は `appendTag` に任せる**——何も変わらない回に元の文字列を
+    // そのまま返す性質（空白の入れ方を勝手に直さない）を壊さない
+    it("足す側の空白の扱いは変えない", () => {
+        expect(toggleTag("自然,山", "海")).toBe("自然, 山, 海");
+    });
+});

@@ -133,3 +133,37 @@ export function appendTag(current: string, tag: string): string {
     if (parts.some((t) => tagKey(t) === key)) return current;
     return [...parts, add].join(", ");
 }
+
+/** いまの欄にそのタグが入っているか（大小・`#`・日英の別名は畳んで見る） */
+export function hasTag(current: string, tag: string): boolean {
+    const key = tagKey(tag.trim());
+    if (!key) return false;
+    return current.split(",").some((t) => tagKey(t.trim()) === key);
+}
+
+/**
+ * 候補チップの押下。**入っていれば外す、入っていなければ足す。**
+ *
+ * もとは足すだけだったので、**既に付いているタグのチップを押しても
+ * 何も起きなかった**（見た目も変わらないので、押せていないのか
+ * 効かないのかも分からない）。このリポジトリは同じ場面を
+ * 一覧の絞り込み（`FilterBar` のタグチップ）で**押し直して外す**形に
+ * してあり、投稿・編集の候補チップだけ古いままだった。
+ * `StoryViewer` の「0件のときは出さない——押しても何も無いボタンを
+ * 常に置かない」と同じ考え方。
+ *
+ * 足す側は `appendTag` に任せる（何も変わらない回に**元の文字列を
+ * そのまま返す**——空白の入れ方を勝手に直さない、という性質がある）。
+ */
+export function toggleTag(current: string, tag: string): string {
+    const t = tag.trim();
+    if (!t) return current;
+    if (!hasTag(current, t)) return appendTag(current, t);
+    const key = tagKey(t);
+    return current
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean)
+        .filter((x) => tagKey(x) !== key)
+        .join(", ");
+}

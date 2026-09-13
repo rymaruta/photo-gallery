@@ -23,7 +23,7 @@ import { unstrippableMessage, gifRejectedMessage, gifRejectedLabel } from "../..
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import type { Photo, Locale } from "../../../lib/data/photos";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
-import { collectOwnValues, appendTag, type OwnValues } from "../../../lib/utils/ownValues";
+import { collectOwnValues, toggleTag, hasTag, type OwnValues } from "../../../lib/utils/ownValues";
 // 上限は lib/utils/uploadLimits.ts に置く（api-user 側と対。理由はあちらに書いた）
 import { PHOTO_LIMIT_PER_USER } from "../../../lib/utils/uploadLimits";
 import { publicImageUrl } from "@/lib/utils/seo";
@@ -1161,18 +1161,23 @@ function UploadPageInner() {
                         置き換えてしまう）。押して足せるチップにする。 */}
                     {ownValues.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1.5">
-                            {ownValues.tags.slice(0, 12).map((t) => (
-                                <button
-                                    key={t}
-                                    type="button"
-                                    onClick={() => setTags((cur) => appendTag(cur, t))}
-                                    disabled={uploading}
-                                    className="px-2 py-0.5 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors disabled:opacity-40"
-                                    style={{ touchAction: "manipulation" }}
-                                >
-                                    {t}
-                                </button>
-                            ))}
+                            {ownValues.tags.slice(0, 12).map((t) => {
+                                const on = hasTag(tags, t);
+                                return (
+                                    <button
+                                        key={t}
+                                        type="button"
+                                        onClick={() => setTags((cur) => toggleTag(cur, t))}
+                                        disabled={uploading}
+                                        role="switch"
+                                        aria-checked={on}
+                                        className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors disabled:opacity-40 ${on ? "bg-white text-black font-medium ring-white" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
+                                        style={{ touchAction: "manipulation" }}
+                                    >
+                                        {t}
+                                    </button>
+                                );
+                            })}
                         </div>
                     )}
                 </div>

@@ -100,23 +100,50 @@ describe("アップロード画面の入力候補", () => {
     // 答えるには、grep ではなく実際に押して確かめる必要がある
     it("タグは押して足せる（カンマ区切りを壊さない）", async () => {
         await pickOne();
-        const chip = await screen.findByRole("button", { name: "夜景" });
+        const chip = await screen.findByRole("switch", { name: "夜景" });
         await userEvent.click(chip);
         const field = screen.getByPlaceholderText("タグ（カンマ区切り）") as HTMLInputElement;
         expect(field.value, "押しても欄に入っていない").toBe("夜景");
         // 2つ目を足しても1つ目が消えない（datalist にできない理由そのもの）
-        await userEvent.click(await screen.findByRole("button", { name: "街" }));
+        await userEvent.click(await screen.findByRole("switch", { name: "街" }));
         expect(field.value, "前に足したタグが消えている").toBe("夜景, 街");
-        // 同じものを二度押しても増えない
+    });
+
+    // **押し直したら外れる。** もとは足すだけだったので、既に付いている
+    // タグのチップは**押しても何も起きなかった**（見た目も変わらないので
+    // 押せていないのかも分からない）。一覧の絞り込みは前から押し直して
+    // 外す形で、投稿・編集の候補チップだけ古いままだった
+    it("押し直したら外れる（選んだかどうかも分かる）", async () => {
+        await pickOne();
+        const chip = await screen.findByRole("switch", { name: "夜景" });
+        const field = screen.getByPlaceholderText("タグ（カンマ区切り）") as HTMLInputElement;
+        expect(chip, "まだ選んでいないのに選択済みに見える").toHaveAttribute("aria-checked", "false");
+
         await userEvent.click(chip);
-        expect(field.value, "同じタグが2つ入った").toBe("夜景, 街");
+        expect(field.value).toBe("夜景");
+        expect(chip, "選んだことが分からない").toHaveAttribute("aria-checked", "true");
+
+        await userEvent.click(chip);
+        expect(field.value, "押し直しても外れない（押しても何も起きないボタン）").toBe("");
+        expect(chip).toHaveAttribute("aria-checked", "false");
+    });
+
+    // 手で打った綴りが違っても、同じタグとして見る（二重に入れない）
+    it("手で打ったタグも、同じものなら選択済みとして扱う", async () => {
+        await pickOne();
+        const field = screen.getByPlaceholderText("タグ（カンマ区切り）") as HTMLInputElement;
+        await userEvent.type(field, "#夜景");
+        const chip = await screen.findByRole("switch", { name: "夜景" });
+        expect(chip, "同じタグなのに未選択に見える").toHaveAttribute("aria-checked", "true");
+        await userEvent.click(chip);
+        expect(field.value, "同じタグが2つ入った").toBe("");
     });
 
     // **よく使う順**（`collectOwnValues`）。並びが崩れると、いちばん押す
     // ものが12個の枠から落ちる
     it("タグの候補は、よく使う順に並ぶ", async () => {
         await pickOne();
-        const chips = await screen.findAllByRole("button", { name: /^(夜景|街)$/ });
+        const chips = await screen.findAllByRole("switch", { name: /^(夜景|街)$/ });
         expect(chips.map((c) => c.textContent), "よく使う順になっていない").toEqual(["夜景", "街"]);
     });
 

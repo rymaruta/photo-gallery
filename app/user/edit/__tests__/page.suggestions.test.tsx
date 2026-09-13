@@ -68,8 +68,21 @@ describe("入力候補", () => {
     it("タグは押して足せる（カンマ区切りを壊さない）", async () => {
         render(<EditPage />);
         const tags = await screen.findByDisplayValue("夜景");
-        await userEvent.click(await screen.findByRole("button", { name: "街" }));
+        await userEvent.click(await screen.findByRole("switch", { name: "街" }));
         await waitFor(() => expect((tags as HTMLInputElement).value).toBe("夜景, 街"));
+    });
+
+    // **既に付いているタグは、選択済みとして出す。**
+    // もとは足すだけだったので、この写真に付いている「夜景」のチップは
+    // 押しても何も起きず、見た目も未選択と同じだった
+    it("この写真に付いているタグは選択済みで、押し直すと外れる", async () => {
+        render(<EditPage />);
+        const tags = (await screen.findByDisplayValue("夜景")) as HTMLInputElement;
+        const chip = await screen.findByRole("switch", { name: "夜景" });
+        expect(chip, "付いているのに未選択に見える").toHaveAttribute("aria-checked", "true");
+        await userEvent.click(chip);
+        await waitFor(() => expect(tags.value, "押し直しても外れない").toBe(""));
+        expect(chip).toHaveAttribute("aria-checked", "false");
     });
 
     // **候補を state に入れると「毎回新しいオブジェクト」になる。**
