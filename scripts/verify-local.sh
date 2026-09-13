@@ -15,7 +15,7 @@
 # 台帳に2回記録されている（`7276c2b8` / `4c1feaeb` の周）。
 
 set -o pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 ROOT="$(pwd)"
 WORK="$(mktemp -d)"
 FAILED=()
@@ -23,7 +23,7 @@ FAILED=()
 # 退避したものは何があっても戻す。photos.json は**追跡されているファイル**なので、
 # 途中で落ちると偽のデータが作業ツリーに残る。
 cleanup() {
-    [ -d "$ROOT/.app-api-aside" ] && { rm -rf "$ROOT/app/api"; mv "$ROOT/.app-api-aside" "$ROOT/app/api"; }
+    [ -d "$ROOT/_api_build_backup" ] && { rm -rf "$ROOT/app/api"; mv "$ROOT/_api_build_backup" "$ROOT/app/api"; }
     [ -f "$WORK/photos.json" ] && cp "$WORK/photos.json" "$ROOT/app/data/photos.json"
     rm -rf "$WORK"
 }
@@ -50,13 +50,31 @@ gate() { # gate <名前> <コマンド...>
 API_BASELINE=11
 API_USER_BASELINE=116
 
-count_ts_errors() { npx tsc --noEmit -p "$1/tsconfig.json" 2>&1 | grep -c 'error TS'; }
-
 check_side_tsc() { # check_side_tsc <dir> <baseline>
-    local n; n=$(count_ts_errors "$1")
+    local out; out=$(npx tsc --noEmit -p "$1/tsconfig.json" 2>&1)
+
+    # **「数えたら少なかった」を成功と読まない。**
+    # tsconfig が消えていると `tsc` は TS5058 を1行出すだけで終わり、
+    # 件数は 1 になる——基準より少ないので**素通りしていた**（実測）。
+    # 走れなかったのか、エラーが減ったのかを区別する。
+    if grep -q "error TS5058\|error TS6053" <<< "$out"; then
+        echo "::error:: $1 の tsconfig を読めなかった（関門が素通りするので失敗にする）"
+        echo "$out" | head -3
+        return 1
+    fi
+    # **依存が入っていないと基準がまるごと変わる。** `@types/aws-lambda` が
+    # 無いと TS2307 と、その帰結の TS7006（暗黙 any）で数十件ぶれる。
+    # 「増えていない」という判定が意味を持つのは、同じ土俵のときだけ。
+    if [ ! -d "$1/node_modules" ]; then
+        echo "::error:: $1/node_modules がありません。\`cd $1 && npm ci\` を打ってから測ってください"
+        return 1
+    fi
+
+    local n; n=$(grep -c 'error TS' <<< "$out")
     echo "$1 の型エラー: $n 件（基準 $2）"
     if [ "$n" -gt "$2" ]; then
         echo "::error:: $1 の型エラーが増えている（$2 → $n）"
+        echo "$out" | grep 'error TS' | head -5
         return 1
     fi
     return 0
@@ -64,13 +82,13 @@ check_side_tsc() { # check_side_tsc <dir> <baseline>
 
 build_site() { # build_site  — 本番と同じ環境変数で建てる
     rm -rf "$ROOT/out"
-    [ -d "$ROOT/app/api" ] && mv "$ROOT/app/api" "$ROOT/.app-api-aside"
+    [ -d "$ROOT/app/api" ] && mv "$ROOT/app/api" "$ROOT/_api_build_backup"
     NEXT_PUBLIC_CLOUDFRONT_URL=https://d1s3dwwzgxf5ni.cloudfront.net \
     NEXT_PUBLIC_SITE_URL=https://journey-photo.com \
     NEXT_PUBLIC_ENV_NAME=prod \
         npx next build
     local rc=$?
-    [ -d "$ROOT/.app-api-aside" ] && { rm -rf "$ROOT/app/api"; mv "$ROOT/.app-api-aside" "$ROOT/app/api"; }
+    [ -d "$ROOT/_api_build_backup" ] && { rm -rf "$ROOT/app/api"; mv "$ROOT/_api_build_backup" "$ROOT/app/api"; }
     return $rc
 }
 
@@ -97,6 +115,9 @@ for (const ph of photos) {
 }
 fs.writeFileSync(p, JSON.stringify(photos, null, 2));
 console.log(`派生を足した写真: ${n}枚`);
+// **0枚なら失敗にする。** 黙って進むと「派生あり」と称して派生の無いビルドを
+// 見ることになり、この関門を足した理由（`<picture>` が出る形を通す）が消える。
+if (n === 0) { console.error("::error:: 派生を1枚も足せなかった"); process.exit(1); }
 '
 }
 
@@ -114,7 +135,7 @@ gate "実ブラウザのスモーク"     node scripts/e2e-smoke.mjs
 if [ -z "$SKIP_DERIV" ]; then
     echo ""
     echo "──────── 本番のデータの形（派生あり）でもう一度 ────────"
-    synthesize_derivatives
+    gate "本番の形にする（派生を足す）" synthesize_derivatives
     gate "ビルド（派生あり）"       build_site
     gate "スモーク（派生あり）"     node scripts/e2e-smoke.mjs
     cp "$WORK/photos.json" "$ROOT/app/data/photos.json"
