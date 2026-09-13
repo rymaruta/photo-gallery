@@ -636,6 +636,13 @@ export default function ProfileEditPage() {
         ? publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}/cover`)
         : null;
 
+    // **ボタンの名前を状態で分けるための旗。** 描き分けの式と同じ材料から
+    // 作る（`src` の式そのものは触らない——`imageOriginSites.test.ts` の
+    // 免除一覧が式の綴りで突き合わせているので、`!` を足すだけで落ちる。
+    // 実際に落として気づいた）。**片方だけずれる変異は、対テストが
+    // 「出ている絵」と「名前の言葉」を突き合わせて捕まえる**
+    const hasCover = !!coverPreview || (!!currentCoverUrl && !coverError);
+
     const inputClass = "w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors";
     const labelClass = "block text-xs text-white/50 mb-1.5 tracking-wide";
 
@@ -671,10 +678,21 @@ export default function ProfileEditPage() {
                 {/* カバー写真 */}
                 <div className="mb-6">
                     <p className={labelClass}>{locale === "en" ? "Cover photo" : "カバー写真"}</p>
+                    {/* **カバーを一度でも設定すると、このボタンは名前を失う。**
+                        中身は `alt=""` の `<img>` とアイコンだけになるので、
+                        読み上げでは「ボタン」としか言われない（未設定のときだけ
+                        「カバー写真を追加」の文字が中にある）。**すぐ下の
+                        アバターのボタンは前から `aria-label` を持っている**
+                        ——対になっている片方だけ漏れていた。
+                        文言は見えている文字と食い違わないよう状態で分ける
+                        （未設定のときは中の文字と同じ「追加」）。 */}
                     <button
                         type="button"
                         onClick={() => coverInputRef.current?.click()}
                         disabled={coverUploading}
+                        aria-label={hasCover
+                            ? (locale === "en" ? "Change cover photo" : "カバー写真を変更")
+                            : (locale === "en" ? "Add cover photo" : "カバー写真を追加")}
                         className="relative w-full h-28 rounded-lg overflow-hidden bg-white/5 border border-white/10 hover:border-white/30 transition-colors group"
                     >
                         {coverPreview ? (

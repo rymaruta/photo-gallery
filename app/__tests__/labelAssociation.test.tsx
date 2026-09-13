@@ -53,6 +53,10 @@ vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: 
 // ブロック一覧と退会モーダルはプロフィール画面の境界の外（別ファイルで見る）
 vi.mock("../user/profile/BlockedUsers", () => ({ default: () => null }));
 
+// **モジュールの読み込み時に読まれる**（`CLOUDFRONT_URL` は module スコープ）ので
+// import より前に置く。これが無いとカバー写真は「未設定」の枝しか描けない
+process.env.NEXT_PUBLIC_CLOUDFRONT_URL = "https://cdn.example";
+
 const ProfilePage = (await import("../user/profile/page")).default;
 const UserEditPage = (await import("../user/edit/page")).default;
 const AdminEditPage = (await import("../admin/edit/page")).default;
@@ -76,6 +80,36 @@ function orphanLabels(container: HTMLElement): string[] {
         .map((l) => l.textContent?.trim() || "(文字なし)");
 }
 
+/**
+ * `aria-labelledby` / `aria-describedby` が**実在する id** を指しているか。
+ *
+ * `<label>` をやめて `role="group" aria-labelledby` にした2か所は、
+ * `<p>` のままで紐付けだけ消しても「孤立したラベル 0」のままなので、
+ * **この差分の肝の半分が無防備**だった（レビューが変異で実証）。
+ */
+function danglingRefs(container: HTMLElement): string[] {
+    const bad: string[] = [];
+    for (const attr of ["aria-labelledby", "aria-describedby"]) {
+        for (const el of container.querySelectorAll(`[${attr}]`)) {
+            for (const id of (el.getAttribute(attr) ?? "").split(/[ \t\n]+/).filter(Boolean)) {
+                if (!container.querySelector(`#${CSS.escape(id)}`)) bad.push(`${attr}="${id}"`);
+            }
+        }
+    }
+    return bad;
+}
+
+/** カバー写真のボタン（見出し「カバー写真」の直後） */
+function coverButton(container: HTMLElement): HTMLButtonElement | null {
+    const heading = [...container.querySelectorAll("p")].find((p) => p.textContent === "カバー写真");
+    return (heading?.parentElement?.querySelector("button") ?? null) as HTMLButtonElement | null;
+}
+
+/** 見出しで名前を付けた集まり（`role="group"`）の数 */
+function labelledGroups(container: HTMLElement): number {
+    return container.querySelectorAll('[role="group"][aria-labelledby]').length;
+}
+
 /** 名前（ラベル・aria-label・aria-labelledby）を持たない入力欄 */
 function unnamedFields(container: HTMLElement): string[] {
     const labels = [...container.querySelectorAll("label")] as HTMLLabelElement[];
@@ -95,6 +129,12 @@ describe("見えているラベルは入力欄に結ばれている", () => {
         await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
         expect(orphanLabels(container)).toEqual([]);
         expect(unnamedFields(container)).toEqual([]);
+        expect(danglingRefs(container)).toEqual([]);
+        // テーマカラー（見本ボタンの集まり）
+        expect(labelledGroups(container)).toBe(1);
+        // カバー未設定のときは、中に見えている文字と同じ言葉にする
+        expect(container.querySelector('img[src*="/cover"]')).toBeNull();
+        expect(coverButton(container)?.getAttribute("aria-label")).toBe("カバー写真を追加");
     });
 
     it("/user/edit", async () => {
@@ -102,6 +142,9 @@ describe("見えているラベルは入力欄に結ばれている", () => {
         await screen.findByDisplayValue("夕焼け");
         expect(orphanLabels(container)).toEqual([]);
         expect(unnamedFields(container)).toEqual([]);
+        expect(danglingRefs(container)).toEqual([]);
+        // 地図に出す位置（ボタンと状態表示の集まり）
+        expect(labelledGroups(container)).toBe(1);
     });
 
     it("/admin/edit", async () => {
@@ -109,6 +152,43 @@ describe("見えているラベルは入力欄に結ばれている", () => {
         await screen.findByDisplayValue("夕焼け");
         expect(orphanLabels(container)).toEqual([]);
         expect(unnamedFields(container)).toEqual([]);
+    });
+
+    // **曲のリンクを開いた状態でないと描かれない欄がある。**
+    // 初期状態だけを見ていたので「開始 (m:ss)」「終了 (m:ss)」の2本は
+    // 直したのに守りが1行も掛かっていなかった（レビューが変異で実証）。
+    // カバー写真も同じ——**設定済みの人だけ**ボタンが名前を失う
+    it("/user/profile: 曲のリンクを開いた状態・カバー設定済み", async () => {
+        mockUserFetch.mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                userId: "u1", username: "", displayName: "",
+                songUrl: "https://www.youtube.com/watch?v=abcdefghijk",
+                songStart: 72, songEnd: 95,
+            }),
+        });
+        const { container } = render(<ProfilePage />);
+        await screen.findByDisplayValue("https://www.youtube.com/watch?v=abcdefghijk");
+        expect(orphanLabels(container)).toEqual([]);
+        expect(unnamedFields(container)).toEqual([]);
+        expect(danglingRefs(container)).toEqual([]);
+
+        // **カバーを設定した人のボタンは、中身が `alt=""` の画像だけになる。**
+        // すぐ下のアバターのボタンは前から名前を持っていた＝片方だけ漏れていた
+        const nameless = [...container.querySelectorAll("button")]
+            .filter((b) => !b.getAttribute("aria-label") && !b.getAttribute("aria-labelledby")
+                && !b.textContent?.trim())
+            .map((b) => b.className.slice(0, 40));
+        expect(nameless).toEqual([]);
+
+        // **名前の言葉と、出ている絵を突き合わせる。** どちらも同じ材料から
+        // 作るが式は2つあるので、片方だけずれる変異を止めるにはここで結ぶ
+        // （`src` の式は `imageOriginSites.test.ts` が綴りで見張っているため
+        //  1つにまとめられない）
+        expect(container.querySelector('img[src*="/cover"]'),
+            "カバーが設定されているのに画像が出ていない").not.toBeNull();
+        expect(coverButton(container)?.getAttribute("aria-label"),
+            "絵は出ているのに、名前が「追加」のまま").toBe("カバー写真を変更");
     });
 
     // **取り消せない操作の唯一の関門。** 「`退会` と入力してください」が
@@ -139,6 +219,21 @@ describe("検出器の自己確認", () => {
           <label>結んでいない</label><input id="z" placeholder="p">
           <label for="nope">存在しない id</label>`;
         expect(orphanLabels(host)).toEqual(["結んでいない", "存在しない id"]);
+    });
+
+    // **検出器を殺す変異は、判定自身では捕まえられない。**
+    // いま参照切れが0件なので、壊れた検出器と正しい検出器が同じ答えを返す
+    // （台帳の `68134035` と同じ立場）。差し込んで効くことを見る
+    it("参照切れだけを拾う", () => {
+        const host = document.createElement("div");
+        host.innerHTML = `
+          <p id="ok">見出し</p>
+          <div role="group" aria-labelledby="ok"></div>
+          <div role="group" aria-labelledby="nope"></div>
+          <input aria-describedby="ok missing">`;
+        expect(danglingRefs(host).sort()).toEqual(
+            ['aria-describedby="missing"', 'aria-labelledby="nope"']);
+        expect(labelledGroups(host)).toBe(2);
     });
 
     it("名前の無い入力だけを拾う", () => {
