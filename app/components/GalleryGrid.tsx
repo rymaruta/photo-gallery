@@ -152,10 +152,12 @@ const GalleryItem = React.memo(function GalleryItem({
 
                 **先読みはしない（`prefetch={false}`）。**
                 Next の `<Link>` は既定で「画面に入ったら先読み」で、一覧は
-                カードが30枚ある。しかも静的書き出しなので先読みの中身は
-                `/photo/<id>.txt`（RSC の控え）で、**`deploy-static-site.js` は
-                これを `no-cache, no-store` で配る**（`isHtmlOrTxt`）
-                ——つまりカードが画面に出入りするたびに**毎回落とし直す**。
+                カードが30枚ある。**先読みが引くのは行き先のHTML（1本およそ55KB）と
+                セグメントの `.txt` 数本**——静的書き出しなので RSC の口が無く、
+                文書そのものを取りに行く（重いのはHTMLの方で、実測でトップの
+                先読みの86%）。しかも **`deploy-static-site.js` はどちらも
+                `no-cache, no-store` で配る**（`isHtmlOrTxt`）——つまりカードが
+                画面に出入りするたびに**毎回落とし直す**。
 
                 実測（`out/` を手元に配り、往復80msを足して5回の中央値）:
 
@@ -166,6 +168,16 @@ const GalleryItem = React.memo(function GalleryItem({
                 1枚も開かずに帰る人にも毎回 1.7MB 掛かっていたので、
                 写真そのものと帯域を奪い合う方が高くつく（このサイトの優先度は
                 表示速度）。写真が増えるほど差は開く。
+
+                ⚠️ **この +83ms は「速い回線で、しばらく置いてから押した」ときの数字。**
+                回線を絞って（1.6Mbps）**すぐ押す**と符号が逆転し、
+                **先読みなしの方が 94ms 速い**（先読みの要求が先に並んでいて、
+                タップの取得がその後ろに付くため）。条件によっては代償ですらない。
+
+                ⚠️ **JS が減るのは初回訪問だけ。** `_next/**` は
+                `max-age=31536000, immutable` で配られ、Service Worker も
+                キャッシュ優先で持つ。毎回効くのは `no-store` の HTML と
+                `.txt` のぶん（写真ページで約1MB）。
 
                 ⚠️ **`prefetch={false}` は hover / touchstart の先読みも止める**
                 （`next/dist/client/app-dir/link.js` の `prefetchEnabled`）。

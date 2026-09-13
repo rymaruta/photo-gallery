@@ -29,16 +29,13 @@ const nodePath = require("path");
  * `app/**` の `<Link>` を**全部**数え、切っていないものは
  * **下の免除に理由付きで載っていなければ落とす**。
  *
- * 免除するのは**ログインが要る画面**だけ。人数が少なく、先読みの代償より
+ * 免除するのは**ログインした人しか描かれない画面**だけ。人数が少なく、先読みの代償より
  * 遷移の速さが効く（公開ページは検索から来た人が1枚も開かずに帰ることが
  * あるので、逆）。
  */
 const EXEMPT: Array<[string, string]> = [
     ["app/admin/page.tsx", "管理画面（ログインと管理権限が要る）"],
     ["app/admin/edit/page.tsx", "管理の編集画面"],
-    ["app/j/page.tsx", "共同アルバムの招待（リンクを知っている人だけ）"],
-    ["app/login/page.tsx", "ログイン画面（未ログインの人だけが来る）"],
-    ["app/signup/page.tsx", "新規登録の画面"],
     ["app/user/albums/page.tsx", "自分のアルバム"],
     ["app/user/drafts/page.tsx", "自分の下書き"],
     ["app/user/edit/page.tsx", "自分の写真の編集"],
@@ -55,9 +52,18 @@ const stripComments = (src: string): string =>
     src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 
 /** `<Link` から、対応する `>` までを切り出す（`=>` の `>` で切らない） */
-export function linkTags(raw: string): string[] {
+/**
+ * 開きタグと、**引用符の中を潰した写し**を返す。
+ *
+ * 判定を素の文字列でやっていた間、**自分が踏んだ壊し方をこの見張りが
+ * 見逃していた**——機械的な挿入で
+ * `` href={`${ROUTES.MAP} prefetch={false}${mapHash}`} `` という形を作り、
+ * リンク先が壊れているのに `includes("prefetch={false}")` は真だった
+ * （捕まえたのは地図の導線を見る別のテスト）。
+ */
+export function linkTags(raw: string): Array<{ tag: string; bare: string }> {
     const src = stripComments(raw);
-    const out: string[] = [];
+    const out: Array<{ tag: string; bare: string }> = [];
     for (const m of src.matchAll(/<Link\b/g)) {
         const start = m.index ?? 0;
         let depth = 0, quote = "";
@@ -70,7 +76,17 @@ export function linkTags(raw: string): string[] {
             else if (c === "}") depth--;
             else if (c === ">" && depth === 0) { end = i + 1; break; }
         }
-        out.push(src.slice(start, end));
+        const tag = src.slice(start, end);
+        // 引用符・テンプレートリテラルの中身を空白に潰す（属性の値の中に
+        // 紛れた `prefetch={false}` を「付いている」と数えないため）
+        let bare = "", q = "";
+        for (let i = 0; i < tag.length; i++) {
+            const c = tag[i];
+            if (q) { bare += c === q && tag[i - 1] !== "\\" ? (q = "", c) : " "; continue; }
+            if (c === '"' || c === "'" || c === "`") { q = c; bare += c; continue; }
+            bare += c;
+        }
+        out.push({ tag, bare });
     }
     return out;
 };
@@ -97,8 +113,8 @@ describe("公開ページのリンクは先読みしない", () => {
         const stray: string[] = [];
         for (const [f, tags] of withLinks()) {
             if (exempt.has(f)) continue;
-            for (const tag of tags) {
-                if (!tag.includes("prefetch={false}")) stray.push(`${f}  ${tag.replace(/\s+/g, " ").slice(0, 60)}`);
+            for (const { tag, bare } of tags) {
+                if (!bare.includes("prefetch={false}")) stray.push(`${f}  ${tag.replace(/\s+/g, " ").slice(0, 60)}`);
             }
         }
         expect(stray, "画面に入るたびに行き先を丸ごと落とし直す").toEqual([]);
@@ -118,13 +134,21 @@ describe("公開ページのリンクは先読みしない", () => {
     // 判定そのものが効くか（0件の状態では、壊れた検出器と正しい検出器が同じ答えを返す）
     describe("判定の自己確認", () => {
         it("先読みを切っていないリンクを見つける", () => {
-            expect(linkTags('<Link href="/x">a</Link>').some((t) => !t.includes("prefetch={false}"))).toBe(true);
-            expect(linkTags('<Link href="/x" prefetch={false}>a</Link>').every((t) => t.includes("prefetch={false}"))).toBe(true);
+            expect(linkTags('<Link href="/x">a</Link>').some((t) => !t.bare.includes("prefetch={false}"))).toBe(true);
+            expect(linkTags('<Link href="/x" prefetch={false}>a</Link>').every((t) => t.bare.includes("prefetch={false}"))).toBe(true);
         });
 
         it("`=>` の `>` でタグを切らない", () => {
             const src = `<Link\n  onClick={(e) => e.preventDefault()}\n  href="/x"\n>a</Link>`;
-            expect(linkTags(src)[0], "属性の途中で切れている").toContain('href="/x"');
+            expect(linkTags(src)[0].tag, "属性の途中で切れている").toContain('href="/x"');
+        });
+
+        // **自分が踏んだ壊し方。** 属性の値の中に紛れた `prefetch={false}` を
+        // 「付いている」と数えてはいけない
+        it("href の中に紛れた `prefetch={false}` は数えない", () => {
+            const broken = "<Link href={`${ROUTES.MAP} prefetch={false}${mapHash}`} className=\"x\">a</Link>";
+            expect(linkTags(broken).some((t) => !t.bare.includes("prefetch={false}")),
+                "リンク先が壊れているのに「付いている」と読んでいる").toBe(true);
         });
 
         it("コメントの中の `<Link>` では発火しない", () => {

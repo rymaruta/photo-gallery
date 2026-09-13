@@ -116,7 +116,7 @@ function InviteView() {
                         失効するので、ここは実際に人が着地する */}
                     <h1 className="sr-only">アルバムへの招待</h1>
                     <p className="text-sm text-white/85" role="alert">{error}</p>
-                    <Link href={ROUTES.HOME} className="inline-block mt-4 text-sm underline decoration-white/40 underline-offset-2">
+                    <Link href={ROUTES.HOME} prefetch={false} className="inline-block mt-4 text-sm underline decoration-white/40 underline-offset-2">
                         トップへ
                     </Link>
                 </div>
@@ -153,6 +153,7 @@ function InviteView() {
                     {joined ? (
                         <Link
                             href={`${ROUTES.UPLOAD}?album=${encodeURIComponent(album.id)}`}
+                            prefetch={false}
                             className="inline-block rounded-full bg-white text-black text-sm px-5 py-2.5"
                         >
                             写真を追加する
@@ -175,6 +176,7 @@ function InviteView() {
                                 ログイン後にこの招待へ帰ってこられるようにする */}
                             <Link
                                 href={`${ROUTES.LOGIN}?next=${encodeURIComponent(`/j?t=${token}`)}`}
+                                prefetch={false}
                                 className="inline-block rounded-full bg-white text-black text-sm px-5 py-2.5"
                             >
                                 ログインして参加する
@@ -186,6 +188,7 @@ function InviteView() {
                                 はじめての方は{" "}
                                 <Link
                                     href={`${ROUTES.SIGNUP}?next=${encodeURIComponent(`/j?t=${token}`)}`}
+                                    prefetch={false}
                                     className="underline hover:text-white transition-colors"
                                 >
                                     新規登録

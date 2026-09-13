@@ -742,11 +742,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                         （自己紹介・説明と同じ。実測で幅375pxの55文字から超える） */}
                     <h1 className="text-2xl sm:text-3xl font-bold mb-2.5 break-words">{titleText}</h1>
                     {categoryDisplayName && photo.category && (
-                        // カテゴリの集約ページへ（内部リンク＝SEO・回遊）
-                        <Link
+                        // カテゴリの集約ページへ（内部リンク＝SEO・回遊）。
                         // **先読みしない**（理由と実測は `app/components/GalleryGrid.tsx` の
                         // カードのコメント。静的書き出し＋`no-store` 配信なので、画面に
                         // 入るたびに行き先を丸ごと落とし直す）
+                        <Link
                             href={collectionPath("category", slugify(photo.category, "category"))}
                             prefetch={false}
                             className="inline-flex items-center px-2.5 py-1 rounded-full bg-white/10 ring-1 ring-white/10 text-xs text-white/70 hover:bg-white/20 hover:text-white transition-colors"

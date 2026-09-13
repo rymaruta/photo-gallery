@@ -326,7 +326,7 @@ function SignupForm() {
 
                         <p className="text-center text-xs text-white/50 pt-2">
                             すでにアカウントをお持ちの方は{" "}
-                            <Link href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login"} className="text-white/60 hover:text-white underline transition-colors">
+                            <Link href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login"} prefetch={false} className="text-white/60 hover:text-white underline transition-colors">
                                 ログイン
                             </Link>
                         </p>
@@ -400,6 +400,7 @@ function SignupForm() {
                         </p>
                         <Link
                             href={loginHref}
+                            prefetch={false}
                             className="block w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 active:scale-[0.98] transition text-center"
                         >
                             ログインする

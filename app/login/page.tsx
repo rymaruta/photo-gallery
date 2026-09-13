@@ -215,6 +215,7 @@ function LoginForm() {
                         <p className="text-amber-300/80 mb-2 text-xs">確認コードのメールが届いているか確認してください。</p>
                         <Link
                             href={`/signup?email=${encodeURIComponent(username)}`}
+                            prefetch={false}
                             className="text-amber-300 hover:text-amber-200 underline text-xs transition-colors"
                         >
                             確認コードを入力・再送する →
@@ -281,7 +282,7 @@ function LoginForm() {
                                 共有リンクから来た未登録の人は、ここを押した
                                 時点で行き先を失う（登録を終えると自分の空
                                 プロフィールに着地する） */}
-                            <Link href={nextPath ? `/signup?next=${encodeURIComponent(nextPath)}` : "/signup"} className="text-white/60 hover:text-white underline transition-colors">
+                            <Link href={nextPath ? `/signup?next=${encodeURIComponent(nextPath)}` : "/signup"} prefetch={false} className="text-white/60 hover:text-white underline transition-colors">
                                 新規登録
                             </Link>
                         </p>
