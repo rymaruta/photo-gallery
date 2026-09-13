@@ -242,3 +242,82 @@ describe("題・撮影地・カテゴリの上限が、全部の書き場所で�
     });
 });
 
+/**
+ * **@ユーザー名の規則は4か所にあった。**
+ *
+ *     api-user/src/userProfile.ts  USERNAME_RE（正）
+ *     api-user/src/userSearch.ts   **手で写した同じ正規表現**
+ *     app/user/profile/page.tsx    説明の文（日本語・英語）
+ *
+ * `userSearch.ts` は**同じパッケージ**なのに import せず写していた。
+ * 規則を広げた日にここだけ古いままになり、新しい綴りの人は予約行
+ * （`username#<名>`）を持っているのに「@名の完全一致」の経路へ入れず、
+ * **@名で探しても出てこない**（Scan のふるいに落ちる）。写しは撤去したので、
+ * 残りは「画面の説明文と規則が同じことを言っているか」を縛る。
+ */
+describe("@ユーザー名の規則は、サーバーと画面の説明で同じ", () => {
+    const server = read("api-user/src/userProfile.ts");
+    const search = read("api-user/src/userSearch.ts");
+    const screen = read("app/user/profile/page.tsx");
+
+    const bounds = () => {
+        const m = /export const USERNAME_RE = \/\^\[a-z0-9_\]\{(\d+),(\d+)\}\$\//.exec(server);
+        expect(m, "USERNAME_RE を読めていない").not.toBeNull();
+        return [Number(m![1]), Number(m![2])] as const;
+    };
+
+    it("読めた下限・上限が正の値である", () => {
+        const [lo, hi] = bounds();
+        expect(lo).toBeGreaterThan(0);
+        expect(hi).toBeGreaterThan(lo);
+    });
+
+    it("画面の説明が、規則と同じ長さを言っている", () => {
+        const [lo, hi] = bounds();
+        expect(screen, `日本語の説明が ${lo}〜${hi} と言っていない`).toContain(`${lo}〜${hi}文字`);
+        expect(screen, `英語の説明が (${lo}-${hi}) と言っていない`).toContain(`(${lo}-${hi})`);
+    });
+
+    // **写しを作り直させない。** 同じパッケージなので import できる
+    it("@名の検索は、規則を写さず import している", () => {
+        expect(search, "userSearch.ts に正規表現の写しが戻っている")
+            .not.toMatch(/\/\^\[a-z0-9_\]\{\d+,\d+\}\$\//);
+        expect(search, "USERNAME_RE を使っていない").toContain("USERNAME_RE");
+    });
+
+    // 画面の入力欄の maxLength が規則の上限を超えていない
+    // （超えていると、打てるのに保存で必ず断られる）
+    it("入力欄の maxLength が規則の上限を超えない", () => {
+        const [, hi] = bounds();
+        const m = /id="profile-username"[\s\S]{0,1500}?maxLength=\{(\d+)\}/.exec(screen);
+        expect(m, "ユーザー名の欄の maxLength を読めていない").not.toBeNull();
+        expect(Number(m![1]), "打てるのに保存できない長さがある").toBeLessThanOrEqual(hi);
+    });
+});
+
+/**
+ * **プレイリストの曲数も4か所にあった**（画面のガード・日本語の文言・
+ * 英語の文言・サーバーの切り詰め）。増やすと「画面では6曲目を足せるのに
+ * サーバーが黙って5曲に切る」＝保存は成功して、開くと1曲無い形になる。
+ */
+describe("プレイリストの曲数は、画面とサーバーで同じ", () => {
+    const server = () => numberIn("api-user/src/userProfile.ts",
+        /export const PROFILE_SONGS_MAX = (\d+);/, "サーバーの曲数");
+    const screen = read("app/user/profile/page.tsx");
+
+    it("読めた数字が正の値である", () => {
+        expect(server()).toBeGreaterThan(0);
+    });
+
+    it("切り詰めが定数を使っている（数字を直書きしていない）", () => {
+        expect(read("api-user/src/userProfile.ts"), "slice に数字を直書きしている")
+            .toContain("body.songs.slice(0, PROFILE_SONGS_MAX)");
+    });
+
+    it("画面のガードと文言が、同じ数字を言っている", () => {
+        const n = server();
+        expect(screen, `画面のガードが ${n} になっていない`).toContain(`cur.length >= ${n}`);
+        expect(screen, `日本語の文言が ${n} 曲と言っていない`).toContain(`${n}曲までです`);
+        expect(screen, `英語の文言が ${n} と言っていない`).toContain(`Up to ${n} songs`);
+    });
+});

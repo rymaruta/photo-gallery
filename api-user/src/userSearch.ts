@@ -9,6 +9,7 @@ import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { JSON_HEADERS } from "./http";
 import { requireEnv } from "./env";
 import { isDeletedProfile } from "./types";
+import { USERNAME_RE } from "./userProfile";
 import { truncate } from "./sanitize";
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
@@ -122,8 +123,12 @@ export const searchUsers: APIGatewayProxyHandlerV2 = async (event) => {
     try {
         const hits = new Map<string, { hit: UserSearchHit; score: number }>();
 
-        // @ユーザー名の完全一致は予約アイテムから直接引ける（スキャン不要・確実）
-        if (/^[a-z0-9_]{3,20}$/.test(q)) {
+        // @ユーザー名の完全一致は予約アイテムから直接引ける（スキャン不要・確実）。
+        // **規則は `userProfile.ts` の `USERNAME_RE` を使う。** ここに手で
+        // 写していたので、@名の決め方を広げた日に**この経路だけ古い規則のまま**
+        // になる——新しい綴りの人は予約行（`username#<名>`）を持っているのに
+        // この確実な引き方に入れず、Scan のふるいに落ちる（= @名で探せない）。
+        if (USERNAME_RE.test(q)) {
             const res = await ddb.send(new GetItemCommand({
                 TableName: USERS_TABLE,
                 Key: marshall({ userId: `username#${q}` }),
