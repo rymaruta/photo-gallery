@@ -15,6 +15,7 @@ import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
 import { toastWithStaticPage } from "../../../lib/utils/staticPage";
 import { sessionErrorMessage } from "../../../lib/utils/api";
+import CropFramePicker, { type FocalPoint } from "../../components/CropFramePicker";
 import { dropCachedPhoto } from "../../../lib/utils/photoCache";
 import { toDateInputValue, mergeDate, todayForDateInput, PHOTO_DATE_MIN } from "../../../lib/utils/dateInput";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
@@ -248,6 +249,13 @@ function EditContent() {
      */
     const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
     /**
+     * 一覧（正方形）での切り抜き位置。**`null` は「中央」**（属性を持たない）。
+     * アップロード時だけでなくここでも直せないと、既にある写真は一生
+     * 中央のままになる——読む側は前からこれを見ていたのに、書く口が
+     * どこにも無かったのが元の状態
+     */
+    const [focalPoint, setFocalPoint] = useState<FocalPoint | null>(null);
+    /**
      * **本人がこの画面で位置を触ったか。**
      *
      * 触ったなら、値が保存済みと同じでも送る。機械が当てた座標
@@ -326,6 +334,7 @@ function EditContent() {
                             setDescription(descToText(found.description));
                             setLocation(found.location ?? "");
                             setCoords(found.coords ?? null);
+                            setFocalPoint(found.focalPoint ?? null);
                             setCategory(found.category ?? "");
                             // <input type="date"> は YYYY-MM-DD しか受け付けない。
                             // 保存値は ISO 文字列なので、そのまま入れると空欄になる。
@@ -422,6 +431,7 @@ function EditContent() {
             date: mergeDate(original?.date, date),
             tags,
             coords,
+            focalPoint,
         };
         // **比較先も同じ道を通す。** `changedFields` の相手は「保存されている姿」
         // ではなく「触らなかったらこの画面が送る姿」でなければならない。
@@ -440,9 +450,10 @@ function EditContent() {
             date: original?.date ?? "",
             tags: Array.isArray(original?.tags) ? original.tags : [],
             coords: original?.coords ?? null,
+            focalPoint: original?.focalPoint ?? null,
         };
         return { tags, nextDescription, nextFields, originalFields };
-    }, [original, title, description, location, category, date, tagsInput, coords]);
+    }, [original, title, description, location, category, date, tagsInput, coords, focalPoint]);
 
     /**
      * 保存していない変更があるか。
@@ -696,20 +707,43 @@ function EditContent() {
                     // 高さが 0 になる方は `w-full` の有無に関わらず同じだった）。
                     // 編集画面から「どの写真を触っているか」の手がかりが消える。
                     // 文言は写真ページ・モーダル・ストーリーと同じ
-                    imageError ? (
-                        <div className="w-full h-40 flex flex-col items-center justify-center gap-2 rounded-lg mb-3 bg-white/5 text-white/50">
-                            <PhotoIcon className="w-8 h-8" />
-                            <p className="text-xs">{isJa ? "画像を読み込めません" : "Couldn't load image"}</p>
-                        </div>
-                    ) : (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
+                    <div className="rounded-lg overflow-hidden mb-3">
+                        {/* **一覧に出る範囲をここで直せるようにした。**
+                            アップロード画面と同じ部品（`CropFramePicker`）。
+                            既にある写真は、ここが無いと一生中央のまま
+                            ——読む側は前からこの値を見ていたのに、書く口が
+                            どこにも無かった。
+
+                            **原本ではなくサムネを掴ませる。** 位置は割合で
+                            持つので、どちらを見ても結果は同じ。原本は数MB
+                            あり、編集画面を開くたびに落とすのは重い */}
+                        <CropFramePicker
                             src={photo.thumbSrc || photo.src}
-                            alt=""
-                            className="w-full max-h-64 object-contain rounded-lg mb-3 bg-white/5"
-                            onError={(e) => { setImageError(true); void dropCachedPhoto(e.currentTarget.currentSrc || e.currentTarget.src); }}
+                            hint={isJa ? "白い枠が一覧に表示されます（ドラッグで移動）" : "White frame = shown in the grid (drag to move)"}
+                            focalPoint={focalPoint ?? undefined}
+                            onChange={setFocalPoint}
+                            onLoadError={(el) => { setImageError(true); void dropCachedPhoto(el.currentSrc || el.src); }}
+                            fallback={
+                                <div className="w-full h-40 flex flex-col items-center justify-center gap-2 bg-white/5 text-white/50">
+                                    <PhotoIcon className="w-8 h-8" />
+                                    <p className="text-xs">{isJa ? "画像を読み込めません" : "Couldn't load image"}</p>
+                                </div>
+                            }
                         />
-                    )
+                    </div>
+                )}
+                {/* **中央に戻す口を置く。** 割合は0.5固定でなく「属性を持たない」
+                    に戻す——持たない写真と同じ形にしておかないと、あとから
+                    既定を変えたときに揃わない。動かしていなければ出さない */}
+                {photo.src && !imageError && focalPoint && (
+                    <button
+                        type="button"
+                        onClick={() => setFocalPoint(null)}
+                        className="mb-6 text-xs text-white/60 hover:text-white/90 underline decoration-white/30 underline-offset-2"
+                        style={{ touchAction: "manipulation" }}
+                    >
+                        {isJa ? "中央に戻す" : "Reset to center"}
+                    </button>
                 )}
                 {exifSummary && (
                     <p className="text-xs text-white/50 mb-6">{isJa ? "撮影情報（自動）: " : "EXIF (auto): "}{exifSummary}</p>

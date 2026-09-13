@@ -66,6 +66,14 @@ export function sanitizeExif(exif: unknown): Photo["exif"] {
  *
  * `null` を返すのは「値が無い／使えない」。呼び出し側は属性を書かない
  * （`coords` と同じ扱い）。
+ *
+ * **管理APIはまだ `focalPoint` を受け取らない**（画面が送らない）。ここに
+ * 置いてあるのは、このファイルの冒頭の約束——「api と api-user は別々に
+ * デプロイされるので、片方を直したらもう片方も直すこと」——を、
+ * 受け取るようになった日ではなく**いま**果たしておくため。
+ * `api-user/src/__tests__/focalPoint.test.ts` が両者の判定を突き合わせている。
+ * 管理APIの更新は項目ごとの部分更新（`updatePhotoFields`）なので、
+ * 受け取らない今でも**利用者が設定した値を消しはしない**（確認済み）。
  */
 export function sanitizeFocalPoint(fp: unknown): { x: number; y: number } | null {
     if (!fp || typeof fp !== "object") return null;
