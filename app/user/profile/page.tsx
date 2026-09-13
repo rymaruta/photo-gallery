@@ -23,6 +23,7 @@ import BlockedUsers from "./BlockedUsers";
 import SongArtwork from "../../components/SongArtwork";
 import { loginWithNext } from "../../../lib/routes";
 import { publicImageUrl } from "@/lib/utils/seo";
+import SongSearchError from "../../components/SongSearchError";
 
 type SongEntry = {
     title: string;
@@ -964,9 +965,7 @@ export default function ProfileEditPage() {
                                 </div>
 
                                 {searchError && (
-                                    <p className="text-xs text-amber-400/80">
-                                        {locale === "en" ? "Search failed. Try again." : "検索に失敗しました。もう一度お試しください。"}
-                                    </p>
+                                    <SongSearchError />
                                 )}
 
                                 {songResults.length > 0 && (

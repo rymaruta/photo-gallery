@@ -41,6 +41,7 @@ import { useSongSearch } from "../../../lib/hooks/useSongSearch";
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import { sessionErrorMessage } from "../../../lib/utils/api";
 import { publicImageUrl } from "@/lib/utils/seo";
+import SongSearchError from "../../components/SongSearchError";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -984,9 +985,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                         </button>
                                     </div>
                                     {songSearchError && (
-                                        <p className="text-xs text-amber-400/80">
-                                            {locale === "en" ? "Search failed. Try again." : "検索に失敗しました。もう一度お試しください。"}
-                                        </p>
+                                        <SongSearchError />
                                     )}
                                     {songResults.length > 0 && (
                                         <ul className="rounded-lg ring-1 ring-white/10 divide-y divide-white/5 overflow-hidden max-h-56 overflow-y-auto no-scrollbar">
