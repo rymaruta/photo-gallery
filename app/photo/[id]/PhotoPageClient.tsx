@@ -225,7 +225,12 @@ function PhotoImage({
                     `CLOUDFRONT_URL` を土台にする）ので、そのまま描くとサイトのドメインと
                     2つのホストに割れる。**呼ぶ側ではなく部品の中で揃える**——ここは
                     検索の着地点の LCP で、AVIF を出す端末が実際に取りに行くのは
-                    `<source>` の方。呼ぶ側で `src` だけ包んでいた間、AVIF は生のままだった */}
+                    `<source>` の方。呼ぶ側で `src` だけ包んでいた間、AVIF は生のままだった。
+                    ⚠️ **手元のビルドでは確かめられない**——コミットしてある
+                    `app/data/photos.json` は古い断面で、30枚すべて派生
+                    （`srcAvif`・`thumbSrc` …）を持たないので `<source>` が1つも出ない。
+                    本番に派生が揃っていることは 2026-09-05 の `diagnose-image-perf`
+                    の実測（公開32枚すべてにサムネ・AVIF3種）による */}
                 <picture className="w-full flex items-center justify-center">
                     {srcAvif && <source type="image/avif" srcSet={publicImageUrl(srcAvif)} />}
                     <img

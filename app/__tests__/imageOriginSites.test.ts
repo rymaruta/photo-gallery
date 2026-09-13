@@ -28,20 +28,65 @@ export const stripComments = (src: string): string =>
 
 type Sink = { file: string; expr: string };
 
-/** そのソースの中で、画像URLが実際にDOMへ渡る場所を全部拾う */
+/**
+ * 開きタグを**最後まで**切り出す。
+ *
+ * **「最初の `>` まで」では足りない。** `onError={(e) => …}` の `=>` に
+ * `>` が入っているので、`src` がその後ろにあるタグを**丸ごと見落とす**
+ * （レビューが実演: `<img onError={…} src={p.thumbSrc || p.src}>` を
+ *  生に戻しても全部緑だった）。このリポジトリの `<img>` は `onError` を
+ * 持つものが多く、**属性を並べ替えるだけで守りが消える**形だった。
+ * 波括弧の深さと引用符を見て、外側の `>` で切る。
+ */
+function tagChunk(src: string, start: number): string {
+    let depth = 0, quote = "";
+    for (let i = start; i < src.length; i++) {
+        const c = src[i];
+        if (quote) { if (c === quote && src[i - 1] !== "\\") quote = ""; continue; }
+        if (c === '"' || c === "'" || c === "`") { quote = c; continue; }
+        if (c === "{") depth++;
+        else if (c === "}") depth--;
+        else if (c === ">" && depth === 0) return src.slice(start, i + 1);
+    }
+    return src.slice(start);
+}
+
+/** `{` から対応する `}` までの中身（引用符の中の括弧は数えない） */
+function braced(src: string, open: number): string | null {
+    let depth = 0, quote = "";
+    for (let i = open; i < src.length; i++) {
+        const c = src[i];
+        if (quote) { if (c === quote && src[i - 1] !== "\\") quote = ""; continue; }
+        if (c === '"' || c === "'" || c === "`") { quote = c; continue; }
+        if (c === "{") depth++;
+        else if (c === "}") { depth--; if (depth === 0) return src.slice(open + 1, i); }
+    }
+    return null;
+}
+
+/**
+ * そのソースの中で、画像URLが実際にDOMへ渡る場所を全部拾う。
+ * `<Image>`（next/image）も数える——大文字のタグだけ外すと、そこが穴になる。
+ */
 export function imageSinks(raw: string, file: string): Sink[] {
     const src = stripComments(raw);
     const out: Sink[] = [];
-    for (const m of src.matchAll(/<(?:img|source|video)\b/g)) {
-        const start = m.index ?? 0;
-        const end = src.indexOf(">", start);
-        const chunk = src.slice(start, end < 0 ? src.length : end + 1);
-        for (const a of chunk.matchAll(/\b(?:src|srcSet)=\{([\s\S]*?)\}\s*(?=\n|\/>|>|[a-zA-Z-]+=)/g))
-            out.push({ file, expr: a[1].trim().replace(/\s+/g, " ") });
+    for (const m of src.matchAll(/<(?:img|source|video|Image)\b/g)) {
+        const chunk = tagChunk(src, m.index ?? 0);
+        // `src={…}` の中身は**波括弧の対応で切る**。「最初の `}` まで」だと
+        // `` {`${CLOUDFRONT_URL}/profiles/${id}`} `` で途中で切れ、逆に
+        // 後ろの形（`/>`・改行・次の属性）を要求すると、真偽値の属性
+        // （`<Image src={…} fill />`）の前で見落とす
+        for (const a of chunk.matchAll(/\b(?:src|srcSet)=\{/g)) {
+            const expr = braced(chunk, (a.index ?? 0) + a[0].length - 1);
+            if (expr !== null) out.push({ file, expr: expr.trim().replace(/\s+/g, " ") });
+        }
         for (const a of chunk.matchAll(/\b(?:src|srcSet)="([^"]*)"/g))
             out.push({ file, expr: `"${a[1]}"` });
     }
-    for (const a of src.matchAll(/\.src\s*=\s*([^\n;]+)/g))
+    // `img.src = …` の代入。**`===` を拾わない**（`typeof s.src === "string"` が
+    // 「代入」に見えていた）
+    for (const a of src.matchAll(/\.src\s*=(?!=)\s*([^\n;]+)/g))
         out.push({ file, expr: a[1].trim() });
     // 配信URLを自分で組み立てているところ（アバター・カバー）。
     // 変数に入れてから `<img>` に渡すので、上の3つでは追えない
@@ -79,6 +124,7 @@ const EXEMPT: Array<[string, string, string]> = [
     ["app/user/upload/page.tsx", "avatarPreview", "選んだ直後の data: URL"],
     ["app/user/upload/page.tsx", "src", "切り抜きプレビュー（blob: URL を受け取る部品）"],
     ["app/users/UserProfileClient.tsx", "qrDataUrl", "QRコードは data: URL"],
+    ["lib/utils/image.ts", "url", "圧縮の前に読む `URL.createObjectURL(file)`（端末の中だけ）"],
 
     // (c) 同じ部品の中で既に通している（描画で見るテストが対）
     ["app/components/Thumb.tsx", "fallback", "`publicImageUrl(photo.thumbSrc || photo.src)` を入れた変数"],
@@ -88,6 +134,7 @@ const EXEMPT: Array<[string, string, string]> = [
     ["app/user/profile/page.tsx", "currentCoverUrl", "組み立てるところで通している"],
     ["app/user/profile/page.tsx", "currentAvatarUrl", "組み立てるところで通している"],
     ["app/users/UserProfileClient.tsx", "coverUrl", "組み立てるところで通している"],
+    ["lib/hooks/useImagePreloader.ts", "url", "`preloadImage` の入口で通している（`useImagePreloader.test.ts` が描画側で見る）"],
 ];
 
 const walk = (dir: string): string[] => {
@@ -101,9 +148,17 @@ const walk = (dir: string): string[] => {
     return out;
 };
 
+/**
+ * **`lib/` も走査する。** 最初は `app/` だけ見ていて、
+ * `lib/hooks/useImagePreloader.ts` の `img.src = src`（先読み）を
+ * 取りこぼした——画面に出す側だけ揃えた結果、**同じ写真を2つのURLで
+ * 落とす**状態を作っていた（レビューが実測）。入口は部品の外にもある。
+ */
+const ROOTS = ["app", "lib"];
+
 const allSinks = (): Sink[] => {
     const out: Sink[] = [];
-    for (const f of walk(nodePath.join(process.cwd(), "app"))) {
+    for (const f of ROOTS.flatMap((r) => walk(nodePath.join(process.cwd(), r)))) {
         const rel = nodePath.relative(process.cwd(), f).split(nodePath.sep).join("/");
         out.push(...imageSinks(nodeFs.readFileSync(f, "utf8"), rel));
     }
@@ -161,6 +216,26 @@ describe("画面に描く画像URLは、サイトのドメインに揃える", (
             expect(imageSinks(build, "x.tsx").map((s) => s.expr)).toEqual([build]);
             const wrapped = 'const u = publicImageUrl(`${CLOUDFRONT_URL}/profiles/${id}`);';
             expect(imageSinks(wrapped, "x.tsx").filter((s) => !s.expr.includes("publicImageUrl"))).toEqual([]);
+        });
+
+        // **`=>` の `>` でタグを切らない。** ここが「最初の `>` まで」だった間、
+        // `onError` を先に書いた `<img>` が**丸ごと見落とされていた**
+        // （このリポジトリの `<img>` はほとんどが `onError` を持つ）
+        it("`onError={(e) => …}` の後ろにある src も数える", () => {
+            const src = `<img\n  onError={(e) => { e.currentTarget.style.opacity = "0"; }}\n  src={p.thumbSrc || p.src}\n/>`;
+            expect(imageSinks(src, "x.tsx").map((s) => s.expr)).toEqual(["p.thumbSrc || p.src"]);
+        });
+
+        it("next/image の `<Image>` も数える", () => {
+            const src = `<Image src={photo.thumbSrc ?? photo.src} fill />`;
+            expect(imageSinks(src, "x.tsx").map((s) => s.expr)).toEqual(["photo.thumbSrc ?? photo.src"]);
+        });
+
+        // `typeof s.src === "string"` を「代入」と読んでいた（`lib/` を
+        // 走査対象に足した日に、実在しない入口として1件出た）
+        it("`.src ===` の比較は代入と読まない", () => {
+            const src = `if (typeof s.src === "string" && s.src) return s.src;`;
+            expect(imageSinks(src, "x.tsx")).toEqual([]);
         });
 
         it("`https://` の `//` をコメントと読み違えない", () => {
