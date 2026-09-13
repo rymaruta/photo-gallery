@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import GalleryGrid from "./GalleryGrid";
+import { GRID_SIZES_6XL } from "./gridSizes";
 import { useLocale } from "../i18n/context";
 import type { Photo } from "@/lib/data/photos";
 import type { CollectionType } from "@/lib/utils/collections";
@@ -46,7 +47,7 @@ export default function CollectionPageClient({ photos, heading, description, bre
                 <span className="ml-1 whitespace-nowrap text-white/50">（{photos.length}枚）</span>
             </p>
 
-            <GalleryGrid photos={photos} locale={locale} />
+            <GalleryGrid photos={photos} locale={locale} sizes={GRID_SIZES_6XL} />
 
             {/* **写真が少ないページにだけ。** 1枚だけのページは、それ自体は
                 このサイトにしか無い写真でも「見るものが1つ」で終わる。
@@ -56,7 +57,7 @@ export default function CollectionPageClient({ photos, heading, description, bre
                     <h2 className="text-sm font-semibold text-white/70 mb-3">
                         {locale === "en" ? "You might also like" : "ほかにこんな写真も"}
                     </h2>
-                    <GalleryGrid photos={nearby} locale={locale} />
+                    <GalleryGrid photos={nearby} locale={locale} sizes={GRID_SIZES_6XL} />
                 </section>
             )}
 

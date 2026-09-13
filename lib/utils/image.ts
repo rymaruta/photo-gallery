@@ -1,4 +1,64 @@
 /**
+ * EXIF の**向き**（IFD0 / tag 0x0112）だけを読む。読めなければ `undefined`。
+ *
+ * ここで読むのは値1つだけで、**元のバイトは1つも持ち出さない**。
+ * GPS を含む他のタグには触れない。
+ */
+function readOrientationFromApp1(buf: Uint8Array, payloadStart: number, segEnd: number): number | undefined {
+    const EXIF = [0x45, 0x78, 0x69, 0x66, 0x00, 0x00]; // "Exif\0\0"
+    if (payloadStart + EXIF.length > segEnd) return undefined;
+    for (let k = 0; k < EXIF.length; k++) if (buf[payloadStart + k] !== EXIF[k]) return undefined;
+    const tiff = payloadStart + EXIF.length;
+    if (tiff + 8 > segEnd) return undefined;
+    const be = buf[tiff] === 0x4D && buf[tiff + 1] === 0x4D;
+    const le = buf[tiff] === 0x49 && buf[tiff + 1] === 0x49;
+    if (!be && !le) return undefined;
+    const u16 = (q: number) => (be ? (buf[q] << 8) | buf[q + 1] : (buf[q + 1] << 8) | buf[q]);
+    const u32 = (q: number) => (be
+        ? ((buf[q] << 24) | (buf[q + 1] << 16) | (buf[q + 2] << 8) | buf[q + 3]) >>> 0
+        : ((buf[q + 3] << 24) | (buf[q + 2] << 16) | (buf[q + 1] << 8) | buf[q]) >>> 0);
+    if (u16(tiff + 2) !== 42) return undefined;
+    const ifd = tiff + u32(tiff + 4);
+    if (ifd < tiff || ifd + 2 > segEnd) return undefined;
+    const count = u16(ifd);
+    for (let n = 0; n < count; n++) {
+        const e = ifd + 2 + n * 12;
+        if (e + 12 > segEnd) return undefined;
+        if (u16(e) !== 0x0112) continue;
+        if (u16(e + 2) !== 3) return undefined; // SHORT 以外は読まない
+        if (u32(e + 4) !== 1) return undefined; // 個数が1でなければ、値の欄はオフセット
+        const v = u16(e + 8);                   // SHORT は4バイト領域の先頭に入る
+        return v >= 1 && v <= 8 ? v : undefined;
+    }
+    return undefined;
+}
+
+/**
+ * **向きだけを持つ APP1 をゼロから組み立てる。** 元のファイルのバイトは
+ * 1つも運ばないので、GPS が紛れ込む余地が無い（運ぶのは 1〜8 の数値1つだけ）。
+ *
+ * 36バイト固定:
+ *   FF E1 00 22                     APP1・長さ34（長さ欄自身を含む）
+ *   "Exif\0\0"                      6
+ *   4D 4D 00 2A 00 00 00 08         TIFF ヘッダ（ビッグエンディアン・IFD0 は +8）
+ *   00 01                           IFD0 のエントリ数 = 1
+ *   01 12 00 03 00 00 00 01         tag=Orientation / type=SHORT / count=1
+ *   00 vv 00 00                     値（SHORT は4バイト領域の先頭2バイト）
+ *   00 00 00 00                     次の IFD は無し
+ */
+function buildOrientationApp1(orientation: number): Uint8Array {
+    return new Uint8Array([
+        0xFF, 0xE1, 0x00, 0x22,
+        0x45, 0x78, 0x69, 0x66, 0x00, 0x00,
+        0x4D, 0x4D, 0x00, 0x2A, 0x00, 0x00, 0x00, 0x08,
+        0x00, 0x01,
+        0x01, 0x12, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01,
+        0x00, orientation & 0xFF, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+    ]);
+}
+
+/**
  * JPEG から EXIF（APP1）/ IPTC（APP13）セグメントをバイトレベルで除去する。
  * canvas 圧縮が失敗して元ファイルをアップロードするフォールバック時に、
  * GPS 位置情報などのメタデータが公開されるのを防ぐ。
@@ -7,7 +67,10 @@
  * 「新しい File が返ってきた＝消せた」と見なしてはいけない——
  * 走査が途中で止まると、中身が同じ新しい File が返る（下記 fill byte の件）。
  */
-export async function stripJpegExifDetailed(file: File): Promise<{ file: File; stripped: boolean }> {
+export async function stripJpegExifDetailed(
+    file: File,
+    opts: { keepOrientation?: boolean } = {},
+): Promise<{ file: File; stripped: boolean; orientation?: number }> {
     if (file.type !== "image/jpeg") return { file, stripped: false };
     try {
         const buf = new Uint8Array(await file.arrayBuffer());
@@ -15,6 +78,7 @@ export async function stripJpegExifDetailed(file: File): Promise<{ file: File; s
         if (buf.length < 4 || buf[0] !== 0xFF || buf[1] !== 0xD8) return { file, stripped: false };
 
         const parts: Uint8Array[] = [buf.slice(0, 2)];
+        let orientation: number | undefined;
         let i = 2;
         while (i + 4 <= buf.length) {
             if (buf[i] !== 0xFF) break; // 壊れた構造 — 以降はそのまま保持
@@ -43,6 +107,9 @@ export async function stripJpegExifDetailed(file: File): Promise<{ file: File; s
             // APP1 (Exif/XMP) と APP13 (IPTC) を除去、それ以外は保持
             if (marker !== 0xE1 && marker !== 0xED) {
                 parts.push(buf.slice(i, segEnd));
+            } else if (marker === 0xE1 && orientation === undefined) {
+                // 落とす前に**向きだけ**控える（値1つ。バイトは持ち出さない）
+                orientation = readOrientationFromApp1(buf, segStart + 2, segEnd);
             }
             i = segEnd;
         }
@@ -54,10 +121,17 @@ export async function stripJpegExifDetailed(file: File): Promise<{ file: File; s
             return { file, stripped: false };
         }
 
+        // **向きは戻す。** 落とした APP1 には Orientation も入っていて、
+        // 消しただけだと**縦位置の写真が横向きで公開される**（実測は
+        // `imageOrientation.test.ts` の冒頭に書いた）。戻すのは組み立て直した
+        // 36バイトで、元のバイトは1つも含まない。
+        if (opts.keepOrientation && orientation !== undefined && orientation >= 2 && orientation <= 8) {
+            parts.splice(1, 0, buildOrientationApp1(orientation)); // parts[0] は SOI
+        }
         const out = new File([new Blob(parts as BlobPart[], { type: "image/jpeg" })], file.name, { type: "image/jpeg" });
         // メタデータが元から無かった場合も「安全な状態」として扱う。
-        // 走査は SOS まで到達しているので、APP1 は存在しない。
-        return { file: out, stripped: true };
+        // 走査は SOS まで到達しているので、元の APP1 は存在しない。
+        return { file: out, stripped: true, orientation };
     } catch {
         return { file, stripped: false };
     }
@@ -268,7 +342,7 @@ export async function toUploadSafeFile(file: File, maxPx = 1920, quality = 0.85)
         if (!img) throw new UnstrippableFileError(file.type, "undecodable");
         const pixels = (img.naturalWidth || img.width) * (img.naturalHeight || img.height);
         if (pixels > MAX_UPLOAD_PIXELS) throw new UnstrippableFileError(file.type, "too-many-pixels");
-        const { file: out, stripped: ok } = await stripJpegExifDetailed(file);
+        const { file: out, stripped: ok } = await stripJpegExifDetailed(file, { keepOrientation: true });
         if (ok) return out;
     }
 

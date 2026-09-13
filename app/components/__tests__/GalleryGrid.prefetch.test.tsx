@@ -27,6 +27,7 @@ vi.mock("next/link", () => ({
 }));
 
 const GalleryGrid = (await import("../GalleryGrid")).default;
+const { GRID_SIZES_5XL } = await import("../gridSizes");
 
 const photo = (id: string): Photo => ({
     id, src: `https://cdn.example.com/uploads/${id}.jpg`, title: { ja: "写真" }, tags: [],
@@ -35,7 +36,7 @@ const photo = (id: string): Photo => ({
 describe("一覧のカードの先読み", () => {
     it("カードのリンクは先読みしない", () => {
         linkProps.list.length = 0;
-        render(<GalleryGrid photos={[photo("a"), photo("b")]} locale="ja" />);
+        render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={[photo("a"), photo("b")]} locale="ja" />);
         const cards = linkProps.list.filter((p) => p["data-photo-id"]);
         expect(cards.length, "カードのリンクを見つけられていない").toBe(2);
         for (const c of cards) {
