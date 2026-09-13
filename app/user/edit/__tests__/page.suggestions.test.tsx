@@ -107,4 +107,17 @@ describe("入力候補", () => {
         await screen.findByDisplayValue("夜景");
         expect(screen.getByRole("group", { name: "よく使うタグ" }), "何のスイッチか分からない").toBeInTheDocument();
     });
+
+    // **打ちかけの文字で候補を絞る**（この画面の配線。`suggestTags` の
+    // 単体だけだと、画面が絞りを使っていない変異が素通りする）
+    it("打ちかけの文字で候補を絞る", async () => {
+        render(<EditPage />);
+        const tags = (await screen.findByDisplayValue("夜景")) as HTMLInputElement;
+        expect(await screen.findByRole("switch", { name: "街" })).toBeInTheDocument();
+
+        await userEvent.clear(tags);
+        await userEvent.type(tags, "夜");
+        await waitFor(() => expect(screen.queryByRole("switch", { name: "街" }), "絞れていない").toBeNull());
+        expect(screen.getByRole("switch", { name: "夜景" })).toBeInTheDocument();
+    });
 });
