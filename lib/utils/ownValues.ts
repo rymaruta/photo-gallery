@@ -92,6 +92,9 @@ function collectTags(photos: readonly Photo[], limit: number): string[] {
         .slice(0, limit);
 }
 
+/** 候補として持っておくタグの数（画面に出す数ではない。`suggestTags` を参照） */
+export const TAG_POOL_MAX = 200;
+
 export function collectOwnValues(photos: readonly Photo[] | null | undefined, limit = 30): OwnValues {
     const loc = new Map<string, number>();
     const cat = new Map<string, number>();
@@ -110,7 +113,11 @@ export function collectOwnValues(photos: readonly Photo[] | null | undefined, li
     return {
         locations: byFrequency(loc).slice(0, limit),
         categories: byFrequency(cat).slice(0, limit),
-        tags: collectTags(photos ?? [], limit),
+        // **タグだけプールを広く持つ。** 画面は打ちかけの文字で絞ってから
+        // 12個だけ出す（`suggestTags`）ので、ここで30に切ると
+        // **絞っても30種までしか届かない**（実データ62種で 30/62）。
+        // 上限そのものは残す——1人のタグが際限なく増えたときの歯止め
+        tags: collectTags(photos ?? [], TAG_POOL_MAX),
     };
 }
 
@@ -180,4 +187,51 @@ export function toggleTag(current: string, tag: string): string {
         .filter(Boolean)
         .filter((x) => tagKey(x) !== key)
         .join(", ");
+}
+
+/**
+ * 候補のタグを、**打ちかけの文字で絞る**。
+ *
+ * チップの枠は12個だが、owner のタグは実データで **62種**ある。
+ * 何も打たないと上位12種しか選べず、**残り50種（81%）は打つしかない**
+ * ——そして打つから表記が割れる（このサイトの弱点は「索引に載るタグ8種の
+ * うち日本語は1種」で、割れはそこを直接悪くする）。
+ *
+ * 打ちかけの文字で絞ると、実データでこうなる（`app/data/photos.json` の
+ * 62種で、この関数を実際に走らせて数えた）:
+ *
+ *     何も打たずに選べる        12 / 62
+ *     打ち切る手前で候補に出る  **61 / 62**
+ *
+ * （「打ち切る手前」で見るのは、全部打てば当然その文字列になるから
+ *   ——チップの値打ちは**打ち終わる前に出る**ことにある。届かない1つは
+ *   `trees`：`tree` と打った時点で `tree` 自身が候補と丸ごと一致して
+ *   絞りが解ける。そのとき出るのは既に使っている `tree` の方で、
+ *   綴りを増やさない向きではある）
+ *
+ * **新しい語彙も新しい部品も要らない。** 出す順番（よく使う順 → 最近使った順）
+ * はそのままで、並びを絞るだけ。
+ *
+ * 見るのは**最後のカンマから後ろ**（`"自然, 山"` と書いている途中なら `山`）。
+ * 突き合わせは生の文字と `tagKey` の両方——`風` と打てば `風景` に当たり、
+ * `風景` と打てば別名表を通って `landscape` にも当たる。
+ *
+ * 一致が無ければ**空にする**（関係ない候補を並べない）。
+ */
+export function suggestTags(all: readonly string[], current: string, limit = 12): string[] {
+    const frag = (current.split(",").pop() ?? "").trim();
+    if (!frag) return all.slice(0, limit);
+    const key = tagKey(frag);
+    // **打ち終わったら絞りを解く。** 最後の欠片が候補と**丸ごと同じ**なら、
+    // それは「打ちかけ」ではなく「選び終えた1つ」。絞ったままだと、
+    // チップを1つ押した瞬間に欄が `夜景` になって**他の候補が全部消え**、
+    // 2つ目をカンマから打ち直すことになる（実際それで既存のテストが落ちた）
+    if (all.some((t) => tagKey(t) === key)) return all.slice(0, limit);
+    const raw = frag.toLowerCase().replace(/^#+/, "");
+    return all
+        .filter((t) => {
+            const r = t.toLowerCase().replace(/^#+/, "");
+            return r.includes(raw) || (!!key && tagKey(t).includes(key));
+        })
+        .slice(0, limit);
 }

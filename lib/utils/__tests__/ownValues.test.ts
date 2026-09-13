@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { collectOwnValues, appendTag, toggleTag, hasTag } from "../ownValues";
+import { collectOwnValues, appendTag, toggleTag, hasTag, suggestTags, TAG_POOL_MAX } from "../ownValues";
 import type { Photo } from "../../data/photos";
 
 const P = (over: Partial<Photo>) => ({ id: "x", src: "s", ...over }) as Photo;
@@ -243,10 +243,23 @@ describe("タグの候補: 上限と、複数枚に付いたタグの時刻", ()
     });
 
     // 上限は撮影地では縛ってあったが、**タグでは見ていなかった**
-    // （実データで上限に届くのはタグだけ＝ここが本番）
+    // （実データで上限に届くのはタグだけ＝ここが本番）。
+    //
+    // **数は 30 → `TAG_POOL_MAX` に変えた。** 画面は打ちかけの文字で
+    // 絞ってから12個だけ出す（`suggestTags`）ので、ここで30に切ると
+    // **絞っても30種までしか届かない**（実データ62種で 30/62）。
+    // 見ている性質——**際限なく返さない**——は変えていない。
     it("タグも上限で切る", () => {
-        const photos = Array.from({ length: 40 }, (_, i) => P({ tags: [`tag${i}`] }));
-        expect(collectOwnValues(photos).tags).toHaveLength(30);
+        const photos = Array.from({ length: TAG_POOL_MAX + 10 }, (_, i) => P({ tags: [`tag${i}`] }));
+        expect(collectOwnValues(photos).tags).toHaveLength(TAG_POOL_MAX);
+    });
+
+    // **撮影地・カテゴリの上限は変えていない**（あちらは datalist で
+    // 全部出るので、広げると候補の一覧が長くなるだけ）
+    it("撮影地とカテゴリの上限は 30 のまま", () => {
+        const photos = Array.from({ length: 40 }, (_, i) => P({ location: `場所${i}`, category: `cat${i}` }));
+        expect(collectOwnValues(photos).locations).toHaveLength(30);
+        expect(collectOwnValues(photos).categories).toHaveLength(30);
     });
 });
 
@@ -312,5 +325,64 @@ describe("toggleTag（押し直したら外れる）", () => {
     // そのまま返す性質（空白の入れ方を勝手に直さない）を壊さない
     it("足す側の空白の扱いは変えない", () => {
         expect(toggleTag("自然,山", "海")).toBe("自然, 山, 海");
+    });
+});
+
+/**
+ * **打ちかけの文字で候補を絞る。**
+ *
+ * チップの枠は12個だが、owner のタグは実データで62種——何も打たないと
+ * 上位12種しか選べず、**残り50種（81%）は打つしかない**。打つから表記が
+ * 割れる。絞れば実データで **2文字で62種すべてが12枠に入る**。
+ */
+describe("suggestTags（打ちかけの文字で絞る）", () => {
+    const all = ["finland", "winter", "helsinki", "風景", "夜景", "山中湖", "sauna"];
+
+    it("何も打っていなければ、よく使う順のまま上から出す", () => {
+        expect(suggestTags(all, "", 3)).toEqual(["finland", "winter", "helsinki"]);
+        expect(suggestTags(all, "夜景, ", 3), "カンマの後ろは空として扱う").toEqual(["finland", "winter", "helsinki"]);
+    });
+
+    // **打ち終わったら絞りを解く。** チップを1つ押すと欄は `夜景` になる
+    // ——そこで絞ったままだと**他の候補が全部消えて**、2つ目をカンマから
+    // 打ち直すことになる（続けて選べない）
+    it("最後の欠片が候補と丸ごと同じなら、絞らない", () => {
+        expect(suggestTags(all, "夜景", 3), "1つ選んだら他が選べない").toEqual(["finland", "winter", "helsinki"]);
+        expect(suggestTags(all, "夜景, 山中湖", 3)).toEqual(["finland", "winter", "helsinki"]);
+        // 別名で書いても「選び終えた1つ」と見る
+        expect(suggestTags(["landscape", "夜景"], "風景", 3)).toEqual(["landscape", "夜景"]);
+    });
+
+    it("**最後のカンマから後ろ**で絞る（前に入れたタグに引きずられない）", () => {
+        expect(suggestTags(all, "fin")).toEqual(["finland"]);
+        expect(suggestTags(all, "夜景, hel"), "前のタグで絞っている").toEqual(["helsinki"]);
+    });
+
+    it("途中の文字でも当たる（前方一致に限らない）", () => {
+        expect(suggestTags(all, "inla"), "前方一致しか見ていない").toEqual(["finland"]);
+        expect(suggestTags(all, "中湖")).toEqual(["山中湖"]);
+    });
+
+    // **別名表を通した一致は、意図どおり**。`land` と打つと `finland` の
+    // ほかに `風景` も出る——このサイトは `風景` と `landscape` を同じタグと
+    // して畳むので（`tagKey`）、`land` は `landscape` の一部として当たる。
+    // 打った人が探しているのは「landscape のこと」で、既に使っている綴りが
+    // `風景` なら**それを出すのが正しい**（新しい綴りを増やさない）
+    it("別名表を通して、既に使っている綴りの方を出す", () => {
+        expect(suggestTags(all, "land")).toEqual(["finland", "風景"]);
+    });
+
+    it("大小と `#` は無視する", () => {
+        expect(suggestTags(all, "FIN")).toEqual(["finland"]);
+        expect(suggestTags(all, "#風")).toEqual(["風景"]);
+    });
+
+    it("一致が無ければ空（関係ない候補を並べない）", () => {
+        expect(suggestTags(all, "zzz")).toEqual([]);
+    });
+
+    it("絞ったあとも枠で切る", () => {
+        const many = Array.from({ length: 20 }, (_, i) => `tag${i}`);
+        expect(suggestTags(many, "tag", 12)).toHaveLength(12);
     });
 });

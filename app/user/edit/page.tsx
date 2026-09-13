@@ -2,7 +2,7 @@
 
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import { dedupeCameraName } from "../../../lib/utils/cameraName";
-import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef, Suspense } from "react";
 import { useBottomBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -23,7 +23,7 @@ import { useMemberGate } from "../../../lib/hooks/useMemberGate";
 import { useEscapeKey } from "../../../lib/hooks/useEscapeKey";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
-import { collectOwnValues, toggleTag, hasTag, type OwnValues } from "../../../lib/utils/ownValues";
+import { collectOwnValues, toggleTag, hasTag, suggestTags, type OwnValues } from "../../../lib/utils/ownValues";
 import { publicImageUrl } from "@/lib/utils/seo";
 
 const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
@@ -265,6 +265,11 @@ function EditContent() {
     const [category, setCategory] = useState("");
     const [date, setDate] = useState("");
     const [tagsInput, setTagsInput] = useState("");
+    // **候補は打ちかけの文字で絞る。** 枠は12個だが owner のタグは実データで
+    // 62種あり、絞らないと上位12種しか選べない（残り50種は打つしかない＝
+    // 打つから表記が割れる）。理由と実測は `suggestTags` に書いた
+    const tagSuggestions = useMemo(() => suggestTags(ownValues.tags, tagsInput), [ownValues.tags, tagsInput]);
+
     /**
      * `dirty`（下で計算する）を effect から読むための写し。
      * **依存に `dirty` を入れない**——入れると打鍵のたびに写真を取り直す
@@ -788,9 +793,9 @@ function EditContent() {
                             {/* タグはカンマ区切りなので datalist が効かない（欄全体を
                                 置き換えてしまう）。**押して選ぶチップにする**——押し直すと外れ、
                                 選んでいるものは白地で出す（一覧の絞り込みと同じ `role="switch"`）。 */}
-                            {ownValues.tags.length > 0 && (
+                            {tagSuggestions.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5 mt-1.5" role="group" aria-label={isJa ? "よく使うタグ" : "Your frequent tags"}>
-                                    {ownValues.tags.slice(0, 12).map((t) => {
+                                    {tagSuggestions.map((t: string) => {
                                         const on = hasTag(tagsInput, t);
                                         return (
                                             <button

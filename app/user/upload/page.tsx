@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, useRef, Suspense } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef, Suspense } from "react";
 import { useBottomBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PhotoIcon, XMarkIcon, UserCircleIcon, MapPinIcon, CalendarIcon, ChevronDownIcon, CheckCircleIcon, ExclamationTriangleIcon, CameraIcon } from "@heroicons/react/24/outline";
@@ -23,7 +23,7 @@ import { unstrippableMessage, gifRejectedMessage, gifRejectedLabel } from "../..
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import type { Photo, Locale } from "../../../lib/data/photos";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
-import { collectOwnValues, toggleTag, hasTag, type OwnValues } from "../../../lib/utils/ownValues";
+import { collectOwnValues, toggleTag, hasTag, suggestTags, type OwnValues } from "../../../lib/utils/ownValues";
 // 上限は lib/utils/uploadLimits.ts に置く（api-user 側と対。理由はあちらに書いた）
 import { PHOTO_LIMIT_PER_USER } from "../../../lib/utils/uploadLimits";
 import { publicImageUrl } from "@/lib/utils/seo";
@@ -365,6 +365,11 @@ function UploadPageInner() {
      * datalist で「前に何と書いたか」を出す。選ばずに自由入力もできる。
      */
     const [ownValues, setOwnValues] = useState<OwnValues>({ locations: [], categories: [], tags: [] });
+    // **候補は打ちかけの文字で絞る。** 枠は12個だが owner のタグは実データで
+    // 62種あり、絞らないと上位12種しか選べない（残り50種は打つしかない＝
+    // 打つから表記が割れる）。理由と実測は `suggestTags` に書いた
+    const tagSuggestions = useMemo(() => suggestTags(ownValues.tags, tags), [ownValues.tags, tags]);
+
     useEffect(() => {
         if (loading || !isAuthenticated) return;
         let aborted = false;
@@ -1160,9 +1165,9 @@ function UploadPageInner() {
                     {/* タグはカンマ区切りなので datalist が効かない（欄全体を
                         置き換えてしまう）。**押して選ぶチップにする**——押し直すと外れ、
                         選んでいるものは白地で出す（一覧の絞り込みと同じ `role="switch"`）。 */}
-                    {ownValues.tags.length > 0 && (
+                    {tagSuggestions.length > 0 && (
                         <div className="flex flex-wrap gap-1.5" role="group" aria-label={locale === "en" ? "Your frequent tags" : "よく使うタグ"}>
-                            {ownValues.tags.slice(0, 12).map((t) => {
+                            {tagSuggestions.map((t: string) => {
                                 const on = hasTag(tags, t);
                                 return (
                                     <button

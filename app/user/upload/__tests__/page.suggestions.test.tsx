@@ -174,4 +174,33 @@ describe("アップロード画面の入力候補", () => {
         await pickOne();
         expect(screen.getByRole("group", { name: "よく使うタグ" }), "何のスイッチか分からない").toBeInTheDocument();
     });
+
+    // **打ちかけの文字で候補を絞る。** 枠は12個だが owner のタグは62種——
+    // 絞らないと上位12種しか選べず、残りは打つしかない（打つから表記が割れる）
+    it("打ちかけの文字で候補を絞る", async () => {
+        await pickOne();
+        const field = screen.getByPlaceholderText("タグ（カンマ区切り）") as HTMLInputElement;
+        expect(await screen.findByRole("switch", { name: "街" })).toBeInTheDocument();
+
+        await userEvent.type(field, "夜");
+        expect(screen.getByRole("switch", { name: "夜景" })).toBeInTheDocument();
+        expect(screen.queryByRole("switch", { name: "街" }), "絞れていない").toBeNull();
+
+        // **最後のカンマから後ろで絞る**（前に入れたタグに引きずられない）
+        await userEvent.clear(field);
+        await userEvent.type(field, "夜景, 街x");
+        expect(screen.queryByRole("switch", { name: "夜景" }), "前のタグで絞っている").toBeNull();
+        expect(screen.queryByRole("switch", { name: "街" }), "打ちかけに当たらない候補が残っている").toBeNull();
+
+        // **打ち終わったら絞りを解く**（1つ選んだら、続けて2つ目を選べる）
+        await userEvent.clear(field);
+        await userEvent.type(field, "夜景");
+        expect(screen.getByRole("switch", { name: "街" }), "1つ選んだら他が選べない").toBeInTheDocument();
+        expect(screen.getByRole("switch", { name: "夜景" })).toHaveAttribute("aria-checked", "true");
+
+        // 一致が無ければ候補そのものを出さない（関係ないものを並べない）
+        await userEvent.clear(field);
+        await userEvent.type(field, "zzz");
+        expect(screen.queryByRole("group", { name: "よく使うタグ" }), "関係ない候補が残っている").toBeNull();
+    });
 });
