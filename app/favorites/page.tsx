@@ -8,6 +8,7 @@ import { usePhotos } from "../../lib/hooks/usePhotos";
 import GalleryGrid from "../components/GalleryGrid";
 import { useLocale } from "../i18n/context";
 import { capitalize } from "../../lib/utils/string";
+import { slugify } from "../../lib/utils/collections";
 
 export default function FavoritesPage() {
     const { locale, labels } = useLocale();
@@ -34,7 +35,10 @@ export default function FavoritesPage() {
         const map: Record<string, string> = {};
         const names = labels.category.names ?? {};
         for (const p of favoritePhotos) {
-            const k = (p.category ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
+            // **鍵の作り方は `slugify` に任せる。** ここで手書きに正規化すると
+            // 別名（建物 → architecture）が寄らず、表示名の表にも当たらない
+            // ——同じ規則がリポジトリに3通りある状態だった
+            const k = slugify((p.category ?? "").toString(), "category");
             if (k && !map[k]) {
                 map[k] = names[k] ?? capitalize(k.replace(/-/g, " "));
             }

@@ -22,7 +22,7 @@ import { useAuth } from "../../auth/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { shareUrl, copyToClipboard, shareToTwitter, shareToLine } from "../../../lib/utils/share";
 import { siteConfig, generatePhotoStructuredData, generateBreadcrumbStructuredData } from "../../../lib/utils/seo";
-import { slugify, collectionPath } from "../../../lib/utils/collections";
+import { slugify, collectionPath, categoryLabel } from "../../../lib/utils/collections";
 import ProfileLink from "../../components/ProfileLink";
 import RelatedPhotos from "../../components/RelatedPhotos";
 import CommentSection from "../../components/CommentSection";
@@ -673,7 +673,9 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     };
 
     // カテゴリ表示名の取得
-    const categoryDisplayName = photo ? (labels.category?.names?.[photo.category ?? ""] ?? photo.category ?? "") : "";
+    // **鍵はスラッグ。** 生の値で引くと、別名で保存された写真だけ
+    // 表に当たらず生のまま出る（「建物」と出して「建築の写真」へ飛ぶ）
+    const categoryDisplayName = photo ? categoryLabel(photo.category, labels.category?.names ?? {}) : "";
 
     return (
         <>

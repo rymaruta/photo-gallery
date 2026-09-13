@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { tagKey } from "@/lib/utils/collections";
+import { tagKey, slugify } from "@/lib/utils/collections";
 import FilterBar from "./components/FilterBar";
 import StoriesBar from "./components/stories/StoriesBar";
 import { useLocale } from "./i18n/context";
@@ -356,7 +356,8 @@ export default function GalleryPageClient() {
       map[key] = key === "all" ? labels.category.all : names[key] ?? capitalize(key.replace(/-/g, " "));
     }
     for (const p of PHOTOS) {
-      const k = (p.category ?? "").toString().trim().toLowerCase().replace(/\s+/g, "-");
+      // **鍵の作り方は `slugify` に任せる**（`app/favorites` と同じ理由）
+      const k = slugify((p.category ?? "").toString(), "category");
       if (k && !map[k]) map[k] = names[k] ?? capitalize(k.replace(/-/g, " "));
     }
     return map;

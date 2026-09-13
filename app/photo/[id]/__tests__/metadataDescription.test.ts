@@ -31,6 +31,14 @@ async function describeOf(photo: Record<string, unknown>): Promise<string> {
 }
 
 describe("説明が無い写真の meta description", () => {
+    // **別名で保存された値も表を引く。** 鍵がスラッグの表を生の値で引いて
+    // いたので、`建物` の写真だけ説明文に「建物の写真。」と出て、
+    // 飛び先の集約ページは「建築の写真」と名乗っていた
+    it("別名で保存されたカテゴリも代表表記にする", async () => {
+        const d = await describeOf({ location: "東京", category: "建物", date: "2024-05-03" });
+        expect(d, "生の値がそのまま出ている").toBe("東京で2024年に撮影した建築の写真。");
+    });
+
     it("カテゴリは日本語ラベルにする（生スラッグを出さない）", async () => {
         const d = await describeOf({ location: "東京", category: "landscape", date: "2024-05-03" });
         expect(d, "英語のスラッグがそのまま出ている").not.toContain("landscape");

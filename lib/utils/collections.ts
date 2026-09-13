@@ -66,6 +66,31 @@ export function categoryDisplayName(slug: string): string | undefined {
 }
 
 /**
+ * **保存されている生のカテゴリ値 → 画面に出す名前。**
+ *
+ * `app/i18n/labels.ts` の `category.names` は**スラッグで引く表**
+ * （`architecture` → `建築`）。ところが写真ページは**生の値をそのまま鍵**に
+ * していたので、別名で保存された写真だけ表に当たらず生のまま出ていた:
+ *
+ *     写真ページのチップ「建物」 → 飛び先 /category/architecture（見出し「建築の写真」）
+ *     ほかの写真ページ「建築」   → 同じ先
+ *     集約ページのチップ「建築6」 → 同じ先
+ *
+ * 実ビルドで数えて1ページ（実データは `建築`2 / `architecture`3 / **`建物`1**）。
+ * **同じ場所を指すのに、そこだけ違う言葉**を出していた。
+ * この関数の上にある `categoryDisplayName` のコメントは「写真ページ側は
+ * `labels.category.names` で日本語にしているので、そちらと揃える」と書くが、
+ * **別名で保存された値では揃っていなかった**。
+ *
+ * 表に無い値（`ご飯` など、別名表に載っていないカテゴリ）は生のまま返す。
+ */
+export function categoryLabel(raw: string | undefined, names: Record<string, string>): string {
+    const v = (raw ?? "").trim();
+    if (!v) return "";
+    return names[slugify(v, "category")] ?? v;
+}
+
+/**
  * スラッグの長さ（バイト）の上限。
  *
  * **スラッグはファイル名になる。** 静的書き出しは `/location/<slug>` に対して

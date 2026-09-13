@@ -12,6 +12,7 @@ import { withPlaceholderParam } from "../../../lib/server/staticParams";
 import { photoAltText } from "../../../lib/utils/photoAlt";
 import { metaText } from "@/lib/utils/metaText";
 import { titleWithPlace } from "@/lib/utils/titlePlace";
+import { categoryLabel } from "../../../lib/utils/collections";
 
 // 写真データを読み込む関数
 async function loadPhoto(id: string): Promise<Photo | null> {
@@ -71,13 +72,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     // 画面は `app/i18n/labels.ts` の日本語ラベルを出している）——`a287ee3`
     // で潰した「日本語UIに残る英語」を作っていた。
     const year = splitStoredDate(String(photo.date ?? ""))?.y;
-    const categoryRaw = (photo.category ?? "").toString().trim().toLowerCase();
-    const categoryLabel = (ja.category.names as Record<string, string>)[categoryRaw]
-        || (photo.category ?? "").toString().trim();
+    // **鍵はスラッグ**（`categoryLabel`）。生の値で引くと、別名で保存された
+    // 写真だけ表に当たらず生のまま出る（説明文に「建物」、飛び先は「建築」）
+    const categoryText = categoryLabel(photo.category?.toString(), ja.category.names as Record<string, string>);
     const place = (photo.location ?? "").toString().trim();
     const when = year ? `${year}年に` : "";
     const where = place ? `${place}で` : "";
-    const what = categoryLabel ? `${categoryLabel}の写真。` : "写真。";
+    const what = categoryText ? `${categoryText}の写真。` : "写真。";
     // 場所も日付も無ければ「撮影した」を付けない（`撮影した風景の写真。`
     // は日本語として落ち着かない）
     // **題に撮影地を添える。**
@@ -131,7 +132,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     const description = (ownDescription
         && withFacts(ownDescription, [ownDescription.includes(place) ? undefined : place, camera]))
         || (place || year ? withFacts(`${where}${when}撮影した${what}`, [camera]) : "")
-        || (categoryLabel ? withFacts(`${categoryLabel}の写真。`, [camera]) : "")
+        || (categoryText ? withFacts(`${categoryText}の写真。`, [camera]) : "")
         || siteConfig.description;
     
     // 出すURLはサイトのドメインに揃える（`publicImageUrl`）。同じ配信の

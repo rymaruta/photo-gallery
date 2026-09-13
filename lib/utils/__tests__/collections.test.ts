@@ -6,6 +6,7 @@ import {
     isIndexableCollection,
     labelForSlug,
     categoryDisplayName,
+    categoryLabel,
     collectionPath,
     canonicalCollectionPath,
     collectionCopy,
@@ -249,6 +250,43 @@ describe("カテゴリの表示名", () => {
         expect(labelForSlug(tagged, "tag", "street")).toBe("Street");
         expect(labelForSlug(tagged, "location", "street")).toBe("Street");
         expect(collectEntries(tagged, "tag")[0].label).toBe("Street");
+    });
+
+    // **鍵はスラッグ。** 生の値で引くと、別名で保存された写真だけ表に
+    // 当たらず生のまま出る（「建物」と出して「建築の写真」へ飛ぶ）
+    describe("categoryLabel（保存されている生の値 → 画面に出す名前）", () => {
+        it("同じ集約ページへ行く値は、同じ言葉になる", async () => {
+            const { ja } = await import("@/app/i18n/labels");
+            const names = (ja.category?.names ?? {}) as Record<string, string>;
+            const bySlug: Record<string, Set<string>> = {};
+            // 別名表の全部＋スラッグそのものを入れて、行き先ごとに畳む
+            const raws = [...Object.keys(CATEGORY_ALIASES), ...new Set(Object.values(CATEGORY_ALIASES))];
+            for (const raw of raws) {
+                const slug = slugify(raw, "category");
+                (bySlug[slug] ||= new Set()).add(categoryLabel(raw, names));
+            }
+            const split = Object.entries(bySlug).filter(([, v]) => v.size > 1);
+            expect(split.map(([k, v]) => `${k}: ${[...v].join(" / ")}`),
+                "同じ場所を指すのに違う言葉を出している").toEqual([]);
+            // 空回りしていないこと（同じ先に2つ以上の綴りが在る組がある）
+            expect(raws.length).toBeGreaterThan(new Set(Object.values(CATEGORY_ALIASES)).size);
+        });
+
+        it("別名は表の代表表記になる", async () => {
+            const { ja } = await import("@/app/i18n/labels");
+            const names = (ja.category?.names ?? {}) as Record<string, string>;
+            expect(categoryLabel("建物", names), "生の値がそのまま出ている").toBe("建築");
+            expect(categoryLabel("architecture", names)).toBe("建築");
+            expect(categoryLabel("風景", names)).toBe("風景");
+        });
+
+        it("表に無い値・空は生のまま", async () => {
+            const { ja } = await import("@/app/i18n/labels");
+            const names = (ja.category?.names ?? {}) as Record<string, string>;
+            expect(categoryLabel("ご飯", names)).toBe("ご飯");
+            expect(categoryLabel("  ", names)).toBe("");
+            expect(categoryLabel(undefined, names)).toBe("");
+        });
     });
 
     it("写真ページの表示名（labels.category.names）と食い違わない", async () => {
