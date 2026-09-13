@@ -18,7 +18,53 @@ type Props = {
      * 渡されていれば、/?photo=<id> への遷移ではなく直接モーダルを開く。
      */
     onOpenPhoto?: (photoId: string) => boolean;
+    /**
+     * `<picture>` の `sizes`。**画面の容器ごとに違うので呼ぶ側が渡す。**
+     * 既定は `max-w-5xl` の画面（ホーム・お気に入り）。
+     */
+    sizes?: string;
 };
+
+/**
+ * **`sizes` は「実際に描かれる幅」を申告する。** ずれるとブラウザが選ぶ候補が
+ * 変わる——大きく申告すれば無駄に重い方を、小さく申告すればぼやける方を落とす。
+ *
+ * 以前は `GalleryGrid` が `"(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"`
+ * を**決め打ち**していたが、この部品は**幅の違う容器で使い回されている**
+ * （ホーム/お気に入りは `max-w-5xl`・集約ページは `max-w-6xl`）。しかも
+ * `25vw` は容器の上限を無視するので、画面が広いほど申告だけが伸びる。
+ *
+ * 実測（Chromium・トップページ）:
+ *
+ *     画面 1280px  申告 320px  実際 236px   → 256px の候補が一度も選ばれない
+ *     画面 1536px  申告 384px  実際 236px
+ *     ちょうど 640px 申告 320px 実際 193px  ← Tailwind の `sm:` は 640 **から**
+ *                                             効くのに `max-width:640px` も 640 を含む
+ *
+ *     選ばれた候補（30枚・DPR1 のデスクトップ）  256w: 0件 / 512w: 30件
+ *
+ * DPR2 以上では 512 が正しい選択なので、ここが効くのは **DPR1 のデスクトップ**。
+ * 箱が 236px なら 256px の候補で足りる（画素数で4倍・合成画像での実測で
+ * webp 2.7倍 / avif 2.3倍のバイト）。
+ *
+ * 値は CSS から導いた: 段の数（`grid-cols-2 sm:grid-cols-3 lg:grid-cols-4`）と
+ * 隙間（`gap-1 sm:gap-1.5`）と容器の左右の余白。境界は Tailwind に合わせて
+ * `639.98px` のように**手前**で切る（`640px` にすると 640 ちょうどで食い違う）。
+ */
+export const GRID_SIZES_5XL = [
+    "(max-width:639.98px) calc(50vw - 18px)",      // 2列 / 余白16 / 隙間4
+    "(max-width:767.98px) calc(33.33vw - 20px)",   // 3列 / 余白24 / 隙間12
+    "(max-width:1023.98px) calc(33.33vw - 25px)",  // 3列 / 余白32 / 隙間12
+    "236px",                                       // 4列 / 容器が 1024px で頭打ち
+].join(", ");
+
+/** 集約ページ（`max-w-6xl` ＋ 左右の余白は 16px 固定） */
+export const GRID_SIZES_6XL = [
+    "(max-width:639.98px) calc(50vw - 18px)",
+    "(max-width:1023.98px) calc(33.33vw - 14px)",
+    "(max-width:1151.98px) calc(25vw - 12px)",
+    "276px",                                       // 容器が 1152px で頭打ち
+].join(", ");
 
 /**
  * 最初に描く枚数と、下端に近づいたときに足す枚数。
@@ -46,6 +92,7 @@ export default function GalleryGrid({
     locale,
     categoryDisplayMap = {},
     onOpenPhoto,
+    sizes = GRID_SIZES_5XL,
 }: Props) {
     const labels = React.useMemo(() => getLabels(locale), [locale]);
     const emptyMessage = labels.gallery?.emptyMessage ?? (locale === "en" ? "No photos found." : "該当する写真がありません。");
@@ -105,6 +152,7 @@ export default function GalleryGrid({
                         objectPosition={objectPosition}
                         categoryDisplayMap={categoryDisplayMap}
                         onOpenPhoto={onOpenPhoto}
+                        sizes={sizes}
                     />
                 );
             })}
@@ -126,6 +174,7 @@ const GalleryItem = React.memo(function GalleryItem({
     objectPosition,
     categoryDisplayMap,
     onOpenPhoto,
+    sizes,
 }: {
     photo: Photo;
     index: number;
@@ -135,6 +184,7 @@ const GalleryItem = React.memo(function GalleryItem({
     objectPosition?: string;
     categoryDisplayMap?: Record<string, string>;
     onOpenPhoto?: (photoId: string) => boolean;
+    sizes: string;
 }) {
     const { isFavorite } = useFavorites();
     const isFav = isFavorite(photo.id);
@@ -209,7 +259,7 @@ const GalleryItem = React.memo(function GalleryItem({
                     <Thumb
                         photo={photo}
                         alt={localizedAlt}
-                        sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
+                        sizes={sizes}
                         priority={isPriority}
                         objectPosition={objectPosition}
                     />
