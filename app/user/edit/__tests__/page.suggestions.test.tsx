@@ -52,6 +52,16 @@ beforeEach(() => {
 const optionValues = (id: string) =>
     Array.from(document.querySelectorAll(`#${id} option`)).map((o) => (o as HTMLOptionElement).value);
 
+
+/**
+ * 欄の文字列ではなく、**保存されるタグ**で見る。
+ *
+ * チップを押すと末尾に区切りが残る（そのまま打つと前のタグに繋がるため）。
+ * 生の文字列で比べると、この表示上の違いで落ちて、**守りたい性質**
+ * （押したら入る／打ちかけがタグとして残らない）が見えなくなる。
+ */
+const savedTags = (v: string) => v.split(",").map((x) => x.trim()).filter(Boolean);
+
 describe("入力候補", () => {
     it("前に使った撮影地を、よく使う順に候補へ出す", async () => {
         render(<EditPage />);
@@ -72,7 +82,7 @@ describe("入力候補", () => {
         render(<EditPage />);
         const tags = await screen.findByDisplayValue("夜景");
         await userEvent.click(await screen.findByRole("switch", { name: "街" }));
-        await waitFor(() => expect((tags as HTMLInputElement).value).toBe("夜景, 街"));
+        await waitFor(() => expect(savedTags((tags as HTMLInputElement).value)).toEqual(["夜景", "街"]));
     });
 
     // **既に付いているタグは、選択済みとして出す。**
@@ -143,6 +153,6 @@ describe("入力候補", () => {
         await userEvent.clear(tags);
         await userEvent.type(tags, "街, 夜");
         await userEvent.click(await screen.findByRole("switch", { name: "夜景" }));
-        await waitFor(() => expect(tags.value, "打ちかけの文字がタグとして残っている").toBe("街, 夜景"));
+        await waitFor(() => expect(savedTags(tags.value), "打ちかけの文字がタグとして残っている").toEqual(["街", "夜景"]));
     });
 });

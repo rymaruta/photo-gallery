@@ -57,12 +57,12 @@ describe("collectOwnValues", () => {
 // ので、「自然, 山」と書いている途中に候補を選ぶと既に入れた分が消える。
 describe("appendTag（カンマ区切りに1つ足す）", () => {
     it("末尾に足す", () => {
-        expect(appendTag("自然, 山", "夜景")).toBe("自然, 山, 夜景");
+        expect(appendTag("自然, 山", "夜景")).toBe("自然, 山, 夜景, ");
     });
 
     it("空の欄にも足せる", () => {
-        expect(appendTag("", "夜景")).toBe("夜景");
-        expect(appendTag("   ", "夜景")).toBe("夜景");
+        expect(appendTag("", "夜景")).toBe("夜景, ");
+        expect(appendTag("   ", "夜景")).toBe("夜景, ");
     });
 
     it("既にあるタグは足さない（重複させない）", () => {
@@ -76,7 +76,7 @@ describe("appendTag（カンマ区切りに1つ足す）", () => {
     });
 
     it("区切りの空白を揃える（サーバーの trim と同じ形にする）", () => {
-        expect(appendTag("自然,山", "海")).toBe("自然, 山, 海");
+        expect(appendTag("自然,山", "海")).toBe("自然, 山, 海, ");
     });
 
     it("空のタグは無視する", () => {
@@ -154,8 +154,8 @@ describe("appendTag は同じタグを二重に足さない", () => {
 
     // 正常系: 別のタグは足す（畳みすぎて足せなくならないこと）
     it("別のタグは足す", () => {
-        expect(appendTag("夜景", "富士山")).toBe("夜景, 富士山");
-        expect(appendTag("", "山")).toBe("山");
+        expect(appendTag("夜景", "富士山")).toBe("夜景, 富士山, ");
+        expect(appendTag("", "山")).toBe("山, ");
     });
 });
 
@@ -302,20 +302,20 @@ describe("hasTag（いま欄に入っているか）", () => {
 
 describe("toggleTag（押し直したら外れる）", () => {
     it("入っていなければ足す", () => {
-        expect(toggleTag("自然, 山", "夜景")).toBe("自然, 山, 夜景");
-        expect(toggleTag("", "山")).toBe("山");
+        expect(toggleTag("自然, 山", "夜景")).toBe("自然, 山, 夜景, ");
+        expect(toggleTag("", "山")).toBe("山, ");
     });
 
     it("入っていれば外す", () => {
-        expect(toggleTag("自然, 山", "山"), "押しても何も起きない").toBe("自然");
+        expect(toggleTag("自然, 山", "山"), "押しても何も起きない").toBe("自然, ");
         expect(toggleTag("山", "山")).toBe("");
     });
 
     // 外すときも畳んで見る（`fuji` の欄で候補の `Fuji` を押したら外れる）
     it("書き方が違っても、同じタグなら外れる", () => {
-        expect(toggleTag("夜景, Fuji", "fuji")).toBe("夜景");
+        expect(toggleTag("夜景, Fuji", "fuji")).toBe("夜景, ");
         expect(toggleTag("旅", "#旅")).toBe("");
-        expect(toggleTag("風景, 山", "landscape")).toBe("山");
+        expect(toggleTag("風景, 山", "landscape")).toBe("山, ");
     });
 
     // 空のタグのガードは `appendTag` 側に1つだけ置く（二重にすると
@@ -327,14 +327,14 @@ describe("toggleTag（押し直したら外れる）", () => {
 
     // 欄に空の要素が混じっていても、外した結果にゴミを残さない
     it("空の要素を挟んだ欄でも、外した結果が汚れない", () => {
-        expect(toggleTag("自然, , 山", "山"), "空の要素が残っている").toBe("自然");
+        expect(toggleTag("自然, , 山", "山"), "空の要素が残っている").toBe("自然, ");
         expect(toggleTag(" , ,山", "山")).toBe("");
     });
 
     // **足す側は `appendTag` に任せる**——何も変わらない回に元の文字列を
     // そのまま返す性質（空白の入れ方を勝手に直さない）を壊さない
     it("足す側の空白の扱いは変えない", () => {
-        expect(toggleTag("自然,山", "海")).toBe("自然, 山, 海");
+        expect(toggleTag("自然,山", "海")).toBe("自然, 山, 海, ");
     });
 });
 
@@ -437,9 +437,14 @@ describe("打ちかけの欠片の扱い", () => {
 
     // 画面と同じ組み合わせ（絞る → 押す）を1本の式で見る
     it("打って絞って押すと、欄には選んだタグだけが入る", () => {
-        for (const [typed, expected] of [["sau", "sauna"], ["白", "白鳥"], ["夜景, hel", "夜景, helsinki"]] as const) {
+        for (const [typed, expected] of [["sau", ["sauna"]], ["白", ["白鳥"]], ["夜景, hel", ["夜景", "helsinki"]]] as const) {
             const pick = suggestTags(all, typed, 12)[0];
-            expect(toggleTag(dropFragment(all, typed), pick), `「${typed}」で欠片が残った`).toBe(expected);
+            // **区切りの形ではなく、保存されるタグで見る。** 生の文字列で
+            // 比べると、末尾の区切りのような表示上の違いで落ちて、
+            // 守りたい性質（欠片がタグとして残らない）が見えなくなる
+            const savedTags = toggleTag(dropFragment(all, typed), pick)
+                .split(",").map((x) => x.trim()).filter(Boolean);
+            expect(savedTags, `「${typed}」で欠片が残った`).toEqual([...expected]);
         }
     });
 
@@ -449,5 +454,57 @@ describe("打ちかけの欠片の扱い", () => {
         const many = ["a", "b", "c", "d", "zzz"];
         expect(suggestTags(many, "zzz", 3), "選んだタグが候補から消えている").toEqual(["zzz", "a", "b"]);
         expect(suggestTags(many, "", 3)).toEqual(["a", "b", "c"]);
+    });
+});
+
+/**
+ * **チップを押したあと、そのまま打つと新しいタグになる。**
+ *
+ * 欄はカンマ区切りなのに、押す側が区切りを入れていなかったので
+ * `[sauna]` を押して `hokkaido` と打つと `"saunahokkaido"` という
+ * **1つの嘘のタグ**が保存されていた。`8774ccd2`（打ちかけの欠片がタグとして
+ * 保存される）と同じ型の裏返し——**チップの目的は「打つから表記が割れる」を
+ * 減らすこと**なのに、押すたびに新しい綴りを作れる形だった。
+ *
+ * 実データの owner は1枚に中央値3タグ・最大8タグを日英で付けており、
+ * **59種のうち49種はチップに出ない**（上位10種だけ）ので、
+ * 押す→打つ→押す、が主動線になる。
+ */
+describe("押したあとに打つと、新しいタグになる", () => {
+    const pool = ["sauna", "winter", "山中湖"];
+    /** 画面がやっていること */
+    const press = (cur: string, t: string) => toggleTag(dropFragment(pool, cur), t);
+    /** 保存されるタグ（サーバーの sanitizeTags と同じ素の分割） */
+    const saved = (cur: string) => cur.split(",").map((x) => x.trim()).filter(Boolean);
+
+    it("押してから打つと、前のタグに繋がらない", () => {
+        const after = press("", "sauna") + "hokkaido";
+        expect(saved(after), "前のタグに繋がっている").toEqual(["sauna", "hokkaido"]);
+    });
+
+    it("外してから打つ場合も同じ", () => {
+        const after = press(press("", "sauna"), "sauna") + "hokkaido";
+        expect(saved(after)).toEqual(["hokkaido"]);
+    });
+
+    it("2つ押してから打つ", () => {
+        const after = press(press("", "sauna"), "winter") + "北海道";
+        expect(saved(after)).toEqual(["sauna", "winter", "北海道"]);
+    });
+
+    // **末尾の区切りは保存に響かない**（サーバーは空を落とす）
+    it("末尾の区切りが空のタグにならない", () => {
+        expect(saved(press("", "sauna"))).toEqual(["sauna"]);
+        expect(saved(press(press("", "sauna"), "winter"))).toEqual(["sauna", "winter"]);
+    });
+
+    // 空になったら区切りも残さない（`", "` だけの欄を作らない）
+    it("全部外したら空文字に戻る", () => {
+        expect(press(press("", "sauna"), "sauna")).toBe("");
+    });
+
+    // 押した直後は「打ちかけ」が無いので、候補は絞られていない
+    it("押した直後の欄は、打ちかけとして扱われない", () => {
+        expect(typingFragment(pool, press("", "sauna"))).toBe("");
     });
 });

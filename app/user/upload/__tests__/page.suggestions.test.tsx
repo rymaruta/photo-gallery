@@ -83,6 +83,16 @@ async function pickOne() {
     await screen.findByText(/共通設定/);
 }
 
+
+/**
+ * 欄の文字列ではなく、**保存されるタグ**で見る。
+ *
+ * チップを押すと末尾に区切りが残る（そのまま打つと前のタグに繋がるため）。
+ * 生の文字列で比べると、この表示上の違いで落ちて、**守りたい性質**
+ * （押したら入る／打ちかけがタグとして残らない）が見えなくなる。
+ */
+const savedTags = (v: string) => v.split(",").map((x) => x.trim()).filter(Boolean);
+
 describe("アップロード画面の入力候補", () => {
     it("前に使った撮影地を、よく使う順に候補へ出す", async () => {
         await pickOne();
@@ -106,10 +116,10 @@ describe("アップロード画面の入力候補", () => {
         const chip = await screen.findByRole("switch", { name: "夜景" });
         await userEvent.click(chip);
         const field = screen.getByPlaceholderText("タグ（カンマ区切り）") as HTMLInputElement;
-        expect(field.value, "押しても欄に入っていない").toBe("夜景");
+        expect(savedTags(field.value), "押しても欄に入っていない").toEqual(["夜景"]);
         // 2つ目を足しても1つ目が消えない（datalist にできない理由そのもの）
         await userEvent.click(await screen.findByRole("switch", { name: "街" }));
-        expect(field.value, "前に足したタグが消えている").toBe("夜景, 街");
+        expect(savedTags(field.value), "前に足したタグが消えている").toEqual(["夜景", "街"]);
     });
 
     // **押し直したら外れる。** もとは足すだけだったので、既に付いている
@@ -123,7 +133,7 @@ describe("アップロード画面の入力候補", () => {
         expect(chip, "まだ選んでいないのに選択済みに見える").toHaveAttribute("aria-checked", "false");
 
         await userEvent.click(chip);
-        expect(field.value).toBe("夜景");
+        expect(savedTags(field.value)).toEqual(["夜景"]);
         expect(chip, "選んだことが分からない").toHaveAttribute("aria-checked", "true");
         // **見た目でも分かること。** 直した症状の見出しは「選んだかどうかが
         // 分からない」＝見た目の話なので、`aria-checked` だけでは足りない
@@ -232,12 +242,12 @@ describe("アップロード画面の入力候補", () => {
 
         await userEvent.type(field, "夜");
         await userEvent.click(await screen.findByRole("switch", { name: "夜景" }));
-        expect(field.value, "打ちかけの文字がタグとして残っている").toBe("夜景");
+        expect(savedTags(field.value), "打ちかけの文字がタグとして残っている").toEqual(["夜景"]);
 
         // 前に選んだタグは残る（落とすのは**最後の欠片だけ**）
         await userEvent.clear(field);
         await userEvent.type(field, "街, 夜");
         await userEvent.click(await screen.findByRole("switch", { name: "夜景" }));
-        expect(field.value, "前に選んだタグまで落としている").toBe("街, 夜景");
+        expect(savedTags(field.value), "前に選んだタグまで落としている").toEqual(["街", "夜景"]);
     });
 });

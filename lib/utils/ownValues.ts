@@ -140,7 +140,30 @@ export function appendTag(current: string, tag: string): string {
     // 2つ並ぶ）。実測で `#旅` と `旅` も同じ形だった
     const key = tagKey(add);
     if (parts.some((t) => tagKey(t) === key)) return current;
-    return [...parts, add].join(", ");
+    return joinTags([...parts, add]);
+}
+
+/**
+ * タグの欄の文字列を組み直す。**末尾に区切りを残す。**
+ *
+ * 残さないと、**チップを押した直後に打つと前のタグに繋がる**
+ * ——`[sauna]` を押して `hokkaido` と打つと `"saunahokkaido"` という
+ * **1つの嘘のタグ**が保存される。欄はカンマ区切りなのに、区切りを入れる
+ * 仕事だけ利用者に残していた。
+ *
+ * これは `8774ccd2`（打ちかけの欠片がタグとして保存される）と同じ型の
+ * 裏返し——**チップの目的は「打つから表記が割れる」を減らすこと**なのに、
+ * 押すたびに新しい綴りを作れる形だった。実データの owner は1枚に
+ * 中央値3タグ・最大8タグを日英で付けており、**59種のうち49種はチップに
+ * 出ない**（上位10種だけ）ので、押す→打つ→押す、が主動線になる。
+ *
+ * 空になったら区切りも残さない（`", "` だけの欄を作らない）。
+ * 末尾の区切りは保存に響かない——サーバーの `sanitizeTags` は空を落とし、
+ * 編集画面の `dirty` は配列に直してから比べる（どちらも確かめた）。
+ */
+function joinTags(parts: readonly string[]): string {
+    const kept = parts.map((t) => t.trim()).filter(Boolean);
+    return kept.length === 0 ? "" : `${kept.join(", ")}, `;
 }
 
 /** いまの欄にそのタグが入っているか（大小・`#`・日英の別名は畳んで見る） */
@@ -183,12 +206,9 @@ export function toggleTag(current: string, tag: string): string {
     const t = tag.trim();
     if (!hasTag(current, t)) return appendTag(current, t);
     const key = tagKey(t);
-    return current
-        .split(",")
-        .map((x) => x.trim())
-        .filter(Boolean)
-        .filter((x) => tagKey(x) !== key)
-        .join(", ");
+    // 外したあとも同じ形（末尾に区切り）。**押す→打つ が主動線**なので、
+    // 足すときだけ揃えても半分にしかならない
+    return joinTags(current.split(",").filter((x) => tagKey(x.trim()) !== key));
 }
 
 /**
