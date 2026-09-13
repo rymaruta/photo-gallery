@@ -220,4 +220,24 @@ describe("アップロード画面の入力候補", () => {
             uiLocale.value = "ja";
         }
     });
+
+    // **打って絞って押したら、打ちかけの文字が残ってはいけない。**
+    // 絞りを入れた最初の版は `"夜"` と打って `夜景` を押すと `"夜, 夜景"` になり、
+    // **`夜` がそのまま写真のタグとして保存された**（絞りの目的は
+    // 「打つから表記が割れる」を減らすことなのに、逆に綴りを増やしていた）。
+    // 単体だけだと、画面が欠片を落としていない変異が素通りする
+    it("打って絞って押すと、欄には選んだタグだけが入る", async () => {
+        await pickOne();
+        const field = screen.getByPlaceholderText("タグ（カンマ区切り）") as HTMLInputElement;
+
+        await userEvent.type(field, "夜");
+        await userEvent.click(await screen.findByRole("switch", { name: "夜景" }));
+        expect(field.value, "打ちかけの文字がタグとして残っている").toBe("夜景");
+
+        // 前に選んだタグは残る（落とすのは**最後の欠片だけ**）
+        await userEvent.clear(field);
+        await userEvent.type(field, "街, 夜");
+        await userEvent.click(await screen.findByRole("switch", { name: "夜景" }));
+        expect(field.value, "前に選んだタグまで落としている").toBe("街, 夜景");
+    });
 });

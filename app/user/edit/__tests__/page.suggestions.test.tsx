@@ -134,4 +134,15 @@ describe("入力候補", () => {
             uiLocale.value = "ja";
         }
     });
+
+    // 投稿画面と同じ（**両方に入れる**——片方だけだと、もう片方で
+    // 欠片を落とす配線を外しても素通りする）
+    it("打って絞って押すと、欄には選んだタグだけが入る", async () => {
+        render(<EditPage />);
+        const tags = (await screen.findByDisplayValue("夜景")) as HTMLInputElement;
+        await userEvent.clear(tags);
+        await userEvent.type(tags, "街, 夜");
+        await userEvent.click(await screen.findByRole("switch", { name: "夜景" }));
+        await waitFor(() => expect(tags.value, "打ちかけの文字がタグとして残っている").toBe("街, 夜景"));
+    });
 });
