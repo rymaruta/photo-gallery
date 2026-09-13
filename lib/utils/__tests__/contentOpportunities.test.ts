@@ -136,6 +136,10 @@ describe("撮影地が空の写真を、共有タグでまとめる", () => {
         const g = contentOpportunities(photos).missingLocation;
         expect(g.length, "同じタグが別物として割れている").toBe(1);
         expect(g[0].photos.map((p) => p.id)).toEqual(["a", "b", "c"]);
+        // **束ねた名前まで見る。** ここを見ないと、票を畳まずに数えて
+        // 「共通のタグが無い」1塊に落ちた状態と区別が付かない（変異で素通りした）
+        expect(g[0].sharedTag, "束ねたタグの名前が出ていない").not.toBe("");
+        expect(["Finland", "#finland", "finland"]).toContain(g[0].sharedTag);
     });
 
     it("1枚の中の重複タグは1回だけ出す", () => {
