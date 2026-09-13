@@ -26,6 +26,7 @@ function readOrientationFromApp1(buf: Uint8Array, payloadStart: number, segEnd: 
         if (e + 12 > segEnd) return undefined;
         if (u16(e) !== 0x0112) continue;
         if (u16(e + 2) !== 3) return undefined; // SHORT 以外は読まない
+        if (u32(e + 4) !== 1) return undefined; // 個数が1でなければ、値の欄はオフセット
         const v = u16(e + 8);                   // SHORT は4バイト領域の先頭に入る
         return v >= 1 && v <= 8 ? v : undefined;
     }

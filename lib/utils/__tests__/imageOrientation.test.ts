@@ -20,7 +20,7 @@ import { stripJpegExifDetailed, toUploadSafeFile } from "../image";
  */
 
 /** EXIF の APP1 を組み立てる（Orientation と Make を持たせる） */
-function exifApp1(orientation: number, endian: "MM" | "II" = "MM", type = 3): number[] {
+function exifApp1(orientation: number, endian: "MM" | "II" = "MM", type = 3, count = 1): number[] {
     const be = endian === "MM";
     const u16 = (v: number) => (be ? [(v >> 8) & 0xFF, v & 0xFF] : [v & 0xFF, (v >> 8) & 0xFF]);
     const u32 = (v: number) => (be
@@ -31,7 +31,7 @@ function exifApp1(orientation: number, endian: "MM" | "II" = "MM", type = 3): nu
     const ifd = [
         ...u16(2),
         ...u16(0x010F), ...u16(2), ...u32(make.length), ...u32(8 + 2 + 24 + 4), // Make は末尾に置く
-        ...u16(0x0112), ...u16(type), ...u32(1), ...u16(orientation), 0x00, 0x00,
+        ...u16(0x0112), ...u16(type), ...u32(count), ...u16(orientation), 0x00, 0x00,
         ...u32(0),
     ];
     const tiff = [
@@ -140,6 +140,16 @@ describe("向き（EXIF Orientation）を落とさない", () => {
     // **並び順で結果が変わる**。知らない形は戻さない側に倒す。
     it.each([["II"], ["MM"]] as const)("SHORT 以外の型（LONG）は戻さない（%s）", async (endian) => {
         const r = await stripJpegExifDetailed(asFile(jpegWith(exifApp1(6, endian, 4))), { keepOrientation: true });
+        expect(r.stripped).toBe(true);
+        expect(r.orientation).toBeUndefined();
+        expect(app1Offsets(await bytesOf(r.file))).toEqual([]);
+    });
+
+    // **個数が1でなければ、値の欄は「値」ではなく「データへのオフセット」。**
+    // そこを読むと、たまたま 1〜8 に見える数字を向きとして書き込んでしまう。
+    // GPS は漏れないが、**向きが違う写真になる**ので読まない側に倒す。
+    it.each([["II"], ["MM"]] as const)("個数が1でない Orientation は戻さない（%s）", async (endian) => {
+        const r = await stripJpegExifDetailed(asFile(jpegWith(exifApp1(6, endian, 3, 2))), { keepOrientation: true });
         expect(r.stripped).toBe(true);
         expect(r.orientation).toBeUndefined();
         expect(app1Offsets(await bytesOf(r.file))).toEqual([]);
