@@ -593,6 +593,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     </p>
                     <Link
                         href="/"
+                        prefetch={false}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
                         style={{ 
                             touchAction: "manipulation",
@@ -699,6 +700,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                 <div className="flex-1">
                     <Link
                         href="/"
+                        prefetch={false}
                         className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-2"
                         style={{ 
                             touchAction: "manipulation",
@@ -742,7 +744,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     {categoryDisplayName && photo.category && (
                         // カテゴリの集約ページへ（内部リンク＝SEO・回遊）
                         <Link
+                        // **先読みしない**（理由と実測は `app/components/GalleryGrid.tsx` の
+                        // カードのコメント。静的書き出し＋`no-store` 配信なので、画面に
+                        // 入るたびに行き先を丸ごと落とし直す）
                             href={collectionPath("category", slugify(photo.category, "category"))}
+                            prefetch={false}
                             className="inline-flex items-center px-2.5 py-1 rounded-full bg-white/10 ring-1 ring-white/10 text-xs text-white/70 hover:bg-white/20 hover:text-white transition-colors"
                             style={{ touchAction: "manipulation" }}
                         >
@@ -791,6 +797,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                         {mapHash && (
                             <Link
                                 href={`${ROUTES.MAP}${mapHash}`}
+                                prefetch={false}
                                 className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-sm text-white/60 hover:bg-white/10 hover:text-white transition-colors"
                                 style={{ touchAction: "manipulation" }}
                             >
@@ -800,6 +807,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                         {/* 同じ場所の集約ページへ（内部リンク） */}
                         <Link
                             href={collectionPath("location", slugify(locationText, "location"))}
+                            prefetch={false}
                             className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-sm text-white/60 hover:bg-white/10 hover:text-white transition-colors"
                             style={{ touchAction: "manipulation" }}
                         >
@@ -812,9 +820,13 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                 {(photo.tags?.length ?? 0) > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                         {(photo.tags ?? []).map((tag) => (
+                            // **先読みしない。** 一覧で何本も出るリンクなので、画面に入るたびに
+                            // 行き先の RSC の控え（`no-store` 配信）を落とし直す。理由と実測は
+                            // `app/components/GalleryGrid.tsx` のカードのコメントに書いた
                             <Link
                                 key={tag}
                                 href={collectionPath("tag", slugify(tag, "tag"))}
+                                prefetch={false}
                                 className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors"
                                 style={{ touchAction: "manipulation" }}
                             >
@@ -903,7 +915,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                             {/* リンクにするのは行き先がある項目だけ。
                                                 見た目（大きさ・色）は変えず、下線だけで示す */}
                                             {s.href
-                                                ? <Link href={s.href} className="underline decoration-white/30 underline-offset-2 hover:decoration-white/70">{s.value}</Link>
+                                                ? <Link href={s.href} prefetch={false} className="underline decoration-white/30 underline-offset-2 hover:decoration-white/70">{s.value}</Link>
                                                 : s.value}
                                         </dd>
                                     </div>
@@ -1038,6 +1050,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                         {isOwnPhoto && (
                             <Link
                                 href={ROUTES.EDIT(photoId)}
+                                prefetch={false}
                                 className="inline-flex items-center gap-1.5 self-start px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/60 hover:bg-white/10 hover:text-white transition-colors"
                                 style={{ touchAction: "manipulation" }}
                             >
@@ -1208,6 +1221,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                             {related.prev ? (
                                 <Link
                                     href={ROUTES.PHOTO(related.prev.id)}
+                                    prefetch={false}
                                     data-photo-id={related.prev.id}
                                     className="flex-1 inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 active:scale-[0.99] transition min-w-0"
                                     style={{ touchAction: "manipulation" }}
@@ -1222,6 +1236,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                             {related.next ? (
                                 <Link
                                     href={ROUTES.PHOTO(related.next.id)}
+                                    prefetch={false}
                                     data-photo-id={related.next.id}
                                     className="flex-1 inline-flex items-center justify-end gap-2 px-4 py-3 rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 active:scale-[0.99] transition min-w-0 text-right"
                                     style={{ touchAction: "manipulation" }}

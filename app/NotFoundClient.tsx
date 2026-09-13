@@ -27,6 +27,7 @@ export default function NotFoundClient() {
                 </p>
                 <Link
                     href="/"
+                    prefetch={false}
                     className="inline-block px-6 py-3 bg-white text-black text-sm font-semibold rounded-lg hover:bg-white/90 transition-colors"
                 >
                     ギャラリーに戻る

@@ -35,7 +35,7 @@ export default function CollectionPageClient({ photos, heading, description, bre
     return (
         <main className="mx-auto max-w-6xl px-4 py-8">
             <nav aria-label="パンくずリスト" className="mb-3 text-sm text-white/60">
-                <Link href="/" className="hover:text-white/90">ホーム</Link>
+                <Link href="/" prefetch={false} className="hover:text-white/90">ホーム</Link>
                 <span className="mx-2" aria-hidden>/</span>
                 <span className="text-white/80">{breadcrumb}</span>
             </nav>
@@ -68,9 +68,13 @@ export default function CollectionPageClient({ photos, heading, description, bre
                     </h2>
                     <div className="flex flex-wrap gap-1.5">
                         {related.map((r) => (
+                            // **先読みしない。** 一覧で何本も出るリンクなので、画面に入るたびに
+                            // 行き先の RSC の控え（`no-store` 配信）を落とし直す。理由と実測は
+                            // `app/components/GalleryGrid.tsx` のカードのコメントに書いた
                             <Link
                                 key={r.path}
                                 href={r.path}
+                                prefetch={false}
                                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors"
                                 style={{ touchAction: "manipulation" }}
                             >

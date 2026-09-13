@@ -175,8 +175,12 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
 
     return (
         <div className="relative rounded-md overflow-hidden group" style={{ paddingTop: "100%" }}>
+            {/* **先読みしない。** 一覧で何本も出るリンクなので、画面に入るたびに
+                行き先の RSC の控え（`no-store` 配信）を落とし直す。理由と実測は
+                `app/components/GalleryGrid.tsx` のカードのコメントに書いた */}
             <Link
                 href={ROUTES.PHOTO(photo.id)}
+                prefetch={false}
                 className={`absolute inset-0 overflow-hidden bg-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${isHidden ? "opacity-40" : ""}`}
                 style={photo.dominantColor ? { backgroundColor: photo.dominantColor } : undefined}
             >
@@ -1003,6 +1007,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     <div className="pt-4 mb-2 flex items-center justify-between">
                         <Link
                             href="/"
+                            prefetch={false}
                             aria-label={locale === "en" ? "Back to Gallery" : "ギャラリーに戻る"}
                             className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-black/40 backdrop-blur-md ring-1 ring-white/15 text-white/90 hover:bg-black/60 active:scale-95 transition shadow-lg shadow-black/30"
                         >
@@ -1302,6 +1307,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         <div className="flex gap-2 mt-4">
                             <Link
                                 href="/user/profile"
+                                prefetch={false}
                                 className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-black/30 backdrop-blur-md ring-1 ring-white/15 hover:bg-black/40 text-white text-sm font-medium rounded-full transition-colors"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >
@@ -1310,6 +1316,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             </Link>
                             <Link
                                 href="/user/upload"
+                                prefetch={false}
                                 className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >
@@ -1322,6 +1329,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         <div className="mt-2 text-center">
                             <Link
                                 href="/user/drafts"
+                                prefetch={false}
                                 className="inline-flex items-center justify-center px-3 py-1.5 text-sm text-white/60 hover:text-white transition-colors"
                                 style={{ touchAction: "manipulation" }}
                             >
@@ -1382,7 +1390,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             </div>
                             <p className="text-sm">{locale === "en" ? "No photos yet." : "まだ写真がありません。"}</p>
                             {isOwner && (
-                                <Link href="/user/upload" className="mt-1 px-5 py-2 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors">
+                                <Link href="/user/upload" prefetch={false} className="mt-1 px-5 py-2 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors">
                                     {locale === "en" ? "Share your first photo" : "最初の写真を投稿"}
                                 </Link>
                             )}

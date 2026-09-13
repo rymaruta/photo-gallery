@@ -127,6 +127,7 @@ export default function UserSearchPage() {
                     <li key={u.userId} className="flex items-center gap-3 py-3">
                         <Link
                             href={ROUTES.USER_PROFILE(u.userId)}
+                            prefetch={false}
                             className="flex items-center gap-3 min-w-0 flex-1 group"
                             style={{ touchAction: "manipulation" }}
                         >

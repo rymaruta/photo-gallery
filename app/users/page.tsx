@@ -28,6 +28,7 @@ function UsersPageInner() {
                     </p>
                     <Link
                         href="/"
+                        prefetch={false}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors text-sm"
                     >
                         <ArrowLeftIcon className="w-4 h-4" />

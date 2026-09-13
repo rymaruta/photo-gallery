@@ -59,7 +59,7 @@ export default function MapPage() {
                             ? "Photos uploaded with GPS data, or given a place from the edit screen, appear here (rounded to about 1 km)."
                             : "GPS 付きの写真をアップロードするか、編集画面の「地図に出す位置」で場所を選ぶと、約1km の粒度でここに載ります。"}
                     </p>
-                    <Link href={ROUTES.HOME} className="inline-block mt-6 text-sky-300 hover:text-sky-200 underline underline-offset-4">
+                    <Link href={ROUTES.HOME} prefetch={false} className="inline-block mt-6 text-sky-300 hover:text-sky-200 underline underline-offset-4">
                         {en ? "Back to gallery" : "ギャラリーに戻る"}
                     </Link>
                 </div>
@@ -93,7 +93,7 @@ export default function MapPage() {
                                     座標だけ入って撮影地は空になりうるので、予防で直す。
                                     空白だけの撮影地も落とす——`||` だけだと
                                     **名前の無いリンク**になり、id より悪い */}
-                                <Link href={ROUTES.PHOTO(p.id)}>
+                                <Link href={ROUTES.PHOTO(p.id)} prefetch={false}>
                                     {p.location?.trim() || getLocalized(p.title, locale) || (en ? "Photo" : "写真")}
                                 </Link>
                             </li>

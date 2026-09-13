@@ -281,6 +281,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <p className={`${inter.className} text-2xl md:text-3xl font-bold tracking-tight text-white m-0 min-w-0 truncate`}>
                     <Link
                       href="/"
+                      prefetch={false}
                       className="inline-block hover:opacity-70 transition-opacity duration-200 relative group"
                     >
                       <span className="relative z-10">Journey Photo</span>
