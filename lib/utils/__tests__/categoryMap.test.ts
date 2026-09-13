@@ -40,10 +40,21 @@ describe("一覧のカテゴリ名の地図", () => {
         expect(map["architecture"]).toBe("建築");
     });
 
-    it("表に無いカテゴリはスラッグを見出し語にする", () => {
-        const map = photoCategoryMap([{ category: "travel" }, { category: "ご飯" }], names);
-        expect(map["travel"]).toBe("Travel");
+    // **表に無いカテゴリは、本人が書いた言葉のまま。**
+    // ここだけ `capitalize(スラッグ)` に落としていた頃は、同じカテゴリが
+    // 一覧では `Travel`・写真ページでは `travel` になっていた（＝
+    // 「同じ行き先に違う文言」の別の形）。しかも `capitalize` は後ろを
+    // 小文字に潰すので `NYC` → `Nyc` と本人の言葉を書き換えてしまう
+    it("表に無いカテゴリは生のまま（写真ページと同じ言葉になる）", async () => {
+        const { categoryLabel } = await import("../collections");
+        const map = photoCategoryMap([{ category: "travel" }, { category: "ご飯" }, { category: "NYC" }], names);
+        expect(map["travel"], "見出し語に書き換えている").toBe("travel");
         expect(map["ご飯"]).toBe("ご飯");
+        expect(map["NYC"], "本人が書いた綴りを潰している").toBe("NYC");
+        // 写真ページのチップと同じ規則であること
+        for (const raw of ["travel", "ご飯", "NYC", "建物"]) {
+            expect(map[raw] ?? categoryLabel(raw, names), raw).toBe(categoryLabel(raw, names));
+        }
     });
 
     it("カテゴリが無い・空の写真は鍵を作らない", () => {

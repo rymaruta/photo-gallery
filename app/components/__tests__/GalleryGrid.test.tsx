@@ -225,6 +225,7 @@ describe("GalleryGrid: カテゴリ名", () => {
         // 別名で保存されていても、飛び先の集約ページと同じ言葉
         expect(screen.getByText("建築"), "別名の写真だけ名前が消えている").toBeInTheDocument();
         expect(screen.getAllByText("風景"), "landscape と 風景 が同じ名前になっていない").toHaveLength(2);
-        expect(screen.getByText("Travel")).toBeInTheDocument();
+        // 表に無いカテゴリは本人が書いた言葉のまま（写真ページと同じ）
+        expect(screen.getByText("travel")).toBeInTheDocument();
     });
 });

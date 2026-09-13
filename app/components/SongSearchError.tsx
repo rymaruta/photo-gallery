@@ -7,8 +7,9 @@ import { useLocale } from "../i18n/context";
  *
  * **`role="alert"` を付ける。** これは「探す」を押した直後に出る
  * 一時的な手応えで、読み上げ環境では**押しても何も起きなかったように
- * 見えて**いた（WCAG 4.1.3 状態メッセージ）。同じ `StoryViewer` の
- * `keepError` は `role="alert"` を持っており、扱いが割れていた。
+ * 見えて**いた（WCAG 4.1.3 状態メッセージ）。ストーリーの
+ * `StoryViewer.tsx` の `keepError` は `role="alert"` を持っており、
+ * **同じ機能の中で扱いが割れていた**（曲検索の失敗は `StoriesBar.tsx` 側）。
  *
  * **見た目は変えていない**（`role` は描画に出ない属性）。
  *
