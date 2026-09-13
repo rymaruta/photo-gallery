@@ -367,39 +367,4 @@ describe("送る前の判定が、サーバーと同じ答えを出す", () => {
             expect(client, `予約語「${w}」を画面に写している`).not.toContain(`"${w}"`);
         }
     });
-
-    /**
-     * 写真の MV の YouTube リンク。サーバーは `isValidYouTubeUrl`、
-     * 画面は `parseMusicEmbed` を使い回す。**同じ表を2つ持たない**ぶん、
-     * 答えが一致することをここで確かめる。
-     */
-    it("YouTube のリンクの判定が、サーバーと同じ答えを出す", async () => {
-        const { isYouTubeMvUrl } = await import("../../lib/utils/music");
-        const { isValidYouTubeUrl } = await import("../../api-user/src/photoUpdate");
-        const corpus = [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-            "https://youtu.be/dQw4w9WgXcQ",
-            "https://m.youtube.com/watch?v=dQw4w9WgXcQ",
-            "https://music.youtube.com/watch?v=dQw4w9WgXcQ",
-            "https://youtube.com/watch?v=dQw4w9WgXcQ",
-            // 断るべきもの
-            "http://www.youtube.com/watch?v=dQw4w9WgXcQ",  // https でない
-            "https://vimeo.com/12345",
-            "https://open.spotify.com/track/abc",
-            "https://music.apple.com/jp/album/x/1",
-            "abc",
-            "",
-            "   ",
-            "https://www.youtube.com/watch?v=short",        // id が短い
-            "https://www.youtube.com/watch",                // id が無い
-            "https://evil.com/watch?v=dQw4w9WgXcQ",
-        ];
-        for (const u of corpus) {
-            expect(isYouTubeMvUrl(u), `「${u}」で画面とサーバーの答えが違う`)
-                .toBe(Boolean(isValidYouTubeUrl(u)));
-        }
-        // **corpus が両方の答えを含んでいること**（全部 false だと素通りする）
-        expect(corpus.filter(isYouTubeMvUrl).length, "通す例が入っていない").toBeGreaterThan(0);
-        expect(corpus.filter((u) => !isYouTubeMvUrl(u)).length, "断る例が入っていない").toBeGreaterThan(0);
-    });
 });

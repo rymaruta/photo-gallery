@@ -98,6 +98,26 @@ describe("MV設定の失敗理由が伝わる", () => {
             "サーバーへ送っている（必ず 400 で返ってくる往復）").toHaveLength(0);
     });
 
+    /**
+     * **MV を外す操作を、番人が止めていないこと。**
+     *
+     * 送る前に断るガードは `url !== null &&` で解除を素通しにしているが、
+     * **そこを壊す変異（`!isYouTubeMvUrl(url ?? "")`）を1本も捕まえて
+     * いなかった**（レビューが実証）。この差分でいちばん怖いのが
+     * 「正当な操作を止める」側なのに、そこだけ守りが無い状態だった。
+     * クライアント側で `songYoutubeUrl` を見るテストはリポジトリ全体で0件。
+     */
+    it("MV を外す操作は止めない", async () => {
+        mockUserFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) });
+        render(<PhotoPageClient photoId="p1" initialPhoto={{ ...photo, songYoutubeUrl: "https://youtu.be/dQw4w9WgXcQ" } as unknown as Photo} />);
+        await userEvent.click(await screen.findByRole("button", { name: /MVを外す|Remove MV/ }));
+        await waitFor(() => {
+            const puts = mockUserFetch.mock.calls.filter((c) => (c[1] as { method?: string } | undefined)?.method === "PUT");
+            expect(puts, "解除まで止めている").toHaveLength(1);
+            expect(JSON.parse((puts[0][1] as { body: string }).body)).toEqual({ songYoutubeUrl: "" });
+        });
+    });
+
     // 断りすぎない: https の YouTube は今までどおり送る
     it("正しい YouTube リンクは送る", async () => {
         mockUserFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) });

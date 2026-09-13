@@ -1040,6 +1040,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                     placeholder={photoYtUrl
                                         ? (locale === "en" ? "Change YouTube MV link" : "YouTube MV リンクを変更")
                                         : (locale === "en" ? "Paste a YouTube link for full playback" : "YouTubeリンクを貼るとフル再生MVに")}
+                                    // **サーバーは 500 文字で切る**（`isValidYouTubeUrl` の
+                                    // `raw.trim().slice(0, 500)`）。上限が無いと、500 を
+                                    // またぐ長さで画面とサーバーの答えが割れる。
+                                    // プロフィールの曲のリンク欄は既に 500 なので揃える
+                                    maxLength={500}
                                     className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
                                     style={{ fontSize: "16px" }}
                                 />
