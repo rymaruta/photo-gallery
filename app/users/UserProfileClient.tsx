@@ -5,7 +5,7 @@ import { sanitizeProfile } from "../../lib/utils/profileShape";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Thumb from "../components/Thumb";
 import Link from "next/link";
-import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { haversineKm } from "../../lib/utils/journey";
@@ -33,6 +33,7 @@ import { compareNewest, compareOldest, photoTimeKey } from "../../lib/utils/phot
 import { ROUTES } from "../../lib/routes";
 import { toastWithStaticPage } from "../../lib/utils/staticPage";
 import UserAvatar from "../components/UserAvatar";
+import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import PHOTOS_JSON from "../data/photos.json";
 import { publicImageUrl } from "@/lib/utils/seo";
 
@@ -181,7 +182,7 @@ function CoverBackground({ userId }: { userId: string }) {
  */
 const PROFILE_PRIORITY_THUMBS = 3;
 
-function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, onTogglePin, coverSelected = false, onSetCover, priority = false }: {
+function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, onTogglePin, coverSelected = false, onSetCover, priority = false, onDelete }: {
     photo: Photo;
     locale: string;
     isOwner: boolean;
@@ -191,6 +192,14 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
     coverSelected?: boolean;
     onSetCover?: (id: string) => void;
     priority?: boolean;
+    /**
+     * **消す本人にだけ渡す。** 一覧から消せなかったので、写真を1枚ずつ
+     * 開いて `/user/edit` まで行く必要があった（サーバーの
+     * `DELETE /photos/{id}` も確認シートも前からある）。
+     * 取り消せない操作なので、**押しても消えない**——共有の
+     * `DeleteConfirmModal` を必ず挟む。
+     */
+    onDelete?: (photo: Photo) => void;
 }) {
     const title = getLocalized(photo.title, locale as "ja" | "en") || (typeof photo.title === "string" ? photo.title : "");
     const isHidden = photo.published === false;
@@ -286,9 +295,21 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                 </button>
             )}
 
-            {/* 非公開バッジ */}
+            {/* 削除（オーナーのみ・左下）。**押しただけでは消えない**——確認シートを挟む */}
+            {isOwner && onDelete && (
+                <button
+                    onClick={(e) => { e.preventDefault(); onDelete(photo); }}
+                    className={`absolute bottom-1.5 left-1.5 p-1.5 rounded-full transition-colors z-10 hover:text-red-300 ${OWNER_CHIP_IDLE}`}
+                    aria-label={locale === "en" ? "Delete this photo" : "この写真を削除"}
+                    title={locale === "en" ? "Delete this photo" : "この写真を削除"}
+                >
+                    <TrashIcon className="w-4 h-4" />
+                </button>
+            )}
+
+            {/* 非公開バッジ。削除ボタンが出るときは重ならないよう右へ寄せる */}
             {isOwner && isHidden && (
-                <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-black/80 rounded text-xs text-white/70 pointer-events-none">
+                <div className={`absolute bottom-1.5 ${onDelete ? "left-10" : "left-1.5"} px-1.5 py-0.5 bg-black/80 rounded text-xs text-white/70 pointer-events-none`}>
                     {locale === "en" ? "Hidden" : "非公開"}
                 </div>
             )}
@@ -949,6 +970,47 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     // 続けて押すと応答の入れ替わりで画面とサーバーがずれる（ピン留めで
     // 同じ型を踏んで `pinSeqRef` を置いたのと同じ話）
     const togglingRef = useRef<Set<string>>(new Set());
+    // **一覧から消せるようにする。** サーバーの `DELETE /photos/{id}` も
+    // 共有の確認シートも前からあるが、プロフィールの一覧には削除が無く、
+    // 写真を1枚ずつ開いて `/user/edit` まで行く必要があった。
+    const [photoToDelete, setPhotoToDelete] = useState<Photo | null>(null);
+    const [deletingPhoto, setDeletingPhoto] = useState(false);
+
+    const handleDeletePhoto = useCallback(async () => {
+        const target = photoToDelete;
+        if (!target || deletingPhoto) return;
+        setDeletingPhoto(true);
+        try {
+            const res = await userFetch(`/photos/${encodeURIComponent(target.id)}`, { method: "DELETE" });
+            if (!res.ok) {
+                // サーバーは理由を返す（「画像の削除を完了できませんでした」など）。
+                // 押し直せば続きから消えるので、そう読める文言のまま出す
+                // （`/user/edit` の削除と同じ扱い）。シートは開いたままにして、
+                // その場でもう一度押せるようにする
+                showToast(await readApiError(res, locale === "en" ? "Failed to delete" : "削除に失敗しました"), "error");
+                return;
+            }
+            setPhotos((prev) => prev.filter((p) => p.id !== target.id));
+            // **留めの一覧からも落とす。** サーバーは `removePinnedPhoto` で
+            // 外しているが、こちらの控えに残ると「留めた写真」の枠が
+            // 消えた写真を指したままになる
+            setUserProfile((p) => (p && Array.isArray(p.pinnedPhotoIds)
+                ? { ...p, pinnedPhotoIds: p.pinnedPhotoIds.filter((id) => id !== target.id) }
+                : p));
+            setPhotoToDelete(null);
+            // 消しても静的ページが残ることがある（`lib/utils/staticPage.ts`）
+            toastWithStaticPage(showToast,
+                locale === "en" ? "Photo deleted" : "写真を削除しました",
+                await res.json().catch(() => null), locale !== "en");
+        } catch (e) {
+            showToast(sessionErrorMessage(e)
+                ?? (locale === "en" ? "Failed to delete" : "削除に失敗しました"), "error");
+        } finally {
+            // **必ず下ろす。** 立ったまま残ると、その写真だけ二度と消せなくなる
+            setDeletingPhoto(false);
+        }
+    }, [photoToDelete, deletingPhoto, showToast, locale]);
+
     const handleTogglePublish = useCallback(async (photoId: string, publish: boolean) => {
         if (togglingRef.current.has(photoId)) return;
         togglingRef.current.add(photoId);
@@ -1426,6 +1488,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 <PhotoCard
                                     key={photo.id}
                                     priority={i < PROFILE_PRIORITY_THUMBS}
+                                    onDelete={isOwner ? setPhotoToDelete : undefined}
                                     photo={photo}
                                     locale={locale}
                                     isOwner={isOwner}
@@ -1461,7 +1524,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                         </div>
                                         <div className="grid grid-cols-3 gap-1">
                                             {g.photos.map((photo) => (
-                                                <PhotoCard key={photo.id} photo={photo} locale={locale} isOwner={isOwner} onTogglePublish={handleTogglePublish} />
+                                                <PhotoCard key={photo.id} photo={photo} locale={locale} isOwner={isOwner} onTogglePublish={handleTogglePublish} onDelete={isOwner ? setPhotoToDelete : undefined} />
                                             ))}
                                         </div>
                                     </div>
@@ -1512,6 +1575,14 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     </div>
                 </div>
             )}
+            <DeleteConfirmModal
+                photo={photoToDelete}
+                isOpen={!!photoToDelete}
+                onClose={() => setPhotoToDelete(null)}
+                onConfirm={handleDeletePhoto}
+                locale={locale as "ja" | "en"}
+                deleting={deletingPhoto}
+            />
         </main>
     );
 }
