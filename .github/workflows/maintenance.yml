@@ -27,6 +27,7 @@ on:
           - normalize-image-urls  # 保存済みの画像URLのホスト名を配信URLに揃える
           - geocode-locations # 地名はあるが座標が無い写真に、おおよその座標を補う（地図ページの材料）
           - diagnose          # 本番の設定を読むだけ（索引の射影・日付の形・Cognito・CDN の TTL）
+          - repair-user-groups # 登録済みなのに user グループに入っていない人を入れ直す（既定は読むだけ・apply で実行）
           - content-opportunities # どこを直すと「検索に出せるページ」が増えるかを数える（読み取りのみ）
           - orphan-uploads    # どの行からも参照されていないアップロード実体を探す
           - verify-upload     # **staging** で presign が本当に使えるか確かめる（apply が要る）
@@ -244,3 +245,14 @@ jobs:
           COGNITO_USER_POOL_ID: ap-northeast-1_ZbuhDQsWz
           COGNITO_CLIENT_ID: 21cs4cd8dkttmg3snloj72u8mu
           CLOUDFRONT_DISTRIBUTION_ID: EYRLTGCPOS9E4
+
+      # 新規登録した人が投稿できない、の復旧。PostConfirmation トリガーは失敗を
+      # 握るので、`user` グループが無かった期間に登録した人はログインできるのに
+      # 投稿だけ開けない。トリガーはもう発火しないので、ここで入れ直す。
+      # 入れたあと、本人は一度ログインし直す必要がある。
+      - name: user グループに入っていない人を入れ直す
+        if: inputs.task == 'repair-user-groups'
+        run: node scripts/repair-user-groups.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 10
+        env:
+          COGNITO_USER_POOL_ID: ap-northeast-1_ZbuhDQsWz
