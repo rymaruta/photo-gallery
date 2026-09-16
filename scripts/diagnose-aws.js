@@ -13,7 +13,7 @@ const { DynamoDBClient, DescribeTableCommand, ScanCommand } = require("@aws-sdk/
 const { CognitoIdentityProviderClient, DescribeUserPoolCommand, DescribeUserPoolClientCommand,
     ListGroupsCommand, ListUsersCommand, ListUsersInGroupCommand } = require("@aws-sdk/client-cognito-identity-provider");
 const { CloudFrontClient, GetDistributionConfigCommand, GetCachePolicyCommand, ListInvalidationsCommand, GetInvalidationCommand } = require("@aws-sdk/client-cloudfront");
-const { LambdaClient, ListFunctionsCommand, GetAccountSettingsCommand } = require("@aws-sdk/client-lambda");
+const { LambdaClient, ListFunctionsCommand, GetAccountSettingsCommand, GetFunctionConfigurationCommand, GetPolicyCommand } = require("@aws-sdk/client-lambda");
 const { requireEnv } = require("./lib/env");
 
 const REGION = process.env.AWS_REGION || "ap-northeast-1";
@@ -219,6 +219,92 @@ async function userGroups() {
     }
 
     for (const l of userGroupLines({ groups, confirmed, inGroup, poolId })) line(l);
+}
+
+/**
+ * PostConfirmation トリガーが**本当に走る状態か**の行（純関数・テスト可能）。
+ *
+ * 本番の診断（run 52）で「`user` グループは在るのに 5人中4人が入っていない・
+ * プロフィール行は2人ぶんしか無い」と出た。プロフィール行はトリガーが作るので、
+ * **少なくとも3人はトリガーが走ってすらいない**。走らない理由は3つに絞れる:
+ *
+ *   1. プールにトリガーが付いていない（LambdaConfig.PostConfirmation が空）
+ *   2. 付いているが**別の関数**を指している（古い ARN・別環境）
+ *   3. 付いているが Cognito に呼ぶ権限が無い（関数のリソースポリシーに
+ *      cognito-idp.amazonaws.com からの InvokeFunction が無い）
+ *
+ * `existing: true` のトリガーは serverless のカスタムリソースが後から
+ * プールへ書き込む形なので、1〜3 のどれも**デプロイは緑のまま**起きる。
+ */
+function triggerLines({ attachedArn, expectedName, fnExists, policyAllowsCognito, policyReadable }) {
+    const out = [];
+    if (!attachedArn) {
+        out.push("  ❌ プールに PostConfirmation トリガーが**付いていません**");
+        out.push("     → 新規登録した人は全員、グループにもプロフィールにも入らない");
+        out.push("     直し方: `api` を再デプロイ（deploy-api.yml）。cognitoPoolName が本番の名前か確かめてから");
+        return out;
+    }
+    out.push(`  付いているトリガー: ${attachedArn}`);
+    if (!attachedArn.endsWith(`:${expectedName}`) && !attachedArn.includes(`:${expectedName}:`)) {
+        out.push(`  ❌ 期待する関数（${expectedName}）ではありません。別環境か古い関数を指しています`);
+        return out;
+    }
+    if (fnExists === false) {
+        out.push("  ❌ 指している関数が存在しません（消えた・改名された）");
+        return out;
+    }
+    if (!policyReadable) {
+        out.push("  Cognito からの呼び出し権限: **確認できていません**（lambda:GetPolicy が無い）");
+        return out;
+    }
+    if (!policyAllowsCognito) {
+        out.push("  ❌ 関数に cognito-idp.amazonaws.com からの InvokeFunction が許可されていません");
+        out.push("     → プールにはトリガーが付いているのに、Cognito が呼べずに黙って飛ばされる");
+        out.push("     直し方: `api` を再デプロイ（カスタムリソースが権限を付け直す）");
+        return out;
+    }
+    out.push("  ✅ トリガーは付いていて、関数も在り、Cognito から呼べる");
+    out.push("     → それでも入らないなら、関数の中で AdminAddUserToGroup が拒否されている（CloudWatch のログ:");
+    out.push(`       /aws/lambda/${expectedName} に「postConfirmation: AdminAddUserToGroup failed」が出る）`);
+    return out;
+}
+
+async function postConfirmationTrigger() {
+    head("PostConfirmation トリガー（新規登録した人がグループに入る仕組みが生きているか）");
+    const poolId = process.env.COGNITO_USER_POOL_ID;
+    if (!poolId) { line("  COGNITO_USER_POOL_ID が未設定のため飛ばします"); return; }
+    const stage = process.env.STAGE || "prod";
+    const expectedName = `photo-gallery-api-${stage}-postConfirmation`;
+
+    const pool = await idp.send(new DescribeUserPoolCommand({ UserPoolId: poolId }));
+    const attachedArn = pool.UserPool?.LambdaConfig?.PostConfirmation ?? "";
+
+    let fnExists;
+    let policyReadable = false;
+    let policyAllowsCognito = false;
+    if (attachedArn) {
+        try {
+            await lambda.send(new GetFunctionConfigurationCommand({ FunctionName: attachedArn }));
+            fnExists = true;
+        } catch (e) {
+            if (e.name === "ResourceNotFoundException") fnExists = false;
+            else line(`  関数の存在を確かめられませんでした（${e.name}）`);
+        }
+        if (fnExists) {
+            try {
+                const res = await lambda.send(new GetPolicyCommand({ FunctionName: attachedArn }));
+                policyReadable = true;
+                const doc = JSON.parse(res.Policy ?? "{}");
+                policyAllowsCognito = (doc.Statement ?? []).some((st) =>
+                    st.Effect === "Allow"
+                    && String(st.Principal?.Service ?? "").includes("cognito-idp.amazonaws.com")
+                    && String(st.Action).includes("InvokeFunction"));
+            } catch (e) {
+                if (e.name === "ResourceNotFoundException") { policyReadable = true; policyAllowsCognito = false; }
+            }
+        }
+    }
+    for (const l of triggerLines({ attachedArn, expectedName, fnExists, policyAllowsCognito, policyReadable })) line(l);
 }
 
 /** 秒を人が読める長さに（TTL は 31536000 のような桁で出てくる） */
@@ -839,7 +925,7 @@ async function users() {
 async function main() {
     PHOTOS_TABLE = requireEnv("PHOTOS_TABLE");
     line(`対象テーブル: ${PHOTOS_TABLE} / region: ${REGION}`);
-    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["userGroups", userGroups], ["cdnTtl", cdnTtl], ["invalidationHistory", invalidationHistory], ["lambdaRoles", lambdaRoles], ["concurrency", concurrency], ["users", users]]) {
+    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["userGroups", userGroups], ["postConfirmationTrigger", postConfirmationTrigger], ["cdnTtl", cdnTtl], ["invalidationHistory", invalidationHistory], ["lambdaRoles", lambdaRoles], ["concurrency", concurrency], ["users", users]]) {
         try {
             await fn();
         } catch (e) {
@@ -851,7 +937,7 @@ async function main() {
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
 
-module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, securityHeadersNote, edgeFunctionNote, edgeAssociations, STATIC_PATTERN, publicFnsFromServerless, PUBLIC_FNS, qualify, userGroupLines };
+module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, securityHeadersNote, edgeFunctionNote, edgeAssociations, STATIC_PATTERN, publicFnsFromServerless, PUBLIC_FNS, qualify, userGroupLines, triggerLines };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
