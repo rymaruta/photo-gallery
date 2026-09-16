@@ -18,7 +18,18 @@ type Props = {
      * 渡されていれば、/?photo=<id> への遷移ではなく直接モーダルを開く。
      */
     onOpenPhoto?: (photoId: string) => boolean;
+    /**
+     * `<picture>` の `sizes`。**画面の容器ごとに違うので呼ぶ側が必ず渡す。**
+     *
+     * **既定値は置かない。** 置くと、容器の違う画面に足したときに黙って
+     * 間違った値が使われる（実際、集約ページが渡すのをやめる変異が
+     * テストを素通りした——箱 276px に 236px と申告して小さすぎる候補を選ぶ）。
+     * 必須にすれば型検査が落とす＝「設定ミスは動かないに倒す」という
+     * このリポジトリの方針どおりになる。
+     */
+    sizes: string;
 };
+
 
 /**
  * 最初に描く枚数と、下端に近づいたときに足す枚数。
@@ -46,6 +57,7 @@ export default function GalleryGrid({
     locale,
     categoryDisplayMap = {},
     onOpenPhoto,
+    sizes,
 }: Props) {
     const labels = React.useMemo(() => getLabels(locale), [locale]);
     const emptyMessage = labels.gallery?.emptyMessage ?? (locale === "en" ? "No photos found." : "該当する写真がありません。");
@@ -105,6 +117,7 @@ export default function GalleryGrid({
                         objectPosition={objectPosition}
                         categoryDisplayMap={categoryDisplayMap}
                         onOpenPhoto={onOpenPhoto}
+                        sizes={sizes}
                     />
                 );
             })}
@@ -126,6 +139,7 @@ const GalleryItem = React.memo(function GalleryItem({
     objectPosition,
     categoryDisplayMap,
     onOpenPhoto,
+    sizes,
 }: {
     photo: Photo;
     index: number;
@@ -135,6 +149,7 @@ const GalleryItem = React.memo(function GalleryItem({
     objectPosition?: string;
     categoryDisplayMap?: Record<string, string>;
     onOpenPhoto?: (photoId: string) => boolean;
+    sizes: string;
 }) {
     const { isFavorite } = useFavorites();
     const isFav = isFavorite(photo.id);
@@ -209,7 +224,7 @@ const GalleryItem = React.memo(function GalleryItem({
                     <Thumb
                         photo={photo}
                         alt={localizedAlt}
-                        sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
+                        sizes={sizes}
                         priority={isPriority}
                         objectPosition={objectPosition}
                     />

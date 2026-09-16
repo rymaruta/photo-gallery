@@ -86,6 +86,8 @@ provider:
         - Effect: Allow
           Action:
             - cognito-idp:AdminAddUserToGroup
+            # グループが無ければ作る（無いと新規登録した人が全員、投稿を開けない）
+            - cognito-idp:CreateGroup
           Resource: arn:aws:cognito-idp:${aws:region}:${aws:accountId}:userpool/${param:cognitoUserPoolId}
 
 custom:

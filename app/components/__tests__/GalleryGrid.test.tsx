@@ -2,6 +2,7 @@ import React from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import GalleryGrid, { GRID_INITIAL_VISIBLE, GRID_STEP } from "../GalleryGrid";
+import { GRID_SIZES_5XL } from "../gridSizes";
 import PHOTOS_JSON from "../../data/photos.json";
 import type { Photo } from "@/lib/data/photos";
 
@@ -19,7 +20,7 @@ const photo = (id: string): Photo => ({
 });
 
 function setup(ids: string[], onOpenPhoto?: (id: string) => boolean) {
-    render(<GalleryGrid photos={ids.map(photo)} locale="ja" onOpenPhoto={onOpenPhoto} />);
+    render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={ids.map(photo)} locale="ja" onOpenPhoto={onOpenPhoto} />);
 }
 
 describe("GalleryGrid: 新着写真のタップ", () => {
@@ -119,19 +120,19 @@ describe("GalleryGrid: 枚数が増えても一度に全部は描かない", () 
 
     it("最初は先頭ぶんだけ描く", () => {
         stubObserver();
-        const { container } = render(<GalleryGrid photos={many(500)} locale="ja" />);
+        const { container } = render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={many(500)} locale="ja" />);
         expect(cards(container)).toBe(GRID_INITIAL_VISIBLE);
     });
 
     it("枚数が少なければ何も変わらない（今の30枚はこちら）", () => {
         stubObserver();
-        const { container } = render(<GalleryGrid photos={many(30)} locale="ja" />);
+        const { container } = render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={many(30)} locale="ja" />);
         expect(cards(container)).toBe(30);
     });
 
     it("下端が近づくたびに足す", () => {
         const io = stubObserver();
-        const { container } = render(<GalleryGrid photos={many(500)} locale="ja" />);
+        const { container } = render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={many(500)} locale="ja" />);
         io.fire();
         expect(cards(container)).toBe(GRID_INITIAL_VISIBLE + GRID_STEP);
         io.fire();
@@ -144,7 +145,7 @@ describe("GalleryGrid: 枚数が増えても一度に全部は描かない", () 
     // 実ブラウザでは 300枚→7回・1,000枚→19回に分けて最後まで読めることを実測済み
     it("足すたびに番兵を見張り直す（入ったままだと二度と呼ばれない）", () => {
         const io = stubObserver();
-        render(<GalleryGrid photos={many(500)} locale="ja" />);
+        render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={many(500)} locale="ja" />);
         const before = io.instances.length;
         io.fire();
         expect(io.instances.length, "足したあと観測者を作り直していない").toBeGreaterThan(before);
@@ -155,27 +156,27 @@ describe("GalleryGrid: 枚数が増えても一度に全部は描かない", () 
     // `isIntersecting` を見ないと作り直すたびに1回発火し、結局全部描いてしまう
     it("番兵が見えていないうちは増やさない", () => {
         stubObserver();
-        const { container } = render(<GalleryGrid photos={many(500)} locale="ja" />);
+        const { container } = render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={many(500)} locale="ja" />);
         expect(cards(container), "見えていないのに足している").toBe(GRID_INITIAL_VISIBLE);
     });
 
     it("下端に着く前に足す（画面に入ってからでは間に合わない）", () => {
         const io = stubObserver();
-        render(<GalleryGrid photos={many(500)} locale="ja" />);
+        render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={many(500)} locale="ja" />);
         const margin = io.instances[0].options?.rootMargin ?? "";
         expect(margin, "余裕を持たずに観測している").toMatch(/[1-9]\d{2,}px/);
     });
 
     it("作り直すときは前の観測者を捨てる（積み上げない）", () => {
         const io = stubObserver();
-        render(<GalleryGrid photos={many(500)} locale="ja" />);
+        render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={many(500)} locale="ja" />);
         io.fire();
         expect(io.instances[0].disconnected, "前の観測者を捨てていない").toBe(true);
     });
 
     it("最後まで足したら番兵を外す（無限に観測しない）", () => {
         const io = stubObserver();
-        const { container } = render(<GalleryGrid photos={many(GRID_INITIAL_VISIBLE + 10)} locale="ja" />);
+        const { container } = render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={many(GRID_INITIAL_VISIBLE + 10)} locale="ja" />);
         io.fire();
         expect(cards(container)).toBe(GRID_INITIAL_VISIBLE + 10);
         expect(container.querySelector('[data-testid="gallery-sentinel"]'), "番兵が残っている").toBeNull();
@@ -185,7 +186,7 @@ describe("GalleryGrid: 枚数が増えても一度に全部は描かない", () 
     // その環境では残りの写真に一生辿り着けない
     it("IntersectionObserver が無い環境では全部描く", () => {
         delete (globalThis as unknown as Record<string, unknown>).IntersectionObserver;
-        const { container } = render(<GalleryGrid photos={many(200)} locale="ja" />);
+        const { container } = render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={many(200)} locale="ja" />);
         expect(cards(container)).toBe(200);
     });
 
@@ -193,10 +194,10 @@ describe("GalleryGrid: 枚数が増えても一度に全部は描かない", () 
         // **差し替えは1回だけ。** 2回呼ぶと、部品が掴んでいるのは1つ目の
         // クラスなのに2つ目の控えを見にいって空になる（最初そう書いて落とした）
         const io = stubObserver();
-        const { container, rerender } = render(<GalleryGrid photos={many(500)} locale="ja" />);
+        const { container, rerender } = render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={many(500)} locale="ja" />);
         io.fire();
         expect(cards(container)).toBeGreaterThan(GRID_INITIAL_VISIBLE);
-        rerender(<GalleryGrid photos={many(500).slice(0, 300)} locale="ja" />);
+        rerender(<GalleryGrid sizes={GRID_SIZES_5XL} photos={many(500).slice(0, 300)} locale="ja" />);
         expect(cards(container), "絞り込んでも前の枚数のままになっている").toBe(GRID_INITIAL_VISIBLE);
     });
 });
@@ -221,11 +222,50 @@ describe("GalleryGrid: カテゴリ名", () => {
             withCategory("c", "landscape"), withCategory("d", "travel"),
         ];
         const map = photoCategoryMap(photos, (ja.category?.names ?? {}) as Record<string, string>);
-        render(<GalleryGrid photos={photos} locale="ja" categoryDisplayMap={map} />);
+        render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={photos} locale="ja" categoryDisplayMap={map} />);
         // 別名で保存されていても、飛び先の集約ページと同じ言葉
         expect(screen.getByText("建築"), "別名の写真だけ名前が消えている").toBeInTheDocument();
         expect(screen.getAllByText("風景"), "landscape と 風景 が同じ名前になっていない").toHaveLength(2);
         // 表に無いカテゴリは本人が書いた言葉のまま（写真ページと同じ）
         expect(screen.getByText("travel")).toBeInTheDocument();
+    });
+});
+
+/**
+ * **最初の画面に出る写真を「すぐ読む」にする枚数。**
+ *
+ * `index < 8` は `GalleryGrid.tsx` にあるが、**それを見るテストが1本も
+ * 無かった**（`fetchPriority` を見るテストがリポジトリ全体で0件だった）。
+ * 外すと最初の画面の写真まで後回しになり、入れすぎると画面外の写真が
+ * 高い優先度で主役と帯域を取り合う。
+ *
+ * 8 という数の根拠は実測（`IMG-2`）——390x844 で画面内10枚・1280x800 で12枚
+ * なので、**どちらでも画面内の枚数を超えない**。
+ */
+describe("読み込みの優先度", () => {
+    const many = Array.from({ length: 12 }, (_, i) => photo(`p${i}`));
+
+    // alt は全部同じ（フィクスチャの題が共通）なので、**出た順**で見る
+    const renderMany = () => {
+        const { container } = render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={many} locale="ja" />);
+        return Array.from(container.querySelectorAll("picture img"));
+    };
+
+    it("先頭8枚は eager + high、9枚目からは lazy + auto", () => {
+        const imgs = renderMany();
+        expect(imgs).toHaveLength(many.length);
+        imgs.slice(0, 8).forEach((img, i) => {
+            expect(img.getAttribute("loading"), `${i}枚目が後回し指定`).toBe("eager");
+            expect(img.getAttribute("fetchpriority")?.toLowerCase()).toBe("high");
+        });
+        imgs.slice(8).forEach((img, i) => {
+            expect(img.getAttribute("loading"), `${i + 8}枚目を無駄に先読みしている`).toBe("lazy");
+            expect(img.getAttribute("fetchpriority")?.toLowerCase()).toBe("auto");
+        });
+    });
+
+    it("「すぐ読む」はちょうど8枚（0枚でも全部でも通らない）", () => {
+        const eager = renderMany().filter((i) => i.getAttribute("loading") === "eager");
+        expect(eager).toHaveLength(8);
     });
 });

@@ -6,6 +6,9 @@ const mockDdbSend = vi.hoisted(() => vi.fn());
 vi.mock("@aws-sdk/client-cognito-identity-provider", () => ({
     CognitoIdentityProviderClient: class { send = mockCognitoSend; },
     AdminAddUserToGroupCommand: class { input: unknown; constructor(i: unknown) { this.input = i; } },
+    // **列挙でモックしているので、実装が新しく使い始めた export はここにも足す。**
+    // 足さないと `new undefined()` になって、その分岐を通るテストだけが落ちる
+    CreateGroupCommand: class { input: unknown; constructor(i: unknown) { this.input = i; } },
 }));
 
 vi.mock("@aws-sdk/client-dynamodb", () => ({
@@ -115,5 +118,67 @@ describe("postConfirmation", () => {
         await invoke(e);
         expect(mockCognitoSend).toHaveBeenCalledTimes(1);
         expect(mockDdbSend).not.toHaveBeenCalled();
+    });
+});
+
+/**
+ * **グループがプールに無いと、新規登録した人が全員 投稿できない。**
+ *
+ * `AdminAddUserToGroup` は対象のグループが無いと `ResourceNotFoundException`。
+ * ここは失敗を握って先へ進む作りなので、**誰も気づかないまま
+ * 「ログインできるのに投稿・編集・下書きだけ永久に開けない」**人が増える
+ * （再ログインでも直らない。Cognito 側に無いため）。
+ *
+ * グループを作るのは `scripts/provision-env.js` だけで、それより前に作られた
+ * プールには無い。1人目の登録で作られるようにして塞ぐ。
+ */
+describe("グループが無いプール", () => {
+    const notFound = Object.assign(new Error("no group"), { name: "ResourceNotFoundException" });
+    const cmdNames = () => mockCognitoSend.mock.calls.map((c) => (c[0] as object).constructor.name);
+
+    it("無ければ作って、入れ直す", async () => {
+        mockCognitoSend
+            .mockRejectedValueOnce(notFound)   // 1回目の追加
+            .mockResolvedValueOnce({})          // グループ作成
+            .mockResolvedValueOnce({});         // 入れ直し
+        await invoke(event());
+        expect(cmdNames()).toEqual([
+            "AdminAddUserToGroupCommand", "CreateGroupCommand", "AdminAddUserToGroupCommand",
+        ]);
+    });
+
+    it("作るのは user だけ（admin は作らない・入れない）", async () => {
+        mockCognitoSend.mockRejectedValueOnce(notFound).mockResolvedValue({});
+        await invoke(event());
+        for (const c of mockCognitoSend.mock.calls) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            expect((c[0] as any).input.GroupName, "admin を触っている").toBe("user");
+        }
+    });
+
+    // 同時に登録した人が先に作った＝正常。そのまま入れ直す
+    it("作ろうとしたら既にあった場合も、入れ直す", async () => {
+        mockCognitoSend
+            .mockRejectedValueOnce(notFound)
+            .mockRejectedValueOnce(Object.assign(new Error("exists"), { name: "GroupExistsException" }))
+            .mockResolvedValueOnce({});
+        await invoke(event());
+        expect(cmdNames()).toEqual([
+            "AdminAddUserToGroupCommand", "CreateGroupCommand", "AdminAddUserToGroupCommand",
+        ]);
+    });
+
+    // **権限不足では作りにいかない。** 同じ理由で失敗するだけなので無駄に叩かない
+    it("グループが無い以外の失敗では、作りにいかない", async () => {
+        mockCognitoSend.mockRejectedValue(Object.assign(new Error("denied"), { name: "AccessDeniedException" }));
+        await invoke(event());
+        expect(cmdNames()).toEqual(["AdminAddUserToGroupCommand"]);
+    });
+
+    it("作るのも入れ直すのも失敗して、それでも投げない（登録は完了させる）", async () => {
+        mockCognitoSend.mockRejectedValue(notFound);
+        await expect(invoke(event())).resolves.toBeTruthy();
+        // 失敗しても、プロフィール行は作る
+        expect(mockDdbSend).toHaveBeenCalled();
     });
 });

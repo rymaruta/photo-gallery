@@ -15,7 +15,8 @@
     "dev:upload": "tsx scripts/upload-to-dev-s3.ts",
     "add-exif": "tsx scripts/add-exif-to-existing-photos.ts",
     "api:info:prod": "cd api && npx serverless info --stage prod",
-    "web:deploy:prod": "node scripts/deploy-static-site.js --bucket prod-journey-photo.com"
+    "web:deploy:prod": "node scripts/deploy-static-site.js --bucket prod-journey-photo.com",
+    "verify": "bash scripts/verify-local.sh"
   },
   "dependencies": {
     "@aws-sdk/client-cloudfront": "^3.1050.0",

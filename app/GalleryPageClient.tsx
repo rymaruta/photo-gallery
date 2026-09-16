@@ -8,6 +8,7 @@ import StoriesBar from "./components/stories/StoriesBar";
 import { useLocale } from "./i18n/context";
 import useGallery from "../lib/hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
+import { GRID_SIZES_5XL } from "./components/gridSizes";
 import GalleryModal from "./components/GalleryModal";
 import SearchParamWatcher from "./components/SearchParamWatcher";
 import { usePhotos } from "../lib/hooks/usePhotos";
@@ -535,6 +536,7 @@ export default function GalleryPageClient() {
           </div>
         ) : (
           <GalleryGrid
+                        sizes={GRID_SIZES_5XL}
             photos={filteredPhotos}
             locale={locale}
             categoryDisplayMap={categoryDisplayMap}
