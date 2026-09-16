@@ -35,6 +35,23 @@ const BUILT_PHOTO_IDS: ReadonlySet<string> = new Set<string>(PHOTO_INDEX.photoId
 // （ユーザー個別の OGP カード付き）。それ以外はクエリ版にフォールバック。
 const BUILT_USER_IDS: ReadonlySet<string> = new Set<string>(PHOTO_INDEX.userIds);
 
+/**
+ * その写真の**個別ページが実在する**か。
+ *
+ * `ROUTES.PHOTO` は無ければ `/?photo=<id>` に落とすので、どこから押しても
+ * 行き止まりにはならない——**モーダルの中を除いて**。あそこは既に
+ * `/?photo=<id>` が開いている画面なので、「個別ページを見る」を押しても
+ * **何も起きない**（同じ URL へ飛んで同じモーダルが開き直るだけ）。
+ * しかも文言は個別ページを約束している。
+ *
+ * 落ちるのは「公開してから再ビルドが終わるまで」の数分だけ
+ * （実データ30枚は全部 `/photo/<id>` を持つ）。短い窓だが、**その窓は
+ * 投稿した本人が自分の写真を見に来る時間そのもの**。
+ */
+export function hasPhotoPage(id: string): boolean {
+    return BUILT_PHOTO_IDS.has(id);
+}
+
 export const ROUTES = {
     HOME: "/",
     FAVORITES: "/favorites",
