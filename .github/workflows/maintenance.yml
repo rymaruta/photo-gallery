@@ -30,6 +30,7 @@ on:
           - repair-user-groups # 登録済みなのに user グループに入っていない人を入れ直す（既定は読むだけ・apply で実行）
           - attach-post-confirmation # プールに PostConfirmation トリガーと呼び出し許可を ID 指名で付け直す（既定は読むだけ・apply で実行）
           - purge-unconfirmed-users # 確認が終わっていない（UNCONFIRMED）利用者を消す（既定は読むだけ・apply で実行）
+          - unused-resources   # AWS に在るものと、このリポジトリが使っているものを突き合わせる（読み取りのみ・消さない）
           - content-opportunities # どこを直すと「検索に出せるページ」が増えるかを数える（読み取りのみ）
           - orphan-uploads    # どの行からも参照されていないアップロード実体を探す
           - verify-upload     # **staging** で presign が本当に使えるか確かめる（apply が要る）
@@ -288,3 +289,11 @@ jobs:
         env:
           COGNITO_USER_POOL_ID: ap-northeast-1_ZbuhDQsWz
           PURGE_OLDER_THAN_DAYS: ${{ inputs.purge_older_than_days }}
+
+      # 費用の当たりを付けるための棚卸し。**読むだけで、1つも消さない。**
+      # `apply` は受け取らない——このリポジトリから「不要」と言い切れるものは
+      # 少なく（コンソールで手で作った依存はコードに現れない）、消す判断は人がする。
+      - name: AWS に在るものを棚卸しする（読み取りのみ）
+        if: inputs.task == 'unused-resources'
+        run: node scripts/unused-resources.js
+        timeout-minutes: 10
