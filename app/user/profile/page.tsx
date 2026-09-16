@@ -20,10 +20,10 @@ import { isImeKey } from "../../../lib/utils/ime";
 import { log } from "../../../lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
 import DeleteAccountModal from "../../components/DeleteAccountModal";
-import { changePassword, PASSWORD_RULE_MESSAGE, getCurrentEmail, startEmailChange, confirmEmailChange } from "../../../lib/auth/cognito";
+import { changePassword, PASSWORD_RULE_MESSAGE, getCurrentEmail, startEmailChange, confirmEmailChange, signOutEverywhere } from "../../../lib/auth/cognito";
 import BlockedUsers from "./BlockedUsers";
 import SongArtwork from "../../components/SongArtwork";
-import { loginWithNext } from "../../../lib/routes";
+import { loginWithNext, ROUTES } from "../../../lib/routes";
 import { publicImageUrl } from "@/lib/utils/seo";
 import SongSearchError from "../../components/SongSearchError";
 
@@ -114,6 +114,10 @@ export default function ProfileEditPage() {
     // 「どこに届いたか」を言い続けるため
     const [emailPending, setEmailPending] = useState<string | null>(null);
     const [emailBusy, setEmailBusy] = useState(false);
+
+    // すべての端末からログアウト。**いまの端末も含む**ので、押した人はここも
+    // ログインし直しになる（画面でそう言う）
+    const [signingOutAll, setSigningOutAll] = useState(false);
 
     // 退会（アカウント削除）
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -732,6 +736,31 @@ export default function ProfileEditPage() {
                 : "パスワードを変更しました。この端末はログインしたままです（他の端末は、そのセッションが切れるまでログインしたままになります）", "success");
         } finally {
             setChangingPassword(false);
+        }
+    };
+
+    /**
+     * **パスワードを変えても他の端末は生きたまま**——Cognito はパスワードの
+     * 変更で既存のトークンを失効させない。漏れたかもしれない端末を止める
+     * 手段がサイトに1つも無かったので、その口。
+     */
+    const handleSignOutEverywhere = async () => {
+        if (signingOutAll) return;
+        setSigningOutAll(true);
+        try {
+            const result = await signOutEverywhere();
+            if (!result.success) {
+                showToast(result.error || (locale === "en" ? "Failed to sign out." : "ログアウトできませんでした"), "error");
+                return;
+            }
+            showToast(locale === "en"
+                ? "Signed out on all devices. Please sign in again."
+                : "すべての端末からログアウトしました。もう一度ログインしてください", "success");
+            // **ここもログアウトしている**ので、ログイン画面へ送る。
+            // 残すと「ログイン中の顔のまま、押すたびに失敗する」状態になる
+            router.replace(ROUTES.LOGIN);
+        } finally {
+            setSigningOutAll(false);
         }
     };
 
@@ -1460,6 +1489,33 @@ export default function ProfileEditPage() {
                                 {changingPassword
                                     ? (locale === "en" ? "Changing..." : "変更中...")
                                     : (locale === "en" ? "Change password" : "パスワードを変更する")}
+                            </button>
+                            <div className="pt-1 border-t border-white/10" />
+
+                            {/* すべての端末からログアウト。
+                                **パスワードを変えても他の端末は生きたまま**——Cognito は
+                                パスワードの変更で既存のトークンを失効させないので、漏れた
+                                かもしれない端末を止める手段がサイトに1つも無かった。
+                                消す操作ではないので「危険な操作」には置かない。 */}
+                            <p className="text-sm font-semibold text-white/90">
+                                {locale === "en" ? "Sign out on all devices" : "すべての端末からログアウト"}
+                            </p>
+                            <p className="text-xs text-white/50 leading-relaxed">
+                                {locale === "en"
+                                    ? "Signs out everywhere, including this device. Use this if you changed your password because you think someone else got in — a password change alone does not sign other devices out."
+                                    : "この端末を含め、すべての端末からログアウトします。パスワードを変えただけでは他の端末はログインしたままなので、誰かに入られたかもしれないときはこちらも押してください"}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => void handleSignOutEverywhere()}
+                                disabled={signingOutAll}
+                                className="w-full py-2.5 rounded-xl bg-white/5 text-white text-sm font-medium ring-1 ring-inset ring-white/15 hover:bg-white/10 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                style={{ touchAction: "manipulation", minHeight: "44px" }}
+                            >
+                                {signingOutAll && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                                {signingOutAll
+                                    ? (locale === "en" ? "Signing out..." : "ログアウト中...")
+                                    : (locale === "en" ? "Sign out on all devices" : "すべての端末からログアウトする")}
                             </button>
                         </div>
                     </div>

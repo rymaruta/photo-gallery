@@ -699,6 +699,82 @@ export function emailChangeErrorMessage(name: string, err?: unknown): string {
     }
 }
 
+/**
+ * **すべての端末からログアウトする**（`GlobalSignOut`）。
+ *
+ * **これが無いと、パスワードを変えても他の端末は生きたまま。** Cognito は
+ * パスワードの変更で既存のトークンを失効させないので、漏れたかもしれない
+ * 端末やブラウザのセッションを止める手段がサイトに1つも無かった
+ * （`changePassword` のトーストが、まさにそれを断って書いている）。
+ *
+ * `GlobalSignOut` はこの人の**リフレッシュトークンを全部**無効にする。
+ * **いまの端末も含む**ので、呼んだあとはここもログインし直しになる
+ * ——呼ぶ側はそれを画面で言うこと。
+ *
+ * **ふつうの `signOut` は触らない。** あちらは手元の控えを消すだけで、
+ * ライブラリ的には失効まで頼める（`signOut(コールバック)`）が、その経路は
+ * `getSession` が落ちると**手元の控えを消さずに終わる**——圏外でログアウトを
+ * 押した人がログインしたまま残る。日常の操作を壊してまで得る安全は
+ * ここでは釣り合わない（手元の控えは今までどおり消えている）。
+ */
+export async function signOutEverywhere(): Promise<{ success: boolean; error?: string }> {
+    return new Promise((resolve) => {
+        try {
+            const userPool = getUserPool();
+            const cognitoUser = userPool.getCurrentUser();
+            if (!cognitoUser) {
+                resolve({ success: false, error: "ログインしていません" });
+                return;
+            }
+            cognitoUser.getSession((err: Error | null, session: CognitoUserSession | null) => {
+                if (err || !session || !session.isValid()) {
+                    if (isUnreachable(err)) {
+                        resolve({ success: false, error: "ネットワークにつながりません。接続を確認してもう一度お試しください" });
+                        return;
+                    }
+                    resolve({ success: false, error: "セッションが無効です。再度ログインしてください" });
+                    return;
+                }
+                cognitoUser.globalSignOut({
+                    onSuccess: () => {
+                        // ライブラリは `clearCachedUser()` しか呼ばない。**手元の控えも消す**
+                        // ——残すと「ログイン中の顔のまま、押すたびに失敗する」状態になる
+                        try { cognitoUser.signOut(); } catch { /* 消せなくても先へ */ }
+                        resolve({ success: true });
+                    },
+                    onFailure: (e) => {
+                        const name = (e as { code?: string; name?: string }).code
+                            ?? (e as { name?: string }).name ?? "";
+                        log.warn("signOutEverywhere error:", name);
+                        resolve({ success: false, error: globalSignOutErrorMessage(name, e) });
+                    },
+                });
+            });
+        } catch (e) {
+            resolve({ success: false, error: e instanceof Error ? e.message : "ログアウトできませんでした" });
+        }
+    });
+}
+
+/**
+ * `signOutEverywhere` の失敗を日本語にする（**純関数**）。
+ * 知らない種別は素のメッセージに落とす——握ると本当の理由が消える。
+ */
+export function globalSignOutErrorMessage(name: string, err?: unknown): string {
+    switch (name) {
+        case "NotAuthorizedException":
+            // トークンがもう無効。**結果としては目的を達している**ので、そう言う
+            return "すでにログアウトされています。ログインし直してください";
+        case "LimitExceededException":
+        case "TooManyRequestsException":
+            return "試行回数が多すぎます。しばらく待ってからもう一度お試しください";
+        case "NetworkError":
+            return "ネットワークにつながりません。接続を確認してもう一度お試しください";
+        default:
+            return (err as { message?: string } | undefined)?.message || "すべての端末からログアウトできませんでした";
+    }
+}
+
 export async function deleteAccount(): Promise<{ success: boolean; error?: string }> {
     return new Promise((resolve) => {
         try {
