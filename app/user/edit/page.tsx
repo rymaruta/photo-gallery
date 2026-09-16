@@ -822,7 +822,13 @@ function EditContent() {
                             <input id="edit-date" type="date" min={PHOTO_DATE_MIN} max={todayForDateInput()} value={date} onChange={(e) => setDate(e.target.value)}
                                 className={inputCls} style={{ fontSize: "16px" }} />
                         </div>
-                        <div>
+                        {/* **タグだけ2列ぶん使う。** 候補チップは10個以上並ぶので、
+                            半分の幅（実測 175px）だと**5行に伸びて右の列だけ縦に長くなり、
+                            左が空く**——owner の「飛び出してるレイアウトが気になる」。
+                            全幅（363px）にすると実測 **5行 → 2行**。
+                            入力欄そのものは元から列に収まっている（横あふれ 0px を実測）ので、
+                            直したのは**チップの畳まれ方**。 */}
+                        <div className="col-span-2">
                             <label className={labelCls} htmlFor="edit-tags">{isJa ? "タグ（カンマ区切り）" : "Tags (comma separated)"}</label>
                             <input id="edit-tags" type="text" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)}
                                 className={inputCls} style={{ fontSize: "16px" }} placeholder={isJa ? "自然, 山" : "nature, mountain"} />
