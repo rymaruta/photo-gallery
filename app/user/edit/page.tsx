@@ -839,7 +839,7 @@ function EditContent() {
                             3行に伸びて右の列だけ縦に長くなる） */}
                         <div className="col-span-2">
                             <label className={labelCls} htmlFor="edit-category">{isJa ? "カテゴリ" : "Category"}</label>
-                            <div className="flex flex-wrap gap-1.5 mb-2" role="group" aria-label={isJa ? "カテゴリを選ぶ" : "Choose a category"}>
+                            <div className="flex flex-wrap gap-2 mb-2" role="group" aria-label={isJa ? "カテゴリを選ぶ" : "Choose a category"}>
                                 {CATEGORY_CHOICES.map((c) => {
                                     const on = isChosenCategory(category, c);
                                     return (
@@ -885,7 +885,7 @@ function EditContent() {
                                 置き換えてしまう）。**押して選ぶチップにする**——押し直すと外れ、
                                 選んでいるものは白地で出す（一覧の絞り込みと同じ `role="switch"`）。 */}
                             {tagSuggestions.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5 mt-1.5" role="group" aria-label={isJa ? "よく使うタグ" : "Your frequent tags"}>
+                                <div className="flex flex-wrap gap-2 mt-1.5" role="group" aria-label={isJa ? "よく使うタグ" : "Your frequent tags"}>
                                     {tagSuggestions.map((t: string) => {
                                         const on = hasTag(tagsInput, t);
                                         return (

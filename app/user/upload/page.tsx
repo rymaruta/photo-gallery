@@ -1095,7 +1095,7 @@ function UploadPageInner() {
                         白地・押し直すと外れる）だが、**カテゴリは1つしか
                         持てない**ので別のチップを押すと置き換わる。
                         **自由入力は残す**（owner の判断）＝下の欄は消していない */}
-                    <div className="flex flex-wrap gap-1.5" role="group" aria-label={locale === "en" ? "Choose a category" : "カテゴリを選ぶ"}>
+                    <div className="flex flex-wrap gap-2" role="group" aria-label={locale === "en" ? "Choose a category" : "カテゴリを選ぶ"}>
                         {CATEGORY_CHOICES.map((c) => {
                             const on = isChosenCategory(category, c);
                             return (
@@ -1141,7 +1141,7 @@ function UploadPageInner() {
                         置き換えてしまう）。**押して選ぶチップにする**——押し直すと外れ、
                         選んでいるものは白地で出す（一覧の絞り込みと同じ `role="switch"`）。 */}
                     {tagSuggestions.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5" role="group" aria-label={locale === "en" ? "Your frequent tags" : "よく使うタグ"}>
+                        <div className="flex flex-wrap gap-2" role="group" aria-label={locale === "en" ? "Your frequent tags" : "よく使うタグ"}>
                             {tagSuggestions.map((t: string) => {
                                 const on = hasTag(tags, t);
                                 return (
