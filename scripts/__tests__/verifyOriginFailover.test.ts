@@ -6,11 +6,33 @@ const m = require("../verify-origin-failover.js") as {
     withOriginGroup: (cfg: Record<string, unknown>, o: { fnDomain: string; groupId?: string; originId?: string }) => Record<string, unknown>;
     withoutOriginGroup: (cfg: Record<string, unknown>, o: { originalTargetOriginId: string; originId?: string }) => Record<string, unknown>;
     readOutcome: (r: { status: number; contentType?: string; body?: string }) => string;
+    isSecondOrigin: (r: { status: number; contentType?: string }) => boolean;
+    pollForFailover: (domain: string, o: {
+        limitSec?: number; everySec?: number;
+        probeFn: (d: string, extra: string) => Promise<Probe>;
+        log?: (s: string) => void;
+        sleep?: (ms: number) => Promise<void>;
+        now?: () => number;
+    }) => Promise<{ last: Probe; ok: boolean; tries: number }>;
     PROD_DISTRIBUTION: string;
     STAGING_DISTRIBUTION: string;
     PROBE_ORIGIN_DOMAIN: string;
 };
-const { refuseReason, withOriginGroup, withoutOriginGroup, readOutcome, PROD_DISTRIBUTION, STAGING_DISTRIBUTION, PROBE_ORIGIN_DOMAIN } = m;
+const { refuseReason, withOriginGroup, withoutOriginGroup, readOutcome, isSecondOrigin, pollForFailover, PROD_DISTRIBUTION, STAGING_DISTRIBUTION, PROBE_ORIGIN_DOMAIN } = m;
+
+type Probe = { status: number; contentType?: string; body?: string };
+const JSON_OK: Probe = { status: 200, contentType: "application/json; charset=utf-8", body: "[]" };
+const PAGE_404: Probe = { status: 404, contentType: "text/html", body: "<html>" };
+
+/** 時計も待ちも偽物にする（実時間では待たない。台帳 `d54e7ca4` の形） */
+function fakeClock() {
+    let t = 0;
+    return {
+        now: () => t,
+        sleep: async (ms: number) => { t += ms; },
+        advance: (ms: number) => { t += ms; },
+    };
+}
 
 /**
  * **本番の CloudFront を触る道具。取り消せない。**
@@ -230,5 +252,78 @@ describe("入口を実際に走らせる", () => {
         const r = run({ CLOUDFRONT_DISTRIBUTION_ID: "" });
         expect(r.out).not.toMatch(/ReferenceError|TypeError/);
         expect(r.code).not.toBe(0);
+    });
+});
+
+/**
+ * **この差分の肝は「何度も測る」ところ。**
+ *
+ * 前の版は `Status === "Deployed"` を見て**一度だけ**測り、33秒で通過した。
+ * それが「速かった」のか「古い構成を見た」のかは状態からは区別できず、
+ * **区別できないまま『効かない』と報告するところだった**。
+ *
+ * だから見るのは2つ: **出たら即やめるか** と **出なければ使い切るか**。
+ */
+describe("第2オリジンが出るまで叩く", () => {
+    it("出たら、その場で止める（無駄に叩かない）", async () => {
+        const clock = fakeClock();
+        const seen: string[] = [];
+        const r = await pollForFailover("d.example", {
+            limitSec: 240, everySec: 10,
+            probeFn: async (d, extra) => { seen.push(`${d}${extra}`); return JSON_OK; },
+            log: () => {}, sleep: clock.sleep, now: clock.now,
+        });
+        expect(r.ok, "第2オリジンが返ったのに ok でない").toBe(true);
+        expect(r.tries, "1回で分かるのに叩き続けている").toBe(1);
+        expect(seen).toHaveLength(1);
+    });
+
+    it("最初は404でも、あとから出たら ok（＝反映待ちを取りこぼさない）", async () => {
+        const clock = fakeClock();
+        const answers: Probe[] = [PAGE_404, PAGE_404, JSON_OK];
+        let i = 0;
+        const r = await pollForFailover("d.example", {
+            limitSec: 240, everySec: 10,
+            probeFn: async () => answers[i++] ?? PAGE_404,
+            log: () => {}, sleep: clock.sleep, now: clock.now,
+        });
+        expect(r.ok, "3回目に出たのに取りこぼした").toBe(true);
+        expect(r.tries).toBe(3);
+    });
+
+    it("出なければ予算を使い切ってから「効かない」と言う", async () => {
+        const clock = fakeClock();
+        let tries = 0;
+        const r = await pollForFailover("d.example", {
+            limitSec: 60, everySec: 10,
+            probeFn: async () => { tries += 1; return PAGE_404; },
+            log: () => {}, sleep: clock.sleep, now: clock.now,
+        });
+        expect(r.ok).toBe(false);
+        // 0/10/20/30/40/50/60 秒 → 7回（予算ちょうどまで叩いてから諦める）。
+        // 1回で諦めていないこと**と**予算を超えて回り続けていないことの両方を見る
+        expect(tries, "1回しか測らずに『効かない』と言っている").toBeGreaterThan(1);
+        expect(tries, "予算の使い方が変わった").toBe(7);
+        expect(r.last.status, "最後に見た応答を返していない").toBe(404);
+    });
+
+    it("一度も 200+JSON が返らなければ、最後の応答をそのまま渡す", async () => {
+        const clock = fakeClock();
+        const r = await pollForFailover("d.example", {
+            limitSec: 20, everySec: 10,
+            probeFn: async () => ({ status: 503, contentType: "text/plain", body: "oops" }),
+            log: () => {}, sleep: clock.sleep, now: clock.now,
+        });
+        expect(r.ok).toBe(false);
+        expect(readOutcome(r.last)).toContain("オリジンのエラー");
+    });
+
+    /** 判定を1か所に寄せたので、そこだけ見ておけば3か所ぶんが縛れる */
+    it("第2オリジンの見分け: 200+JSON だけを通す", () => {
+        expect(isSecondOrigin(JSON_OK)).toBe(true);
+        expect(isSecondOrigin(PAGE_404)).toBe(false);
+        expect(isSecondOrigin({ status: 200, contentType: "text/html" }), "HTML を JSON と読んでいる").toBe(false);
+        expect(isSecondOrigin({ status: 403, contentType: "application/json" }), "200 でないのに通している").toBe(false);
+        expect(isSecondOrigin({ status: 200 }), "content-type が無いのに通している").toBe(false);
     });
 });

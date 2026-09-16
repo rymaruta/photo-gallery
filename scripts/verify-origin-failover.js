@@ -157,17 +157,29 @@ function withoutOriginGroup(cfg, { originalTargetOriginId, originId = "probe-lam
     return next;
 }
 
+/**
+ * **第2オリジンが返したか。**
+ *
+ * 静的サイトは `/photos` というオブジェクトを持たないので、S3 から
+ * 200+JSON が返ることはない。
+ *
+ * **この式は1か所にしか書かない。** 以前は3か所（自己確認・判定・結論）に
+ * 同じ式を写していて、片方だけ壊す変異がどちらも観測できなかった。
+ */
+function isSecondOrigin({ status, contentType = "" }) {
+    return status === 200 && String(contentType).includes(MARKER);
+}
+
 /** 応答から「どちらのオリジンが返したか」を読む。分からなければ "不明" */
-function readOutcome({ status, contentType = "", body = "" }) {
-    // **JSON が返ったら第2オリジン。** 静的サイトは `/photos` という
-    // オブジェクトを持たないので、S3 から JSON が返ることはない
-    if (status === 200 && String(contentType).includes(MARKER)) return "第2オリジン（フェイルオーバーが効いた）";
+function readOutcome(r) {
+    const { status, contentType = "", body = "" } = r;
+    if (isSecondOrigin(r)) return "第2オリジン（フェイルオーバーが効いた）";
     if (status === 404) return "サイトの404ページ（カスタムエラー応答が勝った）";
     if (status >= 500) return `オリジンのエラー（${status}）`;
     return `不明（status=${status} content-type=${contentType || "?"} body=${JSON.stringify(String(body).slice(0, 60))}）`;
 }
 
-module.exports = { refuseReason, PROD_API_HOSTS, withOriginGroup, withoutOriginGroup, readOutcome, MARKER, PROBE_PATH, PROBE_ORIGIN_DOMAIN, PROD_DISTRIBUTION, STAGING_DISTRIBUTION };
+module.exports = { refuseReason, PROD_API_HOSTS, withOriginGroup, withoutOriginGroup, readOutcome, isSecondOrigin, pollForFailover, MARKER, PROBE_PATH, PROBE_ORIGIN_DOMAIN, PROD_DISTRIBUTION, STAGING_DISTRIBUTION };
 
 const line = (s) => console.log(s);
 
@@ -197,7 +209,7 @@ async function main() {
     line(`  カスタムエラー応答: ${(cfg.CustomErrorResponses?.Items ?? []).map((e) => `${e.ErrorCode}→${e.ResponsePagePath}`).join(", ") || "なし"}`);
 
     // 仕掛ける前の姿を測る（これが「いま」の答え）
-    const before = await probe(domain);
+    const before = await probe(domain, `?cb=${Date.now()}`);
     line(`\n[verify] 仕掛ける前: status=${before.status} → ${readOutcome(before)}`);
 
     if (!APPLY) {
@@ -214,7 +226,7 @@ async function main() {
         const direct = await probeUrl(`https://${PROBE_ORIGIN_DOMAIN}${PROBE_PATH}`);
         line(`\n[verify] 第2オリジン: ${PROBE_ORIGIN_DOMAIN}`);
         line(`[verify] 直接叩く: status=${direct.status} content-type=${direct.contentType || "?"}`);
-        if (!(direct.status === 200 && String(direct.contentType).includes(MARKER))) {
+        if (!isSecondOrigin(direct)) {
             // **本文まで出す。** status だけだと「パスが違う」のか
             // 「口が閉じている」のか読めない（実際、ユーザーAPIに向けて
             // 404 JSON で止まったとき、本文を見て初めて分かった）
@@ -224,17 +236,47 @@ async function main() {
 
         // オリジングループを足す
         const next = withOriginGroup(cfg, { fnDomain: PROBE_ORIGIN_DOMAIN });
-        await cf.send(new UpdateDistributionCommand({ Id: distributionId, IfMatch: cur.ETag, DistributionConfig: next }));
+        const upd = await cf.send(new UpdateDistributionCommand({ Id: distributionId, IfMatch: cur.ETag, DistributionConfig: next }));
         changed = true;
-        line("[verify] オリジングループを足しました。反映を待ちます（数分）...");
-        await waitFor(() => cf.send(new GetDistributionCommand({ Id: distributionId }))
-            .then((r) => r.Distribution?.Status === "Deployed"), "配信が Deployed になる", 900);
+        line(`[verify] オリジングループを足しました（受付直後の状態: ${upd.Distribution?.Status ?? "?"}）`);
 
-        // 本番と同じ道（CloudFront 経由）で叩く
-        const after = await probe(domain);
-        line(`\n[verify] 仕掛けたあと: status=${after.status} content-type=${after.contentType || "?"} → ${readOutcome(after)}`);
+        /**
+         * 🔴 **状態（`Status`）から「測ってよい」を推し量らない。**
+         *
+         * 前の版は `Status === "Deployed"` だけを見て**33秒で通過**した。
+         * これが「本当に速かった」のか「更新前の `Deployed` を見ていた」のか、
+         * **状態からは区別できない**——そして区別できないまま
+         * 「フェイルオーバーは効かない」と報告するところだった。
+         *
+         * だから**推し量るのをやめ、確かめたいものを直接 何度も測る**:
+         *
+         *   - 第2オリジンの応答が出たら **その場で止める**（＝効いた）
+         *   - 出なければ予算いっぱい叩き続ける（＝効かない、と言える）
+         *
+         * これなら反映が何秒かかろうと結論は変わらない。ついでに
+         * **エッジの控え**（403/404 は `ErrorCachingMinTTL`＝10秒）も、
+         * 繰り返すうちに必ず切れる。
+         *
+         * ⚠️ `?cb=` は当てにしない。既定のキャッシュポリシー
+         * （Managed-CachingOptimized）は**クエリ文字列を鍵に入れない**ので、
+         * 付けても控えを外せない可能性が高い。効いているのは「繰り返す」方。
+         */
+        await waitFor(async () => {
+            const r = await cf.send(new GetDistributionCommand({ Id: distributionId }));
+            const groups = r.Distribution?.DistributionConfig?.OriginGroups?.Quantity ?? 0;
+            return groups === 1 && r.Distribution?.Status === "Deployed";
+            // **900秒も待たない。** 結論を出すのは下の測定なので、ここは
+            // 「たぶん反映された」程度の目安でよい。待ちを長く取ると
+            // ジョブの上限（30分）と Actions の枠を無駄に食う
+        }, "新しい構成が Deployed になる", 300).catch((e) => {
+            // 待ちきれなくても**測りにはいく**（結論は測定が出す）
+            line(`[verify] （状態の確認は待ちきれず: ${e.message}。そのまま測ります）`);
+        });
+
+        const { last: after, ok, tries } = await pollForFailover(domain);
+        line(`\n[verify] ${tries}回 叩いた結果: status=${after.status} content-type=${after.contentType || "?"} → ${readOutcome(after)}`);
         line("─".repeat(52));
-        if (after.status === 200 && String(after.contentType).includes(MARKER)) {
+        if (ok) {
             line("✅ **フェイルオーバーがカスタムエラー応答より先に効く。**");
             line("   → 案 (c)（S3 に無いページを Lambda が作って置く）は成立します。");
         } else {
@@ -250,6 +292,36 @@ async function main() {
             await cf.send(new UpdateDistributionCommand({ Id: distributionId, IfMatch: now.ETag, DistributionConfig: back }));
             line("\n[verify] 配信を元に戻しました（オリジングループと第2オリジンを外した）");
         }
+    }
+}
+
+/**
+ * **第2オリジンが出るまで、予算いっぱい叩く。**
+ *
+ * 出たら即やめる（効いた）。出なければ予算を使い切ってから「効かない」と言う。
+ * 各回をログに出すので、**次に読む人が結論ではなく経過で判断できる**。
+ */
+async function pollForFailover(domain, {
+    limitSec = 240,
+    everySec = 10,
+    // **測る道具・書く道具・待つ道具は差し替えられるようにする。**
+    // そうしないと、この関数（この差分の肝）をテストから動かせない
+    probeFn = probe,
+    log = line,
+    sleep = (ms) => new Promise((r) => setTimeout(r, ms)),
+    now = () => Date.now(),
+} = {}) {
+    const started = now();
+    let tries = 0;
+    let last = { status: 0, contentType: "", body: "一度も叩けていない" };
+    for (;;) {
+        tries += 1;
+        last = await probeFn(domain, `?cb=${now()}`);
+        const sec = Math.round((now() - started) / 1000);
+        log(`[verify]   ${String(sec).padStart(3)}秒 #${tries}: status=${last.status} content-type=${last.contentType || "?"}`);
+        if (isSecondOrigin(last)) return { last, ok: true, tries };
+        if ((now() - started) / 1000 + everySec > limitSec) return { last, ok: false, tries };
+        await sleep(everySec * 1000);
     }
 }
 
@@ -271,7 +343,7 @@ async function probeUrl(url) {
     }
 }
 
-const probe = (domain) => probeUrl(`https://${domain}${PROBE_PATH}`);
+const probe = (domain, extra = "") => probeUrl(`https://${domain}${PROBE_PATH}${extra}`);
 
 // **入口はファイルの末尾に置く。** 途中に置いていたら、`main()` が
 // `const line` の宣言より先に走って `ReferenceError`（TDZ）になった
