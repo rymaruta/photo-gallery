@@ -29,6 +29,7 @@ on:
           - diagnose          # 本番の設定を読むだけ（索引の射影・日付の形・Cognito・CDN の TTL）
           - repair-user-groups # 登録済みなのに user グループに入っていない人を入れ直す（既定は読むだけ・apply で実行）
           - attach-post-confirmation # プールに PostConfirmation トリガーと呼び出し許可を ID 指名で付け直す（既定は読むだけ・apply で実行）
+          - purge-unconfirmed-users # 確認が終わっていない（UNCONFIRMED）利用者を消す（既定は読むだけ・apply で実行）
           - content-opportunities # どこを直すと「検索に出せるページ」が増えるかを数える（読み取りのみ）
           - orphan-uploads    # どの行からも参照されていないアップロード実体を探す
           - verify-upload     # **staging** で presign が本当に使えるか確かめる（apply が要る）
@@ -46,6 +47,10 @@ on:
         description: "geocode-locations で飛ばす地名（セミコロン ; 区切り。地名にカンマが入るため。ドライランで当て違いと分かったもの）"
         type: string
         default: ""
+      purge_older_than_days:
+        description: "purge-unconfirmed-users で「これより古いものだけ消す」日数。既定7。**0 にすると たった今 登録した人も対象になる**"
+        type: string
+        default: "7"
 
 # これらは本番専用の保守ワークフロー。スクリプト側の「既定で本番」を撤去したので、
 # ここで環境を明示する（渡し忘れたらスクリプトが止まる）。
@@ -270,3 +275,16 @@ jobs:
         env:
           COGNITO_USER_POOL_ID: ap-northeast-1_ZbuhDQsWz
           STAGE: prod
+
+      # 登録の途中で離脱した人（UNCONFIRMED）を消す。**取り消せない**ので
+      # 既定は読むだけ。消すのは UNCONFIRMED だけで、`FORCE_CHANGE_PASSWORD`
+      # （管理者が作ったばかりの正規の利用者）には触らない。新しすぎる人
+      # （既定7日未満）も触らない——確認コードの寿命は24時間なので、
+      # いま登録してコードを打とうとしている人を壊さないため。
+      - name: 確認が終わっていない利用者を消す
+        if: inputs.task == 'purge-unconfirmed-users'
+        run: node scripts/purge-unconfirmed-users.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 10
+        env:
+          COGNITO_USER_POOL_ID: ap-northeast-1_ZbuhDQsWz
+          PURGE_OLDER_THAN_DAYS: ${{ inputs.purge_older_than_days }}
