@@ -41,7 +41,7 @@ vi.mock("amazon-cognito-identity-js", () => ({
 import {
     signIn, getCurrentSession, lookupSession, signUp, confirmSignUp,
     getCurrentUserGroups, isAdmin, isGeneralUser, forgotPassword, confirmForgotPassword,
-    resendConfirmationCode, PASSWORD_RULE_MESSAGE,
+    resendConfirmationCode, PASSWORD_RULE_MESSAGE, changePasswordErrorMessage,
 } from "../cognito";
 
 beforeEach(() => {
@@ -532,5 +532,44 @@ describe("lookupSession", () => {
         mockGetSession.mockImplementation((cb: (e: Error, s: null) => void) =>
             cb(err({ code: "NetworkError" }), null));
         expect(await getCurrentSession()).toBeNull();
+    });
+});
+
+/**
+ * **ログイン中にパスワードを変えたとき、失敗の理由が次の一手に繋がるか。**
+ *
+ * Cognito の素のメッセージは英語で、しかも `InvalidPasswordException` は
+ * 規則を部分的にしか言わない（`PASSWORD_RULE_MESSAGE` のコメントを見よ）。
+ * 訳し分けを**純関数のまま**直接見る。
+ */
+describe("パスワード変更の失敗を日本語にする", () => {
+    it("いまのパスワードが違う（セッション切れとは言わない）", () => {
+        const m = changePasswordErrorMessage("NotAuthorizedException");
+        expect(m).toContain("いまのパスワードが違います");
+        // ここまで来ている＝セッションは有効。「ログインし直して」は嘘になる
+        expect(m).not.toContain("ログインし直");
+    });
+
+    it("規則を満たさないときは、規則を全部言う", () => {
+        expect(changePasswordErrorMessage("InvalidPasswordException")).toBe(PASSWORD_RULE_MESSAGE);
+        expect(changePasswordErrorMessage("InvalidParameterException")).toBe(PASSWORD_RULE_MESSAGE);
+    });
+
+    it("回数制限と通信断を分ける", () => {
+        expect(changePasswordErrorMessage("LimitExceededException")).toContain("しばらく待って");
+        expect(changePasswordErrorMessage("TooManyRequestsException")).toContain("しばらく待って");
+        expect(changePasswordErrorMessage("NetworkError")).toContain("ネットワーク");
+    });
+
+    // **知らない種別を既定文で握り潰さない。** 潰すと、本当の理由が
+    // 画面にもログにも出なくなる
+    it("知らない種別は素のメッセージを通す", () => {
+        expect(changePasswordErrorMessage("SomeNewException", { message: "なにか新しい理由" }))
+            .toBe("なにか新しい理由");
+    });
+
+    it("素のメッセージも無ければ、それと分かる既定文に落とす", () => {
+        expect(changePasswordErrorMessage("SomeNewException")).toBe("パスワードを変更できませんでした");
+        expect(changePasswordErrorMessage("", {})).toBe("パスワードを変更できませんでした");
     });
 });

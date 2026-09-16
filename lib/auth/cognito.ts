@@ -488,6 +488,85 @@ export async function resendConfirmationCode(username: string): Promise<{
 
 // Cognito アカウントを削除（退会）。現在ログイン中のユーザーが対象。
 // deleteUser は有効なセッションが必要なため、先に getSession でトークンを整える。
+/**
+ * **ログイン中に自分のパスワードを変える。**
+ *
+ * これが無かった間、変える手段は「ログアウト → `/login` →
+ * パスワードをお忘れですか → メールのコード」**だけ**だった
+ * ——漏洩を疑ったその場で替えられず、しかも「忘れた」を装う必要があった。
+ * `forgotPassword` は**メールが届く人**にしか効かないので、
+ * メールを受け取れなくなった人には出口が無い（そちらは別枠）。
+ *
+ * 形は `deleteAccount` に揃える（同じ「セッションが要る操作」なので、
+ * 取り方と失敗の返し方を割らない）。
+ *
+ * **返す文言は利用者が次に何をすればいいか分かるものにする。** Cognito の
+ * 素のメッセージは英語で、`InvalidPasswordException` は規則を
+ * 部分的にしか言わない（`PASSWORD_RULE_MESSAGE` のコメントを見よ）。
+ */
+export async function changePassword(oldPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+    return new Promise((resolve) => {
+        try {
+            const userPool = getUserPool();
+            const cognitoUser = userPool.getCurrentUser();
+            if (!cognitoUser) {
+                resolve({ success: false, error: "ログインしていません" });
+                return;
+            }
+            cognitoUser.getSession((err: Error | null, session: CognitoUserSession | null) => {
+                if (err || !session || !session.isValid()) {
+                    // **通信断を「セッション切れ」と言わない**（圏外でログインし直せと
+                    // 言う形。台帳の NET-MSG と同じ判断）
+                    if (isUnreachable(err)) {
+                        resolve({ success: false, error: "ネットワークにつながりません。接続を確認してもう一度お試しください" });
+                        return;
+                    }
+                    resolve({ success: false, error: "セッションが無効です。再度ログインしてください" });
+                    return;
+                }
+                cognitoUser.changePassword(oldPassword, newPassword, (changeErr) => {
+                    if (changeErr) {
+                        const name = (changeErr as { code?: string; name?: string }).code
+                            ?? (changeErr as { name?: string }).name ?? "";
+                        log.warn("changePassword error:", name);
+                        resolve({ success: false, error: changePasswordErrorMessage(name, changeErr) });
+                        return;
+                    }
+                    resolve({ success: true });
+                });
+            });
+        } catch (e) {
+            resolve({ success: false, error: e instanceof Error ? e.message : "パスワードの変更中にエラーが発生しました" });
+        }
+    });
+}
+
+/**
+ * `changePassword` の失敗を、利用者が次の一手を決められる日本語にする
+ * （**純関数**。Cognito を呼ばずに直接見られる）。
+ *
+ * 知らない種別は素のメッセージに落とす——**握って既定文にすると、
+ * 本当の理由が画面にもログにも出なくなる**。
+ */
+export function changePasswordErrorMessage(name: string, err?: unknown): string {
+    switch (name) {
+        case "NotAuthorizedException":
+            // いまのパスワードが違う。**「セッション切れ」とは言わない**
+            // ——ここまで来ている＝セッションは有効
+            return "いまのパスワードが違います";
+        case "InvalidPasswordException":
+        case "InvalidParameterException":
+            return PASSWORD_RULE_MESSAGE;
+        case "LimitExceededException":
+        case "TooManyRequestsException":
+            return "試行回数が多すぎます。しばらく待ってからもう一度お試しください";
+        case "NetworkError":
+            return "ネットワークにつながりません。接続を確認してもう一度お試しください";
+        default:
+            return (err as { message?: string } | undefined)?.message || "パスワードを変更できませんでした";
+    }
+}
+
 export async function deleteAccount(): Promise<{ success: boolean; error?: string }> {
     return new Promise((resolve) => {
         try {
