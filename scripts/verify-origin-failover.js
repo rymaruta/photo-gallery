@@ -281,10 +281,24 @@ async function main() {
         line(`[verify] 第2オリジン: ${fnDomain}`);
 
         // **先に関数そのものを叩く。** ここで目印が出なければ、あとの判定は
-        // 何を測っているか分からなくなる（測定器の自己確認）
-        const direct = await probeUrl(`https://${fnDomain}${PROBE_PATH}`);
+        // 何を測っているか分からなくなる（測定器の自己確認）。
+        //
+        // ⚠️ **すぐには叩かない。** `AddPermission` を打った 0.4秒後に叩いて
+        // **403**（まだ許可が効いていない顔）で止まった。Function URL の
+        // リソースポリシーは反映に数秒かかる。**待たずに測って「駄目だ」と
+        // 読むのが、この道具がいちばんやってはいけないこと**なので、
+        // 撃ち直す。それでも駄目なら本当に駄目。
+        let direct = { status: 0, body: "" };
+        for (let i = 0; i < 12; i++) {
+            direct = await probeUrl(`https://${fnDomain}${PROBE_PATH}`);
+            if (direct.body.includes(MARKER)) break;
+            if (i === 0) line(`[verify] 関数を直接: status=${direct.status} — 許可の反映を待ちます`);
+            await new Promise((r) => setTimeout(r, 5000));
+        }
         line(`[verify] 関数を直接: status=${direct.status} 目印=${direct.body.includes(MARKER) ? "あり" : "**無し**"}`);
-        if (!direct.body.includes(MARKER)) throw new Error("第2オリジンが目印を返さない。確認にならないので中止");
+        if (!direct.body.includes(MARKER)) {
+            throw new Error(`第2オリジンが目印を返さない（60秒待っても status=${direct.status}）。確認にならないので中止`);
+        }
 
         // 2) オリジングループを足す
         const next = withOriginGroup(cfg, { fnDomain });
