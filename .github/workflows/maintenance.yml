@@ -36,6 +36,7 @@ on:
           - orphan-uploads    # どの行からも参照されていないアップロード実体を探す
           - verify-upload     # **staging** で presign が本当に使えるか確かめる（apply が要る）
           - verify-invalidate # **staging** で削除時のエッジ掃除が Lambda の中で動くか確かめる（apply が要る）
+          - verify-origin-failover # **staging** でオリジングループが 404ページより先に効くか確かめる（動的化の関門）
         required: true
       apply:
         description: "true で実際に適用（false は内容の確認のみ）"
@@ -225,6 +226,24 @@ jobs:
           CLEANUP_FUNCTION: photo-gallery-user-api-staging-cleanupStories
           # 管理API側（別サービス＝別の IAM・別の環境変数）も同じやり方で確かめる
           ADMIN_DELETE_FUNCTION: photo-gallery-api-staging-deletePhoto
+
+      - name: オリジングループが 404ページより先に効くか確かめる（staging）
+        if: inputs.task == 'verify-origin-failover'
+        # **動的化（②）の関門。** 案 (c) は「S3 が 403/404 を返したら Lambda へ回す」
+        # 形だが、`fix-cdn-error-pages.js` の **カスタムエラー応答は
+        # ディストリビューション全体に効く**ので、そのままだと必ず 404.html に
+        # 化ける。オリジングループのフェイルオーバーが**その手前**で効くかどうかで
+        # 設計が決まる（`docs/dynamic-photo-page-2026-09.md` が
+        # 「実機で1回確かめてから」と書いて止まっていた所）。
+        #
+        # 配信の更新が2回（足す・戻す）入り、そのたびに数分待つ
+        timeout-minutes: 30
+        run: node scripts/verify-origin-failover.js ${{ inputs.apply && '--apply' || '' }}
+        env:
+          # **staging を明示する。** 上の env は本番向け。スクリプト側も
+          # 本番の配信ID・関数名・バケット名を見たら止めるが、守りは2枚にする
+          CLOUDFRONT_DISTRIBUTION_ID: EF2TFEBBP24DL
+          SITE_BUCKET: staging-journey-photo.com
 
       - name: 地名から おおよその座標を補う
         if: inputs.task == 'geocode-locations'
