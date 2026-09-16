@@ -26,6 +26,7 @@ import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, type OwnValues } from "../../../lib/utils/ownValues";
 import { CATEGORY_CHOICES, isChosenCategory, toggleCategory } from "../../../lib/utils/categoryChoices";
+import { TAG_CHOICES } from "../../../lib/utils/tagChoices";
 import { publicImageUrl } from "@/lib/utils/seo";
 
 const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
@@ -249,7 +250,7 @@ function EditContent() {
     const [original, setOriginal] = useState<Photo | null>(null);
     const [saving, setSaving] = useState(false);
     // 自分がこれまでに使った撮影地・カテゴリ・タグ（入力候補）
-    const [ownValues, setOwnValues] = useState<OwnValues>({ locations: [], categories: [], tags: [] });
+    const [ownValues, setOwnValues] = useState<OwnValues>({ locations: [], categories: [] });
     // 削除は取り消せないので、確認を1枚挟む（ストーリー削除と同じ形）
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -292,7 +293,7 @@ function EditContent() {
     // **候補は打ちかけの文字で絞る。** 枠は12個だが owner のタグは実データで
     // 59種あり、絞らないと上位12種しか選べない（残り47種は打つしかない＝
     // 打つから表記が割れる）。理由と実測は `suggestTags` に書いた
-    const tagSuggestions = useMemo(() => suggestTags(ownValues.tags, tagsInput), [ownValues.tags, tagsInput]);
+    const tagSuggestions = useMemo(() => suggestTags(TAG_CHOICES, tagsInput, TAG_CHOICES.length), [tagsInput]);
 
     /**
      * `dirty`（下で計算する）を effect から読むための写し。
@@ -885,14 +886,14 @@ function EditContent() {
                                 置き換えてしまう）。**押して選ぶチップにする**——押し直すと外れ、
                                 選んでいるものは白地で出す（一覧の絞り込みと同じ `role="switch"`）。 */}
                             {tagSuggestions.length > 0 && (
-                                <div className="flex flex-wrap gap-2 mt-1.5" role="group" aria-label={isJa ? "よく使うタグ" : "Your frequent tags"}>
+                                <div className="flex flex-wrap gap-2 mt-1.5" role="group" aria-label={isJa ? "タグの候補" : "Tag choices"}>
                                     {tagSuggestions.map((t: string) => {
                                         const on = hasTag(tagsInput, t);
                                         return (
                                             <button
                                                 key={t}
                                                 type="button"
-                                                onClick={() => setTagsInput((cur) => toggleTag(dropFragment(ownValues.tags, cur), t))}
+                                                onClick={() => setTagsInput((cur) => toggleTag(dropFragment(TAG_CHOICES, cur), t))}
                                                 role="switch"
                                                 aria-checked={on}
                                                 className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-white text-black font-medium ring-white" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}

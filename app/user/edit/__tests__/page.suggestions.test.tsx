@@ -34,8 +34,10 @@ vi.mock("../../../../lib/utils/api", () => ({
 const EditPage = (await import("../page")).default;
 
 const PHOTOS = [
-    { id: "p1", src: "s", userId: "me", title: "湖", location: "パリ", category: "風景", tags: ["夜景"] },
-    { id: "p2", src: "s", userId: "me", location: "パリ", tags: ["夜景", "街"] },
+    // **タグは英語で保存しておく。** 実データ30枚はそうなっていて（`winter` 12枚ほか）、
+    // 決まった選択肢は日本語。**寄らなければチップが光らない**ので、そこを画面で見る
+    { id: "p1", src: "s", userId: "me", title: "湖", location: "パリ", category: "風景", tags: ["winter"] },
+    { id: "p2", src: "s", userId: "me", location: "パリ", tags: ["winter", "桜"] },
     { id: "p3", src: "s", userId: "me", location: "京都", category: "街", published: false },
 ];
 
@@ -80,18 +82,25 @@ describe("入力候補", () => {
 
     it("タグは押して足せる（カンマ区切りを壊さない）", async () => {
         render(<EditPage />);
-        const tags = await screen.findByDisplayValue("夜景");
-        await userEvent.click(await screen.findByRole("switch", { name: "街" }));
-        await waitFor(() => expect(savedTags((tags as HTMLInputElement).value)).toEqual(["夜景", "街"]));
+        const tags = await screen.findByDisplayValue("winter");
+        await userEvent.click(await screen.findByRole("switch", { name: "桜" }));
+        await waitFor(() => expect(savedTags((tags as HTMLInputElement).value)).toEqual(["winter", "桜"]));
     });
 
-    // **既に付いているタグは、選択済みとして出す。**
-    // もとは足すだけだったので、この写真に付いている「夜景」のチップは
-    // 押しても何も起きず、見た目も未選択と同じだった
+    /**
+     * **既に付いているタグは、選択済みとして出す。**
+     * もとは足すだけだったので、付いているタグのチップは押しても何も起きず、
+     * 見た目も未選択と同じだった。
+     *
+     * 🔴 **ここは英語で保存された写真で見る。** 候補が決まった選択肢
+     * （日本語）になったので、寄せ（`TAG_ALIASES`）が効いていないと
+     * `winter` の写真で `冬` のチップが光らず、押すと**同じ意味のタグが2つ**付く。
+     * 実データ30枚はほぼ英語なので、**これが本番でいちばん出る形**。
+     */
     it("この写真に付いているタグは選択済みで、押し直すと外れる", async () => {
         render(<EditPage />);
-        const tags = (await screen.findByDisplayValue("夜景")) as HTMLInputElement;
-        const chip = await screen.findByRole("switch", { name: "夜景" });
+        const tags = (await screen.findByDisplayValue("winter")) as HTMLInputElement;
+        const chip = await screen.findByRole("switch", { name: "冬" });
         expect(chip, "付いているのに未選択に見える").toHaveAttribute("aria-checked", "true");
         // 見た目でも分かること（`aria-checked` だけだと、色を戻す変異が素通りする）
         expect(chip.className, "選択中の見た目になっていない").toContain("bg-white ");
@@ -117,29 +126,29 @@ describe("入力候補", () => {
     // ただのボタンだった頃より「何の」が要る）
     it("候補のまとまりに名前がある", async () => {
         render(<EditPage />);
-        await screen.findByDisplayValue("夜景");
-        expect(screen.getByRole("group", { name: "よく使うタグ" }), "何のスイッチか分からない").toBeInTheDocument();
+        await screen.findByDisplayValue("winter");
+        expect(screen.getByRole("group", { name: "タグの候補" }), "何のスイッチか分からない").toBeInTheDocument();
     });
 
     // **打ちかけの文字で候補を絞る**（この画面の配線。`suggestTags` の
     // 単体だけだと、画面が絞りを使っていない変異が素通りする）
     it("打ちかけの文字で候補を絞る", async () => {
         render(<EditPage />);
-        const tags = (await screen.findByDisplayValue("夜景")) as HTMLInputElement;
-        expect(await screen.findByRole("switch", { name: "街" })).toBeInTheDocument();
+        const tags = (await screen.findByDisplayValue("winter")) as HTMLInputElement;
+        expect(await screen.findByRole("switch", { name: "桜" })).toBeInTheDocument();
 
         await userEvent.clear(tags);
-        await userEvent.type(tags, "夜");
-        await waitFor(() => expect(screen.queryByRole("switch", { name: "街" }), "絞れていない").toBeNull());
-        expect(screen.getByRole("switch", { name: "夜景" })).toBeInTheDocument();
+        await userEvent.type(tags, "夕");
+        await waitFor(() => expect(screen.queryByRole("switch", { name: "桜" }), "絞れていない").toBeNull());
+        expect(screen.getByRole("switch", { name: "夕焼け" })).toBeInTheDocument();
     });
 
     it("英語UIでは候補のまとまりの名前も英語", async () => {
         uiLocale.value = "en";
         try {
             render(<EditPage />);
-        await screen.findByDisplayValue("夜景");
-            expect(screen.getByRole("group", { name: "Your frequent tags" }), "日本語のまま出している").toBeInTheDocument();
+        await screen.findByDisplayValue("winter");
+            expect(screen.getByRole("group", { name: "Tag choices" }), "日本語のまま出している").toBeInTheDocument();
         } finally {
             uiLocale.value = "ja";
         }
@@ -149,10 +158,10 @@ describe("入力候補", () => {
     // 欠片を落とす配線を外しても素通りする）
     it("打って絞って押すと、欄には選んだタグだけが入る", async () => {
         render(<EditPage />);
-        const tags = (await screen.findByDisplayValue("夜景")) as HTMLInputElement;
+        const tags = (await screen.findByDisplayValue("winter")) as HTMLInputElement;
         await userEvent.clear(tags);
-        await userEvent.type(tags, "街, 夜");
-        await userEvent.click(await screen.findByRole("switch", { name: "夜景" }));
-        await waitFor(() => expect(savedTags(tags.value), "打ちかけの文字がタグとして残っている").toEqual(["街", "夜景"]));
+        await userEvent.type(tags, "桜, 夕");
+        await userEvent.click(await screen.findByRole("switch", { name: "夕焼け" }));
+        await waitFor(() => expect(savedTags(tags.value), "打ちかけの文字がタグとして残っている").toEqual(["桜", "夕焼け"]));
     });
 });

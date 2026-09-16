@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { collectOwnValues, appendTag, toggleTag, hasTag, suggestTags, dropFragment, typingFragment, TAG_POOL_MAX } from "../ownValues";
+import { collectOwnValues, appendTag, toggleTag, hasTag, suggestTags, dropFragment, typingFragment } from "../ownValues";
 import type { Photo } from "../../data/photos";
 
 const P = (over: Partial<Photo>) => ({ id: "x", src: "s", ...over }) as Photo;
@@ -11,24 +11,20 @@ describe("collectOwnValues", () => {
         const photos = [
             P({ location: "パリ" }), P({ location: "パリ" }), P({ location: "東京" }),
             P({ category: "風景" }), P({ category: "街" }),
-            P({ tags: ["夜景", "街"] }), P({ tags: ["夜景"] }),
         ];
         const v = collectOwnValues(photos);
         expect(v.locations).toEqual(["パリ", "東京"]);
         expect(v.categories).toEqual(["街", "風景"]);   // 同数 → 文字順
-        expect(v.tags).toEqual(["夜景", "街"]);
     });
 
     it("空白だけ・空文字・非文字列は候補にしない", () => {
         const photos = [
             P({ location: "   " }), P({ location: "" }),
-            P({ tags: ["", "  ", "山"] }),
             P({ category: undefined }),
         ];
         const v = collectOwnValues(photos);
         expect(v.locations).toEqual([]);
         expect(v.categories).toEqual([]);
-        expect(v.tags).toEqual(["山"]);
     });
 
     it("前後の空白は落として同じ値にまとめる", () => {
@@ -48,8 +44,8 @@ describe("collectOwnValues", () => {
     });
 
     it("写真が無い・null でも落ちない", () => {
-        expect(collectOwnValues(null)).toEqual({ locations: [], categories: [], tags: [] });
-        expect(collectOwnValues([])).toEqual({ locations: [], categories: [], tags: [] });
+        expect(collectOwnValues(null)).toEqual({ locations: [], categories: [] });
+        expect(collectOwnValues([])).toEqual({ locations: [], categories: [] });
     });
 });
 
@@ -91,53 +87,6 @@ describe("appendTag（カンマ区切りに1つ足す）", () => {
 //   appendTag("fuji", "Fuji") → "fuji, Fuji"
 // 絞り込み側は `dca777a` / `e731478` で `tagKey` に畳んだので、
 // 入力の助け（候補チップと押して足すチップ）だけが完全一致のまま残っていた。
-describe("タグは同じもの同士を畳む（比べ方は絞り込みと同じ tagKey）", () => {
-    it("大小違い・# つきは1つのチップにまとまる", () => {
-        const v = collectOwnValues([
-            P({ tags: ["Fuji"] }), P({ tags: ["fuji"] }), P({ tags: ["fuji"] }),
-            P({ tags: ["#旅"] }), P({ tags: ["旅"] }),
-        ]);
-        expect(v.tags, "同じタグのチップが2つ出ている").toHaveLength(2);
-    });
-
-    it("代表はいちばん多く使った生表記", () => {
-        const v = collectOwnValues([
-            P({ tags: ["Fuji"] }), P({ tags: ["Fuji"] }), P({ tags: ["fuji"] }),
-        ]);
-        expect(v.tags).toEqual(["Fuji"]);
-    });
-
-    // **1枚の中で2通り書いた場合の票を落としていた。** 重複除去より
-    // 後ろで数えていたので、先に見た方だけが票を持ち、同じ写真集合でも
-    // タグ配列の並び順で代表表記が変わっていた（実測で `Fuji` / `fuji`
-    // に割れた）。回数の数え方（1枚1回）はそのまま。
-    it("1枚が2通りで書いていても、代表は写真集合だけで決まる", () => {
-        const a = collectOwnValues([P({ tags: ["Fuji", "fuji"] }), P({ tags: ["Fuji"] })]).tags;
-        const b = collectOwnValues([P({ tags: ["fuji", "Fuji"] }), P({ tags: ["Fuji"] })]).tags;
-        expect(a, "タグ配列の並び順で代表表記が変わっている").toEqual(b);
-        expect(a).toEqual(["Fuji"]);
-    });
-
-    it("同数なら文字順で固定（配列の順で入れ替わらない）", () => {
-        const a = collectOwnValues([P({ tags: ["Fuji"] }), P({ tags: ["fuji"] })]).tags;
-        const b = collectOwnValues([P({ tags: ["fuji"] }), P({ tags: ["Fuji"] })]).tags;
-        expect(a).toEqual(b);
-    });
-
-    it("1枚が同じタグを2通りで持っていても、2回使ったことにしない", () => {
-        const v = collectOwnValues([
-            P({ tags: ["旅", "#旅"] }),
-            P({ tags: ["山"] }), P({ tags: ["山"] }),
-        ]);
-        // 「旅」を2回数えると先頭に来てしまう
-        expect(v.tags[0]).toBe("山");
-    });
-
-    it("別のタグはちゃんと並ぶ（畳みすぎない）", () => {
-        const v = collectOwnValues([P({ tags: ["富士山", "夜景"] })]);
-        expect(v.tags.sort()).toEqual(["夜景", "富士山"].sort());
-    });
-});
 
 describe("appendTag は同じタグを二重に足さない", () => {
     it("大小違いの候補を押しても増えない", () => {
@@ -169,109 +118,8 @@ describe("appendTag は同じタグを二重に足さない", () => {
  * 実測: 隠れた29種のうち10種が日本語／チップに出ていた日本語は2種。
  * 直したあと **8種**が出るようになった（隠れた日本語は4種）。
  */
-describe("タグの候補は、同数なら最後に使った順", () => {
-    it("同数なら新しく使った方が先", () => {
-        const photos = [
-            P({ tags: ["ふるい"], createdAt: "2024-01-01T00:00:00Z" }),
-            P({ tags: ["あたらしい"], createdAt: "2026-09-01T00:00:00Z" }),
-        ];
-        expect(collectOwnValues(photos).tags).toEqual(["あたらしい", "ふるい"]);
-    });
-
-    // **回数が先なのは変えない。** よく使うタグが上に来る性質は正しい
-    it("回数の方が強い（古くても多く使った方が先）", () => {
-        const photos = [
-            P({ tags: ["よく使う"], createdAt: "2024-01-01T00:00:00Z" }),
-            P({ tags: ["よく使う"], createdAt: "2024-01-02T00:00:00Z" }),
-            P({ tags: ["一度だけ"], createdAt: "2026-09-01T00:00:00Z" }),
-        ];
-        expect(collectOwnValues(photos).tags).toEqual(["よく使う", "一度だけ"]);
-    });
-
-    // **文字順は最後の砦**（毎回同じ並びにするため）
-    it("回数も時刻も同じなら文字順", () => {
-        const photos = [
-            P({ tags: ["い", "あ"], createdAt: "2026-09-01T00:00:00Z" }),
-        ];
-        expect(collectOwnValues(photos).tags).toEqual(["あ", "い"]);
-    });
-
-    // **撮影日を持つ写真は `date` で見る**（`photoOrder` の `photoTimeKey`
-    // に合わせる。並びの規則をこのファイルで作り直さない）
-    it("撮影日があれば投稿日より撮影日で見る", () => {
-        const photos = [
-            P({ tags: ["撮影が新しい"], date: "2026-09-01", createdAt: "2024-01-01T00:00:00Z" }),
-            P({ tags: ["投稿が新しい"], date: "2020-01-01", createdAt: "2026-09-02T00:00:00Z" }),
-        ];
-        expect(collectOwnValues(photos).tags).toEqual(["撮影が新しい", "投稿が新しい"]);
-    });
-
-    // 時刻を持たない写真があっても落ちない（持つ方が先に来る）
-    it("時刻が無い写真も混ぜられる", () => {
-        const photos = [
-            P({ tags: ["時刻なし"] }),
-            P({ tags: ["時刻あり"], createdAt: "2026-09-01T00:00:00Z" }),
-        ];
-        expect(collectOwnValues(photos).tags).toEqual(["時刻あり", "時刻なし"]);
-    });
-
-    // **これが直したかったこと。** 文字順のままだと、上限で切ったときに
-    // 日本語が落ちる
-    it("上限で切るとき、文字順だけでは日本語が落ちる（新しい順なら残る）", () => {
-        const latin = Array.from({ length: 30 }, (_, i) =>
-            P({ tags: [`tag${String(i).padStart(2, "0")}`], createdAt: "2024-01-01T00:00:00Z" }));
-        const jp = P({ tags: ["白鳥"], createdAt: "2026-09-01T00:00:00Z" });
-        const tags = collectOwnValues([...latin, jp]).tags;
-        expect(tags, "新しく使った日本語のタグが候補から落ちている").toContain("白鳥");
-        expect(tags[0]).toBe("白鳥");
-    });
-});
 
 // 変異で見つかった穴2つ（どちらも等価ではなく、見ていなかっただけ）
-describe("タグの候補: 上限と、複数枚に付いたタグの時刻", () => {
-    // **「最後に使った」は最大であって、最後に見た写真ではない。**
-    // 一覧の並びは保証されていないので、上書きにすると
-    // 「古い写真が後ろに来た回」だけ順位が下がる
-    it("複数枚に付いたタグは、いちばん新しい写真の時刻で見る", () => {
-        const photos = [
-            P({ tags: ["旅"], createdAt: "2026-09-01T00:00:00Z" }),
-            P({ tags: ["旅"], createdAt: "2024-01-01T00:00:00Z" }),  // 後ろに古いものが来る
-            P({ tags: ["山"], createdAt: "2025-01-01T00:00:00Z" }),
-            P({ tags: ["山"], createdAt: "2025-01-02T00:00:00Z" }),
-        ];
-        expect(collectOwnValues(photos).tags).toEqual(["旅", "山"]);
-    });
-
-    // 上限は撮影地では縛ってあったが、**タグでは見ていなかった**
-    // （実データで上限に届くのはタグだけ＝ここが本番）。
-    //
-    // **数は 30 → `TAG_POOL_MAX` に変えた。** 画面は打ちかけの文字で
-    // 絞ってから12個だけ出す（`suggestTags`）ので、ここで30に切ると
-    // **絞っても30種までしか届かない**（実データ59種で 30/59）。
-    // 見ている性質——**際限なく返さない**——は変えていない。
-    // **数そのものを縛る。** 入力も期待値も `TAG_POOL_MAX` にすると
-    // 自己参照になり、定数を 30 に戻しても緑のまま通る（実際そうだった）。
-    // 画面が絞りで届かせたいのは owner の全種類なので、そこを下回らないこと
-    it("プールは、いま持っているタグの種類を下回らない", async () => {
-        const photos = (await import("@/app/data/photos.json")).default as unknown as Photo[];
-        const kinds = collectOwnValues(photos, 10_000).tags.length;
-        expect(TAG_POOL_MAX, `実データの ${kinds} 種に届かない`).toBeGreaterThanOrEqual(kinds);
-        expect(TAG_POOL_MAX).toBeGreaterThan(30);
-    });
-
-    it("タグも上限で切る", () => {
-        const photos = Array.from({ length: TAG_POOL_MAX + 10 }, (_, i) => P({ tags: [`tag${i}`] }));
-        expect(collectOwnValues(photos).tags).toHaveLength(TAG_POOL_MAX);
-    });
-
-    // **撮影地・カテゴリの上限は変えていない**（あちらは datalist で
-    // 全部出るので、広げると候補の一覧が長くなるだけ）
-    it("撮影地とカテゴリの上限は 30 のまま", () => {
-        const photos = Array.from({ length: 40 }, (_, i) => P({ location: `場所${i}`, category: `cat${i}` }));
-        expect(collectOwnValues(photos).locations).toHaveLength(30);
-        expect(collectOwnValues(photos).categories).toHaveLength(30);
-    });
-});
 
 /**
  * **候補チップは「選ぶ」もの。押し直したら外れる。**

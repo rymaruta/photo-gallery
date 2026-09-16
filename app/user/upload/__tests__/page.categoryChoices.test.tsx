@@ -129,13 +129,19 @@ describe("アップロード画面: カテゴリを選ぶ", () => {
 
     /**
      * **タグのチップと名前が衝突しない。** この画面は同じ箱の中に
-     * カテゴリとタグのチップが並ぶ。実データには「街」のように
+     * カテゴリとタグのチップが並ぶ。かつて実データには「街」のように
      * 両方に出る語があり、読み上げ・音声操作では**同じ名前の switch が
-     * 2つ**並ぶ（`749bfce2` で潰した型）
+     * 2つ**並んだ（`749bfce2` で潰した型）。
+     *
+     * いまは選択肢どうしが重ならないことを `tagChoices.test.ts` が縛るが、
+     * **それだけでは足りない**——名前は `aria-label` で作られるので、
+     * 片方の名前の付け方を変えれば画面では重なりうる。ここは画面で見る。
      */
     it("タグのチップと名前が重ならない", async () => {
         await pickOne();
-        await screen.findByRole("switch", { name: "街" });   // タグ側（前提）
+        // タグ側が出ていることを先に確かめる（前提。これが無いと
+        // 「カテゴリのチップしか無いから重ならない」で通ってしまう）
+        await screen.findByRole("switch", { name: "冬" });
         const names = screen.getAllByRole("switch").map((b) => b.getAttribute("aria-label") ?? b.textContent ?? "");
         const dup = names.filter((n, i) => names.indexOf(n) !== i);
         expect(dup, `同じ名前のスイッチ: ${dup.join(", ")}`).toEqual([]);

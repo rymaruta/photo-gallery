@@ -1,6 +1,5 @@
 import type { Photo } from "../data/photos";
 import { tagKey } from "./collections";
-import { photoTimeKey } from "./photoOrder";
 
 /**
  * 自分がこれまでに使った撮影地・カテゴリ・タグを、よく使う順に集める。
@@ -15,7 +14,13 @@ import { photoTimeKey } from "./photoOrder";
  * 候補は「自分の過去の値」だけ。他人の値は混ぜない
  * （公開プロフィールから他人の撮影地の一覧が読めるのと同じことになる）。
  */
-export type OwnValues = { locations: string[]; categories: string[]; tags: string[] };
+/**
+ * ⚠️ **タグはここに無い。** 候補は「自分が過去に使った値」ではなく
+ * **決まった選択肢**（`lib/utils/tagChoices.ts` の `TAG_CHOICES`）になった
+ * ——実データ59種のうち44種が1枚だけで、中身は地名と一回きりの名詞だった。
+ * 撮影地とカテゴリは今までどおり（撮影地こそ地名の行き先）。
+ */
+export type OwnValues = { locations: string[]; categories: string[] };
 
 /** 件数の多い順 → 同数なら文字順（毎回同じ並びにする） */
 function byFrequency(counts: Map<string, number>): string[] {
@@ -23,79 +28,6 @@ function byFrequency(counts: Map<string, number>): string[] {
         .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
         .map(([v]) => v);
 }
-
-/**
- * タグの候補だけは、**同じタグを1つのチップに畳む**。
- *
- * 比べ方は画面の絞り込みと同じ `tagKey`（大小・`#`・記号を無視した
- * スラッグ）。完全一致で数えていたので、実測で `["fuji", "#旅", "Fuji",
- * "旅"]` ——**同じタグのチップが2つ**並び、押すと両方が写真に付いた。
- * ギャラリー側は `dca777a` / `e731478` で畳んだので、ここだけ残っていた。
- *
- * 代表の表記は `e731478` と同じ規則: **いちばん多く使った生表記**、
- * 同数なら文字順（毎回同じ並びにするため）。
- * 数えるのは**写真1枚につき1回**——`["旅", "#旅"]` を持つ1枚で「2回使った」
- * ことにはならない（`e541b23` で件数側に入れたのと同じ守り）。
- */
-function collectTags(photos: readonly Photo[], limit: number): string[] {
-    const groups = new Map<string, { total: number; last: string; raws: Map<string, number> }>();
-    for (const p of photos) {
-        const seen = new Set<string>();
-        for (const raw of p.tags ?? []) {
-            if (typeof raw !== "string") continue;
-            const v = raw.trim();
-            if (!v) continue;
-            const key = tagKey(v);
-            const g = groups.get(key) ?? { total: 0, last: "", raws: new Map<string, number>() };
-            // **表記の票は、畳む前に必ず数える。** `seen` の後ろに置くと、
-            // 1枚の中で2通り書いた片方（先に見た方）の票だけが入り、
-            // **同じ写真集合でもタグ配列の並び順で代表表記が変わる**
-            // （実測: `["Fuji","fuji"]` と `["fuji","Fuji"]` で結果が
-            // `Fuji` / `fuji` に割れた）
-            g.raws.set(v, (g.raws.get(v) ?? 0) + 1);
-            // 使った回数（＝並び順）は写真1枚につき1回だけ
-            if (!seen.has(key)) {
-                seen.add(key);
-                g.total += 1;
-            }
-            // **そのタグを最後に使ったのはいつか。** 同数のときの決着に使う
-            // （下の説明を参照）。キーの作り方は `photoOrder` に合わせる
-            // ——並びの規則をこのファイルで作り直さない
-            const t = photoTimeKey(p);
-            if (t > g.last) g.last = t;
-            groups.set(key, g);
-        }
-    }
-    const label = (g: { raws: Map<string, number> }) =>
-        [...g.raws.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
-    // **同数のときは「最後に使った順」。**
-    //
-    // 実データで数えたら **59種のうち44種が1枚にしか付いていない**ので、
-    // （生の異なりは62だが、この関数が `tagKey` で畳むので59。**自前で
-    //  数え直さない**——生の62で測って doc を6か所間違えた）
-    // ほとんどのタグが `total === 1` で並び、決着は文字順だけだった。
-    // `localeCompare` は**日本語をラテン文字の後ろに置く**（実測
-    // `apple < zebra < 白鳥 < 苔`）ので、上限30で切ると
-    // **日本語のタグから落ちる**——実測で隠れた29種のうち10種が日本語、
-    // 出ていた日本語は2種だけだった。このサイトの弱点は
-    // 「索引に載るタグ8種のうち日本語は1種」なのに、**候補の出し方が
-    // それを強めていた**。
-    //
-    // 旅から帰って続けて上げるときに欲しいのは「昨日使ったタグ」なので、
-    // 同数なら新しい順にする。文字順は**最後の砦**として残す
-    // （毎回同じ並びにするため）。**回数が先なのは変えない**
-    // ——よく使うタグが上に来る性質は正しい。
-    return [...groups.values()]
-        .map((g) => ({ total: g.total, last: g.last, name: label(g) }))
-        .sort((a, b) => b.total - a.total
-            || (a.last < b.last ? 1 : a.last > b.last ? -1 : 0)
-            || a.name.localeCompare(b.name))
-        .map((g) => g.name)
-        .slice(0, limit);
-}
-
-/** 候補として持っておくタグの数（画面に出す数ではない。`suggestTags` を参照） */
-export const TAG_POOL_MAX = 200;
 
 export function collectOwnValues(photos: readonly Photo[] | null | undefined, limit = 30): OwnValues {
     const loc = new Map<string, number>();
@@ -115,13 +47,9 @@ export function collectOwnValues(photos: readonly Photo[] | null | undefined, li
     return {
         locations: byFrequency(loc).slice(0, limit),
         categories: byFrequency(cat).slice(0, limit),
-        // **タグだけプールを広く持つ。** 画面は打ちかけの文字で絞ってから
-        // 12個だけ出す（`suggestTags`）ので、ここで30に切ると
-        // **絞っても30種までしか届かない**（実データ59種で 30/59）。
-        // 上限そのものは残す——1人のタグが際限なく増えたときの歯止め
-        tags: collectTags(photos ?? [], TAG_POOL_MAX),
     };
 }
+
 
 /**
  * カンマ区切りのタグ欄に1つ足す（既にあれば何もしない）。
@@ -272,6 +200,11 @@ export function dropFragment(all: readonly string[], current: string): string {
 export function suggestTags(all: readonly string[], current: string, limit = 12): string[] {
     const frag = typingFragment(all, current);
     if (!frag) {
+        // **全部出るなら並べ替えない。** 先頭へ寄せるのは「枠に入りきらず
+        // 選んだチップが視界から消える」ための仕掛け（実データ59種のうち
+        // 47種が枠の外だった）。**決まった選択肢は全部出る**ので、寄せると
+        // 押すたびにチップが動くだけになる——並びが動く入力は押し間違える。
+        if (all.length <= limit) return [...all];
         const picked = all.filter((t) => hasTag(current, t));
         return [...picked, ...all.filter((t) => !picked.includes(t))].slice(0, limit);
     }

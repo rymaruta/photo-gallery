@@ -26,6 +26,7 @@ import type { Photo } from "../../../lib/data/photos";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, type OwnValues } from "../../../lib/utils/ownValues";
 import { CATEGORY_CHOICES, isChosenCategory, toggleCategory } from "../../../lib/utils/categoryChoices";
+import { TAG_CHOICES } from "../../../lib/utils/tagChoices";
 // 上限は lib/utils/uploadLimits.ts に置く（api-user 側と対。理由はあちらに書いた）
 import { PHOTO_LIMIT_PER_USER } from "../../../lib/utils/uploadLimits";
 import { publicImageUrl } from "@/lib/utils/seo";
@@ -294,11 +295,11 @@ function UploadPageInner() {
      * （「パリ」「パリ, フランス」「オペラ・ガルニエ（パリ）」…）。
      * datalist で「前に何と書いたか」を出す。選ばずに自由入力もできる。
      */
-    const [ownValues, setOwnValues] = useState<OwnValues>({ locations: [], categories: [], tags: [] });
+    const [ownValues, setOwnValues] = useState<OwnValues>({ locations: [], categories: [] });
     // **候補は打ちかけの文字で絞る。** 枠は12個だが owner のタグは実データで
     // 59種あり、絞らないと上位12種しか選べない（残り47種は打つしかない＝
     // 打つから表記が割れる）。理由と実測は `suggestTags` に書いた
-    const tagSuggestions = useMemo(() => suggestTags(ownValues.tags, tags), [ownValues.tags, tags]);
+    const tagSuggestions = useMemo(() => suggestTags(TAG_CHOICES, tags, TAG_CHOICES.length), [tags]);
 
     useEffect(() => {
         if (loading || !isAuthenticated) return;
@@ -1141,14 +1142,14 @@ function UploadPageInner() {
                         置き換えてしまう）。**押して選ぶチップにする**——押し直すと外れ、
                         選んでいるものは白地で出す（一覧の絞り込みと同じ `role="switch"`）。 */}
                     {tagSuggestions.length > 0 && (
-                        <div className="flex flex-wrap gap-2" role="group" aria-label={locale === "en" ? "Your frequent tags" : "よく使うタグ"}>
+                        <div className="flex flex-wrap gap-2" role="group" aria-label={locale === "en" ? "Tag choices" : "タグの候補"}>
                             {tagSuggestions.map((t: string) => {
                                 const on = hasTag(tags, t);
                                 return (
                                     <button
                                         key={t}
                                         type="button"
-                                        onClick={() => setTags((cur) => toggleTag(dropFragment(ownValues.tags, cur), t))}
+                                        onClick={() => setTags((cur) => toggleTag(dropFragment(TAG_CHOICES, cur), t))}
                                         disabled={uploading}
                                         role="switch"
                                         aria-checked={on}
