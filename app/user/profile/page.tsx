@@ -1302,7 +1302,10 @@ export default function ProfileEditPage() {
                         装う必要があった。プロフィールの保存とは別のボタンにする
                         （自己紹介を直すたびにパスワードを送らない）。 */}
                     <div className="mt-10 pt-6 border-t border-white/10">
-                        <p className="text-[11px] tracking-widest uppercase text-white/40 mb-2">
+                        {/* **`/50` より薄くしない。** 黒地で `/40` は 3.66:1 で
+                            基準（4.5:1）に届かない——`/50` が届く最小の段階
+                            （`textContrast.test.ts` が全体を見張っている） */}
+                        <p className="text-[11px] tracking-widest uppercase text-white/50 mb-2">
                             {locale === "en" ? "Account" : "アカウント"}
                         </p>
                         <div className="rounded-2xl bg-white/[0.03] ring-1 ring-white/10 p-4 space-y-3">
