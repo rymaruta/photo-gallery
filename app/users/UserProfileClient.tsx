@@ -1421,7 +1421,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     {isOwner && (
                         <div className="flex gap-2 mt-4">
                             <Link
-                                href="/user/profile"
+                                href={ROUTES.PROFILE_EDIT}
                                 prefetch={false}
                                 className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-black/30 backdrop-blur-md ring-1 ring-white/15 hover:bg-black/40 text-white text-sm font-medium rounded-full transition-colors"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
@@ -1430,7 +1430,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 {locale === "en" ? "Edit profile" : "プロフィール編集"}
                             </Link>
                             <Link
-                                href="/user/upload"
+                                href={ROUTES.UPLOAD}
                                 prefetch={false}
                                 className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
@@ -1443,7 +1443,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     {isOwner && (
                         <div className="mt-2 text-center">
                             <Link
-                                href="/user/drafts"
+                                href={ROUTES.DRAFTS}
                                 prefetch={false}
                                 className="inline-flex items-center justify-center px-3 py-1.5 text-sm text-white/60 hover:text-white transition-colors"
                                 style={{ touchAction: "manipulation" }}
@@ -1505,7 +1505,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             </div>
                             <p className="text-sm">{locale === "en" ? "No photos yet." : "まだ写真がありません。"}</p>
                             {isOwner && (
-                                <Link href="/user/upload" prefetch={false} className="mt-1 px-5 py-2 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors">
+                                <Link href={ROUTES.UPLOAD} prefetch={false} className="mt-1 px-5 py-2 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors">
                                     {locale === "en" ? "Share your first photo" : "最初の写真を投稿"}
                                 </Link>
                             )}
