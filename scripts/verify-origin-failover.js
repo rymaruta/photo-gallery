@@ -217,10 +217,6 @@ const PROBE_SOURCE = `exports.handler = async (event) => ({
 
 module.exports = { refuseReason, withOriginGroup, withoutOriginGroup, readOutcome, crc32, zipOneFile, PROBE_SOURCE, MARKER, PROBE_PATH, PROD_DISTRIBUTION, STAGING_DISTRIBUTION, PROBE_FN };
 
-if (require.main === module) {
-    main().catch((e) => { console.error(e); process.exit(1); });
-}
-
 const line = (s) => console.log(s);
 
 async function main() {
@@ -361,3 +357,11 @@ async function probeUrl(url) {
 }
 
 const probe = (domain) => probeUrl(`https://${domain}${PROBE_PATH}`);
+
+// **入口はファイルの末尾に置く。** 途中に置いていたら、`main()` が
+// `const line` の宣言より先に走って `ReferenceError`（TDZ）になった
+// ——`node --check` も eslint も tsc も通り、**実行して初めて落ちた**。
+// 純関数のテストは24件緑のままで、`main()` は1行も通っていなかった。
+if (require.main === module) {
+    main().catch((e) => { console.error(e); process.exit(1); });
+}

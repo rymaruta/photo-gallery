@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { execFileSync } from "node:child_process";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const m = require("../verify-origin-failover.js") as {
     refuseReason: (x: { distributionId?: string; functionName?: string; buckets?: string[] }) => string | null;
@@ -196,5 +197,65 @@ describe("自前の ZIP", () => {
     // 同じ入力なら同じバイト列（時刻を埋めていない＝毎回同じ）
     it("同じ入力なら同じバイト列になる", () => {
         expect(zipOneFile("a.js", "x").equals(zipOneFile("a.js", "x"))).toBe(true);
+    });
+});
+
+/**
+ * 🔴 **入口（`main()`）を実際に走らせる。**
+ *
+ * 純関数のテストが24件緑でも、`main()` は1行も通っていなかった。
+ * 実際、`main()` を呼ぶ行を `const line` の宣言より前に置いていて
+ * **`ReferenceError`（TDZ）で即死**した——`node --check` も eslint も
+ * tsc も通り、**Actions で走らせて初めて落ちた**。
+ * 台帳が記録している「`main()` がまるごと無検証」そのもの。
+ *
+ * 子プロセスで本当に起動し、**本番のIDでは止まる**ことまで見る。
+ */
+describe("入口を実際に走らせる", () => {
+    const run = (env: Record<string, string>) => {
+        try {
+            const out = execFileSync("node", ["scripts/verify-origin-failover.js"], {
+                env: { ...process.env, ...env }, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 20000,
+            });
+            return { code: 0, out };
+        } catch (e) {
+            const err = e as { status?: number; stdout?: string; stderr?: string };
+            return { code: err.status ?? -1, out: (err.stdout ?? "") + (err.stderr ?? "") };
+        }
+    };
+
+    it("本番の配信IDを渡すと、起動して止まる（TDZ で落ちない）", () => {
+        const r = run({ CLOUDFRONT_DISTRIBUTION_ID: PROD_DISTRIBUTION });
+        expect(r.out, "実行時エラーで落ちている（入口の並びが壊れた）").not.toMatch(/ReferenceError|TypeError|is not a function/);
+        expect(r.out, "ガードの理由を出していない").toContain("本番");
+        expect(r.code, "本番を触ろうとして止まっていない").not.toBe(0);
+    });
+
+    /**
+     * 🔴 **ガードで止まる経路だけでは、この不具合は捕まらない。**
+     *
+     * `main()` はガードを**先に**通すので、本番IDを渡すと `line()` に
+     * 到達せず TDZ が起きない。実際、上の1本だけでは
+     * 「入口を宣言より前に戻す」変異が**素通りした**。
+     * **staging の ID を渡して、最初の1行を印字するところまで進める。**
+     *
+     * 資格情報は偽物を渡す——本物の AWS には触らせない（読むだけの
+     * 処理だが、テストが外へ出る形にはしない）。
+     */
+    it("staging の ID では、最初の行を印字するところまで進む（TDZ を捕まえる）", () => {
+        const r = run({
+            CLOUDFRONT_DISTRIBUTION_ID: STAGING_DISTRIBUTION,
+            AWS_ACCESS_KEY_ID: "test-not-real", AWS_SECRET_ACCESS_KEY: "test-not-real",
+            AWS_SESSION_TOKEN: "", AWS_REGION: "ap-northeast-1", AWS_EC2_METADATA_DISABLED: "true",
+        });
+        expect(r.out, "入口の並びが壊れている（宣言より前で main が走っている）").not.toMatch(/ReferenceError/);
+        expect(r.out, "最初の行にも届いていない").toContain("[verify] region=");
+        expect(r.out, "何を確かめるのかを言っていない").toContain("カスタムエラー応答");
+    });
+
+    it("配信IDが無いときも、起動して止まる", () => {
+        const r = run({ CLOUDFRONT_DISTRIBUTION_ID: "" });
+        expect(r.out).not.toMatch(/ReferenceError|TypeError/);
+        expect(r.code).not.toBe(0);
     });
 });
