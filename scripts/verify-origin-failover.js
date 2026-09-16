@@ -62,7 +62,12 @@ const STAGING_DISTRIBUTION = "EF2TFEBBP24DL";
  * 効かなければ `/404.html`（HTML・404）が返るので一目で区別できる。
  * 関数もIAMも作らないので、速くて安全。
  */
-const PROBE_ORIGIN_DOMAIN = "y9f8ajacc2.execute-api.ap-northeast-1.amazonaws.com";
+// ⚠️ **`GET /photos` は管理API側にある**（ユーザーAPIには無い）。
+// ユーザーAPI（`y9f8ajacc2`）に向けて 404 JSON で止まった（実測）。
+// 未認証の GET を両方の serverless.yml から数えて確かめた:
+//   api-user … /profile/{userId} /users/search /invites/{token} など
+//   api      … **/photos** /photos/{id}
+const PROBE_ORIGIN_DOMAIN = "rfq22dzchf.execute-api.ap-northeast-1.amazonaws.com";
 /** S3 には無く、API には在るパス */
 const PROBE_PATH = "/photos";
 /** 第2オリジンから返ったと分かる印（API の応答は JSON の配列） */
@@ -210,6 +215,10 @@ async function main() {
         line(`\n[verify] 第2オリジン: ${PROBE_ORIGIN_DOMAIN}`);
         line(`[verify] 直接叩く: status=${direct.status} content-type=${direct.contentType || "?"}`);
         if (!(direct.status === 200 && String(direct.contentType).includes(MARKER))) {
+            // **本文まで出す。** status だけだと「パスが違う」のか
+            // 「口が閉じている」のか読めない（実際、ユーザーAPIに向けて
+            // 404 JSON で止まったとき、本文を見て初めて分かった）
+            line(`[verify]   本文: ${JSON.stringify(direct.body.slice(0, 200))}`);
             throw new Error(`第2オリジンが 200+JSON を返さない（status=${direct.status}）。確認にならないので中止`);
         }
 
