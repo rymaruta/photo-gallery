@@ -29,6 +29,9 @@ on:
           - diagnose          # 本番の設定を読むだけ（索引の射影・日付の形・Cognito・CDN の TTL）
           - repair-user-groups # 登録済みなのに user グループに入っていない人を入れ直す（既定は読むだけ・apply で実行）
           - attach-post-confirmation # プールに PostConfirmation トリガーと呼び出し許可を ID 指名で付け直す（既定は読むだけ・apply で実行）
+          - purge-unconfirmed-users # 確認が終わっていない（UNCONFIRMED）利用者を消す（既定は読むだけ・apply で実行）
+          - unused-resources   # AWS に在るものと、このリポジトリが使っているものを突き合わせる（読み取りのみ・消さない）
+          - purge-leftover-resources # 消した環境の残骸を消す（一覧に名前を書いたものだけ・既定は読むだけ・apply で実行）
           - content-opportunities # どこを直すと「検索に出せるページ」が増えるかを数える（読み取りのみ）
           - orphan-uploads    # どの行からも参照されていないアップロード実体を探す
           - verify-upload     # **staging** で presign が本当に使えるか確かめる（apply が要る）
@@ -46,6 +49,10 @@ on:
         description: "geocode-locations で飛ばす地名（セミコロン ; 区切り。地名にカンマが入るため。ドライランで当て違いと分かったもの）"
         type: string
         default: ""
+      purge_older_than_days:
+        description: "purge-unconfirmed-users で「これより古いものだけ消す」日数。既定7。**0 にすると たった今 登録した人も対象になる**"
+        type: string
+        default: "7"
 
 # これらは本番専用の保守ワークフロー。スクリプト側の「既定で本番」を撤去したので、
 # ここで環境を明示する（渡し忘れたらスクリプトが止まる）。
@@ -270,3 +277,34 @@ jobs:
         env:
           COGNITO_USER_POOL_ID: ap-northeast-1_ZbuhDQsWz
           STAGE: prod
+
+      # 登録の途中で離脱した人（UNCONFIRMED）を消す。**取り消せない**ので
+      # 既定は読むだけ。消すのは UNCONFIRMED だけで、`FORCE_CHANGE_PASSWORD`
+      # （管理者が作ったばかりの正規の利用者）には触らない。新しすぎる人
+      # （既定7日未満）も触らない——確認コードの寿命は24時間なので、
+      # いま登録してコードを打とうとしている人を壊さないため。
+      - name: 確認が終わっていない利用者を消す
+        if: inputs.task == 'purge-unconfirmed-users'
+        run: node scripts/purge-unconfirmed-users.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 10
+        env:
+          COGNITO_USER_POOL_ID: ap-northeast-1_ZbuhDQsWz
+          PURGE_OLDER_THAN_DAYS: ${{ inputs.purge_older_than_days }}
+
+      # 費用の当たりを付けるための棚卸し。**読むだけで、1つも消さない。**
+      # `apply` は受け取らない——このリポジトリから「不要」と言い切れるものは
+      # 少なく（コンソールで手で作った依存はコードに現れない）、消す判断は人がする。
+      - name: AWS に在るものを棚卸しする（読み取りのみ）
+        if: inputs.task == 'unused-resources'
+        run: node scripts/unused-resources.js
+        timeout-minutes: 10
+
+      # 消した環境の残骸を消す。**取り消せない**ので既定は読むだけ。
+      # **パターンでは消さない**——スクリプトの中の一覧に名前を書いたものだけ。
+      # さらに一覧に書いてあっても、prod-/staging- で始まるもの・serverless の
+      # デプロイ用バケット・Lambda@Edge の OGP 関数は消さない（一覧を書く側が
+      # 間違えても止まるように）。消す直前に CloudFront が使っていないかも聞く。
+      - name: 消した環境の残骸を消す
+        if: inputs.task == 'purge-leftover-resources'
+        run: node scripts/purge-leftover-resources.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 20

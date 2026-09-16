@@ -42,7 +42,7 @@ import {
     signIn, getCurrentSession, lookupSession, signUp, confirmSignUp,
     getCurrentUserGroups, isAdmin, isGeneralUser, forgotPassword, confirmForgotPassword,
     resendConfirmationCode, PASSWORD_RULE_MESSAGE, changePasswordErrorMessage,
-    emailChangeErrorMessage,
+    emailChangeErrorMessage, globalSignOutErrorMessage,
 } from "../cognito";
 
 beforeEach(() => {
@@ -609,5 +609,31 @@ describe("メールアドレス変更の失敗を日本語にする", () => {
     it("知らない種別は素のメッセージを通す（既定文で握り潰さない）", () => {
         expect(emailChangeErrorMessage("SomeNewException", { message: "新しい理由" })).toBe("新しい理由");
         expect(emailChangeErrorMessage("SomeNewException")).toBe("メールアドレスを変更できませんでした");
+    });
+});
+
+/**
+ * **すべての端末からログアウトしたときの失敗。**
+ *
+ * ここは「もう失効している」と「本当に失敗した」を混ぜてはいけない
+ * ——前者は**目的を達している**ので、やり直させる文言にすると
+ * 押し続ける人を作る。
+ */
+describe("すべての端末からログアウトの失敗を日本語にする", () => {
+    it("もう失効しているときは、達成として伝える（やり直させない）", () => {
+        const m = globalSignOutErrorMessage("NotAuthorizedException");
+        expect(m).toContain("すでにログアウト");
+        expect(m).not.toContain("もう一度お試し");
+    });
+
+    it("回数制限と通信断を分ける", () => {
+        expect(globalSignOutErrorMessage("LimitExceededException")).toContain("しばらく待って");
+        expect(globalSignOutErrorMessage("TooManyRequestsException")).toContain("しばらく待って");
+        expect(globalSignOutErrorMessage("NetworkError")).toContain("ネットワーク");
+    });
+
+    it("知らない種別は素のメッセージを通す（既定文で握り潰さない）", () => {
+        expect(globalSignOutErrorMessage("SomeNewException", { message: "新しい理由" })).toBe("新しい理由");
+        expect(globalSignOutErrorMessage("SomeNewException")).toBe("すべての端末からログアウトできませんでした");
     });
 });
