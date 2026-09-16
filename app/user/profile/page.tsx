@@ -107,7 +107,11 @@ export default function ProfileEditPage() {
     // そのコードで確定する。確定するまで古いアドレスでログインできる
     // （プールの `AttributesRequireVerificationBeforeUpdate` が効いている。
     //  本番に入っていることは `diagnose` で実測した）
+    // **「まだ」と「読めなかった」を分ける。** `getCurrentEmail()` は失敗しても
+    // `null` を返すので、初期値と同じにすると**「読み込み中」のまま永久に止まる**
+    // （台帳の「まだ来ていないものを 0件 と言う」の裏返し・自分で踏んだ）
     const [currentEmail, setCurrentEmail] = useState<string | null>(null);
+    const [emailLoad, setEmailLoad] = useState<"loading" | "ok" | "failed">("loading");
     const [newEmail, setNewEmail] = useState("");
     const [emailCode, setEmailCode] = useState("");
     // コードを送った先。**送ったアドレスを覚えておく**——欄を書き換えられても
@@ -642,7 +646,9 @@ export default function ProfileEditPage() {
         let aborted = false;
         void (async () => {
             const e = await getCurrentEmail();
-            if (!aborted) setCurrentEmail(e);
+            if (aborted) return;
+            setCurrentEmail(e);
+            setEmailLoad(e ? "ok" : "failed");
         })();
         return () => { aborted = true; };
     }, []);
@@ -652,6 +658,10 @@ export default function ProfileEditPage() {
         const next = newEmail.trim();
         // 送る前に断れるものだけ断る（形の細かい判定はサーバーに任せる）
         if (!next) return;
+        // 読めていない（`currentEmail` が null）ときは、空でない文字列が
+        // それと等しくなることは無いので**そのまま素通りする**
+        // ——`currentEmail &&` の守りを足しかけたが、変異で素通りして
+        // 到達しないと分かった（台帳の「二重の守りは1本にする」）
         if (next === currentEmail) {
             showToast(locale === "en" ? "That is already your email address." : "いまのメールアドレスと同じです", "error");
             return;
@@ -684,6 +694,7 @@ export default function ProfileEditPage() {
             }
             // **自分が知っている新しい値を出す**（トークンはまだ古い）
             setCurrentEmail(emailPending);
+            setEmailLoad("ok");
             setEmailPending(null);
             setNewEmail("");
             setEmailCode("");
@@ -1355,7 +1366,9 @@ export default function ProfileEditPage() {
                             </p>
                             <p className="text-xs text-white/50 leading-relaxed">
                                 {locale === "en" ? "Sign-in address" : "ログインに使うアドレス"}:{" "}
-                                <span className="text-white/80">{currentEmail ?? (locale === "en" ? "(loading)" : "（読み込み中）")}</span>
+                                <span className="text-white/80">{currentEmail ?? (emailLoad === "failed"
+                                    ? (locale === "en" ? "(couldn't read it — you can still change it below)" : "（読み取れませんでした。下から変更はできます）")
+                                    : (locale === "en" ? "(loading)" : "（読み込み中）"))}</span>
                             </p>
                             {emailPending === null ? (
                                 <>

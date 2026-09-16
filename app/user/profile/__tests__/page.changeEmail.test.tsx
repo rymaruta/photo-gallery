@@ -171,4 +171,32 @@ describe("メールアドレスを変える", () => {
         const puts = mockUserFetch.mock.calls.filter((c) => c[1]?.method === "PUT");
         expect(JSON.stringify(puts.at(-1)?.[1]?.body ?? "")).not.toContain("new@example.com");
     });
+
+    // ⚠️ **自分で踏んだ欠陥。** `getCurrentEmail()` は失敗しても `null` を
+    // 返すので、初期値と同じにすると**「読み込み中」のまま永久に止まる**
+    it("読めなかったときは「読み込み中」のまま止まらない", async () => {
+        mockGetCurrentEmail.mockResolvedValue(null);
+        mockUserFetch.mockResolvedValueOnce(ok(STORED)).mockResolvedValueOnce(ok({}));
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("旅人");
+        expect(await screen.findByText(/読み取れませんでした/)).toBeInTheDocument();
+        expect(screen.queryByText(/読み込み中/)).toBeNull();
+        // **それでも変更はできる**（読めないことと変えられないことは別）
+        expect(screen.getByLabelText("新しいメールアドレス")).toBeInTheDocument();
+    });
+
+    // **この1本は「守りが効いている」ことは見ていない**（比較先が null なら
+    // 空でない文字列は絶対に一致しないので、守りを外しても同じ結果になる。
+    // 変異で確かめた）。見ているのは**振る舞い**——いまのアドレスを読めなくても
+    // 変更は進められること。`startEmailChange` の呼び出しに `currentEmail` を
+    // 要求する形へ変わったら、ここが落ちる
+    it("いまのアドレスを読めなくても、変更は進められる", async () => {
+        mockGetCurrentEmail.mockResolvedValue(null);
+        mockUserFetch.mockResolvedValueOnce(ok(STORED)).mockResolvedValueOnce(ok({}));
+        render(<ProfilePage />);
+        await screen.findByDisplayValue("旅人");
+        await userEvent.type(screen.getByLabelText("新しいメールアドレス"), "new@example.com");
+        await userEvent.click(screen.getByRole("button", { name: /確認コードを送る/ }));
+        await waitFor(() => expect(mockStartEmailChange).toHaveBeenCalledWith("new@example.com"));
+    });
 });
