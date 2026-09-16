@@ -7,6 +7,10 @@ const m = require("../verify-origin-failover.js") as {
     withoutOriginGroup: (cfg: Record<string, unknown>, o: { originalTargetOriginId: string; originId?: string }) => Record<string, unknown>;
     readOutcome: (r: { status: number; contentType?: string; body?: string }) => string;
     isSecondOrigin: (r: { status: number; contentType?: string }) => boolean;
+    hostForwardedReason: (
+        behavior: Record<string, unknown> | undefined,
+        policy: Record<string, unknown> | null | undefined,
+    ) => string | null;
     pollForFailover: (domain: string, o: {
         limitSec?: number; everySec?: number;
         probeFn: (d: string, extra: string) => Promise<Probe>;
@@ -18,7 +22,7 @@ const m = require("../verify-origin-failover.js") as {
     STAGING_DISTRIBUTION: string;
     PROBE_ORIGIN_DOMAIN: string;
 };
-const { refuseReason, withOriginGroup, withoutOriginGroup, readOutcome, isSecondOrigin, pollForFailover, PROD_DISTRIBUTION, STAGING_DISTRIBUTION, PROBE_ORIGIN_DOMAIN } = m;
+const { refuseReason, withOriginGroup, withoutOriginGroup, readOutcome, isSecondOrigin, pollForFailover, hostForwardedReason, PROD_DISTRIBUTION, STAGING_DISTRIBUTION, PROBE_ORIGIN_DOMAIN } = m;
 
 type Probe = { status: number; contentType?: string; body?: string };
 const JSON_OK: Probe = { status: 200, contentType: "application/json; charset=utf-8", body: "[]" };
@@ -325,5 +329,57 @@ describe("第2オリジンが出るまで叩く", () => {
         expect(isSecondOrigin({ status: 200, contentType: "text/html" }), "HTML を JSON と読んでいる").toBe(false);
         expect(isSecondOrigin({ status: 403, contentType: "application/json" }), "200 でないのに通している").toBe(false);
         expect(isSecondOrigin({ status: 200 }), "content-type が無いのに通している").toBe(false);
+    });
+});
+
+/**
+ * 🔴 **この確認の自己確認。**
+ *
+ * run 72 は 22回叩いて全部 404 だったが、**それでも断定できなかった**——
+ * 実測で staging の API Gateway は自分以外の `Host` に **403** を返すので、
+ * 「フェイルオーバーが効かなかった」と「効いたが第2オリジンが 403 を返し、
+ * それがカスタムエラー応答に食われた」が**同じ絵**になる。
+ *
+ * だから測る前にここを見て、**区別が付かない設定なら測らずに止める**。
+ */
+describe("Host を転送していないか（測ってよい設定か）", () => {
+    it("ポリシーが無ければ転送しない（Host はオリジンのドメインになる）", () => {
+        expect(hostForwardedReason({}, null)).toBeNull();
+        expect(hostForwardedReason(undefined, undefined)).toBeNull();
+    });
+
+    it("allViewer は全ヘッダを転送する＝測れない", () => {
+        const why = hostForwardedReason({}, { Name: "Managed-AllViewer", HeadersConfig: { HeaderBehavior: "allViewer" } });
+        expect(why, "全ヘッダ転送を見逃している").not.toBeNull();
+        expect(why).toContain("Managed-AllViewer");
+    });
+
+    it("一覧に Host が入っていても測れない（大小は問わない）", () => {
+        const why = hostForwardedReason({}, {
+            Name: "custom", HeadersConfig: { HeaderBehavior: "whitelist", Headers: { Items: ["Origin", "HOST"] } },
+        });
+        expect(why, "一覧の Host を見逃している").not.toBeNull();
+        expect(why).toContain("custom");
+    });
+
+    it("Host を含まない一覧なら測ってよい", () => {
+        expect(hostForwardedReason({}, {
+            Name: "Managed-CORS-S3Origin",
+            HeadersConfig: { HeaderBehavior: "whitelist", Headers: { Items: ["Origin", "Access-Control-Request-Method"] } },
+        })).toBeNull();
+    });
+
+    it("allViewerAndWhitelistCloudFront は Host を足さないので測ってよい", () => {
+        expect(hostForwardedReason({}, {
+            Name: "Managed-AllViewerAndCloudFrontHeaders-2022-06",
+            HeadersConfig: { HeaderBehavior: "allViewerAndWhitelistCloudFront", Headers: { Items: ["CloudFront-Viewer-Country"] } },
+        })).toBeNull();
+    });
+
+    /** 古い形（キャッシュポリシーを使っていない配信）も見る */
+    it("古い形の ForwardedValues が Host / * を転送していたら測れない", () => {
+        expect(hostForwardedReason({ ForwardedValues: { Headers: { Quantity: 1, Items: ["Host"] } } }, null)).toContain("ForwardedValues");
+        expect(hostForwardedReason({ ForwardedValues: { Headers: { Quantity: 1, Items: ["*"] } } }, null)).toContain("ForwardedValues");
+        expect(hostForwardedReason({ ForwardedValues: { Headers: { Quantity: 0, Items: [] } } }, null)).toBeNull();
     });
 });

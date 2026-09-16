@@ -30,6 +30,7 @@
 
 const {
     CloudFrontClient, GetDistributionConfigCommand, UpdateDistributionCommand, GetDistributionCommand,
+    GetOriginRequestPolicyCommand,
 } = require("@aws-sdk/client-cloudfront");
 const { requireEnv } = require("./lib/env");
 
@@ -158,6 +159,44 @@ function withoutOriginGroup(cfg, { originalTargetOriginId, originId = "probe-lam
 }
 
 /**
+ * 🔴 **この確認が成り立つ前提: `Host` を第2オリジンへ転送していないこと。**
+ *
+ * 実測（2026-09-16）:
+ *
+ *     curl https://rfq22dzchf…/photos                    → 200 application/json
+ *     curl -H "Host: d15fn3rcaiymu9.cloudfront.net" 同   → **403 {"message":"Forbidden"}**
+ *
+ * API Gateway は自分のドメイン以外の `Host` を断る。だから **`Host` を
+ * 転送する設定だと、フェイルオーバーが起きても第2オリジンが 403 を返し、
+ * それがカスタムエラー応答に食われて `/404.html`** になる——
+ * **「フェイルオーバーが効かなかった」ときと1バイトも区別が付かない**。
+ *
+ * run 72 はまさにこの形で、**結果を断定できなかった**（台帳の
+ * 「測定器が結果を作る」13回目）。だから測る前にここを見て、
+ * **区別が付かない設定なら測らずに止める**。
+ *
+ * 返すのは理由（転送している）か null（転送していない＝測ってよい）。
+ */
+function hostForwardedReason(behavior, policy) {
+    const fv = behavior?.ForwardedValues;
+    if (fv) {
+        const h = fv.Headers ?? {};
+        const items = (h.Items ?? []).map((x) => String(x).toLowerCase());
+        if (h.Quantity > 0 && (items.includes("*") || items.includes("host"))) {
+            return "古い形の設定（ForwardedValues）が Host を転送している";
+        }
+    }
+    if (!policy) return null;
+    const hc = policy.HeadersConfig ?? {};
+    const b = String(hc.HeaderBehavior ?? "");
+    if (b === "allViewer") return `オリジン要求ポリシー「${policy.Name ?? "?"}」が全ヘッダ（Host 込み）を転送している`;
+    const names = (hc.Headers?.Items ?? []).map((x) => String(x).toLowerCase());
+    if (names.includes("host")) return `オリジン要求ポリシー「${policy.Name ?? "?"}」が Host を転送している`;
+    // allViewerAndWhitelistCloudFront は Host を含まない（CloudFront のヘッダを足すだけ）
+    return null;
+}
+
+/**
  * **第2オリジンが返したか。**
  *
  * 静的サイトは `/photos` というオブジェクトを持たないので、S3 から
@@ -179,7 +218,7 @@ function readOutcome(r) {
     return `不明（status=${status} content-type=${contentType || "?"} body=${JSON.stringify(String(body).slice(0, 60))}）`;
 }
 
-module.exports = { refuseReason, PROD_API_HOSTS, withOriginGroup, withoutOriginGroup, readOutcome, isSecondOrigin, pollForFailover, MARKER, PROBE_PATH, PROBE_ORIGIN_DOMAIN, PROD_DISTRIBUTION, STAGING_DISTRIBUTION };
+module.exports = { refuseReason, PROD_API_HOSTS, withOriginGroup, withoutOriginGroup, readOutcome, isSecondOrigin, pollForFailover, hostForwardedReason, MARKER, PROBE_PATH, PROBE_ORIGIN_DOMAIN, PROD_DISTRIBUTION, STAGING_DISTRIBUTION };
 
 const line = (s) => console.log(s);
 
@@ -208,6 +247,18 @@ async function main() {
     line(`  オリジングループ: ${cfg.OriginGroups?.Quantity ?? 0}件`);
     line(`  カスタムエラー応答: ${(cfg.CustomErrorResponses?.Items ?? []).map((e) => `${e.ErrorCode}→${e.ResponsePagePath}`).join(", ") || "なし"}`);
 
+    // **測る前に、測れる設定かを見る**（この確認の自己確認）
+    const orpId = cfg.DefaultCacheBehavior?.OriginRequestPolicyId;
+    let orp = null;
+    if (orpId) {
+        orp = await cf.send(new GetOriginRequestPolicyCommand({ Id: orpId }))
+            .then((r) => r.OriginRequestPolicy?.OriginRequestPolicyConfig ?? null)
+            .catch((e) => { line(`  （オリジン要求ポリシーを読めず: ${e.name}）`); return null; });
+    }
+    line(`  オリジン要求ポリシー: ${orpId ? `${orp?.Name ?? orpId}` : "なし（＝Host はオリジンのドメインになる）"}`);
+    const hostWhy = hostForwardedReason(cfg.DefaultCacheBehavior, orp);
+    line(`  Host の転送: ${hostWhy ?? "していない（測ってよい）"}`);
+
     // 仕掛ける前の姿を測る（これが「いま」の答え）
     const before = await probe(domain, `?cb=${Date.now()}`);
     line(`\n[verify] 仕掛ける前: status=${before.status} → ${readOutcome(before)}`);
@@ -217,6 +268,22 @@ async function main() {
         line("         一時的に足して確かめ、**最後に必ず元へ戻します**。");
         return;
     }
+    /**
+     * 🔴 **区別が付かない設定では測らない。**
+     *
+     * `Host` を転送していると、第2オリジン（API Gateway）が 403 を返し、
+     * それがカスタムエラー応答に食われて `/404.html` になる——
+     * 「フェイルオーバーが効かなかった」ときと**同じ絵**になる。
+     * そこで測っても、出るのは「分からない」だけ。
+     */
+    if (hostWhy) {
+        console.error(`\n[verify] 中止: ${hostWhy}`);
+        console.error("[verify] この設定だと、第2オリジンが Host で 403 を返すので");
+        console.error("[verify] 「効かなかった」と区別が付きません。第2オリジンを");
+        console.error("[verify] Host に依らないものへ変えてから測ってください。");
+        process.exit(1);
+    }
+
     const originalTarget = cfg.DefaultCacheBehavior.TargetOriginId;
     let changed = false;
 
