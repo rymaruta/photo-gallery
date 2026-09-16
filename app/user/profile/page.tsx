@@ -20,7 +20,7 @@ import { isImeKey } from "../../../lib/utils/ime";
 import { log } from "../../../lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
 import DeleteAccountModal from "../../components/DeleteAccountModal";
-import { changePassword, PASSWORD_RULE_MESSAGE } from "../../../lib/auth/cognito";
+import { changePassword, PASSWORD_RULE_MESSAGE, getCurrentEmail, startEmailChange, confirmEmailChange } from "../../../lib/auth/cognito";
 import BlockedUsers from "./BlockedUsers";
 import SongArtwork from "../../components/SongArtwork";
 import { loginWithNext } from "../../../lib/routes";
@@ -102,6 +102,18 @@ export default function ProfileEditPage() {
     const [curPassword, setCurPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [changingPassword, setChangingPassword] = useState(false);
+
+    // メールアドレス変更。**2段**——新しいアドレスにコードを送り、
+    // そのコードで確定する。確定するまで古いアドレスでログインできる
+    // （プールの `AttributesRequireVerificationBeforeUpdate` が効いている。
+    //  本番に入っていることは `diagnose` で実測した）
+    const [currentEmail, setCurrentEmail] = useState<string | null>(null);
+    const [newEmail, setNewEmail] = useState("");
+    const [emailCode, setEmailCode] = useState("");
+    // コードを送った先。**送ったアドレスを覚えておく**——欄を書き換えられても
+    // 「どこに届いたか」を言い続けるため
+    const [emailPending, setEmailPending] = useState<string | null>(null);
+    const [emailBusy, setEmailBusy] = useState(false);
 
     // 退会（アカウント削除）
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -616,6 +628,66 @@ export default function ProfileEditPage() {
                 ?? (locale === "en" ? "Failed to save." : "保存に失敗しました。"), "error");
         } finally {
             setSaving(false);
+        }
+    };
+
+    // いま登録されているアドレスを出す（何から何に変えるのかが分からないと押せない）。
+    // **変えたあとは読み直さない**——ID トークンは作られた時点の写しで、
+    // 次に更新されるまで古い値のまま（`getCurrentEmail` のコメントを見よ）
+    useEffect(() => {
+        let aborted = false;
+        void (async () => {
+            const e = await getCurrentEmail();
+            if (!aborted) setCurrentEmail(e);
+        })();
+        return () => { aborted = true; };
+    }, []);
+
+    const handleStartEmailChange = async () => {
+        if (emailBusy) return;
+        const next = newEmail.trim();
+        // 送る前に断れるものだけ断る（形の細かい判定はサーバーに任せる）
+        if (!next) return;
+        if (next === currentEmail) {
+            showToast(locale === "en" ? "That is already your email address." : "いまのメールアドレスと同じです", "error");
+            return;
+        }
+        setEmailBusy(true);
+        try {
+            const result = await startEmailChange(next);
+            if (!result.success) {
+                showToast(result.error || (locale === "en" ? "Failed to send the code." : "確認コードを送れませんでした"), "error");
+                return;
+            }
+            setEmailPending(next);
+            setEmailCode("");
+            showToast(locale === "en"
+                ? `A confirmation code was sent to ${next}. Your current address still works until you confirm.`
+                : `${next} に確認コードを送りました。確定するまでは、いまのアドレスでログインできます`, "success");
+        } finally {
+            setEmailBusy(false);
+        }
+    };
+
+    const handleConfirmEmailChange = async () => {
+        if (emailBusy || !emailCode.trim()) return;
+        setEmailBusy(true);
+        try {
+            const result = await confirmEmailChange(emailCode);
+            if (!result.success) {
+                showToast(result.error || (locale === "en" ? "Failed to change your email." : "メールアドレスを変更できませんでした"), "error");
+                return;
+            }
+            // **自分が知っている新しい値を出す**（トークンはまだ古い）
+            setCurrentEmail(emailPending);
+            setEmailPending(null);
+            setNewEmail("");
+            setEmailCode("");
+            showToast(locale === "en"
+                ? "Your email address has been changed. Use it to sign in from now on."
+                : "メールアドレスを変更しました。次からはこのアドレスでログインしてください", "success");
+        } finally {
+            setEmailBusy(false);
         }
     };
 
@@ -1234,6 +1306,105 @@ export default function ProfileEditPage() {
                             {locale === "en" ? "Account" : "アカウント"}
                         </p>
                         <div className="rounded-2xl bg-white/[0.03] ring-1 ring-white/10 p-4 space-y-3">
+                            {/* メールアドレスの変更。
+                                **メールがログインID**（プールの `AliasAttributes` が
+                                email）なので、変える手段が無いと「メールを変えた人は
+                                アカウントごと失う」——退会して作り直す以外に無く、
+                                写真・いいね・フォロワー・共有したURLが全部消えていた。
+
+                                **2段にする。** 新しいアドレスにコードを送り、その
+                                コードで確定する。**確定するまで古いアドレスでログイン
+                                できる**（プールの `AttributesRequireVerificationBeforeUpdate`
+                                が効いている。本番に入っていることは診断で実測した）
+                                ——これが無いと、コードを入れる前にタブを閉じた人が
+                                締め出される。 */}
+                            <p className="text-sm font-semibold text-white/90">
+                                {locale === "en" ? "Change email address" : "メールアドレスを変更"}
+                            </p>
+                            <p className="text-xs text-white/50 leading-relaxed">
+                                {locale === "en" ? "Sign-in address" : "ログインに使うアドレス"}:{" "}
+                                <span className="text-white/80">{currentEmail ?? (locale === "en" ? "(loading)" : "（読み込み中）")}</span>
+                            </p>
+                            {emailPending === null ? (
+                                <>
+                                    <div>
+                                        <label className={labelClass} htmlFor="profile-new-email">
+                                            {locale === "en" ? "New email address" : "新しいメールアドレス"}
+                                        </label>
+                                        <input
+                                            id="profile-new-email"
+                                            type="email"
+                                            // **本人の連絡先**なので `email`（パスワード管理を汚さない）
+                                            autoComplete="email"
+                                            inputMode="email"
+                                            aria-describedby="profile-email-note"
+                                            value={newEmail}
+                                            onChange={(e) => setNewEmail(e.target.value)}
+                                            disabled={emailBusy}
+                                            className={inputClass}
+                                        />
+                                        <p id="profile-email-note" className="mt-1.5 text-xs text-white/50 leading-relaxed">
+                                            {locale === "en"
+                                                ? "We'll send a confirmation code to the new address. Your current address keeps working until you confirm."
+                                                : "新しいアドレスに確認コードを送ります。確定するまでは、いまのアドレスでログインできます"}
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => void handleStartEmailChange()}
+                                        disabled={emailBusy || !newEmail.trim()}
+                                        className="w-full py-2.5 rounded-xl bg-white/5 text-white text-sm font-medium ring-1 ring-inset ring-white/15 hover:bg-white/10 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                        style={{ touchAction: "manipulation", minHeight: "44px" }}
+                                    >
+                                        {emailBusy && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                                        {locale === "en" ? "Send confirmation code" : "確認コードを送る"}
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <div>
+                                        <label className={labelClass} htmlFor="profile-email-code">
+                                            {locale === "en" ? `Code sent to ${emailPending}` : `${emailPending} に送ったコード`}
+                                        </label>
+                                        <input
+                                            id="profile-email-code"
+                                            type="text"
+                                            // 届いたコードを自動で入れられるようにする
+                                            // （`/login` `/signup` の確認コードと同じ）
+                                            autoComplete="one-time-code"
+                                            inputMode="numeric"
+                                            value={emailCode}
+                                            onChange={(e) => setEmailCode(e.target.value)}
+                                            disabled={emailBusy}
+                                            className={inputClass}
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => void handleConfirmEmailChange()}
+                                        disabled={emailBusy || !emailCode.trim()}
+                                        className="w-full py-2.5 rounded-xl bg-white/5 text-white text-sm font-medium ring-1 ring-inset ring-white/15 hover:bg-white/10 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                        style={{ touchAction: "manipulation", minHeight: "44px" }}
+                                    >
+                                        {emailBusy && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                                        {locale === "en" ? "Change email address" : "メールアドレスを変更する"}
+                                    </button>
+                                    {/* **やめる道を残す。** コードが届かない／打ち間違えた人が
+                                        ここで詰まると、設定画面から出るしか無くなる */}
+                                    <button
+                                        type="button"
+                                        onClick={() => { setEmailPending(null); setEmailCode(""); }}
+                                        disabled={emailBusy}
+                                        className="w-full py-2 text-xs text-white/50 hover:text-white/80 transition disabled:opacity-40"
+                                        style={{ touchAction: "manipulation" }}
+                                    >
+                                        {locale === "en" ? "Cancel and use a different address" : "やめる（別のアドレスにする）"}
+                                    </button>
+                                </>
+                            )}
+
+                            <div className="pt-1 border-t border-white/10" />
+
                             <p className="text-sm font-semibold text-white/90">
                                 {locale === "en" ? "Change password" : "パスワードを変更"}
                             </p>

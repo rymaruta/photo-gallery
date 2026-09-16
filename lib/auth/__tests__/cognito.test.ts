@@ -42,6 +42,7 @@ import {
     signIn, getCurrentSession, lookupSession, signUp, confirmSignUp,
     getCurrentUserGroups, isAdmin, isGeneralUser, forgotPassword, confirmForgotPassword,
     resendConfirmationCode, PASSWORD_RULE_MESSAGE, changePasswordErrorMessage,
+    emailChangeErrorMessage,
 } from "../cognito";
 
 beforeEach(() => {
@@ -571,5 +572,42 @@ describe("パスワード変更の失敗を日本語にする", () => {
     it("素のメッセージも無ければ、それと分かる既定文に落とす", () => {
         expect(changePasswordErrorMessage("SomeNewException")).toBe("パスワードを変更できませんでした");
         expect(changePasswordErrorMessage("", {})).toBe("パスワードを変更できませんでした");
+    });
+});
+
+/**
+ * **メールアドレス変更の失敗を、次の一手が分かる日本語にする。**
+ *
+ * ここは「送る」と「確定する」の2段ぶんの失敗が混ざるので、
+ * どちらの段の話かが読み取れないと詰む（コードを打ち直すのか、
+ * 別のアドレスにするのか）。
+ */
+describe("メールアドレス変更の失敗を日本語にする", () => {
+    // **登録済みかどうかを教えない。** 言うと、当てずっぽうに打った人に
+    // 他人の登録の有無を教えることになる（A-5 で塞いだのと同じ向き）
+    it("使われているアドレスでも「登録済み」とは言わない", () => {
+        const m = emailChangeErrorMessage("AliasExistsException");
+        expect(m).toContain("使えません");
+        expect(m).not.toContain("登録");
+        expect(m).not.toContain("既に");
+    });
+
+    it("コードの間違いと期限切れを分ける（打ち直すのか送り直すのか）", () => {
+        expect(emailChangeErrorMessage("CodeMismatchException")).toContain("違います");
+        const expired = emailChangeErrorMessage("ExpiredCodeException");
+        expect(expired).toContain("期限");
+        expect(expired).toContain("送り直");
+    });
+
+    it("形式・回数制限・通信断を分ける", () => {
+        expect(emailChangeErrorMessage("InvalidParameterException")).toContain("形式");
+        expect(emailChangeErrorMessage("LimitExceededException")).toContain("しばらく待って");
+        expect(emailChangeErrorMessage("TooManyRequestsException")).toContain("しばらく待って");
+        expect(emailChangeErrorMessage("NetworkError")).toContain("ネットワーク");
+    });
+
+    it("知らない種別は素のメッセージを通す（既定文で握り潰さない）", () => {
+        expect(emailChangeErrorMessage("SomeNewException", { message: "新しい理由" })).toBe("新しい理由");
+        expect(emailChangeErrorMessage("SomeNewException")).toBe("メールアドレスを変更できませんでした");
     });
 });

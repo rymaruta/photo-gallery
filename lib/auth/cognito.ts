@@ -567,6 +567,138 @@ export function changePasswordErrorMessage(name: string, err?: unknown): string 
     }
 }
 
+/**
+ * **いま登録されているメールアドレス。**
+ *
+ * ID トークンの `email` クレームから読む（サーバーに聞かない）。
+ *
+ * ⚠️ **変更した直後は古い値のまま**——トークンは作られた時点の写しで、
+ * 次に更新されるまで変わらない。呼ぶ側は「変えたあとは自分が知っている
+ * 新しい値を出す」こと（この関数で読み直さない）。
+ */
+export async function getCurrentEmail(): Promise<string | null> {
+    const session = await getCurrentSession();
+    if (!session || !session.isValid()) return null;
+    const v = session.getIdToken().payload["email"];
+    return typeof v === "string" && v ? v : null;
+}
+
+/**
+ * **メールアドレスの変更を始める**（新しいアドレスに確認コードを送る）。
+ *
+ * このプールは `AliasAttributes: ["email"]`＝**メールがログインID**なので、
+ * 変更中に古いアドレスが死ぬと締め出しになる。それを塞ぐのはプール側の
+ * `UserAttributeUpdateSettings.AttributesRequireVerificationBeforeUpdate`
+ * で、**本番は入っていることを実測して確かめた**（`diagnose` の
+ * 「メールアドレスを変えられるプールか」の節）。入っていれば、
+ * `confirmEmailChange` が通るまで古いアドレスでログインできる。
+ *
+ * **この関数だけでは変わらない。** `confirmEmailChange` まで通して1組。
+ */
+export async function startEmailChange(newEmail: string): Promise<{ success: boolean; error?: string }> {
+    return new Promise((resolve) => {
+        try {
+            const userPool = getUserPool();
+            const cognitoUser = userPool.getCurrentUser();
+            if (!cognitoUser) {
+                resolve({ success: false, error: "ログインしていません" });
+                return;
+            }
+            cognitoUser.getSession((err: Error | null, session: CognitoUserSession | null) => {
+                if (err || !session || !session.isValid()) {
+                    if (isUnreachable(err)) {
+                        resolve({ success: false, error: "ネットワークにつながりません。接続を確認してもう一度お試しください" });
+                        return;
+                    }
+                    resolve({ success: false, error: "セッションが無効です。再度ログインしてください" });
+                    return;
+                }
+                cognitoUser.updateAttributes(
+                    [new CognitoUserAttribute({ Name: "email", Value: newEmail.trim() })],
+                    (updateErr) => {
+                        if (updateErr) {
+                            const name = (updateErr as { code?: string; name?: string }).code
+                                ?? (updateErr as { name?: string }).name ?? "";
+                            log.warn("startEmailChange error:", name);
+                            resolve({ success: false, error: emailChangeErrorMessage(name, updateErr) });
+                            return;
+                        }
+                        resolve({ success: true });
+                    },
+                );
+            });
+        } catch (e) {
+            resolve({ success: false, error: e instanceof Error ? e.message : "メールアドレスの変更中にエラーが発生しました" });
+        }
+    });
+}
+
+/**
+ * 新しいメールアドレスに届いたコードで変更を確定する。
+ * ここが通って初めて、ログインに使えるアドレスが入れ替わる。
+ */
+export async function confirmEmailChange(code: string): Promise<{ success: boolean; error?: string }> {
+    return new Promise((resolve) => {
+        try {
+            const userPool = getUserPool();
+            const cognitoUser = userPool.getCurrentUser();
+            if (!cognitoUser) {
+                resolve({ success: false, error: "ログインしていません" });
+                return;
+            }
+            cognitoUser.getSession((err: Error | null, session: CognitoUserSession | null) => {
+                if (err || !session || !session.isValid()) {
+                    if (isUnreachable(err)) {
+                        resolve({ success: false, error: "ネットワークにつながりません。接続を確認してもう一度お試しください" });
+                        return;
+                    }
+                    resolve({ success: false, error: "セッションが無効です。再度ログインしてください" });
+                    return;
+                }
+                cognitoUser.verifyAttribute("email", code.trim(), {
+                    onSuccess: () => resolve({ success: true }),
+                    onFailure: (verifyErr) => {
+                        const name = (verifyErr as { code?: string; name?: string }).code
+                            ?? (verifyErr as { name?: string }).name ?? "";
+                        log.warn("confirmEmailChange error:", name);
+                        resolve({ success: false, error: emailChangeErrorMessage(name, verifyErr) });
+                    },
+                });
+            });
+        } catch (e) {
+            resolve({ success: false, error: e instanceof Error ? e.message : "確認中にエラーが発生しました" });
+        }
+    });
+}
+
+/**
+ * メールアドレス変更の失敗を、次の一手が分かる日本語にする
+ * （**純関数**。Cognito を呼ばずに直接見られる）。
+ *
+ * 知らない種別は素のメッセージに落とす——握ると本当の理由が消える。
+ */
+export function emailChangeErrorMessage(name: string, err?: unknown): string {
+    switch (name) {
+        case "AliasExistsException":
+            // **「そのメールは登録済み」とは言い切らない。** 言うと、当てずっぽうに
+            // 打った人に他人の登録の有無を教えることになる（A-5 で塞いだ話と同じ向き）
+            return "そのメールアドレスは使えません。別のアドレスをお試しください";
+        case "InvalidParameterException":
+            return "メールアドレスの形式が正しくありません";
+        case "CodeMismatchException":
+            return "確認コードが違います";
+        case "ExpiredCodeException":
+            return "確認コードの期限が切れています。送り直してください";
+        case "LimitExceededException":
+        case "TooManyRequestsException":
+            return "試行回数が多すぎます。しばらく待ってからもう一度お試しください";
+        case "NetworkError":
+            return "ネットワークにつながりません。接続を確認してもう一度お試しください";
+        default:
+            return (err as { message?: string } | undefined)?.message || "メールアドレスを変更できませんでした";
+    }
+}
+
 export async function deleteAccount(): Promise<{ success: boolean; error?: string }> {
     return new Promise((resolve) => {
         try {
