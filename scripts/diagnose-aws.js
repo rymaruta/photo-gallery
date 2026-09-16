@@ -14,6 +14,9 @@ const { CognitoIdentityProviderClient, DescribeUserPoolCommand, DescribeUserPool
     ListGroupsCommand, ListUsersCommand, ListUsersInGroupCommand } = require("@aws-sdk/client-cognito-identity-provider");
 const { CloudFrontClient, GetDistributionConfigCommand, GetCachePolicyCommand, ListInvalidationsCommand, GetInvalidationCommand } = require("@aws-sdk/client-cloudfront");
 const { LambdaClient, ListFunctionsCommand, GetAccountSettingsCommand, GetFunctionConfigurationCommand, GetPolicyCommand } = require("@aws-sdk/client-lambda");
+// トリガーの関数が `AdminAddUserToGroup` を許されているか（鎖の最後の1本）。
+// **読み取りだけ**（ListRolePolicies / GetRolePolicy / ListAttachedRolePolicies）
+const { IAMClient, ListRolePoliciesCommand, GetRolePolicyCommand, ListAttachedRolePoliciesCommand } = require("@aws-sdk/client-iam");
 const { requireEnv } = require("./lib/env");
 // 「Cognito から呼べるか」は SourceArn まで見る。付け直す道具と同じ判定を使う
 // （別プールに付いた許可を「呼べる」と読まないため）
@@ -36,6 +39,7 @@ const ddb = new DynamoDBClient({ region: REGION });
 const idp = new CognitoIdentityProviderClient({ region: REGION });
 const cf = new CloudFrontClient({ region: REGION });
 const lambda = new LambdaClient({ region: REGION });
+const iam = new IAMClient({ region: REGION });
 
 const line = (s) => console.log(s);
 const head = (s) => console.log(`\n=== ${s} ===`);
@@ -340,6 +344,117 @@ async function emailChange() {
     })) line(l);
 }
 
+/**
+ * **ロールの方針が「このプールで AdminAddUserToGroup してよい」と言っているか。**
+ *
+ * これが「新規登録した人が投稿できる」の鎖の最後の1本。ここだけは
+ * トリガーを付け直しても直らないし、**関数の中で拒否されても
+ * ハンドラが握るので画面にも応答にも出ない**（`addToUserGroup` は
+ * 「何があっても投げない」）。CloudWatch のログを読むしか無かった。
+ *
+ * 純関数（AWS を叩かない）。方針の文書を受け取って判定する。
+ *
+ * @param docs   インラインの方針の一覧（`PolicyDocument` を parse したもの）
+ * @param poolArn このプールの ARN
+ */
+function allowsAddUserToGroup(docs, poolArn) {
+    const matchAction = (a) => {
+        const list = Array.isArray(a) ? a : [a];
+        return list.some((x) => {
+            const v = String(x);
+            if (v === "*" || v === "cognito-idp:*") return true;
+            return v === "cognito-idp:AdminAddUserToGroup";
+        });
+    };
+    // **ワイルドカードを字面で展開しない。** `arn:...:userpool/*` のような
+    // 末尾の `*` だけ見る（IAM の一致は前方一致＋`*`/`?`。ここで完全に
+    // 再実装すると、判定そのものが新しいバグの置き場になる）
+    const matchResource = (r) => {
+        const list = Array.isArray(r) ? r : [r];
+        return list.some((x) => {
+            const v = String(x);
+            if (v === "*") return true;
+            if (v.endsWith("*")) return poolArn.startsWith(v.slice(0, -1));
+            return v === poolArn;
+        });
+    };
+    for (const doc of docs ?? []) {
+        const stmts = Array.isArray(doc?.Statement) ? doc.Statement : [doc?.Statement].filter(Boolean);
+        for (const st of stmts) {
+            if (st?.Effect !== "Allow") continue;
+            if (!st.Action || !matchAction(st.Action)) continue;
+            if (!st.Resource || !matchResource(st.Resource)) continue;
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * 判定の結果を行にする（純関数）。
+ * **読めなかったときに ✅ を出さない**——「確認できていません」と書く。
+ */
+function triggerIamLines({ roleName, readable, allowed, attachedManaged }) {
+    const out = [];
+    if (!roleName) {
+        out.push("  関数のロールを読めませんでした → **確認できていません**");
+        return out;
+    }
+    out.push(`  関数のロール: ${roleName}`);
+    if (!readable) {
+        out.push("  AdminAddUserToGroup の許可: **確認できていません**（この鍵に iam:ListRolePolicies / GetRolePolicy がありません）");
+        out.push("     → AWS コンソール（IAM → ロール → このロール）で見てください");
+        return out;
+    }
+    if (allowed) {
+        out.push("  ✅ このプールで AdminAddUserToGroup を許可している（鎖は全部つながった）");
+        return out;
+    }
+    out.push("  ❌ このプールで AdminAddUserToGroup を許可していません");
+    out.push("     → トリガーは呼ばれるが、関数の中で拒否される。**ハンドラは握って先へ進む**ので");
+    out.push("       画面にも応答にも何も出ず、新規登録した人だけが投稿を開けない");
+    out.push("     直し方: `api` を再デプロイ（`api/serverless.yml` が宣言している）");
+    if ((attachedManaged ?? []).length) {
+        out.push(`     ※ 付いている管理ポリシー（中身は見ていない）: ${attachedManaged.join(", ")}`);
+    }
+    return out;
+}
+
+/** ロールの ARN から名前を取る（`arn:aws:iam::123:role/NAME`） */
+function roleNameFromArn(arn) {
+    const m = /:role\/(.+)$/.exec(String(arn ?? ""));
+    return m ? m[1] : "";
+}
+
+async function inspectTriggerIam({ iam, lambda, fnName, poolArn }) {
+    let roleName = "";
+    try {
+        const cfg = await lambda.send(new GetFunctionConfigurationCommand({ FunctionName: fnName }));
+        roleName = roleNameFromArn(cfg.Role);
+    } catch {
+        return { roleName: "", readable: false, allowed: false, attachedManaged: [] };
+    }
+    if (!roleName) return { roleName: "", readable: false, allowed: false, attachedManaged: [] };
+
+    const docs = [];
+    let attachedManaged = [];
+    try {
+        const names = (await iam.send(new ListRolePoliciesCommand({ RoleName: roleName }))).PolicyNames ?? [];
+        for (const name of names) {
+            const res = await iam.send(new GetRolePolicyCommand({ RoleName: roleName, PolicyName: name }));
+            // PolicyDocument は URL エンコードされた JSON
+            docs.push(JSON.parse(decodeURIComponent(res.PolicyDocument ?? "{}")));
+        }
+        try {
+            attachedManaged = ((await iam.send(new ListAttachedRolePoliciesCommand({ RoleName: roleName }))).AttachedPolicies ?? [])
+                .map((p) => p.PolicyName);
+        } catch { /* 付いていないか読めない。判定には使わない */ }
+    } catch {
+        return { roleName, readable: false, allowed: false, attachedManaged: [] };
+    }
+    return { roleName, readable: true, allowed: allowsAddUserToGroup(docs, poolArn), attachedManaged };
+}
+
 async function inspectTrigger({ idp, lambda, poolId, stage, warn = line }) {
     const expectedName = expectedFunctionName(stage);
     const pool = await idp.send(new DescribeUserPoolCommand({ UserPoolId: poolId }));
@@ -375,7 +490,17 @@ async function postConfirmationTrigger() {
     const poolId = process.env.COGNITO_USER_POOL_ID;
     if (!poolId) { line("  COGNITO_USER_POOL_ID が未設定のため飛ばします"); return; }
     const stage = process.env.STAGE || "prod";
-    for (const l of triggerLines(await inspectTrigger({ idp, lambda, poolId, stage }))) line(l);
+    const info = await inspectTrigger({ idp, lambda, poolId, stage });
+    for (const l of triggerLines(info)) line(l);
+
+    // **鎖の最後の1本。** トリガーが付いていても、関数の IAM が
+    // `AdminAddUserToGroup` を許していなければ、中で拒否されて静かに終わる
+    if (info.attachedArn) {
+        const pool = await idp.send(new DescribeUserPoolCommand({ UserPoolId: poolId }));
+        for (const l of triggerIamLines(await inspectTriggerIam({
+            iam, lambda, fnName: info.attachedArn, poolArn: pool.UserPool?.Arn ?? "",
+        }))) line(l);
+    }
 }
 
 /** 秒を人が読める長さに（TTL は 31536000 のような桁で出てくる） */
@@ -1008,7 +1133,7 @@ async function main() {
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
 
-module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, securityHeadersNote, edgeFunctionNote, edgeAssociations, STATIC_PATTERN, publicFnsFromServerless, PUBLIC_FNS, qualify, userGroupLines, triggerLines, inspectTrigger, emailChangeLines };
+module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, securityHeadersNote, edgeFunctionNote, edgeAssociations, STATIC_PATTERN, publicFnsFromServerless, PUBLIC_FNS, qualify, userGroupLines, triggerLines, inspectTrigger, emailChangeLines, allowsAddUserToGroup, triggerIamLines, roleNameFromArn };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
