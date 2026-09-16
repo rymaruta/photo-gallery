@@ -10,10 +10,14 @@
  * 直す判断の材料を集めるのが目的で、直すのは別の作業。
  */
 const { DynamoDBClient, DescribeTableCommand, ScanCommand } = require("@aws-sdk/client-dynamodb");
-const { CognitoIdentityProviderClient, DescribeUserPoolCommand, DescribeUserPoolClientCommand } = require("@aws-sdk/client-cognito-identity-provider");
+const { CognitoIdentityProviderClient, DescribeUserPoolCommand, DescribeUserPoolClientCommand,
+    ListGroupsCommand, ListUsersCommand, ListUsersInGroupCommand } = require("@aws-sdk/client-cognito-identity-provider");
 const { CloudFrontClient, GetDistributionConfigCommand, GetCachePolicyCommand, ListInvalidationsCommand, GetInvalidationCommand } = require("@aws-sdk/client-cloudfront");
-const { LambdaClient, ListFunctionsCommand, GetAccountSettingsCommand } = require("@aws-sdk/client-lambda");
+const { LambdaClient, ListFunctionsCommand, GetAccountSettingsCommand, GetFunctionConfigurationCommand, GetPolicyCommand } = require("@aws-sdk/client-lambda");
 const { requireEnv } = require("./lib/env");
+// 「Cognito から呼べるか」は SourceArn まで見る。付け直す道具と同じ判定を使う
+// （別プールに付いた許可を「呼べる」と読まないため）
+const { policyAllowsPool, expectedFunctionName } = require("./attach-post-confirmation");
 
 const REGION = process.env.AWS_REGION || "ap-northeast-1";
 // **`require` しただけでは何も起きないようにする。** トップレベルで
@@ -115,6 +119,206 @@ async function cognito() {
         line("     直すコマンド: aws cognito-idp update-user-pool-client \\");
         line(`       --user-pool-id ${poolId} --client-id ${clientId} --prevent-user-existence-errors ENABLED`);
     }
+}
+
+/**
+ * **新規登録した人が投稿できない、を切り分ける。**
+ *
+ * 投稿系のページ（アップロード・編集・下書き）は `useMemberGate` が
+ * `cognito:groups` に `user` か `admin` があるかで通す。グループは
+ * PostConfirmation トリガー（`api/src/cognitoTrigger.ts`）が
+ * `AdminAddUserToGroup` で入れるが、**そこは失敗しても握って先へ進む**
+ * ——登録そのものを失敗させない方が軽いという判断で、意図的。
+ *
+ * その結果、**グループだけ入らなかった人は「ログインできるのに投稿だけ
+ * 永久に開けない」**状態になる（再ログインでも直らない。Cognito 側に
+ * 無いので）。落ちる理由は2つしかない:
+ *
+ *   1. プールに `user` グループが無い → ResourceNotFoundException
+ *   2. トリガーのロールに権限が無い → AccessDenied
+ *
+ * どちらかはログを見ないと分からないが、**結果（誰がグループに居ないか）は
+ * ここで数えられる**。1なら「グループが1つも無い」と出るし、2なら
+ * 「グループはあるのに誰も入っていない」と出る。
+ */
+/**
+ * 出た行を組み立てる（純関数・テスト可能）。
+ *
+ * **診断は「0件」と言うときがいちばん危ない。** 数え方を間違えると
+ * 「問題なし」に見えるので、組み立てだけ切り出して直接見る
+ * （`cdnLines` / `reportFunctions` と同じ判断）。
+ */
+function userGroupLines({ groups, confirmed, inGroup, poolId }) {
+    const out = [];
+    out.push(`  グループ: ${groups.length ? groups.join(", ") : "**1つも無い**"}`);
+    if (!groups.includes("user")) {
+        out.push("  ❌ `user` グループがありません。トリガーの AdminAddUserToGroup は必ず失敗します");
+        out.push("     → 新規登録した人は全員、投稿・編集・下書きを開けません");
+        out.push(`     直すコマンド: aws cognito-idp create-group --user-pool-id ${poolId} --group-name user`);
+        return out;
+    }
+    const missing = confirmed.filter((u) => !inGroup.includes(u));
+    out.push(`  確認済みの利用者: ${confirmed.length}人 / \`user\` グループ: ${inGroup.length}人`);
+    if (missing.length === 0) {
+        out.push("  ✅ 全員がグループに入っています（投稿できない原因は別）");
+        return out;
+    }
+    out.push(`  ❌ グループに入っていない人: ${missing.length}人`);
+    out.push("     この人たちは**ログインできるのに投稿・編集・下書きが永久に開けません**");
+    out.push("     （再ログインでも直りません。Cognito 側に無いため）");
+    for (const u of missing.slice(0, 10)) {
+        out.push(`       ${u}`);
+        out.push(`         aws cognito-idp admin-add-user-to-group --user-pool-id ${poolId} --username ${u} --group-name user`);
+    }
+    if (missing.length > 10) out.push(`       …ほか ${missing.length - 10}人`);
+    return out;
+}
+
+async function userGroups() {
+    head("Cognito のグループ（新規登録した人が投稿できるか）");
+    const poolId = process.env.COGNITO_USER_POOL_ID;
+    if (!poolId) { line("  COGNITO_USER_POOL_ID が未設定のため飛ばします"); return; }
+
+    let groups;
+    try {
+        const res = await idp.send(new ListGroupsCommand({ UserPoolId: poolId, Limit: 60 }));
+        groups = (res.Groups ?? []).map((g) => g.GroupName);
+    } catch (e) {
+        line(`  グループ一覧を読めませんでした（${e.name}）。この鍵に cognito-idp:ListGroups がありません`);
+        line("  → **確認できていません**。AWS コンソール（Cognito → ユーザープール → グループ）で見てください");
+        return;
+    }
+    if (!groups.includes("user")) {
+        for (const l of userGroupLines({ groups, confirmed: [], inGroup: [], poolId })) line(l);
+        return;
+    }
+
+    const confirmed = [];
+    try {
+        let token;
+        do {
+            const res = await idp.send(new ListUsersCommand({ UserPoolId: poolId, Limit: 60, PaginationToken: token }));
+            for (const u of res.Users ?? []) if (u.UserStatus === "CONFIRMED") confirmed.push(u.Username);
+            token = res.PaginationToken;
+        } while (token);
+    } catch (e) {
+        line(`  利用者を数えられませんでした（${e.name}）。この鍵に cognito-idp:ListUsers がありません`);
+        line("  → **確認できていません**");
+        return;
+    }
+
+    const inGroup = [];
+    try {
+        let token;
+        do {
+            const res = await idp.send(new ListUsersInGroupCommand({ UserPoolId: poolId, GroupName: "user", Limit: 60, NextToken: token }));
+            for (const u of res.Users ?? []) inGroup.push(u.Username);
+            token = res.NextToken;
+        } while (token);
+    } catch (e) {
+        line(`  グループの中を読めませんでした（${e.name}）`);
+        line("  → **確認できていません**");
+        return;
+    }
+
+    for (const l of userGroupLines({ groups, confirmed, inGroup, poolId })) line(l);
+}
+
+/**
+ * PostConfirmation トリガーが**本当に走る状態か**の行（純関数・テスト可能）。
+ *
+ * 本番の診断（run 52）で「`user` グループは在るのに 5人中4人が入っていない・
+ * プロフィール行は2人ぶんしか無い」と出た。プロフィール行はトリガーが作るので、
+ * **少なくとも3人はトリガーが走ってすらいない**。走らない理由は3つに絞れる:
+ *
+ *   1. プールにトリガーが付いていない（LambdaConfig.PostConfirmation が空）
+ *   2. 付いているが**別の関数**を指している（古い ARN・別環境）
+ *   3. 付いているが Cognito に呼ぶ権限が無い（関数のリソースポリシーに
+ *      cognito-idp.amazonaws.com からの InvokeFunction が無い）
+ *
+ * `existing: true` のトリガーは serverless のカスタムリソースが後から
+ * プールへ書き込む形なので、1〜3 のどれも**デプロイは緑のまま**起きる。
+ */
+function triggerLines({ attachedArn, expectedName, fnExists, policyAllowsCognito, policyReadable }) {
+    const out = [];
+    if (!attachedArn) {
+        out.push("  ❌ プールに PostConfirmation トリガーが**付いていません**");
+        out.push("     → 新規登録した人は全員、グループにもプロフィールにも入らない");
+        out.push("     直し方: `maintenance` → `attach-post-confirmation`（読むだけ → apply）");
+        out.push("     ※ `api` の再デプロイでは付き直らない——付けるのは CloudFormation のカスタムリソースで、");
+        out.push("       プロパティが変わらないと走らないうえ、プールを名前で探す（同名が2つあれば先頭に付ける）");
+        return out;
+    }
+    out.push(`  付いているトリガー: ${attachedArn}`);
+    if (!attachedArn.endsWith(`:${expectedName}`) && !attachedArn.includes(`:${expectedName}:`)) {
+        out.push(`  ❌ 期待する関数（${expectedName}）ではありません。別環境か古い関数を指しています`);
+        out.push("     直し方: `maintenance` → `attach-post-confirmation`（期待する関数へ付け替える）");
+        return out;
+    }
+    if (fnExists === false) {
+        out.push("  ❌ 指している関数が存在しません（消えた・改名された）");
+        out.push("     直し方: `api` をデプロイして関数を作ってから `attach-post-confirmation`");
+        return out;
+    }
+    if (!policyReadable) {
+        out.push("  Cognito からの呼び出し権限: **確認できていません**（lambda:GetPolicy が無い）");
+        return out;
+    }
+    if (!policyAllowsCognito) {
+        out.push("  ❌ 関数に、このプールからの cognito-idp.amazonaws.com の InvokeFunction が許可されていません");
+        out.push("     → プールにはトリガーが付いているのに、Cognito が呼べずに黙って飛ばされる");
+        out.push("       （別のプールを SourceArn にした許可は数えない）");
+        out.push("     直し方: `maintenance` → `attach-post-confirmation`（このプールを SourceArn にした許可を付ける）");
+        return out;
+    }
+    out.push("  ✅ トリガーは付いていて、関数も在り、Cognito から呼べる");
+    out.push("     → それでも入らないなら、関数の中で AdminAddUserToGroup が拒否されている（CloudWatch のログ:");
+    out.push(`       /aws/lambda/${expectedName} に「postConfirmation: AdminAddUserToGroup failed」が出る）`);
+    return out;
+}
+
+/**
+ * トリガーが走る状態かを AWS から読んで、`triggerLines` の材料にする。
+ * クライアントを引数で受けるのは、配線（SourceArn まで見る判定を通しているか）を
+ * 偽の `send` で確かめるため——`triggerLines` だけ見ていると、ここで判定を
+ * 差し替えても気づけない（変異で素通りした）。
+ */
+async function inspectTrigger({ idp, lambda, poolId, stage, warn = line }) {
+    const expectedName = expectedFunctionName(stage);
+    const pool = await idp.send(new DescribeUserPoolCommand({ UserPoolId: poolId }));
+    const attachedArn = pool.UserPool?.LambdaConfig?.PostConfirmation ?? "";
+    const poolArn = pool.UserPool?.Arn ?? "";
+
+    let fnExists;
+    let policyReadable = false;
+    let policyAllowsCognito = false;
+    if (attachedArn) {
+        try {
+            await lambda.send(new GetFunctionConfigurationCommand({ FunctionName: attachedArn }));
+            fnExists = true;
+        } catch (e) {
+            if (e.name === "ResourceNotFoundException") fnExists = false;
+            else warn(`  関数の存在を確かめられませんでした（${e.name}）`);
+        }
+        if (fnExists) {
+            try {
+                const res = await lambda.send(new GetPolicyCommand({ FunctionName: attachedArn }));
+                policyReadable = true;
+                policyAllowsCognito = policyAllowsPool(JSON.parse(res.Policy ?? "{}"), poolArn);
+            } catch (e) {
+                if (e.name === "ResourceNotFoundException") { policyReadable = true; policyAllowsCognito = false; }
+            }
+        }
+    }
+    return { attachedArn, expectedName, fnExists, policyAllowsCognito, policyReadable };
+}
+
+async function postConfirmationTrigger() {
+    head("PostConfirmation トリガー（新規登録した人がグループに入る仕組みが生きているか）");
+    const poolId = process.env.COGNITO_USER_POOL_ID;
+    if (!poolId) { line("  COGNITO_USER_POOL_ID が未設定のため飛ばします"); return; }
+    const stage = process.env.STAGE || "prod";
+    for (const l of triggerLines(await inspectTrigger({ idp, lambda, poolId, stage }))) line(l);
 }
 
 /** 秒を人が読める長さに（TTL は 31536000 のような桁で出てくる） */
@@ -735,7 +939,7 @@ async function users() {
 async function main() {
     PHOTOS_TABLE = requireEnv("PHOTOS_TABLE");
     line(`対象テーブル: ${PHOTOS_TABLE} / region: ${REGION}`);
-    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["cdnTtl", cdnTtl], ["invalidationHistory", invalidationHistory], ["lambdaRoles", lambdaRoles], ["concurrency", concurrency], ["users", users]]) {
+    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["userGroups", userGroups], ["postConfirmationTrigger", postConfirmationTrigger], ["cdnTtl", cdnTtl], ["invalidationHistory", invalidationHistory], ["lambdaRoles", lambdaRoles], ["concurrency", concurrency], ["users", users]]) {
         try {
             await fn();
         } catch (e) {
@@ -747,7 +951,7 @@ async function main() {
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
 
-module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, securityHeadersNote, edgeFunctionNote, edgeAssociations, STATIC_PATTERN, publicFnsFromServerless, PUBLIC_FNS, qualify };
+module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, securityHeadersNote, edgeFunctionNote, edgeAssociations, STATIC_PATTERN, publicFnsFromServerless, PUBLIC_FNS, qualify, userGroupLines, triggerLines, inspectTrigger };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
