@@ -238,9 +238,17 @@ describe("カテゴリの表示名", () => {
         expect(entries.find((e) => e.slug === "street")?.label).toBe("街");
     });
 
-    it("表に無いカテゴリは生の値のまま（ご飯・動物）", () => {
-        expect(labelForSlug(only("ご飯"), "category", "ご飯")).toBe("ご飯");
-        expect(collectEntries(only("動物"), "category")[0].label).toBe("動物");
+    // ⚠️ **例に使う語は「表に無い」ことが前提。** 以前は ご飯・動物 で
+    // 見ていたが、決まった選択肢（`CATEGORY_CHOICES`）を入れたときに
+    // **どちらも表に載った**ので、前提ごと崩れた（`categoryDisplayName` が
+    // 値を返すようになり、このテストが何も見なくなる側に倒れかけた）。
+    // 表に無いことを**その場で確かめてから**見る
+    it("表に無いカテゴリは生の値のまま（夜景・花）", () => {
+        for (const raw of ["夜景", "花"]) {
+            expect(categoryDisplayName(slugify(raw, "category")), `${raw} が別名表に載った（例を選び直すこと）`).toBeUndefined();
+        }
+        expect(labelForSlug(only("夜景"), "category", "夜景")).toBe("夜景");
+        expect(collectEntries(only("花"), "category")[0].label).toBe("花");
     });
 
     it("タグ・撮影地には当てない（別名と同じ綴りでも生の値）", () => {
@@ -283,7 +291,7 @@ describe("カテゴリの表示名", () => {
         it("表に無い値・空は生のまま", async () => {
             const { ja } = await import("@/app/i18n/labels");
             const names = (ja.category?.names ?? {}) as Record<string, string>;
-            expect(categoryLabel("ご飯", names)).toBe("ご飯");
+            expect(categoryLabel("夜景", names)).toBe("夜景");
             expect(categoryLabel("  ", names)).toBe("");
             expect(categoryLabel(undefined, names)).toBe("");
         });
@@ -432,7 +440,14 @@ describe("CATEGORY_ALIASES: 表記ゆれを1か所で吸収する", () => {
     //     風景 3枚 / landscape 1枚      ご飯 1枚 / restaurant 3枚
     //     自然 2枚 / nature 3枚         建物 1枚 / architecture 2枚
     //
-    // どちらも 3枚（`MIN_INDEXABLE_COUNT`）に届かず**両方 noindex**になる。
+    // ⚠️ **訂正**: このうち `ご飯 / restaurant` は**一度も寄っていない**
+    // （`restaurant` は別名表に無い。寄ったのは 風景・自然・建物 の3組）。
+    // 決まった選択肢を入れたときに `ご飯 → food` を足したが、`restaurant` は
+    // 別の語のままなので**いまも別ページ**（実測 food 1枚 / restaurant 3枚）。
+    // 寄せるかどうかは「ご飯」と「レストラン」が同じ主題かの判断＝owner。
+    //
+    // 寄った3組はどちらも 3枚（`MIN_INDEXABLE_COUNT`）に届かず
+    // **両方 noindex** だった。
     // 寄せれば3〜4枚で検索に載る。副産物として入力画面の候補チップ
     // （`collectOwnValues` が `tagKey` で畳む）も1つにまとまる。
     it("タグにも別名を当てる（同じ主題が日英で2ページに割れていた）", () => {

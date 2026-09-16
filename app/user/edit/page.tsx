@@ -25,6 +25,7 @@ import { useEscapeKey } from "../../../lib/hooks/useEscapeKey";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, type OwnValues } from "../../../lib/utils/ownValues";
+import { CATEGORY_CHOICES, isChosenCategory, toggleCategory } from "../../../lib/utils/categoryChoices";
 import { publicImageUrl } from "@/lib/utils/seo";
 
 const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
@@ -805,22 +806,55 @@ function EditContent() {
                             </datalist>
                         </div>
                         <div>
-                            <label className={labelCls} htmlFor="edit-category">{isJa ? "カテゴリ" : "Category"}</label>
-                            <input id="edit-category" type="text" value={category} onChange={(e) => setCategory(e.target.value)}
-                                maxLength={CATEGORY_MAX}
-                                list="own-categories"
-                                className={inputCls} style={{ fontSize: "16px" }} placeholder={isJa ? "例: 風景" : "e.g. Landscape"} />
-                            <datalist id="own-categories">
-                                {ownValues.categories.map((v) => <option key={v} value={v} />)}
-                            </datalist>
-                        </div>
-                        <div>
                             <label className={labelCls} htmlFor="edit-date">{isJa ? "撮影日" : "Date"}</label>
                             {/* カレンダーの選択肢を絞るだけ（打てば範囲外も入る）。断るのはサーバー
                                 （`dateWasRejected`）。保存ボタンは form の外の
                                 `type="button"` なので、範囲外でも押せる */}
                             <input id="edit-date" type="date" min={PHOTO_DATE_MIN} max={todayForDateInput()} value={date} onChange={(e) => setDate(e.target.value)}
                                 className={inputCls} style={{ fontSize: "16px" }} />
+                        </div>
+                        {/* **カテゴリは決まった選択肢から選ぶ**（owner の
+                            「風景、建築、人物、動物など狭めた選択肢にしたい」）。
+                            タグのチップと同じ形（`role="switch"`・選択中は白地・
+                            押し直すと外れる）だが、**カテゴリは1つしか持てない**ので
+                            別のチップを押すと置き換わる。
+                            **自由入力は残す**（owner の判断）——一覧に無い語は
+                            今までどおり打てる。チップは打たなくて済む道。
+                            2列ぶん使うのはタグと同じ理由（半分の幅だと7個が
+                            3行に伸びて右の列だけ縦に長くなる） */}
+                        <div className="col-span-2">
+                            <label className={labelCls} htmlFor="edit-category">{isJa ? "カテゴリ" : "Category"}</label>
+                            <div className="flex flex-wrap gap-1.5 mb-2" role="group" aria-label={isJa ? "カテゴリを選ぶ" : "Choose a category"}>
+                                {CATEGORY_CHOICES.map((c) => {
+                                    const on = isChosenCategory(category, c);
+                                    return (
+                                        <button
+                                            key={c}
+                                            type="button"
+                                            onClick={() => setCategory((cur) => toggleCategory(cur, c))}
+                                            role="switch"
+                                            aria-checked={on}
+                                            // **名前を種別で分ける。** すぐ下のタグのチップと
+                                            // 綴りが重なる語がある（実データで「街」）ので、
+                                            // 読み上げ・音声操作では**同じ名前の switch が2つ**
+                                            // 並ぶことになる（`749bfce2` で潰した型）。
+                                            // 見えている語はそのまま含める（WCAG 2.5.3）
+                                            aria-label={isJa ? `カテゴリ: ${c}` : `Category: ${c}`}
+                                            className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-white text-black font-medium ring-white" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
+                                            style={{ touchAction: "manipulation" }}
+                                        >
+                                            {c}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <input id="edit-category" type="text" value={category} onChange={(e) => setCategory(e.target.value)}
+                                maxLength={CATEGORY_MAX}
+                                list="own-categories"
+                                className={inputCls} style={{ fontSize: "16px" }} placeholder={isJa ? "一覧に無い語はここに" : "Something else"} />
+                            <datalist id="own-categories">
+                                {ownValues.categories.map((v) => <option key={v} value={v} />)}
+                            </datalist>
                         </div>
                         {/* **タグだけ2列ぶん使う。** 候補チップは10個以上並ぶので、
                             半分の幅（実測 175px）だと**5行に伸びて右の列だけ縦に長くなり、

@@ -76,10 +76,10 @@ describe("カテゴリのチップの字", () => {
 
     // 別名表に無いカテゴリは、本人が書いた言葉のまま
     it("表に無いカテゴリは生のまま出す", async () => {
-        render(<PhotoPageClient photoId="p1" initialPhoto={photoWith("ご飯")} />);
+        render(<PhotoPageClient photoId="p1" initialPhoto={photoWith("夜景")} />);
         await screen.findByText("テスト写真");
-        expect(headingName("ご飯"), "前提が崩れている（別名表に載った）").toBeUndefined();
-        expect(screen.getByText("ご飯").closest("a")?.getAttribute("href"))
-            .toBe(collectionPath("category", "ご飯"));
+        expect(headingName("夜景"), "前提が崩れている（別名表に載った）").toBeUndefined();
+        expect(screen.getByText("夜景").closest("a")?.getAttribute("href"))
+            .toBe(collectionPath("category", "夜景"));
     });
 });

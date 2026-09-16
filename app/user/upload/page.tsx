@@ -25,6 +25,7 @@ import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import type { Photo } from "../../../lib/data/photos";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, type OwnValues } from "../../../lib/utils/ownValues";
+import { CATEGORY_CHOICES, isChosenCategory, toggleCategory } from "../../../lib/utils/categoryChoices";
 // 上限は lib/utils/uploadLimits.ts に置く（api-user 側と対。理由はあちらに書いた）
 import { PHOTO_LIMIT_PER_USER } from "../../../lib/utils/uploadLimits";
 import { publicImageUrl } from "@/lib/utils/seo";
@@ -1077,12 +1078,40 @@ function UploadPageInner() {
                     <datalist id="own-locations">
                         {ownValues.locations.map((v) => <option key={v} value={v} />)}
                     </datalist>
+                    {/* **カテゴリは決まった選択肢から選ぶ**（owner の
+                        「風景、建築、人物、動物など狭めた選択肢にしたい」）。
+                        すぐ下のタグのチップと同じ形（`role="switch"`・選択中は
+                        白地・押し直すと外れる）だが、**カテゴリは1つしか
+                        持てない**ので別のチップを押すと置き換わる。
+                        **自由入力は残す**（owner の判断）＝下の欄は消していない */}
+                    <div className="flex flex-wrap gap-1.5" role="group" aria-label={locale === "en" ? "Choose a category" : "カテゴリを選ぶ"}>
+                        {CATEGORY_CHOICES.map((c) => {
+                            const on = isChosenCategory(category, c);
+                            return (
+                                <button
+                                    key={c}
+                                    type="button"
+                                    onClick={() => setCategory((cur) => toggleCategory(cur, c))}
+                                    disabled={uploading}
+                                    role="switch"
+                                    aria-checked={on}
+                                    // 名前を種別で分ける（すぐ下のタグのチップと綴りが
+                                    // 重なる語がある。見えている語はそのまま含める）
+                                    aria-label={locale === "en" ? `Category: ${c}` : `カテゴリ: ${c}`}
+                                    className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors disabled:opacity-40 ${on ? "bg-white text-black font-medium ring-white" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
+                                    style={{ touchAction: "manipulation" }}
+                                >
+                                    {c}
+                                </button>
+                            );
+                        })}
+                    </div>
                     <input
                         type="text"
                         value={category}
                         onChange={(e) => setCategory(e.target.value)}
                         maxLength={CATEGORY_MAX}
-                        placeholder={locale === "en" ? "Category (e.g. Landscape)" : "カテゴリ（例: 風景）"}
+                        placeholder={locale === "en" ? "Category: something else" : "カテゴリ（一覧に無い語はここに）"}
                         className={inputCls}
                         list="own-categories"
                         style={{ fontSize: "16px" }}

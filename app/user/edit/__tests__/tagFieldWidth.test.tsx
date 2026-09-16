@@ -26,9 +26,32 @@ describe("編集画面のタグ欄", () => {
         expect(m![1]).toContain("col-span-2");
     });
 
-    // 他の3つ（場所・カテゴリ・撮影日）は1列のまま。全部広げると2列の意味が消える
-    it("場所・カテゴリ・撮影日は1列のまま", () => {
-        for (const id of ["edit-location", "edit-category", "edit-date"]) {
+    /**
+     * **カテゴリも2列ぶん使う**（決まった選択肢のチップを足したため）。
+     *
+     * 実ブラウザ（Chromium・393px・本物のビルド済み CSS）で7個のチップを
+     * 置いて測った:
+     *
+     *                    チップの幅  行数  セルの高さ  グリッド全体
+     *     半分の列           176px    2行     108px       183px
+     *     2列ぶん            365px  **1行**    85px     **160px**
+     *
+     * 半分だと2行に伸びるぶん**隣の「場所」のセルが 61 → 108px に引き伸ばされ、
+     * 下に約47px の空きが出る**（owner の「飛び出してるレイアウトが気になる」と
+     * 同じ形）。横あふれはどちらも 0px（393 = 393）。
+     *
+     * あわせて**撮影日をカテゴリより前に移した**——カテゴリだけ2列にすると
+     * 「場所」の隣が空いて穴になるので、場所｜撮影日 で1行を埋める。
+     */
+    it("カテゴリの欄も2列ぶんを使う", () => {
+        const m = /<div className="([^"]*)">\s*\n\s*<label className=\{labelCls\} htmlFor="edit-category">/.exec(SRC);
+        expect(m, "カテゴリ欄の div が見つからない（構造が変わった）").toBeTruthy();
+        expect(m![1]).toContain("col-span-2");
+    });
+
+    // 残る2つ（場所・撮影日）は1列のまま。全部広げると2列の意味が消える
+    it("場所・撮影日は1列のまま", () => {
+        for (const id of ["edit-location", "edit-date"]) {
             const m = new RegExp(`<div className="([^"]*)">\\s*\\n\\s*<label className=\\{labelCls\\} htmlFor="${id}">`).exec(SRC)
                 ?? new RegExp(`<div>\\s*\\n\\s*<label className=\\{labelCls\\} htmlFor="${id}">`).exec(SRC);
             expect(m, `${id} の div が見つからない`).toBeTruthy();

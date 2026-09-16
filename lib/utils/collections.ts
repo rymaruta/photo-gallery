@@ -41,6 +41,16 @@ export const CATEGORY_ALIASES: Record<string, string> = {
     "建築": "architecture",
     "建物": "architecture",
     "街": "street",
+    // **決まった選択肢（`CATEGORY_CHOICES`）に載せた語は、ここにも要る。**
+    // 載せないと日本語のままスラッグになり（`/category/動物`）、同じものを
+    // 指す綴りが増えたときに別ページへ割れる。実際 owner のデータには
+    // 「ご飯」1枚があり、選択肢の「食べ物」を押すと**2ページに割れていた**。
+    // **代表の表示名は先に書いた方**（建築／建物 → 建築 と同じ規則）なので、
+    // 選択肢に出す語を先に置く。
+    "人物": "people",
+    "動物": "animal",
+    "食べ物": "food",
+    "ご飯": "food",
     "写真": "photography",
     "イラスト": "illustration",
     "デザイン": "design",
