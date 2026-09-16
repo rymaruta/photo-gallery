@@ -277,13 +277,14 @@ function triggerLines({ attachedArn, expectedName, fnExists, policyAllowsCognito
     return out;
 }
 
-async function postConfirmationTrigger() {
-    head("PostConfirmation トリガー（新規登録した人がグループに入る仕組みが生きているか）");
-    const poolId = process.env.COGNITO_USER_POOL_ID;
-    if (!poolId) { line("  COGNITO_USER_POOL_ID が未設定のため飛ばします"); return; }
-    const stage = process.env.STAGE || "prod";
+/**
+ * トリガーが走る状態かを AWS から読んで、`triggerLines` の材料にする。
+ * クライアントを引数で受けるのは、配線（SourceArn まで見る判定を通しているか）を
+ * 偽の `send` で確かめるため——`triggerLines` だけ見ていると、ここで判定を
+ * 差し替えても気づけない（変異で素通りした）。
+ */
+async function inspectTrigger({ idp, lambda, poolId, stage, warn = line }) {
     const expectedName = expectedFunctionName(stage);
-
     const pool = await idp.send(new DescribeUserPoolCommand({ UserPoolId: poolId }));
     const attachedArn = pool.UserPool?.LambdaConfig?.PostConfirmation ?? "";
     const poolArn = pool.UserPool?.Arn ?? "";
@@ -297,7 +298,7 @@ async function postConfirmationTrigger() {
             fnExists = true;
         } catch (e) {
             if (e.name === "ResourceNotFoundException") fnExists = false;
-            else line(`  関数の存在を確かめられませんでした（${e.name}）`);
+            else warn(`  関数の存在を確かめられませんでした（${e.name}）`);
         }
         if (fnExists) {
             try {
@@ -309,7 +310,15 @@ async function postConfirmationTrigger() {
             }
         }
     }
-    for (const l of triggerLines({ attachedArn, expectedName, fnExists, policyAllowsCognito, policyReadable })) line(l);
+    return { attachedArn, expectedName, fnExists, policyAllowsCognito, policyReadable };
+}
+
+async function postConfirmationTrigger() {
+    head("PostConfirmation トリガー（新規登録した人がグループに入る仕組みが生きているか）");
+    const poolId = process.env.COGNITO_USER_POOL_ID;
+    if (!poolId) { line("  COGNITO_USER_POOL_ID が未設定のため飛ばします"); return; }
+    const stage = process.env.STAGE || "prod";
+    for (const l of triggerLines(await inspectTrigger({ idp, lambda, poolId, stage }))) line(l);
 }
 
 /** 秒を人が読める長さに（TTL は 31536000 のような桁で出てくる） */
@@ -942,7 +951,7 @@ async function main() {
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
 
-module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, securityHeadersNote, edgeFunctionNote, edgeAssociations, STATIC_PATTERN, publicFnsFromServerless, PUBLIC_FNS, qualify, userGroupLines, triggerLines };
+module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, securityHeadersNote, edgeFunctionNote, edgeAssociations, STATIC_PATTERN, publicFnsFromServerless, PUBLIC_FNS, qualify, userGroupLines, triggerLines, inspectTrigger };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
