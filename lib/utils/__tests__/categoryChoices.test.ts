@@ -108,14 +108,32 @@ describe("チップが光るかどうか（isChosenCategory）", () => {
         expect(isChosenCategory("夜景", "風景")).toBe(false);
     });
 
-    // **空を「どれかに一致」と読まない。** スラッグが空になる値
-    // （記号だけ・空白だけ）は、素朴に比べると空スラッグ同士で一致する
     it("空・記号だけの値はどのチップも光らせない", () => {
         for (const raw of ["", "   ", "-", "###"]) {
             for (const c of CATEGORY_CHOICES) {
                 expect(isChosenCategory(raw, c), `${JSON.stringify(raw)} / ${c}`).toBe(false);
             }
         }
+    });
+
+    /**
+     * 🔴 **空スラッグ同士を「一致」と読まない。**
+     *
+     * `slugify` は `-` `#` `...` を**空文字**にするので、素朴に比べると
+     * 「スラッグが空になる値」同士が全部一致する——このリポジトリは
+     * 一度これで**検索語が空スラッグだと全件一致**する穴を作っている
+     * （`3a0e3ce`）。
+     *
+     * **いまの選択肢では踏めない**（7語とも英字のスラッグを持つ）。
+     * だが `isChosenCategory` は export されていて、上の一覧を通らない
+     * 呼び方ができる。**守りを外すと素通りする**ことが変異で分かったので、
+     * 一覧を経由せずに直接見る。
+     */
+    it("スラッグが空になる語どうしを一致と読まない（一覧を経由しない）", () => {
+        expect(slugify("###", "category"), "前提が崩れている（空スラッグでない）").toBe("");
+        expect(isChosenCategory("###", "###"), "空スラッグ同士が一致している").toBe(false);
+        expect(isChosenCategory("", ""), "空同士が一致している").toBe(false);
+        expect(isChosenCategory("  ", "-")).toBe(false);
     });
 });
 
