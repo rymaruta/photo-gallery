@@ -25,7 +25,14 @@
  * `UpdateUserPool` は**渡さなかった項目を既定値に戻す**（AWS の仕様）。
  * ここは serverless の `getUpdateConfigFromCurrentSetup` と同じ手順で
  * `DescribeUserPool` の中身を丸ごと送り返し、読み取り専用の項目だけ落とす。
- * トリガー以外は1つも変えない。
+ * トリガー以外は1つも変えない。**付けたあと読み直して、トリガー以外が
+ * 1項目も変わっていないことまで確かめる**（変わっていれば差分を出して失敗）。
+ *
+ * serverless と違うところは2つ: (1) `UnusedAccountValidityDays` が返って
+ * こないときは `TemporaryPasswordValidityDays` に触らない（あちらは無条件に
+ * 写すので undefined で潰し、既定の7日に戻る）。(2) 同じ関数 ARN を指す
+ * 他のトリガー項目の掃除（`removeExistingLambdas`）はしない——この関数は
+ * PostConfirmation にしか付けないので掃除する対象が無い。
  */
 const {
     CognitoIdentityProviderClient, DescribeUserPoolCommand, ListUserPoolsCommand, UpdateUserPoolCommand,
@@ -39,6 +46,34 @@ const TRIGGER = "PostConfirmation";
 
 function expectedFunctionName(stage) {
     return `photo-gallery-api-${stage}-postConfirmation`;
+}
+
+/**
+ * その環境のプール名（`deploy-api.yml` の `cognitoPoolName` と同じ規則）。
+ * **プールと STAGE の組が合っているかをこれで見る**——staging のプール ID に
+ * STAGE=prod を渡すと、staging に付いている正しいトリガーを本番の関数へ
+ * 付け替えてしまう。書く側の道具なので、合わなければ止める。
+ */
+function poolNameForStage(stage) {
+    return `${stage}-journey-photo-client-spa`;
+}
+
+/** 更新の前後で見比べる項目（読み直しのたびに変わるものと、狙って変える LambdaConfig は除く） */
+const VOLATILE = ["LastModifiedDate", "EstimatedNumberOfUsers", "LambdaConfig"];
+
+/**
+ * 更新の前後で **トリガー以外に変わった項目** を数える（純関数・テスト可能）。
+ * `UpdateUserPool` の唯一の危険は「渡さなかった項目が既定値に戻る」なので、
+ * 付けたあとに読み直して、ここが空であることまで確かめる。
+ */
+function changedKeys(before, after) {
+    const keys = new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})]);
+    const out = [];
+    for (const k of keys) {
+        if (VOLATILE.includes(k)) continue;
+        if (JSON.stringify(before?.[k]) !== JSON.stringify(after?.[k])) out.push(k);
+    }
+    return out.sort();
 }
 
 /**
@@ -125,7 +160,8 @@ async function listPoolsNamed(idp, name) {
 async function main() {
     const apply = process.argv.includes("--apply");
     const poolId = requireEnv("COGNITO_USER_POOL_ID");
-    const stage = process.env.STAGE || "prod";
+    // 本番値の既定は置かない（書く側。STAGE とプールの組はこの下で突き合わせる）
+    const stage = requireEnv("STAGE", "prod か staging。プール名と一致しなければ止まる");
     const region = process.env.AWS_REGION ?? "ap-northeast-1";
     const idp = new CognitoIdentityProviderClient({ region });
     const lambda = new LambdaClient({ region });
@@ -135,6 +171,9 @@ async function main() {
 
     const pool = (await idp.send(new DescribeUserPoolCommand({ UserPoolId: poolId }))).UserPool;
     if (!pool) throw new Error(`プール ${poolId} を読めませんでした`);
+    if (pool.Name !== poolNameForStage(stage)) {
+        throw new Error(`プール ${poolId} の名前は ${pool.Name} で、STAGE=${stage} の ${poolNameForStage(stage)} と合いません。別環境のプールに付けようとしています`);
+    }
     const attachedArn = pool.LambdaConfig?.[TRIGGER] ?? "";
     const sameNamePoolIds = await listPoolsNamed(idp, pool.Name);
 
@@ -174,8 +213,9 @@ async function main() {
             Action: "lambda:InvokeFunction",
             FunctionName: fnName,
             Principal: "cognito-idp.amazonaws.com",
-            // カスタムリソースの StatementId（<関数名>-<プール名>）とは別の名前にする。
-            // 同じだと、あちらが RemovePermission したときにこちらまで消える
+            // カスタムリソースの StatementId（<関数名>-<プール名を小文字化し `.:*` と空白を
+            // 除いたもの>・100字で切る）とは別の名前にする。同じだと、あちらが
+            // RemovePermission したときにこちらまで消える
             StatementId: `cognito-${poolId}`.replace(/[^A-Za-z0-9_-]/g, "-"),
             SourceArn: pool.Arn,
         }));
@@ -183,14 +223,27 @@ async function main() {
     }
     if (plan.action !== "none") {
         await idp.send(new UpdateUserPoolCommand(buildUpdateParams(pool, expectedArn)));
-        const after = (await idp.send(new DescribeUserPoolCommand({ UserPoolId: poolId }))).UserPool?.LambdaConfig?.[TRIGGER];
-        if (after !== expectedArn) throw new Error(`付けたあとに読み直したら ${TRIGGER}=${after ?? "（無し）"} でした`);
-        console.log(`[attach] ${TRIGGER} を付けました（読み直して確認済み）`);
+        const after = (await idp.send(new DescribeUserPoolCommand({ UserPoolId: poolId }))).UserPool ?? {};
+        const got = after.LambdaConfig?.[TRIGGER];
+        if (got !== expectedArn) throw new Error(`付けたあとに読み直したら ${TRIGGER}=${got ?? "（無し）"} でした`);
+        // 他のトリガーも残っているか（PostConfirmation だけ差し替えたはず）
+        const otherTriggers = Object.keys(pool.LambdaConfig ?? {}).filter((k) => k !== TRIGGER);
+        const lostTriggers = otherTriggers.filter((k) => JSON.stringify(after.LambdaConfig?.[k]) !== JSON.stringify(pool.LambdaConfig[k]));
+        const changed = changedKeys(pool, after);
+        if (changed.length || lostTriggers.length) {
+            console.error(`[attach] ❌ トリガー以外の設定が変わっています: ${[...changed, ...lostTriggers.map((k) => `LambdaConfig.${k}`)].join(", ")}`);
+            console.error("[attach]    更新前の値（この出力から手で戻せます）:");
+            for (const k of changed) console.error(`[attach]    ${k}: ${JSON.stringify(pool[k])} → ${JSON.stringify(after[k])}`);
+            for (const k of lostTriggers) console.error(`[attach]    LambdaConfig.${k}: ${JSON.stringify(pool.LambdaConfig[k])} → ${JSON.stringify(after.LambdaConfig?.[k])}`);
+            process.exitCode = 1;
+            return;
+        }
+        console.log(`[attach] ${TRIGGER} を付けました（読み直して確認済み・トリガー以外の設定は変わっていない）`);
     }
     console.log("[attach] 完了。次に新規登録した人から user グループとプロフィール行に入ります");
 }
 
-module.exports = { planAttach, buildUpdateParams, policyAllowsPool, expectedFunctionName, READ_ONLY, TRIGGER };
+module.exports = { planAttach, buildUpdateParams, policyAllowsPool, changedKeys, expectedFunctionName, poolNameForStage, READ_ONLY, TRIGGER };
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
 }

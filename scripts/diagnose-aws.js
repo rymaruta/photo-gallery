@@ -15,6 +15,9 @@ const { CognitoIdentityProviderClient, DescribeUserPoolCommand, DescribeUserPool
 const { CloudFrontClient, GetDistributionConfigCommand, GetCachePolicyCommand, ListInvalidationsCommand, GetInvalidationCommand } = require("@aws-sdk/client-cloudfront");
 const { LambdaClient, ListFunctionsCommand, GetAccountSettingsCommand, GetFunctionConfigurationCommand, GetPolicyCommand } = require("@aws-sdk/client-lambda");
 const { requireEnv } = require("./lib/env");
+// 「Cognito から呼べるか」は SourceArn まで見る。付け直す道具と同じ判定を使う
+// （別プールに付いた許可を「呼べる」と読まないため）
+const { policyAllowsPool, expectedFunctionName } = require("./attach-post-confirmation");
 
 const REGION = process.env.AWS_REGION || "ap-northeast-1";
 // **`require` しただけでは何も起きないようにする。** トップレベルで
@@ -249,10 +252,12 @@ function triggerLines({ attachedArn, expectedName, fnExists, policyAllowsCognito
     out.push(`  付いているトリガー: ${attachedArn}`);
     if (!attachedArn.endsWith(`:${expectedName}`) && !attachedArn.includes(`:${expectedName}:`)) {
         out.push(`  ❌ 期待する関数（${expectedName}）ではありません。別環境か古い関数を指しています`);
+        out.push("     直し方: `maintenance` → `attach-post-confirmation`（期待する関数へ付け替える）");
         return out;
     }
     if (fnExists === false) {
         out.push("  ❌ 指している関数が存在しません（消えた・改名された）");
+        out.push("     直し方: `api` をデプロイして関数を作ってから `attach-post-confirmation`");
         return out;
     }
     if (!policyReadable) {
@@ -260,8 +265,9 @@ function triggerLines({ attachedArn, expectedName, fnExists, policyAllowsCognito
         return out;
     }
     if (!policyAllowsCognito) {
-        out.push("  ❌ 関数に cognito-idp.amazonaws.com からの InvokeFunction が許可されていません");
+        out.push("  ❌ 関数に、このプールからの cognito-idp.amazonaws.com の InvokeFunction が許可されていません");
         out.push("     → プールにはトリガーが付いているのに、Cognito が呼べずに黙って飛ばされる");
+        out.push("       （別のプールを SourceArn にした許可は数えない）");
         out.push("     直し方: `maintenance` → `attach-post-confirmation`（このプールを SourceArn にした許可を付ける）");
         return out;
     }
@@ -276,10 +282,11 @@ async function postConfirmationTrigger() {
     const poolId = process.env.COGNITO_USER_POOL_ID;
     if (!poolId) { line("  COGNITO_USER_POOL_ID が未設定のため飛ばします"); return; }
     const stage = process.env.STAGE || "prod";
-    const expectedName = `photo-gallery-api-${stage}-postConfirmation`;
+    const expectedName = expectedFunctionName(stage);
 
     const pool = await idp.send(new DescribeUserPoolCommand({ UserPoolId: poolId }));
     const attachedArn = pool.UserPool?.LambdaConfig?.PostConfirmation ?? "";
+    const poolArn = pool.UserPool?.Arn ?? "";
 
     let fnExists;
     let policyReadable = false;
@@ -296,11 +303,7 @@ async function postConfirmationTrigger() {
             try {
                 const res = await lambda.send(new GetPolicyCommand({ FunctionName: attachedArn }));
                 policyReadable = true;
-                const doc = JSON.parse(res.Policy ?? "{}");
-                policyAllowsCognito = (doc.Statement ?? []).some((st) =>
-                    st.Effect === "Allow"
-                    && String(st.Principal?.Service ?? "").includes("cognito-idp.amazonaws.com")
-                    && String(st.Action).includes("InvokeFunction"));
+                policyAllowsCognito = policyAllowsPool(JSON.parse(res.Policy ?? "{}"), poolArn);
             } catch (e) {
                 if (e.name === "ResourceNotFoundException") { policyReadable = true; policyAllowsCognito = false; }
             }
