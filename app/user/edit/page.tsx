@@ -110,6 +110,20 @@ export function describeOverLimit(
         return say(`タグは${TAGS_MAX}個までです（${tags.length}個）`,
             `Up to ${TAGS_MAX} tags (${tags.length})`);
     }
+    // **タグ1つの長さも切られる。** 件数（30）だけ見ていたので、長いタグを
+    // 1つ書くと**警告なしで 50 字に切られていた**（`sanitizeTags` の
+    // `truncate(..., 50)`）。欄には `maxLength` を置けない——上限は
+    // **タグ1つあたり**で、カンマ区切りの1入力に当てると
+    // 「サーバーは受け付けるのに入力できない」に倒れる。
+    // だから「黙って切られる上限のうち、画面に出す先が無いもの」として
+    // ここで告げる（件数・説明の文字数と同じ扱い）
+    if (tags) {
+        const longest = tags.reduce((n, t) => Math.max(n, t.trim().length), 0);
+        if (longest > TAG_LEN_MAX) {
+            return say(`タグ1つは${TAG_LEN_MAX}字までです（${longest}字）`,
+                `Up to ${TAG_LEN_MAX} characters per tag (${longest})`);
+        }
+    }
     if (typeof description === "string") {
         if (description.trim().length > DESC_STRING_MAX) {
             return say(`説明は${DESC_STRING_MAX}字までです（${description.trim().length}字）`,
@@ -180,6 +194,7 @@ export function mergeLocalizedDescription(original: Photo["description"], ja: st
 // `api-user/src/sanitize.ts` と対で、`scripts/__tests__/limitParity.test.ts`
 // がずれを止める。
 const TAGS_MAX = 30;
+const TAG_LEN_MAX = 50;
 const DESC_PARAGRAPHS_MAX = 50;
 const DESC_STRING_MAX = 2000;
 const TITLE_MAX = 200;

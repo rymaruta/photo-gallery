@@ -89,6 +89,7 @@ function makeId() {
 // 値は `api-user/src/sanitize.ts` と対で、
 // `scripts/__tests__/limitParity.test.ts` がずれを止める。
 const TAGS_MAX = 30;
+const TAG_LEN_MAX = 50;
 const DESC_STRING_MAX = 2000;
 const TITLE_MAX = 200;
 const LOCATION_MAX = 200;
@@ -645,6 +646,16 @@ function UploadPageInner() {
                 showToast(locale === "en"
                     ? `Up to ${TAGS_MAX} tags (${tagList.length}). The rest won't be saved`
                     : `タグは${TAGS_MAX}個までです（${tagList.length}個）。超えた分は保存されません`, "error");
+            }
+            // **タグ1つの長さも切られる**（件数だけ見ていた）。欄に
+            // `maxLength` は置けない——上限は**タグ1つあたり**なので、
+            // カンマ区切りの1入力に当てると「サーバーは受け付けるのに
+            // 入力できない」に倒れる。編集画面と同じ扱いで告げるだけ
+            const longTag = tagList?.reduce((n, t) => Math.max(n, t.length), 0) ?? 0;
+            if (longTag > TAG_LEN_MAX) {
+                showToast(locale === "en"
+                    ? `Up to ${TAG_LEN_MAX} characters per tag (${longTag}). The rest won't be saved`
+                    : `タグ1つは${TAG_LEN_MAX}字までです（${longTag}字）。超えた分は保存されません`, "error");
             }
             // **文字数で見る**（この画面は説明を文字列で送るので、段落数は効かない）
             const longDesc = pending.find((it) => it.description.trim().length > DESC_STRING_MAX);
