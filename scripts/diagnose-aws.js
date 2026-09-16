@@ -283,6 +283,63 @@ function triggerLines({ attachedArn, expectedName, fnExists, policyAllowsCognito
  * 偽の `send` で確かめるため——`triggerLines` だけ見ていると、ここで判定を
  * 差し替えても気づけない（変異で素通りした）。
  */
+/**
+ * **メールアドレスを変えられるようにしてよいプールか。**
+ *
+ * このプールは `AliasAttributes: ["email"]`＝**メールがログインID**。
+ * `UpdateUserAttributes` で email を変えると `email_verified` が false に
+ * 落ちるので、**既定のままだと「新しいメールを確認するまでログインできない」
+ * 窓が開く**——確認コードを入れる前にタブを閉じた人は締め出される。
+ *
+ * それを塞ぐのが `UserAttributeUpdateSettings.AttributesRequireVerificationBeforeUpdate`
+ * ——入っていれば、**新しいメールが確認できるまで古いメールが生き続ける**
+ * （その間ログインは今までどおり）。
+ *
+ * また `AutoVerifiedAttributes` に email が無いと、Cognito は確認コードを
+ * 送らない＝変更を完了させる手段が無い。
+ *
+ * **どちらも「入っているか」でしか判断しない**（入れるのは別の作業）。
+ */
+function emailChangeLines({ alias, autoVerified, requireVerificationBeforeUpdate }) {
+    const out = [];
+    const isAlias = (alias ?? []).includes("email");
+    out.push(`  メールがログインIDか（AliasAttributes に email）: ${isAlias ? "はい" : "いいえ"}`);
+    out.push(`  AutoVerifiedAttributes: ${JSON.stringify(autoVerified ?? null)}`);
+    out.push(`  AttributesRequireVerificationBeforeUpdate: ${JSON.stringify(requireVerificationBeforeUpdate ?? null)}`);
+
+    if (!(autoVerified ?? []).includes("email")) {
+        out.push("  ❌ email が AutoVerifiedAttributes に無い → 確認コードが送られない＝変更を完了できない");
+        out.push("     メールアドレス変更を作る前に、ここを入れること");
+        return out;
+    }
+    if (!(requireVerificationBeforeUpdate ?? []).includes("email")) {
+        out.push("  ❌ AttributesRequireVerificationBeforeUpdate に email が無い");
+        if (isAlias) {
+            out.push("     → メールを変えた瞬間に古いメールでログインできなくなり、新しい方はまだ確認前");
+            out.push("       ＝**確認コードを入れる前にタブを閉じた人は締め出される**");
+        }
+        out.push("     メールアドレス変更を作る前に入れること:");
+        out.push("       aws cognito-idp update-user-pool --user-pool-id <id> \\");
+        out.push("         --user-attribute-update-settings AttributesRequireVerificationBeforeUpdate=email");
+        out.push("     ⚠️ update-user-pool は渡さない項目を既定値に戻す。他の設定ごと送り返すこと");
+        return out;
+    }
+    out.push("  ✅ 変更中も古いメールが生きる（締め出されない）");
+    return out;
+}
+
+async function emailChange() {
+    head("メールアドレスを変えられるプールか（変更機能を作る前の関門）");
+    const poolId = process.env.COGNITO_USER_POOL_ID;
+    if (!poolId) { line("  COGNITO_USER_POOL_ID が未設定のため飛ばします"); return; }
+    const p = (await idp.send(new DescribeUserPoolCommand({ UserPoolId: poolId }))).UserPool ?? {};
+    for (const l of emailChangeLines({
+        alias: p.AliasAttributes,
+        autoVerified: p.AutoVerifiedAttributes,
+        requireVerificationBeforeUpdate: p.UserAttributeUpdateSettings?.AttributesRequireVerificationBeforeUpdate,
+    })) line(l);
+}
+
 async function inspectTrigger({ idp, lambda, poolId, stage, warn = line }) {
     const expectedName = expectedFunctionName(stage);
     const pool = await idp.send(new DescribeUserPoolCommand({ UserPoolId: poolId }));
@@ -939,7 +996,7 @@ async function users() {
 async function main() {
     PHOTOS_TABLE = requireEnv("PHOTOS_TABLE");
     line(`対象テーブル: ${PHOTOS_TABLE} / region: ${REGION}`);
-    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["userGroups", userGroups], ["postConfirmationTrigger", postConfirmationTrigger], ["cdnTtl", cdnTtl], ["invalidationHistory", invalidationHistory], ["lambdaRoles", lambdaRoles], ["concurrency", concurrency], ["users", users]]) {
+    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["emailChange", emailChange], ["userGroups", userGroups], ["postConfirmationTrigger", postConfirmationTrigger], ["cdnTtl", cdnTtl], ["invalidationHistory", invalidationHistory], ["lambdaRoles", lambdaRoles], ["concurrency", concurrency], ["users", users]]) {
         try {
             await fn();
         } catch (e) {
@@ -951,7 +1008,7 @@ async function main() {
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
 
-module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, securityHeadersNote, edgeFunctionNote, edgeAssociations, STATIC_PATTERN, publicFnsFromServerless, PUBLIC_FNS, qualify, userGroupLines, triggerLines, inspectTrigger };
+module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, securityHeadersNote, edgeFunctionNote, edgeAssociations, STATIC_PATTERN, publicFnsFromServerless, PUBLIC_FNS, qualify, userGroupLines, triggerLines, inspectTrigger, emailChangeLines };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
