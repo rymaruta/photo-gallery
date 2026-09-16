@@ -17,7 +17,7 @@ describe("PostConfirmation トリガーの診断", () => {
     it("付いていなければ、そう言い切って直し方を出す", () => {
         const out = triggerLines({ ...base, attachedArn: "" }).join("\n");
         expect(out).toContain("付いていません");
-        expect(out).toContain("再デプロイ");
+        expect(out).toContain("attach-post-confirmation");
     });
     it("別の関数を指していれば名指しする", () => {
         const out = triggerLines({ ...base, attachedArn: "arn:aws:lambda:ap-northeast-1:123:function:photo-gallery-api-staging-postConfirmation" }).join("\n");
@@ -35,7 +35,7 @@ describe("PostConfirmation トリガーの診断", () => {
     it("Cognito から呼べなければ ❌ と直し方", () => {
         const out = triggerLines({ ...base, policyAllowsCognito: false }).join("\n");
         expect(out).toContain("InvokeFunction が許可されていません");
-        expect(out).toContain("再デプロイ");
+        expect(out).toContain("attach-post-confirmation");
     });
     it("全部揃っていれば ✅ と、残る可能性（IAM）の見方を出す", () => {
         const out = triggerLines(base).join("\n");

@@ -241,7 +241,9 @@ function triggerLines({ attachedArn, expectedName, fnExists, policyAllowsCognito
     if (!attachedArn) {
         out.push("  ❌ プールに PostConfirmation トリガーが**付いていません**");
         out.push("     → 新規登録した人は全員、グループにもプロフィールにも入らない");
-        out.push("     直し方: `api` を再デプロイ（deploy-api.yml）。cognitoPoolName が本番の名前か確かめてから");
+        out.push("     直し方: `maintenance` → `attach-post-confirmation`（読むだけ → apply）");
+        out.push("     ※ `api` の再デプロイでは付き直らない——付けるのは CloudFormation のカスタムリソースで、");
+        out.push("       プロパティが変わらないと走らないうえ、プールを名前で探す（同名が2つあれば先頭に付ける）");
         return out;
     }
     out.push(`  付いているトリガー: ${attachedArn}`);
@@ -260,7 +262,7 @@ function triggerLines({ attachedArn, expectedName, fnExists, policyAllowsCognito
     if (!policyAllowsCognito) {
         out.push("  ❌ 関数に cognito-idp.amazonaws.com からの InvokeFunction が許可されていません");
         out.push("     → プールにはトリガーが付いているのに、Cognito が呼べずに黙って飛ばされる");
-        out.push("     直し方: `api` を再デプロイ（カスタムリソースが権限を付け直す）");
+        out.push("     直し方: `maintenance` → `attach-post-confirmation`（このプールを SourceArn にした許可を付ける）");
         return out;
     }
     out.push("  ✅ トリガーは付いていて、関数も在り、Cognito から呼べる");
