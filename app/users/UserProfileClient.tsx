@@ -129,6 +129,18 @@ function buildTimeline(photos: Photo[], locale: "ja" | "en"): TimelineGroup[] {
 // バンドの下は黒（フェードで徐々に黒くする演出はしない）。
 function CoverBackground({ userId }: { userId: string }) {
     const [coverError, setCoverError] = useState(false);
+    /**
+     * 🔴 **React より先に失敗が終わっていた画像を、`onError` は拾えない。**
+     * `UserAvatar` と同じ形（`fa640312` の型）。カバーは**このページの
+     * 静的HTMLに焼かれる**ので、カバーを設定していない人なら配信が
+     * 数十msで断る——React が付くより前で、`error` は誰も聞いていない。
+     * 落ちないと**画面いっぱいの帯にブラウザの破損表示**が残る
+     * （アバターより目立つ）。
+     */
+    const attachCover = useCallback((img: HTMLImageElement | null) => {
+        if (!img) return;
+        if (img.complete && img.naturalWidth === 0) setCoverError(true);
+    }, []);
     const coverUrl = CLOUDFRONT_URL ? publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(userId)}/cover`) : "";
     const hasCover = coverUrl && !coverError;
 
@@ -141,6 +153,7 @@ function CoverBackground({ userId }: { userId: string }) {
                     <div className="absolute top-0 inset-x-0 h-56 sm:h-64 overflow-hidden">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
+                            ref={attachCover}
                             src={coverUrl}
                             alt=""
                             className="w-full h-full object-cover object-center"
