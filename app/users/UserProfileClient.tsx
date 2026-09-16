@@ -295,6 +295,34 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                 </button>
             )}
 
+            {/* 編集（オーナーのみ・右下）。
+                **削除だけ足して編集を置いてきていた。** 一覧から消せるようにした
+                ときの理由（「写真を1枚ずつ開いて `/user/edit` まで行く必要が
+                あった」）は編集にそのまま当てはまるのに、導線は削除にしか
+                無かった——台帳がいちばん多く記録している「入口が2つあるのに
+                片方だけ」の型。
+
+                **`isOwner` だけで出す**（呼び出し側の旗を増やさない）。投稿と
+                年表の2つのグリッドがどちらも `isOwner` を渡すので、片方だけに
+                付く形にそもそもならない。
+
+                カバー選択中（`onSetCover`）は右下が埋まっているので出さない。
+                置き場所を削除の隣にしないのは、**取り消せない操作の隣に
+                取り消せる操作を並べない**ため（誤タップの行き先が変わる）。 */}
+            {isOwner && !onSetCover && (
+                <Link
+                    href={ROUTES.EDIT(photo.id)}
+                    // 一覧で何本も出るリンク。行き先の控えを落とし直さない
+                    // （カードのリンクと同じ理由）
+                    prefetch={false}
+                    className={`absolute bottom-1.5 right-1.5 p-1.5 rounded-full transition-colors z-10 ${OWNER_CHIP_IDLE}`}
+                    aria-label={locale === "en" ? "Edit this photo" : "この写真を編集"}
+                    title={locale === "en" ? "Edit this photo" : "この写真を編集"}
+                >
+                    <PencilSquareIcon className="w-4 h-4" />
+                </Link>
+            )}
+
             {/* 削除（オーナーのみ・左下）。**押しただけでは消えない**——確認シートを挟む */}
             {isOwner && onDelete && (
                 <button
