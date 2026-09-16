@@ -47,12 +47,12 @@ describe("一覧のカテゴリ名の地図", () => {
     // 小文字に潰すので `NYC` → `Nyc` と本人の言葉を書き換えてしまう
     it("表に無いカテゴリは生のまま（写真ページと同じ言葉になる）", async () => {
         const { categoryLabel } = await import("../collections");
-        const map = photoCategoryMap([{ category: "travel" }, { category: "ご飯" }, { category: "NYC" }], names);
+        const map = photoCategoryMap([{ category: "travel" }, { category: "夜景" }, { category: "NYC" }], names);
         expect(map["travel"], "見出し語に書き換えている").toBe("travel");
-        expect(map["ご飯"]).toBe("ご飯");
+        expect(map["夜景"]).toBe("夜景");
         expect(map["NYC"], "本人が書いた綴りを潰している").toBe("NYC");
         // 写真ページのチップと同じ規則であること
-        for (const raw of ["travel", "ご飯", "NYC", "建物"]) {
+        for (const raw of ["travel", "夜景", "NYC", "建物"]) {
             expect(map[raw] ?? categoryLabel(raw, names), raw).toBe(categoryLabel(raw, names));
         }
     });
@@ -72,10 +72,10 @@ describe("トップの絞り込みチップの名前", () => {
     const labels = { all: "すべて", names };
 
     it("別名は代表表記・表に無いものは生のまま（一覧と同じ規則）", () => {
-        const map = categoryChipMap(["architecture", "landscape", "ご飯", "travel"], labels);
+        const map = categoryChipMap(["architecture", "landscape", "夜景", "travel"], labels);
         expect(map["architecture"]).toBe("建築");
         expect(map["landscape"]).toBe("風景");
-        expect(map["ご飯"]).toBe("ご飯");
+        expect(map["夜景"]).toBe("夜景");
         expect(map["travel"], "見出し語に書き換えている").toBe("travel");
     });
 
@@ -90,7 +90,7 @@ describe("トップの絞り込みチップの名前", () => {
     // **2つの地図が同じ言葉を出す。** 片方だけ落とし先を変えると、
     // トップのチップと いいね一覧で同じカテゴリが違う名前になる
     it("写真から作る地図と同じ言葉になる", () => {
-        const raws = ["architecture", "landscape", "ご飯", "travel"];
+        const raws = ["architecture", "landscape", "夜景", "travel"];
         const chip = categoryChipMap(raws, labels);
         const photo = photoCategoryMap(raws.map((category) => ({ category })), names);
         expect(chip).toEqual(photo);

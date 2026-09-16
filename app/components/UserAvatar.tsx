@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { UserCircleIcon } from "@heroicons/react/24/outline";
 import { publicImageUrl } from "@/lib/utils/seo";
 
@@ -24,6 +24,30 @@ export default function UserAvatar({ userId, className = "w-10 h-10", iconClassN
     // ——退会した人のコメント（CommentSection が userId="" で呼ぶ）1件につき
     // 403 が1本飛び、アイコンに落ちるまでちらつく。テストでは
     // NEXT_PUBLIC_CLOUDFRONT_URL が未設定なので url が空になり、見えない。
+    /**
+     * 🔴 **React より先に失敗が終わっていた画像を、`onError` は拾えない。**
+     *
+     * このアバターは**静的HTMLに焼かれる**（実ビルドで **31ページ**——
+     * 写真ページ30枚とプロフィール）。`<img>` はパースの時点で要求され、
+     * **アバターを設定していない人**なら CloudFront が数十msで断る
+     * ——React が付くのは早くても数百ms後（実測では Fast 3G + CPU 4倍で
+     * 5.7秒）なので、`error` は**誰も聞いていないうちに終わっている**。
+     * 結果、人型アイコンに落ちず**ブラウザの破損表示が残り続ける**
+     * （`alt=""` でも Chromium は描く）。
+     *
+     * 同じ形は `Thumb` と写真ページ本体で一度直してある（`fa640312`）のに、
+     * **アバターだけ置いてきていた**——台帳がいちばん多く記録している
+     * 「入口が2つあるのに片方だけ」。
+     *
+     * **控えは捨てない**（`Thumb` は `dropCachedPhoto` を呼ぶ）。
+     * `profiles/<uid>` は Service Worker が**そもそも控えない**側
+     * （固定キーで中身が差し替わるため）なので、捨てるものが無い。
+     */
+    const attach = useCallback((img: HTMLImageElement | null) => {
+        if (!img) return;
+        if (img.complete && img.naturalWidth === 0) setError(true);
+    }, []);
+
     const url = CLOUDFRONT_URL && userId
         ? publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(userId)}${cacheBust !== undefined ? `?v=${cacheBust}` : ""}`)
         : "";
@@ -33,6 +57,7 @@ export default function UserAvatar({ userId, className = "w-10 h-10", iconClassN
             {url && !error ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
+                    ref={attach}
                     src={url}
                     alt=""
                     className="w-full h-full object-cover"

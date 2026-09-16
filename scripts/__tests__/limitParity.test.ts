@@ -57,6 +57,11 @@ function serverLimit(re: RegExp, label: string): number {
 const SERVER = {
     // `return Array.from(new Set(cleaned)).slice(0, 30);`
     tags: serverLimit(/Array\.from\(new Set\(cleaned\)\)\.slice\(0,\s*(\d+)\)/, "タグの件数"),
+    // **タグ1つの長さ**: `sanitizeTags` の `truncate(stripControlChars(x).trim(), 50)`。
+    // 件数（30）とは別の上限で、**欄に `maxLength` を置けない**
+    // （カンマ区切りの1入力に当てると「サーバーは受け付けるのに入力できない」）。
+    // 画面に対応物が無いまま黙って切られていたので、告げる側で対にした
+    tagLen: serverLimit(/\.map\(\(x\) => truncate\(stripControlChars\(x\)\.trim\(\),\s*(\d+)\)\)/, "タグ1つの長さ"),
     // 説明の段落: `.slice(0, 50);`（`.filter(Boolean)` の直後）
     paragraphs: serverLimit(/\.filter\(Boolean\)\s*\n\s*\.slice\(0,\s*(\d+)\)/, "説明の段落数"),
     // **文字列で送ったときの上限。** `sanitizeDescription` の
@@ -71,6 +76,7 @@ const PAGES = ["app/user/edit/page.tsx", "app/user/upload/page.tsx"];
 describe("件数の上限が、画面とサーバーで一致している", () => {
     it("sanitize.ts から数字を読めている（正規表現が空振りしていない）", () => {
         expect(SERVER.tags).toBe(30);
+        expect(SERVER.tagLen).toBe(50);
         expect(SERVER.paragraphs).toBe(50);
         expect(SERVER.descString).toBe(2000);
     });
@@ -79,6 +85,12 @@ describe("件数の上限が、画面とサーバーで一致している", () =
         const m = /const TAGS_MAX = (\d+);/.exec(read(page));
         expect(m, "TAGS_MAX が無い").not.toBeNull();
         expect(Number(m![1]), "画面とサーバーで違う").toBe(SERVER.tags);
+    });
+
+    it.each(PAGES)("%s のタグ1つの長さの上限がサーバーと同じ", (page) => {
+        const m = /const TAG_LEN_MAX = (\d+);/.exec(read(page));
+        expect(m, "TAG_LEN_MAX が無い").not.toBeNull();
+        expect(Number(m![1]), "画面とサーバーで違う").toBe(SERVER.tagLen);
     });
 
     it.each(PAGES)("%s の説明の文字数上限がサーバーと同じ", (page) => {
@@ -103,6 +115,7 @@ describe("件数の上限が、画面とサーバーで一致している", () =
     it.each(PAGES)("%s が実際に上限を見て告げている", (page) => {
         const src = read(page);
         expect(src, "TAGS_MAX を見ていない").toMatch(/>\s*TAGS_MAX/);
+        expect(src, "TAG_LEN_MAX を見ていない").toMatch(/>\s*TAG_LEN_MAX/);
         expect(src, "DESC_STRING_MAX を見ていない").toMatch(/>\s*DESC_STRING_MAX/);
         expect(src, "告げていない").toMatch(/超えた分は保存されません/);
     });

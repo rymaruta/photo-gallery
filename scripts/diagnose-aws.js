@@ -9,7 +9,7 @@
  * **書き込みはしない。** 呼ぶのは Describe / Scan(COUNT) / Get だけ。
  * 直す判断の材料を集めるのが目的で、直すのは別の作業。
  */
-const { DynamoDBClient, DescribeTableCommand, ScanCommand } = require("@aws-sdk/client-dynamodb");
+const { DynamoDBClient, DescribeTableCommand, ScanCommand, GetItemCommand } = require("@aws-sdk/client-dynamodb");
 const { CognitoIdentityProviderClient, DescribeUserPoolCommand, DescribeUserPoolClientCommand,
     ListGroupsCommand, ListUsersCommand, ListUsersInGroupCommand } = require("@aws-sdk/client-cognito-identity-provider");
 const { CloudFrontClient, GetDistributionConfigCommand, GetCachePolicyCommand, ListInvalidationsCommand, GetInvalidationCommand } = require("@aws-sdk/client-cloudfront");
@@ -1118,10 +1118,96 @@ async function users() {
     }
 }
 
+/**
+ * **今月の再ビルドの予算**（`rebuild#budget#YYYY-MM`）を読む。
+ *
+ * 静的書き出しなので、**写真を消しても・非公開にしても、配ってある HTML は
+ * 再ビルドするまで残る**。その再ビルドを頼む口（`requestSiteRebuild`）には
+ * 月ごとの上限があり、**使い切るとその月いっぱい何も出せなくなる**
+ * ——新しい写真の個別ページが生まれないだけでなく、**削除・非公開の掃除まで
+ * 止まる**（同じ予算に乗っている）。
+ *
+ * **そのとき出るのは CloudWatch の1行だけ**で、画面にも診断にも何も出ない。
+ * 台帳が3回記録している型「道具が何も言わない項目は、無いのではなく
+ * 見ていない」そのものなので、読むだけの節を置く。
+ *
+ * **読めなかったら「大丈夫」と言わない**（`cdnLines` と同じ判断）。
+ *
+ * @param {{ used: number|null, max: number|null, month: string, readable: boolean, maxFrom: string }} x
+ * @returns {string[]}
+ */
+function rebuildBudgetLines({ used, max, month, readable, maxFrom }) {
+    const out = [];
+    out.push(`  対象の月: ${month}`);
+    if (!readable) {
+        out.push("  !! 今月の使用量を読み取れませんでした（権限か、テーブル名の設定）");
+        out.push("     → 尽きているかどうかは分かりません。CloudWatch で");
+        out.push("        「今月の再ビルド上限」を含む行を探すのが次の手");
+        return out;
+    }
+    const u = used ?? 0;
+    out.push(`  今月の使用: ${u} 本${used === null ? "（まだ1本も使っていません）" : ""}`);
+    if (max === null) {
+        out.push("  !! 上限を読み取れませんでした（関数の環境変数が読めない）");
+        out.push("     → 既定は 200 本。実際の値は deploy-api.yml の REBUILD_MONTHLY_MAX");
+        return out;
+    }
+    out.push(`  上限: ${max} 本（${maxFrom}）`);
+    const left = max - u;
+    out.push(`  残り: ${left} 本`);
+    if (left <= 0) {
+        out.push("  !! 使い切っています。**削除・非公開の掃除も止まっています**");
+        out.push("     （消したはずの写真の個別ページが、次の定期ビルド〈週1〉まで残ります）");
+        out.push("     → REBUILD_MONTHLY_MAX を上げる（リポジトリ変数）か、");
+        out.push("        Deploy Site を手動実行して追いつかせる");
+    } else if (left <= Math.max(10, Math.floor(max * 0.1))) {
+        out.push("  !! 残りが1割を切っています。使い切ると削除・非公開の掃除まで止まります");
+        out.push("     → REBUILD_MONTHLY_MAX を上げるか、月が変わるまで再ビルドを控える");
+    } else {
+        out.push("  ✅ 余裕があります");
+    }
+    return out;
+}
+
+async function rebuildBudget() {
+    head("今月の再ビルドの予算（使い切ると削除・非公開の掃除まで止まる）");
+    const month = new Date().toISOString().slice(0, 7);
+    let used = null, readable = false;
+    try {
+        const res = await ddb.send(new GetItemCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: { S: `rebuild#budget#${month}` } },
+        }));
+        readable = true;
+        const n = res.Item?.count?.N;
+        used = n === undefined ? null : Number(n);
+    } catch (e) {
+        console.error(`  予算の読み取りに失敗: ${e.name}: ${e.message}`);
+    }
+    // 上限は関数の環境変数に入る（deploy-api.yml が渡す）。
+    // **1つでも読めればよい**——全関数に同じ値が渡る
+    let max = null, maxFrom = "";
+    const stage = process.env.STAGE || "prod";
+    for (const key of REBUILD_FNS) {
+        const short = key.split(":")[1];
+        const prefix = key.startsWith("api-user:")
+            ? `photo-gallery-user-api-${stage}-` : `photo-gallery-api-${stage}-`;
+        try {
+            const cfg = await lambda.send(new GetFunctionConfigurationCommand({ FunctionName: `${prefix}${short}` }));
+            const raw = cfg.Environment?.Variables?.REBUILD_MONTHLY_MAX;
+            const n = Number(raw);
+            if (Number.isFinite(n) && n > 0) { max = n; maxFrom = `${key} の環境変数`; }
+            else { max = 200; maxFrom = "未設定なので既定値"; }
+            break;
+        } catch { /* 次の関数を試す */ }
+    }
+    for (const l of rebuildBudgetLines({ used, max, month, readable, maxFrom })) line(l);
+}
+
 async function main() {
     PHOTOS_TABLE = requireEnv("PHOTOS_TABLE");
     line(`対象テーブル: ${PHOTOS_TABLE} / region: ${REGION}`);
-    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["emailChange", emailChange], ["userGroups", userGroups], ["postConfirmationTrigger", postConfirmationTrigger], ["cdnTtl", cdnTtl], ["invalidationHistory", invalidationHistory], ["lambdaRoles", lambdaRoles], ["concurrency", concurrency], ["users", users]]) {
+    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["emailChange", emailChange], ["userGroups", userGroups], ["postConfirmationTrigger", postConfirmationTrigger], ["cdnTtl", cdnTtl], ["invalidationHistory", invalidationHistory], ["lambdaRoles", lambdaRoles], ["rebuildBudget", rebuildBudget], ["concurrency", concurrency], ["users", users]]) {
         try {
             await fn();
         } catch (e) {
@@ -1133,7 +1219,7 @@ async function main() {
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
 
-module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, securityHeadersNote, edgeFunctionNote, edgeAssociations, STATIC_PATTERN, publicFnsFromServerless, PUBLIC_FNS, qualify, userGroupLines, triggerLines, inspectTrigger, emailChangeLines, allowsAddUserToGroup, triggerIamLines, roleNameFromArn };
+module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, securityHeadersNote, edgeFunctionNote, edgeAssociations, STATIC_PATTERN, publicFnsFromServerless, PUBLIC_FNS, qualify, userGroupLines, triggerLines, inspectTrigger, emailChangeLines, allowsAddUserToGroup, triggerIamLines, roleNameFromArn, rebuildBudgetLines };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
