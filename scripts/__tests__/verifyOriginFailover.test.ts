@@ -2,18 +2,15 @@ import { describe, it, expect } from "vitest";
 import { execFileSync } from "node:child_process";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const m = require("../verify-origin-failover.js") as {
-    refuseReason: (x: { distributionId?: string; functionName?: string; buckets?: string[] }) => string | null;
+    refuseReason: (x: { distributionId?: string; originDomain?: string; buckets?: string[] }) => string | null;
     withOriginGroup: (cfg: Record<string, unknown>, o: { fnDomain: string; groupId?: string; originId?: string }) => Record<string, unknown>;
     withoutOriginGroup: (cfg: Record<string, unknown>, o: { originalTargetOriginId: string; originId?: string }) => Record<string, unknown>;
-    readOutcome: (r: { status: number; body: string }) => string;
-    crc32: (b: Buffer) => number;
-    zipOneFile: (name: string, contents: string) => Buffer;
-    MARKER: string;
+    readOutcome: (r: { status: number; contentType?: string; body?: string }) => string;
     PROD_DISTRIBUTION: string;
     STAGING_DISTRIBUTION: string;
-    PROBE_FN: string;
+    PROBE_ORIGIN_DOMAIN: string;
 };
-const { refuseReason, withOriginGroup, withoutOriginGroup, readOutcome, crc32, zipOneFile, MARKER, PROD_DISTRIBUTION, STAGING_DISTRIBUTION, PROBE_FN } = m;
+const { refuseReason, withOriginGroup, withoutOriginGroup, readOutcome, PROD_DISTRIBUTION, STAGING_DISTRIBUTION, PROBE_ORIGIN_DOMAIN } = m;
 
 /**
  * **本番の CloudFront を触る道具。取り消せない。**
@@ -24,7 +21,7 @@ const { refuseReason, withOriginGroup, withoutOriginGroup, readOutcome, crc32, z
  * 叩けた）。ここでは配信ID・関数名・バケット名の**全部**を見る。
  */
 describe("staging 以外では動かない", () => {
-    const ok = { distributionId: STAGING_DISTRIBUTION, functionName: PROBE_FN, buckets: ["staging-journey-photo.com"] };
+    const ok = { distributionId: STAGING_DISTRIBUTION, originDomain: PROBE_ORIGIN_DOMAIN, buckets: ["staging-journey-photo.com"] };
 
     it("staging の組み合わせは通す", () => {
         expect(refuseReason(ok)).toBeNull();
@@ -39,12 +36,18 @@ describe("staging 以外では動かない", () => {
         expect(refuseReason({ ...ok, distributionId: "E123456789ABC" })).toContain("知らない配信");
     });
 
-    it("本番の関数名を拒む", () => {
-        expect(refuseReason({ ...ok, functionName: "prod-origin-failover-probe" })).toBeTruthy();
+    /**
+     * 🔴 **本番のAPIを staging に繋がない。** 繋ぐと staging の画面に
+     * 本番の写真・利用者が出る（「本番の写真はコピーしない」という
+     * staging の方針が崩れる）
+     */
+    it("本番の API Gateway を第2オリジンにしない", () => {
+        expect(refuseReason({ ...ok, originDomain: "gu7kxwdc5l.execute-api.ap-northeast-1.amazonaws.com" })).toContain("本番");
+        expect(refuseReason({ ...ok, originDomain: "ionr4ik01e.execute-api.ap-northeast-1.amazonaws.com" })).toContain("本番");
     });
 
-    it("staging- で始まらない関数名を拒む", () => {
-        expect(refuseReason({ ...ok, functionName: "origin-failover-probe" })).toContain("staging-");
+    it("知らない第2オリジンも拒む", () => {
+        expect(refuseReason({ ...ok, originDomain: "example.com" })).toContain("知らない");
     });
 
     it("本番のバケットが混ざっていたら拒む", () => {
@@ -53,8 +56,8 @@ describe("staging 以外では動かない", () => {
     });
 
     it("空は通さない", () => {
-        expect(refuseReason({ distributionId: "", functionName: PROBE_FN })).toBeTruthy();
-        expect(refuseReason({ distributionId: STAGING_DISTRIBUTION, functionName: "" })).toBeTruthy();
+        expect(refuseReason({ distributionId: "", originDomain: PROBE_ORIGIN_DOMAIN })).toBeTruthy();
+        expect(refuseReason({ distributionId: STAGING_DISTRIBUTION, originDomain: "" })).toBeTruthy();
     });
 });
 
@@ -139,18 +142,26 @@ describe("元へ戻す", () => {
 });
 
 describe("結果の読み取り", () => {
-    it("目印があればフェイルオーバーが効いた", () => {
-        expect(readOutcome({ status: 200, body: `${MARKER} path=/photo/x` })).toContain("フェイルオーバー");
+    it("200 + JSON なら第2オリジン（＝フェイルオーバーが効いた）", () => {
+        expect(readOutcome({ status: 200, contentType: "application/json", body: "[]" })).toContain("フェイルオーバー");
     });
 
-    // **404 でも目印があれば「効いた」側。** 順番を逆にすると、第2オリジンが
-    // 404 を返した回を「404ページが勝った」と読み違える
-    it("404 でも目印があればフェイルオーバー側と読む", () => {
-        expect(readOutcome({ status: 404, body: `${MARKER} path=/x` })).toContain("フェイルオーバー");
+    /**
+     * 🔴 **status だけで「効いた」と読まない。** 確認するパスが S3 に
+     * 在ってしまった回（静的サイトが `/photos` を作るようになった等）は
+     * **200 + text/html** が返る。これを「効いた」と読むと、
+     * **フェイルオーバーを一度も試さずに成立したことにしてしまう**
+     */
+    it("200 でも HTML なら「効いた」と読まない", () => {
+        expect(readOutcome({ status: 200, contentType: "text/html", body: "<html>" }), "S3 が返したものを第2オリジンと読んでいる").toContain("不明");
     });
 
-    it("目印が無い 404 は 404ページが勝った", () => {
-        expect(readOutcome({ status: 404, body: "<html>ページが見つかりません</html>" })).toContain("404ページ");
+    it("JSON でも 200 でなければ「効いた」と読まない", () => {
+        expect(readOutcome({ status: 404, contentType: "application/json", body: "{}" })).not.toContain("フェイルオーバー");
+    });
+
+    it("HTML の 404 は 404ページが勝った", () => {
+        expect(readOutcome({ status: 404, contentType: "text/html", body: "<html>ページが見つかりません</html>" })).toContain("404ページ");
     });
 
     it("5xx はオリジンのエラーとして分ける", () => {
@@ -158,45 +169,7 @@ describe("結果の読み取り", () => {
     });
 
     it("分からないものを「効いた」と読まない", () => {
-        expect(readOutcome({ status: 200, body: "なにか別のもの" })).toContain("不明");
-    });
-});
-
-describe("自前の ZIP", () => {
-    // CRC-32 の規格の検査値。ここがずれると Lambda が「壊れた zip」と断る
-    it("CRC-32 が規格の検査値と一致する", () => {
-        expect(crc32(Buffer.from("123456789")).toString(16)).toBe("cbf43926");
-    });
-
-    it("空でも落ちない", () => {
-        expect(crc32(Buffer.alloc(0))).toBe(0);
-    });
-
-    /**
-     * ⚠️ **`0o100644 << 16` は 2^31 を超えて負になる**（実際に踏んだ）。
-     * `writeUInt32LE` が範囲外で投げるので、外部属性の書き方が戻ったら落ちる
-     */
-    it("ZIP を組めて、構造が読める", () => {
-        const zip = zipOneFile("index.js", "exports.handler = async () => ({ statusCode: 200 });");
-        // ローカルヘッダ / 中央ディレクトリ / 終端 の3つの印
-        expect(zip.readUInt32LE(0), "ローカルヘッダの印が違う").toBe(0x04034b50);
-        expect(zip.indexOf(Buffer.from([0x50, 0x4b, 0x01, 0x02])), "中央ディレクトリが無い").toBeGreaterThan(0);
-        expect(zip.indexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06])), "終端が無い").toBeGreaterThan(0);
-        expect(zip.toString("utf8")).toContain("index.js");
-        expect(zip.toString("utf8")).toContain("statusCode");
-    });
-
-    it("中身の長さと CRC がヘッダに入る", () => {
-        const body = "abc";
-        const zip = zipOneFile("a.js", body);
-        expect(zip.readUInt32LE(14), "CRC が入っていない").toBe(crc32(Buffer.from(body)));
-        expect(zip.readUInt32LE(18), "圧縮後の長さ（無圧縮なので同じ）").toBe(body.length);
-        expect(zip.readUInt32LE(22), "元の長さ").toBe(body.length);
-    });
-
-    // 同じ入力なら同じバイト列（時刻を埋めていない＝毎回同じ）
-    it("同じ入力なら同じバイト列になる", () => {
-        expect(zipOneFile("a.js", "x").equals(zipOneFile("a.js", "x"))).toBe(true);
+        expect(readOutcome({ status: 204, contentType: "", body: "" })).toContain("不明");
     });
 });
 
