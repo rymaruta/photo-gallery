@@ -7,7 +7,7 @@ import { PlayIcon } from "@heroicons/react/24/solid";
 import { useMusic } from "../../music/MusicContext";
 import type { Photo, Locale } from "@/lib/data/photos";
 import { shareToTwitter, shareToLine } from "../../../lib/utils/share";
-import { ROUTES } from "../../../lib/routes";
+import { ROUTES, hasPhotoPage } from "../../../lib/routes";
 import ProfileLink from "../ProfileLink";
 import ExifSpecs, { buildExifSpecs } from "../ExifSpecs";
 
@@ -167,7 +167,14 @@ export default function ModalCaption({
                 </p>
             )}
 
-            {/* 行く + 個別ページへのリンク */}
+            {/* 個別ページへのリンク。**まだ無い写真では出さない。**
+                `ROUTES.PHOTO` は個別ページを持たない写真を `/?photo=<id>` に
+                落とすが、**ここは既にその URL が開いている画面**なので
+                押しても同じモーダルが開き直るだけ＝何も起きない。
+                文言は個別ページを約束しているので、無い間は黙って引っ込める
+                （共有の URL は落とし先のままでよい——あちらは開く先が
+                 別のタブ・別の人で、モーダルが実際に開く） */}
+            {hasPhotoPage(photo.id) && (
             <div className="mt-4 pt-4 border-t border-white/10 flex flex-wrap gap-2">
                 <Link
                     href={ROUTES.PHOTO(photo.id)}
@@ -183,6 +190,7 @@ export default function ModalCaption({
                     </svg>
                 </Link>
             </div>
+            )}
 
             {/* 共有 */}
             <div className="mt-4 pt-3 border-t border-white/10 pb-4">

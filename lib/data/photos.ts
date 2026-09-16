@@ -94,17 +94,41 @@ export function getLocalized(v: string | LocalizedText | undefined, locale: Loca
 }
 
 /**
+ * 改行は段落の区切り。**エントリの中に入っていても割る。**
+ *
+ * 説明を保存する経路は3つあるが、改行を段落に割っているのは
+ * `/admin/edit` だけだった:
+ *
+ *     /admin/edit   descJa.split("\n") → { ja: [...] }        割る
+ *     /user/edit    英語があれば割る / 無ければ**素の文字列**   半分
+ *     /user/upload  `description: item.description`（文字列）   割らない
+ *
+ * 割られなかった改行は1エントリの中に残り、読む側が `<p>` を1つしか
+ * 出さないので**画面から消える**（HTML は素の改行を空白に潰す）。
+ * 実データ30枚のうち **4枚**がこの形で、打った改行が出ていなかった。
+ *
+ * **入口ではなく読む側で揃える。** 入口は3つあって片方だけ直すと
+ * また割れる（台帳がいちばん多く記録している型）うえ、**既に保存済みの
+ * 4枚は入口を直しても直らない**。
+ *
+ * `\r\n` は `trim()` が末尾の `\r` を落とすので一緒に扱える。
+ */
+function splitParagraphs(lines: string[]): string[] {
+    return lines.flatMap((p) => p.split("\n")).map((p) => p.trim()).filter(Boolean);
+}
+
+/**
  * getLocalizedParagraphs: description が段落配列か文字列かを吸収して常に string[] を返す
  */
 export function getLocalizedParagraphs(v: string | LocalizedParagraphs | undefined, locale: Locale): string[] {
     if (!v) return [];
-    if (typeof v === "string") return [v];
+    if (typeof v === "string") return splitParagraphs([v]);
     // 空配列でも次の言語に落とす。?? だと止まるため、
     // { en: [], ja: ["..."] } のような写真の英語ページ・英語キャプションが
     // 空になっていた（実データに2件ある）。
     const pick = (x?: string[]) => (Array.isArray(x) && x.length > 0 ? x : undefined);
     const arr = pick(v[locale]) ?? pick(v.ja) ?? pick(v.en);
-    return arr ?? [];
+    return arr ? splitParagraphs(arr) : [];
 }
 
 /**

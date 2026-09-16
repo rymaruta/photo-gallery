@@ -88,6 +88,9 @@ const enLabels: Labels = {
             landscape: "Landscape",
             architecture: "Architecture",
             street: "Street",
+            people: "People",
+            animal: "Animal",
+            food: "Food",
         },
     },
     sort: {
@@ -141,7 +144,10 @@ export const ja: Labels = {
             nature: "自然",
             landscape: "風景",
             architecture: "建築",
-            street: "街"
+            street: "街",
+            people: "人物",
+            animal: "動物",
+            food: "食べ物"
         },
     },
     sort: {

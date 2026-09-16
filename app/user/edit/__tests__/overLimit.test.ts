@@ -95,6 +95,42 @@ describe("タグと、送らない項目", () => {
         expect(describeOverLimit(tag(30), undefined, true)).toBeNull();
     });
 
+    /**
+     * 🔴 **タグ1つの長さも切られるのに、件数しか見ていなかった。**
+     *
+     * `sanitizeTags` は `truncate(stripControlChars(x).trim(), 50)` で
+     * **1つずつ**切る。50字を超えるタグ（`hokkaido-sapporo-odori-park-…`
+     * のような長い綴り）を書くと、**警告なしで末尾が消えて**保存される
+     * ——同じ「黙って切られる」でも、件数と説明の文字数は前から告げていた。
+     *
+     * 欄に `maxLength` は置けない。上限は**タグ1つあたり**で、
+     * カンマ区切りの1入力に当てると「サーバーは受け付けるのに入力できない」
+     * に倒れる（この画面が説明とタグに `maxLength` を置いていない理由と同じ）。
+     */
+    it("51字のタグで言う / 50字は言わない", () => {
+        expect(describeOverLimit(["a".repeat(51)], undefined, true), "黙って切られている").toMatch(/50字/);
+        expect(describeOverLimit(["a".repeat(50)], undefined, true)).toBeNull();
+    });
+
+    // 前後の空白はサーバーが `trim()` してから切る（数え方を揃える）
+    it("前後の空白は数えない", () => {
+        expect(describeOverLimit([`  ${"a".repeat(50)}  `], undefined, true)).toBeNull();
+    });
+
+    // **一番長い1つで言う**（合計ではない）
+    it("短いタグが何個あっても、長い1つが無ければ言わない", () => {
+        expect(describeOverLimit(Array.from({ length: 30 }, () => "a".repeat(50)), undefined, true)).toBeNull();
+    });
+
+    it("件数の方が先に出る（両方超えていたら）", () => {
+        const many = Array.from({ length: 31 }, () => "a".repeat(51));
+        expect(describeOverLimit(many, undefined, true)).toMatch(/30個/);
+    });
+
+    it("英語のときは英語で言う（タグの長さ）", () => {
+        expect(describeOverLimit(["a".repeat(51)], undefined, false)).toMatch(/Up to 50 characters per tag/);
+    });
+
     // **送らない項目について言わない。** 変えていない説明について
     // 「超えた分は保存されません」と出すのは嘘（タイトルだけ直した保存で
     // 毎回出ていた）

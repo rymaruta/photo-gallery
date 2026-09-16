@@ -824,9 +824,17 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     </div>
                 )}
 
-                {/* タグ（集約ページへの内部リンク） */}
+                {/* タグ（集約ページへの内部リンク）。
+                    **チップの間隔は 1.5 まで詰めない。** チップは `py-0.5`＝高さ18px で、
+                    `gap-1.5`（root は 640px 未満で 14px なので 5.25px）だと
+                    **行の間隔が22px**になり、24px の円が上下の行で重なる
+                    ＝WCAG 2.5.8 の「間隔の例外」にも当たらない。
+                    実測（本物のビルドを Chromium で開いた）: タグ8枚の写真ページで
+                    **320px のとき2件が重なる**（393px では行が減るので出ない）
+                    ——**いちばん小さいスマホでだけ、隣のタグを押してしまう**。
+                    `gap-2` で行の間隔が24pxになり0件（箱の高さは +2px だけ）。 */}
                 {(photo.tags?.length ?? 0) > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-2">
                         {(photo.tags ?? []).map((tag) => (
                             // **先読みしない。** 一覧で何本も出るリンクなので、画面に入るたびに
                             // 行き先の RSC の控え（`no-store` 配信）を落とし直す。理由と実測は

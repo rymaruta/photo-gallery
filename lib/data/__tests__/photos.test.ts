@@ -44,6 +44,52 @@ describe("getLocalizedParagraphs", () => {
     });
 });
 
+/**
+ * **打った改行が画面に出ること。**
+ *
+ * 読む側（写真ページ・モーダル）は段落ごとに `<p>` を出すので、改行が
+ * 1エントリの中に残っていると**HTML が空白に潰して消える**。
+ * 保存する3経路のうち改行を割っているのは `/admin/edit` だけで、
+ * `/user/upload` は必ず素の文字列、`/user/edit` は英語を持つ写真だけ割る。
+ *
+ * **実データ（`app/data/photos.json` の30枚）で4枚がこの形**だった
+ * （サグラダ・ファミリア／ヴァンドーム広場／森の呼吸／石のディテールと光の諧調）。
+ */
+describe("getLocalizedParagraphs: 改行は段落の区切り", () => {
+    it("文字列の改行で割る（/user/upload が保存する形）", () => {
+        expect(getLocalizedParagraphs("一行目\n二行目", "ja")).toEqual(["一行目", "二行目"]);
+    });
+
+    // ⚠️ 実データ4枚がこの形。**入口を直しても既に保存済みの分は直らない**
+    it("段落配列の1エントリに入った改行でも割る", () => {
+        expect(getLocalizedParagraphs({ ja: ["サグラダ・ファミリア。\n幻想的な空間。\n記録に残しました。"], en: [] }, "ja"))
+            .toEqual(["サグラダ・ファミリア。", "幻想的な空間。", "記録に残しました。"]);
+    });
+
+    it("既に割れている段落はそのまま（実データ26枚を壊さない）", () => {
+        expect(getLocalizedParagraphs({ ja: ["段落1", "段落2"] }, "ja")).toEqual(["段落1", "段落2"]);
+    });
+
+    it("空行は段落にしない（<p></p> を並べない）", () => {
+        expect(getLocalizedParagraphs("一行目\n\n\n二行目", "ja")).toEqual(["一行目", "二行目"]);
+    });
+
+    // Windows の改行。`trim()` が末尾の \r を落とすので別扱いにしない
+    it("CRLF でも割れ、行末に \\r が残らない", () => {
+        expect(getLocalizedParagraphs("一行目\r\n二行目", "ja")).toEqual(["一行目", "二行目"]);
+    });
+
+    it("英語側も同じ規則", () => {
+        expect(getLocalizedParagraphs({ ja: ["日本語"], en: ["First.\nSecond."] }, "en"))
+            .toEqual(["First.", "Second."]);
+    });
+
+    // 割ったあとも「無ければ次の言語へ」は変えない（`pick` の判断）
+    it("英語が空配列なら日本語に落ちる（割っても変わらない）", () => {
+        expect(getLocalizedParagraphs({ ja: ["一行目\n二行目"], en: [] }, "en")).toEqual(["一行目", "二行目"]);
+    });
+});
+
 describe("generateMapLinksFromCoords", () => {
     const basePhoto: Photo = { id: "test", src: "test.jpg" };
 
