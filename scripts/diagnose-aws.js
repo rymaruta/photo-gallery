@@ -10,7 +10,8 @@
  * 直す判断の材料を集めるのが目的で、直すのは別の作業。
  */
 const { DynamoDBClient, DescribeTableCommand, ScanCommand } = require("@aws-sdk/client-dynamodb");
-const { CognitoIdentityProviderClient, DescribeUserPoolCommand, DescribeUserPoolClientCommand } = require("@aws-sdk/client-cognito-identity-provider");
+const { CognitoIdentityProviderClient, DescribeUserPoolCommand, DescribeUserPoolClientCommand,
+    ListGroupsCommand, ListUsersCommand, ListUsersInGroupCommand } = require("@aws-sdk/client-cognito-identity-provider");
 const { CloudFrontClient, GetDistributionConfigCommand, GetCachePolicyCommand, ListInvalidationsCommand, GetInvalidationCommand } = require("@aws-sdk/client-cloudfront");
 const { LambdaClient, ListFunctionsCommand, GetAccountSettingsCommand } = require("@aws-sdk/client-lambda");
 const { requireEnv } = require("./lib/env");
@@ -115,6 +116,109 @@ async function cognito() {
         line("     直すコマンド: aws cognito-idp update-user-pool-client \\");
         line(`       --user-pool-id ${poolId} --client-id ${clientId} --prevent-user-existence-errors ENABLED`);
     }
+}
+
+/**
+ * **新規登録した人が投稿できない、を切り分ける。**
+ *
+ * 投稿系のページ（アップロード・編集・下書き）は `useMemberGate` が
+ * `cognito:groups` に `user` か `admin` があるかで通す。グループは
+ * PostConfirmation トリガー（`api/src/cognitoTrigger.ts`）が
+ * `AdminAddUserToGroup` で入れるが、**そこは失敗しても握って先へ進む**
+ * ——登録そのものを失敗させない方が軽いという判断で、意図的。
+ *
+ * その結果、**グループだけ入らなかった人は「ログインできるのに投稿だけ
+ * 永久に開けない」**状態になる（再ログインでも直らない。Cognito 側に
+ * 無いので）。落ちる理由は2つしかない:
+ *
+ *   1. プールに `user` グループが無い → ResourceNotFoundException
+ *   2. トリガーのロールに権限が無い → AccessDenied
+ *
+ * どちらかはログを見ないと分からないが、**結果（誰がグループに居ないか）は
+ * ここで数えられる**。1なら「グループが1つも無い」と出るし、2なら
+ * 「グループはあるのに誰も入っていない」と出る。
+ */
+/**
+ * 出た行を組み立てる（純関数・テスト可能）。
+ *
+ * **診断は「0件」と言うときがいちばん危ない。** 数え方を間違えると
+ * 「問題なし」に見えるので、組み立てだけ切り出して直接見る
+ * （`cdnLines` / `reportFunctions` と同じ判断）。
+ */
+function userGroupLines({ groups, confirmed, inGroup, poolId }) {
+    const out = [];
+    out.push(`  グループ: ${groups.length ? groups.join(", ") : "**1つも無い**"}`);
+    if (!groups.includes("user")) {
+        out.push("  ❌ `user` グループがありません。トリガーの AdminAddUserToGroup は必ず失敗します");
+        out.push("     → 新規登録した人は全員、投稿・編集・下書きを開けません");
+        out.push(`     直すコマンド: aws cognito-idp create-group --user-pool-id ${poolId} --group-name user`);
+        return out;
+    }
+    const missing = confirmed.filter((u) => !inGroup.includes(u));
+    out.push(`  確認済みの利用者: ${confirmed.length}人 / \`user\` グループ: ${inGroup.length}人`);
+    if (missing.length === 0) {
+        out.push("  ✅ 全員がグループに入っています（投稿できない原因は別）");
+        return out;
+    }
+    out.push(`  ❌ グループに入っていない人: ${missing.length}人`);
+    out.push("     この人たちは**ログインできるのに投稿・編集・下書きが永久に開けません**");
+    out.push("     （再ログインでも直りません。Cognito 側に無いため）");
+    for (const u of missing.slice(0, 10)) {
+        out.push(`       ${u}`);
+        out.push(`         aws cognito-idp admin-add-user-to-group --user-pool-id ${poolId} --username ${u} --group-name user`);
+    }
+    if (missing.length > 10) out.push(`       …ほか ${missing.length - 10}人`);
+    return out;
+}
+
+async function userGroups() {
+    head("Cognito のグループ（新規登録した人が投稿できるか）");
+    const poolId = process.env.COGNITO_USER_POOL_ID;
+    if (!poolId) { line("  COGNITO_USER_POOL_ID が未設定のため飛ばします"); return; }
+
+    let groups;
+    try {
+        const res = await idp.send(new ListGroupsCommand({ UserPoolId: poolId, Limit: 60 }));
+        groups = (res.Groups ?? []).map((g) => g.GroupName);
+    } catch (e) {
+        line(`  グループ一覧を読めませんでした（${e.name}）。この鍵に cognito-idp:ListGroups がありません`);
+        line("  → **確認できていません**。AWS コンソール（Cognito → ユーザープール → グループ）で見てください");
+        return;
+    }
+    if (!groups.includes("user")) {
+        for (const l of userGroupLines({ groups, confirmed: [], inGroup: [], poolId })) line(l);
+        return;
+    }
+
+    const confirmed = [];
+    try {
+        let token;
+        do {
+            const res = await idp.send(new ListUsersCommand({ UserPoolId: poolId, Limit: 60, PaginationToken: token }));
+            for (const u of res.Users ?? []) if (u.UserStatus === "CONFIRMED") confirmed.push(u.Username);
+            token = res.PaginationToken;
+        } while (token);
+    } catch (e) {
+        line(`  利用者を数えられませんでした（${e.name}）。この鍵に cognito-idp:ListUsers がありません`);
+        line("  → **確認できていません**");
+        return;
+    }
+
+    const inGroup = [];
+    try {
+        let token;
+        do {
+            const res = await idp.send(new ListUsersInGroupCommand({ UserPoolId: poolId, GroupName: "user", Limit: 60, NextToken: token }));
+            for (const u of res.Users ?? []) inGroup.push(u.Username);
+            token = res.NextToken;
+        } while (token);
+    } catch (e) {
+        line(`  グループの中を読めませんでした（${e.name}）`);
+        line("  → **確認できていません**");
+        return;
+    }
+
+    for (const l of userGroupLines({ groups, confirmed, inGroup, poolId })) line(l);
 }
 
 /** 秒を人が読める長さに（TTL は 31536000 のような桁で出てくる） */
@@ -735,7 +839,7 @@ async function users() {
 async function main() {
     PHOTOS_TABLE = requireEnv("PHOTOS_TABLE");
     line(`対象テーブル: ${PHOTOS_TABLE} / region: ${REGION}`);
-    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["cdnTtl", cdnTtl], ["invalidationHistory", invalidationHistory], ["lambdaRoles", lambdaRoles], ["concurrency", concurrency], ["users", users]]) {
+    for (const [name, fn] of [["indexes", indexes], ["dataShapes", dataShapes], ["cognito", cognito], ["userGroups", userGroups], ["cdnTtl", cdnTtl], ["invalidationHistory", invalidationHistory], ["lambdaRoles", lambdaRoles], ["concurrency", concurrency], ["users", users]]) {
         try {
             await fn();
         } catch (e) {
@@ -747,7 +851,7 @@ async function main() {
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
 
-module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, securityHeadersNote, edgeFunctionNote, edgeAssociations, STATIC_PATTERN, publicFnsFromServerless, PUBLIC_FNS, qualify };
+module.exports = { describeBehavior, humanSeconds, residencyNote, UPLOAD_MAX_AGE, countInvalidationSources, rebuildFnsFromServerless, REBUILD_FNS, reportFunctions, compressNote, errorPageNote, cdnLines, securityHeadersNote, edgeFunctionNote, edgeAssociations, STATIC_PATTERN, publicFnsFromServerless, PUBLIC_FNS, qualify, userGroupLines };
 
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
