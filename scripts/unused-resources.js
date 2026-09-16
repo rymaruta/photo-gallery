@@ -48,6 +48,24 @@ const KNOWN = {
 };
 
 /**
+ * **serverless が自分で作るデプロイ用バケット。**
+ *
+ * `api/serverless.yml` `api-user/serverless.yml` は `deploymentBucket` を
+ * 指定していないので、serverless が
+ * `<service>-<stage>-serverlessdeploymentbucket-<hash>` を自動で作って使う
+ * （長いと途中で切り詰められる: `photo-gallery-user-api-pr-serverlessdeploymentbuck-…`）。
+ *
+ * **これは現役**——消すと次のデプロイが壊れる。
+ *
+ * ⚠️ 最初この判定が無くて、4本とも「残骸かも」と出した。**そのまま
+ * 「消してよさそう」と報告しかけた**。台帳の「知らない＝不要ではない」を
+ * 自分の道具が破った形なので、名前で分かるものはここで拾う。
+ */
+function isServerlessDeploymentBucket(name) {
+    return /serverlessdeploymentbuck/i.test(String(name ?? ""));
+}
+
+/**
  * 名前を3つに仕分ける（純関数・テスト可能）。
  *
  * **「不要」とは言わない。** 言えるのは「このリポジトリが知っている／
@@ -57,6 +75,8 @@ const KNOWN = {
 function classify(name, { known = [], prefixes = [] } = {}) {
     if (known.includes(name)) return "使っている（このリポジトリが名指ししている）";
     if (prefixes.some((p) => String(name).startsWith(p))) return "使っている（命名規則に合う）";
+    // **現役のデプロイ用バケット。** 消すと次のデプロイが壊れる
+    if (isServerlessDeploymentBucket(name)) return "使っている（serverless のデプロイ用。消すとデプロイが壊れる）";
     // **接頭辞ではなく、このプロジェクトの語を含むかで見る。**
     // 最初は `^(prod|staging)-` で見ていたが、それだと消した環境の残骸
     // （`dev-journey-photo-upload` のような別の接頭辞）を拾えず、
@@ -241,7 +261,7 @@ async function main() {
     line("\n（この作業は読み取りだけです。何も変更していません）");
 }
 
-module.exports = { classify, KNOWN };
+module.exports = { classify, KNOWN, isServerlessDeploymentBucket };
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
 }

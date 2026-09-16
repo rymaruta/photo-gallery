@@ -31,6 +31,7 @@ on:
           - attach-post-confirmation # プールに PostConfirmation トリガーと呼び出し許可を ID 指名で付け直す（既定は読むだけ・apply で実行）
           - purge-unconfirmed-users # 確認が終わっていない（UNCONFIRMED）利用者を消す（既定は読むだけ・apply で実行）
           - unused-resources   # AWS に在るものと、このリポジトリが使っているものを突き合わせる（読み取りのみ・消さない）
+          - purge-leftover-resources # 消した環境の残骸を消す（一覧に名前を書いたものだけ・既定は読むだけ・apply で実行）
           - content-opportunities # どこを直すと「検索に出せるページ」が増えるかを数える（読み取りのみ）
           - orphan-uploads    # どの行からも参照されていないアップロード実体を探す
           - verify-upload     # **staging** で presign が本当に使えるか確かめる（apply が要る）
@@ -297,3 +298,13 @@ jobs:
         if: inputs.task == 'unused-resources'
         run: node scripts/unused-resources.js
         timeout-minutes: 10
+
+      # 消した環境の残骸を消す。**取り消せない**ので既定は読むだけ。
+      # **パターンでは消さない**——スクリプトの中の一覧に名前を書いたものだけ。
+      # さらに一覧に書いてあっても、prod-/staging- で始まるもの・serverless の
+      # デプロイ用バケット・Lambda@Edge の OGP 関数は消さない（一覧を書く側が
+      # 間違えても止まるように）。消す直前に CloudFront が使っていないかも聞く。
+      - name: 消した環境の残骸を消す
+        if: inputs.task == 'purge-leftover-resources'
+        run: node scripts/purge-leftover-resources.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 20

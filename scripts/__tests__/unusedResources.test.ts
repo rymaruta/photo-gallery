@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { classify, KNOWN } = require("../unused-resources.js") as {
+const { classify, KNOWN, isServerlessDeploymentBucket } = require("../unused-resources.js") as {
     classify: (name: string, opts?: { known?: string[]; prefixes?: string[] }) => string;
+    isServerlessDeploymentBucket: (name: unknown) => boolean;
     KNOWN: { buckets: string[]; distributions: string[]; tables: string[]; pools: string[]; functionPrefixes: string[] };
 };
 
@@ -73,5 +74,36 @@ describe("在るものの仕分け", () => {
         expect(KNOWN.buckets.length).toBeGreaterThan(3);
         expect(KNOWN.tables.length).toBeGreaterThan(3);
         expect(KNOWN.functionPrefixes.length).toBeGreaterThan(3);
+    });
+
+    // ⚠️ **この判定が無くて、危うく現役のバケットを「消してよさそう」と
+    // 報告しかけた。** `deploymentBucket` を指定していないので serverless が
+    // `<service>-<stage>-serverlessdeploymentbucket-<hash>` を自動で作って使う
+    // ——消すと次のデプロイが壊れる
+    it("serverless のデプロイ用バケットを「残骸」と言わない", () => {
+        for (const n of [
+            "photo-gallery-api-prod-serverlessdeploymentbucket-ta5ij6kngero",
+            "photo-gallery-api-staging-serverlessdeploymentbuck-dtz2h5qhhacu",
+            // 長いと名前が切り詰められる（`-pr-` / `-st-`）
+            "photo-gallery-user-api-pr-serverlessdeploymentbuck-p9mpjlfw4qdo",
+            "photo-gallery-user-api-st-serverlessdeploymentbuck-uabkkhoyxtl8",
+        ]) {
+            expect(isServerlessDeploymentBucket(n), n).toBe(true);
+            const c = classify(n, { known: KNOWN.buckets });
+            expect(c, n).toContain("使っている");
+            expect(c, n).not.toContain("残骸");
+        }
+    });
+
+    // 旧設定（2026-02）が明示していた `deploymentBucket.name` の方は本物の残骸
+    it("旧設定のデプロイ用バケットは残骸として拾う", () => {
+        expect(isServerlessDeploymentBucket("journey-photo-api-deploy-prod-463470976368")).toBe(false);
+        expect(classify("journey-photo-api-deploy-prod-463470976368", { known: KNOWN.buckets })).toContain("残骸");
+    });
+
+    it("無関係な名前を誤って「デプロイ用」にしない", () => {
+        expect(isServerlessDeploymentBucket("prod-journey-photo-upload")).toBe(false);
+        expect(isServerlessDeploymentBucket("")).toBe(false);
+        expect(isServerlessDeploymentBucket(undefined)).toBe(false);
     });
 });
