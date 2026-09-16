@@ -33,7 +33,7 @@ const {
 } = require("@aws-sdk/client-cloudfront");
 const {
     LambdaClient, CreateFunctionCommand, DeleteFunctionCommand, CreateFunctionUrlConfigCommand,
-    AddPermissionCommand, GetFunctionCommand, ListFunctionsCommand,
+    AddPermissionCommand, GetFunctionCommand, ListFunctionsCommand, GetPolicyCommand,
 } = require("@aws-sdk/client-lambda");
 const { requireEnv } = require("./lib/env");
 
@@ -289,15 +289,25 @@ async function main() {
         // 読むのが、この道具がいちばんやってはいけないこと**なので、
         // 撃ち直す。それでも駄目なら本当に駄目。
         let direct = { status: 0, body: "" };
-        for (let i = 0; i < 12; i++) {
+        for (let i = 0; i < 5; i++) {
             direct = await probeUrl(`https://${fnDomain}${PROBE_PATH}`);
             if (direct.body.includes(MARKER)) break;
-            if (i === 0) line(`[verify] 関数を直接: status=${direct.status} — 許可の反映を待ちます`);
-            await new Promise((r) => setTimeout(r, 5000));
+            if (i === 0) line(`[verify] 関数を直接: status=${direct.status} — 反映を待ちます`);
+            await new Promise((r) => setTimeout(r, 4000));
         }
         line(`[verify] 関数を直接: status=${direct.status} 目印=${direct.body.includes(MARKER) ? "あり" : "**無し**"}`);
         if (!direct.body.includes(MARKER)) {
-            throw new Error(`第2オリジンが目印を返さない（60秒待っても status=${direct.status}）。確認にならないので中止`);
+            // **推測を重ねない。** 403 のままなら、何が起きているかを出させる。
+            // 「反映が遅い」で4分待って、結局同じ 403 だった（実測）ので、
+            // 原因は別——本文とリソースポリシーの現物を見る
+            line(`[verify]   応答の本文: ${JSON.stringify(direct.body.slice(0, 300))}`);
+            try {
+                const pol = await lambda.send(new GetPolicyCommand({ FunctionName: PROBE_FN }));
+                line(`[verify]   リソースポリシー: ${String(pol.Policy).slice(0, 600)}`);
+            } catch (e) {
+                line(`[verify]   リソースポリシーを読めない: ${e.name}: ${e.message}`);
+            }
+            throw new Error(`第2オリジンが目印を返さない（status=${direct.status}）。確認にならないので中止`);
         }
 
         // 2) オリジングループを足す
