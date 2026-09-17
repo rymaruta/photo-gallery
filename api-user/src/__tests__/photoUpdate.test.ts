@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const mockDdbSend = vi.hoisted(() => vi.fn());
 const mockRebuild = vi.hoisted(() => vi.fn());
@@ -9,6 +9,11 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRebuild }));
+// S3 の削除とエッジの無効化は境界としてモックする（実体は `s3Delete` 側）
+// 引数の型を書く。`vi.fn(async () => …)` だと引数ゼロのタプルに推論され、
+// `mock.calls[0][0]` が型エラーになる（基準より型エラーを増やさない）
+const mockS3DeleteMany = vi.hoisted(() => vi.fn(async (_keys: string[]) => undefined));
+vi.mock("../s3Delete", () => ({ s3DeleteMany: (keys: string[]) => mockS3DeleteMany(keys) }));
 // アルバムへの出し入れは境界としてモックする（実体は `albums.test.ts`）
 const mockAddToAlbum = vi.hoisted(() => vi.fn(async () => undefined));
 const mockRemoveFromAlbum = vi.hoisted(() => vi.fn(async () => undefined));
@@ -20,6 +25,10 @@ vi.mock("../albums", () => ({
 }));
 
 import { updatePhotoVisibility, isValidYouTubeUrl } from "../photoUpdate";
+
+const CDN = "https://d15fn3rcaiymu9.cloudfront.net";
+const UID = "11111111-2222-4333-8444-555555555555";
+const mine = (p: string) => `${CDN}/uploads/${UID}/${p}`;
 
 type LambdaResult = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,7 +48,11 @@ beforeEach(() => {
     mockAddToAlbum.mockReset().mockResolvedValue(undefined);
     mockRemoveFromAlbum.mockReset().mockResolvedValue(undefined);
     mockIsAlbumMember.mockReset().mockResolvedValue(true);
+    mockS3DeleteMany.mockReset().mockResolvedValue(undefined);
+    vi.stubEnv("CLOUDFRONT_URL", CDN);
 });
+
+afterEach(() => { vi.unstubAllEnvs(); });
 
 describe("updatePhotoVisibility", () => {
     it("id なしは 400", async () => {
@@ -961,5 +974,113 @@ describe("公開に切り替えたら、共同アルバムに入れる", () => {
         world({ published: false, albumId: "a1" });
         await invoke(event("u1", "p1", { published: true }));
         expect(mockIsAlbumMember).toHaveBeenCalledWith("a1", "u1");
+    });
+});
+
+/**
+ * **写真の差し替え**（消して投稿し直さずに実体だけ入れ替える）。
+ *
+ * 純関数の側は `photoReplace.test.ts` が見る。ここで見るのは**配線**
+ * ——この口に届いているか、古い実体を消すか、作り直しを頼むか。
+ */
+describe("写真の差し替え", () => {
+    const old = {
+        id: "p1", userId: UID, published: true,
+        src: mine("old.webp"), thumbSrc: mine("old_thumb.webp"),
+        srcAvif: mine("old.avif"), thumbAvif: mine("old_t.avif"), width: 100, height: 50,
+    };
+    const replace = { key: `uploads/${UID}/new.webp`, publicUrl: mine("new.webp") };
+    const lastUpdate = () => (mockDdbSend.mock.calls[1][0] as {
+        input: { UpdateExpression: string; ExpressionAttributeValues: Record<string, unknown> };
+    }).input;
+
+    /**
+     * 🔴 **この関門に足し忘れると、差し替えだけの保存が 400 で断られる。**
+     * `META_KEYS` のコメントが名指しで警告している罠で、実際に踏んだ。
+     */
+    it("差し替えだけの本文でも受け付ける（更新項目がありません、にしない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: old }).mockResolvedValueOnce({});
+        const res = await invoke(event(UID, "p1", { replace }));
+        expect(res.statusCode, `断られた: ${res.body}`).toBe(200);
+    });
+
+    it("src を新しい実体に差し替える", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: old }).mockResolvedValueOnce({});
+        await invoke(event(UID, "p1", { replace }));
+        const u = lastUpdate();
+        expect(u.ExpressionAttributeValues[":r_src"]).toBe(mine("new.webp"));
+    });
+
+    /** 残すと **AVIF を出す端末にだけ古い写真が出続ける** */
+    it("ビルドが作る派生を消す（次のビルドで作り直させる）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: old }).mockResolvedValueOnce({});
+        await invoke(event(UID, "p1", { replace }));
+        const expr = lastUpdate().UpdateExpression;
+        for (const f of ["srcAvif", "thumbAvif", "thumbSmAvif", "thumbSm", "width", "height", "aspectRatio"]) {
+            expect(expr, `${f} が残る（古い写真が出る）`).toMatch(new RegExp(`REMOVE[^]*#${f}`));
+        }
+    });
+
+    it("差し替え前の実体を消す（新しい鍵は消さない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: old }).mockResolvedValueOnce({});
+        await invoke(event(UID, "p1", { replace }));
+        expect(mockS3DeleteMany, "古い実体が S3 に残る").toHaveBeenCalledTimes(1);
+        const keys = mockS3DeleteMany.mock.calls[0][0];
+        expect(keys, "差し替え前の実体を消していない").toContain(`uploads/${UID}/old.webp`);
+        expect(keys, "**いま差し替えた実体を消している**").not.toContain(`uploads/${UID}/new.webp`);
+    });
+
+    /**
+     * 🔴 **再送で写真が割れないこと。**
+     *
+     * 保存は届いたのに応答を取り逃して押し直した回、行は**もう新しい実体**を
+     * 指している。そこで「古い実体」を素朴に集めると、**差し替えたばかりの
+     * ものを消す**——写真ページが割れ、元に戻す手段が無い。
+     * `savePhoto` が同じ形の再送を一度踏んでいる。
+     */
+    it("再送しても、いま指している実体は消さない", async () => {
+        // 1回目が通ったあとの姿（src もサムネも新しいものを指している）
+        const after = {
+            ...old,
+            src: mine("new.webp"),
+            thumbSrc: mine("new_thumb.webp"),
+        };
+        mockDdbSend.mockResolvedValueOnce({ Item: after }).mockResolvedValueOnce({});
+        const res = await invoke(event(UID, "p1", {
+            replace: { ...replace, thumbUrl: mine("new_thumb.webp") },
+        }));
+        expect(res.statusCode).toBe(200);
+        const keys = mockS3DeleteMany.mock.calls[0]?.[0] ?? [];
+        expect(keys, "**差し替えたばかりの実体を消している**").not.toContain(`uploads/${UID}/new.webp`);
+        expect(keys, "**差し替えたばかりのサムネを消している**").not.toContain(`uploads/${UID}/new_thumb.webp`);
+    });
+
+    it("消せなくても差し替えは成功する（残るのは孤児だけ）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: old }).mockResolvedValueOnce({});
+        mockS3DeleteMany.mockRejectedValueOnce(new Error("boom"));
+        const res = await invoke(event(UID, "p1", { replace }));
+        expect(res.statusCode).toBe(200);
+    });
+
+    it("静的ページの作り直しを頼む（src が焼かれている）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: old }).mockResolvedValueOnce({});
+        await invoke(event(UID, "p1", { replace }));
+        expect(mockRebuild, "古い写真が /photo/<id> に残る").toHaveBeenCalled();
+    });
+
+    it("他人のアップロード領域は断る（相手の実体が消える）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: old }).mockResolvedValueOnce({});
+        const other = "99999999-8888-4777-8666-555555555555";
+        const res = await invoke(event(UID, "p1", {
+            replace: { key: `uploads/${other}/x.webp`, publicUrl: `${CDN}/uploads/${other}/x.webp` },
+        }));
+        expect(res.statusCode).toBe(400);
+        expect(mockS3DeleteMany, "断ったのに消しにいっている").not.toHaveBeenCalled();
+    });
+
+    it("他人の写真は差し替えられない（所有権は既存の判定が効く）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...old, userId: "someone-else" } });
+        const res = await invoke(event(UID, "p1", { replace }));
+        expect(res.statusCode).toBe(403);
     });
 });

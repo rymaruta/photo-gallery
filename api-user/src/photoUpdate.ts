@@ -10,6 +10,17 @@ import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./medi
 import { mediaKeys } from "./mediaKeys";
 import { s3DeleteMany } from "./s3Delete";
 import { removePinnedPhoto } from "./userProfile";
+import { replaceRefusal, buildReplace, type ReplaceBody } from "./photoReplace";
+
+/**
+ * 保存する URL の土台。**呼ぶたびに読む。**
+ *
+ * `upload.ts` はモジュール直下の const で持っているが、ここでは真似しない
+ * ——**検証する側（`isOwnUploadUrlFromEnv`）は呼ぶたびに env を読む**ので、
+ * 固めると「検証したときに見た土台」と「保存する土台」が別物になりうる。
+ * 検証と保存で見る値がずれるのは、このリポジトリが何度も踏んだ型。
+ */
+const cdnUrl = () => process.env.CLOUDFRONT_URL ?? "";
 
 type PhotoSong = { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string };
 
@@ -57,6 +68,7 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         published?: boolean; song?: unknown; songYoutubeUrl?: unknown;
         title?: unknown; description?: unknown; location?: unknown;
         category?: unknown; tags?: unknown; date?: unknown; coords?: unknown; focalPoint?: unknown;
+        replace?: ReplaceBody;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -68,7 +80,12 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
     const hasSong = "song" in body;
     const hasYoutube = "songYoutubeUrl" in body;
     const hasMeta = META_KEYS.some((k) => k in body);
-    if (!hasPublished && !hasSong && !hasYoutube && !hasMeta) {
+    // 🔴 **差し替えもここに要る。** 足し忘れると、写真を差し替えるだけの
+    // 保存が 400「更新項目がありません」で断られる（この関門は
+    // `META_KEYS` しか見ていないので、`replace` は素通りしない）。
+    // 上の `META_KEYS` のコメントが名指しで警告している罠そのもの
+    const hasReplace = !!body.replace && typeof body.replace === "object";
+    if (!hasPublished && !hasSong && !hasYoutube && !hasMeta && !hasReplace) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "更新項目がありません" }) };
     }
 
@@ -173,7 +190,52 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         //
         // あわせて「本当に値が変わったか」も数える。静的ページの作り直しを
         // 頼むかの判定に使う（下の requestSiteRebuild）。
+        /**
+         * **写真の差し替え**（消して投稿し直さずに実体だけ入れ替える）。
+         *
+         * ここに混ぜるのは、この口が既に持っているもの
+         * ——所有権の確認・ストーリーの除外・再ビルドの依頼・`staticStale` の印
+         * ——が**そのまま要る**から。別の口を立てると同じ規則の2つ目の実装に
+         * なり、片方だけ直す形（このリポジトリが何度も踏んだ型）を作る。
+         */
         let metaChanged = false;
+        let replacedKeys: string[] = [];
+        if (body.replace) {
+            const why = replaceRefusal(body.replace, callerId);
+            if (why) {
+                return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: why }) };
+            }
+            const { sets: rSets, clears } = buildReplace(body.replace, callerId, cdnUrl());
+
+            /**
+             * **古い実体の鍵は、行を書き換える前に集める**（書き換えたあとでは
+             * もう新しい鍵しか入っていない）。
+             *
+             * 🔴 **これから指す鍵は必ず除く。** 除かないと**再送で写真が割れる**
+             * ——保存は届いたのに応答を取り逃して押し直した回、行は既に
+             * 新しい実体を指しているので、「古い実体」として**差し替えた
+             * ばかりのものを消す**。`savePhoto` が同じ形の再送を
+             * 一度踏んでいる（`09b8f83` / `9e374e1`）。
+             *
+             * **鍵1つではなく、これから指す値ぜんぶで見る**——`src` だけ
+             * 除いていた版は、再送のときに**新しいサムネを消していた**
+             * （変異テストで露見。鍵1つの比較では観測できなかった）。
+             */
+            const nextKeys = new Set(mediaKeys(rSets));
+            replacedKeys = mediaKeys(existing.Item).filter((k) => !nextKeys.has(k));
+            for (const [col, value] of Object.entries(rSets)) {
+                names[`#${col}`] = col;
+                sets.push(`#${col} = :r_${col}`);
+                values[`:r_${col}`] = value;
+            }
+            for (const col of clears) {
+                names[`#${col}`] = col;
+                removes.push(`#${col}`);
+            }
+            // 静的ページに焼かれている `src` が変わる。必ず作り直す
+            metaChanged = true;
+        }
+
         // **項目をまるごと空にしたか。** 「非公開にした・削除した」と同じで、
         // 消す意図の操作が公開ページに反映されないのは約束違反になる
         // （説明を空にしても、静的HTMLと JSON-LD には残る）。
@@ -302,6 +364,29 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         const dispatched = requested
             ? await requestSiteRebuild(`photo updated: ${id}`, { coalesce: true })
             : false;
+
+        /**
+         * **差し替えた古い実体を消す。行を書き換えたあとに。**
+         *
+         * 順番が逆だと、消したあとに行の更新が落ちた場合に
+         * **行が存在しない実体を指す**（写真ページが割れる）。この順なら
+         * 最悪でも S3 に孤児が残るだけで、画面は正しく出る
+         * ——台帳の「取り返しのつかない側に倒さない」に合わせる。
+         *
+         * `s3DeleteMany` はエッジの無効化まで面倒を見る。**これが要る**
+         * ——実体は `max-age=31536000` で配られるので、消すだけだと
+         * CloudFront のエッジに古い写真が最大1年残る（`LEFT-4` で一度踏んだ）。
+         *
+         * **失敗しても差し替え自体は成功**（利用者から見れば終わっている）。
+         * 残るのは誰からも参照されない孤児で、`orphan-uploads` が拾える。
+         */
+        if (replacedKeys.length > 0) {
+            try {
+                await s3DeleteMany(replacedKeys);
+            } catch (e) {
+                console.warn("[photoUpdate] 差し替え前の実体を消せませんでした（差し替えは成功）", (e as Error)?.name);
+            }
+        }
 
         // **下書きから公開に変えたら、共同アルバムに入れる。**
         //
