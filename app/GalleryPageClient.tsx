@@ -4,6 +4,7 @@ import React from "react";
 import { tagKey } from "@/lib/utils/collections";
 import { categoryChipMap } from "@/lib/utils/categoryMap";
 import FilterBar from "./components/FilterBar";
+import FeaturedSections from "./components/FeaturedSections";
 import StoriesBar from "./components/stories/StoriesBar";
 import { useLocale } from "./i18n/context";
 import useGallery from "../lib/hooks/useGallery";
@@ -433,6 +434,21 @@ export default function GalleryPageClient() {
         categoryDisplayMap={categoryDisplayMap}
         tagCounts={tagCounts}
       />
+
+      {/* **おすすめ（運営が選ぶ）。**
+          **絞り込み中は出さない**——絞った結果の上に、絞りと関係ない写真が
+          並ぶと何を見ているか分からなくなる。フォロー中フィードでも同じ。
+          1枚も選ばれていなければ、この部品が自分で何も出さない */}
+      {filters.category === "all" && filters.selectedTags.length === 0
+        && !filters.query.trim() && filters.feed === "all" && (
+        <FeaturedSections
+          photos={PHOTOS}
+          categoryNames={labels.category?.names ?? {}}
+          locale={locale}
+          categoryDisplayMap={categoryDisplayMap}
+          onOpenPhoto={openById}
+        />
+      )}
 
       <>
         {/* 件数も「まだ分からない」ときは出さない。本文を伏せながら

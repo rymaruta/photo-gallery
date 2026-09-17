@@ -69,6 +69,9 @@ function AdminEditContent() {
     const [date, setDate] = useState("");
     const [tagsInput, setTagsInput] = useState("");
     const [published, setPublished] = useState(true);
+    // **おすすめ（運営が選ぶ）。** トップに出す。自分の編集画面には置かない
+    // ——利用者が自分の写真をトップへ出せると「おすすめ」の意味が消える
+    const [featured, setFeatured] = useState(false);
     // EXIF
     const [exifCamera, setExifCamera] = useState("");
     const [exifLens, setExifLens] = useState("");
@@ -163,6 +166,7 @@ function AdminEditContent() {
                     setDate(toDateInputValue(data.date));
                     setTagsInput(Array.isArray(data.tags) ? data.tags.join(", ") : "");
                     setPublished(data.published !== false);
+                    setFeatured(data.featured === true);
 
                     const ex = data.exif ?? {};
                     setExifCamera(ex.camera ?? "");
@@ -271,7 +275,7 @@ function AdminEditContent() {
                 tags: Array.isArray(photo?.tags) ? photo.tags : [],
                 exif: photo?.exif,
             };
-            const body = { published, ...changedFields(nextFields, originalFields) };
+            const body = { published, featured, ...changedFields(nextFields, originalFields) };
 
             const res = await authenticatedFetch(`/photos/${photoId}`, {
                 method: "PUT",
@@ -469,6 +473,10 @@ function AdminEditContent() {
                         <button
                             type="button"
                             role="switch"
+                            // **名前を付ける。** ラベルは兄弟の `<span>` にあるだけで
+                            // 結ばれていないので、読み上げは「スイッチ オン」としか
+                            // 言わない（音声操作でも当てられない）
+                            aria-label={isJa ? "公開" : "Published"}
                             aria-checked={published}
                             onClick={() => setPublished((v) => !v)}
                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${published ? "bg-blue-500" : "bg-white/20"}`}
@@ -478,6 +486,29 @@ function AdminEditContent() {
                             />
                         </button>
                         <span className="text-sm">{isJa ? "公開" : "Published"}</span>
+                    </div>
+
+                    {/* **おすすめ。** トップの「おすすめ」にカテゴリごとに並ぶ。
+                        非公開の写真は印が付いていても出ない（トップは公開ぶんしか描かない） */}
+                    <div className={sectionCls + " flex items-center gap-3"}>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-label={isJa ? "おすすめに出す" : "Feature on home"}
+                            aria-checked={featured}
+                            onClick={() => setFeatured((v) => !v)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${featured ? "bg-blue-500" : "bg-white/20"}`}
+                        >
+                            <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${featured ? "translate-x-6" : "translate-x-1"}`}
+                            />
+                        </button>
+                        <div>
+                            <span className="text-sm">{isJa ? "おすすめに出す" : "Feature on home"}</span>
+                            <p className="text-[11px] text-white/50">
+                                {isJa ? "トップの「おすすめ」にカテゴリごとに並びます" : "Shown on the home page, grouped by category"}
+                            </p>
+                        </div>
                     </div>
 
                     <div className="flex gap-3 pt-2">

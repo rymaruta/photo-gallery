@@ -61,6 +61,9 @@ export function pickEditableFields(body: Record<string, unknown>): Record<string
     put("exif", sanitizeExif(body.exif));
     // 公開状態は真偽値だけ。文字列の "false" などを通さない
     if (typeof body.published === "boolean") out.published = body.published;
+    // **おすすめ（運営が選ぶ）。** 真偽値だけ。`false` は属性ごと落とす
+    // ——「印が無い」と「印が false」の2通りを作らない（タグで一度踏んだ型）
+    if (typeof body.featured === "boolean") out.featured = body.featured ? true : undefined;
     return out;
 }
 
