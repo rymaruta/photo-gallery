@@ -19,6 +19,7 @@ import MusicCard from "../../components/MusicCard";
 import SongArtwork from "../../components/SongArtwork";
 import { MusicalNoteIcon, XMarkIcon, MapPinIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../../auth/context";
+import ReportDialog from "../../components/ReportDialog";
 import { useToast } from "../../../lib/hooks/useToast";
 import { shareUrl, copyToClipboard, shareToTwitter, shareToLine } from "../../../lib/utils/share";
 import { siteConfig, generatePhotoStructuredData, generateBreadcrumbStructuredData } from "../../../lib/utils/seo";
@@ -371,6 +372,9 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
 
     // 写真BGM: オーナーが1曲添えられる（全員が写真ページで再生できる）
     const isOwnPhoto = isAuthenticated && !!authUserId && photo?.userId === authUserId;
+    // **通報。** 自分の投稿と未ログインには出さない（押しても断られる）
+    const [reportOpen, setReportOpen] = useState(false);
+    const reportBtnRef = React.useRef<HTMLButtonElement>(null);
     const [photoSong, setPhotoSong] = useState<SongEntry | null>(null);
     useEffect(() => { setPhotoSong((photo?.song as SongEntry | undefined) ?? null); }, [photo?.id, photo?.song]);
 
@@ -1180,11 +1184,37 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                             ))}
                         </div>
                     </div>
+
+                    {/* **通報。** ガイドライン上も、他人の投稿が並ぶ以上ここが要る。
+                        **共有の列には入れない**——意味が違う（共有は薦める行為）。
+                        自分の投稿と未ログインには出さない（押しても断られるため） */}
+                    {isAuthenticated && !isOwnPhoto && (
+                        <div>
+                            <button
+                                ref={reportBtnRef}
+                                type="button"
+                                onClick={() => setReportOpen(true)}
+                                className="text-xs text-white/50 hover:text-white/80 underline decoration-white/20 underline-offset-2"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                {locale === "en" ? "Report this post" : "この投稿を通報する"}
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 </div>
 
             </div>{/* /2カラムグリッド */}
+
+            {reportOpen && (
+                <ReportDialog
+                    photoId={photo.id}
+                    locale={locale}
+                    onClose={() => setReportOpen(false)}
+                    openerRef={reportBtnRef}
+                />
+            )}
 
             {/* コメント欄 */}
             <div className="mt-8 max-w-2xl">

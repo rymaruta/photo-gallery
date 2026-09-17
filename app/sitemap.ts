@@ -29,6 +29,9 @@ const toAbsolute = (src: string): string => publicImageUrl(src);
 /** プライバシーポリシーの本文を最後に変えた日。本文を直したらここも直す */
 const PRIVACY_LAST_MODIFIED = "2026-04-01";
 
+/** 利用規約の本文を最後に変えた日。**`app/terms/page.tsx` の `LAST_UPDATED` と揃える** */
+const TERMS_LAST_MODIFIED = "2026-09-17";
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const baseUrl = siteConfig.url;
     const now = new Date().toISOString();
@@ -99,6 +102,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         {
             url: `${baseUrl}/privacy`,
             lastModified: PRIVACY_LAST_MODIFIED,
+            changeFrequency: "yearly",
+            priority: 0.2,
+        },
+        {
+            // 利用規約。プライバシーポリシーと同じ扱い（本文を変えた日を出す）
+            url: `${baseUrl}/terms`,
+            lastModified: TERMS_LAST_MODIFIED,
             changeFrequency: "yearly",
             priority: 0.2,
         },

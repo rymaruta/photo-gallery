@@ -16,6 +16,7 @@ describe("フッターの導線", () => {
             ["作品", ROUTES.HOME],
             ["撮影地マップ", ROUTES.MAP],
             ["いいねした写真", ROUTES.FAVORITES],
+            ["利用規約", ROUTES.TERMS],
             ["プライバシーポリシー", ROUTES.PRIVACY],
         ]);
     });

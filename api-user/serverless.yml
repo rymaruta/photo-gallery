@@ -612,6 +612,17 @@ functions:
 
   # ブロック。**やり取りの口を持つ以上の最低限**（返信を足した時点で、
   # ログインしていれば誰でも誰の通知にも文字を送れるようになった）
+  # 不適切な投稿の通報。**ログインが要る**——未認証で受けると誰でも
+  # 無限に行を作れる（このテーブルは公開一覧が全表 Scan で端から端まで読む）
+  reportPhoto:
+    handler: src/report.reportPhoto
+    events:
+      - httpApi:
+          path: /photos/{id}/report
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
   blockUser:
     handler: src/block.blockUser
     events:

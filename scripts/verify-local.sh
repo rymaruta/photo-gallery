@@ -48,7 +48,11 @@ gate() { # gate <名前> <コマンド...>
 # 解決できないぶんのエラーが元から出るので、**0件ではなく「増えていないこと」**
 # で見る（CI はそれぞれのディレクトリで npm ci を打つので、あちらでは出ない）。
 API_BASELINE=11
-API_USER_BASELINE=116
+# 116 → 118: 通報のハンドラ（`report.ts`）を1つ足したぶん。
+# 中身は `Cannot find module 'aws-lambda'` と、その結果の implicit any の2件で、
+# **全ハンドラが同じ形**（`@types/aws-lambda` は package.json に在るが、
+# ルートから見た型検査には入らない）。CI は api-user で npm ci を打つので出ない。
+API_USER_BASELINE=118
 
 check_side_tsc() { # check_side_tsc <dir> <baseline>
     local out; out=$(npx tsc --noEmit -p "$1/tsconfig.json" 2>&1)
