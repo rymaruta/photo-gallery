@@ -458,7 +458,71 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     // **`replySending` を入れ忘れていた**——絵文字を押した時点で入力欄に
     // フォーカスは無いので `replyFocused` は効かず、応答が返るまでの間に
     // 表示が次へ移ると「送信しました」が**次の人の画面**に出ていた。
-    const frozen = paused || viewersOpen || confirmDelete || repliesOpen || replyFocused || replySending || keeping;
+    /**
+     * 🔴 **絵が出るまで、時間を進めない。**
+     *
+     * owner の報告:「ストーリーが3秒目くらいまで、真っ黒になる」。
+     *
+     * 原因は2つ重なっている:
+     *
+     *   1. **ストーリーは `src` しか持たない**（`api-user/src/stories.ts`）。
+     *      写真はサムネ・下地色・ぼかしを持つのに、ストーリーは原寸1枚だけ
+     *      ——落とし終わるまで**出せるものが何も無い**ので黒くなる
+     *   2. 進捗の CSS アニメーションは**マウントで走り出す**ので、
+     *      落としている間も 5秒のうちの時間が減る
+     *
+     * 2 の方を直す。**読み込みが済むまで凍らせる**ので、絵が出てから
+     * まるまる表示時間が使える（`frozen` は一時停止と同じ道具で、
+     * 動画の `pause()` にもそのまま効く）。
+     *
+     * `mediaError` のときは**待たない**——出る絵が無いので、待つと
+     * 進まないまま固まる（`onError` は `goNext` へ繋がっている動画と違い、
+     * 画像は理由を出して止まる作りなので、そこで凍ると押すまで動かない）。
+     */
+    /**
+     * 🔴 **「まだ」へ戻すのに effect を使わない。**
+     *
+     * 一度 `useEffect(() => setMediaReady(false), [item?.id])` で書いたが、
+     * **ref のコールバックは effect より先に走る**ので、控えにある画像を
+     * ref が「読み終わっている」と拾った直後に effect が false へ戻し、
+     * **永久に止まった**（テストが捕まえた）。
+     *
+     * 「どれが読み終わったか」を持てば、リセットそのものが要らない。
+     */
+    const [readyKey, setReadyKey] = useState<string | null>(null);
+    const mediaKey = `${item?.id ?? ""}-${replay}`;
+    const mediaReady = readyKey === mediaKey;
+    const setMediaReady = useCallback((on: boolean) => { setReadyKey(on ? mediaKey : null); }, [mediaKey]);
+
+    /**
+     * 🔴 **`onLoad` だけでは足りない。**
+     *
+     * 控えにある画像（2枚目以降は `goNext` の手前で先読みしている）は
+     * **React がハンドラを付ける前に読み終わっている**ことがある。
+     * そのとき `onLoad` は飛ばないので、**待つようにしたぶん永久に止まる**
+     * ——「3秒黒い」を直して「進まない」を作ることになる。
+     *
+     * このリポジトリは同じ形を2度踏んでいる（`fa640312`・`24f9df2c`）。
+     * 答えも同じで、**ref が付いた時点の `complete` を見る**。
+     *
+     * `naturalWidth === 0` は「読み終わったが絵が無い」＝失敗。
+     * ストーリーの `<img>` は `srcset` を持たないので、
+     * `24f9df2c`（密度で割って 0 に丸まる）の罠には当たらない。
+     */
+    const attachMedia = useCallback((img: HTMLImageElement | null) => {
+        if (!img?.complete) return;
+        if (img.naturalWidth === 0) setMediaError(true);
+        else setMediaReady(true);
+    }, [setMediaReady]);
+
+    /** 動画も同じ（`readyState >= HAVE_CURRENT_DATA` なら最初の絵は出せる） */
+    const attachVideo = useCallback((v: HTMLVideoElement | null) => {
+        videoRef.current = v;
+        if (v && v.readyState >= 2) setMediaReady(true);
+    }, [setMediaReady]);
+
+    const frozen = paused || viewersOpen || confirmDelete || repliesOpen || replyFocused || replySending || keeping
+        || (!mediaReady && !mediaError);
 
     // 画像の進捗は CSS アニメーション（60fps・再描画なし）が駆動し、
     // 完了は onAnimationEnd で検知する。動画は下の onTimeUpdate で進捗を更新。
@@ -817,7 +881,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 {isVideo ? (
                     <video
                         key={item.id}
-                        ref={videoRef}
+                        ref={attachVideo}
                         src={publicImageUrl(item.src)}
                         className="block max-w-full max-h-full object-contain rounded-lg story-media-in"
                         autoPlay
@@ -825,6 +889,11 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         // 曲が付いている動画は動画側を常に消す。両方を muted に
                         // 連動させると、ミュート解除で動画の音とBGMが同時に鳴る。
                         muted={muted || !!item.song}
+                        // **最初の絵が出せるようになるまで待つ**（画像と同じ）。
+                        // 動画の進捗は `currentTime` で描くので止まったままだが、
+                        // `frozen` は `pause()` にも効くので**読み込み中に
+                        // 再生が始まって先頭を取りこぼす**のを防ぐ
+                        onLoadedData={() => setMediaReady(true)}
                         onEnded={goNext}
                         onError={goNext}
                     />
@@ -844,8 +913,21 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         alt=""
                         className="block max-w-full max-h-full object-contain rounded-lg story-media-in"
                         draggable={false}
+                        ref={attachMedia}
+                        onLoad={() => setMediaReady(true)}
                         onError={(e) => { setMediaError(true); void dropCachedPhoto(e.currentTarget.currentSrc || e.currentTarget.src); }}
                     />
+                )}
+
+                {/* **読み込み中だと分かるようにする。** ストーリーは `src` しか
+                    持たない（写真と違ってサムネも下地色もぼかしも無い）ので、
+                    落とし終わるまで出せる絵が無い。せめて「止まっている」のか
+                    「読んでいる」のかは見えるようにする。
+                    **絵の上には重ねない**——出たあとは消える */}
+                {!mediaReady && !mediaError && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
+                        <div className="w-7 h-7 rounded-full border-2 border-white/25 border-t-white/80 animate-spin" />
+                    </div>
                 )}
             </div>
 
