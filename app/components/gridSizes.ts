@@ -69,3 +69,14 @@ export const GRID_SIZES_6XL = [
     "(max-width:71.99rem) calc(25vw - 0.78125rem)",   // 4列 / (vw - 2rem - 1.125rem) / 4
     "17.21875rem",                                    // 容器 72rem で頭打ち: (72 - 2 - 1.125) / 4
 ].join(", ");
+
+/**
+ * タイムライン（`/timeline`）の1列カード。容器は `max-w-xl`（36rem）で
+ * 余白は `p-4`（640px 未満は root 14px 固定なので 14px×2）→ `sm:p-6`（1.5rem×2）。
+ * 36rem を超えたら容器で頭打ち: 36 - 3 = 33rem。
+ */
+export const FEED_SIZES_XL = [
+    "(max-width:639px) calc(100vw - 28px)",
+    "(max-width:35.99rem) calc(100vw - 3rem)",
+    "33rem",
+].join(", ");
