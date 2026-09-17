@@ -31,8 +31,10 @@ import { uploadPrefix, canonicalUploadUrl, isOwnUploadUrlFromEnv as isOwnUploadU
  * 差し替えのときに**消す**項目。
  *
  * ここに挙げるのは「ビルドが作るもの」＝古い写真のまま残ると嘘になるもの。
- * `src` `thumbSrc` `dominantColor` `blurDataURL` は**画面が新しい値を送る**
- * ので消さない（送られた値で上書きする）。
+ *
+ * `src` `thumbSrc` `dominantColor` `blurDataURL`（＝`REPLACE_SETS`）は
+ * **送られたら上書き、送られなければ消す**（下の `buildReplace` を参照）。
+ * 消すのは、古い写真の値が残るよりビルドに作り直させる方が正しいから。
  */
 export const REPLACE_CLEARS = [
     // 寸法（ビルドが元画像から測る）。縦横比が変わる差し替えで残すと
@@ -65,6 +67,17 @@ export type ReplaceBody = {
  * 写し直すと片方だけ緩くなる——あちらのコメントが、緩かった頃に
  * 「他人の写真のURLを自分の src にでき、消すと相手の実体が S3 から消えた」
  * と書いている。
+ *
+ * ⚠️ **形は同じでも `key` の役割は違う。** `savePhoto` では `key` が写真IDの素
+ * （`idFromUploadKey`）で、そこが「IDを選び放題にしない」を担っている。
+ * こちらは**検証するだけ**で、`buildReplace` も削除も見ていない。
+ * 「鍵も検証されているから安全」とは読まないこと。
+ *
+ * ⚠️ **塞げていない筋（記録）**: `publicUrl` に**自分の別の写真がいま使って
+ * いる**実体を指定できる。2つの行が同じ S3 実体を指し、片方を消す／差し替えると
+ * もう片方が割れる。`savePhoto` は「IDを鍵から導出する」で塞いでいるが、
+ * こちらで塞ぐには他の行を引く必要がある。自傷のみ・画面からは起こせない
+ * （画面は presign で採った鍵しか送らない）ので、いまは記録に留める。
  */
 export function replaceRefusal(body: ReplaceBody, userId: string): string | null {
     const { key, publicUrl } = body;
