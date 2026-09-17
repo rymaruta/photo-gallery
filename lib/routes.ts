@@ -57,6 +57,7 @@ export const ROUTES = {
     FAVORITES: "/favorites",
     MAP: "/map",
     PRIVACY: "/privacy",
+    TERMS: "/terms",
     ADMIN: "/admin",
     LOGIN: "/login",
     SIGNUP: "/signup",
