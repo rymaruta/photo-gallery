@@ -27,6 +27,10 @@ import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, type OwnValues } from "../../../lib/utils/ownValues";
 import { CATEGORY_CHOICES, isChosenCategory, toggleCategory } from "../../../lib/utils/categoryChoices";
 import { TAG_CHOICES } from "../../../lib/utils/tagChoices";
+import { presignAndPut } from "../../../lib/utils/uploadToS3";
+import { toUploadSafeFile } from "../../../lib/utils/image";
+import { unstrippableMessage } from "../../../lib/utils/uploadRejection";
+import { extractExifFromFile, extractCameraExif } from "../../../lib/utils/exif";
 import { publicImageUrl } from "@/lib/utils/seo";
 
 const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
@@ -237,6 +241,8 @@ function EditContent() {
     const [loadFailed, setLoadFailed] = useState(false);
     // 写真そのものが取れなかった（削除済み・403）。枠ごと消さないための印
     const [imageError, setImageError] = useState(false);
+    const [replacing, setReplacing] = useState(false);
+    const replaceInputRef = React.useRef<HTMLInputElement>(null);
     // **入るたびに下ろす。** 「止める印」を足したら「入るたびに下ろす」も
     // 一緒に書く（台帳の型0の派生。`StoryViewer` の `mediaError` が手本）。
     // この画面はクエリ（`?id=`）だけが変わる遷移でも作り直されないので、
@@ -528,6 +534,80 @@ function EditContent() {
             : "You are signed out. This can't be saved yet — sign in again in another tab, then save.", "error");
     }, [gate, dirty, isJa, showToast]);
 
+    /**
+     * **写真の差し替え。** 消して投稿し直さずに実体だけ入れ替える。
+     *
+     * 消して投稿し直すと `/photo/<id>` の URL が変わり（検索の評価がリセット）、
+     * いいね・コメント・投稿日・アルバム所属が全部消える。差し替えなら残る。
+     *
+     * **座標は送らない。** この画面には「地図に出す位置」という明示の操作が
+     * あり、そこは本人が選ぶもの。差し替えでピンが黙って動くのは驚きが大きい
+     * （位置情報の扱いは、このサイトがいちばん慎重にしているところ）。
+     * サーバー側は受け取れるので、要ると分かったら送る側を足せばよい。
+     *
+     * **サムネ・代表色・ぼかしも送らない。** サーバーが消して、次のビルドが
+     * 元画像から作り直す。ここで作ると同じものが2か所にできる。
+     */
+    const replacePhoto = useCallback(async (file: File) => {
+        if (!photoId || replacing) return;
+        setReplacing(true);
+        try {
+            // **EXIF は「落とす前の元ファイル」から読む。** `toUploadSafeFile` は
+            // 位置情報ごと APP1 を落とすので、順番を逆にすると何も読めない
+            // ——この機能の目的そのものが不発になる
+            const meta = await extractExifFromFile(file);
+            const cameraExif = await extractCameraExif(file);
+
+            // **上げる前に位置情報を落とす**（向きの情報だけ残す）。
+            // ここを通さないと、差し替えが**位置情報を消す仕組みの抜け穴**になる
+            let safe: File;
+            try {
+                safe = await toUploadSafeFile(file);
+            } catch (e) {
+                showToast(unstrippableMessage(e, isJa ? "ja" : "en"), "error");
+                return;
+            }
+
+            const put = await presignAndPut(safe, {
+                startFailed: isJa ? "アップロードを開始できませんでした。" : "Could not start the upload.",
+                putFailed: isJa ? "写真をアップロードできませんでした。" : "Could not upload the photo.",
+            });
+
+            const { userFetch, readApiError } = await import("../../../lib/utils/api");
+            const res = await userFetch(`/photos/${photoId}`, {
+                method: "PUT",
+                body: JSON.stringify({
+                    replace: {
+                        key: put.key,
+                        publicUrl: put.publicUrl,
+                        ...(Object.keys(cameraExif).length > 0 ? { exif: cameraExif } : {}),
+                        ...(meta.dateTimeOriginal ? { date: meta.dateTimeOriginal } : {}),
+                    },
+                }),
+            });
+            if (!res.ok) {
+                showToast(await readApiError(res, isJa ? "差し替えに失敗しました" : "Replace failed"), "error");
+                return;
+            }
+            // **反映の遅れを黙らない。** 静的ページの写真は次のビルドまで
+            // 古い URL を指したままで、その実体はもう消えている＝**割れて出る**
+            toastWithStaticPage(
+                showToast,
+                isJa ? "写真を差し替えました" : "Photo replaced",
+                await res.json().catch(() => null),
+                isJa,
+            );
+            // 差し替えた姿を見せる（撮影情報も入れ替わっている）
+            router.push(ROUTES.PHOTO(photoId));
+        } catch (e) {
+            log.error("replace photo error:", e);
+            const known = sessionErrorMessage(e);
+            showToast(known ?? (isJa ? "差し替えに失敗しました" : "Replace failed"), "error");
+        } finally {
+            setReplacing(false);
+        }
+    }, [photoId, replacing, isJa, router, showToast]);
+
     const save = useCallback(async (published: boolean) => {
         if (!photoId) return;
         setSaving(true);
@@ -773,7 +853,51 @@ function EditContent() {
                     </button>
                 )}
                 {exifSummary && (
-                    <p className="text-xs text-white/50 mb-6">{isJa ? "撮影情報（自動）: " : "EXIF (auto): "}{exifSummary}</p>
+                    <p className="text-xs text-white/50 mb-2">{isJa ? "撮影情報（自動）: " : "EXIF (auto): "}{exifSummary}</p>
+                )}
+
+                {/* **写真の差し替え。** 撮影情報だけのために消して投稿し直すと、
+                    URL・いいね・コメント・投稿日・アルバム所属が全部消える。
+                    実体だけ入れ替えれば全部残る。
+
+                    **入力欄は隠さない**（`display:none` にするとキーボードだけで
+                    選べない——`f83da94` で一度踏んだ）。`sr-only` で置き、
+                    見えるボタンは `<label>` で結ぶ */}
+                {photo.src && (
+                    <div className="mb-6">
+                        <input
+                            ref={replaceInputRef}
+                            id="replace-photo"
+                            type="file"
+                            accept="image/*"
+                            className="sr-only"
+                            disabled={replacing}
+                            onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                // **同じファイルをもう一度選べるようにする。**
+                                // 値を空にしないと `change` が二度目に来ない
+                                e.target.value = "";
+                                if (f) void replacePhoto(f);
+                            }}
+                        />
+                        <label
+                            htmlFor="replace-photo"
+                            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg ring-1 text-xs transition-colors ${replacing
+                                ? "bg-white/5 ring-white/10 text-white/40 cursor-default"
+                                : "bg-white/5 ring-white/20 text-white/80 hover:bg-white/10 hover:text-white cursor-pointer"}`}
+                            style={{ touchAction: "manipulation" }}
+                        >
+                            <PhotoIcon className="w-4 h-4" aria-hidden="true" />
+                            {replacing
+                                ? (isJa ? "差し替えています…" : "Replacing…")
+                                : (isJa ? "写真を差し替える" : "Replace photo")}
+                        </label>
+                        <p className="mt-1.5 text-[11px] text-white/50">
+                            {isJa
+                                ? "タイトル・説明・いいね・コメントはそのまま。撮影情報と撮影日は新しい写真から読み直します。位置情報は上げる前に端末で取り除きます。"
+                                : "Title, description, likes and comments are kept. EXIF and the date are re-read from the new photo. Location data is stripped on your device before upload."}
+                        </p>
+                    </div>
                 )}
 
                 <form onSubmit={(e) => { e.preventDefault(); void save(true); }} className="space-y-5">

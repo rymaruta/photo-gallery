@@ -10,6 +10,17 @@ import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./medi
 import { mediaKeys } from "./mediaKeys";
 import { s3DeleteMany } from "./s3Delete";
 import { removePinnedPhoto } from "./userProfile";
+import { replaceRefusal, buildReplace, type ReplaceBody } from "./photoReplace";
+
+/**
+ * 保存する URL の土台。**呼ぶたびに読む。**
+ *
+ * `upload.ts` はモジュール直下の const で持っているが、ここでは真似しない
+ * ——**検証する側（`isOwnUploadUrlFromEnv`）は呼ぶたびに env を読む**ので、
+ * 固めると「検証したときに見た土台」と「保存する土台」が別物になりうる。
+ * 検証と保存で見る値がずれるのは、このリポジトリが何度も踏んだ型。
+ */
+const cdnUrl = () => process.env.CLOUDFRONT_URL ?? "";
 
 type PhotoSong = { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string };
 
@@ -57,6 +68,7 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         published?: boolean; song?: unknown; songYoutubeUrl?: unknown;
         title?: unknown; description?: unknown; location?: unknown;
         category?: unknown; tags?: unknown; date?: unknown; coords?: unknown; focalPoint?: unknown;
+        replace?: ReplaceBody;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -68,7 +80,12 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
     const hasSong = "song" in body;
     const hasYoutube = "songYoutubeUrl" in body;
     const hasMeta = META_KEYS.some((k) => k in body);
-    if (!hasPublished && !hasSong && !hasYoutube && !hasMeta) {
+    // 🔴 **差し替えもここに要る。** 足し忘れると、写真を差し替えるだけの
+    // 保存が 400「更新項目がありません」で断られる（この関門は
+    // `META_KEYS` しか見ていないので、`replace` は素通りしない）。
+    // 上の `META_KEYS` のコメントが名指しで警告している罠そのもの
+    const hasReplace = !!body.replace && typeof body.replace === "object";
+    if (!hasPublished && !hasSong && !hasYoutube && !hasMeta && !hasReplace) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "更新項目がありません" }) };
     }
 
@@ -173,7 +190,88 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         //
         // あわせて「本当に値が変わったか」も数える。静的ページの作り直しを
         // 頼むかの判定に使う（下の requestSiteRebuild）。
+        /**
+         * **写真の差し替え**（消して投稿し直さずに実体だけ入れ替える）。
+         *
+         * ここに混ぜるのは、この口が既に持っているもの
+         * ——所有権の確認・ストーリーの除外・再ビルドの依頼・`staticStale` の印
+         * ——が**そのまま要る**から。別の口を立てると同じ規則の2つ目の実装に
+         * なり、片方だけ直す形（このリポジトリが何度も踏んだ型）を作る。
+         */
         let metaChanged = false;
+        let replacedKeys: string[] = [];
+        /** 差し替えが実際に書いた項目（下の `geoApprox` の判定で見る） */
+        let replaceSets: Record<string, unknown> = {};
+        if (body.replace) {
+            const why = replaceRefusal(body.replace, callerId);
+            if (why) {
+                return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: why }) };
+            }
+            // **読めない撮影日は 400 で断る**（本文直下の `date` と同じ関門）。
+            // `sanitizeDate` が undefined を返すと「触らない」に落ちるので、
+            // 1990年より前の EXIF を持つ写真に差し替えると**この機能の目的
+            // そのものが無言で不発**になり、画面は成功と出る。
+            // フィルム取り込みの1985年が黙って落ちていた反省（`4416c99c`）が、
+            // 隣の入口で復活していた
+            if (dateWasRejected(body.replace.date)) {
+                return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "撮影日は1990年以降の日付にしてください" }) };
+            }
+
+            const built = buildReplace(body.replace, callerId, cdnUrl());
+            const clears = built.clears;
+            /**
+             * 🔴 **同じ属性を2か所から触らない。**
+             *
+             * `sets` / `removes` は重複を畳まないので、同じ属性名が両方に
+             * 出ると DynamoDB が式ごと拒否する（"Two document paths overlap"）
+             * ＝ **500**。踏み方はこう:
+             *
+             *     差し替え ＋ 撮影地の変更（行が `geoApprox: true`）
+             *       → 差し替えが `#coords` を SET
+             *       → `geoApprox` の分岐が `#coords` を REMOVE
+             *
+             * 本文に `coords` も `date` も入っていないのに落ちる
+             * ——**`body.replace` の中にあるので `"coords" in body` は false**。
+             * `geocode-locations` が座標を補った写真は実データに相当数ある。
+             *
+             * **明示的に打った値が、写真から読めた値より優先。** 撮影日や
+             * 座標を自分で直したうえで差し替えたなら、その意図が勝つべき。
+             * 送られていない項目だけ、新しい写真から読めた値で埋める。
+             */
+            const rSets = Object.fromEntries(
+                Object.entries(built.sets).filter(([col]) => !(col in body)),
+            );
+
+            /**
+             * **古い実体の鍵は、行を書き換える前に集める**（書き換えたあとでは
+             * もう新しい鍵しか入っていない）。
+             *
+             * 🔴 **これから指す鍵は必ず除く。** 除かないと**再送で写真が割れる**
+             * ——保存は届いたのに応答を取り逃して押し直した回、行は既に
+             * 新しい実体を指しているので、「古い実体」として**差し替えた
+             * ばかりのものを消す**。`savePhoto` が同じ形の再送を
+             * 一度踏んでいる（`09b8f83` / `9e374e1`）。
+             *
+             * **鍵1つではなく、これから指す値ぜんぶで見る**——`src` だけ
+             * 除いていた版は、再送のときに**新しいサムネを消していた**
+             * （変異テストで露見。鍵1つの比較では観測できなかった）。
+             */
+            replaceSets = rSets;
+            const nextKeys = new Set(mediaKeys(rSets));
+            replacedKeys = mediaKeys(existing.Item).filter((k) => !nextKeys.has(k));
+            for (const [col, value] of Object.entries(rSets)) {
+                names[`#${col}`] = col;
+                sets.push(`#${col} = :r_${col}`);
+                values[`:r_${col}`] = value;
+            }
+            for (const col of clears) {
+                names[`#${col}`] = col;
+                removes.push(`#${col}`);
+            }
+            // 静的ページに焼かれている `src` が変わる。必ず作り直す
+            metaChanged = true;
+        }
+
         // **項目をまるごと空にしたか。** 「非公開にした・削除した」と同じで、
         // 消す意図の操作が公開ページに反映されないのは約束違反になる
         // （説明を空にしても、静的HTMLと JSON-LD には残る）。
@@ -227,10 +325,18 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // 「おおよそ」の印だけ下ろす
         // 座標に触った（消した場合も含む）なら印は残さない——座標が無いのに
         // `geoApprox: true` だけが孤立する形を作らない（レビュー指摘）
-        if (existing.Item?.geoApprox === true && (locationChanged || "coords" in body)) {
+        // **差し替えで書いた座標も「正確な座標を書く口」。** 通っていないと、
+        // 座標は新しい写真のもの・印は古い地名のまま残り、
+        // **地図リンクも JSON-LD の geo も出なくなる**
+        // （`generateMapLinksFromCoords` が `geoApprox` で早期 return する）。
+        // 差し替えはこの口の3つ目で、そこだけ抜けていた
+        const replacedCoords = "coords" in replaceSets;
+        if (existing.Item?.geoApprox === true && (locationChanged || "coords" in body || replacedCoords)) {
             names["#geoApprox"] = "geoApprox";
             removes.push("#geoApprox");
-            if (!("coords" in body)) {
+            // **差し替えが座標を書いた回は REMOVE しない**（同じ属性を
+            // SET と REMOVE の両方で指すと式ごと拒否される）
+            if (!("coords" in body) && !replacedCoords) {
                 names["#coords"] = "coords";
                 removes.push("#coords");
             }
@@ -302,6 +408,29 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         const dispatched = requested
             ? await requestSiteRebuild(`photo updated: ${id}`, { coalesce: true })
             : false;
+
+        /**
+         * **差し替えた古い実体を消す。行を書き換えたあとに。**
+         *
+         * 順番が逆だと、消したあとに行の更新が落ちた場合に
+         * **行が存在しない実体を指す**（写真ページが割れる）。この順なら
+         * 最悪でも S3 に孤児が残るだけで、画面は正しく出る
+         * ——台帳の「取り返しのつかない側に倒さない」に合わせる。
+         *
+         * `s3DeleteMany` はエッジの無効化まで面倒を見る。**これが要る**
+         * ——実体は `max-age=31536000` で配られるので、消すだけだと
+         * CloudFront のエッジに古い写真が最大1年残る（`LEFT-4` で一度踏んだ）。
+         *
+         * **失敗しても差し替え自体は成功**（利用者から見れば終わっている）。
+         * 残るのは誰からも参照されない孤児で、`orphan-uploads` が拾える。
+         */
+        if (replacedKeys.length > 0) {
+            try {
+                await s3DeleteMany(replacedKeys);
+            } catch (e) {
+                console.warn("[photoUpdate] 差し替え前の実体を消せませんでした（差し替えは成功）", (e as Error)?.name);
+            }
+        }
 
         // **下書きから公開に変えたら、共同アルバムに入れる。**
         //
@@ -377,7 +506,24 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // 消したときに黙ってしまう——そのページは公開されたままで、消した内容も
         // 出ている。ページが在るなら、公開状態に関係なく伝える
         const staticPageExists = wasPublished || existing.Item.staticStale === true;
-        const staticOutdated = metaRemoved && staticPageExists && !dispatched;
+        /**
+         * 🔴 **差し替えは「公開のまま中身が古い」の一番きつい形。**
+         *
+         * 古い実体は `s3DeleteMany` がエッジごと消すので、呼んだ瞬間に
+         * **古い URL は 404** になる。ところが静的ページに焼かれている `src` は
+         * **次のビルドが終わるまで古いまま**——その間、公開ページの写真は
+         * **割れて出る**（中身が古いのではなく、出ない）。
+         *
+         * 依頼が畳まれた・予算切れ・トークン未設定のときは `dispatched` が
+         * false で、**行にも応答にも痕跡が残らなかった**。非公開化は同じ穴を
+         * `staticStale` の印で埋めているのに、ここだけ埋めていなかった。
+         *
+         * **消さずに残す案は採らない**——古い実体は静的ページから参照された
+         * ままなので、残しても「古い写真が出続ける」だけ。間違えて上げた
+         * 写真を差し替えた人にとっては、消える方が約束に合う。
+         * 代わりに**黙らない**（印を立て、画面に伝える）。
+         */
+        const staticOutdated = (metaRemoved || hasReplace) && staticPageExists && !dispatched;
         if (staticStale) {
             try {
                 await ddb.send(new UpdateCommand({

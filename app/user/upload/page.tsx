@@ -25,6 +25,7 @@ import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import type { Photo } from "../../../lib/data/photos";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, type OwnValues } from "../../../lib/utils/ownValues";
+import { presignAndPut } from "../../../lib/utils/uploadToS3";
 import { CATEGORY_CHOICES, isChosenCategory, toggleCategory } from "../../../lib/utils/categoryChoices";
 import { TAG_CHOICES } from "../../../lib/utils/tagChoices";
 // 上限は lib/utils/uploadLimits.ts に置く（api-user 側と対。理由はあちらに書いた）
@@ -709,51 +710,22 @@ function UploadPageInner() {
                     let thumbUrl = item.uploaded?.thumbUrl;
 
                     if (!key || !publicUrl) {
-                        const presignedResponse = await apiFetch("/upload/presigned-url", {
-                            method: "POST",
+                        // **presign と PUT は共有の関数へ。** 差し替え
+                        // （`/user/edit`）も同じ手順を通るので、写すと
+                        // 片方だけ古くなる（鍵の控え・署名した種別・
+                        // 文言の決まりごとは `uploadToS3.ts` に書いてある）
+                        const put = await presignAndPut(uploadFile, {
                             signal,
-                            body: JSON.stringify({
-                                fileName: uploadFile.name,
-                                fileType: uploadFile.type,
-                                fileSize: uploadFile.size,
-                            }),
+                            startFailed: locale === "en" ? "Could not start the upload." : "アップロードを開始できませんでした。",
+                            putFailed: UPLOAD_FAILED_MESSAGE,
+                            onKeyReserved: (k) => {
+                                reservedKey = k;
+                                updateItem(item.id, { progress: 40 });
+                            },
+                            onUploaded: () => { reservedKey = undefined; },
                         });
-                        if (!presignedResponse.ok) {
-                            // サーバーは日本語の理由を返す（例: アップロード上限に達しています）。
-                            // 生のJSONを80文字で切って出していたので、肝心の一文が
-                            // 途中で切れたクラッシュログのように見えていた。
-                            throw new Error(await readApiError(presignedResponse,
-                                locale === "en" ? "Could not start the upload." : "アップロードを開始できませんでした。"));
-                        }
-                        const presigned = await presignedResponse.json();
-                        key = presigned.key as string;
-                        publicUrl = presigned.publicUrl as string;
-                        // **サーバーが署名した種別で送る。** `content-type` は
-                        // 署名対象なので、違う文字列だと S3 が 403 にする。
-                        // 返ってこない古い API 相手でも動くよう、無ければ従来どおり
-                        const putType = (presigned.contentType as string | undefined) ?? uploadFile.type;
-                        // **PUT の前に控える。** ここで控えていなかったので、
-                        // `fetch` が **reject** したとき（本文は上がりきったが
-                        // 応答が返らない——モバイル回線でよくある）にキーが
-                        // どこにも残らず、再試行は presign を取り直して
-                        // **別のキー**へ上げ直していた。前の実体は
-                        // DynamoDB に行が無いので、写真削除・退会・discard の
-                        // どの経路からも辿れない。再試行のたびに1つずつ増える。
-                        reservedKey = key;
-                        updateItem(item.id, { progress: 40 });
-
-                        const uploadResponse = await fetch(presigned.presignedUrl, {
-                            method: "PUT",
-                            body: uploadFile,
-                            headers: { "Content-Type": putType, "Cache-Control": "max-age=31536000" },
-                            signal,
-                        });
-                        // **番号だけの文字列を投げない。** catch は e.message を
-                        // そのまま画面に出すので、利用者に「S3 403」が見えていた
-                        // （StoriesBar が同じ理由で先に直している）。
-                        if (!uploadResponse.ok) throw new Error(UPLOAD_FAILED_MESSAGE);
-                        // 上がったことが確認できた。以後この実体は使う
-                        reservedKey = undefined;
+                        key = put.key;
+                        publicUrl = put.publicUrl;
                     }
                     updateItem(item.id, { progress: 70 });
 
