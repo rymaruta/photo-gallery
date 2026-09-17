@@ -57,6 +57,35 @@ export const CATEGORY_ALIASES: Record<string, string> = {
 };
 
 /**
+ * **タグの決まった選択肢の別名表**（日本語 → 既にデータに在る英語スラッグ）。
+ *
+ * `CATEGORY_ALIASES` とは**別の表にする**。あちらに足すと
+ * `collections.test.ts` が「別名表にある slug は `labels.category.names` にも
+ * 要る」と要求する——`winter` は**カテゴリではない**のに、カテゴリの表示名の
+ * 表に置くことになる。軸が違うものを同じ表に混ぜない。
+ *
+ * ⚠️ **この表は `TAG_CHOICES` と1対1で、それ以上には増やさない。**
+ * 「別名表を私が毎回直す形」は一度断られている（`木/tree/trees`・
+ * `白鳥/swan`…と際限なく増えて静かに古くなるため）。ここが違うのは
+ * **決まった選択肢そのもの**だからで、選択肢が20語なら表も20語で止まる。
+ * `tagChoices.test.ts` が**両方向**を見張る（選択肢に在って表に無い／
+ * 表に在って選択肢に無い、のどちらでも落ちる）。
+ *
+ * 寄せ先を英語にしているのは、**既に英語で保存された写真と同じページに
+ * なる**ため（実データ: `winter` 12枚・`sunset` 2枚・`forest` 2枚・
+ * `snow`/`sea`/`mountain`/`lake`/`flowers`/`cherry`/`shrine`/`park` 各1枚）。
+ * 見出しに出る文字は**いちばん多く使った生表記**（`pickRepresentative`）なので、
+ * 選択肢から押した日本語が増えれば見出しは日本語に寄る。
+ */
+export const TAG_ALIASES: Record<string, string> = {
+    "春": "spring", "夏": "summer", "秋": "autumn", "冬": "winter",
+    "雪": "snow", "雨": "rain", "朝": "morning", "夜": "night", "夕焼け": "sunset",
+    "海": "sea", "山": "mountain", "湖": "lake", "川": "river",
+    "森": "forest", "空": "sky", "花": "flowers", "桜": "cherry", "紅葉": "autumn-leaves",
+    "神社": "shrine", "公園": "park",
+};
+
+/**
  * カテゴリの表示名（スラッグ → 日本語）。`CATEGORY_ALIASES` の逆引きで、
  * 同じスラッグに複数の日本語が寄っていれば**表の先頭**（建築／建物 → 建築）。
  *
@@ -165,6 +194,9 @@ export function slugify(value: string, type?: CollectionType): string {
     // 副産物として `tagKey` も寄るので、入力画面の候補チップ
     // （`collectOwnValues`）が畳まれて**選びやすくなる**。
     if ((type === "category" || type === "tag") && Object.hasOwn(CATEGORY_ALIASES, base)) return CATEGORY_ALIASES[base];
+    // **タグだけの表**（決まった選択肢のぶん）。カテゴリには当てない
+    // ——`winter` はカテゴリではないので、`/category/winter` を作らない
+    if (type === "tag" && Object.hasOwn(TAG_ALIASES, base)) return TAG_ALIASES[base];
     const cut = clampSlugBytes(base);
     // **切った結果が `.` だけになることもある。** 上の判定は切る前の値を
     // 見ているので、`"...(250個)x"` は全ドットではない → 通過 → 切ると

@@ -126,14 +126,20 @@ describe("collectEntries", () => {
         const map = Object.fromEntries(entries.map((e) => [e.slug, e.count]));
         expect(map["白鳥"]).toBe(2); // a, c
         expect(map["swan"]).toBe(1); // b
-        expect(map["lake"]).toBe(1); // "Lake" → lake
+        // **`湖`(a) と `Lake`(b) は同じページ。** `TAG_ALIASES` に
+        // 決まった選択肢のぶんを入れたので、`湖` も `lake` に寄る
+        // （それまでは `/tag/湖`1枚 と `/tag/lake`1枚 に割れていた）
+        expect(map["lake"]).toBe(2); // 湖(a) + "Lake"(b)
+        expect(map["湖"], "日本語のまま別ページに残っている").toBeUndefined();
         expect(map["苔"]).toBeUndefined(); // 非公開のみ
     });
 
     it("件数降順・slug昇順で安定ソート", () => {
         const entries = collectEntries(photos, "tag");
-        expect(entries[0].slug).toBe("白鳥"); // 最多(2)
-        expect(entries[0].label).toBe("白鳥");
+        // 白鳥(2) と lake(2=湖+Lake) が同数 → **slug 昇順**で決着する
+        // （この判定が見ているのはその決着。件数の多い swan(1) は後ろ）
+        expect(entries.map((e) => e.slug)).toEqual(["lake", "白鳥", "swan"]);
+        expect(entries[1].label).toBe("白鳥");
     });
 
     it("location を集約（空文字は除外）", () => {
@@ -173,7 +179,10 @@ describe("photosInCollection", () => {
     });
 
     it("大文字/空白違いを吸収する", () => {
-        expect(photosInCollection(photos, "tag", "LAKE").map((p) => p.id)).toEqual(["b"]);
+        // **大小の違いだけを見る**（`swan` は別名表に無いので、寄せの影響を受けない）
+        expect(photosInCollection(photos, "tag", "SWAN").map((p) => p.id)).toEqual(["b"]);
+        // `LAKE` は大小に加えて `湖`(a) も寄る（`TAG_ALIASES`）
+        expect(photosInCollection(photos, "tag", "LAKE").map((p) => p.id)).toEqual(["a", "b"]);
     });
 
     it("該当なしは空配列", () => {
