@@ -9,6 +9,7 @@ import { fetchFollowingSet, subscribeFollowingSet } from "../../lib/hooks/useFol
 import { timelinePhotos } from "../../lib/utils/timeline";
 import { ROUTES, loginWithNext } from "../../lib/routes";
 import TimelineCard from "../components/TimelineCard";
+import FeedTabs from "../components/FeedTabs";
 
 /** 最初の画面に入る枚数ぶんだけ優先で読む（1列なので2枚で足りる） */
 const PRIORITY_COUNT = 2;
@@ -131,6 +132,8 @@ export default function TimelinePage() {
                 <h1 id="site-title" className="text-2xl sm:text-3xl font-bold mb-0">{heading}</h1>
                 <p className="text-sm text-white/60 mt-1">{sub}</p>
             </div>
+            {/* トップと同じピル。「すべて」で一覧へ戻る（`FeedTabs` を見よ） */}
+            {isAuthenticated && !authLoading && <FeedTabs active="following" locale={locale} className="mb-4" />}
             {body}
         </main>
     );

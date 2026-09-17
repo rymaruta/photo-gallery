@@ -27,7 +27,13 @@ vi.mock("../i18n/context", () => ({
     useLocale: () => ({ locale: "ja", labels: { category: { all: "すべて", names: {} }, site: { title: "Gallery" } } }),
 }));
 vi.mock("../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: mockShowToast }) }));
-vi.mock("../components/FilterBar", () => ({ default: () => null }));
+// 絞り込みを「触る」ためのボタンだけ持つ。値を変えなくても `setFilters` は
+// 新しいオブジェクトを作るので、URL の同期がもう一度走る
+vi.mock("../components/FilterBar", () => ({
+    default: ({ onChange }: { onChange: (v: Record<string, never>) => void }) => (
+        <button type="button" onClick={() => onChange({})}>絞り込みを触る</button>
+    ),
+}));
 vi.mock("../components/stories/StoriesBar", () => ({ default: () => null }));
 vi.mock("../components/GalleryGrid", () => ({ default: () => null }));
 vi.mock("../components/GalleryModal", () => ({ default: () => null }));
@@ -84,10 +90,8 @@ describe("開けない ?photo= を踏んだとき", () => {
         render(<GalleryPageClient />);
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledTimes(1));
 
-        // 効果を再実行させる。**フィード切替そのものが効いているのではない**
-        // （切り替えると一覧が空になり、手前の早期 return に当たる）。
-        // 効いているのはフォロー集合が届いて絞り込みが作り直される方
-        fireEvent.click(screen.getByRole("button", { name: "フォロー中" }));
+        // 効果を再実行させる（絞り込みを触ると `filters` が作り直される）
+        fireEvent.click(screen.getByRole("button", { name: "絞り込みを触る" }));
         await new Promise((r) => setTimeout(r, 20));
         expect(mockShowToast, "同じ写真について2回言っている").toHaveBeenCalledTimes(1);
     });
@@ -266,7 +270,7 @@ describe("遷移で ?photo= が届いたとき（再マウントされない）"
 
         // 別の絞り込みを触る＝同期が走る。この写真は**まだ開けない**ので、
         // ここで URL に残っているのは「預けた」からに他ならない
-        fireEvent.click(screen.getByRole("button", { name: "フォロー中" }));
+        fireEvent.click(screen.getByRole("button", { name: "絞り込みを触る" }));
 
         await waitFor(() => expect(
             new URLSearchParams(window.location.search).get("photo"),
@@ -276,10 +280,10 @@ describe("遷移で ?photo= が届いたとき（再マウントされない）"
         expect(mockShowToast).not.toHaveBeenCalled();
     });
 
-    // 一覧そのものが空のときも同じ（フォロー中でフォロー0人、など）
+    // 一覧そのものが空のときも同じ（どの写真にも当たらないカテゴリ、など）
     it("一覧が空でも id を落とさない", async () => {
         auth.current = { isAuthenticated: true, userId: "me", loading: false };
-        window.history.replaceState({}, "", "/?feed=following");   // フォロー0人＝空
+        window.history.replaceState({}, "", "/?category=nothing-matches");   // 0件＝空
         photosState.loaded = true;
         const { rerender } = render(<GalleryPageClient />);
         await new Promise((r) => setTimeout(r, 20));
@@ -288,16 +292,16 @@ describe("遷移で ?photo= が届いたとき（再マウントされない）"
         rerender(<GalleryPageClient />);
         await new Promise((r) => setTimeout(r, 20));
 
-        // **空のまま**同期を走らせる（同じタブを押しても `filters` は
-        // 作り直されるので効果は再実行される）。「すべて」に戻すと開けて
+        // **空のまま**同期を走らせる（値を変えなくても `filters` は
+        // 作り直されるので効果は再実行される）。絞りを外すと開けて
         // しまい、預けを通らずに URL へ載るので、そこは押さない
-        fireEvent.click(screen.getByRole("button", { name: "フォロー中" }));
+        fireEvent.click(screen.getByRole("button", { name: "絞り込みを触る" }));
 
         await waitFor(() => expect(
             new URLSearchParams(window.location.search).get("photo"),
             "一覧が空のうちに id を落としている",
         ).toBe("p1"));
-        expect(screen.queryByRole("button", { name: "すべて" })).toBeTruthy();   // まだ空のまま
+        expect(screen.queryByRole("button", { name: "フィルターをリセット" })).toBeTruthy();   // まだ空のまま
     });
 
     // API の一覧がまだ届いていないときも同じ
@@ -312,7 +316,7 @@ describe("遷移で ?photo= が届いたとき（再マウントされない）"
         rerender(<GalleryPageClient />);
         await new Promise((r) => setTimeout(r, 20));
 
-        fireEvent.click(screen.getByRole("button", { name: "フォロー中" }));
+        fireEvent.click(screen.getByRole("button", { name: "絞り込みを触る" }));
 
         await waitFor(() => expect(
             new URLSearchParams(window.location.search).get("photo"),

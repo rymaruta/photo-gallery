@@ -57,6 +57,9 @@ describe("/timeline", () => {
         // 写真ページへ（先読みはしない）
         const link = document.querySelector('[data-photo-id="a-new"]') as HTMLAnchorElement;
         expect(link.getAttribute("href")).toMatch(/a-new/);
+        // トップと同じピルで行き来できる（こちらが選択中・「すべて」は一覧へ）
+        expect(screen.getByRole("link", { name: "すべて" }).getAttribute("href")).toBe("/");
+        expect(screen.getByRole("link", { name: "フォロー中" })).toHaveAttribute("aria-current", "page");
     });
 
     it("未ログインは送り返さず、ログインへの導線を出す", () => {
@@ -67,6 +70,7 @@ describe("/timeline", () => {
         expect(login.getAttribute("href")).toBe("/login?next=%2Ftimeline");
         expect(follow.fetch, "未ログインなのに一覧を取りに行っている").not.toHaveBeenCalled();
         expect(cardIds()).toEqual([]);
+        expect(screen.queryByRole("link", { name: "すべて" }), "未ログインにピルを出している").toBeNull();
     });
 
     it("判定中は「読み込み中」だけ（0人とも未ログインとも言わない）", () => {

@@ -15,7 +15,7 @@ import SearchParamWatcher from "./components/SearchParamWatcher";
 import { usePhotos } from "../lib/hooks/usePhotos";
 import { useAuth } from "./auth/context";
 import { useToast } from "../lib/hooks/useToast";
-import { fetchFollowingSet, subscribeFollowingSet } from "../lib/hooks/useFollow";
+import FeedTabs from "./components/FeedTabs";
 
 // フィルタバーに出すタグ数の上限（枚数の多い順）。残りは検索で辿る
 const POPULAR_TAG_LIMIT = 10;
@@ -24,63 +24,7 @@ export default function GalleryPageClient() {
   const { locale, labels } = useLocale();
   const { showToast } = useToast();
   const { photos, loaded: photosLoaded, failed: photosFailed } = usePhotos();
-  const { isAuthenticated, loading: authLoading } = useAuth();
-
-  // フォロー中フィード用: フォローしている userId 集合（認証時のみ取得）
-  const [followingIds, setFollowingIds] = React.useState<Set<string>>(new Set());
-  // 一覧の取得失敗を「誰もフォローしていない」と混ぜない（SW-b1）。
-  // 混ぜると、フォロー中フィードが空表示に化けて気づけない
-  const [followingError, setFollowingError] = React.useState(false);
-  const [followingReloadKey, setFollowingReloadKey] = React.useState(0);
-  /**
-   * フォロー中の集合が**確定したか**。
-   *
-   * 初期値は空の Set なので、取得が終わる前のフィードは必ず0件になる
-   * ——そのまま「フォローした人の写真がここに集まります。」を出すと、
-   * 何人もフォローしている人にも、回線が遅い間ずっと「誰もフォローして
-   * いない人」の画面を見せることになる。**「まだ来ていない」は、来たことを
-   * 知る仕掛けがある場合だけ書ける**（`usePhotos` に `loaded` を足したのと
-   * 同じ理由。`FollowButton` も `resolved` で同じことをしている）。
-   */
-  const [followingLoaded, setFollowingLoaded] = React.useState(false);
-  React.useEffect(() => {
-    // **「まだ分からない」を未ログインと混ぜない。** セッションの復元は
-    // 非同期で、その間 `isAuthenticated` は false（`app/auth/context.tsx`
-    // の初期値は `loading: true`）。ここで確定させてしまうと、
-    // `/?feed=following` を再読込・ブックマーク・戻るで開いた人に、
-    // 消したはずの「0人」の画面をまた見せることになる——`feed` は URL に
-    // 載るので、これは主経路。
-    //
-    // **判定の出所はここ1つにする。** 表示側でも `authLoading` を見ると、
-    // 同じことを2か所で決めることになり、片方を壊しても気づけない
-    // （実際、両方に置いたらこの行を消しても全テストが通った）。
-    if (authLoading) return;
-    if (!isAuthenticated) {
-      setFollowingIds(new Set());
-      // ログアウトすると切替タブ自体が消えるので、失敗表示を残すと
-      // 「もう一度読み込む」しか無い画面から抜けられなくなる（レビュー指摘）
-      setFollowingError(false);
-      setFollowingLoaded(true);   // 取得しない＝これで確定
-      return;
-    }
-    let aborted = false;
-    setFollowingError(false);
-    setFollowingLoaded(false);
-    fetchFollowingSet()
-      .then((set) => { if (!aborted) setFollowingIds(new Set(set)); })
-      .catch(() => { if (!aborted) setFollowingError(true); })
-      .finally(() => { if (!aborted) setFollowingLoaded(true); });
-    return () => { aborted = true; };
-  }, [authLoading, isAuthenticated, followingReloadKey]);
-
-  // **共有している一覧が変わったら取り直す。**
-  // 上の effect は結果を `followingIds` に**コピー**するので、
-  // 共有ストア（`useFollow`）を直しても伝わらない。ストーリーの返信一覧
-  // からブロックしても、この画面は重なって開くだけで再マウントされない
-  // ＝取り直す契機が無く、ブロックした相手の写真が出続けていた
-  React.useEffect(() => subscribeFollowingSet(() => {
-    setFollowingReloadKey((k) => k + 1);
-  }), []);
+  const { isAuthenticated } = useAuth();
 
   const {
     PHOTOS,
@@ -94,30 +38,8 @@ export default function GalleryPageClient() {
     close,
     next,
     prev,
-  } = useGallery(photos, followingIds);
+  } = useGallery(photos);
 
-  /**
-   * フォロー中フィードで「まだ分からない」——**件数も本文も出さない**。
-   *
-   *   - フォロー中の一覧がまだ（`!followingLoaded`）
-   *   - 一覧は来たが**写真がまだ**。`photos` の初期値はビルド時の JSON で、
-   *     定期ビルドは週1。ここで「フォローした人の写真がここに集まります。」
-   *     を出すと、`0caa56d5` が潰した画面（フォローが効いていないように
-   *     見える）が読み込み中だけ復活する
-   *
-   * **落ちた回は入れない**（`photosFailed`）。`usePhotos` は失敗時に
-   * `loaded` を立てないので、入れると「読み込み中…」から永久に動かない。
-   *
-   * **フォローが0人なら入れない。** 答えはもう確定していて、写真を待つ
-   * 理由が無い（待つと0人の人にだけ無意味な「読み込み中…」が出る）。
-   *
-   * **1つの式にしておく。** 本文だけに足した回に、「読み込み中…」の
-   * 真上へ「結果: 0 件」が並んだ（レビューが実測）。
-   */
-  const followingFeedPending = filters.feed === "following" && (
-    !followingLoaded
-    || (followingIds.size > 0 && filteredPhotos.length === 0 && !photosLoaded && !photosFailed)
-  );
 
   // URLパラメータ(?photo=)で写真モーダルを開く。
   // 一覧タップは個別ページへ直接遷移するが、ビルド前の新着写真は
@@ -190,9 +112,9 @@ export default function GalleryPageClient() {
     if (filteredPhotos.length === 0) {
       // 絞り込みの結果が空。ここに来ると下の救済（絞り込みを外して開く）まで
       // 届かないので、取れていないなら理由を出す。
-      // **ただし手元のスナップショットにある写真は別**——`?feed=following` は
-      // フォロー集合が届くまで空になるので、写真APIが落ちている場面では
-      // ここに来る。開ける写真まで断ってしまう（レビューが実測）
+      // **ただし手元のスナップショットにある写真は別**——絞り込みで空に
+      // なっている場面で写真APIが落ちていると、ここに来る。
+      // 開ける写真まで断ってしまう（レビューが実測）
       if (!photosLoaded && photosFailed && !PHOTOS.some((p) => p.id === photoParam)) { tellCouldNotLoad(); return; }
       setPendingPhoto(photoParam);
       return;
@@ -215,9 +137,7 @@ export default function GalleryPageClient() {
     // **通知をタップしても本当に何も起きない**（モーダルも出ず、理由も
     // 出ず、押し直しても同じ）だった。`?photo=<id>` は写真を名指しして
     // いる——通知・共有リンク・戻るでしか来ない——ので、その1枚を開く
-    // 方に倒す。ビルド後の新着写真はこのモーダルが唯一の閲覧手段で、
-    // 「フォロー中」を見ている人には自分宛ての通知がほぼ全部この経路
-    // （自分の写真はフォロー中フィードに出ない）。
+    // 方に倒す。ビルド後の新着写真はこのモーダルが唯一の閲覧手段。
     //
     // 外すのは**絞り込みだけ**（並び順は触らない）。外したことはトースト
     // で伝える——画面の見え方が変わる理由が見えないと、次に困る。
@@ -228,9 +148,9 @@ export default function GalleryPageClient() {
       // 形（毎回新しいオブジェクト＝毎回再描画）を作りかねない。今の状態を
       // 見て決めれば、外し終わったあとは自然に何もしない。
       const narrowed = filters.category !== "all" || filters.selectedTags.length > 0
-        || filters.query.trim() !== "" || filters.feed !== "all";
+        || filters.query.trim() !== "";
       if (narrowed) {
-        setFilters({ category: "all", selectedTags: [], query: "", feed: "all" });
+        setFilters({ category: "all", selectedTags: [], query: "" });
         showToast(locale === "en"
           ? "Cleared the filters to open this photo."
           : "絞り込みを解除して、この写真を開きました。", "info");
@@ -402,24 +322,10 @@ export default function GalleryPageClient() {
         </div>
       </div>
 
-      {/* フィード切替: すべて / フォロー中（ログイン時のみ表示） */}
-      {isAuthenticated && (
-        <div className="inline-flex items-center gap-1 p-1 mb-3 rounded-full bg-white/5 ring-1 ring-white/10">
-          {(["all", "following"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilters({ feed: f })}
-              aria-pressed={filters.feed === f}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                filters.feed === f ? "bg-white text-black" : "text-white/70 hover:text-white"
-              }`}
-              style={{ touchAction: "manipulation" }}
-            >
-              {f === "all" ? (locale === "en" ? "All" : "すべて") : (locale === "en" ? "Following" : "フォロー中")}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* すべて / フォロー中（ログイン時のみ）。**「フォロー中」は別の面（`/timeline`）へ。**
+          以前はこの一覧に掛けるふるいで、出るのはサムネのグリッド＝誰の写真か
+          見えなかった（owner の「混ざってる」）。あちらは投稿者つきのカードが投稿順に流れる */}
+      {isAuthenticated && <FeedTabs active="all" locale={locale} className="mb-3" />}
 
       {/* ストーリー（24時間で消える投稿） */}
       <StoriesBar />
@@ -437,10 +343,10 @@ export default function GalleryPageClient() {
 
       {/* **おすすめ（運営が選ぶ）。**
           **絞り込み中は出さない**——絞った結果の上に、絞りと関係ない写真が
-          並ぶと何を見ているか分からなくなる。フォロー中フィードでも同じ。
+          並ぶと何を見ているか分からなくなる。
           1枚も選ばれていなければ、この部品が自分で何も出さない */}
       {filters.category === "all" && filters.selectedTags.length === 0
-        && !filters.query.trim() && filters.feed === "all" && (
+        && !filters.query.trim() && (
         <FeaturedSections
           photos={PHOTOS}
           categoryNames={labels.category?.names ?? {}}
@@ -451,82 +357,13 @@ export default function GalleryPageClient() {
       )}
 
       <>
-        {/* 件数も「まだ分からない」ときは出さない。本文を伏せながら
-            「結果: 0 件」と言い続けるのは、伏せた意味が無い。
-            **本文と同じ式で見ること**——写真の到着待ちを本文だけに足したら、
-            「読み込み中…」の真上に「結果: 0 件」が並んだ（レビューが実測） */}
-        {!(followingError && filters.feed === "following")
-          && !followingFeedPending && (
-          <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
+        <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
             {locale === "en"
               ? `${labels.gallery?.resultsCount ?? "Results"}: ${filteredPhotos.length}`
               : `${labels.gallery?.resultsCount ?? "結果"}: ${filteredPhotos.length} 件`}
-          </div>
-        )}
+        </div>
 
-        {followingError && filters.feed === "following" ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3 text-white/60 text-center">
-            <p className="text-sm">
-              {locale === "en"
-                ? "Couldn't load who you follow."
-                : "フォロー中の一覧を読み込めませんでした。"}
-            </p>
-            <button
-              onClick={() => setFollowingReloadKey((k) => k + 1)}
-              className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
-              style={{ touchAction: "manipulation" }}
-            >
-              {locale === "en" ? "Retry" : "もう一度読み込む"}
-            </button>
-          </div>
-        ) : followingFeedPending ? (
-          // まだ分からない。**「0人です」とは言わない**が、真っ白でも困る
-          // ——実測: 応答が返らない回線では 5秒・20秒・45秒のいずれでも
-          // フィルタバーの直後がフッターで、読み込み中とも失敗とも分からない
-          // （条件は `followingFeedPending` を見よ）
-          <div className="py-16 text-center text-sm text-white/50" role="status" aria-live="polite">
-            {locale === "en" ? "Loading…" : "読み込み中…"}
-          </div>
-        ) : filteredPhotos.length === 0 && filters.feed === "following"
-          && filters.category === "all" && filters.selectedTags.length === 0 && !filters.query.trim() ? (
-          // **0件の理由が「フォローが0人」のときだけ、この文言にする。**
-          // 検索語やカテゴリで0件になった回にも出していたので、抜けるには
-          // 「みんなの写真を見る」→まだ0件→「フィルターをリセット」と
-          // 2手かかっていた（下の分岐はリセットで feed ごと戻せる）。
-          //
-          // **そう宣言しておきながら、条件に人数が入っていなかった。**
-          // 1人フォローした直後（その人がまだ投稿していない）に
-          // 「フォローした人の写真がここに集まります」＝**まだ誰も
-          // フォローしていない人と同じ画面**になり、フォローが効いて
-          // いないように見える。相手が最初の1枚を上げるまで続く。
-          <div className="flex flex-col items-center justify-center py-20 gap-3 text-white/60 text-center">
-            <p className="text-sm">
-              {/* **「まだ投稿していません」と言い切れるのは、一覧が届いた回だけ。**
-                  `photos` の初期値はビルド時の JSON で、**定期ビルドは週1**。
-                  取得がまだ／落ちた回や、フォロー先が前回の日曜以降に投稿した
-                  場合、`filteredPhotos` は0件になる。前の文言（「ここに集まります」）は
-                  曖昧だったので嘘ではなかった——**直したぶん強く間違える**、
-                  このセッションが何度も踏んだ型。
-                  「まだ来ていない」は1つ上の分岐が「読み込み中…」で受ける
-                  ので、ここに残るのは**届いた回と、落ちた回**。落ちた回は
-                  0件の理由が分からないので断定しない側へ倒す */}
-              {followingIds.size === 0 || photosFailed
-                ? (locale === "en"
-                  ? "Photos from people you follow will show up here."
-                  : "フォローした人の写真がここに集まります。")
-                : (locale === "en"
-                  ? "The people you follow haven't posted yet."
-                  : "フォロー中の人は、まだ写真を投稿していません。")}
-            </p>
-            <button
-              onClick={() => setFilters({ feed: "all" })}
-              className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
-              style={{ touchAction: "manipulation" }}
-            >
-              {locale === "en" ? "Explore all photos" : "みんなの写真を見る"}
-            </button>
-          </div>
-        ) : filteredPhotos.length === 0 && PHOTOS.length === 0 ? (
+        {filteredPhotos.length === 0 && PHOTOS.length === 0 ? (
           // **絞り込んでいないのに「該当」と言わない。**
           // この分岐が無かったので、写真が1枚も無い環境（新しい環境・
           // 公開が全部消えた）は下の `GalleryGrid` の既定文言
@@ -543,7 +380,7 @@ export default function GalleryPageClient() {
               {locale === "en" ? "No photos match the current filters." : "条件に一致する写真がありません。"}
             </p>
             <button
-              onClick={() => setFilters({ category: "all", selectedTags: [], query: "", sort: "new", feed: "all" })}
+              onClick={() => setFilters({ category: "all", selectedTags: [], query: "", sort: "new" })}
               className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
               style={{ touchAction: "manipulation" }}
             >
