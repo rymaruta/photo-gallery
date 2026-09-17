@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { collectEntries, photosInCollection, isIndexableCollection, legacyTagSlugs, canonicalCollectionPath, labelForSlug } from "../collections";
-import { collectOwnValues } from "../ownValues";
+import { collectEntries, photosInCollection, isIndexableCollection, legacyTagSlugs, canonicalCollectionPath, labelForSlug, slugify } from "../collections";
 import type { Photo } from "../../data/photos";
+import { TAG_CHOICES } from "../tagChoices";
 
 /**
  * **タグの日英を寄せる。**
@@ -153,12 +153,20 @@ describe("タグの日英を1ページに寄せる", () => {
         expect(labelForSlug(withHidden, "tag", "architecture"), "非公開の表記が見出しになっている").toBe("architecture");
     });
 
-    // **入力画面の候補も1つにまとまる。** ここが割れていると、
-    // 次に入力する人がまた揺れを作る（＝寄せても増え続ける）
-    it("入力候補のチップが日英で二重に出ない", () => {
-        const tags = collectOwnValues(photos).tags;
-        const both = tags.filter((t) => t === "風景" || t === "landscape");
-        expect(both.length, "同じ主題のチップが2つ並んでいる").toBe(1);
-        expect(tags).toContain("高屋神社");
+    /**
+     * **入力画面の候補が日英で二重に出ない。**
+     *
+     * もとは「自分が過去に使ったタグ」を候補にしていたので、`風景` と
+     * `landscape` を両方使っていると**同じ主題のチップが2つ**並んだ
+     * ——それを別名表が畳んでいた。候補が**決まった選択肢**になったいま、
+     * 守るべきものは同じで、見る場所が変わる:
+     * **選択肢の中に、同じスラッグへ寄る語が2つあってはいけない。**
+     */
+    it("決まった選択肢に、同じスラッグへ寄る語が2つ無い", () => {
+        const slugs = TAG_CHOICES.map((t) => slugify(t, "tag"));
+        const dup = slugs.filter((v, i) => slugs.indexOf(v) !== i);
+        expect(dup, `同じ主題のチップが2つ並ぶ: ${dup.join(", ")}`).toEqual([]);
+        // 空スラッグ（`-` `###` のような語）を選択肢に置かない
+        expect(slugs.filter((v) => !v), "スラッグが空になる選択肢がある").toEqual([]);
     });
 });

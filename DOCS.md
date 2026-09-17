@@ -35,63 +35,44 @@
 
 ## ディレクトリ構成
 
+> **実在するパスだけを書く。** 以前ここには `app/gallery/`・`app/history/`・
+> `app/upload/`・`app/data/photos.ts`・`app/hooks/useGallery.tsx`・
+> `app/i18n/about.ts`・`GalleryModal.tsx` が並んでいたが、**どれも無かった**。
+> 触ったときは実物と突き合わせること。
+
 ```
 photo-gallery/
-├── app/                        # Next.js App Router
-│   ├── components/             # 共通UIコンポーネント
-│   │   ├── GalleryGrid.tsx     # 写真グリッド表示
-│   │   ├── GalleryModal.tsx    # 写真拡大モーダル
-│   │   ├── FilterBar.tsx       # カテゴリ・タグフィルタ
-│   │   ├── HeaderNav.tsx       # ヘッダーナビゲーション
-│   │   ├── Footer.tsx          # フッター
-│   │   └── Toast.tsx           # トースト通知
-│   ├── data/
-│   │   └── photos.ts           # 写真データ定義・ユーティリティ関数
-│   ├── hooks/
-│   │   └── useGallery.tsx      # ギャラリーのフィルタ・ソート・モーダル管理
-│   ├── i18n/
-│   │   ├── labels.ts           # 日英ラベル定義
-│   │   ├── context.tsx         # LocaleProvider・useLocale Hook
-│   │   └── about.ts            # Aboutページ用テキスト
-│   ├── auth/
-│   │   └── context.tsx         # AuthProvider・useAuth Hook
-│   ├── api/                    # ローカル開発用 API Routes
-│   │   ├── photos/             # 写真一覧・詳細取得
-│   │   └── upload/             # Presigned URL発行・保存
-│   ├── gallery/page.tsx        # ギャラリーページ
-│   ├── photo/[id]/page.tsx     # 写真詳細ページ
-│   ├── favorites/page.tsx      # お気に入りページ
-│   ├── history/page.tsx        # 閲覧履歴ページ
-│   ├── upload/page.tsx         # アップロードページ（要認証）
-│   ├── admin/page.tsx          # 管理ページ（要admin権限）
-│   ├── layout.tsx              # ルートレイアウト
-│   └── globals.css             # グローバルスタイル
-├── lib/                        # サーバー/クライアント共通ロジック
-│   ├── auth/
-│   │   ├── cognito.ts          # Cognito認証関数
-│   │   └── config.ts           # Cognito設定（環境変数）
-│   ├── aws/
-│   │   └── secrets.ts          # Secrets Manager / 設定取得
-│   ├── hooks/
-│   │   ├── useFavorites.ts     # お気に入り（localStorage）
-│   │   ├── useViewHistory.ts   # 閲覧履歴（localStorage）
-│   │   ├── useSwipe.ts         # スワイプジェスチャー
-│   │   └── useImagePreloader.ts # 画像プリロード
-│   ├── utils/
-│   │   ├── log.ts              # ログユーティリティ（本番: warn/errorのみ）
-│   │   ├── seo.ts              # SEO・構造化データ生成
-│   │   ├── share.ts            # シェア機能
-│   │   └── string.ts           # 文字列ユーティリティ
-│   └── types/
-│       └── gallery.ts          # GalleryFilters 型定義
-├── vitest.config.ts            # Vitestの設定
-├── vitest.setup.ts             # テストのセットアップ（jest-dom）
-├── next.config.ts              # Next.js設定（静的エクスポート）
-├── postcss.config.mjs          # PostCSS設定（Tailwind v4）
-└── tailwind.config.js          # Tailwind設定（コンテンツパス）
+├── app/                        Next.js App Router（22ページ）
+│   ├── components/             画面部品
+│   │   ├── GalleryGrid.tsx     写真グリッド
+│   │   ├── GalleryModal/       写真の拡大（ディレクトリ。index・ModalImage・ModalCaption …）
+│   │   ├── FilterBar.tsx       絞り込み（検索・タグ・カテゴリ・並び）
+│   │   ├── HeaderNav.tsx       ヘッダー ／ Footer.tsx ／ Toast.tsx
+│   │   ├── PhotoMap.tsx        撮影地マップ（Leaflet）
+│   │   └── stories/            ストーリー（StoriesBar・StoryViewer）
+│   ├── data/photos.json        写真データ（**ビルド時に DynamoDB から生成**）
+│   ├── i18n/                   labels.ts ／ context.tsx（locale は ja 固定）
+│   ├── auth/context.tsx        AuthProvider・useAuth
+│   ├── api/                    ローカル開発用。**ビルド時に退避される**
+│   ├── photo/[id]/             写真ページ（検索の着地点）
+│   ├── tag|location|category|camera/[..]/   集約ページ
+│   ├── map/ favorites/ privacy/ j/          地図・お気に入り・規約・招待
+│   ├── user/                   upload・edit・drafts・profile・albums（要ログイン）
+│   ├── users/                  [id]（公開プロフィール）・search
+│   └── admin/                  管理（要 admin 権限）
+├── lib/                        画面から独立した部分
+│   ├── utils/                  collections（集約）・seo・photoOrder・image・
+│   │                           ownValues / tagChoices / categoryChoices（入力候補）
+│   ├── hooks/                  useGallery・useFollow・useComments・usePhotos …
+│   ├── auth/                   Cognito のラッパー
+│   └── data/photos.ts          Photo 型とローカライズのユーティリティ
+├── api-user/                   利用者向け Lambda（50口・serverless v3）
+├── api/                        管理向け Lambda（8口）
+├── scripts/                    ビルド・デプロイ・保守・診断
+├── public/                     sw.js・manifest.webmanifest・offline.html
+├── docs/                       設計と運用
+└── .github/workflows/          deploy・deploy-api・maintenance・token-health …
 ```
-
----
 
 ## 開発環境セットアップ
 
@@ -269,15 +250,24 @@ npm run add-exif
 
 ### ローカライズ
 
-- 日本語 (`ja`) / 英語 (`en`) をサポート
-- ユーザーの選択は `localStorage` に保存
+🔴 **画面から言語を切り替える道は無い。** `locale` は **`ja` 固定**で、
+`localStorage` に `ja` 以外が残っていれば**消す**（`app/i18n/context.tsx:26-28`）。
+`setLocale` は残っているが、本体コードから呼ぶ側が1つも無い。
+
+- ラベルは `app/i18n/labels.ts` に日英とも在る（英語側は画面に出ない）
 - `LocaleProvider` → `useLocale()` Hook でアプリ全体に配布
-- ラベルは `app/i18n/labels.ts` で一元管理
+- `locale === "en"` の分岐がコード中に約400か所あるが、**どれも到達しない**
+- 同じ理由で `og:locale:alternate`・hreflang・写真ページの隠し英語文は
+  **撤去済み**（英語版が在ると名乗らないため）
 
-### お気に入り・閲覧履歴
+### お気に入り
 
-- `localStorage` に保存（サーバー不要）
-- `lib/hooks/useFavorites.ts` / `lib/hooks/useViewHistory.ts` で管理
+- `localStorage` に保存（サーバー不要）。`lib/hooks/useFavorites.ts`
+- **閲覧履歴の仕組みは無い**（`useViewHistory` も `/history` も実在しない。
+  以前ここに書いてあったが、コードを grep して0件だった）
+- ⚠️ 一覧のハートは**この端末の `localStorage`**、写真ページのハートは
+  **サーバー優先**（`usePhotoLikes`）。未ログインで押してからログインすると
+  一覧は赤・開くと空、という食い違いが出る（承知のうえで残している）
 
 ### ログ
 
