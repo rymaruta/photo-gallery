@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const mockDdbSend = vi.hoisted(() => vi.fn());
 const mockRebuild = vi.hoisted(() => vi.fn());
@@ -9,6 +9,11 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRebuild }));
+// S3 の削除とエッジの無効化は境界としてモックする（実体は `s3Delete` 側）
+// 引数の型を書く。`vi.fn(async () => …)` だと引数ゼロのタプルに推論され、
+// `mock.calls[0][0]` が型エラーになる（基準より型エラーを増やさない）
+const mockS3DeleteMany = vi.hoisted(() => vi.fn(async (keys: string[]) => { void keys; }));
+vi.mock("../s3Delete", () => ({ s3DeleteMany: (keys: string[]) => mockS3DeleteMany(keys) }));
 // アルバムへの出し入れは境界としてモックする（実体は `albums.test.ts`）
 const mockAddToAlbum = vi.hoisted(() => vi.fn(async () => undefined));
 const mockRemoveFromAlbum = vi.hoisted(() => vi.fn(async () => undefined));
@@ -20,6 +25,10 @@ vi.mock("../albums", () => ({
 }));
 
 import { updatePhotoVisibility, isValidYouTubeUrl } from "../photoUpdate";
+
+const CDN = "https://d15fn3rcaiymu9.cloudfront.net";
+const UID = "11111111-2222-4333-8444-555555555555";
+const mine = (p: string) => `${CDN}/uploads/${UID}/${p}`;
 
 type LambdaResult = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,7 +48,11 @@ beforeEach(() => {
     mockAddToAlbum.mockReset().mockResolvedValue(undefined);
     mockRemoveFromAlbum.mockReset().mockResolvedValue(undefined);
     mockIsAlbumMember.mockReset().mockResolvedValue(true);
+    mockS3DeleteMany.mockReset().mockResolvedValue(undefined);
+    vi.stubEnv("CLOUDFRONT_URL", CDN);
 });
+
+afterEach(() => { vi.unstubAllEnvs(); });
 
 describe("updatePhotoVisibility", () => {
     it("id なしは 400", async () => {
@@ -961,5 +974,220 @@ describe("公開に切り替えたら、共同アルバムに入れる", () => {
         world({ published: false, albumId: "a1" });
         await invoke(event("u1", "p1", { published: true }));
         expect(mockIsAlbumMember).toHaveBeenCalledWith("a1", "u1");
+    });
+});
+
+/**
+ * **写真の差し替え**（消して投稿し直さずに実体だけ入れ替える）。
+ *
+ * 純関数の側は `photoReplace.test.ts` が見る。ここで見るのは**配線**
+ * ——この口に届いているか、古い実体を消すか、作り直しを頼むか。
+ */
+describe("写真の差し替え", () => {
+    const old = {
+        id: "p1", userId: UID, published: true,
+        src: mine("old.webp"), thumbSrc: mine("old_thumb.webp"),
+        srcAvif: mine("old.avif"), thumbAvif: mine("old_t.avif"), width: 100, height: 50,
+    };
+    const replace = { key: `uploads/${UID}/new.webp`, publicUrl: mine("new.webp") };
+    const lastUpdate = () => (mockDdbSend.mock.calls[1][0] as {
+        input: { UpdateExpression: string; ExpressionAttributeValues: Record<string, unknown> };
+    }).input;
+
+    /**
+     * 🔴 **この関門に足し忘れると、差し替えだけの保存が 400 で断られる。**
+     * `META_KEYS` のコメントが名指しで警告している罠で、実際に踏んだ。
+     */
+    it("差し替えだけの本文でも受け付ける（更新項目がありません、にしない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: old }).mockResolvedValueOnce({});
+        const res = await invoke(event(UID, "p1", { replace }));
+        expect(res.statusCode, `断られた: ${res.body}`).toBe(200);
+    });
+
+    it("src を新しい実体に差し替える", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: old }).mockResolvedValueOnce({});
+        await invoke(event(UID, "p1", { replace }));
+        const u = lastUpdate();
+        expect(u.ExpressionAttributeValues[":r_src"]).toBe(mine("new.webp"));
+    });
+
+    /** 残すと **AVIF を出す端末にだけ古い写真が出続ける** */
+    it("ビルドが作る派生を消す（次のビルドで作り直させる）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: old }).mockResolvedValueOnce({});
+        await invoke(event(UID, "p1", { replace }));
+        const expr = lastUpdate().UpdateExpression;
+        for (const f of ["srcAvif", "thumbAvif", "thumbSmAvif", "thumbSm", "width", "height", "aspectRatio"]) {
+            expect(expr, `${f} が残る（古い写真が出る）`).toMatch(new RegExp(`REMOVE[^]*#${f}`));
+        }
+    });
+
+    it("差し替え前の実体を消す（新しい鍵は消さない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: old }).mockResolvedValueOnce({});
+        await invoke(event(UID, "p1", { replace }));
+        expect(mockS3DeleteMany, "古い実体が S3 に残る").toHaveBeenCalledTimes(1);
+        const keys = mockS3DeleteMany.mock.calls[0][0];
+        expect(keys, "差し替え前の実体を消していない").toContain(`uploads/${UID}/old.webp`);
+        expect(keys, "**いま差し替えた実体を消している**").not.toContain(`uploads/${UID}/new.webp`);
+    });
+
+    /**
+     * 🔴 **再送で写真が割れないこと。**
+     *
+     * 保存は届いたのに応答を取り逃して押し直した回、行は**もう新しい実体**を
+     * 指している。そこで「古い実体」を素朴に集めると、**差し替えたばかりの
+     * ものを消す**——写真ページが割れ、元に戻す手段が無い。
+     * `savePhoto` が同じ形の再送を一度踏んでいる。
+     */
+    it("再送しても、いま指している実体は消さない", async () => {
+        // **1回目が通ったあとの本物の姿。** 派生は1回目の更新で REMOVE 済み
+        // ——ここを `...old` で作ると AVIF が残り、「消す対象が他にある」ので
+        // 肝心の判定（**何も消さない**）が空振りする
+        const after = {
+            id: "p1", userId: UID, published: true,
+            src: mine("new.webp"),
+            thumbSrc: mine("new_thumb.webp"),
+        };
+        mockDdbSend.mockResolvedValueOnce({ Item: after }).mockResolvedValueOnce({});
+        const res = await invoke(event(UID, "p1", {
+            replace: { ...replace, thumbUrl: mine("new_thumb.webp") },
+        }));
+        expect(res.statusCode).toBe(200);
+        // **何も消さないのが正解。** 行が指しているのは全部「これから指す値」
+        // ——ここで1つでも消すと、差し替えたばかりの実体が消えて写真が割れる
+        const keys = mockS3DeleteMany.mock.calls.flatMap((c) => c[0]);
+        expect(keys, "**差し替えたばかりの実体を消している**").not.toContain(`uploads/${UID}/new.webp`);
+        expect(keys, "**差し替えたばかりのサムネを消している**").not.toContain(`uploads/${UID}/new_thumb.webp`);
+        expect(keys, "消すものが無いのに消しにいっている").toEqual([]);
+    });
+
+    /**
+     * 🔴 **消すのは行を書き換えたあと。** 逆だと、更新が落ちたときに
+     * **行が存在しない実体を指す**（写真ページが割れ、戻す手段が無い）。
+     * コミットではこれを判断として書いたのに、順序を見るテストが無かった
+     * ——`s3DeleteMany` を `UpdateCommand` の前へ動かしても全部緑だった。
+     */
+    it("古い実体を消すのは、行を書き換えたあと", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: old }).mockResolvedValueOnce({});
+        await invoke(event(UID, "p1", { replace }));
+        const updateOrder = mockDdbSend.mock.invocationCallOrder[1];
+        const deleteOrder = mockS3DeleteMany.mock.invocationCallOrder[0];
+        expect(deleteOrder, "行を書き換える前に消している（落ちたら写真が割れる）").toBeGreaterThan(updateOrder);
+    });
+
+    /**
+     * 🔴 **依頼が畳まれた回に黙らない。**
+     * 古い実体はエッジごと消えるので、静的ページの写真は**割れて出る**。
+     * 次のビルドまで放置されるのに、行にも応答にも痕跡が無かった。
+     */
+    it("作り直しを頼めなかったら、ページが古いと伝える", async () => {
+        mockRebuild.mockResolvedValueOnce(false);
+        mockDdbSend.mockResolvedValueOnce({ Item: old }).mockResolvedValueOnce({});
+        const res = await invoke(event(UID, "p1", { replace }));
+        expect(JSON.parse(res.body).staticOutdated, "黙って古いページを残している").toBe(true);
+    });
+
+    it("頼めたときは余計なことを言わない", async () => {
+        mockRebuild.mockResolvedValueOnce(true);
+        mockDdbSend.mockResolvedValueOnce({ Item: old }).mockResolvedValueOnce({});
+        const res = await invoke(event(UID, "p1", { replace }));
+        expect(JSON.parse(res.body).staticOutdated).toBeUndefined();
+    });
+
+    it("消せなくても差し替えは成功する（残るのは孤児だけ）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: old }).mockResolvedValueOnce({});
+        mockS3DeleteMany.mockRejectedValueOnce(new Error("boom"));
+        const res = await invoke(event(UID, "p1", { replace }));
+        expect(res.statusCode).toBe(200);
+    });
+
+    it("静的ページの作り直しを頼む（src が焼かれている）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: old }).mockResolvedValueOnce({});
+        await invoke(event(UID, "p1", { replace }));
+        expect(mockRebuild, "古い写真が /photo/<id> に残る").toHaveBeenCalled();
+    });
+
+    /**
+     * 🔴 **同じ属性が SET と REMOVE の両方に出ると、DynamoDB が式ごと拒否する**
+     * （"Two document paths overlap with each other"）＝ **500**。
+     *
+     * `sets` / `removes` は重複を畳まないので、入口が増えるたびに起きうる。
+     * **1つずつ名指しで見ない**——次に入口が増えたときに拾えない。
+     * **組み上がった式に同じ属性が二度出ていないこと**を見る。
+     */
+    const attrsOf = (expr: string) => {
+        const setPart = /SET ([^]*?)(?: REMOVE |$)/.exec(expr)?.[1] ?? "";
+        const remPart = /REMOVE ([^]*)$/.exec(expr)?.[1] ?? "";
+        const names = (part: string) => [...part.matchAll(/#(\w+)/g)].map((m) => m[1]);
+        return [...names(setPart), ...names(remPart)];
+    };
+
+    it("判定器の自己確認: 重なりを見分ける", () => {
+        expect(attrsOf("SET #a = :a REMOVE #b").filter((v, i, xs) => xs.indexOf(v) !== i)).toEqual([]);
+        expect(attrsOf("SET #a = :a REMOVE #a")).toEqual(["a", "a"]);
+        expect(attrsOf("SET #a = :x, #a = :y")).toEqual(["a", "a"]);
+    });
+
+    it.each([
+        ["差し替えだけ", {}],
+        ["＋撮影地の変更（geoApprox の写真）", { location: "ロンドン" }],
+        ["＋撮影日を打った", { date: "2020-01-02" }],
+        ["＋座標を打った", { coords: { lat: 1, lng: 2 } }],
+        ["＋座標を消した", { coords: null }],
+        ["＋タイトルと公開", { title: "あ", published: true }],
+    ])("同じ属性を二度書かない: %s", async (_name, extra) => {
+        // `geoApprox: true` は `geocode-locations` が座標を補った写真の形。
+        // 実データに相当数あり、**いちばん踏みやすい**
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...old, geoApprox: true, coords: { lat: 48.8, lng: 2.3 }, location: "パリ" } }).mockResolvedValueOnce({});
+        const res = await invoke(event(UID, "p1", {
+            replace: { ...replace, date: "2024-11-01", coords: { lat: 35.6, lng: 139.7 } },
+            ...extra,
+        }));
+        expect(res.statusCode, `断られた: ${res.body}`).toBe(200);
+        const attrs = attrsOf(lastUpdate().UpdateExpression);
+        const dup = attrs.filter((v, i, xs) => xs.indexOf(v) !== i);
+        expect(dup, `同じ属性を二度書いている（DynamoDB が式ごと拒否する）: ${dup.join(", ")}`).toEqual([]);
+    });
+
+    /** 明示的に打った値が、写真から読めた値より優先 */
+    it("自分で打った撮影日は、写真の EXIF に上書きされない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: old }).mockResolvedValueOnce({});
+        await invoke(event(UID, "p1", { replace: { ...replace, date: "2024-11-01" }, date: "2020-01-02" }));
+        const v = lastUpdate().ExpressionAttributeValues;
+        expect(v[":date"], "打った日付が消えている").toBe("2020-01-02");
+        expect(v[":r_date"], "写真の EXIF が勝っている").toBeUndefined();
+    });
+
+    /**
+     * 🔴 **差し替えは3つ目の「正確な座標を書く口」。**
+     * 印が残ると、座標は新しい写真のものなのに
+     * **地図リンクも JSON-LD の geo も出なくなる**
+     */
+    it("差し替えで座標が入ったら、「おおよそ」の印を下ろす", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...old, geoApprox: true, coords: { lat: 48.8, lng: 2.3 } } }).mockResolvedValueOnce({});
+        await invoke(event(UID, "p1", { replace: { ...replace, coords: { lat: 35.6, lng: 139.7 } } }));
+        const expr = lastUpdate().UpdateExpression;
+        expect(expr, "印が残る（地図リンクも geo も出ない）").toMatch(/REMOVE[^]*#geoApprox/);
+    });
+
+    it("読めない撮影日の差し替えは断る（無言で不発にしない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: old });
+        const res = await invoke(event(UID, "p1", { replace: { ...replace, date: "1985-06-01" } }));
+        expect(res.statusCode, "黙って落としている").toBe(400);
+    });
+
+    it("他人のアップロード領域は断る（相手の実体が消える）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: old }).mockResolvedValueOnce({});
+        const other = "99999999-8888-4777-8666-555555555555";
+        const res = await invoke(event(UID, "p1", {
+            replace: { key: `uploads/${other}/x.webp`, publicUrl: `${CDN}/uploads/${other}/x.webp` },
+        }));
+        expect(res.statusCode).toBe(400);
+        expect(mockS3DeleteMany, "断ったのに消しにいっている").not.toHaveBeenCalled();
+    });
+
+    it("他人の写真は差し替えられない（所有権は既存の判定が効く）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...old, userId: "someone-else" } });
+        const res = await invoke(event(UID, "p1", { replace }));
+        expect(res.statusCode).toBe(403);
     });
 });
