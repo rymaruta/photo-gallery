@@ -362,34 +362,6 @@ describe("HeaderNav - 撮影地マップ", () => {
     });
 });
 
-// タイムライン（フォローしている人の写真が投稿順に流れる面）。
-// **フォローに投稿権限は要らない**ので、グループの無い人にも出す
-// （共同アルバムとは条件が違う——行き先が `useMemberGate` を通らない）
-describe("HeaderNav - タイムライン", () => {
-    it("ログイン中は出て、/timeline へ移動する", async () => {
-        setRole("general");
-        render(<HeaderNav />);
-        await openMenu();
-        expect(menuItems()).toContain("Timeline");
-        fireEvent.click(screen.getByRole("button", { name: "Timeline" }));
-        expect(mockPush).toHaveBeenCalledWith("/timeline");
-    });
-
-    it("未ログインには出さない（行き先がログイン待ちの画面になる）", async () => {
-        setRole("anonymous");
-        render(<HeaderNav />);
-        await openMenu();
-        expect(menuItems()).not.toContain("Timeline");
-    });
-
-    it("グループの無いログイン済みの人にも出す", async () => {
-        authState.current = { isAuthenticated: true, isAdminUser: false, isGeneralUser: false, userId: "user-1", loading: false, logout: vi.fn() };
-        render(<HeaderNav />);
-        await openMenu();
-        expect(menuItems(), "フォローはできるのに導線が無い").toContain("Timeline");
-    });
-});
-
 // 共同アルバム（案C）は**招待リンクを配る側の画面**なので、ログイン中だけ。
 // 未ログインに出すと、押した先が会員限定の案内になる（行き先の無い項目）。
 describe("HeaderNav - 共同アルバム", () => {
