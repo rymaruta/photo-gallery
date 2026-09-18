@@ -2,7 +2,7 @@ import type { Photo } from "@/lib/data/photos";
 import { comparePosted } from "./photoOrder";
 
 /**
- * タイムライン（`/timeline`）に流す写真。
+ * マイページの「フォロー中」タブ（`TimelineFeed`）に流す写真。
  *
  * owner の「今だと自分のとフォローしてる人の混ざってるみたいな感じになって
  * しまう。インスタみたいに投稿タブがあって、そこにタイムラインで流れてくる

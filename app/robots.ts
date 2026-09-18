@@ -19,8 +19,7 @@ export default function robots(): MetadataRoute.Robots {
             // `/j` は共同アルバムの招待。**私的なリンク**なので、
             // クロールさせない（ページ自体も noindex だが、そもそも
             // 取りに来させない方が確実）
-            // `/timeline` はログインした人だけの面（`/favorites` と同じ扱い）
-            disallow: ["/api/", "/admin", "/user/", "/login", "/signup", "/favorites", "/timeline", "/history", "/j"],
+            disallow: ["/api/", "/admin", "/user/", "/login", "/signup", "/favorites", "/history", "/j"],
         },
         sitemap: [
             `${siteConfig.url}/sitemap.xml`,

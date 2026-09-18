@@ -55,7 +55,6 @@ export function hasPhotoPage(id: string): boolean {
 export const ROUTES = {
     HOME: "/",
     FAVORITES: "/favorites",
-    TIMELINE: "/timeline",
     MAP: "/map",
     PRIVACY: "/privacy",
     TERMS: "/terms",

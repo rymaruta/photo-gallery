@@ -7,7 +7,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 //  - 通知や共有リンクから開いた `?photo=` が**永久に開かず、理由も出ない**
 //    （3秒・10秒・30秒とも モーダルもトーストも無し）
 //  - 「フォロー中」が**完全な空白**（読み込み中とも失敗とも分からない）
-//    → いまは別の面 `/timeline` に移った。守りは `timelinePage.test.tsx`
+//    → いまはマイページの「フォロー中」タブに移った。守りは `TimelineFeed.test.tsx`
 
 const showToast = vi.hoisted(() => vi.fn());
 vi.mock("../../lib/hooks/useToast", () => ({
