@@ -13,9 +13,7 @@ import { GRID_SIZES_5XL } from "./components/gridSizes";
 import GalleryModal from "./components/GalleryModal";
 import SearchParamWatcher from "./components/SearchParamWatcher";
 import { usePhotos } from "../lib/hooks/usePhotos";
-import { useAuth } from "./auth/context";
 import { useToast } from "../lib/hooks/useToast";
-import FeedTabs from "./components/FeedTabs";
 
 // フィルタバーに出すタグ数の上限（枚数の多い順）。残りは検索で辿る
 const POPULAR_TAG_LIMIT = 10;
@@ -24,7 +22,6 @@ export default function GalleryPageClient() {
   const { locale, labels } = useLocale();
   const { showToast } = useToast();
   const { photos, loaded: photosLoaded, failed: photosFailed } = usePhotos();
-  const { isAuthenticated } = useAuth();
 
   const {
     PHOTOS,
@@ -322,10 +319,9 @@ export default function GalleryPageClient() {
         </div>
       </div>
 
-      {/* すべて / フォロー中（ログイン時のみ）。**「フォロー中」は別の面（`/timeline`）へ。**
-          以前はこの一覧に掛けるふるいで、出るのはサムネのグリッド＝誰の写真か
-          見えなかった（owner の「混ざってる」）。あちらは投稿者つきのカードが投稿順に流れる */}
-      {isAuthenticated && <FeedTabs active="all" locale={locale} className="mb-3" />}
+      {/* 「フォロー中」の入口はここに置かない——owner の判断で、トップは
+          みんなの写真、フォローした人の写真はマイページの「フォロー中」タブ。
+          以前あったピル（すべて／フォロー中）と `feed` のふるいは撤去した */}
 
       {/* ストーリー（24時間で消える投稿） */}
       <StoriesBar />

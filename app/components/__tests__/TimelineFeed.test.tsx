@@ -3,30 +3,31 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 
 /**
- * `/timeline` — フォローしている人の写真が投稿順に流れる面。
+ * `TimelineFeed` — フォローしている人の写真が投稿順に流れる面（マイページの「フォロー中」タブ）。
  *
  * 見ているのは**状態の出し分け**（まだ／未ログイン／失敗／0人／0枚／並ぶ）と、
  * 共有のフォロー一覧が変わったら取り直すこと。中身の決め方は
  * `lib/utils/__tests__/timeline.test.ts`。
  */
 const authState = vi.hoisted(() => ({ current: { isAuthenticated: true, userId: "me", loading: false } }));
-vi.mock("../auth/context", () => ({ useAuth: () => authState.current }));
-vi.mock("../i18n/context", () => ({ useLocale: () => ({ locale: "ja", labels: {} }) }));
+vi.mock("../../auth/context", () => ({ useAuth: () => authState.current }));
+vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "ja", labels: {} }) }));
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 const photosState = vi.hoisted(() => ({ current: { photos: [] as unknown[], loading: false, loaded: true, failed: false } }));
-vi.mock("../../lib/hooks/usePhotos", () => ({ usePhotos: () => photosState.current }));
+vi.mock("../../../lib/hooks/usePhotos", () => ({ usePhotos: () => photosState.current }));
 
 const follow = vi.hoisted(() => ({
     fetch: vi.fn<() => Promise<Set<string>>>(),
     listeners: new Set<() => void>(),
 }));
-vi.mock("../../lib/hooks/useFollow", () => ({
+vi.mock("../../../lib/hooks/useFollow", () => ({
     fetchFollowingSet: () => follow.fetch(),
     subscribeFollowingSet: (fn: () => void) => { follow.listeners.add(fn); return () => follow.listeners.delete(fn); },
 }));
 
-const TimelinePage = (await import("../timeline/page")).default;
+const TimelineFeed = (await import("../TimelineFeed")).default;
+const TimelinePage = () => <TimelineFeed locale="ja" />;
 
 const PHOTOS = [
     { id: "a-new", src: "https://cdn/a-new.jpg", userId: "A", displayName: "Aさん", title: "新しい方", createdAt: "2026-09-10T10:00:00", date: "2019-01-01" },
@@ -44,7 +45,7 @@ beforeEach(() => {
     follow.listeners.clear();
 });
 
-describe("/timeline", () => {
+describe("TimelineFeed", () => {
     it("フォローしている人の写真だけが、投稿の新しい順に並ぶ（自分のは混ざらない）", async () => {
         follow.fetch.mockResolvedValue(new Set(["A"]));
         render(<TimelinePage />);
@@ -57,10 +58,6 @@ describe("/timeline", () => {
         // 写真ページへ（先読みはしない）
         const link = document.querySelector('[data-photo-id="a-new"]') as HTMLAnchorElement;
         expect(link.getAttribute("href")).toMatch(/a-new/);
-        // トップと同じピルで行き来できる（こちらが選択中・「すべて」は一覧へ）
-        expect(screen.getByRole("link", { name: "すべて" }).getAttribute("href")).toBe("/");
-        expect(screen.queryByRole("link", { name: "フォロー中" }), "選択中のタブがリンク").toBeNull();
-        expect(screen.getByText("フォロー中")).toHaveAttribute("aria-current", "page");
     });
 
     // 🔴 レビューが発見: `createdAt` は UTC の瞬間なのに、書かれた数字をそのまま出す
@@ -88,10 +85,9 @@ describe("/timeline", () => {
         follow.fetch.mockResolvedValue(new Set(["A"]));
         render(<TimelinePage />);
         const login = screen.getByRole("link", { name: "ログイン" });
-        expect(login.getAttribute("href")).toBe("/login?next=%2Ftimeline");
+        expect(login.getAttribute("href")).toMatch(/^\/login\?next=/);
         expect(follow.fetch, "未ログインなのに一覧を取りに行っている").not.toHaveBeenCalled();
         expect(cardIds()).toEqual([]);
-        expect(screen.queryByRole("link", { name: "すべて" }), "未ログインにピルを出している").toBeNull();
     });
 
     it("判定中は「読み込み中」だけ（0人とも未ログインとも言わない）", () => {

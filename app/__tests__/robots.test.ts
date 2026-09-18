@@ -163,12 +163,3 @@ describe("共同アルバムの招待", () => {
     });
 });
 
-// **タイムラインはログインした人だけの面。** `/favorites` と同じく
-// noindex に加えて取りに来させない
-describe("タイムライン", () => {
-    it("/timeline をクロール対象から外す", async () => {
-        const r = await robotsFor("prod");
-        const disallow = [(r.rules as { disallow?: string | string[] }).disallow ?? []].flat();
-        expect(disallow).toContain("/timeline");
-    });
-});
