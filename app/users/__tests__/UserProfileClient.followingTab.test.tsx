@@ -39,10 +39,13 @@ vi.mock("../../data/photos.json", () => ({ default: [] }));
 vi.mock("../../components/TimelineFeed", () => ({ default: () => <div data-testid="timeline-feed" /> }));
 
 const OWNER = "33333333-3333-4333-8333-333333333333";
+const OTHER = "44444444-4444-4444-8444-444444444444";
 import UserProfileClient from "../UserProfileClient";
 
-const asOwner = () =>
-    mockGetCurrentSession.mockResolvedValue({ getIdToken: () => ({ payload: { sub: OWNER } }) });
+const asUser = (sub: string) =>
+    mockGetCurrentSession.mockResolvedValue({ getIdToken: () => ({ payload: { sub } }) });
+const asOwner = () => asUser(OWNER);
+const tabBar = () => document.querySelector("button[data-profile-tab]")?.parentElement;
 
 const tabNames = () =>
     Array.from(document.querySelectorAll("button[data-profile-tab]")).map((b) => b.textContent?.trim());
@@ -69,6 +72,8 @@ describe("マイページの「フォロー中」タブ", () => {
         render(<UserProfileClient userId={OWNER} />);
         const tab = await screen.findByRole("button", { name: /フォロー中/ });
         expect(tabNames()).toEqual(["投稿", "年表", "フォロー中"]);
+        // 3つ目が2段目に落ちない（列の指定も本人のときだけ3に）
+        expect(tabBar()?.className).toContain("grid-cols-3");
         expect(activeTab(), "既定が自分の写真でない").toBe("posts");
         expect(screen.queryByTestId("timeline-feed"), "押す前から描いている").toBeNull();
         fireEvent.click(tab);
@@ -80,9 +85,23 @@ describe("マイページの「フォロー中」タブ", () => {
         render(<UserProfileClient userId={OWNER} />);
         await waitFor(() => expect(mockUserPublicFetch).toHaveBeenCalled());
         expect(tabNames()).toEqual(["投稿", "年表"]);
+        expect(tabBar()?.className).toContain("grid-cols-2");
         swipe("left"); swipe("left");
         expect(activeTab()).toBe("timeline");
         expect(screen.queryByTestId("timeline-feed"), "訪問者にフォロー中を描いている").toBeNull();
+    });
+
+    // **ログインしていても他人には出さない**——「本人か」は `isOwner`（sub の一致）で
+    // 決める。`viewerAuthed`（ログイン済みか）で決めると、誰のページでも出る
+    it("ログイン済みの他人のページには出ない", async () => {
+        asUser(OTHER);
+        render(<UserProfileClient userId={OWNER} />);
+        await waitFor(() => expect(mockUserPublicFetch).toHaveBeenCalled());
+        // セッションの反映を待つ（フォローボタンが出る＝ログイン済みとして描かれた）
+        await screen.findByRole("button", { name: /フォロー/ });
+        expect(tabNames(), "他人のフォロー先を、その人のページで見せている").toEqual(["投稿", "年表"]);
+        swipe("left"); swipe("left");
+        expect(activeTab()).toBe("timeline");
     });
 
     it("本人はスワイプでも フォロー中 に届く（投稿 → 年表 → フォロー中）", async () => {

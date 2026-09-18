@@ -681,9 +681,10 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     );
 
     const [tab, setTab] = useState<TabKey>("posts");
+    // `isOwner` は false → true にしか動かず（`setIsOwner(true)` の1か所だけ）、
+    // 人が変わればページごと作り直す（`[id]/page.tsx` の `key`）ので、
+    // 「本人でなくなって following が宙に浮く」経路は無い。落とし先は置かない
     const tabOrder = isOwner ? OWNER_TAB_ORDER : TAB_ORDER;
-    // ログアウト等で本人でなくなったら、本人だけのタブは投稿に落とす
-    const shownTab: TabKey = tabOrder.includes(tab) ? tab : "posts";
     const [shareOpen, setShareOpen] = useState(false);
     /** ブロック中かどうか（この画面から押した結果だけを持つ。開いた時点では引かない） */
     const [blocked, setBlocked] = useState(false);
@@ -779,7 +780,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     const [mvOpen, setMvOpen] = useState(false);
 
 
-    // タブを横スワイプで切り替え（投稿 ⇄ 足あと ⇄ 年表）。
+    // タブを横スワイプで切り替え（投稿 ⇄ 年表 ⇄ フォロー中〈本人だけ〉）。
     // Pointer Events で PC(マウス)・スマホ(タッチ)・ペンを一本化。
     // touch-action: pan-y を併用し、縦スクロールは残しつつ横ジェスチャを JS が拾う。
     const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -1485,7 +1486,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                 </div>
             </div>
 
-            {/* コンテンツ（黒背景）: 投稿 / 足あとマップ / タイムライン */}
+            {/* コンテンツ（黒背景）: 投稿 / 年表 / フォロー中（本人だけ） */}
             <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
                 {/* タブバー */}
                 <div className={`grid ${tabOrder.length === 3 ? "grid-cols-3" : "grid-cols-2"} border-t border-white/10 mb-1`}>
@@ -1494,7 +1495,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         { key: "timeline", icon: CalendarDaysIcon, label: locale === "en" ? "Timeline" : "年表" },
                         { key: "following", icon: UsersIcon, label: locale === "en" ? "Following" : "フォロー中" },
                     ] as const).filter(({ key }) => (tabOrder as string[]).includes(key)).map(({ key, icon: Icon, label }) => {
-                        const active = shownTab === key;
+                        const active = tab === key;
                         return (
                             <button
                                 key={key}
@@ -1523,7 +1524,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     style={{ touchAction: "pan-y" }}
                 >
                 {/* 投稿タブ */}
-                {shownTab === "posts" && (
+                {tab === "posts" && (
                     // 分かるまでは何も出さない。**待っている間に「無い」と
                     // 言わない**（言ってしまうと、写真がある人のページでも
                     // 空の案内が一瞬出る）
@@ -1560,7 +1561,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
 
                 {/* 旅アルバムタブ: 撮影日から自動生成される旅ごとのアルバム */}
                 {/* 年表タブ */}
-                {shownTab === "timeline" && (
+                {tab === "timeline" && (
                     <div className="pb-8 pt-2">
                         {timeline.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-24 text-white/50 gap-3">
@@ -1592,9 +1593,9 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                 )}
 
                 {/* フォロー中タブ（本人だけ）: フォローした人の写真が投稿順に流れる。
-                    `shownTab` が following になるのは `tabOrder` に在るとき＝本人のときだけ
+                    `tab` が following になるのは `tabOrder` に在るとき＝本人のときだけ
                     なので、ここで `isOwner` を重ねない（二重の守りは変異で観測できない） */}
-                {shownTab === "following" && (
+                {tab === "following" && (
                     <div className="pb-8 pt-2 max-w-xl mx-auto">
                         <TimelineFeed locale={locale} />
                     </div>
