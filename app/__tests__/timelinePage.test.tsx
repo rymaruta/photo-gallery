@@ -59,7 +59,28 @@ describe("/timeline", () => {
         expect(link.getAttribute("href")).toMatch(/a-new/);
         // トップと同じピルで行き来できる（こちらが選択中・「すべて」は一覧へ）
         expect(screen.getByRole("link", { name: "すべて" }).getAttribute("href")).toBe("/");
-        expect(screen.getByRole("link", { name: "フォロー中" })).toHaveAttribute("aria-current", "page");
+        expect(screen.queryByRole("link", { name: "フォロー中" }), "選択中のタブがリンク").toBeNull();
+        expect(screen.getByText("フォロー中")).toHaveAttribute("aria-current", "page");
+    });
+
+    // 🔴 レビューが発見: `createdAt` は UTC の瞬間なのに、書かれた数字をそのまま出す
+    // `formatStoredDateTime` に通していた（JST では9時間前・深夜は前日）。
+    // 相対表記なら閲覧者のゾーンで正しい。**撮影日ではなく上げた日**で数える
+    it("上げた日を相対で出す（撮影日ではない・ゾーンに依らない）", async () => {
+        vi.useFakeTimers({ now: new Date("2026-09-13T10:00:00Z"), toFake: ["Date"] });
+        try {
+            follow.fetch.mockResolvedValue(new Set(["A"]));
+            render(<TimelinePage />);
+            await waitFor(() => expect(cardIds()).toEqual(["a-new", "a-old"]));
+            const times = Array.from(document.querySelectorAll("time")).map((t) => [t.getAttribute("dateTime"), t.textContent]);
+            // a-new: 上げたのは 09-10（撮影は 2019）→ 3日前。a-old: 上げたのは 09-01（撮影 09-09）→ 12日前
+            expect(times).toEqual([
+                ["2026-09-10T10:00:00", "3日前"],
+                ["2026-09-01T10:00:00", "12日前"],
+            ]);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it("未ログインは送り返さず、ログインへの導線を出す", () => {
@@ -86,6 +107,16 @@ describe("/timeline", () => {
         render(<TimelinePage />);
         expect(await screen.findByText("まだ誰もフォローしていません。")).toBeInTheDocument();
         expect(screen.getByRole("link", { name: "ユーザーを探す" }).getAttribute("href")).toBe("/users/search");
+    });
+
+    // **0人の答えは確定しているので、写真を待たない**（待つと0人の人にだけ
+    // 無意味な「読み込み中…」が出る。トップから移した守り）
+    it("フォローが0人なら、写真の一覧を待たずに案内を出す", async () => {
+        photosState.current = { photos: [], loading: true, loaded: false, failed: false };
+        follow.fetch.mockResolvedValue(new Set());
+        render(<TimelinePage />);
+        expect(await screen.findByText("まだ誰もフォローしていません。")).toBeInTheDocument();
+        expect(screen.queryByRole("status")).toBeNull();
     });
 
     // **取得中に「0人」と言わない**（トップのフォロー中フィードが踏んだ穴）
@@ -136,5 +167,17 @@ describe("/timeline", () => {
         await waitFor(() => expect(cardIds()).toEqual(["a-new", "b1", "a-old"]));
         act(() => { follow.listeners.forEach((fn) => fn()); });
         await waitFor(() => expect(cardIds()).toEqual(["b1"]));
+    });
+
+    // 取り直している間、前の集合でも空集合でも描かない（「0人」が一瞬復活しない。
+    // トップから移した守り）
+    it("取り直しの途中で「0人」が復活しない", async () => {
+        follow.fetch.mockResolvedValueOnce(new Set(["A"])).mockReturnValueOnce(new Promise(() => {}));
+        render(<TimelinePage />);
+        await waitFor(() => expect(cardIds()).toEqual(["a-new", "a-old"]));
+        act(() => { follow.listeners.forEach((fn) => fn()); });
+        await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("読み込み中"));
+        expect(screen.queryByText("まだ誰もフォローしていません。"), "取り直し中に0人と言っている").toBeNull();
+        expect(cardIds()).toEqual([]);
     });
 });

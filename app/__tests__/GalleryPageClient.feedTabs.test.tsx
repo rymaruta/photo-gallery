@@ -46,7 +46,10 @@ describe("トップの すべて / フォロー中", () => {
         const following = screen.getByRole("link", { name: "フォロー中" });
         expect(following.getAttribute("href")).toBe("/timeline");
         expect(following).not.toHaveAttribute("aria-current");
-        expect(screen.getByRole("link", { name: "すべて" })).toHaveAttribute("aria-current", "page");
+        // **選択中の「すべて」はリンクにしない。** `/` へのリンクだと、絞り込み中に
+        // 押しても画面は作り直されず（同じルート）、絞りが残ったまま URL だけ `/` になる
+        expect(screen.queryByRole("link", { name: "すべて" }), "選択中のタブがリンク").toBeNull();
+        expect(screen.getByText("すべて")).toHaveAttribute("aria-current", "page");
         // ふるいのボタンには戻っていない
         expect(screen.queryByRole("button", { name: "フォロー中" })).toBeNull();
     });

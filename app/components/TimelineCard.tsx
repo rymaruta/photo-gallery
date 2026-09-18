@@ -6,7 +6,7 @@ import type { Photo, Locale } from "@/lib/data/photos";
 import { getLocalized } from "@/lib/data/photos";
 import { ROUTES } from "@/lib/routes";
 import { photoAltText } from "@/lib/utils/photoAlt";
-import { formatStoredDateTime } from "@/lib/utils/photoDate";
+import { timeAgo } from "@/lib/stories";
 import Thumb from "./Thumb";
 import ProfileLink from "./ProfileLink";
 import { FEED_SIZES_XL } from "./gridSizes";
@@ -28,8 +28,13 @@ type Props = {
 export default function TimelineCard({ photo, locale, priority = false }: Props) {
     const title = getLocalized(photo.title, locale) || (typeof photo.title === "string" ? photo.title : "");
     const alt = photoAltText(photo, locale);
-    // 「上げた日」。撮影日ではない（並びと同じ理由。`lib/utils/timeline.ts`）
-    const posted = formatStoredDateTime(photo.createdAt, locale);
+    // 「いつ上げたか」。撮影日ではない（並びと同じ理由。`lib/utils/timeline.ts`）。
+    // **`createdAt` は UTC の瞬間（`…Z`）**なので、書かれた数字をそのまま出す
+    // `formatStoredDateTime` に通すと JST の人には9時間前の時刻になる
+    // （実測 `2026-04-29T23:10:00Z` → 「4月29日 23:10」＝本当は 4/30 08:10。
+    // レビューが発見。写真ページが `createdAt` にフォールバックしないのも同じ理由）。
+    // ストーリー・コメントと同じ相対表記（「3日前」）なら閲覧者のゾーンで正しい
+    const posted = photo.createdAt ? timeAgo(photo.createdAt, locale === "en" ? "en" : "ja") : "";
     // 実寸があればその比で枠を予約する（読み込み後に高さが伸びて下がガタつかない）。
     // 無ければ一覧と同じ 3:2
     const ratio = photo.width && photo.height && photo.width > 0 && photo.height > 0
@@ -39,11 +44,19 @@ export default function TimelineCard({ photo, locale, priority = false }: Props)
     return (
         <article className="rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden">
             <header className="flex items-center justify-between gap-3 px-3 py-2.5">
-                {photo.userId ? (
-                    <ProfileLink userId={photo.userId} displayName={photo.displayName || "旅人"} size="sm" />
-                ) : (
-                    <span className="text-xs sm:text-sm text-white/60">{photo.displayName || "旅人"}</span>
-                )}
+                {/* **名前の箱は縮んでよい。** `ProfileLink` の中の `break-words` は
+                    フレックス行の子としての最小幅（＝空白の無い名前1語の幅）を縮めない
+                    ので、100文字の名前で `<time>` がカードの外へ押し出される（レビューが
+                    Chromium 320px で実測: 名前 999px・日付の left 1077px）。箱に `min-w-0`
+                    ＋中の名前を `overflow-wrap: anywhere` で折る。`overflow-hidden` は
+                    それでも溢れた回の最後の砦 */}
+                <div className="min-w-0 overflow-hidden [&_span]:wrap-anywhere">
+                    {photo.userId ? (
+                        <ProfileLink userId={photo.userId} displayName={photo.displayName || "旅人"} size="sm" />
+                    ) : (
+                        <span className="text-xs sm:text-sm text-white/60">{photo.displayName || "旅人"}</span>
+                    )}
+                </div>
                 {posted && (
                     <time className="text-xs text-white/50 flex-shrink-0" dateTime={photo.createdAt}>
                         {posted}

@@ -15,7 +15,10 @@ type Props = {
  *
  * 2つは**別のページ**——同じ見た目のピルを両方の頭に置いて、タブのように
  * 行き来できるようにする（owner の「インスタみたいに投稿タブがあって」）。
- * リンクなので状態は持たない。`aria-current` で今どちらかを伝える。
+ * 選択中の側は**リンクにしない**（`<span aria-current="page">`）。トップで絞り込み中に
+ * 「すべて」を `/` へのリンクにすると、同じルートへの遷移で画面が作り直されず
+ * **絞りは残ったまま URL だけ `/` になる**（`GalleryPageClient` が同じ理屈を
+ * `?photo=` について書いている。レビューが指摘）。押す意味のある側だけリンク。
  */
 export default function FeedTabs({ active, locale, className = "" }: Props) {
     const isJa = locale !== "en";
@@ -29,15 +32,16 @@ export default function FeedTabs({ active, locale, className = "" }: Props) {
             aria-label={isJa ? "表示する写真" : "Which photos to show"}
             className={`inline-flex items-center gap-1 p-1 rounded-full bg-white/5 ring-1 ring-white/10 ${className}`}
         >
-            {tabs.map((t) => (
+            {tabs.map((t) => active === t.key ? (
+                <span key={t.key} aria-current="page" className="px-4 py-1.5 rounded-full text-sm font-medium bg-white text-black">
+                    {t.label}
+                </span>
+            ) : (
                 <Link
                     key={t.key}
                     href={t.href}
                     prefetch={false}
-                    aria-current={active === t.key ? "page" : undefined}
-                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                        active === t.key ? "bg-white text-black" : "text-white/70 hover:text-white"
-                    }`}
+                    className="px-4 py-1.5 rounded-full text-sm font-medium transition-colors text-white/70 hover:text-white"
                     style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}
                 >
                     {t.label}

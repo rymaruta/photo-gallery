@@ -39,7 +39,14 @@ export default function TimelinePage() {
     const [reloadKey, setReloadKey] = React.useState(0);
 
     React.useEffect(() => {
-        if (authLoading || !isAuthenticated) return;
+        if (authLoading) return;
+        if (!isAuthenticated) {
+            // ログアウトしたら前の人の集合を持ち越さない（いまは未ログインの分岐が
+            // 先に勝つので見えないが、持ったままにする理由も無い）
+            setFollowing(null);
+            setFollowingError(false);
+            return;
+        }
         let aborted = false;
         setFollowingError(false);
         setFollowing(null);
