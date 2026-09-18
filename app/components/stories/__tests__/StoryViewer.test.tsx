@@ -42,6 +42,10 @@ function setup(over: Partial<React.ComponentProps<typeof StoryViewer>> = {}) {
         ...over,
     };
     render(<StoryViewer {...props} />);
+    // **絵が出たことにする。** 読み込みが済むまで時間を進めない作りになったので、
+    // 模さないと開いた直後のまま凍る（守っている規則は変わっていない）
+    const media = document.querySelector("img.story-media-in, video.story-media-in");
+    if (media) fireEvent.load(media);
     return props;
 }
 

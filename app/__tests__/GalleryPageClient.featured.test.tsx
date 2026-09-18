@@ -1,0 +1,76 @@
+import React from "react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { ja } from "../i18n/labels";
+
+/**
+ * **運営が選んだ「おすすめ」がトップに出る**（owner の要望）。
+ *
+ * まとめ方そのものは `lib/utils/__tests__/featured.test.ts` が見る。
+ * ここは**配線**——`PHOTOS` を渡しているか、絞り込み中に出していないか。
+ * 純関数だけ見ていると、画面が呼んでいない変異が素通りする。
+ */
+vi.mock("../auth/context", () => ({ useAuth: () => ({ isAuthenticated: false, userId: null, loading: false }) }));
+vi.mock("../i18n/context", () => ({
+    useLocale: () => ({ locale: "ja", labels: { ...ja, site: { title: "Gallery" } } }),
+}));
+vi.mock("../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
+vi.mock("../components/stories/StoriesBar", () => ({ default: () => null }));
+vi.mock("../components/GalleryModal", () => ({ default: () => null }));
+vi.mock("../components/SearchParamWatcher", () => ({ default: () => null }));
+vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+// グリッドは中身を見ない（カードの作りは `GalleryGrid` 自身のテストが見る）
+vi.mock("../components/GalleryGrid", () => ({ default: () => null }));
+
+const PHOTOS = [
+    { id: "f1", src: "https://cdn/a.jpg", title: "あ", category: "建物", featured: true, tags: [], createdAt: "2026-01-01" },
+    { id: "f2", src: "https://cdn/b.jpg", title: "い", category: "landscape", featured: true, tags: [], createdAt: "2026-01-02" },
+    { id: "n1", src: "https://cdn/c.jpg", title: "う", category: "landscape", tags: [], createdAt: "2026-01-03" },
+];
+const photosRef = vi.hoisted(() => ({ list: [] as unknown[] }));
+vi.mock("../../lib/hooks/usePhotos", () => ({ usePhotos: () => ({ photos: photosRef.list, loaded: true }) }));
+
+const GalleryPageClient = (await import("../GalleryPageClient")).default;
+
+beforeEach(() => { photosRef.list = PHOTOS; window.history.replaceState({}, "", "/"); });
+
+describe("トップの「おすすめ」", () => {
+    it("印の付いた写真を、カテゴリごとに出す", () => {
+        render(<GalleryPageClient />);
+        expect(screen.getByRole("heading", { name: "おすすめ" }), "節ごと出ていない").toBeInTheDocument();
+        // 別名（建物）も表を通した名前で出る
+        expect(screen.getByRole("heading", { name: "建築" })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "風景" })).toBeInTheDocument();
+    });
+
+    /** おすすめは数枚なので、もっと見たい人の行き先が無いと行き止まりになる */
+    it("そのカテゴリの全部へ行ける", () => {
+        render(<GalleryPageClient />);
+        const all = screen.getAllByRole("link", { name: "すべて見る" });
+        expect(all.length, "行き先が無い").toBeGreaterThan(0);
+        expect(all.map((a) => a.getAttribute("href")).join(" ")).toContain("/category/");
+    });
+
+    /** 空の見出しだけが残る形は「準備中」と同じ */
+    it("1枚も選ばれていなければ、何も出さない", () => {
+        photosRef.list = PHOTOS.map((p) => ({ ...p, featured: false }));
+        render(<GalleryPageClient />);
+        expect(screen.queryByRole("heading", { name: "おすすめ" }), "空の節が残っている").toBeNull();
+    });
+
+    /**
+     * 🔴 **絞り込み中は出さない。** 絞った結果の上に、絞りと関係ない写真が
+     * 並ぶと何を見ているか分からなくなる
+     */
+    it("絞り込み中は出さない", () => {
+        window.history.replaceState({}, "", "/?q=%E3%81%82");
+        render(<GalleryPageClient />);
+        expect(screen.queryByRole("heading", { name: "おすすめ" }), "絞り込みの上に無関係な写真が並ぶ").toBeNull();
+    });
+
+    it("カテゴリで絞っているときも出さない", () => {
+        window.history.replaceState({}, "", "/?category=landscape");
+        render(<GalleryPageClient />);
+        expect(screen.queryByRole("heading", { name: "おすすめ" })).toBeNull();
+    });
+});

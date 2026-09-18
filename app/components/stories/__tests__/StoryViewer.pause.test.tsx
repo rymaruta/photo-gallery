@@ -29,7 +29,27 @@ const groups = [{
 const playState = () =>
     document.querySelector<HTMLElement>(".story-progress-fill")?.style.animationPlayState;
 
-const view = () => render(
+
+/**
+ * **絵が出たことにする。**
+ *
+ * ストーリーは「読み込みが済むまで時間を進めない」ようになった
+ * （owner の「3秒目くらいまで真っ黒」への対応）。jsdom は画像を読まないので、
+ * 読み終わりを模さないと**開いた直後のまま凍る**。
+ * ここが守っているのは進む/止まるの規則で、その前提が1つ増えただけ。
+ */
+function markMediaLoaded() {
+    const el = document.querySelector("img.story-media-in, video.story-media-in");
+    if (el) fireEvent.load(el);
+}
+
+const renderThenLoad = (ui: React.ReactElement) => {
+    const r = render(ui);
+    markMediaLoaded();
+    return r;
+};
+
+const view = () => renderThenLoad(
     <StoryViewer groups={groups} initialGroupIndex={0} locale="ja" ownUserId="me" isAuthenticated onSeen={vi.fn()} onClose={vi.fn()} />,
 );
 
@@ -104,5 +124,73 @@ describe("ストーリーの自動送りを止める", () => {
         setReducedMotion(false);
         view();
         expect(playState()).toBe("running");
+    });
+});
+
+/**
+ * 🔴 owner の報告:「ストーリーが3秒目くらいまで、真っ黒になる」
+ *
+ * 原因は2つ重なっていた:
+ *   1. **ストーリーは `src` しか持たない**（写真はサムネ・下地色・ぼかしを
+ *      持つのに）ので、落とし終わるまで出せる絵が無い
+ *   2. 進捗の CSS アニメーションが**マウントで走り出す**ので、落としている
+ *      間も表示時間が減る
+ */
+describe("絵が出るまで、時間を進めない", () => {
+    it("読み込み中は止まっている", () => {
+        render(
+            <StoryViewer groups={groups} initialGroupIndex={0} locale="ja" ownUserId="me" isAuthenticated onSeen={vi.fn()} onClose={vi.fn()} />,
+        );
+        expect(playState(), "真っ黒のまま時間が減っている").toBe("paused");
+    });
+
+    it("読み込みが済んだら進む", () => {
+        render(
+            <StoryViewer groups={groups} initialGroupIndex={0} locale="ja" ownUserId="me" isAuthenticated onSeen={vi.fn()} onClose={vi.fn()} />,
+        );
+        markMediaLoaded();
+        expect(playState(), "絵が出たのに進まない").toBe("running");
+    });
+
+    it("読み込み中でも「読んでいる」と分かる（真っ黒のままにしない）", () => {
+        const { container } = render(
+            <StoryViewer groups={groups} initialGroupIndex={0} locale="ja" ownUserId="me" isAuthenticated onSeen={vi.fn()} onClose={vi.fn()} />,
+        );
+        expect(container.querySelector(".animate-spin"), "何も出ていない").toBeTruthy();
+        markMediaLoaded();
+        expect(container.querySelector(".animate-spin"), "出たあとも回り続けている").toBeNull();
+    });
+
+    /**
+     * 🔴 **控えにある画像は、React がハンドラを付ける前に読み終わっている。**
+     * `onLoad` だけに頼ると**永久に止まる**——「3秒黒い」を直して
+     * 「進まない」を作ることになる（`fa640312` / `24f9df2c` と同じ型）。
+     */
+    it("開いた時点で読み終わっていても進む（控えにある画像）", () => {
+        const proto = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "complete");
+        const nat = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "naturalWidth");
+        Object.defineProperty(HTMLImageElement.prototype, "complete", { configurable: true, get: () => true });
+        Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", { configurable: true, get: () => 1080 });
+        try {
+            render(
+                <StoryViewer groups={groups} initialGroupIndex={0} locale="ja" ownUserId="me" isAuthenticated onSeen={vi.fn()} onClose={vi.fn()} />,
+            );
+            expect(playState(), "**控えにある画像で永久に止まる**").toBe("running");
+        } finally {
+            if (proto) Object.defineProperty(HTMLImageElement.prototype, "complete", proto);
+            else delete (HTMLImageElement.prototype as unknown as Record<string, unknown>).complete;
+            if (nat) Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", nat);
+            else delete (HTMLImageElement.prototype as unknown as Record<string, unknown>).naturalWidth;
+        }
+    });
+
+    /** 出る絵が無いなら待たない（待つと押すまで動かない） */
+    it("読み込みに失敗したら、待たずに止まらない", () => {
+        const { container } = render(
+            <StoryViewer groups={groups} initialGroupIndex={0} locale="ja" ownUserId="me" isAuthenticated onSeen={vi.fn()} onClose={vi.fn()} />,
+        );
+        const img = container.querySelector("img.story-media-in")!;
+        fireEvent.error(img);
+        expect(playState(), "出る絵が無いのに待ち続けている").toBe("running");
     });
 });

@@ -557,39 +557,10 @@ describe("useGallery", () => {
                 .toBe(result.current.filteredPhotos[1].id);
         });
 
-        // **feed だけ URL に載っていなかった。** 他のフィルターは全部載るのに
-        // ここだけ落ちていたので、「フォロー中」で写真を開いて戻ると
-        // 「すべて」に戻っていた（同じ画面の中でここだけ挙動が違う）。
-        it("フォロー中も URL に載る", () => {
-            const { result } = renderHook(() => useGallery(mockPhotos));
-            act(() => { result.current.setFilters({ feed: "following" }); });
-            expect(new URLSearchParams(window.location.search).get("feed")).toBe("following");
-        });
-
-        it("すべてに戻せば URL からも消える", () => {
-            const { result } = renderHook(() => useGallery(mockPhotos));
-            act(() => { result.current.setFilters({ feed: "following" }); });
-            act(() => { result.current.setFilters({ feed: "all" }); });
-            expect(new URLSearchParams(window.location.search).get("feed")).toBeNull();
-        });
-
-        it("URL の feed を読んで復元する", () => {
-            window.history.replaceState({}, "", "/?feed=following");
-            const { result } = renderHook(() => useGallery(mockPhotos));
-            expect(result.current.filters.feed).toBe("following");
-        });
-
-        // 知らない文字列を入れられても既定のまま（総当たりで確かめている）
-        it("知らない値は無視する", () => {
-            window.history.replaceState({}, "", "/?feed=whatever");
-            const { result } = renderHook(() => useGallery(mockPhotos));
-            expect(result.current.filters.feed).toBe("all");
-        });
-
         // **開けるまで `?photo=` を落とさない。**
         // この同期は「開いている写真」しか書かないので、マウント直後に走ると
         // URL から id が消える。すぐ開ければ書き戻るが、一覧がその場に無いと
-        // （`?feed=following` のフォロー集合待ち・新着写真の API 待ち）
+        // （新着写真の API 待ち・絞り込みで外れているだけ）
         // 落ちたままになり、数百ms後に開けるようになっても id が無い
         it("まだ開けていない ?photo= は URL に残す", () => {
             window.history.replaceState({}, "", "/?photo=missing-yet");

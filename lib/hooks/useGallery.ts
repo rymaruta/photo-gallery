@@ -65,11 +65,6 @@ function readFiltersFromUrl(): Partial<GalleryFilters> {
     const tags = params.get("tags");
     // 同じタグが2つ来ると、チップの key が衝突して描画が崩れる
     if (tags) out.selectedTags = Array.from(new Set(tags.split(",").filter(Boolean)));
-    // **feed もここで読む。** 他のフィルターは URL に載るのに feed だけ
-    // 載っていなかったので、「フォロー中」で写真を開いて戻ると
-    // 「すべて」に戻っていた（ここだけ挙動が違う）。
-    // 値は総当たりで確かめる——知らない文字列を入れられても既定のまま
-    if (params.get("feed") === "following") out.feed = "following";
     return out;
 }
 
@@ -92,7 +87,7 @@ function withNextHistoryState(extra: Record<string, unknown>): Record<string, un
     return out;
 }
 
-export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
+export default function useGallery(raw: Photo[]) {
     // ISO日付を正規化ステップで一度だけ計算（ソート時の繰り返しパースを回避）
     const PHOTOS = useMemo(
         () =>
@@ -117,7 +112,6 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
         selectedTags: [],
         query: "",
         sort: "new",
-        feed: "all",
         ...readFiltersFromUrl(),
     }));
 
@@ -125,12 +119,6 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
 
     const filteredPhotos = useMemo(() => {
         let arr = PHOTOS.slice();
-
-        // フォロー中フィード: フォローしているユーザーの写真だけに絞る
-        if (filters.feed === "following") {
-            const set = followingIds ?? new Set<string>();
-            arr = arr.filter((p) => p.userId && set.has(p.userId));
-        }
 
         if (filters.category !== "all") arr = arr.filter((p) => p.category === filters.category);
         if (filters.selectedTags.length) {
@@ -246,7 +234,7 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
         }
 
         return arr;
-    }, [filters, PHOTOS, followingIds]);
+    }, [filters, PHOTOS]);
 
     // filteredPhotos を ref で追跡 → コールバックを安定させる
     const filteredPhotosRef = useRef(filteredPhotos);
@@ -270,8 +258,8 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
      * 下の同期は「開いている写真」しか書かないので、マウント直後
      * （まだ開いていない）に走ると URL から `?photo=` を落とす。すぐ
      * 開ければ書き戻るが、**一覧がその場に無いと落ちたまま**になる:
-     *   - `?feed=following` はフォロー集合が届くまで一覧が空
      *   - 新着写真は API の一覧が届くまで見つからない
+     *   - 絞り込みで外れているだけの写真は、絞りを外すまで見つからない
      * どちらも待てば開けることが多いのに、その前に id を失うと二度と開けない
      * （**待ちに上限は無い**。API が落ちていればセッション中ずっと残る）。
      * 開けるか「無い」と分かるまで、最初に載っていた id を持っておく。
@@ -326,7 +314,6 @@ export default function useGallery(raw: Photo[], followingIds?: Set<string>) {
         if (filters.query) params.set("q", filters.query);
         if (filters.sort && filters.sort !== "new") params.set("sort", filters.sort);
         if (filters.selectedTags.length) params.set("tags", filters.selectedTags.join(","));
-        if (filters.feed === "following") params.set("feed", "following");
         if (openPhotoId) {
             params.set("photo", openPhotoId);
             pendingPhotoRef.current = null;   // 開けたのでもう待つ必要は無い
