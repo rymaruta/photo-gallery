@@ -247,6 +247,16 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                         </button>
                                     </li>
                                 )}
+                                {/* タイムライン: フォローしている人の写真が投稿順に流れる面。
+                                    フォローに投稿権限は要らないので `isAuthenticated` だけで出す
+                                    （行き先も `useMemberGate` を通さない） */}
+                                {isAuthenticated && (
+                                    <li style={{ margin: 0, padding: 0 }}>
+                                        <button onClick={() => handleNavigation(ROUTES.TIMELINE)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
+                                            {navLabels.timeline || "Timeline"}
+                                        </button>
+                                    </li>
+                                )}
                                 {/* 共同アルバム（案C）。**ログイン中だけ**——招待リンクを
                                     配る側の画面で、未ログインには行き先が無い。
                                     文言は他の項目と同じく `navLabels` から取る

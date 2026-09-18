@@ -69,3 +69,19 @@ export const GRID_SIZES_6XL = [
     "(max-width:71.99rem) calc(25vw - 0.78125rem)",   // 4列 / (vw - 2rem - 1.125rem) / 4
     "17.21875rem",                                    // 容器 72rem で頭打ち: (72 - 2 - 1.125) / 4
 ].join(", ");
+
+/**
+ * タイムライン（`/timeline`）の1列カード。容器は `max-w-xl`（36rem）で
+ * 余白は `p-4`（640px 未満は root 14px 固定なので 14px×2）→ `sm:p-6`（1.5rem×2）。
+ *
+ * - 640px 未満は root が 14px なので容器の上限は 504px。**532px 以上は容器で
+ *   頭打ち**（504 - 28 = 476px）——`100vw - 28px` のままだと実寸より大きく申告する
+ * - 640px 以上は `sm:p-6` で、容器 36rem（576px）は 640 より小さいので
+ *   最初から頭打ち: 36 - 3 = 33rem。メディアクエリの rem は常に 16px なので
+ *   `(max-width:35.99rem)` のような条件は 1つ目に含まれて到達しない（レビュー指摘）
+ */
+export const FEED_SIZES_XL = [
+    "(max-width:531px) calc(100vw - 28px)",
+    "(max-width:639px) 476px",
+    "33rem",
+].join(", ");

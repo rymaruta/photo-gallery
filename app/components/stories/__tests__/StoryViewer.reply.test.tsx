@@ -47,7 +47,27 @@ const ownGroups = (replyCount?: number): StoryGroup[] => [{
     ],
 }];
 
-const view = (groups: StoryGroup[], props: Partial<React.ComponentProps<typeof StoryViewer>> = {}) => render(
+
+/**
+ * **絵が出たことにする。**
+ *
+ * ストーリーは「読み込みが済むまで時間を進めない」ようになった
+ * （owner の「3秒目くらいまで真っ黒」への対応）。jsdom は画像を読まないので、
+ * 読み終わりを模さないと**開いた直後のまま凍る**。
+ * ここが守っているのは進む/止まるの規則で、その前提が1つ増えただけ。
+ */
+function markMediaLoaded() {
+    const el = document.querySelector("img.story-media-in, video.story-media-in");
+    if (el) fireEvent.load(el);
+}
+
+const renderThenLoad = (ui: React.ReactElement) => {
+    const r = render(ui);
+    markMediaLoaded();
+    return r;
+};
+
+const view = (groups: StoryGroup[], props: Partial<React.ComponentProps<typeof StoryViewer>> = {}) => renderThenLoad(
     <StoryViewer
         groups={groups}
         initialGroupIndex={0}

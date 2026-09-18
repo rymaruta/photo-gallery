@@ -6,7 +6,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 // 出ていた2つ:
 //  - 通知や共有リンクから開いた `?photo=` が**永久に開かず、理由も出ない**
 //    （3秒・10秒・30秒とも モーダルもトーストも無し）
-//  - 「フォロー中」タブが**完全な空白**（読み込み中とも失敗とも分からない）
+//  - 「フォロー中」が**完全な空白**（読み込み中とも失敗とも分からない）
+//    → いまは別の面 `/timeline` に移った。守りは `timelinePage.test.tsx`
 
 const showToast = vi.hoisted(() => vi.fn());
 vi.mock("../../lib/hooks/useToast", () => ({
@@ -83,15 +84,6 @@ describe("回線が遅いとき", () => {
         expect(showToast, "届く前に「読み込めませんでした」と言っている").not.toHaveBeenCalled();
     });
 
-    it("フォロー中タブは、返ってくるまで読み込み中と言う（空白にしない）", async () => {
-        photosState.current = { loaded: true, failed: false, photos: SNAPSHOT };
-        window.history.replaceState({}, "", "/?feed=following");
-        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
-        await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("読み込み中"));
-        // 「0人です」とは言わない
-        expect(screen.queryByText(/フォロー中の人はまだいません|0人/)).toBeNull();
-    });
-
     // **回帰**（レビューが実測）: 判定を `openById` より前に置いたら、
     // 手元のスナップショットで開ける写真の上に「読み込めませんでした」を出し、
     // `?photo=` を URL から消していた。本番の30枚＝共有リンクの大多数が該当
@@ -105,11 +97,10 @@ describe("回線が遅いとき", () => {
     });
 
     // **絞り込みで空のときも、手元にある写真は断らない**（レビューが実測）。
-    // `?feed=following` はフォロー集合が届くまで空になるので、写真APIが
-    // 落ちている場面では必ずここに来る
+    // どの写真にも当たらない絞り込みで写真APIが落ちている場面がこれ
     it("絞り込みで空でも、手元にある写真は理由を出さない", async () => {
         photosState.current = { loaded: false, failed: true, photos: SNAPSHOT };
-        window.history.replaceState({}, "", "/?photo=snap-1&feed=following");
+        window.history.replaceState({}, "", "/?photo=snap-1&category=nothing-matches");
         render(<ToastProvider><GalleryPageClient /></ToastProvider>);
         await new Promise((r) => setTimeout(r, 50));
         expect(showToast, "開ける写真なのに断っている").not.toHaveBeenCalled();

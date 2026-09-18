@@ -54,6 +54,15 @@ export type Photo = {
     srcAvif?: string;     // 詳細用（≤1600）AVIF
     focalPoint?: { x: number; y: number };
     published?: boolean;
+    /**
+     * **運営が選んだ「おすすめ」。** トップに出す。
+     *
+     * **自分の編集画面（`/user/edit`）からは触れない。** 利用者が自分の写真を
+     * トップへ出せると「おすすめ」の意味が消えるので、**管理APIだけ**が書く。
+     * いまは投稿者がほぼ owner 1人なので差が出ないが、そこを混ぜると
+     * 後から分けられない。
+     */
+    featured?: boolean;
     userId?: string;
     displayName?: string;
     createdAt?: string;

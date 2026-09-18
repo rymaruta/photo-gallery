@@ -165,3 +165,19 @@ export function compareAdmin(a: Photo, b: Photo, newest: boolean): number {
 export function sortByNewest<T extends Photo>(photos: readonly T[]): T[] {
     return [...photos].sort(compareNewest);
 }
+
+/**
+ * **投稿の新しい順**（タイムライン用）。撮影日は見ない。
+ *
+ * `compareNewest` は `date || createdAt` で並べる——一覧では「いつ撮ったか」が
+ * 主役だから正しい。だがタイムラインは「フォローした人が**いま何を上げたか**」
+ * を流す面で、2019年に撮った写真を今日上げたなら**今日の位置**に出ないと
+ * 流れてこない（撮影日で並べると、古い旅の写真ほど下に沈んで誰にも見えない）。
+ * `createdAt` を持たない古い行だけ `date` に落とす。同じ時刻は id で必ず決める。
+ */
+export function comparePosted(a: Photo, b: Photo): number {
+    const ka = stripZone(String(a.createdAt || a.date || ""));
+    const kb = stripZone(String(b.createdAt || b.date || ""));
+    const diff = cmp(kb, ka);
+    return diff !== 0 ? diff : cmp(String(a.id ?? ""), String(b.id ?? ""));
+}
