@@ -50,6 +50,14 @@ describe("StoriesBar が「＋」からのファイルを受け取る", () => {
         await waitFor(() => expect(draft()).toBeInTheDocument());
     });
 
+    // 外れたら受け取らない。残ると「受け取った」と答えるのに何も出ず、
+    // `PostFab` はトップへ移らない＝ファイルが黙って消える
+    it("外れたあとは受け取らない（購読の解除）", () => {
+        const { unmount } = render(<StoriesBar />);
+        unmount();
+        expect(handOffStoryFile(new File(["x"], "s.jpg", { type: "image/jpeg" })), "外れたバーが受け取っている").toBe(false);
+    });
+
     it("受け取った中身も、入力欄から選んだときと同じ関門を通る", async () => {
         render(<StoriesBar />);
         handOffStoryFile(new File(["x"], "s.txt", { type: "text/plain" }));

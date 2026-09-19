@@ -68,6 +68,14 @@ export default function PostFab() {
         setSeenPath(pathname);
         if (open) setOpen(false);
     }
+    // クエリだけ変わる戻る・進む（`/users?id=A` → `?id=B`）はパスが同じなので上では
+    // 拾えない。`HeaderNav` と同じく、開いている間だけ `popstate` を聞く
+    useEffect(() => {
+        if (!open) return;
+        const close = () => setOpen(false);
+        window.addEventListener("popstate", close);
+        return () => window.removeEventListener("popstate", close);
+    }, [open]);
 
     const canPost = isAuthenticated && (isAdminUser || isGeneralUser);
     const hiddenHere = HIDDEN_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/") || pathname.startsWith(p + "?"));
@@ -95,7 +103,6 @@ export default function PostFab() {
                 aria-expanded={open}
                 aria-label={isJa ? "投稿する" : "Create"}
                 title={isJa ? "投稿する" : "Create"}
-                data-e2e="post-fab"
                 className="fixed right-4 z-40 w-14 h-14 rounded-full bg-white text-black shadow-lg shadow-black/50 flex items-center justify-center hover:bg-white/90 active:scale-95 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                 style={{
                     bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px + var(--bottom-bar-h, 0px) + var(--mini-player-h, 0px))",
@@ -128,7 +135,7 @@ export default function PostFab() {
                                     <PhotoIcon className="w-6 h-6 text-white/80" />
                                     <span>
                                         <span className="block text-base">{isJa ? "写真を投稿" : "Post a photo"}</span>
-                                        <span className="block text-xs text-white/60">{isJa ? "作品として残る。ページが作られ、検索にも出る" : "Stays as a work. Gets its own page."}</span>
+                                        <span className="block text-xs text-white/60">{isJa ? "作品として残る。公開すると個別ページができる" : "Stays as a work. Public photos get their own page."}</span>
                                     </span>
                                 </button>
                             </li>
@@ -151,20 +158,24 @@ export default function PostFab() {
                                 {isJa ? "閉じる" : "Close"}
                             </button>
                         </div>
-                        {/* 選ぶのはここ（ユーザー操作の中でしか開けない）。中身は `StoriesBar` が確かめる */}
-                        <input
-                            ref={fileRef}
-                            type="file"
-                            accept={STORY_ACCEPT}
-                            className="hidden"
-                            aria-label={isJa ? "ストーリーにする写真か動画を選ぶ" : "Choose a photo or video for your story"}
-                            onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                e.target.value = "";
-                                if (f) onStoryFile(f);
-                            }}
-                        />
                     </div>
+                    {/* 選ぶのはここ（ユーザー操作の中でしか開けない）。中身は `StoriesBar` が確かめる。
+                        **dialog の外に置く**——中に置くと `useFocusTrap` の「最後の要素」が
+                        この見えない入力になり、Shift+Tab が行き止まり・Tab が外へ漏れる
+                        （`FOCUSABLE` は `input` を含み、見えないかは見ない。レビューが指摘）。
+                        `StoriesBar` も入力を下書きの dialog の外に置いている */}
+                    <input
+                        ref={fileRef}
+                        type="file"
+                        accept={STORY_ACCEPT}
+                        className="hidden"
+                        aria-label={isJa ? "ストーリーにする写真か動画を選ぶ" : "Choose a photo or video for your story"}
+                        onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            e.target.value = "";
+                            if (f) onStoryFile(f);
+                        }}
+                    />
                 </div>,
                 document.body,
             )}

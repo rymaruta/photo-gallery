@@ -130,6 +130,24 @@ describe("MiniPlayer 配置クランプ（メニューバーを塞がない）",
         expect(root.className).toContain("inset-x-3");
     });
 
+    // 画面下に居る間、自分の高さを `--mini-player-h` に出す（「＋」がその上に逃げる）。
+    // 動かしたあと（デスクトップ）は出さない。外れたら消す
+    it("画面下に居る間だけ高さを出し、外れたら消す", async () => {
+        setDesktop(false);
+        const { unmount } = render(<MiniPlayer />);
+        expect(document.documentElement.style.getPropertyValue("--mini-player-h"), "高さを出していない").not.toBe("");
+        unmount();
+        expect(document.documentElement.style.getPropertyValue("--mini-player-h")).toBe("");
+    });
+
+    it("デスクトップで動かしたあとは高さを出さない（画面下に居ない）", async () => {
+        setDesktop(true);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: 10, y: 300 }));
+        const { container } = render(<MiniPlayer />);
+        await waitFor(() => expect((container.firstChild as HTMLElement).style.top).not.toBe(""));
+        expect(document.documentElement.style.getPropertyValue("--mini-player-h")).toBe("");
+    });
+
     it("z-index はヘッダー(z-50)より下(z-40)＝万一被っても hit-test で負ける", () => {
         setDesktop(false);
         const { container } = render(<MiniPlayer />);
