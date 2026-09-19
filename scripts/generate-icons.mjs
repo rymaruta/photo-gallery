@@ -12,8 +12,9 @@
  *   public/icon-maskable-512.png OS が丸や角丸に切り抜く側。**枠は描かない**——切り抜きで
  *                                枠だけ欠ける。安全域（中央 80%）に絵を収める
  *
- * 見た目は前のアイコン（JP の文字）の**白い外枠・黒地**をそのまま引き継ぐ
- * （owner:「外枠のしろい」）。元絵は黒地に白いアパーチャで、余白は黒。
+ * 見た目は黒地に白いアパーチャだけ（枠なし）。最初は前のアイコン（JP）の白い
+ * 外枠を引き継いだが、owner の「こんな感じのが載ると思ってた」で枠なしに。
+ * `icon512({ frame: true })` は残してある（戻すときは1語）。
  */
 import sharp from "sharp";
 import { writeFile } from "node:fs/promises";
@@ -58,7 +59,7 @@ async function icon512({ frame }) {
            <rect x="51" y="51" width="410" height="410" rx="96" ry="96" fill="none" stroke="#fff" stroke-width="10"/>
          </svg>`,
     );
-    const art = await artwork(frame ? 272 : 300);
+    const art = await artwork(frame ? 272 : 340);
     const layers = [{ input: art, gravity: "centre" }];
     if (frame) layers.unshift({ input: frameSvg });
     return sharp({ create: { width: 512, height: 512, channels: 4, background: "#000" } })
@@ -81,7 +82,9 @@ function ico(pngs) {
     return Buffer.concat([header, ...dir, ...bodies]);
 }
 
-const any512 = await icon512({ frame: true });
+// owner の判断（2026-09-20）: 枠なし。「こんな感じのが載ると思ってた」＝黒地に白い
+// アパーチャだけ（枠ありで一度出して、違うと言われた）
+const any512 = await icon512({ frame: false });
 const maskable512 = await icon512({ frame: false });
 const at = (size) => sharp(any512).resize(size, size, { kernel: "lanczos3" }).png().toBuffer();
 

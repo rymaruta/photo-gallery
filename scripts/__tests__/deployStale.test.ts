@@ -116,6 +116,16 @@ describe("invalidationPathsFor", () => {
         expect(invalidationPathsFor(["feed.xml"]), "更新が届かない").toContain("/feed.xml");
     });
 
+    // **固定名の資産は差し替えても届かなかった。** `favicon.ico` は `max-age=3600` で
+    // 配るのに無効化の対象に無く、アイコンを替えた直後に開いても前の絵が出た
+    // （owner が実際に踏んだ）。名前が変わらないものは消さないと届かない
+    it("固定名の資産（favicon・アイコン・images）は差し替えたら無効化する", () => {
+        const paths = invalidationPathsFor(["favicon.ico", "icon-512.png", "images/me-portrait.jpg"]);
+        expect(paths, "アイコンを替えても前の絵が出続ける").toContain("/favicon.ico");
+        expect(paths).toContain("/icon-512.png");
+        expect(paths).toContain("/images/me-portrait.jpg");
+    });
+
     it("ハッシュ付きアセットは無効化しない（内容が変われば名前も変わる）", () => {
         const paths = invalidationPathsFor(["_next/static/chunks/main-abc123.js", "index.html"]);
         expect(paths.some((p: string) => p.startsWith("/_next"))).toBe(false);
@@ -199,6 +209,17 @@ describe("changedKeys", () => {
 
     it("中身が同じなら変更なし", () => {
         expect(changedKeys(sample, [{ key: FIXTURE, etag: `"${md5}"` }])).toEqual([]);
+    });
+
+    // 固定名の資産（favicon 等）も「変わった」に数える——数えないと無効化に届かない
+    it("固定名の資産も ETag が違えば変更あり", () => {
+        const ICON = "__changed-keys-fixture__.ico";
+        nodeFs.writeFileSync(nodePath.join(outDir, ICON), "icon-bytes");
+        try {
+            expect(changedKeys([ICON], [{ key: ICON, etag: '"deadbeef"' }]), "アイコンの差し替えを見ていない").toEqual([ICON]);
+        } finally {
+            nodeFs.rmSync(nodePath.join(outDir, ICON), { force: true });
+        }
     });
 
     it("ETag が違えば変更あり", () => {
