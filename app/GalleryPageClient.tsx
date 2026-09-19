@@ -67,13 +67,13 @@ export default function GalleryPageClient() {
     // 一覧の写真を押して開いたあとで認証が確定すると、`?photo=` はマウント後に
     // 付いている。ここで「自分」へ倒すと**開いている写真の下で一覧が入れ替わる**
     // （`setFilters` は `currentIndex` を触らない＝別の写真になるか、外れて閉じる。
-    // レビューが指摘）。開いている写真があるときも倒さない
+    // レビューが指摘）。開いている写真は `?photo=` として URL に**必ず**載っている
+    // （`useGallery` の URL 同期はこの effect より先に定義されているので先に走る）
+    // ——`currentIndex` を重ねて見ない（二重の守りは変異で観測できない）
     const q = new URLSearchParams(window.location.search);
-    // `openPhotoId` は閉じているとき `undefined`（`null` ではない）なので、開いているかは
-    // `currentIndex` で見る
-    if (q.has("scope") || q.has("photo") || currentIndex !== null) return;
+    if (q.has("scope") || q.has("photo")) return;
     setFilters({ scope: "mine" });
-  }, [authLoading, isAuthenticated, filters.scope, currentIndex, setFilters]);
+  }, [authLoading, isAuthenticated, filters.scope, setFilters]);
 
 
   // URLパラメータ(?photo=)で写真モーダルを開く。
