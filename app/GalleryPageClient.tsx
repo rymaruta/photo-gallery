@@ -53,11 +53,6 @@ export default function GalleryPageClient() {
    * 無ければ絞りを外す往復（トースト付き）になる。最初から「すべて」で開く。
    * ログアウトしたら「すべて」に戻す（`mine` は本人の id が無いと意味を持たない）。
    */
-  const scopeFromUrlRef = React.useRef((() => {
-    if (typeof window === "undefined") return false;
-    const q = new URLSearchParams(window.location.search);
-    return q.has("scope") || q.has("photo");
-  })());
   const scopeDecidedRef = React.useRef(false);
   React.useEffect(() => {
     if (authLoading) return;
@@ -65,13 +60,20 @@ export default function GalleryPageClient() {
       if (filters.scope !== "all") setFilters({ scope: "all" });
       return;
     }
-    if (scopeFromUrlRef.current || scopeDecidedRef.current) return;
+    // 決めるのは確定した1回だけ（利用者が「すべて」を押したあとに戻さない）
+    if (scopeDecidedRef.current) return;
     scopeDecidedRef.current = true;
+    // **URL はその時点で読む**（マウント時の控えではなく）。ハイドレーション直後に
+    // 一覧の写真を押して開いたあとで認証が確定すると、`?photo=` はマウント後に
+    // 付いている。ここで「自分」へ倒すと**開いている写真の下で一覧が入れ替わる**
+    // （`setFilters` は `currentIndex` を触らない＝別の写真になるか、外れて閉じる。
+    // レビューが指摘）。開いている写真があるときも倒さない
+    const q = new URLSearchParams(window.location.search);
+    // `openPhotoId` は閉じているとき `undefined`（`null` ではない）なので、開いているかは
+    // `currentIndex` で見る
+    if (q.has("scope") || q.has("photo") || currentIndex !== null) return;
     setFilters({ scope: "mine" });
-    // `filters.scope` は意図的に依存に入れない——入れると、利用者が「すべて」を
-    // 押すたびに「自分」へ戻す形になる（決めるのは確定した1回だけ）
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, isAuthenticated]);
+  }, [authLoading, isAuthenticated, filters.scope, currentIndex, setFilters]);
 
 
   // URLパラメータ(?photo=)で写真モーダルを開く。
@@ -386,7 +388,8 @@ export default function GalleryPageClient() {
 
       {/* フォロー中: 絞り込み・件数・グリッドは出さず、投稿者つきのカードが投稿順に流れる
           （フォローした人の写真をサムネだけで並べると誰の写真か分からない）。
-          `?photo=` は上の effect が「すべて」へ外して開く */}
+          `useGallery` はこのタブで一覧を空にするので、`?photo=` が来たら上の effect が
+          「すべて」へ外して開く（フィードの上にモーダルを重ねない） */}
       {isAuthenticated && filters.scope === "following" ? (
         <div className="max-w-xl mx-auto">
           <TimelineFeed locale={locale} />

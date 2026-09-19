@@ -132,6 +132,11 @@ export default function useGallery(raw: Photo[], ownUserId?: string | null) {
         if (filters.scope === "mine" && ownUserId) {
             arr = arr.filter((p) => p.userId === ownUserId);
         }
+        // 「フォロー中」はグリッドではなく `TimelineFeed` が描くので、この一覧は
+        // **空にする**。空にしないと `?photo=` が来たとき `openById` が通って
+        // **フィードの上にモーダルが重なる**（前後の送りは全写真を回る）。空なら
+        // 画面側の救済が「すべて」へ外してから開く。本人の id が無ければ絞らない
+        if (filters.scope === "following" && ownUserId) arr = [];
 
         if (filters.category !== "all") arr = arr.filter((p) => p.category === filters.category);
         if (filters.selectedTags.length) {

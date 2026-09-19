@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 
 /**
  * トップの「自分 / フォロー中 / すべて」。
@@ -22,13 +22,26 @@ vi.mock("../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn
 vi.mock("../components/stories/StoriesBar", () => ({ default: () => null }));
 vi.mock("../components/FilterBar", () => ({ default: () => <div data-testid="filter-bar" /> }));
 vi.mock("../components/GalleryModal", () => ({ default: () => null }));
-vi.mock("../components/SearchParamWatcher", () => ({ default: () => null }));
+// `?photo=` は本来 SearchParamWatcher が URL から親へ渡す。ここでは URL を短い間隔で
+// 読んで渡す（値を直接注ぐ形だと、グリッドから開いた写真の `?photo=` を「消えた」と
+// 誤って伝えて閉じてしまう）
+vi.mock("../components/SearchParamWatcher", () => ({
+    default: function MockWatcher({ onChange }: { onChange: (v: string | null) => void }) {
+        const read = () => new URLSearchParams(window.location.search).get("photo");
+        const [v, setV] = React.useState(read);
+        React.useEffect(() => { const t = setInterval(() => setV(read()), 5); return () => clearInterval(t); }, []);
+        React.useEffect(() => { onChange(v); }, [v, onChange]);
+        return null;
+    },
+}));
 vi.mock("../components/TimelineFeed", () => ({ default: () => <div data-testid="timeline-feed" /> }));
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
-const gridProps = vi.hoisted(() => ({ ids: null as string[] | null }));
+const gridProps = vi.hoisted(() => ({ ids: null as string[] | null, open: null as ((id: string) => boolean) | null }));
 vi.mock("../components/GalleryGrid", () => ({
-    default: (p: { photos: Array<{ id: string }> }) => { gridProps.ids = p.photos.map((x) => x.id); return <div data-testid="grid" />; },
+    default: (p: { photos: Array<{ id: string }>; onOpenPhoto?: (id: string) => boolean }) => {
+        gridProps.ids = p.photos.map((x) => x.id); gridProps.open = p.onOpenPhoto ?? null; return <div data-testid="grid" />;
+    },
 }));
 
 const PHOTOS = [
@@ -105,6 +118,35 @@ describe("トップの 自分 / フォロー中 / すべて", () => {
         rerender(<GalleryPageClient />);
         await waitFor(() => expect(pressed("自分")).toBe(true));
         expect(gridProps.ids).toEqual(["mine-1", "mine-2"]);
+    });
+
+    // 🔴 レビューが指摘: ハイドレーション直後に写真を開き、そのあと認証が確定すると
+    // 「自分」へ倒れて**開いている写真の下で一覧が入れ替わる**（`setFilters` は
+    // `currentIndex` を触らない）。開いている写真があるときは倒さない
+    it("写真を開いている最中に認証が確定しても、「自分」へ倒さない", async () => {
+        authState.current = { isAuthenticated: false, userId: null, loading: true };
+        const { rerender } = render(<GalleryPageClient />);
+        act(() => { expect(gridProps.open!("theirs")).toBe(true); });
+        expect(new URLSearchParams(window.location.search).get("photo")).toBe("theirs");
+        authState.current = { isAuthenticated: true, userId: "me", loading: false };
+        rerender(<GalleryPageClient />);
+        await new Promise((r) => setTimeout(r, 30));
+        expect(pressed("すべて"), "開いている写真の下で一覧を入れ替えている").toBe(true);
+        expect(gridProps.ids).toEqual(["mine-1", "theirs", "mine-2"]);
+        expect(new URLSearchParams(window.location.search).get("photo")).toBe("theirs");
+    });
+
+    // フォロー中の面はグリッドではないので、名指しの写真は「すべて」へ外してから開く
+    // （フィードの上にモーダルを重ねない）
+    it("「フォロー中」で ?photo= が届いたら、「すべて」へ外して開く", async () => {
+        window.history.replaceState({}, "", "/?scope=following");
+        render(<GalleryPageClient />);
+        await new Promise((r) => setTimeout(r, 30));
+        expect(screen.getByTestId("timeline-feed")).toBeInTheDocument();
+        window.history.pushState({}, "", "/?scope=following&photo=theirs");   // 通知からの遷移
+        await waitFor(() => expect(pressed("すべて")).toBe(true));
+        expect(screen.queryByTestId("timeline-feed")).toBeNull();
+        expect(new URLSearchParams(window.location.search).get("photo")).toBe("theirs");
     });
 
     it("未ログインはタブ無しで、?scope=mine で来ても絞らない", async () => {
