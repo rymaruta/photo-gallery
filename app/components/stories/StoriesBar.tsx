@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { PlusIcon, XMarkIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
+import { onStoryFileHandoff, takeHandedStoryFile } from "@/lib/utils/storyHandoff";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import UserAvatar from "../UserAvatar";
 import SongArtwork from "../SongArtwork";
@@ -458,6 +459,17 @@ export default function StoriesBar() {
             })();
         }
     }, [locale, showToast]);
+
+    /**
+     * 「＋」（`PostFab`）で選んだファイルを受け取る。バーが描かれていれば
+     * その場で、別のページで選ばれたぶんはトップへ移ってきたマウント時に
+     * （`lib/utils/storyHandoff.ts`）。以後の流れは入力欄から選んだときと同じ
+     */
+    useEffect(() => {
+        const pending = takeHandedStoryFile();
+        if (pending) void handleFileSelect(pending);
+        return onStoryFileHandoff((f) => { void handleFileSelect(f); });
+    }, [handleFileSelect]);
 
     // 投稿: 圧縮（画像のみ）→ presigned URL → S3 → レコード作成
     const handlePost = useCallback(async () => {
