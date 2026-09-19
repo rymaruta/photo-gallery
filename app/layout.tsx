@@ -16,6 +16,7 @@ import Analytics from "./components/Analytics";
 import { AuthProvider } from "./auth/context";
 import { MusicProvider } from "./music/MusicContext";
 import MiniPlayer from "./components/MiniPlayer";
+import PostFab from "./components/PostFab";
 import { LocaleProvider } from "./i18n/context";
 import { siteConfig, generateWebSiteStructuredData, INDEXABLE_ROBOTS, FEED_ALTERNATE } from "../lib/utils/seo";
 
@@ -306,6 +307,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
               {/* グローバル音楽のミニプレイヤー（再生中のみ表示） */}
               <MiniPlayer />
+              {/* 投稿の入口「＋」（投稿できる人にだけ・画面右下） */}
+              <PostFab />
               </MusicProvider>
             </AuthProvider>
           </LocaleProvider>

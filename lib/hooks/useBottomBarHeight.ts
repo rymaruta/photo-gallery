@@ -17,12 +17,29 @@ import { useEffect } from "react";
  * 1回だけ測る。0 のままより、その高さのぶん逃がせる方がまし。
  */
 export function useBottomBarHeight(ref: React.RefObject<HTMLElement | null>): void {
+    usePublishedHeight(ref, "--bottom-bar-h");
+}
+
+/**
+ * 同じ仕組みの汎用版。要素の実測の高さを CSS 変数 `name` に出す。
+ * `enabled` が false の間は出さない（ミニプレイヤーが画面下に無いとき＝
+ * デスクトップで動かしたあと、に使う）。
+ *
+ * 画面下に重なりうるものは3つ（投稿・編集のバー／ミニプレイヤー／「＋」）で、
+ * 下から順に**自分より下にあるものの高さぶん逃げる**:
+ *   バー → `--bottom-bar-h` → ミニプレイヤー → `--mini-player-h` → 「＋」
+ */
+export function usePublishedHeight(
+    ref: React.RefObject<HTMLElement | null>,
+    name: string,
+    enabled = true,
+): void {
     useEffect(() => {
         const el = ref.current;
-        if (!el || typeof document === "undefined") return;
+        if (!enabled || !el || typeof document === "undefined") return;
         const root = document.documentElement;
         const publish = () => {
-            root.style.setProperty("--bottom-bar-h", `${el.offsetHeight}px`);
+            root.style.setProperty(name, `${el.offsetHeight}px`);
         };
         publish();
         const RO = typeof ResizeObserver !== "undefined" ? ResizeObserver : null;
@@ -32,7 +49,7 @@ export function useBottomBarHeight(ref: React.RefObject<HTMLElement | null>): vo
             ro?.disconnect();
             // **必ず消す。** 残すと、バーの無いページでミニプレイヤーが
             // 宙に浮いたままになる
-            root.style.removeProperty("--bottom-bar-h");
+            root.style.removeProperty(name);
         };
-    }, [ref]);
+    }, [ref, name, enabled]);
 }
