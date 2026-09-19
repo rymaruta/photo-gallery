@@ -97,13 +97,15 @@ describe("回線が遅いとき", () => {
     });
 
     // **絞り込みで空のときも、手元にある写真は断らない**（レビューが実測）。
-    // どの写真にも当たらない絞り込みで写真APIが落ちている場面がこれ
-    it("絞り込みで空でも、手元にある写真は理由を出さない", async () => {
+    // どの写真にも当たらない絞り込みで写真APIが落ちている場面がこれ。
+    // 手元にある写真は**絞りを外して開く**（「読み込めませんでした」ではない）
+    it("絞り込みで空でも、手元にある写真は絞りを外して開く（理由を出さない）", async () => {
         photosState.current = { loaded: false, failed: true, photos: SNAPSHOT };
         window.history.replaceState({}, "", "/?photo=snap-1&category=nothing-matches");
         render(<ToastProvider><GalleryPageClient /></ToastProvider>);
-        await new Promise((r) => setTimeout(r, 50));
-        expect(showToast, "開ける写真なのに断っている").not.toHaveBeenCalled();
+        await waitFor(() => expect(screen.getByText("modal")).toBeInTheDocument());
+        expect(showToast.mock.calls.map((c) => String(c[0])).join("\n"), "開ける写真なのに断っている")
+            .not.toMatch(/読み込めませんでした/);
         expect(window.location.search).toContain("photo=snap-1");
     });
 

@@ -5,7 +5,7 @@ import { sanitizeProfile } from "../../lib/utils/profileShape";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Thumb from "../components/Thumb";
 import Link from "next/link";
-import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, UsersIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { haversineKm } from "../../lib/utils/journey";
@@ -33,7 +33,6 @@ import { compareNewest, compareOldest, photoTimeKey } from "../../lib/utils/phot
 import { ROUTES } from "../../lib/routes";
 import { toastWithStaticPage } from "../../lib/utils/staticPage";
 import UserAvatar from "../components/UserAvatar";
-import TimelineFeed from "../components/TimelineFeed";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import PHOTOS_JSON from "../data/photos.json";
 import { publicImageUrl } from "@/lib/utils/seo";
@@ -74,19 +73,9 @@ const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
 // Leaflet は window 依存のため SSG では読み込まない
 
-type TabKey = "posts" | "timeline" | "following";
-/** 訪問者に見せるタブ。`timeline` は**年表**（内部名は古い） */
+type TabKey = "posts" | "timeline";
+/** タブ。`timeline` は**年表**（内部名は古い）。「フォロー中」はトップのタブに在る */
 const TAB_ORDER: TabKey[] = ["posts", "timeline"];
-/**
- * 本人にだけ「フォロー中」を足す。
- *
- * owner:「マイページの写真だけど、デフォルトは自分のみがいい。自分のみ、
- * フォロー中がいい。全てはサイトのトップページとかで確認できると思う」
- * ——既定は投稿（自分の写真）のまま、フォローした人の写真が流れる面を
- * ここに置く（中身は `TimelineFeed`）。**訪問者には出さない**（他人の
- * フォロー先の写真を、その人のページで見せる筋は無い）。
- */
-const OWNER_TAB_ORDER: TabKey[] = ["posts", "timeline", "following"];
 
 // 写真を「YYYY年 / M月」で時系列グループ化（撮影日 date 優先、なければ createdAt）
 type TimelineGroup = { key: string; year: string; label: string; photos: Photo[] };
@@ -681,10 +670,6 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     );
 
     const [tab, setTab] = useState<TabKey>("posts");
-    // `isOwner` は false → true にしか動かず（`setIsOwner(true)` の1か所だけ）、
-    // 人が変わればページごと作り直す（`[id]/page.tsx` の `key`）ので、
-    // 「本人でなくなって following が宙に浮く」経路は無い。落とし先は置かない
-    const tabOrder = isOwner ? OWNER_TAB_ORDER : TAB_ORDER;
     const [shareOpen, setShareOpen] = useState(false);
     /** ブロック中かどうか（この画面から押した結果だけを持つ。開いた時点では引かない） */
     const [blocked, setBlocked] = useState(false);
@@ -780,7 +765,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     const [mvOpen, setMvOpen] = useState(false);
 
 
-    // タブを横スワイプで切り替え（投稿 ⇄ 年表 ⇄ フォロー中〈本人だけ〉）。
+    // タブを横スワイプで切り替え（投稿 ⇄ 年表）。
     // Pointer Events で PC(マウス)・スマホ(タッチ)・ペンを一本化。
     // touch-action: pan-y を併用し、縦スクロールは残しつつ横ジェスチャを JS が拾う。
     const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -810,9 +795,9 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
         if (dir !== 0) {
             hapticTap(8);
             swallowClickRef.current = true;
-            setTab((cur) => stepInList(tabOrder, cur, dir));
+            setTab((cur) => stepInList(TAB_ORDER, cur, dir));
         }
-    }, [tabOrder]);
+    }, []);
     /** スワイプで切り替えた直後の click を止める（捕捉フェーズで拾う） */
     const onTabClickCapture = useCallback((e: React.MouseEvent) => {
         if (!swallowClickRef.current) return;
@@ -1486,15 +1471,14 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                 </div>
             </div>
 
-            {/* コンテンツ（黒背景）: 投稿 / 年表 / フォロー中（本人だけ） */}
+            {/* コンテンツ（黒背景）: 投稿 / 年表 */}
             <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
                 {/* タブバー */}
-                <div className={`grid ${tabOrder.length === 3 ? "grid-cols-3" : "grid-cols-2"} border-t border-white/10 mb-1`}>
+                <div className={"grid grid-cols-2 border-t border-white/10 mb-1"}>
                     {([
                         { key: "posts", icon: Squares2X2Icon, label: locale === "en" ? "Posts" : "投稿" },
                         { key: "timeline", icon: CalendarDaysIcon, label: locale === "en" ? "Timeline" : "年表" },
-                        { key: "following", icon: UsersIcon, label: locale === "en" ? "Following" : "フォロー中" },
-                    ] as const).filter(({ key }) => (tabOrder as string[]).includes(key)).map(({ key, icon: Icon, label }) => {
+                    ] as const).filter(({ key }) => (TAB_ORDER as string[]).includes(key)).map(({ key, icon: Icon, label }) => {
                         const active = tab === key;
                         return (
                             <button
@@ -1589,15 +1573,6 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 ))}
                             </div>
                         )}
-                    </div>
-                )}
-
-                {/* フォロー中タブ（本人だけ）: フォローした人の写真が投稿順に流れる。
-                    `tab` が following になるのは `tabOrder` に在るとき＝本人のときだけ
-                    なので、ここで `isOwner` を重ねない（二重の守りは変異で観測できない） */}
-                {tab === "following" && (
-                    <div className="pb-8 pt-2 max-w-xl mx-auto">
-                        <TimelineFeed locale={locale} />
                     </div>
                 )}
                 </div>

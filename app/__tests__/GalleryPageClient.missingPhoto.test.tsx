@@ -280,28 +280,22 @@ describe("遷移で ?photo= が届いたとき（再マウントされない）"
         expect(mockShowToast).not.toHaveBeenCalled();
     });
 
-    // 一覧そのものが空のときも同じ（どの写真にも当たらないカテゴリ、など）
-    it("一覧が空でも id を落とさない", async () => {
+    // 一覧そのものが空のとき（ログイン直後の既定「自分」で写真0枚、など）でも、
+    // 手元にある写真なら**絞りを外して開く**。id は落とさない
+    it("一覧が空でも、手元にある写真は絞りを外して開く", async () => {
         auth.current = { isAuthenticated: true, userId: "me", loading: false };
-        window.history.replaceState({}, "", "/?category=nothing-matches");   // 0件＝空
+        window.history.replaceState({}, "", "/");   // 既定が「自分」＝ p1/p2 は他人なので空
         photosState.loaded = true;
         const { rerender } = render(<GalleryPageClient />);
         await new Promise((r) => setTimeout(r, 20));
+        expect(screen.getByRole("button", { name: "自分" })).toHaveAttribute("aria-pressed", "true");
 
         searchParams.current = "p1";
         rerender(<GalleryPageClient />);
-        await new Promise((r) => setTimeout(r, 20));
 
-        // **空のまま**同期を走らせる（値を変えなくても `filters` は
-        // 作り直されるので効果は再実行される）。絞りを外すと開けて
-        // しまい、預けを通らずに URL へ載るので、そこは押さない
-        fireEvent.click(screen.getByRole("button", { name: "絞り込みを触る" }));
-
-        await waitFor(() => expect(
-            new URLSearchParams(window.location.search).get("photo"),
-            "一覧が空のうちに id を落としている",
-        ).toBe("p1"));
-        expect(screen.queryByRole("button", { name: "フィルターをリセット" })).toBeTruthy();   // まだ空のまま
+        await waitFor(() => expect(screen.getByRole("button", { name: "すべて" })).toHaveAttribute("aria-pressed", "true"));
+        expect(new URLSearchParams(window.location.search).get("photo"), "開けるのに id を落としている").toBe("p1");
+        expect(mockShowToast.mock.calls.map((c) => String(c[0])).join("\n")).toMatch(/絞り込みを解除して/);
     });
 
     // API の一覧がまだ届いていないときも同じ
