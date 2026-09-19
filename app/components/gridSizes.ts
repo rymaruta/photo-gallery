@@ -71,10 +71,10 @@ export const GRID_SIZES_6XL = [
 ].join(", ");
 
 /**
- * マイページの「フォロー中」タブ（`TimelineFeed`）の1列カード。
+ * トップの「フォロー中」タブ（`TimelineFeed`）の1列カード。
  *
- * 外側の容器は `max-w-5xl` ＋ `px-4`（640px 未満は root 14px 固定なので 14px×2）
- * → `sm:px-6`（1.5rem×2）→ `md:px-8`。その中に `max-w-xl`（36rem）の箱を置き、
+ * 外側の容器は `max-w-5xl` ＋ `p-4`（640px 未満は root 14px 固定なので 14px×2）
+ * → `sm:p-6`（1.5rem×2）→ `md:p-8`。その中に `max-w-xl`（36rem）の箱を置き、
  * カードは箱いっぱいに描く（箱の内側に余白は無い）:
  *
  * - 640px 未満は root が 14px なので箱の上限は 504px。**532px 以上は箱で

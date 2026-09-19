@@ -557,6 +557,34 @@ describe("useGallery", () => {
                 .toBe(result.current.filteredPhotos[1].id);
         });
 
+        // トップの「自分／フォロー中／すべて」。開いて戻ったとき・再読込で
+        // 「自分」が「すべて」に戻らないよう URL に載せる（`feed` のときに一度直した形）
+        it("scope を URL に載せ、すべてに戻せば消える", () => {
+            const { result } = renderHook(() => useGallery(mockPhotos, "me"));
+            act(() => { result.current.setFilters({ scope: "mine" }); });
+            expect(new URLSearchParams(window.location.search).get("scope")).toBe("mine");
+            act(() => { result.current.setFilters({ scope: "all" }); });
+            expect(new URLSearchParams(window.location.search).get("scope")).toBeNull();
+        });
+
+        it("URL の scope を読んで復元する。知らない値は無視", () => {
+            window.history.replaceState({}, "", "/?scope=following");
+            expect(renderHook(() => useGallery(mockPhotos, "me")).result.current.filters.scope).toBe("following");
+            window.history.replaceState({}, "", "/?scope=whatever");
+            expect(renderHook(() => useGallery(mockPhotos, "me")).result.current.filters.scope).toBe("all");
+        });
+
+        it("自分だけ: 本人の写真に絞る。本人の id が無ければ絞らない", () => {
+            const photos = [
+                { ...mockPhotos[0], id: "mine-1", userId: "me" },
+                { ...mockPhotos[1], id: "theirs", userId: "u1" },
+                { ...mockPhotos[2], id: "nobody" },
+            ];
+            window.history.replaceState({}, "", "/?scope=mine");
+            expect(renderHook(() => useGallery(photos, "me")).result.current.filteredPhotos.map((p) => p.id)).toEqual(["mine-1"]);
+            expect(renderHook(() => useGallery(photos, null)).result.current.filteredPhotos.length, "未ログインで空にしている").toBe(3);
+        });
+
         // **開けるまで `?photo=` を落とさない。**
         // この同期は「開いている写真」しか書かないので、マウント直後に走ると
         // URL から id が消える。すぐ開ければ書き戻るが、一覧がその場に無いと

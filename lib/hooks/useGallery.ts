@@ -65,6 +65,9 @@ function readFiltersFromUrl(): Partial<GalleryFilters> {
     const tags = params.get("tags");
     // 同じタグが2つ来ると、チップの key が衝突して描画が崩れる
     if (tags) out.selectedTags = Array.from(new Set(tags.split(",").filter(Boolean)));
+    // 知らない値は既定のまま
+    const scope = params.get("scope");
+    if (scope === "mine" || scope === "following") out.scope = scope;
     return out;
 }
 
@@ -87,7 +90,11 @@ function withNextHistoryState(extra: Record<string, unknown>): Record<string, un
     return out;
 }
 
-export default function useGallery(raw: Photo[]) {
+/**
+ * @param ownUserId ログイン中の本人の id。`scope: "mine"` はこの id の写真に絞る。
+ *   無ければ（未ログイン）`mine` は `all` と同じ（絞れないので絞らない）
+ */
+export default function useGallery(raw: Photo[], ownUserId?: string | null) {
     // ISO日付を正規化ステップで一度だけ計算（ソート時の繰り返しパースを回避）
     const PHOTOS = useMemo(
         () =>
@@ -112,6 +119,7 @@ export default function useGallery(raw: Photo[]) {
         selectedTags: [],
         query: "",
         sort: "new",
+        scope: "all",
         ...readFiltersFromUrl(),
     }));
 
@@ -119,6 +127,16 @@ export default function useGallery(raw: Photo[]) {
 
     const filteredPhotos = useMemo(() => {
         let arr = PHOTOS.slice();
+
+        // 自分の写真だけ（トップの「自分」タブ）。本人の id が無ければ絞らない
+        if (filters.scope === "mine" && ownUserId) {
+            arr = arr.filter((p) => p.userId === ownUserId);
+        }
+        // 「フォロー中」はグリッドではなく `TimelineFeed` が描くので、この一覧は
+        // **空にする**。空にしないと `?photo=` が来たとき `openById` が通って
+        // **フィードの上にモーダルが重なる**（前後の送りは全写真を回る）。空なら
+        // 画面側の救済が「すべて」へ外してから開く。本人の id が無ければ絞らない
+        if (filters.scope === "following" && ownUserId) arr = [];
 
         if (filters.category !== "all") arr = arr.filter((p) => p.category === filters.category);
         if (filters.selectedTags.length) {
@@ -234,7 +252,7 @@ export default function useGallery(raw: Photo[]) {
         }
 
         return arr;
-    }, [filters, PHOTOS]);
+    }, [filters, PHOTOS, ownUserId]);
 
     // filteredPhotos を ref で追跡 → コールバックを安定させる
     const filteredPhotosRef = useRef(filteredPhotos);
@@ -314,6 +332,8 @@ export default function useGallery(raw: Photo[]) {
         if (filters.query) params.set("q", filters.query);
         if (filters.sort && filters.sort !== "new") params.set("sort", filters.sort);
         if (filters.selectedTags.length) params.set("tags", filters.selectedTags.join(","));
+        // タブも URL に載せる（開いて戻ったとき・再読込で「自分」が「すべて」に戻らない）
+        if (filters.scope !== "all") params.set("scope", filters.scope);
         if (openPhotoId) {
             params.set("photo", openPhotoId);
             pendingPhotoRef.current = null;   // 開けたのでもう待つ必要は無い

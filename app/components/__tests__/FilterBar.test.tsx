@@ -4,7 +4,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import FilterBar from "../FilterBar";
 import type { FilterValues } from "../../../lib/types/gallery";
 
-const baseValues: FilterValues = { category: "all", selectedTags: [], query: "", sort: "new" };
+const baseValues: FilterValues = { category: "all", selectedTags: [], query: "", sort: "new", scope: "all" };
 
 function setup(over: Partial<React.ComponentProps<typeof FilterBar>> = {}) {
     const onChange = vi.fn();
