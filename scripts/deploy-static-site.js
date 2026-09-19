@@ -40,7 +40,8 @@ const outDir = path.join(root, "out");
  * 全写真をパージしていた。各エッジで最初に見た人が毎回フル解像度の
  * JPEG を取り直すことになり、長いキャッシュ期間が意味を成していなかった。
  *
- * 対象はキャッシュさせていないファイル（HTML・sitemap・photos.json など）だけ。
+ * 対象は `isInvalidatable`（`/_next/static/` 以外の全部。HTML・sitemap・photos.json に
+ * 加えて favicon・アイコン・images/ のような固定名の資産も）。
  * /_next/static/ 配下は内容ハッシュ付きなので無効化は要らない。
  *
  * CloudFront のワイルドカードは末尾にしか置けないため、入れ子のページは
@@ -65,7 +66,7 @@ function invalidationPathsFor(keys) {
     const byDir = new Map();
     for (const key of keys) {
         const k = key.split(path.sep).join("/");
-        if (!(isHtmlOrTxt(k) || NO_CACHE_KEYS.has(k))) continue;
+        if (!isInvalidatable(k)) continue;
         const slash = k.indexOf("/");
         if (slash === -1) {
             addExact(k); // 直下のファイルはそのまま
@@ -128,9 +129,9 @@ function changedKeys(localFiles, remoteObjects) {
     const changed = [];
     for (const file of localFiles) {
         const key = file.split(path.sep).join("/");
-        // キャッシュさせていないものだけが無効化の対象
-        // （/_next/static は内容ハッシュ付きなので名前が変われば別物になる）
-        if (!(isHtmlOrTxt(key) || NO_CACHE_KEYS.has(key))) continue;
+        // 無効化の対象だけ（`isInvalidatable`）。/_next/static は内容ハッシュ付きなので
+        // 名前が変われば別物になり、無効化は要らない
+        if (!isInvalidatable(key)) continue;
         const md5 = crypto.createHash("md5").update(fs.readFileSync(path.join(outDir, file))).digest("hex");
         if (remote.get(key) !== md5) changed.push(file);
     }
@@ -195,11 +196,27 @@ const NO_CACHE_KEYS = new Set([
     "app/data/photos.json",
     "sitemap.xml",
     "sitemap-images.xml",
-    // フィードも写真を追加するたびに変わる。入れないと 1時間 immutable で
-    // 配られ、しかも**更新しても CloudFront を無効化しない**
-    // （無効化の対象は .html/.txt とこの一覧だけ）
+    // フィードも写真を追加するたびに変わる。入れないと 1時間 `max-age` で配られる
+    // （無効化は `isInvalidatable` が別に見る。以前はこの一覧と .html/.txt だけが
+    // 対象だったが、いまは `/_next/static/` 以外の全部）
     "feed.xml",
 ]);
+
+/**
+ * 差し替えたときに CloudFront から消す必要があるか。
+ *
+ * - HTML/txt と `NO_CACHE_KEYS` は `no-store` で配るが、エッジには最大 minTTL の間残る
+ * - **固定名の資産**（`favicon.ico`・`icon-*.png`・`images/*`）は `max-age=3600` で
+ *   配るので、差し替えても**最大1時間エッジに古いものが残る**。以前はここが
+ *   無効化の対象に入っておらず、アイコンを差し替えた直後に `/favicon.ico` を
+ *   開いても前の絵が出た（owner が実際に踏んだ）。名前が変わらないものは
+ *   消さないと届かない
+ * - `/_next/static/**` は内容ハッシュ付き＝名前が変われば別物なので要らない
+ */
+function isInvalidatable(key) {
+    if (key.startsWith("_next/")) return false;
+    return true;
+}
 
 async function uploadFile(filePath) {
     const fullPath = path.join(outDir, filePath);
@@ -783,7 +800,7 @@ async function main() {
 module.exports = {
     verifyOgImage,
     assertNoForbiddenContent, assertRobotsMatchesTarget, invalidationTargets,
-    FORBIDDEN_IN_OUTPUT, forbiddenPattern, shouldScan, classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys,
+    FORBIDDEN_IN_OUTPUT, forbiddenPattern, shouldScan, classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys, isInvalidatable,
     bulkDeleteGuard, BULK_DELETE_RATIO, BULK_DELETE_MIN, deleteStaleKeys };
 
 if (require.main === module) main().catch(err => {
