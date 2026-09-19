@@ -14,6 +14,10 @@ import GalleryModal from "./components/GalleryModal";
 import SearchParamWatcher from "./components/SearchParamWatcher";
 import { usePhotos } from "../lib/hooks/usePhotos";
 import { useToast } from "../lib/hooks/useToast";
+import { useAuth } from "./auth/context";
+import TimelineFeed from "./components/TimelineFeed";
+import Link from "next/link";
+import { ROUTES } from "../lib/routes";
 
 // フィルタバーに出すタグ数の上限（枚数の多い順）。残りは検索で辿る
 const POPULAR_TAG_LIMIT = 10;
@@ -22,6 +26,8 @@ export default function GalleryPageClient() {
   const { locale, labels } = useLocale();
   const { showToast } = useToast();
   const { photos, loaded: photosLoaded, failed: photosFailed } = usePhotos();
+  const { isAuthenticated, userId, loading: authLoading } = useAuth();
+  const ownUserId = isAuthenticated ? userId : null;
 
   const {
     PHOTOS,
@@ -35,7 +41,39 @@ export default function GalleryPageClient() {
     close,
     next,
     prev,
-  } = useGallery(photos);
+  } = useGallery(photos, ownUserId);
+
+  /**
+   * **ログイン中の既定は「自分」**（owner:「デフォルトは自分のみがいい」）。
+   *
+   * 静的HTMLと未ログインは「すべて」（検索の着地点はみんなの写真）。セッションが
+   * 確定してログイン中と分かった時点で、**URL がタブを指定していなければ**一度だけ
+   * 「自分」へ倒す。指定があればそれを尊重（開いて戻った）。**`?photo=` で来た
+   * 人も倒さない**——写真を名指しした共有リンク・通知で、その1枚が「自分」に
+   * 無ければ絞りを外す往復（トースト付き）になる。最初から「すべて」で開く。
+   * ログアウトしたら「すべて」に戻す（`mine` は本人の id が無いと意味を持たない）。
+   */
+  const scopeDecidedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      if (filters.scope !== "all") setFilters({ scope: "all" });
+      return;
+    }
+    // 決めるのは確定した1回だけ（利用者が「すべて」を押したあとに戻さない）
+    if (scopeDecidedRef.current) return;
+    scopeDecidedRef.current = true;
+    // **URL はその時点で読む**（マウント時の控えではなく）。ハイドレーション直後に
+    // 一覧の写真を押して開いたあとで認証が確定すると、`?photo=` はマウント後に
+    // 付いている。ここで「自分」へ倒すと**開いている写真の下で一覧が入れ替わる**
+    // （`setFilters` は `currentIndex` を触らない＝別の写真になるか、外れて閉じる。
+    // レビューが指摘）。開いている写真は `?photo=` として URL に**必ず**載っている
+    // （`useGallery` の URL 同期はこの effect より先に定義されているので先に走る）
+    // ——`currentIndex` を重ねて見ない（二重の守りは変異で観測できない）
+    const q = new URLSearchParams(window.location.search);
+    if (q.has("scope") || q.has("photo")) return;
+    setFilters({ scope: "mine" });
+  }, [authLoading, isAuthenticated, filters.scope, setFilters]);
 
 
   // URLパラメータ(?photo=)で写真モーダルを開く。
@@ -106,13 +144,12 @@ export default function GalleryPageClient() {
         : "写真を読み込めませんでした。通信を確かめて、もう一度お試しください。", "error");
     };
 
-    if (filteredPhotos.length === 0) {
-      // 絞り込みの結果が空。ここに来ると下の救済（絞り込みを外して開く）まで
-      // 届かないので、取れていないなら理由を出す。
-      // **ただし手元のスナップショットにある写真は別**——絞り込みで空に
-      // なっている場面で写真APIが落ちていると、ここに来る。
-      // 開ける写真まで断ってしまう（レビューが実測）
-      if (!photosLoaded && photosFailed && !PHOTOS.some((p) => p.id === photoParam)) { tellCouldNotLoad(); return; }
+    // **手元に無い写真で、一覧が空のとき**は下の救済まで届かないので、ここで
+    // 取れていないなら理由を出す。**手元にある写真は下へ通す**——絞り込みや
+    // 「自分」タブ（写真0枚の人には既定でそうなる）で空になっていても、
+    // 絞りを外して開ける（レビューが実測した「開ける写真まで断る」を避ける）
+    if (filteredPhotos.length === 0 && !PHOTOS.some((p) => p.id === photoParam) && !photosLoaded) {
+      if (photosFailed) { tellCouldNotLoad(); return; }
       setPendingPhoto(photoParam);
       return;
     }
@@ -145,9 +182,9 @@ export default function GalleryPageClient() {
       // 形（毎回新しいオブジェクト＝毎回再描画）を作りかねない。今の状態を
       // 見て決めれば、外し終わったあとは自然に何もしない。
       const narrowed = filters.category !== "all" || filters.selectedTags.length > 0
-        || filters.query.trim() !== "";
+        || filters.query.trim() !== "" || filters.scope !== "all";
       if (narrowed) {
-        setFilters({ category: "all", selectedTags: [], query: "" });
+        setFilters({ category: "all", selectedTags: [], query: "", scope: "all" });
         showToast(locale === "en"
           ? "Cleared the filters to open this photo."
           : "絞り込みを解除して、この写真を開きました。", "info");
@@ -319,13 +356,46 @@ export default function GalleryPageClient() {
         </div>
       </div>
 
-      {/* 「フォロー中」の入口はここに置かない——owner の判断で、トップは
-          みんなの写真、フォローした人の写真はマイページの「フォロー中」タブ。
-          以前あったピル（すべて／フォロー中）と `feed` のふるいは撤去した */}
+      {/* 誰の写真を見るか（ログイン中だけ）。owner:「この画面は、タブで切り替えて、
+          自分の写真かフォロー中の人の写真みれるようにしたい」。
+          「すべて」は未ログインの人が見るのと同じ一覧。既定は「自分」（上の effect） */}
+      {isAuthenticated && (
+        <div role="group" aria-label={locale === "en" ? "Whose photos" : "誰の写真を見るか"}
+             className="inline-flex items-center gap-1 p-1 mb-3 rounded-full bg-white/5 ring-1 ring-white/10">
+          {([
+            { key: "mine", label: locale === "en" ? "Mine" : "自分" },
+            { key: "following", label: locale === "en" ? "Following" : "フォロー中" },
+            { key: "all", label: locale === "en" ? "All" : "すべて" },
+          ] as const).map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setFilters({ scope: t.key })}
+              aria-pressed={filters.scope === t.key}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                filters.scope === t.key ? "bg-white text-black" : "text-white/70 hover:text-white"
+              }`}
+              style={{ touchAction: "manipulation" }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ストーリー（24時間で消える投稿） */}
       <StoriesBar />
 
+      {/* フォロー中: 絞り込み・件数・グリッドは出さず、投稿者つきのカードが投稿順に流れる
+          （フォローした人の写真をサムネだけで並べると誰の写真か分からない）。
+          `useGallery` はこのタブで一覧を空にするので、`?photo=` が来たら上の effect が
+          「すべて」へ外して開く（フィードの上にモーダルを重ねない） */}
+      {isAuthenticated && filters.scope === "following" ? (
+        <div className="max-w-xl mx-auto">
+          <TimelineFeed locale={locale} />
+        </div>
+      ) : (
+      <>
       <FilterBar
         categories={categories}
         tags={tags}
@@ -341,7 +411,7 @@ export default function GalleryPageClient() {
           **絞り込み中は出さない**——絞った結果の上に、絞りと関係ない写真が
           並ぶと何を見ているか分からなくなる。
           1枚も選ばれていなければ、この部品が自分で何も出さない */}
-      {filters.category === "all" && filters.selectedTags.length === 0
+      {filters.scope === "all" && filters.category === "all" && filters.selectedTags.length === 0
         && !filters.query.trim() && (
         <FeaturedSections
           photos={PHOTOS}
@@ -370,6 +440,19 @@ export default function GalleryPageClient() {
               {locale === "en" ? "No photos yet." : "まだ写真がありません。"}
             </p>
           </div>
+        ) : filteredPhotos.length === 0 && filters.scope === "mine" && isAuthenticated
+          && filters.category === "all" && filters.selectedTags.length === 0 && !filters.query.trim() ? (
+          // **「自分」で0枚は「条件に一致しない」ではない**——まだ投稿していないだけ。
+          // ログイン直後の既定がこのタブなので、最初に見るのはここ。投稿への導線を出す
+          <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
+            <p className="text-sm">
+              {locale === "en" ? "You haven't posted any photos yet." : "まだ写真を投稿していません。"}
+            </p>
+            <Link href={ROUTES.UPLOAD} prefetch={false}
+                  className="px-5 py-2 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors">
+              {locale === "en" ? "Share your first photo" : "最初の写真を投稿"}
+            </Link>
+          </div>
         ) : filteredPhotos.length === 0 && PHOTOS.length > 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
             <p className="text-sm">
@@ -393,6 +476,8 @@ export default function GalleryPageClient() {
           />
         )}
       </>
+      </>
+      )}
 
       <SearchParamWatcher name="photo" onChange={setPhotoParam} />
 
