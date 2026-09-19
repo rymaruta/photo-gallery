@@ -18,18 +18,35 @@ vi.mock("../auth/context", () => ({ useAuth: () => authState.current }));
 vi.mock("../i18n/context", () => ({
     useLocale: () => ({ locale: "ja", labels: { category: { all: "すべて", names: {} }, site: { title: "Gallery" } } }),
 }));
-vi.mock("../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
+// **`showToast` は固定する。** 描画のたびに新しい関数を返すと、`?photo=` の effect
+// （依存に `showToast` が入る）が毎回走り直し、写真を開いた直後の再描画で
+// `photoParam` がまだ届いていない隙に「URL から消えた」と誤読して閉じる。
+// 本物は `useCallback` で安定している（管理画面のテストで一度踏んだ型）
+const mockShowToast = vi.hoisted(() => vi.fn());
+vi.mock("../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: mockShowToast }) }));
 vi.mock("../components/stories/StoriesBar", () => ({ default: () => null }));
 vi.mock("../components/FilterBar", () => ({ default: () => <div data-testid="filter-bar" /> }));
 vi.mock("../components/GalleryModal", () => ({ default: () => null }));
-// `?photo=` は本来 SearchParamWatcher が URL から親へ渡す。ここでは URL を短い間隔で
-// 読んで渡す（値を直接注ぐ形だと、グリッドから開いた写真の `?photo=` を「消えた」と
-// 誤って伝えて閉じてしまう）
+// `?photo=` は本来 SearchParamWatcher が URL から親へ渡す（Next の `useSearchParams` は
+// `history.replaceState` / `pushState` に同期して更新される）。ここでは URL の書き込みを
+// 包んで**その場で**知らせる。**間隔で読む形（5ms の polling）にしてはいけない**——
+// CI の負荷で認証の再描画が polling より先に来ると `photoParam` がまだ `null` で、
+// 「URL から `?photo=` が消えた」と誤読して開いた写真を閉じる（run 403 で落ちた）。
+// 値を直接注ぐ形も駄目（グリッドから開いた写真の `?photo=` を「消えた」と伝える）
+const URL_EVENT = "test:urlchange";
+for (const m of ["pushState", "replaceState"] as const) {
+    const orig = window.history[m].bind(window.history);
+    window.history[m] = ((...a: Parameters<History["pushState"]>) => { orig(...a); window.dispatchEvent(new Event(URL_EVENT)); }) as History["pushState"];
+}
 vi.mock("../components/SearchParamWatcher", () => ({
     default: function MockWatcher({ onChange }: { onChange: (v: string | null) => void }) {
         const read = () => new URLSearchParams(window.location.search).get("photo");
         const [v, setV] = React.useState(read);
-        React.useEffect(() => { const t = setInterval(() => setV(read()), 5); return () => clearInterval(t); }, []);
+        React.useEffect(() => {
+            const sync = () => setV(read());
+            window.addEventListener(URL_EVENT, sync); window.addEventListener("popstate", sync);
+            return () => { window.removeEventListener(URL_EVENT, sync); window.removeEventListener("popstate", sync); };
+        }, []);
         React.useEffect(() => { onChange(v); }, [v, onChange]);
         return null;
     },
