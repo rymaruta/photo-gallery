@@ -70,7 +70,10 @@ export function publicImageUrl(src: string | undefined): string {
 
 export const siteConfig = {
     name: "Journey Photo | 旅フォトギャラリー",
-    description: "旅の記憶を写真で残す。国内外の旅行写真・風景写真・スナップ写真を集めたフォトギャラリー。旅先の景色や日常のひとこまを届けます。",
+    // owner の判断（2026-09-20）: 「作品集」の声をやめ、眺めるのが主役の言葉に。
+    // 「見るだけでもOK」のような許可・招待の言い方は入れない（読む人が何も
+    // 求められていないと感じる順番にする）。検索語（旅行写真・風景・フォトギャラリー）は残す
+    description: "旅の写真を、気軽に眺めて、気軽に載せられるフォトギャラリー。国内外の旅行写真・風景・街・食べ物・日常のひとこまが集まっています。",
     descriptionEn: "A travel photography gallery capturing journeys, landscapes, and everyday moments.",
     url: process.env.NEXT_PUBLIC_SITE_URL || "https://journey-photo.com",
     // **写真が1枚も無いときの落とし先。** 以前ここに
