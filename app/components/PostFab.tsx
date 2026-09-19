@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
-import { PlusIcon, PhotoIcon, BoltIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, PhotoIcon, ClockIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../auth/context";
 import { useLocale } from "../i18n/context";
 import { ROUTES } from "../../lib/routes";
@@ -114,48 +114,55 @@ export default function PostFab() {
             </button>
 
             {open && createPortal(
-                <div className="fixed inset-0 z-[60]" role="presentation">
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setOpen(false)} aria-hidden="true" data-testid="post-fab-backdrop" />
+                // **画面の中央に出す**（owner:「下じゃなくて真ん中の方が使いやすい」）。
+                // 押せる面は1つ 88px 以上・文字は本文 18px／説明 14px。意匠はこのサイトの
+                // 地のもの（黒地・白のピル・細い白の線）だけで組む。**グラデーションは
+                // 使わない**（owner:「インスタの丸パクリみたいになってる」）
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-5" role="presentation">
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setOpen(false)} aria-hidden="true" data-testid="post-fab-backdrop" />
                     <div
                         ref={panelRef}
                         role="dialog"
                         aria-modal="true"
-                        aria-label={isJa ? "投稿する" : "Create"}
-                        className="absolute inset-x-3 bottom-0 max-w-md mx-auto rounded-t-2xl sm:rounded-2xl sm:bottom-6 ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in"
-                        style={{ backgroundColor: "#16181c", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+                        aria-labelledby="post-fab-title"
+                        className="relative w-full max-w-sm rounded-3xl bg-[#16181c]/95 backdrop-blur-md ring-1 ring-white/15 shadow-2xl shadow-black/60 overflow-hidden story-media-in"
+                        // 字: サイトの本文と同じ Inter → Noto Sans JP → system の並び（`layout.tsx`）。
+                        // 日本語はプロポーショナル詰め（`palt`）で、見出しはわずかに字間を開ける。
+                        // 太さはこのサイトが配っている 700 だけを使う（600 は Inter に無い）
+                        style={{ fontFeatureSettings: '"palt"' }}
                     >
-                        <p className="px-5 pt-4 pb-2 text-xs tracking-widest uppercase text-white/50 m-0">
-                            {isJa ? "投稿する" : "Create"}
-                        </p>
-                        <ul className="m-0 p-0 divide-y divide-white/5" style={{ listStyle: "none" }}>
-                            <li className="m-0 p-0">
-                                <button type="button" onClick={goUpload}
-                                        className="w-full flex items-center gap-4 px-5 py-4 text-left text-white hover:bg-white/10 transition-colors"
-                                        style={{ touchAction: "manipulation", minHeight: "56px" }}>
-                                    <PhotoIcon className="w-6 h-6 text-white/80" />
-                                    <span>
-                                        <span className="block text-base">{isJa ? "写真を投稿" : "Post a photo"}</span>
-                                        <span className="block text-xs text-white/60">{isJa ? "作品として残る。公開すると個別ページができる" : "Stays as a work. Public photos get their own page."}</span>
-                                    </span>
-                                </button>
-                            </li>
-                            <li className="m-0 p-0">
-                                <button type="button" onClick={() => fileRef.current?.click()}
-                                        className="w-full flex items-center gap-4 px-5 py-4 text-left text-white hover:bg-white/10 transition-colors"
-                                        style={{ touchAction: "manipulation", minHeight: "56px" }}>
-                                    <BoltIcon className="w-6 h-6 text-white/80" />
-                                    <span>
-                                        <span className="block text-base">{isJa ? "ストーリーを投稿" : "Post a story"}</span>
-                                        <span className="block text-xs text-white/60">{isJa ? "24時間で消える。写真か短い動画" : "Disappears in 24 hours. Photo or short video."}</span>
-                                    </span>
-                                </button>
-                            </li>
-                        </ul>
-                        <div className="px-3 pb-3 pt-1">
+                        <div className="flex items-center justify-between pl-5 pr-3 pt-3 pb-2 border-b border-white/10">
+                            <h2 id="post-fab-title" className="text-xl font-bold tracking-wide text-white m-0">{isJa ? "投稿する" : "Create"}</h2>
                             <button type="button" onClick={() => setOpen(false)}
-                                    className="w-full py-3 rounded-xl bg-white/5 text-white/70 hover:text-white hover:bg-white/10 text-sm transition-colors"
+                                    aria-label={isJa ? "閉じる" : "Close"}
+                                    className="w-11 h-11 rounded-full text-white/70 hover:text-white hover:bg-white/10 flex items-center justify-center transition-colors"
                                     style={{ touchAction: "manipulation" }}>
-                                {isJa ? "閉じる" : "Close"}
+                                <XMarkIcon className="w-6 h-6" />
+                            </button>
+                        </div>
+                        <div className="px-4 pb-5 pt-4 flex flex-col gap-3">
+                            <button type="button" onClick={goUpload}
+                                    className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-left transition-colors active:scale-[0.98]"
+                                    style={{ touchAction: "manipulation", minHeight: "88px", WebkitTapHighlightColor: "transparent" }}>
+                                <span className="w-14 h-14 rounded-2xl bg-white text-black flex items-center justify-center flex-shrink-0 shadow-lg shadow-black/40">
+                                    <PhotoIcon className="w-7 h-7" />
+                                </span>
+                                <span className="min-w-0">
+                                    <span className="block text-lg font-bold tracking-wide text-white leading-snug">{isJa ? "写真を投稿" : "Post a photo"}</span>
+                                    <span className="block text-sm text-white/70 mt-1 leading-relaxed">{isJa ? "ずっと残る1枚。公開すると個別ページができる" : "Stays for good. Public photos get their own page."}</span>
+                                </span>
+                            </button>
+                            <button type="button" onClick={() => fileRef.current?.click()}
+                                    className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-left transition-colors active:scale-[0.98]"
+                                    style={{ touchAction: "manipulation", minHeight: "88px", WebkitTapHighlightColor: "transparent" }}>
+                                {/* 白の線の丸＝「消える」側。写真の白い四角と対にする */}
+                                <span className="w-14 h-14 rounded-full ring-2 ring-white/80 ring-inset flex items-center justify-center flex-shrink-0">
+                                    <ClockIcon className="w-7 h-7 text-white" />
+                                </span>
+                                <span className="min-w-0">
+                                    <span className="block text-lg font-bold tracking-wide text-white leading-snug">{isJa ? "ストーリーを投稿" : "Post a story"}</span>
+                                    <span className="block text-sm text-white/70 mt-1 leading-relaxed">{isJa ? "24時間で消える。写真か短い動画" : "Disappears in 24 hours. Photo or short video."}</span>
+                                </span>
                             </button>
                         </div>
                     </div>

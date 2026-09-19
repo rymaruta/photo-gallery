@@ -125,7 +125,8 @@ describe("PostFab", () => {
         const items = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE));
         expect(items.length).toBeGreaterThan(0);
         expect(items.some((el) => el.tagName === "INPUT"), "隠しファイル入力が閉じ込めの中に居る").toBe(false);
-        expect(items[items.length - 1].textContent).toContain("閉じる");
+        // 閉じる手段（×）が閉じ込めの中にある
+        expect(items.some((el) => el.getAttribute("aria-label") === "閉じる")).toBe(true);
         // 入力そのものは残っている（選ぶのはここ）
         expect(document.querySelector('input[type="file"]')).toBeTruthy();
     });
