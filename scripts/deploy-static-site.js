@@ -40,7 +40,8 @@ const outDir = path.join(root, "out");
  * 全写真をパージしていた。各エッジで最初に見た人が毎回フル解像度の
  * JPEG を取り直すことになり、長いキャッシュ期間が意味を成していなかった。
  *
- * 対象はキャッシュさせていないファイル（HTML・sitemap・photos.json など）だけ。
+ * 対象は `isInvalidatable`（`/_next/static/` 以外の全部。HTML・sitemap・photos.json に
+ * 加えて favicon・アイコン・images/ のような固定名の資産も）。
  * /_next/static/ 配下は内容ハッシュ付きなので無効化は要らない。
  *
  * CloudFront のワイルドカードは末尾にしか置けないため、入れ子のページは
@@ -195,9 +196,9 @@ const NO_CACHE_KEYS = new Set([
     "app/data/photos.json",
     "sitemap.xml",
     "sitemap-images.xml",
-    // フィードも写真を追加するたびに変わる。入れないと 1時間 immutable で
-    // 配られ、しかも**更新しても CloudFront を無効化しない**
-    // （無効化の対象は .html/.txt とこの一覧だけ）
+    // フィードも写真を追加するたびに変わる。入れないと 1時間 `max-age` で配られる
+    // （無効化は `isInvalidatable` が別に見る。以前はこの一覧と .html/.txt だけが
+    // 対象だったが、いまは `/_next/static/` 以外の全部）
     "feed.xml",
 ]);
 

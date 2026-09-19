@@ -129,6 +129,36 @@ describe("PostFab", () => {
         expect(items.some((el) => el.getAttribute("aria-label") === "閉じる")).toBe(true);
         // 入力そのものは残っている（選ぶのはここ）
         expect(document.querySelector('input[type="file"]')).toBeTruthy();
+        // 両端は見える部品（× が先頭・ストーリーが末尾）
+        expect(items[0].getAttribute("aria-label")).toBe("閉じる");
+        expect(items[items.length - 1].textContent).toContain("ストーリーを投稿");
+    });
+
+    // × が先頭に来たので、何もしないと開いた瞬間の読み上げが「閉じる ボタン」から始まる
+    it("開いたら主の操作（写真を投稿）にフォーカスが当たる", () => {
+        render(<PostFab />);
+        openSheet();
+        expect(document.activeElement?.textContent).toContain("写真を投稿");
+    });
+
+    it("× で閉じ、フォーカスは「＋」へ戻る", () => {
+        render(<PostFab />);
+        openSheet();
+        fireEvent.click(screen.getByRole("button", { name: "閉じる" }));
+        expect(screen.queryByRole("dialog")).toBeNull();
+        expect(document.activeElement).toBe(fab());
+    });
+
+    // 640px 未満は root が 14px なので、rem の指定は端末で縮む（`w-11` → 38.5px）。
+    // 押せる面と字は px で固定していることを見る
+    it("× と絵は px で 44 / 56、字は 20/18/14（rem で縮まない）", () => {
+        render(<PostFab />);
+        const dialog = openSheet();
+        expect(screen.getByRole("button", { name: "閉じる" }).className).toMatch(/w-\[44px\] h-\[44px\]/);
+        expect(dialog.querySelectorAll(".w-\\[56px\\]").length).toBe(2);
+        expect(dialog.querySelector("h2")?.className).toMatch(/text-\[20px\]/);
+        expect(dialog.querySelectorAll(".text-\\[18px\\]").length).toBe(2);
+        expect(dialog.querySelectorAll(".text-\\[14px\\]").length).toBe(2);
     });
 
     // クエリだけ変わる戻る（`/users?id=A` → `?id=B`）はパスが同じ。`HeaderNav` と同じ穴

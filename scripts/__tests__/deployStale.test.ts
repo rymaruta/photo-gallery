@@ -458,6 +458,11 @@ describe("削除したキーも無効化の対象に入れる", () => {
         expect(invalidationTargets([], [], undefined)).toEqual([]);
     });
 
+    // 固定名の資産を消した回も対象（`isInvalidatable` は削除の経路にも効く）
+    it("消した固定名の資産も無効化される", () => {
+        expect(invalidationPathsFor(invalidationTargets([], [], ["images/old.jpg"]))).toContain("/images/old.jpg");
+    });
+
     it("消したページは拡張子ありでもなしでも無効化される", () => {
         const paths = invalidationPathsFor(invalidationTargets([], [], ["photo/gone.html"]));
         expect(paths).toContain("/photo/gone.html");
