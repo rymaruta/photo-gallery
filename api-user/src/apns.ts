@@ -1,0 +1,187 @@
+import http2 from "node:http2";
+import { createPrivateKey, sign } from "node:crypto";
+
+/**
+ * APNs（Apple のプッシュ通知）へ送る。
+ *
+ * **設定が無ければ黙って送らない。** 鍵を入れていない環境（staging・
+ * 手元）で通知そのものを止めないため——`pushNotification` は元から
+ * 「失敗しても本体は成功」の作り。`CLOUDFRONT_DISTRIBUTION_ID` や
+ * `REBUILD_DISPATCH_TOKEN` と同じ扱い（未設定でも本筋は通す）。
+ *
+ * **文面はここで作らない。** `loc-key` を送り、日本語と英語の出し分けは
+ * 端末の `Localizable.strings` に任せる——サーバーは相手の言語を知らない。
+ * 文面を作って送ると、英語の端末にも日本語が届く。
+ *
+ * **鍵は「送る関数」にだけ配る**（`serverless.yml` の IAM-2 の注記）。
+ * 環境変数は読み取り権を持つ人に見えるので、provider には置かない。
+ */
+const KEY_ID = process.env.APNS_KEY_ID ?? "";
+const TEAM_ID = process.env.APNS_TEAM_ID ?? "";
+/** `.p8` の中身。改行は `\n` のまま渡ってくることがある */
+const PRIVATE_KEY = (process.env.APNS_PRIVATE_KEY ?? "").replace(/\\n/g, "\n");
+/** 送り先のアプリ（Bundle ID） */
+const TOPIC = process.env.APNS_TOPIC ?? "";
+/**
+ * **既定は本番の APNs。** TestFlight と App Store のビルドはこちら。
+ * Xcode から直接入れたビルドだけ `api.sandbox.push.apple.com`。
+ */
+const HOST = process.env.APNS_HOST || "api.push.apple.com";
+
+/** 設定が揃っているか。揃っていなければ送信そのものを飛ばす */
+export function apnsConfigured(): boolean {
+    return !!(KEY_ID && TEAM_ID && PRIVATE_KEY && TOPIC);
+}
+
+/**
+ * 署名（JWT）は使い回す。
+ *
+ * APNs は**1時間以内に作り直す**ことを求め、**20分より短い間隔で作り直すと
+ * 断る**（`TooManyProviderTokenUpdates`）。50分で作り直せば両方を満たす。
+ */
+const TOKEN_TTL_MS = 50 * 60 * 1000;
+let cachedToken: { value: string; at: number } | null = null;
+
+function base64url(input: Buffer | string): string {
+    return Buffer.from(input).toString("base64")
+        .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+export function providerToken(now = Date.now()): string {
+    if (cachedToken && now - cachedToken.at < TOKEN_TTL_MS) return cachedToken.value;
+    const header = base64url(JSON.stringify({ alg: "ES256", kid: KEY_ID }));
+    const payload = base64url(JSON.stringify({ iss: TEAM_ID, iat: Math.floor(now / 1000) }));
+    // **ES256 の署名は R||S の生の形**（`ieee-p1363`）。既定の DER で送ると
+    // APNs は 403 `InvalidProviderToken` を返す——「鍵が違う」に見えて
+    // 実際は形式違い、といういちばん分かりにくい落ち方をする
+    const signature = sign("sha256", Buffer.from(`${header}.${payload}`), {
+        key: createPrivateKey(PRIVATE_KEY),
+        dsaEncoding: "ieee-p1363",
+    });
+    const value = `${header}.${payload}.${base64url(signature)}`;
+    cachedToken = { value, at: now };
+    return value;
+}
+
+/** テスト用。署名の作り直しを強制する */
+export function resetProviderToken(): void {
+    cachedToken = null;
+}
+
+export type PushMessage = {
+    /** 端末の `Localizable.strings` の鍵（例: `NOTIF_LIKE`） */
+    locKey: string;
+    /** 鍵に埋める値（相手の名前など） */
+    locArgs: string[];
+    /** アプリのバッジに出す未読数 */
+    badge?: number;
+    /** 押したときの行き先を決めるための付帯情報 */
+    data?: Record<string, string>;
+};
+
+/** 送信の結果。**無効だった宛先だけ**を返す（呼び出し側が外す） */
+export type PushResult = { sent: number; invalid: string[] };
+
+/**
+ * 1人の端末すべてに送る。
+ *
+ * **本筋を待たせない。** いいねやコメントの応答はこの送信を待つので、
+ * 締め切りを置いて、超えたら諦める（通知が届かないだけ）。
+ */
+const DEADLINE_MS = 2500;
+
+export async function sendPush(
+    tokens: readonly string[],
+    message: PushMessage,
+): Promise<PushResult> {
+    if (!apnsConfigured() || tokens.length === 0) return { sent: 0, invalid: [] };
+
+    const body = JSON.stringify({
+        aps: {
+            alert: { "loc-key": message.locKey, "loc-args": message.locArgs },
+            sound: "default",
+            ...(typeof message.badge === "number" ? { badge: message.badge } : {}),
+        },
+        ...(message.data ?? {}),
+    });
+
+    let client: http2.ClientHttp2Session | undefined;
+    try {
+        client = http2.connect(`https://${HOST}`);
+        // **繋がらない回を握り潰さない**（`error` を拾わないと落ちる）
+        const failed = new Promise<never>((_, reject) => {
+            client?.once("error", reject);
+        });
+        const jwt = providerToken();
+        const results = await Promise.race([
+            Promise.all(tokens.map((token) => sendOne(client!, jwt, token, body))),
+            failed,
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), DEADLINE_MS)),
+        ]);
+        if (!results) {
+            console.warn(`sendPush: ${DEADLINE_MS}ms で返らなかったので諦めました`);
+            return { sent: 0, invalid: [] };
+        }
+        return {
+            sent: results.filter((r) => r.ok).length,
+            invalid: results.filter((r) => r.invalid).map((r) => r.token),
+        };
+    } catch (e) {
+        console.error("sendPush error:", e);
+        return { sent: 0, invalid: [] };
+    } finally {
+        // **セッションを跨いで使い回さない。** Lambda は呼び出しの間で
+        // 凍るので、生きているつもりの接続が次の回に固まる
+        client?.close();
+    }
+}
+
+type OneResult = { token: string; ok: boolean; invalid: boolean };
+
+function sendOne(
+    client: http2.ClientHttp2Session,
+    jwt: string,
+    token: string,
+    body: string,
+): Promise<OneResult> {
+    return new Promise((resolve) => {
+        const request = client.request({
+            ":method": "POST",
+            ":path": `/3/device/${token}`,
+            "authorization": `bearer ${jwt}`,
+            "apns-topic": TOPIC,
+            "apns-push-type": "alert",
+            // 10 = すぐ届ける（人の行動に対する通知なので遅らせない）
+            "apns-priority": "10",
+        });
+        let status = 0;
+        let payload = "";
+        request.on("response", (headers) => { status = Number(headers[":status"] ?? 0); });
+        request.setEncoding("utf8");
+        request.on("data", (chunk: string) => { payload += chunk; });
+        request.on("error", () => resolve({ token, ok: false, invalid: false }));
+        request.on("end", () => {
+            // **無効と判じるのは2つだけ。** 400 の中身は理由で分かれていて、
+            // `PayloadTooLarge` のような**こちらの間違い**で宛先を捨てると、
+            // 直したあとも誰にも届かない
+            const reason = readReason(payload);
+            const invalid = status === 410
+                || (status === 400 && (reason === "BadDeviceToken" || reason === "DeviceTokenNotForTopic"));
+            if (status !== 200) {
+                console.warn(`APNs ${status} ${reason ?? ""}`.trim());
+            }
+            resolve({ token, ok: status === 200, invalid });
+        });
+        request.end(body);
+    });
+}
+
+function readReason(payload: string): string | undefined {
+    if (!payload) return undefined;
+    try {
+        const parsed = JSON.parse(payload) as { reason?: unknown };
+        return typeof parsed.reason === "string" ? parsed.reason : undefined;
+    } catch {
+        return undefined;
+    }
+}
