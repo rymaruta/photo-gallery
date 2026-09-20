@@ -49,10 +49,14 @@ gate() { # gate <名前> <コマンド...>
 # で見る（CI はそれぞれのディレクトリで npm ci を打つので、あちらでは出ない）。
 API_BASELINE=11
 # 116 → 118: 通報のハンドラ（`report.ts`）を1つ足したぶん。
-# 中身は `Cannot find module 'aws-lambda'` と、その結果の implicit any の2件で、
+# 118 → 120: いいねした写真の一覧（`likes.getMyLikes`）を1つと、
+#            対テスト（`userList.test.ts`）を1ファイル足したぶん。
+# 中身は `Cannot find module 'aws-lambda'` と、その結果の implicit any で、
 # **全ハンドラが同じ形**（`@types/aws-lambda` は package.json に在るが、
 # ルートから見た型検査には入らない）。CI は api-user で npm ci を打つので出ない。
-API_USER_BASELINE=118
+# ⚠️ **上げるのはハンドラかテストファイルを足したときだけ**（テストは
+#    先頭の `await import` が1件になる）。それ以外で増えたら本物。
+API_USER_BASELINE=120
 
 check_side_tsc() { # check_side_tsc <dir> <baseline>
     local out; out=$(npx tsc --noEmit -p "$1/tsconfig.json" 2>&1)

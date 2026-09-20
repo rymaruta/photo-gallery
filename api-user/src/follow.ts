@@ -1,7 +1,8 @@
 import type { APIGatewayProxyHandlerV2, APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { hasAnyUserItem } from "./ddb-photos";
-import { PutCommand, UpdateCommand, GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
+import { UpdateCommand, GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
+import { updateUserList } from "./userList";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { pushNotification, lookupDisplayName, lookupDisplayNameIfSet, deletedUserIds } from "./notify";
 import { requireEnv } from "./env";
@@ -112,96 +113,17 @@ async function readFollowing(uid: string): Promise<string[]> {
 }
 
 /**
- * following# の list を安全に書き換える。
+ * 一覧の書き換えは `userList.ts` の `updateUserList` に切り出した
+ * （読む → 変える → `rev` を条件に Put → 競合したら読み直す）。
  *
- * 以前は「読む → 変える → 無条件で Put」だった。1秒のうちに2人フォローすると
- * 2つの Lambda が同じ空リストを読み、片方の書き込みがもう片方を丸ごと
- * 上書きして、フォローが1件に減っていた。しかも follow# マーカーは両方
- * 残るので、もう一度フォローしても「既にフォロー済み」で早期 return し、
- * 一覧は欠けたまま直らない（フィードにその人の写真が出なくなる）。
- *
- * 順序（新しくフォローした順）を保ちたいので集合型には替えず、
- * リビジョン番号で衝突を検出して読み直す。
+ * **規則を2つ書かない。** いいねの一覧（`likes#<uid>`）を足すときに
+ * 写しかけたので、両方から同じものを呼ぶ形にした。理由と落とし穴は
+ * あちらの docstring にまとめてある。エラー名も `UserListError`。
  */
-const FOLLOWING_WRITE_RETRIES = 3;
-/** やり直しの待ち（指数＋ばらつき）。`followers#` は多人数が同じ行を書く */
-const LIST_RETRY_BASE_MS = 25;
-
-/** 一覧の書き込みを諦めたときのエラー。呼び出し側が打ち消し処理に使う */
-class FollowingListError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = "FollowingListError";
-    }
-}
-
-/**
- * `following#` と `followers#` は同じ形（新しい順のリスト＋`rev`）なので、
- * 書き換えも1つにする。**規則を2つ書くと静かにずれる**——このリポジトリが
- * 何度も踏んでいる形。
- */
-async function updateUserList(rowId: string, uid: string, mutate: (list: string[]) => string[] | null): Promise<void> {
-    for (let attempt = 0; attempt <= FOLLOWING_WRITE_RETRIES; attempt++) {
-        const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: rowId } }));
-        const current = Array.isArray(res.Item?.list) ? (res.Item.list as string[]) : [];
-        const rev = typeof res.Item?.rev === "number" ? res.Item.rev : 0;
-
-        const next = mutate([...current]);
-        if (next === null) return; // 変更なし
-
-        // 読んでから今までに他の書き込みが入っていないこと。
-        // rev を持たない既存データ（この仕組みを入れる前の item）も通す必要が
-        // あるので、rev が無いときだけ条件を緩める。
-        // DynamoDB は値どうしの比較を許さないため、分岐は JS 側で作る。
-        const guard = rev === 0
-            ? "attribute_not_exists(id) OR attribute_not_exists(rev) OR rev = :rev"
-            : "rev = :rev";
-
-        try {
-            await ddb.send(new PutCommand({
-                TableName: PHOTOS_TABLE,
-                Item: {
-                    id: rowId,
-                    uid,
-                    list: next.slice(0, FOLLOWING_MAX),
-                    rev: rev + 1,
-                    updatedAt: new Date().toISOString(),
-                },
-                ConditionExpression: guard,
-                ExpressionAttributeValues: { ":rev": rev },
-            }));
-            return;
-        } catch (e) {
-            if ((e as { name?: string }).name !== "ConditionalCheckFailedException") throw e;
-            // 競合。読み直してやり直す。
-            //
-            // **間を置く。** `following#<自分>` は書き手が自分1人なので
-            // 競合はほぼ起きないが、`followers#<相手>` は**その人を
-            // フォロー／解除する全員が同じ1行を書く**。即座に撃ち直すと
-            // 押し合いになるだけなので、指数で待ってばらす
-            // （待たずに撃ち直すとスロットリング由来の失敗も悪化する
-            //  ——`account.ts` の掃除が同じ理由で待っている）。
-            // **最後の回は待たない。** 待ってもループが尽きて投げるだけで、
-            // その 100〜300ms は丸損（`followUser` は2つの行を通るので
-            // 最悪 1,125ms、既定6秒の枠から削る意味が無い）
-            if (attempt < FOLLOWING_WRITE_RETRIES) {
-                await new Promise((r) => setTimeout(r, LIST_RETRY_BASE_MS * 2 ** attempt * (0.5 + Math.random())));
-            }
-        }
-    }
-    // 諦めたことを黙って飲み込まない。
-    //
-    // 以前はログを1行出して正常終了していた。呼び出し側は成功として 200 を返すが、
-    // follow# マーカーは書かれていて一覧だけが欠ける。もう一度フォローしても
-    // 「既にフォロー済み」で早期 return するので、**二度と直らない**
-    // （その人の写真がフィードに出ないままになる）。
-    // 呼び出し側で打ち消して 500 を返せるように投げる。
-    throw new FollowingListError(`${rowId} の一覧更新が競合し続けました`);
-}
 
 /** 自分がフォローしている人の一覧 */
 const updateFollowing = (uid: string, mutate: (list: string[]) => string[] | null) =>
-    updateUserList(followingId(uid), uid, mutate);
+    updateUserList(followingId(uid), uid, FOLLOWING_MAX, mutate);
 
 /**
  * 相手の「フォロワー一覧」に自分を足す／外す。
@@ -222,7 +144,7 @@ const updateFollowing = (uid: string, mutate: (list: string[]) => string[] | nul
  */
 export async function updateFollowersQuietly(target: string, follower: string, add: boolean): Promise<boolean> {
     try {
-        await updateUserList(followersId(target), target, (list) => {
+        await updateUserList(followersId(target), target, FOLLOWING_MAX, (list) => {
             if (add) {
                 if (list.includes(follower)) return null;
                 list.unshift(follower);
@@ -521,7 +443,7 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
                 return list;
             });
         } catch (e) {
-            if ((e as { name?: string }).name !== "FollowingListError") throw e;
+            if ((e as { name?: string }).name !== "UserListError") throw e;
             // 打ち消すのは**この呼び出しで書いたぶんだけ**。"already" のときは
             // 何も書いていないので、打ち消すと他人の（前回成立した）
             // フォローを勝手に解除することになる。
@@ -646,7 +568,7 @@ export const unfollowUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
                 return next.length === list.length ? null : next;
             });
         } catch (e) {
-            if ((e as { name?: string }).name !== "FollowingListError") throw e;
+            if ((e as { name?: string }).name !== "UserListError") throw e;
             if (outcome === "done") await undoUnfollow(target, me);
             return jsonError(500, "フォロー解除に失敗しました。もう一度お試しください");
         }

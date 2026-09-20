@@ -19,7 +19,28 @@ vi.mock("../blockCheck", () => ({
     blockMarkerId: (a: string, b: string) => `block#${a}#${b}`,
 }));
 
-const { getLikeCount, getMyLike, likePhoto, unlikePhoto } = await import("../likes");
+// **一覧の書き込みは境界としてモックする**（`blockCheck` と同じ判断）。
+// `updateUserList` は ddb を自分で叩くので、本物を通すとこのファイルの
+// 位置指定のモック列（Put → Update …）に読み書きが割り込み、
+// **本題と関係ない行を全テストに足して回る**ことになる。
+// あの関数そのものは `userList.test.ts` が見る。
+const mockUpdateUserList = vi.hoisted(() => vi.fn(async (..._a: unknown[]) => {}));
+const mockReadUserList = vi.hoisted(() => vi.fn(async (..._a: unknown[]) => [] as string[]));
+vi.mock("../userList", () => ({
+    updateUserList: (...a: unknown[]) => mockUpdateUserList(...(a as [])),
+    readUserList: (...a: unknown[]) => mockReadUserList(...(a as [])),
+    UserListError: class extends Error {},
+}));
+
+const { getLikeCount, getMyLike, getMyLikes, likePhoto, unlikePhoto } = await import("../likes");
+
+/** `noteLiked` が渡した mutate を、渡された現在のリストに当てて結果を見る */
+function listCalls() {
+    return mockUpdateUserList.mock.calls.map((c) => {
+        const [rowId, uid, max, mutate] = c as unknown as [string, string, number, (l: string[]) => string[] | null];
+        return { rowId, uid, max, mutate };
+    });
+}
 
 type Result = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,7 +60,7 @@ function condFail() {
 // `mockReset()` は**モック自身を返す**ので、アローの暗黙の return だと
 // **vitest が後片付けの関数だと思って引数なしで呼ぶ**（`block.test.ts` 参照）。
 // 中括弧で包んで何も返さない。
-beforeEach(() => { mockDdbSend.mockReset(); });
+beforeEach(() => { mockDdbSend.mockReset(); mockUpdateUserList.mockReset(); mockReadUserList.mockReset().mockResolvedValue([]); });
 
 describe("getLikeCount", () => {
     it("id なしは 400", async () => {
@@ -449,5 +470,131 @@ describe("非公開に戻された写真のいいね解除", () => {
             .mockResolvedValueOnce({ Item: { src: "https://cdn/x.jpg", published: false, likes: 0 } });
         const res = await invoke(unlikePhoto, ev("u1", "p1"));
         expect(res.statusCode).toBe(404);
+    });
+});
+
+/**
+ * 「自分がいいねした写真」の一覧（`likes#<uid>`）。
+ *
+ * owner の報告:「いいねした写真を見てもいいねした写真がない」。
+ * 原因は**この一覧がサーバーに無かった**こと——画面は端末の localStorage
+ * しか見ておらず、別の端末で押したぶんは0件に見えた（同じ写真のページは
+ * マーカーを見るので「いいね済み」と出る＝同じアカウントで食い違う）。
+ *
+ * ⚠️ この一覧は**表示用の索引**。いいね済みかどうかは決めない
+ * （決めると、上限で溢れた写真のハートが空に見えて解除が飛ぶ）。
+ */
+describe("いいねした写真の一覧", () => {
+    it("初回いいねで、一覧の先頭に足す", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({})                              // Put marker
+            .mockResolvedValueOnce({ Attributes: { likes: 1 } });   // Update +1
+        await invoke(likePhoto, ev("u1", "p1"));
+
+        const calls = listCalls();
+        expect(calls, "一覧を更新していない").toHaveLength(1);
+        expect(calls[0].rowId).toBe("likes#u1");
+        expect(calls[0].uid).toBe("u1");
+        // **新しい順**（先頭に積む）
+        expect(calls[0].mutate(["old"])).toEqual(["p1", "old"]);
+    });
+
+    it("上限を渡す（際限なく伸びない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({}).mockResolvedValueOnce({ Attributes: { likes: 1 } });
+        await invoke(likePhoto, ev("u1", "p1"));
+        expect(listCalls()[0].max).toBeGreaterThan(0);
+    });
+
+    it("既に一覧に在れば書き込まない（null を返す）", async () => {
+        mockDdbSend.mockResolvedValueOnce({}).mockResolvedValueOnce({ Attributes: { likes: 1 } });
+        await invoke(likePhoto, ev("u1", "p1"));
+        expect(listCalls()[0].mutate(["p1", "x"]), "同じ写真を二重に積んでいる").toBeNull();
+    });
+
+    // **マーカーは在るのに一覧に無い**（一覧の書き込みだけ落ちた回）の出口。
+    // ここで足し直さないと、ずれた端末から押しても直らない
+    it("いいね済みの冪等な POST でも、一覧に足し直す", async () => {
+        mockDdbSend
+            .mockRejectedValueOnce(condFail())                                   // Put marker → 既にある
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/x.jpg", likes: 4 } }); // readLikeCount
+        const res = await invoke(likePhoto, ev("u1", "p1"));
+        expect(res.statusCode).toBe(200);
+        const calls = listCalls();
+        expect(calls, "冪等経路で足し直していない").toHaveLength(1);
+        expect(calls[0].mutate([])).toEqual(["p1"]);
+    });
+
+    it("解除すると一覧から外す", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({})                                                       // Delete marker
+            .mockResolvedValueOnce({ Attributes: { likes: 0, src: "https://cdn/x.jpg" } });  // Update -1
+        await invoke(unlikePhoto, ev("u1", "p1"));
+        const calls = listCalls();
+        expect(calls).toHaveLength(1);
+        expect(calls[0].rowId).toBe("likes#u1");
+        expect(calls[0].mutate(["a", "p1", "b"])).toEqual(["a", "b"]);
+        expect(calls[0].mutate(["a", "b"]), "無いのに書き込んでいる").toBeNull();
+    });
+
+    // **マーカーを消せていない回（冪等）で外さない。** 外すと、いいねは
+    // 残っているのにページから消える
+    it("冪等な DELETE（マーカーが無い）では一覧を触らない", async () => {
+        mockDdbSend
+            .mockRejectedValueOnce(condFail())                                        // Delete marker → 無い
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/x.jpg", likes: 2 } }); // readLikeCount
+        await invoke(unlikePhoto, ev("u1", "p1"));
+        expect(listCalls(), "マーカーが無いのに一覧を触っている").toHaveLength(0);
+    });
+
+    // マーカーを書き戻すなら一覧も戻す。片方だけ戻すと
+    // 「いいね済みなのにページに出ない」が残る
+    it("解除の巻き戻し（マーカーを書き戻す）では、一覧も戻す", async () => {
+        const throttle = Object.assign(new Error("slow"), { name: "ThrottlingException" });
+        mockDdbSend
+            .mockResolvedValueOnce({})          // Delete marker
+            .mockRejectedValueOnce(throttle)    // Update -1 が未適用と言い切れる失敗
+            .mockResolvedValueOnce({});         // Put marker（書き戻し）
+        await invoke(unlikePhoto, ev("u1", "p1"));
+        const calls = listCalls();
+        expect(calls, "外して戻す の2回になっていない").toHaveLength(2);
+        expect(calls[0].mutate(["p1"]), "1回目は外す").toEqual([]);
+        expect(calls[1].mutate([]), "2回目は戻す").toEqual(["p1"]);
+    });
+
+    // **索引1行のために、いいねごと落とさない。** 本体はマーカー・公開の数・通知
+    it("一覧の書き込みが落ちても、いいねは成功する", async () => {
+        mockUpdateUserList.mockRejectedValue(new Error("boom"));
+        mockDdbSend
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Attributes: { likes: 7 } });
+        const res = await invoke(likePhoto, ev("u1", "p1"));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body)).toEqual({ liked: true, likes: 7 });
+    });
+});
+
+describe("getMyLikes", () => {
+    it("自分がいいねした写真のIDを返す", async () => {
+        mockReadUserList.mockResolvedValue(["p2", "p1"]);
+        const res = await invoke(getMyLikes, ev("u1", undefined));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body)).toEqual({ photoIds: ["p2", "p1"] });
+        expect(mockReadUserList.mock.calls[0][0]).toBe("likes#u1");
+    });
+
+    it("未認証は 400", async () => {
+        expect((await invoke(getMyLikes, ev(undefined, undefined))).statusCode).toBe(400);
+    });
+
+    it("共有キャッシュには載せない（他人の一覧が配られるため）", async () => {
+        mockReadUserList.mockResolvedValue([]);
+        const res = await invoke(getMyLikes, ev("u1", undefined)) as unknown as { headers: Record<string, string> };
+        expect(res.headers["Cache-Control"]).toContain("no-store");
+        expect(res.headers["Cache-Control"]).not.toContain("public");
+    });
+
+    it("読めなければ 500（0件と混ぜない）", async () => {
+        mockReadUserList.mockRejectedValue(new Error("ddb down"));
+        expect((await invoke(getMyLikes, ev("u1", undefined))).statusCode).toBe(500);
     });
 });
