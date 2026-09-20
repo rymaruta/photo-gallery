@@ -406,6 +406,29 @@ describe("savePhoto: タグ無しの保存形", () => {
     });
 });
 
+// owner:「中には、タイトルとか入れずに気軽に投稿する人もいるみたい。
+// タイトルに無題と入ってしまう。タイトルなくてもいいよ」
+// ——以前ここは `?? { ja: "無題" }` で**利用者が名付けていない語**を保存していた
+describe("savePhoto: 題無しの保存形", () => {
+    it("題を送らなければ title 属性を書かない（「無題」を作らない）", async () => {
+        const res = await invoke(event("u1", { ...BASE }));
+        expect(res.statusCode).toBe(200);
+        expect("title" in savedPhoto(), "利用者が名付けていない題を保存している").toBe(false);
+    });
+
+    it("空白だけの題も「無し」に倒す", async () => {
+        const res = await invoke(event("u1", { ...BASE, title: "   " }));
+        expect(res.statusCode).toBe(200);
+        expect("title" in savedPhoto()).toBe(false);
+    });
+
+    it("題があれば今までどおり保存する", async () => {
+        const res = await invoke(event("u1", { ...BASE, title: "白波の夏" }));
+        expect(res.statusCode).toBe(200);
+        expect(savedPhoto().title).toBe("白波の夏");
+    });
+});
+
 describe("savePhoto: 基本バリデーション", () => {
     it("key / publicUrl がなければ 400", async () => {
         const res = await invoke(event("u1", { thumbUrl: "https://x.example.com/t.webp" }));
@@ -465,10 +488,12 @@ describe("savePhoto: 下書き（published フラグ）", () => {
         expect(savedPhoto().published).toBe(true);
     });
 
-    it("下書きは必須項目なしでも保存できる（title 未指定は既定の無題）", async () => {
+    // 守っているのは「必須項目なしでも保存できる」。**題の既定は無くなった**
+    // ——以前は `{ ja: "無題" }` を入れていたが、利用者が名付けていない語だった
+    it("下書きは必須項目なしでも保存できる（題は付けない）", async () => {
         const res = await invoke(event("u1", { ...BASE, published: false }));
         expect(res.statusCode).toBe(200);
-        expect(savedPhoto().title).toEqual({ ja: "無題", en: "Untitled" });
+        expect("title" in savedPhoto()).toBe(false);
     });
 });
 

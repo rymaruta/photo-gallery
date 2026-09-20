@@ -115,7 +115,11 @@ export const keepStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             // キャプションがあれば題に。**撮影日は作らない**——ストーリーの
             // 投稿時刻から撮影日をこしらえると、年表と JSON-LD が嘘の日付で
             // 並ぶ（台帳が「捏造の UTC 0時の行」として一度踏んでいる形）
-            title: sanitizeTitle(story.caption) ?? { ja: "無題", en: "Untitled" },
+            // **題が無いなら属性ごと持たない。** 以前ここは「無題」を入れていたが、
+            // それは**利用者が名付けた語ではない**のに一覧にも読み上げにも出ていた
+            // （owner:「タイトルなくてもいいよ」）。編集の経路（`photoUpdate.ts`）は
+            // 前から空を REMOVE に倒しているので、保存形もそちらに揃う
+            ...(() => { const t = sanitizeTitle(story.caption); return t ? { title: t } : {}; })(),
             userId,
             uploadedBy: userId,
             ...(displayName ? { displayName } : {}),
