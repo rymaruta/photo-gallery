@@ -24,8 +24,8 @@ vi.mock("../blockCheck", () => ({
 // 位置指定のモック列（Put → Update …）に読み書きが割り込み、
 // **本題と関係ない行を全テストに足して回る**ことになる。
 // あの関数そのものは `userList.test.ts` が見る。
-const mockUpdateUserList = vi.hoisted(() => vi.fn(async (..._a: unknown[]) => {}));
-const mockReadUserList = vi.hoisted(() => vi.fn(async (..._a: unknown[]) => [] as string[]));
+const mockUpdateUserList = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}));
+const mockReadUserList = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<string[]>>(async () => []));
 vi.mock("../userList", () => ({
     updateUserList: (...a: unknown[]) => mockUpdateUserList(...(a as [])),
     readUserList: (...a: unknown[]) => mockReadUserList(...(a as [])),

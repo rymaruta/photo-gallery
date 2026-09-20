@@ -148,13 +148,50 @@ export function timeAgo(iso: string, locale: "ja" | "en", now: number = Date.now
 }
 
 // 既読管理（localStorage）。期限切れ分は掃除する。
+//
+// **利用者ごとに分ける。** 共有キー1本だった頃は、同じ端末で
+// 別の人がログインすると前の人の既読リングが付いて見えたので、
+// ログアウトのたびに**全部消していた**。その結果、
+// **同じ人がログインし直すと、一度見たストーリーが新着に戻る**
+// （owner の報告）。鍵を分ければ、消さずに両方満たせる
+// ——`useFavorites` が同じ理由で先に同じ形にしてある。
 const SEEN_KEY = "jp_seen_stories";
-/** 既読記録の置き場（別タブの変更を拾う側が参照する） */
-export const SEEN_STORAGE_KEY = SEEN_KEY;
+
+let activeUserId: string | null = null;
+const keyFor = (uid: string | null) => (uid ? `${SEEN_KEY}:${uid}` : SEEN_KEY);
+const currentKey = () => keyFor(activeUserId);
+
+/**
+ * いまのアカウントを教える。`auth/context` が checkAuth / ログイン成功 /
+ * ログアウト / 退会で呼ぶ（`setFavoritesUser` と同じ場所）。
+ *
+ * ⚠️ **`setAuthState` より先に呼ぶこと。** 後だと、`StoriesBar` が
+ * ログイン確定で走らせる読み直しが**前の鍵**を読む。
+ */
+export function setSeenStoriesUser(userId: string | null): void {
+    activeUserId = userId;
+}
+
+/**
+ * 退会した人の既読記録を端末から消す。同じ userId では二度と
+ * ログインできないので、読めない鍵付きデータを残さない
+ * （`removeFavoritesUserData` と同じ判断）。
+ */
+export function removeSeenStoriesUserData(userId: string): void {
+    try {
+        localStorage.removeItem(keyFor(userId));
+    } catch { /* ignore */ }
+}
+
+/** 別タブの変更が既読記録のものか（`storage` イベントの判定） */
+export function isSeenStoriesKey(key: string | null): boolean {
+    // `key === null` は「まとめて消した」。どの鍵か分からないので読み直す
+    return key === null || key === currentKey();
+}
 
 export function loadSeenStoryIds(): Set<string> {
     try {
-        const raw = localStorage.getItem(SEEN_KEY);
+        const raw = localStorage.getItem(currentKey());
         if (!raw) return new Set();
         const parsed: unknown = JSON.parse(raw);
         if (!parsed || typeof parsed !== "object") return new Set();
@@ -169,7 +206,7 @@ export function loadSeenStoryIds(): Set<string> {
 
 export function markStorySeen(id: string): void {
     try {
-        const raw = localStorage.getItem(SEEN_KEY);
+        const raw = localStorage.getItem(currentKey());
         const parsed = raw ? (JSON.parse(raw) as Record<string, number>) : {};
         const now = Date.now();
         // 25時間より古い既読記録は掃除（ストーリー自体が24時間で消えるため）
@@ -177,16 +214,22 @@ export function markStorySeen(id: string): void {
             if (typeof t !== "number" || now - t > 25 * 60 * 60 * 1000) delete parsed[k];
         }
         parsed[id] = now;
-        localStorage.setItem(SEEN_KEY, JSON.stringify(parsed));
+        localStorage.setItem(currentKey(), JSON.stringify(parsed));
     } catch {
         /* ignore */
     }
 }
 
 /**
- * 既読記録を全部消す。ログアウト・退会で呼ぶ（キーがユーザーで
- * 分かれていないため、次にログインした別の人に前の人の既読リングが
- * 付いて見え、未読の見逃しを生む）。
+ * 未ログインで付いた既読記録（共有キー）を消す。
+ *
+ * **ログイン中のぶんは消さない。** 鍵が利用者ごとに分かれたので、
+ * 前の人の既読が次の人に見えることはもう無い——消していたせいで
+ * **同じ人がログインし直すと一度見たストーリーが新着に戻っていた**。
+ *
+ * 共有キーの方は残す理由が無いので掃除する（いまは `StoriesBar` が
+ * 未ログインでは何も描かないので普通は空だが、鍵を分ける前の記録が
+ * 残っている端末がある）。
  */
 export function clearSeenStories(): void {
     try {
