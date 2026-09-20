@@ -26,7 +26,6 @@ vi.mock("../../lib/utils/api", async (importOriginal) => ({
     userPublicFetch: vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) })),
 }));
 vi.mock("../components/FilterBar", () => ({ default: () => null }));
-vi.mock("../components/stories/StoriesBar", () => ({ default: () => null }));
 // 既定文言に落ちたことが見えるよう、本物に近い形で出す
 vi.mock("../components/GalleryGrid", () => ({
     default: ({ photos }: { photos: unknown[] }) =>

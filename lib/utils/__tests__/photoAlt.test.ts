@@ -52,6 +52,19 @@ describe("photoAltText", () => {
     it("撮影地の前後の空白は落とす", () => {
         expect(photoAltText(photo({ title: "朝", location: "  パリ  " }), "ja")).toBe("朝（パリ）");
     });
+
+    // **「無題」は保存されている値**（サーバーが題の無い投稿に入れていた）。
+    // 読み上げにも画像検索にも「無題」と言わせない
+    it("保存されている「無題」は題として使わない", () => {
+        expect(photoAltText(photo({ title: "無題", location: "高屋神社" }), "ja")).toBe("高屋神社");
+        expect(photoAltText(photo({ title: { ja: "無題", en: "Untitled" } }), "ja")).toBe("");
+        expect(photoAltText(photo({ title: { ja: "無題", en: "Untitled" } }), "en")).toBe("");
+    });
+
+    // 落としすぎない——人が書いた題は残す
+    it("「無題の風景」は残す", () => {
+        expect(photoAltText(photo({ title: "無題の風景", location: "パリ" }), "ja")).toBe("無題の風景（パリ）");
+    });
 });
 
 // **配線を縛る。** 1本に切り出しても、呼んでいなければ元の木阿弥

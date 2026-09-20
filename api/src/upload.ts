@@ -212,7 +212,11 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     const photo: Photo = {
         id: uuidv4(),
         src: canonicalSrc,
-        title: safeTitle ?? { ja: "無題", en: "Untitled" },
+        // **題が無いなら属性ごと持たない。** 以前ここは「無題」を入れていたが、
+        // それは**利用者が名付けた語ではない**のに一覧にも読み上げにも出ていた
+        // （owner:「タイトルなくてもいいよ」）。編集の経路（`photoUpdate.ts`）は
+        // 前から空を REMOVE に倒しているので、保存形もそちらに揃う
+        ...(() => { const t = safeTitle; return t ? { title: t } : {}; })(),
         ...(safeDescription ? { description: safeDescription } : {}),
         ...(safeLocation ? { location: safeLocation } : {}),
         ...(safeCategory ? { category: safeCategory } : {}),

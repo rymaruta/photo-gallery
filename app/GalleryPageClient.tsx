@@ -5,7 +5,6 @@ import { tagKey } from "@/lib/utils/collections";
 import { categoryChipMap } from "@/lib/utils/categoryMap";
 import FilterBar from "./components/FilterBar";
 import FeaturedSections from "./components/FeaturedSections";
-import StoriesBar from "./components/stories/StoriesBar";
 import { useLocale } from "./i18n/context";
 import useGallery from "../lib/hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
@@ -383,8 +382,8 @@ export default function GalleryPageClient() {
         </div>
       )}
 
-      {/* ストーリー（24時間で消える投稿） */}
-      <StoriesBar />
+      {/* ストーリーはマイページへ移した（owner:「ストーリー見れる場所もマイページに
+          移設したいな」）。投稿する入口も同じ場所に集めた流れに揃える */}
 
       {/* フォロー中: 絞り込み・件数・グリッドは出さず、投稿者つきのカードが投稿順に流れる
           （フォローした人の写真をサムネだけで並べると誰の写真か分からない）。

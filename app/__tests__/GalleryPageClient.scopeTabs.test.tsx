@@ -24,7 +24,6 @@ vi.mock("../i18n/context", () => ({
 // 本物は `useCallback` で安定している（管理画面のテストで一度踏んだ型）
 const mockShowToast = vi.hoisted(() => vi.fn());
 vi.mock("../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: mockShowToast }) }));
-vi.mock("../components/stories/StoriesBar", () => ({ default: () => null }));
 vi.mock("../components/FilterBar", () => ({ default: () => <div data-testid="filter-bar" /> }));
 vi.mock("../components/GalleryModal", () => ({ default: () => null }));
 // `?photo=` は本来 SearchParamWatcher が URL から親へ渡す（Next の `useSearchParams` は
