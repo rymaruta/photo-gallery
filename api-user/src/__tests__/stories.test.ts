@@ -1230,3 +1230,61 @@ describe("期限切れストーリーの掃除は1時間ごと", () => {
         expect(m![1]).toMatch(/cron\(\d+\s+\*/);  // 時が * ＝毎時
     });
 });
+
+/**
+ * 文字の見せ方（置いた場所・字体・色・大きさ・下地）。
+ *
+ * owner:「インスタみたいにストーリーで好きな場所で文字打てるようにしたい。
+ * フォントの種類や色も豊富にしたい」
+ *
+ * **持つのは見せ方だけ。文言は `caption` のまま**——残したときの題
+ * （`storyKeep.ts`）も検索に出る文章もこれまでどおり。
+ */
+describe("createStory: 文字の見せ方", () => {
+    const post = (body: Record<string, unknown>) => invoke(createStory, authedEvent("u1", {
+        body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.webp", ...body }),
+    }));
+    const saved = () => (mockDdbSend.mock.calls
+        .map((c) => c[0] as { constructor: { name: string }; input: { Item?: Record<string, unknown> } })
+        .find((c) => c.constructor.name === "PutCommand")?.input.Item) ?? {};
+
+    beforeEach(() => { mockDdbSend.mockResolvedValue({ Count: 0 }); });
+
+    it("受け取って保存する", async () => {
+        await post({ caption: "朝の空", textStyle: { x: 0.2, y: 0.8, size: "s", font: "mincho", color: "sky", bg: "soft" } });
+        expect(saved().textStyle).toEqual({ x: 0.2, y: 0.8, size: "s", font: "mincho", color: "sky", bg: "soft" });
+    });
+
+    // **一覧に在る鍵だけ。** 任意の CSS を通さない
+    it("知らない字体・色は既定へ落とす（位置は残す）", async () => {
+        await post({ caption: "朝の空", textStyle: { x: 0.2, y: 0.8, font: "comic", color: "url(javascript:1)" } });
+        const st = saved().textStyle as Record<string, unknown>;
+        expect(st.x).toBe(0.2);
+        expect(st.font).not.toBe("comic");
+        expect(st.color).not.toContain?.("javascript");
+        expect(st.color).toBe("white");
+    });
+
+    it("位置は挟む（半分が画面の外へ出ない）", async () => {
+        await post({ caption: "朝の空", textStyle: { x: -3, y: 42 } });
+        const st = saved().textStyle as { x: number; y: number };
+        expect(st.x).toBeGreaterThan(0);
+        expect(st.y).toBeLessThan(1);
+    });
+
+    // **文言が無ければ見せ方も持たない。** 置き場所だけが残った項目を作らない
+    it("キャプションが無ければ持たない", async () => {
+        await post({ textStyle: { x: 0.2, y: 0.8, font: "mincho" } });
+        expect("textStyle" in saved(), "文言が無いのに見せ方だけ保存している").toBe(false);
+    });
+
+    it("送らなければ持たない（これまでどおり下の帯に出る）", async () => {
+        await post({ caption: "朝の空" });
+        expect("textStyle" in saved()).toBe(false);
+    });
+
+    it("形が違えば持たない（壊れた値で落ちない）", async () => {
+        await post({ caption: "朝の空", textStyle: "left" });
+        expect("textStyle" in saved()).toBe(false);
+    });
+});

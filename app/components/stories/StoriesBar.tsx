@@ -22,6 +22,13 @@ import {
 } from "../../../lib/stories";
 import StoryViewer from "./StoryViewer";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
+import StoryTextOverlay from "./StoryTextOverlay";
+import { useMediaBox } from "../../../lib/hooks/useMediaBox";
+import {
+    STORY_FONTS, STORY_FONT_KEYS, STORY_COLORS, STORY_COLOR_KEYS,
+    STORY_SIZE_KEYS, STORY_BGS, DEFAULT_STORY_TEXT_STYLE, clampStoryTextPos,
+    type StoryTextStyle,
+} from "../../../lib/utils/storyText";
 import { useMusic } from "../../music/MusicContext";
 import SongSearchError from "../SongSearchError";
 
@@ -101,6 +108,36 @@ export default function StoriesBar() {
     const postAbortRef = useRef<AbortController | null>(null);
     const [draft, setDraft] = useState<Draft | null>(null);
     const [caption, setCaption] = useState("");
+    /**
+     * 文字の見せ方（置いた場所・字体・色・大きさ・下地）。
+     * **文言は `caption` のまま**——ここが持つのは見せ方だけなので、
+     * 残したときの題（`storyKeep.ts`）も検索に出る文章も変わらない。
+     */
+    const [textStyle, setTextStyle] = useState<StoryTextStyle>(DEFAULT_STORY_TEXT_STYLE);
+    /** 掴んでいる間は文字を少し透かす（下の写真を確かめられるように） */
+    const [dragging, setDragging] = useState(false);
+    const draftMediaAreaRef = useRef<HTMLDivElement | null>(null);
+    // 絵が実際に描かれている矩形。**囲みではなく絵に対する割合**で持たないと、
+    // 置いた端末と見る端末で写真のどこに載るかがずれる（`object-contain`）
+    const { attach: attachDraftMedia, box: draftMediaBox, measure: measureDraftMedia } = useMediaBox(draftMediaAreaRef);
+
+    /** 掴んだ場所を、絵に対する割合へ。**端は必ず挟む**（半分が外へ出ない） */
+    const moveTextTo = useCallback((clientX: number, clientY: number) => {
+        const area = draftMediaAreaRef.current;
+        if (!area) return;
+        const r = area.getBoundingClientRect();
+        // 測れていれば絵の矩形、測れていなければ囲み（文字を消さない）
+        const left = r.left + (draftMediaBox?.left ?? 0);
+        const top = r.top + (draftMediaBox?.top ?? 0);
+        const w = draftMediaBox?.width || r.width;
+        const h = draftMediaBox?.height || r.height;
+        if (!w || !h) return;
+        setTextStyle((prev) => ({
+            ...prev,
+            x: clampStoryTextPos((clientX - left) / w),
+            y: clampStoryTextPos((clientY - top) / h),
+        }));
+    }, [draftMediaBox]);
     // 撮影地。**ここが「残す」の価値を決める**——空のまま残すと、写真は
     // 地図にも `/location/<スラッグ>` にも載らない（本人が編集画面で打つまで）
     const [storyLocation, setStoryLocation] = useState("");
@@ -314,6 +351,7 @@ export default function StoriesBar() {
         setStoryLocation("");
         setStoryCoords(null);
         setCaption("");
+        setTextStyle(DEFAULT_STORY_TEXT_STYLE);
         setDraftSong(null);
         setSongPickerOpen(false);
         setSongQuery("");
@@ -598,7 +636,7 @@ export default function StoriesBar() {
                     publicUrl,
                     ...(key ? { key } : {}),
                     mediaType: draft.mediaType,
-                    ...(caption.trim() ? { caption: caption.trim() } : {}),
+                    ...(caption.trim() ? { caption: caption.trim(), textStyle } : {}),
                     // **撮影地。** 残したときにそのまま写真の撮影地になる
                     // （`storyKeep.ts`）＝地図と `/location/<スラッグ>` に載る。
                     // 座標は地名とセットのときだけ送る（サーバーも同じ判断）
@@ -662,7 +700,7 @@ export default function StoriesBar() {
             postAbortRef.current = null;
             setPosting(false);
         }
-    }, [draft, caption, storyLocation, storyCoords, draftSong, songStart, durationSec, locale, showToast, loadStories, closeDraft, stopPreview]);
+    }, [draft, caption, textStyle, storyLocation, storyCoords, draftSong, songStart, durationSec, locale, showToast, loadStories, closeDraft, stopPreview]);
 
     // 自分のストーリーを削除
     const handleDeleteStory = useCallback(async (storyId: string) => {
@@ -808,12 +846,45 @@ export default function StoriesBar() {
                 >
                     {/* 写真は画面いっぱいの背面に固定。入力欄はその上に重ねるので、
                         キャプションや曲を入れている間もずっと写真を見ていられる。 */}
-                    <div className="absolute inset-0 flex items-center justify-center">
+                    <div
+                        ref={draftMediaAreaRef}
+                        className="absolute inset-0 flex items-center justify-center"
+                        // **掴むのは絵そのもの。** 文字だけを的にすると、
+                        // 指の太さで外しやすい（`CropFramePicker` と同じ判断）。
+                        // `setPointerCapture` で、指が絵から出ても追随させる
+                        onPointerDown={caption.trim() ? (e) => {
+                            if (posting) return;
+                            e.currentTarget.setPointerCapture(e.pointerId);
+                            setDragging(true);
+                            moveTextTo(e.clientX, e.clientY);
+                        } : undefined}
+                        onPointerMove={caption.trim() ? (e) => {
+                            if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+                            moveTextTo(e.clientX, e.clientY);
+                        } : undefined}
+                        onPointerUp={() => setDragging(false)}
+                        onPointerCancel={() => setDragging(false)}
+                        // 掴んでいる間だけ、端末のスクロールに取られない
+                        style={caption.trim() && !posting ? { touchAction: "none" } : undefined}
+                    >
+                        {/* ⚠️ **`max-w-full max-h-full`（`w-full h-full` ではない）。**
+                            `w-full h-full` だと要素は画面いっぱいで、絵はその中で
+                            letterbox される——`getBoundingClientRect` が返すのは
+                            **要素**なので、絵の矩形が取れない。見る側
+                            （`StoryViewer`）は `max-w/max-h` で要素が絵に縮むので、
+                            揃えないと**置いた場所と出る場所がずれる**（実測で
+                            ずれていた）。見た目は変わらない——どちらも同じように
+                            letterbox される */}
                         {draft.mediaType === "video" ? (
-                            <video src={draft.previewUrl} className="w-full h-full object-contain" controls playsInline muted loop autoPlay />
+                            <video ref={attachDraftMedia} src={draft.previewUrl} className="block max-w-full max-h-full object-contain" controls playsInline muted loop autoPlay onLoadedData={measureDraftMedia} />
                         ) : (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={draft.previewUrl} alt="" className="w-full h-full object-contain" />
+                            <img ref={attachDraftMedia} src={draft.previewUrl} alt="" className="block max-w-full max-h-full object-contain" onLoad={measureDraftMedia} />
+                        )}
+                        {/* 置いた文字。**見る側とまったく同じ部品**——別々に描くと
+                            「置いた場所と出る場所が違う」になる */}
+                        {caption.trim() && (
+                            <StoryTextOverlay text={caption} style={textStyle} box={draftMediaBox} dimmed={dragging} />
                         )}
                     </div>
                     {/* 上下のスクリム（文字と写真が重なっても読めるように） */}
@@ -840,7 +911,15 @@ export default function StoriesBar() {
                         </button>
                     </div>
                     <div className="flex-1 min-h-0" />
-                    <div className="relative p-4 space-y-3 max-h-[70%] overflow-y-auto no-scrollbar" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}>
+                    {/* **動かしている間は操作の欄を引っ込める。** 画面の下半分が
+                        欄なので、下の方へ置こうとすると自分で見えない
+                        ——「置いた場所が見えないまま置く」ことになる。
+                        消すのは見た目だけ（指は写真を掴んだままなので、
+                        `pointer-events` を切っても掴みは切れない） */}
+                    <div
+                        className={`relative p-4 space-y-3 max-h-[70%] overflow-y-auto no-scrollbar transition-opacity ${dragging ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+                        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
+                    >
                         <input
                             type="text"
                             value={caption}
@@ -851,6 +930,97 @@ export default function StoriesBar() {
                             className="w-full px-4 py-3 bg-black/55 backdrop-blur-sm ring-1 ring-white/10 rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-black/70"
                             style={{ fontSize: "16px" }}
                         />
+
+                        {/* 文字の見せ方。**打ってから出す**——文字が無いうちは
+                            動かすものも飾るものも無い（押しても効かない欄を置かない）。
+
+                            ⚠️ 大きさは px で書く。640px 未満は root が 14px なので、
+                            rem の指定は端末で縮む（`w-11` は 38.5px になる）。
+                            間隔も `gap-2`（24px 以上）——`gap-1.5` だと root 14px で
+                            5.25px になり、隣の的と重なる（`5960be33` で実測） */}
+                        {caption.trim() && (
+                            <div className="space-y-2" role="group" aria-labelledby="story-text-style-label">
+                                <p id="story-text-style-label" className="text-[11px] text-white/70 px-1">
+                                    {locale === "en" ? "Drag the text on the photo to place it" : "文字は写真の上をなぞって動かせます"}
+                                </p>
+
+                                {/* 字体 */}
+                                <div className="flex gap-2 overflow-x-auto no-scrollbar" role="group" aria-label={locale === "en" ? "Font" : "字体"}>
+                                    {STORY_FONT_KEYS.map((k) => (
+                                        <button
+                                            key={k}
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={textStyle.font === k}
+                                            disabled={posting}
+                                            onClick={() => setTextStyle((p) => ({ ...p, font: k }))}
+                                            className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${textStyle.font === k ? "bg-white text-black ring-white" : "bg-black/55 text-white/85 ring-white/15"}`}
+                                            style={{ minHeight: "36px", fontFamily: STORY_FONTS[k].css, fontWeight: STORY_FONTS[k].weight, fontSize: "13px" }}
+                                        >
+                                            {STORY_FONTS[k].label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* 色 */}
+                                <div className="flex gap-2 overflow-x-auto no-scrollbar" role="group" aria-label={locale === "en" ? "Color" : "色"}>
+                                    {STORY_COLOR_KEYS.map((k) => (
+                                        <button
+                                            key={k}
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={textStyle.color === k}
+                                            disabled={posting}
+                                            onClick={() => setTextStyle((p) => ({ ...p, color: k }))}
+                                            aria-label={STORY_COLORS[k].label}
+                                            className={`flex-shrink-0 rounded-full ring-2 transition ${textStyle.color === k ? "ring-white" : "ring-white/25"}`}
+                                            style={{ width: "32px", height: "32px", minWidth: "32px", background: STORY_COLORS[k].hex }}
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* 大きさ と 下地 */}
+                                <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                                    <div className="flex gap-2 flex-shrink-0" role="group" aria-label={locale === "en" ? "Size" : "大きさ"}>
+                                        {STORY_SIZE_KEYS.map((k, i) => (
+                                            <button
+                                                key={k}
+                                                type="button"
+                                                role="switch"
+                                                aria-checked={textStyle.size === k}
+                                                disabled={posting}
+                                                onClick={() => setTextStyle((p) => ({ ...p, size: k }))}
+                                                aria-label={`${locale === "en" ? "Size" : "大きさ"} ${i + 1}`}
+                                                className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${textStyle.size === k ? "bg-white text-black ring-white" : "bg-black/55 text-white/85 ring-white/15"}`}
+                                                style={{ minHeight: "36px", fontSize: `${11 + i * 2}px`, fontWeight: 700 }}
+                                            >
+                                                A
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="flex gap-2 flex-shrink-0" role="group" aria-label={locale === "en" ? "Text background" : "文字の下地"}>
+                                        {STORY_BGS.map((k) => (
+                                            <button
+                                                key={k}
+                                                type="button"
+                                                role="switch"
+                                                aria-checked={textStyle.bg === k}
+                                                disabled={posting}
+                                                onClick={() => setTextStyle((p) => ({ ...p, bg: k }))}
+                                                className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${textStyle.bg === k ? "bg-white text-black ring-white" : "bg-black/55 text-white/85 ring-white/15"}`}
+                                                style={{ minHeight: "36px", fontSize: "12px" }}
+                                            >
+                                                {k === "none"
+                                                    ? (locale === "en" ? "No box" : "下地なし")
+                                                    : k === "soft"
+                                                        ? (locale === "en" ? "Dim box" : "うす下地")
+                                                        : (locale === "en" ? "Filled" : "塗り")}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* **動画には出さない。** 位置は写真の EXIF から来るもので、
                             動画は `toUploadSafeVideo` が GPS を落としている

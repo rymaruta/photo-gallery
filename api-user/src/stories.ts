@@ -12,6 +12,7 @@ import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./medi
 import { truncate, sanitizeText, sanitizeCoords } from "./sanitize";
 import { storyRepliesId, visibleReplyCount } from "./storyReplies";
 import { hiddenUserIds, isBlocked } from "./blockCheck";
+import { sanitizeStoryTextStyle } from "./storyText";
 
 // バケット名の検証と S3 の削除は `s3Delete.ts` に寄せた（未設定なら
 // そちらの読み込みで止まる）。
@@ -216,7 +217,7 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     // key も受け取らない（publicUrl から導く。下のコメント参照）。
     let body: {
         publicUrl?: string; caption?: string; mediaType?: string; song?: unknown; durationSec?: unknown;
-        location?: unknown; coords?: unknown;
+        location?: unknown; coords?: unknown; textStyle?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -244,6 +245,18 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
 
     const mediaType = body.mediaType === "video" ? "video" : "image";
     const caption = truncate((body.caption ?? "").trim(), 200) || undefined;
+
+    // 文字の見せ方（置いた場所・字体・色・大きさ・下地）。
+    //
+    // **持つのは見せ方だけ。文言は `caption` のまま**なので、残したときの題
+    // （`storyKeep.ts`）も検索に出る文章もこれまでどおり。
+    //
+    // 受けるのは**一覧に在る鍵だけ**（`storyText.ts`）。任意の CSS を通さない
+    // ので、読めない組み合わせも他人の画面で動く値も作れない。位置は必ず挟む。
+    //
+    // **文言が無ければ見せ方も持たない。** 置き場所だけが残った項目を作ると、
+    // 画面は何も描けないのに値だけが増える
+    const textStyle = caption ? sanitizeStoryTextStyle(body.textStyle) : undefined;
 
     // **撮影地。** ストーリーにも場所を持たせる理由は2つある:
     //   1. 見る側に「どこで」が伝わる（Instagram のロケーションと同じ）
@@ -329,6 +342,7 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         ...(key ? { key } : {}), // 期限切れ削除時に S3 オブジェクトを消すために保持
         mediaType,
         ...(caption ? { caption } : {}),
+        ...(textStyle ? { textStyle } : {}),
         ...(location ? { location } : {}),
         // **座標は地名とセットのときだけ持つ。** 地名の無い座標は画面に
         // 出しようがなく（ピンだけ置く画面がストーリーには無い）、
