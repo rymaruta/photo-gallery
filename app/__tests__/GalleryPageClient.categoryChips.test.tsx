@@ -22,7 +22,6 @@ vi.mock("../i18n/context", () => ({
     useLocale: () => ({ locale: "ja", labels: { ...ja, site: { title: "Gallery" } } }),
 }));
 vi.mock("../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: mockShowToast }) }));
-vi.mock("../components/stories/StoriesBar", () => ({ default: () => null }));
 // **サムネの下に出す名前は、この地図がそのまま決める**
 // （`GalleryGrid` は落とし先を持たないので、渡し忘れると文字が消える）。
 // チップ側は `FilterBar` が `labels.category.names` に落ちる保険を

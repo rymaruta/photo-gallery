@@ -9,7 +9,6 @@
 // タッチ端末ではスクロールと競合するため従来どおり画面下に固定する。
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { usePublishedHeight } from "../../lib/hooks/useBottomBarHeight";
 import { safeSongArtworkUrl } from "../../lib/utils/mediaHosts";
 import { PlayIcon, PauseIcon, ForwardIcon, BackwardIcon } from "@heroicons/react/24/solid";
 import { XMarkIcon, MusicalNoteIcon, ArrowsRightLeftIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
@@ -121,9 +120,6 @@ export default function MiniPlayer() {
             return p;
         });
     }, []);
-
-    // 画面下に居る間だけ高さを出す（「＋」がその上に逃げる）。動かしたあとは出さない
-    usePublishedHeight(boxRef, "--mini-player-h", !!current && !(draggable && pos !== null));
 
     if (!current) return null;
     // **生の値で分岐して、安全な値を描いてはいけない。** 許可外のホストだと

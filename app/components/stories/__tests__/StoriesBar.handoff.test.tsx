@@ -2,7 +2,7 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 
-// 「＋」（`PostFab`）で選んだファイルを、バーが受け取って投稿の流れ（下書き
+// 「投稿する」（`PostSheet`）で選んだファイルを、バーが受け取って投稿の流れ（下書き
 // プレビュー）へ乗せる。バーが描かれていればその場で、別のページで選ばれた
 // ぶんはトップへ移ってきたマウント時に（`lib/utils/storyHandoff.ts`）
 
@@ -51,7 +51,7 @@ describe("StoriesBar が「＋」からのファイルを受け取る", () => {
     });
 
     // 外れたら受け取らない。残ると「受け取った」と答えるのに何も出ず、
-    // `PostFab` はトップへ移らない＝ファイルが黙って消える
+    // `PostSheet` はトップへ移らない＝ファイルが黙って消える
     it("外れたあとは受け取らない（購読の解除）", () => {
         const { unmount } = render(<StoriesBar />);
         unmount();

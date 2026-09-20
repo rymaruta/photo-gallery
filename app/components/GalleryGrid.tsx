@@ -8,6 +8,7 @@ import { HeartIcon } from "@heroicons/react/24/solid";
 import { ROUTES } from "../../lib/routes";
 import Thumb from "./Thumb";
 import { photoAltText } from "../../lib/utils/photoAlt";
+import { displayTitle } from "../../lib/utils/photoTitle";
 
 type Props = {
     photos: Photo[];
@@ -97,7 +98,8 @@ export default function GalleryGrid({
         {/* 写真同士は少し余白を空けて呼吸させる（ユーザー好みで gap-0 から変更） */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1 sm:gap-1.5">
             {shown.map((p, idx) => {
-                const localizedTitle = getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : "");
+                // 題が無ければ空。サーバーが入れていた「無題」も題として扱わない（`photoTitle.ts`）
+                const localizedTitle = displayTitle(getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : ""));
                 // alt の組み方は `photoAlt.ts` に1本化した。**ここだけに入っていて
                 // 写真ページ本体・モーダル・OGP に無かった**ので、効かせたい1枚
                 // （画像検索が見る本体画像）にだけ効いていなかった
@@ -154,6 +156,9 @@ const GalleryItem = React.memo(function GalleryItem({
     const { isFavorite } = useFavorites();
     const isFav = isFavorite(photo.id);
     const isPriority = index < 8;
+    // 分類の表示名。**帯を出すかどうかの判定と同じ値で描く**——別々に書くと
+    // 片方だけの変異がどちらも観測できなくなる（`2bba4291` の型）
+    const categoryLabel = categoryDisplayMap?.[photo.category ?? ""] ?? "";
     const href = ROUTES.PHOTO(photo.id);
     // 静的ページが無い写真は /?photo=<id> を指す。ホームで開いている場合、
     // これは「今いるURLへの遷移」なので Next のルーターが何もせず、
@@ -236,12 +241,20 @@ const GalleryItem = React.memo(function GalleryItem({
                                     </div>
                                 )}
 
+                                {/* **題も分類も無ければ、帯ごと出さない。** 題の無い写真に
+                                    空の行を敷くと、写真の下だけ黒くなって理由が分からない
+                                    （owner:「タイトルなくてもいいよ」） */}
+                                {(localizedTitle || categoryLabel) && (
                                 <div
                                     className="absolute left-0 right-0 bottom-0 px-2"
                                     style={{
                                         background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 100%)",
                                     }}
                                 >
+                                    {/* 中の行は空でも高さを持たない（中身が無い block は
+                                        行ボックスを作らない）ので、出し分けはしない
+                                        ——**観測できない条件を置かない**（`bf3df612`）。
+                                        黒く見えるのは上の帯だけなので、判定もそこ1つ */}
                                     <div className="py-1 sm:py-2">
                                         <div
                                             className="text-sm font-semibold text-white truncate"
@@ -251,12 +264,13 @@ const GalleryItem = React.memo(function GalleryItem({
                                         </div>
                                         <div
                                             className="text-xs text-white/60 truncate"
-                                            title={categoryDisplayMap?.[photo.category ?? ""] || ""}
+                                            title={categoryLabel}
                                         >
-                                            {categoryDisplayMap?.[photo.category ?? ""]}
+                                            {categoryLabel}
                                         </div>
                                     </div>
                                 </div>
+                                )}
                             </div>
                         </Link>
                     </div>
