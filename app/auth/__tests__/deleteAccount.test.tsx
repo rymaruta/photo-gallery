@@ -57,7 +57,13 @@ vi.mock("../../../lib/auth/session", () => ({
 }));
 vi.mock("../../../lib/hooks/useFollow", () => ({ resetFollowingCache: vi.fn() }));
 vi.mock("../../../lib/utils/shareStore", () => ({ clearSharedPayload: vi.fn(async () => { /* noop */ }) }));
-vi.mock("../../../lib/stories", () => ({ clearSeenStories: vi.fn() }));
+// **列挙式のモックは、実装が新しく使い始めた export で undefined になる**
+// （その分岐を通るテストだけが落ちる。台帳の既知の型）
+vi.mock("../../../lib/stories", () => ({
+    clearSeenStories: vi.fn(),
+    setSeenStoriesUser: vi.fn(),
+    removeSeenStoriesUserData: vi.fn(),
+}));
 vi.mock("../../../lib/hooks/useFavorites", () => ({
     setFavoritesUser: vi.fn(),
     removeFavoritesUserData: vi.fn(),
@@ -66,7 +72,7 @@ vi.mock("../../../lib/hooks/useFavorites", () => ({
 const { AuthProvider, useAuth } = await import("../context");
 const { resetFollowingCache } = await import("../../../lib/hooks/useFollow");
 const { clearSharedPayload } = await import("../../../lib/utils/shareStore");
-const { clearSeenStories } = await import("../../../lib/stories");
+const { clearSeenStories, setSeenStoriesUser, removeSeenStoriesUserData } = await import("../../../lib/stories");
 const { setFavoritesUser, removeFavoritesUserData } = await import("../../../lib/hooks/useFavorites");
 
 /** 退会を押して、返ってきた結果をそのまま画面に出すだけの部品 */
@@ -121,6 +127,8 @@ beforeEach(() => {
     vi.mocked(clearSeenStories).mockClear();
     vi.mocked(setFavoritesUser).mockClear();
     vi.mocked(removeFavoritesUserData).mockClear();
+    vi.mocked(setSeenStoriesUser).mockClear();
+    vi.mocked(removeSeenStoriesUserData).mockClear();
 });
 
 describe("退会: 消す前に、後段が通ることを確かめる", () => {
@@ -185,6 +193,9 @@ describe("退会: 消す前に、後段が通ることを確かめる", () => {
         // 鍵付きデータも端末から消す
         expect(setFavoritesUser).toHaveBeenCalledWith(null);
         expect(removeFavoritesUserData).toHaveBeenCalledWith("user-a");
+        // ストーリーの既読も同じ形（鍵を共有キーへ戻し、消した人のぶんは捨てる）
+        expect(setSeenStoriesUser).toHaveBeenCalledWith(null);
+        expect(removeSeenStoriesUserData).toHaveBeenCalledWith("user-a");
     });
 });
 
@@ -215,8 +226,11 @@ describe("ログイン成功時にフォロー一覧のキャッシュを捨て�
         await userEvent.click(await screen.findByRole("button", { name: "ログイン" }));
         await waitFor(() => expect(screen.getByRole("status").textContent).toContain("true"));
         expect(resetFollowingCache).toHaveBeenCalled();
-        // お気に入りをこのアカウントのキーに向ける
+        // お気に入りとストーリーの既読を、このアカウントの鍵に向ける。
+        // **向けないと、ログインし直したときに一度見たストーリーが
+        // 新着に戻る**（owner の報告。共有キーを読んでしまう）
         expect(setFavoritesUser).toHaveBeenCalledWith("new-user");
+        expect(setSeenStoriesUser).toHaveBeenCalledWith("new-user");
     });
 
     it("失敗したら呼ばれない（触っていないキャッシュを消さない）", async () => {
