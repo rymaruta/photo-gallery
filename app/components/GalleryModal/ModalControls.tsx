@@ -66,10 +66,16 @@ export default function ModalControls({
                 <ArrowRightIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </button>
 
-            {/* お気に入り（閉じるボタンは right-2 + 幅44px ≈ 52px を占有するため、重ならないよう 64px 以上離す） */}
+            {/* いいね（閉じるボタンは right-2 + 幅44px ≈ 52px を占有するため、重ならないよう 64px 以上離す）
+
+                **読み上げる名前は「いいね」に揃える。** 同じハートを、
+                ここだけ「お気に入り」と呼んでいた——写真ページのボタンは
+                「いいね」、集まる先のページは「いいねした写真」なので、
+                音声操作の人には**別の機能に見える**（`b74da05e` と同じ型）。
+                見た目は1pxも変えていない（アイコンだけのボタン）。 */}
             <button
                 {...stopAndCall(onToggleFavorite)}
-                aria-label={isFav ? "お気に入りから外す" : "お気に入りに追加"}
+                aria-label={isFav ? "いいねを取り消す" : "いいね"}
                 className={`${BTN_BASE} top-2 sm:top-3 right-[64px] sm:right-[72px]`}
                 style={BTN_STYLE}
             >

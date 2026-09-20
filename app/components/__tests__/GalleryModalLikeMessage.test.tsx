@@ -43,7 +43,7 @@ async function mounted(err: unknown) {
             ? Promise.reject(err)
             : Promise.resolve({ ok: true, json: async () => ({ liked: false }) }));
     render(<GalleryModal photos={photos} currentIndex={0} onClose={vi.fn()} onNext={vi.fn()} onPrev={vi.fn()} locale="ja" />);
-    return await screen.findByRole("button", { name: "お気に入りに追加" });
+    return await screen.findByRole("button", { name: "いいね" });
 }
 /** 出たトーストを `種類:文言` で（**種類も見る**——失敗を緑で出しても気づけない） */
 const toasts = () => mockShowToast.mock.calls.map((c) => `${String(c[1] ?? "success")}:${String(c[0])}`);
